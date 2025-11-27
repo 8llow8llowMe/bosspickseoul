@@ -1,6 +1,8 @@
 dependencies {
     // Jasypt (Java Simplified Encryption)
     implementation 'com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5'
+    // SpringDoc (swagger - openapi 3.0)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
 }
 
 jar { enabled = true }
