@@ -1,0 +1,85 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.0.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+// 루트 프로젝트 자체는 실행 JAR을 만들 필요가 없으므로 OFF
+bootJar { enabled = false }
+jar { enabled = false }
+
+group = 'com.followfollowme'
+version = '0.0.1-SNAPSHOT'
+
+// 공통 레포지토리
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+// 서브모듈 공통 설정
+subprojects { project ->
+    // 껍데이 그룹 프로젝트 필터링
+    if (project.name in ['core']) {
+        // 필요 최소한의 설정만 하고 Spring Boot / bootJar 모두 끔
+        apply plugin: 'java'
+
+        bootJar { enabled = false }
+        jar { enabled = false }
+
+        return // 아래 Spring Boot 공통 설정은 실행 모듈(leaf)만 적용
+    }
+
+    // 실제 실행 모듈(leaf project) 기본 설정
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    bootJar { enabled = true }
+    jar { enabled = false }
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    configurations {
+        compileOnly { extendsFrom annotationProcessor }
+    }
+
+    dependencies {
+        // Spring Boot Starter
+        implementation 'org.springframework.boot:spring-boot-starter'
+        // Lombok & DevTools
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+        // test
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.named('test') { useJUnitPlatform() }
+}
+
+// Spring Cloud BOM & 공통 의존성
+subprojects.findAll {
+    it.name in []
+}.each { project ->
+    project.ext.set('springCloudVersion', '2024.0.0')
+
+    project.dependencyManagement {
+        imports {
+            // Spring Cloud BOM 적용
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${project.springCloudVersion}"
+        }
+    }
+
+    project.dependencies {
+        // Cloud 공통 설정용 (bootstrap.yml 인식)
+        implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap'
+    }
+}
