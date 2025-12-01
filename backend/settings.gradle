@@ -3,3 +3,4 @@ rootProject.name = 'backend'
 // Cores
 include 'core:common-core'
 include 'core:persistence-core'
+include 'core:redis-core'
