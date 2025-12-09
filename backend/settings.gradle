@@ -5,3 +5,6 @@ include 'core:common-core'
 include 'core:persistence-core'
 include 'core:redis-core'
 include 'core:security-core'
+
+// Cloud
+include 'cloud:api-gateway'
