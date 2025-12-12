@@ -1,8 +1,11 @@
 package com.followfollowme.nowdoboss.domainlayer.member.adapter.out.persistence.entity;
 
+import com.followfollowme.nowdoboss.domainlayer.member.domain.model.enums.MemberStatus;
 import com.followfollowme.nowdoboss.persistence.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -47,4 +50,9 @@ public class MemberEntity extends BaseEntity {
 
     @Comment("프로필 이미지 URL")
     private String profileImageUrl;
+
+    @Comment("회원 상태")
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private MemberStatus status;
 }
