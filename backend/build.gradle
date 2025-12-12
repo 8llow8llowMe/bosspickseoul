@@ -67,19 +67,20 @@ subprojects { project ->
 
 // Spring Cloud BOM & 공통 의존성
 subprojects.findAll {
-    it.name in ['api-gateway']
-}.each { project ->
-    project.ext.set('springCloudVersion', '2024.0.0')
+    it.name in ['api-gateway',
+                'service-discovery']
+}.each { cloudProject ->
+    cloudProject.apply plugin: 'io.spring.dependency-management'
 
-    project.dependencyManagement {
+    cloudProject.ext.set('springCloudVersion', '2024.0.0')
+
+    cloudProject.dependencyManagement {
         imports {
-            // Spring Cloud BOM 적용
-            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${project.springCloudVersion}"
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${cloudProject.springCloudVersion}"
         }
     }
 
-    project.dependencies {
-        // Cloud 공통 설정용 (bootstrap.yml 인식)
+    cloudProject.dependencies {
         implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap'
     }
 }
