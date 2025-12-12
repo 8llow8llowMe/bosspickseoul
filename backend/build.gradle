@@ -68,7 +68,8 @@ subprojects { project ->
 // Spring Cloud BOM & 공통 의존성
 subprojects.findAll {
     it.name in ['api-gateway',
-                'service-discovery']
+                'service-discovery',
+                'auth-service']
 }.each { cloudProject ->
     cloudProject.apply plugin: 'io.spring.dependency-management'
 
