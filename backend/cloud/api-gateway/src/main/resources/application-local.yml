@@ -1,6 +1,11 @@
 server:
   port: 8000
 
+spring:
+  cloud:
+    config:
+      enabled: false  # 로컬에서만 Config Server 비활성화
+
 eureka:
   client:
     serviceUrl:

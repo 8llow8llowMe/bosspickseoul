@@ -3,6 +3,3 @@ spring:
     name: ${SPRING_APPLICATION_NAME:api-gateway}
   profiles:
     active: local
-  config:
-    import:
-      optional:configserver:
