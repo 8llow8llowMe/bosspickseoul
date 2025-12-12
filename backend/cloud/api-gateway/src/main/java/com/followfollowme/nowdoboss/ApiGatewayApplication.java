@@ -2,8 +2,12 @@ package com.followfollowme.nowdoboss;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
-@SpringBootApplication
+@EnableDiscoveryClient
+@SpringBootApplication(scanBasePackages = {
+    "com.followfollowme.nowdoboss.apigateway"
+})
 public class ApiGatewayApplication {
 
     public static void main(String[] args) {
