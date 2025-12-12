@@ -1,5 +1,6 @@
 server:
   port: 8761  # Eureka 서버의 기본 포트
+  shutdown: graceful
 
 spring:
   cloud:
