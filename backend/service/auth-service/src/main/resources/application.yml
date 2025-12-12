@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:auth-service}
+  profiles:
+    active: local
