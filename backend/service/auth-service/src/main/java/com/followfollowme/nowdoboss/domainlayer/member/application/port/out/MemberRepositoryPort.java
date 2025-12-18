@@ -10,4 +10,6 @@ public interface MemberRepositoryPort {
     boolean existsByEmail(String email);
 
     Optional<Member> findByEmail(String email);
+
+    Optional<Member> findById(long memberId);
 }

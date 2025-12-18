@@ -33,4 +33,10 @@ public class MemberRepositoryAdapter implements MemberRepositoryPort {
         return memberRepository.findByEmail(email)
             .map(memberMapper::toDomainFromEntity);
     }
+
+    @Override
+    public Optional<Member> findById(long memberId) {
+        return memberRepository.findById(memberId)
+            .map(memberMapper::toDomainFromEntity);
+    }
 }
