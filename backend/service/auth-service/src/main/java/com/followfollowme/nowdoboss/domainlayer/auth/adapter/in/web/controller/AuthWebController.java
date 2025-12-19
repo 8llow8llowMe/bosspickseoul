@@ -1,9 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.controller;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
-import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.AuthGeneralLoginRequest;
-import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.AuthGeneralLoginResponse;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.AuthGeneralLoginRequest;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.TokenReissueRequest;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.AuthGeneralLoginCommand;
+import com.followfollowme.nowdoboss.domainlayer.auth.application.command.TokenReissueCommand;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.in.AuthWebUseCase;
 import com.followfollowme.nowdoboss.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,5 +49,15 @@ public class AuthWebController {
     public ResponseEntity<Response<Void>> logout(@AuthenticationPrincipal MemberLoginActive loginActive) {
         authWebUseCase.logout(loginActive.id());
         return ResponseEntity.ok().body(Response.success());
+    }
+
+    @Operation(
+        summary = "토큰 재발급",
+        description = "Refresh Token을 통해 Access Token을 재발급 받는 기능입니다."
+    )
+    @PostMapping("/token/reissue")
+    public ResponseEntity<Response<TokenReissueResponse>> reissueToken(@RequestBody TokenReissueRequest request) {
+        TokenReissueResponse response = authWebUseCase.reissueToken(TokenReissueCommand.from(request));
+        return ResponseEntity.ok().body(Response.success(response));
     }
 }
