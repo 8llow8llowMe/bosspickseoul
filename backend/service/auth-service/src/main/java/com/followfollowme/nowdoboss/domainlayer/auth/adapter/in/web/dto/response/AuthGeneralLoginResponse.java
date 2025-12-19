@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto;
+package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;

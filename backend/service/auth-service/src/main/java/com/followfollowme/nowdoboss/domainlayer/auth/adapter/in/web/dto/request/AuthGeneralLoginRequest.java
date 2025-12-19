@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto;
+package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
