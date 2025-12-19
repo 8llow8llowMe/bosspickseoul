@@ -32,4 +32,9 @@ public class AuthFacade implements AuthWebUseCase {
         // 3. Presenter를 통해 Info -> Response 반환
         return authPresenter.toGeneralLoginResponse(jwtTokenIssueInfo);
     }
+
+    @Override
+    public void logout(long memberId) {
+        jwtTokenProcessor.revokeToken(memberId);
+    }
 }

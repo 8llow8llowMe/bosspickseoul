@@ -6,4 +6,6 @@ import com.followfollowme.nowdoboss.domainlayer.auth.application.command.AuthGen
 public interface AuthWebUseCase {
 
     AuthGeneralLoginResponse generalLogin(AuthGeneralLoginCommand command);
+
+    void logout(long memberId);
 }
