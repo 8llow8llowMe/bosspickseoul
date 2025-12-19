@@ -40,6 +40,14 @@ snowflake:
   datacenter-id: 1
   worker-id: 1
 
+# Redis
+infra:
+  redis:
+    mode: standalone
+    host: localhost
+    port: 6379
+    password:
+
 eureka:
   client:
     serviceUrl:
