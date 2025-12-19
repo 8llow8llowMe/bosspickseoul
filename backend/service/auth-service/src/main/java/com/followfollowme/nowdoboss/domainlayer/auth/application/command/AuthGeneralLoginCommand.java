@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.application.command;
 
-import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.AuthGeneralLoginRequest;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.AuthGeneralLoginRequest;
 import lombok.Builder;
 
 @Builder
