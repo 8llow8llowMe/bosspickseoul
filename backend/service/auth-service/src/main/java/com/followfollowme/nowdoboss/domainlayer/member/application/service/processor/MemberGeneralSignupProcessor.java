@@ -4,6 +4,8 @@ import com.followfollowme.nowdoboss.domainlayer.member.application.command.Membe
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.enums.MemberStatus;
+import com.followfollowme.nowdoboss.global.exception.MemberErrorCode;
+import com.followfollowme.nowdoboss.global.exception.MemberException;
 import com.followfollowme.nowdoboss.persistence.util.SnowflakeIdGenerator;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import lombok.RequiredArgsConstructor;
@@ -31,11 +33,9 @@ public class MemberGeneralSignupProcessor {
         memberRepositoryPort.findByEmail(email)
             .ifPresent(existing -> {
                 throw switch (existing.status()) {
-                    case ACTIVE -> new IllegalArgumentException(
-                        String.format("이미 가입된 이메일 (%s) 입니다.", email)
-                    );
-                    case WITHDRAWN -> new IllegalArgumentException("이미 탈퇴한 회원입니다.");
-                    case SUSPENDED -> new IllegalArgumentException("정지된 회원입니다.");
+                    case ACTIVE -> new MemberException(MemberErrorCode.EXIST_MEMBER_EMAIL, email);
+                    case WITHDRAWN -> new MemberException(MemberErrorCode.MEMBER_ALREADY_WITHDRAWN, email);
+                    case SUSPENDED -> new MemberException(MemberErrorCode.MEMBER_SUSPENDED, email);
                 };
             });
     }
