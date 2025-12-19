@@ -1,18 +1,18 @@
 package com.followfollowme.nowdoboss.domainlayer.member.application.command;
 
-import com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.dto.MemberSignupRequest;
+import com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.dto.request.MemberGeneralSignupRequest;
 import lombok.Builder;
 
 @Builder
-public record MemberSignupCommand(
+public record MemberGeneralSignupCommand(
     String email,
     String password,
     String name,
     String nickname
 ) {
 
-    public static MemberSignupCommand from(MemberSignupRequest request) {
-        return MemberSignupCommand.builder()
+    public static MemberGeneralSignupCommand from(MemberGeneralSignupRequest request) {
+        return MemberGeneralSignupCommand.builder()
             .email(request.email())
             .password(request.password())
             .name(request.name())
