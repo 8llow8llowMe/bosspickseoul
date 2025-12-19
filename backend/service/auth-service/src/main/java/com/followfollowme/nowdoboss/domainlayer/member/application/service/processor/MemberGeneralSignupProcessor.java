@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.member.application.service.processor;
 
-import com.followfollowme.nowdoboss.domainlayer.member.application.command.MemberSignupCommand;
+import com.followfollowme.nowdoboss.domainlayer.member.application.command.MemberGeneralSignupCommand;
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.enums.MemberStatus;
@@ -18,7 +18,7 @@ public class MemberGeneralSignupProcessor {
     private final PasswordEncoder passwordEncoder;
     private final SnowflakeIdGenerator snowflakeIdGenerator;
 
-    public void generalSignup(MemberSignupCommand command) {
+    public void generalSignup(MemberGeneralSignupCommand command) {
         // 1. 이메일 중복 검증
         validateEmailNotExists(command.email());
 
@@ -40,7 +40,7 @@ public class MemberGeneralSignupProcessor {
             });
     }
 
-    private Member createMember(MemberSignupCommand command) {
+    private Member createMember(MemberGeneralSignupCommand command) {
         return Member.builder()
             .id(snowflakeIdGenerator.generateId())
             .email(command.email())
