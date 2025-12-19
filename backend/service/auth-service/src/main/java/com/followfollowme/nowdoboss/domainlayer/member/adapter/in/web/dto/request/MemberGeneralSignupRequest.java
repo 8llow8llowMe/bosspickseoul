@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "일반 회원가입 요청 DTO")
-public record MemberSignupRequest(
+public record MemberGeneralSignupRequest(
 
     @Schema(description = "이메일 주소", example = "user@example.com")
     @NotBlank(message = "이메일은 필수입니다.")
