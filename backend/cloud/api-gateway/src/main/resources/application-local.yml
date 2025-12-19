@@ -6,6 +6,15 @@ spring:
   cloud:
     config:
       enabled: false  # 로컬에서만 Config Server 비활성화
+    gateway:
+      routes:
+        # Swagger 문서용 라우트
+        - id: auth-service-docs
+          uri: http://localhost:8081
+          predicates:
+            - Path=/auth-service/** # /auth-service/v3/api-docs 로 들어오면
+          filters:
+            - StripPrefix=1  # /v3/api-docs 로 잘라서 전달
 
 eureka:
   client:
@@ -14,3 +23,19 @@ eureka:
 
 jwt:
   access-key: ENC(YDO9DGO7lP8iCqeTNW/SXWCv0697ep+bbGvMnjoJfMDEtWy1Zq/yfZDsovoggEcmLLOtZfHSpLYoRO0YEUlrOl3CvD5KWXo55haCMx7cZMg=)
+
+# SpringDoc (Swagger) Aggregation
+springdoc:
+  swagger-ui:
+    # Swagger UI 활성화 여부
+    enabled: true
+    # Swagger UI 접근 경로
+    path: /swagger-ui.html
+    # Swagger UI 구성에 대한 URL
+    config-url: /v3/api-docs/swagger-config
+    # 각 서비스의 OpenAPI 문서 URL 목록
+    urls:
+      - name: 회원 서비스 및 인증/인가 관련 API
+        url: /auth-service/v3/api-docs
+    operationsSorter: none # API 정렬 기준 없음
+    displayRequestDuration: true # 각 API 요청의 응답시간(ms) 표시
