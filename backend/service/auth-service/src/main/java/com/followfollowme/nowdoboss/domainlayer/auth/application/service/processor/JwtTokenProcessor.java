@@ -24,4 +24,9 @@ public class JwtTokenProcessor {
 
         return JwtTokenIssueInfo.of(memberId, role, accessToken);
     }
+
+    public void revokeToken(long memberId) {
+        jwtTokenStorePort.find(memberId)
+            .ifPresent(token -> jwtTokenStorePort.delete(memberId));
+    }
 }
