@@ -1,10 +1,13 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.application.service;
 
-import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.AuthGeneralLoginResponse;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.presenter.AuthPresenter;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.AuthGeneralLoginCommand;
+import com.followfollowme.nowdoboss.domainlayer.auth.application.command.TokenReissueCommand;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.GeneralLoginInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenIssueInfo;
+import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenReissueInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.in.AuthWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.GeneralLoginProcessor;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.JwtTokenProcessor;
@@ -36,5 +39,15 @@ public class AuthFacade implements AuthWebUseCase {
     @Override
     public void logout(long memberId) {
         jwtTokenProcessor.revokeToken(memberId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TokenReissueResponse reissueToken(TokenReissueCommand command) {
+        // 1. 토큰 재발급 수행
+        JwtTokenReissueInfo jwtTokenReissueInfo = jwtTokenProcessor.reissueTokens(command.memberId());
+
+        // 2. Presenter를 통해 Info -> Response 변환
+        return authPresenter.toTokenReissueResponse(jwtTokenReissueInfo);
     }
 }
