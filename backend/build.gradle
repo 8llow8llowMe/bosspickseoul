@@ -69,7 +69,8 @@ subprojects { project ->
 subprojects.findAll {
     it.name in ['api-gateway',
                 'service-discovery',
-                'auth-service']
+                'auth-service',
+                'commercial-service']
 }.each { cloudProject ->
     cloudProject.apply plugin: 'io.spring.dependency-management'
 

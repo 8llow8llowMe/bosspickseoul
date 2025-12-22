@@ -12,3 +12,4 @@ include 'cloud:service-discovery'
 
 // Services
 include 'service:auth-service'
+include 'service:commercial-service'
