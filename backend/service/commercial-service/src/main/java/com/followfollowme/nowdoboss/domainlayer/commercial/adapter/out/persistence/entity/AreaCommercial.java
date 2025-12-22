@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.entity;
+package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,20 +20,17 @@ import org.hibernate.annotations.Comment;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-    name = "facility_commercial",
+    name = "area_commercial",
     indexes = {
-        @Index(name = "idx_facility_commercial_period_code_commercial_code", columnList = "periodCode, commercialCode")
+        @Index(name = "idx_area_commercial_district_code", columnList = "districtCode"),
+        @Index(name = "idx_area_commercial_administration_code", columnList = "administrationCode")
     })
-public class FacilityCommercialEntity {
+public class AreaCommercial {
 
     @Id
-    @Comment("집객시설_상권 아이디")
+    @Comment("영역_상권 아이디")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Comment("기준 년분기 코드")
-    @Column(length = 5, nullable = false)
-    private String periodCode;
 
     @Comment("상권 구분 코드")
     @Column(length = 1, nullable = false)
@@ -51,24 +48,27 @@ public class FacilityCommercialEntity {
     @Column(length = 80, nullable = false)
     private String commercialCodeName;
 
-    @Comment("집객 시설 수")
-    private Long facilityCnt;
+    @Comment("x 좌표 값")
+    @Column(nullable = false)
+    private Double x;
 
-    @Comment("초등학교 수")
-    private Long elementarySchoolCnt;
+    @Comment("y 좌표 값")
+    @Column(nullable = false)
+    private Double y;
 
-    @Comment("중학교 수")
-    private Long middleSchoolCnt;
+    @Comment("자치구 코드")
+    @Column(length = 5, nullable = false)
+    private String districtCode;
 
-    @Comment("고등학교 수")
-    private Long highSchoolCnt;
+    @Comment("자치구 코드 명")
+    @Column(length = 10, nullable = false)
+    private String districtCodeName;
 
-    @Comment("대학교 수")
-    private Long universityCnt;
+    @Comment("행정동 코드")
+    @Column(length = 10, nullable = false)
+    private String administrationCode;
 
-    @Comment("지하철 역 수")
-    private Long subwayStationCnt;
-
-    @Comment("버스 정거장 수")
-    private Long busStopCnt;
+    @Comment("행정동 코드 명")
+    @Column(length = 20, nullable = false)
+    private String administrationCodeName;
 }

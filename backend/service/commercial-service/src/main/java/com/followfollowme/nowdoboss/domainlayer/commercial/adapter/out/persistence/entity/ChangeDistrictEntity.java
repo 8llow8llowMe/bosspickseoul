@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.entity;
+package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

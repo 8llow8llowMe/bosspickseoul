@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.entity;
+package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,14 +20,14 @@ import org.hibernate.annotations.Comment;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-    name = "income_commercial",
+    name = "facility_commercial",
     indexes = {
-        @Index(name = "idx_income_commercial_period_code_commercial_code", columnList = "periodCode, commercialCode")
+        @Index(name = "idx_facility_commercial_period_code_commercial_code", columnList = "periodCode, commercialCode")
     })
-public class IncomeCommercialEntity {
+public class FacilityCommercialEntity {
 
     @Id
-    @Comment("소득소비_상권 아이디")
+    @Comment("집객시설_상권 아이디")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -51,39 +51,24 @@ public class IncomeCommercialEntity {
     @Column(length = 80, nullable = false)
     private String commercialCodeName;
 
-    @Comment("월 평균 소득 금액")
-    private Long monthAvgIncome;
+    @Comment("집객 시설 수")
+    private Long facilityCnt;
 
-    @Comment("소득 구간 코드")
-    private Integer incomeSectionCode;
+    @Comment("초등학교 수")
+    private Long elementarySchoolCnt;
 
-    @Comment("지출 총금액")
-    private Long totalPrice;
+    @Comment("중학교 수")
+    private Long middleSchoolCnt;
 
-    @Comment("식료품 지출 총금액")
-    private Long groceryPrice;
+    @Comment("고등학교 수")
+    private Long highSchoolCnt;
 
-    @Comment("의류 신발 지출 총금액")
-    private Long clothesPrice;
+    @Comment("대학교 수")
+    private Long universityCnt;
 
-    @Comment("의료비 지출 총금액")
-    private Long medicalPrice;
+    @Comment("지하철 역 수")
+    private Long subwayStationCnt;
 
-    @Comment("생활용품 지출 총금액")
-    private Long lifePrice;
-
-    @Comment("교통 지출 총금액")
-    private Long trafficPrice;
-
-    @Comment("여가 지출 총금액")
-    private Long leisurePrice;
-
-    @Comment("문화 지출 총금액")
-    private Long culturePrice;
-
-    @Comment("교육 지출 총금액")
-    private Long educationPrice;
-
-    @Comment("유흥 총금액")
-    private Long luxuryPrice;
+    @Comment("버스 정거장 수")
+    private Long busStopCnt;
 }
