@@ -39,7 +39,7 @@ public class FacilityCommercialEntity {
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드 명")
+    @Comment("상권 구분 코드명")
     @Column(length = 4, nullable = false)
     private String commercialClassificationCodeName;
 
@@ -47,7 +47,7 @@ public class FacilityCommercialEntity {
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드 명")
+    @Comment("상권 코드명")
     @Column(length = 80, nullable = false)
     private String commercialCodeName;
 
