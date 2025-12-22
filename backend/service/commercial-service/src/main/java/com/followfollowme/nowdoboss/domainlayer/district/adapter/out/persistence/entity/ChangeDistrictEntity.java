@@ -53,8 +53,8 @@ public class ChangeDistrictEntity {
     private String changeIndicatorName;
 
     @Comment("운영 영업 개월 평균")
-    private int openedMonths;
+    private Integer openedMonths;
 
     @Comment("폐업 영업 개월 평균")
-    private int closedMonths;
+    private Integer closedMonths;
 }
