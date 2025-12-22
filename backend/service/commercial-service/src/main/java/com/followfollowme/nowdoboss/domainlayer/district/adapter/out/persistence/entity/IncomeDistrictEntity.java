@@ -40,7 +40,7 @@ public class IncomeDistrictEntity {
     @Column(length = 5, nullable = false)
     private String districtCode;
 
-    @Comment("자치구 코드 명")
+    @Comment("자치구 코드명")
     @Column(length = 10, nullable = false)
     private String districtCodeName;
 
