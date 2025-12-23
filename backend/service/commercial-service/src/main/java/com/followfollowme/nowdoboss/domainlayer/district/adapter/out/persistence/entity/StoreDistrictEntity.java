@@ -47,8 +47,7 @@ public class StoreDistrictEntity {
     @Comment("자치구 코드 명")
     @Column(length = 10, nullable = false)
     private String districtCodeName;
-
-
+    
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)
     private String serviceCode;
@@ -62,23 +61,30 @@ public class StoreDistrictEntity {
     private ServiceType serviceType;
 
     @Comment("점포 수")
+    @Column(nullable = false)
     private Long totalStore;
 
     @Comment("유사 업종 점포 수")
+    @Column(nullable = false)
     private Long similarStore;
 
     @Comment("개업 점포 수")
+    @Column(nullable = false)
     private Long openedStore;
 
     @Comment("폐업 점포 수")
+    @Column(nullable = false)
     private Long closedStore;
 
     @Comment("프랜차이즈 점포 수")
+    @Column(nullable = false)
     private Long franchiseStore;
 
     @Comment("개업률")
+    @Column(nullable = false)
     private Double openedRate;
 
     @Comment("폐업률")
+    @Column(nullable = false)
     private Double closedRate;
 }
