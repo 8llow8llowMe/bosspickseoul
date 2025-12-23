@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.commercial.domain.model;
+package com.followfollowme.nowdoboss.domainlayer.region.domain.model;
 
 import lombok.Builder;
 
