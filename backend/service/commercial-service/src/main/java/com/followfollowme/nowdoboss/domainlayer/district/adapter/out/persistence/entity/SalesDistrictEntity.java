@@ -52,7 +52,7 @@ public class SalesDistrictEntity {
     @Column(length = 8, nullable = false)
     private String serviceCode;
 
-    @Comment("서비스 업종 코드 명")
+    @Comment("서비스 업종 코드명")
     @Column(length = 20, nullable = false)
     private String serviceCodeName;
 
