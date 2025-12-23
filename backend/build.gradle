@@ -15,6 +15,10 @@ version = '0.0.1-SNAPSHOT'
 allprojects {
     repositories {
         mavenCentral()
+
+        maven {
+            url "https://repo.osgeo.org/repository/release/"
+        }
     }
 }
 
@@ -70,7 +74,8 @@ subprojects.findAll {
     it.name in ['api-gateway',
                 'service-discovery',
                 'auth-service',
-                'commercial-service']
+                'commercial-service',
+                'district-service']
 }.each { cloudProject ->
     cloudProject.apply plugin: 'io.spring.dependency-management'
 
