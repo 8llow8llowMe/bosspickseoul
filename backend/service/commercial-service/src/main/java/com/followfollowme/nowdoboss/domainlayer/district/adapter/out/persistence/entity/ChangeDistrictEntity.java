@@ -49,12 +49,14 @@ public class ChangeDistrictEntity {
     private String changeIndicator;
 
     @Comment("상권 변화 지표명")
-    @Column(length = 15)
+    @Column(length = 15, nullable = false)
     private String changeIndicatorName;
 
     @Comment("운영 영업 개월 평균")
+    @Column(nullable = false)
     private Integer openedMonths;
 
     @Comment("폐업 영업 개월 평균")
+    @Column(nullable = false)
     private Integer closedMonths;
 }
