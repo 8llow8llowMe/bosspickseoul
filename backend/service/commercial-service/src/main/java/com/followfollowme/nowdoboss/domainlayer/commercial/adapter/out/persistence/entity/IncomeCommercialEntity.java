@@ -52,38 +52,50 @@ public class IncomeCommercialEntity {
     private String commercialCodeName;
 
     @Comment("월 평균 소득 금액")
+    @Column(nullable = false)
     private Long monthAvgIncome;
 
     @Comment("소득 구간 코드")
+    @Column(nullable = false)
     private Integer incomeSectionCode;
 
     @Comment("지출 총금액")
+    @Column(nullable = false)
     private Long totalPrice;
 
     @Comment("식료품 지출 총금액")
+    @Column(nullable = false)
     private Long groceryPrice;
 
     @Comment("의류 신발 지출 총금액")
+    @Column(nullable = false)
     private Long clothesPrice;
 
     @Comment("의료비 지출 총금액")
+    @Column(nullable = false)
     private Long medicalPrice;
 
     @Comment("생활용품 지출 총금액")
+    @Column(nullable = false)
     private Long lifePrice;
 
     @Comment("교통 지출 총금액")
+    @Column(nullable = false)
     private Long trafficPrice;
 
     @Comment("여가 지출 총금액")
+    @Column(nullable = false)
     private Long leisurePrice;
 
     @Comment("문화 지출 총금액")
+    @Column(nullable = false)
     private Long culturePrice;
 
     @Comment("교육 지출 총금액")
+    @Column(nullable = false)
     private Long educationPrice;
 
     @Comment("유흥 총금액")
+    @Column(nullable = false)
     private Long luxuryPrice;
 }
