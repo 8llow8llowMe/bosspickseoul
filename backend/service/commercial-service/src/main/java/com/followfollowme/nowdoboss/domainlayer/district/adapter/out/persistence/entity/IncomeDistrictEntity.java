@@ -45,5 +45,6 @@ public class IncomeDistrictEntity {
     private String districtCodeName;
 
     @Comment("지출 총금액")
+    @Column(nullable = false)
     private Long totalPrice;
 }
