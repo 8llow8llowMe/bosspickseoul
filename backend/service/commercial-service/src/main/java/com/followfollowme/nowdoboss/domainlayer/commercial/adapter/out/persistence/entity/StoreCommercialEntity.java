@@ -68,23 +68,30 @@ public class StoreCommercialEntity {
     private ServiceType serviceType;
 
     @Comment("점포 수")
+    @Column(nullable = false)
     private Long totalStore;
 
     @Comment("유사 업종 점포 수")
+    @Column(nullable = false)
     private Long similarStore;
 
     @Comment("개업률")
+    @Column(nullable = false)
     private Double openedRate;
 
     @Comment("개업 점포 수")
+    @Column(nullable = false)
     private Long openedStore;
 
     @Comment("폐업률")
+    @Column(nullable = false)
     private Double closedRate;
 
     @Comment("폐업 점포 수")
+    @Column(nullable = false)
     private Long closedStore;
 
     @Comment("프렌차이즈 점포 수")
+    @Column(nullable = false)
     private Long franchiseStore;
 }
