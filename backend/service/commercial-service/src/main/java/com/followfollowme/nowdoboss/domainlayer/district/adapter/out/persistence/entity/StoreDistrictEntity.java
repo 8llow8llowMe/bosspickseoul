@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.entity;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.domain.enums.ServiceType;
+import com.followfollowme.nowdoboss.domainlayer.category.domain.enums.ServiceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,7 +47,7 @@ public class StoreDistrictEntity {
     @Comment("자치구 코드 명")
     @Column(length = 10, nullable = false)
     private String districtCodeName;
-    
+
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)
     private String serviceCode;

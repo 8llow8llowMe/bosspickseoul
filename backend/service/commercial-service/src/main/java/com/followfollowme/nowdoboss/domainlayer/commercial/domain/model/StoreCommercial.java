@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.domain.model;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.domain.enums.ServiceType;
+import com.followfollowme.nowdoboss.domainlayer.category.domain.enums.ServiceType;
 import lombok.Builder;
 
 @Builder
