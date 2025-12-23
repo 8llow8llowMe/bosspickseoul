@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.persistence.entity;
+package com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -25,7 +25,7 @@ import org.hibernate.annotations.Comment;
         @Index(name = "idx_area_commercial_district_code", columnList = "districtCode"),
         @Index(name = "idx_area_commercial_administration_code", columnList = "administrationCode")
     })
-public class AreaCommercial {
+public class AreaCommercialEntity {
 
     @Id
     @Comment("영역_상권 아이디")
