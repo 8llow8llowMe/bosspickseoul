@@ -52,29 +52,38 @@ public class PopulationCommercialEntity {
     private String commercialCodeName;
 
     @Comment("총 상주인구 수")
+    @Column(nullable = false)
     private Long totalPopulation;
 
     @Comment("남성 상주인구 수")
+    @Column(nullable = false)
     private Long malePopulation;
 
     @Comment("여성 상주인구 수")
+    @Column(nullable = false)
     private Long femalePopulation;
 
     @Comment("연령대 10 상주인구 수")
+    @Column(nullable = false)
     private Long teenPopulation;
 
     @Comment("연령대 20 상주인구 수")
+    @Column(nullable = false)
     private Long twentyPopulation;
 
     @Comment("연령대 30 상주인구 수")
+    @Column(nullable = false)
     private Long thirtyPopulation;
 
     @Comment("연령대 40 상주인구 수")
+    @Column(nullable = false)
     private Long fortyPopulation;
 
     @Comment("연령대 50 상주인구 수")
+    @Column(nullable = false)
     private Long fiftyPopulation;
 
     @Comment("연령대 60 이상 상주인구 수")
+    @Column(nullable = false)
     private Long sixtyPopulation;
 }
