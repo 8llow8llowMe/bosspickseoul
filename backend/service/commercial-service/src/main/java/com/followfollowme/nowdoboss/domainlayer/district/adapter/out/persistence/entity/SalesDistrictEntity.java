@@ -61,74 +61,90 @@ public class SalesDistrictEntity {
     private ServiceType serviceType;
 
     @Comment("당월 매출 금액")
+    @Column(nullable = false)
     private Long monthSales;
 
     @Comment("월요일 매출 금액")
+    @Column(nullable = false)
     private Long monSales;
 
     @Comment("화요일 매출 금액")
+    @Column(nullable = false)
     private Long tueSales;
 
     @Comment("수요일 매출 금액")
+    @Column(nullable = false)
     private Long wedSales;
 
     @Comment("목요일 매출 금액")
+    @Column(nullable = false)
     private Long thuSales;
 
     @Comment("금요일 매출 금액")
+    @Column(nullable = false)
     private Long friSales;
 
     @Comment("토요일 매출 금액")
+    @Column(nullable = false)
     private Long satSales;
 
     @Comment("일요일 매출 금액")
+    @Column(nullable = false)
     private Long sunSales;
 
     @Comment("시간대 00 ~ 06 매출 금액")
-    @Column(name = "sales_00")
+    @Column(name = "sales_00", nullable = false)
     private Long sales00;
 
     @Comment("시간대 06 ~ 11 매출 금액")
-    @Column(name = "sales_06")
+    @Column(name = "sales_06", nullable = false)
     private Long sales06;
 
     @Comment("시간대 11 ~ 14 매출 금액")
-    @Column(name = "sales_11")
+    @Column(name = "sales_11", nullable = false)
     private Long sales11;
 
     @Comment("시간대 14 ~ 17 매출 금액")
-    @Column(name = "sales_14")
+    @Column(name = "sales_14", nullable = false)
     private Long sales14;
 
     @Comment("시간대 17 ~ 21 매출 금액")
-    @Column(name = "sales_17")
+    @Column(name = "sales_17", nullable = false)
     private Long sales17;
 
     @Comment("시간대 21 ~ 24 매출 금액")
-    @Column(name = "sales_21")
+    @Column(name = "sales_21", nullable = false)
     private Long sales21;
 
     @Comment("남성 매출 금액")
+    @Column(nullable = false)
     private Long maleSales;
 
     @Comment("여성 매출 금액")
+    @Column(nullable = false)
     private Long femaleSales;
 
     @Comment("10대 매출_금액")
+    @Column(nullable = false)
     private Long teenSales;
 
     @Comment("20대 매출_금액")
+    @Column(nullable = false)
     private Long twentySales;
 
     @Comment("30대 매출_금액")
+    @Column(nullable = false)
     private Long thirtySales;
 
     @Comment("40대 매출_금액")
+    @Column(nullable = false)
     private Long fortySales;
 
     @Comment("50대 매출_금액")
+    @Column(nullable = false)
     private Long fiftySales;
 
     @Comment("60대 매출_금액")
+    @Column(nullable = false)
     private Long sixtySales;
 }
