@@ -52,23 +52,30 @@ public class FacilityCommercialEntity {
     private String commercialCodeName;
 
     @Comment("집객 시설 수")
+    @Column(nullable = false)
     private Long facilityCnt;
 
     @Comment("초등학교 수")
+    @Column(nullable = false)
     private Long elementarySchoolCnt;
 
     @Comment("중학교 수")
+    @Column(nullable = false)
     private Long middleSchoolCnt;
 
     @Comment("고등학교 수")
+    @Column(nullable = false)
     private Long highSchoolCnt;
 
     @Comment("대학교 수")
+    @Column(nullable = false)
     private Long universityCnt;
 
     @Comment("지하철 역 수")
+    @Column(nullable = false)
     private Long subwayStationCnt;
 
     @Comment("버스 정거장 수")
+    @Column(nullable = false)
     private Long busStopCnt;
 }
