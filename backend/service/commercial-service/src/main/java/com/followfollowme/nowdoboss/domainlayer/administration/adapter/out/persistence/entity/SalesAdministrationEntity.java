@@ -59,11 +59,14 @@ public class SalesAdministrationEntity {
     private ServiceType serviceType;
 
     @Comment("당월 매출 금액")
+    @Column(nullable = false)
     private Long monthSales;
 
     @Comment("주중 매출 금액")
+    @Column(nullable = false)
     private Long weekdaySales;
 
     @Comment("주말 매출 금액")
+    @Column(nullable = false)
     private Long weekendSales;
 }
