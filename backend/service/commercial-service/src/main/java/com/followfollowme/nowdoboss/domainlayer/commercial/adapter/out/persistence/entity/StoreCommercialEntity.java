@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.persistence.entity;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.domain.enums.ServiceType;
+import com.followfollowme.nowdoboss.domainlayer.category.domain.enums.ServiceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

@@ -60,7 +60,7 @@ public class AreaCommercial {
     @Column(length = 5, nullable = false)
     private String districtCode;
 
-    @Comment("자치구 코드 명")
+    @Comment("자치구 코드명")
     @Column(length = 10, nullable = false)
     private String districtCodeName;
 
@@ -68,7 +68,7 @@ public class AreaCommercial {
     @Column(length = 10, nullable = false)
     private String administrationCode;
 
-    @Comment("행정동 코드 명")
+    @Comment("행정동 코드명")
     @Column(length = 20, nullable = false)
     private String administrationCodeName;
 }
