@@ -2,11 +2,14 @@ package com.followfollowme.nowdoboss.domainlayer.region.application.service;
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.presenter.RegionPresenter;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.in.RegionWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.region.application.service.processor.RegionQueryProcessor;
+import com.followfollowme.nowdoboss.domainlayer.region.domain.enums.RegionCodeType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,4 +35,13 @@ public class RegionFacade implements RegionWebUseCase {
         List<CommercialAreaInfo> commercialAreaInfos = regionQueryProcessor.getCommercialsByAdministrationCode(administrationCode);
         return regionPresenter.toCommercialAreaResponses(commercialAreaInfos);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RegionCodeLookupResponse getRegionCodeLookup(RegionCodeType type, String codeName) {
+        RegionCodeLookupInfo info = regionQueryProcessor.getRegionCodeLookup(type, codeName);
+        return regionPresenter.toRegionCodeLookupResponse(info);
+    }
+
+
 }
