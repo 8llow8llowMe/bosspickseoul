@@ -7,6 +7,7 @@ import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.respon
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.in.RegionWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.region.domain.enums.RegionCodeType;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,9 @@ public class RegionWebController {
         description = "선택한 자치구에 포함된 행정동 목록과 중심 좌표를 조회합니다."
     )
     @GetMapping("/districts/{districtCode}/administrations")
-    public ResponseEntity<Response<List<AdministrationAreaResponse>>> getAdministrationsByDistrictCode(@PathVariable String districtCode) {
+    public ResponseEntity<Response<List<AdministrationAreaResponse>>> getAdministrationsByDistrictCode(
+        @Parameter(description = "자치구 코드", required = true, example = "11110") @PathVariable String districtCode
+    ) {
         List<AdministrationAreaResponse> responses = regionWebUseCase.getAdministrationsByDistrictCode(districtCode);
         return ResponseEntity.ok().body(Response.success(responses));
     }
@@ -40,7 +43,9 @@ public class RegionWebController {
         description = "선택한 행정동에 포함된 상권 목록과 중심 좌표를 조회합니다."
     )
     @GetMapping("/administrations/{administrationCode}/commercial-areas")
-    public ResponseEntity<Response<List<CommercialAreaResponse>>> getCommercialAreas(@PathVariable String administrationCode) {
+    public ResponseEntity<Response<List<CommercialAreaResponse>>> getCommercialAreas(
+        @Parameter(description = "행정동 코드", required = true, example = "11110515") @PathVariable String administrationCode
+    ) {
         List<CommercialAreaResponse> responses = regionWebUseCase.getCommercialsByAdministrationCode(administrationCode);
         return ResponseEntity.ok().body(Response.success(responses));
     }
@@ -51,7 +56,8 @@ public class RegionWebController {
     )
     @GetMapping("/regions/code-lookup")
     public ResponseEntity<Response<RegionCodeLookupResponse>> lookupRegionCode(
-        @RequestParam RegionCodeType type, @RequestParam String codeName
+        @Parameter(description = "지역 코드 타입", required = true, example = "DISTRICT") @RequestParam RegionCodeType type,
+        @Parameter(description = "지역 코드명", required = true, example = "종로구") @RequestParam String codeName
     ) {
         RegionCodeLookupResponse response = regionWebUseCase.getRegionCodeLookup(type, codeName);
         return ResponseEntity.ok().body(Response.success(response));
