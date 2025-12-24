@@ -2,8 +2,10 @@ package com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.presenter
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -40,5 +42,16 @@ public class RegionPresenter {
         return infos.stream()
             .map(this::toCommercialAreaResponse)
             .toList();
+    }
+
+    public RegionCodeLookupResponse toRegionCodeLookupResponse(RegionCodeLookupInfo info) {
+        return RegionCodeLookupResponse.builder()
+            .districtCode(info.districtCode())
+            .districtCodeName(info.districtCodeName())
+            .administrationCode(info.administrationCode())
+            .administrationCodeName(info.administrationCodeName())
+            .commercialCode(info.commercialCode())
+            .commercialCodeName(info.commercialCodeName())
+            .build();
     }
 }
