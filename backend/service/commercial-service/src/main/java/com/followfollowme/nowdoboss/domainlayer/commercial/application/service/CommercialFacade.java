@@ -1,7 +1,9 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service;
 
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
@@ -22,5 +24,12 @@ public class CommercialFacade implements CommercialWebUseCase {
     public List<CommercialServiceCategoryResponse> getServiceCategoriesByCommercialCode(String commercialCode) {
         List<CommercialServiceCategoryInfo> infos = commercialQueryProcessor.getServiceCategoriesByCommercialCode(commercialCode);
         return commercialPresenter.toServiceCategoryResponses(infos);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialFootTrafficResponse getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        CommercialFootTrafficInfo info = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        return commercialPresenter.toFootTrafficResponse(info);
     }
 }
