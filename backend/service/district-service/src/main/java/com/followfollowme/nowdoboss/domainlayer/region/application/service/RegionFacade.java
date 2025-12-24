@@ -25,15 +25,15 @@ public class RegionFacade implements RegionWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<AdministrationAreaResponse> getAdministrationsByDistrictCode(String districtCode) {
-        List<AdministrationAreaInfo> administrations = regionQueryProcessor.getAdministrationsByDistrictCode(districtCode);
-        return regionPresenter.toAdministrationAreaResponses(administrations);
+        List<AdministrationAreaInfo> infos = regionQueryProcessor.getAdministrationsByDistrictCode(districtCode);
+        return regionPresenter.toAdministrationAreaResponses(infos);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CommercialAreaResponse> getCommercialsByAdministrationCode(String administrationCode) {
-        List<CommercialAreaInfo> commercialAreaInfos = regionQueryProcessor.getCommercialsByAdministrationCode(administrationCode);
-        return regionPresenter.toCommercialAreaResponses(commercialAreaInfos);
+        List<CommercialAreaInfo> infos = regionQueryProcessor.getCommercialsByAdministrationCode(administrationCode);
+        return regionPresenter.toCommercialAreaResponses(infos);
     }
 
     @Override
