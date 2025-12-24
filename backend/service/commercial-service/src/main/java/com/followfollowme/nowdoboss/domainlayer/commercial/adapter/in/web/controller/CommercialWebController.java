@@ -1,9 +1,11 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.controller;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,8 +29,24 @@ public class CommercialWebController {
         description = "선택한 상권에 실제 존재하는 서비스 업종 목록을 조회하는 기능입니다."
     )
     @GetMapping("/{commercialCode}/service-categories")
-    public ResponseEntity<Response<List<CommercialServiceCategoryResponse>>> getServiceCategories(@PathVariable String commercialCode) {
+    public ResponseEntity<Response<List<CommercialServiceCategoryResponse>>> getServiceCategories(
+        @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode
+    ) {
         List<CommercialServiceCategoryResponse> responses = commercialWebUseCase.getServiceCategoriesByCommercialCode(commercialCode);
         return ResponseEntity.ok().body(Response.success(responses));
+    }
+
+    @Operation(
+        summary = "해당 상권의 분기별 유동 인구 조회",
+        description = "주어진 상권코드에 대해 해당 분기의 유동 인구 데이터를 조회합니다. 기준년분기코드가 주어지지 않으면 2023년 3분기의 데이터를 사용합니다."
+    )
+    @GetMapping("/{commercialCode}/foot-traffic")
+    public ResponseEntity<Response<CommercialFootTrafficResponse>> getFootTrafficByCommercialCodeAndPeriod(
+        @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
+        @Parameter(description = "기준 년분기 코드 (YYYYQ 형식)", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+    ) {
+        CommercialFootTrafficResponse response = commercialWebUseCase.getFootTrafficByPeriodCodeAndCommercialCode(
+            periodCode, commercialCode);
+        return ResponseEntity.ok().body(Response.success(response));
     }
 }
