@@ -2,8 +2,10 @@ package com.followfollowme.nowdoboss.domainlayer.region.application.service.proc
 
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.out.AreaCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.out.CoordinateTransformPort;
+import com.followfollowme.nowdoboss.domainlayer.region.domain.enums.RegionCodeType;
 import com.followfollowme.nowdoboss.domainlayer.region.domain.model.AreaCommercial;
 import java.util.HashSet;
 import java.util.List;
@@ -45,5 +47,16 @@ public class RegionQueryProcessor {
                 return CommercialAreaInfo.from(area, center);
             })
             .toList();
+    }
+
+    public RegionCodeLookupInfo getRegionCodeLookup(RegionCodeType type, String codeName) {
+        return switch (type) {
+            case DISTRICT -> areaCommercialRepositoryPort.findDistinctByDistrictCodeName(codeName)
+                .orElseThrow(() -> new IllegalArgumentException("해당 자치구 코드가 존재하지 않습니다."));
+            case ADMINISTRATION -> areaCommercialRepositoryPort.findDistinctByAdministrationCodeName(codeName)
+                .orElseThrow(() -> new IllegalArgumentException("해당 행정동 코드가 존재하지 않습니다."));
+            case COMMERCIAL -> areaCommercialRepositoryPort.findDistinctByCommercialCodeName(codeName)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상권 코드가 존재하지 않습니다."));
+        };
     }
 }
