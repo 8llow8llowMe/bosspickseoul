@@ -3,7 +3,9 @@ package com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.controlle
 import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.in.RegionWebUseCase;
+import com.followfollowme.nowdoboss.domainlayer.region.domain.enums.RegionCodeType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
@@ -12,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,5 +43,17 @@ public class RegionWebController {
     public ResponseEntity<Response<List<CommercialAreaResponse>>> getCommercialAreas(@PathVariable String administrationCode) {
         List<CommercialAreaResponse> responses = regionWebUseCase.getCommercialsByAdministrationCode(administrationCode);
         return ResponseEntity.ok().body(Response.success(responses));
+    }
+
+    @Operation(
+        summary = "지역 코드명 기반 계층 조회",
+        description = "자치구 / 행정동 / 상권 코드명을 기준으로 상위 지역 계층 정보를 조회합니다."
+    )
+    @GetMapping("/regions/code-lookup")
+    public ResponseEntity<Response<RegionCodeLookupResponse>> lookupRegionCode(
+        @RequestParam RegionCodeType type, @RequestParam String codeName
+    ) {
+        RegionCodeLookupResponse response = regionWebUseCase.getRegionCodeLookup(type, codeName);
+        return ResponseEntity.ok().body(Response.success(response));
     }
 }
