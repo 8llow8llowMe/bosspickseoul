@@ -2,10 +2,12 @@ package com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.entity.AreaCommercialEntity;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.repository.AreaCommercialRepository;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.mapper.AreaCommercialMapper;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.out.AreaCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.region.domain.model.AreaCommercial;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -26,5 +28,23 @@ public class AreaCommercialRepositoryAdapter implements AreaCommercialRepository
     public List<AreaCommercial> findAllByAdministrationCode(String administrationCode) {
         List<AreaCommercialEntity> entities = areaCommercialRepository.findAllByAdministrationCode(administrationCode);
         return areaCommercialMapper.toDomainListFromEntityList(entities);
+    }
+
+    @Override
+    public Optional<RegionCodeLookupInfo> findDistinctByDistrictCodeName(String districtCodeName) {
+        return areaCommercialRepository.findDistinctByDistrictCodeName(districtCodeName)
+            .map(RegionCodeLookupInfo::from);
+    }
+
+    @Override
+    public Optional<RegionCodeLookupInfo> findDistinctByAdministrationCodeName(String administrationCodeName) {
+        return areaCommercialRepository.findDistinctByAdministrationCodeName(administrationCodeName)
+            .map(RegionCodeLookupInfo::from);
+    }
+
+    @Override
+    public Optional<RegionCodeLookupInfo> findDistinctByCommercialCodeName(String commercialCodeName) {
+        return areaCommercialRepository.findDistinctByCommercialCodeName(commercialCodeName)
+            .map(RegionCodeLookupInfo::from);
     }
 }
