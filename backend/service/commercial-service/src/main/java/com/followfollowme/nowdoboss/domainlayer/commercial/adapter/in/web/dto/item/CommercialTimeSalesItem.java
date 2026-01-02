@@ -19,7 +19,7 @@ public record CommercialTimeSalesItem(
     @Schema(description = "오후 시간대 (14:00 ~ 17:00) 매출액", example = "300000")
     long sales14,
 
-    @Schema(description = "새벽 시간대 (17:00 ~ 21:00) 매출액", example = "450000")
+    @Schema(description = "저녁 시간대 (17:00 ~ 21:00) 매출액", example = "450000")
     long sales17,
 
     @Schema(description = "밤 시간대 (21:00 ~ 24:00) 매출액", example = "300000")
