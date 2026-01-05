@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "상권&업종의 연령대별 및 성별별 유동 매출액 비율 정보 DTO")
+@Schema(description = "상권&업종의 연령대별 및 성별별 매출액 비율 정보 DTO")
 public record CommercialAgeGenderPercentSalesItem(
 
     @Schema(description = "10대 남성의 매출액 비율", example = "0.2")
