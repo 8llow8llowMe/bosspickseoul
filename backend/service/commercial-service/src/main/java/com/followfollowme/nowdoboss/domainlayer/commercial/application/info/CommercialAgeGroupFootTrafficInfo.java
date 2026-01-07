@@ -13,14 +13,14 @@ public record CommercialAgeGroupFootTrafficInfo(
     long sixtyFootTraffic
 ) {
 
-    public static CommercialAgeGroupFootTrafficInfo from(FootTrafficCommercial footTraffic) {
+    public static CommercialAgeGroupFootTrafficInfo from(FootTrafficCommercial footTrafficCommercial) {
         return CommercialAgeGroupFootTrafficInfo.builder()
-            .teenFootTraffic(footTraffic.teenFootTraffic())
-            .twentyFootTraffic(footTraffic.twentyFootTraffic())
-            .thirtyFootTraffic(footTraffic.thirtyFootTraffic())
-            .fortyFootTraffic(footTraffic.fortyFootTraffic())
-            .fiftyFootTraffic(footTraffic.fiftyFootTraffic())
-            .sixtyFootTraffic(footTraffic.sixtyFootTraffic())
+            .teenFootTraffic(footTrafficCommercial.teenFootTraffic())
+            .twentyFootTraffic(footTrafficCommercial.twentyFootTraffic())
+            .thirtyFootTraffic(footTrafficCommercial.thirtyFootTraffic())
+            .fortyFootTraffic(footTrafficCommercial.fortyFootTraffic())
+            .fiftyFootTraffic(footTrafficCommercial.fiftyFootTraffic())
+            .sixtyFootTraffic(footTrafficCommercial.sixtyFootTraffic())
             .build();
     }
 }

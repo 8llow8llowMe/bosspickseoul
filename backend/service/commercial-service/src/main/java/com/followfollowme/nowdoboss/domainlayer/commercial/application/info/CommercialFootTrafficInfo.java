@@ -11,12 +11,12 @@ public record CommercialFootTrafficInfo(
     CommercialAgeGenderPercentFootTrafficInfo ageGenderPercentFootTraffic
 ) {
 
-    public static CommercialFootTrafficInfo from(FootTrafficCommercial footTraffic) {
+    public static CommercialFootTrafficInfo from(FootTrafficCommercial footTrafficCommercial) {
         return CommercialFootTrafficInfo.builder()
-            .timeSlotFootTraffic(CommercialTimeSlotFootTrafficInfo.from(footTraffic))
-            .dayOfWeekFootTraffic(CommercialDayOfWeekFootTrafficInfo.from(footTraffic))
-            .ageGroupFootTraffic(CommercialAgeGroupFootTrafficInfo.from(footTraffic))
-            .ageGenderPercentFootTraffic(CommercialAgeGenderPercentFootTrafficInfo.from(footTraffic))
+            .timeSlotFootTraffic(CommercialTimeSlotFootTrafficInfo.from(footTrafficCommercial))
+            .dayOfWeekFootTraffic(CommercialDayOfWeekFootTrafficInfo.from(footTrafficCommercial))
+            .ageGroupFootTraffic(CommercialAgeGroupFootTrafficInfo.from(footTrafficCommercial))
+            .ageGenderPercentFootTraffic(CommercialAgeGenderPercentFootTrafficInfo.from(footTrafficCommercial))
             .build();
     }
 }

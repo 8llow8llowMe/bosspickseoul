@@ -14,15 +14,15 @@ public record CommercialDayOfWeekFootTrafficInfo(
     long sunFootTraffic
 ) {
 
-    public static CommercialDayOfWeekFootTrafficInfo from(FootTrafficCommercial footTraffic) {
+    public static CommercialDayOfWeekFootTrafficInfo from(FootTrafficCommercial footTrafficCommercial) {
         return CommercialDayOfWeekFootTrafficInfo.builder()
-            .monFootTraffic(footTraffic.monFootTraffic())
-            .tueFootTraffic(footTraffic.tueFootTraffic())
-            .wedFootTraffic(footTraffic.wedFootTraffic())
-            .thuFootTraffic(footTraffic.thuFootTraffic())
-            .friFootTraffic(footTraffic.friFootTraffic())
-            .satFootTraffic(footTraffic.satFootTraffic())
-            .sunFootTraffic(footTraffic.sunFootTraffic())
+            .monFootTraffic(footTrafficCommercial.monFootTraffic())
+            .tueFootTraffic(footTrafficCommercial.tueFootTraffic())
+            .wedFootTraffic(footTrafficCommercial.wedFootTraffic())
+            .thuFootTraffic(footTrafficCommercial.thuFootTraffic())
+            .friFootTraffic(footTrafficCommercial.friFootTraffic())
+            .satFootTraffic(footTrafficCommercial.satFootTraffic())
+            .sunFootTraffic(footTrafficCommercial.sunFootTraffic())
             .build();
     }
 }

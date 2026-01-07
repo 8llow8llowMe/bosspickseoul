@@ -13,14 +13,14 @@ public record CommercialTimeSlotFootTrafficInfo(
     long footTraffic21
 ) {
 
-    public static CommercialTimeSlotFootTrafficInfo from(FootTrafficCommercial footTraffic) {
+    public static CommercialTimeSlotFootTrafficInfo from(FootTrafficCommercial footTrafficCommercial) {
         return CommercialTimeSlotFootTrafficInfo.builder()
-            .footTraffic00(footTraffic.footTraffic00())
-            .footTraffic06(footTraffic.footTraffic06())
-            .footTraffic11(footTraffic.footTraffic11())
-            .footTraffic14(footTraffic.footTraffic14())
-            .footTraffic17(footTraffic.footTraffic17())
-            .footTraffic21(footTraffic.footTraffic21())
+            .footTraffic00(footTrafficCommercial.footTraffic00())
+            .footTraffic06(footTrafficCommercial.footTraffic06())
+            .footTraffic11(footTrafficCommercial.footTraffic11())
+            .footTraffic14(footTrafficCommercial.footTraffic14())
+            .footTraffic17(footTrafficCommercial.footTraffic17())
+            .footTraffic21(footTrafficCommercial.footTraffic21())
             .build();
     }
 }

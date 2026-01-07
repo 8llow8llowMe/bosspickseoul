@@ -19,34 +19,34 @@ public record CommercialAgeGenderPercentFootTrafficInfo(
     double femaleSixtyFootTrafficPercent
 ) {
 
-    public static CommercialAgeGenderPercentFootTrafficInfo from(FootTrafficCommercial footTraffic) {
-        long total = footTraffic.totalFootTraffic();
+    public static CommercialAgeGenderPercentFootTrafficInfo from(FootTrafficCommercial footTrafficCommercial) {
+        long total = footTrafficCommercial.totalFootTraffic();
 
         return CommercialAgeGenderPercentFootTrafficInfo.builder()
             .maleTeenFootTrafficPercent(
-                calculatePercent(footTraffic.teenFootTraffic(), footTraffic.maleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.teenFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
             .femaleTeenFootTrafficPercent(
-                calculatePercent(footTraffic.teenFootTraffic(), footTraffic.femaleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.teenFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
             .maleTwentyFootTrafficPercent(
-                calculatePercent(footTraffic.twentyFootTraffic(), footTraffic.maleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.twentyFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
             .femaleTwentyFootTrafficPercent(
-                calculatePercent(footTraffic.twentyFootTraffic(), footTraffic.femaleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.twentyFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
             .maleThirtyFootTrafficPercent(
-                calculatePercent(footTraffic.thirtyFootTraffic(), footTraffic.maleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.thirtyFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
             .femaleThirtyFootTrafficPercent(
-                calculatePercent(footTraffic.thirtyFootTraffic(), footTraffic.femaleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.thirtyFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
             .maleFortyFootTrafficPercent(
-                calculatePercent(footTraffic.fortyFootTraffic(), footTraffic.maleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.fortyFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
             .femaleFortyFootTrafficPercent(
-                calculatePercent(footTraffic.fortyFootTraffic(), footTraffic.femaleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.fortyFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
             .maleFiftyFootTrafficPercent(
-                calculatePercent(footTraffic.fiftyFootTraffic(), footTraffic.maleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.fiftyFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
             .femaleFiftyFootTrafficPercent(
-                calculatePercent(footTraffic.fiftyFootTraffic(), footTraffic.femaleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.fiftyFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
             .maleSixtyFootTrafficPercent(
-                calculatePercent(footTraffic.sixtyFootTraffic(), footTraffic.maleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.sixtyFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
             .femaleSixtyFootTrafficPercent(
-                calculatePercent(footTraffic.sixtyFootTraffic(), footTraffic.femaleFootTraffic(), total))
+                calculatePercent(footTrafficCommercial.sixtyFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
             .build();
     }
 
