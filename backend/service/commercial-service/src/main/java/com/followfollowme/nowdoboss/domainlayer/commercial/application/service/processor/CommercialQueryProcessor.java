@@ -3,10 +3,12 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.
 import com.followfollowme.nowdoboss.domainlayer.category.application.port.out.ServiceCategoryRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.SalesCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FootTrafficCommercial;
+import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.SalesCommercial;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,5 +43,11 @@ public class CommercialQueryProcessor {
                 commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("유동 인구 정보를 찾을 수 없습니다."));
         return CommercialFootTrafficInfo.from(footTrafficCommercial);
+    }
+
+    public CommercialSalesInfo getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
+        SalesCommercial salesCommercial = salesCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
+            .orElseThrow(() -> new IllegalArgumentException("매출 정보를 찾을 수 없습니다."));
+        return CommercialSalesInfo.from(salesCommercial);
     }
 }
