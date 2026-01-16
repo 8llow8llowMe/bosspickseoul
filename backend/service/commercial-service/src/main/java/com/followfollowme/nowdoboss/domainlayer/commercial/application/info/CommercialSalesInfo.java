@@ -8,7 +8,7 @@ public record CommercialSalesInfo(
     CommercialTimeSalesInfo timeSales,
     CommercialDaySalesInfo daySales,
     CommercialAgeSalesInfo ageSales,
-    CommercialAgeGenderPercentSalesInfo ageGenderPercentSalesPercentSales,
+    CommercialAgeGenderPercentSalesInfo ageGenderPercentSales,
     CommercialDaySalesCountInfo daySalesCount,
     CommercialTimeSalesCountInfo timeSalesCount,
     CommercialGenderSalesCountInfo genderSalesCount
@@ -19,7 +19,7 @@ public record CommercialSalesInfo(
             .timeSales(CommercialTimeSalesInfo.from(salesCommercial))
             .daySales(CommercialDaySalesInfo.from(salesCommercial))
             .ageSales(CommercialAgeSalesInfo.from(salesCommercial))
-            .ageGenderPercentSalesPercentSales(CommercialAgeGenderPercentSalesInfo.from(salesCommercial))
+            .ageGenderPercentSales(CommercialAgeGenderPercentSalesInfo.from(salesCommercial))
             .daySalesCount(CommercialDaySalesCountInfo.from(salesCommercial))
             .timeSalesCount(CommercialTimeSalesCountInfo.from(salesCommercial))
             .genderSalesCount(CommercialGenderSalesCountInfo.from(salesCommercial))
