@@ -33,10 +33,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CommercialPresenter {
-
-    // ---------------------------
-    // Service Category
-    // ---------------------------
+    
     public CommercialServiceCategoryResponse toServiceCategoryResponse(CommercialServiceCategoryInfo info) {
         return CommercialServiceCategoryResponse.builder()
             .serviceCode(info.serviceCode())
@@ -52,15 +49,12 @@ public class CommercialPresenter {
             .toList();
     }
 
-    // ---------------------------
-    // FootTraffic
-    // ---------------------------
     public CommercialFootTrafficResponse toFootTrafficResponse(CommercialFootTrafficInfo info) {
         return CommercialFootTrafficResponse.builder()
-            .timeSlotFootTraffic(toTimeSlotFootTrafficItem(info.timeSlotFootTraffic()))
-            .dayOfWeekFootTraffic(toDayOfWeekFootTrafficItem(info.dayOfWeekFootTraffic()))
-            .ageGroupFootTraffic(toAgeGroupFootTrafficItem(info.ageGroupFootTraffic()))
-            .ageGenderPercentFootTraffic(toAgeGenderPercentFootTrafficItem(info.ageGenderPercentFootTraffic()))
+            .timeSlotFootTrafficItem(toTimeSlotFootTrafficItem(info.timeSlotFootTrafficInfo()))
+            .dayOfWeekFootTrafficItem(toDayOfWeekFootTrafficItem(info.dayOfWeekFootTrafficInfo()))
+            .ageGroupFootTrafficItem(toAgeGroupFootTrafficItem(info.ageGroupFootTrafficInfo()))
+            .ageGenderPercentFootTrafficItem(toAgeGenderPercentFootTrafficItem(info.ageGenderPercentFootTrafficInfo()))
             .build();
     }
 
@@ -117,13 +111,13 @@ public class CommercialPresenter {
 
     public CommercialSalesResponse toSalesResponse(CommercialSalesInfo info) {
         return CommercialSalesResponse.builder()
-            .timeSalesItem(toTimeSalesItem(info.timeSales()))
-            .daySalesItem(toDaySalesItem(info.daySales()))
-            .ageSalesItem(toAgeSalesItem(info.ageSales()))
-            .ageGenderPercentSalesItem(toAgeGenderPercentSalesItem(info.ageGenderPercentSales()))
-            .daySalesCountItem(toDaySalesCountItem(info.daySalesCount()))
-            .timeSalesCountItem(toTimeSalesCountItem(info.timeSalesCount()))
-            .genderSalesCountItem(toGenderSalesCountItem(info.genderSalesCount()))
+            .timeSalesItem(toTimeSalesItem(info.timeSalesInfo()))
+            .daySalesItem(toDaySalesItem(info.daySalesInfo()))
+            .ageSalesItem(toAgeSalesItem(info.ageSalesInfo()))
+            .ageGenderPercentSalesItem(toAgeGenderPercentSalesItem(info.ageGenderPercentSalesInfo()))
+            .daySalesCountItem(toDaySalesCountItem(info.daySalesCountInfo()))
+            .timeSalesCountItem(toTimeSalesCountItem(info.timeSalesCountInfo()))
+            .genderSalesCountItem(toGenderSalesCountItem(info.genderSalesCountInfo()))
             .build();
     }
 
