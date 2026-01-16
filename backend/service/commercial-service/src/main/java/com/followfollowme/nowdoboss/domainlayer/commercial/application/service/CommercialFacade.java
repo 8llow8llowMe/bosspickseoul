@@ -39,6 +39,6 @@ public class CommercialFacade implements CommercialWebUseCase {
     @Transactional(readOnly = true)
     public CommercialSalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
         CommercialSalesInfo info = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
-        return null;
+        return commercialPresenter.toSalesResponse(info);
     }
 }
