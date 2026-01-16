@@ -12,16 +12,16 @@ import lombok.Builder;
 public record CommercialFootTrafficResponse(
 
     @Schema(description = "시간대별 유동 인구 정보")
-    CommercialTimeSlotFootTrafficItem timeSlotFootTraffic,
+    CommercialTimeSlotFootTrafficItem timeSlotFootTrafficItem,
 
     @Schema(description = "요일별 유동 인구 정보")
-    CommercialDayOfWeekFootTrafficItem dayOfWeekFootTraffic,
+    CommercialDayOfWeekFootTrafficItem dayOfWeekFootTrafficItem,
 
     @Schema(description = "연령대별 유동 인구 정보")
-    CommercialAgeGroupFootTrafficItem ageGroupFootTraffic,
+    CommercialAgeGroupFootTrafficItem ageGroupFootTrafficItem,
 
     @Schema(description = "연령대 및 성별 유동 인구 비율 정보")
-    CommercialAgeGenderPercentFootTrafficItem ageGenderPercentFootTraffic
+    CommercialAgeGenderPercentFootTrafficItem ageGenderPercentFootTrafficItem
 ) {
 
 }
