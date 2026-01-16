@@ -1,0 +1,31 @@
+dependencies {
+    implementation project(":core:common-core")
+    implementation project(":core:persistence-core")
+    implementation project(":core:security-core")
+    implementation project(":core:redis-core")
+
+    // Spring Data JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // Spring MVC
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // MySQL JDBC
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    // Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // Eureka Client for Service Discovery (Eureka 클라이언트)
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    // Config Client
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+    // WelFlux
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    // SpringDoc (swagger - openapi 3.0)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+    // Map Struct
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    // Spring Security 기본 (FilterChain, @PreAuthorize 등)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+}

@@ -5,3 +5,12 @@ include 'core:common-core'
 include 'core:persistence-core'
 include 'core:redis-core'
 include 'core:security-core'
+
+// Cloud
+include 'cloud:api-gateway'
+include 'cloud:service-discovery'
+
+// Services
+include 'service:auth-service'
+include 'service:commercial-service'
+include 'service:district-service'

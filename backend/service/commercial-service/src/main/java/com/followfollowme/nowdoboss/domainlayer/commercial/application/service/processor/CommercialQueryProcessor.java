@@ -1,0 +1,53 @@
+package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor;
+
+import com.followfollowme.nowdoboss.domainlayer.category.application.port.out.ServiceCategoryRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.SalesCommercialRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FootTrafficCommercial;
+import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.SalesCommercial;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class CommercialQueryProcessor {
+
+    private final SalesCommercialRepositoryPort salesCommercialRepositoryPort;
+    private final ServiceCategoryRepositoryPort serviceCategoryRepositoryPort;
+    private final FootTrafficCommercialRepositoryPort footTrafficCommercialRepositoryPort;
+
+    public List<CommercialServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
+        // 1. 상권에 존재하는 업종 코드 조회
+        List<String> serviceCodes = salesCommercialRepositoryPort.findDistinctServiceCodesByCommercialCode(commercialCode);
+
+        if (serviceCodes.isEmpty()) {
+            return List.of();
+        }
+
+        // 2. 기준 정보 조회
+        List<ServiceCategory> serviceCategories = serviceCategoryRepositoryPort.findByServiceCodeIn(serviceCodes);
+
+        // 3. Info DTO 반환
+        return serviceCategories.stream()
+            .map(CommercialServiceCategoryInfo::from)
+            .toList();
+    }
+
+    public CommercialFootTrafficInfo getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        FootTrafficCommercial footTrafficCommercial = footTrafficCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode,
+                commercialCode)
+            .orElseThrow(() -> new IllegalArgumentException("유동 인구 정보를 찾을 수 없습니다."));
+        return CommercialFootTrafficInfo.from(footTrafficCommercial);
+    }
+
+    public CommercialSalesInfo getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
+        SalesCommercial salesCommercial = salesCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
+            .orElseThrow(() -> new IllegalArgumentException("매출 정보를 찾을 수 없습니다."));
+        return CommercialSalesInfo.from(salesCommercial);
+    }
+}
