@@ -5,24 +5,24 @@ import lombok.Builder;
 
 @Builder
 public record CommercialSalesInfo(
-    CommercialTimeSalesInfo timeSales,
-    CommercialDaySalesInfo daySales,
-    CommercialAgeSalesInfo ageSales,
-    CommercialAgeGenderPercentSalesInfo ageGenderPercentSales,
-    CommercialDaySalesCountInfo daySalesCount,
-    CommercialTimeSalesCountInfo timeSalesCount,
-    CommercialGenderSalesCountInfo genderSalesCount
+    CommercialTimeSalesInfo timeSalesInfo,
+    CommercialDaySalesInfo daySalesInfo,
+    CommercialAgeSalesInfo ageSalesInfo,
+    CommercialAgeGenderPercentSalesInfo ageGenderPercentSalesInfo,
+    CommercialDaySalesCountInfo daySalesCountInfo,
+    CommercialTimeSalesCountInfo timeSalesCountInfo,
+    CommercialGenderSalesCountInfo genderSalesCountInfo
 ) {
 
     public static CommercialSalesInfo from(SalesCommercial salesCommercial) {
         return CommercialSalesInfo.builder()
-            .timeSales(CommercialTimeSalesInfo.from(salesCommercial))
-            .daySales(CommercialDaySalesInfo.from(salesCommercial))
-            .ageSales(CommercialAgeSalesInfo.from(salesCommercial))
-            .ageGenderPercentSales(CommercialAgeGenderPercentSalesInfo.from(salesCommercial))
-            .daySalesCount(CommercialDaySalesCountInfo.from(salesCommercial))
-            .timeSalesCount(CommercialTimeSalesCountInfo.from(salesCommercial))
-            .genderSalesCount(CommercialGenderSalesCountInfo.from(salesCommercial))
+            .timeSalesInfo(CommercialTimeSalesInfo.from(salesCommercial))
+            .daySalesInfo(CommercialDaySalesInfo.from(salesCommercial))
+            .ageSalesInfo(CommercialAgeSalesInfo.from(salesCommercial))
+            .ageGenderPercentSalesInfo(CommercialAgeGenderPercentSalesInfo.from(salesCommercial))
+            .daySalesCountInfo(CommercialDaySalesCountInfo.from(salesCommercial))
+            .timeSalesCountInfo(CommercialTimeSalesCountInfo.from(salesCommercial))
+            .genderSalesCountInfo(CommercialGenderSalesCountInfo.from(salesCommercial))
             .build();
     }
 }
