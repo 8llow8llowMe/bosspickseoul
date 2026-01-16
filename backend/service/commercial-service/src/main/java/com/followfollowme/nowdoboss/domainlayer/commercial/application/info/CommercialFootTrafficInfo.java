@@ -5,18 +5,18 @@ import lombok.Builder;
 
 @Builder
 public record CommercialFootTrafficInfo(
-    CommercialTimeSlotFootTrafficInfo timeSlotFootTraffic,
-    CommercialDayOfWeekFootTrafficInfo dayOfWeekFootTraffic,
-    CommercialAgeGroupFootTrafficInfo ageGroupFootTraffic,
-    CommercialAgeGenderPercentFootTrafficInfo ageGenderPercentFootTraffic
+    CommercialTimeSlotFootTrafficInfo timeSlotFootTrafficInfo,
+    CommercialDayOfWeekFootTrafficInfo dayOfWeekFootTrafficInfo,
+    CommercialAgeGroupFootTrafficInfo ageGroupFootTrafficInfo,
+    CommercialAgeGenderPercentFootTrafficInfo ageGenderPercentFootTrafficInfo
 ) {
 
     public static CommercialFootTrafficInfo from(FootTrafficCommercial footTrafficCommercial) {
         return CommercialFootTrafficInfo.builder()
-            .timeSlotFootTraffic(CommercialTimeSlotFootTrafficInfo.from(footTrafficCommercial))
-            .dayOfWeekFootTraffic(CommercialDayOfWeekFootTrafficInfo.from(footTrafficCommercial))
-            .ageGroupFootTraffic(CommercialAgeGroupFootTrafficInfo.from(footTrafficCommercial))
-            .ageGenderPercentFootTraffic(CommercialAgeGenderPercentFootTrafficInfo.from(footTrafficCommercial))
+            .timeSlotFootTrafficInfo(CommercialTimeSlotFootTrafficInfo.from(footTrafficCommercial))
+            .dayOfWeekFootTrafficInfo(CommercialDayOfWeekFootTrafficInfo.from(footTrafficCommercial))
+            .ageGroupFootTrafficInfo(CommercialAgeGroupFootTrafficInfo.from(footTrafficCommercial))
+            .ageGenderPercentFootTrafficInfo(CommercialAgeGenderPercentFootTrafficInfo.from(footTrafficCommercial))
             .build();
     }
 }
