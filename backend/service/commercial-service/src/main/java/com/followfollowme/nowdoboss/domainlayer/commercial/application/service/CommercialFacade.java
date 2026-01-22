@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.application.service;
 
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialPopulationResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
@@ -49,5 +50,11 @@ public class CommercialFacade implements CommercialWebUseCase {
     public CommercialFacilityResponse getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
         CommercialFacilityInfo info = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toFacilityResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialPopulationResponse getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+        return null;
     }
 }
