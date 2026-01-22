@@ -2,11 +2,14 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.
 
 import com.followfollowme.nowdoboss.domainlayer.category.application.port.out.ServiceCategoryRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FacilityCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.SalesCommercialRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FacilityCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FootTrafficCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.SalesCommercial;
 import java.util.List;
@@ -20,6 +23,7 @@ public class CommercialQueryProcessor {
     private final SalesCommercialRepositoryPort salesCommercialRepositoryPort;
     private final ServiceCategoryRepositoryPort serviceCategoryRepositoryPort;
     private final FootTrafficCommercialRepositoryPort footTrafficCommercialRepositoryPort;
+    private final FacilityCommercialRepositoryPort facilityCommercialRepositoryPort;
 
     public List<CommercialServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
         // 1. 상권에 존재하는 업종 코드 조회
@@ -49,5 +53,11 @@ public class CommercialQueryProcessor {
         SalesCommercial salesCommercial = salesCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
             .orElseThrow(() -> new IllegalArgumentException("매출 정보를 찾을 수 없습니다."));
         return CommercialSalesInfo.from(salesCommercial);
+    }
+
+    public CommercialFacilityInfo getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+        FacilityCommercial facilityCommercial = facilityCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+            .orElseThrow(() -> new IllegalArgumentException("집객시설 정보를 찾을 수 없습니다."));
+        return CommercialFacilityInfo.from(facilityCommercial);
     }
 }
