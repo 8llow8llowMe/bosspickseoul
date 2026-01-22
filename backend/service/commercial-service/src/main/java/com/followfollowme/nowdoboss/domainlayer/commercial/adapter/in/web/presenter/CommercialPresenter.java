@@ -8,9 +8,11 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.it
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialDaySalesCountItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialDaySalesItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialGenderSalesCountItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSchoolCountItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialTimeSalesCountItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialTimeSalesItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialTimeSlotFootTrafficItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
@@ -21,9 +23,11 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.Comm
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialDayOfWeekFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialDaySalesCountInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialDaySalesInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialGenderSalesCountInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSchoolCountInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialTimeSalesCountInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialTimeSalesInfo;
@@ -33,7 +37,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CommercialPresenter {
-    
+
     public CommercialServiceCategoryResponse toServiceCategoryResponse(CommercialServiceCategoryInfo info) {
         return CommercialServiceCategoryResponse.builder()
             .serviceCode(info.serviceCode())
@@ -121,6 +125,14 @@ public class CommercialPresenter {
             .build();
     }
 
+    public CommercialFacilityResponse toFacilityResponse(CommercialFacilityInfo info) {
+        return CommercialFacilityResponse.builder()
+            .facilityCount(info.facilityCount())
+            .schoolCountItem(toSchoolCountItem(info.schoolCountInfo()))
+            .transportCount(info.transportCount())
+            .build();
+    }
+
     private CommercialTimeSalesItem toTimeSalesItem(CommercialTimeSalesInfo info) {
         return CommercialTimeSalesItem.builder()
             .sales00(info.sales00())
@@ -199,6 +211,16 @@ public class CommercialPresenter {
         return CommercialGenderSalesCountItem.builder()
             .maleSalesCount(info.maleSalesCount())
             .femaleSalesCount(info.femaleSalesCount())
+            .build();
+    }
+
+    private CommercialSchoolCountItem toSchoolCountItem(CommercialSchoolCountInfo info) {
+        return CommercialSchoolCountItem.builder()
+            .elementarySchoolCount(info.elementarySchoolCount())
+            .middleSchoolCount(info.middleSchoolCount())
+            .highSchoolCount(info.highSchoolCount())
+            .universityCount(info.universityCount())
+            .totalSchoolCount(info.totalSchoolCount())
             .build();
     }
 }
