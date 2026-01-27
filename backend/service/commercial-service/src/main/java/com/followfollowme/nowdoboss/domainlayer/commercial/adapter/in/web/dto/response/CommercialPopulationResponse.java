@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialPopulationItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAgePopulationItem;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
@@ -9,7 +9,7 @@ import lombok.Builder;
 public record CommercialPopulationResponse(
 
     @Schema(description = "상권 내 연령대별 상주 인구 정보")
-    CommercialPopulationItem populationItem,
+    CommercialAgePopulationItem agePopulationItem,
 
     @Schema(description = "상권 전체 상주 인구 중 남성 비율 (%)", example = "48.3")
     double malePercentage,
