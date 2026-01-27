@@ -4,13 +4,16 @@ import com.followfollowme.nowdoboss.domainlayer.category.application.port.out.Se
 import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialPopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FacilityCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.PopulationCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.SalesCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FacilityCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FootTrafficCommercial;
+import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.PopulationCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.SalesCommercial;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ public class CommercialQueryProcessor {
     private final ServiceCategoryRepositoryPort serviceCategoryRepositoryPort;
     private final FootTrafficCommercialRepositoryPort footTrafficCommercialRepositoryPort;
     private final FacilityCommercialRepositoryPort facilityCommercialRepositoryPort;
+    private final PopulationCommercialRepositoryPort populationCommercialRepositoryPort;
 
     public List<CommercialServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
         // 1. 상권에 존재하는 업종 코드 조회
@@ -59,5 +63,11 @@ public class CommercialQueryProcessor {
         FacilityCommercial facilityCommercial = facilityCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("집객시설 정보를 찾을 수 없습니다."));
         return CommercialFacilityInfo.from(facilityCommercial);
+    }
+
+    public CommercialPopulationInfo getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+        PopulationCommercial populationCommercial = populationCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+            .orElseThrow(() -> new IllegalArgumentException("상주인구 정보를 찾을 수 없습니다."));
+        return CommercialPopulationInfo.from(populationCommercial);
     }
 }
