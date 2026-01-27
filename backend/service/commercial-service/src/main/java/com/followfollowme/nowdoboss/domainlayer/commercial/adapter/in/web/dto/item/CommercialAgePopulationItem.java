@@ -5,7 +5,7 @@ import lombok.Builder;
 
 @Builder
 @Schema(description = "상권의 연령대별 상주 인구 정보 DTO")
-public record CommercialPopulationItem(
+public record CommercialAgePopulationItem(
 
     @Schema(description = "상권 내 전체 상주 인구 수", example = "125000")
     long totalPopulation,
