@@ -10,7 +10,7 @@ public final class PercentCalculator {
 
     private PercentCalculator() {
     }
-    
+
     public static double estimatedJointPercent(long a, long b, long total) {
         if (total <= 0 || a <= 0 || b <= 0) {
             return 0.0;
@@ -29,6 +29,18 @@ public final class PercentCalculator {
             .multiply(BigDecimal.valueOf(100));
 
         return percent
+            .setScale(RESULT_SCALE, RoundingMode.HALF_UP)
+            .doubleValue();
+    }
+
+    public static double ratio(long part, long total) {
+        if (total <= 0 || part <= 0) {
+            return 0.0;
+        }
+
+        return BigDecimal.valueOf(part)
+            .divide(BigDecimal.valueOf(total), CALC_SCALE, RoundingMode.HALF_UP)
+            .multiply(BigDecimal.valueOf(100))
             .setScale(RESULT_SCALE, RoundingMode.HALF_UP)
             .doubleValue();
     }
