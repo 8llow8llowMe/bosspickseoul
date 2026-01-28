@@ -8,6 +8,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialPopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
@@ -55,6 +56,7 @@ public class CommercialFacade implements CommercialWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialPopulationResponse getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
-        return null;
+        CommercialPopulationInfo info = commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
+        return commercialPresenter.toPopulationResponse(info);
     }
 }
