@@ -3,6 +3,7 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.prese
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAgeGenderPercentFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAgeGenderPercentSalesItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAgeGroupFootTrafficItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAgePopulationItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAgeSalesItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialDayOfWeekFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialDaySalesCountItem;
@@ -14,11 +15,13 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.it
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialTimeSlotFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialPopulationResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialAgeGenderPercentFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialAgeGenderPercentSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialAgeGroupFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialAgePopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialAgeSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialDayOfWeekFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialDaySalesCountInfo;
@@ -26,6 +29,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.Comm
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialGenderSalesCountInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialPopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSchoolCountInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
@@ -59,6 +63,14 @@ public class CommercialPresenter {
             .dayOfWeekFootTrafficItem(toDayOfWeekFootTrafficItem(info.dayOfWeekFootTrafficInfo()))
             .ageGroupFootTrafficItem(toAgeGroupFootTrafficItem(info.ageGroupFootTrafficInfo()))
             .ageGenderPercentFootTrafficItem(toAgeGenderPercentFootTrafficItem(info.ageGenderPercentFootTrafficInfo()))
+            .build();
+    }
+
+    public CommercialPopulationResponse toPopulationResponse(CommercialPopulationInfo info) {
+        return CommercialPopulationResponse.builder()
+            .agePopulationItem(toAgePopulationItem(info.agePopulationInfo()))
+            .malePercentage(info.malePercentage())
+            .femalePercentage(info.femalePercentage())
             .build();
     }
 
@@ -221,6 +233,18 @@ public class CommercialPresenter {
             .highSchoolCount(info.highSchoolCount())
             .universityCount(info.universityCount())
             .totalSchoolCount(info.totalSchoolCount())
+            .build();
+    }
+
+    private CommercialAgePopulationItem toAgePopulationItem(CommercialAgePopulationInfo info) {
+        return CommercialAgePopulationItem.builder()
+            .totalPopulation(info.totalPopulation())
+            .teenPopulation(info.teenPopulation())
+            .twentyPopulation(info.twentyPopulation())
+            .thirtyPopulation(info.thirtyPopulation())
+            .fortyPopulation(info.fortyPopulation())
+            .fiftyPopulation(info.fiftyPopulation())
+            .sixtyPopulation(info.sixtyPopulation())
             .build();
     }
 }
