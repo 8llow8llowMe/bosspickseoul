@@ -3,6 +3,7 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.contr
 import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialPopulationResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
@@ -78,4 +79,17 @@ public class CommercialWebController {
         CommercialFacilityResponse facilityResponse = commercialWebUseCase.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(facilityResponse));
     }
+
+    @Operation(
+        summary = "해당 상권의 분기별 상주 인구 조회",
+        description = "주어진 상권코드에 대해 해당 분기의 상주 인구 데이터를 조회합니다. 기준년분기코드가 주어지지 않으면 2023년 3분기의 데이터를 사용합니다."
+    )
+    @GetMapping("/population/{commercialCode}")
+    public ResponseEntity<Response<CommercialPopulationResponse>> getPopulationByPeriodAndCommercialCode(
+        @Parameter(description = "상권 코드", required = true, example = "3110008") @RequestParam(defaultValue = "20233") String periodCode,
+        @Parameter(description = "기준 년분기 코드 (YYYYQ 형식)", example = "20233") @PathVariable String commercialCode) {
+        CommercialPopulationResponse populationResponse = commercialWebUseCase.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
+        return ResponseEntity.ok().body(Response.success(populationResponse));
+    }
+
 }
