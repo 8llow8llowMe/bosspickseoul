@@ -4,15 +4,18 @@ import com.followfollowme.nowdoboss.domainlayer.category.application.port.out.Se
 import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialIncomeInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialPopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FacilityCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.IncomeCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.PopulationCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.SalesCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FacilityCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FootTrafficCommercial;
+import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.IncomeCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.PopulationCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.SalesCommercial;
 import java.util.List;
@@ -28,6 +31,7 @@ public class CommercialQueryProcessor {
     private final FootTrafficCommercialRepositoryPort footTrafficCommercialRepositoryPort;
     private final FacilityCommercialRepositoryPort facilityCommercialRepositoryPort;
     private final PopulationCommercialRepositoryPort populationCommercialRepositoryPort;
+    private final IncomeCommercialRepositoryPort incomeCommercialRepositoryPort;
 
     public List<CommercialServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
         // 1. 상권에 존재하는 업종 코드 조회
@@ -69,5 +73,11 @@ public class CommercialQueryProcessor {
         PopulationCommercial populationCommercial = populationCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("상주인구 정보를 찾을 수 없습니다."));
         return CommercialPopulationInfo.from(populationCommercial);
+    }
+
+    public CommercialIncomeInfo getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        IncomeCommercial incomeCommercial = incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+            .orElseThrow(() -> new IllegalArgumentException("소득소비 정보를 찾을 수 없습니다."));
+        return CommercialIncomeInfo.from(incomeCommercial);
     }
 }
