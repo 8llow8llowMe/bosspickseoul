@@ -7,16 +7,16 @@ public record FacilityCommercial(
     long id,
     String periodCode,
     String commercialClassificationCode,
-    String commercialClassificationCodeName,
+    String commercialClassificationName,
     String commercialCode,
-    String commercialCodeName,
-    long facilityCnt,
-    long elementarySchoolCnt,
+    String commercialName,
+    long facilityCount,
+    long elementarySchoolCount,
     long middleSchoolCnt,
-    long highSchoolCnt,
-    long universityCnt,
-    long subwayStationCnt,
-    long busStopCnt
+    long highSchoolCount,
+    long universityCount,
+    long subwayStationCount,
+    long busStopCount
 ) {
 
 }
