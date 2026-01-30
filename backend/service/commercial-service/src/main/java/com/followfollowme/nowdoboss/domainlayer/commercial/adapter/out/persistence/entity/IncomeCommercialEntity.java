@@ -39,63 +39,63 @@ public class IncomeCommercialEntity {
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드명")
+    @Comment("상권 구분명")
     @Column(length = 4, nullable = false)
-    private String commercialClassificationCodeName;
+    private String commercialClassificationName;
 
     @Comment("상권 코드")
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드명")
+    @Comment("상권명")
     @Column(length = 80, nullable = false)
-    private String commercialCodeName;
+    private String commercialName;
 
     @Comment("월 평균 소득 금액")
     @Column(nullable = false)
-    private Long monthAvgIncome;
+    private Long monthlyAverageIncomeAmount;
 
     @Comment("소득 구간 코드")
     @Column(nullable = false)
-    private Integer incomeSectionCode;
+    private Integer incomeBracketCode;
 
-    @Comment("지출 총금액")
+    @Comment("총 지출 금액")
     @Column(nullable = false)
-    private Long totalPrice;
+    private Long totalExpenseAmount;
 
-    @Comment("식료품 지출 총금액")
+    @Comment("식료품 지출 금액")
     @Column(nullable = false)
-    private Long groceryPrice;
+    private Long groceryExpenseAmount;
 
-    @Comment("의류 신발 지출 총금액")
+    @Comment("의류/신발 지출 금액")
     @Column(nullable = false)
-    private Long clothesPrice;
+    private Long clothingExpenseAmount;
 
-    @Comment("의료비 지출 총금액")
+    @Comment("의료비 지출 금액")
     @Column(nullable = false)
-    private Long medicalPrice;
+    private Long medicalExpenseAmount;
 
-    @Comment("생활용품 지출 총금액")
+    @Comment("생활용품 지출 금액")
     @Column(nullable = false)
-    private Long lifePrice;
+    private Long householdExpenseAmount;
 
-    @Comment("교통 지출 총금액")
+    @Comment("교통 지출 금액")
     @Column(nullable = false)
-    private Long trafficPrice;
+    private Long transportationExpenseAmount;
 
-    @Comment("여가 지출 총금액")
+    @Comment("여가 지출 금액")
     @Column(nullable = false)
-    private Long leisurePrice;
+    private Long leisureExpenseAmount;
 
-    @Comment("문화 지출 총금액")
+    @Comment("문화 지출 금액")
     @Column(nullable = false)
-    private Long culturePrice;
+    private Long cultureExpenseAmount;
 
-    @Comment("교육 지출 총금액")
+    @Comment("교육 지출 금액")
     @Column(nullable = false)
-    private Long educationPrice;
+    private Long educationExpenseAmount;
 
-    @Comment("유흥 총금액")
+    @Comment("유흥 지출 금액")
     @Column(nullable = false)
-    private Long luxuryPrice;
+    private Long entertainmentExpenseAmount;
 }

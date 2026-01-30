@@ -39,51 +39,51 @@ public class PopulationCommercialEntity {
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드명")
+    @Comment("상권 구분명")
     @Column(length = 4, nullable = false)
-    private String commercialClassificationCodeName;
+    private String commercialClassificationName;
 
     @Comment("상권 코드")
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드명")
+    @Comment("상권명")
     @Column(length = 80, nullable = false)
-    private String commercialCodeName;
+    private String commercialName;
 
     @Comment("총 상주인구 수")
     @Column(nullable = false)
-    private Long totalPopulation;
+    private Long totalResidentPopulation;
 
     @Comment("남성 상주인구 수")
     @Column(nullable = false)
-    private Long malePopulation;
+    private Long maleResidentPopulation;
 
     @Comment("여성 상주인구 수")
     @Column(nullable = false)
-    private Long femalePopulation;
+    private Long femaleResidentPopulation;
 
-    @Comment("연령대 10 상주인구 수")
+    @Comment("10대 상주인구 수")
     @Column(nullable = false)
-    private Long teenPopulation;
+    private Long age10ResidentPopulation;
 
-    @Comment("연령대 20 상주인구 수")
+    @Comment("20대 상주인구 수")
     @Column(nullable = false)
-    private Long twentyPopulation;
+    private Long age20ResidentPopulation;
 
-    @Comment("연령대 30 상주인구 수")
+    @Comment("30대 상주인구 수")
     @Column(nullable = false)
-    private Long thirtyPopulation;
+    private Long age30ResidentPopulation;
 
-    @Comment("연령대 40 상주인구 수")
+    @Comment("40대 상주인구 수")
     @Column(nullable = false)
-    private Long fortyPopulation;
+    private Long age40ResidentPopulation;
 
-    @Comment("연령대 50 상주인구 수")
+    @Comment("50대 상주인구 수")
     @Column(nullable = false)
-    private Long fiftyPopulation;
+    private Long age50ResidentPopulation;
 
-    @Comment("연령대 60 이상 상주인구 수")
+    @Comment("60대 이상 상주인구 수")
     @Column(nullable = false)
-    private Long sixtyPopulation;
+    private Long age60PlusResidentPopulation;
 }
