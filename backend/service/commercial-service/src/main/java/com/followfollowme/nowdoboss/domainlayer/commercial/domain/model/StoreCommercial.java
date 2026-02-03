@@ -8,19 +8,19 @@ public record StoreCommercial(
     long id,
     String periodCode,
     String commercialClassificationCode,
-    String commercialClassificationCodeName,
+    String commercialClassificationName,
     String commercialCode,
-    String commercialCodeName,
+    String commercialName,
     String serviceCode,
-    String serviceCodeName,
+    String serviceName,
     ServiceType serviceType,
-    long totalStore,
-    long similarStore,
-    double openedRate,
-    long openedStore,
-    double closedRate,
-    long closedStore,
-    long franchiseStore
+    long totalStoreCount,
+    long similarStoreCount,
+    double openingRate,
+    long openedStoreCount,
+    double closureRate,
+    long closedStoreCount,
+    long franchiseStoreCount
 ) {
 
 }
