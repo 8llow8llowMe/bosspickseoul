@@ -1,12 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.controller;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialPopulationResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.FacilityResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.FootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.IncomeAndExpenseResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.ResidentPopulationResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.SalesResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.ServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,10 +33,10 @@ public class CommercialWebController {
         description = "선택한 상권에 실제 존재하는 서비스 업종 목록을 조회하는 기능입니다."
     )
     @GetMapping("/{commercialCode}/service-categories")
-    public ResponseEntity<Response<List<CommercialServiceCategoryResponse>>> getServiceCategories(
+    public ResponseEntity<Response<List<ServiceCategoryResponse>>> getServiceCategories(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode
     ) {
-        List<CommercialServiceCategoryResponse> responses = commercialWebUseCase.getServiceCategoriesByCommercialCode(commercialCode);
+        List<ServiceCategoryResponse> responses = commercialWebUseCase.getServiceCategoriesByCommercialCode(commercialCode);
         return ResponseEntity.ok().body(Response.success(responses));
     }
 
@@ -45,11 +45,11 @@ public class CommercialWebController {
         description = "주어진 상권 코드에 대해 해당 분기의 유동 인구 데이터를 조회합니다. 기준 년분기 코드가 주어지지 않으면 2023년 3분기의 데이터를 사용합니다."
     )
     @GetMapping("/{commercialCode}/foot-traffic")
-    public ResponseEntity<Response<CommercialFootTrafficResponse>> getFootTrafficByCommercialCodeAndPeriod(
+    public ResponseEntity<Response<FootTrafficResponse>> getFootTrafficByCommercialCodeAndPeriod(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "기준 년분기 코드 (YYYYQ 형식)", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialFootTrafficResponse response = commercialWebUseCase.getFootTrafficByPeriodCodeAndCommercialCode(
+        FootTrafficResponse response = commercialWebUseCase.getFootTrafficByPeriodCodeAndCommercialCode(
             periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
@@ -59,12 +59,12 @@ public class CommercialWebController {
         description = "주어진 상권 코드 및 서비스 코드에 대해 해당 분기의 매출분석 데이터를 조회합니다. 기준 년분기 코드가 주어지지 않으면 2023년 3분기의 데이터를 사용합니다."
     )
     @GetMapping("/{commercialCode}/{serviceCode}/sales")
-    public ResponseEntity<Response<CommercialSalesResponse>> getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
+    public ResponseEntity<Response<SalesResponse>> getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @PathVariable String serviceCode,
         @Parameter(description = "기준 년분기 코드 (YYYYQ 형식)", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialSalesResponse response = commercialWebUseCase.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
+        SalesResponse response = commercialWebUseCase.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -73,11 +73,11 @@ public class CommercialWebController {
         description = "주어진 상권코드에 대해 해당 분기의 집객 시설 데이터를 조회합니다. 기준년분기코드가 주어지지 않으면 2023년 3분기의 데이터를 사용합니다."
     )
     @GetMapping("/{commercialCode}}/facility")
-    public ResponseEntity<Response<CommercialFacilityResponse>> getFacilityByPeriodAndCommercialCode(
+    public ResponseEntity<Response<FacilityResponse>> getFacilityByPeriodAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "기준 년분기 코드 (YYYYQ 형식)", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialFacilityResponse response = commercialWebUseCase.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
+        FacilityResponse response = commercialWebUseCase.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -86,11 +86,11 @@ public class CommercialWebController {
         description = "주어진 상권코드에 대해 해당 분기의 상주 인구 데이터를 조회합니다. 기준년분기코드가 주어지지 않으면 2023년 3분기의 데이터를 사용합니다."
     )
     @GetMapping("/{commercialCode}/population")
-    public ResponseEntity<Response<CommercialPopulationResponse>> getPopulationByPeriodAndCommercialCode(
+    public ResponseEntity<Response<ResidentPopulationResponse>> getPopulationByPeriodAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "기준 년분기 코드 (YYYYQ 형식)", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialPopulationResponse response = commercialWebUseCase.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
+        ResidentPopulationResponse response = commercialWebUseCase.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -99,11 +99,11 @@ public class CommercialWebController {
         description = "주어진 상권코드에 대해 해당 분기의 지출 내역 분석 데이터를 조회합니다. 기준년분기코드가 주어지지 않으면 2023년 3분기의 데이터를 사용합니다."
     )
     @GetMapping("/income/{commercialCode}")
-    public ResponseEntity<Response<CommercialIncomeResponse>> getIncomeByPeriodCodeAndCommercialCode(
+    public ResponseEntity<Response<IncomeAndExpenseResponse>> getIncomeByPeriodCodeAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "기준 년분기 코드 (YYYYQ 형식)", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialIncomeResponse response = commercialWebUseCase.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        IncomeAndExpenseResponse response = commercialWebUseCase.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 }
