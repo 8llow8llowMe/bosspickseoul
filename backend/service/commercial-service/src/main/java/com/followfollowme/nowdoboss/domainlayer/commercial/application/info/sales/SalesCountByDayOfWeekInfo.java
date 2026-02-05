@@ -16,13 +16,13 @@ public record SalesCountByDayOfWeekInfo(
 
     public static SalesCountByDayOfWeekInfo from(SalesCommercial salesCommercial) {
         return SalesCountByDayOfWeekInfo.builder()
-            .mondaySalesCount(salesCommercial.monSalesCount())
-            .tuesdaySalesCount(salesCommercial.tueSalesCount())
-            .wednesdaySalesCount(salesCommercial.wedSalesCount())
-            .thursdaySalesCount(salesCommercial.thuSalesCount())
-            .fridaySalesCount(salesCommercial.friSalesCount())
-            .saturdaySalesCount(salesCommercial.satSalesCount())
-            .sundaySalesCount(salesCommercial.sunSalesCount())
+            .mondaySalesCount(salesCommercial.mondaySalesCount())
+            .tuesdaySalesCount(salesCommercial.tuesdaySalesCount())
+            .wednesdaySalesCount(salesCommercial.wednesdaySalesCount())
+            .thursdaySalesCount(salesCommercial.thursdaySalesCount())
+            .fridaySalesCount(salesCommercial.fridaySalesCount())
+            .saturdaySalesCount(salesCommercial.saturdaySalesCount())
+            .sundaySalesCount(salesCommercial.sundaySalesCount())
             .build();
     }
 }
