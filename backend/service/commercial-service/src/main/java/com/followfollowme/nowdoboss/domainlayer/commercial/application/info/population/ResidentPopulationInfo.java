@@ -12,12 +12,12 @@ public record ResidentPopulationInfo(
 ) {
 
     public static ResidentPopulationInfo from(PopulationCommercial populationCommercial) {
-        long total = populationCommercial.malePopulation() + populationCommercial.femalePopulation();
+        long total = populationCommercial.maleResidentPopulation() + populationCommercial.femaleResidentPopulation();
 
         return ResidentPopulationInfo.builder()
             .byAgeInfo(ResidentPopulationByAgeInfo.from(populationCommercial))
-            .malePercentage(PercentCalculator.ratio(populationCommercial.malePopulation(), total))
-            .femalePercentage(PercentCalculator.ratio(populationCommercial.femalePopulation(), total))
+            .malePercentage(PercentCalculator.ratio(populationCommercial.maleResidentPopulation(), total))
+            .femalePercentage(PercentCalculator.ratio(populationCommercial.femaleResidentPopulation(), total))
             .build();
     }
 }
