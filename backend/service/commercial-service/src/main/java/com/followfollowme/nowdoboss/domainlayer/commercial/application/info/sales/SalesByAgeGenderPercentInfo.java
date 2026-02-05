@@ -21,50 +21,50 @@ public record SalesByAgeGenderPercentInfo(
 ) {
 
     public static SalesByAgeGenderPercentInfo from(SalesCommercial salesCommercial) {
-        long total = salesCommercial.maleSales() + salesCommercial.femaleSales();
+        long total = salesCommercial.maleSalesAmount() + salesCommercial.femaleSalesAmount();
 
         return SalesByAgeGenderPercentInfo.builder()
             .maleAge10Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.teenSales(), salesCommercial.maleSales(), total))
+                    salesCommercial.age10SalesAmount(), salesCommercial.maleSalesAmount(), total))
             .femaleAge10Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.teenSales(), salesCommercial.femaleSales(), total))
+                    salesCommercial.age10SalesAmount(), salesCommercial.femaleSalesAmount(), total))
 
             .maleAge20Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.twentySales(), salesCommercial.maleSales(), total))
+                    salesCommercial.age20SalesAmount(), salesCommercial.maleSalesAmount(), total))
             .femaleAge20Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.twentySales(), salesCommercial.femaleSales(), total))
+                    salesCommercial.age20SalesAmount(), salesCommercial.femaleSalesAmount(), total))
 
             .maleAge30Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.thirtySales(), salesCommercial.maleSales(), total))
+                    salesCommercial.age30SalesAmount(), salesCommercial.maleSalesAmount(), total))
             .femaleAge30Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.thirtySales(), salesCommercial.femaleSales(), total))
+                    salesCommercial.age30SalesAmount(), salesCommercial.femaleSalesAmount(), total))
 
             .maleAge40Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.fortySales(), salesCommercial.maleSales(), total))
+                    salesCommercial.age40SalesAmount(), salesCommercial.maleSalesAmount(), total))
             .femaleAge40Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.fortySales(), salesCommercial.femaleSales(), total))
+                    salesCommercial.age40SalesAmount(), salesCommercial.femaleSalesAmount(), total))
 
             .maleAge50Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.fiftySales(), salesCommercial.maleSales(), total))
+                    salesCommercial.age50SalesAmount(), salesCommercial.maleSalesAmount(), total))
             .femaleAge50Percent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.fiftySales(), salesCommercial.femaleSales(), total))
+                    salesCommercial.age50SalesAmount(), salesCommercial.femaleSalesAmount(), total))
 
             .maleAge60PlusPercent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.sixtySales(), salesCommercial.maleSales(), total))
+                    salesCommercial.age60PlusSalesAmount(), salesCommercial.maleSalesAmount(), total))
             .femaleAge60PlusPercent(
                 PercentCalculator.estimatedJointPercent(
-                    salesCommercial.sixtySales(), salesCommercial.femaleSales(), total))
+                    salesCommercial.age60PlusSalesAmount(), salesCommercial.femaleSalesAmount(), total))
             .build();
     }
 }
