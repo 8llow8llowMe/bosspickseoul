@@ -1,18 +1,18 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialPopulationResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.FacilityResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.FootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.IncomeAndExpenseResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.ResidentPopulationResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.SalesResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.ServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialIncomeInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialPopulationInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.FacilityInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.FootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.IncomeAndExpenseInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.ResidentPopulationInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.ServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
 import java.util.List;
@@ -29,43 +29,43 @@ public class CommercialFacade implements CommercialWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommercialServiceCategoryResponse> getServiceCategoriesByCommercialCode(String commercialCode) {
-        List<CommercialServiceCategoryInfo> infos = commercialQueryProcessor.getServiceCategoriesByCommercialCode(commercialCode);
+    public List<ServiceCategoryResponse> getServiceCategoriesByCommercialCode(String commercialCode) {
+        List<ServiceCategoryInfo> infos = commercialQueryProcessor.getServiceCategoriesByCommercialCode(commercialCode);
         return commercialPresenter.toServiceCategoryResponses(infos);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CommercialFootTrafficResponse getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
-        CommercialFootTrafficInfo info = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+    public FootTrafficResponse getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        FootTrafficInfo info = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toFootTrafficResponse(info);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CommercialSalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
-        CommercialSalesInfo info = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
+    public SalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
+        SalesInfo info = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
         return commercialPresenter.toSalesResponse(info);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CommercialFacilityResponse getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
-        CommercialFacilityInfo info = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
+    public FacilityResponse getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+        FacilityInfo info = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toFacilityResponse(info);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CommercialPopulationResponse getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
-        CommercialPopulationInfo info = commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
+    public ResidentPopulationResponse getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+        ResidentPopulationInfo info = commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toPopulationResponse(info);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CommercialIncomeResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
-        CommercialIncomeInfo info = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+    public IncomeAndExpenseResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        IncomeAndExpenseInfo info = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toIncomeResponse(info);
     }
 }
