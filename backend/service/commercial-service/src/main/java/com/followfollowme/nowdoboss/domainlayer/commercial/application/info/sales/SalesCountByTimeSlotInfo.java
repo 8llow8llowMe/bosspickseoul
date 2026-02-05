@@ -15,12 +15,12 @@ public record SalesCountByTimeSlotInfo(
 
     public static SalesCountByTimeSlotInfo from(SalesCommercial salesCommercial) {
         return SalesCountByTimeSlotInfo.builder()
-            .salesCountTime00To06(salesCommercial.salesCount00())
-            .salesCountTime06To11(salesCommercial.salesCount06())
-            .salesCountTime11To14(salesCommercial.salesCount11())
-            .salesCountTime14To17(salesCommercial.salesCount14())
-            .salesCountTime17To21(salesCommercial.salesCount17())
-            .salesCountTime21To24(salesCommercial.salesCount21())
+            .salesCountTime00To06(salesCommercial.salesCountTime00To06())
+            .salesCountTime06To11(salesCommercial.salesCountTime06To11())
+            .salesCountTime11To14(salesCommercial.salesCountTime11To14())
+            .salesCountTime14To17(salesCommercial.salesCountTime14To17())
+            .salesCountTime17To21(salesCommercial.salesCountTime17To21())
+            .salesCountTime21To24(salesCommercial.salesCountTime21To24())
             .build();
     }
 }
