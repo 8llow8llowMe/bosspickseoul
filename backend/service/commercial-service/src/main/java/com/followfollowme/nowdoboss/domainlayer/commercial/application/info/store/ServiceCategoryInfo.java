@@ -1,20 +1,20 @@
-package com.followfollowme.nowdoboss.domainlayer.commercial.application.info;
+package com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store;
 
 import com.followfollowme.nowdoboss.domainlayer.category.domain.enums.ServiceType;
 import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
 import lombok.Builder;
 
 @Builder
-public record CommercialServiceCategoryInfo(
+public record ServiceCategoryInfo(
     String serviceCode,
-    String serviceCodeName,
+    String serviceName,
     ServiceType serviceType
 ) {
 
-    public static CommercialServiceCategoryInfo from(ServiceCategory serviceCategory) {
-        return CommercialServiceCategoryInfo.builder()
+    public static ServiceCategoryInfo from(ServiceCategory serviceCategory) {
+        return ServiceCategoryInfo.builder()
             .serviceCode(serviceCategory.serviceCode())
-            .serviceCodeName(serviceCategory.serviceCodeName())
+            .serviceName(serviceCategory.serviceCodeName())
             .serviceType(serviceCategory.serviceType())
             .build();
     }
