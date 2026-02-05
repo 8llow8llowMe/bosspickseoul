@@ -15,12 +15,12 @@ public record SalesByAgeInfo(
 
     public static SalesByAgeInfo from(SalesCommercial salesCommercial) {
         return SalesByAgeInfo.builder()
-            .age10SalesAmount(salesCommercial.teenSales())
-            .age20SalesAmount(salesCommercial.twentySales())
-            .age30SalesAmount(salesCommercial.thirtySales())
-            .age40SalesAmount(salesCommercial.fortySales())
-            .age50SalesAmount(salesCommercial.fiftySales())
-            .age60PlusSalesAmount(salesCommercial.sixtySales())
+            .age10SalesAmount(salesCommercial.age10SalesAmount())
+            .age20SalesAmount(salesCommercial.age20SalesAmount())
+            .age30SalesAmount(salesCommercial.age30SalesAmount())
+            .age40SalesAmount(salesCommercial.age40SalesAmount())
+            .age50SalesAmount(salesCommercial.age50SalesAmount())
+            .age60PlusSalesAmount(salesCommercial.age60PlusSalesAmount())
             .build();
     }
 }
