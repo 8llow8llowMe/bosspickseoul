@@ -4,26 +4,26 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "상권&업종의 나이대별 매출액 정보 DTO")
-public record CommercialAgeSalesItem(
+@Schema(description = "상권&업종의 연령대별 매출액 정보")
+public record SalesByAgeItem(
 
     @Schema(description = "10대 매출액", example = "150000")
-    long teenSales,
+    long age10SalesAmount,
 
     @Schema(description = "20대 매출액", example = "150000")
-    long twentySales,
+    long age20SalesAmount,
 
     @Schema(description = "30대 매출액", example = "150000")
-    long thirtySales,
+    long age30SalesAmount,
 
     @Schema(description = "40대 매출액", example = "150000")
-    long fortySales,
+    long age40SalesAmount,
 
     @Schema(description = "50대 매출액", example = "150000")
-    long fiftySales,
+    long age50SalesAmount,
 
-    @Schema(description = "60대 매출액", example = "150000")
-    long sixtySales
+    @Schema(description = "60대 이상 매출액", example = "150000")
+    long age60PlusSalesAmount
 ) {
 
 }
