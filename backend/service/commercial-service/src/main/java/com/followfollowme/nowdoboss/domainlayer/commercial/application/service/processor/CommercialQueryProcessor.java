@@ -2,12 +2,12 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.
 
 import com.followfollowme.nowdoboss.domainlayer.category.application.port.out.ServiceCategoryRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFacilityInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialFootTrafficInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialIncomeInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialPopulationInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialSalesInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.CommercialServiceCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.FacilityInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.FootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.IncomeAndExpenseInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.ResidentPopulationInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.ServiceCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FacilityCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.IncomeCommercialRepositoryPort;
@@ -33,7 +33,7 @@ public class CommercialQueryProcessor {
     private final PopulationCommercialRepositoryPort populationCommercialRepositoryPort;
     private final IncomeCommercialRepositoryPort incomeCommercialRepositoryPort;
 
-    public List<CommercialServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
+    public List<ServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
         // 1. 상권에 존재하는 업종 코드 조회
         List<String> serviceCodes = salesCommercialRepositoryPort.findDistinctServiceCodesByCommercialCode(commercialCode);
 
@@ -46,38 +46,38 @@ public class CommercialQueryProcessor {
 
         // 3. Info DTO 반환
         return serviceCategories.stream()
-            .map(CommercialServiceCategoryInfo::from)
+            .map(ServiceCategoryInfo::from)
             .toList();
     }
 
-    public CommercialFootTrafficInfo getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+    public FootTrafficInfo getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         FootTrafficCommercial footTrafficCommercial = footTrafficCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode,
                 commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("유동 인구 정보를 찾을 수 없습니다."));
-        return CommercialFootTrafficInfo.from(footTrafficCommercial);
+        return FootTrafficInfo.from(footTrafficCommercial);
     }
 
-    public CommercialSalesInfo getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
+    public SalesInfo getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
         SalesCommercial salesCommercial = salesCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
             .orElseThrow(() -> new IllegalArgumentException("매출 정보를 찾을 수 없습니다."));
-        return CommercialSalesInfo.from(salesCommercial);
+        return SalesInfo.from(salesCommercial);
     }
 
-    public CommercialFacilityInfo getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+    public FacilityInfo getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
         FacilityCommercial facilityCommercial = facilityCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("집객시설 정보를 찾을 수 없습니다."));
-        return CommercialFacilityInfo.from(facilityCommercial);
+        return FacilityInfo.from(facilityCommercial);
     }
 
-    public CommercialPopulationInfo getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+    public ResidentPopulationInfo getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
         PopulationCommercial populationCommercial = populationCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("상주인구 정보를 찾을 수 없습니다."));
-        return CommercialPopulationInfo.from(populationCommercial);
+        return ResidentPopulationInfo.from(populationCommercial);
     }
 
-    public CommercialIncomeInfo getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+    public IncomeAndExpenseInfo getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         IncomeCommercial incomeCommercial = incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("소득소비 정보를 찾을 수 없습니다."));
-        return CommercialIncomeInfo.from(incomeCommercial);
+        return IncomeAndExpenseInfo.from(incomeCommercial);
     }
 }
