@@ -1,55 +1,55 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.AverageIncomeItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.ExpenseByCategoryItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.FootTrafficByAgeGenderPercentItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.FootTrafficByAgeGroupItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.FootTrafficByDayOfWeekItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.FootTrafficByTimeSlotItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.ResidentPopulationByAgeItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SalesByAgeGenderPercentItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SalesByAgeItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SalesByDayOfWeekItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SalesByTimeSlotItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SalesCountByDayOfWeekItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SalesCountByGenderItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SalesCountByTimeSlotItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.SchoolCountItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.FacilityResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.FootTrafficResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.IncomeAndExpenseResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.ResidentPopulationResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.SalesResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.ServiceCategoryResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.FacilityInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.SchoolCountInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.FootTrafficByAgeGenderPercentInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.FootTrafficByAgeGroupInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.FootTrafficByDayOfWeekInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.FootTrafficByTimeSlotInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.FootTrafficInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.AverageIncomeInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.ExpenseByCategoryInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.IncomeAndExpenseInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.ResidentPopulationByAgeInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.ResidentPopulationInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesByAgeGenderPercentInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesByAgeInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesByDayOfWeekInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesByTimeSlotInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesCountByDayOfWeekInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesCountByGenderInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesCountByTimeSlotInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.SalesInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.ServiceCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAverageIncomeItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialExpenseByCategoryItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByAgeGenderPercentItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByAgeGroupItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByDayOfWeekItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByTimeSlotItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialResidentPopulationByAgeItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeGenderPercentItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByDayOfWeekItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByTimeSlotItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesCountByDayOfWeekItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesCountByGenderItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesCountByTimeSlotItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSchoolCountItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeAndExpenseResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialResidentPopulationResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialSchoolCountInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByAgeGenderPercentInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByAgeGroupInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialAverageIncomeInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByAgeGenderPercentInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByAgeInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByTimeSlotInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByDayOfWeekInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByGenderInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByTimeSlotInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.CommercialServiceCategoryInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
 public class CommercialPresenter {
 
-    public ServiceCategoryResponse toServiceCategoryResponse(ServiceCategoryInfo info) {
-        return ServiceCategoryResponse.builder()
+    public CommercialServiceCategoryResponse toCommercialServiceCategoryResponse(CommercialServiceCategoryInfo info) {
+        return CommercialServiceCategoryResponse.builder()
             .serviceCode(info.serviceCode())
             .serviceName(info.serviceName())
             .serviceTypeCode(info.serviceType().name())
@@ -57,59 +57,59 @@ public class CommercialPresenter {
             .build();
     }
 
-    public List<ServiceCategoryResponse> toServiceCategoryResponses(List<ServiceCategoryInfo> infos) {
+    public List<CommercialServiceCategoryResponse> toCommercialServiceCategoryResponses(List<CommercialServiceCategoryInfo> infos) {
         return infos.stream()
-            .map(this::toServiceCategoryResponse)
+            .map(this::toCommercialServiceCategoryResponse)
             .toList();
     }
 
-    public FootTrafficResponse toFootTrafficResponse(FootTrafficInfo info) {
-        return FootTrafficResponse.builder()
-            .byTimeSlotItem(toFootTrafficByTimeSlotItem(info.byTimeSlotInfo()))
-            .byDayOfWeekItem(toFootTrafficByDayOfWeekItem(info.byDayOfWeekInfo()))
-            .byAgeGroupItem(toFootTrafficByAgeGroupItem(info.byAgeGroupInfo()))
-            .byAgeGenderPercentItem(toFootTrafficByAgeGenderPercentItem(info.byAgeGenderPercentInfo()))
+    public CommercialFootTrafficResponse toCommercialFootTrafficResponse(CommercialFootTrafficInfo info) {
+        return CommercialFootTrafficResponse.builder()
+            .byTimeSlotItem(toCommercialFootTrafficByTimeSlotItem(info.byTimeSlotInfo()))
+            .byDayOfWeekItem(toCommercialFootTrafficByDayOfWeekItem(info.byDayOfWeekInfo()))
+            .byAgeGroupItem(toCommercialFootTrafficByAgeGroupItem(info.byAgeGroupInfo()))
+            .byAgeGenderPercentItem(toCommercialFootTrafficByAgeGenderPercentItem(info.byAgeGenderPercentInfo()))
             .build();
     }
 
-    public ResidentPopulationResponse toPopulationResponse(ResidentPopulationInfo info) {
-        return ResidentPopulationResponse.builder()
-            .byAgeItem(toResidentPopulationByAgeItem(info.byAgeInfo()))
+    public CommercialResidentPopulationResponse toCommercialPopulationResponse(CommercialResidentPopulationInfo info) {
+        return CommercialResidentPopulationResponse.builder()
+            .byAgeItem(toCommercialResidentPopulationByAgeItem(info.byAgeInfo()))
             .malePercentage(info.malePercentage())
             .femalePercentage(info.femalePercentage())
             .build();
     }
 
-    public IncomeAndExpenseResponse toIncomeResponse(IncomeAndExpenseInfo info) {
-        return IncomeAndExpenseResponse.builder()
-            .averageIncomeItem(toAverageIncomeItem(info.averageIncomeInfo()))
-            .expenseByCategoryItem(toExpenseByCategoryItem(info.expenseByCategoryInfo()))
+    public CommercialIncomeAndExpenseResponse toCommercialIncomeResponse(CommercialIncomeAndExpenseInfo info) {
+        return CommercialIncomeAndExpenseResponse.builder()
+            .averageIncomeItem(toCommercialAverageIncomeItem(info.averageIncomeInfo()))
+            .expenseByCategoryItem(toCommercialExpenseByCategoryItem(info.expenseByCategoryInfo()))
             .build();
     }
 
-    public SalesResponse toSalesResponse(SalesInfo info) {
-        return SalesResponse.builder()
-            .amountByTimeSlotItem(toSalesByTimeSlotItem(info.amountByTimeSlotInfo()))
-            .amountByDayOfWeekItem(toSalesByDayOfWeekItem(info.amountByDayOfWeekInfo()))
-            .amountByAgeItem(toSalesByAgeItem(info.amountByAgeInfo()))
-            .amountByAgeGenderPercentItem(toSalesByAgeGenderPercentItem(info.amountByAgeGenderPercentInfo()))
-            .countByDayOfWeekItem(toSalesCountByDayOfWeekItem(info.countByDayOfWeekInfo()))
-            .countByTimeSlotItem(toSalesCountByTimeSlotItem(info.countByTimeSlotInfo()))
-            .countByGenderItem(toSalesCountByGenderItem(info.countByGenderInfo()))
+    public CommercialSalesResponse toCommercialSalesResponse(CommercialSalesInfo info) {
+        return CommercialSalesResponse.builder()
+            .amountByTimeSlotItem(toCommercialSalesByTimeSlotItem(info.amountByTimeSlotInfo()))
+            .amountByDayOfWeekItem(toCommercialSalesByDayOfWeekItem(info.amountByDayOfWeekInfo()))
+            .amountByAgeItem(toCommercialSalesByAgeItem(info.amountByAgeInfo()))
+            .amountByAgeGenderPercentItem(toCommercialSalesByAgeGenderPercentItem(info.amountByAgeGenderPercentInfo()))
+            .countByDayOfWeekItem(toCommercialSalesCountByDayOfWeekItem(info.countByDayOfWeekInfo()))
+            .countByTimeSlotItem(toCommercialSalesCountByTimeSlotItem(info.countByTimeSlotInfo()))
+            .countByGenderItem(toCommercialSalesCountByGenderItem(info.countByGenderInfo()))
             .build();
     }
 
-    public FacilityResponse toFacilityResponse(FacilityInfo info) {
-        return FacilityResponse.builder()
+    public CommercialFacilityResponse toCommercialFacilityResponse(CommercialFacilityInfo info) {
+        return CommercialFacilityResponse.builder()
             .totalFacilityCount(info.totalFacilityCount())
-            .schoolCountItem(toSchoolCountItem(info.schoolCountInfo()))
+            .schoolCountItem(toCommercialSchoolCountItem(info.schoolCountInfo()))
             .totalTransportationFacilityCount(info.totalTransportationFacilityCount())
             .build();
     }
 
     // FootTraffic Item Mappers
-    private FootTrafficByTimeSlotItem toFootTrafficByTimeSlotItem(FootTrafficByTimeSlotInfo info) {
-        return FootTrafficByTimeSlotItem.builder()
+    private CommercialFootTrafficByTimeSlotItem toCommercialFootTrafficByTimeSlotItem(CommercialFootTrafficByTimeSlotInfo info) {
+        return CommercialFootTrafficByTimeSlotItem.builder()
             .footTrafficTime00To06(info.footTrafficTime00To06())
             .footTrafficTime06To11(info.footTrafficTime06To11())
             .footTrafficTime11To14(info.footTrafficTime11To14())
@@ -119,8 +119,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private FootTrafficByDayOfWeekItem toFootTrafficByDayOfWeekItem(FootTrafficByDayOfWeekInfo info) {
-        return FootTrafficByDayOfWeekItem.builder()
+    private CommercialFootTrafficByDayOfWeekItem toCommercialFootTrafficByDayOfWeekItem(CommercialFootTrafficByDayOfWeekInfo info) {
+        return CommercialFootTrafficByDayOfWeekItem.builder()
             .mondayFootTraffic(info.mondayFootTraffic())
             .tuesdayFootTraffic(info.tuesdayFootTraffic())
             .wednesdayFootTraffic(info.wednesdayFootTraffic())
@@ -131,8 +131,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private FootTrafficByAgeGroupItem toFootTrafficByAgeGroupItem(FootTrafficByAgeGroupInfo info) {
-        return FootTrafficByAgeGroupItem.builder()
+    private CommercialFootTrafficByAgeGroupItem toCommercialFootTrafficByAgeGroupItem(CommercialFootTrafficByAgeGroupInfo info) {
+        return CommercialFootTrafficByAgeGroupItem.builder()
             .age10FootTraffic(info.age10FootTraffic())
             .age20FootTraffic(info.age20FootTraffic())
             .age30FootTraffic(info.age30FootTraffic())
@@ -142,8 +142,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private FootTrafficByAgeGenderPercentItem toFootTrafficByAgeGenderPercentItem(FootTrafficByAgeGenderPercentInfo info) {
-        return FootTrafficByAgeGenderPercentItem.builder()
+    private CommercialFootTrafficByAgeGenderPercentItem toCommercialFootTrafficByAgeGenderPercentItem(CommercialFootTrafficByAgeGenderPercentInfo info) {
+        return CommercialFootTrafficByAgeGenderPercentItem.builder()
             .maleAge10Percent(info.maleAge10Percent())
             .femaleAge10Percent(info.femaleAge10Percent())
             .maleAge20Percent(info.maleAge20Percent())
@@ -160,8 +160,8 @@ public class CommercialPresenter {
     }
 
     // Sales Item Mappers
-    private SalesByTimeSlotItem toSalesByTimeSlotItem(SalesByTimeSlotInfo info) {
-        return SalesByTimeSlotItem.builder()
+    private CommercialSalesByTimeSlotItem toCommercialSalesByTimeSlotItem(CommercialSalesByTimeSlotInfo info) {
+        return CommercialSalesByTimeSlotItem.builder()
             .salesAmountTime00To06(info.salesAmountTime00To06())
             .salesAmountTime06To11(info.salesAmountTime06To11())
             .salesAmountTime11To14(info.salesAmountTime11To14())
@@ -171,8 +171,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private SalesByDayOfWeekItem toSalesByDayOfWeekItem(SalesByDayOfWeekInfo info) {
-        return SalesByDayOfWeekItem.builder()
+    private CommercialSalesByDayOfWeekItem toCommercialSalesByDayOfWeekItem(CommercialSalesByDayOfWeekInfo info) {
+        return CommercialSalesByDayOfWeekItem.builder()
             .mondaySalesAmount(info.mondaySalesAmount())
             .tuesdaySalesAmount(info.tuesdaySalesAmount())
             .wednesdaySalesAmount(info.wednesdaySalesAmount())
@@ -183,8 +183,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private SalesByAgeItem toSalesByAgeItem(SalesByAgeInfo info) {
-        return SalesByAgeItem.builder()
+    private CommercialSalesByAgeItem toCommercialSalesByAgeItem(CommercialSalesByAgeInfo info) {
+        return CommercialSalesByAgeItem.builder()
             .age10SalesAmount(info.age10SalesAmount())
             .age20SalesAmount(info.age20SalesAmount())
             .age30SalesAmount(info.age30SalesAmount())
@@ -194,8 +194,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private SalesByAgeGenderPercentItem toSalesByAgeGenderPercentItem(SalesByAgeGenderPercentInfo info) {
-        return SalesByAgeGenderPercentItem.builder()
+    private CommercialSalesByAgeGenderPercentItem toCommercialSalesByAgeGenderPercentItem(CommercialSalesByAgeGenderPercentInfo info) {
+        return CommercialSalesByAgeGenderPercentItem.builder()
             .maleAge10Percent(info.maleAge10Percent())
             .femaleAge10Percent(info.femaleAge10Percent())
             .maleAge20Percent(info.maleAge20Percent())
@@ -211,8 +211,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private SalesCountByDayOfWeekItem toSalesCountByDayOfWeekItem(SalesCountByDayOfWeekInfo info) {
-        return SalesCountByDayOfWeekItem.builder()
+    private CommercialSalesCountByDayOfWeekItem toCommercialSalesCountByDayOfWeekItem(CommercialSalesCountByDayOfWeekInfo info) {
+        return CommercialSalesCountByDayOfWeekItem.builder()
             .mondaySalesCount(info.mondaySalesCount())
             .tuesdaySalesCount(info.tuesdaySalesCount())
             .wednesdaySalesCount(info.wednesdaySalesCount())
@@ -223,8 +223,8 @@ public class CommercialPresenter {
             .build();
     }
 
-    private SalesCountByTimeSlotItem toSalesCountByTimeSlotItem(SalesCountByTimeSlotInfo info) {
-        return SalesCountByTimeSlotItem.builder()
+    private CommercialSalesCountByTimeSlotItem toCommercialSalesCountByTimeSlotItem(CommercialSalesCountByTimeSlotInfo info) {
+        return CommercialSalesCountByTimeSlotItem.builder()
             .salesCountTime00To06(info.salesCountTime00To06())
             .salesCountTime06To11(info.salesCountTime06To11())
             .salesCountTime11To14(info.salesCountTime11To14())
@@ -234,16 +234,16 @@ public class CommercialPresenter {
             .build();
     }
 
-    private SalesCountByGenderItem toSalesCountByGenderItem(SalesCountByGenderInfo info) {
-        return SalesCountByGenderItem.builder()
+    private CommercialSalesCountByGenderItem toCommercialSalesCountByGenderItem(CommercialSalesCountByGenderInfo info) {
+        return CommercialSalesCountByGenderItem.builder()
             .maleSalesCount(info.maleSalesCount())
             .femaleSalesCount(info.femaleSalesCount())
             .build();
     }
 
     // Facility Item Mappers
-    private SchoolCountItem toSchoolCountItem(SchoolCountInfo info) {
-        return SchoolCountItem.builder()
+    private CommercialSchoolCountItem toCommercialSchoolCountItem(CommercialSchoolCountInfo info) {
+        return CommercialSchoolCountItem.builder()
             .elementarySchoolCount(info.elementarySchoolCount())
             .middleSchoolCount(info.middleSchoolCount())
             .highSchoolCount(info.highSchoolCount())
@@ -253,8 +253,8 @@ public class CommercialPresenter {
     }
 
     // Population Item Mappers
-    private ResidentPopulationByAgeItem toResidentPopulationByAgeItem(ResidentPopulationByAgeInfo info) {
-        return ResidentPopulationByAgeItem.builder()
+    private CommercialResidentPopulationByAgeItem toCommercialResidentPopulationByAgeItem(CommercialResidentPopulationByAgeInfo info) {
+        return CommercialResidentPopulationByAgeItem.builder()
             .totalResidentPopulation(info.totalResidentPopulation())
             .age10ResidentPopulation(info.age10ResidentPopulation())
             .age20ResidentPopulation(info.age20ResidentPopulation())
@@ -266,15 +266,15 @@ public class CommercialPresenter {
     }
 
     // Income Item Mappers
-    private AverageIncomeItem toAverageIncomeItem(AverageIncomeInfo info) {
-        return AverageIncomeItem.builder()
+    private CommercialAverageIncomeItem toCommercialAverageIncomeItem(CommercialAverageIncomeInfo info) {
+        return CommercialAverageIncomeItem.builder()
             .monthlyAverageIncomeAmount(info.monthlyAverageIncomeAmount())
             .incomeBracketCode(info.incomeBracketCode())
             .build();
     }
 
-    private ExpenseByCategoryItem toExpenseByCategoryItem(ExpenseByCategoryInfo info) {
-        return ExpenseByCategoryItem.builder()
+    private CommercialExpenseByCategoryItem toCommercialExpenseByCategoryItem(CommercialExpenseByCategoryInfo info) {
+        return CommercialExpenseByCategoryItem.builder()
             .groceryExpenseAmount(info.groceryExpenseAmount())
             .clothingExpenseAmount(info.clothingExpenseAmount())
             .medicalExpenseAmount(info.medicalExpenseAmount())
