@@ -32,7 +32,7 @@ import org.hibernate.annotations.Comment;
 public class StoreDistrictEntity {
 
     @Id
-    @Comment("점포_자치구_아이디")
+    @Comment("점포_자치구 아이디")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -44,47 +44,47 @@ public class StoreDistrictEntity {
     @Column(length = 5, nullable = false)
     private String districtCode;
 
-    @Comment("자치구 코드 명")
+    @Comment("자치구명")
     @Column(length = 10, nullable = false)
-    private String districtCodeName;
+    private String districtName;
 
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)
     private String serviceCode;
 
-    @Comment("서비스 업종 코드명")
+    @Comment("서비스 업종명")
     @Column(length = 20, nullable = false)
-    private String serviceCodeName;
+    private String serviceName;
 
     @Comment("서비스 업종 타입")
     @Enumerated(EnumType.STRING)
     private ServiceType serviceType;
 
-    @Comment("점포 수")
+    @Comment("총 점포 수")
     @Column(nullable = false)
-    private Long totalStore;
+    private Long totalStoreCount;
 
     @Comment("유사 업종 점포 수")
     @Column(nullable = false)
-    private Long similarStore;
+    private Long similarStoreCount;
 
     @Comment("개업 점포 수")
     @Column(nullable = false)
-    private Long openedStore;
+    private Long openedStoreCount;
 
     @Comment("폐업 점포 수")
     @Column(nullable = false)
-    private Long closedStore;
+    private Long closedStoreCount;
 
     @Comment("프랜차이즈 점포 수")
     @Column(nullable = false)
-    private Long franchiseStore;
+    private Long franchiseStoreCount;
 
     @Comment("개업률")
     @Column(nullable = false)
-    private Double openedRate;
+    private Double openingRate;
 
     @Comment("폐업률")
     @Column(nullable = false)
-    private Double closedRate;
+    private Double closureRate;
 }
