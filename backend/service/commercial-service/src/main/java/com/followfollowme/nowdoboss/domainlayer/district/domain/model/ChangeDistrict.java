@@ -7,11 +7,11 @@ public record ChangeDistrict(
     long id,
     String periodCode,
     String districtCode,
-    String districtCodeName,
-    String changeIndicator,
+    String districtName,
+    String changeIndicatorCode,
     String changeIndicatorName,
-    int openedMonths,
-    int closedMonths
+    int averageOpenedMonths,
+    int averageClosedMonths
 ) {
 
 }
