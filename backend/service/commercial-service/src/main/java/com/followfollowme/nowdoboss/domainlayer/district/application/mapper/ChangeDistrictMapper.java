@@ -7,6 +7,5 @@ import org.mapstruct.Mapper;
 @Mapper(componentModel = "spring")
 public interface ChangeDistrictMapper {
 
-    // 엔티티 -> 도메인
     ChangeDistrict toDomainFromEntity(ChangeDistrictEntity entity);
 }

@@ -1,8 +1,27 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.port.in;
 
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.ChangeIndicatorDistrictResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictTopTenSummaryResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.FootTrafficDistrictDetailResponse;
+import java.util.List;
 
 public interface DistrictWebUseCase {
 
     DistrictTopTenSummaryResponse getTopTenDistricts(String currentPeriodCode, String previousPeriodCode);
+
+    DistrictDetailResponse getDistrictDetail(String districtCode, String currentPeriodCode, String previousPeriodCode);
+
+    FootTrafficDistrictDetailResponse getDistrictFootTrafficDetail(String districtCode, String currentPeriodCode, String previousPeriodCode);
+
+    ChangeIndicatorDistrictResponse getDistrictChangeDetail(String districtCode, String currentPeriodCode);
+
+    DistrictStoreDetailResponse getDistrictTotalStoreDetail(String districtCode, String currentPeriodCode);
+
+    DistrictSalesDetailResponse getDistrictSalesTopFiveDetail(String districtCode, String currentPeriodCode, String previousPeriodCode);
+
+    List<DistrictAreaResponse> getAllDistricts(String currentPeriodCode);
 }

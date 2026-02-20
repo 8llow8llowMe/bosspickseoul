@@ -1,9 +1,9 @@
-package com.followfollowme.nowdoboss.domainlayer.district.application.info;
+package com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query;
 
 import lombok.Builder;
 
 @Builder
-public record DistrictFootTrafficTopTenInfo(
+public record FootTrafficDistrictTopTenQueryResult(
     String districtCode,
     String districtName,
     long totalFootTraffic,

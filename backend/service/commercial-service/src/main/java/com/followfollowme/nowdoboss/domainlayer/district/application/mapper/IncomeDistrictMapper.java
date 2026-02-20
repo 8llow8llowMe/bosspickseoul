@@ -7,6 +7,5 @@ import org.mapstruct.Mapper;
 @Mapper(componentModel = "spring")
 public interface IncomeDistrictMapper {
 
-    // 엔티티 -> 도메인
     IncomeDistrict toDomainFromEntity(IncomeDistrictEntity entity);
 }

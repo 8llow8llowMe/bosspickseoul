@@ -7,6 +7,5 @@ import org.mapstruct.Mapper;
 @Mapper(componentModel = "spring")
 public interface FootTrafficDistrictMapper {
 
-    // 엔티티 -> 도메인
     FootTrafficDistrict toDomainFromEntity(FootTrafficDistrictEntity entity);
 }

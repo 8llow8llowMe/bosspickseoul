@@ -1,9 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.repository.SalesDistrictRepository;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.DistrictSalesTopTenInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.SalesDistrictServiceTopFiveProjection;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.SalesDistrictTopTenProjection;
 import com.followfollowme.nowdoboss.domainlayer.district.application.mapper.SalesDistrictMapper;
 import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.SalesDistrictRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query.SalesDistrictServiceTopFiveQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query.SalesDistrictTopTenQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.district.domain.model.SalesDistrict;
 import java.util.List;
 import java.util.Optional;
@@ -25,15 +28,35 @@ public class SalesDistrictRepositoryAdapter implements SalesDistrictRepositoryPo
     }
 
     @Override
-    public List<DistrictSalesTopTenInfo> findTopTenBySales(String currentPeriodCode, String previousPeriodCode) {
+    public List<SalesDistrictTopTenQueryResult> findTopTenBySales(String currentPeriodCode, String previousPeriodCode) {
         return salesDistrictRepository.findTopTenBySales(currentPeriodCode, previousPeriodCode)
             .stream()
-            .map(projection -> DistrictSalesTopTenInfo.builder()
-                .districtCode(projection.districtCode())
-                .districtName(projection.districtName())
-                .totalSalesAmount(projection.totalSalesAmount())
-                .salesChangeRate(projection.salesChangeRate())
-                .build())
+            .map(this::toSalesTopTenQueryResult)
             .toList();
+    }
+
+    @Override
+    public List<SalesDistrictServiceTopFiveQueryResult> findTopFiveServiceBySales(String districtCode, String currentPeriodCode, String previousPeriodCode) {
+        return salesDistrictRepository.findTopFiveServiceBySales(districtCode, currentPeriodCode, previousPeriodCode)
+            .stream()
+            .map(this::toSalesServiceTopFiveQueryResult)
+            .toList();
+    }
+
+    private SalesDistrictTopTenQueryResult toSalesTopTenQueryResult(SalesDistrictTopTenProjection projection) {
+        return SalesDistrictTopTenQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .totalSalesAmount(projection.totalSalesAmount())
+            .salesChangeRate(projection.salesChangeRate())
+            .build();
+    }
+
+    private SalesDistrictServiceTopFiveQueryResult toSalesServiceTopFiveQueryResult(SalesDistrictServiceTopFiveProjection projection) {
+        return SalesDistrictServiceTopFiveQueryResult.builder()
+            .serviceCode(projection.serviceCode())
+            .serviceName(projection.serviceName())
+            .salesChangeRate(projection.salesChangeRate())
+            .build();
     }
 }

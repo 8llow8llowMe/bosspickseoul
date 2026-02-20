@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.repository.custom;
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.entity.QFootTrafficDistrictEntity;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.DistrictAreaProjection;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.FootTrafficDistrictTopTenProjection;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -28,7 +29,6 @@ public class FootTrafficDistrictCustomRepositoryImpl implements FootTrafficDistr
                     current.districtCode,
                     current.districtName,
                     current.totalFootTraffic,
-                    // 변화율 계산: (현재 - 이전) / 이전 * 100
                     current.totalFootTraffic.doubleValue()
                         .subtract(previous.totalFootTraffic.doubleValue())
                         .divide(previous.totalFootTraffic)
@@ -44,6 +44,25 @@ public class FootTrafficDistrictCustomRepositoryImpl implements FootTrafficDistr
             )
             .orderBy(current.totalFootTraffic.desc())
             .limit(TOP_TEN_LIMIT)
+            .fetch();
+    }
+
+    @Override
+    public List<DistrictAreaProjection> findDistrictAreasByPeriodCode(String periodCode) {
+        QFootTrafficDistrictEntity footTraffic = QFootTrafficDistrictEntity.footTrafficDistrictEntity;
+
+        return queryFactory
+            .select(
+                Projections.constructor(
+                    DistrictAreaProjection.class,
+                    footTraffic.districtCode,
+                    footTraffic.districtName
+                )
+            )
+            .from(footTraffic)
+            .where(footTraffic.periodCode.eq(periodCode))
+            .groupBy(footTraffic.districtCode, footTraffic.districtName)
+            .orderBy(footTraffic.districtName.asc())
             .fetch();
     }
 }

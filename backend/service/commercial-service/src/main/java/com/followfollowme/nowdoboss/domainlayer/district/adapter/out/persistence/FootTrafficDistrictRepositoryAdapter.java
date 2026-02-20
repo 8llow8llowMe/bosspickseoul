@@ -1,9 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.repository.FootTrafficDistrictRepository;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.DistrictFootTrafficTopTenInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.DistrictAreaProjection;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.FootTrafficDistrictTopTenProjection;
 import com.followfollowme.nowdoboss.domainlayer.district.application.mapper.FootTrafficDistrictMapper;
 import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.FootTrafficDistrictRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query.DistrictAreaQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query.FootTrafficDistrictTopTenQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.district.domain.model.FootTrafficDistrict;
 import java.util.List;
 import java.util.Optional;
@@ -24,15 +27,42 @@ public class FootTrafficDistrictRepositoryAdapter implements FootTrafficDistrict
     }
 
     @Override
-    public List<DistrictFootTrafficTopTenInfo> findTopTenByFootTraffic(String currentPeriodCode, String previousPeriodCode) {
+    public List<FootTrafficDistrict> findByPeriodCodeInAndDistrictCodeOrderByPeriodCode(List<String> periodCodes, String districtCode) {
+        return footTrafficDistrictRepository.findByPeriodCodeInAndDistrictCodeOrderByPeriodCode(periodCodes, districtCode)
+            .stream()
+            .map(footTrafficDistrictMapper::toDomainFromEntity)
+            .toList();
+    }
+
+    @Override
+    public List<DistrictAreaQueryResult> findDistrictAreasByPeriodCode(String periodCode) {
+        return footTrafficDistrictRepository.findDistrictAreasByPeriodCode(periodCode)
+            .stream()
+            .map(this::toDistrictAreaQueryResult)
+            .toList();
+    }
+
+    @Override
+    public List<FootTrafficDistrictTopTenQueryResult> findTopTenByFootTraffic(String currentPeriodCode, String previousPeriodCode) {
         return footTrafficDistrictRepository.findTopTenByFootTraffic(currentPeriodCode, previousPeriodCode)
             .stream()
-            .map(projection -> DistrictFootTrafficTopTenInfo.builder()
-                .districtCode(projection.districtCode())
-                .districtName(projection.districtName())
-                .totalFootTraffic(projection.totalFootTraffic())
-                .footTrafficChangeRate(projection.footTrafficChangeRate())
-                .build())
+            .map(this::toFootTrafficTopTenQueryResult)
             .toList();
+    }
+
+    private DistrictAreaQueryResult toDistrictAreaQueryResult(DistrictAreaProjection projection) {
+        return DistrictAreaQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .build();
+    }
+
+    private FootTrafficDistrictTopTenQueryResult toFootTrafficTopTenQueryResult(FootTrafficDistrictTopTenProjection projection) {
+        return FootTrafficDistrictTopTenQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .totalFootTraffic(projection.totalFootTraffic())
+            .footTrafficChangeRate(projection.footTrafficChangeRate())
+            .build();
     }
 }

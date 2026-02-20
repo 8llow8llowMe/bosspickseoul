@@ -5,6 +5,7 @@ import static com.followfollowme.nowdoboss.domainlayer.district.adapter.out.pers
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.entity.QStoreDistrictEntity;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.StoreDistrictClosedTopTenProjection;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.StoreDistrictOpenedTopTenProjection;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.StoreDistrictServiceTopEightProjection;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Repository;
 public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRepository {
 
     private static final int TOP_TEN_LIMIT = 10;
+    private static final int TOP_EIGHT_LIMIT = 8;
     private static final double PERCENT_MULTIPLIER = 100.0;
 
     private final JPAQueryFactory queryFactory;
@@ -28,13 +30,9 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
         QStoreDistrictEntity current = storeDistrictEntity;
         QStoreDistrictEntity previous = new QStoreDistrictEntity("previous");
 
-        // 현재 분기 개업 점포 수 합계
         NumberExpression<Long> currentOpenedSum = current.openedStoreCount.sumLong();
-
-        // 현재 분기 개업률 평균
         NumberExpression<Double> currentOpeningRateAvg = current.openingRate.avg();
 
-        // 이전 분기 개업률 평균 서브쿼리 (Expressions.asNumber로 NumberExpression 변환)
         NumberExpression<Double> previousOpeningRateAvg = Expressions.asNumber(
             JPAExpressions
                 .select(previous.openingRate.avg())
@@ -45,7 +43,6 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 )
         );
 
-        // 개업률 변화율: (현재 평균 - 이전 평균) / 이전 평균 * 100
         NumberExpression<Double> openingChangeRate = currentOpeningRateAvg
             .subtract(previousOpeningRateAvg)
             .divide(previousOpeningRateAvg)
@@ -74,13 +71,9 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
         QStoreDistrictEntity current = storeDistrictEntity;
         QStoreDistrictEntity previous = new QStoreDistrictEntity("previous");
 
-        // 현재 분기 폐업 점포 수 합계
         NumberExpression<Long> currentClosedSum = current.closedStoreCount.sumLong();
-
-        // 현재 분기 폐업률 평균
         NumberExpression<Double> currentClosureRateAvg = current.closureRate.avg();
 
-        // 이전 분기 폐업률 평균 서브쿼리
         NumberExpression<Double> previousClosureRateAvg = Expressions.asNumber(
             JPAExpressions
                 .select(previous.closureRate.avg())
@@ -91,7 +84,6 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 )
         );
 
-        // 폐업률 변화율: (현재 평균 - 이전 평균) / 이전 평균 * 100
         NumberExpression<Double> closureChangeRate = currentClosureRateAvg
             .subtract(previousClosureRateAvg)
             .divide(previousClosureRateAvg)
@@ -112,6 +104,31 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
             .groupBy(current.districtCode, current.districtName)
             .orderBy(currentClosedSum.desc())
             .limit(TOP_TEN_LIMIT)
+            .fetch();
+    }
+
+    @Override
+    public List<StoreDistrictServiceTopEightProjection> findTopEightByTotalStore(String periodCode, String districtCode) {
+        QStoreDistrictEntity store = storeDistrictEntity;
+
+        return queryFactory
+            .select(
+                Projections.constructor(
+                    StoreDistrictServiceTopEightProjection.class,
+                    store.serviceCode,
+                    store.serviceName,
+                    store.totalStoreCount.sumLong()
+                )
+            )
+            .from(store)
+            .where(
+                store.periodCode.eq(periodCode),
+                store.districtCode.eq(districtCode),
+                store.serviceType.isNotNull()
+            )
+            .groupBy(store.serviceCode, store.serviceName)
+            .orderBy(store.totalStoreCount.sumLong().desc())
+            .limit(TOP_EIGHT_LIMIT)
             .fetch();
     }
 }

@@ -1,10 +1,14 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.repository.StoreDistrictRepository;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.DistrictClosedStoreTopTenInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.DistrictOpenedStoreTopTenInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.StoreDistrictClosedTopTenProjection;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.StoreDistrictOpenedTopTenProjection;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.out.persistence.projection.StoreDistrictServiceTopEightProjection;
 import com.followfollowme.nowdoboss.domainlayer.district.application.mapper.StoreDistrictMapper;
 import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.StoreDistrictRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query.StoreDistrictClosedTopTenQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query.StoreDistrictOpenedTopTenQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.query.StoreDistrictServiceTopEightQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.district.domain.model.StoreDistrict;
 import java.util.List;
 import java.util.Optional;
@@ -27,28 +31,52 @@ public class StoreDistrictRepositoryAdapter implements StoreDistrictRepositoryPo
     }
 
     @Override
-    public List<DistrictOpenedStoreTopTenInfo> findTopTenByOpenedStore(String currentPeriodCode, String previousPeriodCode) {
+    public List<StoreDistrictOpenedTopTenQueryResult> findTopTenByOpenedStore(String currentPeriodCode, String previousPeriodCode) {
         return storeDistrictRepository.findTopTenByOpenedStore(currentPeriodCode, previousPeriodCode)
             .stream()
-            .map(projection -> DistrictOpenedStoreTopTenInfo.builder()
-                .districtCode(projection.districtCode())
-                .districtName(projection.districtName())
-                .openedStoreCount(projection.openedStoreCount())
-                .openingChangeRate(projection.openingChangeRate())
-                .build())
+            .map(this::toOpenedTopTenQueryResult)
             .toList();
     }
 
     @Override
-    public List<DistrictClosedStoreTopTenInfo> findTopTenByClosedStore(String currentPeriodCode, String previousPeriodCode) {
+    public List<StoreDistrictClosedTopTenQueryResult> findTopTenByClosedStore(String currentPeriodCode, String previousPeriodCode) {
         return storeDistrictRepository.findTopTenByClosedStore(currentPeriodCode, previousPeriodCode)
             .stream()
-            .map(projection -> DistrictClosedStoreTopTenInfo.builder()
-                .districtCode(projection.districtCode())
-                .districtName(projection.districtName())
-                .closedStoreCount(projection.closedStoreCount())
-                .closureChangeRate(projection.closureChangeRate())
-                .build())
+            .map(this::toClosedTopTenQueryResult)
             .toList();
+    }
+
+    @Override
+    public List<StoreDistrictServiceTopEightQueryResult> findTopEightByTotalStore(String periodCode, String districtCode) {
+        return storeDistrictRepository.findTopEightByTotalStore(periodCode, districtCode)
+            .stream()
+            .map(this::toServiceTopEightQueryResult)
+            .toList();
+    }
+
+    private StoreDistrictOpenedTopTenQueryResult toOpenedTopTenQueryResult(StoreDistrictOpenedTopTenProjection projection) {
+        return StoreDistrictOpenedTopTenQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .openedStoreCount(projection.openedStoreCount())
+            .openingChangeRate(projection.openingChangeRate())
+            .build();
+    }
+
+    private StoreDistrictClosedTopTenQueryResult toClosedTopTenQueryResult(StoreDistrictClosedTopTenProjection projection) {
+        return StoreDistrictClosedTopTenQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .closedStoreCount(projection.closedStoreCount())
+            .closureChangeRate(projection.closureChangeRate())
+            .build();
+    }
+
+    private StoreDistrictServiceTopEightQueryResult toServiceTopEightQueryResult(StoreDistrictServiceTopEightProjection projection) {
+        return StoreDistrictServiceTopEightQueryResult.builder()
+            .serviceCode(projection.serviceCode())
+            .serviceName(projection.serviceName())
+            .totalStoreCount(projection.totalStoreCount())
+            .build();
     }
 }
