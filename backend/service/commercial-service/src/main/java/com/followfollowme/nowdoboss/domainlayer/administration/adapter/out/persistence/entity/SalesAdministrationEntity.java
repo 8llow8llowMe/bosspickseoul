@@ -42,31 +42,31 @@ public class SalesAdministrationEntity {
     @Column(length = 10, nullable = false)
     private String administrationCode;
 
-    @Comment("행정동 코드명")
-    @Column(length = 20, nullable = false)
-    private String administrationCodeName;
+    @Comment("행정동명")
+    @Column(name = "administration_code_name", length = 20, nullable = false)
+    private String administrationName;
 
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)
     private String serviceCode;
 
-    @Comment("서비스 업종 코드명")
-    @Column(length = 20, nullable = false)
-    private String serviceCodeName;
+    @Comment("서비스 업종명")
+    @Column(name = "service_code_name", length = 20, nullable = false)
+    private String serviceName;
 
     @Comment("서비스 업종 타입")
     @Enumerated(EnumType.STRING)
     private ServiceType serviceType;
 
     @Comment("당월 매출 금액")
-    @Column(nullable = false)
-    private Long monthSales;
+    @Column(name = "month_sales", nullable = false)
+    private Long monthlySalesAmount;
 
     @Comment("주중 매출 금액")
-    @Column(nullable = false)
-    private Long weekdaySales;
+    @Column(name = "weekday_sales", nullable = false)
+    private Long weekdaySalesAmount;
 
     @Comment("주말 매출 금액")
-    @Column(nullable = false)
-    private Long weekendSales;
+    @Column(name = "weekend_sales", nullable = false)
+    private Long weekendSalesAmount;
 }

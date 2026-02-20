@@ -7,8 +7,8 @@ public record IncomeAdministration(
     long id,
     String periodCode,
     String administrationCode,
-    String administrationCodeName,
-    long totalPrice
+    String administrationName,
+    long totalExpenseAmount
 ) {
 
 }

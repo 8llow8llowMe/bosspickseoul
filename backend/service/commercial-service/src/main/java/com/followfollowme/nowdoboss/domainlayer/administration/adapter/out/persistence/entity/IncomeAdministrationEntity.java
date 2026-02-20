@@ -39,11 +39,11 @@ public class IncomeAdministrationEntity {
     @Column(length = 10, nullable = false)
     private String administrationCode;
 
-    @Comment("행정동 코드명")
-    @Column(length = 20, nullable = false)
-    private String administrationCodeName;
+    @Comment("행정동명")
+    @Column(name = "administration_code_name", length = 20, nullable = false)
+    private String administrationName;
 
-    @Comment("지출 총금액")
-    @Column(nullable = false)
-    private Long totalPrice;
+    @Comment("총 지출 금액")
+    @Column(name = "total_price", nullable = false)
+    private Long totalExpenseAmount;
 }

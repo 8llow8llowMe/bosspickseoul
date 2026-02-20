@@ -8,17 +8,17 @@ public record StoreAdministration(
     long id,
     String periodCode,
     String administrationCode,
-    String administrationCodeName,
+    String administrationName,
     String serviceCode,
-    String serviceCodeName,
+    String serviceName,
     ServiceType serviceType,
-    long totalStore,
-    long similarStore,
-    long openedStore,
-    long closedStore,
-    long franchiseStore,
-    double openedRate,
-    double closedRate
+    long totalStoreCount,
+    long similarStoreCount,
+    long openedStoreCount,
+    long closedStoreCount,
+    long franchiseStoreCount,
+    double openingRate,
+    double closureRate
 ) {
 
 }
