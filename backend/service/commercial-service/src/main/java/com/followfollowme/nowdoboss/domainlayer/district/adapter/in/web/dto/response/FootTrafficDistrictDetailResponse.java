@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response;
+﻿package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response;
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictAgeGroupFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictDayOfWeekFootTrafficItem;
@@ -13,6 +13,7 @@ import lombok.Builder;
 @Builder
 @Schema(description = "자치구 유동인구 상세 응답")
 public record FootTrafficDistrictDetailResponse(
+
     @Schema(description = "직전 분기 대비 추이", example = "INCREASE")
     PeriodTrendType periodTrend,
 

@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder
 @Schema(description = "자치구 코드/명 목록 응답")
 public record DistrictAreaResponse(
+
     @Schema(description = "자치구 코드", example = "11680")
     String districtCode,
 

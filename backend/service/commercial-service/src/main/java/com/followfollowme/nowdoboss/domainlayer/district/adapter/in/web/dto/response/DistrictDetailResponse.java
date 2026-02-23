@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder
 @Schema(description = "자치구 통합 상세 분석 응답")
 public record DistrictDetailResponse(
+
     @Schema(description = "상권 변화지표 상세")
     ChangeIndicatorDistrictResponse changeIndicator,
 
