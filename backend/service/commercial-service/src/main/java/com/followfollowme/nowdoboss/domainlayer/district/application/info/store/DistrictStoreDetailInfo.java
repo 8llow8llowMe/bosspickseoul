@@ -5,7 +5,9 @@ import lombok.Builder;
 
 @Builder
 public record DistrictStoreDetailInfo(
-    List<DistrictStoreServiceTopInfo> topStoreServices
+    List<DistrictStoreServiceTopInfo> topStoreServices,
+    List<DistrictOpenedStoreAdministrationTopInfo> topOpenedAdministrations,
+    List<DistrictClosedStoreAdministrationTopInfo> topClosedAdministrations
 ) {
 
 }

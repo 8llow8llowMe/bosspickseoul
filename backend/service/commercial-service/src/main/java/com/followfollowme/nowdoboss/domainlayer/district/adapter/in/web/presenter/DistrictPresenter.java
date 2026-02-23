@@ -2,10 +2,12 @@ package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.present
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictAgeGroupFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictClosedStoreTopTenItem;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictClosedStoreAdministrationTopItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictDayOfWeekFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictFootTrafficTopTenItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictGenderFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictOpenedStoreTopTenItem;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictOpenedStoreAdministrationTopItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictPeriodFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictSalesAdministrationTopItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictSalesServiceTopItem;
@@ -23,12 +25,14 @@ import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottr
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.area.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.change.DistrictChangeIndicatorInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictClosedStoreTopTenInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictClosedStoreAdministrationTopInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictDayOfWeekFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.summary.DistrictDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictFootTrafficDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictFootTrafficTopTenInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictGenderFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictOpenedStoreTopTenInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictOpenedStoreAdministrationTopInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictPeriodFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.sales.DistrictSalesAdministrationTopInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.sales.DistrictSalesDetailInfo;
@@ -85,6 +89,8 @@ public class DistrictPresenter {
     public DistrictStoreDetailResponse toDistrictStoreDetailResponse(DistrictStoreDetailInfo info) {
         return DistrictStoreDetailResponse.builder()
             .topStoreServices(toDistrictStoreServiceTopItems(info.topStoreServices()))
+            .topOpenedAdministrations(toDistrictOpenedStoreAdministrationTopItems(info.topOpenedAdministrations()))
+            .topClosedAdministrations(toDistrictClosedStoreAdministrationTopItems(info.topClosedAdministrations()))
             .build();
     }
 
@@ -177,6 +183,44 @@ public class DistrictPresenter {
             .serviceCode(info.serviceCode())
             .serviceName(info.serviceName())
             .totalStoreCount(info.totalStoreCount())
+            .build();
+    }
+
+    private List<DistrictOpenedStoreAdministrationTopItem> toDistrictOpenedStoreAdministrationTopItems(
+        List<DistrictOpenedStoreAdministrationTopInfo> infos
+    ) {
+        return infos.stream()
+            .map(this::toDistrictOpenedStoreAdministrationTopItem)
+            .toList();
+    }
+
+    private DistrictOpenedStoreAdministrationTopItem toDistrictOpenedStoreAdministrationTopItem(
+        DistrictOpenedStoreAdministrationTopInfo info
+    ) {
+        return DistrictOpenedStoreAdministrationTopItem.builder()
+            .administrationCode(info.administrationCode())
+            .administrationName(info.administrationName())
+            .openedStoreCount(info.openedStoreCount())
+            .openingRate(info.openingRate())
+            .build();
+    }
+
+    private List<DistrictClosedStoreAdministrationTopItem> toDistrictClosedStoreAdministrationTopItems(
+        List<DistrictClosedStoreAdministrationTopInfo> infos
+    ) {
+        return infos.stream()
+            .map(this::toDistrictClosedStoreAdministrationTopItem)
+            .toList();
+    }
+
+    private DistrictClosedStoreAdministrationTopItem toDistrictClosedStoreAdministrationTopItem(
+        DistrictClosedStoreAdministrationTopInfo info
+    ) {
+        return DistrictClosedStoreAdministrationTopItem.builder()
+            .administrationCode(info.administrationCode())
+            .administrationName(info.administrationName())
+            .closedStoreCount(info.closedStoreCount())
+            .closureRate(info.closureRate())
             .build();
     }
 
