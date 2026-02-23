@@ -12,7 +12,7 @@ public record FacilityCommercial(
     String commercialName,
     long facilityCount,
     long elementarySchoolCount,
-    long middleSchoolCnt,
+    long middleSchoolCount,
     long highSchoolCount,
     long universityCount,
     long subwayStationCount,

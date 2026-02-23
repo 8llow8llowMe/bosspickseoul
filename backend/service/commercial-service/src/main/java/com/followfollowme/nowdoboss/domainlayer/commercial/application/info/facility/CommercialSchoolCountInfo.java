@@ -13,12 +13,12 @@ public record CommercialSchoolCountInfo(
 ) {
 
     public static CommercialSchoolCountInfo from(FacilityCommercial facilityCommercial) {
-        long total = facilityCommercial.elementarySchoolCount() + facilityCommercial.middleSchoolCnt()
+        long total = facilityCommercial.elementarySchoolCount() + facilityCommercial.middleSchoolCount()
             + facilityCommercial.highSchoolCount() + facilityCommercial.universityCount();
 
         return CommercialSchoolCountInfo.builder()
             .elementarySchoolCount(facilityCommercial.elementarySchoolCount())
-            .middleSchoolCount(facilityCommercial.middleSchoolCnt())
+            .middleSchoolCount(facilityCommercial.middleSchoolCount())
             .highSchoolCount(facilityCommercial.highSchoolCount())
             .universityCount(facilityCommercial.universityCount())
             .totalSchoolCount(total)
