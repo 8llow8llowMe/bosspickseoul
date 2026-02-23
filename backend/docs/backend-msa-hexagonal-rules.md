@@ -92,6 +92,8 @@
 - 엔드포인트마다 `@Operation(summary, description)`를 선언한다.
 - Path/Query 파라미터는 `@Parameter(description, example, required)`를 선언한다.
 - Request/Response/Item DTO 필드는 `@Schema(description, example)`를 선언한다.
+- `record` 기반 Response/Item DTO에서 `@Schema` 필드 블록 사이에는 빈 줄 1줄을 유지한다. (가독성 목적)
+- `public record XxxResponse(` 다음 줄에서 바로 첫 필드를 두지 말고, 빈 줄 후 `@Schema` 필드를 선언한다.
 - 인증 API는 `@Operation(security = @SecurityRequirement(name = "bearerAuth"))`를 추가한다.
 - **Swagger 설명 문구는 한국어를 기본으로 작성한다.**
 

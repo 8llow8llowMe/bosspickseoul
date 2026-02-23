@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder
 @Schema(description = "자치구 변화지표 상세 응답")
 public record ChangeIndicatorDistrictResponse(
+
     @Schema(description = "상권 변화지표 코드", example = "LL")
     String changeIndicatorCode,
 
