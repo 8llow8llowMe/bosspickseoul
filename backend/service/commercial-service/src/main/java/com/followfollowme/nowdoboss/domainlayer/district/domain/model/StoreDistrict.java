@@ -8,17 +8,17 @@ public record StoreDistrict(
     long id,
     String periodCode,
     String districtCode,
-    String districtCodeName,
+    String districtName,
     String serviceCode,
-    String serviceCodeName,
+    String serviceName,
     ServiceType serviceType,
-    long totalStore,
-    long similarStore,
-    long openedStore,
-    long closedStore,
-    long franchiseStore,
-    double openedRate,
-    double closedRate
+    long totalStoreCount,
+    long similarStoreCount,
+    long openedStoreCount,
+    long closedStoreCount,
+    long franchiseStoreCount,
+    double openingRate,
+    double closureRate
 ) {
 
 }

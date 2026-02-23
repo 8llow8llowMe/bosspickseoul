@@ -43,25 +43,25 @@ public class SalesCommercialEntity {
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드명")
+    @Comment("상권 구분명")
     @Column(length = 4, nullable = false)
-    private String commercialClassificationCodeName;
+    private String commercialClassificationName;
 
     @Comment("상권 코드")
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드명")
+    @Comment("상권명")
     @Column(length = 80, nullable = false)
-    private String commercialCodeName;
+    private String commercialName;
 
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)
     private String serviceCode;
 
-    @Comment("서비스 업종 코드명")
+    @Comment("서비스 업종명")
     @Column(length = 20, nullable = false)
-    private String serviceCodeName;
+    private String serviceName;
 
     @Comment("서비스 업종 타입")
     @Enumerated(EnumType.STRING)
@@ -69,143 +69,143 @@ public class SalesCommercialEntity {
 
     @Comment("당월 매출 금액")
     @Column(nullable = false)
-    private Long monthSales;
+    private Long monthlySalesAmount;
 
     @Comment("월요일 매출 금액")
     @Column(nullable = false)
-    private Long monSales;
+    private Long mondaySalesAmount;
 
     @Comment("화요일 매출 금액")
     @Column(nullable = false)
-    private Long tueSales;
+    private Long tuesdaySalesAmount;
 
     @Comment("수요일 매출 금액")
     @Column(nullable = false)
-    private Long wedSales;
+    private Long wednesdaySalesAmount;
 
     @Comment("목요일 매출 금액")
     @Column(nullable = false)
-    private Long thuSales;
+    private Long thursdaySalesAmount;
 
     @Comment("금요일 매출 금액")
     @Column(nullable = false)
-    private Long friSales;
+    private Long fridaySalesAmount;
 
     @Comment("토요일 매출 금액")
     @Column(nullable = false)
-    private Long satSales;
+    private Long saturdaySalesAmount;
 
     @Comment("일요일 매출 금액")
     @Column(nullable = false)
-    private Long sunSales;
+    private Long sundaySalesAmount;
 
-    @Comment("시간대 00 ~ 06 매출 금액")
-    @Column(name = "sales_00", nullable = false)
-    private Long sales00;
+    @Comment("00~06시 매출 금액")
+    @Column(name = "sales_amount_time_00_06", nullable = false)
+    private Long salesAmountTime00To06;
 
-    @Comment("시간대 06 ~ 11 매출 금액")
-    @Column(name = "sales_06", nullable = false)
-    private Long sales06;
+    @Comment("06~11시 매출 금액")
+    @Column(name = "sales_amount_time_06_11", nullable = false)
+    private Long salesAmountTime06To11;
 
-    @Comment("시간대 11 ~ 14 매출 금액")
-    @Column(name = "sales_11", nullable = false)
-    private Long sales11;
+    @Comment("11~14시 매출 금액")
+    @Column(name = "sales_amount_time_11_14", nullable = false)
+    private Long salesAmountTime11To14;
 
-    @Comment("시간대 14 ~ 17 매출 금액")
-    @Column(name = "sales_14", nullable = false)
-    private Long sales14;
+    @Comment("14~17시 매출 금액")
+    @Column(name = "sales_amount_time_14_17", nullable = false)
+    private Long salesAmountTime14To17;
 
-    @Comment("시간대 17 ~ 21 매출 금액")
-    @Column(name = "sales_17", nullable = false)
-    private Long sales17;
+    @Comment("17~21시 매출 금액")
+    @Column(name = "sales_amount_time_17_21", nullable = false)
+    private Long salesAmountTime17To21;
 
-    @Comment("시간대 21 ~ 24 매출 금액")
-    @Column(name = "sales_21", nullable = false)
-    private Long sales21;
+    @Comment("21~24시 매출 금액")
+    @Column(name = "sales_amount_time_21_24", nullable = false)
+    private Long salesAmountTime21To24;
 
     @Comment("남성 매출 금액")
     @Column(nullable = false)
-    private Long maleSales;
+    private Long maleSalesAmount;
 
     @Comment("여성 매출 금액")
     @Column(nullable = false)
-    private Long femaleSales;
+    private Long femaleSalesAmount;
 
-    @Comment("연령대 10 매출 금액")
+    @Comment("10대 매출 금액")
     @Column(nullable = false)
-    private Long teenSales;
+    private Long age10SalesAmount;
 
-    @Comment("연령대 20 매출 금액")
+    @Comment("20대 매출 금액")
     @Column(nullable = false)
-    private Long twentySales;
+    private Long age20SalesAmount;
 
-    @Comment("연령대 30 매출 금액")
+    @Comment("30대 매출 금액")
     @Column(nullable = false)
-    private Long thirtySales;
+    private Long age30SalesAmount;
 
-    @Comment("연령대 40 매출 금액")
+    @Comment("40대 매출 금액")
     @Column(nullable = false)
-    private Long fortySales;
+    private Long age40SalesAmount;
 
-    @Comment("연령대 50 매출 금액")
+    @Comment("50대 매출 금액")
     @Column(nullable = false)
-    private Long fiftySales;
+    private Long age50SalesAmount;
 
-    @Comment("연령대 60 이상 매출 금액")
+    @Comment("60대 이상 매출 금액")
     @Column(nullable = false)
-    private Long sixtySales;
+    private Long age60PlusSalesAmount;
 
     @Comment("월요일 매출 건수")
     @Column(nullable = false)
-    private Long monSalesCount;
+    private Long mondaySalesCount;
 
     @Comment("화요일 매출 건수")
     @Column(nullable = false)
-    private Long tueSalesCount;
+    private Long tuesdaySalesCount;
 
     @Comment("수요일 매출 건수")
     @Column(nullable = false)
-    private Long wedSalesCount;
+    private Long wednesdaySalesCount;
 
     @Comment("목요일 매출 건수")
     @Column(nullable = false)
-    private Long thuSalesCount;
+    private Long thursdaySalesCount;
 
     @Comment("금요일 매출 건수")
     @Column(nullable = false)
-    private Long friSalesCount;
+    private Long fridaySalesCount;
 
     @Comment("토요일 매출 건수")
     @Column(nullable = false)
-    private Long satSalesCount;
+    private Long saturdaySalesCount;
 
     @Comment("일요일 매출 건수")
     @Column(nullable = false)
-    private Long sunSalesCount;
+    private Long sundaySalesCount;
 
-    @Comment("시간대 00 ~ 06 매출 건수")
-    @Column(name = "sales_count_00", nullable = false)
-    private Long salesCount00;
+    @Comment("00~06시 매출 건수")
+    @Column(name = "sales_count_time_00_06", nullable = false)
+    private Long salesCountTime00To06;
 
-    @Comment("시간대 06 ~ 11 매출 건수")
-    @Column(name = "sales_count_06", nullable = false)
-    private Long salesCount06;
+    @Comment("06~11시 매출 건수")
+    @Column(name = "sales_count_time_06_11", nullable = false)
+    private Long salesCountTime06To11;
 
-    @Comment("시간대 11 ~ 14 매출 건수")
-    @Column(name = "sales_count_11", nullable = false)
-    private Long salesCount11;
+    @Comment("11~14시 매출 건수")
+    @Column(name = "sales_count_time_11_14", nullable = false)
+    private Long salesCountTime11To14;
 
-    @Comment("시간대 14 ~ 17 매출 건수")
-    @Column(name = "sales_count_14", nullable = false)
-    private Long salesCount14;
+    @Comment("14~17시 매출 건수")
+    @Column(name = "sales_count_time_14_17", nullable = false)
+    private Long salesCountTime14To17;
 
-    @Comment("시간대 17 ~ 21 매출 건수")
-    @Column(name = "sales_count_17", nullable = false)
-    private Long salesCount17;
+    @Comment("17~21시 매출 건수")
+    @Column(name = "sales_count_time_17_21", nullable = false)
+    private Long salesCountTime17To21;
 
-    @Comment("시간대 21 ~ 24 매출 건수")
-    @Column(name = "sales_count_21", nullable = false)
-    private Long salesCount21;
+    @Comment("21~24시 매출 건수")
+    @Column(name = "sales_count_time_21_24", nullable = false)
+    private Long salesCountTime21To24;
 
     @Comment("남성 매출 건수")
     @Column(nullable = false)

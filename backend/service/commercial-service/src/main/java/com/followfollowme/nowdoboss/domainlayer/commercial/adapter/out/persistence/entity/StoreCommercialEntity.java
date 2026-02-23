@@ -43,55 +43,55 @@ public class StoreCommercialEntity {
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드명")
+    @Comment("상권 구분명")
     @Column(length = 4, nullable = false)
-    private String commercialClassificationCodeName;
+    private String commercialClassificationName;
 
     @Comment("상권 코드")
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드명")
+    @Comment("상권명")
     @Column(length = 80, nullable = false)
-    private String commercialCodeName;
+    private String commercialName;
 
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)
     private String serviceCode;
 
-    @Comment("서비스 업종 코드명")
+    @Comment("서비스 업종명")
     @Column(length = 20, nullable = false)
-    private String serviceCodeName;
+    private String serviceName;
 
     @Comment("서비스 업종 타입")
     @Enumerated(EnumType.STRING)
     private ServiceType serviceType;
 
-    @Comment("점포 수")
+    @Comment("총 점포 수")
     @Column(nullable = false)
-    private Long totalStore;
+    private Long totalStoreCount;
 
     @Comment("유사 업종 점포 수")
     @Column(nullable = false)
-    private Long similarStore;
+    private Long similarStoreCount;
 
     @Comment("개업률")
     @Column(nullable = false)
-    private Double openedRate;
+    private Double openingRate;
 
     @Comment("개업 점포 수")
     @Column(nullable = false)
-    private Long openedStore;
+    private Long openedStoreCount;
 
     @Comment("폐업률")
     @Column(nullable = false)
-    private Double closedRate;
+    private Double closureRate;
 
     @Comment("폐업 점포 수")
     @Column(nullable = false)
-    private Long closedStore;
+    private Long closedStoreCount;
 
-    @Comment("프렌차이즈 점포 수")
+    @Comment("프랜차이즈 점포 수")
     @Column(nullable = false)
-    private Long franchiseStore;
+    private Long franchiseStoreCount;
 }

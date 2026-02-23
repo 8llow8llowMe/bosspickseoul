@@ -7,8 +7,8 @@ public record IncomeDistrict(
     long id,
     String periodCode,
     String districtCode,
-    String districtCodeName,
-    long totalPrice
+    String districtName,
+    long totalExpenseAmount
 ) {
 
 }

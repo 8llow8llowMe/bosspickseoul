@@ -39,17 +39,17 @@ public class FootTrafficCommercialEntity {
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드명")
+    @Comment("상권 구분명")
     @Column(length = 4, nullable = false)
-    private String commercialClassificationCodeName;
+    private String commercialClassificationName;
 
     @Comment("상권 코드")
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드명")
+    @Comment("상권명")
     @Column(length = 80, nullable = false)
-    private String commercialCodeName;
+    private String commercialName;
 
     @Comment("총 유동인구 수")
     @Column(nullable = false)
@@ -63,79 +63,79 @@ public class FootTrafficCommercialEntity {
     @Column(nullable = false)
     private Long femaleFootTraffic;
 
-    @Comment("연령대 10 유동인구 수")
+    @Comment("10대 유동인구 수")
     @Column(nullable = false)
-    private Long teenFootTraffic;
+    private Long age10FootTraffic;
 
-    @Comment("연령대 20 유동인구 수")
+    @Comment("20대 유동인구 수")
     @Column(nullable = false)
-    private Long twentyFootTraffic;
+    private Long age20FootTraffic;
 
-    @Comment("연령대 30 유동인구 수")
+    @Comment("30대 유동인구 수")
     @Column(nullable = false)
-    private Long thirtyFootTraffic;
+    private Long age30FootTraffic;
 
-    @Comment("연령대 40 유동인구 수")
+    @Comment("40대 유동인구 수")
     @Column(nullable = false)
-    private Long fortyFootTraffic;
+    private Long age40FootTraffic;
 
-    @Comment("연령대 50 유동인구 수")
+    @Comment("50대 유동인구 수")
     @Column(nullable = false)
-    private Long fiftyFootTraffic;
+    private Long age50FootTraffic;
 
-    @Comment("연령대 60 이상 유동인구 수")
+    @Comment("60대 이상 유동인구 수")
     @Column(nullable = false)
-    private Long sixtyFootTraffic;
+    private Long age60PlusFootTraffic;
 
-    @Comment("시간대 00 ~ 06 유동인구 수")
-    @Column(name = "foot_traffic_00", nullable = false)
-    private Long footTraffic00;
+    @Comment("00~06시 유동인구 수")
+    @Column(name = "foot_traffic_time_00_06", nullable = false)
+    private Long footTrafficTime00To06;
 
-    @Comment("시간대 06 ~ 11 유동인구 수")
-    @Column(name = "foot_traffic_06", nullable = false)
-    private Long footTraffic06;
+    @Comment("06~11시 유동인구 수")
+    @Column(name = "foot_traffic_time_06_11", nullable = false)
+    private Long footTrafficTime06To11;
 
-    @Comment("시간대 11 ~ 14 유동인구 수")
-    @Column(name = "foot_traffic_11", nullable = false)
-    private Long footTraffic11;
+    @Comment("11~14시 유동인구 수")
+    @Column(name = "foot_traffic_time_11_14", nullable = false)
+    private Long footTrafficTime11To14;
 
-    @Comment("시간대 14 ~ 17 유동인구 수")
-    @Column(name = "foot_traffic_14", nullable = false)
-    private Long footTraffic14;
+    @Comment("14~17시 유동인구 수")
+    @Column(name = "foot_traffic_time_14_17", nullable = false)
+    private Long footTrafficTime14To17;
 
-    @Comment("시간대 17 ~ 21 유동인구 수")
-    @Column(name = "foot_traffic_17", nullable = false)
-    private Long footTraffic17;
+    @Comment("17~21시 유동인구 수")
+    @Column(name = "foot_traffic_time_17_21", nullable = false)
+    private Long footTrafficTime17To21;
 
-    @Comment("시간대 21 ~ 24 유동인구 수")
-    @Column(name = "foot_traffic_21", nullable = false)
-    private Long footTraffic21;
+    @Comment("21~24시 유동인구 수")
+    @Column(name = "foot_traffic_time_21_24", nullable = false)
+    private Long footTrafficTime21To24;
 
     @Comment("월요일 유동인구 수")
     @Column(nullable = false)
-    private Long monFootTraffic;
+    private Long mondayFootTraffic;
 
     @Comment("화요일 유동인구 수")
     @Column(nullable = false)
-    private Long tueFootTraffic;
+    private Long tuesdayFootTraffic;
 
     @Comment("수요일 유동인구 수")
     @Column(nullable = false)
-    private Long wedFootTraffic;
+    private Long wednesdayFootTraffic;
 
     @Comment("목요일 유동인구 수")
     @Column(nullable = false)
-    private Long thuFootTraffic;
+    private Long thursdayFootTraffic;
 
     @Comment("금요일 유동인구 수")
     @Column(nullable = false)
-    private Long friFootTraffic;
+    private Long fridayFootTraffic;
 
     @Comment("토요일 유동인구 수")
     @Column(nullable = false)
-    private Long satFootTraffic;
+    private Long saturdayFootTraffic;
 
     @Comment("일요일 유동인구 수")
     @Column(nullable = false)
-    private Long sunFootTraffic;
+    private Long sundayFootTraffic;
 }

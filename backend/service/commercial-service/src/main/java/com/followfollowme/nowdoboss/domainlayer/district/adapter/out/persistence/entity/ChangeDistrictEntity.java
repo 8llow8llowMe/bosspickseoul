@@ -40,13 +40,13 @@ public class ChangeDistrictEntity {
     @Column(length = 5, nullable = false)
     private String districtCode;
 
-    @Comment("자치구 코드명")
+    @Comment("자치구명")
     @Column(length = 10, nullable = false)
-    private String districtCodeName;
+    private String districtName;
 
-    @Comment("상권 변화 지표")
+    @Comment("상권 변화 지표 코드")
     @Column(length = 5)
-    private String changeIndicator;
+    private String changeIndicatorCode;
 
     @Comment("상권 변화 지표명")
     @Column(length = 15, nullable = false)
@@ -54,9 +54,9 @@ public class ChangeDistrictEntity {
 
     @Comment("운영 영업 개월 평균")
     @Column(nullable = false)
-    private Integer openedMonths;
+    private Integer averageOpenedMonths;
 
     @Comment("폐업 영업 개월 평균")
     @Column(nullable = false)
-    private Integer closedMonths;
+    private Integer averageClosedMonths;
 }

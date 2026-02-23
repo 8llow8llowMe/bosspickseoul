@@ -39,43 +39,43 @@ public class FacilityCommercialEntity {
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드명")
+    @Comment("상권 구분명")
     @Column(length = 4, nullable = false)
-    private String commercialClassificationCodeName;
+    private String commercialClassificationName;
 
     @Comment("상권 코드")
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드명")
+    @Comment("상권명")
     @Column(length = 80, nullable = false)
-    private String commercialCodeName;
+    private String commercialName;
 
-    @Comment("집객 시설 수")
+    @Comment("총 집객 시설 수")
     @Column(nullable = false)
-    private Long facilityCnt;
+    private Long totalFacilityCount;
 
     @Comment("초등학교 수")
     @Column(nullable = false)
-    private Long elementarySchoolCnt;
+    private Long elementarySchoolCount;
 
     @Comment("중학교 수")
     @Column(nullable = false)
-    private Long middleSchoolCnt;
+    private Long middleSchoolCount;
 
     @Comment("고등학교 수")
     @Column(nullable = false)
-    private Long highSchoolCnt;
+    private Long highSchoolCount;
 
     @Comment("대학교 수")
     @Column(nullable = false)
-    private Long universityCnt;
+    private Long universityCount;
 
-    @Comment("지하철 역 수")
+    @Comment("지하철역 수")
     @Column(nullable = false)
-    private Long subwayStationCnt;
+    private Long subwayStationCount;
 
-    @Comment("버스 정거장 수")
+    @Comment("버스정류장 수")
     @Column(nullable = false)
-    private Long busStopCnt;
+    private Long busStopCount;
 }

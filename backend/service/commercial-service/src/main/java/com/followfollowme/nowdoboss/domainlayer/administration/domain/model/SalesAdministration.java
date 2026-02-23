@@ -8,13 +8,13 @@ public record SalesAdministration(
     long id,
     String periodCode,
     String administrationCode,
-    String administrationCodeName,
+    String administrationName,
     String serviceCode,
-    String serviceCodeName,
+    String serviceName,
     ServiceType serviceType,
-    long monthSales,
-    long weekdaySales,
-    long weekendSales
+    long monthlySalesAmount,
+    long weekdaySalesAmount,
+    long weekendSalesAmount
 ) {
 
 }

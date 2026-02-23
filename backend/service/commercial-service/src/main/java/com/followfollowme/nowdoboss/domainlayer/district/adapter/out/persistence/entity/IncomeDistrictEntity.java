@@ -40,11 +40,11 @@ public class IncomeDistrictEntity {
     @Column(length = 5, nullable = false)
     private String districtCode;
 
-    @Comment("자치구 코드명")
+    @Comment("자치구명")
     @Column(length = 10, nullable = false)
-    private String districtCodeName;
+    private String districtName;
 
-    @Comment("지출 총금액")
+    @Comment("총 지출 금액")
     @Column(nullable = false)
-    private Long totalPrice;
+    private Long totalExpenseAmount;
 }
