@@ -1,27 +1,27 @@
 ﻿package com.followfollowme.nowdoboss.domainlayer.district.application.service.processor;
 
 import com.followfollowme.nowdoboss.domainlayer.district.application.common.PeriodCodeCalculator;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictAgeGroupFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.area.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.change.DistrictChangeIndicatorInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictClosedStoreTopTenInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictClosedStoreAdministrationTopInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictAgeGroupFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictDayOfWeekFootTrafficInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.summary.DistrictDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictFootTrafficDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictFootTrafficTopTenInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictGenderFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictMetricValueInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictOpenedStoreTopTenInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictOpenedStoreAdministrationTopInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictPeriodFootTrafficInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.sales.DistrictSalesDetailInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictTimeSlotFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.sales.DistrictSalesAdministrationTopInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.sales.DistrictSalesDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.sales.DistrictSalesServiceTopInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.sales.DistrictSalesTopTenInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictClosedStoreAdministrationTopInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictClosedStoreTopTenInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictOpenedStoreAdministrationTopInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictOpenedStoreTopTenInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictStoreDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.store.DistrictStoreServiceTopInfo;
-import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictTimeSlotFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.district.application.info.summary.DistrictDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.summary.DistrictTopTenSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.ChangeDistrictRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.district.application.port.out.FootTrafficDistrictRepositoryPort;
@@ -56,11 +56,11 @@ public class DistrictQueryProcessor {
     private final PeriodCodeCalculator periodCodeCalculator;
 
     public DistrictTopTenSummaryInfo getTopTenSummary(String currentPeriodCode, String previousPeriodCode) {
-        // 1. 鍮꾧탳 遺꾧린 ?뺤젙
+        // 1. 이전 분기 확정
         String resolvedPreviousPeriodCode =
             periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
 
-        // 2. Top10 ?곗씠??議고쉶
+        // 2. Top10 데이터 조회
         List<DistrictFootTrafficTopTenInfo> footTrafficTopTenInfos =
             footTrafficDistrictRepositoryPort.findTopTenByFootTraffic(currentPeriodCode, resolvedPreviousPeriodCode)
                 .stream()
@@ -82,7 +82,7 @@ public class DistrictQueryProcessor {
                 .map(DistrictClosedStoreTopTenInfo::from)
                 .toList();
 
-        // 3. Summary Info 議곕┰
+        // 3. Summary Info 조립
         return DistrictTopTenSummaryInfo.builder()
             .footTrafficTopTenInfos(footTrafficTopTenInfos)
             .salesTopTenInfos(salesTopTenInfos)
@@ -92,14 +92,14 @@ public class DistrictQueryProcessor {
     }
 
     public DistrictDetailInfo getDistrictDetail(String districtCode, String currentPeriodCode, String previousPeriodCode) {
-        // 1. ?뱀뀡蹂??곸꽭 議고쉶
+        // 1. 영역별 상세 조회
         DistrictChangeIndicatorInfo changeInfo = getDistrictChangeDetail(districtCode, currentPeriodCode);
         DistrictFootTrafficDetailInfo footTrafficInfo =
             getDistrictFootTrafficDetail(districtCode, currentPeriodCode, previousPeriodCode);
         DistrictStoreDetailInfo storeInfo = getDistrictTotalStoreDetail(districtCode, currentPeriodCode);
         DistrictSalesDetailInfo salesInfo = getDistrictSalesTopFiveDetail(districtCode, currentPeriodCode, previousPeriodCode);
 
-        // 2. Detail Info 議곕┰
+        // 2. Detail Info 조립
         return DistrictDetailInfo.builder()
             .changeIndicator(changeInfo)
             .footTraffic(footTrafficInfo)
@@ -109,8 +109,8 @@ public class DistrictQueryProcessor {
     }
 
     public DistrictChangeIndicatorInfo getDistrictChangeDetail(String districtCode, String currentPeriodCode) {
-        // 1. 蹂?붿???議고쉶
-        // 2. Info 蹂??
+        // 1. 변화지표 조회
+        // 2. Info 변환
         return changeDistrictRepositoryPort.findByPeriodCodeAndDistrictCode(currentPeriodCode, districtCode)
             .map(change -> DistrictChangeIndicatorInfo.builder()
                 .changeIndicatorCode(change.changeIndicatorCode())
@@ -126,21 +126,21 @@ public class DistrictQueryProcessor {
         String currentPeriodCode,
         String previousPeriodCode
     ) {
-        // 1. 鍮꾧탳 遺꾧린 ?뺤젙
+        // 1. 이전 분기 확정
         String resolvedPreviousPeriodCode = periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
 
-        // 2. 遺꾧린 紐⑸줉/?먯쿇 ?곗씠??議고쉶
+        // 2. 분기 목록/상세 데이터 조회
         List<String> periodCodes = periodCodeCalculator.getRecentPeriodCodes(currentPeriodCode, FOOT_TRAFFIC_PERIOD_WINDOW);
         List<FootTrafficDistrict> footTrafficRows =
             footTrafficDistrictRepositoryPort.findByPeriodCodeInAndDistrictCodeOrderByPeriodCode(periodCodes, districtCode);
 
-        // 3. ?꾩옱 遺꾧린 異붿텧
+        // 3. 현재 분기 필터링
         FootTrafficDistrict current = footTrafficRows.stream()
             .filter(row -> row.periodCode().equals(currentPeriodCode))
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Current foot traffic not found."));
 
-        // 4. 遺꾧린蹂?珥??좊룞?멸뎄 怨꾩궛
+        // 4. 분기별 유동인구 계산
         List<DistrictPeriodFootTrafficInfo> periodTotalFootTrafficList = periodCodes.stream()
             .map(periodCode -> toPeriodFootTrafficInfo(footTrafficRows, periodCode))
             .filter(periodInfo -> periodInfo.totalFootTraffic() > -1)
@@ -158,7 +158,7 @@ public class DistrictQueryProcessor {
             .findFirst()
             .orElse(0L);
 
-        // 5. ?몃? 吏??Info ?앹꽦
+        // 5. 항목별 Info 생성
         DistrictTimeSlotFootTrafficInfo timeSlotInfo = DistrictTimeSlotFootTrafficInfo.builder()
             .footTrafficTime00To06(current.footTrafficTime00To06())
             .footTrafficTime06To11(current.footTrafficTime06To11())
@@ -197,7 +197,7 @@ public class DistrictQueryProcessor {
             .dominantDayOfWeekType(resolveDominantDayOfWeek(current))
             .build();
 
-        // 6. ?좊룞?멸뎄 Detail Info 議곕┰
+        // 6. 유동인구 Detail Info 조립
         return DistrictFootTrafficDetailInfo.builder()
             .periodTrend(resolveTrend(previousTotal, currentTotal))
             .periodTotalFootTrafficList(periodTotalFootTrafficList)
@@ -230,16 +230,12 @@ public class DistrictQueryProcessor {
             .build();
     }
 
-    public DistrictSalesDetailInfo getDistrictSalesTopFiveDetail(
-        String districtCode,
-        String currentPeriodCode,
-        String previousPeriodCode
-    ) {
-        // 1. 鍮꾧탳 遺꾧린 ?뺤젙
+    public DistrictSalesDetailInfo getDistrictSalesTopFiveDetail(String districtCode, String currentPeriodCode, String previousPeriodCode) {
+        // 1. 이전 분기 확정
         String resolvedPreviousPeriodCode =
             periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
 
-        // 2. ?낆쥌/?됱젙??Top5 議고빀
+        // 2. 업종/행정동 Top5 조회
         return DistrictSalesDetailInfo.builder()
             .topSalesServices(
                 salesDistrictRepositoryPort.findTopFiveServiceBySales(districtCode, currentPeriodCode, resolvedPreviousPeriodCode)
@@ -247,10 +243,7 @@ public class DistrictQueryProcessor {
                     .map(DistrictSalesServiceTopInfo::from)
                     .toList())
             .topSalesAdministrations(
-                salesAdministrationRepositoryPort.findTopFiveByDistrictCode(
-                    districtCode,
-                    currentPeriodCode,
-                    resolvedPreviousPeriodCode)
+                salesAdministrationRepositoryPort.findTopFiveByDistrictCode(districtCode, currentPeriodCode, resolvedPreviousPeriodCode)
                     .stream()
                     .map(DistrictSalesAdministrationTopInfo::from)
                     .toList())
@@ -258,8 +251,8 @@ public class DistrictQueryProcessor {
     }
 
     public List<DistrictAreaInfo> getAllDistricts(String currentPeriodCode) {
-        // 1. ?먯튂援?紐⑸줉 議고쉶
-        // 2. 紐⑸줉 Info 諛섑솚
+        // 1. 자치구 목록 조회
+        // 2. 목록 Info 변환
         return footTrafficDistrictRepositoryPort.findDistrictAreasByPeriodCode(currentPeriodCode)
             .stream()
             .map(DistrictAreaInfo::from)
