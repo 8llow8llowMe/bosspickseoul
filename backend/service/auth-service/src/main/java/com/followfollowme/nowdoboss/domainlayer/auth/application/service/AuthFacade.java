@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.presenter.AuthPresenter;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.AuthGeneralLoginCommand;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.TokenReissueCommand;
+import com.followfollowme.nowdoboss.domainlayer.auth.application.info.AuthCookieResult;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.GeneralLoginInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenIssueInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenReissueInfo;
@@ -25,15 +26,17 @@ public class AuthFacade implements AuthWebUseCase {
 
     @Override
     @Transactional
-    public AuthGeneralLoginResponse generalLogin(AuthGeneralLoginCommand command) {
+    public AuthCookieResult<AuthGeneralLoginResponse> generalLogin(AuthGeneralLoginCommand command) {
         // 1. 일반 로그인 자격 검증
         GeneralLoginInfo generalLoginInfo = generalLoginProcessor.generalLogin(command);
 
         // 2. 토큰 발급
         JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(generalLoginInfo.memberId(), generalLoginInfo.role());
 
-        // 3. Presenter를 통해 Info -> Response 반환
-        return authPresenter.toGeneralLoginResponse(jwtTokenIssueInfo);
+        // 3. Presenter를 통해 Info -> Response 변환
+        AuthGeneralLoginResponse response = authPresenter.toGeneralLoginResponse(jwtTokenIssueInfo);
+
+        return AuthCookieResult.of(response, jwtTokenIssueInfo.refreshToken());
     }
 
     @Override
@@ -43,11 +46,13 @@ public class AuthFacade implements AuthWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public TokenReissueResponse reissueToken(TokenReissueCommand command) {
+    public AuthCookieResult<TokenReissueResponse> reissueToken(TokenReissueCommand command) {
         // 1. 토큰 재발급 수행
-        JwtTokenReissueInfo jwtTokenReissueInfo = jwtTokenProcessor.reissueTokens(command.memberId());
+        JwtTokenReissueInfo jwtTokenReissueInfo = jwtTokenProcessor.reissueTokens(command.refreshToken());
 
         // 2. Presenter를 통해 Info -> Response 변환
-        return authPresenter.toTokenReissueResponse(jwtTokenReissueInfo);
+        TokenReissueResponse response = authPresenter.toTokenReissueResponse(jwtTokenReissueInfo);
+
+        return AuthCookieResult.of(response, jwtTokenReissueInfo.newRefreshToken());
     }
 }
