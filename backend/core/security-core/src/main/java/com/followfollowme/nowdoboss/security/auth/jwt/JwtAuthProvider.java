@@ -35,9 +35,18 @@ public class JwtAuthProvider {
             jwtAuthProperties.accessKey());
     }
 
-    public String issueRefreshToken() {
-        return issueToken(null, jwtAuthProperties.refreshExpiration(),
+    public String issueRefreshToken(long memberId) {
+        Claims claims = Jwts.claims()
+            .id(UUID.randomUUID().toString())
+            .subject(String.valueOf(memberId))
+            .build();
+        return issueToken(claims, jwtAuthProperties.refreshExpiration(),
             jwtAuthProperties.refreshKey());
+    }
+
+    public long parseRefreshToken(String refreshToken) {
+        Claims payload = parseToken(refreshToken, jwtAuthProperties.refreshKey());
+        return Long.parseLong(payload.getSubject());
     }
 
     public MemberLoginActive parseAccessToken(String accessToken) {
