@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/commercials")
-@Tag(name = "상권", description = "상권 분석 관련 클라이언트 전용 API 입니다.")
+@Tag(name = "상권 분석", description = "상권 분석 관련 클라이언트 전용 API 입니다.")
 public class CommercialWebController {
 
     private final CommercialWebUseCase commercialWebUseCase;
