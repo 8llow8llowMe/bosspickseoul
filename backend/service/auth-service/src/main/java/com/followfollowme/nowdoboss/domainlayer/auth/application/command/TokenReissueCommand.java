@@ -1,17 +1,15 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.application.command;
 
-import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.TokenReissueRequest;
 import lombok.Builder;
 
 @Builder
 public record TokenReissueCommand(
-    long memberId
+    String refreshToken
 ) {
 
-    public static TokenReissueCommand from(TokenReissueRequest request) {
+    public static TokenReissueCommand from(String refreshToken) {
         return TokenReissueCommand.builder()
-            .memberId(Long.parseLong(request.memberId()))
+            .refreshToken(refreshToken)
             .build();
     }
 }
-
