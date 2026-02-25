@@ -36,7 +36,7 @@ public class JwtAuthProvider {
     }
 
     public String issueRefreshToken() {
-        return issueToken(null, jwtAuthProperties.accessExpiration(),
+        return issueToken(null, jwtAuthProperties.refreshExpiration(),
             jwtAuthProperties.refreshKey());
     }
 
