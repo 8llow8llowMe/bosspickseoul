@@ -4,18 +4,17 @@ import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.AuthGeneralLoginRequest;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.provider.RefreshCookieProvider;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.AuthGeneralLoginCommand;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.TokenReissueCommand;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.AuthCookieResult;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.in.AuthWebUseCase;
-import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
 import com.followfollowme.nowdoboss.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +33,7 @@ public class AuthWebController {
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
     private final AuthWebUseCase authWebUseCase;
-    private final JwtAuthProperties jwtAuthProperties;
+    private final RefreshCookieProvider refreshCookieProvider;
 
     @Operation(
         summary = "일반 로그인",
@@ -45,9 +44,8 @@ public class AuthWebController {
         @RequestBody AuthGeneralLoginRequest request
     ) {
         AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request));
-        ResponseCookie refreshCookie = buildRefreshCookie(result.refreshToken(), jwtAuthProperties.refreshExpiration().getSeconds());
         return ResponseEntity.ok()
-            .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+            .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
             .body(Response.success(result.response()));
     }
 
@@ -60,9 +58,8 @@ public class AuthWebController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<Void>> logout(@AuthenticationPrincipal MemberLoginActive loginActive) {
         authWebUseCase.logout(loginActive.id());
-        ResponseCookie clearCookie = buildRefreshCookie("", 0);
         return ResponseEntity.ok()
-            .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+            .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.clearRefreshCookie().toString())
             .body(Response.success());
     }
 
@@ -75,19 +72,8 @@ public class AuthWebController {
         @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken
     ) {
         AuthCookieResult<TokenReissueResponse> result = authWebUseCase.reissueToken(TokenReissueCommand.from(refreshToken));
-        ResponseCookie refreshCookie = buildRefreshCookie(result.refreshToken(), jwtAuthProperties.refreshExpiration().getSeconds());
         return ResponseEntity.ok()
-            .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+            .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
             .body(Response.success(result.response()));
-    }
-
-    private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {
-        return ResponseCookie.from(REFRESH_TOKEN_COOKIE, value)
-            .httpOnly(true)
-            .secure(true)
-            .sameSite("Strict")
-            .path("/")
-            .maxAge(maxAgeSeconds)
-            .build();
     }
 }
