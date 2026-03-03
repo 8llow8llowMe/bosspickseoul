@@ -1,11 +1,11 @@
 package com.followfollowme.nowdoboss.domainlayer.member.application.service.processor;
 
 import com.followfollowme.nowdoboss.domainlayer.member.application.command.MemberGeneralSignupCommand;
+import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.enums.MemberStatus;
-import com.followfollowme.nowdoboss.global.exception.MemberErrorCode;
-import com.followfollowme.nowdoboss.global.exception.MemberException;
 import com.followfollowme.nowdoboss.persistence.util.SnowflakeIdGenerator;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import lombok.RequiredArgsConstructor;

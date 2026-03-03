@@ -1,10 +1,10 @@
 package com.followfollowme.nowdoboss.domainlayer.member.application.service.processor;
 
+import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.nowdoboss.domainlayer.member.application.info.MemberMyInfo;
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
-import com.followfollowme.nowdoboss.global.exception.MemberErrorCode;
-import com.followfollowme.nowdoboss.global.exception.MemberException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

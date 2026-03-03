@@ -2,10 +2,10 @@ package com.followfollowme.nowdoboss.domainlayer.auth.application.service.proces
 
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.AuthGeneralLoginCommand;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.GeneralLoginInfo;
+import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
-import com.followfollowme.nowdoboss.global.exception.MemberErrorCode;
-import com.followfollowme.nowdoboss.global.exception.MemberException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
