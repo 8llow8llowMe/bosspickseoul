@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.auth.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.out.JwtTokenStorePort;
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
+import java.time.Duration;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
 
-    private static final String KEY_PREFIX = "refreshToken:";
+    private static final String REFRESH_KEY_PREFIX = "refreshToken:";
+    private static final String BLACKLIST_KEY_PREFIX = "blacklist:accessTokenId:";
+    private static final String BLACKLIST_VALUE = "logout";
+
     private final RedisTemplate<String, String> redisTemplate;
     private final JwtAuthProperties jwtAuthProperties;
 
@@ -22,13 +26,12 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
     public void save(long memberId, String refreshToken) {
         try {
             redisTemplate.opsForValue().set(
-                buildKey(memberId),
+                buildRefreshKey(memberId),
                 refreshToken,
                 jwtAuthProperties.refreshExpiration()
             );
         } catch (RedisConnectionFailureException e) {
-            // 로그만 남기고 예외 안 던짐
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 저장 실패 (AccessToken은 발급됨) - 사용자는 나중에 재로그인 필요: memberId={}, error={}",
+            log.error("[RedisJwtTokenStoreAdapter] RefreshToken save failed: memberId={}, error={}",
                 memberId, e.getMessage());
         }
     }
@@ -36,11 +39,10 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
     @Override
     public Optional<String> find(long memberId) {
         try {
-            String token = redisTemplate.opsForValue().get(buildKey(memberId));
+            String token = redisTemplate.opsForValue().get(buildRefreshKey(memberId));
             return Optional.ofNullable(token);
-
         } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 조회 실패: memberId={}, error={}",
+            log.error("[RedisJwtTokenStoreAdapter] RefreshToken find failed: memberId={}, error={}",
                 memberId, e.getMessage());
             return Optional.empty();
         }
@@ -49,13 +51,31 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
     @Override
     public void delete(long memberId) {
         try {
-            redisTemplate.delete(buildKey(memberId));
+            redisTemplate.delete(buildRefreshKey(memberId));
         } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 삭제 실패 (무시): memberId={}", memberId);
+            log.error("[RedisJwtTokenStoreAdapter] RefreshToken delete failed: memberId={}, error={}",
+                memberId, e.getMessage());
         }
     }
 
-    private String buildKey(long memberId) {
-        return KEY_PREFIX + memberId;
+    @Override
+    public void saveAccessTokenIdBlacklist(String tokenId, Duration ttl) {
+        try {
+            redisTemplate.opsForValue().set(
+                buildBlacklistKey(tokenId),
+                BLACKLIST_VALUE,
+                ttl
+            );
+        } catch (RedisConnectionFailureException e) {
+            log.error("[RedisJwtTokenStoreAdapter] AccessToken blacklist save failed: error={}", e.getMessage());
+        }
+    }
+
+    private String buildRefreshKey(long memberId) {
+        return REFRESH_KEY_PREFIX + memberId;
+    }
+
+    private String buildBlacklistKey(String tokenId) {
+        return BLACKLIST_KEY_PREFIX + tokenId;
     }
 }
