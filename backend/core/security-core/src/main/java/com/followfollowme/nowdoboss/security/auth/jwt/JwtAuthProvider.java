@@ -53,8 +53,9 @@ public class JwtAuthProvider {
         Claims payload = parseToken(accessToken, jwtAuthProperties.accessKey());
 
         return MemberLoginActive.builder()
-            .id(Long.valueOf(payload.getSubject()))
+            .memberId(Long.parseLong(payload.getSubject()))
             .role(SecurityRole.from(payload.get(CLAIM_ROLE, String.class)))
+            .tokenId(payload.getId())
             .build();
     }
 

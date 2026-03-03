@@ -10,7 +10,7 @@ public interface AuthWebUseCase {
 
     AuthCookieResult<AuthGeneralLoginResponse> generalLogin(AuthGeneralLoginCommand command);
 
-    void logout(long memberId);
+    void logout(long memberId, String tokenId);
 
     AuthCookieResult<TokenReissueResponse> reissueToken(TokenReissueCommand command);
 }
