@@ -20,8 +20,9 @@ public class JwtToMemberConverter implements Converter<Jwt, AbstractAuthenticati
         SecurityRole role = SecurityRole.valueOf(jwt.getClaimAsString("role"));
 
         MemberLoginActive principal = MemberLoginActive.builder()
-            .id(memberId)
+            .memberId(memberId)
             .role(role)
+            .tokenId(jwt.getId())
             .build();
 
         Collection<? extends GrantedAuthority> authorities =

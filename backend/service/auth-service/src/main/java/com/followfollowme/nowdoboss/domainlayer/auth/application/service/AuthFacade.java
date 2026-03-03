@@ -40,12 +40,12 @@ public class AuthFacade implements AuthWebUseCase {
     }
 
     @Override
-    public void logout(long memberId) {
-        jwtTokenProcessor.revokeToken(memberId);
+    public void logout(long memberId, String tokenId) {
+        jwtTokenProcessor.revokeToken(memberId, tokenId);
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthCookieResult<TokenReissueResponse> reissueToken(TokenReissueCommand command) {
         // 1. 토큰 재발급 수행
         JwtTokenReissueInfo jwtTokenReissueInfo = jwtTokenProcessor.reissueTokens(command.refreshToken());

@@ -46,7 +46,7 @@ public class MemberWebController {
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<MemberMyInfoResponse>> getMyInfo(@AuthenticationPrincipal MemberLoginActive loginActive) {
-        MemberMyInfoResponse response = memberWebUseCase.getMyInfo(loginActive.id());
+        MemberMyInfoResponse response = memberWebUseCase.getMyInfo(loginActive.memberId());
         return ResponseEntity.ok().body(Response.success(response));
     }
 }

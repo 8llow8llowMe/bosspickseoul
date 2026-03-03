@@ -57,7 +57,7 @@ public class AuthWebController {
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<Void>> logout(@AuthenticationPrincipal MemberLoginActive loginActive) {
-        authWebUseCase.logout(loginActive.id());
+        authWebUseCase.logout(loginActive.memberId(), loginActive.tokenId());
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.clearRefreshCookie().toString())
             .body(Response.success());
