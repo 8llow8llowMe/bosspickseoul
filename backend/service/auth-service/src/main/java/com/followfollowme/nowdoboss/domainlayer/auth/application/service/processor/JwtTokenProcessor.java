@@ -43,7 +43,7 @@ public class JwtTokenProcessor {
 
         // 2. Register access token id blacklist
         if (tokenId == null || tokenId.isBlank()) {
-            log.warn("[JwtTokenProcessor] Logout without tokenId: memberId={}", memberId);
+            log.warn("[JwtTokenProcessor] 로그아웃 요청에 tokenId 누락: memberId={}", memberId);
             return;
         }
 

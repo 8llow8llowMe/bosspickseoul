@@ -22,16 +22,16 @@ public class JwtVerifier {
         try {
             parseClaims(token);
         } catch (ExpiredJwtException e) {
-            log.warn("[JwtVerifier] token expired: {}", e.getMessage());
+            log.warn("[JwtVerifier] 토큰 만료: {}", e.getMessage());
             throw e;
         } catch (SignatureException e) {
-            log.warn("[JwtVerifier] token signature invalid: {}", e.getMessage());
+            log.warn("[JwtVerifier] 토큰 서명 검증 실패: {}", e.getMessage());
             throw e;
         } catch (MalformedJwtException e) {
-            log.warn("[JwtVerifier] token malformed: {}", e.getMessage());
+            log.warn("[JwtVerifier] 토큰 형식 오류: {}", e.getMessage());
             throw e;
         } catch (SecurityException | IllegalArgumentException e) {
-            log.warn("[JwtVerifier] token invalid: {}", e.getMessage());
+            log.warn("[JwtVerifier] 토큰 유효성 검증 실패: {}", e.getMessage());
             throw e;
         }
     }
