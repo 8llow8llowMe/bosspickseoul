@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.global.exception;
+package com.followfollowme.nowdoboss.domainlayer.member.application.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
