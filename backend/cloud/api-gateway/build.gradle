@@ -1,7 +1,10 @@
 dependencies {
     implementation project(":core:common-core")
+    implementation project(":core:redis-core")
     // Spring Cloud Gateway
     implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+    // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     // Eureka Client for Service Discovery (Eureka 클라이언트)
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     // Config Client

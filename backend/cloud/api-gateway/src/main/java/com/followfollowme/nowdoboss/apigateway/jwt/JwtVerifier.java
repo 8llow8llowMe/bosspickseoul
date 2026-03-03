@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.apigateway.jwt;
 
 import com.followfollowme.nowdoboss.apigateway.jwt.properties.JwtVerificationProperties;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -19,22 +20,31 @@ public class JwtVerifier {
 
     public void validate(String token) {
         try {
-            Jwts.parser()
-                .verifyWith(Keys.hmacShaKeyFor(jwtVerificationProperties.accessKey().getBytes()))
-                .build()
-                .parseSignedClaims(token);
+            parseClaims(token);
         } catch (ExpiredJwtException e) {
-            log.warn("[JwtVerifier] 토큰 만료: {}", e.getMessage());
+            log.warn("[JwtVerifier] token expired: {}", e.getMessage());
             throw e;
         } catch (SignatureException e) {
-            log.warn("[JwtVerifier] 서명 검증 실패: {}", e.getMessage());
+            log.warn("[JwtVerifier] token signature invalid: {}", e.getMessage());
             throw e;
         } catch (MalformedJwtException e) {
-            log.warn("[JwtVerifier] 잘못된 토큰 형식: {}", e.getMessage());
+            log.warn("[JwtVerifier] token malformed: {}", e.getMessage());
             throw e;
         } catch (SecurityException | IllegalArgumentException e) {
-            log.warn("[JwtVerifier] 토큰 검증 실패: {}", e.getMessage());
+            log.warn("[JwtVerifier] token invalid: {}", e.getMessage());
             throw e;
         }
+    }
+
+    public String extractTokenId(String token) {
+        return parseClaims(token).getId();
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+            .verifyWith(Keys.hmacShaKeyFor(jwtVerificationProperties.accessKey().getBytes()))
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
     }
 }

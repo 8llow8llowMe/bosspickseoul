@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.apigateway.filter;
 
 import com.followfollowme.nowdoboss.apigateway.filter.JwtAuthApiGatewayFilter.Config;
+import com.followfollowme.nowdoboss.apigateway.jwt.AccessTokenBlacklistChecker;
 import com.followfollowme.nowdoboss.apigateway.jwt.JwtVerifier;
 import com.followfollowme.nowdoboss.apigateway.jwt.exception.JwtErrorCode;
 import com.followfollowme.nowdoboss.apigateway.jwt.exception.JwtException;
@@ -22,7 +23,9 @@ import reactor.core.publisher.Mono;
 public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config> {
 
     private static final String BEARER_PREFIX = "Bearer ";
+
     private final JwtVerifier jwtVerifier;
+    private final AccessTokenBlacklistChecker accessTokenBlacklistChecker;
 
     @Override
     public GatewayFilter apply(Config config) {
@@ -30,17 +33,18 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
             ServerHttpRequest request = exchange.getRequest();
             String jwt = getJwtFrom(request);
 
-            // JWT가 없으면 바로 다음 필터로 (인증 불필요한 경로일 수 있음)
             if (!StringUtils.hasText(jwt)) {
                 return chain.filter(exchange);
             }
 
-            // JWT 검증을 reactive-safe 하게 처리
             return Mono.defer(() -> {
-
                 try {
                     jwtVerifier.validate(jwt);
-                    return chain.filter(exchange); // 검증 성공하면 다음 필터 실행
+                    String tokenId = jwtVerifier.extractTokenId(jwt);
+                    if (tokenId != null && accessTokenBlacklistChecker.isBlacklisted(tokenId)) {
+                        throw new JwtException(JwtErrorCode.TOKEN_REVOKED);
+                    }
+                    return chain.filter(exchange);
                 } catch (ExpiredJwtException e) {
                     throw new JwtException(JwtErrorCode.TOKEN_EXPIRED);
                 } catch (SignatureException e) {
@@ -50,8 +54,7 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
                 } catch (SecurityException | IllegalArgumentException e) {
                     throw new JwtException(JwtErrorCode.TOKEN_INVALID);
                 }
-
-            }); // Mono.defer
+            });
         };
     }
 
