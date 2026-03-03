@@ -19,7 +19,7 @@ public class AccessTokenBlacklistChecker {
         try {
             return Boolean.TRUE.equals(redisTemplate.hasKey(buildKey(tokenId)));
         } catch (RedisConnectionFailureException e) {
-            log.error("[AccessTokenBlacklistChecker] Redis lookup failed: error={}", e.getMessage());
+            log.error("[AccessTokenBlacklistChecker] Redis 조회 실패: error={}", e.getMessage());
             return false;
         }
     }

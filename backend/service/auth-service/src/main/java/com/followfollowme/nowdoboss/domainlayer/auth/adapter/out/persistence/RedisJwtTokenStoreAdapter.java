@@ -31,7 +31,7 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
                 jwtAuthProperties.refreshExpiration()
             );
         } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken save failed: memberId={}, error={}",
+            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 저장 실패: memberId={}, error={}",
                 memberId, e.getMessage());
         }
     }
@@ -42,7 +42,7 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
             String token = redisTemplate.opsForValue().get(buildRefreshKey(memberId));
             return Optional.ofNullable(token);
         } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken find failed: memberId={}, error={}",
+            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 조회 실패: memberId={}, error={}",
                 memberId, e.getMessage());
             return Optional.empty();
         }
@@ -53,7 +53,7 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
         try {
             redisTemplate.delete(buildRefreshKey(memberId));
         } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken delete failed: memberId={}, error={}",
+            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 삭제 실패: memberId={}, error={}",
                 memberId, e.getMessage());
         }
     }
@@ -67,7 +67,7 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
                 ttl
             );
         } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] AccessToken blacklist save failed: error={}", e.getMessage());
+            log.error("[RedisJwtTokenStoreAdapter] AccessToken 블랙리스트 저장 실패: error={}", e.getMessage());
         }
     }
 
