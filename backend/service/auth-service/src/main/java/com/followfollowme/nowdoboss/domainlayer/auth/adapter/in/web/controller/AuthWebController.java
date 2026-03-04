@@ -40,9 +40,7 @@ public class AuthWebController {
         description = "이메일과 비밀번호를 입력하여 일반 로그인을 하는 기능입니다."
     )
     @PostMapping("/login")
-    public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(
-        @RequestBody AuthGeneralLoginRequest request
-    ) {
+    public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(@RequestBody AuthGeneralLoginRequest request) {
         AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request));
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
@@ -68,9 +66,7 @@ public class AuthWebController {
         description = "HttpOnly Cookie의 Refresh Token을 통해 Access Token과 새 Refresh Token을 재발급 받는 기능입니다."
     )
     @PostMapping("/token/reissue")
-    public ResponseEntity<Response<TokenReissueResponse>> reissueToken(
-        @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken
-    ) {
+    public ResponseEntity<Response<TokenReissueResponse>> reissueToken(@CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
         AuthCookieResult<TokenReissueResponse> result = authWebUseCase.reissueToken(TokenReissueCommand.from(refreshToken));
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
