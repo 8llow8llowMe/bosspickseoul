@@ -4,6 +4,7 @@ import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.ChangeIndicatorDistrictResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictSalesAdministrationDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictTopTenSummaryResponse;
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/districts")
-@Tag(name = "자치구 분석", description = "자치구 분석 관련 클라이언트 전용 API 입니다.")
+@Tag(name = "자치구 분석", description = "자치구 분석 관련 API를 제공합니다.")
 public class DistrictWebController {
 
     private final DistrictWebUseCase districtWebUseCase;
@@ -57,7 +58,8 @@ public class DistrictWebController {
         @Parameter(description = "현재 기준 분기 코드 (YYYYQ)", example = "20233") @RequestParam(defaultValue = "20233") String currentPeriodCode,
         @Parameter(description = "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.", example = "20232") @RequestParam(required = false) String previousPeriodCode
     ) {
-        FootTrafficDistrictDetailResponse response = districtWebUseCase.getDistrictFootTrafficDetail(districtCode, currentPeriodCode, previousPeriodCode);
+        FootTrafficDistrictDetailResponse response =
+            districtWebUseCase.getDistrictFootTrafficDetail(districtCode, currentPeriodCode, previousPeriodCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -71,7 +73,7 @@ public class DistrictWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "자치구 점포 상세 조회", description = "특정 분기의 자치구 업종별 점포 수 Top8, 개업률 행정동 Top5, 폐업률 행정동 Top5를 조회합니다.")
+    @Operation(summary = "자치구 점포 상세 조회", description = "업종별 점포 수 Top8, 개업률 Top5, 폐업률 Top5를 조회합니다.")
     @GetMapping("/{districtCode}/details/stores/top-eight-services")
     public ResponseEntity<Response<DistrictStoreDetailResponse>> getDistrictTotalStoreDetail(
         @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode,
@@ -88,7 +90,20 @@ public class DistrictWebController {
         @Parameter(description = "현재 기준 분기 코드 (YYYYQ)", example = "20233") @RequestParam(defaultValue = "20233") String currentPeriodCode,
         @Parameter(description = "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.", example = "20232") @RequestParam(required = false) String previousPeriodCode
     ) {
-        DistrictSalesDetailResponse response = districtWebUseCase.getDistrictSalesTopFiveDetail(districtCode, currentPeriodCode, previousPeriodCode);
+        DistrictSalesDetailResponse response =
+            districtWebUseCase.getDistrictSalesTopFiveDetail(districtCode, currentPeriodCode, previousPeriodCode);
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Operation(summary = "자치구 행정동 매출 Top 5 조회", description = "자치구 기준 행정동 매출 상위 5개를 조회합니다.")
+    @GetMapping("/{districtCode}/details/sales/administrations/top-five")
+    public ResponseEntity<Response<DistrictSalesAdministrationDetailResponse>> getDistrictSalesAdministrationTopFiveDetail(
+        @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode,
+        @Parameter(description = "현재 기준 분기 코드 (YYYYQ)", example = "20233") @RequestParam(defaultValue = "20233") String currentPeriodCode,
+        @Parameter(description = "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.", example = "20232") @RequestParam(required = false) String previousPeriodCode
+    ) {
+        DistrictSalesAdministrationDetailResponse response =
+            districtWebUseCase.getDistrictSalesAdministrationTopFiveDetail(districtCode, currentPeriodCode, previousPeriodCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 

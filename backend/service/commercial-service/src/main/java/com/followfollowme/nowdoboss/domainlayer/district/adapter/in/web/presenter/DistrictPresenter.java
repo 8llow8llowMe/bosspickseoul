@@ -16,6 +16,7 @@ import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictTimeSlotFootTrafficItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.ChangeIndicatorDistrictResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictSalesAdministrationDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
@@ -98,6 +99,14 @@ public class DistrictPresenter {
         return DistrictSalesDetailResponse.builder()
             .topSalesServices(toDistrictSalesServiceTopItems(info.topSalesServices()))
             .topSalesAdministrations(toDistrictSalesAdministrationTopItems(info.topSalesAdministrations()))
+            .build();
+    }
+
+    public DistrictSalesAdministrationDetailResponse toDistrictSalesAdministrationDetailResponse(
+        List<DistrictSalesAdministrationTopInfo> infos
+    ) {
+        return DistrictSalesAdministrationDetailResponse.builder()
+            .topSalesAdministrations(toDistrictSalesAdministrationTopItems(infos))
             .build();
     }
 
