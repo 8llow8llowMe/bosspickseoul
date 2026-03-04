@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.provider;
 
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
@@ -10,15 +11,19 @@ import org.springframework.stereotype.Component;
 public class RefreshCookieProvider {
 
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+    private static final String REISSUE_PATH = "/api/v1/auth/token/reissue";
 
     private final JwtAuthProperties jwtAuthProperties;
+
+    @Value("${spring.profiles.active:local}")
+    private String activeProfile;
 
     public ResponseCookie createRefreshCookie(String refreshToken) {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
             .httpOnly(true)
-            .secure(true)
+            .secure(isSecure())
             .sameSite("Strict")
-            .path("/")
+            .path(REISSUE_PATH)
             .maxAge(jwtAuthProperties.refreshExpiration().getSeconds())
             .build();
     }
@@ -26,10 +31,14 @@ public class RefreshCookieProvider {
     public ResponseCookie clearRefreshCookie() {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
             .httpOnly(true)
-            .secure(true)
+            .secure(isSecure())
             .sameSite("Strict")
-            .path("/")
+            .path(REISSUE_PATH)
             .maxAge(0)
             .build();
+    }
+
+    private boolean isSecure() {
+        return activeProfile.equals("prod");
     }
 }
