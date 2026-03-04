@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.district.application.port.in;
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.ChangeIndicatorDistrictResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictSalesAdministrationDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
@@ -22,6 +23,12 @@ public interface DistrictWebUseCase {
     DistrictStoreDetailResponse getDistrictTotalStoreDetail(String districtCode, String currentPeriodCode);
 
     DistrictSalesDetailResponse getDistrictSalesTopFiveDetail(String districtCode, String currentPeriodCode, String previousPeriodCode);
+
+    DistrictSalesAdministrationDetailResponse getDistrictSalesAdministrationTopFiveDetail(
+        String districtCode,
+        String currentPeriodCode,
+        String previousPeriodCode
+    );
 
     List<DistrictAreaResponse> getAllDistricts(String currentPeriodCode);
 }

@@ -250,6 +250,25 @@ public class DistrictQueryProcessor {
             .build();
     }
 
+    public List<DistrictSalesAdministrationTopInfo> getDistrictSalesAdministrationTopFiveDetail(
+        String districtCode,
+        String currentPeriodCode,
+        String previousPeriodCode
+    ) {
+        // 1. 이전 분기 확정
+        String resolvedPreviousPeriodCode =
+            periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
+
+        // 2. 행정동 매출 Top5 조회
+        return salesAdministrationRepositoryPort.findTopFiveByDistrictCode(
+                districtCode,
+                currentPeriodCode,
+                resolvedPreviousPeriodCode
+            ).stream()
+            .map(DistrictSalesAdministrationTopInfo::from)
+            .toList();
+    }
+
     public List<DistrictAreaInfo> getAllDistricts(String currentPeriodCode) {
         // 1. 자치구 목록 조회
         // 2. 목록 Info 변환
