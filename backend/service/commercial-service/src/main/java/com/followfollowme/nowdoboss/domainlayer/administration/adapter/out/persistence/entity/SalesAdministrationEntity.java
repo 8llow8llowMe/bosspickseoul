@@ -43,7 +43,7 @@ public class SalesAdministrationEntity {
     private String administrationCode;
 
     @Comment("행정동명")
-    @Column(name = "administration_code_name", length = 20, nullable = false)
+    @Column(length = 20, nullable = false)
     private String administrationName;
 
     @Comment("서비스 업종 코드")
@@ -51,7 +51,7 @@ public class SalesAdministrationEntity {
     private String serviceCode;
 
     @Comment("서비스 업종명")
-    @Column(name = "service_code_name", length = 20, nullable = false)
+    @Column(length = 20, nullable = false)
     private String serviceName;
 
     @Comment("서비스 업종 타입")
@@ -59,14 +59,14 @@ public class SalesAdministrationEntity {
     private ServiceType serviceType;
 
     @Comment("당월 매출 금액")
-    @Column(name = "month_sales", nullable = false)
+    @Column(nullable = false)
     private Long monthlySalesAmount;
 
     @Comment("주중 매출 금액")
-    @Column(name = "weekday_sales", nullable = false)
+    @Column(nullable = false)
     private Long weekdaySalesAmount;
 
     @Comment("주말 매출 금액")
-    @Column(name = "weekend_sales", nullable = false)
+    @Column(nullable = false)
     private Long weekendSalesAmount;
 }
