@@ -45,7 +45,7 @@ public class StoreAdministrationEntity {
     private String administrationCode;
 
     @Comment("행정동명")
-    @Column(name = "administration_code_name", length = 20, nullable = false)
+    @Column(length = 20, nullable = false)
     private String administrationName;
 
     @Comment("서비스 업종 코드")
@@ -53,7 +53,7 @@ public class StoreAdministrationEntity {
     private String serviceCode;
 
     @Comment("서비스 업종명")
-    @Column(name = "service_code_name", length = 20, nullable = false)
+    @Column(length = 20, nullable = false)
     private String serviceName;
 
     @Comment("서비스 업종 타입")
@@ -61,30 +61,30 @@ public class StoreAdministrationEntity {
     private ServiceType serviceType;
 
     @Comment("총 점포 수")
-    @Column(name = "total_store", nullable = false)
+    @Column(nullable = false)
     private Long totalStoreCount;
 
     @Comment("유사 업종 점포 수")
-    @Column(name = "similar_store", nullable = false)
+    @Column(nullable = false)
     private Long similarStoreCount;
 
     @Comment("개업 점포 수")
-    @Column(name = "opened_store", nullable = false)
+    @Column(nullable = false)
     private Long openedStoreCount;
 
     @Comment("폐업 점포 수")
-    @Column(name = "closed_store", nullable = false)
+    @Column(nullable = false)
     private Long closedStoreCount;
 
     @Comment("프랜차이즈 점포 수")
-    @Column(name = "franchise_store", nullable = false)
+    @Column(nullable = false)
     private Long franchiseStoreCount;
 
     @Comment("개업률")
-    @Column(name = "opened_rate", nullable = false)
+    @Column(nullable = false)
     private Double openingRate;
 
     @Comment("폐업률")
-    @Column(name = "closed_rate", nullable = false)
+    @Column(nullable = false)
     private Double closureRate;
 }
