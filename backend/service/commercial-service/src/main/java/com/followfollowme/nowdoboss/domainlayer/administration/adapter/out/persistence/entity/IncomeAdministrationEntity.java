@@ -40,10 +40,10 @@ public class IncomeAdministrationEntity {
     private String administrationCode;
 
     @Comment("행정동명")
-    @Column(name = "administration_code_name", length = 20, nullable = false)
+    @Column(length = 20, nullable = false)
     private String administrationName;
 
     @Comment("총 지출 금액")
-    @Column(name = "total_price", nullable = false)
+    @Column(nullable = false)
     private Long totalExpenseAmount;
 }
