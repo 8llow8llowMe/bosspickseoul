@@ -5,7 +5,7 @@ import com.followfollowme.nowdoboss.domainlayer.member.application.exception.Mem
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
-import com.followfollowme.nowdoboss.domainlayer.member.domain.model.enums.MemberStatus;
+import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.MemberStatus;
 import com.followfollowme.nowdoboss.persistence.util.SnowflakeIdGenerator;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import lombok.RequiredArgsConstructor;

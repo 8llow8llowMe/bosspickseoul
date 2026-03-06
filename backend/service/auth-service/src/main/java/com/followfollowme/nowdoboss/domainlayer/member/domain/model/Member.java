@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.member.domain.model;
 
-import com.followfollowme.nowdoboss.domainlayer.member.domain.model.enums.MemberStatus;
+import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.MemberStatus;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import lombok.Builder;
 
