@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class DistrictFacade implements DistrictWebUseCase {
+public class DistrictWebFacade implements DistrictWebUseCase {
 
     private final DistrictQueryProcessor districtQueryProcessor;
     private final DistrictPresenter districtPresenter;

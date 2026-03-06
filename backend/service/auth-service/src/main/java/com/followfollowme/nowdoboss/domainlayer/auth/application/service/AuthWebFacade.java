@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class AuthFacade implements AuthWebUseCase {
+public class AuthWebFacade implements AuthWebUseCase {
 
     private final GeneralLoginProcessor generalLoginProcessor;
     private final JwtTokenProcessor jwtTokenProcessor;
@@ -33,7 +33,7 @@ public class AuthFacade implements AuthWebUseCase {
         // 2. 토큰 발급
         JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(generalLoginInfo.memberId(), generalLoginInfo.role());
 
-        // 3. Presenter를 통해 Info -> Response 변환
+        // 3. Presenter를 통한 Info -> Response 변환
         AuthGeneralLoginResponse response = authPresenter.toGeneralLoginResponse(jwtTokenIssueInfo);
 
         return AuthCookieResult.of(response, jwtTokenIssueInfo.refreshToken());
@@ -50,7 +50,7 @@ public class AuthFacade implements AuthWebUseCase {
         // 1. 토큰 재발급 수행
         JwtTokenReissueInfo jwtTokenReissueInfo = jwtTokenProcessor.reissueTokens(command.refreshToken());
 
-        // 2. Presenter를 통해 Info -> Response 변환
+        // 2. Presenter를 통한 Info -> Response 변환
         TokenReissueResponse response = authPresenter.toTokenReissueResponse(jwtTokenReissueInfo);
 
         return AuthCookieResult.of(response, jwtTokenReissueInfo.newRefreshToken());
