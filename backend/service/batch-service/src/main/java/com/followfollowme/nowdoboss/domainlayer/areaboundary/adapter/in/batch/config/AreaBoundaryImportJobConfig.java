@@ -1,7 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.areaboundary.adapter.in.batch.config;
 
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.in.AreaBoundaryImportUseCase;
-import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -13,17 +12,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-@RequiredArgsConstructor
 public class AreaBoundaryImportJobConfig {
 
     public static final String JOB_NAME = "areaBoundaryImportJob";
     private static final String STEP_NAME = "areaBoundaryImportStep";
 
     @Bean
-    public Job areaBoundaryImportJob(
-        JobRepository jobRepository,
-        Step areaBoundaryImportStep
-    ) {
+    public Job areaBoundaryImportJob(JobRepository jobRepository, Step areaBoundaryImportStep) {
         return new JobBuilder(JOB_NAME, jobRepository)
             .start(areaBoundaryImportStep)
             .build();
