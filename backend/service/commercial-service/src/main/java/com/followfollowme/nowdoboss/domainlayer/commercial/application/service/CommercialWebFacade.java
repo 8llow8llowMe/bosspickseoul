@@ -5,6 +5,9 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeAndExpenseResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialResidentPopulationResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
@@ -13,8 +16,13 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.inco
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.CommercialServiceCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
+import com.followfollowme.nowdoboss.domainlayer.commercialsummary.adapter.in.web.presenter.CommercialSummaryPresenter;
+import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.service.processor.CommercialSummaryQueryProcessor;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +34,8 @@ public class CommercialWebFacade implements CommercialWebUseCase {
 
     private final CommercialQueryProcessor commercialQueryProcessor;
     private final CommercialPresenter commercialPresenter;
+    private final CommercialSummaryQueryProcessor commercialSummaryQueryProcessor;
+    private final CommercialSummaryPresenter commercialSummaryPresenter;
 
     @Override
     @Transactional(readOnly = true)
@@ -67,5 +77,44 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialIncomeAndExpenseResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         CommercialIncomeAndExpenseInfo info = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toCommercialIncomeResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialStoreAnalysisResponse getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode,
+        String commercialCode,
+        String serviceCode
+    ) {
+        CommercialStoreAnalysisInfo info = commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
+            periodCode, commercialCode, serviceCode);
+        return commercialPresenter.toCommercialStoreAnalysisResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialSalesSummaryResponse getSalesSummary(
+        String periodCode,
+        String districtCode,
+        String administrationCode,
+        String commercialCode,
+        String serviceCode
+    ) {
+        CommercialSalesSummaryInfo info = commercialSummaryQueryProcessor.getSalesSummary(
+            periodCode, districtCode, administrationCode, commercialCode, serviceCode);
+        return commercialSummaryPresenter.toCommercialSalesSummaryResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialIncomeSummaryResponse getIncomeSummary(
+        String periodCode,
+        String districtCode,
+        String administrationCode,
+        String commercialCode
+    ) {
+        CommercialIncomeSummaryInfo info = commercialSummaryQueryProcessor.getIncomeSummary(
+            periodCode, districtCode, administrationCode, commercialCode);
+        return commercialSummaryPresenter.toCommercialIncomeSummaryResponse(info);
     }
 }

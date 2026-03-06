@@ -7,6 +7,9 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.it
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByDayOfWeekItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByTimeSlotItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialResidentPopulationByAgeItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialPeerStoreItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.RegionalIncomeSummaryItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.RegionalSalesSummaryItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeGenderPercentItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByDayOfWeekItem;
@@ -18,8 +21,11 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.it
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeAndExpenseResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialResidentPopulationResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialSchoolCountInfo;
@@ -41,6 +47,12 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sale
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByGenderInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByTimeSlotInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialPeerStoreInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalIncomeSummaryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.CommercialServiceCategoryInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -104,6 +116,35 @@ public class CommercialPresenter {
             .totalFacilityCount(info.totalFacilityCount())
             .schoolCountItem(toCommercialSchoolCountItem(info.schoolCountInfo()))
             .totalTransportationFacilityCount(info.totalTransportationFacilityCount())
+            .build();
+    }
+
+    public CommercialStoreAnalysisResponse toCommercialStoreAnalysisResponse(CommercialStoreAnalysisInfo info) {
+        return CommercialStoreAnalysisResponse.builder()
+            .totalStoreCount(info.totalStoreCount())
+            .similarStoreCount(info.similarStoreCount())
+            .openingRate(info.openingRate())
+            .openedStoreCount(info.openedStoreCount())
+            .closureRate(info.closureRate())
+            .closedStoreCount(info.closedStoreCount())
+            .franchiseStoreCount(info.franchiseStoreCount())
+            .peerStores(info.peerStores().stream().map(this::toCommercialPeerStoreItem).toList())
+            .build();
+    }
+
+    public CommercialSalesSummaryResponse toCommercialSalesSummaryResponse(CommercialSalesSummaryInfo info) {
+        return CommercialSalesSummaryResponse.builder()
+            .district(toRegionalSalesSummaryItem(info.district()))
+            .administration(toRegionalSalesSummaryItem(info.administration()))
+            .commercial(toRegionalSalesSummaryItem(info.commercial()))
+            .build();
+    }
+
+    public CommercialIncomeSummaryResponse toCommercialIncomeSummaryResponse(CommercialIncomeSummaryInfo info) {
+        return CommercialIncomeSummaryResponse.builder()
+            .district(toRegionalIncomeSummaryItem(info.district()))
+            .administration(toRegionalIncomeSummaryItem(info.administration()))
+            .commercial(toRegionalIncomeSummaryItem(info.commercial()))
             .build();
     }
 
@@ -284,6 +325,34 @@ public class CommercialPresenter {
             .cultureExpenseAmount(info.cultureExpenseAmount())
             .educationExpenseAmount(info.educationExpenseAmount())
             .entertainmentExpenseAmount(info.entertainmentExpenseAmount())
+            .build();
+    }
+
+    private CommercialPeerStoreItem toCommercialPeerStoreItem(CommercialPeerStoreInfo info) {
+        return CommercialPeerStoreItem.builder()
+            .serviceCode(info.serviceCode())
+            .serviceName(info.serviceName())
+            .totalStoreCount(info.totalStoreCount())
+            .openingRate(info.openingRate())
+            .closureRate(info.closureRate())
+            .build();
+    }
+
+    private RegionalSalesSummaryItem toRegionalSalesSummaryItem(RegionalSalesSummaryInfo info) {
+        return RegionalSalesSummaryItem.builder()
+            .code(info.code())
+            .name(info.name())
+            .serviceCode(info.serviceCode())
+            .serviceName(info.serviceName())
+            .monthlySalesAmount(info.monthlySalesAmount())
+            .build();
+    }
+
+    private RegionalIncomeSummaryItem toRegionalIncomeSummaryItem(RegionalIncomeSummaryInfo info) {
+        return RegionalIncomeSummaryItem.builder()
+            .code(info.code())
+            .name(info.name())
+            .totalExpenseAmount(info.totalExpenseAmount())
             .build();
     }
 }
