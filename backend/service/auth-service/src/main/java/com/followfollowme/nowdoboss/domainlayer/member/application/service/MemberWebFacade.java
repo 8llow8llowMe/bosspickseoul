@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class MemberFacade implements MemberWebUseCase {
+public class MemberWebFacade implements MemberWebUseCase {
 
     private final MemberGeneralSignupProcessor memberGeneralSignupProcessor;
     private final MemberQueryProcessor memberQueryProcessor;

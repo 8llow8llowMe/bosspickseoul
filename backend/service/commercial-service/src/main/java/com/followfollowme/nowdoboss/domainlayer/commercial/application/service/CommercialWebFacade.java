@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class CommercialFacade implements CommercialWebUseCase {
+public class CommercialWebFacade implements CommercialWebUseCase {
 
     private final CommercialQueryProcessor commercialQueryProcessor;
     private final CommercialPresenter commercialPresenter;

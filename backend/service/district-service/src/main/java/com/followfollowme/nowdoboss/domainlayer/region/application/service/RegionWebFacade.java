@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class RegionFacade implements RegionWebUseCase {
+public class RegionWebFacade implements RegionWebUseCase {
 
     private final RegionQueryProcessor regionQueryProcessor;
     private final RegionPresenter regionPresenter;
