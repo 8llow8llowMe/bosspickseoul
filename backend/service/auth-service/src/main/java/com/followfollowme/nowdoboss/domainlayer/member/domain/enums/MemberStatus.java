@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.member.domain.model.enums;
+package com.followfollowme.nowdoboss.domainlayer.member.domain.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
