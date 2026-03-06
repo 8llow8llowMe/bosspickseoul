@@ -47,4 +47,15 @@ public class AreaCommercialRepositoryAdapter implements AreaCommercialRepository
         return areaCommercialRepository.findDistinctByCommercialCodeName(commercialCodeName)
             .map(RegionCodeLookupInfo::from);
     }
+
+    @Override
+    public Optional<AreaCommercial> findFirstByCommercialCode(String commercialCode) {
+        return areaCommercialRepository.findFirstByCommercialCode(commercialCode)
+            .map(projection -> AreaCommercial.builder()
+                .districtCode(projection.getDistrictCode())
+                .districtCodeName(projection.getDistrictCodeName())
+                .administrationCode(projection.getAdministrationCode())
+                .administrationCodeName(projection.getAdministrationCodeName())
+                .build());
+    }
 }

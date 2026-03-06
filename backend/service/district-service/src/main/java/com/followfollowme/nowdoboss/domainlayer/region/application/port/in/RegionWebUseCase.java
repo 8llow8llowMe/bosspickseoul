@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.port.in;
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.domain.enums.RegionCodeType;
@@ -10,7 +11,9 @@ public interface RegionWebUseCase {
 
     List<AdministrationAreaResponse> getAdministrationsByDistrictCode(String districtCode);
 
-    List<CommercialAreaResponse> getCommercialsByAdministrationCode(String administrationCode);
+    List<CommercialAreaResponse> getCommercialsByAdministrationCode(String districtCode, String administrationCode);
 
-    RegionCodeLookupResponse getRegionCodeLookup(RegionCodeType type, String codeName);
+    RegionCodeLookupResponse lookupRegionCode(RegionCodeType type, String codeName);
+
+    CommercialAdministrationAreaResponse getCommercialAdministrationByCommercialCode(String commercialCode);
 }
