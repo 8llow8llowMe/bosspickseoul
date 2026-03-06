@@ -1,9 +1,11 @@
 package com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.presenter;
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import java.util.List;
@@ -52,6 +54,15 @@ public class RegionPresenter {
             .administrationCodeName(info.administrationCodeName())
             .commercialCode(info.commercialCode())
             .commercialCodeName(info.commercialCodeName())
+            .build();
+    }
+
+    public CommercialAdministrationAreaResponse toCommercialAdministrationAreaResponse(CommercialAdministrationAreaInfo info) {
+        return CommercialAdministrationAreaResponse.builder()
+            .districtCode(info.districtCode())
+            .districtCodeName(info.districtCodeName())
+            .administrationCode(info.administrationCode())
+            .administrationCodeName(info.administrationCodeName())
             .build();
     }
 }

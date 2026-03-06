@@ -1,10 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.service;
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.presenter.RegionPresenter;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.in.RegionWebUseCase;
@@ -31,17 +33,23 @@ public class RegionWebFacade implements RegionWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommercialAreaResponse> getCommercialsByAdministrationCode(String administrationCode) {
-        List<CommercialAreaInfo> infos = regionQueryProcessor.getCommercialsByAdministrationCode(administrationCode);
+    public List<CommercialAreaResponse> getCommercialsByAdministrationCode(String districtCode, String administrationCode) {
+        List<CommercialAreaInfo> infos = regionQueryProcessor.getCommercialsByAdministrationCode(districtCode, administrationCode);
         return regionPresenter.toCommercialAreaResponses(infos);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public RegionCodeLookupResponse getRegionCodeLookup(RegionCodeType type, String codeName) {
-        RegionCodeLookupInfo info = regionQueryProcessor.getRegionCodeLookup(type, codeName);
+    public RegionCodeLookupResponse lookupRegionCode(RegionCodeType type, String codeName) {
+        RegionCodeLookupInfo info = regionQueryProcessor.lookupRegionCode(type, codeName);
         return regionPresenter.toRegionCodeLookupResponse(info);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialAdministrationAreaResponse getCommercialAdministrationByCommercialCode(String commercialCode) {
+        CommercialAdministrationAreaInfo info = regionQueryProcessor.getCommercialAdministrationByCommercialCode(commercialCode);
+        return regionPresenter.toCommercialAdministrationAreaResponse(info);
+    }
 
 }

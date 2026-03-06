@@ -22,7 +22,7 @@ public class MapWebController {
     private final MapWebUseCase mapWebUseCase;
 
     @Operation(summary = "상권 영역 좌표 조회", description = "지도 바운딩 박스 내 상권 영역 좌표를 조회합니다.")
-    @GetMapping("/commercial")
+    @GetMapping("/commercials")
     public ResponseEntity<Response<MapAreaCoordsResponse>> getCommercialAreaCoords(
         @Parameter(description = "남서쪽 경도", required = true, example = "126.90") @RequestParam double lngSW,
         @Parameter(description = "남서쪽 위도", required = true, example = "37.45") @RequestParam double latSW,
@@ -34,7 +34,7 @@ public class MapWebController {
     }
 
     @Operation(summary = "행정동 영역 좌표 조회", description = "지도 바운딩 박스 내 행정동 영역 좌표를 조회합니다.")
-    @GetMapping("/administration")
+    @GetMapping("/administrations")
     public ResponseEntity<Response<MapAreaCoordsResponse>> getAdministrationAreaCoords(
         @Parameter(description = "남서쪽 경도", required = true, example = "126.90") @RequestParam double lngSW,
         @Parameter(description = "남서쪽 위도", required = true, example = "37.45") @RequestParam double latSW,
@@ -46,7 +46,7 @@ public class MapWebController {
     }
 
     @Operation(summary = "자치구 영역 좌표 조회", description = "지도 바운딩 박스 내 자치구 영역 좌표를 조회합니다.")
-    @GetMapping("/district")
+    @GetMapping("/districts")
     public ResponseEntity<Response<MapAreaCoordsResponse>> getDistrictAreaCoords(
         @Parameter(description = "남서쪽 경도", required = true, example = "126.90") @RequestParam double lngSW,
         @Parameter(description = "남서쪽 위도", required = true, example = "37.45") @RequestParam double latSW,

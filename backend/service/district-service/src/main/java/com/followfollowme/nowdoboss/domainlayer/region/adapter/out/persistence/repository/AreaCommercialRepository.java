@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.entity.AreaCommercialEntity;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.AdministrationCodeProjection;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.CommercialAdministrationProjection;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.CommercialCodeProjection;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.DistrictCodeProjection;
 import java.util.List;
@@ -19,4 +20,6 @@ public interface AreaCommercialRepository extends JpaRepository<AreaCommercialEn
     Optional<AdministrationCodeProjection> findDistinctByAdministrationCodeName(String administrationCodeName);
 
     Optional<CommercialCodeProjection> findDistinctByCommercialCodeName(String commercialCodeName);
+
+    Optional<CommercialAdministrationProjection> findFirstByCommercialCode(String commercialCode);
 }
