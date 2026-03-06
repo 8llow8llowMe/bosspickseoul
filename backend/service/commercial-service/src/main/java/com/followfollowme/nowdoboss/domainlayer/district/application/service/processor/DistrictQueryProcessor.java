@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.district.application.service.processor;
+package com.followfollowme.nowdoboss.domainlayer.district.application.service.processor;
 
 import com.followfollowme.nowdoboss.domainlayer.district.application.common.PeriodCodeCalculator;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.area.DistrictAreaInfo;

@@ -7,6 +7,5 @@ import org.mapstruct.Mapper;
 @Mapper(componentModel = "spring")
 public interface FacilityCommercialMapper {
 
-    // 엔티티 -> 도메인
     FacilityCommercial toDomainFromEntity(FacilityCommercialEntity entity);
 }

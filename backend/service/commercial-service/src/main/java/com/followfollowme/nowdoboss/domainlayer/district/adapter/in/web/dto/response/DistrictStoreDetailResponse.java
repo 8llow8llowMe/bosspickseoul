@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response;
+package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response;
 
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictClosedStoreAdministrationTopItem;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item.DistrictOpenedStoreAdministrationTopItem;
