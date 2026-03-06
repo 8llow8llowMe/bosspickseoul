@@ -33,8 +33,8 @@ public class AreaBoundaryImportJobRunner implements ApplicationRunner {
         String jobName = areaBoundaryImportProperties.jobName();
         Job areaBoundaryImportJob = jobRegistry.getJob(jobName);
 
-        log.info("영역 좌표 배치 실행 시작 - jobName: {}", jobName);
+        log.info("Area boundary batch start - jobName: {}", jobName);
         jobLauncher.run(areaBoundaryImportJob, jobParameters);
-        log.info("영역 좌표 배치 실행 종료 - jobName: {}", jobName);
+        log.info("Area boundary batch end - jobName: {}", jobName);
     }
 }
