@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.apigateway.jwt.AccessTokenBlacklistChecker;
 import com.followfollowme.nowdoboss.apigateway.jwt.JwtVerifier;
 import com.followfollowme.nowdoboss.apigateway.jwt.exception.JwtErrorCode;
 import com.followfollowme.nowdoboss.apigateway.jwt.exception.JwtException;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SecurityException;
@@ -39,12 +40,14 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
 
             return Mono.defer(() -> {
                 try {
-                    jwtVerifier.validate(jwt);
-                    String tokenId = jwtVerifier.extractTokenId(jwt);
+                    Claims claims = jwtVerifier.validateAndGetClaims(jwt);
+                    String tokenId = claims.getId();
                     if (tokenId != null && accessTokenBlacklistChecker.isBlacklisted(tokenId)) {
                         throw new JwtException(JwtErrorCode.TOKEN_REVOKED);
                     }
                     return chain.filter(exchange);
+                } catch (JwtException e) {
+                    throw e;
                 } catch (ExpiredJwtException e) {
                     throw new JwtException(JwtErrorCode.TOKEN_EXPIRED);
                 } catch (SignatureException e) {

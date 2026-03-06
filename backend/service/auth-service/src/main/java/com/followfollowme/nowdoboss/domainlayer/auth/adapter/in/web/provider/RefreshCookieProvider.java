@@ -2,7 +2,8 @@ package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.provider;
 
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
@@ -14,9 +15,7 @@ public class RefreshCookieProvider {
     private static final String REISSUE_PATH = "/api/v1/auth/token/reissue";
 
     private final JwtAuthProperties jwtAuthProperties;
-
-    @Value("${spring.profiles.active:local}")
-    private String activeProfile;
+    private final Environment environment;
 
     public ResponseCookie createRefreshCookie(String refreshToken) {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
@@ -39,6 +38,6 @@ public class RefreshCookieProvider {
     }
 
     private boolean isSecure() {
-        return activeProfile.equals("prod");
+        return environment.acceptsProfiles(Profiles.of("prod"));
     }
 }

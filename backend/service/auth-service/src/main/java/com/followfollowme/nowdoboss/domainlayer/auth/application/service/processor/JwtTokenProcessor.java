@@ -52,7 +52,7 @@ public class JwtTokenProcessor {
 
     public JwtTokenReissueInfo reissueTokens(String refreshToken) {
         // 1. Validate refresh token and extract member id
-        if (refreshToken == null) {
+        if (refreshToken == null || refreshToken.isBlank()) {
             throw new AuthException(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
         }
         long memberId = jwtAuthProvider.parseRefreshToken(refreshToken);

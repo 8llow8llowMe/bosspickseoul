@@ -48,7 +48,7 @@ public class PeriodCodeCalculator {
 
     private void validate(String periodCode) {
         if (!PERIOD_PATTERN.matcher(periodCode).matches()) {
-            throw new IllegalArgumentException("Invalid period code format. Expected YYYYQ.");
+            throw new IllegalArgumentException("분기 코드는 YYYYQ 형식이어야 합니다.");
         }
     }
 }

@@ -23,6 +23,7 @@ eureka:
 
 jwt:
   access-key: ENC(YDO9DGO7lP8iCqeTNW/SXWCv0697ep+bbGvMnjoJfMDEtWy1Zq/yfZDsovoggEcmLLOtZfHSpLYoRO0YEUlrOl3CvD5KWXo55haCMx7cZMg=)
+  blacklist-fail-open: false
 
 # Redis
 infra:

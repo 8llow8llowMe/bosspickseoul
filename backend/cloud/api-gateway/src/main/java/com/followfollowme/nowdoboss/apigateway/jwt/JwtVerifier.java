@@ -18,9 +18,9 @@ public class JwtVerifier {
 
     private final JwtVerificationProperties jwtVerificationProperties;
 
-    public void validate(String token) {
+    public Claims validateAndGetClaims(String token) {
         try {
-            parseClaims(token);
+            return parseClaims(token);
         } catch (ExpiredJwtException e) {
             log.warn("[JwtVerifier] 토큰 만료: {}", e.getMessage());
             throw e;
@@ -34,10 +34,6 @@ public class JwtVerifier {
             log.warn("[JwtVerifier] 토큰 유효성 검증 실패: {}", e.getMessage());
             throw e;
         }
-    }
-
-    public String extractTokenId(String token) {
-        return parseClaims(token).getId();
     }
 
     private Claims parseClaims(String token) {
