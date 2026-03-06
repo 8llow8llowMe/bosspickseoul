@@ -15,9 +15,7 @@ import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @RequiredArgsConstructor
 public class JwtAuthProvider {
 
@@ -31,8 +29,7 @@ public class JwtAuthProvider {
             .add(CLAIM_ROLE, role)
             .build();
 
-        return issueToken(claims, jwtAuthProperties.accessExpiration(),
-            jwtAuthProperties.accessKey());
+        return issueToken(claims, jwtAuthProperties.accessExpiration(), jwtAuthProperties.accessKey());
     }
 
     public String issueRefreshToken(long memberId) {
@@ -40,8 +37,8 @@ public class JwtAuthProvider {
             .id(UUID.randomUUID().toString())
             .subject(String.valueOf(memberId))
             .build();
-        return issueToken(claims, jwtAuthProperties.refreshExpiration(),
-            jwtAuthProperties.refreshKey());
+
+        return issueToken(claims, jwtAuthProperties.refreshExpiration(), jwtAuthProperties.refreshKey());
     }
 
     public long parseRefreshToken(String refreshToken) {

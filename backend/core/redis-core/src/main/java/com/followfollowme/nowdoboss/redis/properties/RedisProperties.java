@@ -11,8 +11,16 @@ public record RedisProperties(
     Integer port,
     String masterName,
     String password,
-    List<SentinelNode> sentinels
+    List<SentinelNode> sentinels,
+    String keyPrefix
 ) {
+
+    public String normalizedKeyPrefix() {
+        if (keyPrefix == null || keyPrefix.isBlank()) {
+            return "nowdoboss";
+        }
+        return keyPrefix.trim();
+    }
 
     public record SentinelNode(
         String host,

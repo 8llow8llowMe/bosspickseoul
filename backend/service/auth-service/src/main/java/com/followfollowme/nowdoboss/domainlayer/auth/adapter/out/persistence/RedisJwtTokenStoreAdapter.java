@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.out.JwtTokenStorePort;
+import com.followfollowme.nowdoboss.redis.properties.RedisProperties;
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
 import java.time.Duration;
 import java.util.Optional;
@@ -15,12 +16,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
 
-    private static final String REFRESH_KEY_PREFIX = "refreshToken:";
-    private static final String BLACKLIST_KEY_PREFIX = "blacklist:accessTokenId:";
     private static final String BLACKLIST_VALUE = "logout";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final JwtAuthProperties jwtAuthProperties;
+    private final RedisProperties redisProperties;
 
     @Override
     public void save(long memberId, String refreshToken) {
@@ -72,10 +72,14 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
     }
 
     private String buildRefreshKey(long memberId) {
-        return REFRESH_KEY_PREFIX + memberId;
+        return buildKey("auth", "refreshToken", String.valueOf(memberId));
     }
 
     private String buildBlacklistKey(String tokenId) {
-        return BLACKLIST_KEY_PREFIX + tokenId;
+        return buildKey("auth", "accessTokenBlacklist", tokenId);
+    }
+
+    private String buildKey(String domain, String type, String id) {
+        return redisProperties.normalizedKeyPrefix() + ":" + domain + ":" + type + ":" + id;
     }
 }
