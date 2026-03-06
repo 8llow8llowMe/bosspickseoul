@@ -75,7 +75,8 @@ subprojects.findAll {
                 'service-discovery',
                 'auth-service',
                 'commercial-service',
-                'district-service']
+                'district-service',
+                'batch-service']
 }.each { cloudProject ->
     cloudProject.apply plugin: 'io.spring.dependency-management'
 
