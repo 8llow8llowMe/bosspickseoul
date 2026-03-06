@@ -1,0 +1,13 @@
+spring:
+  batch:
+    jdbc:
+      initialize-schema: never
+    job:
+      enabled: false
+
+app:
+  batch:
+    area-boundary-seed:
+      enabled: false
+      job-name: areaBoundarySeedJob
+      source-dir: ""
