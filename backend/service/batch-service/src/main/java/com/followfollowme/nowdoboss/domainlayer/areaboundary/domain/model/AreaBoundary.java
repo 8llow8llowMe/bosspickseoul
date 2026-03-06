@@ -1,6 +1,6 @@
-package com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.domain.model;
+package com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.model;
 
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.domain.enums.AreaType;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.enums.AreaType;
 import lombok.Builder;
 
 @Builder
@@ -16,4 +16,5 @@ public record AreaBoundary(
     double bboxMaxLng,
     double bboxMaxLat
 ) {
+
 }

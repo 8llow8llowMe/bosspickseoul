@@ -1,7 +1,7 @@
-package com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.adapter.out.persistence;
+package com.followfollowme.nowdoboss.domainlayer.areaboundary.adapter.out.persistence;
 
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.application.port.out.AreaBoundaryJdbcPort;
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.domain.model.AreaBoundary;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.out.AreaBoundaryJdbcPort;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.model.AreaBoundary;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;

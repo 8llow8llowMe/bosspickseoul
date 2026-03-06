@@ -1,12 +1,13 @@
-package com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.adapter.in.batch.runner;
+package com.followfollowme.nowdoboss.domainlayer.areaboundary.adapter.in.batch.runner;
 
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.adapter.in.batch.config.AreaBoundarySeedJobConfig;
+import com.followfollowme.nowdoboss.global.properties.AreaBoundaryImportProperties;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -16,11 +17,12 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "app.batch.area-boundary-seed", name = "enabled", havingValue = "true")
-public class AreaBoundarySeedJobRunner implements ApplicationRunner {
+@ConditionalOnProperty(prefix = "batch.area-boundary.import", name = "enabled", havingValue = "true")
+public class AreaBoundaryImportJobRunner implements ApplicationRunner {
 
     private final JobLauncher jobLauncher;
-    private final Job areaBoundarySeedJob;
+    private final JobRegistry jobRegistry;
+    private final AreaBoundaryImportProperties areaBoundaryImportProperties;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -28,8 +30,11 @@ public class AreaBoundarySeedJobRunner implements ApplicationRunner {
             .addString("requestedAt", LocalDateTime.now().toString())
             .toJobParameters();
 
-        log.info("영역 좌표 배치 실행 시작 - jobName: {}", AreaBoundarySeedJobConfig.JOB_NAME);
-        jobLauncher.run(areaBoundarySeedJob, jobParameters);
-        log.info("영역 좌표 배치 실행 종료 - jobName: {}", AreaBoundarySeedJobConfig.JOB_NAME);
+        String jobName = areaBoundaryImportProperties.jobName();
+        Job areaBoundaryImportJob = jobRegistry.getJob(jobName);
+
+        log.info("영역 좌표 배치 실행 시작 - jobName: {}", jobName);
+        jobLauncher.run(areaBoundaryImportJob, jobParameters);
+        log.info("영역 좌표 배치 실행 종료 - jobName: {}", jobName);
     }
 }

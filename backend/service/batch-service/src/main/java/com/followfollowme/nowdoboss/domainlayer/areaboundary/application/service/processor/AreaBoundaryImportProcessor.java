@@ -1,10 +1,11 @@
-package com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.application.service.processor;
+package com.followfollowme.nowdoboss.domainlayer.areaboundary.application.service.processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.application.port.out.AreaBoundaryJdbcPort;
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.domain.enums.AreaType;
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.domain.model.AreaBoundary;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.out.AreaBoundaryJdbcPort;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.enums.AreaType;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.model.AreaBoundary;
+import com.followfollowme.nowdoboss.global.properties.AreaBoundaryImportProperties;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -13,28 +14,25 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AreaBoundarySeedProcessor {
+public class AreaBoundaryImportProcessor {
 
     private static final String AREA_RESOURCE_PATH = "area/%s.json";
 
     private final ObjectMapper objectMapper;
     private final AreaBoundaryJdbcPort areaBoundaryJdbcPort;
+    private final AreaBoundaryImportProperties areaBoundaryImportProperties;
 
-    @Value("${app.batch.area-boundary-seed.source-dir:}")
-    private String sourceDir;
-
-    public void seedAreaBoundary() {
+    public void importAreaBoundary() {
         // 1. 영역 타입별 JSON 로드 및 변환
-        int districtCount = seedByType(AreaType.DISTRICT);
-        int administrationCount = seedByType(AreaType.ADMINISTRATION);
-        int commercialCount = seedByType(AreaType.COMMERCIAL);
+        int districtCount = importByType(AreaType.DISTRICT);
+        int administrationCount = importByType(AreaType.ADMINISTRATION);
+        int commercialCount = importByType(AreaType.COMMERCIAL);
 
         // 2. 적재 결과 로깅
         log.info(
@@ -45,7 +43,7 @@ public class AreaBoundarySeedProcessor {
         );
     }
 
-    private int seedByType(AreaType areaType) {
+    private int importByType(AreaType areaType) {
         String resourceName = areaType.name().toLowerCase();
         String codeField = resourceName + "_code";
         String nameField = resourceName + "_code_name";
@@ -92,6 +90,7 @@ public class AreaBoundarySeedProcessor {
     }
 
     private JsonNode readRootArray(String resourceName) {
+        String sourceDir = areaBoundaryImportProperties.sourceDir();
         if (sourceDir != null && !sourceDir.isBlank()) {
             Path filePath = Path.of(sourceDir, resourceName + ".json");
             try (InputStream in = Files.newInputStream(filePath)) {
@@ -138,6 +137,7 @@ public class AreaBoundarySeedProcessor {
         double maxLng,
         double maxLat
     ) {
+
         private boolean valid() {
             return Double.isFinite(minLng) && Double.isFinite(minLat)
                 && Double.isFinite(maxLng) && Double.isFinite(maxLat);
