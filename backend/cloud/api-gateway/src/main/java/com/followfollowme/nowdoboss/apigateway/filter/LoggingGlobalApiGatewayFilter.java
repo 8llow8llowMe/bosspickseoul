@@ -43,10 +43,10 @@ public class LoggingGlobalApiGatewayFilter implements GlobalFilter, Ordered {
     private void logRequest(ServerWebExchange exchange, String requestId) {
         ServerHttpRequest request = exchange.getRequest();
 
-        log.info("[REQUEST] requestId={} method={} uri={} clientIp={} userAgent={} hasAuth={} query={}",
+        log.info("[요청] 요청ID={} 메서드={} URI={} 클라이언트IP={} UserAgent={} 인증헤더존재={} 쿼리={}",
             requestId, request.getMethod(), request.getURI(), getClientIp(request),
             getUserAgent(request), request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION),
-            request.getURI().getQuery() != null ? request.getURI().getQuery() : "none"
+            request.getURI().getQuery() != null ? request.getURI().getQuery() : "없음"
         );
     }
 
@@ -59,20 +59,20 @@ public class LoggingGlobalApiGatewayFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getPath().toString();
         String contentLength = response.getHeaders().getFirst(HttpHeaders.CONTENT_LENGTH);
 
-        log.info("[RESPONSE] requestId={} status={} duration={}ms path={} size={}",
-            requestId, status, duration, path, contentLength != null ? contentLength + "bytes" : "unknown"
+        log.info("[응답] 요청ID={} 상태코드={} 처리시간={}ms 경로={} 크기={}",
+            requestId, status, duration, path, contentLength != null ? contentLength + "bytes" : "알수없음"
         );
 
-        // 에러 응답 별도 로그
+        // 오류 응답 별도 로그
         if (status >= 400) {
-            log.warn("[ERROR_RESPONSE] requestId={} status={} path={} duration={}ms clientIp={}",
+            log.warn("[오류응답] 요청ID={} 상태코드={} 경로={} 처리시간={}ms 클라이언트IP={}",
                 requestId, status, path, duration, getClientIp(exchange.getRequest())
             );
         }
 
-        // 느린 요청 별도 로그
+        // 지연 요청 별도 로그
         if (duration > SLOW_REQUEST_THRESHOLD_MS) {
-            log.warn("[SLOW_REQUEST] requestId={} duration={}ms threshold={}ms path={}",
+            log.warn("[지연요청] 요청ID={} 처리시간={}ms 임계값={}ms 경로={}",
                 requestId, duration, SLOW_REQUEST_THRESHOLD_MS, path
             );
         }
@@ -91,15 +91,16 @@ public class LoggingGlobalApiGatewayFilter implements GlobalFilter, Ordered {
 
         return request.getRemoteAddress() != null
             ? request.getRemoteAddress().getAddress().getHostAddress()
-            : "unknown";
+            : "알수없음";
     }
 
     private String getUserAgent(ServerHttpRequest request) {
         String userAgent = request.getHeaders().getFirst(HttpHeaders.USER_AGENT);
         if (userAgent == null) {
-            return "unknown";
+            return "알수없음";
         }
-        // 너무 길면 자르기 (Loki 효율성)
+
+        // 너무 길면 자르기(Loki 수집용)
         return userAgent.length() > 100 ? userAgent.substring(0, 100) + "..." : userAgent;
     }
 

@@ -3,3 +3,7 @@ spring:
     name: ${SPRING_APPLICATION_NAME:auth-service}
   profiles:
     active: local
+
+infra:
+  redis:
+    key-prefix: ${REDIS_KEY_PREFIX:nowdoboss}

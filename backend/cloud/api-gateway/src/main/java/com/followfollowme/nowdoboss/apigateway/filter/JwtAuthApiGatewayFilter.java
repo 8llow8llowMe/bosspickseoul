@@ -24,6 +24,8 @@ import reactor.core.publisher.Mono;
 public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config> {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String MEMBER_ID_HEADER = "X-Authenticated-Member-Id";
+    private static final String LEGACY_MEMBER_ID_HEADER = "X-Member-Id";
 
     private final JwtVerifier jwtVerifier;
     private final AccessTokenBlacklistChecker accessTokenBlacklistChecker;
@@ -31,11 +33,11 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
-            ServerHttpRequest request = exchange.getRequest();
-            String jwt = getJwtFrom(request);
+            ServerHttpRequest sanitizedRequest = sanitizeHeaders(exchange.getRequest());
+            String jwt = getJwtFrom(sanitizedRequest);
 
             if (!StringUtils.hasText(jwt)) {
-                return chain.filter(exchange);
+                return chain.filter(exchange.mutate().request(sanitizedRequest).build());
             }
 
             return Mono.defer(() -> {
@@ -45,7 +47,9 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
                     if (tokenId != null && accessTokenBlacklistChecker.isBlacklisted(tokenId)) {
                         throw new JwtException(JwtErrorCode.TOKEN_REVOKED);
                     }
-                    return chain.filter(exchange);
+
+                    ServerHttpRequest authenticatedRequest = addMemberIdHeader(sanitizedRequest, claims);
+                    return chain.filter(exchange.mutate().request(authenticatedRequest).build());
                 } catch (JwtException e) {
                     throw e;
                 } catch (ExpiredJwtException e) {
@@ -67,6 +71,25 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
             return bearerToken.substring(BEARER_PREFIX.length());
         }
         return null;
+    }
+
+    private ServerHttpRequest sanitizeHeaders(ServerHttpRequest request) {
+        return request.mutate()
+            .headers(headers -> {
+                headers.remove(MEMBER_ID_HEADER);
+                headers.remove(LEGACY_MEMBER_ID_HEADER);
+            })
+            .build();
+    }
+
+    private ServerHttpRequest addMemberIdHeader(ServerHttpRequest request, Claims claims) {
+        String memberId = claims.getSubject();
+        if (!StringUtils.hasText(memberId)) {
+            return request;
+        }
+        return request.mutate()
+            .header(MEMBER_ID_HEADER, memberId)
+            .build();
     }
 
     public static class Config {

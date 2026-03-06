@@ -3,6 +3,7 @@ package com.followfollowme.nowdoboss.apigateway.jwt;
 import com.followfollowme.nowdoboss.apigateway.jwt.exception.JwtErrorCode;
 import com.followfollowme.nowdoboss.apigateway.jwt.exception.JwtException;
 import com.followfollowme.nowdoboss.apigateway.jwt.properties.JwtVerificationProperties;
+import com.followfollowme.nowdoboss.redis.properties.RedisProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.RedisConnectionFailureException;
@@ -14,10 +15,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AccessTokenBlacklistChecker {
 
-    private static final String BLACKLIST_KEY_PREFIX = "blacklist:accessTokenId:";
-
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtVerificationProperties jwtVerificationProperties;
+    private final RedisProperties redisProperties;
 
     public boolean isBlacklisted(String tokenId) {
         try {
@@ -32,6 +32,6 @@ public class AccessTokenBlacklistChecker {
     }
 
     private String buildKey(String tokenId) {
-        return BLACKLIST_KEY_PREFIX + tokenId;
+        return redisProperties.normalizedKeyPrefix() + ":auth:accessTokenBlacklist:" + tokenId;
     }
 }
