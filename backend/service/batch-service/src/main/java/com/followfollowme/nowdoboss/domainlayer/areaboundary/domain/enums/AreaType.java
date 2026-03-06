@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.domain.enums;
+package com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

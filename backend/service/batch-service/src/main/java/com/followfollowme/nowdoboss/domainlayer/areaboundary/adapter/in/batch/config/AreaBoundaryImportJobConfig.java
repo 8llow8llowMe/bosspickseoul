@@ -1,6 +1,7 @@
-package com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.adapter.in.batch.config;
+package com.followfollowme.nowdoboss.domainlayer.areaboundary.adapter.in.batch.config;
 
-import com.followfollowme.nowdoboss.domainlayer.areaboundarybatch.application.port.in.AreaBoundarySeedUseCase;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.in.AreaBoundaryImportUseCase;
+import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -12,30 +13,31 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-public class AreaBoundarySeedJobConfig {
+@RequiredArgsConstructor
+public class AreaBoundaryImportJobConfig {
 
-    public static final String JOB_NAME = "areaBoundarySeedJob";
-    private static final String STEP_NAME = "areaBoundarySeedStep";
+    public static final String JOB_NAME = "areaBoundaryImportJob";
+    private static final String STEP_NAME = "areaBoundaryImportStep";
 
     @Bean
-    public Job areaBoundarySeedJob(
+    public Job areaBoundaryImportJob(
         JobRepository jobRepository,
-        Step areaBoundarySeedStep
+        Step areaBoundaryImportStep
     ) {
         return new JobBuilder(JOB_NAME, jobRepository)
-            .start(areaBoundarySeedStep)
+            .start(areaBoundaryImportStep)
             .build();
     }
 
     @Bean
-    public Step areaBoundarySeedStep(
+    public Step areaBoundaryImportStep(
         JobRepository jobRepository,
         PlatformTransactionManager transactionManager,
-        AreaBoundarySeedUseCase areaBoundarySeedUseCase
+        AreaBoundaryImportUseCase areaBoundaryImportUseCase
     ) {
         return new StepBuilder(STEP_NAME, jobRepository)
             .tasklet((contribution, chunkContext) -> {
-                areaBoundarySeedUseCase.seedAreaBoundary();
+                areaBoundaryImportUseCase.importAreaBoundary();
                 return RepeatStatus.FINISHED;
             }, transactionManager)
             .build();
