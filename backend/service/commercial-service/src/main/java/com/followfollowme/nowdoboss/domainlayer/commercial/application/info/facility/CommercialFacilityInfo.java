@@ -12,7 +12,7 @@ public record CommercialFacilityInfo(
 
     public static CommercialFacilityInfo from(FacilityCommercial facilityCommercial) {
         return CommercialFacilityInfo.builder()
-            .totalFacilityCount(facilityCommercial.facilityCount())
+            .totalFacilityCount(facilityCommercial.totalFacilityCount())
             .schoolCountInfo(CommercialSchoolCountInfo.from(facilityCommercial))
             .totalTransportationFacilityCount(facilityCommercial.subwayStationCount() + facilityCommercial.busStopCount())
             .build();

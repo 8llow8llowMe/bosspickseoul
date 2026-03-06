@@ -118,7 +118,7 @@ public class DistrictQueryProcessor {
                 .averageOpenedMonths(change.averageOpenedMonths())
                 .averageClosedMonths(change.averageClosedMonths())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("Change indicator not found."));
+            .orElseThrow(() -> new IllegalArgumentException("상권 변화 지표 정보를 찾을 수 없습니다."));
     }
 
     public DistrictFootTrafficDetailInfo getDistrictFootTrafficDetail(
@@ -138,7 +138,7 @@ public class DistrictQueryProcessor {
         FootTrafficDistrict current = footTrafficRows.stream()
             .filter(row -> row.periodCode().equals(currentPeriodCode))
             .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("Current foot traffic not found."));
+            .orElseThrow(() -> new IllegalArgumentException("현재 분기 유동인구 정보를 찾을 수 없습니다."));
 
         // 4. 분기별 유동인구 계산
         List<DistrictPeriodFootTrafficInfo> periodTotalFootTrafficList = periodCodes.stream()

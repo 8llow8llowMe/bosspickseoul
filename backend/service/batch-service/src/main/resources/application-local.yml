@@ -11,15 +11,13 @@ spring:
 
   batch:
     jdbc:
-      initialize-schema: never
+      initialize-schema: always
     job:
       enabled: false
 
 batch:
   area-boundary:
     import:
-      enabled: false
-      job-name: areaBoundaryImportJob
       source-dir: ""
 
 # log 관리
