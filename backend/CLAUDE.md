@@ -166,3 +166,9 @@ domainlayer/<context>
 
 - 기존 코드에는 Controller와 WebUseCase 메서드명이 완전히 1:1이 아닌 구간이 일부 있다.
 - 신규 API부터 본 규칙을 강제하고, 기존 API는 수정 시점에 점진적으로 정렬한다.
+
+## 12) Facade Naming Rule
+
+- `*WebUseCase` 를 구현하는 클래스명은 반드시 `*WebFacade` 형태로 작성
+- 예시: `AuthWebUseCase -> AuthWebFacade`, `RegionWebUseCase -> RegionWebFacade`
+- 배치/내부 전용 유스케이스(`*WebUseCase`가 아님)는 `*Facade` 또는 목적 기반 이름 사용 가능
