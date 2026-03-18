@@ -172,3 +172,31 @@ domainlayer/<context>
 - `*WebUseCase` 를 구현하는 클래스명은 반드시 `*WebFacade` 형태로 작성
 - 예시: `AuthWebUseCase -> AuthWebFacade`, `RegionWebUseCase -> RegionWebFacade`
 - 배치/내부 전용 유스케이스(`*WebUseCase`가 아님)는 `*Facade` 또는 목적 기반 이름 사용 가능
+
+## 13) 메서드 / 타입 / Port 파라미터 규칙
+
+### 13.1 메서드 파라미터 줄바꿈 규칙
+
+- 메서드, 생성자, `record` 파라미터는 **160자 하드랩 안에 들어오면 한 줄 유지**를 기본으로 한다.
+- 160자를 넘기거나 가독성이 명확히 떨어지는 경우에만 줄바꿈한다.
+- 줄바꿈 시에는 파라미터를 의미 단위로 정렬하고, 애노테이션이 붙은 파라미터는 같은 들여쓰기 기준을 유지한다.
+
+### 13.2 primitive / wrapper 타입 규칙
+
+- `long`, `int`, `boolean` 등은 기본적으로 primitive 타입을 사용한다.
+- 아래 경우에만 wrapper 타입을 사용한다.
+  - `null` 자체가 의미를 가지는 경우
+  - 선택적 필터, 선택적 커서 값처럼 미전달 상태를 표현해야 하는 경우
+  - 외부 입력에서 미전달과 기본값을 구분해야 하는 경우
+- 예시
+  - `memberId`, `postId`, `commentId`, `size` -> primitive
+  - `lastLikeCount` -> nullable 의미가 있으므로 wrapper 허용
+
+### 13.3 Port / Adapter 파라미터 설계 규칙
+
+- Port / Adapter 는 한 가지 방식으로만 고정하지 않고 목적에 따라 구분한다.
+- 단순 저장, 수정, 삭제, 단건 조회는 개별 파라미터를 유지한다.
+  - 예: `findById(long postId)`, `delete(long memberId, long postId)`
+- 조회 조건이 많아지거나 `filter + sort + cursor + size` 조합이 함께 오면 `*Criteria` 또는 `*Query` 객체로 묶는다.
+- Criteria 객체는 **조회 전용 조건 묶음**에만 사용하고, 단순 command 성격의 메서드에 과도하게 도입하지 않는다.
+- Web Controller 는 API 가독성을 위해 단순 파라미터를 유지하고, 내부 `application` 또는 `port` 경계에서 Criteria 로 변환하는 것을 기본으로 한다.
