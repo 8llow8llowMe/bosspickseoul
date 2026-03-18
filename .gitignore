@@ -1,0 +1,7 @@
+.agents/
+.codex/
+.gradle-home/
+.omx/
+
+!AGENTS.md
+!**/AGENTS.md
