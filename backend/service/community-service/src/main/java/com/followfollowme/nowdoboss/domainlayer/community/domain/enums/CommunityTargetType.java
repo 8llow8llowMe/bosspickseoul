@@ -1,0 +1,25 @@
+package com.followfollowme.nowdoboss.domainlayer.community.domain.enums;
+
+import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityException;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public enum CommunityTargetType {
+
+    DISTRICT("자치구"),
+    ADMINISTRATION("행정동"),
+    COMMERCIAL("상권");
+
+    private final String description;
+
+    public static CommunityTargetType from(String value) {
+        try {
+            return CommunityTargetType.valueOf(value.toUpperCase());
+        } catch (RuntimeException exception) {
+            throw new CommunityException(CommunityErrorCode.INVALID_TARGET_TYPE);
+        }
+    }
+}
