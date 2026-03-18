@@ -1,0 +1,31 @@
+package com.followfollowme.nowdoboss.domainlayer.aireport.application.service;
+
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.in.AiReportWebUseCase;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor.AiReportProcessor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class AiReportWebFacade implements AiReportWebUseCase {
+
+    private final AiReportProcessor aiReportProcessor;
+    private final AiReportPresenter aiReportPresenter;
+
+    @Override
+    public CommercialAiReportResponse getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
+        return aiReportPresenter.toCommercialResponse(
+            aiReportProcessor.getCommercialReport(commercialCode, serviceCode, periodCode)
+        );
+    }
+
+    @Override
+    public DistrictAiReportResponse getDistrictReport(String districtCode, String periodCode) {
+        return aiReportPresenter.toDistrictResponse(
+            aiReportProcessor.getDistrictReport(districtCode, periodCode)
+        );
+    }
+}

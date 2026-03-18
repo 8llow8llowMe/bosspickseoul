@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:ai-service}
+  profiles:
+    active: local
+
+infra:
+  redis:
+    key-prefix: ${REDIS_KEY_PREFIX:nowdoboss}
