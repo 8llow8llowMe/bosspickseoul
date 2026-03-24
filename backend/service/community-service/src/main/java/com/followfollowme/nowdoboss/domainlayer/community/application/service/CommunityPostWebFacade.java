@@ -30,25 +30,18 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public CommunityPostListResponse getPosts(CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, Long lastLikeCount, int size) {
-        // 1. ???硫뷀? 議고쉶 (targetType + targetCode 吏????
+    public CommunityPostListResponse getPosts(CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, long lastLikeCount, int size) {
         CommunityTargetMeta targetMeta = null;
         if (targetType != null && !targetType.isBlank() && targetCode != null && !targetCode.isBlank()) {
             targetMeta = communityQueryProcessor.getTargetMeta(targetType, targetCode);
         }
 
-        // 2. 寃뚯떆湲 紐⑸줉 議고쉶 (No-Offset)
         return communityPostPresenter.toPostListResponse(targetMeta, communityQueryProcessor.getFeed(sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size));
     }
 
     @Override
     public CommunityPostDetailResponse createPost(long memberId, CommunityPostCreateRequest request) {
-        // 1. Command 蹂??
-        CreatePostCommand command = new CreatePostCommand(
-            request.targetType(), request.targetCode(), request.title(), request.content()
-        );
-
-        // 2. 寃뚯떆湲 ?앹꽦 諛??묐떟 蹂??
+        CreatePostCommand command = new CreatePostCommand(request.targetType(), request.targetCode(), request.title(), request.content());
         return communityPostPresenter.toPostDetailResponse(communityCommandProcessor.createPost(memberId, command));
     }
 
@@ -60,10 +53,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
 
     @Override
     public CommunityPostDetailResponse updatePost(long memberId, long postId, CommunityPostUpdateRequest request) {
-        // 1. 湲곗〈 寃뚯떆湲 議고쉶
         CommunityPost post = communityQueryProcessor.getPost(postId);
-
-        // 2. 寃뚯떆湲 ?섏젙 諛??묐떟 蹂??
         UpdatePostCommand command = new UpdatePostCommand(request.title(), request.content());
         return communityPostPresenter.toPostDetailResponse(communityCommandProcessor.updatePost(memberId, post, command));
     }
@@ -82,7 +72,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public CommunityLikedPostsResponse getLikedPosts(long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, Long lastLikeCount, int size) {
+    public CommunityLikedPostsResponse getLikedPosts(long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size) {
         return communityPostPresenter.toLikedPostsResponse(communityQueryProcessor.getLikedPosts(memberId, sortType, orderType, lastPostId, lastLikeCount, size));
     }
 }

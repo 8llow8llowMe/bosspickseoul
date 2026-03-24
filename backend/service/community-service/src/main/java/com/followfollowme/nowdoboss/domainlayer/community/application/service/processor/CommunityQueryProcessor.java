@@ -39,13 +39,10 @@ public class CommunityQueryProcessor {
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
     }
 
-    public Slice<CommunityPost> getBoardPosts(String targetType, String targetCode, CommunitySortType sortType, OrderType orderType, long lastPostId, Long lastLikeCount,
-                                              int size) {
-        // 1. 대상 타입 파싱 및 존재 여부 검증
+    public Slice<CommunityPost> getBoardPosts(String targetType, String targetCode, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size) {
         CommunityTargetType parsedTargetType = CommunityTargetType.from(targetType);
         ensureTargetExists(parsedTargetType, targetCode);
 
-        // 2. 게시판 조회 조건 생성 및 목록 조회
         CommunityBoardPostCriteria criteria = new CommunityBoardPostCriteria(
             parsedTargetType,
             targetCode,
@@ -86,9 +83,7 @@ public class CommunityQueryProcessor {
         return comment;
     }
 
-    public Slice<CommunityPost> getFeed(CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, Long lastLikeCount,
-                                        int size) {
-        // 1. 선택 필터 정규화
+    public Slice<CommunityPost> getFeed(CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, long lastLikeCount, int size) {
         CommunityTargetType normalizedTargetType = null;
         if (targetType != null && !targetType.isBlank()) {
             normalizedTargetType = CommunityTargetType.from(targetType);
@@ -98,7 +93,6 @@ public class CommunityQueryProcessor {
             ensureTargetExists(normalizedTargetType, targetCode);
         }
 
-        // 2. 피드 조회 조건 생성 및 목록 조회
         CommunityFeedCriteria criteria = new CommunityFeedCriteria(
             sortType,
             orderType,
@@ -112,8 +106,7 @@ public class CommunityQueryProcessor {
         return communityPostPort.getFeedPosts(criteria);
     }
 
-    public Slice<LikedCommunityPost> getLikedPosts(long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, Long lastLikeCount,
-                                                   int size) {
+    public Slice<LikedCommunityPost> getLikedPosts(long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size) {
         CommunityLikedPostCriteria criteria = new CommunityLikedPostCriteria(
             memberId,
             sortType,
