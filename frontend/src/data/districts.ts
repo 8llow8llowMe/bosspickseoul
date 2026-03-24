@@ -1,0 +1,133 @@
+export type DistrictRecord = {
+  gooCode: number
+  gooName: string
+  gooCenter: [number, number]
+}
+
+export const districts: DistrictRecord[] = [
+  {
+    gooCode: 11680,
+    gooName: '강남구',
+    gooCenter: [127.0629817244, 37.4966581258],
+  },
+  {
+    gooCode: 11740,
+    gooName: '강동구',
+    gooCenter: [127.1470121946, 37.5504503432],
+  },
+  {
+    gooCode: 11305,
+    gooName: '강북구',
+    gooCenter: [127.0111977838, 37.6434639636],
+  },
+  {
+    gooCode: 11500,
+    gooName: '강서구',
+    gooCenter: [126.8228150572, 37.5612343518],
+  },
+  {
+    gooCode: 11620,
+    gooName: '관악구',
+    gooCenter: [126.9453389256, 37.4673823467],
+  },
+  {
+    gooCode: 11215,
+    gooName: '광진구',
+    gooCenter: [127.085744355, 37.5467174951],
+  },
+  {
+    gooCode: 11530,
+    gooName: '구로구',
+    gooCenter: [126.8563185109, 37.4944058069],
+  },
+  {
+    gooCode: 11545,
+    gooName: '금천구',
+    gooCenter: [126.9008253243, 37.460570978],
+  },
+  {
+    gooCode: 11350,
+    gooName: '노원구',
+    gooCenter: [127.0750486542, 37.6525072607],
+  },
+  {
+    gooCode: 11320,
+    gooName: '도봉구',
+    gooCenter: [127.0323784367, 37.6691020301],
+  },
+  {
+    gooCode: 11230,
+    gooName: '동대문구',
+    gooCenter: [127.0548739795, 37.5820094296],
+  },
+  {
+    gooCode: 11590,
+    gooName: '동작구',
+    gooCenter: [126.9516583191, 37.4988835808],
+  },
+  {
+    gooCode: 11440,
+    gooName: '마포구',
+    gooCenter: [126.9082644359, 37.5593174992],
+  },
+  {
+    gooCode: 11410,
+    gooName: '서대문구',
+    gooCenter: [126.9390644305, 37.577789543],
+  },
+  {
+    gooCode: 11650,
+    gooName: '서초구',
+    gooCenter: [127.0312479217, 37.4732935384],
+  },
+  {
+    gooCode: 11200,
+    gooName: '성동구',
+    gooCenter: [127.0410520263, 37.5510273643],
+  },
+  {
+    gooCode: 11290,
+    gooName: '성북구',
+    gooCenter: [127.0175158005, 37.6057024954],
+  },
+  {
+    gooCode: 11710,
+    gooName: '송파구',
+    gooCenter: [127.1152956025, 37.5056148332],
+  },
+  {
+    gooCode: 11470,
+    gooName: '양천구',
+    gooCenter: [126.8553694909, 37.5247402402],
+  },
+  {
+    gooCode: 11560,
+    gooName: '영등포구',
+    gooCenter: [126.9101818954, 37.522311961],
+  },
+  {
+    gooCode: 11170,
+    gooName: '용산구',
+    gooCenter: [126.9799107728, 37.5313643409],
+  },
+  {
+    gooCode: 11380,
+    gooName: '은평구',
+    gooCenter: [126.927021968, 37.6192093398],
+  },
+  {
+    gooCode: 11110,
+    gooName: '종로구',
+    gooCenter: [126.9773248136, 37.5949153065],
+  },
+  {
+    gooCode: 11140,
+    gooName: '중구',
+    gooCenter: [126.9959156667, 37.5601304592],
+  },
+  {
+    gooCode: 11260,
+    gooName: '중랑구',
+    gooCenter: [127.0928845057, 37.5978172497],
+  },
+]

@@ -9,6 +9,8 @@
 
 - `migration-playbook.md`
   - 단계별 작업 순서, 기술 선택, 이관 절차
+- `phase-checklist.md`
+  - Phase별 진행 상황과 완료 체크 상태
 - `migration-inventory.md`
   - 레거시 기능 목록, 라우트 매핑, 주요 리스크
 - `design-guide.md`
@@ -22,10 +24,11 @@
 
 1. `AGENT.md`
 2. `docs/migration-playbook.md`
-3. `docs/migration-inventory.md`
-4. `docs/design-guide.md`
-5. `docs/seo-guide.md`
-6. `docs/done-checklist.md`
+3. `docs/phase-checklist.md`
+4. `docs/migration-inventory.md`
+5. `docs/design-guide.md`
+6. `docs/seo-guide.md`
+7. `docs/done-checklist.md`
 
 ## 현재 작업 원칙
 

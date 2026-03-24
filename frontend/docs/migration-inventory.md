@@ -43,41 +43,41 @@
 
 ## 3. 레거시 라우트 매핑
 
-| Legacy Route | Next Route | 우선순위 | 난이도 | 상태 |
-| --- | --- | --- | --- | --- |
-| `/` | `app/(main)/page.tsx` | 높음 | 중간 | 미착수 |
-| `/register` | `app/(auth)/register/page.tsx` | 높음 | 낮음 | 미착수 |
-| `/register/general` | `app/(auth)/register/general/page.tsx` | 높음 | 중간 | 미착수 |
-| `/login` | `app/(auth)/login/page.tsx` | 높음 | 중간 | 미착수 |
-| `/member/loading/:provider` | `app/(auth)/member/loading/[provider]/page.tsx` | 높음 | 중간 | 미착수 |
-| `/profile/bookmarks` | `app/profile/bookmarks/page.tsx` | 높음 | 중간 | 미착수 |
-| `/profile/bookmarks/analysis` | `app/profile/bookmarks/analysis/page.tsx` | 중간 | 중간 | 미착수 |
-| `/profile/bookmarks/recommend` | `app/profile/bookmarks/recommend/page.tsx` | 중간 | 중간 | 미착수 |
-| `/profile/bookmarks/simulation` | `app/profile/bookmarks/simulation/page.tsx` | 중간 | 중간 | 미착수 |
-| `/profile/settings/edit` | `app/profile/settings/edit/page.tsx` | 높음 | 중간 | 미착수 |
-| `/profile/settings/change-password` | `app/profile/settings/change-password/page.tsx` | 높음 | 중간 | 미착수 |
-| `/profile/settings/withdraw` | `app/profile/settings/withdraw/page.tsx` | 높음 | 중간 | 미착수 |
-| `/account-deleted` | `app/(auth)/account-deleted/page.tsx` | 중간 | 낮음 | 미착수 |
-| `/status` | `app/status/page.tsx` | 중간 | 중간 | 미착수 |
-| `/analysis` | `app/analysis/page.tsx` | 높음 | 중간 | 미착수 |
-| `/analysis/result` | `app/analysis/result/page.tsx` | 높음 | 높음 | 미착수 |
-| `/analysis/simulation` | `app/analysis/simulation/page.tsx` | 중간 | 높음 | 미착수 |
-| `/analysis/simulation/report` | `app/analysis/simulation/report/page.tsx` | 중간 | 높음 | 미착수 |
-| `/analysis/simulation/compare` | `app/analysis/simulation/compare/page.tsx` | 중간 | 높음 | 미착수 |
-| `/recommend` | `app/recommend/page.tsx` | 중간 | 중간 | 미착수 |
-| `/simulation` | `app/simulation/page.tsx` | 중간 | 높음 | 미착수 |
-| `/simulation/report` | `app/simulation/report/page.tsx` | 중간 | 높음 | 미착수 |
-| `/simulation/compare` | `app/simulation/compare/page.tsx` | 중간 | 높음 | 미착수 |
-| `/community/list` | `app/community/list/page.tsx` | 중간 | 중간 | 미착수 |
-| `/community/register` | `app/community/register/page.tsx` | 중간 | 중간 | 미착수 |
-| `/community/:communityId` | `app/community/[communityId]/page.tsx` | 중간 | 높음 | 미착수 |
-| `/chatting/list` | `app/chatting/list/page.tsx` | 낮음 | 높음 | 미착수 |
-| `/chatting/:roomId` | `app/chatting/[roomId]/page.tsx` | 낮음 | 매우 높음 | 미착수 |
-| `/share/:token` | `app/share/[token]/page.tsx` | 중간 | 중간 | 미착수 |
+| Legacy Route                        | Next Route                                              | 우선순위 | 난이도    | 상태 |
+| ----------------------------------- | ------------------------------------------------------- | -------- | --------- | ---- |
+| `/`                                 | `app/(shell)/page.tsx`                                  | 높음     | 중간      | 완료 |
+| `/register`                         | `app/(auth)/register/page.tsx`                          | 높음     | 낮음      | 완료 |
+| `/register/general`                 | `app/(auth)/register/general/page.tsx`                  | 높음     | 중간      | 완료 |
+| `/login`                            | `app/(auth)/login/page.tsx`                             | 높음     | 중간      | 완료 |
+| `/member/loading/:provider`         | `app/(shell)/member/loading/[provider]/page.tsx`        | 높음     | 중간      | 완료 |
+| `/profile/bookmarks`                | `app/(shell)/profile/bookmarks/page.tsx`                | 높음     | 중간      | 완료 |
+| `/profile/bookmarks/analysis`       | `app/(shell)/profile/bookmarks/analysis/page.tsx`       | 중간     | 중간      | 완료 |
+| `/profile/bookmarks/recommend`      | `app/(shell)/profile/bookmarks/recommend/page.tsx`      | 중간     | 중간      | 완료 |
+| `/profile/bookmarks/simulation`     | `app/(shell)/profile/bookmarks/simulation/page.tsx`     | 중간     | 중간      | 완료 |
+| `/profile/settings/edit`            | `app/(shell)/profile/settings/edit/page.tsx`            | 높음     | 중간      | 완료 |
+| `/profile/settings/change-password` | `app/(shell)/profile/settings/change-password/page.tsx` | 높음     | 중간      | 완료 |
+| `/profile/settings/withdraw`        | `app/(shell)/profile/settings/withdraw/page.tsx`        | 높음     | 중간      | 완료 |
+| `/account-deleted`                  | `app/(auth)/account-deleted/page.tsx`                   | 중간     | 낮음      | 완료 |
+| `/status`                           | `app/(shell)/status/page.tsx`                           | 중간     | 중간      | 완료 |
+| `/analysis`                         | `app/(shell)/analysis/page.tsx`                         | 높음     | 중간      | 완료 |
+| `/analysis/result`                  | `app/(shell)/analysis/result/page.tsx`                  | 높음     | 높음      | 완료 |
+| `/analysis/simulation`              | `app/(shell)/analysis/simulation/page.tsx`              | 중간     | 높음      | 완료 |
+| `/analysis/simulation/report`       | `app/(shell)/analysis/simulation/report/page.tsx`       | 중간     | 높음      | 완료 |
+| `/analysis/simulation/compare`      | `app/(shell)/analysis/simulation/compare/page.tsx`      | 중간     | 높음      | 완료 |
+| `/recommend`                        | `app/(shell)/recommend/page.tsx`                        | 중간     | 중간      | 완료 |
+| `/simulation`                       | `app/(shell)/simulation/page.tsx`                       | 중간     | 높음      | 완료 |
+| `/simulation/report`                | `app/(shell)/simulation/report/page.tsx`                | 중간     | 높음      | 완료 |
+| `/simulation/compare`               | `app/(shell)/simulation/compare/page.tsx`               | 중간     | 높음      | 완료 |
+| `/community/list`                   | `app/(shell)/community/list/page.tsx`                   | 중간     | 중간      | 완료 |
+| `/community/register`               | `app/(shell)/community/register/page.tsx`               | 중간     | 중간      | 완료 |
+| `/community/:communityId`           | `app/(shell)/community/[communityId]/page.tsx`          | 중간     | 높음      | 완료 |
+| `/chatting/list`                    | `app/(shell)/chatting/list/page.tsx`                    | 낮음     | 높음      | 완료 |
+| `/chatting/:roomId`                 | `app/(shell)/chatting/[roomId]/page.tsx`                | 낮음     | 매우 높음 | 완료 |
+| `/share/:token`                     | `app/(shell)/share/[token]/page.tsx`                    | 중간     | 중간      | 완료 |
 
 ## 4. 선행 공통 모듈
 
-다음 항목은 화면 이관 전에 먼저 준비한다.
+Phase 1 기준으로 아래 공통 인프라가 준비되었다.
 
 - `src/providers/query-provider.tsx`
 - `src/providers/app-providers.tsx`
@@ -85,10 +85,73 @@
 - `src/lib/auth/cookies.ts`
 - `src/lib/auth/storage.ts`
 - `src/lib/env.ts`
-- `src/styles/tokens.css` 또는 동등 파일
 - `src/styles/global-styles.ts`
-- `src/components/layout/header`
-- `src/components/layout/footer`
+- `src/components/layout/site-header.tsx`
+- `src/components/layout/site-footer.tsx`
+- `app/robots.ts`
+- `app/sitemap.ts`
+
+Phase 3 기준으로 아래 모듈이 추가되었다.
+
+- `src/stores/auth-store.ts`
+- `src/lib/api/user.ts`
+- `src/lib/api/profile.ts`
+- `src/lib/api/analysis.ts`
+- `src/lib/api/simulation.ts`
+- `src/components/home/home-page.tsx`
+- `src/components/auth/*`
+- `src/components/profile/*`
+
+Phase 4 기준으로 아래 모듈이 추가되었다.
+
+- `src/lib/api/map.ts`
+- `src/lib/api/recommend.ts`
+- `src/lib/api/status.ts`
+- `src/stores/select-place-store.ts`
+- `src/data/districts.ts`
+- `src/types/map.ts`
+- `src/types/status.ts`
+- `src/components/location/location-selector.tsx`
+- `src/components/status/status-page.tsx`
+- `src/components/recommend/recommend-page.tsx`
+
+Phase 5 기준으로 아래 모듈이 추가되었다.
+
+- `src/data/simulation-catalog.ts`
+- `src/lib/api/share.ts`
+- `src/lib/kakao.ts`
+- `src/components/analysis/analysis-page.tsx`
+- `src/components/analysis/analysis-result-page.tsx`
+- `src/components/simulation/simulation-form-page.tsx`
+- `src/components/simulation/simulation-report-page.tsx`
+- `src/components/simulation/simulation-report-view.tsx`
+- `src/components/simulation/shared-simulation-report-page.tsx`
+- `src/components/simulation/simulation-compare-page.tsx`
+
+Phase 6 기준으로 아래 모듈이 추가되었다.
+
+- `src/data/community-categories.ts`
+- `src/types/community.ts`
+- `src/lib/api/community.ts`
+- `src/lib/community.ts`
+- `src/components/community/community-list-page.tsx`
+- `src/components/community/community-detail-page.tsx`
+- `src/components/community/community-register-page.tsx`
+
+Phase 7 기준으로 아래 모듈이 추가되었다.
+
+- `src/types/chatting.ts`
+- `src/lib/api/chatting.ts`
+- `src/lib/api/firebase.ts`
+- `src/lib/chatting.ts`
+- `src/lib/firebase-messaging.ts`
+- `src/lib/realtime/chat-stomp.ts`
+- `src/components/chatting/chatting-shell.tsx`
+- `src/components/chatting/chatting-sidebar.tsx`
+- `src/components/chatting/chat-room-search.tsx`
+- `src/components/chatting/chat-room-create-modal.tsx`
+- `src/components/chatting/chatting-list-page.tsx`
+- `src/components/chatting/chatting-detail-page.tsx`
 
 ## 5. 브라우저 전용 패턴 정리 대상
 
@@ -102,16 +165,20 @@
 
 ## 6. 환경변수 매핑
 
-| Legacy | Target |
-| --- | --- |
-| `VITE_REACT_API_URL` | `NEXT_PUBLIC_API_URL` |
-| `VITE_REACT_APP_KAKAOMAP_API_KEY` | `NEXT_PUBLIC_KAKAOMAP_API_KEY` |
-| `VITE_REACT_FIREBASE_API_KEY` | `NEXT_PUBLIC_FIREBASE_API_KEY` |
+| Legacy                                    | Target                                     |
+| ----------------------------------------- | ------------------------------------------ |
+| `VITE_REACT_API_URL`                      | `NEXT_PUBLIC_API_URL`                      |
+| `VITE_REACT_APP_KAKAOMAP_API_KEY`         | `NEXT_PUBLIC_KAKAOMAP_API_KEY`             |
+| `legacy hardcoded Kakao JS key`           | `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`         |
+| `VITE_REACT_WS_URL`                       | `NEXT_PUBLIC_WS_URL`                       |
+| `VITE_REACT_FIREBASE_API_KEY`             | `NEXT_PUBLIC_FIREBASE_API_KEY`             |
 | `VITE_REACT_FIREBASE_MESSAGING_SENDER_ID` | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` |
-| `VITE_REACT_FIREBASE_APP_ID` | `NEXT_PUBLIC_FIREBASE_APP_ID` |
-| `VITE_REACT_FIREBASE_MEASUREMENT_ID` | `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` |
+| `VITE_REACT_FIREBASE_APP_ID`              | `NEXT_PUBLIC_FIREBASE_APP_ID`              |
+| `VITE_REACT_FIREBASE_MEASUREMENT_ID`      | `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      |
+| `legacy browser push key`                 | `NEXT_PUBLIC_FIREBASE_VAPID_KEY`           |
 
 ## 7. 상태 업데이트 규칙
 
 - 기능을 이관하면 해당 라우트의 상태를 `미착수 -> 진행중 -> 완료`로 갱신한다.
+- Phase 2에서 route skeleton만 생성된 경우 상태는 `진행중`으로 유지한다.
 - 공통 인프라가 추가되면 `선행 공통 모듈` 목록도 실제 경로 기준으로 갱신한다.

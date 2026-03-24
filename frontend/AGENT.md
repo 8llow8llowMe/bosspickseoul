@@ -16,10 +16,11 @@
 
 1. `docs/README.md`
 2. `docs/migration-playbook.md`
-3. `docs/migration-inventory.md`
-4. `docs/design-guide.md`
-5. `docs/seo-guide.md`
-6. `docs/done-checklist.md`
+3. `docs/phase-checklist.md`
+4. `docs/migration-inventory.md`
+5. `docs/design-guide.md`
+6. `docs/seo-guide.md`
+7. `docs/done-checklist.md`
 
 ## 3. 필수 작업 원칙
 
