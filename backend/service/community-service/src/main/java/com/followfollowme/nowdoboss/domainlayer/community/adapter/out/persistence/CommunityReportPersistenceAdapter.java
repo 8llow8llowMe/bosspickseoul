@@ -1,11 +1,10 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence;
 
-import com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence.entity.CommunityReportEntity;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence.repository.CommunityReportRepository;
+import com.followfollowme.nowdoboss.domainlayer.community.application.mapper.CommunityReactionMapper;
 import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityReportPort;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityReportTargetKind;
-import com.followfollowme.nowdoboss.persistence.util.SnowflakeIdGenerator;
-import java.time.LocalDateTime;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityReport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class CommunityReportPersistenceAdapter implements CommunityReportPort {
 
     private final CommunityReportRepository communityReportRepository;
-    private final SnowflakeIdGenerator snowflakeIdGenerator;
+    private final CommunityReactionMapper communityReactionMapper;
 
     @Override
     public boolean exists(CommunityReportTargetKind targetKind, long targetId, long reporterMemberId) {
@@ -22,14 +21,9 @@ public class CommunityReportPersistenceAdapter implements CommunityReportPort {
     }
 
     @Override
-    public void save(CommunityReportTargetKind targetKind, long targetId, long reporterMemberId, String reason) {
-        communityReportRepository.save(CommunityReportEntity.builder()
-            .id(snowflakeIdGenerator.nextId())
-            .targetKind(targetKind)
-            .targetId(targetId)
-            .reporterMemberId(reporterMemberId)
-            .reason(reason)
-            .createdAt(LocalDateTime.now())
-            .build());
+    public CommunityReport save(CommunityReport report) {
+        return communityReactionMapper.toDomainFromEntity(
+            communityReportRepository.save(communityReactionMapper.toEntityFromDomain(report))
+        );
     }
 }
