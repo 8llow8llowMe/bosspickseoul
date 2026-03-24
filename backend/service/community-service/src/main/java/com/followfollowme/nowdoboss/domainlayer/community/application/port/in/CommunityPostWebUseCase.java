@@ -11,7 +11,7 @@ import com.followfollowme.nowdoboss.persistence.enums.OrderType;
 
 public interface CommunityPostWebUseCase {
 
-    CommunityPostListResponse getPosts(CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, Long lastLikeCount, int size);
+    CommunityPostListResponse getPosts(CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, long lastLikeCount, int size);
 
     CommunityPostDetailResponse createPost(long memberId, CommunityPostCreateRequest request);
 
@@ -23,5 +23,5 @@ public interface CommunityPostWebUseCase {
 
     CommunityPostLikeResponse togglePostLike(long memberId, long postId);
 
-    CommunityLikedPostsResponse getLikedPosts(long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, Long lastLikeCount, int size);
+    CommunityLikedPostsResponse getLikedPosts(long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size);
 }

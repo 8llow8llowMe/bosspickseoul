@@ -20,16 +20,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/community/reports")
-@Tag(name = "커뮤니티 신고", description = "커뮤니티 게시글 및 댓글 신고 API")
+@Tag(name = "커뮤니티 신고", description = "커뮤니티 게시글 및 댓글 신고 관련 클라이언트에 제공하는 API 입니다.")
 public class CommunityReportWebController {
 
     private final CommunityReportWebUseCase communityReportWebUseCase;
 
-    @Operation(summary = "신고 등록", description = "게시글 또는 댓글을 신고합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(
+        summary = "신고 등록",
+        description = "게시글 또는 댓글을 신고합니다.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Response<Void>> createReport(@AuthenticationPrincipal MemberLoginActive loginActive,
-                                                       @Valid @RequestBody CommunityReportCreateRequest request) {
+    public ResponseEntity<Response<Void>> createReport(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
+        @Valid @RequestBody CommunityReportCreateRequest request
+    ) {
         communityReportWebUseCase.createReport(loginActive.memberId(), request);
         return ResponseEntity.ok().body(Response.success());
     }

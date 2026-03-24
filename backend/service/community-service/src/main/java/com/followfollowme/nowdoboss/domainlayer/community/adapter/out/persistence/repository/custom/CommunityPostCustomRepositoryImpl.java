@@ -32,17 +32,15 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         CommunitySortType sortType,
         OrderType orderType,
         long lastPostId,
-        Long lastLikeCount,
+        long lastLikeCount,
         int size,
         LocalDateTime popularSince
     ) {
-        // 1. 기본 조건 구성
         BooleanBuilder where = new BooleanBuilder();
         where.and(communityPostEntity.targetType.eq(targetType));
         where.and(communityPostEntity.targetCode.eq(targetCode));
         where.and(communityPostEntity.status.eq(status));
 
-        // 2. 정렬 및 커서 조건 적용
         if (sortType == CommunitySortType.POPULAR) {
             where.and(communityPostEntity.createdAt.goe(popularSince));
             applyPopularCursor(where, lastPostId, lastLikeCount);
@@ -50,7 +48,6 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
             applyLatestCursor(where, lastPostId, orderType);
         }
 
-        // 3. limit + 1 조회 후 Slice 변환
         return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
@@ -62,15 +59,13 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         CommunityTargetType targetType,
         String targetCode,
         long lastPostId,
-        Long lastLikeCount,
+        long lastLikeCount,
         int size,
         LocalDateTime popularSince
     ) {
-        // 1. 기본 조건 구성
         BooleanBuilder where = new BooleanBuilder();
         where.and(communityPostEntity.status.eq(status));
 
-        // 2. 대상 타입/코드 필터 (선택적)
         if (targetType != null) {
             where.and(communityPostEntity.targetType.eq(targetType));
         }
@@ -78,7 +73,6 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
             where.and(communityPostEntity.targetCode.eq(targetCode));
         }
 
-        // 3. 정렬 및 커서 조건 적용
         if (sortType == CommunitySortType.POPULAR) {
             where.and(communityPostEntity.createdAt.goe(popularSince));
             applyPopularCursor(where, lastPostId, lastLikeCount);
@@ -86,7 +80,6 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
             applyLatestCursor(where, lastPostId, orderType);
         }
 
-        // 4. limit + 1 조회 후 Slice 변환
         return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
@@ -97,11 +90,10 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         CommunitySortType sortType,
         OrderType orderType,
         long lastPostId,
-        Long lastLikeCount,
+        long lastLikeCount,
         int size,
         LocalDateTime popularSince
     ) {
-        // 1. 좋아요한 게시글만 필터 (서브쿼리)
         BooleanBuilder where = new BooleanBuilder();
         where.and(communityPostEntity.id.in(
             JPAExpressions.select(communityPostLikeEntity.postId)
@@ -110,7 +102,6 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         ));
         where.and(communityPostEntity.status.eq(status));
 
-        // 2. 정렬 및 커서 조건 적용
         if (sortType == CommunitySortType.POPULAR) {
             where.and(communityPostEntity.createdAt.goe(popularSince));
             applyPopularCursor(where, lastPostId, lastLikeCount);
@@ -118,7 +109,6 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
             applyLatestCursor(where, lastPostId, orderType);
         }
 
-        // 3. limit + 1 조회 후 Slice 변환
         return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
@@ -132,22 +122,18 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         }
     }
 
-    private void applyPopularCursor(BooleanBuilder where, long lastPostId, Long lastLikeCount) {
-        if (lastPostId > 0 && lastLikeCount != null) {
+    private void applyPopularCursor(BooleanBuilder where, long lastPostId, long lastLikeCount) {
+        if (lastPostId > 0) {
             where.and(
                 communityPostEntity.likeCount.lt(lastLikeCount)
-                    .or(communityPostEntity.likeCount.eq(lastLikeCount)
-                        .and(communityPostEntity.id.lt(lastPostId)))
+                    .or(communityPostEntity.likeCount.eq(lastLikeCount).and(communityPostEntity.id.lt(lastPostId)))
             );
         }
     }
 
     private OrderSpecifier<?>[] buildOrderSpecifiers(CommunitySortType sortType, OrderType orderType) {
         if (sortType == CommunitySortType.POPULAR) {
-            return new OrderSpecifier[]{
-                communityPostEntity.likeCount.desc(),
-                communityPostEntity.id.desc()
-            };
+            return new OrderSpecifier[]{communityPostEntity.likeCount.desc(), communityPostEntity.id.desc()};
         }
         if (orderType == OrderType.ASC) {
             return new OrderSpecifier[]{communityPostEntity.id.asc()};
@@ -155,12 +141,7 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         return new OrderSpecifier[]{communityPostEntity.id.desc()};
     }
 
-    private Slice<CommunityPostEntity> executeSliceQuery(
-        BooleanBuilder where,
-        OrderSpecifier<?>[] orderSpecifiers,
-        int size
-    ) {
-        // 1. limit + 1 조회로 hasNext 판단
+    private Slice<CommunityPostEntity> executeSliceQuery(BooleanBuilder where, OrderSpecifier<?>[] orderSpecifiers, int size) {
         List<CommunityPostEntity> rows = queryFactory
             .selectFrom(communityPostEntity)
             .where(where)
@@ -168,13 +149,11 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
             .limit(size + 1L)
             .fetch();
 
-        // 2. hasNext 체크 및 초과 아이템 제거
         boolean hasNext = rows.size() > size;
         if (hasNext) {
             rows = rows.subList(0, size);
         }
 
-        // 3. SliceImpl 반환
         return new SliceImpl<>(rows, Pageable.unpaged(), hasNext);
     }
 }

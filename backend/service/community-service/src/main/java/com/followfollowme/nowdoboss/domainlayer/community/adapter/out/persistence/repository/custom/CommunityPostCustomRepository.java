@@ -6,7 +6,6 @@ import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.Community
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityTargetType;
 import com.followfollowme.nowdoboss.persistence.enums.OrderType;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import org.springframework.data.domain.Slice;
 
 public interface CommunityPostCustomRepository {
@@ -18,7 +17,7 @@ public interface CommunityPostCustomRepository {
         CommunitySortType sortType,
         OrderType orderType,
         long lastPostId,
-        Long lastLikeCount,
+        long lastLikeCount,
         int size,
         LocalDateTime popularSince
     );
@@ -30,7 +29,7 @@ public interface CommunityPostCustomRepository {
         CommunityTargetType targetType,
         String targetCode,
         long lastPostId,
-        Long lastLikeCount,
+        long lastLikeCount,
         int size,
         LocalDateTime popularSince
     );
@@ -41,7 +40,7 @@ public interface CommunityPostCustomRepository {
         CommunitySortType sortType,
         OrderType orderType,
         long lastPostId,
-        Long lastLikeCount,
+        long lastLikeCount,
         int size,
         LocalDateTime popularSince
     );

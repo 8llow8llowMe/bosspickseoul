@@ -6,23 +6,13 @@ import com.followfollowme.nowdoboss.persistence.enums.OrderType;
 import java.time.LocalDateTime;
 
 public record CommunityFeedCriteria(
-
     CommunitySortType sortType,
-
     OrderType orderType,
-
     CommunityTargetType targetType,
-
     String targetCode,
-
     long lastPostId,
-
-    Long lastLikeCount,
-
+    long lastLikeCount,
     int size,
-
     LocalDateTime popularSince
-
 ) {
-
 }
