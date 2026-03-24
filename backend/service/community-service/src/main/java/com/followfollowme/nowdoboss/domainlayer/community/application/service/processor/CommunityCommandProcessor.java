@@ -17,7 +17,10 @@ import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.Community
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityTargetType;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityComment;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityCommentLike;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPost;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPostLike;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityReport;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.nowdoboss.persistence.util.SnowflakeIdGenerator;
 import java.time.LocalDateTime;
@@ -39,15 +42,13 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public CommunityPost createPost(long memberId, CreatePostCommand command) {
-        // 1. 대상 메타 조회
         CommunityTargetType parsedTargetType = CommunityTargetType.from(command.targetType());
         CommunityTargetMeta targetMeta = communityTargetMetaPort.findTargetMeta(parsedTargetType, command.targetCode())
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
 
-        // 2. 게시글 생성 및 저장
         LocalDateTime now = LocalDateTime.now();
         return communityPostPort.save(new CommunityPost(
-            snowflakeIdGenerator.nextId(),
+            snowflakeIdGenerator.generateId(),
             memberId,
             targetMeta.targetType(),
             targetMeta.targetCode(),
@@ -64,10 +65,8 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public CommunityPost updatePost(long memberId, CommunityPost post, UpdatePostCommand command) {
-        // 1. 작성자 검증
         validatePostOwner(memberId, post);
 
-        // 2. 게시글 수정 및 저장
         return communityPostPort.save(new CommunityPost(
             post.id(),
             post.memberId(),
@@ -86,10 +85,8 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public void deletePost(long memberId, CommunityPost post) {
-        // 1. 작성자 검증
         validatePostOwner(memberId, post);
 
-        // 2. 게시글 소프트 삭제
         communityPostPort.save(new CommunityPost(
             post.id(),
             post.memberId(),
@@ -108,10 +105,9 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public CommunityComment createComment(long memberId, CommunityPost post, CreateCommentCommand command) {
-        // 1. 댓글 생성 및 저장
         LocalDateTime now = LocalDateTime.now();
         CommunityComment comment = communityCommentPort.save(new CommunityComment(
-            snowflakeIdGenerator.nextId(),
+            snowflakeIdGenerator.generateId(),
             post.id(),
             memberId,
             command.content().trim(),
@@ -121,23 +117,19 @@ public class CommunityCommandProcessor {
             now
         ));
 
-        // 2. 게시글 댓글 수 업데이트
         savePostWithCommentCount(post, post.commentCount() + 1);
         return comment;
     }
 
     @Transactional
     public void deleteComment(long memberId, CommunityComment comment) {
-        // 1. 작성자 검증
         if (comment.memberId() != memberId) {
             throw new CommunityException(CommunityErrorCode.FORBIDDEN_COMMENT_ACCESS);
         }
 
-        // 2. 게시글 댓글 수 업데이트
         CommunityPost post = getPost(comment.postId());
         savePostWithCommentCount(post, Math.max(0, post.commentCount() - 1));
 
-        // 3. 댓글 소프트 삭제
         communityCommentPort.save(new CommunityComment(
             comment.id(),
             comment.postId(),
@@ -152,7 +144,6 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public long togglePostLike(long memberId, CommunityPost post) {
-        // 1. 좋아요 존재 여부 확인 및 토글
         boolean exists = communityPostLikePort.exists(post.id(), memberId);
         long nextLikeCount;
 
@@ -160,30 +151,37 @@ public class CommunityCommandProcessor {
             communityPostLikePort.delete(post.id(), memberId);
             nextLikeCount = Math.max(0, post.likeCount() - 1);
         } else {
-            communityPostLikePort.save(post.id(), memberId);
+            communityPostLikePort.save(new CommunityPostLike(
+                snowflakeIdGenerator.generateId(),
+                post.id(),
+                memberId,
+                LocalDateTime.now()
+            ));
             nextLikeCount = post.likeCount() + 1;
         }
 
-        // 2. 게시글 좋아요 수 업데이트
         savePostWithLikeCount(post, nextLikeCount);
         return nextLikeCount;
     }
 
     @Transactional
     public long toggleCommentLike(long memberId, CommunityComment comment) {
-        // 1. 좋아요 존재 여부 확인 및 토글
-        boolean exists = communityCommentLikePort.existsCommentLike(comment.id(), memberId);
+        boolean exists = communityCommentLikePort.exists(comment.id(), memberId);
         long nextLikeCount;
 
         if (exists) {
-            communityCommentLikePort.deleteCommentLike(comment.id(), memberId);
+            communityCommentLikePort.delete(comment.id(), memberId);
             nextLikeCount = Math.max(0, comment.likeCount() - 1);
         } else {
-            communityCommentLikePort.saveCommentLike(comment.id(), memberId);
+            communityCommentLikePort.save(new CommunityCommentLike(
+                snowflakeIdGenerator.generateId(),
+                comment.id(),
+                memberId,
+                LocalDateTime.now()
+            ));
             nextLikeCount = comment.likeCount() + 1;
         }
 
-        // 2. 댓글 좋아요 수 업데이트
         communityCommentPort.save(new CommunityComment(
             comment.id(),
             comment.postId(),
@@ -200,16 +198,20 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public void createReport(long memberId, CreateReportCommand command) {
-        // 1. 신고 대상 유효성 검증
         validateReportTarget(command.targetKind(), command.targetId());
 
-        // 2. 중복 신고 검증
         if (communityReportPort.exists(command.targetKind(), command.targetId(), memberId)) {
             throw new CommunityException(CommunityErrorCode.DUPLICATE_REPORT);
         }
 
-        // 3. 신고 저장
-        communityReportPort.save(command.targetKind(), command.targetId(), memberId, command.reason().trim());
+        communityReportPort.save(new CommunityReport(
+            snowflakeIdGenerator.generateId(),
+            command.targetKind(),
+            command.targetId(),
+            memberId,
+            command.reason().trim(),
+            LocalDateTime.now()
+        ));
     }
 
     private CommunityPost getPost(long postId) {

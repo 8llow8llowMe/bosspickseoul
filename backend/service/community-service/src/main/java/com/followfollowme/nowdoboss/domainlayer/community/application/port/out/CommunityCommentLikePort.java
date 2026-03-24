@@ -1,10 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.community.application.port.out;
 
+import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityCommentLike;
+
 public interface CommunityCommentLikePort {
 
-    boolean existsCommentLike(long commentId, long memberId);
+    boolean exists(long commentId, long memberId);
 
-    void saveCommentLike(long commentId, long memberId);
+    CommunityCommentLike save(CommunityCommentLike like);
 
-    void deleteCommentLike(long commentId, long memberId);
+    void delete(long commentId, long memberId);
 }
