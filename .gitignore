@@ -1,7 +1,15 @@
-.agents/
+.agents/*
 .codex/
 .gradle-home/
 .omx/
 
 !AGENTS.md
 !**/AGENTS.md
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/backend-api-check/
+!.agents/skills/backend-api-check/SKILL.md
+!.agents/skills/hexagonal-guard/
+!.agents/skills/hexagonal-guard/SKILL.md
+!.agents/skills/backend-feature-bootstrap/
+!.agents/skills/backend-feature-bootstrap/SKILL.md
