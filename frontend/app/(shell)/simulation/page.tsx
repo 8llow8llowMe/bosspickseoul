@@ -5,7 +5,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '창업 시뮬레이션',
-  description: '독립 경로에서 창업 시뮬레이션을 시작합니다.',
+  description: '창업 조건을 입력해 예상 비용과 운영 흐름을 시뮬레이션합니다.',
   path: '/simulation',
   index: false,
 })

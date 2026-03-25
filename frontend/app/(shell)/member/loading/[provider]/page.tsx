@@ -15,8 +15,7 @@ export async function generateMetadata({
 
   return createPageMetadata({
     title: '소셜 로그인 확인',
-    description:
-      '소셜 인증 후 NowDoBoss 세션을 동기화하는 중간 처리 화면입니다.',
+    description: '소셜 로그인 정보를 확인하고 가입 또는 홈으로 이어집니다.',
     path: `/member/loading/${provider}`,
     index: false,
   })

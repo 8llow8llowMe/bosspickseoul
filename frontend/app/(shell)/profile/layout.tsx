@@ -5,7 +5,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '프로필',
-  description: 'NowDoBoss 사용자 프로필과 북마크, 설정 영역입니다.',
+  description: '북마크한 분석 결과와 추천 지역, 계정 설정을 관리합니다.',
   path: '/profile/bookmarks/analysis',
   index: false,
 })

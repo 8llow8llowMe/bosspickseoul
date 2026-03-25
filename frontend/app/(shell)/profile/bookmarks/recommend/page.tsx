@@ -5,7 +5,7 @@ import { createPageMetadata } from '@/lib/metadata'
 export const metadata: Metadata = createPageMetadata({
   title: '추천 북마크',
   description:
-    '상권추천 북마크 영역입니다. 실제 저장 연동은 다음 이관 단계에서 보강됩니다.',
+    '저장한 추천 지역을 다시 확인하고 다음 분석 대상으로 이어갈 수 있습니다.',
   path: '/profile/bookmarks/recommend',
   index: false,
 })

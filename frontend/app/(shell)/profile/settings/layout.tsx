@@ -14,7 +14,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
   return (
     <ProfileSectionLayout
       title="개인 정보 설정"
-      description="기존 레거시 API와 동일한 사용자 정보 수정 흐름을 Next 프론트엔드로 이관합니다."
+      description="프로필 이미지와 닉네임, 비밀번호, 회원 탈퇴를 한 곳에서 관리합니다."
       tabs={tabs}
     >
       {children}

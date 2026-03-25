@@ -14,7 +14,7 @@ export default function BookmarksLayout({ children }: BookmarksLayoutProps) {
   return (
     <ProfileSectionLayout
       title="북마크"
-      description="레거시 계정에 저장된 상권 분석과 시뮬레이션 목록을 Next 기반 프로필 화면에서 확인합니다."
+      description="저장한 상권 분석, 추천 지역, 창업 시뮬레이션 결과를 한 곳에서 확인합니다."
       tabs={tabs}
     >
       {children}

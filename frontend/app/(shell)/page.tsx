@@ -3,9 +3,9 @@ import HomePage from '@/components/home/home-page'
 import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
-  title: '상권 데이터와 창업 의사결정을 연결하는 프론트엔드',
+  title: '서울 상권 데이터 분석과 창업 판단을 한 곳에서',
   description:
-    'NowDoBoss V2는 상권 데이터 탐색, 창업 분석, 추천, 커뮤니티 기능을 Next.js 기반으로 재구성하는 프론트엔드입니다.',
+    '서울 상권 현황 확인부터 상권분석, 추천, 창업 시뮬레이션, 커뮤니티까지 이어지는 흐름을 NowDoBoss에서 한 번에 시작할 수 있습니다.',
   path: '/',
   index: true,
 })

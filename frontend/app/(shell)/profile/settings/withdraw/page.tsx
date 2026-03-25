@@ -4,8 +4,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '회원 탈퇴',
-  description:
-    'NowDoBoss 계정 삭제와 세션 정리를 수행하는 개인 정보 설정 화면입니다.',
+  description: '계정 이용을 종료하고 회원 탈퇴를 진행합니다.',
   path: '/profile/settings/withdraw',
   index: false,
 })

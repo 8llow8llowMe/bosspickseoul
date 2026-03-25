@@ -4,7 +4,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '회원 정보 수정',
-  description: '닉네임과 프로필 이미지를 수정하는 개인 정보 설정 화면입니다.',
+  description: '닉네임과 프로필 이미지를 수정해 계정 정보를 관리합니다.',
   path: '/profile/settings/edit',
   index: false,
 })

@@ -3,7 +3,7 @@ import { env } from '@/lib/env'
 export const siteConfig = {
   name: 'NowDoBoss',
   description:
-    '상권 데이터 분석, 추천, 시뮬레이션을 연결하는 NowDoBoss 프론트엔드입니다.',
+    '서울 상권 현황 확인부터 상권분석, 추천, 창업 시뮬레이션까지 이어지는 NowDoBoss 서비스입니다.',
   url: env.siteUrl,
   locale: 'ko_KR',
 } as const

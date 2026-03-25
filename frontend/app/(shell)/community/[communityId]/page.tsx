@@ -21,7 +21,7 @@ export async function generateMetadata({
   if (!Number.isFinite(resolvedCommunityId) || resolvedCommunityId <= 0) {
     return createPageMetadata({
       title: '커뮤니티 게시글',
-      description: 'NowDoBoss 커뮤니티 게시글 상세 페이지입니다.',
+      description: '창업 경험과 상권 인사이트를 나누는 커뮤니티 게시글입니다.',
       path: `/community/${communityId}`,
       index: true,
       type: 'article',
@@ -51,7 +51,7 @@ export async function generateMetadata({
 
   return createPageMetadata({
     title: '커뮤니티 게시글',
-    description: 'NowDoBoss 커뮤니티 게시글 상세 페이지입니다.',
+    description: '창업 경험과 상권 인사이트를 나누는 커뮤니티 게시글입니다.',
     path: `/community/${communityId}`,
     index: true,
     type: 'article',

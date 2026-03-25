@@ -4,7 +4,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '분석 북마크',
-  description: '저장된 상권 분석 북마크를 확인하는 개인 프로필 영역입니다.',
+  description: '저장한 상권 분석 결과를 다시 확인하고 비교할 수 있습니다.',
   path: '/profile/bookmarks/analysis',
   index: false,
 })

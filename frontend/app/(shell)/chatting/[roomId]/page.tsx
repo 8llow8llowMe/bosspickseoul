@@ -16,7 +16,7 @@ export async function generateMetadata({
 
   return createPageMetadata({
     title: `채팅방 ${roomId}`,
-    description: 'NowDoBoss 실시간 채팅방 상세 화면입니다.',
+    description: '실시간으로 메시지를 주고받는 창업 커뮤니티 채팅방입니다.',
     path: `/chatting/${roomId}`,
     index: false,
   })

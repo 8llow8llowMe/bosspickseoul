@@ -5,7 +5,7 @@ import { createPageMetadata } from '@/lib/metadata'
 export const metadata: Metadata = createPageMetadata({
   title: '상권 추천',
   description:
-    '자치구와 행정동을 기준으로 추천 상권을 조회하고 저장하는 NowDoBoss 추천 페이지입니다.',
+    '자치구와 행정동 기준으로 추천 상권을 비교하고, 관심 지역을 저장할 수 있습니다.',
   path: '/recommend',
   index: false,
 })
