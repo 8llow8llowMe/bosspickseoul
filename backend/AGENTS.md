@@ -1,202 +1,56 @@
-# NowDoBoss Backend MSA + Hexagonal 개발 규칙
+# NowDoBoss Backend Agent Guide
 
-## 1) 문서 운영 정책
+## 1. 목적
 
-- 이 문서를 백엔드 아키텍처 규칙의 단일 기준 문서(SSOT)로 사용한다.
-- 규칙 추가 시 문서를 분리하지 말고, 이 문서에 섹션으로 확장한다.
-- 범위: `backend/service/*` 전체 마이크로서비스.
+- 이 문서는 `backend/` 영역 작업을 시작할 때 가장 먼저 보는 엔트리 문서다.
+- 상세 규칙은 `backend/docs/` 하위 문서를 따른다.
+- 목표는 MSA + Hexagonal 구조를 유지하면서 서비스별 구현 규칙과 완료 기준을 흔들리지 않게 하는 것이다.
 
-## 2) 현재 구조 기준선
+## 2. 읽는 순서
 
-- `auth-service`: `auth`, `member` 컨텍스트
-- `commercial-service`: `commercial`, `district`, `category`, `administration` 컨텍스트
-- `district-service`: `region` 컨텍스트
-- 공통 패턴:
-  - `domainlayer/<context>/adapter/{in,out}`
-  - `domainlayer/<context>/application/{port,service,info,mapper,command}`
-  - `domainlayer/<context>/domain/model`
+작업 시작 전 아래 문서를 순서대로 확인한다.
 
-## 3) 레이어 책임 규칙
+1. `docs/README.md`
+2. `docs/architecture-guide.md`
+3. `docs/coding-conventions.md`
+4. `docs/api-design-guide.md`
+5. `docs/service-playbook.md`
+6. `docs/done-checklist.md`
+7. `docs/service-inventory.md`
+8. 필요 시 `docs/services/*.md`
 
-### 3.1 Controller (`adapter/in/web/controller`)
+## 3. 작업 원칙
 
-- Controller는 `WebUseCase`만 호출한다.
-- Controller 메서드명과 `WebUseCase` 메서드명은 동일하게 유지한다.
-- Controller에는 비즈니스 로직을 두지 않는다.
-- 응답 형식은 `ResponseEntity<Response<T>>`로 통일한다.
-- 인증이 필요한 API는 `@PreAuthorize`를 명시한다.
+- 규칙의 단일 기준은 `backend/docs/*.md`다.
+- 공통 규칙은 `AGENTS.md`에 다시 복붙하지 않는다.
+- 새 서비스나 새 컨텍스트를 추가할 때는 구현 전에 관련 문서를 먼저 갱신한다.
+- 서비스별 차이가 큰 내용만 `docs/services/*.md`로 분리한다.
+- 구현 완료 후에는 `docs/done-checklist.md` 기준으로 자체 점검한다.
 
-### 3.2 WebUseCase (`application/port/in`)
+## 4. 빠른 판단 기준
 
-- Controller가 의존하는 인바운드 포트다.
-- API 유스케이스 시그니처를 정의한다.
-- 메서드 네이밍은 Controller와 1:1로 맞춘다.
+- 계층 책임이 애매하면 `docs/architecture-guide.md`
+- 메서드 시그니처, primitive/wrapper, 네이밍이 애매하면 `docs/coding-conventions.md`
+- REST 경로나 Swagger 기준이 애매하면 `docs/api-design-guide.md`
+- 새 기능/서비스 부트스트랩이면 `docs/service-playbook.md`
+- 서비스별 책임/주의점을 확인하려면 `docs/services/*.md`
 
-### 3.3 Facade (`application/service`)
+## 5. 스킬 사용 기준
 
-- Facade는 메인 오케스트레이션 서비스이며 `WebUseCase` 구현체다.
-- Facade는 여러 Processor를 조합해 유스케이스를 완성한다.
-- 조회는 `@Transactional(readOnly = true)`, 변경은 `@Transactional`을 사용한다.
+- REST/Swagger/Presenter 점검은 `.agents/skills/backend-api-check`
+- Hexagonal 경계 점검은 `.agents/skills/hexagonal-guard`
+- 새 기능/서비스 시작은 `.agents/skills/backend-feature-bootstrap`
 
-### 3.4 Processor (`application/service/processor`)
+### 사용 예시
 
-- Processor는 서브 서비스 레이어다.
-- Processor는 **Info DTO**를 반환한다 (`void`는 명시적 커맨드 처리 시 허용).
-- Processor는 out-port 호출, 도메인 조합, Info 생성까지만 담당한다.
-- Processor에서 Response DTO를 조립/반환하지 않는다.
+- `$backend-api-check`
+- `$hexagonal-guard`
+- `$backend-feature-bootstrap`
+- 자연어로 `Backend API Check 스킬 써`처럼 요청해도 되지만, `$스킬명` 형식이 가장 확실하다.
 
-### 3.5 Presenter (`adapter/in/web/presenter`)
+## 6. 문서 갱신 규칙
 
-- **Info DTO -> Response DTO** 매핑은 Presenter에서만 수행한다.
-- 중첩 응답은 `item` DTO로 분리하고 Presenter에서 조립한다.
-- Controller, Facade, Processor에서 Response 필드 매핑을 하지 않는다.
-
-## 4) DTO / Command / Info 규칙
-
-### 4.1 DTO 계층 분리
-
-- `request/response/item` DTO는 `adapter/in/web/dto` 하위에만 둔다.
-- `info` DTO는 `application/info` 하위에만 둔다.
-- `info` DTO는 애플리케이션 내부 전용이며 외부 API 스펙으로 노출하지 않는다.
-
-### 4.2 Command 규칙
-
-- 입력 변환은 `application/command/*Command`로 분리한다.
-- `Command.from(Request)` 정적 팩토리를 사용한다.
-
-### 4.3 Map 사용 제한 규칙
-
-- `Map<String, Object>` 또는 문자열 키 기반 응답 조립을 기본 패턴으로 사용하지 않는다.
-- 키-값 구조가 필요해 보여도 우선 목적별 DTO(`*Info`, `*Item`, `*Response`)를 정의한다.
-- 동적 구조가 불가피한 경우에만 Map을 예외적으로 사용하고, 이유를 주석으로 남긴다.
-
-### 4.4 네이밍 규칙
-
-- API 입력: `*Request`
-- API 출력: `*Response`
-- 출력 하위 모델: `*Item`
-- 내부 조회/가공 결과: `*Info`
-- 내부 입력 모델: `*Command`
-- 인바운드 유스케이스 포트: `*WebUseCase`
-- 메인 오케스트레이션 서비스: `*Facade`
-- 서브 서비스: `*Processor`
-
-## 5) Entity <-> Domain 매핑 규칙 (MapStruct)
-
-- Entity <-> Domain 매핑은 `application/mapper`의 MapStruct 인터페이스에서만 수행한다.
-- 모든 Mapper는 `@Mapper(componentModel = "spring")`를 사용한다.
-- 권장 메서드명:
-  - `toDomainFromEntity(...)`
-  - `toEntityFromDomain(...)`
-  - `toDomainListFromEntityList(...)`
-- Repository Adapter는 JPA Entity를 외부로 노출하지 않고, Mapper를 통해 Domain으로 변환 후 Port로 반환한다.
-
-## 6) Port / Adapter 규칙
-
-- `application/port/out`에는 외부 의존 계약만 정의한다.
-- `adapter/out/*Adapter`는 out-port 구현체이며 JPA/Redis/외부 API 상세를 캡슐화한다.
-- 도메인 로직은 Adapter가 아니라 Processor/Domain에 둔다.
-- `application` 레이어(`port`, `service`, `info`)는 `adapter` 패키지 타입에 의존하지 않는다.
-- 조회 전용 반환이 필요하면 `application/port/out/query/*QueryResult`를 정의하고, Adapter 내부에서 projection/entity -> query result로 변환한다.
-- `Info` 변환은 Processor에서 수행하며 `Info.from(queryResult)` 또는 `Info.from(domain)` 형태만 허용한다.
-
-## 7) Swagger (OpenAPI) 규칙
-
-- Controller 클래스에 `@Tag(name, description)`를 선언한다.
-- 엔드포인트마다 `@Operation(summary, description)`를 선언한다.
-- Path/Query 파라미터는 `@Parameter(description, example, required)`를 선언한다.
-- Request/Response/Item DTO 필드는 `@Schema(description, example)`를 선언한다.
-- `record` 기반 Response/Item DTO에서 `@Schema` 필드 블록 사이에는 빈 줄 1줄을 유지한다. (가독성 목적)
-- `public record XxxResponse(` 다음 줄에서 바로 첫 필드를 두지 말고, 빈 줄 후 `@Schema` 필드를 선언한다.
-- 인증 API는 `@Operation(security = @SecurityRequirement(name = "bearerAuth"))`를 추가한다.
-- **Swagger 설명 문구는 한국어를 기본으로 작성한다.**
-
-## 8) 주석 규칙 (Facade/Processor)
-
-- Facade/Processor 주요 메서드에는 단계형 주석을 남긴다.
-- 주석 형식:
-  - `// 1. ...`
-  - `// 2. ...`
-- 문장형 설명(`~다`)보다 **흐름 파악용 키워드형**을 사용한다.
-- 문장형 서술(`~한다`, `~한다.`)은 사용하지 않는다.
-  - 예: `// 1. 분기 코드 확정`, `// 2. Top5 데이터 조회`, `// 3. Info 조립`
-- 단순 대입/반환에는 주석을 남기지 않는다.
-
-## 9) 신규 컨텍스트 패키지 템플릿
-
-```text
-domainlayer/<context>
-  |- adapter
-  |  |- in/web
-  |  |  |- controller
-  |  |  |- dto/request
-  |  |  |- dto/response
-  |  |  |- dto/item
-  |  |  \- presenter
-  |  \- out/persistence
-  |     |- entity
-  |     |- repository
-  |     \- <Context>RepositoryAdapter.java
-  |- application
-  |  |- command
-  |  |- info
-  |  |- mapper
-  |  |- port/in
-  |  |- port/out
-  |  \- service
-  |     |- <Context>Facade.java
-  |     \- processor
-  \- domain/model
-```
-
-## 10) PR 체크리스트
-
-- [ ] Controller 메서드명 == WebUseCase 메서드명
-- [ ] Controller는 WebUseCase 외 하위 레이어 직접 호출 없음
-- [ ] Facade가 유스케이스 오케스트레이션 담당
-- [ ] Processor는 Info 중심 반환, Response DTO 반환 없음
-- [ ] Info -> Response 매핑은 Presenter 전용
-- [ ] Entity <-> Domain 매핑은 MapStruct Mapper 전용
-- [ ] Map 대신 목적별 DTO 우선 사용
-- [ ] Swagger 설명은 한국어로 작성
-- [ ] Swagger 어노테이션(`@Tag/@Operation/@Parameter/@Schema`) 누락 없음
-- [ ] 조회/변경 트랜잭션 설정 일관성 유지
-
-## 11) 마이그레이션 정렬 원칙
-
-- 기존 코드에는 Controller와 WebUseCase 메서드명이 완전히 1:1이 아닌 구간이 일부 있다.
-- 신규 API부터 본 규칙을 강제하고, 기존 API는 수정 시점에 점진적으로 정렬한다.
-
-## 12) Facade Naming Rule
-
-- `*WebUseCase` 를 구현하는 클래스명은 반드시 `*WebFacade` 형태로 작성
-- 예시: `AuthWebUseCase -> AuthWebFacade`, `RegionWebUseCase -> RegionWebFacade`
-- 배치/내부 전용 유스케이스(`*WebUseCase`가 아님)는 `*Facade` 또는 목적 기반 이름 사용 가능
-
-## 13) 메서드 / 타입 / Port 파라미터 규칙
-
-### 13.1 메서드 파라미터 줄바꿈 규칙
-
-- 메서드, 생성자, `record` 파라미터는 **160자 하드랩 안에 들어오면 한 줄 유지**를 기본으로 한다.
-- 160자를 넘기거나 가독성이 명확히 떨어지는 경우에만 줄바꿈한다.
-- 줄바꿈 시에는 파라미터를 의미 단위로 정렬하고, 애노테이션이 붙은 파라미터는 같은 들여쓰기 기준을 유지한다.
-
-### 13.2 primitive / wrapper 타입 규칙
-
-- `long`, `int`, `boolean` 등은 기본적으로 primitive 타입을 사용한다.
-- 아래 경우에만 wrapper 타입을 사용한다.
-  - `null` 자체가 의미를 가지는 경우
-  - 선택적 필터, 선택적 커서 값처럼 미전달 상태를 표현해야 하는 경우
-  - 외부 입력에서 미전달과 기본값을 구분해야 하는 경우
-- 예시
-  - `memberId`, `postId`, `commentId`, `size` -> primitive
-  - `lastLikeCount` -> nullable 의미가 있으므로 wrapper 허용
-
-### 13.3 Port / Adapter 파라미터 설계 규칙
-
-- Port / Adapter 는 한 가지 방식으로만 고정하지 않고 목적에 따라 구분한다.
-- 단순 저장, 수정, 삭제, 단건 조회는 개별 파라미터를 유지한다.
-  - 예: `findById(long postId)`, `delete(long memberId, long postId)`
-- 조회 조건이 많아지거나 `filter + sort + cursor + size` 조합이 함께 오면 `*Criteria` 또는 `*Query` 객체로 묶는다.
-- Criteria 객체는 **조회 전용 조건 묶음**에만 사용하고, 단순 command 성격의 메서드에 과도하게 도입하지 않는다.
-- Web Controller 는 API 가독성을 위해 단순 파라미터를 유지하고, 내부 `application` 또는 `port` 경계에서 Criteria 로 변환하는 것을 기본으로 한다.
+- 공통 규칙 변경: `docs/architecture-guide.md`, `docs/coding-conventions.md`, `docs/api-design-guide.md`
+- 완료 기준 변경: `docs/done-checklist.md`
+- 서비스 책임 변경: `docs/service-inventory.md`, `docs/services/*.md`
+- `AGENTS.md`는 읽기 순서나 엔트리 역할이 바뀔 때만 수정한다.
