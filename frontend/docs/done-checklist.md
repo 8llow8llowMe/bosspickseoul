@@ -51,7 +51,9 @@
 
 - [ ] 콘솔 에러가 없다
 - [ ] hydration 경고가 없다
+- [ ] `pnpm qa:verify`가 통과했다
 - [ ] 핵심 버튼과 폼이 수동 테스트를 통과했다
+- [ ] Phase 8 작업이면 `docs/qa-runbook.md`와 `docs/cutover-runbook.md`가 최신 상태다
 - [ ] 새 공통 규칙이 생겼다면 관련 문서를 업데이트했다
 - [ ] `docs/migration-inventory.md` 상태가 갱신됐다
 
@@ -63,6 +65,7 @@
 - [ ] canonical URL이 설정됐다
 - [ ] Open Graph 정보가 설정됐다
 - [ ] 비공개 페이지는 `noindex` 정책이 맞다
+- [ ] `NEXT_PUBLIC_SITE_URL` 기준 절대 URL이 production 값으로 검증됐다
 - [ ] 제목 구조와 시맨틱 마크업이 과도하게 깨지지 않는다
 - [ ] 색인 대상 페이지에 빈 metadata가 남아 있지 않다
 

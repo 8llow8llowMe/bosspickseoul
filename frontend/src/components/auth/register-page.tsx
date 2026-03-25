@@ -52,7 +52,7 @@ export default function RegisterPage() {
       <AuthShell
         eyebrow="Join"
         title="NowDoBoss 계정을 시작합니다."
-        description="소셜 계정 또는 일반 회원가입으로 빠르게 시작할 수 있습니다. 초기 이관 단계에서는 레거시와 동일한 로그인 흐름을 우선 보장합니다."
+        description="소셜 계정 또는 일반 회원가입으로 빠르게 시작할 수 있습니다."
       >
         {message ? <Notice $tone="error">{message}</Notice> : null}
 

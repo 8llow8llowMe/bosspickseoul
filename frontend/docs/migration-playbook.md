@@ -177,6 +177,8 @@
 - dead code 정리
 - metadata, robots, sitemap, OG, canonical 최종 점검
 - `Prettier` 포맷 점검
+- `docs/qa-runbook.md`, `docs/cutover-runbook.md`, `docs/seo-performance-audit.md` 갱신
+- `qa:verify` 기준 자동 검증 스크립트 유지
 
 완료 기준:
 

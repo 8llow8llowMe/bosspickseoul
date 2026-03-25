@@ -17,6 +17,12 @@
   - 색상, 타이포, 레이아웃, 공통 컴포넌트 규칙
 - `seo-guide.md`
   - 공개/비공개 페이지 SEO 정책, metadata, 색인 기준
+- `qa-runbook.md`
+  - 자동 검증, 수동 smoke test, 검증 결과 기록 방식
+- `cutover-runbook.md`
+  - 환경변수, 배포 전환 순서, 롤백 기준
+- `seo-performance-audit.md`
+  - 현재 SEO/번들 점검 결과와 운영 전 확인 항목
 - `done-checklist.md`
   - 기능 단위 완료 기준과 QA 체크리스트
 
@@ -29,6 +35,9 @@
 5. `docs/design-guide.md`
 6. `docs/seo-guide.md`
 7. `docs/done-checklist.md`
+8. `docs/qa-runbook.md`
+9. `docs/cutover-runbook.md`
+10. `docs/seo-performance-audit.md`
 
 ## 현재 작업 원칙
 

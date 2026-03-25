@@ -8,13 +8,31 @@ import styled from 'styled-components'
 import { logoutUser } from '@/lib/api/user'
 import { useAuthStore } from '@/stores/auth-store'
 
-const Header = styled.header`
+const Header = styled.header<{ $isHome: boolean; $isScrolled: boolean }>`
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid var(--color-border-200);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid
+    ${props =>
+      props.$isHome && !props.$isScrolled
+        ? 'rgba(21, 73, 181, 0.08)'
+        : 'var(--color-border-200)'};
+  background: ${props =>
+    props.$isHome && !props.$isScrolled
+      ? 'rgba(248, 251, 255, 0.62)'
+      : 'rgba(255, 255, 255, 0.9)'};
+  backdrop-filter: blur(
+    ${props => (props.$isHome && !props.$isScrolled ? '10px' : '16px')}
+  );
+  box-shadow: ${props =>
+    props.$isHome && !props.$isScrolled
+      ? 'none'
+      : '0 14px 32px rgba(21, 73, 181, 0.08)'};
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    backdrop-filter 180ms ease,
+    box-shadow 180ms ease;
 `
 
 const Inner = styled.div`
@@ -246,6 +264,7 @@ const isPathActive = (pathname: string, href: string) => {
 export default function SiteHeader() {
   const pathname = usePathname()
   const router = useRouter()
+  const isHome = pathname === '/'
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
@@ -253,6 +272,7 @@ export default function SiteHeader() {
   const clearSession = useAuthStore(state => state.clearSession)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(() => !isHome)
 
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
@@ -263,6 +283,33 @@ export default function SiteHeader() {
       router.push('/')
     },
   })
+
+  useEffect(() => {
+    let frame = 0
+
+    const syncHeaderState = () => {
+      frame = 0
+      setIsScrolled(!isHome || window.scrollY > 28)
+    }
+
+    const handleScroll = () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
+
+      frame = window.requestAnimationFrame(syncHeaderState)
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [isHome])
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -284,9 +331,22 @@ export default function SiteHeader() {
   const avatarLabel = memberInfo?.nickname?.slice(0, 1) ?? 'N'
 
   return (
-    <Header>
+    <Header $isHome={isHome} $isScrolled={isScrolled}>
       <Inner>
-        <Brand href="/">NowDoBoss</Brand>
+        <Brand
+          href="/"
+          onClick={event => {
+            setIsMobileOpen(false)
+            setIsDropdownOpen(false)
+
+            if (isHome) {
+              event.preventDefault()
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+          }}
+        >
+          NowDoBoss
+        </Brand>
         <Nav aria-label="primary">
           {navigationItems.map(item => (
             <NavLink

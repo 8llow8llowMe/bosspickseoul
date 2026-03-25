@@ -28,11 +28,10 @@ export default function SiteFooter() {
   return (
     <Footer>
       <Inner>
-        <Title>NowDoBoss V2 Frontend</Title>
+        <Title>NowDoBoss</Title>
         <Body>
-          Phase 3 기준 메인, 인증, 프로필 흐름을 우선 이관하고 있습니다.
-          이후에는 상태 조회, 추천, 분석, 커뮤니티, 실시간 기능 순으로 실제
-          화면을 확장합니다.
+          서울 상권 데이터 분석, 추천, 시뮬레이션, 커뮤니티 기능을 하나의
+          흐름으로 연결하는 서비스입니다.
         </Body>
       </Inner>
     </Footer>

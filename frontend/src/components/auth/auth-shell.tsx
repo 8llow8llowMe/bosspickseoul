@@ -67,6 +67,9 @@ const Description = styled.p`
 
 const Visual = styled.aside`
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 48px;
   color: white;
   background:
@@ -82,57 +85,16 @@ const Visual = styled.aside`
   }
 `
 
-const VisualTitle = styled.h2`
-  max-width: 420px;
-  margin-bottom: 16px;
-  font-size: clamp(28px, 3vw, 40px);
-  line-height: 1.2;
-  letter-spacing: -0.03em;
-`
-
-const VisualBody = styled.p`
-  max-width: 420px;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 16px;
-  line-height: 1.8;
-`
-
-const VisualGrid = styled.div`
-  margin-top: 40px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-`
-
-const VisualCard = styled.div`
-  padding: 18px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(12px);
-`
-
-const VisualCardLabel = styled.p`
-  margin-bottom: 8px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
-`
-
-const VisualCardValue = styled.p`
-  font-size: 22px;
-  font-weight: 700;
-`
-
 const VisualImage = styled.img`
-  position: absolute;
-  right: 24px;
-  bottom: 24px;
-  width: min(320px, 45%);
-  opacity: 0.16;
+  width: min(560px, 100%);
+  max-height: min(72vh, 680px);
+  object-fit: contain;
+  opacity: 0.92;
   pointer-events: none;
 
   @media (max-width: 1024px) {
-    width: min(260px, 40%);
+    width: min(460px, 100%);
+    max-height: 320px;
   }
 `
 
@@ -339,31 +301,6 @@ export default function AuthShell({
           {children}
         </Content>
         <Visual>
-          <VisualTitle>
-            데이터 분석부터 추천과 운영까지 한 흐름으로 연결합니다.
-          </VisualTitle>
-          <VisualBody>
-            NowDoBoss는 상권 탐색, 창업 의사결정, 커뮤니티 교류를 하나의 제품
-            경험으로 묶는 프론트엔드입니다.
-          </VisualBody>
-          <VisualGrid>
-            <VisualCard>
-              <VisualCardLabel>핵심 가치</VisualCardLabel>
-              <VisualCardValue>Data-first UX</VisualCardValue>
-            </VisualCard>
-            <VisualCard>
-              <VisualCardLabel>현재 작업</VisualCardLabel>
-              <VisualCardValue>Phase 3</VisualCardValue>
-            </VisualCard>
-            <VisualCard>
-              <VisualCardLabel>우선 목표</VisualCardLabel>
-              <VisualCardValue>Behavior parity</VisualCardValue>
-            </VisualCard>
-            <VisualCard>
-              <VisualCardLabel>시각 톤</VisualCardLabel>
-              <VisualCardValue>Calm blue</VisualCardValue>
-            </VisualCard>
-          </VisualGrid>
           <VisualImage src="/gifs/buildings.gif" alt="" aria-hidden="true" />
         </Visual>
       </Frame>

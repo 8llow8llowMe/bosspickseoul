@@ -21,6 +21,9 @@
 5. `docs/design-guide.md`
 6. `docs/seo-guide.md`
 7. `docs/done-checklist.md`
+8. `docs/qa-runbook.md`
+9. `docs/cutover-runbook.md`
+10. `docs/seo-performance-audit.md`
 
 ## 3. 필수 작업 원칙
 

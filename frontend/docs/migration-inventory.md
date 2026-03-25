@@ -153,6 +153,14 @@ Phase 7 기준으로 아래 모듈이 추가되었다.
 - `src/components/chatting/chatting-list-page.tsx`
 - `src/components/chatting/chatting-detail-page.tsx`
 
+Phase 8 기준으로 아래 운영 문서와 설정이 추가되었다.
+
+- `.env.local.example`
+- `docs/qa-runbook.md`
+- `docs/cutover-runbook.md`
+- `docs/seo-performance-audit.md`
+- `package.json#qa:verify`
+
 ## 5. 브라우저 전용 패턴 정리 대상
 
 우선 정리 대상 패턴은 아래와 같다.
