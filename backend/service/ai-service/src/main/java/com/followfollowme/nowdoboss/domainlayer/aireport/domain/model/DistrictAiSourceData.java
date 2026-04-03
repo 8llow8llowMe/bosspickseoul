@@ -1,11 +1,11 @@
-package com.followfollowme.nowdoboss.domainlayer.aireport.domain.model;
+﻿package com.followfollowme.nowdoboss.domainlayer.aireport.domain.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
 
 public record DistrictAiSourceData(
     String districtCode,
     String periodCode,
-    JsonNode districtDetail
+    DistrictDetailQueryResult districtDetail
 ) {
 
 }

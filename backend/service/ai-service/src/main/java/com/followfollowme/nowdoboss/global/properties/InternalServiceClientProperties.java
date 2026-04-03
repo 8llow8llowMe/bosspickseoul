@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.aireport.global.properties;
+﻿package com.followfollowme.nowdoboss.global.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -6,8 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record InternalServiceClientProperties(
     String commercialServiceBaseUrl,
     String districtServiceBaseUrl,
-    int connectTimeoutMs,
-    int readTimeoutMs
+    long connectTimeoutMs,
+    long readTimeoutMs
 ) {
 
 }

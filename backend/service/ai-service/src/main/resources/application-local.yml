@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8085
   shutdown: graceful
 
@@ -25,9 +25,10 @@ ai:
     cache:
       ttl-seconds: ${AI_REPORT_CACHE_TTL_SECONDS:86400}
   llm:
-    base-url: ${AI_LLM_BASE_URL:https://api.openai.com/v1}
+    provider: ${AI_LLM_PROVIDER:OLLAMA}
+    base-url: ${AI_LLM_BASE_URL:http://localhost:11434}
     api-key: ${AI_LLM_API_KEY:}
-    model: ${AI_LLM_MODEL:gpt-4.1-mini}
-    timeout-ms: ${AI_LLM_TIMEOUT_MS:15000}
+    model: ${AI_LLM_MODEL:qwen2.5:7b-instruct}
+    timeout-ms: ${AI_LLM_TIMEOUT_MS:30000}
     max-tokens: ${AI_LLM_MAX_TOKENS:1200}
     temperature: ${AI_LLM_TEMPERATURE:0.2}

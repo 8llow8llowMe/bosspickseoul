@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.DistrictAnalysisQueryPort;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.RegionAnalysisQueryPort;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
 import com.followfollowme.nowdoboss.global.properties.InternalServiceClientProperties;
 import java.time.Duration;
 import org.springframework.http.MediaType;
@@ -14,14 +14,14 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component
-public class DistrictAnalysisClientAdapter implements DistrictAnalysisQueryPort {
+public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
 
     private final WebClient webClient;
     private final Duration readTimeout;
     private final ObjectMapper objectMapper;
 
-    public DistrictAnalysisClientAdapter(WebClient.Builder webClientBuilder, InternalServiceClientProperties properties, ObjectMapper objectMapper) {
-        this.webClient = webClientBuilder.baseUrl(properties.commercialServiceBaseUrl())
+    public RegionAnalysisClientAdapter(WebClient.Builder webClientBuilder, InternalServiceClientProperties properties, ObjectMapper objectMapper) {
+        this.webClient = webClientBuilder.baseUrl(properties.districtServiceBaseUrl())
             .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
             .build();
         this.readTimeout = Duration.ofMillis(properties.readTimeoutMs());
@@ -29,9 +29,9 @@ public class DistrictAnalysisClientAdapter implements DistrictAnalysisQueryPort 
     }
 
     @Override
-    public DistrictDetailQueryResult getDistrictDetail(String districtCode, String periodCode) {
-        JsonNode dataBody = getDataBody("/api/v1/districts/{districtCode}?currentPeriodCode={periodCode}", districtCode, periodCode);
-        return objectMapper.convertValue(dataBody, DistrictDetailQueryResult.class);
+    public CommercialAdministrationQueryResult getCommercialAdministration(String commercialCode) {
+        JsonNode dataBody = getDataBody("/api/v1/regions/commercials/{commercialCode}/administration", commercialCode);
+        return objectMapper.convertValue(dataBody, CommercialAdministrationQueryResult.class);
     }
 
     private JsonNode getDataBody(String uriTemplate, Object... uriVariables) {
