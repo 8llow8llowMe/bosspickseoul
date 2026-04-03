@@ -1,8 +1,8 @@
-package com.followfollowme.nowdoboss.global.config;
+﻿package com.followfollowme.nowdoboss.global.config;
 
-import com.followfollowme.nowdoboss.domainlayer.aireport.global.properties.AiLlmProperties;
-import com.followfollowme.nowdoboss.domainlayer.aireport.global.properties.AiReportCacheProperties;
-import com.followfollowme.nowdoboss.domainlayer.aireport.global.properties.InternalServiceClientProperties;
+import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
+import com.followfollowme.nowdoboss.global.properties.AiReportCacheProperties;
+import com.followfollowme.nowdoboss.global.properties.InternalServiceClientProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 

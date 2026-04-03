@@ -1,19 +1,18 @@
-package com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor;
+﻿package com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.CommercialAnalysisQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.DistrictAnalysisQueryPort;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.RegionAnalysisQueryPort;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiSourceData;
-import com.followfollowme.nowdoboss.domainlayer.aireport.global.properties.AiLlmProperties;
+import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +26,7 @@ public class AiReportProcessor {
 
     private final CommercialAnalysisQueryPort commercialAnalysisQueryPort;
     private final DistrictAnalysisQueryPort districtAnalysisQueryPort;
+    private final RegionAnalysisQueryPort regionAnalysisQueryPort;
     private final AiLlmPort aiLlmPort;
     private final AiReportCachePort aiReportCachePort;
     private final AiLlmProperties aiLlmProperties;
@@ -39,10 +39,7 @@ public class AiReportProcessor {
             return cached.get();
         }
 
-        JsonNode administrationInfo = districtAnalysisQueryPort.getCommercialAdministration(commercialCode);
-        String districtCode = getRequiredText(administrationInfo, "districtCode");
-        String administrationCode = getRequiredText(administrationInfo, "administrationCode");
-
+        CommercialAdministrationQueryResult administrationInfo = regionAnalysisQueryPort.getCommercialAdministration(commercialCode);
         CommercialAiSourceData sourceData = new CommercialAiSourceData(
             commercialCode,
             serviceCode,
@@ -54,8 +51,8 @@ public class AiReportProcessor {
             commercialAnalysisQueryPort.getCommercialPopulation(commercialCode, periodCode),
             commercialAnalysisQueryPort.getCommercialIncome(commercialCode, periodCode),
             commercialAnalysisQueryPort.getCommercialStore(commercialCode, serviceCode, periodCode),
-            commercialAnalysisQueryPort.getCommercialSalesSummary(districtCode, administrationCode, commercialCode, serviceCode, periodCode),
-            commercialAnalysisQueryPort.getCommercialIncomeSummary(districtCode, administrationCode, commercialCode, periodCode)
+            commercialAnalysisQueryPort.getCommercialSalesSummary(administrationInfo.districtCode(), administrationInfo.administrationCode(), commercialCode, serviceCode, periodCode),
+            commercialAnalysisQueryPort.getCommercialIncomeSummary(administrationInfo.districtCode(), administrationInfo.administrationCode(), commercialCode, periodCode)
         );
 
         CommercialAiDraft draft = aiLlmPort.generateCommercialReport(sourceData);
@@ -81,12 +78,7 @@ public class AiReportProcessor {
             return cached.get();
         }
 
-        DistrictAiSourceData sourceData = new DistrictAiSourceData(
-            districtCode,
-            periodCode,
-            districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode)
-        );
-
+        DistrictAiSourceData sourceData = new DistrictAiSourceData(districtCode, periodCode, districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode));
         DistrictAiDraft draft = aiLlmPort.generateDistrictReport(sourceData);
         DistrictAiReportInfo reportInfo = new DistrictAiReportInfo(
             draft.summary(),
@@ -101,17 +93,8 @@ public class AiReportProcessor {
         return reportInfo;
     }
 
-    private String getRequiredText(JsonNode node, String fieldName) {
-        JsonNode value = node.get(fieldName);
-        if (value == null || value.asText().isBlank()) {
-            throw new AiReportException(AiReportErrorCode.SOURCE_DATA_UNAVAILABLE);
-        }
-        return value.asText();
-    }
-
     private void logReport(String reportType, String targetCode, String periodCode, boolean cacheHit, long startTime) {
         long latencyMs = System.currentTimeMillis() - startTime;
-        log.info("AI 리포트 생성 reportType={} targetCode={} periodCode={} cacheHit={} latencyMs={} llmModel={}",
-            reportType, targetCode, periodCode, cacheHit, latencyMs, aiLlmProperties.model());
+        log.info("AI 리포트 생성 reportType={} targetCode={} periodCode={} cacheHit={} latencyMs={} llmModel={}", reportType, targetCode, periodCode, cacheHit, latencyMs, aiLlmProperties.model());
     }
 }

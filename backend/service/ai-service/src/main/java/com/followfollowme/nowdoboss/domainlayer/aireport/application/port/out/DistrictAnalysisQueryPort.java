@@ -1,10 +1,8 @@
-package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out;
+﻿package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
 
 public interface DistrictAnalysisQueryPort {
 
-    JsonNode getDistrictDetail(String districtCode, String periodCode);
-
-    JsonNode getCommercialAdministration(String commercialCode);
+    DistrictDetailQueryResult getDistrictDetail(String districtCode, String periodCode);
 }

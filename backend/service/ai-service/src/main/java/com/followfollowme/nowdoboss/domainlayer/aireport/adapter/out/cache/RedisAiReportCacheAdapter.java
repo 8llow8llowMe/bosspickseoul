@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.cache;
+﻿package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
@@ -6,7 +6,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.A
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
-import com.followfollowme.nowdoboss.domainlayer.aireport.global.properties.AiReportCacheProperties;
+import com.followfollowme.nowdoboss.global.properties.AiReportCacheProperties;
 import com.followfollowme.nowdoboss.redis.properties.RedisProperties;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -65,19 +65,10 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
     }
 
     private String buildCommercialKey(String commercialCode, String serviceCode, String periodCode) {
-        return "%s:ai:report:commercial:%s:%s:%s".formatted(
-            redisProperties.normalizedKeyPrefix(),
-            commercialCode,
-            serviceCode,
-            periodCode
-        );
+        return "%s:ai:report:commercial:%s:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), commercialCode, serviceCode, periodCode);
     }
 
     private String buildDistrictKey(String districtCode, String periodCode) {
-        return "%s:ai:report:district:%s:%s".formatted(
-            redisProperties.normalizedKeyPrefix(),
-            districtCode,
-            periodCode
-        );
+        return "%s:ai:report:district:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), districtCode, periodCode);
     }
 }
