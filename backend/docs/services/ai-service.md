@@ -32,3 +32,4 @@
 - Spring 백엔드 서비스 간 동기 HTTP 호출은 기본적으로 `FeignClient`를 사용한다.
 - 외부 LLM 연동은 provider 특성에 따라 `Spring AI` 또는 `WebClient`를 선택할 수 있지만, port 경계 밖으로 세부 구현을 노출하지 않는다.
 - 프롬프트 포맷터, 구조화 응답 파서, 캐시 키 규칙을 함께 관리한다.
+- 조회 전략과 사용자 경험 기준은 `backend/docs/services/ai-service-strategy.md`를 따른다.
