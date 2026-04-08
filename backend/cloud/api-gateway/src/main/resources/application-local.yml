@@ -8,17 +8,53 @@ spring:
       enabled: false  # 로컬에서만 Config Server 비활성화
     gateway:
       routes:
+        - id: commercial-service-commercials
+          uri: lb://commercial-service
+          predicates:
+            - Path=/api/v1/commercials/**
+        - id: commercial-service-districts
+          uri: lb://commercial-service
+          predicates:
+            - Path=/api/v1/districts/**
+        - id: commercial-service-administrations
+          uri: lb://commercial-service
+          predicates:
+            - Path=/api/v1/administrations/**
+        - id: district-service-regions
+          uri: lb://district-service
+          predicates:
+            - Path=/api/v1/regions/**
+        - id: district-service-map
+          uri: lb://district-service
+          predicates:
+            - Path=/api/v1/map/**
+        - id: community-service
+          uri: lb://community-service
+          predicates:
+            - Path=/api/v1/community/**
         - id: ai-service
           uri: lb://ai-service
           predicates:
             - Path=/api/v1/ai-reports/**
         # Swagger 문서용 라우트
-        - id: auth-service-docs
-          uri: http://localhost:8081
+        - id: commercial-service-docs
+          uri: http://localhost:8083
           predicates:
-            - Path=/auth-service/** # /auth-service/v3/api-docs 로 들어오면
+            - Path=/commercial-service/**
           filters:
-            - StripPrefix=1  # /v3/api-docs 로 잘라서 전달
+            - StripPrefix=1
+        - id: district-service-docs
+          uri: http://localhost:8082
+          predicates:
+            - Path=/district-service/**
+          filters:
+            - StripPrefix=1
+        - id: community-service-docs
+          uri: http://localhost:8084
+          predicates:
+            - Path=/community-service/**
+          filters:
+            - StripPrefix=1
         - id: ai-service-docs
           uri: http://localhost:8085
           predicates:
@@ -55,8 +91,12 @@ springdoc:
     config-url: /v3/api-docs/swagger-config
     # 각 서비스의 OpenAPI 문서 URL 목록
     urls:
-      - name: 회원 서비스 및 인증/인가 관련 API
-        url: /auth-service/v3/api-docs
+      - name: 상권 분석 서비스 API
+        url: /commercial-service/v3/api-docs
+      - name: 지역/지도 서비스 API
+        url: /district-service/v3/api-docs
+      - name: 커뮤니티 서비스 API
+        url: /community-service/v3/api-docs
       - name: AI 리포트 서비스 API
         url: /ai-service/v3/api-docs
     operationsSorter: none # API 정렬 기준 없음
