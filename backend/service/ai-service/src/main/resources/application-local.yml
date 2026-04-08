@@ -7,6 +7,15 @@ eureka:
     serviceUrl:
       defaultZone: http://localhost:8761/eureka/
 
+spring:
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${INTERNAL_CLIENT_CONNECT_TIMEOUT_MS:3000}
+            readTimeout: ${INTERNAL_CLIENT_READ_TIMEOUT_MS:10000}
+
 infra:
   redis:
     mode: standalone
@@ -14,11 +23,6 @@ infra:
     port: 6379
     password:
     key-prefix: ${REDIS_KEY_PREFIX:nowdoboss-dev}
-  clients:
-    commercial-service-base-url: ${COMMERCIAL_SERVICE_BASE_URL:http://localhost:8083}
-    district-service-base-url: ${DISTRICT_SERVICE_BASE_URL:http://localhost:8082}
-    connect-timeout-ms: ${INTERNAL_CLIENT_CONNECT_TIMEOUT_MS:3000}
-    read-timeout-ms: ${INTERNAL_CLIENT_READ_TIMEOUT_MS:10000}
 
 ai:
   report:
