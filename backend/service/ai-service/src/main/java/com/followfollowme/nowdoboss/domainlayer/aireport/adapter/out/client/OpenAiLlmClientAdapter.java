@@ -10,15 +10,15 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiResponseFormat;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.DistrictAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
-import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
-import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
-import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiSourceData;
 import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import java.time.Duration;
 import java.util.List;
@@ -34,9 +34,10 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class OpenAiLlmClientAdapter implements AiLlmPort {
 
     private static final String SYSTEM_PROMPT = """
-        당신은 서울시 상권 분석 서비스의 AI 리포트 도우미입니다.
-        제공된 데이터만 사용하고, 창업 성공이나 투자 수익을 단정적으로 표현하지 마세요.
-        모든 응답은 지정된 JSON 스키마만 따르고, JSON 외 텍스트는 추가하지 마세요.
+        You are an AI assistant for a Seoul commercial analysis service.
+        Use only the provided data.
+        Do not make deterministic claims about startup success, profit, or guaranteed growth.
+        Return only the requested JSON payload with no extra prose.
         """;
 
     private final WebClient webClient;
@@ -45,17 +46,8 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     private final AiLlmProperties properties;
     private final AiReportPromptTemplate promptTemplate;
 
-    public OpenAiLlmClientAdapter(
-        WebClient.Builder webClientBuilder,
-        ObjectMapper objectMapper,
-        AiStructuredResponseParser parser,
-        AiLlmProperties properties,
-        AiReportPromptTemplate promptTemplate
-    ) {
-        this.webClient = webClientBuilder.baseUrl(properties.baseUrl())
-            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.apiKey())
-            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-            .build();
+    public OpenAiLlmClientAdapter(WebClient.Builder webClientBuilder, ObjectMapper objectMapper, AiStructuredResponseParser parser, AiLlmProperties properties, AiReportPromptTemplate promptTemplate) {
+        this.webClient = webClientBuilder.baseUrl(properties.baseUrl()).defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.apiKey()).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).build();
         this.objectMapper = objectMapper;
         this.parser = parser;
         this.properties = properties;
@@ -82,17 +74,9 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
 
     private String requestStructuredContent(String userPrompt, ObjectNode schemaNode) {
         validateApiKey();
-
         try {
-            OpenAiChatResponse response = webClient.post().uri("/chat/completions")
-                .bodyValue(buildRequestBody(userPrompt, schemaNode))
-                .retrieve()
-                .bodyToMono(OpenAiChatResponse.class)
-                .block(Duration.ofMillis(properties.timeoutMs()));
-
-            if (response == null || response.choices() == null || response.choices().isEmpty()
-                || response.choices().get(0).message() == null || response.choices().get(0).message().content() == null
-                || response.choices().get(0).message().content().isBlank()) {
+            OpenAiChatResponse response = webClient.post().uri("/chat/completions").bodyValue(buildRequestBody(userPrompt, schemaNode)).retrieve().bodyToMono(OpenAiChatResponse.class).block(Duration.ofMillis(properties.timeoutMs()));
+            if (response == null || response.choices() == null || response.choices().isEmpty() || response.choices().get(0).message() == null || response.choices().get(0).message().content() == null || response.choices().get(0).message().content().isBlank()) {
                 throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
             }
             return response.choices().get(0).message().content();
@@ -102,13 +86,7 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     }
 
     private OpenAiChatRequest buildRequestBody(String userPrompt, ObjectNode schemaNode) {
-        return OpenAiChatRequest.builder()
-            .model(properties.model())
-            .temperature(properties.temperature())
-            .maxTokens(properties.maxTokens())
-            .messages(List.of(buildSystemMessage(), buildUserMessage(userPrompt)))
-            .responseFormat(buildResponseFormat(schemaNode))
-            .build();
+        return OpenAiChatRequest.builder().model(properties.model()).temperature(properties.temperature()).maxTokens(properties.maxTokens()).messages(List.of(buildSystemMessage(), buildUserMessage(userPrompt))).responseFormat(buildResponseFormat(schemaNode)).build();
     }
 
     private OpenAiChatMessage buildSystemMessage() {
@@ -120,10 +98,7 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     }
 
     private OpenAiResponseFormat buildResponseFormat(ObjectNode schemaNode) {
-        return OpenAiResponseFormat.builder()
-            .type("json_schema")
-            .jsonSchema(OpenAiJsonSchema.builder().name(schemaNode.path("title").asText("ai_report")).strict(true).schema(schemaNode).build())
-            .build();
+        return OpenAiResponseFormat.builder().type("json_schema").jsonSchema(OpenAiJsonSchema.builder().name(schemaNode.path("title").asText("ai_report")).strict(true).schema(schemaNode).build()).build();
     }
 
     private void validateApiKey() {

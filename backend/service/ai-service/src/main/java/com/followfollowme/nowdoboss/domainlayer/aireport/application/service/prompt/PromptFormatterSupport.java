@@ -5,45 +5,40 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-final class PromptFormatterSupport {
+public final class PromptFormatterSupport {
 
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance(Locale.KOREA);
 
     private PromptFormatterSupport() {
     }
 
-    static String formatNumber(long value) {
+    public static String formatNumber(long value) {
         return NUMBER_FORMAT.format(value);
     }
 
-    static String formatPercent(double value) {
+    public static String formatPercent(double value) {
         return "%.1f%%".formatted(value);
     }
 
-    static String formatTopEntry(Map<String, Long> valueByLabel) {
-        return valueByLabel.entrySet().stream()
-            .max(Map.Entry.comparingByValue())
-            .map(entry -> "%s(%s)".formatted(entry.getKey(), formatNumber(entry.getValue())))
-            .orElse("데이터 없음");
+    public static String formatTopEntry(Map<String, Long> valueByLabel) {
+        return valueByLabel.entrySet().stream().max(Map.Entry.comparingByValue()).map(entry -> "%s (%s)".formatted(entry.getKey(), formatNumber(entry.getValue()))).orElse("N/A");
     }
 
-    static String formatTopPercentEntry(Map<String, Double> valueByLabel) {
-        return valueByLabel.entrySet().stream()
-            .max(Map.Entry.comparingByValue())
-            .map(entry -> "%s(%s)".formatted(entry.getKey(), formatPercent(entry.getValue())))
-            .orElse("데이터 없음");
+    public static String formatTopPercentEntry(Map<String, Double> valueByLabel) {
+        return valueByLabel.entrySet().stream().max(Map.Entry.comparingByValue()).map(entry -> "%s (%s)".formatted(entry.getKey(), formatPercent(entry.getValue()))).orElse("N/A");
     }
 
-    static <T> String formatTopList(List<T> items, int size, java.util.function.Function<T, String> mapper) {
+    public static <T> String formatTopList(List<T> items, int size, Function<T, String> mapper) {
         if (items == null || items.isEmpty()) {
-            return "데이터 없음";
+            return "N/A";
         }
         return items.stream().limit(size).map(mapper).collect(Collectors.joining(", "));
     }
 
-    static Map<String, Long> orderedMap(Object... pairs) {
+    public static Map<String, Long> orderedMap(Object... pairs) {
         Map<String, Long> map = new LinkedHashMap<>();
         for (int index = 0; index < pairs.length; index += 2) {
             map.put((String) pairs[index], (Long) pairs[index + 1]);
@@ -51,7 +46,7 @@ final class PromptFormatterSupport {
         return map;
     }
 
-    static Map<String, Double> orderedPercentMap(Object... pairs) {
+    public static Map<String, Double> orderedPercentMap(Object... pairs) {
         Map<String, Double> map = new LinkedHashMap<>();
         for (int index = 0; index < pairs.length; index += 2) {
             map.put((String) pairs[index], (Double) pairs[index + 1]);
