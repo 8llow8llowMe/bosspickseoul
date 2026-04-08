@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out;
 
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import java.util.Optional;
@@ -13,4 +14,8 @@ public interface AiReportCachePort {
     Optional<DistrictAiReportInfo> getDistrictReport(String districtCode, String periodCode);
 
     void saveDistrictReport(String districtCode, String periodCode, DistrictAiReportInfo reportInfo);
+
+    Optional<AdministrationAiReportInfo> getAdministrationReport(String administrationCode, String periodCode);
+
+    void saveAdministrationReport(String administrationCode, String periodCode, AdministrationAiReportInfo reportInfo);
 }

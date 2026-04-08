@@ -1,16 +1,20 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client;
+package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiChatMessage;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiChatRequest;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiChatResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiJsonSchema;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiResponseFormat;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
@@ -31,16 +35,23 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
 
     private static final String SYSTEM_PROMPT = """
         당신은 서울시 상권 분석 서비스의 AI 리포트 도우미입니다.
-        반드시 제공된 데이터만 사용하고, 창업 성공이나 수익을 단정하지 마세요.
-        모든 응답은 지정된 JSON 스키마만 따라야 합니다.
+        제공된 데이터만 사용하고, 창업 성공이나 투자 수익을 단정적으로 표현하지 마세요.
+        모든 응답은 지정된 JSON 스키마만 따르고, JSON 외 텍스트는 추가하지 마세요.
         """;
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final AiStructuredResponseParser parser;
     private final AiLlmProperties properties;
+    private final AiReportPromptTemplate promptTemplate;
 
-    public OpenAiLlmClientAdapter(WebClient.Builder webClientBuilder, ObjectMapper objectMapper, AiStructuredResponseParser parser, AiLlmProperties properties) {
+    public OpenAiLlmClientAdapter(
+        WebClient.Builder webClientBuilder,
+        ObjectMapper objectMapper,
+        AiStructuredResponseParser parser,
+        AiLlmProperties properties,
+        AiReportPromptTemplate promptTemplate
+    ) {
         this.webClient = webClientBuilder.baseUrl(properties.baseUrl())
             .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.apiKey())
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -48,24 +59,29 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
         this.objectMapper = objectMapper;
         this.parser = parser;
         this.properties = properties;
+        this.promptTemplate = promptTemplate;
     }
 
     @Override
     public CommercialAiDraft generateCommercialReport(CommercialAiSourceData sourceData) {
-        String content = requestStructuredContent(AiReportPromptTemplate.buildCommercialPrompt(sourceData), buildCommercialResponseSchema());
+        String content = requestStructuredContent(promptTemplate.buildCommercialPrompt(sourceData), buildCommercialResponseSchema());
         return parser.parseCommercialReport(content);
     }
 
     @Override
     public DistrictAiDraft generateDistrictReport(DistrictAiSourceData sourceData) {
-        String content = requestStructuredContent(AiReportPromptTemplate.buildDistrictPrompt(sourceData), buildDistrictResponseSchema());
+        String content = requestStructuredContent(promptTemplate.buildDistrictPrompt(sourceData), buildRegionalResponseSchema("district_ai_report"));
         return parser.parseDistrictReport(content);
     }
 
+    @Override
+    public AdministrationAiDraft generateAdministrationReport(AdministrationAiSourceData sourceData) {
+        String content = requestStructuredContent(promptTemplate.buildAdministrationPrompt(sourceData), buildRegionalResponseSchema("administration_ai_report"));
+        return parser.parseAdministrationReport(content);
+    }
+
     private String requestStructuredContent(String userPrompt, ObjectNode schemaNode) {
-        if (properties.apiKey() == null || properties.apiKey().isBlank()) {
-            throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE);
-        }
+        validateApiKey();
 
         try {
             OpenAiChatResponse response = webClient.post().uri("/chat/completions")
@@ -86,46 +102,59 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     }
 
     private OpenAiChatRequest buildRequestBody(String userPrompt, ObjectNode schemaNode) {
-        return new OpenAiChatRequest(
-            properties.model(),
-            properties.temperature(),
-            properties.maxTokens(),
-            List.of(
-                new com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiChatMessage("system", SYSTEM_PROMPT),
-                new com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiChatMessage("user", userPrompt)
-            ),
-            new com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiResponseFormat(
-                "json_schema",
-                new com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiJsonSchema(
-                    schemaNode.path("title").asText("ai_report"),
-                    true,
-                    schemaNode
-                )
-            )
-        );
+        return OpenAiChatRequest.builder()
+            .model(properties.model())
+            .temperature(properties.temperature())
+            .maxTokens(properties.maxTokens())
+            .messages(List.of(buildSystemMessage(), buildUserMessage(userPrompt)))
+            .responseFormat(buildResponseFormat(schemaNode))
+            .build();
+    }
+
+    private OpenAiChatMessage buildSystemMessage() {
+        return OpenAiChatMessage.builder().role("system").content(SYSTEM_PROMPT).build();
+    }
+
+    private OpenAiChatMessage buildUserMessage(String userPrompt) {
+        return OpenAiChatMessage.builder().role("user").content(userPrompt).build();
+    }
+
+    private OpenAiResponseFormat buildResponseFormat(ObjectNode schemaNode) {
+        return OpenAiResponseFormat.builder()
+            .type("json_schema")
+            .jsonSchema(OpenAiJsonSchema.builder().name(schemaNode.path("title").asText("ai_report")).strict(true).schema(schemaNode).build())
+            .build();
+    }
+
+    private void validateApiKey() {
+        if (properties.apiKey() == null || properties.apiKey().isBlank()) {
+            throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE);
+        }
     }
 
     private ObjectNode buildCommercialResponseSchema() {
         ObjectNode schema = baseObjectSchema("commercial_ai_report");
-        schema.set("properties", objectMapper.createObjectNode()
-            .putObject("summary").put("type", "string").parent()
-            .set("strengths", stringArraySchema())
-            .set("risks", stringArraySchema())
-            .set("recommendedCustomerSegments", stringArraySchema())
-            .set("recommendedOperatingHours", stringArraySchema())
-            .putObject("businessInsight").put("type", "string").parent());
+        ObjectNode propertiesNode = objectMapper.createObjectNode();
+        propertiesNode.set("summary", stringSchema());
+        propertiesNode.set("strengths", stringArraySchema());
+        propertiesNode.set("risks", stringArraySchema());
+        propertiesNode.set("recommendedCustomerSegments", stringArraySchema());
+        propertiesNode.set("recommendedOperatingHours", stringArraySchema());
+        propertiesNode.set("businessInsight", stringSchema());
+        schema.set("properties", propertiesNode);
         schema.set("required", stringArrayNode("summary", "strengths", "risks", "recommendedCustomerSegments", "recommendedOperatingHours", "businessInsight"));
         return schema;
     }
 
-    private ObjectNode buildDistrictResponseSchema() {
-        ObjectNode schema = baseObjectSchema("district_ai_report");
-        schema.set("properties", objectMapper.createObjectNode()
-            .putObject("summary").put("type", "string").parent()
-            .putObject("marketStatus").put("type", "string").parent()
-            .set("recommendedBusinessCategories", stringArraySchema())
-            .set("cautionBusinessCategories", stringArraySchema())
-            .putObject("businessInsight").put("type", "string").parent());
+    private ObjectNode buildRegionalResponseSchema(String title) {
+        ObjectNode schema = baseObjectSchema(title);
+        ObjectNode propertiesNode = objectMapper.createObjectNode();
+        propertiesNode.set("summary", stringSchema());
+        propertiesNode.set("marketStatus", stringSchema());
+        propertiesNode.set("recommendedBusinessCategories", stringArraySchema());
+        propertiesNode.set("cautionBusinessCategories", stringArraySchema());
+        propertiesNode.set("businessInsight", stringSchema());
+        schema.set("properties", propertiesNode);
         schema.set("required", stringArrayNode("summary", "marketStatus", "recommendedBusinessCategories", "cautionBusinessCategories", "businessInsight"));
         return schema;
     }
@@ -138,11 +167,15 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
         return schema;
     }
 
+    private ObjectNode stringSchema() {
+        return objectMapper.createObjectNode().put("type", "string");
+    }
+
     private ObjectNode stringArraySchema() {
         ObjectNode arraySchema = objectMapper.createObjectNode();
         arraySchema.put("type", "array");
         arraySchema.put("minItems", 1);
-        arraySchema.set("items", objectMapper.createObjectNode().put("type", "string"));
+        arraySchema.set("items", stringSchema());
         return arraySchema;
     }
 

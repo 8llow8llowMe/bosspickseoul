@@ -1,5 +1,8 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.ollama;
+package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.ollama;
 
+import lombok.Builder;
+
+@Builder
 public record OllamaChatResponseMessage(String content) {
 
 }

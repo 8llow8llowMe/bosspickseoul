@@ -21,5 +21,7 @@ public interface AreaCommercialRepository extends JpaRepository<AreaCommercialEn
 
     Optional<CommercialCodeProjection> findDistinctByCommercialCodeName(String commercialCodeName);
 
+    Optional<AreaCommercialEntity> findFirstByAdministrationCode(String administrationCode);
+
     Optional<CommercialAdministrationProjection> findFirstByCommercialCode(String commercialCode);
 }

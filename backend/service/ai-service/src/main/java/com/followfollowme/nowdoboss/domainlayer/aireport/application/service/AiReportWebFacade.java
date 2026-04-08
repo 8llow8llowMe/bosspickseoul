@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.service;
 
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
@@ -17,15 +18,16 @@ public class AiReportWebFacade implements AiReportWebUseCase {
 
     @Override
     public CommercialAiReportResponse getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
-        return aiReportPresenter.toCommercialResponse(
-            aiReportProcessor.getCommercialReport(commercialCode, serviceCode, periodCode)
-        );
+        return aiReportPresenter.toCommercialResponse(aiReportProcessor.getCommercialReport(commercialCode, serviceCode, periodCode));
     }
 
     @Override
     public DistrictAiReportResponse getDistrictReport(String districtCode, String periodCode) {
-        return aiReportPresenter.toDistrictResponse(
-            aiReportProcessor.getDistrictReport(districtCode, periodCode)
-        );
+        return aiReportPresenter.toDistrictResponse(aiReportProcessor.getDistrictReport(districtCode, periodCode));
+    }
+
+    @Override
+    public AdministrationAiReportResponse getAdministrationReport(String administrationCode, String periodCode) {
+        return aiReportPresenter.toAdministrationResponse(aiReportProcessor.getAdministrationReport(administrationCode, periodCode));
     }
 }

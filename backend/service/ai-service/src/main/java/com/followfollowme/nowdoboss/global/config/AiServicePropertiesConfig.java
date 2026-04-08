@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.global.config;
+package com.followfollowme.nowdoboss.global.config;
 
 import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import com.followfollowme.nowdoboss.global.properties.AiReportCacheProperties;

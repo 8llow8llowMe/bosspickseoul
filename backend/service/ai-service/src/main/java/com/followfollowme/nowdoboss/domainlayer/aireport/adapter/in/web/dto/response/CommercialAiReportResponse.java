@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response;
+package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -14,14 +14,13 @@ public record CommercialAiReportResponse(
     List<String> strengths,
     @Schema(description = "주의점 목록")
     List<String> risks,
-    @Schema(description = "추천 고객층 목록")
+    @Schema(description = "추천 고객층")
     List<String> recommendedCustomerSegments,
-    @Schema(description = "추천 운영 시간대 목록")
+    @Schema(description = "추천 운영 시간대")
     List<String> recommendedOperatingHours,
     @Schema(description = "창업 관점 코멘트")
     String businessInsight,
     @Schema(description = "리포트 생성 시각")
     LocalDateTime generatedAt
 ) {
-
 }

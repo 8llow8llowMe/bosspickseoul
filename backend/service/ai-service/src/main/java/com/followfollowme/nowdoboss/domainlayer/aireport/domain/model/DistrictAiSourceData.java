@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.domain.model;
+package com.followfollowme.nowdoboss.domainlayer.aireport.domain.model;
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
 

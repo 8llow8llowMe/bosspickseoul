@@ -1,13 +1,16 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai;
+package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.openai;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import lombok.Builder;
 
+@Builder
 public record OpenAiChatRequest(
     String model,
     double temperature,
-    int max_tokens,
+    @JsonProperty("max_tokens") int maxTokens,
     List<OpenAiChatMessage> messages,
-    OpenAiResponseFormat response_format
+    @JsonProperty("response_format") OpenAiResponseFormat responseFormat
 ) {
 
 }
