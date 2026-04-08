@@ -17,5 +17,7 @@ public interface AreaCommercialRepositoryPort {
 
     Optional<RegionCodeLookupInfo> findDistinctByCommercialCodeName(String commercialCodeName);
 
+    Optional<AreaCommercial> findFirstByAdministrationCode(String administrationCode);
+
     Optional<AreaCommercial> findFirstByCommercialCode(String commercialCode);
 }

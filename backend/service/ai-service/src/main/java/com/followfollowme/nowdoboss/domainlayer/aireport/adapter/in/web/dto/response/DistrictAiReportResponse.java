@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response;
+package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -8,7 +8,7 @@ import lombok.Builder;
 @Builder
 @Schema(description = "자치구 AI 리포트 응답")
 public record DistrictAiReportResponse(
-    @Schema(description = "한 줄 요약")
+    @Schema(description = "시장 요약")
     String summary,
     @Schema(description = "시장 상태 요약")
     String marketStatus,
@@ -21,5 +21,4 @@ public record DistrictAiReportResponse(
     @Schema(description = "리포트 생성 시각")
     LocalDateTime generatedAt
 ) {
-
 }

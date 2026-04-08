@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.global.properties;
+package com.followfollowme.nowdoboss.global.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

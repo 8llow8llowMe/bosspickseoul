@@ -49,6 +49,12 @@ public class AreaCommercialRepositoryAdapter implements AreaCommercialRepository
     }
 
     @Override
+    public Optional<AreaCommercial> findFirstByAdministrationCode(String administrationCode) {
+        return areaCommercialRepository.findFirstByAdministrationCode(administrationCode)
+            .map(areaCommercialMapper::toDomainFromEntity);
+    }
+
+    @Override
     public Optional<AreaCommercial> findFirstByCommercialCode(String commercialCode) {
         return areaCommercialRepository.findFirstByCommercialCode(commercialCode)
             .map(projection -> AreaCommercial.builder()

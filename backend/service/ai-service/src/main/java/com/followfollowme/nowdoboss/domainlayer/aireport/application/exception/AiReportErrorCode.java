@@ -1,4 +1,4 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.application.exception;
+package com.followfollowme.nowdoboss.domainlayer.aireport.application.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

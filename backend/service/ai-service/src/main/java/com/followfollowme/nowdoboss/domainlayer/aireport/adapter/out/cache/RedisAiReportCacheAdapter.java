@@ -1,8 +1,9 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.cache;
+package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
@@ -44,6 +45,16 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
         saveValue(buildDistrictKey(districtCode, periodCode), reportInfo);
     }
 
+    @Override
+    public Optional<AdministrationAiReportInfo> getAdministrationReport(String administrationCode, String periodCode) {
+        return getValue(buildAdministrationKey(administrationCode, periodCode), AdministrationAiReportInfo.class);
+    }
+
+    @Override
+    public void saveAdministrationReport(String administrationCode, String periodCode, AdministrationAiReportInfo reportInfo) {
+        saveValue(buildAdministrationKey(administrationCode, periodCode), reportInfo);
+    }
+
     private <T> Optional<T> getValue(String key, Class<T> targetType) {
         try {
             Object value = redisTemplate.opsForValue().get(key);
@@ -70,5 +81,9 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
 
     private String buildDistrictKey(String districtCode, String periodCode) {
         return "%s:ai:report:district:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), districtCode, periodCode);
+    }
+
+    private String buildAdministrationKey(String administrationCode, String periodCode) {
+        return "%s:ai:report:administration:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), administrationCode, periodCode);
     }
 }

@@ -1,7 +1,9 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter;
 
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,17 @@ public class AiReportPresenter {
 
     public DistrictAiReportResponse toDistrictResponse(DistrictAiReportInfo info) {
         return DistrictAiReportResponse.builder()
+            .summary(info.summary())
+            .marketStatus(info.marketStatus())
+            .recommendedBusinessCategories(info.recommendedBusinessCategories())
+            .cautionBusinessCategories(info.cautionBusinessCategories())
+            .businessInsight(info.businessInsight())
+            .generatedAt(info.generatedAt())
+            .build();
+    }
+
+    public AdministrationAiReportResponse toAdministrationResponse(AdministrationAiReportInfo info) {
+        return AdministrationAiReportResponse.builder()
             .summary(info.summary())
             .marketStatus(info.marketStatus())
             .recommendedBusinessCategories(info.recommendedBusinessCategories())

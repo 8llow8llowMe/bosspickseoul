@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.service.processor;
 
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationDistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
@@ -31,22 +32,16 @@ public class RegionQueryProcessor {
             .filter(area -> seen.add(area.administrationCode()))
             .map(area -> {
                 Point center = coordinateTransformPort.toWgs84(area.x(), area.y());
-                return AdministrationAreaInfo.from(
-                    area.administrationCode(),
-                    area.administrationCodeName(),
-                    center
-                );
+                return AdministrationAreaInfo.from(area.administrationCode(), area.administrationCodeName(), center);
             })
             .toList();
     }
 
     public List<CommercialAreaInfo> getCommercialsByAdministrationCode(String districtCode, String administrationCode) {
-        // 1. 행정동 코드가 자치구 코드에 소속되는지 검증
         if (!administrationCode.startsWith(districtCode)) {
             throw new IllegalArgumentException("행정동 코드가 해당 자치구에 속하지 않습니다.");
         }
 
-        // 2. 행정동 코드 기준 상권 목록 조회 + 좌표 변환
         return areaCommercialRepositoryPort.findAllByAdministrationCode(administrationCode)
             .stream()
             .map(area -> {
@@ -65,6 +60,12 @@ public class RegionQueryProcessor {
             case COMMERCIAL -> areaCommercialRepositoryPort.findDistinctByCommercialCodeName(codeName)
                 .orElseThrow(() -> new IllegalArgumentException("해당 상권 코드를 찾을 수 없습니다."));
         };
+    }
+
+    public AdministrationDistrictAreaInfo getAdministrationDistrictByAdministrationCode(String administrationCode) {
+        AreaCommercial areaCommercial = areaCommercialRepositoryPort.findFirstByAdministrationCode(administrationCode)
+            .orElseThrow(() -> new IllegalArgumentException("해당 행정동 코드 정보를 찾을 수 없습니다."));
+        return AdministrationDistrictAreaInfo.from(areaCommercial);
     }
 
     public CommercialAdministrationAreaInfo getCommercialAdministrationByCommercialCode(String commercialCode) {

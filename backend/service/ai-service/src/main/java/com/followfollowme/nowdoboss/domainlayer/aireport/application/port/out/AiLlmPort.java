@@ -1,5 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out;
 
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
@@ -10,4 +12,6 @@ public interface AiLlmPort {
     CommercialAiDraft generateCommercialReport(CommercialAiSourceData sourceData);
 
     DistrictAiDraft generateDistrictReport(DistrictAiSourceData sourceData);
+
+    AdministrationAiDraft generateAdministrationReport(AdministrationAiSourceData sourceData);
 }

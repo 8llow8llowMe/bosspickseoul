@@ -1,13 +1,17 @@
-﻿package com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor;
+package com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor;
 
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AdministrationAnalysisQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.CommercialAnalysisQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.DistrictAnalysisQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.RegionAnalysisQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
@@ -26,6 +30,7 @@ public class AiReportProcessor {
 
     private final CommercialAnalysisQueryPort commercialAnalysisQueryPort;
     private final DistrictAnalysisQueryPort districtAnalysisQueryPort;
+    private final AdministrationAnalysisQueryPort administrationAnalysisQueryPort;
     private final RegionAnalysisQueryPort regionAnalysisQueryPort;
     private final AiLlmPort aiLlmPort;
     private final AiReportCachePort aiReportCachePort;
@@ -51,8 +56,19 @@ public class AiReportProcessor {
             commercialAnalysisQueryPort.getCommercialPopulation(commercialCode, periodCode),
             commercialAnalysisQueryPort.getCommercialIncome(commercialCode, periodCode),
             commercialAnalysisQueryPort.getCommercialStore(commercialCode, serviceCode, periodCode),
-            commercialAnalysisQueryPort.getCommercialSalesSummary(administrationInfo.districtCode(), administrationInfo.administrationCode(), commercialCode, serviceCode, periodCode),
-            commercialAnalysisQueryPort.getCommercialIncomeSummary(administrationInfo.districtCode(), administrationInfo.administrationCode(), commercialCode, periodCode)
+            commercialAnalysisQueryPort.getCommercialSalesSummary(
+                administrationInfo.districtCode(),
+                administrationInfo.administrationCode(),
+                commercialCode,
+                serviceCode,
+                periodCode
+            ),
+            commercialAnalysisQueryPort.getCommercialIncomeSummary(
+                administrationInfo.districtCode(),
+                administrationInfo.administrationCode(),
+                commercialCode,
+                periodCode
+            )
         );
 
         CommercialAiDraft draft = aiLlmPort.generateCommercialReport(sourceData);
@@ -93,8 +109,45 @@ public class AiReportProcessor {
         return reportInfo;
     }
 
+    public AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode) {
+        long startTime = System.currentTimeMillis();
+        Optional<AdministrationAiReportInfo> cached = aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
+        if (cached.isPresent()) {
+            logReport("administration", administrationCode, periodCode, true, startTime);
+            return cached.get();
+        }
+
+        AdministrationAiSourceData sourceData = new AdministrationAiSourceData(
+            administrationCode,
+            periodCode,
+            regionAnalysisQueryPort.getAdministrationDistrict(administrationCode),
+            administrationAnalysisQueryPort.getAdministrationDetail(administrationCode, periodCode),
+            regionAnalysisQueryPort.getCommercialsByAdministration(administrationCode)
+        );
+        AdministrationAiDraft draft = aiLlmPort.generateAdministrationReport(sourceData);
+        AdministrationAiReportInfo reportInfo = new AdministrationAiReportInfo(
+            draft.summary(),
+            draft.marketStatus(),
+            draft.recommendedBusinessCategories(),
+            draft.cautionBusinessCategories(),
+            draft.businessInsight(),
+            LocalDateTime.now()
+        );
+        aiReportCachePort.saveAdministrationReport(administrationCode, periodCode, reportInfo);
+        logReport("administration", administrationCode, periodCode, false, startTime);
+        return reportInfo;
+    }
+
     private void logReport(String reportType, String targetCode, String periodCode, boolean cacheHit, long startTime) {
         long latencyMs = System.currentTimeMillis() - startTime;
-        log.info("AI 리포트 생성 reportType={} targetCode={} periodCode={} cacheHit={} latencyMs={} llmModel={}", reportType, targetCode, periodCode, cacheHit, latencyMs, aiLlmProperties.model());
+        log.info(
+            "AI 리포트 생성 reportType={} targetCode={} periodCode={} cacheHit={} latencyMs={} llmModel={}",
+            reportType,
+            targetCode,
+            periodCode,
+            cacheHit,
+            latencyMs,
+            aiLlmProperties.model()
+        );
     }
 }

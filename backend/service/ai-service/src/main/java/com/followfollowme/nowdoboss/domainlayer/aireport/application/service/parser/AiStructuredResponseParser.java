@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
 import java.util.List;
@@ -38,6 +39,16 @@ public class AiStructuredResponseParser {
         }
     }
 
+    public AdministrationAiDraft parseAdministrationReport(String content) {
+        try {
+            AdministrationAiDraft draft = objectMapper.readValue(content, AdministrationAiDraft.class);
+            validateAdministration(draft);
+            return draft;
+        } catch (JsonProcessingException exception) {
+            throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE, exception);
+        }
+    }
+
     private void validateCommercial(CommercialAiDraft draft) {
         if (isBlank(draft.summary())
             || isBlank(draft.businessInsight())
@@ -50,6 +61,16 @@ public class AiStructuredResponseParser {
     }
 
     private void validateDistrict(DistrictAiDraft draft) {
+        if (isBlank(draft.summary())
+            || isBlank(draft.marketStatus())
+            || isBlank(draft.businessInsight())
+            || invalidList(draft.recommendedBusinessCategories())
+            || invalidList(draft.cautionBusinessCategories())) {
+            throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
+        }
+    }
+
+    private void validateAdministration(AdministrationAiDraft draft) {
         if (isBlank(draft.summary())
             || isBlank(draft.marketStatus())
             || isBlank(draft.businessInsight())

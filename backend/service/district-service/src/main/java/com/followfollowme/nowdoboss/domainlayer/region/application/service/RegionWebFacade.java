@@ -1,11 +1,13 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.service;
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationDistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.presenter.RegionPresenter;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationDistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
@@ -47,9 +49,15 @@ public class RegionWebFacade implements RegionWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public AdministrationDistrictAreaResponse getAdministrationDistrictByAdministrationCode(String administrationCode) {
+        AdministrationDistrictAreaInfo info = regionQueryProcessor.getAdministrationDistrictByAdministrationCode(administrationCode);
+        return regionPresenter.toAdministrationDistrictAreaResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public CommercialAdministrationAreaResponse getCommercialAdministrationByCommercialCode(String commercialCode) {
         CommercialAdministrationAreaInfo info = regionQueryProcessor.getCommercialAdministrationByCommercialCode(commercialCode);
         return regionPresenter.toCommercialAdministrationAreaResponse(info);
     }
-
 }
