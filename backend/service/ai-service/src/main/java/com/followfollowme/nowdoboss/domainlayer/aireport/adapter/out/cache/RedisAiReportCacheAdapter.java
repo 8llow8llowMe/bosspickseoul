@@ -76,7 +76,7 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
     }
 
     private String buildCommercialKey(String commercialCode, String serviceCode, String periodCode) {
-        return "%s:ai:report:commercial:%s:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), commercialCode, serviceCode, periodCode);
+        return "%s:ai:report:commercial:v2:%s:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), commercialCode, serviceCode, periodCode);
     }
 
     private String buildDistrictKey(String districtCode, String periodCode) {

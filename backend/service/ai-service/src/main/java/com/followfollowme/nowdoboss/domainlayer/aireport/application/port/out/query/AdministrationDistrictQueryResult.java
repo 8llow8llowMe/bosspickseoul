@@ -7,9 +7,9 @@ import lombok.Builder;
 @Builder
 public record AdministrationDistrictQueryResult(
     String districtCode,
-    String districtCodeName,
+    String districtName,
     String administrationCode,
-    String administrationCodeName
+    String administrationName
 ) {
 
 }

@@ -10,6 +10,7 @@ dependencies {
     runtimeOnly 'com.mysql:mysql-connector-j'
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     // Eureka Client for Service Discovery (Eureka 클라이언트)
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     // Config Client

@@ -16,8 +16,13 @@ public class AiReportPresenter {
             .summary(info.summary())
             .strengths(info.strengths())
             .risks(info.risks())
+            .recommendedBusinessCategories(info.recommendedBusinessCategories())
             .recommendedCustomerSegments(info.recommendedCustomerSegments())
             .recommendedOperatingHours(info.recommendedOperatingHours())
+            .avoidOperatingHours(info.avoidOperatingHours())
+            .targetAgeGroups(info.targetAgeGroups())
+            .targetGenders(info.targetGenders())
+            .operationTips(info.operationTips())
             .businessInsight(info.businessInsight())
             .generatedAt(info.generatedAt())
             .build();
