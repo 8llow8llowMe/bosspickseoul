@@ -1,12 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection;
 
-public interface AdministrationCodeProjection {
+public interface AdministrationNameProjection {
 
     String getDistrictCode();
 
-    String getDistrictCodeName();
+    String getDistrictName();
 
     String getAdministrationCode();
 
-    String getAdministrationCodeName();
+    String getAdministrationName();
 }

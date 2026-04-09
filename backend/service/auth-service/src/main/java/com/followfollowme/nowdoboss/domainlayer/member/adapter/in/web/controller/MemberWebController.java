@@ -23,15 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/members")
-@Tag(name = "회원", description = "회원 관련 클라이언트 전용 API 입니다.")
+@Tag(name = "회원", description = "회원 가입과 내 정보 조회 API를 제공합니다.")
 public class MemberWebController {
 
     private final MemberWebUseCase memberWebUseCase;
 
-    @Operation(
-        summary = "일반 회원가입",
-        description = "해당 서비스에 일반 회원가입하는 기능입니다."
-    )
+    @Operation(summary = "일반 회원가입", description = "일반 회원으로 가입합니다.")
     @PostMapping("/signup")
     public ResponseEntity<Response<Void>> generalSignup(@Valid @RequestBody MemberGeneralSignupRequest request) {
         memberWebUseCase.generalSignup(MemberGeneralSignupCommand.from(request));
@@ -39,8 +36,8 @@ public class MemberWebController {
     }
 
     @Operation(
-        summary = "나의 회원 정보 조회",
-        description = "로그인한 나의 회원 정보를 조회하는 기능입니다.",
+        summary = "내 회원 정보 조회",
+        description = "로그인한 회원의 내 정보를 조회합니다.",
         security = {@SecurityRequirement(name = "bearerAuth")}
     )
     @GetMapping("/me")

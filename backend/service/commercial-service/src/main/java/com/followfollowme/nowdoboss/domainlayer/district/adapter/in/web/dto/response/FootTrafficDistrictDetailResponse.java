@@ -11,7 +11,7 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "자치구 유동인구 상세 응답")
+@Schema(description = "자치구 유동인구 상세 응답 DTO")
 public record FootTrafficDistrictDetailResponse(
 
     @Schema(description = "직전 분기 대비 추이", example = "INCREASE")

@@ -32,21 +32,21 @@ public class AreaCommercialEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Comment("상권 구분 코드")
+    @Comment("상권 분류 코드")
     @Column(length = 1, nullable = false)
     private String commercialClassificationCode;
 
-    @Comment("상권 구분 코드명")
-    @Column(length = 4, nullable = false)
-    private String commercialClassificationCodeName;
+    @Comment("상권 분류명")
+    @Column(name = "commercial_classification_code_name", length = 4, nullable = false)
+    private String commercialClassificationName;
 
     @Comment("상권 코드")
     @Column(length = 8, nullable = false)
     private String commercialCode;
 
-    @Comment("상권 코드명")
-    @Column(length = 80, nullable = false)
-    private String commercialCodeName;
+    @Comment("상권명")
+    @Column(name = "commercial_code_name", length = 80, nullable = false)
+    private String commercialName;
 
     @Comment("x 좌표 값")
     @Column(nullable = false)
@@ -60,15 +60,15 @@ public class AreaCommercialEntity {
     @Column(length = 5, nullable = false)
     private String districtCode;
 
-    @Comment("자치구 코드명")
-    @Column(length = 10, nullable = false)
-    private String districtCodeName;
+    @Comment("자치구명")
+    @Column(name = "district_code_name", length = 10, nullable = false)
+    private String districtName;
 
     @Comment("행정동 코드")
     @Column(length = 10, nullable = false)
     private String administrationCode;
 
-    @Comment("행정동 코드명")
-    @Column(length = 20, nullable = false)
-    private String administrationCodeName;
+    @Comment("행정동명")
+    @Column(name = "administration_code_name", length = 20, nullable = false)
+    private String administrationName;
 }

@@ -6,15 +6,15 @@ import lombok.Builder;
 public record AreaCommercial(
     long id,
     String commercialClassificationCode,
-    String commercialClassificationCodeName,
+    String commercialClassificationName,
     String commercialCode,
-    String commercialCodeName,
+    String commercialName,
     double x,
     double y,
     String districtCode,
-    String districtCodeName,
+    String districtName,
     String administrationCode,
-    String administrationCodeName
+    String administrationName
 ) {
 
 }

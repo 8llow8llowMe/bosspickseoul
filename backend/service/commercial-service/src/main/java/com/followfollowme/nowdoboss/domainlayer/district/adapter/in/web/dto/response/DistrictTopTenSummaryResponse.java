@@ -9,7 +9,7 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "자치구 Top 10 요약 정보 응답")
+@Schema(description = "자치구 Top 10 요약 응답 DTO")
 public record DistrictTopTenSummaryResponse(
 
     @Schema(description = "유동인구 Top 10 자치구 목록")

@@ -7,9 +7,9 @@ import org.locationtech.jts.geom.Point;
 @Builder
 public record CommercialAreaInfo(
     String commercialCode,
-    String commercialCodeName,
+    String commercialName,
     String commercialClassificationCode,
-    String commercialClassificationCodeName,
+    String commercialClassificationName,
     double centerLat,
     double centerLng
 ) {
@@ -17,9 +17,9 @@ public record CommercialAreaInfo(
     public static CommercialAreaInfo from(AreaCommercial area, Point center) {
         return CommercialAreaInfo.builder()
             .commercialCode(area.commercialCode())
-            .commercialCodeName(area.commercialCodeName())
+            .commercialName(area.commercialName())
             .commercialClassificationCode(area.commercialClassificationCode())
-            .commercialClassificationCodeName(area.commercialClassificationCodeName())
+            .commercialClassificationName(area.commercialClassificationName())
             .centerLat(center.getX())
             .centerLng(center.getY())
             .build();
