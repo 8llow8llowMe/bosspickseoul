@@ -4,9 +4,9 @@ public interface CommercialAdministrationProjection {
 
     String getDistrictCode();
 
-    String getDistrictCodeName();
+    String getDistrictName();
 
     String getAdministrationCode();
 
-    String getAdministrationCodeName();
+    String getAdministrationName();
 }

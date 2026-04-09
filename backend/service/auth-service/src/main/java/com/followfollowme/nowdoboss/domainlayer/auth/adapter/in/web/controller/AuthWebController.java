@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/auth")
-@Tag(name = "인증/인가", description = "인증/인가 관련 클라이언트에 제공하는 API 입니다.")
+@Tag(name = "인증/인가", description = "로그인, 로그아웃, 토큰 재발급 API를 제공합니다.")
 public class AuthWebController {
 
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
@@ -35,10 +35,7 @@ public class AuthWebController {
     private final AuthWebUseCase authWebUseCase;
     private final RefreshCookieProvider refreshCookieProvider;
 
-    @Operation(
-        summary = "일반 로그인",
-        description = "이메일과 비밀번호를 입력하여 일반 로그인을 하는 기능입니다."
-    )
+    @Operation(summary = "일반 로그인", description = "이메일과 비밀번호로 로그인합니다.")
     @PostMapping("/login")
     public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(@RequestBody AuthGeneralLoginRequest request) {
         AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request));
@@ -49,7 +46,7 @@ public class AuthWebController {
 
     @Operation(
         summary = "로그아웃",
-        description = "로그인 한 회원을 로그아웃 하는 기능입니다.",
+        description = "로그아웃하고 리프레시 토큰을 무효화합니다.",
         security = {@SecurityRequirement(name = "bearerAuth")}
     )
     @PostMapping("/logout")
@@ -61,10 +58,7 @@ public class AuthWebController {
             .body(Response.success());
     }
 
-    @Operation(
-        summary = "토큰 재발급",
-        description = "HttpOnly Cookie의 Refresh Token을 통해 Access Token과 새 Refresh Token을 재발급 받는 기능입니다."
-    )
+    @Operation(summary = "토큰 재발급", description = "리프레시 토큰으로 Access Token을 재발급합니다.")
     @PostMapping("/token/reissue")
     public ResponseEntity<Response<TokenReissueResponse>> reissueToken(@CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
         AuthCookieResult<TokenReissueResponse> result = authWebUseCase.reissueToken(TokenReissueCommand.from(refreshToken));

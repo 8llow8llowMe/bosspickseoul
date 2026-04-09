@@ -32,7 +32,7 @@ public class RegionQueryProcessor {
             .filter(area -> seen.add(area.administrationCode()))
             .map(area -> {
                 Point center = coordinateTransformPort.toWgs84(area.x(), area.y());
-                return AdministrationAreaInfo.from(area.administrationCode(), area.administrationCodeName(), center);
+                return AdministrationAreaInfo.from(area.administrationCode(), area.administrationName(), center);
             })
             .toList();
     }
@@ -51,13 +51,13 @@ public class RegionQueryProcessor {
             .toList();
     }
 
-    public RegionCodeLookupInfo lookupRegionCode(RegionCodeType type, String codeName) {
+    public RegionCodeLookupInfo lookupRegionCode(RegionCodeType type, String name) {
         return switch (type) {
-            case DISTRICT -> areaCommercialRepositoryPort.findDistinctByDistrictCodeName(codeName)
+            case DISTRICT -> areaCommercialRepositoryPort.findDistinctByDistrictName(name)
                 .orElseThrow(() -> new IllegalArgumentException("해당 자치구 코드를 찾을 수 없습니다."));
-            case ADMINISTRATION -> areaCommercialRepositoryPort.findDistinctByAdministrationCodeName(codeName)
+            case ADMINISTRATION -> areaCommercialRepositoryPort.findDistinctByAdministrationName(name)
                 .orElseThrow(() -> new IllegalArgumentException("해당 행정동 코드를 찾을 수 없습니다."));
-            case COMMERCIAL -> areaCommercialRepositoryPort.findDistinctByCommercialCodeName(codeName)
+            case COMMERCIAL -> areaCommercialRepositoryPort.findDistinctByCommercialName(name)
                 .orElseThrow(() -> new IllegalArgumentException("해당 상권 코드를 찾을 수 없습니다."));
         };
     }

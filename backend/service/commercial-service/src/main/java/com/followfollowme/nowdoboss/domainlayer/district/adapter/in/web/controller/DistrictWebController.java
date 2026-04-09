@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/districts")
-@Tag(name = "자치구 분석", description = "자치구 분석 관련 API를 제공합니다.")
+@Tag(name = "자치구 분석", description = "자치구 단위 상권 분석 정보를 조회하는 API를 제공합니다.")
 public class DistrictWebController {
 
     private final DistrictWebUseCase districtWebUseCase;
@@ -73,7 +73,7 @@ public class DistrictWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "자치구 점포 상세 조회", description = "업종별 점포 수 Top8, 개업률 Top5, 폐업률 Top5를 조회합니다.")
+    @Operation(summary = "자치구 점포 상세 조회", description = "업종별 점포 수 Top 8, 개업률 Top 5, 폐업률 Top 5를 조회합니다.")
     @GetMapping("/{districtCode}/stores/top-services")
     public ResponseEntity<Response<DistrictStoreDetailResponse>> getDistrictTotalStoreDetail(
         @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode,

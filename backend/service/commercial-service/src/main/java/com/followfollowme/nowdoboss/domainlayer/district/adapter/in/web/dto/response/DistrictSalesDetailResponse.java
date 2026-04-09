@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "자치구 업종별 매출 상세 응답")
+@Schema(description = "자치구 매출 상세 응답 DTO")
 public record DistrictSalesDetailResponse(
 
     @Schema(description = "매출 상위 5개 업종 목록")

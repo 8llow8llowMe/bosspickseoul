@@ -34,12 +34,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/community/posts")
-@Tag(name = "커뮤니티 게시글", description = "커뮤니티 게시글 관련 클라이언트에 제공하는 API 입니다.")
+@Tag(name = "커뮤니티 게시글", description = "커뮤니티 게시글 조회, 작성, 수정, 삭제, 좋아요 API를 제공합니다.")
 public class CommunityPostWebController {
 
     private final CommunityPostWebUseCase communityPostWebUseCase;
 
-    @Operation(summary = "게시글 목록 조회", description = "대상 타입과 코드를 기준으로 게시글 목록 또는 통합 피드를 무한 스크롤 방식으로 조회합니다.")
+    @Operation(summary = "게시글 목록 조회", description = "조건에 맞는 게시글 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<Response<CommunityPostListResponse>> getPosts(
         @Parameter(description = "정렬 기준") @RequestParam(defaultValue = "LATEST") CommunitySortType sortType,
@@ -54,11 +54,7 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(
-        summary = "게시글 작성",
-        description = "새 게시글을 작성합니다.",
-        security = @SecurityRequirement(name = "bearerAuth")
-    )
+    @Operation(summary = "게시글 작성", description = "새 게시글을 작성합니다.", security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<CommunityPostDetailResponse>> createPost(
@@ -69,21 +65,14 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(
-        summary = "게시글 상세 조회",
-        description = "게시글 상세 정보를 조회합니다."
-    )
+    @Operation(summary = "게시글 상세 조회", description = "게시글 상세 정보를 조회합니다.")
     @GetMapping("/{postId}")
     public ResponseEntity<Response<CommunityPostDetailResponse>> getPost(@Parameter(description = "게시글 ID", example = "1") @PathVariable long postId) {
         CommunityPostDetailResponse response = communityPostWebUseCase.getPost(postId);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(
-        summary = "게시글 수정",
-        description = "본인 게시글을 수정합니다.",
-        security = @SecurityRequirement(name = "bearerAuth")
-    )
+    @Operation(summary = "게시글 수정", description = "본인 게시글을 수정합니다.", security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping("/{postId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<CommunityPostDetailResponse>> updatePost(
@@ -95,11 +84,7 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(
-        summary = "게시글 삭제",
-        description = "본인 게시글을 소프트 삭제합니다.",
-        security = @SecurityRequirement(name = "bearerAuth")
-    )
+    @Operation(summary = "게시글 삭제", description = "본인 게시글을 삭제합니다.", security = @SecurityRequirement(name = "bearerAuth"))
     @DeleteMapping("/{postId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<Void>> deletePost(
@@ -110,11 +95,7 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success());
     }
 
-    @Operation(
-        summary = "게시글 좋아요 토글",
-        description = "게시글 좋아요를 등록하거나 취소합니다.",
-        security = @SecurityRequirement(name = "bearerAuth")
-    )
+    @Operation(summary = "게시글 좋아요 토글", description = "게시글 좋아요를 등록하거나 취소합니다.", security = @SecurityRequirement(name = "bearerAuth"))
     @PutMapping("/{postId}/like")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<CommunityPostLikeResponse>> togglePostLike(
@@ -125,11 +106,7 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(
-        summary = "좋아요한 게시글 목록 조회",
-        description = "현재 사용자가 좋아요한 게시글 목록을 무한 스크롤 방식으로 조회합니다.",
-        security = @SecurityRequirement(name = "bearerAuth")
-    )
+    @Operation(summary = "좋아요한 게시글 목록 조회", description = "현재 사용자가 좋아요한 게시글 목록을 조회합니다.", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/liked")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<CommunityLikedPostsResponse>> getLikedPosts(
@@ -140,8 +117,14 @@ public class CommunityPostWebController {
         @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
         @Parameter(description = "조회 개수", example = "20") @RequestParam(defaultValue = "20") int size
     ) {
-        CommunityLikedPostsResponse response = communityPostWebUseCase.getLikedPosts(loginActive.memberId(), sortType, orderType, lastPostId, lastLikeCount,
-            size);
+        CommunityLikedPostsResponse response = communityPostWebUseCase.getLikedPosts(
+            loginActive.memberId(),
+            sortType,
+            orderType,
+            lastPostId,
+            lastLikeCount,
+            size
+        );
         return ResponseEntity.ok().body(Response.success(response));
     }
 }

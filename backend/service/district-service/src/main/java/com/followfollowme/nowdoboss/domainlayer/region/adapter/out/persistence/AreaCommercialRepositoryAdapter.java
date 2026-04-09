@@ -31,20 +31,20 @@ public class AreaCommercialRepositoryAdapter implements AreaCommercialRepository
     }
 
     @Override
-    public Optional<RegionCodeLookupInfo> findDistinctByDistrictCodeName(String districtCodeName) {
-        return areaCommercialRepository.findDistinctByDistrictCodeName(districtCodeName)
+    public Optional<RegionCodeLookupInfo> findDistinctByDistrictName(String districtName) {
+        return areaCommercialRepository.findDistinctByDistrictName(districtName)
             .map(RegionCodeLookupInfo::from);
     }
 
     @Override
-    public Optional<RegionCodeLookupInfo> findDistinctByAdministrationCodeName(String administrationCodeName) {
-        return areaCommercialRepository.findDistinctByAdministrationCodeName(administrationCodeName)
+    public Optional<RegionCodeLookupInfo> findDistinctByAdministrationName(String administrationName) {
+        return areaCommercialRepository.findDistinctByAdministrationName(administrationName)
             .map(RegionCodeLookupInfo::from);
     }
 
     @Override
-    public Optional<RegionCodeLookupInfo> findDistinctByCommercialCodeName(String commercialCodeName) {
-        return areaCommercialRepository.findDistinctByCommercialCodeName(commercialCodeName)
+    public Optional<RegionCodeLookupInfo> findDistinctByCommercialName(String commercialName) {
+        return areaCommercialRepository.findDistinctByCommercialName(commercialName)
             .map(RegionCodeLookupInfo::from);
     }
 
@@ -59,9 +59,9 @@ public class AreaCommercialRepositoryAdapter implements AreaCommercialRepository
         return areaCommercialRepository.findFirstByCommercialCode(commercialCode)
             .map(projection -> AreaCommercial.builder()
                 .districtCode(projection.getDistrictCode())
-                .districtCodeName(projection.getDistrictCodeName())
+                .districtName(projection.getDistrictName())
                 .administrationCode(projection.getAdministrationCode())
-                .administrationCodeName(projection.getAdministrationCodeName())
+                .administrationName(projection.getAdministrationName())
                 .build());
     }
 }

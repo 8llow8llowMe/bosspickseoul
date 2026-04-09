@@ -19,7 +19,7 @@ public class RegionPresenter {
     public AdministrationAreaResponse toAdministrationAreaResponse(AdministrationAreaInfo info) {
         return AdministrationAreaResponse.builder()
             .administrationCode(info.administrationCode())
-            .administrationCodeName(info.administrationCodeName())
+            .administrationName(info.administrationName())
             .centerLat(info.centerLat())
             .centerLng(info.centerLng())
             .build();
@@ -28,9 +28,9 @@ public class RegionPresenter {
     public CommercialAreaResponse toCommercialAreaResponse(CommercialAreaInfo info) {
         return CommercialAreaResponse.builder()
             .commercialCode(info.commercialCode())
-            .commercialCodeName(info.commercialCodeName())
+            .commercialName(info.commercialName())
             .commercialClassificationCode(info.commercialClassificationCode())
-            .commercialClassificationCodeName(info.commercialClassificationCodeName())
+            .commercialClassificationName(info.commercialClassificationName())
             .centerLat(info.centerLat())
             .centerLng(info.centerLng())
             .build();
@@ -51,29 +51,29 @@ public class RegionPresenter {
     public RegionCodeLookupResponse toRegionCodeLookupResponse(RegionCodeLookupInfo info) {
         return RegionCodeLookupResponse.builder()
             .districtCode(info.districtCode())
-            .districtCodeName(info.districtCodeName())
+            .districtName(info.districtName())
             .administrationCode(info.administrationCode())
-            .administrationCodeName(info.administrationCodeName())
+            .administrationName(info.administrationName())
             .commercialCode(info.commercialCode())
-            .commercialCodeName(info.commercialCodeName())
+            .commercialName(info.commercialName())
             .build();
     }
 
     public AdministrationDistrictAreaResponse toAdministrationDistrictAreaResponse(AdministrationDistrictAreaInfo info) {
         return AdministrationDistrictAreaResponse.builder()
             .districtCode(info.districtCode())
-            .districtCodeName(info.districtCodeName())
+            .districtName(info.districtName())
             .administrationCode(info.administrationCode())
-            .administrationCodeName(info.administrationCodeName())
+            .administrationName(info.administrationName())
             .build();
     }
 
     public CommercialAdministrationAreaResponse toCommercialAdministrationAreaResponse(CommercialAdministrationAreaInfo info) {
         return CommercialAdministrationAreaResponse.builder()
             .districtCode(info.districtCode())
-            .districtCodeName(info.districtCodeName())
+            .districtName(info.districtName())
             .administrationCode(info.administrationCode())
-            .administrationCodeName(info.administrationCodeName())
+            .administrationName(info.administrationName())
             .build();
     }
 }

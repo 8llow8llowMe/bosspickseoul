@@ -6,17 +6,17 @@ import lombok.Builder;
 @Builder
 public record AdministrationDistrictAreaInfo(
     String districtCode,
-    String districtCodeName,
+    String districtName,
     String administrationCode,
-    String administrationCodeName
+    String administrationName
 ) {
 
     public static AdministrationDistrictAreaInfo from(AreaCommercial areaCommercial) {
         return AdministrationDistrictAreaInfo.builder()
             .districtCode(areaCommercial.districtCode())
-            .districtCodeName(areaCommercial.districtCodeName())
+            .districtName(areaCommercial.districtName())
             .administrationCode(areaCommercial.administrationCode())
-            .administrationCodeName(areaCommercial.administrationCodeName())
+            .administrationName(areaCommercial.administrationName())
             .build();
     }
 }

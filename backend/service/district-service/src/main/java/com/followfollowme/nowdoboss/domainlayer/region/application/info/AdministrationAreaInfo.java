@@ -6,15 +6,15 @@ import org.locationtech.jts.geom.Point;
 @Builder
 public record AdministrationAreaInfo(
     String administrationCode,
-    String administrationCodeName,
+    String administrationName,
     double centerLat,
     double centerLng
 ) {
 
-    public static AdministrationAreaInfo from(String administrationCode, String administrationCodeName, Point center) {
+    public static AdministrationAreaInfo from(String administrationCode, String administrationName, Point center) {
         return AdministrationAreaInfo.builder()
             .administrationCode(administrationCode)
-            .administrationCodeName(administrationCodeName)
+            .administrationName(administrationName)
             .centerLat(center.getX())
             .centerLng(center.getY())
             .build();

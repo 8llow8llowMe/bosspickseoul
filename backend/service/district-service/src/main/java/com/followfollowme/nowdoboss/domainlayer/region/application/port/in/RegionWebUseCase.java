@@ -14,7 +14,7 @@ public interface RegionWebUseCase {
 
     List<CommercialAreaResponse> getCommercialsByAdministrationCode(String districtCode, String administrationCode);
 
-    RegionCodeLookupResponse lookupRegionCode(RegionCodeType type, String codeName);
+    RegionCodeLookupResponse lookupRegionCode(RegionCodeType type, String name);
 
     AdministrationDistrictAreaResponse getAdministrationDistrictByAdministrationCode(String administrationCode);
 

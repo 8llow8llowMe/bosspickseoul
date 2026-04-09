@@ -1,44 +1,44 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.info;
 
-import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.AdministrationCodeProjection;
-import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.CommercialCodeProjection;
-import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.DistrictCodeProjection;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.AdministrationNameProjection;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.CommercialNameProjection;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.DistrictNameProjection;
 import lombok.Builder;
 
 @Builder
 public record RegionCodeLookupInfo(
     String districtCode,
-    String districtCodeName,
+    String districtName,
     String administrationCode,
-    String administrationCodeName,
+    String administrationName,
     String commercialCode,
-    String commercialCodeName
+    String commercialName
 ) {
 
-    public static RegionCodeLookupInfo from(DistrictCodeProjection projection) {
+    public static RegionCodeLookupInfo from(DistrictNameProjection projection) {
         return RegionCodeLookupInfo.builder()
             .districtCode(projection.getDistrictCode())
-            .districtCodeName(projection.getDistrictCodeName())
+            .districtName(projection.getDistrictName())
             .build();
     }
 
-    public static RegionCodeLookupInfo from(AdministrationCodeProjection projection) {
+    public static RegionCodeLookupInfo from(AdministrationNameProjection projection) {
         return RegionCodeLookupInfo.builder()
             .districtCode(projection.getDistrictCode())
-            .districtCodeName(projection.getDistrictCodeName())
+            .districtName(projection.getDistrictName())
             .administrationCode(projection.getAdministrationCode())
-            .administrationCodeName(projection.getAdministrationCodeName())
+            .administrationName(projection.getAdministrationName())
             .build();
     }
 
-    public static RegionCodeLookupInfo from(CommercialCodeProjection projection) {
+    public static RegionCodeLookupInfo from(CommercialNameProjection projection) {
         return RegionCodeLookupInfo.builder()
             .districtCode(projection.getDistrictCode())
-            .districtCodeName(projection.getDistrictCodeName())
+            .districtName(projection.getDistrictName())
             .administrationCode(projection.getAdministrationCode())
-            .administrationCodeName(projection.getAdministrationCodeName())
+            .administrationName(projection.getAdministrationName())
             .commercialCode(projection.getCommercialCode())
-            .commercialCodeName(projection.getCommercialCodeName())
+            .commercialName(projection.getCommercialName())
             .build();
     }
 }

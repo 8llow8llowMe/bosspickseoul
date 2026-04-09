@@ -42,8 +42,8 @@ public class RegionWebFacade implements RegionWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public RegionCodeLookupResponse lookupRegionCode(RegionCodeType type, String codeName) {
-        RegionCodeLookupInfo info = regionQueryProcessor.lookupRegionCode(type, codeName);
+    public RegionCodeLookupResponse lookupRegionCode(RegionCodeType type, String name) {
+        RegionCodeLookupInfo info = regionQueryProcessor.lookupRegionCode(type, name);
         return regionPresenter.toRegionCodeLookupResponse(info);
     }
 

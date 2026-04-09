@@ -11,11 +11,11 @@ public interface AreaCommercialRepositoryPort {
 
     List<AreaCommercial> findAllByAdministrationCode(String administrationCode);
 
-    Optional<RegionCodeLookupInfo> findDistinctByDistrictCodeName(String districtCodeName);
+    Optional<RegionCodeLookupInfo> findDistinctByDistrictName(String districtName);
 
-    Optional<RegionCodeLookupInfo> findDistinctByAdministrationCodeName(String administrationCodeName);
+    Optional<RegionCodeLookupInfo> findDistinctByAdministrationName(String administrationName);
 
-    Optional<RegionCodeLookupInfo> findDistinctByCommercialCodeName(String commercialCodeName);
+    Optional<RegionCodeLookupInfo> findDistinctByCommercialName(String commercialName);
 
     Optional<AreaCommercial> findFirstByAdministrationCode(String administrationCode);
 
