@@ -54,8 +54,17 @@ public class AiStructuredResponseParser {
             || isBlank(draft.businessInsight())
             || invalidList(draft.strengths())
             || invalidList(draft.risks())
+            || invalidList(draft.recommendedBusinessCategories())
             || invalidList(draft.recommendedCustomerSegments())
-            || invalidList(draft.recommendedOperatingHours())) {
+            || invalidList(draft.recommendedOperatingHours())
+            || draft.avoidOperatingHours() == null
+            || draft.targetAgeGroups() == null
+            || draft.targetGenders() == null
+            || draft.operationTips() == null
+            || hasBlank(draft.avoidOperatingHours())
+            || hasBlank(draft.targetAgeGroups())
+            || hasBlank(draft.targetGenders())
+            || hasBlank(draft.operationTips())) {
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
         }
     }
@@ -82,6 +91,10 @@ public class AiStructuredResponseParser {
 
     private boolean invalidList(List<String> values) {
         return values == null || values.isEmpty() || values.stream().anyMatch(this::isBlank);
+    }
+
+    private boolean hasBlank(List<String> values) {
+        return values.stream().anyMatch(this::isBlank);
     }
 
     private boolean isBlank(String value) {

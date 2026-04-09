@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/ai-reports")
-@Tag(name = "AI 리포트", description = "상권, 자치구, 행정동 분석 데이터를 자연어 리포트로 요약하는 API")
+@Tag(name = "AI 리포트", description = "상권, 자치구, 행정동 분석 데이터를 AI로 요약하는 API를 제공합니다.")
 public class AiReportWebController {
 
     private final AiReportWebUseCase aiReportWebUseCase;

@@ -27,6 +27,19 @@ public class AiReportPromptTemplate {
             - Service code: %s
             - Period code: %s
 
+            [Required JSON Fields]
+            - summary: string
+            - strengths: string[]
+            - risks: string[]
+            - recommendedBusinessCategories: string[]
+            - recommendedCustomerSegments: string[]
+            - recommendedOperatingHours: string[]
+            - avoidOperatingHours: string[]
+            - targetAgeGroups: string[]
+            - targetGenders: string[]
+            - operationTips: string[]
+            - businessInsight: string
+
             [Input Data]
             %s
             """.formatted(sourceData.commercialCode(), sourceData.serviceCode(), sourceData.periodCode(), commercialPromptFormatter.format(sourceData));

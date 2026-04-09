@@ -74,7 +74,20 @@ public class AiReportProcessor {
         CommercialAiSourceData sourceData = buildCommercialSourceData(commercialCode, serviceCode, periodCode, administrationInfo, footTraffic, sales, facility, population, income, store, salesSummary, incomeSummary);
 
         CommercialAiDraft draft = aiLlmPort.generateCommercialReport(sourceData);
-        CommercialAiReportInfo reportInfo = new CommercialAiReportInfo(draft.summary(), draft.strengths(), draft.risks(), draft.recommendedCustomerSegments(), draft.recommendedOperatingHours(), draft.businessInsight(), LocalDateTime.now());
+        CommercialAiReportInfo reportInfo = new CommercialAiReportInfo(
+            draft.summary(),
+            draft.strengths(),
+            draft.risks(),
+            draft.recommendedBusinessCategories(),
+            draft.recommendedCustomerSegments(),
+            draft.recommendedOperatingHours(),
+            draft.avoidOperatingHours(),
+            draft.targetAgeGroups(),
+            draft.targetGenders(),
+            draft.operationTips(),
+            draft.businessInsight(),
+            LocalDateTime.now()
+        );
         aiReportCachePort.saveCommercialReport(commercialCode, serviceCode, periodCode, reportInfo);
         logReport("commercial", commercialCode, periodCode, false, startTime);
         return reportInfo;
@@ -183,11 +196,11 @@ public class AiReportProcessor {
             .districtCode(districtCode)
             .periodCode(periodCode)
             .changeIndicatorName(districtDetail.changeIndicator().changeIndicatorName())
-            .averageOpenedMonths(districtDetail.changeIndicator().averageOpenedMonths())
-            .averageClosedMonths(districtDetail.changeIndicator().averageClosedMonths())
-            .footTrafficTrend(districtDetail.footTraffic().periodTrend())
-            .dominantTimeSlot(districtDetail.footTraffic().timeSlot().dominantTimeSlotType())
-            .dominantGender(districtDetail.footTraffic().gender().dominantGenderType())
+            .averageOpenedMonths(String.valueOf(districtDetail.changeIndicator().averageOpenedMonths()))
+            .averageClosedMonths(String.valueOf(districtDetail.changeIndicator().averageClosedMonths()))
+            .footTrafficTrend(String.valueOf(districtDetail.footTraffic().periodTrend()))
+            .dominantTimeSlot(String.valueOf(districtDetail.footTraffic().timeSlot().dominantTimeSlotType()))
+            .dominantGender(String.valueOf(districtDetail.footTraffic().gender().dominantGenderType()))
             .topStoreServiceSummaries(districtDetail.store().topStoreServices().stream().map(item -> "%s (%s stores)".formatted(item.serviceName(), PromptFormatterSupport.formatNumber(item.totalStoreCount()))).toList())
             .topOpenedAdministrationSummaries(districtDetail.store().topOpenedAdministrations().stream().map(item -> "%s (opened %s, opening %s)".formatted(item.administrationName(), PromptFormatterSupport.formatNumber(item.openedStoreCount()), PromptFormatterSupport.formatPercent(item.openingRate()))).toList())
             .topClosedAdministrationSummaries(districtDetail.store().topClosedAdministrations().stream().map(item -> "%s (closed %s, closure %s)".formatted(item.administrationName(), PromptFormatterSupport.formatNumber(item.closedStoreCount()), PromptFormatterSupport.formatPercent(item.closureRate()))).toList())
@@ -207,8 +220,8 @@ public class AiReportProcessor {
             .administrationCode(administrationCode)
             .periodCode(periodCode)
             .districtCode(districtInfo.districtCode())
-            .districtName(districtInfo.districtCodeName())
-            .administrationName(districtInfo.administrationCodeName())
+            .districtName(districtInfo.districtName())
+            .administrationName(districtInfo.administrationName())
             .commercialCount(commercials.size())
             .commercialSummaries(commercials.stream().map(item -> "%s (%s)".formatted(item.commercialName(), item.commercialCode())).toList())
             .topSalesServiceSummaries(detail.sales().topSalesServices().stream().map(this::formatAdministrationSalesService).toList())

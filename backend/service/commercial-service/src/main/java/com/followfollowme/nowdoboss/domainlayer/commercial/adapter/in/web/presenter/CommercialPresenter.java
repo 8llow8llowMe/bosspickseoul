@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter;
 
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAverageIncomeItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialComparisonTargetItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialExpenseByCategoryItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByAgeGenderPercentItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByAgeGroupItem;
@@ -8,6 +9,8 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.it
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByTimeSlotItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialResidentPopulationByAgeItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialPeerStoreItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialHeatmapScoreItem;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.ComparisonMetricItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.RegionalIncomeSummaryItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.RegionalSalesSummaryItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeGenderPercentItem;
@@ -20,6 +23,8 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.it
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialSchoolCountItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialHeatmapScoresResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeAndExpenseResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialResidentPopulationResponse;
@@ -28,6 +33,9 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialSchoolCountInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByAgeGenderPercentInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByAgeGroupInfo;
@@ -48,6 +56,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sale
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByTimeSlotInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialPeerStoreInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
@@ -129,6 +138,30 @@ public class CommercialPresenter {
             .closedStoreCount(info.closedStoreCount())
             .franchiseStoreCount(info.franchiseStoreCount())
             .peerStores(info.peerStores().stream().map(this::toCommercialPeerStoreItem).toList())
+            .build();
+    }
+
+    public CommercialComparisonResponse toCommercialComparisonResponse(CommercialComparisonInfo info) {
+        return CommercialComparisonResponse.builder()
+            .left(toCommercialComparisonTargetItem(info.left()))
+            .right(toCommercialComparisonTargetItem(info.right()))
+            .salesMetrics(toComparisonMetricItems(info.salesMetrics()))
+            .footTrafficMetrics(toComparisonMetricItems(info.footTrafficMetrics()))
+            .storeMetrics(toComparisonMetricItems(info.storeMetrics()))
+            .spendingMetrics(toComparisonMetricItems(info.spendingMetrics()))
+            .residentPopulationMetrics(toComparisonMetricItems(info.residentPopulationMetrics()))
+            .facilityMetrics(toComparisonMetricItems(info.facilityMetrics()))
+            .salesTimeSlotMetrics(toComparisonMetricItems(info.salesTimeSlotMetrics()))
+            .salesAgeMetrics(toComparisonMetricItems(info.salesAgeMetrics()))
+            .footTrafficTimeSlotMetrics(toComparisonMetricItems(info.footTrafficTimeSlotMetrics()))
+            .footTrafficAgeMetrics(toComparisonMetricItems(info.footTrafficAgeMetrics()))
+            .highlights(info.highlights())
+            .build();
+    }
+
+    public CommercialHeatmapScoresResponse toCommercialHeatmapScoresResponse(List<CommercialHeatmapScoreInfo> infos) {
+        return CommercialHeatmapScoresResponse.builder()
+            .scores(infos.stream().map(this::toCommercialHeatmapScoreItem).toList())
             .build();
     }
 
@@ -353,6 +386,43 @@ public class CommercialPresenter {
             .code(info.code())
             .name(info.name())
             .totalExpenseAmount(info.totalExpenseAmount())
+            .build();
+    }
+
+    private CommercialComparisonTargetItem toCommercialComparisonTargetItem(CommercialComparisonTargetInfo info) {
+        return CommercialComparisonTargetItem.builder()
+            .commercialCode(info.commercialCode())
+            .commercialName(info.commercialName())
+            .districtCode(info.districtCode())
+            .districtName(info.districtName())
+            .administrationCode(info.administrationCode())
+            .administrationName(info.administrationName())
+            .build();
+    }
+
+    private List<ComparisonMetricItem> toComparisonMetricItems(List<ComparisonMetricInfo> infos) {
+        return infos.stream().map(this::toComparisonMetricItem).toList();
+    }
+
+    private ComparisonMetricItem toComparisonMetricItem(ComparisonMetricInfo info) {
+        return ComparisonMetricItem.builder()
+            .label(info.label())
+            .leftValue(info.leftValue())
+            .rightValue(info.rightValue())
+            .diffValue(info.diffValue())
+            .diffRate(info.diffRate())
+            .winnerSide(info.winnerSide())
+            .build();
+    }
+
+    private CommercialHeatmapScoreItem toCommercialHeatmapScoreItem(CommercialHeatmapScoreInfo info) {
+        return CommercialHeatmapScoreItem.builder()
+            .commercialCode(info.commercialCode())
+            .commercialName(info.commercialName())
+            .metricType(info.metricType())
+            .score(info.score())
+            .grade(info.grade())
+            .summaryLabel(info.summaryLabel())
             .build();
     }
 }

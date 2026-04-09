@@ -6,7 +6,7 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "행정동 AI 리포트 응답")
+@Schema(description = "행정동 AI 리포트 응답 DTO")
 public record AdministrationAiReportResponse(
     @Schema(description = "시장 요약")
     String summary,

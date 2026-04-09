@@ -1,17 +1,21 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service;
 
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialHeatmapScoresResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeAndExpenseResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialResidentPopulationResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
@@ -19,7 +23,10 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.stor
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialComparisonQueryProcessor;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialHeatmapQueryProcessor;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
 import com.followfollowme.nowdoboss.domainlayer.commercialsummary.adapter.in.web.presenter.CommercialSummaryPresenter;
 import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.service.processor.CommercialSummaryQueryProcessor;
@@ -33,6 +40,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class CommercialWebFacade implements CommercialWebUseCase {
 
     private final CommercialQueryProcessor commercialQueryProcessor;
+    private final CommercialComparisonQueryProcessor commercialComparisonQueryProcessor;
+    private final CommercialHeatmapQueryProcessor commercialHeatmapQueryProcessor;
     private final CommercialPresenter commercialPresenter;
     private final CommercialSummaryQueryProcessor commercialSummaryQueryProcessor;
     private final CommercialSummaryPresenter commercialSummaryPresenter;
@@ -87,8 +96,35 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         String serviceCode
     ) {
         CommercialStoreAnalysisInfo info = commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
-            periodCode, commercialCode, serviceCode);
+            periodCode,
+            commercialCode,
+            serviceCode
+        );
         return commercialPresenter.toCommercialStoreAnalysisResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialComparisonResponse compareCommercials(String periodCode, String leftCommercialCode, String rightCommercialCode, String serviceCode) {
+        CommercialComparisonInfo info = commercialComparisonQueryProcessor.compareCommercials(periodCode, leftCommercialCode, rightCommercialCode, serviceCode);
+        return commercialPresenter.toCommercialComparisonResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialHeatmapScoresResponse getHeatmapScores(
+        String periodCode,
+        String serviceCode,
+        List<String> commercialCodes,
+        CommercialHeatmapMetricType metricType
+    ) {
+        List<CommercialHeatmapScoreInfo> infos = commercialHeatmapQueryProcessor.getHeatmapScores(
+            periodCode,
+            serviceCode,
+            commercialCodes,
+            metricType
+        );
+        return commercialPresenter.toCommercialHeatmapScoresResponse(infos);
     }
 
     @Override
@@ -101,7 +137,12 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         String serviceCode
     ) {
         CommercialSalesSummaryInfo info = commercialSummaryQueryProcessor.getSalesSummary(
-            periodCode, districtCode, administrationCode, commercialCode, serviceCode);
+            periodCode,
+            districtCode,
+            administrationCode,
+            commercialCode,
+            serviceCode
+        );
         return commercialSummaryPresenter.toCommercialSalesSummaryResponse(info);
     }
 
@@ -114,7 +155,11 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         String commercialCode
     ) {
         CommercialIncomeSummaryInfo info = commercialSummaryQueryProcessor.getIncomeSummary(
-            periodCode, districtCode, administrationCode, commercialCode);
+            periodCode,
+            districtCode,
+            administrationCode,
+            commercialCode
+        );
         return commercialSummaryPresenter.toCommercialIncomeSummaryResponse(info);
     }
 }
