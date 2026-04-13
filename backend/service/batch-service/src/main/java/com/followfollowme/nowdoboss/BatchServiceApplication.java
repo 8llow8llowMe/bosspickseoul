@@ -2,8 +2,13 @@ package com.followfollowme.nowdoboss;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
-@SpringBootApplication
+@EnableDiscoveryClient
+@SpringBootApplication(scanBasePackages = {
+    "com.followfollowme.nowdoboss.domainlayer",
+    "com.followfollowme.nowdoboss.global"
+})
 public class BatchServiceApplication {
 
     public static void main(String[] args) {
