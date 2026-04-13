@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class AiStructuredResponseParser {
 
+    private static final String HANGUL_REGEX = ".*[가-힣].*";
+
     private final ObjectMapper objectMapper;
 
     public AiStructuredResponseParser(ObjectMapper objectMapper) {
@@ -52,6 +54,8 @@ public class AiStructuredResponseParser {
     private void validateCommercial(CommercialAiDraft draft) {
         if (isBlank(draft.summary())
             || isBlank(draft.businessInsight())
+            || !containsHangul(draft.summary())
+            || !containsHangul(draft.businessInsight())
             || invalidList(draft.strengths())
             || invalidList(draft.risks())
             || invalidList(draft.recommendedBusinessCategories())
@@ -73,6 +77,9 @@ public class AiStructuredResponseParser {
         if (isBlank(draft.summary())
             || isBlank(draft.marketStatus())
             || isBlank(draft.businessInsight())
+            || !containsHangul(draft.summary())
+            || !containsHangul(draft.marketStatus())
+            || !containsHangul(draft.businessInsight())
             || invalidList(draft.recommendedBusinessCategories())
             || invalidList(draft.cautionBusinessCategories())) {
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
@@ -83,6 +90,9 @@ public class AiStructuredResponseParser {
         if (isBlank(draft.summary())
             || isBlank(draft.marketStatus())
             || isBlank(draft.businessInsight())
+            || !containsHangul(draft.summary())
+            || !containsHangul(draft.marketStatus())
+            || !containsHangul(draft.businessInsight())
             || invalidList(draft.recommendedBusinessCategories())
             || invalidList(draft.cautionBusinessCategories())) {
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
@@ -99,5 +109,9 @@ public class AiStructuredResponseParser {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private boolean containsHangul(String value) {
+        return value != null && value.matches(HANGUL_REGEX);
     }
 }

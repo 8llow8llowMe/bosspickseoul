@@ -18,10 +18,10 @@ public class DistrictPromptFormatter {
 
     private String formatChangeIndicatorSection(DistrictAiSourceData sourceData) {
         return """
-            [Market Change Indicator]
-            - Indicator: %s
-            - Avg opened months: %s
-            - Avg closed months: %s
+            [상권 변화 지표]
+            - 지표명: %s
+            - 평균 영업 개월 수: %s
+            - 평균 폐업 개월 수: %s
             """.formatted(
             sourceData.changeIndicatorName(),
             sourceData.averageOpenedMonths(),
@@ -31,10 +31,10 @@ public class DistrictPromptFormatter {
 
     private String formatFootTrafficSection(DistrictAiSourceData sourceData) {
         return """
-            [Foot Traffic Trend]
-            - Trend: %s
-            - Dominant time slot: %s
-            - Dominant gender: %s
+            [유동인구 흐름]
+            - 추세: %s
+            - 우세 시간대: %s
+            - 우세 성별: %s
             """.formatted(
             sourceData.footTrafficTrend(),
             sourceData.dominantTimeSlot(),
@@ -44,10 +44,10 @@ public class DistrictPromptFormatter {
 
     private String formatStoreSection(DistrictAiSourceData sourceData) {
         return """
-            [Store Structure]
-            - Top store services: %s
-            - Top opening administrations: %s
-            - Top closing administrations: %s
+            [점포 구조]
+            - 점포 수 상위 업종: %s
+            - 개업 상위 행정동: %s
+            - 폐업 상위 행정동: %s
             """.formatted(
             PromptFormatterSupport.formatTopList(sourceData.topStoreServiceSummaries(), 3, item -> item),
             PromptFormatterSupport.formatTopList(sourceData.topOpenedAdministrationSummaries(), 3, item -> item),
@@ -57,9 +57,9 @@ public class DistrictPromptFormatter {
 
     private String formatSalesSection(DistrictAiSourceData sourceData) {
         return """
-            [Sales Trend]
-            - Top growth services: %s
-            - Top sales administrations: %s
+            [매출 흐름]
+            - 성장 상위 업종: %s
+            - 매출 상위 행정동: %s
             """.formatted(
             PromptFormatterSupport.formatTopList(sourceData.topSalesServiceSummaries(), 3, item -> item),
             PromptFormatterSupport.formatTopList(sourceData.topSalesAdministrationSummaries(), 3, item -> item)

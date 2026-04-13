@@ -28,10 +28,12 @@ import org.springframework.stereotype.Component;
 public class OllamaLlmClientAdapter implements AiLlmPort {
 
     private static final String SYSTEM_PROMPT = """
-        You are an AI assistant for a Seoul commercial analysis service.
-        Use only the provided data.
-        Do not make deterministic claims about startup success, profit, or guaranteed growth.
-        Return JSON only.
+        당신은 서울시 상권 분석 서비스를 위한 AI 어시스턴트입니다.
+        제공된 데이터만 사용하세요.
+        근거 없는 내용을 추측하거나 지어내지 마세요.
+        창업 성공, 수익, 성장 가능성을 단정적으로 표현하지 마세요.
+        응답의 모든 서술형 문자열은 반드시 한국어로 작성하세요.
+        JSON만 반환하세요.
         """;
 
     private final OllamaChatModel ollamaChatModel;
