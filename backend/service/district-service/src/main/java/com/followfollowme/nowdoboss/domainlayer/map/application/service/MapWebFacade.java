@@ -15,6 +15,7 @@ import com.followfollowme.nowdoboss.domainlayer.map.domain.enums.AreaType;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,7 +72,7 @@ public class MapWebFacade implements MapWebUseCase {
 
         Map<String, CommercialHeatmapScoreQueryResult> scoresByCode = scoreResponse == null || scoreResponse.scores() == null
             ? Map.of()
-            : scoreResponse.scores().stream().collect(java.util.stream.Collectors.toMap(CommercialHeatmapScoreQueryResult::commercialCode, Function.identity()));
+            : scoreResponse.scores().stream().collect(Collectors.toMap(CommercialHeatmapScoreQueryResult::commercialCode, Function.identity()));
 
         List<CommercialHeatmapAreaInfo> heatmapInfos = infos.stream()
             .map(info -> {
