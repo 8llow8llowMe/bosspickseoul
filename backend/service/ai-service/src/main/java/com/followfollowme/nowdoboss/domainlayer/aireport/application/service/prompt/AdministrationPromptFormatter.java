@@ -19,9 +19,9 @@ public class AdministrationPromptFormatter {
 
     private String formatRegionSection(AdministrationAiSourceData sourceData) {
         return """
-            [Region]
-            - District: %s (%s)
-            - Administration: %s (%s)
+            [지역]
+            - 자치구: %s (%s)
+            - 행정동: %s (%s)
             """.formatted(
             sourceData.districtName(),
             sourceData.districtCode(),
@@ -32,9 +32,9 @@ public class AdministrationPromptFormatter {
 
     private String formatCommercialsSection(AdministrationAiSourceData sourceData) {
         return """
-            [Commercial Areas]
-            - Count: %s
-            - Main areas: %s
+            [상권 구성]
+            - 상권 수: %s
+            - 주요 상권: %s
             """.formatted(
             PromptFormatterSupport.formatNumber(sourceData.commercialCount()),
             PromptFormatterSupport.formatTopList(sourceData.commercialSummaries(), 5, item -> item)
@@ -43,22 +43,22 @@ public class AdministrationPromptFormatter {
 
     private String formatSalesSection(AdministrationAiSourceData sourceData) {
         return """
-            [Top Sales Services]
-            - Services: %s
+            [매출 상위 업종]
+            - 업종 목록: %s
             """.formatted(PromptFormatterSupport.formatTopList(sourceData.topSalesServiceSummaries(), 3, item -> item));
     }
 
     private String formatStoreSection(AdministrationAiSourceData sourceData) {
         return """
-            [Top Store Services]
-            - Services: %s
+            [점포 상위 업종]
+            - 업종 목록: %s
             """.formatted(PromptFormatterSupport.formatTopList(sourceData.topStoreServiceSummaries(), 3, item -> item));
     }
 
     private String formatExpenseSection(AdministrationAiSourceData sourceData) {
         return """
-            [Expense Scale]
-            - Total expense: %s
+            [지출 규모]
+            - 총지출: %s
             """.formatted(PromptFormatterSupport.formatNumber(sourceData.totalExpenseAmount()));
     }
 }

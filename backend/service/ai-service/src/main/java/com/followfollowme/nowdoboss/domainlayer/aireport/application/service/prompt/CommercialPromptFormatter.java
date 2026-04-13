@@ -22,9 +22,9 @@ public class CommercialPromptFormatter {
 
     private String formatRegionSection(CommercialAiSourceData sourceData) {
         return """
-            [Region]
-            - District: %s (%s)
-            - Administration: %s (%s)
+            [지역]
+            - 자치구: %s (%s)
+            - 행정동: %s (%s)
             """.formatted(
             sourceData.districtName(),
             sourceData.districtCode(),
@@ -35,10 +35,10 @@ public class CommercialPromptFormatter {
 
     private String formatFootTrafficSection(CommercialAiSourceData sourceData) {
         return """
-            [Foot Traffic]
-            - Peak time slot: %s
-            - Peak day of week: %s
-            - Peak age group: %s
+            [유동인구]
+            - 최대 시간대: %s
+            - 최대 요일: %s
+            - 최대 연령대: %s
             """.formatted(
             sourceData.peakFootTrafficTimeSlot(),
             sourceData.peakFootTrafficDayOfWeek(),
@@ -48,11 +48,11 @@ public class CommercialPromptFormatter {
 
     private String formatSalesSection(CommercialAiSourceData sourceData) {
         return """
-            [Sales]
-            - Peak time slot: %s
-            - Peak day of week: %s
-            - Peak age group: %s
-            - Largest age/gender share: %s
+            [매출]
+            - 최대 시간대: %s
+            - 최대 요일: %s
+            - 최대 연령대: %s
+            - 비중이 가장 큰 성별/연령 조합: %s
             """.formatted(
             sourceData.peakSalesTimeSlot(),
             sourceData.peakSalesDayOfWeek(),
@@ -63,18 +63,18 @@ public class CommercialPromptFormatter {
 
     private String formatFacilitySection(CommercialAiSourceData sourceData) {
         return """
-            [Facilities]
-            - Total facilities: %s
-            - Schools: %s
-            - Transportation facilities: %s
+            [시설]
+            - 총 시설 수: %s
+            - 학교 수: %s
+            - 교통 시설 수: %s
             """.formatted(PromptFormatterSupport.formatNumber(sourceData.totalFacilityCount()), PromptFormatterSupport.formatNumber(sourceData.schoolCount()), PromptFormatterSupport.formatNumber(sourceData.transportationFacilityCount()));
     }
 
     private String formatPopulationSection(CommercialAiSourceData sourceData) {
         return """
-            [Resident Population]
-            - Total residents: %s
-            - Largest age group: %s
+            [거주인구]
+            - 총 거주인구: %s
+            - 비중이 가장 큰 연령대: %s
             """.formatted(
             PromptFormatterSupport.formatNumber(sourceData.totalResidentPopulationCount()),
             sourceData.largestResidentAgeGroup()
@@ -83,9 +83,9 @@ public class CommercialPromptFormatter {
 
     private String formatIncomeSection(CommercialAiSourceData sourceData) {
         return """
-            [Income and Expense]
-            - Average monthly income: %s
-            - Largest expense category: %s
+            [소득 및 지출]
+            - 월 평균 소득: %s
+            - 지출 비중이 가장 큰 항목: %s
             """.formatted(
             PromptFormatterSupport.formatNumber(sourceData.averageMonthlyIncomeAmount()),
             sourceData.largestExpenseCategory()
@@ -94,25 +94,25 @@ public class CommercialPromptFormatter {
 
     private String formatStoreSection(CommercialAiSourceData sourceData) {
         return """
-            [Store Analysis]
-            - Total stores: %s
-            - Similar-category stores: %s
-            - Opened stores / opening rate: %s / %s
-            - Closed stores / closure rate: %s / %s
-            - Franchise stores: %s
-            - Peer examples: %s
+            [점포 분석]
+            - 총 점포 수: %s
+            - 유사 업종 점포 수: %s
+            - 개업 점포 수 / 개업률: %s / %s
+            - 폐업 점포 수 / 폐업률: %s / %s
+            - 프랜차이즈 점포 수: %s
+            - 비교 업종 예시: %s
             """.formatted(PromptFormatterSupport.formatNumber(sourceData.totalStoreCount()), PromptFormatterSupport.formatNumber(sourceData.similarStoreCount()), PromptFormatterSupport.formatNumber(sourceData.openedStoreCount()), PromptFormatterSupport.formatPercent(sourceData.openingRate()), PromptFormatterSupport.formatNumber(sourceData.closedStoreCount()), PromptFormatterSupport.formatPercent(sourceData.closureRate()), PromptFormatterSupport.formatNumber(sourceData.franchiseStoreCount()), PromptFormatterSupport.formatTopList(sourceData.peerStoreSummaries(), 3, item -> item));
     }
 
     private String formatSummaryComparisonSection(CommercialAiSourceData sourceData) {
         return """
-            [Regional Comparison]
-            - District sales: %s
-            - Administration sales: %s
-            - Commercial sales: %s
-            - District total expense: %s
-            - Administration total expense: %s
-            - Commercial total expense: %s
+            [지역 비교]
+            - 자치구 매출: %s
+            - 행정동 매출: %s
+            - 상권 매출: %s
+            - 자치구 총지출: %s
+            - 행정동 총지출: %s
+            - 상권 총지출: %s
             """.formatted(PromptFormatterSupport.formatNumber(sourceData.districtSalesAmount()), PromptFormatterSupport.formatNumber(sourceData.administrationSalesAmount()), PromptFormatterSupport.formatNumber(sourceData.commercialSalesAmount()), PromptFormatterSupport.formatNumber(sourceData.districtExpenseAmount()), PromptFormatterSupport.formatNumber(sourceData.administrationExpenseAmount()), PromptFormatterSupport.formatNumber(sourceData.commercialExpenseAmount()));
     }
 }
