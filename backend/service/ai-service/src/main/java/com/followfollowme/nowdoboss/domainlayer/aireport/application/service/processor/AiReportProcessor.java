@@ -6,6 +6,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.Commer
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.DistrictAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AdministrationAnalysisQueryPort;
@@ -122,12 +123,12 @@ public class AiReportProcessor {
         return reportInfo;
     }
 
-    public CommercialComparisonAiReportInfo getCommercialComparisonReport(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode
-    ) {
+    public CommercialComparisonAiReportInfo getCommercialComparisonReport(CommercialComparisonAiQuery query) {
+        String leftCommercialCode = query.leftCommercialCode();
+        String rightCommercialCode = query.rightCommercialCode();
+        String serviceCode = query.serviceCode();
+        String periodCode = query.periodCode();
+
         long startTime = System.currentTimeMillis();
         Optional<CommercialComparisonAiReportInfo> cached = aiReportCachePort.getCommercialComparisonReport(
             leftCommercialCode,

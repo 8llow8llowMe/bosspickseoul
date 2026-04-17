@@ -25,6 +25,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.stor
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialComparisonQueryProcessor;
@@ -109,8 +110,8 @@ public class CommercialWebFacade implements CommercialWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public CommercialComparisonResponse compareCommercials(String periodCode, String leftCommercialCode, String rightCommercialCode, String serviceCode) {
-        CommercialComparisonInfo info = commercialComparisonQueryProcessor.compareCommercials(periodCode, leftCommercialCode, rightCommercialCode, serviceCode);
+    public CommercialComparisonResponse compareCommercials(CommercialComparisonQuery query) {
+        CommercialComparisonInfo info = commercialComparisonQueryProcessor.compareCommercials(query);
         return commercialPresenter.toCommercialComparisonResponse(info);
     }
 

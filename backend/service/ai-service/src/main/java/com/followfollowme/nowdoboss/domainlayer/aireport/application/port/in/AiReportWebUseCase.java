@@ -1,22 +1,18 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.in;
 
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialComparisonAiReportResponse;
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 
 public interface AiReportWebUseCase {
 
-    CommercialAiReportResponse getCommercialReport(String commercialCode, String serviceCode, String periodCode);
+    CommercialAiReportInfo getCommercialReport(String commercialCode, String serviceCode, String periodCode);
 
-    CommercialComparisonAiReportResponse getCommercialComparisonReport(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode
-    );
+    CommercialComparisonAiReportInfo getCommercialComparisonReport(CommercialComparisonAiQuery query);
 
-    DistrictAiReportResponse getDistrictReport(String districtCode, String periodCode);
+    DistrictAiReportInfo getDistrictReport(String districtCode, String periodCode);
 
-    AdministrationAiReportResponse getAdministrationReport(String administrationCode, String periodCode);
+    AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode);
 }
