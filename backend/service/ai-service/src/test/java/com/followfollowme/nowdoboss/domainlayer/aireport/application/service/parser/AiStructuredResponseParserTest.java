@@ -75,4 +75,41 @@ class AiStructuredResponseParserTest {
         assertThatThrownBy(() -> parser.parseDistrictReport(content))
             .isInstanceOf(AiReportException.class);
     }
+
+    @Test
+    void parseCommercialComparisonReport_whenNarrativeFieldsAreKorean_thenSucceeds() {
+        String content = """
+            {
+              "summary": "좌측 상권이 현재 업종 기준으로 더 안정적인 선택지입니다.",
+              "recommendedSide": "LEFT",
+              "recommendedReasons": ["매출 규모가 더 큽니다.", "거주 수요가 더 안정적입니다."],
+              "riskComparison": "두 상권 모두 경쟁 강도는 함께 확인하는 것이 좋습니다.",
+              "timeSlotInsight": "좌측 상권은 점심, 우측 상권은 저녁 시간대가 강합니다.",
+              "customerSegmentInsight": "좌측은 30대, 우측은 20대 비중이 상대적으로 높습니다.",
+              "operationStrategy": ["좌측 상권을 우선 후보로 검토하세요.", "점심 수요 대응 전략을 준비하세요."],
+              "businessInsight": "좌측 상권이 초기 진입 전략 측면에서 더 유리해 보입니다."
+            }
+            """;
+
+        assertThatCode(() -> parser.parseCommercialComparisonReport(content)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void parseCommercialComparisonReport_whenNarrativeFieldsAreEnglish_thenFails() {
+        String content = """
+            {
+              "summary": "Left side is a better option.",
+              "recommendedSide": "LEFT",
+              "recommendedReasons": ["Higher sales", "Stable demand"],
+              "riskComparison": "Competition should be checked.",
+              "timeSlotInsight": "Lunch is stronger on the left.",
+              "customerSegmentInsight": "People in their 30s are dominant.",
+              "operationStrategy": ["Choose the left area first."],
+              "businessInsight": "The left side looks better for entry."
+            }
+            """;
+
+        assertThatThrownBy(() -> parser.parseCommercialComparisonReport(content))
+            .isInstanceOf(AiReportException.class);
+    }
 }

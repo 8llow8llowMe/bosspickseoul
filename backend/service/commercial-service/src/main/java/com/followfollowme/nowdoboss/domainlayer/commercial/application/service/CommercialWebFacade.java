@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service;
 
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialBenchmarkResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialHeatmapScoresResponse;
@@ -13,6 +14,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialBenchmarkInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
@@ -26,6 +28,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summ
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialComparisonQueryProcessor;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialBenchmarkQueryProcessor;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialHeatmapQueryProcessor;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
 import com.followfollowme.nowdoboss.domainlayer.commercialsummary.adapter.in.web.presenter.CommercialSummaryPresenter;
@@ -41,6 +44,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
 
     private final CommercialQueryProcessor commercialQueryProcessor;
     private final CommercialComparisonQueryProcessor commercialComparisonQueryProcessor;
+    private final CommercialBenchmarkQueryProcessor commercialBenchmarkQueryProcessor;
     private final CommercialHeatmapQueryProcessor commercialHeatmapQueryProcessor;
     private final CommercialPresenter commercialPresenter;
     private final CommercialSummaryQueryProcessor commercialSummaryQueryProcessor;
@@ -108,6 +112,13 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialComparisonResponse compareCommercials(String periodCode, String leftCommercialCode, String rightCommercialCode, String serviceCode) {
         CommercialComparisonInfo info = commercialComparisonQueryProcessor.compareCommercials(periodCode, leftCommercialCode, rightCommercialCode, serviceCode);
         return commercialPresenter.toCommercialComparisonResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommercialBenchmarkResponse getBenchmarks(String periodCode, String commercialCode, String serviceCode) {
+        CommercialBenchmarkInfo info = commercialBenchmarkQueryProcessor.getBenchmarks(periodCode, commercialCode, serviceCode);
+        return commercialPresenter.toCommercialBenchmarkResponse(info);
     }
 
     @Override

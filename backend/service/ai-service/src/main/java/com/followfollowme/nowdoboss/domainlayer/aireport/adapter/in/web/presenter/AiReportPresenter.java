@@ -2,9 +2,11 @@ package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.present
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialComparisonAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +25,20 @@ public class AiReportPresenter {
             .targetAgeGroups(info.targetAgeGroups())
             .targetGenders(info.targetGenders())
             .operationTips(info.operationTips())
+            .businessInsight(info.businessInsight())
+            .generatedAt(info.generatedAt())
+            .build();
+    }
+
+    public CommercialComparisonAiReportResponse toCommercialComparisonResponse(CommercialComparisonAiReportInfo info) {
+        return CommercialComparisonAiReportResponse.builder()
+            .summary(info.summary())
+            .recommendedSide(info.recommendedSide())
+            .recommendedReasons(info.recommendedReasons())
+            .riskComparison(info.riskComparison())
+            .timeSlotInsight(info.timeSlotInsight())
+            .customerSegmentInsight(info.customerSegmentInsight())
+            .operationStrategy(info.operationStrategy())
             .businessInsight(info.businessInsight())
             .generatedAt(info.generatedAt())
             .build();

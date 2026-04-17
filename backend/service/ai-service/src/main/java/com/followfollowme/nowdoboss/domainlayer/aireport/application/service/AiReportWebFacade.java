@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.aireport.application.service;
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialComparisonAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.in.AiReportWebUseCase;
@@ -21,6 +22,18 @@ public class AiReportWebFacade implements AiReportWebUseCase {
     @Override
     public CommercialAiReportResponse getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
         return aiReportPresenter.toCommercialResponse(aiReportProcessor.getCommercialReport(commercialCode, serviceCode, periodCode));
+    }
+
+    @Override
+    public CommercialComparisonAiReportResponse getCommercialComparisonReport(
+        String leftCommercialCode,
+        String rightCommercialCode,
+        String serviceCode,
+        String periodCode
+    ) {
+        return aiReportPresenter.toCommercialComparisonResponse(
+            aiReportProcessor.getCommercialComparisonReport(leftCommercialCode, rightCommercialCode, serviceCode, periodCode)
+        );
     }
 
     @Override

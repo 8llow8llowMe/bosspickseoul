@@ -4,12 +4,14 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.A
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.DistrictAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,12 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
     public CommercialAiDraft generateCommercialReport(CommercialAiSourceData sourceData) {
         String content = requestStructuredContent(promptTemplate.buildCommercialPrompt(sourceData));
         return parser.parseCommercialReport(content);
+    }
+
+    @Override
+    public CommercialComparisonAiDraft generateCommercialComparisonReport(CommercialComparisonAiSourceData sourceData) {
+        String content = requestStructuredContent(promptTemplate.buildCommercialComparisonPrompt(sourceData));
+        return parser.parseCommercialComparisonReport(content);
     }
 
     @Override

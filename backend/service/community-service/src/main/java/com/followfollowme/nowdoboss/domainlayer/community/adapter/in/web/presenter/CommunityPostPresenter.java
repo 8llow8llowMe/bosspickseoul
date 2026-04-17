@@ -1,12 +1,14 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.presenter;
 
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.item.CommunityBoardTargetItem;
+import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityCommercialComparisonDraftResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityLikedPostItem;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityLikedPostsResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostLikeResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostSummaryItem;
+import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityCommercialComparisonDraftInfo;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.LikedCommunityPost;
@@ -61,6 +63,22 @@ public class CommunityPostPresenter {
             .postId(postId)
             .liked(liked)
             .likeCount(likeCount)
+            .build();
+    }
+
+    public CommunityCommercialComparisonDraftResponse toCommercialComparisonDraftResponse(
+        CommunityCommercialComparisonDraftInfo info
+    ) {
+        return CommunityCommercialComparisonDraftResponse.builder()
+            .targetType(info.targetType())
+            .targetCode(info.targetCode())
+            .targetName(info.targetName())
+            .title(info.title())
+            .content(info.content())
+            .analysisType(info.analysisType())
+            .analysisRefCode(info.analysisRefCode())
+            .analysisRefName(info.analysisRefName())
+            .analysisSnapshotKey(info.analysisSnapshotKey())
             .build();
     }
 

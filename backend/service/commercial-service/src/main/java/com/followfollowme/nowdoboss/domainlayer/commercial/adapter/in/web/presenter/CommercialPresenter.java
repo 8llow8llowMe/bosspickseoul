@@ -24,6 +24,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.it
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialBenchmarkResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialHeatmapScoresResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeAndExpenseResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
@@ -34,6 +35,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialBenchmarkInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialSchoolCountInfo;
@@ -145,6 +147,13 @@ public class CommercialPresenter {
         return CommercialComparisonResponse.builder()
             .left(toCommercialComparisonTargetItem(info.left()))
             .right(toCommercialComparisonTargetItem(info.right()))
+            .comparisonSummary(info.comparisonSummary())
+            .recommendedSide(info.recommendedSide())
+            .recommendedReasons(info.recommendedReasons())
+            .cautionPoints(info.cautionPoints())
+            .dominantTimeSlots(info.dominantTimeSlots())
+            .dominantAgeGroups(info.dominantAgeGroups())
+            .businessFitSummary(info.businessFitSummary())
             .salesMetrics(toComparisonMetricItems(info.salesMetrics()))
             .footTrafficMetrics(toComparisonMetricItems(info.footTrafficMetrics()))
             .storeMetrics(toComparisonMetricItems(info.storeMetrics()))
@@ -153,9 +162,27 @@ public class CommercialPresenter {
             .facilityMetrics(toComparisonMetricItems(info.facilityMetrics()))
             .salesTimeSlotMetrics(toComparisonMetricItems(info.salesTimeSlotMetrics()))
             .salesAgeMetrics(toComparisonMetricItems(info.salesAgeMetrics()))
+            .salesAgeGenderMetrics(toComparisonMetricItems(info.salesAgeGenderMetrics()))
             .footTrafficTimeSlotMetrics(toComparisonMetricItems(info.footTrafficTimeSlotMetrics()))
             .footTrafficAgeMetrics(toComparisonMetricItems(info.footTrafficAgeMetrics()))
+            .footTrafficAgeGenderMetrics(toComparisonMetricItems(info.footTrafficAgeGenderMetrics()))
+            .comparisonHighlights(info.comparisonHighlights())
             .highlights(info.highlights())
+            .build();
+    }
+
+    public CommercialBenchmarkResponse toCommercialBenchmarkResponse(CommercialBenchmarkInfo info) {
+        return CommercialBenchmarkResponse.builder()
+            .commercialCode(info.commercialCode())
+            .commercialName(info.commercialName())
+            .districtCode(info.districtCode())
+            .districtName(info.districtName())
+            .administrationCode(info.administrationCode())
+            .administrationName(info.administrationName())
+            .summary(info.summary())
+            .salesSummary(toCommercialSalesSummaryResponse(info.salesSummary()))
+            .incomeSummary(toCommercialIncomeSummaryResponse(info.incomeSummary()))
+            .benchmarkHighlights(info.benchmarkHighlights())
             .build();
     }
 

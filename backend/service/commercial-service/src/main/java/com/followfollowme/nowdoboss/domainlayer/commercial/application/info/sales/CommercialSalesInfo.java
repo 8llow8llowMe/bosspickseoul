@@ -5,6 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record CommercialSalesInfo(
+    String commercialName,
     CommercialSalesByTimeSlotInfo amountByTimeSlotInfo,
     CommercialSalesByDayOfWeekInfo amountByDayOfWeekInfo,
     CommercialSalesByAgeInfo amountByAgeInfo,
@@ -16,6 +17,7 @@ public record CommercialSalesInfo(
 
     public static CommercialSalesInfo from(SalesCommercial salesCommercial) {
         return CommercialSalesInfo.builder()
+            .commercialName(salesCommercial.commercialName())
             .amountByTimeSlotInfo(CommercialSalesByTimeSlotInfo.from(salesCommercial))
             .amountByDayOfWeekInfo(CommercialSalesByDayOfWeekInfo.from(salesCommercial))
             .amountByAgeInfo(CommercialSalesByAgeInfo.from(salesCommercial))

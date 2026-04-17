@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.aireport.application.service.pr
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.DistrictAiSourceData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,7 @@ public class AiReportPromptTemplate {
         """;
 
     private final CommercialPromptFormatter commercialPromptFormatter;
+    private final CommercialComparisonPromptFormatter commercialComparisonPromptFormatter;
     private final DistrictPromptFormatter districtPromptFormatter;
     private final AdministrationPromptFormatter administrationPromptFormatter;
 
@@ -54,6 +56,43 @@ public class AiReportPromptTemplate {
             [입력 데이터]
             %s
             """.formatted(COMMON_RULES, sourceData.commercialCode(), sourceData.serviceCode(), sourceData.periodCode(), commercialPromptFormatter.format(sourceData));
+    }
+
+    public String buildCommercialComparisonPrompt(CommercialComparisonAiSourceData sourceData) {
+        return """
+            %s
+
+            [대상]
+            - 좌측 상권 코드: %s
+            - 우측 상권 코드: %s
+            - 서비스 코드: %s
+            - 기준 분기: %s
+
+            [응답 언어 규칙]
+            - 모든 서술형 문장과 문자열은 자연스러운 한국어로 작성하세요
+            - `recommendedSide`는 반드시 `LEFT`, `RIGHT`, `BALANCED` 중 하나로 작성하세요
+            - `recommendedReasons`, `operationStrategy`는 비어 있지 않은 문자열 배열로 작성하세요
+
+            [필수 JSON 필드]
+            - summary: string
+            - recommendedSide: string
+            - recommendedReasons: string[]
+            - riskComparison: string
+            - timeSlotInsight: string
+            - customerSegmentInsight: string
+            - operationStrategy: string[]
+            - businessInsight: string
+
+            [입력 데이터]
+            %s
+            """.formatted(
+            COMMON_RULES,
+            sourceData.leftCommercialCode(),
+            sourceData.rightCommercialCode(),
+            sourceData.serviceCode(),
+            sourceData.periodCode(),
+            commercialComparisonPromptFormatter.format(sourceData)
+        );
     }
 
     public String buildDistrictPrompt(DistrictAiSourceData sourceData) {

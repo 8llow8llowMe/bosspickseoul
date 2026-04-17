@@ -14,12 +14,14 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.A
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.DistrictAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
 import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import java.time.Duration;
@@ -63,6 +65,15 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     public CommercialAiDraft generateCommercialReport(CommercialAiSourceData sourceData) {
         String content = requestStructuredContent(promptTemplate.buildCommercialPrompt(sourceData), buildCommercialResponseSchema());
         return parser.parseCommercialReport(content);
+    }
+
+    @Override
+    public CommercialComparisonAiDraft generateCommercialComparisonReport(CommercialComparisonAiSourceData sourceData) {
+        String content = requestStructuredContent(
+            promptTemplate.buildCommercialComparisonPrompt(sourceData),
+            buildCommercialComparisonResponseSchema()
+        );
+        return parser.parseCommercialComparisonReport(content);
     }
 
     @Override
@@ -150,6 +161,33 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
             title,
             properties,
             List.of("summary", "marketStatus", "recommendedBusinessCategories", "cautionBusinessCategories", "businessInsight"),
+            false
+        );
+    }
+
+    private OpenAiObjectSchemaDefinition buildCommercialComparisonResponseSchema() {
+        LinkedHashMap<String, OpenAiSchemaDefinition> properties = new LinkedHashMap<>();
+        properties.put("summary", stringSchema());
+        properties.put("recommendedSide", stringSchema());
+        properties.put("recommendedReasons", stringArraySchema());
+        properties.put("riskComparison", stringSchema());
+        properties.put("timeSlotInsight", stringSchema());
+        properties.put("customerSegmentInsight", stringSchema());
+        properties.put("operationStrategy", stringArraySchema());
+        properties.put("businessInsight", stringSchema());
+        return new OpenAiObjectSchemaDefinition(
+            "commercial_comparison_ai_report",
+            properties,
+            List.of(
+                "summary",
+                "recommendedSide",
+                "recommendedReasons",
+                "riskComparison",
+                "timeSlotInsight",
+                "customerSegmentInsight",
+                "operationStrategy",
+                "businessInsight"
+            ),
             false
         );
     }
