@@ -1,8 +1,10 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.controller;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
+import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.request.CommunityCommercialComparisonDraftRequest;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.request.CommunityPostCreateRequest;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.request.CommunityPostUpdateRequest;
+import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityCommercialComparisonDraftResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityLikedPostsResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostLikeResponse;
@@ -47,7 +49,7 @@ public class CommunityPostWebController {
         @Parameter(description = "대상 타입 필터") @RequestParam(required = false) String targetType,
         @Parameter(description = "대상 코드 필터") @RequestParam(required = false) String targetCode,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
-        @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
+        @Parameter(description = "내림차순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
         @Parameter(description = "조회 개수", example = "20") @RequestParam(defaultValue = "20") int size
     ) {
         CommunityPostListResponse response = communityPostWebUseCase.getPosts(sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size);
@@ -65,9 +67,20 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
+    @Operation(summary = "상권 비교 게시글 초안 생성", description = "상권 비교 결과를 바탕으로 커뮤니티 게시글 초안을 생성합니다.")
+    @PostMapping("/drafts/commercial-comparisons")
+    public ResponseEntity<Response<CommunityCommercialComparisonDraftResponse>> createCommercialComparisonDraft(
+        @Valid @RequestBody CommunityCommercialComparisonDraftRequest request
+    ) {
+        CommunityCommercialComparisonDraftResponse response = communityPostWebUseCase.createCommercialComparisonDraft(request);
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
     @Operation(summary = "게시글 상세 조회", description = "게시글 상세 정보를 조회합니다.")
     @GetMapping("/{postId}")
-    public ResponseEntity<Response<CommunityPostDetailResponse>> getPost(@Parameter(description = "게시글 ID", example = "1") @PathVariable long postId) {
+    public ResponseEntity<Response<CommunityPostDetailResponse>> getPost(
+        @Parameter(description = "게시글 ID", example = "1") @PathVariable long postId
+    ) {
         CommunityPostDetailResponse response = communityPostWebUseCase.getPost(postId);
         return ResponseEntity.ok().body(Response.success(response));
     }
@@ -114,7 +127,7 @@ public class CommunityPostWebController {
         @Parameter(description = "정렬 기준") @RequestParam(defaultValue = "LATEST") CommunitySortType sortType,
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
-        @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
+        @Parameter(description = "내림차순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
         @Parameter(description = "조회 개수", example = "20") @RequestParam(defaultValue = "20") int size
     ) {
         CommunityLikedPostsResponse response = communityPostWebUseCase.getLikedPosts(

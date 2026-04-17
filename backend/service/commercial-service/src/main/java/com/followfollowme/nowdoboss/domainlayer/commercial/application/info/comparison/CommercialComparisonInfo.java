@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison;
 
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.ComparisonWinnerSide;
 import java.util.List;
 import lombok.Builder;
 
@@ -7,6 +8,13 @@ import lombok.Builder;
 public record CommercialComparisonInfo(
     CommercialComparisonTargetInfo left,
     CommercialComparisonTargetInfo right,
+    String comparisonSummary,
+    ComparisonWinnerSide recommendedSide,
+    List<String> recommendedReasons,
+    List<String> cautionPoints,
+    List<String> dominantTimeSlots,
+    List<String> dominantAgeGroups,
+    String businessFitSummary,
     List<ComparisonMetricInfo> salesMetrics,
     List<ComparisonMetricInfo> footTrafficMetrics,
     List<ComparisonMetricInfo> storeMetrics,
@@ -15,8 +23,11 @@ public record CommercialComparisonInfo(
     List<ComparisonMetricInfo> facilityMetrics,
     List<ComparisonMetricInfo> salesTimeSlotMetrics,
     List<ComparisonMetricInfo> salesAgeMetrics,
+    List<ComparisonMetricInfo> salesAgeGenderMetrics,
     List<ComparisonMetricInfo> footTrafficTimeSlotMetrics,
     List<ComparisonMetricInfo> footTrafficAgeMetrics,
+    List<ComparisonMetricInfo> footTrafficAgeGenderMetrics,
+    List<String> comparisonHighlights,
     List<String> highlights
 ) {
 

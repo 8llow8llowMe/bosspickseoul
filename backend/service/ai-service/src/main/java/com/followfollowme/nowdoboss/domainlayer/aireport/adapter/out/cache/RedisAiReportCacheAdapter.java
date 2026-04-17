@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.A
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.nowdoboss.global.properties.AiReportCacheProperties;
@@ -33,6 +34,30 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
     @Override
     public void saveCommercialReport(String commercialCode, String serviceCode, String periodCode, CommercialAiReportInfo reportInfo) {
         saveValue(buildCommercialKey(commercialCode, serviceCode, periodCode), reportInfo);
+    }
+
+    @Override
+    public Optional<CommercialComparisonAiReportInfo> getCommercialComparisonReport(
+        String leftCommercialCode,
+        String rightCommercialCode,
+        String serviceCode,
+        String periodCode
+    ) {
+        return getValue(
+            buildCommercialComparisonKey(leftCommercialCode, rightCommercialCode, serviceCode, periodCode),
+            CommercialComparisonAiReportInfo.class
+        );
+    }
+
+    @Override
+    public void saveCommercialComparisonReport(
+        String leftCommercialCode,
+        String rightCommercialCode,
+        String serviceCode,
+        String periodCode,
+        CommercialComparisonAiReportInfo reportInfo
+    ) {
+        saveValue(buildCommercialComparisonKey(leftCommercialCode, rightCommercialCode, serviceCode, periodCode), reportInfo);
     }
 
     @Override
@@ -81,6 +106,21 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
 
     private String buildDistrictKey(String districtCode, String periodCode) {
         return "%s:ai:report:district:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), districtCode, periodCode);
+    }
+
+    private String buildCommercialComparisonKey(
+        String leftCommercialCode,
+        String rightCommercialCode,
+        String serviceCode,
+        String periodCode
+    ) {
+        return "%s:ai:report:commercial-comparison:v1:%s:%s:%s:%s".formatted(
+            redisProperties.normalizedKeyPrefix(),
+            leftCommercialCode,
+            rightCommercialCode,
+            serviceCode,
+            periodCode
+        );
     }
 
     private String buildAdministrationKey(String administrationCode, String periodCode) {

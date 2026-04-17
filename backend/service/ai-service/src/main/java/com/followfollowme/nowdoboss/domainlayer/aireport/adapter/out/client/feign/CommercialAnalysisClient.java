@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.fei
 
 import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
@@ -61,6 +62,14 @@ public interface CommercialAnalysisClient {
         @PathVariable String commercialCode,
         @RequestParam String districtCode,
         @RequestParam String administrationCode,
+        @RequestParam String periodCode
+    );
+
+    @GetMapping("/compare")
+    Response<CommercialComparisonQueryResult> getCommercialComparison(
+        @RequestParam String leftCommercialCode,
+        @RequestParam String rightCommercialCode,
+        @RequestParam String serviceCode,
         @RequestParam String periodCode
     );
 }

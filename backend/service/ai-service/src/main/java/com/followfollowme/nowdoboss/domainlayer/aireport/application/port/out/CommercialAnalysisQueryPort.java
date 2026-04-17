@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out;
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
@@ -26,4 +27,6 @@ public interface CommercialAnalysisQueryPort {
     CommercialSalesSummaryQueryResult getCommercialSalesSummary(String districtCode, String administrationCode, String commercialCode, String serviceCode, String periodCode);
 
     CommercialIncomeSummaryQueryResult getCommercialIncomeSummary(String districtCode, String administrationCode, String commercialCode, String periodCode);
+
+    CommercialComparisonQueryResult getCommercialComparison(String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode);
 }

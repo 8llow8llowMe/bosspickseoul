@@ -1,7 +1,5 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor;
 
-import com.followfollowme.nowdoboss.common.dto.Response;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.client.feign.CommercialRegionClient;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
@@ -15,12 +13,14 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.inco
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByAgeInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByAgeGenderPercentInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByTimeSlotInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByDayOfWeekInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.ComparisonWinnerSide;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.CommercialRegionQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.query.CommercialAdministrationQueryResult;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class CommercialComparisonQueryProcessor {
     private static final double ZERO_DIFF_RATE = 0D;
 
     private final CommercialQueryProcessor commercialQueryProcessor;
-    private final CommercialRegionClient commercialRegionClient;
+    private final CommercialRegionQueryPort commercialRegionQueryPort;
 
     public CommercialComparisonInfo compareCommercials(
         String periodCode,
@@ -54,11 +54,11 @@ public class CommercialComparisonQueryProcessor {
         CommercialFacilityInfo leftFacility = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, leftCommercialCode);
         CommercialFacilityInfo rightFacility = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, rightCommercialCode);
 
-        CommercialComparisonTargetInfo left = buildTargetInfo(leftCommercialCode, fetchAdministration(leftCommercialCode));
-        CommercialComparisonTargetInfo right = buildTargetInfo(rightCommercialCode, fetchAdministration(rightCommercialCode));
+        CommercialComparisonTargetInfo left = buildTargetInfo(leftCommercialCode, leftSales.commercialName(), fetchAdministration(leftCommercialCode));
+        CommercialComparisonTargetInfo right = buildTargetInfo(rightCommercialCode, rightSales.commercialName(), fetchAdministration(rightCommercialCode));
 
         List<ComparisonMetricInfo> salesMetrics = List.of(
-            toMetric("월 매출액", totalSalesAmount(leftSales.amountByDayOfWeekInfo()), totalSalesAmount(rightSales.amountByDayOfWeekInfo())),
+            toMetric("총 매출액", totalSalesAmount(leftSales.amountByDayOfWeekInfo()), totalSalesAmount(rightSales.amountByDayOfWeekInfo())),
             toMetric("매출 건수", totalSalesCount(leftSales.countByDayOfWeekInfo()), totalSalesCount(rightSales.countByDayOfWeekInfo())),
             toMetric("남성 매출 건수", leftSales.countByGenderInfo().maleSalesCount(), rightSales.countByGenderInfo().maleSalesCount()),
             toMetric("여성 매출 건수", leftSales.countByGenderInfo().femaleSalesCount(), rightSales.countByGenderInfo().femaleSalesCount())
@@ -70,7 +70,7 @@ public class CommercialComparisonQueryProcessor {
         );
         List<ComparisonMetricInfo> storeMetrics = List.of(
             toMetric("총 점포 수", leftStore.totalStoreCount(), rightStore.totalStoreCount()),
-            toMetric("유사업종 점포 수", leftStore.similarStoreCount(), rightStore.similarStoreCount()),
+            toMetric("유사 업종 점포 수", leftStore.similarStoreCount(), rightStore.similarStoreCount()),
             toMetric("개업률", leftStore.openingRate(), rightStore.openingRate()),
             toMetric("폐업률", leftStore.closureRate(), rightStore.closureRate(), true),
             toMetric("프랜차이즈 점포 수", leftStore.franchiseStoreCount(), rightStore.franchiseStoreCount())
@@ -90,9 +90,19 @@ public class CommercialComparisonQueryProcessor {
             toMetric("교통 시설 수", leftFacility.totalTransportationFacilityCount(), rightFacility.totalTransportationFacilityCount())
         );
 
+        ComparisonWinnerSide recommendedSide = resolveRecommendedSide(salesMetrics, storeMetrics, spendingMetrics, residentPopulationMetrics, facilityMetrics);
+        List<String> comparisonHighlights = buildHighlights(left, right, salesMetrics, storeMetrics, residentPopulationMetrics);
+
         return CommercialComparisonInfo.builder()
             .left(left)
             .right(right)
+            .comparisonSummary(buildComparisonSummary(left, right, recommendedSide))
+            .recommendedSide(recommendedSide)
+            .recommendedReasons(buildRecommendedReasons(left, right, recommendedSide))
+            .cautionPoints(buildCautionPoints(left, right, recommendedSide))
+            .dominantTimeSlots(buildDominantTimeSlots(left, right, leftSales.amountByTimeSlotInfo(), rightSales.amountByTimeSlotInfo()))
+            .dominantAgeGroups(buildDominantAgeGroups(left, right, leftSales.amountByAgeInfo(), rightSales.amountByAgeInfo()))
+            .businessFitSummary(buildBusinessFitSummary(left, right, recommendedSide))
             .salesMetrics(salesMetrics)
             .footTrafficMetrics(footTrafficMetrics)
             .storeMetrics(storeMetrics)
@@ -101,16 +111,23 @@ public class CommercialComparisonQueryProcessor {
             .facilityMetrics(facilityMetrics)
             .salesTimeSlotMetrics(buildSalesTimeSlotMetrics(leftSales.amountByTimeSlotInfo(), rightSales.amountByTimeSlotInfo()))
             .salesAgeMetrics(buildSalesAgeMetrics(leftSales.amountByAgeInfo(), rightSales.amountByAgeInfo()))
+            .salesAgeGenderMetrics(buildSalesAgeGenderMetrics(leftSales.amountByAgeGenderPercentInfo(), rightSales.amountByAgeGenderPercentInfo()))
             .footTrafficTimeSlotMetrics(buildFootTrafficTimeSlotMetrics(leftFootTraffic.byTimeSlotInfo(), rightFootTraffic.byTimeSlotInfo()))
             .footTrafficAgeMetrics(buildFootTrafficAgeMetrics(leftFootTraffic.byAgeGroupInfo(), rightFootTraffic.byAgeGroupInfo()))
-            .highlights(buildHighlights(left, right, salesMetrics, storeMetrics, residentPopulationMetrics))
+            .footTrafficAgeGenderMetrics(buildFootTrafficAgeGenderMetrics(leftFootTraffic.byAgeGenderPercentInfo(), rightFootTraffic.byAgeGenderPercentInfo()))
+            .comparisonHighlights(comparisonHighlights)
+            .highlights(comparisonHighlights)
             .build();
     }
 
-    private CommercialComparisonTargetInfo buildTargetInfo(String commercialCode, CommercialAdministrationQueryResult administration) {
+    private CommercialComparisonTargetInfo buildTargetInfo(
+        String commercialCode,
+        String commercialName,
+        CommercialAdministrationQueryResult administration
+    ) {
         return CommercialComparisonTargetInfo.builder()
             .commercialCode(commercialCode)
-            .commercialName(commercialCode)
+            .commercialName(commercialName)
             .districtCode(administration.districtCode())
             .districtName(administration.districtName())
             .administrationCode(administration.administrationCode())
@@ -119,11 +136,118 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private CommercialAdministrationQueryResult fetchAdministration(String commercialCode) {
-        Response<CommercialAdministrationQueryResult> response = commercialRegionClient.getCommercialAdministration(commercialCode);
-        if (response == null || response.dataBody() == null) {
-            throw new IllegalArgumentException("Commercial region metadata not found.");
+        return commercialRegionQueryPort.getCommercialAdministration(commercialCode);
+    }
+
+    private String buildComparisonSummary(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        ComparisonWinnerSide recommendedSide
+    ) {
+        return switch (recommendedSide) {
+            case LEFT -> "%s이(가) 현재 업종 기준으로 더 유리한 상권입니다.".formatted(left.commercialName());
+            case RIGHT -> "%s이(가) 현재 업종 기준으로 더 유리한 상권입니다.".formatted(right.commercialName());
+            case TIE -> "%s과(와) %s은(는) 전반적인 경쟁력이 비슷한 상권입니다.".formatted(left.commercialName(), right.commercialName());
+        };
+    }
+
+    private ComparisonWinnerSide resolveRecommendedSide(
+        List<ComparisonMetricInfo> salesMetrics,
+        List<ComparisonMetricInfo> storeMetrics,
+        List<ComparisonMetricInfo> spendingMetrics,
+        List<ComparisonMetricInfo> residentPopulationMetrics,
+        List<ComparisonMetricInfo> facilityMetrics
+    ) {
+        int leftScore = 0;
+        int rightScore = 0;
+
+        for (ComparisonMetricInfo metric : List.of(
+            salesMetrics.get(0),
+            storeMetrics.get(2),
+            storeMetrics.get(3),
+            spendingMetrics.get(0),
+            residentPopulationMetrics.get(0),
+            facilityMetrics.get(0)
+        )) {
+            if (metric.winnerSide() == ComparisonWinnerSide.LEFT) {
+                leftScore++;
+            } else if (metric.winnerSide() == ComparisonWinnerSide.RIGHT) {
+                rightScore++;
+            }
         }
-        return response.dataBody();
+
+        if (leftScore == rightScore) {
+            return ComparisonWinnerSide.TIE;
+        }
+        return leftScore > rightScore ? ComparisonWinnerSide.LEFT : ComparisonWinnerSide.RIGHT;
+    }
+
+    private List<String> buildRecommendedReasons(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        ComparisonWinnerSide recommendedSide
+    ) {
+        String winner = winnerLabel(left, right, recommendedSide);
+        return List.of(
+            "%s이(가) 매출 규모 측면에서 더 우세합니다.".formatted(winner),
+            "%s이(가) 소비력과 거주 수요 측면에서 더 안정적입니다.".formatted(winner),
+            "%s이(가) 창업 진입 전략을 세우기에 더 유리한 지표 흐름을 보입니다.".formatted(winner)
+        );
+    }
+
+    private List<String> buildCautionPoints(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        ComparisonWinnerSide recommendedSide
+    ) {
+        String selected = winnerLabel(left, right, recommendedSide);
+        String opponent = recommendedSide == ComparisonWinnerSide.LEFT ? right.commercialName() : left.commercialName();
+        if (recommendedSide == ComparisonWinnerSide.TIE) {
+            return List.of(
+                "두 상권 모두 비슷한 수준이므로 임대료와 경쟁 강도를 추가 비교하는 것이 좋습니다.",
+                "단순 매출보다 운영 시간대와 목표 고객층 적합도를 함께 확인해야 합니다."
+            );
+        }
+        return List.of(
+            "%s 선택 시 유사 업종 점포 수와 차별화 전략을 함께 검토해야 합니다.".formatted(selected),
+            "%s은(는) 비교 대상이지만 일부 지표에서 경쟁 우위를 보일 수 있어 추가 검토가 필요합니다.".formatted(opponent)
+        );
+    }
+
+    private List<String> buildDominantTimeSlots(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        CommercialSalesByTimeSlotInfo leftInfo,
+        CommercialSalesByTimeSlotInfo rightInfo
+    ) {
+        return List.of(
+            "%s 강세 시간대: %s".formatted(left.commercialName(), dominantSalesTimeSlot(leftInfo)),
+            "%s 강세 시간대: %s".formatted(right.commercialName(), dominantSalesTimeSlot(rightInfo))
+        );
+    }
+
+    private List<String> buildDominantAgeGroups(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        CommercialSalesByAgeInfo leftInfo,
+        CommercialSalesByAgeInfo rightInfo
+    ) {
+        return List.of(
+            "%s 핵심 연령대: %s".formatted(left.commercialName(), dominantSalesAge(leftInfo)),
+            "%s 핵심 연령대: %s".formatted(right.commercialName(), dominantSalesAge(rightInfo))
+        );
+    }
+
+    private String buildBusinessFitSummary(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        ComparisonWinnerSide recommendedSide
+    ) {
+        return switch (recommendedSide) {
+            case LEFT -> "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(left.commercialName());
+            case RIGHT -> "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(right.commercialName());
+            case TIE -> "두 상권 모두 비슷한 적합도를 보여 예산과 운영 전략 기준의 추가 비교가 필요합니다.";
+        };
     }
 
     private List<ComparisonMetricInfo> buildSalesTimeSlotMetrics(CommercialSalesByTimeSlotInfo left, CommercialSalesByTimeSlotInfo right) {
@@ -145,6 +269,26 @@ public class CommercialComparisonQueryProcessor {
             toMetric("40대 매출액", left.age40SalesAmount(), right.age40SalesAmount()),
             toMetric("50대 매출액", left.age50SalesAmount(), right.age50SalesAmount()),
             toMetric("60대 이상 매출액", left.age60PlusSalesAmount(), right.age60PlusSalesAmount())
+        );
+    }
+
+    private List<ComparisonMetricInfo> buildSalesAgeGenderMetrics(
+        CommercialSalesByAgeGenderPercentInfo left,
+        CommercialSalesByAgeGenderPercentInfo right
+    ) {
+        return List.of(
+            toMetric("남성 10대 매출 비중", left.maleAge10Percent(), right.maleAge10Percent()),
+            toMetric("여성 10대 매출 비중", left.femaleAge10Percent(), right.femaleAge10Percent()),
+            toMetric("남성 20대 매출 비중", left.maleAge20Percent(), right.maleAge20Percent()),
+            toMetric("여성 20대 매출 비중", left.femaleAge20Percent(), right.femaleAge20Percent()),
+            toMetric("남성 30대 매출 비중", left.maleAge30Percent(), right.maleAge30Percent()),
+            toMetric("여성 30대 매출 비중", left.femaleAge30Percent(), right.femaleAge30Percent()),
+            toMetric("남성 40대 매출 비중", left.maleAge40Percent(), right.maleAge40Percent()),
+            toMetric("여성 40대 매출 비중", left.femaleAge40Percent(), right.femaleAge40Percent()),
+            toMetric("남성 50대 매출 비중", left.maleAge50Percent(), right.maleAge50Percent()),
+            toMetric("여성 50대 매출 비중", left.femaleAge50Percent(), right.femaleAge50Percent()),
+            toMetric("남성 60대 이상 매출 비중", left.maleAge60PlusPercent(), right.maleAge60PlusPercent()),
+            toMetric("여성 60대 이상 매출 비중", left.femaleAge60PlusPercent(), right.femaleAge60PlusPercent())
         );
     }
 
@@ -170,6 +314,26 @@ public class CommercialComparisonQueryProcessor {
         );
     }
 
+    private List<ComparisonMetricInfo> buildFootTrafficAgeGenderMetrics(
+        CommercialFootTrafficByAgeGenderPercentInfo left,
+        CommercialFootTrafficByAgeGenderPercentInfo right
+    ) {
+        return List.of(
+            toMetric("남성 10대 유동인구 비중", left.maleAge10Percent(), right.maleAge10Percent()),
+            toMetric("여성 10대 유동인구 비중", left.femaleAge10Percent(), right.femaleAge10Percent()),
+            toMetric("남성 20대 유동인구 비중", left.maleAge20Percent(), right.maleAge20Percent()),
+            toMetric("여성 20대 유동인구 비중", left.femaleAge20Percent(), right.femaleAge20Percent()),
+            toMetric("남성 30대 유동인구 비중", left.maleAge30Percent(), right.maleAge30Percent()),
+            toMetric("여성 30대 유동인구 비중", left.femaleAge30Percent(), right.femaleAge30Percent()),
+            toMetric("남성 40대 유동인구 비중", left.maleAge40Percent(), right.maleAge40Percent()),
+            toMetric("여성 40대 유동인구 비중", left.femaleAge40Percent(), right.femaleAge40Percent()),
+            toMetric("남성 50대 유동인구 비중", left.maleAge50Percent(), right.maleAge50Percent()),
+            toMetric("여성 50대 유동인구 비중", left.femaleAge50Percent(), right.femaleAge50Percent()),
+            toMetric("남성 60대 이상 유동인구 비중", left.maleAge60PlusPercent(), right.maleAge60PlusPercent()),
+            toMetric("여성 60대 이상 유동인구 비중", left.femaleAge60PlusPercent(), right.femaleAge60PlusPercent())
+        );
+    }
+
     private List<String> buildHighlights(
         CommercialComparisonTargetInfo left,
         CommercialComparisonTargetInfo right,
@@ -182,7 +346,7 @@ public class CommercialComparisonQueryProcessor {
         ComparisonMetricInfo population = residentPopulationMetrics.get(0);
 
         return List.of(
-            "%s이(가) 월 매출액에서 우세합니다.".formatted(winnerLabel(left, right, sales.winnerSide())),
+            "%s이(가) 총 매출 측면에서 더 우세합니다.".formatted(winnerLabel(left, right, sales.winnerSide())),
             "%s이(가) 거주 수요 잠재력이 더 높습니다.".formatted(winnerLabel(left, right, population.winnerSide())),
             "%s이(가) 폐업률 측면에서 더 안정적입니다.".formatted(winnerLabel(left, right, closure.winnerSide()))
         );
@@ -194,6 +358,34 @@ public class CommercialComparisonQueryProcessor {
             case RIGHT -> right.commercialName();
             case TIE -> "두 상권";
         };
+    }
+
+    private String dominantSalesTimeSlot(CommercialSalesByTimeSlotInfo info) {
+        return List.of(
+                new SlotValue("00-06", info.salesAmountTime00To06()),
+                new SlotValue("06-11", info.salesAmountTime06To11()),
+                new SlotValue("11-14", info.salesAmountTime11To14()),
+                new SlotValue("14-17", info.salesAmountTime14To17()),
+                new SlotValue("17-21", info.salesAmountTime17To21()),
+                new SlotValue("21-24", info.salesAmountTime21To24())
+            ).stream()
+            .max((left, right) -> Double.compare(left.value(), right.value()))
+            .map(SlotValue::label)
+            .orElse("데이터 없음");
+    }
+
+    private String dominantSalesAge(CommercialSalesByAgeInfo info) {
+        return List.of(
+                new SlotValue("10대", info.age10SalesAmount()),
+                new SlotValue("20대", info.age20SalesAmount()),
+                new SlotValue("30대", info.age30SalesAmount()),
+                new SlotValue("40대", info.age40SalesAmount()),
+                new SlotValue("50대", info.age50SalesAmount()),
+                new SlotValue("60대 이상", info.age60PlusSalesAmount())
+            ).stream()
+            .max((left, right) -> Double.compare(left.value(), right.value()))
+            .map(SlotValue::label)
+            .orElse("데이터 없음");
     }
 
     private double totalSalesAmount(CommercialSalesByDayOfWeekInfo info) {
@@ -253,5 +445,8 @@ public class CommercialComparisonQueryProcessor {
             return leftValue < rightValue ? ComparisonWinnerSide.LEFT : ComparisonWinnerSide.RIGHT;
         }
         return leftValue > rightValue ? ComparisonWinnerSide.LEFT : ComparisonWinnerSide.RIGHT;
+    }
+
+    private record SlotValue(String label, double value) {
     }
 }

@@ -6,6 +6,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.A
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,16 @@ public class AiStructuredResponseParser {
         try {
             DistrictAiDraft draft = objectMapper.readValue(content, DistrictAiDraft.class);
             validateDistrict(draft);
+            return draft;
+        } catch (JsonProcessingException exception) {
+            throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE, exception);
+        }
+    }
+
+    public CommercialComparisonAiDraft parseCommercialComparisonReport(String content) {
+        try {
+            CommercialComparisonAiDraft draft = objectMapper.readValue(content, CommercialComparisonAiDraft.class);
+            validateCommercialComparison(draft);
             return draft;
         } catch (JsonProcessingException exception) {
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE, exception);
@@ -82,6 +93,25 @@ public class AiStructuredResponseParser {
             || !containsHangul(draft.businessInsight())
             || invalidList(draft.recommendedBusinessCategories())
             || invalidList(draft.cautionBusinessCategories())) {
+            throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
+        }
+    }
+
+    private void validateCommercialComparison(CommercialComparisonAiDraft draft) {
+        if (isBlank(draft.summary())
+            || isBlank(draft.recommendedSide())
+            || isBlank(draft.riskComparison())
+            || isBlank(draft.timeSlotInsight())
+            || isBlank(draft.customerSegmentInsight())
+            || isBlank(draft.businessInsight())
+            || !containsHangul(draft.summary())
+            || !containsHangul(draft.riskComparison())
+            || !containsHangul(draft.timeSlotInsight())
+            || !containsHangul(draft.customerSegmentInsight())
+            || !containsHangul(draft.businessInsight())
+            || invalidList(draft.recommendedReasons())
+            || invalidList(draft.operationStrategy())
+            || !List.of("LEFT", "RIGHT", "BALANCED").contains(draft.recommendedSide())) {
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
         }
     }

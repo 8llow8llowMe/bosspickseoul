@@ -4,6 +4,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.feig
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.CommercialAnalysisQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
@@ -73,6 +74,18 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
     ) {
         return responseSupport.requestAndUnwrap(
             () -> commercialAnalysisClient.getCommercialIncomeSummary(commercialCode, districtCode, administrationCode, periodCode)
+        );
+    }
+
+    @Override
+    public CommercialComparisonQueryResult getCommercialComparison(
+        String leftCommercialCode,
+        String rightCommercialCode,
+        String serviceCode,
+        String periodCode
+    ) {
+        return responseSupport.requestAndUnwrap(
+            () -> commercialAnalysisClient.getCommercialComparison(leftCommercialCode, rightCommercialCode, serviceCode, periodCode)
         );
     }
 }

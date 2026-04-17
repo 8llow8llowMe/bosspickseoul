@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in;
 
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialBenchmarkResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialHeatmapScoresResponse;
@@ -31,6 +32,8 @@ public interface CommercialWebUseCase {
     CommercialStoreAnalysisResponse getStoreByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
 
     CommercialComparisonResponse compareCommercials(String periodCode, String leftCommercialCode, String rightCommercialCode, String serviceCode);
+
+    CommercialBenchmarkResponse getBenchmarks(String periodCode, String commercialCode, String serviceCode);
 
     CommercialHeatmapScoresResponse getHeatmapScores(
         String periodCode,
