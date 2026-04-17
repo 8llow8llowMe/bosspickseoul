@@ -13,6 +13,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -21,8 +22,10 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -114,12 +117,10 @@ public class CommercialWebController {
     @Operation(summary = "상권 A/B 비교 조회", description = "두 상권의 매출, 유동인구, 점포, 소비력, 거주인구, 시설 정보를 비교합니다.")
     @GetMapping("/compare")
     public ResponseEntity<Response<CommercialComparisonResponse>> compareCommercials(
-        @Parameter(description = "좌측 상권 코드", required = true, example = "3110008") @RequestParam String leftCommercialCode,
-        @Parameter(description = "우측 상권 코드", required = true, example = "3110012") @RequestParam String rightCommercialCode,
-        @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+        @ParameterObject
+        @ModelAttribute CommercialComparisonQuery query
     ) {
-        CommercialComparisonResponse response = commercialWebUseCase.compareCommercials(periodCode, leftCommercialCode, rightCommercialCode, serviceCode);
+        CommercialComparisonResponse response = commercialWebUseCase.compareCommercials(query);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -135,7 +136,7 @@ public class CommercialWebController {
     }
 
     @Hidden
-    @Operation(summary = "상권 히트맵 점수 조회", description = "지도 히트맵에 사용되는 상권 점수를 조회합니다.")
+    @Operation(summary = "상권 히트맵 점수 조회", description = "지도 히트맵에 사용하는 상권 점수를 조회합니다.")
     @GetMapping("/heatmap")
     public ResponseEntity<Response<CommercialHeatmapScoresResponse>> getHeatmapScores(
         @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,

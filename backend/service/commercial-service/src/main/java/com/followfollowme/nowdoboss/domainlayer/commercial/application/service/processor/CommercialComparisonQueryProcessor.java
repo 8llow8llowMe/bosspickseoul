@@ -19,6 +19,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sale
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesCountByDayOfWeekInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.ComparisonWinnerSide;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.CommercialRegionQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.query.CommercialAdministrationQueryResult;
@@ -35,12 +36,12 @@ public class CommercialComparisonQueryProcessor {
     private final CommercialQueryProcessor commercialQueryProcessor;
     private final CommercialRegionQueryPort commercialRegionQueryPort;
 
-    public CommercialComparisonInfo compareCommercials(
-        String periodCode,
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode
-    ) {
+    public CommercialComparisonInfo compareCommercials(CommercialComparisonQuery query) {
+        String periodCode = query.periodCode();
+        String leftCommercialCode = query.leftCommercialCode();
+        String rightCommercialCode = query.rightCommercialCode();
+        String serviceCode = query.serviceCode();
+
         CommercialSalesInfo leftSales = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, leftCommercialCode, serviceCode);
         CommercialSalesInfo rightSales = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, rightCommercialCode, serviceCode);
         CommercialFootTrafficInfo leftFootTraffic = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, leftCommercialCode);

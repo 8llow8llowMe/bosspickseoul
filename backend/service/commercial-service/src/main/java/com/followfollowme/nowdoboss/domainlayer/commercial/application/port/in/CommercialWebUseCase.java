@@ -12,6 +12,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import java.util.List;
 
@@ -31,7 +32,7 @@ public interface CommercialWebUseCase {
 
     CommercialStoreAnalysisResponse getStoreByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
 
-    CommercialComparisonResponse compareCommercials(String periodCode, String leftCommercialCode, String rightCommercialCode, String serviceCode);
+    CommercialComparisonResponse compareCommercials(CommercialComparisonQuery query);
 
     CommercialBenchmarkResponse getBenchmarks(String periodCode, String commercialCode, String serviceCode);
 
