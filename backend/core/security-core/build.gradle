@@ -1,6 +1,4 @@
 dependencies {
-    // 공통 설정 관련
-    implementation project(":core:common-core")
     // Spring MVC
     implementation 'org.springframework.boot:spring-boot-starter-web'
     // JWT 기반 인증을 위한 Resource Server 기능 (JwtAuthenticationConverter 등)

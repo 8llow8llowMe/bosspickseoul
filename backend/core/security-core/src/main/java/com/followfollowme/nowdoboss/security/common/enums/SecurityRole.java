@@ -10,10 +10,9 @@ public enum SecurityRole {
     MANAGER("매니저"),
     ADMIN("관리자");
 
-    private final String description;
+    private final String displayName;
 
     public static SecurityRole from(String name) {
         return SecurityRole.valueOf(name.toUpperCase());
     }
 }
-
