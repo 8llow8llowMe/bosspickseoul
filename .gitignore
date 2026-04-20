@@ -15,3 +15,15 @@
 !.agents/skills/backend-feature-bootstrap/SKILL.md
 !.agents/skills/backend-multi-agent/
 !.agents/skills/backend-multi-agent/SKILL.md
+
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/backend-api-check/
+!.claude/skills/backend-api-check/SKILL.md
+!.claude/skills/hexagonal-guard/
+!.claude/skills/hexagonal-guard/SKILL.md
+!.claude/skills/backend-feature-bootstrap/
+!.claude/skills/backend-feature-bootstrap/SKILL.md
+!.claude/skills/backend-multi-agent/
+!.claude/skills/backend-multi-agent/SKILL.md
