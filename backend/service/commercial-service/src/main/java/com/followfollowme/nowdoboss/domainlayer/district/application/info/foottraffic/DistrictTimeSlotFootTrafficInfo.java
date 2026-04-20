@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic;
 
-import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.FootTrafficTimeSlotType;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import lombok.Builder;
 
 @Builder
@@ -11,8 +11,7 @@ public record DistrictTimeSlotFootTrafficInfo(
     long footTrafficTime14To17,
     long footTrafficTime17To21,
     long footTrafficTime21To24,
-    FootTrafficTimeSlotType dominantTimeSlotType
+    CodeNameDescriptionMetadata dominantTimeSlotType
 ) {
 
 }
-

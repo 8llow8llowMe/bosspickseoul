@@ -1,20 +1,22 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response;
 
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "좋아요한 게시글 항목")
+@Schema(description = "좋아요한 게시글 항목 DTO")
 public record CommunityLikedPostItem(
+
     @Schema(description = "게시글 ID")
     long postId,
 
     @Schema(description = "작성자 회원 ID")
     long memberId,
 
-    @Schema(description = "대상 타입")
-    String targetType,
+    @Schema(description = "대상 유형 메타데이터")
+    CodeNameDescriptionMetadata targetType,
 
     @Schema(description = "대상 코드")
     String targetCode,

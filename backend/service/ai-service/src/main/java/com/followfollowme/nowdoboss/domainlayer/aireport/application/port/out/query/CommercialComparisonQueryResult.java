@@ -1,12 +1,13 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query;
 
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import java.util.List;
 
 public record CommercialComparisonQueryResult(
     CommercialComparisonTargetQueryResult left,
     CommercialComparisonTargetQueryResult right,
     String comparisonSummary,
-    String recommendedSide,
+    CodeNameDescriptionMetadata recommendedSide,
     List<String> recommendedReasons,
     List<String> cautionPoints,
     List<String> dominantTimeSlots,

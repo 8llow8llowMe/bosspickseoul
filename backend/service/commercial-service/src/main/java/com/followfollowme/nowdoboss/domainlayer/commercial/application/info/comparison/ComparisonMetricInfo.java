@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.ComparisonWinnerSide;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import lombok.Builder;
 
 @Builder
@@ -10,7 +10,7 @@ public record ComparisonMetricInfo(
     double rightValue,
     double diffValue,
     double diffRate,
-    ComparisonWinnerSide winnerSide
+    CodeNameDescriptionMetadata winnerSide
 ) {
 
 }

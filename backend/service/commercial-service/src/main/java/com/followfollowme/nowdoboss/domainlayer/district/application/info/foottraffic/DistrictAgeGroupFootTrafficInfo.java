@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic;
 
-import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.DistrictAgeGroupType;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import lombok.Builder;
 
 @Builder
@@ -11,8 +11,7 @@ public record DistrictAgeGroupFootTrafficInfo(
     long age40FootTraffic,
     long age50FootTraffic,
     long age60PlusFootTraffic,
-    DistrictAgeGroupType dominantAgeGroupType
+    CodeNameDescriptionMetadata dominantAgeGroupType
 ) {
 
 }
-

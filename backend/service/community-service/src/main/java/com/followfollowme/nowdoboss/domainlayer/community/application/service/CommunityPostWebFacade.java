@@ -15,10 +15,11 @@ import com.followfollowme.nowdoboss.domainlayer.community.application.model.Comm
 import com.followfollowme.nowdoboss.domainlayer.community.application.port.in.CommunityPostWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.community.application.service.processor.CommunityCommandProcessor;
 import com.followfollowme.nowdoboss.domainlayer.community.application.service.processor.CommunityQueryProcessor;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityAnalysisType;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityTargetMeta;
-import com.followfollowme.nowdoboss.persistence.enums.OrderType;
+import com.followfollowme.nowdoboss.common.enums.OrderType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,18 +76,18 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         String analysisRefName = "%s vs %s".formatted(leftTarget.targetName(), rightTarget.targetName());
 
         CommunityCommercialComparisonDraftInfo info = CommunityCommercialComparisonDraftInfo.builder()
-            .targetType(targetMeta.targetType().name())
+            .targetType(targetMeta.targetType())
             .targetCode(targetMeta.targetCode())
             .targetName(targetMeta.targetName())
             .title("%s 비교 분석".formatted(analysisRefName))
             .content("""
-                %s와 %s 상권을 비교해 보려고 합니다.
+                %s와 %s 상권을 비교해 보려 합니다.
 
                 - 서비스 코드: %s
                 - 기준 분기: %s
-                - 핵심 비교 포인트를 함께 이야기해 보면 좋겠습니다.
+                - 실제 비교 포인트나 운영 경험이 있다면 이야기해 보면 좋겠습니다.
                 """.formatted(leftTarget.targetName(), rightTarget.targetName(), request.serviceCode(), request.periodCode()).trim())
-            .analysisType("COMMERCIAL_COMPARISON")
+            .analysisType(CommunityAnalysisType.COMMERCIAL_COMPARISON)
             .analysisRefCode(analysisRefCode)
             .analysisRefName(analysisRefName)
             .analysisSnapshotKey("comparison-%s-%s-%s".formatted(

@@ -1,11 +1,11 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item;
 
-import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.DistrictDayOfWeekType;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "요일별 유동인구 상세")
+@Schema(description = "요일별 유동인구 상세 항목 DTO")
 public record DistrictDayOfWeekFootTrafficItem(
     @Schema(description = "월요일 유동인구", example = "780000")
     long mondayFootTraffic,
@@ -28,8 +28,8 @@ public record DistrictDayOfWeekFootTrafficItem(
     @Schema(description = "일요일 유동인구", example = "747230")
     long sundayFootTraffic,
 
-    @Schema(description = "유동인구가 가장 높은 요일", example = "SATURDAY")
-    DistrictDayOfWeekType dominantDayOfWeekType
+    @Schema(description = "우세 요일 메타데이터")
+    CodeNameDescriptionMetadata dominantDayOfWeekType
 ) {
 
 }

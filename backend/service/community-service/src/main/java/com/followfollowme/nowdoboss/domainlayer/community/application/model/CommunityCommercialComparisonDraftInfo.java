@@ -1,15 +1,17 @@
 package com.followfollowme.nowdoboss.domainlayer.community.application.model;
 
+import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityAnalysisType;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityTargetType;
 import lombok.Builder;
 
 @Builder
 public record CommunityCommercialComparisonDraftInfo(
-    String targetType,
+    CommunityTargetType targetType,
     String targetCode,
     String targetName,
     String title,
     String content,
-    String analysisType,
+    CommunityAnalysisType analysisType,
     String analysisRefCode,
     String analysisRefName,
     String analysisSnapshotKey

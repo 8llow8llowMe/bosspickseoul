@@ -28,3 +28,13 @@
 - `Info -> Presenter -> Response` 흐름을 유지한다.
 - 지역 계층 API와 겹치는 책임은 `district-service`와 분리한다.
 - REST 경로는 `commercials`, `regions` 기준 일관성을 우선한다.
+
+## 후보 탐색 처리 (1단계)
+
+- `CommercialHeatmapQueryProcessor.getAllMetricScores(...)` — 한 번의 소스 조회로 4개 지표(OPPORTUNITY/RISK/CONGESTION/RESIDENT_POPULATION)를 동시 산출한다. `getHeatmapScores`는 이 결과를 단일 지표로 필터링해 재사용한다.
+- `CommercialCandidateQueryProcessor.getTopCandidates(...)` — `CandidatePresetType` 가중치와 우선 지표 보정으로 compositeScore 를 계산하고 Top N 을 반환한다. RISK_SCORE 는 composite 기여분에서 `100 - score` 로 반전 적용한다.
+- `CommercialCandidateQueryProcessor.getCompositeHeatmapScores(...)` — 동일한 가중치 공식으로 **전체 상권 리스트**의 복합 점수를 반환한다. 히트맵 composite 모드의 소스다. `ScoreMetricMetadata` 의 `code` 는 `COMPOSITE_<PRESET>` 로 합성 발급한다.
+- `CommercialProfileQueryProcessor.getProfile(...)` — 단일 상권의 집계 지표(매출/유동인구/점포/개폐업률/거주인구/소득/시설) + 자치구·행정동 메타를 반환한다. 점수는 포함하지 않는다.
+- `CommercialComparePreviewQueryProcessor.getPreview(...)` — 기존 `CommercialComparisonQueryProcessor.compareCommercials(...)` 결과를 재사용해 6개 headline 지표 + recommendedSide 만 프로젝션한다.
+- 내부용 엔드포인트 (`@Hidden`): `/commercials/candidates`, `/commercials/heatmap-composite`, `/commercials/{code}/profile`, `/commercials/compare-preview`. 외부 노출은 district-service `/api/v1/map/commercials/...` 만 사용한다.
+- `CandidatePresetType` 는 `CodeNameDescribable` 을 구현하며 가중치는 `application/model` 안에만 존재한다. adapter 계층으로 새지 않도록 유지.

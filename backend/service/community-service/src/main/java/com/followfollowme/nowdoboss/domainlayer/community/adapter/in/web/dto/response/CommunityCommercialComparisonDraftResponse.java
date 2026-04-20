@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response;
 
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
@@ -7,8 +8,8 @@ import lombok.Builder;
 @Schema(description = "상권 비교 게시글 초안 응답 DTO")
 public record CommunityCommercialComparisonDraftResponse(
 
-    @Schema(description = "게시글 대상 타입", example = "COMMERCIAL")
-    String targetType,
+    @Schema(description = "게시글 대상 유형 메타데이터")
+    CodeNameDescriptionMetadata targetType,
 
     @Schema(description = "게시글 대상 코드", example = "3110008")
     String targetCode,
@@ -22,8 +23,8 @@ public record CommunityCommercialComparisonDraftResponse(
     @Schema(description = "추천 본문")
     String content,
 
-    @Schema(description = "분석 첨부 타입", example = "COMMERCIAL_COMPARISON")
-    String analysisType,
+    @Schema(description = "분석 첨부 유형 메타데이터")
+    CodeNameDescriptionMetadata analysisType,
 
     @Schema(description = "분석 참조 코드", example = "3110008:3110012:CS100001:20233")
     String analysisRefCode,
