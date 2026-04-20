@@ -7,8 +7,11 @@ import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProvider;
 import com.followfollowme.nowdoboss.security.common.handler.AuthenticationFailureHandler;
 import com.followfollowme.nowdoboss.security.common.handler.CustomAccessDeniedHandler;
+import com.followfollowme.nowdoboss.security.common.handler.DefaultSecurityErrorResponseWriter;
+import com.followfollowme.nowdoboss.security.common.handler.SecurityErrorResponseWriter;
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -96,13 +99,19 @@ public class AuthSecurityConfigurer {
     }
 
     @Bean
-    public CustomAccessDeniedHandler customAccessDeniedHandler(ObjectMapper objectMapper) {
-        return new CustomAccessDeniedHandler(objectMapper);
+    public CustomAccessDeniedHandler customAccessDeniedHandler(SecurityErrorResponseWriter errorResponseWriter) {
+        return new CustomAccessDeniedHandler(errorResponseWriter);
     }
 
     @Bean
-    public AuthenticationFailureHandler jwtAuthenticationFailureHandler(ObjectMapper objectMapper) {
-        return new JwtAuthenticationFailureHandler(objectMapper);
+    public AuthenticationFailureHandler jwtAuthenticationFailureHandler(SecurityErrorResponseWriter errorResponseWriter) {
+        return new JwtAuthenticationFailureHandler(errorResponseWriter);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SecurityErrorResponseWriter.class)
+    public SecurityErrorResponseWriter defaultSecurityErrorResponseWriter(ObjectMapper objectMapper) {
+        return new DefaultSecurityErrorResponseWriter(objectMapper);
     }
 
     private CorsConfiguration getCorsConfiguration(long maxAge) {

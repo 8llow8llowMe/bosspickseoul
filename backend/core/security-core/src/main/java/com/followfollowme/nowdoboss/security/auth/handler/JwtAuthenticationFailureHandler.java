@@ -1,9 +1,9 @@
 package com.followfollowme.nowdoboss.security.auth.handler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.security.common.exception.SecurityErrorCode;
 import com.followfollowme.nowdoboss.security.common.exception.SecurityJwtException;
 import com.followfollowme.nowdoboss.security.common.handler.AuthenticationFailureHandler;
+import com.followfollowme.nowdoboss.security.common.handler.SecurityErrorResponseWriter;
 import com.followfollowme.nowdoboss.security.common.handler.SecurityExceptionHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,8 +11,8 @@ import java.io.IOException;
 
 public class JwtAuthenticationFailureHandler extends SecurityExceptionHandler implements AuthenticationFailureHandler {
 
-    public JwtAuthenticationFailureHandler(ObjectMapper objectMapper) {
-        super(objectMapper);
+    public JwtAuthenticationFailureHandler(SecurityErrorResponseWriter errorResponseWriter) {
+        super(errorResponseWriter);
     }
 
     @Override

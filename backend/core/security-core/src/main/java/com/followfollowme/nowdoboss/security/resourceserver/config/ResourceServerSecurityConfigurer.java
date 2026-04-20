@@ -2,6 +2,8 @@ package com.followfollowme.nowdoboss.security.resourceserver.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.security.common.handler.CustomAccessDeniedHandler;
+import com.followfollowme.nowdoboss.security.common.handler.DefaultSecurityErrorResponseWriter;
+import com.followfollowme.nowdoboss.security.common.handler.SecurityErrorResponseWriter;
 import com.followfollowme.nowdoboss.security.common.resolver.JwtTokenErrorResolver;
 import com.followfollowme.nowdoboss.security.resourceserver.handler.OAuth2AuthenticationFailureHandler;
 import com.followfollowme.nowdoboss.security.resourceserver.jwt.JwtResourceServerProperties;
@@ -9,6 +11,7 @@ import com.followfollowme.nowdoboss.security.resourceserver.jwt.JwtToMemberConve
 import com.followfollowme.nowdoboss.security.resourceserver.resolver.OAuth2ResourceTokenErrorResolver;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -67,12 +70,19 @@ public class ResourceServerSecurityConfigurer {
     }
 
     @Bean
-    public AuthenticationEntryPoint authenticationEntryPoint(ObjectMapper objectMapper, JwtTokenErrorResolver jwtTokenErrorResolver) {
-        return new OAuth2AuthenticationFailureHandler(objectMapper, jwtTokenErrorResolver);
+    public AuthenticationEntryPoint authenticationEntryPoint(
+        SecurityErrorResponseWriter errorResponseWriter, JwtTokenErrorResolver jwtTokenErrorResolver) {
+        return new OAuth2AuthenticationFailureHandler(errorResponseWriter, jwtTokenErrorResolver);
     }
 
     @Bean
-    public AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
-        return new CustomAccessDeniedHandler(objectMapper);
+    public AccessDeniedHandler accessDeniedHandler(SecurityErrorResponseWriter errorResponseWriter) {
+        return new CustomAccessDeniedHandler(errorResponseWriter);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SecurityErrorResponseWriter.class)
+    public SecurityErrorResponseWriter defaultSecurityErrorResponseWriter(ObjectMapper objectMapper) {
+        return new DefaultSecurityErrorResponseWriter(objectMapper);
     }
 }

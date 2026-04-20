@@ -1,7 +1,7 @@
 package com.followfollowme.nowdoboss.security.resourceserver.handler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.security.common.exception.SecurityErrorCode;
+import com.followfollowme.nowdoboss.security.common.handler.SecurityErrorResponseWriter;
 import com.followfollowme.nowdoboss.security.common.handler.SecurityExceptionHandler;
 import com.followfollowme.nowdoboss.security.common.resolver.JwtTokenErrorResolver;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,8 +14,8 @@ public class OAuth2AuthenticationFailureHandler extends SecurityExceptionHandler
 
     private final JwtTokenErrorResolver errorResolver;
 
-    public OAuth2AuthenticationFailureHandler(ObjectMapper objectMapper, JwtTokenErrorResolver errorResolver) {
-        super(objectMapper);
+    public OAuth2AuthenticationFailureHandler(SecurityErrorResponseWriter errorResponseWriter, JwtTokenErrorResolver errorResolver) {
+        super(errorResponseWriter);
         this.errorResolver = errorResolver;
     }
 
