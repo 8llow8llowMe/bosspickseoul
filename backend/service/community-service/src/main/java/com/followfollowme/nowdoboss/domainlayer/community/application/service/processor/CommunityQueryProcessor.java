@@ -16,7 +16,7 @@ import com.followfollowme.nowdoboss.domainlayer.community.domain.model.Community
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.LikedCommunityPost;
-import com.followfollowme.nowdoboss.persistence.enums.OrderType;
+import com.followfollowme.nowdoboss.common.enums.OrderType;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

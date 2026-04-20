@@ -28,5 +28,7 @@
 
 - 게시글/댓글은 소프트 삭제 기준을 사용한다.
 - 게시글 목록/피드는 `SliceResponse` 기반 무한 스크롤을 우선한다.
+- 상권별 게시글은 `GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode={code}` 로 조회한다. Post 엔티티는 `commercialCode` 직속 필드 대신 `targetType + targetCode` 일반화 구조를 사용하며, `idx_community_post_target_created` 인덱스가 뒷받침한다.
+- No-offset 커서는 LATEST 정렬에서 `id`, POPULAR 정렬에서 `(likeCount, id)` 복합 커서를 쓴다. `lastPostId == 0` 은 초기 로드 관례다.
 - 좋아요/신고 저장 흐름은 `domain -> entity -> repository.save -> entity -> domain` 패턴을 유지한다.
-- 정렬 파라미터는 enum 기반 `sortType`, `orderType` 기준을 따른다.
+- 정렬 파라미터는 enum 기반 `sortType`, `orderType` 기준을 따른다. `CommunitySortType` 과 `OrderType` 은 모두 `CodeNameDescribable` 을 구현한다 (`displayName` 필드 + metadata 변환).

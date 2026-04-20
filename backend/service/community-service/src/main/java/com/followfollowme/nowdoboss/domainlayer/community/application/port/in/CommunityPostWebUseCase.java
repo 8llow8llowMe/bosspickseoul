@@ -9,7 +9,7 @@ import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.res
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostLikeResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunitySortType;
-import com.followfollowme.nowdoboss.persistence.enums.OrderType;
+import com.followfollowme.nowdoboss.common.enums.OrderType;
 
 public interface CommunityPostWebUseCase {
 

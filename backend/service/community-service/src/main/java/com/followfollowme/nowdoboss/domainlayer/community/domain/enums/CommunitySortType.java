@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.community.domain.enums;
 
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescribable;
 import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityException;
 import lombok.Getter;
@@ -7,12 +8,12 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum CommunitySortType {
+public enum CommunitySortType implements CodeNameDescribable {
 
     LATEST("날짜순"),
     POPULAR("인기순");
 
-    private final String description;
+    private final String displayName;
 
     public static CommunitySortType from(String value) {
         try {
