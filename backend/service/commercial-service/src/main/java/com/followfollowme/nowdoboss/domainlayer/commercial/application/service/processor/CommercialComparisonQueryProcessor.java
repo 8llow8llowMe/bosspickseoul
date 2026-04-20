@@ -98,7 +98,7 @@ public class CommercialComparisonQueryProcessor {
             .left(left)
             .right(right)
             .comparisonSummary(buildComparisonSummary(left, right, recommendedSide))
-            .recommendedSide(recommendedSide)
+            .recommendedSide(recommendedSide.toMetadata())
             .recommendedReasons(buildRecommendedReasons(left, right, recommendedSide))
             .cautionPoints(buildCautionPoints(left, right, recommendedSide))
             .dominantTimeSlots(buildDominantTimeSlots(left, right, leftSales.amountByTimeSlotInfo(), rightSales.amountByTimeSlotInfo()))
@@ -170,9 +170,9 @@ public class CommercialComparisonQueryProcessor {
             residentPopulationMetrics.get(0),
             facilityMetrics.get(0)
         )) {
-            if (metric.winnerSide() == ComparisonWinnerSide.LEFT) {
+            if (ComparisonWinnerSide.LEFT.name().equals(metric.winnerSide().code())) {
                 leftScore++;
-            } else if (metric.winnerSide() == ComparisonWinnerSide.RIGHT) {
+            } else if (ComparisonWinnerSide.RIGHT.name().equals(metric.winnerSide().code())) {
                 rightScore++;
             }
         }
@@ -353,11 +353,27 @@ public class CommercialComparisonQueryProcessor {
         );
     }
 
-    private String winnerLabel(CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide winnerSide) {
+    private String winnerLabel(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        ComparisonWinnerSide winnerSide
+    ) {
         return switch (winnerSide) {
             case LEFT -> left.commercialName();
             case RIGHT -> right.commercialName();
             case TIE -> "두 상권";
+        };
+    }
+
+    private String winnerLabel(
+        CommercialComparisonTargetInfo left,
+        CommercialComparisonTargetInfo right,
+        com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata winnerSide
+    ) {
+        return switch (winnerSide.code()) {
+            case "LEFT" -> left.commercialName();
+            case "RIGHT" -> right.commercialName();
+            default -> "두 상권";
         };
     }
 
@@ -434,7 +450,7 @@ public class CommercialComparisonQueryProcessor {
             .rightValue(rightValue)
             .diffValue(diffValue)
             .diffRate(diffRate)
-            .winnerSide(resolveWinner(leftValue, rightValue, lowerIsBetter))
+            .winnerSide(resolveWinner(leftValue, rightValue, lowerIsBetter).toMetadata())
             .build();
     }
 

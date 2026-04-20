@@ -1,6 +1,9 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.controller;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CandidateCommercialsResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparePreviewResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialProfileResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialBenchmarkResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
@@ -13,6 +16,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CandidatePresetType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
@@ -145,6 +149,71 @@ public class CommercialWebController {
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
         CommercialHeatmapScoresResponse response = commercialWebUseCase.getHeatmapScores(periodCode, serviceCode, commercialCodes, metricType);
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Hidden
+    @Operation(summary = "후보 상권 랭킹 조회", description = "프리셋 가중치 기반으로 후보 상권 Top N 을 조회합니다.")
+    @GetMapping("/candidates")
+    public ResponseEntity<Response<CandidateCommercialsResponse>> getTopCandidates(
+        @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,
+        @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
+        @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
+        @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
+        @Parameter(description = "상위 N (기본 10, 5~30)") @RequestParam(required = false) Integer topN,
+        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+    ) {
+        CandidateCommercialsResponse response = commercialWebUseCase.getTopCandidates(
+            periodCode,
+            serviceCode,
+            commercialCodes,
+            preset,
+            priorityMetric,
+            topN
+        );
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Hidden
+    @Operation(summary = "복합 히트맵 점수 조회", description = "프리셋 가중치 기반 compositeScore 를 히트맵 응답 형태로 반환합니다.")
+    @GetMapping("/heatmap-composite")
+    public ResponseEntity<Response<CommercialHeatmapScoresResponse>> getCompositeHeatmapScores(
+        @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,
+        @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
+        @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
+        @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
+        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+    ) {
+        CommercialHeatmapScoresResponse response = commercialWebUseCase.getCompositeHeatmapScores(
+            periodCode,
+            serviceCode,
+            commercialCodes,
+            preset,
+            priorityMetric
+        );
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Hidden
+    @Operation(summary = "상권 프로필 조회", description = "후보 카드에 사용할 상권 프로필 집계 지표를 조회합니다.")
+    @GetMapping("/{commercialCode}/profile")
+    public ResponseEntity<Response<CommercialProfileResponse>> getCommercialProfile(
+        @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
+        @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
+        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+    ) {
+        CommercialProfileResponse response = commercialWebUseCase.getCommercialProfile(periodCode, commercialCode, serviceCode);
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Hidden
+    @Operation(summary = "상권 비교 프리뷰 조회", description = "두 상권의 경량 비교 정보를 반환합니다.")
+    @GetMapping("/compare-preview")
+    public ResponseEntity<Response<CommercialComparePreviewResponse>> getCommercialComparePreview(
+        @ParameterObject
+        @ModelAttribute CommercialComparisonQuery query
+    ) {
+        CommercialComparePreviewResponse response = commercialWebUseCase.getCommercialComparePreview(query);
         return ResponseEntity.ok().body(Response.success(response));
     }
 

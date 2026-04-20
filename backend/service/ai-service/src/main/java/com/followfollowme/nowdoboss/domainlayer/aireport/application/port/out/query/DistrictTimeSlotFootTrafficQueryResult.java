@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import lombok.Builder;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -12,8 +13,7 @@ public record DistrictTimeSlotFootTrafficQueryResult(
     long footTrafficTime14To17,
     long footTrafficTime17To21,
     long footTrafficTime21To24,
-    String dominantTimeSlotType
+    CodeNameDescriptionMetadata dominantTimeSlotType
 ) {
 
 }
-

@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic;
 
-import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.DistrictDayOfWeekType;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import lombok.Builder;
 
 @Builder
@@ -12,8 +12,7 @@ public record DistrictDayOfWeekFootTrafficInfo(
     long fridayFootTraffic,
     long saturdayFootTraffic,
     long sundayFootTraffic,
-    DistrictDayOfWeekType dominantDayOfWeekType
+    CodeNameDescriptionMetadata dominantDayOfWeekType
 ) {
 
 }
-

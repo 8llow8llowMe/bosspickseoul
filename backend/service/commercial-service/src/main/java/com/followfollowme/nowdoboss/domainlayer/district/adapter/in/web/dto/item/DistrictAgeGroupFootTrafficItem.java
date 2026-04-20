@@ -1,11 +1,11 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item;
 
-import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.DistrictAgeGroupType;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "연령대별 유동인구 상세")
+@Schema(description = "연령대별 유동인구 상세 항목 DTO")
 public record DistrictAgeGroupFootTrafficItem(
     @Schema(description = "10대 유동인구", example = "340000")
     long age10FootTraffic,
@@ -25,8 +25,8 @@ public record DistrictAgeGroupFootTrafficItem(
     @Schema(description = "60대 이상 유동인구", example = "447230")
     long age60PlusFootTraffic,
 
-    @Schema(description = "유동인구가 가장 높은 연령대", example = "AGE_30")
-    DistrictAgeGroupType dominantAgeGroupType
+    @Schema(description = "우세 연령대 메타데이터")
+    CodeNameDescriptionMetadata dominantAgeGroupType
 ) {
 
 }

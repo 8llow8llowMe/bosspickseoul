@@ -48,8 +48,10 @@
 
 ## 스킬 사용 예시
 
-- `$backend-api-check`: REST 경로, Swagger, Presenter 흐름 점검
-- `$hexagonal-guard`: Hexagonal 계층 경계 점검
-- `$backend-feature-bootstrap`: 새 서비스/컨텍스트 시작 가이드
-- `$backend-multi-agent`: 큰 작업을 역할별로 나눠 설계/구현/검증
-- 자연어 요청도 가능하지만 `$스킬명` 형식이 가장 확실하다.
+Codex는 `$스킬명`(`.agents/skills/*`), Claude Code는 `/스킬명`(`.claude/skills/*`)으로 호출한다. 두 스택의 스킬 본문은 동일하게 유지한다.
+
+- `/backend-api-check`, `$backend-api-check`: REST 경로, Swagger, Presenter 흐름 점검
+- `/hexagonal-guard`, `$hexagonal-guard`: Hexagonal 계층 경계 점검
+- `/backend-feature-bootstrap`, `$backend-feature-bootstrap`: 새 서비스/컨텍스트 시작 가이드
+- `/backend-multi-agent`, `$backend-multi-agent`: 큰 작업을 역할별로 나눠 설계/구현/검증
+- 자연어 요청도 가능하지만 스킬 호출 형식이 가장 확실하다.

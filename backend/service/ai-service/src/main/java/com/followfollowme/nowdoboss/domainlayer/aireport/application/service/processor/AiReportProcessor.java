@@ -382,7 +382,7 @@ public class AiReportProcessor {
             .serviceCode(serviceCode)
             .periodCode(periodCode)
             .comparisonSummary(comparison.comparisonSummary())
-            .recommendedSide(comparison.recommendedSide())
+            .recommendedSide(comparison.recommendedSide() == null ? null : comparison.recommendedSide().code())
             .recommendedReasons(defaultList(comparison.recommendedReasons(), "추천 이유 데이터가 충분하지 않습니다."))
             .cautionPoints(defaultList(comparison.cautionPoints(), "두 상권의 경쟁 강도와 폐업률을 함께 확인하는 것이 좋습니다."))
             .dominantTimeSlots(defaultList(comparison.dominantTimeSlots(), "시간대 비교 데이터가 충분하지 않습니다."))
@@ -411,9 +411,9 @@ public class AiReportProcessor {
             .changeIndicatorName(districtDetail.changeIndicator().changeIndicatorName())
             .averageOpenedMonths(String.valueOf(districtDetail.changeIndicator().averageOpenedMonths()))
             .averageClosedMonths(String.valueOf(districtDetail.changeIndicator().averageClosedMonths()))
-            .footTrafficTrend(String.valueOf(districtDetail.footTraffic().periodTrend()))
-            .dominantTimeSlot(String.valueOf(districtDetail.footTraffic().timeSlot().dominantTimeSlotType()))
-            .dominantGender(String.valueOf(districtDetail.footTraffic().gender().dominantGenderType()))
+            .footTrafficTrend(districtDetail.footTraffic().periodTrend().name())
+            .dominantTimeSlot(districtDetail.footTraffic().timeSlot().dominantTimeSlotType().name())
+            .dominantGender(districtDetail.footTraffic().gender().dominantGenderType().name())
             .topStoreServiceSummaries(districtDetail.store().topStoreServices().stream()
                 .map(item -> "%s (점포 %s개)".formatted(item.serviceName(), PromptFormatterSupport.formatNumber(item.totalStoreCount())))
                 .toList())
@@ -475,7 +475,7 @@ public class AiReportProcessor {
                 formatMetricValue(metric.leftValue()),
                 formatMetricValue(metric.rightValue()),
                 formatMetricValue(metric.diffValue()),
-                metric.winnerSide()
+                metric.winnerSide().name()
             ))
             .toList();
     }

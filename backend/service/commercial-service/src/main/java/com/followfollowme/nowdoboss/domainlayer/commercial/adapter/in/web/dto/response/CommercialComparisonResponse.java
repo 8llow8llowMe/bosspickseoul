@@ -1,8 +1,8 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response;
 
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialComparisonTargetItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.ComparisonMetricItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.ComparisonWinnerSide;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.Builder;
@@ -20,8 +20,8 @@ public record CommercialComparisonResponse(
     @Schema(description = "비교 결과 전체 요약")
     String comparisonSummary,
 
-    @Schema(description = "추천 상권 방향", example = "LEFT")
-    ComparisonWinnerSide recommendedSide,
+    @Schema(description = "추천 상권 방향 메타데이터")
+    CodeNameDescriptionMetadata recommendedSide,
 
     @Schema(description = "추천 이유 목록")
     List<String> recommendedReasons,

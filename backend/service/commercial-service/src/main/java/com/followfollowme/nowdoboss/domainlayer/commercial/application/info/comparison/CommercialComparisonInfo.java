@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.ComparisonWinnerSide;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import java.util.List;
 import lombok.Builder;
 
@@ -9,7 +9,7 @@ public record CommercialComparisonInfo(
     CommercialComparisonTargetInfo left,
     CommercialComparisonTargetInfo right,
     String comparisonSummary,
-    ComparisonWinnerSide recommendedSide,
+    CodeNameDescriptionMetadata recommendedSide,
     List<String> recommendedReasons,
     List<String> cautionPoints,
     List<String> dominantTimeSlots,

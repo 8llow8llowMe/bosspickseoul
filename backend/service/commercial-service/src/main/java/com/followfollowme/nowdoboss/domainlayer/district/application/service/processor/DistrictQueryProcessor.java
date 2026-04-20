@@ -166,14 +166,14 @@ public class DistrictQueryProcessor {
             .footTrafficTime14To17(current.footTrafficTime14To17())
             .footTrafficTime17To21(current.footTrafficTime17To21())
             .footTrafficTime21To24(current.footTrafficTime21To24())
-            .dominantTimeSlotType(resolveDominantTimeSlot(current))
+            .dominantTimeSlotType(resolveDominantTimeSlot(current).toMetadata())
             .build();
 
         DistrictGenderFootTrafficInfo genderInfo = DistrictGenderFootTrafficInfo.builder()
             .maleFootTraffic(current.maleFootTraffic())
             .femaleFootTraffic(current.femaleFootTraffic())
             .dominantGenderType(
-                current.maleFootTraffic() >= current.femaleFootTraffic() ? DistrictGenderType.MALE : DistrictGenderType.FEMALE)
+                (current.maleFootTraffic() >= current.femaleFootTraffic() ? DistrictGenderType.MALE : DistrictGenderType.FEMALE).toMetadata())
             .build();
 
         DistrictAgeGroupFootTrafficInfo ageGroupInfo = DistrictAgeGroupFootTrafficInfo.builder()
@@ -183,7 +183,7 @@ public class DistrictQueryProcessor {
             .age40FootTraffic(current.age40FootTraffic())
             .age50FootTraffic(current.age50FootTraffic())
             .age60PlusFootTraffic(current.age60PlusFootTraffic())
-            .dominantAgeGroupType(resolveDominantAgeGroup(current))
+            .dominantAgeGroupType(resolveDominantAgeGroup(current).toMetadata())
             .build();
 
         DistrictDayOfWeekFootTrafficInfo dayOfWeekInfo = DistrictDayOfWeekFootTrafficInfo.builder()
@@ -194,12 +194,12 @@ public class DistrictQueryProcessor {
             .fridayFootTraffic(current.fridayFootTraffic())
             .saturdayFootTraffic(current.saturdayFootTraffic())
             .sundayFootTraffic(current.sundayFootTraffic())
-            .dominantDayOfWeekType(resolveDominantDayOfWeek(current))
+            .dominantDayOfWeekType(resolveDominantDayOfWeek(current).toMetadata())
             .build();
 
         // 6. 유동인구 Detail Info 조립
         return DistrictFootTrafficDetailInfo.builder()
-            .periodTrend(resolveTrend(previousTotal, currentTotal))
+            .periodTrend(resolveTrend(previousTotal, currentTotal).toMetadata())
             .periodTotalFootTrafficList(periodTotalFootTrafficList)
             .timeSlot(timeSlotInfo)
             .gender(genderInfo)

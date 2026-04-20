@@ -3,6 +3,7 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
@@ -13,7 +14,9 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summ
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,32 +33,68 @@ public class CommercialHeatmapQueryProcessor {
         List<String> commercialCodes,
         CommercialHeatmapMetricType metricType
     ) {
+        return getAllMetricScores(periodCode, serviceCode, commercialCodes).stream()
+            .map(entry -> entry.scoresByMetric().get(metricType))
+            .filter(Objects::nonNull)
+            .toList();
+    }
+
+    public List<CommercialAllMetricScoresInfo> getAllMetricScores(
+        String periodCode,
+        String serviceCode,
+        List<String> commercialCodes
+    ) {
         List<HeatmapSource> sources = commercialCodes.stream()
             .map(code -> buildSource(periodCode, serviceCode, code))
             .toList();
 
-        List<Double> rawValues = sources.stream()
-            .map(source -> computeRawScore(metricType, source))
-            .filter(Objects::nonNull)
-            .toList();
+        Map<CommercialHeatmapMetricType, MinMax> rangeByMetric = buildRanges(sources);
 
-        double min = rawValues.stream().min(Comparator.naturalOrder()).orElse(0D);
-        double max = rawValues.stream().max(Comparator.naturalOrder()).orElse(0D);
-
-        List<CommercialHeatmapScoreInfo> result = new ArrayList<>();
+        List<CommercialAllMetricScoresInfo> result = new ArrayList<>(sources.size());
         for (HeatmapSource source : sources) {
-            Double normalized = normalize(computeRawScore(metricType, source), min, max);
-            result.add(CommercialHeatmapScoreInfo.builder()
+            Map<CommercialHeatmapMetricType, CommercialHeatmapScoreInfo> scoresByMetric =
+                new EnumMap<>(CommercialHeatmapMetricType.class);
+
+            for (CommercialHeatmapMetricType metric : CommercialHeatmapMetricType.values()) {
+                Double raw = computeRawScore(metric, source);
+                MinMax range = rangeByMetric.get(metric);
+                Double normalized = range == null ? null : normalize(raw, range.min(), range.max());
+
+                scoresByMetric.put(metric, CommercialHeatmapScoreInfo.builder()
+                    .commercialCode(source.commercialCode())
+                    .commercialName(source.commercialCode())
+                    .metricType(metric.toScoreMetadata())
+                    .score(normalized)
+                    .grade(toGrade(normalized))
+                    .summaryLabel(buildSummaryLabel(metric, normalized))
+                    .build());
+            }
+
+            result.add(CommercialAllMetricScoresInfo.builder()
                 .commercialCode(source.commercialCode())
-                .commercialName(source.commercialCode())
-                .metricType(metricType)
-                .score(normalized)
-                .grade(toGrade(normalized))
-                .summaryLabel(buildSummaryLabel(metricType, normalized))
+                .scoresByMetric(scoresByMetric)
                 .build());
         }
 
         return result;
+    }
+
+    private Map<CommercialHeatmapMetricType, MinMax> buildRanges(List<HeatmapSource> sources) {
+        Map<CommercialHeatmapMetricType, MinMax> ranges = new EnumMap<>(CommercialHeatmapMetricType.class);
+        for (CommercialHeatmapMetricType metric : CommercialHeatmapMetricType.values()) {
+            List<Double> rawValues = sources.stream()
+                .map(source -> computeRawScore(metric, source))
+                .filter(Objects::nonNull)
+                .toList();
+            if (rawValues.isEmpty()) {
+                ranges.put(metric, new MinMax(0D, 0D));
+                continue;
+            }
+            double min = rawValues.stream().min(Comparator.naturalOrder()).orElse(0D);
+            double max = rawValues.stream().max(Comparator.naturalOrder()).orElse(0D);
+            ranges.put(metric, new MinMax(min, max));
+        }
+        return ranges;
     }
 
     private HeatmapSource buildSource(String periodCode, String serviceCode, String commercialCode) {
@@ -160,5 +199,8 @@ public class CommercialHeatmapQueryProcessor {
         CommercialIncomeAndExpenseInfo income,
         CommercialFacilityInfo facility
     ) {
+    }
+
+    private record MinMax(double min, double max) {
     }
 }

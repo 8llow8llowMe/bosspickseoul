@@ -1,11 +1,11 @@
 package com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.item;
 
-import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.FootTrafficTimeSlotType;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "시간대별 유동인구 상세")
+@Schema(description = "시간대별 유동인구 상세 항목 DTO")
 public record DistrictTimeSlotFootTrafficItem(
     @Schema(description = "00~06시 유동인구", example = "15000")
     long footTrafficTime00To06,
@@ -25,8 +25,8 @@ public record DistrictTimeSlotFootTrafficItem(
     @Schema(description = "21~24시 유동인구", example = "38000")
     long footTrafficTime21To24,
 
-    @Schema(description = "유동인구가 가장 높은 시간대", example = "TIME_17_TO_21")
-    FootTrafficTimeSlotType dominantTimeSlotType
+    @Schema(description = "우세 시간대 메타데이터")
+    CodeNameDescriptionMetadata dominantTimeSlotType
 ) {
 
 }

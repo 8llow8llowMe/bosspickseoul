@@ -20,4 +20,13 @@ public interface CommercialHeatmapClient {
         @RequestParam String metricType,
         @RequestParam String periodCode
     );
+
+    @GetMapping("/api/v1/commercials/heatmap-composite")
+    Response<CommercialHeatmapScoresQueryResult> getCompositeHeatmapScores(
+        @RequestParam List<String> commercialCodes,
+        @RequestParam String serviceCode,
+        @RequestParam String preset,
+        @RequestParam(required = false) String priorityMetric,
+        @RequestParam String periodCode
+    );
 }

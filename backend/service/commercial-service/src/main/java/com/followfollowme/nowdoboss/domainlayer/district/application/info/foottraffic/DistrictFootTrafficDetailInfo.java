@@ -1,12 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic;
 
-import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.PeriodTrendType;
+import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import java.util.List;
 import lombok.Builder;
 
 @Builder
 public record DistrictFootTrafficDetailInfo(
-    PeriodTrendType periodTrend,
+    CodeNameDescriptionMetadata periodTrend,
     List<DistrictPeriodFootTrafficInfo> periodTotalFootTrafficList,
     DistrictTimeSlotFootTrafficInfo timeSlot,
     DistrictGenderFootTrafficInfo gender,
@@ -15,4 +15,3 @@ public record DistrictFootTrafficDetailInfo(
 ) {
 
 }
-
