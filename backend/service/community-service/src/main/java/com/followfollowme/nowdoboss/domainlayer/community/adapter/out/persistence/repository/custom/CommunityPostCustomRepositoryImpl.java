@@ -7,7 +7,7 @@ import com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistenc
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityTargetType;
-import com.followfollowme.nowdoboss.persistence.enums.OrderType;
+import com.followfollowme.nowdoboss.common.enums.OrderType;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.jpa.JPAExpressions;
