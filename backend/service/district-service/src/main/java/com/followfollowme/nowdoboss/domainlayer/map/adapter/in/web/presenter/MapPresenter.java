@@ -16,9 +16,11 @@ import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.MapAreaCoordsResponse;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.AreaBoundaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CandidateCommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.map.application.info.CandidateCommercialsResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CandidatePresetInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CommercialComparePreviewInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CommercialHeatmapAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.map.application.info.CommercialHeatmapResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CommercialProfileAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CommercialProfileKeyMetricsInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.ComparePreviewMetricInfo;
@@ -46,22 +48,29 @@ public class MapPresenter {
             .build();
     }
 
-    public CommercialHeatmapResponse toCommercialHeatmapResponse(List<CommercialHeatmapAreaInfo> infos) {
-        List<HeatmapAreaItem> areas = infos.stream()
-            .map(info -> HeatmapAreaItem.builder()
-                .areaCode(info.areaCode())
-                .areaName(info.areaName())
-                .centerLng(info.centerLng())
-                .centerLat(info.centerLat())
-                .boundaryCoords(info.boundaryCoords())
-                .metricType(info.metricType())
-                .score(info.score())
-                .grade(info.grade())
-                .summaryLabel(info.summaryLabel())
+    public CommercialHeatmapResponse toCommercialHeatmapResponse(CommercialHeatmapResponseInfo responseInfo) {
+        List<HeatmapAreaItem> areas = responseInfo.areas().stream()
+            .map(areaInfo -> HeatmapAreaItem.builder()
+                .areaCode(areaInfo.areaCode())
+                .areaName(areaInfo.areaName())
+                .centerLng(areaInfo.centerLng())
+                .centerLat(areaInfo.centerLat())
+                .boundaryCoords(areaInfo.boundaryCoords())
+                .metricType(areaInfo.metricType())
+                .score(areaInfo.score())
+                .grade(areaInfo.grade())
+                .summaryLabel(areaInfo.summaryLabel())
                 .build())
             .toList();
 
         return CommercialHeatmapResponse.builder()
+            .mode(responseInfo.mode())
+            .serviceCode(responseInfo.serviceCode())
+            .periodCode(responseInfo.periodCode())
+            .metricType(responseInfo.metricType())
+            .preset(responseInfo.preset())
+            .priorityMetric(responseInfo.priorityMetric())
+            .summary(responseInfo.summary())
             .areas(areas)
             .build();
     }
@@ -78,11 +87,17 @@ public class MapPresenter {
             .build();
     }
 
-    public CandidateCommercialsResponse toCandidateCommercialsResponse(List<CandidateCommercialAreaInfo> infos) {
-        List<CandidateCommercialItem> items = infos.stream()
+    public CandidateCommercialsResponse toCandidateCommercialsResponse(CandidateCommercialsResponseInfo responseInfo) {
+        List<CandidateCommercialItem> items = responseInfo.items().stream()
             .map(this::toCandidateCommercialItem)
             .toList();
         return CandidateCommercialsResponse.builder()
+            .serviceCode(responseInfo.serviceCode())
+            .periodCode(responseInfo.periodCode())
+            .preset(responseInfo.preset())
+            .priorityMetric(responseInfo.priorityMetric())
+            .topN(responseInfo.topN())
+            .summary(responseInfo.summary())
             .items(items)
             .build();
     }
@@ -98,6 +113,9 @@ public class MapPresenter {
             .compositeScore(info.compositeScore())
             .grade(info.grade())
             .summaryLabel(info.summaryLabel())
+            .selectionReason(info.selectionReason())
+            .opportunityLabel(info.opportunityLabel())
+            .riskLabel(info.riskLabel())
             .metricBreakdown(info.metricBreakdown().stream().map(this::toMetricBreakdownItem).toList())
             .reasonTags(info.reasonTags())
             .build();
@@ -133,6 +151,7 @@ public class MapPresenter {
             .right(toComparePreviewTargetItem(info.right()))
             .recommendedSide(info.recommendedSide())
             .headlineMetrics(info.headlineMetrics().stream().map(this::toComparePreviewMetricItem).toList())
+            .insightOneLiner(info.insightOneLiner())
             .build();
     }
 

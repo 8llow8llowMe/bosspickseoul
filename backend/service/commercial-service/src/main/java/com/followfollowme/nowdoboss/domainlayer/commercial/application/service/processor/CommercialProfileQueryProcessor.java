@@ -12,6 +12,9 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sale
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.CommercialRegionQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.query.CommercialAdministrationQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.policy.application.info.PolicyRecommendationInfo;
+import com.followfollowme.nowdoboss.domainlayer.policy.application.service.processor.PolicyQueryProcessor;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,12 +24,17 @@ public class CommercialProfileQueryProcessor {
 
     private final CommercialQueryProcessor commercialQueryProcessor;
     private final CommercialRegionQueryPort commercialRegionQueryPort;
+    private final PolicyQueryProcessor policyQueryProcessor;
 
     public CommercialProfileInfo getProfile(String periodCode, String commercialCode, String serviceCode) {
-        CommercialSalesInfo sales = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
-        CommercialFootTrafficInfo footTraffic = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
-        CommercialStoreAnalysisInfo store = commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
-        CommercialResidentPopulationInfo population = commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
+        CommercialSalesInfo sales = commercialQueryProcessor
+            .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
+        CommercialFootTrafficInfo footTraffic = commercialQueryProcessor
+            .getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        CommercialStoreAnalysisInfo store = commercialQueryProcessor
+            .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
+        CommercialResidentPopulationInfo population = commercialQueryProcessor
+            .getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
         CommercialIncomeAndExpenseInfo income = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         CommercialFacilityInfo facility = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         CommercialAdministrationQueryResult administration = commercialRegionQueryPort.getCommercialAdministration(commercialCode);
@@ -43,6 +51,12 @@ public class CommercialProfileQueryProcessor {
             .totalFacilityCount(facility.totalFacilityCount())
             .build();
 
+        List<PolicyRecommendationInfo> policies = policyQueryProcessor.getRecommendations(
+            administration.districtCode(),
+            administration.administrationCode(),
+            serviceCode, null, null
+        );
+
         return CommercialProfileInfo.builder()
             .commercialCode(commercialCode)
             .commercialName(sales.commercialName())
@@ -51,6 +65,7 @@ public class CommercialProfileQueryProcessor {
             .administrationCode(administration.administrationCode())
             .administrationName(administration.administrationName())
             .keyMetrics(keyMetrics)
+            .policyRecommendations(policies)
             .build();
     }
 

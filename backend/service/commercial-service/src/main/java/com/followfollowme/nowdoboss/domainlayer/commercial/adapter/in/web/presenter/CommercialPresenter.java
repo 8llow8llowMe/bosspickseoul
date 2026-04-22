@@ -40,6 +40,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialsResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.MetricBreakdownInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.preview.CommercialComparePreviewInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.profile.CommercialProfileInfo;
@@ -70,12 +71,15 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sale
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialPeerStoreInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalIncomeSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.CommercialServiceCategoryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.PolicyRecommendationItem;
+import com.followfollowme.nowdoboss.domainlayer.policy.application.info.PolicyRecommendationInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -196,15 +200,28 @@ public class CommercialPresenter {
             .build();
     }
 
-    public CommercialHeatmapScoresResponse toCommercialHeatmapScoresResponse(List<CommercialHeatmapScoreInfo> infos) {
+    public CommercialHeatmapScoresResponse toCommercialHeatmapScoresResponse(CommercialHeatmapScoresResponseInfo info) {
         return CommercialHeatmapScoresResponse.builder()
-            .scores(infos.stream().map(this::toCommercialHeatmapScoreItem).toList())
+            .mode(info.mode())
+            .serviceCode(info.serviceCode())
+            .periodCode(info.periodCode())
+            .metricType(info.metricType())
+            .preset(info.preset())
+            .priorityMetric(info.priorityMetric())
+            .summary(info.summary())
+            .scores(info.scores().stream().map(this::toCommercialHeatmapScoreItem).toList())
             .build();
     }
 
-    public CandidateCommercialsResponse toCandidateCommercialsResponse(List<CandidateCommercialInfo> infos) {
+    public CandidateCommercialsResponse toCandidateCommercialsResponse(CandidateCommercialsResponseInfo info) {
         return CandidateCommercialsResponse.builder()
-            .items(infos.stream().map(this::toCandidateCommercialItem).toList())
+            .serviceCode(info.serviceCode())
+            .periodCode(info.periodCode())
+            .preset(info.preset())
+            .priorityMetric(info.priorityMetric())
+            .topN(info.topN())
+            .summary(info.summary())
+            .items(info.items().stream().map(this::toCandidateCommercialItem).toList())
             .build();
     }
 
@@ -217,6 +234,11 @@ public class CommercialPresenter {
             .administrationCode(info.administrationCode())
             .administrationName(info.administrationName())
             .keyMetrics(toCommercialProfileKeyMetricsItem(info.keyMetrics()))
+            .policyRecommendations(
+                info.policyRecommendations() == null
+                    ? List.of()
+                    : info.policyRecommendations().stream().map(this::toPolicyRecommendationItem).toList()
+            )
             .build();
     }
 
@@ -226,6 +248,20 @@ public class CommercialPresenter {
             .right(toCommercialComparisonTargetItem(info.right()))
             .recommendedSide(info.recommendedSide())
             .headlineMetrics(toComparisonMetricItems(info.headlineMetrics()))
+            .insightOneLiner(info.insightOneLiner())
+            .build();
+    }
+
+    private PolicyRecommendationItem toPolicyRecommendationItem(PolicyRecommendationInfo info) {
+        return PolicyRecommendationItem.builder()
+            .policyId(info.policyId())
+            .policyName(info.policyName())
+            .provider(info.provider())
+            .targetSummary(info.targetSummary())
+            .supportSummary(info.supportSummary())
+            .matchingReason(info.matchingReason())
+            .applicationPeriod(info.applicationPeriod())
+            .referenceUrl(info.referenceUrl())
             .build();
     }
 
@@ -251,6 +287,9 @@ public class CommercialPresenter {
             .compositeScore(info.compositeScore())
             .grade(info.grade())
             .summaryLabel(info.summaryLabel())
+            .selectionReason(info.selectionReason())
+            .opportunityLabel(info.opportunityLabel())
+            .riskLabel(info.riskLabel())
             .metricBreakdown(info.metricBreakdown().stream().map(this::toMetricBreakdownItem).toList())
             .reasonTags(info.reasonTags())
             .build();
@@ -316,7 +355,9 @@ public class CommercialPresenter {
             .build();
     }
 
-    private CommercialFootTrafficByAgeGenderPercentItem toCommercialFootTrafficByAgeGenderPercentItem(CommercialFootTrafficByAgeGenderPercentInfo info) {
+    private CommercialFootTrafficByAgeGenderPercentItem toCommercialFootTrafficByAgeGenderPercentItem(
+        CommercialFootTrafficByAgeGenderPercentInfo info
+    ) {
         return CommercialFootTrafficByAgeGenderPercentItem.builder()
             .maleAge10Percent(info.maleAge10Percent())
             .femaleAge10Percent(info.femaleAge10Percent())

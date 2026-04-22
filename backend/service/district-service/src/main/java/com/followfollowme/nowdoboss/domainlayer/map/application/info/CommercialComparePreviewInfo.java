@@ -9,7 +9,8 @@ public record CommercialComparePreviewInfo(
     ComparePreviewTargetInfo left,
     ComparePreviewTargetInfo right,
     CodeNameDescriptionMetadata recommendedSide,
-    List<ComparePreviewMetricInfo> headlineMetrics
+    List<ComparePreviewMetricInfo> headlineMetrics,
+    String insightOneLiner
 ) {
 
 }
