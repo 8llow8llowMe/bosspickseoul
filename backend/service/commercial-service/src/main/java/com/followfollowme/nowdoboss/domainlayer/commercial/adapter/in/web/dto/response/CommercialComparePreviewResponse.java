@@ -21,7 +21,10 @@ public record CommercialComparePreviewResponse(
     CodeNameDescriptionMetadata recommendedSide,
 
     @Schema(description = "핵심 지표 목록 (매출·유동인구·점포수·개업률·폐업률·월평균소득)")
-    List<ComparisonMetricItem> headlineMetrics
+    List<ComparisonMetricItem> headlineMetrics,
+
+    @Schema(description = "AI 한 줄 인사이트", example = "강남역이 매출 기준 32% 우위입니다.")
+    String insightOneLiner
 ) {
 
 }

@@ -7,7 +7,8 @@ public record CommercialComparePreviewQueryResult(
     ComparePreviewTargetQueryResult left,
     ComparePreviewTargetQueryResult right,
     CodeNameDescriptionMetadata recommendedSide,
-    List<ComparePreviewMetricQueryResult> headlineMetrics
+    List<ComparePreviewMetricQueryResult> headlineMetrics,
+    String insightOneLiner
 ) {
 
 }

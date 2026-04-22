@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 @Builder
+@Schema(description = "정책 추천 항목 DTO")
 public record PolicyRecommendationItem(
     @Schema(description = "정책 ID")
     String policyId,
