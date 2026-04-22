@@ -12,5 +12,6 @@ public interface SalesDistrictRepositoryPort {
 
     List<SalesDistrictTopTenQueryResult> findTopTenBySales(String currentPeriodCode, String previousPeriodCode);
 
-    List<SalesDistrictServiceTopFiveQueryResult> findTopFiveServiceBySales(String districtCode, String currentPeriodCode, String previousPeriodCode);
+    List<SalesDistrictServiceTopFiveQueryResult> findTopFiveServiceBySales(
+        String districtCode, String currentPeriodCode, String previousPeriodCode);
 }

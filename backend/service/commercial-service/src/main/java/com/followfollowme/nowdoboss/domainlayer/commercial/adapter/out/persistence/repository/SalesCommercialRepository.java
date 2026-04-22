@@ -15,5 +15,6 @@ public interface SalesCommercialRepository extends JpaRepository<SalesCommercial
         """)
     List<String> findDistinctServiceCodesByCommercialCode(String commercialCode);
 
-    Optional<SalesCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
+    Optional<SalesCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode, String commercialCode, String serviceCode);
 }

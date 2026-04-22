@@ -16,8 +16,11 @@ public class AdministrationWebFacade implements AdministrationWebUseCase {
     private final AdministrationPresenter administrationPresenter;
 
     @Override
-    public AdministrationDetailResponse getAdministrationDetail(String administrationCode, String currentPeriodCode, String previousPeriodCode) {
-        AdministrationDetailInfo info = administrationQueryProcessor.getAdministrationDetail(administrationCode, currentPeriodCode, previousPeriodCode);
+    public AdministrationDetailResponse getAdministrationDetail(
+        String administrationCode, String currentPeriodCode, String previousPeriodCode
+    ) {
+        AdministrationDetailInfo info = administrationQueryProcessor.getAdministrationDetail(
+            administrationCode, currentPeriodCode, previousPeriodCode);
         return administrationPresenter.toAdministrationDetailResponse(info);
     }
 }

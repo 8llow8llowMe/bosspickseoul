@@ -31,7 +31,8 @@ public class CommercialSummaryQueryProcessor {
                 .build())
             .orElseThrow(() -> new IllegalArgumentException("자치구 매출 정보를 찾을 수 없습니다."));
 
-        RegionalSalesSummaryInfo administrationSummary = commercialSummaryRepositoryPort.findSalesAdministration(periodCode, administrationCode, serviceCode)
+        RegionalSalesSummaryInfo administrationSummary = commercialSummaryRepositoryPort
+            .findSalesAdministration(periodCode, administrationCode, serviceCode)
             .map(salesAdministration -> RegionalSalesSummaryInfo.builder()
                 .code(salesAdministration.administrationCode())
                 .name(salesAdministration.administrationName())
@@ -41,7 +42,8 @@ public class CommercialSummaryQueryProcessor {
                 .build())
             .orElseThrow(() -> new IllegalArgumentException("행정동 매출 정보를 찾을 수 없습니다."));
 
-        RegionalSalesSummaryInfo commercialSummary = commercialSummaryRepositoryPort.findSalesCommercial(periodCode, commercialCode, serviceCode)
+        RegionalSalesSummaryInfo commercialSummary = commercialSummaryRepositoryPort
+            .findSalesCommercial(periodCode, commercialCode, serviceCode)
             .map(salesCommercial -> RegionalSalesSummaryInfo.builder()
                 .code(salesCommercial.commercialCode())
                 .name(salesCommercial.commercialName())
@@ -72,7 +74,8 @@ public class CommercialSummaryQueryProcessor {
                 .build())
             .orElseThrow(() -> new IllegalArgumentException("자치구 지출 정보를 찾을 수 없습니다."));
 
-        RegionalIncomeSummaryInfo administrationSummary = commercialSummaryRepositoryPort.findIncomeAdministration(periodCode, administrationCode)
+        RegionalIncomeSummaryInfo administrationSummary = commercialSummaryRepositoryPort
+            .findIncomeAdministration(periodCode, administrationCode)
             .map(incomeAdministration -> RegionalIncomeSummaryInfo.builder()
                 .code(incomeAdministration.administrationCode())
                 .name(incomeAdministration.administrationName())

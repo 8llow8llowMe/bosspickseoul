@@ -22,7 +22,9 @@ public class SalesCommercialRepositoryAdapter implements SalesCommercialReposito
     }
 
     @Override
-    public Optional<SalesCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
+    public Optional<SalesCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode, String commercialCode, String serviceCode
+    ) {
         return salesCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
             .map(salesCommercialMapper::toDomainFromEntity);
     }
