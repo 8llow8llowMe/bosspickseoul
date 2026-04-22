@@ -9,6 +9,9 @@ public record CandidateCommercialQueryResult(
     Double compositeScore,
     String grade,
     String summaryLabel,
+    String selectionReason,
+    String opportunityLabel,
+    String riskLabel,
     List<MetricBreakdownQueryResult> metricBreakdown,
     List<String> reasonTags
 ) {

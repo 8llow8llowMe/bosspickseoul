@@ -1,10 +1,13 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.processor;
 
 import com.followfollowme.nowdoboss.common.dto.metadata.ScoreMetricMetadata;
+import com.followfollowme.nowdoboss.common.enums.HeatmapModeType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialsResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.MetricBreakdownInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CandidatePresetType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import java.util.ArrayList;
@@ -27,44 +30,130 @@ public class CommercialCandidateQueryProcessor {
 
     private final CommercialHeatmapQueryProcessor commercialHeatmapQueryProcessor;
 
-    public List<CommercialHeatmapScoreInfo> getCompositeHeatmapScores(
+    public CommercialHeatmapScoresResponseInfo getCompositeHeatmapScores(
         String periodCode,
         String serviceCode,
         List<String> commercialCodes,
         CandidatePresetType preset,
         CommercialHeatmapMetricType priorityMetric
     ) {
+        CommercialHeatmapMetricType resolvedPriority = priorityMetric == null
+            ? preset.getDefaultPriorityMetric()
+            : priorityMetric;
+
         if (commercialCodes == null || commercialCodes.isEmpty()) {
-            return List.of();
+            return CommercialHeatmapScoresResponseInfo.builder()
+                .mode(HeatmapModeType.COMPOSITE.toMetadata())
+                .serviceCode(serviceCode)
+                .periodCode(periodCode)
+                .preset(preset.toMetadata())
+                .priorityMetric(resolvedPriority.toScoreMetadata())
+                .summary(buildCompositeSummary(preset, resolvedPriority))
+                .scores(List.of())
+                .build();
         }
 
         List<CommercialAllMetricScoresInfo> allScores =
             commercialHeatmapQueryProcessor.getAllMetricScores(periodCode, serviceCode, commercialCodes);
 
-        ScoreMetricMetadata compositeMetadata = buildCompositeMetadata(preset, priorityMetric);
+        ScoreMetricMetadata compositeMetadata = buildCompositeMetadata(preset, resolvedPriority);
 
         List<CommercialHeatmapScoreInfo> result = new ArrayList<>(allScores.size());
         for (CommercialAllMetricScoresInfo entry : allScores) {
             Map<CommercialHeatmapMetricType, Double> rawScores = extractRawScores(entry);
-            Double composite = rawScores.isEmpty() ? null : preset.computeComposite(rawScores, priorityMetric);
+            Double composite = rawScores.isEmpty() ? null : preset.computeComposite(rawScores, resolvedPriority);
 
             result.add(CommercialHeatmapScoreInfo.builder()
                 .commercialCode(entry.commercialCode())
-                .commercialName(entry.commercialCode())
+                .commercialName(entry.commercialName())
                 .metricType(compositeMetadata)
                 .score(composite)
                 .grade(compositeGrade(composite))
                 .summaryLabel(compositeSummaryLabel(composite, preset))
                 .build());
         }
-        return result;
+
+        return CommercialHeatmapScoresResponseInfo.builder()
+            .mode(HeatmapModeType.COMPOSITE.toMetadata())
+            .serviceCode(serviceCode)
+            .periodCode(periodCode)
+            .preset(preset.toMetadata())
+            .priorityMetric(resolvedPriority.toScoreMetadata())
+            .summary(buildCompositeSummary(preset, resolvedPriority))
+            .scores(result)
+            .build();
     }
 
-    private ScoreMetricMetadata buildCompositeMetadata(CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric) {
-        String priorityLabel = priorityMetric == null
-            ? preset.getDefaultPriorityMetric().getDisplayName()
-            : priorityMetric.getDisplayName();
-        String description = "프리셋 %s 가중치와 우선 지표 %s 기준으로 4개 지표를 가중 합성한 복합 점수입니다."
+    public CandidateCommercialsResponseInfo getTopCandidates(
+        String periodCode,
+        String serviceCode,
+        List<String> commercialCodes,
+        CandidatePresetType preset,
+        CommercialHeatmapMetricType priorityMetric,
+        Integer topN
+    ) {
+        CommercialHeatmapMetricType resolvedPriority = priorityMetric == null
+            ? preset.getDefaultPriorityMetric()
+            : priorityMetric;
+        int limit = clampTopN(topN);
+
+        if (commercialCodes == null || commercialCodes.isEmpty()) {
+            return CandidateCommercialsResponseInfo.builder()
+                .serviceCode(serviceCode)
+                .periodCode(periodCode)
+                .preset(preset.toMetadata())
+                .priorityMetric(resolvedPriority.toScoreMetadata())
+                .topN(limit)
+                .summary(buildCandidateSummary(preset, resolvedPriority, 0))
+                .items(List.of())
+                .build();
+        }
+
+        List<CommercialAllMetricScoresInfo> allScores =
+            commercialHeatmapQueryProcessor.getAllMetricScores(periodCode, serviceCode, commercialCodes);
+
+        List<Ranked> ranked = new ArrayList<>(allScores.size());
+        for (CommercialAllMetricScoresInfo entry : allScores) {
+            Map<CommercialHeatmapMetricType, Double> rawScores = extractRawScores(entry);
+            Double composite = rawScores.isEmpty() ? null : preset.computeComposite(rawScores, resolvedPriority);
+            ranked.add(new Ranked(entry, composite));
+        }
+
+        ranked.sort(Comparator.comparing((Ranked candidate) -> candidate.composite() == null
+                ? Double.NEGATIVE_INFINITY
+                : candidate.composite())
+            .reversed());
+
+        List<CandidateCommercialInfo> result = new ArrayList<>(Math.min(limit, ranked.size()));
+        int rank = 1;
+        for (Ranked item : ranked) {
+            if (rank > limit) {
+                break;
+            }
+            if (item.composite() == null) {
+                continue;
+            }
+            result.add(toCandidateInfo(rank, item, preset, resolvedPriority));
+            rank++;
+        }
+
+        return CandidateCommercialsResponseInfo.builder()
+            .serviceCode(serviceCode)
+            .periodCode(periodCode)
+            .preset(preset.toMetadata())
+            .priorityMetric(resolvedPriority.toScoreMetadata())
+            .topN(limit)
+            .summary(buildCandidateSummary(preset, resolvedPriority, result.size()))
+            .items(result)
+            .build();
+    }
+
+    private ScoreMetricMetadata buildCompositeMetadata(
+        CandidatePresetType preset,
+        CommercialHeatmapMetricType priorityMetric
+    ) {
+        String priorityLabel = priorityMetric.getDisplayName();
+        String description = "%s 가중치와 우선 지표 %s 기준으로 4개 지표를 합산한 복합 점수입니다."
             .formatted(preset.getDisplayName(), priorityLabel);
         return ScoreMetricMetadata.of(
             "COMPOSITE_" + preset.name(),
@@ -85,47 +174,6 @@ public class CommercialCandidateQueryProcessor {
             return preset.getDisplayName() + " 적합도 보통";
         }
         return preset.getDisplayName() + " 적합도 낮음";
-    }
-
-    public List<CandidateCommercialInfo> getTopCandidates(
-        String periodCode,
-        String serviceCode,
-        List<String> commercialCodes,
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric,
-        Integer topN
-    ) {
-        if (commercialCodes == null || commercialCodes.isEmpty()) {
-            return List.of();
-        }
-
-        int limit = clampTopN(topN);
-        List<CommercialAllMetricScoresInfo> allScores =
-            commercialHeatmapQueryProcessor.getAllMetricScores(periodCode, serviceCode, commercialCodes);
-
-        List<Ranked> ranked = new ArrayList<>(allScores.size());
-        for (CommercialAllMetricScoresInfo entry : allScores) {
-            Map<CommercialHeatmapMetricType, Double> rawScores = extractRawScores(entry);
-            Double composite = rawScores.isEmpty() ? null : preset.computeComposite(rawScores, priorityMetric);
-            ranked.add(new Ranked(entry, composite));
-        }
-
-        ranked.sort(Comparator.comparing((Ranked r) -> r.composite() == null ? Double.NEGATIVE_INFINITY : r.composite())
-            .reversed());
-
-        List<CandidateCommercialInfo> result = new ArrayList<>(Math.min(limit, ranked.size()));
-        int rank = 1;
-        for (Ranked item : ranked) {
-            if (rank > limit) {
-                break;
-            }
-            if (item.composite() == null) {
-                continue;
-            }
-            result.add(toCandidateInfo(rank, item, preset, priorityMetric));
-            rank++;
-        }
-        return result;
     }
 
     private Map<CommercialHeatmapMetricType, Double> extractRawScores(CommercialAllMetricScoresInfo entry) {
@@ -162,13 +210,52 @@ public class CommercialCandidateQueryProcessor {
         return CandidateCommercialInfo.builder()
             .rank(rank)
             .commercialCode(item.source().commercialCode())
-            .commercialName(item.source().commercialCode())
+            .commercialName(item.source().commercialName())
             .compositeScore(item.composite())
             .grade(compositeGrade(item.composite()))
             .summaryLabel(preset.getDisplayName() + " 추천")
+            .selectionReason(buildSelectionReason(item.source(), preset, priorityMetric))
+            .opportunityLabel(resolveLabel(item.source(), CommercialHeatmapMetricType.OPPORTUNITY_SCORE))
+            .riskLabel(resolveLabel(item.source(), CommercialHeatmapMetricType.RISK_SCORE))
             .metricBreakdown(breakdown)
             .reasonTags(buildReasonTags(item.source(), preset, priorityMetric))
             .build();
+    }
+
+    private String buildSelectionReason(
+        CommercialAllMetricScoresInfo source,
+        CandidatePresetType preset,
+        CommercialHeatmapMetricType priorityMetric
+    ) {
+        return "%s 기준으로 %s를 우선 반영했고, 기회도는 %s이며 위험도는 %s입니다."
+            .formatted(
+                preset.getDisplayName(),
+                resolveLabel(source, priorityMetric),
+                resolveLabel(source, CommercialHeatmapMetricType.OPPORTUNITY_SCORE),
+                resolveLabel(source, CommercialHeatmapMetricType.RISK_SCORE)
+            );
+    }
+
+    private String resolveLabel(CommercialAllMetricScoresInfo source, CommercialHeatmapMetricType metricType) {
+        CommercialHeatmapScoreInfo scoreInfo = source.scoresByMetric().get(metricType);
+        return scoreInfo == null || scoreInfo.summaryLabel() == null ? "데이터 부족" : scoreInfo.summaryLabel();
+    }
+
+    private String buildCandidateSummary(
+        CandidatePresetType preset,
+        CommercialHeatmapMetricType priorityMetric,
+        int candidateCount
+    ) {
+        return "%s 프리셋과 %s 우선 지표 기준으로 선별한 비교 후보 상권 %d건입니다."
+            .formatted(preset.getDisplayName(), priorityMetric.getDisplayName(), candidateCount);
+    }
+
+    private String buildCompositeSummary(
+        CandidatePresetType preset,
+        CommercialHeatmapMetricType priorityMetric
+    ) {
+        return "%s 프리셋과 %s 우선 지표 기준으로 계산한 상권 복합 히트맵입니다."
+            .formatted(preset.getDisplayName(), priorityMetric.getDisplayName());
     }
 
     private List<String> buildReasonTags(
@@ -176,16 +263,15 @@ public class CommercialCandidateQueryProcessor {
         CandidatePresetType preset,
         CommercialHeatmapMetricType priorityMetric
     ) {
-        CommercialHeatmapMetricType priority = priorityMetric == null ? preset.getDefaultPriorityMetric() : priorityMetric;
         List<String> tags = new ArrayList<>(3);
 
-        CommercialHeatmapScoreInfo prioritySource = source.scoresByMetric().get(priority);
+        CommercialHeatmapScoreInfo prioritySource = source.scoresByMetric().get(priorityMetric);
         if (prioritySource != null && prioritySource.score() != null) {
-            tags.add(buildPriorityTag(priority, prioritySource.score()));
+            tags.add(buildPriorityTag(priorityMetric, prioritySource.score()));
         }
 
         for (CommercialHeatmapMetricType metric : CommercialHeatmapMetricType.values()) {
-            if (metric == priority || tags.size() >= 3) {
+            if (metric == priorityMetric || tags.size() >= 3) {
                 continue;
             }
             CommercialHeatmapScoreInfo info = source.scoresByMetric().get(metric);
@@ -205,7 +291,7 @@ public class CommercialCandidateQueryProcessor {
         String label = metric.getDisplayName();
         return switch (metric) {
             case RISK_SCORE -> score >= TAG_HIGH_THRESHOLD ? label + " 주의" : label + " 양호";
-            default -> score >= TAG_HIGH_THRESHOLD ? label + " 상위" : label + " 평이";
+            default -> score >= TAG_HIGH_THRESHOLD ? label + " 우세" : label + " 반영";
         };
     }
 

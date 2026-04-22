@@ -39,3 +39,58 @@
 - 점수화는 `commercial-service`의 `CommercialCandidateQueryProcessor`가 수행한다. `district-service`는 경계 좌표를 조합해 응답을 구성한다.
 - 프리셋 가중치와 compositeScore 산출 책임은 `commercial-service` 단독이다. `district-service.CandidatePresetType`은 표시용 enum만 유지한다.
 - Profile 응답의 `centerLng/centerLat/boundaryCoords`는 이번 단계에선 null/빈 배열로 내려간다. 프론트엔드는 직전 candidates/heatmap 응답의 경계 정보를 재사용한다.
+## Heatmap / Candidate Response Shape
+
+### `GET /api/v1/map/commercials/heatmap`
+
+- top-level metadata
+  - `mode`
+  - `serviceCode`
+  - `periodCode`
+  - `metricType`
+  - `preset`
+  - `priorityMetric`
+  - `summary`
+- item fields
+  - `areaCode`
+  - `areaName`
+  - `centerLng`
+  - `centerLat`
+  - `boundaryCoords`
+  - `metricType`
+  - `score`
+  - `grade`
+  - `summaryLabel`
+
+### `GET /api/v1/map/commercials/candidates`
+
+- top-level metadata
+  - `serviceCode`
+  - `periodCode`
+  - `preset`
+  - `priorityMetric`
+  - `topN`
+  - `summary`
+- item fields
+  - `rank`
+  - `areaCode`
+  - `areaName`
+  - `centerLng`
+  - `centerLat`
+  - `boundaryCoords`
+  - `compositeScore`
+  - `grade`
+  - `summaryLabel`
+  - `selectionReason`
+  - `opportunityLabel`
+  - `riskLabel`
+  - `metricBreakdown`
+  - `reasonTags`
+
+## Notes
+
+- `areaName` is the actual commercial name resolved from map and region metadata.
+- `metricType`, `preset`, and `priorityMetric` use metadata objects so the frontend can reuse `code/name/description` directly.
+- `selectionReason` is intended to be rendered directly in candidate cards or list UIs.
+- `mode` also uses a metadata object and distinguishes single-metric heatmaps from composite recommendation heatmaps.
+- Invalid heatmap mode combinations and out-of-range `topN` values are treated as `400 Bad Request`.

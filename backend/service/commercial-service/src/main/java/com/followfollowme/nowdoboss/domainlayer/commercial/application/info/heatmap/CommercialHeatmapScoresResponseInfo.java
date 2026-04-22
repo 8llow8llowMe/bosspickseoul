@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query;
+package com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap;
 
 import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.nowdoboss.common.dto.metadata.ScoreMetricMetadata;
@@ -6,7 +6,7 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-public record CommercialHeatmapScoresQueryResult(
+public record CommercialHeatmapScoresResponseInfo(
     CodeNameDescriptionMetadata mode,
     String serviceCode,
     String periodCode,
@@ -14,7 +14,7 @@ public record CommercialHeatmapScoresQueryResult(
     CodeNameDescriptionMetadata preset,
     ScoreMetricMetadata priorityMetric,
     String summary,
-    List<CommercialHeatmapScoreQueryResult> scores
+    List<CommercialHeatmapScoreInfo> scores
 ) {
 
 }

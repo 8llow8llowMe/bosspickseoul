@@ -38,3 +38,52 @@
 - `CommercialComparePreviewQueryProcessor.getPreview(...)` — 기존 `CommercialComparisonQueryProcessor.compareCommercials(...)` 결과를 재사용해 6개 headline 지표 + recommendedSide 만 프로젝션한다.
 - 내부용 엔드포인트 (`@Hidden`): `/commercials/candidates`, `/commercials/heatmap-composite`, `/commercials/{code}/profile`, `/commercials/compare-preview`. 외부 노출은 district-service `/api/v1/map/commercials/...` 만 사용한다.
 - `CandidatePresetType` 는 `CodeNameDescribable` 을 구현하며 가중치는 `application/model` 안에만 존재한다. adapter 계층으로 새지 않도록 유지.
+## Hidden Heatmap / Candidate Response Shape
+
+### `GET /api/v1/commercials/heatmap`
+
+- top-level metadata
+  - `mode`
+  - `serviceCode`
+  - `periodCode`
+  - `metricType`
+  - `preset`
+  - `priorityMetric`
+  - `summary`
+- item fields
+  - `commercialCode`
+  - `commercialName`
+  - `metricType`
+  - `score`
+  - `grade`
+  - `summaryLabel`
+
+### `GET /api/v1/commercials/candidates`
+
+- top-level metadata
+  - `serviceCode`
+  - `periodCode`
+  - `preset`
+  - `priorityMetric`
+  - `topN`
+  - `summary`
+- item fields
+  - `rank`
+  - `commercialCode`
+  - `commercialName`
+  - `compositeScore`
+  - `grade`
+  - `summaryLabel`
+  - `selectionReason`
+  - `opportunityLabel`
+  - `riskLabel`
+  - `metricBreakdown`
+  - `reasonTags`
+
+## Notes
+
+- Hidden commercial endpoints return the same metadata-rich contract that district-service uses for public map responses.
+- `commercialName` is populated from actual analysis source data, not from the code placeholder.
+- `metricBreakdown.metricType` also follows the shared metadata object convention.
+- `mode` uses a metadata object so callers can render heatmap mode labels without hard-coded enum text.
+- Invalid `topN` values are treated as `400 Bad Request` instead of silent clamping at the API boundary.

@@ -4,7 +4,7 @@ import com.followfollowme.nowdoboss.common.dto.metadata.ScoreMetricMetadata;
 
 public record CommercialHeatmapScoreQueryResult(
     String commercialCode,
-    String commercialLabel,
+    String commercialName,
     ScoreMetricMetadata metricType,
     Double score,
     String grade,

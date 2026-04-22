@@ -26,7 +26,8 @@ public interface CommercialWebUseCase {
 
     CommercialFootTrafficResponse getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode);
 
-    CommercialSalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
+    CommercialSalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode, String commercialCode, String serviceCode);
 
     CommercialFacilityResponse getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode);
 
@@ -34,7 +35,8 @@ public interface CommercialWebUseCase {
 
     CommercialIncomeAndExpenseResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode);
 
-    CommercialStoreAnalysisResponse getStoreByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
+    CommercialStoreAnalysisResponse getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode, String commercialCode, String serviceCode);
 
     CommercialComparisonResponse compareCommercials(CommercialComparisonQuery query);
 
@@ -72,7 +74,10 @@ public interface CommercialWebUseCase {
 
     CommercialComparePreviewResponse getCommercialComparePreview(CommercialComparisonQuery query);
 
-    CommercialSalesSummaryResponse getSalesSummary(String periodCode, String districtCode, String administrationCode, String commercialCode, String serviceCode);
+    CommercialSalesSummaryResponse getSalesSummary(
+        String periodCode, String districtCode, String administrationCode,
+        String commercialCode, String serviceCode);
 
-    CommercialIncomeSummaryResponse getIncomeSummary(String periodCode, String districtCode, String administrationCode, String commercialCode);
+    CommercialIncomeSummaryResponse getIncomeSummary(
+        String periodCode, String districtCode, String administrationCode, String commercialCode);
 }
