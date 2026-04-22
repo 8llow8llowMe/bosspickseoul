@@ -1,5 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service;
 
+import com.followfollowme.nowdoboss.common.enums.HeatmapModeType;
+import com.followfollowme.nowdoboss.common.exception.BadRequestException;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CandidateCommercialsResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparePreviewResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
@@ -17,8 +19,10 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter.CommercialPresenter;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialsResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.preview.CommercialComparePreviewInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.profile.CommercialProfileInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.CommercialBenchmarkInfo;
@@ -80,8 +84,11 @@ public class CommercialWebFacade implements CommercialWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public CommercialSalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
-        CommercialSalesInfo info = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
+    public CommercialSalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode, String commercialCode, String serviceCode
+    ) {
+        CommercialSalesInfo info = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
+            periodCode, commercialCode, serviceCode);
         return commercialPresenter.toCommercialSalesResponse(info);
     }
 
@@ -149,7 +156,15 @@ public class CommercialWebFacade implements CommercialWebUseCase {
             commercialCodes,
             metricType
         );
-        return commercialPresenter.toCommercialHeatmapScoresResponse(infos);
+        CommercialHeatmapScoresResponseInfo responseInfo = CommercialHeatmapScoresResponseInfo.builder()
+            .mode(HeatmapModeType.SINGLE_METRIC.toMetadata())
+            .serviceCode(serviceCode)
+            .periodCode(periodCode)
+            .metricType(metricType.toScoreMetadata())
+            .summary("%s 기준으로 조회한 상권 히트맵 결과입니다.".formatted(metricType.getDisplayName()))
+            .scores(infos)
+            .build();
+        return commercialPresenter.toCommercialHeatmapScoresResponse(responseInfo);
     }
 
     @Override
@@ -162,7 +177,8 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         CommercialHeatmapMetricType priorityMetric,
         Integer topN
     ) {
-        List<CandidateCommercialInfo> infos = commercialCandidateQueryProcessor.getTopCandidates(
+        validateTopN(topN);
+        CandidateCommercialsResponseInfo info = commercialCandidateQueryProcessor.getTopCandidates(
             periodCode,
             serviceCode,
             commercialCodes,
@@ -170,7 +186,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
             priorityMetric,
             topN
         );
-        return commercialPresenter.toCandidateCommercialsResponse(infos);
+        return commercialPresenter.toCandidateCommercialsResponse(info);
     }
 
     @Override
@@ -182,14 +198,14 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         CandidatePresetType preset,
         CommercialHeatmapMetricType priorityMetric
     ) {
-        List<CommercialHeatmapScoreInfo> infos = commercialCandidateQueryProcessor.getCompositeHeatmapScores(
+        CommercialHeatmapScoresResponseInfo info = commercialCandidateQueryProcessor.getCompositeHeatmapScores(
             periodCode,
             serviceCode,
             commercialCodes,
             preset,
             priorityMetric
         );
-        return commercialPresenter.toCommercialHeatmapScoresResponse(infos);
+        return commercialPresenter.toCommercialHeatmapScoresResponse(info);
     }
 
     @Override
@@ -240,5 +256,14 @@ public class CommercialWebFacade implements CommercialWebUseCase {
             commercialCode
         );
         return commercialSummaryPresenter.toCommercialIncomeSummaryResponse(info);
+    }
+
+    private void validateTopN(Integer topN) {
+        if (topN == null) {
+            return;
+        }
+        if (topN < 5 || topN > 30) {
+            throw new BadRequestException("topN은 5 이상 30 이하여야 합니다.");
+        }
     }
 }

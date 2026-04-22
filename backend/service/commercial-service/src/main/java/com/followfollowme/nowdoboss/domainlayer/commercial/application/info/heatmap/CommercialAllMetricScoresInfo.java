@@ -7,6 +7,7 @@ import lombok.Builder;
 @Builder
 public record CommercialAllMetricScoresInfo(
     String commercialCode,
+    String commercialName,
     Map<CommercialHeatmapMetricType, CommercialHeatmapScoreInfo> scoresByMetric
 ) {
 

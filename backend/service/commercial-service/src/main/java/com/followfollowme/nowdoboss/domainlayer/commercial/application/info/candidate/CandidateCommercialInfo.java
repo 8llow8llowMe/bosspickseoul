@@ -11,6 +11,9 @@ public record CandidateCommercialInfo(
     Double compositeScore,
     String grade,
     String summaryLabel,
+    String selectionReason,
+    String opportunityLabel,
+    String riskLabel,
     List<MetricBreakdownInfo> metricBreakdown,
     List<String> reasonTags
 ) {

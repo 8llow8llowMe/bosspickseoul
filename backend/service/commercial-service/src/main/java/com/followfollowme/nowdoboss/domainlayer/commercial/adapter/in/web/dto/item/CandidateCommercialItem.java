@@ -26,6 +26,15 @@ public record CandidateCommercialItem(
     @Schema(description = "요약 라벨", example = "공격형 추천")
     String summaryLabel,
 
+    @Schema(description = "선정 이유 한 줄 설명")
+    String selectionReason,
+
+    @Schema(description = "기회도 해석 라벨", nullable = true)
+    String opportunityLabel,
+
+    @Schema(description = "위험도 해석 라벨", nullable = true)
+    String riskLabel,
+
     @Schema(description = "지표별 세부 점수")
     List<MetricBreakdownItem> metricBreakdown,
 

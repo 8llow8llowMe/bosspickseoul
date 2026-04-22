@@ -13,8 +13,11 @@ import com.followfollowme.nowdoboss.domainlayer.map.application.port.in.MapWebUs
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Validated
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/map")
 @Tag(name = "지도 영역", description = "지도에 표시할 폴리곤과 상권 히트맵을 제공하는 API를 제공합니다.")
@@ -105,7 +109,7 @@ public class MapWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
-        @Parameter(description = "상위 N (기본 10, 5~30)", example = "10") @RequestParam(required = false) Integer topN,
+        @Parameter(description = "상위 N (기본 10, 5~30)", example = "10") @RequestParam(required = false) @Min(value = 5, message = "topN은 5 이상이어야 합니다.") @Max(value = 30, message = "topN은 30 이하여야 합니다.") Integer topN,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
         CandidateCommercialsResponse response = mapWebUseCase.getCandidateCommercials(

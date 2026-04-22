@@ -62,7 +62,7 @@ public class CommercialHeatmapQueryProcessor {
 
                 scoresByMetric.put(metric, CommercialHeatmapScoreInfo.builder()
                     .commercialCode(source.commercialCode())
-                    .commercialName(source.commercialCode())
+                    .commercialName(source.commercialName())
                     .metricType(metric.toScoreMetadata())
                     .score(normalized)
                     .grade(toGrade(normalized))
@@ -72,6 +72,7 @@ public class CommercialHeatmapQueryProcessor {
 
             result.add(CommercialAllMetricScoresInfo.builder()
                 .commercialCode(source.commercialCode())
+                .commercialName(source.commercialName())
                 .scoresByMetric(scoresByMetric)
                 .build());
         }
@@ -99,9 +100,12 @@ public class CommercialHeatmapQueryProcessor {
 
     private HeatmapSource buildSource(String periodCode, String serviceCode, String commercialCode) {
         try {
+            CommercialSalesInfo sales =
+                commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
             return new HeatmapSource(
                 commercialCode,
-                commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode),
+                sales.commercialName(),
+                sales,
                 commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode),
                 commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode),
                 commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode),
@@ -109,7 +113,7 @@ public class CommercialHeatmapQueryProcessor {
                 commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode)
             );
         } catch (IllegalArgumentException exception) {
-            return new HeatmapSource(commercialCode, null, null, null, null, null, null);
+            return new HeatmapSource(commercialCode, commercialCode, null, null, null, null, null, null);
         }
     }
 
@@ -186,12 +190,14 @@ public class CommercialHeatmapQueryProcessor {
             case OPPORTUNITY_SCORE -> score >= 70D ? "기회도 높음" : score >= 40D ? "기회도 보통" : "기회도 낮음";
             case RISK_SCORE -> score >= 70D ? "위험도 높음" : score >= 40D ? "위험도 보통" : "위험도 낮음";
             case CONGESTION_SCORE -> score >= 70D ? "혼잡도 높음" : score >= 40D ? "혼잡도 보통" : "혼잡도 낮음";
-            case RESIDENT_POPULATION_SCORE -> score >= 70D ? "거주 수요 높음" : score >= 40D ? "거주 수요 보통" : "거주 수요 낮음";
+            case RESIDENT_POPULATION_SCORE ->
+                score >= 70D ? "거주 수요 높음" : score >= 40D ? "거주 수요 보통" : "거주 수요 낮음";
         };
     }
 
     private record HeatmapSource(
         String commercialCode,
+        String commercialName,
         CommercialSalesInfo sales,
         CommercialFootTrafficInfo footTraffic,
         CommercialStoreAnalysisInfo store,

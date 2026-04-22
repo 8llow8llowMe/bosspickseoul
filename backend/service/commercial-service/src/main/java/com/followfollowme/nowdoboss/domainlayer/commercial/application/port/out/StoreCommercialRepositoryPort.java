@@ -9,5 +9,6 @@ public interface StoreCommercialRepositoryPort {
 
     Optional<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
 
-    List<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceType(String periodCode, String commercialCode, ServiceType serviceType);
+    List<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceType(
+        String periodCode, String commercialCode, ServiceType serviceType);
 }

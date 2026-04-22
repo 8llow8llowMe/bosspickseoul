@@ -24,10 +24,13 @@ import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Validated
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/commercials")
 @Tag(name = "상권 분석", description = "상권 분석, 비교, 벤치마크 조회 API를 제공합니다.")
@@ -58,7 +62,8 @@ public class CommercialWebController {
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialFootTrafficResponse response = commercialWebUseCase.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        CommercialFootTrafficResponse response = commercialWebUseCase
+            .getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -69,7 +74,8 @@ public class CommercialWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @PathVariable String serviceCode,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialSalesResponse response = commercialWebUseCase.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
+        CommercialSalesResponse response = commercialWebUseCase
+            .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -89,7 +95,8 @@ public class CommercialWebController {
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialResidentPopulationResponse response = commercialWebUseCase.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
+        CommercialResidentPopulationResponse response = commercialWebUseCase
+            .getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -99,7 +106,8 @@ public class CommercialWebController {
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialIncomeAndExpenseResponse response = commercialWebUseCase.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        CommercialIncomeAndExpenseResponse response = commercialWebUseCase
+            .getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -148,7 +156,8 @@ public class CommercialWebController {
         @Parameter(description = "히트맵 지표 타입", required = true, example = "OPPORTUNITY_SCORE") @RequestParam CommercialHeatmapMetricType metricType,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        CommercialHeatmapScoresResponse response = commercialWebUseCase.getHeatmapScores(periodCode, serviceCode, commercialCodes, metricType);
+        CommercialHeatmapScoresResponse response = commercialWebUseCase
+            .getHeatmapScores(periodCode, serviceCode, commercialCodes, metricType);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -160,7 +169,7 @@ public class CommercialWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
-        @Parameter(description = "상위 N (기본 10, 5~30)") @RequestParam(required = false) Integer topN,
+        @Parameter(description = "상위 N (기본 10, 5~30)") @RequestParam(required = false) @Min(value = 5, message = "topN은 5 이상이어야 합니다.") @Max(value = 30, message = "topN은 30 이하여야 합니다.") Integer topN,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
         CandidateCommercialsResponse response = commercialWebUseCase.getTopCandidates(

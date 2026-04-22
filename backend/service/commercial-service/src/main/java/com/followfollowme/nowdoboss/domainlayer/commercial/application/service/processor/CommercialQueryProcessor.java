@@ -59,20 +59,25 @@ public class CommercialQueryProcessor {
         return CommercialFootTrafficInfo.from(footTrafficCommercial);
     }
 
-    public CommercialSalesInfo getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
-        SalesCommercial salesCommercial = salesCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
+    public CommercialSalesInfo getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode, String commercialCode, String serviceCode
+    ) {
+        SalesCommercial salesCommercial = salesCommercialRepositoryPort
+            .findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
             .orElseThrow(() -> new IllegalArgumentException("매출 정보를 찾을 수 없습니다."));
         return CommercialSalesInfo.from(salesCommercial);
     }
 
     public CommercialFacilityInfo getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
-        FacilityCommercial facilityCommercial = facilityCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+        FacilityCommercial facilityCommercial = facilityCommercialRepositoryPort
+            .findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("집객시설 정보를 찾을 수 없습니다."));
         return CommercialFacilityInfo.from(facilityCommercial);
     }
 
     public CommercialResidentPopulationInfo getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
-        PopulationCommercial populationCommercial = populationCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+        PopulationCommercial populationCommercial = populationCommercialRepositoryPort
+            .findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new IllegalArgumentException("상주인구 정보를 찾을 수 없습니다."));
         return CommercialResidentPopulationInfo.from(populationCommercial);
     }
