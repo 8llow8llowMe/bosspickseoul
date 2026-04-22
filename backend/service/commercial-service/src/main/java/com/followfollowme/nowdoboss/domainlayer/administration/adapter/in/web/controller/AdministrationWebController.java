@@ -29,7 +29,9 @@ public class AdministrationWebController {
         @Parameter(description = "현재 기준 분기 코드 (YYYYQ)", example = "20233") @RequestParam(defaultValue = "20233") String currentPeriodCode,
         @Parameter(description = "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.", example = "20232") @RequestParam(required = false) String previousPeriodCode
     ) {
-        AdministrationDetailResponse response = administrationWebUseCase.getAdministrationDetail(administrationCode, currentPeriodCode, previousPeriodCode);
+        AdministrationDetailResponse response = administrationWebUseCase.getAdministrationDetail(
+            administrationCode, currentPeriodCode, previousPeriodCode
+        );
         return ResponseEntity.ok().body(Response.success(response));
     }
 }

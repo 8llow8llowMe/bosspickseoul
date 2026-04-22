@@ -173,7 +173,8 @@ public class DistrictQueryProcessor {
             .maleFootTraffic(current.maleFootTraffic())
             .femaleFootTraffic(current.femaleFootTraffic())
             .dominantGenderType(
-                (current.maleFootTraffic() >= current.femaleFootTraffic() ? DistrictGenderType.MALE : DistrictGenderType.FEMALE).toMetadata())
+                (current.maleFootTraffic() >= current.femaleFootTraffic()
+                    ? DistrictGenderType.MALE : DistrictGenderType.FEMALE).toMetadata())
             .build();
 
         DistrictAgeGroupFootTrafficInfo ageGroupInfo = DistrictAgeGroupFootTrafficInfo.builder()

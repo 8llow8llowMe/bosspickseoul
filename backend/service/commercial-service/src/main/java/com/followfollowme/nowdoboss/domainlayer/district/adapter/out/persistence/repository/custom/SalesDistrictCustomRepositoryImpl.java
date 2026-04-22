@@ -68,7 +68,9 @@ public class SalesDistrictCustomRepositoryImpl implements SalesDistrictCustomRep
     }
 
     @Override
-    public List<SalesDistrictServiceTopFiveProjection> findTopFiveServiceBySales(String districtCode, String currentPeriodCode, String previousPeriodCode) {
+    public List<SalesDistrictServiceTopFiveProjection> findTopFiveServiceBySales(
+        String districtCode, String currentPeriodCode, String previousPeriodCode
+    ) {
         QSalesDistrictEntity current = salesDistrictEntity;
         QSalesDistrictEntity previous = new QSalesDistrictEntity("previous");
 

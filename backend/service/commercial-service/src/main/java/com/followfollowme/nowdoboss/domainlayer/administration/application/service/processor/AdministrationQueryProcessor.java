@@ -30,11 +30,14 @@ public class AdministrationQueryProcessor {
     private final AdministrationAnalysisRepositoryPort administrationAnalysisRepositoryPort;
     private final PeriodCodeCalculator periodCodeCalculator;
 
-    public AdministrationDetailInfo getAdministrationDetail(String administrationCode, String currentPeriodCode, String previousPeriodCode) {
+    public AdministrationDetailInfo getAdministrationDetail(
+        String administrationCode, String currentPeriodCode, String previousPeriodCode
+    ) {
         String resolvedPreviousPeriodCode = periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
 
         List<SalesAdministration> currentSales = administrationAnalysisRepositoryPort.findSales(currentPeriodCode, administrationCode);
-        List<SalesAdministration> previousSales = administrationAnalysisRepositoryPort.findSales(resolvedPreviousPeriodCode, administrationCode);
+        List<SalesAdministration> previousSales = administrationAnalysisRepositoryPort
+            .findSales(resolvedPreviousPeriodCode, administrationCode);
         List<StoreAdministration> currentStores = administrationAnalysisRepositoryPort.findStores(currentPeriodCode, administrationCode);
         IncomeAdministration income = administrationAnalysisRepositoryPort.findIncome(currentPeriodCode, administrationCode)
             .orElseThrow(() -> new IllegalArgumentException("행정동 지출 정보를 찾을 수 없습니다."));
@@ -56,7 +59,9 @@ public class AdministrationQueryProcessor {
             .build();
     }
 
-    private String resolveAdministrationName(List<SalesAdministration> currentSales, List<StoreAdministration> currentStores, IncomeAdministration income) {
+    private String resolveAdministrationName(
+        List<SalesAdministration> currentSales, List<StoreAdministration> currentStores, IncomeAdministration income
+    ) {
         return currentSales.stream().findFirst().map(SalesAdministration::administrationName)
             .or(() -> currentStores.stream().findFirst().map(StoreAdministration::administrationName))
             .orElse(income.administrationName());

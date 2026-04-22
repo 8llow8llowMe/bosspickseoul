@@ -21,7 +21,9 @@ public class SalesDistrictRepositoryAdapter implements SalesDistrictRepositoryPo
     private final SalesDistrictMapper salesDistrictMapper;
 
     @Override
-    public Optional<SalesDistrict> findByPeriodCodeAndDistrictCodeAndServiceCode(String periodCode, String districtCode, String serviceCode) {
+    public Optional<SalesDistrict> findByPeriodCodeAndDistrictCodeAndServiceCode(
+        String periodCode, String districtCode, String serviceCode
+    ) {
         return salesDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCode(
                 periodCode, districtCode, serviceCode)
             .map(salesDistrictMapper::toDomainFromEntity);
@@ -36,7 +38,9 @@ public class SalesDistrictRepositoryAdapter implements SalesDistrictRepositoryPo
     }
 
     @Override
-    public List<SalesDistrictServiceTopFiveQueryResult> findTopFiveServiceBySales(String districtCode, String currentPeriodCode, String previousPeriodCode) {
+    public List<SalesDistrictServiceTopFiveQueryResult> findTopFiveServiceBySales(
+        String districtCode, String currentPeriodCode, String previousPeriodCode
+    ) {
         return salesDistrictRepository.findTopFiveServiceBySales(districtCode, currentPeriodCode, previousPeriodCode)
             .stream()
             .map(this::toSalesServiceTopFiveQueryResult)

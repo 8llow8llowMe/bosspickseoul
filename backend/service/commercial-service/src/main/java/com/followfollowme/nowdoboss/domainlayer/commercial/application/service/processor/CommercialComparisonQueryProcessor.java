@@ -42,32 +42,54 @@ public class CommercialComparisonQueryProcessor {
         String rightCommercialCode = query.rightCommercialCode();
         String serviceCode = query.serviceCode();
 
-        CommercialSalesInfo leftSales = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, leftCommercialCode, serviceCode);
-        CommercialSalesInfo rightSales = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, rightCommercialCode, serviceCode);
-        CommercialFootTrafficInfo leftFootTraffic = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, leftCommercialCode);
-        CommercialFootTrafficInfo rightFootTraffic = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, rightCommercialCode);
-        CommercialStoreAnalysisInfo leftStore = commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, leftCommercialCode, serviceCode);
-        CommercialStoreAnalysisInfo rightStore = commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, rightCommercialCode, serviceCode);
-        CommercialIncomeAndExpenseInfo leftIncome = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, leftCommercialCode);
-        CommercialIncomeAndExpenseInfo rightIncome = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, rightCommercialCode);
-        CommercialResidentPopulationInfo leftPopulation = commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, leftCommercialCode);
-        CommercialResidentPopulationInfo rightPopulation = commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, rightCommercialCode);
+        CommercialSalesInfo leftSales = commercialQueryProcessor
+            .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, leftCommercialCode, serviceCode);
+        CommercialSalesInfo rightSales = commercialQueryProcessor
+            .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, rightCommercialCode, serviceCode);
+        CommercialFootTrafficInfo leftFootTraffic = commercialQueryProcessor
+            .getFootTrafficByPeriodCodeAndCommercialCode(periodCode, leftCommercialCode);
+        CommercialFootTrafficInfo rightFootTraffic = commercialQueryProcessor
+            .getFootTrafficByPeriodCodeAndCommercialCode(periodCode, rightCommercialCode);
+        CommercialStoreAnalysisInfo leftStore = commercialQueryProcessor
+            .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, leftCommercialCode, serviceCode);
+        CommercialStoreAnalysisInfo rightStore = commercialQueryProcessor
+            .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, rightCommercialCode, serviceCode);
+        CommercialIncomeAndExpenseInfo leftIncome = commercialQueryProcessor
+            .getIncomeByPeriodCodeAndCommercialCode(periodCode, leftCommercialCode);
+        CommercialIncomeAndExpenseInfo rightIncome = commercialQueryProcessor
+            .getIncomeByPeriodCodeAndCommercialCode(periodCode, rightCommercialCode);
+        CommercialResidentPopulationInfo leftPopulation = commercialQueryProcessor
+            .getPopulationByPeriodAndCommercialCode(periodCode, leftCommercialCode);
+        CommercialResidentPopulationInfo rightPopulation = commercialQueryProcessor
+            .getPopulationByPeriodAndCommercialCode(periodCode, rightCommercialCode);
         CommercialFacilityInfo leftFacility = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, leftCommercialCode);
-        CommercialFacilityInfo rightFacility = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, rightCommercialCode);
+        CommercialFacilityInfo rightFacility = commercialQueryProcessor
+            .getFacilityByPeriodAndCommercialCode(periodCode, rightCommercialCode);
 
-        CommercialComparisonTargetInfo left = buildTargetInfo(leftCommercialCode, leftSales.commercialName(), fetchAdministration(leftCommercialCode));
-        CommercialComparisonTargetInfo right = buildTargetInfo(rightCommercialCode, rightSales.commercialName(), fetchAdministration(rightCommercialCode));
+        CommercialComparisonTargetInfo left = buildTargetInfo(
+            leftCommercialCode, leftSales.commercialName(), fetchAdministration(leftCommercialCode));
+        CommercialComparisonTargetInfo right = buildTargetInfo(
+            rightCommercialCode, rightSales.commercialName(), fetchAdministration(rightCommercialCode));
 
         List<ComparisonMetricInfo> salesMetrics = List.of(
-            toMetric("총 매출액", totalSalesAmount(leftSales.amountByDayOfWeekInfo()), totalSalesAmount(rightSales.amountByDayOfWeekInfo())),
-            toMetric("매출 건수", totalSalesCount(leftSales.countByDayOfWeekInfo()), totalSalesCount(rightSales.countByDayOfWeekInfo())),
-            toMetric("남성 매출 건수", leftSales.countByGenderInfo().maleSalesCount(), rightSales.countByGenderInfo().maleSalesCount()),
-            toMetric("여성 매출 건수", leftSales.countByGenderInfo().femaleSalesCount(), rightSales.countByGenderInfo().femaleSalesCount())
+            toMetric("총 매출액",
+                totalSalesAmount(leftSales.amountByDayOfWeekInfo()), totalSalesAmount(rightSales.amountByDayOfWeekInfo())),
+            toMetric("매출 건수",
+                totalSalesCount(leftSales.countByDayOfWeekInfo()), totalSalesCount(rightSales.countByDayOfWeekInfo())),
+            toMetric("남성 매출 건수",
+                leftSales.countByGenderInfo().maleSalesCount(), rightSales.countByGenderInfo().maleSalesCount()),
+            toMetric("여성 매출 건수",
+                leftSales.countByGenderInfo().femaleSalesCount(), rightSales.countByGenderInfo().femaleSalesCount())
         );
         List<ComparisonMetricInfo> footTrafficMetrics = List.of(
-            toMetric("총 유동인구", totalFootTraffic(leftFootTraffic.byDayOfWeekInfo()), totalFootTraffic(rightFootTraffic.byDayOfWeekInfo())),
-            toMetric("남성 유동인구 비중", maleFootTrafficShare(leftFootTraffic.byAgeGenderPercentInfo()), maleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo())),
-            toMetric("여성 유동인구 비중", femaleFootTrafficShare(leftFootTraffic.byAgeGenderPercentInfo()), femaleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo()))
+            toMetric("총 유동인구",
+                totalFootTraffic(leftFootTraffic.byDayOfWeekInfo()), totalFootTraffic(rightFootTraffic.byDayOfWeekInfo())),
+            toMetric("남성 유동인구 비중",
+                maleFootTrafficShare(leftFootTraffic.byAgeGenderPercentInfo()),
+                maleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo())),
+            toMetric("여성 유동인구 비중",
+                femaleFootTrafficShare(leftFootTraffic.byAgeGenderPercentInfo()),
+                femaleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo()))
         );
         List<ComparisonMetricInfo> storeMetrics = List.of(
             toMetric("총 점포 수", leftStore.totalStoreCount(), rightStore.totalStoreCount()),
@@ -77,11 +99,15 @@ public class CommercialComparisonQueryProcessor {
             toMetric("프랜차이즈 점포 수", leftStore.franchiseStoreCount(), rightStore.franchiseStoreCount())
         );
         List<ComparisonMetricInfo> spendingMetrics = List.of(
-            toMetric("월 평균 소득", leftIncome.averageIncomeInfo().monthlyAverageIncomeAmount(), rightIncome.averageIncomeInfo().monthlyAverageIncomeAmount()),
-            toMetric("총 지출액", totalExpenseAmount(leftIncome.expenseByCategoryInfo()), totalExpenseAmount(rightIncome.expenseByCategoryInfo()))
+            toMetric("월 평균 소득",
+                leftIncome.averageIncomeInfo().monthlyAverageIncomeAmount(),
+                rightIncome.averageIncomeInfo().monthlyAverageIncomeAmount()),
+            toMetric("총 지출액",
+                totalExpenseAmount(leftIncome.expenseByCategoryInfo()), totalExpenseAmount(rightIncome.expenseByCategoryInfo()))
         );
         List<ComparisonMetricInfo> residentPopulationMetrics = List.of(
-            toMetric("총 거주인구", leftPopulation.byAgeInfo().totalResidentPopulation(), rightPopulation.byAgeInfo().totalResidentPopulation()),
+            toMetric("총 거주인구",
+                leftPopulation.byAgeInfo().totalResidentPopulation(), rightPopulation.byAgeInfo().totalResidentPopulation()),
             toMetric("남성 거주인구 비중", leftPopulation.malePercentage(), rightPopulation.malePercentage()),
             toMetric("여성 거주인구 비중", leftPopulation.femalePercentage(), rightPopulation.femalePercentage())
         );
@@ -91,7 +117,8 @@ public class CommercialComparisonQueryProcessor {
             toMetric("교통 시설 수", leftFacility.totalTransportationFacilityCount(), rightFacility.totalTransportationFacilityCount())
         );
 
-        ComparisonWinnerSide recommendedSide = resolveRecommendedSide(salesMetrics, storeMetrics, spendingMetrics, residentPopulationMetrics, facilityMetrics);
+        ComparisonWinnerSide recommendedSide = resolveRecommendedSide(
+            salesMetrics, storeMetrics, spendingMetrics, residentPopulationMetrics, facilityMetrics);
         List<String> comparisonHighlights = buildHighlights(left, right, salesMetrics, storeMetrics, residentPopulationMetrics);
 
         return CommercialComparisonInfo.builder()
@@ -112,10 +139,13 @@ public class CommercialComparisonQueryProcessor {
             .facilityMetrics(facilityMetrics)
             .salesTimeSlotMetrics(buildSalesTimeSlotMetrics(leftSales.amountByTimeSlotInfo(), rightSales.amountByTimeSlotInfo()))
             .salesAgeMetrics(buildSalesAgeMetrics(leftSales.amountByAgeInfo(), rightSales.amountByAgeInfo()))
-            .salesAgeGenderMetrics(buildSalesAgeGenderMetrics(leftSales.amountByAgeGenderPercentInfo(), rightSales.amountByAgeGenderPercentInfo()))
-            .footTrafficTimeSlotMetrics(buildFootTrafficTimeSlotMetrics(leftFootTraffic.byTimeSlotInfo(), rightFootTraffic.byTimeSlotInfo()))
+            .salesAgeGenderMetrics(buildSalesAgeGenderMetrics(
+                leftSales.amountByAgeGenderPercentInfo(), rightSales.amountByAgeGenderPercentInfo()))
+            .footTrafficTimeSlotMetrics(buildFootTrafficTimeSlotMetrics(
+                leftFootTraffic.byTimeSlotInfo(), rightFootTraffic.byTimeSlotInfo()))
             .footTrafficAgeMetrics(buildFootTrafficAgeMetrics(leftFootTraffic.byAgeGroupInfo(), rightFootTraffic.byAgeGroupInfo()))
-            .footTrafficAgeGenderMetrics(buildFootTrafficAgeGenderMetrics(leftFootTraffic.byAgeGenderPercentInfo(), rightFootTraffic.byAgeGenderPercentInfo()))
+            .footTrafficAgeGenderMetrics(buildFootTrafficAgeGenderMetrics(
+                leftFootTraffic.byAgeGenderPercentInfo(), rightFootTraffic.byAgeGenderPercentInfo()))
             .comparisonHighlights(comparisonHighlights)
             .highlights(comparisonHighlights)
             .build();
@@ -148,7 +178,8 @@ public class CommercialComparisonQueryProcessor {
         return switch (recommendedSide) {
             case LEFT -> "%s이(가) 현재 업종 기준으로 더 유리한 상권입니다.".formatted(left.commercialName());
             case RIGHT -> "%s이(가) 현재 업종 기준으로 더 유리한 상권입니다.".formatted(right.commercialName());
-            case TIE -> "%s과(와) %s은(는) 전반적인 경쟁력이 비슷한 상권입니다.".formatted(left.commercialName(), right.commercialName());
+            case TIE ->
+                "%s과(와) %s은(는) 전반적인 경쟁력이 비슷한 상권입니다.".formatted(left.commercialName(), right.commercialName());
         };
     }
 
@@ -245,9 +276,12 @@ public class CommercialComparisonQueryProcessor {
         ComparisonWinnerSide recommendedSide
     ) {
         return switch (recommendedSide) {
-            case LEFT -> "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(left.commercialName());
-            case RIGHT -> "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(right.commercialName());
-            case TIE -> "두 상권 모두 비슷한 적합도를 보여 예산과 운영 전략 기준의 추가 비교가 필요합니다.";
+            case LEFT ->
+                "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(left.commercialName());
+            case RIGHT ->
+                "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(right.commercialName());
+            case TIE ->
+                "두 상권 모두 비슷한 적합도를 보여 예산과 운영 전략 기준의 추가 비교가 필요합니다.";
         };
     }
 
@@ -293,7 +327,9 @@ public class CommercialComparisonQueryProcessor {
         );
     }
 
-    private List<ComparisonMetricInfo> buildFootTrafficTimeSlotMetrics(CommercialFootTrafficByTimeSlotInfo left, CommercialFootTrafficByTimeSlotInfo right) {
+    private List<ComparisonMetricInfo> buildFootTrafficTimeSlotMetrics(
+        CommercialFootTrafficByTimeSlotInfo left, CommercialFootTrafficByTimeSlotInfo right
+    ) {
         return List.of(
             toMetric("00-06", left.footTrafficTime00To06(), right.footTrafficTime00To06()),
             toMetric("06-11", left.footTrafficTime06To11(), right.footTrafficTime06To11()),
@@ -304,7 +340,9 @@ public class CommercialComparisonQueryProcessor {
         );
     }
 
-    private List<ComparisonMetricInfo> buildFootTrafficAgeMetrics(CommercialFootTrafficByAgeGroupInfo left, CommercialFootTrafficByAgeGroupInfo right) {
+    private List<ComparisonMetricInfo> buildFootTrafficAgeMetrics(
+        CommercialFootTrafficByAgeGroupInfo left, CommercialFootTrafficByAgeGroupInfo right
+    ) {
         return List.of(
             toMetric("10대 유동인구", left.age10FootTraffic(), right.age10FootTraffic()),
             toMetric("20대 유동인구", left.age20FootTraffic(), right.age20FootTraffic()),

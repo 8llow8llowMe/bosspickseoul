@@ -18,8 +18,12 @@ public class AreaBoundaryRepositoryAdapter implements AreaBoundaryRepositoryPort
     private final AreaBoundaryMapper areaBoundaryMapper;
 
     @Override
-    public List<AreaBoundary> findAllByAreaTypeAndBoundingBox(AreaType areaType, double minLng, double minLat, double maxLng, double maxLat) {
-        List<AreaBoundaryEntity> entities = areaBoundaryRepository.findAllByAreaTypeAndBoundingBox(areaType, minLng, minLat, maxLng, maxLat);
+    public List<AreaBoundary> findAllByAreaTypeAndBoundingBox(
+        AreaType areaType, double minLng, double minLat, double maxLng, double maxLat
+    ) {
+        List<AreaBoundaryEntity> entities = areaBoundaryRepository.findAllByAreaTypeAndBoundingBox(
+            areaType, minLng, minLat, maxLng, maxLat
+        );
         return areaBoundaryMapper.toDomainListFromEntityList(entities);
     }
 }

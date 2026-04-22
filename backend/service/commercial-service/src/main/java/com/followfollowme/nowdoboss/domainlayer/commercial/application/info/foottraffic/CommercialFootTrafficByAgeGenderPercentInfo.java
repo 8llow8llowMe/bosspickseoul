@@ -24,35 +24,35 @@ public record CommercialFootTrafficByAgeGenderPercentInfo(
         long total = footTrafficCommercial.totalFootTraffic();
 
         return CommercialFootTrafficByAgeGenderPercentInfo.builder()
-            .maleAge10Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age10FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
-            .femaleAge10Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age10FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
+            .maleAge10Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age10FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
+            .femaleAge10Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age10FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
 
-            .maleAge20Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age20FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
-            .femaleAge20Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age20FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
+            .maleAge20Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age20FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
+            .femaleAge20Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age20FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
 
-            .maleAge30Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age30FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
-            .femaleAge30Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age30FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
+            .maleAge30Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age30FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
+            .femaleAge30Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age30FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
 
-            .maleAge40Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age40FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
-            .femaleAge40Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age40FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
+            .maleAge40Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age40FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
+            .femaleAge40Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age40FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
 
-            .maleAge50Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age50FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
-            .femaleAge50Percent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age50FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
+            .maleAge50Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age50FootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
+            .femaleAge50Percent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age50FootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
 
-            .maleAge60PlusPercent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age60PlusFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
-            .femaleAge60PlusPercent(
-                PercentCalculator.estimatedJointPercent(footTrafficCommercial.age60PlusFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
+            .maleAge60PlusPercent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age60PlusFootTraffic(), footTrafficCommercial.maleFootTraffic(), total))
+            .femaleAge60PlusPercent(PercentCalculator.estimatedJointPercent(
+                footTrafficCommercial.age60PlusFootTraffic(), footTrafficCommercial.femaleFootTraffic(), total))
             .build();
     }
 }

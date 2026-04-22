@@ -16,7 +16,8 @@ public interface DistrictWebUseCase {
 
     DistrictDetailResponse getDistrictDetail(String districtCode, String currentPeriodCode, String previousPeriodCode);
 
-    FootTrafficDistrictDetailResponse getDistrictFootTrafficDetail(String districtCode, String currentPeriodCode, String previousPeriodCode);
+    FootTrafficDistrictDetailResponse getDistrictFootTrafficDetail(
+        String districtCode, String currentPeriodCode, String previousPeriodCode);
 
     ChangeIndicatorDistrictResponse getDistrictChangeDetail(String districtCode, String currentPeriodCode);
 

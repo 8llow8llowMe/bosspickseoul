@@ -18,13 +18,17 @@ public class StoreCommercialRepositoryAdapter implements StoreCommercialReposito
     private final StoreCommercialMapper storeCommercialMapper;
 
     @Override
-    public Optional<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
+    public Optional<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(
+        String periodCode, String commercialCode, String serviceCode
+    ) {
         return storeCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
             .map(storeCommercialMapper::toDomainFromEntity);
     }
 
     @Override
-    public List<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceType(String periodCode, String commercialCode, ServiceType serviceType) {
+    public List<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceType(
+        String periodCode, String commercialCode, ServiceType serviceType
+    ) {
         return storeCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceType(periodCode, commercialCode, serviceType)
             .stream()
             .map(storeCommercialMapper::toDomainFromEntity)

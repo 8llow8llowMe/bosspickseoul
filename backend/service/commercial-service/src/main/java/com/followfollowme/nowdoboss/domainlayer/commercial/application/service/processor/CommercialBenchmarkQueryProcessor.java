@@ -44,7 +44,8 @@ public class CommercialBenchmarkQueryProcessor {
             .districtName(region.districtName())
             .administrationCode(region.administrationCode())
             .administrationName(region.administrationName())
-            .summary("%s의 매출과 소비력 지표를 자치구 및 행정동 평균과 비교한 결과입니다.".formatted(commercialName))
+            .summary(
+            "%s의 매출과 소비력 지표를 자치구 및 행정동 평균과 비교한 결과입니다.".formatted(commercialName))
             .salesSummary(salesSummary)
             .incomeSummary(incomeSummary)
             .benchmarkHighlights(buildHighlights(commercialName))

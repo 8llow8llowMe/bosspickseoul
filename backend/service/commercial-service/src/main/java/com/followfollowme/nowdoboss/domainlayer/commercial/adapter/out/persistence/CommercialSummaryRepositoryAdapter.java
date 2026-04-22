@@ -47,7 +47,8 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
 
     @Override
     public Optional<SalesAdministration> findSalesAdministration(String periodCode, String administrationCode, String serviceCode) {
-        return salesAdministrationRepository.findByPeriodCodeAndAdministrationCodeAndServiceCode(periodCode, administrationCode, serviceCode)
+        return salesAdministrationRepository
+            .findByPeriodCodeAndAdministrationCodeAndServiceCode(periodCode, administrationCode, serviceCode)
             .map(this::toSalesAdministrationDomain);
     }
 

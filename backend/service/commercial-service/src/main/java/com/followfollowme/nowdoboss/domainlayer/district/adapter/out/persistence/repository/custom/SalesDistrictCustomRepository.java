@@ -8,5 +8,6 @@ public interface SalesDistrictCustomRepository {
 
     List<SalesDistrictTopTenProjection> findTopTenBySales(String currentPeriodCode, String previousPeriodCode);
 
-    List<SalesDistrictServiceTopFiveProjection> findTopFiveServiceBySales(String districtCode, String currentPeriodCode, String previousPeriodCode);
+    List<SalesDistrictServiceTopFiveProjection> findTopFiveServiceBySales(
+        String districtCode, String currentPeriodCode, String previousPeriodCode);
 }
