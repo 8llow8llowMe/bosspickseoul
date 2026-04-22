@@ -179,7 +179,9 @@ public class AiReportProcessor {
             return cached.get();
         }
 
-        DistrictAiSourceData sourceData = buildDistrictSourceData(districtCode, periodCode, districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode));
+        DistrictAiSourceData sourceData = buildDistrictSourceData(
+            districtCode, periodCode, districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode)
+        );
         DistrictAiDraft draft = aiLlmPort.generateDistrictReport(sourceData);
         DistrictAiReportInfo reportInfo = new DistrictAiReportInfo(
             draft.summary(),
@@ -384,11 +386,15 @@ public class AiReportProcessor {
             .comparisonSummary(comparison.comparisonSummary())
             .recommendedSide(comparison.recommendedSide() == null ? null : comparison.recommendedSide().code())
             .recommendedReasons(defaultList(comparison.recommendedReasons(), "추천 이유 데이터가 충분하지 않습니다."))
-            .cautionPoints(defaultList(comparison.cautionPoints(), "두 상권의 경쟁 강도와 폐업률을 함께 확인하는 것이 좋습니다."))
+            .cautionPoints(defaultList(
+                comparison.cautionPoints(), "두 상권의 경쟁 강도와 폐업률을 함께 확인하는 것이 좋습니다."
+            ))
             .dominantTimeSlots(defaultList(comparison.dominantTimeSlots(), "시간대 비교 데이터가 충분하지 않습니다."))
             .dominantAgeGroups(defaultList(comparison.dominantAgeGroups(), "연령대 비교 데이터가 충분하지 않습니다."))
             .businessFitSummary(comparison.businessFitSummary())
-            .comparisonHighlights(defaultList(comparison.comparisonHighlights(), "비교 하이라이트 데이터가 충분하지 않습니다."))
+            .comparisonHighlights(defaultList(
+                comparison.comparisonHighlights(), "비교 하이라이트 데이터가 충분하지 않습니다."
+            ))
             .salesMetricSummaries(toMetricSummaries(comparison.salesMetrics()))
             .footTrafficMetricSummaries(toMetricSummaries(comparison.footTrafficMetrics()))
             .storeMetricSummaries(toMetricSummaries(comparison.storeMetrics()))
@@ -432,7 +438,9 @@ public class AiReportProcessor {
                 ))
                 .toList())
             .topSalesServiceSummaries(districtDetail.sales().topSalesServices().stream()
-                .map(item -> "%s (증감률 %s)".formatted(item.serviceName(), PromptFormatterSupport.formatPercent(item.salesChangeRate())))
+                .map(item -> "%s (증감률 %s)".formatted(
+                    item.serviceName(), PromptFormatterSupport.formatPercent(item.salesChangeRate())
+                ))
                 .toList())
             .topSalesAdministrationSummaries(districtDetail.sales().topSalesAdministrations().stream()
                 .map(item -> "%s (매출 %s, 증감률 %s)".formatted(
@@ -458,7 +466,9 @@ public class AiReportProcessor {
             .districtName(districtInfo.districtName())
             .administrationName(districtInfo.administrationName())
             .commercialCount(commercials.size())
-            .commercialSummaries(commercials.stream().map(item -> "%s (%s)".formatted(item.commercialName(), item.commercialCode())).toList())
+            .commercialSummaries(commercials.stream()
+                .map(item -> "%s (%s)".formatted(item.commercialName(), item.commercialCode()))
+                .toList())
             .topSalesServiceSummaries(detail.sales().topSalesServices().stream().map(this::formatAdministrationSalesService).toList())
             .topStoreServiceSummaries(detail.store().topStoreServices().stream().map(this::formatAdministrationStoreService).toList())
             .totalExpenseAmount(detail.income().totalExpenseAmount())

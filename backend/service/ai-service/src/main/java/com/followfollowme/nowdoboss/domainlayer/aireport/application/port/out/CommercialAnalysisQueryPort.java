@@ -24,9 +24,15 @@ public interface CommercialAnalysisQueryPort {
 
     CommercialStoreAnalysisQueryResult getCommercialStore(String commercialCode, String serviceCode, String periodCode);
 
-    CommercialSalesSummaryQueryResult getCommercialSalesSummary(String districtCode, String administrationCode, String commercialCode, String serviceCode, String periodCode);
+    CommercialSalesSummaryQueryResult getCommercialSalesSummary(
+        String districtCode, String administrationCode, String commercialCode, String serviceCode, String periodCode
+    );
 
-    CommercialIncomeSummaryQueryResult getCommercialIncomeSummary(String districtCode, String administrationCode, String commercialCode, String periodCode);
+    CommercialIncomeSummaryQueryResult getCommercialIncomeSummary(
+        String districtCode, String administrationCode, String commercialCode, String periodCode
+    );
 
-    CommercialComparisonQueryResult getCommercialComparison(String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode);
+    CommercialComparisonQueryResult getCommercialComparison(
+        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
+    );
 }

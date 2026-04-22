@@ -61,7 +61,9 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
         String periodCode
     ) {
         return responseSupport.requestAndUnwrap(
-            () -> commercialAnalysisClient.getCommercialSalesSummary(commercialCode, districtCode, administrationCode, serviceCode, periodCode)
+            () -> commercialAnalysisClient.getCommercialSalesSummary(
+                commercialCode, districtCode, administrationCode, serviceCode, periodCode
+            )
         );
     }
 

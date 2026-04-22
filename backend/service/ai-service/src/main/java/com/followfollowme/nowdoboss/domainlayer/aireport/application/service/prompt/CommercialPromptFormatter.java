@@ -67,7 +67,11 @@ public class CommercialPromptFormatter {
             - 총 시설 수: %s
             - 학교 수: %s
             - 교통 시설 수: %s
-            """.formatted(PromptFormatterSupport.formatNumber(sourceData.totalFacilityCount()), PromptFormatterSupport.formatNumber(sourceData.schoolCount()), PromptFormatterSupport.formatNumber(sourceData.transportationFacilityCount()));
+            """.formatted(
+            PromptFormatterSupport.formatNumber(sourceData.totalFacilityCount()),
+            PromptFormatterSupport.formatNumber(sourceData.schoolCount()),
+            PromptFormatterSupport.formatNumber(sourceData.transportationFacilityCount())
+        );
     }
 
     private String formatPopulationSection(CommercialAiSourceData sourceData) {
@@ -101,7 +105,16 @@ public class CommercialPromptFormatter {
             - 폐업 점포 수 / 폐업률: %s / %s
             - 프랜차이즈 점포 수: %s
             - 비교 업종 예시: %s
-            """.formatted(PromptFormatterSupport.formatNumber(sourceData.totalStoreCount()), PromptFormatterSupport.formatNumber(sourceData.similarStoreCount()), PromptFormatterSupport.formatNumber(sourceData.openedStoreCount()), PromptFormatterSupport.formatPercent(sourceData.openingRate()), PromptFormatterSupport.formatNumber(sourceData.closedStoreCount()), PromptFormatterSupport.formatPercent(sourceData.closureRate()), PromptFormatterSupport.formatNumber(sourceData.franchiseStoreCount()), PromptFormatterSupport.formatTopList(sourceData.peerStoreSummaries(), 3, item -> item));
+            """.formatted(
+            PromptFormatterSupport.formatNumber(sourceData.totalStoreCount()),
+            PromptFormatterSupport.formatNumber(sourceData.similarStoreCount()),
+            PromptFormatterSupport.formatNumber(sourceData.openedStoreCount()),
+            PromptFormatterSupport.formatPercent(sourceData.openingRate()),
+            PromptFormatterSupport.formatNumber(sourceData.closedStoreCount()),
+            PromptFormatterSupport.formatPercent(sourceData.closureRate()),
+            PromptFormatterSupport.formatNumber(sourceData.franchiseStoreCount()),
+            PromptFormatterSupport.formatTopList(sourceData.peerStoreSummaries(), 3, item -> item)
+        );
     }
 
     private String formatSummaryComparisonSection(CommercialAiSourceData sourceData) {
@@ -113,6 +126,13 @@ public class CommercialPromptFormatter {
             - 자치구 총지출: %s
             - 행정동 총지출: %s
             - 상권 총지출: %s
-            """.formatted(PromptFormatterSupport.formatNumber(sourceData.districtSalesAmount()), PromptFormatterSupport.formatNumber(sourceData.administrationSalesAmount()), PromptFormatterSupport.formatNumber(sourceData.commercialSalesAmount()), PromptFormatterSupport.formatNumber(sourceData.districtExpenseAmount()), PromptFormatterSupport.formatNumber(sourceData.administrationExpenseAmount()), PromptFormatterSupport.formatNumber(sourceData.commercialExpenseAmount()));
+            """.formatted(
+            PromptFormatterSupport.formatNumber(sourceData.districtSalesAmount()),
+            PromptFormatterSupport.formatNumber(sourceData.administrationSalesAmount()),
+            PromptFormatterSupport.formatNumber(sourceData.commercialSalesAmount()),
+            PromptFormatterSupport.formatNumber(sourceData.districtExpenseAmount()),
+            PromptFormatterSupport.formatNumber(sourceData.administrationExpenseAmount()),
+            PromptFormatterSupport.formatNumber(sourceData.commercialExpenseAmount())
+        );
     }
 }

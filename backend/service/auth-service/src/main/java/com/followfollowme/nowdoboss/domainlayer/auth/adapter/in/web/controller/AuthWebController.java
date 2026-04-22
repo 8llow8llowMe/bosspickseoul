@@ -60,7 +60,8 @@ public class AuthWebController {
 
     @Operation(summary = "토큰 재발급", description = "리프레시 토큰으로 Access Token을 재발급합니다.")
     @PostMapping("/token/reissue")
-    public ResponseEntity<Response<TokenReissueResponse>> reissueToken(@CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
+    public ResponseEntity<Response<TokenReissueResponse>> reissueToken(
+        @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
         AuthCookieResult<TokenReissueResponse> result = authWebUseCase.reissueToken(TokenReissueCommand.from(refreshToken));
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
