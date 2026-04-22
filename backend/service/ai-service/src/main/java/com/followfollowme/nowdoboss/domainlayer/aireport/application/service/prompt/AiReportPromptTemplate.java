@@ -55,7 +55,13 @@ public class AiReportPromptTemplate {
 
             [입력 데이터]
             %s
-            """.formatted(COMMON_RULES, sourceData.commercialCode(), sourceData.serviceCode(), sourceData.periodCode(), commercialPromptFormatter.format(sourceData));
+            """.formatted(
+            COMMON_RULES,
+            sourceData.commercialCode(),
+            sourceData.serviceCode(),
+            sourceData.periodCode(),
+            commercialPromptFormatter.format(sourceData)
+        );
     }
 
     public String buildCommercialComparisonPrompt(CommercialComparisonAiSourceData sourceData) {
@@ -126,6 +132,11 @@ public class AiReportPromptTemplate {
 
             [입력 데이터]
             %s
-            """.formatted(COMMON_RULES, sourceData.administrationCode(), sourceData.periodCode(), administrationPromptFormatter.format(sourceData));
+            """.formatted(
+            COMMON_RULES,
+            sourceData.administrationCode(),
+            sourceData.periodCode(),
+            administrationPromptFormatter.format(sourceData)
+        );
     }
 }

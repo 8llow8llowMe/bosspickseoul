@@ -24,11 +24,17 @@ public final class PromptFormatterSupport {
     }
 
     public static String formatTopEntry(Map<String, Long> valueByLabel) {
-        return valueByLabel.entrySet().stream().max(Map.Entry.comparingByValue()).map(entry -> "%s (%s)".formatted(entry.getKey(), formatNumber(entry.getValue()))).orElse("N/A");
+        return valueByLabel.entrySet().stream()
+            .max(Map.Entry.comparingByValue())
+            .map(entry -> "%s (%s)".formatted(entry.getKey(), formatNumber(entry.getValue())))
+            .orElse("N/A");
     }
 
     public static String formatTopPercentEntry(Map<String, Double> valueByLabel) {
-        return valueByLabel.entrySet().stream().max(Map.Entry.comparingByValue()).map(entry -> "%s (%s)".formatted(entry.getKey(), formatPercent(entry.getValue()))).orElse("N/A");
+        return valueByLabel.entrySet().stream()
+            .max(Map.Entry.comparingByValue())
+            .map(entry -> "%s (%s)".formatted(entry.getKey(), formatPercent(entry.getValue())))
+            .orElse("N/A");
     }
 
     public static <T> String formatTopList(List<T> items, int size, Function<T, String> mapper) {

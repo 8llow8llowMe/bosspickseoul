@@ -28,7 +28,9 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
     @Override
     public List<AdministrationCommercialQueryResult> getCommercialsByAdministration(String administrationCode) {
         String districtCode = extractDistrictCode(administrationCode);
-        return responseSupport.requestAndUnwrap(() -> regionAnalysisClient.getCommercialsByAdministration(districtCode, administrationCode));
+        return responseSupport.requestAndUnwrap(
+            () -> regionAnalysisClient.getCommercialsByAdministration(districtCode, administrationCode)
+        );
     }
 
     @Override

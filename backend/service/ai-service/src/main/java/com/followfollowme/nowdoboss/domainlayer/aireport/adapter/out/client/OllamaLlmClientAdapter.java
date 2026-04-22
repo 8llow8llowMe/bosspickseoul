@@ -68,7 +68,10 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
 
     private String requestStructuredContent(String userPrompt) {
         try {
-            ChatResponse response = ollamaChatModel.call(new Prompt(List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userPrompt)), OllamaOptions.builder().format("json").build()));
+            ChatResponse response = ollamaChatModel.call(new Prompt(
+                List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userPrompt)),
+                OllamaOptions.builder().format("json").build()
+            ));
             String content = extractContent(response);
             if (content == null || content.isBlank()) {
                 throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);

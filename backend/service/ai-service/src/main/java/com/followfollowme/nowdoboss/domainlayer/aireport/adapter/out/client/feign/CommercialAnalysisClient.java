@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface CommercialAnalysisClient {
 
     @GetMapping("/{commercialCode}/foot-traffic")
-    Response<CommercialFootTrafficQueryResult> getCommercialFootTraffic(@PathVariable String commercialCode, @RequestParam String periodCode);
+    Response<CommercialFootTrafficQueryResult> getCommercialFootTraffic(
+        @PathVariable String commercialCode, @RequestParam String periodCode
+    );
 
     @GetMapping("/{commercialCode}/services/{serviceCode}/sales")
     Response<CommercialSalesQueryResult> getCommercialSales(
@@ -36,10 +38,14 @@ public interface CommercialAnalysisClient {
     Response<CommercialFacilityQueryResult> getCommercialFacility(@PathVariable String commercialCode, @RequestParam String periodCode);
 
     @GetMapping("/{commercialCode}/population")
-    Response<CommercialResidentPopulationQueryResult> getCommercialPopulation(@PathVariable String commercialCode, @RequestParam String periodCode);
+    Response<CommercialResidentPopulationQueryResult> getCommercialPopulation(
+        @PathVariable String commercialCode, @RequestParam String periodCode
+    );
 
     @GetMapping("/{commercialCode}/income")
-    Response<CommercialIncomeAndExpenseQueryResult> getCommercialIncome(@PathVariable String commercialCode, @RequestParam String periodCode);
+    Response<CommercialIncomeAndExpenseQueryResult> getCommercialIncome(
+        @PathVariable String commercialCode, @RequestParam String periodCode
+    );
 
     @GetMapping("/{commercialCode}/services/{serviceCode}/stores")
     Response<CommercialStoreAnalysisQueryResult> getCommercialStore(

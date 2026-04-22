@@ -53,8 +53,18 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     private final AiLlmProperties properties;
     private final AiReportPromptTemplate promptTemplate;
 
-    public OpenAiLlmClientAdapter(WebClient.Builder webClientBuilder, OpenAiSchemaMapper schemaMapper, AiStructuredResponseParser parser, AiLlmProperties properties, AiReportPromptTemplate promptTemplate) {
-        this.webClient = webClientBuilder.baseUrl(properties.baseUrl()).defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.apiKey()).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).build();
+    public OpenAiLlmClientAdapter(
+        WebClient.Builder webClientBuilder,
+        OpenAiSchemaMapper schemaMapper,
+        AiStructuredResponseParser parser,
+        AiLlmProperties properties,
+        AiReportPromptTemplate promptTemplate
+    ) {
+        this.webClient = webClientBuilder
+            .baseUrl(properties.baseUrl())
+            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.apiKey())
+            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .build();
         this.schemaMapper = schemaMapper;
         this.parser = parser;
         this.properties = properties;
@@ -78,21 +88,35 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
 
     @Override
     public DistrictAiDraft generateDistrictReport(DistrictAiSourceData sourceData) {
-        String content = requestStructuredContent(promptTemplate.buildDistrictPrompt(sourceData), buildRegionalResponseSchema("district_ai_report"));
+        String content = requestStructuredContent(
+            promptTemplate.buildDistrictPrompt(sourceData), buildRegionalResponseSchema("district_ai_report")
+        );
         return parser.parseDistrictReport(content);
     }
 
     @Override
     public AdministrationAiDraft generateAdministrationReport(AdministrationAiSourceData sourceData) {
-        String content = requestStructuredContent(promptTemplate.buildAdministrationPrompt(sourceData), buildRegionalResponseSchema("administration_ai_report"));
+        String content = requestStructuredContent(
+            promptTemplate.buildAdministrationPrompt(sourceData), buildRegionalResponseSchema("administration_ai_report")
+        );
         return parser.parseAdministrationReport(content);
     }
 
     private String requestStructuredContent(String userPrompt, OpenAiSchemaDefinition schemaDefinition) {
         validateApiKey();
         try {
-            OpenAiChatResponse response = webClient.post().uri("/chat/completions").bodyValue(buildRequestBody(userPrompt, schemaDefinition)).retrieve().bodyToMono(OpenAiChatResponse.class).block(Duration.ofMillis(properties.timeoutMs()));
-            if (response == null || response.choices() == null || response.choices().isEmpty() || response.choices().get(0).message() == null || response.choices().get(0).message().content() == null || response.choices().get(0).message().content().isBlank()) {
+            OpenAiChatResponse response = webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(buildRequestBody(userPrompt, schemaDefinition))
+                .retrieve()
+                .bodyToMono(OpenAiChatResponse.class)
+                .block(Duration.ofMillis(properties.timeoutMs()));
+            if (response == null
+                || response.choices() == null
+                || response.choices().isEmpty()
+                || response.choices().get(0).message() == null
+                || response.choices().get(0).message().content() == null
+                || response.choices().get(0).message().content().isBlank()) {
                 throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
             }
             return response.choices().get(0).message().content();
@@ -102,7 +126,13 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     }
 
     private OpenAiChatRequest buildRequestBody(String userPrompt, OpenAiSchemaDefinition schemaDefinition) {
-        return OpenAiChatRequest.builder().model(properties.model()).temperature(properties.temperature()).maxTokens(properties.maxTokens()).messages(List.of(buildSystemMessage(), buildUserMessage(userPrompt))).responseFormat(buildResponseFormat(schemaDefinition)).build();
+        return OpenAiChatRequest.builder()
+            .model(properties.model())
+            .temperature(properties.temperature())
+            .maxTokens(properties.maxTokens())
+            .messages(List.of(buildSystemMessage(), buildUserMessage(userPrompt)))
+            .responseFormat(buildResponseFormat(schemaDefinition))
+            .build();
     }
 
     private OpenAiChatMessage buildSystemMessage() {
@@ -145,7 +175,11 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
         return new OpenAiObjectSchemaDefinition(
             "commercial_ai_report",
             properties,
-            List.of("summary", "strengths", "risks", "recommendedBusinessCategories", "recommendedCustomerSegments", "recommendedOperatingHours", "avoidOperatingHours", "targetAgeGroups", "targetGenders", "operationTips", "businessInsight"),
+            List.of(
+                "summary", "strengths", "risks",
+                "recommendedBusinessCategories", "recommendedCustomerSegments", "recommendedOperatingHours",
+                "avoidOperatingHours", "targetAgeGroups", "targetGenders", "operationTips", "businessInsight"
+            ),
             false
         );
     }
