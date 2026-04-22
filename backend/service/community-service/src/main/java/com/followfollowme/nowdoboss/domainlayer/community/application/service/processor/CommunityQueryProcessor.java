@@ -39,7 +39,11 @@ public class CommunityQueryProcessor {
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
     }
 
-    public Slice<CommunityPost> getBoardPosts(String targetType, String targetCode, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size) {
+    public Slice<CommunityPost> getBoardPosts(
+        String targetType, String targetCode,
+        CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size
+    ) {
         CommunityTargetType parsedTargetType = CommunityTargetType.from(targetType);
         ensureTargetExists(parsedTargetType, targetCode);
 
@@ -83,7 +87,11 @@ public class CommunityQueryProcessor {
         return comment;
     }
 
-    public Slice<CommunityPost> getFeed(CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, long lastLikeCount, int size) {
+    public Slice<CommunityPost> getFeed(
+        CommunitySortType sortType, OrderType orderType,
+        String targetType, String targetCode,
+        long lastPostId, long lastLikeCount, int size
+    ) {
         CommunityTargetType normalizedTargetType = null;
         if (targetType != null && !targetType.isBlank()) {
             normalizedTargetType = CommunityTargetType.from(targetType);
@@ -106,7 +114,11 @@ public class CommunityQueryProcessor {
         return communityPostPort.getFeedPosts(criteria);
     }
 
-    public Slice<LikedCommunityPost> getLikedPosts(long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size) {
+    public Slice<LikedCommunityPost> getLikedPosts(
+        long memberId,
+        CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size
+    ) {
         CommunityLikedPostCriteria criteria = new CommunityLikedPostCriteria(
             memberId,
             sortType,
