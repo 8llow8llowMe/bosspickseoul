@@ -52,7 +52,9 @@ public class CommunityPostWebController {
         @Parameter(description = "내림차순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
         @Parameter(description = "조회 개수", example = "20") @RequestParam(defaultValue = "20") int size
     ) {
-        CommunityPostListResponse response = communityPostWebUseCase.getPosts(sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size);
+        CommunityPostListResponse response = communityPostWebUseCase.getPosts(
+            sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size
+        );
         return ResponseEntity.ok().body(Response.success(response));
     }
 

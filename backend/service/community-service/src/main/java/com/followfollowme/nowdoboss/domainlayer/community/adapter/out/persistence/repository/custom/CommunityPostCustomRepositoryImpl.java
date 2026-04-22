@@ -26,14 +26,9 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
 
     @Override
     public Slice<CommunityPostEntity> findBoardPostsNoOffset(
-        CommunityTargetType targetType,
-        String targetCode,
-        CommunityPostStatus status,
-        CommunitySortType sortType,
-        OrderType orderType,
-        long lastPostId,
-        long lastLikeCount,
-        int size,
+        CommunityTargetType targetType, String targetCode,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     ) {
         BooleanBuilder where = new BooleanBuilder();
@@ -41,26 +36,15 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         where.and(communityPostEntity.targetCode.eq(targetCode));
         where.and(communityPostEntity.status.eq(status));
 
-        if (sortType == CommunitySortType.POPULAR) {
-            where.and(communityPostEntity.createdAt.goe(popularSince));
-            applyPopularCursor(where, lastPostId, lastLikeCount);
-        } else {
-            applyLatestCursor(where, lastPostId, orderType);
-        }
-
+        applyCursorCondition(where, sortType, orderType, lastPostId, lastLikeCount, popularSince);
         return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
     @Override
     public Slice<CommunityPostEntity> findFeedPostsNoOffset(
-        CommunityPostStatus status,
-        CommunitySortType sortType,
-        OrderType orderType,
-        CommunityTargetType targetType,
-        String targetCode,
-        long lastPostId,
-        long lastLikeCount,
-        int size,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        CommunityTargetType targetType, String targetCode,
+        long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     ) {
         BooleanBuilder where = new BooleanBuilder();
@@ -73,25 +57,15 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
             where.and(communityPostEntity.targetCode.eq(targetCode));
         }
 
-        if (sortType == CommunitySortType.POPULAR) {
-            where.and(communityPostEntity.createdAt.goe(popularSince));
-            applyPopularCursor(where, lastPostId, lastLikeCount);
-        } else {
-            applyLatestCursor(where, lastPostId, orderType);
-        }
-
+        applyCursorCondition(where, sortType, orderType, lastPostId, lastLikeCount, popularSince);
         return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
     @Override
     public Slice<CommunityPostEntity> findLikedPostsNoOffset(
         long memberId,
-        CommunityPostStatus status,
-        CommunitySortType sortType,
-        OrderType orderType,
-        long lastPostId,
-        long lastLikeCount,
-        int size,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     ) {
         BooleanBuilder where = new BooleanBuilder();
@@ -102,14 +76,20 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         ));
         where.and(communityPostEntity.status.eq(status));
 
+        applyCursorCondition(where, sortType, orderType, lastPostId, lastLikeCount, popularSince);
+        return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
+    }
+
+    private void applyCursorCondition(
+        BooleanBuilder where, CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, LocalDateTime popularSince
+    ) {
         if (sortType == CommunitySortType.POPULAR) {
             where.and(communityPostEntity.createdAt.goe(popularSince));
             applyPopularCursor(where, lastPostId, lastLikeCount);
         } else {
             applyLatestCursor(where, lastPostId, orderType);
         }
-
-        return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
     private void applyLatestCursor(BooleanBuilder where, long lastPostId, OrderType orderType) {

@@ -11,37 +11,23 @@ import org.springframework.data.domain.Slice;
 public interface CommunityPostCustomRepository {
 
     Slice<CommunityPostEntity> findBoardPostsNoOffset(
-        CommunityTargetType targetType,
-        String targetCode,
-        CommunityPostStatus status,
-        CommunitySortType sortType,
-        OrderType orderType,
-        long lastPostId,
-        long lastLikeCount,
-        int size,
+        CommunityTargetType targetType, String targetCode,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     );
 
     Slice<CommunityPostEntity> findFeedPostsNoOffset(
-        CommunityPostStatus status,
-        CommunitySortType sortType,
-        OrderType orderType,
-        CommunityTargetType targetType,
-        String targetCode,
-        long lastPostId,
-        long lastLikeCount,
-        int size,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        CommunityTargetType targetType, String targetCode,
+        long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     );
 
     Slice<CommunityPostEntity> findLikedPostsNoOffset(
         long memberId,
-        CommunityPostStatus status,
-        CommunitySortType sortType,
-        OrderType orderType,
-        long lastPostId,
-        long lastLikeCount,
-        int size,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     );
 }

@@ -34,7 +34,9 @@ public class CommunityCommentWebController {
 
     @Operation(summary = "댓글 목록 조회", description = "게시글의 댓글 목록을 조회합니다.")
     @GetMapping
-    public ResponseEntity<Response<CommunityCommentsResponse>> getComments(@Parameter(description = "게시글 ID", example = "1") @PathVariable long postId) {
+    public ResponseEntity<Response<CommunityCommentsResponse>> getComments(
+        @Parameter(description = "게시글 ID", example = "1") @PathVariable long postId
+    ) {
         CommunityCommentsResponse response = communityCommentWebUseCase.getComments(postId);
         return ResponseEntity.ok().body(Response.success(response));
     }
