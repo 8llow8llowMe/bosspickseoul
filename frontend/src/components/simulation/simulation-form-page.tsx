@@ -28,20 +28,14 @@ const Hero = styled.section`
   display: grid;
   gap: 16px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top right,
-      rgba(51, 109, 211, 0.16),
-      transparent 32%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -50,9 +44,9 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 46px);
+  font-size: 26px;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const HeroBody = styled.p`
@@ -74,9 +68,9 @@ const Layout = styled.section`
 const Panel = styled.section`
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Section = styled.section`
@@ -100,7 +94,7 @@ const StepBadge = styled.span`
   align-items: center;
   padding: 0 12px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 12px;
   font-weight: 700;
@@ -110,7 +104,7 @@ const SectionTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 22px;
   line-height: 1.3;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SectionBody = styled.p`
@@ -123,7 +117,7 @@ const Select = styled.select`
   min-height: 50px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
   font-size: 15px;
@@ -134,7 +128,7 @@ const Input = styled.input`
   min-height: 50px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
   font-size: 15px;
@@ -151,10 +145,10 @@ const ChoiceButton = styled.button<{ $selected: boolean; $wide?: boolean }>`
   padding: 0 16px;
   border: 1px solid
     ${props =>
-      props.$selected ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
-  border-radius: 16px;
+      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-control);
   background: ${props =>
-    props.$selected ? 'rgba(21, 73, 181, 0.08)' : 'white'};
+    props.$selected ? 'var(--color-primary-100)' : 'white'};
   color: ${props =>
     props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-500)'};
   font-size: 14px;
@@ -179,10 +173,12 @@ const SizeButton = styled.button<{ $selected: boolean }>`
   padding: 18px;
   border: 1px solid
     ${props =>
-      props.$selected ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
-  border-radius: 20px;
+      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-card);
   background: ${props =>
-    props.$selected ? 'rgba(21, 73, 181, 0.08)' : 'var(--color-surface-muted)'};
+    props.$selected
+      ? 'var(--color-primary-100)'
+      : 'var(--color-surface-muted)'};
   text-align: left;
   cursor: pointer;
 `
@@ -214,7 +210,7 @@ const SuggestionButton = styled.button`
   width: 100%;
   padding: 14px 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--color-surface-muted);
   color: var(--color-text-900);
   text-align: left;
@@ -223,11 +219,11 @@ const SuggestionButton = styled.button`
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
       ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
@@ -249,7 +245,7 @@ const SummaryStack = styled.div`
 const SummaryCard = styled.div`
   padding: 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -272,7 +268,7 @@ const ActionLink = styled(Link)<{ $disabled?: boolean }>`
   align-items: center;
   justify-content: center;
   padding: 0 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: ${props =>
     props.$disabled ? 'rgba(169, 181, 203, 1)' : 'var(--color-primary-700)'};
   color: white;
@@ -288,7 +284,7 @@ const SecondaryLink = styled(Link)`
   justify-content: center;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   color: var(--color-primary-700);
   font-size: 15px;
   font-weight: 700;

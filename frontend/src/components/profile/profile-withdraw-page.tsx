@@ -41,7 +41,7 @@ export default function ProfileWithdrawPage() {
       router.push('/account-deleted')
     },
     onError: () => {
-      setMessage('회원 탈퇴 요청 중 문제가 발생했습니다.')
+      setMessage('동의 상태를 확인한 뒤 다시 탈퇴를 요청해주세요.')
     },
   })
 

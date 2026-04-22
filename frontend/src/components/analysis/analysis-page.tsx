@@ -21,20 +21,14 @@ const Hero = styled.section`
   display: grid;
   gap: 16px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.16),
-      transparent 34%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -43,9 +37,9 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 46px);
+  font-size: 26px;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const HeroBody = styled.p`
@@ -67,9 +61,9 @@ const Layout = styled.section`
 const Panel = styled.section`
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const PanelHeader = styled.div`
@@ -82,7 +76,7 @@ const PanelTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 24px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const PanelDescription = styled.p`
@@ -112,10 +106,10 @@ const ChipButton = styled.button<{ $selected: boolean }>`
   padding: 0 16px;
   border: 1px solid
     ${props =>
-      props.$selected ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
+      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
   border-radius: 999px;
   background: ${props =>
-    props.$selected ? 'rgba(21, 73, 181, 0.08)' : 'white'};
+    props.$selected ? 'var(--color-primary-100)' : 'white'};
   color: ${props =>
     props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-500)'};
   font-size: 14px;
@@ -128,7 +122,7 @@ const Select = styled.select`
   min-height: 50px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
   font-size: 15px;
@@ -136,11 +130,11 @@ const Select = styled.select`
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
       ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
@@ -156,7 +150,7 @@ const SummaryGrid = styled.div`
 const SummaryCard = styled.div`
   padding: 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -186,7 +180,7 @@ const PrimaryLink = styled(Link)<{ $disabled?: boolean }>`
   align-items: center;
   justify-content: center;
   padding: 0 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: ${props =>
     props.$disabled ? 'rgba(169, 181, 203, 1)' : 'var(--color-primary-700)'};
   color: white;
@@ -202,7 +196,7 @@ const SecondaryLink = styled(Link)`
   justify-content: center;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   color: var(--color-primary-700);
   font-size: 15px;
   font-weight: 700;
@@ -217,7 +211,7 @@ const Helper = styled.p`
 const Placeholder = styled.div`
   padding: 18px;
   border: 1px dashed var(--color-border-300);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   color: var(--color-text-500);
   line-height: 1.75;
 `

@@ -23,20 +23,14 @@ const Hero = styled.section`
   display: grid;
   gap: 16px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top right,
-      rgba(51, 109, 211, 0.14),
-      transparent 32%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -45,9 +39,9 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 46px);
+  font-size: 26px;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const HeroBody = styled.p`
@@ -67,9 +61,10 @@ const TabButton = styled.button<{ $active: boolean }>`
   padding: 0 16px;
   border: 1px solid
     ${props =>
-      props.$active ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
+      props.$active ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
   border-radius: 999px;
-  background: ${props => (props.$active ? 'rgba(21, 73, 181, 0.08)' : 'white')};
+  background: ${props =>
+    props.$active ? 'var(--color-primary-100)' : 'white'};
   color: ${props =>
     props.$active ? 'var(--color-primary-700)' : 'var(--color-text-500)'};
   font-size: 14px;
@@ -90,9 +85,9 @@ const ContentGrid = styled.section`
 const Panel = styled.section`
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const PanelHeader = styled.div`
@@ -105,7 +100,7 @@ const PanelTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 24px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const PanelDescription = styled.p`
@@ -125,10 +120,12 @@ const RankingButton = styled.button<{ $selected: boolean }>`
   padding: 16px 18px;
   border: 1px solid
     ${props =>
-      props.$selected ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
-  border-radius: 18px;
+      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-card);
   background: ${props =>
-    props.$selected ? 'rgba(21, 73, 181, 0.06)' : 'var(--color-surface-muted)'};
+    props.$selected
+      ? 'var(--color-primary-100)'
+      : 'var(--color-surface-muted)'};
   text-align: left;
   cursor: pointer;
 `
@@ -189,8 +186,10 @@ const DistrictCard = styled.button<{ $level: number; $selected: boolean }>`
   padding: 16px;
   border: 1px solid
     ${props =>
-      props.$selected ? 'var(--color-primary-700)' : 'rgba(21, 73, 181, 0.08)'};
-  border-radius: 20px;
+      props.$selected
+        ? 'var(--color-primary-700)'
+        : 'var(--color-primary-100)'};
+  border-radius: var(--radius-card);
   background: ${props => {
     const palette = ['#eef4ff', '#dce8ff', '#c4d9ff', '#94bcff', '#5b92ef']
     return palette[Math.max(0, Math.min(4, props.$level - 1))]
@@ -203,8 +202,7 @@ const DistrictCard = styled.button<{ $level: number; $selected: boolean }>`
         : 'var(--color-text-900)'};
   text-align: left;
   cursor: pointer;
-  box-shadow: ${props =>
-    props.$selected ? '0 14px 36px rgba(21, 73, 181, 0.16)' : 'none'};
+  box-shadow: ${props => (props.$selected ? 'var(--shadow-level-2)' : 'none')};
 `
 
 const DistrictName = styled.p`
@@ -216,7 +214,7 @@ const DistrictName = styled.p`
 const DistrictMetric = styled.p`
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const DistrictSub = styled.p`
@@ -242,7 +240,7 @@ const SummaryGrid = styled.div`
 const SummaryCard = styled.article`
   padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -256,7 +254,7 @@ const SummaryValue = styled.p`
   color: var(--color-text-900);
   font-size: 24px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SectionGrid = styled.div`
@@ -267,7 +265,7 @@ const SectionGrid = styled.div`
 const DetailSection = styled.section`
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
 `
 
@@ -297,7 +295,7 @@ const ChartGrid = styled.div`
 const ChartCard = styled.article`
   padding: 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -347,7 +345,7 @@ const BarTrack = styled.div`
   overflow: hidden;
   height: 10px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
 `
 
 const BarFill = styled.div<{
@@ -366,11 +364,11 @@ const BarFill = styled.div<{
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
       ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'

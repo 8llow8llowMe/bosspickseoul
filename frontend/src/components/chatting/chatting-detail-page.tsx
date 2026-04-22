@@ -47,9 +47,9 @@ const Panel = styled.section`
   grid-template-rows: auto minmax(420px, 1fr) auto;
   min-height: calc(100vh - 192px);
   border: 1px solid var(--color-border-200);
-  border-radius: 28px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
   overflow: hidden;
 
   @media (max-width: 1024px) {
@@ -62,13 +62,7 @@ const Header = styled.header`
   gap: 14px;
   padding: 28px;
   border-bottom: 1px solid var(--color-border-200);
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.12),
-      transparent 36%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  background: var(--color-surface);
 `
 
 const HeaderTop = styled.div`
@@ -91,7 +85,7 @@ const CategoryBadge = styled.span`
   align-items: center;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 12px;
   font-weight: 700;
@@ -101,7 +95,7 @@ const Title = styled.h1`
   color: var(--color-text-900);
   font-size: 30px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const Introduction = styled.p`
@@ -130,7 +124,7 @@ const SecondaryLink = styled(Link)`
   justify-content: center;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 14px;
@@ -141,7 +135,7 @@ const GhostButton = styled.button`
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 14px;
@@ -151,11 +145,11 @@ const GhostButton = styled.button`
 
 const Notice = styled.div<{ $tone?: 'error' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
-      ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      ? 'rgba(240, 68, 82, 0.1)'
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
@@ -166,7 +160,7 @@ const Notice = styled.div<{ $tone?: 'error' }>`
 const MessageViewport = styled.div`
   overflow-y: auto;
   padding: 20px 24px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f6f9fd 100%);
+  background: var(--color-background-muted);
 `
 
 const MessageList = styled.div`
@@ -178,7 +172,7 @@ const DaySeparator = styled.div`
   justify-self: center;
   padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 12px;
   font-weight: 700;
@@ -194,10 +188,10 @@ const MessageBubble = styled.article<{ $isMe: boolean }>`
   display: grid;
   gap: 8px;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props => (props.$isMe ? 'var(--color-primary-700)' : 'white')};
   color: ${props => (props.$isMe ? 'white' : 'var(--color-text-700)')};
-  box-shadow: 0 8px 24px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 
   @media (max-width: 768px) {
     max-width: 86%;
@@ -236,7 +230,7 @@ const ComposerInput = styled.textarea`
   min-height: 120px;
   padding: 14px 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   resize: vertical;
   background: white;
   color: var(--color-text-900);
@@ -261,7 +255,7 @@ const PrimaryButton = styled.button`
   min-height: 46px;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 14px;
@@ -275,7 +269,7 @@ const LoadOlderButton = styled.button`
   margin: 0 auto 6px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 13px;
@@ -359,7 +353,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
       setRoomMessage(
         error instanceof Error
           ? error.message
-          : '채팅방 나가기 중 문제가 발생했습니다.',
+          : '채팅방 상태를 확인한 뒤 다시 나가기를 시도해주세요.',
       )
     },
   })
@@ -497,10 +491,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
     return (
       <ChattingShell rail={<ChattingSidebar selectedRoomId={roomId} />}>
         <Notice $tone="error">
-          {getApiMessage(
-            roomDetailQuery.data,
-            '채팅방 정보를 찾을 수 없습니다.',
-          )}
+          {getApiMessage(roomDetailQuery.data, '채팅방 주소를 확인해주세요.')}
         </Notice>
       </ChattingShell>
     )

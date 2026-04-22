@@ -12,7 +12,7 @@ const EmptyState = styled.div`
   margin: 72px auto;
   padding: 32px 24px;
   border: 1px dashed var(--color-border-300);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
   color: var(--color-text-500);
   line-height: 1.8;
@@ -48,10 +48,7 @@ export default function SharedSimulationReportPage({
   if (!payloadQuery.data || !isApiSuccess(payloadQuery.data) || !request) {
     return (
       <EmptyState>
-        {getApiMessage(
-          payloadQuery.data,
-          '공유된 시뮬레이션 정보를 찾을 수 없습니다.',
-        )}
+        {getApiMessage(payloadQuery.data, '공유 링크를 확인해주세요.')}
       </EmptyState>
     )
   }

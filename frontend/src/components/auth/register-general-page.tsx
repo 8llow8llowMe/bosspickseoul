@@ -49,7 +49,10 @@ export default function RegisterGeneralPage() {
       if (!isApiSuccess(response)) {
         setMessage({
           tone: 'error',
-          text: getApiMessage(response, '이메일 인증 코드를 보낼 수 없습니다.'),
+          text: getApiMessage(
+            response,
+            '이메일 주소를 확인한 뒤 인증 코드를 요청해주세요.',
+          ),
         })
         return
       }
@@ -89,7 +92,7 @@ export default function RegisterGeneralPage() {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '인증 코드 확인 중 문제가 발생했습니다.',
+        text: '인증 코드를 다시 확인한 뒤 시도해주세요.',
       })
     },
   })
@@ -110,7 +113,7 @@ export default function RegisterGeneralPage() {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '회원가입 요청 중 문제가 발생했습니다.',
+        text: '입력한 정보를 확인한 뒤 다시 가입해주세요.',
       })
     },
   })

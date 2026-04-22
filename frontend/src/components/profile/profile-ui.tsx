@@ -6,37 +6,40 @@ export const SectionStack = styled.div`
 `
 
 export const SectionPanel = styled.section`
-  padding: 28px;
+  padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
-  background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 
   @media (max-width: 640px) {
-    padding: 24px;
+    padding: 20px;
   }
 `
 
 export const SectionTitle = styled.h2`
   color: var(--color-text-900);
-  font-size: 24px;
-  line-height: 1.3;
-  letter-spacing: -0.03em;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 30px;
+  letter-spacing: 0;
 `
 
 export const SectionBody = styled.p`
   margin-top: 10px;
-  color: var(--color-text-500);
-  line-height: 1.75;
+  color: var(--color-text-600);
+  font-size: 14px;
+  line-height: 22px;
+  word-break: keep-all;
 `
 
 export const SectionNotice = styled.p<{ $tone?: 'error' | 'success' | 'info' }>`
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: ${props => {
-    if (props.$tone === 'error') return 'rgba(209, 67, 67, 0.08)'
-    if (props.$tone === 'success') return 'rgba(31, 157, 85, 0.08)'
-    return 'rgba(51, 109, 211, 0.08)'
+    if (props.$tone === 'error') return 'rgba(240, 68, 82, 0.1)'
+    if (props.$tone === 'success') return 'rgba(3, 178, 108, 0.1)'
+    return 'var(--color-primary-100)'
   }};
   color: ${props => {
     if (props.$tone === 'error') return 'var(--color-danger)'
@@ -59,29 +62,31 @@ export const CardGrid = styled.div`
 `
 
 export const ContentCard = styled.article`
-  padding: 22px;
+  padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
 export const CardEyebrow = styled.p`
   margin-bottom: 8px;
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 `
 
 export const CardTitle = styled.h3`
   color: var(--color-text-900);
   font-size: 20px;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 28px;
 `
 
 export const CardText = styled.p`
   margin-top: 10px;
-  color: var(--color-text-500);
-  line-height: 1.7;
+  color: var(--color-text-600);
+  font-size: 14px;
+  line-height: 22px;
 `
 
 export const MetaList = styled.div`
@@ -96,8 +101,8 @@ export const MetaItem = styled.span`
   align-items: center;
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
-  background: white;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
   color: var(--color-text-700);
   font-size: 13px;
   font-weight: 600;
@@ -106,10 +111,11 @@ export const MetaItem = styled.span`
 export const EmptyState = styled.div`
   padding: 24px;
   border: 1px dashed var(--color-border-300);
-  border-radius: 20px;
-  color: var(--color-text-500);
-  line-height: 1.7;
-  background: white;
+  border-radius: var(--radius-card);
+  color: var(--color-text-600);
+  font-size: 14px;
+  line-height: 22px;
+  background: var(--color-surface);
 `
 
 export const Form = styled.form`
@@ -124,24 +130,29 @@ export const Field = styled.label`
 
 export const FieldLabel = styled.span`
   color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
 `
 
 export const TextInput = styled.input`
   width: 100%;
   height: 48px;
-  padding: 0 16px;
+  padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   outline: none;
+  background: var(--color-surface-muted);
+  color: var(--color-text-900);
   transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
 
   &:focus {
-    border-color: var(--color-primary-600);
-    box-shadow: 0 0 0 4px rgba(51, 109, 211, 0.12);
+    border-color: var(--color-primary-700);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-focus-primary);
   }
 `
 
@@ -155,35 +166,35 @@ export const PrimaryButton = styled.button`
   height: 48px;
   padding: 0 18px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 
   &:disabled {
     cursor: not-allowed;
-    background: #a9b5cb;
+    opacity: var(--button-disabled-opacity-color);
   }
 `
 
 export const SecondaryButton = styled.button`
   height: 48px;
   padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
-  background: white;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 `
 
 export const HelperText = styled.p`
-  color: var(--color-text-500);
+  color: var(--color-text-caption);
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 20px;
 `
 
 export const CheckboxRow = styled.label`

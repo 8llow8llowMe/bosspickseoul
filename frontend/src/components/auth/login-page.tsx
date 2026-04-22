@@ -60,7 +60,7 @@ export default function LoginPage() {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '로그인 요청 중 문제가 발생했습니다.',
+        text: '이메일과 비밀번호를 확인한 뒤 다시 시도해주세요.',
       })
     },
   })
@@ -84,7 +84,7 @@ export default function LoginPage() {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '소셜 로그인 연결 중 문제가 발생했습니다.',
+        text: '소셜 로그인 창을 다시 열어주세요.',
       })
     },
   })

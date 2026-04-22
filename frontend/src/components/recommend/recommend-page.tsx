@@ -28,20 +28,14 @@ const Hero = styled.section`
   display: grid;
   gap: 16px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.14),
-      transparent 32%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -50,9 +44,9 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 46px);
+  font-size: 26px;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const HeroBody = styled.p`
@@ -74,9 +68,9 @@ const Grid = styled.section`
 const Panel = styled.section`
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const PanelHeader = styled.div`
@@ -89,7 +83,7 @@ const PanelTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 24px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const PanelDescription = styled.p`
@@ -108,7 +102,7 @@ const PrimaryButton = styled.button`
   height: 48px;
   padding: 0 18px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 15px;
@@ -125,7 +119,7 @@ const SecondaryButton = styled.button`
   height: 48px;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-primary-700);
   font-size: 15px;
@@ -139,7 +133,7 @@ const PrimaryLink = styled(Link)`
   align-items: center;
   justify-content: center;
   padding: 0 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 15px;
@@ -148,11 +142,11 @@ const PrimaryLink = styled(Link)`
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' | 'success' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props => {
     if (props.$tone === 'error') return 'rgba(209, 67, 67, 0.08)'
     if (props.$tone === 'success') return 'rgba(31, 157, 85, 0.08)'
-    return 'rgba(51, 109, 211, 0.08)'
+    return 'var(--color-primary-100)'
   }};
   color: ${props => {
     if (props.$tone === 'error') return 'var(--color-danger)'
@@ -190,10 +184,12 @@ const ResultCard = styled.button<{ $selected: boolean }>`
   padding: 16px;
   border: 1px solid
     ${props =>
-      props.$selected ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
-  border-radius: 18px;
+      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-card);
   background: ${props =>
-    props.$selected ? 'rgba(21, 73, 181, 0.06)' : 'var(--color-surface-muted)'};
+    props.$selected
+      ? 'var(--color-primary-100)'
+      : 'var(--color-surface-muted)'};
   text-align: left;
   cursor: pointer;
 `
@@ -224,7 +220,7 @@ const DetailStack = styled.div`
 const SummaryCard = styled.section`
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -232,7 +228,7 @@ const SummaryTitle = styled.h3`
   color: var(--color-text-900);
   font-size: 24px;
   line-height: 1.3;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SummaryBody = styled.p`
@@ -273,7 +269,7 @@ const MetricsGrid = styled.div`
 const MetricCard = styled.article`
   padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: white;
 `
 
@@ -315,7 +311,7 @@ const BarTrack = styled.div`
   overflow: hidden;
   height: 10px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
 `
 
 const BarFill = styled.div<{
@@ -340,7 +336,7 @@ const BlueOceanList = styled.div`
 const BlueOceanItem = styled.article`
   padding: 18px 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -480,7 +476,7 @@ export default function RecommendPage() {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '추천 상권 저장 중 문제가 발생했습니다.',
+        text: '추천 상권 정보를 확인한 뒤 다시 저장해주세요.',
       })
     },
   })
@@ -508,7 +504,7 @@ export default function RecommendPage() {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '추천 상권 저장 해제 중 문제가 발생했습니다.',
+        text: '저장 상태를 확인한 뒤 다시 해제해주세요.',
       })
     },
   })

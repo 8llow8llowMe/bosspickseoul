@@ -24,9 +24,9 @@ const Card = styled.section`
   display: grid;
   gap: 18px;
   padding: 28px;
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 24px 60px rgba(17, 25, 40, 0.22);
+  box-shadow: var(--shadow-level-4);
 `
 
 const Header = styled.div`
@@ -38,7 +38,7 @@ const Title = styled.h2`
   color: var(--color-text-900);
   font-size: 28px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const Body = styled.p`
@@ -62,7 +62,7 @@ const Input = styled.input`
   min-height: 50px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
 `
@@ -72,7 +72,7 @@ const TextArea = styled.textarea`
   min-height: 120px;
   padding: 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   resize: vertical;
   background: white;
   color: var(--color-text-900);
@@ -84,7 +84,7 @@ const Select = styled.select`
   min-height: 50px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
 `
@@ -113,7 +113,7 @@ const PrimaryButton = styled.button<{ $disabled?: boolean }>`
   border: 1px solid
     ${props =>
       props.$disabled ? 'var(--color-border-200)' : 'var(--color-primary-700)'};
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: ${props =>
     props.$disabled ? 'var(--color-border-200)' : 'var(--color-primary-700)'};
   color: white;
@@ -126,7 +126,7 @@ const SecondaryButton = styled.button`
   min-height: 48px;
   padding: 0 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 14px;
@@ -199,7 +199,7 @@ export default function ChatRoomCreateModal({
       setFormMessage(
         error instanceof Error
           ? error.message
-          : '채팅방 생성 중 문제가 발생했습니다.',
+          : '채팅방 이름과 카테고리를 확인한 뒤 다시 생성해주세요.',
       )
     },
   })

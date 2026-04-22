@@ -37,20 +37,14 @@ const Hero = styled.section`
   display: grid;
   gap: 18px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.16),
-      transparent 32%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -59,9 +53,9 @@ const Eyebrow = styled.p`
 
 const Title = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(30px, 4vw, 42px);
+  font-size: 26px;
   line-height: 1.15;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const HeroBody = styled.p`
@@ -82,7 +76,7 @@ const MetaBadge = styled.span`
   align-items: center;
   padding: 0 14px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 13px;
   font-weight: 700;
@@ -98,7 +92,7 @@ const PrimaryButton = styled.button`
   min-height: 48px;
   padding: 0 18px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 15px;
@@ -118,7 +112,7 @@ const SecondaryLink = styled(Link)`
   justify-content: center;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   color: var(--color-primary-700);
   font-size: 15px;
   font-weight: 700;
@@ -145,9 +139,9 @@ const SummaryGrid = styled.section`
 const SummaryCard = styled.article`
   padding: 22px;
   border: 1px solid var(--color-border-200);
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const SummaryLabel = styled.p`
@@ -161,7 +155,7 @@ const SummaryValue = styled.p`
   font-size: 24px;
   font-weight: 700;
   line-height: 1.3;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SummaryHelper = styled.p`
@@ -178,9 +172,9 @@ const Controls = styled.section`
   gap: 16px;
   padding: 20px 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 
   @media (max-width: 760px) {
     flex-direction: column;
@@ -198,7 +192,7 @@ const Select = styled.select`
   min-height: 46px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
   font-size: 14px;
@@ -212,9 +206,9 @@ const SectionGrid = styled.section`
 const SectionCard = styled.section`
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const SectionHeader = styled.div`
@@ -227,7 +221,7 @@ const SectionTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 24px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SectionBody = styled.p`
@@ -237,11 +231,11 @@ const SectionBody = styled.p`
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' | 'success' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props => {
     if (props.$tone === 'error') return 'rgba(209, 67, 67, 0.08)'
     if (props.$tone === 'success') return 'rgba(31, 157, 85, 0.08)'
-    return 'rgba(51, 109, 211, 0.08)'
+    return 'var(--color-primary-100)'
   }};
   color: ${props => {
     if (props.$tone === 'error') return 'var(--color-danger)'
@@ -264,7 +258,7 @@ const MetricGrid = styled.div`
 const MetricCard = styled.article`
   padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -301,7 +295,7 @@ const ChartGrid = styled.div`
 const ChartCard = styled.article`
   padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -350,7 +344,7 @@ const BarTrack = styled.div`
   overflow: hidden;
   height: 10px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
 `
 
 const BarFill = styled.div<{ $width: number; $tone?: 'primary' | 'success' }>`
@@ -366,7 +360,7 @@ const BarFill = styled.div<{ $width: number; $tone?: 'primary' | 'success' }>`
 const EmptyState = styled.div`
   padding: 32px 24px;
   border: 1px dashed var(--color-border-300);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: white;
   color: var(--color-text-500);
   line-height: 1.8;
@@ -614,13 +608,16 @@ export default function AnalysisResultPage() {
 
       setFeedback({
         tone: 'error',
-        text: getApiMessage(response, '분석 북마크 저장에 실패했습니다.'),
+        text: getApiMessage(
+          response,
+          '분석 리포트 정보를 확인한 뒤 다시 저장해주세요.',
+        ),
       })
     },
     onError: () => {
       setFeedback({
         tone: 'error',
-        text: '분석 북마크 저장 중 문제가 발생했습니다.',
+        text: '분석 리포트 정보를 확인한 뒤 다시 저장해주세요.',
       })
     },
   })

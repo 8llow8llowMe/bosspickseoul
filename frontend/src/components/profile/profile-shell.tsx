@@ -4,13 +4,14 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+import { Bookmark, Settings } from 'lucide-react'
 import styled from 'styled-components'
 import { getMemberInfoData } from '@/lib/api/profile'
 import { isApiSuccess } from '@/lib/api/response'
 import { useAuthStore } from '@/stores/auth-store'
 
 const Container = styled.main`
-  width: min(1200px, calc(100% - 48px));
+  width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
   padding: 40px 0 72px;
   display: grid;
@@ -19,6 +20,11 @@ const Container = styled.main`
 
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 640px) {
+    width: min(100% - 32px, 1120px);
+    padding: 28px 0 56px;
   }
 `
 
@@ -35,11 +41,11 @@ const Sidebar = styled.aside`
 `
 
 const SidebarCard = styled.section`
-  padding: 24px;
+  padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
-  background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Avatar = styled.div<{ $image?: string | null }>`
@@ -47,12 +53,12 @@ const Avatar = styled.div<{ $image?: string | null }>`
   height: 84px;
   display: grid;
   place-items: center;
-  border-radius: 28px;
+  border-radius: 50%;
   background: ${props =>
     props.$image
       ? `url(${props.$image}) center / cover no-repeat`
-      : 'linear-gradient(135deg, #1549b5, #336dd3)'};
-  color: white;
+      : 'var(--color-surface-muted)'};
+  color: var(--color-text-700);
   font-size: 28px;
   font-weight: 700;
 `
@@ -60,9 +66,9 @@ const Avatar = styled.div<{ $image?: string | null }>`
 const Name = styled.h2`
   margin-top: 18px;
   color: var(--color-text-900);
-  font-size: 24px;
-  line-height: 1.2;
-  letter-spacing: -0.03em;
+  font-size: 22px;
+  line-height: 30px;
+  letter-spacing: 0;
 `
 
 const Email = styled.p`
@@ -77,11 +83,11 @@ const ProviderPill = styled.span`
   padding: 0 12px;
   min-height: 34px;
   align-items: center;
-  border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
-  color: var(--color-primary-700);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-700);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 `
 
 const NavList = styled.nav`
@@ -92,14 +98,26 @@ const NavList = styled.nav`
 const NavLink = styled(Link)<{ $active: boolean }>`
   display: flex;
   align-items: center;
+  gap: 8px;
   min-height: 48px;
   padding: 0 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: ${props =>
-    props.$active ? 'rgba(21, 73, 181, 0.08)' : 'transparent'};
+    props.$active ? 'var(--color-primary-100)' : 'transparent'};
   color: ${props =>
     props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
-  font-weight: 700;
+  font-weight: 600;
+
+  &:hover {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+  }
 `
 
 const Content = styled.section`
@@ -107,7 +125,7 @@ const Content = styled.section`
 `
 
 const LoadingState = styled.div`
-  width: min(1200px, calc(100% - 48px));
+  width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
   padding: 80px 0;
   color: var(--color-text-500);
@@ -118,8 +136,8 @@ type ProfileShellProps = {
 }
 
 const navigationItems = [
-  { href: '/profile/bookmarks/analysis', label: '북마크' },
-  { href: '/profile/settings/edit', label: '개인 정보 설정' },
+  { href: '/profile/bookmarks/analysis', label: '북마크', icon: Bookmark },
+  { href: '/profile/settings/edit', label: '개인 정보 설정', icon: Settings },
 ] as const
 
 const isNavigationActive = (pathname: string, href: string) => {
@@ -189,15 +207,20 @@ export default function ProfileShell({ children }: ProfileShellProps) {
         </SidebarCard>
         <SidebarCard>
           <NavList aria-label="profile navigation">
-            {navigationItems.map(item => (
-              <NavLink
-                key={item.href}
-                href={item.href}
-                $active={isNavigationActive(pathname, item.href)}
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {navigationItems.map(item => {
+              const ItemIcon = item.icon
+
+              return (
+                <NavLink
+                  key={item.href}
+                  href={item.href}
+                  $active={isNavigationActive(pathname, item.href)}
+                >
+                  <ItemIcon aria-hidden="true" />
+                  {item.label}
+                </NavLink>
+              )
+            })}
           </NavList>
         </SidebarCard>
       </Sidebar>

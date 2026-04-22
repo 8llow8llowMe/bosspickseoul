@@ -43,7 +43,7 @@ export default function RegisterPage() {
       window.location.assign(response.dataBody)
     },
     onError: () => {
-      setMessage('소셜 회원가입 연결 중 문제가 발생했습니다.')
+      setMessage('소셜 회원가입 창을 다시 열어주세요.')
     },
   })
 

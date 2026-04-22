@@ -55,7 +55,7 @@ export default function ProfileChangePasswordPage() {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '비밀번호 변경 요청 중 문제가 발생했습니다.',
+        text: '현재 비밀번호와 새 비밀번호를 확인한 뒤 다시 시도해주세요.',
       })
     },
   })

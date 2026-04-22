@@ -37,9 +37,9 @@ const Article = styled.article`
   gap: 24px;
   padding: 32px;
   border: 1px solid var(--color-border-200);
-  border-radius: 28px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 16px 40px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Header = styled.header`
@@ -67,7 +67,7 @@ const CategoryBadge = styled.span`
   align-items: center;
   padding: 0 12px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 12px;
   font-weight: 700;
@@ -75,9 +75,9 @@ const CategoryBadge = styled.span`
 
 const Title = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 46px);
+  font-size: 26px;
   line-height: 1.12;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const MetaRow = styled.div`
@@ -101,7 +101,7 @@ const SecondaryLink = styled(Link)`
   justify-content: center;
   padding: 0 16px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-primary-700);
   font-size: 14px;
@@ -112,7 +112,7 @@ const GhostButton = styled.button`
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 14px;
@@ -133,7 +133,7 @@ const Gallery = styled.div`
 const GalleryImage = styled.img`
   width: 100%;
   min-height: 260px;
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   object-fit: cover;
   background: var(--color-surface-muted);
 `
@@ -150,9 +150,9 @@ const Section = styled.section`
   gap: 18px;
   padding: 28px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const SectionHeader = styled.div`
@@ -164,7 +164,7 @@ const SectionTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 28px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SectionBody = styled.p`
@@ -174,11 +174,11 @@ const SectionBody = styled.p`
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
-      ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      ? 'rgba(240, 68, 82, 0.1)'
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
@@ -196,7 +196,7 @@ const TextArea = styled.textarea`
   min-height: 140px;
   padding: 16px 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   resize: vertical;
   background: white;
   color: var(--color-text-900);
@@ -220,7 +220,7 @@ const PrimaryButton = styled.button`
   min-height: 46px;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 14px;
@@ -238,7 +238,7 @@ const CommentCard = styled.article`
   gap: 14px;
   padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -301,7 +301,7 @@ const RelatedCard = styled(Link)`
   gap: 10px;
   padding: 20px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: white;
 `
 
@@ -386,7 +386,7 @@ export default function CommunityDetailPage({
       setCommentMessage(
         error instanceof Error
           ? error.message
-          : '게시글 삭제 중 문제가 발생했습니다.',
+          : '게시글 상태를 확인한 뒤 다시 삭제해주세요.',
       )
     },
   })
@@ -410,7 +410,7 @@ export default function CommunityDetailPage({
       setCommentMessage(
         error instanceof Error
           ? error.message
-          : '댓글 등록 중 문제가 발생했습니다.',
+          : '댓글 내용을 확인한 뒤 다시 등록해주세요.',
       )
     },
   })
@@ -441,7 +441,7 @@ export default function CommunityDetailPage({
       setCommentMessage(
         error instanceof Error
           ? error.message
-          : '댓글 수정 중 문제가 발생했습니다.',
+          : '댓글 내용을 확인한 뒤 다시 수정해주세요.',
       )
     },
   })
@@ -462,7 +462,7 @@ export default function CommunityDetailPage({
       setCommentMessage(
         error instanceof Error
           ? error.message
-          : '댓글 삭제 중 문제가 발생했습니다.',
+          : '댓글 상태를 확인한 뒤 다시 삭제해주세요.',
       )
     },
   })
@@ -479,7 +479,7 @@ export default function CommunityDetailPage({
     return (
       <Page>
         <Notice $tone="error">
-          {getApiMessage(detailQuery.data, '게시글을 찾을 수 없습니다.')}
+          {getApiMessage(detailQuery.data, '게시글 주소를 확인해주세요.')}
         </Notice>
       </Page>
     )
@@ -761,7 +761,7 @@ export default function CommunityDetailPage({
         ) : relatedPostsQuery.isLoading ? (
           <Notice>같은 카테고리의 게시글을 불러오는 중입니다.</Notice>
         ) : (
-          <Notice>같은 카테고리의 다른 게시글이 아직 없습니다.</Notice>
+          <Notice>같은 카테고리에 표시할 다른 게시글이 아직 없어요.</Notice>
         )}
       </Section>
     </Page>

@@ -13,16 +13,16 @@ const Card = styled.section`
   gap: 16px;
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Title = styled.h2`
   color: var(--color-text-900);
   font-size: 24px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const Body = styled.p`
@@ -37,7 +37,7 @@ const PrimaryButton = styled.button`
   align-items: center;
   justify-content: center;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 14px;
@@ -52,7 +52,7 @@ const SecondaryLink = styled(Link)`
   align-items: center;
   justify-content: center;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 14px;

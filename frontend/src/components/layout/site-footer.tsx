@@ -2,26 +2,32 @@ import styled from 'styled-components'
 
 const Footer = styled.footer`
   border-top: 1px solid var(--color-border-200);
-  background: var(--color-surface);
+  background: var(--color-background);
 `
 
 const Inner = styled.div`
-  width: min(1200px, calc(100% - 48px));
+  width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 24px 0 36px;
+  padding: 24px 0 32px;
+
+  @media (max-width: 640px) {
+    width: min(100% - 32px, 1120px);
+  }
 `
 
 const Title = styled.p`
   margin-bottom: 6px;
   color: var(--color-text-900);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 24px;
 `
 
 const Body = styled.p`
-  color: var(--color-text-500);
+  color: var(--color-text-600);
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 22px;
+  word-break: keep-all;
 `
 
 export default function SiteFooter() {

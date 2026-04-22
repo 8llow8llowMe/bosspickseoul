@@ -34,12 +34,12 @@ const PreviewImage = styled.div<{ $image?: string | null }>`
   height: 96px;
   display: grid;
   place-items: center;
-  border-radius: 28px;
+  border-radius: 50%;
   background: ${props =>
     props.$image
       ? `url(${props.$image}) center / cover no-repeat`
-      : 'linear-gradient(135deg, #1549b5, #336dd3)'};
-  color: white;
+      : 'var(--color-surface-muted)'};
+  color: var(--color-text-700);
   font-size: 30px;
   font-weight: 700;
 `
@@ -85,7 +85,7 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '프로필 이미지 업로드 중 문제가 발생했습니다.',
+        text: '이미지 파일을 확인한 뒤 다시 업로드해주세요.',
       })
     },
   })
@@ -114,7 +114,7 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
     onError: () => {
       setMessage({
         tone: 'error',
-        text: '프로필 수정 요청 중 문제가 발생했습니다.',
+        text: '닉네임과 이미지를 확인한 뒤 다시 저장해주세요.',
       })
     },
   })

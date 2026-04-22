@@ -17,7 +17,7 @@ const SearchInput = styled.input`
   min-height: 46px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
 `
@@ -32,9 +32,9 @@ const RoomLink = styled(Link)<{ $active?: boolean }>`
   display: flex;
   align-items: center;
   padding: 0 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: ${props =>
-    props.$active ? 'rgba(21, 73, 181, 0.08)' : 'var(--color-surface-muted)'};
+    props.$active ? 'var(--color-primary-100)' : 'var(--color-surface-muted)'};
   color: ${props =>
     props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
   font-size: 14px;
@@ -52,7 +52,7 @@ const LoadMoreButton = styled.button`
   min-height: 42px;
   width: 100%;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 14px;
@@ -154,8 +154,8 @@ export default function ChatRoomSearch({
       ) : (
         <Notice>
           {deferredKeyword
-            ? '검색 결과가 없습니다.'
-            : '아직 참여 중인 채팅방이 없습니다.'}
+            ? '조건에 맞는 채팅방이 없어요.'
+            : '아직 참여 중인 채팅방이 없어요.'}
         </Notice>
       )}
     </Wrap>

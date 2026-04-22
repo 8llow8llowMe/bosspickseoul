@@ -4,98 +4,53 @@ import styled from 'styled-components'
 
 const Container = styled.div`
   min-height: 100vh;
-  padding: 32px 24px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.12),
-      transparent 30%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: var(--color-background-muted);
 `
 
 const Frame = styled.div`
-  width: min(1200px, 100%);
-  min-height: calc(100vh - 64px);
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 24px 64px rgba(21, 73, 181, 0.12);
-
-  @media (max-width: 1024px) {
-    min-height: auto;
-    grid-template-columns: 1fr;
-  }
+  width: min(520px, 100%);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-sheet);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-2);
 `
 
 const Content = styled.div`
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 28px;
-  padding: 48px;
+  gap: 24px;
+  padding: 32px;
 
   @media (max-width: 640px) {
-    padding: 32px 24px;
+    padding: 24px 20px;
   }
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: var(--color-text-caption);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
 `
 
 const Title = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(32px, 4vw, 44px);
-  line-height: 1.15;
-  letter-spacing: -0.03em;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 36px;
+  letter-spacing: 0;
 `
 
 const Description = styled.p`
-  color: var(--color-text-500);
+  margin-top: 8px;
+  color: var(--color-text-600);
   font-size: 16px;
-  line-height: 1.75;
-`
-
-const Visual = styled.aside`
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px;
-  color: white;
-  background:
-    linear-gradient(180deg, rgba(21, 73, 181, 0.96), rgba(16, 54, 130, 0.98)),
-    #1549b5;
-
-  @media (max-width: 1024px) {
-    min-height: 320px;
-  }
-
-  @media (max-width: 640px) {
-    padding: 32px 24px;
-  }
-`
-
-const VisualImage = styled.img`
-  width: min(560px, 100%);
-  max-height: min(72vh, 680px);
-  object-fit: contain;
-  opacity: 0.92;
-  pointer-events: none;
-
-  @media (max-width: 1024px) {
-    width: min(460px, 100%);
-    max-height: 320px;
-  }
+  line-height: 24px;
+  word-break: keep-all;
 `
 
 export const AuthForm = styled.form`
@@ -110,30 +65,33 @@ export const Field = styled.label`
 
 export const FieldLabel = styled.span`
   color: var(--color-text-700);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  line-height: 20px;
 `
 
 export const TextInput = styled.input`
   width: 100%;
   height: 48px;
-  padding: 0 16px;
+  padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   outline: none;
-  background: white;
+  background: var(--color-surface-muted);
   color: var(--color-text-900);
   transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
 
   &::placeholder {
-    color: #8b96ab;
+    color: var(--color-placeholder);
   }
 
   &:focus {
-    border-color: var(--color-primary-600);
-    box-shadow: 0 0 0 4px rgba(51, 109, 211, 0.12);
+    border-color: var(--color-primary-700);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-focus-primary);
   }
 `
 
@@ -152,40 +110,41 @@ export const PrimaryButton = styled.button`
   height: 48px;
   padding: 0 18px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
-    background-color 180ms ease;
+    background-color var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 14px 36px rgba(21, 73, 181, 0.18);
+    background: var(--color-primary-600);
   }
 
   &:disabled {
     cursor: not-allowed;
-    background: #a9b5cb;
-    box-shadow: none;
-    transform: none;
+    opacity: var(--button-disabled-opacity-color);
   }
 `
 
 export const SecondaryButton = styled.button`
   height: 48px;
   padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
-  background: white;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: var(--button-disabled-opacity-color);
+  }
 `
 
 export const HelperText = styled.p`
@@ -196,11 +155,11 @@ export const HelperText = styled.p`
 
 export const Notice = styled.p<{ $tone?: 'error' | 'success' | 'info' }>`
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: ${props => {
-    if (props.$tone === 'error') return 'rgba(209, 67, 67, 0.08)'
-    if (props.$tone === 'success') return 'rgba(31, 157, 85, 0.08)'
-    return 'rgba(51, 109, 211, 0.08)'
+    if (props.$tone === 'error') return 'rgba(240, 68, 82, 0.1)'
+    if (props.$tone === 'success') return 'rgba(3, 178, 108, 0.1)'
+    return 'var(--color-primary-100)'
   }};
   color: ${props => {
     if (props.$tone === 'error') return 'var(--color-danger)'
@@ -222,7 +181,7 @@ export const FooterRow = styled.div`
 
 export const FooterLink = styled(Link)`
   color: var(--color-primary-700);
-  font-weight: 700;
+  font-weight: 600;
 `
 
 export const Divider = styled.div`
@@ -254,20 +213,18 @@ export const SocialButton = styled.button`
   justify-content: center;
   gap: 8px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
-  background: white;
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
   color: var(--color-text-900);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition:
-    border-color 180ms ease,
-    transform 180ms ease,
-    box-shadow 180ms ease;
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    transform: translateY(-1px);
-    border-color: rgba(21, 73, 181, 0.24);
-    box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+    border-color: var(--color-primary-100);
+    background: var(--color-primary-100);
   }
 
   img {
@@ -300,9 +257,6 @@ export default function AuthShell({
           </div>
           {children}
         </Content>
-        <Visual>
-          <VisualImage src="/gifs/buildings.gif" alt="" aria-hidden="true" />
-        </Visual>
       </Frame>
     </Container>
   )

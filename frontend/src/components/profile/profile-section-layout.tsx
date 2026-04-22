@@ -15,13 +15,16 @@ const Header = styled.div`
 const Title = styled.h1`
   color: var(--color-text-900);
   font-size: 30px;
-  line-height: 1.2;
-  letter-spacing: -0.04em;
+  font-weight: 700;
+  line-height: 40px;
+  letter-spacing: 0;
 `
 
 const Description = styled.p`
-  color: var(--color-text-500);
-  line-height: 1.8;
+  color: var(--color-text-600);
+  font-size: 16px;
+  line-height: 24px;
+  word-break: keep-all;
 `
 
 type TabItem = {

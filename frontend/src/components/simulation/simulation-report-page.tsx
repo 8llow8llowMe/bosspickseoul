@@ -25,7 +25,7 @@ const EmptyState = styled.div`
   margin: 72px auto;
   padding: 32px 24px;
   border: 1px dashed var(--color-border-300);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
   color: var(--color-text-500);
   line-height: 1.8;
@@ -107,13 +107,16 @@ export default function SimulationReportPage({
 
       setNotice({
         tone: 'error',
-        text: getApiMessage(response, '시뮬레이션 저장에 실패했습니다.'),
+        text: getApiMessage(
+          response,
+          '입력한 시뮬레이션 정보를 확인한 뒤 다시 저장해주세요.',
+        ),
       })
     },
     onError: () => {
       setNotice({
         tone: 'error',
-        text: '시뮬레이션 저장 중 문제가 발생했습니다.',
+        text: '입력한 시뮬레이션 정보를 확인한 뒤 다시 저장해주세요.',
       })
     },
   })
@@ -124,7 +127,10 @@ export default function SimulationReportPage({
       if (!isApiSuccess(response)) {
         setNotice({
           tone: 'error',
-          text: getApiMessage(response, '공유 링크 생성에 실패했습니다.'),
+          text: getApiMessage(
+            response,
+            '리포트 저장 상태를 확인한 뒤 공유 링크를 다시 생성해주세요.',
+          ),
         })
         return
       }
@@ -174,7 +180,7 @@ export default function SimulationReportPage({
     onError: () => {
       setNotice({
         tone: 'error',
-        text: '공유 링크 생성 중 문제가 발생했습니다.',
+        text: '리포트 저장 상태를 확인한 뒤 공유 링크를 다시 생성해주세요.',
       })
     },
   })

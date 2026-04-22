@@ -33,16 +33,10 @@ const Hero = styled.section`
   display: grid;
   gap: 20px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.16),
-      transparent 34%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const HeroTop = styled.div`
@@ -68,9 +62,9 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 46px);
+  font-size: 26px;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const HeroBody = styled.p`
@@ -90,7 +84,7 @@ const WriteLink = styled(Link)<{ $variant?: 'primary' | 'secondary' }>`
       props.$variant === 'secondary'
         ? 'var(--color-border-200)'
         : 'var(--color-primary-700)'};
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: ${props =>
     props.$variant === 'secondary' ? 'white' : 'var(--color-primary-700)'};
   color: ${props =>
@@ -110,10 +104,10 @@ const CategoryChip = styled.button<{ $selected: boolean }>`
   padding: 0 16px;
   border: 1px solid
     ${props =>
-      props.$selected ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
+      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
   border-radius: 999px;
   background: ${props =>
-    props.$selected ? 'rgba(21, 73, 181, 0.08)' : 'white'};
+    props.$selected ? 'var(--color-primary-100)' : 'white'};
   color: ${props =>
     props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-500)'};
   font-size: 14px;
@@ -143,7 +137,7 @@ const SectionTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 28px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SectionBody = styled.p`
@@ -166,12 +160,11 @@ const FeaturedCard = styled(Link)`
   display: grid;
   gap: 14px;
   padding: 24px;
-  border-radius: 24px;
-  background:
-    linear-gradient(160deg, rgba(21, 73, 181, 0.96), rgba(51, 109, 211, 0.86)),
-    #1549b5;
-  color: white;
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.16);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: inherit;
+  box-shadow: var(--shadow-level-1);
 `
 
 const FeaturedTag = styled.span`
@@ -181,19 +174,21 @@ const FeaturedTag = styled.span`
   align-items: center;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--color-surface-muted);
+  color: var(--color-text-caption);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 `
 
 const FeaturedTitle = styled.h3`
+  color: var(--color-text-900);
   font-size: 22px;
   line-height: 1.35;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const FeaturedBody = styled.p`
-  color: rgba(255, 255, 255, 0.84);
+  color: var(--color-text-600);
   line-height: 1.75;
 `
 
@@ -202,7 +197,7 @@ const FeaturedMeta = styled.div`
   flex-wrap: wrap;
   gap: 12px;
   margin-top: auto;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--color-text-caption);
   font-size: 13px;
 `
 
@@ -219,18 +214,18 @@ const PostGrid = styled.div`
 const PostCard = styled(Link)`
   overflow: hidden;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
   transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+    transform var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
 
   &:hover {
     transform: translateY(-2px);
-    border-color: rgba(21, 73, 181, 0.24);
-    box-shadow: 0 18px 44px rgba(21, 73, 181, 0.12);
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-level-2);
   }
 `
 
@@ -241,8 +236,8 @@ const PostPreview = styled.div<{ $image?: string | null }>`
   padding: 24px;
   background: ${props =>
     props.$image
-      ? `linear-gradient(rgba(8, 21, 54, 0.18), rgba(8, 21, 54, 0.18)), url(${props.$image}) center / cover no-repeat`
-      : 'linear-gradient(135deg, rgba(21, 73, 181, 0.14), rgba(51, 109, 211, 0.2))'};
+      ? `url(${props.$image}) center / cover no-repeat`
+      : 'var(--color-surface-muted)'};
 `
 
 const PreviewLabel = styled.span`
@@ -270,7 +265,7 @@ const CategoryBadge = styled.span`
   align-items: center;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 12px;
   font-weight: 700;
@@ -280,7 +275,7 @@ const PostTitle = styled.h3`
   color: var(--color-text-900);
   font-size: 22px;
   line-height: 1.35;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const PostExcerpt = styled.p`
@@ -298,11 +293,11 @@ const MetaRow = styled.div`
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
-      ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      ? 'rgba(240, 68, 82, 0.1)'
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
@@ -315,7 +310,7 @@ const EmptyState = styled.div`
   gap: 14px;
   padding: 28px;
   border: 1px dashed var(--color-border-300);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
 `
 
@@ -335,7 +330,7 @@ const LoadMoreButton = styled.button`
   width: fit-content;
   padding: 0 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 15px;
@@ -574,7 +569,9 @@ export default function CommunityListPage() {
           </>
         ) : (
           <EmptyState>
-            <EmptyTitle>아직 등록된 게시글이 없습니다.</EmptyTitle>
+            <EmptyTitle>
+              아직 등록된 게시글이 없어요. 첫 게시글을 작성해보세요.
+            </EmptyTitle>
             <EmptyBody>
               첫 게시글을 등록해 운영 경험과 현장 데이터를 공유해 보세요.
             </EmptyBody>

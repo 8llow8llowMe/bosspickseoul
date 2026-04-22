@@ -32,16 +32,10 @@ const Hero = styled.section`
   display: grid;
   gap: 16px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.16),
-      transparent 34%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
@@ -54,9 +48,9 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 44px);
+  font-size: 26px;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const HeroBody = styled.p`
@@ -70,9 +64,9 @@ const Section = styled.section`
   gap: 18px;
   padding: 28px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const SectionHeader = styled.div`
@@ -84,7 +78,7 @@ const SectionTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 28px;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const SectionBody = styled.p`
@@ -103,9 +97,10 @@ const CategoryChip = styled.button<{ $active: boolean }>`
   padding: 0 16px;
   border: 1px solid
     ${props =>
-      props.$active ? 'rgba(21, 73, 181, 0.24)' : 'var(--color-border-200)'};
+      props.$active ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
   border-radius: 999px;
-  background: ${props => (props.$active ? 'rgba(21, 73, 181, 0.08)' : 'white')};
+  background: ${props =>
+    props.$active ? 'var(--color-primary-100)' : 'white'};
   color: ${props =>
     props.$active ? 'var(--color-primary-700)' : 'var(--color-text-500)'};
   font-size: 14px;
@@ -128,13 +123,11 @@ const PopularCard = styled.button`
   display: grid;
   gap: 14px;
   padding: 24px;
-  border: none;
-  border-radius: 24px;
-  background:
-    linear-gradient(160deg, rgba(21, 73, 181, 0.96), rgba(51, 109, 211, 0.86)),
-    #1549b5;
-  color: white;
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.16);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: inherit;
+  box-shadow: var(--shadow-level-1);
   text-align: left;
   cursor: pointer;
 `
@@ -146,19 +139,21 @@ const CategoryBadge = styled.span`
   align-items: center;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--color-surface-muted);
+  color: var(--color-text-caption);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 `
 
 const CardTitle = styled.h3`
+  color: var(--color-text-900);
   font-size: 22px;
   line-height: 1.35;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const CardBody = styled.p`
-  color: rgba(255, 255, 255, 0.84);
+  color: var(--color-text-600);
   line-height: 1.75;
 `
 
@@ -167,7 +162,7 @@ const CardMeta = styled.div`
   flex-wrap: wrap;
   gap: 10px;
   margin-top: auto;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--color-text-caption);
   font-size: 13px;
 `
 
@@ -186,20 +181,20 @@ const RoomCard = styled.button`
   gap: 12px;
   padding: 22px;
   border: 1px solid var(--color-border-200);
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
   color: inherit;
   text-align: left;
   cursor: pointer;
   transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
-    border-color 180ms ease;
+    transform var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 
   &:hover {
     transform: translateY(-2px);
-    border-color: rgba(21, 73, 181, 0.2);
-    box-shadow: 0 18px 44px rgba(21, 73, 181, 0.1);
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-level-2);
   }
 `
 
@@ -210,7 +205,7 @@ const RoomCategory = styled.span`
   align-items: center;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(21, 73, 181, 0.08);
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
   font-size: 12px;
   font-weight: 700;
@@ -220,7 +215,7 @@ const RoomTitle = styled.h3`
   color: var(--color-text-900);
   font-size: 22px;
   line-height: 1.35;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 `
 
 const RoomMeta = styled.div`
@@ -233,11 +228,11 @@ const RoomMeta = styled.div`
 
 const Notice = styled.div<{ $tone?: 'error' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
-      ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      ? 'rgba(240, 68, 82, 0.1)'
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
@@ -250,7 +245,7 @@ const LoadMoreButton = styled.button`
   width: fit-content;
   padding: 0 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 14px;
@@ -324,7 +319,7 @@ export default function ChattingListPage() {
       setPageMessage(
         error instanceof Error
           ? error.message
-          : '채팅방 입장 중 문제가 발생했습니다.',
+          : '채팅방 정보를 확인한 뒤 다시 입장해주세요.',
       )
     },
   })
@@ -421,7 +416,7 @@ export default function ChattingListPage() {
               ))}
             </PopularGrid>
           ) : (
-            <Notice>현재 조건에서 노출할 인기 채팅방이 없습니다.</Notice>
+            <Notice>조건에 맞는 인기 채팅방이 없어요.</Notice>
           )}
         </Section>
 
@@ -475,7 +470,9 @@ export default function ChattingListPage() {
               ) : null}
             </>
           ) : (
-            <Notice>현재 개설된 채팅방이 없습니다.</Notice>
+            <Notice>
+              현재 개설된 채팅방이 없어요. 새 채팅방을 만들어보세요.
+            </Notice>
           )}
         </Section>
       </Main>

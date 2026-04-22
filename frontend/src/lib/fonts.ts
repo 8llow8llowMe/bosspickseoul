@@ -25,5 +25,16 @@ export const pretendard = localFont({
   ],
   display: 'swap',
   variable: '--font-pretendard',
-  fallback: ['Apple SD Gothic Neo', 'Malgun Gothic', 'system-ui', 'sans-serif'],
+  fallback: [
+    'Toss Product Sans',
+    'Tossface',
+    'SF Pro KR',
+    'SF Pro Display',
+    'Apple SD Gothic Neo',
+    'Roboto',
+    'Noto Sans KR',
+    'Malgun Gothic',
+    'system-ui',
+    'sans-serif',
+  ],
 })

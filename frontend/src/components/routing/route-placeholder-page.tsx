@@ -12,13 +12,7 @@ type RoutePlaceholderPageProps = RoutePlaceholderDefinition
 
 const Page = styled.main`
   min-height: calc(100vh - 144px);
-  background:
-    radial-gradient(
-      circle at top right,
-      rgba(51, 109, 211, 0.12),
-      transparent 28%
-    ),
-    linear-gradient(180deg, #f7faff 0%, #ffffff 52%);
+  background: var(--color-surface);
 `
 
 const Shell = styled.div`
@@ -30,14 +24,14 @@ const Shell = styled.div`
 const Card = styled.section`
   padding: 36px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 20px 40px rgba(21, 73, 181, 0.08);
+  border-radius: var(--radius-card);
+  background: white;
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
   margin-bottom: 16px;
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -47,9 +41,13 @@ const Eyebrow = styled.p`
 const Title = styled.h1`
   margin-bottom: 16px;
   color: var(--color-text-900);
-  font-size: clamp(2rem, 3vw, 3rem);
+  font-size: 40px;
   line-height: 1.2;
   font-weight: 700;
+
+  @media (max-width: 640px) {
+    font-size: 32px;
+  }
 `
 
 const Description = styled.p`
@@ -72,8 +70,8 @@ const MetaGrid = styled.dl`
 
 const MetaCard = styled.div`
   padding: 18px 20px;
-  border-radius: 18px;
-  background: var(--color-primary-100);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
 `
 
 const MetaTitle = styled.dt`
@@ -94,7 +92,7 @@ const Section = styled.section`
   margin-top: 24px;
   padding: 28px 30px;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
 `
 
@@ -122,7 +120,7 @@ const Actions = styled.div`
 
 const ButtonLink = styled(Link)`
   padding: 12px 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 14px;
@@ -132,7 +130,7 @@ const ButtonLink = styled(Link)`
 const SecondaryLink = styled(Link)`
   padding: 12px 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   color: var(--color-primary-700);
   font-size: 14px;
   font-weight: 700;

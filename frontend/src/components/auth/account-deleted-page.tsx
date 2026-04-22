@@ -13,11 +13,11 @@ const PrimaryLink = styled(Link)`
   align-items: center;
   justify-content: center;
   padding: 0 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
 `
 
 export default function AccountDeletedPage() {

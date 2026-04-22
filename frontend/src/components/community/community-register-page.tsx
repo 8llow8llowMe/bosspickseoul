@@ -32,16 +32,10 @@ const Hero = styled.section`
   display: grid;
   gap: 14px;
   padding: 32px;
-  border: 1px solid rgba(21, 73, 181, 0.12);
-  border-radius: 28px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(51, 109, 211, 0.16),
-      transparent 34%
-    ),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(21, 73, 181, 0.08);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-1);
 `
 
 const Eyebrow = styled.p`
@@ -54,9 +48,9 @@ const Eyebrow = styled.p`
 
 const Title = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(34px, 5vw, 44px);
+  font-size: 26px;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 `
 
 const Body = styled.p`
@@ -79,9 +73,9 @@ const FormCard = styled.section`
   gap: 24px;
   padding: 28px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
 `
 
 const AsideCard = styled.aside`
@@ -89,9 +83,9 @@ const AsideCard = styled.aside`
   gap: 18px;
   padding: 24px;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: white;
-  box-shadow: 0 10px 30px rgba(21, 73, 181, 0.08);
+  box-shadow: var(--shadow-level-1);
   align-self: start;
   position: sticky;
   top: 96px;
@@ -117,7 +111,7 @@ const Input = styled.input`
   min-height: 52px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
 `
@@ -127,7 +121,7 @@ const Select = styled.select`
   min-height: 52px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
 `
@@ -137,7 +131,7 @@ const TextArea = styled.textarea`
   min-height: 320px;
   padding: 16px 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   resize: vertical;
   background: white;
   color: var(--color-text-900);
@@ -162,7 +156,7 @@ const UploadLabel = styled.label`
   justify-content: center;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-primary-700);
   font-size: 14px;
@@ -183,7 +177,7 @@ const ImageGrid = styled.div`
 const ImageCard = styled.div`
   overflow: hidden;
   border: 1px solid var(--color-border-200);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -222,11 +216,11 @@ const RemoveButton = styled.button`
 
 const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$tone === 'error'
-      ? 'rgba(209, 67, 67, 0.08)'
-      : 'rgba(51, 109, 211, 0.08)'};
+      ? 'rgba(240, 68, 82, 0.1)'
+      : 'var(--color-primary-100)'};
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
@@ -247,7 +241,7 @@ const PrimaryButton = styled.button`
   justify-content: center;
   padding: 0 18px;
   border: 1px solid var(--color-primary-700);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: white;
   font-size: 15px;
@@ -262,7 +256,7 @@ const SecondaryLink = styled(Link)`
   justify-content: center;
   padding: 0 18px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-700);
   font-size: 15px;
@@ -279,7 +273,7 @@ const SummaryItem = styled.div`
   gap: 6px;
   padding: 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
 `
 
@@ -500,7 +494,7 @@ function CommunityRegisterForm({
       setFormMessage(
         error instanceof Error
           ? error.message
-          : '게시글 저장 중 문제가 발생했습니다.',
+          : '게시글 제목과 내용을 확인한 뒤 다시 저장해주세요.',
       )
     },
   })

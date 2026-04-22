@@ -55,7 +55,7 @@ const Select = styled.select`
   height: 48px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: white;
   color: var(--color-text-900);
   font: inherit;
@@ -63,7 +63,7 @@ const Select = styled.select`
 
   &:focus {
     border-color: var(--color-primary-600);
-    box-shadow: 0 0 0 4px rgba(51, 109, 211, 0.12);
+    box-shadow: var(--shadow-focus-primary-strong);
   }
 `
 

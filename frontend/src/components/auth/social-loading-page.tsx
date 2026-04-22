@@ -60,7 +60,7 @@ export default function SocialLoadingPage({
         <Notice $tone="error">
           {getApiMessage(
             query.data,
-            '이미 가입된 이메일이거나 소셜 로그인 처리에 실패했습니다.',
+            '가입 상태를 확인한 뒤 로그인 페이지에서 다시 시도해주세요.',
           )}
         </Notice>
       )
@@ -68,7 +68,9 @@ export default function SocialLoadingPage({
 
     if (query.isError) {
       return (
-        <Notice $tone="error">소셜 로그인 처리 중 문제가 발생했습니다.</Notice>
+        <Notice $tone="error">
+          로그인 페이지로 돌아가 소셜 인증을 다시 시작해주세요.
+        </Notice>
       )
     }
 
