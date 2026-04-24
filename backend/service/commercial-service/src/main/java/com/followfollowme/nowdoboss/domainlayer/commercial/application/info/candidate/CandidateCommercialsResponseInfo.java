@@ -11,7 +11,7 @@ public record CandidateCommercialsResponseInfo(
     String periodCode,
     CodeNameDescriptionMetadata preset,
     ScoreMetricMetadata priorityMetric,
-    Integer topN,
+    int topN,
     String summary,
     List<CandidateCommercialInfo> items
 ) {

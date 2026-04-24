@@ -57,7 +57,7 @@ public interface CommercialWebUseCase {
         List<String> commercialCodes,
         CandidatePresetType preset,
         CommercialHeatmapMetricType priorityMetric,
-        Integer topN
+        int topN
     );
 
     CommercialHeatmapScoresResponse getCompositeHeatmapScores(
@@ -95,6 +95,6 @@ public interface CommercialWebUseCase {
         String periodCode,
         String serviceCode,
         List<String> commercialCodes,
-        Integer topN
+        int topN
     );
 }

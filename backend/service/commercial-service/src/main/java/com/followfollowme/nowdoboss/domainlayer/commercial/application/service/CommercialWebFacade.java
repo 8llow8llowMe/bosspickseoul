@@ -1,7 +1,5 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.service;
 
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialErrorCode;
-import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CandidateCommercialsResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialBenchmarkResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparePreviewResponse;
@@ -169,16 +167,10 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Transactional(readOnly = true)
     public CandidateCommercialsResponse getTopCandidates(
         String periodCode, String serviceCode, List<String> commercialCodes, CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric, Integer topN
+        CommercialHeatmapMetricType priorityMetric, int topN
     ) {
-        validateTopN(topN);
         CandidateCommercialsResponseInfo info = commercialCandidateQueryProcessor.getTopCandidates(
-            periodCode,
-            serviceCode,
-            commercialCodes,
-            preset,
-            priorityMetric,
-            topN
+            periodCode, serviceCode, commercialCodes, preset, priorityMetric, topN
         );
         return commercialPresenter.toCandidateCommercialsResponse(info);
     }
@@ -254,20 +246,10 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CandidateCommercialsResponse getRecommendationsByService(
-        String periodCode, String serviceCode, List<String> commercialCodes, Integer topN
+        String periodCode, String serviceCode, List<String> commercialCodes, int topN
     ) {
-        validateTopN(topN);
         CandidateCommercialsResponseInfo info = commercialCandidateQueryProcessor.getTopCandidatesByService(
             periodCode, serviceCode, commercialCodes, topN);
         return commercialPresenter.toCandidateCommercialsResponse(info);
-    }
-
-    private void validateTopN(Integer topN) {
-        if (topN == null) {
-            return;
-        }
-        if (topN < 5 || topN > 30) {
-            throw new CommercialException(CommercialErrorCode.INVALID_TOP_N);
-        }
     }
 }

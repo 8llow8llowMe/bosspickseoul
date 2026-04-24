@@ -171,19 +171,11 @@ public class CommercialWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
-        @Parameter(description = "상위 N (기본 10, 5~30)") @RequestParam(required = false)
-        @Min(value = 5, message = "topN은 5 이상이어야 합니다.")
-        @Max(value = 30, message = "topN은 30 이하여야 합니다.")
-        Integer topN,
+        @Parameter(description = "상위 N (기본 10, 5~30)", example = "10") @RequestParam(defaultValue = "10") @Min(5) @Max(30) int topN,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
         CandidateCommercialsResponse response = commercialWebUseCase.getTopCandidates(
-            periodCode,
-            serviceCode,
-            commercialCodes,
-            preset,
-            priorityMetric,
-            topN
+            periodCode, serviceCode, commercialCodes, preset, priorityMetric, topN
         );
         return ResponseEntity.ok().body(Response.success(response));
     }
@@ -291,7 +283,7 @@ public class CommercialWebController {
         @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode,
-        @Parameter(description = "상위 N (기본 5, 5~30)") @RequestParam(required = false) Integer topN
+        @Parameter(description = "상위 N (기본 5, 5~30)", example = "5") @RequestParam(defaultValue = "5") @Min(5) @Max(30) int topN
     ) {
         CandidateCommercialsResponse response = commercialWebUseCase.getRecommendationsByService(
             periodCode, serviceCode, commercialCodes, topN);
