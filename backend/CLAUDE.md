@@ -20,3 +20,14 @@
 - 세부 규칙은 `docs/`에 모은다.
 - 구현 중 새 규칙이 생기면 엔트리 문서보다 해당 `docs/*.md`를 먼저 갱신한다.
 - 서비스별 차이는 `docs/services/*.md`에 정리한다.
+
+## 파일 인코딩 규칙 (필수)
+
+- **모든 소스 / 설정 / 문서 파일은 반드시 `UTF-8` (no BOM) 로 저장한다.**
+- Windows 는 기본이 CP949 이므로 에디터/도구가 CP949 로 저장하면 한글이 깨진다. Claude Code 와 Codex 를 번갈아 쓰면 이 문제가 자주 발생한다.
+- 강제 설정이 이미 적용되어 있으니 덮어쓰지 말 것:
+  - `.editorconfig` — `charset = utf-8`
+  - `.gitattributes` — `*.java working-tree-encoding=UTF-8`
+  - `build.gradle` — `options.encoding = 'UTF-8'` (subprojects 공통)
+- 새 파일을 만들 때 한글을 포함한다면 `Write` 툴로 UTF-8 기본 저장을 유지한다.
+- `git status` 에서 수정된 적 없는데 diff 가 잡히면 인코딩 문제를 의심하고 `file <파일>` 로 확인한다.

@@ -33,3 +33,40 @@
 - 외부 LLM 연동은 provider 특성에 따라 `Spring AI` 또는 `WebClient`를 선택할 수 있지만, port 경계 밖으로 세부 구현을 노출하지 않는다.
 - 프롬프트 포맷터, 구조화 응답 파서, 캐시 키 규칙을 함께 관리한다.
 - 조회 전략과 사용자 경험 기준은 `backend/docs/services/ai-service-strategy.md`를 따른다.
+## Current Public APIs
+
+- `GET /api/v1/ai-reports/commercials/{commercialCode}`
+- `GET /api/v1/ai-reports/commercials/comparisons`
+- `GET /api/v1/ai-reports/districts/{districtCode}`
+- `GET /api/v1/ai-reports/administrations/{administrationCode}`
+
+## Response Shape Notes
+
+### Commercial Comparison AI Report
+
+- response DTO: `CommercialComparisonAiReportResponse`
+- fields
+  - `summary`
+  - `recommendedSide`
+  - `recommendedReasons`
+  - `riskComparison`
+  - `timeSlotInsight`
+  - `customerSegmentInsight`
+  - `operationStrategy`
+  - `businessInsight`
+  - `generatedAt`
+
+### `recommendedSide` Rule
+
+- current AI comparison response uses a string value
+- allowed values
+  - `LEFT`
+  - `RIGHT`
+  - `BALANCED`
+- upstream comparison service may use `TIE`, but ai-service normalizes that case to `BALANCED` before prompting the LLM
+
+## Integration Notes
+
+- comparison AI response does not currently use metadata object shape for `recommendedSide`
+- frontend should treat `recommendedSide` as a string enum in the AI comparison response
+- comparison preview and comparison detail APIs still use metadata objects on the commercial-service side

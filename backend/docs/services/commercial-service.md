@@ -80,6 +80,32 @@
   - `metricBreakdown`
   - `reasonTags`
 
+## 트렌드 분석 (신규)
+
+- `GET /api/v1/commercials/{commercialCode}/trend`
+- 파라미터: `serviceCode` (필수), `metricType` (SALES|FOOT_TRAFFIC|STORE), `periodCode` (기본 20233), `periodCount` (1~8, 기본 4)
+- `CommercialTrendQueryProcessor` — 분기 코드 역산 → DB 조회 → `PeriodTrendType` 방향 판정
+- 응답: `trendDirection` (INCREASE/DECREASE/STAGNANT), `periods[]` (periodCode, value, changeRate)
+
+## 업종별 상권 자동 추천 (신규)
+
+- `GET /api/v1/commercials/recommendations/by-service`
+- 파라미터: `serviceCode` (필수), `commercialCodes` (필수), `periodCode` (기본 20233), `topN` (기본 5)
+- `CommercialCandidateQueryProcessor.resolvePresetFromServiceCode()` — CS1* → AGGRESSIVE_OPPORTUNITY, CS2* → STABLE_LOW_RISK, 기타 → BALANCED
+- 기존 `getTopCandidates()` 파이프라인 재사용, 응답 shape 동일 (`CandidateCommercialsResponse`)
+
+## CandidatePresetType 확장 (신규)
+
+새 프리셋 2종 추가:
+- `YOUTH_STARTUP` (청년창업형): 기회·혼잡 중시, 가중치 0.45/0.20/0.25/0.10
+- `RE_EMPLOYMENT_STARTUP` (재취업창업형): 거주수요·안정 중시, 가중치 0.20/0.35/0.05/0.40
+
+## 정책 추천 (보류)
+
+- `policy` 도메인 전체 제거됨 (스크래퍼 및 스키마 재설계 후 재구현 예정)
+- `CommercialProfileResponse`에서 `policyRecommendations` 필드 제거됨
+- 재개 시 `docs/feature-status.md` "미구현 / 보류 기능" 섹션 참고
+
 ## Notes
 
 - Hidden commercial endpoints return the same metadata-rich contract that district-service uses for public map responses.
