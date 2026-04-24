@@ -1,6 +1,7 @@
 dependencies {
     implementation project(":core:common-core")
     implementation project(":core:persistence-core")
+    implementation project(":core:shared-commercial")
 
     // Spring Data JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

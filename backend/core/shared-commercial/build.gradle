@@ -1,0 +1,7 @@
+dependencies {
+    // 메타데이터 인터페이스 (CodeNameDescribable) 공유
+    implementation project(":core:common-core")
+}
+
+jar { enabled = true }
+bootJar { enabled = false }
