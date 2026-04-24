@@ -1,14 +1,18 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response;
 
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialProfileKeyMetricsItem;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.PolicyRecommendationItem;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
 import lombok.Builder;
 
 @Builder
 @Schema(description = "후보 상권 프로필 응답 DTO")
 public record CommercialProfileResponse(
+
+    @Schema(description = "기준 분기 코드", example = "20233")
+    String periodCode,
+
+    @Schema(description = "업종 코드", example = "CS100001")
+    String serviceCode,
 
     @Schema(description = "상권 코드", example = "3110008")
     String commercialCode,
@@ -29,10 +33,7 @@ public record CommercialProfileResponse(
     String administrationName,
 
     @Schema(description = "핵심 지표")
-    CommercialProfileKeyMetricsItem keyMetrics,
-
-    @Schema(description = "연관 정책 추천 목록")
-    List<PolicyRecommendationItem> policyRecommendations
+    CommercialProfileKeyMetricsItem keyMetrics
 ) {
 
 }

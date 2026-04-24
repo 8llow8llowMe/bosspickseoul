@@ -6,6 +6,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comp
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.preview.CommercialComparePreviewInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.ComparisonWinnerSide;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -41,7 +42,7 @@ public class CommercialComparePreviewQueryProcessor {
 
     private String buildInsightOneLiner(CommercialComparisonInfo full, List<ComparisonMetricInfo> headline) {
         CodeNameDescriptionMetadata recommended = full.recommendedSide();
-        if (recommended == null || "TIE".equals(recommended.code())) {
+        if (recommended == null || ComparisonWinnerSide.TIE.name().equals(recommended.code())) {
             return "두 상권이 전반적으로 비슷한 경쟁력을 보입니다.";
         }
 
@@ -62,7 +63,7 @@ public class CommercialComparePreviewQueryProcessor {
     private String resolveWinnerName(
         String winnerCode, CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right
     ) {
-        if ("LEFT".equals(winnerCode)) {
+        if (ComparisonWinnerSide.LEFT.name().equals(winnerCode)) {
             return left != null ? left.commercialName() : "좌측 상권";
         }
         return right != null ? right.commercialName() : "우측 상권";

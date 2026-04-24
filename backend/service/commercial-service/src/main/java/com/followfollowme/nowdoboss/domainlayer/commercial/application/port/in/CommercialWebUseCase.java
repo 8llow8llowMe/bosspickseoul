@@ -15,9 +15,11 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialTrendResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CandidatePresetType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialTrendMetricType;
 import java.util.List;
 
 public interface CommercialWebUseCase {
@@ -80,4 +82,19 @@ public interface CommercialWebUseCase {
 
     CommercialIncomeSummaryResponse getIncomeSummary(
         String periodCode, String districtCode, String administrationCode, String commercialCode);
+
+    CommercialTrendResponse getTrend(
+        String periodCode,
+        String commercialCode,
+        String serviceCode,
+        CommercialTrendMetricType metricType,
+        int periodCount
+    );
+
+    CandidateCommercialsResponse getRecommendationsByService(
+        String periodCode,
+        String serviceCode,
+        List<String> commercialCodes,
+        Integer topN
+    );
 }
