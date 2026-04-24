@@ -53,6 +53,7 @@ public class CommunityPostPresenter {
             .content(post.content())
             .likeCount(post.likeCount())
             .commentCount(post.commentCount())
+            .viewCount(post.viewCount())
             .createdAt(post.createdAt())
             .updatedAt(post.updatedAt())
             .build();

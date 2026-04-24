@@ -7,6 +7,7 @@ public record CommunityComment(
     long id,
     long postId,
     long memberId,
+    Long parentCommentId,
     String content,
     CommunityCommentStatus status,
     long likeCount,

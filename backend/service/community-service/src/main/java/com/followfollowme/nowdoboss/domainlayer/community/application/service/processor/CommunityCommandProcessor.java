@@ -6,16 +6,17 @@ import com.followfollowme.nowdoboss.domainlayer.community.application.command.Cr
 import com.followfollowme.nowdoboss.domainlayer.community.application.command.UpdatePostCommand;
 import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityException;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentLikePort;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentPort;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostLikePort;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostPort;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityReportPort;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityTargetMetaPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentLikeRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostLikeRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityReportRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityCommentStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityTargetType;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.ReportStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityComment;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityCommentLike;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPost;
@@ -33,21 +34,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class CommunityCommandProcessor {
 
     private final SnowflakeIdGenerator snowflakeIdGenerator;
-    private final CommunityPostPort communityPostPort;
-    private final CommunityCommentPort communityCommentPort;
-    private final CommunityPostLikePort communityPostLikePort;
-    private final CommunityCommentLikePort communityCommentLikePort;
-    private final CommunityReportPort communityReportPort;
-    private final CommunityTargetMetaPort communityTargetMetaPort;
+    private final CommunityPostRepositoryPort communityPostRepositoryPort;
+    private final CommunityCommentRepositoryPort communityCommentRepositoryPort;
+    private final CommunityPostLikeRepositoryPort communityPostLikeRepositoryPort;
+    private final CommunityCommentLikeRepositoryPort communityCommentLikeRepositoryPort;
+    private final CommunityReportRepositoryPort communityReportRepositoryPort;
+    private final CommunityTargetMetaRepositoryPort communityTargetMetaRepositoryPort;
 
     @Transactional
     public CommunityPost createPost(long memberId, CreatePostCommand command) {
         CommunityTargetType parsedTargetType = CommunityTargetType.from(command.targetType());
-        CommunityTargetMeta targetMeta = communityTargetMetaPort.findTargetMeta(parsedTargetType, command.targetCode())
+        CommunityTargetMeta targetMeta = communityTargetMetaRepositoryPort.findTargetMeta(parsedTargetType, command.targetCode())
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
 
         LocalDateTime now = LocalDateTime.now();
-        return communityPostPort.save(new CommunityPost(
+        return communityPostRepositoryPort.save(new CommunityPost(
             snowflakeIdGenerator.generateId(),
             memberId,
             targetMeta.targetType(),
@@ -56,6 +57,7 @@ public class CommunityCommandProcessor {
             command.title().trim(),
             command.content().trim(),
             CommunityPostStatus.ACTIVE,
+            0L,
             0L,
             0L,
             now,
@@ -67,7 +69,7 @@ public class CommunityCommandProcessor {
     public CommunityPost updatePost(long memberId, CommunityPost post, UpdatePostCommand command) {
         validatePostOwner(memberId, post);
 
-        return communityPostPort.save(new CommunityPost(
+        return communityPostRepositoryPort.save(new CommunityPost(
             post.id(),
             post.memberId(),
             post.targetType(),
@@ -78,6 +80,7 @@ public class CommunityCommandProcessor {
             post.status(),
             post.likeCount(),
             post.commentCount(),
+            post.viewCount(),
             post.createdAt(),
             LocalDateTime.now()
         ));
@@ -87,7 +90,7 @@ public class CommunityCommandProcessor {
     public void deletePost(long memberId, CommunityPost post) {
         validatePostOwner(memberId, post);
 
-        communityPostPort.save(new CommunityPost(
+        communityPostRepositoryPort.save(new CommunityPost(
             post.id(),
             post.memberId(),
             post.targetType(),
@@ -98,6 +101,7 @@ public class CommunityCommandProcessor {
             CommunityPostStatus.DELETED,
             post.likeCount(),
             post.commentCount(),
+            post.viewCount(),
             post.createdAt(),
             LocalDateTime.now()
         ));
@@ -105,11 +109,16 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public CommunityComment createComment(long memberId, CommunityPost post, CreateCommentCommand command) {
+        Long parentCommentId = command.parentCommentId();
+        if (parentCommentId != null) {
+            validateParentComment(parentCommentId, post.id());
+        }
         LocalDateTime now = LocalDateTime.now();
-        CommunityComment comment = communityCommentPort.save(new CommunityComment(
+        CommunityComment comment = communityCommentRepositoryPort.save(new CommunityComment(
             snowflakeIdGenerator.generateId(),
             post.id(),
             memberId,
+            parentCommentId,
             command.content().trim(),
             CommunityCommentStatus.ACTIVE,
             0L,
@@ -130,10 +139,11 @@ public class CommunityCommandProcessor {
         CommunityPost post = getPost(comment.postId());
         savePostWithCommentCount(post, Math.max(0, post.commentCount() - 1));
 
-        communityCommentPort.save(new CommunityComment(
+        communityCommentRepositoryPort.save(new CommunityComment(
             comment.id(),
             comment.postId(),
             comment.memberId(),
+            comment.parentCommentId(),
             comment.content(),
             CommunityCommentStatus.DELETED,
             comment.likeCount(),
@@ -144,14 +154,14 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public long togglePostLike(long memberId, CommunityPost post) {
-        boolean exists = communityPostLikePort.exists(post.id(), memberId);
+        boolean exists = communityPostLikeRepositoryPort.exists(post.id(), memberId);
         long nextLikeCount;
 
         if (exists) {
-            communityPostLikePort.delete(post.id(), memberId);
+            communityPostLikeRepositoryPort.delete(post.id(), memberId);
             nextLikeCount = Math.max(0, post.likeCount() - 1);
         } else {
-            communityPostLikePort.save(new CommunityPostLike(
+            communityPostLikeRepositoryPort.save(new CommunityPostLike(
                 snowflakeIdGenerator.generateId(),
                 post.id(),
                 memberId,
@@ -166,14 +176,14 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public long toggleCommentLike(long memberId, CommunityComment comment) {
-        boolean exists = communityCommentLikePort.exists(comment.id(), memberId);
+        boolean exists = communityCommentLikeRepositoryPort.exists(comment.id(), memberId);
         long nextLikeCount;
 
         if (exists) {
-            communityCommentLikePort.delete(comment.id(), memberId);
+            communityCommentLikeRepositoryPort.delete(comment.id(), memberId);
             nextLikeCount = Math.max(0, comment.likeCount() - 1);
         } else {
-            communityCommentLikePort.save(new CommunityCommentLike(
+            communityCommentLikeRepositoryPort.save(new CommunityCommentLike(
                 snowflakeIdGenerator.generateId(),
                 comment.id(),
                 memberId,
@@ -182,10 +192,11 @@ public class CommunityCommandProcessor {
             nextLikeCount = comment.likeCount() + 1;
         }
 
-        communityCommentPort.save(new CommunityComment(
+        communityCommentRepositoryPort.save(new CommunityComment(
             comment.id(),
             comment.postId(),
             comment.memberId(),
+            comment.parentCommentId(),
             comment.content(),
             comment.status(),
             nextLikeCount,
@@ -200,22 +211,39 @@ public class CommunityCommandProcessor {
     public void createReport(long memberId, CreateReportCommand command) {
         validateReportTarget(command.targetKind(), command.targetId());
 
-        if (communityReportPort.exists(command.targetKind(), command.targetId(), memberId)) {
+        if (communityReportRepositoryPort.exists(command.targetKind(), command.targetId(), memberId)) {
             throw new CommunityException(CommunityErrorCode.DUPLICATE_REPORT);
         }
 
-        communityReportPort.save(new CommunityReport(
+        communityReportRepositoryPort.save(new CommunityReport(
             snowflakeIdGenerator.generateId(),
             command.targetKind(),
             command.targetId(),
             memberId,
             command.reason().trim(),
-            LocalDateTime.now()
+            LocalDateTime.now(),
+            ReportStatus.PENDING,
+            null,
+            null
         ));
     }
 
+    private void validateParentComment(long parentCommentId, long postId) {
+        CommunityComment parent = communityCommentRepositoryPort.findById(parentCommentId)
+            .orElseThrow(() -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
+        if (parent.postId() != postId) {
+            throw new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND);
+        }
+        if (parent.parentCommentId() != null) {
+            throw new CommunityException(CommunityErrorCode.INVALID_TARGET_TYPE);
+        }
+        if (parent.status() != CommunityCommentStatus.ACTIVE) {
+            throw new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND);
+        }
+    }
+
     private CommunityPost getPost(long postId) {
-        return communityPostPort.findById(postId)
+        return communityPostRepositoryPort.findById(postId)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
     }
 
@@ -231,13 +259,32 @@ public class CommunityCommandProcessor {
             return;
         }
 
-        communityCommentPort.findById(targetId)
+        communityCommentRepositoryPort.findById(targetId)
             .filter(comment -> comment.status() == CommunityCommentStatus.ACTIVE)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
     }
 
+    @Transactional
+    public CommunityPost incrementViewCount(CommunityPost post) {
+        return communityPostRepositoryPort.save(new CommunityPost(
+            post.id(),
+            post.memberId(),
+            post.targetType(),
+            post.targetCode(),
+            post.targetName(),
+            post.title(),
+            post.content(),
+            post.status(),
+            post.likeCount(),
+            post.commentCount(),
+            post.viewCount() + 1,
+            post.createdAt(),
+            post.updatedAt()
+        ));
+    }
+
     private void savePostWithLikeCount(CommunityPost post, long likeCount) {
-        communityPostPort.save(new CommunityPost(
+        communityPostRepositoryPort.save(new CommunityPost(
             post.id(),
             post.memberId(),
             post.targetType(),
@@ -248,13 +295,14 @@ public class CommunityCommandProcessor {
             post.status(),
             likeCount,
             post.commentCount(),
+            post.viewCount(),
             post.createdAt(),
             LocalDateTime.now()
         ));
     }
 
     private void savePostWithCommentCount(CommunityPost post, long commentCount) {
-        communityPostPort.save(new CommunityPost(
+        communityPostRepositoryPort.save(new CommunityPost(
             post.id(),
             post.memberId(),
             post.targetType(),
@@ -265,6 +313,7 @@ public class CommunityCommandProcessor {
             post.status(),
             post.likeCount(),
             commentCount,
+            post.viewCount(),
             post.createdAt(),
             LocalDateTime.now()
         ));

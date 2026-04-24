@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.community.domain.model;
 
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityReportTargetKind;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.ReportStatus;
 import java.time.LocalDateTime;
 
 public record CommunityReport(
@@ -9,6 +10,9 @@ public record CommunityReport(
     long targetId,
     long reporterMemberId,
     String reason,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    ReportStatus status,
+    LocalDateTime resolvedAt,
+    Long resolvedByMemberId
 ) {
 }

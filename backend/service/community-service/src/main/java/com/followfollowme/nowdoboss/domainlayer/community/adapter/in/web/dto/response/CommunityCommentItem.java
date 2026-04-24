@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.re
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -26,7 +27,10 @@ public record CommunityCommentItem(
     LocalDateTime createdAt,
 
     @Schema(description = "수정 시각")
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+
+    @Schema(description = "대댓글 목록")
+    List<CommunityReplyItem> replies
 ) {
 
 }

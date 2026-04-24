@@ -35,12 +35,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommunityPostListResponse getPosts(
-        CommunitySortType sortType,
-        OrderType orderType,
-        String targetType,
-        String targetCode,
-        long lastPostId,
-        long lastLikeCount,
+        CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, long lastLikeCount,
         int size
     ) {
         CommunityTargetMeta targetMeta = null;
@@ -101,9 +96,11 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CommunityPostDetailResponse getPost(long postId) {
-        return communityPostPresenter.toPostDetailResponse(communityQueryProcessor.getPost(postId));
+        CommunityPost post = communityQueryProcessor.getPost(postId);
+        CommunityPost updated = communityCommandProcessor.incrementViewCount(post);
+        return communityPostPresenter.toPostDetailResponse(updated);
     }
 
     @Override
@@ -128,15 +125,21 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommunityLikedPostsResponse getLikedPosts(
-        long memberId,
-        CommunitySortType sortType,
-        OrderType orderType,
-        long lastPostId,
-        long lastLikeCount,
-        int size
+        long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
     ) {
         return communityPostPresenter.toLikedPostsResponse(
             communityQueryProcessor.getLikedPosts(memberId, sortType, orderType, lastPostId, lastLikeCount, size)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommunityPostListResponse searchPosts(
+        String keyword, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
+    ) {
+        return communityPostPresenter.toPostListResponse(
+            null,
+            communityQueryProcessor.searchPosts(keyword, sortType, orderType, lastPostId, lastLikeCount, size)
         );
     }
 }

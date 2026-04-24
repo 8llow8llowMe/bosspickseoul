@@ -2,6 +2,8 @@ package com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persisten
 
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence.entity.CommunityReportEntity;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityReportTargetKind;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.ReportStatus;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CommunityReportRepository extends JpaRepository<CommunityReportEntity, Long> {
@@ -11,4 +13,6 @@ public interface CommunityReportRepository extends JpaRepository<CommunityReport
         long targetId,
         long reporterMemberId
     );
+
+    List<CommunityReportEntity> findByStatusOrderByCreatedAtAsc(ReportStatus status);
 }

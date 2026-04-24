@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -66,7 +65,7 @@ public class CommunityCommentWebController {
     }
 
     @Operation(summary = "댓글 좋아요 토글", description = "댓글 좋아요를 등록하거나 취소합니다.", security = @SecurityRequirement(name = "bearerAuth"))
-    @PutMapping("/{commentId}/like")
+    @PostMapping("/{commentId}/likes")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<CommunityCommentLikeResponse>> toggleCommentLike(
         @AuthenticationPrincipal MemberLoginActive loginActive,

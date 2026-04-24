@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence.entity;
 
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityReportTargetKind;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.ReportStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -25,7 +26,8 @@ import org.hibernate.annotations.Comment;
     name = "community_report",
     indexes = {
         @Index(name = "idx_community_report_target", columnList = "targetKind,targetId"),
-        @Index(name = "idx_community_report_reporter", columnList = "reporterMemberId")
+        @Index(name = "idx_community_report_reporter", columnList = "reporterMemberId"),
+        @Index(name = "idx_community_report_status", columnList = "status")
     }
 )
 @Comment("커뮤니티 신고")
@@ -55,4 +57,17 @@ public class CommunityReportEntity {
     @Column(nullable = false)
     @Comment("신고 생성 시각")
     private LocalDateTime createdAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'PENDING'")
+    @Comment("신고 처리 상태")
+    private ReportStatus status;
+
+    @Column
+    @Comment("신고 처리 시각")
+    private LocalDateTime resolvedAt;
+
+    @Column
+    @Comment("처리한 매니저 회원 아이디")
+    private Long resolvedByMemberId;
 }

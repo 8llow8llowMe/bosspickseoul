@@ -30,4 +30,11 @@ public interface CommunityPostCustomRepository {
         long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     );
+
+    Slice<CommunityPostEntity> findSearchPostsNoOffset(
+        String keyword,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size,
+        LocalDateTime popularSince
+    );
 }
