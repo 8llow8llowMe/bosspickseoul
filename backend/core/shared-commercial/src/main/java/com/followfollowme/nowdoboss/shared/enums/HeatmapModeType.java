@@ -1,4 +1,4 @@
-package com.followfollowme.nowdoboss.common.enums;
+package com.followfollowme.nowdoboss.shared.enums;
 
 import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescribable;
 import lombok.Getter;
