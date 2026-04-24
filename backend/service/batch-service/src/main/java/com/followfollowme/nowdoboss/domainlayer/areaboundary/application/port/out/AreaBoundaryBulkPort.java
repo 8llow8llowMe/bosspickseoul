@@ -3,7 +3,7 @@ package com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.o
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.model.AreaBoundary;
 import java.util.List;
 
-public interface AreaBoundaryJdbcPort {
+public interface AreaBoundaryBulkPort {
 
     void upsertAll(List<AreaBoundary> areaBoundaries);
 }

@@ -5,7 +5,8 @@ import com.followfollowme.nowdoboss.domainlayer.community.application.mapper.Com
 import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityBoardPostCriteria;
 import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityFeedCriteria;
 import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityLikedPostCriteria;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunitySearchPostCriteria;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.LikedCommunityPost;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CommunityPostPersistenceAdapter implements CommunityPostPort {
+public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPort {
 
     private final CommunityPostRepository communityPostRepository;
     private final CommunityMapper communityMapper;
@@ -63,6 +64,20 @@ public class CommunityPostPersistenceAdapter implements CommunityPostPort {
             criteria.size(),
             criteria.popularSince()
         ).map(entity -> new LikedCommunityPost(communityMapper.toDomainFromEntity(entity), null));
+    }
+
+    @Override
+    public Slice<CommunityPost> searchPosts(CommunitySearchPostCriteria criteria) {
+        return communityPostRepository.findSearchPostsNoOffset(
+            criteria.keyword(),
+            CommunityPostStatus.ACTIVE,
+            criteria.sortType(),
+            criteria.orderType(),
+            criteria.lastPostId(),
+            criteria.lastLikeCount(),
+            criteria.size(),
+            criteria.popularSince()
+        ).map(communityMapper::toDomainFromEntity);
     }
 
     @Override

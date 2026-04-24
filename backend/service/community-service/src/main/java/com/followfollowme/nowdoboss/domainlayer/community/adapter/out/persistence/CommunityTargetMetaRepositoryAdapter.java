@@ -1,7 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence.repository.AreaCommercialReferenceRepository;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityTargetMetaPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityTargetType;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityTargetMeta;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CommunityTargetMetaPersistenceAdapter implements CommunityTargetMetaPort {
+public class CommunityTargetMetaRepositoryAdapter implements CommunityTargetMetaRepositoryPort {
 
     private final AreaCommercialReferenceRepository areaCommercialReferenceRepository;
 
