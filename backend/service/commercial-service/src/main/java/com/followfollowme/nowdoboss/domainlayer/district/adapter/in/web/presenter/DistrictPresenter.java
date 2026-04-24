@@ -239,7 +239,9 @@ public class DistrictPresenter {
             .toList();
     }
 
-    private List<DistrictSalesAdministrationTopItem> toDistrictSalesAdministrationTopItems(List<DistrictSalesAdministrationTopInfo> infos) {
+    private List<DistrictSalesAdministrationTopItem> toDistrictSalesAdministrationTopItems(
+        List<DistrictSalesAdministrationTopInfo> infos
+    ) {
         return infos.stream()
             .map(this::toDistrictSalesAdministrationTopItem)
             .toList();

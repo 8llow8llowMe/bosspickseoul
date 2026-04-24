@@ -9,4 +9,10 @@ public interface SalesCommercialRepositoryPort {
     List<String> findDistinctServiceCodesByCommercialCode(String commercialCode);
 
     Optional<SalesCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
+
+    List<SalesCommercial> findByCommercialCodeAndServiceCodeAndPeriodCodeIn(
+        String commercialCode,
+        String serviceCode,
+        List<String> periodCodes
+    );
 }

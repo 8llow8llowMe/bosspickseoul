@@ -122,9 +122,8 @@ public class DistrictQueryProcessor {
     }
 
     public DistrictFootTrafficDetailInfo getDistrictFootTrafficDetail(
-        String districtCode,
-        String currentPeriodCode,
-        String previousPeriodCode
+
+        String districtCode, String currentPeriodCode, String previousPeriodCode
     ) {
         // 1. 이전 분기 확정
         String resolvedPreviousPeriodCode = periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
@@ -231,7 +230,10 @@ public class DistrictQueryProcessor {
             .build();
     }
 
-    public DistrictSalesDetailInfo getDistrictSalesTopFiveDetail(String districtCode, String currentPeriodCode, String previousPeriodCode) {
+    public DistrictSalesDetailInfo getDistrictSalesTopFiveDetail(
+
+        String districtCode, String currentPeriodCode, String previousPeriodCode
+    ) {
         // 1. 이전 분기 확정
         String resolvedPreviousPeriodCode =
             periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
@@ -252,9 +254,8 @@ public class DistrictQueryProcessor {
     }
 
     public List<DistrictSalesAdministrationTopInfo> getDistrictSalesAdministrationTopFiveDetail(
-        String districtCode,
-        String currentPeriodCode,
-        String previousPeriodCode
+
+        String districtCode, String currentPeriodCode, String previousPeriodCode
     ) {
         // 1. 이전 분기 확정
         String resolvedPreviousPeriodCode =

@@ -22,7 +22,7 @@ public class AdministrationWebController {
 
     private final AdministrationWebUseCase administrationWebUseCase;
 
-    @Operation(summary = "행정동 통합 상세 조회", description = "행정동 기준 매출, 점포, 지출 정보를 통합 조회합니다.")
+    @Operation(summary = "행정동 통합 상세 조회", description = "행정동 기준 매출, 소득, 지출 정보를 통합 조회합니다.")
     @GetMapping("/{administrationCode}")
     public ResponseEntity<Response<AdministrationDetailResponse>> getAdministrationDetail(
         @Parameter(description = "행정동 코드", required = true, example = "11110515") @PathVariable String administrationCode,
@@ -30,7 +30,9 @@ public class AdministrationWebController {
         @Parameter(description = "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.", example = "20232") @RequestParam(required = false) String previousPeriodCode
     ) {
         AdministrationDetailResponse response = administrationWebUseCase.getAdministrationDetail(
-            administrationCode, currentPeriodCode, previousPeriodCode
+            administrationCode,
+            currentPeriodCode,
+            previousPeriodCode
         );
         return ResponseEntity.ok().body(Response.success(response));
     }

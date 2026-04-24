@@ -15,11 +15,8 @@ public class CommercialSummaryQueryProcessor {
     private final CommercialSummaryRepositoryPort commercialSummaryRepositoryPort;
 
     public CommercialSalesSummaryInfo getSalesSummary(
-        String periodCode,
-        String districtCode,
-        String administrationCode,
-        String commercialCode,
-        String serviceCode
+
+        String periodCode, String districtCode, String administrationCode, String commercialCode, String serviceCode
     ) {
         RegionalSalesSummaryInfo districtSummary = commercialSummaryRepositoryPort.findSalesDistrict(periodCode, districtCode, serviceCode)
             .map(salesDistrict -> RegionalSalesSummaryInfo.builder()
@@ -61,10 +58,8 @@ public class CommercialSummaryQueryProcessor {
     }
 
     public CommercialIncomeSummaryInfo getIncomeSummary(
-        String periodCode,
-        String districtCode,
-        String administrationCode,
-        String commercialCode
+
+        String periodCode, String districtCode, String administrationCode, String commercialCode
     ) {
         RegionalIncomeSummaryInfo districtSummary = commercialSummaryRepositoryPort.findIncomeDistrict(periodCode, districtCode)
             .map(incomeDistrict -> RegionalIncomeSummaryInfo.builder()

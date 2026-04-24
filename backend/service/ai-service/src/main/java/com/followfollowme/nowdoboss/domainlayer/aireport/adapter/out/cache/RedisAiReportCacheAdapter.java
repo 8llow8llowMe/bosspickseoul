@@ -38,10 +38,7 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
 
     @Override
     public Optional<CommercialComparisonAiReportInfo> getCommercialComparisonReport(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode
+        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
         return getValue(
             buildCommercialComparisonKey(leftCommercialCode, rightCommercialCode, serviceCode, periodCode),
@@ -51,11 +48,7 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
 
     @Override
     public void saveCommercialComparisonReport(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode,
-        CommercialComparisonAiReportInfo reportInfo
+        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode, CommercialComparisonAiReportInfo reportInfo
     ) {
         saveValue(buildCommercialComparisonKey(leftCommercialCode, rightCommercialCode, serviceCode, periodCode), reportInfo);
     }
@@ -111,10 +104,8 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
     }
 
     private String buildCommercialComparisonKey(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode
+
+        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
         return "%s:ai:report:commercial-comparison:v1:%s:%s:%s:%s".formatted(
             redisProperties.normalizedKeyPrefix(),
