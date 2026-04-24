@@ -190,3 +190,16 @@ Phase 8 기준으로 아래 운영 문서와 설정이 추가되었다.
 - 기능을 이관하면 해당 라우트의 상태를 `미착수 -> 진행중 -> 완료`로 갱신한다.
 - Phase 2에서 route skeleton만 생성된 경우 상태는 `진행중`으로 유지한다.
 - 공통 인프라가 추가되면 `선행 공통 모듈` 목록도 실제 경로 기준으로 갱신한다.
+- route 또는 feature 완료 시 아래 항목을 남긴다.
+  - route path
+  - legacy source file
+  - target file
+  - migration status
+  - known gaps
+  - validation result
+  - remaining tasks
+- 세부 판단이 필요한 경우 관련 문서를 함께 확인한다.
+  - 라우팅: `docs/engineering/routing-rules.md`
+  - 클라이언트 경계: `docs/engineering/client-boundary.md`
+  - API/세션/데이터: `docs/engineering/data-fetching-rules.md`
+  - 스타일: `docs/design-guide.md`, `docs/engineering/styling-rules.md`

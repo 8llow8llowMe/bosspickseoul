@@ -20,7 +20,17 @@
   - Firebase Messaging
   - websocket + STOMP
 
-## 3. 작업 단계
+## 3. 상세 규칙 문서
+
+작업 중 세부 판단은 아래 문서를 따른다.
+
+- 라우팅 전환: `docs/engineering/routing-rules.md`
+- 브라우저 API와 SSR 경계: `docs/engineering/client-boundary.md`
+- API, 세션, React Query: `docs/engineering/data-fetching-rules.md`
+- 코드 스타일, 포맷, 의존성: `docs/engineering/code-style.md`
+- 스타일 구현: `docs/design-guide.md`, `docs/engineering/styling-rules.md`
+
+## 4. 작업 단계
 
 ### Phase 0. 부트스트랩
 
@@ -187,9 +197,9 @@
 - 공개 페이지 SEO 점검이 완료된다.
 - 포맷 기준이 저장소 전반에 일관되게 적용된다.
 
-## 4. 마이그레이션 레시피
+## 5. 마이그레이션 레시피
 
-### 4.1 react-router -> Next
+### 5.1 react-router -> Next
 
 - `useNavigate` -> `useRouter`
 - `useLocation` -> `usePathname`, `useSearchParams`
@@ -197,33 +207,33 @@
 - 중첩 라우트 -> 폴더 구조 + `layout.tsx`
 - 공통 헤더/푸터 조건 분기 -> route group
 
-### 4.2 Vite env -> Next env
+### 5.2 Vite env -> Next env
 
 - `import.meta.env.VITE_REACT_API_URL` -> `process.env.NEXT_PUBLIC_API_URL`
 - `import.meta.env.VITE_REACT_APP_KAKAOMAP_API_KEY` -> `process.env.NEXT_PUBLIC_KAKAOMAP_API_KEY`
 - `import.meta.env.VITE_REACT_FIREBASE_*` -> `process.env.NEXT_PUBLIC_FIREBASE_*`
 
-### 4.3 브라우저 전용 코드 처리
+### 5.3 브라우저 전용 코드 처리
 
 - 파일 상단에서 바로 `window.innerWidth`를 읽지 않는다.
 - `localStorage.getItem(...)`를 컴포넌트 바디 최상단에서 바로 호출하지 않는다.
 - `document.cookie` 접근은 helper 함수 안으로 넣고 호출 시점을 제어한다.
 - 서비스 워커 등록은 반드시 클라이언트 effect 안에서 처리한다.
 
-### 4.4 styled-components 처리
+### 5.4 styled-components 처리
 
 - 초기 마이그레이션에서는 기존 스타일 파일을 최대한 유지한다.
 - 대신 디자인 토큰은 새 구조에서 한 군데로 모은다.
 - 새 파일부터는 토큰을 사용하고, 레거시 하드코드는 이관 뒤 점진적으로 걷어낸다.
 
-### 4.5 SEO 처리
+### 5.5 SEO 처리
 
 - 공개 페이지는 이관 시점에 `metadata`를 같이 작성한다.
 - 비공개 페이지는 `noindex` 정책을 명시한다.
 - title/description/canonical/OG 규칙은 `docs/seo-guide.md`를 따른다.
 - 구조화 데이터와 성능 고도화는 2차 단계에서 보강하되, 기본 골격은 초기에 넣는다.
 
-### 4.6 패키지 매니저 및 포맷터
+### 5.6 패키지 매니저 및 포맷터
 
 - 패키지 매니저는 `pnpm`을 기본으로 사용한다.
 - 새 프론트엔드 lockfile은 `pnpm-lock.yaml`을 기준으로 관리한다.
@@ -234,8 +244,9 @@
   - ESLint: 코드 품질, 잠재 버그, 규칙 위반
   - Prettier: 코드 포맷 일관성
 
-## 5. 세션 단위 작업 규칙
+## 6. 세션 단위 작업 규칙
 
 - 한 세션에서 하나의 Phase 또는 그 하위 기능 묶음만 진행한다.
 - 작업 전 관련 문서를 읽고, 작업 후 체크리스트를 반영한다.
 - 공통 구조를 바꾸는 경우 해당 문서를 같이 업데이트한다.
+- route 또는 feature를 완료하면 `docs/migration-inventory.md`에 route path, legacy source file, target file, migration status, known gaps, validation result, remaining tasks를 기록한다.

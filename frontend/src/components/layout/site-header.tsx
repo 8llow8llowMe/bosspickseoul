@@ -50,6 +50,9 @@ const Inner = styled.div`
 `
 
 const Brand = styled(Link)`
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
   color: var(--color-text-900);
   font-size: 19px;
   font-weight: 700;

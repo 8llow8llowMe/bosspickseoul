@@ -111,3 +111,31 @@ pnpm qa:verify
 - Firebase permission granted 환경에서 토큰 발급과 subscribe API 확인
 - websocket `/ws`가 운영 또는 스테이징 백엔드와 실제 연결되는지 확인
 - 모바일 viewport에서 community/chatting 스크롤 동작 확인
+
+## 7. Phase 8 Browser Regression 기록
+
+```text
+날짜: 2026-04-24
+환경: local Next dev server http://localhost:3000, Chrome headless CDP, desktop 1440x1000, mobile 390x844
+검증자: Codex
+자동 검증: pass
+수동 smoke: partial
+차단 이슈:
+- 백엔드 API http://localhost:8080 연결이 거부되어 community 상세/댓글, community 목록 데이터, chatting 목록 데이터, 내 채팅방 검색, room detail, message history를 실제 데이터로 확인하지 못했다.
+- websocket 기본 endpoint ws://localhost:8080/ws 연결이 거부되어 STOMP connect/send/receive/leave flow를 확인하지 못했다.
+- .env.local의 Kakao JavaScript key가 비어 있어 Kakao SDK load/share granted flow를 확인하지 못했다.
+- .env.local의 Firebase API key, messaging sender id, app id, VAPID key가 비어 있어 Firebase permission granted 토큰 발급과 subscribe API flow를 확인하지 못했다.
+- 실제 테스트 계정/session이 없어 fake local auth로 gated 화면 렌더만 확인했다. 실제 생성/전송/나가기 mutation은 백엔드와 계정 준비 후 재검증해야 한다.
+```
+
+확인 결과:
+
+- `/community/list`: desktop/mobile 진입, 카테고리 UI, 작성 링크, loading/empty/error surface 렌더 확인. 가로 overflow 없음. 백엔드 연결 실패 console error는 환경 차단으로 기록.
+- `/community/1`: desktop/mobile 진입과 loading/error-prone surface 확인. 가로 overflow 없음. `DEP0169 url.parse()` dev-server deprecation warning이 1회 관측됐고, `src`/`app` application source에는 `url.parse` 사용이 없었다.
+- `/community/register`: unauth 상태는 `/login` redirect 확인. fake local auth 상태에서 desktop/mobile form 렌더와 스크롤 가능한 작성 화면 확인. 가로 overflow 없음.
+- `/chatting/list`: desktop/mobile 진입, category chips, popular/all room sections, auth-required create branch 확인. 백엔드 연결 실패 console error는 환경 차단으로 기록.
+- `/chatting/list` 생성 modal: fake local auth 상태에서 desktop/mobile modal open 확인. submit flow는 backend/test account 부재로 blocked.
+- `/chatting/1`: unauth 상태는 `/login` redirect 확인. fake local auth 상태에서 desktop/mobile room loading surface 확인. room detail/message history/websocket 실패는 backend/websocket 부재로 blocked.
+- Firebase missing-key 상태는 route 렌더와 chatting UI 진입을 막지 않았다. 실제 granted-token flow는 env key 부재로 blocked.
+- Kakao SDK는 대상 route에서 share UI가 노출되지 않았고 key도 비어 있어 blocked.
+- mobile header brand link touch target은 `108x40`으로 확인했다.
