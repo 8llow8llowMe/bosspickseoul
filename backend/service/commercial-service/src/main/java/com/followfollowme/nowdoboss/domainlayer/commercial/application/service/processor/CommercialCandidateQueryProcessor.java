@@ -23,10 +23,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CommercialCandidateQueryProcessor {
 
-    private static final int DEFAULT_TOP_N = 10;
-    private static final int MIN_TOP_N = 5;
-    private static final int MAX_TOP_N = 30;
-    private static final int DEFAULT_BY_SERVICE_TOP_N = 5;
     private static final double TAG_HIGH_THRESHOLD = 70D;
     private static final double TAG_LOW_THRESHOLD = 30D;
 
@@ -112,12 +108,11 @@ public class CommercialCandidateQueryProcessor {
 
     public CandidateCommercialsResponseInfo getTopCandidates(
         String periodCode, String serviceCode, List<String> commercialCodes,
-        CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric, Integer topN
+        CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric, int topN
     ) {
         CommercialHeatmapMetricType resolvedPriority = priorityMetric == null
             ? preset.getDefaultPriorityMetric()
             : priorityMetric;
-        int limit = clampTopN(topN);
 
         if (commercialCodes == null || commercialCodes.isEmpty()) {
             return CandidateCommercialsResponseInfo.builder()
@@ -125,7 +120,7 @@ public class CommercialCandidateQueryProcessor {
                 .periodCode(periodCode)
                 .preset(preset.toMetadata())
                 .priorityMetric(resolvedPriority.toScoreMetadata())
-                .topN(limit)
+                .topN(topN)
                 .summary(buildCandidateSummary(preset, resolvedPriority, 0))
                 .items(List.of())
                 .build();
@@ -146,10 +141,10 @@ public class CommercialCandidateQueryProcessor {
                 : candidate.composite())
             .reversed());
 
-        List<CandidateCommercialInfo> result = new ArrayList<>(Math.min(limit, ranked.size()));
+        List<CandidateCommercialInfo> result = new ArrayList<>(Math.min(topN, ranked.size()));
         int rank = 1;
         for (Ranked item : ranked) {
-            if (rank > limit) {
+            if (rank > topN) {
                 break;
             }
             if (item.composite() == null) {
@@ -164,7 +159,7 @@ public class CommercialCandidateQueryProcessor {
             .periodCode(periodCode)
             .preset(preset.toMetadata())
             .priorityMetric(resolvedPriority.toScoreMetadata())
-            .topN(limit)
+            .topN(topN)
             .summary(buildCandidateSummary(preset, resolvedPriority, result.size()))
             .items(result)
             .build();
@@ -333,18 +328,10 @@ public class CommercialCandidateQueryProcessor {
     }
 
     public CandidateCommercialsResponseInfo getTopCandidatesByService(
-        String periodCode, String serviceCode, List<String> commercialCodes, Integer topN
+        String periodCode, String serviceCode, List<String> commercialCodes, int topN
     ) {
         CandidatePresetType preset = resolvePresetFromServiceCode(serviceCode);
-        int limit = topN == null ? DEFAULT_BY_SERVICE_TOP_N : topN;
-        return getTopCandidates(periodCode, serviceCode, commercialCodes, preset, preset.getDefaultPriorityMetric(), limit);
-    }
-
-    private int clampTopN(Integer topN) {
-        if (topN == null) {
-            return DEFAULT_TOP_N;
-        }
-        return Math.max(MIN_TOP_N, Math.min(MAX_TOP_N, topN));
+        return getTopCandidates(periodCode, serviceCode, commercialCodes, preset, preset.getDefaultPriorityMetric(), topN);
     }
 
     private record Ranked(CommercialAllMetricScoresInfo source, Double composite) {

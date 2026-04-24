@@ -24,7 +24,7 @@ public record CandidateCommercialsResponse(
     ScoreMetricMetadata priorityMetric,
 
     @Schema(description = "요청한 상위 개수", example = "10")
-    Integer topN,
+    int topN,
 
     @Schema(description = "응답 요약")
     String summary,
