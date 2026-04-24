@@ -15,6 +15,7 @@ public record CommunityPost(
     CommunityPostStatus status,
     long likeCount,
     long commentCount,
+    long viewCount,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {

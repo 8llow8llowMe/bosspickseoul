@@ -34,7 +34,7 @@ public class CommunityCommentWebFacade implements CommunityCommentWebUseCase {
     public CommunityCommentsResponse createComment(long memberId, long postId, CommunityCommentCreateRequest request) {
         // 1. 게시글 조회 및 댓글 생성
         CommunityPost post = communityQueryProcessor.getPost(postId);
-        CreateCommentCommand command = new CreateCommentCommand(request.content());
+        CreateCommentCommand command = new CreateCommentCommand(request.parentCommentId(), request.content());
         communityCommandProcessor.createComment(memberId, post, command);
 
         // 2. 전체 댓글 목록 반환

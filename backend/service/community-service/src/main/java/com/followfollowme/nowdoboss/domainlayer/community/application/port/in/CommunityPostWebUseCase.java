@@ -36,4 +36,10 @@ public interface CommunityPostWebUseCase {
         CommunitySortType sortType, OrderType orderType,
         long lastPostId, long lastLikeCount, int size
     );
+
+    CommunityPostListResponse searchPosts(
+        String keyword,
+        CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size
+    );
 }

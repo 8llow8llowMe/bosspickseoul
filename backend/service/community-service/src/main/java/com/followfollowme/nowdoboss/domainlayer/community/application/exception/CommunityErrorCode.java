@@ -17,7 +17,9 @@ public enum CommunityErrorCode {
     FORBIDDEN_POST_ACCESS("COMMUNITY_007", "본인 게시글만 수정하거나 삭제할 수 있습니다.", HttpStatus.FORBIDDEN),
     FORBIDDEN_COMMENT_ACCESS("COMMUNITY_008", "본인 댓글만 삭제할 수 있습니다.", HttpStatus.FORBIDDEN),
     DUPLICATE_REPORT("COMMUNITY_009", "이미 신고한 대상입니다.", HttpStatus.CONFLICT),
-    INVALID_REPORT_TARGET_KIND("COMMUNITY_010", "유효하지 않은 신고 대상 타입입니다.", HttpStatus.BAD_REQUEST);
+    INVALID_REPORT_TARGET_KIND("COMMUNITY_010", "유효하지 않은 신고 대상 타입입니다.", HttpStatus.BAD_REQUEST),
+    REPORT_NOT_FOUND("COMMUNITY_011", "신고를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    REPORT_ALREADY_PROCESSED("COMMUNITY_012", "이미 처리된 신고입니다.", HttpStatus.CONFLICT);
 
     private final String code;
     private final String message;

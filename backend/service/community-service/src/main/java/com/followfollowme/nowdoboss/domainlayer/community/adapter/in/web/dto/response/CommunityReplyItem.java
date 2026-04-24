@@ -1,13 +1,15 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response;
 
-import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "게시글 상세 응답 DTO")
-public record CommunityPostDetailResponse(
+@Schema(description = "대댓글 항목")
+public record CommunityReplyItem(
+
+    @Schema(description = "댓글 ID")
+    long commentId,
 
     @Schema(description = "게시글 ID")
     long postId,
@@ -15,29 +17,14 @@ public record CommunityPostDetailResponse(
     @Schema(description = "작성자 회원 ID")
     long memberId,
 
-    @Schema(description = "대상 유형 메타데이터")
-    CodeNameDescriptionMetadata targetType,
-
-    @Schema(description = "대상 코드")
-    String targetCode,
-
-    @Schema(description = "대상 이름")
-    String targetName,
-
-    @Schema(description = "제목")
-    String title,
+    @Schema(description = "부모 댓글 ID")
+    long parentCommentId,
 
     @Schema(description = "본문")
     String content,
 
     @Schema(description = "좋아요 수")
     long likeCount,
-
-    @Schema(description = "댓글 수")
-    long commentCount,
-
-    @Schema(description = "조회 수")
-    long viewCount,
 
     @Schema(description = "작성 시각")
     LocalDateTime createdAt,

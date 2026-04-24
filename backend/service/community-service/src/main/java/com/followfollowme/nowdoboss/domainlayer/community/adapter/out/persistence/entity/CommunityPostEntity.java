@@ -76,6 +76,10 @@ public class CommunityPostEntity {
     private long commentCount;
 
     @Column(nullable = false)
+    @Comment("게시글 조회 수")
+    private long viewCount;
+
+    @Column(nullable = false)
     @Comment("게시글 생성 시각")
     private LocalDateTime createdAt;
 

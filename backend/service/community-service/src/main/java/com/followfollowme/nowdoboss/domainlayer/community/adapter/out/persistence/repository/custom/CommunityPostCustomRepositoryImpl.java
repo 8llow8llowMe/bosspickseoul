@@ -80,6 +80,25 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
+    @Override
+    public Slice<CommunityPostEntity> findSearchPostsNoOffset(
+        String keyword,
+        CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size,
+        LocalDateTime popularSince
+    ) {
+        BooleanBuilder where = new BooleanBuilder();
+        where.and(communityPostEntity.status.eq(status));
+        if (keyword != null && !keyword.isBlank()) {
+            where.and(
+                communityPostEntity.title.containsIgnoreCase(keyword)
+                    .or(communityPostEntity.content.containsIgnoreCase(keyword))
+            );
+        }
+        applyCursorCondition(where, sortType, orderType, lastPostId, lastLikeCount, popularSince);
+        return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
+    }
+
     private void applyCursorCondition(
         BooleanBuilder where, CommunitySortType sortType, OrderType orderType,
         long lastPostId, long lastLikeCount, LocalDateTime popularSince

@@ -5,9 +5,10 @@ import com.followfollowme.nowdoboss.domainlayer.community.application.exception.
 import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityBoardPostCriteria;
 import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityFeedCriteria;
 import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityLikedPostCriteria;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentPort;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostPort;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityTargetMetaPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunitySearchPostCriteria;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityCommentStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunitySortType;
@@ -29,13 +30,13 @@ public class CommunityQueryProcessor {
 
     private static final int POPULAR_LOOKBACK_DAYS = 7;
 
-    private final CommunityPostPort communityPostPort;
-    private final CommunityCommentPort communityCommentPort;
-    private final CommunityTargetMetaPort communityTargetMetaPort;
+    private final CommunityPostRepositoryPort communityPostRepositoryPort;
+    private final CommunityCommentRepositoryPort communityCommentRepositoryPort;
+    private final CommunityTargetMetaRepositoryPort communityTargetMetaRepositoryPort;
 
     public CommunityTargetMeta getTargetMeta(String targetType, String targetCode) {
         CommunityTargetType parsedTargetType = CommunityTargetType.from(targetType);
-        return communityTargetMetaPort.findTargetMeta(parsedTargetType, targetCode)
+        return communityTargetMetaRepositoryPort.findTargetMeta(parsedTargetType, targetCode)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
     }
 
@@ -57,11 +58,11 @@ public class CommunityQueryProcessor {
             size,
             LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
         );
-        return communityPostPort.getBoardPosts(criteria);
+        return communityPostRepositoryPort.getBoardPosts(criteria);
     }
 
     public CommunityPost getPost(long postId) {
-        CommunityPost post = communityPostPort.findById(postId)
+        CommunityPost post = communityPostRepositoryPort.findById(postId)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         if (post.status() != CommunityPostStatus.ACTIVE) {
@@ -73,11 +74,11 @@ public class CommunityQueryProcessor {
 
     public List<CommunityComment> getComments(long postId) {
         getPost(postId);
-        return communityCommentPort.getComments(postId);
+        return communityCommentRepositoryPort.getComments(postId);
     }
 
     public CommunityComment getComment(long commentId) {
-        CommunityComment comment = communityCommentPort.findById(commentId)
+        CommunityComment comment = communityCommentRepositoryPort.findById(commentId)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
 
         if (comment.status() != CommunityCommentStatus.ACTIVE) {
@@ -101,17 +102,18 @@ public class CommunityQueryProcessor {
             ensureTargetExists(normalizedTargetType, targetCode);
         }
 
+        String resolvedTargetCode = normalizedTargetType != null ? targetCode : null;
         CommunityFeedCriteria criteria = new CommunityFeedCriteria(
             sortType,
             orderType,
             normalizedTargetType,
-            targetCode,
+            resolvedTargetCode,
             lastPostId,
             lastLikeCount,
             size,
             LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
         );
-        return communityPostPort.getFeedPosts(criteria);
+        return communityPostRepositoryPort.getFeedPosts(criteria);
     }
 
     public Slice<LikedCommunityPost> getLikedPosts(
@@ -128,11 +130,28 @@ public class CommunityQueryProcessor {
             size,
             LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
         );
-        return communityPostPort.getLikedPosts(criteria);
+        return communityPostRepositoryPort.getLikedPosts(criteria);
+    }
+
+    public Slice<CommunityPost> searchPosts(
+        String keyword,
+        CommunitySortType sortType, OrderType orderType,
+        long lastPostId, long lastLikeCount, int size
+    ) {
+        CommunitySearchPostCriteria criteria = new CommunitySearchPostCriteria(
+            keyword,
+            sortType,
+            orderType,
+            lastPostId,
+            lastLikeCount,
+            size,
+            LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
+        );
+        return communityPostRepositoryPort.searchPosts(criteria);
     }
 
     private void ensureTargetExists(CommunityTargetType targetType, String targetCode) {
-        communityTargetMetaPort.findTargetMeta(targetType, targetCode)
+        communityTargetMetaRepositoryPort.findTargetMeta(targetType, targetCode)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
     }
 }
