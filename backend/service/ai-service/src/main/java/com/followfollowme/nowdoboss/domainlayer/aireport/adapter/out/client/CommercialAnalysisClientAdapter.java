@@ -54,11 +54,7 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
 
     @Override
     public CommercialSalesSummaryQueryResult getCommercialSalesSummary(
-        String districtCode,
-        String administrationCode,
-        String commercialCode,
-        String serviceCode,
-        String periodCode
+        String districtCode, String administrationCode, String commercialCode, String serviceCode, String periodCode
     ) {
         return responseSupport.requestAndUnwrap(
             () -> commercialAnalysisClient.getCommercialSalesSummary(
@@ -69,10 +65,7 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
 
     @Override
     public CommercialIncomeSummaryQueryResult getCommercialIncomeSummary(
-        String districtCode,
-        String administrationCode,
-        String commercialCode,
-        String periodCode
+        String districtCode, String administrationCode, String commercialCode, String periodCode
     ) {
         return responseSupport.requestAndUnwrap(
             () -> commercialAnalysisClient.getCommercialIncomeSummary(commercialCode, districtCode, administrationCode, periodCode)
@@ -81,10 +74,7 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
 
     @Override
     public CommercialComparisonQueryResult getCommercialComparison(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode
+        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
         return responseSupport.requestAndUnwrap(
             () -> commercialAnalysisClient.getCommercialComparison(leftCommercialCode, rightCommercialCode, serviceCode, periodCode)

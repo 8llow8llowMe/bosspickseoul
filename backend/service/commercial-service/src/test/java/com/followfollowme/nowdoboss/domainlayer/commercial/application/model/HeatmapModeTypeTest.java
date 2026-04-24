@@ -3,7 +3,7 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.application.model;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
-import com.followfollowme.nowdoboss.common.enums.HeatmapModeType;
+import com.followfollowme.nowdoboss.shared.enums.HeatmapModeType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;

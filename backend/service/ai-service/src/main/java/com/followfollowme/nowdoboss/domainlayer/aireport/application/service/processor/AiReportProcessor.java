@@ -43,6 +43,7 @@ import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -68,26 +69,45 @@ public class AiReportProcessor {
             return cached.get();
         }
 
-        CommercialAdministrationQueryResult administrationInfo = regionAnalysisQueryPort.getCommercialAdministration(commercialCode);
-        var footTraffic = commercialAnalysisQueryPort.getCommercialFootTraffic(commercialCode, periodCode);
-        var sales = commercialAnalysisQueryPort.getCommercialSales(commercialCode, serviceCode, periodCode);
-        var facility = commercialAnalysisQueryPort.getCommercialFacility(commercialCode, periodCode);
-        var population = commercialAnalysisQueryPort.getCommercialPopulation(commercialCode, periodCode);
-        var income = commercialAnalysisQueryPort.getCommercialIncome(commercialCode, periodCode);
-        var store = commercialAnalysisQueryPort.getCommercialStore(commercialCode, serviceCode, periodCode);
-        var salesSummary = commercialAnalysisQueryPort.getCommercialSalesSummary(
-            administrationInfo.districtCode(),
-            administrationInfo.administrationCode(),
-            commercialCode,
-            serviceCode,
-            periodCode
-        );
-        var incomeSummary = commercialAnalysisQueryPort.getCommercialIncomeSummary(
-            administrationInfo.districtCode(),
-            administrationInfo.administrationCode(),
-            commercialCode,
-            periodCode
-        );
+        // Stage 1: administrationInfo 먼저 조회 (districtCode/administrationCode가 stage 2에 필요)
+        CommercialAdministrationQueryResult administrationInfo =
+            regionAnalysisQueryPort.getCommercialAdministration(commercialCode);
+
+        // Stage 2: 나머지 8개 병렬 호출
+        var ftFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialFootTraffic(commercialCode, periodCode));
+        var salesFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialSales(commercialCode, serviceCode, periodCode));
+        var facilityFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialFacility(commercialCode, periodCode));
+        var populationFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialPopulation(commercialCode, periodCode));
+        var incomeFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialIncome(commercialCode, periodCode));
+        var storeFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialStore(commercialCode, serviceCode, periodCode));
+        var salesSummaryFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialSalesSummary(
+                administrationInfo.districtCode(), administrationInfo.administrationCode(),
+                commercialCode, serviceCode, periodCode));
+        var incomeSummaryFuture = CompletableFuture.supplyAsync(
+            () -> commercialAnalysisQueryPort.getCommercialIncomeSummary(
+                administrationInfo.districtCode(), administrationInfo.administrationCode(),
+                commercialCode, periodCode));
+
+        CompletableFuture.allOf(
+            ftFuture, salesFuture, facilityFuture, populationFuture,
+            incomeFuture, storeFuture, salesSummaryFuture, incomeSummaryFuture
+        ).join();
+
+        var footTraffic = ftFuture.join();
+        var sales = salesFuture.join();
+        var facility = facilityFuture.join();
+        var population = populationFuture.join();
+        var income = incomeFuture.join();
+        var store = storeFuture.join();
+        var salesSummary = salesSummaryFuture.join();
+        var incomeSummary = incomeSummaryFuture.join();
         CommercialAiSourceData sourceData = buildCommercialSourceData(
             commercialCode,
             serviceCode,
@@ -239,17 +259,15 @@ public class AiReportProcessor {
     }
 
     private CommercialAiSourceData buildCommercialSourceData(
-        String commercialCode,
-        String serviceCode,
-        String periodCode,
-        CommercialAdministrationQueryResult administrationInfo,
-        CommercialFootTrafficQueryResult footTraffic,
-        CommercialSalesQueryResult sales,
-        CommercialFacilityQueryResult facility,
-        CommercialResidentPopulationQueryResult population,
-        CommercialIncomeAndExpenseQueryResult income,
-        CommercialStoreAnalysisQueryResult store,
-        CommercialSalesSummaryQueryResult salesSummary,
+
+        String commercialCode, String serviceCode, String periodCode, CommercialAdministrationQueryResult administrationInfo,
+
+        CommercialFootTrafficQueryResult footTraffic, CommercialSalesQueryResult sales, CommercialFacilityQueryResult facility,
+
+        CommercialResidentPopulationQueryResult population, CommercialIncomeAndExpenseQueryResult income,
+
+        CommercialStoreAnalysisQueryResult store, CommercialSalesSummaryQueryResult salesSummary,
+
         CommercialIncomeSummaryQueryResult incomeSummary
     ) {
         CommercialSalesByAgeGenderPercentQueryResult salesPercent = sales.amountByAgeGenderPercent();
@@ -368,9 +386,8 @@ public class AiReportProcessor {
     }
 
     private CommercialComparisonAiSourceData buildCommercialComparisonSourceData(
-        CommercialComparisonQueryResult comparison,
-        String serviceCode,
-        String periodCode
+
+        CommercialComparisonQueryResult comparison, String serviceCode, String periodCode
     ) {
         return CommercialComparisonAiSourceData.builder()
             .leftCommercialCode(comparison.left().commercialCode())
@@ -384,7 +401,7 @@ public class AiReportProcessor {
             .serviceCode(serviceCode)
             .periodCode(periodCode)
             .comparisonSummary(comparison.comparisonSummary())
-            .recommendedSide(comparison.recommendedSide() == null ? null : comparison.recommendedSide().code())
+            .recommendedSide(normalizeComparisonRecommendedSide(comparison))
             .recommendedReasons(defaultList(comparison.recommendedReasons(), "추천 이유 데이터가 충분하지 않습니다."))
             .cautionPoints(defaultList(
                 comparison.cautionPoints(), "두 상권의 경쟁 강도와 폐업률을 함께 확인하는 것이 좋습니다."
@@ -410,7 +427,22 @@ public class AiReportProcessor {
             .build();
     }
 
-    private DistrictAiSourceData buildDistrictSourceData(String districtCode, String periodCode, DistrictDetailQueryResult districtDetail) {
+    private String normalizeComparisonRecommendedSide(CommercialComparisonQueryResult comparison) {
+        if (comparison.recommendedSide() == null || comparison.recommendedSide().code() == null) {
+            return null;
+        }
+        return switch (comparison.recommendedSide().code()) {
+            case "LEFT" -> "LEFT";
+            case "RIGHT" -> "RIGHT";
+            case "TIE" -> "BALANCED";
+            default -> comparison.recommendedSide().code();
+        };
+    }
+
+    private DistrictAiSourceData buildDistrictSourceData(
+
+        String districtCode, String periodCode, DistrictDetailQueryResult districtDetail
+    ) {
         return DistrictAiSourceData.builder()
             .districtCode(districtCode)
             .periodCode(periodCode)
@@ -453,11 +485,10 @@ public class AiReportProcessor {
     }
 
     private AdministrationAiSourceData buildAdministrationSourceData(
-        String administrationCode,
-        String periodCode,
-        AdministrationDistrictQueryResult districtInfo,
-        AdministrationDetailQueryResult detail,
-        List<AdministrationCommercialQueryResult> commercials
+
+        String administrationCode, String periodCode, AdministrationDistrictQueryResult districtInfo,
+
+        AdministrationDetailQueryResult detail, List<AdministrationCommercialQueryResult> commercials
     ) {
         return AdministrationAiSourceData.builder()
             .administrationCode(administrationCode)

@@ -28,4 +28,16 @@ public class SalesCommercialRepositoryAdapter implements SalesCommercialReposito
         return salesCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
             .map(salesCommercialMapper::toDomainFromEntity);
     }
+
+    @Override
+    public List<SalesCommercial> findByCommercialCodeAndServiceCodeAndPeriodCodeIn(
+        String commercialCode,
+        String serviceCode,
+        List<String> periodCodes
+    ) {
+        return salesCommercialRepository.findByCommercialCodeAndServiceCodeAndPeriodCodeIn(commercialCode, serviceCode, periodCodes)
+            .stream()
+            .map(salesCommercialMapper::toDomainFromEntity)
+            .toList();
+    }
 }

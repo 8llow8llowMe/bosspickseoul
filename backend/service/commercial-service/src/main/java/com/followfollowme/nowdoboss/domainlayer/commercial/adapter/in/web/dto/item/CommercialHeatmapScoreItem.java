@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.i
 
 import com.followfollowme.nowdoboss.common.dto.metadata.ScoreMetricMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -24,7 +25,10 @@ public record CommercialHeatmapScoreItem(
     String grade,
 
     @Schema(description = "요약 라벨")
-    String summaryLabel
+    String summaryLabel,
+
+    @Schema(description = "복합 히트맵 전용 지표별 세부 점수 (단일 지표 모드에서는 null)", nullable = true)
+    List<MetricBreakdownItem> breakdown
 ) {
 
 }

@@ -54,10 +54,9 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     private final AiReportPromptTemplate promptTemplate;
 
     public OpenAiLlmClientAdapter(
-        WebClient.Builder webClientBuilder,
-        OpenAiSchemaMapper schemaMapper,
-        AiStructuredResponseParser parser,
-        AiLlmProperties properties,
+
+        WebClient.Builder webClientBuilder, OpenAiSchemaMapper schemaMapper, AiStructuredResponseParser parser, AiLlmProperties properties,
+
         AiReportPromptTemplate promptTemplate
     ) {
         this.webClient = webClientBuilder

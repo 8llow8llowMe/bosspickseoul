@@ -4,6 +4,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.persisten
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.mapper.FootTrafficCommercialMapper;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FootTrafficCommercial;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,5 +20,13 @@ public class FootTrafficCommercialRepositoryAdapter implements FootTrafficCommer
     public Optional<FootTrafficCommercial> findByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         return footTrafficCommercialRepository.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .map(footTrafficCommercialMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public List<FootTrafficCommercial> findByCommercialCodeAndPeriodCodeIn(String commercialCode, List<String> periodCodes) {
+        return footTrafficCommercialRepository.findByCommercialCodeAndPeriodCodeIn(commercialCode, periodCodes)
+            .stream()
+            .map(footTrafficCommercialMapper::toDomainFromEntity)
+            .toList();
     }
 }

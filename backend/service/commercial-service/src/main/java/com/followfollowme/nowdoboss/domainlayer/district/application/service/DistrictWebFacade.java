@@ -48,9 +48,7 @@ public class DistrictWebFacade implements DistrictWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public FootTrafficDistrictDetailResponse getDistrictFootTrafficDetail(
-        String districtCode,
-        String currentPeriodCode,
-        String previousPeriodCode
+        String districtCode, String currentPeriodCode, String previousPeriodCode
     ) {
         DistrictFootTrafficDetailInfo info =
             districtQueryProcessor.getDistrictFootTrafficDetail(districtCode, currentPeriodCode, previousPeriodCode);
@@ -74,9 +72,7 @@ public class DistrictWebFacade implements DistrictWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public DistrictSalesDetailResponse getDistrictSalesTopFiveDetail(
-        String districtCode,
-        String currentPeriodCode,
-        String previousPeriodCode
+        String districtCode, String currentPeriodCode, String previousPeriodCode
     ) {
         DistrictSalesDetailInfo info =
             districtQueryProcessor.getDistrictSalesTopFiveDetail(districtCode, currentPeriodCode, previousPeriodCode);
@@ -86,9 +82,7 @@ public class DistrictWebFacade implements DistrictWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public DistrictSalesAdministrationDetailResponse getDistrictSalesAdministrationTopFiveDetail(
-        String districtCode,
-        String currentPeriodCode,
-        String previousPeriodCode
+        String districtCode, String currentPeriodCode, String previousPeriodCode
     ) {
         List<DistrictSalesAdministrationTopInfo> infos =
             districtQueryProcessor.getDistrictSalesAdministrationTopFiveDetail(districtCode, currentPeriodCode, previousPeriodCode);
