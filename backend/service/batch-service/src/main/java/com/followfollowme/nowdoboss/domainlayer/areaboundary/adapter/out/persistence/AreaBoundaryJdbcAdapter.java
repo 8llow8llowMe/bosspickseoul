@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.areaboundary.adapter.out.persistence;
 
-import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.out.AreaBoundaryJdbcPort;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.out.AreaBoundaryBulkPort;
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.model.AreaBoundary;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class AreaBoundaryJdbcAdapter implements AreaBoundaryJdbcPort {
+public class AreaBoundaryJdbcAdapter implements AreaBoundaryBulkPort {
 
     private static final int BATCH_SIZE = 1000;
 

@@ -4,7 +4,7 @@ import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.Community
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityTargetMeta;
 import java.util.Optional;
 
-public interface CommunityTargetMetaPort {
+public interface CommunityTargetMetaRepositoryPort {
 
     Optional<CommunityTargetMeta> findTargetMeta(CommunityTargetType targetType, String targetCode);
 }

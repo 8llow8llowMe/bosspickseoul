@@ -2,7 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.community.application.port.out;
 
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPostLike;
 
-public interface CommunityPostLikePort {
+public interface CommunityPostLikeRepositoryPort {
 
     boolean exists(long postId, long memberId);
 

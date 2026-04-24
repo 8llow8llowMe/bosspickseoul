@@ -4,7 +4,7 @@ import com.followfollowme.nowdoboss.domainlayer.community.domain.model.Community
 import java.util.List;
 import java.util.Optional;
 
-public interface CommunityCommentPort {
+public interface CommunityCommentRepositoryPort {
 
     List<CommunityComment> getComments(long postId);
 

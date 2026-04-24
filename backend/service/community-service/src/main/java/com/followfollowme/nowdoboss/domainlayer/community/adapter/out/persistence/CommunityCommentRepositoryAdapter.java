@@ -2,7 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persisten
 
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence.repository.CommunityCommentRepository;
 import com.followfollowme.nowdoboss.domainlayer.community.application.mapper.CommunityMapper;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentPort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityCommentRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunityCommentStatus;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityComment;
 import java.util.List;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CommunityCommentPersistenceAdapter implements CommunityCommentPort {
+public class CommunityCommentRepositoryAdapter implements CommunityCommentRepositoryPort {
 
     private final CommunityCommentRepository communityCommentRepository;
     private final CommunityMapper communityMapper;

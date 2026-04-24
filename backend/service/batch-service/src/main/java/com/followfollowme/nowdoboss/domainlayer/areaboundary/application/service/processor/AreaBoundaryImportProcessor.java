@@ -2,7 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.areaboundary.application.servic
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.out.AreaBoundaryJdbcPort;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.out.AreaBoundaryBulkPort;
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.enums.AreaType;
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.model.AreaBoundary;
 import com.followfollowme.nowdoboss.global.properties.AreaBoundaryImportProperties;
@@ -25,7 +25,7 @@ public class AreaBoundaryImportProcessor {
     private static final String AREA_RESOURCE_PATH = "area/%s.json";
 
     private final ObjectMapper objectMapper;
-    private final AreaBoundaryJdbcPort areaBoundaryJdbcPort;
+    private final AreaBoundaryBulkPort areaBoundaryBulkPort;
     private final AreaBoundaryImportProperties areaBoundaryImportProperties;
 
     public void importAreaBoundary() {
@@ -82,7 +82,7 @@ public class AreaBoundaryImportProcessor {
         }
 
         if (!rows.isEmpty()) {
-            areaBoundaryJdbcPort.upsertAll(rows);
+            areaBoundaryBulkPort.upsertAll(rows);
         }
 
         log.info("{} 영역 좌표 적재 건수: {}", areaType.getDescription(), rows.size());

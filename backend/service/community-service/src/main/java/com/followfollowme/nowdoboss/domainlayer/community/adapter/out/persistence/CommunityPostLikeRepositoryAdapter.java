@@ -2,14 +2,14 @@ package com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persisten
 
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.out.persistence.repository.CommunityPostLikeRepository;
 import com.followfollowme.nowdoboss.domainlayer.community.application.mapper.CommunityReactionMapper;
-import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostLikePort;
+import com.followfollowme.nowdoboss.domainlayer.community.application.port.out.CommunityPostLikeRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPostLike;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CommunityPostLikePersistenceAdapter implements CommunityPostLikePort {
+public class CommunityPostLikeRepositoryAdapter implements CommunityPostLikeRepositoryPort {
 
     private final CommunityPostLikeRepository communityPostLikeRepository;
     private final CommunityReactionMapper communityReactionMapper;
