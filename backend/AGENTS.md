@@ -28,6 +28,7 @@
 - 서비스별 차이가 큰 내용만 `docs/services/*.md`로 분리한다.
 - 구현 완료 전에 `docs/done-checklist.md` 기준으로 자체 점검한다.
 - 범위가 큰 작업이나 구조 리팩토링은 `docs/team-playbook.md` 기준으로 역할을 나눠 진행할 수 있다.
+- **모든 파일은 UTF-8 로 저장한다.** `.editorconfig`, `.gitattributes`, `build.gradle` 에 강제 설정되어 있다. CP949 로 한 번 저장되면 복구 불가하므로, 한글 포함 파일을 새로 만들 때는 반드시 툴 기본 UTF-8 저장을 사용한다.
 
 ## 4. 빠른 판단 기준
 

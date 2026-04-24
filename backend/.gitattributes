@@ -1,3 +1,28 @@
+# 기본: 모든 텍스트 파일 LF + UTF-8
+* text=auto eol=lf encoding=utf-8
+
+# Java / Kotlin / Groovy — 반드시 UTF-8
+*.java  text eol=lf working-tree-encoding=UTF-8
+*.kt    text eol=lf working-tree-encoding=UTF-8
+*.gradle text eol=lf working-tree-encoding=UTF-8
+
+# 설정/문서
+*.yml   text eol=lf working-tree-encoding=UTF-8
+*.yaml  text eol=lf working-tree-encoding=UTF-8
+*.xml   text eol=lf working-tree-encoding=UTF-8
+*.json  text eol=lf working-tree-encoding=UTF-8
+*.md    text eol=lf working-tree-encoding=UTF-8
+*.properties text eol=lf working-tree-encoding=UTF-8
+*.sql   text eol=lf working-tree-encoding=UTF-8
+
+# 스크립트
 /gradlew text eol=lf
-*.bat text eol=crlf
-*.jar binary
+*.sh    text eol=lf
+*.bat   text eol=crlf
+
+# 바이너리
+*.jar   binary
+*.class binary
+*.png   binary
+*.jpg   binary
+*.ico   binary

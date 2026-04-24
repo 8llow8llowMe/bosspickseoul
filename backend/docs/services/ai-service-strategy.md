@@ -77,3 +77,18 @@
   - AI 섹션만 fallback 문구 노출
 - AI 리포트 성공 시:
   - 요약 카드, 강점/주의점, 추천 인사이트 순으로 렌더링
+## Updated Public API List
+
+- `GET /api/v1/ai-reports/commercials/{commercialCode}`
+- `GET /api/v1/ai-reports/commercials/comparisons`
+- `GET /api/v1/ai-reports/districts/{districtCode}`
+- `GET /api/v1/ai-reports/administrations/{administrationCode}`
+
+## Comparison AI Contract
+
+- comparison AI is a separate read API from the raw comparison API
+- `recommendedSide` in the AI response is currently a string enum
+  - `LEFT`
+  - `RIGHT`
+  - `BALANCED`
+- if upstream comparison result is `TIE`, ai-service normalizes it to `BALANCED` before calling the LLM
