@@ -1,7 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.map.application.service;
 
-import com.followfollowme.nowdoboss.common.enums.HeatmapModeType;
-import com.followfollowme.nowdoboss.common.exception.BadRequestException;
+import com.followfollowme.nowdoboss.domainlayer.map.application.exception.MapErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.map.application.exception.MapException;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.CandidateCommercialsResponse;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.CandidatePresetsResponse;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.CommercialComparePreviewResponse;
@@ -9,9 +9,6 @@ import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.CommercialProfileResponse;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.MapAreaCoordsResponse;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.presenter.MapPresenter;
-import com.followfollowme.nowdoboss.domainlayer.map.adapter.out.client.feign.CommercialCandidateClient;
-import com.followfollowme.nowdoboss.domainlayer.map.adapter.out.client.feign.CommercialHeatmapClient;
-import com.followfollowme.nowdoboss.domainlayer.map.adapter.out.client.feign.CommercialProfileClient;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.AreaBoundaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CandidateCommercialAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.map.application.info.CandidateCommercialsResponseInfo;
@@ -27,6 +24,9 @@ import com.followfollowme.nowdoboss.domainlayer.map.application.info.MetricBreak
 import com.followfollowme.nowdoboss.domainlayer.map.application.model.CandidatePresetType;
 import com.followfollowme.nowdoboss.domainlayer.map.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.in.MapWebUseCase;
+import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.CommercialCandidateQueryPort;
+import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.CommercialHeatmapQueryPort;
+import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.CommercialProfileQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query.CandidateCommercialQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query.CandidateCommercialsQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query.CommercialComparePreviewQueryResult;
@@ -38,6 +38,8 @@ import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query.C
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query.ComparePreviewTargetQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.map.application.service.processor.MapQueryProcessor;
 import com.followfollowme.nowdoboss.domainlayer.map.domain.enums.AreaType;
+import com.followfollowme.nowdoboss.shared.enums.GradeLevel;
+import com.followfollowme.nowdoboss.shared.enums.HeatmapModeType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -53,9 +55,9 @@ public class MapWebFacade implements MapWebUseCase {
 
     private final MapQueryProcessor mapQueryProcessor;
     private final MapPresenter mapPresenter;
-    private final CommercialHeatmapClient commercialHeatmapClient;
-    private final CommercialCandidateClient commercialCandidateClient;
-    private final CommercialProfileClient commercialProfileClient;
+    private final CommercialHeatmapQueryPort commercialHeatmapQueryPort;
+    private final CommercialCandidateQueryPort commercialCandidateQueryPort;
+    private final CommercialProfileQueryPort commercialProfileQueryPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -81,36 +83,29 @@ public class MapWebFacade implements MapWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialHeatmapResponse getCommercialHeatmap(
-        double lngSW,
-        double latSW,
-        double lngNE,
-        double latNE,
-        String serviceCode,
-        String periodCode,
-        CommercialHeatmapMetricType metricType,
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric,
-        boolean composite
+        double lngSW, double latSW, double lngNE, double latNE, String serviceCode, String periodCode,
+        CommercialHeatmapMetricType metricType, CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric, boolean composite
     ) {
         validateHeatmapRequest(composite, metricType, preset, priorityMetric);
 
         List<AreaBoundaryInfo> infos = mapQueryProcessor.getAreaCoords(AreaType.COMMERCIAL, lngSW, latSW, lngNE, latNE);
         List<String> commercialCodes = infos.stream().map(AreaBoundaryInfo::areaCode).toList();
 
+        String priorityMetricName = priorityMetric == null ? null : priorityMetric.name();
         CommercialHeatmapScoresQueryResult scoreResponse = composite
-            ? commercialHeatmapClient.getCompositeHeatmapScores(
+            ? commercialHeatmapQueryPort.getCompositeHeatmapScores(
                 commercialCodes,
                 serviceCode,
                 preset.name(),
-                priorityMetric == null ? null : priorityMetric.name(),
+                priorityMetricName,
                 periodCode
-            ).dataBody()
-            : commercialHeatmapClient.getHeatmapScores(
+            )
+            : commercialHeatmapQueryPort.getHeatmapScores(
                 commercialCodes,
                 serviceCode,
                 metricType.name(),
                 periodCode
-            ).dataBody();
+            );
 
         Map<String, CommercialHeatmapScoreQueryResult> scoresByCode = scoreResponse == null || scoreResponse.scores() == null
             ? Map.of()
@@ -131,8 +126,8 @@ public class MapWebFacade implements MapWebUseCase {
                     .metricType(score != null ? score.metricType()
                         : (fallbackMetric != null ? fallbackMetric.toScoreMetadata() : null))
                     .score(score == null ? null : score.score())
-                    .grade(score == null ? "INSUFFICIENT" : score.grade())
-                    .summaryLabel(score == null ? "Insufficient data" : score.summaryLabel())
+                    .grade(score == null ? GradeLevel.INSUFFICIENT.name() : score.grade())
+                    .summaryLabel(score == null ? "데이터 부족" : score.summaryLabel())
                     .build();
             })
             .toList();
@@ -143,8 +138,12 @@ public class MapWebFacade implements MapWebUseCase {
                 : scoreResponse.mode())
             .serviceCode(serviceCode)
             .periodCode(periodCode)
-            .metricType(scoreResponse == null ? (metricType == null ? null : metricType.toScoreMetadata()) : scoreResponse.metricType())
-            .preset(scoreResponse == null ? (preset == null ? null : preset.toMetadata()) : scoreResponse.preset())
+            .metricType(scoreResponse == null
+                ? (metricType == null ? null : metricType.toScoreMetadata())
+                : scoreResponse.metricType())
+            .preset(scoreResponse == null
+                ? (preset == null ? null : preset.toMetadata())
+                : scoreResponse.preset())
             .priorityMetric(scoreResponse == null
                 ? (priorityMetric == null ? null : priorityMetric.toScoreMetadata())
                 : scoreResponse.priorityMetric())
@@ -171,15 +170,8 @@ public class MapWebFacade implements MapWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CandidateCommercialsResponse getCandidateCommercials(
-        double lngSW,
-        double latSW,
-        double lngNE,
-        double latNE,
-        String serviceCode,
-        String periodCode,
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric,
-        Integer topN
+        double lngSW, double latSW, double lngNE, double latNE, String serviceCode, String periodCode,
+        CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric, Integer topN
     ) {
         validateTopN(topN);
 
@@ -202,14 +194,15 @@ public class MapWebFacade implements MapWebUseCase {
 
         List<String> commercialCodes = infos.stream().map(AreaBoundaryInfo::areaCode).toList();
 
-        CandidateCommercialsQueryResult response = commercialCandidateClient.getTopCandidates(
+        String priorityMetricName = priorityMetric == null ? null : priorityMetric.name();
+        CandidateCommercialsQueryResult response = commercialCandidateQueryPort.getTopCandidates(
             commercialCodes,
             serviceCode,
             preset.name(),
-            priorityMetric == null ? null : priorityMetric.name(),
+            priorityMetricName,
             topN,
             periodCode
-        ).dataBody();
+        );
 
         if (response == null || response.items() == null) {
             CandidateCommercialsResponseInfo emptyResponse = CandidateCommercialsResponseInfo.builder()
@@ -249,8 +242,8 @@ public class MapWebFacade implements MapWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialProfileResponse getCommercialProfile(String commercialCode, String serviceCode, String periodCode) {
-        CommercialProfileQueryResult result = commercialProfileClient
-            .getCommercialProfile(commercialCode, serviceCode, periodCode).dataBody();
+        CommercialProfileQueryResult result = commercialProfileQueryPort
+            .getCommercialProfile(commercialCode, serviceCode, periodCode);
         CommercialProfileAreaInfo info = toCommercialProfileAreaInfo(result);
         return mapPresenter.toCommercialProfileResponse(info);
     }
@@ -258,17 +251,10 @@ public class MapWebFacade implements MapWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialComparePreviewResponse getCommercialComparePreview(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode
+        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
-        CommercialComparePreviewQueryResult result = commercialProfileClient.getCommercialComparePreview(
-            leftCommercialCode,
-            rightCommercialCode,
-            serviceCode,
-            periodCode
-        ).dataBody();
+        CommercialComparePreviewQueryResult result = commercialProfileQueryPort
+            .getCommercialComparePreview(leftCommercialCode, rightCommercialCode, serviceCode, periodCode);
         CommercialComparePreviewInfo info = toCommercialComparePreviewInfo(result);
         return mapPresenter.toCommercialComparePreviewResponse(info);
     }
@@ -382,32 +368,24 @@ public class MapWebFacade implements MapWebUseCase {
             .build();
     }
 
-    private void validateHeatmapRequest(
-        boolean composite,
-        CommercialHeatmapMetricType metricType,
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric
-    ) {
+    private void validateHeatmapRequest(boolean composite, CommercialHeatmapMetricType metricType, CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric) {
+
         if (composite && preset == null) {
-            throw new BadRequestException("composite=true 인 경우 preset은 필수입니다.");
+            throw new MapException(MapErrorCode.HEATMAP_PRESET_REQUIRED);
         }
         if (!composite && metricType == null) {
-            throw new BadRequestException("composite=false 인 경우 metricType은 필수입니다.");
+            throw new MapException(MapErrorCode.HEATMAP_METRIC_TYPE_REQUIRED);
         }
         if (composite && metricType != null) {
-            throw new BadRequestException("composite=true 인 경우 metricType은 사용할 수 없습니다.");
+            throw new MapException(MapErrorCode.HEATMAP_METRIC_TYPE_NOT_ALLOWED);
         }
         if (!composite && (preset != null || priorityMetric != null)) {
-            throw new BadRequestException("composite=false 인 경우 preset 또는 priorityMetric은 사용할 수 없습니다.");
+            throw new MapException(MapErrorCode.HEATMAP_PRESET_NOT_ALLOWED);
         }
     }
 
-    private String buildHeatmapSummary(
-        boolean composite,
-        CommercialHeatmapMetricType metricType,
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric
-    ) {
+    private String buildHeatmapSummary(boolean composite, CommercialHeatmapMetricType metricType, CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric) {
+
         if (composite) {
             CommercialHeatmapMetricType resolvedPriority = resolvePriorityMetric(preset, priorityMetric);
             return "%s 프리셋과 %s 우선 지표 기준으로 계산한 상권 복합 히트맵입니다."
@@ -417,18 +395,13 @@ public class MapWebFacade implements MapWebUseCase {
     }
 
     private String buildCandidateSummary(
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric,
-        int candidateCount
+        CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric, int candidateCount
     ) {
         return "%s 프리셋과 %s 우선 지표 기준으로 선별한 비교 후보 상권 %d건입니다."
             .formatted(preset.getDisplayName(), priorityMetric.getDisplayName(), candidateCount);
     }
 
-    private CommercialHeatmapMetricType resolvePriorityMetric(
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric
-    ) {
+    private CommercialHeatmapMetricType resolvePriorityMetric(CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric) {
         return priorityMetric == null ? preset.getDefaultPriorityMetric() : priorityMetric;
     }
 
@@ -444,7 +417,7 @@ public class MapWebFacade implements MapWebUseCase {
             return;
         }
         if (topN < 5 || topN > 30) {
-            throw new BadRequestException("topN은 5 이상 30 이하여야 합니다.");
+            throw new MapException(MapErrorCode.INVALID_TOP_N);
         }
     }
 }
