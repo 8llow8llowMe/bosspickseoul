@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.application.model;
 
 import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescribable;
+import java.util.Arrays;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -12,4 +13,14 @@ public enum ComparisonWinnerSide implements CodeNameDescribable {
     TIE("동률");
 
     private final String displayName;
+
+    public static ComparisonWinnerSide fromCode(String code) {
+        if (code == null) {
+            return TIE;
+        }
+        return Arrays.stream(values())
+            .filter(side -> side.name().equals(code))
+            .findFirst()
+            .orElse(TIE);
+    }
 }

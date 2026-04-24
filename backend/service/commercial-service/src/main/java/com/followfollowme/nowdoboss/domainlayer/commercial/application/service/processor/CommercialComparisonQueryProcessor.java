@@ -152,9 +152,8 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private CommercialComparisonTargetInfo buildTargetInfo(
-        String commercialCode,
-        String commercialName,
-        CommercialAdministrationQueryResult administration
+
+        String commercialCode, String commercialName, CommercialAdministrationQueryResult administration
     ) {
         return CommercialComparisonTargetInfo.builder()
             .commercialCode(commercialCode)
@@ -171,23 +170,23 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private String buildComparisonSummary(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        ComparisonWinnerSide recommendedSide
+
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide recommendedSide
     ) {
         return switch (recommendedSide) {
             case LEFT -> "%s이(가) 현재 업종 기준으로 더 유리한 상권입니다.".formatted(left.commercialName());
             case RIGHT -> "%s이(가) 현재 업종 기준으로 더 유리한 상권입니다.".formatted(right.commercialName());
-            case TIE ->
-                "%s과(와) %s은(는) 전반적인 경쟁력이 비슷한 상권입니다.".formatted(left.commercialName(), right.commercialName());
+            case TIE -> "%s과(와) %s은(는) 전반적인 경쟁력이 비슷한 상권입니다."
+                .formatted(left.commercialName(), right.commercialName());
         };
     }
 
     private ComparisonWinnerSide resolveRecommendedSide(
-        List<ComparisonMetricInfo> salesMetrics,
-        List<ComparisonMetricInfo> storeMetrics,
-        List<ComparisonMetricInfo> spendingMetrics,
-        List<ComparisonMetricInfo> residentPopulationMetrics,
+
+        List<ComparisonMetricInfo> salesMetrics, List<ComparisonMetricInfo> storeMetrics,
+
+        List<ComparisonMetricInfo> spendingMetrics, List<ComparisonMetricInfo> residentPopulationMetrics,
+
         List<ComparisonMetricInfo> facilityMetrics
     ) {
         int leftScore = 0;
@@ -215,9 +214,8 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private List<String> buildRecommendedReasons(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        ComparisonWinnerSide recommendedSide
+
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide recommendedSide
     ) {
         String winner = winnerLabel(left, right, recommendedSide);
         return List.of(
@@ -228,9 +226,8 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private List<String> buildCautionPoints(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        ComparisonWinnerSide recommendedSide
+
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide recommendedSide
     ) {
         String selected = winnerLabel(left, right, recommendedSide);
         String opponent = recommendedSide == ComparisonWinnerSide.LEFT ? right.commercialName() : left.commercialName();
@@ -242,15 +239,14 @@ public class CommercialComparisonQueryProcessor {
         }
         return List.of(
             "%s 선택 시 유사 업종 점포 수와 차별화 전략을 함께 검토해야 합니다.".formatted(selected),
-            "%s은(는) 비교 대상이지만 일부 지표에서 경쟁 우위를 보일 수 있어 추가 검토가 필요합니다.".formatted(opponent)
+            "%s은(는) 비교 대상이지만 일부 지표에서 경쟁 우위를 보일 수 있어 추가 검토가 필요합니다."
+                .formatted(opponent)
         );
     }
 
     private List<String> buildDominantTimeSlots(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        CommercialSalesByTimeSlotInfo leftInfo,
-        CommercialSalesByTimeSlotInfo rightInfo
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right,
+        CommercialSalesByTimeSlotInfo leftInfo, CommercialSalesByTimeSlotInfo rightInfo
     ) {
         return List.of(
             "%s 강세 시간대: %s".formatted(left.commercialName(), dominantSalesTimeSlot(leftInfo)),
@@ -259,10 +255,8 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private List<String> buildDominantAgeGroups(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        CommercialSalesByAgeInfo leftInfo,
-        CommercialSalesByAgeInfo rightInfo
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right,
+        CommercialSalesByAgeInfo leftInfo, CommercialSalesByAgeInfo rightInfo
     ) {
         return List.of(
             "%s 핵심 연령대: %s".formatted(left.commercialName(), dominantSalesAge(leftInfo)),
@@ -271,17 +265,13 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private String buildBusinessFitSummary(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        ComparisonWinnerSide recommendedSide
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide recommendedSide
     ) {
+        String template = "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.";
         return switch (recommendedSide) {
-            case LEFT ->
-                "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(left.commercialName());
-            case RIGHT ->
-                "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.".formatted(right.commercialName());
-            case TIE ->
-                "두 상권 모두 비슷한 적합도를 보여 예산과 운영 전략 기준의 추가 비교가 필요합니다.";
+            case LEFT -> template.formatted(left.commercialName());
+            case RIGHT -> template.formatted(right.commercialName());
+            case TIE -> "두 상권 모두 비슷한 적합도를 보여 예산과 운영 전략 기준의 추가 비교가 필요합니다.";
         };
     }
 
@@ -374,11 +364,10 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private List<String> buildHighlights(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        List<ComparisonMetricInfo> salesMetrics,
-        List<ComparisonMetricInfo> storeMetrics,
-        List<ComparisonMetricInfo> residentPopulationMetrics
+
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, List<ComparisonMetricInfo> salesMetrics,
+
+        List<ComparisonMetricInfo> storeMetrics, List<ComparisonMetricInfo> residentPopulationMetrics
     ) {
         ComparisonMetricInfo sales = salesMetrics.get(0);
         ComparisonMetricInfo closure = storeMetrics.get(3);
@@ -392,9 +381,8 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private String winnerLabel(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
-        ComparisonWinnerSide winnerSide
+
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide winnerSide
     ) {
         return switch (winnerSide) {
             case LEFT -> left.commercialName();
@@ -404,14 +392,16 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private String winnerLabel(
-        CommercialComparisonTargetInfo left,
-        CommercialComparisonTargetInfo right,
+
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right,
+
         com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata winnerSide
     ) {
-        return switch (winnerSide.code()) {
-            case "LEFT" -> left.commercialName();
-            case "RIGHT" -> right.commercialName();
-            default -> "두 상권";
+        ComparisonWinnerSide side = ComparisonWinnerSide.fromCode(winnerSide.code());
+        return switch (side) {
+            case LEFT -> left.commercialName();
+            case RIGHT -> right.commercialName();
+            case TIE -> "두 상권";
         };
     }
 

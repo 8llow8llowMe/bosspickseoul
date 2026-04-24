@@ -12,7 +12,10 @@ public record CommercialProfileKeyMetricsInfo(
     double closureRate,
     long totalResidentPopulation,
     long monthlyAverageIncomeAmount,
-    long totalFacilityCount
+    long totalFacilityCount,
+    String peakSalesTimeSlot,
+    String peakFootTrafficTimeSlot,
+    String dominantSalesAgeGroup
 ) {
 
 }

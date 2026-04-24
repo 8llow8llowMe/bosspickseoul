@@ -16,9 +16,11 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialTrendResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CandidatePresetType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialTrendMetricType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.in.CommercialWebUseCase;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -169,7 +171,10 @@ public class CommercialWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
-        @Parameter(description = "상위 N (기본 10, 5~30)") @RequestParam(required = false) @Min(value = 5, message = "topN은 5 이상이어야 합니다.") @Max(value = 30, message = "topN은 30 이하여야 합니다.") Integer topN,
+        @Parameter(description = "상위 N (기본 10, 5~30)") @RequestParam(required = false)
+        @Min(value = 5, message = "topN은 5 이상이어야 합니다.")
+        @Max(value = 30, message = "topN은 30 이하여야 합니다.")
+        Integer topN,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
         CandidateCommercialsResponse response = commercialWebUseCase.getTopCandidates(
@@ -245,6 +250,20 @@ public class CommercialWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
+    @Operation(summary = "상권 트렌드 분석 조회", description = "상권의 매출·유동인구·점포 지표의 분기별 추이를 조회합니다.")
+    @GetMapping("/{commercialCode}/trend")
+    public ResponseEntity<Response<CommercialTrendResponse>> getTrend(
+        @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
+        @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
+        @Parameter(description = "조회 지표 타입", required = true, example = "SALES") @RequestParam CommercialTrendMetricType metricType,
+        @Parameter(description = "기준 분기 코드 (최신 분기)", example = "20233") @RequestParam(defaultValue = "20233") String periodCode,
+        @Parameter(description = "조회 분기 수 (1~8, 기본 4)") @RequestParam(defaultValue = "4") int periodCount
+    ) {
+        CommercialTrendResponse response = commercialWebUseCase.getTrend(
+            periodCode, commercialCode, serviceCode, metricType, periodCount);
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
     @Operation(summary = "상권 지출 요약 비교 조회", description = "상권과 주변 지역의 지출 수준을 비교합니다.")
     @GetMapping("/{commercialCode}/summaries/income")
     public ResponseEntity<Response<CommercialIncomeSummaryResponse>> getIncomeSummary(
@@ -259,6 +278,23 @@ public class CommercialWebController {
             administrationCode,
             commercialCode
         );
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Operation(
+        summary = "업종별 상권 추천",
+        description = "업종 코드(serviceCode)를 기반으로 프리셋을 자동 선택해 적합한 상권 Top N을 추천합니다. "
+            + "음식업(CS1*)→공격형, 서비스업(CS2*)→안정형, 기타→균형형 프리셋을 적용합니다."
+    )
+    @GetMapping("/recommendations/by-service")
+    public ResponseEntity<Response<CandidateCommercialsResponse>> getRecommendationsByService(
+        @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
+        @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,
+        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode,
+        @Parameter(description = "상위 N (기본 5, 5~30)") @RequestParam(required = false) Integer topN
+    ) {
+        CandidateCommercialsResponse response = commercialWebUseCase.getRecommendationsByService(
+            periodCode, serviceCode, commercialCodes, topN);
         return ResponseEntity.ok().body(Response.success(response));
     }
 }

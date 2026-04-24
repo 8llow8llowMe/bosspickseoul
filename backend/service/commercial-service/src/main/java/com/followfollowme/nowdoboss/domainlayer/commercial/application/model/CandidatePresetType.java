@@ -30,6 +30,18 @@ public enum CandidatePresetType implements CodeNameDescribable {
         "경쟁이 덜한 거주 기반 상권을 우선하는 저예산 창업 프리셋입니다.",
         CommercialHeatmapMetricType.RESIDENT_POPULATION_SCORE,
         0.20, 0.25, 0.05, 0.50
+    ),
+    YOUTH_STARTUP(
+        "청년창업형",
+        "20~30대 유동인구·기회도를 중시하고 초기비용을 낮춘 청년 창업 프리셋입니다.",
+        CommercialHeatmapMetricType.OPPORTUNITY_SCORE,
+        0.45, 0.20, 0.25, 0.10
+    ),
+    RE_EMPLOYMENT_STARTUP(
+        "재취업창업형",
+        "40~50대 거주 기반 수요와 안정성을 중시하는 재취업 창업 프리셋입니다.",
+        CommercialHeatmapMetricType.RESIDENT_POPULATION_SCORE,
+        0.20, 0.35, 0.05, 0.40
     );
 
     private static final double PRIORITY_BOOST = 0.20;

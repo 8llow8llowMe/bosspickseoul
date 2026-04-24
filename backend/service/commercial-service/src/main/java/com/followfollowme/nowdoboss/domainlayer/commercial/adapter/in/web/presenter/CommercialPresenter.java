@@ -78,8 +78,10 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summ
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalIncomeSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.store.CommercialServiceCategoryInfo;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.PolicyRecommendationItem;
-import com.followfollowme.nowdoboss.domainlayer.policy.application.info.PolicyRecommendationInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialTrendItemDto;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialTrendResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.trend.CommercialTrendInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.trend.CommercialTrendItem;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -227,6 +229,8 @@ public class CommercialPresenter {
 
     public CommercialProfileResponse toCommercialProfileResponse(CommercialProfileInfo info) {
         return CommercialProfileResponse.builder()
+            .periodCode(info.periodCode())
+            .serviceCode(info.serviceCode())
             .commercialCode(info.commercialCode())
             .commercialName(info.commercialName())
             .districtCode(info.districtCode())
@@ -234,11 +238,6 @@ public class CommercialPresenter {
             .administrationCode(info.administrationCode())
             .administrationName(info.administrationName())
             .keyMetrics(toCommercialProfileKeyMetricsItem(info.keyMetrics()))
-            .policyRecommendations(
-                info.policyRecommendations() == null
-                    ? List.of()
-                    : info.policyRecommendations().stream().map(this::toPolicyRecommendationItem).toList()
-            )
             .build();
     }
 
@@ -249,19 +248,6 @@ public class CommercialPresenter {
             .recommendedSide(info.recommendedSide())
             .headlineMetrics(toComparisonMetricItems(info.headlineMetrics()))
             .insightOneLiner(info.insightOneLiner())
-            .build();
-    }
-
-    private PolicyRecommendationItem toPolicyRecommendationItem(PolicyRecommendationInfo info) {
-        return PolicyRecommendationItem.builder()
-            .policyId(info.policyId())
-            .policyName(info.policyName())
-            .provider(info.provider())
-            .targetSummary(info.targetSummary())
-            .supportSummary(info.supportSummary())
-            .matchingReason(info.matchingReason())
-            .applicationPeriod(info.applicationPeriod())
-            .referenceUrl(info.referenceUrl())
             .build();
     }
 
@@ -276,6 +262,9 @@ public class CommercialPresenter {
             .totalResidentPopulation(info.totalResidentPopulation())
             .monthlyAverageIncomeAmount(info.monthlyAverageIncomeAmount())
             .totalFacilityCount(info.totalFacilityCount())
+            .peakSalesTimeSlot(info.peakSalesTimeSlot())
+            .peakFootTrafficTimeSlot(info.peakFootTrafficTimeSlot())
+            .dominantSalesAgeGroup(info.dominantSalesAgeGroup())
             .build();
     }
 
@@ -557,6 +546,8 @@ public class CommercialPresenter {
     }
 
     private CommercialHeatmapScoreItem toCommercialHeatmapScoreItem(CommercialHeatmapScoreInfo info) {
+        List<MetricBreakdownItem> breakdown = info.breakdown() == null ? null
+            : info.breakdown().stream().map(this::toMetricBreakdownItem).toList();
         return CommercialHeatmapScoreItem.builder()
             .commercialCode(info.commercialCode())
             .commercialName(info.commercialName())
@@ -564,6 +555,28 @@ public class CommercialPresenter {
             .score(info.score())
             .grade(info.grade())
             .summaryLabel(info.summaryLabel())
+            .breakdown(breakdown)
+            .build();
+    }
+
+    public CommercialTrendResponse toCommercialTrendResponse(CommercialTrendInfo info) {
+        List<CommercialTrendItemDto> periods = info.periods().stream()
+            .map(this::toCommercialTrendItemDto)
+            .toList();
+        return CommercialTrendResponse.builder()
+            .commercialCode(info.commercialCode())
+            .serviceCode(info.serviceCode())
+            .metricType(info.metricType())
+            .trendDirection(info.trendDirection())
+            .periods(periods)
+            .build();
+    }
+
+    private CommercialTrendItemDto toCommercialTrendItemDto(CommercialTrendItem item) {
+        return CommercialTrendItemDto.builder()
+            .periodCode(item.periodCode())
+            .value(item.value())
+            .changeRate(item.changeRate())
             .build();
     }
 }

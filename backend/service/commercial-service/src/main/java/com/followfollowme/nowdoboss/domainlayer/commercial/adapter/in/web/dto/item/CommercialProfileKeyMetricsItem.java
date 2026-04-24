@@ -32,7 +32,16 @@ public record CommercialProfileKeyMetricsItem(
     long monthlyAverageIncomeAmount,
 
     @Schema(description = "총 주요 시설 수")
-    long totalFacilityCount
+    long totalFacilityCount,
+
+    @Schema(description = "매출 피크 시간대 (예: 17시~21시)")
+    String peakSalesTimeSlot,
+
+    @Schema(description = "유동인구 피크 시간대 (예: 11시~14시)")
+    String peakFootTrafficTimeSlot,
+
+    @Schema(description = "매출 주 연령대 (예: 30대)")
+    String dominantSalesAgeGroup
 ) {
 
 }
