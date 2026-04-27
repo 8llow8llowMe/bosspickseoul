@@ -13,6 +13,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client.dto.
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.DistrictAiSourceData;
@@ -20,6 +21,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.Ai
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiUsageMeta;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
@@ -71,57 +73,64 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     }
 
     @Override
-    public CommercialAiDraft generateCommercialReport(CommercialAiSourceData sourceData) {
-        String content = requestStructuredContent(promptTemplate.buildCommercialPrompt(sourceData), buildCommercialResponseSchema());
-        return parser.parseCommercialReport(content);
+    public AiGenerationResult<CommercialAiDraft> generateCommercialReport(CommercialAiSourceData sourceData) {
+        OpenAiChatResponse response = requestStructuredContent(promptTemplate.buildCommercialPrompt(sourceData), buildCommercialResponseSchema());
+        return new AiGenerationResult<>(parser.parseCommercialReport(extractContent(response)), extractUsage(response));
     }
 
     @Override
-    public CommercialComparisonAiDraft generateCommercialComparisonReport(CommercialComparisonAiSourceData sourceData) {
-        String content = requestStructuredContent(
+    public AiGenerationResult<CommercialComparisonAiDraft> generateCommercialComparisonReport(CommercialComparisonAiSourceData sourceData) {
+        OpenAiChatResponse response = requestStructuredContent(
             promptTemplate.buildCommercialComparisonPrompt(sourceData),
             buildCommercialComparisonResponseSchema()
         );
-        return parser.parseCommercialComparisonReport(content);
+        return new AiGenerationResult<>(parser.parseCommercialComparisonReport(extractContent(response)), extractUsage(response));
     }
 
     @Override
-    public DistrictAiDraft generateDistrictReport(DistrictAiSourceData sourceData) {
-        String content = requestStructuredContent(
+    public AiGenerationResult<DistrictAiDraft> generateDistrictReport(DistrictAiSourceData sourceData) {
+        OpenAiChatResponse response = requestStructuredContent(
             promptTemplate.buildDistrictPrompt(sourceData), buildRegionalResponseSchema("district_ai_report")
         );
-        return parser.parseDistrictReport(content);
+        return new AiGenerationResult<>(parser.parseDistrictReport(extractContent(response)), extractUsage(response));
     }
 
     @Override
-    public AdministrationAiDraft generateAdministrationReport(AdministrationAiSourceData sourceData) {
-        String content = requestStructuredContent(
+    public AiGenerationResult<AdministrationAiDraft> generateAdministrationReport(AdministrationAiSourceData sourceData) {
+        OpenAiChatResponse response = requestStructuredContent(
             promptTemplate.buildAdministrationPrompt(sourceData), buildRegionalResponseSchema("administration_ai_report")
         );
-        return parser.parseAdministrationReport(content);
+        return new AiGenerationResult<>(parser.parseAdministrationReport(extractContent(response)), extractUsage(response));
     }
 
-    private String requestStructuredContent(String userPrompt, OpenAiSchemaDefinition schemaDefinition) {
+    private OpenAiChatResponse requestStructuredContent(String userPrompt, OpenAiSchemaDefinition schemaDefinition) {
         validateApiKey();
         try {
-            OpenAiChatResponse response = webClient.post()
+            return webClient.post()
                 .uri("/chat/completions")
                 .bodyValue(buildRequestBody(userPrompt, schemaDefinition))
                 .retrieve()
                 .bodyToMono(OpenAiChatResponse.class)
                 .block(Duration.ofMillis(properties.timeoutMs()));
-            if (response == null
-                || response.choices() == null
-                || response.choices().isEmpty()
-                || response.choices().get(0).message() == null
-                || response.choices().get(0).message().content() == null
-                || response.choices().get(0).message().content().isBlank()) {
-                throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
-            }
-            return response.choices().get(0).message().content();
         } catch (WebClientResponseException exception) {
             throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE, exception);
         }
+    }
+
+    private String extractContent(OpenAiChatResponse response) {
+        if (response == null
+            || response.choices() == null
+            || response.choices().isEmpty()
+            || response.choices().get(0).message() == null
+            || response.choices().get(0).message().content() == null
+            || response.choices().get(0).message().content().isBlank()) {
+            throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
+        }
+        return response.choices().get(0).message().content();
+    }
+
+    private AiUsageMeta extractUsage(OpenAiChatResponse response) {
+        return AiUsageMeta.empty(properties.model());
     }
 
     private OpenAiChatRequest buildRequestBody(String userPrompt, OpenAiSchemaDefinition schemaDefinition) {

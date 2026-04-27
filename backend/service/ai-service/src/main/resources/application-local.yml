@@ -28,6 +28,11 @@ ai:
   report:
     cache:
       ttl-seconds: ${AI_REPORT_CACHE_TTL_SECONDS:86400}
+    job:
+      ttl-seconds: ${AI_REPORT_JOB_TTL_SECONDS:86400}
+      usage-ttl-seconds: ${AI_REPORT_JOB_USAGE_TTL_SECONDS:2592000}
+      pending-timeout-seconds: ${AI_REPORT_JOB_PENDING_TIMEOUT_SECONDS:30}
+      running-timeout-seconds: ${AI_REPORT_JOB_RUNNING_TIMEOUT_SECONDS:300}
   llm:
     provider: ${AI_LLM_PROVIDER:OLLAMA}
     base-url: ${AI_LLM_BASE_URL:http://localhost:11434}
