@@ -31,5 +31,6 @@
 
 ## AI Service
 
-- 책임: 향후 AI 리포트/LLM 연동 진입점
-- 상태: 초기 골격만 존재, 실제 도메인/기능은 후속 설계 예정
+- 책임: 상권/자치구/행정동/비교 분석 데이터를 LLM 으로 요약하는 AI 리포트 서비스
+- 컨텍스트: `aireport`
+- 특징: Ollama / OpenAI 어댑터 분기, Redis 기반 결과 캐시, 인증된 사용자 한정 비동기 작업 모델 (`POST /commercials/{code}` + `GET /jobs/{id}`), 토큰 사용량 카운터
