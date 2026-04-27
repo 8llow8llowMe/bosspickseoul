@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.Commer
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
@@ -36,6 +37,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.qu
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.prompt.PromptFormatterSupport;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiUsageMeta;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
@@ -62,11 +64,17 @@ public class AiReportProcessor {
     private final AiLlmProperties aiLlmProperties;
 
     public CommercialAiReportInfo getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
+        return generateCommercialReport(commercialCode, serviceCode, periodCode).draft();
+    }
+
+    public AiGenerationResult<CommercialAiReportInfo> generateCommercialReport(
+        String commercialCode, String serviceCode, String periodCode
+    ) {
         long startTime = System.currentTimeMillis();
         Optional<CommercialAiReportInfo> cached = aiReportCachePort.getCommercialReport(commercialCode, serviceCode, periodCode);
         if (cached.isPresent()) {
             logReport("commercial", commercialCode, periodCode, true, startTime);
-            return cached.get();
+            return new AiGenerationResult<>(cached.get(), AiUsageMeta.empty(aiLlmProperties.model()));
         }
 
         // Stage 1: administrationInfo 먼저 조회 (districtCode/administrationCode가 stage 2에 필요)
@@ -123,7 +131,8 @@ public class AiReportProcessor {
             incomeSummary
         );
 
-        CommercialAiDraft draft = aiLlmPort.generateCommercialReport(sourceData);
+        AiGenerationResult<CommercialAiDraft> llmResult = aiLlmPort.generateCommercialReport(sourceData);
+        CommercialAiDraft draft = llmResult.draft();
         CommercialAiReportInfo reportInfo = new CommercialAiReportInfo(
             draft.summary(),
             draft.strengths(),
@@ -140,7 +149,7 @@ public class AiReportProcessor {
         );
         aiReportCachePort.saveCommercialReport(commercialCode, serviceCode, periodCode, reportInfo);
         logReport("commercial", commercialCode, periodCode, false, startTime);
-        return reportInfo;
+        return new AiGenerationResult<>(reportInfo, llmResult.usage());
     }
 
     public CommercialComparisonAiReportInfo getCommercialComparisonReport(CommercialComparisonAiQuery query) {
@@ -168,7 +177,7 @@ public class AiReportProcessor {
             periodCode
         );
         CommercialComparisonAiSourceData sourceData = buildCommercialComparisonSourceData(comparison, serviceCode, periodCode);
-        CommercialComparisonAiDraft draft = aiLlmPort.generateCommercialComparisonReport(sourceData);
+        CommercialComparisonAiDraft draft = aiLlmPort.generateCommercialComparisonReport(sourceData).draft();
         CommercialComparisonAiReportInfo reportInfo = new CommercialComparisonAiReportInfo(
             draft.summary(),
             draft.recommendedSide(),
@@ -202,7 +211,7 @@ public class AiReportProcessor {
         DistrictAiSourceData sourceData = buildDistrictSourceData(
             districtCode, periodCode, districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode)
         );
-        DistrictAiDraft draft = aiLlmPort.generateDistrictReport(sourceData);
+        DistrictAiDraft draft = aiLlmPort.generateDistrictReport(sourceData).draft();
         DistrictAiReportInfo reportInfo = new DistrictAiReportInfo(
             draft.summary(),
             draft.marketStatus(),
@@ -231,7 +240,7 @@ public class AiReportProcessor {
             administrationAnalysisQueryPort.getAdministrationDetail(administrationCode, periodCode),
             regionAnalysisQueryPort.getCommercialsByAdministration(administrationCode)
         );
-        AdministrationAiDraft draft = aiLlmPort.generateAdministrationReport(sourceData);
+        AdministrationAiDraft draft = aiLlmPort.generateAdministrationReport(sourceData).draft();
         AdministrationAiReportInfo reportInfo = new AdministrationAiReportInfo(
             draft.summary(),
             draft.marketStatus(),

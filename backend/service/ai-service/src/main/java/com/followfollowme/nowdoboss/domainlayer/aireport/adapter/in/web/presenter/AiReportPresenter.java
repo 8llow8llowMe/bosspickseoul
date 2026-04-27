@@ -1,10 +1,14 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter;
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AiReportJobStatusResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AiReportSubmissionResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialComparisonAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportJobInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
@@ -63,6 +67,26 @@ public class AiReportPresenter {
             .cautionBusinessCategories(info.cautionBusinessCategories())
             .businessInsight(info.businessInsight())
             .generatedAt(info.generatedAt())
+            .build();
+    }
+
+    public AiReportSubmissionResponse toSubmissionResponse(AiReportSubmissionInfo info) {
+        return AiReportSubmissionResponse.builder()
+            .submissionStatus(info.submissionStatus())
+            .jobType(info.jobType())
+            .jobId(info.jobId())
+            .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
+            .build();
+    }
+
+    public AiReportJobStatusResponse toJobStatusResponse(AiReportJobInfo info) {
+        return AiReportJobStatusResponse.builder()
+            .jobId(info.jobId())
+            .jobType(info.jobType())
+            .status(info.status())
+            .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
+            .errorCode(info.errorCode())
+            .errorMessage(info.errorMessage())
             .build();
     }
 }

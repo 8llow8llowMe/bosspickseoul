@@ -3,6 +3,7 @@ package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.client;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AdministrationAiSourceData;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.DistrictAiSourceData;
@@ -10,13 +11,16 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.Ai
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiUsageMeta;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
+import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
@@ -41,44 +45,38 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
     private final OllamaChatModel ollamaChatModel;
     private final AiStructuredResponseParser parser;
     private final AiReportPromptTemplate promptTemplate;
+    private final AiLlmProperties aiLlmProperties;
 
     @Override
-    public CommercialAiDraft generateCommercialReport(CommercialAiSourceData sourceData) {
-        String content = requestStructuredContent(promptTemplate.buildCommercialPrompt(sourceData));
-        return parser.parseCommercialReport(content);
+    public AiGenerationResult<CommercialAiDraft> generateCommercialReport(CommercialAiSourceData sourceData) {
+        ChatResponse response = requestStructuredContent(promptTemplate.buildCommercialPrompt(sourceData));
+        return new AiGenerationResult<>(parser.parseCommercialReport(extractContent(response)), extractUsage(response));
     }
 
     @Override
-    public CommercialComparisonAiDraft generateCommercialComparisonReport(CommercialComparisonAiSourceData sourceData) {
-        String content = requestStructuredContent(promptTemplate.buildCommercialComparisonPrompt(sourceData));
-        return parser.parseCommercialComparisonReport(content);
+    public AiGenerationResult<CommercialComparisonAiDraft> generateCommercialComparisonReport(CommercialComparisonAiSourceData sourceData) {
+        ChatResponse response = requestStructuredContent(promptTemplate.buildCommercialComparisonPrompt(sourceData));
+        return new AiGenerationResult<>(parser.parseCommercialComparisonReport(extractContent(response)), extractUsage(response));
     }
 
     @Override
-    public DistrictAiDraft generateDistrictReport(DistrictAiSourceData sourceData) {
-        String content = requestStructuredContent(promptTemplate.buildDistrictPrompt(sourceData));
-        return parser.parseDistrictReport(content);
+    public AiGenerationResult<DistrictAiDraft> generateDistrictReport(DistrictAiSourceData sourceData) {
+        ChatResponse response = requestStructuredContent(promptTemplate.buildDistrictPrompt(sourceData));
+        return new AiGenerationResult<>(parser.parseDistrictReport(extractContent(response)), extractUsage(response));
     }
 
     @Override
-    public AdministrationAiDraft generateAdministrationReport(AdministrationAiSourceData sourceData) {
-        String content = requestStructuredContent(promptTemplate.buildAdministrationPrompt(sourceData));
-        return parser.parseAdministrationReport(content);
+    public AiGenerationResult<AdministrationAiDraft> generateAdministrationReport(AdministrationAiSourceData sourceData) {
+        ChatResponse response = requestStructuredContent(promptTemplate.buildAdministrationPrompt(sourceData));
+        return new AiGenerationResult<>(parser.parseAdministrationReport(extractContent(response)), extractUsage(response));
     }
 
-    private String requestStructuredContent(String userPrompt) {
+    private ChatResponse requestStructuredContent(String userPrompt) {
         try {
-            ChatResponse response = ollamaChatModel.call(new Prompt(
+            return ollamaChatModel.call(new Prompt(
                 List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userPrompt)),
                 OllamaOptions.builder().format("json").build()
             ));
-            String content = extractContent(response);
-            if (content == null || content.isBlank()) {
-                throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
-            }
-            return content;
-        } catch (AiReportException exception) {
-            throw exception;
         } catch (RuntimeException exception) {
             throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE, exception);
         }
@@ -86,8 +84,30 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
 
     private String extractContent(ChatResponse response) {
         if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
-            return null;
+            throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
         }
-        return response.getResult().getOutput().getText();
+        String text = response.getResult().getOutput().getText();
+        if (text == null || text.isBlank()) {
+            throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
+        }
+        return text;
+    }
+
+    private AiUsageMeta extractUsage(ChatResponse response) {
+        String modelName = aiLlmProperties.model();
+        if (response == null || response.getMetadata() == null) {
+            return AiUsageMeta.empty(modelName);
+        }
+        Usage usage = response.getMetadata().getUsage();
+        if (usage == null) {
+            return AiUsageMeta.empty(modelName);
+        }
+        Integer promptTokens = usage.getPromptTokens();
+        Integer completionTokens = usage.getCompletionTokens();
+        return new AiUsageMeta(
+            modelName,
+            promptTokens == null ? 0 : promptTokens,
+            completionTokens == null ? 0 : completionTokens
+        );
     }
 }

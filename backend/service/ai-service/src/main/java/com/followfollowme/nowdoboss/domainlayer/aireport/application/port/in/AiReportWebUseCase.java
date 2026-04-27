@@ -1,6 +1,8 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.port.in;
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportJobInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
@@ -15,4 +17,8 @@ public interface AiReportWebUseCase {
     DistrictAiReportInfo getDistrictReport(String districtCode, String periodCode);
 
     AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode);
+
+    AiReportSubmissionInfo submitCommercialReport(Long userId, String commercialCode, String serviceCode, String periodCode);
+
+    AiReportJobInfo getJobInfo(String jobId, Long userId);
 }
