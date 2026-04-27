@@ -26,6 +26,83 @@
 
 ---
 
+### `ai-service` — 상권 AI 리포트 비동기 작업 모델 + 토큰 사용량 카운터 (PR-1)
+
+**상태**: ✅ 완료 (`/commercials` 엔드포인트만 — `/comparisons`, `/districts`, `/administrations` 는 다음 PR 예정)
+
+**목적**: LLM 호출이 길어 동기 대기 UX 가 나쁨. 캐시 hit 면 즉시 응답, miss 면 작업 ID 발급 후 백그라운드 처리, 사용자 polling. 동시에 사용자별 토큰 사용량 일별 누적해 운영 capacity 가시화.
+
+**엔드포인트**:
+- `POST /api/v1/ai-reports/commercials/{commercialCode}` — 인증 필수
+  - 캐시 hit → 200 + `{submissionStatus: CACHED, commercialReport}`
+  - cache miss → 202 + `{submissionStatus: ACCEPTED, jobId}`
+  - 동일 사용자/요청 in-flight → 202 + 기존 jobId (멱등)
+- `GET /api/v1/ai-reports/jobs/{jobId}` — 인증 필수, 본인 작업만
+  - status ∈ `{PENDING, RUNNING, COMPLETED, FAILED}`
+  - COMPLETED 시 `commercialReport` 포함
+
+**핵심 파일** (모두 `domainlayer/aireport/` 하위):
+- `domain/model/AiReportJob.java` — 작업 도메인 record (`requestParams: Map<String,String>` 으로 jobType 별 파라미터 보관)
+- `domain/model/AiReportJobStatus.java` — PENDING/RUNNING/COMPLETED/FAILED
+- `domain/model/AiReportJobType.java` — COMMERCIAL/COMMERCIAL_COMPARISON/DISTRICT/ADMINISTRATION
+- `domain/model/AiUsageMeta.java` — `(modelName, promptTokens, completionTokens)`
+- `application/model/AiGenerationResult.java` — `<T draft, AiUsageMeta usage>` 래퍼
+- `application/port/out/AiReportJobStorePort.java` + `adapter/out/store/RedisAiReportJobStoreAdapter.java`
+- `application/port/out/AiUsageCounterPort.java` + `adapter/out/store/RedisAiUsageCounterAdapter.java`
+- `application/service/processor/AiReportJobProcessor.java` — 캐시 first-check / 멱등성 / SHA256 requestHash / @Async 기동
+- `application/service/worker/AiReportWorker.java` — `@Async("aiReportTaskExecutor")` 비동기 처리, 상태 전이, 토큰 카운트 기록
+- `global/config/AsyncConfig.java` — ThreadPoolTaskExecutor (core 4 / max 8 / queue 50)
+- `global/properties/AiReportJobProperties.java` — TTL 설정
+- `adapter/in/web/dto/response/AiReportSubmissionResponse.java`, `AiReportJobStatusResponse.java`
+
+**Redis 스키마**:
+- `{prefix}:ai:job:{jobId}` (TTL 24h) — `AiReportJob` JSON
+- `{prefix}:ai:job:idempotency:{userId}:{requestHash}` (TTL 24h) → jobId
+- `{prefix}:ai:usage:{userId}:{yyyy-MM-dd}` (TTL 30d) — `promptTokens / completionTokens / count`
+
+**LLM port 시그니처 변경**:
+- `AiLlmPort.generateCommercialReport(...)` 외 4개 메서드가 `AiGenerationResult<*Draft>` 반환 (기존 `*Draft` 직접 반환 → wrapper)
+- Ollama 어댑터: `ChatResponse.metadata.usage` 에서 토큰 추출
+- OpenAI 어댑터: 현재 단가 추적 미사용이라 `AiUsageMeta.empty()` 반환
+
+**프로퍼티** (`application-local.yml`):
+```yaml
+ai:
+  report:
+    job:
+      ttl-seconds: 86400
+      usage-ttl-seconds: 2592000
+```
+
+**의존성 추가**: `service/ai-service/build.gradle` 에 `spring-boot-starter-oauth2-resource-server` (Spring Security `@PreAuthorize`/`@AuthenticationPrincipal` 활성화)
+
+**ErrorCode**: `AI_005` (JOB_NOT_FOUND), `AI_006` (JOB_STORE_UNAVAILABLE), `AI_008` (JOB_FAILED), `AI_009` (JOB_TIMEOUT)
+인증 실패는 ai-service 가 직접 발행하지 않고 `security-core` 의 `SecurityErrorCode` 를 사용한다 (SECURITY_001 / SECURITY_006).
+
+**리뷰 반영 (round 1)**:
+- 멱등성 원자 보장: `findInFlightJobIdByRequestHash` (조회→생성 2단계) 제거 → `reserveOrGetExistingJobId` (`Redis SETNX`) 단일 호출. 동시 두 건 들어와도 한 건만 워커 디스패치.
+- 좀비 작업 lazy 만료: `getJobInfo` 시 `PENDING > 30s` / `RUNNING > 5min` 자동 FAILED + idempotency 해제 (`AI_009`).
+- 워커 디스패치 실패도 즉시 FAILED 처리 (이전: PENDING 영구 잔류 가능).
+- 워커 초기 단계 (`findById`, RUNNING 전환) try 안으로 이동 — Redis hiccup 시 silent fail.
+- 워커 종료 시 finally 블록에서 idempotency 항상 해제 (성공/실패 관계없이).
+- 외부 노출 errorCode/errorMessage 는 ErrorCode 한국어 메시지만 — 원인 예외 메시지 누출 차단. AI_999 raw 코드 제거.
+- 회귀 테스트 추가: `AiReportJobProcessorTest` (9 케이스) + `AiReportWorkerTest` (6 케이스).
+
+**리뷰 반영 (round 2)**:
+- **레거시 GET 4개 인증 필수화** (`@PreAuthorize("isAuthenticated()")` + `@SecurityRequirement`) — 비인증 cache miss → LLM 호출로 비용 증폭 + 공개 DoS 경로 차단 + 사용자 단위 추적 가능.
+- **save → reserve 순서 reverse + race-loss cleanup**: PENDING 작업 entry 를 먼저 저장한 뒤 `setIfAbsent` 로 idempotency 키 발행. 패배 시 자기가 저장한 orphan 작업을 `deleteJob` 으로 즉시 제거. 결과: 외부에 노출된 idempotency 키는 항상 valid jobId 를 가리킨다.
+- **결과 스냅샷 임베드**: `AiReportJob.commercialReport` 필드 신설. 워커 완료 시 `completedWithCommercialReport(report, now)` 로 결과를 job 자체에 저장. `getJobInfo` 는 캐시 의존 없이 job 스냅샷에서 직접 응답. (legacy 미임베드 작업만 cache fallback)
+- **MockMvc 컨트롤러 회귀 테스트**: `AiReportWebControllerTest` (5 케이스) — POST 200 (CACHED) / 202 (ACCEPTED) / GET COMPLETED / GET 404 (다른 사용자) / GET RUNNING 응답 형태.
+- 결과: ai-service 테스트 27건 (Processor 10 + Worker 6 + Controller 5 + 기존 6).
+
+**다음 PR 후보**:
+- comparison / district / administration 도 동일 비동기 모델로 전환
+- Bucket4j rate limit (사용자별 분당 5건 / 일당 30건)
+- 사용량 조회 endpoint `/usage/me` (필요 시점에)
+- durable queue (Redis Streams 또는 외부 큐) 검토 — 멀티 인스턴스 운영 시
+
+---
+
 ### `commercial-service` — 상권 트렌드 분석 API
 
 **상태**: ✅ 완료
@@ -309,6 +386,17 @@ INDEX(status)
 |--------|------|------|------|
 | GET | `/{code}/trend` | 상권 분기별 트렌드 분석 | 불필요 |
 | GET | `/recommendations/by-service` | 업종 기반 상권 자동 추천 | 불필요 |
+
+### `ai-service` (`/api/v1/ai-reports`)
+
+| Method | Path | 설명 | 인증 |
+|--------|------|------|------|
+| POST | `/commercials/{commercialCode}` | 상권 AI 리포트 비동기 제출 (cache hit 200 / miss 202 + jobId) | ✅ |
+| GET | `/jobs/{jobId}` | 작업 상태/결과 조회 (본인 작업만) | ✅ |
+| GET | `/commercials/{commercialCode}` | (deprecated) 동기 상권 리포트 | ✅ |
+| GET | `/commercials/comparisons` | 상권 비교 AI 인사이트 | ✅ |
+| GET | `/districts/{districtCode}` | 자치구 AI 리포트 | ✅ |
+| GET | `/administrations/{administrationCode}` | 행정동 AI 리포트 | ✅ |
 
 ### `auth-service` (`/api/v1/members`)
 

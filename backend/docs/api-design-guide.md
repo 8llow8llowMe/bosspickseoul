@@ -42,3 +42,19 @@ return ResponseEntity.ok().body(Response.success(response));
 - 인증 사용자 전용 API는 `@PreAuthorize`를 명시한다.
 - member 식별은 JWT claim을 기준으로 처리한다.
 - 클라이언트가 임의 헤더로 member 식별값을 주입하는 방식은 사용하지 않는다.
+
+## 7. 비동기 작업 패턴
+
+LLM 호출 등 응답이 길어지는 작업은 다음 패턴을 따른다 (참조: `ai-service` 의 `POST /api/v1/ai-reports/commercials/{code}`).
+
+- **제출 endpoint** — 가능한 동사 없는 RESTful 경로 사용, `POST {resource}`
+  - 캐시/즉시 응답 가능 → `200 OK` + 결과
+  - 작업 큐잉 필요 → `202 Accepted` + jobId
+  - 동일 사용자/요청 in-flight 일 때는 기존 jobId 재사용 (멱등)
+- **상태 조회 endpoint** — `GET /jobs/{jobId}`
+  - 본인 작업만 조회 가능 (다른 사용자 jobId 는 `404` 로 응답해 존재 자체 노출 차단)
+- **응답 DTO** — `submissionStatus` 또는 `status` 필드로 분기 표현. 결과 페이로드는 status 별 nullable
+- **워커** — 서비스별 전용 `ThreadPoolTaskExecutor` 빈 (예: `aiReportTaskExecutor`) + `@Async("...")` 사용. 글로벌 default executor 공유 금지
+- **상태 저장** — Redis Hash / String + TTL 24h. JPA 가 없는 서비스는 Redis 로 충분, 장기 audit 필요 시 DB 추가
+- **idempotency 키** — `{prefix}:{domain}:job:idempotency:{userId}:{requestHash}` 패턴. requestHash 는 `SHA256(jobType | param1=v1 | ...)` 앞 32자
+- **에러** — Exception → ErrorCode 매핑은 동기 endpoint 와 동일 패턴 사용, 단 작업 실패는 200 OK + `status=FAILED` + `errorCode/errorMessage` 로 응답 (HTTP 5xx 가 아님)
