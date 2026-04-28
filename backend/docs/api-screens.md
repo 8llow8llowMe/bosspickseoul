@@ -14,9 +14,12 @@
 | 식별자 → path param | ✅ 준수 | `/compare`의 두 상권 코드는 query param이 비교 API 관례 |
 | 필터/옵션 → query param | ✅ 준수 | `periodCode`, `serviceCode` 등 전부 query param |
 | Spring 라우팅 충돌 | ✅ 없음 | 리터럴 경로(`/liked`, `/comparisons`)가 path variable보다 우선 |
+| 비동기 잡 모델 | ✅ 적용 | `POST /ai-reports/commercials/{code}` 제출 + `GET /ai-reports/jobs/{jobId}` 폴링 (HTTP 202 / 200) |
 
 > **2026-04-23 수정 완료**: `PUT /like` → `POST /likes` (게시글·댓글 좋아요 토글)
 > PUT은 멱등성(idempotent) 보장이 필요하지만 토글은 비멱등이므로 POST로 변경.
+
+> **2026-04-28 갱신**: AI 리포트 비동기 잡 모델(POST + jobId 폴링) 섹션 추가, 화면별 호출 순서에 폴링 흐름 반영. 마이페이지 / 커뮤니티 피드 / 관리자 신고 처리 호출 순서 추가.
 
 ---
 
@@ -530,14 +533,76 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 
 ## ai-service
 
-### AI 리포트
+> **모든 AI 리포트 엔드포인트는 인증 필수** (`@PreAuthorize("isAuthenticated()")`). 비로그인 사용자에겐 401 응답이 내려가므로 프론트는 로그인 유도 처리.
 
-| Method | Path | 화면 |
-|--------|------|------|
-| GET | `/api/v1/ai-reports/commercials/{commercialCode}` | 상권 상세 > "AI 분석" 탭 |
-| GET | `/api/v1/ai-reports/commercials/comparisons` | 상권 비교 결과 하단 "AI 종합 판단" 섹션 |
-| GET | `/api/v1/ai-reports/districts/{districtCode}` | 자치구 상세 > "AI 분석" 탭 |
-| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | 행정동 상세 > "AI 분석" 탭 |
+### AI 리포트 — 비동기 잡 모델 (권장)
+
+상권 AI 리포트는 **비동기 제출 + 폴링** 패턴을 사용한다. 캐시 hit 시 즉시 응답, miss 시 백그라운드에서 LLM 추론 후 jobId로 조회.
+
+| Method | Path | 인증 | 화면 |
+|--------|------|------|------|
+| POST | `/api/v1/ai-reports/commercials/{commercialCode}` | ✓ | 상권 상세 > "AI 분석" 탭 진입 시 즉시 호출 |
+| GET | `/api/v1/ai-reports/jobs/{jobId}` | ✓ | AI 탭 폴링 (1~2초 간격, 본인 작업만 조회 가능) |
+
+**`POST /ai-reports/commercials/{commercialCode}`** — 제출
+```
+?serviceCode=CS100001&periodCode=20233
+```
+
+응답 분기:
+- **HTTP 200** (캐시 hit): `submissionStatus=CACHED` + `commercialReport` 즉시 반환
+- **HTTP 202** (캐시 miss / 신규 잡): `submissionStatus=ACCEPTED` + `jobId` 발급
+  - 동일 사용자가 같은 요청 in-flight 보유 시 → 같은 `jobId` 재사용 (멱등성, SHA256 해시 기반)
+
+```json
+// 200 OK (cached)
+{ "submissionStatus": "CACHED", "commercialReport": { "summary": "...", "..." } }
+
+// 202 Accepted (new job)
+{ "submissionStatus": "ACCEPTED", "jobId": "01HXY..." }
+```
+
+**`GET /ai-reports/jobs/{jobId}`** — 상태 조회
+
+```json
+// PENDING / RUNNING — 폴링 계속
+{ "status": "RUNNING" }
+
+// COMPLETED — 결과 포함, 폴링 중단
+{ "status": "COMPLETED", "jobType": "COMMERCIAL", "commercialReport": { ... } }
+
+// FAILED — 폴링 중단, 에러 표시
+{ "status": "FAILED", "errorCode": "AI_002", "errorMessage": "LLM 서비스를 일시적으로 사용할 수 없습니다." }
+```
+
+**프론트 폴링 구현 가이드 (필수)**:
+1. POST → 응답 status 확인
+2. 200이면 `commercialReport` 즉시 렌더
+3. 202면 `jobId` 저장 → `GET /jobs/{jobId}` 1~2초 간격 폴링
+4. `status === 'COMPLETED'` → 결과 렌더, 폴링 중단
+5. `status === 'FAILED'` → `errorCode` 기반 fallback 메시지, 폴링 중단
+6. **타임아웃 가드**: 60초 폴링해도 PENDING/RUNNING이면 사용자에게 "잠시 후 다시 시도" 안내 (서버 lazy 만료: PENDING 30초 / RUNNING 5분 → `AI_009` FAILED 전환)
+7. 타 사용자의 `jobId` 조회 시 404 (`AI_005`)
+
+**ErrorCode 핸들링**:
+| 코드 | 의미 | 프론트 처리 |
+|------|------|----------|
+| `AI_001` | 원천 데이터 조회 실패 | "분석 데이터를 불러오지 못했습니다" |
+| `AI_002` | LLM 서비스 사용 불가 | "AI 분석이 일시적으로 중단되었습니다. 잠시 후 다시 시도해주세요" |
+| `AI_003` | LLM 응답 해석 실패 | 위와 동일 |
+| `AI_005` | 작업 미존재 / 본인 작업 아님 | 새 제출로 재시도 |
+| `AI_009` | 작업 타임아웃 | "분석에 시간이 오래 걸려 중단되었습니다. 다시 시도해주세요" |
+
+---
+
+### AI 리포트 — Legacy 동기 GET (deprecated, 다음 PR에서 비동기로 통일 예정)
+
+| Method | Path | 인증 | 화면 | 상태 |
+|--------|------|------|------|------|
+| GET | `/api/v1/ai-reports/commercials/{commercialCode}` | ✓ | 상권 상세 > "AI 분석" 탭 | **deprecated** — POST 비동기로 이전 권장 |
+| GET | `/api/v1/ai-reports/commercials/comparisons` | ✓ | 상권 비교 결과 하단 "AI 종합 판단" 섹션 | 동기 (비동기 전환 예정) |
+| GET | `/api/v1/ai-reports/districts/{districtCode}` | ✓ | 자치구 상세 > "AI 분석" 탭 | 동기 (비동기 전환 예정) |
+| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | ✓ | 행정동 상세 > "AI 분석" 탭 | 동기 (비동기 전환 예정) |
 
 **`GET /ai-reports/commercials/comparisons`**
 ```
@@ -545,11 +610,12 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 &serviceCode=CS100001&periodCode=20233
 ```
 
-**주의사항 (프론트 필수)**:
-- Claude API 호출 포함 → **응답 시간 3~10초** 소요
+**동기 GET 공통 주의사항 (프론트 필수)**:
+- Ollama/OpenAI 호출 포함 → **응답 시간 3~30초** 소요
 - 로딩 스피너 + "AI가 분석 중입니다..." 표시 필수
-- 에러 시 fallback 메시지 준비 ("AI 분석을 일시적으로 제공하지 못하고 있습니다")
-- 상권/비교 데이터 로드 후 AI 탭은 **지연 로드(lazy load)** 권장 — 초기 화면 로딩 블로킹 방지
+- 에러 시 fallback 메시지 ("AI 분석을 일시적으로 제공하지 못하고 있습니다")
+- 분석 데이터 로드 완료 후 AI 탭은 **지연 로드(lazy load)** — 초기 화면 블로킹 금지
+- 비동기 모델 전환 후엔 동일 화면에 폴링 패턴 적용 필요
 
 ---
 
@@ -566,25 +632,50 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 
 ### 상권 클릭 시
 ```
-1. GET /commercials/{code}/profile        → 사이드 패널 즉시 표시
+1. GET /commercials/{code}/profile                → 사이드 패널 즉시 표시
 2. GET /regions/commercials/{code}/administration → 소속 행정동 표시
 (탭 클릭 시 lazy load)
 3. GET /commercials/{code}/foot-traffic
 4. GET /commercials/{code}/trend
-5. GET /ai-reports/commercials/{code}     → AI 탭 클릭 시만 호출
+5. AI 탭 클릭 시:
+   a. POST /ai-reports/commercials/{code}         → 제출
+   b. 200 → 즉시 렌더 / 202 → jobId로 폴링
+   c. GET /ai-reports/jobs/{jobId} (1~2초 간격)   → COMPLETED까지 반복
 ```
 
 ### 두 상권 비교 시
 ```
-1. GET /commercials/compare-preview       → 말풍선 미리보기 (즉시)
-2. GET /commercials/compare               → 비교 상세 화면 진입 시
-3. GET /ai-reports/commercials/comparisons → AI 판단 섹션 (지연 로드)
+1. GET /commercials/compare-preview                → 말풍선 미리보기 (즉시)
+2. GET /commercials/compare                        → 비교 상세 화면 진입 시
+3. GET /ai-reports/commercials/comparisons         → AI 판단 섹션 (지연 로드, 동기 — 비동기 전환 예정)
 ```
 
 ### 업종 선택 후 추천 시
 ```
-1. GET /commercials/recommendations/by-service   → 업종 코드 기반 자동 추천
+1. GET /commercials/recommendations/by-service     → 업종 코드 기반 자동 추천
    (또는)
-2. GET /commercials/heatmap-composite             → 프리셋 선택 후 히트맵
-3. GET /commercials/candidates                    → 랭킹 패널
+2. GET /commercials/heatmap-composite              → 프리셋 선택 후 히트맵
+3. GET /commercials/candidates                     → 랭킹 패널
+```
+
+### 마이페이지 진입 시
+```
+1. GET /members/me                                 → 프로필 정보
+2. GET /members/me/bookmarks?lastBookmarkId=0&size=10  → 북마크 목록 (커서 페이지)
+3. GET /community/posts/liked?lastPostId=0&size=10     → 좋아요한 글 (선택)
+```
+
+### 커뮤니티 피드 진입 시
+```
+1. GET /community/posts?sortType=LATEST&lastPostId=0&size=10  → 전체 피드
+   (또는 상권별: ?targetType=COMMERCIAL&targetCode=3110008)
+2. 게시글 클릭 시:
+   a. GET /community/posts/{postId}                          → 상세 + 조회수 +1
+   b. GET /community/posts/{postId}/comments                 → 댓글 목록
+```
+
+### 관리자 신고 처리
+```
+1. GET /moderation/reports                          → PENDING 신고 목록 (MANAGER only)
+2. PATCH /moderation/reports/{reportId}             → APPROVE_AND_HIDE / DISMISS
 ```
