@@ -25,9 +25,12 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "community_report",
     indexes = {
-        @Index(name = "idx_community_report_target", columnList = "targetKind,targetId"),
-        @Index(name = "idx_community_report_reporter", columnList = "reporterMemberId"),
-        @Index(name = "idx_community_report_status", columnList = "status")
+        @Index(name = "idx_community_report_target_kind_target_id",
+            columnList = "targetKind,targetId"),
+        @Index(name = "idx_community_report_reporter_member_id",
+            columnList = "reporterMemberId"),
+        @Index(name = "idx_community_report_status",
+            columnList = "status")
     }
 )
 @Comment("커뮤니티 신고")
@@ -43,12 +46,12 @@ public class CommunityReportEntity {
     private CommunityReportTargetKind targetKind;
 
     @Column(nullable = false)
-    @Comment("신고 대상 아이디")
-    private long targetId;
+    @Comment("신고 대상 아이디 (FK: community_post.id 또는 community_comment.id, targetKind 에 따라 분기)")
+    private Long targetId;
 
     @Column(nullable = false)
-    @Comment("신고한 회원 아이디")
-    private long reporterMemberId;
+    @Comment("신고한 회원 아이디 (FK: member.id)")
+    private Long reporterMemberId;
 
     @Column(nullable = false, length = 500)
     @Comment("신고 사유")
@@ -68,6 +71,6 @@ public class CommunityReportEntity {
     private LocalDateTime resolvedAt;
 
     @Column
-    @Comment("처리한 매니저 회원 아이디")
+    @Comment("처리한 매니저 회원 아이디 (FK: member.id, 미처리 상태에서는 null)")
     private Long resolvedByMemberId;
 }

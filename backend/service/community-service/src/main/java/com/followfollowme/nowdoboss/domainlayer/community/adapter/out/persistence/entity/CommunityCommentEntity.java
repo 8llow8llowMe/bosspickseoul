@@ -24,9 +24,12 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "community_comment",
     indexes = {
-        @Index(name = "idx_community_comment_post_created", columnList = "postId,createdAt"),
-        @Index(name = "idx_community_comment_member_created", columnList = "memberId,createdAt"),
-        @Index(name = "idx_community_comment_parent_id", columnList = "parentCommentId")
+        @Index(name = "idx_community_comment_post_id_created_at",
+            columnList = "postId,createdAt"),
+        @Index(name = "idx_community_comment_member_id_created_at",
+            columnList = "memberId,createdAt"),
+        @Index(name = "idx_community_comment_parent_comment_id",
+            columnList = "parentCommentId")
     }
 )
 @Comment("커뮤니티 댓글")
@@ -37,15 +40,15 @@ public class CommunityCommentEntity {
     private Long id;
 
     @Column(nullable = false)
-    @Comment("게시글 아이디")
-    private long postId;
+    @Comment("게시글 아이디 (FK: community_post.id)")
+    private Long postId;
 
     @Column(nullable = false)
-    @Comment("회원 아이디")
-    private long memberId;
+    @Comment("회원 아이디 (FK: member.id)")
+    private Long memberId;
 
     @Column
-    @Comment("부모 댓글 아이디 (null이면 최상위 댓글)")
+    @Comment("부모 댓글 아이디 (FK: community_comment.id, null 이면 최상위 댓글)")
     private Long parentCommentId;
 
     @Column(nullable = false, length = 1000)
