@@ -26,9 +26,12 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "area_boundary",
     indexes = {
-        @Index(name = "idx_area_boundary_type_code", columnList = "areaType, areaCode"),
-        @Index(name = "idx_area_boundary_bbox_lng", columnList = "bboxMinLng, bboxMaxLng"),
-        @Index(name = "idx_area_boundary_bbox_lat", columnList = "bboxMinLat, bboxMaxLat")
+        @Index(name = "idx_area_boundary_area_type_area_code",
+            columnList = "areaType, areaCode"),
+        @Index(name = "idx_area_boundary_bbox_min_lng_bbox_max_lng",
+            columnList = "bboxMinLng, bboxMaxLng"),
+        @Index(name = "idx_area_boundary_bbox_min_lat_bbox_max_lat",
+            columnList = "bboxMinLat, bboxMaxLat")
     }
 )
 public class AreaBoundaryEntity {
