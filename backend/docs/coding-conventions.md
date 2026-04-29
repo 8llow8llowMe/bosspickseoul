@@ -131,9 +131,85 @@ API 응답에서 enum 을 문자열로 내보낼 때는 `enum.name()` 을 사용
 
 ## 9. 엔티티 / 영속성
 
-- 필드 설명이 필요한 엔티티는 `@Comment`를 사용합니다.
-- 단일 PK를 우선하고, N:N 관계는 중간 테이블을 분리합니다.
+### 9-1. 기본 규칙
+
+- 필드 설명이 필요한 엔티티는 `@Comment` 를 사용합니다.
+- 단일 PK 를 우선하고, N:N 관계는 중간 테이블을 분리합니다.
 - 삭제 전략과 복구 요구사항에 맞춰 명시적으로 선택합니다.
+- **JPA 연관관계 어노테이션 (`@ManyToOne` / `@OneToMany` / `@OneToOne` / `@ManyToMany` / `@JoinColumn` / `@JoinTable`) 은 사용하지 않습니다.** 서비스 간 / 서비스 내 모든 관계는 raw FK 컬럼만으로 표현하고, 객체 그래프 탐색이 필요하면 application 계층에서 별도 조회로 처리합니다. 이는 서비스 경계를 흐리지 않고 DB 결합도를 낮추기 위함입니다.
+
+### 9-2. 엔티티 필드 타입
+
+| 필드 종류 | 타입 | 비고 |
+|----------|------|------|
+| PK `id` | `Long` (Wrapper) | JPA 권장, 미저장 상태 명시 가능 |
+| FK 컬럼 | `Long` / `Integer` (Wrapper) | `null` 명시 + Builder 호환성 |
+| nullable 의미가 있는 ID / 수치 | Wrapper | 미설정 / 부재 표현 필요 |
+| 카운트 / NOT NULL DEFAULT 0 인 수치 | **primitive** `long` / `int` | 응답 항상 동일 모양, `0` 과 `null` 구분 의미 없음 |
+| boolean | primitive | 기본값 `false` 가 자연스러움 |
+
+> 카운트 필드 (`likeCount`, `viewCount`, `commentCount` 등) 는 항상 0 부터 시작하므로 primitive 가 안전합니다. 프론트는 `count > 0` 조건으로 0 미표시 UI 를 깔끔하게 구현할 수 있습니다.
+
+### 9-3. 도메인 모델 필드 타입
+
+- PK / FK: **primitive `long`** — 도메인 객체는 식별된 시점에만 존재 (생성 직후 ID 가 없는 상태가 도메인에 노출되지 않음)
+- nullable 의미가 있는 ID (예: `parentCommentId`): Wrapper `Long`
+- 카운트 / 수치: primitive
+
+→ **레이어별 분리**: 엔티티는 Wrapper, 도메인은 primitive. Mapper (MapStruct) 가 `long ↔ Long` 자동 변환을 처리합니다.
+
+### 9-4. FK 컬럼 주석 표기
+
+외래키 컬럼은 `@Comment` 에 `(FK: target_table.id)` 형식으로 참조 대상을 명시합니다. DB 만 봐도 어떤 테이블의 어떤 컬럼을 참조하는지 파악할 수 있어야 합니다.
+
+```java
+@Column(nullable = false)
+@Comment("회원 아이디 (FK: member.id)")
+private Long memberId;
+
+@Column(nullable = false)
+@Comment("게시글 아이디 (FK: community_post.id)")
+private Long postId;
+```
+
+다중 대상 FK (`targetKind` 같은 enum 으로 분기) 는 가능한 후보를 모두 명시합니다.
+
+```java
+@Comment("신고 대상 아이디 (FK: community_post.id 또는 community_comment.id, targetKind 에 따라 분기)")
+private Long targetId;
+```
+
+### 9-5. 인덱스 명명
+
+- 일반 인덱스: `idx_{table}_{col1}_{col2}_{col3}_...`
+- 유니크 인덱스: `uk_{table}_{col1}_{col2}_{col3}_...`
+- 컬럼명은 snake_case (DB 컬럼명 기준)
+- **모든 컬럼명을 풀 네임으로 포함** — `_member_id_created_at` 같이 `(memberId, createdAt)` 둘 다 표현
+- 컬럼명이 길어 인덱스 이름이 64자 (MySQL 제한) 를 초과하면 의미를 해치지 않는 범위에서 축약 허용
+- 한 컬럼만 있는 인덱스는 `idx_{table}_{col}` 형식 그대로
+
+권장:
+
+```java
+@Table(
+    name = "member_bookmark",
+    indexes = {
+        @Index(name = "idx_member_bookmark_member_id_created_at",
+            columnList = "memberId,createdAt"),
+        @Index(name = "uk_member_bookmark_member_id_target_type_target_code",
+            columnList = "memberId,targetType,targetCode", unique = true)
+    }
+)
+```
+
+지양:
+
+```java
+// 컬럼이 어떤 게 들어있는지 이름만 봐서는 알 수 없음
+@Index(name = "idx_member_bookmark_member_id", columnList = "memberId,createdAt")
+@Index(name = "uk_member_bookmark_member_type_code",
+    columnList = "memberId,targetType,targetCode", unique = true)
+```
 
 ## 10. Internal Client 규칙
 
