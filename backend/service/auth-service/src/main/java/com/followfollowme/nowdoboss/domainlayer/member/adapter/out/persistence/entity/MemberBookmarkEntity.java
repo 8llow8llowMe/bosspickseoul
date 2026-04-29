@@ -24,8 +24,9 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "member_bookmark",
     indexes = {
-        @Index(name = "idx_member_bookmark_member_id", columnList = "memberId,createdAt"),
-        @Index(name = "uk_member_bookmark_member_type_code",
+        @Index(name = "idx_member_bookmark_member_id_created_at",
+            columnList = "memberId,createdAt"),
+        @Index(name = "uk_member_bookmark_member_id_target_type_target_code",
             columnList = "memberId,targetType,targetCode", unique = true)
     }
 )
@@ -37,8 +38,8 @@ public class MemberBookmarkEntity {
     private Long id;
 
     @Column(nullable = false)
-    @Comment("회원 아이디")
-    private long memberId;
+    @Comment("회원 아이디 (FK: member.id)")
+    private Long memberId;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
