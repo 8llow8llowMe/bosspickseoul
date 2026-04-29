@@ -21,8 +21,10 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "community_comment_like",
     indexes = {
-        @Index(name = "uk_community_comment_like_comment_member", columnList = "commentId,memberId", unique = true),
-        @Index(name = "idx_community_comment_like_member", columnList = "memberId")
+        @Index(name = "uk_community_comment_like_comment_id_member_id",
+            columnList = "commentId,memberId", unique = true),
+        @Index(name = "idx_community_comment_like_member_id",
+            columnList = "memberId")
     }
 )
 @Comment("커뮤니티 댓글 좋아요")
@@ -33,12 +35,12 @@ public class CommunityCommentLikeEntity {
     private Long id;
 
     @Column(nullable = false)
-    @Comment("댓글 아이디")
-    private long commentId;
+    @Comment("댓글 아이디 (FK: community_comment.id)")
+    private Long commentId;
 
     @Column(nullable = false)
-    @Comment("회원 아이디")
-    private long memberId;
+    @Comment("회원 아이디 (FK: member.id)")
+    private Long memberId;
 
     @Column(nullable = false)
     @Comment("좋아요 생성 시각")

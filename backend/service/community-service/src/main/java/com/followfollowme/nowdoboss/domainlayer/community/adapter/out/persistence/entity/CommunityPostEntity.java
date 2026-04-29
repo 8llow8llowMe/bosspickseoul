@@ -25,9 +25,12 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "community_post",
     indexes = {
-        @Index(name = "idx_community_post_target_created", columnList = "targetType,targetCode,createdAt"),
-        @Index(name = "idx_community_post_member_created", columnList = "memberId,createdAt"),
-        @Index(name = "idx_community_post_status_created", columnList = "status,createdAt")
+        @Index(name = "idx_community_post_target_type_target_code_created_at",
+            columnList = "targetType,targetCode,createdAt"),
+        @Index(name = "idx_community_post_member_id_created_at",
+            columnList = "memberId,createdAt"),
+        @Index(name = "idx_community_post_status_created_at",
+            columnList = "status,createdAt")
     }
 )
 @Comment("커뮤니티 게시글")
@@ -38,8 +41,8 @@ public class CommunityPostEntity {
     private Long id;
 
     @Column(nullable = false)
-    @Comment("회원 아이디")
-    private long memberId;
+    @Comment("회원 아이디 (FK: member.id)")
+    private Long memberId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
