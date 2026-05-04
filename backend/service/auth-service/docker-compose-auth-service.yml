@@ -1,0 +1,65 @@
+x-auth-service-environment: &auth_service_environment
+  TIME_ZONE: ${TIME_ZONE}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  SPRING_APPLICATION_NAME: ${AUTH_SERVICE_APP_NAME}
+  AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT}
+  SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME}
+  SERVICE_DISCOVERY_PORT: ${SERVICE_DISCOVERY_PORT}
+  DB_URL: ${AUTH_DB_URL}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  REDIS_MODE: ${REDIS_MODE}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX}
+  JWT_ACCESS_KEY: ${JWT_ACCESS_KEY}
+  JWT_REFRESH_KEY: ${JWT_REFRESH_KEY}
+  JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION}
+  JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
+  SNOWFLAKE_DATACENTER_ID: ${SNOWFLAKE_DATACENTER_ID}
+  SNOWFLAKE_WORKER_ID: ${SNOWFLAKE_WORKER_ID}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  auth-service-dev:
+    image: bosspickseoul-auth-service:latest
+    container_name: bosspickseoul-auth-service-dev
+    build:
+      context: .
+      dockerfile: auth-service.Dockerfile
+    ports:
+      - "${AUTH_SERVICE_PORT_DEV}:${AUTH_SERVICE_PORT}" # host:container
+    environment:
+      <<: *auth_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  auth-service-prod:
+    image: bosspickseoul-auth-service:latest
+    container_name: bosspickseoul-auth-service-prod
+    build:
+      context: .
+      dockerfile: auth-service.Dockerfile
+    ports:
+      - "${AUTH_SERVICE_PORT_PROD}:${AUTH_SERVICE_PORT}" # host:container
+    environment:
+      <<: *auth_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true
