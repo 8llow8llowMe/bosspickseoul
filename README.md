@@ -1,1 +1,1 @@
-# NowDoBoss-V2
+# BossPickSeoul

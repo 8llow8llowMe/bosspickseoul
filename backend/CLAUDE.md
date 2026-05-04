@@ -1,4 +1,4 @@
-# NowDoBoss Backend Claude Guide
+# BossPickSeoul Backend Claude Guide
 
 ## 목적
 

@@ -1,4 +1,4 @@
-# NowDoBoss Backend Feature Status
+# BossPickSeoul Backend Feature Status
 
 > 다른 AI 모델이나 신규 개발자가 현재 구현 상태를 빠르게 파악하기 위한 문서.
 > 각 기능의 구현 파일 경로, 엔드포인트, 주요 설계 결정을 기록한다.

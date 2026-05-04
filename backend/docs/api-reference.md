@@ -1,4 +1,4 @@
-# NowDoBoss Backend API Reference
+# BossPickSeoul Backend API Reference
 
 > 서비스별 전체 엔드포인트 요약. 인증이 필요한 API는 `🔒` 표시.
 > 공통 베이스: 각 서비스는 API Gateway(`district-service` 제외)를 통해 노출됨.
