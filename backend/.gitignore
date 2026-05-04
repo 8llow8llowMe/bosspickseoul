@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local environment files (never commit) ###
+.env
+.env.local
+.env.*.local
