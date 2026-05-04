@@ -1,0 +1,16 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'service',
+    serviceName        : 'community-service',
+    modulePath         : 'service:community-service',
+    fsPath             : 'backend/service/community-service',
+    dockerfile         : 'community-service.Dockerfile',
+    composeFile        : 'docker-compose-community-service.yml',
+    composeServiceName : 'community-service',
+    containerNamePrefix: 'bosspickseoul-community-service',
+    deploySubdir       : 'service/community-service',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])
+

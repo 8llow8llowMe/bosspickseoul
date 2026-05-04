@@ -1,0 +1,16 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'service',
+    serviceName        : 'ai-service',
+    modulePath         : 'service:ai-service',
+    fsPath             : 'backend/service/ai-service',
+    dockerfile         : 'ai-service.Dockerfile',
+    composeFile        : 'docker-compose-ai-service.yml',
+    composeServiceName : 'ai-service',
+    containerNamePrefix: 'bosspickseoul-ai-service',
+    deploySubdir       : 'service/ai-service',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])
+
