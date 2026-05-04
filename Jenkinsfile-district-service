@@ -1,0 +1,16 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'service',
+    serviceName        : 'district-service',
+    modulePath         : 'service:district-service',
+    fsPath             : 'backend/service/district-service',
+    dockerfile         : 'district-service.Dockerfile',
+    composeFile        : 'docker-compose-district-service.yml',
+    composeServiceName : 'district-service',
+    containerNamePrefix: 'bosspickseoul-district-service',
+    deploySubdir       : 'service/district-service',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])
+

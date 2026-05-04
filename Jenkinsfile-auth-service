@@ -1,0 +1,16 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'service',
+    serviceName        : 'auth-service',
+    modulePath         : 'service:auth-service',
+    fsPath             : 'backend/service/auth-service',
+    dockerfile         : 'auth-service.Dockerfile',
+    composeFile        : 'docker-compose-auth-service.yml',
+    composeServiceName : 'auth-service',
+    containerNamePrefix: 'bosspickseoul-auth-service',
+    deploySubdir       : 'service/auth-service',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])
+

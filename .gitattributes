@@ -1,0 +1,9 @@
+# Jenkins pipeline files: always store as UTF-8 with LF
+Jenkinsfile* text eol=lf working-tree-encoding=UTF-8
+*.groovy    text eol=lf working-tree-encoding=UTF-8
+
+# Markdown docs
+*.md        text eol=lf working-tree-encoding=UTF-8
+
+# Shell scripts used by CI/CD
+*.sh        text eol=lf working-tree-encoding=UTF-8

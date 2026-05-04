@@ -1,0 +1,15 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'service',
+    serviceName        : 'batch-service',
+    modulePath         : 'service:batch-service',
+    fsPath             : 'backend/service/batch-service',
+    dockerfile         : 'batch-service.Dockerfile',
+    composeFile        : 'docker-compose-batch-service.yml',
+    composeServiceName : 'batch-service',
+    containerNamePrefix: 'bosspickseoul-batch-service',
+    deploySubdir       : 'service/batch-service',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])

@@ -1,0 +1,16 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'cloud',
+    serviceName        : 'service-discovery',
+    modulePath         : 'cloud:service-discovery',
+    fsPath             : 'backend/cloud/service-discovery',
+    dockerfile         : 'service-discovery.Dockerfile',
+    composeFile        : 'docker-compose-service-discovery.yml',
+    composeServiceName : 'service-discovery',
+    containerNamePrefix: 'bosspickseoul-service-discovery',
+    deploySubdir       : 'cloud/service-discovery',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])
+

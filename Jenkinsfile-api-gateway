@@ -1,0 +1,16 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'cloud',
+    serviceName        : 'api-gateway',
+    modulePath         : 'cloud:api-gateway',
+    fsPath             : 'backend/cloud/api-gateway',
+    dockerfile         : 'api-gateway.Dockerfile',
+    composeFile        : 'docker-compose-api-gateway.yml',
+    composeServiceName : 'api-gateway',
+    containerNamePrefix: 'bosspickseoul-api-gateway',
+    deploySubdir       : 'cloud/api-gateway',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])
+

@@ -1,0 +1,16 @@
+def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+
+backendPipeline.run([
+    serviceGroup       : 'service',
+    serviceName        : 'commercial-service',
+    modulePath         : 'service:commercial-service',
+    fsPath             : 'backend/service/commercial-service',
+    dockerfile         : 'commercial-service.Dockerfile',
+    composeFile        : 'docker-compose-commercial-service.yml',
+    composeServiceName : 'commercial-service',
+    containerNamePrefix: 'bosspickseoul-commercial-service',
+    deploySubdir       : 'service/commercial-service',
+    buildAgentLabel    : 'builder',
+    deployAgentLabel   : 'deploy-target && backend-1'
+])
+
