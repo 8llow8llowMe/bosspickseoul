@@ -1,0 +1,57 @@
+x-community-service-environment: &community_service_environment
+  TIME_ZONE: ${TIME_ZONE}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  SPRING_APPLICATION_NAME: ${COMMUNITY_SERVICE_APP_NAME}
+  COMMUNITY_SERVICE_PORT: ${COMMUNITY_SERVICE_PORT}
+  SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME}
+  SERVICE_DISCOVERY_PORT: ${SERVICE_DISCOVERY_PORT}
+  DB_URL: ${COMMUNITY_DB_URL}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  JWT_ACCESS_KEY: ${JWT_ACCESS_KEY}
+  SNOWFLAKE_DATACENTER_ID: ${SNOWFLAKE_DATACENTER_ID}
+  SNOWFLAKE_WORKER_ID: ${SNOWFLAKE_WORKER_ID}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  community-service-dev:
+    image: bosspickseoul-community-service:latest
+    container_name: bosspickseoul-community-service-dev
+    build:
+      context: .
+      dockerfile: community-service.Dockerfile
+    ports:
+      - "${COMMUNITY_SERVICE_PORT_DEV}:${COMMUNITY_SERVICE_PORT}" # host:container
+    environment:
+      <<: *community_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  community-service-prod:
+    image: bosspickseoul-community-service:latest
+    container_name: bosspickseoul-community-service-prod
+    build:
+      context: .
+      dockerfile: community-service.Dockerfile
+    ports:
+      - "${COMMUNITY_SERVICE_PORT_PROD}:${COMMUNITY_SERVICE_PORT}" # host:container
+    environment:
+      <<: *community_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true

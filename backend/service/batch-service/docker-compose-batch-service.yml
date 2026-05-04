@@ -1,0 +1,54 @@
+x-batch-service-environment: &batch_service_environment
+  TIME_ZONE: ${TIME_ZONE}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  SPRING_APPLICATION_NAME: ${BATCH_SERVICE_APP_NAME}
+  BATCH_SERVICE_PORT: ${BATCH_SERVICE_PORT}
+  SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME}
+  SERVICE_DISCOVERY_PORT: ${SERVICE_DISCOVERY_PORT}
+  DB_URL: ${BATCH_DB_URL}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  batch-service-dev:
+    image: bosspickseoul-batch-service:latest
+    container_name: bosspickseoul-batch-service-dev
+    build:
+      context: .
+      dockerfile: batch-service.Dockerfile
+    ports:
+      - "${BATCH_SERVICE_PORT_DEV}:${BATCH_SERVICE_PORT}" # host:container
+    environment:
+      <<: *batch_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  batch-service-prod:
+    image: bosspickseoul-batch-service:latest
+    container_name: bosspickseoul-batch-service-prod
+    build:
+      context: .
+      dockerfile: batch-service.Dockerfile
+    ports:
+      - "${BATCH_SERVICE_PORT_PROD}:${BATCH_SERVICE_PORT}" # host:container
+    environment:
+      <<: *batch_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true
