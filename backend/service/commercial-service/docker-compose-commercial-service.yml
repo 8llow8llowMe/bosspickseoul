@@ -1,0 +1,55 @@
+x-commercial-service-environment: &commercial_service_environment
+  TIME_ZONE: ${TIME_ZONE}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  SPRING_APPLICATION_NAME: ${COMMERCIAL_SERVICE_APP_NAME}
+  COMMERCIAL_SERVICE_PORT: ${COMMERCIAL_SERVICE_PORT}
+  SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME}
+  SERVICE_DISCOVERY_PORT: ${SERVICE_DISCOVERY_PORT}
+  DB_URL: ${COMMERCIAL_DB_URL}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  JWT_ACCESS_KEY: ${JWT_ACCESS_KEY}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  commercial-service-dev:
+    image: bosspickseoul-commercial-service:latest
+    container_name: bosspickseoul-commercial-service-dev
+    build:
+      context: .
+      dockerfile: commercial-service.Dockerfile
+    ports:
+      - "${COMMERCIAL_SERVICE_PORT_DEV}:${COMMERCIAL_SERVICE_PORT}" # host:container
+    environment:
+      <<: *commercial_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  commercial-service-prod:
+    image: bosspickseoul-commercial-service:latest
+    container_name: bosspickseoul-commercial-service-prod
+    build:
+      context: .
+      dockerfile: commercial-service.Dockerfile
+    ports:
+      - "${COMMERCIAL_SERVICE_PORT_PROD}:${COMMERCIAL_SERVICE_PORT}" # host:container
+    environment:
+      <<: *commercial_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true

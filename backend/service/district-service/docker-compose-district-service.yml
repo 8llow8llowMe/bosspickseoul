@@ -1,0 +1,56 @@
+x-district-service-environment: &district_service_environment
+  TIME_ZONE: ${TIME_ZONE}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  SPRING_APPLICATION_NAME: ${DISTRICT_SERVICE_APP_NAME}
+  DISTRICT_SERVICE_PORT: ${DISTRICT_SERVICE_PORT}
+  SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME}
+  SERVICE_DISCOVERY_PORT: ${SERVICE_DISCOVERY_PORT}
+  DB_URL: ${DISTRICT_DB_URL}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  JWT_ACCESS_KEY: ${JWT_ACCESS_KEY}
+  COMMERCIAL_SERVICE_APP_NAME: ${COMMERCIAL_SERVICE_APP_NAME}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  district-service-dev:
+    image: bosspickseoul-district-service:latest
+    container_name: bosspickseoul-district-service-dev
+    build:
+      context: .
+      dockerfile: district-service.Dockerfile
+    ports:
+      - "${DISTRICT_SERVICE_PORT_DEV}:${DISTRICT_SERVICE_PORT}" # host:container
+    environment:
+      <<: *district_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  district-service-prod:
+    image: bosspickseoul-district-service:latest
+    container_name: bosspickseoul-district-service-prod
+    build:
+      context: .
+      dockerfile: district-service.Dockerfile
+    ports:
+      - "${DISTRICT_SERVICE_PORT_PROD}:${DISTRICT_SERVICE_PORT}" # host:container
+    environment:
+      <<: *district_service_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true
