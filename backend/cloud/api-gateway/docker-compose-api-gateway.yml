@@ -1,0 +1,57 @@
+x-api-gateway-environment: &api_gateway_environment
+  TIME_ZONE: ${TIME_ZONE}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  SPRING_APPLICATION_NAME: ${API_GATEWAY_APP_NAME}
+  API_GATEWAY_PORT: ${API_GATEWAY_PORT}
+  SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME}
+  SERVICE_DISCOVERY_PORT: ${SERVICE_DISCOVERY_PORT}
+  JWT_ACCESS_KEY: ${JWT_ACCESS_KEY}
+  AUTH_SERVICE_APP_NAME: ${AUTH_SERVICE_APP_NAME}
+  COMMERCIAL_SERVICE_APP_NAME: ${COMMERCIAL_SERVICE_APP_NAME}
+  DISTRICT_SERVICE_APP_NAME: ${DISTRICT_SERVICE_APP_NAME}
+  COMMUNITY_SERVICE_APP_NAME: ${COMMUNITY_SERVICE_APP_NAME}
+  AI_SERVICE_APP_NAME: ${AI_SERVICE_APP_NAME}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  api-gateway-dev:
+    image: bosspickseoul-api-gateway:latest
+    container_name: bosspickseoul-api-gateway-dev
+    build:
+      context: .
+      dockerfile: api-gateway.Dockerfile
+    ports:
+      - "${API_GATEWAY_PORT_DEV}:${API_GATEWAY_PORT}" # host:container
+    environment:
+      <<: *api_gateway_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  api-gateway-prod:
+    image: bosspickseoul-api-gateway:latest
+    container_name: bosspickseoul-api-gateway-prod
+    build:
+      context: .
+      dockerfile: api-gateway.Dockerfile
+    ports:
+      - "${API_GATEWAY_PORT_PROD}:${API_GATEWAY_PORT}" # host:container
+    environment:
+      <<: *api_gateway_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true

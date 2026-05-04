@@ -1,0 +1,49 @@
+x-service-discovery-environment: &service_discovery_environment
+  TIME_ZONE: ${TIME_ZONE}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  SPRING_APPLICATION_NAME: ${SERVICE_DISCOVERY_APP_NAME}
+  SERVICE_DISCOVERY_PORT_INTERNAL: ${SERVICE_DISCOVERY_PORT_INTERNAL}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  service-discovery-dev:
+    image: bosspickseoul-service-discovery:latest
+    container_name: bosspickseoul-service-discovery-dev
+    build:
+      context: .
+      dockerfile: service-discovery.Dockerfile
+    ports:
+      - "${SERVICE_DISCOVERY_PORT_DEV}:${SERVICE_DISCOVERY_PORT_INTERNAL}" # host:container
+    environment:
+      <<: *service_discovery_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  service-discovery-prod:
+    image: bosspickseoul-service-discovery:latest
+    container_name: bosspickseoul-service-discovery-prod
+    build:
+      context: .
+      dockerfile: service-discovery.Dockerfile
+    ports:
+      - "${SERVICE_DISCOVERY_PORT_PROD}:${SERVICE_DISCOVERY_PORT_INTERNAL}" # host:container
+    environment:
+      <<: *service_discovery_environment
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true
