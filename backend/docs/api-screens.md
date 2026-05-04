@@ -1,4 +1,4 @@
-# NowDoBoss API — 화면 맥락 & RESTful 설계 가이드
+# BossPickSeoul API — 화면 맥락 & RESTful 설계 가이드
 
 > 프론트엔드 개발자와 협업 시 참고하는 문서.
 > 각 API가 어떤 화면에 쓰이는지, 왜 그 방식으로 설계했는지 설명한다.

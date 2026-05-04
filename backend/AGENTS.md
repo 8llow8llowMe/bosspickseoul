@@ -1,4 +1,4 @@
-# NowDoBoss Backend Agent Guide
+# BossPickSeoul Backend Agent Guide
 
 ## 1. 목적
 

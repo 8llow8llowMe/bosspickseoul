@@ -2,7 +2,7 @@
 
 ## 목적
 
-- 이 디렉터리는 `NowDoBoss-V2/backend` 작업의 기준 문서 모음이다.
+- 이 디렉터리는 `BossPickSeoul/backend` 작업의 기준 문서 모음이다.
 - 백엔드 공통 규칙, 서비스별 책임, 완료 기준, 운영 체크리스트를 문서로 관리한다.
 - `backend/AGENTS.md`, `backend/CLAUDE.md`는 이 문서들의 엔트리 역할만 수행한다.
 
