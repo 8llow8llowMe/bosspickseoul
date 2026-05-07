@@ -8,7 +8,10 @@ public record AiReportSubmissionInfo(
     AiReportSubmissionStatus submissionStatus,
     AiReportJobType jobType,
     String jobId,
-    CommercialAiReportInfo commercialReport
+    CommercialAiReportInfo commercialReport,
+    CommercialComparisonAiReportInfo comparisonReport,
+    DistrictAiReportInfo districtReport,
+    AdministrationAiReportInfo administrationReport
 ) {
 
     public enum AiReportSubmissionStatus {
@@ -21,6 +24,30 @@ public record AiReportSubmissionInfo(
             .submissionStatus(AiReportSubmissionStatus.CACHED)
             .jobType(jobType)
             .commercialReport(commercialReport)
+            .build();
+    }
+
+    public static AiReportSubmissionInfo cachedComparison(AiReportJobType jobType, CommercialComparisonAiReportInfo comparisonReport) {
+        return AiReportSubmissionInfo.builder()
+            .submissionStatus(AiReportSubmissionStatus.CACHED)
+            .jobType(jobType)
+            .comparisonReport(comparisonReport)
+            .build();
+    }
+
+    public static AiReportSubmissionInfo cachedDistrict(AiReportJobType jobType, DistrictAiReportInfo districtReport) {
+        return AiReportSubmissionInfo.builder()
+            .submissionStatus(AiReportSubmissionStatus.CACHED)
+            .jobType(jobType)
+            .districtReport(districtReport)
+            .build();
+    }
+
+    public static AiReportSubmissionInfo cachedAdministration(AiReportJobType jobType, AdministrationAiReportInfo administrationReport) {
+        return AiReportSubmissionInfo.builder()
+            .submissionStatus(AiReportSubmissionStatus.CACHED)
+            .jobType(jobType)
+            .administrationReport(administrationReport)
             .build();
     }
 

@@ -28,7 +28,7 @@
 
 ### `ai-service` — 상권 AI 리포트 비동기 작업 모델 + 토큰 사용량 카운터 (PR-1)
 
-**상태**: ✅ 완료 (`/commercials` 엔드포인트만 — `/comparisons`, `/districts`, `/administrations` 는 다음 PR 예정)
+**상태**: ✅ 완료 (`/commercials` 엔드포인트만 — `/comparisons`, `/districts`, `/administrations` 는 PR-2 에서 추가 적용)
 
 **목적**: LLM 호출이 길어 동기 대기 UX 가 나쁨. 캐시 hit 면 즉시 응답, miss 면 작업 ID 발급 후 백그라운드 처리, 사용자 polling. 동시에 사용자별 토큰 사용량 일별 누적해 운영 capacity 가시화.
 
@@ -96,10 +96,48 @@ ai:
 - 결과: ai-service 테스트 27건 (Processor 10 + Worker 6 + Controller 5 + 기존 6).
 
 **다음 PR 후보**:
-- comparison / district / administration 도 동일 비동기 모델로 전환
+- ~~comparison / district / administration 도 동일 비동기 모델로 전환~~ → PR-2 에서 적용 완료
 - Bucket4j rate limit (사용자별 분당 5건 / 일당 30건)
 - 사용량 조회 endpoint `/usage/me` (필요 시점에)
 - durable queue (Redis Streams 또는 외부 큐) 검토 — 멀티 인스턴스 운영 시
+
+---
+
+### `ai-service` — AI 리포트 비동기 모델 4종 통일 (PR-2)
+
+**상태**: ✅ 완료 (2026-05-08)
+
+**목적**: PR-1 에서 `/commercials` 만 적용된 비동기 잡 모델을 비교 / 자치구 / 행정동 3종까지 확장. 동기 GET 4종은 deprecated 표시 후 호환성 유지. FE 폴링 로직을 4 jobType 단일 흐름으로 통일.
+
+**신규 엔드포인트** (모두 인증 필수):
+- `POST /api/v1/ai-reports/commercials/comparisons` — `leftCommercialCode`, `rightCommercialCode`, `serviceCode`, `periodCode` query
+- `POST /api/v1/ai-reports/districts/{districtCode}` — `periodCode` query
+- `POST /api/v1/ai-reports/administrations/{administrationCode}` — `periodCode` query
+
+응답 분기는 PR-1 과 동일: 캐시 hit → HTTP 200 + `submissionStatus=CACHED` + 타입별 report 필드 / 캐시 miss → HTTP 202 + `submissionStatus=ACCEPTED` + `jobId`.
+
+`GET /api/v1/ai-reports/jobs/{jobId}` 는 PR-1 그대로 사용. `jobType` 분기로 결과 필드 4종(`commercialReport` / `comparisonReport` / `districtReport` / `administrationReport`) 중 1개 채워짐.
+
+**핵심 변경**:
+- `domain/model/AiReportJob.java` — report 필드 3개(`comparisonReport`, `districtReport`, `administrationReport`) + `completedWith*` 메서드 3개 추가. `withStatus`/`failed`도 모든 필드 보존.
+- `application/info/AiReportSubmissionInfo.java`, `AiReportJobInfo.java` — 동일하게 3개 필드 추가, `cachedComparison/cachedDistrict/cachedAdministration` 팩토리 추가.
+- `application/service/processor/AiReportProcessor.java` — `generateCommercialComparisonReport/generateDistrictReport/generateAdministrationReport` 3종 신규 (`AiGenerationResult<*Info>` 반환). 기존 `getXxxReport` 는 thin wrapper로 단순화 — 토큰 사용량 추적 가능.
+- `application/service/processor/AiReportJobProcessor.java` — `submitJob(jobType, params, dispatcher)` 공통 헬퍼로 추출. `submitCommercialComparisonReport/submitDistrictReport/submitAdministrationReport` 3종 신규. `getJobInfo` switch 로 4 jobType 분기 + 캐시 fallback.
+- `application/service/worker/AiReportWorker.java` — `runJob<T>` 제네릭 헬퍼 + `runCommercialComparisonJob/runDistrictJob/runAdministrationJob` 3종 신규.
+- `adapter/in/web/controller/AiReportWebController.java` — POST 3종 추가, 동기 GET 4종에 `@Operation(deprecated = true)`.
+- `adapter/in/web/dto/response/AiReportSubmissionResponse.java`, `AiReportJobStatusResponse.java` — 4종 response 필드.
+- `adapter/in/web/presenter/AiReportPresenter.java` — submission/jobStatus 응답에서 4종 report 모두 매핑.
+- `application/service/AiReportWebFacade.java`, `application/port/in/AiReportWebUseCase.java` — submit 메서드 3종 위임 추가.
+
+**멱등성 키**:
+- `requestParams` 는 `LinkedHashMap` 으로 삽입 순서 고정 → 해시 안정.
+- `jobType.name()` 프리픽스 → 4 jobType 동일 코드 충돌 방지.
+- 비교는 `leftCommercialCode`/`rightCommercialCode` 별도 키 — 좌우 swap 은 별 캐시 엔트리 (기존 동기 캐시와 동일 동작).
+
+**테스트** (총 46건):
+- `AiReportJobProcessorTest` (19건, +9): 3종 submit 의 cache hit / cache miss + reservation won, 3 jobType 의 getJobInfo embedded vs cache fallback.
+- `AiReportWorkerTest` (10건, +4): 3종 run\* 의 success(embed + usage record + idempotency release), district 의 AI exception path.
+- `AiReportWebControllerTest` (11건, +6): POST 3종 × {accepted 202 + jobId, cached 200 + 타입별 report}.
 
 ---
 

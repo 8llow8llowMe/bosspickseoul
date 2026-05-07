@@ -18,8 +18,17 @@ public record AiReportSubmissionResponse(
     @Schema(description = "작업 식별자 (ACCEPTED 일 때만 채워짐)", example = "8a64f9c0-...")
     String jobId,
 
-    @Schema(description = "캐시된 상권 리포트 (CACHED 일 때만 채워짐)")
-    CommercialAiReportResponse commercialReport
+    @Schema(description = "캐시된 상권 리포트 (CACHED 이고 jobType=COMMERCIAL 일 때만 채워짐)")
+    CommercialAiReportResponse commercialReport,
+
+    @Schema(description = "캐시된 상권 비교 리포트 (CACHED 이고 jobType=COMMERCIAL_COMPARISON 일 때만 채워짐)")
+    CommercialComparisonAiReportResponse comparisonReport,
+
+    @Schema(description = "캐시된 자치구 리포트 (CACHED 이고 jobType=DISTRICT 일 때만 채워짐)")
+    DistrictAiReportResponse districtReport,
+
+    @Schema(description = "캐시된 행정동 리포트 (CACHED 이고 jobType=ADMINISTRATION 일 때만 채워짐)")
+    AdministrationAiReportResponse administrationReport
 ) {
 
 }

@@ -10,6 +10,9 @@ public record AiReportJobInfo(
     AiReportJobType jobType,
     AiReportJobStatus status,
     CommercialAiReportInfo commercialReport,
+    CommercialComparisonAiReportInfo comparisonReport,
+    DistrictAiReportInfo districtReport,
+    AdministrationAiReportInfo administrationReport,
     String errorCode,
     String errorMessage
 ) {

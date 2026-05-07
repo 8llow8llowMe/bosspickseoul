@@ -15,8 +15,12 @@ import static org.mockito.Mockito.when;
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiGenerationResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiUsageCounterPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor.AiReportProcessor;
@@ -146,6 +150,104 @@ class AiReportWorkerTest {
         verify(jobStore, atLeastOnce()).findById("J1");
         verify(jobStore, never()).save(any());
         verifyNoInteractions(processor, usageCounter);
+    }
+
+    // --- 비교/자치구/행정동 워커 ---
+
+    @Test
+    void runCommercialComparisonJob_success_embedsComparisonReportAndRecordsUsage() {
+        AiReportJob pending = AiReportJob.builder()
+            .jobId("J2").userId(7L).jobType(AiReportJobType.COMMERCIAL_COMPARISON).requestHash("H")
+            .requestParams(Map.of(
+                "leftCommercialCode", "L",
+                "rightCommercialCode", "R",
+                "serviceCode", "S",
+                "periodCode", "P"
+            ))
+            .status(AiReportJobStatus.PENDING).createdAt(Instant.now()).build();
+        CommercialComparisonAiReportInfo report = mock(CommercialComparisonAiReportInfo.class);
+        AiUsageMeta usage = new AiUsageMeta("ollama", 100, 50);
+        when(jobStore.findById("J2")).thenReturn(Optional.of(pending));
+        when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
+            .thenAnswer(inv -> inv.getArgument(0));
+        when(processor.generateCommercialComparisonReport(any(CommercialComparisonAiQuery.class)))
+            .thenReturn(new AiGenerationResult<>(report, usage));
+
+        worker.runCommercialComparisonJob("J2");
+
+        verify(jobStore).save(argThat(j ->
+            j.status() == AiReportJobStatus.COMPLETED && j.comparisonReport() == report
+        ));
+        verify(usageCounter).record(eq(7L), eq(usage));
+        verify(jobStore).releaseIdempotencyKey(7L, "H");
+    }
+
+    @Test
+    void runDistrictJob_success_embedsDistrictReportAndRecordsUsage() {
+        AiReportJob pending = AiReportJob.builder()
+            .jobId("J3").userId(7L).jobType(AiReportJobType.DISTRICT).requestHash("H")
+            .requestParams(Map.of("districtCode", "D", "periodCode", "P"))
+            .status(AiReportJobStatus.PENDING).createdAt(Instant.now()).build();
+        DistrictAiReportInfo report = mock(DistrictAiReportInfo.class);
+        AiUsageMeta usage = new AiUsageMeta("ollama", 80, 40);
+        when(jobStore.findById("J3")).thenReturn(Optional.of(pending));
+        when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
+            .thenAnswer(inv -> inv.getArgument(0));
+        when(processor.generateDistrictReport("D", "P"))
+            .thenReturn(new AiGenerationResult<>(report, usage));
+
+        worker.runDistrictJob("J3");
+
+        verify(jobStore).save(argThat(j ->
+            j.status() == AiReportJobStatus.COMPLETED && j.districtReport() == report
+        ));
+        verify(usageCounter).record(eq(7L), eq(usage));
+        verify(jobStore).releaseIdempotencyKey(7L, "H");
+    }
+
+    @Test
+    void runAdministrationJob_success_embedsAdministrationReportAndRecordsUsage() {
+        AiReportJob pending = AiReportJob.builder()
+            .jobId("J4").userId(7L).jobType(AiReportJobType.ADMINISTRATION).requestHash("H")
+            .requestParams(Map.of("administrationCode", "A", "periodCode", "P"))
+            .status(AiReportJobStatus.PENDING).createdAt(Instant.now()).build();
+        AdministrationAiReportInfo report = mock(AdministrationAiReportInfo.class);
+        AiUsageMeta usage = new AiUsageMeta("ollama", 60, 30);
+        when(jobStore.findById("J4")).thenReturn(Optional.of(pending));
+        when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
+            .thenAnswer(inv -> inv.getArgument(0));
+        when(processor.generateAdministrationReport("A", "P"))
+            .thenReturn(new AiGenerationResult<>(report, usage));
+
+        worker.runAdministrationJob("J4");
+
+        verify(jobStore).save(argThat(j ->
+            j.status() == AiReportJobStatus.COMPLETED && j.administrationReport() == report
+        ));
+        verify(usageCounter).record(eq(7L), eq(usage));
+        verify(jobStore).releaseIdempotencyKey(7L, "H");
+    }
+
+    @Test
+    void runDistrictJob_aiException_savesFailedAndReleasesIdempotency() {
+        AiReportJob pending = AiReportJob.builder()
+            .jobId("J3").userId(7L).jobType(AiReportJobType.DISTRICT).requestHash("H")
+            .requestParams(Map.of("districtCode", "D", "periodCode", "P"))
+            .status(AiReportJobStatus.PENDING).createdAt(Instant.now()).build();
+        when(jobStore.findById("J3")).thenReturn(Optional.of(pending));
+        when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
+            .thenAnswer(inv -> inv.getArgument(0));
+        when(processor.generateDistrictReport(any(), any()))
+            .thenThrow(new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE));
+
+        worker.runDistrictJob("J3");
+
+        verify(jobStore).save(argThat(j ->
+            j.status() == AiReportJobStatus.FAILED
+                && AiReportErrorCode.LLM_UNAVAILABLE.getCode().equals(j.errorCode())
+        ));
+        verify(jobStore).releaseIdempotencyKey(7L, "H");
+        verify(usageCounter, never()).record(any(), any());
     }
 
     private AiReportJob pendingJob() {

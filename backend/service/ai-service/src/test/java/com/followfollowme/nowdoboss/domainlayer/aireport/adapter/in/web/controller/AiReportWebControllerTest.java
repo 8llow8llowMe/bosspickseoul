@@ -13,17 +13,24 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AiReportJobStatusResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AiReportSubmissionResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialComparisonAiReportResponse;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.exception.AiReportExceptionHandler;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportJobInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.in.AiReportWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJobType;
@@ -175,5 +182,121 @@ class AiReportWebControllerTest {
             .andExpect(jsonPath("$.dataBody.status").value("RUNNING"))
             .andExpect(jsonPath("$.dataBody.commercialReport").doesNotExist())
             .andExpect(jsonPath("$.dataBody.errorCode").doesNotExist());
+    }
+
+    @Test
+    void postCommercialComparisonReport_accepted_returns202WithJobId() throws Exception {
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL_COMPARISON, "job-cmp-1");
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.ACCEPTED)
+            .jobType(AiReportJobType.COMMERCIAL_COMPARISON)
+            .jobId("job-cmp-1")
+            .build();
+        when(aiReportWebUseCase.submitCommercialComparisonReport(eq(MEMBER_ID), any(CommercialComparisonAiQuery.class)))
+            .thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/commercials/comparisons")
+                .param("leftCommercialCode", "L1")
+                .param("rightCommercialCode", "R1")
+                .param("serviceCode", "S1"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.dataBody.submissionStatus").value("ACCEPTED"))
+            .andExpect(jsonPath("$.dataBody.jobType").value("COMMERCIAL_COMPARISON"))
+            .andExpect(jsonPath("$.dataBody.jobId").value("job-cmp-1"));
+    }
+
+    @Test
+    void postCommercialComparisonReport_cached_returns200WithEmbeddedReport() throws Exception {
+        CommercialComparisonAiReportInfo info = mock(CommercialComparisonAiReportInfo.class);
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.cachedComparison(AiReportJobType.COMMERCIAL_COMPARISON, info);
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.CACHED)
+            .jobType(AiReportJobType.COMMERCIAL_COMPARISON)
+            .comparisonReport(mock(CommercialComparisonAiReportResponse.class))
+            .build();
+        when(aiReportWebUseCase.submitCommercialComparisonReport(eq(MEMBER_ID), any(CommercialComparisonAiQuery.class)))
+            .thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/commercials/comparisons")
+                .param("leftCommercialCode", "L1")
+                .param("rightCommercialCode", "R1")
+                .param("serviceCode", "S1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.dataBody.submissionStatus").value("CACHED"))
+            .andExpect(jsonPath("$.dataBody.comparisonReport").exists());
+    }
+
+    @Test
+    void postDistrictReport_accepted_returns202WithJobId() throws Exception {
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.DISTRICT, "job-d-1");
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.ACCEPTED)
+            .jobType(AiReportJobType.DISTRICT)
+            .jobId("job-d-1")
+            .build();
+        when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("D1"), eq("20233"))).thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/districts/{districtCode}", "D1"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.dataBody.submissionStatus").value("ACCEPTED"))
+            .andExpect(jsonPath("$.dataBody.jobType").value("DISTRICT"))
+            .andExpect(jsonPath("$.dataBody.jobId").value("job-d-1"));
+    }
+
+    @Test
+    void postDistrictReport_cached_returns200WithEmbeddedReport() throws Exception {
+        DistrictAiReportInfo info = mock(DistrictAiReportInfo.class);
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.cachedDistrict(AiReportJobType.DISTRICT, info);
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.CACHED)
+            .jobType(AiReportJobType.DISTRICT)
+            .districtReport(mock(DistrictAiReportResponse.class))
+            .build();
+        when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("D1"), eq("20233"))).thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/districts/{districtCode}", "D1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.dataBody.submissionStatus").value("CACHED"))
+            .andExpect(jsonPath("$.dataBody.districtReport").exists());
+    }
+
+    @Test
+    void postAdministrationReport_accepted_returns202WithJobId() throws Exception {
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.ADMINISTRATION, "job-a-1");
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.ACCEPTED)
+            .jobType(AiReportJobType.ADMINISTRATION)
+            .jobId("job-a-1")
+            .build();
+        when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("A1"), eq("20233"))).thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/administrations/{administrationCode}", "A1"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.dataBody.submissionStatus").value("ACCEPTED"))
+            .andExpect(jsonPath("$.dataBody.jobType").value("ADMINISTRATION"))
+            .andExpect(jsonPath("$.dataBody.jobId").value("job-a-1"));
+    }
+
+    @Test
+    void postAdministrationReport_cached_returns200WithEmbeddedReport() throws Exception {
+        AdministrationAiReportInfo info = mock(AdministrationAiReportInfo.class);
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.cachedAdministration(AiReportJobType.ADMINISTRATION, info);
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.CACHED)
+            .jobType(AiReportJobType.ADMINISTRATION)
+            .administrationReport(mock(AdministrationAiReportResponse.class))
+            .build();
+        when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("A1"), eq("20233"))).thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/administrations/{administrationCode}", "A1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.dataBody.submissionStatus").value("CACHED"))
+            .andExpect(jsonPath("$.dataBody.administrationReport").exists());
     }
 }

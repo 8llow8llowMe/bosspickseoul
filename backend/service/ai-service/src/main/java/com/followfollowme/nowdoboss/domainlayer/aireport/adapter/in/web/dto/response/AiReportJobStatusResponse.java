@@ -21,6 +21,15 @@ public record AiReportJobStatusResponse(
     @Schema(description = "완료된 상권 리포트 (status=COMPLETED 이고 jobType=COMMERCIAL 일 때 채워짐)")
     CommercialAiReportResponse commercialReport,
 
+    @Schema(description = "완료된 상권 비교 리포트 (status=COMPLETED 이고 jobType=COMMERCIAL_COMPARISON 일 때 채워짐)")
+    CommercialComparisonAiReportResponse comparisonReport,
+
+    @Schema(description = "완료된 자치구 리포트 (status=COMPLETED 이고 jobType=DISTRICT 일 때 채워짐)")
+    DistrictAiReportResponse districtReport,
+
+    @Schema(description = "완료된 행정동 리포트 (status=COMPLETED 이고 jobType=ADMINISTRATION 일 때 채워짐)")
+    AdministrationAiReportResponse administrationReport,
+
     @Schema(description = "실패 사유 코드 (status=FAILED 일 때만 채워짐)", example = "AI_002")
     String errorCode,
 

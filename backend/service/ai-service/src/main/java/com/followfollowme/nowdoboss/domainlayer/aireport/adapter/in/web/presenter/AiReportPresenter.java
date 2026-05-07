@@ -76,6 +76,9 @@ public class AiReportPresenter {
             .jobType(info.jobType())
             .jobId(info.jobId())
             .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
+            .comparisonReport(info.comparisonReport() == null ? null : toCommercialComparisonResponse(info.comparisonReport()))
+            .districtReport(info.districtReport() == null ? null : toDistrictResponse(info.districtReport()))
+            .administrationReport(info.administrationReport() == null ? null : toAdministrationResponse(info.administrationReport()))
             .build();
     }
 
@@ -85,6 +88,9 @@ public class AiReportPresenter {
             .jobType(info.jobType())
             .status(info.status())
             .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
+            .comparisonReport(info.comparisonReport() == null ? null : toCommercialComparisonResponse(info.comparisonReport()))
+            .districtReport(info.districtReport() == null ? null : toDistrictResponse(info.districtReport()))
+            .administrationReport(info.administrationReport() == null ? null : toAdministrationResponse(info.administrationReport()))
             .errorCode(info.errorCode())
             .errorMessage(info.errorMessage())
             .build();

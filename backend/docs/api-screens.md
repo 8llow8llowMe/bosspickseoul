@@ -21,6 +21,8 @@
 
 > **2026-04-28 갱신**: AI 리포트 비동기 잡 모델(POST + jobId 폴링) 섹션 추가, 화면별 호출 순서에 폴링 흐름 반영. 마이페이지 / 커뮤니티 피드 / 관리자 신고 처리 호출 순서 추가.
 
+> **2026-05-08 갱신**: AI 리포트 4종(상권 / 비교 / 자치구 / 행정동) 모두 비동기 잡 모델로 통일. POST 제출 → jobId 폴링 패턴이 4개 엔드포인트 전체 적용. 동기 GET 4종은 deprecated 표시 유지 (호환성 위해 유지).
+
 ---
 
 ## auth-service
@@ -537,12 +539,15 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 
 ### AI 리포트 — 비동기 잡 모델 (권장)
 
-상권 AI 리포트는 **비동기 제출 + 폴링** 패턴을 사용한다. 캐시 hit 시 즉시 응답, miss 시 백그라운드에서 LLM 추론 후 jobId로 조회.
+AI 리포트 4종(상권 / 비교 / 자치구 / 행정동) 모두 **비동기 제출 + 폴링** 패턴을 사용한다. 캐시 hit 시 즉시 응답, miss 시 백그라운드에서 LLM 추론 후 jobId로 조회.
 
 | Method | Path | 인증 | 화면 |
 |--------|------|------|------|
 | POST | `/api/v1/ai-reports/commercials/{commercialCode}` | ✓ | 상권 상세 > "AI 분석" 탭 진입 시 즉시 호출 |
-| GET | `/api/v1/ai-reports/jobs/{jobId}` | ✓ | AI 탭 폴링 (1~2초 간격, 본인 작업만 조회 가능) |
+| POST | `/api/v1/ai-reports/commercials/comparisons` | ✓ | 상권 비교 결과 > "AI 종합 판단" 진입 시 |
+| POST | `/api/v1/ai-reports/districts/{districtCode}` | ✓ | 자치구 상세 > "AI 분석" 탭 진입 시 |
+| POST | `/api/v1/ai-reports/administrations/{administrationCode}` | ✓ | 행정동 상세 > "AI 분석" 탭 진입 시 |
+| GET | `/api/v1/ai-reports/jobs/{jobId}` | ✓ | AI 탭 폴링 (1~2초 간격, 본인 작업만 조회 가능) — 4종 공통 |
 
 **`POST /ai-reports/commercials/{commercialCode}`** — 제출
 ```
@@ -562,14 +567,23 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 { "submissionStatus": "ACCEPTED", "jobId": "01HXY..." }
 ```
 
-**`GET /ai-reports/jobs/{jobId}`** — 상태 조회
+**`GET /ai-reports/jobs/{jobId}`** — 상태 조회 (4 jobType 공통)
+
+`jobType` 별로 결과 필드가 달라지므로 프론트는 `jobType` 분기 후 해당 필드를 렌더한다:
+- `COMMERCIAL` → `commercialReport`
+- `COMMERCIAL_COMPARISON` → `comparisonReport`
+- `DISTRICT` → `districtReport`
+- `ADMINISTRATION` → `administrationReport`
 
 ```json
 // PENDING / RUNNING — 폴링 계속
-{ "status": "RUNNING" }
+{ "status": "RUNNING", "jobType": "DISTRICT" }
 
 // COMPLETED — 결과 포함, 폴링 중단
 { "status": "COMPLETED", "jobType": "COMMERCIAL", "commercialReport": { ... } }
+{ "status": "COMPLETED", "jobType": "COMMERCIAL_COMPARISON", "comparisonReport": { ... } }
+{ "status": "COMPLETED", "jobType": "DISTRICT", "districtReport": { ... } }
+{ "status": "COMPLETED", "jobType": "ADMINISTRATION", "administrationReport": { ... } }
 
 // FAILED — 폴링 중단, 에러 표시
 { "status": "FAILED", "errorCode": "AI_002", "errorMessage": "LLM 서비스를 일시적으로 사용할 수 없습니다." }
@@ -595,14 +609,16 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 
 ---
 
-### AI 리포트 — Legacy 동기 GET (deprecated, 다음 PR에서 비동기로 통일 예정)
+### AI 리포트 — Legacy 동기 GET (전부 deprecated)
+
+> 4종 모두 비동기 POST 모델로 통일됨 (2026-05-08). 동기 GET은 호환성을 위해 유지하되 신규 클라이언트는 POST 사용 권장.
 
 | Method | Path | 인증 | 화면 | 상태 |
 |--------|------|------|------|------|
-| GET | `/api/v1/ai-reports/commercials/{commercialCode}` | ✓ | 상권 상세 > "AI 분석" 탭 | **deprecated** — POST 비동기로 이전 권장 |
-| GET | `/api/v1/ai-reports/commercials/comparisons` | ✓ | 상권 비교 결과 하단 "AI 종합 판단" 섹션 | 동기 (비동기 전환 예정) |
-| GET | `/api/v1/ai-reports/districts/{districtCode}` | ✓ | 자치구 상세 > "AI 분석" 탭 | 동기 (비동기 전환 예정) |
-| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | ✓ | 행정동 상세 > "AI 분석" 탭 | 동기 (비동기 전환 예정) |
+| GET | `/api/v1/ai-reports/commercials/{commercialCode}` | ✓ | 상권 상세 > "AI 분석" 탭 | **deprecated** |
+| GET | `/api/v1/ai-reports/commercials/comparisons` | ✓ | 상권 비교 결과 하단 "AI 종합 판단" 섹션 | **deprecated** |
+| GET | `/api/v1/ai-reports/districts/{districtCode}` | ✓ | 자치구 상세 > "AI 분석" 탭 | **deprecated** |
+| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | ✓ | 행정동 상세 > "AI 분석" 탭 | **deprecated** |
 
 **`GET /ai-reports/commercials/comparisons`**
 ```
@@ -610,12 +626,12 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 &serviceCode=CS100001&periodCode=20233
 ```
 
-**동기 GET 공통 주의사항 (프론트 필수)**:
+**동기 GET 공통 주의사항 (이미 deprecated — 신규 클라이언트는 POST 사용)**:
 - Ollama/OpenAI 호출 포함 → **응답 시간 3~30초** 소요
 - 로딩 스피너 + "AI가 분석 중입니다..." 표시 필수
 - 에러 시 fallback 메시지 ("AI 분석을 일시적으로 제공하지 못하고 있습니다")
 - 분석 데이터 로드 완료 후 AI 탭은 **지연 로드(lazy load)** — 초기 화면 블로킹 금지
-- 비동기 모델 전환 후엔 동일 화면에 폴링 패턴 적용 필요
+- 신규 화면은 POST + jobId 폴링 패턴 사용
 
 ---
 
@@ -647,7 +663,11 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 ```
 1. GET /commercials/compare-preview                → 말풍선 미리보기 (즉시)
 2. GET /commercials/compare                        → 비교 상세 화면 진입 시
-3. GET /ai-reports/commercials/comparisons         → AI 판단 섹션 (지연 로드, 동기 — 비동기 전환 예정)
+3. AI 판단 섹션 (지연 로드, 비동기):
+   a. POST /ai-reports/commercials/comparisons?leftCommercialCode=&rightCommercialCode=&serviceCode=&periodCode=
+   b. 200 → 즉시 렌더 / 202 → jobId 로 폴링
+   c. GET /ai-reports/jobs/{jobId} (1~2초 간격) → COMPLETED 까지 반복
+   d. 응답의 `comparisonReport` 필드를 렌더
 ```
 
 ### 업종 선택 후 추천 시

@@ -16,10 +16,14 @@ import static org.mockito.Mockito.when;
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportJobInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.worker.AiReportWorker;
@@ -217,6 +221,167 @@ class AiReportJobProcessorTest {
         AiReportJobInfo info = processor.getJobInfo("J1", 7L);
 
         assertThat(info.commercialReport()).isSameAs(cached);
+    }
+
+    // --- 비교/자치구/행정동 비동기 잡 모델 ---
+
+    @Test
+    void submitCommercialComparisonReport_cacheHit_returnsCachedAndSkipsJobLifecycle() {
+        CommercialComparisonAiReportInfo cached = mock(CommercialComparisonAiReportInfo.class);
+        when(cache.getCommercialComparisonReport("L", "R", "S", "P")).thenReturn(Optional.of(cached));
+
+        AiReportSubmissionInfo result = processor.submitCommercialComparisonReport(
+            7L, new CommercialComparisonAiQuery("L", "R", "S", "P")
+        );
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.CACHED);
+        assertThat(result.jobType()).isEqualTo(AiReportJobType.COMMERCIAL_COMPARISON);
+        assertThat(result.comparisonReport()).isSameAs(cached);
+        assertThat(result.jobId()).isNull();
+        verifyNoInteractions(jobStore, worker);
+    }
+
+    @Test
+    void submitCommercialComparisonReport_cacheMissAndReservationWon_savesPendingThenReservesAndDispatches() {
+        when(cache.getCommercialComparisonReport("L", "R", "S", "P")).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+
+        AiReportSubmissionInfo result = processor.submitCommercialComparisonReport(
+            7L, new CommercialComparisonAiQuery("L", "R", "S", "P")
+        );
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
+        assertThat(result.jobType()).isEqualTo(AiReportJobType.COMMERCIAL_COMPARISON);
+        assertThat(result.jobId()).isNotBlank();
+        verify(jobStore).save(argThat(job ->
+            job.status() == AiReportJobStatus.PENDING
+                && job.userId() == 7L
+                && job.jobType() == AiReportJobType.COMMERCIAL_COMPARISON
+                && job.requestParams().get("leftCommercialCode").equals("L")
+                && job.requestParams().get("rightCommercialCode").equals("R")
+        ));
+        verify(worker).runCommercialComparisonJob(result.jobId());
+    }
+
+    @Test
+    void submitDistrictReport_cacheHit_returnsCachedAndSkipsJobLifecycle() {
+        DistrictAiReportInfo cached = mock(DistrictAiReportInfo.class);
+        when(cache.getDistrictReport("D", "P")).thenReturn(Optional.of(cached));
+
+        AiReportSubmissionInfo result = processor.submitDistrictReport(7L, "D", "P");
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.CACHED);
+        assertThat(result.jobType()).isEqualTo(AiReportJobType.DISTRICT);
+        assertThat(result.districtReport()).isSameAs(cached);
+        verifyNoInteractions(jobStore, worker);
+    }
+
+    @Test
+    void submitDistrictReport_cacheMissAndReservationWon_dispatchesDistrictWorker() {
+        when(cache.getDistrictReport("D", "P")).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+
+        AiReportSubmissionInfo result = processor.submitDistrictReport(7L, "D", "P");
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
+        assertThat(result.jobType()).isEqualTo(AiReportJobType.DISTRICT);
+        verify(jobStore).save(argThat(job ->
+            job.jobType() == AiReportJobType.DISTRICT
+                && job.requestParams().get("districtCode").equals("D")
+                && job.requestParams().get("periodCode").equals("P")
+        ));
+        verify(worker).runDistrictJob(result.jobId());
+    }
+
+    @Test
+    void submitAdministrationReport_cacheHit_returnsCachedAndSkipsJobLifecycle() {
+        AdministrationAiReportInfo cached = mock(AdministrationAiReportInfo.class);
+        when(cache.getAdministrationReport("A", "P")).thenReturn(Optional.of(cached));
+
+        AiReportSubmissionInfo result = processor.submitAdministrationReport(7L, "A", "P");
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.CACHED);
+        assertThat(result.jobType()).isEqualTo(AiReportJobType.ADMINISTRATION);
+        assertThat(result.administrationReport()).isSameAs(cached);
+        verifyNoInteractions(jobStore, worker);
+    }
+
+    @Test
+    void submitAdministrationReport_cacheMissAndReservationWon_dispatchesAdministrationWorker() {
+        when(cache.getAdministrationReport("A", "P")).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+
+        AiReportSubmissionInfo result = processor.submitAdministrationReport(7L, "A", "P");
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
+        assertThat(result.jobType()).isEqualTo(AiReportJobType.ADMINISTRATION);
+        verify(jobStore).save(argThat(job ->
+            job.jobType() == AiReportJobType.ADMINISTRATION
+                && job.requestParams().get("administrationCode").equals("A")
+        ));
+        verify(worker).runAdministrationJob(result.jobId());
+    }
+
+    @Test
+    void getJobInfo_completedComparison_returnsEmbeddedReport() {
+        CommercialComparisonAiReportInfo embedded = mock(CommercialComparisonAiReportInfo.class);
+        AiReportJob done = AiReportJob.builder()
+            .jobId("J2").userId(7L).jobType(AiReportJobType.COMMERCIAL_COMPARISON).requestHash("H")
+            .requestParams(Map.of(
+                "leftCommercialCode", "L",
+                "rightCommercialCode", "R",
+                "serviceCode", "S",
+                "periodCode", "P"
+            ))
+            .status(AiReportJobStatus.COMPLETED)
+            .createdAt(Instant.now()).completedAt(Instant.now())
+            .comparisonReport(embedded)
+            .build();
+        when(jobStore.findById("J2")).thenReturn(Optional.of(done));
+
+        AiReportJobInfo info = processor.getJobInfo("J2", 7L);
+
+        assertThat(info.status()).isEqualTo(AiReportJobStatus.COMPLETED);
+        assertThat(info.jobType()).isEqualTo(AiReportJobType.COMMERCIAL_COMPARISON);
+        assertThat(info.comparisonReport()).isSameAs(embedded);
+        assertThat(info.commercialReport()).isNull();
+        verifyNoInteractions(cache);
+    }
+
+    @Test
+    void getJobInfo_completedDistrictWithoutEmbedded_fallsBackToDistrictCache() {
+        AiReportJob done = AiReportJob.builder()
+            .jobId("J3").userId(7L).jobType(AiReportJobType.DISTRICT).requestHash("H")
+            .requestParams(Map.of("districtCode", "D", "periodCode", "P"))
+            .status(AiReportJobStatus.COMPLETED)
+            .createdAt(Instant.now()).completedAt(Instant.now())
+            .build();
+        DistrictAiReportInfo cached = mock(DistrictAiReportInfo.class);
+        when(jobStore.findById("J3")).thenReturn(Optional.of(done));
+        when(cache.getDistrictReport("D", "P")).thenReturn(Optional.of(cached));
+
+        AiReportJobInfo info = processor.getJobInfo("J3", 7L);
+
+        assertThat(info.districtReport()).isSameAs(cached);
+        assertThat(info.commercialReport()).isNull();
+    }
+
+    @Test
+    void getJobInfo_completedAdministrationWithEmbedded_returnsItWithoutCacheLookup() {
+        AdministrationAiReportInfo embedded = mock(AdministrationAiReportInfo.class);
+        AiReportJob done = AiReportJob.builder()
+            .jobId("J4").userId(7L).jobType(AiReportJobType.ADMINISTRATION).requestHash("H")
+            .requestParams(Map.of("administrationCode", "A", "periodCode", "P"))
+            .status(AiReportJobStatus.COMPLETED)
+            .createdAt(Instant.now()).completedAt(Instant.now())
+            .administrationReport(embedded)
+            .build();
+        when(jobStore.findById("J4")).thenReturn(Optional.of(done));
+
+        AiReportJobInfo info = processor.getJobInfo("J4", 7L);
+
+        assertThat(info.administrationReport()).isSameAs(embedded);
+        verifyNoInteractions(cache);
     }
 
     private AiReportJob pendingJob(long userId, Instant createdAt) {

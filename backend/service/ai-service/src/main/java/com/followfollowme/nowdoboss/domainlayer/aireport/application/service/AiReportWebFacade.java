@@ -50,6 +50,21 @@ public class AiReportWebFacade implements AiReportWebUseCase {
     }
 
     @Override
+    public AiReportSubmissionInfo submitCommercialComparisonReport(Long userId, CommercialComparisonAiQuery query) {
+        return aiReportJobProcessor.submitCommercialComparisonReport(userId, query);
+    }
+
+    @Override
+    public AiReportSubmissionInfo submitDistrictReport(Long userId, String districtCode, String periodCode) {
+        return aiReportJobProcessor.submitDistrictReport(userId, districtCode, periodCode);
+    }
+
+    @Override
+    public AiReportSubmissionInfo submitAdministrationReport(Long userId, String administrationCode, String periodCode) {
+        return aiReportJobProcessor.submitAdministrationReport(userId, administrationCode, periodCode);
+    }
+
+    @Override
     public AiReportJobInfo getJobInfo(String jobId, Long userId) {
         return aiReportJobProcessor.getJobInfo(jobId, userId);
     }
