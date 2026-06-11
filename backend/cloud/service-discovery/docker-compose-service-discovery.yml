@@ -2,7 +2,7 @@ x-service-discovery-environment: &service_discovery_environment
   TIME_ZONE: ${TIME_ZONE}
   SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
   SPRING_APPLICATION_NAME: ${SERVICE_DISCOVERY_APP_NAME}
-  SERVICE_DISCOVERY_PORT_INTERNAL: ${SERVICE_DISCOVERY_PORT_INTERNAL}
+  SERVICE_DISCOVERY_PORT: ${SERVICE_DISCOVERY_PORT}
 
 x-logging: &default-logging
   driver: "json-file"
@@ -18,7 +18,7 @@ services:
       context: .
       dockerfile: service-discovery.Dockerfile
     ports:
-      - "${SERVICE_DISCOVERY_PORT_DEV}:${SERVICE_DISCOVERY_PORT_INTERNAL}" # host:container
+      - "${SERVICE_DISCOVERY_PORT_DEV}:${SERVICE_DISCOVERY_PORT}" # host:container
     environment:
       <<: *service_discovery_environment
     restart: unless-stopped
@@ -34,7 +34,7 @@ services:
       context: .
       dockerfile: service-discovery.Dockerfile
     ports:
-      - "${SERVICE_DISCOVERY_PORT_PROD}:${SERVICE_DISCOVERY_PORT_INTERNAL}" # host:container
+      - "${SERVICE_DISCOVERY_PORT_PROD}:${SERVICE_DISCOVERY_PORT}" # host:container
     environment:
       <<: *service_discovery_environment
     restart: unless-stopped

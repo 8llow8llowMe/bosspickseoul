@@ -1,0 +1,51 @@
+server:
+  port: ${AI_SERVICE_PORT}
+  shutdown: graceful
+
+spring:
+  cloud:
+    config:
+      enabled: false
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${INTERNAL_CLIENT_CONNECT_TIMEOUT_MS}
+            readTimeout: ${INTERNAL_CLIENT_READ_TIMEOUT_MS}
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${SERVICE_DISCOVERY_HOSTNAME}:${SERVICE_DISCOVERY_PORT}/eureka/
+
+app:
+  security:
+    jwt:
+      resource:
+        access-key: ${JWT_ACCESS_KEY}
+
+infra:
+  redis:
+    mode: ${REDIS_MODE}
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
+    key-prefix: ${REDIS_KEY_PREFIX}
+
+ai:
+  report:
+    cache:
+      ttl-seconds: ${AI_REPORT_CACHE_TTL_SECONDS}
+    job:
+      ttl-seconds: ${AI_REPORT_JOB_TTL_SECONDS}
+      usage-ttl-seconds: ${AI_REPORT_JOB_USAGE_TTL_SECONDS}
+      pending-timeout-seconds: ${AI_REPORT_JOB_PENDING_TIMEOUT_SECONDS}
+      running-timeout-seconds: ${AI_REPORT_JOB_RUNNING_TIMEOUT_SECONDS}
+  llm:
+    provider: ${AI_LLM_PROVIDER}
+    base-url: ${AI_LLM_BASE_URL}
+    api-key: ${AI_LLM_API_KEY}
+    model: ${AI_LLM_MODEL}
+    timeout-ms: ${AI_LLM_TIMEOUT_MS}
+    max-tokens: ${AI_LLM_MAX_TOKENS}
+    temperature: ${AI_LLM_TEMPERATURE}
