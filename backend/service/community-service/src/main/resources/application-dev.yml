@@ -1,5 +1,5 @@
 server:
-  port: ${DISTRICT_SERVICE_PORT}
+  port: ${COMMUNITY_SERVICE_PORT}
   shutdown: graceful
 
 spring:
@@ -8,7 +8,7 @@ spring:
       enabled: false
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DISTRICT_DB_URL}
+    url: ${COMMUNITY_DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   jpa:
@@ -30,3 +30,13 @@ eureka:
   client:
     serviceUrl:
       defaultZone: http://${SERVICE_DISCOVERY_HOSTNAME}:${SERVICE_DISCOVERY_PORT}/eureka/
+
+app:
+  security:
+    jwt:
+      resource:
+        access-key: ${JWT_ACCESS_KEY}
+
+snowflake:
+  datacenter-id: ${SNOWFLAKE_DATACENTER_ID}
+  worker-id: ${SNOWFLAKE_WORKER_ID}

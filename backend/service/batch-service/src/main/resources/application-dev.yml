@@ -1,5 +1,5 @@
 server:
-  port: ${DISTRICT_SERVICE_PORT}
+  port: ${BATCH_SERVICE_PORT}
   shutdown: graceful
 
 spring:
@@ -8,7 +8,7 @@ spring:
       enabled: false
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DISTRICT_DB_URL}
+    url: ${BATCH_DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   jpa:
@@ -25,6 +25,16 @@ spring:
         jdbc:
           batch_size: 100
         default_batch_fetch_size: 100
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
+
+batch:
+  area-boundary:
+    import:
+      source-dir: ${BATCH_AREA_BOUNDARY_IMPORT_SOURCE_DIR}
 
 eureka:
   client:

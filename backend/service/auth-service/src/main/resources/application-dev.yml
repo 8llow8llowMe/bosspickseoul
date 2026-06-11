@@ -1,5 +1,5 @@
 server:
-  port: ${DISTRICT_SERVICE_PORT}
+  port: ${AUTH_SERVICE_PORT}
   shutdown: graceful
 
 spring:
@@ -8,7 +8,7 @@ spring:
       enabled: false
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DISTRICT_DB_URL}
+    url: ${AUTH_DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   jpa:
@@ -30,3 +30,21 @@ eureka:
   client:
     serviceUrl:
       defaultZone: http://${SERVICE_DISCOVERY_HOSTNAME}:${SERVICE_DISCOVERY_PORT}/eureka/
+
+infra:
+  redis:
+    mode: ${REDIS_MODE}
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
+    key-prefix: ${REDIS_KEY_PREFIX}
+
+jwt:
+  access-key: ${JWT_ACCESS_KEY}
+  refresh-key: ${JWT_REFRESH_KEY}
+  access-expiration: ${JWT_ACCESS_EXPIRATION}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+
+snowflake:
+  datacenter-id: ${SNOWFLAKE_DATACENTER_ID}
+  worker-id: ${SNOWFLAKE_WORKER_ID}
