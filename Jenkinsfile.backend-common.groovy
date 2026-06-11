@@ -52,7 +52,7 @@ void checkoutSource() {
 Map<String, Object> resolveVaultSpec(Map<String, String> config, Map<String, String> ctx) {
     String projectSlug = params.PROJECT_SLUG?.trim() ?: 'bosspickseoul'
     String vaultSecretRoot = params.VAULT_SECRET_ROOT?.trim() ?: "kv/${projectSlug}/backend"
-    String vaultSecretPath = "${vaultSecretRoot}/${ctx.deployEnv}/${config.serviceGroup}/${config.serviceName}"
+    String vaultSecretPath = params.VAULT_SECRET_PATH?.trim() ?: "${vaultSecretRoot}/${ctx.deployEnv}/env"
     Integer engineVersion = (params.VAULT_ENGINE_VERSION ?: '2') as Integer
 
     return [
@@ -126,7 +126,12 @@ void run(Map<String, String> config) {
             string(
                 name: 'VAULT_SECRET_ROOT',
                 defaultValue: '',
-                description: 'Vault KV 비밀 경로의 공통 루트입니다. 비워두면 kv/${PROJECT_SLUG}/backend 규칙을 자동 사용합니다.'
+                description: 'Vault KV 비밀 경로의 공통 루트입니다. 비워두면 kv/${PROJECT_SLUG}/backend 를 사용하고 {root}/{env}/env 로 조회합니다.'
+            ),
+            string(
+                name: 'VAULT_SECRET_PATH',
+                defaultValue: '',
+                description: 'Vault secret 전체 경로를 직접 지정합니다. 입력하면 VAULT_SECRET_ROOT 대신 이 값을 그대로 사용합니다.'
             ),
             string(
                 name: 'VAULT_ENV_KEY',
@@ -171,7 +176,8 @@ void run(Map<String, String> config) {
                 echo "배포 경로 규칙: \$HOME/${params.DEPLOY_BASE_PARENT}/${params.PROJECT_SLUG}/${params.DEPLOY_APP_DIR}/..."
                 if (ctx.deployEnv in ['dev', 'prod']) {
                     String resolvedVaultRoot = params.VAULT_SECRET_ROOT?.trim() ?: "kv/${params.PROJECT_SLUG}/backend"
-                    echo "Vault 경로 규칙: ${resolvedVaultRoot}/${ctx.deployEnv}/${config.serviceGroup}/${config.serviceName}"
+                    String resolvedVaultPath = params.VAULT_SECRET_PATH?.trim() ?: "${resolvedVaultRoot}/${ctx.deployEnv}/env"
+                    echo "Vault secret path: ${resolvedVaultPath}"
                 }
                 echo "================="
             } finally {
