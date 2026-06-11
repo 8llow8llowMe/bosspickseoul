@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurperClassic
+
 Map<String, String> resolveGitContext() {
     String requestedTargetBranch = params.TARGET_BRANCH?.trim()
     String requestedPrSha = params.PR_SHA?.trim()
@@ -26,7 +28,7 @@ Map<String, String> resolveGitContext() {
 
 void checkoutSource() {
     if (params.PR_SHA?.trim()) {
-        echo "명시적으로 지정한 PR 커밋 SHA를 체크아웃합니다: ${params.PR_SHA}"
+        echo "요청한 PR 커밋 SHA를 체크아웃합니다: ${params.PR_SHA}"
         checkout([
             $class: 'GitSCM',
             branches: [[name: params.PR_SHA.trim()]],
@@ -38,7 +40,7 @@ void checkoutSource() {
         return
     }
 
-    echo '멀티브랜치 파이프라인의 기본 SCM 컨텍스트로 체크아웃합니다.'
+    echo '멀티브랜치 파이프라인 기본 SCM 컨텍스트로 체크아웃합니다.'
     checkout([
         $class: 'GitSCM',
         branches: scm.branches,
@@ -56,21 +58,135 @@ Map<String, Object> resolveVaultSpec(Map<String, String> config, Map<String, Str
     Integer engineVersion = (params.VAULT_ENGINE_VERSION ?: '2') as Integer
 
     return [
-        configuration: [
-            vaultCredentialId: params.VAULT_CREDENTIAL_ID?.trim(),
-            engineVersion    : engineVersion
-        ],
-        secrets: [[
-            path        : vaultSecretPath,
-            engineVersion: engineVersion,
-            secretValues: [[
-                envVar    : 'VAULT_ENV_FILE_CONTENT',
-                vaultKey  : params.VAULT_ENV_KEY?.trim() ?: 'env_file',
-                isRequired: true
-            ]]
-        ]],
-        path: vaultSecretPath
+        path         : vaultSecretPath,
+        // KV v2는 mount path와 secret path 사이에 /data/가 필요합니다.
+        apiPath      : resolveVaultApiPath(vaultSecretPath, engineVersion),
+        engineVersion: engineVersion
     ]
+}
+
+String resolveVaultApiPath(String vaultSecretPath, Integer engineVersion) {
+    if (engineVersion != 2) {
+        return vaultSecretPath
+    }
+
+    List<String> parts = vaultSecretPath.tokenize('/')
+    if (parts.size() < 2) {
+        error "Vault KV v2 path must include mount and secret path: ${vaultSecretPath}"
+    }
+
+    String mountPath = parts.first()
+    String secretPath = parts.drop(1).join('/')
+    return "${mountPath}/data/${secretPath}"
+}
+
+Map<String, String> readVaultSecretValues(Map<String, Object> vaultSpec) {
+    String vaultAddr = params.VAULT_ADDR?.trim()
+    String roleIdCredentialId = params.VAULT_ROLE_ID_CREDENTIAL_ID?.trim()
+    String secretIdCredentialId = params.VAULT_SECRET_ID_CREDENTIAL_ID?.trim()
+    String authPath = params.VAULT_AUTH_PATH?.trim() ?: 'approle'
+
+    if (!vaultAddr) {
+        error 'VAULT_ADDR is required.'
+    }
+    if (!roleIdCredentialId || !secretIdCredentialId) {
+        error 'VAULT_ROLE_ID_CREDENTIAL_ID and VAULT_SECRET_ID_CREDENTIAL_ID are required.'
+    }
+
+    String normalizedVaultAddr = vaultAddr.replaceAll('/+$', '')
+    String loginResponse = ''
+
+    // 배포 agent가 KV 전체 secret을 읽을 수 있도록 AppRole로 로그인합니다.
+    withCredentials([
+        string(credentialsId: roleIdCredentialId, variable: 'VAULT_ROLE_ID'),
+        string(credentialsId: secretIdCredentialId, variable: 'VAULT_SECRET_ID')
+    ]) {
+        withEnv([
+            "VAULT_ADDR=${normalizedVaultAddr}",
+            "VAULT_AUTH_PATH=${authPath}"
+        ]) {
+            loginResponse = sh(
+                returnStdout: true,
+                script: '''#!/usr/bin/env bash
+set +x
+set -euo pipefail
+
+login_payload=$(printf '{"role_id":"%s","secret_id":"%s"}' "$VAULT_ROLE_ID" "$VAULT_SECRET_ID")
+curl --fail --silent --show-error \
+  --request POST \
+  --data "$login_payload" \
+  "$VAULT_ADDR/v1/auth/$VAULT_AUTH_PATH/login"
+'''
+            ).trim()
+        }
+    }
+
+    // Vault 로그인 응답에서 이후 조회에 사용할 client_token만 꺼냅니다.
+    Map loginPayload = new JsonSlurperClassic().parseText(loginResponse) as Map
+    String clientToken = loginPayload?.auth?.client_token
+    if (!clientToken) {
+        error 'Vault AppRole login did not return client_token.'
+    }
+
+    String secretResponse = ''
+    // Jenkinsfile에 key 목록을 두지 않고 secret path 전체를 읽습니다.
+    withEnv([
+        "VAULT_ADDR=${normalizedVaultAddr}",
+        "VAULT_CLIENT_TOKEN=${clientToken}",
+        "VAULT_API_PATH=${vaultSpec.apiPath}"
+    ]) {
+        secretResponse = sh(
+            returnStdout: true,
+            script: '''#!/usr/bin/env bash
+set +x
+set -euo pipefail
+
+curl --fail --silent --show-error \
+  --header "X-Vault-Token: $VAULT_CLIENT_TOKEN" \
+  "$VAULT_ADDR/v1/$VAULT_API_PATH"
+'''
+        ).trim()
+    }
+
+    // KV v2 응답은 data.data 아래에 실제 환경변수 key-value가 들어 있습니다.
+    Map secretPayload = new JsonSlurperClassic().parseText(secretResponse) as Map
+    Map rawSecretValues = [:]
+    if (vaultSpec.engineVersion == 2) {
+        rawSecretValues = secretPayload?.data?.data as Map
+    } else {
+        rawSecretValues = secretPayload?.data as Map
+    }
+
+    if (!rawSecretValues) {
+        error "Vault secret has no key-value data: ${vaultSpec.path}"
+    }
+
+    Map<String, String> secretValues = [:]
+    rawSecretValues.each { key, value ->
+        // Docker Compose --env-file이 읽을 수 있는 KEY=value 형식만 허용합니다.
+        String envKey = key.toString()
+        if (!(envKey ==~ /[A-Za-z_][A-Za-z0-9_]*/)) {
+            error "Vault key is not a valid env var name: ${envKey}"
+        }
+
+        String envValue = value == null ? '' : value.toString()
+        if (envValue.contains('\n') || envValue.contains('\r')) {
+            error "Vault value for ${envKey} contains a newline and cannot be rendered as a simple .env entry."
+        }
+
+        secretValues[envKey] = envValue
+    }
+
+    return secretValues
+}
+
+String renderEnvFile(Map<String, String> secretValues) {
+    // 매번 같은 .env.runtime이 생성되도록 key를 정렬해서 렌더링합니다.
+    return secretValues
+        .keySet()
+        .sort()
+        .collect { key -> "${key}=${secretValues[key]}" }
+        .join('\n') + '\n'
 }
 
 void run(Map<String, String> config) {
@@ -81,22 +197,22 @@ void run(Map<String, String> config) {
             string(
                 name: 'TARGET_BRANCH',
                 defaultValue: '',
-                description: 'PR 대상 브랜치를 수동으로 지정합니다. 비워두면 CHANGE_TARGET 또는 BRANCH_NAME을 자동으로 사용합니다.'
+                description: '배포 환경을 판별할 대상 브랜치입니다. 비워두면 CHANGE_TARGET 또는 BRANCH_NAME을 사용합니다.'
             ),
             string(
                 name: 'PR_SHA',
                 defaultValue: '',
-                description: '체크아웃할 특정 PR 커밋 SHA를 직접 지정합니다. 비워두면 멀티브랜치 기본 체크아웃을 사용합니다.'
+                description: '체크아웃할 커밋 SHA입니다. 비워두면 멀티브랜치 기본 체크아웃을 사용합니다.'
             ),
             string(
                 name: 'PR_NUMBER',
                 defaultValue: '',
-                description: '로그 확인용 PR 번호입니다. 선택 입력입니다.'
+                description: '표시와 로그 확인용 PR 번호입니다. 선택 입력입니다.'
             ),
             booleanParam(
                 name: 'RUN_TESTS',
                 defaultValue: true,
-                description: 'bootJar 빌드 전에 해당 모듈 테스트를 먼저 실행합니다.'
+                description: 'bootJar 전에 대상 모듈 테스트를 실행할지 여부입니다.'
             ),
             booleanParam(
                 name: 'SKIP_DEPLOY',
@@ -106,47 +222,57 @@ void run(Map<String, String> config) {
             string(
                 name: 'DEPLOY_BASE_PARENT',
                 defaultValue: 'deploy',
-                description: '배포 서버에서 사용자 홈 아래 사용할 상위 디렉터리입니다. 예: deploy'
+                description: '배포 서버의 사용자 홈 아래에 둘 최상위 디렉터리명입니다.'
             ),
             string(
                 name: 'PROJECT_SLUG',
                 defaultValue: 'bosspickseoul',
-                description: '배포 서버 디렉터리와 Vault 경로에 사용할 프로젝트 식별자입니다.'
+                description: '배포 디렉터리와 Vault 경로에 사용할 프로젝트 식별자입니다.'
             ),
             string(
                 name: 'DEPLOY_APP_DIR',
                 defaultValue: 'backend',
-                description: '프로젝트 디렉터리 아래 애플리케이션 루트 폴더명입니다.'
+                description: '프로젝트 배포 디렉터리 아래의 애플리케이션 루트 디렉터리명입니다.'
             ),
             string(
-                name: 'VAULT_CREDENTIAL_ID',
-                defaultValue: 'bosspickseoul-vault-approle',
-                description: 'Jenkins 에 등록된 Vault 인증 Credential ID입니다.'
+                name: 'VAULT_ADDR',
+                defaultValue: 'https://vault.8llow8llowme.com',
+                description: 'Vault API 주소입니다.'
+            ),
+            string(
+                name: 'VAULT_AUTH_PATH',
+                defaultValue: 'approle',
+                description: 'Vault AppRole 인증 mount path입니다.'
+            ),
+            string(
+                name: 'VAULT_ROLE_ID_CREDENTIAL_ID',
+                defaultValue: 'bosspickseoul-vault-role-id',
+                description: 'Vault AppRole role_id를 담은 Jenkins Secret text Credential ID입니다.'
+            ),
+            string(
+                name: 'VAULT_SECRET_ID_CREDENTIAL_ID',
+                defaultValue: 'bosspickseoul-vault-secret-id',
+                description: 'Vault AppRole secret_id를 담은 Jenkins Secret text Credential ID입니다.'
             ),
             string(
                 name: 'VAULT_SECRET_ROOT',
                 defaultValue: '',
-                description: 'Vault KV 비밀 경로의 공통 루트입니다. 비워두면 kv/${PROJECT_SLUG}/backend 를 사용하고 {root}/{env}/env 로 조회합니다.'
+                description: 'Vault KV secret 공통 루트입니다. 비워두면 kv/${PROJECT_SLUG}/backend를 사용하고 {root}/{env}/env를 조회합니다.'
             ),
             string(
                 name: 'VAULT_SECRET_PATH',
                 defaultValue: '',
-                description: 'Vault secret 전체 경로를 직접 지정합니다. 입력하면 VAULT_SECRET_ROOT 대신 이 값을 그대로 사용합니다.'
-            ),
-            string(
-                name: 'VAULT_ENV_KEY',
-                defaultValue: 'env_file',
-                description: 'Vault secret 안에서 전체 env 파일 내용을 담고 있는 key 이름입니다.'
+                description: 'Vault secret 전체 경로입니다. 입력하면 VAULT_SECRET_ROOT보다 우선합니다.'
             ),
             string(
                 name: 'VAULT_ENGINE_VERSION',
                 defaultValue: '2',
-                description: 'HashiCorp Vault KV 엔진 버전입니다. 기본값은 2입니다.'
+                description: 'HashiCorp Vault KV 엔진 버전입니다.'
             ),
             string(
                 name: 'DEPLOY_LOCK_NAME',
                 defaultValue: 'backend-1-deploy',
-                description: 'backend-1 서버 배포를 직렬화할 때 사용할 Lockable Resource 이름입니다.'
+                description: '백엔드 배포를 직렬화할 때 사용할 Lockable Resource 이름입니다.'
             )
         ])
     ])
@@ -162,15 +288,15 @@ void run(Map<String, String> config) {
 
                 currentBuild.displayName = "#${env.BUILD_NUMBER} ${config.serviceName} ${env.BRANCH_NAME ?: 'n/a'}"
 
-                echo "=== 빌드 정보 ==="
+                echo '=== 빌드 문맥 ==='
                 echo "현재 브랜치: ${env.BRANCH_NAME ?: '없음'}"
                 echo "서비스 그룹: ${config.serviceGroup}"
                 echo "서비스 이름: ${config.serviceName}"
-                echo "요청된 대상 브랜치: ${ctx.requestedTargetBranch ?: '없음'}"
-                echo "실제 적용 대상 브랜치: ${ctx.effectiveTargetBranch ?: '없음'}"
+                echo "요청 대상 브랜치: ${ctx.requestedTargetBranch ?: '없음'}"
+                echo "적용 대상 브랜치: ${ctx.effectiveTargetBranch ?: '없음'}"
                 echo "PR SHA: ${ctx.requestedPrSha ?: '없음'}"
                 echo "PR 번호: ${ctx.requestedPrNumber ?: '없음'}"
-                echo "배포 환경 판정: ${ctx.deployEnv}"
+                echo "배포 환경: ${ctx.deployEnv}"
                 echo "빌드 에이전트 라벨: ${config.buildAgentLabel}"
                 echo "배포 에이전트 라벨: ${config.deployAgentLabel}"
                 echo "배포 경로 규칙: \$HOME/${params.DEPLOY_BASE_PARENT}/${params.PROJECT_SLUG}/${params.DEPLOY_APP_DIR}/..."
@@ -179,7 +305,7 @@ void run(Map<String, String> config) {
                     String resolvedVaultPath = params.VAULT_SECRET_PATH?.trim() ?: "${resolvedVaultRoot}/${ctx.deployEnv}/env"
                     echo "Vault secret path: ${resolvedVaultPath}"
                 }
-                echo "================="
+                echo '================='
             } finally {
                 deleteDir()
             }
@@ -225,17 +351,10 @@ ${gradleCommand}
                         unstash "bundle-${config.serviceName}"
 
                         Map<String, Object> vaultSpec = resolveVaultSpec(config, ctx)
-                        if (!vaultSpec.configuration.vaultCredentialId) {
-                            error 'Vault 인증 Credential ID가 비어 있습니다.'
-                        }
+                        Map<String, String> vaultValues = readVaultSecretValues(vaultSpec)
+                        writeFile file: '.env.runtime', text: renderEnvFile(vaultValues)
 
-                        withVault([
-                            configuration: vaultSpec.configuration,
-                            vaultSecrets : vaultSpec.secrets
-                        ]) {
-                            writeFile file: '.env.runtime', text: env.VAULT_ENV_FILE_CONTENT
-
-                            sh """#!/usr/bin/env bash
+                        sh """#!/usr/bin/env bash
 set -euo pipefail
 
 SERVICE_DIR="\${HOME}/${params.DEPLOY_BASE_PARENT}/${params.PROJECT_SLUG}/${params.DEPLOY_APP_DIR}/${config.deploySubdir}"
@@ -269,7 +388,6 @@ done
 docker logs --tail 200 ${config.containerNamePrefix}-${ctx.deployEnv} || true
 exit 1
 """
-                        }
                     } finally {
                         deleteDir()
                     }
