@@ -1,0 +1,516 @@
+# Jenkins 백엔드 개발 배포 설정 가이드
+
+이 문서는 BossPickSeoul 백엔드 개발 서버 컨테이너를 GitHub, Jenkins, Vault, Docker Compose로 배포하기 위한 Web UI 설정 절차를 정리한다.
+
+실제 secret 값은 문서나 Git에 남기지 않는다. GitHub App private key, Vault AppRole `role_id`, Vault AppRole `secret_id`, DB/JWT/Redis 비밀번호는 Jenkins Credential 또는 Vault에만 저장한다.
+
+## 1. 전체 배포 흐름
+
+백엔드 개발 배포는 아래 흐름으로 동작한다.
+
+```text
+GitHub push 또는 pull_request
+-> GitHub webhook
+-> Jenkins Multibranch Pipeline
+-> builder agent에서 Gradle test/bootJar
+-> backend deploy agent에서 Vault 조회
+-> .env.runtime 생성
+-> docker compose up -d --build
+```
+
+현재 Jenkinsfile은 아래 기준으로 배포 환경을 판단한다.
+
+| GitHub/Jenkins 조건 | Jenkins 변수 | 배포 환경 |
+| --- | --- | --- |
+| `feature/*` -> `develop` PR | `CHANGE_TARGET=develop` | `dev` |
+| `develop` 브랜치 push/merge | `BRANCH_NAME=develop` | `dev` |
+| `main` 브랜치 push/merge | `BRANCH_NAME=main` | `prod` |
+| 그 외 브랜치 | 기타 | 배포 생략 |
+
+현재 코드 기준으로 `feature -> develop` PR도 `dev` 배포 대상이다. PR에서는 빌드/테스트만 수행하고 merge 후에만 dev 배포하고 싶다면 Jenkinsfile에 `env.CHANGE_ID` 조건으로 배포 생략 로직을 추가해야 한다.
+
+## 2. 필요한 Jenkins 플러그인
+
+Jenkins 관리 화면에서 아래 플러그인을 설치한다.
+
+| 플러그인 | 용도 |
+| --- | --- |
+| `Pipeline` | Jenkinsfile 실행 기본 기능 |
+| `Pipeline: Multibranch` | 브랜치/PR별 Jenkinsfile 자동 발견 |
+| `Git` | Git checkout |
+| `GitHub` | GitHub webhook/status 연동 |
+| `GitHub Branch Source` | GitHub repository 기반 Multibranch Pipeline |
+| `Credentials Binding` | `withCredentials`로 credential을 환경변수에 바인딩 |
+| `Lockable Resources` | 동일 배포 대상에 대한 동시 배포 방지 |
+| `Timestamper` | 배포 로그 시간 확인용 |
+
+`HashiCorp Vault` 플러그인은 현재 백엔드 Jenkinsfile에서 필수는 아니다. 현재 파이프라인은 `withVault`가 아니라 `withCredentials + curl`로 Vault HTTP API를 직접 호출한다.
+
+## 3. Jenkins node와 label 설정
+
+Jenkins Web UI에서 아래 node label을 맞춘다.
+
+```text
+Jenkins 관리
+-> Nodes
+-> 대상 node
+-> Configure
+```
+
+builder agent는 빌드와 테스트를 담당한다.
+
+| 항목 | 추천값 |
+| --- | --- |
+| Node 이름 | `ai-host-builder` 또는 `builder-agent` |
+| Number of executors | `1` 또는 `2` |
+| Labels | `builder` |
+| Usage | `Only build jobs with label expressions matching this node` |
+
+backend deploy agent는 실제 개발 서버 컨테이너 배포를 담당한다.
+
+| 항목 | 추천값 |
+| --- | --- |
+| Node 이름 | `backend-dev-agent` |
+| Number of executors | `1` |
+| Labels | `deploy-target backend-1` |
+| Usage | `Only build jobs with label expressions matching this node` |
+
+deploy agent는 동시에 여러 배포가 겹치지 않도록 executor를 `1`로 유지한다. 현재 Jenkinsfile은 아래 label expression을 사용한다.
+
+```groovy
+buildAgentLabel  : 'builder'
+deployAgentLabel : 'deploy-target && backend-1'
+```
+
+## 4. GitHub webhook 설정
+
+GitHub repository에서 webhook을 등록한다.
+
+```text
+Repository
+-> Settings
+-> Webhooks
+-> Add webhook
+```
+
+설정값은 아래와 같다.
+
+| 항목 | 값 |
+| --- | --- |
+| Payload URL | `https://console.jenkins.8llow8llowme.com/github-webhook/` |
+| Content type | `application/json` |
+| SSL verification | `Enable SSL verification` |
+| Events | `Pushes`, `Pull requests` |
+| Active | checked |
+
+`Payload URL` 끝의 `/`를 반드시 포함한다. `/github-webhook`처럼 trailing slash가 없으면 Jenkins 또는 reverse proxy가 `302` redirect를 반환할 수 있다.
+
+Recent Deliveries에서 `Redeliver`를 눌렀을 때 `200` 계열 응답이면 정상이다.
+
+## 5. GitHub App 생성
+
+조직 repository를 Jenkins가 읽어야 하므로 GitHub App은 organization 소유로 만든다.
+
+```text
+GitHub
+-> 8llow8llowMe organization
+-> Settings
+-> Developer settings
+-> GitHub Apps
+-> New GitHub App
+```
+
+기본 정보는 아래처럼 입력한다.
+
+| 항목 | 값 |
+| --- | --- |
+| GitHub App name | `followfollowme-jenkins` |
+| Homepage URL | `https://console.jenkins.8llow8llowme.com/` |
+| Webhook URL | `https://console.jenkins.8llow8llowme.com/github-webhook/` |
+| Webhook secret | 선택. 운영에서는 설정 권장 |
+
+Repository permissions는 최소 아래 권한을 사용한다.
+
+| 권한 | 값 |
+| --- | --- |
+| Contents | `Read-only` |
+| Metadata | `Read-only` |
+| Pull requests | `Read-only` |
+| Commit statuses | `Read and write` |
+| Checks | `Read and write` |
+
+Subscribe to events는 아래를 선택한다.
+
+```text
+Push
+Pull request
+```
+
+생성 후 아래 순서로 repository에 설치한다.
+
+```text
+Install App
+-> 8llow8llowMe
+-> Only select repositories
+-> BossPickSeoul
+```
+
+## 6. GitHub App private key 변환
+
+GitHub App 화면에서 private key를 생성한다.
+
+```text
+Private keys
+-> Generate a private key
+```
+
+다운로드한 `.pem` 파일은 Jenkins GitHub App credential에서 바로 읽히지 않을 수 있다. Jenkins가 `Private key must be a PKCS#8 formatted string` 오류를 내면 PKCS#8 형식으로 변환한다.
+
+```bash
+openssl pkcs8 -topk8 -inform PEM -outform PEM -in current-key.pem -out jenkins-github-app.pkcs8.pem -nocrypt
+```
+
+변환 후 파일은 아래 형식이어야 한다.
+
+```text
+-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----
+```
+
+개인키가 화면 캡처, 채팅, 로그에 노출되었다면 해당 private key는 GitHub App에서 삭제하고 새로 발급한다.
+
+## 7. Jenkins GitHub App credential 생성
+
+Jenkins에서 GitHub App credential을 만든다.
+
+```text
+Jenkins 관리
+-> Credentials
+-> System
+-> Global credentials
+-> Add Credentials
+```
+
+또는 Multibranch Pipeline 생성 화면의 Credentials `Add` 버튼을 사용해도 된다.
+
+| 항목 | 값 |
+| --- | --- |
+| Kind | `GitHub App` |
+| ID | `github-app-followfollowme-jenkins` |
+| Description | `followfollowme Jenkins GitHub App` |
+| App ID | GitHub App 화면의 `App ID` |
+| Key | PKCS#8로 변환한 private key 전체 |
+| GitHub organization to test against | `8llow8llowMe` |
+
+`Test Connection`을 눌러 성공하면 저장한다.
+
+## 8. Jenkins Vault credential 생성
+
+Vault AppRole 값은 GitHub credential과 별도로 저장한다.
+
+```text
+Jenkins 관리
+-> Credentials
+-> System
+-> Global credentials
+-> Add Credentials
+```
+
+첫 번째 credential은 `role_id`다.
+
+| 항목 | 값 |
+| --- | --- |
+| Kind | `Secret text` |
+| Scope | `Global` |
+| ID | `bosspickseoul-vault-role-id` |
+| Secret | Vault AppRole `role_id` |
+
+두 번째 credential은 `secret_id`다.
+
+| 항목 | 값 |
+| --- | --- |
+| Kind | `Secret text` |
+| Scope | `Global` |
+| ID | `bosspickseoul-vault-secret-id` |
+| Secret | Vault AppRole `secret_id` |
+
+Jenkins job 설정 화면 하단의 `Vault Plugin` 영역은 비워둔다. 현재 파이프라인은 Jenkins Vault Plugin 설정을 사용하지 않는다.
+
+## 9. Vault KV secret 준비
+
+개발 배포용 환경변수는 Vault KV v2에 개별 key-value로 저장한다.
+
+권장 경로는 아래와 같다.
+
+```text
+kv/bosspickseoul/backend/dev/env
+```
+
+Vault Web UI 기준 이동 경로는 아래와 같다.
+
+```text
+Secrets
+-> kv
+-> bosspickseoul
+-> backend
+-> dev
+-> env
+```
+
+Jenkinsfile은 secret 전체를 읽은 뒤 `.env.runtime`으로 렌더링한다. 따라서 Jenkinsfile에 개별 환경변수 key 목록을 하드코딩하지 않는다.
+
+Vault key 이름은 Docker Compose env file 형식에 맞아야 한다.
+
+```text
+가능: DB_USERNAME, SERVICE_DISCOVERY_PORT_DEV
+불가: db.username, SERVICE-DISCOVERY-PORT, 1_PORT
+```
+
+값에 줄바꿈이 들어가면 `.env.runtime`으로 만들 수 없으므로 Jenkinsfile에서 실패시킨다.
+
+## 10. Vault policy
+
+Jenkins AppRole에는 KV v2 data path 읽기 권한이 필요하다.
+
+dev 권한 예시는 아래와 같다.
+
+```hcl
+path "kv/data/bosspickseoul/backend/dev/env" {
+  capabilities = ["read"]
+}
+
+path "kv/metadata/bosspickseoul/backend/dev/env" {
+  capabilities = ["read", "list"]
+}
+```
+
+prod까지 사용할 경우 prod 경로도 추가한다.
+
+```hcl
+path "kv/data/bosspickseoul/backend/prod/env" {
+  capabilities = ["read"]
+}
+
+path "kv/metadata/bosspickseoul/backend/prod/env" {
+  capabilities = ["read", "list"]
+}
+```
+
+## 11. Multibranch Pipeline 생성
+
+서비스별로 Multibranch Pipeline job을 만든다.
+
+```text
+Jenkins
+-> 새로운 Item
+-> item name 입력
+-> Multibranch Pipeline 선택
+-> OK
+```
+
+서비스별 job 이름과 Script Path는 아래처럼 둔다.
+
+| Jenkins Job 이름 | Script Path |
+| --- | --- |
+| `backend-service-discovery` | `Jenkinsfile-service-discovery` |
+| `backend-api-gateway` | `Jenkinsfile-api-gateway` |
+| `backend-auth-service` | `Jenkinsfile-auth-service` |
+| `backend-commercial-service` | `Jenkinsfile-commercial-service` |
+| `backend-district-service` | `Jenkinsfile-district-service` |
+| `backend-community-service` | `Jenkinsfile-community-service` |
+| `backend-ai-service` | `Jenkinsfile-ai-service` |
+| `backend-batch-service` | `Jenkinsfile-batch-service` |
+
+General 영역은 아래처럼 작성한다.
+
+| 항목 | 값 |
+| --- | --- |
+| Display Name | job 이름과 동일 |
+| Description | `{serviceName} 개발/운영 배포 Multibranch Pipeline` |
+| Enabled | on |
+
+Branch Sources 영역에서 `Add source -> GitHub`를 선택한다.
+
+| 항목 | 값 |
+| --- | --- |
+| Credentials | `github-app-followfollowme-jenkins` |
+| Owner | `8llow8llowMe` |
+| Repository | `BossPickSeoul` |
+
+Behaviors는 아래처럼 설정한다.
+
+```text
+Discover branches
+-> Strategy: Exclude branches that are also filed as PRs
+```
+
+```text
+Discover pull requests from origin
+-> Strategy: Merging the pull request with the current target branch revision
+```
+
+fork PR을 받지 않는다면 `Discover pull requests from forks`는 추가하지 않는다.
+
+개발 배포 job만 운영할 경우 branch 필터는 아래처럼 둔다.
+
+```text
+Filter by name with wildcards
+Include: develop PR-*
+Exclude: main
+```
+
+운영 배포까지 같은 job에서 처리할 경우 `main`도 포함한다.
+
+```text
+Filter by name with wildcards
+Include: develop main PR-*
+```
+
+Build Configuration은 아래처럼 설정한다.
+
+| 항목 | 값 |
+| --- | --- |
+| Mode | `by Jenkinsfile` |
+| Script Path | 서비스별 Jenkinsfile 이름 |
+
+예를 들어 district-service job은 아래처럼 둔다.
+
+```text
+Script Path: Jenkinsfile-district-service
+```
+
+Scan Multibranch Pipeline Triggers는 webhook 누락 대비용으로 켜둔다.
+
+| 항목 | 값 |
+| --- | --- |
+| Periodically if not otherwise run | checked |
+| Interval | `1 day` 또는 `1 hour` |
+
+Orphaned Item Strategy는 오래된 PR/branch job 정리를 위해 설정한다.
+
+| 항목 | 값 |
+| --- | --- |
+| Discard old items | checked |
+| Days to keep old items | `30` |
+| Max # of old items to keep | `20` |
+
+하단 `Vault Plugin` 영역은 비워둔다.
+
+## 12. 첫 실행 순서
+
+처음에는 모든 서비스를 한 번에 만들지 말고 하나씩 확인한다.
+
+1. `backend-service-discovery` Multibranch Pipeline을 만든다.
+2. `Script Path`를 `Jenkinsfile-service-discovery`로 설정한다.
+3. `Scan Multibranch Pipeline Now`를 실행한다.
+4. `develop` 또는 `PR-*` job이 생성되는지 확인한다.
+5. 첫 빌드가 `builder` agent에서 실행되는지 확인한다.
+6. deploy stage가 `backend-dev-agent`에서 실행되는지 확인한다.
+7. Vault 조회가 성공하는지 확인한다.
+8. 개발 서버에서 `service-discovery-dev` 컨테이너가 실행 중인지 확인한다.
+9. 같은 방식으로 나머지 서비스를 추가한다.
+
+권장 개발 배포 순서는 아래와 같다.
+
+1. `service-discovery`
+2. `commercial-service`
+3. `district-service`
+4. `auth-service`
+5. `community-service`
+6. `ai-service`
+7. `batch-service`
+8. `api-gateway`
+
+## 13. 수동 빌드 파라미터
+
+Multibranch Pipeline의 하위 branch/PR job에서 `Build with Parameters`로 수동 실행할 수 있다.
+
+개발 배포 확인 시 자주 쓰는 값은 아래와 같다.
+
+| 파라미터 | 값 |
+| --- | --- |
+| `TARGET_BRANCH` | `develop` |
+| `RUN_TESTS` | `true` |
+| `SKIP_DEPLOY` | `false` |
+| `VAULT_SECRET_PATH` | `kv/bosspickseoul/backend/dev/env` |
+| `VAULT_ENGINE_VERSION` | `2` |
+| `DEPLOY_LOCK_NAME` | `backend-1-deploy` |
+
+`VAULT_SECRET_PATH`를 비워두면 Jenkinsfile은 아래 기본 경로를 사용한다.
+
+```text
+kv/${PROJECT_SLUG}/backend/${deployEnv}/env
+```
+
+기본값 기준 dev에서는 아래와 같다.
+
+```text
+kv/bosspickseoul/backend/dev/env
+```
+
+## 14. 개발 서버 확인 명령
+
+backend deploy 서버에서 아래 명령으로 상태를 확인한다.
+
+```bash
+docker ps -a
+```
+
+서비스별 배포 디렉터리는 아래 규칙을 따른다.
+
+```text
+$HOME/deploy/bosspickseoul/backend/{cloud|service}/{serviceName}
+```
+
+district-service 예시는 아래와 같다.
+
+```bash
+cd "$HOME/deploy/bosspickseoul/backend/service/district-service"
+test -s .env.runtime
+docker compose --env-file .env.runtime -f docker-compose-district-service.yml config
+docker compose -f docker-compose-district-service.yml ps district-service-dev
+docker logs --tail 200 bosspickseoul-district-service-dev
+```
+
+## 15. 자주 발생한 문제
+
+| 증상 | 원인 | 해결 |
+| --- | --- | --- |
+| GitHub webhook이 `302`로 실패 | `/github-webhook`에서 `/github-webhook/`로 redirect | GitHub Payload URL 끝에 `/` 추가 |
+| GitHub App credential Test 실패 | private key가 PKCS#8 형식이 아님 | `openssl pkcs8 -topk8 ... -nocrypt`로 변환 |
+| `Couldn't authenticate with GitHub app ID` | App ID/key 불일치 또는 key 형식 오류 | App ID 확인, 새 private key 발급, PKCS#8 변환 |
+| Multibranch scan에서 repo가 안 보임 | GitHub App이 repo에 설치되지 않음 | GitHub App `Install App`에서 `BossPickSeoul` 선택 |
+| 빌드가 계속 대기 | Jenkins node label 불일치 | `builder`, `deploy-target backend-1` label 확인 |
+| Vault 조회가 403 | AppRole policy 부족 | `kv/data/...`, `kv/metadata/...` 권한 추가 |
+| `.env.runtime` 생성 실패 | Vault key 이름이 env var 형식이 아님 | `A-Z`, `0-9`, `_` 형식으로 key 수정 |
+| `docker compose config` 실패 | Vault에 compose 필수 key 누락 | `.env.example` 기준으로 key 보강 |
+| 컨테이너가 바로 종료 | 애플리케이션 설정 또는 DB/Redis 연결 실패 | Jenkins 로그와 `docker logs --tail 200` 확인 |
+
+## 16. 운영 원칙
+
+개발 배포 agent도 executor는 `1`을 권장한다. 같은 Docker host에서 여러 compose 배포가 동시에 실행되면 이미지 빌드, 컨테이너 교체, 포트 바인딩, 네트워크 생성이 겹쳐 장애 분석이 어려워진다.
+
+병렬성은 deploy agent executor를 늘리는 대신 아래처럼 분리한다.
+
+```text
+builder-agent: executors 2~4
+backend-dev-agent: executors 1
+backend-prod-agent: executors 1
+frontend-dev-agent: executors 1
+frontend-prod-agent: executors 1
+```
+
+같은 backend host에 대한 배포는 Jenkinsfile의 `lock(resource: 'backend-1-deploy')`로 직렬화한다.
+
+## 17. 보안 체크리스트
+
+배포 설정 후 아래 항목을 확인한다.
+
+1. GitHub App private key가 채팅, 문서, 로그, screenshot에 노출되지 않았는지 확인한다.
+2. 노출된 private key는 GitHub App에서 삭제하고 새로 발급한다.
+3. Vault `role_id`, `secret_id`는 Jenkins Secret text에만 저장한다.
+4. Vault secret 값은 Git에 커밋하지 않는다.
+5. `.env.runtime`은 배포 서버에만 생성되며 파일 권한은 `600`으로 둔다.
+6. Jenkins job의 `Vault Plugin` 필드는 비워두고, Jenkinsfile의 `withCredentials` credential ID를 사용한다.
+7. GitHub webhook URL은 HTTPS와 trailing slash를 사용한다.
