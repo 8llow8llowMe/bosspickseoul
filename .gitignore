@@ -15,6 +15,12 @@
 !.agents/skills/backend-feature-bootstrap/SKILL.md
 !.agents/skills/backend-multi-agent/
 !.agents/skills/backend-multi-agent/SKILL.md
+!.agents/skills/pr/
+!.agents/skills/pr/SKILL.md
+!.agents/skills/mr/
+!.agents/skills/mr/SKILL.md
+!.agents/skills/issue/
+!.agents/skills/issue/SKILL.md
 
 .claude/*
 !.claude/skills/
@@ -27,3 +33,9 @@
 !.claude/skills/backend-feature-bootstrap/SKILL.md
 !.claude/skills/backend-multi-agent/
 !.claude/skills/backend-multi-agent/SKILL.md
+!.claude/skills/pr/
+!.claude/skills/pr/SKILL.md
+!.claude/skills/mr/
+!.claude/skills/mr/SKILL.md
+!.claude/skills/issue/
+!.claude/skills/issue/SKILL.md
