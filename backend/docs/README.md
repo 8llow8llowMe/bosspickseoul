@@ -24,6 +24,10 @@
   - 큰 작업에서 멀티 에이전트 역할 분리와 검증 흐름 기준
 - `service-inventory.md`
   - 현재 서비스 책임, 상태, 주의점 요약
+- `deploy-guide.md`
+  - Docker Compose, Vault, Jenkins 공통 배포 모델과 파라미터 기준
+- `jenkins-cicd-dev-deploy-guide.md`
+  - GitHub App, webhook, Jenkins Multibranch Pipeline, Vault credential 기반 개발 배포 설정 절차
 - `services/*.md`
   - 서비스별 책임과 구현 주의점
 
@@ -39,7 +43,8 @@
 8. `done-checklist.md`
 9. `team-playbook.md`
 10. `service-inventory.md`
-11. 필요 시 `services/*.md`
+11. `deploy-guide.md` 또는 `jenkins-cicd-dev-deploy-guide.md` (배포 작업 시)
+12. 필요 시 `services/*.md`
 
 ## 현재 작업 원칙
 
