@@ -27,7 +27,7 @@ GitHub push 또는 pull_request
 | `main` 브랜치 push/merge | `BRANCH_NAME=main` | `prod` |
 | 그 외 브랜치 | 기타 | 배포 생략 |
 
-PR 빌드는 빌드/테스트만 수행하고 배포를 생략한다. 실제 배포는 merge 후 `develop` 또는 `main` 브랜치 빌드에서만 실행한다.
+`develop` 대상 PR은 개발 서버에서 바로 확인할 수 있도록 빌드/테스트 후 `dev` 배포까지 수행한다. `main` 대상 PR은 운영 안전을 위해 빌드/테스트만 수행하고, 실제 `prod` 배포는 `main` 브랜치 빌드에서만 실행한다.
 
 ## 2. 필요한 Jenkins 플러그인
 
@@ -88,7 +88,7 @@ backend deploy agent는 실제 개발 서버 컨테이너 배포를 담당한다
 deploy agent는 동시에 여러 배포가 겹치지 않도록 executor를 `1`로 유지한다. 현재 Jenkinsfile은 아래 label을 사용한다.
 
 ```groovy
-buildAgentLabel  : 'builder'
+buildAgentLabel  : 'builder-backend'
 deployAgentLabels: [
     dev : 'deploy-backend-dev',
     prod: 'deploy-backend-prod'
