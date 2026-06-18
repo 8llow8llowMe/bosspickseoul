@@ -215,7 +215,25 @@ String renderEnvFile(Map<String, String> secretValues) {
 }
 
 List<String> renderEnvBindings(Map<String, String> secretValues) {
-    return secretValues.collect { key, value -> "${key}=${value}" }
+    return secretValues
+        .keySet()
+        .sort()
+        .collect { key -> "${key}=${secretValues[key]}" }
+}
+
+List<String> requiredBuildEnvKeys() {
+    return [
+        'SPRING_PROFILES_ACTIVE',
+        'JASYPT_ENCRYPTOR_KEY'
+    ]
+}
+
+void validateRequiredEnvValues(String vaultPath, Map<String, String> envValues, List<String> requiredKeys) {
+    List<String> missingKeys = requiredKeys.findAll { key -> !envValues[key]?.trim() }
+
+    if (missingKeys) {
+        error "Vault secret ${vaultPath} is missing required key(s): ${missingKeys.join(', ')}"
+    }
 }
 
 Map<String, String> readBuildEnvValues(Map<String, Object> config, Map<String, String> ctx) {
@@ -225,10 +243,7 @@ Map<String, String> readBuildEnvValues(Map<String, Object> config, Map<String, S
 
     Map<String, Object> vaultSpec = resolveVaultSpec(config, ctx)
     Map<String, String> vaultValues = readVaultSecretValues(vaultSpec)
-
-    if (!vaultValues.JASYPT_ENCRYPTOR_KEY?.trim()) {
-        error "Vault secret ${vaultSpec.path} must include JASYPT_ENCRYPTOR_KEY for Spring context tests and runtime startup."
-    }
+    validateRequiredEnvValues(vaultSpec.path as String, vaultValues, requiredBuildEnvKeys())
 
     return vaultValues
 }
