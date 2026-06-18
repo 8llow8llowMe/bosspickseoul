@@ -129,8 +129,9 @@ GitHub 라벨은 서비스 단위로 가져가는 것이 좋습니다.
 
 | 이벤트 | 조건 | 실행 |
 | --- | --- | --- |
-| PR opened/synchronize | GitHub label 있음 | 해당 label의 service job build/test |
+| PR opened/synchronize to `develop` | GitHub label 있음 | 해당 label의 service job build/test 후 dev 배포 |
 | PR merged to `develop` | GitHub label 있음 | 해당 service job build/test 후 dev 배포 |
+| PR opened/synchronize to `main` | GitHub label 있음 | 해당 label의 service job build/test, prod 배포 생략 |
 | PR merged to `main` | GitHub label 있음 | 해당 service job build/test 후 prod 배포 |
 | `backend-core` label | 공통 모듈 영향 | backend 전체 build/test 또는 affected service job 실행 |
 | label 없음 | 변경 범위 불명확 | 수동 승인 또는 전체 검증 job 실행 |

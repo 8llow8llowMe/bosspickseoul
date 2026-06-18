@@ -77,6 +77,19 @@ String resolveDeployAgentLabel(Map<String, Object> config, Map<String, String> c
     return deployAgentLabel.trim()
 }
 
+boolean shouldDeployToEnvironment(Map<String, String> ctx) {
+    if (params.SKIP_DEPLOY || !(ctx.deployEnv in ['dev', 'prod'])) {
+        return false
+    }
+
+    // develop 대상 PR은 개발 서버 검증을 위해 dev 배포까지 수행합니다.
+    if (ctx.isPullRequest == 'true') {
+        return ctx.deployEnv == 'dev'
+    }
+
+    return true
+}
+
 String resolveVaultApiPath(String vaultSecretPath, Integer engineVersion) {
     if (engineVersion != 2) {
         return vaultSecretPath
@@ -357,7 +370,7 @@ ${gradleCommand}
         }
     }
 
-    boolean shouldDeploy = !params.SKIP_DEPLOY && ctx.isPullRequest != 'true' && (ctx.deployEnv in ['dev', 'prod'])
+    boolean shouldDeploy = shouldDeployToEnvironment(ctx)
 
     if (shouldDeploy) {
         stage("${ctx.deployEnv} 환경 배포") {
