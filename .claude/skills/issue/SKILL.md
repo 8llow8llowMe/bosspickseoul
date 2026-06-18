@@ -1,11 +1,11 @@
 ---
 name: issue
-description: "NowDoBoss GitHub 이슈 초안을 한국어 기능 이슈 템플릿으로 작성할 때 사용한다. /issue 요청, issue template, feature issue, bug issue draft, [BE] feat: ... 제목 생성이 트리거다."
+description: "BossPickSeoul GitHub 이슈 초안을 한국어 기능 이슈 템플릿으로 작성할 때 사용한다. /issue 요청, issue template, feature issue, bug issue draft, [BE] feat: ... 제목 생성이 트리거다."
 ---
 
 # Issue Draft
 
-NowDoBoss 이슈 초안을 한국어 템플릿으로 작성한다.
+BossPickSeoul 이슈 초안을 한국어 템플릿으로 작성한다.
 
 ## Workflow
 
