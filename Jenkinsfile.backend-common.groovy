@@ -214,6 +214,25 @@ String renderEnvFile(Map<String, String> secretValues) {
         .join('\n') + '\n'
 }
 
+List<String> renderEnvBindings(Map<String, String> secretValues) {
+    return secretValues.collect { key, value -> "${key}=${value}" }
+}
+
+Map<String, String> readBuildEnvValues(Map<String, Object> config, Map<String, String> ctx) {
+    if (!(ctx.deployEnv in ['dev', 'prod'])) {
+        return [:]
+    }
+
+    Map<String, Object> vaultSpec = resolveVaultSpec(config, ctx)
+    Map<String, String> vaultValues = readVaultSecretValues(vaultSpec)
+
+    if (!vaultValues.JASYPT_ENCRYPTOR_KEY?.trim()) {
+        error "Vault secret ${vaultSpec.path} must include JASYPT_ENCRYPTOR_KEY for Spring context tests and runtime startup."
+    }
+
+    return vaultValues
+}
+
 void run(Map<String, String> config) {
     properties([
         buildDiscarder(logRotator(numToKeepStr: '20')),
@@ -346,17 +365,21 @@ void run(Map<String, String> config) {
                 deleteDir()
                 checkoutSource()
 
-                dir('backend') {
-                    sh 'chmod +x gradlew'
+                Map<String, String> buildEnvValues = readBuildEnvValues(config, ctx)
 
-                    String gradleCommand = params.RUN_TESTS
-                        ? "./gradlew :${config.modulePath}:test :${config.modulePath}:bootJar --no-daemon --parallel --build-cache --stacktrace"
-                        : "./gradlew :${config.modulePath}:bootJar --no-daemon --parallel --build-cache --stacktrace"
+                withEnv(renderEnvBindings(buildEnvValues)) {
+                    dir('backend') {
+                        sh 'chmod +x gradlew'
 
-                    sh """#!/usr/bin/env bash
+                        String gradleCommand = params.RUN_TESTS
+                            ? "./gradlew :${config.modulePath}:test :${config.modulePath}:bootJar --no-daemon --parallel --build-cache --stacktrace"
+                            : "./gradlew :${config.modulePath}:bootJar --no-daemon --parallel --build-cache --stacktrace"
+
+                        sh """#!/usr/bin/env bash
 set -euo pipefail
 ${gradleCommand}
 """
+                    }
                 }
 
                 archiveArtifacts artifacts: "${config.fsPath}/build/libs/*.jar", fingerprint: true

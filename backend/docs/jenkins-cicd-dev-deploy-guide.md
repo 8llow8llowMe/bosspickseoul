@@ -12,7 +12,7 @@
 GitHub push 또는 pull_request
 -> GitHub webhook
 -> Jenkins Multibranch Pipeline
--> builder agent에서 Gradle test/bootJar
+-> builder agent에서 Vault env 주입 후 Gradle test/bootJar
 -> backend deploy agent에서 Vault 조회
 -> .env.runtime 생성
 -> docker compose up -d --build
@@ -272,6 +272,7 @@ Secrets
 ```
 
 Jenkinsfile은 secret 전체를 읽은 뒤 `.env.runtime`으로 렌더링한다. 따라서 Jenkinsfile에 개별 환경변수 key 목록을 하드코딩하지 않는다.
+또한 빌드/테스트 단계에서도 같은 Vault env를 주입하므로, Spring context 테스트와 런타임 시작에 필요한 `JASYPT_ENCRYPTOR_KEY`를 반드시 포함한다.
 
 Vault key 이름은 Docker Compose env file 형식에 맞아야 한다.
 
@@ -525,6 +526,7 @@ docker logs --tail 200 bosspickseoul-district-service-dev
 | Vault 조회가 403 | AppRole policy 부족 | `kv/data/...`, `kv/metadata/...` 권한 추가 |
 | `.env.runtime` 생성 실패 | Vault key 이름이 env var 형식이 아님 | `A-Z`, `0-9`, `_` 형식으로 key 수정 |
 | `docker compose config` 실패 | Vault에 compose 필수 key 누락 | `.env.example` 기준으로 key 보강 |
+| `SimplePBEConfig` NPE | Vault에 `JASYPT_ENCRYPTOR_KEY` 누락 또는 빈 값 | `kv/bosspickseoul/backend/dev/env`에 key 추가 |
 | 컨테이너가 바로 종료 | 애플리케이션 설정 또는 DB/Redis 연결 실패 | Jenkins 로그와 `docker logs --tail 200` 확인 |
 
 ## 16. 운영 원칙
