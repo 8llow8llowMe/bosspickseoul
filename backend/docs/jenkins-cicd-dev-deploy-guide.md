@@ -37,6 +37,7 @@ Jenkins 관리 화면에서 아래 플러그인을 설치한다.
 | --- | --- |
 | `Pipeline` | Jenkinsfile 실행 기본 기능 |
 | `Pipeline: Multibranch` | 브랜치/PR별 Jenkinsfile 자동 발견 |
+| `Pipeline Utility Steps` | Vault API JSON 응답을 `readJSON`으로 파싱 |
 | `Git` | Git checkout |
 | `GitHub` | GitHub webhook/status 연동 |
 | `GitHub Branch Source` | GitHub repository 기반 Multibranch Pipeline |

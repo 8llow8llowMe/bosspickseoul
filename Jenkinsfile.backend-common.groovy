@@ -1,5 +1,3 @@
-import groovy.json.JsonSlurperClassic
-
 Map<String, String> resolveGitContext() {
     String requestedTargetBranch = params.TARGET_BRANCH?.trim()
     String requestedPrSha = params.PR_SHA?.trim()
@@ -147,8 +145,8 @@ curl --fail --silent --show-error \
     }
 
     // Vault 로그인 응답에서 이후 조회에 사용할 client_token만 꺼냅니다.
-    Map loginPayload = new JsonSlurperClassic().parseText(loginResponse) as Map
-    String clientToken = loginPayload?.auth?.client_token
+    def loginPayload = readJSON text: loginResponse
+    String clientToken = loginPayload?.auth?.client_token?.toString()
     if (!clientToken) {
         error 'Vault AppRole login did not return client_token.'
     }
@@ -174,8 +172,8 @@ curl --fail --silent --show-error \
     }
 
     // KV v2 응답은 data.data 아래에 실제 환경변수 key-value가 들어 있습니다.
-    Map secretPayload = new JsonSlurperClassic().parseText(secretResponse) as Map
-    Map rawSecretValues = [:]
+    def secretPayload = readJSON text: secretResponse
+    def rawSecretValues = [:]
     if (vaultSpec.engineVersion == 2) {
         rawSecretValues = secretPayload?.data?.data as Map
     } else {
