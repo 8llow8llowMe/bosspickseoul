@@ -1,4 +1,8 @@
-def backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+def backendPipeline
+node('builder') {
+    checkout scm
+    backendPipeline = load 'Jenkinsfile.backend-common.groovy'
+}
 
 backendPipeline.run([
     serviceGroup       : 'service',
@@ -11,6 +15,8 @@ backendPipeline.run([
     containerNamePrefix: 'bosspickseoul-commercial-service',
     deploySubdir       : 'service/commercial-service',
     buildAgentLabel    : 'builder',
-    deployAgentLabel   : 'deploy-target && backend-1'
+    deployAgentLabels  : [
+        dev : 'deploy-backend-dev',
+        prod: 'deploy-backend-prod'
+    ]
 ])
-

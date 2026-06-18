@@ -22,7 +22,8 @@ Map<String, String> resolveGitContext() {
         effectiveTargetBranch: effectiveTargetBranch ?: '',
         requestedPrSha      : requestedPrSha ?: '',
         requestedPrNumber   : requestedPrNumber ?: '',
-        deployEnv           : deployEnv
+        deployEnv           : deployEnv,
+        isPullRequest       : env.CHANGE_ID?.trim() ? 'true' : 'false'
     ]
 }
 
@@ -63,6 +64,17 @@ Map<String, Object> resolveVaultSpec(Map<String, String> config, Map<String, Str
         apiPath      : resolveVaultApiPath(vaultSecretPath, engineVersion),
         engineVersion: engineVersion
     ]
+}
+
+String resolveDeployAgentLabel(Map<String, Object> config, Map<String, String> ctx) {
+    Map<String, String> deployAgentLabels = config.deployAgentLabels ?: [:]
+    String deployAgentLabel = deployAgentLabels[ctx.deployEnv] ?: config.deployAgentLabel
+
+    if (!deployAgentLabel?.trim()) {
+        error "배포 agent label을 찾을 수 없습니다. deployEnv=${ctx.deployEnv}"
+    }
+
+    return deployAgentLabel.trim()
 }
 
 String resolveVaultApiPath(String vaultSecretPath, Integer engineVersion) {
@@ -296,9 +308,12 @@ void run(Map<String, String> config) {
                 echo "적용 대상 브랜치: ${ctx.effectiveTargetBranch ?: '없음'}"
                 echo "PR SHA: ${ctx.requestedPrSha ?: '없음'}"
                 echo "PR 번호: ${ctx.requestedPrNumber ?: '없음'}"
+                echo "PR 빌드 여부: ${ctx.isPullRequest}"
                 echo "배포 환경: ${ctx.deployEnv}"
                 echo "빌드 에이전트 라벨: ${config.buildAgentLabel}"
-                echo "배포 에이전트 라벨: ${config.deployAgentLabel}"
+                if (ctx.deployEnv in ['dev', 'prod']) {
+                    echo "배포 에이전트 라벨: ${resolveDeployAgentLabel(config, ctx)}"
+                }
                 echo "배포 경로 규칙: \$HOME/${params.DEPLOY_BASE_PARENT}/${params.PROJECT_SLUG}/${params.DEPLOY_APP_DIR}/..."
                 if (ctx.deployEnv in ['dev', 'prod']) {
                     String resolvedVaultRoot = params.VAULT_SECRET_ROOT?.trim() ?: "kv/${params.PROJECT_SLUG}/backend"
@@ -342,10 +357,12 @@ ${gradleCommand}
         }
     }
 
-    if (!params.SKIP_DEPLOY && ctx.deployEnv in ['dev', 'prod']) {
+    boolean shouldDeploy = !params.SKIP_DEPLOY && ctx.isPullRequest != 'true' && (ctx.deployEnv in ['dev', 'prod'])
+
+    if (shouldDeploy) {
         stage("${ctx.deployEnv} 환경 배포") {
             lock(resource: params.DEPLOY_LOCK_NAME?.trim() ?: 'backend-1-deploy') {
-                node(config.deployAgentLabel) {
+                node(resolveDeployAgentLabel(config, ctx)) {
                     try {
                         deleteDir()
                         unstash "bundle-${config.serviceName}"
@@ -396,7 +413,7 @@ exit 1
         }
     } else {
         stage('배포 생략') {
-            echo "배포를 생략합니다. deployEnv=${ctx.deployEnv}, skipDeploy=${params.SKIP_DEPLOY}"
+            echo "배포를 생략합니다. deployEnv=${ctx.deployEnv}, skipDeploy=${params.SKIP_DEPLOY}, isPullRequest=${ctx.isPullRequest}"
         }
     }
 }

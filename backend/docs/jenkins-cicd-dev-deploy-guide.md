@@ -27,7 +27,7 @@ GitHub push 또는 pull_request
 | `main` 브랜치 push/merge | `BRANCH_NAME=main` | `prod` |
 | 그 외 브랜치 | 기타 | 배포 생략 |
 
-현재 코드 기준으로 `feature -> develop` PR도 `dev` 배포 대상이다. PR에서는 빌드/테스트만 수행하고 merge 후에만 dev 배포하고 싶다면 Jenkinsfile에 `env.CHANGE_ID` 조건으로 배포 생략 로직을 추가해야 한다.
+PR 빌드는 빌드/테스트만 수행하고 배포를 생략한다. 실제 배포는 merge 후 `develop` 또는 `main` 브랜치 빌드에서만 실행한다.
 
 ## 2. 필요한 Jenkins 플러그인
 
@@ -43,6 +43,7 @@ Jenkins 관리 화면에서 아래 플러그인을 설치한다.
 | `Credentials Binding` | `withCredentials`로 credential을 환경변수에 바인딩 |
 | `Lockable Resources` | 동일 배포 대상에 대한 동시 배포 방지 |
 | `Timestamper` | 배포 로그 시간 확인용 |
+| `Github label filter` | PR label 기준으로 서비스별 Multibranch Pipeline discovery 제한 |
 
 `HashiCorp Vault` 플러그인은 현재 백엔드 Jenkinsfile에서 필수는 아니다. 현재 파이프라인은 `withVault`가 아니라 `withCredentials + curl`로 Vault HTTP API를 직접 호출한다.
 
@@ -72,14 +73,26 @@ backend deploy agent는 실제 개발 서버 컨테이너 배포를 담당한다
 | --- | --- |
 | Node 이름 | `backend-dev-agent` |
 | Number of executors | `1` |
-| Labels | `deploy-target backend-1` |
+| Labels | `deploy-backend-dev` |
 | Usage | `Only build jobs with label expressions matching this node` |
 
-deploy agent는 동시에 여러 배포가 겹치지 않도록 executor를 `1`로 유지한다. 현재 Jenkinsfile은 아래 label expression을 사용한다.
+운영 배포 agent를 분리할 경우 아래처럼 설정한다.
+
+| 항목 | 추천값 |
+| --- | --- |
+| Node 이름 | `backend-prod-agent` |
+| Number of executors | `1` |
+| Labels | `deploy-backend-prod` |
+| Usage | `Only build jobs with label expressions matching this node` |
+
+deploy agent는 동시에 여러 배포가 겹치지 않도록 executor를 `1`로 유지한다. 현재 Jenkinsfile은 아래 label을 사용한다.
 
 ```groovy
 buildAgentLabel  : 'builder'
-deployAgentLabel : 'deploy-target && backend-1'
+deployAgentLabels: [
+    dev : 'deploy-backend-dev',
+    prod: 'deploy-backend-prod'
+]
 ```
 
 ## 4. GitHub webhook 설정
@@ -352,6 +365,33 @@ Discover pull requests from origin
 
 fork PR을 받지 않는다면 `Discover pull requests from forks`는 추가하지 않는다.
 
+서비스별 PR label로 해당 서비스 job만 실행하려면 `Github label filter` 플러그인을 설치한 뒤 아래 trait을 추가한다.
+
+```text
+Filter pull requests with any specified labels
+```
+
+서비스별 label은 아래처럼 맞춘다.
+
+| Jenkins Job 이름 | GitHub PR label |
+| --- | --- |
+| `backend-service-discovery` | `backend-service-discovery` |
+| `backend-api-gateway` | `backend-api-gateway` |
+| `backend-auth-service` | `backend-auth-service` |
+| `backend-commercial-service` | `backend-commercial-service` |
+| `backend-district-service` | `backend-district-service` |
+| `backend-community-service` | `backend-community-service` |
+| `backend-ai-service` | `backend-ai-service` |
+| `backend-batch-service` | `backend-batch-service` |
+
+예를 들어 `backend-auth-service` job은 label filter에 아래 값을 넣는다.
+
+```text
+backend-auth-service
+```
+
+이렇게 설정하면 `feature/* -> develop` PR이 열려도 `backend-auth-service` label이 붙은 PR만 auth-service Multibranch job에서 discovery/build 대상이 된다.
+
 개발 배포 job만 운영할 경우 branch 필터는 아래처럼 둔다.
 
 ```text
@@ -481,7 +521,7 @@ docker logs --tail 200 bosspickseoul-district-service-dev
 | GitHub App credential Test 실패 | private key가 PKCS#8 형식이 아님 | `openssl pkcs8 -topk8 ... -nocrypt`로 변환 |
 | `Couldn't authenticate with GitHub app ID` | App ID/key 불일치 또는 key 형식 오류 | App ID 확인, 새 private key 발급, PKCS#8 변환 |
 | Multibranch scan에서 repo가 안 보임 | GitHub App이 repo에 설치되지 않음 | GitHub App `Install App`에서 `BossPickSeoul` 선택 |
-| 빌드가 계속 대기 | Jenkins node label 불일치 | `builder`, `deploy-target backend-1` label 확인 |
+| 빌드가 계속 대기 | Jenkins node label 불일치 | `builder`, `deploy-backend-dev`, `deploy-backend-prod` label 확인 |
 | Vault 조회가 403 | AppRole policy 부족 | `kv/data/...`, `kv/metadata/...` 권한 추가 |
 | `.env.runtime` 생성 실패 | Vault key 이름이 env var 형식이 아님 | `A-Z`, `0-9`, `_` 형식으로 key 수정 |
 | `docker compose config` 실패 | Vault에 compose 필수 key 누락 | `.env.example` 기준으로 key 보강 |
