@@ -1,11 +1,11 @@
 ---
 name: mr
-description: "NowDoBoss Merge Request 본문을 한국어 템플릿으로 작성할 때 사용한다. /mr 요청, MR body, merge request template, MR description, [BE] feat: ... 제목 생성이 트리거다."
+description: "BossPickSeoul Merge Request 본문을 한국어 템플릿으로 작성할 때 사용한다. /mr 요청, MR body, merge request template, MR description, [BE] feat: ... 제목 생성이 트리거다."
 ---
 
 # MR Draft
 
-NowDoBoss Merge Request 본문과 제목을 한국어 템플릿으로 작성한다.
+BossPickSeoul Merge Request 본문과 제목을 한국어 템플릿으로 작성한다.
 
 ## Workflow
 

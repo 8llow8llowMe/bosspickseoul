@@ -1,11 +1,11 @@
 ---
 name: mr
-description: "Create a Merge Request draft in the NowDoBoss Korean template. Use when the user invokes /mr, $mr, asks for an MR body, merge request template, MR description, or wants a title like [BE] feat: ... with 작업 내용, 타입, MR 체크리스트, 검증 내역, 참고 사항, and 연관 이슈."
+description: "Create a Merge Request draft in the BossPickSeoul Korean template. Use when the user invokes /mr, $mr, asks for an MR body, merge request template, MR description, or wants a title like [BE] feat: ... with 작업 내용, 타입, MR 체크리스트, 검증 내역, 참고 사항, and 연관 이슈."
 ---
 
 # MR Draft
 
-NowDoBoss Merge Request 본문과 제목을 한국어 템플릿으로 작성한다.
+BossPickSeoul Merge Request 본문과 제목을 한국어 템플릿으로 작성한다.
 
 ## Workflow
 

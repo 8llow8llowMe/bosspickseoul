@@ -1,11 +1,11 @@
 ---
 name: issue
-description: "Create a GitHub issue draft using the NowDoBoss Korean feature issue template. Use when the user invokes /issue, $issue, asks for an issue template, feature issue, bug issue draft, or wants a title like [BE] feat: ... with 기능 설명, 작업 상세 내용, and 참고 자료."
+description: "Create a GitHub issue draft using the BossPickSeoul Korean feature issue template. Use when the user invokes /issue, $issue, asks for an issue template, feature issue, bug issue draft, or wants a title like [BE] feat: ... with 기능 설명, 작업 상세 내용, and 참고 자료."
 ---
 
 # Issue Draft
 
-NowDoBoss 이슈 초안을 한국어 템플릿으로 작성한다.
+BossPickSeoul 이슈 초안을 한국어 템플릿으로 작성한다.
 
 ## Workflow
 

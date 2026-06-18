@@ -1,11 +1,11 @@
 ---
 name: pr
-description: "NowDoBoss GitHub Pull Request 본문을 한국어 템플릿으로 작성할 때 사용한다. /pr 요청, PR body, pull request template, PR description, [BE] feat: ... 제목 생성이 트리거다."
+description: "BossPickSeoul GitHub Pull Request 본문을 한국어 템플릿으로 작성할 때 사용한다. /pr 요청, PR body, pull request template, PR description, [BE] feat: ... 제목 생성이 트리거다."
 ---
 
 # PR Draft
 
-NowDoBoss Pull Request 본문과 제목을 한국어 템플릿으로 작성한다.
+BossPickSeoul Pull Request 본문과 제목을 한국어 템플릿으로 작성한다.
 
 ## Workflow
 
