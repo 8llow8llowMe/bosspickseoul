@@ -2,7 +2,7 @@
 FROM ibm-semeru-runtimes:open-21-jre-jammy
 
 # Jenkins 에서 사전 빌드된 JAR 복사 (`./gradlew :service:community-service:bootJar` 산출물)
-ARG JAR_FILE=./build/libs/community-service-*.jar
+ARG JAR_FILE=./app.jar
 COPY ${JAR_FILE} /app/community-service.jar
 
 # 컨테이너 메모리 인식 + heap 70% 상한, 시간대 / 프로파일 환경변수 주입

@@ -428,10 +428,22 @@ mkdir -p "\${SERVICE_DIR}"
 rsync -a --delete "${config.fsPath}/" "\${SERVICE_DIR}/"
 install -m 600 .env.runtime "\${SERVICE_DIR}/.env.runtime"
 
+jar_file="\$(find "\${SERVICE_DIR}/build/libs" -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | sort | head -n 1)"
+if [ -z "\${jar_file}" ]; then
+  jar_file="\$(find "\${SERVICE_DIR}/build/libs" -maxdepth 1 -type f -name '*.jar' | sort | head -n 1)"
+fi
+if [ -z "\${jar_file}" ]; then
+  echo "배포할 JAR 파일을 찾지 못했습니다: \${SERVICE_DIR}/build/libs"
+  find "\${SERVICE_DIR}" -maxdepth 4 -type f | sort
+  exit 1
+fi
+install -m 644 "\${jar_file}" "\${SERVICE_DIR}/app.jar"
+
 docker network inspect 8llow8llowme-net >/dev/null 2>&1 || docker network create 8llow8llowme-net >/dev/null
 
 cd "\${SERVICE_DIR}"
 test -s .env.runtime
+test -s app.jar
 docker compose --env-file .env.runtime -f ${config.composeFile} config >/dev/null
 docker compose --env-file .env.runtime -f ${config.composeFile} up -d --build --remove-orphans ${config.composeServiceName}-${ctx.deployEnv}
 
