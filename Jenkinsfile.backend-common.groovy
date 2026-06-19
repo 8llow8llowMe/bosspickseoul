@@ -444,6 +444,19 @@ docker network inspect 8llow8llowme-net >/dev/null 2>&1 || docker network create
 cd "\${SERVICE_DIR}"
 test -s .env.runtime
 test -s app.jar
+
+service_env_prefix="\$(printf '%s' '${config.serviceName}' | tr '[:lower:]-' '[:upper:]_')"
+required_runtime_keys="TIME_ZONE SPRING_PROFILES_ACTIVE \${service_env_prefix}_APP_NAME \${service_env_prefix}_PORT \${service_env_prefix}_PORT_${ctx.deployEnv.toUpperCase()}"
+echo "Runtime env key check:"
+for required_key in \${required_runtime_keys}; do
+  if grep -q "^\${required_key}=" .env.runtime; then
+    echo "  \${required_key}=<set>"
+  else
+    echo "  \${required_key}=<missing>"
+    exit 1
+  fi
+done
+
 docker compose --env-file .env.runtime -f ${config.composeFile} config >/dev/null
 docker compose --env-file .env.runtime -f ${config.composeFile} up -d --build --remove-orphans ${config.composeServiceName}-${ctx.deployEnv}
 
@@ -451,7 +464,7 @@ for attempt in \$(seq 1 30); do
   state="\$(docker inspect -f '{{.State.Status}}' ${config.containerNamePrefix}-${ctx.deployEnv} 2>/dev/null || true)"
 
   if [ "\${state}" = "running" ]; then
-    docker compose -f ${config.composeFile} ps ${config.composeServiceName}-${ctx.deployEnv}
+    docker compose --env-file .env.runtime -f ${config.composeFile} ps ${config.composeServiceName}-${ctx.deployEnv}
     exit 0
   fi
 
