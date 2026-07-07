@@ -57,27 +57,27 @@ public class FootTrafficDistrictEntity {
     private Long femaleFootTraffic;
 
     @Comment("10대 유동인구 수")
-    @Column(nullable = false)
+    @Column(name = "age10_foot_traffic", nullable = false)
     private Long age10FootTraffic;
 
     @Comment("20대 유동인구 수")
-    @Column(nullable = false)
+    @Column(name = "age20_foot_traffic", nullable = false)
     private Long age20FootTraffic;
 
     @Comment("30대 유동인구 수")
-    @Column(nullable = false)
+    @Column(name = "age30_foot_traffic", nullable = false)
     private Long age30FootTraffic;
 
     @Comment("40대 유동인구 수")
-    @Column(nullable = false)
+    @Column(name = "age40_foot_traffic", nullable = false)
     private Long age40FootTraffic;
 
     @Comment("50대 유동인구 수")
-    @Column(nullable = false)
+    @Column(name = "age50_foot_traffic", nullable = false)
     private Long age50FootTraffic;
 
     @Comment("60대 이상 유동인구 수")
-    @Column(nullable = false)
+    @Column(name = "age60_plus_foot_traffic", nullable = false)
     private Long age60PlusFootTraffic;
 
     @Comment("00~06시 유동인구 수")
