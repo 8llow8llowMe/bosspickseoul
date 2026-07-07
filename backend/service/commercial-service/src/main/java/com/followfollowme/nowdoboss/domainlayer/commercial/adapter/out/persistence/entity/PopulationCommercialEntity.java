@@ -64,26 +64,26 @@ public class PopulationCommercialEntity {
     private Long femaleResidentPopulation;
 
     @Comment("10대 상주인구 수")
-    @Column(nullable = false)
+    @Column(name = "age10_resident_population", nullable = false)
     private Long age10ResidentPopulation;
 
     @Comment("20대 상주인구 수")
-    @Column(nullable = false)
+    @Column(name = "age20_resident_population", nullable = false)
     private Long age20ResidentPopulation;
 
     @Comment("30대 상주인구 수")
-    @Column(nullable = false)
+    @Column(name = "age30_resident_population", nullable = false)
     private Long age30ResidentPopulation;
 
     @Comment("40대 상주인구 수")
-    @Column(nullable = false)
+    @Column(name = "age40_resident_population", nullable = false)
     private Long age40ResidentPopulation;
 
     @Comment("50대 상주인구 수")
-    @Column(nullable = false)
+    @Column(name = "age50_resident_population", nullable = false)
     private Long age50ResidentPopulation;
 
     @Comment("60대 이상 상주인구 수")
-    @Column(nullable = false)
+    @Column(name = "age60_plus_resident_population", nullable = false)
     private Long age60PlusResidentPopulation;
 }

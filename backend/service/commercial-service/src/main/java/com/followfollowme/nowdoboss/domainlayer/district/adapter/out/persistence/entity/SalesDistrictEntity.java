@@ -125,26 +125,26 @@ public class SalesDistrictEntity {
     private Long femaleSalesAmount;
 
     @Comment("10대 매출 금액")
-    @Column(nullable = false)
+    @Column(name = "age10_sales_amount", nullable = false)
     private Long age10SalesAmount;
 
     @Comment("20대 매출 금액")
-    @Column(nullable = false)
+    @Column(name = "age20_sales_amount", nullable = false)
     private Long age20SalesAmount;
 
     @Comment("30대 매출 금액")
-    @Column(nullable = false)
+    @Column(name = "age30_sales_amount", nullable = false)
     private Long age30SalesAmount;
 
     @Comment("40대 매출 금액")
-    @Column(nullable = false)
+    @Column(name = "age40_sales_amount", nullable = false)
     private Long age40SalesAmount;
 
     @Comment("50대 매출 금액")
-    @Column(nullable = false)
+    @Column(name = "age50_sales_amount", nullable = false)
     private Long age50SalesAmount;
 
     @Comment("60대 이상 매출 금액")
-    @Column(nullable = false)
+    @Column(name = "age60_plus_sales_amount", nullable = false)
     private Long age60PlusSalesAmount;
 }
