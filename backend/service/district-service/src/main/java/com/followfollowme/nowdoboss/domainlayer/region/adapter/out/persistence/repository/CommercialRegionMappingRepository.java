@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.repository;
 
-import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.entity.AreaCommercialEntity;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.entity.CommercialRegionMappingEntity;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.AdministrationNameProjection;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.CommercialAdministrationProjection;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.projection.CommercialNameProjection;
@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AreaCommercialRepository extends JpaRepository<AreaCommercialEntity, Long> {
+public interface CommercialRegionMappingRepository extends JpaRepository<CommercialRegionMappingEntity, Long> {
 
-    List<AreaCommercialEntity> findAllByDistrictCode(String districtCode);
+    List<CommercialRegionMappingEntity> findAllByDistrictCode(String districtCode);
 
-    List<AreaCommercialEntity> findAllByAdministrationCode(String administrationCode);
+    List<CommercialRegionMappingEntity> findAllByAdministrationCode(String administrationCode);
 
     Optional<DistrictNameProjection> findDistinctByDistrictName(String districtName);
 
@@ -21,7 +21,7 @@ public interface AreaCommercialRepository extends JpaRepository<AreaCommercialEn
 
     Optional<CommercialNameProjection> findDistinctByCommercialName(String commercialName);
 
-    Optional<AreaCommercialEntity> findFirstByAdministrationCode(String administrationCode);
+    Optional<CommercialRegionMappingEntity> findFirstByAdministrationCode(String administrationCode);
 
     Optional<CommercialAdministrationProjection> findFirstByCommercialCode(String commercialCode);
 }

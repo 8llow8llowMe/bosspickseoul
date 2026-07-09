@@ -20,12 +20,12 @@ import org.hibernate.annotations.Comment;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-    name = "area_commercial",
+    name = "commercial_region_mapping",
     indexes = {
-        @Index(name = "idx_area_commercial_district_code", columnList = "districtCode"),
-        @Index(name = "idx_area_commercial_administration_code", columnList = "administrationCode")
+        @Index(name = "idx_commercial_region_mapping_district_code", columnList = "districtCode"),
+        @Index(name = "idx_commercial_region_mapping_administration_code", columnList = "administrationCode")
     })
-public class AreaCommercialEntity {
+public class CommercialRegionMappingEntity {
 
     @Id
     @Comment("영역_상권 아이디")
@@ -37,7 +37,7 @@ public class AreaCommercialEntity {
     private String commercialClassificationCode;
 
     @Comment("상권 분류명")
-    @Column(name = "commercial_classification_code_name", length = 4, nullable = false)
+    @Column(name = "commercial_classification_name", length = 4, nullable = false)
     private String commercialClassificationName;
 
     @Comment("상권 코드")
@@ -45,7 +45,7 @@ public class AreaCommercialEntity {
     private String commercialCode;
 
     @Comment("상권명")
-    @Column(name = "commercial_code_name", length = 80, nullable = false)
+    @Column(name = "commercial_name", length = 80, nullable = false)
     private String commercialName;
 
     @Comment("x 좌표 값")
@@ -61,7 +61,7 @@ public class AreaCommercialEntity {
     private String districtCode;
 
     @Comment("자치구명")
-    @Column(name = "district_code_name", length = 10, nullable = false)
+    @Column(name = "district_name", length = 10, nullable = false)
     private String districtName;
 
     @Comment("행정동 코드")
@@ -69,6 +69,6 @@ public class AreaCommercialEntity {
     private String administrationCode;
 
     @Comment("행정동명")
-    @Column(name = "administration_code_name", length = 20, nullable = false)
+    @Column(name = "administration_name", length = 20, nullable = false)
     private String administrationName;
 }
