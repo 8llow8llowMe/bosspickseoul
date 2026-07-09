@@ -232,7 +232,7 @@ ai:
 id           BIGINT PK (Snowflake)
 member_id    BIGINT NOT NULL
 target_type  VARCHAR(20) NOT NULL   -- COMMERCIAL / ADMINISTRATION / DISTRICT
-target_code  VARCHAR(20) NOT NULL   -- area_commercial FK 없음 (서비스 간 DB 분리)
+target_code  VARCHAR(20) NOT NULL   -- commercial_region_mapping FK 없음 (서비스 간 DB 분리)
 target_name  VARCHAR(80) NOT NULL   -- 스냅샷 저장
 created_at   DATETIME NOT NULL
 UNIQUE(member_id, target_type, target_code)
@@ -248,7 +248,7 @@ INDEX(member_id, created_at)
 - `adapter/in/web/exception/MemberExceptionHandler.java` — `MemberException`, `BookmarkException` 통합 처리
 
 **설계 결정**:
-- `area_commercial` FK 미참조 — 서비스 간 DB 결합 방지. `target_code` 문자열만 저장.
+- `commercial_region_mapping` FK 미참조 — 서비스 간 DB 결합 방지. `target_code` 문자열만 저장.
 - 커서 페이지네이션: QueryDSL 없이 Spring Data 파생 쿼리 2개로 구현 (`firstPage` vs `nextPage`)
 
 ---
