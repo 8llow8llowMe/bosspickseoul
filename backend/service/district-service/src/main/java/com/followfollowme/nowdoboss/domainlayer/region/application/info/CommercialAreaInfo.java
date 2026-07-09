@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.info;
 
-import com.followfollowme.nowdoboss.domainlayer.region.domain.model.AreaCommercial;
+import com.followfollowme.nowdoboss.domainlayer.region.domain.model.CommercialRegionMapping;
 import lombok.Builder;
 import org.locationtech.jts.geom.Point;
 
@@ -14,7 +14,7 @@ public record CommercialAreaInfo(
     double centerLng
 ) {
 
-    public static CommercialAreaInfo from(AreaCommercial area, Point center) {
+    public static CommercialAreaInfo from(CommercialRegionMapping area, Point center) {
         return CommercialAreaInfo.builder()
             .commercialCode(area.commercialCode())
             .commercialName(area.commercialName())

@@ -3,7 +3,7 @@ package com.followfollowme.nowdoboss.domainlayer.region.domain.model;
 import lombok.Builder;
 
 @Builder
-public record AreaCommercial(
+public record CommercialRegionMapping(
     long id,
     String commercialClassificationCode,
     String commercialClassificationName,

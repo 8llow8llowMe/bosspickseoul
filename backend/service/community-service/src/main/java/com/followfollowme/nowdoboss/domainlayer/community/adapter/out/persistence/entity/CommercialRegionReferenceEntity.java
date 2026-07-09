@@ -12,11 +12,11 @@ import org.hibernate.annotations.Comment;
 
 @Entity
 @Getter
-@Table(name = "area_commercial")
+@Table(name = "commercial_region_mapping")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Comment("상권 영역 참조")
-public class AreaCommercialReferenceEntity {
+public class CommercialRegionReferenceEntity {
 
     @Id
     @Comment("상권 영역 아이디")
@@ -26,23 +26,23 @@ public class AreaCommercialReferenceEntity {
     @Comment("상권 코드")
     private String commercialCode;
 
-    @Column(nullable = false, length = 80)
-    @Comment("상권 코드명")
-    private String commercialCodeName;
+    @Comment("상권명")
+    @Column(name = "commercial_name", nullable = false, length = 80)
+    private String commercialName;
 
     @Column(nullable = false, length = 5)
     @Comment("자치구 코드")
     private String districtCode;
 
-    @Column(nullable = false, length = 10)
-    @Comment("자치구 코드명")
-    private String districtCodeName;
+    @Comment("자치구명")
+    @Column(name = "district_name", nullable = false, length = 10)
+    private String districtName;
 
     @Column(nullable = false, length = 10)
     @Comment("행정동 코드")
     private String administrationCode;
 
-    @Column(nullable = false, length = 20)
-    @Comment("행정동 코드명")
-    private String administrationCodeName;
+    @Comment("행정동명")
+    @Column(name = "administration_name", nullable = false, length = 20)
+    private String administrationName;
 }

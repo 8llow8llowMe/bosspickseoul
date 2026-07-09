@@ -1,6 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.info;
 
-import com.followfollowme.nowdoboss.domainlayer.region.domain.model.AreaCommercial;
+import com.followfollowme.nowdoboss.domainlayer.region.domain.model.CommercialRegionMapping;
 import lombok.Builder;
 
 @Builder
@@ -11,12 +11,12 @@ public record CommercialAdministrationAreaInfo(
     String administrationName
 ) {
 
-    public static CommercialAdministrationAreaInfo from(AreaCommercial areaCommercial) {
+    public static CommercialAdministrationAreaInfo from(CommercialRegionMapping commercialRegionMapping) {
         return CommercialAdministrationAreaInfo.builder()
-            .districtCode(areaCommercial.districtCode())
-            .districtName(areaCommercial.districtName())
-            .administrationCode(areaCommercial.administrationCode())
-            .administrationName(areaCommercial.administrationName())
+            .districtCode(commercialRegionMapping.districtCode())
+            .districtName(commercialRegionMapping.districtName())
+            .administrationCode(commercialRegionMapping.administrationCode())
+            .administrationName(commercialRegionMapping.administrationName())
             .build();
     }
 }
