@@ -36,7 +36,7 @@
 **DB 테이블** `member_bookmark`:
 - `id` (Snowflake), `member_id`, `target_type` (COMMERCIAL/ADMINISTRATION/DISTRICT), `target_code`, `target_name`, `created_at`
 - `UNIQUE(member_id, target_type, target_code)` — 중복 북마크 방지
-- `area_commercial` FK 없음 — 서비스 간 DB 분리 원칙
+- `commercial_region_mapping` FK 없음 — 서비스 간 DB 분리 원칙
 
 **핵심 파일 (`domainlayer/member/`)**:
 - `domain/enums/MemberBookmarkTargetType.java`

@@ -27,6 +27,7 @@
 
 - `Info -> Presenter -> Response` 흐름을 유지한다.
 - 지역 계층 API와 겹치는 책임은 `district-service`와 분리한다.
+- 상권의 소속 행정동/자치구 메타는 직접 DB로 소유하지 않고 `CommercialRegionQueryPort`를 통해 `district-service`에서 조회한다.
 - REST 경로는 `commercials`, `regions` 기준 일관성을 우선한다.
 
 ## 후보 탐색 처리 (1단계)

@@ -32,6 +32,7 @@
 - No-offset 커서는 LATEST 정렬에서 `id`, POPULAR 정렬에서 `(likeCount, id)` 복합 커서를 쓴다. `lastPostId == 0` 은 초기 로드 관례다.
 - 좋아요/신고 저장 흐름은 `domain -> entity -> repository.save -> entity -> domain` 패턴을 유지한다.
 - 정렬 파라미터는 enum 기반 `sortType`, `orderType` 기준을 따른다. `CommunitySortType` 과 `OrderType` 은 모두 `CodeNameDescribable` 을 구현한다 (`displayName` 필드 + metadata 변환).
+- 커뮤니티 타깃명 표시용 지역 메타는 로컬 참조 테이블 `commercial_region_mapping`으로만 조회하고, 원천 책임은 `district-service`에 둔다.
 
 ## 게시글 조회수 (신규)
 
