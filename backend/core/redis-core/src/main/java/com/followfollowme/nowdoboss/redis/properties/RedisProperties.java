@@ -15,9 +15,11 @@ public record RedisProperties(
     String keyPrefix
 ) {
 
+    private static final String DEFAULT_KEY_PREFIX = "bosspickseoul";
+
     public String normalizedKeyPrefix() {
         if (keyPrefix == null || keyPrefix.isBlank()) {
-            return "nowdoboss";
+            return DEFAULT_KEY_PREFIX;
         }
         return keyPrefix.trim();
     }

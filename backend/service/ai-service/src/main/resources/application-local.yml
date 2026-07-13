@@ -22,7 +22,7 @@ infra:
     host: localhost
     port: 6379
     password:
-    key-prefix: ${REDIS_KEY_PREFIX:nowdoboss-dev}
+    key-prefix: ${REDIS_KEY_PREFIX:bosspickseoul-dev}
 
 ai:
   report:

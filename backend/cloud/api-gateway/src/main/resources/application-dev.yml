@@ -36,6 +36,12 @@ spring:
           uri: lb://${AI_SERVICE_APP_NAME}
           predicates:
             - Path=/api/v1/ai-reports/**
+        - id: auth-service-docs
+          uri: lb://${AUTH_SERVICE_APP_NAME}
+          predicates:
+            - Path=/auth-service/**
+          filters:
+            - StripPrefix=1
         - id: commercial-service-docs
           uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
           predicates:
@@ -84,6 +90,8 @@ springdoc:
     path: /swagger-ui.html
     config-url: /v3/api-docs/swagger-config
     urls:
+      - name: 인증/회원 서비스 API
+        url: /auth-service/v3/api-docs
       - name: 상권 분석 서비스 API
         url: /commercial-service/v3/api-docs
       - name: 지역/지도 서비스 API

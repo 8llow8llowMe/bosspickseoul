@@ -37,6 +37,12 @@ spring:
           predicates:
             - Path=/api/v1/ai-reports/**
         # Swagger 문서용 라우트
+        - id: auth-service-docs
+          uri: http://localhost:8081
+          predicates:
+            - Path=/auth-service/**
+          filters:
+            - StripPrefix=1
         - id: commercial-service-docs
           uri: http://localhost:8083
           predicates:
@@ -50,7 +56,7 @@ spring:
           filters:
             - StripPrefix=1
         - id: community-service-docs
-          uri: http://localhost:8084
+          uri: http://localhost:8086
           predicates:
             - Path=/community-service/**
           filters:
@@ -78,7 +84,7 @@ infra:
     host: localhost
     port: 6379
     password:
-    key-prefix: ${REDIS_KEY_PREFIX:nowdoboss-dev}
+    key-prefix: ${REDIS_KEY_PREFIX:bosspickseoul-dev}
 
 # SpringDoc (Swagger) Aggregation
 springdoc:
@@ -91,6 +97,8 @@ springdoc:
     config-url: /v3/api-docs/swagger-config
     # 각 서비스의 OpenAPI 문서 URL 목록
     urls:
+      - name: 인증/회원 서비스 API
+        url: /auth-service/v3/api-docs
       - name: 상권 분석 서비스 API
         url: /commercial-service/v3/api-docs
       - name: 지역/지도 서비스 API
