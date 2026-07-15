@@ -31,7 +31,7 @@
 
 ## 부록: `migration-inventory.md` 흡수 내용
 
-> 아래는 기존 `docs/migration-inventory.md`(레거시 CRA → Next.js 코드 이관 기록)의 내용을 그대로 보존한 것이다. 코드 이관 자체는 Phase 1~8 기준으로 이미 완료되었으며, 위 "Feature 목록 & 이관 상태" 표의 상태는 이 문서 체계(Feature 명세 작성) 기준 상태를 의미한다 — 코드 이관 완료 여부와는 별개다. `migration-inventory.md` 원본 파일은 별도 태스크에서 아카이브된다.
+> 아래는 기존 `docs/migration-inventory.md`(레거시 CRA → Next.js 코드 이관 기록)의 내용을 그대로 보존한 것이다. 코드 이관 자체는 Phase 1~8 기준으로 이미 완료되었으며, 위 "Feature 목록 & 이관 상태" 표의 상태는 이 문서 체계(Feature 명세 작성) 기준 상태를 의미한다 — 코드 이관 완료 여부와는 별개다. `migration-inventory.md` 원본 파일은 `docs/_archive/migration-inventory.md`로 아카이브되었다.
 
 ### 레거시 프론트 요약
 

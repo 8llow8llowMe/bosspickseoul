@@ -256,7 +256,7 @@
 - 한 세션에서 하나의 Phase 또는 그 하위 기능 묶음만 진행한다.
 - 작업 전 관련 문서를 읽고, 작업 후 체크리스트를 반영한다.
 - 공통 구조를 바꾸는 경우 해당 문서를 같이 업데이트한다.
-- route 또는 feature를 완료하면 `docs/migration-inventory.md`에 route path, legacy source file, target file, migration status, known gaps, validation result, remaining tasks를 기록한다.
+- route 또는 feature를 완료하면 `docs/features/_index.md`에 route path, legacy source file, target file, migration status, known gaps, validation result, remaining tasks를 기록한다.
 
 ## 2. Phase 체크리스트
 

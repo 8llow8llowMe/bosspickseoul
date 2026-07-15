@@ -211,7 +211,7 @@ pnpm qa:verify
 - [ ] 핵심 버튼과 폼이 수동 테스트를 통과했다
 - [ ] Phase 8 작업이면 `docs/runbook/qa.md`와 `docs/runbook/cutover.md`가 최신 상태다
 - [ ] 새 공통 규칙이 생겼다면 관련 문서를 업데이트했다
-- [ ] `docs/migration-inventory.md` 상태가 갱신됐다
+- [ ] `docs/features/_index.md` 상태가 갱신됐다
 
 ### 7. SEO 체크리스트
 

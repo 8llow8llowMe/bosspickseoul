@@ -619,7 +619,7 @@ Total target length: 250-400 lines. Keep sections concise and actionable.
 
 > 이 섹션은 구 `frontend/docs/design-prompt.md`(현재 `frontend/docs/_archive/design-prompt.md`로 보관)를 참고 자료로 부록화한 것이다. 위 §1~§9(Toss 기반 공통 토큰) 및 [컴포넌트 규칙](#컴포넌트-규칙-design-guidemd-흡수--확장-컴포넌트)과 중복되는 "2. 디자인 시스템" 항목(컬러/타이포/스페이싱/라디우스/그림자/모션/아이콘/Do·Don't)은 생략했다. NowDoBoss V2 제품 고유의 화면 사양·정보구조·카피·유저저니는 아래에 그대로 남긴다. 필요 시 이 섹션 전체를 발췌해 디자이너 AI(Claude Design / Figma AI 등)에 입력해 화면 시안을 생성할 수 있다.
 >
-> 통합 출처: 이 문서(`DESIGN.md`) §1~§9(Toss 기반 디자인 시스템) · [후속 디자인 과제](#후속-디자인-과제)(구 `design-redesign-tasks.md`, 재작업 큐) · `frontend/docs/migration-inventory.md`(라우트 매핑) · `backend/docs/api-screens.md` · `backend/docs/feature-status.md`
+> 통합 출처: 이 문서(`DESIGN.md`) §1~§9(Toss 기반 디자인 시스템) · [후속 디자인 과제](#후속-디자인-과제)(구 `design-redesign-tasks.md`, 재작업 큐) · `frontend/docs/features/_index.md`(라우트 매핑) · `backend/docs/api-screens.md` · `backend/docs/feature-status.md`
 
 ### 0. 빠른 안내 (디자이너 AI에게)
 
@@ -1272,9 +1272,9 @@ idle → submitting → ┬── cached (200)        → completed
 - [ ] 채팅 메시지 버블 색상 규칙(내 메시지만 blue, 상대는 white/grey) 실사
 - [ ] Chat input height 48px, focus blue, send 아이콘 버튼 실사
 
-### Task 08. Copy, States, Motion — 완료로 보임 (금지 문구 기준)
+### Task 08. Copy, States, Motion — 미완 (금지 문구 잔존)
 
-- 금지 문구(`불편을 드려 죄송합니다`, `Oops`, `죄송하지만`, `문제가 발생했습니다`, `데이터가 없습니다`) `src`, `app` 전체 grep 무결과(2026-07-15).
+- 2026-07-16 기준 금지 문구 `문제가 발생했습니다`가 `src/lib/api/response.ts`와 `src/lib/realtime/chat-stomp.ts`에 fallback 문자열로 여전히 남아 있어 이 항목은 완료된 것이 아니다. 해당 fallback 문자열을 수정해야 한다.
 - [ ] 잔여: 화면별 empty/loading/error 카피가 [UX 카피 사전](#6-ux-카피-사전)과 완전히 일치하는지는 화면 단위 실사 필요.
 
 ### Task 09. Visual QA — 다음 액션 (미완료)
@@ -1290,7 +1290,7 @@ idle → submitting → ┬── cached (200)        → completed
   rg -n "font-size: clamp|vw" src/components app
   ```
 - [x] `docs/design-guide.md` 갱신/deprecated 표시 — 이번 문서 통합(Task 4)으로 archive 이동 + 이 문서로 흡수 완료.
-- [ ] QA 결과를 `frontend/docs/_archive/done-checklist.md` 또는 신규 QA 노트에 기록
+- [ ] QA 결과를 `frontend/docs/runbook/qa.md` 또는 신규 QA 노트에 기록
 
 ### Implementation Notes (유지)
 
