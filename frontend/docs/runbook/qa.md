@@ -166,7 +166,7 @@ pnpm qa:verify
 - 인증이 필요한 화면은 로그인 상태 분기가 맞다.
 - 모바일과 데스크톱에서 레이아웃이 무너지지 않는다.
 - `docs/design-guide.md` 기준을 어기지 않는다.
-- 공개 페이지는 `docs/seo-guide.md` 기준을 어기지 않는다.
+- 공개 페이지는 `docs/runbook/seo.md` 기준을 어기지 않는다.
 - 브라우저 전용 코드가 SSR 오류를 일으키지 않는다.
 
 ### 2. 화면 체크리스트
@@ -209,7 +209,7 @@ pnpm qa:verify
 - [ ] hydration 경고가 없다
 - [ ] `pnpm qa:verify`가 통과했다
 - [ ] 핵심 버튼과 폼이 수동 테스트를 통과했다
-- [ ] Phase 8 작업이면 `docs/qa-runbook.md`와 `docs/cutover-runbook.md`가 최신 상태다
+- [ ] Phase 8 작업이면 `docs/runbook/qa.md`와 `docs/runbook/cutover.md`가 최신 상태다
 - [ ] 새 공통 규칙이 생겼다면 관련 문서를 업데이트했다
 - [ ] `docs/migration-inventory.md` 상태가 갱신됐다
 

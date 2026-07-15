@@ -194,7 +194,7 @@
 - dead code 정리
 - metadata, robots, sitemap, OG, canonical 최종 점검
 - `Prettier` 포맷 점검
-- `docs/qa-runbook.md`, `docs/cutover-runbook.md`, `docs/seo-performance-audit.md` 갱신
+- `docs/runbook/qa.md`, `docs/runbook/cutover.md` 갱신
 - `qa:verify` 기준 자동 검증 스크립트 유지
 
 완료 기준:
@@ -237,7 +237,7 @@
 
 - 공개 페이지는 이관 시점에 `metadata`를 같이 작성한다.
 - 비공개 페이지는 `noindex` 정책을 명시한다.
-- title/description/canonical/OG 규칙은 `docs/seo-guide.md`를 따른다.
+- title/description/canonical/OG 규칙은 `docs/runbook/seo.md`를 따른다.
 - 구조화 데이터와 성능 고도화는 2차 단계에서 보강하되, 기본 골격은 초기에 넣는다.
 
 #### 5.6 패키지 매니저 및 포맷터

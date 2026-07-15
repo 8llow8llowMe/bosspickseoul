@@ -44,7 +44,7 @@
 - 서비스 워커 파일 `/firebase-messaging-sw.js`가 배포 산출물에 포함된다.
 - `robots.txt`, `sitemap.xml`, canonical이 production 도메인을 가리킨다.
 - `pnpm qa:verify`가 통과한다.
-- [qa-runbook.md](/Users/seonghoho/Documents/projects/nowdoboss/NowDoBoss-V2/frontend/docs/qa-runbook.md) 기준 수동 smoke가 완료된다.
+- [qa.md](./qa.md) 기준 수동 smoke가 완료된다.
 
 ### 4. 권장 전환 순서
 
