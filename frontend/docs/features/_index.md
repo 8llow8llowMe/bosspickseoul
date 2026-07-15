@@ -235,4 +235,4 @@ Phase 8 기준으로 아래 운영 문서와 설정이 추가되었다.
   - 라우팅: `docs/engineering/routing-rules.md`
   - 클라이언트 경계: `docs/engineering/client-boundary.md`
   - API/세션/데이터: `docs/engineering/data-fetching-rules.md`
-  - 스타일: `docs/design-guide.md`, `docs/engineering/styling-rules.md`
+  - 스타일: [`DESIGN.md`](../../DESIGN.md) (원문은 `_archive/`에 보관), `docs/engineering/styling-rules.md`

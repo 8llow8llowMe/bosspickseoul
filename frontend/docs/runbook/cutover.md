@@ -14,7 +14,7 @@
 
 ### 2. 필수 환경변수
 
-기준 파일: [`.env.local.example`](/Users/seonghoho/Documents/projects/nowdoboss/NowDoBoss-V2/frontend/.env.local.example)
+기준 파일: [`.env.local`](../../.env.local)
 
 필수:
 
@@ -109,8 +109,8 @@
 
 판단 기준:
 
-- [route-skeletons.ts](/Users/seonghoho/Documents/projects/nowdoboss/NowDoBoss-V2/frontend/src/lib/route-skeletons.ts)에서 `visibility: "index"`로 관리한다.
-- [sitemap.ts](/Users/seonghoho/Documents/projects/nowdoboss/NowDoBoss-V2/frontend/app/sitemap.ts)는 정적 공개 경로만 sitemap에 포함한다.
+- [route-skeletons.ts](../../src/lib/route-skeletons.ts)에서 `visibility: "index"`로 관리한다.
+- [sitemap.ts](../../app/sitemap.ts)는 정적 공개 경로만 sitemap에 포함한다.
 
 #### 비색인 대상
 
@@ -127,8 +127,8 @@
 
 판단 기준:
 
-- [robots.ts](/Users/seonghoho/Documents/projects/nowdoboss/NowDoBoss-V2/frontend/app/robots.ts)에서 주요 비공개 경로를 disallow 한다.
-- 각 비공개 페이지는 [metadata.ts](/Users/seonghoho/Documents/projects/nowdoboss/NowDoBoss-V2/frontend/src/lib/metadata.ts)의 `index: false`를 사용한다.
+- [robots.ts](../../app/robots.ts)에서 주요 비공개 경로를 disallow 한다.
+- 각 비공개 페이지는 [metadata.ts](../../src/lib/metadata.ts)의 `index: false`를 사용한다.
 
 #### 확인된 상태
 

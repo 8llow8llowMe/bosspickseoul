@@ -30,5 +30,5 @@ pnpm build
 ## 파일 변경 기준
 
 - runtime code와 문서 변경을 한 작업에 섞지 않는다. 단, 기능 이관 결과를 inventory에 기록하는 문서 갱신은 허용한다.
-- 공통 규칙을 바꾸면 `AGENTS.md`가 아니라 해당 상세 문서를 우선 갱신한다.
-- `AGENTS.md`는 작업 지도와 문서 navigation 역할로 유지한다.
+- 공통 규칙을 바꾸면 `CLAUDE.md`가 아니라 해당 상세 문서를 우선 갱신한다.
+- `CLAUDE.md`는 작업 지도와 문서 navigation 역할로 유지한다.

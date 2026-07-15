@@ -16,7 +16,7 @@
 ### 2. 사전 조건
 
 - `pnpm install`이 완료되어 있다.
-- `.env.local`이 [`.env.local.example`](/Users/seonghoho/Documents/projects/nowdoboss/NowDoBoss-V2/frontend/.env.local.example) 기준으로 채워져 있다.
+- `.env.local`이 [`.env.local`](../../.env.local) 기준으로 채워져 있다.
 - 백엔드 API와 websocket endpoint가 접근 가능하다.
 - 테스트 계정과 커뮤니티/채팅 확인용 샘플 데이터가 준비되어 있다.
 
