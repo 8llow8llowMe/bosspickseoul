@@ -7,7 +7,7 @@
 
 | Feature | 공통명세 | 대표 라우트 | 이관 상태 | 비고 |
 |---|---|---|---|---|
-| home | [home](./home/home.md) | `(shell)/` | ⬜ 미착수 | |
+| home | [home](./home/home.md) | `(shell)/` | 🟩 명세 완료 | |
 | auth | [auth](./auth/auth.md) | `(auth)/login,register,…` `member/loading/[provider]` | ⬜ | |
 | status | [status](./status/status.md) | `(shell)/status` | ⬜ | |
 | recommend | [recommend](./recommend/recommend.md) | `(shell)/recommend` | ⬜ | |
