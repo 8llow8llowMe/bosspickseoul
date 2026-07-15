@@ -72,7 +72,7 @@ NowDoBoss → BossPickSeoul 리브랜딩과 함께 프론트엔드를 React/Vite
 
 ## S5. 테스트케이스
 
-기능 전체에 걸친 공통 동작 검증 TC는 [테스트케이스 템플릿](../../_DocumentTemplates/_template-테스트-케이스.md)을 사용해 **공통 범위(S)** 표(T1)로 작성한다.
+기능 전체에 걸친 공통 동작 검증 TC는 [테스트케이스 템플릿](../../../_DocumentTemplates/_template-테스트-케이스.md)을 사용해 **공통 범위(S)** 표(T1)로 작성한다.
 
 ### TC-001. 홈 진입 시 주요 섹션·CTA 렌더
 
