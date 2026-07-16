@@ -1,0 +1,592 @@
+'use client'
+
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useMutation } from '@tanstack/react-query'
+import {
+  Bookmark,
+  ChevronDown,
+  LogIn,
+  LogOut,
+  Menu,
+  Settings,
+  UserPlus,
+  X,
+} from 'lucide-react'
+import styled from 'styled-components'
+import { logoutUser } from '@/lib/api/user'
+import { useAuthStore } from '@/stores/auth-store'
+
+const Header = styled.header<{ $isScrolled: boolean }>`
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid
+    ${props => (props.$isScrolled ? 'var(--color-border-200)' : 'transparent')};
+  background-color: white;
+  box-shadow: ${props =>
+    props.$isScrolled ? 'var(--shadow-level-1)' : 'none'};
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+`
+
+const Inner = styled.div`
+  width: min(1120px, calc(100% - 40px));
+  min-height: 64px;
+  padding: 10px 0;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    width: min(100% - 32px, 1120px);
+  }
+`
+
+const Brand = styled(Link)`
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-900);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 28px;
+`
+
+const Nav = styled.nav`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+
+  @media (max-width: 960px) {
+    display: none;
+  }
+`
+
+const NavLink = styled(Link)<{ $active?: boolean }>`
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  color: ${props =>
+    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-600)'};
+  font-size: 14px;
+  font-weight: 600;
+  background: ${props =>
+    props.$active ? 'var(--color-primary-100)' : 'transparent'};
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+`
+
+const Actions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+`
+
+const ActionLink = styled(Link)<{ $primary?: boolean }>`
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid
+    ${props =>
+      props.$primary ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$primary ? 'var(--color-primary-700)' : 'var(--color-surface)'};
+  color: ${props => (props.$primary ? 'white' : 'var(--color-text-700)')};
+  font-size: 14px;
+  font-weight: 600;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  &:hover {
+    border-color: ${props =>
+      props.$primary ? 'var(--color-primary-600)' : 'var(--color-primary-100)'};
+    background: ${props =>
+      props.$primary ? 'var(--color-primary-600)' : 'var(--color-primary-100)'};
+    color: ${props => (props.$primary ? 'white' : 'var(--color-primary-700)')};
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+  }
+`
+
+const AvatarButton = styled.button`
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 6px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-700);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  &:hover {
+    border-color: var(--color-primary-100);
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+`
+
+const Avatar = styled.span<{ $image?: string | null }>`
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: ${props =>
+    props.$image
+      ? `url(${props.$image}) center / cover no-repeat`
+      : 'var(--color-surface-muted)'};
+  color: var(--color-text-700);
+  font-size: 13px;
+  font-weight: 700;
+`
+
+const AvatarLabel = styled.span`
+  color: currentColor;
+  font-size: 14px;
+  font-weight: 600;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`
+
+const IconSlot = styled.span`
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    stroke: currentColor;
+  }
+`
+
+const DropdownWrap = styled.div`
+  position: relative;
+`
+
+const DropdownMenu = styled.div`
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 200px;
+  padding: 8px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-sheet);
+  background: var(--color-float-background);
+  box-shadow: var(--shadow-level-3);
+`
+
+const DropdownItem = styled.button`
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-700);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+`
+
+const MobileToggle = styled.button`
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-700);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  @media (max-width: 960px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &:hover {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+  }
+`
+
+const MobilePanel = styled.div`
+  width: 100%;
+  display: none;
+  padding-top: 8px;
+
+  @media (max-width: 960px) {
+    display: block;
+  }
+`
+
+const MobileList = styled.div`
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-2);
+`
+
+const MobileLink = styled(Link)<{ $active?: boolean }>`
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$active ? 'var(--color-primary-100)' : 'transparent'};
+  color: ${props =>
+    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+  font-size: 14px;
+  font-weight: 600;
+
+  &:hover {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+`
+
+const navigationItems = [
+  { href: '/status', label: '구별현황' },
+  { href: '/analysis', label: '상권분석' },
+  { href: '/recommend', label: '상권추천' },
+  { href: '/community/list', label: '커뮤니티' },
+  { href: '/chatting/list', label: '채팅' },
+] as const
+
+const profileMenuItems = [
+  { href: '/profile/bookmarks/analysis', label: '북마크', icon: Bookmark },
+  { href: '/profile/settings/edit', label: '개인 정보 설정', icon: Settings },
+] as const
+
+const isPathActive = (pathname: string, href: string) => {
+  if (href === '/') {
+    return pathname === href
+  }
+
+  if (href === '/community/list') {
+    return pathname.startsWith('/community')
+  }
+
+  if (href === '/chatting/list') {
+    return pathname.startsWith('/chatting')
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+export default function SiteHeader() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const isHome = pathname === '/'
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const hasHydrated = useAuthStore(state => state.hasHydrated)
+  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
+  const memberInfo = useAuthStore(state => state.memberInfo)
+  const clearSession = useAuthStore(state => state.clearSession)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(() => !isHome)
+
+  const logoutMutation = useMutation({
+    mutationFn: logoutUser,
+    onSettled: () => {
+      clearSession()
+      setIsDropdownOpen(false)
+      setIsMobileOpen(false)
+      router.push('/')
+    },
+  })
+
+  useEffect(() => {
+    let frame = 0
+
+    const syncHeaderState = () => {
+      frame = 0
+      setIsScrolled(!isHome || window.scrollY > 28)
+    }
+
+    const handleScroll = () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
+
+      frame = window.requestAnimationFrame(syncHeaderState)
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [isHome])
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [])
+
+  const avatarLabel = memberInfo?.nickname?.slice(0, 1) ?? 'N'
+
+  return (
+    <Header $isScrolled={isScrolled}>
+      <Inner>
+        <Brand
+          href="/"
+          onClick={event => {
+            setIsMobileOpen(false)
+            setIsDropdownOpen(false)
+
+            if (isHome) {
+              event.preventDefault()
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+          }}
+        >
+          NowDoBoss
+        </Brand>
+        <Nav aria-label="primary">
+          {navigationItems.map(item => (
+            <NavLink
+              key={item.href}
+              href={item.href}
+              $active={isPathActive(pathname, item.href)}
+              onClick={() => {
+                setIsMobileOpen(false)
+                setIsDropdownOpen(false)
+              }}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </Nav>
+        <Actions>
+          <MobileToggle
+            aria-expanded={isMobileOpen}
+            aria-label={isMobileOpen ? '메뉴 닫기' : '메뉴 열기'}
+            type="button"
+            onClick={() => setIsMobileOpen(current => !current)}
+          >
+            {isMobileOpen ? <X /> : <Menu />}
+          </MobileToggle>
+          {hasHydrated && isLoggedIn && memberInfo ? (
+            <DropdownWrap ref={dropdownRef}>
+              <AvatarButton
+                aria-expanded={isDropdownOpen}
+                aria-haspopup="menu"
+                type="button"
+                onClick={() => setIsDropdownOpen(current => !current)}
+              >
+                <Avatar $image={memberInfo.profileImage}>
+                  {memberInfo.profileImage ? null : avatarLabel}
+                </Avatar>
+                <AvatarLabel>{memberInfo.nickname}</AvatarLabel>
+                <IconSlot aria-hidden="true">
+                  <ChevronDown />
+                </IconSlot>
+              </AvatarButton>
+              {isDropdownOpen ? (
+                <DropdownMenu role="menu">
+                  {profileMenuItems.map(item => {
+                    const ItemIcon = item.icon
+
+                    return (
+                      <DropdownItem
+                        key={item.href}
+                        role="menuitem"
+                        type="button"
+                        onClick={() => {
+                          setIsDropdownOpen(false)
+                          router.push(item.href)
+                        }}
+                      >
+                        <IconSlot aria-hidden="true">
+                          <ItemIcon />
+                        </IconSlot>
+                        {item.label}
+                      </DropdownItem>
+                    )
+                  })}
+                  <DropdownItem
+                    role="menuitem"
+                    type="button"
+                    onClick={() => logoutMutation.mutate()}
+                  >
+                    <IconSlot aria-hidden="true">
+                      <LogOut />
+                    </IconSlot>
+                    {logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
+                  </DropdownItem>
+                </DropdownMenu>
+              ) : null}
+            </DropdownWrap>
+          ) : (
+            <>
+              <ActionLink
+                href="/login"
+                onClick={() => {
+                  setIsMobileOpen(false)
+                  setIsDropdownOpen(false)
+                }}
+              >
+                <LogIn aria-hidden="true" />
+                로그인
+              </ActionLink>
+              <ActionLink
+                href="/register"
+                $primary
+                onClick={() => {
+                  setIsMobileOpen(false)
+                  setIsDropdownOpen(false)
+                }}
+              >
+                <UserPlus aria-hidden="true" />
+                회원가입
+              </ActionLink>
+            </>
+          )}
+        </Actions>
+        {isMobileOpen ? (
+          <MobilePanel>
+            <MobileList>
+              {navigationItems.map(item => (
+                <MobileLink
+                  key={item.href}
+                  href={item.href}
+                  $active={isPathActive(pathname, item.href)}
+                  onClick={() => setIsMobileOpen(false)}
+                >
+                  {item.label}
+                </MobileLink>
+              ))}
+              {hasHydrated && isLoggedIn ? (
+                <>
+                  {profileMenuItems.map(item => {
+                    const ItemIcon = item.icon
+
+                    return (
+                      <MobileLink
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsMobileOpen(false)}
+                      >
+                        <IconSlot aria-hidden="true">
+                          <ItemIcon />
+                        </IconSlot>
+                        {item.label}
+                      </MobileLink>
+                    )
+                  })}
+                  <DropdownItem
+                    type="button"
+                    onClick={() => logoutMutation.mutate()}
+                  >
+                    <IconSlot aria-hidden="true">
+                      <LogOut />
+                    </IconSlot>
+                    {logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
+                  </DropdownItem>
+                </>
+              ) : (
+                <>
+                  <MobileLink
+                    href="/login"
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    로그인
+                  </MobileLink>
+                  <MobileLink
+                    href="/register"
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    회원가입
+                  </MobileLink>
+                </>
+              )}
+            </MobileList>
+          </MobilePanel>
+        ) : null}
+      </Inner>
+    </Header>
+  )
+}

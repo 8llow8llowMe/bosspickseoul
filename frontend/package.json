@@ -1,0 +1,38 @@
+{
+  "name": "nowdoboss-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "next typegen && touch .next/types/cache-life.d.ts && tsc --noEmit --incremental false",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "qa:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
+    "@tanstack/react-query": "^5.95.2",
+    "axios": "^1.13.6",
+    "firebase": "^12.11.0",
+    "lucide-react": "^1.8.0",
+    "next": "^16.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "styled-components": "^6.3.12",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
+  }
+}
