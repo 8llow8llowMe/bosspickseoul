@@ -18,7 +18,15 @@ implementation 'org.springframework.boot:spring-boot-starter-actuator'
 runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 ```
 
-각 서비스의 `application.yml`은 다음 Actuator endpoint만 외부에 노출합니다.
+각 서비스의 `application.yml`은 `common-core`에 포함된 공통 observability 설정을 import합니다.
+
+```yaml
+spring:
+  config:
+    import: optional:classpath:observability-common.yml
+```
+
+공통 observability 설정은 다음과 같습니다.
 
 ```yaml
 management:
@@ -34,27 +42,33 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+      profile: ${SPRING_PROFILES_ACTIVE:${spring.profiles.active:local}}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 100ms,250ms,500ms,1s,2s,5s
   prometheus:
     metrics:
       export:
         enabled: true
 ```
 
-`health`, `info`, `prometheus`만 열어두는 이유는 필요한 관측 지표는 확보하면서도 불필요한 actuator endpoint 노출을 줄이기 위해서입니다.
+`health`, `info`, `prometheus`만 열어두는 이유는 필요한 관측 지표는 확보하면서도 불필요한 actuator endpoint 노출을 줄이기 위해서입니다. `http.server.requests` 히스토그램과 SLO bucket을 같이 열어두면 Grafana에서 p95/p99 latency와 구간별 요청 분포를 바로 시각화할 수 있습니다.
 
 ## dev 서비스별 scrape endpoint
 
-현재 backend-1의 dev 컨테이너 포트 기준입니다.
+현재 backend-1(`192.168.0.13`)의 dev 컨테이너 포트 기준입니다.
 
 | 서비스 | URL |
 | --- | --- |
-| service-discovery | `http://192.168.0.11:6761/actuator/prometheus` |
-| api-gateway | `http://192.168.0.11:6000/actuator/prometheus` |
-| auth-service | `http://192.168.0.11:6081/actuator/prometheus` |
-| district-service | `http://192.168.0.11:6082/actuator/prometheus` |
-| commercial-service | `http://192.168.0.11:6083/actuator/prometheus` |
-| ai-service | `http://192.168.0.11:6085/actuator/prometheus` |
-| community-service | `http://192.168.0.11:6086/actuator/prometheus` |
+| service-discovery | `http://192.168.0.13:6761/actuator/prometheus` |
+| api-gateway | `http://192.168.0.13:6000/actuator/prometheus` |
+| auth-service | `http://192.168.0.13:6081/actuator/prometheus` |
+| district-service | `http://192.168.0.13:6082/actuator/prometheus` |
+| commercial-service | `http://192.168.0.13:6083/actuator/prometheus` |
+| ai-service | `http://192.168.0.13:6085/actuator/prometheus` |
+| community-service | `http://192.168.0.13:6086/actuator/prometheus` |
 
 batch-service는 상시 API 서버로 운영하지 않을 수 있으므로, 컨테이너를 띄우는 시점에만 Prometheus target에 추가합니다.
 
@@ -81,8 +95,8 @@ batch-service는 상시 API 서버로 운영하지 않을 수 있으므로, 컨�
 서비스에서 직접 확인:
 
 ```bash
-curl http://192.168.0.11:6081/actuator/health
-curl http://192.168.0.11:6081/actuator/prometheus
+curl http://192.168.0.13:6081/actuator/health
+curl http://192.168.0.13:6081/actuator/prometheus
 ```
 
 Prometheus target 확인:
