@@ -251,6 +251,8 @@ Jenkins 관리
 
 Jenkins job 설정 화면 하단의 `Vault Plugin` 영역은 비워둔다. 현재 파이프라인은 Jenkins Vault Plugin 설정을 사용하지 않는다.
 
+Jenkins가 사용하는 Vault AppRole `secret_id`는 운영 IaC 기준으로 만료 없이(`secret_id_ttl=0`) 관리한다. 따라서 30일 같은 주기 만료 때문에 다시 넣는 운영은 필요하지 않아야 한다. 다만 값이 노출됐거나 Vault AppRole을 재구성한 경우에는 새 `secret_id`를 발급해 Jenkins Credential 값을 갱신해야 한다.
+
 ## 9. Vault KV secret 준비
 
 개발 배포용 환경변수는 Vault KV v2에 개별 key-value로 저장한다.

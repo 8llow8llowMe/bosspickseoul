@@ -152,6 +152,8 @@ docker compose
 | `VAULT_SECRET_PATH` | 빈 값 | 입력하면 `VAULT_SECRET_ROOT`보다 우선합니다. |
 | `VAULT_ENGINE_VERSION` | `2` | Vault KV 엔진 버전입니다. |
 
+Jenkins가 사용하는 Vault AppRole `secret_id`는 운영 IaC 기준으로 만료 없이(`secret_id_ttl=0`) 관리합니다. 따라서 정기 만료로 빌드가 깨지지 않아야 하며, Jenkins Web UI의 `bosspickseoul-vault-secret-id` 값은 노출 또는 보안 점검 시에만 수동 회전합니다.
+
 첫 dev 배포에서는 명시 경로를 사용하는 것을 권장합니다.
 
 ```text
