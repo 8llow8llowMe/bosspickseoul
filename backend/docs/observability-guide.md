@@ -18,7 +18,7 @@ implementation 'org.springframework.boot:spring-boot-starter-actuator'
 runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 ```
 
-각 서비스의 `application.yml`은 `common-core`에 포함된 공통 observability 설정을 import합니다.
+각 서비스의 `application.yml`은 공통 observability 설정을 import합니다. 일반 서비스들은 `common-core`에 포함된 리소스를 사용하고, `service-discovery`는 불필요한 `common-core` 의존을 피하기 위해 동일한 리소스를 자신의 classpath에 포함합니다.
 
 ```yaml
 spring:
