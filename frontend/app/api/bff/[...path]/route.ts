@@ -10,6 +10,7 @@ const buildHeaders = (req: Request, accessToken: string | null) => {
   req.headers.forEach((v, k) => {
     if (!HOP.has(k.toLowerCase())) h.set(k, v)
   })
+  h.delete('authorization') // BFF is the sole injector; drop any client-supplied Authorization
   if (accessToken) h.set('Authorization', `Bearer ${accessToken}`)
   return h
 }
@@ -52,8 +53,10 @@ async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }
 
   const resBody = await upstream.arrayBuffer()
   const headers = new Headers()
+  const STRIP_RES = new Set(['set-cookie', 'content-encoding', 'content-length', 'transfer-encoding'])
   upstream.headers.forEach((v, k) => {
-    if (k.toLowerCase() !== 'set-cookie') headers.set(k, v) // 백엔드 Set-Cookie 브라우저로 전파 금지
+    // 백엔드 Set-Cookie 브라우저로 전파 금지 + 이미 압축 해제된 본문에 대한 content-encoding/length 헤더 스킵
+    if (!STRIP_RES.has(k.toLowerCase())) headers.set(k, v)
   })
   return new NextResponse(resBody, { status: upstream.status, headers })
 }
