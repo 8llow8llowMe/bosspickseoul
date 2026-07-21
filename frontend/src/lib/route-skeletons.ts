@@ -3,7 +3,6 @@ import type { RoutePlaceholderDefinition } from '@/components/routing/route-plac
 type RouteKey =
   | 'home'
   | 'register'
-  | 'registerGeneral'
   | 'login'
   | 'memberLoading'
   | 'accountDeleted'
@@ -44,12 +43,6 @@ export const routeSkeletons: Record<RouteKey, RoutePlaceholderDefinition> = {
     path: '/register',
     description:
       '회원가입 진입 화면 라우트 골격입니다. 인증 화면은 기본적으로 noindex 정책을 사용합니다.',
-    visibility: 'noindex',
-  },
-  registerGeneral: {
-    title: '일반 회원가입',
-    path: '/register/general',
-    description: '이메일 기반 일반 회원가입 화면 라우트 골격입니다.',
     visibility: 'noindex',
   },
   login: {
