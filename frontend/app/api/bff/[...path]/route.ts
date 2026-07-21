@@ -34,7 +34,7 @@ const forward = async (
   session: SessionPayload | null,
   body: ArrayBuffer | undefined,
 ) =>
-  fetch(`${backendApiUrl}/${path}${search}`, {
+  fetch(`${backendApiUrl}/api/v1/${path}${search}`, {
     method: req.method,
     headers: buildHeaders(req, session?.accessToken ?? null),
     body: body && body.byteLength > 0 ? body : undefined,

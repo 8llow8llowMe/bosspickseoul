@@ -15,7 +15,6 @@ import {
   X,
 } from 'lucide-react'
 import styled from 'styled-components'
-import { logoutUser } from '@/lib/api/user'
 import { useAuthStore } from '@/stores/auth-store'
 
 const Header = styled.header<{ $isScrolled: boolean }>`
@@ -353,7 +352,7 @@ export default function SiteHeader() {
   const [isScrolled, setIsScrolled] = useState(() => !isHome)
 
   const logoutMutation = useMutation({
-    mutationFn: logoutUser,
+    mutationFn: () => fetch('/api/auth/logout', { method: 'POST' }),
     onSettled: () => {
       clearSession()
       setIsDropdownOpen(false)
