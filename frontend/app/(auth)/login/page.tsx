@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import LoginPage from '@/components/auth/login-page'
+import { Suspense } from 'react'
+import LoginForm from '@/components/auth/login-form'
 import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
@@ -11,5 +12,9 @@ export const metadata: Metadata = createPageMetadata({
 })
 
 export default function Page() {
-  return <LoginPage />
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  )
 }
