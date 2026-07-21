@@ -11,17 +11,21 @@
     "typecheck": "next typegen && touch .next/types/cache-life.d.ts && tsc --noEmit --incremental false",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "qa:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build"
+    "qa:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",
     "@tanstack/react-query": "^5.95.2",
     "axios": "^1.13.6",
     "firebase": "^12.11.0",
+    "jose": "^6.2.3",
     "lucide-react": "^1.8.0",
     "next": "^16.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "server-only": "^0.0.1",
     "styled-components": "^6.3.12",
     "zustand": "^5.0.12"
   },
@@ -33,6 +37,7 @@
     "eslint-config-next": "^16.2.1",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }
