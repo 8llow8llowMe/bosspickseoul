@@ -17,9 +17,14 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// 오픈 리다이렉트 방지: 내부 경로(/로 시작, //로 시작하지 않음)만 허용한다.
-const safeRedirect = (value: string | null) =>
-  value && value.startsWith('/') && !value.startsWith('//') ? value : '/'
+// 오픈 리다이렉트 방지: 내부 경로(/로 시작, //로 시작하지 않고, 백슬래시를 포함하지 않음)만 허용한다.
+const safeRedirect = (value: string | null): string =>
+  value &&
+  value.startsWith('/') &&
+  !value.startsWith('//') &&
+  !value.includes('\\')
+    ? value
+    : '/'
 
 export default function LoginForm() {
   const router = useRouter()
