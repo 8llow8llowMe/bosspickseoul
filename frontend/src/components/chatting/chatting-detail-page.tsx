@@ -359,7 +359,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
   })
 
   useEffect(() => {
-    if (!hasHydrated || !isLoggedIn || !memberInfo?.id) {
+    if (!hasHydrated || !isLoggedIn || !memberInfo?.memberId) {
       return
     }
 
@@ -403,7 +403,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
       setIsConnected(false)
       void disconnectChatStompClient(currentClient, currentSubscription)
     }
-  }, [hasHydrated, isLoggedIn, memberInfo?.id, roomId])
+  }, [hasHydrated, isLoggedIn, memberInfo?.memberId, roomId])
 
   const historyMessages = (roomMessagesQuery.data?.pages ?? []).flatMap(page =>
     isApiSuccess(page) ? page.dataBody : [],
@@ -426,7 +426,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
       return
     }
 
-    if (!clientRef.current?.connected || !memberInfo?.id) {
+    if (!clientRef.current?.connected || !memberInfo?.memberId) {
       setRoomMessage('실시간 연결을 확인한 뒤 다시 전송해 주세요.')
       return
     }
@@ -435,7 +435,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
       publishChatMessage(clientRef.current, roomId, {
         chatRoomId: roomId,
         content: trimmedContent,
-        senderId: memberInfo.id,
+        senderId: Number(memberInfo.memberId),
       })
 
       const roomName =
@@ -563,7 +563,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
               <MessageList>
                 {mergedMessages.map((message, index) => {
                   const previousMessage = mergedMessages[index - 1] ?? null
-                  const isMe = memberInfo?.id === message.senderId
+                  const isMe = Number(memberInfo?.memberId) === message.senderId
                   const shouldShowDaySeparator = isChatNewDay(
                     previousMessage?.createdAt ?? null,
                     message.createdAt,

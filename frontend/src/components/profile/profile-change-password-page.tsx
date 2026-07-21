@@ -17,10 +17,8 @@ import {
 } from '@/components/profile/profile-ui'
 import { changeMemberPassword } from '@/lib/api/profile'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
-import { useAuthStore } from '@/stores/auth-store'
 
 export default function ProfileChangePasswordPage() {
-  const memberInfo = useAuthStore(state => state.memberInfo)
   const [form, setForm] = useState({
     nowPassword: '',
     changePassword: '',
@@ -59,20 +57,6 @@ export default function ProfileChangePasswordPage() {
       })
     },
   })
-
-  if (memberInfo?.provider) {
-    return (
-      <SectionStack>
-        <SectionPanel>
-          <SectionTitle>비밀번호 변경</SectionTitle>
-          <SectionBody>
-            소셜 계정은 외부 인증 공급자를 통해 로그인하므로 비밀번호 변경을
-            지원하지 않습니다.
-          </SectionBody>
-        </SectionPanel>
-      </SectionStack>
-    )
-  }
 
   const handleChange =
     (key: keyof typeof form) =>

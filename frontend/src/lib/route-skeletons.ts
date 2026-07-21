@@ -3,9 +3,7 @@ import type { RoutePlaceholderDefinition } from '@/components/routing/route-plac
 type RouteKey =
   | 'home'
   | 'register'
-  | 'registerGeneral'
   | 'login'
-  | 'memberLoading'
   | 'accountDeleted'
   | 'profileBookmarks'
   | 'profileBookmarksAnalysis'
@@ -46,23 +44,11 @@ export const routeSkeletons: Record<RouteKey, RoutePlaceholderDefinition> = {
       '회원가입 진입 화면 라우트 골격입니다. 인증 화면은 기본적으로 noindex 정책을 사용합니다.',
     visibility: 'noindex',
   },
-  registerGeneral: {
-    title: '일반 회원가입',
-    path: '/register/general',
-    description: '이메일 기반 일반 회원가입 화면 라우트 골격입니다.',
-    visibility: 'noindex',
-  },
   login: {
     title: '로그인',
     path: '/login',
     description:
       '로그인 화면 라우트 골격입니다. 이후 인증 폼과 FCM 분기 로직을 이관합니다.',
-    visibility: 'noindex',
-  },
-  memberLoading: {
-    title: '소셜 로그인 콜백',
-    path: '/member/loading/[provider]',
-    description: '소셜 로그인 provider 콜백 처리 라우트 골격입니다.',
     visibility: 'noindex',
   },
   accountDeleted: {

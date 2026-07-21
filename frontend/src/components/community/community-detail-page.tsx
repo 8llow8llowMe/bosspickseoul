@@ -486,7 +486,7 @@ export default function CommunityDetailPage({
   }
 
   const detail = detailQuery.data.dataBody
-  const currentMemberId = memberInfo?.id ?? null
+  const currentMemberId = memberInfo ? Number(memberInfo.memberId) : null
   const isOwner =
     hasHydrated && isLoggedIn && currentMemberId === detail.writerId
 

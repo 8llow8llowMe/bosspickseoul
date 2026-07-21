@@ -1,7 +1,7 @@
 export type ApiMessage = string | Record<string, string> | null
 
 export type ApiDataHeader = {
-  successCode: number
+  success: boolean
   resultCode: string | null
   resultMessage: ApiMessage
 }

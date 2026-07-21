@@ -10,9 +10,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/login',
           '/register',
-          '/register/general',
           '/account-deleted',
-          '/member/loading/',
           '/profile/',
           '/analysis',
           '/simulation',

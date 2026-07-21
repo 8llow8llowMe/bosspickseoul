@@ -5,26 +5,29 @@
 
 ## Feature 목록 & 이관 상태
 
-| Feature | 공통명세 | 대표 라우트 | 이관 상태 | 비고 |
-|---|---|---|---|---|
-| home | [home](./home/home.md) | `(shell)/` | 🟩 명세 완료 | |
-| auth | [auth](./auth/auth.md) | `(auth)/login,register,…` `member/loading/[provider]` | ⬜ | |
-| status | [status](./status/status.md) | `(shell)/status` | ⬜ | |
-| recommend | [recommend](./recommend/recommend.md) | `(shell)/recommend` | ⬜ | |
-| analysis | [analysis](./analysis/analysis.md) | `(shell)/analysis,result,simulation…` | ⬜ | |
-| simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report` | ⬜ | |
-| community | [community](./community/community.md) | `(shell)/community/{list,register,[id]}` | ⬜ | |
-| chatting | [chatting](./chatting/chatting.md) | `(shell)/chatting/{list,[roomId]}` | ⬜ | 최종 단계(인증·FCM·WS) |
-| profile | [profile](./profile/profile.md) | `(shell)/profile/{settings,bookmarks,…}` | ⬜ | |
-| share | [share](./share/share.md) | `(shell)/share/[token]` | ⬜ | |
+| Feature    | 공통명세                                 | 대표 라우트                              | 이관 상태                    | 비고                                                  |
+| ---------- | ---------------------------------------- | ---------------------------------------- | ---------------------------- | ----------------------------------------------------- |
+| home       | [home](./home/home.md)                   | `(shell)/`                               | 🟩 명세 완료                 |                                                       |
+| auth       | [auth](./auth/auth.md)                   | `(auth)/login,register,…`                | 🟩 명세 완료·구현(정적 검증) | BFF 세션. 소셜로그인·2단계가입·에러코드 미결(BE 선행) |
+| status     | [status](./status/status.md)             | `(shell)/status`                         | ⬜                           |                                                       |
+| recommend  | [recommend](./recommend/recommend.md)    | `(shell)/recommend`                      | ⬜                           |                                                       |
+| analysis   | [analysis](./analysis/analysis.md)       | `(shell)/analysis,result,simulation…`    | ⬜                           |                                                       |
+| simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report`      | ⬜                           |                                                       |
+| community  | [community](./community/community.md)    | `(shell)/community/{list,register,[id]}` | ⬜                           |                                                       |
+| chatting   | [chatting](./chatting/chatting.md)       | `(shell)/chatting/{list,[roomId]}`       | ⬜                           | 최종 단계(인증·FCM·WS)                                |
+| profile    | [profile](./profile/profile.md)          | `(shell)/profile/{settings,bookmarks,…}` | ⬜                           |                                                       |
+| share      | [share](./share/share.md)                | `(shell)/share/[token]`                  | ⬜                           |                                                       |
 
 ## 상태 범례
+
 ⬜ 미착수 · 🟡 명세 작성중 · 🟩 명세 완료 · ✅ 이관·검증 완료
 
 ## 이관 순서
+
 공통 인프라 → home/auth → status/recommend → analysis/simulation → community → profile → chatting.
 
 ## 이관 기록 방식
+
 각 Feature 이관 시: legacy source 파일, target 파일, 상태, known gaps, 검증 결과, 남은 작업을 해당 Feature 공통명세 S0/변경이력에 남기고 이 표의 상태를 갱신한다.
 
 ---
