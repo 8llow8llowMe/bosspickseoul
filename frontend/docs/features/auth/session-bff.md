@@ -96,7 +96,7 @@ flowchart LR
 | SessionPayload | `accessToken` | string | 백엔드 발급 JWT (암호화되어 쿠키에 보관) |
 | SessionPayload | `refreshToken` | string | 백엔드 발급 refresh (암호화되어 쿠키에 보관) |
 | SessionPayload | `memberId` | string | 로그인 응답의 memberId |
-| MeInfo | `memberId, email, name, nickname, profileImageUrl, roleCode, roleDescription` | string | `GET /members/me` 응답 |
+| MeInfo | `memberId, email, name, nickname, profileImageUrl` (string), `role` | 객체 | `GET /members/me` 응답. **`role`은 중첩 객체** `{ code, name, description }` (백엔드 `CodeNameDescriptionMetadata`, 코드 확인 2026-07-21). ⚠️ 백엔드 계약이 초기 명세 이후 드리프트됨 — flat `roleCode/roleDescription` 아님 |
 
 ### D3-4. 사용 라이브러리 / 기술 (역할 기준)
 
