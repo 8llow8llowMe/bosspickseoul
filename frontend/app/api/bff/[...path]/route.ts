@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server'
 import { getServerEnv } from '@/lib/env.server'
-import { getSession, setSession, clearSession, type SessionPayload } from '@/lib/auth/session'
+import {
+  getSession,
+  setSession,
+  clearSession,
+  type SessionPayload,
+} from '@/lib/auth/session'
 import { reissueSession } from '@/lib/auth/reissue'
 
-const HOP = new Set(['host', 'connection', 'content-length', 'set-cookie', 'cookie'])
+const HOP = new Set([
+  'host',
+  'connection',
+  'content-length',
+  'set-cookie',
+  'cookie',
+])
 
 const buildHeaders = (req: Request, accessToken: string | null) => {
   const h = new Headers()
@@ -30,21 +41,37 @@ const forward = async (
     redirect: 'manual',
   })
 
-async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
+async function handle(
+  req: Request,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
   const { backendApiUrl } = getServerEnv()
   const { path } = await ctx.params
   const joined = path.join('/')
   const search = new URL(req.url).search
-  const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer()
+  const body =
+    req.method === 'GET' || req.method === 'HEAD'
+      ? undefined
+      : await req.arrayBuffer()
 
   let session = await getSession()
-  let upstream = await forward(req, backendApiUrl, joined, search, session, body)
+  let upstream = await forward(
+    req,
+    backendApiUrl,
+    joined,
+    search,
+    session,
+    body,
+  )
 
   if (upstream.status === 401 && session) {
     const next = await reissueSession(session, backendApiUrl)
     if (!next) {
       await clearSession()
-      return NextResponse.json({ message: '세션이 만료되었습니다. 다시 로그인해 주세요.' }, { status: 401 })
+      return NextResponse.json(
+        { message: '세션이 만료되었습니다. 다시 로그인해 주세요.' },
+        { status: 401 },
+      )
     }
     await setSession(next)
     session = next
@@ -53,7 +80,12 @@ async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }
 
   const resBody = await upstream.arrayBuffer()
   const headers = new Headers()
-  const STRIP_RES = new Set(['set-cookie', 'content-encoding', 'content-length', 'transfer-encoding'])
+  const STRIP_RES = new Set([
+    'set-cookie',
+    'content-encoding',
+    'content-length',
+    'transfer-encoding',
+  ])
   upstream.headers.forEach((v, k) => {
     // 백엔드 Set-Cookie 브라우저로 전파 금지 + 이미 압축 해제된 본문에 대한 content-encoding/length 헤더 스킵
     if (!STRIP_RES.has(k.toLowerCase())) headers.set(k, v)

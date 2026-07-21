@@ -15,27 +15,25 @@ beforeEach(() => {
 describe('POST /api/auth/login', () => {
   it('on backend success, seals session and returns memberId', async () => {
     const setCookie = 'refreshToken=r.t.k; Path=/; HttpOnly'
-    global.fetch = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            dataHeader: {
-              success: true,
-              resultCode: null,
-              resultMessage: null,
-            },
-            dataBody: { accessToken: 'a.t.k', memberId: '42' },
-          }),
-          {
-            status: 200,
-            headers: {
-              'content-type': 'application/json',
-              'set-cookie': setCookie,
-            },
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          dataHeader: {
+            success: true,
+            resultCode: null,
+            resultMessage: null,
           },
-        ),
-      )
+          dataBody: { accessToken: 'a.t.k', memberId: '42' },
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'set-cookie': setCookie,
+          },
+        },
+      ),
+    )
     const { POST } = await import('./route')
     const res = await POST(
       new Request('http://x/api/auth/login', {
@@ -53,21 +51,19 @@ describe('POST /api/auth/login', () => {
   })
 
   it('on backend failure, returns 401 with message and no session', async () => {
-    global.fetch = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            dataHeader: {
-              success: false,
-              resultCode: 'AUTH_001',
-              resultMessage: '이메일 또는 비밀번호가 올바르지 않습니다.',
-            },
-            dataBody: null,
-          }),
-          { status: 401, headers: { 'content-type': 'application/json' } },
-        ),
-      )
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          dataHeader: {
+            success: false,
+            resultCode: 'AUTH_001',
+            resultMessage: '이메일 또는 비밀번호가 올바르지 않습니다.',
+          },
+          dataBody: null,
+        }),
+        { status: 401, headers: { 'content-type': 'application/json' } },
+      ),
+    )
     const { POST } = await import('./route')
     const res = await POST(
       new Request('http://x/api/auth/login', {

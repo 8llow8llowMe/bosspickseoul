@@ -29,6 +29,8 @@ export const useAuthStore = create<AuthState>(set => ({
       set({ hasHydrated: true, isLoggedIn: false, memberInfo: null })
     }
   },
-  setSession: memberInfo => set({ hasHydrated: true, isLoggedIn: true, memberInfo }),
-  clearSession: () => set({ hasHydrated: true, isLoggedIn: false, memberInfo: null }),
+  setSession: memberInfo =>
+    set({ hasHydrated: true, isLoggedIn: true, memberInfo }),
+  clearSession: () =>
+    set({ hasHydrated: true, isLoggedIn: false, memberInfo: null }),
 }))

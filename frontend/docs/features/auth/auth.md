@@ -13,16 +13,16 @@
 
 BossPickSeoul(구 NowDoBoss) FE를 Next.js App Router로 이관하면서, 인증을 **legacy의 클라이언트 토큰 보관 방식에서 Next 서버 기반 BFF(Backend-for-Frontend) 세션 방식으로 전환**한다. 백엔드가 마이크로서비스(API Gateway + auth-service)로 재아키텍처되었고, 토큰을 access(body)/refresh(HttpOnly 쿠키)로 분리·게이트웨이 검증·Redis 블랙리스트로 관리하므로, FE도 이에 맞춰 보안을 강화한다.
 
-| 항목 | 내용 |
-|---|---|
-| 요청자 / 요청팀 | FE (BossPickSeoul 마이그레이션) |
-| 요청일 | 2026-07-21 |
-| 원본 기획 문서 | [migration-inventory (archived)](../../_archive/migration-inventory.md), [restructure spec](../../superpowers/specs/2026-07-15-fe-docs-restructure-design.md) |
-| 요청 배경 | 리브랜딩 + Next 이관 + 백엔드 재아키텍처. 토큰을 클라이언트에 두던 방식의 XSS 위험 제거 |
-| 기존 동작 (as-is) | legacy `util/auth/customAxios.tsx`가 클라이언트에서 accessToken을 `localStorage`/쿠키에 보관하고 요청마다 헤더 주입, 401 시 클라이언트가 refresh 호출. 소셜 로그인(카카오 등) + 2단계 일반가입 + 이메일 인증 존재 |
-| 목표 동작 (to-be) | 브라우저는 백엔드를 직접 호출하지 않는다. Next 서버(BFF)가 토큰을 **암호화 HttpOnly 세션 쿠키**에 보관하고 server-to-server로 게이트웨이를 호출하며, access 만료 시 서버가 투명하게 재발급·재시도한다. 브라우저 JS는 토큰을 절대 보지 못한다 |
-| 구현 제외 범위 | **소셜 로그인(OAuth)** — 백엔드에 엔드포인트 없음(→ D8 미결). **2단계 가입·이메일 인증·중복확인** — 백엔드 단일 signup만 존재(→ D8 미결). 비밀번호 변경·회원 탈퇴는 profile Feature 소관 |
-| 연관 기능 / 의존성 | 모든 인증 필요 Feature(status·recommend·analysis·simulation·community·chatting·profile)가 이 세션 메커니즘에 의존. chatting은 WebSocket으로 별도 인증 경로 필요(해당 Feature에서 정의) |
+| 항목               | 내용                                                                                                                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 요청자 / 요청팀    | FE (BossPickSeoul 마이그레이션)                                                                                                                                                                                                              |
+| 요청일             | 2026-07-21                                                                                                                                                                                                                                   |
+| 원본 기획 문서     | [migration-inventory (archived)](../../_archive/migration-inventory.md), [restructure spec](../../superpowers/specs/2026-07-15-fe-docs-restructure-design.md)                                                                                |
+| 요청 배경          | 리브랜딩 + Next 이관 + 백엔드 재아키텍처. 토큰을 클라이언트에 두던 방식의 XSS 위험 제거                                                                                                                                                      |
+| 기존 동작 (as-is)  | legacy `util/auth/customAxios.tsx`가 클라이언트에서 accessToken을 `localStorage`/쿠키에 보관하고 요청마다 헤더 주입, 401 시 클라이언트가 refresh 호출. 소셜 로그인(카카오 등) + 2단계 일반가입 + 이메일 인증 존재                            |
+| 목표 동작 (to-be)  | 브라우저는 백엔드를 직접 호출하지 않는다. Next 서버(BFF)가 토큰을 **암호화 HttpOnly 세션 쿠키**에 보관하고 server-to-server로 게이트웨이를 호출하며, access 만료 시 서버가 투명하게 재발급·재시도한다. 브라우저 JS는 토큰을 절대 보지 못한다 |
+| 구현 제외 범위     | **소셜 로그인(OAuth)** — 백엔드에 엔드포인트 없음(→ D8 미결). **2단계 가입·이메일 인증·중복확인** — 백엔드 단일 signup만 존재(→ D8 미결). 비밀번호 변경·회원 탈퇴는 profile Feature 소관                                                     |
+| 연관 기능 / 의존성 | 모든 인증 필요 Feature(status·recommend·analysis·simulation·community·chatting·profile)가 이 세션 메커니즘에 의존. chatting은 WebSocket으로 별도 인증 경로 필요(해당 Feature에서 정의)                                                       |
 
 ---
 
@@ -38,28 +38,28 @@ BossPickSeoul(구 NowDoBoss) FE를 Next.js App Router로 이관하면서, 인증
 
 ## S2. 공통 요구사항
 
-| # | 요구사항 | 상세 참조 |
-|---|---|---|
-| 1 | 브라우저는 백엔드를 직접 호출하지 않고 same-origin Next(BFF)만 호출한다 | [session-bff](./session-bff.md) D3 |
-| 2 | accessToken·refreshToken은 브라우저 JS에 노출되지 않는다 (암호화 HttpOnly 쿠키) | [session-bff](./session-bff.md) D4-1 |
-| 3 | access 만료 시 서버가 투명하게 재발급 후 원요청을 1회 재시도한다 | [session-bff](./session-bff.md) D4-3 |
-| 4 | 재발급 실패 시 세션을 제거하고 미인증 상태로 전환한다 | [session-bff](./session-bff.md) D4-3 |
-| 5 | 보호 라우트는 미인증 시 `/login`으로 리다이렉트한다 | [session-bff](./session-bff.md) D4-4 |
-| 6 | 새로고침 후에도 세션이 복원된다(`/members/me`) | [session-bff](./session-bff.md) D4-5 |
-| 7 | 백엔드 공통 응답 래퍼 `Response<T>`의 성공/실패 판별을 보존한다 | [session-bff](./session-bff.md) D6 |
-| 8 | 로딩·에러·미인증 상태를 사용자에게 누락 없이 표시한다 | 각 세부 명세 |
+| #   | 요구사항                                                                        | 상세 참조                            |
+| --- | ------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | 브라우저는 백엔드를 직접 호출하지 않고 same-origin Next(BFF)만 호출한다         | [session-bff](./session-bff.md) D3   |
+| 2   | accessToken·refreshToken은 브라우저 JS에 노출되지 않는다 (암호화 HttpOnly 쿠키) | [session-bff](./session-bff.md) D4-1 |
+| 3   | access 만료 시 서버가 투명하게 재발급 후 원요청을 1회 재시도한다                | [session-bff](./session-bff.md) D4-3 |
+| 4   | 재발급 실패 시 세션을 제거하고 미인증 상태로 전환한다                           | [session-bff](./session-bff.md) D4-3 |
+| 5   | 보호 라우트는 미인증 시 `/login`으로 리다이렉트한다                             | [session-bff](./session-bff.md) D4-4 |
+| 6   | 새로고침 후에도 세션이 복원된다(`/members/me`)                                  | [session-bff](./session-bff.md) D4-5 |
+| 7   | 백엔드 공통 응답 래퍼 `Response<T>`의 성공/실패 판별을 보존한다                 | [session-bff](./session-bff.md) D6   |
+| 8   | 로딩·에러·미인증 상태를 사용자에게 누락 없이 표시한다                           | 각 세부 명세                         |
 
 ---
 
 ## S3. 필수 기능
 
-| # | 기능명 | 한 줄 설명 | 세부 명세 |
-|---|---|---|---|
-| 1 | BFF 세션/토큰 커스터디 | 로그인·로그아웃·재발급·가드·세션복원의 서버측 메커니즘 | [session-bff](./session-bff.md) |
-| 2 | 로그인 | 이메일/비밀번호 로그인 화면 및 플로우 | [login](./login.md) |
-| 3 | 회원가입 | 단일 단계 회원가입(email/pw/name/nickname) 화면 및 플로우 | [register](./register.md) |
-| 4 | 로그아웃 | 세션 종료 + 백엔드 logout | [session-bff](./session-bff.md) D4-2 |
-| 5 | 소셜 로그인(OAuth) | **백엔드 미지원 — 미결** | [session-bff](./session-bff.md) D8 |
+| #   | 기능명                 | 한 줄 설명                                                | 세부 명세                            |
+| --- | ---------------------- | --------------------------------------------------------- | ------------------------------------ |
+| 1   | BFF 세션/토큰 커스터디 | 로그인·로그아웃·재발급·가드·세션복원의 서버측 메커니즘    | [session-bff](./session-bff.md)      |
+| 2   | 로그인                 | 이메일/비밀번호 로그인 화면 및 플로우                     | [login](./login.md)                  |
+| 3   | 회원가입               | 단일 단계 회원가입(email/pw/name/nickname) 화면 및 플로우 | [register](./register.md)            |
+| 4   | 로그아웃               | 세션 종료 + 백엔드 logout                                 | [session-bff](./session-bff.md) D4-2 |
+| 5   | 소셜 로그인(OAuth)     | **백엔드 미지원 — 미결**                                  | [session-bff](./session-bff.md) D8   |
 
 ## S4. 세부 명세
 
@@ -74,20 +74,20 @@ BossPickSeoul(구 NowDoBoss) FE를 Next.js App Router로 이관하면서, 인증
 - 공통 TC ID: `TC-NNN`
 - 세부 기능 전용 TC는 각 세부 명세(D7)에 작성.
 
-| TC ID | 목적 | 실행 | 기대 결과 | 우선순위 |
-|---|---|---|---|---|
-| TC-001 | 로그인 성공 | 유효한 email/pw로 로그인 | 세션 쿠키 발급, 인증 상태 전환, 리다이렉트 | High |
-| TC-002 | 로그인 실패 | 잘못된 자격으로 로그인 | 백엔드 실패 응답 → 에러 메시지 표시, 세션 미발급 | High |
-| TC-003 | 세션 복원 | 로그인 후 새로고침 | `/members/me`로 인증 상태·회원정보 복원 | High |
-| TC-004 | 보호 라우트 가드 | 미인증 상태로 보호 경로 접근 | `/login`으로 리다이렉트 | High |
-| TC-005 | 자동 재발급 | access 만료 상태에서 보호 API 호출 | 서버가 재발급 후 재시도 → 정상 응답(사용자 무인지) | High |
-| TC-006 | 로그아웃 | 로그인 상태에서 로그아웃 | 백엔드 logout + 세션 제거, 미인증 전환 | High |
-| TC-007 | 회원가입 | 유효 입력으로 가입 | 가입 성공 → 로그인 유도 | Medium |
+| TC ID  | 목적             | 실행                               | 기대 결과                                          | 우선순위 |
+| ------ | ---------------- | ---------------------------------- | -------------------------------------------------- | -------- |
+| TC-001 | 로그인 성공      | 유효한 email/pw로 로그인           | 세션 쿠키 발급, 인증 상태 전환, 리다이렉트         | High     |
+| TC-002 | 로그인 실패      | 잘못된 자격으로 로그인             | 백엔드 실패 응답 → 에러 메시지 표시, 세션 미발급   | High     |
+| TC-003 | 세션 복원        | 로그인 후 새로고침                 | `/members/me`로 인증 상태·회원정보 복원            | High     |
+| TC-004 | 보호 라우트 가드 | 미인증 상태로 보호 경로 접근       | `/login`으로 리다이렉트                            | High     |
+| TC-005 | 자동 재발급      | access 만료 상태에서 보호 API 호출 | 서버가 재발급 후 재시도 → 정상 응답(사용자 무인지) | High     |
+| TC-006 | 로그아웃         | 로그인 상태에서 로그아웃           | 백엔드 logout + 세션 제거, 미인증 전환             | High     |
+| TC-007 | 회원가입         | 유효 입력으로 가입                 | 가입 성공 → 로그인 유도                            | Medium   |
 
 ---
 
 ## 변경 이력
 
-| 버전 | 날짜 | 변경 내용 | 작성자 |
-|---|---|---|---|
-| 1.0 | 2026-07-21 | 최초 작성 (brainstorming 산출) | FE |
+| 버전 | 날짜       | 변경 내용                      | 작성자 |
+| ---- | ---------- | ------------------------------ | ------ |
+| 1.0  | 2026-07-21 | 최초 작성 (brainstorming 산출) | FE     |

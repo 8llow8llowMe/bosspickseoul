@@ -6,7 +6,8 @@ import type { ApiResponse } from '@/types/api'
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return NextResponse.json({ authenticated: false }, { status: 200 })
+  if (!session)
+    return NextResponse.json({ authenticated: false }, { status: 200 })
   const { backendApiUrl } = getServerEnv()
   const res = await fetch(`${backendApiUrl}/api/v1/members/me`, {
     headers: { Authorization: `Bearer ${session.accessToken}` },
@@ -15,5 +16,8 @@ export async function GET() {
   if (!res.ok || !isApiSuccess(data)) {
     return NextResponse.json({ authenticated: false }, { status: 200 })
   }
-  return NextResponse.json({ authenticated: true, member: data.dataBody }, { status: 200 })
+  return NextResponse.json(
+    { authenticated: true, member: data.dataBody },
+    { status: 200 },
+  )
 }

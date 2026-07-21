@@ -4,7 +4,6 @@ type RouteKey =
   | 'home'
   | 'register'
   | 'login'
-  | 'memberLoading'
   | 'accountDeleted'
   | 'profileBookmarks'
   | 'profileBookmarksAnalysis'
@@ -50,12 +49,6 @@ export const routeSkeletons: Record<RouteKey, RoutePlaceholderDefinition> = {
     path: '/login',
     description:
       '로그인 화면 라우트 골격입니다. 이후 인증 폼과 FCM 분기 로직을 이관합니다.',
-    visibility: 'noindex',
-  },
-  memberLoading: {
-    title: '소셜 로그인 콜백',
-    path: '/member/loading/[provider]',
-    description: '소셜 로그인 provider 콜백 처리 라우트 골격입니다.',
     visibility: 'noindex',
   },
   accountDeleted: {

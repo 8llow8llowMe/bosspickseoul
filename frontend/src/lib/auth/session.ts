@@ -16,7 +16,9 @@ export { SESSION_COOKIE } from './session-constants'
 const secretKey = () =>
   createHash('sha256').update(getServerEnv().authSessionSecret).digest() // 32 bytes for A256GCM
 
-export const encryptSession = async (payload: SessionPayload): Promise<string> =>
+export const encryptSession = async (
+  payload: SessionPayload,
+): Promise<string> =>
   new EncryptJWT({ ...payload })
     .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
     .setIssuedAt()
@@ -27,7 +29,10 @@ export const decryptSession = async (
 ): Promise<SessionPayload | null> => {
   try {
     const { payload } = await jwtDecrypt(token, secretKey())
-    const { accessToken, refreshToken, memberId } = payload as Record<string, unknown>
+    const { accessToken, refreshToken, memberId } = payload as Record<
+      string,
+      unknown
+    >
     if (
       typeof accessToken === 'string' &&
       typeof refreshToken === 'string' &&

@@ -17,7 +17,8 @@ export const reissueSession = async (
   if (!res.ok) return null
   const data = (await res.json()) as ApiResponse<ReissueBody>
   if (!isApiSuccess(data) || !data.dataBody?.accessToken) return null
-  const setCookie = res.headers.getSetCookie?.() ?? res.headers.get('set-cookie')
+  const setCookie =
+    res.headers.getSetCookie?.() ?? res.headers.get('set-cookie')
   const rotated = extractCookieValue(setCookie, 'refreshToken')
   return {
     accessToken: data.dataBody.accessToken,

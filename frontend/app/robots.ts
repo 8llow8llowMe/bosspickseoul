@@ -11,7 +11,6 @@ export default function robots(): MetadataRoute.Robots {
           '/login',
           '/register',
           '/account-deleted',
-          '/member/loading/',
           '/profile/',
           '/analysis',
           '/simulation',

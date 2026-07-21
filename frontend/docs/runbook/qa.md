@@ -42,7 +42,6 @@ pnpm qa:verify
 - TypeScript 오류가 없다.
 - Next production build가 성공한다.
 
-
 ## 2. 수동 smoke test
 
 > 원출처: `../_archive/qa-runbook.md`

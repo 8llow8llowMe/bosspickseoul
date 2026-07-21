@@ -95,17 +95,6 @@ export const TextInput = styled.input`
   }
 `
 
-export const InlineField = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: end;
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
-`
-
 export const PrimaryButton = styled.button`
   height: 48px;
   padding: 0 18px;
@@ -197,39 +186,6 @@ export const Divider = styled.div`
     flex: 1;
     height: 1px;
     background: var(--color-border-200);
-  }
-`
-
-export const SocialButtonRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-`
-
-export const SocialButton = styled.button`
-  height: 52px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text-900);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
-
-  &:hover {
-    border-color: var(--color-primary-100);
-    background: var(--color-primary-100);
-  }
-
-  img {
-    width: 22px;
-    height: 22px;
   }
 `
 

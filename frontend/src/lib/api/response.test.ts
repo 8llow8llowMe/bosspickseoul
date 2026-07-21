@@ -7,7 +7,11 @@ const ok: ApiResponse<{ x: number }> = {
   dataBody: { x: 1 },
 }
 const fail: ApiResponse<null> = {
-  dataHeader: { success: false, resultCode: 'AUTH_001', resultMessage: '자격 증명이 올바르지 않습니다.' },
+  dataHeader: {
+    success: false,
+    resultCode: 'AUTH_001',
+    resultMessage: '자격 증명이 올바르지 않습니다.',
+  },
   dataBody: null,
 }
 

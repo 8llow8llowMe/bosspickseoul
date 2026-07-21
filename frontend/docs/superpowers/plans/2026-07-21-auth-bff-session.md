@@ -25,27 +25,32 @@
 ### Task 1: 인프라 — 의존성·서버 env·vitest
 
 **Files:**
+
 - Modify: `frontend/package.json` (deps, scripts)
 - Create: `frontend/vitest.config.ts`
 - Create: `frontend/src/lib/env.server.ts`
 - Create: `frontend/src/lib/env.server.test.ts`
 
 **Interfaces:**
+
 - Produces: `serverEnv.authSessionSecret: string`, `serverEnv.backendApiUrl: string` (server-only). `pnpm test` 동작.
 
 - [ ] **Step 1: 의존성 추가**
 
 Run:
+
 ```bash
 cd BossPickSeoul/frontend
 pnpm add jose
 pnpm add -D vitest
 ```
+
 Expected: `jose`가 dependencies에, `vitest`가 devDependencies에 추가.
 
 - [ ] **Step 2: test 스크립트 추가**
 
 `package.json`의 `scripts`에 추가:
+
 ```json
 "test": "vitest run",
 "test:watch": "vitest"
@@ -54,6 +59,7 @@ Expected: `jose`가 dependencies에, `vitest`가 devDependencies에 추가.
 - [ ] **Step 3: vitest 설정 생성**
 
 `frontend/vitest.config.ts`:
+
 ```ts
 import { defineConfig } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
@@ -74,6 +80,7 @@ export default defineConfig({
 - [ ] **Step 4: 서버 env 실패 테스트 작성**
 
 `frontend/src/lib/env.server.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 
@@ -111,6 +118,7 @@ Expected: FAIL — `./env.server` 모듈 없음.
 - [ ] **Step 6: env.server.ts 구현**
 
 `frontend/src/lib/env.server.ts`:
+
 ```ts
 import 'server-only'
 
@@ -135,6 +143,7 @@ export const getServerEnv = (): ServerEnv => {
   return { authSessionSecret: secret, backendApiUrl: trimSlash(backend) }
 }
 ```
+
 > `server-only`는 이 모듈이 클라이언트 번들에 포함되면 빌드 에러를 낸다(토큰 시크릿 유출 방지).
 
 - [ ] **Step 7: 테스트 통과 확인**
@@ -145,6 +154,7 @@ Expected: PASS (2 tests). `server-only` 미설치 시 `pnpm add server-only`.
 - [ ] **Step 8: .env.local.example 갱신 + 커밋**
 
 `.env.local`에 `AUTH_SESSION_SECRET`, `BACKEND_API_URL` 항목 문서화(값은 예시). 그다음:
+
 ```bash
 git add frontend/package.json frontend/pnpm-lock.yaml frontend/vitest.config.ts frontend/src/lib/env.server.ts frontend/src/lib/env.server.test.ts
 git commit -m "[FE] chore(auth): add jose, vitest, server-only env for BFF"
@@ -155,16 +165,19 @@ git commit -m "[FE] chore(auth): add jose, vitest, server-only env for BFF"
 ### Task 2: 응답 래퍼 타입·파싱 (신규 백엔드 shape)
 
 **Files:**
+
 - Modify: `frontend/src/types/api.ts`
 - Modify: `frontend/src/lib/api/response.ts`
 - Create: `frontend/src/lib/api/response.test.ts`
 
 **Interfaces:**
+
 - Produces: `ApiResponse<T> = { dataHeader: { success: boolean; resultCode: string | null; resultMessage: ApiMessage }; dataBody: T }`; `isApiSuccess(res): boolean`; `getApiMessage(res, fallback?): string`.
 
 - [ ] **Step 1: 실패 테스트 작성**
 
 `frontend/src/lib/api/response.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest'
 import { isApiSuccess, getApiMessage } from './response'
@@ -175,7 +188,11 @@ const ok: ApiResponse<{ x: number }> = {
   dataBody: { x: 1 },
 }
 const fail: ApiResponse<null> = {
-  dataHeader: { success: false, resultCode: 'AUTH_001', resultMessage: '자격 증명이 올바르지 않습니다.' },
+  dataHeader: {
+    success: false,
+    resultCode: 'AUTH_001',
+    resultMessage: '자격 증명이 올바르지 않습니다.',
+  },
   dataBody: null,
 }
 
@@ -200,6 +217,7 @@ Expected: FAIL — 기존 `response.ts`가 `successCode`를 참조.
 - [ ] **Step 3: types/api.ts 교체**
 
 `frontend/src/types/api.ts`:
+
 ```ts
 export type ApiMessage = string | Record<string, string> | null
 
@@ -218,6 +236,7 @@ export type ApiResponse<T> = {
 - [ ] **Step 4: response.ts 교체**
 
 `frontend/src/lib/api/response.ts`:
+
 ```ts
 import type { ApiMessage, ApiResponse } from '@/types/api'
 
@@ -235,6 +254,7 @@ export const getApiMessage = (
   fallback = '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
 ) => normalizeApiMessage(response?.dataHeader.resultMessage) ?? fallback
 ```
+
 > fallback 문구는 금지 카피(`문제가 발생했습니다`) 회피 — DESIGN.md 카피 규칙 준수.
 
 - [ ] **Step 5: 테스트 통과 확인**
@@ -254,10 +274,12 @@ git commit -m "[FE] refactor(auth): response wrapper to new dataHeader.success s
 ### Task 3: 세션 암·복호화 + 쿠키 (jose)
 
 **Files:**
+
 - Create: `frontend/src/lib/auth/session.ts`
 - Create: `frontend/src/lib/auth/session.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `type SessionPayload = { accessToken: string; refreshToken: string; memberId: string }`
   - `encryptSession(payload: SessionPayload): Promise<string>`
@@ -268,6 +290,7 @@ git commit -m "[FE] refactor(auth): response wrapper to new dataHeader.success s
 - [ ] **Step 1: 암복호화 실패 테스트 작성**
 
 `frontend/src/lib/auth/session.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest'
 
@@ -299,6 +322,7 @@ Expected: FAIL — `./session` 없음.
 - [ ] **Step 3: session.ts 구현**
 
 `frontend/src/lib/auth/session.ts`:
+
 ```ts
 import 'server-only'
 import { EncryptJWT, jwtDecrypt } from 'jose'
@@ -317,7 +341,9 @@ export const SESSION_COOKIE = 'bps_session'
 const secretKey = () =>
   createHash('sha256').update(getServerEnv().authSessionSecret).digest() // 32 bytes for A256GCM
 
-export const encryptSession = async (payload: SessionPayload): Promise<string> =>
+export const encryptSession = async (
+  payload: SessionPayload,
+): Promise<string> =>
   new EncryptJWT({ ...payload })
     .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
     .setIssuedAt()
@@ -328,7 +354,10 @@ export const decryptSession = async (
 ): Promise<SessionPayload | null> => {
   try {
     const { payload } = await jwtDecrypt(token, secretKey())
-    const { accessToken, refreshToken, memberId } = payload as Record<string, unknown>
+    const { accessToken, refreshToken, memberId } = payload as Record<
+      string,
+      unknown
+    >
     if (
       typeof accessToken === 'string' &&
       typeof refreshToken === 'string' &&
@@ -361,6 +390,7 @@ export const clearSession = async (): Promise<void> => {
   ;(await cookies()).delete(SESSION_COOKIE)
 }
 ```
+
 > `alg: 'dir'` + `A256GCM` = 대칭 직접 암호화. 시크릿을 sha256으로 32바이트 키로 정규화.
 
 - [ ] **Step 4: 테스트 통과 확인**
@@ -380,15 +410,18 @@ git commit -m "[FE] feat(auth): encrypted session (jose JWE) + cookie helpers"
 ### Task 4: Set-Cookie 파싱 유틸
 
 **Files:**
+
 - Create: `frontend/src/lib/auth/set-cookie.ts`
 - Create: `frontend/src/lib/auth/set-cookie.test.ts`
 
 **Interfaces:**
+
 - Produces: `extractCookieValue(setCookieHeaders: string[] | string | null, name: string): string | null`
 
 - [ ] **Step 1: 실패 테스트 작성**
 
 `frontend/src/lib/auth/set-cookie.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest'
 import { extractCookieValue } from './set-cookie'
@@ -416,6 +449,7 @@ Expected: FAIL — 모듈 없음.
 - [ ] **Step 3: 구현**
 
 `frontend/src/lib/auth/set-cookie.ts`:
+
 ```ts
 export const extractCookieValue = (
   setCookieHeaders: string[] | string | null,
@@ -452,22 +486,27 @@ git commit -m "[FE] feat(auth): Set-Cookie value extractor"
 ### Task 5: 로그인 라우트 핸들러 `/api/auth/login`
 
 **Files:**
+
 - Create: `frontend/app/api/auth/login/route.ts`
 - Create: `frontend/app/api/auth/login/route.test.ts`
 
 **Interfaces:**
+
 - Consumes: `setSession` (Task 3), `extractCookieValue` (Task 4), `getServerEnv` (Task 1), `isApiSuccess`/`getApiMessage` (Task 2).
 - Produces: `POST /api/auth/login` — body `{email,password}` → 200 `{memberId}` (성공) / 4xx `{message}` (실패). 세션 쿠키 설정.
 
 - [ ] **Step 1: 실패 테스트 작성 (fetch 모킹)**
 
 `frontend/app/api/auth/login/route.test.ts`:
+
 ```ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const setSession = vi.fn()
 vi.mock('@/lib/auth/session', () => ({ setSession }))
-vi.mock('next/headers', () => ({ cookies: async () => ({ set: vi.fn(), get: vi.fn(), delete: vi.fn() }) }))
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ set: vi.fn(), get: vi.fn(), delete: vi.fn() }),
+}))
 
 beforeEach(() => {
   process.env.AUTH_SESSION_SECRET = 'test-secret-key-at-least-32-chars-long!!'
@@ -480,26 +519,60 @@ describe('POST /api/auth/login', () => {
     const setCookie = 'refreshToken=r.t.k; Path=/; HttpOnly'
     global.fetch = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify({ dataHeader: { success: true, resultCode: null, resultMessage: null }, dataBody: { accessToken: 'a.t.k', memberId: '42' } }),
-        { status: 200, headers: { 'content-type': 'application/json', 'set-cookie': setCookie } },
+        JSON.stringify({
+          dataHeader: {
+            success: true,
+            resultCode: null,
+            resultMessage: null,
+          },
+          dataBody: { accessToken: 'a.t.k', memberId: '42' },
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'set-cookie': setCookie,
+          },
+        },
       ),
     )
     const { POST } = await import('./route')
-    const res = await POST(new Request('http://x/api/auth/login', { method: 'POST', body: JSON.stringify({ email: 'a@b.com', password: 'Passw0rd!' }) }))
+    const res = await POST(
+      new Request('http://x/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@b.com', password: 'Passw0rd!' }),
+      }),
+    )
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ memberId: '42' })
-    expect(setSession).toHaveBeenCalledWith({ accessToken: 'a.t.k', refreshToken: 'r.t.k', memberId: '42' })
+    expect(setSession).toHaveBeenCalledWith({
+      accessToken: 'a.t.k',
+      refreshToken: 'r.t.k',
+      memberId: '42',
+    })
   })
 
   it('on backend failure, returns 401 with message and no session', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify({ dataHeader: { success: false, resultCode: 'AUTH_001', resultMessage: '이메일 또는 비밀번호가 올바르지 않습니다.' }, dataBody: null }),
+        JSON.stringify({
+          dataHeader: {
+            success: false,
+            resultCode: 'AUTH_001',
+            resultMessage: '이메일 또는 비밀번호가 올바르지 않습니다.',
+          },
+          dataBody: null,
+        }),
         { status: 401, headers: { 'content-type': 'application/json' } },
       ),
     )
     const { POST } = await import('./route')
-    const res = await POST(new Request('http://x/api/auth/login', { method: 'POST', body: JSON.stringify({ email: 'a@b.com', password: 'x' }) }))
+    const res = await POST(
+      new Request('http://x/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@b.com', password: 'x' }),
+      }),
+    )
     expect(res.status).toBe(401)
     expect((await res.json()).message).toContain('올바르지')
     expect(setSession).not.toHaveBeenCalled()
@@ -515,6 +588,7 @@ Expected: FAIL — route 없음.
 - [ ] **Step 3: 구현**
 
 `frontend/app/api/auth/login/route.ts`:
+
 ```ts
 import { NextResponse } from 'next/server'
 import { getServerEnv } from '@/lib/env.server'
@@ -544,10 +618,14 @@ export async function POST(request: Request) {
     )
   }
 
-  const setCookie = upstream.headers.getSetCookie?.() ?? upstream.headers.get('set-cookie')
+  const setCookie =
+    upstream.headers.getSetCookie?.() ?? upstream.headers.get('set-cookie')
   const refreshToken = extractCookieValue(setCookie, 'refreshToken')
   if (!refreshToken) {
-    return NextResponse.json({ message: '세션 초기화에 실패했습니다.' }, { status: 502 })
+    return NextResponse.json(
+      { message: '세션 초기화에 실패했습니다.' },
+      { status: 502 },
+    )
   }
 
   await setSession({
@@ -556,7 +634,10 @@ export async function POST(request: Request) {
     memberId: data.dataBody.memberId,
   })
 
-  return NextResponse.json({ memberId: data.dataBody.memberId }, { status: 200 })
+  return NextResponse.json(
+    { memberId: data.dataBody.memberId },
+    { status: 200 },
+  )
 }
 ```
 
@@ -577,11 +658,13 @@ git commit -m "[FE] feat(auth): /api/auth/login route seals BFF session"
 ### Task 6: BFF 프록시 `/api/bff/[...path]` + 401 재발급·재시도
 
 **Files:**
+
 - Create: `frontend/src/lib/auth/reissue.ts`
 - Create: `frontend/src/lib/auth/reissue.test.ts`
 - Create: `frontend/app/api/bff/[...path]/route.ts`
 
 **Interfaces:**
+
 - Consumes: `getSession`/`setSession`/`clearSession` (Task 3), `extractCookieValue` (Task 4), `getServerEnv`.
 - Produces:
   - `reissueSession(current: SessionPayload, backendApiUrl: string, fetchImpl?): Promise<SessionPayload | null>` — refresh로 access 재발급, 실패 시 null.
@@ -590,6 +673,7 @@ git commit -m "[FE] feat(auth): /api/auth/login route seals BFF session"
 - [ ] **Step 1: reissue 실패 테스트 작성**
 
 `frontend/src/lib/auth/reissue.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest'
 import { reissueSession } from './reissue'
@@ -600,15 +684,34 @@ describe('reissueSession', () => {
   it('returns new session on success (rotates refresh if provided)', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify({ dataHeader: { success: true, resultCode: null, resultMessage: null }, dataBody: { accessToken: 'new' } }),
-        { status: 200, headers: { 'content-type': 'application/json', 'set-cookie': 'refreshToken=r2; Path=/; HttpOnly' } },
+        JSON.stringify({
+          dataHeader: {
+            success: true,
+            resultCode: null,
+            resultMessage: null,
+          },
+          dataBody: { accessToken: 'new' },
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'set-cookie': 'refreshToken=r2; Path=/; HttpOnly',
+          },
+        },
       ),
     )
     const next = await reissueSession(current, 'http://b', fetchImpl)
-    expect(next).toEqual({ accessToken: 'new', refreshToken: 'r2', memberId: '1' })
+    expect(next).toEqual({
+      accessToken: 'new',
+      refreshToken: 'r2',
+      memberId: '1',
+    })
   })
   it('returns null on reissue failure', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(new Response('{}', { status: 401 }))
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response('{}', { status: 401 }))
     expect(await reissueSession(current, 'http://b', fetchImpl)).toBeNull()
   })
 })
@@ -622,6 +725,7 @@ Expected: FAIL — 모듈 없음.
 - [ ] **Step 3: reissue.ts 구현**
 
 `frontend/src/lib/auth/reissue.ts`:
+
 ```ts
 import type { SessionPayload } from '@/lib/auth/session'
 import { extractCookieValue } from '@/lib/auth/set-cookie'
@@ -642,7 +746,8 @@ export const reissueSession = async (
   if (!res.ok) return null
   const data = (await res.json()) as ApiResponse<ReissueBody>
   if (!isApiSuccess(data) || !data.dataBody?.accessToken) return null
-  const setCookie = res.headers.getSetCookie?.() ?? res.headers.get('set-cookie')
+  const setCookie =
+    res.headers.getSetCookie?.() ?? res.headers.get('set-cookie')
   const rotated = extractCookieValue(setCookie, 'refreshToken')
   return {
     accessToken: data.dataBody.accessToken,
@@ -660,13 +765,25 @@ Expected: PASS.
 - [ ] **Step 5: 프록시 라우트 구현**
 
 `frontend/app/api/bff/[...path]/route.ts`:
+
 ```ts
 import { NextResponse } from 'next/server'
 import { getServerEnv } from '@/lib/env.server'
-import { getSession, setSession, clearSession, type SessionPayload } from '@/lib/auth/session'
+import {
+  getSession,
+  setSession,
+  clearSession,
+  type SessionPayload,
+} from '@/lib/auth/session'
 import { reissueSession } from '@/lib/auth/reissue'
 
-const HOP = new Set(['host', 'connection', 'content-length', 'set-cookie', 'cookie'])
+const HOP = new Set([
+  'host',
+  'connection',
+  'content-length',
+  'set-cookie',
+  'cookie',
+])
 
 const buildHeaders = (req: Request, accessToken: string | null) => {
   const h = new Headers()
@@ -692,21 +809,37 @@ const forward = async (
     redirect: 'manual',
   })
 
-async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
+async function handle(
+  req: Request,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
   const { backendApiUrl } = getServerEnv()
   const { path } = await ctx.params
   const joined = path.join('/')
   const search = new URL(req.url).search
-  const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer()
+  const body =
+    req.method === 'GET' || req.method === 'HEAD'
+      ? undefined
+      : await req.arrayBuffer()
 
   let session = await getSession()
-  let upstream = await forward(req, backendApiUrl, joined, search, session, body)
+  let upstream = await forward(
+    req,
+    backendApiUrl,
+    joined,
+    search,
+    session,
+    body,
+  )
 
   if (upstream.status === 401 && session) {
     const next = await reissueSession(session, backendApiUrl)
     if (!next) {
       await clearSession()
-      return NextResponse.json({ message: '세션이 만료되었습니다. 다시 로그인해 주세요.' }, { status: 401 })
+      return NextResponse.json(
+        { message: '세션이 만료되었습니다. 다시 로그인해 주세요.' },
+        { status: 401 },
+      )
     }
     await setSession(next)
     session = next
@@ -727,12 +860,14 @@ export const PUT = handle
 export const PATCH = handle
 export const DELETE = handle
 ```
+
 > 백엔드 Set-Cookie는 절대 브라우저로 전파하지 않는다(session-bff D6). 재발급된 refresh는 세션 쿠키에만 반영.
 
 - [ ] **Step 6: typecheck + 커밋**
 
 Run: `cd BossPickSeoul/frontend && pnpm test src/lib/auth/reissue.test.ts && pnpm typecheck`
 Expected: 테스트 PASS, 타입 통과.
+
 ```bash
 git add frontend/src/lib/auth/reissue.ts frontend/src/lib/auth/reissue.test.ts frontend/app/api/bff
 git commit -m "[FE] feat(auth): BFF catch-all proxy with 401 reissue+retry"
@@ -743,15 +878,18 @@ git commit -m "[FE] feat(auth): BFF catch-all proxy with 401 reissue+retry"
 ### Task 7: 로그아웃 라우트 `/api/auth/logout`
 
 **Files:**
+
 - Create: `frontend/app/api/auth/logout/route.ts`
 
 **Interfaces:**
+
 - Consumes: `getSession`/`clearSession`, `getServerEnv`.
 - Produces: `POST /api/auth/logout` → 항상 세션 제거 후 200.
 
 - [ ] **Step 1: 구현**
 
 `frontend/app/api/auth/logout/route.ts`:
+
 ```ts
 import { NextResponse } from 'next/server'
 import { getServerEnv } from '@/lib/env.server'
@@ -779,6 +917,7 @@ export async function POST() {
 
 Run: `cd BossPickSeoul/frontend && pnpm typecheck`
 Expected: 통과.
+
 ```bash
 git add frontend/app/api/auth/logout
 git commit -m "[FE] feat(auth): /api/auth/logout clears session"
@@ -789,25 +928,38 @@ git commit -m "[FE] feat(auth): /api/auth/logout clears session"
 ### Task 8: 미들웨어 인증 가드
 
 **Files:**
+
 - Create: `frontend/middleware.ts`
 
 **Interfaces:**
+
 - Consumes: `SESSION_COOKIE` (Task 3) — 미들웨어는 Edge라 쿠키 **존재만** 검사(복호화는 라우트에서).
 - Produces: 보호 라우트 미인증 시 `/login?redirect=<path>` 리다이렉트.
 
 - [ ] **Step 1: 구현**
 
 `frontend/middleware.ts`:
+
 ```ts
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE } from '@/lib/auth/session'
 
 // 인증 필요한 보호 경로 접두사
-const PROTECTED = ['/analysis', '/recommend', '/simulation', '/status', '/community', '/chatting', '/profile']
+const PROTECTED = [
+  '/analysis',
+  '/recommend',
+  '/simulation',
+  '/status',
+  '/community',
+  '/chatting',
+  '/profile',
+]
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const isProtected = PROTECTED.some(p => pathname === p || pathname.startsWith(`${p}/`))
+  const isProtected = PROTECTED.some(
+    p => pathname === p || pathname.startsWith(`${p}/`),
+  )
   if (!isProtected) return NextResponse.next()
 
   const hasSession = Boolean(req.cookies.get(SESSION_COOKIE)?.value)
@@ -820,23 +972,35 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/analysis/:path*', '/recommend/:path*', '/simulation/:path*', '/status/:path*', '/community/:path*', '/chatting/:path*', '/profile/:path*'],
+  matcher: [
+    '/analysis/:path*',
+    '/recommend/:path*',
+    '/simulation/:path*',
+    '/status/:path*',
+    '/community/:path*',
+    '/chatting/:path*',
+    '/profile/:path*',
+  ],
 }
 ```
+
 > `SESSION_COOKIE` import가 Edge에서 `server-only` 모듈(session.ts)을 끌어오면 안 되므로, `SESSION_COOKIE` 상수를 `session.ts`에서 분리해 `src/lib/auth/session-constants.ts`로 옮기고 양쪽에서 import한다. (session.ts는 이 상수를 재-export.)
 
 - [ ] **Step 2: 상수 분리 반영**
 
 `frontend/src/lib/auth/session-constants.ts`:
+
 ```ts
 export const SESSION_COOKIE = 'bps_session'
 ```
+
 `session.ts`에서 `export { SESSION_COOKIE } from './session-constants'`로 교체하고 내부 사용도 이 import로. `middleware.ts`는 `session-constants`에서 import.
 
 - [ ] **Step 3: typecheck + 커밋**
 
 Run: `cd BossPickSeoul/frontend && pnpm test src/lib/auth && pnpm typecheck`
 Expected: 통과.
+
 ```bash
 git add frontend/middleware.ts frontend/src/lib/auth/session-constants.ts frontend/src/lib/auth/session.ts
 git commit -m "[FE] feat(auth): middleware guard for protected routes"
@@ -847,18 +1011,21 @@ git commit -m "[FE] feat(auth): middleware guard for protected routes"
 ### Task 9: 세션 복원 + auth-store·client 리팩터
 
 **Files:**
+
 - Create: `frontend/app/api/auth/me/route.ts` (또는 `/api/bff/members/me` 사용; 여기선 편의 래퍼)
 - Modify: `frontend/src/stores/auth-store.ts`
 - Modify: `frontend/src/lib/api/client.ts`
 - Modify: `frontend/src/types/auth.ts` (필요 시 MemberInfo 필드 정합)
 
 **Interfaces:**
+
 - Consumes: BFF 프록시(Task 6), `getSession`.
 - Produces: `useAuthStore` — `{ hasHydrated, isLoggedIn, memberInfo, hydrate(), setLoggedIn(memberId), clearSession() }`; `apiClient` baseURL=`/api/bff`, 토큰 로직 제거.
 
 - [ ] **Step 1: me 라우트 (세션 → /members/me)**
 
 `frontend/app/api/auth/me/route.ts`:
+
 ```ts
 import { NextResponse } from 'next/server'
 import { getServerEnv } from '@/lib/env.server'
@@ -868,7 +1035,8 @@ import type { ApiResponse } from '@/types/api'
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return NextResponse.json({ authenticated: false }, { status: 200 })
+  if (!session)
+    return NextResponse.json({ authenticated: false }, { status: 200 })
   const { backendApiUrl } = getServerEnv()
   const res = await fetch(`${backendApiUrl}/api/v1/members/me`, {
     headers: { Authorization: `Bearer ${session.accessToken}` },
@@ -877,14 +1045,19 @@ export async function GET() {
   if (!res.ok || !isApiSuccess(data)) {
     return NextResponse.json({ authenticated: false }, { status: 200 })
   }
-  return NextResponse.json({ authenticated: true, member: data.dataBody }, { status: 200 })
+  return NextResponse.json(
+    { authenticated: true, member: data.dataBody },
+    { status: 200 },
+  )
 }
 ```
+
 > me는 access 만료 시 재발급이 필요하면 `/api/bff/members/me`를 쓰도록 후속 통합 가능. 1차는 단순 경로.
 
 - [ ] **Step 2: client.ts 리팩터 (토큰 로직 제거, baseURL=/api/bff)**
 
 `frontend/src/lib/api/client.ts` 전체 교체:
+
 ```ts
 import axios, { AxiosInstance } from 'axios'
 
@@ -898,11 +1071,13 @@ const createApiClient = (baseURL = '/api/bff'): AxiosInstance =>
 export const apiClient = createApiClient()
 export { createApiClient }
 ```
+
 > 토큰 주입·재발급은 BFF 서버가 전담하므로 클라이언트 인터셉터 제거. `getAccessTokenCookie`/`getStoredSessionEmail` 의존 제거.
 
 - [ ] **Step 3: auth-store 리팩터 (localStorage 토큰 제거, /me 기반 hydrate)**
 
 `frontend/src/stores/auth-store.ts` 전체 교체:
+
 ```ts
 'use client'
 
@@ -935,10 +1110,13 @@ export const useAuthStore = create<AuthState>(set => ({
       set({ hasHydrated: true, isLoggedIn: false, memberInfo: null })
     }
   },
-  setSession: memberInfo => set({ hasHydrated: true, isLoggedIn: true, memberInfo }),
-  clearSession: () => set({ hasHydrated: true, isLoggedIn: false, memberInfo: null }),
+  setSession: memberInfo =>
+    set({ hasHydrated: true, isLoggedIn: true, memberInfo }),
+  clearSession: () =>
+    set({ hasHydrated: true, isLoggedIn: false, memberInfo: null }),
 }))
 ```
+
 > `MemberInfo` 타입을 `MemberMyInfoResponse`(memberId,email,name,nickname,profileImageUrl,roleCode,roleDescription)에 맞춰 `src/types/auth.ts` 조정.
 
 - [ ] **Step 4: 죽은 코드 정리**
@@ -949,6 +1127,7 @@ export const useAuthStore = create<AuthState>(set => ({
 
 Run: `cd BossPickSeoul/frontend && pnpm typecheck`
 Expected: 통과(잔존 참조 없음).
+
 ```bash
 git add frontend/app/api/auth/me frontend/src/stores/auth-store.ts frontend/src/lib/api/client.ts frontend/src/types/auth.ts frontend/src/lib/auth/cookies.ts frontend/src/lib/auth/storage.ts
 git commit -m "[FE] refactor(auth): server-session auth-store + /api/bff client + /me restore"
@@ -959,10 +1138,12 @@ git commit -m "[FE] refactor(auth): server-session auth-store + /api/bff client 
 ### Task 10: 로그인 화면
 
 **Files:**
+
 - Modify/Create: `frontend/app/(auth)/login/page.tsx`
 - Create: `frontend/src/components/auth/login-form.tsx`
 
 **Interfaces:**
+
 - Consumes: `/api/auth/login` (Task 5), `useAuthStore.setSession` (Task 9).
 - Produces: 로그인 화면. 성공 시 `redirect` 쿼리(내부 경로만) 또는 홈으로 이동.
 
@@ -971,6 +1152,7 @@ git commit -m "[FE] refactor(auth): server-session auth-store + /api/bff client 
 `frontend/src/components/auth/login-form.tsx` — 이메일/비밀번호 입력, 클라이언트 유효성(이메일 형식, 비밀번호 비어있지 않음), 제출 시 `POST /api/auth/login`. 로딩/에러 상태 표시. 성공 시 `useAuthStore.setSession` 후 `router.replace(safeRedirect)`. `safeRedirect`는 `/`로 시작하는 내부 경로만 허용(오픈 리다이렉트 방지, login.md D6). 스타일은 DESIGN.md 토큰/컴포넌트 규칙 사용, 임의 색상 금지.
 
 핵심 제출 로직:
+
 ```tsx
 const res = await fetch('/api/auth/login', {
   method: 'POST',
@@ -985,6 +1167,7 @@ if (res.ok) {
   setError((await res.json()).message)
 }
 ```
+
 `safeRedirect(v)`: `v && v.startsWith('/') && !v.startsWith('//') ? v : '/'`.
 
 - [ ] **Step 2: page.tsx 배선**
@@ -995,6 +1178,7 @@ if (res.ok) {
 
 Run: `cd BossPickSeoul/frontend && pnpm lint && pnpm typecheck`
 Expected: 통과.
+
 ```bash
 git add "frontend/app/(auth)/login" frontend/src/components/auth/login-form.tsx
 git commit -m "[FE] feat(auth): login screen wired to BFF"
@@ -1005,16 +1189,19 @@ git commit -m "[FE] feat(auth): login screen wired to BFF"
 ### Task 11: 회원가입 화면
 
 **Files:**
+
 - Modify/Create: `frontend/app/(auth)/register/page.tsx`
 - Create: `frontend/src/components/auth/register-form.tsx`
 
 **Interfaces:**
+
 - Consumes: `POST /api/bff/members/signup` (Task 6 프록시).
 - Produces: 단일 단계 회원가입 화면.
 
 - [ ] **Step 1: 가입 폼 구현**
 
 `frontend/src/components/auth/register-form.tsx` — email/password/name/nickname 입력. 클라이언트 유효성은 백엔드와 **정확히 동일**(register.md D4-1): 비밀번호 `^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()\-_=+\[\]{};:'",.<>/?\\|])\S{8,20}$`, 이름/닉네임 ≤10, 이메일 형식. 제출:
+
 ```tsx
 const res = await fetch('/api/bff/members/signup', {
   method: 'POST',
@@ -1028,6 +1215,7 @@ if (res.ok && data?.dataHeader?.success) {
   setError(data?.dataHeader?.resultMessage ?? '가입에 실패했습니다.')
 }
 ```
+
 > signup은 인증 불필요 — 프록시가 세션 없이 Bearer 없이 포워드(정상). 가입 후 백엔드가 토큰을 주지 않으므로 로그인 화면으로 유도(register.md D5).
 
 - [ ] **Step 2: page.tsx 배선 + legacy 2단계 통합**
@@ -1038,6 +1226,7 @@ if (res.ok && data?.dataHeader?.success) {
 
 Run: `cd BossPickSeoul/frontend && pnpm lint && pnpm typecheck`
 Expected: 통과.
+
 ```bash
 git add "frontend/app/(auth)/register" frontend/src/components/auth/register-form.tsx
 git commit -m "[FE] feat(auth): single-step register screen"
@@ -1045,12 +1234,14 @@ git commit -m "[FE] feat(auth): single-step register screen"
 
 ---
 
-### Task 12: 통합 검증 + _index 갱신
+### Task 12: 통합 검증 + \_index 갱신
 
 **Files:**
+
 - Modify: `frontend/docs/features/_index.md` (auth 상태)
 
 **Interfaces:**
+
 - Consumes: Task 1~11 전체.
 
 - [ ] **Step 1: 정적 검증**
@@ -1061,16 +1252,19 @@ Expected: 전체 테스트 PASS, format/lint/typecheck/build 통과.
 - [ ] **Step 2: 런타임 수동 검증 (백엔드 실행 필요)**
 
 `.env.local`에 `AUTH_SESSION_SECRET`, `BACKEND_API_URL` 설정 후 `pnpm dev`. 확인:
+
 - 로그인 성공 → `bps_session` HttpOnly 쿠키 설정, DevTools에서 accessToken/refreshToken **미노출** 확인.
 - 로그인 후 새로고침 → 세션 복원(로그인 유지).
 - 미인증 상태로 `/analysis` 접근 → `/login?redirect=/analysis` 리다이렉트.
 - 로그아웃 → `bps_session` 제거, 미인증 전환.
 - (가능하면) access 만료 유도 → 보호 API 호출이 자동 재발급 후 성공.
-> 백엔드 미가동이면 이 단계는 "미실행"으로 보고하고 정적 검증 결과만 확정한다. 통과했다고 임의 보고 금지.
 
-- [ ] **Step 3: _index 상태 갱신 + 커밋**
+  > 백엔드 미가동이면 이 단계는 "미실행"으로 보고하고 정적 검증 결과만 확정한다. 통과했다고 임의 보고 금지.
+
+- [ ] **Step 3: \_index 상태 갱신 + 커밋**
 
 `frontend/docs/features/_index.md`의 auth 행 상태를 `✅ 이관·검증 완료`(런타임 검증 시) 또는 `🟩 명세 완료·구현`(정적만)으로 갱신, 비고에 미결(소셜/2단계/에러코드) 유지.
+
 ```bash
 git add frontend/docs/features/_index.md
 git commit -m "[FE] docs(auth): update feature index after BFF auth implementation"
@@ -1081,11 +1275,12 @@ git commit -m "[FE] docs(auth): update feature index after BFF auth implementati
 ## Self-Review
 
 **Spec coverage:**
+
 - session-bff D4-1 로그인 봉인 → Task 5. D4-2 로그아웃 → Task 7. D4-3 프록시+재발급 → Task 6. D4-4 가드 → Task 8. D4-5 세션복원 → Task 9. D3 세션 암호화 → Task 3. D6 Set-Cookie 미전파 → Task 6(응답 Set-Cookie 제거)·Task 5(흡수). 응답 래퍼 → Task 2.
 - login.md → Task 10. register.md → Task 11. 비밀번호 규칙 일치 → Task 11 Step 1.
 - 공통 TC-001~007 → Task 12 런타임 검증 + 단위테스트(Task 3~6).
 - data-fetching-rules(BFF 표준) → Task 6·9(client baseURL, 토큰 서버보관).
-→ 갭 없음. 미결(소셜/2단계/에러코드 카탈로그)은 명세 D8대로 구현 제외.
+  → 갭 없음. 미결(소셜/2단계/에러코드 카탈로그)은 명세 D8대로 구현 제외.
 
 **Placeholder scan:** 각 코드 스텝에 실제 코드 포함. UI 태스크(10·11)는 전체 파일 대신 핵심 로직+구조 명시(스타일은 DESIGN.md 위임) — "add error handling"류 모호 지시 없음.
 
