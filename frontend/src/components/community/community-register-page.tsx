@@ -323,7 +323,7 @@ export default function CommunityRegisterPage() {
   const isAuthor =
     detailQuery.data &&
     isApiSuccess(detailQuery.data) &&
-    memberInfo?.id === detailQuery.data.dataBody.writerId
+    Number(memberInfo?.memberId) === detailQuery.data.dataBody.writerId
 
   const shouldRenderForm =
     !isEditMode ||
@@ -373,7 +373,7 @@ export default function CommunityRegisterPage() {
             editCommunityId={editCommunityId}
             initialPost={initialPost}
             isEditMode={isEditMode}
-            memberId={memberInfo?.id ?? null}
+            memberId={memberInfo ? Number(memberInfo.memberId) : null}
             memberNickname={memberInfo?.nickname ?? '로그인 사용자'}
           />
         ) : null}

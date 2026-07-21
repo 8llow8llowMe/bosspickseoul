@@ -457,8 +457,8 @@ export default function SiteHeader() {
                 type="button"
                 onClick={() => setIsDropdownOpen(current => !current)}
               >
-                <Avatar $image={memberInfo.profileImage}>
-                  {memberInfo.profileImage ? null : avatarLabel}
+                <Avatar $image={memberInfo.profileImageUrl}>
+                  {memberInfo.profileImageUrl ? null : avatarLabel}
                 </Avatar>
                 <AvatarLabel>{memberInfo.nickname}</AvatarLabel>
                 <IconSlot aria-hidden="true">

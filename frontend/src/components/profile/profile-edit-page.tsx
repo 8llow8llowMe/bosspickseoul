@@ -52,10 +52,10 @@ type ProfileEditFormProps = {
 
 function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const updateStoreMemberInfo = useAuthStore(state => state.updateMemberInfo)
+  const setStoreSession = useAuthStore(state => state.setSession)
   const [nickname, setNickname] = useState(memberInfo?.nickname ?? '')
   const [profileImage, setProfileImage] = useState(
-    memberInfo?.profileImage ?? null,
+    memberInfo?.profileImageUrl ?? null,
   )
   const [message, setMessage] = useState<{
     tone: 'error' | 'success' | 'info'
@@ -101,10 +101,10 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
         return
       }
 
-      updateStoreMemberInfo({
+      setStoreSession({
         ...memberInfo,
         nickname,
-        profileImage: profileImage ?? null,
+        profileImageUrl: profileImage ?? '',
       })
       setMessage({
         tone: 'success',
@@ -180,11 +180,7 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
             </PreviewImage>
             <div>
               <FieldLabel>{memberInfo.email}</FieldLabel>
-              <HelperText>
-                {memberInfo.provider
-                  ? `로그인 공급자: ${memberInfo.provider}`
-                  : '일반 이메일 로그인 계정'}
-              </HelperText>
+              <HelperText>{memberInfo.roleDescription}</HelperText>
               <ActionRow>
                 <SecondaryButton
                   type="button"

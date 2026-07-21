@@ -77,7 +77,7 @@ const Email = styled.p`
   word-break: break-all;
 `
 
-const ProviderPill = styled.span`
+const RolePill = styled.span`
   display: inline-flex;
   margin-top: 14px;
   padding: 0 12px;
@@ -158,7 +158,7 @@ export default function ProfileShell({ children }: ProfileShellProps) {
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
   const memberInfo = useAuthStore(state => state.memberInfo)
-  const updateMemberInfo = useAuthStore(state => state.updateMemberInfo)
+  const setSession = useAuthStore(state => state.setSession)
   const clearSession = useAuthStore(state => state.clearSession)
 
   const memberQuery = useQuery({
@@ -173,13 +173,13 @@ export default function ProfileShell({ children }: ProfileShellProps) {
     }
 
     if (isApiSuccess(memberQuery.data) && memberQuery.data.dataBody) {
-      updateMemberInfo(memberQuery.data.dataBody)
+      setSession(memberQuery.data.dataBody)
       return
     }
 
     clearSession()
     router.replace('/login')
-  }, [clearSession, memberQuery.data, router, updateMemberInfo])
+  }, [clearSession, memberQuery.data, router, setSession])
 
   const resolvedMemberInfo =
     memberQuery.data && isApiSuccess(memberQuery.data)
@@ -196,13 +196,13 @@ export default function ProfileShell({ children }: ProfileShellProps) {
     <Container>
       <Sidebar>
         <SidebarCard>
-          <Avatar $image={resolvedMemberInfo.profileImage}>
-            {resolvedMemberInfo.profileImage ? null : avatarLabel}
+          <Avatar $image={resolvedMemberInfo.profileImageUrl}>
+            {resolvedMemberInfo.profileImageUrl ? null : avatarLabel}
           </Avatar>
           <Name>{resolvedMemberInfo.nickname}</Name>
           <Email>{resolvedMemberInfo.email}</Email>
-          {resolvedMemberInfo.provider ? (
-            <ProviderPill>{resolvedMemberInfo.provider}</ProviderPill>
+          {resolvedMemberInfo.roleDescription ? (
+            <RolePill>{resolvedMemberInfo.roleDescription}</RolePill>
           ) : null}
         </SidebarCard>
         <SidebarCard>

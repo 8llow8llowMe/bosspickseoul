@@ -17,13 +17,13 @@ export type VerifyEmailCodePayload = {
 }
 
 export type MemberInfo = {
-  id: number | null
+  memberId: string
+  email: string
   name: string
   nickname: string
-  email: string
-  profileImage: string | null
-  provider: string | null
-  role: string
+  profileImageUrl: string
+  roleCode: string
+  roleDescription: string
 }
 
 export type LoginResponseBody = {
