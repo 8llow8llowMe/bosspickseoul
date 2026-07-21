@@ -34,6 +34,18 @@ describe('POST /api/auth/logout', () => {
     expect(clearSession).toHaveBeenCalledTimes(1)
   })
 
+  it('does not call the backend and still clears the session when there is no session', async () => {
+    getSession.mockResolvedValue(null)
+    const fetchMock = vi.fn()
+    global.fetch = fetchMock
+    const { POST } = await import('./route')
+    const res = await POST()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(clearSession).toHaveBeenCalledTimes(1)
+  })
+
   it('still clears the local session and returns 200 when the backend fetch throws', async () => {
     getSession.mockResolvedValue(session)
     global.fetch = vi.fn().mockRejectedValue(new Error('network down'))

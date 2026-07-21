@@ -43,6 +43,27 @@ describe('GET /api/auth/me', () => {
     })
   })
 
+  it('returns unauthenticated when the backend responds with a non-2xx status', async () => {
+    getSession.mockResolvedValue(session)
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          dataHeader: {
+            success: false,
+            resultCode: 'ERR',
+            resultMessage: '실패',
+          },
+          dataBody: null,
+        }),
+        { status: 500, headers: { 'content-type': 'application/json' } },
+      ),
+    )
+    const { GET } = await import('./route')
+    const res = await GET()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ authenticated: false })
+  })
+
   it('returns unauthenticated when the backend call fails', async () => {
     getSession.mockResolvedValue(session)
     global.fetch = vi.fn().mockResolvedValue(

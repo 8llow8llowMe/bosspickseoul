@@ -63,6 +63,24 @@ describe('BFF proxy /api/bff/[...path]', () => {
     expect(headers.get('authorization')).toBe('Bearer old-token')
   })
 
+  it('drops an inbound client-supplied Authorization header when there is no session', async () => {
+    getSession.mockResolvedValue(null)
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{}', { status: 200 }))
+    global.fetch = fetchMock
+    const { GET } = await import('./route')
+    const req = new Request('http://x/api/bff/members/me', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer client-injected' },
+    })
+    await GET(req, ctx(['members', 'me']))
+    const [, init] = fetchMock.mock.calls[0]
+    const headers = init.headers as Headers
+    expect(headers.get('authorization')).toBeNull()
+    expect(headers.has('authorization')).toBe(false)
+  })
+
   it('on a 401, reissues the session and retries once, returning the retried response', async () => {
     getSession.mockResolvedValue(session1)
     reissueSession.mockResolvedValue(session2)
