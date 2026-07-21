@@ -177,7 +177,7 @@ flowchart LR
 | 항목 | 내용 |
 |---|---|
 | Set-Cookie 흡수 | 백엔드가 refreshToken을 Set-Cookie로 주는데, S2S fetch 응답의 Set-Cookie는 **브라우저로 전파하지 말고** Next가 파싱해 세션에 흡수한다 |
-| 응답 래퍼 | 백엔드 `Response<T>`(success/fail) 판별 로직 보존. 성공 판별 기준 확정은 D8 |
+| 응답 래퍼 | 백엔드 `Response<T>` = `{ dataHeader: { success: boolean, resultCode: string\|null, resultMessage: object\|null }, dataBody: T }`. **성공 판별 = `dataHeader.success === true`** (코드 확인 완료). 현재 FE `types/api.ts`는 legacy 형태(`successCode: number`)라 신규 shape로 교체 필요. 에러코드(resultCode) 카탈로그만 Swagger 확정 대상(D8) |
 | 쿠키 크기 | 토큰 2개 암호화 시 4KB 한계 주의. 초과하면 세션저장소 방식 재검토(현재는 stateless) |
 | SSR 안전 | 쿠키 접근은 서버 컨텍스트에서만. 클라이언트 컴포넌트는 auth-store 파생 상태만 참조 |
 | Edge 런타임 | 미들웨어/jose가 Edge에서 동작하도록 Node 전용 API 회피 |
@@ -206,7 +206,7 @@ flowchart LR
 |---|---|---|---|
 | 1 | 소셜 로그인(OAuth) — 백엔드 엔드포인트 부재. 추가 시 콜백을 BFF에서 세션 봉인하도록 설계 | BE 선행 | 미정 |
 | 2 | 2단계 가입·이메일 인증·중복확인 — 백엔드 미지원 | BE 선행 | 미정 |
-| 3 | Swagger/OpenAPI 정본 URL 확인 → `Response<T>` 성공/실패 판별·에러코드·재발급 실패 코드 확정 | FE/BE | 구현 전 |
+| 3 | Swagger/OpenAPI 정본 URL 확인 → **에러코드(resultCode) 카탈로그·재발급 실패 코드** 확정 (래퍼 shape·성공 판별 `dataHeader.success`는 코드로 확인 완료) | FE/BE | 구현 전 |
 | 4 | 세션 쿠키 4KB 초과 여부 실측 → 초과 시 서버 세션저장소 전환 | FE | 구현 중 |
 
 ---
