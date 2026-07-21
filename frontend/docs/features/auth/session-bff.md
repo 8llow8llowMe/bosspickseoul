@@ -137,7 +137,7 @@ RQ([React Query]) --> PX[/api/bff/*/] --> G[Gateway] --> SVC[백엔드]
 | (임의 경로) `→ Gateway /api/v1/**` | 모든 인증 데이터 호출 대행 | 세션 accessToken을 `Authorization: Bearer`로 주입 |
 | `POST /api/v1/auth/token/reissue`  | 401 시 재발급              | 세션의 refreshToken을 쿠키로 전달                 |
 
-동작: `/api/bff/<path>` 요청 → 세션 복호화 → Bearer 주입 후 게이트웨이 포워드 → **401이면** refreshToken으로 `/auth/token/reissue` 호출 → 새 accessToken(+회전된 refresh)으로 세션 갱신 → 원요청 1회 재시도. 재발급도 실패하면 세션 제거 + 401 반환.
+동작: `/api/bff/<path>` 요청 → 세션 복호화 → Bearer 주입 후 게이트웨이 포워드(**프록시가 `/api/v1` 프리픽스를 자동 부가** — 호출부는 `/api/bff/members/me`처럼 논리 경로만 사용, 프록시가 `/api/v1/members/me`로 매핑) → **401이면** refreshToken으로 `/auth/token/reissue` 호출 → 새 accessToken(+회전된 refresh)으로 세션 갱신 → 원요청 1회 재시도. 재발급도 실패하면 세션 제거 + 401 반환.
 
 ### D4-4. 미들웨어 인증 가드
 
