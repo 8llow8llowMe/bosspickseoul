@@ -7,7 +7,7 @@
 
 | Feature    | 공통명세                                 | 대표 라우트                              | 이관 상태                    | 비고                                                  |
 | ---------- | ---------------------------------------- | ---------------------------------------- | ---------------------------- | ----------------------------------------------------- |
-| home       | [home](./home/home.md)                   | `(shell)/`                               | 🟩 명세 완료                 |                                                       |
+| home       | [home](./home/home.md)                   | `(shell)/`                               | 🟩 명세·정적랜딩(검증/정합화 남음) | codex 핸드오프: [HANDOFF](./home/HANDOFF.md) |
 | auth       | [auth](./auth/auth.md)                   | `(auth)/login,register,…`                | 🟩 명세 완료·구현(정적 검증) | BFF 세션. 소셜로그인·2단계가입·에러코드 미결(BE 선행) |
 | status     | [status](./status/status.md)             | `(shell)/status`                         | ⬜                           |                                                       |
 | recommend  | [recommend](./recommend/recommend.md)    | `(shell)/recommend`                      | ⬜                           |                                                       |
