@@ -180,7 +180,7 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
             </PreviewImage>
             <div>
               <FieldLabel>{memberInfo.email}</FieldLabel>
-              <HelperText>{memberInfo.roleDescription}</HelperText>
+              <HelperText>{memberInfo.role?.description}</HelperText>
               <ActionRow>
                 <SecondaryButton
                   type="button"

@@ -201,8 +201,8 @@ export default function ProfileShell({ children }: ProfileShellProps) {
           </Avatar>
           <Name>{resolvedMemberInfo.nickname}</Name>
           <Email>{resolvedMemberInfo.email}</Email>
-          {resolvedMemberInfo.roleDescription ? (
-            <RolePill>{resolvedMemberInfo.roleDescription}</RolePill>
+          {resolvedMemberInfo.role?.description ? (
+            <RolePill>{resolvedMemberInfo.role.description}</RolePill>
           ) : null}
         </SidebarCard>
         <SidebarCard>

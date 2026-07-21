@@ -22,8 +22,11 @@ export type MemberInfo = {
   name: string
   nickname: string
   profileImageUrl: string
-  roleCode: string
-  roleDescription: string
+  role: {
+    code: string
+    name: string
+    description: string
+  }
 }
 
 export type LoginResponseBody = {
