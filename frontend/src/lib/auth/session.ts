@@ -3,6 +3,7 @@ import { EncryptJWT, jwtDecrypt } from 'jose'
 import { createHash } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { getServerEnv } from '@/lib/env.server'
+import { SESSION_COOKIE } from './session-constants'
 
 export type SessionPayload = {
   accessToken: string
@@ -10,7 +11,7 @@ export type SessionPayload = {
   memberId: string
 }
 
-export const SESSION_COOKIE = 'bps_session'
+export { SESSION_COOKIE } from './session-constants'
 
 const secretKey = () =>
   createHash('sha256').update(getServerEnv().authSessionSecret).digest() // 32 bytes for A256GCM
