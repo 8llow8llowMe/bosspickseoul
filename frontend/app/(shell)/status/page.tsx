@@ -3,9 +3,9 @@ import StatusPage from '@/components/status/status-page'
 import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
-  title: '구별 상권 현황',
+  title: '구별 상권 Top 10',
   description:
-    '서울 25개 자치구의 유동인구, 평균매출, 개업률, 폐업률과 상세 지표를 한 화면에서 비교합니다.',
+    '서울의 유동인구, 매출, 개업, 폐업 지표별 상위 10개 지역과 상세 상권 정보를 확인합니다.',
   path: '/status',
   index: true,
 })
