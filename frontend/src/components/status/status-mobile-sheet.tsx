@@ -3,6 +3,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -10,6 +11,7 @@ import {
 } from 'react'
 import styled from 'styled-components'
 import {
+  applyStatusSheetContentTransition,
   getNextSheetSnap,
   resolveSheetSnapFromDrag,
   STATUS_SHEET_COLLAPSED_RATIO,
@@ -188,12 +190,13 @@ export default function StatusMobileSheet({
   const didDragRef = useRef(false)
   const suppressPointerClickRef = useRef(false)
   const sheetRef = useRef<HTMLElement>(null)
+  const sheetBodyRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLButtonElement>(null)
   const backButtonRef = useRef<HTMLButtonElement>(null)
   const previousDetailStateRef = useRef<boolean | null>(null)
   const isShowingDetail = selectedItem !== null
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previousDetailState = previousDetailStateRef.current
 
     if (previousDetailState === null) {
@@ -205,11 +208,13 @@ export default function StatusMobileSheet({
       return
     }
 
-    if (isShowingDetail) {
-      backButtonRef.current?.focus({ preventScroll: true })
-    } else if (!isSingleSnap) {
-      handleRef.current?.focus({ preventScroll: true })
-    }
+    applyStatusSheetContentTransition({
+      body: sheetBodyRef.current,
+      backButton: backButtonRef.current,
+      handle: handleRef.current,
+      isShowingDetail,
+      isSingleSnap,
+    })
 
     previousDetailStateRef.current = isShowingDetail
   }, [isShowingDetail, isSingleSnap])
@@ -425,7 +430,15 @@ export default function StatusMobileSheet({
         )}
       </HandleButton>
 
-      <SheetBody id={bodyId}>
+      <SheetBody
+        ref={sheetBodyRef}
+        id={bodyId}
+        aria-label={
+          selectedItem ? '선택 지역 상세' : '구별 상권 상위 10개 목록'
+        }
+        role="region"
+        tabIndex={isSingleSnap && !selectedItem ? -1 : undefined}
+      >
         {selectedItem ? (
           <>
             <BackButton

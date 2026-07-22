@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  applyStatusSheetContentTransition,
   createStatusHref,
   createStatusQuery,
   getNextSheetSnap,
@@ -214,4 +215,58 @@ describe('resolveSheetSnapFromDrag', () => {
       ).toBe(startSnap)
     },
   )
+})
+
+describe('applyStatusSheetContentTransition', () => {
+  const createBody = (events: string[], initialScrollTop: number) => {
+    let scrollTop = initialScrollTop
+
+    return {
+      get scrollTop() {
+        return scrollTop
+      },
+      set scrollTop(nextScrollTop: number) {
+        scrollTop = nextScrollTop
+        events.push(`scroll:${nextScrollTop}`)
+      },
+      focus(options?: FocusOptions) {
+        events.push(`body-focus:${String(options?.preventScroll)}`)
+      },
+    }
+  }
+
+  it('resets the Top 10 scroll before focusing the detail back button', () => {
+    const events: string[] = []
+    const body = createBody(events, 640)
+
+    applyStatusSheetContentTransition({
+      body,
+      backButton: {
+        focus: options =>
+          events.push(`back-focus:${String(options?.preventScroll)}`),
+      },
+      handle: null,
+      isShowingDetail: true,
+      isSingleSnap: false,
+    })
+
+    expect(body.scrollTop).toBe(0)
+    expect(events).toEqual(['scroll:0', 'back-focus:true'])
+  })
+
+  it('resets the detail scroll before focusing the Top 10 body in single-snap mode', () => {
+    const events: string[] = []
+    const body = createBody(events, 880)
+
+    applyStatusSheetContentTransition({
+      body,
+      backButton: null,
+      handle: null,
+      isShowingDetail: false,
+      isSingleSnap: true,
+    })
+
+    expect(body.scrollTop).toBe(0)
+    expect(events).toEqual(['scroll:0', 'body-focus:true'])
+  })
 })

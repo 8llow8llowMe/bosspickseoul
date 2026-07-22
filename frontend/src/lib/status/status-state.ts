@@ -9,6 +9,14 @@ const STATUS_METRICS: readonly StatusMetric[] = [
 
 export type StatusSheetSnap = 'collapsed' | 'expanded'
 
+type StatusSheetFocusTarget = {
+  focus: (options?: FocusOptions) => void
+}
+
+type StatusSheetBodyTarget = StatusSheetFocusTarget & {
+  scrollTop: number
+}
+
 export const STATUS_SHEET_COLLAPSED_RATIO = 0.54
 const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 180
 // Below about 391px, `height - 180px` constrains both 54% and 72% snaps
@@ -42,6 +50,32 @@ export const getNextSheetSnap = (
   }
 
   return current === 'expanded' ? 'collapsed' : current
+}
+
+export const applyStatusSheetContentTransition = ({
+  body,
+  backButton,
+  handle,
+  isShowingDetail,
+  isSingleSnap,
+}: {
+  body: StatusSheetBodyTarget | null
+  backButton: StatusSheetFocusTarget | null
+  handle: StatusSheetFocusTarget | null
+  isShowingDetail: boolean
+  isSingleSnap: boolean
+}): void => {
+  if (body) {
+    body.scrollTop = 0
+  }
+
+  const focusTarget = isShowingDetail
+    ? backButton
+    : isSingleSnap
+      ? body
+      : handle
+
+  focusTarget?.focus({ preventScroll: true })
 }
 
 export const resolveSheetSnapFromDrag = (
