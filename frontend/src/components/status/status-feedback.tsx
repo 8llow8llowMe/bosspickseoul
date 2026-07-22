@@ -118,7 +118,7 @@ export default function StatusFeedback(props: StatusFeedbackProps) {
       <Description>
         {props.message ?? '잠시 후 다시 시도해 주세요.'}
       </Description>
-      <Button size="large" type="button" onClick={props.onRetry}>
+      <Button size="large" type="button" variant="dark" onClick={props.onRetry}>
         다시 시도
       </Button>
     </FeedbackCard>

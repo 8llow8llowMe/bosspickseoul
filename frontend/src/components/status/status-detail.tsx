@@ -154,12 +154,18 @@ const HeaderValue = styled.strong`
 `
 
 const HeaderChange = styled.span<{ $tone: ChangeTone }>`
-  color: ${props => {
-    if (props.$tone === 'danger') return 'var(--color-danger)'
-    if (props.$tone === 'success') return 'var(--color-success)'
-    if (props.$tone === 'warning') return 'var(--color-warning)'
-    return 'var(--color-text-600)'
-  }};
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 3px solid
+    ${props => {
+      if (props.$tone === 'danger') return 'var(--color-danger)'
+      if (props.$tone === 'success') return 'var(--color-success)'
+      if (props.$tone === 'warning') return 'var(--color-warning)'
+      return 'var(--color-border-300)'
+    }};
+  color: var(--color-text-800);
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -179,8 +185,8 @@ const CloseButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    border-color: var(--color-primary-700);
-    color: var(--color-primary-700);
+    border-color: var(--color-primary-600);
+    color: var(--color-text-900);
   }
 `
 
@@ -200,6 +206,10 @@ const DetailDisclosure = styled.details`
     border-bottom: 1px solid var(--color-border-200);
     color: var(--color-text-900);
   }
+
+  &[open] > summary::after {
+    transform: rotate(225deg);
+  }
 `
 
 const DisclosureSummary = styled.summary`
@@ -211,6 +221,23 @@ const DisclosureSummary = styled.summary`
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &::after {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    margin-left: auto;
+    border-right: 2px solid var(--color-text-600);
+    border-bottom: 2px solid var(--color-text-600);
+    content: '';
+    transform: rotate(45deg);
+    transition: transform var(--motion-fast) var(--ease-standard);
+  }
 `
 
 const DisclosureContent = styled.div`
@@ -306,17 +333,17 @@ const ErrorMessage = styled.p`
 const RetryButton = styled.button`
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--color-primary-700);
+  border: 1px solid var(--color-text-900);
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-text-900);
   color: var(--color-surface);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 
   &:hover {
-    border-color: var(--color-primary-600);
-    background: var(--color-primary-600);
+    border-color: var(--color-text-800);
+    background: var(--color-text-800);
   }
 `
 
@@ -329,6 +356,13 @@ const VisuallyHidden = styled.span`
   clip-path: inset(50%);
   white-space: nowrap;
 `
+
+const getChangeCue = (metric: StatusMetric, changeRate: number): string => {
+  if (!Number.isFinite(changeRate)) return '변화율'
+  if (changeRate === 0) return '변동 없음'
+  if (metric === 'closed') return changeRate > 0 ? '주의' : '개선'
+  return changeRate > 0 ? '증가' : '감소'
+}
 
 function DetailRows({ rows }: { rows: DetailRow[] }) {
   if (rows.length === 0) {
@@ -599,7 +633,8 @@ function DetailHeader({
             <HeaderChange
               $tone={getChangeTone(metric, selectedItem.changeRate)}
             >
-              {formatStatusChange(selectedItem.changeRate)}
+              <span>{getChangeCue(metric, selectedItem.changeRate)}</span>
+              <span>{formatStatusChange(selectedItem.changeRate)}</span>
             </HeaderChange>
           </HeaderMetric>
         ) : null}
@@ -639,10 +674,12 @@ export default function StatusDetail({
           <Skeleton $height="48px" />
           <Skeleton $height="48px" />
         </LoadingBody>
-      ) : errorMessage ? (
+      ) : errorMessage !== null ? (
         <ErrorBody aria-live="assertive">
           <ErrorTitle>상세 현황을 불러오지 못했어요</ErrorTitle>
-          <ErrorMessage>{errorMessage}</ErrorMessage>
+          <ErrorMessage>
+            {errorMessage.trim() || '잠시 후 다시 시도해 주세요.'}
+          </ErrorMessage>
           <RetryButton type="button" onClick={onRetry}>
             다시 시도
           </RetryButton>

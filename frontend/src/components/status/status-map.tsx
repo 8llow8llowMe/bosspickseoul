@@ -70,12 +70,10 @@ const MarkerButton = styled.button<{
   padding: 0;
   border: ${props => (props.$selected ? '3px' : '1px')} solid
     ${props =>
-      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-300)'};
+      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-300)'};
   border-radius: var(--radius-pill);
-  background: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-surface)'};
-  color: ${props =>
-    props.$selected ? 'var(--color-surface)' : 'var(--color-text-800)'};
+  background: var(--color-surface);
+  color: var(--color-text-800);
   box-shadow: var(--shadow-level-1);
   font-size: ${props => (props.$selected ? '15px' : '13px')};
   font-weight: 800;
@@ -91,9 +89,8 @@ const MarkerButton = styled.button<{
     color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    border-color: var(--color-primary-700);
-    color: ${props =>
-      props.$selected ? 'var(--color-surface)' : 'var(--color-primary-700)'};
+    border-color: var(--color-primary-600);
+    color: var(--color-text-900);
   }
 `
 

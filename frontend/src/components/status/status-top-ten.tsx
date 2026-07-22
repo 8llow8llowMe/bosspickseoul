@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import styled from 'styled-components'
 import {
   formatStatusChange,
@@ -63,9 +64,9 @@ const RankingButton = styled.button<{ $selected: boolean }>`
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid
+  border: ${props => (props.$selected ? '2px' : '1px')} solid
     ${props =>
-      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
   border-radius: var(--radius-control);
   background: ${props =>
     props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
@@ -76,7 +77,7 @@ const RankingButton = styled.button<{ $selected: boolean }>`
     border-color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    border-color: var(--color-primary-700);
+    border-color: var(--color-primary-600);
   }
 
   @media (max-width: 420px) {
@@ -113,12 +114,18 @@ const DistrictValue = styled.span`
 `
 
 const Change = styled.span<{ $tone: ChangeTone }>`
-  color: ${props => {
-    if (props.$tone === 'danger') return 'var(--color-danger)'
-    if (props.$tone === 'success') return 'var(--color-success)'
-    if (props.$tone === 'warning') return 'var(--color-warning)'
-    return 'var(--color-text-600)'
-  }};
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 3px solid
+    ${props => {
+      if (props.$tone === 'danger') return 'var(--color-danger)'
+      if (props.$tone === 'success') return 'var(--color-success)'
+      if (props.$tone === 'warning') return 'var(--color-warning)'
+      return 'var(--color-border-300)'
+    }};
+  color: var(--color-text-800);
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -130,6 +137,17 @@ const Change = styled.span<{ $tone: ChangeTone }>`
     text-align: left;
   }
 `
+
+const ChangeCue = styled.span`
+  font-weight: 600;
+`
+
+const getChangeCue = (metric: StatusMetric, changeRate: number): string => {
+  if (!Number.isFinite(changeRate)) return '변화율'
+  if (changeRate === 0) return '변동 없음'
+  if (metric === 'closed') return changeRate > 0 ? '주의' : '개선'
+  return changeRate > 0 ? '증가' : '감소'
+}
 
 const EmptyMessage = styled.p`
   padding: 24px 16px;
@@ -146,13 +164,12 @@ export default function StatusTopTen({
   selectedDistrictCode,
   onSelect,
 }: StatusTopTenProps) {
+  const headingId = useId()
   const topTenItems = items.slice(0, 10)
 
   return (
-    <Section aria-labelledby="status-top-ten-heading">
-      <Heading id="status-top-ten-heading">
-        {METRIC_LABELS[metric]} 상위 10개 자치구
-      </Heading>
+    <Section aria-labelledby={headingId}>
+      <Heading id={headingId}>{METRIC_LABELS[metric]} 상위 10개 자치구</Heading>
       {topTenItems.length > 0 ? (
         <RankingList>
           {topTenItems.map(item => {
@@ -174,7 +191,10 @@ export default function StatusTopTen({
                     </DistrictValue>
                   </District>
                   <Change $tone={getChangeTone(metric, item.changeRate)}>
-                    {formatStatusChange(item.changeRate)}
+                    <ChangeCue>
+                      {getChangeCue(metric, item.changeRate)}
+                    </ChangeCue>
+                    <span>{formatStatusChange(item.changeRate)}</span>
                   </Change>
                 </RankingButton>
               </li>
