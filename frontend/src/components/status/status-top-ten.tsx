@@ -202,7 +202,9 @@ export default function StatusTopTen({
           })}
         </RankingList>
       ) : (
-        <EmptyMessage>데이터 없음</EmptyMessage>
+        <EmptyMessage>
+          선택한 지표의 상위 자치구 데이터가 아직 없습니다.
+        </EmptyMessage>
       )}
     </Section>
   )

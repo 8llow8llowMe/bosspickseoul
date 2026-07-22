@@ -59,13 +59,18 @@ export const normalizeStatusSelection = (
   districtCode && topTenCodes.includes(districtCode) ? districtCode : null
 
 export const createStatusQuery = (
+  currentQuery: URLSearchParams,
   metric: StatusMetric,
   districtCode: string | null,
 ): URLSearchParams => {
-  const query = new URLSearchParams({ metric })
+  const query = new URLSearchParams(currentQuery)
+
+  query.set('metric', metric)
 
   if (districtCode) {
     query.set('district', districtCode)
+  } else {
+    query.delete('district')
   }
 
   return query

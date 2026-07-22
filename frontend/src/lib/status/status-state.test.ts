@@ -41,13 +41,35 @@ describe('normalizeStatusSelection', () => {
 
 describe('createStatusQuery', () => {
   it('always includes the metric', () => {
-    expect(createStatusQuery('sales', null).toString()).toBe('metric=sales')
+    expect(
+      createStatusQuery(new URLSearchParams(), 'sales', null).toString(),
+    ).toBe('metric=sales')
   })
 
   it('includes the district only when it is selected', () => {
-    expect(createStatusQuery('opened', '11680').toString()).toBe(
-      'metric=opened&district=11680',
-    )
+    expect(
+      createStatusQuery(new URLSearchParams(), 'opened', '11680').toString(),
+    ).toBe('metric=opened&district=11680')
+  })
+
+  it('preserves query parameters not owned by the status page', () => {
+    expect(
+      createStatusQuery(
+        new URLSearchParams('from=campaign&metric=closed&district=11110'),
+        'sales',
+        '11680',
+      ).toString(),
+    ).toBe('from=campaign&metric=sales&district=11680')
+  })
+
+  it('removes only the district when returning to exploration', () => {
+    expect(
+      createStatusQuery(
+        new URLSearchParams('metric=sales&district=11680&from=campaign'),
+        'sales',
+        null,
+      ).toString(),
+    ).toBe('metric=sales&from=campaign')
   })
 })
 

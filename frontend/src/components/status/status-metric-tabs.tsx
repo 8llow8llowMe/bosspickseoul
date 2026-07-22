@@ -1,11 +1,13 @@
 'use client'
 
-import { useRef, type KeyboardEvent } from 'react'
+import { useId, useRef, type KeyboardEvent } from 'react'
 import styled from 'styled-components'
 import type { StatusMetric } from '@/types/status'
 
 type StatusMetricTabsProps = {
   value: StatusMetric
+  idBase?: string
+  panelId?: string
   onChange: (metric: StatusMetric) => void
 }
 
@@ -53,9 +55,14 @@ const TabButton = styled.button<{ $selected: boolean }>`
 
 export default function StatusMetricTabs({
   value,
+  idBase,
+  panelId,
   onChange,
 }: StatusMetricTabsProps) {
+  const generatedId = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const resolvedIdBase = idBase ?? `status-metric-${generatedId}`
+  const resolvedPanelId = panelId ?? `${resolvedIdBase}-panel`
 
   const handleKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
@@ -63,9 +70,9 @@ export default function StatusMetricTabs({
   ) => {
     let nextIndex: number | null = null
 
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    if (event.key === 'ArrowRight') {
       nextIndex = (currentIndex + 1) % METRIC_TABS.length
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    } else if (event.key === 'ArrowLeft') {
       nextIndex = (currentIndex - 1 + METRIC_TABS.length) % METRIC_TABS.length
     } else if (event.key === 'Home') {
       nextIndex = 0
@@ -98,9 +105,9 @@ export default function StatusMetricTabs({
               tabRefs.current[index] = element
             }}
             $selected={isSelected}
-            aria-controls="status-metric-content"
+            aria-controls={resolvedPanelId}
             aria-selected={isSelected}
-            id={`status-metric-tab-${tab.value}`}
+            id={`${resolvedIdBase}-${tab.value}`}
             role="tab"
             tabIndex={isSelected ? 0 : -1}
             type="button"
