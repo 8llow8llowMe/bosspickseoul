@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   createStatusQuery,
+  getNextSheetSnap,
   normalizeStatusSelection,
   parseStatusMetric,
+  resolveSheetSnapFromDrag,
 } from './status-state'
 
 describe('parseStatusMetric', () => {
@@ -47,4 +49,57 @@ describe('createStatusQuery', () => {
       'metric=opened&district=11680',
     )
   })
+})
+
+describe('getNextSheetSnap', () => {
+  it.each([
+    ['collapsed', 'expand', 'expanded'],
+    ['expanded', 'expand', 'expanded'],
+    ['expanded', 'collapse', 'collapsed'],
+    ['collapsed', 'collapse', 'collapsed'],
+  ] as const)('returns %s + %s as %s', (currentSnap, action, expectedSnap) => {
+    expect(getNextSheetSnap(currentSnap, action)).toBe(expectedSnap)
+  })
+})
+
+describe('resolveSheetSnapFromDrag', () => {
+  const threshold = 48
+
+  it('expands after an upward drag passes the threshold', () => {
+    expect(resolveSheetSnapFromDrag('collapsed', -49, threshold)).toBe(
+      'expanded',
+    )
+  })
+
+  it('collapses after a downward drag passes the threshold', () => {
+    expect(resolveSheetSnapFromDrag('expanded', 49, threshold)).toBe(
+      'collapsed',
+    )
+  })
+
+  it.each([
+    ['collapsed', -48],
+    ['expanded', 48],
+    ['collapsed', -47],
+    ['expanded', 47],
+  ] as const)(
+    'keeps %s at or below the threshold for deltaY %s',
+    (startSnap, deltaY) => {
+      expect(resolveSheetSnapFromDrag(startSnap, deltaY, threshold)).toBe(
+        startSnap,
+      )
+    },
+  )
+
+  it.each([
+    ['collapsed', 49],
+    ['expanded', -49],
+  ] as const)(
+    'does not move past the available snap from %s for deltaY %s',
+    (startSnap, deltaY) => {
+      expect(resolveSheetSnapFromDrag(startSnap, deltaY, threshold)).toBe(
+        startSnap,
+      )
+    },
+  )
 })

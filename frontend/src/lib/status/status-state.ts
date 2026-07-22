@@ -7,6 +7,35 @@ const STATUS_METRICS: readonly StatusMetric[] = [
   'closed',
 ]
 
+export type StatusSheetSnap = 'collapsed' | 'expanded'
+
+export const getNextSheetSnap = (
+  current: StatusSheetSnap,
+  action: 'expand' | 'collapse',
+): StatusSheetSnap => {
+  if (action === 'expand') {
+    return current === 'collapsed' ? 'expanded' : current
+  }
+
+  return current === 'expanded' ? 'collapsed' : current
+}
+
+export const resolveSheetSnapFromDrag = (
+  startSnap: StatusSheetSnap,
+  deltaY: number,
+  threshold: number,
+): StatusSheetSnap => {
+  if (deltaY < -threshold) {
+    return getNextSheetSnap(startSnap, 'expand')
+  }
+
+  if (deltaY > threshold) {
+    return getNextSheetSnap(startSnap, 'collapse')
+  }
+
+  return startSnap
+}
+
 export const parseStatusMetric = (value: unknown): StatusMetric =>
   typeof value === 'string' && STATUS_METRICS.includes(value as StatusMetric)
     ? (value as StatusMetric)
