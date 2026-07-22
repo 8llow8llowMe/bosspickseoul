@@ -203,9 +203,9 @@ export default function StatusMobileSheet({
     }
 
     if (isShowingDetail) {
-      backButtonRef.current?.focus()
+      backButtonRef.current?.focus({ preventScroll: true })
     } else if (!isSingleSnap) {
-      handleRef.current?.focus()
+      handleRef.current?.focus({ preventScroll: true })
     }
 
     previousDetailStateRef.current = isShowingDetail
