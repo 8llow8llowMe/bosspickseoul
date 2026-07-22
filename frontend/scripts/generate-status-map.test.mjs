@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, it } from 'node:test'
+import { pathToFileURL } from 'node:url'
 
 import {
   buildStatusMapData,
@@ -172,12 +176,55 @@ describe('generate-status-map', () => {
     const second = generateStatusMapSource(geoJson, options)
 
     assert.equal(first, second)
-    assert.ok(first.indexOf("'01001'") < first.indexOf("'01002'"))
+    assert.ok(first.indexOf('"01001"') < first.indexOf('"01002"'))
     assert.match(first, /Source: "fixture\.geojson"/)
     assert.match(first, /SHA-256: "abc123"/)
     assert.match(
       first,
       /node scripts\/generate-status-map\.mjs <input-geojson> src\/data\/seoul-status-map\.ts/,
     )
+  })
+
+  it('uses JSON string literals for external values with special characters', async () => {
+    const districtCode = "01'\\\n002"
+    const sourceName = "unsafe'\\\nsource.geojson"
+    const geoJson = featureCollection([
+      polygonFeature(districtCode, [
+        closeRing([
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ]),
+      ]),
+    ])
+    const source = generateStatusMapSource(geoJson, {
+      sourceName,
+      sourceHash: 'abc123',
+    })
+    const temporaryDirectory = await mkdtemp(
+      path.join(os.tmpdir(), 'status-map-generator-'),
+    )
+    const modulePath = path.join(temporaryDirectory, 'seoul-status-map.mjs')
+    const javaScriptSource = source
+      .replace('] as const', ']')
+      .replace(
+        'export const SEOUL_DISTRICT_CENTERS: Record<string, { x: number; y: number }> =',
+        'export const SEOUL_DISTRICT_CENTERS =',
+      )
+
+    try {
+      assert.ok(source.includes(JSON.stringify(districtCode)))
+      assert.ok(source.includes(JSON.stringify(path.basename(sourceName))))
+      await writeFile(modulePath, javaScriptSource)
+
+      const generatedModule = await import(pathToFileURL(modulePath).href)
+      assert.deepEqual(generatedModule.SEOUL_DISTRICT_CENTERS[districtCode], {
+        x: 400,
+        y: 310,
+      })
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true })
+    }
   })
 })

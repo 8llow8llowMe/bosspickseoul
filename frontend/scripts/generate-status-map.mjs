@@ -12,11 +12,6 @@ const round = value => Math.round(value * 100) / 100
 const roundPoint = ([x, y]) => [round(x), round(y)]
 const pointsEqual = ([firstX, firstY], [secondX, secondY]) =>
   firstX === secondX && firstY === secondY
-const serializeGeneratedString = value => {
-  const serialized = JSON.stringify(value)
-
-  return `'${serialized.slice(1, -1).replaceAll("'", "\\\\'")}'`
-}
 
 function assertValidRing(ring, featureCode) {
   if (!Array.isArray(ring) || ring.length < 4) {
@@ -566,12 +561,10 @@ export function generateStatusMapSource(
 ) {
   const map = buildStatusMapData(geoJson)
   const sourceFileName = path.basename(sourceName)
-  const pathLines = map.paths.map(
-    mapPath => `  ${serializeGeneratedString(mapPath)},`,
-  )
+  const pathLines = map.paths.map(mapPath => `  ${JSON.stringify(mapPath)},`)
   const centerLines = map.features.map(
     ({ code, center }) =>
-      `    ${serializeGeneratedString(code)}: { x: ${center.x}, y: ${center.y} },`,
+      `    ${JSON.stringify(code)}: { x: ${center.x}, y: ${center.y} },`,
   )
 
   return [
@@ -580,12 +573,15 @@ export function generateStatusMapSource(
     `// SHA-256: ${JSON.stringify(sourceHash)}`,
     '// Regenerate: node scripts/generate-status-map.mjs <input-geojson> src/data/seoul-status-map.ts',
     '',
-    `export const SEOUL_STATUS_VIEW_BOX = ${serializeGeneratedString(map.viewBox)}`,
+    '// prettier-ignore',
+    `export const SEOUL_STATUS_VIEW_BOX = ${JSON.stringify(map.viewBox)}`,
     '',
+    '// prettier-ignore',
     'export const SEOUL_STATUS_PATHS = [',
     ...pathLines,
     '] as const',
     '',
+    '// prettier-ignore',
     'export const SEOUL_DISTRICT_CENTERS: Record<string, { x: number; y: number }> =',
     '  {',
     ...centerLines,

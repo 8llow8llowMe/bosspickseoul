@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "qa:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/generate-status-map.test.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
