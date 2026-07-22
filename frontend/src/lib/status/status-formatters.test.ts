@@ -24,6 +24,29 @@ describe('formatStatusValue', () => {
       expect(formatStatusValue('footTraffic', value)).toBe('데이터 없음')
     },
   )
+
+  it.each([
+    ['footTraffic', -1],
+    ['sales', -1],
+    ['opened', -1],
+    ['closed', -1],
+    ['footTraffic', 1.5],
+    ['sales', 1.5],
+    ['opened', 1.5],
+    ['closed', 1.5],
+  ] as const)(
+    'returns the empty-data label for invalid %s totals',
+    (metric, value) => {
+      expect(formatStatusValue(metric, value)).toBe('데이터 없음')
+    },
+  )
+
+  it.each([
+    [50_000_000, '5,000만원'],
+    [0, '0만원'],
+  ])('omits the zero-eok unit for sales value %s', (value, expected) => {
+    expect(formatStatusValue('sales', value)).toBe(expected)
+  })
 })
 
 describe('formatStatusChange', () => {
@@ -32,6 +55,18 @@ describe('formatStatusChange', () => {
     [-2.3, '-2.3%'],
     [0, '0%'],
   ])('formats %s as %s', (value, expected) => {
+    expect(formatStatusChange(value)).toBe(expected)
+  })
+
+  it.each([
+    [null, '데이터 없음'],
+    [undefined, '데이터 없음'],
+    [Number.NaN, '데이터 없음'],
+    [Number.POSITIVE_INFINITY, '데이터 없음'],
+    [8.55, '+8.6%'],
+    [-2.34, '-2.3%'],
+    [8, '+8%'],
+  ])('handles change value %s as %s', (value, expected) => {
     expect(formatStatusChange(value)).toBe(expected)
   })
 })
