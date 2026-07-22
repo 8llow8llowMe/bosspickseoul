@@ -28,6 +28,7 @@ type StatusMobileSheetProps = {
   selectedItem: StatusRankedItem | null
   detail: DistrictDetail | null
   isDetailLoading: boolean
+  isSingleSnap: boolean
   detailErrorMessage: string | null
   snap: StatusSheetSnap
   onSnapChange: (snap: StatusSheetSnap) => void
@@ -54,6 +55,7 @@ type DragVisualState = {
 const Sheet = styled.section<{
   $dragDeltaY: number
   $isDragging: boolean
+  $isSingleSnap: boolean
   $snap: StatusSheetSnap
 }>`
   --status-sheet-collapsed-height: max(0px, min(46%, calc(100% - 180px)));
@@ -64,18 +66,22 @@ const Sheet = styled.section<{
   right: 0;
   bottom: 0;
   left: 0;
-  height: clamp(
-    var(--status-sheet-collapsed-height),
-    calc(
-      ${props =>
-          props.$snap === 'expanded'
-            ? 'var(--status-sheet-expanded-height)'
-            : 'var(--status-sheet-collapsed-height)'} -
-        ${props => props.$dragDeltaY}px
-    ),
-    var(--status-sheet-expanded-height)
-  );
-  max-height: var(--status-sheet-expanded-height);
+  height: ${props =>
+    props.$isSingleSnap
+      ? '46%'
+      : `clamp(
+          var(--status-sheet-collapsed-height),
+          calc(
+            ${
+              props.$snap === 'expanded'
+                ? 'var(--status-sheet-expanded-height)'
+                : 'var(--status-sheet-collapsed-height)'
+            } - ${props.$dragDeltaY}px
+          ),
+          var(--status-sheet-expanded-height)
+        )`};
+  max-height: ${props =>
+    props.$isSingleSnap ? '46%' : 'var(--status-sheet-expanded-height)'};
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -85,7 +91,7 @@ const Sheet = styled.section<{
   background: var(--color-surface);
   box-shadow: var(--shadow-level-3);
   transition: ${props =>
-    props.$isDragging
+    props.$isDragging || props.$isSingleSnap
       ? 'none'
       : 'height var(--motion-standard) var(--ease-standard)'};
 
@@ -98,7 +104,7 @@ const Sheet = styled.section<{
   }
 `
 
-const HandleButton = styled.button`
+const HandleButton = styled.button<{ $isSingleSnap: boolean }>`
   width: 100%;
   min-height: 44px;
   display: flex;
@@ -106,8 +112,8 @@ const HandleButton = styled.button`
   justify-content: center;
   border: 0;
   background: var(--color-surface);
-  cursor: ns-resize;
-  touch-action: none;
+  cursor: ${props => (props.$isSingleSnap ? 'default' : 'ns-resize')};
+  touch-action: ${props => (props.$isSingleSnap ? 'auto' : 'none')};
   user-select: none;
 `
 
@@ -116,6 +122,13 @@ const HandleIndicator = styled.span`
   height: 4px;
   border-radius: var(--radius-pill);
   background: var(--color-border-300);
+  pointer-events: none;
+`
+
+const FixedHeightLabel = styled.span`
+  color: var(--color-text-600);
+  font-size: 13px;
+  font-weight: 700;
   pointer-events: none;
 `
 
@@ -154,6 +167,7 @@ export default function StatusMobileSheet({
   selectedItem,
   detail,
   isDetailLoading,
+  isSingleSnap,
   detailErrorMessage,
   snap,
   onSnapChange,
@@ -190,12 +204,12 @@ export default function StatusMobileSheet({
 
     if (isShowingDetail) {
       backButtonRef.current?.focus()
-    } else {
+    } else if (!isSingleSnap) {
       handleRef.current?.focus()
     }
 
     previousDetailStateRef.current = isShowingDetail
-  }, [isShowingDetail])
+  }, [isShowingDetail, isSingleSnap])
 
   useEffect(() => {
     const pointerId = pointerIdRef.current
@@ -232,6 +246,7 @@ export default function StatusMobileSheet({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (
+      isSingleSnap ||
       !event.isPrimary ||
       pointerIdRef.current !== null ||
       (event.pointerType === 'mouse' && event.button !== 0)
@@ -267,6 +282,7 @@ export default function StatusMobileSheet({
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (
+      isSingleSnap ||
       pointerIdRef.current !== event.pointerId ||
       startYRef.current === null ||
       startSnapRef.current === null
@@ -284,6 +300,16 @@ export default function StatusMobileSheet({
   }
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (isSingleSnap) {
+      clearPointerState()
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      return
+    }
+
     const startY = startYRef.current
     const startSnap = startSnapRef.current
     const bounds = dragBoundsRef.current
@@ -339,6 +365,10 @@ export default function StatusMobileSheet({
   }
 
   const handleToggle = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (isSingleSnap) {
+      return
+    }
+
     if (suppressPointerClickRef.current && event.detail !== 0) {
       suppressPointerClickRef.current = false
       return
@@ -351,24 +381,31 @@ export default function StatusMobileSheet({
   }
 
   const isDraggingCurrentSnap =
-    dragVisualState !== null && dragVisualState.startSnap === snap
+    !isSingleSnap &&
+    dragVisualState !== null &&
+    dragVisualState.startSnap === snap
 
   return (
     <Sheet
       ref={sheetRef}
       $dragDeltaY={isDraggingCurrentSnap ? dragVisualState.deltaY : 0}
       $isDragging={isDraggingCurrentSnap}
+      $isSingleSnap={isSingleSnap}
       $snap={snap}
       aria-label="구별 현황"
     >
       <HandleButton
         ref={handleRef}
+        $isSingleSnap={isSingleSnap}
         aria-controls={bodyId}
-        aria-expanded={snap === 'expanded'}
+        aria-disabled={isSingleSnap || undefined}
+        aria-expanded={isSingleSnap ? undefined : snap === 'expanded'}
         aria-label={
-          snap === 'collapsed'
-            ? '구별 현황 바텀시트 펼치기'
-            : '구별 현황 바텀시트 접기'
+          isSingleSnap
+            ? '화면 높이가 낮아 구별 현황 창을 고정해서 표시합니다.'
+            : snap === 'collapsed'
+              ? '구별 현황 바텀시트 펼치기'
+              : '구별 현황 바텀시트 접기'
         }
         type="button"
         onClick={handleToggle}
@@ -378,7 +415,11 @@ export default function StatusMobileSheet({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <HandleIndicator aria-hidden="true" />
+        {isSingleSnap ? (
+          <FixedHeightLabel>고정 높이로 표시 중</FixedHeightLabel>
+        ) : (
+          <HandleIndicator aria-hidden="true" />
+        )}
       </HandleButton>
 
       <SheetBody id={bodyId}>

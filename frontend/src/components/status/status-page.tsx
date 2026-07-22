@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
@@ -8,7 +8,9 @@ import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { normalizeStatusTopTen } from '@/lib/status/status-adapter'
 import {
+  createStatusHref,
   createStatusQuery,
+  isStatusSheetSingleSnap,
   normalizeStatusSelection,
   parseStatusMetric,
   type StatusSheetSnap,
@@ -24,6 +26,7 @@ const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
 const DETAIL_ERROR_MESSAGE =
   '선택한 자치구의 상세 현황을 불러오지 못했습니다. 다시 시도해 주세요.'
+const DEFAULT_SITE_HEADER_HEIGHT = 64
 
 const Page = styled.main`
   width: 100%;
@@ -75,8 +78,6 @@ const HeroDescription = styled.p`
 `
 
 const TabsSurface = styled.div`
-  position: relative;
-  z-index: 20;
   padding: 12px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
@@ -137,14 +138,13 @@ const MapDescription = styled.p`
   word-break: keep-all;
 `
 
-const MobileStage = styled.section`
+const MobileStage = styled.section<{ $headerHeight: number }>`
   display: none;
 
   @media (max-width: 1023px) {
     position: relative;
     width: calc(100% + 32px);
-    height: calc(100dvh - 64px);
-    min-height: 480px;
+    height: max(0px, calc(100dvh - ${props => props.$headerHeight}px));
     display: block;
     overflow: hidden;
     margin-left: -16px;
@@ -177,6 +177,11 @@ function StatusPageContent() {
   const rawSearchParams = searchParams.toString()
   const metric = parseStatusMetric(searchParams.get('metric'))
   const requestedDistrictCode = searchParams.get('district')
+  const mobileStageRef = useRef<HTMLElement>(null)
+  const [siteHeaderHeight, setSiteHeaderHeight] = useState(
+    DEFAULT_SITE_HEADER_HEIGHT,
+  )
+  const [mobileStageHeight, setMobileStageHeight] = useState(0)
   const [sheetState, setSheetState] = useState<{
     districtCode: string | null
     snap: StatusSheetSnap
@@ -233,6 +238,64 @@ function StatusPageContent() {
     : detailQuery.data && !isApiSuccess(detailQuery.data)
       ? getApiMessage(detailQuery.data, DETAIL_ERROR_MESSAGE)
       : null
+  const isDetailLoading =
+    detailQuery.isPending ||
+    (detailErrorMessage !== null && detailQuery.isFetching)
+  const isSingleSnap = isStatusSheetSingleSnap(mobileStageHeight)
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const siteHeader = document.querySelector<HTMLElement>('[data-site-header]')
+
+    if (!siteHeader) {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      const measuredHeight = Math.round(
+        siteHeader.getBoundingClientRect().height,
+      )
+
+      setSiteHeaderHeight(
+        measuredHeight > 0 ? measuredHeight : DEFAULT_SITE_HEADER_HEIGHT,
+      )
+    })
+
+    observer.observe(siteHeader)
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!topTen) {
+      return
+    }
+
+    const mobileStage = mobileStageRef.current
+
+    if (!mobileStage) {
+      return
+    }
+
+    if (typeof ResizeObserver === 'undefined') {
+      const frame = window.requestAnimationFrame(() => {
+        setMobileStageHeight(mobileStage.clientHeight)
+      })
+
+      return () => window.cancelAnimationFrame(frame)
+    }
+
+    const observer = new ResizeObserver(() => {
+      setMobileStageHeight(mobileStage.clientHeight)
+    })
+
+    observer.observe(mobileStage)
+
+    return () => observer.disconnect()
+  }, [topTen])
 
   useEffect(() => {
     const currentQuery = new URLSearchParams(rawSearchParams)
@@ -249,9 +312,12 @@ function StatusPageContent() {
       return
     }
 
-    router.replace(`${pathname}?${normalizedQuery.toString()}`, {
-      scroll: false,
-    })
+    router.replace(
+      createStatusHref(pathname, normalizedQuery, window.location.hash),
+      {
+        scroll: false,
+      },
+    )
   }, [metric, pathname, rawSearchParams, router, selectedDistrictCode, topTen])
 
   const pushStatusQuery = (
@@ -264,7 +330,9 @@ function StatusPageContent() {
       districtCode,
     )
 
-    router.push(`${pathname}?${nextQuery.toString()}`, { scroll: false })
+    router.push(createStatusHref(pathname, nextQuery, window.location.hash), {
+      scroll: false,
+    })
   }
 
   const handleMetricChange = (nextMetric: typeof metric) => {
@@ -278,6 +346,11 @@ function StatusPageContent() {
 
   const handleDistrictSelect = (districtCode: string) => {
     setSheetState({ districtCode, snap: 'expanded' })
+
+    if (districtCode === selectedDistrictCode) {
+      return
+    }
+
     pushStatusQuery(metric, districtCode)
   }
 
@@ -287,7 +360,7 @@ function StatusPageContent() {
   }
 
   if (!topTen) {
-    const isLoading = topTenQuery.isPending
+    const isLoading = topTenQuery.isPending || topTenQuery.isFetching
 
     return (
       <Page>
@@ -361,7 +434,7 @@ function StatusPageContent() {
               <StatusDetail
                 detail={detail}
                 errorMessage={detailErrorMessage}
-                isLoading={detailQuery.isPending}
+                isLoading={isDetailLoading}
                 metric={metric}
                 selectedItem={selectedItem}
                 onClose={handleClearDistrict}
@@ -386,7 +459,11 @@ function StatusPageContent() {
             </MapPanel>
           </DesktopGrid>
 
-          <MobileStage aria-label="서울 자치구 현황 지도와 상세 정보">
+          <MobileStage
+            ref={mobileStageRef}
+            $headerHeight={siteHeaderHeight}
+            aria-label="서울 자치구 현황 지도와 상세 정보"
+          >
             <MobileMapLayer>
               <StatusMap
                 items={currentItems}
@@ -398,7 +475,8 @@ function StatusPageContent() {
             <StatusMobileSheet
               detail={detail}
               detailErrorMessage={detailErrorMessage}
-              isDetailLoading={detailQuery.isPending}
+              isDetailLoading={isDetailLoading}
+              isSingleSnap={isSingleSnap}
               items={currentItems}
               metric={metric}
               selectedItem={selectedItem}

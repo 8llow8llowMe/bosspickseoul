@@ -9,6 +9,30 @@ const STATUS_METRICS: readonly StatusMetric[] = [
 
 export type StatusSheetSnap = 'collapsed' | 'expanded'
 
+const STATUS_SHEET_COLLAPSED_RATIO = 0.46
+const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 180
+// Below about 333px, `height - 180px` constrains both 46% and 72% snaps
+// to the same height, so exposing expand/collapse would be misleading.
+const STATUS_SHEET_TWO_SNAP_MINIMUM_HEIGHT =
+  STATUS_SHEET_MINIMUM_MAP_HEIGHT / (1 - STATUS_SHEET_COLLAPSED_RATIO)
+
+export const createStatusHref = (
+  pathname: string,
+  query: URLSearchParams,
+  hash: string,
+): string => {
+  const queryString = query.toString()
+  const hashSuffix = hash ? (hash.startsWith('#') ? hash : `#${hash}`) : ''
+
+  return `${pathname}${queryString ? `?${queryString}` : ''}${hashSuffix}`
+}
+
+export const isStatusSheetSingleSnap = (
+  statusViewportHeight: number,
+): boolean =>
+  !Number.isFinite(statusViewportHeight) ||
+  statusViewportHeight <= STATUS_SHEET_TWO_SNAP_MINIMUM_HEIGHT
+
 export const getNextSheetSnap = (
   current: StatusSheetSnap,
   action: 'expand' | 'collapse',

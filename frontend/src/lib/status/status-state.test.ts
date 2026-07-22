@@ -1,12 +1,55 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  createStatusHref,
   createStatusQuery,
   getNextSheetSnap,
+  isStatusSheetSingleSnap,
   normalizeStatusSelection,
   parseStatusMetric,
   resolveSheetSnapFromDrag,
 } from './status-state'
+
+describe('createStatusHref', () => {
+  const query = new URLSearchParams('metric=sales&district=11680')
+
+  it('builds a URL without a hash when the hash is empty', () => {
+    expect(createStatusHref('/status', query, '')).toBe(
+      '/status?metric=sales&district=11680',
+    )
+  })
+
+  it.each(['district-map', '#district-map'])(
+    'adds exactly one hash prefix for %s',
+    hash => {
+      expect(createStatusHref('/status', query, hash)).toBe(
+        '/status?metric=sales&district=11680#district-map',
+      )
+    },
+  )
+
+  it('omits the query delimiter when parameters are empty', () => {
+    expect(createStatusHref('/status', new URLSearchParams(), '#map')).toBe(
+      '/status#map',
+    )
+  })
+})
+
+describe('isStatusSheetSingleSnap', () => {
+  it.each([Number.NaN, 0, 180, 333, 1000 / 3])(
+    'uses one snap when the status viewport is too low: %s',
+    height => {
+      expect(isStatusSheetSingleSnap(height)).toBe(true)
+    },
+  )
+
+  it.each([1000 / 3 + 0.01, 748, 780])(
+    'keeps two snaps when their heights differ: %s',
+    height => {
+      expect(isStatusSheetSingleSnap(height)).toBe(false)
+    },
+  )
+})
 
 describe('parseStatusMetric', () => {
   it.each(['footTraffic', 'sales', 'opened', 'closed'] as const)(

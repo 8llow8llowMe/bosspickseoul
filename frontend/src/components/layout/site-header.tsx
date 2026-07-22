@@ -408,7 +408,7 @@ export default function SiteHeader() {
   const avatarLabel = memberInfo?.nickname?.slice(0, 1) ?? 'N'
 
   return (
-    <Header $isScrolled={isScrolled}>
+    <Header $isScrolled={isScrolled} data-site-header>
       <Inner>
         <Brand
           href="/"
