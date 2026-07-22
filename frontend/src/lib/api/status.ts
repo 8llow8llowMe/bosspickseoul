@@ -5,7 +5,8 @@ import type {
 } from '@/types/status'
 
 export const fetchStatusTopTen = async () => {
-  const response = await apiClient.get<DistrictTopTenResponse>('/districts/top-ten')
+  const response =
+    await apiClient.get<DistrictTopTenResponse>('/districts/top-ten')
 
   return response.data
 }
