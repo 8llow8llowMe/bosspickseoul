@@ -1,19 +1,18 @@
 import { apiClient } from '@/lib/api/client'
 import type {
-  StatusDetailResponse,
-  StatusTopListResponse,
+  DistrictDetailResponse,
+  DistrictTopTenResponse,
 } from '@/types/status'
 
-export const fetchTopList = async () => {
-  const response =
-    await apiClient.get<StatusTopListResponse>('/district/top/ten')
+export const fetchStatusTopTen = async () => {
+  const response = await apiClient.get<DistrictTopTenResponse>('/districts/top-ten')
 
   return response.data
 }
 
-export const fetchStatusDetail = async (districtCode: number) => {
-  const response = await apiClient.get<StatusDetailResponse>(
-    `/district/detail/${districtCode}`,
+export const fetchStatusDetail = async (districtCode: string) => {
+  const response = await apiClient.get<DistrictDetailResponse>(
+    `/districts/${districtCode}`,
   )
 
   return response.data
