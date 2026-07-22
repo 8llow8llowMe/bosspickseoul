@@ -36,18 +36,30 @@ type StatusMobileSheetProps = {
   onRetryDetail: () => void
 }
 
-const DRAG_THRESHOLD = 48
 const CLICK_DRAG_TOLERANCE = 4
+const COLLAPSED_HEIGHT_RATIO = 0.46
+const EXPANDED_HEIGHT_RATIO = 0.72
+const MINIMUM_VISIBLE_MAP_HEIGHT = 180
+
+type SheetHeightBounds = {
+  collapsedHeight: number
+  expandedHeight: number
+}
+
+type DragVisualState = {
+  deltaY: number
+  startSnap: StatusSheetSnap
+}
 
 const Sheet = styled.section<{
   $dragDeltaY: number
   $isDragging: boolean
   $snap: StatusSheetSnap
 }>`
-  --status-sheet-collapsed-height: max(0px, min(46dvh, calc(100dvh - 180px)));
-  --status-sheet-expanded-height: max(0px, min(72dvh, calc(100dvh - 180px)));
+  --status-sheet-collapsed-height: max(0px, min(46%, calc(100% - 180px)));
+  --status-sheet-expanded-height: max(0px, min(72%, calc(100% - 180px)));
 
-  position: fixed;
+  position: absolute;
   z-index: 10;
   right: 0;
   bottom: 0;
@@ -150,30 +162,72 @@ export default function StatusMobileSheet({
   onRetryDetail,
 }: StatusMobileSheetProps) {
   const bodyId = useId()
-  const [dragDeltaY, setDragDeltaY] = useState<number | null>(null)
+  const [dragVisualState, setDragVisualState] =
+    useState<DragVisualState | null>(null)
   const pointerIdRef = useRef<number | null>(null)
   const startYRef = useRef<number | null>(null)
   const startSnapRef = useRef<StatusSheetSnap | null>(null)
+  const dragBoundsRef = useRef<SheetHeightBounds | null>(null)
   const didDragRef = useRef(false)
   const suppressPointerClickRef = useRef(false)
+  const sheetRef = useRef<HTMLElement>(null)
+  const handleRef = useRef<HTMLButtonElement>(null)
   const backButtonRef = useRef<HTMLButtonElement>(null)
-  const wasShowingDetailRef = useRef(false)
+  const previousDetailStateRef = useRef<boolean | null>(null)
   const isShowingDetail = selectedItem !== null
 
   useEffect(() => {
-    if (isShowingDetail && !wasShowingDetailRef.current) {
-      backButtonRef.current?.focus()
+    const previousDetailState = previousDetailStateRef.current
+
+    if (previousDetailState === null) {
+      previousDetailStateRef.current = isShowingDetail
+      return
     }
 
-    wasShowingDetailRef.current = isShowingDetail
+    if (previousDetailState === isShowingDetail) {
+      return
+    }
+
+    if (isShowingDetail) {
+      backButtonRef.current?.focus()
+    } else {
+      handleRef.current?.focus()
+    }
+
+    previousDetailStateRef.current = isShowingDetail
   }, [isShowingDetail])
+
+  useEffect(() => {
+    const pointerId = pointerIdRef.current
+    const startSnap = startSnapRef.current
+
+    if (pointerId === null || startSnap === null || snap === startSnap) {
+      return
+    }
+
+    const handle = handleRef.current
+    suppressPointerClickRef.current = true
+
+    if (handle?.hasPointerCapture(pointerId)) {
+      handle.releasePointerCapture(pointerId)
+      return
+    }
+
+    pointerIdRef.current = null
+    startYRef.current = null
+    startSnapRef.current = null
+    dragBoundsRef.current = null
+    didDragRef.current = false
+    queueMicrotask(() => setDragVisualState(null))
+  }, [snap])
 
   const clearPointerState = () => {
     pointerIdRef.current = null
     startYRef.current = null
     startSnapRef.current = null
+    dragBoundsRef.current = null
     didDragRef.current = false
-    setDragDeltaY(null)
+    setDragVisualState(null)
   }
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -186,18 +240,36 @@ export default function StatusMobileSheet({
     }
 
     event.currentTarget.setPointerCapture(event.pointerId)
+    const statusViewportHeight =
+      sheetRef.current?.parentElement?.clientHeight ?? 0
+    const maximumSheetHeight = Math.max(
+      0,
+      statusViewportHeight - MINIMUM_VISIBLE_MAP_HEIGHT,
+    )
+
     pointerIdRef.current = event.pointerId
     startYRef.current = event.clientY
     startSnapRef.current = snap
+    dragBoundsRef.current = {
+      collapsedHeight: Math.min(
+        statusViewportHeight * COLLAPSED_HEIGHT_RATIO,
+        maximumSheetHeight,
+      ),
+      expandedHeight: Math.min(
+        statusViewportHeight * EXPANDED_HEIGHT_RATIO,
+        maximumSheetHeight,
+      ),
+    }
     didDragRef.current = false
     suppressPointerClickRef.current = false
-    setDragDeltaY(0)
+    setDragVisualState({ deltaY: 0, startSnap: snap })
   }
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (
       pointerIdRef.current !== event.pointerId ||
-      startYRef.current === null
+      startYRef.current === null ||
+      startSnapRef.current === null
     ) {
       return
     }
@@ -205,17 +277,22 @@ export default function StatusMobileSheet({
     const nextDeltaY = event.clientY - startYRef.current
     didDragRef.current =
       didDragRef.current || Math.abs(nextDeltaY) > CLICK_DRAG_TOLERANCE
-    setDragDeltaY(nextDeltaY)
+    setDragVisualState({
+      deltaY: nextDeltaY,
+      startSnap: startSnapRef.current,
+    })
   }
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const startY = startYRef.current
     const startSnap = startSnapRef.current
+    const bounds = dragBoundsRef.current
 
     if (
       pointerIdRef.current !== event.pointerId ||
       startY === null ||
-      startSnap === null
+      startSnap === null ||
+      bounds === null
     ) {
       return
     }
@@ -223,7 +300,8 @@ export default function StatusMobileSheet({
     const nextSnap = resolveSheetSnapFromDrag(
       startSnap,
       event.clientY - startY,
-      DRAG_THRESHOLD,
+      bounds.collapsedHeight,
+      bounds.expandedHeight,
     )
     suppressPointerClickRef.current = didDragRef.current
     clearPointerState()
@@ -254,7 +332,8 @@ export default function StatusMobileSheet({
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => {
     if (pointerIdRef.current === event.pointerId) {
-      suppressPointerClickRef.current = didDragRef.current
+      suppressPointerClickRef.current =
+        suppressPointerClickRef.current || didDragRef.current
       clearPointerState()
     }
   }
@@ -271,14 +350,19 @@ export default function StatusMobileSheet({
     )
   }
 
+  const isDraggingCurrentSnap =
+    dragVisualState !== null && dragVisualState.startSnap === snap
+
   return (
     <Sheet
-      $dragDeltaY={dragDeltaY ?? 0}
-      $isDragging={dragDeltaY !== null}
+      ref={sheetRef}
+      $dragDeltaY={isDraggingCurrentSnap ? dragVisualState.deltaY : 0}
+      $isDragging={isDraggingCurrentSnap}
       $snap={snap}
       aria-label="구별 현황"
     >
       <HandleButton
+        ref={handleRef}
         aria-controls={bodyId}
         aria-expanded={snap === 'expanded'}
         aria-label={
@@ -305,7 +389,7 @@ export default function StatusMobileSheet({
               type="button"
               onClick={onBackToTopTen}
             >
-              Top 10으로 돌아가기
+              상위 10개로 돌아가기
             </BackButton>
             <StatusDetail
               detail={detail}

@@ -23,17 +23,28 @@ export const getNextSheetSnap = (
 export const resolveSheetSnapFromDrag = (
   startSnap: StatusSheetSnap,
   deltaY: number,
-  threshold: number,
+  collapsedHeight: number,
+  expandedHeight: number,
 ): StatusSheetSnap => {
-  if (deltaY < -threshold) {
-    return getNextSheetSnap(startSnap, 'expand')
+  if (
+    !Number.isFinite(deltaY) ||
+    !Number.isFinite(collapsedHeight) ||
+    !Number.isFinite(expandedHeight) ||
+    collapsedHeight <= 0 ||
+    expandedHeight <= collapsedHeight
+  ) {
+    return startSnap
   }
 
-  if (deltaY > threshold) {
-    return getNextSheetSnap(startSnap, 'collapse')
-  }
+  const startHeight =
+    startSnap === 'expanded' ? expandedHeight : collapsedHeight
+  const draggedHeight = Math.min(
+    expandedHeight,
+    Math.max(collapsedHeight, startHeight - deltaY),
+  )
+  const midpoint = (collapsedHeight + expandedHeight) / 2
 
-  return startSnap
+  return draggedHeight >= midpoint ? 'expanded' : 'collapsed'
 }
 
 export const parseStatusMetric = (value: unknown): StatusMetric =>

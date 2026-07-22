@@ -63,43 +63,86 @@ describe('getNextSheetSnap', () => {
 })
 
 describe('resolveSheetSnapFromDrag', () => {
-  const threshold = 48
+  describe('375x812 viewport-derived 748px status viewport', () => {
+    const collapsedHeight = 344.08
+    const expandedHeight = 538.56
 
-  it('expands after an upward drag passes the threshold', () => {
-    expect(resolveSheetSnapFromDrag('collapsed', -49, threshold)).toBe(
-      'expanded',
+    it.each([
+      ['collapsed', 'midpoint - 1', -96.24, 'collapsed'],
+      ['collapsed', 'midpoint exact', -97.24, 'expanded'],
+      ['collapsed', 'midpoint + 1', -98.24, 'expanded'],
+      ['expanded', 'midpoint + 1', 96.24, 'expanded'],
+      ['expanded', 'midpoint exact', 97.24, 'expanded'],
+      ['expanded', 'midpoint - 1', 98.24, 'collapsed'],
+    ] as const)(
+      'resolves %s at %s',
+      (startSnap, _boundary, deltaY, expectedSnap) => {
+        expect(
+          resolveSheetSnapFromDrag(
+            startSnap,
+            deltaY,
+            collapsedHeight,
+            expandedHeight,
+          ),
+        ).toBe(expectedSnap)
+      },
     )
   })
 
-  it('collapses after a downward drag passes the threshold', () => {
-    expect(resolveSheetSnapFromDrag('expanded', 49, threshold)).toBe(
-      'collapsed',
+  describe('390x844 viewport-derived 780px status viewport', () => {
+    const collapsedHeight = 358.8
+    const expandedHeight = 561.6
+
+    it.each([
+      ['collapsed', 'midpoint - 1', -100.4, 'collapsed'],
+      ['collapsed', 'midpoint exact', -101.4, 'expanded'],
+      ['collapsed', 'midpoint + 1', -102.4, 'expanded'],
+      ['expanded', 'midpoint + 1', 100.4, 'expanded'],
+      ['expanded', 'midpoint exact', 101.4, 'expanded'],
+      ['expanded', 'midpoint - 1', 102.4, 'collapsed'],
+    ] as const)(
+      'resolves %s at %s',
+      (startSnap, _boundary, deltaY, expectedSnap) => {
+        expect(
+          resolveSheetSnapFromDrag(
+            startSnap,
+            deltaY,
+            collapsedHeight,
+            expandedHeight,
+          ),
+        ).toBe(expectedSnap)
+      },
     )
   })
 
   it.each([
-    ['collapsed', -48],
-    ['expanded', 48],
-    ['collapsed', -47],
-    ['expanded', 47],
+    ['collapsed', 1_000, 'collapsed'],
+    ['expanded', -1_000, 'expanded'],
   ] as const)(
-    'keeps %s at or below the threshold for deltaY %s',
-    (startSnap, deltaY) => {
-      expect(resolveSheetSnapFromDrag(startSnap, deltaY, threshold)).toBe(
-        startSnap,
+    'clamps a drag beyond the available height from %s',
+    (startSnap, deltaY, expectedSnap) => {
+      expect(resolveSheetSnapFromDrag(startSnap, deltaY, 344.08, 538.56)).toBe(
+        expectedSnap,
       )
     },
   )
 
   it.each([
-    ['collapsed', 49],
-    ['expanded', -49],
+    ['collapsed', 0, 0],
+    ['expanded', 300, 300],
+    ['collapsed', 400, 300],
+    ['expanded', Number.NaN, 500],
   ] as const)(
-    'does not move past the available snap from %s for deltaY %s',
-    (startSnap, deltaY) => {
-      expect(resolveSheetSnapFromDrag(startSnap, deltaY, threshold)).toBe(
-        startSnap,
-      )
+    'keeps %s when the height bounds are invalid: %s, %s',
+    (startSnap, collapsedHeight, expandedHeight) => {
+      expect(
+        resolveSheetSnapFromDrag(
+          startSnap,
+          100,
+          collapsedHeight,
+          expandedHeight,
+        ),
+      ).toBe(startSnap)
     },
   )
 })
