@@ -12,6 +12,7 @@ import styled from 'styled-components'
 import {
   getNextSheetSnap,
   resolveSheetSnapFromDrag,
+  STATUS_SHEET_COLLAPSED_RATIO,
   type StatusSheetSnap,
 } from '@/lib/status/status-state'
 import type {
@@ -38,7 +39,6 @@ type StatusMobileSheetProps = {
 }
 
 const CLICK_DRAG_TOLERANCE = 4
-const COLLAPSED_HEIGHT_RATIO = 0.54
 const EXPANDED_HEIGHT_RATIO = 0.72
 const MINIMUM_VISIBLE_MAP_HEIGHT = 180
 
@@ -58,7 +58,10 @@ const Sheet = styled.section<{
   $isSingleSnap: boolean
   $snap: StatusSheetSnap
 }>`
-  --status-sheet-collapsed-height: max(0px, min(54%, calc(100% - 180px)));
+  --status-sheet-collapsed-height: max(
+    0px,
+    min(${STATUS_SHEET_COLLAPSED_RATIO * 100}%, calc(100% - 180px))
+  );
   --status-sheet-expanded-height: max(0px, min(72%, calc(100% - 180px)));
 
   position: absolute;
@@ -267,7 +270,7 @@ export default function StatusMobileSheet({
     startSnapRef.current = snap
     dragBoundsRef.current = {
       collapsedHeight: Math.min(
-        statusViewportHeight * COLLAPSED_HEIGHT_RATIO,
+        statusViewportHeight * STATUS_SHEET_COLLAPSED_RATIO,
         maximumSheetHeight,
       ),
       expandedHeight: Math.min(

@@ -36,14 +36,16 @@ describe('createStatusHref', () => {
 })
 
 describe('isStatusSheetSingleSnap', () => {
-  it.each([Number.NaN, 0, 180, 333, 1000 / 3])(
+  const twoSnapMinimumHeight = 180 / (1 - 0.54)
+
+  it.each([Number.NaN, 0, 180, 334, 391, twoSnapMinimumHeight])(
     'uses one snap when the status viewport is too low: %s',
     height => {
       expect(isStatusSheetSingleSnap(height)).toBe(true)
     },
   )
 
-  it.each([1000 / 3 + 0.01, 748, 780])(
+  it.each([twoSnapMinimumHeight + 0.01, 748, 780])(
     'keeps two snaps when their heights differ: %s',
     height => {
       expect(isStatusSheetSingleSnap(height)).toBe(false)
@@ -129,16 +131,17 @@ describe('getNextSheetSnap', () => {
 
 describe('resolveSheetSnapFromDrag', () => {
   describe('375x812 viewport-derived 748px status viewport', () => {
-    const collapsedHeight = 344.08
+    const collapsedHeight = 403.92
     const expandedHeight = 538.56
+    const midpointDelta = (expandedHeight - collapsedHeight) / 2
 
     it.each([
-      ['collapsed', 'midpoint - 1', -96.24, 'collapsed'],
-      ['collapsed', 'midpoint exact', -97.24, 'expanded'],
-      ['collapsed', 'midpoint + 1', -98.24, 'expanded'],
-      ['expanded', 'midpoint + 1', 96.24, 'expanded'],
-      ['expanded', 'midpoint exact', 97.24, 'expanded'],
-      ['expanded', 'midpoint - 1', 98.24, 'collapsed'],
+      ['collapsed', 'midpoint - 1', -(midpointDelta - 1), 'collapsed'],
+      ['collapsed', 'midpoint exact', -midpointDelta, 'expanded'],
+      ['collapsed', 'midpoint + 1', -(midpointDelta + 1), 'expanded'],
+      ['expanded', 'midpoint + 1', midpointDelta - 1, 'expanded'],
+      ['expanded', 'midpoint exact', midpointDelta, 'expanded'],
+      ['expanded', 'midpoint - 1', midpointDelta + 1, 'collapsed'],
     ] as const)(
       'resolves %s at %s',
       (startSnap, _boundary, deltaY, expectedSnap) => {
@@ -155,16 +158,17 @@ describe('resolveSheetSnapFromDrag', () => {
   })
 
   describe('390x844 viewport-derived 780px status viewport', () => {
-    const collapsedHeight = 358.8
+    const collapsedHeight = 421.2
     const expandedHeight = 561.6
+    const midpointDelta = (expandedHeight - collapsedHeight) / 2
 
     it.each([
-      ['collapsed', 'midpoint - 1', -100.4, 'collapsed'],
-      ['collapsed', 'midpoint exact', -101.4, 'expanded'],
-      ['collapsed', 'midpoint + 1', -102.4, 'expanded'],
-      ['expanded', 'midpoint + 1', 100.4, 'expanded'],
-      ['expanded', 'midpoint exact', 101.4, 'expanded'],
-      ['expanded', 'midpoint - 1', 102.4, 'collapsed'],
+      ['collapsed', 'midpoint - 1', -(midpointDelta - 1), 'collapsed'],
+      ['collapsed', 'midpoint exact', -midpointDelta, 'expanded'],
+      ['collapsed', 'midpoint + 1', -(midpointDelta + 1), 'expanded'],
+      ['expanded', 'midpoint + 1', midpointDelta - 1, 'expanded'],
+      ['expanded', 'midpoint exact', midpointDelta, 'expanded'],
+      ['expanded', 'midpoint - 1', midpointDelta + 1, 'collapsed'],
     ] as const)(
       'resolves %s at %s',
       (startSnap, _boundary, deltaY, expectedSnap) => {
@@ -186,7 +190,7 @@ describe('resolveSheetSnapFromDrag', () => {
   ] as const)(
     'clamps a drag beyond the available height from %s',
     (startSnap, deltaY, expectedSnap) => {
-      expect(resolveSheetSnapFromDrag(startSnap, deltaY, 344.08, 538.56)).toBe(
+      expect(resolveSheetSnapFromDrag(startSnap, deltaY, 403.92, 538.56)).toBe(
         expectedSnap,
       )
     },

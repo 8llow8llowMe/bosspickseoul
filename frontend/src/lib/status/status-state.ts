@@ -9,9 +9,9 @@ const STATUS_METRICS: readonly StatusMetric[] = [
 
 export type StatusSheetSnap = 'collapsed' | 'expanded'
 
-const STATUS_SHEET_COLLAPSED_RATIO = 0.46
+export const STATUS_SHEET_COLLAPSED_RATIO = 0.54
 const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 180
-// Below about 333px, `height - 180px` constrains both 46% and 72% snaps
+// Below about 391px, `height - 180px` constrains both 54% and 72% snaps
 // to the same height, so exposing expand/collapse would be misleading.
 const STATUS_SHEET_TWO_SNAP_MINIMUM_HEIGHT =
   STATUS_SHEET_MINIMUM_MAP_HEIGHT / (1 - STATUS_SHEET_COLLAPSED_RATIO)
