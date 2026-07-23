@@ -2,8 +2,7 @@
 
 import styled from 'styled-components'
 import {
-  SEOUL_DISTRICT_CENTERS,
-  SEOUL_STATUS_PATHS,
+  SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
 import {
@@ -26,6 +25,14 @@ const METRIC_LABELS: Record<StatusMetric, string> = {
   opened: '개업',
   closed: '폐업',
 }
+
+const SEOUL_DISTRICT_CENTERS: Record<string, { x: number; y: number }> =
+  Object.fromEntries(
+    SEOUL_STATUS_FEATURES.map(({ districtCode, center }) => [
+      districtCode,
+      center,
+    ]),
+  )
 
 const Figure = styled.figure`
   min-width: 0;
@@ -128,8 +135,8 @@ export default function StatusMap({
           preserveAspectRatio="xMidYMid meet"
           viewBox={SEOUL_STATUS_VIEW_BOX}
         >
-          {SEOUL_STATUS_PATHS.map((path, index) => (
-            <path key={index} d={path} />
+          {SEOUL_STATUS_FEATURES.map(feature => (
+            <path key={feature.districtCode} d={feature.path} />
           ))}
         </SeoulSilhouette>
         {markers.map(marker => {
