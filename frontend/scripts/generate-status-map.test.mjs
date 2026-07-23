@@ -183,6 +183,12 @@ describe('generate-status-map', () => {
       first,
       /node scripts\/generate-status-map\.mjs <input-geojson> src\/data\/seoul-status-map\.ts/,
     )
+    assert.match(first, /export const SEOUL_STATUS_FEATURES = \[/)
+    assert.match(first, /districtCode: "01001"/)
+    assert.match(first, /path: "M/)
+    assert.match(first, /center: \{ x: 200, y: 310 \}/)
+    assert.doesNotMatch(first, /SEOUL_STATUS_PATHS/)
+    assert.doesNotMatch(first, /SEOUL_DISTRICT_CENTERS/)
   })
 
   it('uses JSON string literals for external values with special characters', async () => {
@@ -206,12 +212,7 @@ describe('generate-status-map', () => {
       path.join(os.tmpdir(), 'status-map-generator-'),
     )
     const modulePath = path.join(temporaryDirectory, 'seoul-status-map.mjs')
-    const javaScriptSource = source
-      .replace('] as const', ']')
-      .replace(
-        'export const SEOUL_DISTRICT_CENTERS: Record<string, { x: number; y: number }> =',
-        'export const SEOUL_DISTRICT_CENTERS =',
-      )
+    const javaScriptSource = source.replace('] as const', ']')
 
     try {
       assert.ok(source.includes(JSON.stringify(districtCode)))
@@ -219,10 +220,13 @@ describe('generate-status-map', () => {
       await writeFile(modulePath, javaScriptSource)
 
       const generatedModule = await import(pathToFileURL(modulePath).href)
-      assert.deepEqual(generatedModule.SEOUL_DISTRICT_CENTERS[districtCode], {
+      const [generatedFeature] = generatedModule.SEOUL_STATUS_FEATURES
+      assert.equal(generatedFeature.districtCode, districtCode)
+      assert.deepEqual(generatedFeature.center, {
         x: 400,
         y: 310,
       })
+      assert.match(generatedFeature.path, /^M/)
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true })
     }
