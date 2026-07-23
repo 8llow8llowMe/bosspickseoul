@@ -22,7 +22,9 @@ const items: StatusRankedItem[] = [
   },
 ]
 
-const renderMap = (props: Partial<React.ComponentProps<typeof StatusMap>> = {}) =>
+const renderMap = (
+  props: Partial<React.ComponentProps<typeof StatusMap>> = {},
+) =>
   renderToStaticMarkup(
     createElement(StatusMap, {
       metric: 'footTraffic',
@@ -44,19 +46,62 @@ describe('StatusMap', () => {
     expect(markup).toContain('동작구')
   })
 
+  it('경계와 라벨을 동일한 800×620 SVG 좌표 뷰포트에 렌더링한다', () => {
+    const markup = renderMap({ selectedDistrictCode: '11680' })
+
+    expect(markup).toContain('data-status-map-label-viewport="800x620"')
+    expect(markup).toContain('data-status-map-shape-layer="800x620"')
+    expect(markup).toContain('data-status-map-label-layer="800x620"')
+    expect(markup).not.toContain('<foreignObject')
+    expect(
+      markup.indexOf('data-status-map-label-viewport="800x620"'),
+    ).toBeLessThan(markup.indexOf('data-status-map-shape-layer="800x620"'))
+    expect(markup.indexOf('data-selected-district-code="11680"')).toBeLessThan(
+      markup.indexOf('data-status-map-label-layer="800x620"'),
+    )
+  })
+
+  it('좁은 지도에서 겹치는 서초구와 강남구 라벨에 뷰박스 오프셋을 둔다', () => {
+    const markup = renderMap({
+      items: [
+        ...items,
+        {
+          rank: 3,
+          districtCode: '11650',
+          districtName: '서초구',
+          value: 80,
+          changeRate: 2,
+        },
+      ],
+    })
+
+    expect(markup).toContain(
+      'data-status-district-label="11680" data-status-label-offset="32,-18"',
+    )
+    expect(markup).toContain(
+      'data-status-district-label="11650" data-status-label-offset="-36,18"',
+    )
+  })
+
   it('Top10 항목만 순위 버튼과 지표 기준 접근성 이름을 렌더링한다', () => {
     const markup = renderMap()
 
     expect(markup.match(/data-status-rank=/g)).toHaveLength(2)
     expect(markup).toContain('aria-label="1위 강남구, 유동인구 기준"')
     expect(markup).toContain('aria-label="2위 종로구, 유동인구 기준"')
+    expect(markup).not.toContain('aria-hidden="true"')
   })
 
   it('선택한 자치구 폴리곤과 순위 라벨을 한 번만 강조한다', () => {
     const markup = renderMap({ selectedDistrictCode: '11680' })
+    const buttons = markup.match(/<button[^>]*>/g) ?? []
+    const selectedButton = buttons.find(button =>
+      button.includes('data-status-district-label="11680"'),
+    )
 
     expect(markup.match(/data-selected-district-code="11680"/g)).toHaveLength(1)
-    expect(markup).toContain('aria-pressed="true"')
+    expect(markup.match(/aria-pressed="true"/g)).toHaveLength(1)
+    expect(selectedButton).toContain('aria-pressed="true"')
   })
 
   it('기존 원형 마커와 값 기반 마커 접근성 이름을 렌더링하지 않는다', () => {

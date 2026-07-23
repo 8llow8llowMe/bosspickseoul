@@ -40,9 +40,20 @@ const MapCanvas = styled.div`
   width: 100%;
   aspect-ratio: 800 / 620;
   overflow: hidden;
+  container-type: size;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
+`
+
+const MapViewport = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: min(100cqw, 129.032258cqh);
+  height: min(100cqh, 77.5cqw);
+  transform: translate(-50%, -50%);
 `
 
 const SeoulSilhouette = styled.svg`
@@ -84,19 +95,30 @@ const MapBackgroundButton = styled.button`
   }
 `
 
+const MapLabelLayer = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+`
+
 const labelPosition = css<{
   $x: number
   $y: number
+  $offsetX: number
+  $offsetY: number
 }>`
   position: absolute;
-  top: ${props => (props.$y / 620) * 100}%;
-  left: ${props => (props.$x / 800) * 100}%;
+  top: ${props => ((props.$y + props.$offsetY) / 620) * 100}%;
+  left: ${props => ((props.$x + props.$offsetX) / 800) * 100}%;
   transform: translate(-50%, -50%);
 `
 
 const DistrictLabel = styled.div<{
   $x: number
   $y: number
+  $offsetX: number
+  $offsetY: number
 }>`
   ${labelPosition}
   z-index: 2;
@@ -114,6 +136,8 @@ const RankedDistrictLabel = styled.button<{
   $selected: boolean
   $x: number
   $y: number
+  $offsetX: number
+  $offsetY: number
 }>`
   ${labelPosition}
   z-index: ${props => (props.$selected ? 4 : 3)};
@@ -135,6 +159,7 @@ const RankedDistrictLabel = styled.button<{
     props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
   box-shadow: var(--shadow-level-1);
   cursor: pointer;
+  pointer-events: auto;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),
@@ -177,6 +202,16 @@ const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
     ? '지도를 눌러 구별 현황 바텀시트 펼치기'
     : '지도를 더 보기 위해 구별 현황 바텀시트 최소화'
 
+const DENSE_DISTRICT_LABEL_OFFSETS: Readonly<
+  Record<string, { readonly x: number; readonly y: number }>
+> = {
+  '11650': { x: -36, y: 18 },
+  '11680': { x: 32, y: -18 },
+}
+
+const getLabelOffset = (districtCode: string) =>
+  DENSE_DISTRICT_LABEL_OFFSETS[districtCode] ?? { x: 0, y: 0 }
+
 export default function StatusMap({
   metric,
   items,
@@ -201,58 +236,72 @@ export default function StatusMap({
             onClick={onBackgroundClick}
           />
         ) : null}
-        <SeoulSilhouette
-          aria-hidden="true"
-          preserveAspectRatio="xMidYMid meet"
-          viewBox={SEOUL_STATUS_VIEW_BOX}
-        >
-          {SEOUL_STATUS_FEATURES.map(feature => (
-            <DistrictPath
-              key={feature.districtCode}
-              d={feature.path}
-              data-status-district-path={feature.districtCode}
-            />
-          ))}
-          {selectedFeature ? (
-            <SelectedDistrictPath
-              d={selectedFeature.path}
-              data-selected-district-code={selectedFeature.districtCode}
-            />
-          ) : null}
-        </SeoulSilhouette>
-        {labels.map(label => {
-          const isSelected = label.districtCode === selectedDistrictCode
+        <MapViewport data-status-map-label-viewport="800x620">
+          <SeoulSilhouette
+            data-status-map-shape-layer="800x620"
+            preserveAspectRatio="xMidYMid meet"
+            viewBox={SEOUL_STATUS_VIEW_BOX}
+          >
+            {SEOUL_STATUS_FEATURES.map(feature => (
+              <DistrictPath
+                key={feature.districtCode}
+                d={feature.path}
+                data-status-district-path={feature.districtCode}
+              />
+            ))}
+            {selectedFeature ? (
+              <SelectedDistrictPath
+                d={selectedFeature.path}
+                data-selected-district-code={selectedFeature.districtCode}
+              />
+            ) : null}
+          </SeoulSilhouette>
+          <MapLabelLayer data-status-map-label-layer="800x620">
+            {labels.map(label => {
+              const isSelected = label.districtCode === selectedDistrictCode
+              const offset = getLabelOffset(label.districtCode)
+              const offsetValue = `${offset.x},${offset.y}`
 
-          if (!label.isTopTen || label.rank === null) {
-            return (
-              <DistrictLabel
-                key={label.districtCode}
-                $x={label.x}
-                $y={label.y}
-                data-status-district-label={label.districtCode}
-              >
-                {label.districtName}
-              </DistrictLabel>
-            )
-          }
+              if (!label.isTopTen || label.rank === null) {
+                return (
+                  <DistrictLabel
+                    key={label.districtCode}
+                    $offsetX={offset.x}
+                    $offsetY={offset.y}
+                    $x={label.x}
+                    $y={label.y}
+                    data-status-district-label={label.districtCode}
+                    data-status-label-offset={offsetValue}
+                  >
+                    {label.districtName}
+                  </DistrictLabel>
+                )
+              }
 
-          return (
-            <RankedDistrictLabel
-              key={label.districtCode}
-              $selected={isSelected}
-              $x={label.x}
-              $y={label.y}
-              aria-label={`${label.rank}위 ${label.districtName}, ${METRIC_LABELS[metric]} 기준`}
-              aria-pressed={isSelected}
-              data-status-district-label={label.districtCode}
-              type="button"
-              onClick={() => onSelect(label.districtCode)}
-            >
-              <RankDistrictName>{label.districtName}</RankDistrictName>
-              <RankNumber data-status-rank={label.rank}>{label.rank}</RankNumber>
-            </RankedDistrictLabel>
-          )
-        })}
+              return (
+                <RankedDistrictLabel
+                  key={label.districtCode}
+                  $offsetX={offset.x}
+                  $offsetY={offset.y}
+                  $selected={isSelected}
+                  $x={label.x}
+                  $y={label.y}
+                  aria-label={`${label.rank}위 ${label.districtName}, ${METRIC_LABELS[metric]} 기준`}
+                  aria-pressed={isSelected}
+                  data-status-district-label={label.districtCode}
+                  data-status-label-offset={offsetValue}
+                  type="button"
+                  onClick={() => onSelect(label.districtCode)}
+                >
+                  <RankDistrictName>{label.districtName}</RankDistrictName>
+                  <RankNumber data-status-rank={label.rank}>
+                    {label.rank}
+                  </RankNumber>
+                </RankedDistrictLabel>
+              )
+            })}
+          </MapLabelLayer>
+        </MapViewport>
       </MapCanvas>
       <Caption>
         구 이름 아래 숫자는 {METRIC_LABELS[metric]} 기준 Top10 순위입니다.
