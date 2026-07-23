@@ -131,8 +131,10 @@ const Caption = styled.figcaption`
 const EmptyMessage = styled.p`
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
+  pointer-events: none;
   color: var(--color-text-600);
   font-size: 14px;
 `
