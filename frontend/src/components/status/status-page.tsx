@@ -144,8 +144,8 @@ const DesktopDetailSlot = styled.div`
   }
 
   & > article {
-    width: 100%;
-    min-width: 240px;
+    width: var(--status-side-track);
+    min-width: var(--status-side-track);
   }
 
   @media (prefers-reduced-motion: reduce) {
