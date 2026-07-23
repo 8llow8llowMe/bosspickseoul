@@ -26,4 +26,10 @@ describe('middleware', () => {
     const res = middleware(req)
     expect(res.headers.get('location')).toBeNull()
   })
+
+  it('passes /status through without a session cookie', () => {
+    const req = new NextRequest(new URL('http://x/status'))
+    const res = middleware(req)
+    expect(res.headers.get('location')).toBeNull()
+  })
 })

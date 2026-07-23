@@ -1,87 +1,166 @@
 import type { ApiResponse } from '@/types/api'
 
-export type TopListItem = {
+export type StatusMetric = 'footTraffic' | 'sales' | 'opened' | 'closed'
+
+export type DistrictFootTrafficTopTenItem = {
   districtCode: string
-  districtCodeName: string
-  total: number
-  totalRate: number
-  level: number
+  districtName: string
+  totalFootTraffic: number
+  footTrafficChangeRate: number
 }
 
-export type StatusTopList = {
-  footTrafficTopTenList: TopListItem[]
-  openedRateTopTenList: TopListItem[]
-  salesTopTenList: TopListItem[]
-  closedRateTopTenList: TopListItem[]
+export type DistrictSalesTopTenItem = {
+  districtCode: string
+  districtName: string
+  totalSalesAmount: number
+  salesChangeRate: number
 }
 
-export type ChangeIndicatorDistrictDetail = {
-  changeIndicator: string
+export type DistrictOpenedStoreTopTenItem = {
+  districtCode: string
+  districtName: string
+  openedStoreCount: number
+  openingChangeRate: number
+}
+
+export type DistrictClosedStoreTopTenItem = {
+  districtCode: string
+  districtName: string
+  closedStoreCount: number
+  closureChangeRate: number
+}
+
+export type DistrictTopTenSummary = {
+  footTrafficTopTenItems: DistrictFootTrafficTopTenItem[]
+  salesTopTenItems: DistrictSalesTopTenItem[]
+  openedStoreTopTenItems: DistrictOpenedStoreTopTenItem[]
+  closedStoreTopTenItems: DistrictClosedStoreTopTenItem[]
+}
+
+export type StatusRankedItem = {
+  rank: number
+  districtCode: string
+  districtName: string
+  value: number
+  changeRate: number
+}
+
+export type StatusTopTenByMetric = Record<StatusMetric, StatusRankedItem[]>
+
+export type CodeNameDescriptionMetadata = {
+  code: string
+  name: string
+  description: string
+}
+
+export type ChangeIndicator = {
+  changeIndicatorCode: string
   changeIndicatorName: string
-  openedMonths: number
-  closedMonths: number
+  averageOpenedMonths: number
+  averageClosedMonths: number
 }
 
-export type FootTrafficSeries = {
-  summary: string
-  data: Record<string, number>
+export type DistrictPeriodFootTrafficItem = {
+  periodCode: string
+  totalFootTraffic: number
 }
 
-export type FootTrafficDistrictDetail = {
-  footTrafficDistrictListByPeriod: FootTrafficSeries
-  footTrafficDistrictListByTime: FootTrafficSeries
-  footTrafficDistrictListByGender: FootTrafficSeries
-  footTrafficDistrictListByAge: FootTrafficSeries
-  footTrafficDistrictListByDay: FootTrafficSeries
+export type DistrictTimeSlotFootTrafficItem = {
+  footTrafficTime00To06: number
+  footTrafficTime06To11: number
+  footTrafficTime11To14: number
+  footTrafficTime14To17: number
+  footTrafficTime17To21: number
+  footTrafficTime21To24: number
+  dominantTimeSlotType: CodeNameDescriptionMetadata
 }
 
-export type StoreDistrictTotalTopEightList = {
+export type DistrictGenderFootTrafficItem = {
+  maleFootTraffic: number
+  femaleFootTraffic: number
+  dominantGenderType: CodeNameDescriptionMetadata
+}
+
+export type DistrictAgeGroupFootTrafficItem = {
+  age10FootTraffic: number
+  age20FootTraffic: number
+  age30FootTraffic: number
+  age40FootTraffic: number
+  age50FootTraffic: number
+  age60PlusFootTraffic: number
+  dominantAgeGroupType: CodeNameDescriptionMetadata
+}
+
+export type DistrictDayOfWeekFootTrafficItem = {
+  mondayFootTraffic: number
+  tuesdayFootTraffic: number
+  wednesdayFootTraffic: number
+  thursdayFootTraffic: number
+  fridayFootTraffic: number
+  saturdayFootTraffic: number
+  sundayFootTraffic: number
+  dominantDayOfWeekType: CodeNameDescriptionMetadata
+}
+
+export type DistrictFootTrafficDetail = {
+  periodTrend: CodeNameDescriptionMetadata
+  periodTotalFootTrafficList: DistrictPeriodFootTrafficItem[]
+  timeSlot: DistrictTimeSlotFootTrafficItem
+  gender: DistrictGenderFootTrafficItem
+  ageGroup: DistrictAgeGroupFootTrafficItem
+  dayOfWeek: DistrictDayOfWeekFootTrafficItem
+}
+
+export type DistrictStoreServiceTopItem = {
   serviceCode: string
-  serviceCodeName: string
-  totalStore: number
+  serviceName: string
+  totalStoreCount: number
 }
 
-export type OpenedStoreAdministrationTopFiveList = {
+export type DistrictOpenedStoreAdministrationTopItem = {
   administrationCode: string
-  administrationCodeName: string
-  curOpenedRate: number
+  administrationName: string
+  openedStoreCount: number
+  openingRate: number
 }
 
-export type ClosedStoreAdministrationTopFiveList = {
+export type DistrictClosedStoreAdministrationTopItem = {
   administrationCode: string
-  administrationCodeName: string
-  curClosedRate: number
+  administrationName: string
+  closedStoreCount: number
+  closureRate: number
 }
 
-export type StoreDistrictDetail = {
-  storeDistrictTotalTopEightList: StoreDistrictTotalTopEightList[]
-  openedStoreAdministrationTopFiveList: OpenedStoreAdministrationTopFiveList[]
-  closedStoreAdministrationTopFiveList: ClosedStoreAdministrationTopFiveList[]
+export type DistrictStoreDetail = {
+  topStoreServices: DistrictStoreServiceTopItem[]
+  topOpenedAdministrations: DistrictOpenedStoreAdministrationTopItem[]
+  topClosedAdministrations: DistrictClosedStoreAdministrationTopItem[]
 }
 
-export type SalesDistrictSalesTopFiveList = {
+export type DistrictSalesServiceTopItem = {
   serviceCode: string
-  serviceCodeName: string
-  monthSalesChangeRate: number
+  serviceName: string
+  salesChangeRate: number
 }
 
-export type SalesAdministrationTopFiveList = {
+export type DistrictSalesAdministrationTopItem = {
   administrationCode: string
-  administrationCodeName: string
-  monthSalesChangeRate: number
+  administrationName: string
+  totalSalesAmount: number
+  salesChangeRate: number
 }
 
-export type SalesDistrictDetail = {
-  salesDistrictSalesTopFiveList: SalesDistrictSalesTopFiveList[]
-  salesAdministrationTopFiveList: SalesAdministrationTopFiveList[]
+export type DistrictSalesDetail = {
+  topSalesServices: DistrictSalesServiceTopItem[]
+  topSalesAdministrations: DistrictSalesAdministrationTopItem[]
 }
 
-export type StatusDetail = {
-  changeIndicatorDistrictDetail: ChangeIndicatorDistrictDetail
-  footTrafficDistrictDetail: FootTrafficDistrictDetail
-  storeDistrictDetail: StoreDistrictDetail
-  salesDistrictDetail: SalesDistrictDetail
+export type DistrictDetail = {
+  changeIndicator: ChangeIndicator
+  footTraffic: DistrictFootTrafficDetail
+  store: DistrictStoreDetail
+  sales: DistrictSalesDetail
 }
 
-export type StatusTopListResponse = ApiResponse<StatusTopList>
-export type StatusDetailResponse = ApiResponse<StatusDetail>
+export type DistrictTopTenResponse = ApiResponse<DistrictTopTenSummary>
+export type DistrictDetailResponse = ApiResponse<DistrictDetail>

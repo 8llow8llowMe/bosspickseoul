@@ -3,6 +3,12 @@ import styled from 'styled-components'
 const Footer = styled.footer`
   border-top: 1px solid var(--color-border-200);
   background: var(--color-background);
+
+  @media (max-width: 1023px) {
+    main[data-hide-mobile-footer='true'] + & {
+      display: none;
+    }
+  }
 `
 
 const Inner = styled.div`
