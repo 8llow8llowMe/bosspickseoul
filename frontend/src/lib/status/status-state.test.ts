@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   applyStatusSheetContentTransition,
+  canCollapseStatusSheetFromMap,
   createCollapsedStatusSheetState,
   createStatusHref,
   createStatusQuery,
@@ -67,6 +68,20 @@ describe('isStatusSheetSingleSnap', () => {
     'keeps two snaps when their heights differ: %s',
     height => {
       expect(isStatusSheetSingleSnap(height)).toBe(false)
+    },
+  )
+})
+
+describe('canCollapseStatusSheetFromMap', () => {
+  it.each([
+    [false, true, 'expanded'],
+    [false, true, 'collapsed'],
+    [true, false, 'expanded'],
+    [false, false, 'collapsed'],
+  ] as const)(
+    'returns %s when single snap is %s and sheet is %s',
+    (expected, isSingleSnap, snap) => {
+      expect(canCollapseStatusSheetFromMap(isSingleSnap, snap)).toBe(expected)
     },
   )
 })

@@ -8,6 +8,7 @@ import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { normalizeStatusTopTen } from '@/lib/status/status-adapter'
 import {
+  canCollapseStatusSheetFromMap,
   createCollapsedStatusSheetState,
   createStatusHref,
   createStatusQuery,
@@ -474,7 +475,11 @@ function StatusPageContent() {
                 items={currentItems}
                 metric={metric}
                 selectedDistrictCode={selectedDistrictCode}
-                onBackgroundClick={handleMapBackgroundClick}
+                onBackgroundClick={
+                  canCollapseStatusSheetFromMap(isSingleSnap, sheetSnap)
+                    ? handleMapBackgroundClick
+                    : undefined
+                }
                 onSelect={handleDistrictSelect}
               />
             </MobileMapLayer>

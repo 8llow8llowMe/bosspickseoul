@@ -57,6 +57,11 @@ export const getNextSheetSnap = (
   return current === 'expanded' ? 'collapsed' : current
 }
 
+export const canCollapseStatusSheetFromMap = (
+  isSingleSnap: boolean,
+  snap: StatusSheetSnap,
+): boolean => !isSingleSnap && snap === 'expanded'
+
 export const createCollapsedStatusSheetState = (
   districtCode: string | null,
 ): StatusSheetState => ({ districtCode, snap: 'collapsed' })
