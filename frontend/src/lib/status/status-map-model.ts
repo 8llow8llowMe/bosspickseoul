@@ -1,11 +1,11 @@
 import type { StatusRankedItem } from '@/types/status'
 
 export type StatusMapFeature = {
-  districtCode: string
-  path: string
-  center: {
-    x: number
-    y: number
+  readonly districtCode: string
+  readonly path: string
+  readonly center: {
+    readonly x: number
+    readonly y: number
   }
 }
 
