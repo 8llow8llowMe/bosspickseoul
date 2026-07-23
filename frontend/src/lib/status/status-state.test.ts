@@ -2,32 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import {
   applyStatusSheetContentTransition,
-  canCollapseStatusSheetFromMap,
-  createCollapsedStatusSheetState,
   createStatusHref,
   createStatusQuery,
+  getStatusSheetHeightBounds,
   getNextSheetSnap,
-  isStatusSheetSingleSnap,
   normalizeStatusSelection,
   parseStatusMetric,
   resolveSheetSnapFromDrag,
 } from './status-state'
-
-describe('createCollapsedStatusSheetState', () => {
-  it('keeps the selected district while collapsing the sheet', () => {
-    expect(createCollapsedStatusSheetState('11560')).toEqual({
-      districtCode: '11560',
-      snap: 'collapsed',
-    })
-  })
-
-  it('keeps the exploration state when no district is selected', () => {
-    expect(createCollapsedStatusSheetState(null)).toEqual({
-      districtCode: null,
-      snap: 'collapsed',
-    })
-  })
-})
 
 describe('createStatusHref', () => {
   const query = new URLSearchParams('metric=sales&district=11680')
@@ -54,34 +36,22 @@ describe('createStatusHref', () => {
   })
 })
 
-describe('isStatusSheetSingleSnap', () => {
-  const twoSnapMinimumHeight = 180 / (1 - 0.54)
-
-  it.each([Number.NaN, 0, 180, 334, 391, twoSnapMinimumHeight])(
-    'uses one snap when the status viewport is too low: %s',
-    height => {
-      expect(isStatusSheetSingleSnap(height)).toBe(true)
-    },
-  )
-
-  it.each([twoSnapMinimumHeight + 0.01, 748, 780])(
-    'keeps two snaps when their heights differ: %s',
-    height => {
-      expect(isStatusSheetSingleSnap(height)).toBe(false)
-    },
-  )
-})
-
-describe('canCollapseStatusSheetFromMap', () => {
+describe('getStatusSheetHeightBounds', () => {
   it.each([
-    [false, true, 'expanded'],
-    [false, true, 'collapsed'],
-    [true, false, 'expanded'],
-    [false, false, 'collapsed'],
-  ] as const)(
-    'returns %s when single snap is %s and sheet is %s',
-    (expected, isSingleSnap, snap) => {
-      expect(canCollapseStatusSheetFromMap(isSingleSnap, snap)).toBe(expected)
+    [560, { collapsedHeight: 52, expandedHeight: 369.6 }],
+    [523.28, { collapsedHeight: 52, expandedHeight: 343.28 }],
+    [360, { collapsedHeight: 52, expandedHeight: 180 }],
+  ])('returns the two snap heights for a %spx viewport', (height, expected) => {
+    expect(getStatusSheetHeightBounds(height)).toEqual(expected)
+  })
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, 0, -1])(
+    'falls back to the collapsed height for an invalid viewport: %s',
+    height => {
+      expect(getStatusSheetHeightBounds(height)).toEqual({
+        collapsedHeight: 52,
+        expandedHeight: 52,
+      })
     },
   )
 })
@@ -163,36 +133,9 @@ describe('getNextSheetSnap', () => {
 })
 
 describe('resolveSheetSnapFromDrag', () => {
-  describe('375x812 viewport-derived 748px status viewport', () => {
-    const collapsedHeight = 403.92
-    const expandedHeight = 538.56
-    const midpointDelta = (expandedHeight - collapsedHeight) / 2
-
-    it.each([
-      ['collapsed', 'midpoint - 1', -(midpointDelta - 1), 'collapsed'],
-      ['collapsed', 'midpoint exact', -midpointDelta, 'expanded'],
-      ['collapsed', 'midpoint + 1', -(midpointDelta + 1), 'expanded'],
-      ['expanded', 'midpoint + 1', midpointDelta - 1, 'expanded'],
-      ['expanded', 'midpoint exact', midpointDelta, 'expanded'],
-      ['expanded', 'midpoint - 1', midpointDelta + 1, 'collapsed'],
-    ] as const)(
-      'resolves %s at %s',
-      (startSnap, _boundary, deltaY, expectedSnap) => {
-        expect(
-          resolveSheetSnapFromDrag(
-            startSnap,
-            deltaY,
-            collapsedHeight,
-            expandedHeight,
-          ),
-        ).toBe(expectedSnap)
-      },
-    )
-  })
-
-  describe('390x844 viewport-derived 780px status viewport', () => {
-    const collapsedHeight = 421.2
-    const expandedHeight = 561.6
+  describe('52px collapsed and 343.28px expanded bounds', () => {
+    const collapsedHeight = 52
+    const expandedHeight = 343.28
     const midpointDelta = (expandedHeight - collapsedHeight) / 2
 
     it.each([
@@ -223,7 +166,7 @@ describe('resolveSheetSnapFromDrag', () => {
   ] as const)(
     'clamps a drag beyond the available height from %s',
     (startSnap, deltaY, expectedSnap) => {
-      expect(resolveSheetSnapFromDrag(startSnap, deltaY, 403.92, 538.56)).toBe(
+      expect(resolveSheetSnapFromDrag(startSnap, deltaY, 52, 343.28)).toBe(
         expectedSnap,
       )
     },
@@ -279,26 +222,27 @@ describe('applyStatusSheetContentTransition', () => {
       },
       handle: null,
       isShowingDetail: true,
-      isSingleSnap: false,
     })
 
     expect(body.scrollTop).toBe(0)
     expect(events).toEqual(['scroll:0', 'back-focus:true'])
   })
 
-  it('resets the detail scroll before focusing the Top 10 body in single-snap mode', () => {
+  it('resets the detail scroll before focusing the Top 10 handle', () => {
     const events: string[] = []
     const body = createBody(events, 880)
 
     applyStatusSheetContentTransition({
       body,
       backButton: null,
-      handle: null,
+      handle: {
+        focus: options =>
+          events.push(`handle-focus:${String(options?.preventScroll)}`),
+      },
       isShowingDetail: false,
-      isSingleSnap: true,
     })
 
     expect(body.scrollTop).toBe(0)
-    expect(events).toEqual(['scroll:0', 'body-focus:true'])
+    expect(events).toEqual(['scroll:0', 'handle-focus:true'])
   })
 })

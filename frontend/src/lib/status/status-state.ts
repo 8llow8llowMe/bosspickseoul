@@ -22,12 +22,9 @@ type StatusSheetBodyTarget = StatusSheetFocusTarget & {
   scrollTop: number
 }
 
-export const STATUS_SHEET_COLLAPSED_RATIO = 0.54
-const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 180
-// Below about 391px, `height - 180px` constrains both 54% and 72% snaps
-// to the same height, so exposing expand/collapse would be misleading.
-const STATUS_SHEET_TWO_SNAP_MINIMUM_HEIGHT =
-  STATUS_SHEET_MINIMUM_MAP_HEIGHT / (1 - STATUS_SHEET_COLLAPSED_RATIO)
+export const STATUS_SHEET_COLLAPSED_HEIGHT = 52
+export const STATUS_SHEET_EXPANDED_RATIO = 0.66
+export const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 180
 
 export const createStatusHref = (
   pathname: string,
@@ -40,11 +37,27 @@ export const createStatusHref = (
   return `${pathname}${queryString ? `?${queryString}` : ''}${hashSuffix}`
 }
 
-export const isStatusSheetSingleSnap = (
+export const getStatusSheetHeightBounds = (
   statusViewportHeight: number,
-): boolean =>
-  !Number.isFinite(statusViewportHeight) ||
-  statusViewportHeight <= STATUS_SHEET_TWO_SNAP_MINIMUM_HEIGHT
+): { collapsedHeight: number; expandedHeight: number } => {
+  if (!Number.isFinite(statusViewportHeight) || statusViewportHeight <= 0) {
+    return {
+      collapsedHeight: STATUS_SHEET_COLLAPSED_HEIGHT,
+      expandedHeight: STATUS_SHEET_COLLAPSED_HEIGHT,
+    }
+  }
+
+  return {
+    collapsedHeight: STATUS_SHEET_COLLAPSED_HEIGHT,
+    expandedHeight: Math.max(
+      STATUS_SHEET_COLLAPSED_HEIGHT,
+      Math.min(
+        statusViewportHeight * STATUS_SHEET_EXPANDED_RATIO,
+        statusViewportHeight - STATUS_SHEET_MINIMUM_MAP_HEIGHT,
+      ),
+    ),
+  }
+}
 
 export const getNextSheetSnap = (
   current: StatusSheetSnap,
@@ -57,37 +70,22 @@ export const getNextSheetSnap = (
   return current === 'expanded' ? 'collapsed' : current
 }
 
-export const canCollapseStatusSheetFromMap = (
-  isSingleSnap: boolean,
-  snap: StatusSheetSnap,
-): boolean => !isSingleSnap && snap === 'expanded'
-
-export const createCollapsedStatusSheetState = (
-  districtCode: string | null,
-): StatusSheetState => ({ districtCode, snap: 'collapsed' })
-
 export const applyStatusSheetContentTransition = ({
   body,
   backButton,
   handle,
   isShowingDetail,
-  isSingleSnap,
 }: {
   body: StatusSheetBodyTarget | null
   backButton: StatusSheetFocusTarget | null
   handle: StatusSheetFocusTarget | null
   isShowingDetail: boolean
-  isSingleSnap: boolean
 }): void => {
   if (body) {
     body.scrollTop = 0
   }
 
-  const focusTarget = isShowingDetail
-    ? backButton
-    : isSingleSnap
-      ? body
-      : handle
+  const focusTarget = isShowingDetail ? backButton : handle
 
   focusTarget?.focus({ preventScroll: true })
 }
