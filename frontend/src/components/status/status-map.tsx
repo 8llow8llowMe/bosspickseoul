@@ -255,6 +255,10 @@ const TOP_TEN_LABEL_SAFE_BOUNDS = {
 const TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS = 4
 const TOP_TEN_LABEL_CANDIDATE_GRID_SIZE =
   TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS * 2 + 1
+// 실제 지도는 현재 Top10만 전역 탐색합니다.
+const TOP_TEN_LABEL_EXACT_SEARCH_MAX_LABELS = 10
+// 렌더 경로에서 탐색 시간을 고정하기 위한 결정적 backtracking 상한입니다.
+const TOP_TEN_LABEL_EXACT_SEARCH_NODE_BUDGET = 25_000
 
 const TOP_TEN_LABEL_CANDIDATE_OFFSETS = Array.from(
   {
@@ -292,11 +296,16 @@ export type PositionedStatusMapTopTenLabel = {
   displayY: number
 }
 
+type TopTenLabelCandidate = Pick<
+  PositionedStatusMapTopTenLabel,
+  'displayX' | 'displayY'
+>
+
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
 
 const hasTopTenLabelCollision = (
-  candidate: Pick<PositionedStatusMapTopTenLabel, 'displayX' | 'displayY'>,
+  candidate: TopTenLabelCandidate,
   positionedLabels: readonly PositionedStatusMapTopTenLabel[],
 ) =>
   positionedLabels.some(
@@ -306,6 +315,142 @@ const hasTopTenLabelCollision = (
       Math.abs(candidate.displayY - label.displayY) <
         TOP_TEN_LABEL_COLLISION_FOOTPRINT.height,
   )
+
+const createTopTenLabelCandidates = (
+  label: Pick<StatusMapLabel, 'x' | 'y'>,
+): TopTenLabelCandidate[] => {
+  const candidateKeys = new Set<string>()
+
+  return TOP_TEN_LABEL_CANDIDATE_OFFSETS.flatMap(offset => {
+    const candidate = {
+      displayX: clamp(
+        label.x + offset.x,
+        TOP_TEN_LABEL_SAFE_BOUNDS.minX,
+        TOP_TEN_LABEL_SAFE_BOUNDS.maxX,
+      ),
+      displayY: clamp(
+        label.y + offset.y,
+        TOP_TEN_LABEL_SAFE_BOUNDS.minY,
+        TOP_TEN_LABEL_SAFE_BOUNDS.maxY,
+      ),
+    }
+    const candidateKey = `${candidate.displayX}:${candidate.displayY}`
+
+    if (candidateKeys.has(candidateKey)) return []
+
+    candidateKeys.add(candidateKey)
+    return [candidate]
+  })
+}
+
+const toPositionedTopTenLabel = (
+  label: StatusMapLabel & { rank: number },
+  candidate: TopTenLabelCandidate,
+): PositionedStatusMapTopTenLabel => ({
+  districtCode: label.districtCode,
+  rank: label.rank,
+  originalX: label.x,
+  originalY: label.y,
+  ...candidate,
+})
+
+const countTopTenLabelCollisions = (
+  candidate: TopTenLabelCandidate,
+  positionedLabels: readonly PositionedStatusMapTopTenLabel[],
+) =>
+  positionedLabels.filter(label => hasTopTenLabelCollision(candidate, [label]))
+    .length
+
+const findBestEffortTopTenLabelPositions = (
+  rankedLabels: readonly (StatusMapLabel & { rank: number })[],
+  candidatesByLabel: readonly TopTenLabelCandidate[][],
+) => {
+  const positionedLabels: PositionedStatusMapTopTenLabel[] = []
+
+  for (const [index, label] of rankedLabels.entries()) {
+    const candidates = candidatesByLabel[index]
+    const bestCandidate = candidates.reduce((best, candidate) =>
+      countTopTenLabelCollisions(candidate, positionedLabels) <
+      countTopTenLabelCollisions(best, positionedLabels)
+        ? candidate
+        : best,
+    )
+
+    positionedLabels.push(toPositionedTopTenLabel(label, bestCandidate))
+  }
+
+  return positionedLabels
+}
+
+const findExactTopTenLabelPositions = (
+  rankedLabels: readonly (StatusMapLabel & { rank: number })[],
+  candidatesByLabel: readonly TopTenLabelCandidate[][],
+): PositionedStatusMapTopTenLabel[] | null => {
+  if (rankedLabels.length > TOP_TEN_LABEL_EXACT_SEARCH_MAX_LABELS) {
+    return null
+  }
+
+  const assignedLabels = Array<PositionedStatusMapTopTenLabel | undefined>(
+    rankedLabels.length,
+  )
+  let visitedNodeCount = 0
+
+  const search = (remainingIndexes: readonly number[]): boolean => {
+    if (remainingIndexes.length === 0) return true
+    if (visitedNodeCount >= TOP_TEN_LABEL_EXACT_SEARCH_NODE_BUDGET) return false
+
+    const positionedLabels = assignedLabels.filter(
+      (label): label is PositionedStatusMapTopTenLabel => label !== undefined,
+    )
+    const nextLabel = remainingIndexes
+      .map(index => ({
+        index,
+        candidates: candidatesByLabel[index].filter(
+          candidate => !hasTopTenLabelCollision(candidate, positionedLabels),
+        ),
+      }))
+      .sort(
+        (first, second) =>
+          first.candidates.length - second.candidates.length ||
+          rankedLabels[first.index].rank - rankedLabels[second.index].rank ||
+          rankedLabels[first.index].districtCode.localeCompare(
+            rankedLabels[second.index].districtCode,
+          ),
+      )[0]
+
+    if (nextLabel.candidates.length === 0) return false
+
+    const nextRemainingIndexes = remainingIndexes.filter(
+      index => index !== nextLabel.index,
+    )
+
+    for (const candidate of nextLabel.candidates) {
+      if (visitedNodeCount >= TOP_TEN_LABEL_EXACT_SEARCH_NODE_BUDGET) {
+        return false
+      }
+
+      visitedNodeCount += 1
+      assignedLabels[nextLabel.index] = toPositionedTopTenLabel(
+        rankedLabels[nextLabel.index],
+        candidate,
+      )
+
+      if (search(nextRemainingIndexes)) return true
+
+      assignedLabels[nextLabel.index] = undefined
+    }
+
+    return false
+  }
+
+  const found = search(rankedLabels.map((_, index) => index))
+
+  return found
+    ? assignedLabels.filter(
+        (label): label is PositionedStatusMapTopTenLabel => label !== undefined,
+      )
+    : null
+}
 
 export function layoutStatusMapTopTenLabels(
   labels: readonly StatusMapLabel[],
@@ -320,36 +465,13 @@ export function layoutStatusMapTopTenLabels(
         first.rank - second.rank ||
         first.districtCode.localeCompare(second.districtCode),
     )
-  const positionedLabels: PositionedStatusMapTopTenLabel[] = []
+  const candidatesByLabel = rankedLabels.map(createTopTenLabelCandidates)
 
-  for (const label of rankedLabels) {
-    const position = TOP_TEN_LABEL_CANDIDATE_OFFSETS.map(offset => ({
-      displayX: clamp(
-        label.x + offset.x,
-        TOP_TEN_LABEL_SAFE_BOUNDS.minX,
-        TOP_TEN_LABEL_SAFE_BOUNDS.maxX,
-      ),
-      displayY: clamp(
-        label.y + offset.y,
-        TOP_TEN_LABEL_SAFE_BOUNDS.minY,
-        TOP_TEN_LABEL_SAFE_BOUNDS.maxY,
-      ),
-    })).find(candidate => !hasTopTenLabelCollision(candidate, positionedLabels))
-
-    if (!position) {
-      throw new Error('Top10 지도 라벨을 충돌 없이 배치할 수 없습니다.')
-    }
-
-    positionedLabels.push({
-      districtCode: label.districtCode,
-      rank: label.rank,
-      originalX: label.x,
-      originalY: label.y,
-      ...position,
-    })
-  }
-
-  return positionedLabels
+  // 완전 해를 찾지 못해도 충돌 수가 가장 적은 결정적 배치를 반환합니다.
+  return (
+    findExactTopTenLabelPositions(rankedLabels, candidatesByLabel) ??
+    findBestEffortTopTenLabelPositions(rankedLabels, candidatesByLabel)
+  )
 }
 
 export default function StatusMap({

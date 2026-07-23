@@ -46,6 +46,30 @@ const requiredTopTenCollisionFootprint = {
   ),
 } as const
 
+const actualTopTenCenters: readonly (readonly [string, number, number])[] = [
+  ['11470', 173.61, 400.99],
+  ['11620', 345.04, 531.3],
+  ['11500', 111.27, 318.26],
+  ['11440', 274.32, 322.63],
+  ['11215', 612.93, 351.24],
+  ['11710', 669.3, 444.5],
+  ['11350', 592.5, 111.08],
+  ['11530', 175.18, 469.95],
+  ['11680', 569.49, 464.87],
+  ['11545', 260.11, 546.75],
+]
+
+const actualTopTenLabels: StatusMapLabel[] = actualTopTenCenters.map(
+  ([districtCode, x, y], index) => ({
+    districtCode,
+    districtName: `자치구 ${index + 1}`,
+    x,
+    y,
+    rank: index + 1,
+    isTopTen: true,
+  }),
+)
+
 const renderMap = (
   props: Partial<React.ComponentProps<typeof StatusMap>> = {},
 ) =>
@@ -136,6 +160,80 @@ describe('StatusMap', () => {
               requiredTopTenCollisionFootprint.height,
         ).toBe(true)
       }
+    }
+  })
+
+  it('실제 서울 Top10 중심점도 전역 배치로 겹치지 않게 렌더링한다', () => {
+    expect(() => layoutStatusMapTopTenLabels(actualTopTenLabels)).not.toThrow()
+
+    const positionedLabels = layoutStatusMapTopTenLabels(actualTopTenLabels)
+
+    expect(positionedLabels).toHaveLength(10)
+    expect(positionedLabels.map(label => label.rank)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ])
+
+    for (const label of positionedLabels) {
+      expect(label.displayX).toBeGreaterThanOrEqual(
+        requiredTopTenCollisionFootprint.width / 2,
+      )
+      expect(label.displayX).toBeLessThanOrEqual(
+        STATUS_MAP_VIEW_BOX_WIDTH - requiredTopTenCollisionFootprint.width / 2,
+      )
+      expect(label.displayY).toBeGreaterThanOrEqual(
+        requiredTopTenCollisionFootprint.height / 2,
+      )
+      expect(label.displayY).toBeLessThanOrEqual(
+        620 - requiredTopTenCollisionFootprint.height / 2,
+      )
+    }
+
+    for (const [index, label] of positionedLabels.entries()) {
+      for (const other of positionedLabels.slice(index + 1)) {
+        expect(
+          Math.abs(label.displayX - other.displayX) >=
+            requiredTopTenCollisionFootprint.width ||
+            Math.abs(label.displayY - other.displayY) >=
+              requiredTopTenCollisionFootprint.height,
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('후보가 부족한 adversarial 입력도 예외 없이 결정적으로 fallback 배치한다', () => {
+    const labels: StatusMapLabel[] = Array.from({ length: 82 }, (_, index) => ({
+      districtCode: `adversarial-${index + 1}`,
+      districtName: `자치구 ${index + 1}`,
+      x: 400,
+      y: 310,
+      rank: index + 1,
+      isTopTen: true,
+    }))
+
+    expect(() => layoutStatusMapTopTenLabels(labels)).not.toThrow()
+
+    const first = layoutStatusMapTopTenLabels(labels)
+    const second = layoutStatusMapTopTenLabels(labels)
+
+    expect(first).toEqual(second)
+    expect(first).toHaveLength(82)
+    expect(first.map(label => label.rank)).toEqual(
+      Array.from({ length: 82 }, (_, index) => index + 1),
+    )
+
+    for (const label of first) {
+      expect(label.displayX).toBeGreaterThanOrEqual(
+        requiredTopTenCollisionFootprint.width / 2,
+      )
+      expect(label.displayX).toBeLessThanOrEqual(
+        STATUS_MAP_VIEW_BOX_WIDTH - requiredTopTenCollisionFootprint.width / 2,
+      )
+      expect(label.displayY).toBeGreaterThanOrEqual(
+        requiredTopTenCollisionFootprint.height / 2,
+      )
+      expect(label.displayY).toBeLessThanOrEqual(
+        620 - requiredTopTenCollisionFootprint.height / 2,
+      )
     }
   })
 
