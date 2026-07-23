@@ -7,6 +7,7 @@ import {
 } from '@/data/seoul-status-map'
 import {
   createStatusMapMarkers,
+  findSelectedStatusMapFeature,
   type StatusMapMarker,
 } from '@/lib/status/status-map-model'
 import { formatStatusValue } from '@/lib/status/status-formatters'
@@ -17,6 +18,7 @@ type StatusMapProps = {
   items: StatusRankedItem[]
   selectedDistrictCode: string | null
   onSelect: (districtCode: string) => void
+  onBackgroundClick?: () => void
 }
 
 const METRIC_LABELS: Record<StatusMetric, string> = {
@@ -43,12 +45,39 @@ const MapCanvas = styled.div`
 `
 
 const SeoulSilhouette = styled.svg`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
+  pointer-events: none;
+`
 
-  path {
-    fill: var(--color-surface-muted);
-    stroke: none;
+const DistrictPath = styled.path`
+  fill: var(--color-surface-muted);
+  stroke: none;
+`
+
+const SelectedDistrictPath = styled.path`
+  fill: var(--color-primary-600);
+  fill-opacity: 0.5;
+  stroke: var(--color-primary-600);
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+`
+
+const MapBackgroundButton = styled.button`
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: -4px;
   }
 `
 
@@ -58,7 +87,7 @@ const MarkerButton = styled.button<{
   $y: number
 }>`
   position: absolute;
-  z-index: ${props => (props.$selected ? 2 : 1)};
+  z-index: ${props => (props.$selected ? 3 : 2)};
   top: ${props => (props.$y / 620) * 100}%;
   left: ${props => (props.$x / 800) * 100}%;
   width: ${props => (props.$selected ? '52px' : '44px')};
@@ -116,20 +145,38 @@ export default function StatusMap({
   items,
   selectedDistrictCode,
   onSelect,
+  onBackgroundClick,
 }: StatusMapProps) {
   const markers = createStatusMapMarkers(items, SEOUL_STATUS_FEATURES)
+  const selectedFeature = findSelectedStatusMapFeature(
+    SEOUL_STATUS_FEATURES,
+    selectedDistrictCode,
+  )
 
   return (
     <Figure>
       <MapCanvas>
+        {onBackgroundClick ? (
+          <MapBackgroundButton
+            aria-label="지도를 더 보기 위해 구별 현황 바텀시트 최소화"
+            type="button"
+            onClick={onBackgroundClick}
+          />
+        ) : null}
         <SeoulSilhouette
           aria-hidden="true"
           preserveAspectRatio="xMidYMid meet"
           viewBox={SEOUL_STATUS_VIEW_BOX}
         >
           {SEOUL_STATUS_FEATURES.map(feature => (
-            <path key={feature.districtCode} d={feature.path} />
+            <DistrictPath key={feature.districtCode} d={feature.path} />
           ))}
+          {selectedFeature ? (
+            <SelectedDistrictPath
+              d={selectedFeature.path}
+              data-selected-district-code={selectedFeature.districtCode}
+            />
+          ) : null}
         </SeoulSilhouette>
         {markers.map(marker => {
           const isSelected = marker.districtCode === selectedDistrictCode
