@@ -43,7 +43,7 @@ services:
     environment:
       <<: *api_gateway_environment
       # dev 게이트웨이는 dev Eureka만 조회 (환경별 레지스트리 격리)
-      SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME_DEV}
+      SERVICE_DISCOVERY_HOSTNAME: bosspickseoul-service-discovery-dev
     restart: unless-stopped
     logging:
       <<: *default-logging
@@ -68,7 +68,7 @@ services:
     environment:
       <<: *api_gateway_environment
       # prod 게이트웨이는 prod Eureka만 조회 (환경별 레지스트리 격리)
-      SERVICE_DISCOVERY_HOSTNAME: ${SERVICE_DISCOVERY_HOSTNAME_PROD}
+      SERVICE_DISCOVERY_HOSTNAME: bosspickseoul-service-discovery-prod
     restart: unless-stopped
     logging:
       <<: *default-logging
