@@ -110,9 +110,10 @@ ai:
 
 ### Async TaskExecutor
 
-- 빈 이름: `aiReportTaskExecutor`
+- 빈 이름: `aiReportTaskExecutor` (컨벤션: `api-design-guide.md` §7 워커 규칙)
 - corePoolSize=4, maxPoolSize=8, queueCapacity=50, threadNamePrefix=`ai-report-worker-`
 - shutdown 시 30초 대기
+- 관측: Spring Boot 자동 계측으로 `executor_*{name="aiReportTaskExecutor"}` 노출 → Grafana `BossPickSeoul Executor / Thread Pool` 대시보드의 `name` 범례로 표시
 
 ## Public APIs
 
