@@ -30,6 +30,13 @@ services:
   auth-service-dev:
     image: bosspickseoul-auth-service:latest
     container_name: bosspickseoul-auth-service-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: auth-service
+      observability.env: dev
+      observability.application: ${AUTH_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-auth-service-dev
     build:
       context: .
       dockerfile: auth-service.Dockerfile
@@ -46,6 +53,13 @@ services:
   auth-service-prod:
     image: bosspickseoul-auth-service:latest
     container_name: bosspickseoul-auth-service-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: auth-service
+      observability.env: prod
+      observability.application: ${AUTH_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-auth-service-prod
     build:
       context: .
       dockerfile: auth-service.Dockerfile

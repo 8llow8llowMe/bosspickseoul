@@ -22,6 +22,13 @@ services:
   commercial-service-dev:
     image: bosspickseoul-commercial-service:latest
     container_name: bosspickseoul-commercial-service-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: commercial-service
+      observability.env: dev
+      observability.application: ${COMMERCIAL_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-commercial-service-dev
     build:
       context: .
       dockerfile: commercial-service.Dockerfile
@@ -38,6 +45,13 @@ services:
   commercial-service-prod:
     image: bosspickseoul-commercial-service:latest
     container_name: bosspickseoul-commercial-service-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: commercial-service
+      observability.env: prod
+      observability.application: ${COMMERCIAL_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-commercial-service-prod
     build:
       context: .
       dockerfile: commercial-service.Dockerfile

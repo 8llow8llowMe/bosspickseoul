@@ -21,6 +21,13 @@ services:
   district-service-dev:
     image: bosspickseoul-district-service:latest
     container_name: bosspickseoul-district-service-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: district-service
+      observability.env: dev
+      observability.application: ${DISTRICT_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-district-service-dev
     build:
       context: .
       dockerfile: district-service.Dockerfile
@@ -37,6 +44,13 @@ services:
   district-service-prod:
     image: bosspickseoul-district-service:latest
     container_name: bosspickseoul-district-service-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: district-service
+      observability.env: prod
+      observability.application: ${DISTRICT_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-district-service-prod
     build:
       context: .
       dockerfile: district-service.Dockerfile
