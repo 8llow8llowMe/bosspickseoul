@@ -1,16 +1,16 @@
 'use client'
 
+import { css } from 'styled-components'
 import styled from 'styled-components'
+import { districts } from '@/data/districts'
 import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
 import {
-  createStatusMapMarkers,
+  createStatusMapLabels,
   findSelectedStatusMapFeature,
-  type StatusMapMarker,
 } from '@/lib/status/status-map-model'
-import { formatStatusValue } from '@/lib/status/status-formatters'
 import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
 type StatusMapProps = {
@@ -19,6 +19,7 @@ type StatusMapProps = {
   selectedDistrictCode: string | null
   onSelect: (districtCode: string) => void
   onBackgroundClick?: () => void
+  backgroundAction?: 'expand' | 'collapse'
 }
 
 const METRIC_LABELS: Record<StatusMetric, string> = {
@@ -55,7 +56,9 @@ const SeoulSilhouette = styled.svg`
 
 const DistrictPath = styled.path`
   fill: var(--color-surface-muted);
-  stroke: none;
+  stroke: var(--color-border-300);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
 `
 
 const SelectedDistrictPath = styled.path`
@@ -81,45 +84,86 @@ const MapBackgroundButton = styled.button`
   }
 `
 
-const MarkerButton = styled.button<{
-  $selected: boolean
+const labelPosition = css<{
   $x: number
   $y: number
 }>`
   position: absolute;
-  z-index: ${props => (props.$selected ? 3 : 2)};
   top: ${props => (props.$y / 620) * 100}%;
   left: ${props => (props.$x / 800) * 100}%;
-  width: ${props => (props.$selected ? '52px' : '44px')};
-  height: ${props => (props.$selected ? '52px' : '44px')};
+  transform: translate(-50%, -50%);
+`
+
+const DistrictLabel = styled.div<{
+  $x: number
+  $y: number
+}>`
+  ${labelPosition}
+  z-index: 2;
+  pointer-events: none;
+  color: var(--color-text-700);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 1px 2px var(--color-surface);
+  white-space: nowrap;
+`
+
+const RankedDistrictLabel = styled.button<{
+  $selected: boolean
+  $x: number
+  $y: number
+}>`
+  ${labelPosition}
+  z-index: ${props => (props.$selected ? 4 : 3)};
+  min-width: 38px;
+  min-height: 34px;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  gap: 1px;
+  padding: 4px 6px;
   border: ${props => (props.$selected ? '3px' : '1px')} solid
     ${props =>
       props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-300)'};
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-text-800);
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  color: ${props =>
+    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
   box-shadow: var(--shadow-level-1);
-  font-size: ${props => (props.$selected ? '15px' : '13px')};
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
   cursor: pointer;
-  transform: translate(-50%, -50%);
   transition:
-    width var(--motion-fast) var(--ease-standard),
-    height var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
 
   &:hover {
     border-color: var(--color-primary-600);
-    color: var(--color-text-900);
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
   }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 2px;
+  }
+`
+
+const RankDistrictName = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+`
+
+const RankNumber = styled.span`
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 `
 
 const Caption = styled.figcaption`
@@ -128,19 +172,10 @@ const Caption = styled.figcaption`
   line-height: 20px;
 `
 
-const EmptyMessage = styled.p`
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  color: var(--color-text-600);
-  font-size: 14px;
-`
-
-const getMarkerLabel = (metric: StatusMetric, marker: StatusMapMarker) =>
-  `${marker.rank}위 ${marker.districtName}, ${METRIC_LABELS[metric]} ${formatStatusValue(metric, marker.value)}`
+const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
+  action === 'expand'
+    ? '지도를 눌러 구별 현황 바텀시트 펼치기'
+    : '지도를 더 보기 위해 구별 현황 바텀시트 최소화'
 
 export default function StatusMap({
   metric,
@@ -148,8 +183,9 @@ export default function StatusMap({
   selectedDistrictCode,
   onSelect,
   onBackgroundClick,
+  backgroundAction,
 }: StatusMapProps) {
-  const markers = createStatusMapMarkers(items, SEOUL_STATUS_FEATURES)
+  const labels = createStatusMapLabels(items, SEOUL_STATUS_FEATURES, districts)
   const selectedFeature = findSelectedStatusMapFeature(
     SEOUL_STATUS_FEATURES,
     selectedDistrictCode,
@@ -158,9 +194,9 @@ export default function StatusMap({
   return (
     <Figure>
       <MapCanvas>
-        {onBackgroundClick ? (
+        {onBackgroundClick && backgroundAction ? (
           <MapBackgroundButton
-            aria-label="지도를 더 보기 위해 구별 현황 바텀시트 최소화"
+            aria-label={getBackgroundActionLabel(backgroundAction)}
             type="button"
             onClick={onBackgroundClick}
           />
@@ -171,7 +207,11 @@ export default function StatusMap({
           viewBox={SEOUL_STATUS_VIEW_BOX}
         >
           {SEOUL_STATUS_FEATURES.map(feature => (
-            <DistrictPath key={feature.districtCode} d={feature.path} />
+            <DistrictPath
+              key={feature.districtCode}
+              d={feature.path}
+              data-status-district-path={feature.districtCode}
+            />
           ))}
           {selectedFeature ? (
             <SelectedDistrictPath
@@ -180,27 +220,43 @@ export default function StatusMap({
             />
           ) : null}
         </SeoulSilhouette>
-        {markers.map(marker => {
-          const isSelected = marker.districtCode === selectedDistrictCode
+        {labels.map(label => {
+          const isSelected = label.districtCode === selectedDistrictCode
+
+          if (!label.isTopTen || label.rank === null) {
+            return (
+              <DistrictLabel
+                key={label.districtCode}
+                $x={label.x}
+                $y={label.y}
+                data-status-district-label={label.districtCode}
+              >
+                {label.districtName}
+              </DistrictLabel>
+            )
+          }
 
           return (
-            <MarkerButton
-              key={marker.districtCode}
+            <RankedDistrictLabel
+              key={label.districtCode}
               $selected={isSelected}
-              $x={marker.x}
-              $y={marker.y}
-              aria-label={getMarkerLabel(metric, marker)}
+              $x={label.x}
+              $y={label.y}
+              aria-label={`${label.rank}위 ${label.districtName}, ${METRIC_LABELS[metric]} 기준`}
               aria-pressed={isSelected}
+              data-status-district-label={label.districtCode}
               type="button"
-              onClick={() => onSelect(marker.districtCode)}
+              onClick={() => onSelect(label.districtCode)}
             >
-              {marker.rank}
-            </MarkerButton>
+              <RankDistrictName>{label.districtName}</RankDistrictName>
+              <RankNumber data-status-rank={label.rank}>{label.rank}</RankNumber>
+            </RankedDistrictLabel>
           )
         })}
-        {markers.length === 0 ? <EmptyMessage>데이터 없음</EmptyMessage> : null}
       </MapCanvas>
-      <Caption>지도의 숫자는 {METRIC_LABELS[metric]} 기준 순위입니다.</Caption>
+      <Caption>
+        구 이름 아래 숫자는 {METRIC_LABELS[metric]} 기준 Top10 순위입니다.
+      </Caption>
     </Figure>
   )
 }
