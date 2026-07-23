@@ -26,14 +26,6 @@ const METRIC_LABELS: Record<StatusMetric, string> = {
   closed: '폐업',
 }
 
-const SEOUL_DISTRICT_CENTERS: Record<string, { x: number; y: number }> =
-  Object.fromEntries(
-    SEOUL_STATUS_FEATURES.map(({ districtCode, center }) => [
-      districtCode,
-      center,
-    ]),
-  )
-
 const Figure = styled.figure`
   min-width: 0;
   display: grid;
@@ -125,7 +117,7 @@ export default function StatusMap({
   selectedDistrictCode,
   onSelect,
 }: StatusMapProps) {
-  const markers = createStatusMapMarkers(items, SEOUL_DISTRICT_CENTERS)
+  const markers = createStatusMapMarkers(items, SEOUL_STATUS_FEATURES)
 
   return (
     <Figure>

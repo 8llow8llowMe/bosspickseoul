@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import { createStatusMapMarkers } from './status-map-model'
+import {
+  createStatusMapMarkers,
+  findSelectedStatusMapFeature,
+} from './status-map-model'
 
 describe('createStatusMapMarkers', () => {
-  const centers = {
-    '11110': { x: 120, y: 240 },
-    '11140': { x: 320, y: 440 },
-  }
+  const features = [
+    {
+      districtCode: '11110',
+      path: 'M0 0L10 0L10 10Z',
+      center: { x: 120, y: 240 },
+    },
+    {
+      districtCode: '11140',
+      path: 'M10 10L20 10L20 20Z',
+      center: { x: 320, y: 440 },
+    },
+  ]
 
   it('keeps the first ten ranked items with their map coordinates', () => {
     const items = Array.from({ length: 11 }, (_, index) => ({
@@ -17,7 +28,7 @@ describe('createStatusMapMarkers', () => {
       changeRate: index + 0.5,
     }))
 
-    const markers = createStatusMapMarkers(items, centers)
+    const markers = createStatusMapMarkers(items, features)
 
     expect(markers).toHaveLength(10)
     expect(markers[0]).toEqual({
@@ -57,7 +68,7 @@ describe('createStatusMapMarkers', () => {
           changeRate: -2,
         },
       ],
-      centers,
+      features,
     )
 
     expect(markers).toEqual([
@@ -73,7 +84,7 @@ describe('createStatusMapMarkers', () => {
     ])
   })
 
-  it('does not mutate source items or district centers', () => {
+  it('does not mutate source items or features', () => {
     const items = [
       {
         rank: 1,
@@ -84,11 +95,37 @@ describe('createStatusMapMarkers', () => {
       },
     ]
     const originalItems = structuredClone(items)
-    const originalCenters = structuredClone(centers)
+    const originalFeatures = structuredClone(features)
 
-    createStatusMapMarkers(items, centers)
+    createStatusMapMarkers(items, features)
 
     expect(items).toEqual(originalItems)
-    expect(centers).toEqual(originalCenters)
+    expect(features).toEqual(originalFeatures)
   })
+})
+
+describe('findSelectedStatusMapFeature', () => {
+  const features = [
+    {
+      districtCode: '11110',
+      path: 'M0 0L10 0L10 10Z',
+      center: { x: 120, y: 240 },
+    },
+    {
+      districtCode: '11140',
+      path: 'M10 10L20 10L20 20Z',
+      center: { x: 320, y: 440 },
+    },
+  ]
+
+  it('returns only the feature matching the selected district code', () => {
+    expect(findSelectedStatusMapFeature(features, '11140')).toEqual(features[1])
+  })
+
+  it.each([null, '99999'])(
+    'returns null without a matching selection: %s',
+    districtCode => {
+      expect(findSelectedStatusMapFeature(features, districtCode)).toBeNull()
+    },
+  )
 })
