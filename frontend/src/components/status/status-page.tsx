@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
@@ -8,11 +8,9 @@ import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { normalizeStatusTopTen } from '@/lib/status/status-adapter'
 import {
-  canCollapseStatusSheetFromMap,
-  createCollapsedStatusSheetState,
   createStatusHref,
   createStatusQuery,
-  isStatusSheetSingleSnap,
+  getNextSheetSnap,
   normalizeStatusSelection,
   parseStatusMetric,
   type StatusSheetState,
@@ -28,8 +26,6 @@ const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
 const DETAIL_ERROR_MESSAGE =
   '선택한 자치구의 상세 현황을 불러오지 못했습니다. 다시 시도해 주세요.'
-const DEFAULT_SITE_HEADER_HEIGHT = 64
-
 const Page = styled.main`
   width: 100%;
   padding: 40px 0 72px;
@@ -186,13 +182,13 @@ const MapDescription = styled.p`
   word-break: keep-all;
 `
 
-const MobileStage = styled.section<{ $headerHeight: number }>`
+const MobileStage = styled.section`
   display: none;
 
   @media (max-width: 1023px) {
     position: relative;
     width: calc(100% + 32px);
-    height: max(0px, calc(100dvh - ${props => props.$headerHeight}px));
+    height: clamp(360px, 62dvh, 560px);
     display: block;
     overflow: hidden;
     margin-left: -16px;
@@ -205,7 +201,7 @@ const MobileMapLayer = styled.div`
   position: absolute;
   inset: 0;
   min-height: 0;
-  padding: 16px 16px 24px;
+  padding: 12px;
 
   > figure {
     height: 100%;
@@ -225,14 +221,9 @@ function StatusPageContent() {
   const rawSearchParams = searchParams.toString()
   const metric = parseStatusMetric(searchParams.get('metric'))
   const requestedDistrictCode = searchParams.get('district')
-  const mobileStageRef = useRef<HTMLElement>(null)
-  const [siteHeaderHeight, setSiteHeaderHeight] = useState(
-    DEFAULT_SITE_HEADER_HEIGHT,
-  )
-  const [mobileStageHeight, setMobileStageHeight] = useState(0)
   const [sheetState, setSheetState] = useState<StatusSheetState>({
     districtCode: null,
-    snap: 'collapsed',
+    snap: 'expanded',
   })
 
   const topTenQuery = useQuery({
@@ -261,9 +252,7 @@ function StatusPageContent() {
   const sheetSnap =
     sheetState.districtCode === selectedDistrictCode
       ? sheetState.snap
-      : selectedDistrictCode
-        ? 'expanded'
-        : 'collapsed'
+      : 'expanded'
 
   const detailQuery = useQuery({
     queryKey: ['status', 'detail', selectedDistrictCode],
@@ -289,62 +278,6 @@ function StatusPageContent() {
   const isDetailLoading =
     detailQuery.isPending ||
     (detailErrorMessage !== null && detailQuery.isFetching)
-  const isSingleSnap = isStatusSheetSingleSnap(mobileStageHeight)
-
-  useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') {
-      return
-    }
-
-    const siteHeader = document.querySelector<HTMLElement>('[data-site-header]')
-
-    if (!siteHeader) {
-      return
-    }
-
-    const observer = new ResizeObserver(() => {
-      const measuredHeight = Math.round(
-        siteHeader.getBoundingClientRect().height,
-      )
-
-      setSiteHeaderHeight(
-        measuredHeight > 0 ? measuredHeight : DEFAULT_SITE_HEADER_HEIGHT,
-      )
-    })
-
-    observer.observe(siteHeader)
-
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (!topTen) {
-      return
-    }
-
-    const mobileStage = mobileStageRef.current
-
-    if (!mobileStage) {
-      return
-    }
-
-    if (typeof ResizeObserver === 'undefined') {
-      const frame = window.requestAnimationFrame(() => {
-        setMobileStageHeight(mobileStage.clientHeight)
-      })
-
-      return () => window.cancelAnimationFrame(frame)
-    }
-
-    const observer = new ResizeObserver(() => {
-      setMobileStageHeight(mobileStage.clientHeight)
-    })
-
-    observer.observe(mobileStage)
-
-    return () => observer.disconnect()
-  }, [topTen])
-
   useEffect(() => {
     const currentQuery = new URLSearchParams(rawSearchParams)
     const districtCode = topTen
@@ -388,7 +321,7 @@ function StatusPageContent() {
       return
     }
 
-    setSheetState({ districtCode: null, snap: 'collapsed' })
+    setSheetState({ districtCode: null, snap: 'expanded' })
     pushStatusQuery(nextMetric, null)
   }
 
@@ -403,19 +336,25 @@ function StatusPageContent() {
   }
 
   const handleClearDistrict = () => {
-    setSheetState({ districtCode: null, snap: 'collapsed' })
+    setSheetState({ districtCode: null, snap: 'expanded' })
     pushStatusQuery(metric, null)
   }
 
   const handleMapBackgroundClick = () => {
-    setSheetState(createCollapsedStatusSheetState(selectedDistrictCode))
+    setSheetState({
+      districtCode: selectedDistrictCode,
+      snap: getNextSheetSnap(
+        sheetSnap,
+        sheetSnap === 'collapsed' ? 'expand' : 'collapse',
+      ),
+    })
   }
 
   if (!topTen) {
     const isLoading = topTenQuery.isPending || topTenQuery.isFetching
 
     return (
-      <Page>
+      <Page data-hide-mobile-footer="true">
         <PageInner>
           <Hero>
             <Eyebrow>서울 구별 상권</Eyebrow>
@@ -447,7 +386,7 @@ function StatusPageContent() {
   }
 
   return (
-    <Page>
+    <Page data-hide-mobile-footer="true">
       <PageInner>
         <Hero>
           <Eyebrow>서울 구별 상권</Eyebrow>
@@ -515,21 +454,16 @@ function StatusPageContent() {
             </DesktopContent>
           </DesktopGrid>
 
-          <MobileStage
-            ref={mobileStageRef}
-            $headerHeight={siteHeaderHeight}
-            aria-label="서울 자치구 현황 지도와 상세 정보"
-          >
+          <MobileStage aria-label="서울 자치구 현황 지도와 상세 정보">
             <MobileMapLayer>
               <StatusMap
                 items={currentItems}
                 metric={metric}
                 selectedDistrictCode={selectedDistrictCode}
-                onBackgroundClick={
-                  canCollapseStatusSheetFromMap(isSingleSnap, sheetSnap)
-                    ? handleMapBackgroundClick
-                    : undefined
+                backgroundAction={
+                  sheetSnap === 'collapsed' ? 'expand' : 'collapse'
                 }
+                onBackgroundClick={handleMapBackgroundClick}
                 onSelect={handleDistrictSelect}
               />
             </MobileMapLayer>
@@ -537,7 +471,6 @@ function StatusPageContent() {
               detail={detail}
               detailErrorMessage={detailErrorMessage}
               isDetailLoading={isDetailLoading}
-              isSingleSnap={isSingleSnap}
               items={currentItems}
               metric={metric}
               selectedItem={selectedItem}
@@ -558,7 +491,7 @@ function StatusPageContent() {
 
 function StatusPageFallback() {
   return (
-    <Page>
+    <Page data-hide-mobile-footer="true">
       <PageInner>
         <StatusFeedback state="loading" />
       </PageInner>
