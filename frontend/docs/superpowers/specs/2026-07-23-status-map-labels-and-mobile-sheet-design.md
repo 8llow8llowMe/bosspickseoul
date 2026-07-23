@@ -112,15 +112,15 @@ type StatusMapLabel = {
 
 ### 입력 동작
 
-| 현재 상태 | 입력 | 결과 |
-| --- | --- | --- |
-| collapsed | 핸들 탭 | expanded |
-| expanded | 핸들 탭 | collapsed |
-| collapsed | 핸들을 위로 드래그 | expanded |
-| expanded | 핸들을 아래로 드래그 | collapsed |
-| collapsed | 지도 배경 탭 | expanded |
-| expanded | 지도 배경 탭 | collapsed |
-| 모든 상태 | Top10 구 라벨 탭 | 해당 상세 선택 후 expanded |
+| 현재 상태 | 입력                 | 결과                       |
+| --------- | -------------------- | -------------------------- |
+| collapsed | 핸들 탭              | expanded                   |
+| expanded  | 핸들 탭              | collapsed                  |
+| collapsed | 핸들을 위로 드래그   | expanded                   |
+| expanded  | 핸들을 아래로 드래그 | collapsed                  |
+| collapsed | 지도 배경 탭         | expanded                   |
+| expanded  | 지도 배경 탭         | collapsed                  |
+| 모든 상태 | Top10 구 라벨 탭     | 해당 상세 선택 후 expanded |
 
 - 지도 배경 탭은 선택 자치구와 URL의 `district`를 변경하지 않는다.
 - Top10 구 라벨 선택만 `district` 쿼리를 변경한다.
