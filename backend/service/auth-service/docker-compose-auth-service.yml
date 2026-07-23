@@ -44,8 +44,6 @@ services:
       - "${AUTH_SERVICE_PORT_DEV}:${AUTH_SERVICE_PORT}" # host:container
     environment:
       <<: *auth_service_environment
-      # dev 컨테이너는 dev Eureka에만 등록 (환경별 레지스트리 격리)
-      SERVICE_DISCOVERY_HOSTNAME: bosspickseoul-service-discovery-dev
     restart: unless-stopped
     logging:
       <<: *default-logging
@@ -69,8 +67,6 @@ services:
       - "${AUTH_SERVICE_PORT_PROD}:${AUTH_SERVICE_PORT}" # host:container
     environment:
       <<: *auth_service_environment
-      # prod 컨테이너는 prod Eureka에만 등록 (환경별 레지스트리 격리)
-      SERVICE_DISCOVERY_HOSTNAME: bosspickseoul-service-discovery-prod
     restart: unless-stopped
     logging:
       <<: *default-logging
