@@ -126,6 +126,7 @@ const HandleIndicator = styled.span`
 const SheetBody = styled.div<{ $isExpanded: boolean }>`
   min-height: 0;
   display: grid;
+  grid-auto-rows: max-content;
   align-content: start;
   gap: 16px;
   overflow-y: auto;
@@ -140,24 +141,6 @@ const SheetBody = styled.div<{ $isExpanded: boolean }>`
       pointer-events: none;
       overflow: hidden;
     `}
-`
-
-const BackButton = styled.button`
-  min-height: 44px;
-  justify-self: start;
-  padding: 0 14px;
-  border: 1px solid var(--color-border-300);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text-800);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--color-primary-600);
-    color: var(--color-text-900);
-  }
 `
 
 export default function StatusMobileSheet({
@@ -397,23 +380,16 @@ export default function StatusMobileSheet({
         role="region"
       >
         {selectedItem ? (
-          <>
-            <BackButton
-              ref={backButtonRef}
-              type="button"
-              onClick={onBackToTopTen}
-            >
-              상위 10개로 돌아가기
-            </BackButton>
-            <StatusDetail
-              detail={detail}
-              errorMessage={detailErrorMessage}
-              isLoading={isDetailLoading}
-              metric={metric}
-              selectedItem={selectedItem}
-              onRetry={onRetryDetail}
-            />
-          </>
+          <StatusDetail
+            backButtonRef={backButtonRef}
+            detail={detail}
+            errorMessage={detailErrorMessage}
+            isLoading={isDetailLoading}
+            metric={metric}
+            selectedItem={selectedItem}
+            onBack={onBackToTopTen}
+            onRetry={onRetryDetail}
+          />
         ) : (
           <StatusTopTen
             items={items}

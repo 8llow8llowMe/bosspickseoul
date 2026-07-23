@@ -1,5 +1,7 @@
 'use client'
 
+import type { Ref } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -20,6 +22,8 @@ type StatusDetailProps = {
   isLoading: boolean
   errorMessage: string | null
   onRetry: () => void
+  onBack?: () => void
+  backButtonRef?: Ref<HTMLButtonElement>
   onClose?: () => void
 }
 
@@ -120,10 +124,44 @@ const Header = styled.header`
   border-bottom: 1px solid var(--color-border-200);
 `
 
+const HeaderMain = styled.div`
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  gap: 12px;
+`
+
 const HeaderContent = styled.div`
   min-width: 0;
   display: grid;
+  flex: 1 1 auto;
   gap: 8px;
+`
+
+const BackButton = styled.button`
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-800);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary-600);
+    color: var(--color-text-900);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-600);
+    outline-offset: 2px;
+  }
 `
 
 const Eyebrow = styled.p`
@@ -616,29 +654,46 @@ function SalesSection({ detail }: { detail: DistrictDetail }) {
 function DetailHeader({
   metric,
   selectedItem,
+  onBack,
+  backButtonRef,
   onClose,
-}: Pick<StatusDetailProps, 'metric' | 'selectedItem' | 'onClose'>) {
+}: Pick<
+  StatusDetailProps,
+  'metric' | 'selectedItem' | 'onBack' | 'backButtonRef' | 'onClose'
+>) {
   return (
     <Header>
-      <HeaderContent>
-        <Eyebrow>{METRIC_LABELS[metric]} 상세 현황</Eyebrow>
-        <Title>
-          {selectedItem ? `${selectedItem.districtName} 상세` : '자치구 상세'}
-        </Title>
-        {selectedItem ? (
-          <HeaderMetric>
-            <HeaderValue>
-              {formatStatusValue(metric, selectedItem.value)}
-            </HeaderValue>
-            <HeaderChange
-              $tone={getChangeTone(metric, selectedItem.changeRate)}
-            >
-              <span>{getChangeCue(metric, selectedItem.changeRate)}</span>
-              <span>{formatStatusChange(selectedItem.changeRate)}</span>
-            </HeaderChange>
-          </HeaderMetric>
+      <HeaderMain>
+        {onBack ? (
+          <BackButton
+            ref={backButtonRef}
+            aria-label="상위 10개로 돌아가기"
+            type="button"
+            onClick={onBack}
+          >
+            <ArrowLeft aria-hidden="true" size={20} strokeWidth={2} />
+          </BackButton>
         ) : null}
-      </HeaderContent>
+        <HeaderContent>
+          <Eyebrow>{METRIC_LABELS[metric]} 상세 현황</Eyebrow>
+          <Title>
+            {selectedItem ? `${selectedItem.districtName} 상세` : '자치구 상세'}
+          </Title>
+          {selectedItem ? (
+            <HeaderMetric>
+              <HeaderValue>
+                {formatStatusValue(metric, selectedItem.value)}
+              </HeaderValue>
+              <HeaderChange
+                $tone={getChangeTone(metric, selectedItem.changeRate)}
+              >
+                <span>{getChangeCue(metric, selectedItem.changeRate)}</span>
+                <span>{formatStatusChange(selectedItem.changeRate)}</span>
+              </HeaderChange>
+            </HeaderMetric>
+          ) : null}
+        </HeaderContent>
+      </HeaderMain>
       {onClose ? (
         <CloseButton type="button" onClick={onClose}>
           닫기
@@ -655,12 +710,16 @@ export default function StatusDetail({
   isLoading,
   errorMessage,
   onRetry,
+  onBack,
+  backButtonRef,
   onClose,
 }: StatusDetailProps) {
   return (
     <Root aria-busy={isLoading || undefined}>
       <DetailHeader
+        backButtonRef={backButtonRef}
         metric={metric}
+        onBack={onBack}
         onClose={onClose}
         selectedItem={selectedItem}
       />

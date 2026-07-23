@@ -3,9 +3,21 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 
+import type { StatusRankedItem } from '@/types/status'
 import StatusMobileSheet from './status-mobile-sheet'
 
-const renderSheet = (snap: 'collapsed' | 'expanded') => {
+const selectedItem: StatusRankedItem = {
+  rank: 1,
+  districtCode: '11650',
+  districtName: '서초구',
+  value: 123456,
+  changeRate: 4.2,
+}
+
+const renderSheet = (
+  snap: 'collapsed' | 'expanded',
+  selectedItemOverride: StatusRankedItem | null = null,
+) => {
   const styleSheet = new ServerStyleSheet()
 
   try {
@@ -14,7 +26,7 @@ const renderSheet = (snap: 'collapsed' | 'expanded') => {
         createElement(StatusMobileSheet, {
           metric: 'footTraffic',
           items: [],
-          selectedItem: null,
+          selectedItem: selectedItemOverride,
           detail: null,
           isDetailLoading: false,
           detailErrorMessage: null,
@@ -102,6 +114,23 @@ describe('StatusMobileSheet', () => {
     expect(expandedBodyStyles).not.toContain('visibility:hidden')
     expect(expandedBodyStyles).not.toContain('pointer-events:none')
     expect(expandedBodyStyles).not.toContain('overflow:hidden')
+  })
+
+  it('상세 콘텐츠를 축소하지 않고 본문 스크롤 높이에 포함한다', () => {
+    const expanded = renderSheet('expanded', selectedItem)
+    const expandedBodyStyles = getBodyStyles(expanded.markup, expanded.styles)
+
+    expect(expandedBodyStyles).toContain('grid-auto-rows:max-content')
+  })
+
+  it('상세 헤더에 아이콘 뒤로가기 버튼을 표시한다', () => {
+    const { markup } = renderSheet('expanded', selectedItem)
+
+    expect(markup).toContain('aria-label="상위 10개로 돌아가기"')
+    expect(markup).toMatch(
+      /<button[^>]*aria-label="상위 10개로 돌아가기"[^>]*><svg/,
+    )
+    expect(markup).not.toContain('>상위 10개로 돌아가기</button>')
   })
 
   it('공유 높이 상수와 테두리를 제외한 핸들 높이를 스타일에 반영한다', () => {
