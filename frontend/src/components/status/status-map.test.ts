@@ -23,6 +23,29 @@ const items: StatusRankedItem[] = [
   },
 ]
 
+const MINIMUM_MOBILE_INNER_MAP_WIDTH_PX = 343
+const STATUS_MAP_VIEW_BOX_WIDTH = 800
+const SELECTED_FOUR_CHARACTER_LABEL_SIZE_PX = {
+  width: 52.58,
+  height: 39,
+} as const
+const FOCUS_OUTLINE_WIDTH_PX = 2
+const FOCUS_OUTLINE_OFFSET_PX = 2
+const requiredTopTenCollisionFootprint = {
+  width: Math.ceil(
+    ((SELECTED_FOUR_CHARACTER_LABEL_SIZE_PX.width +
+      2 * (FOCUS_OUTLINE_WIDTH_PX + FOCUS_OUTLINE_OFFSET_PX)) /
+      MINIMUM_MOBILE_INNER_MAP_WIDTH_PX) *
+      STATUS_MAP_VIEW_BOX_WIDTH,
+  ),
+  height: Math.ceil(
+    ((SELECTED_FOUR_CHARACTER_LABEL_SIZE_PX.height +
+      2 * (FOCUS_OUTLINE_WIDTH_PX + FOCUS_OUTLINE_OFFSET_PX)) /
+      MINIMUM_MOBILE_INNER_MAP_WIDTH_PX) *
+      STATUS_MAP_VIEW_BOX_WIDTH,
+  ),
+} as const
+
 const renderMap = (
   props: Partial<React.ComponentProps<typeof StatusMap>> = {},
 ) =>
@@ -90,20 +113,61 @@ describe('StatusMap', () => {
     for (const label of first) {
       expect(label.originalX).toBe(400)
       expect(label.originalY).toBe(310)
-      expect(label.displayX).toBeGreaterThanOrEqual(43)
-      expect(label.displayX).toBeLessThanOrEqual(757)
-      expect(label.displayY).toBeGreaterThanOrEqual(38)
-      expect(label.displayY).toBeLessThanOrEqual(582)
+      expect(label.displayX).toBeGreaterThanOrEqual(
+        requiredTopTenCollisionFootprint.width / 2,
+      )
+      expect(label.displayX).toBeLessThanOrEqual(
+        STATUS_MAP_VIEW_BOX_WIDTH - requiredTopTenCollisionFootprint.width / 2,
+      )
+      expect(label.displayY).toBeGreaterThanOrEqual(
+        requiredTopTenCollisionFootprint.height / 2,
+      )
+      expect(label.displayY).toBeLessThanOrEqual(
+        620 - requiredTopTenCollisionFootprint.height / 2,
+      )
     }
 
     for (const [index, label] of first.entries()) {
       for (const other of first.slice(index + 1)) {
         expect(
-          Math.abs(label.displayX - other.displayX) >= 86 ||
-            Math.abs(label.displayY - other.displayY) >= 76,
+          Math.abs(label.displayX - other.displayX) >=
+            requiredTopTenCollisionFootprint.width ||
+            Math.abs(label.displayY - other.displayY) >=
+              requiredTopTenCollisionFootprint.height,
         ).toBe(true)
       }
     }
+  })
+
+  it('최소 375px 모바일에서 충돌 영역이 선택 라벨과 포커스 외곽을 덮는다', () => {
+    expect(requiredTopTenCollisionFootprint).toEqual({
+      width: 142,
+      height: 110,
+    })
+
+    const footprintAtMinimumMobileWidth = {
+      width:
+        (requiredTopTenCollisionFootprint.width / STATUS_MAP_VIEW_BOX_WIDTH) *
+        MINIMUM_MOBILE_INNER_MAP_WIDTH_PX,
+      height:
+        (requiredTopTenCollisionFootprint.height / STATUS_MAP_VIEW_BOX_WIDTH) *
+        MINIMUM_MOBILE_INNER_MAP_WIDTH_PX,
+    }
+    const selectedLabelWithFocusFootprint = {
+      width:
+        SELECTED_FOUR_CHARACTER_LABEL_SIZE_PX.width +
+        2 * (FOCUS_OUTLINE_WIDTH_PX + FOCUS_OUTLINE_OFFSET_PX),
+      height:
+        SELECTED_FOUR_CHARACTER_LABEL_SIZE_PX.height +
+        2 * (FOCUS_OUTLINE_WIDTH_PX + FOCUS_OUTLINE_OFFSET_PX),
+    }
+
+    expect(footprintAtMinimumMobileWidth.width).toBeGreaterThanOrEqual(
+      selectedLabelWithFocusFootprint.width,
+    )
+    expect(footprintAtMinimumMobileWidth.height).toBeGreaterThanOrEqual(
+      selectedLabelWithFocusFootprint.height,
+    )
   })
 
   it('충돌한 Top10 라벨에만 중심과 표시 위치를 잇는 리더 라인을 렌더링한다', () => {

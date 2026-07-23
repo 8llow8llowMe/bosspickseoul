@@ -206,27 +206,72 @@ const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
     ? '지도를 눌러 구별 현황 바텀시트 펼치기'
     : '지도를 더 보기 위해 구별 현황 바텀시트 최소화'
 
-const TOP_TEN_LABEL_BOX = {
-  width: 86,
-  height: 76,
+const STATUS_MAP_VIEW_BOX_SIZE = {
+  width: 800,
+  height: 620,
+} as const
+
+// 최소 지원 375px 뷰포트에서 좌우 여백을 제외한 지도 내부 폭입니다.
+const MINIMUM_SUPPORTED_MOBILE_VIEWPORT_WIDTH_PX = 375
+const MINIMUM_SUPPORTED_MOBILE_HORIZONTAL_GUTTER_PX = 16
+const MINIMUM_SUPPORTED_MOBILE_INNER_MAP_WIDTH_PX =
+  MINIMUM_SUPPORTED_MOBILE_VIEWPORT_WIDTH_PX -
+  2 * MINIMUM_SUPPORTED_MOBILE_HORIZONTAL_GUTTER_PX
+const SELECTED_FOUR_CHARACTER_RANK_LABEL_SIZE_PX = {
+  width: 52.58,
+  height: 39,
+} as const
+const RANK_LABEL_FOCUS_OUTLINE_WIDTH_PX = 2
+const RANK_LABEL_FOCUS_OUTLINE_OFFSET_PX = 2
+const RANK_LABEL_FOCUS_OUTSET_PX =
+  RANK_LABEL_FOCUS_OUTLINE_WIDTH_PX + RANK_LABEL_FOCUS_OUTLINE_OFFSET_PX
+
+const TOP_TEN_LABEL_COLLISION_FOOTPRINT = {
+  width: Math.ceil(
+    ((SELECTED_FOUR_CHARACTER_RANK_LABEL_SIZE_PX.width +
+      2 * RANK_LABEL_FOCUS_OUTSET_PX) /
+      MINIMUM_SUPPORTED_MOBILE_INNER_MAP_WIDTH_PX) *
+      STATUS_MAP_VIEW_BOX_SIZE.width,
+  ),
+  height: Math.ceil(
+    ((SELECTED_FOUR_CHARACTER_RANK_LABEL_SIZE_PX.height +
+      2 * RANK_LABEL_FOCUS_OUTSET_PX) /
+      MINIMUM_SUPPORTED_MOBILE_INNER_MAP_WIDTH_PX) *
+      STATUS_MAP_VIEW_BOX_SIZE.width,
+  ),
 } as const
 
 const TOP_TEN_LABEL_SAFE_BOUNDS = {
-  minX: TOP_TEN_LABEL_BOX.width / 2,
-  maxX: 800 - TOP_TEN_LABEL_BOX.width / 2,
-  minY: TOP_TEN_LABEL_BOX.height / 2,
-  maxY: 620 - TOP_TEN_LABEL_BOX.height / 2,
+  minX: TOP_TEN_LABEL_COLLISION_FOOTPRINT.width / 2,
+  maxX:
+    STATUS_MAP_VIEW_BOX_SIZE.width -
+    TOP_TEN_LABEL_COLLISION_FOOTPRINT.width / 2,
+  minY: TOP_TEN_LABEL_COLLISION_FOOTPRINT.height / 2,
+  maxY:
+    STATUS_MAP_VIEW_BOX_SIZE.height -
+    TOP_TEN_LABEL_COLLISION_FOOTPRINT.height / 2,
 } as const
 
+const TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS = 4
+const TOP_TEN_LABEL_CANDIDATE_GRID_SIZE =
+  TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS * 2 + 1
+
 const TOP_TEN_LABEL_CANDIDATE_OFFSETS = Array.from(
-  { length: 9 * 9 },
+  {
+    length:
+      TOP_TEN_LABEL_CANDIDATE_GRID_SIZE * TOP_TEN_LABEL_CANDIDATE_GRID_SIZE,
+  },
   (_, index) => {
-    const gridX = (index % 9) - 4
-    const gridY = Math.floor(index / 9) - 4
+    const gridX =
+      (index % TOP_TEN_LABEL_CANDIDATE_GRID_SIZE) -
+      TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS
+    const gridY =
+      Math.floor(index / TOP_TEN_LABEL_CANDIDATE_GRID_SIZE) -
+      TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS
 
     return {
-      x: gridX * TOP_TEN_LABEL_BOX.width,
-      y: gridY * TOP_TEN_LABEL_BOX.height,
+      x: gridX * TOP_TEN_LABEL_COLLISION_FOOTPRINT.width,
+      y: gridY * TOP_TEN_LABEL_COLLISION_FOOTPRINT.height,
     }
   },
 ).sort((first, second) => {
@@ -256,8 +301,10 @@ const hasTopTenLabelCollision = (
 ) =>
   positionedLabels.some(
     label =>
-      Math.abs(candidate.displayX - label.displayX) < TOP_TEN_LABEL_BOX.width &&
-      Math.abs(candidate.displayY - label.displayY) < TOP_TEN_LABEL_BOX.height,
+      Math.abs(candidate.displayX - label.displayX) <
+        TOP_TEN_LABEL_COLLISION_FOOTPRINT.width &&
+      Math.abs(candidate.displayY - label.displayY) <
+        TOP_TEN_LABEL_COLLISION_FOOTPRINT.height,
   )
 
 export function layoutStatusMapTopTenLabels(
