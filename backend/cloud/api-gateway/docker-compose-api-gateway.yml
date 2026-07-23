@@ -28,6 +28,13 @@ services:
   api-gateway-dev:
     image: bosspickseoul-api-gateway:latest
     container_name: bosspickseoul-api-gateway-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: cloud
+      observability.service: api-gateway
+      observability.env: dev
+      observability.application: ${API_GATEWAY_APP_NAME}
+      observability.deployment: bosspickseoul-api-gateway-dev
     build:
       context: .
       dockerfile: api-gateway.Dockerfile
@@ -44,6 +51,13 @@ services:
   api-gateway-prod:
     image: bosspickseoul-api-gateway:latest
     container_name: bosspickseoul-api-gateway-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: cloud
+      observability.service: api-gateway
+      observability.env: prod
+      observability.application: ${API_GATEWAY_APP_NAME}
+      observability.deployment: bosspickseoul-api-gateway-prod
     build:
       context: .
       dockerfile: api-gateway.Dockerfile

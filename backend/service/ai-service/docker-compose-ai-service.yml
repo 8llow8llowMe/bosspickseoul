@@ -36,6 +36,13 @@ services:
   ai-service-dev:
     image: bosspickseoul-ai-service:latest
     container_name: bosspickseoul-ai-service-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: ai-service
+      observability.env: dev
+      observability.application: ${AI_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-ai-service-dev
     build:
       context: .
       dockerfile: ai-service.Dockerfile
@@ -52,6 +59,13 @@ services:
   ai-service-prod:
     image: bosspickseoul-ai-service:latest
     container_name: bosspickseoul-ai-service-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: ai-service
+      observability.env: prod
+      observability.application: ${AI_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-ai-service-prod
     build:
       context: .
       dockerfile: ai-service.Dockerfile

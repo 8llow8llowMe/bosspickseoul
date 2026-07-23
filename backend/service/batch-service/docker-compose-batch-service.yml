@@ -20,6 +20,13 @@ services:
   batch-service-dev:
     image: bosspickseoul-batch-service:latest
     container_name: bosspickseoul-batch-service-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: batch-service
+      observability.env: dev
+      observability.application: ${BATCH_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-batch-service-dev
     build:
       context: .
       dockerfile: batch-service.Dockerfile
@@ -36,6 +43,13 @@ services:
   batch-service-prod:
     image: bosspickseoul-batch-service:latest
     container_name: bosspickseoul-batch-service-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: batch-service
+      observability.env: prod
+      observability.application: ${BATCH_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-batch-service-prod
     build:
       context: .
       dockerfile: batch-service.Dockerfile

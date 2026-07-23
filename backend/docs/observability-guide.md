@@ -69,23 +69,39 @@ management:
 | commercial-service | `http://192.168.0.13:6083/actuator/prometheus` |
 | ai-service | `http://192.168.0.13:6085/actuator/prometheus` |
 | community-service | `http://192.168.0.13:6086/actuator/prometheus` |
+| batch-service | `http://192.168.0.13:6080/actuator/prometheus` |
 
-batch-service는 상시 API 서버로 운영하지 않을 수 있으므로, 컨테이너를 띄우는 시점에만 Prometheus target에 추가합니다.
+prod 컨테이너는 동일한 순서의 `9xxx` host port를 사용합니다. 실행하지 않는 target은 Prometheus와 Grafana에서 `DOWN`으로 표시됩니다.
+
+## Docker 관측 라벨 계약
+
+각 Compose 서비스는 로그 수집기가 정규식으로 이름을 추측하지 않도록 다음 `observability.*` 라벨을 명시합니다.
+
+| Docker label | 예시 | 용도 |
+| --- | --- | --- |
+| `observability.project` | `bosspickseoul` | 프로젝트 구분 |
+| `observability.group` | `service` | `service` 또는 `cloud` |
+| `observability.service` | `auth-service` | 논리 서비스 |
+| `observability.env` | `dev` | 배포 환경 |
+| `observability.application` | `auth-service` | Spring/Eureka 애플리케이션 |
+| `observability.deployment` | `bosspickseoul-auth-service-dev` | Docker 배포 단위 |
+
+`spring.application.name`은 Eureka 서비스 탐색 ID이므로 모니터링만을 위해 컨테이너명으로 변경하지 않습니다. Grafana의 기본 필터는 `service`를 사용하고, Docker 실행 단위가 필요할 때 `container` 또는 `deployment`를 사용합니다. Prometheus `instance`는 실제 scrape endpoint인 `192.168.0.13:6081` 형태를 유지합니다.
 
 ## Grafana 1차 대시보드 추천
 
 | 대시보드 | 핵심 지표 |
 | --- | --- |
-| Infra Overview | host CPU, RAM, disk, network, container up/down |
-| Backend Service Metrics | 서비스별 up, JVM heap, GC, thread, HTTP latency, 4xx/5xx |
-| API Gateway Overview | Gateway 요청량, route별 latency, 인증 실패, Redis 연결 상태 |
-| AI Service Jobs | job 상태, timeout, worker queue, token usage, cache hit/miss |
-| Service Logs | 서비스별 WARN/ERROR, 배포 직후 로그, 재시작 로그 |
+| Backend Overview | 서비스별 UP/DOWN, 처리량, p95, heap, 5xx |
+| Backend Logs | 서비스별 로그 수집량, WARN/ERROR, 실시간 로그 |
+| JPA Repository | Repository 호출률, 평균 응답시간, 오류 |
+| HTTP Performance | URI 처리량, p50/p95/p99, 상태 코드 |
+| JVM | heap, CPU, thread, GC pause |
 
 ## 운영 기준
 
-- dev와 prod는 Prometheus job 또는 `env` label로 분리합니다.
-- 대시보드는 `project`, `env`, `service`, `application` label을 변수로 사용합니다.
+- Prometheus job은 `bosspickseoul-service`, `bosspickseoul-cloud`로 분리합니다.
+- 대시보드는 `project`, `service_group`, `env`, `host`, `service`, `instance`를 기본 변수로 사용합니다.
 - Loki는 라즈베리파이 2GB monitoring 서버에서는 기본 off로 두고 필요할 때만 켭니다.
 - Actuator endpoint는 내부망/VPN/리버스 프록시 보호 범위에서만 접근되도록 운영합니다.
 - 운영 서버가 분리되면 backend-1, backend-2처럼 host label을 명확히 붙입니다.

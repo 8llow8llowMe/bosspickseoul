@@ -22,6 +22,13 @@ services:
   community-service-dev:
     image: bosspickseoul-community-service:latest
     container_name: bosspickseoul-community-service-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: community-service
+      observability.env: dev
+      observability.application: ${COMMUNITY_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-community-service-dev
     build:
       context: .
       dockerfile: community-service.Dockerfile
@@ -38,6 +45,13 @@ services:
   community-service-prod:
     image: bosspickseoul-community-service:latest
     container_name: bosspickseoul-community-service-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: community-service
+      observability.env: prod
+      observability.application: ${COMMUNITY_SERVICE_APP_NAME}
+      observability.deployment: bosspickseoul-community-service-prod
     build:
       context: .
       dockerfile: community-service.Dockerfile

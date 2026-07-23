@@ -14,6 +14,13 @@ services:
   service-discovery-dev:
     image: bosspickseoul-service-discovery:latest
     container_name: bosspickseoul-service-discovery-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: cloud
+      observability.service: service-discovery
+      observability.env: dev
+      observability.application: ${SERVICE_DISCOVERY_APP_NAME}
+      observability.deployment: bosspickseoul-service-discovery-dev
     build:
       context: .
       dockerfile: service-discovery.Dockerfile
@@ -30,6 +37,13 @@ services:
   service-discovery-prod:
     image: bosspickseoul-service-discovery:latest
     container_name: bosspickseoul-service-discovery-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: cloud
+      observability.service: service-discovery
+      observability.env: prod
+      observability.application: ${SERVICE_DISCOVERY_APP_NAME}
+      observability.deployment: bosspickseoul-service-discovery-prod
     build:
       context: .
       dockerfile: service-discovery.Dockerfile
