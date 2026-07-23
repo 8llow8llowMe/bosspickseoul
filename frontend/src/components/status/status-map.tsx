@@ -10,6 +10,7 @@ import {
 import {
   createStatusMapLabels,
   findSelectedStatusMapFeature,
+  type StatusMapLabel,
 } from '@/lib/status/status-map-model'
 import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
@@ -53,6 +54,7 @@ const MapViewport = styled.div`
   z-index: 1;
   width: min(100cqw, 129.032258cqh);
   height: min(100cqh, 77.5cqw);
+  pointer-events: none;
   transform: translate(-50%, -50%);
 `
 
@@ -77,6 +79,14 @@ const SelectedDistrictPath = styled.path`
   fill-opacity: 0.5;
   stroke: var(--color-primary-600);
   stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+`
+
+const LabelLeaderLine = styled.path`
+  fill: none;
+  stroke: var(--color-border-300);
+  stroke-dasharray: 3 3;
+  stroke-width: 1px;
   vector-effect: non-scaling-stroke;
 `
 
@@ -105,20 +115,16 @@ const MapLabelLayer = styled.div`
 const labelPosition = css<{
   $x: number
   $y: number
-  $offsetX: number
-  $offsetY: number
 }>`
   position: absolute;
-  top: ${props => ((props.$y + props.$offsetY) / 620) * 100}%;
-  left: ${props => ((props.$x + props.$offsetX) / 800) * 100}%;
+  top: ${props => (props.$y / 620) * 100}%;
+  left: ${props => (props.$x / 800) * 100}%;
   transform: translate(-50%, -50%);
 `
 
 const DistrictLabel = styled.div<{
   $x: number
   $y: number
-  $offsetX: number
-  $offsetY: number
 }>`
   ${labelPosition}
   z-index: 2;
@@ -136,8 +142,6 @@ const RankedDistrictLabel = styled.button<{
   $selected: boolean
   $x: number
   $y: number
-  $offsetX: number
-  $offsetY: number
 }>`
   ${labelPosition}
   z-index: ${props => (props.$selected ? 4 : 3)};
@@ -202,15 +206,104 @@ const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
     ? '지도를 눌러 구별 현황 바텀시트 펼치기'
     : '지도를 더 보기 위해 구별 현황 바텀시트 최소화'
 
-const DENSE_DISTRICT_LABEL_OFFSETS: Readonly<
-  Record<string, { readonly x: number; readonly y: number }>
-> = {
-  '11650': { x: -36, y: 18 },
-  '11680': { x: 32, y: -18 },
+const TOP_TEN_LABEL_BOX = {
+  width: 86,
+  height: 76,
+} as const
+
+const TOP_TEN_LABEL_SAFE_BOUNDS = {
+  minX: TOP_TEN_LABEL_BOX.width / 2,
+  maxX: 800 - TOP_TEN_LABEL_BOX.width / 2,
+  minY: TOP_TEN_LABEL_BOX.height / 2,
+  maxY: 620 - TOP_TEN_LABEL_BOX.height / 2,
+} as const
+
+const TOP_TEN_LABEL_CANDIDATE_OFFSETS = Array.from(
+  { length: 9 * 9 },
+  (_, index) => {
+    const gridX = (index % 9) - 4
+    const gridY = Math.floor(index / 9) - 4
+
+    return {
+      x: gridX * TOP_TEN_LABEL_BOX.width,
+      y: gridY * TOP_TEN_LABEL_BOX.height,
+    }
+  },
+).sort((first, second) => {
+  const firstDistance = first.x ** 2 + first.y ** 2
+  const secondDistance = second.x ** 2 + second.y ** 2
+
+  return (
+    firstDistance - secondDistance || first.y - second.y || first.x - second.x
+  )
+})
+
+export type PositionedStatusMapTopTenLabel = {
+  districtCode: string
+  rank: number
+  originalX: number
+  originalY: number
+  displayX: number
+  displayY: number
 }
 
-const getLabelOffset = (districtCode: string) =>
-  DENSE_DISTRICT_LABEL_OFFSETS[districtCode] ?? { x: 0, y: 0 }
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max)
+
+const hasTopTenLabelCollision = (
+  candidate: Pick<PositionedStatusMapTopTenLabel, 'displayX' | 'displayY'>,
+  positionedLabels: readonly PositionedStatusMapTopTenLabel[],
+) =>
+  positionedLabels.some(
+    label =>
+      Math.abs(candidate.displayX - label.displayX) < TOP_TEN_LABEL_BOX.width &&
+      Math.abs(candidate.displayY - label.displayY) < TOP_TEN_LABEL_BOX.height,
+  )
+
+export function layoutStatusMapTopTenLabels(
+  labels: readonly StatusMapLabel[],
+): PositionedStatusMapTopTenLabel[] {
+  const rankedLabels = labels
+    .filter(
+      (label): label is StatusMapLabel & { rank: number } =>
+        label.isTopTen && label.rank !== null,
+    )
+    .sort(
+      (first, second) =>
+        first.rank - second.rank ||
+        first.districtCode.localeCompare(second.districtCode),
+    )
+  const positionedLabels: PositionedStatusMapTopTenLabel[] = []
+
+  for (const label of rankedLabels) {
+    const position = TOP_TEN_LABEL_CANDIDATE_OFFSETS.map(offset => ({
+      displayX: clamp(
+        label.x + offset.x,
+        TOP_TEN_LABEL_SAFE_BOUNDS.minX,
+        TOP_TEN_LABEL_SAFE_BOUNDS.maxX,
+      ),
+      displayY: clamp(
+        label.y + offset.y,
+        TOP_TEN_LABEL_SAFE_BOUNDS.minY,
+        TOP_TEN_LABEL_SAFE_BOUNDS.maxY,
+      ),
+    })).find(candidate => !hasTopTenLabelCollision(candidate, positionedLabels))
+
+    if (!position) {
+      throw new Error('Top10 지도 라벨을 충돌 없이 배치할 수 없습니다.')
+    }
+
+    positionedLabels.push({
+      districtCode: label.districtCode,
+      rank: label.rank,
+      originalX: label.x,
+      originalY: label.y,
+      ...position,
+    })
+  }
+
+  return positionedLabels
+}
 
 export default function StatusMap({
   metric,
@@ -221,6 +314,10 @@ export default function StatusMap({
   backgroundAction,
 }: StatusMapProps) {
   const labels = createStatusMapLabels(items, SEOUL_STATUS_FEATURES, districts)
+  const topTenLabelPositions = layoutStatusMapTopTenLabels(labels)
+  const topTenLabelPositionsByDistrictCode = new Map(
+    topTenLabelPositions.map(position => [position.districtCode, position]),
+  )
   const selectedFeature = findSelectedStatusMapFeature(
     SEOUL_STATUS_FEATURES,
     selectedDistrictCode,
@@ -238,6 +335,7 @@ export default function StatusMap({
         ) : null}
         <MapViewport data-status-map-label-viewport="800x620">
           <SeoulSilhouette
+            aria-hidden="true"
             data-status-map-shape-layer="800x620"
             preserveAspectRatio="xMidYMid meet"
             viewBox={SEOUL_STATUS_VIEW_BOX}
@@ -255,23 +353,32 @@ export default function StatusMap({
                 data-selected-district-code={selectedFeature.districtCode}
               />
             ) : null}
+            {topTenLabelPositions.map(position =>
+              position.originalX === position.displayX &&
+              position.originalY === position.displayY ? null : (
+                <LabelLeaderLine
+                  key={position.districtCode}
+                  d={`M ${position.originalX} ${position.originalY} L ${position.displayX} ${position.displayY}`}
+                  data-status-label-leader={position.districtCode}
+                />
+              ),
+            )}
           </SeoulSilhouette>
           <MapLabelLayer data-status-map-label-layer="800x620">
             {labels.map(label => {
               const isSelected = label.districtCode === selectedDistrictCode
-              const offset = getLabelOffset(label.districtCode)
-              const offsetValue = `${offset.x},${offset.y}`
+              const topTenLabelPosition =
+                topTenLabelPositionsByDistrictCode.get(label.districtCode)
+              const displayX = topTenLabelPosition?.displayX ?? label.x
+              const displayY = topTenLabelPosition?.displayY ?? label.y
 
               if (!label.isTopTen || label.rank === null) {
                 return (
                   <DistrictLabel
                     key={label.districtCode}
-                    $offsetX={offset.x}
-                    $offsetY={offset.y}
-                    $x={label.x}
-                    $y={label.y}
+                    $x={displayX}
+                    $y={displayY}
                     data-status-district-label={label.districtCode}
-                    data-status-label-offset={offsetValue}
                   >
                     {label.districtName}
                   </DistrictLabel>
@@ -281,15 +388,12 @@ export default function StatusMap({
               return (
                 <RankedDistrictLabel
                   key={label.districtCode}
-                  $offsetX={offset.x}
-                  $offsetY={offset.y}
                   $selected={isSelected}
-                  $x={label.x}
-                  $y={label.y}
+                  $x={displayX}
+                  $y={displayY}
                   aria-label={`${label.rank}위 ${label.districtName}, ${METRIC_LABELS[metric]} 기준`}
                   aria-pressed={isSelected}
                   data-status-district-label={label.districtCode}
-                  data-status-label-offset={offsetValue}
                   type="button"
                   onClick={() => onSelect(label.districtCode)}
                 >
