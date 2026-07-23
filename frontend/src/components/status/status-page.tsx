@@ -91,19 +91,65 @@ const MetricPanel = styled.section`
   min-width: 0;
 `
 
-const DesktopGrid = styled.div<{ $hasSelection: boolean }>`
-  --status-side-track: minmax(240px, 280px);
+const DesktopGrid = styled.div`
+  --status-side-track: 280px;
 
   display: grid;
-  grid-template-columns: ${props =>
-    props.$hasSelection
-      ? 'var(--status-side-track) var(--status-side-track) minmax(360px, 1fr)'
-      : 'var(--status-side-track) minmax(360px, 1fr)'};
+  grid-template-columns: var(--status-side-track) minmax(0, 1fr);
   align-items: start;
   gap: 20px;
 
   @media (max-width: 1023px) {
     display: none;
+  }
+`
+
+const DesktopContent = styled.div`
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0px) minmax(360px, 1fr);
+  align-items: start;
+  column-gap: 0;
+  transition:
+    grid-template-columns var(--motion-standard) var(--ease-standard),
+    column-gap var(--motion-standard) var(--ease-standard);
+
+  &[data-has-selection='true'] {
+    grid-template-columns: minmax(0, var(--status-side-track)) minmax(
+        360px,
+        1fr
+      );
+    column-gap: 20px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`
+
+const DesktopDetailSlot = styled.div`
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-16px);
+  transition:
+    opacity var(--motion-standard) var(--ease-standard),
+    transform var(--motion-standard) var(--ease-standard);
+
+  &[data-has-selection='true'] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  & > article {
+    width: 100%;
+    min-width: 240px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `
 
@@ -426,7 +472,7 @@ function StatusPageContent() {
           id={METRIC_PANEL_ID}
           role="tabpanel"
         >
-          <DesktopGrid $hasSelection={selectedItem !== null}>
+          <DesktopGrid>
             <DesktopPanel>
               <StatusTopTen
                 items={currentItems}
@@ -436,33 +482,37 @@ function StatusPageContent() {
               />
             </DesktopPanel>
 
-            {selectedItem ? (
-              <StatusDetail
-                detail={detail}
-                errorMessage={detailErrorMessage}
-                isLoading={isDetailLoading}
-                metric={metric}
-                selectedItem={selectedItem}
-                onClose={handleClearDistrict}
-                onRetry={() => void detailQuery.refetch()}
-              />
-            ) : null}
+            <DesktopContent data-has-selection={selectedItem !== null}>
+              <DesktopDetailSlot data-has-selection={selectedItem !== null}>
+                {selectedItem ? (
+                  <StatusDetail
+                    detail={detail}
+                    errorMessage={detailErrorMessage}
+                    isLoading={isDetailLoading}
+                    metric={metric}
+                    selectedItem={selectedItem}
+                    onClose={handleClearDistrict}
+                    onRetry={() => void detailQuery.refetch()}
+                  />
+                ) : null}
+              </DesktopDetailSlot>
 
-            <MapPanel>
-              <MapHeading>
-                <MapTitle>서울 자치구 지도</MapTitle>
-                <MapDescription>
-                  현재 상위 10개 자치구의 위치와 순위를 지도에서 비교할 수
-                  있습니다.
-                </MapDescription>
-              </MapHeading>
-              <StatusMap
-                items={currentItems}
-                metric={metric}
-                selectedDistrictCode={selectedDistrictCode}
-                onSelect={handleDistrictSelect}
-              />
-            </MapPanel>
+              <MapPanel>
+                <MapHeading>
+                  <MapTitle>서울 자치구 지도</MapTitle>
+                  <MapDescription>
+                    현재 상위 10개 자치구의 위치와 순위를 지도에서 비교할 수
+                    있습니다.
+                  </MapDescription>
+                </MapHeading>
+                <StatusMap
+                  items={currentItems}
+                  metric={metric}
+                  selectedDistrictCode={selectedDistrictCode}
+                  onSelect={handleDistrictSelect}
+                />
+              </MapPanel>
+            </DesktopContent>
           </DesktopGrid>
 
           <MobileStage
