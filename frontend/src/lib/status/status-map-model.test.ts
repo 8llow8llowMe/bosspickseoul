@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  createStatusMapMarkers,
+  createStatusMapLabels,
   findSelectedStatusMapFeature,
 } from './status-map-model'
 
-describe('createStatusMapMarkers', () => {
+describe('createStatusMapLabels', () => {
   const features = [
     {
       districtCode: '11110',
@@ -19,47 +19,14 @@ describe('createStatusMapMarkers', () => {
     },
   ]
 
-  it('keeps the first ten ranked items with their map coordinates', () => {
-    const items = Array.from({ length: 11 }, (_, index) => ({
-      rank: index + 1,
-      districtCode: index % 2 === 0 ? '11110' : '11140',
-      districtName: `자치구 ${index + 1}`,
-      value: (index + 1) * 100,
-      changeRate: index + 0.5,
-    }))
+  const districtRecords = [
+    { gooCode: 11110, gooName: '종로구', gooCenter: [126.98, 37.57] },
+    { gooCode: 11140, gooName: '중구', gooCenter: [126.99, 37.56] },
+  ] as const
 
-    const markers = createStatusMapMarkers(items, features)
-
-    expect(markers).toHaveLength(10)
-    expect(markers[0]).toEqual({
-      rank: 1,
-      districtCode: '11110',
-      districtName: '자치구 1',
-      value: 100,
-      changeRate: 0.5,
-      x: 120,
-      y: 240,
-    })
-    expect(markers[9]).toMatchObject({
-      rank: 10,
-      districtName: '자치구 10',
-      value: 1_000,
-      changeRate: 9.5,
-      x: 320,
-      y: 440,
-    })
-  })
-
-  it('drops top-ten items without a district center', () => {
-    const markers = createStatusMapMarkers(
+  it('returns one label per mapped feature in feature order', () => {
+    const labels = createStatusMapLabels(
       [
-        {
-          rank: 1,
-          districtCode: '99999',
-          districtName: '없는 자치구',
-          value: 100,
-          changeRate: 10,
-        },
         {
           rank: 2,
           districtCode: '11140',
@@ -69,17 +36,54 @@ describe('createStatusMapMarkers', () => {
         },
       ],
       features,
+      districtRecords,
     )
 
-    expect(markers).toEqual([
+    expect(labels).toEqual([
       {
-        rank: 2,
+        districtCode: '11110',
+        districtName: '종로구',
+        x: 120,
+        y: 240,
+        rank: null,
+        isTopTen: false,
+      },
+      {
         districtCode: '11140',
         districtName: '중구',
-        value: 200,
-        changeRate: -2,
         x: 320,
         y: 440,
+        rank: 2,
+        isTopTen: true,
+      },
+    ])
+  })
+
+  it('does not attach a rank from an item after the first ten', () => {
+    const items = Array.from({ length: 11 }, (_, index) => ({
+      rank: index + 1,
+      districtCode: index === 10 ? '11110' : '99999',
+      districtName: `자치구 ${index + 1}`,
+      value: (index + 1) * 100,
+      changeRate: index,
+    }))
+
+    const labels = createStatusMapLabels(items, features, districtRecords)
+
+    expect(labels[0]).toMatchObject({ rank: null, isTopTen: false })
+  })
+
+  it('omits only features without a district name mapping', () => {
+    const labels = createStatusMapLabels([], features, [districtRecords[1]])
+
+    expect(labels).toEqual([
+      {
+        districtCode: '11140',
+        districtName: '중구',
+        x: 320,
+        y: 440,
+        rank: null,
+        isTopTen: false,
       },
     ])
   })
@@ -96,11 +100,13 @@ describe('createStatusMapMarkers', () => {
     ]
     const originalItems = structuredClone(items)
     const originalFeatures = structuredClone(features)
+    const originalDistrictRecords = structuredClone(districtRecords)
 
-    createStatusMapMarkers(items, features)
+    createStatusMapLabels(items, features, districtRecords)
 
     expect(items).toEqual(originalItems)
     expect(features).toEqual(originalFeatures)
+    expect(districtRecords).toEqual(originalDistrictRecords)
   })
 })
 

@@ -1,3 +1,4 @@
+import type { DistrictRecord } from '@/data/districts'
 import type { StatusRankedItem } from '@/types/status'
 
 export type StatusMapFeature = {
@@ -9,20 +10,43 @@ export type StatusMapFeature = {
   }
 }
 
-export type StatusMapMarker = StatusRankedItem & StatusMapFeature['center']
+export type StatusMapLabel = {
+  readonly districtCode: string
+  readonly districtName: string
+  readonly x: number
+  readonly y: number
+  readonly rank: number | null
+  readonly isTopTen: boolean
+}
 
-export function createStatusMapMarkers(
-  items: StatusRankedItem[],
+export function createStatusMapLabels(
+  items: readonly StatusRankedItem[],
   features: readonly StatusMapFeature[],
-): StatusMapMarker[] {
-  const featuresByDistrictCode = new Map(
-    features.map(feature => [feature.districtCode, feature]),
+  districtRecords: ReadonlyArray<Pick<DistrictRecord, 'gooCode' | 'gooName'>>,
+): StatusMapLabel[] {
+  const districtNamesByCode = new Map(
+    districtRecords.map(record => [String(record.gooCode), record.gooName]),
+  )
+  const topTenItemsByDistrictCode = new Map(
+    items.slice(0, 10).map(item => [item.districtCode, item]),
   )
 
-  return items.slice(0, 10).flatMap(item => {
-    const feature = featuresByDistrictCode.get(item.districtCode)
+  return features.flatMap(feature => {
+    const districtName = districtNamesByCode.get(feature.districtCode)
 
-    return feature ? [{ ...item, ...feature.center }] : []
+    if (districtName === undefined) return []
+
+    const topTenItem = topTenItemsByDistrictCode.get(feature.districtCode)
+
+    return [
+      {
+        districtCode: feature.districtCode,
+        districtName,
+        ...feature.center,
+        rank: topTenItem?.rank ?? null,
+        isTopTen: Boolean(topTenItem),
+      },
+    ]
   })
 }
 
