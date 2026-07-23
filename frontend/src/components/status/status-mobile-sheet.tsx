@@ -15,6 +15,9 @@ import {
   getStatusSheetHeightBounds,
   getNextSheetSnap,
   resolveSheetSnapFromDrag,
+  STATUS_SHEET_COLLAPSED_HEIGHT,
+  STATUS_SHEET_EXPANDED_RATIO,
+  STATUS_SHEET_MINIMUM_MAP_HEIGHT,
   type StatusSheetSnap,
 } from '@/lib/status/status-state'
 import type {
@@ -51,8 +54,14 @@ const Sheet = styled.section<{
   $isDragging: boolean
   $snap: StatusSheetSnap
 }>`
-  --status-sheet-collapsed-height: 52px;
-  --status-sheet-expanded-height: max(52px, min(66%, calc(100% - 180px)));
+  --status-sheet-collapsed-height: ${STATUS_SHEET_COLLAPSED_HEIGHT}px;
+  --status-sheet-expanded-height: max(
+    ${STATUS_SHEET_COLLAPSED_HEIGHT}px,
+    min(
+      ${STATUS_SHEET_EXPANDED_RATIO * 100}%,
+      calc(100% - ${STATUS_SHEET_MINIMUM_MAP_HEIGHT}px)
+    )
+  );
 
   position: absolute;
   z-index: 10;
@@ -94,8 +103,8 @@ const Sheet = styled.section<{
 
 const HandleButton = styled.button`
   width: 100%;
-  height: 52px;
-  min-height: 52px;
+  height: calc(var(--status-sheet-collapsed-height) - 1px);
+  min-height: calc(var(--status-sheet-collapsed-height) - 1px);
   display: flex;
   align-items: center;
   justify-content: center;
