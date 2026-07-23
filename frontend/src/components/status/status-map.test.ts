@@ -1,3 +1,4 @@
+import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -15,12 +16,12 @@ const item: StatusRankedItem = {
 describe('StatusMap', () => {
   it('선택한 자치구 폴리곤을 한 번만 강조한다', () => {
     const markup = renderToStaticMarkup(
-      <StatusMap
-        metric="footTraffic"
-        items={[item]}
-        selectedDistrictCode="11680"
-        onSelect={vi.fn()}
-      />,
+      createElement(StatusMap, {
+        metric: 'footTraffic',
+        items: [item],
+        selectedDistrictCode: '11680',
+        onSelect: vi.fn(),
+      }),
     )
 
     expect(markup.match(/data-selected-district-code="11680"/g)).toHaveLength(1)
@@ -28,21 +29,21 @@ describe('StatusMap', () => {
 
   it('바텀시트 최소화 콜백이 있을 때만 지도 배경 버튼을 렌더링한다', () => {
     const withBackgroundButton = renderToStaticMarkup(
-      <StatusMap
-        metric="footTraffic"
-        items={[item]}
-        selectedDistrictCode={null}
-        onSelect={vi.fn()}
-        onBackgroundClick={vi.fn()}
-      />,
+      createElement(StatusMap, {
+        metric: 'footTraffic',
+        items: [item],
+        selectedDistrictCode: null,
+        onSelect: vi.fn(),
+        onBackgroundClick: vi.fn(),
+      }),
     )
     const withoutBackgroundButton = renderToStaticMarkup(
-      <StatusMap
-        metric="footTraffic"
-        items={[item]}
-        selectedDistrictCode={null}
-        onSelect={vi.fn()}
-      />,
+      createElement(StatusMap, {
+        metric: 'footTraffic',
+        items: [item],
+        selectedDistrictCode: null,
+        onSelect: vi.fn(),
+      }),
     )
 
     expect(withBackgroundButton).toContain(
