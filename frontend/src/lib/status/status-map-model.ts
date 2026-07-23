@@ -27,9 +27,13 @@ export function createStatusMapLabels(
   const districtNamesByCode = new Map(
     districtRecords.map(record => [String(record.gooCode), record.gooName]),
   )
-  const topTenItemsByDistrictCode = new Map(
-    items.slice(0, 10).map(item => [item.districtCode, item]),
-  )
+  const topTenItemsByDistrictCode = new Map<string, StatusRankedItem>()
+
+  for (const item of items.slice(0, 10)) {
+    if (!topTenItemsByDistrictCode.has(item.districtCode)) {
+      topTenItemsByDistrictCode.set(item.districtCode, item)
+    }
+  }
 
   return features.flatMap(feature => {
     const districtName = districtNamesByCode.get(feature.districtCode)

@@ -73,6 +73,31 @@ describe('createStatusMapLabels', () => {
     expect(labels[0]).toMatchObject({ rank: null, isTopTen: false })
   })
 
+  it('keeps the first rank when a top-ten district appears more than once', () => {
+    const labels = createStatusMapLabels(
+      [
+        {
+          rank: 1,
+          districtCode: '11110',
+          districtName: '종로구',
+          value: 100,
+          changeRate: 5,
+        },
+        {
+          rank: 4,
+          districtCode: '11110',
+          districtName: '종로구',
+          value: 400,
+          changeRate: 10,
+        },
+      ],
+      features,
+      districtRecords,
+    )
+
+    expect(labels[0]).toMatchObject({ rank: 1, isTopTen: true })
+  })
+
   it('omits only features without a district name mapping', () => {
     const labels = createStatusMapLabels([], features, [districtRecords[1]])
 
