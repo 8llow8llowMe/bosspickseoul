@@ -8,12 +8,13 @@ import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { normalizeStatusTopTen } from '@/lib/status/status-adapter'
 import {
+  createCollapsedStatusSheetState,
   createStatusHref,
   createStatusQuery,
   isStatusSheetSingleSnap,
   normalizeStatusSelection,
   parseStatusMetric,
-  type StatusSheetSnap,
+  type StatusSheetState,
 } from '@/lib/status/status-state'
 import StatusDetail from './status-detail'
 import StatusFeedback from './status-feedback'
@@ -182,10 +183,10 @@ function StatusPageContent() {
     DEFAULT_SITE_HEADER_HEIGHT,
   )
   const [mobileStageHeight, setMobileStageHeight] = useState(0)
-  const [sheetState, setSheetState] = useState<{
-    districtCode: string | null
-    snap: StatusSheetSnap
-  }>({ districtCode: null, snap: 'collapsed' })
+  const [sheetState, setSheetState] = useState<StatusSheetState>({
+    districtCode: null,
+    snap: 'collapsed',
+  })
 
   const topTenQuery = useQuery({
     queryKey: ['status', 'topTen'],
@@ -359,6 +360,10 @@ function StatusPageContent() {
     pushStatusQuery(metric, null)
   }
 
+  const handleMapBackgroundClick = () => {
+    setSheetState(createCollapsedStatusSheetState(selectedDistrictCode))
+  }
+
   if (!topTen) {
     const isLoading = topTenQuery.isPending || topTenQuery.isFetching
 
@@ -469,6 +474,7 @@ function StatusPageContent() {
                 items={currentItems}
                 metric={metric}
                 selectedDistrictCode={selectedDistrictCode}
+                onBackgroundClick={handleMapBackgroundClick}
                 onSelect={handleDistrictSelect}
               />
             </MobileMapLayer>

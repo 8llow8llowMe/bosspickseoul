@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   applyStatusSheetContentTransition,
+  createCollapsedStatusSheetState,
   createStatusHref,
   createStatusQuery,
   getNextSheetSnap,
@@ -10,6 +11,22 @@ import {
   parseStatusMetric,
   resolveSheetSnapFromDrag,
 } from './status-state'
+
+describe('createCollapsedStatusSheetState', () => {
+  it('keeps the selected district while collapsing the sheet', () => {
+    expect(createCollapsedStatusSheetState('11560')).toEqual({
+      districtCode: '11560',
+      snap: 'collapsed',
+    })
+  })
+
+  it('keeps the exploration state when no district is selected', () => {
+    expect(createCollapsedStatusSheetState(null)).toEqual({
+      districtCode: null,
+      snap: 'collapsed',
+    })
+  })
+})
 
 describe('createStatusHref', () => {
   const query = new URLSearchParams('metric=sales&district=11680')

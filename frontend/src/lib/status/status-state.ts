@@ -9,6 +9,11 @@ const STATUS_METRICS: readonly StatusMetric[] = [
 
 export type StatusSheetSnap = 'collapsed' | 'expanded'
 
+export type StatusSheetState = {
+  districtCode: string | null
+  snap: StatusSheetSnap
+}
+
 type StatusSheetFocusTarget = {
   focus: (options?: FocusOptions) => void
 }
@@ -51,6 +56,10 @@ export const getNextSheetSnap = (
 
   return current === 'expanded' ? 'collapsed' : current
 }
+
+export const createCollapsedStatusSheetState = (
+  districtCode: string | null,
+): StatusSheetState => ({ districtCode, snap: 'collapsed' })
 
 export const applyStatusSheetContentTransition = ({
   body,
