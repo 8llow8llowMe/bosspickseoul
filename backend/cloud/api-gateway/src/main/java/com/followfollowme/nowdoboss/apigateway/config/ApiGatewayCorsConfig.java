@@ -20,7 +20,10 @@ public class ApiGatewayCorsConfig {
             "http://bosspickseoul-dev.store:[*]",
             "http://*.bosspickseoul-dev.store:[*]",
             "https://bosspickseoul.com",
-            "https://www.bosspickseoul.com"
+            "https://www.bosspickseoul.com",
+            // 집계 Swagger UI가 서빙되는 API 도메인 origin (auth-service 설정과 일관성 유지)
+            "https://api.bosspickseoul.com",
+            "https://api-dev.bosspickseoul.com"
         ));
 
         config.setAllowedHeaders(List.of("*"));
