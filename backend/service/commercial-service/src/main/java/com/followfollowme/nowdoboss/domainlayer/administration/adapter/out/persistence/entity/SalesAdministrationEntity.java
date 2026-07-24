@@ -25,7 +25,8 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "sales_administration",
     indexes = {
-        @Index(name = "idx_sales_administration_period_code_administration_code_service_code", columnList = "periodCode, administrationCode, serviceCode")
+        // MySQL 식별자 길이 한계(64자) 때문에 administration을 admin으로 축약한다. (원래 이름 69자 → DDL 실패)
+        @Index(name = "idx_sales_administration_period_code_admin_code_service_code", columnList = "periodCode, administrationCode, serviceCode")
     })
 public class SalesAdministrationEntity {
 
