@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import styled from 'styled-components'
 import {
   ActionRow,
@@ -20,6 +20,12 @@ import {
 } from '@/components/profile/profile-ui'
 import { updateMemberInfo, uploadProfileImage } from '@/lib/api/profile'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import {
+  applyProfileUpdateError,
+  canSubmitProfileUpdate,
+  handleProfileUpdateSuccess,
+  type ProfileUpdateMutationVariables,
+} from '@/lib/profile-update-mutation'
 import { useAuthStore } from '@/stores/auth-store'
 
 const PreviewWrap = styled.div`
@@ -51,8 +57,12 @@ type ProfileEditFormProps = {
 }
 
 function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
+  const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const updateGenerationRef = useRef(0)
   const setStoreSession = useAuthStore(state => state.setSession)
+  const hasHydrated = useAuthStore(state => state.hasHydrated)
+  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
   const [nickname, setNickname] = useState(memberInfo?.nickname ?? '')
   const [profileImage, setProfileImage] = useState(
     memberInfo?.profileImageUrl ?? null,
@@ -91,33 +101,46 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
   })
 
   const updateMutation = useMutation({
-    mutationFn: updateMemberInfo,
-    onSuccess: response => {
-      if (!isApiSuccess(response) || !memberInfo) {
-        setMessage({
-          tone: 'error',
-          text: getApiMessage(response, '프로필 정보를 수정하지 못했습니다.'),
-        })
-        return
-      }
-
-      setStoreSession({
-        ...memberInfo,
-        nickname,
-        profileImageUrl: profileImage ?? '',
-      })
-      setMessage({
-        tone: 'success',
-        text: '프로필 정보가 업데이트되었습니다.',
-      })
-    },
-    onError: () => {
-      setMessage({
-        tone: 'error',
-        text: '닉네임과 이미지를 확인한 뒤 다시 저장해주세요.',
+    mutationFn: ({ payload }: ProfileUpdateMutationVariables) =>
+      updateMemberInfo(payload),
+    onSuccess: (response, variables) =>
+      handleProfileUpdateSuccess({
+        response,
+        variables,
+        queryClient,
+        getCurrentMemberId: () =>
+          useAuthStore.getState().memberInfo?.memberId ?? null,
+        getActiveGeneration: () => updateGenerationRef.current,
+        onActiveSuccess: nextMemberInfo => {
+          setStoreSession(nextMemberInfo)
+          setMessage({
+            tone: 'success',
+            text: '프로필 정보가 업데이트되었습니다.',
+          })
+        },
+        onActiveError: text => {
+          setMessage({ tone: 'error', text })
+        },
+      }),
+    onError: (error, variables) => {
+      applyProfileUpdateError({
+        error,
+        variables,
+        currentMemberId: useAuthStore.getState().memberInfo?.memberId ?? null,
+        activeGeneration: updateGenerationRef.current,
+        onActiveError: text => {
+          setMessage({ tone: 'error', text })
+        },
       })
     },
   })
+
+  useEffect(
+    () => () => {
+      updateGenerationRef.current += 1
+    },
+    [],
+  )
 
   if (!memberInfo) {
     return (
@@ -144,11 +167,31 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setMessage(null)
+    const currentAuth = useAuthStore.getState()
+    const currentMemberInfo = currentAuth.memberInfo
 
+    if (
+      !currentMemberInfo ||
+      !canSubmitProfileUpdate({
+        hasHydrated,
+        isLoggedIn,
+        currentMemberId: currentMemberInfo.memberId,
+        renderedMemberId: memberInfo.memberId,
+      })
+    ) {
+      return
+    }
+
+    setMessage(null)
+    updateGenerationRef.current += 1
     updateMutation.mutate({
-      nickname,
-      profileImage: profileImage ?? '',
+      requestMemberId: currentMemberInfo.memberId,
+      generation: updateGenerationRef.current,
+      memberSnapshot: currentMemberInfo,
+      payload: {
+        nickname,
+        profileImage: profileImage ?? '',
+      },
     })
   }
 
@@ -201,7 +244,10 @@ function ProfileEditForm({ memberInfo }: ProfileEditFormProps) {
             />
           </Field>
 
-          <PrimaryButton type="submit" disabled={updateMutation.isPending}>
+          <PrimaryButton
+            type="submit"
+            disabled={!hasHydrated || !isLoggedIn || updateMutation.isPending}
+          >
             {updateMutation.isPending ? '저장 중...' : '수정사항 저장'}
           </PrimaryButton>
         </Form>

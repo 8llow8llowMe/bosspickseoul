@@ -5,7 +5,7 @@ import { createPageMetadata } from '@/lib/metadata'
 export const metadata: Metadata = createPageMetadata({
   title: '상권 추천',
   description:
-    '자치구와 행정동 기준으로 추천 상권을 비교하고, 관심 지역을 저장할 수 있습니다.',
+    '자치구·행정동·업종을 선택하고 행정동 안의 추천 상권 Top 5를 지도에서 비교합니다.',
   path: '/recommend',
   index: false,
 })

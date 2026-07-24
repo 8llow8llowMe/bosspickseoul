@@ -1,13 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Bookmark, Settings } from 'lucide-react'
 import styled from 'styled-components'
 import { getMemberInfoData } from '@/lib/api/profile'
-import { isApiSuccess } from '@/lib/api/response'
+import {
+  applyResolvedMemberInfoResponse,
+  getMemberInfoQueryKey,
+  isMemberInfoQueryEnabled,
+  resolveMemberInfoResponse,
+} from '@/lib/member-info-query'
 import { useAuthStore } from '@/stores/auth-store'
 
 const Container = styled.main`
@@ -160,31 +165,52 @@ export default function ProfileShell({ children }: ProfileShellProps) {
   const memberInfo = useAuthStore(state => state.memberInfo)
   const setSession = useAuthStore(state => state.setSession)
   const clearSession = useAuthStore(state => state.clearSession)
+  const requestedMemberId = memberInfo?.memberId ?? null
+  const isMemberQueryEnabled = isMemberInfoQueryEnabled(
+    requestedMemberId,
+    hasHydrated,
+    isLoggedIn,
+  )
 
   const memberQuery = useQuery({
-    queryKey: ['memberInfo'],
-    queryFn: getMemberInfoData,
-    enabled: hasHydrated && isLoggedIn,
+    queryKey: getMemberInfoQueryKey(requestedMemberId ?? ''),
+    queryFn: ({ signal }) => getMemberInfoData(signal),
+    enabled: isMemberQueryEnabled,
   })
+  const resolvedResponse = useMemo(
+    () => resolveMemberInfoResponse(memberQuery.data, requestedMemberId),
+    [memberQuery.data, requestedMemberId],
+  )
 
   useEffect(() => {
-    if (!memberQuery.data) {
-      return
-    }
-
-    if (isApiSuccess(memberQuery.data) && memberQuery.data.dataBody) {
-      setSession(memberQuery.data.dataBody)
-      return
-    }
-
-    clearSession()
-    router.replace('/login')
-  }, [clearSession, memberQuery.data, router, setSession])
+    applyResolvedMemberInfoResponse(resolvedResponse, {
+      setSession,
+      onError: () => {
+        clearSession()
+        router.replace('/login')
+      },
+    })
+  }, [clearSession, resolvedResponse, router, setSession])
 
   const resolvedMemberInfo =
-    memberQuery.data && isApiSuccess(memberQuery.data)
-      ? memberQuery.data.dataBody
+    resolvedResponse.status === 'success'
+      ? resolvedResponse.memberInfo
       : memberInfo
+
+  const profileError =
+    resolvedResponse.status === 'error'
+      ? resolvedResponse.message
+      : memberQuery.error instanceof Error
+        ? memberQuery.error.message
+        : null
+
+  if (profileError) {
+    return (
+      <LoadingState aria-live="assertive" role="alert">
+        {profileError}
+      </LoadingState>
+    )
+  }
 
   if (!resolvedMemberInfo) {
     return <LoadingState>프로필 정보를 불러오는 중입니다.</LoadingState>

@@ -7,6 +7,7 @@ BossPickSeoul FE 문서 인덱스. 작업 지도는 `../CLAUDE.md`.
 - `features/` — Feature 기준 명세(정본). 시작점: `features/_index.md`
 - `../DESIGN.md` — 디자인 시스템 정본
 - `engineering/` — 횡단 기술 규칙 (명세가 참조)
+- `api/` — dev Swagger/OpenAPI 스냅샷과 FE API 마이그레이션 검토
 
 ## 보조
 

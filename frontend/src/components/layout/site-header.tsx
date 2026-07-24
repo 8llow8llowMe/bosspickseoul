@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Bookmark,
   ChevronDown,
@@ -15,6 +15,8 @@ import {
   X,
 } from 'lucide-react'
 import styled from 'styled-components'
+import { clearMemberInfoQuery } from '@/lib/member-info-query'
+import { clearMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
 
 const Header = styled.header<{ $isScrolled: boolean }>`
@@ -341,6 +343,7 @@ const isPathActive = (pathname: string, href: string) => {
 export default function SiteHeader() {
   const pathname = usePathname()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const isHome = pathname === '/'
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const hasHydrated = useAuthStore(state => state.hasHydrated)
@@ -351,9 +354,14 @@ export default function SiteHeader() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(() => !isHome)
 
-  const logoutMutation = useMutation({
+  const logoutMutation = useMutation<Response, Error, string | null>({
     mutationFn: () => fetch('/api/auth/logout', { method: 'POST' }),
-    onSettled: () => {
+    onSettled: (...settlement) => {
+      const loggedOutMemberId = settlement[2]
+      if (loggedOutMemberId) {
+        void clearMemberBookmarksQuery(queryClient, loggedOutMemberId)
+        void clearMemberInfoQuery(queryClient, loggedOutMemberId)
+      }
       clearSession()
       setIsDropdownOpen(false)
       setIsMobileOpen(false)
@@ -489,7 +497,7 @@ export default function SiteHeader() {
                   <DropdownItem
                     role="menuitem"
                     type="button"
-                    onClick={() => logoutMutation.mutate()}
+                    onClick={() => logoutMutation.mutate(memberInfo.memberId)}
                   >
                     <IconSlot aria-hidden="true">
                       <LogOut />
@@ -538,7 +546,7 @@ export default function SiteHeader() {
                   {item.label}
                 </MobileLink>
               ))}
-              {hasHydrated && isLoggedIn ? (
+              {hasHydrated && isLoggedIn && memberInfo ? (
                 <>
                   {profileMenuItems.map(item => {
                     const ItemIcon = item.icon
@@ -558,7 +566,7 @@ export default function SiteHeader() {
                   })}
                   <DropdownItem
                     type="button"
-                    onClick={() => logoutMutation.mutate()}
+                    onClick={() => logoutMutation.mutate(memberInfo.memberId)}
                   >
                     <IconSlot aria-hidden="true">
                       <LogOut />

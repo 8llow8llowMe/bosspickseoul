@@ -1,0 +1,631 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BossPickSeoul 회원 및 인증/인가 서비스 관련 API 명세서",
+    "description": "Auth Service 전용",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Auth Service (단독 호출)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "인증/인가",
+      "description": "로그인, 로그아웃, 토큰 재발급 API를 제공합니다."
+    },
+    {
+      "name": "북마크",
+      "description": "상권/행정동/자치구 북마크 추가·삭제·목록 조회 API를 제공합니다."
+    },
+    {
+      "name": "회원",
+      "description": "회원 가입과 내 정보 조회 API를 제공합니다."
+    }
+  ],
+  "paths": {
+    "/api/v1/members/signup": {
+      "post": {
+        "tags": ["회원"],
+        "summary": "일반 회원가입",
+        "description": "일반 회원으로 가입합니다.",
+        "operationId": "generalSignup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberGeneralSignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/members/me/bookmarks": {
+      "get": {
+        "tags": ["북마크"],
+        "summary": "북마크 목록 조회",
+        "description": "내 북마크 목록을 최신순으로 커서 페이지네이션으로 조회합니다.",
+        "operationId": "getBookmarks",
+        "parameters": [
+          {
+            "name": "lastBookmarkId",
+            "in": "query",
+            "description": "마지막으로 조회한 북마크 아이디 (첫 페이지: 생략)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "조회 개수 (기본 10)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMemberBookmarksResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": ["북마크"],
+        "summary": "북마크 추가",
+        "description": "상권·행정동·자치구를 북마크에 추가합니다.",
+        "operationId": "addBookmark",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberBookmarkCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMemberBookmarkCreateResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/token/reissue": {
+      "post": {
+        "tags": ["인증/인가"],
+        "summary": "토큰 재발급",
+        "description": "리프레시 토큰으로 Access Token을 재발급합니다.",
+        "operationId": "reissueToken",
+        "parameters": [
+          {
+            "name": "refreshToken",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTokenReissueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["인증/인가"],
+        "summary": "로그아웃",
+        "description": "로그아웃하고 리프레시 토큰을 무효화합니다.",
+        "operationId": "logout",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["인증/인가"],
+        "summary": "일반 로그인",
+        "description": "이메일과 비밀번호로 로그인합니다.",
+        "operationId": "loginWithCredentials",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthGeneralLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAuthGeneralLoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/members/me": {
+      "get": {
+        "tags": ["회원"],
+        "summary": "내 회원 정보 조회",
+        "description": "로그인한 회원의 내 정보를 조회합니다.",
+        "operationId": "getMyInfo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMemberMyInfoResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/members/me/bookmarks/{bookmarkId}": {
+      "delete": {
+        "tags": ["북마크"],
+        "summary": "북마크 삭제",
+        "description": "북마크 아이디로 본인 북마크를 삭제합니다.",
+        "operationId": "removeBookmark",
+        "parameters": [
+          {
+            "name": "bookmarkId",
+            "in": "path",
+            "description": "북마크 아이디",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MemberGeneralSignupRequest": {
+        "type": "object",
+        "description": "일반 회원가입 요청 DTO",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "이메일 주소",
+            "example": "user@example.com",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "description": "비밀번호 (영문자, 숫자, 특수문자 포함 8~20자)",
+            "example": "password123!",
+            "maxLength": 20,
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()\\-_=+\\[\\]{};:'\",.<>/?\\\\|])\\S{8,20}$"
+          },
+          "name": {
+            "type": "string",
+            "description": "회원 이름",
+            "example": "홍길동",
+            "maxLength": 10,
+            "minLength": 0
+          },
+          "nickname": {
+            "type": "string",
+            "description": "회원 닉네임",
+            "example": "길동짱",
+            "maxLength": 10,
+            "minLength": 0
+          }
+        }
+      },
+      "DataHeader": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "resultCode": {
+            "type": "string"
+          },
+          "resultMessage": {
+            "type": "object"
+          }
+        }
+      },
+      "ResponseVoid": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "type": "object"
+          }
+        }
+      },
+      "MemberBookmarkCreateRequest": {
+        "type": "object",
+        "description": "북마크 추가 요청 DTO",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "description": "북마크 대상 타입",
+            "enum": ["COMMERCIAL", "ADMINISTRATION", "DISTRICT"],
+            "example": "COMMERCIAL"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "북마크 대상 코드",
+            "example": 3110008,
+            "maxLength": 20,
+            "minLength": 0
+          },
+          "targetName": {
+            "type": "string",
+            "description": "북마크 대상 이름 (스냅샷)",
+            "example": "강남역 상권",
+            "maxLength": 80,
+            "minLength": 0
+          }
+        },
+        "required": ["targetType"]
+      },
+      "MemberBookmarkCreateResponse": {
+        "type": "object",
+        "description": "북마크 추가 응답 DTO",
+        "properties": {
+          "bookmarkId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "북마크 아이디",
+            "example": 202507110001
+          },
+          "targetType": {
+            "type": "string",
+            "description": "북마크 대상 타입",
+            "enum": ["COMMERCIAL", "ADMINISTRATION", "DISTRICT"],
+            "example": "COMMERCIAL"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "북마크 대상 코드",
+            "example": 3110008
+          },
+          "targetName": {
+            "type": "string",
+            "description": "북마크 대상 이름",
+            "example": "강남역 상권"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "북마크 생성 시각"
+          }
+        }
+      },
+      "ResponseMemberBookmarkCreateResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/MemberBookmarkCreateResponse"
+          }
+        }
+      },
+      "ResponseTokenReissueResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/TokenReissueResponse"
+          }
+        }
+      },
+      "TokenReissueResponse": {
+        "type": "object",
+        "description": "토큰 재발급 응답 DTO",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "JWT 액세스 토큰",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        }
+      },
+      "AuthGeneralLoginRequest": {
+        "type": "object",
+        "description": "일반 로그인 요청 DTO",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "이메일 주소",
+            "example": "user@example.com",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "description": "비밀번호",
+            "example": "password123!",
+            "minLength": 1
+          }
+        }
+      },
+      "AuthGeneralLoginResponse": {
+        "type": "object",
+        "description": "일반 로그인 성공 응답 DTO",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "JWT 액세스 토큰",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "memberId": {
+            "type": "string",
+            "description": "회원 아이디",
+            "example": 1
+          }
+        }
+      },
+      "ResponseAuthGeneralLoginResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/AuthGeneralLoginResponse"
+          }
+        }
+      },
+      "CodeNameDescriptionMetadata": {
+        "type": "object",
+        "description": "코드명 메타데이터 DTO",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "내부 코드 값",
+            "example": "USER"
+          },
+          "name": {
+            "type": "string",
+            "description": "화면 표시 이름",
+            "example": "일반 회원"
+          },
+          "description": {
+            "type": "string",
+            "description": "코드 설명",
+            "example": "일반 회원 권한입니다."
+          }
+        }
+      },
+      "MemberMyInfoResponse": {
+        "type": "object",
+        "description": "회원 내 정보 조회 응답 DTO",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "description": "회원 아이디",
+            "example": 202507110001
+          },
+          "email": {
+            "type": "string",
+            "description": "이메일 주소",
+            "example": "user@example.com"
+          },
+          "name": {
+            "type": "string",
+            "description": "회원 이름",
+            "example": "홍길동"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "회원 닉네임",
+            "example": "길동이"
+          },
+          "profileImageUrl": {
+            "type": "string",
+            "description": "프로필 이미지 URL",
+            "example": "https://cdn.tripmarble.com/profile.jpg"
+          },
+          "role": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "회원 권한 메타데이터"
+          }
+        }
+      },
+      "ResponseMemberMyInfoResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/MemberMyInfoResponse"
+          }
+        }
+      },
+      "MemberBookmarkItem": {
+        "type": "object",
+        "description": "북마크 항목",
+        "properties": {
+          "bookmarkId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "북마크 아이디",
+            "example": 202507110001
+          },
+          "targetType": {
+            "type": "string",
+            "description": "북마크 대상 타입",
+            "enum": ["COMMERCIAL", "ADMINISTRATION", "DISTRICT"],
+            "example": "COMMERCIAL"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "북마크 대상 코드",
+            "example": 3110008
+          },
+          "targetName": {
+            "type": "string",
+            "description": "북마크 대상 이름",
+            "example": "강남역 상권"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "북마크 생성 시각"
+          }
+        }
+      },
+      "MemberBookmarksResponse": {
+        "type": "object",
+        "description": "북마크 목록 응답 DTO",
+        "properties": {
+          "bookmarks": {
+            "$ref": "#/components/schemas/SliceResponseMemberBookmarkItem",
+            "description": "북마크 목록 (최신순, 커서 페이지네이션)"
+          }
+        }
+      },
+      "ResponseMemberBookmarksResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/MemberBookmarksResponse"
+          }
+        }
+      },
+      "SliceResponseMemberBookmarkItem": {
+        "type": "object",
+        "properties": {
+          "contents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberBookmarkItem"
+            }
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
