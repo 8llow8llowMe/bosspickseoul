@@ -80,9 +80,12 @@ boolean shouldDeployToEnvironment(Map<String, String> ctx) {
         return false
     }
 
-    // develop 대상 PR은 개발 서버 검증을 위해 dev 배포까지 수행합니다.
+    // PR 빌드는 CI(빌드/테스트)만 수행하고 배포하지 않습니다.
+    // dev 환경은 develop 브랜치 머지 빌드만 배포해 "dev = develop 미러"를 보장합니다.
+    // (과거에는 PR도 dev를 배포했지만, develop 머지 빌드와 같은 dev 환경을 두고 경합하여
+    //  머지되지 않은 PR 배포가 develop 빌드로 덮이는 혼선이 있었습니다.)
     if (ctx.isPullRequest == 'true') {
-        return ctx.deployEnv == 'dev'
+        return false
     }
 
     return true
