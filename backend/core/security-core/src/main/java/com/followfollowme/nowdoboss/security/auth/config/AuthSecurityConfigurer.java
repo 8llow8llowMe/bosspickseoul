@@ -124,7 +124,12 @@ public class AuthSecurityConfigurer {
             "http://bosspickseoul-dev.store:[*]",
             "http://*.bosspickseoul-dev.store:[*]",
             "https://bosspickseoul.com",
-            "https://www.bosspickseoul.com"
+            "https://www.bosspickseoul.com",
+            // auth-service는 API Gateway를 거치지 않고 단독 호출되므로, 집계 Swagger UI가
+            // 서빙되는 API 도메인 origin을 직접 허용해야 Try it out(same-origin)이 통과된다.
+            // (게이트웨이는 reactive same-origin 우회가 있지만 servlet CORS는 없음)
+            "https://api.bosspickseoul.com",
+            "https://api-dev.bosspickseoul.com"
         ));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
