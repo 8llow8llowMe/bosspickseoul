@@ -1,0 +1,1704 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BossPickSeoul 지역 및 지도 서비스 관련 API 명세서",
+    "description": "District Service 전용",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "API Gateway (실제 호출용)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "지역 조회",
+      "description": "자치구, 행정동, 상권의 계층형 지역 정보를 조회하는 API를 제공합니다."
+    },
+    {
+      "name": "지도 영역",
+      "description": "지도에 표시할 영역 좌표와 상권 히트맵을 제공하는 API입니다."
+    }
+  ],
+  "paths": {
+    "/api/v1/regions/districts/{districtCode}/administrations": {
+      "get": {
+        "tags": ["지역 조회"],
+        "summary": "자치구 소속 행정동 목록 조회",
+        "description": "선택한 자치구에 포함된 행정동 목록과 중심 좌표를 조회합니다.",
+        "operationId": "getAdministrationsByDistrictCode",
+        "parameters": [
+          {
+            "name": "districtCode",
+            "in": "path",
+            "description": "자치구 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11680
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseListAdministrationAreaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions/districts/{districtCode}/administrations/{administrationCode}/commercials": {
+      "get": {
+        "tags": ["지역 조회"],
+        "summary": "행정동 소속 상권 목록 조회",
+        "description": "선택한 행정동에 포함된 상권 목록과 중심 좌표를 조회합니다.",
+        "operationId": "getCommercialsByAdministrationCode",
+        "parameters": [
+          {
+            "name": "districtCode",
+            "in": "path",
+            "description": "자치구 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11680
+          },
+          {
+            "name": "administrationCode",
+            "in": "path",
+            "description": "행정동 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11680101
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseListCommercialAreaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions/commercials/{commercialCode}/administration": {
+      "get": {
+        "tags": ["지역 조회"],
+        "summary": "상권 소속 지역 조회",
+        "description": "상권 코드로 소속 행정동과 자치구 정보를 조회합니다.",
+        "operationId": "getCommercialAdministrationByCommercialCode",
+        "parameters": [
+          {
+            "name": "commercialCode",
+            "in": "path",
+            "description": "상권 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 3110008
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommercialAdministrationAreaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions/code-lookup": {
+      "get": {
+        "tags": ["지역 조회"],
+        "summary": "지역 명칭 기준 코드 조회",
+        "description": "자치구명, 행정동명, 상권명을 기준으로 지역 코드를 조회합니다.",
+        "operationId": "lookupRegionCode",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "지역 코드 유형",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["DISTRICT", "ADMINISTRATION", "COMMERCIAL"]
+            },
+            "example": "DISTRICT"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "지역 명칭",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "종로구"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRegionCodeLookupResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regions/administrations/{administrationCode}": {
+      "get": {
+        "tags": ["지역 조회"],
+        "summary": "행정동 상위 지역 조회",
+        "description": "행정동 코드로 소속 자치구와 행정동 정보를 조회합니다.",
+        "operationId": "getAdministrationDistrictByAdministrationCode",
+        "parameters": [
+          {
+            "name": "administrationCode",
+            "in": "path",
+            "description": "행정동 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11680101
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAdministrationDistrictAreaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/districts": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "자치구 영역 좌표 조회",
+        "description": "지도 뷰포트 범위 안에 포함된 자치구 영역 좌표 목록을 조회합니다.",
+        "operationId": "getDistrictAreaCoords",
+        "parameters": [
+          {
+            "name": "lngSW",
+            "in": "query",
+            "description": "남서쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 126.9
+          },
+          {
+            "name": "latSW",
+            "in": "query",
+            "description": "남서쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.45
+          },
+          {
+            "name": "lngNE",
+            "in": "query",
+            "description": "북동쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 127.1
+          },
+          {
+            "name": "latNE",
+            "in": "query",
+            "description": "북동쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.7
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMapAreaCoordsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/commercials": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "상권 영역 좌표 조회",
+        "description": "지도 뷰포트 범위 안에 포함된 상권 영역 좌표 목록을 조회합니다.",
+        "operationId": "getCommercialAreaCoords",
+        "parameters": [
+          {
+            "name": "lngSW",
+            "in": "query",
+            "description": "남서쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 126.9
+          },
+          {
+            "name": "latSW",
+            "in": "query",
+            "description": "남서쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.45
+          },
+          {
+            "name": "lngNE",
+            "in": "query",
+            "description": "북동쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 127.1
+          },
+          {
+            "name": "latNE",
+            "in": "query",
+            "description": "북동쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.7
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMapAreaCoordsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/commercials/{commercialCode}/profile": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "상권 프로필 조회",
+        "description": "지도에서 선택한 상권의 프로필 카드 정보를 조회합니다.",
+        "operationId": "getCommercialProfile",
+        "parameters": [
+          {
+            "name": "commercialCode",
+            "in": "path",
+            "description": "상권 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 3110008
+          },
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "서비스 업종 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "description": "기준 분기 코드",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20233"
+            },
+            "example": 20233
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommercialProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/commercials/heatmap": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "상권 히트맵 조회",
+        "description": "지도에 표시할 상권 히트맵을 조회합니다. composite=false 이면 metricType 으로 단일 지표, composite=true 이면 preset 기반 복합 점수를 반환합니다. 해당 모드에 필요한 파라미터가 누락되면 400 을 반환합니다.",
+        "operationId": "getCommercialHeatmap",
+        "parameters": [
+          {
+            "name": "lngSW",
+            "in": "query",
+            "description": "남서쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 126.9
+          },
+          {
+            "name": "latSW",
+            "in": "query",
+            "description": "남서쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.45
+          },
+          {
+            "name": "lngNE",
+            "in": "query",
+            "description": "북동쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 127.1
+          },
+          {
+            "name": "latNE",
+            "in": "query",
+            "description": "북동쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.7
+          },
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "서비스 업종 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "description": "기준 분기 코드",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20233"
+            },
+            "example": 20233
+          },
+          {
+            "name": "metricType",
+            "in": "query",
+            "description": "지표 타입 (composite=false 일 때 필수)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPPORTUNITY_SCORE",
+                "RISK_SCORE",
+                "CONGESTION_SCORE",
+                "RESIDENT_POPULATION_SCORE"
+              ]
+            },
+            "example": "OPPORTUNITY_SCORE"
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "description": "후보 프리셋 (composite=true 일 때 필수)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BALANCED",
+                "AGGRESSIVE_OPPORTUNITY",
+                "STABLE_LOW_RISK",
+                "LOW_BUDGET_RESIDENT",
+                "YOUTH_STARTUP",
+                "RE_EMPLOYMENT_STARTUP"
+              ]
+            },
+            "example": "BALANCED"
+          },
+          {
+            "name": "priorityMetric",
+            "in": "query",
+            "description": "우선 지표 (composite=true 일 때 선택, 미지정 시 프리셋 기본값)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPPORTUNITY_SCORE",
+                "RISK_SCORE",
+                "CONGESTION_SCORE",
+                "RESIDENT_POPULATION_SCORE"
+              ]
+            }
+          },
+          {
+            "name": "composite",
+            "in": "query",
+            "description": "복합 점수 모드 여부",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommercialHeatmapResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/commercials/compare-preview": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "상권 비교 프리뷰 조회",
+        "description": "두 상권의 경량 비교 정보(종합 요약 + 핵심 지표 + 추천 측)를 반환합니다.",
+        "operationId": "getCommercialComparePreview",
+        "parameters": [
+          {
+            "name": "leftCommercialCode",
+            "in": "query",
+            "description": "좌측 상권 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 3110008
+          },
+          {
+            "name": "rightCommercialCode",
+            "in": "query",
+            "description": "우측 상권 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 3110012
+          },
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "서비스 업종 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "description": "기준 분기 코드",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20233"
+            },
+            "example": 20233
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommercialComparePreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/commercials/candidates": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "후보 상권 랭킹 조회",
+        "description": "프리셋 가중치와 우선 지표 기준으로 지도 범위 내 후보 상권 Top N 을 조회합니다.",
+        "operationId": "getCandidateCommercials",
+        "parameters": [
+          {
+            "name": "lngSW",
+            "in": "query",
+            "description": "남서쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 126.9
+          },
+          {
+            "name": "latSW",
+            "in": "query",
+            "description": "남서쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.45
+          },
+          {
+            "name": "lngNE",
+            "in": "query",
+            "description": "북동쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 127.1
+          },
+          {
+            "name": "latNE",
+            "in": "query",
+            "description": "북동쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.7
+          },
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "서비스 업종 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "description": "후보 탐색 프리셋",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BALANCED",
+                "AGGRESSIVE_OPPORTUNITY",
+                "STABLE_LOW_RISK",
+                "LOW_BUDGET_RESIDENT",
+                "YOUTH_STARTUP",
+                "RE_EMPLOYMENT_STARTUP"
+              ]
+            },
+            "example": "BALANCED"
+          },
+          {
+            "name": "priorityMetric",
+            "in": "query",
+            "description": "우선 지표 (미지정 시 프리셋 기본값)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPPORTUNITY_SCORE",
+                "RISK_SCORE",
+                "CONGESTION_SCORE",
+                "RESIDENT_POPULATION_SCORE"
+              ]
+            }
+          },
+          {
+            "name": "topN",
+            "in": "query",
+            "description": "상위 N (기본 10, 5~30)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 30,
+              "minimum": 5
+            },
+            "example": 10
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "description": "기준 분기 코드",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20233"
+            },
+            "example": 20233
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCandidateCommercialsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/candidate-presets": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "후보 탐색 프리셋 조회",
+        "description": "후보 상권 탐색에 사용할 프리셋 목록을 조회합니다.",
+        "operationId": "getCandidatePresets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCandidatePresetsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/administrations": {
+      "get": {
+        "tags": ["지도 영역"],
+        "summary": "행정동 영역 좌표 조회",
+        "description": "지도 뷰포트 범위 안에 포함된 행정동 영역 좌표 목록을 조회합니다.",
+        "operationId": "getAdministrationAreaCoords",
+        "parameters": [
+          {
+            "name": "lngSW",
+            "in": "query",
+            "description": "남서쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 126.9
+          },
+          {
+            "name": "latSW",
+            "in": "query",
+            "description": "남서쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.45
+          },
+          {
+            "name": "lngNE",
+            "in": "query",
+            "description": "북동쪽 경도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 127.1
+          },
+          {
+            "name": "latNE",
+            "in": "query",
+            "description": "북동쪽 위도",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": 37.7
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMapAreaCoordsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdministrationAreaResponse": {
+        "type": "object",
+        "description": "자치구 소속 행정동 목록 조회 응답 DTO",
+        "properties": {
+          "administrationCode": {
+            "type": "string",
+            "description": "행정동 코드",
+            "example": 11680101
+          },
+          "administrationName": {
+            "type": "string",
+            "description": "행정동명",
+            "example": "역삼1동"
+          },
+          "centerLat": {
+            "type": "number",
+            "format": "double",
+            "description": "중심 위도 (WGS84)",
+            "example": 37.501274
+          },
+          "centerLng": {
+            "type": "number",
+            "format": "double",
+            "description": "중심 경도 (WGS84)",
+            "example": 127.039585
+          }
+        }
+      },
+      "DataHeader": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "resultCode": {
+            "type": "string"
+          },
+          "resultMessage": {
+            "type": "object"
+          }
+        }
+      },
+      "ResponseListAdministrationAreaResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdministrationAreaResponse"
+            }
+          }
+        }
+      },
+      "CommercialAreaResponse": {
+        "type": "object",
+        "description": "행정동 소속 상권 목록 조회 응답 DTO",
+        "properties": {
+          "commercialCode": {
+            "type": "string",
+            "description": "상권 코드",
+            "example": 3110125
+          },
+          "commercialName": {
+            "type": "string",
+            "description": "상권명",
+            "example": "강남역"
+          },
+          "commercialClassificationCode": {
+            "type": "string",
+            "description": "상권 분류 코드",
+            "example": "A"
+          },
+          "commercialClassificationName": {
+            "type": "string",
+            "description": "상권 분류명",
+            "example": "골목상권"
+          },
+          "centerLat": {
+            "type": "number",
+            "format": "double",
+            "description": "중심 위도 (WGS84)",
+            "example": 37.498095
+          },
+          "centerLng": {
+            "type": "number",
+            "format": "double",
+            "description": "중심 경도 (WGS84)",
+            "example": 127.02761
+          }
+        }
+      },
+      "ResponseListCommercialAreaResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommercialAreaResponse"
+            }
+          }
+        }
+      },
+      "CommercialAdministrationAreaResponse": {
+        "type": "object",
+        "description": "상권 소속 지역 정보 조회 응답 DTO",
+        "properties": {
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11680
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강남구"
+          },
+          "administrationCode": {
+            "type": "string",
+            "description": "행정동 코드",
+            "example": 11680101
+          },
+          "administrationName": {
+            "type": "string",
+            "description": "행정동명",
+            "example": "역삼1동"
+          }
+        }
+      },
+      "ResponseCommercialAdministrationAreaResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommercialAdministrationAreaResponse"
+          }
+        }
+      },
+      "RegionCodeLookupResponse": {
+        "type": "object",
+        "description": "지역 명칭 기준 코드 조회 응답 DTO",
+        "properties": {
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11110
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "종로구"
+          },
+          "administrationCode": {
+            "type": "string",
+            "description": "행정동 코드",
+            "example": 11110515
+          },
+          "administrationName": {
+            "type": "string",
+            "description": "행정동명",
+            "example": "청운효자동"
+          },
+          "commercialCode": {
+            "type": "string",
+            "description": "상권 코드",
+            "example": 3110008
+          },
+          "commercialName": {
+            "type": "string",
+            "description": "상권명",
+            "example": "광화문"
+          }
+        }
+      },
+      "ResponseRegionCodeLookupResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/RegionCodeLookupResponse"
+          }
+        }
+      },
+      "AdministrationDistrictAreaResponse": {
+        "type": "object",
+        "description": "행정동 상위 지역 정보 조회 응답 DTO",
+        "properties": {
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11680
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강남구"
+          },
+          "administrationCode": {
+            "type": "string",
+            "description": "행정동 코드",
+            "example": 11680101
+          },
+          "administrationName": {
+            "type": "string",
+            "description": "행정동명",
+            "example": "역삼1동"
+          }
+        }
+      },
+      "ResponseAdministrationDistrictAreaResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/AdministrationDistrictAreaResponse"
+          }
+        }
+      },
+      "AreaBoundaryItem": {
+        "type": "object",
+        "properties": {
+          "areaCode": {
+            "type": "string",
+            "description": "영역 코드",
+            "example": 11110
+          },
+          "areaName": {
+            "type": "string",
+            "description": "영역 이름",
+            "example": "종로구"
+          },
+          "centerLng": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 경도",
+            "example": 126.9773248136
+          },
+          "centerLat": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 위도",
+            "example": 37.5949153065
+          },
+          "boundaryCoords": {
+            "type": "array",
+            "description": "영역 경계 좌표",
+            "example": [
+              [126.975084766, 37.6311834989],
+              [126.9748795141, 37.6304832153]
+            ],
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          }
+        }
+      },
+      "MapAreaCoordsResponse": {
+        "type": "object",
+        "properties": {
+          "areas": {
+            "type": "array",
+            "description": "영역 좌표 목록",
+            "items": {
+              "$ref": "#/components/schemas/AreaBoundaryItem"
+            }
+          }
+        }
+      },
+      "ResponseMapAreaCoordsResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/MapAreaCoordsResponse"
+          }
+        }
+      },
+      "CommercialProfileKeyMetricsItem": {
+        "type": "object",
+        "description": "후보 상권 프로필 핵심 지표 항목 DTO",
+        "properties": {
+          "totalSalesAmount": {
+            "type": "number",
+            "format": "double",
+            "description": "총 매출액"
+          },
+          "totalFootTraffic": {
+            "type": "number",
+            "format": "double",
+            "description": "총 유동인구"
+          },
+          "totalStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 점포 수"
+          },
+          "similarStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "유사 업종 점포 수"
+          },
+          "openingRate": {
+            "type": "number",
+            "format": "double",
+            "description": "개업률"
+          },
+          "closureRate": {
+            "type": "number",
+            "format": "double",
+            "description": "폐업률"
+          },
+          "totalResidentPopulation": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 거주인구"
+          },
+          "monthlyAverageIncomeAmount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "월 평균 소득"
+          },
+          "totalFacilityCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 주요 시설 수"
+          }
+        }
+      },
+      "CommercialProfileResponse": {
+        "type": "object",
+        "description": "후보 상권 프로필 응답 DTO",
+        "properties": {
+          "commercialCode": {
+            "type": "string",
+            "description": "상권 코드",
+            "example": 3110008
+          },
+          "commercialName": {
+            "type": "string",
+            "description": "상권명"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드"
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구 이름"
+          },
+          "administrationCode": {
+            "type": "string",
+            "description": "행정동 코드"
+          },
+          "administrationName": {
+            "type": "string",
+            "description": "행정동 이름"
+          },
+          "centerLng": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 경도"
+          },
+          "centerLat": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 위도"
+          },
+          "boundaryCoords": {
+            "type": "array",
+            "description": "영역 경계 좌표 (1단계에서는 비어있을 수 있음)",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          "keyMetrics": {
+            "$ref": "#/components/schemas/CommercialProfileKeyMetricsItem",
+            "description": "핵심 지표. Feign 응답 유실 시 null 가능"
+          }
+        }
+      },
+      "ResponseCommercialProfileResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommercialProfileResponse"
+          }
+        }
+      },
+      "CodeNameDescriptionMetadata": {
+        "type": "object",
+        "description": "코드명 메타데이터 DTO",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "내부 코드 값",
+            "example": "USER"
+          },
+          "name": {
+            "type": "string",
+            "description": "화면 표시 이름",
+            "example": "일반 회원"
+          },
+          "description": {
+            "type": "string",
+            "description": "코드 설명",
+            "example": "일반 회원 권한입니다."
+          }
+        }
+      },
+      "CommercialHeatmapResponse": {
+        "type": "object",
+        "description": "상권 히트맵 응답 DTO",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "히트맵 모드 메타데이터"
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 코드",
+            "example": "CS100001"
+          },
+          "periodCode": {
+            "type": "string",
+            "description": "기준 분기 코드",
+            "example": 20233
+          },
+          "metricType": {
+            "$ref": "#/components/schemas/ScoreMetricMetadata",
+            "description": "단일 지표 메타데이터"
+          },
+          "preset": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "후보 탐색 프리셋 메타데이터"
+          },
+          "priorityMetric": {
+            "$ref": "#/components/schemas/ScoreMetricMetadata",
+            "description": "우선 반영 지표 메타데이터"
+          },
+          "summary": {
+            "type": "string",
+            "description": "응답 요약"
+          },
+          "areas": {
+            "type": "array",
+            "description": "상권 히트맵 영역 목록",
+            "items": {
+              "$ref": "#/components/schemas/HeatmapAreaItem"
+            }
+          }
+        }
+      },
+      "HeatmapAreaItem": {
+        "type": "object",
+        "description": "히트맵 영역 항목 DTO",
+        "properties": {
+          "areaCode": {
+            "type": "string",
+            "description": "영역 코드",
+            "example": 3110008
+          },
+          "areaName": {
+            "type": "string",
+            "description": "영역 이름"
+          },
+          "centerLng": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 경도"
+          },
+          "centerLat": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 위도"
+          },
+          "boundaryCoords": {
+            "type": "array",
+            "description": "영역 경계 좌표",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          "metricType": {
+            "$ref": "#/components/schemas/ScoreMetricMetadata",
+            "description": "히트맵 지표 메타데이터"
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "description": "0~100 점수"
+          },
+          "grade": {
+            "type": "string",
+            "description": "점수 등급",
+            "example": "HIGH"
+          },
+          "summaryLabel": {
+            "type": "string",
+            "description": "요약 라벨"
+          }
+        }
+      },
+      "ResponseCommercialHeatmapResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommercialHeatmapResponse"
+          }
+        }
+      },
+      "ScoreMetricMetadata": {
+        "type": "object",
+        "description": "점수 지표 메타데이터 DTO",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "내부 코드 값",
+            "example": "OPPORTUNITY_SCORE"
+          },
+          "name": {
+            "type": "string",
+            "description": "화면 표시 이름",
+            "example": "기회도"
+          },
+          "description": {
+            "type": "string",
+            "description": "지표 설명"
+          },
+          "scoreDescription": {
+            "type": "string",
+            "description": "점수 해석 설명"
+          }
+        }
+      },
+      "CommercialComparePreviewResponse": {
+        "type": "object",
+        "description": "상권 비교 프리뷰 응답 DTO",
+        "properties": {
+          "left": {
+            "$ref": "#/components/schemas/ComparePreviewTargetItem",
+            "description": "좌측 상권 요약"
+          },
+          "right": {
+            "$ref": "#/components/schemas/ComparePreviewTargetItem",
+            "description": "우측 상권 요약"
+          },
+          "recommendedSide": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "추천 측 메타데이터"
+          },
+          "headlineMetrics": {
+            "type": "array",
+            "description": "핵심 지표 목록",
+            "items": {
+              "$ref": "#/components/schemas/ComparePreviewMetricItem"
+            }
+          },
+          "insightOneLiner": {
+            "type": "string",
+            "description": "AI 한 줄 인사이트",
+            "example": "강남역이 매출 기준 32% 우위입니다."
+          }
+        }
+      },
+      "ComparePreviewMetricItem": {
+        "type": "object",
+        "description": "상권 비교 프리뷰 지표 항목 DTO",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "지표 이름",
+            "example": "총 매출액"
+          },
+          "leftValue": {
+            "type": "number",
+            "format": "double",
+            "description": "좌측 상권 값"
+          },
+          "rightValue": {
+            "type": "number",
+            "format": "double",
+            "description": "우측 상권 값"
+          },
+          "diffValue": {
+            "type": "number",
+            "format": "double",
+            "description": "차이값 (left - right)"
+          },
+          "diffRate": {
+            "type": "number",
+            "format": "double",
+            "description": "차이율 (%)"
+          },
+          "winnerSide": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "승리 측 메타데이터"
+          }
+        }
+      },
+      "ComparePreviewTargetItem": {
+        "type": "object",
+        "description": "상권 비교 프리뷰 대상 항목 DTO",
+        "properties": {
+          "commercialCode": {
+            "type": "string",
+            "description": "상권 코드",
+            "example": 3110008
+          },
+          "commercialName": {
+            "type": "string",
+            "description": "상권명"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드"
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구 이름"
+          },
+          "administrationCode": {
+            "type": "string",
+            "description": "행정동 코드"
+          },
+          "administrationName": {
+            "type": "string",
+            "description": "행정동 이름"
+          }
+        }
+      },
+      "ResponseCommercialComparePreviewResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommercialComparePreviewResponse"
+          }
+        }
+      },
+      "CandidateCommercialItem": {
+        "type": "object",
+        "description": "후보 상권 항목 DTO",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "description": "추천 랭킹",
+            "example": 1
+          },
+          "areaCode": {
+            "type": "string",
+            "description": "상권 코드",
+            "example": 3110008
+          },
+          "areaName": {
+            "type": "string",
+            "description": "상권명",
+            "example": "강남역 상권"
+          },
+          "centerLng": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 경도"
+          },
+          "centerLat": {
+            "type": "number",
+            "format": "double",
+            "description": "중심점 위도"
+          },
+          "boundaryCoords": {
+            "type": "array",
+            "description": "영역 경계 좌표",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          "compositeScore": {
+            "type": "number",
+            "format": "double",
+            "description": "프리셋 가중치 기반 복합 점수 (0~100)"
+          },
+          "grade": {
+            "type": "string",
+            "description": "복합 점수 등급",
+            "example": "HIGH"
+          },
+          "summaryLabel": {
+            "type": "string",
+            "description": "요약 라벨",
+            "example": "공격형 추천"
+          },
+          "selectionReason": {
+            "type": "string",
+            "description": "선정 이유 한 줄 설명"
+          },
+          "opportunityLabel": {
+            "type": "string",
+            "description": "기회도 해석 라벨"
+          },
+          "riskLabel": {
+            "type": "string",
+            "description": "위험도 해석 라벨"
+          },
+          "metricBreakdown": {
+            "type": "array",
+            "description": "지표별 세부 점수",
+            "items": {
+              "$ref": "#/components/schemas/MetricBreakdownItem"
+            }
+          },
+          "reasonTags": {
+            "type": "array",
+            "description": "추천 이유 태그",
+            "example": ["기회도 상위", "위험도 낮음"],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CandidateCommercialsResponse": {
+        "type": "object",
+        "description": "후보 상권 응답",
+        "properties": {
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 코드",
+            "example": "CS100001"
+          },
+          "periodCode": {
+            "type": "string",
+            "description": "기준 분기 코드",
+            "example": 20233
+          },
+          "preset": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "후보 탐색 프리셋 메타데이터"
+          },
+          "priorityMetric": {
+            "$ref": "#/components/schemas/ScoreMetricMetadata",
+            "description": "우선 반영 지표 메타데이터"
+          },
+          "topN": {
+            "type": "integer",
+            "format": "int32",
+            "description": "요청한 상위 개수",
+            "example": 10
+          },
+          "summary": {
+            "type": "string",
+            "description": "응답 요약"
+          },
+          "items": {
+            "type": "array",
+            "description": "후보 상권 목록 (복합 점수 내림차순)",
+            "items": {
+              "$ref": "#/components/schemas/CandidateCommercialItem"
+            }
+          }
+        }
+      },
+      "MetricBreakdownItem": {
+        "type": "object",
+        "description": "후보 상권 지표별 점수 항목 DTO",
+        "properties": {
+          "metricType": {
+            "$ref": "#/components/schemas/ScoreMetricMetadata",
+            "description": "지표 메타데이터"
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "description": "0~100 정규화 점수"
+          },
+          "grade": {
+            "type": "string",
+            "description": "점수 등급",
+            "example": "HIGH"
+          },
+          "summaryLabel": {
+            "type": "string",
+            "description": "요약 라벨",
+            "example": "기회도 높음"
+          }
+        }
+      },
+      "ResponseCandidateCommercialsResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CandidateCommercialsResponse"
+          }
+        }
+      },
+      "CandidatePresetItem": {
+        "type": "object",
+        "description": "후보 탐색 프리셋 항목 DTO",
+        "properties": {
+          "preset": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "프리셋 메타데이터"
+          },
+          "defaultPriorityMetric": {
+            "$ref": "#/components/schemas/ScoreMetricMetadata",
+            "description": "기본 우선 지표"
+          }
+        }
+      },
+      "CandidatePresetsResponse": {
+        "type": "object",
+        "description": "후보 탐색 프리셋 응답",
+        "properties": {
+          "presets": {
+            "type": "array",
+            "description": "프리셋 목록",
+            "items": {
+              "$ref": "#/components/schemas/CandidatePresetItem"
+            }
+          }
+        }
+      },
+      "ResponseCandidatePresetsResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CandidatePresetsResponse"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

@@ -4,7 +4,6 @@ import { SESSION_COOKIE } from '@/lib/auth/session-constants'
 // 인증 필요한 보호 경로 접두사
 const PROTECTED = [
   '/analysis',
-  '/recommend',
   '/simulation',
   '/community',
   '/chatting',
@@ -30,7 +29,6 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     '/analysis/:path*',
-    '/recommend/:path*',
     '/simulation/:path*',
     '/community/:path*',
     '/chatting/:path*',

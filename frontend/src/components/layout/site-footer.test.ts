@@ -21,6 +21,14 @@ const renderFooter = () => {
 }
 
 describe('SiteFooter', () => {
+  it('data-hide-footer main 바로 뒤의 footer를 모든 해상도에서 숨긴다', () => {
+    const { styles } = renderFooter()
+
+    expect(styles).toMatch(
+      /main\[data-hide-footer=['"]true['"]\]\+[^}]+display:none/,
+    )
+  })
+
   it('status main 바로 뒤에 있는 footer만 모바일에서 숨긴다', () => {
     const { styles } = renderFooter()
 

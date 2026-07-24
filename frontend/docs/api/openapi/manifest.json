@@ -1,0 +1,66 @@
+{
+  "sourceBaseUrl": "https://api-dev.bosspickseoul.com",
+  "fetchedAt": "2026-07-23T22:38:09.918Z",
+  "services": [
+    {
+      "id": "region-map",
+      "label": "지역/지도",
+      "title": "BossPickSeoul 지역 및 지도 서비스 관련 API 명세서",
+      "version": "v1",
+      "openapi": "3.1.0",
+      "sourceUrl": "https://api-dev.bosspickseoul.com/district-service/v3/api-docs",
+      "pathCount": 13,
+      "operationCount": 13,
+      "schemaCount": 33,
+      "sha256": "c177c446f466116ad6d05f03a1ae7335e1dbdbb6ee3f8196f617bfcc51857e4b"
+    },
+    {
+      "id": "auth-member",
+      "label": "인증/회원",
+      "title": "BossPickSeoul 회원 및 인증/인가 서비스 관련 API 명세서",
+      "version": "v1",
+      "openapi": "3.1.0",
+      "sourceUrl": "https://api-dev.bosspickseoul.com/auth-service/v3/api-docs",
+      "pathCount": 7,
+      "operationCount": 8,
+      "schemaCount": 18,
+      "sha256": "aa5bae37fb05520d16b1288740f71cdc665e3b19b3e2dc89028985acbf61ec2d"
+    },
+    {
+      "id": "commercial-analysis",
+      "label": "상권 분석",
+      "title": "BossPickSeoul 상권 분석 서비스 관련 API 명세서",
+      "version": "v1",
+      "openapi": "3.1.0",
+      "sourceUrl": "https://api-dev.bosspickseoul.com/commercial-service/v3/api-docs",
+      "pathCount": 22,
+      "operationCount": 22,
+      "schemaCount": 89,
+      "sha256": "e0fde55d5ce30b232e921269fa153670f1c122bffa670f09da4488c4c0f21c40"
+    },
+    {
+      "id": "ai-report",
+      "label": "AI 리포트",
+      "title": "BossPickSeoul AI 리포트 서비스 관련 API 명세서",
+      "version": "v1",
+      "openapi": "3.1.0",
+      "sourceUrl": "https://api-dev.bosspickseoul.com/ai-service/v3/api-docs",
+      "pathCount": 5,
+      "operationCount": 6,
+      "schemaCount": 13,
+      "sha256": "f71fe5d91fecc85d535bf08b23cc9b4b2ee041b7b1ca161f7442d3c680805a30"
+    },
+    {
+      "id": "community",
+      "label": "커뮤니티",
+      "title": "BossPickSeoul 커뮤니티 서비스 관련 API 명세서",
+      "version": "v1",
+      "openapi": "3.1.0",
+      "sourceUrl": "https://api-dev.bosspickseoul.com/community-service/v3/api-docs",
+      "pathCount": 12,
+      "operationCount": 16,
+      "schemaCount": 35,
+      "sha256": "326eeea9cb079e352eab81440242d83511376297b0f880c5c6547be57ac40358"
+    }
+  ]
+}

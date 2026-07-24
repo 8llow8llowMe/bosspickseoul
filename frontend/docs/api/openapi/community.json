@@ -1,0 +1,1625 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BossPickSeoul 커뮤니티 서비스 관련 API 명세서",
+    "description": "Community Service 전용",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "API Gateway (실제 호출용)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "커뮤니티 게시글",
+      "description": "커뮤니티 게시글 조회, 작성, 수정, 삭제, 좋아요 API를 제공합니다."
+    },
+    {
+      "name": "커뮤니티 신고",
+      "description": "커뮤니티 게시글 및 댓글 신고 API를 제공합니다."
+    },
+    {
+      "name": "커뮤니티 댓글",
+      "description": "커뮤니티 댓글 조회, 작성, 삭제, 좋아요 API를 제공합니다."
+    },
+    {
+      "name": "커뮤니티 모더레이션",
+      "description": "신고 처리 API (MANAGER 전용)"
+    }
+  ],
+  "paths": {
+    "/api/v1/community/reports": {
+      "post": {
+        "tags": ["커뮤니티 신고"],
+        "summary": "신고 등록",
+        "description": "게시글이나 댓글을 신고합니다.",
+        "operationId": "createReport",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityReportCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts": {
+      "get": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 목록 조회",
+        "description": "조건에 맞는 게시글 목록을 조회합니다.",
+        "operationId": "getPosts",
+        "parameters": [
+          {
+            "name": "sortType",
+            "in": "query",
+            "description": "정렬 기준",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "LATEST",
+              "enum": ["LATEST", "POPULAR"]
+            }
+          },
+          {
+            "name": "orderType",
+            "in": "query",
+            "description": "정렬 방향",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "DESC",
+              "enum": ["ASC", "DESC"]
+            }
+          },
+          {
+            "name": "targetType",
+            "in": "query",
+            "description": "대상 타입 필터",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetCode",
+            "in": "query",
+            "description": "대상 코드 필터",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lastPostId",
+            "in": "query",
+            "description": "마지막 게시글 ID",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "lastLikeCount",
+            "in": "query",
+            "description": "인기순 조회 시 마지막 좋아요 수 커서",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "조회 개수",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            },
+            "example": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityPostListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 작성",
+        "description": "새 게시글을 작성합니다.",
+        "operationId": "createPost",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityPostCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityPostDetailResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/{postId}/likes": {
+      "post": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 좋아요 토글",
+        "description": "게시글 좋아요를 등록하거나 취소합니다.",
+        "operationId": "togglePostLike",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityPostLikeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/{postId}/comments": {
+      "get": {
+        "tags": ["커뮤니티 댓글"],
+        "summary": "댓글 목록 조회",
+        "description": "게시글의 댓글 목록을 조회합니다.",
+        "operationId": "getComments",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityCommentsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["커뮤니티 댓글"],
+        "summary": "댓글 작성",
+        "description": "게시글에 댓글을 작성합니다.",
+        "operationId": "createComment",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityCommentCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityCommentsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/{postId}/comments/{commentId}/likes": {
+      "post": {
+        "tags": ["커뮤니티 댓글"],
+        "summary": "댓글 좋아요 토글",
+        "description": "댓글 좋아요를 등록하거나 취소합니다.",
+        "operationId": "toggleCommentLike",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          },
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "댓글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityCommentLikeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/drafts/commercial-comparisons": {
+      "post": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "상권 비교 게시글 초안 생성",
+        "description": "상권 비교 결과를 바탕으로 커뮤니티 게시글 초안을 생성합니다.",
+        "operationId": "createCommercialComparisonDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityCommercialComparisonDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityCommercialComparisonDraftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/moderation/reports/{reportId}": {
+      "patch": {
+        "tags": ["커뮤니티 모더레이션"],
+        "summary": "신고 처리",
+        "description": "신고를 승인(APPROVE_AND_HIDE) 또는 기각(DISMISS)합니다. MANAGER 권한 필요.",
+        "operationId": "processReport",
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "description": "신고 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerationDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModerationDecisionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/{postId}": {
+      "get": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 상세 조회",
+        "description": "게시글 상세 정보를 조회합니다. 조회 시 조회수가 1 증가합니다.",
+        "operationId": "getPost",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityPostDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 삭제",
+        "description": "본인 게시글을 삭제합니다. (소프트 삭제)",
+        "operationId": "deletePost",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 수정",
+        "description": "본인 게시글을 수정합니다.",
+        "operationId": "updatePost",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityPostUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityPostDetailResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/moderation/reports": {
+      "get": {
+        "tags": ["커뮤니티 모더레이션"],
+        "summary": "미처리 신고 목록 조회",
+        "description": "처리되지 않은 신고 목록을 조회합니다. MANAGER 권한 필요.",
+        "operationId": "getPendingReports",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseModerationReportsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/search": {
+      "get": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 검색",
+        "description": "제목 또는 본문에 키워드가 포함된 게시글을 검색합니다.",
+        "operationId": "searchPosts",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "검색 키워드",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortType",
+            "in": "query",
+            "description": "정렬 기준",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "LATEST",
+              "enum": ["LATEST", "POPULAR"]
+            }
+          },
+          {
+            "name": "orderType",
+            "in": "query",
+            "description": "정렬 방향",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "DESC",
+              "enum": ["ASC", "DESC"]
+            }
+          },
+          {
+            "name": "lastPostId",
+            "in": "query",
+            "description": "마지막 게시글 ID",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "lastLikeCount",
+            "in": "query",
+            "description": "인기순 조회 시 마지막 좋아요 수 커서",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "조회 개수",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            },
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityPostListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/community/posts/liked": {
+      "get": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "좋아요한 게시글 목록 조회",
+        "description": "현재 사용자가 좋아요한 게시글 목록을 조회합니다.",
+        "operationId": "getLikedPosts",
+        "parameters": [
+          {
+            "name": "sortType",
+            "in": "query",
+            "description": "정렬 기준",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "LATEST",
+              "enum": ["LATEST", "POPULAR"]
+            }
+          },
+          {
+            "name": "orderType",
+            "in": "query",
+            "description": "정렬 방향",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "DESC",
+              "enum": ["ASC", "DESC"]
+            }
+          },
+          {
+            "name": "lastPostId",
+            "in": "query",
+            "description": "마지막 게시글 ID",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "lastLikeCount",
+            "in": "query",
+            "description": "인기순 조회 시 마지막 좋아요 수 커서",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "조회 개수",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            },
+            "example": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommunityLikedPostsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/{postId}/comments/{commentId}": {
+      "delete": {
+        "tags": ["커뮤니티 댓글"],
+        "summary": "댓글 삭제",
+        "description": "본인 댓글을 삭제합니다.",
+        "operationId": "deleteComment",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "description": "게시글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          },
+          {
+            "name": "commentId",
+            "in": "path",
+            "description": "댓글 ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CommunityReportCreateRequest": {
+        "type": "object",
+        "description": "신고 등록 요청",
+        "properties": {
+          "targetKind": {
+            "type": "string",
+            "description": "신고 대상 타입",
+            "enum": ["POST", "COMMENT"],
+            "example": "POST"
+          },
+          "targetId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "신고 대상 ID",
+            "example": 1001
+          },
+          "reason": {
+            "type": "string",
+            "description": "신고 사유",
+            "example": "광고성 게시글입니다.",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": ["targetKind"]
+      },
+      "DataHeader": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "resultCode": {
+            "type": "string"
+          },
+          "resultMessage": {
+            "type": "object"
+          }
+        }
+      },
+      "ResponseVoid": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "type": "object"
+          }
+        }
+      },
+      "CommunityPostCreateRequest": {
+        "type": "object",
+        "description": "게시글 작성 요청",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "description": "대상 타입",
+            "example": "COMMERCIAL",
+            "minLength": 1
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "대상 코드",
+            "example": 3110008,
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "description": "게시글 제목",
+            "example": "강남역 상권 분석",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "content": {
+            "type": "string",
+            "description": "게시글 본문",
+            "example": "강남역 상권에 대해 알아보겠습니다.",
+            "maxLength": 5000,
+            "minLength": 0
+          }
+        }
+      },
+      "CodeNameDescriptionMetadata": {
+        "type": "object",
+        "description": "코드명 메타데이터 DTO",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "내부 코드 값",
+            "example": "USER"
+          },
+          "name": {
+            "type": "string",
+            "description": "화면 표시 이름",
+            "example": "일반 회원"
+          },
+          "description": {
+            "type": "string",
+            "description": "코드 설명",
+            "example": "일반 회원 권한입니다."
+          }
+        }
+      },
+      "CommunityPostDetailResponse": {
+        "type": "object",
+        "description": "게시글 상세 응답 DTO",
+        "properties": {
+          "postId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "게시글 ID"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "작성자 회원 ID"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "대상 유형 메타데이터"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "대상 코드"
+          },
+          "targetName": {
+            "type": "string",
+            "description": "대상 이름"
+          },
+          "title": {
+            "type": "string",
+            "description": "제목"
+          },
+          "content": {
+            "type": "string",
+            "description": "본문"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "좋아요 수"
+          },
+          "commentCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "댓글 수"
+          },
+          "viewCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "조회 수"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "작성 시각"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "수정 시각"
+          }
+        }
+      },
+      "ResponseCommunityPostDetailResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommunityPostDetailResponse"
+          }
+        }
+      },
+      "CommunityPostLikeResponse": {
+        "type": "object",
+        "description": "게시글 좋아요 응답",
+        "properties": {
+          "postId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "게시글 ID"
+          },
+          "liked": {
+            "type": "boolean",
+            "description": "좋아요 적용 여부"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "현재 좋아요 수"
+          }
+        }
+      },
+      "ResponseCommunityPostLikeResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommunityPostLikeResponse"
+          }
+        }
+      },
+      "CommunityCommentCreateRequest": {
+        "type": "object",
+        "properties": {
+          "parentCommentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          }
+        }
+      },
+      "CommunityCommentItem": {
+        "type": "object",
+        "description": "댓글 항목",
+        "properties": {
+          "commentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "댓글 ID"
+          },
+          "postId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "게시글 ID"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "작성자 회원 ID"
+          },
+          "content": {
+            "type": "string",
+            "description": "본문"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "좋아요 수"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "작성 시각"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "수정 시각"
+          },
+          "replies": {
+            "type": "array",
+            "description": "대댓글 목록",
+            "items": {
+              "$ref": "#/components/schemas/CommunityReplyItem"
+            }
+          }
+        }
+      },
+      "CommunityCommentsResponse": {
+        "type": "object",
+        "description": "댓글 목록 응답",
+        "properties": {
+          "comments": {
+            "type": "array",
+            "description": "댓글 목록",
+            "items": {
+              "$ref": "#/components/schemas/CommunityCommentItem"
+            }
+          }
+        }
+      },
+      "CommunityReplyItem": {
+        "type": "object",
+        "description": "대댓글 항목",
+        "properties": {
+          "commentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "댓글 ID"
+          },
+          "postId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "게시글 ID"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "작성자 회원 ID"
+          },
+          "parentCommentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "부모 댓글 ID"
+          },
+          "content": {
+            "type": "string",
+            "description": "본문"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "좋아요 수"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "작성 시각"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "수정 시각"
+          }
+        }
+      },
+      "ResponseCommunityCommentsResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommunityCommentsResponse"
+          }
+        }
+      },
+      "CommunityCommentLikeResponse": {
+        "type": "object",
+        "description": "댓글 좋아요 응답",
+        "properties": {
+          "commentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "댓글 ID"
+          },
+          "liked": {
+            "type": "boolean",
+            "description": "좋아요 적용 여부"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "현재 좋아요 수"
+          }
+        }
+      },
+      "ResponseCommunityCommentLikeResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommunityCommentLikeResponse"
+          }
+        }
+      },
+      "CommunityCommercialComparisonDraftRequest": {
+        "type": "object",
+        "description": "상권 비교 게시글 초안 생성 요청 DTO",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "description": "게시글 대상 타입",
+            "example": "COMMERCIAL",
+            "minLength": 1
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "게시글 대상 코드",
+            "example": 3110008,
+            "minLength": 1
+          },
+          "leftCommercialCode": {
+            "type": "string",
+            "description": "좌측 상권 코드",
+            "example": 3110008,
+            "minLength": 1
+          },
+          "rightCommercialCode": {
+            "type": "string",
+            "description": "우측 상권 코드",
+            "example": 3110012,
+            "minLength": 1
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 코드",
+            "example": "CS100001",
+            "minLength": 1
+          },
+          "periodCode": {
+            "type": "string",
+            "description": "기준 분기 코드",
+            "example": 20233,
+            "minLength": 1
+          }
+        }
+      },
+      "CommunityCommercialComparisonDraftResponse": {
+        "type": "object",
+        "description": "상권 비교 게시글 초안 응답 DTO",
+        "properties": {
+          "targetType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "게시글 대상 유형 메타데이터"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "게시글 대상 코드",
+            "example": 3110008
+          },
+          "targetName": {
+            "type": "string",
+            "description": "게시글 대상 이름"
+          },
+          "title": {
+            "type": "string",
+            "description": "추천 제목"
+          },
+          "content": {
+            "type": "string",
+            "description": "추천 본문"
+          },
+          "analysisType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "분석 첨부 유형 메타데이터"
+          },
+          "analysisRefCode": {
+            "type": "string",
+            "description": "분석 참조 코드",
+            "example": "3110008:3110012:CS100001:20233"
+          },
+          "analysisRefName": {
+            "type": "string",
+            "description": "분석 참조 이름"
+          },
+          "analysisSnapshotKey": {
+            "type": "string",
+            "description": "분석 스냅샷 키",
+            "example": "comparison-3110008-3110012-20233"
+          }
+        }
+      },
+      "ResponseCommunityCommercialComparisonDraftResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommunityCommercialComparisonDraftResponse"
+          }
+        }
+      },
+      "ModerationDecisionRequest": {
+        "type": "object",
+        "description": "신고 처리 요청",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "description": "처리 결정 (APPROVE_AND_HIDE: 승인 후 숨김, DISMISS: 기각)",
+            "enum": ["APPROVE_AND_HIDE", "DISMISS"]
+          }
+        },
+        "required": ["decision"]
+      },
+      "ModerationDecisionResponse": {
+        "type": "object",
+        "description": "신고 처리 결과 응답",
+        "properties": {
+          "reportId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "신고 아이디"
+          },
+          "decision": {
+            "type": "string",
+            "description": "처리 결정",
+            "enum": ["APPROVE_AND_HIDE", "DISMISS"]
+          },
+          "status": {
+            "type": "string",
+            "description": "처리 후 상태",
+            "enum": ["PENDING", "APPROVED", "DISMISSED"]
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "처리 시각"
+          }
+        }
+      },
+      "ResponseModerationDecisionResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/ModerationDecisionResponse"
+          }
+        }
+      },
+      "CommunityPostUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 0
+          }
+        }
+      },
+      "ModerationReportItem": {
+        "type": "object",
+        "description": "신고 항목",
+        "properties": {
+          "reportId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "신고 아이디"
+          },
+          "targetKind": {
+            "type": "string",
+            "description": "신고 대상 타입 (POST, COMMENT)",
+            "enum": ["POST", "COMMENT"]
+          },
+          "targetId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "신고 대상 아이디"
+          },
+          "reporterMemberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "신고한 회원 아이디"
+          },
+          "reason": {
+            "type": "string",
+            "description": "신고 사유"
+          },
+          "status": {
+            "type": "string",
+            "description": "신고 상태",
+            "enum": ["PENDING", "APPROVED", "DISMISSED"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "신고 생성 시각"
+          },
+          "targetTitle": {
+            "type": "string",
+            "description": "신고 대상 제목 (POST 일 때만 존재, COMMENT 는 null)"
+          },
+          "targetPreview": {
+            "type": "string",
+            "description": "신고 대상 내용 미리보기 (최대 100자)"
+          },
+          "targetAuthorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "신고 대상 작성자 아이디 (조회 실패 시 0)"
+          }
+        }
+      },
+      "ModerationReportsResponse": {
+        "type": "object",
+        "description": "미처리 신고 목록 응답",
+        "properties": {
+          "reports": {
+            "type": "array",
+            "description": "신고 목록",
+            "items": {
+              "$ref": "#/components/schemas/ModerationReportItem"
+            }
+          }
+        }
+      },
+      "ResponseModerationReportsResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/ModerationReportsResponse"
+          }
+        }
+      },
+      "CommunityBoardTargetItem": {
+        "type": "object",
+        "description": "커뮤니티 게시판 대상 정보 항목 DTO",
+        "properties": {
+          "targetType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "대상 유형 메타데이터"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "대상 코드",
+            "example": 3110008
+          },
+          "targetName": {
+            "type": "string",
+            "description": "대상 이름",
+            "example": "강남역 상권"
+          }
+        }
+      },
+      "CommunityPostListResponse": {
+        "type": "object",
+        "description": "게시글 목록 응답",
+        "properties": {
+          "board": {
+            "$ref": "#/components/schemas/CommunityBoardTargetItem",
+            "description": "게시판 대상 정보 (대상 타입/코드 지정 시에만 포함)"
+          },
+          "posts": {
+            "$ref": "#/components/schemas/SliceResponseCommunityPostSummaryItem",
+            "description": "게시글 목록"
+          }
+        }
+      },
+      "CommunityPostSummaryItem": {
+        "type": "object",
+        "description": "게시글 요약 항목 DTO",
+        "properties": {
+          "postId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "게시글 ID"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "작성자 회원 ID"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "대상 유형 메타데이터"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "대상 코드"
+          },
+          "targetName": {
+            "type": "string",
+            "description": "대상 이름"
+          },
+          "title": {
+            "type": "string",
+            "description": "제목"
+          },
+          "previewContent": {
+            "type": "string",
+            "description": "본문 미리보기"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "좋아요 수"
+          },
+          "commentCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "댓글 수"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "작성 시각"
+          }
+        }
+      },
+      "ResponseCommunityPostListResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommunityPostListResponse"
+          }
+        }
+      },
+      "SliceResponseCommunityPostSummaryItem": {
+        "type": "object",
+        "properties": {
+          "contents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityPostSummaryItem"
+            }
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CommunityLikedPostItem": {
+        "type": "object",
+        "description": "좋아요한 게시글 항목 DTO",
+        "properties": {
+          "postId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "게시글 ID"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "작성자 회원 ID"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "대상 유형 메타데이터"
+          },
+          "targetCode": {
+            "type": "string",
+            "description": "대상 코드"
+          },
+          "targetName": {
+            "type": "string",
+            "description": "대상 이름"
+          },
+          "title": {
+            "type": "string",
+            "description": "제목"
+          },
+          "previewContent": {
+            "type": "string",
+            "description": "본문 미리보기"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "좋아요 수"
+          },
+          "commentCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "댓글 수"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "게시글 작성 시각"
+          },
+          "likedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "좋아요 누른 시각"
+          }
+        }
+      },
+      "CommunityLikedPostsResponse": {
+        "type": "object",
+        "description": "좋아요한 게시글 목록 응답",
+        "properties": {
+          "posts": {
+            "$ref": "#/components/schemas/SliceResponseCommunityLikedPostItem",
+            "description": "좋아요한 게시글 목록"
+          }
+        }
+      },
+      "ResponseCommunityLikedPostsResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommunityLikedPostsResponse"
+          }
+        }
+      },
+      "SliceResponseCommunityLikedPostItem": {
+        "type": "object",
+        "properties": {
+          "contents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityLikedPostItem"
+            }
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

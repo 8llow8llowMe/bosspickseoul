@@ -1,6 +1,5 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
 import {
   CardEyebrow,
   CardGrid,
@@ -16,17 +15,59 @@ import {
   SectionTitle,
   SectionBody,
 } from '@/components/profile/profile-ui'
-import { recommendSaveList } from '@/lib/api/recommend'
-import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
 import { formatDateTime } from '@/lib/format'
+import { useAuthStore } from '@/stores/auth-store'
+import type { MemberBookmark } from '@/types/bookmark'
+
+export type ProfileRecommendBookmarkItem = Pick<
+  MemberBookmark,
+  'bookmarkId' | 'targetCode' | 'targetName' | 'createdAt'
+>
+
+export const createProfileRecommendBookmarkView = (
+  bookmarks: readonly MemberBookmark[],
+): ProfileRecommendBookmarkItem[] =>
+  bookmarks.flatMap(bookmark =>
+    bookmark.targetType === 'COMMERCIAL'
+      ? [
+          {
+            bookmarkId: bookmark.bookmarkId,
+            targetCode: bookmark.targetCode,
+            targetName: bookmark.targetName,
+            createdAt: bookmark.createdAt,
+          },
+        ]
+      : [],
+  )
+
+export function ProfileRecommendBookmarkCards({
+  bookmarks,
+}: {
+  bookmarks: readonly ProfileRecommendBookmarkItem[]
+}) {
+  return (
+    <CardGrid>
+      {bookmarks.map(bookmark => (
+        <ContentCard key={bookmark.bookmarkId}>
+          <CardEyebrow>상권추천 북마크</CardEyebrow>
+          <CardTitle>{bookmark.targetName}</CardTitle>
+          <CardText>상권 코드 {bookmark.targetCode}</CardText>
+          <MetaList>
+            <MetaItem>{formatDateTime(bookmark.createdAt)}</MetaItem>
+          </MetaList>
+        </ContentCard>
+      ))}
+    </CardGrid>
+  )
+}
 
 export default function ProfileRecommendBookmarksPage() {
-  const query = useQuery({
-    queryKey: ['recommendSaveList'],
-    queryFn: recommendSaveList,
-  })
+  const memberId = useAuthStore(auth => auth.memberInfo?.memberId ?? null)
+  const query = useCommercialBookmarks(memberId, true)
+  const bookmarks = createProfileRecommendBookmarkView(query.bookmarks)
 
-  if (query.isPending) {
+  if (query.isLoading) {
     return (
       <SectionStack>
         <SectionNotice $tone="info">
@@ -36,20 +77,17 @@ export default function ProfileRecommendBookmarksPage() {
     )
   }
 
-  if (!query.data || !isApiSuccess(query.data)) {
+  if (query.isError) {
     return (
       <SectionStack>
         <SectionNotice $tone="error">
-          {getApiMessage(
-            query.data,
-            '추천 상권 저장 목록을 불러오지 못했습니다.',
-          )}
+          {query.errorMessage ?? '추천 상권 저장 목록을 불러오지 못했습니다.'}
         </SectionNotice>
       </SectionStack>
     )
   }
 
-  if (query.data.dataBody.data.length === 0) {
+  if (bookmarks.length === 0) {
     return (
       <SectionStack>
         <SectionPanel>
@@ -69,23 +107,11 @@ export default function ProfileRecommendBookmarksPage() {
       <SectionPanel>
         <SectionTitle>상권추천 북마크</SectionTitle>
         <SectionBody>
-          추천 화면에서 저장한 상권 목록입니다. 향후 상세 복원과 재추천 이동
-          흐름은 Phase 5 이후에 이어서 연결합니다.
+          추천 화면에서 저장한 상권 목록입니다. 저장한 상권은 추천 화면에서도
+          동일하게 표시됩니다.
         </SectionBody>
       </SectionPanel>
-      <CardGrid>
-        {query.data.dataBody.data.map(item => (
-          <ContentCard key={`${item.commercialCode}-${item.createdAt}`}>
-            <CardEyebrow>{item.administrationCodeName}</CardEyebrow>
-            <CardTitle>{item.commercialCodeName}</CardTitle>
-            <CardText>{item.districtCodeName}</CardText>
-            <MetaList>
-              <MetaItem>상권 코드 {item.commercialCode}</MetaItem>
-              <MetaItem>{formatDateTime(item.createdAt)}</MetaItem>
-            </MetaList>
-          </ContentCard>
-        ))}
-      </CardGrid>
+      <ProfileRecommendBookmarkCards bookmarks={bookmarks} />
     </SectionStack>
   )
 }

@@ -6,8 +6,10 @@ import type {
   UpdateMemberInfoPayload,
 } from '@/types/profile'
 
-export const getMemberInfoData = async () => {
-  const response = await apiClient.get<ApiResponse<MemberInfo>>('/member/get')
+export const getMemberInfoData = async (signal?: AbortSignal) => {
+  const response = signal
+    ? await apiClient.get<ApiResponse<MemberInfo>>('/members/me', { signal })
+    : await apiClient.get<ApiResponse<MemberInfo>>('/members/me')
 
   return response.data
 }

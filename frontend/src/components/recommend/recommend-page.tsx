@@ -1,840 +1,1450 @@
 'use client'
 
-import Link from 'next/link'
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import styled from 'styled-components'
-import LocationSelector from '@/components/location/location-selector'
-import { districts } from '@/data/districts'
 import {
-  recommendCommercial,
-  recommendDelete,
-  recommendSave,
-  recommendSaveList,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
+import { useRouter } from 'next/navigation'
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import styled from 'styled-components'
+
+import { districts } from '@/data/districts'
+import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
+import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
+import {
+  fetchAdministrationMapAreas,
+  fetchAdministrations,
+  fetchCommercialMapAreas,
+  fetchCommercialProfile,
+  fetchCommercialRecommendations,
+  fetchCommercials,
+  fetchDistrictMapAreas,
+  RECOMMENDATION_PERIOD_CODE,
+  RECOMMENDATION_TOP_N,
+  SEOUL_MAP_BOUNDS,
 } from '@/lib/api/recommend'
+import {
+  buildRecommendationMapItems,
+  filterAreasByCodes,
+} from '@/lib/recommend/recommend-map-model'
+import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
+import {
+  createInitialRecommendationState,
+  formatRecommendationPeriod,
+  recommendationReducer,
+  type RecommendationOption,
+  type RecommendationView,
+} from '@/lib/recommend/recommend-state'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { useAuthStore } from '@/stores/auth-store'
-import { useSelectPlaceStore } from '@/stores/select-place-store'
+import type { ApiMessage, ApiResponse } from '@/types/api'
+import type { MemberBookmarkResponse } from '@/types/bookmark'
+import type {
+  AdministrationArea,
+  AreaBoundaryItem,
+  CandidateCommercial,
+  CandidateCommercialsResponse,
+  CommercialArea,
+  CommercialProfile,
+  CommercialProfileResponse,
+  CoordinateTuple,
+  GeoBounds,
+  MetricBreakdownItem,
+  MapAreasResponse,
+  ScoreMetricMetadata,
+} from '@/types/recommend'
+
+import RecommendFeedback from './recommend-feedback'
+import RecommendMap from './recommend-map'
+import RecommendMobileSheet from './recommend-mobile-sheet'
+import RecommendPanel, { type RecommendPanelProps } from './recommend-panel'
+
+type ProfileQueryLike = {
+  data?: CommercialProfileResponse
+}
+
+export type CommercialProfileScope = {
+  readonly districtCode: string
+  readonly administrationCode: string
+  readonly commercialCodes: readonly string[]
+}
+
+type MapStage = 'district' | 'administration' | 'commercial' | 'results'
+
+type HandledRecommendationMarker = {
+  current: string
+}
+
+type QueryPendingState = {
+  isPending: boolean
+  isFetching: boolean
+}
+
+type BookmarkMutationInput = {
+  bookmarkId: number | null
+  commercialCode: string
+  commercialName: string
+  memberId: string
+}
+
+type BookmarkMutationResponse = ApiResponse<null> | MemberBookmarkResponse
+
+type BookmarkUiState = {
+  memberId: string | null
+  error: string | null
+}
+
+export type RecommendationBookmarkReservation = {
+  memberId: string
+  commercialCode: string
+  token: symbol
+}
+
+export type RecommendationBookmarkReservationRegistry = Map<
+  string,
+  Map<string, symbol>
+>
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object'
+
+const isValidCoordinate = (lng: unknown, lat: unknown): boolean =>
+  typeof lng === 'number' &&
+  typeof lat === 'number' &&
+  Number.isFinite(lng) &&
+  Number.isFinite(lat) &&
+  lng >= -180 &&
+  lng <= 180 &&
+  lat >= -90 &&
+  lat <= 90
+
+const normalizeCoordinateTuples = (value: unknown): CoordinateTuple[] =>
+  Array.isArray(value)
+    ? value.flatMap(coordinate =>
+        Array.isArray(coordinate) &&
+        isValidCoordinate(coordinate[0], coordinate[1])
+          ? [[coordinate[0] as number, coordinate[1] as number] as const]
+          : [],
+      )
+    : []
+
+const isSuccessfulApiResponse = <T,>(
+  response: ApiResponse<T> | null | undefined,
+): response is ApiResponse<T> =>
+  response?.dataHeader?.success === true && response.dataBody !== undefined
+
+const normalizeMessage = (message: ApiMessage | undefined): string | null => {
+  if (!message) return null
+  if (typeof message === 'string') return message
+
+  const values = Object.values(message).filter(Boolean)
+  return values.length > 0 ? values.join('\n') : null
+}
+
+export const getRecommendationQueryError = (
+  isTransportError: boolean,
+  response: ApiResponse<unknown> | null | undefined,
+  fallback: string,
+): string | null => {
+  if (isTransportError) return fallback
+  if (!response) return null
+  if (response.dataHeader?.success === true) return null
+
+  return normalizeMessage(response.dataHeader?.resultMessage) ?? fallback
+}
+
+export const readMapAreas = (
+  response: MapAreasResponse | null | undefined,
+): AreaBoundaryItem[] => {
+  if (!isSuccessfulApiResponse(response)) return []
+
+  const body: unknown = response.dataBody
+  if (!isRecord(body) || !Array.isArray(body.areas)) return []
+
+  return body.areas.flatMap(area => {
+    if (
+      !isRecord(area) ||
+      typeof area.areaCode !== 'string' ||
+      typeof area.areaName !== 'string' ||
+      !isValidCoordinate(area.centerLng, area.centerLat)
+    ) {
+      return []
+    }
+
+    return [
+      {
+        areaCode: area.areaCode,
+        areaName: area.areaName,
+        centerLng: area.centerLng as number,
+        centerLat: area.centerLat as number,
+        boundaryCoords: normalizeCoordinateTuples(area.boundaryCoords),
+      },
+    ]
+  })
+}
+
+export const readAdministrations = (
+  response: ApiResponse<AdministrationArea[]> | null | undefined,
+): AdministrationArea[] => {
+  if (!isSuccessfulApiResponse(response) || !Array.isArray(response.dataBody)) {
+    return []
+  }
+
+  return (response.dataBody as unknown[]).flatMap(administration => {
+    if (
+      !isRecord(administration) ||
+      typeof administration.administrationCode !== 'string' ||
+      typeof administration.administrationName !== 'string' ||
+      !isValidCoordinate(administration.centerLng, administration.centerLat)
+    ) {
+      return []
+    }
+
+    return [
+      {
+        administrationCode: administration.administrationCode,
+        administrationName: administration.administrationName,
+        centerLng: administration.centerLng as number,
+        centerLat: administration.centerLat as number,
+      },
+    ]
+  })
+}
+
+export const readCommercials = (
+  response: ApiResponse<CommercialArea[]> | null | undefined,
+): CommercialArea[] => {
+  if (!isSuccessfulApiResponse(response) || !Array.isArray(response.dataBody)) {
+    return []
+  }
+
+  return (response.dataBody as unknown[]).flatMap(commercial => {
+    if (
+      !isRecord(commercial) ||
+      typeof commercial.commercialCode !== 'string' ||
+      typeof commercial.commercialName !== 'string' ||
+      typeof commercial.commercialClassificationCode !== 'string' ||
+      typeof commercial.commercialClassificationName !== 'string' ||
+      !isValidCoordinate(commercial.centerLng, commercial.centerLat)
+    ) {
+      return []
+    }
+
+    return [
+      {
+        commercialCode: commercial.commercialCode,
+        commercialName: commercial.commercialName,
+        commercialClassificationCode: commercial.commercialClassificationCode,
+        commercialClassificationName: commercial.commercialClassificationName,
+        centerLng: commercial.centerLng as number,
+        centerLat: commercial.centerLat as number,
+      },
+    ]
+  })
+}
+
+const readNullableString = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null
+
+const normalizeScoreMetricMetadata = (value: unknown): ScoreMetricMetadata => {
+  if (
+    !isRecord(value) ||
+    typeof value.code !== 'string' ||
+    typeof value.name !== 'string' ||
+    typeof value.description !== 'string' ||
+    typeof value.scoreDescription !== 'string'
+  ) {
+    return null
+  }
+
+  return {
+    code: value.code,
+    name: value.name,
+    description: value.description,
+    scoreDescription: value.scoreDescription,
+  }
+}
+
+const normalizeMetricBreakdown = (value: unknown): MetricBreakdownItem[] =>
+  Array.isArray(value)
+    ? value.flatMap(metric => {
+        if (!isRecord(metric)) return []
+
+        return [
+          {
+            metricType: normalizeScoreMetricMetadata(metric.metricType),
+            score:
+              typeof metric.score === 'number' && Number.isFinite(metric.score)
+                ? metric.score
+                : null,
+            grade: readNullableString(metric.grade),
+            summaryLabel: readNullableString(metric.summaryLabel),
+          },
+        ]
+      })
+    : []
+
+const normalizeCandidateCommercial = (
+  item: unknown,
+): CandidateCommercial | null => {
+  if (
+    !isRecord(item) ||
+    typeof item.commercialCode !== 'string' ||
+    typeof item.commercialName !== 'string' ||
+    typeof item.rank !== 'number' ||
+    !Number.isFinite(item.rank)
+  ) {
+    return null
+  }
+
+  return {
+    rank: item.rank,
+    commercialCode: item.commercialCode,
+    commercialName: item.commercialName,
+    compositeScore:
+      typeof item.compositeScore === 'number' &&
+      Number.isFinite(item.compositeScore)
+        ? item.compositeScore
+        : null,
+    grade: readNullableString(item.grade),
+    summaryLabel: readNullableString(item.summaryLabel),
+    selectionReason: readNullableString(item.selectionReason),
+    opportunityLabel: readNullableString(item.opportunityLabel),
+    riskLabel: readNullableString(item.riskLabel),
+    metricBreakdown: normalizeMetricBreakdown(item.metricBreakdown),
+    reasonTags: Array.isArray(item.reasonTags)
+      ? item.reasonTags.filter(
+          (reasonTag): reasonTag is string => typeof reasonTag === 'string',
+        )
+      : [],
+  }
+}
+
+export const normalizeRecommendationResults = (
+  response: CandidateCommercialsResponse | null | undefined,
+  allowedCommercialCodes: readonly string[],
+): CandidateCommercial[] => {
+  if (
+    !isSuccessfulApiResponse(response) ||
+    !Array.isArray(response.dataBody?.items)
+  ) {
+    return []
+  }
+
+  const allowedCodes = new Set(allowedCommercialCodes.map(String))
+  const seen = new Set<string>()
+
+  return (response.dataBody.items as unknown[])
+    .flatMap(item => {
+      const normalized = normalizeCandidateCommercial(item)
+      return normalized ? [normalized] : []
+    })
+    .sort((left, right) => {
+      return left.rank - right.rank
+    })
+    .filter(item => {
+      const commercialCode = String(item.commercialCode)
+
+      if (
+        !commercialCode ||
+        !allowedCodes.has(commercialCode) ||
+        seen.has(commercialCode)
+      ) {
+        return false
+      }
+
+      seen.add(commercialCode)
+      return true
+    })
+    .slice(0, RECOMMENDATION_TOP_N)
+}
+
+const normalizeCommercialProfile = (
+  profile: unknown,
+): CommercialProfile | null =>
+  isRecord(profile) &&
+  typeof profile.commercialCode === 'string' &&
+  typeof profile.commercialName === 'string' &&
+  typeof profile.districtCode === 'string' &&
+  typeof profile.districtName === 'string' &&
+  typeof profile.administrationCode === 'string' &&
+  typeof profile.administrationName === 'string' &&
+  Number.isFinite(profile.centerLng) &&
+  Number.isFinite(profile.centerLat) &&
+  isValidCoordinate(profile.centerLng, profile.centerLat)
+    ? ({
+        commercialCode: profile.commercialCode,
+        commercialName: profile.commercialName,
+        districtCode: profile.districtCode,
+        districtName: profile.districtName,
+        administrationCode: profile.administrationCode,
+        administrationName: profile.administrationName,
+        centerLng: profile.centerLng as number,
+        centerLat: profile.centerLat as number,
+        boundaryCoords: normalizeCoordinateTuples(profile.boundaryCoords),
+        keyMetrics: isRecord(profile.keyMetrics) ? profile.keyMetrics : null,
+      } as CommercialProfile)
+    : null
+
+export const collectSuccessfulProfiles = (
+  queries: readonly ProfileQueryLike[],
+  scope: CommercialProfileScope,
+): CommercialProfile[] => {
+  const seenCommercialCodes = new Set<string>()
+
+  return queries.flatMap((query, index) => {
+    if (!isSuccessfulApiResponse(query.data)) return []
+
+    const profile = normalizeCommercialProfile(query.data.dataBody)
+    const expectedCommercialCode = scope.commercialCodes[index]
+
+    if (
+      !profile ||
+      !expectedCommercialCode ||
+      profile.commercialCode !== expectedCommercialCode ||
+      profile.districtCode !== scope.districtCode ||
+      profile.administrationCode !== scope.administrationCode ||
+      seenCommercialCodes.has(profile.commercialCode)
+    ) {
+      return []
+    }
+
+    seenCommercialCodes.add(profile.commercialCode)
+    return [profile]
+  })
+}
+
+export const createCommercialProfileQueryCombiner = (
+  scope: CommercialProfileScope,
+): ((queries: readonly ProfileQueryLike[]) => CommercialProfile[]) => {
+  const capturedScope: CommercialProfileScope = {
+    districtCode: scope.districtCode,
+    administrationCode: scope.administrationCode,
+    commercialCodes: [...scope.commercialCodes],
+  }
+
+  return queries => collectSuccessfulProfiles(queries, capturedScope)
+}
+
+export const isRecommendationQueryBusy = ({
+  isPending,
+  isFetching,
+}: QueryPendingState): boolean => isPending || isFetching
+
+export const readRecommendationPeriodCode = (
+  response: CandidateCommercialsResponse | null | undefined,
+  fallback: string,
+): string => {
+  if (!isSuccessfulApiResponse(response)) return fallback
+
+  const body: unknown = response.dataBody
+  return isRecord(body) &&
+    typeof body.periodCode === 'string' &&
+    /^\d{4}[1-4]$/.test(body.periodCode)
+    ? body.periodCode
+    : fallback
+}
+
+export const consumeRecommendationResponse = (
+  marker: HandledRecommendationMarker,
+  requestKey: string,
+  dataUpdatedAt: number,
+): boolean => {
+  const handledKey = JSON.stringify([requestKey, dataUpdatedAt])
+  if (marker.current === handledKey) return false
+
+  marker.current = handledKey
+  return true
+}
+
+export const resetHandledRecommendationMarker = (
+  marker: HandledRecommendationMarker,
+): void => {
+  marker.current = ''
+}
+
+export const getRecommendationStage = (
+  view: RecommendationView,
+  district: RecommendationOption | null,
+  administration: RecommendationOption | null = null,
+): MapStage => {
+  if (view === 'results') return 'results'
+  if (administration) return 'commercial'
+  return district ? 'administration' : 'district'
+}
+
+export const createResultsLoadedAction = (
+  requestKey: string,
+  results: readonly CandidateCommercial[],
+) =>
+  ({
+    type: 'resultsLoaded',
+    requestKey,
+    commercialCode: results[0]?.commercialCode ?? null,
+  }) as const
+
+export const selectResultHeadingForViewport = <T,>(
+  isDesktop: boolean,
+  desktopHeading: T | null,
+  mobileHeading: T | null,
+): T | null =>
+  isDesktop
+    ? (desktopHeading ?? mobileHeading)
+    : (mobileHeading ?? desktopHeading)
+
+export const handleRecommendationResponseOnce = ({
+  marker,
+  requestKey,
+  dataUpdatedAt,
+  results,
+  dispatch,
+  heading,
+}: {
+  marker: HandledRecommendationMarker
+  requestKey: string
+  dataUpdatedAt: number
+  results: readonly CandidateCommercial[]
+  dispatch: (action: ReturnType<typeof createResultsLoadedAction>) => void
+  heading: {
+    focus: (options?: FocusOptions) => void
+  } | null
+}): boolean => {
+  if (!consumeRecommendationResponse(marker, requestKey, dataUpdatedAt)) {
+    return false
+  }
+
+  dispatch(createResultsLoadedAction(requestKey, results))
+  heading?.focus({ preventScroll: true })
+  return true
+}
+
+export const applyRecommendationPreviewChange = (
+  commercialCode: string | null,
+  setPreviewedCommercialCode: (code: string | null) => void,
+): void => {
+  setPreviewedCommercialCode(commercialCode)
+}
+
+export const getRecommendBookmarkLoginHref = (): string =>
+  '/login?redirect=%2Frecommend'
+
+export const handleRecommendationBookmarkToggle = ({
+  hasHydrated,
+  isLoggedIn,
+  navigate,
+  onAuthenticatedToggle,
+}: {
+  hasHydrated: boolean
+  isLoggedIn: boolean
+  navigate: (href: string) => void
+  onAuthenticatedToggle: () => void
+}): boolean => {
+  if (!hasHydrated) return false
+
+  if (!isLoggedIn) {
+    navigate(getRecommendBookmarkLoginHref())
+    return false
+  }
+
+  onAuthenticatedToggle()
+  return true
+}
+
+export const isRecommendationBookmarkPending = (
+  hasHydrated: boolean,
+  reservations: RecommendationBookmarkReservationRegistry,
+  memberId: string | null,
+  commercialCode: string,
+): boolean =>
+  !hasHydrated ||
+  (memberId !== null &&
+    isRecommendationBookmarkReserved(reservations, memberId, commercialCode))
+
+export const reserveRecommendationBookmarkMutation = (
+  reservations: RecommendationBookmarkReservationRegistry,
+  memberId: string,
+  commercialCode: string,
+): RecommendationBookmarkReservation | null => {
+  const memberReservations =
+    reservations.get(memberId) ?? new Map<string, symbol>()
+  if (memberReservations.has(commercialCode)) return null
+
+  const reservation = {
+    memberId,
+    commercialCode,
+    token: Symbol(`${memberId}:${commercialCode}`),
+  }
+  memberReservations.set(commercialCode, reservation.token)
+  reservations.set(memberId, memberReservations)
+  return reservation
+}
+
+export const releaseRecommendationBookmarkMutation = (
+  reservations: RecommendationBookmarkReservationRegistry,
+  reservation: RecommendationBookmarkReservation,
+): boolean => {
+  const memberReservations = reservations.get(reservation.memberId)
+  if (
+    memberReservations?.get(reservation.commercialCode) !== reservation.token
+  ) {
+    return false
+  }
+
+  memberReservations.delete(reservation.commercialCode)
+  if (memberReservations.size === 0) {
+    reservations.delete(reservation.memberId)
+  }
+  return true
+}
+
+export const isRecommendationBookmarkReserved = (
+  reservations: RecommendationBookmarkReservationRegistry,
+  memberId: string,
+  commercialCode: string,
+): boolean => reservations.get(memberId)?.has(commercialCode) === true
+
+const cloneRecommendationBookmarkReservations = (
+  reservations: RecommendationBookmarkReservationRegistry,
+): RecommendationBookmarkReservationRegistry =>
+  new Map(
+    [...reservations].map(([memberId, memberReservations]) => [
+      memberId,
+      new Map(memberReservations),
+    ]),
+  )
+
+export const shouldApplyRecommendationBookmarkMutation = (
+  activeMemberId: string | null,
+  requestMemberId: string,
+): boolean => activeMemberId === requestMemberId
 
 const Page = styled.main`
-  width: min(1200px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 40px 0 72px;
-  display: grid;
-  gap: 24px;
-`
-
-const Hero = styled.section`
-  display: grid;
-  gap: 16px;
-  padding: 32px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-1);
-`
-
-const Eyebrow = styled.p`
-  color: var(--color-text-caption);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-`
-
-const HeroTitle = styled.h1`
-  color: var(--color-text-900);
-  font-size: 26px;
-  line-height: 1.1;
-  letter-spacing: 0;
-`
-
-const HeroBody = styled.p`
-  max-width: 760px;
-  color: var(--color-text-500);
-  line-height: 1.8;
-`
-
-const Grid = styled.section`
-  display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 24px;
-
-  @media (max-width: 1040px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const Panel = styled.section`
-  padding: 24px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
-  box-shadow: var(--shadow-level-1);
-`
-
-const PanelHeader = styled.div`
-  display: grid;
-  gap: 8px;
-  margin-bottom: 18px;
-`
-
-const PanelTitle = styled.h2`
-  color: var(--color-text-900);
-  font-size: 24px;
-  line-height: 1.2;
-  letter-spacing: 0;
-`
-
-const PanelDescription = styled.p`
-  color: var(--color-text-500);
-  line-height: 1.75;
-`
-
-const ActionRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
-`
-
-const PrimaryButton = styled.button`
-  height: 48px;
-  padding: 0 18px;
-  border: none;
-  border-radius: var(--radius-control);
-  background: var(--color-primary-700);
-  color: white;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    background: #a9b5cb;
-  }
-`
-
-const SecondaryButton = styled.button`
-  height: 48px;
-  padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-primary-700);
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const PrimaryLink = styled(Link)`
-  min-height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 18px;
-  border-radius: var(--radius-control);
-  background: var(--color-primary-700);
-  color: white;
-  font-size: 15px;
-  font-weight: 700;
-`
-
-const Notice = styled.div<{ $tone?: 'error' | 'info' | 'success' }>`
-  padding: 16px 18px;
-  border-radius: var(--radius-card);
-  background: ${props => {
-    if (props.$tone === 'error') return 'rgba(209, 67, 67, 0.08)'
-    if (props.$tone === 'success') return 'rgba(31, 157, 85, 0.08)'
-    return 'var(--color-primary-100)'
-  }};
-  color: ${props => {
-    if (props.$tone === 'error') return 'var(--color-danger)'
-    if (props.$tone === 'success') return 'var(--color-success)'
-    return 'var(--color-primary-700)'
-  }};
-  line-height: 1.75;
-`
-
-const Helper = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
-  line-height: 1.75;
-`
-
-const ResultLayout = styled.div`
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 20px;
-
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const ResultList = styled.div`
-  display: grid;
-  gap: 10px;
-`
-
-const ResultCard = styled.button<{ $selected: boolean }>`
   width: 100%;
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid
-    ${props =>
-      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-card);
-  background: ${props =>
-    props.$selected
-      ? 'var(--color-primary-100)'
-      : 'var(--color-surface-muted)'};
-  text-align: left;
-  cursor: pointer;
 `
 
-const ResultRank = styled.p`
-  color: var(--color-primary-700);
-  font-size: 13px;
-  font-weight: 700;
-`
-
-const ResultName = styled.p`
-  color: var(--color-text-900);
-  font-size: 16px;
-  font-weight: 700;
-`
-
-const ResultMeta = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
-  line-height: 1.65;
-`
-
-const DetailStack = styled.div`
-  display: grid;
-  gap: 20px;
-`
-
-const SummaryCard = styled.section`
-  padding: 24px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
+const Stage = styled.section`
+  position: relative;
+  width: 100%;
+  min-height: max(560px, calc(100dvh - 72px));
+  overflow: hidden;
   background: var(--color-surface-muted);
-`
 
-const SummaryTitle = styled.h3`
-  color: var(--color-text-900);
-  font-size: 24px;
-  line-height: 1.3;
-  letter-spacing: 0;
-`
-
-const SummaryBody = styled.p`
-  margin-top: 12px;
-  color: var(--color-text-500);
-  line-height: 1.85;
-`
-
-const BadgeRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-`
-
-const Badge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: white;
-  color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 600;
-`
-
-const MetricsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+  @media (min-width: 1024px) {
+    min-height: calc(100dvh - 72px);
   }
 `
 
-const MetricCard = styled.article`
-  padding: 20px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
+const MapSlot = styled.div`
+  position: absolute;
+  inset: 0;
+
+  > section {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+
+  [data-recommend-map-container='true'] {
+    height: 100%;
+    min-height: 100%;
+  }
 `
 
-const MetricTitle = styled.h4`
-  color: var(--color-text-900);
-  font-size: 18px;
+const DesktopPanelSlot = styled.aside`
+  position: absolute;
+  z-index: 10;
+  top: 24px;
+  bottom: 24px;
+  left: 24px;
+  width: min(390px, calc(100vw - 48px));
+  min-height: 0;
+
+  > section {
+    width: 100%;
+    max-height: 100%;
+  }
+
+  @media (max-width: 1023px) {
+    display: none;
+  }
 `
 
-const MetricBars = styled.div`
-  display: grid;
-  gap: 12px;
-  margin-top: 16px;
+const MapFeedbackSlot = styled.div`
+  position: absolute;
+  z-index: 12;
+  right: 16px;
+  bottom: 16px;
+  width: min(360px, calc(100% - 32px));
+
+  @media (max-width: 1023px) {
+    bottom: 104px;
+  }
 `
 
-const BarRow = styled.div`
-  display: grid;
-  gap: 6px;
-`
-
-const BarTop = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-`
-
-const BarLabel = styled.span`
-  color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 600;
-`
-
-const BarValue = styled.span`
-  color: var(--color-text-500);
-  font-size: 13px;
-`
-
-const BarTrack = styled.div`
+const VisuallyHiddenHeading = styled.h1`
+  position: absolute;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--color-primary-100);
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 `
-
-const BarFill = styled.div<{
-  $width: number
-  $tone: 'primary' | 'secondary' | 'muted'
-}>`
-  width: ${props => props.$width}%;
-  height: 100%;
-  border-radius: inherit;
-  background: ${props => {
-    if (props.$tone === 'secondary') return 'var(--color-success)'
-    if (props.$tone === 'muted') return '#90a4c6'
-    return 'var(--color-primary-700)'
-  }};
-`
-
-const BlueOceanList = styled.div`
-  display: grid;
-  gap: 12px;
-`
-
-const BlueOceanItem = styled.article`
-  padding: 18px 20px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
-`
-
-const BlueOceanTitle = styled.p`
-  color: var(--color-text-900);
-  font-size: 16px;
-  font-weight: 700;
-`
-
-const BlueOceanText = styled.p`
-  margin-top: 8px;
-  color: var(--color-text-500);
-  line-height: 1.75;
-`
-
-const numberFormatter = new Intl.NumberFormat('ko-KR')
-const compactFormatter = new Intl.NumberFormat('ko-KR', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-})
-
-const formatPercent = (value: number) => `${value.toFixed(2)}%`
-
-const formatCurrency = (value: number) => `${compactFormatter.format(value)}원`
-
-const formatSummaryText = (current: number, average: number, unit: string) => {
-  const difference = current - average
-  const absolute = Math.abs(difference)
-  const verb = difference >= 0 ? '많습니다' : '적습니다'
-
-  return `${compactFormatter.format(absolute)}${unit} 더 ${verb}`
-}
-
-function ComparisonMetric({
-  title,
-  myValue,
-  administrationValue,
-  otherValue,
-  formatter,
-}: {
-  title: string
-  myValue: number
-  administrationValue: number
-  otherValue: number
-  formatter: (value: number) => string
-}) {
-  const maxValue = Math.max(myValue, administrationValue, otherValue, 0)
-
-  return (
-    <MetricCard>
-      <MetricTitle>{title}</MetricTitle>
-      <MetricBars>
-        {[
-          { label: '선택 상권', value: myValue, tone: 'primary' as const },
-          {
-            label: '행정동 평균',
-            value: administrationValue,
-            tone: 'secondary' as const,
-          },
-          { label: '서울 평균', value: otherValue, tone: 'muted' as const },
-        ].map(item => (
-          <BarRow key={item.label}>
-            <BarTop>
-              <BarLabel>{item.label}</BarLabel>
-              <BarValue>{formatter(item.value)}</BarValue>
-            </BarTop>
-            <BarTrack>
-              <BarFill
-                $tone={item.tone}
-                $width={maxValue === 0 ? 0 : (item.value / maxValue) * 100}
-              />
-            </BarTrack>
-          </BarRow>
-        ))}
-      </MetricBars>
-    </MetricCard>
-  )
-}
 
 export default function RecommendPage() {
+  const router = useRouter()
   const queryClient = useQueryClient()
-  const [hasRequested, setHasRequested] = useState(false)
-  const [selectedCommercialCode, setSelectedCommercialCode] = useState<
-    number | null
+  const hasHydrated = useAuthStore(auth => auth.hasHydrated)
+  const isLoggedIn = useAuthStore(auth => auth.isLoggedIn)
+  const memberId = useAuthStore(auth => auth.memberInfo?.memberId ?? null)
+  const bookmarksQuery = useCommercialBookmarks(
+    memberId,
+    hasHydrated && isLoggedIn,
+  )
+  const [bookmarkUiState, setBookmarkUiState] = useState<BookmarkUiState>({
+    memberId,
+    error: null,
+  })
+  const bookmarkReservationsRef =
+    useRef<RecommendationBookmarkReservationRegistry>(new Map())
+  const [bookmarkReservations, setBookmarkReservations] =
+    useState<RecommendationBookmarkReservationRegistry>(new Map())
+  const activeBookmarkMemberIdRef = useRef(memberId)
+  const [state, dispatch] = useReducer(
+    recommendationReducer,
+    undefined,
+    createInitialRecommendationState,
+  )
+  const [viewportBounds, setViewportBounds] =
+    useState<GeoBounds>(SEOUL_MAP_BOUNDS)
+  const mapStage = getRecommendationStage(
+    state.view,
+    state.draft.district,
+    state.draft.administration,
+  )
+  const [previewedCommercialCode, setPreviewedCommercialCode] = useState<
+    string | null
   >(null)
-  const [message, setMessage] = useState<{
-    tone: 'error' | 'info' | 'success'
-    text: string
-  } | null>(null)
-  const hasHydrated = useAuthStore(state => state.hasHydrated)
-  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
-  const selectedDistrict = useSelectPlaceStore(state => state.selectedDistrict)
-  const selectedAdministration = useSelectPlaceStore(
-    state => state.selectedAdministration,
+  const desktopResultHeadingRef = useRef<HTMLHeadingElement>(null)
+  const mobileResultHeadingRef = useRef<HTMLHeadingElement>(null)
+  const handledResultRef = useRef('')
+  const bookmarkMutation = useMutation<
+    BookmarkMutationResponse,
+    Error,
+    BookmarkMutationInput
+  >({
+    mutationFn: ({
+      bookmarkId,
+      commercialCode,
+      commercialName,
+      memberId: requestMemberId,
+    }: BookmarkMutationInput) => {
+      if (!requestMemberId) {
+        throw new Error('회원 정보를 확인하지 못했습니다.')
+      }
+
+      return bookmarkId === null
+        ? addMemberBookmark({
+            targetType: 'COMMERCIAL',
+            targetCode: commercialCode,
+            targetName: commercialName,
+          })
+        : removeMemberBookmark(bookmarkId)
+    },
+  })
+
+  useEffect(() => {
+    activeBookmarkMemberIdRef.current = memberId
+  }, [memberId])
+
+  const districtMapQuery = useQuery({
+    queryKey: ['recommend', 'map', 'districts', viewportBounds],
+    queryFn: () => fetchDistrictMapAreas(viewportBounds),
+    enabled: mapStage === 'district',
+    placeholderData: previousData => previousData,
+  })
+  const districtAreas = useMemo(
+    () => readMapAreas(districtMapQuery.data),
+    [districtMapQuery.data],
   )
 
-  const hasValidSelection =
-    selectedDistrict.code > 0 && selectedAdministration.code > 0
-
-  const resultQuery = useQuery({
+  const administrationsQuery = useQuery({
     queryKey: [
-      'recommendCommercial',
-      selectedDistrict.code,
-      selectedAdministration.code,
+      'recommend',
+      'regions',
+      'administrations',
+      state.draft.district?.code,
+    ],
+    queryFn: () => fetchAdministrations(state.draft.district!.code),
+    enabled: state.draft.district !== null,
+  })
+  const administrations = useMemo(
+    () => readAdministrations(administrationsQuery.data),
+    [administrationsQuery.data],
+  )
+  const administrationCodes = useMemo(
+    () =>
+      administrations.map(administration =>
+        String(administration.administrationCode),
+      ),
+    [administrations],
+  )
+
+  const administrationMapQuery = useQuery({
+    queryKey: [
+      'recommend',
+      'map',
+      'administrations',
+      state.draft.district?.code,
+      viewportBounds,
+    ],
+    queryFn: () => fetchAdministrationMapAreas(viewportBounds),
+    enabled:
+      mapStage === 'administration' &&
+      state.draft.district !== null &&
+      administrationCodes.length > 0,
+    placeholderData: previousData => previousData,
+  })
+  const administrationAreas = useMemo(
+    () =>
+      filterAreasByCodes(
+        readMapAreas(administrationMapQuery.data),
+        administrationCodes,
+      ),
+    [administrationCodes, administrationMapQuery.data],
+  )
+
+  const commercialsQuery = useQuery({
+    queryKey: [
+      'recommend',
+      'regions',
+      'commercials',
+      state.draft.district?.code,
+      state.draft.administration?.code,
     ],
     queryFn: () =>
-      recommendCommercial({
-        districtCode: selectedDistrict.code,
-        administrationCode: selectedAdministration.code,
-      }),
-    enabled: hasRequested && hasHydrated && isLoggedIn && hasValidSelection,
-  })
-
-  const savedListQuery = useQuery({
-    queryKey: ['recommendSaveList'],
-    queryFn: recommendSaveList,
-    enabled: hasHydrated && isLoggedIn,
-  })
-
-  const saveMutation = useMutation({
-    mutationFn: recommendSave,
-    onSuccess: response => {
-      if (!isApiSuccess(response)) {
-        setMessage({
-          tone: 'error',
-          text: getApiMessage(response, '추천 상권을 저장하지 못했습니다.'),
-        })
-        return
-      }
-
-      setMessage({
-        tone: 'success',
-        text: '추천 상권을 내 보관함에 저장했습니다.',
-      })
-      queryClient.invalidateQueries({ queryKey: ['recommendSaveList'] })
-    },
-    onError: () => {
-      setMessage({
-        tone: 'error',
-        text: '추천 상권 정보를 확인한 뒤 다시 저장해주세요.',
-      })
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: recommendDelete,
-    onSuccess: response => {
-      if (!isApiSuccess(response)) {
-        setMessage({
-          tone: 'error',
-          text: getApiMessage(
-            response,
-            '추천 상권 저장을 해제하지 못했습니다.',
-          ),
-        })
-        return
-      }
-
-      setMessage({
-        tone: 'success',
-        text: '추천 상권을 내 보관함에서 제거했습니다.',
-      })
-      queryClient.invalidateQueries({ queryKey: ['recommendSaveList'] })
-    },
-    onError: () => {
-      setMessage({
-        tone: 'error',
-        text: '저장 상태를 확인한 뒤 다시 해제해주세요.',
-      })
-    },
-  })
-
-  const results =
-    resultQuery.data && isApiSuccess(resultQuery.data)
-      ? resultQuery.data.dataBody
-      : []
-  const selectedResult =
-    results.find(item => item.commercialCode === selectedCommercialCode) ??
-    results[0] ??
-    null
-  const currentDistrict = districts.find(
-    district => district.gooCode === selectedDistrict.code,
-  )
-  const isSaved =
-    Boolean(selectedResult) &&
-    Boolean(
-      savedListQuery.data &&
-      isApiSuccess(savedListQuery.data) &&
-      savedListQuery.data.dataBody.data.some(
-        item => Number(item.commercialCode) === selectedResult.commercialCode,
+      fetchCommercials(
+        state.draft.district!.code,
+        state.draft.administration!.code,
       ),
+    enabled:
+      state.draft.district !== null && state.draft.administration !== null,
+  })
+  const commercials = useMemo(
+    () => readCommercials(commercialsQuery.data),
+    [commercialsQuery.data],
+  )
+  const commercialCodes = useMemo(
+    () => commercials.map(commercial => String(commercial.commercialCode)),
+    [commercials],
+  )
+  const commercialMapQuery = useQuery({
+    queryKey: [
+      'recommend',
+      'map',
+      'commercials',
+      state.draft.administration?.code,
+      viewportBounds,
+    ],
+    queryFn: () => fetchCommercialMapAreas(viewportBounds),
+    enabled: mapStage === 'commercial' && commercialCodes.length > 0,
+    placeholderData: previousData => previousData,
+  })
+  const commercialAreas = useMemo(
+    () =>
+      filterAreasByCodes(
+        readMapAreas(commercialMapQuery.data),
+        commercialCodes,
+      ),
+    [commercialCodes, commercialMapQuery.data],
+  )
+
+  const recommendationQuery = useQuery({
+    queryKey: [
+      'recommend',
+      'results',
+      state.submitted?.district.code,
+      state.submitted?.administration.code,
+      state.submitted?.service.code,
+      RECOMMENDATION_PERIOD_CODE,
+      state.submitted?.commercialCodesKey,
+    ],
+    queryFn: () =>
+      fetchCommercialRecommendations({
+        serviceCode: state.submitted!.service.code,
+        commercialCodes: [...state.submitted!.commercialCodes],
+        periodCode: RECOMMENDATION_PERIOD_CODE,
+        topN: RECOMMENDATION_TOP_N,
+      }),
+    enabled: state.submitted !== null,
+  })
+  const results = useMemo(
+    () =>
+      normalizeRecommendationResults(
+        recommendationQuery.data,
+        state.submitted?.commercialCodes ?? [],
+      ),
+    [recommendationQuery.data, state.submitted?.commercialCodes],
+  )
+  const profileScope = useMemo<CommercialProfileScope>(
+    () => ({
+      districtCode: state.submitted?.district.code ?? '',
+      administrationCode: state.submitted?.administration.code ?? '',
+      commercialCodes: results.map(result => result.commercialCode),
+    }),
+    [
+      results,
+      state.submitted?.administration.code,
+      state.submitted?.district.code,
+    ],
+  )
+  const combineProfiles = useMemo(
+    () => createCommercialProfileQueryCombiner(profileScope),
+    [profileScope],
+  )
+
+  const profiles = useQueries({
+    queries: results.map(result => ({
+      queryKey: [
+        'recommend',
+        'profile',
+        result.commercialCode,
+        state.submitted?.service.code,
+        RECOMMENDATION_PERIOD_CODE,
+      ],
+      queryFn: () =>
+        fetchCommercialProfile(
+          result.commercialCode,
+          state.submitted!.service.code,
+          RECOMMENDATION_PERIOD_CODE,
+        ),
+      enabled: state.submitted !== null,
+    })),
+    combine: combineProfiles,
+  })
+  const resultAreas = useMemo(
+    () => buildRecommendationMapItems(results, profiles, commercials),
+    [commercials, profiles, results],
+  )
+
+  useEffect(() => {
+    if (
+      !state.submitted ||
+      !recommendationQuery.isSuccess ||
+      !isSuccessfulApiResponse(recommendationQuery.data)
+    ) {
+      return
+    }
+
+    const isDesktop =
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function' ||
+      window.matchMedia('(min-width: 1024px)').matches
+    handleRecommendationResponseOnce({
+      marker: handledResultRef,
+      requestKey: state.submitted.requestKey,
+      dataUpdatedAt: recommendationQuery.dataUpdatedAt,
+      results,
+      dispatch,
+      heading: selectResultHeadingForViewport(
+        isDesktop,
+        desktopResultHeadingRef.current,
+        mobileResultHeadingRef.current,
+      ),
+    })
+  }, [
+    recommendationQuery.data,
+    recommendationQuery.dataUpdatedAt,
+    recommendationQuery.isSuccess,
+    results,
+    state.submitted,
+  ])
+
+  const administrationsError = state.draft.district
+    ? getRecommendationQueryError(
+        administrationsQuery.isError,
+        administrationsQuery.data,
+        '행정동 정보를 불러오지 못했습니다.',
+      )
+    : null
+  const candidatesError = state.draft.administration
+    ? getRecommendationQueryError(
+        commercialsQuery.isError,
+        commercialsQuery.data,
+        '상권 후보를 불러오지 못했습니다.',
+      )
+    : null
+  const recommendationError = state.submitted
+    ? getRecommendationQueryError(
+        recommendationQuery.isError,
+        recommendationQuery.data,
+        '추천 상권을 불러오지 못했습니다.',
+      )
+    : null
+
+  const recommendationFeedback = useMemo<
+    RecommendPanelProps['feedback']
+  >(() => {
+    if (recommendationError) {
+      return {
+        tone: 'error',
+        title: '추천 상권을 불러오지 못했어요',
+        description: recommendationError,
+        actionLabel: '다시 시도',
+      }
+    }
+
+    if (
+      recommendationQuery.isSuccess &&
+      isSuccessfulApiResponse(recommendationQuery.data) &&
+      results.length === 0
+    ) {
+      return {
+        tone: 'info',
+        title: '추천 결과가 없어요',
+        description: '현재 조건으로 추천 가능한 상권이 없습니다.',
+      }
+    }
+
+    return null
+  }, [
+    recommendationError,
+    recommendationQuery.data,
+    recommendationQuery.isSuccess,
+    results.length,
+  ])
+
+  const selectedResult = useMemo(
+    () =>
+      results.find(
+        result => result.commercialCode === state.selectedCommercialCode,
+      ) ?? null,
+    [results, state.selectedCommercialCode],
+  )
+  const bookmarksByCommercialCode = useMemo(
+    () =>
+      new Map(
+        bookmarksQuery.bookmarks.map(bookmark => [
+          bookmark.targetCode,
+          bookmark,
+        ]),
+      ),
+    [bookmarksQuery.bookmarks],
+  )
+
+  const handleDistrictChange = useCallback((district: RecommendationOption) => {
+    setPreviewedCommercialCode(null)
+    dispatch({ type: 'districtSelected', district })
+  }, [])
+  const handleAdministrationChange = useCallback(
+    (administration: RecommendationOption) => {
+      setPreviewedCommercialCode(null)
+      dispatch({ type: 'administrationSelected', administration })
+    },
+    [],
+  )
+  const handleServiceChange = useCallback((service: RecommendationOption) => {
+    setPreviewedCommercialCode(null)
+    dispatch({ type: 'serviceSelected', service })
+  }, [])
+  const handleSubmit = useCallback(() => {
+    const commercialCodes = commercials.map(commercial =>
+      String(commercial.commercialCode),
     )
 
-  const handleSubmit = () => {
-    setMessage(null)
+    if (commercialCodes.length === 0) return
 
-    if (!hasValidSelection) {
-      setMessage({
-        tone: 'error',
-        text: '자치구와 행정동을 모두 선택한 뒤 추천을 요청해주세요.',
+    resetHandledRecommendationMarker(handledResultRef)
+    setPreviewedCommercialCode(null)
+    dispatch({
+      type: 'submitted',
+      commercialCodes,
+    })
+  }, [commercials])
+  const handleEdit = useCallback(() => {
+    setPreviewedCommercialCode(null)
+    dispatch({ type: 'editRequested' })
+  }, [])
+  const handleResultSelect = useCallback((commercialCode: string) => {
+    setPreviewedCommercialCode(commercialCode)
+    dispatch({ type: 'resultSelected', commercialCode })
+  }, [])
+  const handleResultPreviewChange = useCallback(
+    (commercialCode: string | null) => {
+      applyRecommendationPreviewChange(
+        commercialCode,
+        setPreviewedCommercialCode,
+      )
+    },
+    [],
+  )
+  const handleBookmarkToggle = useCallback(
+    (commercialCode: string, commercialName: string) => {
+      handleRecommendationBookmarkToggle({
+        hasHydrated,
+        isLoggedIn,
+        navigate: href => router.push(href),
+        onAuthenticatedToggle: () => {
+          const requestMemberId = memberId
+          if (!requestMemberId) return
+
+          const reservation = reserveRecommendationBookmarkMutation(
+            bookmarkReservationsRef.current,
+            requestMemberId,
+            commercialCode,
+          )
+          if (!reservation) return
+
+          setBookmarkUiState({
+            memberId: requestMemberId,
+            error: null,
+          })
+          setBookmarkReservations(
+            cloneRecommendationBookmarkReservations(
+              bookmarkReservationsRef.current,
+            ),
+          )
+
+          const bookmark = bookmarksByCommercialCode.get(commercialCode) ?? null
+
+          void bookmarkMutation
+            .mutateAsync({
+              bookmarkId: bookmark?.bookmarkId ?? null,
+              commercialCode,
+              commercialName,
+              memberId: requestMemberId,
+            })
+            .then(async response => {
+              if (!isApiSuccess(response)) {
+                if (
+                  shouldApplyRecommendationBookmarkMutation(
+                    activeBookmarkMemberIdRef.current,
+                    requestMemberId,
+                  )
+                ) {
+                  setBookmarkUiState(current =>
+                    current.memberId === requestMemberId
+                      ? {
+                          ...current,
+                          error: getApiMessage(
+                            response,
+                            '북마크를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                          ),
+                        }
+                      : current,
+                  )
+                }
+                return
+              }
+
+              await invalidateMemberBookmarksQuery(queryClient, requestMemberId)
+            })
+            .catch(error => {
+              if (
+                shouldApplyRecommendationBookmarkMutation(
+                  activeBookmarkMemberIdRef.current,
+                  requestMemberId,
+                )
+              ) {
+                setBookmarkUiState(current =>
+                  current.memberId === requestMemberId
+                    ? {
+                        ...current,
+                        error:
+                          error instanceof Error
+                            ? error.message
+                            : '북마크를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                      }
+                    : current,
+                )
+              }
+            })
+            .finally(() => {
+              const released = releaseRecommendationBookmarkMutation(
+                bookmarkReservationsRef.current,
+                reservation,
+              )
+              if (released) {
+                setBookmarkReservations(
+                  cloneRecommendationBookmarkReservations(
+                    bookmarkReservationsRef.current,
+                  ),
+                )
+              }
+            })
+        },
       })
-      return
-    }
+    },
+    [
+      bookmarkMutation,
+      bookmarksByCommercialCode,
+      hasHydrated,
+      isLoggedIn,
+      memberId,
+      queryClient,
+      router,
+    ],
+  )
+  const isBookmarked = useCallback(
+    (commercialCode: string) => bookmarksByCommercialCode.has(commercialCode),
+    [bookmarksByCommercialCode],
+  )
+  const isBookmarkPending = useCallback(
+    (commercialCode: string) =>
+      isRecommendationBookmarkPending(
+        hasHydrated,
+        bookmarkReservations,
+        memberId,
+        commercialCode,
+      ),
+    [bookmarkReservations, hasHydrated, memberId],
+  )
+  const handleMapDistrictSelect = useCallback(
+    (districtCode: string) => {
+      const districtRecord = districts.find(
+        district => String(district.gooCode) === String(districtCode),
+      )
+      const districtArea = districtAreas.find(
+        area => String(area.areaCode) === String(districtCode),
+      )
 
-    if (!hasHydrated || !isLoggedIn) {
-      setMessage({
-        tone: 'info',
-        text: '상권 추천 결과 조회와 저장은 로그인 후 사용할 수 있습니다.',
+      if (!districtRecord && !districtArea) return
+      handleDistrictChange({
+        code: String(districtCode),
+        name: districtRecord?.gooName ?? districtArea!.areaName,
       })
-      return
-    }
+    },
+    [districtAreas, handleDistrictChange],
+  )
+  const handleMapAdministrationSelect = useCallback(
+    (administrationCode: string) => {
+      const administration = administrations.find(
+        item => String(item.administrationCode) === String(administrationCode),
+      )
 
-    setHasRequested(true)
-    setSelectedCommercialCode(null)
-  }
+      if (!administration) return
+      handleAdministrationChange({
+        code: String(administration.administrationCode),
+        name: administration.administrationName,
+      })
+    },
+    [administrations, handleAdministrationChange],
+  )
+  const handleMapBackgroundClick = useCallback(() => {
+    dispatch({ type: 'sheetSnapChanged', snap: 'collapsed' })
+  }, [])
+  const { refetch: refetchAdministrations } = administrationsQuery
+  const { refetch: refetchCommercials } = commercialsQuery
+  const { refetch: refetchRecommendation } = recommendationQuery
+  const retryAdministrations = useCallback(() => {
+    void refetchAdministrations()
+  }, [refetchAdministrations])
+  const retryCandidates = useCallback(() => {
+    void refetchCommercials()
+  }, [refetchCommercials])
+  const retryRecommendation = useCallback(() => {
+    void refetchRecommendation()
+  }, [refetchRecommendation])
+  const isAdministrationsBusy = isRecommendationQueryBusy({
+    isPending: administrationsQuery.isPending,
+    isFetching: administrationsQuery.isFetching,
+  })
+  const isCandidatesBusy = isRecommendationQueryBusy({
+    isPending: commercialsQuery.isPending,
+    isFetching: commercialsQuery.isFetching,
+  })
+  const isRecommendationBusy = isRecommendationQueryBusy({
+    isPending: recommendationQuery.isPending,
+    isFetching: recommendationQuery.isFetching,
+  })
 
-  const handleSaveToggle = () => {
-    if (!selectedResult) {
-      return
-    }
+  const panelProps = useMemo<RecommendPanelProps>(
+    () => ({
+      view: state.view,
+      draft: state.draft,
+      submitted: state.submitted,
+      administrations,
+      candidatesCount: commercials.length,
+      results,
+      selectedCommercialCode: state.selectedCommercialCode,
+      previewedCommercialCode,
+      periodLabel: formatRecommendationPeriod(
+        readRecommendationPeriodCode(
+          recommendationQuery.data,
+          RECOMMENDATION_PERIOD_CODE,
+        ),
+      ),
+      isAdministrationsLoading:
+        state.draft.district !== null && isAdministrationsBusy,
+      isCandidatesLoading:
+        state.draft.administration !== null && isCandidatesBusy,
+      isRecommendationLoading: state.submitted !== null && isRecommendationBusy,
+      administrationsError: administrationsError ?? undefined,
+      candidatesError: candidatesError ?? undefined,
+      feedback: recommendationFeedback,
+      bookmarkError:
+        (bookmarkUiState.memberId === memberId
+          ? bookmarkUiState.error
+          : null) ?? bookmarksQuery.errorMessage,
+      isBookmarked,
+      isBookmarkPending,
+      onDistrictChange: handleDistrictChange,
+      onAdministrationChange: handleAdministrationChange,
+      onServiceChange: handleServiceChange,
+      onSubmit: handleSubmit,
+      onEdit: handleEdit,
+      onResultSelect: handleResultSelect,
+      onResultPreviewChange: handleResultPreviewChange,
+      onBookmarkToggle: handleBookmarkToggle,
+      onRetry: retryRecommendation,
+      onRetryAdministrations: retryAdministrations,
+      onRetryCandidates: retryCandidates,
+    }),
+    [
+      administrations,
+      administrationsError,
+      bookmarkUiState.error,
+      bookmarkUiState.memberId,
+      bookmarksQuery.errorMessage,
+      candidatesError,
+      commercials.length,
+      handleAdministrationChange,
+      handleBookmarkToggle,
+      handleDistrictChange,
+      handleEdit,
+      handleResultPreviewChange,
+      handleResultSelect,
+      handleServiceChange,
+      handleSubmit,
+      isAdministrationsBusy,
+      isBookmarked,
+      isBookmarkPending,
+      isCandidatesBusy,
+      isRecommendationBusy,
+      memberId,
+      recommendationFeedback,
+      recommendationQuery.data,
+      previewedCommercialCode,
+      results,
+      retryAdministrations,
+      retryCandidates,
+      retryRecommendation,
+      state,
+    ],
+  )
 
-    const payload = {
-      districtCode: selectedDistrict.code,
-      administrationCode: selectedAdministration.code,
-      commercialCode: selectedResult.commercialCode,
-    }
-
-    if (isSaved) {
-      deleteMutation.mutate(payload)
-      return
-    }
-
-    saveMutation.mutate(payload)
-  }
+  const districtMapError = getRecommendationQueryError(
+    districtMapQuery.isError,
+    districtMapQuery.data,
+    '자치구 지도 정보를 불러오지 못했습니다.',
+  )
+  const administrationMapError =
+    mapStage === 'administration'
+      ? getRecommendationQueryError(
+          administrationMapQuery.isError,
+          administrationMapQuery.data,
+          '행정동 지도 정보를 불러오지 못했습니다.',
+        )
+      : null
+  const commercialMapError =
+    mapStage === 'commercial'
+      ? getRecommendationQueryError(
+          commercialMapQuery.isError,
+          commercialMapQuery.data,
+          '상권 지도 정보를 불러오지 못했습니다.',
+        )
+      : null
+  const mapError =
+    mapStage === 'district'
+      ? districtMapError
+      : mapStage === 'administration'
+        ? administrationMapError
+        : mapStage === 'commercial'
+          ? commercialMapError
+          : null
+  const activeMapQuery =
+    mapStage === 'commercial'
+      ? commercialMapQuery
+      : mapStage === 'administration'
+        ? administrationMapQuery
+        : districtMapQuery
+  const retryMap = activeMapQuery.refetch
+  const isMapRetrying = activeMapQuery.isFetching
 
   return (
-    <Page>
-      <Hero>
-        <Eyebrow>Recommend</Eyebrow>
-        <HeroTitle>선택한 구와 동을 기준으로 추천 상권을 비교합니다.</HeroTitle>
-        <HeroBody>
-          레거시 추천 플로우의 핵심인 지역 선택, 추천 결과 비교, 저장 토글을
-          Next 구조로 이관했습니다. 현재 단계에서는 지도 SDK 대신 선택 지역과
-          추천 결과를 데이터 카드 중심으로 정리합니다.
-        </HeroBody>
-      </Hero>
-
-      <Grid>
-        <Panel>
-          <PanelHeader>
-            <PanelTitle>추천 조건 선택</PanelTitle>
-            <PanelDescription>
-              자치구와 행정동을 고른 뒤 추천을 요청하면 상권 후보 리스트와 비교
-              지표가 열립니다.
-            </PanelDescription>
-          </PanelHeader>
-
-          <LocationSelector
-            title="위치 선택"
-            description="추천은 자치구와 행정동 조합을 기준으로 계산됩니다."
+    <Page data-hide-footer="true">
+      <VisuallyHiddenHeading>상권 추천</VisuallyHiddenHeading>
+      <Stage aria-label="상권 추천 탐색">
+        <MapSlot>
+          <RecommendMap
+            administrationAreas={administrationAreas}
+            commercialAreas={commercialAreas}
+            districtAreas={districtAreas}
+            previewedCommercialCode={previewedCommercialCode}
+            resultAreas={resultAreas}
+            selectedAdministrationCode={
+              state.draft.administration?.code ?? null
+            }
+            selectedCommercialCode={state.selectedCommercialCode}
+            selectedDistrictCode={state.draft.district?.code ?? null}
+            stage={mapStage}
+            onAdministrationSelect={handleMapAdministrationSelect}
+            onBackgroundClick={handleMapBackgroundClick}
+            onCommercialPreviewChange={handleResultPreviewChange}
+            onCommercialSelect={handleResultSelect}
+            onDistrictSelect={handleMapDistrictSelect}
+            onViewportBoundsChange={setViewportBounds}
           />
+        </MapSlot>
 
-          {currentDistrict ? (
-            <Notice>
-              선택 자치구 중심 좌표: {currentDistrict.gooCenter[1].toFixed(4)},{' '}
-              {currentDistrict.gooCenter[0].toFixed(4)}
-            </Notice>
-          ) : null}
+        <DesktopPanelSlot aria-label="상권 추천 조건과 결과">
+          <RecommendPanel
+            {...panelProps}
+            resultHeadingRef={desktopResultHeadingRef}
+          />
+        </DesktopPanelSlot>
 
-          {message ? (
-            <Notice $tone={message.tone}>{message.text}</Notice>
-          ) : null}
+        <RecommendMobileSheet
+          selectedResult={selectedResult}
+          snap={state.sheetSnap}
+          view={state.view}
+          onSnapChange={snap => dispatch({ type: 'sheetSnapChanged', snap })}
+        >
+          <RecommendPanel
+            {...panelProps}
+            resultHeadingRef={mobileResultHeadingRef}
+            variant="sheet"
+          />
+        </RecommendMobileSheet>
 
-          <ActionRow>
-            {hasHydrated && isLoggedIn ? (
-              <PrimaryButton type="button" onClick={handleSubmit}>
-                상권 추천받기
-              </PrimaryButton>
-            ) : (
-              <PrimaryLink href="/login">로그인 후 추천받기</PrimaryLink>
-            )}
-            <SecondaryButton
-              type="button"
-              onClick={() => setHasRequested(false)}
-            >
-              결과 접기
-            </SecondaryButton>
-          </ActionRow>
-
-          <Helper>
-            레거시와 동일하게 추천 결과 조회와 저장은 로그인 사용자 기준으로
-            동작합니다.
-          </Helper>
-        </Panel>
-
-        <Panel>
-          <PanelHeader>
-            <PanelTitle>추천 결과</PanelTitle>
-            <PanelDescription>
-              추천 상권 간 상대 비교와 블루오션 후보를 한 화면에서 확인할 수
-              있습니다.
-            </PanelDescription>
-          </PanelHeader>
-
-          {!hasRequested ? (
-            <Notice>왼쪽에서 위치를 선택하고 추천 요청을 실행해주세요.</Notice>
-          ) : null}
-
-          {hasRequested && resultQuery.isPending ? (
-            <Notice>추천 상권 데이터를 불러오는 중입니다.</Notice>
-          ) : null}
-
-          {hasRequested &&
-          resultQuery.data &&
-          !isApiSuccess(resultQuery.data) ? (
-            <Notice $tone="error">
-              {getApiMessage(
-                resultQuery.data,
-                '추천 상권 결과를 불러오지 못했습니다.',
-              )}
-            </Notice>
-          ) : null}
-
-          {hasRequested &&
-          resultQuery.data &&
-          isApiSuccess(resultQuery.data) &&
-          results.length === 0 ? (
-            <Notice $tone="info">
-              현재 선택 조건으로 제공 가능한 추천 상권이 없습니다.
-            </Notice>
-          ) : null}
-
-          {selectedResult ? (
-            <ResultLayout>
-              <ResultList>
-                {results.map((item, index) => (
-                  <ResultCard
-                    key={item.commercialCode}
-                    type="button"
-                    $selected={
-                      item.commercialCode === selectedResult.commercialCode
-                    }
-                    onClick={() =>
-                      setSelectedCommercialCode(item.commercialCode)
-                    }
-                  >
-                    <ResultRank>{index + 1}. 추천 후보</ResultRank>
-                    <ResultName>{item.commercialCodeName}</ResultName>
-                    <ResultMeta>
-                      유동인구{' '}
-                      {numberFormatter.format(
-                        item.footTrafficCommercialInfo.myFootTraffic,
-                      )}
-                      명
-                    </ResultMeta>
-                  </ResultCard>
-                ))}
-              </ResultList>
-
-              <DetailStack>
-                <SummaryCard>
-                  <SummaryTitle>
-                    {selectedResult.commercialCodeName}
-                  </SummaryTitle>
-                  <SummaryBody>
-                    선택 상권의 점포 수는 행정동 평균 대비{' '}
-                    {formatSummaryText(
-                      selectedResult.storeCommercialInfo.myStores,
-                      selectedResult.storeCommercialInfo.administrationStores,
-                      '개',
-                    )}
-                    . 유동인구는{' '}
-                    {formatSummaryText(
-                      selectedResult.footTrafficCommercialInfo.myFootTraffic,
-                      selectedResult.footTrafficCommercialInfo
-                        .administrationFootTraffic,
-                      '명',
-                    )}
-                    . 평균 총매출은{' '}
-                    {formatSummaryText(
-                      selectedResult.salesCommercialInfo.mySales / 4,
-                      selectedResult.salesCommercialInfo.administrationSales /
-                        4,
-                      '원',
-                    )}
-                    . 폐업률은 행정동 평균 대비{' '}
-                    {formatPercent(
-                      selectedResult.closedRateCommercialInfo.myClosedRate -
-                        selectedResult.closedRateCommercialInfo
-                          .administrationClosedRate,
-                    )}
-                    의 차이를 보입니다.
-                  </SummaryBody>
-                  <BadgeRow>
-                    <Badge>{selectedDistrict.name}</Badge>
-                    <Badge>{selectedAdministration.name}</Badge>
-                    <Badge>상권 코드 {selectedResult.commercialCode}</Badge>
-                  </BadgeRow>
-                  {hasHydrated && isLoggedIn ? (
-                    <ActionRow>
-                      <PrimaryButton
-                        type="button"
-                        onClick={handleSaveToggle}
-                        disabled={
-                          saveMutation.isPending || deleteMutation.isPending
-                        }
-                      >
-                        {saveMutation.isPending || deleteMutation.isPending
-                          ? '처리 중...'
-                          : isSaved
-                            ? '저장 해제'
-                            : '내 보관함 저장'}
-                      </PrimaryButton>
-                      <SecondaryButton as={Link} href="/analysis/simulation">
-                        창업 시뮬레이션으로 이동
-                      </SecondaryButton>
-                    </ActionRow>
-                  ) : null}
-                </SummaryCard>
-
-                <MetricsGrid>
-                  <ComparisonMetric
-                    title="유동 인구"
-                    myValue={
-                      selectedResult.footTrafficCommercialInfo.myFootTraffic
-                    }
-                    administrationValue={
-                      selectedResult.footTrafficCommercialInfo
-                        .administrationFootTraffic
-                    }
-                    otherValue={
-                      selectedResult.footTrafficCommercialInfo.otherFootTraffic
-                    }
-                    formatter={value => `${compactFormatter.format(value)}명`}
-                  />
-                  <ComparisonMetric
-                    title="점포 수"
-                    myValue={selectedResult.storeCommercialInfo.myStores}
-                    administrationValue={
-                      selectedResult.storeCommercialInfo.administrationStores
-                    }
-                    otherValue={selectedResult.storeCommercialInfo.otherStores}
-                    formatter={value => `${numberFormatter.format(value)}개`}
-                  />
-                  <ComparisonMetric
-                    title="폐업률"
-                    myValue={
-                      selectedResult.closedRateCommercialInfo.myClosedRate
-                    }
-                    administrationValue={
-                      selectedResult.closedRateCommercialInfo
-                        .administrationClosedRate
-                    }
-                    otherValue={
-                      selectedResult.closedRateCommercialInfo.otherClosedRate
-                    }
-                    formatter={formatPercent}
-                  />
-                  <ComparisonMetric
-                    title="평균 총매출"
-                    myValue={selectedResult.salesCommercialInfo.mySales / 4}
-                    administrationValue={
-                      selectedResult.salesCommercialInfo.administrationSales / 4
-                    }
-                    otherValue={
-                      selectedResult.salesCommercialInfo.otherSales / 4
-                    }
-                    formatter={formatCurrency}
-                  />
-                </MetricsGrid>
-
-                <Panel>
-                  <PanelHeader>
-                    <PanelTitle>블루오션 제안</PanelTitle>
-                    <PanelDescription>
-                      주변 상권에는 상대적으로 많지만 현재 상권에는 적은 업종을
-                      기준으로 정리합니다.
-                    </PanelDescription>
-                  </PanelHeader>
-                  <BlueOceanList>
-                    {selectedResult.blueOceanInfo.map(item => (
-                      <BlueOceanItem key={item.serviceCodeName}>
-                        <BlueOceanTitle>{item.serviceCodeName}</BlueOceanTitle>
-                        <BlueOceanText>
-                          현재 상권 점포수{' '}
-                          {numberFormatter.format(item.myStore)}개 / 주변 전체{' '}
-                          {numberFormatter.format(item.totalStore)}개 / 점포
-                          비중 {item.storeRate.toFixed(1)}%
-                        </BlueOceanText>
-                      </BlueOceanItem>
-                    ))}
-                  </BlueOceanList>
-                </Panel>
-              </DetailStack>
-            </ResultLayout>
-          ) : null}
-        </Panel>
-      </Grid>
+        {mapError ? (
+          <MapFeedbackSlot>
+            <RecommendFeedback
+              actionLabel={
+                isMapRetrying ? '지도 불러오는 중' : '지도 다시 불러오기'
+              }
+              description={mapError}
+              isActionDisabled={isMapRetrying}
+              title="지도 정보를 불러오지 못했어요"
+              tone="error"
+              onAction={() => {
+                void retryMap()
+              }}
+            />
+          </MapFeedbackSlot>
+        ) : null}
+      </Stage>
     </Page>
   )
 }
