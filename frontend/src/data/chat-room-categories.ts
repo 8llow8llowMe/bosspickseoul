@@ -1,12 +1,10 @@
-import type { CommunityCategoryValue } from '@/types/community'
-
-export type CommunityCategoryItem = {
+export type ChatRoomCategoryItem = {
   label: string
-  value: CommunityCategoryValue
+  value: string
   description: string
 }
 
-export const communityCategories: CommunityCategoryItem[] = [
+export const chatRoomCategories: ChatRoomCategoryItem[] = [
   {
     label: '전체보기',
     value: '',
@@ -39,9 +37,9 @@ export const communityCategories: CommunityCategoryItem[] = [
   },
 ]
 
-const communityCategoryLabelMap = new Map(
-  communityCategories.map(category => [category.value, category.label]),
+const chatRoomCategoryLabelMap = new Map(
+  chatRoomCategories.map(category => [category.value, category.label]),
 )
 
-export const getCommunityCategoryLabel = (value: string) =>
-  communityCategoryLabelMap.get(value as CommunityCategoryValue) ?? value
+export const getChatRoomCategoryLabelFromCatalog = (value: string) =>
+  chatRoomCategoryLabelMap.get(value) ?? value

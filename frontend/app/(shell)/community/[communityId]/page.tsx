@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import CommunityDetailPage from '@/components/community/community-detail-page'
 import { buildCommunityMetadataDescription } from '@/lib/community'
-import { getCommunityDetailData } from '@/lib/api/community'
-import { isApiSuccess } from '@/lib/api/response'
+import { fetchCommunityPostForMetadata } from '@/lib/api/community-server'
+import { parseCommunityPostId } from '@/lib/community/community-state'
 import { createPageMetadata } from '@/lib/metadata'
 
 type PageProps = {
@@ -16,9 +16,9 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { communityId } = await params
-  const resolvedCommunityId = Number(communityId)
+  const resolvedCommunityId = parseCommunityPostId(communityId)
 
-  if (!Number.isFinite(resolvedCommunityId) || resolvedCommunityId <= 0) {
+  if (resolvedCommunityId === null) {
     return createPageMetadata({
       title: '커뮤니티 게시글',
       description: '창업 경험과 상권 인사이트를 나누는 커뮤니티 게시글입니다.',
@@ -29,15 +29,13 @@ export async function generateMetadata({
   }
 
   try {
-    const response = await getCommunityDetailData(resolvedCommunityId)
+    const detail = await fetchCommunityPostForMetadata(resolvedCommunityId)
 
-    if (isApiSuccess(response)) {
-      const detail = response.dataBody
-
+    if (detail) {
       return createPageMetadata({
         title: detail.title,
         description: buildCommunityMetadataDescription(
-          detail.category,
+          detail.targetName,
           detail.content,
         ),
         path: `/community/${communityId}`,
@@ -60,9 +58,9 @@ export async function generateMetadata({
 
 export default async function Page({ params }: PageProps) {
   const { communityId } = await params
-  const resolvedCommunityId = Number(communityId)
+  const resolvedCommunityId = parseCommunityPostId(communityId)
 
-  if (!Number.isFinite(resolvedCommunityId) || resolvedCommunityId <= 0) {
+  if (resolvedCommunityId === null) {
     notFound()
   }
 

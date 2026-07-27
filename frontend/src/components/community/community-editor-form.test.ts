@@ -1,0 +1,389 @@
+import { createElement, type ComponentProps } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { describe, expect, it, vi } from 'vitest'
+
+import type { CommunityPostDetailResponse } from '@/types/community'
+import { communityKeys } from '@/lib/community/community-state'
+
+import CommunityEditorForm, {
+  resolveCommunityEditorSubmission,
+} from './community-editor-form'
+import {
+  CommunityEditorQueryError,
+  communityEditorKeys,
+  createCommunityEditorDetailHref,
+  createCommunityEditorPayload,
+  getCommunityEditorAccess,
+  getCommunityEditorFormKey,
+  getCommunityEditorViewer,
+  isCommunityEditorUnauthorizedError,
+  parseCommunityEditorPostId,
+  recoverCommunityEditorUnauthorized,
+  shouldRetryCommunityEditorQuery,
+  startCommunityEditorUnauthorizedRecovery,
+  validateCommunityEditorDetailResponse,
+} from './community-register-page'
+
+const renderWithQuery = (props: ComponentProps<typeof CommunityEditorForm>) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
+  return renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(CommunityEditorForm, props),
+    ),
+  )
+}
+
+const baseProps: ComponentProps<typeof CommunityEditorForm> = {
+  mode: 'create',
+  initialValue: { title: '', content: '', location: {} },
+  mockEnabled: true,
+  pending: false,
+  errorMessage: null,
+  onCancel: vi.fn(),
+  onSubmit: vi.fn(),
+}
+
+describe('CommunityEditorForm', () => {
+  it('renders optional location, title/content limits, counts, and a disabled image control', () => {
+    const markup = renderWithQuery(baseProps)
+
+    expect(markup).toContain('지역·상권 (선택)')
+    expect(markup).toContain('maxLength="120"')
+    expect(markup).toContain('maxLength="5000"')
+    expect(markup).toContain('0 / 120')
+    expect(markup).toContain('0 / 5,000')
+    expect(markup).toContain('이미지 첨부')
+    expect(markup).toContain('준비 중')
+    expect(markup).toContain('disabled')
+  })
+
+  it('shows the existing target read-only in edit mode', () => {
+    const markup = renderWithQuery({
+      ...baseProps,
+      mode: 'edit',
+      initialValue: {
+        title: '제목',
+        content: '본문',
+        location: {
+          targetType: 'COMMERCIAL',
+          targetCode: '3110008',
+          targetName: '강남역 상권',
+        },
+      },
+      mockEnabled: false,
+    })
+
+    expect(markup).toContain('강남역 상권')
+    expect(markup).toContain('지역은 수정할 수 없어요')
+  })
+
+  it('disables every submission path while pending and keeps draft input with the mutation error', () => {
+    const markup = renderWithQuery({
+      ...baseProps,
+      initialValue: {
+        title: '저장 전 제목',
+        content: '저장 전 본문',
+        location: {},
+      },
+      pending: true,
+      errorMessage: '저장하지 못했어요.',
+    })
+
+    expect(markup).toContain('aria-busy="true"')
+    expect(markup).toContain('저장하지 못했어요.')
+    expect(markup).toContain('value="저장 전 제목"')
+    expect(markup).toContain('저장 전 본문')
+    expect(markup).toContain('저장 중')
+  })
+})
+
+describe('community editor helpers', () => {
+  it('trims valid input and rejects whitespace-only title/content', () => {
+    expect(
+      resolveCommunityEditorSubmission('  제목  ', '  본문  ', {
+        targetType: 'DISTRICT',
+        targetCode: '11680',
+        targetName: '강남구',
+      }),
+    ).toEqual({
+      error: null,
+      value: {
+        title: '제목',
+        content: '본문',
+        location: {
+          targetType: 'DISTRICT',
+          targetCode: '11680',
+          targetName: '강남구',
+        },
+      },
+    })
+    expect(resolveCommunityEditorSubmission('  ', '본문', {}).error).toBe(
+      '제목을 입력해 주세요.',
+    )
+    expect(resolveCommunityEditorSubmission('제목', '  ', {}).error).toBe(
+      '내용을 입력해 주세요.',
+    )
+  })
+
+  it('accepts only a positive integer postId for edit mode', () => {
+    expect(parseCommunityEditorPostId('7')).toBe(7)
+    expect(parseCommunityEditorPostId('7.5')).toBeNull()
+    expect(parseCommunityEditorPostId('0')).toBeNull()
+    expect(parseCommunityEditorPostId('-1')).toBeNull()
+    expect(parseCommunityEditorPostId('abc')).toBeNull()
+    expect(parseCommunityEditorPostId(null)).toBeNull()
+  })
+
+  it('creates an optional target payload and excludes the target while editing', () => {
+    const draft = {
+      title: '제목',
+      content: '본문',
+      location: {
+        targetType: 'COMMERCIAL' as const,
+        targetCode: '3110008',
+        targetName: '강남역 상권',
+      },
+    }
+
+    expect(createCommunityEditorPayload('create', draft)).toEqual({
+      title: '제목',
+      content: '본문',
+      targetType: 'COMMERCIAL',
+      targetCode: '3110008',
+    })
+    expect(createCommunityEditorPayload('edit', draft)).toEqual({
+      title: '제목',
+      content: '본문',
+    })
+    expect(
+      createCommunityEditorPayload('create', {
+        ...draft,
+        location: {},
+      }),
+    ).toEqual({
+      title: '제목',
+      content: '본문',
+    })
+  })
+
+  it('preserves explicit mock mode in the successful detail destination', () => {
+    expect(createCommunityEditorDetailHref(8, true)).toBe('/community/8?mock=1')
+    expect(createCommunityEditorDetailHref(8, false)).toBe('/community/8')
+  })
+
+  it('rejects a success=false edit response so the retry UI can render', () => {
+    const response = {
+      dataHeader: {
+        success: false,
+        resultCode: 'FAILED',
+        resultMessage: '게시글을 불러오지 못했어요.',
+      },
+      dataBody: {} as CommunityPostDetailResponse['dataBody'],
+    } satisfies CommunityPostDetailResponse
+
+    expect(() => validateCommunityEditorDetailResponse(response)).toThrow(
+      CommunityEditorQueryError,
+    )
+    expect(() => validateCommunityEditorDetailResponse(response)).toThrow(
+      '게시글을 불러오지 못했어요.',
+    )
+  })
+
+  it('waits for real auth hydration, redirects guests, and allows only the edit owner', () => {
+    expect(
+      getCommunityEditorAccess({
+        mockEnabled: false,
+        hasHydrated: false,
+        isLoggedIn: false,
+        viewerMemberId: null,
+        editMemberId: null,
+      }),
+    ).toBe('waiting')
+    expect(
+      getCommunityEditorAccess({
+        mockEnabled: false,
+        hasHydrated: true,
+        isLoggedIn: false,
+        viewerMemberId: null,
+        editMemberId: null,
+      }),
+    ).toBe('redirect')
+    expect(
+      getCommunityEditorAccess({
+        mockEnabled: false,
+        hasHydrated: true,
+        isLoggedIn: true,
+        viewerMemberId: '20',
+        editMemberId: 21,
+      }),
+    ).toBe('forbidden')
+    expect(
+      getCommunityEditorAccess({
+        mockEnabled: false,
+        hasHydrated: true,
+        isLoggedIn: true,
+        viewerMemberId: '21',
+        editMemberId: 21,
+      }),
+    ).toBe('allowed')
+  })
+
+  it('uses the fixed mock owner and never treats mock mode as a real guest', () => {
+    expect(
+      getCommunityEditorViewer({
+        mockEnabled: true,
+        hasHydrated: false,
+        isLoggedIn: false,
+        memberId: null,
+      }),
+    ).toEqual({ authenticated: true, memberId: '9001' })
+    expect(
+      getCommunityEditorAccess({
+        mockEnabled: true,
+        hasHydrated: false,
+        isLoggedIn: false,
+        viewerMemberId: '9001',
+        editMemberId: 9001,
+      }),
+    ).toBe('allowed')
+  })
+
+  it('isolates the edit query from public detail cache and forces a fresh editor fetch', async () => {
+    const queryClient = new QueryClient()
+    const publicKey = communityKeys.detail(1, false)
+    const editorKey = communityEditorKeys.edit(1, false)
+    const stale = {
+      dataHeader: {
+        success: true,
+        resultCode: null,
+        resultMessage: null,
+      },
+      dataBody: {
+        postId: 1,
+        memberId: 9001,
+        targetType: null,
+        targetCode: null,
+        targetName: null,
+        title: '공개 상세 캐시 제목',
+        content: '공개 상세 캐시 본문',
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+        createdAt: '2026-07-27T00:00:00.000Z',
+        updatedAt: '2026-07-27T00:00:00.000Z',
+      },
+    } satisfies CommunityPostDetailResponse
+    const fresh = {
+      ...stale,
+      dataBody: {
+        ...stale.dataBody,
+        title: '수정 전용 최신 제목',
+        content: '수정 전용 최신 본문',
+      },
+    }
+    const fetchFresh = vi.fn(async () => fresh)
+
+    queryClient.setQueryData(publicKey, stale)
+    queryClient.setQueryData(editorKey, stale)
+    const result = await queryClient.fetchQuery({
+      queryKey: editorKey,
+      queryFn: fetchFresh,
+      staleTime: 0,
+    })
+
+    expect(editorKey).not.toEqual(publicKey)
+    expect(fetchFresh).toHaveBeenCalledOnce()
+    expect(result).toBe(fresh)
+    expect(queryClient.getQueryData(publicKey)).toBe(stale)
+  })
+
+  it('keeps a stable form initialization key across background edit refetches', () => {
+    const before = getCommunityEditorFormKey('edit', 8)
+    const after = getCommunityEditorFormKey('edit', 8)
+
+    expect(before).toBe('edit-8')
+    expect(after).toBe(before)
+    expect(getCommunityEditorFormKey('create', null)).toBe('create')
+  })
+
+  it('does not retry 401 and retries only bounded non-auth failures', () => {
+    const unauthorized = {
+      isAxiosError: true,
+      response: { status: 401 },
+    }
+
+    expect(isCommunityEditorUnauthorizedError(unauthorized)).toBe(true)
+    expect(shouldRetryCommunityEditorQuery(0, unauthorized)).toBe(false)
+    expect(shouldRetryCommunityEditorQuery(0, new Error('offline'))).toBe(true)
+    expect(shouldRetryCommunityEditorQuery(2, new Error('offline'))).toBe(false)
+  })
+
+  it('removes only exact editor queries before clearing a 401 session and redirecting', async () => {
+    const queryClient = new QueryClient()
+    const editorKey = communityEditorKeys.edit(1, false)
+    const otherEditorKey = communityEditorKeys.edit(2, false)
+    const publicKey = communityKeys.detail(1, false)
+    const cached = { value: 'cached' }
+    const clearSession = vi.fn()
+    const navigate = vi.fn()
+    const cancelSpy = vi.spyOn(queryClient, 'cancelQueries')
+    const removeSpy = vi.spyOn(queryClient, 'removeQueries')
+
+    queryClient.setQueryData(editorKey, cached)
+    queryClient.setQueryData(otherEditorKey, cached)
+    queryClient.setQueryData(publicKey, cached)
+
+    await recoverCommunityEditorUnauthorized({
+      queryClient,
+      queryKeys: [editorKey],
+      clearSession,
+      navigate,
+      currentHref: '/community/register?postId=1',
+    })
+
+    expect(cancelSpy).toHaveBeenCalledWith({
+      queryKey: editorKey,
+      exact: true,
+    })
+    expect(removeSpy).toHaveBeenCalledWith({
+      queryKey: editorKey,
+      exact: true,
+    })
+    expect(queryClient.getQueryData(editorKey)).toBeUndefined()
+    expect(queryClient.getQueryData(otherEditorKey)).toBe(cached)
+    expect(queryClient.getQueryData(publicKey)).toBe(cached)
+    expect(clearSession).toHaveBeenCalledOnce()
+    expect(navigate).toHaveBeenCalledWith(
+      '/login?redirect=%2Fcommunity%2Fregister%3FpostId%3D1',
+    )
+  })
+
+  it('deduplicates concurrent editor 401 recovery and resets afterward', async () => {
+    let resolveRecovery!: () => void
+    const recover = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          resolveRecovery = resolve
+        }),
+    )
+    const recoveryRef: { current: Promise<void> | null } = { current: null }
+
+    const first = startCommunityEditorUnauthorizedRecovery(recoveryRef, recover)
+    const second = startCommunityEditorUnauthorizedRecovery(
+      recoveryRef,
+      recover,
+    )
+
+    expect(recover).toHaveBeenCalledOnce()
+    expect(second).toBe(first)
+    resolveRecovery()
+    await first
+    expect(recoveryRef.current).toBeNull()
+  })
+})

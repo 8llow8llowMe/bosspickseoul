@@ -1,4 +1,4 @@
-import { getCommunityCategoryLabel } from '@/data/community-categories'
+import { getChatRoomCategoryLabelFromCatalog } from '@/data/chat-room-categories'
 import type { ChatMessage } from '@/types/chatting'
 
 const timeFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -66,7 +66,7 @@ export const formatChatRoomMembers = (memberCount: number, limit: number) =>
   `${compactNumberFormatter.format(memberCount)} / ${compactNumberFormatter.format(limit)}`
 
 export const getChatRoomCategoryLabel = (value: string) =>
-  getCommunityCategoryLabel(value)
+  getChatRoomCategoryLabelFromCatalog(value)
 
 export const sortChatMessagesAscending = (messages: ChatMessage[]) =>
   [...messages].sort((leftMessage, rightMessage) => {

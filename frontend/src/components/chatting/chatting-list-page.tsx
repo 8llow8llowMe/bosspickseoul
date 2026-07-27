@@ -11,7 +11,7 @@ import {
 import styled from 'styled-components'
 import ChattingShell from '@/components/chatting/chatting-shell'
 import ChattingSidebar from '@/components/chatting/chatting-sidebar'
-import { communityCategories } from '@/data/community-categories'
+import { chatRoomCategories } from '@/data/chat-room-categories'
 import {
   enterChatRoomData,
   getChatRoomListData,
@@ -385,7 +385,7 @@ export default function ChattingListPage() {
           </SectionHeader>
 
           <CategoryRow>
-            {communityCategories.map(category => (
+            {chatRoomCategories.map(category => (
               <CategoryChip
                 key={category.value || 'all'}
                 type="button"

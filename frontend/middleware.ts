@@ -5,7 +5,7 @@ import { SESSION_COOKIE } from '@/lib/auth/session-constants'
 export const PROTECTED_PATHS = [
   '/analysis/simulation',
   '/simulation',
-  '/community',
+  '/community/register',
   '/chatting',
   '/profile',
 ] as const
@@ -15,9 +15,28 @@ export const isProtectedPath = (pathname: string) =>
     path => pathname === path || pathname.startsWith(`${path}/`),
   )
 
+export const shouldAllowCommunityMock = (
+  pathname: string,
+  searchParams: URLSearchParams,
+  nodeEnv = process.env.NODE_ENV,
+) => {
+  const mockValues = searchParams.getAll('mock')
+
+  return (
+    nodeEnv !== 'production' &&
+    (pathname === '/community/register' ||
+      pathname.startsWith('/community/register/')) &&
+    mockValues.length === 1 &&
+    mockValues[0] === '1'
+  )
+}
+
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl
   if (!isProtectedPath(pathname)) return NextResponse.next()
+  if (shouldAllowCommunityMock(pathname, req.nextUrl.searchParams)) {
+    return NextResponse.next()
+  }
 
   const hasSession = Boolean(req.cookies.get(SESSION_COOKIE)?.value)
   if (hasSession) return NextResponse.next()
@@ -32,7 +51,7 @@ export const config = {
   matcher: [
     '/analysis/simulation/:path*',
     '/simulation/:path*',
-    '/community/:path*',
+    '/community/register/:path*',
     '/chatting/:path*',
     '/profile/:path*',
   ],
