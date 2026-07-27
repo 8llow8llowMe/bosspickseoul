@@ -21,11 +21,11 @@ const renderFooter = () => {
 }
 
 describe('SiteFooter', () => {
-  it('data-hide-footer main 바로 뒤의 footer를 모든 해상도에서 숨긴다', () => {
+  it('data-hide-footer main 이후의 footer를 중간 modal 유무와 관계없이 숨긴다', () => {
     const { styles } = renderFooter()
 
     expect(styles).toMatch(
-      /main\[data-hide-footer=['"]true['"]\]\+[^}]+display:none/,
+      /main\[data-hide-footer=['"]true['"]\]~[^}]+display:none/,
     )
   })
 
