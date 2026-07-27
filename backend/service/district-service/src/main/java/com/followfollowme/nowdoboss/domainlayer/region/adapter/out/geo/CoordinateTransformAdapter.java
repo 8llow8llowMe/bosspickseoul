@@ -1,5 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.region.adapter.out.geo;
 
+import com.followfollowme.nowdoboss.domainlayer.region.application.exception.RegionErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.region.application.exception.RegionException;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.out.CoordinateTransformPort;
 import jakarta.annotation.PostConstruct;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
@@ -29,7 +31,8 @@ public class CoordinateTransformAdapter implements CoordinateTransformPort {
             CoordinateReferenceSystem targetCRS = CRS.decode(TARGET_EPSG);
             this.transform = CRS.findMathTransform(sourceCRS, targetCRS, true);
         } catch (Exception e) {
-            throw new IllegalArgumentException("좌표 변환기 초기화 실패", e);
+            // 기동 시점 실패는 요청 처리 예외가 아니라 애플리케이션 구성 오류이므로 IllegalState로 던져 기동을 중단시킨다.
+            throw new IllegalStateException("좌표 변환기 초기화 실패", e);
         }
     }
 
@@ -40,7 +43,7 @@ public class CoordinateTransformAdapter implements CoordinateTransformPort {
             Geometry point = geometryFactory.createPoint(coordinate);
             return (Point) JTS.transform(point, transform);
         } catch (Exception e) {
-            throw new IllegalArgumentException("좌표 변환 실패", e);
+            throw new RegionException(RegionErrorCode.COORDINATE_TRANSFORM_FAILED, e);
         }
     }
 }
