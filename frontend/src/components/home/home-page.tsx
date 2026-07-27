@@ -68,29 +68,26 @@ const serviceCards = [
     title: '추천 후보 비교',
     body: '지도와 데이터 기준으로 관심 지역을 빠르게 좁힙니다.',
     href: '/recommend',
-    image: '/images/recommend_map.png',
     icon: TrendingUp,
   },
   {
     title: '커뮤니티',
     body: '창업 경험과 상권 질문을 게시글로 공유합니다.',
     href: '/community/list',
-    image: '/images/speaker.png',
     icon: UsersRound,
   },
   {
     title: '실시간 채팅',
     body: '관심 주제별 방에서 빠르게 대화를 시작합니다.',
     href: '/chatting/list',
-    image: '/images/profile.png',
     icon: MessageCircle,
   },
 ] as const
 
 const metrics = [
-  { label: '서울 자치구', value: '25' },
-  { label: '주요 진입 흐름', value: '6' },
-  { label: '저장과 공유', value: '1' },
+  { label: '서울 자치구', value: '25개' },
+  { label: '판단 흐름', value: '4단계' },
+  { label: '연결 기능', value: '6개' },
 ] as const
 
 const Page = styled.main`
@@ -227,16 +224,14 @@ const PreviewPanel = styled.aside`
   overflow: hidden;
 `
 
-const PreviewImage = styled.img`
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
-`
-
 const PreviewContent = styled.div`
   display: grid;
-  gap: 16px;
-  padding: 20px;
+  gap: 20px;
+  padding: 28px;
+
+  @media (max-width: 640px) {
+    padding: 24px 20px;
+  }
 `
 
 const PreviewTitle = styled.h2`
@@ -418,12 +413,14 @@ const ServiceGrid = styled.div`
 `
 
 const ServiceCard = styled(Link)`
+  min-height: 176px;
   display: grid;
+  grid-template-rows: auto 1fr auto;
   gap: 14px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
-  padding: 16px;
+  padding: 20px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard);
@@ -432,13 +429,10 @@ const ServiceCard = styled(Link)`
     border-color: var(--color-primary-700);
     box-shadow: var(--shadow-level-2);
   }
-`
 
-const ServiceImage = styled.img`
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--radius-control);
-  object-fit: cover;
+  @media (max-width: 640px) {
+    min-height: 156px;
+  }
 `
 
 const ServiceHeader = styled.div`
@@ -550,16 +544,12 @@ export default function HomePage() {
             </HeroCopy>
 
             <PreviewPanel>
-              <PreviewImage
-                src="/images/threeChartImg.png"
-                alt="상권 지표 리포트 미리보기"
-              />
               <PreviewContent>
                 <div>
-                  <PreviewTitle>데이터를 먼저 읽고 판단합니다.</PreviewTitle>
+                  <PreviewTitle>서울 상권 판단을 한 흐름으로</PreviewTitle>
                   <PreviewBody>
-                    상권 현황, 분석 리포트, 추천 후보를 같은 흐름 안에서 확인할
-                    수 있습니다.
+                    지역 현황부터 분석, 추천, 실행 검토까지 필요한 기능을
+                    순서대로 이어갑니다.
                   </PreviewBody>
                 </div>
                 <MetricList>
@@ -593,10 +583,10 @@ export default function HomePage() {
       <MutedBand>
         <Inner>
           <SectionHeader>
-            <Eyebrow>Workflow</Eyebrow>
+            <Eyebrow>진행 과정</Eyebrow>
             <SectionTitle>처음 조회에서 실행 판단까지 이어집니다.</SectionTitle>
             <SectionBody>
-              NowDoBoss의 주요 기능은 각각 떨어진 화면이 아니라, 상권을 읽고
+              BossPickSeoul의 주요 기능은 각각 떨어진 화면이 아니라, 상권을 읽고
               다음 판단을 좁혀가는 순서로 연결됩니다.
             </SectionBody>
           </SectionHeader>
@@ -618,7 +608,7 @@ export default function HomePage() {
       <Section>
         <Inner>
           <SectionHeader>
-            <Eyebrow>Services</Eyebrow>
+            <Eyebrow>연결 서비스</Eyebrow>
             <SectionTitle>
               분석 이후의 탐색과 대화도 함께 이어갑니다.
             </SectionTitle>
@@ -634,7 +624,6 @@ export default function HomePage() {
 
               return (
                 <ServiceCard key={card.href} href={card.href}>
-                  <ServiceImage src={card.image} alt="" aria-hidden="true" />
                   <ServiceHeader>
                     <CardIcon aria-hidden="true" />
                     <ServiceTitle>{card.title}</ServiceTitle>
