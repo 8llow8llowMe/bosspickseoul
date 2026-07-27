@@ -1,8 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
-import styled from 'styled-components'
 import {
   CardEyebrow,
   CardGrid,
@@ -13,100 +10,104 @@ import {
   MetaItem,
   MetaList,
   SectionNotice,
+  SectionPanel,
   SectionStack,
+  SectionTitle,
+  SectionBody,
 } from '@/components/profile/profile-ui'
-import { getAnalysisBookmarks } from '@/lib/api/analysis'
-import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import { useMemberBookmarks } from '@/hooks/use-member-bookmarks'
 import { formatDateTime } from '@/lib/format'
+import { useAuthStore } from '@/stores/auth-store'
+import type { MemberBookmark } from '@/types/bookmark'
 
-const ActionLink = styled(Link)`
-  margin-top: 16px;
-  width: fit-content;
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: 12px;
-  color: var(--color-primary-700);
-  font-size: 14px;
-  font-weight: 700;
-`
+export type ProfileRegionBookmarkItem = MemberBookmark & {
+  targetType: 'DISTRICT' | 'ADMINISTRATION'
+}
+
+export const createProfileRegionBookmarkView = (
+  bookmarks: readonly MemberBookmark[],
+): ProfileRegionBookmarkItem[] =>
+  bookmarks.filter(
+    (bookmark): bookmark is ProfileRegionBookmarkItem =>
+      bookmark.targetType === 'DISTRICT' ||
+      bookmark.targetType === 'ADMINISTRATION',
+  )
+
+const targetLabels: Record<ProfileRegionBookmarkItem['targetType'], string> = {
+  DISTRICT: '자치구',
+  ADMINISTRATION: '행정동',
+}
+
+export function ProfileRegionBookmarkCards({
+  bookmarks,
+}: {
+  bookmarks: readonly ProfileRegionBookmarkItem[]
+}) {
+  return (
+    <CardGrid>
+      {bookmarks.map(bookmark => (
+        <ContentCard key={bookmark.bookmarkId}>
+          <CardEyebrow>{targetLabels[bookmark.targetType]}</CardEyebrow>
+          <CardTitle>{bookmark.targetName}</CardTitle>
+          <CardText>지역 코드 {bookmark.targetCode}</CardText>
+          <MetaList>
+            <MetaItem>{formatDateTime(bookmark.createdAt)}</MetaItem>
+          </MetaList>
+        </ContentCard>
+      ))}
+    </CardGrid>
+  )
+}
 
 export default function ProfileAnalysisBookmarksPage() {
-  const query = useQuery({
-    queryKey: ['analysisBookmarks'],
-    queryFn: () => getAnalysisBookmarks(0, 9),
-  })
+  const memberId = useAuthStore(auth => auth.memberInfo?.memberId ?? null)
+  const query = useMemberBookmarks(memberId, true)
+  const bookmarks = createProfileRegionBookmarkView(query.bookmarks)
 
-  if (query.isPending) {
+  if (query.isLoading) {
     return (
       <SectionStack>
         <SectionNotice $tone="info">
-          분석 북마크를 불러오는 중입니다.
+          저장한 지역을 불러오는 중입니다.
         </SectionNotice>
       </SectionStack>
     )
   }
 
-  if (!query.data || !isApiSuccess(query.data)) {
+  if (query.isError) {
     return (
       <SectionStack>
         <SectionNotice $tone="error">
-          {getApiMessage(query.data, '분석 북마크를 불러오지 못했습니다.')}
+          {query.errorMessage ?? '저장한 지역을 불러오지 못했습니다.'}
         </SectionNotice>
       </SectionStack>
     )
   }
 
-  if (query.data.dataBody.data.length === 0) {
+  if (bookmarks.length === 0) {
     return (
       <SectionStack>
-        <EmptyState>저장된 상권 분석 북마크가 아직 없습니다.</EmptyState>
+        <SectionPanel>
+          <SectionTitle>자치구·행정동 북마크</SectionTitle>
+          <SectionBody>
+            상권 탐색 중 저장한 자치구와 행정동이 이 목록에 표시됩니다.
+          </SectionBody>
+        </SectionPanel>
+        <EmptyState>저장한 자치구나 행정동이 아직 없습니다.</EmptyState>
       </SectionStack>
     )
   }
 
   return (
     <SectionStack>
-      <CardGrid>
-        {query.data.dataBody.data.map(item => (
-          <ContentCard key={`${item.commercialCode}-${item.createdAt}`}>
-            {(() => {
-              const href = new URLSearchParams({
-                districtCode: item.districtCode,
-                districtName: item.districtCodeName,
-                administrationCode: item.administrationCode,
-                administrationName: item.administrationCodeName,
-                commercialCode: item.commercialCode,
-                commercialName: item.commercialCodeName,
-                serviceCode: item.serviceCode,
-                serviceName: item.serviceCodeName,
-                serviceType: item.serviceType,
-                periodCode: '20233',
-              }).toString()
-
-              return (
-                <>
-                  <CardEyebrow>{item.serviceCodeName}</CardEyebrow>
-                  <CardTitle>{item.commercialCodeName}</CardTitle>
-                  <CardText>
-                    {item.districtCodeName} {item.administrationCodeName}
-                  </CardText>
-                  <MetaList>
-                    <MetaItem>{item.serviceType}</MetaItem>
-                    <MetaItem>{formatDateTime(item.createdAt)}</MetaItem>
-                  </MetaList>
-                  <ActionLink href={`/analysis/result?${href}`}>
-                    분석 결과 다시 보기
-                  </ActionLink>
-                </>
-              )
-            })()}
-          </ContentCard>
-        ))}
-      </CardGrid>
+      <SectionPanel>
+        <SectionTitle>자치구·행정동 북마크</SectionTitle>
+        <SectionBody>
+          V2 회원 북마크에 저장된 지역입니다. 분석 결과를 복원하는 업종·기간
+          조건은 현재 북마크 계약에 포함되지 않아 저장된 지역 정보만 표시합니다.
+        </SectionBody>
+      </SectionPanel>
+      <ProfileRegionBookmarkCards bookmarks={bookmarks} />
     </SectionStack>
   )
 }
