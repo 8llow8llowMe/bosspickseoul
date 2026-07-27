@@ -102,11 +102,24 @@ simulation은 V2 백엔드 계약이 확정되기 전까지 실패가 예정된 
 
 ### 요약표
 
-| TC ID  | 범위 | 구분 | 검증 대상                  | 우선순위 | 결과(P/F) | 비고 |
-| ------ | ---- | ---- | -------------------------- | -------- | --------- | ---- |
-| TC-001 | S    | 정상 | 준비 상태 UI               | P1       |           |      |
-| TC-002 | S    | 경계 | 레거시 API 컴포넌트 미사용 | P1       |           |      |
-| TC-003 | S    | 정상 | 인증 redirect 보존         | P1       |           |      |
+| TC ID  | 범위 | 구분 | 검증 대상                  | 우선순위 | 결과(P/F) | 비고                         |
+| ------ | ---- | ---- | -------------------------- | -------- | --------- | ---------------------------- |
+| TC-001 | S    | 정상 | 준비 상태 UI               | P1       | P         | 서버 렌더 3개 화면 종류      |
+| TC-002 | S    | 경계 | 레거시 API 컴포넌트 미사용 | P1       | P         | route source 계약 6개        |
+| TC-003 | S    | 정상 | 인증 redirect 보존         | P1       | P         | middleware 테스트 + 브라우저 |
+
+---
+
+## 검증 결과
+
+- `pnpm format:check`: 통과
+- `pnpm lint`: 통과
+- `pnpm typecheck`: 통과
+- `pnpm test`: Vitest 54 files / 547 tests, 상태 지도 Node 테스트 6건 통과
+- `pnpm build`: 33 routes 통과. Next.js의 기존 middleware deprecation warning만 출력
+- 브라우저 desktop 1440×900: `/simulation?serviceCode=CS100001`의 pathname·query를 로그인 redirect에 보존, 가로 오버플로·콘솔 오류 없음
+- 브라우저 mobile 375×812: `/analysis/simulation?gugun=강남구`의 pathname·query를 로그인 redirect에 보존, 가로 오버플로·콘솔 오류 없음
+- 인증 세션이 없어 준비 상태 UI 자체의 브라우저 검증은 수행하지 못했다. 서버 렌더 테스트, 6개 route source 계약 테스트, production build로 대체 검증했다.
 
 ---
 
