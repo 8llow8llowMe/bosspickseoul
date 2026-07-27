@@ -11,7 +11,7 @@
 | auth       | [auth](./auth/auth.md)                   | `(auth)/login,register,…`                | 🟩 명세 완료·구현(정적 검증) | BFF 세션. 소셜로그인·2단계가입·에러코드 미결(BE 선행) |
 | status     | [status](./status/status.md)             | `(shell)/status`                         | ⬜                           |                                                       |
 | recommend  | [recommend](./recommend/recommend.md)    | `(shell)/recommend`                      | ⬜                           |                                                       |
-| analysis   | [analysis](./analysis/analysis.md)       | `(shell)/analysis,result,simulation…`    | ⬜                           |                                                       |
+| analysis   | [analysis](./analysis/analysis.md)       | `(shell)/analysis,result,simulation…`    | 🟩 명세 완료                 | 지도 탐색 + 라우트 모달/독립 결과 페이지              |
 | simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report`      | ⬜                           |                                                       |
 | community  | [community](./community/community.md)    | `(shell)/community/{list,register,[id]}` | ⬜                           |                                                       |
 | chatting   | [chatting](./chatting/chatting.md)       | `(shell)/chatting/{list,[roomId]}`       | ⬜                           | 최종 단계(인증·FCM·WS)                                |

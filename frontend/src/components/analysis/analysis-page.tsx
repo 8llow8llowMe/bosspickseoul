@@ -1,425 +1,473 @@
 'use client'
 
-import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
-import LocationSelector from '@/components/location/location-selector'
-import { fetchServiceData } from '@/lib/api/analysis'
-import { getApiMessage, isApiSuccess } from '@/lib/api/response'
-import { useSelectPlaceStore } from '@/stores/select-place-store'
+
+import AnalysisMap from '@/components/analysis/analysis-map'
+import AnalysisMobileSheet from '@/components/analysis/analysis-mobile-sheet'
+import AnalysisSelectionPanel, {
+  ANALYSIS_STEP_LABELS,
+  type AnalysisCandidate,
+} from '@/components/analysis/analysis-selection-panel'
+import {
+  fetchCommercialServiceCategories,
+  fetchDistricts,
+} from '@/lib/api/commercial-analysis'
+import {
+  fetchAdministrationMapAreas,
+  fetchAdministrations,
+  fetchCommercialMapAreas,
+  fetchCommercials,
+  fetchDistrictMapAreas,
+  SEOUL_MAP_BOUNDS,
+} from '@/lib/api/recommend'
+import { isApiSuccess } from '@/lib/api/response'
+import {
+  ANALYSIS_PERIOD_CODE,
+  ANALYSIS_STEPS,
+  createAnalysisExplorerHref,
+  createAnalysisResultHref,
+  getActiveAnalysisStep,
+  parseAnalysisSelection,
+  selectAnalysisValue,
+  type AnalysisSelection,
+  type AnalysisStep,
+} from '@/lib/analysis/selection'
+import { filterAreasByCodes } from '@/lib/recommend/recommend-map-model'
+import type { ApiResponse } from '@/types/api'
+import type { CommercialServiceCategory } from '@/types/commercial-analysis'
+import type {
+  AdministrationArea,
+  AreaBoundaryItem,
+  CommercialArea,
+  GeoBounds,
+  MapAreasBody,
+} from '@/types/recommend'
+
+type QueryStatus = 'loading' | 'error' | 'empty' | 'ready'
+
+export const getAnalysisQueryStatus = ({
+  isPending,
+  isError,
+  isSuccessResponse,
+  itemCount,
+}: {
+  isPending: boolean
+  isError: boolean
+  isSuccessResponse: boolean
+  itemCount: number
+}): QueryStatus => {
+  if (isPending) return 'loading'
+  if (isError || !isSuccessResponse) return 'error'
+  return itemCount === 0 ? 'empty' : 'ready'
+}
+
+const unwrapArray = <T,>(response: ApiResponse<T[]> | null | undefined): T[] =>
+  isApiSuccess(response) && Array.isArray(response?.dataBody)
+    ? response.dataBody
+    : []
+
+const unwrapMapAreas = (
+  response: ApiResponse<MapAreasBody> | null | undefined,
+): AreaBoundaryItem[] =>
+  isApiSuccess(response) && Array.isArray(response?.dataBody?.areas)
+    ? response.dataBody.areas
+    : []
 
 const Page = styled.main`
-  width: min(1200px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 40px 0 72px;
-  display: grid;
-  gap: 24px;
-`
-
-const Hero = styled.section`
-  display: grid;
-  gap: 16px;
-  padding: 32px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-1);
-`
-
-const Eyebrow = styled.p`
-  color: var(--color-text-caption);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-`
-
-const HeroTitle = styled.h1`
-  color: var(--color-text-900);
-  font-size: 26px;
-  line-height: 1.1;
-  letter-spacing: 0;
-`
-
-const HeroBody = styled.p`
-  max-width: 760px;
-  color: var(--color-text-500);
-  line-height: 1.8;
-`
-
-const Layout = styled.section`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 24px;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const Panel = styled.section`
-  padding: 24px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
-  box-shadow: var(--shadow-level-1);
-`
-
-const PanelHeader = styled.div`
-  display: grid;
-  gap: 8px;
-  margin-bottom: 18px;
-`
-
-const PanelTitle = styled.h2`
-  color: var(--color-text-900);
-  font-size: 24px;
-  line-height: 1.2;
-  letter-spacing: 0;
-`
-
-const PanelDescription = styled.p`
-  color: var(--color-text-500);
-  line-height: 1.75;
-`
-
-const Section = styled.div`
-  display: grid;
-  gap: 14px;
-`
-
-const SectionTitle = styled.h3`
-  color: var(--color-text-900);
-  font-size: 18px;
-  line-height: 1.3;
-`
-
-const ChipRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-`
-
-const ChipButton = styled.button<{ $selected: boolean }>`
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid
-    ${props =>
-      props.$selected ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
-  border-radius: 999px;
-  background: ${props =>
-    props.$selected ? 'var(--color-primary-100)' : 'white'};
-  color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-500)'};
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const Select = styled.select`
+  position: relative;
   width: 100%;
-  min-height: 50px;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-900);
-  font-size: 15px;
-`
-
-const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
-  padding: 16px 18px;
-  border-radius: var(--radius-card);
-  background: ${props =>
-    props.$tone === 'error'
-      ? 'rgba(209, 67, 67, 0.08)'
-      : 'var(--color-primary-100)'};
-  color: ${props =>
-    props.$tone === 'error'
-      ? 'var(--color-danger)'
-      : 'var(--color-primary-700)'};
-  line-height: 1.75;
-`
-
-const SummaryGrid = styled.div`
-  display: grid;
-  gap: 12px;
-`
-
-const SummaryCard = styled.div`
-  padding: 18px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
+  height: calc(100dvh - 64px);
+  min-height: 560px;
+  overflow: hidden;
   background: var(--color-surface-muted);
 `
 
-const SummaryLabel = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
+const Layout = styled.div`
+  height: 100%;
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+
+  @media (max-width: 840px) {
+    display: block;
+  }
 `
 
-const SummaryValue = styled.p`
-  margin-top: 6px;
-  color: var(--color-text-900);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.4;
+const DesktopPanel = styled.div`
+  position: relative;
+  z-index: 3;
+  min-height: 0;
+  border-right: 1px solid var(--color-border-200);
+  box-shadow: var(--shadow-level-2);
+
+  > section {
+    height: 100%;
+  }
+
+  @media (max-width: 840px) {
+    display: none;
+  }
 `
 
-const ActionRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 12px;
+const MapArea = styled.div`
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+
+  @media (max-width: 840px) {
+    width: 100%;
+    height: 100%;
+  }
 `
 
-const PrimaryLink = styled(Link)<{ $disabled?: boolean }>`
-  min-height: 50px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 18px;
+const MobilePanel = styled.div`
+  display: none;
+
+  @media (max-width: 840px) {
+    display: contents;
+  }
+`
+
+const MapNotice = styled.div`
+  position: absolute;
+  z-index: 8;
+  top: 16px;
+  left: 50%;
+  max-width: min(420px, calc(100% - 32px));
+  border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
-  background: ${props =>
-    props.$disabled ? 'rgba(169, 181, 203, 1)' : 'var(--color-primary-700)'};
-  color: white;
-  font-size: 15px;
-  font-weight: 700;
-  pointer-events: ${props => (props.$disabled ? 'none' : 'auto')};
-`
-
-const SecondaryLink = styled(Link)`
-  min-height: 50px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: var(--radius-control);
-  color: var(--color-primary-700);
-  font-size: 15px;
-  font-weight: 700;
-`
-
-const Helper = styled.p`
-  color: var(--color-text-500);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-level-2);
+  color: var(--color-text-700);
+  padding: 10px 14px;
   font-size: 13px;
-  line-height: 1.75;
+  line-height: 20px;
+  text-align: center;
+  transform: translateX(-50%);
 `
 
-const Placeholder = styled.div`
-  padding: 18px;
-  border: 1px dashed var(--color-border-300);
-  border-radius: var(--radius-card);
-  color: var(--color-text-500);
-  line-height: 1.75;
-`
-
-export default function AnalysisPage() {
-  const selectedDistrict = useSelectPlaceStore(state => state.selectedDistrict)
-  const selectedAdministration = useSelectPlaceStore(
-    state => state.selectedAdministration,
-  )
-  const selectedCommercial = useSelectPlaceStore(
-    state => state.selectedCommercial,
-  )
-  const [selectedServiceType, setSelectedServiceType] = useState('')
-  const [selectedServiceCode, setSelectedServiceCode] = useState('')
-
-  const serviceQuery = useQuery({
-    queryKey: ['analysisServiceData', selectedCommercial.code],
-    queryFn: () => fetchServiceData(String(selectedCommercial.code)),
-    enabled: selectedCommercial.code !== 0,
-  })
-
-  const services =
-    serviceQuery.data && isApiSuccess(serviceQuery.data)
-      ? serviceQuery.data.dataBody
-      : []
-  const serviceTypes = Array.from(
-    new Set(services.map(item => item.serviceType)),
-  )
-  const resolvedServiceType = serviceTypes.includes(selectedServiceType)
-    ? selectedServiceType
-    : (serviceTypes[0] ?? '')
-  const filteredServices = resolvedServiceType
-    ? services.filter(item => item.serviceType === resolvedServiceType)
-    : services
-  const resolvedServiceCode = filteredServices.some(
-    item => item.serviceCode === selectedServiceCode,
-  )
-    ? selectedServiceCode
-    : ''
-  const selectedService =
-    filteredServices.find(item => item.serviceCode === resolvedServiceCode) ??
-    null
-
-  const isReady =
-    selectedDistrict.code !== 0 &&
-    selectedAdministration.code !== 0 &&
-    selectedCommercial.code !== 0 &&
-    Boolean(selectedService)
-
-  const resultParams = new URLSearchParams({
-    districtCode: String(selectedDistrict.code),
-    districtName: selectedDistrict.name,
-    administrationCode: String(selectedAdministration.code),
-    administrationName: selectedAdministration.name,
-    commercialCode: String(selectedCommercial.code),
-    commercialName: selectedCommercial.name,
-    serviceCode: selectedService?.serviceCode ?? '',
-    serviceName: selectedService?.serviceCodeName ?? '',
-    serviceType: selectedService?.serviceType ?? '',
-    periodCode: '20233',
-  }).toString()
-
-  const simulationParams = new URLSearchParams({
-    gugun: selectedDistrict.name !== '자치구' ? selectedDistrict.name : '',
-    serviceCode: selectedService?.serviceCode ?? '',
-    serviceCodeName: selectedService?.serviceCodeName ?? '',
-  }).toString()
-
+export function AnalysisExplorerSurface({
+  map,
+  desktopPanel,
+  mobilePanel,
+  mapNotice,
+}: {
+  map: ReactNode
+  desktopPanel: ReactNode
+  mobilePanel: ReactNode
+  mapNotice?: ReactNode
+}) {
   return (
-    <Page>
-      <Hero>
-        <Eyebrow>Analysis</Eyebrow>
-        <HeroTitle>상권, 업종, 분기 기준으로 서울 상권을 분석합니다.</HeroTitle>
-        <HeroBody>
-          레거시 `analysis` 흐름의 핵심인 위치 선택, 업종 선택, 결과 진입을 Next
-          구조로 이관했습니다. 결과 화면은 query param 기반이라 새로고침과 직접
-          공유에도 안정적으로 대응합니다.
-        </HeroBody>
-      </Hero>
-
+    <Page data-hide-footer="true">
       <Layout>
-        <Panel>
-          <PanelHeader>
-            <PanelTitle>분석 조건 선택</PanelTitle>
-            <PanelDescription>
-              먼저 자치구, 행정동, 상권을 고른 뒤 업종을 선택하면 결과 화면으로
-              이동할 수 있습니다.
-            </PanelDescription>
-          </PanelHeader>
-
-          <Section>
-            <SectionTitle>1. 위치 선택</SectionTitle>
-            <LocationSelector
-              title="분석할 상권 위치를 선택해 주세요"
-              description="자치구, 행정동, 상권을 순서대로 고르면 분석 가능한 업종을 불러옵니다."
-              showCommercial
-            />
-          </Section>
-
-          <Section>
-            <SectionTitle>2. 업종 선택</SectionTitle>
-
-            {selectedCommercial.code === 0 ? (
-              <Placeholder>
-                위치 선택이 끝나면 해당 상권에서 분석 가능한 업종 목록이
-                표시됩니다.
-              </Placeholder>
-            ) : null}
-
-            {serviceQuery.isPending ? (
-              <Notice>분석 가능한 업종 목록을 불러오는 중입니다.</Notice>
-            ) : null}
-
-            {serviceQuery.data && !isApiSuccess(serviceQuery.data) ? (
-              <Notice $tone="error">
-                {getApiMessage(
-                  serviceQuery.data,
-                  '업종 목록을 불러오지 못했습니다.',
-                )}
-              </Notice>
-            ) : null}
-
-            {services.length > 0 ? (
-              <>
-                <ChipRow>
-                  {serviceTypes.map(type => (
-                    <ChipButton
-                      key={type}
-                      type="button"
-                      $selected={resolvedServiceType === type}
-                      onClick={() => {
-                        setSelectedServiceType(type)
-                        setSelectedServiceCode('')
-                      }}
-                    >
-                      {type}
-                    </ChipButton>
-                  ))}
-                </ChipRow>
-                <Select
-                  value={resolvedServiceCode}
-                  onChange={event => setSelectedServiceCode(event.target.value)}
-                >
-                  <option value="">업종을 선택해 주세요</option>
-                  {filteredServices.map(service => (
-                    <option
-                      key={service.serviceCode}
-                      value={service.serviceCode}
-                    >
-                      {service.serviceCodeName}
-                    </option>
-                  ))}
-                </Select>
-                <Helper>
-                  레거시와 동일하게 상권별로 제공되는 업종 목록만 노출합니다.
-                </Helper>
-              </>
-            ) : null}
-          </Section>
-        </Panel>
-
-        <Panel>
-          <PanelHeader>
-            <PanelTitle>현재 선택 요약</PanelTitle>
-            <PanelDescription>
-              선택이 완료되면 분석 결과 또는 시뮬레이션으로 바로 이어집니다.
-            </PanelDescription>
-          </PanelHeader>
-
-          <SummaryGrid>
-            <SummaryCard>
-              <SummaryLabel>자치구</SummaryLabel>
-              <SummaryValue>{selectedDistrict.name}</SummaryValue>
-            </SummaryCard>
-            <SummaryCard>
-              <SummaryLabel>행정동</SummaryLabel>
-              <SummaryValue>{selectedAdministration.name}</SummaryValue>
-            </SummaryCard>
-            <SummaryCard>
-              <SummaryLabel>상권</SummaryLabel>
-              <SummaryValue>{selectedCommercial.name}</SummaryValue>
-            </SummaryCard>
-            <SummaryCard>
-              <SummaryLabel>업종</SummaryLabel>
-              <SummaryValue>
-                {selectedService?.serviceCodeName ?? '업종을 선택해 주세요'}
-              </SummaryValue>
-            </SummaryCard>
-          </SummaryGrid>
-
-          <ActionRow>
-            <PrimaryLink
-              href={isReady ? `/analysis/result?${resultParams}` : '#'}
-              $disabled={!isReady}
-            >
-              상권분석 결과 보기
-            </PrimaryLink>
-            <SecondaryLink href={`/analysis/simulation?${simulationParams}`}>
-              시뮬레이션 이어가기
-            </SecondaryLink>
-          </ActionRow>
-
-          <Helper>
-            결과 화면에서는 분기 변경, 북마크 저장, 시뮬레이션 진입까지 이어서
-            진행할 수 있습니다.
-          </Helper>
-        </Panel>
+        <DesktopPanel>{desktopPanel}</DesktopPanel>
+        <MapArea>
+          {map}
+          {mapNotice ? <MapNotice>{mapNotice}</MapNotice> : null}
+          <MobilePanel>{mobilePanel}</MobilePanel>
+        </MapArea>
       </Layout>
     </Page>
+  )
+}
+
+const getStepSelectionCode = (
+  selection: AnalysisSelection,
+  step: AnalysisStep,
+) => {
+  if (step === 'district') return selection.districtCode
+  if (step === 'administration') return selection.administrationCode
+  if (step === 'commercial') return selection.commercialCode
+  return selection.serviceCode
+}
+
+const getNextStep = (step: AnalysisStep): AnalysisStep => {
+  const index = ANALYSIS_STEPS.indexOf(step)
+  return ANALYSIS_STEPS[Math.min(index + 1, ANALYSIS_STEPS.length - 1)]
+}
+
+export default function AnalysisPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const selection = useMemo(
+    () => parseAnalysisSelection(searchParams),
+    [searchParams],
+  )
+  const [requestedStep, setRequestedStep] = useState<AnalysisStep>(() =>
+    getActiveAnalysisStep(selection),
+  )
+  const [previewedCode, setPreviewedCode] = useState<string | null>(null)
+  const [viewportBounds, setViewportBounds] =
+    useState<GeoBounds>(SEOUL_MAP_BOUNDS)
+
+  const districtsQuery = useQuery({
+    queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
+    queryFn: () => fetchDistricts(ANALYSIS_PERIOD_CODE),
+    retry: 1,
+  })
+  const districtMapQuery = useQuery({
+    queryKey: ['analysis', 'map', 'districts', viewportBounds],
+    queryFn: () => fetchDistrictMapAreas(viewportBounds),
+    retry: 1,
+  })
+  const administrationsQuery = useQuery({
+    queryKey: ['analysis', 'administrations', selection.districtCode],
+    queryFn: () => fetchAdministrations(selection.districtCode!),
+    enabled: Boolean(selection.districtCode),
+    retry: 1,
+  })
+  const administrationMapQuery = useQuery({
+    queryKey: ['analysis', 'map', 'administrations', viewportBounds],
+    queryFn: () => fetchAdministrationMapAreas(viewportBounds),
+    enabled: Boolean(selection.districtCode),
+    retry: 1,
+  })
+  const commercialsQuery = useQuery({
+    queryKey: [
+      'analysis',
+      'commercials',
+      selection.districtCode,
+      selection.administrationCode,
+    ],
+    queryFn: () =>
+      fetchCommercials(selection.districtCode!, selection.administrationCode!),
+    enabled: Boolean(selection.districtCode && selection.administrationCode),
+    retry: 1,
+  })
+  const commercialMapQuery = useQuery({
+    queryKey: ['analysis', 'map', 'commercials', viewportBounds],
+    queryFn: () => fetchCommercialMapAreas(viewportBounds),
+    enabled: Boolean(selection.administrationCode),
+    retry: 1,
+  })
+  const servicesQuery = useQuery({
+    queryKey: ['analysis', 'services', selection.commercialCode],
+    queryFn: () => fetchCommercialServiceCategories(selection.commercialCode!),
+    enabled: Boolean(selection.commercialCode),
+    retry: 1,
+  })
+
+  const districts = unwrapArray(districtsQuery.data)
+  const allDistrictAreas = unwrapMapAreas(districtMapQuery.data)
+  const districtAreas = filterAreasByCodes(
+    allDistrictAreas,
+    districts.map(item => item.districtCode ?? ''),
+  )
+  const administrations = unwrapArray(administrationsQuery.data)
+  const allAdministrationAreas = unwrapMapAreas(administrationMapQuery.data)
+  const administrationAreas = filterAreasByCodes(
+    allAdministrationAreas,
+    administrations.map(item => item.administrationCode),
+  )
+  const commercials = unwrapArray(commercialsQuery.data)
+  const allCommercialAreas = unwrapMapAreas(commercialMapQuery.data)
+  const commercialAreas = filterAreasByCodes(
+    allCommercialAreas,
+    commercials.map(item => item.commercialCode),
+  )
+  const services = unwrapArray(servicesQuery.data)
+  const requiredStep = getActiveAnalysisStep(selection)
+  const activeStep =
+    ANALYSIS_STEPS.indexOf(requestedStep) > ANALYSIS_STEPS.indexOf(requiredStep)
+      ? requiredStep
+      : requestedStep
+
+  useEffect(() => {
+    if (
+      selection.districtCode &&
+      districts.length > 0 &&
+      !districts.some(
+        item => String(item.districtCode) === selection.districtCode,
+      )
+    ) {
+      router.replace('/analysis')
+      return
+    }
+
+    if (
+      selection.administrationCode &&
+      administrations.length > 0 &&
+      !administrations.some(
+        item =>
+          String(item.administrationCode) === selection.administrationCode,
+      )
+    ) {
+      const next = selectAnalysisValue(selection, 'administration', '')
+      router.replace(createAnalysisExplorerHref(next))
+      return
+    }
+
+    if (
+      selection.commercialCode &&
+      commercials.length > 0 &&
+      !commercials.some(
+        item => String(item.commercialCode) === selection.commercialCode,
+      )
+    ) {
+      const next = selectAnalysisValue(selection, 'commercial', '')
+      router.replace(createAnalysisExplorerHref(next))
+      return
+    }
+
+    if (
+      selection.serviceCode &&
+      services.length > 0 &&
+      !services.some(item => String(item.serviceCode) === selection.serviceCode)
+    ) {
+      const next = selectAnalysisValue(selection, 'service', '')
+      router.replace(createAnalysisExplorerHref(next))
+    }
+  }, [administrations, commercials, districts, router, selection, services])
+
+  const districtCandidates: AnalysisCandidate[] = districts.flatMap(item =>
+    item.districtCode && item.districtName
+      ? [{ code: String(item.districtCode), name: item.districtName }]
+      : [],
+  )
+  const administrationCandidates: AnalysisCandidate[] = administrations.map(
+    (item: AdministrationArea) => ({
+      code: String(item.administrationCode),
+      name: item.administrationName,
+    }),
+  )
+  const commercialCandidates: AnalysisCandidate[] = commercials.map(
+    (item: CommercialArea) => ({
+      code: String(item.commercialCode),
+      name: item.commercialName,
+      description: item.commercialClassificationName,
+    }),
+  )
+  const serviceCandidates: AnalysisCandidate[] = services.flatMap(
+    (item: CommercialServiceCategory) =>
+      item.serviceCode && item.serviceName
+        ? [
+            {
+              code: item.serviceCode,
+              name: item.serviceName,
+              description: item.serviceType?.name,
+            },
+          ]
+        : [],
+  )
+
+  const candidatesByStep: Record<AnalysisStep, AnalysisCandidate[]> = {
+    district: districtCandidates,
+    administration: administrationCandidates,
+    commercial: commercialCandidates,
+    service: serviceCandidates,
+  }
+  const queryByStep = {
+    district: districtsQuery,
+    administration: administrationsQuery,
+    commercial: commercialsQuery,
+    service: servicesQuery,
+  }
+  const activeQuery = queryByStep[activeStep]
+  const activeCandidates = candidatesByStep[activeStep]
+  const activeStatus = getAnalysisQueryStatus({
+    isPending: activeQuery.isPending,
+    isError: activeQuery.isError,
+    isSuccessResponse: isApiSuccess(
+      activeQuery.data as ApiResponse<unknown> | undefined,
+    ),
+    itemCount: activeCandidates.length,
+  })
+
+  const selectedNames: Partial<Record<AnalysisStep, string>> = {
+    district: districtCandidates.find(
+      item => item.code === selection.districtCode,
+    )?.name,
+    administration: administrationCandidates.find(
+      item => item.code === selection.administrationCode,
+    )?.name,
+    commercial: commercialCandidates.find(
+      item => item.code === selection.commercialCode,
+    )?.name,
+    service: serviceCandidates.find(item => item.code === selection.serviceCode)
+      ?.name,
+  }
+  const selectionSummary =
+    ANALYSIS_STEPS.map(step => selectedNames[step])
+      .filter(Boolean)
+      .join(' · ') || '서울 전체'
+
+  const mapStep: Exclude<AnalysisStep, 'service'> =
+    activeStep === 'service' ? 'commercial' : activeStep
+  const mapAreas =
+    mapStep === 'district'
+      ? districtAreas
+      : mapStep === 'administration'
+        ? administrationAreas
+        : commercialAreas
+  const mapSelectedCode = getStepSelectionCode(selection, mapStep)
+  const activeMapQuery =
+    mapStep === 'district'
+      ? districtMapQuery
+      : mapStep === 'administration'
+        ? administrationMapQuery
+        : commercialMapQuery
+  const mapNotice =
+    activeMapQuery.isError ||
+    (activeMapQuery.data && !isApiSuccess(activeMapQuery.data))
+      ? '지도 영역을 불러오지 못했어요. 목록에서는 계속 선택할 수 있어요.'
+      : activeMapQuery.data &&
+          isApiSuccess(activeMapQuery.data) &&
+          mapAreas.length === 0
+        ? '표시할 지도 영역이 없어요. 목록에서 지역을 선택해 주세요.'
+        : null
+
+  const handleSelect = (step: AnalysisStep, code: string) => {
+    const next = selectAnalysisValue(selection, step, code)
+    router.replace(createAnalysisExplorerHref(next))
+    setRequestedStep(getNextStep(step))
+    setPreviewedCode(null)
+  }
+
+  const panel = (
+    <AnalysisSelectionPanel
+      activeStep={activeStep}
+      selection={selection}
+      selectedNames={selectedNames}
+      items={activeCandidates}
+      status={activeStatus}
+      onStepChange={setRequestedStep}
+      onSelect={code => handleSelect(activeStep, code)}
+      onPreviewChange={setPreviewedCode}
+      onRetry={() => void activeQuery.refetch()}
+      onSubmit={() =>
+        router.push(createAnalysisResultHref(selection, 'summary'))
+      }
+    />
+  )
+
+  return (
+    <AnalysisExplorerSurface
+      desktopPanel={panel}
+      map={
+        <AnalysisMap
+          activeStep={mapStep}
+          areas={mapAreas}
+          selectedCode={mapSelectedCode}
+          previewedCode={
+            activeStep === 'service' ? selection.commercialCode : previewedCode
+          }
+          onSelect={code => handleSelect(mapStep, code)}
+          onPreviewChange={setPreviewedCode}
+          onViewportBoundsChange={setViewportBounds}
+        />
+      }
+      mapNotice={mapNotice}
+      mobilePanel={
+        <AnalysisMobileSheet
+          stepLabel={`${ANALYSIS_STEP_LABELS[activeStep]} 선택`}
+          summary={selectionSummary}
+        >
+          {panel}
+        </AnalysisMobileSheet>
+      }
+    />
   )
 }

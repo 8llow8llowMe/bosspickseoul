@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import AnalysisPage from '@/components/analysis/analysis-page'
 import { createPageMetadata } from '@/lib/metadata'
@@ -10,5 +11,17 @@ export const metadata: Metadata = createPageMetadata({
 })
 
 export default function Page() {
-  return <AnalysisPage />
+  return (
+    <Suspense
+      fallback={
+        <main
+          data-hide-footer="true"
+          aria-label="상권 분석 화면 준비 중"
+          role="status"
+        />
+      }
+    >
+      <AnalysisPage />
+    </Suspense>
+  )
 }

@@ -4,7 +4,7 @@ const Footer = styled.footer`
   border-top: 1px solid var(--color-border-200);
   background: var(--color-background);
 
-  main[data-hide-footer='true'] + & {
+  main[data-hide-footer='true'] ~ & {
     display: none;
   }
 
