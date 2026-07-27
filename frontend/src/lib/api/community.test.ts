@@ -152,8 +152,8 @@ describe('community API', () => {
       targetCode?: string
     }>()
     expectTypeOf<CommunityPostCreateRequest>().toEqualTypeOf<{
-      targetType?: 'DISTRICT' | 'ADMINISTRATION' | 'COMMERCIAL'
-      targetCode?: string
+      targetType: 'DISTRICT' | 'ADMINISTRATION' | 'COMMERCIAL'
+      targetCode: string
       title: string
       content: string
     }>()

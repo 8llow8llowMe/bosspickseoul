@@ -172,18 +172,20 @@ export const createCommunityEditorPayload = (
     content: value.content,
   }
 
-  if (
-    mode === 'edit' ||
-    !value.location.targetType ||
-    !value.location.targetCode
-  ) {
+  if (mode === 'edit') {
     return content
+  }
+
+  const { targetType, targetCode } = value.location
+
+  if (!targetType || !targetCode?.trim()) {
+    throw new Error('지역을 선택해 주세요.')
   }
 
   return {
     ...content,
-    targetType: value.location.targetType,
-    targetCode: value.location.targetCode,
+    targetType,
+    targetCode: targetCode.trim(),
   }
 }
 
@@ -520,7 +522,7 @@ export default function CommunityRegisterPage() {
             : '사장님들과 나누고 싶은 이야기를 들려주세요.'}
         </Title>
         <Description>
-          지역 선택은 선택 사항이며, 구체적인 경험과 상황을 함께 적으면 더 좋은
+          지역 선택은 필수이며, 구체적인 경험과 상황을 함께 적으면 더 좋은
           답변을 받을 수 있어요.
         </Description>
       </Header>

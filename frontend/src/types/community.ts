@@ -103,8 +103,8 @@ export type CommunityCommentLikeBody = {
 }
 
 export type CommunityPostCreateRequest = {
-  targetType?: CommunityTargetType
-  targetCode?: string
+  targetType: CommunityTargetType
+  targetCode: string
   title: string
   content: string
 }
