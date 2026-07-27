@@ -42,6 +42,6 @@ describe('SiteFooter', () => {
     const { markup } = renderFooter()
 
     expect(markup).toContain('<footer')
-    expect(markup).toContain('NowDoBoss')
+    expect(markup).toContain('BossPickSeoul')
   })
 })
