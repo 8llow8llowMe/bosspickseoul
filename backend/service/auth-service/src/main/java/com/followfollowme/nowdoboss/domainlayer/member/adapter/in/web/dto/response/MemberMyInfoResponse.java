@@ -23,7 +23,8 @@ public record MemberMyInfoResponse(
     @Schema(description = "프로필 이미지 URL", example = "https://cdn.tripmarble.com/profile.jpg")
     String profileImageUrl,
 
-    @Schema(description = "회원 권한 메타데이터")
+    @Schema(description = "회원 권한 메타데이터",
+        example = "{\"code\": \"USER\", \"name\": \"일반 회원\", \"description\": \"일반 회원 권한입니다.\"}")
     CodeNameDescriptionMetadata role
 ) {
 

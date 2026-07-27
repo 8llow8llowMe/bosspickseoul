@@ -14,7 +14,8 @@ import lombok.Builder;
 @Schema(description = "자치구 유동인구 상세 응답 DTO")
 public record FootTrafficDistrictDetailResponse(
 
-    @Schema(description = "직전 분기 대비 추이 메타데이터")
+    @Schema(description = "직전 분기 대비 추이 메타데이터 (PeriodTrendType: INCREASE/DECREASE/STAGNANT)",
+        example = "{\"code\": \"INCREASE\", \"name\": \"증가\", \"description\": \"증가\"}")
     CodeNameDescriptionMetadata periodTrend,
 
     @Schema(description = "분기별 총 유동인구 목록")

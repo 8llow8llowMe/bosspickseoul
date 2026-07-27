@@ -17,7 +17,8 @@ public record CandidateCommercialsResponse(
     @Schema(description = "기준 분기 코드", example = "20233")
     String periodCode,
 
-    @Schema(description = "후보 탐색 프리셋 메타데이터")
+    @Schema(description = "후보 탐색 프리셋 메타데이터 (CandidatePresetType)",
+        example = "{\"code\": \"BALANCED\", \"name\": \"균형형\", \"description\": \"기회·위험·혼잡·거주수요 네 축을 균형 있게 반영한 기본 추천 프리셋입니다.\"}")
     CodeNameDescriptionMetadata preset,
 
     @Schema(description = "우선 반영 지표 메타데이터")
