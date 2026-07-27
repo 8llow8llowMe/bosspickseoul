@@ -14,7 +14,7 @@
 | analysis   | [analysis](./analysis/analysis.md)       | `(shell)/analysis,result,simulation…`    | 🟩 명세 완료                 | 지도 탐색 + 라우트 모달/독립 결과 페이지              |
 | simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report`      | ⬜                           |                                                       |
 | community  | [community](./community/community.md)    | `(shell)/community/{list,register,[id]}` | ⬜                           |                                                       |
-| chatting   | [chatting](./chatting/chatting.md)       | `(shell)/chatting/{list,[roomId]}`       | ⬜                           | 최종 단계(인증·FCM·WS)                                |
+| chatting   | [chatting](./chatting/chatting.md)       | `(shell)/chatting/{list,[roomId]}`       | 🟩 안전 대기 구현            | REST·STOMP·FCM·Gateway 선행                           |
 | profile    | [profile](./profile/profile.md)          | `(shell)/profile/{settings,bookmarks,…}` | ⬜                           |                                                       |
 | share      | [share](./share/share.md)                | `(shell)/share/[token]`                  | ⬜                           |                                                       |
 
