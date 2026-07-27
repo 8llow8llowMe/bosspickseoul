@@ -104,7 +104,7 @@ React/Vite(NowDoBoss) → Next.js App Router(BossPickSeoul) 마이그레이션. 
 - `pnpm format:check`: 통과
 - `pnpm lint`: 통과
 - `pnpm typecheck`: 통과
-- `pnpm test`: 11 files / 32 tests 통과
+- `pnpm test`: Vitest 53 files / 540 tests, 상태 지도 Node 테스트 6건 통과
 - `pnpm build`: 통과. Next.js의 기존 middleware deprecation warning만 출력
 - 브라우저 데스크톱(1440×900): 섹션·CTA·styled-components 렌더 정상, 가로 오버플로·콘솔 오류 없음
 - 브라우저 모바일(375×812): 단일 열 카드, 모바일 메뉴 로그인·회원가입, 키보드 포커스 대상, 가로 오버플로·콘솔 오류 없음
