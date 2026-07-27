@@ -1,114 +1,111 @@
 import { apiClient } from '@/lib/api/client'
-import type { ApiResponse } from '@/types/api'
 import type {
-  CommunityComment,
-  CommunityCommentPayload,
-  CommunityCreatePayload,
-  CommunityDetail,
-  CommunityImage,
-  CommunityListItem,
-  CommunityUpdatePayload,
+  CommunityCommentCreateRequest,
+  CommunityCommentLikeResponse,
+  CommunityCommentsResponse,
+  CommunityCursorParams,
+  CommunityLikedPostsResponse,
+  CommunityListParams,
+  CommunityPostCreateRequest,
+  CommunityPostDetailResponse,
+  CommunityPostLikeResponse,
+  CommunityPostListResponse,
+  CommunityPostUpdateRequest,
+  CommunityReportCreateRequest,
+  CommunitySearchParams,
+  CommunityVoidResponse,
 } from '@/types/community'
 
-export const getCommunityListData = async (category: string, lastId = 0) => {
-  const response = await apiClient.get<ApiResponse<CommunityListItem[]>>(
-    '/community',
-    {
-      params: {
-        category,
-        lastId,
-      },
-    },
+export const fetchCommunityPosts = async (params: CommunityListParams) => {
+  const response = await apiClient.get<CommunityPostListResponse>(
+    '/community/posts',
+    { params },
   )
 
   return response.data
 }
 
-export const getPopularCommunityPostsData = async () => {
-  const response =
-    await apiClient.get<ApiResponse<CommunityListItem[]>>('/community/popular')
-
-  return response.data
-}
-
-export const getCommunityDetailData = async (communityId: number) => {
-  const response = await apiClient.get<ApiResponse<CommunityDetail>>(
-    `/community/${communityId}`,
+export const searchCommunityPosts = async (params: CommunitySearchParams) => {
+  const response = await apiClient.get<CommunityPostListResponse>(
+    '/community/posts/search',
+    { params },
   )
 
   return response.data
 }
 
-export const createCommunityData = async (payload: CommunityCreatePayload) => {
-  const response = await apiClient.post<ApiResponse<number | null>>(
-    '/community',
-    payload,
-  )
-
-  return response.data
-}
-
-export const updateCommunityData = async (
-  communityId: number,
-  payload: CommunityUpdatePayload,
+export const fetchLikedCommunityPosts = async (
+  params: CommunityCursorParams,
 ) => {
-  const response = await apiClient.patch<ApiResponse<null>>(
-    `/community/${communityId}`,
+  const response = await apiClient.get<CommunityLikedPostsResponse>(
+    '/community/posts/liked',
+    { params },
+  )
+
+  return response.data
+}
+
+export const fetchCommunityPost = async (postId: number) => {
+  const response = await apiClient.get<CommunityPostDetailResponse>(
+    `/community/posts/${postId}`,
+  )
+
+  return response.data
+}
+
+export const createCommunityPost = async (
+  payload: CommunityPostCreateRequest,
+) => {
+  const response = await apiClient.post<CommunityPostDetailResponse>(
+    '/community/posts',
     payload,
   )
 
   return response.data
 }
 
-export const deleteCommunityData = async (communityId: number) => {
-  const response = await apiClient.delete<ApiResponse<null>>(
-    `/community/${communityId}`,
-  )
-
-  return response.data
-}
-
-export const uploadCommunityImage = async (payload: FormData) => {
-  const response = await apiClient.post<ApiResponse<string>>(
-    '/firebase/upload',
+export const updateCommunityPost = async (
+  postId: number,
+  payload: CommunityPostUpdateRequest,
+) => {
+  const response = await apiClient.patch<CommunityPostDetailResponse>(
+    `/community/posts/${postId}`,
     payload,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    },
   )
 
   return response.data
 }
 
-export const getCommunityCommentsData = async (communityId: number) => {
-  const response = await apiClient.get<ApiResponse<CommunityComment[]>>(
-    `/community/${communityId}/comment`,
+export const deleteCommunityPost = async (postId: number) => {
+  const response = await apiClient.delete<CommunityVoidResponse>(
+    `/community/posts/${postId}`,
+  )
+
+  return response.data
+}
+
+export const toggleCommunityPostLike = async (postId: number) => {
+  const response = await apiClient.post<CommunityPostLikeResponse>(
+    `/community/posts/${postId}/likes`,
+  )
+
+  return response.data
+}
+
+export const fetchCommunityComments = async (postId: number) => {
+  const response = await apiClient.get<CommunityCommentsResponse>(
+    `/community/posts/${postId}/comments`,
   )
 
   return response.data
 }
 
 export const createCommunityComment = async (
-  communityId: number,
-  payload: CommunityCommentPayload,
+  postId: number,
+  payload: CommunityCommentCreateRequest,
 ) => {
-  const response = await apiClient.post<ApiResponse<CommunityComment[]>>(
-    `/community/${communityId}/comment`,
-    payload,
-  )
-
-  return response.data
-}
-
-export const updateCommunityComment = async (
-  communityId: number,
-  commentId: number,
-  payload: CommunityCommentPayload,
-) => {
-  const response = await apiClient.patch<ApiResponse<null>>(
-    `/community/${communityId}/comment/${commentId}`,
+  const response = await apiClient.post<CommunityCommentsResponse>(
+    `/community/posts/${postId}/comments`,
     payload,
   )
 
@@ -116,58 +113,34 @@ export const updateCommunityComment = async (
 }
 
 export const deleteCommunityComment = async (
-  communityId: number,
+  postId: number,
   commentId: number,
 ) => {
-  const response = await apiClient.delete<ApiResponse<null>>(
-    `/community/${communityId}/comment/${commentId}`,
+  const response = await apiClient.delete<CommunityVoidResponse>(
+    `/community/posts/${postId}/comments/${commentId}`,
   )
 
   return response.data
 }
 
-export const resolveCommunityImages = async (
-  images: Array<{
-    file?: File
-    imageId: CommunityImage['imageId']
-    url: string
-  }>,
-  memberId?: number | null,
+export const toggleCommunityCommentLike = async (
+  postId: number,
+  commentId: number,
 ) => {
-  const uploadedImages: CommunityImage[] = []
+  const response = await apiClient.post<CommunityCommentLikeResponse>(
+    `/community/posts/${postId}/comments/${commentId}/likes`,
+  )
 
-  for (const [index, image] of images.entries()) {
-    if (!image.file) {
-      uploadedImages.push({
-        imageId: image.imageId,
-        url: image.url,
-      })
-      continue
-    }
+  return response.data
+}
 
-    const formData = new FormData()
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[-:.TZ]/g, '')
-      .slice(0, 14)
+export const createCommunityReport = async (
+  payload: CommunityReportCreateRequest,
+) => {
+  const response = await apiClient.post<CommunityVoidResponse>(
+    '/community/reports',
+    payload,
+  )
 
-    formData.append('file', image.file)
-    formData.append(
-      'fileName',
-      `${memberId ?? 'guest'}-${timestamp}-${index.toString()}`,
-    )
-
-    const response = await uploadCommunityImage(formData)
-
-    if (!response.dataBody) {
-      throw new Error('이미지 업로드 결과를 확인할 수 없습니다.')
-    }
-
-    uploadedImages.push({
-      imageId: null,
-      url: response.dataBody,
-    })
-  }
-
-  return uploadedImages
+  return response.data
 }

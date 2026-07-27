@@ -1,5 +1,3 @@
-import { getCommunityCategoryLabel } from '@/data/community-categories'
-
 const relativeFormatter = new Intl.RelativeTimeFormat('ko', {
   numeric: 'auto',
 })
@@ -74,7 +72,7 @@ export const getCommunityExcerpt = (value: string, maxLength = 120) => {
 }
 
 export const buildCommunityMetadataDescription = (
-  category: string,
+  targetName: string | null | undefined,
   content: string,
 ) =>
-  `${getCommunityCategoryLabel(category)} 게시글 · ${getCommunityExcerpt(content, 90)}`
+  `${targetName?.trim() || '서울 창업'} 커뮤니티 게시글 · ${getCommunityExcerpt(content, 90)}`

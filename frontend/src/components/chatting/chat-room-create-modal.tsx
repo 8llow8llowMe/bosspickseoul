@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import styled from 'styled-components'
-import { communityCategories } from '@/data/community-categories'
+import { chatRoomCategories } from '@/data/chat-room-categories'
 import { createChatRoomData } from '@/lib/api/chatting'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { subscribeChatRoomNotifications } from '@/lib/firebase-messaging'
@@ -269,7 +269,7 @@ export default function ChatRoomCreateModal({
             }}
           >
             <option value="">카테고리를 선택해 주세요.</option>
-            {communityCategories
+            {chatRoomCategories
               .filter(category => category.value !== '')
               .map(category => (
                 <option key={category.value} value={category.value}>

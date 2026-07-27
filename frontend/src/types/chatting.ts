@@ -1,6 +1,4 @@
-import type { CommunityCategoryValue } from '@/types/community'
-
-export type ChatRoomCategory = Exclude<CommunityCategoryValue, ''> | string
+export type ChatRoomCategory = string
 
 export type ChatRoomListItem = {
   chatRoomId: number

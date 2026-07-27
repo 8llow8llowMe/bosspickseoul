@@ -1,769 +1,942 @@
 'use client'
 
-import Link from 'next/link'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import styled from 'styled-components'
-import { getCommunityCategoryLabel } from '@/data/community-categories'
+import { useEffect, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
-  formatCommunityCount,
-  formatCommunityDate,
-  formatRelativeTime,
-  getCommunityExcerpt,
-} from '@/lib/community'
-import {
-  createCommunityComment,
-  deleteCommunityComment,
-  deleteCommunityData,
-  getCommunityCommentsData,
-  getCommunityDetailData,
-  getCommunityListData,
-  updateCommunityComment,
-} from '@/lib/api/community'
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
+import CommunityDetailView from '@/components/community/community-detail-view'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import { readAdjacentPosts } from '@/lib/community/adjacent-posts'
+import { realCommunitySource } from '@/lib/community/community-data-source'
+import {
+  communityMockSource,
+  MOCK_COMMUNITY_MEMBER_ID,
+} from '@/lib/community/community-mock'
+import {
+  communityKeys,
+  getCommunityLoginHref,
+  isCommunityMockEnabled,
+  parseCommunityTargetType,
+  type CommunityViewer,
+} from '@/lib/community/community-state'
 import { useAuthStore } from '@/stores/auth-store'
+import type { ApiResponse } from '@/types/api'
+import type {
+  CommunityCommentLikeBody,
+  CommunityCommentsResponse,
+  CommunityListParams,
+  CommunityPostDetail,
+  CommunityPostDetailResponse,
+  CommunityPostLikeResponse,
+  CommunityPostListResponse,
+  CommunityReportCreateRequest,
+} from '@/types/community'
 
-const Page = styled.main`
-  width: min(1200px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 40px 0 72px;
-  display: grid;
-  gap: 24px;
-`
-
-const Article = styled.article`
-  display: grid;
-  gap: 24px;
-  padding: 32px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
-  box-shadow: var(--shadow-level-1);
-`
-
-const Header = styled.header`
-  display: grid;
-  gap: 18px;
-`
-
-const HeaderTop = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-`
-
-const HeaderCopy = styled.div`
-  display: grid;
-  gap: 12px;
-`
-
-const CategoryBadge = styled.span`
-  display: inline-flex;
-  width: fit-content;
-  min-height: 30px;
-  align-items: center;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: var(--color-primary-100);
-  color: var(--color-primary-700);
-  font-size: 12px;
-  font-weight: 700;
-`
-
-const Title = styled.h1`
-  color: var(--color-text-900);
-  font-size: 26px;
-  line-height: 1.12;
-  letter-spacing: 0;
-`
-
-const MetaRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  color: var(--color-text-500);
-  font-size: 14px;
-`
-
-const ActionRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-`
-
-const SecondaryLink = styled(Link)`
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-primary-700);
-  font-size: 14px;
-  font-weight: 700;
-`
-
-const GhostButton = styled.button`
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const Gallery = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+export class CommunityDetailQueryError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CommunityDetailQueryError'
   }
-`
+}
 
-const GalleryImage = styled.img`
-  width: 100%;
-  min-height: 260px;
-  border-radius: var(--radius-card);
-  object-fit: cover;
-  background: var(--color-surface-muted);
-`
-
-const Content = styled.div`
-  color: var(--color-text-700);
-  font-size: 16px;
-  line-height: 1.9;
-  white-space: pre-wrap;
-`
-
-const Section = styled.section`
-  display: grid;
-  gap: 18px;
-  padding: 28px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
-  box-shadow: var(--shadow-level-1);
-`
-
-const SectionHeader = styled.div`
-  display: grid;
-  gap: 8px;
-`
-
-const SectionTitle = styled.h2`
-  color: var(--color-text-900);
-  font-size: 28px;
-  line-height: 1.2;
-  letter-spacing: 0;
-`
-
-const SectionBody = styled.p`
-  color: var(--color-text-500);
-  line-height: 1.75;
-`
-
-const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
-  padding: 16px 18px;
-  border-radius: var(--radius-card);
-  background: ${props =>
-    props.$tone === 'error'
-      ? 'rgba(240, 68, 82, 0.1)'
-      : 'var(--color-primary-100)'};
-  color: ${props =>
-    props.$tone === 'error'
-      ? 'var(--color-danger)'
-      : 'var(--color-primary-700)'};
-  line-height: 1.75;
-`
-
-const CommentComposer = styled.div`
-  display: grid;
-  gap: 12px;
-`
-
-const TextArea = styled.textarea`
-  width: 100%;
-  min-height: 140px;
-  padding: 16px 18px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  resize: vertical;
-  background: white;
-  color: var(--color-text-900);
-  line-height: 1.75;
-`
-
-const ComposerFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-`
-
-const Helper = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
-`
-
-const PrimaryButton = styled.button`
-  min-height: 46px;
-  padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: var(--radius-control);
-  background: var(--color-primary-700);
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const CommentList = styled.div`
-  display: grid;
-  gap: 14px;
-`
-
-const CommentCard = styled.article`
-  display: grid;
-  gap: 14px;
-  padding: 20px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
-`
-
-const CommentHeader = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-`
-
-const CommentAuthor = styled.div`
-  display: grid;
-  gap: 6px;
-`
-
-const CommentAuthorName = styled.p`
-  color: var(--color-text-900);
-  font-size: 15px;
-  font-weight: 700;
-`
-
-const CommentMeta = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
-`
-
-const CommentActions = styled.div`
-  display: flex;
-  gap: 8px;
-`
-
-const CommentActionButton = styled.button`
-  border: none;
-  background: transparent;
-  color: var(--color-primary-700);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const CommentContent = styled.p`
-  color: var(--color-text-700);
-  line-height: 1.8;
-  white-space: pre-wrap;
-`
-
-const RelatedGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
+const validateCommunityResponse = <Response extends ApiResponse<unknown>>(
+  response: Response,
+) => {
+  if (!isApiSuccess(response)) {
+    throw new CommunityDetailQueryError(getApiMessage(response))
   }
-`
 
-const RelatedCard = styled(Link)`
-  display: grid;
-  gap: 10px;
-  padding: 20px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
-`
+  return response
+}
 
-const RelatedTitle = styled.h3`
-  color: var(--color-text-900);
-  font-size: 18px;
-  line-height: 1.4;
-`
+export const validateCommunityDetailResponse = (
+  response: CommunityPostDetailResponse,
+) => validateCommunityResponse(response)
 
-const RelatedBody = styled.p`
-  color: var(--color-text-500);
-  line-height: 1.75;
-`
+export const validateCommunityCommentsResponse = (
+  response: CommunityCommentsResponse,
+) => validateCommunityResponse(response)
+
+export const validateCommunityRelatedResponse = (
+  response: CommunityPostListResponse,
+) => validateCommunityResponse(response)
+
+export const isCommunityOwner = (memberId: number, viewer: CommunityViewer) =>
+  viewer.authenticated && String(memberId) === viewer.memberId
+
+export const createCommunityRelatedParams = (
+  detail: CommunityPostDetail,
+): CommunityListParams | null => {
+  const targetType = parseCommunityTargetType(detail.targetType?.code ?? null)
+  const targetCode = detail.targetCode?.trim()
+
+  if (!targetType || !targetCode) {
+    return null
+  }
+
+  return {
+    sortType: 'LATEST',
+    orderType: 'DESC',
+    lastPostId: 0,
+    lastLikeCount: 0,
+    size: 5,
+    targetType,
+    targetCode,
+  }
+}
+
+export const updateCommunityDetailLikeCache = (
+  response: CommunityPostDetailResponse,
+  result: CommunityPostLikeResponse['dataBody'],
+): CommunityPostDetailResponse => ({
+  ...response,
+  dataBody: {
+    ...response.dataBody,
+    likeCount:
+      response.dataBody.postId === result.postId
+        ? result.likeCount
+        : response.dataBody.likeCount,
+  },
+})
+
+export const updateCommunityRelatedLikeCache = (
+  response: CommunityPostListResponse,
+  result: CommunityPostLikeResponse['dataBody'],
+): CommunityPostListResponse => ({
+  ...response,
+  dataBody: {
+    ...response.dataBody,
+    posts: {
+      ...response.dataBody.posts,
+      contents: response.dataBody.posts.contents.map(post =>
+        post.postId === result.postId
+          ? { ...post, likeCount: result.likeCount }
+          : post,
+      ),
+    },
+  },
+})
+
+const updateCommunityRelatedCommentCountCache = (
+  response: CommunityPostListResponse,
+  postId: number,
+  commentCount: number,
+): CommunityPostListResponse => ({
+  ...response,
+  dataBody: {
+    ...response.dataBody,
+    posts: {
+      ...response.dataBody.posts,
+      contents: response.dataBody.posts.contents.map(post =>
+        post.postId === postId ? { ...post, commentCount } : post,
+      ),
+    },
+  },
+})
+
+export const updateCommunityCommentLikeCache = (
+  response: CommunityCommentsResponse,
+  result: CommunityCommentLikeBody,
+): CommunityCommentsResponse => ({
+  ...response,
+  dataBody: {
+    ...response.dataBody,
+    comments: response.dataBody.comments.map(comment => ({
+      ...comment,
+      likeCount:
+        comment.commentId === result.commentId
+          ? result.likeCount
+          : comment.likeCount,
+      replies: comment.replies.map(reply =>
+        reply.commentId === result.commentId
+          ? { ...reply, likeCount: result.likeCount }
+          : reply,
+      ),
+    })),
+  },
+})
+
+export const shouldReadCommunityAdjacent = (from: string | null) =>
+  Boolean(from?.trim())
+
+export const isCommunityDetailUnauthorizedError = (error: unknown) =>
+  isAxiosError(error) && error.response?.status === 401
+
+export const shouldRetryCommunityDetailQuery = (
+  failureCount: number,
+  error: unknown,
+) => !isCommunityDetailUnauthorizedError(error) && failureCount < 2
+
+type RecoverCommunityDetailUnauthorizedOptions = {
+  queryClient: QueryClient
+  queryKeys: QueryKey[]
+  clearSession: () => void
+  navigate: (href: string) => void
+  currentHref: string
+}
+
+export const recoverCommunityDetailUnauthorized = async ({
+  queryClient,
+  queryKeys,
+  clearSession,
+  navigate,
+  currentHref,
+}: RecoverCommunityDetailUnauthorizedOptions) => {
+  await Promise.all(
+    queryKeys.map(queryKey =>
+      queryClient.cancelQueries({ queryKey, exact: true }),
+    ),
+  )
+  queryKeys.forEach(queryKey => {
+    queryClient.removeQueries({ queryKey, exact: true })
+  })
+  clearSession()
+  navigate(getCommunityLoginHref(currentHref))
+}
+
+type CommunityDetailRecoveryRef = {
+  current: Promise<void> | null
+}
+
+export const startCommunityDetailUnauthorizedRecovery = (
+  recoveryRef: CommunityDetailRecoveryRef,
+  recover: () => Promise<void>,
+) => {
+  if (recoveryRef.current) {
+    return recoveryRef.current
+  }
+
+  const recovery = recover()
+  recoveryRef.current = recovery
+
+  void recovery.then(
+    () => {
+      if (recoveryRef.current === recovery) {
+        recoveryRef.current = null
+      }
+    },
+    () => {
+      if (recoveryRef.current === recovery) {
+        recoveryRef.current = null
+      }
+    },
+  )
+
+  return recovery
+}
+
+type CommunityPublicQuery = {
+  queryKey: QueryKey
+  refetch: () => Promise<unknown>
+}
+
+type RecoverCommunityPublicQueriesOptions = {
+  queryClient: QueryClient
+  queries: CommunityPublicQuery[]
+  clearSession: () => void
+}
+
+export const recoverCommunityPublicQueries = async ({
+  queryClient,
+  queries,
+  clearSession,
+}: RecoverCommunityPublicQueriesOptions) => {
+  await Promise.all(
+    queries.map(({ queryKey }) =>
+      queryClient.cancelQueries({ queryKey, exact: true }),
+    ),
+  )
+  clearSession()
+  await Promise.all(queries.map(({ refetch }) => refetch()))
+}
+
+type CommunityPublicQueryRecoveryRef = {
+  scope: string | null
+  attempted: boolean
+  current: Promise<void> | null
+}
+
+export const startCommunityPublicQueryRecovery = (
+  recoveryRef: CommunityPublicQueryRecoveryRef,
+  scope: string,
+  recover: () => Promise<void>,
+) => {
+  if (recoveryRef.scope !== scope) {
+    recoveryRef.scope = scope
+    recoveryRef.attempted = false
+    recoveryRef.current = null
+  }
+
+  if (recoveryRef.attempted) {
+    return recoveryRef.current
+  }
+
+  recoveryRef.attempted = true
+  const recovery = recover()
+  recoveryRef.current = recovery
+
+  void recovery.then(
+    () => {
+      if (recoveryRef.scope === scope && recoveryRef.current === recovery) {
+        recoveryRef.current = null
+      }
+    },
+    () => {
+      if (recoveryRef.scope === scope && recoveryRef.current === recovery) {
+        recoveryRef.current = null
+      }
+    },
+  )
+
+  return recovery
+}
+
+type RefreshCommunityDetailSummaryCachesOptions = {
+  queryClient: QueryClient
+  relatedQueryKey: QueryKey
+}
+
+export const refreshCommunityDetailSummaryCaches = ({
+  queryClient,
+  relatedQueryKey,
+}: RefreshCommunityDetailSummaryCachesOptions) =>
+  Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ['community', 'list'],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: relatedQueryKey,
+      exact: true,
+    }),
+  ])
+
+type CommunityContextValue = {
+  view?: unknown
+  keyword?: unknown
+  targetType?: unknown
+  targetCode?: unknown
+}
+
+export const createCommunityDetailListHref = (
+  from: string | null,
+  mockEnabled: boolean,
+) => {
+  const params = new URLSearchParams()
+
+  if (from) {
+    try {
+      const value = JSON.parse(from) as CommunityContextValue
+      const view =
+        value.view === 'popular' || value.view === 'liked'
+          ? value.view
+          : 'latest'
+      const keyword =
+        typeof value.keyword === 'string' ? value.keyword.trim() : ''
+      const targetType =
+        typeof value.targetType === 'string'
+          ? parseCommunityTargetType(value.targetType)
+          : undefined
+      const targetCode =
+        typeof value.targetCode === 'string' ? value.targetCode.trim() : ''
+
+      if (view !== 'latest') {
+        params.set('view', view)
+      }
+
+      if (view !== 'liked' && keyword) {
+        params.set('keyword', keyword)
+      } else if (view !== 'liked' && targetType && targetCode && !keyword) {
+        params.set('targetType', targetType)
+        params.set('targetCode', targetCode)
+      }
+    } catch {
+      // Malformed navigation context falls back to the unfiltered list.
+    }
+  }
+
+  if (mockEnabled) {
+    params.set('mock', '1')
+  }
+
+  const query = params.toString()
+  return query ? `/community/list?${query}` : '/community/list'
+}
+
+const countCommunityComments = (response: CommunityCommentsResponse) =>
+  response.dataBody.comments.reduce(
+    (count, comment) => count + 1 + comment.replies.length,
+    0,
+  )
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback
 
 type CommunityDetailPageProps = {
   communityId: number
 }
 
+type ReportTarget = Pick<
+  CommunityReportCreateRequest,
+  'targetKind' | 'targetId'
+>
+
 export default function CommunityDetailPage({
   communityId,
 }: CommunityDetailPageProps) {
+  const postId = communityId
   const router = useRouter()
   const queryClient = useQueryClient()
-  const hasHydrated = useAuthStore(state => state.hasHydrated)
-  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
-  const memberInfo = useAuthStore(state => state.memberInfo)
-  const [commentValue, setCommentValue] = useState('')
-  const [editingCommentId, setEditingCommentId] = useState<number | null>(null)
-  const [editingCommentValue, setEditingCommentValue] = useState('')
-  const [commentMessage, setCommentMessage] = useState<string | null>(null)
-
-  const detailQuery = useQuery({
-    queryKey: ['community-detail', communityId],
-    queryFn: () => getCommunityDetailData(communityId),
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const rawSearchParams = searchParams.toString()
+  const mockEnabled = isCommunityMockEnabled(searchParams.get('mock'))
+  const fromContext = searchParams.get('from')
+  const currentHref = rawSearchParams
+    ? `${pathname}?${rawSearchParams}`
+    : pathname
+  const listHref = createCommunityDetailListHref(fromContext, mockEnabled)
+  const hasHydrated = useAuthStore(auth => auth.hasHydrated)
+  const isLoggedIn = useAuthStore(auth => auth.isLoggedIn)
+  const memberInfo = useAuthStore(auth => auth.memberInfo)
+  const clearSession = useAuthStore(auth => auth.clearSession)
+  const source = mockEnabled ? communityMockSource : realCommunitySource
+  const detailQueryKey = communityKeys.detail(postId, mockEnabled)
+  const commentsQueryKey = communityKeys.comments(postId, mockEnabled)
+  const viewer: CommunityViewer = mockEnabled
+    ? {
+        authenticated: true,
+        memberId: String(MOCK_COMMUNITY_MEMBER_ID),
+      }
+    : {
+        authenticated: hasHydrated && isLoggedIn,
+        memberId:
+          hasHydrated && isLoggedIn && memberInfo?.memberId
+            ? String(memberInfo.memberId)
+            : null,
+      }
+  const authReady = mockEnabled || hasHydrated
+  const unauthorizedRecoveryRef = useRef<Promise<void> | null>(null)
+  const publicQueryRecoveryRef = useRef<CommunityPublicQueryRecoveryRef>({
+    scope: null,
+    attempted: false,
+    current: null,
   })
+  const [adjacent, setAdjacent] = useState<ReturnType<
+    typeof readAdjacentPosts
+  > | null>(null)
+  const [postLiked, setPostLiked] = useState<boolean | null>(null)
+  const [postMutationError, setPostMutationError] = useState<string | null>(
+    null,
+  )
+  const [commentMutationError, setCommentMutationError] = useState<
+    string | null
+  >(null)
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
+  const [reportErrorMessage, setReportErrorMessage] = useState<string | null>(
+    null,
+  )
+  const [reportStatusMessage, setReportStatusMessage] = useState<string | null>(
+    null,
+  )
 
-  const commentsQuery = useQuery({
-    queryKey: ['community-comments', communityId],
-    queryFn: () => getCommunityCommentsData(communityId),
-  })
+  useEffect(() => {
+    let active = true
 
-  const detailCategory =
-    detailQuery.data && isApiSuccess(detailQuery.data)
-      ? detailQuery.data.dataBody.category
-      : ''
-
-  const relatedPostsQuery = useQuery({
-    queryKey: ['community-related-posts', communityId, detailCategory],
-    queryFn: () => getCommunityListData(detailCategory, 0),
-    enabled: Boolean(detailCategory),
-  })
-
-  const refreshCommunityQueries = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ['community-detail', communityId],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['community-comments', communityId],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['community-list'],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['community-popular'],
-      }),
-    ])
-  }
-
-  const deletePostMutation = useMutation({
-    mutationFn: () => deleteCommunityData(communityId),
-    onSuccess: async response => {
-      if (!isApiSuccess(response)) {
-        setCommentMessage(getApiMessage(response))
+    queueMicrotask(() => {
+      if (!active) {
         return
       }
 
-      await refreshCommunityQueries()
-      router.replace('/community/list')
+      if (!shouldReadCommunityAdjacent(fromContext)) {
+        setAdjacent(null)
+        return
+      }
+
+      try {
+        setAdjacent(
+          readAdjacentPosts(window.sessionStorage, postId, fromContext!),
+        )
+      } catch {
+        setAdjacent(null)
+      }
+    })
+
+    return () => {
+      active = false
+    }
+  }, [fromContext, postId])
+
+  const detailQuery = useQuery<
+    CommunityPostDetailResponse,
+    Error,
+    CommunityPostDetailResponse,
+    ReturnType<typeof communityKeys.detail>
+  >({
+    queryKey: detailQueryKey,
+    retry: shouldRetryCommunityDetailQuery,
+    queryFn: async () =>
+      validateCommunityDetailResponse(await source.getPost(postId)),
+  })
+
+  const commentsQuery = useQuery<
+    CommunityCommentsResponse,
+    Error,
+    CommunityCommentsResponse,
+    ReturnType<typeof communityKeys.comments>
+  >({
+    queryKey: commentsQueryKey,
+    retry: shouldRetryCommunityDetailQuery,
+    queryFn: async () =>
+      validateCommunityCommentsResponse(await source.getComments(postId)),
+  })
+
+  const detail = detailQuery.data?.dataBody ?? null
+  const relatedParams = detail ? createCommunityRelatedParams(detail) : null
+  const relatedQueryKey = communityKeys.related(
+    relatedParams?.targetType ?? 'DISTRICT',
+    relatedParams?.targetCode ?? '',
+    mockEnabled,
+  )
+  const relatedQuery = useQuery<
+    CommunityPostListResponse,
+    Error,
+    CommunityPostListResponse,
+    ReturnType<typeof communityKeys.related>
+  >({
+    queryKey: relatedQueryKey,
+    enabled: Boolean(relatedParams),
+    retry: shouldRetryCommunityDetailQuery,
+    queryFn: async () => {
+      if (!relatedParams) {
+        throw new CommunityDetailQueryError(
+          '관련 게시글을 조회할 지역 정보가 없어요.',
+        )
+      }
+
+      return validateCommunityRelatedResponse(
+        await source.getPosts(relatedParams),
+      )
+    },
+  })
+
+  useEffect(() => {
+    if (mockEnabled) {
+      return
+    }
+
+    const hasUnauthorizedError = [
+      detailQuery.error,
+      commentsQuery.error,
+      relatedQuery.error,
+    ].some(isCommunityDetailUnauthorizedError)
+
+    if (!hasUnauthorizedError) {
+      return
+    }
+
+    const queries: CommunityPublicQuery[] = [
+      {
+        queryKey: detailQueryKey,
+        refetch: async () => {
+          await detailQuery.refetch()
+        },
+      },
+      {
+        queryKey: commentsQueryKey,
+        refetch: async () => {
+          await commentsQuery.refetch()
+        },
+      },
+    ]
+
+    if (relatedParams) {
+      queries.push({
+        queryKey: relatedQueryKey,
+        refetch: async () => {
+          await relatedQuery.refetch()
+        },
+      })
+    }
+
+    void startCommunityPublicQueryRecovery(
+      publicQueryRecoveryRef.current,
+      `${postId}:${mockEnabled ? 'mock' : 'real'}`,
+      () =>
+        recoverCommunityPublicQueries({
+          queryClient,
+          queries,
+          clearSession,
+        }),
+    )
+  }, [
+    clearSession,
+    commentsQuery,
+    commentsQueryKey,
+    detailQuery,
+    detailQueryKey,
+    mockEnabled,
+    postId,
+    queryClient,
+    relatedParams,
+    relatedQuery,
+    relatedQueryKey,
+  ])
+
+  const requireLogin = () => {
+    if (!authReady) {
+      return
+    }
+
+    router.push(getCommunityLoginHref(currentHref))
+  }
+
+  const handleMutationError = (
+    error: unknown,
+    setMessage: (message: string | null) => void,
+    fallback: string,
+  ) => {
+    if (!mockEnabled && isCommunityDetailUnauthorizedError(error)) {
+      void startCommunityDetailUnauthorizedRecovery(
+        unauthorizedRecoveryRef,
+        () =>
+          recoverCommunityDetailUnauthorized({
+            queryClient,
+            queryKeys: [detailQueryKey, commentsQueryKey, relatedQueryKey],
+            clearSession,
+            navigate: href => {
+              router.replace(href)
+            },
+            currentHref,
+          }),
+      )
+      return
+    }
+
+    setMessage(getErrorMessage(error, fallback))
+  }
+
+  const postLikeMutation = useMutation({
+    mutationFn: async () =>
+      validateCommunityResponse(await source.togglePostLike(postId)),
+    onSuccess: async response => {
+      setPostLiked(response.dataBody.liked)
+      setPostMutationError(null)
+      queryClient.setQueryData<CommunityPostDetailResponse>(
+        detailQueryKey,
+        current =>
+          current
+            ? updateCommunityDetailLikeCache(current, response.dataBody)
+            : current,
+      )
+      queryClient.setQueryData<CommunityPostListResponse>(
+        relatedQueryKey,
+        current =>
+          current
+            ? updateCommunityRelatedLikeCache(current, response.dataBody)
+            : current,
+      )
+      await refreshCommunityDetailSummaryCaches({
+        queryClient,
+        relatedQueryKey,
+      })
     },
     onError: error => {
-      setCommentMessage(
-        error instanceof Error
-          ? error.message
-          : '게시글 상태를 확인한 뒤 다시 삭제해주세요.',
+      handleMutationError(
+        error,
+        setPostMutationError,
+        '게시글 좋아요를 처리하지 못했어요.',
       )
     },
   })
 
   const createCommentMutation = useMutation({
-    mutationFn: (content: string) =>
-      createCommunityComment(communityId, {
-        content,
-      }),
-    onSuccess: async response => {
-      if (!isApiSuccess(response)) {
-        setCommentMessage(getApiMessage(response))
-        return
-      }
-
-      setCommentValue('')
-      setCommentMessage(null)
-      await refreshCommunityQueries()
-    },
-    onError: error => {
-      setCommentMessage(
-        error instanceof Error
-          ? error.message
-          : '댓글 내용을 확인한 뒤 다시 등록해주세요.',
-      )
-    },
-  })
-
-  const updateCommentMutation = useMutation({
-    mutationFn: ({
-      commentId,
-      content,
-    }: {
-      commentId: number
+    mutationFn: async (payload: {
       content: string
+      parentCommentId?: number
     }) =>
-      updateCommunityComment(communityId, commentId, {
-        content,
-      }),
+      validateCommunityCommentsResponse(
+        await source.createComment(postId, payload),
+      ),
     onSuccess: async response => {
-      if (!isApiSuccess(response)) {
-        setCommentMessage(getApiMessage(response))
-        return
-      }
-
-      setEditingCommentId(null)
-      setEditingCommentValue('')
-      setCommentMessage(null)
-      await refreshCommunityQueries()
+      const commentCount = countCommunityComments(response)
+      setCommentMutationError(null)
+      queryClient.setQueryData(commentsQueryKey, response)
+      queryClient.setQueryData<CommunityPostDetailResponse>(
+        detailQueryKey,
+        current =>
+          current
+            ? {
+                ...current,
+                dataBody: {
+                  ...current.dataBody,
+                  commentCount,
+                },
+              }
+            : current,
+      )
+      queryClient.setQueryData<CommunityPostListResponse>(
+        relatedQueryKey,
+        current =>
+          current
+            ? updateCommunityRelatedCommentCountCache(
+                current,
+                postId,
+                commentCount,
+              )
+            : current,
+      )
+      await refreshCommunityDetailSummaryCaches({
+        queryClient,
+        relatedQueryKey,
+      })
     },
     onError: error => {
-      setCommentMessage(
-        error instanceof Error
-          ? error.message
-          : '댓글 내용을 확인한 뒤 다시 수정해주세요.',
+      handleMutationError(
+        error,
+        setCommentMutationError,
+        '댓글을 등록하지 못했어요.',
       )
     },
   })
 
   const deleteCommentMutation = useMutation({
-    mutationFn: (commentId: number) =>
-      deleteCommunityComment(communityId, commentId),
-    onSuccess: async response => {
-      if (!isApiSuccess(response)) {
-        setCommentMessage(getApiMessage(response))
-        return
-      }
-
-      setCommentMessage(null)
-      await refreshCommunityQueries()
+    mutationFn: async (commentId: number) =>
+      validateCommunityResponse(await source.deleteComment(postId, commentId)),
+    onSuccess: async () => {
+      setCommentMutationError(null)
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: commentsQueryKey,
+          exact: true,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: detailQueryKey,
+          exact: true,
+        }),
+        refreshCommunityDetailSummaryCaches({
+          queryClient,
+          relatedQueryKey,
+        }),
+      ])
     },
     onError: error => {
-      setCommentMessage(
-        error instanceof Error
-          ? error.message
-          : '댓글 상태를 확인한 뒤 다시 삭제해주세요.',
+      handleMutationError(
+        error,
+        setCommentMutationError,
+        '댓글을 삭제하지 못했어요.',
       )
     },
   })
 
-  if (detailQuery.isLoading) {
-    return (
-      <Page>
-        <Notice>게시글 상세 정보를 불러오는 중입니다.</Notice>
-      </Page>
-    )
-  }
+  const commentLikeMutation = useMutation({
+    mutationFn: async (commentId: number) =>
+      validateCommunityResponse(
+        await source.toggleCommentLike(postId, commentId),
+      ),
+    onSuccess: response => {
+      setCommentMutationError(null)
+      queryClient.setQueryData<CommunityCommentsResponse>(
+        commentsQueryKey,
+        current =>
+          current
+            ? updateCommunityCommentLikeCache(current, response.dataBody)
+            : current,
+      )
+    },
+    onError: error => {
+      handleMutationError(
+        error,
+        setCommentMutationError,
+        '댓글 좋아요를 처리하지 못했어요.',
+      )
+    },
+  })
 
-  if (!detailQuery.data || !isApiSuccess(detailQuery.data)) {
-    return (
-      <Page>
-        <Notice $tone="error">
-          {getApiMessage(detailQuery.data, '게시글 주소를 확인해주세요.')}
-        </Notice>
-      </Page>
-    )
-  }
+  const reportMutation = useMutation({
+    mutationFn: async ({
+      target,
+      reason,
+    }: {
+      target: ReportTarget
+      reason: string
+    }) =>
+      validateCommunityResponse(
+        await source.createReport({ ...target, reason }),
+      ),
+    onSuccess: () => {
+      setReportTarget(null)
+      setReportErrorMessage(null)
+      setReportStatusMessage('신고가 접수됐어요.')
+    },
+    onError: error => {
+      handleMutationError(
+        error,
+        setReportErrorMessage,
+        '신고를 접수하지 못했어요.',
+      )
+    },
+  })
 
-  const detail = detailQuery.data.dataBody
-  const currentMemberId = memberInfo ? Number(memberInfo.memberId) : null
-  const isOwner =
-    hasHydrated && isLoggedIn && currentMemberId === detail.writerId
+  const deletePostMutation = useMutation({
+    mutationFn: async () =>
+      validateCommunityResponse(await source.deletePost(postId)),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: detailQueryKey, exact: true })
+      queryClient.removeQueries({ queryKey: commentsQueryKey, exact: true })
+      queryClient.removeQueries({ queryKey: relatedQueryKey, exact: true })
+      await queryClient.invalidateQueries({
+        queryKey: communityKeys.all,
+      })
+      router.replace(listHref)
+    },
+    onError: error => {
+      handleMutationError(
+        error,
+        setPostMutationError,
+        '게시글을 삭제하지 못했어요.',
+      )
+    },
+  })
 
-  const comments =
-    commentsQuery.data && isApiSuccess(commentsQuery.data)
-      ? commentsQuery.data.dataBody
-      : []
-
+  const comments = commentsQuery.data?.dataBody.comments ?? []
   const relatedPosts =
-    relatedPostsQuery.data && isApiSuccess(relatedPostsQuery.data)
-      ? relatedPostsQuery.data.dataBody
-          .filter(post => post.communityId !== detail.communityId)
-          .slice(0, 4)
-      : []
-
-  const handleDeletePost = () => {
-    if (!window.confirm('게시글을 삭제하시겠습니까?')) {
-      return
-    }
-
-    deletePostMutation.mutate()
-  }
-
-  const handleSubmitComment = () => {
-    const trimmedContent = commentValue.trim()
-
-    if (!trimmedContent) {
-      setCommentMessage('댓글 내용을 입력해 주세요.')
-      return
-    }
-
-    if (!isLoggedIn) {
-      router.push('/login')
-      return
-    }
-
-    createCommentMutation.mutate(trimmedContent)
-  }
-
-  const handleUpdateComment = (commentId: number) => {
-    const trimmedContent = editingCommentValue.trim()
-
-    if (!trimmedContent) {
-      setCommentMessage('수정할 댓글 내용을 입력해 주세요.')
-      return
-    }
-
-    updateCommentMutation.mutate({
-      commentId,
-      content: trimmedContent,
-    })
-  }
-
-  const handleDeleteComment = (commentId: number) => {
-    if (!window.confirm('댓글을 삭제하시겠습니까?')) {
-      return
-    }
-
-    deleteCommentMutation.mutate(commentId)
-  }
+    relatedQuery.data?.dataBody.posts.contents
+      .filter(post => post.postId !== postId)
+      .slice(0, 4) ?? []
+  const ownsPost = detail ? isCommunityOwner(detail.memberId, viewer) : false
+  const editHref =
+    detail && ownsPost
+      ? `/community/register?postId=${detail.postId}${mockEnabled ? '&mock=1' : ''}`
+      : null
+  const detailStatus = detailQuery.isLoading
+    ? 'loading'
+    : detailQuery.error || !detail
+      ? 'error'
+      : 'ready'
+  const commentsStatus = commentsQuery.isLoading
+    ? 'loading'
+    : commentsQuery.error
+      ? 'error'
+      : comments.length === 0
+        ? 'empty'
+        : 'ready'
+  const relatedStatus = !relatedParams
+    ? 'empty'
+    : relatedQuery.isLoading
+      ? 'loading'
+      : relatedQuery.error
+        ? 'error'
+        : relatedPosts.length === 0
+          ? 'empty'
+          : 'ready'
 
   return (
-    <Page>
-      <Article>
-        <Header>
-          <HeaderTop>
-            <HeaderCopy>
-              <CategoryBadge>
-                {getCommunityCategoryLabel(detail.category)}
-              </CategoryBadge>
-              <Title>{detail.title}</Title>
-              <MetaRow>
-                <span>{detail.writerNickname}</span>
-                <span>{formatCommunityDate(detail.createdAt)}</span>
-                <span>조회 {formatCommunityCount(detail.readCount)}</span>
-                <span>댓글 {formatCommunityCount(detail.commentCount)}</span>
-              </MetaRow>
-            </HeaderCopy>
-            <ActionRow>
-              <SecondaryLink href="/community/list">목록으로</SecondaryLink>
-              {isOwner ? (
-                <>
-                  <SecondaryLink
-                    href={`/community/register?communityId=${detail.communityId}`}
-                  >
-                    수정
-                  </SecondaryLink>
-                  <GhostButton type="button" onClick={handleDeletePost}>
-                    {deletePostMutation.isPending ? '삭제 중' : '삭제'}
-                  </GhostButton>
-                </>
-              ) : null}
-            </ActionRow>
-          </HeaderTop>
-          <Notice>
-            {formatRelativeTime(detail.createdAt)} 작성된 게시글입니다. 운영
-            경험과 데이터를 바탕으로 한 인사이트를 확인해 보세요.
-          </Notice>
-        </Header>
+    <CommunityDetailView
+      status={detailStatus}
+      detail={detail}
+      errorMessage={detailQuery.error?.message ?? null}
+      commentsStatus={commentsStatus}
+      comments={comments}
+      commentsErrorMessage={commentsQuery.error?.message ?? null}
+      relatedStatus={relatedStatus}
+      relatedPosts={relatedPosts}
+      relatedErrorMessage={relatedQuery.error?.message ?? null}
+      viewer={viewer}
+      authReady={authReady}
+      listHref={listHref}
+      editHref={editHref}
+      postLiked={postLiked}
+      postLikePending={postLikeMutation.isPending}
+      postDeletePending={deletePostMutation.isPending}
+      postMutationError={postMutationError}
+      commentMutationError={commentMutationError}
+      reportTarget={reportTarget}
+      reportPending={reportMutation.isPending}
+      reportErrorMessage={reportErrorMessage}
+      reportStatusMessage={reportStatusMessage}
+      adjacent={adjacent}
+      fromContext={fromContext}
+      mockEnabled={mockEnabled}
+      onRetryDetail={() => {
+        void detailQuery.refetch()
+      }}
+      onRetryComments={() => {
+        void commentsQuery.refetch()
+      }}
+      onRetryRelated={() => {
+        void relatedQuery.refetch()
+      }}
+      onRequireLogin={requireLogin}
+      onTogglePostLike={async () => {
+        setPostMutationError(null)
+        try {
+          await postLikeMutation.mutateAsync()
+        } catch {
+          // Mutation error state is rendered without removing the article.
+        }
+      }}
+      onDeletePost={() => {
+        if (
+          ownsPost &&
+          !deletePostMutation.isPending &&
+          window.confirm('게시글을 삭제하시겠습니까?')
+        ) {
+          setPostMutationError(null)
+          deletePostMutation.mutate()
+        }
+      }}
+      onCreateComment={async payload => {
+        setCommentMutationError(null)
+        try {
+          await createCommentMutation.mutateAsync(payload)
+          return true
+        } catch {
+          return false
+        }
+      }}
+      onDeleteComment={async commentId => {
+        setCommentMutationError(null)
+        try {
+          await deleteCommentMutation.mutateAsync(commentId)
+          return true
+        } catch {
+          return false
+        }
+      }}
+      onToggleCommentLike={async commentId => {
+        setCommentMutationError(null)
+        try {
+          const response = await commentLikeMutation.mutateAsync(commentId)
+          return response.dataBody
+        } catch {
+          return null
+        }
+      }}
+      onOpenReport={target => {
+        setReportStatusMessage(null)
+        setReportErrorMessage(null)
+        setReportTarget(target)
+      }}
+      onCloseReport={() => {
+        if (!reportMutation.isPending) {
+          setReportTarget(null)
+          setReportErrorMessage(null)
+        }
+      }}
+      onSubmitReport={reason => {
+        if (!reportTarget || reportMutation.isPending) {
+          return
+        }
 
-        {detail.images.length > 0 ? (
-          <Gallery>
-            {detail.images.map(image => (
-              <GalleryImage
-                key={image.imageId ?? image.url}
-                src={image.url}
-                alt={detail.title}
-              />
-            ))}
-          </Gallery>
-        ) : null}
-
-        <Content>{detail.content}</Content>
-      </Article>
-
-      <Section>
-        <SectionHeader>
-          <SectionTitle>
-            댓글 {formatCommunityCount(comments.length)}
-          </SectionTitle>
-          <SectionBody>
-            의견을 남기면 글 작성자와 다른 운영자들이 이어서 논의할 수 있습니다.
-          </SectionBody>
-        </SectionHeader>
-
-        <CommentComposer>
-          <TextArea
-            aria-label="community comment"
-            placeholder={
-              isLoggedIn
-                ? '운영 경험이나 질문을 댓글로 남겨 보세요.'
-                : '댓글 작성은 로그인 후 가능합니다.'
-            }
-            value={commentValue}
-            onChange={event => {
-              setCommentValue(event.target.value)
-            }}
-            disabled={!isLoggedIn || createCommentMutation.isPending}
-          />
-          <ComposerFooter>
-            <Helper>
-              {!isLoggedIn
-                ? '로그인 후 댓글을 작성할 수 있습니다.'
-                : '실제 운영 경험이나 후속 질문을 남기면 대화가 더 빨라집니다.'}
-            </Helper>
-            <PrimaryButton type="button" onClick={handleSubmitComment}>
-              {createCommentMutation.isPending ? '등록 중' : '댓글 작성'}
-            </PrimaryButton>
-          </ComposerFooter>
-        </CommentComposer>
-
-        {commentMessage ? (
-          <Notice $tone="error">{commentMessage}</Notice>
-        ) : null}
-        {commentsQuery.data && !isApiSuccess(commentsQuery.data) ? (
-          <Notice $tone="error">{getApiMessage(commentsQuery.data)}</Notice>
-        ) : null}
-        {commentsQuery.isLoading ? (
-          <Notice>댓글을 불러오는 중입니다.</Notice>
-        ) : comments.length > 0 ? (
-          <CommentList>
-            {comments.map(comment => {
-              const isCommentOwner =
-                hasHydrated &&
-                isLoggedIn &&
-                currentMemberId === comment.writerId
-
-              return (
-                <CommentCard key={comment.commentId}>
-                  <CommentHeader>
-                    <CommentAuthor>
-                      <CommentAuthorName>
-                        {comment.writerNickname}
-                      </CommentAuthorName>
-                      <CommentMeta>
-                        {formatRelativeTime(comment.createdAt)}
-                      </CommentMeta>
-                    </CommentAuthor>
-                    {isCommentOwner ? (
-                      <CommentActions>
-                        <CommentActionButton
-                          type="button"
-                          onClick={() => {
-                            if (editingCommentId === comment.commentId) {
-                              setEditingCommentId(null)
-                              setEditingCommentValue('')
-                              return
-                            }
-
-                            setEditingCommentId(comment.commentId)
-                            setEditingCommentValue(comment.content)
-                          }}
-                        >
-                          {editingCommentId === comment.commentId
-                            ? '취소'
-                            : '수정'}
-                        </CommentActionButton>
-                        <CommentActionButton
-                          type="button"
-                          onClick={() => {
-                            handleDeleteComment(comment.commentId)
-                          }}
-                        >
-                          삭제
-                        </CommentActionButton>
-                      </CommentActions>
-                    ) : null}
-                  </CommentHeader>
-                  {editingCommentId === comment.commentId ? (
-                    <CommentComposer>
-                      <TextArea
-                        aria-label="edit community comment"
-                        value={editingCommentValue}
-                        onChange={event => {
-                          setEditingCommentValue(event.target.value)
-                        }}
-                      />
-                      <ComposerFooter>
-                        <Helper>수정한 내용은 바로 반영됩니다.</Helper>
-                        <PrimaryButton
-                          type="button"
-                          onClick={() => {
-                            handleUpdateComment(comment.commentId)
-                          }}
-                        >
-                          {updateCommentMutation.isPending ? '저장 중' : '저장'}
-                        </PrimaryButton>
-                      </ComposerFooter>
-                    </CommentComposer>
-                  ) : (
-                    <CommentContent>{comment.content}</CommentContent>
-                  )}
-                </CommentCard>
-              )
-            })}
-          </CommentList>
-        ) : (
-          <Notice>첫 댓글을 남겨 이 게시글의 논의를 시작해 보세요.</Notice>
-        )}
-      </Section>
-
-      <Section>
-        <SectionHeader>
-          <SectionTitle>비슷한 게시글</SectionTitle>
-          <SectionBody>
-            같은 카테고리의 다른 운영 경험도 함께 확인할 수 있습니다.
-          </SectionBody>
-        </SectionHeader>
-
-        {relatedPosts.length > 0 ? (
-          <RelatedGrid>
-            {relatedPosts.map(post => (
-              <RelatedCard
-                key={post.communityId}
-                href={`/community/${post.communityId}`}
-              >
-                <CategoryBadge>
-                  {getCommunityCategoryLabel(post.category)}
-                </CategoryBadge>
-                <RelatedTitle>{post.title}</RelatedTitle>
-                <RelatedBody>
-                  {getCommunityExcerpt(post.content, 88)}
-                </RelatedBody>
-                <MetaRow>
-                  <span>{post.writerNickname}</span>
-                  <span>조회 {formatCommunityCount(post.readCount)}</span>
-                  <span>댓글 {formatCommunityCount(post.commentCount)}</span>
-                </MetaRow>
-              </RelatedCard>
-            ))}
-          </RelatedGrid>
-        ) : relatedPostsQuery.isLoading ? (
-          <Notice>같은 카테고리의 게시글을 불러오는 중입니다.</Notice>
-        ) : (
-          <Notice>같은 카테고리에 표시할 다른 게시글이 아직 없어요.</Notice>
-        )}
-      </Section>
-    </Page>
+        setReportErrorMessage(null)
+        reportMutation.mutate({ target: reportTarget, reason })
+      }}
+    />
   )
 }

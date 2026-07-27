@@ -1,0 +1,872 @@
+import { districts } from '@/data/districts'
+import type { CommunityDataSource } from '@/lib/community/community-data-source'
+import type { ApiResponse } from '@/types/api'
+import type {
+  CommunityComment,
+  CommunityCommentCreateRequest,
+  CommunityCursorParams,
+  CommunityLikedPost,
+  CommunityListParams,
+  CommunityMetadata,
+  CommunityPostCreateRequest,
+  CommunityPostDetail,
+  CommunityPostSummary,
+  CommunityPostUpdateRequest,
+  CommunityReply,
+  CommunityReportCreateRequest,
+  CommunitySearchParams,
+  CommunityTargetType,
+} from '@/types/community'
+import type { AdministrationArea, CommercialArea } from '@/types/recommend'
+
+export const MOCK_COMMUNITY_MEMBER_ID = 9001
+
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly (infer Item)[]
+    ? ReadonlyArray<DeepReadonly<Item>>
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T
+
+const deepFreeze = <T>(value: T): DeepReadonly<T> => {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Reflect.ownKeys(value).forEach(key => {
+      deepFreeze(Reflect.get(value, key))
+    })
+    Object.freeze(value)
+  }
+
+  return value as DeepReadonly<T>
+}
+
+const targetMetadata: Record<
+  CommunityTargetType,
+  Exclude<CommunityMetadata, null>
+> = {
+  DISTRICT: {
+    code: 'DISTRICT',
+    name: '자치구',
+    description: '서울시 자치구 단위 게시판',
+  },
+  ADMINISTRATION: {
+    code: 'ADMINISTRATION',
+    name: '행정동',
+    description: '서울시 행정동 단위 게시판',
+  },
+  COMMERCIAL: {
+    code: 'COMMERCIAL',
+    name: '상권',
+    description: '서울시 상권 단위 게시판',
+  },
+}
+
+const basePosts: CommunityPostSummary[] = [
+  {
+    postId: 1,
+    memberId: MOCK_COMMUNITY_MEMBER_ID,
+    targetType: null,
+    targetCode: null,
+    targetName: null,
+    title: '첫 가게를 준비하며 배운 것들',
+    previewContent:
+      '서울에서 첫 매장을 준비하며 임대차 계약 전에 확인한 항목을 공유합니다.',
+    likeCount: 4,
+    commentCount: 3,
+    createdAt: '2026-07-27T08:30:00.000Z',
+  },
+  {
+    postId: 2,
+    memberId: 8202,
+    targetType: null,
+    targetCode: null,
+    targetName: null,
+    title: '비 오는 날 매장 운영 팁',
+    previewContent:
+      '서울 전역 자영업자분들과 우천 시 배달과 방문 고객 대응 경험을 나눠요.',
+    likeCount: 16,
+    commentCount: 1,
+    createdAt: '2026-07-27T05:00:00.000Z',
+  },
+  {
+    postId: 3,
+    memberId: 8303,
+    targetType: targetMetadata.DISTRICT,
+    targetCode: '11680',
+    targetName: '강남구',
+    title: '강남구 점심 상권 흐름이 궁금합니다',
+    previewContent:
+      '오피스 점심 수요가 최근 어떻게 달라졌는지 현장 이야기를 듣고 싶어요.',
+    likeCount: 25,
+    commentCount: 0,
+    createdAt: '2026-07-27T06:00:00.000Z',
+  },
+  {
+    postId: 4,
+    memberId: MOCK_COMMUNITY_MEMBER_ID,
+    targetType: targetMetadata.DISTRICT,
+    targetCode: '11440',
+    targetName: '마포구',
+    title: '마포구 주말 행사를 준비하고 있어요',
+    previewContent:
+      '동네 가게 세 곳이 함께하는 POP-UP 행사를 기획하며 얻은 체크리스트입니다.',
+    likeCount: 7,
+    commentCount: 1,
+    createdAt: '2026-07-27T03:00:00.000Z',
+  },
+  {
+    postId: 5,
+    memberId: MOCK_COMMUNITY_MEMBER_ID,
+    targetType: targetMetadata.ADMINISTRATION,
+    targetCode: '1168064000',
+    targetName: '역삼1동',
+    title: '역삼1동 아침 매출 실험 후기',
+    previewContent:
+      '오픈 시간을 한 시간 앞당긴 뒤 출근 고객 유입이 어떻게 바뀌었는지 정리했습니다.',
+    likeCount: 12,
+    commentCount: 2,
+    createdAt: '2026-07-27T07:00:00.000Z',
+  },
+  {
+    postId: 6,
+    memberId: 8606,
+    targetType: targetMetadata.ADMINISTRATION,
+    targetCode: '1120065000',
+    targetName: '성수1가1동',
+    title: '성수1가1동 평일 저녁 분위기',
+    previewContent:
+      '퇴근 시간 이후 유동 인구와 조용한 골목 매장의 운영 경험을 공유합니다.',
+    likeCount: 20,
+    commentCount: 0,
+    createdAt: '2026-07-27T04:00:00.000Z',
+  },
+  {
+    postId: 7,
+    memberId: 8707,
+    targetType: targetMetadata.COMMERCIAL,
+    targetCode: '3110008',
+    targetName: '강남역 상권',
+    title: '강남역 상권 테이크아웃 동선',
+    previewContent:
+      '점심 피크 시간의 대기열을 줄이기 위해 픽업 위치를 바꾼 경험을 공유합니다.',
+    likeCount: 31,
+    commentCount: 2,
+    createdAt: '2026-07-27T09:00:00.000Z',
+  },
+  {
+    postId: 8,
+    memberId: MOCK_COMMUNITY_MEMBER_ID,
+    targetType: targetMetadata.COMMERCIAL,
+    targetCode: '3120015',
+    targetName: '성수역 상권',
+    title: '성수역 여름 POP-UP 협업 제안',
+    previewContent:
+      '여름 시즌에 함께 작은 팝업을 열 식음료 브랜드 사장님을 찾고 있습니다.',
+    likeCount: 9,
+    commentCount: 1,
+    createdAt: '2026-07-27T07:45:00.000Z',
+  },
+]
+
+const contentByPostId: Record<number, string> = {
+  1: '서울에서 첫 매장을 준비하며 임대차 계약 전에 확인한 항목을 공유합니다. 건물 관리 규약과 예상 공사 기간을 먼저 확인한 것이 가장 도움이 됐습니다.',
+  2: '서울 전역 자영업자분들과 우천 시 배달과 방문 고객 대응 경험을 나눠요. 입구의 우산 보관 위치와 배달 포장 순서를 바꾸니 혼잡이 줄었습니다.',
+  3: '오피스 점심 수요가 최근 어떻게 달라졌는지 현장 이야기를 듣고 싶어요. 메뉴 구성과 회전율을 함께 고민하고 있습니다.',
+  4: '동네 가게 세 곳이 함께하는 POP-UP 행사를 기획하며 얻은 체크리스트입니다. 정산 기준과 공동 홍보 일정을 문서로 먼저 맞추는 것이 중요했습니다.',
+  5: '오픈 시간을 한 시간 앞당긴 뒤 출근 고객 유입이 어떻게 바뀌었는지 정리했습니다. 테이크아웃 메뉴를 단순화하니 준비 부담도 줄었습니다.',
+  6: '퇴근 시간 이후 유동 인구와 조용한 골목 매장의 운영 경험을 공유합니다. 평일과 주말의 체류 시간이 꽤 다르게 나타났습니다.',
+  7: '점심 피크 시간의 대기열을 줄이기 위해 픽업 위치를 바꾼 경험을 공유합니다. 주문과 수령 동선을 분리한 뒤 고객 문의도 줄었습니다.',
+  8: '여름 시즌에 함께 작은 팝업을 열 식음료 브랜드 사장님을 찾고 있습니다. 공간과 운영 시간을 유연하게 협의하고 싶습니다.',
+}
+
+const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
+  postId: post.postId,
+  memberId: post.memberId,
+  targetType: post.targetType,
+  targetCode: post.targetCode,
+  targetName: post.targetName,
+  title: post.title,
+  content: contentByPostId[post.postId] ?? '',
+  likeCount: post.likeCount,
+  commentCount: post.commentCount,
+  viewCount: post.postId * 37,
+  createdAt: post.createdAt,
+  updatedAt: post.createdAt,
+}))
+
+const baseComments: CommunityComment[] = [
+  {
+    commentId: 101,
+    postId: 1,
+    memberId: 8101,
+    content: '관리 규약을 먼저 확인한다는 부분이 특히 도움 됐어요.',
+    likeCount: 3,
+    createdAt: '2026-07-27T08:35:00.000Z',
+    updatedAt: '2026-07-27T08:35:00.000Z',
+    replies: [
+      {
+        commentId: 102,
+        postId: 1,
+        memberId: MOCK_COMMUNITY_MEMBER_ID,
+        parentCommentId: 101,
+        content: '공사 가능 시간도 꼭 함께 확인해 보세요.',
+        likeCount: 1,
+        createdAt: '2026-07-27T08:38:00.000Z',
+        updatedAt: '2026-07-27T08:38:00.000Z',
+      },
+    ],
+  },
+  {
+    commentId: 103,
+    postId: 1,
+    memberId: 8103,
+    content: '체크리스트를 공유해 주셔서 감사합니다.',
+    likeCount: 2,
+    createdAt: '2026-07-27T08:42:00.000Z',
+    updatedAt: '2026-07-27T08:42:00.000Z',
+    replies: [],
+  },
+  {
+    commentId: 201,
+    postId: 2,
+    memberId: MOCK_COMMUNITY_MEMBER_ID,
+    content: '우산 보관 위치를 바꾸는 방법을 저도 시도해 볼게요.',
+    likeCount: 4,
+    createdAt: '2026-07-27T05:20:00.000Z',
+    updatedAt: '2026-07-27T05:20:00.000Z',
+    replies: [],
+  },
+  {
+    commentId: 401,
+    postId: 4,
+    memberId: 8401,
+    content: '정산 기준 문서가 필요하면 예시를 공유할 수 있어요.',
+    likeCount: 5,
+    createdAt: '2026-07-27T03:20:00.000Z',
+    updatedAt: '2026-07-27T03:20:00.000Z',
+    replies: [],
+  },
+  {
+    commentId: 501,
+    postId: 5,
+    memberId: 8501,
+    content: '아침 메뉴는 몇 가지로 운영하셨나요?',
+    likeCount: 6,
+    createdAt: '2026-07-27T07:10:00.000Z',
+    updatedAt: '2026-07-27T07:10:00.000Z',
+    replies: [
+      {
+        commentId: 502,
+        postId: 5,
+        memberId: MOCK_COMMUNITY_MEMBER_ID,
+        parentCommentId: 501,
+        content: '음료 두 가지와 샌드위치 한 가지로 시작했습니다.',
+        likeCount: 2,
+        createdAt: '2026-07-27T07:15:00.000Z',
+        updatedAt: '2026-07-27T07:15:00.000Z',
+      },
+    ],
+  },
+  {
+    commentId: 701,
+    postId: 7,
+    memberId: 8701,
+    content: '수령 동선을 분리한 위치가 궁금합니다.',
+    likeCount: 8,
+    createdAt: '2026-07-27T09:05:00.000Z',
+    updatedAt: '2026-07-27T09:05:00.000Z',
+    replies: [
+      {
+        commentId: 702,
+        postId: 7,
+        memberId: 8707,
+        parentCommentId: 701,
+        content: '출입문 반대편 선반을 픽업 전용으로 사용했어요.',
+        likeCount: 3,
+        createdAt: '2026-07-27T09:08:00.000Z',
+        updatedAt: '2026-07-27T09:08:00.000Z',
+      },
+    ],
+  },
+  {
+    commentId: 801,
+    postId: 8,
+    memberId: 8801,
+    content: '디저트 브랜드도 참여할 수 있을까요?',
+    likeCount: 1,
+    createdAt: '2026-07-27T08:00:00.000Z',
+    updatedAt: '2026-07-27T08:00:00.000Z',
+    replies: [],
+  },
+]
+
+export const communityMockFixtures = deepFreeze({
+  posts: basePosts,
+  details: baseDetails,
+  comments: baseComments,
+})
+
+export const communityMockLocations = deepFreeze({
+  administrationsByDistrict: {
+    '11680': [
+      {
+        administrationCode: '1168064000',
+        administrationName: '역삼1동',
+        centerLat: 37.499,
+        centerLng: 127.036,
+      },
+    ],
+  },
+  commercialsByAdministration: {
+    '1168064000': [
+      {
+        commercialCode: '3110008',
+        commercialName: '강남역 상권',
+        commercialClassificationCode: 'A',
+        commercialClassificationName: '발달상권',
+        centerLat: 37.498,
+        centerLng: 127.028,
+      },
+    ],
+  },
+} satisfies {
+  administrationsByDistrict: Record<string, AdministrationArea[]>
+  commercialsByAdministration: Record<string, CommercialArea[]>
+})
+
+const initialLikedPosts = deepFreeze([
+  { postId: 7, likedAt: '2026-07-27T09:10:00.000Z' },
+  { postId: 1, likedAt: '2026-07-27T08:40:00.000Z' },
+])
+
+type CommunityMockState = {
+  posts: CommunityPostSummary[]
+  details: CommunityPostDetail[]
+  comments: CommunityComment[]
+  likedAtByPostId: Map<number, string>
+  likedCommentIds: Set<number>
+  nextPostId: number
+  nextCommentId: number
+  currentTimestampMs: number
+}
+
+const ok = <T>(dataBody: T): ApiResponse<T> => ({
+  dataHeader: {
+    success: true,
+    resultCode: null,
+    resultMessage: null,
+  },
+  dataBody: structuredClone(dataBody),
+})
+
+const createState = (): CommunityMockState => {
+  const posts = structuredClone(
+    communityMockFixtures.posts,
+  ) as CommunityPostSummary[]
+  const details = structuredClone(
+    communityMockFixtures.details,
+  ) as CommunityPostDetail[]
+  const comments = structuredClone(
+    communityMockFixtures.comments,
+  ) as CommunityComment[]
+  const likedPosts = structuredClone(initialLikedPosts)
+  const commentIds = comments.flatMap(comment => [
+    comment.commentId,
+    ...comment.replies.map(reply => reply.commentId),
+  ])
+
+  return {
+    posts,
+    details,
+    comments,
+    likedAtByPostId: new Map(
+      likedPosts.map(item => [item.postId, item.likedAt]),
+    ),
+    likedCommentIds: new Set(),
+    nextPostId: Math.max(...posts.map(post => post.postId)) + 1,
+    nextCommentId: Math.max(...commentIds) + 1,
+    currentTimestampMs: Math.max(
+      ...details.flatMap(detail => [
+        Date.parse(detail.createdAt),
+        Date.parse(detail.updatedAt),
+      ]),
+      ...comments.flatMap(comment => [
+        Date.parse(comment.createdAt),
+        Date.parse(comment.updatedAt),
+        ...comment.replies.flatMap(reply => [
+          Date.parse(reply.createdAt),
+          Date.parse(reply.updatedAt),
+        ]),
+      ]),
+      ...likedPosts.map(item => Date.parse(item.likedAt)),
+    ),
+  }
+}
+
+const nextTimestamp = (state: CommunityMockState) => {
+  state.currentTimestampMs += 1_000
+  return new Date(state.currentTimestampMs).toISOString()
+}
+
+const districtTargetNames = Object.fromEntries(
+  districts.map(district => [String(district.gooCode), district.gooName]),
+)
+
+const targetNames: Record<CommunityTargetType, Record<string, string>> = {
+  DISTRICT: districtTargetNames,
+  ADMINISTRATION: {
+    '1168064000': '역삼1동',
+    '1120065000': '성수1가1동',
+  },
+  COMMERCIAL: {
+    '3110008': '강남역 상권',
+    '3120015': '성수역 상권',
+  },
+}
+
+const resolveTarget = (
+  targetType?: CommunityTargetType,
+  targetCode?: string,
+) => {
+  if (!targetType && !targetCode) {
+    return {
+      targetType: null,
+      targetCode: null,
+      targetName: null,
+    }
+  }
+
+  if (!targetType || !targetCode) {
+    throw new Error('대상 타입과 대상 코드는 함께 입력해야 합니다.')
+  }
+
+  const targetName = targetNames[targetType][targetCode]
+
+  if (!targetName) {
+    throw new Error(`${targetType} 대상 ${targetCode}을 찾을 수 없습니다.`)
+  }
+
+  return {
+    targetType: targetMetadata[targetType],
+    targetCode,
+    targetName,
+  }
+}
+
+const comparePosts = (
+  left: CommunityPostSummary,
+  right: CommunityPostSummary,
+  params: CommunityCursorParams,
+) => {
+  const direction = params.orderType === 'DESC' ? -1 : 1
+
+  if (params.sortType === 'POPULAR') {
+    return (
+      direction * (left.likeCount - right.likeCount) ||
+      direction * (left.postId - right.postId)
+    )
+  }
+
+  return direction * (left.postId - right.postId)
+}
+
+const isAfterCursor = (
+  post: CommunityPostSummary,
+  params: CommunityCursorParams,
+) => {
+  if (params.lastPostId <= 0) {
+    return true
+  }
+
+  if (params.sortType === 'LATEST') {
+    return params.orderType === 'ASC'
+      ? post.postId > params.lastPostId
+      : post.postId < params.lastPostId
+  }
+
+  if (params.orderType === 'ASC') {
+    return (
+      post.likeCount > params.lastLikeCount ||
+      (post.likeCount === params.lastLikeCount &&
+        post.postId > params.lastPostId)
+    )
+  }
+
+  return (
+    post.likeCount < params.lastLikeCount ||
+    (post.likeCount === params.lastLikeCount && post.postId < params.lastPostId)
+  )
+}
+
+const paginate = <Post extends CommunityPostSummary>(
+  posts: Post[],
+  params: CommunityCursorParams,
+) => {
+  const sorted = posts
+    .filter(post => isAfterCursor(post, params))
+    .sort((left, right) => comparePosts(left, right, params))
+  const size = Math.max(0, Math.floor(params.size))
+  const contents = sorted.slice(0, size)
+
+  return {
+    contents,
+    hasNext: contents.length < sorted.length,
+  }
+}
+
+const getPreviewContent = (content: string) => content.slice(0, 160)
+
+const findPost = (state: CommunityMockState, postId: number) => {
+  const post = state.posts.find(item => item.postId === postId)
+
+  if (!post) {
+    throw new Error(`게시글 ${postId}을 찾을 수 없습니다.`)
+  }
+
+  return post
+}
+
+const findDetail = (state: CommunityMockState, postId: number) => {
+  const detail = state.details.find(item => item.postId === postId)
+
+  if (!detail) {
+    throw new Error(`게시글 ${postId}을 찾을 수 없습니다.`)
+  }
+
+  return detail
+}
+
+const updatePostCommentCount = (
+  state: CommunityMockState,
+  postId: number,
+  difference: number,
+) => {
+  const post = findPost(state, postId)
+  const detail = findDetail(state, postId)
+  post.commentCount = Math.max(0, post.commentCount + difference)
+  detail.commentCount = post.commentCount
+}
+
+type CommentLocation =
+  | {
+      comment: CommunityComment
+      parent: null
+    }
+  | {
+      comment: CommunityReply
+      parent: CommunityComment
+    }
+
+const findComment = (
+  state: CommunityMockState,
+  postId: number,
+  commentId: number,
+): CommentLocation => {
+  for (const comment of state.comments) {
+    if (comment.postId !== postId) continue
+
+    if (comment.commentId === commentId) {
+      return { comment, parent: null }
+    }
+
+    const reply = comment.replies.find(item => item.commentId === commentId)
+
+    if (reply) {
+      return { comment: reply, parent: comment }
+    }
+  }
+
+  throw new Error(`댓글 ${commentId}을 찾을 수 없습니다.`)
+}
+
+export const createCommunityMockSource = (): CommunityDataSource => {
+  const state = createState()
+
+  return {
+    async getPosts(params: CommunityListParams) {
+      const hasBoardTarget = Boolean(params.targetType && params.targetCode)
+      const filtered = hasBoardTarget
+        ? state.posts.filter(
+            post =>
+              post.targetType?.code === params.targetType &&
+              post.targetCode === params.targetCode,
+          )
+        : state.posts
+      const board = hasBoardTarget
+        ? {
+            ...resolveTarget(params.targetType, params.targetCode),
+          }
+        : null
+
+      return ok({
+        board,
+        posts: paginate(filtered, params),
+      })
+    },
+
+    async searchPosts(params: CommunitySearchParams) {
+      const keyword = params.keyword.trim().toLocaleLowerCase()
+      const detailsByPostId = new Map(
+        state.details.map(detail => [detail.postId, detail]),
+      )
+      const filtered = state.posts.filter(post => {
+        const detail = detailsByPostId.get(post.postId)
+        return (
+          post.title.toLocaleLowerCase().includes(keyword) ||
+          detail?.content.toLocaleLowerCase().includes(keyword)
+        )
+      })
+
+      return ok({
+        board: null,
+        posts: paginate(filtered, params),
+      })
+    },
+
+    async getLikedPosts(params: CommunityCursorParams) {
+      const posts = state.posts.flatMap<CommunityLikedPost>(post => {
+        const likedAt = state.likedAtByPostId.get(post.postId)
+        return likedAt ? [{ ...post, likedAt }] : []
+      })
+
+      return ok({
+        posts: paginate(posts, params),
+      })
+    },
+
+    async getPost(postId: number) {
+      findPost(state, postId)
+      const detail = findDetail(state, postId)
+      detail.viewCount += 1
+      return ok(detail)
+    },
+
+    async createPost(payload: CommunityPostCreateRequest) {
+      const target = resolveTarget(payload.targetType, payload.targetCode)
+      const createdAt = nextTimestamp(state)
+      const postId = state.nextPostId++
+      const detail: CommunityPostDetail = {
+        postId,
+        memberId: MOCK_COMMUNITY_MEMBER_ID,
+        ...target,
+        title: payload.title,
+        content: payload.content,
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+        createdAt,
+        updatedAt: createdAt,
+      }
+      const summary: CommunityPostSummary = {
+        postId,
+        memberId: MOCK_COMMUNITY_MEMBER_ID,
+        ...target,
+        title: payload.title,
+        previewContent: getPreviewContent(payload.content),
+        likeCount: 0,
+        commentCount: 0,
+        createdAt,
+      }
+
+      state.details.push(detail)
+      state.posts.push(summary)
+
+      return ok(detail)
+    },
+
+    async updatePost(postId: number, payload: CommunityPostUpdateRequest) {
+      const post = findPost(state, postId)
+      const detail = findDetail(state, postId)
+
+      if (post.memberId !== MOCK_COMMUNITY_MEMBER_ID) {
+        throw new Error(`게시글 ${postId}을 수정할 권한이 없습니다.`)
+      }
+
+      post.title = payload.title
+      post.previewContent = getPreviewContent(payload.content)
+      detail.title = payload.title
+      detail.content = payload.content
+      detail.updatedAt = nextTimestamp(state)
+
+      return ok(detail)
+    },
+
+    async deletePost(postId: number) {
+      const post = findPost(state, postId)
+
+      if (post.memberId !== MOCK_COMMUNITY_MEMBER_ID) {
+        throw new Error(`게시글 ${postId}을 삭제할 권한이 없습니다.`)
+      }
+
+      const removedCommentIds = state.comments
+        .filter(comment => comment.postId === postId)
+        .flatMap(comment => [
+          comment.commentId,
+          ...comment.replies.map(reply => reply.commentId),
+        ])
+
+      state.posts = state.posts.filter(post => post.postId !== postId)
+      state.details = state.details.filter(detail => detail.postId !== postId)
+      state.comments = state.comments.filter(
+        comment => comment.postId !== postId,
+      )
+      state.likedAtByPostId.delete(postId)
+      removedCommentIds.forEach(commentId =>
+        state.likedCommentIds.delete(commentId),
+      )
+
+      return ok(null)
+    },
+
+    async togglePostLike(postId: number) {
+      const post = findPost(state, postId)
+      const detail = findDetail(state, postId)
+      const liked = !state.likedAtByPostId.has(postId)
+
+      if (liked) {
+        state.likedAtByPostId.set(postId, nextTimestamp(state))
+        post.likeCount += 1
+      } else {
+        state.likedAtByPostId.delete(postId)
+        post.likeCount = Math.max(0, post.likeCount - 1)
+      }
+      detail.likeCount = post.likeCount
+
+      return ok({
+        postId,
+        liked,
+        likeCount: post.likeCount,
+      })
+    },
+
+    async getComments(postId: number) {
+      findPost(state, postId)
+      return ok({
+        comments: state.comments.filter(comment => comment.postId === postId),
+      })
+    },
+
+    async createComment(
+      postId: number,
+      payload: CommunityCommentCreateRequest,
+    ) {
+      findPost(state, postId)
+      let parent: CommunityComment | undefined
+
+      if (payload.parentCommentId !== undefined) {
+        const location = findComment(state, postId, payload.parentCommentId)
+
+        if (location.parent) {
+          throw new Error('답글에는 추가 답글을 작성할 수 없습니다.')
+        }
+
+        parent = location.comment
+      }
+
+      const createdAt = nextTimestamp(state)
+      const commentId = state.nextCommentId++
+
+      if (parent) {
+        parent.replies.push({
+          commentId,
+          postId,
+          memberId: MOCK_COMMUNITY_MEMBER_ID,
+          parentCommentId: parent.commentId,
+          content: payload.content,
+          likeCount: 0,
+          createdAt,
+          updatedAt: createdAt,
+        })
+      } else {
+        state.comments.push({
+          commentId,
+          postId,
+          memberId: MOCK_COMMUNITY_MEMBER_ID,
+          content: payload.content,
+          likeCount: 0,
+          createdAt,
+          updatedAt: createdAt,
+          replies: [],
+        })
+      }
+
+      updatePostCommentCount(state, postId, 1)
+
+      return ok({
+        comments: state.comments.filter(comment => comment.postId === postId),
+      })
+    },
+
+    async deleteComment(postId: number, commentId: number) {
+      findPost(state, postId)
+      const location = findComment(state, postId, commentId)
+
+      if (location.comment.memberId !== MOCK_COMMUNITY_MEMBER_ID) {
+        throw new Error(`댓글 ${commentId}을 삭제할 권한이 없습니다.`)
+      }
+
+      const removedIds = location.parent
+        ? [commentId]
+        : [
+            location.comment.commentId,
+            ...location.comment.replies.map(reply => reply.commentId),
+          ]
+
+      if (location.parent) {
+        location.parent.replies = location.parent.replies.filter(
+          reply => reply.commentId !== commentId,
+        )
+        state.likedCommentIds.delete(commentId)
+        updatePostCommentCount(state, postId, -1)
+      } else {
+        state.comments = state.comments.filter(
+          comment => comment.commentId !== commentId,
+        )
+        removedIds.forEach(id => state.likedCommentIds.delete(id))
+        updatePostCommentCount(state, postId, -removedIds.length)
+      }
+
+      return ok(null)
+    },
+
+    async toggleCommentLike(postId: number, commentId: number) {
+      findPost(state, postId)
+      const { comment } = findComment(state, postId, commentId)
+      const liked = !state.likedCommentIds.has(commentId)
+
+      if (liked) {
+        state.likedCommentIds.add(commentId)
+        comment.likeCount += 1
+      } else {
+        state.likedCommentIds.delete(commentId)
+        comment.likeCount = Math.max(0, comment.likeCount - 1)
+      }
+
+      return ok({
+        commentId,
+        liked,
+        likeCount: comment.likeCount,
+      })
+    },
+
+    async createReport(payload: CommunityReportCreateRequest) {
+      if (payload.targetKind === 'POST') {
+        findPost(state, payload.targetId)
+      } else {
+        const exists = state.comments.some(
+          comment =>
+            comment.commentId === payload.targetId ||
+            comment.replies.some(reply => reply.commentId === payload.targetId),
+        )
+
+        if (!exists) {
+          throw new Error(`댓글 ${payload.targetId}을 찾을 수 없습니다.`)
+        }
+      }
+
+      return ok(null)
+    },
+  }
+}
+
+export const communityMockSource = createCommunityMockSource()

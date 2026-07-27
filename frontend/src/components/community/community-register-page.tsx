@@ -1,688 +1,540 @@
 'use client'
 
-import Link from 'next/link'
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import styled from 'styled-components'
-import RequireAuth from '@/components/auth/require-auth'
-import {
-  communityCategories,
-  getCommunityCategoryLabel,
-} from '@/data/community-categories'
-import {
-  createCommunityData,
-  getCommunityDetailData,
-  resolveCommunityImages,
-  updateCommunityData,
-} from '@/lib/api/community'
+import CommunityEditorForm, {
+  type CommunityEditorMode,
+  type CommunityEditorValue,
+} from '@/components/community/community-editor-form'
+import CommunityFeedback from '@/components/community/community-feedback'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import { realCommunitySource } from '@/lib/community/community-data-source'
+import {
+  communityMockSource,
+  MOCK_COMMUNITY_MEMBER_ID,
+} from '@/lib/community/community-mock'
+import {
+  communityKeys,
+  getCommunityLoginHref,
+  isCommunityMockEnabled,
+  parseCommunityPostId,
+  parseCommunityTargetType,
+  type CommunityViewer,
+} from '@/lib/community/community-state'
 import { useAuthStore } from '@/stores/auth-store'
-import type { CommunityDetail } from '@/types/community'
+import type {
+  CommunityPostCreateRequest,
+  CommunityPostDetailResponse,
+  CommunityPostUpdateRequest,
+} from '@/types/community'
 
 const Page = styled.main`
-  width: min(1080px, calc(100% - 48px));
+  width: min(880px, calc(100% - 48px));
   margin: 0 auto;
   padding: 40px 0 72px;
   display: grid;
   gap: 24px;
+
+  @media (max-width: 640px) {
+    width: min(100% - 32px, 880px);
+    padding: 24px 0 48px;
+  }
 `
 
-const Hero = styled.section`
+const Header = styled.header`
   display: grid;
-  gap: 14px;
-  padding: 32px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-1);
+  gap: 10px;
 `
 
 const Eyebrow = styled.p`
   color: var(--color-primary-700);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 `
 
 const Title = styled.h1`
   color: var(--color-text-900);
-  font-size: 26px;
-  line-height: 1.1;
-  letter-spacing: 0;
+  font-size: clamp(25px, 3vw, 32px);
+  line-height: 1.3;
+  word-break: keep-all;
 `
 
-const Body = styled.p`
-  color: var(--color-text-500);
-  line-height: 1.8;
-`
-
-const Layout = styled.section`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 24px;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const FormCard = styled.section`
-  display: grid;
-  gap: 24px;
-  padding: 28px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
-  box-shadow: var(--shadow-level-1);
-`
-
-const AsideCard = styled.aside`
-  display: grid;
-  gap: 18px;
-  padding: 24px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: white;
-  box-shadow: var(--shadow-level-1);
-  align-self: start;
-  position: sticky;
-  top: 96px;
-
-  @media (max-width: 1024px) {
-    position: static;
-  }
-`
-
-const Fieldset = styled.section`
-  display: grid;
-  gap: 12px;
-`
-
-const Label = styled.label`
-  color: var(--color-text-900);
+const Description = styled.p`
+  color: var(--color-text-600);
   font-size: 15px;
-  font-weight: 700;
+  line-height: 1.7;
+  word-break: keep-all;
 `
 
-const Input = styled.input`
-  width: 100%;
-  min-height: 52px;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-900);
-`
-
-const Select = styled.select`
-  width: 100%;
-  min-height: 52px;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-900);
-`
-
-const TextArea = styled.textarea`
-  width: 100%;
-  min-height: 320px;
-  padding: 16px 18px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  resize: vertical;
-  background: white;
-  color: var(--color-text-900);
-  line-height: 1.85;
-`
-
-const Helper = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
-  line-height: 1.75;
-`
-
-const ImageInput = styled.input`
-  display: none;
-`
-
-const UploadLabel = styled.label`
-  min-height: 50px;
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-primary-700);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const ImageGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
+export class CommunityEditorQueryError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CommunityEditorQueryError'
   }
-`
-
-const ImageCard = styled.div`
-  overflow: hidden;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
-`
-
-const PreviewImage = styled.img`
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-`
-
-const ImageFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-`
-
-const ImageLabel = styled.p`
-  min-width: 0;
-  color: var(--color-text-700);
-  font-size: 13px;
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`
-
-const RemoveButton = styled.button`
-  border: none;
-  background: transparent;
-  color: var(--color-danger);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const Notice = styled.div<{ $tone?: 'error' | 'info' }>`
-  padding: 16px 18px;
-  border-radius: var(--radius-card);
-  background: ${props =>
-    props.$tone === 'error'
-      ? 'rgba(240, 68, 82, 0.1)'
-      : 'var(--color-primary-100)'};
-  color: ${props =>
-    props.$tone === 'error'
-      ? 'var(--color-danger)'
-      : 'var(--color-primary-700)'};
-  line-height: 1.75;
-`
-
-const ActionRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-`
-
-const PrimaryButton = styled.button`
-  min-height: 50px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
-  border-radius: var(--radius-control);
-  background: var(--color-primary-700);
-  color: white;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const SecondaryLink = styled(Link)`
-  min-height: 50px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 18px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 15px;
-  font-weight: 700;
-`
-
-const SummaryList = styled.div`
-  display: grid;
-  gap: 12px;
-`
-
-const SummaryItem = styled.div`
-  display: grid;
-  gap: 6px;
-  padding: 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
-`
-
-const SummaryLabel = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
-`
-
-const SummaryValue = styled.p`
-  color: var(--color-text-900);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.5;
-`
-
-type DraftImage = {
-  key: string
-  imageId: number | null
-  url: string
-  label: string
-  file?: File
 }
 
-type CommunityRegisterFormProps = {
-  editCommunityId: number
-  initialPost: CommunityDetail | null
-  isEditMode: boolean
-  memberId: number | null
-  memberNickname: string
+export const parseCommunityEditorPostId = parseCommunityPostId
+
+export const communityEditorKeys = {
+  edit: (postId: number, mockEnabled: boolean) =>
+    ['community', 'editor', 'edit', postId, mockEnabled] as const,
 }
 
-const MAX_TITLE_LENGTH = 20
-const MAX_CONTENT_LENGTH = 500
+type CommunityEditorViewerOptions = {
+  mockEnabled: boolean
+  hasHydrated: boolean
+  isLoggedIn: boolean
+  memberId: string | number | null | undefined
+}
+
+export const getCommunityEditorViewer = ({
+  mockEnabled,
+  hasHydrated,
+  isLoggedIn,
+  memberId,
+}: CommunityEditorViewerOptions): CommunityViewer => {
+  if (mockEnabled) {
+    return {
+      authenticated: true,
+      memberId: String(MOCK_COMMUNITY_MEMBER_ID),
+    }
+  }
+
+  const authenticated = hasHydrated && isLoggedIn
+  return {
+    authenticated,
+    memberId:
+      authenticated && memberId !== null && memberId !== undefined
+        ? String(memberId)
+        : null,
+  }
+}
+
+export type CommunityEditorAccess =
+  | 'waiting'
+  | 'redirect'
+  | 'allowed'
+  | 'forbidden'
+
+type CommunityEditorAccessOptions = {
+  mockEnabled: boolean
+  hasHydrated: boolean
+  isLoggedIn: boolean
+  viewerMemberId: string | null
+  editMemberId: number | null
+}
+
+export const getCommunityEditorAccess = ({
+  mockEnabled,
+  hasHydrated,
+  isLoggedIn,
+  viewerMemberId,
+  editMemberId,
+}: CommunityEditorAccessOptions): CommunityEditorAccess => {
+  if (!mockEnabled && !hasHydrated) {
+    return 'waiting'
+  }
+
+  if (!mockEnabled && !isLoggedIn) {
+    return 'redirect'
+  }
+
+  if (
+    editMemberId !== null &&
+    (!viewerMemberId || String(editMemberId) !== viewerMemberId)
+  ) {
+    return 'forbidden'
+  }
+
+  return 'allowed'
+}
+
+export const getCommunityEditorFormKey = (
+  mode: CommunityEditorMode,
+  postId: number | null,
+) => (mode === 'edit' && postId ? `edit-${postId}` : 'create')
+
+export const createCommunityEditorPayload = (
+  mode: CommunityEditorMode,
+  value: CommunityEditorValue,
+): CommunityPostCreateRequest | CommunityPostUpdateRequest => {
+  const content = {
+    title: value.title,
+    content: value.content,
+  }
+
+  if (
+    mode === 'edit' ||
+    !value.location.targetType ||
+    !value.location.targetCode
+  ) {
+    return content
+  }
+
+  return {
+    ...content,
+    targetType: value.location.targetType,
+    targetCode: value.location.targetCode,
+  }
+}
+
+export const createCommunityEditorDetailHref = (
+  postId: number,
+  mockEnabled: boolean,
+) => `/community/${postId}${mockEnabled ? '?mock=1' : ''}`
+
+export const validateCommunityEditorDetailResponse = (
+  response: CommunityPostDetailResponse,
+) => {
+  if (!isApiSuccess(response)) {
+    throw new CommunityEditorQueryError(getApiMessage(response))
+  }
+
+  return response
+}
+
+export const isCommunityEditorUnauthorizedError = (error: unknown) =>
+  isAxiosError(error) && error.response?.status === 401
+
+export const shouldRetryCommunityEditorQuery = (
+  failureCount: number,
+  error: unknown,
+) => !isCommunityEditorUnauthorizedError(error) && failureCount < 2
+
+type RecoverCommunityEditorUnauthorizedOptions = {
+  queryClient: QueryClient
+  queryKeys: QueryKey[]
+  clearSession: () => void
+  navigate: (href: string) => void
+  currentHref: string
+}
+
+export const recoverCommunityEditorUnauthorized = async ({
+  queryClient,
+  queryKeys,
+  clearSession,
+  navigate,
+  currentHref,
+}: RecoverCommunityEditorUnauthorizedOptions) => {
+  await Promise.all(
+    queryKeys.map(queryKey =>
+      queryClient.cancelQueries({ queryKey, exact: true }),
+    ),
+  )
+  queryKeys.forEach(queryKey => {
+    queryClient.removeQueries({ queryKey, exact: true })
+  })
+  clearSession()
+  navigate(getCommunityLoginHref(currentHref))
+}
+
+type CommunityEditorRecoveryRef = {
+  current: Promise<void> | null
+}
+
+export const startCommunityEditorUnauthorizedRecovery = (
+  recoveryRef: CommunityEditorRecoveryRef,
+  recover: () => Promise<void>,
+) => {
+  if (recoveryRef.current) {
+    return recoveryRef.current
+  }
+
+  const recovery = recover()
+  recoveryRef.current = recovery
+  void recovery.then(
+    () => {
+      if (recoveryRef.current === recovery) {
+        recoveryRef.current = null
+      }
+    },
+    () => {
+      if (recoveryRef.current === recovery) {
+        recoveryRef.current = null
+      }
+    },
+  )
+
+  return recovery
+}
+
+const getEditorErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback
 
 export default function CommunityRegisterPage() {
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const memberInfo = useAuthStore(state => state.memberInfo)
-  const editCommunityId = Number(searchParams.get('communityId') ?? 0)
-  const isEditMode = Number.isFinite(editCommunityId) && editCommunityId > 0
-
+  const queryClient = useQueryClient()
+  const hasHydrated = useAuthStore(auth => auth.hasHydrated)
+  const isLoggedIn = useAuthStore(auth => auth.isLoggedIn)
+  const memberId = useAuthStore(auth => auth.memberInfo?.memberId)
+  const clearSession = useAuthStore(auth => auth.clearSession)
+  const rawPostId = searchParams.get('postId')
+  const postId = parseCommunityEditorPostId(rawPostId)
+  const invalidPostId = rawPostId !== null && postId === null
+  const mode: CommunityEditorMode = postId ? 'edit' : 'create'
+  const mockEnabled = isCommunityMockEnabled(searchParams.get('mock'))
+  const source = mockEnabled ? communityMockSource : realCommunitySource
+  const rawSearchParams = searchParams.toString()
+  const currentHref = rawSearchParams
+    ? `${pathname}?${rawSearchParams}`
+    : pathname
+  const viewer = getCommunityEditorViewer({
+    mockEnabled,
+    hasHydrated,
+    isLoggedIn,
+    memberId,
+  })
+  const baseAccess = getCommunityEditorAccess({
+    mockEnabled,
+    hasHydrated,
+    isLoggedIn,
+    viewerMemberId: viewer.memberId,
+    editMemberId: null,
+  })
+  const editQueryKey = communityEditorKeys.edit(postId ?? 0, mockEnabled)
+  const editorQueryKeys: QueryKey[] =
+    mode === 'edit' && postId ? [editQueryKey] : []
+  const unauthorizedRecoveryRef = useRef<Promise<void> | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
   const detailQuery = useQuery({
-    queryKey: ['community-register-detail', editCommunityId],
-    queryFn: () => getCommunityDetailData(editCommunityId),
-    enabled: isEditMode,
+    queryKey: editQueryKey,
+    queryFn: async () =>
+      validateCommunityEditorDetailResponse(await source.getPost(postId!)),
+    enabled: mode === 'edit' && !invalidPostId && baseAccess === 'allowed',
+    retry: shouldRetryCommunityEditorQuery,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+  const detail = detailQuery.data?.dataBody
+  const access = getCommunityEditorAccess({
+    mockEnabled,
+    hasHydrated,
+    isLoggedIn,
+    viewerMemberId: viewer.memberId,
+    editMemberId: mode === 'edit' && detail ? detail.memberId : null,
   })
 
-  const isAuthor =
-    detailQuery.data &&
-    isApiSuccess(detailQuery.data) &&
-    Number(memberInfo?.memberId) === detailQuery.data.dataBody.writerId
-
-  const shouldRenderForm =
-    !isEditMode ||
-    (Boolean(detailQuery.data) && isApiSuccess(detailQuery.data) && isAuthor)
-
-  const initialPost =
-    detailQuery.data && isApiSuccess(detailQuery.data)
-      ? detailQuery.data.dataBody
-      : null
-
-  return (
-    <RequireAuth>
-      <Page>
-        <Hero>
-          <Eyebrow>{isEditMode ? 'Community Edit' : 'Community Write'}</Eyebrow>
-          <Title>
-            {isEditMode
-              ? '게시글을 수정해 내용을 최신 상태로 유지합니다.'
-              : '운영 경험과 현장 관찰을 게시글로 정리합니다.'}
-          </Title>
-          <Body>
-            제목은 짧고 명확하게, 본문은 실제 경험과 수치 중심으로 작성하면 다른
-            운영자들이 더 빠르게 맥락을 이해할 수 있습니다.
-          </Body>
-        </Hero>
-
-        {isEditMode && detailQuery.isLoading ? (
-          <Notice>수정할 게시글 정보를 불러오는 중입니다.</Notice>
-        ) : null}
-
-        {isEditMode && detailQuery.data && !isApiSuccess(detailQuery.data) ? (
-          <Notice $tone="error">{getApiMessage(detailQuery.data)}</Notice>
-        ) : null}
-
-        {isEditMode &&
-        detailQuery.data &&
-        isApiSuccess(detailQuery.data) &&
-        !isAuthor ? (
-          <Notice $tone="error">
-            본인이 작성한 게시글만 수정할 수 있습니다.
-          </Notice>
-        ) : null}
-
-        {shouldRenderForm ? (
-          <CommunityRegisterForm
-            key={isEditMode ? `edit-${editCommunityId}` : 'create'}
-            editCommunityId={editCommunityId}
-            initialPost={initialPost}
-            isEditMode={isEditMode}
-            memberId={memberInfo ? Number(memberInfo.memberId) : null}
-            memberNickname={memberInfo?.nickname ?? '로그인 사용자'}
-          />
-        ) : null}
-      </Page>
-    </RequireAuth>
-  )
-}
-
-function CommunityRegisterForm({
-  editCommunityId,
-  initialPost,
-  isEditMode,
-  memberId,
-  memberNickname,
-}: CommunityRegisterFormProps) {
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const initialImages =
-    initialPost?.images.map(image => ({
-      key: `${image.imageId ?? image.url}`,
-      imageId: image.imageId,
-      url: image.url,
-      label: '기존 이미지',
-    })) ?? []
-
-  const [titleValue, setTitleValue] = useState(initialPost?.title ?? '')
-  const [categoryValue, setCategoryValue] = useState(
-    initialPost?.category ?? '',
-  )
-  const [contentValue, setContentValue] = useState(initialPost?.content ?? '')
-  const [images, setImages] = useState<DraftImage[]>(initialImages)
-  const [formMessage, setFormMessage] = useState<string | null>(null)
-  const imageStateRef = useRef<DraftImage[]>(initialImages)
+  const recoverUnauthorized = () =>
+    startCommunityEditorUnauthorizedRecovery(unauthorizedRecoveryRef, () =>
+      recoverCommunityEditorUnauthorized({
+        queryClient,
+        queryKeys: editorQueryKeys,
+        clearSession,
+        navigate: href => router.replace(href, { scroll: false }),
+        currentHref,
+      }),
+    )
 
   useEffect(() => {
-    imageStateRef.current = images
-  }, [images])
-
-  useEffect(() => {
-    return () => {
-      imageStateRef.current.forEach(image => {
-        if (image.file) {
-          URL.revokeObjectURL(image.url)
-        }
-      })
+    if (mockEnabled || invalidPostId) {
+      return
     }
-  }, [])
 
-  const refreshCommunityListQueries = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ['community-list'],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['community-popular'],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['community-detail'],
-      }),
-    ])
-  }
+    if (access === 'redirect') {
+      router.replace(getCommunityLoginHref(currentHref), { scroll: false })
+      return
+    }
+
+    if (
+      detailQuery.isError &&
+      isCommunityEditorUnauthorizedError(detailQuery.error)
+    ) {
+      void recoverUnauthorized()
+    }
+  })
 
   const submitMutation = useMutation({
-    mutationFn: async () => {
-      const trimmedTitle = titleValue.trim()
-      const trimmedContent = contentValue.trim()
+    mutationFn: async (value: CommunityEditorValue) => {
+      setMutationError(null)
+      const payload = createCommunityEditorPayload(mode, value)
+      const response =
+        mode === 'edit'
+          ? await source.updatePost(
+              postId!,
+              payload as CommunityPostUpdateRequest,
+            )
+          : await source.createPost(payload as CommunityPostCreateRequest)
 
-      if (!categoryValue) {
-        throw new Error('카테고리를 선택해 주세요.')
-      }
-
-      if (!trimmedTitle) {
-        throw new Error('제목을 입력해 주세요.')
-      }
-
-      if (!trimmedContent) {
-        throw new Error('본문을 입력해 주세요.')
-      }
-
-      const resolvedImages = await resolveCommunityImages(images, memberId)
-
-      if (isEditMode) {
-        return updateCommunityData(editCommunityId, {
-          title: trimmedTitle,
-          content: trimmedContent,
-          images: resolvedImages,
-        })
-      }
-
-      return createCommunityData({
-        category: categoryValue,
-        title: trimmedTitle,
-        content: trimmedContent,
-        images: resolvedImages.map(image => image.url),
-      })
+      return validateCommunityEditorDetailResponse(response)
     },
     onSuccess: async response => {
-      if (!isApiSuccess(response)) {
-        setFormMessage(getApiMessage(response))
-        return
-      }
-
-      await refreshCommunityListQueries()
-
-      if (isEditMode) {
-        router.replace(`/community/${editCommunityId}`)
-        return
-      }
-
-      if (typeof response.dataBody === 'number') {
-        router.replace(`/community/${response.dataBody}`)
-        return
-      }
-
-      router.replace('/community/list')
+      await queryClient.invalidateQueries({ queryKey: communityKeys.all })
+      router.replace(
+        createCommunityEditorDetailHref(response.dataBody.postId, mockEnabled),
+      )
     },
     onError: error => {
-      setFormMessage(
-        error instanceof Error
-          ? error.message
-          : '게시글 제목과 내용을 확인한 뒤 다시 저장해주세요.',
+      if (!mockEnabled && isCommunityEditorUnauthorizedError(error)) {
+        void recoverUnauthorized()
+        return
+      }
+
+      setMutationError(
+        getEditorErrorMessage(
+          error,
+          mode === 'edit'
+            ? '게시글을 수정하지 못했어요. 입력 내용을 확인한 뒤 다시 시도해 주세요.'
+            : '게시글을 등록하지 못했어요. 입력 내용을 확인한 뒤 다시 시도해 주세요.',
+        ),
       )
     },
   })
 
-  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextFiles = Array.from(event.target.files ?? [])
-
-    if (nextFiles.length === 0) {
+  const handleCancel = () => {
+    if (mode === 'edit' && postId) {
+      router.push(createCommunityEditorDetailHref(postId, mockEnabled))
       return
     }
 
-    const nextImages = nextFiles.map((file, index) => ({
-      key: `${file.name}-${file.size}-${Date.now()}-${index.toString()}`,
-      imageId: null,
-      url: URL.createObjectURL(file),
-      label: file.name,
-      file,
-    }))
-
-    setImages(currentImages => [...currentImages, ...nextImages])
-    event.target.value = ''
+    router.push(`/community/list${mockEnabled ? '?mock=1' : ''}`)
   }
 
-  const handleRemoveImage = (targetKey: string) => {
-    setImages(currentImages => {
-      const targetImage = currentImages.find(image => image.key === targetKey)
-
-      if (targetImage?.file) {
-        URL.revokeObjectURL(targetImage.url)
-      }
-
-      return currentImages.filter(image => image.key !== targetKey)
-    })
+  if (invalidPostId) {
+    return (
+      <Page>
+        <CommunityFeedback
+          kind="error"
+          title="수정할 게시글 주소가 올바르지 않아요"
+          description="게시글 목록으로 돌아가 다시 선택해 주세요."
+          actionLabel="목록으로 돌아가기"
+          onAction={() =>
+            router.push(`/community/list${mockEnabled ? '?mock=1' : ''}`)
+          }
+        />
+      </Page>
+    )
   }
 
-  const selectedCategoryLabel = categoryValue
-    ? getCommunityCategoryLabel(categoryValue)
-    : '미선택'
+  if (access === 'waiting' || access === 'redirect') {
+    return (
+      <Page>
+        <CommunityFeedback
+          kind="loading"
+          title={
+            access === 'waiting'
+              ? '로그인 상태를 확인하고 있어요'
+              : '로그인 화면으로 이동하고 있어요'
+          }
+        />
+      </Page>
+    )
+  }
+
+  if (
+    mode === 'edit' &&
+    (detailQuery.isPending || !detailQuery.isFetchedAfterMount)
+  ) {
+    return (
+      <Page>
+        <CommunityFeedback
+          kind="loading"
+          title="수정할 게시글을 불러오는 중이에요"
+        />
+      </Page>
+    )
+  }
+
+  if (mode === 'edit' && detailQuery.isError) {
+    if (isCommunityEditorUnauthorizedError(detailQuery.error)) {
+      return (
+        <Page>
+          <CommunityFeedback
+            kind="loading"
+            title="로그인 화면으로 이동하고 있어요"
+          />
+        </Page>
+      )
+    }
+
+    return (
+      <Page>
+        <CommunityFeedback
+          kind="error"
+          title="수정할 게시글을 불러오지 못했어요"
+          description={getEditorErrorMessage(
+            detailQuery.error,
+            '잠시 후 다시 시도해 주세요.',
+          )}
+          actionLabel="다시 시도"
+          onAction={() => void detailQuery.refetch()}
+        />
+      </Page>
+    )
+  }
+
+  if (access === 'forbidden') {
+    return (
+      <Page>
+        <CommunityFeedback
+          kind="error"
+          title="게시글을 수정할 권한이 없어요"
+          description="본인이 작성한 게시글만 수정할 수 있어요."
+          actionLabel="게시글로 돌아가기"
+          onAction={() => {
+            if (postId) {
+              router.push(createCommunityEditorDetailHref(postId, mockEnabled))
+            }
+          }}
+        />
+      </Page>
+    )
+  }
+
+  const initialValue: CommunityEditorValue =
+    mode === 'edit' && detail
+      ? {
+          title: detail.title,
+          content: detail.content,
+          location: {
+            targetType: parseCommunityTargetType(
+              detail.targetType?.code ?? null,
+            ),
+            targetCode: detail.targetCode ?? undefined,
+            targetName: detail.targetName ?? undefined,
+          },
+        }
+      : {
+          title: '',
+          content: '',
+          location: {},
+        }
 
   return (
-    <Layout>
-      <FormCard>
-        <Fieldset>
-          <Label htmlFor="community-category">카테고리</Label>
-          <Select
-            id="community-category"
-            value={categoryValue}
-            onChange={event => {
-              setCategoryValue(event.target.value)
-            }}
-          >
-            <option value="">카테고리를 선택해 주세요.</option>
-            {communityCategories
-              .filter(category => category.value !== '')
-              .map(category => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
-                </option>
-              ))}
-          </Select>
-          <Helper>
-            카테고리는 게시글이 노출되는 흐름과 비슷한 게시글 추천에 함께
-            사용됩니다.
-          </Helper>
-        </Fieldset>
+    <Page>
+      <Header>
+        <Eyebrow>{mode === 'edit' ? '게시글 수정' : '새 게시글'}</Eyebrow>
+        <Title>
+          {mode === 'edit'
+            ? '경험과 정보를 최신 내용으로 다듬어 주세요.'
+            : '사장님들과 나누고 싶은 이야기를 들려주세요.'}
+        </Title>
+        <Description>
+          지역 선택은 선택 사항이며, 구체적인 경험과 상황을 함께 적으면 더 좋은
+          답변을 받을 수 있어요.
+        </Description>
+      </Header>
 
-        <Fieldset>
-          <Label htmlFor="community-title">제목</Label>
-          <Input
-            id="community-title"
-            value={titleValue}
-            maxLength={MAX_TITLE_LENGTH}
-            placeholder="예: 성수동 골목 상권에서 체감한 점심 매출 변화"
-            onChange={event => {
-              setTitleValue(event.target.value)
-            }}
-          />
-          <Helper>
-            {titleValue.length}/{MAX_TITLE_LENGTH}자
-          </Helper>
-        </Fieldset>
-
-        <Fieldset>
-          <Label htmlFor="community-content">본문</Label>
-          <TextArea
-            id="community-content"
-            value={contentValue}
-            maxLength={MAX_CONTENT_LENGTH}
-            placeholder="현장에서 관찰한 변화, 실제 수치, 고민, 질문을 자유롭게 작성해 주세요."
-            onChange={event => {
-              setContentValue(event.target.value)
-            }}
-          />
-          <Helper>
-            {contentValue.length}/{MAX_CONTENT_LENGTH}자
-          </Helper>
-        </Fieldset>
-
-        <Fieldset>
-          <Label>이미지</Label>
-          <ImageInput
-            id="community-image-upload"
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleImageChange}
-          />
-          <UploadLabel htmlFor="community-image-upload">
-            이미지 추가
-          </UploadLabel>
-          <Helper>
-            여러 이미지를 첨부할 수 있습니다. 기존 이미지를 유지한 채 새
-            이미지를 추가하는 것도 가능합니다.
-          </Helper>
-          {images.length > 0 ? (
-            <ImageGrid>
-              {images.map(image => (
-                <ImageCard key={image.key}>
-                  <PreviewImage src={image.url} alt={image.label} />
-                  <ImageFooter>
-                    <ImageLabel>{image.label}</ImageLabel>
-                    <RemoveButton
-                      type="button"
-                      onClick={() => {
-                        handleRemoveImage(image.key)
-                      }}
-                    >
-                      제거
-                    </RemoveButton>
-                  </ImageFooter>
-                </ImageCard>
-              ))}
-            </ImageGrid>
-          ) : null}
-        </Fieldset>
-
-        {formMessage ? <Notice $tone="error">{formMessage}</Notice> : null}
-
-        <ActionRow>
-          <PrimaryButton
-            type="button"
-            onClick={() => {
-              setFormMessage(null)
-              submitMutation.mutate()
-            }}
-          >
-            {submitMutation.isPending
-              ? '저장 중'
-              : isEditMode
-                ? '수정 완료'
-                : '게시글 등록'}
-          </PrimaryButton>
-          <SecondaryLink
-            href={
-              isEditMode ? `/community/${editCommunityId}` : '/community/list'
-            }
-          >
-            취소
-          </SecondaryLink>
-        </ActionRow>
-      </FormCard>
-
-      <AsideCard>
-        <SummaryList>
-          <SummaryItem>
-            <SummaryLabel>작성 상태</SummaryLabel>
-            <SummaryValue>
-              {isEditMode ? '수정 모드' : '새 글 작성'}
-            </SummaryValue>
-          </SummaryItem>
-          <SummaryItem>
-            <SummaryLabel>선택 카테고리</SummaryLabel>
-            <SummaryValue>{selectedCategoryLabel}</SummaryValue>
-          </SummaryItem>
-          <SummaryItem>
-            <SummaryLabel>이미지 수</SummaryLabel>
-            <SummaryValue>{images.length}장</SummaryValue>
-          </SummaryItem>
-          <SummaryItem>
-            <SummaryLabel>작성자</SummaryLabel>
-            <SummaryValue>{memberNickname}</SummaryValue>
-          </SummaryItem>
-        </SummaryList>
-        <Notice>
-          게시글을 등록하면 커뮤니티 목록과 비슷한 카테고리 추천 영역에 함께
-          노출됩니다.
-        </Notice>
-      </AsideCard>
-    </Layout>
+      <CommunityEditorForm
+        key={getCommunityEditorFormKey(mode, postId)}
+        mode={mode}
+        initialValue={initialValue}
+        mockEnabled={mockEnabled}
+        pending={submitMutation.isPending}
+        errorMessage={mutationError}
+        onCancel={handleCancel}
+        onSubmit={value => submitMutation.mutate(value)}
+      />
+    </Page>
   )
 }
