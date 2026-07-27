@@ -4,6 +4,8 @@ import com.followfollowme.nowdoboss.domainlayer.region.application.info.Administ
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationDistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.exception.RegionErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.region.application.exception.RegionException;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.out.CommercialRegionMappingRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.out.CoordinateTransformPort;
@@ -39,7 +41,7 @@ public class RegionQueryProcessor {
 
     public List<CommercialAreaInfo> getCommercialsByAdministrationCode(String districtCode, String administrationCode) {
         if (!administrationCode.startsWith(districtCode)) {
-            throw new IllegalArgumentException("행정동 코드가 해당 자치구에 속하지 않습니다.");
+            throw new RegionException(RegionErrorCode.ADMINISTRATION_NOT_IN_DISTRICT, administrationCode, districtCode);
         }
 
         return commercialRegionMappingRepositoryPort.findAllByAdministrationCode(administrationCode)
@@ -54,23 +56,23 @@ public class RegionQueryProcessor {
     public RegionCodeLookupInfo lookupRegionCode(RegionCodeType type, String name) {
         return switch (type) {
             case DISTRICT -> commercialRegionMappingRepositoryPort.findDistinctByDistrictName(name)
-                .orElseThrow(() -> new IllegalArgumentException("해당 자치구 코드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_DISTRICT, name));
             case ADMINISTRATION -> commercialRegionMappingRepositoryPort.findDistinctByAdministrationName(name)
-                .orElseThrow(() -> new IllegalArgumentException("해당 행정동 코드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_ADMINISTRATION, name));
             case COMMERCIAL -> commercialRegionMappingRepositoryPort.findDistinctByCommercialName(name)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상권 코드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_COMMERCIAL, name));
         };
     }
 
     public AdministrationDistrictAreaInfo getAdministrationDistrictByAdministrationCode(String administrationCode) {
         CommercialRegionMapping commercialRegionMapping = commercialRegionMappingRepositoryPort.findFirstByAdministrationCode(administrationCode)
-            .orElseThrow(() -> new IllegalArgumentException("해당 행정동 코드 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_ADMINISTRATION, administrationCode));
         return AdministrationDistrictAreaInfo.from(commercialRegionMapping);
     }
 
     public CommercialAdministrationAreaInfo getCommercialAdministrationByCommercialCode(String commercialCode) {
         CommercialRegionMapping commercialRegionMapping = commercialRegionMappingRepositoryPort.findFirstByCommercialCode(commercialCode)
-            .orElseThrow(() -> new IllegalArgumentException("해당 상권 코드 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_COMMERCIAL, commercialCode));
         return CommercialAdministrationAreaInfo.from(commercialRegionMapping);
     }
 }
