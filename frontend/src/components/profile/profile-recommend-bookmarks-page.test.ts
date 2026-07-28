@@ -43,7 +43,7 @@ describe('profile recommendation bookmarks', () => {
       }),
     )
 
-    expect(markup).toContain('상권추천 북마크')
+    expect(markup).toContain('상권 북마크')
     expect(markup).toContain('테헤란로 상권')
     expect(markup).toContain('상권 코드 C001')
     expect(markup).not.toContain('강남구')
