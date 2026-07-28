@@ -50,10 +50,11 @@ const baseProps: ComponentProps<typeof CommunityEditorForm> = {
 }
 
 describe('CommunityEditorForm', () => {
-  it('renders optional location, title/content limits, counts, and a disabled image control', () => {
+  it('renders required location, title/content limits, counts, and a disabled image control', () => {
     const markup = renderWithQuery(baseProps)
 
-    expect(markup).toContain('지역·상권 (선택)')
+    expect(markup).toContain('지역·상권 (필수)')
+    expect(markup).toContain('게시글을 작성하려면 지역을 선택해 주세요.')
     expect(markup).toContain('maxLength="120"')
     expect(markup).toContain('maxLength="5000"')
     expect(markup).toContain('0 / 120')
@@ -104,9 +105,9 @@ describe('CommunityEditorForm', () => {
 })
 
 describe('community editor helpers', () => {
-  it('trims valid input and rejects whitespace-only title/content', () => {
+  it('trims valid input and rejects missing create fields', () => {
     expect(
-      resolveCommunityEditorSubmission('  제목  ', '  본문  ', {
+      resolveCommunityEditorSubmission('create', '  제목  ', '  본문  ', {
         targetType: 'DISTRICT',
         targetCode: '11680',
         targetName: '강남구',
@@ -123,12 +124,28 @@ describe('community editor helpers', () => {
         },
       },
     })
-    expect(resolveCommunityEditorSubmission('  ', '본문', {}).error).toBe(
-      '제목을 입력해 주세요.',
-    )
-    expect(resolveCommunityEditorSubmission('제목', '  ', {}).error).toBe(
-      '내용을 입력해 주세요.',
-    )
+    expect(
+      resolveCommunityEditorSubmission('create', '  ', '본문', {}).error,
+    ).toBe('제목을 입력해 주세요.')
+    expect(
+      resolveCommunityEditorSubmission('create', '제목', '  ', {}).error,
+    ).toBe('내용을 입력해 주세요.')
+    expect(
+      resolveCommunityEditorSubmission('create', '제목', '본문', {}),
+    ).toEqual({
+      error: '지역을 선택해 주세요.',
+      value: null,
+    })
+    expect(
+      resolveCommunityEditorSubmission('edit', '제목', '본문', {}),
+    ).toEqual({
+      error: null,
+      value: {
+        title: '제목',
+        content: '본문',
+        location: {},
+      },
+    })
   })
 
   it('accepts only a positive integer postId for edit mode', () => {
@@ -140,7 +157,7 @@ describe('community editor helpers', () => {
     expect(parseCommunityEditorPostId(null)).toBeNull()
   })
 
-  it('creates an optional target payload and excludes the target while editing', () => {
+  it('requires a target in create payload and excludes it while editing', () => {
     const draft = {
       title: '제목',
       content: '본문',
@@ -161,15 +178,12 @@ describe('community editor helpers', () => {
       title: '제목',
       content: '본문',
     })
-    expect(
+    expect(() =>
       createCommunityEditorPayload('create', {
         ...draft,
         location: {},
       }),
-    ).toEqual({
-      title: '제목',
-      content: '본문',
-    })
+    ).toThrow('지역을 선택해 주세요.')
   })
 
   it('preserves explicit mock mode in the successful detail destination', () => {

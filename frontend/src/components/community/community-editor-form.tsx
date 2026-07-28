@@ -26,6 +26,7 @@ export type CommunityEditorFormProps = {
 }
 
 export const resolveCommunityEditorSubmission = (
+  mode: CommunityEditorMode,
   title: string,
   content: string,
   location: CommunityLocationValue,
@@ -34,6 +35,13 @@ export const resolveCommunityEditorSubmission = (
 
   if (error) {
     return { error, value: null }
+  }
+
+  if (
+    mode === 'create' &&
+    (!location.targetType || !location.targetCode?.trim())
+  ) {
+    return { error: '지역을 선택해 주세요.', value: null }
   }
 
   return {
@@ -216,7 +224,12 @@ export default function CommunityEditorForm({
       return
     }
 
-    const result = resolveCommunityEditorSubmission(title, content, location)
+    const result = resolveCommunityEditorSubmission(
+      mode,
+      title,
+      content,
+      location,
+    )
 
     if (result.error || !result.value) {
       setValidationMessage(result.error)
@@ -237,7 +250,7 @@ export default function CommunityEditorForm({
       onSubmit={handleSubmit}
     >
       <Field>
-        <Label as="p">지역·상권 (선택)</Label>
+        <Label as="p">지역·상권 {mode === 'create' ? '(필수)' : null}</Label>
         <CommunityLocationPicker
           value={location}
           mockEnabled={mockEnabled}
@@ -245,9 +258,7 @@ export default function CommunityEditorForm({
           onChange={setLocation}
         />
         {mode === 'create' ? (
-          <Helper>
-            지역을 선택하면 같은 상권에 관심 있는 사장님이 글을 찾기 쉬워요.
-          </Helper>
+          <Helper>게시글을 작성하려면 지역을 선택해 주세요.</Helper>
         ) : null}
       </Field>
 

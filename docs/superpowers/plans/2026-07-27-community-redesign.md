@@ -1173,7 +1173,7 @@ Expected: PASS.
 - [ ] **Step 1: 작성 폼 실패 테스트 작성**
 
 ```tsx
-it('renders optional location, limits and disabled image control', () => {
+it('renders required location, limits and disabled image control', () => {
   const markup = renderToStaticMarkup(
     <CommunityEditorForm
       mode="create"
@@ -1185,7 +1185,7 @@ it('renders optional location, limits and disabled image control', () => {
       onSubmit={() => undefined}
     />,
   )
-  expect(markup).toContain('지역·상권 (선택)')
+  expect(markup).toContain('지역·상권 (필수)')
   expect(markup).toContain('maxLength="120"')
   expect(markup).toContain('maxLength="5000"')
   expect(markup).toContain('이미지 첨부')
@@ -1250,7 +1250,7 @@ const handleSubmit = (event: FormEvent) => {
 
 - `postId` query가 유효한 양수면 수정 모드
 - 수정 모드에서 `source.getPost(postId)` 조회
-- 생성은 optional target과 title/content 전송
+- 생성은 required target과 title/content 전송
 - 수정은 title/content만 전송
 - 성공 응답의 `postId`로 `/community/{postId}` 이동
 - mock 모드에서는 링크와 이동 URL에 `mock=1` 유지
