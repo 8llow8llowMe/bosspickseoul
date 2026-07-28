@@ -2,6 +2,8 @@ package com.followfollowme.nowdoboss.domainlayer.areaboundary.application.servic
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.exception.AreaBoundaryErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.exception.AreaBoundaryException;
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.application.port.out.AreaBoundaryBulkPort;
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.enums.AreaType;
 import com.followfollowme.nowdoboss.domainlayer.areaboundary.domain.model.AreaBoundary;
@@ -96,7 +98,7 @@ public class AreaBoundaryImportProcessor {
             try (InputStream in = Files.newInputStream(filePath)) {
                 return objectMapper.readTree(in);
             } catch (IOException e) {
-                throw new IllegalStateException("영역 JSON 파일 로딩 실패(경로): " + filePath, e);
+                throw new AreaBoundaryException(AreaBoundaryErrorCode.FILE_LOAD_FAILED, e, "경로", filePath);
             }
         }
 
@@ -104,7 +106,7 @@ public class AreaBoundaryImportProcessor {
         try (InputStream in = resource.getInputStream()) {
             return objectMapper.readTree(in);
         } catch (IOException e) {
-            throw new IllegalStateException("영역 JSON 파일 로딩 실패(classpath): " + resourceName, e);
+            throw new AreaBoundaryException(AreaBoundaryErrorCode.FILE_LOAD_FAILED, e, "classpath", resourceName);
         }
     }
 
