@@ -91,6 +91,68 @@ boolean shouldDeployToEnvironment(Map<String, String> ctx) {
     return true
 }
 
+// 이번 빌드에서 변경된 파일 목록을 계산합니다. 판단이 불가능하면 null을 반환해 전체 빌드로 진행합니다(fail-open).
+List<String> resolveChangedFiles(Map<String, String> ctx) {
+    try {
+        String diffOutput
+        if (ctx.isPullRequest == 'true' && env.CHANGE_TARGET?.trim()) {
+            // PR 빌드: 대상 브랜치와의 merge-base 기준으로 PR이 실제 건드린 파일만 계산합니다.
+            String target = env.CHANGE_TARGET.trim()
+            sh "git fetch --no-tags origin +refs/heads/${target}:refs/remotes/origin/${target}"
+            diffOutput = sh(returnStdout: true, script: "git diff --name-only origin/${target}...HEAD").trim()
+        } else if (env.GIT_PREVIOUS_SUCCESSFUL_COMMIT?.trim()) {
+            // 브랜치 빌드: 이 잡의 마지막 성공 빌드 이후 변경분만 계산합니다.
+            String previous = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT.trim()
+            int exists = sh(returnStatus: true, script: "git cat-file -e ${previous}^{commit}")
+            if (exists != 0) {
+                echo "이전 성공 커밋(${previous})을 찾을 수 없어 전체 빌드로 진행합니다."
+                return null
+            }
+            diffOutput = sh(returnStdout: true, script: "git diff --name-only ${previous} HEAD").trim()
+        } else {
+            echo '변경 파일 기준 커밋을 판단할 수 없어 전체 빌드로 진행합니다. (첫 빌드 등)'
+            return null
+        }
+        return diffOutput ? diffOutput.split('\n').collect { it.trim() }.findAll { it } : []
+    } catch (Exception e) {
+        echo "변경 파일 계산에 실패해 전체 빌드로 진행합니다: ${e.message}"
+        return null
+    }
+}
+
+// 변경 파일이 이 서비스 빌드에 영향을 주는지 판단합니다.
+// 자기 서비스 경로 또는 공용 경로(core 모듈, gradle 루트 설정, 파이프라인 정의) 변경 시에만 빌드합니다.
+boolean isServiceAffected(Map<String, String> config, List<String> changedFiles) {
+    if (changedFiles == null) {
+        return true
+    }
+    if (changedFiles.isEmpty()) {
+        echo '변경 파일이 없어 빌드/배포를 건너뜁니다.'
+        return false
+    }
+
+    List<String> sharedPrefixes = [
+        'backend/core/',
+        'backend/build.gradle',
+        'backend/settings.gradle',
+        'backend/gradle',
+        'Jenkinsfile'
+    ]
+    String servicePrefix = "${config.fsPath}/"
+
+    List<String> matched = changedFiles.findAll { path ->
+        path.startsWith(servicePrefix) || sharedPrefixes.any { prefix -> path.startsWith(prefix) }
+    }
+
+    if (matched) {
+        echo "이 서비스에 영향 있는 변경 ${matched.size()}건: ${matched.take(10).join(', ')}${matched.size() > 10 ? ' ...' : ''}"
+        return true
+    }
+
+    echo "변경 파일 ${changedFiles.size()}건 중 ${config.serviceName} 관련 변경이 없어 빌드/배포를 건너뜁니다."
+    return false
+}
+
 String resolveVaultApiPath(String vaultSecretPath, Integer engineVersion) {
     if (engineVersion != 2) {
         return vaultSecretPath
@@ -346,6 +408,11 @@ void run(Map<String, String> config) {
                 checkoutSource()
                 ctx = resolveGitContext()
 
+                // 모노레포에서 잡 8개가 같은 push에 전부 트리거되므로,
+                // 이 서비스와 무관한 변경이면 빌드/배포를 건너뛴다.
+                List<String> changedFiles = resolveChangedFiles(ctx)
+                ctx.serviceAffected = isServiceAffected(config, changedFiles) ? 'true' : 'false'
+
                 currentBuild.displayName = "#${env.BUILD_NUMBER} ${config.serviceName} ${env.BRANCH_NAME ?: 'n/a'}"
 
                 echo '=== 빌드 문맥 ==='
@@ -357,6 +424,7 @@ void run(Map<String, String> config) {
                 echo "PR SHA: ${ctx.requestedPrSha ?: '없음'}"
                 echo "PR 번호: ${ctx.requestedPrNumber ?: '없음'}"
                 echo "PR 빌드 여부: ${ctx.isPullRequest}"
+                echo "서비스 영향 여부: ${ctx.serviceAffected}"
                 echo "배포 환경: ${ctx.deployEnv}"
                 echo "빌드 에이전트 라벨: ${config.buildAgentLabel}"
                 if (ctx.deployEnv in ['dev', 'prod']) {
@@ -373,6 +441,14 @@ void run(Map<String, String> config) {
                 deleteDir()
             }
         }
+    }
+
+    if (ctx.serviceAffected == 'false') {
+        stage('변경 없음 - 생략') {
+            echo "이번 변경은 ${config.serviceName}에 영향이 없어 빌드/배포를 건너뜁니다."
+            currentBuild.description = '변경 없음 - 빌드/배포 생략'
+        }
+        return
     }
 
     stage('JAR 빌드') {
