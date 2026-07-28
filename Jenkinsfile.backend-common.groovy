@@ -313,7 +313,8 @@ Map<String, String> readBuildEnvValues(Map<String, Object> config, Map<String, S
 
 void run(Map<String, String> config) {
     properties([
-        buildDiscarder(logRotator(numToKeepStr: '20')),
+        // 아티팩트(jar, 서비스당 ~100MB)는 최근 5개 빌드만 보관해 마스터 디스크를 아낀다.
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '5')),
         disableConcurrentBuilds(),
         parameters([
             string(
@@ -451,6 +452,8 @@ void run(Map<String, String> config) {
         return
     }
 
+    boolean shouldDeploy = shouldDeployToEnvironment(ctx)
+
     stage('JAR 빌드') {
         node(config.buildAgentLabel) {
             try {
@@ -474,18 +477,22 @@ ${gradleCommand}
                     }
                 }
 
-                archiveArtifacts artifacts: "${config.fsPath}/build/libs/*.jar", fingerprint: true
-                stash(
-                    name: "bundle-${config.serviceName}",
-                    includes: "${config.fsPath}/build/libs/*.jar,${config.fsPath}/${config.dockerfile},${config.fsPath}/${config.composeFile}"
-                )
+                if (shouldDeploy) {
+                    // 아티팩트 보관과 stash는 배포 스테이지 전달용이므로 배포하는 빌드에서만 수행한다.
+                    // (PR 빌드는 CI만 하므로 ~100MB jar를 마스터에 남기지 않는다.)
+                    archiveArtifacts artifacts: "${config.fsPath}/build/libs/*.jar", fingerprint: true
+                    stash(
+                        name: "bundle-${config.serviceName}",
+                        includes: "${config.fsPath}/build/libs/*.jar,${config.fsPath}/${config.dockerfile},${config.fsPath}/${config.composeFile}"
+                    )
+                } else {
+                    echo '배포하지 않는 빌드(CI 전용)이므로 아티팩트 보관과 stash를 생략합니다.'
+                }
             } finally {
                 deleteDir()
             }
         }
     }
-
-    boolean shouldDeploy = shouldDeployToEnvironment(ctx)
 
     if (shouldDeploy) {
         stage("${ctx.deployEnv} 환경 배포") {
