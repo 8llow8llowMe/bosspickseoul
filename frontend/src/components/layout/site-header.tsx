@@ -137,6 +137,12 @@ const ActionLink = styled(Link)<{ $primary?: boolean }>`
   }
 `
 
+const DesktopAuthLink = styled(ActionLink)`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`
+
 const AvatarButton = styled.button`
   min-height: 40px;
   display: inline-flex;
@@ -430,7 +436,7 @@ export default function SiteHeader() {
             }
           }}
         >
-          NowDoBoss
+          BossPickSeoul
         </Brand>
         <Nav aria-label="primary">
           {navigationItems.map(item => (
@@ -509,7 +515,7 @@ export default function SiteHeader() {
             </DropdownWrap>
           ) : (
             <>
-              <ActionLink
+              <DesktopAuthLink
                 href="/login"
                 onClick={() => {
                   setIsMobileOpen(false)
@@ -518,8 +524,8 @@ export default function SiteHeader() {
               >
                 <LogIn aria-hidden="true" />
                 로그인
-              </ActionLink>
-              <ActionLink
+              </DesktopAuthLink>
+              <DesktopAuthLink
                 href="/register"
                 $primary
                 onClick={() => {
@@ -529,7 +535,7 @@ export default function SiteHeader() {
               >
                 <UserPlus aria-hidden="true" />
                 회원가입
-              </ActionLink>
+              </DesktopAuthLink>
             </>
           )}
         </Actions>

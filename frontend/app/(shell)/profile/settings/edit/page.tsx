@@ -3,8 +3,8 @@ import ProfileEditPage from '@/components/profile/profile-edit-page'
 import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
-  title: '회원 정보 수정',
-  description: '닉네임과 프로필 이미지를 수정해 계정 정보를 관리합니다.',
+  title: '회원 정보',
+  description: '현재 계정 정보와 프로필 수정 API 준비 상태를 확인합니다.',
   path: '/profile/settings/edit',
   index: false,
 })

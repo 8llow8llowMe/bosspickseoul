@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { MemberBookmarksResponse } from '@/types/bookmark'
 import {
   collectCommercialBookmarks,
+  collectMemberBookmarks,
   clearMemberBookmarksQuery,
   getCommercialBookmarkCollectionError,
   getCommercialBookmarkError,
@@ -31,6 +32,47 @@ const response = (contents: unknown[], hasNext: unknown = false) =>
   }) as unknown as MemberBookmarksResponse
 
 describe('commercial bookmark collection', () => {
+  it('collects every valid V2 target type across pages and deduplicates by bookmarkId', () => {
+    const duplicatedDistrict = {
+      bookmarkId: 42,
+      targetType: 'DISTRICT',
+      targetCode: '11680',
+      targetName: '강남구',
+      createdAt: '2026-07-24T10:00:00',
+    }
+    const pages = [
+      response([
+        {
+          bookmarkId: 41,
+          targetType: 'COMMERCIAL',
+          targetCode: 'C001',
+          targetName: '테헤란로',
+          createdAt: '2026-07-24T10:00:00',
+        },
+        duplicatedDistrict,
+      ]),
+      response([
+        duplicatedDistrict,
+        {
+          bookmarkId: 43,
+          targetType: 'ADMINISTRATION',
+          targetCode: '11680510',
+          targetName: '신사동',
+          createdAt: '2026-07-24T11:00:00',
+        },
+      ]),
+    ]
+
+    expect(collectMemberBookmarks(pages)).toEqual([
+      expect.objectContaining({ bookmarkId: 41, targetType: 'COMMERCIAL' }),
+      expect.objectContaining({ bookmarkId: 42, targetType: 'DISTRICT' }),
+      expect.objectContaining({
+        bookmarkId: 43,
+        targetType: 'ADMINISTRATION',
+      }),
+    ])
+  })
+
   it('flattens pages, keeps only valid COMMERCIAL targets, and preserves bookmarkId', () => {
     const pages = [
       response([
@@ -132,7 +174,7 @@ describe('commercial bookmark collection', () => {
     expect(normalizeMemberBookmarkResponse(partiallyMalformed)).toBeNull()
     expect(
       getCommercialBookmarkCollectionError([partiallyMalformed], null),
-    ).toBe('상권 북마크 응답 형식을 확인하지 못했습니다.')
+    ).toBe('회원 북마크 응답 형식을 확인하지 못했습니다.')
   })
 
   it('treats an all-malformed page as an error but accepts a valid empty page', () => {
@@ -141,7 +183,7 @@ describe('commercial bookmark collection', () => {
 
     expect(normalizeMemberBookmarkResponse(allMalformed)).toBeNull()
     expect(() => validateMemberBookmarkResponse(allMalformed)).toThrow(
-      '상권 북마크 응답 형식을 확인하지 못했습니다.',
+      '회원 북마크 응답 형식을 확인하지 못했습니다.',
     )
     expect(normalizeMemberBookmarkResponse(validEmpty)).toEqual({
       contents: [],
@@ -347,7 +389,7 @@ describe('commercial bookmark visibility', () => {
         [response([]), response([{ bookmarkId: 'broken' }])],
         null,
       ),
-    ).toBe('상권 북마크 응답 형식을 확인하지 못했습니다.')
+    ).toBe('회원 북마크 응답 형식을 확인하지 못했습니다.')
   })
 })
 

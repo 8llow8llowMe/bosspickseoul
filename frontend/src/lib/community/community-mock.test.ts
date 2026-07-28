@@ -275,10 +275,14 @@ describe('community mock source', () => {
   it('같은 좋아요 수에서는 postId 내림차순으로 정렬하고 동률 내부 커서를 적용한다', async () => {
     const source = createCommunityMockSource()
     const older = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
       title: '동률 첫 게시글',
       content: '좋아요 수가 같은 첫 게시글입니다.',
     })
     const newer = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
       title: '동률 둘째 게시글',
       content: '좋아요 수가 같은 둘째 게시글입니다.',
     })
@@ -389,10 +393,14 @@ describe('community mock source', () => {
   it('search와 liked 목록도 동일한 keyset 경계를 사용한다', async () => {
     const source = createCommunityMockSource()
     const first = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
       title: 'KEYSET 공통 검색',
       content: '첫 게시글',
     })
     const second = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
       title: 'KEYSET 공통 검색',
       content: '둘째 게시글',
     })
@@ -467,6 +475,8 @@ describe('community mock source', () => {
     const baseLikeCount = fixturePost(2).likeCount
 
     await sourceA.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
       title: 'A 전용 게시글',
       content: '다른 source에는 없어야 합니다.',
     })
@@ -565,6 +575,8 @@ describe('community mock source', () => {
   it('mock 계층은 빈 값과 공백을 정규화하지 않고 payload 그대로 저장한다', async () => {
     const source = createCommunityMockSource()
     const created = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
       title: '  ',
       content: ' 본문 양끝 공백 ',
     })

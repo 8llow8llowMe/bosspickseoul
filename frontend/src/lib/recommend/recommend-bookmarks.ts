@@ -77,7 +77,7 @@ export const normalizeMemberBookmarkResponse = (
   }
 }
 
-export const collectCommercialBookmarks = (
+export const collectMemberBookmarks = (
   pages: readonly unknown[],
 ): MemberBookmark[] => {
   const seenBookmarkIds = new Set<number>()
@@ -87,10 +87,7 @@ export const collectCommercialBookmarks = (
     if (!slice) return []
 
     return slice.contents.filter(item => {
-      if (
-        item.targetType !== 'COMMERCIAL' ||
-        seenBookmarkIds.has(item.bookmarkId)
-      ) {
+      if (seenBookmarkIds.has(item.bookmarkId)) {
         return false
       }
 
@@ -99,6 +96,13 @@ export const collectCommercialBookmarks = (
     })
   })
 }
+
+export const collectCommercialBookmarks = (
+  pages: readonly unknown[],
+): MemberBookmark[] =>
+  collectMemberBookmarks(pages).filter(
+    bookmark => bookmark.targetType === 'COMMERCIAL',
+  )
 
 export const getCommercialBookmarkNextPageParam = (
   lastPage: unknown,
@@ -142,7 +146,7 @@ export const getCommercialBookmarkError = (
   queryError: unknown,
 ): string | null => {
   if (queryError instanceof Error) return queryError.message
-  if (queryError) return '상권 북마크를 불러오지 못했습니다.'
+  if (queryError) return '회원 북마크를 불러오지 못했습니다.'
   if (firstPage === undefined || firstPage === null) return null
 
   if (
@@ -152,13 +156,13 @@ export const getCommercialBookmarkError = (
   ) {
     return (
       readApiMessage(firstPage.dataHeader.resultMessage) ??
-      '상권 북마크를 불러오지 못했습니다.'
+      '회원 북마크를 불러오지 못했습니다.'
     )
   }
 
   return normalizeMemberBookmarkResponse(firstPage)
     ? null
-    : '상권 북마크 응답 형식을 확인하지 못했습니다.'
+    : '회원 북마크 응답 형식을 확인하지 못했습니다.'
 }
 
 export const getCommercialBookmarkCollectionError = (
