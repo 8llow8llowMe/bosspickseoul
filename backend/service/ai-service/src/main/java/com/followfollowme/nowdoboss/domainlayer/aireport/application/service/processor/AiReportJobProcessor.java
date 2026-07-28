@@ -154,7 +154,7 @@ public class AiReportJobProcessor {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(builder.toString().getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest).substring(0, 32);
         } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 unavailable", exception);
+            throw new AiReportException(AiReportErrorCode.IDEMPOTENCY_KEY_GENERATION_FAILED, exception);
         }
     }
 }

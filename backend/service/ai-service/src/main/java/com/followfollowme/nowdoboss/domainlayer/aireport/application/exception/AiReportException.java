@@ -16,4 +16,9 @@ public class AiReportException extends RuntimeException {
         super(errorCode.getMessage(), cause);
         this.errorCode = errorCode;
     }
+
+    public AiReportException(AiReportErrorCode errorCode, Object... args) {
+        super(String.format(errorCode.getMessage(), args));
+        this.errorCode = errorCode;
+    }
 }

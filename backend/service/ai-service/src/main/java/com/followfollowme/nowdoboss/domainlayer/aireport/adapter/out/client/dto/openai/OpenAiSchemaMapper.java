@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -24,7 +26,7 @@ public class OpenAiSchemaMapper {
         if (definition instanceof OpenAiStringSchemaDefinition) {
             return objectMapper.createObjectNode().put("type", "string");
         }
-        throw new IllegalArgumentException("Unsupported OpenAI schema definition: " + definition.getClass().getName());
+        throw new AiReportException(AiReportErrorCode.LLM_SCHEMA_UNSUPPORTED, definition.getClass().getName());
     }
 
     private ObjectNode toObjectSchemaNode(OpenAiObjectSchemaDefinition definition) {

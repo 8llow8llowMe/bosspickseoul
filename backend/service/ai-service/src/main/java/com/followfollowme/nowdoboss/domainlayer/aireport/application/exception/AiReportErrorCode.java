@@ -15,7 +15,9 @@ public enum AiReportErrorCode {
     JOB_NOT_FOUND("AI_005", "요청하신 AI 리포트 작업을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     JOB_STORE_UNAVAILABLE("AI_006", "AI 리포트 작업 저장소를 사용할 수 없습니다.", HttpStatus.SERVICE_UNAVAILABLE),
     JOB_FAILED("AI_008", "AI 리포트 작업이 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
-    JOB_TIMEOUT("AI_009", "AI 리포트 작업이 시간 내에 완료되지 않았습니다.", HttpStatus.GATEWAY_TIMEOUT);
+    JOB_TIMEOUT("AI_009", "AI 리포트 작업이 시간 내에 완료되지 않았습니다.", HttpStatus.GATEWAY_TIMEOUT),
+    LLM_SCHEMA_UNSUPPORTED("AI_010", "지원하지 않는 LLM 응답 스키마 정의입니다. (%s)", HttpStatus.INTERNAL_SERVER_ERROR),
+    IDEMPOTENCY_KEY_GENERATION_FAILED("AI_011", "AI 리포트 요청 식별자 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
     private final String message;
