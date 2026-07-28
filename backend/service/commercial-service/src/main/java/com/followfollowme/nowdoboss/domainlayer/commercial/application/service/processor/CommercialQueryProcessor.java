@@ -2,6 +2,8 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.application.service.
 
 import com.followfollowme.nowdoboss.domainlayer.category.application.port.out.ServiceCategoryRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.category.domain.model.ServiceCategory;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
@@ -55,7 +57,7 @@ public class CommercialQueryProcessor {
     public CommercialFootTrafficInfo getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         FootTrafficCommercial footTrafficCommercial = footTrafficCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode,
                 commercialCode)
-            .orElseThrow(() -> new IllegalArgumentException("유동 인구 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialException(CommercialErrorCode.FOOT_TRAFFIC_NOT_FOUND));
         return CommercialFootTrafficInfo.from(footTrafficCommercial);
     }
 
@@ -64,27 +66,27 @@ public class CommercialQueryProcessor {
     ) {
         SalesCommercial salesCommercial = salesCommercialRepositoryPort
             .findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
-            .orElseThrow(() -> new IllegalArgumentException("매출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialException(CommercialErrorCode.SALES_NOT_FOUND));
         return CommercialSalesInfo.from(salesCommercial);
     }
 
     public CommercialFacilityInfo getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
         FacilityCommercial facilityCommercial = facilityCommercialRepositoryPort
             .findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
-            .orElseThrow(() -> new IllegalArgumentException("집객시설 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialException(CommercialErrorCode.FACILITY_NOT_FOUND));
         return CommercialFacilityInfo.from(facilityCommercial);
     }
 
     public CommercialResidentPopulationInfo getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
         PopulationCommercial populationCommercial = populationCommercialRepositoryPort
             .findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
-            .orElseThrow(() -> new IllegalArgumentException("상주인구 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialException(CommercialErrorCode.RESIDENT_POPULATION_NOT_FOUND));
         return CommercialResidentPopulationInfo.from(populationCommercial);
     }
 
     public CommercialIncomeAndExpenseInfo getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         IncomeCommercial incomeCommercial = incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
-            .orElseThrow(() -> new IllegalArgumentException("소득소비 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialException(CommercialErrorCode.INCOME_NOT_FOUND));
         return CommercialIncomeAndExpenseInfo.from(incomeCommercial);
     }
 
@@ -95,7 +97,7 @@ public class CommercialQueryProcessor {
     ) {
         StoreCommercial targetStore = storeCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceCode(
                 periodCode, commercialCode, serviceCode)
-            .orElseThrow(() -> new IllegalArgumentException("점포 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialException(CommercialErrorCode.STORE_NOT_FOUND));
 
         List<CommercialPeerStoreInfo> peerStores = storeCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceType(
                 periodCode, commercialCode, targetStore.serviceType())

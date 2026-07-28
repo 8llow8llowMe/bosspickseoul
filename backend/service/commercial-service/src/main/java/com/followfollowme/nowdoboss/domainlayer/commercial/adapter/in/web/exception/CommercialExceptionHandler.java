@@ -1,7 +1,10 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.exception;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
+import com.followfollowme.nowdoboss.domainlayer.administration.application.exception.AdministrationException;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialException;
+import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
+import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,27 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(CommercialException.class)
     public ResponseEntity<Response<Void>> handleCommercialException(CommercialException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(AdministrationException.class)
+    public ResponseEntity<Response<Void>> handleAdministrationException(AdministrationException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(CommercialSummaryException.class)
+    public ResponseEntity<Response<Void>> handleCommercialSummaryException(CommercialSummaryException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DistrictException.class)
+    public ResponseEntity<Response<Void>> handleDistrictException(DistrictException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));

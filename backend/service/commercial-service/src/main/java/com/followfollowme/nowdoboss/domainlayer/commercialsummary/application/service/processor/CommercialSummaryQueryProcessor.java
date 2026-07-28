@@ -1,6 +1,8 @@
 package com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.service.processor;
 
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
+import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.exception.CommercialSummaryErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalIncomeSummaryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.summary.RegionalSalesSummaryInfo;
@@ -26,7 +28,7 @@ public class CommercialSummaryQueryProcessor {
                 .serviceName(salesDistrict.serviceName())
                 .monthlySalesAmount(salesDistrict.monthlySalesAmount())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("자치구 매출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.SALES_NOT_FOUND, "자치구"));
 
         RegionalSalesSummaryInfo administrationSummary = commercialSummaryRepositoryPort
             .findSalesAdministration(periodCode, administrationCode, serviceCode)
@@ -37,7 +39,7 @@ public class CommercialSummaryQueryProcessor {
                 .serviceName(salesAdministration.serviceName())
                 .monthlySalesAmount(salesAdministration.monthlySalesAmount())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("행정동 매출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.SALES_NOT_FOUND, "행정동"));
 
         RegionalSalesSummaryInfo commercialSummary = commercialSummaryRepositoryPort
             .findSalesCommercial(periodCode, commercialCode, serviceCode)
@@ -48,7 +50,7 @@ public class CommercialSummaryQueryProcessor {
                 .serviceName(salesCommercial.serviceName())
                 .monthlySalesAmount(salesCommercial.monthlySalesAmount())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("상권 매출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.SALES_NOT_FOUND, "상권"));
 
         return CommercialSalesSummaryInfo.builder()
             .district(districtSummary)
@@ -67,7 +69,7 @@ public class CommercialSummaryQueryProcessor {
                 .name(incomeDistrict.districtName())
                 .totalExpenseAmount(incomeDistrict.totalExpenseAmount())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("자치구 지출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.INCOME_NOT_FOUND, "자치구"));
 
         RegionalIncomeSummaryInfo administrationSummary = commercialSummaryRepositoryPort
             .findIncomeAdministration(periodCode, administrationCode)
@@ -76,7 +78,7 @@ public class CommercialSummaryQueryProcessor {
                 .name(incomeAdministration.administrationName())
                 .totalExpenseAmount(incomeAdministration.totalExpenseAmount())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("행정동 지출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.INCOME_NOT_FOUND, "행정동"));
 
         RegionalIncomeSummaryInfo commercialSummary = commercialSummaryRepositoryPort.findIncomeCommercial(periodCode, commercialCode)
             .map(incomeCommercial -> RegionalIncomeSummaryInfo.builder()
@@ -84,7 +86,7 @@ public class CommercialSummaryQueryProcessor {
                 .name(incomeCommercial.commercialName())
                 .totalExpenseAmount(incomeCommercial.totalExpenseAmount())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("상권 지출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.INCOME_NOT_FOUND, "상권"));
 
         return CommercialIncomeSummaryInfo.builder()
             .district(districtSummary)
