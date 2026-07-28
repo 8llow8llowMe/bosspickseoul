@@ -1,5 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.common;
 
+import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -48,7 +50,7 @@ public class PeriodCodeCalculator {
 
     private void validate(String periodCode) {
         if (!PERIOD_PATTERN.matcher(periodCode).matches()) {
-            throw new IllegalArgumentException("분기 코드는 YYYYQ 형식이어야 합니다.");
+            throw new DistrictException(DistrictErrorCode.PERIOD_CODE_INVALID, periodCode);
         }
     }
 }

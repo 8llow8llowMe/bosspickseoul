@@ -1,5 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.administration.application.service.processor;
 
+import com.followfollowme.nowdoboss.domainlayer.administration.application.exception.AdministrationErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.administration.application.exception.AdministrationException;
 import com.followfollowme.nowdoboss.domainlayer.administration.application.info.AdministrationDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.administration.application.info.AdministrationIncomeDetailInfo;
 import com.followfollowme.nowdoboss.domainlayer.administration.application.info.AdministrationSalesDetailInfo;
@@ -40,7 +42,7 @@ public class AdministrationQueryProcessor {
             .findSales(resolvedPreviousPeriodCode, administrationCode);
         List<StoreAdministration> currentStores = administrationAnalysisRepositoryPort.findStores(currentPeriodCode, administrationCode);
         IncomeAdministration income = administrationAnalysisRepositoryPort.findIncome(currentPeriodCode, administrationCode)
-            .orElseThrow(() -> new IllegalArgumentException("행정동 지출 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new AdministrationException(AdministrationErrorCode.INCOME_NOT_FOUND));
 
         String administrationName = resolveAdministrationName(currentSales, currentStores, income);
 
@@ -72,7 +74,7 @@ public class AdministrationQueryProcessor {
         List<SalesAdministration> previousSales
     ) {
         if (currentSales.isEmpty()) {
-            throw new IllegalArgumentException("행정동 매출 정보를 찾을 수 없습니다.");
+            throw new AdministrationException(AdministrationErrorCode.SALES_NOT_FOUND);
         }
 
         Map<String, SalesAdministration> previousByServiceCode = previousSales.stream()
@@ -104,7 +106,7 @@ public class AdministrationQueryProcessor {
 
     private List<AdministrationStoreServiceTopInfo> toAdministrationStoreServiceTopInfos(List<StoreAdministration> currentStores) {
         if (currentStores.isEmpty()) {
-            throw new IllegalArgumentException("행정동 점포 정보를 찾을 수 없습니다.");
+            throw new AdministrationException(AdministrationErrorCode.STORE_NOT_FOUND);
         }
 
         return currentStores.stream()

@@ -1,6 +1,8 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.service.processor;
 
 import com.followfollowme.nowdoboss.domainlayer.district.application.common.PeriodCodeCalculator;
+import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictException;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.area.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.change.DistrictChangeIndicatorInfo;
 import com.followfollowme.nowdoboss.domainlayer.district.application.info.foottraffic.DistrictAgeGroupFootTrafficInfo;
@@ -118,7 +120,7 @@ public class DistrictQueryProcessor {
                 .averageOpenedMonths(change.averageOpenedMonths())
                 .averageClosedMonths(change.averageClosedMonths())
                 .build())
-            .orElseThrow(() -> new IllegalArgumentException("상권 변화 지표 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new DistrictException(DistrictErrorCode.CHANGE_INDICATOR_NOT_FOUND));
     }
 
     public DistrictFootTrafficDetailInfo getDistrictFootTrafficDetail(
@@ -137,7 +139,7 @@ public class DistrictQueryProcessor {
         FootTrafficDistrict current = footTrafficRows.stream()
             .filter(row -> row.periodCode().equals(currentPeriodCode))
             .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("현재 분기 유동인구 정보를 찾을 수 없습니다."));
+            .orElseThrow(() -> new DistrictException(DistrictErrorCode.FOOT_TRAFFIC_NOT_FOUND));
 
         // 4. 분기별 유동인구 계산
         List<DistrictPeriodFootTrafficInfo> periodTotalFootTrafficList = periodCodes.stream()

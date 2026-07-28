@@ -13,6 +13,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.FootTraf
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.SalesCommercial;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.model.StoreCommercial;
 import com.followfollowme.nowdoboss.domainlayer.district.application.common.PeriodCodeCalculator;
+import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictException;
 import com.followfollowme.nowdoboss.domainlayer.district.domain.enums.PeriodTrendType;
 import java.util.List;
 import java.util.Optional;
@@ -40,7 +41,7 @@ class CommercialTrendQueryProcessorTest {
     @Test
     void getTrend_rejectsMalformedPeriodCode() {
         assertThatThrownBy(() -> processor.getTrend("C1", "CS100001", CommercialTrendMetricType.SALES, "20235", 4))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(DistrictException.class);
     }
 
     private static final class StubSalesCommercialRepositoryPort implements SalesCommercialRepositoryPort {
