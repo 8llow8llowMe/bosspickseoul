@@ -12,7 +12,7 @@
 | status     | [status](./status/status.md)             | `(shell)/status`                         | ⬜                           |                                                       |
 | recommend  | [recommend](./recommend/recommend.md)    | `(shell)/recommend`                      | ⬜                           |                                                       |
 | analysis   | [analysis](./analysis/analysis.md)       | `(shell)/analysis,result,simulation…`    | 🟩 명세 완료                 | 지도 탐색 + 라우트 모달/독립 결과 페이지              |
-| simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report`      | ⬜                           |                                                       |
+| simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report`      | 🟩 안전 대기 구현            | V2 Swagger·Gateway 계약 후 실제 기능 재개             |
 | community  | [community](./community/community.md)    | `(shell)/community/{list,register,[id]}` | ⬜                           |                                                       |
 | chatting   | [chatting](./chatting/chatting.md)       | `(shell)/chatting/{list,[roomId]}`       | ⬜                           | 최종 단계(인증·FCM·WS)                                |
 | profile    | [profile](./profile/profile.md)          | `(shell)/profile/{settings,bookmarks,…}` | ⬜                           |                                                       |
