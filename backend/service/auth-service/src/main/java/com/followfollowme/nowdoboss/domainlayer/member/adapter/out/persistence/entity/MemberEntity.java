@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.member.adapter.out.persistence.entity;
 
 import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.MemberStatus;
+import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.OAuthProvider;
 import com.followfollowme.nowdoboss.persistence.entity.BaseEntity;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import jakarta.persistence.Column;
@@ -57,6 +58,11 @@ public class MemberEntity extends BaseEntity {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private SecurityRole role;
+
+    @Comment("소셜 로그인 제공자 (null이면 일반 계정)")
+    @Column(length = 20)
+    @Enumerated(EnumType.STRING)
+    private OAuthProvider provider;
 
     @Comment("회원 상태")
     @Column(nullable = false)

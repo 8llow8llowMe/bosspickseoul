@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.presenter;
 
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthOAuthAuthorizeResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenIssueInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenReissueInfo;
@@ -19,6 +20,12 @@ public class AuthPresenter {
     public TokenReissueResponse toTokenReissueResponse(JwtTokenReissueInfo info) {
         return TokenReissueResponse.builder()
             .accessToken(info.accessToken())
+            .build();
+    }
+
+    public AuthOAuthAuthorizeResponse toOAuthAuthorizeResponse(String authorizationUrl) {
+        return AuthOAuthAuthorizeResponse.builder()
+            .authorizationUrl(authorizationUrl)
             .build();
     }
 }

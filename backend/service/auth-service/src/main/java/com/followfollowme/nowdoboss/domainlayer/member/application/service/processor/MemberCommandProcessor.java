@@ -31,7 +31,12 @@ public class MemberCommandProcessor {
     public void changePassword(long memberId, String currentPassword, String newPassword) {
         Member member = memberQueryProcessor.getActiveMember(memberId);
 
-        if (member.password() == null || !passwordEncoder.matches(currentPassword, member.password())) {
+        // 소셜 계정은 비밀번호가 없으므로 명확한 사유로 거부한다.
+        if (member.password() == null) {
+            throw new MemberException(MemberErrorCode.SOCIAL_ACCOUNT_PASSWORD_UNSUPPORTED);
+        }
+
+        if (!passwordEncoder.matches(currentPassword, member.password())) {
             throw new MemberException(MemberErrorCode.NOT_MATCH_PASSWORD);
         }
 

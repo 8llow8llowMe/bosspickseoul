@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.application.service;
 
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthOAuthAuthorizeResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.presenter.AuthPresenter;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.command.AuthGeneralLoginCommand;
@@ -13,6 +14,8 @@ import com.followfollowme.nowdoboss.domainlayer.auth.application.port.in.AuthWeb
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.EmailVerificationProcessor;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.GeneralLoginProcessor;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.JwtTokenProcessor;
+import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.OAuthLoginProcessor;
+import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.OAuthProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthWebFacade implements AuthWebUseCase {
 
     private final GeneralLoginProcessor generalLoginProcessor;
+    private final OAuthLoginProcessor oAuthLoginProcessor;
     private final JwtTokenProcessor jwtTokenProcessor;
     private final EmailVerificationProcessor emailVerificationProcessor;
     private final AuthPresenter authPresenter;
@@ -67,5 +71,26 @@ public class AuthWebFacade implements AuthWebUseCase {
     @Override
     public void verifyEmailVerificationCode(String email, String code) {
         emailVerificationProcessor.verifyCode(email, code);
+    }
+
+    @Override
+    public AuthOAuthAuthorizeResponse generateOAuthAuthorizationUrl(OAuthProvider provider) {
+        String authorizationUrl = oAuthLoginProcessor.generateAuthorizationUrl(provider);
+        return authPresenter.toOAuthAuthorizeResponse(authorizationUrl);
+    }
+
+    @Override
+    @Transactional
+    public AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state) {
+        // 1. 소셜 로그인 (state 검증 -> 사용자 조회 -> 회원 조회/생성)
+        GeneralLoginInfo loginInfo = oAuthLoginProcessor.login(provider, authCode, state);
+
+        // 2. 토큰 발급 (일반 로그인과 동일 흐름)
+        JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(loginInfo.memberId(), loginInfo.role());
+
+        // 3. Presenter를 통한 Info -> Response 변환
+        AuthGeneralLoginResponse response = authPresenter.toGeneralLoginResponse(jwtTokenIssueInfo);
+
+        return AuthCookieResult.of(response, jwtTokenIssueInfo.refreshToken());
     }
 }

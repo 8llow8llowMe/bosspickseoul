@@ -72,3 +72,18 @@ jwt:
 snowflake:
   datacenter-id: ${SNOWFLAKE_DATACENTER_ID}
   worker-id: ${SNOWFLAKE_WORKER_ID}
+
+# 소셜 로그인 provider 설정. 자격증명 미설정 시에도 기동은 가능하며 소셜 로그인 시점에만 실패한다.
+oauth:
+  kakao:
+    client-id: ${OAUTH_KAKAO_CLIENT_ID:}
+    client-secret: ${OAUTH_KAKAO_CLIENT_SECRET:}
+    redirect-uri: ${OAUTH_KAKAO_REDIRECT_URI:}
+    scope:
+      - profile_nickname
+      - profile_image
+      - account_email
+  naver:
+    client-id: ${OAUTH_NAVER_CLIENT_ID:}
+    client-secret: ${OAUTH_NAVER_CLIENT_SECRET:}
+    redirect-uri: ${OAUTH_NAVER_REDIRECT_URI:}
