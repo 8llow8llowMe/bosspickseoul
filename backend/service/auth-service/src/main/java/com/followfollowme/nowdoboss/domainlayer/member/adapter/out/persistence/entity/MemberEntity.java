@@ -25,7 +25,8 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "member",
     indexes = {
-        @Index(name = "idx_member_email", columnList = "email")
+        // 동시 가입 요청에서 중복 계정이 생기지 않도록 DB 수준 unique 제약을 둔다.
+        @Index(name = "uk_member_email", columnList = "email", unique = true)
     })
 public class MemberEntity extends BaseEntity {
 

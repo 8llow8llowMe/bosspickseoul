@@ -6,6 +6,21 @@ spring:
   cloud:
     config:
       enabled: false
+  # 이메일 인증코드 발송용 SMTP. 자격증명 미설정 시에도 기동은 가능하며 발송 시점에만 실패한다.
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${AUTH_DB_URL}
@@ -51,6 +66,8 @@ jwt:
   refresh-key: ${JWT_REFRESH_KEY}
   access-expiration: ${JWT_ACCESS_EXPIRATION}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+  # 블랙리스트 조회 실패 시 정책. 게이트웨이의 동일 키와 정렬한다. (false = fail-closed, 503 응답)
+  blacklist-fail-open: ${JWT_BLACKLIST_FAIL_OPEN:false}
 
 snowflake:
   datacenter-id: ${SNOWFLAKE_DATACENTER_ID}
