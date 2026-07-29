@@ -10,6 +10,7 @@ import com.followfollowme.nowdoboss.domainlayer.auth.application.info.GeneralLog
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenIssueInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenReissueInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.in.AuthWebUseCase;
+import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.EmailVerificationProcessor;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.GeneralLoginProcessor;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.JwtTokenProcessor;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class AuthWebFacade implements AuthWebUseCase {
 
     private final GeneralLoginProcessor generalLoginProcessor;
     private final JwtTokenProcessor jwtTokenProcessor;
+    private final EmailVerificationProcessor emailVerificationProcessor;
     private final AuthPresenter authPresenter;
 
     @Override
@@ -54,5 +56,16 @@ public class AuthWebFacade implements AuthWebUseCase {
         TokenReissueResponse response = authPresenter.toTokenReissueResponse(jwtTokenReissueInfo);
 
         return AuthCookieResult.of(response, jwtTokenReissueInfo.newRefreshToken());
+    }
+
+    @Override
+    public void sendEmailVerificationCode(String email) {
+        // Redis/메일 중심 흐름이라 트랜잭션 경계를 두지 않는다 (DB 조회는 단건 findByEmail뿐).
+        emailVerificationProcessor.sendCode(email);
+    }
+
+    @Override
+    public void verifyEmailVerificationCode(String email, String code) {
+        emailVerificationProcessor.verifyCode(email, code);
     }
 }

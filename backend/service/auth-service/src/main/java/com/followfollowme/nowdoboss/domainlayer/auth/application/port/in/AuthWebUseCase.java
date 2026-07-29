@@ -13,4 +13,8 @@ public interface AuthWebUseCase {
     void logout(long memberId, String tokenId);
 
     AuthCookieResult<TokenReissueResponse> reissueToken(TokenReissueCommand command);
+
+    void sendEmailVerificationCode(String email);
+
+    void verifyEmailVerificationCode(String email, String code);
 }

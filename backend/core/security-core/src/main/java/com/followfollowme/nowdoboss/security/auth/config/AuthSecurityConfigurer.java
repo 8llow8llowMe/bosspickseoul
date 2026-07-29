@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.security.auth.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.followfollowme.nowdoboss.security.auth.blacklist.AccessTokenBlacklistVerifier;
 import com.followfollowme.nowdoboss.security.auth.handler.JwtAuthenticationFailureHandler;
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthFilter;
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
@@ -11,6 +12,7 @@ import com.followfollowme.nowdoboss.security.common.handler.DefaultSecurityError
 import com.followfollowme.nowdoboss.security.common.handler.SecurityErrorResponseWriter;
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -94,8 +96,11 @@ public class AuthSecurityConfigurer {
     }
 
     @Bean
-    public JwtAuthFilter jwtAuthFilter(JwtAuthProvider jwtAuthProvider, AuthenticationFailureHandler jwtAuthenticationFailureHandler) {
-        return new JwtAuthFilter(jwtAuthProvider, jwtAuthenticationFailureHandler);
+    public JwtAuthFilter jwtAuthFilter(
+        JwtAuthProvider jwtAuthProvider, AuthenticationFailureHandler jwtAuthenticationFailureHandler,
+        ObjectProvider<AccessTokenBlacklistVerifier> blacklistVerifierProvider
+    ) {
+        return new JwtAuthFilter(jwtAuthProvider, jwtAuthenticationFailureHandler, blacklistVerifierProvider.getIfAvailable());
     }
 
     @Bean

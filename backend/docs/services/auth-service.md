@@ -26,6 +26,53 @@
 - 다른 서비스와 달리 인증 자체를 담당하므로 보안 흐름을 단순 조회 서비스처럼 취급하지 않는다.
 - 토큰/쿠키/Redis 키 설계는 운영 정책과 같이 움직이므로 문서와 설정을 함께 본다.
 
+## 인증/회원 보안 정책 (2026-07 보완)
+
+**블랙리스트 자체 검증**
+- auth-service는 게이트웨이를 우회해 직접 호출되므로, `JwtAuthFilter`(security-core)가
+  `AccessTokenBlacklistVerifier` 훅으로 로그아웃된 access 토큰(jti)을 직접 차단한다 → `SECURITY_007`.
+  jti가 없는 토큰은 `SECURITY_003`으로 거부한다(영구 revoke 불가 토큰 차단).
+- 구현은 `RedisJwtTokenStoreAdapter`(기존 블랙리스트 키 재사용). Redis 장애 시 정책은
+  `jwt.blacklist-fail-open`(env `JWT_BLACKLIST_FAIL_OPEN`, 기본 false=fail-closed `SECURITY_008` 503)로
+  게이트웨이와 동일 키로 정렬한다.
+
+**계정 열거 방지**
+- 로그인 실패는 미존재/비밀번호 불일치 구분 없이 `AUTH_006 LOGIN_FAILED`(401)로 통합.
+  미존재 이메일에도 더미 bcrypt를 1회 수행해 응답 시간 차이(타이밍 채널)도 제거한다.
+- 탈퇴/정지 상태는 비밀번호가 일치할 때만 노출한다(`MEMBER_004`/`MEMBER_005`).
+- 인증코드 발송은 가입 여부와 무관하게 항상 200 — 기가입 이메일에는 코드 대신 안내 메일을 발송해
+  메일박스 소유자만 상태를 알 수 있다. 가입 시 중복(`MEMBER_001` 409)은 이메일 인증(메일박스 소유 증명)
+  이후에만 도달 가능하므로 열거 벡터가 아니다.
+
+**회원 상태 검사**
+- `MemberQueryProcessor.getActiveMember()`가 회원 스코프 API(/me, 북마크, 수정/탈퇴/비밀번호)
+  진입 시 ACTIVE 상태를 공통 검증한다. 탈퇴/정지 회원의 만료 전 토큰 접근을 차단.
+
+**회원 라이프사이클 API** (`/api/v1/members`)
+- `PATCH /me` — 닉네임/프로필 이미지 URL 수정
+- `POST /me/password` — 비밀번호 변경. 성공 시 세션 revoke(refresh 삭제 + 현재 access 블랙리스트).
+- `POST /me/withdraw` — 논리 탈퇴. name/nickname `탈퇴회원` 마스킹 + profileImageUrl/password 제거 +
+  status=WITHDRAWN + 세션 revoke. email 유지로 동일 이메일 재가입 차단.
+- revoke는 보안 이벤트 경로에서 **실패 시 전파되어 DB 변경과 함께 롤백**된다(무효화 없는 성공 방지).
+  로그아웃은 기존대로 관용 처리(`revokeToken` vs `revokeAllSessions`).
+- 알려진 한계: 다른 기기의 기존 access token은 만료까지 유효(재발급은 차단됨). `JWT_ACCESS_EXPIRATION`
+  단축(PT30M 권장) 또는 회원 단위 revocation 마커(후속) 참고. 토큰 재발급은 회원 상태를 검증해
+  정지/탈퇴 회원의 reissue를 차단하고 refresh를 삭제한다.
+- `member.email`은 DB unique 제약(`uk_member_email`) — 동시 가입 중복은 409로 변환. 기존 DB에는
+  `backend/scripts/migration/member-email-unique-index-runbook.sql` 수동 적용 필요(ddl-auto는 미보장).
+
+**이메일 인증 (가입 필수)** (`/api/v1/auth`)
+- `POST /email/send-code` — 인증코드 발송. 60초 쿨다운(`AUTH_003`, 429)이 가입 여부 판별보다 먼저 적용되고,
+  응답은 항상 200(기가입 이메일은 안내 메일 발송).
+- `POST /email/verify-code` — 코드 검증(`AUTH_004`/`AUTH_005`). 성공 시 30분간 가입 가능.
+- 가입(`POST /members/signup`)은 인증 플래그가 없으면 `MEMBER_006`(400)로 거부하고, 성공 시 플래그를 소비한다.
+- 이메일은 전 구간 trim+소문자 정규화(Redis 키/DB 저장 정합). 코드: SecureRandom 8자(I/O/0/1 제외), TTL 5분.
+  Redis 키는 `{prefix}:auth:emailVerification*:{email}`.
+- 발송: `spring.mail.*`(SMTP, env `MAIL_HOST/PORT/USERNAME/PASSWORD`) + `authMailTaskExecutor` 비동기,
+  로그에는 이메일을 마스킹해 남긴다. 자격증명 미설정이어도 기동은 가능하며 발송 시점에만 실패한다.
+  **배포 전 Vault dev/prod secret에 MAIL_* 키 추가 필요.**
+- 후속 권장: send-code/login의 IP 기반 rate limit(게이트웨이), 회원 단위 revocation 마커.
+
 ## 상권 북마크 시스템 (신규)
 
 **엔드포인트** (`/api/v1/members/me/bookmarks`):

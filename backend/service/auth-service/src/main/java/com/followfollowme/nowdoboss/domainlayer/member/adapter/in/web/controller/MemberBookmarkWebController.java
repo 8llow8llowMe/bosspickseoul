@@ -11,8 +11,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/members/me/bookmarks")
@@ -77,7 +81,7 @@ public class MemberBookmarkWebController {
     public ResponseEntity<Response<MemberBookmarksResponse>> getBookmarks(
         @AuthenticationPrincipal MemberLoginActive loginActive,
         @Parameter(description = "마지막으로 조회한 북마크 아이디 (첫 페이지: 생략)") @RequestParam(required = false) Long lastBookmarkId,
-        @Parameter(description = "조회 개수 (기본 10)") @RequestParam(defaultValue = "10") int size
+        @Parameter(description = "조회 개수 (기본 10, 최대 50)") @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
     ) {
         MemberBookmarksResponse response = memberBookmarkWebUseCase.getBookmarks(
             loginActive.memberId(), lastBookmarkId, size);

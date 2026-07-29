@@ -7,6 +7,7 @@ import com.followfollowme.nowdoboss.domainlayer.member.application.info.MemberBo
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.in.MemberBookmarkWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.member.application.service.processor.MemberBookmarkCommandProcessor;
 import com.followfollowme.nowdoboss.domainlayer.member.application.service.processor.MemberBookmarkQueryProcessor;
+import com.followfollowme.nowdoboss.domainlayer.member.application.service.processor.MemberQueryProcessor;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.MemberBookmarkTargetType;
 import com.followfollowme.nowdoboss.persistence.dto.SliceResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class MemberBookmarkWebFacade implements MemberBookmarkWebUseCase {
 
     private final MemberBookmarkCommandProcessor memberBookmarkCommandProcessor;
     private final MemberBookmarkQueryProcessor memberBookmarkQueryProcessor;
+    private final MemberQueryProcessor memberQueryProcessor;
     private final MemberBookmarkPresenter memberBookmarkPresenter;
 
     @Override
@@ -29,6 +31,9 @@ public class MemberBookmarkWebFacade implements MemberBookmarkWebUseCase {
         String targetCode,
         String targetName
     ) {
+        // 탈퇴/정지 회원의 만료 전 토큰 접근을 차단한다.
+        memberQueryProcessor.getActiveMember(memberId);
+
         MemberBookmarkInfo info = memberBookmarkCommandProcessor.addBookmark(
             memberId, targetType, targetCode, targetName);
         return memberBookmarkPresenter.toCreateResponse(info);
@@ -37,12 +42,14 @@ public class MemberBookmarkWebFacade implements MemberBookmarkWebUseCase {
     @Override
     @Transactional
     public void removeBookmark(long memberId, long bookmarkId) {
+        memberQueryProcessor.getActiveMember(memberId);
         memberBookmarkCommandProcessor.removeBookmark(bookmarkId, memberId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public MemberBookmarksResponse getBookmarks(long memberId, Long lastBookmarkId, int size) {
+        memberQueryProcessor.getActiveMember(memberId);
         SliceResponse<MemberBookmarkInfo> slice = memberBookmarkQueryProcessor.getBookmarks(
             memberId, lastBookmarkId, size);
         return memberBookmarkPresenter.toBookmarksResponse(slice);

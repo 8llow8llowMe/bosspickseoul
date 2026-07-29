@@ -1,6 +1,8 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.controller;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.AuthEmailCodeSendRequest;
+import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.AuthEmailCodeVerifyRequest;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request.AuthGeneralLoginRequest;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
 import com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
@@ -13,6 +15,7 @@ import com.followfollowme.nowdoboss.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +59,20 @@ public class AuthWebController {
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.clearRefreshCookie().toString())
             .body(Response.success());
+    }
+
+    @Operation(summary = "이메일 인증코드 발송", description = "회원가입용 이메일 인증코드를 발송합니다. 60초 쿨다운이 적용되며, 가입 여부와 무관하게 항상 성공으로 응답합니다(기가입 이메일에는 안내 메일 발송).")
+    @PostMapping("/email/send-code")
+    public ResponseEntity<Response<Void>> sendEmailVerificationCode(@Valid @RequestBody AuthEmailCodeSendRequest request) {
+        authWebUseCase.sendEmailVerificationCode(request.email());
+        return ResponseEntity.ok().body(Response.success());
+    }
+
+    @Operation(summary = "이메일 인증코드 검증", description = "메일로 받은 인증코드를 검증합니다. 성공하면 30분 동안 해당 이메일로 회원가입할 수 있습니다.")
+    @PostMapping("/email/verify-code")
+    public ResponseEntity<Response<Void>> verifyEmailVerificationCode(@Valid @RequestBody AuthEmailCodeVerifyRequest request) {
+        authWebUseCase.verifyEmailVerificationCode(request.email(), request.code());
+        return ResponseEntity.ok().body(Response.success());
     }
 
     @Operation(summary = "토큰 재발급", description = "리프레시 토큰으로 Access Token을 재발급합니다.")

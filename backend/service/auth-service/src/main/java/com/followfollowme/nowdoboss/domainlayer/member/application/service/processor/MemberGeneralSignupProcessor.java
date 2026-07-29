@@ -4,9 +4,11 @@ import com.followfollowme.nowdoboss.domainlayer.member.application.command.Membe
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.MemberRepositoryPort;
+import com.followfollowme.nowdoboss.domainlayer.member.application.port.out.SignupEmailVerificationPort;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.MemberStatus;
 import com.followfollowme.nowdoboss.persistence.util.SnowflakeIdGenerator;
+import java.util.Locale;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,33 +19,43 @@ import org.springframework.stereotype.Service;
 public class MemberGeneralSignupProcessor {
 
     private final MemberRepositoryPort memberRepositoryPort;
+    private final SignupEmailVerificationPort signupEmailVerificationPort;
     private final PasswordEncoder passwordEncoder;
     private final SnowflakeIdGenerator snowflakeIdGenerator;
 
     public void generalSignup(MemberGeneralSignupCommand command) {
-        // 1. 이메일 중복 검증
-        validateEmailNotExists(command.email());
+        // 이메일은 인증 플래그 키(Redis)와 정합되도록 trim + 소문자로 정규화해 저장/검증한다.
+        String email = command.email().trim().toLowerCase(Locale.ROOT);
 
-        // 2. 회원 생성 및 저장
-        Member member = createMember(command);
+        // 1. 이메일 인증 완료 여부 검증
+        validateEmailVerified(email);
+
+        // 2. 이메일 중복 검증
+        validateEmailNotExists(email);
+
+        // 3. 회원 생성 및 저장 후 인증 플래그 소비
+        Member member = createMember(command, email);
         memberRepositoryPort.save(member);
+        signupEmailVerificationPort.consume(email);
+    }
+
+    private void validateEmailVerified(String email) {
+        if (!signupEmailVerificationPort.isVerified(email)) {
+            throw new MemberException(MemberErrorCode.EMAIL_NOT_VERIFIED);
+        }
     }
 
     private void validateEmailNotExists(String email) {
-        memberRepositoryPort.findByEmail(email)
-            .ifPresent(existing -> {
-                throw switch (existing.status()) {
-                    case ACTIVE -> new MemberException(MemberErrorCode.EXIST_MEMBER_EMAIL, email);
-                    case WITHDRAWN -> new MemberException(MemberErrorCode.MEMBER_ALREADY_WITHDRAWN, email);
-                    case SUSPENDED -> new MemberException(MemberErrorCode.MEMBER_SUSPENDED, email);
-                };
-            });
+        // 계정 상태(탈퇴/정지) 노출을 막기 위해 상태와 무관하게 동일한 응답을 반환한다.
+        if (memberRepositoryPort.findByEmail(email).isPresent()) {
+            throw new MemberException(MemberErrorCode.EXIST_MEMBER_EMAIL, email);
+        }
     }
 
-    private Member createMember(MemberGeneralSignupCommand command) {
+    private Member createMember(MemberGeneralSignupCommand command, String email) {
         return Member.builder()
             .id(snowflakeIdGenerator.generateId())
-            .email(command.email())
+            .email(email)
             .password(passwordEncoder.encode(command.password()))
             .name(command.name())
             .nickname(command.nickname())

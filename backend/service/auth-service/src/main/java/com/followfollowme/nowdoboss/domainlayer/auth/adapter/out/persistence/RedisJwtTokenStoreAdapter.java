@@ -2,11 +2,16 @@ package com.followfollowme.nowdoboss.domainlayer.auth.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.out.JwtTokenStorePort;
 import com.followfollowme.nowdoboss.redis.properties.RedisProperties;
+import com.followfollowme.nowdoboss.security.auth.blacklist.AccessTokenBlacklistVerifier;
 import com.followfollowme.nowdoboss.security.auth.jwt.JwtAuthProperties;
 import java.time.Duration;
 import java.util.Optional;
+import com.followfollowme.nowdoboss.security.common.exception.SecurityErrorCode;
+import com.followfollowme.nowdoboss.security.common.exception.SecurityJwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -14,13 +19,17 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
+public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessTokenBlacklistVerifier {
 
     private static final String BLACKLIST_VALUE = "logout";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final JwtAuthProperties jwtAuthProperties;
     private final RedisProperties redisProperties;
+
+    // 게이트웨이의 JWT_BLACKLIST_FAIL_OPEN 정책과 동일한 키로 정렬한다. (기본 fail-closed)
+    @Value("${jwt.blacklist-fail-open:false}")
+    private boolean blacklistFailOpen;
 
     @Override
     public void save(long memberId, String refreshToken) {
@@ -48,26 +57,32 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort {
         }
     }
 
+    /**
+     * 세션 무효화(탈퇴/비밀번호 변경/로그아웃)의 핵심 연산이므로 Redis 실패를 삼키지 않고 전파한다.
+     * 관용 처리가 필요한 호출부(로그아웃)는 상위에서 예외를 처리한다.
+     */
     @Override
     public void delete(long memberId) {
-        try {
-            redisTemplate.delete(buildRefreshKey(memberId));
-        } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 삭제 실패: memberId={}, error={}",
-                memberId, e.getMessage());
-        }
+        redisTemplate.delete(buildRefreshKey(memberId));
     }
 
     @Override
     public void saveAccessTokenIdBlacklist(String tokenId, Duration ttl) {
+        redisTemplate.opsForValue().set(buildBlacklistKey(tokenId), BLACKLIST_VALUE, ttl);
+    }
+
+    @Override
+    public boolean isRevoked(String tokenId) {
         try {
-            redisTemplate.opsForValue().set(
-                buildBlacklistKey(tokenId),
-                BLACKLIST_VALUE,
-                ttl
-            );
-        } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] AccessToken 블랙리스트 저장 실패: error={}", e.getMessage());
+            return Boolean.TRUE.equals(redisTemplate.hasKey(buildBlacklistKey(tokenId)));
+        } catch (DataAccessException e) {
+            log.error("[RedisJwtTokenStoreAdapter] AccessToken 블랙리스트 조회 실패: error={}", e.getMessage());
+            if (blacklistFailOpen) {
+                // fail-open: Redis 장애 시 인증 마비를 피하고 통과시킨다.
+                return false;
+            }
+            // fail-closed(기본): 게이트웨이 정책과 동일하게 503으로 응답한다.
+            throw new SecurityJwtException(SecurityErrorCode.TOKEN_VERIFICATION_UNAVAILABLE);
         }
     }
 
