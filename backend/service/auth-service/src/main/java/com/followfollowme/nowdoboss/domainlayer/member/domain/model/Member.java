@@ -1,6 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.member.domain.model;
 
 import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.MemberStatus;
+import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.OAuthProvider;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import lombok.Builder;
 
@@ -13,6 +14,8 @@ public record Member(
     String nickname,
     String profileImageUrl,
     SecurityRole role,
+    // 소셜 가입/연결 제공자. null이면 일반(이메일+비밀번호) 계정.
+    OAuthProvider provider,
     MemberStatus status
 ) {
 
@@ -35,9 +38,16 @@ public record Member(
         return toBuilder().password(encodedPassword).build();
     }
 
+    /**
+     * 일반 계정을 소셜 계정으로 연결한다. (동일 이메일의 소셜 로그인 시 자동 연결 정책)
+     */
+    public Member withProvider(OAuthProvider newProvider) {
+        return toBuilder().provider(newProvider).build();
+    }
+
     private MemberBuilder toBuilder() {
         return Member.builder()
             .id(id).email(email).password(password).name(name).nickname(nickname)
-            .profileImageUrl(profileImageUrl).role(role).status(status);
+            .profileImageUrl(profileImageUrl).role(role).provider(provider).status(status);
     }
 }

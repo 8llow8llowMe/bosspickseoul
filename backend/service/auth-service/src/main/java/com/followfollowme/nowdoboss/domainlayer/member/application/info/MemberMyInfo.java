@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.member.application.info;
 
+import com.followfollowme.nowdoboss.domainlayer.member.domain.enums.OAuthProvider;
 import com.followfollowme.nowdoboss.domainlayer.member.domain.model.Member;
 import com.followfollowme.nowdoboss.security.common.enums.SecurityRole;
 import lombok.Builder;
@@ -11,7 +12,8 @@ public record MemberMyInfo(
     String name,
     String nickname,
     String profileImageUrl,
-    SecurityRole role
+    SecurityRole role,
+    OAuthProvider provider
 ) {
 
     public static MemberMyInfo from(Member member) {
@@ -22,6 +24,7 @@ public record MemberMyInfo(
             .nickname(member.nickname())
             .profileImageUrl(member.profileImageUrl())
             .role(member.role())
+            .provider(member.provider())
             .build();
     }
 }

@@ -25,7 +25,10 @@ public record MemberMyInfoResponse(
 
     @Schema(description = "회원 권한 메타데이터",
         example = "{\"code\": \"USER\", \"name\": \"일반 회원\", \"description\": \"일반 회원 권한입니다.\"}")
-    CodeNameDescriptionMetadata role
+    CodeNameDescriptionMetadata role,
+
+    @Schema(description = "소셜 로그인 제공자 (일반 계정이면 null)", example = "KAKAO", nullable = true)
+    String provider
 ) {
 
 }

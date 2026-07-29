@@ -18,6 +18,7 @@ public class MemberPresenter {
             .nickname(info.nickname())
             .profileImageUrl(info.profileImageUrl())
             .role(CodeNameDescriptionMetadata.of(role.name(), role.getDisplayName(), role.getDisplayName()))
+            .provider(info.provider() == null ? null : info.provider().name())
             .build();
     }
 }

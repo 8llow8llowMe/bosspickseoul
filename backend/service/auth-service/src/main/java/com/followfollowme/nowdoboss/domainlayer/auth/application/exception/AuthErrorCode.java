@@ -14,7 +14,11 @@ public enum AuthErrorCode {
     INVALID_EMAIL_CODE("AUTH_004", "인증코드가 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
     EXPIRED_EMAIL_CODE("AUTH_005", "인증코드가 만료되었거나 발급되지 않았습니다. 다시 요청해주세요.", HttpStatus.BAD_REQUEST),
     // 계정 열거(존재 여부 탐색) 방지를 위해 미존재/비밀번호 불일치를 하나의 응답으로 통합한다.
-    LOGIN_FAILED("AUTH_006", "이메일 또는 비밀번호가 올바르지 않습니다.", HttpStatus.UNAUTHORIZED);
+    LOGIN_FAILED("AUTH_006", "이메일 또는 비밀번호가 올바르지 않습니다.", HttpStatus.UNAUTHORIZED),
+    UNSUPPORTED_OAUTH_PROVIDER("AUTH_007", "지원하지 않는 소셜 로그인 제공자입니다. (%s)", HttpStatus.BAD_REQUEST),
+    UNMATCHED_OAUTH_PROVIDER("AUTH_008", "이미 %s(으)로 가입된 계정입니다. 해당 소셜 로그인을 이용해주세요.", HttpStatus.CONFLICT),
+    OAUTH_EMAIL_REQUIRED("AUTH_009", "소셜 계정의 이메일 제공 동의가 필요합니다.", HttpStatus.BAD_REQUEST),
+    INVALID_OAUTH_STATE("AUTH_010", "유효하지 않은 소셜 로그인 요청입니다. 처음부터 다시 시도해주세요.", HttpStatus.UNAUTHORIZED);
 
     private final String code;
     private final String message;

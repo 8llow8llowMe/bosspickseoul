@@ -73,6 +73,24 @@
   **배포 전 Vault dev/prod secret에 MAIL_* 키 추가 필요.**
 - 후속 권장: send-code/login의 IP 기반 rate limit(게이트웨이), 회원 단위 revocation 마커.
 
+**소셜 로그인 (카카오/네이버)** (`/api/v1/auth`)
+- `GET /{provider}/authorize` — 인가 URL 생성. CSRF 방어용 일회성 `state`(SecureRandom 16바이트 hex)를
+  Redis(`{prefix}:auth:oauthState:{state}`, TTL 10분)에 provider와 함께 저장하고 URL에 포함한다.
+- `GET /{provider}/login?code=&state=` — 콜백. state를 GETDEL로 원자 소비(재사용 차단)하고 저장된
+  provider와 일치해야 한다(`AUTH_010`). 토큰 교환 → 프로필 조회 → 회원 조회/자동가입 → 일반 로그인과
+  동일한 응답(accessToken + refresh 쿠키).
+- 계정 정책: 이메일 미제공 동의 시 `AUTH_009`(400). 동일 이메일의 일반 계정은 소셜로 자동 연결,
+  다른 provider 기가입이면 `AUTH_008`(409). 탈퇴/정지 회원은 소셜 로그인도 차단.
+  소셜 계정(password null)의 비밀번호 변경은 `MEMBER_007`(400).
+- 구조: 도메인 enum `member/domain/enums/OAuthProvider`(회원 속성) + `Member.provider` 컬럼(nullable).
+  provider별 구현은 `OAuthAuthorizationUrlProvider`/`OAuthMemberQueryPort`(supports() 키 라우팅,
+  adapter는 `OAuthMemberQueryResult`로 변환) + HTTP Interface(WebClient, 응답 타임아웃 10초).
+- `/members/me` 응답에 `provider` 필드가 추가되어 FE가 소셜 계정 여부를 구분한다.
+- TripMarble 대비 개선: state CSRF 방어 추가, enum의 adapter→domain 재배치, fetcher가 타 컨텍스트
+  도메인을 직접 조립하던 것을 QueryResult 계약으로 교정, 이메일 정규화/미동의 처리.
+- **배포 전 Vault dev/prod secret에 OAUTH_KAKAO_*/OAUTH_NAVER_* 6개 키 추가 필요**
+  (client-id/client-secret/redirect-uri — redirect-uri는 provider 콘솔 등록값과 일치).
+
 ## 상권 북마크 시스템 (신규)
 
 **엔드포인트** (`/api/v1/members/me/bookmarks`):
