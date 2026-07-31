@@ -19,6 +19,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class MemberExceptionHandler {
 
+    private static final String EMAIL_UNIQUE_CONSTRAINT = "uk_member_email";
+
     @ExceptionHandler(MemberException.class)
     public ResponseEntity<Response<Void>> handleMemberException(MemberException exception) {
         return ResponseEntity
@@ -59,11 +61,21 @@ public class MemberExceptionHandler {
     /**
      * 동시 가입 레이스에서 uk_member_email 제약이 두 번째 요청을 잡으면 500 대신
      * 일반 중복 응답과 동일한 409로 변환한다.
+     * 그 외 제약 위반(NOT NULL 등)은 중복 가입으로 오인시키지 않고 500으로 남긴다.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Response<Void>> handleDataIntegrityViolation(DataIntegrityViolationException exception) {
+        if (!isEmailUniqueViolation(exception)) {
+            throw exception;
+        }
+
         MemberErrorCode errorCode = MemberErrorCode.EXIST_MEMBER_EMAIL;
         return ResponseEntity.status(errorCode.getHttpStatus())
             .body(Response.fail(errorCode.getCode(), "이미 가입된 이메일입니다."));
+    }
+
+    private boolean isEmailUniqueViolation(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause().getMessage();
+        return message != null && message.contains(EMAIL_UNIQUE_CONSTRAINT);
     }
 }

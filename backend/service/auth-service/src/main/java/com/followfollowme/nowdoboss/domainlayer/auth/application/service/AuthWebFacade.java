@@ -11,6 +11,7 @@ import com.followfollowme.nowdoboss.domainlayer.auth.application.info.GeneralLog
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenIssueInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.info.JwtTokenReissueInfo;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.port.in.AuthWebUseCase;
+import com.followfollowme.nowdoboss.domainlayer.auth.application.port.out.query.OAuthMemberQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.EmailVerificationProcessor;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.GeneralLoginProcessor;
 import com.followfollowme.nowdoboss.domainlayer.auth.application.service.processor.JwtTokenProcessor;
@@ -80,12 +81,12 @@ public class AuthWebFacade implements AuthWebUseCase {
     }
 
     @Override
-    @Transactional
     public AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state) {
-        // 1. 소셜 로그인 (state 검증 -> 사용자 조회 -> 회원 조회/생성)
-        GeneralLoginInfo loginInfo = oAuthLoginProcessor.login(provider, authCode, state);
+        // 1. state 검증 + provider 프로필 조회 — 외부 HTTP 왕복이므로 트랜잭션 밖에서 수행한다.
+        OAuthMemberQueryResult oAuthMember = oAuthLoginProcessor.fetchOAuthMember(provider, authCode, state);
 
-        // 2. 토큰 발급 (일반 로그인과 동일 흐름)
+        // 2. 회원 조회/생성 (Processor의 트랜잭션 경계) 후 토큰 발급
+        GeneralLoginInfo loginInfo = oAuthLoginProcessor.login(provider, oAuthMember);
         JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(loginInfo.memberId(), loginInfo.role());
 
         // 3. Presenter를 통한 Info -> Response 변환

@@ -21,6 +21,7 @@ import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -50,23 +51,48 @@ public class OAuthLoginProcessor {
         return authorizationUrlRouter.generateUrl(provider, state);
     }
 
-    public GeneralLoginInfo login(OAuthProvider provider, String authCode, String state) {
+    /**
+     * provider 왕복(HTTP)만 담당한다. DB 트랜잭션 밖에서 호출해 커넥션 점유를 피한다.
+     */
+    public OAuthMemberQueryResult fetchOAuthMember(OAuthProvider provider, String authCode, String state) {
         // 1. state 검증(일회성 소비) — 우리가 발급한 요청인지, provider가 바뀌지 않았는지 확인
         validateState(provider, state);
 
-        // 2. provider로부터 사용자 프로필 조회
+        // 2. provider로부터 사용자 프로필 조회 및 필수 항목(부분 동의) 검증
         OAuthMemberQueryResult oAuthMember = memberQueryRouter.fetchMember(provider, authCode, state);
-        if (!StringUtils.hasText(oAuthMember.email())) {
-            throw new AuthException(AuthErrorCode.OAUTH_EMAIL_REQUIRED);
-        }
+        validateRequiredProfile(oAuthMember);
+
+        return oAuthMember;
+    }
+
+    /**
+     * 조회한 프로필로 회원을 조회/생성한다. 외부 HTTP를 포함하지 않는 이 구간만 트랜잭션 대상이다.
+     */
+    @Transactional
+    public GeneralLoginInfo login(OAuthProvider provider, OAuthMemberQueryResult oAuthMember) {
         String email = EmailVerificationProcessor.normalize(oAuthMember.email());
 
-        // 3. 기존 회원 조회(상태/provider 검증) 또는 신규 생성
         Member member = memberRepositoryPort.findByEmail(email)
-            .map(existing -> validateExistingMember(existing, provider))
+            .map(existing -> resolveExistingMember(existing, provider, oAuthMember))
             .orElseGet(() -> createOAuthMember(provider, email, oAuthMember));
 
         return GeneralLoginInfo.of(member.id(), member.role());
+    }
+
+    private void validateRequiredProfile(OAuthMemberQueryResult oAuthMember) {
+        if (!StringUtils.hasText(oAuthMember.email())) {
+            throw new AuthException(AuthErrorCode.OAUTH_EMAIL_REQUIRED);
+        }
+
+        // 회원 식별의 기준이 이메일이므로, provider가 소유를 검증하지 않은 이메일은 신뢰하지 않는다.
+        if (!oAuthMember.emailVerified()) {
+            throw new AuthException(AuthErrorCode.OAUTH_EMAIL_UNVERIFIED);
+        }
+
+        // nickname/name은 회원 필수 컬럼이라 미동의 시 DB 제약 위반 대신 명확한 사유로 거부한다.
+        if (!StringUtils.hasText(oAuthMember.nickname()) && !StringUtils.hasText(oAuthMember.name())) {
+            throw new AuthException(AuthErrorCode.OAUTH_PROFILE_REQUIRED);
+        }
     }
 
     private void validateState(OAuthProvider provider, String state) {
@@ -82,7 +108,7 @@ public class OAuthLoginProcessor {
         }
     }
 
-    private Member validateExistingMember(Member existing, OAuthProvider provider) {
+    private Member resolveExistingMember(Member existing, OAuthProvider provider, OAuthMemberQueryResult oAuthMember) {
         // 상태 먼저 확인 — 탈퇴/정지 회원은 소셜 로그인도 차단
         switch (existing.status()) {
             case WITHDRAWN -> throw new MemberException(MemberErrorCode.MEMBER_ALREADY_WITHDRAWN);
@@ -91,7 +117,8 @@ public class OAuthLoginProcessor {
             } // 정상
         }
 
-        // 일반 계정이면 소셜 계정으로 자동 연결 (provider가 이메일 소유를 검증했다는 전제)
+        // 일반 계정이면 소셜 계정으로 연결한다.
+        // 검증된 이메일만 여기 도달하므로(validateRequiredProfile) 계정 탈취 경로가 아니다.
         if (existing.provider() == null) {
             log.info("[OAuthLoginProcessor] 일반 계정을 소셜 계정으로 연결: memberId={}, provider={}", existing.id(), provider);
             return memberRepositoryPort.save(existing.withProvider(provider));
