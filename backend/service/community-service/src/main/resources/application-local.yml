@@ -26,9 +26,10 @@ spring:
 
 logging:
   level:
-    org.hibernate:
-      type.descriptor.sql: trace
-      org.hibernate.SQLQuery: debug
+    # 로거명을 평탄하게 적는다. org.hibernate 아래에 org.hibernate.SQLQuery를 중첩하면
+    # 실제 로거명이 org.hibernate.org.hibernate.SQLQuery가 되어 설정이 무효가 된다.
+    org.hibernate.type.descriptor.sql: trace
+    org.hibernate.SQL: debug
 
 eureka:
   client:
@@ -39,5 +40,10 @@ snowflake:
   datacenter-id: 1
   worker-id: 4
 
-jwt:
-  access-key: ENC(YDO9DGO7lP8iCqeTNW/SXWCv0697ep+bbGvMnjoJfMDEtWy1Zq/yfZDsovoggEcmLLOtZfHSpLYoRO0YEUlrOl3CvD5KWXo55haCMx7cZMg=)
+# Resource Server 검증 키. 바인딩 prefix는 app.security.jwt.resource 이므로
+# jwt.access-key 로 두면 값이 주입되지 않아 기동 시 NPE가 발생한다. (auth-service 발급 키와 동일 값)
+app:
+  security:
+    jwt:
+      resource:
+        access-key: ENC(YDO9DGO7lP8iCqeTNW/SXWCv0697ep+bbGvMnjoJfMDEtWy1Zq/yfZDsovoggEcmLLOtZfHSpLYoRO0YEUlrOl3CvD5KWXo55haCMx7cZMg=)
