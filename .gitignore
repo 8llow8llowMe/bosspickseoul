@@ -39,3 +39,7 @@
 !.claude/skills/mr/SKILL.md
 !.claude/skills/issue/
 !.claude/skills/issue/SKILL.md
+
+# JVM 크래시 덤프 (로컬 실행 시 리포지토리 루트에 생성됨)
+hs_err_pid*.log
+replay_pid*.log

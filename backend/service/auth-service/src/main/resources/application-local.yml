@@ -58,9 +58,10 @@ spring:
 # log 관리
 logging:
   level:
-    org.hibernate:
-      type.descriptor.sql: trace
-      org.hibernate.SQLQuery: debug
+    # 로거명을 평탄하게 적는다. org.hibernate 아래에 org.hibernate.SQLQuery를 중첩하면
+    # 실제 로거명이 org.hibernate.org.hibernate.SQLQuery가 되어 설정이 무효가 된다.
+    org.hibernate.type.descriptor.sql: trace
+    org.hibernate.SQL: debug
 
 # snowflake
 snowflake:
