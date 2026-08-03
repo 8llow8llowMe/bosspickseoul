@@ -205,23 +205,24 @@ curl --fail --silent --show-error \
 }
 
 // 이 빌드와 연결된 PR의 라벨 목록을 조회합니다.
-// 판단이 불가능하면 null을 반환해 라벨 조건을 적용하지 않습니다(fail-open).
 //
 // PR 빌드는 CHANGE_ID로 바로 조회하고, 브랜치 빌드(develop/main 머지 빌드)는
 // 커밋에 연결된 PR을 역조회합니다. `Github label filter` 플러그인은 PR discovery 단계만
 // 제한하므로, 머지 후 브랜치 빌드에서는 이렇게 직접 라벨을 확인해야 합니다.
-List<String> resolveDeployLabels(Map<String, String> ctx) {
+//
+// 반환: [resolved: 'true'|'false', reason: '사유 코드', labels: List<String>]
+//   resolved='true'  — 라벨 목록을 확정했습니다. (라벨이 0개인 것도 확정입니다)
+//   resolved='false' — 조회 자체가 불가능했습니다. reason으로 원인을 구분합니다.
+Map<String, Object> resolveDeployLabelContext(Map<String, String> ctx) {
     String credentialId = params.GITHUB_APP_CREDENTIAL_ID?.trim()
     if (!credentialId) {
-        echo 'GITHUB_APP_CREDENTIAL_ID가 비어 있어 라벨 기반 배포 판단을 건너뜁니다.'
-        return null
+        return [resolved: 'false', reason: 'NO_CREDENTIAL', labels: []]
     }
 
     try {
         String slug = resolveRepositorySlug()
         if (!slug) {
-            echo 'origin remote에서 owner/repo를 판단할 수 없어 라벨 기반 배포 판단을 건너뜁니다.'
-            return null
+            return [resolved: 'false', reason: 'NO_REPOSITORY_SLUG', labels: []]
         }
 
         def pullRequest = null
@@ -231,8 +232,9 @@ List<String> resolveDeployLabels(Map<String, String> ctx) {
             String headSha = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
             def associated = readJSON text: githubApiGet("repos/${slug}/commits/${headSha}/pulls", credentialId)
             if (!associated || associated.isEmpty()) {
-                echo "커밋 ${headSha.take(8)}에 연결된 PR이 없어 라벨 조건 없이 진행합니다. (직접 push 등)"
-                return null
+                // PR 없이 브랜치에 직접 push한 경우입니다. 라벨이 지정되지 않은 것과 같게 취급합니다.
+                echo "커밋 ${headSha.take(8)}에 연결된 PR이 없습니다. (브랜치 직접 push)"
+                return [resolved: 'true', reason: 'NO_PULL_REQUEST', labels: []]
             }
             // 머지 커밋이면 merge_commit_sha가 일치하는 PR이 정확한 출처입니다.
             associated.each { candidate ->
@@ -246,7 +248,7 @@ List<String> resolveDeployLabels(Map<String, String> ctx) {
         }
 
         if (pullRequest == null) {
-            return null
+            return [resolved: 'false', reason: 'PULL_REQUEST_PARSE_FAILED', labels: []]
         }
 
         List<String> labels = []
@@ -258,27 +260,36 @@ List<String> resolveDeployLabels(Map<String, String> ctx) {
         }
 
         echo "PR #${pullRequest.number} 라벨: ${labels ? labels.join(', ') : '없음'}"
-        return labels
+        return [resolved: 'true', reason: '', labels: labels]
     } catch (Exception e) {
-        echo "PR 라벨 조회에 실패해 라벨 조건 없이 진행합니다: ${e.message}"
-        return null
+        echo "PR 라벨 조회에 실패했습니다: ${e.message}"
+        return [resolved: 'false', reason: 'API_ERROR', labels: []]
     }
 }
 
 // 라벨을 기준으로 이 서비스를 배포할지 판단합니다.
-// PR에 `backend-*` 라벨이 하나라도 있으면 그 목록에 포함된 서비스만 배포합니다.
-// 라벨이 없거나 조회에 실패하면 라벨 조건을 적용하지 않고 경로 기반 판단 결과를 따릅니다.
-boolean isServiceDeployAllowedByLabels(Map<String, String> config, List<String> labels) {
-    if (labels == null) {
-        return true
+// PR에 `backend-{serviceName}` 라벨이 지정된 서비스만 배포합니다.
+//
+// 라벨이 하나도 없으면 어떤 서비스도 배포하지 않습니다(fail-closed).
+// 배포는 의도적으로 지정한 대상만 나가야 하므로, 라벨이 없을 때 전체 배포로 넓히지 않습니다.
+// 따라서 배포하려면 PR에 라벨을 반드시 지정해야 합니다.
+boolean isServiceDeployAllowedByLabels(Map<String, String> config, Map<String, Object> labelContext) {
+    String prefix = params.DEPLOY_LABEL_PREFIX?.trim() ?: 'backend-'
+
+    if (labelContext.resolved != 'true') {
+        // 설정/통신 문제로 라벨을 확인하지 못한 상태입니다.
+        // 배포는 막되, credential 오설정으로 배포가 영구히 멈춘 것을 알아챌 수 있도록 UNSTABLE로 표시합니다.
+        echo "PR 라벨을 확인할 수 없어 배포하지 않습니다. reason=${labelContext.reason}"
+        currentBuild.result = 'UNSTABLE'
+        currentBuild.description = "라벨 확인 실패(${labelContext.reason}) - 배포 생략"
+        return false
     }
 
-    String prefix = params.DEPLOY_LABEL_PREFIX?.trim() ?: 'backend-'
-    List<String> serviceLabels = labels.findAll { it.startsWith(prefix) }
+    List<String> serviceLabels = (labelContext.labels as List<String>).findAll { it.startsWith(prefix) }
 
     if (!serviceLabels) {
-        echo "배포 대상 라벨(${prefix}*)이 없어 라벨 조건 없이 진행합니다."
-        return true
+        echo "배포 대상 라벨(${prefix}*)이 지정되지 않아 배포하지 않습니다. 배포하려면 PR에 ${prefix}${config.serviceName} 라벨을 붙여주세요."
+        return false
     }
 
     String expected = "${prefix}${config.serviceName}"
@@ -563,11 +574,12 @@ void run(Map<String, String> config) {
                 ctx.serviceAffected = isServiceAffected(config, changedFiles) ? 'true' : 'false'
 
                 // 공용 경로(Jenkinsfile, core 모듈 등)를 건드리면 위 판단으로는 8개 잡이 모두 대상이 되므로,
-                // 실제 배포 대상은 PR 라벨로 한 번 더 좁힌다.
-                if (ctx.deployEnv in ['dev', 'prod'] && ctx.serviceAffected == 'true') {
-                    List<String> deployLabels = resolveDeployLabels(ctx)
-                    ctx.deployLabelAllowed = isServiceDeployAllowedByLabels(config, deployLabels) ? 'true' : 'false'
+                // 실제 배포 대상은 PR 라벨로 한 번 더 좁힌다. 라벨이 없으면 배포하지 않는다.
+                if (ctx.deployEnv in ['dev', 'prod'] && ctx.serviceAffected == 'true' && ctx.isPullRequest != 'true') {
+                    Map<String, Object> labelContext = resolveDeployLabelContext(ctx)
+                    ctx.deployLabelAllowed = isServiceDeployAllowedByLabels(config, labelContext) ? 'true' : 'false'
                 } else {
+                    // PR 빌드와 배포 대상이 아닌 브랜치는 어차피 배포하지 않으므로 라벨을 조회하지 않는다.
                     ctx.deployLabelAllowed = 'true'
                 }
 
@@ -732,8 +744,9 @@ exit 1
     } else {
         stage('배포 생략') {
             echo "배포를 생략합니다. deployEnv=${ctx.deployEnv}, skipDeploy=${params.SKIP_DEPLOY}, isPullRequest=${ctx.isPullRequest}, deployLabelAllowed=${ctx.deployLabelAllowed}"
-            if (ctx.deployLabelAllowed == 'false') {
-                currentBuild.description = '라벨 미지정 - 배포 생략'
+            // 라벨 확인 실패 시에는 isServiceDeployAllowedByLabels가 사유를 담은 description을 이미 설정한다.
+            if (ctx.deployLabelAllowed == 'false' && !currentBuild.description) {
+                currentBuild.description = '배포 대상 라벨 미지정 - 배포 생략'
             }
         }
     }
