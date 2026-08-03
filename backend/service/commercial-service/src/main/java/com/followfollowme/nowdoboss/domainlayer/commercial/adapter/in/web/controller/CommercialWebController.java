@@ -2,21 +2,22 @@ package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.contr
 
 import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CandidateCommercialsResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparePreviewResponse;
-import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialProfileResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialBenchmarkResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparePreviewResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparisonResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFacilityResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialFootTrafficResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialHeatmapScoresResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeAndExpenseResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialProfileResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialResidentPopulationResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialTrendResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialValidationMessage;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CandidatePresetType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
@@ -171,8 +172,8 @@ public class CommercialWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
-        @Parameter(description = "상위 N (기본 10, 5~30)", example = "10") @RequestParam(defaultValue = "10") @Min(value = 5, message = "COMMERCIAL_101:topN은 5 이상 30 이하여야 합니다.")
-        @Max(value = 30, message = "COMMERCIAL_101:topN은 5 이상 30 이하여야 합니다.") int topN,
+        @Parameter(description = "상위 N (기본 10, 5~30)", example = "10") @RequestParam(defaultValue = "10") @Min(value = 5, message = CommercialValidationMessage.TOP_N_INVALID)
+        @Max(value = 30, message = CommercialValidationMessage.TOP_N_INVALID) int topN,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
         CandidateCommercialsResponse response = commercialWebUseCase.getTopCandidates(
@@ -284,8 +285,8 @@ public class CommercialWebController {
         @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode,
-        @Parameter(description = "상위 N (기본 5, 5~30)", example = "5") @RequestParam(defaultValue = "5") @Min(value = 5, message = "COMMERCIAL_101:topN은 5 이상 30 이하여야 합니다.")
-        @Max(value = 30, message = "COMMERCIAL_101:topN은 5 이상 30 이하여야 합니다.") int topN
+        @Parameter(description = "상위 N (기본 5, 5~30)", example = "5") @RequestParam(defaultValue = "5") @Min(value = 5, message = CommercialValidationMessage.TOP_N_INVALID)
+        @Max(value = 30, message = CommercialValidationMessage.TOP_N_INVALID) int topN
     ) {
         CandidateCommercialsResponse response = commercialWebUseCase.getRecommendationsByService(
             periodCode, serviceCode, commercialCodes, topN);

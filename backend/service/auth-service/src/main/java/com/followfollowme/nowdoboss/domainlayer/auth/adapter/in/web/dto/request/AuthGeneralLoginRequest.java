@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.auth.adapter.in.web.dto.request;
 
+import com.followfollowme.nowdoboss.domainlayer.auth.application.exception.AuthValidationMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -8,12 +9,12 @@ import jakarta.validation.constraints.NotBlank;
 public record AuthGeneralLoginRequest(
 
     @Schema(description = "이메일 주소", example = "user@example.com")
-    @NotBlank(message = "AUTH_101:이메일은 필수입니다.")
-    @Email(message = "AUTH_102:이메일 형식이 올바르지 않습니다.")
+    @NotBlank(message = AuthValidationMessage.EMAIL_REQUIRED)
+    @Email(message = AuthValidationMessage.EMAIL_FORMAT_INVALID)
     String email,
 
     @Schema(description = "비밀번호", example = "password123!")
-    @NotBlank(message = "AUTH_103:비밀번호는 필수입니다.")
+    @NotBlank(message = AuthValidationMessage.PASSWORD_REQUIRED)
     String password
 ) {
 

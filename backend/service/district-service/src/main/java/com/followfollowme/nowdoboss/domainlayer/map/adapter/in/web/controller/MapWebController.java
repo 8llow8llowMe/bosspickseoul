@@ -7,6 +7,7 @@ import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.CommercialHeatmapResponse;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.CommercialProfileResponse;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.in.web.dto.response.MapAreaCoordsResponse;
+import com.followfollowme.nowdoboss.domainlayer.map.application.exception.MapValidationMessage;
 import com.followfollowme.nowdoboss.domainlayer.map.application.model.CandidatePresetType;
 import com.followfollowme.nowdoboss.domainlayer.map.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.in.MapWebUseCase;
@@ -116,8 +117,8 @@ public class MapWebController {
         @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
         @Parameter(description = "상위 N (기본 10, 5~30)", example = "10") @RequestParam(required = false)
-        @Min(value = 5, message = "MAP_101:topN은 5 이상이어야 합니다.")
-        @Max(value = 30, message = "MAP_102:topN은 30 이하여야 합니다.")
+        @Min(value = 5, message = MapValidationMessage.TOP_N_TOO_SMALL)
+        @Max(value = 30, message = MapValidationMessage.TOP_N_TOO_LARGE)
         Integer topN,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {

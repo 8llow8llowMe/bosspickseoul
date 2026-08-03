@@ -24,12 +24,9 @@ public enum AuthErrorCode {
     OAUTH_AUTHORIZATION_FAILED("AUTH_013", "소셜 로그인 인증에 실패했습니다. 처음부터 다시 시도해주세요.", HttpStatus.BAD_REQUEST),
     OAUTH_PROVIDER_UNAVAILABLE("AUTH_014", "소셜 로그인 제공자와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.", HttpStatus.BAD_GATEWAY),
 
-    // 요청 검증(Bean Validation) 전용 코드 — 1xx 대역.
+    // 요청 검증(Bean Validation) 대역 — 1xx.
+    // 필드별 코드(AUTH_101~104)는 AuthValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
     INVALID_REQUEST("AUTH_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
-    EMAIL_REQUIRED("AUTH_101", "이메일은 필수입니다.", HttpStatus.BAD_REQUEST),
-    EMAIL_FORMAT_INVALID("AUTH_102", "이메일 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
-    PASSWORD_REQUIRED("AUTH_103", "비밀번호는 필수입니다.", HttpStatus.BAD_REQUEST),
-    EMAIL_CODE_REQUIRED("AUTH_104", "인증코드는 필수입니다.", HttpStatus.BAD_REQUEST),
     PARAMETER_TYPE_INVALID("AUTH_105", "요청 파라미터 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
