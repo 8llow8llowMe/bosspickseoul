@@ -19,9 +19,9 @@ public enum CommercialErrorCode {
     INCOME_NOT_FOUND("COMMERCIAL_010", "소득소비 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     STORE_NOT_FOUND("COMMERCIAL_011", "점포 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
-    // 요청 검증(Bean Validation) 전용 코드 — 1xx 대역.
+    // 요청 검증(Bean Validation) 대역 — 1xx.
+    // 필드별 코드(COMMERCIAL_101)는 CommercialValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
     INVALID_REQUEST("COMMERCIAL_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
-    TOP_N_INVALID("COMMERCIAL_101", "topN은 5 이상 30 이하여야 합니다.", HttpStatus.BAD_REQUEST),
     PARAMETER_TYPE_INVALID("COMMERCIAL_102", "요청 파라미터 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
