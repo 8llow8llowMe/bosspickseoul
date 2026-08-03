@@ -45,22 +45,36 @@ GitHub push 또는 pull_request
 - 브랜치 빌드: `GET /repos/{owner}/{repo}/commits/{HEAD}/pulls`로 커밋에 연결된 PR을 역조회 (머지 커밋이면 `merge_commit_sha` 일치 항목을 우선)
 - 라벨명은 `{DEPLOY_LABEL_PREFIX}{serviceName}` 형식 (기본 접두어 `backend-`) — 예: `backend-auth-service`, `backend-api-gateway`, `backend-service-discovery`
 
+**라벨이 없으면 어떤 서비스도 배포하지 않는다 (fail-closed).** 배포는 의도적으로 지정한 대상만 나가야 하므로, 라벨이 없을 때 전체 배포로 넓히지 않는다. 즉 **배포하려면 PR에 라벨을 반드시 붙여야 한다.**
+
 판단 규칙:
 
-| 상황 | 배포 |
-| --- | --- |
-| `backend-*` 라벨이 하나 이상 있고 내 서비스 라벨 포함 | 배포 |
-| `backend-*` 라벨이 하나 이상 있으나 내 서비스 라벨 없음 | **배포 생략** (`라벨 미지정 - 배포 생략`) |
-| `backend-*` 라벨이 전혀 없음 | 라벨 조건 미적용 → 1단계 결과를 따름 |
-| PR을 찾을 수 없음 (직접 push 등) / API 실패 / credential 미설정 | 라벨 조건 미적용 → 1단계 결과를 따름 |
+| 상황 | 배포 | 빌드 결과 |
+| --- | --- | --- |
+| 내 서비스 라벨(`backend-{serviceName}`) 있음 | 배포 | SUCCESS |
+| `backend-*` 라벨이 있으나 내 서비스 라벨 없음 | 생략 | SUCCESS (`배포 대상 라벨 미지정 - 배포 생략`) |
+| `backend-*` 라벨이 전혀 없음 | 생략 | SUCCESS |
+| PR 없이 브랜치에 직접 push | 생략 | SUCCESS |
+| credential 미설정 / API 실패 / owner-repo 판단 실패 | 생략 | **UNSTABLE** (`라벨 확인 실패({사유}) - 배포 생략`) |
 
-라벨을 깜빡했을 때 아무것도 배포되지 않는 조용한 실패를 막기 위해, 라벨이 없으면 제한하지 않고 경로 기반 판단만 적용한다.
+마지막 행만 `UNSTABLE`로 표시한다. 라벨을 안 붙여서 배포하지 않은 것과, 설정·통신 문제로 라벨을 확인조차 못해 배포하지 않은 것은 구분해야 한다. 후자를 SUCCESS로 두면 credential 오설정으로 배포가 영구히 멈춘 것을 알아채기 어렵다. 사유 코드는 `NO_CREDENTIAL`, `NO_REPOSITORY_SLUG`, `API_ERROR`, `PULL_REQUEST_PARSE_FAILED`다.
+
+PR 빌드와 배포 대상이 아닌 브랜치는 어차피 배포하지 않으므로 라벨을 조회하지 않는다.
 
 라벨 조회에는 `GITHUB_APP_CREDENTIAL_ID` 파라미터의 GitHub App credential을 사용한다 (기본값 `github-app-followfollowme-jenkins`, `Pull requests: Read-only` 권한 필요).
 
+사용 가능한 라벨은 잡의 `serviceName`과 1:1로 대응한다.
+
+```text
+backend-ai-service        backend-batch-service      backend-district-service
+backend-api-gateway       backend-commercial-service backend-service-discovery
+backend-auth-service      backend-community-service
+```
+
 **운영 시 주의**
 
-- 공용 경로(`Jenkinsfile`, `backend/core/`)를 바꾸면 8개 잡이 모두 **빌드**된다. 이때 라벨을 붙였다면 배포는 라벨 대상만 수행된다. 라벨을 안 붙였으면 8개가 모두 배포된다.
+- **라벨을 안 붙이면 배포가 아예 일어나지 않는다.** 머지했는데 dev에 반영되지 않으면 먼저 PR 라벨을 확인한다. 빌드 로그의 `라벨 배포 허용 여부`와 `PR #NN 라벨:` 줄을 보면 된다.
+- 공용 경로(`Jenkinsfile`, `backend/core/`)를 바꾸면 8개 잡이 모두 **빌드**되지만, 배포는 라벨 대상만 수행된다.
 - 배포되지 않은 서비스도 빌드는 수행하므로 공용 코드 변경이 컴파일을 깨뜨리는지는 브랜치 빌드에서 검증된다. (라벨 필터 때문에 PR 빌드는 라벨 대상 서비스만 돌아 검증 공백이 생기므로 의도된 동작이다.)
 - 공용 코드 변경을 배포 대상에서 제외하면, 해당 서비스 컨테이너는 **다음 배포 때까지 이전 코드로 동작한다.** 라벨을 좁힐 때 이 점을 고려해야 한다.
 
