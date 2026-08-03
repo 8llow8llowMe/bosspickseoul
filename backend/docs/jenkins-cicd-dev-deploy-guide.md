@@ -594,7 +594,7 @@ frontend-dev-agent: executors 1
 frontend-prod-agent: executors 1
 ```
 
-같은 backend host에 대한 배포는 Jenkinsfile의 `lock(resource: 'backend-1-deploy')`로 직렬화한다.
+같은 backend host에 대한 배포는 Jenkinsfile의 `lock`으로 직렬화한다. 기본 lock 이름은 `backend-1-deploy`이며, dev가 main-server(`192.168.0.11`)로 분리된 뒤에는 dev job에 `DEPLOY_LOCK_NAME=main-server-deploy`를 지정해 호스트별로 lock을 나눌 수 있다. lock을 나누지 않아도 동작에는 문제가 없고 배포가 과하게 직렬화될 뿐이다.
 
 ## 17. 보안 체크리스트
 

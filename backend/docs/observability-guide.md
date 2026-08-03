@@ -58,20 +58,20 @@ management:
 
 ## dev 서비스별 scrape endpoint
 
-현재 backend-1(`192.168.0.13`)의 dev 컨테이너 포트 기준입니다.
+dev 컨테이너는 main-server(`192.168.0.11`, hostname `raspberrypi`)에 배포됩니다.
 
 | 서비스 | URL |
 | --- | --- |
-| service-discovery | `http://192.168.0.13:6761/actuator/prometheus` |
-| api-gateway | `http://192.168.0.13:6000/actuator/prometheus` |
-| auth-service | `http://192.168.0.13:6081/actuator/prometheus` |
-| district-service | `http://192.168.0.13:6082/actuator/prometheus` |
-| commercial-service | `http://192.168.0.13:6083/actuator/prometheus` |
-| ai-service | `http://192.168.0.13:6085/actuator/prometheus` |
-| community-service | `http://192.168.0.13:6086/actuator/prometheus` |
-| batch-service | `http://192.168.0.13:6080/actuator/prometheus` |
+| service-discovery | `http://192.168.0.11:6761/actuator/prometheus` |
+| api-gateway | `http://192.168.0.11:6000/actuator/prometheus` |
+| auth-service | `http://192.168.0.11:6081/actuator/prometheus` |
+| district-service | `http://192.168.0.11:6082/actuator/prometheus` |
+| commercial-service | `http://192.168.0.11:6083/actuator/prometheus` |
+| ai-service | `http://192.168.0.11:6085/actuator/prometheus` |
+| community-service | `http://192.168.0.11:6086/actuator/prometheus` |
+| batch-service | `http://192.168.0.11:6080/actuator/prometheus` |
 
-prod 컨테이너는 동일한 순서의 `9xxx` host port를 사용합니다. 실행하지 않는 target은 Prometheus와 Grafana에서 `DOWN`으로 표시됩니다.
+prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합니다. 실행하지 않는 target은 Prometheus와 Grafana에서 `DOWN`으로 표시됩니다.
 
 ## Docker 관측 라벨 계약
 
@@ -86,7 +86,7 @@ prod 컨테이너는 동일한 순서의 `9xxx` host port를 사용합니다. �
 | `observability.application` | `auth-service` | Spring/Eureka 애플리케이션 |
 | `observability.deployment` | `bosspickseoul-auth-service-dev` | Docker 배포 단위 |
 
-`spring.application.name`은 Eureka 서비스 탐색 ID이므로 모니터링만을 위해 컨테이너명으로 변경하지 않습니다. Grafana의 기본 필터는 `service`를 사용하고, Docker 실행 단위가 필요할 때 `container` 또는 `deployment`를 사용합니다. Prometheus `instance`는 실제 scrape endpoint인 `192.168.0.13:6081` 형태를 유지합니다.
+`spring.application.name`은 Eureka 서비스 탐색 ID이므로 모니터링만을 위해 컨테이너명으로 변경하지 않습니다. Grafana의 기본 필터는 `service`를 사용하고, Docker 실행 단위가 필요할 때 `container` 또는 `deployment`를 사용합니다. Prometheus `instance`는 실제 scrape endpoint인 `192.168.0.11:6081` 형태를 유지합니다.
 
 ## Grafana 1차 대시보드 추천
 
@@ -111,8 +111,8 @@ prod 컨테이너는 동일한 순서의 `9xxx` host port를 사용합니다. �
 서비스에서 직접 확인:
 
 ```bash
-curl http://192.168.0.13:6081/actuator/health
-curl http://192.168.0.13:6081/actuator/prometheus
+curl http://192.168.0.11:6081/actuator/health
+curl http://192.168.0.11:6081/actuator/prometheus
 ```
 
 Prometheus target 확인:

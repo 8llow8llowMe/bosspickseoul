@@ -55,6 +55,11 @@ services:
       - "${AUTH_SERVICE_PORT_DEV}:${AUTH_SERVICE_PORT}" # host:container
     environment:
       <<: *auth_service_environment
+    # 컨테이너 메모리 상한. JVM heap은 Dockerfile의 MaxRAMPercentage가 이 값을 기준으로 산정한다.
+    deploy:
+      resources:
+        limits:
+          memory: ${AUTH_SERVICE_MEM_LIMIT_DEV:-512m}
     restart: unless-stopped
     logging:
       <<: *default-logging
@@ -78,6 +83,10 @@ services:
       - "${AUTH_SERVICE_PORT_PROD}:${AUTH_SERVICE_PORT}" # host:container
     environment:
       <<: *auth_service_environment
+    deploy:
+      resources:
+        limits:
+          memory: ${AUTH_SERVICE_MEM_LIMIT_PROD:-768m}
     restart: unless-stopped
     logging:
       <<: *default-logging

@@ -6,7 +6,7 @@ BossPickSeoul 백엔드 개발 서버 배포가 안정화된 이후 이어갈 �
 
 ## 현재 상태
 
-개발용 백엔드 컨테이너는 `backend-1` 라즈베리파이5 호스트에 배포되어 있습니다.
+개발용 백엔드 컨테이너는 `main-server`(hostname `raspberrypi`, `192.168.0.11`) 라즈베리파이5 호스트에 배포합니다. MySQL, Redis master(redis-node1/sentinel-node1)와 같은 호스트를 공유하므로 각 compose의 컨테이너 메모리 상한(dev 기본 512m)을 유지합니다. 운영(prod)과 tripmarble은 `backend-1`(`192.168.0.13`)에 남습니다. 아래 목록은 backend-1 시절 스냅샷입니다.
 
 ```text
 bosspickseoul-service-discovery-dev 6761 -> 8761

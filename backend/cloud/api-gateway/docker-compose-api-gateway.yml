@@ -42,6 +42,11 @@ services:
       - "${API_GATEWAY_PORT_DEV}:${API_GATEWAY_PORT}" # host:container
     environment:
       <<: *api_gateway_environment
+    # 컨테이너 메모리 상한. JVM heap은 Dockerfile의 MaxRAMPercentage가 이 값을 기준으로 산정한다.
+    deploy:
+      resources:
+        limits:
+          memory: ${API_GATEWAY_MEM_LIMIT_DEV:-512m}
     restart: unless-stopped
     logging:
       <<: *default-logging
@@ -65,6 +70,10 @@ services:
       - "${API_GATEWAY_PORT_PROD}:${API_GATEWAY_PORT}" # host:container
     environment:
       <<: *api_gateway_environment
+    deploy:
+      resources:
+        limits:
+          memory: ${API_GATEWAY_MEM_LIMIT_PROD:-768m}
     restart: unless-stopped
     logging:
       <<: *default-logging
