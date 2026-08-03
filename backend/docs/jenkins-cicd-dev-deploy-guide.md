@@ -41,8 +41,8 @@ GitHub push 또는 pull_request
 
 `Github label filter` 플러그인은 **PR discovery 단계만** 제한한다. 즉 라벨을 붙이면 그 서비스의 PR 빌드만 생성되지만, 머지 후 `develop`/`main` 브랜치 빌드는 8개 잡 모두에 대해 생성되므로 라벨이 반영되지 않는다. 그래서 브랜치 빌드에서는 파이프라인이 직접 PR 라벨을 조회한다.
 
-- PR 빌드: `CHANGE_ID`로 PR을 조회
-- 브랜치 빌드: `GET /repos/{owner}/{repo}/commits/{HEAD}/pulls`로 커밋에 연결된 PR을 역조회 (머지 커밋이면 `merge_commit_sha` 일치 항목을 우선)
+- 조회 대상: `develop`/`main` 브랜치 빌드만. PR 빌드는 어차피 배포하지 않으므로 라벨을 조회하지 않는다.
+- 조회 방법: `GET /repos/{owner}/{repo}/commits/{HEAD}/pulls`로 커밋에 연결된 PR을 역조회한다. 머지 커밋이면 `merge_commit_sha`가 일치하는 항목을 우선한다.
 - 라벨명은 `{DEPLOY_LABEL_PREFIX}{serviceName}` 형식 (기본 접두어 `backend-`) — 예: `backend-auth-service`, `backend-api-gateway`, `backend-service-discovery`
 
 **라벨이 없으면 어떤 서비스도 배포하지 않는다 (fail-closed).** 배포는 의도적으로 지정한 대상만 나가야 하므로, 라벨이 없을 때 전체 배포로 넓히지 않는다. 즉 **배포하려면 PR에 라벨을 반드시 붙여야 한다.**
@@ -59,9 +59,7 @@ GitHub push 또는 pull_request
 
 마지막 행만 `UNSTABLE`로 표시한다. 라벨을 안 붙여서 배포하지 않은 것과, 설정·통신 문제로 라벨을 확인조차 못해 배포하지 않은 것은 구분해야 한다. 후자를 SUCCESS로 두면 credential 오설정으로 배포가 영구히 멈춘 것을 알아채기 어렵다. 사유 코드는 `NO_CREDENTIAL`, `NO_REPOSITORY_SLUG`, `API_ERROR`, `PULL_REQUEST_PARSE_FAILED`다.
 
-PR 빌드와 배포 대상이 아닌 브랜치는 어차피 배포하지 않으므로 라벨을 조회하지 않는다.
-
-라벨 조회에는 `GITHUB_APP_CREDENTIAL_ID` 파라미터의 GitHub App credential을 사용한다 (기본값 `github-app-followfollowme-jenkins`, `Pull requests: Read-only` 권한 필요).
+라벨 조회에는 `GITHUB_APP_CREDENTIAL_ID` 파라미터의 GitHub App credential을 사용한다 (기본값 `github-app-followfollowme-jenkins`, `Pull requests: Read-only` 권한 필요). 이 파라미터를 비우면 라벨을 확인할 수 없으므로 배포가 생략되고 빌드가 `UNSTABLE`이 된다.
 
 사용 가능한 라벨은 잡의 `serviceName`과 1:1로 대응한다.
 
