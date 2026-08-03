@@ -35,12 +35,48 @@
 
 **`POST /auth/login`**
 - 화면: 이메일 + 비밀번호 입력 후 로그인 버튼 클릭
-- 응답: Access Token + Refresh Token (쿠키 or 헤더)
+- 응답: 바디에 Access Token, `Set-Cookie` 로 Refresh Token (`HttpOnly` + `SameSite=Strict`)
+- 프론트 처리: Refresh Token 은 JS 로 읽을 수 없으므로 저장하지 말고, 재발급 요청 시 `withCredentials: true` 만 설정
+- 실패는 이메일 오탈자·비밀번호 불일치를 구분하지 않고 `AUTH_006` 로 동일 응답 — 계정 존재 여부가 노출되지 않도록 의도한 동작
 - `/login`, `/logout`에 동사 사용 — auth endpoint 업계 관례상 허용
 
 **`POST /auth/token/reissue`**
 - 화면: 사용자에게 보이지 않음. Axios 인터셉터가 401 응답 수신 시 자동 재발급 후 원래 요청 재시도
-- 프론트 처리 포인트: Refresh Token이 만료됐으면 로그인 페이지로 리다이렉트
+- 재발급 성공 시 Refresh Token 도 함께 회전되어 새 쿠키로 교체됩니다
+- 프론트 처리 포인트: 재발급이 실패하면(쿠키 만료·탈퇴·비밀번호 변경) 로그인 페이지로 리다이렉트
+
+---
+
+### 소셜 로그인 — 카카오 / 네이버
+
+| Method | Path | 화면 |
+|--------|------|------|
+| GET | `/api/v1/auth/{provider}/authorize` | 로그인 페이지의 "카카오로 시작하기" 버튼 클릭 |
+| GET | `/api/v1/auth/{provider}/login` | provider 콜백 처리 페이지 |
+
+`provider` 는 `kakao` / `naver`.
+
+**흐름**
+1. 사용자가 소셜 버튼 클릭 → `GET /auth/{provider}/authorize` 호출
+2. 응답의 `authorizationUrl` 로 브라우저 리다이렉트 (URL 에 CSRF 방어용 `state` 포함, 10분 유효)
+3. provider 인가 후 등록된 redirect URI 로 `code` + `state` 가 돌아옴
+4. 콜백 페이지가 `GET /auth/{provider}/login?code=...&state=...` 호출
+5. 응답은 일반 로그인과 동일 (Access Token + Refresh 쿠키). 미가입 이메일이면 자동 회원가입 후 로그인
+
+**프론트 처리 포인트**
+- `state` 는 백엔드가 발급·검증하므로 프론트가 따로 만들거나 변형하면 안 됩니다. 1회용이라 실패 시 2번이 아니라 1번부터 다시 시작해야 합니다.
+- 실패 코드별 안내
+
+  | 코드 | 상황 | 화면 처리 |
+  |------|------|----------|
+  | `AUTH_007` | 지원하지 않는 provider | 버튼 구성 오류 — 개발 단계에서 확인 |
+  | `AUTH_008` | 같은 이메일이 다른 provider 로 이미 가입됨 (409) | "이미 OO(으)로 가입된 계정입니다" 안내 후 해당 버튼 유도 |
+  | `AUTH_009` | 이메일 제공 미동의 | "이메일 제공에 동의해야 가입할 수 있습니다" 안내 후 1번부터 재시도 |
+  | `AUTH_010` | `state` 불일치·만료 (401) | 조용히 1번부터 재시도 |
+  | `AUTH_011` | 닉네임(프로필) 제공 미동의 | 동의 필요 안내 후 1번부터 재시도 |
+  | `AUTH_012` | provider 쪽에서 이메일 미인증 | "제공자에서 이메일 인증 후 다시 시도" 안내 |
+  | `AUTH_013` | 인가코드 만료·중복 사용 | 1번부터 재시도 |
+  | `AUTH_014` | provider 통신 실패 (502) | "잠시 후 다시 시도" 안내 |
 
 ---
 
@@ -48,8 +84,26 @@
 
 | Method | Path | 화면 |
 |--------|------|------|
-| POST | `/api/v1/members/signup` | 회원가입 폼 |
+| POST | `/api/v1/auth/email/send-code` | 회원가입 폼 > 이메일 인증 요청 버튼 |
+| POST | `/api/v1/auth/email/verify-code` | 회원가입 폼 > 인증코드 입력 확인 |
+| POST | `/api/v1/members/signup` | 회원가입 폼 제출 |
 | GET | `/api/v1/members/me` | 마이페이지 / 헤더 프로필 |
+| PATCH | `/api/v1/members/me` | 마이페이지 > 프로필 수정 |
+| POST | `/api/v1/members/me/password` | 마이페이지 > 비밀번호 변경 |
+| POST | `/api/v1/members/me/withdraw` | 마이페이지 > 회원 탈퇴 |
+
+**이메일 인증 → 회원가입 순서**
+1. `POST /auth/email/send-code` — 60초 쿨다운. **이미 가입된 이메일이어도 성공으로 응답합니다** (가입 여부 노출 방지). 따라서 "가입된 이메일입니다" 같은 분기를 이 응답으로 만들 수 없습니다.
+2. `POST /auth/email/verify-code` — 성공 후 **30분 안에** 가입을 완료해야 합니다. 만료되면 1번부터 다시.
+3. `POST /members/signup` — 인증되지 않은 이메일이면 `MEMBER_006` 으로 거절됩니다.
+
+**`PATCH /members/me`**
+- 닉네임과 프로필 이미지 URL 수정. `profileImageUrl` 을 **생략하면 이미지가 제거**되므로, 유지하려면 기존 값을 그대로 실어 보내야 합니다.
+
+**`POST /members/me/password` · `POST /members/me/withdraw`**
+- 둘 다 Refresh 쿠키를 만료시키고 전 기기의 토큰 재발급을 차단합니다 → 프론트는 성공 응답 후 로컬 인증 상태를 비우고 로그인 페이지로 이동
+- 소셜 로그인 계정은 비밀번호가 없어 비밀번호 변경 시 `MEMBER_007` → 해당 계정에는 메뉴를 노출하지 않는 편이 좋습니다
+- 탈퇴하면 동일 이메일로 재가입할 수 없습니다 → 확인 모달에 이 문구를 넣어주세요
 
 ---
 
