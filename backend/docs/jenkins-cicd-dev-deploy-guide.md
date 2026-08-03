@@ -22,12 +22,47 @@ GitHub push 또는 pull_request
 
 | GitHub/Jenkins 조건 | Jenkins 변수 | 배포 환경 |
 | --- | --- | --- |
-| `feature/*` -> `develop` PR | `CHANGE_TARGET=develop` | `dev` |
 | `develop` 브랜치 push/merge | `BRANCH_NAME=develop` | `dev` |
 | `main` 브랜치 push/merge | `BRANCH_NAME=main` | `prod` |
+| PR 빌드 (대상 무관) | `CHANGE_ID` 존재 | 배포 생략 (CI만) |
 | 그 외 브랜치 | 기타 | 배포 생략 |
 
-`develop` 대상 PR은 개발 서버에서 바로 확인할 수 있도록 빌드/테스트 후 `dev` 배포까지 수행한다. `main` 대상 PR은 운영 안전을 위해 빌드/테스트만 수행하고, 실제 `prod` 배포는 `main` 브랜치 빌드에서만 실행한다.
+**PR 빌드는 대상 브랜치와 무관하게 배포하지 않는다.** 과거에는 `develop` 대상 PR도 `dev`에 배포했지만, 같은 `dev` 환경을 두고 `develop` 머지 빌드와 경합해 머지되지 않은 PR 배포가 덮이는 혼선이 있어 제거했다. `dev` = `develop` 미러를 보장하기 위한 결정이다.
+
+## 1-1. 모노레포 빌드/배포 범위 결정
+
+모노레포라서 한 번의 push에 백엔드 잡 8개가 모두 트리거된다. 아래 2단 게이트로 실제 작업 범위를 좁힌다.
+
+**1단계 — 변경 경로로 빌드 여부 결정** (`isServiceAffected`)
+
+자기 서비스 경로(`config.fsPath`) 또는 공용 경로(`backend/core/`, `backend/build.gradle`, `backend/settings.gradle`, `backend/gradle`, `Jenkinsfile`)가 변경되면 빌드한다. 무관하면 `변경 없음 - 생략` 스테이지만 남기고 종료한다. 비교 기준은 PR 빌드는 대상 브랜치와의 merge-base, 브랜치 빌드는 `GIT_PREVIOUS_SUCCESSFUL_COMMIT`이다. 기준을 판단할 수 없으면 전체 빌드로 진행한다(fail-open).
+
+**2단계 — PR 라벨로 배포 여부 결정** (`isServiceDeployAllowedByLabels`)
+
+`Github label filter` 플러그인은 **PR discovery 단계만** 제한한다. 즉 라벨을 붙이면 그 서비스의 PR 빌드만 생성되지만, 머지 후 `develop`/`main` 브랜치 빌드는 8개 잡 모두에 대해 생성되므로 라벨이 반영되지 않는다. 그래서 브랜치 빌드에서는 파이프라인이 직접 PR 라벨을 조회한다.
+
+- PR 빌드: `CHANGE_ID`로 PR을 조회
+- 브랜치 빌드: `GET /repos/{owner}/{repo}/commits/{HEAD}/pulls`로 커밋에 연결된 PR을 역조회 (머지 커밋이면 `merge_commit_sha` 일치 항목을 우선)
+- 라벨명은 `{DEPLOY_LABEL_PREFIX}{serviceName}` 형식 (기본 접두어 `backend-`) — 예: `backend-auth-service`, `backend-api-gateway`, `backend-service-discovery`
+
+판단 규칙:
+
+| 상황 | 배포 |
+| --- | --- |
+| `backend-*` 라벨이 하나 이상 있고 내 서비스 라벨 포함 | 배포 |
+| `backend-*` 라벨이 하나 이상 있으나 내 서비스 라벨 없음 | **배포 생략** (`라벨 미지정 - 배포 생략`) |
+| `backend-*` 라벨이 전혀 없음 | 라벨 조건 미적용 → 1단계 결과를 따름 |
+| PR을 찾을 수 없음 (직접 push 등) / API 실패 / credential 미설정 | 라벨 조건 미적용 → 1단계 결과를 따름 |
+
+라벨을 깜빡했을 때 아무것도 배포되지 않는 조용한 실패를 막기 위해, 라벨이 없으면 제한하지 않고 경로 기반 판단만 적용한다.
+
+라벨 조회에는 `GITHUB_APP_CREDENTIAL_ID` 파라미터의 GitHub App credential을 사용한다 (기본값 `github-app-followfollowme-jenkins`, `Pull requests: Read-only` 권한 필요).
+
+**운영 시 주의**
+
+- 공용 경로(`Jenkinsfile`, `backend/core/`)를 바꾸면 8개 잡이 모두 **빌드**된다. 이때 라벨을 붙였다면 배포는 라벨 대상만 수행된다. 라벨을 안 붙였으면 8개가 모두 배포된다.
+- 배포되지 않은 서비스도 빌드는 수행하므로 공용 코드 변경이 컴파일을 깨뜨리는지는 브랜치 빌드에서 검증된다. (라벨 필터 때문에 PR 빌드는 라벨 대상 서비스만 돌아 검증 공백이 생기므로 의도된 동작이다.)
+- 공용 코드 변경을 배포 대상에서 제외하면, 해당 서비스 컨테이너는 **다음 배포 때까지 이전 코드로 동작한다.** 라벨을 좁힐 때 이 점을 고려해야 한다.
 
 ## 2. 필요한 Jenkins 플러그인
 
