@@ -14,6 +14,8 @@
   - 메서드 파라미터 줄바꿈, primitive/wrapper, MapStruct, 네이밍, Swagger, 로그/주석 규칙
 - `api-design-guide.md`
   - RESTful 경로, 응답 모델, Controller -> WebUseCase -> WebFacade -> Processor -> Presenter 흐름
+- `api-reference.md`
+  - 서비스별 전체 엔드포인트 목록, 노출 경로(게이트웨이 경유 여부), 공통 응답 규약과 에러코드 대역
 - `api-screens.md`
   - 프론트엔드 협업용. 각 API가 어떤 화면에서 쓰이는지, 호출 순서, AI 비동기 폴링 가이드
 - `service-playbook.md`
@@ -38,7 +40,7 @@
 3. `architecture-guide.md`
 4. `coding-conventions.md`
 5. `api-design-guide.md`
-6. `api-screens.md` (프론트 협업 시 우선)
+6. `api-reference.md`, `api-screens.md` (프론트 협업 시 우선)
 7. `service-playbook.md`
 8. `done-checklist.md`
 9. `team-playbook.md`
