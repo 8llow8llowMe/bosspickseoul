@@ -117,9 +117,62 @@ public class CommercialException extends RuntimeException {
 throw new CommercialException(CommercialErrorCode.INVALID_TOP_N);
 ```
 
-공통 검증 예외 (`MethodArgumentNotValidException`, `MethodArgumentTypeMismatchException`, `ConstraintViolationException`, `HandlerMethodValidationException`) 는 각 서비스의 ExceptionHandler 에서 `{DOMAIN}_400` 코드로 처리합니다.
+### 8-2. 검증 에러코드 규약 (필수)
 
-### 8-2. 하드코딩된 문자열 금지
+공통 검증 예외 (`MethodArgumentNotValidException`, `MethodArgumentTypeMismatchException`, `ConstraintViolationException`, `HandlerMethodValidationException`) 는 **`{DOMAIN}_400` 같은 뭉뚱그린 코드를 쓰지 않습니다.** 필드별로 개별 에러코드를 부여해 클라이언트가 코드 단위로 분기할 수 있게 합니다.
+
+**1) 코드 대역** — 검증 전용 코드는 도메인 ErrorCode enum 안에서 `1xx` 대역을 사용합니다. 비즈니스 코드(`001~`)와 번호가 섞이지 않아 확장이 쉽습니다.
+
+```java
+// 비즈니스 코드
+NOT_FOUND_MEMBER("MEMBER_002", "존재하지 않는 회원입니다", HttpStatus.NOT_FOUND),
+
+// 요청 검증(Bean Validation) 전용 코드 — 1xx 대역
+INVALID_REQUEST("MEMBER_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),   // 기본/폴백
+NICKNAME_LENGTH_INVALID("MEMBER_109", "닉네임은 10자 이하만 가능합니다.", HttpStatus.BAD_REQUEST),
+PARAMETER_TYPE_INVALID("MEMBER_113", "요청 파라미터 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+```
+
+**2) DTO 메시지에 코드 접두어** — Bean Validation `message` 는 `"CODE:사용자 메시지"` 형식으로 작성합니다. 코드가 필드 선언 옆에 있어 추적이 쉽고, 별도 매핑 테이블을 관리하지 않습니다.
+
+```java
+@Schema(description = "회원 닉네임", example = "길동짱")
+@NotBlank(message = "MEMBER_108:닉네임은 필수입니다.")
+@Size(max = 10, message = "MEMBER_109:닉네임은 10자 이하만 가능합니다.")
+String nickname,
+```
+
+**3) 핸들러는 공통 유틸에 위임** — `common-core` 의 `ValidationErrorSupport` 가 접두어를 파싱해 응답을 만듭니다. 접두어가 없으면 인자로 넘긴 기본 코드를 사용합니다.
+
+```java
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public ResponseEntity<Response<Void>> handleValidation(MethodArgumentNotValidException exception) {
+    return ValidationErrorSupport.toResponse(exception, MemberErrorCode.INVALID_REQUEST.getCode());
+}
+```
+
+**4) 응답 형태** — `resultCode` 는 첫 번째(대표) 오류 코드이고, `resultMessage` 에 대표 메시지와 필드별 오류 목록이 담깁니다.
+
+```json
+{
+  "dataHeader": {
+    "success": false,
+    "resultCode": "MEMBER_109",
+    "resultMessage": {
+      "message": "닉네임은 10자 이하만 가능합니다.",
+      "errors": [
+        { "code": "MEMBER_109", "field": "nickname", "message": "닉네임은 10자 이하만 가능합니다." },
+        { "code": "MEMBER_105", "field": "password", "message": "비밀번호는 공백 없이 영문자, 숫자, 특수문자를 포함한 8~20자여야 합니다." }
+      ]
+    }
+  },
+  "dataBody": null
+}
+```
+
+**5) advice 범위** — `@RestControllerAdvice(basePackages = "...domainlayer")` 를 명시합니다. 한 서비스에 advice 가 둘 이상이면 좁은 범위 advice 에 `@Order` 를 부여해 우선순위를 확정합니다 (예: auth-service 의 `AuthExceptionHandler` 가 `MemberExceptionHandler` 보다 앞).
+
+### 8-3. 하드코딩된 문자열 금지
 
 반복 사용되는 상태 코드 / 구분 값은 반드시 enum 으로 정의합니다.
 

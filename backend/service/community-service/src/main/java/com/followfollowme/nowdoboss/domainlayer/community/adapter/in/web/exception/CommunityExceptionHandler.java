@@ -1,17 +1,18 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.exception;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
+import com.followfollowme.nowdoboss.common.exception.ValidationErrorSupport;
+import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.community.application.exception.CommunityException;
-import java.util.stream.Collectors;
-import org.springframework.http.HttpStatus;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.followfollowme.nowdoboss.domainlayer")
 public class CommunityExceptionHandler {
 
     @ExceptionHandler(CommunityException.class)
@@ -22,20 +23,22 @@ public class CommunityExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Response<Void>> handleValidationException(MethodArgumentNotValidException exception) {
-        String message = exception.getBindingResult()
-            .getFieldErrors()
-            .stream()
-            .map(FieldError::getDefaultMessage)
-            .collect(Collectors.joining(", "));
+    public ResponseEntity<Response<Void>> handleValidation(MethodArgumentNotValidException exception) {
+        return ValidationErrorSupport.toResponse(exception, CommunityErrorCode.INVALID_REQUEST.getCode());
+    }
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(Response.fail("COMMUNITY_400", message));
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Response<Void>> handleConstraintViolation(ConstraintViolationException exception) {
+        return ValidationErrorSupport.toResponse(exception, CommunityErrorCode.INVALID_REQUEST.getCode());
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Response<Void>> handleHandlerMethodValidation(HandlerMethodValidationException exception) {
+        return ValidationErrorSupport.toResponse(exception, CommunityErrorCode.INVALID_REQUEST.getCode());
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Response<Void>> handleTypeMismatchException(MethodArgumentTypeMismatchException exception) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(Response.fail("COMMUNITY_400", "요청 파라미터 타입이 올바르지 않습니다."));
+    public ResponseEntity<Response<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        return ValidationErrorSupport.toResponse(exception, CommunityErrorCode.PARAMETER_TYPE_INVALID.getCode());
     }
 }

@@ -81,7 +81,8 @@ public class MemberBookmarkWebController {
     public ResponseEntity<Response<MemberBookmarksResponse>> getBookmarks(
         @AuthenticationPrincipal MemberLoginActive loginActive,
         @Parameter(description = "마지막으로 조회한 북마크 아이디 (첫 페이지: 생략)") @RequestParam(required = false) Long lastBookmarkId,
-        @Parameter(description = "조회 개수 (기본 10, 최대 50)") @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
+        @Parameter(description = "조회 개수 (기본 10, 최대 50)") @RequestParam(defaultValue = "10") @Min(value = 1, message = "BOOKMARK_106:조회 개수는 1 이상 50 이하여야 합니다.")
+        @Max(value = 50, message = "BOOKMARK_106:조회 개수는 1 이상 50 이하여야 합니다.") int size
     ) {
         MemberBookmarksResponse response = memberBookmarkWebUseCase.getBookmarks(
             loginActive.memberId(), lastBookmarkId, size);

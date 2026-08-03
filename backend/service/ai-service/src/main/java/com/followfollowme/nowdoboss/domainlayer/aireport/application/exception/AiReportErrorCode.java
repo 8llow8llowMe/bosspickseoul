@@ -17,7 +17,11 @@ public enum AiReportErrorCode {
     JOB_FAILED("AI_008", "AI 리포트 작업이 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     JOB_TIMEOUT("AI_009", "AI 리포트 작업이 시간 내에 완료되지 않았습니다.", HttpStatus.GATEWAY_TIMEOUT),
     LLM_SCHEMA_UNSUPPORTED("AI_010", "지원하지 않는 LLM 응답 스키마 정의입니다. (%s)", HttpStatus.INTERNAL_SERVER_ERROR),
-    IDEMPOTENCY_KEY_GENERATION_FAILED("AI_011", "AI 리포트 요청 식별자 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
+    IDEMPOTENCY_KEY_GENERATION_FAILED("AI_011", "AI 리포트 요청 식별자 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // 요청 검증(Bean Validation) 전용 코드 — 1xx 대역.
+    INVALID_REQUEST("AI_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    PARAMETER_TYPE_INVALID("AI_101", "요청 파라미터 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

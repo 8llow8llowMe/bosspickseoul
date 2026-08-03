@@ -14,7 +14,13 @@ public enum MapErrorCode {
     HEATMAP_METRIC_TYPE_NOT_ALLOWED("MAP_004", "composite=true 인 경우 metricType 은 사용할 수 없습니다.", HttpStatus.BAD_REQUEST),
     HEATMAP_PRESET_NOT_ALLOWED("MAP_005", "composite=false 인 경우 preset 또는 priorityMetric 은 사용할 수 없습니다.", HttpStatus.BAD_REQUEST),
     VIEWPORT_INVALID("MAP_006", "지도 뷰포트 좌표가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
-    AREA_BOUNDARY_PARSE_FAILED("MAP_007", "영역 경계 좌표 변환에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
+    AREA_BOUNDARY_PARSE_FAILED("MAP_007", "영역 경계 좌표 변환에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // 요청 검증(Bean Validation) 전용 코드 — 1xx 대역.
+    INVALID_REQUEST("MAP_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    TOP_N_TOO_SMALL("MAP_101", "topN은 5 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
+    TOP_N_TOO_LARGE("MAP_102", "topN은 30 이하여야 합니다.", HttpStatus.BAD_REQUEST),
+    PARAMETER_TYPE_INVALID("MAP_103", "요청 파라미터 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

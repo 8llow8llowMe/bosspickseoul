@@ -8,12 +8,12 @@ import jakarta.validation.constraints.NotBlank;
 public record AuthEmailCodeVerifyRequest(
 
     @Schema(description = "인증코드를 받은 이메일 주소", example = "user@example.com")
-    @NotBlank(message = "이메일은 필수입니다.")
-    @Email(message = "이메일 형식이 올바르지 않습니다.")
+    @NotBlank(message = "AUTH_101:이메일은 필수입니다.")
+    @Email(message = "AUTH_102:이메일 형식이 올바르지 않습니다.")
     String email,
 
     @Schema(description = "메일로 받은 인증코드", example = "A3K7MP2X")
-    @NotBlank(message = "인증코드는 필수입니다.")
+    @NotBlank(message = "AUTH_104:인증코드는 필수입니다.")
     String code
 ) {
 

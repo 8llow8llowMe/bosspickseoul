@@ -3,6 +3,8 @@ dependencies {
     implementation 'com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5'
     // SpringDoc (swagger - openapi 3.0)
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+    // Validation (공통 검증 오류 응답 변환에 사용)
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
 }
 
 jar { enabled = true }

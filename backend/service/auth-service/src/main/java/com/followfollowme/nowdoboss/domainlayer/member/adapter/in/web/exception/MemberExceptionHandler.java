@@ -1,22 +1,20 @@
 package com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.exception;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
+import com.followfollowme.nowdoboss.common.exception.ValidationErrorSupport;
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.BookmarkException;
-import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberErrorCode;
+import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
 import jakarta.validation.ConstraintViolationException;
-import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.followfollowme.nowdoboss.domainlayer")
 public class MemberExceptionHandler {
 
     private static final String EMAIL_UNIQUE_CONSTRAINT = "uk_member_email";
@@ -36,26 +34,23 @@ public class MemberExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Response<Void>> handleValidationException(MethodArgumentNotValidException exception) {
-        String message = exception.getBindingResult()
-            .getFieldErrors()
-            .stream()
-            .map(FieldError::getDefaultMessage)
-            .collect(Collectors.joining(", "));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(Response.fail("MEMBER_400", message));
+    public ResponseEntity<Response<Void>> handleValidation(MethodArgumentNotValidException exception) {
+        return ValidationErrorSupport.toResponse(exception, MemberErrorCode.INVALID_REQUEST.getCode());
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Response<Void>> handleConstraintViolation(ConstraintViolationException exception) {
+        return ValidationErrorSupport.toResponse(exception, MemberErrorCode.INVALID_REQUEST.getCode());
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Response<Void>> handleHandlerMethodValidation(HandlerMethodValidationException exception) {
+        return ValidationErrorSupport.toResponse(exception, MemberErrorCode.INVALID_REQUEST.getCode());
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Response<Void>> handleTypeMismatchException(MethodArgumentTypeMismatchException exception) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(Response.fail("MEMBER_400", "요청 파라미터 타입이 올바르지 않습니다."));
-    }
-
-    @ExceptionHandler({ConstraintViolationException.class, HandlerMethodValidationException.class})
-    public ResponseEntity<Response<Void>> handleConstraintViolation(Exception exception) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(Response.fail("MEMBER_400", "요청 값이 올바르지 않습니다."));
+    public ResponseEntity<Response<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        return ValidationErrorSupport.toResponse(exception, MemberErrorCode.PARAMETER_TYPE_INVALID.getCode());
     }
 
     /**
