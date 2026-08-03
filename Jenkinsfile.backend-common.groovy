@@ -153,6 +153,144 @@ boolean isServiceAffected(Map<String, String> config, List<String> changedFiles)
     return false
 }
 
+// origin remote URL에서 GitHub owner/repo 슬러그를 뽑아냅니다. 판단 불가 시 빈 문자열을 반환합니다.
+// (정규식 Matcher는 CPS 직렬화 대상이 아니라 파이프라인에서 예외를 유발하므로 문자열 연산만 사용합니다.)
+String resolveRepositorySlug() {
+    String url = sh(returnStdout: true, script: 'git config --get remote.origin.url').trim()
+    if (!url) {
+        return ''
+    }
+
+    String slug = url.endsWith('.git') ? url.substring(0, url.length() - 4) : url
+    int hostIndex = slug.indexOf('github.com')
+    if (hostIndex < 0) {
+        return ''
+    }
+
+    slug = slug.substring(hostIndex + 'github.com'.length())
+    while (slug.startsWith(':') || slug.startsWith('/')) {
+        slug = slug.substring(1)
+    }
+
+    return slug.contains('/') ? slug : ''
+}
+
+// GitHub REST API를 GET 호출합니다. GitHub App credential의 installation token을 사용합니다.
+String githubApiGet(String apiPath, String credentialId) {
+    String response = ''
+
+    withCredentials([usernamePassword(
+        credentialsId: credentialId,
+        usernameVariable: 'GITHUB_API_USER',
+        passwordVariable: 'GITHUB_API_TOKEN'
+    )]) {
+        withEnv(["GITHUB_API_URL=https://api.github.com/${apiPath}"]) {
+            response = sh(
+                returnStdout: true,
+                script: '''#!/usr/bin/env bash
+set +x
+set -euo pipefail
+
+curl --fail --silent --show-error \
+  --header "Authorization: Bearer $GITHUB_API_TOKEN" \
+  --header "Accept: application/vnd.github+json" \
+  --header "X-GitHub-Api-Version: 2022-11-28" \
+  "$GITHUB_API_URL"
+'''
+            ).trim()
+        }
+    }
+
+    return response
+}
+
+// 이 빌드와 연결된 PR의 라벨 목록을 조회합니다.
+// 판단이 불가능하면 null을 반환해 라벨 조건을 적용하지 않습니다(fail-open).
+//
+// PR 빌드는 CHANGE_ID로 바로 조회하고, 브랜치 빌드(develop/main 머지 빌드)는
+// 커밋에 연결된 PR을 역조회합니다. `Github label filter` 플러그인은 PR discovery 단계만
+// 제한하므로, 머지 후 브랜치 빌드에서는 이렇게 직접 라벨을 확인해야 합니다.
+List<String> resolveDeployLabels(Map<String, String> ctx) {
+    String credentialId = params.GITHUB_APP_CREDENTIAL_ID?.trim()
+    if (!credentialId) {
+        echo 'GITHUB_APP_CREDENTIAL_ID가 비어 있어 라벨 기반 배포 판단을 건너뜁니다.'
+        return null
+    }
+
+    try {
+        String slug = resolveRepositorySlug()
+        if (!slug) {
+            echo 'origin remote에서 owner/repo를 판단할 수 없어 라벨 기반 배포 판단을 건너뜁니다.'
+            return null
+        }
+
+        def pullRequest = null
+        if (ctx.isPullRequest == 'true' && env.CHANGE_ID?.trim()) {
+            pullRequest = readJSON text: githubApiGet("repos/${slug}/pulls/${env.CHANGE_ID.trim()}", credentialId)
+        } else {
+            String headSha = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+            def associated = readJSON text: githubApiGet("repos/${slug}/commits/${headSha}/pulls", credentialId)
+            if (!associated || associated.isEmpty()) {
+                echo "커밋 ${headSha.take(8)}에 연결된 PR이 없어 라벨 조건 없이 진행합니다. (직접 push 등)"
+                return null
+            }
+            // 머지 커밋이면 merge_commit_sha가 일치하는 PR이 정확한 출처입니다.
+            associated.each { candidate ->
+                if (pullRequest == null && candidate?.merge_commit_sha?.toString() == headSha) {
+                    pullRequest = candidate
+                }
+            }
+            if (pullRequest == null) {
+                pullRequest = associated[0]
+            }
+        }
+
+        if (pullRequest == null) {
+            return null
+        }
+
+        List<String> labels = []
+        pullRequest.labels?.each { label ->
+            String name = label?.name?.toString()
+            if (name) {
+                labels.add(name)
+            }
+        }
+
+        echo "PR #${pullRequest.number} 라벨: ${labels ? labels.join(', ') : '없음'}"
+        return labels
+    } catch (Exception e) {
+        echo "PR 라벨 조회에 실패해 라벨 조건 없이 진행합니다: ${e.message}"
+        return null
+    }
+}
+
+// 라벨을 기준으로 이 서비스를 배포할지 판단합니다.
+// PR에 `backend-*` 라벨이 하나라도 있으면 그 목록에 포함된 서비스만 배포합니다.
+// 라벨이 없거나 조회에 실패하면 라벨 조건을 적용하지 않고 경로 기반 판단 결과를 따릅니다.
+boolean isServiceDeployAllowedByLabels(Map<String, String> config, List<String> labels) {
+    if (labels == null) {
+        return true
+    }
+
+    String prefix = params.DEPLOY_LABEL_PREFIX?.trim() ?: 'backend-'
+    List<String> serviceLabels = labels.findAll { it.startsWith(prefix) }
+
+    if (!serviceLabels) {
+        echo "배포 대상 라벨(${prefix}*)이 없어 라벨 조건 없이 진행합니다."
+        return true
+    }
+
+    String expected = "${prefix}${config.serviceName}"
+    if (serviceLabels.contains(expected)) {
+        echo "라벨 ${expected}이 지정되어 배포 대상입니다."
+        return true
+    }
+
+    echo "배포 대상 라벨: ${serviceLabels.join(', ')} — ${expected}이 없어 배포를 생략합니다."
+    return false
+}
+
 String resolveVaultApiPath(String vaultSecretPath, Integer engineVersion) {
     if (engineVersion != 2) {
         return vaultSecretPath
@@ -396,6 +534,16 @@ void run(Map<String, String> config) {
                 name: 'DEPLOY_LOCK_NAME',
                 defaultValue: 'backend-1-deploy',
                 description: '백엔드 배포를 직렬화할 때 사용할 Lockable Resource 이름입니다.'
+            ),
+            string(
+                name: 'GITHUB_APP_CREDENTIAL_ID',
+                defaultValue: 'github-app-followfollowme-jenkins',
+                description: 'PR 라벨 조회에 사용할 GitHub App Credential ID입니다. 비우면 라벨 기반 배포 판단을 하지 않습니다.'
+            ),
+            string(
+                name: 'DEPLOY_LABEL_PREFIX',
+                defaultValue: 'backend-',
+                description: '배포 대상을 지정하는 PR 라벨 접두어입니다. 라벨명은 {접두어}{serviceName} 형식입니다.'
             )
         ])
     ])
@@ -414,6 +562,15 @@ void run(Map<String, String> config) {
                 List<String> changedFiles = resolveChangedFiles(ctx)
                 ctx.serviceAffected = isServiceAffected(config, changedFiles) ? 'true' : 'false'
 
+                // 공용 경로(Jenkinsfile, core 모듈 등)를 건드리면 위 판단으로는 8개 잡이 모두 대상이 되므로,
+                // 실제 배포 대상은 PR 라벨로 한 번 더 좁힌다.
+                if (ctx.deployEnv in ['dev', 'prod'] && ctx.serviceAffected == 'true') {
+                    List<String> deployLabels = resolveDeployLabels(ctx)
+                    ctx.deployLabelAllowed = isServiceDeployAllowedByLabels(config, deployLabels) ? 'true' : 'false'
+                } else {
+                    ctx.deployLabelAllowed = 'true'
+                }
+
                 currentBuild.displayName = "#${env.BUILD_NUMBER} ${config.serviceName} ${env.BRANCH_NAME ?: 'n/a'}"
 
                 echo '=== 빌드 문맥 ==='
@@ -426,6 +583,7 @@ void run(Map<String, String> config) {
                 echo "PR 번호: ${ctx.requestedPrNumber ?: '없음'}"
                 echo "PR 빌드 여부: ${ctx.isPullRequest}"
                 echo "서비스 영향 여부: ${ctx.serviceAffected}"
+                echo "라벨 배포 허용 여부: ${ctx.deployLabelAllowed}"
                 echo "배포 환경: ${ctx.deployEnv}"
                 echo "빌드 에이전트 라벨: ${config.buildAgentLabel}"
                 if (ctx.deployEnv in ['dev', 'prod']) {
@@ -452,7 +610,7 @@ void run(Map<String, String> config) {
         return
     }
 
-    boolean shouldDeploy = shouldDeployToEnvironment(ctx)
+    boolean shouldDeploy = shouldDeployToEnvironment(ctx) && ctx.deployLabelAllowed != 'false'
 
     stage('JAR 빌드') {
         node(config.buildAgentLabel) {
@@ -573,7 +731,10 @@ exit 1
         }
     } else {
         stage('배포 생략') {
-            echo "배포를 생략합니다. deployEnv=${ctx.deployEnv}, skipDeploy=${params.SKIP_DEPLOY}, isPullRequest=${ctx.isPullRequest}"
+            echo "배포를 생략합니다. deployEnv=${ctx.deployEnv}, skipDeploy=${params.SKIP_DEPLOY}, isPullRequest=${ctx.isPullRequest}, deployLabelAllowed=${ctx.deployLabelAllowed}"
+            if (ctx.deployLabelAllowed == 'false') {
+                currentBuild.description = '라벨 미지정 - 배포 생략'
+            }
         }
     }
 }
