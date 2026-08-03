@@ -206,9 +206,10 @@ curl --fail --silent --show-error \
 
 // 이 빌드와 연결된 PR의 라벨 목록을 조회합니다.
 //
-// PR 빌드는 CHANGE_ID로 바로 조회하고, 브랜치 빌드(develop/main 머지 빌드)는
-// 커밋에 연결된 PR을 역조회합니다. `Github label filter` 플러그인은 PR discovery 단계만
-// 제한하므로, 머지 후 브랜치 빌드에서는 이렇게 직접 라벨을 확인해야 합니다.
+// `Github label filter` 플러그인은 PR discovery 단계만 제한하므로, 머지 후 브랜치 빌드에서는
+// 이렇게 직접 라벨을 확인해야 합니다. 실제 호출은 배포 대상 브랜치 빌드에서만 일어나고
+// (PR 빌드는 어차피 배포하지 않아 호출부에서 걸러집니다), 아래 CHANGE_ID 분기는
+// 이 함수만 놓고 봐도 어느 빌드에서든 올바른 PR을 가리키도록 남겨둔 경로입니다.
 //
 // 반환: [resolved: 'true'|'false', reason: '사유 코드', labels: List<String>]
 //   resolved='true'  — 라벨 목록을 확정했습니다. (라벨이 0개인 것도 확정입니다)
@@ -549,7 +550,7 @@ void run(Map<String, String> config) {
             string(
                 name: 'GITHUB_APP_CREDENTIAL_ID',
                 defaultValue: 'github-app-followfollowme-jenkins',
-                description: 'PR 라벨 조회에 사용할 GitHub App Credential ID입니다. 비우면 라벨 기반 배포 판단을 하지 않습니다.'
+                description: 'PR 라벨 조회에 사용할 GitHub App Credential ID입니다. 비우면 라벨을 조회할 수 없어 배포를 생략하고 빌드를 UNSTABLE로 표시합니다.'
             ),
             string(
                 name: 'DEPLOY_LABEL_PREFIX',
