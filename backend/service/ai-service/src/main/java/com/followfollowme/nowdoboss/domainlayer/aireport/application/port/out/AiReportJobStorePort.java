@@ -8,15 +8,15 @@ public interface AiReportJobStorePort {
     Optional<AiReportJob> findById(String jobId);
 
     /**
-     * Atomically reserves the idempotency slot for {@code (userId, requestHash)}.
+     * Atomically reserves the idempotency slot for {@code (memberId, requestHash)}.
      * Returns {@link Optional#empty()} when the caller successfully reserves the slot
      * (must proceed with {@link #save(AiReportJob)}).
      * Returns {@link Optional#of(Object)} containing the previously reserved jobId
      * when another concurrent caller already won the slot.
      */
-    Optional<String> reserveOrGetExistingJobId(Long userId, String requestHash, String newJobId);
+    Optional<String> reserveOrGetExistingJobId(Long memberId, String requestHash, String newJobId);
 
-    void releaseIdempotencyKey(Long userId, String requestHash);
+    void releaseIdempotencyKey(Long memberId, String requestHash);
 
     AiReportJob save(AiReportJob job);
 

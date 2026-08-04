@@ -18,7 +18,7 @@ public interface AiReportWebUseCase {
 
     AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode);
 
-    AiReportSubmissionInfo submitCommercialReport(Long userId, String commercialCode, String serviceCode, String periodCode);
+    AiReportSubmissionInfo submitCommercialReport(Long memberId, String commercialCode, String serviceCode, String periodCode);
 
-    AiReportJobInfo getJobInfo(String jobId, Long userId);
+    AiReportJobInfo getJobInfo(String jobId, Long memberId);
 }

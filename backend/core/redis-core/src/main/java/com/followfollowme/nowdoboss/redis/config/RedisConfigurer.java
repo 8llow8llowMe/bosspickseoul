@@ -1,7 +1,5 @@
 package com.followfollowme.nowdoboss.redis.config;
 
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.followfollowme.nowdoboss.redis.properties.RedisProperties;
 import com.followfollowme.nowdoboss.redis.properties.enums.RedisMode;
 import org.springframework.context.annotation.Bean;
@@ -11,6 +9,7 @@ import org.springframework.data.redis.connection.RedisSentinelConfiguration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -32,16 +31,15 @@ public class RedisConfigurer {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(redisConnectionFactory);
         redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(redisValueSerializer());
+        // 주의: 기본 ObjectMapper 라 java.time 타입을 직렬화하지 못한다.
+        // 객체 저장이 필요하면 StringRedisTemplate + 서비스 ObjectMapper 로 JSON 문자열을 직접 다룬다.
+        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         return redisTemplate;
     }
 
-    private GenericJackson2JsonRedisSerializer redisValueSerializer() {
-        // 기본 ObjectMapper 는 java.time 타입(Instant 등)을 지원하지 않으므로 jsr310 모듈을 등록한다.
-        return new GenericJackson2JsonRedisSerializer().configure(objectMapper -> {
-            objectMapper.registerModule(new JavaTimeModule());
-            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        });
+    @Bean
+    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
     }
 
     private LettuceConnectionFactory createSentinelConnectionFactory(RedisProperties redisProperties, boolean hasPassword) {

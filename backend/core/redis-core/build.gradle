@@ -1,10 +1,6 @@
 dependencies {
     // Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-
-    // Redis 값 직렬화(Jackson) — java.time 타입 지원을 위해 jsr310 모듈 필요
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 }
 
 jar { enabled = true }

@@ -8,7 +8,7 @@ import lombok.Builder;
 @Builder
 public record AiReportJob(
     String jobId,
-    Long userId,
+    Long memberId,
     AiReportJobType jobType,
     String requestHash,
     Map<String, String> requestParams,
@@ -23,7 +23,7 @@ public record AiReportJob(
 
     public AiReportJob withStatus(AiReportJobStatus next, Instant now) {
         return AiReportJob.builder()
-            .jobId(jobId).userId(userId).jobType(jobType).requestHash(requestHash).requestParams(requestParams)
+            .jobId(jobId).memberId(memberId).jobType(jobType).requestHash(requestHash).requestParams(requestParams)
             .status(next)
             .errorCode(errorCode).errorMessage(errorMessage)
             .createdAt(createdAt)
@@ -35,7 +35,7 @@ public record AiReportJob(
 
     public AiReportJob completedWithCommercialReport(CommercialAiReportInfo report, Instant now) {
         return AiReportJob.builder()
-            .jobId(jobId).userId(userId).jobType(jobType).requestHash(requestHash).requestParams(requestParams)
+            .jobId(jobId).memberId(memberId).jobType(jobType).requestHash(requestHash).requestParams(requestParams)
             .status(AiReportJobStatus.COMPLETED)
             .createdAt(createdAt).startedAt(startedAt).completedAt(now)
             .commercialReport(report)
@@ -44,7 +44,7 @@ public record AiReportJob(
 
     public AiReportJob failed(String errorCode, String errorMessage, Instant now) {
         return AiReportJob.builder()
-            .jobId(jobId).userId(userId).jobType(jobType).requestHash(requestHash).requestParams(requestParams)
+            .jobId(jobId).memberId(memberId).jobType(jobType).requestHash(requestHash).requestParams(requestParams)
             .status(AiReportJobStatus.FAILED)
             .errorCode(errorCode).errorMessage(errorMessage)
             .createdAt(createdAt).startedAt(startedAt).completedAt(now)

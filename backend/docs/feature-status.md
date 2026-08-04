@@ -57,8 +57,8 @@
 
 **Redis 스키마**:
 - `{prefix}:ai:job:{jobId}` (TTL 24h) — `AiReportJob` JSON
-- `{prefix}:ai:job:idempotency:{userId}:{requestHash}` (TTL 24h) → jobId
-- `{prefix}:ai:usage:{userId}:{yyyy-MM-dd}` (TTL 30d) — `promptTokens / completionTokens / count`
+- `{prefix}:ai:job:idempotency:{memberId}:{requestHash}` (TTL 24h) → jobId
+- `{prefix}:ai:usage:{memberId}:{yyyy-MM-dd}` (TTL 30d) — `promptTokens / completionTokens / count`
 
 **LLM port 시그니처 변경**:
 - `AiLlmPort.generateCommercialReport(...)` 외 4개 메서드가 `AiGenerationResult<*Draft>` 반환 (기존 `*Draft` 직접 반환 → wrapper)

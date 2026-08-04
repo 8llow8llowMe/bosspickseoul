@@ -60,7 +60,7 @@ GET /api/v1/ai-reports/jobs/{jobId}
 ### 멱등성 (원자적 보장 + orphan-key 방지)
 
 - `requestHash = SHA256(jobType | param1=v1 | param2=v2 | ...)` 앞 32자
-- 제출 흐름: **(1) PENDING 작업 entry 저장 → (2) `ai:job:idempotency:{userId}:{requestHash}` 키 `SETNX` 시도**
+- 제출 흐름: **(1) PENDING 작업 entry 저장 → (2) `ai:job:idempotency:{memberId}:{requestHash}` 키 `SETNX` 시도**
   - 이 순서 덕분에 idempotency 키가 외부에 보이는 시점에는 **항상 valid jobId 가 가리키는 작업 entry 가 존재**
   - 레이스 패배 시(다른 요청이 먼저 SETNX 성공) 자기가 방금 저장한 작업 entry 를 즉시 `deleteJob` 해서 orphan 잔여물 제거
 - 동일 사용자 + 동일 요청 동시 두 건이 들어와도 둘 중 하나만 워커 디스패치, 나머지는 같은 jobId 를 재사용해서 받음
@@ -86,8 +86,8 @@ GET /api/v1/ai-reports/jobs/{jobId}
 | 키 | 타입 | TTL | 내용 |
 |----|------|-----|------|
 | `{prefix}:ai:job:{jobId}` | String (JSON) | 24h | `AiReportJob` 직렬화 |
-| `{prefix}:ai:job:idempotency:{userId}:{hash}` | String | 24h | jobId |
-| `{prefix}:ai:usage:{userId}:{yyyy-MM-dd}` | Hash | 30d | promptTokens, completionTokens, count |
+| `{prefix}:ai:job:idempotency:{memberId}:{hash}` | String | 24h | jobId |
+| `{prefix}:ai:usage:{memberId}:{yyyy-MM-dd}` | Hash | 30d | promptTokens, completionTokens, count |
 | `{prefix}:ai:report:commercial:v2:...` | String (JSON) | 24h (`ai.report.cache.ttl-seconds`) | 결과 캐시 |
 
 ### Properties

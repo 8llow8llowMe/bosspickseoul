@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.out.cache;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
@@ -13,15 +14,17 @@ import com.followfollowme.nowdoboss.redis.properties.RedisProperties;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.RedisConnectionFailureException;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RedisAiReportCacheAdapter implements AiReportCachePort {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
     private final RedisProperties redisProperties;
     private final AiReportCacheProperties aiReportCacheProperties;
     private final ObjectMapper objectMapper;
@@ -75,11 +78,15 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
 
     private <T> Optional<T> getValue(String key, Class<T> targetType) {
         try {
-            Object value = redisTemplate.opsForValue().get(key);
-            if (value == null) {
+            String json = stringRedisTemplate.opsForValue().get(key);
+            if (json == null) {
                 return Optional.empty();
             }
-            return Optional.of(objectMapper.convertValue(value, targetType));
+            return Optional.of(objectMapper.readValue(json, targetType));
+        } catch (JsonProcessingException exception) {
+            // 구버전/손상 캐시는 미스로 간주하고 새 리포트 생성 후 덮어쓴다.
+            log.warn("AI 리포트 캐시 데이터를 해석할 수 없어 캐시 미스로 처리합니다. key={} reason={}", key, exception.getMessage());
+            return Optional.empty();
         } catch (RedisConnectionFailureException exception) {
             throw new AiReportException(AiReportErrorCode.CACHE_UNAVAILABLE, exception);
         }
@@ -87,8 +94,10 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
 
     private void saveValue(String key, Object value) {
         try {
-            redisTemplate.opsForValue().set(key, value, aiReportCacheProperties.ttlSeconds(), TimeUnit.SECONDS);
-        } catch (RedisConnectionFailureException exception) {
+            stringRedisTemplate.opsForValue().set(
+                key, objectMapper.writeValueAsString(value), aiReportCacheProperties.ttlSeconds(), TimeUnit.SECONDS
+            );
+        } catch (JsonProcessingException | RedisConnectionFailureException exception) {
             throw new AiReportException(AiReportErrorCode.CACHE_UNAVAILABLE, exception);
         }
     }

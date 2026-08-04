@@ -123,7 +123,7 @@ class AiReportWorkerTest {
     @Test
     void runCommercialJob_alreadyAdvanced_skipsTransition() {
         AiReportJob completed = AiReportJob.builder()
-            .jobId("J1").userId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
+            .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.COMPLETED).createdAt(Instant.now()).build();
         when(jobStore.findById("J1")).thenReturn(Optional.of(completed));
@@ -150,7 +150,7 @@ class AiReportWorkerTest {
 
     private AiReportJob pendingJob() {
         return AiReportJob.builder()
-            .jobId("J1").userId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
+            .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.PENDING).createdAt(Instant.now()).build();
     }
