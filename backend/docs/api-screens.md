@@ -3,6 +3,8 @@
 > 프론트엔드 개발자와 협업 시 참고하는 문서.
 > 각 API가 어떤 화면에 쓰이는지, 왜 그 방식으로 설계했는지 설명한다.
 
+> 최신 프론트 구현 기준은 `frontend-api-usage-guide.md`를 먼저 보고, 지도 화면 상세는 `map-api-frontend-guide.md`를 참고한다.
+
 ---
 
 ## RESTful 설계 평가 요약

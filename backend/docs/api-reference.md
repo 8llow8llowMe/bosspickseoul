@@ -20,18 +20,25 @@
 { "dataHeader": { "success": true, "resultCode": null, "resultMessage": null }, "dataBody": { } }
 ```
 
-요청 검증 실패 시에는 `resultCode` 에 대표(첫 번째) 필드 오류 코드가, `resultMessage.errors[]` 에 필드별 오류 목록이 담깁니다. 클라이언트는 `errors[].code` 로 분기하고 `errors[].field` 로 입력 위치를 표시하면 됩니다.
+요청 검증 실패 시에는 `resultCode` 에 대표 필드 오류 코드가, `resultMessage.errors[]` 에 필드별 오류 목록이 담깁니다. 클라이언트는 `errors[].code` 로 분기하고 `errors[].field` 로 입력 위치를 표시하면 됩니다.
+
+**한 필드에 오류가 여러 개 올 수 있습니다.** 예를 들어 비밀번호는 길이와 문자 구성을 따로 검사하므로 둘 다 어긋나면 2건이 옵니다. 서버는 오류를 버리지 않고 모두 담되 순서를 고정해서 내려줍니다.
+
+- 순서: **필드 선언 순서** → 같은 필드 안에서는 **필수 → 길이 → 범위 → 형식**
+- `resultCode` 와 대표 `message` 는 정렬된 첫 오류입니다. 같은 입력이면 항상 같은 코드가 나옵니다.
+- 화면 처리: 입력 항목별로 해당 `field` 의 **첫 오류만** 표시하면 됩니다. 한 번에 모두 안내하려면 같은 `field` 의 오류를 모아서 나열해도 됩니다.
 
 ```json
 {
   "dataHeader": {
     "success": false,
-    "resultCode": "MEMBER_109",
+    "resultCode": "MEMBER_104",
     "resultMessage": {
-      "message": "닉네임은 10자 이하만 가능합니다.",
+      "message": "비밀번호는 8자 이상 20자 이하여야 합니다.",
       "errors": [
-        { "code": "MEMBER_109", "field": "nickname", "message": "닉네임은 10자 이하만 가능합니다." },
-        { "code": "MEMBER_105", "field": "password", "message": "비밀번호는 공백 없이 영문자, 숫자, 특수문자를 포함한 8~20자여야 합니다." }
+        { "code": "MEMBER_104", "field": "password", "message": "비밀번호는 8자 이상 20자 이하여야 합니다." },
+        { "code": "MEMBER_105", "field": "password", "message": "비밀번호는 공백 없이 영문자, 숫자, 특수문자를 각각 1자 이상 포함해야 합니다." },
+        { "code": "MEMBER_109", "field": "nickname", "message": "닉네임은 10자 이하만 가능합니다." }
       ]
     }
   },
@@ -49,8 +56,8 @@
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
 | `AUTH` | `001~014` | `AUTH_100` | `101~104` | `AUTH_105` |
 | `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116` | `COMMUNITY_117` |
-| `COMMERCIAL` | `002~011` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
-| `MAP` | `001~007` | `MAP_100` | `101~102` | `MAP_103` |
+| `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
+| `MAP` | `001~008` | `MAP_100` | `101~102` | `MAP_103` |
 | `AI` | `001~011` | `AI_100` | (없음) | `AI_101` |
 | `DISTRICT` `001~003` / `ADMINISTRATION` `001~003` / `REGION` `001~005` | 조회 실패 등 | (검증 코드 없음) | - | - |
 | `COMMERCIAL_SUMMARY` `001~002` / `AREA_BOUNDARY` `001` | 요약·경계 데이터 | - | - | - |

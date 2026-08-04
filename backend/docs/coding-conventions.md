@@ -167,18 +167,43 @@ public ResponseEntity<Response<Void>> handleValidation(MethodArgumentNotValidExc
 }
 ```
 
-**4) 응답 형태** — `resultCode` 는 첫 번째(대표) 오류 코드이고, `resultMessage` 에 대표 메시지와 필드별 오류 목록이 담깁니다.
+**4) 응답 형태** — `resultCode` 는 대표 오류 코드이고, `resultMessage` 에 대표 메시지와 필드별 오류 목록이 담깁니다.
+
+한 필드에 제약이 여러 개 걸리면 오류도 여러 개 나옵니다. 오류를 버리지 않고 모두 담되(사용자가 한 번에 모두 고칠 수 있도록) **순서를 고정**합니다. Bean Validation 스펙은 제약 평가 순서를 보장하지 않으므로, 정렬하지 않으면 같은 요청에 `resultCode` 가 달라집니다.
+
+정렬 기준은 `ValidationErrorSupport` 가 아래 순서로 적용합니다.
+
+1. **필드 순서** — record DTO면 컴포넌트 선언 순서. 알 수 없으면(파라미터 검증 등) 등장 순서
+2. **제약 우선순위** — 필수(`NotNull`/`NotBlank`/`NotEmpty`) → 길이(`Size`/`Length`) → 범위(`Min`/`Max`/`Positive` 등) → 형식(`Email`/`Pattern`/`URL`) → 그 외
+3. **메시지** — 위 두 기준이 같을 때 순서를 고정하기 위한 마지막 기준
+
+`resultCode` 와 대표 메시지는 정렬된 첫 오류를 씁니다. 클라이언트는 입력 항목별로 해당 `field` 의 **첫 오류만 표시**하면 됩니다.
+
+**같은 의미를 두 제약으로 중복 검사하지 않습니다.** 메시지가 겹치면 같은 필드에 사실상 동일한 안내가 두 번 나갑니다. 예를 들어 비밀번호는 `@Size` 가 길이만, `@Pattern` 이 문자 구성만 담당하도록 나눕니다.
+
+```java
+// 지양 — @Pattern 의 \S{8,20} 이 @Size 와 길이를 중복 검사
+@Size(min = 8, max = 20, message = MemberValidationMessage.PASSWORD_LENGTH_INVALID)
+@Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[특수문자])\\S{8,20}$", ...)
+
+// 권장 — 길이는 @Size, 문자 구성은 @Pattern
+@Size(min = 8, max = 20, message = MemberValidationMessage.PASSWORD_LENGTH_INVALID)
+@Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[특수문자])\\S+$", ...)
+```
+
+아래는 `password` 가 길이와 문자 구성 둘 다 어긋나고 `nickname` 도 길이를 넘긴 경우입니다. `MemberGeneralSignupRequest` 의 선언 순서가 `email, password, name, nickname` 이므로 `password` 오류가 먼저 오고, 같은 필드 안에서는 길이(`Size`)가 형식(`Pattern`)보다 앞섭니다.
 
 ```json
 {
   "dataHeader": {
     "success": false,
-    "resultCode": "MEMBER_109",
+    "resultCode": "MEMBER_104",
     "resultMessage": {
-      "message": "닉네임은 10자 이하만 가능합니다.",
+      "message": "비밀번호는 8자 이상 20자 이하여야 합니다.",
       "errors": [
-        { "code": "MEMBER_109", "field": "nickname", "message": "닉네임은 10자 이하만 가능합니다." },
-        { "code": "MEMBER_105", "field": "password", "message": "비밀번호는 공백 없이 영문자, 숫자, 특수문자를 포함한 8~20자여야 합니다." }
+        { "code": "MEMBER_104", "field": "password", "message": "비밀번호는 8자 이상 20자 이하여야 합니다." },
+        { "code": "MEMBER_105", "field": "password", "message": "비밀번호는 공백 없이 영문자, 숫자, 특수문자를 각각 1자 이상 포함해야 합니다." },
+        { "code": "MEMBER_109", "field": "nickname", "message": "닉네임은 10자 이하만 가능합니다." }
       ]
     }
   },
@@ -285,9 +310,31 @@ private Long targetId;
 - Spring 백엔드 서비스 간 조회 / 연동은 기본적으로 `FeignClient`를 사용합니다.
 - Feign 인터페이스는 전용 패키지 안에서 `*Client` 이름을 사용합니다.
   - 예: `CommercialAnalysisClient`, `RegionAnalysisClient`
+- `name`은 서비스명을 하드코딩하지 않고 프로퍼티 참조 + local 기본값 폴백으로 선언합니다.
+  - 형식: `name = "${feign-client.target-services.<논리명>:<논리명>}"`
+  - 예: `name = "${feign-client.target-services.commercial-service:commercial-service}"`
+  - 이유: Eureka 등록명은 환경별 접미사(`-dev`/`-prod`)가 붙은 `*_APP_NAME` 값이므로,
+    하드코딩하면 dev/prod에서 `Load balancer does not contain an instance` 503이 발생합니다.
+  - dev 프로파일 yml에 `feign-client.target-services.<논리명>: ${<대상>_APP_NAME}` 매핑을 두고,
+    호출하는 쪽 서비스의 compose environment에 해당 `*_APP_NAME`을 주입합니다.
+    local은 매핑 없이 기본값 폴백으로 동작합니다.
+- 같은 대상 서비스를 여러 인터페이스가 호출하면 `contextId`를 반드시 지정합니다 (빈 이름 충돌 방지).
 - `adapter/out/client`의 adapter는 Feign 응답을 바로 사용하지 않고 `QueryResult` 또는 domain/model로 변환합니다.
 - `url`, per-client `configuration`은 꼭 필요한 사유가 없으면 기본값으로 추가하지 않습니다.
 - timeout, 공통 헤더 정책은 가능한 한 `spring.cloud.openfeign.client.config` 같은 공통 설정으로 관리합니다.
+  - 기본 read timeout 60초는 장애 전파에 취약하므로, Feign을 쓰는 서비스는 dev/local 프로파일에
+    `INTERNAL_CLIENT_CONNECT_TIMEOUT_MS` / `INTERNAL_CLIENT_READ_TIMEOUT_MS` 기반 공통 타임아웃을 선언합니다.
+- Feign을 쓰는 서비스는 Resilience4j CircuitBreaker를 함께 적용합니다.
+  - 설정은 per-client `configuration` 클래스가 아니라 `application.yml`의
+    `resilience4j.circuitbreaker.configs.default` + `instances.<논리 서비스명>`으로 관리합니다.
+  - 서킷 인스턴스명은 대상 서비스의 논리명(`commercial-service` 등)으로 하고, 상수는
+    각 서비스의 `adapter/out/client/support/InternalResponseSupport`에 둡니다.
+  - 서킷 적용과 예외 변환은 `InternalResponseSupport.requestAndUnwrap(대상, Supplier)`에서 수행합니다.
+    서킷은 Feign 호출만 감싸 전송 실패(5xx·타임아웃)만 집계하고, 4xx(`FeignClientException`)는
+    호출한 쪽의 요청 문제이므로 `ignore-exceptions`로 제외합니다.
+  - `CallNotPermittedException`(서킷 오픈)과 `FeignException`은 support 안에서 각 도메인 예외
+    (`{DOMAIN}_xxx INTERNAL_SERVICE_UNAVAILABLE`, 503)로 변환합니다. Feign 관련 예외가
+    application 계층이나 web advice까지 새어나가지 않게 합니다 (`architecture-guide.md` §7).
 
 ## 11. Enum Metadata 규칙
 

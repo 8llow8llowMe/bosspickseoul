@@ -100,4 +100,8 @@ domainlayer/<context>
 - 내부 서비스 호출 계약은 `application/port/out` 뒤의 `adapter/out/client`에서만 캡슐화한다.
 - `FeignClient -> Adapter -> QueryResult` 흐름을 기본 패턴으로 유지한다.
 - `application` 계층은 Feign 세부 설정이나 외부 응답 래퍼 구조를 직접 알지 않는다.
+- 내부 호출에는 공통 타임아웃과 Resilience4j CircuitBreaker를 적용해 상대 서비스 장애가
+  호출한 서비스 전체로 전파되지 않게 한다. 서킷 오픈·전송 실패는 `adapter/out/client` 안에서
+  각 도메인 예외(503)로 변환하고, `FeignException`류를 상위 계층으로 노출하지 않는다.
+  세부 규칙은 `coding-conventions.md` §10 참고.
 - `WebClient`는 외부 API 연동, 스트리밍, 비동기/반응형 요구가 명확할 때 우선 검토한다.
