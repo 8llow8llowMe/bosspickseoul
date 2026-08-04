@@ -37,7 +37,7 @@ public class AiReportJobProcessor {
     private final AiReportJobProperties aiReportJobProperties;
 
     public AiReportSubmissionInfo submitCommercialReport(
-        Long userId, String commercialCode, String serviceCode, String periodCode
+        Long memberId, String commercialCode, String serviceCode, String periodCode
     ) {
         Optional<CommercialAiReportInfo> cached =
             aiReportCachePort.getCommercialReport(commercialCode, serviceCode, periodCode);
@@ -51,7 +51,7 @@ public class AiReportJobProcessor {
 
         AiReportJob pendingJob = AiReportJob.builder()
             .jobId(newJobId)
-            .userId(userId)
+            .memberId(memberId)
             .jobType(AiReportJobType.COMMERCIAL)
             .requestHash(requestHash)
             .requestParams(params)
@@ -62,7 +62,7 @@ public class AiReportJobProcessor {
         // Save first so a published idempotency key always points at an existing job.
         aiReportJobStorePort.save(pendingJob);
 
-        Optional<String> existingJobId = aiReportJobStorePort.reserveOrGetExistingJobId(userId, requestHash, newJobId);
+        Optional<String> existingJobId = aiReportJobStorePort.reserveOrGetExistingJobId(memberId, requestHash, newJobId);
         if (existingJobId.isPresent()) {
             // Another request won the reservation race, so remove this unused job entry.
             aiReportJobStorePort.deleteJob(newJobId);
@@ -72,20 +72,20 @@ public class AiReportJobProcessor {
         try {
             aiReportWorker.runCommercialJob(newJobId);
         } catch (RuntimeException dispatchFailure) {
-            log.error("AI report worker dispatch failed jobId={} userId={} reason={}", newJobId, userId, dispatchFailure.getMessage());
+            log.error("AI report worker dispatch failed jobId={} memberId={} reason={}", newJobId, memberId, dispatchFailure.getMessage());
             aiReportJobStorePort.save(pendingJob.failed(
                 AiReportErrorCode.JOB_FAILED.getCode(), AiReportErrorCode.JOB_FAILED.getMessage(), Instant.now()
             ));
-            aiReportJobStorePort.releaseIdempotencyKey(userId, requestHash);
+            aiReportJobStorePort.releaseIdempotencyKey(memberId, requestHash);
         }
 
         return AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL, newJobId);
     }
 
-    public AiReportJobInfo getJobInfo(String jobId, Long userId) {
+    public AiReportJobInfo getJobInfo(String jobId, Long memberId) {
         AiReportJob job = aiReportJobStorePort.findById(jobId)
             .orElseThrow(() -> new AiReportException(AiReportErrorCode.JOB_NOT_FOUND));
-        if (job.userId() == null || !job.userId().equals(userId)) {
+        if (job.memberId() == null || !job.memberId().equals(memberId)) {
             throw new AiReportException(AiReportErrorCode.JOB_NOT_FOUND);
         }
 
@@ -135,7 +135,7 @@ public class AiReportJobProcessor {
             AiReportErrorCode.JOB_TIMEOUT.getCode(), AiReportErrorCode.JOB_TIMEOUT.getMessage(), now
         );
         aiReportJobStorePort.save(expired);
-        aiReportJobStorePort.releaseIdempotencyKey(job.userId(), job.requestHash());
+        aiReportJobStorePort.releaseIdempotencyKey(job.memberId(), job.requestHash());
         return expired;
     }
 

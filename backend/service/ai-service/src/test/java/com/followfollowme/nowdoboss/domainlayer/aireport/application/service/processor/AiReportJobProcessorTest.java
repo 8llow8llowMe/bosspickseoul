@@ -82,7 +82,7 @@ class AiReportJobProcessorTest {
         // PENDING 저장이 reserve 보다 먼저 일어나 idempotency 키가 항상 valid jobId 를 가리키도록 보장
         verify(jobStore).save(argThat(job ->
             job.status() == AiReportJobStatus.PENDING
-                && job.userId() == 7L
+                && job.memberId() == 7L
                 && job.jobType() == AiReportJobType.COMMERCIAL
                 && job.jobId().equals(result.jobId())
                 && job.requestParams().get("commercialCode").equals("C")
@@ -165,7 +165,7 @@ class AiReportJobProcessorTest {
         Instant created = Instant.now().minusSeconds(props.runningTimeoutSeconds() + 30);
         Instant started = Instant.now().minusSeconds(props.runningTimeoutSeconds() + 5);
         AiReportJob running = AiReportJob.builder()
-            .jobId("J1").userId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
+            .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.RUNNING)
             .createdAt(created).startedAt(started)
@@ -184,7 +184,7 @@ class AiReportJobProcessorTest {
     void getJobInfo_completedWithEmbeddedReport_returnsItWithoutCacheLookup() {
         CommercialAiReportInfo embedded = mock(CommercialAiReportInfo.class);
         AiReportJob done = AiReportJob.builder()
-            .jobId("J1").userId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
+            .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.COMPLETED)
             .createdAt(Instant.now()).completedAt(Instant.now())
@@ -205,7 +205,7 @@ class AiReportJobProcessorTest {
     @Test
     void getJobInfo_completedWithoutEmbeddedReport_fallsBackToCache() {
         AiReportJob done = AiReportJob.builder()
-            .jobId("J1").userId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
+            .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.COMPLETED)
             .createdAt(Instant.now()).completedAt(Instant.now())
@@ -219,9 +219,9 @@ class AiReportJobProcessorTest {
         assertThat(info.commercialReport()).isSameAs(cached);
     }
 
-    private AiReportJob pendingJob(long userId, Instant createdAt) {
+    private AiReportJob pendingJob(long memberId, Instant createdAt) {
         return AiReportJob.builder()
-            .jobId("J1").userId(userId).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
+            .jobId("J1").memberId(memberId).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.PENDING)
             .createdAt(createdAt)

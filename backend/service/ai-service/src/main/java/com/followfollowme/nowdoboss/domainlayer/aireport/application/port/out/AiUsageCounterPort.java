@@ -4,5 +4,5 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiUsageMet
 
 public interface AiUsageCounterPort {
 
-    void record(Long userId, AiUsageMeta usage);
+    void record(Long memberId, AiUsageMeta usage);
 }

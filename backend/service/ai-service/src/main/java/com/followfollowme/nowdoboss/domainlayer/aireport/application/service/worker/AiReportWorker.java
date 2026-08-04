@@ -51,12 +51,12 @@ public class AiReportWorker {
             AiGenerationResult<CommercialAiReportInfo> result = aiReportProcessor.generateCommercialReport(
                 params.get("commercialCode"), params.get("serviceCode"), params.get("periodCode")
             );
-            aiUsageCounterPort.record(running.userId(), result.usage());
+            aiUsageCounterPort.record(running.memberId(), result.usage());
             aiReportJobStorePort.save(running.completedWithCommercialReport(result.draft(), Instant.now()));
         } catch (AiReportException domainException) {
             log.error(
-                "AI report job failed jobId={} jobType={} userId={} errorCode={} cause={}",
-                running.jobId(), running.jobType(), running.userId(),
+                "AI report job failed jobId={} jobType={} memberId={} errorCode={} cause={}",
+                running.jobId(), running.jobType(), running.memberId(),
                 domainException.getErrorCode().getCode(), domainException.getMessage(), domainException
             );
             aiReportJobStorePort.save(running.failed(
@@ -64,15 +64,15 @@ public class AiReportWorker {
             ));
         } catch (Exception unexpected) {
             log.error(
-                "AI report job failed unexpectedly jobId={} jobType={} userId={} type={} cause={}",
-                running.jobId(), running.jobType(), running.userId(),
+                "AI report job failed unexpectedly jobId={} jobType={} memberId={} type={} cause={}",
+                running.jobId(), running.jobType(), running.memberId(),
                 unexpected.getClass().getSimpleName(), unexpected.getMessage(), unexpected
             );
             aiReportJobStorePort.save(running.failed(
                 AiReportErrorCode.JOB_FAILED.getCode(), AiReportErrorCode.JOB_FAILED.getMessage(), Instant.now()
             ));
         } finally {
-            aiReportJobStorePort.releaseIdempotencyKey(running.userId(), running.requestHash());
+            aiReportJobStorePort.releaseIdempotencyKey(running.memberId(), running.requestHash());
         }
     }
 }

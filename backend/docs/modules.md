@@ -62,7 +62,9 @@ backend/
 **역할**: Redis 연결 공통 설정
 
 **포함:**
-- `config.RedisConfigurer` — `RedisConnectionFactory`, `RedisTemplate` 빈 (값 직렬화는 Jackson JSON, `java.time` 타입 지원)
+- `config.RedisConfigurer` — `RedisConnectionFactory`, `RedisTemplate`, `StringRedisTemplate` 빈
+  - `RedisTemplate` 값 직렬화는 기본 ObjectMapper 기반 Jackson JSON 이라 `java.time` 타입을 지원하지 않는다.
+  - 객체 저장 시에는 `StringRedisTemplate` + 서비스 `ObjectMapper` 로 JSON 문자열을 직접 읽고 쓰는 방식을 권장한다. (타입 힌트 없는 순수 JSON, 직렬화 실패를 어댑터에서 명시적으로 처리)
 - `config.RedisPropertiesConfig` — properties 바인딩
 - `properties.RedisProperties` — host/port/mode
 - `properties.enums.RedisMode` — STANDALONE/CLUSTER

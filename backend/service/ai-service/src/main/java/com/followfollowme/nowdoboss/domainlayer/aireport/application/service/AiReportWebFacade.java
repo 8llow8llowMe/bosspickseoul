@@ -44,13 +44,13 @@ public class AiReportWebFacade implements AiReportWebUseCase {
 
     @Override
     public AiReportSubmissionInfo submitCommercialReport(
-        Long userId, String commercialCode, String serviceCode, String periodCode
+        Long memberId, String commercialCode, String serviceCode, String periodCode
     ) {
-        return aiReportJobProcessor.submitCommercialReport(userId, commercialCode, serviceCode, periodCode);
+        return aiReportJobProcessor.submitCommercialReport(memberId, commercialCode, serviceCode, periodCode);
     }
 
     @Override
-    public AiReportJobInfo getJobInfo(String jobId, Long userId) {
-        return aiReportJobProcessor.getJobInfo(jobId, userId);
+    public AiReportJobInfo getJobInfo(String jobId, Long memberId) {
+        return aiReportJobProcessor.getJobInfo(jobId, memberId);
     }
 }
