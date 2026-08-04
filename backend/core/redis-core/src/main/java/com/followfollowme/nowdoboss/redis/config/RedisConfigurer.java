@@ -1,5 +1,7 @@
 package com.followfollowme.nowdoboss.redis.config;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.followfollowme.nowdoboss.redis.properties.RedisProperties;
 import com.followfollowme.nowdoboss.redis.properties.enums.RedisMode;
 import org.springframework.context.annotation.Bean;
@@ -30,8 +32,16 @@ public class RedisConfigurer {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(redisConnectionFactory);
         redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        redisTemplate.setValueSerializer(redisValueSerializer());
         return redisTemplate;
+    }
+
+    private GenericJackson2JsonRedisSerializer redisValueSerializer() {
+        // 기본 ObjectMapper 는 java.time 타입(Instant 등)을 지원하지 않으므로 jsr310 모듈을 등록한다.
+        return new GenericJackson2JsonRedisSerializer().configure(objectMapper -> {
+            objectMapper.registerModule(new JavaTimeModule());
+            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        });
     }
 
     private LettuceConnectionFactory createSentinelConnectionFactory(RedisProperties redisProperties, boolean hasPassword) {
