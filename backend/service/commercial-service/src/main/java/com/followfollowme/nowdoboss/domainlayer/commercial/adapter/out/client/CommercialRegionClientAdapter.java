@@ -1,7 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.client;
 
-import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.client.feign.CommercialRegionClient;
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.CommercialRegionQueryPort;
@@ -14,13 +14,17 @@ import org.springframework.stereotype.Component;
 public class CommercialRegionClientAdapter implements CommercialRegionQueryPort {
 
     private final CommercialRegionClient commercialRegionClient;
+    private final InternalResponseSupport responseSupport;
 
     @Override
     public CommercialAdministrationQueryResult getCommercialAdministration(String commercialCode) {
-        Response<CommercialAdministrationQueryResult> response = commercialRegionClient.getCommercialAdministration(commercialCode);
-        if (response == null || response.dataBody() == null) {
+        CommercialAdministrationQueryResult result = responseSupport.requestAndUnwrap(
+            InternalResponseSupport.DISTRICT_SERVICE,
+            () -> commercialRegionClient.getCommercialAdministration(commercialCode)
+        );
+        if (result == null) {
             throw new CommercialException(CommercialErrorCode.COMMERCIAL_NOT_FOUND);
         }
-        return response.dataBody();
+        return result;
     }
 }

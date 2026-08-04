@@ -15,6 +15,7 @@ public enum MapErrorCode {
     HEATMAP_PRESET_NOT_ALLOWED("MAP_005", "composite=false 인 경우 preset 또는 priorityMetric 은 사용할 수 없습니다.", HttpStatus.BAD_REQUEST),
     VIEWPORT_INVALID("MAP_006", "지도 뷰포트 좌표가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     AREA_BOUNDARY_PARSE_FAILED("MAP_007", "영역 경계 좌표 변환에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    INTERNAL_SERVICE_UNAVAILABLE("MAP_008", "상권 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(MAP_101~102)는 MapValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

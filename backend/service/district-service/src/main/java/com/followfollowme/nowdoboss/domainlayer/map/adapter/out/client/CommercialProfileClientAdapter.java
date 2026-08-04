@@ -1,7 +1,7 @@
 package com.followfollowme.nowdoboss.domainlayer.map.adapter.out.client;
 
-import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.map.adapter.out.client.feign.CommercialProfileClient;
+import com.followfollowme.nowdoboss.domainlayer.map.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.CommercialProfileQueryPort;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query.CommercialComparePreviewQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.map.application.port.out.query.CommercialProfileQueryResult;
@@ -13,20 +13,23 @@ import org.springframework.stereotype.Component;
 public class CommercialProfileClientAdapter implements CommercialProfileQueryPort {
 
     private final CommercialProfileClient commercialProfileClient;
+    private final InternalResponseSupport responseSupport;
 
     @Override
     public CommercialProfileQueryResult getCommercialProfile(String commercialCode, String serviceCode, String periodCode) {
-        Response<CommercialProfileQueryResult> response =
-            commercialProfileClient.getCommercialProfile(commercialCode, serviceCode, periodCode);
-        return response == null ? null : response.dataBody();
+        return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
+            () -> commercialProfileClient.getCommercialProfile(commercialCode, serviceCode, periodCode)
+        );
     }
 
     @Override
     public CommercialComparePreviewQueryResult getCommercialComparePreview(
         String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
-        Response<CommercialComparePreviewQueryResult> response =
-            commercialProfileClient.getCommercialComparePreview(leftCommercialCode, rightCommercialCode, serviceCode, periodCode);
-        return response == null ? null : response.dataBody();
+        return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
+            () -> commercialProfileClient.getCommercialComparePreview(leftCommercialCode, rightCommercialCode, serviceCode, periodCode)
+        );
     }
 }
