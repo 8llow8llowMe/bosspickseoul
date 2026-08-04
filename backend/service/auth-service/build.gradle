@@ -12,6 +12,8 @@ dependencies {
     runtimeOnly 'com.mysql:mysql-connector-j'
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // Resilience4j CircuitBreaker (OAuth provider 호출 장애 전파 차단)
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
     // Eureka Client for Service Discovery (Eureka 클라이언트)
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     // Config Client

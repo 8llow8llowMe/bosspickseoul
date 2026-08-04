@@ -26,6 +26,7 @@ public class NaverMemberQueryAdapter implements OAuthMemberQueryPort {
 
     private final NaverApiClient naverApiClient;
     private final NaverOAuthProperties naverOAuthProperties;
+    private final OAuthApiCallSupport oauthApiCallSupport;
 
     @Override
     public OAuthProvider supports() {
@@ -35,12 +36,12 @@ public class NaverMemberQueryAdapter implements OAuthMemberQueryPort {
     @Override
     public OAuthMemberQueryResult fetchMember(String authCode, String state) {
         // 1. 인가코드 -> 액세스 토큰 교환 (네이버는 실패 시에도 200 + error 바디를 반환한다)
-        NaverToken token = OAuthApiCallSupport.call(
+        NaverToken token = oauthApiCallSupport.call(
             () -> naverApiClient.fetchToken(buildTokenRequestParams(authCode, state)), OAuthProvider.NAVER);
         validateToken(token);
 
         // 2. 사용자 프로필 조회 (resultcode != "00" 이면 response가 없다)
-        NaverMemberResponse response = OAuthApiCallSupport.call(
+        NaverMemberResponse response = oauthApiCallSupport.call(
             () -> naverApiClient.fetchMember("Bearer " + token.accessToken()), OAuthProvider.NAVER);
         NaverAccount account = validateProfile(response);
 
