@@ -37,3 +37,9 @@ resilience4j:
         base-config: default
       district-service:
         base-config: default
+      llm:
+        base-config: default
+        # LLM 생성은 수십 초가 정상 범위라 내부 호출용 5초 slow-call 기준을 그대로 쓰면
+        # 정상 응답도 서킷을 열어버린다. ai.llm.timeout-ms(30s)보다 약간 낮게 완화한다.
+        slow-call-duration-threshold: 25s
+        wait-duration-in-open-state: 30s

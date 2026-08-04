@@ -16,6 +16,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.Commercial
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
 import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -42,10 +43,15 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
         JSON만 반환하세요.
         """;
 
+    // 서킷브레이커 인스턴스명(application.yml resilience4j.circuitbreaker.instances 키와 일치).
+    // provider(OLLAMA/OPENAI)와 무관하게 LLM 의존 하나로 취급한다.
+    private static final String LLM_CIRCUIT = "llm";
+
     private final OllamaChatModel ollamaChatModel;
     private final AiStructuredResponseParser parser;
     private final AiReportPromptTemplate promptTemplate;
     private final AiLlmProperties aiLlmProperties;
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     @Override
     public AiGenerationResult<CommercialAiDraft> generateCommercialReport(CommercialAiSourceData sourceData) {
@@ -73,10 +79,13 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
 
     private ChatResponse requestStructuredContent(String userPrompt) {
         try {
-            return ollamaChatModel.call(new Prompt(
-                List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userPrompt)),
-                OllamaOptions.builder().format("json").build()
-            ));
+            // 서킷 오픈(CallNotPermittedException) 포함 모든 RuntimeException을 AI_002로 변환한다.
+            return circuitBreakerRegistry.circuitBreaker(LLM_CIRCUIT).executeSupplier(() ->
+                ollamaChatModel.call(new Prompt(
+                    List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userPrompt)),
+                    OllamaOptions.builder().format("json").build()
+                ))
+            );
         } catch (RuntimeException exception) {
             throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE, exception);
         }
