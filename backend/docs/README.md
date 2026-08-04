@@ -18,6 +18,10 @@
   - 서비스별 전체 엔드포인트 목록, 노출 경로(게이트웨이 경유 여부), 공통 응답 규약과 에러코드 대역
 - `api-screens.md`
   - 프론트엔드 협업용. 각 API가 어떤 화면에서 쓰이는지, 호출 순서, AI 비동기 폴링 가이드
+- `frontend-api-usage-guide.md`
+  - 프론트엔드 구현용. 화면별 API 선택 기준, 호출 순서, lazy load/캐싱 전략
+- `map-api-frontend-guide.md`
+  - 지도 화면 구현용. viewport 기반 지도 API 호출법, 줌 레벨 전략, 상권 히트맵/추천/비교 응용 흐름
 - `service-playbook.md`
   - 새 서비스, 컨텍스트 추가, 리팩토링, 문서/검증 절차
 - `done-checklist.md`
@@ -40,7 +44,7 @@
 3. `architecture-guide.md`
 4. `coding-conventions.md`
 5. `api-design-guide.md`
-6. `api-reference.md`, `api-screens.md` (프론트 협업 시 우선)
+6. `api-reference.md`, `api-screens.md`, `frontend-api-usage-guide.md`, `map-api-frontend-guide.md` (프론트 협업 시 우선)
 7. `service-playbook.md`
 8. `done-checklist.md`
 9. `team-playbook.md`

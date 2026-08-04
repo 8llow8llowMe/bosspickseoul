@@ -95,3 +95,4 @@
 - `selectionReason` is intended to be rendered directly in candidate cards or list UIs.
 - `mode` also uses a metadata object and distinguishes single-metric heatmaps from composite recommendation heatmaps.
 - Invalid heatmap mode combinations and out-of-range `topN` values are treated as `400 Bad Request`.
+- Frontend usage patterns, viewport parameters, zoom-level strategy, and screen-level API flows are documented in `../map-api-frontend-guide.md`.
