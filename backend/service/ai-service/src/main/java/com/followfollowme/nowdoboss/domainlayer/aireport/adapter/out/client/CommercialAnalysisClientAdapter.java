@@ -24,32 +24,32 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
 
     @Override
     public CommercialFootTrafficQueryResult getCommercialFootTraffic(String commercialCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(() -> commercialAnalysisClient.getCommercialFootTraffic(commercialCode, periodCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialFootTraffic(commercialCode, periodCode));
     }
 
     @Override
     public CommercialSalesQueryResult getCommercialSales(String commercialCode, String serviceCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(() -> commercialAnalysisClient.getCommercialSales(commercialCode, serviceCode, periodCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialSales(commercialCode, serviceCode, periodCode));
     }
 
     @Override
     public CommercialFacilityQueryResult getCommercialFacility(String commercialCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(() -> commercialAnalysisClient.getCommercialFacility(commercialCode, periodCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialFacility(commercialCode, periodCode));
     }
 
     @Override
     public CommercialResidentPopulationQueryResult getCommercialPopulation(String commercialCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(() -> commercialAnalysisClient.getCommercialPopulation(commercialCode, periodCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialPopulation(commercialCode, periodCode));
     }
 
     @Override
     public CommercialIncomeAndExpenseQueryResult getCommercialIncome(String commercialCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(() -> commercialAnalysisClient.getCommercialIncome(commercialCode, periodCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialIncome(commercialCode, periodCode));
     }
 
     @Override
     public CommercialStoreAnalysisQueryResult getCommercialStore(String commercialCode, String serviceCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(() -> commercialAnalysisClient.getCommercialStore(commercialCode, serviceCode, periodCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialStore(commercialCode, serviceCode, periodCode));
     }
 
     @Override
@@ -57,6 +57,7 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
         String districtCode, String administrationCode, String commercialCode, String serviceCode, String periodCode
     ) {
         return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialAnalysisClient.getCommercialSalesSummary(
                 commercialCode, districtCode, administrationCode, serviceCode, periodCode
             )
@@ -68,6 +69,7 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
         String districtCode, String administrationCode, String commercialCode, String periodCode
     ) {
         return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialAnalysisClient.getCommercialIncomeSummary(commercialCode, districtCode, administrationCode, periodCode)
         );
     }
@@ -77,6 +79,7 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
         String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
         return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialAnalysisClient.getCommercialComparison(leftCommercialCode, rightCommercialCode, serviceCode, periodCode)
         );
     }

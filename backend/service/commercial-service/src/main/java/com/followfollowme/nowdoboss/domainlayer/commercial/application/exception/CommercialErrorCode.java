@@ -18,6 +18,7 @@ public enum CommercialErrorCode {
     RESIDENT_POPULATION_NOT_FOUND("COMMERCIAL_009", "상주인구 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     INCOME_NOT_FOUND("COMMERCIAL_010", "소득소비 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     STORE_NOT_FOUND("COMMERCIAL_011", "점포 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    INTERNAL_SERVICE_UNAVAILABLE("COMMERCIAL_012", "지역 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(COMMERCIAL_101)는 CommercialValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

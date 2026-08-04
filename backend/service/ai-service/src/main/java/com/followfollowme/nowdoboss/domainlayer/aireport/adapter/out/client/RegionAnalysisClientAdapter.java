@@ -22,20 +22,21 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
 
     @Override
     public AdministrationDistrictQueryResult getAdministrationDistrict(String administrationCode) {
-        return responseSupport.requestAndUnwrap(() -> regionAnalysisClient.getAdministrationDistrict(administrationCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getAdministrationDistrict(administrationCode));
     }
 
     @Override
     public List<AdministrationCommercialQueryResult> getCommercialsByAdministration(String administrationCode) {
         String districtCode = extractDistrictCode(administrationCode);
         return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.DISTRICT_SERVICE,
             () -> regionAnalysisClient.getCommercialsByAdministration(districtCode, administrationCode)
         );
     }
 
     @Override
     public CommercialAdministrationQueryResult getCommercialAdministration(String commercialCode) {
-        return responseSupport.requestAndUnwrap(() -> regionAnalysisClient.getCommercialAdministration(commercialCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getCommercialAdministration(commercialCode));
     }
 
     private String extractDistrictCode(String administrationCode) {

@@ -16,6 +16,6 @@ public class DistrictAnalysisClientAdapter implements DistrictAnalysisQueryPort 
 
     @Override
     public DistrictDetailQueryResult getDistrictDetail(String districtCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(() -> districtAnalysisClient.getDistrictDetail(districtCode, periodCode));
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> districtAnalysisClient.getDistrictDetail(districtCode, periodCode));
     }
 }

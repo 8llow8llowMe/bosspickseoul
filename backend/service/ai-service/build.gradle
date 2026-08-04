@@ -11,6 +11,8 @@ dependencies {
 
     implementation 'org.springframework.ai:spring-ai-ollama'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    // Resilience4j CircuitBreaker (내부 Feign 호출 장애 전파 차단)
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
