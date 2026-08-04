@@ -19,7 +19,7 @@ public record MemberGeneralSignupRequest(
     @NotBlank(message = MemberValidationMessage.PASSWORD_REQUIRED)
     @Size(min = 8, max = 20, message = MemberValidationMessage.PASSWORD_LENGTH_INVALID)
     @Pattern(
-        regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()\\-_=+\\[\\]{};:'\",.<>/?\\\\|])\\S{8,20}$",
+        regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()\\-_=+\\[\\]{};:'\",.<>/?\\\\|])\\S+$",
         message = MemberValidationMessage.PASSWORD_PATTERN_INVALID
     )
     String password,

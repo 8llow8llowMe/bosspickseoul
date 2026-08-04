@@ -14,9 +14,11 @@ public final class MemberValidationMessage {
     public static final String EMAIL_REQUIRED = "MEMBER_101:이메일은 필수입니다.";
     public static final String EMAIL_FORMAT_INVALID = "MEMBER_102:이메일 형식이 올바르지 않습니다.";
     public static final String PASSWORD_REQUIRED = "MEMBER_103:비밀번호는 필수입니다.";
+    // 길이는 @Size(MEMBER_104), 문자 구성은 @Pattern(MEMBER_105)이 각각 담당한다.
+    // 두 메시지가 길이를 함께 언급하면 같은 필드에 중복된 안내가 나가므로 역할을 분리해서 적는다.
     public static final String PASSWORD_LENGTH_INVALID = "MEMBER_104:비밀번호는 8자 이상 20자 이하여야 합니다.";
     public static final String PASSWORD_PATTERN_INVALID =
-        "MEMBER_105:비밀번호는 공백 없이 영문자, 숫자, 특수문자를 포함한 8~20자여야 합니다.";
+        "MEMBER_105:비밀번호는 공백 없이 영문자, 숫자, 특수문자를 각각 1자 이상 포함해야 합니다.";
     public static final String NAME_REQUIRED = "MEMBER_106:이름은 필수입니다.";
     public static final String NAME_LENGTH_INVALID = "MEMBER_107:이름은 10자 이하만 가능합니다.";
     public static final String NICKNAME_REQUIRED = "MEMBER_108:닉네임은 필수입니다.";
