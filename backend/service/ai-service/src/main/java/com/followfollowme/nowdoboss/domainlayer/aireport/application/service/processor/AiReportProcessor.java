@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor;
 
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
@@ -46,6 +47,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -103,10 +105,20 @@ public class AiReportProcessor {
                 administrationInfo.districtCode(), administrationInfo.administrationCode(),
                 commercialCode, periodCode));
 
-        CompletableFuture.allOf(
-            ftFuture, salesFuture, facilityFuture, populationFuture,
-            incomeFuture, storeFuture, salesSummaryFuture, incomeSummaryFuture
-        ).join();
+        try {
+            CompletableFuture.allOf(
+                ftFuture, salesFuture, facilityFuture, populationFuture,
+                incomeFuture, storeFuture, salesSummaryFuture, incomeSummaryFuture
+            ).join();
+        } catch (CompletionException exception) {
+            // join()은 원인 예외를 CompletionException으로 감싸므로 도메인 예외를 복원한다.
+            // 복원하지 않으면 워커의 catch (AiReportException)이 매칭되지 않아
+            // 원천 데이터 실패(AI_001)가 작업 실패(AI_008)로 뭉개진다.
+            if (exception.getCause() instanceof AiReportException domainException) {
+                throw domainException;
+            }
+            throw exception;
+        }
 
         var footTraffic = ftFuture.join();
         var sales = salesFuture.join();
