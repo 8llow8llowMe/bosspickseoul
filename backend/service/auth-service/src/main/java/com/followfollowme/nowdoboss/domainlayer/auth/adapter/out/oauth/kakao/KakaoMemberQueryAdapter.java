@@ -25,6 +25,7 @@ public class KakaoMemberQueryAdapter implements OAuthMemberQueryPort {
 
     private final KakaoApiClient kakaoApiClient;
     private final KakaoOAuthProperties kakaoOAuthProperties;
+    private final OAuthApiCallSupport oauthApiCallSupport;
 
     @Override
     public OAuthProvider supports() {
@@ -34,12 +35,12 @@ public class KakaoMemberQueryAdapter implements OAuthMemberQueryPort {
     @Override
     public OAuthMemberQueryResult fetchMember(String authCode, String state) {
         // 1. 인가코드 -> 액세스 토큰 교환 (HTTP 오류/오류 바디는 도메인 예외로 변환)
-        KakaoToken token = OAuthApiCallSupport.call(
+        KakaoToken token = oauthApiCallSupport.call(
             () -> kakaoApiClient.fetchToken(buildTokenRequestParams(authCode)), OAuthProvider.KAKAO);
         validateToken(token);
 
         // 2. 사용자 프로필 조회
-        KakaoMemberResponse response = OAuthApiCallSupport.call(
+        KakaoMemberResponse response = oauthApiCallSupport.call(
             () -> kakaoApiClient.fetchMember("Bearer " + token.accessToken()), OAuthProvider.KAKAO);
 
         // 3. 부분 동의(항목 미제공)에 안전하게 QueryResult로 변환
