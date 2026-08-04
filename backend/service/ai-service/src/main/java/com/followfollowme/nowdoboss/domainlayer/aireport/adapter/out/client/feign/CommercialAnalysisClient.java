@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(
-    name = "commercial-service",
+    name = "${feign-client.target-services.commercial-service:commercial-service}",
     contextId = "commercialAnalysisClient",
     path = "/api/v1/commercials"
 )

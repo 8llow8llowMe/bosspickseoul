@@ -6,6 +6,12 @@ spring:
   cloud:
     config:
       enabled: false
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${INTERNAL_CLIENT_CONNECT_TIMEOUT_MS}
+            readTimeout: ${INTERNAL_CLIENT_READ_TIMEOUT_MS}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DISTRICT_DB_URL}
@@ -25,6 +31,12 @@ spring:
         jdbc:
           batch_size: 100
         default_batch_fetch_size: 100
+
+# Feign이 조회할 상대 서비스의 Eureka 등록명. Eureka 등록명은 환경별 접미사가 붙으므로
+# (예: commercial-service-dev) 코드의 논리명 대신 이 매핑을 통해 실제 등록명으로 해석한다.
+feign-client:
+  target-services:
+    commercial-service: ${COMMERCIAL_SERVICE_APP_NAME}
 
 eureka:
   instance:

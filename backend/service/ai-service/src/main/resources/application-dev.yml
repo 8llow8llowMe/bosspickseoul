@@ -13,6 +13,13 @@ spring:
             connectTimeout: ${INTERNAL_CLIENT_CONNECT_TIMEOUT_MS}
             readTimeout: ${INTERNAL_CLIENT_READ_TIMEOUT_MS}
 
+# Feign이 조회할 상대 서비스의 Eureka 등록명. Eureka 등록명은 환경별 접미사가 붙으므로
+# (예: commercial-service-dev) 코드의 논리명 대신 이 매핑을 통해 실제 등록명으로 해석한다.
+feign-client:
+  target-services:
+    commercial-service: ${COMMERCIAL_SERVICE_APP_NAME}
+    district-service: ${DISTRICT_SERVICE_APP_NAME}
+
 eureka:
   instance:
     # Docker 컨테이너 환경: 컨테이너 IP로 등록해야 게이트웨이 lb:// 라우팅이
