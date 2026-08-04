@@ -26,15 +26,18 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.Commercial
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.DistrictAiDraft;
 import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.netty.channel.ChannelOption;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.netty.http.client.HttpClient;
 
 @Component
 @ConditionalOnProperty(prefix = "ai.llm", name = "provider", havingValue = "OPENAI")
@@ -49,20 +52,28 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
         JSON 이외의 추가 설명은 절대 포함하지 마세요.
     """;
 
+    // 서킷브레이커 인스턴스명(application.yml resilience4j.circuitbreaker.instances 키와 일치).
+    // provider(OLLAMA/OPENAI)와 무관하게 LLM 의존 하나로 취급한다.
+    private static final String LLM_CIRCUIT = "llm";
+    private static final int CONNECT_TIMEOUT_MILLIS = 3000;
+
     private final WebClient webClient;
     private final OpenAiSchemaMapper schemaMapper;
     private final AiStructuredResponseParser parser;
     private final AiLlmProperties properties;
     private final AiReportPromptTemplate promptTemplate;
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     public OpenAiLlmClientAdapter(
-
         WebClient.Builder webClientBuilder, OpenAiSchemaMapper schemaMapper, AiStructuredResponseParser parser, AiLlmProperties properties,
-
-        AiReportPromptTemplate promptTemplate
+        AiReportPromptTemplate promptTemplate, CircuitBreakerRegistry circuitBreakerRegistry
     ) {
+        HttpClient httpClient = HttpClient.create()
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIMEOUT_MILLIS)
+            .responseTimeout(Duration.ofMillis(properties.timeoutMs()));
         this.webClient = webClientBuilder
             .baseUrl(properties.baseUrl())
+            .clientConnector(new ReactorClientHttpConnector(httpClient))
             .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.apiKey())
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .build();
@@ -70,6 +81,7 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
         this.parser = parser;
         this.properties = properties;
         this.promptTemplate = promptTemplate;
+        this.circuitBreakerRegistry = circuitBreakerRegistry;
     }
 
     @Override
@@ -106,13 +118,17 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     private OpenAiChatResponse requestStructuredContent(String userPrompt, OpenAiSchemaDefinition schemaDefinition) {
         validateApiKey();
         try {
-            return webClient.post()
-                .uri("/chat/completions")
-                .bodyValue(buildRequestBody(userPrompt, schemaDefinition))
-                .retrieve()
-                .bodyToMono(OpenAiChatResponse.class)
-                .block(Duration.ofMillis(properties.timeoutMs()));
-        } catch (WebClientResponseException exception) {
+            // 응답 오류(WebClientResponseException)뿐 아니라 타임아웃·커넥션 실패·서킷 오픈까지
+            // 전부 AI_002로 변환해야 하므로 RuntimeException 전체를 잡는다 (Ollama 어댑터와 동일).
+            return circuitBreakerRegistry.circuitBreaker(LLM_CIRCUIT).executeSupplier(() ->
+                webClient.post()
+                    .uri("/chat/completions")
+                    .bodyValue(buildRequestBody(userPrompt, schemaDefinition))
+                    .retrieve()
+                    .bodyToMono(OpenAiChatResponse.class)
+                    .block(Duration.ofMillis(properties.timeoutMs()))
+            );
+        } catch (RuntimeException exception) {
             throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE, exception);
         }
     }
