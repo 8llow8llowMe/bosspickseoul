@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 @FeignClient(
-    name = "district-service",
+    name = "${feign-client.target-services.district-service:district-service}",
     contextId = "commercialRegionClient"
 )
 public interface CommercialRegionClient {
