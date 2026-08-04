@@ -335,6 +335,12 @@ private Long targetId;
   - `CallNotPermittedException`(서킷 오픈)과 `FeignException`은 support 안에서 각 도메인 예외
     (`{DOMAIN}_xxx INTERNAL_SERVICE_UNAVAILABLE`, 503)로 변환합니다. Feign 관련 예외가
     application 계층이나 web advice까지 새어나가지 않게 합니다 (`architecture-guide.md` §7).
+- LLM·OAuth 같은 외부 API 호출도 동일한 서킷 패턴을 적용합니다.
+  - 인스턴스명: `llm`(ai-service, provider 무관 단일 인스턴스), `kakao`/`naver`(auth-service, provider별 분리).
+  - LLM처럼 정상 응답이 수십 초인 의존은 인스턴스 설정에서 `slow-call-duration-threshold`를 완화합니다.
+  - 사용자 조작으로 발생하는 4xx(예: OAuth 인가코드 만료)는 서킷 안에서 도메인 예외로 변환하고
+    `ignore-exceptions`로 제외해, 사용자 실수가 서킷을 열지 않게 합니다.
+  - 모든 외부 호출은 connect/read(response) timeout을 반드시 명시합니다. 타임아웃 없는 블로킹 호출 금지.
 
 ## 11. Enum Metadata 규칙
 
