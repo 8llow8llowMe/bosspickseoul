@@ -62,7 +62,7 @@ backend/
 **역할**: Redis 연결 공통 설정
 
 **포함:**
-- `config.RedisConfigurer` — `RedisConnectionFactory`, `RedisTemplate` 빈
+- `config.RedisConfigurer` — `RedisConnectionFactory`, `RedisTemplate` 빈 (값 직렬화는 Jackson JSON, `java.time` 타입 지원)
 - `config.RedisPropertiesConfig` — properties 바인딩
 - `properties.RedisProperties` — host/port/mode
 - `properties.enums.RedisMode` — STANDALONE/CLUSTER
