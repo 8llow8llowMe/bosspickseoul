@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS area_boundary (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_area_boundary_type_code (area_type, area_code),
-    KEY idx_area_boundary_bbox_lng (bbox_min_lng, bbox_max_lng),
-    KEY idx_area_boundary_bbox_lat (bbox_min_lat, bbox_max_lat)
+    UNIQUE KEY uk_area_boundary_area_type_area_code (area_type, area_code),
+    KEY idx_area_boundary_bbox_min_lng_bbox_max_lng (bbox_min_lng, bbox_max_lng),
+    KEY idx_area_boundary_bbox_min_lat_bbox_max_lat (bbox_min_lat, bbox_max_lat)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='지도 영역 경계 데이터';
