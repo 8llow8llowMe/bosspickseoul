@@ -5,7 +5,11 @@ import {
   createCenterFallbackBounds,
   normalizeBoundary,
   normalizeViewportBounds,
+  isPointInPolygon,
+  findContainingArea,
+  resolveDistrictCodeFromAdministration,
 } from '@/lib/map/geometry'
+import type { AreaBoundaryItem } from '@/types/recommend'
 
 describe('map geometry', () => {
   it('유효하지 않은 좌표를 경계에서 제거한다', () => {
@@ -59,5 +63,56 @@ describe('map geometry', () => {
       lngNE: 127.08,
       latNE: 37.56,
     })
+  })
+})
+
+describe('isPointInPolygon', () => {
+  const square = [
+    { lng: 0, lat: 0 },
+    { lng: 0, lat: 10 },
+    { lng: 10, lat: 10 },
+    { lng: 10, lat: 0 },
+  ]
+  it('내부 점은 true', () => {
+    expect(isPointInPolygon({ lng: 5, lat: 5 }, square)).toBe(true)
+  })
+  it('외부 점은 false', () => {
+    expect(isPointInPolygon({ lng: 15, lat: 5 }, square)).toBe(false)
+  })
+})
+
+describe('findContainingArea', () => {
+  const areas: AreaBoundaryItem[] = [
+    {
+      areaCode: '11215530',
+      areaName: '자양동',
+      centerLng: 5,
+      centerLat: 5,
+      boundaryCoords: [
+        [0, 0],
+        [0, 10],
+        [10, 10],
+        [10, 0],
+      ],
+    },
+  ]
+  it('포함하는 area를 반환', () => {
+    expect(findContainingArea({ lng: 5, lat: 5 }, areas)?.areaCode).toBe(
+      '11215530',
+    )
+  })
+  it('어디에도 없으면 최근접 중심점 area로 fallback', () => {
+    expect(findContainingArea({ lng: 100, lat: 100 }, areas)?.areaCode).toBe(
+      '11215530',
+    )
+  })
+  it('빈 배열이면 null', () => {
+    expect(findContainingArea({ lng: 5, lat: 5 }, [])).toBeNull()
+  })
+})
+
+describe('resolveDistrictCodeFromAdministration', () => {
+  it('앞 5자리를 반환', () => {
+    expect(resolveDistrictCodeFromAdministration('11215530')).toBe('11215')
   })
 })

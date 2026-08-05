@@ -1,4 +1,4 @@
-import type { CoordinateTuple, GeoBounds } from '@/types/recommend'
+import type { CoordinateTuple, GeoBounds, AreaBoundaryItem } from '@/types/recommend'
 
 export type MapPoint = {
   lng: number
@@ -68,3 +68,49 @@ export const normalizeViewportBounds = (
     latNE: Number(bounds.latNE.toFixed(6)),
   }
 }
+
+export const isPointInPolygon = (
+  point: MapPoint,
+  ring: readonly MapPoint[],
+): boolean => {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const xi = ring[i].lng
+    const yi = ring[i].lat
+    const xj = ring[j].lng
+    const yj = ring[j].lat
+    const intersect =
+      yi > point.lat !== yj > point.lat &&
+      point.lng < ((xj - xi) * (point.lat - yi)) / (yj - yi) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
+export const findContainingArea = (
+  point: MapPoint,
+  areas: readonly AreaBoundaryItem[],
+): AreaBoundaryItem | null => {
+  if (areas.length === 0) return null
+  for (const area of areas) {
+    const ring = normalizeBoundary(area.boundaryCoords)
+    if (ring.length >= 3 && isPointInPolygon(point, ring)) return area
+  }
+  // fallback: 중심점 최근접
+  let nearest = areas[0]
+  let best = Infinity
+  for (const area of areas) {
+    const dl = area.centerLng - point.lng
+    const da = area.centerLat - point.lat
+    const dist = dl * dl + da * da
+    if (dist < best) {
+      best = dist
+      nearest = area
+    }
+  }
+  return nearest
+}
+
+export const resolveDistrictCodeFromAdministration = (
+  administrationCode: string,
+): string => administrationCode.slice(0, 5)
