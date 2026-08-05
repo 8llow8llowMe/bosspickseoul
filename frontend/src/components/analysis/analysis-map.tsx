@@ -7,8 +7,13 @@ import styled from 'styled-components'
 import { Button } from '@/components/ui/button'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
+import { resolveMapLayerByZoom, type MapLayer } from '@/lib/analysis/map-layer'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
-import { normalizeBoundary, normalizeViewportBounds } from '@/lib/map/geometry'
+import {
+  createBounds,
+  normalizeBoundary,
+  normalizeViewportBounds,
+} from '@/lib/map/geometry'
 import type { AnalysisStep } from '@/lib/analysis/selection'
 import type { AreaBoundaryItem, GeoBounds } from '@/types/recommend'
 
@@ -20,6 +25,8 @@ export type AnalysisMapProps = {
   onSelect: (code: string) => void
   onPreviewChange: (code: string | null) => void
   onViewportBoundsChange: (bounds: GeoBounds) => void
+  onZoomLayerChange?: (layer: MapLayer) => void
+  fitToCode?: string | null
 }
 
 type AnalysisMapLayerInput = Pick<
@@ -137,15 +144,19 @@ export default function AnalysisMap({
   onSelect,
   onPreviewChange,
   onViewportBoundsChange,
+  onZoomLayerChange,
+  fitToCode,
 }: AnalysisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const mapsRef = useRef<KakaoMapsNamespace | null>(null)
   const clearLayersRef = useRef<() => void>(() => undefined)
+  const areasRef = useRef(areas)
   const callbacksRef = useRef({
     onSelect,
     onPreviewChange,
     onViewportBoundsChange,
+    onZoomLayerChange,
   })
   const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -163,8 +174,13 @@ export default function AnalysisMap({
       onSelect,
       onPreviewChange,
       onViewportBoundsChange,
+      onZoomLayerChange,
     }
-  }, [onPreviewChange, onSelect, onViewportBoundsChange])
+  }, [onPreviewChange, onSelect, onViewportBoundsChange, onZoomLayerChange])
+
+  useEffect(() => {
+    areasRef.current = areas
+  }, [areas])
 
   useEffect(() => {
     let cancelled = false
@@ -191,6 +207,9 @@ export default function AnalysisMap({
             if (bounds) {
               callbacksRef.current.onViewportBoundsChange(bounds)
             }
+            callbacksRef.current.onZoomLayerChange?.(
+              resolveMapLayerByZoom(map.getLevel()),
+            )
           }, VIEWPORT_DEBOUNCE_MS)
         }
         maps.event.addListener(map, 'idle', idleHandler)
@@ -238,6 +257,7 @@ export default function AnalysisMap({
       onSelect: code => callbacksRef.current.onSelect(code),
       onHoverChange: code => callbacksRef.current.onPreviewChange(code),
       tokens: polygonTokens,
+      fitToSelected: false,
     })
 
     areas.forEach((area, index) => {
@@ -297,6 +317,20 @@ export default function AnalysisMap({
 
     return clearLayers
   }, [areas, layerKey, previewedCode, sdkStatus, selectedCode])
+
+  useEffect(() => {
+    const maps = mapsRef.current
+    const map = mapRef.current
+    if (!maps || !map || !fitToCode) return
+    const area = areasRef.current.find(a => String(a.areaCode) === fitToCode)
+    if (!area) return
+    const bounds = createBounds(normalizeBoundary(area.boundaryCoords))
+    if (!bounds) return
+    const kb = new maps.LatLngBounds()
+    kb.extend(new maps.LatLng(bounds.latSW, bounds.lngSW))
+    kb.extend(new maps.LatLng(bounds.latNE, bounds.lngNE))
+    map.setBounds(kb)
+  }, [fitToCode])
 
   return (
     <Root aria-label="분석 지역 지도">
