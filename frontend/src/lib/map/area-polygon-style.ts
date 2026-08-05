@@ -32,26 +32,26 @@ export const resolveAreaPolygonStyle = (
   if (state === 'selected') {
     return {
       strokeColor: tokens.activeStroke,
-      strokeWeight: 3,
+      strokeWeight: 4,
       fillColor: tokens.fill,
-      fillOpacity: 0.4,
+      fillOpacity: 0.55,
       zIndex: baseZIndex + 1000,
     }
   }
   if (state === 'hovered') {
     return {
       strokeColor: tokens.activeStroke,
-      strokeWeight: 3,
+      strokeWeight: 4,
       fillColor: tokens.fill,
-      fillOpacity: 0.32,
+      fillOpacity: 0.45,
       zIndex: baseZIndex + 500,
     }
   }
   return {
     strokeColor: tokens.baseStroke,
-    strokeWeight: 2,
+    strokeWeight: 3,
     fillColor: tokens.fill,
-    fillOpacity: 0.16,
+    fillOpacity: 0.28,
     zIndex: baseZIndex,
   }
 }

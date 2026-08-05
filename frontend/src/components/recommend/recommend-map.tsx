@@ -895,7 +895,7 @@ export default function RecommendMap({
 
   return (
     <MapRegion aria-label="상권 추천 지도" role="region">
-      <MapCanvas ref={containerRef} data-recommend-map-container="true" />
+      <MapCanvas ref={containerRef} data-recommend-map-container="true" data-kakao-map="true" />
       <Badge>추천 범위 고정</Badge>
       <RecenterButton
         type="button"

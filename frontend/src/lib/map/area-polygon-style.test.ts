@@ -24,30 +24,30 @@ describe('resolveAreaPolygonState', () => {
 })
 
 describe('resolveAreaPolygonStyle', () => {
-  it('default는 baseStroke 2px, fill 0.16', () => {
+  it('default는 baseStroke 3px, fill 0.28', () => {
     expect(resolveAreaPolygonStyle('default', tokens, 10)).toEqual({
       strokeColor: '#0ea5e9',
-      strokeWeight: 2,
+      strokeWeight: 3,
       fillColor: '#0ea5e9',
-      fillOpacity: 0.16,
+      fillOpacity: 0.28,
       zIndex: 10,
     })
   })
-  it('hovered는 activeStroke 3px, fill 0.32, zIndex 상향', () => {
+  it('hovered는 activeStroke 4px, fill 0.45, zIndex 상향', () => {
     expect(resolveAreaPolygonStyle('hovered', tokens, 10)).toEqual({
       strokeColor: '#2272eb',
-      strokeWeight: 3,
+      strokeWeight: 4,
       fillColor: '#0ea5e9',
-      fillOpacity: 0.32,
+      fillOpacity: 0.45,
       zIndex: 510,
     })
   })
-  it('selected는 activeStroke 3px, fill 0.40, 최상단', () => {
+  it('selected는 activeStroke 4px, fill 0.55, 최상단', () => {
     expect(resolveAreaPolygonStyle('selected', tokens, 10)).toEqual({
       strokeColor: '#2272eb',
-      strokeWeight: 3,
+      strokeWeight: 4,
       fillColor: '#0ea5e9',
-      fillOpacity: 0.4,
+      fillOpacity: 0.55,
       zIndex: 1010,
     })
   })

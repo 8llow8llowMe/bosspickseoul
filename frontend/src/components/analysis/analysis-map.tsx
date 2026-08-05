@@ -300,7 +300,7 @@ export default function AnalysisMap({
 
   return (
     <Root aria-label="분석 지역 지도">
-      <Canvas ref={containerRef} />
+      <Canvas ref={containerRef} data-kakao-map="true" />
       {sdkStatus === 'loading' ? (
         <Status role="status">
           <StatusContent>지도를 준비하고 있어요</StatusContent>
