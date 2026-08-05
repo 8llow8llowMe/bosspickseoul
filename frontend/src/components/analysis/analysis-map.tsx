@@ -7,11 +7,8 @@ import styled from 'styled-components'
 import { Button } from '@/components/ui/button'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
-import {
-  createBounds,
-  normalizeBoundary,
-  normalizeViewportBounds,
-} from '@/lib/map/geometry'
+import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
+import { normalizeBoundary, normalizeViewportBounds } from '@/lib/map/geometry'
 import type { AnalysisStep } from '@/lib/analysis/selection'
 import type { AreaBoundaryItem, GeoBounds } from '@/types/recommend'
 
@@ -223,38 +220,31 @@ export default function AnalysisMap({
     const map = mapRef.current
     if (sdkStatus !== 'ready' || !maps || !map) return
 
-    const polygons: KakaoMapPolygon[] = []
     const overlays: KakaoMapCustomOverlay[] = []
-    const listeners: Array<{ target: object; handler: () => void }> = []
     const cleanups: Array<() => void> = []
-    const primary = getColorToken('--color-primary-600', '#2272eb')
-    const neutral = getColorToken('--color-border-300', '#b0b8c1')
-    const fill = getColorToken('--color-primary-100', '#e8f3ff')
+
+    const polygonTokens = {
+      baseStroke: getColorToken('--color-primary-700', '#0ea5e9'),
+      activeStroke: getColorToken('--color-primary-600', '#2272eb'),
+      fill: getColorToken('--color-primary-700', '#0ea5e9'),
+    }
+
+    const cleanupPolygons = drawAreaPolygonLayer({
+      map,
+      maps,
+      areas,
+      selectedCode,
+      hoveredCode: previewedCode,
+      onSelect: code => callbacksRef.current.onSelect(code),
+      onHoverChange: code => callbacksRef.current.onPreviewChange(code),
+      tokens: polygonTokens,
+    })
 
     areas.forEach((area, index) => {
       const code = String(area.areaCode)
-      const points = normalizeBoundary(area.boundaryCoords)
       const selected = code === selectedCode
       const previewed = code === previewedCode
       const highlighted = selected || previewed
-
-      if (points.length >= 3) {
-        const polygon = new maps.Polygon({
-          map,
-          path: points.map(point => new maps.LatLng(point.lat, point.lng)),
-          strokeWeight: highlighted ? 3 : 1,
-          strokeColor: highlighted ? primary : neutral,
-          strokeOpacity: 1,
-          fillColor: highlighted ? primary : fill,
-          fillOpacity: highlighted ? 0.24 : 0.3,
-          clickable: true,
-        })
-        polygon.setZIndex(highlighted ? 100 : index + 1)
-        const handler = () => callbacksRef.current.onSelect(code)
-        maps.event.addListener(polygon, 'click', handler)
-        polygons.push(polygon)
-        listeners.push({ target: polygon, handler })
-      }
 
       const center = normalizeBoundary([[area.centerLng, area.centerLat]])[0]
       if (!center) return
@@ -298,33 +288,9 @@ export default function AnalysisMap({
       overlays.push(overlay)
     })
 
-    const selectedArea = areas.find(
-      area => String(area.areaCode) === selectedCode,
-    )
-    if (selectedArea) {
-      const points = normalizeBoundary(selectedArea.boundaryCoords)
-      const bounds = createBounds(points)
-      if (bounds) {
-        const kakaoBounds = new maps.LatLngBounds()
-        kakaoBounds.extend(new maps.LatLng(bounds.latSW, bounds.lngSW))
-        kakaoBounds.extend(new maps.LatLng(bounds.latNE, bounds.lngNE))
-        map.setBounds(kakaoBounds)
-      } else {
-        const center = normalizeBoundary([
-          [selectedArea.centerLng, selectedArea.centerLat],
-        ])[0]
-        if (center) {
-          map.setCenter(new maps.LatLng(center.lat, center.lng))
-        }
-      }
-    }
-
     const clearLayers = () => {
-      listeners.forEach(({ target, handler }) => {
-        maps.event.removeListener(target, 'click', handler)
-      })
+      cleanupPolygons()
       cleanups.forEach(cleanup => cleanup())
-      polygons.forEach(polygon => polygon.setMap(null))
       overlays.forEach(overlay => overlay.setMap(null))
     }
     clearLayersRef.current = clearLayers
