@@ -46,8 +46,8 @@ export default function SiteFooter() {
       <Inner>
         <Title>BossPickSeoul</Title>
         <Body>
-          서울 상권 데이터 분석, 추천, 시뮬레이션, 커뮤니티 기능을 하나의
-          흐름으로 연결하는 서비스입니다.
+          서울 상권 데이터 분석, 추천, 시뮬레이션 기능을 하나의 흐름으로
+          연결하는 서비스입니다.
         </Body>
       </Inner>
     </Footer>
