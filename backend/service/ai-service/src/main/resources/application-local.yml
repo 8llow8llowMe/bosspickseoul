@@ -41,6 +41,7 @@ ai:
     timeout-ms: ${AI_LLM_TIMEOUT_MS:30000}
     max-tokens: ${AI_LLM_MAX_TOKENS:1200}
     temperature: ${AI_LLM_TEMPERATURE:0.2}
+    reasoning-effort: ${AI_LLM_REASONING_EFFORT:low}
 
 # Resource Server 검증 키 (auth-service 발급 키와 동일 값).
 # 이 값이 없으면 jwtDecoder 생성 시 NPE로 기동에 실패한다.

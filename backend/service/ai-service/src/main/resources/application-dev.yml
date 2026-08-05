@@ -63,3 +63,4 @@ ai:
     timeout-ms: ${AI_LLM_TIMEOUT_MS}
     max-tokens: ${AI_LLM_MAX_TOKENS}
     temperature: ${AI_LLM_TEMPERATURE}
+    reasoning-effort: ${AI_LLM_REASONING_EFFORT}

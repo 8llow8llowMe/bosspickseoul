@@ -25,7 +25,7 @@ import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
-import org.springframework.ai.ollama.api.OllamaOptions;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -85,12 +85,28 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
             return circuitBreakerRegistry.circuitBreaker(LLM_CIRCUIT).executeSupplier(() ->
                 ollamaChatModel.call(new Prompt(
                     List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userPrompt)),
-                    OllamaOptions.builder().format("json").build()
+                    buildRequestOptions()
                 ))
             );
         } catch (RuntimeException exception) {
             throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE, exception);
         }
+    }
+
+    private OllamaChatOptions buildRequestOptions() {
+        OllamaChatOptions.Builder builder = OllamaChatOptions.builder().format("json");
+        // gpt-oss는 low/medium/high 추론 강도를 지원한다(기본 medium).
+        // 미지원 모델로 교체해도 기동이 깨지지 않도록 알 수 없는 값은 모델 기본값에 맡긴다.
+        String reasoningEffort = aiLlmProperties.reasoningEffort();
+        if (reasoningEffort != null) {
+            switch (reasoningEffort.toLowerCase(java.util.Locale.ROOT)) {
+                case "low" -> builder.thinkLow();
+                case "medium" -> builder.thinkMedium();
+                case "high" -> builder.thinkHigh();
+                default -> { }
+            }
+        }
+        return builder.build();
     }
 
     private String extractContent(ChatResponse response) {
