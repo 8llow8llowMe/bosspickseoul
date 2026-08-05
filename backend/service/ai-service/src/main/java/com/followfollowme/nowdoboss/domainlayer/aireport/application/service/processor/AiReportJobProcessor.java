@@ -41,7 +41,7 @@ public class AiReportJobProcessor {
     private final AiReportJobProperties aiReportJobProperties;
 
     public AiReportSubmissionInfo submitCommercialReport(
-        Long memberId, String commercialCode, String serviceCode, String periodCode
+        long memberId, String commercialCode, String serviceCode, String periodCode
     ) {
         Optional<CommercialAiReportInfo> cached =
             aiReportCachePort.getCommercialReport(commercialCode, serviceCode, periodCode);
@@ -51,7 +51,7 @@ public class AiReportJobProcessor {
         return submitJob(memberId, AiReportJobType.COMMERCIAL, commercialParams(commercialCode, serviceCode, periodCode));
     }
 
-    public AiReportSubmissionInfo submitCommercialComparisonReport(Long memberId, CommercialComparisonAiQuery query) {
+    public AiReportSubmissionInfo submitCommercialComparisonReport(long memberId, CommercialComparisonAiQuery query) {
         Optional<CommercialComparisonAiReportInfo> cached = aiReportCachePort.getCommercialComparisonReport(
             query.leftCommercialCode(), query.rightCommercialCode(), query.serviceCode(), query.periodCode()
         );
@@ -61,7 +61,7 @@ public class AiReportJobProcessor {
         return submitJob(memberId, AiReportJobType.COMMERCIAL_COMPARISON, commercialComparisonParams(query));
     }
 
-    public AiReportSubmissionInfo submitDistrictReport(Long memberId, String districtCode, String periodCode) {
+    public AiReportSubmissionInfo submitDistrictReport(long memberId, String districtCode, String periodCode) {
         Optional<DistrictAiReportInfo> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
         if (cached.isPresent()) {
             return AiReportSubmissionInfo.cached(AiReportJobType.DISTRICT, cached.get());
@@ -69,7 +69,7 @@ public class AiReportJobProcessor {
         return submitJob(memberId, AiReportJobType.DISTRICT, districtParams(districtCode, periodCode));
     }
 
-    public AiReportSubmissionInfo submitAdministrationReport(Long memberId, String administrationCode, String periodCode) {
+    public AiReportSubmissionInfo submitAdministrationReport(long memberId, String administrationCode, String periodCode) {
         Optional<AdministrationAiReportInfo> cached =
             aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
         if (cached.isPresent()) {
@@ -78,7 +78,7 @@ public class AiReportJobProcessor {
         return submitJob(memberId, AiReportJobType.ADMINISTRATION, administrationParams(administrationCode, periodCode));
     }
 
-    private AiReportSubmissionInfo submitJob(Long memberId, AiReportJobType jobType, Map<String, String> params) {
+    private AiReportSubmissionInfo submitJob(long memberId, AiReportJobType jobType, Map<String, String> params) {
         String requestHash = computeRequestHash(jobType, params);
         String newJobId = UUID.randomUUID().toString();
 
@@ -115,7 +115,7 @@ public class AiReportJobProcessor {
         return AiReportSubmissionInfo.accepted(jobType, newJobId);
     }
 
-    public AiReportJobInfo getJobInfo(String jobId, Long memberId) {
+    public AiReportJobInfo getJobInfo(String jobId, long memberId) {
         AiReportJob job = aiReportJobStorePort.findById(jobId)
             .orElseThrow(() -> new AiReportException(AiReportErrorCode.JOB_NOT_FOUND));
         if (job.memberId() == null || !job.memberId().equals(memberId)) {
