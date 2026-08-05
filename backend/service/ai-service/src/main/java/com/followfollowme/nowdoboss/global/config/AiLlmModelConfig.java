@@ -4,7 +4,7 @@ import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import java.time.Duration;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaApi;
-import org.springframework.ai.ollama.api.OllamaOptions;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
@@ -48,7 +48,7 @@ public class AiLlmModelConfig {
             // 내장 재시도를 끄고, 실패 처리는 서킷브레이커 + 잡 상태로 일원화한다.
             .retryTemplate(RetryTemplate.builder().maxAttempts(1).build())
             .defaultOptions(
-                OllamaOptions.builder()
+                OllamaChatOptions.builder()
                     .model(properties.model())
                     .temperature(properties.temperature())
                     .numPredict(properties.maxTokens())
