@@ -15,15 +15,15 @@
 두 지도 모두 폴리곤·클릭선택·라벨·bounds확대가 **이미 부분 구현**되어 있으나,
 기본 폴리곤 스타일이 옅어(회색 stroke 1px + 옅은 fill) 지도 위에서 거의 보이지 않는다.
 
-| 기능 | analysis-map | recommend-map |
-| --- | --- | --- |
-| 지역별 폴리곤 그리기 | 있음 (옅음) | 있음 (옅음) |
-| 폴리곤 클릭 → onSelect | 있음 | 있음 (단계별) |
-| 좌측 네비 선택 반영 | 있음 | 있음 |
-| 지역명 라벨(태그) + 라벨 hover 프리뷰 | 있음 | 결과 단계 랭크 마커 위주 |
-| 선택 시 setBounds 확대 | 있음 | fitPoints 기반 있음 |
-| **폴리곤 본체 hover → fill 강조** | **없음** | **없음** |
-| 스타일 가시성 | 낮음 | 낮음 |
+| 기능                                  | analysis-map | recommend-map            |
+| ------------------------------------- | ------------ | ------------------------ |
+| 지역별 폴리곤 그리기                  | 있음 (옅음)  | 있음 (옅음)              |
+| 폴리곤 클릭 → onSelect                | 있음         | 있음 (단계별)            |
+| 좌측 네비 선택 반영                   | 있음         | 있음                     |
+| 지역명 라벨(태그) + 라벨 hover 프리뷰 | 있음         | 결과 단계 랭크 마커 위주 |
+| 선택 시 setBounds 확대                | 있음         | fitPoints 기반 있음      |
+| **폴리곤 본체 hover → fill 강조**     | **없음**     | **없음**                 |
+| 스타일 가시성                         | 낮음         | 낮음                     |
 
 analysis-map의 컴포넌트 인터페이스는 이미 공통화에 적합하다:
 `{ activeStep, areas, selectedCode, previewedCode, onSelect, onPreviewChange, onViewportBoundsChange }`.
@@ -92,11 +92,11 @@ useAreaPolygonLayer({
 
 기존 디자인 토큰만 사용(임의 토큰 추가 금지). 수치는 구현 후 라이브에서 미세조정.
 
-| 상태 | stroke | fill |
-| --- | --- | --- |
-| 기본 | `--color-primary-700`, 2px | primary 계열, opacity ≈ 0.16 |
-| hover | `--color-primary-600`, 3px | opacity ≈ 0.32 |
-| 선택 | `--color-primary-600`, 3px | opacity ≈ 0.40 (+ 최상단 zIndex) |
+| 상태  | stroke                     | fill                             |
+| ----- | -------------------------- | -------------------------------- |
+| 기본  | `--color-primary-700`, 2px | primary 계열, opacity ≈ 0.16     |
+| hover | `--color-primary-600`, 3px | opacity ≈ 0.32                   |
+| 선택  | `--color-primary-600`, 3px | opacity ≈ 0.40 (+ 최상단 zIndex) |
 
 - 선택과 hover가 동시면 선택 우선.
 - 라벨(태그) 자체 스타일은 기존 유지.

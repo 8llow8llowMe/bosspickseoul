@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import type { AreaBoundaryItem } from '@/types/recommend'
 
-const tokens = { baseStroke: '#0ea5e9', activeStroke: '#2272eb', fill: '#0ea5e9' }
+const tokens = {
+  baseStroke: '#0ea5e9',
+  activeStroke: '#2272eb',
+  fill: '#0ea5e9',
+}
 
 const areas: AreaBoundaryItem[] = [
   {
@@ -20,8 +24,11 @@ const areas: AreaBoundaryItem[] = [
 ]
 
 const createFakeMaps = () => {
-  const listeners: Array<{ target: object; type: string; handler: () => void }> =
-    []
+  const listeners: Array<{
+    target: object
+    type: string
+    handler: () => void
+  }> = []
   const polygons: Array<{ options: Record<string, unknown>; map: unknown }> = []
   const setBounds = vi.fn()
   const maps = {

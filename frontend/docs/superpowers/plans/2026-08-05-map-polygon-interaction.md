@@ -23,10 +23,12 @@
 ### Task 1: 폴리곤 상태별 스타일 순수 함수
 
 **Files:**
+
 - Create: `src/lib/map/area-polygon-style.ts`
 - Test: `src/lib/map/area-polygon-style.test.ts`
 
 **Interfaces:**
+
 - Consumes: 없음.
 - Produces:
   - `type AreaPolygonState = 'default' | 'hovered' | 'selected'`
@@ -182,10 +184,12 @@ git commit -m "$(printf '[FE] feat: 지역 폴리곤 상태별 스타일 순수 
 kakao 폴리곤을 그리고 click/mouseover/mouseout 리스너와 선택 영역 bounds 확대를 붙인 뒤, 정리(cleanup) 함수를 반환한다. 라벨은 다루지 않는다.
 
 **Files:**
+
 - Create: `src/lib/map/draw-area-polygon-layer.ts`
 - Test: `src/lib/map/draw-area-polygon-layer.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1 (`resolveAreaPolygonState`, `resolveAreaPolygonStyle`, `AreaPolygonStyleTokens`), `@/lib/map/geometry` (`normalizeBoundary`, `createBounds`), `@/types/recommend` (`AreaBoundaryItem`), 전역 kakao 타입(`KakaoMapInstance`, `KakaoMapsNamespace`).
 - Produces:
   - `type DrawAreaPolygonLayerParams = { map: KakaoMapInstance; maps: KakaoMapsNamespace; areas: readonly AreaBoundaryItem[]; selectedCode: string | null; hoveredCode: string | null; onSelect: (code: string) => void; onHoverChange: (code: string | null) => void; tokens: AreaPolygonStyleTokens; fitToSelected?: boolean }`
@@ -202,7 +206,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import type { AreaBoundaryItem } from '@/types/recommend'
 
-const tokens = { baseStroke: '#0ea5e9', activeStroke: '#2272eb', fill: '#0ea5e9' }
+const tokens = {
+  baseStroke: '#0ea5e9',
+  activeStroke: '#2272eb',
+  fill: '#0ea5e9',
+}
 
 const areas: AreaBoundaryItem[] = [
   {
@@ -219,8 +227,11 @@ const areas: AreaBoundaryItem[] = [
 ]
 
 const createFakeMaps = () => {
-  const listeners: Array<{ target: object; type: string; handler: () => void }> =
-    []
+  const listeners: Array<{
+    target: object
+    type: string
+    handler: () => void
+  }> = []
   const polygons: Array<{ options: Record<string, unknown>; map: unknown }> = []
   const setBounds = vi.fn()
   const maps = {
@@ -459,10 +470,12 @@ git commit -m "$(printf '[FE] feat: 공통 폴리곤 레이어 렌더 함수 dra
 기존 `areas.forEach`로 폴리곤을 그리던 인라인 블록을 `drawAreaPolygonLayer` 호출로 교체한다. 라벨(태그) 생성과 preview 연동은 그대로 유지한다. `previewedCode`를 `hoveredCode`로 전달해 라벨·폴리곤 hover가 같은 강조 상태를 공유하게 한다.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-map.tsx` (폴리곤 렌더 이펙트, 대략 219-330줄)
 - Test: `src/components/analysis/analysis-map.test.ts` (기존 통과 유지)
 
 **Interfaces:**
+
 - Consumes: Task 2 (`drawAreaPolygonLayer`), Task 1 (`AreaPolygonStyleTokens`).
 - Produces: 외부 인터페이스 변경 없음 (`AnalysisMapProps` 불변).
 
@@ -512,6 +525,7 @@ Expected: PASS (SSR 대체 영역 + semantic key 회귀 없음)
 - [ ] **Step 4: 라이브 브라우저 확인**
 
 `localhost:5173/analysis` 접속(반드시 `localhost`). 확인:
+
 - 25개 자치구 폴리곤이 파란 stroke + 옅은 fill로 **뚜렷이** 보인다.
 - 폴리곤 위에 마우스 올리면 fill이 **짙어진다**.
 - 폴리곤 클릭 시 좌측 네비에 해당 자치구가 선택되고, 지도가 그 자치구로 확대되며 행정동 폴리곤이 나타난다(드릴다운).
@@ -530,10 +544,12 @@ git commit -m "$(printf '[FE] refactor: analysis-map 폴리곤을 공통 레이�
 district/administration/commercial 단계의 폴리곤 렌더링을 `drawAreaPolygonLayer`로 교체한다. **results 단계(랭크 마커/점수 fill)는 손대지 않는다.** 폴리곤 hover용 로컬 `hoveredCode` 상태를 추가한다. 앞서 넣은 임시 가시성 스타일(프로토타입, stash 보관)은 이 교체로 자연히 대체된다.
 
 **Files:**
+
 - Modify: `src/components/recommend/recommend-map.tsx` (stage별 폴리곤 렌더 블록)
 - Test: `src/components/recommend/recommend-map.test.ts` (기존 통과 유지)
 
 **Interfaces:**
+
 - Consumes: Task 2 (`drawAreaPolygonLayer`), Task 1 (`AreaPolygonStyleTokens`).
 - Produces: 외부 인터페이스 변경 없음.
 
@@ -602,6 +618,7 @@ Expected: PASS
 - [ ] **Step 5: 라이브 브라우저 확인**
 
 `localhost:5173/recommend` 접속. 확인:
+
 - 폴리곤이 뚜렷이 보이고, hover 시 fill이 짙어진다.
 - 클릭 시 선택 + 다음 단계 드릴다운 + 확대.
 - results 단계 랭크 마커는 기존과 동일하게 표시된다(회귀 없음).
@@ -618,6 +635,7 @@ git commit -m "$(printf '[FE] refactor: recommend-map 폴리곤을 공통 레이
 ### Task 5: 전체 검증 및 스타일 미세조정
 
 **Files:**
+
 - Modify(선택): `src/lib/map/area-polygon-style.ts` (라이브에서 opacity/weight 튜닝 시)
 
 - [ ] **Step 1: 전체 테스트**
@@ -646,6 +664,7 @@ git commit -m "$(printf '[FE] style: 폴리곤 3-상태 대비 미세조정\n\nC
 ## Self-Review
 
 **Spec coverage:**
+
 - 요구사항1(폴리곤 가시화) → Task 1 스타일 + Task 3/4 적용. ✅
 - 요구사항2(폴리곤 hover 강조) → Task 2 mouseover/out + Task 3/4. ✅
 - 요구사항3(클릭→선택+네비) → Task 2 onSelect + 기존 페이지 연동 유지(Task 3/4). ✅
