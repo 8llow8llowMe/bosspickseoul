@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
@@ -35,7 +35,6 @@ import {
   selectAnalysisValue,
   selectCommercialWithParents,
   shouldAutoNavigateToAnalysis,
-  type AnalysisSelection,
   type AnalysisStep,
 } from '@/lib/analysis/selection'
 import { type MapLayer } from '@/lib/analysis/map-layer'
@@ -306,10 +305,13 @@ export default function AnalysisPage() {
     }
   }, [administrations, commercials, districts, router, selection, services])
 
+  const wasCompleteRef = useRef(shouldAutoNavigateToAnalysis(selection))
   useEffect(() => {
-    if (shouldAutoNavigateToAnalysis(selection)) {
+    const complete = shouldAutoNavigateToAnalysis(selection)
+    if (complete && !wasCompleteRef.current) {
       router.push(createAnalysisResultHref(selection, 'summary'))
     }
+    wasCompleteRef.current = complete
   }, [selection, router])
 
   const districtCandidates: AnalysisCandidate[] = districts.flatMap(item =>
@@ -420,28 +422,34 @@ export default function AnalysisPage() {
   }
 
   const handleMapSelect = (code: string) => {
-    let next: AnalysisSelection
     if (mapLayer === 'district') {
-      next = selectAnalysisValue(selection, 'district', code)
-    } else if (mapLayer === 'administration') {
-      next = selectAdministrationWithParent(selection, code)
-    } else {
-      const clicked = allCommercialAreas.find(
-        area => String(area.areaCode) === code,
-      )
-      const admin = clicked
-        ? findContainingArea(
-            { lng: clicked.centerLng, lat: clicked.centerLat },
-            allAdministrationAreas,
-          )
-        : null
-      next = admin
-        ? selectCommercialWithParents(selection, {
-            commercialCode: code,
-            administrationCode: String(admin.areaCode),
-          })
-        : selectAnalysisValue(selection, 'commercial', code)
+      const next = selectAnalysisValue(selection, 'district', code)
+      router.replace(createAnalysisExplorerHref(next))
+      setFitRequest(code)
+      return
     }
+    if (mapLayer === 'administration') {
+      const next = selectAdministrationWithParent(selection, code)
+      router.replace(createAnalysisExplorerHref(next))
+      setFitRequest(code)
+      return
+    }
+    // commercial (leaf): resolve parents, no fit
+    const clicked = allCommercialAreas.find(
+      area => String(area.areaCode) === code,
+    )
+    const admin = clicked
+      ? findContainingArea(
+          { lng: clicked.centerLng, lat: clicked.centerLat },
+          allAdministrationAreas,
+        )
+      : null
+    const next = admin
+      ? selectCommercialWithParents(selection, {
+          commercialCode: code,
+          administrationCode: String(admin.areaCode),
+        })
+      : selectAnalysisValue(selection, 'commercial', code)
     router.replace(createAnalysisExplorerHref(next))
   }
 
