@@ -14,7 +14,8 @@
 ## 인증 방식
 
 - 비동기 제출/조회 엔드포인트(`POST /api/v1/ai-reports/commercials/{code}`, `GET /api/v1/ai-reports/jobs/{jobId}`) 는 **인증 필수** (`@PreAuthorize("isAuthenticated()")`).
-- 기존 동기 GET 엔드포인트는 deprecate 단계 — 다음 PR 에서 비동기로 전환 후 제거 예정.
+- 리포트 4종(상권/상권비교/자치구/행정동) 전부 POST 제출 + `GET /jobs/{jobId}` 폴링의 비동기 모델을 사용한다.
+- 기존 동기 GET 엔드포인트 4종은 deprecate 단계 — 프론트 이전 완료 후 제거 예정.
 - 내부 서비스 간 호출 계약은 out adapter 에서 캡슐화한다 (`FeignClient -> Adapter -> QueryResult`).
 - **인증 실패 응답은 `security-core` 의 `SecurityErrorCode` 를 따른다** (예: 토큰 미첨부 `SECURITY_001`, 만료 `SECURITY_002`, 권한 부족 `SECURITY_006`). ai-service 는 별도 인증 ErrorCode 를 자체 발행하지 않는다.
 
@@ -120,15 +121,20 @@ ai:
 | Method | Path | 인증 | 설명 |
 |--------|------|------|------|
 | POST | `/api/v1/ai-reports/commercials/{commercialCode}` | 필수 | **상권 AI 리포트 비동기 제출**. cache hit → 200, miss → 202 + jobId |
+| POST | `/api/v1/ai-reports/commercials/comparisons` | 필수 | **상권 비교 AI 인사이트 비동기 제출** |
+| POST | `/api/v1/ai-reports/districts/{districtCode}` | 필수 | **자치구 AI 리포트 비동기 제출** |
+| POST | `/api/v1/ai-reports/administrations/{administrationCode}` | 필수 | **행정동 AI 리포트 비동기 제출** |
 | GET | `/api/v1/ai-reports/jobs/{jobId}` | 필수 | **작업 상태 / 결과 조회** (본인 작업만) |
 | GET | `/api/v1/ai-reports/commercials/{commercialCode}` | **필수** (legacy) | (deprecated) 동기 상권 리포트. POST 로 이전 권장 |
-| GET | `/api/v1/ai-reports/commercials/comparisons` | **필수** (legacy) | 상권 비교 AI 인사이트 |
-| GET | `/api/v1/ai-reports/districts/{districtCode}` | **필수** (legacy) | 자치구 AI 리포트 |
-| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | **필수** (legacy) | 행정동 AI 리포트 |
+| GET | `/api/v1/ai-reports/commercials/comparisons` | **필수** (legacy) | (deprecated) 동기 상권 비교 AI 인사이트 |
+| GET | `/api/v1/ai-reports/districts/{districtCode}` | **필수** (legacy) | (deprecated) 동기 자치구 AI 리포트 |
+| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | **필수** (legacy) | (deprecated) 동기 행정동 AI 리포트 |
 
 > 모든 AI 리포트 엔드포인트는 인증된 사용자 전용이다. 레거시 GET 4개도 비공개 LLM 비용 증폭 / DoS 경로를 막기 위해 `@PreAuthorize("isAuthenticated()")` 가 적용되어 있다.
 
-> 다음 PR 에서 comparison / district / administration 도 동일한 비동기 모델로 전환 예정.
+> comparison / district / administration 도 동일한 비동기 모델로 전환 완료
+> (`POST /commercials/comparisons`, `POST /districts/{code}`, `POST /administrations/{code}`).
+> 워커는 `AiReportWorker.runJob(jobId)` 하나가 jobType 으로 분기한다.
 
 ## ErrorCode
 
@@ -152,15 +158,18 @@ ai:
 ### Submission Response (POST 결과)
 
 - DTO: `AiReportSubmissionResponse`
-- `submissionStatus` ∈ `{CACHED, ACCEPTED}`
-- `CACHED` 일 때만 `commercialReport` 채워짐 (HTTP 200)
+- `submissionStatus` / `jobType` 은 `{code, name, description}` metadata 객체 (`CodeNameDescriptionMetadata`)
+- `submissionStatus.code` ∈ `{CACHED, ACCEPTED}`
+- `CACHED` 일 때만 jobType 에 대응하는 리포트 필드
+  (`commercialReport` / `commercialComparisonReport` / `districtReport` / `administrationReport`) 하나가 채워짐 (HTTP 200)
 - `ACCEPTED` 일 때만 `jobId` 채워짐 (HTTP 202)
 
 ### Job Status Response (GET /jobs/{id})
 
 - DTO: `AiReportJobStatusResponse`
-- `status` ∈ `{PENDING, RUNNING, COMPLETED, FAILED}`
-- `COMPLETED` + `jobType=COMMERCIAL` 일 때만 `commercialReport` 채워짐
+- `jobType` / `status` 는 `{code, name, description}` metadata 객체 (`CodeNameDescriptionMetadata`)
+- `status.code` ∈ `{PENDING, RUNNING, COMPLETED, FAILED}`
+- `COMPLETED` 일 때만 jobType 에 대응하는 리포트 필드 하나가 채워짐
 - `FAILED` 일 때만 `errorCode`, `errorMessage` 채워짐
 
 ### Commercial Comparison AI Report

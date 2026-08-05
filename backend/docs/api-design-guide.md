@@ -54,6 +54,8 @@ LLM 호출 등 응답이 길어지는 작업은 다음 패턴을 따른다 (참�
 - **상태 조회 endpoint** — `GET /jobs/{jobId}`
   - 본인 작업만 조회 가능 (다른 사용자 jobId 는 `404` 로 응답해 존재 자체 노출 차단)
 - **응답 DTO** — `submissionStatus` 또는 `status` 필드로 분기 표현. 결과 페이로드는 status 별 nullable
+  - 상태/타입 필드는 raw enum 문자열 대신 `{code, name, description}` metadata 객체(`CodeNameDescriptionMetadata`)로
+    내려 프론트가 그대로 표시할 수 있게 한다 (`coding-conventions.md` §11)
 - **워커** — 서비스별 전용 `ThreadPoolTaskExecutor` 빈 + `@Async("<빈이름>")` 사용. 글로벌 default(`applicationTaskExecutor`) 공유 금지
   - **빈 이름 규칙**: `{도메인}{용도}TaskExecutor` camelCase (예: `aiReportTaskExecutor`). Spring Boot 가 `ThreadPoolTaskExecutor` 빈을 자동 계측하며 **빈 이름을 그대로 Micrometer `executor_*` 메트릭의 `name` 태그로 노출**한다. 이 `name` 이 Grafana `Executor / Thread Pool` 대시보드의 범례(`{service} / {name}`)가 되므로, 이름만으로 서비스·용도가 드러나게 짓는다.
   - **thread name prefix 규칙**: 빈 이름과 대응되는 읽기 쉬운 kebab (예: 빈 `aiReportTaskExecutor` → prefix `ai-report-worker-`). thread dump / 로그와 대시보드를 상호 대조하기 위함이다.

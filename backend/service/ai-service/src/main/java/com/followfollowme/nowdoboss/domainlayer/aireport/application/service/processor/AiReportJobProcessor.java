@@ -2,9 +2,13 @@ package com.followfollowme.nowdoboss.domainlayer.aireport.application.service.pr
 
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportJobInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.worker.AiReportWorker;
@@ -44,15 +48,44 @@ public class AiReportJobProcessor {
         if (cached.isPresent()) {
             return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL, cached.get());
         }
+        return submitJob(memberId, AiReportJobType.COMMERCIAL, commercialParams(commercialCode, serviceCode, periodCode));
+    }
 
-        Map<String, String> params = commercialParams(commercialCode, serviceCode, periodCode);
-        String requestHash = computeRequestHash(AiReportJobType.COMMERCIAL, params);
+    public AiReportSubmissionInfo submitCommercialComparisonReport(Long memberId, CommercialComparisonAiQuery query) {
+        Optional<CommercialComparisonAiReportInfo> cached = aiReportCachePort.getCommercialComparisonReport(
+            query.leftCommercialCode(), query.rightCommercialCode(), query.serviceCode(), query.periodCode()
+        );
+        if (cached.isPresent()) {
+            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL_COMPARISON, cached.get());
+        }
+        return submitJob(memberId, AiReportJobType.COMMERCIAL_COMPARISON, commercialComparisonParams(query));
+    }
+
+    public AiReportSubmissionInfo submitDistrictReport(Long memberId, String districtCode, String periodCode) {
+        Optional<DistrictAiReportInfo> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
+        if (cached.isPresent()) {
+            return AiReportSubmissionInfo.cached(AiReportJobType.DISTRICT, cached.get());
+        }
+        return submitJob(memberId, AiReportJobType.DISTRICT, districtParams(districtCode, periodCode));
+    }
+
+    public AiReportSubmissionInfo submitAdministrationReport(Long memberId, String administrationCode, String periodCode) {
+        Optional<AdministrationAiReportInfo> cached =
+            aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
+        if (cached.isPresent()) {
+            return AiReportSubmissionInfo.cached(AiReportJobType.ADMINISTRATION, cached.get());
+        }
+        return submitJob(memberId, AiReportJobType.ADMINISTRATION, administrationParams(administrationCode, periodCode));
+    }
+
+    private AiReportSubmissionInfo submitJob(Long memberId, AiReportJobType jobType, Map<String, String> params) {
+        String requestHash = computeRequestHash(jobType, params);
         String newJobId = UUID.randomUUID().toString();
 
         AiReportJob pendingJob = AiReportJob.builder()
             .jobId(newJobId)
             .memberId(memberId)
-            .jobType(AiReportJobType.COMMERCIAL)
+            .jobType(jobType)
             .requestHash(requestHash)
             .requestParams(params)
             .status(AiReportJobStatus.PENDING)
@@ -66,11 +99,11 @@ public class AiReportJobProcessor {
         if (existingJobId.isPresent()) {
             // Another request won the reservation race, so remove this unused job entry.
             aiReportJobStorePort.deleteJob(newJobId);
-            return AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL, existingJobId.get());
+            return AiReportSubmissionInfo.accepted(jobType, existingJobId.get());
         }
 
         try {
-            aiReportWorker.runCommercialJob(newJobId);
+            aiReportWorker.runJob(newJobId);
         } catch (RuntimeException dispatchFailure) {
             log.error("AI report worker dispatch failed jobId={} memberId={} reason={}", newJobId, memberId, dispatchFailure.getMessage());
             aiReportJobStorePort.save(pendingJob.failed(
@@ -79,7 +112,7 @@ public class AiReportJobProcessor {
             aiReportJobStorePort.releaseIdempotencyKey(memberId, requestHash);
         }
 
-        return AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL, newJobId);
+        return AiReportSubmissionInfo.accepted(jobType, newJobId);
     }
 
     public AiReportJobInfo getJobInfo(String jobId, Long memberId) {
@@ -91,26 +124,50 @@ public class AiReportJobProcessor {
 
         AiReportJob effectiveJob = expireIfStuck(job);
 
-        // Prefer the job snapshot; cache fallback keeps older completed jobs readable.
-        CommercialAiReportInfo commercialReport = null;
-        if (effectiveJob.status() == AiReportJobStatus.COMPLETED && effectiveJob.jobType() == AiReportJobType.COMMERCIAL) {
-            commercialReport = effectiveJob.commercialReport();
-            if (commercialReport == null) {
-                Map<String, String> params = effectiveJob.requestParams();
-                commercialReport = aiReportCachePort.getCommercialReport(
-                    params.get("commercialCode"), params.get("serviceCode"), params.get("periodCode")
-                ).orElse(null);
-            }
-        }
-
-        return AiReportJobInfo.builder()
+        AiReportJobInfo.AiReportJobInfoBuilder builder = AiReportJobInfo.builder()
             .jobId(effectiveJob.jobId())
             .jobType(effectiveJob.jobType())
             .status(effectiveJob.status())
-            .commercialReport(commercialReport)
             .errorCode(effectiveJob.errorCode())
-            .errorMessage(effectiveJob.errorMessage())
-            .build();
+            .errorMessage(effectiveJob.errorMessage());
+
+        // Prefer the job snapshot; cache fallback keeps older completed jobs readable.
+        if (effectiveJob.status() == AiReportJobStatus.COMPLETED) {
+            Map<String, String> params = effectiveJob.requestParams();
+            switch (effectiveJob.jobType()) {
+                case COMMERCIAL -> builder.commercialReport(
+                    effectiveJob.commercialReport() != null
+                        ? effectiveJob.commercialReport()
+                        : aiReportCachePort.getCommercialReport(
+                            params.get("commercialCode"), params.get("serviceCode"), params.get("periodCode")
+                        ).orElse(null)
+                );
+                case COMMERCIAL_COMPARISON -> builder.commercialComparisonReport(
+                    effectiveJob.commercialComparisonReport() != null
+                        ? effectiveJob.commercialComparisonReport()
+                        : aiReportCachePort.getCommercialComparisonReport(
+                            params.get("leftCommercialCode"), params.get("rightCommercialCode"),
+                            params.get("serviceCode"), params.get("periodCode")
+                        ).orElse(null)
+                );
+                case DISTRICT -> builder.districtReport(
+                    effectiveJob.districtReport() != null
+                        ? effectiveJob.districtReport()
+                        : aiReportCachePort.getDistrictReport(
+                            params.get("districtCode"), params.get("periodCode")
+                        ).orElse(null)
+                );
+                case ADMINISTRATION -> builder.administrationReport(
+                    effectiveJob.administrationReport() != null
+                        ? effectiveJob.administrationReport()
+                        : aiReportCachePort.getAdministrationReport(
+                            params.get("administrationCode"), params.get("periodCode")
+                        ).orElse(null)
+                );
+            }
+        }
+
+        return builder.build();
     }
 
     private AiReportJob expireIfStuck(AiReportJob job) {
@@ -143,6 +200,29 @@ public class AiReportJobProcessor {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("commercialCode", commercialCode);
         params.put("serviceCode", serviceCode);
+        params.put("periodCode", periodCode);
+        return params;
+    }
+
+    private Map<String, String> commercialComparisonParams(CommercialComparisonAiQuery query) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("leftCommercialCode", query.leftCommercialCode());
+        params.put("rightCommercialCode", query.rightCommercialCode());
+        params.put("serviceCode", query.serviceCode());
+        params.put("periodCode", query.periodCode());
+        return params;
+    }
+
+    private Map<String, String> districtParams(String districtCode, String periodCode) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("districtCode", districtCode);
+        params.put("periodCode", periodCode);
+        return params;
+    }
+
+    private Map<String, String> administrationParams(String administrationCode, String periodCode) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("administrationCode", administrationCode);
         params.put("periodCode", periodCode);
         return params;
     }

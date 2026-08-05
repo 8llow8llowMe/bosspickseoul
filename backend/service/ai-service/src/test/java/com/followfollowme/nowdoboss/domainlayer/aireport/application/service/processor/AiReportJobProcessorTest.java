@@ -89,7 +89,7 @@ class AiReportJobProcessorTest {
         ));
         verify(jobStore).reserveOrGetExistingJobId(eq(7L), anyString(), eq(result.jobId()));
         verify(jobStore, never()).deleteJob(anyString());
-        verify(worker).runCommercialJob(result.jobId());
+        verify(worker).runJob(result.jobId());
     }
 
     @Test
@@ -111,7 +111,7 @@ class AiReportJobProcessorTest {
     void submitCommercialReport_workerDispatchFails_marksJobFailedAndReleasesIdempotency() {
         when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
         when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
-        doThrow(new RuntimeException("queue full")).when(worker).runCommercialJob(anyString());
+        doThrow(new RuntimeException("queue full")).when(worker).runJob(anyString());
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 

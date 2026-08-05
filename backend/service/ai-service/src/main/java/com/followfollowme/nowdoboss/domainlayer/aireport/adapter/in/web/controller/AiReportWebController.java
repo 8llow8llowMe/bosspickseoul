@@ -71,6 +71,60 @@ public class AiReportWebController {
         AiReportSubmissionInfo info = aiReportWebUseCase.submitCommercialReport(
             principal.memberId(), commercialCode, serviceCode, periodCode
         );
+        return toSubmissionResponseEntity(info);
+    }
+
+    @Operation(
+        summary = "상권 비교 AI 인사이트 제출 (비동기)",
+        description = "상권 비교 AI 인사이트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/commercials/comparisons")
+    public ResponseEntity<Response<AiReportSubmissionResponse>> submitCommercialComparisonReport(
+        @AuthenticationPrincipal MemberLoginActive principal,
+        @ParameterObject
+        @ModelAttribute CommercialComparisonAiQuery query
+    ) {
+        AiReportSubmissionInfo info = aiReportWebUseCase.submitCommercialComparisonReport(principal.memberId(), query);
+        return toSubmissionResponseEntity(info);
+    }
+
+    @Operation(
+        summary = "자치구 AI 리포트 제출 (비동기)",
+        description = "자치구 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/districts/{districtCode}")
+    public ResponseEntity<Response<AiReportSubmissionResponse>> submitDistrictReport(
+        @AuthenticationPrincipal MemberLoginActive principal,
+        @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode,
+        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+    ) {
+        AiReportSubmissionInfo info = aiReportWebUseCase.submitDistrictReport(principal.memberId(), districtCode, periodCode);
+        return toSubmissionResponseEntity(info);
+    }
+
+    @Operation(
+        summary = "행정동 AI 리포트 제출 (비동기)",
+        description = "행정동 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/administrations/{administrationCode}")
+    public ResponseEntity<Response<AiReportSubmissionResponse>> submitAdministrationReport(
+        @AuthenticationPrincipal MemberLoginActive principal,
+        @Parameter(description = "행정동 코드", required = true, example = "11110515") @PathVariable String administrationCode,
+        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+    ) {
+        AiReportSubmissionInfo info = aiReportWebUseCase.submitAdministrationReport(
+            principal.memberId(), administrationCode, periodCode
+        );
+        return toSubmissionResponseEntity(info);
+    }
+
+    private ResponseEntity<Response<AiReportSubmissionResponse>> toSubmissionResponseEntity(AiReportSubmissionInfo info) {
         AiReportSubmissionResponse body = aiReportPresenter.toSubmissionResponse(info);
         HttpStatus status = info.submissionStatus() == AiReportSubmissionStatus.CACHED
             ? HttpStatus.OK
@@ -95,7 +149,7 @@ public class AiReportWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "상권 비교 AI 인사이트 조회", description = "두 상권의 비교 데이터를 기반으로 추천 상권과 실행 인사이트를 제공합니다.")
+    @Operation(summary = "상권 비교 AI 인사이트 조회 (동기, deprecated)", description = "두 상권의 비교 데이터를 기반으로 추천 상권과 실행 인사이트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.")
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/commercials/comparisons")
@@ -109,7 +163,7 @@ public class AiReportWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "자치구 AI 리포트 조회", description = "자치구 분석 데이터를 기반으로 AI 요약 리포트를 조회합니다.")
+    @Operation(summary = "자치구 AI 리포트 조회 (동기, deprecated)", description = "자치구 분석 데이터를 기반으로 AI 요약 리포트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.")
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/districts/{districtCode}")
@@ -123,7 +177,7 @@ public class AiReportWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "행정동 AI 리포트 조회", description = "행정동 분석 데이터를 기반으로 AI 요약 리포트를 조회합니다.")
+    @Operation(summary = "행정동 AI 리포트 조회 (동기, deprecated)", description = "행정동 분석 데이터를 기반으로 AI 요약 리포트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.")
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/administrations/{administrationCode}")

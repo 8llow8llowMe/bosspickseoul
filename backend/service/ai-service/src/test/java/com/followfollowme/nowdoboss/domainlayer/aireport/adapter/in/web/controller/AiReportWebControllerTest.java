@@ -83,8 +83,8 @@ class AiReportWebControllerTest {
         CommercialAiReportInfo info = mock(CommercialAiReportInfo.class);
         AiReportSubmissionInfo submission = AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL, info);
         AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
-            .submissionStatus(AiReportSubmissionStatus.CACHED)
-            .jobType(AiReportJobType.COMMERCIAL)
+            .submissionStatus(AiReportSubmissionStatus.CACHED.toMetadata())
+            .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .commercialReport(mock(CommercialAiReportResponse.class))
             .build();
         when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
@@ -94,8 +94,9 @@ class AiReportWebControllerTest {
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
                 .param("serviceCode", "S1"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.dataBody.submissionStatus").value("CACHED"))
-            .andExpect(jsonPath("$.dataBody.jobType").value("COMMERCIAL"))
+            .andExpect(jsonPath("$.dataBody.submissionStatus.code").value("CACHED"))
+            .andExpect(jsonPath("$.dataBody.submissionStatus.name").value("캐시 결과 반환"))
+            .andExpect(jsonPath("$.dataBody.jobType.code").value("COMMERCIAL"))
             .andExpect(jsonPath("$.dataBody.jobId").doesNotExist())
             .andExpect(jsonPath("$.dataBody.commercialReport").exists());
     }
@@ -104,8 +105,8 @@ class AiReportWebControllerTest {
     void postCommercialReport_accepted_returns202WithJobId() throws Exception {
         AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL, "job-uuid-1");
         AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
-            .submissionStatus(AiReportSubmissionStatus.ACCEPTED)
-            .jobType(AiReportJobType.COMMERCIAL)
+            .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
+            .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .jobId("job-uuid-1")
             .build();
         when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
@@ -115,8 +116,69 @@ class AiReportWebControllerTest {
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
                 .param("serviceCode", "S1"))
             .andExpect(status().isAccepted())
-            .andExpect(jsonPath("$.dataBody.submissionStatus").value("ACCEPTED"))
+            .andExpect(jsonPath("$.dataBody.submissionStatus.code").value("ACCEPTED"))
             .andExpect(jsonPath("$.dataBody.jobId").value("job-uuid-1"));
+    }
+
+    @Test
+    void postDistrictReport_accepted_returns202WithJobId() throws Exception {
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.DISTRICT, "job-uuid-2");
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
+            .jobType(AiReportJobType.DISTRICT.toMetadata())
+            .jobId("job-uuid-2")
+            .build();
+        when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("11680"), eq("20233")))
+            .thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/districts/{districtCode}", "11680"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.dataBody.submissionStatus.code").value("ACCEPTED"))
+            .andExpect(jsonPath("$.dataBody.jobType.code").value("DISTRICT"))
+            .andExpect(jsonPath("$.dataBody.jobId").value("job-uuid-2"));
+    }
+
+    @Test
+    void postAdministrationReport_accepted_returns202WithJobId() throws Exception {
+        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.ADMINISTRATION, "job-uuid-3");
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
+            .jobType(AiReportJobType.ADMINISTRATION.toMetadata())
+            .jobId("job-uuid-3")
+            .build();
+        when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("11110515"), eq("20233")))
+            .thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/administrations/{administrationCode}", "11110515"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.dataBody.submissionStatus.code").value("ACCEPTED"))
+            .andExpect(jsonPath("$.dataBody.jobType.code").value("ADMINISTRATION"))
+            .andExpect(jsonPath("$.dataBody.jobId").value("job-uuid-3"));
+    }
+
+    @Test
+    void postCommercialComparisonReport_accepted_returns202WithJobId() throws Exception {
+        AiReportSubmissionInfo submission =
+            AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL_COMPARISON, "job-uuid-4");
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
+            .jobType(AiReportJobType.COMMERCIAL_COMPARISON.toMetadata())
+            .jobId("job-uuid-4")
+            .build();
+        when(aiReportWebUseCase.submitCommercialComparisonReport(eq(MEMBER_ID), any()))
+            .thenReturn(submission);
+        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/commercials/comparisons")
+                .param("leftCommercialCode", "C1")
+                .param("rightCommercialCode", "C2")
+                .param("serviceCode", "S1"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.dataBody.submissionStatus.code").value("ACCEPTED"))
+            .andExpect(jsonPath("$.dataBody.jobType.code").value("COMMERCIAL_COMPARISON"))
+            .andExpect(jsonPath("$.dataBody.jobId").value("job-uuid-4"));
     }
 
     @Test
@@ -129,8 +191,8 @@ class AiReportWebControllerTest {
             .build();
         AiReportJobStatusResponse responseBody = AiReportJobStatusResponse.builder()
             .jobId("job-uuid-1")
-            .jobType(AiReportJobType.COMMERCIAL)
-            .status(AiReportJobStatus.COMPLETED)
+            .jobType(AiReportJobType.COMMERCIAL.toMetadata())
+            .status(AiReportJobStatus.COMPLETED.toMetadata())
             .commercialReport(mock(CommercialAiReportResponse.class))
             .build();
         when(aiReportWebUseCase.getJobInfo("job-uuid-1", MEMBER_ID)).thenReturn(info);
@@ -138,7 +200,8 @@ class AiReportWebControllerTest {
 
         mockMvc.perform(get("/api/v1/ai-reports/jobs/{jobId}", "job-uuid-1"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.dataBody.status").value("COMPLETED"))
+            .andExpect(jsonPath("$.dataBody.status.code").value("COMPLETED"))
+            .andExpect(jsonPath("$.dataBody.status.name").value("완료"))
             .andExpect(jsonPath("$.dataBody.jobId").value("job-uuid-1"))
             .andExpect(jsonPath("$.dataBody.commercialReport").exists());
     }
@@ -164,15 +227,15 @@ class AiReportWebControllerTest {
             .build();
         AiReportJobStatusResponse responseBody = AiReportJobStatusResponse.builder()
             .jobId("job-uuid-1")
-            .jobType(AiReportJobType.COMMERCIAL)
-            .status(AiReportJobStatus.RUNNING)
+            .jobType(AiReportJobType.COMMERCIAL.toMetadata())
+            .status(AiReportJobStatus.RUNNING.toMetadata())
             .build();
         when(aiReportWebUseCase.getJobInfo(anyString(), anyLong())).thenReturn(info);
         when(aiReportPresenter.toJobStatusResponse(info)).thenReturn(responseBody);
 
         mockMvc.perform(get("/api/v1/ai-reports/jobs/{jobId}", "job-uuid-1"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.dataBody.status").value("RUNNING"))
+            .andExpect(jsonPath("$.dataBody.status.code").value("RUNNING"))
             .andExpect(jsonPath("$.dataBody.commercialReport").doesNotExist())
             .andExpect(jsonPath("$.dataBody.errorCode").doesNotExist());
     }

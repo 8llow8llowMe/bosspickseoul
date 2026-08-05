@@ -49,7 +49,7 @@ class AiReportWorkerTest {
     private AiReportWorker worker;
 
     @Test
-    void runCommercialJob_success_embedsReportAndRecordsUsageAndReleasesIdempotency() {
+    void runJob_success_embedsReportAndRecordsUsageAndReleasesIdempotency() {
         AiReportJob pending = pendingJob();
         CommercialAiReportInfo report = mock(CommercialAiReportInfo.class);
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
@@ -59,7 +59,7 @@ class AiReportWorkerTest {
         when(processor.generateCommercialReport("C", "S", "P"))
             .thenReturn(new AiGenerationResult<>(report, usage));
 
-        worker.runCommercialJob("J1");
+        worker.runJob("J1");
 
         verify(jobStore).save(argThat(j ->
             j.status() == AiReportJobStatus.COMPLETED && j.commercialReport() == report
@@ -69,7 +69,7 @@ class AiReportWorkerTest {
     }
 
     @Test
-    void runCommercialJob_aiException_savesFailedWithDomainCodeAndReleasesIdempotency() {
+    void runJob_aiException_savesFailedWithDomainCodeAndReleasesIdempotency() {
         AiReportJob pending = pendingJob();
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
         when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
@@ -77,7 +77,7 @@ class AiReportWorkerTest {
         when(processor.generateCommercialReport(any(), any(), any()))
             .thenThrow(new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE));
 
-        worker.runCommercialJob("J1");
+        worker.runJob("J1");
 
         verify(jobStore).save(argThat(j ->
             j.status() == AiReportJobStatus.FAILED
@@ -89,7 +89,7 @@ class AiReportWorkerTest {
     }
 
     @Test
-    void runCommercialJob_unexpectedException_savesFailedWithSanitizedMessage() {
+    void runJob_unexpectedException_savesFailedWithSanitizedMessage() {
         AiReportJob pending = pendingJob();
         String secretLeak = "internal db password=hunter2";
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
@@ -98,7 +98,7 @@ class AiReportWorkerTest {
         when(processor.generateCommercialReport(any(), any(), any()))
             .thenThrow(new RuntimeException(secretLeak));
 
-        worker.runCommercialJob("J1");
+        worker.runJob("J1");
 
         verify(jobStore).save(argThat(j ->
             j.status() == AiReportJobStatus.FAILED
@@ -110,10 +110,10 @@ class AiReportWorkerTest {
     }
 
     @Test
-    void runCommercialJob_jobMissing_returnsSilentlyWithoutSideEffects() {
+    void runJob_jobMissing_returnsSilentlyWithoutSideEffects() {
         when(jobStore.findById("J1")).thenReturn(Optional.empty());
 
-        worker.runCommercialJob("J1");
+        worker.runJob("J1");
 
         verify(jobStore).findById("J1");
         verifyNoMoreInteractions(jobStore);
@@ -121,14 +121,14 @@ class AiReportWorkerTest {
     }
 
     @Test
-    void runCommercialJob_alreadyAdvanced_skipsTransition() {
+    void runJob_alreadyAdvanced_skipsTransition() {
         AiReportJob completed = AiReportJob.builder()
             .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.COMPLETED).createdAt(Instant.now()).build();
         when(jobStore.findById("J1")).thenReturn(Optional.of(completed));
 
-        worker.runCommercialJob("J1");
+        worker.runJob("J1");
 
         verify(jobStore).findById("J1");
         verify(jobStore, never()).save(any());
@@ -137,11 +137,11 @@ class AiReportWorkerTest {
     }
 
     @Test
-    void runCommercialJob_pickupFailure_returnsSilentlyWithoutSave() {
+    void runJob_pickupFailure_returnsSilentlyWithoutSave() {
         when(jobStore.findById("J1"))
             .thenThrow(new AiReportException(AiReportErrorCode.JOB_STORE_UNAVAILABLE));
 
-        worker.runCommercialJob("J1");
+        worker.runJob("J1");
 
         verify(jobStore, atLeastOnce()).findById("J1");
         verify(jobStore, never()).save(any());
