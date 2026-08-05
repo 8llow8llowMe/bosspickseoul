@@ -1,15 +1,12 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.application.service;
 
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AdministrationAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportJobInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiReportJobSubscription;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.in.AiReportWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor.AiReportJobProcessor;
-import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor.AiReportProcessor;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,28 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AiReportWebFacade implements AiReportWebUseCase {
 
-    private final AiReportProcessor aiReportProcessor;
     private final AiReportJobProcessor aiReportJobProcessor;
-
-    @Override
-    public CommercialAiReportInfo getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
-        return aiReportProcessor.getCommercialReport(commercialCode, serviceCode, periodCode);
-    }
-
-    @Override
-    public CommercialComparisonAiReportInfo getCommercialComparisonReport(CommercialComparisonAiQuery query) {
-        return aiReportProcessor.getCommercialComparisonReport(query);
-    }
-
-    @Override
-    public DistrictAiReportInfo getDistrictReport(String districtCode, String periodCode) {
-        return aiReportProcessor.getDistrictReport(districtCode, periodCode);
-    }
-
-    @Override
-    public AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode) {
-        return aiReportProcessor.getAdministrationReport(administrationCode, periodCode);
-    }
 
     @Override
     public AiReportSubmissionInfo submitCommercialReport(
@@ -67,5 +43,10 @@ public class AiReportWebFacade implements AiReportWebUseCase {
     @Override
     public AiReportJobInfo getJobInfo(String jobId, long memberId) {
         return aiReportJobProcessor.getJobInfo(jobId, memberId);
+    }
+
+    @Override
+    public AiReportJobSubscription subscribeJobUpdates(String jobId, long memberId, Consumer<AiReportJobInfo> onUpdate) {
+        return aiReportJobProcessor.subscribeJobUpdates(jobId, memberId, onUpdate);
     }
 }

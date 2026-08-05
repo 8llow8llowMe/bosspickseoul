@@ -1,25 +1,24 @@
 package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.controller;
 
 import com.followfollowme.nowdoboss.common.dto.Response;
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AdministrationAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AiReportJobStatusResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.AiReportSubmissionResponse;
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialComparisonAiReportResponse;
-import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.DistrictAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.sse.AiReportJobSseStreamer;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.in.AiReportWebUseCase;
 import com.followfollowme.nowdoboss.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.servlet.http.HttpServletResponse;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,6 +29,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequiredArgsConstructor
@@ -39,21 +39,7 @@ public class AiReportWebController {
 
     private final AiReportWebUseCase aiReportWebUseCase;
     private final AiReportPresenter aiReportPresenter;
-
-    @Operation(summary = "상권 AI 리포트 조회 (동기, deprecated)", description = "상권과 업종 분석 데이터를 기반으로 AI 요약 리포트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.")
-    @SecurityRequirement(name = "bearerAuth")
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/commercials/{commercialCode}")
-    public ResponseEntity<Response<CommercialAiReportResponse>> getCommercialReport(
-        @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
-        @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
-    ) {
-        CommercialAiReportResponse response = aiReportPresenter.toCommercialResponse(
-            aiReportWebUseCase.getCommercialReport(commercialCode, serviceCode, periodCode)
-        );
-        return ResponseEntity.ok().body(Response.success(response));
-    }
+    private final AiReportJobSseStreamer aiReportJobSseStreamer;
 
     @Operation(
         summary = "상권 AI 리포트 제출 (비동기)",
@@ -149,45 +135,25 @@ public class AiReportWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "상권 비교 AI 인사이트 조회 (동기, deprecated)", description = "두 상권의 비교 데이터를 기반으로 추천 상권과 실행 인사이트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.")
+    @Operation(
+        summary = "AI 리포트 작업 상태 스트림 (SSE)",
+        description = """
+            비동기 AI 리포트 작업의 상태 변경을 Server-Sent Events 로 스트리밍합니다.
+            구독 즉시 현재 상태를 job-update 이벤트로 1회 전송하고, 이후 상태가 바뀔 때마다 같은 이벤트를 전송하며,
+            COMPLETED/FAILED 도달 시 서버가 연결을 종료합니다. 이벤트 data 는 작업 상태 조회 응답의 dataBody 와 동일한 JSON 입니다.
+            본인이 제출한 작업만 구독할 수 있습니다."""
+    )
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
-    @GetMapping("/commercials/comparisons")
-    public ResponseEntity<Response<CommercialComparisonAiReportResponse>> getCommercialComparisonReport(
-        @ParameterObject
-        @ModelAttribute CommercialComparisonAiQuery query
+    @GetMapping(value = "/jobs/{jobId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamJobStatus(
+        @AuthenticationPrincipal MemberLoginActive principal,
+        @Parameter(description = "작업 식별자", required = true) @PathVariable String jobId,
+        HttpServletResponse response
     ) {
-        CommercialComparisonAiReportResponse response = aiReportPresenter.toCommercialComparisonResponse(
-            aiReportWebUseCase.getCommercialComparisonReport(query)
-        );
-        return ResponseEntity.ok().body(Response.success(response));
+        // nginx 등 리버스 프록시가 이 응답을 버퍼링하지 않도록 응답 단위로 지시한다 (프록시 설정과 이중 방어).
+        response.setHeader("X-Accel-Buffering", "no");
+        return aiReportJobSseStreamer.stream(jobId, principal.memberId());
     }
 
-    @Operation(summary = "자치구 AI 리포트 조회 (동기, deprecated)", description = "자치구 분석 데이터를 기반으로 AI 요약 리포트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.")
-    @SecurityRequirement(name = "bearerAuth")
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/districts/{districtCode}")
-    public ResponseEntity<Response<DistrictAiReportResponse>> getDistrictReport(
-        @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
-    ) {
-        DistrictAiReportResponse response = aiReportPresenter.toDistrictResponse(
-            aiReportWebUseCase.getDistrictReport(districtCode, periodCode)
-        );
-        return ResponseEntity.ok().body(Response.success(response));
-    }
-
-    @Operation(summary = "행정동 AI 리포트 조회 (동기, deprecated)", description = "행정동 분석 데이터를 기반으로 AI 요약 리포트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.")
-    @SecurityRequirement(name = "bearerAuth")
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/administrations/{administrationCode}")
-    public ResponseEntity<Response<AdministrationAiReportResponse>> getAdministrationReport(
-        @Parameter(description = "행정동 코드", required = true, example = "11110515") @PathVariable String administrationCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
-    ) {
-        AdministrationAiReportResponse response = aiReportPresenter.toAdministrationResponse(
-            aiReportWebUseCase.getAdministrationReport(administrationCode, periodCode)
-        );
-        return ResponseEntity.ok().body(Response.success(response));
-    }
 }

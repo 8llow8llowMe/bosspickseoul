@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -17,6 +18,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.A
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiGenerationResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiUsageCounterPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor.AiReportProcessor;
@@ -38,6 +40,9 @@ class AiReportWorkerTest {
 
     @Mock
     private AiReportJobStorePort jobStore;
+
+    @Mock
+    private AiReportJobEventPort jobEventPort;
 
     @Mock
     private AiReportProcessor processor;
@@ -66,6 +71,8 @@ class AiReportWorkerTest {
         ));
         verify(usageCounter).record(eq(7L), eq(usage));
         verify(jobStore).releaseIdempotencyKey(7L, "H");
+        // RUNNING 전이 1회 + 종결(COMPLETED) 1회 발행으로 SSE 구독자가 상태 변화를 감지한다.
+        verify(jobEventPort, times(2)).publishJobUpdated("J1");
     }
 
     @Test
@@ -117,7 +124,7 @@ class AiReportWorkerTest {
 
         verify(jobStore).findById("J1");
         verifyNoMoreInteractions(jobStore);
-        verifyNoInteractions(processor, usageCounter);
+        verifyNoInteractions(processor, usageCounter, jobEventPort);
     }
 
     @Test

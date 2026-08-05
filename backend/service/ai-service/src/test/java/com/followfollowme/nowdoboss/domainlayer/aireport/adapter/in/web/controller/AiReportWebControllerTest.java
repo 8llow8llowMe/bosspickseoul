@@ -18,6 +18,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.resp
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.exception.AiReportExceptionHandler;
 import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
+import com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.sse.AiReportJobSseStreamer;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportJobInfo;
@@ -52,13 +53,16 @@ class AiReportWebControllerTest {
     @Mock
     private AiReportPresenter aiReportPresenter;
 
+    @Mock
+    private AiReportJobSseStreamer aiReportJobSseStreamer;
+
     private MockMvc mockMvc;
 
     private static final long MEMBER_ID = 7L;
 
     @BeforeEach
     void setUp() {
-        AiReportWebController controller = new AiReportWebController(aiReportWebUseCase, aiReportPresenter);
+        AiReportWebController controller = new AiReportWebController(aiReportWebUseCase, aiReportPresenter, aiReportJobSseStreamer);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new AiReportExceptionHandler())
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())

@@ -8,8 +8,10 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiRepo
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiReportJobSubscription;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.worker.AiReportWorker;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJob;
@@ -26,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -37,6 +40,7 @@ public class AiReportJobProcessor {
 
     private final AiReportJobStorePort aiReportJobStorePort;
     private final AiReportCachePort aiReportCachePort;
+    private final AiReportJobEventPort aiReportJobEventPort;
     private final AiReportWorker aiReportWorker;
     private final AiReportJobProperties aiReportJobProperties;
 
@@ -110,6 +114,7 @@ public class AiReportJobProcessor {
                 AiReportErrorCode.JOB_FAILED.getCode(), AiReportErrorCode.JOB_FAILED.getMessage(), Instant.now()
             ));
             aiReportJobStorePort.releaseIdempotencyKey(memberId, requestHash);
+            aiReportJobEventPort.publishJobUpdated(newJobId);
         }
 
         return AiReportSubmissionInfo.accepted(jobType, newJobId);
@@ -193,7 +198,23 @@ public class AiReportJobProcessor {
         );
         aiReportJobStorePort.save(expired);
         aiReportJobStorePort.releaseIdempotencyKey(job.memberId(), job.requestHash());
+        aiReportJobEventPort.publishJobUpdated(job.jobId());
         return expired;
+    }
+
+    /**
+     * 잡 상태 변경 구독. 이벤트 수신 시마다 저장소에서 최신 상태를 다시 읽어 전달하므로
+     * pub/sub 메시지 자체에는 상태를 싣지 않는다(발행-저장 순서 역전, 스키마 드리프트 방지).
+     */
+    public AiReportJobSubscription subscribeJobUpdates(String jobId, long memberId, Consumer<AiReportJobInfo> onUpdate) {
+        return aiReportJobEventPort.subscribe(jobId, () -> {
+            try {
+                onUpdate.accept(getJobInfo(jobId, memberId));
+            } catch (RuntimeException exception) {
+                // 구독 콜백은 pub/sub 리스너 스레드에서 실행되므로 예외를 전파하지 않는다.
+                log.warn("AI 리포트 잡 이벤트 처리에 실패했습니다. jobId={} reason={}", jobId, exception.getMessage());
+            }
+        });
     }
 
     private Map<String, String> commercialParams(String commercialCode, String serviceCode, String periodCode) {

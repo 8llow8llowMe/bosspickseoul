@@ -65,10 +65,6 @@ public class AiReportProcessor {
     private final AiReportCachePort aiReportCachePort;
     private final AiLlmProperties aiLlmProperties;
 
-    public CommercialAiReportInfo getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
-        return generateCommercialReport(commercialCode, serviceCode, periodCode).draft();
-    }
-
     public AiGenerationResult<CommercialAiReportInfo> generateCommercialReport(
         String commercialCode, String serviceCode, String periodCode
     ) {
@@ -164,10 +160,6 @@ public class AiReportProcessor {
         return new AiGenerationResult<>(reportInfo, llmResult.usage());
     }
 
-    public CommercialComparisonAiReportInfo getCommercialComparisonReport(CommercialComparisonAiQuery query) {
-        return generateCommercialComparisonReport(query).draft();
-    }
-
     public AiGenerationResult<CommercialComparisonAiReportInfo> generateCommercialComparisonReport(CommercialComparisonAiQuery query) {
         String leftCommercialCode = query.leftCommercialCode();
         String rightCommercialCode = query.rightCommercialCode();
@@ -217,10 +209,6 @@ public class AiReportProcessor {
         return new AiGenerationResult<>(reportInfo, llmResult.usage());
     }
 
-    public DistrictAiReportInfo getDistrictReport(String districtCode, String periodCode) {
-        return generateDistrictReport(districtCode, periodCode).draft();
-    }
-
     public AiGenerationResult<DistrictAiReportInfo> generateDistrictReport(String districtCode, String periodCode) {
         long startTime = System.currentTimeMillis();
         Optional<DistrictAiReportInfo> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
@@ -245,10 +233,6 @@ public class AiReportProcessor {
         aiReportCachePort.saveDistrictReport(districtCode, periodCode, reportInfo);
         logReport("district", districtCode, periodCode, false, startTime);
         return new AiGenerationResult<>(reportInfo, llmResult.usage());
-    }
-
-    public AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode) {
-        return generateAdministrationReport(administrationCode, periodCode).draft();
     }
 
     public AiGenerationResult<AdministrationAiReportInfo> generateAdministrationReport(String administrationCode, String periodCode) {

@@ -8,6 +8,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.Commer
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiUsageCounterPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.processor.AiReportProcessor;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Component;
 public class AiReportWorker {
 
     private final AiReportJobStorePort aiReportJobStorePort;
+    private final AiReportJobEventPort aiReportJobEventPort;
     private final AiReportProcessor aiReportProcessor;
     private final AiUsageCounterPort aiUsageCounterPort;
 
@@ -45,6 +47,7 @@ public class AiReportWorker {
                 return;
             }
             running = aiReportJobStorePort.save(job.withStatus(AiReportJobStatus.RUNNING, Instant.now()));
+            aiReportJobEventPort.publishJobUpdated(jobId);
         } catch (RuntimeException pickupFailure) {
             log.error("AI report job pickup failed jobId={} reason={}", jobId, pickupFailure.getMessage(), pickupFailure);
             return;
@@ -72,6 +75,8 @@ public class AiReportWorker {
             ));
         } finally {
             aiReportJobStorePort.releaseIdempotencyKey(running.memberId(), running.requestHash());
+            // 종결 상태(COMPLETED/FAILED) 저장 이후에 발행해야 구독자가 재조회 시 최신 상태를 읽는다.
+            aiReportJobEventPort.publishJobUpdated(running.jobId());
         }
     }
 
