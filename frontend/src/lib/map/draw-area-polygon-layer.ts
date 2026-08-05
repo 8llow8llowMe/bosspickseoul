@@ -32,7 +32,7 @@ export const drawAreaPolygonLayer = ({
   const polygons: KakaoMapPolygon[] = []
   const listeners: Array<{
     target: object
-    type: string
+    type: 'click' | 'mouseover' | 'mouseout'
     handler: () => void
   }> = []
 
