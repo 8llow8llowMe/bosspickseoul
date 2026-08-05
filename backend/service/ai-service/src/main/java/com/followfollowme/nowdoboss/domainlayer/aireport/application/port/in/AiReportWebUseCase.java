@@ -18,13 +18,13 @@ public interface AiReportWebUseCase {
 
     AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode);
 
-    AiReportSubmissionInfo submitCommercialReport(Long memberId, String commercialCode, String serviceCode, String periodCode);
+    AiReportSubmissionInfo submitCommercialReport(long memberId, String commercialCode, String serviceCode, String periodCode);
 
-    AiReportSubmissionInfo submitCommercialComparisonReport(Long memberId, CommercialComparisonAiQuery query);
+    AiReportSubmissionInfo submitCommercialComparisonReport(long memberId, CommercialComparisonAiQuery query);
 
-    AiReportSubmissionInfo submitDistrictReport(Long memberId, String districtCode, String periodCode);
+    AiReportSubmissionInfo submitDistrictReport(long memberId, String districtCode, String periodCode);
 
-    AiReportSubmissionInfo submitAdministrationReport(Long memberId, String administrationCode, String periodCode);
+    AiReportSubmissionInfo submitAdministrationReport(long memberId, String administrationCode, String periodCode);
 
-    AiReportJobInfo getJobInfo(String jobId, Long memberId);
+    AiReportJobInfo getJobInfo(String jobId, long memberId);
 }
