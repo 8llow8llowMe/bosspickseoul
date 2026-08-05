@@ -61,12 +61,12 @@ declare global {
     event: {
       addListener(
         target: object,
-        type: 'click' | 'idle',
+        type: 'click' | 'idle' | 'mouseover' | 'mouseout',
         handler: () => void,
       ): void
       removeListener(
         target: object,
-        type: 'click' | 'idle',
+        type: 'click' | 'idle' | 'mouseover' | 'mouseout',
         handler: () => void,
       ): void
       preventMap(): void
