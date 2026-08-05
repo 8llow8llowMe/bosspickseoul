@@ -10,6 +10,7 @@ import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -42,6 +43,10 @@ public class AiLlmModelConfig {
     public OllamaChatModel ollamaChatModel(OllamaApi ollamaApi, AiLlmProperties properties) {
         return OllamaChatModel.builder()
             .ollamaApi(ollamaApi)
+            // Spring AI 기본 RetryTemplate은 최대 10회 재시도한다. 타임아웃된 LLM 생성은
+            // 다시 보내도 똑같이 느려서 성공 가능성 없이 GPU와 워커 스레드만 점유하므로
+            // 내장 재시도를 끄고, 실패 처리는 서킷브레이커 + 잡 상태로 일원화한다.
+            .retryTemplate(RetryTemplate.builder().maxAttempts(1).build())
             .defaultOptions(
                 OllamaOptions.builder()
                     .model(properties.model())

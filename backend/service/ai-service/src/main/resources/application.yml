@@ -39,7 +39,10 @@ resilience4j:
         base-config: default
       llm:
         base-config: default
-        # LLM 생성은 수십 초가 정상 범위라 내부 호출용 5초 slow-call 기준을 그대로 쓰면
-        # 정상 응답도 서킷을 열어버린다. ai.llm.timeout-ms(30s)보다 약간 낮게 완화한다.
-        slow-call-duration-threshold: 25s
+        # LLM 생성은 수십 초~수 분이 정상 범위라 slow-call 판정이 의미가 없다.
+        # 기준을 read timeout(AI_LLM_TIMEOUT_MS)과 동일하게 연동해 사실상 비활성화하고
+        # (타임아웃보다 오래 걸리는 호출은 존재할 수 없음) 실패율 기준만 사용한다.
+        # 값을 하드코딩하면 Vault에서 타임아웃만 올렸을 때 정상 호출이 slow로 집계되어
+        # 서킷이 열리는 사고가 난다.
+        slow-call-duration-threshold: ${AI_LLM_TIMEOUT_MS:30000}ms
         wait-duration-in-open-state: 30s
