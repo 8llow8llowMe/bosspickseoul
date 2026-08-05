@@ -20,7 +20,9 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiRepo
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiReportJobSubscription;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.worker.AiReportWorker;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJob;
@@ -28,8 +30,11 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJo
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJobType;
 import com.followfollowme.nowdoboss.global.properties.AiReportJobProperties;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +51,9 @@ class AiReportJobProcessorTest {
     private AiReportCachePort cache;
 
     @Mock
+    private AiReportJobEventPort jobEventPort;
+
+    @Mock
     private AiReportWorker worker;
 
     private AiReportJobProperties props;
@@ -54,7 +62,7 @@ class AiReportJobProcessorTest {
     @BeforeEach
     void setUp() {
         props = new AiReportJobProperties(86_400L, 2_592_000L, 30L, 300L);
-        processor = new AiReportJobProcessor(jobStore, cache, worker, props);
+        processor = new AiReportJobProcessor(jobStore, cache, jobEventPort, worker, props);
     }
 
     @Test
@@ -158,6 +166,45 @@ class AiReportJobProcessorTest {
         assertThat(info.errorMessage()).isEqualTo(AiReportErrorCode.JOB_TIMEOUT.getMessage());
         verify(jobStore).save(argThat(job -> job.status() == AiReportJobStatus.FAILED));
         verify(jobStore).releaseIdempotencyKey(7L, "H");
+        // 타임아웃 전이도 상태 변경이므로 SSE 구독자에게 브로드캐스트되어야 한다.
+        verify(jobEventPort).publishJobUpdated("J1");
+    }
+
+    @Test
+    void subscribeJobUpdates_onEvent_reloadsLatestJobAndForwards() {
+        when(jobStore.findById("J1")).thenReturn(Optional.of(pendingJob(7L, Instant.now())));
+        AtomicReference<Runnable> registeredCallback = new AtomicReference<>();
+        when(jobEventPort.subscribe(eq("J1"), any())).thenAnswer(invocation -> {
+            registeredCallback.set(invocation.getArgument(1));
+            return (AiReportJobSubscription) () -> {
+            };
+        });
+        List<AiReportJobInfo> received = new ArrayList<>();
+
+        processor.subscribeJobUpdates("J1", 7L, received::add);
+        registeredCallback.get().run();
+
+        assertThat(received).hasSize(1);
+        assertThat(received.get(0).jobId()).isEqualTo("J1");
+        assertThat(received.get(0).status()).isEqualTo(AiReportJobStatus.PENDING);
+    }
+
+    @Test
+    void subscribeJobUpdates_reloadFailure_doesNotPropagateFromListenerThread() {
+        when(jobStore.findById("J1")).thenReturn(Optional.empty());
+        AtomicReference<Runnable> registeredCallback = new AtomicReference<>();
+        when(jobEventPort.subscribe(eq("J1"), any())).thenAnswer(invocation -> {
+            registeredCallback.set(invocation.getArgument(1));
+            return (AiReportJobSubscription) () -> {
+            };
+        });
+        List<AiReportJobInfo> received = new ArrayList<>();
+
+        processor.subscribeJobUpdates("J1", 7L, received::add);
+        registeredCallback.get().run();
+
+        // 잡 소실(JOB_NOT_FOUND)은 pub/sub 리스너 스레드로 예외를 전파하지 않고 조용히 무시된다.
+        assertThat(received).isEmpty();
     }
 
     @Test

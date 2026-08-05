@@ -15,7 +15,7 @@
 
 - 비동기 제출/조회 엔드포인트(`POST /api/v1/ai-reports/commercials/{code}`, `GET /api/v1/ai-reports/jobs/{jobId}`) 는 **인증 필수** (`@PreAuthorize("isAuthenticated()")`).
 - 리포트 4종(상권/상권비교/자치구/행정동) 전부 POST 제출 + `GET /jobs/{jobId}` 폴링의 비동기 모델을 사용한다.
-- 기존 동기 GET 엔드포인트 4종은 deprecate 단계 — 프론트 이전 완료 후 제거 예정.
+- 동기 GET 조회 엔드포인트 4종은 제거 완료 — 비동기 제출 + 폴링/SSE 만 지원한다.
 - 내부 서비스 간 호출 계약은 out adapter 에서 캡슐화한다 (`FeignClient -> Adapter -> QueryResult`).
 - **인증 실패 응답은 `security-core` 의 `SecurityErrorCode` 를 따른다** (예: 토큰 미첨부 `SECURITY_001`, 만료 `SECURITY_002`, 권한 부족 `SECURITY_006`). ai-service 는 별도 인증 ErrorCode 를 자체 발행하지 않는다.
 
@@ -24,16 +24,18 @@
 - Controller: `AiReportWebController`
 - UseCase / Facade: `AiReportWebUseCase` / `AiReportWebFacade`
 - Processor:
-  - `AiReportProcessor` — 동기 cache + LLM 파이프라인
+  - `AiReportProcessor` — cache + LLM 생성 파이프라인 (워커에서 호출)
   - `AiReportJobProcessor` — 비동기 작업 제출 / 상태 조회 / 멱등성 보장
 - Worker: `AiReportWorker` — `@Async("aiReportTaskExecutor")` 로 비동기 LLM 호출
 - Out port:
   - `AiLlmPort` — Ollama / OpenAI 어댑터 분기, `AiGenerationResult<*Draft>` 반환
   - `AiReportCachePort` — 결과 캐시 (Redis)
   - `AiReportJobStorePort` — 작업 상태 저장 (Redis)
+  - `AiReportJobEventPort` — 작업 상태 변경 브로드캐스트 (Redis pub/sub, 채널 `{prefix}:ai:job:events:{jobId}`)
   - `AiUsageCounterPort` — 사용자별 토큰 사용량 카운터 (Redis)
   - `*AnalysisQueryPort` — 다른 서비스 Feign 조회
 - Presenter: `AiReportPresenter`
+- SSE: `AiReportJobSseStreamer` (adapter/in/web/sse) — 잡 상태 변경을 SSE 로 푸시
 
 ## 비동기 작업 모델
 
@@ -56,7 +58,25 @@ GET /api/v1/ai-reports/jobs/{jobId}
   ├─ RUNNING / PENDING → 200 + status only
   ├─ FAILED → 200 + errorCode/errorMessage
   └─ 본인 작업 아님 / 미존재 → 404 (AI_005)
+
+GET /api/v1/ai-reports/jobs/{jobId}/stream (SSE)
+  ├─ 구독 즉시 현재 상태를 job-update 이벤트로 1회 전송 (data = 작업 상태 조회 응답의 dataBody 와 동일 JSON)
+  ├─ 상태 변경마다 job-update 이벤트 전송, COMPLETED/FAILED 도달 시 서버가 연결 종료
+  ├─ 미존재/타인 작업 → SSE 시작 전 404 (AI_005) JSON 오류
+  └─ 폴링(GET /jobs/{jobId}) 은 SSE 연결 실패 시 폴백으로 유지
 ```
+
+### 상태 변경 전파 (SSE + Redis pub/sub)
+
+- 워커와 SSE 연결을 잡은 인스턴스가 다를 수 있으므로 상태 전이(RUNNING/COMPLETED/FAILED, lazy 만료 포함) 시
+  `AiReportJobEventPort.publishJobUpdated(jobId)` 로 Redis pub/sub 채널에 브로드캐스트한다.
+- 이벤트 메시지에는 상태를 싣지 않는다. 구독자는 수신 시 저장소에서 잡을 다시 읽어 최신 상태를 전달한다
+  (발행-저장 순서 역전과 이벤트 스키마 드리프트 방지).
+- 발행은 best-effort 다. 유실돼도 SSE 하트비트(25초, 연결 유지 + 상태 재확인)가 종결을 감지하고,
+  하트비트의 상태 재확인은 lazy 만료(`expireIfStuck`)도 함께 트리거한다.
+- SSE 연결 타임아웃은 `pending-timeout + running-timeout + 30초` 로, 잡이 살아있을 수 있는 최대 시간과 정렬된다.
+- 브라우저 `EventSource` 는 Authorization 헤더를 지원하지 않으므로 프론트는 fetch 기반 SSE 클라이언트
+  (예: `@microsoft/fetch-event-source`) 로 Bearer 토큰을 첨부해야 한다.
 
 ### 멱등성 (원자적 보장 + orphan-key 방지)
 
@@ -124,11 +144,8 @@ ai:
 | POST | `/api/v1/ai-reports/commercials/comparisons` | 필수 | **상권 비교 AI 인사이트 비동기 제출** |
 | POST | `/api/v1/ai-reports/districts/{districtCode}` | 필수 | **자치구 AI 리포트 비동기 제출** |
 | POST | `/api/v1/ai-reports/administrations/{administrationCode}` | 필수 | **행정동 AI 리포트 비동기 제출** |
-| GET | `/api/v1/ai-reports/jobs/{jobId}` | 필수 | **작업 상태 / 결과 조회** (본인 작업만) |
-| GET | `/api/v1/ai-reports/commercials/{commercialCode}` | **필수** (legacy) | (deprecated) 동기 상권 리포트. POST 로 이전 권장 |
-| GET | `/api/v1/ai-reports/commercials/comparisons` | **필수** (legacy) | (deprecated) 동기 상권 비교 AI 인사이트 |
-| GET | `/api/v1/ai-reports/districts/{districtCode}` | **필수** (legacy) | (deprecated) 동기 자치구 AI 리포트 |
-| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | **필수** (legacy) | (deprecated) 동기 행정동 AI 리포트 |
+| GET | `/api/v1/ai-reports/jobs/{jobId}` | 필수 | **작업 상태 / 결과 조회** (본인 작업만, SSE 폴백) |
+| GET | `/api/v1/ai-reports/jobs/{jobId}/stream` | 필수 | **작업 상태 SSE 스트림** (본인 작업만, 종결 시 서버가 연결 종료) |
 
 > 모든 AI 리포트 엔드포인트는 인증된 사용자 전용이다. 레거시 GET 4개도 비공개 LLM 비용 증폭 / DoS 경로를 막기 위해 `@PreAuthorize("isAuthenticated()")` 가 적용되어 있다.
 
