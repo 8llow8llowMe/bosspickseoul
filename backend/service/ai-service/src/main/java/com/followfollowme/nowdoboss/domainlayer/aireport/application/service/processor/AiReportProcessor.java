@@ -165,6 +165,10 @@ public class AiReportProcessor {
     }
 
     public CommercialComparisonAiReportInfo getCommercialComparisonReport(CommercialComparisonAiQuery query) {
+        return generateCommercialComparisonReport(query).draft();
+    }
+
+    public AiGenerationResult<CommercialComparisonAiReportInfo> generateCommercialComparisonReport(CommercialComparisonAiQuery query) {
         String leftCommercialCode = query.leftCommercialCode();
         String rightCommercialCode = query.rightCommercialCode();
         String serviceCode = query.serviceCode();
@@ -179,7 +183,7 @@ public class AiReportProcessor {
         );
         if (cached.isPresent()) {
             logReport("commercial-comparison", "%s:%s".formatted(leftCommercialCode, rightCommercialCode), periodCode, true, startTime);
-            return cached.get();
+            return new AiGenerationResult<>(cached.get(), AiUsageMeta.empty(aiLlmProperties.model()));
         }
 
         CommercialComparisonQueryResult comparison = commercialAnalysisQueryPort.getCommercialComparison(
@@ -189,7 +193,8 @@ public class AiReportProcessor {
             periodCode
         );
         CommercialComparisonAiSourceData sourceData = buildCommercialComparisonSourceData(comparison, serviceCode, periodCode);
-        CommercialComparisonAiDraft draft = aiLlmPort.generateCommercialComparisonReport(sourceData).draft();
+        AiGenerationResult<CommercialComparisonAiDraft> llmResult = aiLlmPort.generateCommercialComparisonReport(sourceData);
+        CommercialComparisonAiDraft draft = llmResult.draft();
         CommercialComparisonAiReportInfo reportInfo = new CommercialComparisonAiReportInfo(
             draft.summary(),
             draft.recommendedSide(),
@@ -209,21 +214,26 @@ public class AiReportProcessor {
             reportInfo
         );
         logReport("commercial-comparison", "%s:%s".formatted(leftCommercialCode, rightCommercialCode), periodCode, false, startTime);
-        return reportInfo;
+        return new AiGenerationResult<>(reportInfo, llmResult.usage());
     }
 
     public DistrictAiReportInfo getDistrictReport(String districtCode, String periodCode) {
+        return generateDistrictReport(districtCode, periodCode).draft();
+    }
+
+    public AiGenerationResult<DistrictAiReportInfo> generateDistrictReport(String districtCode, String periodCode) {
         long startTime = System.currentTimeMillis();
         Optional<DistrictAiReportInfo> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
         if (cached.isPresent()) {
             logReport("district", districtCode, periodCode, true, startTime);
-            return cached.get();
+            return new AiGenerationResult<>(cached.get(), AiUsageMeta.empty(aiLlmProperties.model()));
         }
 
         DistrictAiSourceData sourceData = buildDistrictSourceData(
             districtCode, periodCode, districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode)
         );
-        DistrictAiDraft draft = aiLlmPort.generateDistrictReport(sourceData).draft();
+        AiGenerationResult<DistrictAiDraft> llmResult = aiLlmPort.generateDistrictReport(sourceData);
+        DistrictAiDraft draft = llmResult.draft();
         DistrictAiReportInfo reportInfo = new DistrictAiReportInfo(
             draft.summary(),
             draft.marketStatus(),
@@ -234,15 +244,19 @@ public class AiReportProcessor {
         );
         aiReportCachePort.saveDistrictReport(districtCode, periodCode, reportInfo);
         logReport("district", districtCode, periodCode, false, startTime);
-        return reportInfo;
+        return new AiGenerationResult<>(reportInfo, llmResult.usage());
     }
 
     public AdministrationAiReportInfo getAdministrationReport(String administrationCode, String periodCode) {
+        return generateAdministrationReport(administrationCode, periodCode).draft();
+    }
+
+    public AiGenerationResult<AdministrationAiReportInfo> generateAdministrationReport(String administrationCode, String periodCode) {
         long startTime = System.currentTimeMillis();
         Optional<AdministrationAiReportInfo> cached = aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
         if (cached.isPresent()) {
             logReport("administration", administrationCode, periodCode, true, startTime);
-            return cached.get();
+            return new AiGenerationResult<>(cached.get(), AiUsageMeta.empty(aiLlmProperties.model()));
         }
 
         AdministrationAiSourceData sourceData = buildAdministrationSourceData(
@@ -252,7 +266,8 @@ public class AiReportProcessor {
             administrationAnalysisQueryPort.getAdministrationDetail(administrationCode, periodCode),
             regionAnalysisQueryPort.getCommercialsByAdministration(administrationCode)
         );
-        AdministrationAiDraft draft = aiLlmPort.generateAdministrationReport(sourceData).draft();
+        AiGenerationResult<AdministrationAiDraft> llmResult = aiLlmPort.generateAdministrationReport(sourceData);
+        AdministrationAiDraft draft = llmResult.draft();
         AdministrationAiReportInfo reportInfo = new AdministrationAiReportInfo(
             draft.summary(),
             draft.marketStatus(),
@@ -263,7 +278,7 @@ public class AiReportProcessor {
         );
         aiReportCachePort.saveAdministrationReport(administrationCode, periodCode, reportInfo);
         logReport("administration", administrationCode, periodCode, false, startTime);
-        return reportInfo;
+        return new AiGenerationResult<>(reportInfo, llmResult.usage());
     }
 
     private void logReport(String reportType, String targetCode, String periodCode, boolean cacheHit, long startTime) {

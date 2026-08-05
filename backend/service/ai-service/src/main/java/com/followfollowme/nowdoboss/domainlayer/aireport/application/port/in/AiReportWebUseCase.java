@@ -20,5 +20,11 @@ public interface AiReportWebUseCase {
 
     AiReportSubmissionInfo submitCommercialReport(Long memberId, String commercialCode, String serviceCode, String periodCode);
 
+    AiReportSubmissionInfo submitCommercialComparisonReport(Long memberId, CommercialComparisonAiQuery query);
+
+    AiReportSubmissionInfo submitDistrictReport(Long memberId, String districtCode, String periodCode);
+
+    AiReportSubmissionInfo submitAdministrationReport(Long memberId, String administrationCode, String periodCode);
+
     AiReportJobInfo getJobInfo(String jobId, Long memberId);
 }

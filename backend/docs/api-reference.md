@@ -263,17 +263,20 @@
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
 | POST | `/commercials/{commercialCode}` | 상권 AI 리포트 **작업 제출(비동기)** — 캐시 hit `200` + 결과, miss `202` + `jobId` | 🔒 |
+| POST | `/commercials/comparisons` | 상권 비교 AI 인사이트 **작업 제출(비동기)** | 🔒 |
+| POST | `/districts/{districtCode}` | 자치구 AI 리포트 **작업 제출(비동기)** | 🔒 |
+| POST | `/administrations/{administrationCode}` | 행정동 AI 리포트 **작업 제출(비동기)** | 🔒 |
 | GET | `/jobs/{jobId}` | 작업 상태·결과 조회 (본인이 제출한 작업만) | 🔒 |
-| GET | `/commercials/{commercialCode}` | 상권 AI 리포트 동기 조회 — **deprecated**, 위 POST 로 이전 권장 | 🔒 |
-| GET | `/commercials/comparisons` | 두 상권 비교 AI 리포트 (승자 판정 + 근거) | 🔒 |
-| GET | `/districts/{districtCode}` | 자치구 AI 리포트 | 🔒 |
-| GET | `/administrations/{administrationCode}` | 행정동 AI 리포트 | 🔒 |
+| GET | `/commercials/{commercialCode}` | 상권 AI 리포트 동기 조회 — **deprecated** | 🔒 |
+| GET | `/commercials/comparisons` | 상권 비교 AI 인사이트 동기 조회 — **deprecated** | 🔒 |
+| GET | `/districts/{districtCode}` | 자치구 AI 리포트 동기 조회 — **deprecated** | 🔒 |
+| GET | `/administrations/{administrationCode}` | 행정동 AI 리포트 동기 조회 — **deprecated** | 🔒 |
 
 **주의사항**:
 - 모든 엔드포인트가 인증 필요 — 외부 LLM 비용이 발생하므로 비로그인 호출을 막습니다.
 - 내부 Feign 호출을 `CompletableFuture` 병렬 실행으로 처리하고, `commercial-service`·`district-service` 에서 수집한 데이터로 프롬프트를 구성합니다.
-- 외부 Claude API 호출이 포함되어 동기 조회는 응답에 수 초가 걸립니다. 상권 리포트는 제출(`POST`) → 폴링(`GET /jobs/{jobId}`) 방식을 사용하세요.
-- 비교·자치구·행정동 리포트는 아직 동기 방식입니다 (비동기 전환 대상).
+- LLM 호출이 포함되어 동기 조회는 응답에 수십 초가 걸립니다. 리포트 4종 모두 제출(`POST`) → 폴링(`GET /jobs/{jobId}`) 방식을 사용하세요.
+- 작업 상태 응답의 `submissionStatus` / `jobType` / `status` 는 `{code, name, description}` metadata 객체로 내려갑니다.
 
 ---
 

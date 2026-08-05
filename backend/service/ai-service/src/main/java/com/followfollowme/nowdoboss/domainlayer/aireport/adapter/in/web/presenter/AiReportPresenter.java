@@ -72,19 +72,33 @@ public class AiReportPresenter {
 
     public AiReportSubmissionResponse toSubmissionResponse(AiReportSubmissionInfo info) {
         return AiReportSubmissionResponse.builder()
-            .submissionStatus(info.submissionStatus())
-            .jobType(info.jobType())
+            .submissionStatus(info.submissionStatus().toMetadata())
+            .jobType(info.jobType().toMetadata())
             .jobId(info.jobId())
             .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
+            .commercialComparisonReport(
+                info.commercialComparisonReport() == null ? null : toCommercialComparisonResponse(info.commercialComparisonReport())
+            )
+            .districtReport(info.districtReport() == null ? null : toDistrictResponse(info.districtReport()))
+            .administrationReport(
+                info.administrationReport() == null ? null : toAdministrationResponse(info.administrationReport())
+            )
             .build();
     }
 
     public AiReportJobStatusResponse toJobStatusResponse(AiReportJobInfo info) {
         return AiReportJobStatusResponse.builder()
             .jobId(info.jobId())
-            .jobType(info.jobType())
-            .status(info.status())
+            .jobType(info.jobType().toMetadata())
+            .status(info.status().toMetadata())
             .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
+            .commercialComparisonReport(
+                info.commercialComparisonReport() == null ? null : toCommercialComparisonResponse(info.commercialComparisonReport())
+            )
+            .districtReport(info.districtReport() == null ? null : toDistrictResponse(info.districtReport()))
+            .administrationReport(
+                info.administrationReport() == null ? null : toAdministrationResponse(info.administrationReport())
+            )
             .errorCode(info.errorCode())
             .errorMessage(info.errorMessage())
             .build();
