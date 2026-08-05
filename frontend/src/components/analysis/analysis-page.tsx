@@ -31,11 +31,15 @@ import {
   createAnalysisResultHref,
   getActiveAnalysisStep,
   parseAnalysisSelection,
+  selectAdministrationWithParent,
   selectAnalysisValue,
+  selectCommercialWithParents,
+  shouldAutoNavigateToAnalysis,
   type AnalysisSelection,
   type AnalysisStep,
 } from '@/lib/analysis/selection'
-import { filterAreasByCodes } from '@/lib/recommend/recommend-map-model'
+import { type MapLayer } from '@/lib/analysis/map-layer'
+import { findContainingArea } from '@/lib/map/geometry'
 import type { ApiResponse } from '@/types/api'
 import type { CommercialServiceCategory } from '@/types/commercial-analysis'
 import type {
@@ -174,16 +178,6 @@ export function AnalysisExplorerSurface({
   )
 }
 
-const getStepSelectionCode = (
-  selection: AnalysisSelection,
-  step: AnalysisStep,
-) => {
-  if (step === 'district') return selection.districtCode
-  if (step === 'administration') return selection.administrationCode
-  if (step === 'commercial') return selection.commercialCode
-  return selection.serviceCode
-}
-
 const getNextStep = (step: AnalysisStep): AnalysisStep => {
   const index = ANALYSIS_STEPS.indexOf(step)
   return ANALYSIS_STEPS[Math.min(index + 1, ANALYSIS_STEPS.length - 1)]
@@ -202,6 +196,8 @@ export default function AnalysisPage() {
   const [previewedCode, setPreviewedCode] = useState<string | null>(null)
   const [viewportBounds, setViewportBounds] =
     useState<GeoBounds>(SEOUL_MAP_BOUNDS)
+  const [mapLayer, setMapLayer] = useState<MapLayer>('district')
+  const [fitRequest, setFitRequest] = useState<string | null>(null)
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -222,7 +218,7 @@ export default function AnalysisPage() {
   const administrationMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'administrations', viewportBounds],
     queryFn: () => fetchAdministrationMapAreas(viewportBounds),
-    enabled: Boolean(selection.districtCode),
+    enabled: mapLayer === 'administration' || mapLayer === 'commercial',
     retry: 1,
   })
   const commercialsQuery = useQuery({
@@ -240,7 +236,7 @@ export default function AnalysisPage() {
   const commercialMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'commercials', viewportBounds],
     queryFn: () => fetchCommercialMapAreas(viewportBounds),
-    enabled: Boolean(selection.administrationCode),
+    enabled: mapLayer === 'commercial',
     retry: 1,
   })
   const servicesQuery = useQuery({
@@ -252,22 +248,10 @@ export default function AnalysisPage() {
 
   const districts = unwrapArray(districtsQuery.data)
   const allDistrictAreas = unwrapMapAreas(districtMapQuery.data)
-  const districtAreas = filterAreasByCodes(
-    allDistrictAreas,
-    districts.map(item => item.districtCode ?? ''),
-  )
   const administrations = unwrapArray(administrationsQuery.data)
   const allAdministrationAreas = unwrapMapAreas(administrationMapQuery.data)
-  const administrationAreas = filterAreasByCodes(
-    allAdministrationAreas,
-    administrations.map(item => item.administrationCode),
-  )
   const commercials = unwrapArray(commercialsQuery.data)
   const allCommercialAreas = unwrapMapAreas(commercialMapQuery.data)
-  const commercialAreas = filterAreasByCodes(
-    allCommercialAreas,
-    commercials.map(item => item.commercialCode),
-  )
   const services = unwrapArray(servicesQuery.data)
   const requiredStep = getActiveAnalysisStep(selection)
   const activeStep =
@@ -321,6 +305,12 @@ export default function AnalysisPage() {
       router.replace(createAnalysisExplorerHref(next))
     }
   }, [administrations, commercials, districts, router, selection, services])
+
+  useEffect(() => {
+    if (shouldAutoNavigateToAnalysis(selection)) {
+      router.push(createAnalysisResultHref(selection, 'summary'))
+    }
+  }, [selection, router])
 
   const districtCandidates: AnalysisCandidate[] = districts.flatMap(item =>
     item.districtCode && item.districtName
@@ -394,19 +384,22 @@ export default function AnalysisPage() {
       .filter(Boolean)
       .join(' · ') || '서울 전체'
 
-  const mapStep: Exclude<AnalysisStep, 'service'> =
-    activeStep === 'service' ? 'commercial' : activeStep
   const mapAreas =
-    mapStep === 'district'
-      ? districtAreas
-      : mapStep === 'administration'
-        ? administrationAreas
-        : commercialAreas
-  const mapSelectedCode = getStepSelectionCode(selection, mapStep)
+    mapLayer === 'district'
+      ? allDistrictAreas
+      : mapLayer === 'administration'
+        ? allAdministrationAreas
+        : allCommercialAreas
+  const mapSelectedCode =
+    mapLayer === 'district'
+      ? selection.districtCode
+      : mapLayer === 'administration'
+        ? selection.administrationCode
+        : selection.commercialCode
   const activeMapQuery =
-    mapStep === 'district'
+    mapLayer === 'district'
       ? districtMapQuery
-      : mapStep === 'administration'
+      : mapLayer === 'administration'
         ? administrationMapQuery
         : commercialMapQuery
   const mapNotice =
@@ -426,6 +419,37 @@ export default function AnalysisPage() {
     setPreviewedCode(null)
   }
 
+  const handleMapSelect = (code: string) => {
+    let next: AnalysisSelection
+    if (mapLayer === 'district') {
+      next = selectAnalysisValue(selection, 'district', code)
+    } else if (mapLayer === 'administration') {
+      next = selectAdministrationWithParent(selection, code)
+    } else {
+      const clicked = allCommercialAreas.find(
+        area => String(area.areaCode) === code,
+      )
+      const admin = clicked
+        ? findContainingArea(
+            { lng: clicked.centerLng, lat: clicked.centerLat },
+            allAdministrationAreas,
+          )
+        : null
+      next = admin
+        ? selectCommercialWithParents(selection, {
+            commercialCode: code,
+            administrationCode: String(admin.areaCode),
+          })
+        : selectAnalysisValue(selection, 'commercial', code)
+    }
+    router.replace(createAnalysisExplorerHref(next))
+  }
+
+  const handlePanelSelect = (code: string) => {
+    handleSelect(activeStep, code)
+    setFitRequest(code)
+  }
+
   const panel = (
     <AnalysisSelectionPanel
       activeStep={activeStep}
@@ -434,7 +458,7 @@ export default function AnalysisPage() {
       items={activeCandidates}
       status={activeStatus}
       onStepChange={setRequestedStep}
-      onSelect={code => handleSelect(activeStep, code)}
+      onSelect={handlePanelSelect}
       onPreviewChange={setPreviewedCode}
       onRetry={() => void activeQuery.refetch()}
       onSubmit={() =>
@@ -448,15 +472,17 @@ export default function AnalysisPage() {
       desktopPanel={panel}
       map={
         <AnalysisMap
-          activeStep={mapStep}
+          activeStep={mapLayer}
           areas={mapAreas}
           selectedCode={mapSelectedCode}
           previewedCode={
             activeStep === 'service' ? selection.commercialCode : previewedCode
           }
-          onSelect={code => handleSelect(mapStep, code)}
+          onSelect={handleMapSelect}
           onPreviewChange={setPreviewedCode}
           onViewportBoundsChange={setViewportBounds}
+          onZoomLayerChange={setMapLayer}
+          fitToCode={fitRequest}
         />
       }
       mapNotice={mapNotice}
