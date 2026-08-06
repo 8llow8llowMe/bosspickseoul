@@ -8,11 +8,13 @@ import type { TooltipState } from './use-chart-tooltip'
 const Wrapper = styled.div`
   position: relative;
   width: 100%;
+  max-width: 100%;
 `
 
 const Svg = styled.svg`
   display: block;
   width: 100%;
+  max-width: 100%;
   height: auto;
   overflow: visible;
 `

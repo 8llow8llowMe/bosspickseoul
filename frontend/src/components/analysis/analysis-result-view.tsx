@@ -30,6 +30,7 @@ import {
   fetchCommercialPopulation,
   fetchCommercialSales,
   fetchCommercialSalesSummary,
+  fetchCommercialServiceCategories,
   fetchCommercialStores,
   fetchCommercialTrend,
 } from '@/lib/api/commercial-analysis'
@@ -72,6 +73,7 @@ import type {
   CommercialResidentPopulation,
   CommercialSales,
   CommercialSalesSummary,
+  CommercialServiceCategory,
   CommercialStoreAnalysis,
   CommercialTrend,
   CommercialTrendMetric,
@@ -255,6 +257,14 @@ const DashboardGrid = styled.div`
   gap: 20px;
   align-items: start;
 
+  /* Grid items default to min-width:auto, which for a card containing an
+     intrinsically-sized SVG can grow the track past the available width
+     (the classic CSS Grid + replaced-element overflow bug). Reset it here
+     so every card is free to shrink to its track's width. */
+  & > * {
+    min-width: 0;
+  }
+
   @media (min-width: 1280px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -266,6 +276,7 @@ const DashboardGrid = styled.div`
 
 /** Wide content (line charts, the pyramid, multi-card comparisons) spans the full grid row. */
 const FullSpanItem = styled.div`
+  min-width: 0;
   grid-column: 1 / -1;
 `
 
@@ -273,10 +284,14 @@ const FullSpanItem = styled.div`
  * Charts render an SVG with `width: 100%; height: auto` against a fixed
  * `viewBox`, so capping the wrapper's max-width also caps height (aspect
  * ratio preserved). Centers the chart when its card is wider than the cap.
+ * `min-width: 0` breaks the same auto-min-size bug at this nesting level
+ * (this box is itself a grid item inside `AnalysisResultSection`'s card),
+ * and `min(100%, …)` keeps the cap from ever exceeding the container.
  */
 const ChartBox = styled.div<{ $maxWidth: number }>`
   width: 100%;
-  max-width: ${props => `${props.$maxWidth}px`};
+  min-width: 0;
+  max-width: ${props => `min(100%, ${props.$maxWidth}px)`};
   margin: 0 auto;
 `
 
@@ -311,12 +326,6 @@ const ContextCopy = styled.div`
     font-size: 21px;
     font-weight: 750;
     line-height: 30px;
-  }
-
-  small {
-    color: var(--color-text-600);
-    font-size: 13px;
-    line-height: 20px;
   }
 `
 
@@ -607,6 +616,12 @@ export default function AnalysisResultView({
     enabled,
     retry: 1,
   })
+  const servicesQuery = useQuery({
+    queryKey: ['analysis', 'services', commercialCode],
+    queryFn: () => fetchCommercialServiceCategories(commercialCode),
+    enabled: Boolean(commercialCode),
+    retry: 1,
+  })
   const salesSummaryQuery = useQuery({
     queryKey: ['analysis', 'sales-summary', commercialCode, contextParams],
     queryFn: () => fetchCommercialSalesSummary(commercialCode, contextParams),
@@ -742,6 +757,12 @@ export default function AnalysisResultView({
   })
 
   const profile = getResponseBody(profileQuery.data) as CommercialProfile | null
+  const services = getResponseBody(servicesQuery.data) as
+    | CommercialServiceCategory[]
+    | null
+  const serviceName =
+    services?.find(item => item.serviceCode === serviceCode)?.serviceName ??
+    serviceCode
   const salesSummary = getResponseBody(
     salesSummaryQuery.data,
   ) as CommercialSalesSummary | null
@@ -969,14 +990,11 @@ export default function AnalysisResultView({
       <Content>
         <ContextHero>
           <ContextCopy>
-            <p>선택 업종 {serviceCode}</p>
+            <p>선택 업종 {serviceName}</p>
             <h2>
               {profile?.commercialName ?? '선택 상권'}의 창업 데이터를 확인해
               보세요
             </h2>
-            <small>
-              지표가 없는 항목은 0이 아니라 데이터 없음으로 표시합니다.
-            </small>
           </ContextCopy>
           <ActionRow>
             <Button

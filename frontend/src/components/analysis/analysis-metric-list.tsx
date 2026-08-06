@@ -13,6 +13,8 @@ export type AnalysisMetricListProps = {
 
 const List = styled.ul`
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 14px;
 `
 

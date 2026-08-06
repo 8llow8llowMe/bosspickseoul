@@ -38,8 +38,7 @@ const Overlay = styled.div`
 const Surface = styled.section`
   width: min(1400px, 100%);
   height: min(920px, calc(100dvh - clamp(48px, 6vw, 64px)));
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   border: 1px solid var(--color-border-200);
   border-radius: 24px;
   background: var(--color-surface-muted);
@@ -56,6 +55,17 @@ const Surface = styled.section`
     border-radius: 0;
     box-shadow: none;
   }
+`
+
+/**
+ * Scroll happens in here, not on `Surface` — keeps the scrollbar inside the
+ * rounded corners instead of drawing over them (Surface clips via
+ * `overflow: hidden`, this inner layer owns `overflow-y: auto`).
+ */
+const ScrollArea = styled.div`
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 `
 
 const getFocusableElements = (root: HTMLElement) =>
@@ -136,7 +146,7 @@ export function AnalysisResultModalSurface({
         tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
-        {children}
+        <ScrollArea>{children}</ScrollArea>
       </Surface>
     </Overlay>
   )
