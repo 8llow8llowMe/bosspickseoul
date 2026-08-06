@@ -9,7 +9,10 @@ const SIZE = 220
 const R = 80
 const STROKE = 34
 const CENTER = SIZE / 2
-const SEGMENT_TOKENS = ['var(--color-primary-600)', 'var(--color-chart-female)']
+const FULL_CIRCLE_THRESHOLD = 0.9999
+
+const tokenForLabel = (label: string) =>
+  label === '남성' ? 'var(--color-primary-600)' : 'var(--color-chart-female)'
 
 const Empty = styled.p`
   padding: 24px 0;
@@ -49,7 +52,6 @@ const polar = (fraction: number) => {
 
 export type DonutChartProps = {
   segments: GenderSegment[]
-  unit?: string
   ariaLabel: string
 }
 
@@ -63,6 +65,7 @@ export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
       percent: number
       token: string
       d: string
+      isFullCircle: boolean
       mid: { x: number; y: number }
       cursorEnd: number
     }>
@@ -77,8 +80,9 @@ export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
     acc.push({
       segment,
       percent,
-      token: SEGMENT_TOKENS[index % SEGMENT_TOKENS.length],
+      token: tokenForLabel(segment.label),
       d: `M ${start.x} ${start.y} A ${R} ${R} 0 ${largeArc} 1 ${end.x} ${end.y}`,
+      isFullCircle: fraction >= FULL_CIRCLE_THRESHOLD,
       mid: polar(cursorStart + fraction / 2),
       cursorEnd,
     })
@@ -92,16 +96,28 @@ export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
         viewBoxHeight={SIZE}
         ariaLabel={ariaLabel}
       >
-        {arcs.map(arc => (
-          <path
-            key={arc.segment.label}
-            d={arc.d}
-            fill="none"
-            stroke={arc.token}
-            strokeWidth={STROKE}
-            strokeLinecap="butt"
-          />
-        ))}
+        {arcs.map(arc =>
+          arc.isFullCircle ? (
+            <circle
+              key={arc.segment.label}
+              cx={CENTER}
+              cy={CENTER}
+              r={R}
+              fill="none"
+              stroke={arc.token}
+              strokeWidth={STROKE}
+            />
+          ) : (
+            <path
+              key={arc.segment.label}
+              d={arc.d}
+              fill="none"
+              stroke={arc.token}
+              strokeWidth={STROKE}
+              strokeLinecap="butt"
+            />
+          ),
+        )}
         {arcs.map(arc => (
           <text
             key={`${arc.segment.label}-label`}
