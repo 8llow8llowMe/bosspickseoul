@@ -40,7 +40,7 @@ const LegendItem = styled.li<{ $token: string }>`
     content: '';
     width: 10px;
     height: 10px;
-    border-radius: 3px;
+    border-radius: var(--radius-compact);
     background: ${props => props.$token};
   }
 `
@@ -78,8 +78,10 @@ export default function PopulationPyramid({
       >
         {rows.map((row, index) => {
           const y = index * (ROW_H + GAP)
-          const maleW = row.male === null ? 0 : (row.male / max) * half
-          const femaleW = row.female === null ? 0 : (row.female / max) * half
+          const maleW =
+            row.male === null ? 0 : Math.max(0, (row.male / max) * half)
+          const femaleW =
+            row.female === null ? 0 : Math.max(0, (row.female / max) * half)
           return (
             <g key={row.ageLabel}>
               <rect
