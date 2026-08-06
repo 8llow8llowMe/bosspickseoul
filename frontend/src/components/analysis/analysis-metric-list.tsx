@@ -37,10 +37,10 @@ const Label = styled.span`
 `
 
 const Track = styled.div`
-  height: 9px;
+  height: 10px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--color-surface-muted);
+  background: var(--color-border-200);
 `
 
 const Fill = styled.div<{ $width: number }>`
@@ -52,16 +52,15 @@ const Fill = styled.div<{ $width: number }>`
 
 const Value = styled.strong`
   min-width: 92px;
-  color: var(--color-text-900);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--color-primary-700);
+  font-size: 14px;
+  font-weight: 800;
   text-align: right;
 
   @media (max-width: 520px) {
     grid-column: 2;
     min-width: 0;
     margin-top: -7px;
-    color: var(--color-text-600);
     text-align: left;
   }
 `
