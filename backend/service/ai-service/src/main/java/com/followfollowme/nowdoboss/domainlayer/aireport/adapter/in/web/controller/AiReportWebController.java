@@ -139,9 +139,16 @@ public class AiReportWebController {
         summary = "AI 리포트 작업 상태 스트림 (SSE)",
         description = """
             비동기 AI 리포트 작업의 상태 변경을 Server-Sent Events 로 스트리밍합니다.
-            구독 즉시 현재 상태를 job-update 이벤트로 1회 전송하고, 이후 상태가 바뀔 때마다 같은 이벤트를 전송하며,
-            COMPLETED/FAILED 도달 시 서버가 연결을 종료합니다. 이벤트 data 는 작업 상태 조회 응답의 dataBody 와 동일한 JSON 입니다.
-            본인이 제출한 작업만 구독할 수 있습니다."""
+            이벤트 data 는 작업 상태 조회 응답의 dataBody 와 동일한 JSON 입니다. 본인이 제출한 작업만 구독할 수 있습니다.
+
+            수신 주기: 이벤트는 주기적으로 오지 않고 **상태가 바뀔 때만** 전송됩니다.
+            일반적으로 구독 즉시 현재 상태 스냅샷 1회 → RUNNING 전이 1회 → COMPLETED/FAILED 1회, 총 2~3회 수신 후
+            서버가 연결을 종료합니다 (리포트 생성은 평균 수십 초 소요).
+            25초 간격 하트비트는 SSE 코멘트 프레임이라 onmessage 로 수신되지 않으며 클라이언트 처리가 필요 없습니다.
+
+            브라우저 기본 EventSource 는 Authorization 헤더를 지원하지 않으므로
+            fetch 기반 SSE 클라이언트(예: @microsoft/fetch-event-source)를 사용하세요.
+            연결이 끊기면 GET /jobs/{jobId} 폴링으로 폴백하면 됩니다. (상세: docs/ai-report-frontend-guide.md)"""
     )
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
