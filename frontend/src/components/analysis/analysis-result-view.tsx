@@ -15,6 +15,7 @@ import styled from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
+import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
@@ -41,6 +42,7 @@ import {
   toGenderSegments,
   toPyramidRows,
   toTrendPoints,
+  type TrendPoint,
 } from '@/lib/analysis/chart-data'
 import {
   ANALYSIS_TABS,
@@ -480,6 +482,14 @@ const createRows = (
     ])[],
   )
 
+/** 시간대별 항목(라벨+값)을 LineChart의 분기 추세 포인트 형태로 재사용한다. */
+const toLinePoints = (rows: readonly AnalysisMetricRow[]): TrendPoint[] =>
+  rows.map(row => ({
+    periodLabel: row.label,
+    value: row.value,
+    changeRate: null,
+  }))
+
 const footTimeDefinitions = [
   ['00~06시', 'footTrafficTime00To06'],
   ['06~11시', 'footTrafficTime06To11'],
@@ -496,14 +506,6 @@ const footDayDefinitions = [
   ['금', 'fridayFootTraffic'],
   ['토', 'saturdayFootTraffic'],
   ['일', 'sundayFootTraffic'],
-] as const
-const footAgeDefinitions = [
-  ['10대', 'age10FootTraffic'],
-  ['20대', 'age20FootTraffic'],
-  ['30대', 'age30FootTraffic'],
-  ['40대', 'age40FootTraffic'],
-  ['50대', 'age50FootTraffic'],
-  ['60대 이상', 'age60PlusFootTraffic'],
 ] as const
 const salesTimeDefinitions = [
   ['00~06시', 'salesAmountTime00To06'],
@@ -1184,26 +1186,9 @@ export default function AnalysisResultView({
         >
           <GroupHeading>유동인구</GroupHeading>
           <DashboardGrid>
-            {[
-              [
-                '시간대별 유동인구',
-                footTraffic?.byTimeSlotItem,
-                footTimeDefinitions,
-              ],
-              [
-                '요일별 유동인구',
-                footTraffic?.byDayOfWeekItem,
-                footDayDefinitions,
-              ],
-              [
-                '연령별 유동인구',
-                footTraffic?.byAgeGroupItem,
-                footAgeDefinitions,
-              ],
-            ].map(([title, source, definitions]) => (
+            <FullSpanItem>
               <AnalysisResultSection
-                key={String(title)}
-                title={String(title)}
+                title="시간대별 유동인구"
                 loading={footTrafficQuery.isPending}
                 error={
                   footTrafficQuery.isError ||
@@ -1211,20 +1196,64 @@ export default function AnalysisResultView({
                 }
                 empty={
                   !hasObjectValues(
-                    source as Record<string, number | null> | null,
+                    footTraffic?.byTimeSlotItem as Record<
+                      string,
+                      number | null
+                    > | null,
                   )
                 }
                 onRetry={() => void footTrafficQuery.refetch()}
               >
-                <AnalysisMetricList
-                  rows={createRows(
-                    source as Record<string, number | null>,
-                    definitions as readonly (readonly [string, string])[],
+                <ChartBox $maxWidth={560}>
+                  <LineChart
+                    points={toLinePoints(
+                      createRows(
+                        footTraffic?.byTimeSlotItem as Record<
+                          string,
+                          number | null
+                        >,
+                        footTimeDefinitions,
+                      ),
+                    )}
+                    unit="명"
+                    ariaLabel="시간대별 유동인구 추이"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+            </FullSpanItem>
+
+            <AnalysisResultSection
+              title="요일별 유동인구"
+              loading={footTrafficQuery.isPending}
+              error={
+                footTrafficQuery.isError ||
+                isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
+              }
+              empty={
+                !hasObjectValues(
+                  footTraffic?.byDayOfWeekItem as Record<
+                    string,
+                    number | null
+                  > | null,
+                )
+              }
+              onRetry={() => void footTrafficQuery.refetch()}
+            >
+              <ChartBox $maxWidth={460}>
+                <BarChart
+                  items={createRows(
+                    footTraffic?.byDayOfWeekItem as Record<
+                      string,
+                      number | null
+                    >,
+                    footDayDefinitions,
                   )}
                   unit="명"
+                  ariaLabel="요일별 유동인구 막대 차트"
+                  emphasisLabels={['토', '일']}
                 />
-              </AnalysisResultSection>
-            ))}
+              </ChartBox>
+            </AnalysisResultSection>
 
             <FullSpanItem>
               <AnalysisResultSection
@@ -1256,22 +1285,9 @@ export default function AnalysisResultView({
         >
           <GroupHeading>매출</GroupHeading>
           <DashboardGrid>
-            {[
-              [
-                '시간대별 매출',
-                sales?.amountByTimeSlotItem,
-                salesTimeDefinitions,
-              ],
-              [
-                '요일별 매출',
-                sales?.amountByDayOfWeekItem,
-                salesDayDefinitions,
-              ],
-              ['연령별 매출', sales?.amountByAgeItem, salesAgeDefinitions],
-            ].map(([title, source, definitions]) => (
+            <FullSpanItem>
               <AnalysisResultSection
-                key={String(title)}
-                title={String(title)}
+                title="시간대별 매출"
                 loading={salesQuery.isPending}
                 error={
                   salesQuery.isError ||
@@ -1279,20 +1295,94 @@ export default function AnalysisResultView({
                 }
                 empty={
                   !hasObjectValues(
-                    source as Record<string, number | null> | null,
+                    sales?.amountByTimeSlotItem as Record<
+                      string,
+                      number | null
+                    > | null,
                   )
                 }
                 onRetry={() => void salesQuery.refetch()}
               >
-                <AnalysisMetricList
-                  rows={createRows(
-                    source as Record<string, number | null>,
-                    definitions as readonly (readonly [string, string])[],
+                <ChartBox $maxWidth={560}>
+                  <LineChart
+                    points={toLinePoints(
+                      createRows(
+                        sales?.amountByTimeSlotItem as Record<
+                          string,
+                          number | null
+                        >,
+                        salesTimeDefinitions,
+                      ),
+                    )}
+                    unit="원"
+                    ariaLabel="시간대별 매출 추이"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+            </FullSpanItem>
+
+            <AnalysisResultSection
+              title="요일별 매출"
+              loading={salesQuery.isPending}
+              error={
+                salesQuery.isError ||
+                isResponseError(salesQuery.data as ApiResponse<unknown>)
+              }
+              empty={
+                !hasObjectValues(
+                  sales?.amountByDayOfWeekItem as Record<
+                    string,
+                    number | null
+                  > | null,
+                )
+              }
+              onRetry={() => void salesQuery.refetch()}
+            >
+              <ChartBox $maxWidth={460}>
+                <BarChart
+                  items={createRows(
+                    sales?.amountByDayOfWeekItem as Record<
+                      string,
+                      number | null
+                    >,
+                    salesDayDefinitions,
                   )}
                   unit="원"
+                  ariaLabel="요일별 매출 막대 차트"
+                  emphasisLabels={['토', '일']}
                 />
-              </AnalysisResultSection>
-            ))}
+              </ChartBox>
+            </AnalysisResultSection>
+
+            <AnalysisResultSection
+              title="연령별 매출"
+              loading={salesQuery.isPending}
+              error={
+                salesQuery.isError ||
+                isResponseError(salesQuery.data as ApiResponse<unknown>)
+              }
+              empty={
+                !hasObjectValues(
+                  sales?.amountByAgeItem as Record<
+                    string,
+                    number | null
+                  > | null,
+                )
+              }
+              onRetry={() => void salesQuery.refetch()}
+            >
+              <ChartBox $maxWidth={460}>
+                <BarChart
+                  items={createRows(
+                    sales?.amountByAgeItem as Record<string, number | null>,
+                    salesAgeDefinitions,
+                  )}
+                  unit="원"
+                  ariaLabel="연령별 매출 막대 차트"
+                />
+              </ChartBox>
+            </AnalysisResultSection>
+
             <AnalysisResultSection
               title="성별 매출 건수"
               loading={salesQuery.isPending}
@@ -1380,16 +1470,19 @@ export default function AnalysisResultView({
               empty={!hasObjectValues(population?.byAgeItem)}
               onRetry={() => void populationQuery.refetch()}
             >
-              <AnalysisMetricList
-                rows={createRows(
-                  population?.byAgeItem as Record<
-                    string,
-                    number | null | undefined
-                  >,
-                  populationAgeDefinitions,
-                )}
-                unit="명"
-              />
+              <ChartBox $maxWidth={460}>
+                <BarChart
+                  items={createRows(
+                    population?.byAgeItem as Record<
+                      string,
+                      number | null | undefined
+                    >,
+                    populationAgeDefinitions,
+                  )}
+                  unit="명"
+                  ariaLabel="연령별 상주인구 막대 차트"
+                />
+              </ChartBox>
             </AnalysisResultSection>
             <AnalysisResultSection
               title="성별 상주인구"
