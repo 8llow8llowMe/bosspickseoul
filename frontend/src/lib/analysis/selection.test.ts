@@ -4,10 +4,14 @@ import {
   ANALYSIS_PERIOD_CODE,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
+  createEmptyAnalysisSelection,
   getActiveAnalysisStep,
   isCompleteAnalysisSelection,
   parseAnalysisSelection,
+  selectAdministrationWithParent,
   selectAnalysisValue,
+  selectCommercialWithParents,
+  shouldAutoNavigateToAnalysis,
   type AnalysisSelection,
 } from '@/lib/analysis/selection'
 
@@ -71,5 +75,60 @@ describe('analysis selection', () => {
     })
 
     expect(parseAnalysisSelection(params)).toEqual(completeSelection)
+  })
+})
+
+describe('selectAdministrationWithParent', () => {
+  it('동 선택 시 구(앞5자리)도 세팅하고 하위는 초기화', () => {
+    const r = selectAdministrationWithParent(
+      createEmptyAnalysisSelection(),
+      '11215530',
+    )
+    expect(r.administrationCode).toBe('11215530')
+    expect(r.districtCode).toBe('11215')
+    expect(r.commercialCode).toBeNull()
+    expect(r.serviceCode).toBeNull()
+  })
+})
+
+describe('selectCommercialWithParents', () => {
+  it('상권+부모 동/구 세팅, serviceCode는 보존', () => {
+    const base = {
+      ...createEmptyAnalysisSelection(),
+      serviceCode: 'CS100010',
+    }
+    const r = selectCommercialWithParents(base, {
+      commercialCode: '3110954',
+      administrationCode: '11215530',
+    })
+    expect(r.commercialCode).toBe('3110954')
+    expect(r.administrationCode).toBe('11215530')
+    expect(r.districtCode).toBe('11215')
+    expect(r.serviceCode).toBe('CS100010')
+  })
+})
+
+describe('shouldAutoNavigateToAnalysis', () => {
+  it('4개 코드 모두 있으면 true', () => {
+    expect(
+      shouldAutoNavigateToAnalysis({
+        districtCode: '11215',
+        administrationCode: '11215530',
+        commercialCode: '3110954',
+        serviceCode: 'CS100010',
+        periodCode: '20233',
+      }),
+    ).toBe(true)
+  })
+  it('하나라도 없으면 false', () => {
+    expect(
+      shouldAutoNavigateToAnalysis({
+        districtCode: '11215',
+        administrationCode: '11215530',
+        commercialCode: null,
+        serviceCode: 'CS100010',
+        periodCode: '20233',
+      }),
+    ).toBe(false)
   })
 })

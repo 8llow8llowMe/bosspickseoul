@@ -817,16 +817,6 @@ export default function AnalysisResultView({
       <StickyHeader>
         <HeaderInner>
           <HeaderTop>
-            <IconButton
-              type="button"
-              aria-label={onClose ? '상권 분석 결과 닫기' : '조건 다시 선택'}
-              onClick={
-                onClose ??
-                (() => router.push(createAnalysisExplorerHref(selection)))
-              }
-            >
-              {onClose ? <X /> : <ArrowLeft />}
-            </IconButton>
             <HeaderCopy>
               <p>상권 분석 리포트</p>
               <h1>
@@ -842,6 +832,16 @@ export default function AnalysisResultView({
                   : `${formatPeriodCode(periodCode)} 기준`}
               </small>
             </HeaderCopy>
+            <IconButton
+              type="button"
+              aria-label={onClose ? '상권 분석 결과 닫기' : '조건 다시 선택'}
+              onClick={
+                onClose ??
+                (() => router.push(createAnalysisExplorerHref(selection)))
+              }
+            >
+              {onClose ? <X /> : <ArrowLeft />}
+            </IconButton>
           </HeaderTop>
           <TabList aria-label="분석 결과 항목" role="tablist">
             {ANALYSIS_TABS.map(tab => (
