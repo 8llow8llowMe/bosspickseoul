@@ -42,9 +42,15 @@ export type LineChartProps = {
   points: TrendPoint[]
   unit: string
   direction?: 'INCREASE' | 'DECREASE' | 'STAGNANT' | null
+  ariaLabel?: string
 }
 
-export default function LineChart({ points, unit, direction }: LineChartProps) {
+export default function LineChart({
+  points,
+  unit,
+  direction,
+  ariaLabel = '분기별 추세 라인 차트',
+}: LineChartProps) {
   const { active, show, hide } = useChartTooltip()
 
   const geometry = useMemo(() => {
@@ -104,7 +110,7 @@ export default function LineChart({ points, unit, direction }: LineChartProps) {
       <ChartFrame
         viewBoxWidth={W}
         viewBoxHeight={H}
-        ariaLabel="분기별 추세 라인 차트"
+        ariaLabel={ariaLabel}
         ariaRole="group"
         tooltip={active}
       >
