@@ -133,47 +133,49 @@ const StickyHeader = styled.header`
 const HeaderInner = styled.div`
   width: min(1320px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 18px 0 0;
+  padding: 10px 0 0;
 
   @media (max-width: 640px) {
     width: min(100% - 28px, 1320px);
-    padding-top: 12px;
+    padding-top: 8px;
   }
 `
 
 const HeaderTop = styled.div`
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding-bottom: 14px;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
 `
 
 const HeaderCopy = styled.div`
   min-width: 0;
   flex: 1;
-  display: grid;
-  gap: 4px;
+`
 
-  p {
-    color: var(--color-primary-700);
-    font-size: 12px;
-    font-weight: 750;
-  }
+/** 상권명과 위치·기준 메타를 한 줄에 붙여 헤더 높이를 줄인다. 모바일에서는 wrap. */
+const HeaderNameRow = styled.div`
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
 
   h1 {
     overflow: hidden;
+    max-width: 100%;
     color: var(--color-text-900);
-    font-size: clamp(20px, 3vw, 28px);
+    font-size: clamp(16px, 2vw, 20px);
     font-weight: 780;
-    line-height: 1.25;
+    line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  small {
+  span {
     color: var(--color-text-600);
     font-size: 13px;
-    line-height: 20px;
+    line-height: 18px;
   }
 `
 
@@ -203,6 +205,13 @@ const IconButton = styled.button`
   }
 `
 
+/** 헤더 전용 타이트 탭 버튼. 공유 TabButton을 확장(다른 화면의 탭에는 영향 없음). */
+const HeaderTabButton = styled(TabButton)`
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 13px;
+`
+
 const Content = styled.div`
   width: min(1320px, calc(100% - 40px));
   margin: 0 auto;
@@ -224,12 +233,20 @@ const Content = styled.div`
  */
 const ReportSection = styled.section`
   display: grid;
-  gap: 20px;
-  scroll-margin-top: 158px;
+  gap: 16px;
+  scroll-margin-top: 112px;
 
   @media (max-width: 640px) {
-    scroll-margin-top: 140px;
+    scroll-margin-top: 104px;
   }
+`
+
+/** 각 탭 그룹 좌상단에 표시하는 헤딩(요약/유동인구/매출 등). */
+const GroupHeading = styled.h2`
+  color: var(--color-text-900);
+  font-size: 18px;
+  font-weight: 780;
+  line-height: 26px;
 `
 
 const DashboardGrid = styled.div`
@@ -252,6 +269,17 @@ const FullSpanItem = styled.div`
   grid-column: 1 / -1;
 `
 
+/**
+ * Charts render an SVG with `width: 100%; height: auto` against a fixed
+ * `viewBox`, so capping the wrapper's max-width also caps height (aspect
+ * ratio preserved). Centers the chart when its card is wider than the cap.
+ */
+const ChartBox = styled.div<{ $maxWidth: number }>`
+  width: 100%;
+  max-width: ${props => `${props.$maxWidth}px`};
+  margin: 0 auto;
+`
+
 const ContextHero = styled.section`
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -261,11 +289,11 @@ const ContextHero = styled.section`
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-level-1);
-  padding: 24px;
+  padding: 16px 20px;
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
-    padding: 20px;
+    padding: 14px 16px;
   }
 `
 
@@ -894,19 +922,20 @@ export default function AnalysisResultView({
         <HeaderInner>
           <HeaderTop>
             <HeaderCopy>
-              <p>상권 분석 리포트</p>
-              <h1>
-                {profileQuery.isPending
-                  ? '상권 정보를 불러오는 중'
-                  : (profile?.commercialName ?? `상권 ${commercialCode}`)}
-              </h1>
-              <small>
-                {profile
-                  ? `${profile.districtName} · ${profile.administrationName} · ${formatPeriodCode(
-                      periodCode,
-                    )} 기준`
-                  : `${formatPeriodCode(periodCode)} 기준`}
-              </small>
+              <HeaderNameRow>
+                <h1>
+                  {profileQuery.isPending
+                    ? '상권 정보를 불러오는 중'
+                    : (profile?.commercialName ?? `상권 ${commercialCode}`)}
+                </h1>
+                <span>
+                  {profile
+                    ? `${profile.districtName} · ${profile.administrationName} · ${formatPeriodCode(
+                        periodCode,
+                      )} 기준`
+                    : `${formatPeriodCode(periodCode)} 기준`}
+                </span>
+              </HeaderNameRow>
             </HeaderCopy>
             <IconButton
               type="button"
@@ -921,7 +950,7 @@ export default function AnalysisResultView({
           </HeaderTop>
           <TabList aria-label="분석 결과 항목" role="tablist">
             {ANALYSIS_TABS.map(tab => (
-              <TabButton
+              <HeaderTabButton
                 key={tab.value}
                 type="button"
                 role="tab"
@@ -931,7 +960,7 @@ export default function AnalysisResultView({
                 onClick={() => handleTabClick(tab.value)}
               >
                 {tab.label}
-              </TabButton>
+              </HeaderTabButton>
             ))}
           </TabList>
         </HeaderInner>
@@ -999,6 +1028,7 @@ export default function AnalysisResultView({
           id={createReportSectionId('summary')}
           ref={registerSection('summary')}
         >
+          <GroupHeading>요약</GroupHeading>
           <DashboardGrid>
             <FullSpanItem>
               <AnalysisResultSection
@@ -1134,6 +1164,7 @@ export default function AnalysisResultView({
           id={createReportSectionId('foot-traffic')}
           ref={registerSection('foot-traffic')}
         >
+          <GroupHeading>유동인구</GroupHeading>
           <DashboardGrid>
             {[
               [
@@ -1190,10 +1221,12 @@ export default function AnalysisResultView({
                 )}
                 onRetry={() => void footTrafficQuery.refetch()}
               >
-                <PopulationPyramid
-                  rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
-                  unit="%"
-                />
+                <ChartBox $maxWidth={460}>
+                  <PopulationPyramid
+                    rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
+                    unit="%"
+                  />
+                </ChartBox>
               </AnalysisResultSection>
             </FullSpanItem>
           </DashboardGrid>
@@ -1203,6 +1236,7 @@ export default function AnalysisResultView({
           id={createReportSectionId('sales')}
           ref={registerSection('sales')}
         >
+          <GroupHeading>매출</GroupHeading>
           <DashboardGrid>
             {[
               [
@@ -1254,13 +1288,15 @@ export default function AnalysisResultView({
               ).every(segment => segment.value <= 0)}
               onRetry={() => void salesQuery.refetch()}
             >
-              <DonutChart
-                segments={toGenderSegments(
-                  sales?.countByGenderItem?.maleSalesCount,
-                  sales?.countByGenderItem?.femaleSalesCount,
-                )}
-                ariaLabel="성별 매출 건수 도넛"
-              />
+              <ChartBox $maxWidth={200}>
+                <DonutChart
+                  segments={toGenderSegments(
+                    sales?.countByGenderItem?.maleSalesCount,
+                    sales?.countByGenderItem?.femaleSalesCount,
+                  )}
+                  ariaLabel="성별 매출 건수 도넛"
+                />
+              </ChartBox>
             </AnalysisResultSection>
           </DashboardGrid>
         </ReportSection>
@@ -1269,6 +1305,7 @@ export default function AnalysisResultView({
           id={createReportSectionId('stores')}
           ref={registerSection('stores')}
         >
+          <GroupHeading>점포</GroupHeading>
           <DashboardGrid>
             <FullSpanItem>
               <AnalysisResultSection
@@ -1313,6 +1350,7 @@ export default function AnalysisResultView({
           id={createReportSectionId('living')}
           ref={registerSection('living')}
         >
+          <GroupHeading>생활권</GroupHeading>
           <DashboardGrid>
             <AnalysisResultSection
               title="연령별 상주인구"
@@ -1348,13 +1386,15 @@ export default function AnalysisResultView({
               ).every(segment => segment.value <= 0)}
               onRetry={() => void populationQuery.refetch()}
             >
-              <DonutChart
-                segments={toGenderSegments(
-                  population?.malePercentage,
-                  population?.femalePercentage,
-                )}
-                ariaLabel="성별 상주인구 도넛"
-              />
+              <ChartBox $maxWidth={200}>
+                <DonutChart
+                  segments={toGenderSegments(
+                    population?.malePercentage,
+                    population?.femalePercentage,
+                  )}
+                  ariaLabel="성별 상주인구 도넛"
+                />
+              </ChartBox>
             </AnalysisResultSection>
             <AnalysisResultSection
               title="소득과 소비"
@@ -1438,6 +1478,7 @@ export default function AnalysisResultView({
           id={createReportSectionId('trend')}
           ref={registerSection('trend')}
         >
+          <GroupHeading>트렌드</GroupHeading>
           <DashboardGrid>
             {trends.map(({ metric, label, unit, query, data }) => (
               <FullSpanItem key={metric}>
@@ -1456,11 +1497,13 @@ export default function AnalysisResultView({
                   empty={!data?.periods?.length}
                   onRetry={() => void query.refetch()}
                 >
-                  <LineChart
-                    points={toTrendPoints(data)}
-                    unit={unit}
-                    direction={data?.trendDirection ?? null}
-                  />
+                  <ChartBox $maxWidth={560}>
+                    <LineChart
+                      points={toTrendPoints(data)}
+                      unit={unit}
+                      direction={data?.trendDirection ?? null}
+                    />
+                  </ChartBox>
                 </AnalysisResultSection>
               </FullSpanItem>
             ))}
@@ -1471,6 +1514,7 @@ export default function AnalysisResultView({
           id={createReportSectionId('benchmark')}
           ref={registerSection('benchmark')}
         >
+          <GroupHeading>비교</GroupHeading>
           <DashboardGrid>
             <FullSpanItem>
               <AnalysisResultSection
