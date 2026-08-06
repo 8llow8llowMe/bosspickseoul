@@ -1,8 +1,5 @@
 import { formatPeriodCode } from '@/lib/analysis/presentation'
-import type {
-  CommercialTrend,
-  CommercialFootTraffic,
-} from '@/types/commercial-analysis'
+import type { CommercialTrend } from '@/types/commercial-analysis'
 
 export type TrendPoint = {
   periodLabel: string
@@ -61,8 +58,3 @@ export const toGenderSegments = (
   if (f !== null) segments.push({ label: '여성', value: Math.max(0, f) })
   return segments
 }
-
-// CommercialFootTraffic 은 byAgeGenderPercentItem 접근 타입 참조용으로 import 유지
-export type FootTrafficAgeGender = NonNullable<
-  CommercialFootTraffic['byAgeGenderPercentItem']
->
