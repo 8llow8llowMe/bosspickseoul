@@ -31,6 +31,7 @@ import io.netty.channel.ChannelOption;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -39,6 +40,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
+@Slf4j
 @Component
 @ConditionalOnProperty(prefix = "ai.llm", name = "provider", havingValue = "OPENAI")
 public class OpenAiLlmClientAdapter implements AiLlmPort {
@@ -136,15 +138,30 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
     }
 
     private String extractContent(OpenAiChatResponse response) {
-        if (response == null
-            || response.choices() == null
-            || response.choices().isEmpty()
-            || response.choices().get(0).message() == null
-            || response.choices().get(0).message().content() == null
-            || response.choices().get(0).message().content().isBlank()) {
+        // AI_003 원인 추적을 위해 어느 지점에서 본문이 비었는지 구분해 남긴다.
+        String missingReason = describeMissingContent(response);
+        if (missingReason != null) {
+            log.warn("LLM 응답에서 본문을 찾을 수 없습니다. model={} reason={}", properties.model(), missingReason);
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
         }
         return response.choices().get(0).message().content();
+    }
+
+    private String describeMissingContent(OpenAiChatResponse response) {
+        if (response == null) {
+            return "response null";
+        }
+        if (response.choices() == null || response.choices().isEmpty()) {
+            return "choices 없음";
+        }
+        if (response.choices().get(0).message() == null) {
+            return "message null";
+        }
+        String content = response.choices().get(0).message().content();
+        if (content == null || content.isBlank()) {
+            return "content 비어 있음";
+        }
+        return null;
     }
 
     private AiUsageMeta extractUsage(OpenAiChatResponse response) {
@@ -181,6 +198,7 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
 
     private void validateApiKey() {
         if (properties.apiKey() == null || properties.apiKey().isBlank()) {
+            log.warn("OpenAI 호환 LLM API 키가 설정되지 않아 호출을 중단합니다. baseUrl={}", properties.baseUrl());
             throw new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE);
         }
     }
