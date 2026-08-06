@@ -106,17 +106,74 @@ export const createReportSectionId = (tab: AnalysisResultTab) => `report-${tab}`
 const REPORT_SECTION_IDS = ANALYSIS_TABS.map(tab =>
   createReportSectionId(tab.value),
 )
+const ANALYSIS_TAB_VALUES = ANALYSIS_TABS.map(tab => tab.value)
+
+/**
+ * `tab` and every tab that sits above it in document order. Used to force
+ * those sections' lazy queries on right away (instead of waiting for
+ * scroll-proximity activation) so their layout has already settled by the
+ * time we scroll to `tab` — see `scrollToReportSection`.
+ */
+export const collectTabsUpTo = (
+  tab: AnalysisResultTab,
+): AnalysisResultTab[] => {
+  const index = ANALYSIS_TAB_VALUES.indexOf(tab)
+  return index === -1 ? [tab] : ANALYSIS_TAB_VALUES.slice(0, index + 1)
+}
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+/** Bounded reflow-correction checkpoints (ms) — see `scrollToReportSection`. */
+const SCROLL_CORRECTION_DELAYS_MS = [150, 400, 700]
+
+/** Invalidates any in-flight correction loop from a previous call. */
+let scrollCorrectionRequestId = 0
+
+/**
+ * Scrolls to the section for `tab` and keeps it aligned for a short, bounded
+ * window afterward. Clicking a tab activates its section's (and every
+ * section above it's) lazy-loaded queries in the same tick, so the target's
+ * layout is still settling — skeletons swapping for real content, heights
+ * changing — while the initial `scrollIntoView` is happening. Without this,
+ * the first click lands on a stale position and only a second click (after
+ * everything has loaded) ends up correct. The correction loop re-aligns
+ * (instantly, no re-animation) whenever the target's position actually
+ * moved, and gives up re-checking after ~700ms.
+ */
 const scrollToReportSection = (tab: AnalysisResultTab) => {
   if (typeof document === 'undefined') return
-  document.getElementById(createReportSectionId(tab))?.scrollIntoView({
-    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-    block: 'start',
+  const id = createReportSectionId(tab)
+  const requestId = ++scrollCorrectionRequestId
+  const initialBehavior: ScrollBehavior = prefersReducedMotion()
+    ? 'auto'
+    : 'smooth'
+
+  const align = (behavior: ScrollBehavior) => {
+    document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' })
+  }
+
+  window.requestAnimationFrame(() => {
+    if (requestId !== scrollCorrectionRequestId) return
+    align(initialBehavior)
+
+    let lastTop =
+      document.getElementById(id)?.getBoundingClientRect().top ?? null
+
+    SCROLL_CORRECTION_DELAYS_MS.forEach(delay => {
+      window.setTimeout(() => {
+        if (requestId !== scrollCorrectionRequestId) return
+        const el = document.getElementById(id)
+        if (!el) return
+        const currentTop = el.getBoundingClientRect().top
+        if (lastTop === null || Math.abs(currentTop - lastTop) > 1) {
+          align('auto')
+          lastTop = el.getBoundingClientRect().top
+        }
+      }, delay)
+    })
   })
 }
 
@@ -592,10 +649,11 @@ export default function AnalysisResultView({
 
   const spyId = useScrollSpy(REPORT_SECTION_IDS)
   const spyTab = normalizeAnalysisTab(spyId.replace('report-', ''))
-  const { register: registerSection, activated } = useActivatedSections([
-    'summary',
-    activeTab,
-  ])
+  const {
+    register: registerSection,
+    activated,
+    activate,
+  } = useActivatedSections(collectTabsUpTo(activeTab))
 
   // 딥링크로 진입한 탭 섹션은 요약이 아니면 마운트 후 1회만 스크롤한다.
   const didInitialScrollRef = useRef(false)
@@ -607,6 +665,9 @@ export default function AnalysisResultView({
   }, [activeTab])
 
   const handleTabClick = (tab: AnalysisResultTab) => {
+    // 목표 섹션(과 그 위의 모든 섹션)의 lazy 쿼리를 즉시 켜서, 스크롤이
+    // 끝나기 전에 레이아웃이 최종 높이로 수렴하게 한다.
+    activate(collectTabsUpTo(tab))
     router.replace(createResultTabHref(selection, tab))
     scrollToReportSection(tab)
   }

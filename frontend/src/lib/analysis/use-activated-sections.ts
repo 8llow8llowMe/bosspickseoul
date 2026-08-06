@@ -29,6 +29,14 @@ export type UseActivatedSectionsResult = {
   register: (id: string) => (el: Element | null) => void
   /** Ids that have been activated (near/in viewport) since mount. Sticky. */
   activated: Set<string>
+  /**
+   * Force-activates `ids` immediately, bypassing the proximity observer.
+   * Used when a tab is clicked and its target section (and everything
+   * above it) needs its data loading right away instead of waiting for
+   * scroll proximity — otherwise the section's skeleton-height layout
+   * shifts under the just-triggered scroll as content streams in.
+   */
+  activate: (ids: readonly string[]) => void
 }
 
 /**
@@ -92,5 +100,9 @@ export function useActivatedSections(
     [],
   )
 
-  return { register, activated }
+  const activate = useCallback((ids: readonly string[]) => {
+    setActivated(previous => applyActivatedIds(previous, ids))
+  }, [])
+
+  return { register, activated, activate }
 }
