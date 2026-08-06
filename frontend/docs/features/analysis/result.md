@@ -122,13 +122,13 @@ flowchart LR
 
 ### D3-4. 사용 라이브러리 / 기술
 
-| 역할          | 요구 사항                                      | 구체 구현                                                                                                       |
-| ------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 라우트 모달   | URL 유지, 직접 접근 fallback, history 복원     | Next.js parallel/intercepting routes                                                                            |
-| 서버 상태     | 섹션별 query, 조건부 조회, 재시도              | 기존 TanStack React Query                                                                                       |
-| dialog 접근성 | focus trap, Escape, focus restore, scroll lock | 기존 dialog primitive가 있으면 재사용                                                                           |
-| 지표 시각화   | 디자인 토큰, responsive, 별도 패키지 없음      | 기존 CSS/SVG/semantic HTML, 자체 SVG 차트 프리미티브(라인·도넛·피라미드)를 `components/analysis/charts/`에 둔다 |
-| 공유          | 현재 URL 복사, 지원 시 native share            | Web Share API + Clipboard fallback                                                                              |
+| 역할          | 요구 사항                                      | 구체 구현                                                                                                           |
+| ------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 라우트 모달   | URL 유지, 직접 접근 fallback, history 복원     | Next.js parallel/intercepting routes                                                                                |
+| 서버 상태     | 섹션별 query, 조건부 조회, 재시도              | 기존 TanStack React Query                                                                                           |
+| dialog 접근성 | focus trap, Escape, focus restore, scroll lock | 기존 dialog primitive가 있으면 재사용                                                                               |
+| 지표 시각화   | 디자인 토큰, responsive, 별도 패키지 없음      | 기존 CSS/SVG/semantic HTML, 자체 SVG 차트 프리미티브(라인·도넛·피라미드)를 `src/components/analysis/charts/`에 둔다 |
+| 공유          | 현재 URL 복사, 지원 시 native share            | Web Share API + Clipboard fallback                                                                                  |
 
 ---
 

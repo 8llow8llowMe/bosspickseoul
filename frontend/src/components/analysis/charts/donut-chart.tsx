@@ -56,10 +56,11 @@ export type DonutChartProps = {
 }
 
 export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
-  const total = segments.reduce((sum, segment) => sum + segment.value, 0)
-  if (segments.length === 0 || total <= 0) return <Empty>데이터 없음</Empty>
+  const visible = segments.filter(segment => segment.value > 0)
+  const total = visible.reduce((sum, segment) => sum + segment.value, 0)
+  if (visible.length === 0 || total <= 0) return <Empty>데이터 없음</Empty>
 
-  const arcs = segments.reduce<
+  const arcs = visible.reduce<
     Array<{
       segment: GenderSegment
       percent: number

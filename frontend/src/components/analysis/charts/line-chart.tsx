@@ -87,6 +87,13 @@ export default function LineChart({ points, unit, direction }: LineChartProps) {
 
   const meta = direction ? DIRECTION_META[direction] : null
 
+  const describePoint = (point: TrendPoint): string => {
+    const valueLabel = formatAnalysisValue(point.value, unit)
+    if (point.changeRate === null) return valueLabel
+    const sign = point.changeRate > 0 ? '+' : ''
+    return `${valueLabel} · 전분기 대비 ${sign}${point.changeRate}%`
+  }
+
   return (
     <div>
       {meta ? (
@@ -98,6 +105,7 @@ export default function LineChart({ points, unit, direction }: LineChartProps) {
         viewBoxWidth={W}
         viewBoxHeight={H}
         ariaLabel="분기별 추세 라인 차트"
+        ariaRole="group"
         tooltip={active}
       >
         {runs
@@ -122,13 +130,13 @@ export default function LineChart({ points, unit, direction }: LineChartProps) {
                 r={4}
                 fill="var(--color-primary-600)"
                 tabIndex={0}
-                aria-label={`${coord.point.periodLabel} ${formatAnalysisValue(coord.point.value, unit)}`}
+                aria-label={`${coord.point.periodLabel} ${describePoint(coord.point)}`}
                 onMouseEnter={() =>
                   show({
                     x: coord.x,
                     y: coord.y as number,
                     label: coord.point.periodLabel,
-                    value: formatAnalysisValue(coord.point.value, unit),
+                    value: describePoint(coord.point),
                   })
                 }
                 onFocus={() =>
@@ -136,7 +144,7 @@ export default function LineChart({ points, unit, direction }: LineChartProps) {
                     x: coord.x,
                     y: coord.y as number,
                     label: coord.point.periodLabel,
-                    value: formatAnalysisValue(coord.point.value, unit),
+                    value: describePoint(coord.point),
                   })
                 }
                 onMouseLeave={hide}

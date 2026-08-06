@@ -23,7 +23,7 @@ const Tooltip = styled.div`
   padding: 6px 10px;
   border-radius: var(--radius-control);
   background: var(--color-text-900);
-  color: #fff;
+  color: var(--color-surface);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -35,6 +35,7 @@ export type ChartFrameProps = {
   viewBoxWidth: number
   viewBoxHeight: number
   ariaLabel: string
+  ariaRole?: 'img' | 'group'
   tooltip?: TooltipState | null
   children?: ReactNode
 }
@@ -43,6 +44,7 @@ export default function ChartFrame({
   viewBoxWidth,
   viewBoxHeight,
   ariaLabel,
+  ariaRole = 'img',
   tooltip,
   children,
 }: ChartFrameProps) {
@@ -50,14 +52,19 @@ export default function ChartFrame({
     <Wrapper>
       <Svg
         viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
-        role="img"
+        role={ariaRole}
         aria-label={ariaLabel}
         preserveAspectRatio="xMidYMid meet"
       >
         {children}
       </Svg>
       {tooltip ? (
-        <Tooltip style={{ left: tooltip.x, top: tooltip.y }}>
+        <Tooltip
+          style={{
+            left: `${(tooltip.x / viewBoxWidth) * 100}%`,
+            top: `${(tooltip.y / viewBoxHeight) * 100}%`,
+          }}
+        >
           {tooltip.label} · {tooltip.value}
         </Tooltip>
       ) : null}
