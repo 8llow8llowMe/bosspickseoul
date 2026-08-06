@@ -1314,27 +1314,25 @@ export default function AnalysisResultView({
               </ChartBox>
             </AnalysisResultSection>
 
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="연령·성별 유동인구"
-                loading={footTrafficQuery.isPending}
-                error={
-                  footTrafficQuery.isError ||
-                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-                }
-                empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
-                  row => row.male === null && row.female === null,
-                )}
-                onRetry={() => void footTrafficQuery.refetch()}
-              >
-                <ChartBox $maxWidth={460}>
-                  <PopulationPyramid
-                    rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
-                    unit="%"
-                  />
-                </ChartBox>
-              </AnalysisResultSection>
-            </FullSpanItem>
+            <AnalysisResultSection
+              title="연령·성별 유동인구"
+              loading={footTrafficQuery.isPending}
+              error={
+                footTrafficQuery.isError ||
+                isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
+              }
+              empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
+                row => row.male === null && row.female === null,
+              )}
+              onRetry={() => void footTrafficQuery.refetch()}
+            >
+              <ChartBox $maxWidth={460}>
+                <PopulationPyramid
+                  rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
+                  unit="%"
+                />
+              </ChartBox>
+            </AnalysisResultSection>
           </DashboardGrid>
         </ReportSection>
 
@@ -1649,31 +1647,30 @@ export default function AnalysisResultView({
           <GroupHeading>트렌드</GroupHeading>
           <DashboardGrid>
             {trends.map(({ metric, label, unit, query, data }) => (
-              <FullSpanItem key={metric}>
-                <AnalysisResultSection
-                  title={label}
-                  description={
-                    data?.trendDirection
-                      ? `최근 추세: ${data.trendDirection}`
-                      : undefined
-                  }
-                  loading={query.isPending}
-                  error={
-                    query.isError ||
-                    isResponseError(query.data as ApiResponse<unknown>)
-                  }
-                  empty={!data?.periods?.length}
-                  onRetry={() => void query.refetch()}
-                >
-                  <ChartBox $maxWidth={560}>
-                    <LineChart
-                      points={toTrendPoints(data)}
-                      unit={unit}
-                      direction={data?.trendDirection ?? null}
-                    />
-                  </ChartBox>
-                </AnalysisResultSection>
-              </FullSpanItem>
+              <AnalysisResultSection
+                key={metric}
+                title={label}
+                description={
+                  data?.trendDirection
+                    ? `최근 추세: ${data.trendDirection}`
+                    : undefined
+                }
+                loading={query.isPending}
+                error={
+                  query.isError ||
+                  isResponseError(query.data as ApiResponse<unknown>)
+                }
+                empty={!data?.periods?.length}
+                onRetry={() => void query.refetch()}
+              >
+                <ChartBox $maxWidth={560}>
+                  <LineChart
+                    points={toTrendPoints(data)}
+                    unit={unit}
+                    direction={data?.trendDirection ?? null}
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
             ))}
           </DashboardGrid>
         </ReportSection>
