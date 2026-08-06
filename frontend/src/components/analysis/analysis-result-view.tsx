@@ -17,6 +17,7 @@ import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
+import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { TabButton, TabList } from '@/components/ui/tabs'
@@ -35,7 +36,11 @@ import {
 import { isApiSuccess } from '@/lib/api/response'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
-import { toGenderSegments, toTrendPoints } from '@/lib/analysis/chart-data'
+import {
+  toGenderSegments,
+  toPyramidRows,
+  toTrendPoints,
+} from '@/lib/analysis/chart-data'
 import {
   ANALYSIS_TABS,
   formatAnalysisValue,
@@ -1090,6 +1095,24 @@ export default function AnalysisResultView({
                 />
               </AnalysisResultSection>
             ))}
+
+            <AnalysisResultSection
+              title="연령·성별 유동인구"
+              loading={footTrafficQuery.isPending}
+              error={
+                footTrafficQuery.isError ||
+                isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
+              }
+              empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
+                row => row.male === null && row.female === null,
+              )}
+              onRetry={() => void footTrafficQuery.refetch()}
+            >
+              <PopulationPyramid
+                rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
+                unit="%"
+              />
+            </AnalysisResultSection>
           </>
         ) : null}
 
