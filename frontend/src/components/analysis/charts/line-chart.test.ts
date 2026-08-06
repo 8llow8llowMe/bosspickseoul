@@ -29,4 +29,30 @@ describe('LineChart', () => {
     )
     expect(markup).toContain('데이터 없음')
   })
+
+  it('단일 시점 데이터도 값을 렌더하고 오류 없이 동작한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(LineChart, {
+        points: [{ periodLabel: '2023년 1분기', value: 100, changeRate: null }],
+        unit: '원',
+      }),
+    )
+    expect(markup).toContain('100')
+  })
+
+  it('중간 null은 선을 끊고 해당 지점의 원은 렌더하지 않는다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(LineChart, {
+        points: [
+          { periodLabel: '2023년 1분기', value: 100, changeRate: null },
+          { periodLabel: '2023년 2분기', value: null, changeRate: null },
+          { periodLabel: '2023년 3분기', value: 120, changeRate: null },
+        ],
+        unit: '원',
+      }),
+    )
+    expect(markup).toContain('100')
+    expect(markup).toContain('120')
+    expect(markup.match(/<circle/g)).toHaveLength(2)
+  })
 })

@@ -71,10 +71,19 @@ export default function LineChart({ points, unit, direction }: LineChartProps) {
 
   if (!geometry) return <Empty>데이터 없음</Empty>
 
-  const line = geometry.coords
-    .filter(coord => coord.y !== null)
-    .map(coord => `${coord.x},${coord.y as number}`)
-    .join(' ')
+  const runs: Array<Array<{ x: number; y: number }>> = []
+  let current: Array<{ x: number; y: number }> = []
+  for (const coord of geometry.coords) {
+    if (coord.y === null) {
+      if (current.length > 0) {
+        runs.push(current)
+        current = []
+      }
+      continue
+    }
+    current.push({ x: coord.x, y: coord.y })
+  }
+  if (current.length > 0) runs.push(current)
 
   const meta = direction ? DIRECTION_META[direction] : null
 
@@ -91,24 +100,28 @@ export default function LineChart({ points, unit, direction }: LineChartProps) {
         ariaLabel="분기별 추세 라인 차트"
         tooltip={active}
       >
-        <polyline
-          points={line}
-          fill="none"
-          stroke="var(--color-primary-600)"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {geometry.coords.map(coord =>
+        {runs
+          .filter(run => run.length >= 2)
+          .map((run, index) => (
+            <polyline
+              key={index}
+              points={run.map(({ x, y }) => `${x},${y}`).join(' ')}
+              fill="none"
+              stroke="var(--color-primary-600)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+        {geometry.coords.map((coord, index) =>
           coord.y === null ? null : (
-            <g key={coord.point.periodLabel}>
+            <g key={index}>
               <circle
                 cx={coord.x}
                 cy={coord.y}
                 r={4}
                 fill="var(--color-primary-600)"
                 tabIndex={0}
-                role="button"
                 aria-label={`${coord.point.periodLabel} ${formatAnalysisValue(coord.point.value, unit)}`}
                 onMouseEnter={() =>
                   show({
