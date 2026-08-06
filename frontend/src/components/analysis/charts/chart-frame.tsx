@@ -21,14 +21,14 @@ const Tooltip = styled.div`
   position: absolute;
   transform: translate(-50%, -110%);
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-text-900);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-level-3);
 `
 
 export type ChartFrameProps = {
