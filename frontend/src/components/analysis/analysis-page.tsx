@@ -182,6 +182,18 @@ const getNextStep = (step: AnalysisStep): AnalysisStep => {
   return ANALYSIS_STEPS[Math.min(index + 1, ANALYSIS_STEPS.length - 1)]
 }
 
+// 선택 후 지도가 진입할 줌 레벨 (resolveMapLayerByZoom: >=7 자치구 / 5~6 행정동 / <=4 상권)
+const ADMINISTRATION_ZOOM_LEVEL = 6 // 자치구 선택 → 행정동이 보이는 depth
+const COMMERCIAL_ZOOM_LEVEL = 4 // 행정동 선택 → 상권이 보이는 depth
+const COMMERCIAL_FRAME_ZOOM_LEVEL = 3 // 상권 선택 → 상권을 좀 더 가깝게 프레임
+
+const PANEL_FIT_LEVEL_BY_STEP: Record<AnalysisStep, number | null> = {
+  district: ADMINISTRATION_ZOOM_LEVEL,
+  administration: COMMERCIAL_ZOOM_LEVEL,
+  commercial: COMMERCIAL_FRAME_ZOOM_LEVEL,
+  service: null, // 업종은 지도 위치와 무관 → 이동 없음
+}
+
 export default function AnalysisPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -198,10 +210,11 @@ export default function AnalysisPage() {
   const [mapLayer, setMapLayer] = useState<MapLayer>('district')
   const [fitRequest, setFitRequest] = useState<{
     code: string
+    level: number
     seq: number
   } | null>(null)
-  const requestFit = (code: string) =>
-    setFitRequest(prev => ({ code, seq: (prev?.seq ?? 0) + 1 }))
+  const requestFit = (code: string, level: number) =>
+    setFitRequest(prev => ({ code, level, seq: (prev?.seq ?? 0) + 1 }))
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -432,7 +445,7 @@ export default function AnalysisPage() {
       router.replace(createAnalysisExplorerHref(next))
       setRequestedStep('administration')
       setPreviewedCode(null)
-      requestFit(code)
+      requestFit(code, ADMINISTRATION_ZOOM_LEVEL)
       return
     }
     if (mapLayer === 'administration') {
@@ -440,7 +453,7 @@ export default function AnalysisPage() {
       router.replace(createAnalysisExplorerHref(next))
       setRequestedStep('commercial')
       setPreviewedCode(null)
-      requestFit(code)
+      requestFit(code, COMMERCIAL_ZOOM_LEVEL)
       return
     }
     // commercial (leaf): resolve parents, focus 업종, no fit
@@ -466,7 +479,8 @@ export default function AnalysisPage() {
 
   const handlePanelSelect = (code: string) => {
     handleSelect(activeStep, code)
-    requestFit(code)
+    const level = PANEL_FIT_LEVEL_BY_STEP[activeStep]
+    if (level !== null) requestFit(code, level)
   }
 
   const panel = (

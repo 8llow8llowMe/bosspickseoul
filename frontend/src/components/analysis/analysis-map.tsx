@@ -26,7 +26,7 @@ export type AnalysisMapProps = {
   onPreviewChange: (code: string | null) => void
   onViewportBoundsChange: (bounds: GeoBounds) => void
   onZoomLayerChange?: (layer: MapLayer) => void
-  fitTo?: { code: string; seq: number } | null
+  fitTo?: { code: string; level: number; seq: number } | null
 }
 
 type AnalysisMapLayerInput = Pick<
@@ -326,10 +326,11 @@ export default function AnalysisMap({
     if (!area) return
     const bounds = createBounds(normalizeBoundary(area.boundaryCoords))
     if (!bounds) return
-    const kb = new maps.LatLngBounds()
-    kb.extend(new maps.LatLng(bounds.latSW, bounds.lngSW))
-    kb.extend(new maps.LatLng(bounds.latNE, bounds.lngNE))
-    map.setBounds(kb)
+    // 클릭 영역 중심으로 이동 + 자식 레이어가 보이는 줌 레벨로 확실히 진입
+    const centerLat = (bounds.latSW + bounds.latNE) / 2
+    const centerLng = (bounds.lngSW + bounds.lngNE) / 2
+    map.setCenter(new maps.LatLng(centerLat, centerLng))
+    map.setLevel(fitTo.level)
   }, [fitTo])
 
   return (
