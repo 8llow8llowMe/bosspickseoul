@@ -15,6 +15,7 @@ import styled from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
+import LineChart from '@/components/analysis/charts/line-chart'
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { TabButton, TabList } from '@/components/ui/tabs'
@@ -33,6 +34,7 @@ import {
 import { isApiSuccess } from '@/lib/api/response'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
+import { toTrendPoints } from '@/lib/analysis/chart-data'
 import {
   ANALYSIS_TABS,
   formatAnalysisValue,
@@ -1286,14 +1288,10 @@ export default function AnalysisResultView({
                 empty={!data?.periods?.length}
                 onRetry={() => void query.refetch()}
               >
-                <AnalysisMetricList
-                  rows={(data?.periods ?? []).map(period => ({
-                    label: period.periodCode
-                      ? formatPeriodCode(period.periodCode)
-                      : '시점 정보 없음',
-                    value: period.value ?? null,
-                  }))}
+                <LineChart
+                  points={toTrendPoints(data)}
                   unit={unit}
+                  direction={data?.trendDirection ?? null}
                 />
               </AnalysisResultSection>
             ))}
