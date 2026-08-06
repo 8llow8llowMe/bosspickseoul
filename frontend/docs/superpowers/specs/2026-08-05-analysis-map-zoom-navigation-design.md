@@ -51,11 +51,11 @@
 kakao 지도 level(1=최근접 … 14=최원거리) 기준 임계값으로 레이어를 결정한다.
 초기 제안값(구현 후 라이브 튜닝):
 
-| 줌 레벨(level) | 레이어 |
-| --- | --- |
-| level ≥ 7 | 자치구(district) |
-| 5 ≤ level ≤ 6 | 행정동(administration) |
-| level ≤ 4 | 상권(commercial) |
+| 줌 레벨(level) | 레이어                 |
+| -------------- | ---------------------- |
+| level ≥ 7      | 자치구(district)       |
+| 5 ≤ level ≤ 6  | 행정동(administration) |
+| level ≤ 4      | 상권(commercial)       |
 
 - 지도 idle 시 현재 level → 레이어 결정 → 해당 레이어의 뷰포트 areas 조회.
 - 순수 함수 `resolveMapLayerByZoom(level): 'district' | 'administration' | 'commercial'`로 분리(단위 테스트).
@@ -76,6 +76,7 @@ kakao 지도 level(1=최근접 … 14=최원거리) 기준 임계값으로 레�
 ### 5.3 selection 확장
 
 `selection.ts`:
+
 - 상권 선택 시 `commercialCode`뿐 아니라 `administrationCode`, `districtCode`도 함께
   세팅하는 경로 추가(예: `selectCommercialWithParents(selection, commercialCode, administrationCode)`).
 - 동 선택 시 `administrationCode` + `districtCode`(앞5자리) 함께 세팅.

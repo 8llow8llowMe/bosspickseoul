@@ -24,10 +24,12 @@
 ### Task 1: 줌 레벨 → 레이어 매핑 순수 함수
 
 **Files:**
+
 - Create: `src/lib/analysis/map-layer.ts`
 - Test: `src/lib/analysis/map-layer.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `type MapLayer = 'district' | 'administration' | 'commercial'`
   - `resolveMapLayerByZoom(level: number): MapLayer`
@@ -88,10 +90,12 @@ git commit -m "$(printf '[FE] feat: 줌 레벨 → 지도 레이어 매핑 순�
 ### Task 2: 기하 포함관계 부모 계산 유틸
 
 **Files:**
+
 - Modify: `src/lib/map/geometry.ts` (함수 추가)
 - Test: `src/lib/map/geometry.test.ts` (케이스 추가; 기존 테스트 유지)
 
 **Interfaces:**
+
 - Consumes: 기존 `MapPoint`, `normalizeBoundary`, `@/types/recommend`(`AreaBoundaryItem`).
 - Produces:
   - `isPointInPolygon(point: MapPoint, ring: readonly MapPoint[]): boolean`
@@ -234,10 +238,12 @@ git commit -m "$(printf '[FE] feat: 기하 포함관계 부모 계산 유틸(poi
 ### Task 3: selection 확장 + 자동이동 조건
 
 **Files:**
+
 - Modify: `src/lib/analysis/selection.ts`
 - Test: `src/lib/analysis/selection.test.ts` (없으면 생성)
 
 **Interfaces:**
+
 - Consumes: 기존 `AnalysisSelection`, `ANALYSIS_PERIOD_CODE`, Task 2 `resolveDistrictCodeFromAdministration`.
 - Produces:
   - `selectAdministrationWithParent(selection, administrationCode: string): AnalysisSelection`
@@ -335,7 +341,10 @@ export const selectAdministrationWithParent = (
 
 export const selectCommercialWithParents = (
   selection: AnalysisSelection,
-  { commercialCode, administrationCode }: {
+  {
+    commercialCode,
+    administrationCode,
+  }: {
     commercialCode: string
     administrationCode: string
   },
@@ -352,9 +361,9 @@ export const shouldAutoNavigateToAnalysis = (
 ): boolean =>
   Boolean(
     selection.districtCode &&
-      selection.administrationCode &&
-      selection.commercialCode &&
-      selection.serviceCode,
+    selection.administrationCode &&
+    selection.commercialCode &&
+    selection.serviceCode,
   )
 ```
 
@@ -379,10 +388,12 @@ git commit -m "$(printf '[FE] feat: 상권/동 선택 시 부모 코드 세팅 �
 지도 idle 시 현재 줌 레벨을 레이어로 변환해 상위로 보고하고, 폴리곤 재드로우 시 자동 확대(스냅백)를 제거한다. 명시적 확대는 별도 prop 트리거로만.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-map.tsx`
 - Test: `src/components/analysis/analysis-map.test.ts` (기존 통과 유지)
 
 **Interfaces:**
+
 - Consumes: Task 1 `resolveMapLayerByZoom`, 공통 `drawAreaPolygonLayer`.
 - Produces (props 확장): `AnalysisMapProps`에
   `onZoomLayerChange?: (layer: MapLayer) => void`,
@@ -457,10 +468,12 @@ git commit -m "$(printf '[FE] feat: analysis-map 줌 레이어 보고 및 스냅
 표시 레이어를 줌 레이어 기준으로 바꾸고, 지도 클릭 시 부모를 계산해 selection에 반영하며, 상권+업종 완성 시 자동 이동한다.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-page.tsx`
 - Test: `src/components/analysis/analysis-page.test.ts` (기존 통과 유지)
 
 **Interfaces:**
+
 - Consumes: Task 1 `MapLayer`/`resolveMapLayerByZoom`, Task 2 `findContainingArea`, Task 3 `selectAdministrationWithParent`/`selectCommercialWithParents`/`shouldAutoNavigateToAnalysis`.
 
 - [ ] **Step 1: 기존 테스트 기준선 확인**
@@ -474,6 +487,7 @@ const [mapLayer, setMapLayer] = useState<MapLayer>('district')
 ```
 
 지도 area 쿼리의 `enabled`를 selection 기준 → 레이어 기준으로 변경:
+
 - `administrationMapQuery.enabled`: `mapLayer === 'administration' || mapLayer === 'commercial'`
   (상권 줌에서 부모 계산용 행정동 경계가 필요하므로 commercial 레이어에서도 로드)
 - `commercialMapQuery.enabled`: `mapLayer === 'commercial'`
@@ -561,6 +575,7 @@ Run: `pnpm exec eslint src/components/analysis/analysis-page.tsx --max-warnings=
 - [ ] **Step 8: 라이브 확인 (컨트롤러가 수행)**
 
 `localhost:5173/analysis`:
+
 - 줌아웃=자치구/줌인=행정동/더 줌인=상권 폴리곤 자동 전환
 - 구 클릭→그 구 확대→행정동 표시, 동 클릭→구도 채워지고 확대→상권, 상권 클릭→동/구 자동 채움
 - 업종 선택까지 되면 자동으로 분석 결과로 이동
@@ -578,6 +593,7 @@ git commit -m "$(printf '[FE] feat: analysis-page 줌-주도 레이어/부모 �
 ### Task 6: 전체 검증 및 줌 임계값 튜닝
 
 **Files:**
+
 - Modify(선택): `src/lib/analysis/map-layer.ts` (임계값 조정 시 Task 1 테스트도 갱신)
 
 - [ ] **Step 1: 전체 테스트** — Run: `pnpm test` → 전부 PASS
@@ -595,6 +611,7 @@ git commit -m "$(printf '[FE] style: 줌 레이어 전환 임계값 튜닝\n\nCo
 ## Self-Review
 
 **Spec coverage:**
+
 - 요구1(패널 선택→지도 갱신) → Task 5 Step 5 fitRequest. ✅
 - 요구2(스냅백 제거) → Task 4 Step 3 (fitToSelected:false + fitToCode 분리). ✅
 - 요구3(줌 스코프별 구/동/상권 표시) → Task 1 + Task 5 Step 2-3. ✅
@@ -606,6 +623,7 @@ git commit -m "$(printf '[FE] style: 줌 레이어 전환 임계값 튜닝\n\nCo
 **Type consistency:** `MapLayer`, `resolveMapLayerByZoom`, `findContainingArea`, `selectCommercialWithParents`, `shouldAutoNavigateToAnalysis` 이름이 Task 1→5에서 일치. `AnalysisSelection` 반환 형태는 기존 `selectAnalysisValue`와 맞추도록 Task 3에 명시(periodCode 유무 확인).
 
 **구현자 주의:**
+
 - Task 5에서 raw areas(`allDistrictAreas` 등)를 쓰면 기존 `filterAreasByCodes` 필터가 빠진다. 표시가 과다하면(예: 뷰포트 밖 경계 걸침) 뷰포트 필터는 kakao가 클리핑하므로 문제 없음. dropdown 리스트(`districts/administrations/commercials`)는 패널용으로 그대로 유지.
 - 패널↔지도 무한루프 방지: fitToCode는 패널 선택 경로에서만 세팅(지도 클릭 경로 제외).
 - 자동이동 effect는 selection 4개 완성 시 1회 push. 결과 페이지 진입 후에는 이 컴포넌트가 언마운트되므로 재실행 없음.

@@ -1,4 +1,8 @@
-import type { CoordinateTuple, GeoBounds, AreaBoundaryItem } from '@/types/recommend'
+import type {
+  CoordinateTuple,
+  GeoBounds,
+  AreaBoundaryItem,
+} from '@/types/recommend'
 
 export type MapPoint = {
   lng: number

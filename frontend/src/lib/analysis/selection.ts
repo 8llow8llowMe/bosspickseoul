@@ -166,7 +166,10 @@ export const selectAdministrationWithParent = (
 
 export const selectCommercialWithParents = (
   selection: AnalysisSelection,
-  { commercialCode, administrationCode }: {
+  {
+    commercialCode,
+    administrationCode,
+  }: {
     commercialCode: string
     administrationCode: string
   },
@@ -183,7 +186,7 @@ export const shouldAutoNavigateToAnalysis = (
 ): boolean =>
   Boolean(
     selection.districtCode &&
-      selection.administrationCode &&
-      selection.commercialCode &&
-      selection.serviceCode,
+    selection.administrationCode &&
+    selection.commercialCode &&
+    selection.serviceCode,
   )
