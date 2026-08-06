@@ -54,4 +54,22 @@ describe('DonutChart', () => {
     expect(markup).toContain('<circle')
     expect(markup).toContain('var(--color-primary-600)')
   })
+
+  it('100/0 분포에서는 0%인 여성 세그먼트를 범례에서 제외한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(DonutChart, {
+        segments: [
+          { label: '남성', value: 100 },
+          { label: '여성', value: 0 },
+        ],
+        ariaLabel: '성별 분포',
+      }),
+    )
+    const legendItems = markup.match(/<li[^>]*>/g) ?? []
+    expect(legendItems).toHaveLength(1)
+    expect(markup).toContain('남성')
+    expect(markup).not.toContain('여성')
+    // '100%' 자체는 부분 문자열로 '0%'를 포함하므로 단어 경계로 구분해 검사한다
+    expect(markup).not.toMatch(/\b0%/)
+  })
 })

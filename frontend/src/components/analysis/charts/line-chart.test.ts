@@ -20,6 +20,17 @@ describe('LineChart', () => {
     expect(markup).toContain('상승') // trendDirection 배지 텍스트
   })
 
+  it('changeRate가 있는 지점은 툴팁/aria-label에 전분기 대비 변화율을 노출한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(LineChart, { points, unit: '원', direction: 'INCREASE' }),
+    )
+    expect(markup).toContain('전분기 대비 +40%')
+    expect(markup).toContain('전분기 대비 -14%')
+    expect(markup).toContain(
+      'aria-label="2023년 2분기 140원 · 전분기 대비 +40%"',
+    )
+  })
+
   it('전부 null이면 데이터 없음을 안내한다', () => {
     const markup = renderToStaticMarkup(
       createElement(LineChart, {
