@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
@@ -34,7 +34,6 @@ import {
   selectAdministrationWithParent,
   selectAnalysisValue,
   selectCommercialWithParents,
-  shouldAutoNavigateToAnalysis,
   type AnalysisStep,
 } from '@/lib/analysis/selection'
 import { type MapLayer } from '@/lib/analysis/map-layer'
@@ -322,15 +321,6 @@ export default function AnalysisPage() {
       router.replace(createAnalysisExplorerHref(next))
     }
   }, [administrations, commercials, districts, router, selection, services])
-
-  const wasCompleteRef = useRef(shouldAutoNavigateToAnalysis(selection))
-  useEffect(() => {
-    const complete = shouldAutoNavigateToAnalysis(selection)
-    if (complete && !wasCompleteRef.current) {
-      router.push(createAnalysisResultHref(selection, 'summary'))
-    }
-    wasCompleteRef.current = complete
-  }, [selection, router])
 
   const districtCandidates: AnalysisCandidate[] = districts.flatMap(item =>
     item.districtCode && item.districtName
