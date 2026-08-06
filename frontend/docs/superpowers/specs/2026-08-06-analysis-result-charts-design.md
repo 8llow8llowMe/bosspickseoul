@@ -33,11 +33,11 @@
 
 ## 3. 무엇을 만드나 — 데이터 검증 완료
 
-| # | 차트 | 배치 탭 | 데이터 소스 (검증) | 프리미티브 |
-| --- | --- | --- | --- | --- |
-| 1 | 분기별 라인 + `trendDirection` 배지(↑↓→) + `changeRate` | 트렌드 (SALES / FOOT_TRAFFIC / STORE) | `CommercialTrend.periods[]` (`periodCode`, `value`, `changeRate`) | `LineChart` |
-| 2 | 연령×성별 인구 피라미드 | 유동인구 | `CommercialFootTraffic.byAgeGenderPercentItem` (`maleAge10Percent`…`femaleAge60PlusPercent`) | `PopulationPyramid` |
-| 3 | 성별 도넛 | 거주 · 매출 | 거주 `malePercentage`/`femalePercentage`, 매출 `countByGenderItem.maleSalesCount`/`femaleSalesCount` | `DonutChart` |
+| #   | 차트                                                    | 배치 탭                               | 데이터 소스 (검증)                                                                                   | 프리미티브          |
+| --- | ------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------- |
+| 1   | 분기별 라인 + `trendDirection` 배지(↑↓→) + `changeRate` | 트렌드 (SALES / FOOT_TRAFFIC / STORE) | `CommercialTrend.periods[]` (`periodCode`, `value`, `changeRate`)                                    | `LineChart`         |
+| 2   | 연령×성별 인구 피라미드                                 | 유동인구                              | `CommercialFootTraffic.byAgeGenderPercentItem` (`maleAge10Percent`…`femaleAge60PlusPercent`)         | `PopulationPyramid` |
+| 3   | 성별 도넛                                               | 거주 · 매출                           | 거주 `malePercentage`/`femalePercentage`, 매출 `countByGenderItem.maleSalesCount`/`femaleSalesCount` | `DonutChart`        |
 
 ### 3-1. 피라미드 배치 정정 (데이터 근거)
 
@@ -98,14 +98,14 @@ frontend/src/lib/analysis/chart-data.ts  # API DTO → 정규화 series (순수�
 
 ## 7. 위험 / 미결
 
-| 항목 | 처리 |
-| --- | --- |
-| 실제 분석 응답 미비 | fixture 기반 검증, 실데이터 적재 후 브라우저 재검증 (명세 D8 방침 계승) |
-| `byAgeGenderPercentItem` 키 누락/부분 null | 정규화 단계에서 누락 연령/성별을 "데이터 없음"으로 격리, 축은 유지 |
-| 여성 색상 토큰 신설 | DESIGN.md 토큰 절에 추가 여부를 명세 갱신 시 확정 (임시 상수 금지) |
+| 항목                                       | 처리                                                                    |
+| ------------------------------------------ | ----------------------------------------------------------------------- |
+| 실제 분석 응답 미비                        | fixture 기반 검증, 실데이터 적재 후 브라우저 재검증 (명세 D8 방침 계승) |
+| `byAgeGenderPercentItem` 키 누락/부분 null | 정규화 단계에서 누락 연령/성별을 "데이터 없음"으로 격리, 축은 유지      |
+| 여성 색상 토큰 신설                        | DESIGN.md 토큰 절에 추가 여부를 명세 갱신 시 확정 (임시 상수 금지)      |
 
 ## 8. 변경 이력
 
-| 버전 | 날짜 | 내용 | 작성자 |
-| --- | --- | --- | --- |
-| 0.1 | 2026-08-06 | High 슬라이스(트렌드 라인·유동 피라미드·성별 도넛) SVG 도입 설계 초안 | Claude |
+| 버전 | 날짜       | 내용                                                                  | 작성자 |
+| ---- | ---------- | --------------------------------------------------------------------- | ------ |
+| 0.1  | 2026-08-06 | High 슬라이스(트렌드 라인·유동 피라미드·성별 도넛) SVG 도입 설계 초안 | Claude |

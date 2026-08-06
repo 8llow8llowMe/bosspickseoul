@@ -23,7 +23,9 @@ describe('LineChart', () => {
   it('전부 null이면 데이터 없음을 안내한다', () => {
     const markup = renderToStaticMarkup(
       createElement(LineChart, {
-        points: [{ periodLabel: '2023년 3분기', value: null, changeRate: null }],
+        points: [
+          { periodLabel: '2023년 3분기', value: null, changeRate: null },
+        ],
         unit: '원',
       }),
     )
