@@ -111,7 +111,16 @@ public class AiReportPromptTemplate {
 
             [응답 언어 규칙]
             - 모든 문자열 필드는 한국어로 작성하세요.
-            - 업종 추천/주의 업종은 한국어 업종명으로 작성하세요.
+            - `recommendedBusinessCategories`, `cautionBusinessCategories`는 한국어 업종명으로 작성하세요.
+
+            [필수 JSON 필드]
+            - summary: string
+            - marketStatus: string
+            - recommendedBusinessCategories: string[]
+            - cautionBusinessCategories: string[]
+            - businessInsight: string
+
+            위 필드명을 그대로 사용한 평평한 JSON 객체 하나만 반환하세요. 다른 키를 만들지 마세요.
 
             [입력 데이터]
             %s
@@ -128,7 +137,16 @@ public class AiReportPromptTemplate {
 
             [응답 언어 규칙]
             - 모든 문자열 필드는 한국어로 작성하세요.
-            - 업종 추천/주의 업종은 한국어 업종명으로 작성하세요.
+            - `recommendedBusinessCategories`, `cautionBusinessCategories`는 한국어 업종명으로 작성하세요.
+
+            [필수 JSON 필드]
+            - summary: string
+            - marketStatus: string
+            - recommendedBusinessCategories: string[]
+            - cautionBusinessCategories: string[]
+            - businessInsight: string
+
+            위 필드명을 그대로 사용한 평평한 JSON 객체 하나만 반환하세요. 다른 키를 만들지 마세요.
 
             [입력 데이터]
             %s
