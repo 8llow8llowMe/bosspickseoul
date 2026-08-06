@@ -1139,12 +1139,10 @@ export default function AnalysisResultView({
                 salesQuery.isError ||
                 isResponseError(salesQuery.data as ApiResponse<unknown>)
               }
-              empty={
-                toGenderSegments(
-                  sales?.countByGenderItem?.maleSalesCount,
-                  sales?.countByGenderItem?.femaleSalesCount,
-                ).length === 0
-              }
+              empty={toGenderSegments(
+                sales?.countByGenderItem?.maleSalesCount,
+                sales?.countByGenderItem?.femaleSalesCount,
+              ).every(segment => segment.value <= 0)}
               onRetry={() => void salesQuery.refetch()}
             >
               <DonutChart
@@ -1225,12 +1223,10 @@ export default function AnalysisResultView({
                 populationQuery.isError ||
                 isResponseError(populationQuery.data as ApiResponse<unknown>)
               }
-              empty={
-                toGenderSegments(
-                  population?.malePercentage,
-                  population?.femalePercentage,
-                ).length === 0
-              }
+              empty={toGenderSegments(
+                population?.malePercentage,
+                population?.femalePercentage,
+              ).every(segment => segment.value <= 0)}
               onRetry={() => void populationQuery.refetch()}
             >
               <DonutChart

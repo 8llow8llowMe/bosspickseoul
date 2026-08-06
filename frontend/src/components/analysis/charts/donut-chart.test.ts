@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import DonutChart from '@/components/analysis/charts/donut-chart'
+import { toGenderSegments } from '@/lib/analysis/chart-data'
 
 describe('DonutChart', () => {
   it('세그먼트별 비율과 라벨을 노출한다', () => {
@@ -26,5 +27,31 @@ describe('DonutChart', () => {
       createElement(DonutChart, { segments: [], ariaLabel: '성별 분포' }),
     )
     expect(markup).toContain('데이터 없음')
+  })
+
+  it('여성만 데이터가 있으면 원형 링과 여성 색상 토큰을 사용한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(DonutChart, {
+        segments: toGenderSegments(null, 40),
+        ariaLabel: '성별 분포',
+      }),
+    )
+    expect(markup).toContain('여성')
+    expect(markup).toContain('var(--color-chart-female)')
+    expect(markup).toContain('<circle')
+  })
+
+  it('100/0 분포에서도 남성 세그먼트가 원형 링으로 노출된다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(DonutChart, {
+        segments: [
+          { label: '남성', value: 100 },
+          { label: '여성', value: 0 },
+        ],
+        ariaLabel: '성별 분포',
+      }),
+    )
+    expect(markup).toContain('<circle')
+    expect(markup).toContain('var(--color-primary-600)')
   })
 })
