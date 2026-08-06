@@ -30,4 +30,16 @@ describe('PopulationPyramid', () => {
     )
     expect(markup).toContain('데이터 없음')
   })
+
+  it('한쪽 성별만 값이 있으면 나머지는 데이터 없음, 접근성 title은 유지한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(PopulationPyramid, {
+        rows: [{ ageLabel: '30대', male: 20, female: null }],
+        unit: '%',
+      }),
+    )
+    expect(markup).toContain('20%')
+    expect(markup).toContain('데이터 없음')
+    expect(markup).toContain('30대 남성')
+  })
 })
