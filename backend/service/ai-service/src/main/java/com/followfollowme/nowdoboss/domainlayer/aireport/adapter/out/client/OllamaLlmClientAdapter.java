@@ -19,6 +19,7 @@ import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.Usage;
@@ -29,6 +30,7 @@ import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "ai.llm", name = "provider", havingValue = "OLLAMA", matchIfMissing = true)
@@ -110,11 +112,18 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
     }
 
     private String extractContent(ChatResponse response) {
+        // AI_003 원인 추적을 위해 어느 지점에서 본문이 비었는지 구분해 남긴다.
         if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
+            log.warn("LLM 응답에 결과가 없습니다. model={} reason={}",
+                aiLlmProperties.model(),
+                response == null ? "response null" : response.getResult() == null ? "result null" : "output null");
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
         }
         String text = response.getResult().getOutput().getText();
         if (text == null || text.isBlank()) {
+            log.warn("LLM 응답 본문이 비어 있습니다. model={} finishReason={}",
+                aiLlmProperties.model(),
+                response.getResult().getMetadata() == null ? "unknown" : response.getResult().getMetadata().getFinishReason());
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
         }
         return text;
