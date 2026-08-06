@@ -196,7 +196,12 @@ export default function AnalysisPage() {
   const [viewportBounds, setViewportBounds] =
     useState<GeoBounds>(SEOUL_MAP_BOUNDS)
   const [mapLayer, setMapLayer] = useState<MapLayer>('district')
-  const [fitRequest, setFitRequest] = useState<string | null>(null)
+  const [fitRequest, setFitRequest] = useState<{
+    code: string
+    seq: number
+  } | null>(null)
+  const requestFit = (code: string) =>
+    setFitRequest(prev => ({ code, seq: (prev?.seq ?? 0) + 1 }))
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -425,16 +430,20 @@ export default function AnalysisPage() {
     if (mapLayer === 'district') {
       const next = selectAnalysisValue(selection, 'district', code)
       router.replace(createAnalysisExplorerHref(next))
-      setFitRequest(code)
+      setRequestedStep('administration')
+      setPreviewedCode(null)
+      requestFit(code)
       return
     }
     if (mapLayer === 'administration') {
       const next = selectAdministrationWithParent(selection, code)
       router.replace(createAnalysisExplorerHref(next))
-      setFitRequest(code)
+      setRequestedStep('commercial')
+      setPreviewedCode(null)
+      requestFit(code)
       return
     }
-    // commercial (leaf): resolve parents, no fit
+    // commercial (leaf): resolve parents, focus 업종, no fit
     const clicked = allCommercialAreas.find(
       area => String(area.areaCode) === code,
     )
@@ -451,11 +460,13 @@ export default function AnalysisPage() {
         })
       : selectAnalysisValue(selection, 'commercial', code)
     router.replace(createAnalysisExplorerHref(next))
+    setRequestedStep('service')
+    setPreviewedCode(null)
   }
 
   const handlePanelSelect = (code: string) => {
     handleSelect(activeStep, code)
-    setFitRequest(code)
+    requestFit(code)
   }
 
   const panel = (
@@ -490,7 +501,7 @@ export default function AnalysisPage() {
           onPreviewChange={setPreviewedCode}
           onViewportBoundsChange={setViewportBounds}
           onZoomLayerChange={setMapLayer}
-          fitToCode={fitRequest}
+          fitTo={fitRequest}
         />
       }
       mapNotice={mapNotice}

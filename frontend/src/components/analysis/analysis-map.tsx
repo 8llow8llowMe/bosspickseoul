@@ -26,7 +26,7 @@ export type AnalysisMapProps = {
   onPreviewChange: (code: string | null) => void
   onViewportBoundsChange: (bounds: GeoBounds) => void
   onZoomLayerChange?: (layer: MapLayer) => void
-  fitToCode?: string | null
+  fitTo?: { code: string; seq: number } | null
 }
 
 type AnalysisMapLayerInput = Pick<
@@ -145,7 +145,7 @@ export default function AnalysisMap({
   onPreviewChange,
   onViewportBoundsChange,
   onZoomLayerChange,
-  fitToCode,
+  fitTo,
 }: AnalysisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<KakaoMapInstance | null>(null)
@@ -243,9 +243,9 @@ export default function AnalysisMap({
     const cleanups: Array<() => void> = []
 
     const polygonTokens = {
-      baseStroke: getColorToken('--color-primary-700', '#0ea5e9'),
+      baseStroke: getColorToken('--color-primary-600', '#2272eb'),
       activeStroke: getColorToken('--color-primary-600', '#2272eb'),
-      fill: getColorToken('--color-primary-700', '#0ea5e9'),
+      fill: getColorToken('--color-primary-600', '#2272eb'),
     }
 
     const cleanupPolygons = drawAreaPolygonLayer({
@@ -321,8 +321,8 @@ export default function AnalysisMap({
   useEffect(() => {
     const maps = mapsRef.current
     const map = mapRef.current
-    if (!maps || !map || !fitToCode) return
-    const area = areasRef.current.find(a => String(a.areaCode) === fitToCode)
+    if (!maps || !map || !fitTo) return
+    const area = areasRef.current.find(a => String(a.areaCode) === fitTo.code)
     if (!area) return
     const bounds = createBounds(normalizeBoundary(area.boundaryCoords))
     if (!bounds) return
@@ -330,7 +330,7 @@ export default function AnalysisMap({
     kb.extend(new maps.LatLng(bounds.latSW, bounds.lngSW))
     kb.extend(new maps.LatLng(bounds.latNE, bounds.lngNE))
     map.setBounds(kb)
-  }, [fitToCode])
+  }, [fitTo])
 
   return (
     <Root aria-label="분석 지역 지도">
