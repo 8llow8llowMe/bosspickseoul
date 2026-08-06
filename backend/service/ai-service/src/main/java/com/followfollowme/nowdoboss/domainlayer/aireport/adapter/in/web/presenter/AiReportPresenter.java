@@ -91,6 +91,8 @@ public class AiReportPresenter {
             .jobId(info.jobId())
             .jobType(info.jobType().toMetadata())
             .status(info.status().toMetadata())
+            // 진행 중일 때만 노출 — 종결 상태에서는 진행 문구가 화면에 남을 이유가 없다.
+            .progressMessages(info.status().isInFlight() ? info.jobType().getProgressMessages() : null)
             .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
             .commercialComparisonReport(
                 info.commercialComparisonReport() == null ? null : toCommercialComparisonResponse(info.commercialComparisonReport())

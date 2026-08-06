@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.aireport.adapter.in.web.dto.res
 
 import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -18,6 +19,11 @@ public record AiReportJobStatusResponse(
     @Schema(description = "작업 상태 메타데이터",
         example = "{\"code\":\"COMPLETED\",\"name\":\"완료\",\"description\":\"리포트 생성이 완료되었습니다.\"}")
     CodeNameDescriptionMetadata status,
+
+    @Schema(description = "진행 문구 로테이션 목록 (status=PENDING/RUNNING 일 때만 채워짐). "
+        + "프론트에서 3~5초 간격으로 순환 표시하는 UX 연출용이며 실제 처리 단계와는 무관합니다.",
+        example = "[\"상권 유동인구 흐름을 분석하고 있어요.\",\"업종별 매출 데이터를 요약하고 있어요.\"]")
+    List<String> progressMessages,
 
     @Schema(description = "완료된 상권 리포트 (status=COMPLETED 이고 jobType=COMMERCIAL 일 때 채워짐)")
     CommercialAiReportResponse commercialReport,
