@@ -15,6 +15,7 @@ import styled from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
+import DonutChart from '@/components/analysis/charts/donut-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
@@ -34,7 +35,7 @@ import {
 import { isApiSuccess } from '@/lib/api/response'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
-import { toTrendPoints } from '@/lib/analysis/chart-data'
+import { toGenderSegments, toTrendPoints } from '@/lib/analysis/chart-data'
 import {
   ANALYSIS_TABS,
   formatAnalysisValue,
@@ -1131,6 +1132,29 @@ export default function AnalysisResultView({
                 />
               </AnalysisResultSection>
             ))}
+            <AnalysisResultSection
+              title="성별 매출 건수"
+              loading={salesQuery.isPending}
+              error={
+                salesQuery.isError ||
+                isResponseError(salesQuery.data as ApiResponse<unknown>)
+              }
+              empty={
+                toGenderSegments(
+                  sales?.countByGenderItem?.maleSalesCount,
+                  sales?.countByGenderItem?.femaleSalesCount,
+                ).length === 0
+              }
+              onRetry={() => void salesQuery.refetch()}
+            >
+              <DonutChart
+                segments={toGenderSegments(
+                  sales?.countByGenderItem?.maleSalesCount,
+                  sales?.countByGenderItem?.femaleSalesCount,
+                )}
+                ariaLabel="성별 매출 건수 도넛"
+              />
+            </AnalysisResultSection>
           </>
         ) : null}
 
@@ -1192,6 +1216,29 @@ export default function AnalysisResultView({
                   populationAgeDefinitions,
                 )}
                 unit="명"
+              />
+            </AnalysisResultSection>
+            <AnalysisResultSection
+              title="성별 상주인구"
+              loading={populationQuery.isPending}
+              error={
+                populationQuery.isError ||
+                isResponseError(populationQuery.data as ApiResponse<unknown>)
+              }
+              empty={
+                toGenderSegments(
+                  population?.malePercentage,
+                  population?.femalePercentage,
+                ).length === 0
+              }
+              onRetry={() => void populationQuery.refetch()}
+            >
+              <DonutChart
+                segments={toGenderSegments(
+                  population?.malePercentage,
+                  population?.femalePercentage,
+                )}
+                ariaLabel="성별 상주인구 도넛"
               />
             </AnalysisResultSection>
             <AnalysisResultSection
