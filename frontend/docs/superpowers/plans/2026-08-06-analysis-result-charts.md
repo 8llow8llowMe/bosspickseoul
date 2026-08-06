@@ -21,29 +21,31 @@
 
 ## 파일 구조
 
-| 파일 | 책임 |
-| --- | --- |
-| `src/lib/analysis/chart-data.ts` (신규) | DTO → 정규화 series 순수함수 (`toTrendPoints`, `toPyramidRows`, `toGenderSegments`) |
-| `src/lib/analysis/chart-data.test.ts` (신규) | 위 순수함수 단위 테스트 |
-| `src/components/analysis/charts/chart-frame.tsx` (신규) | 반응형 SVG 래퍼 + 툴팁 오버레이 컨테이너 |
-| `src/components/analysis/charts/use-chart-tooltip.ts` (신규) | `'use client'` 호버/포커스 툴팁 상태 훅 |
-| `src/components/analysis/charts/line-chart.tsx` (신규) | 분기별 라인 + 추세 배지 |
-| `src/components/analysis/charts/donut-chart.tsx` (신규) | 성별 도넛(2 세그먼트) |
-| `src/components/analysis/charts/population-pyramid.tsx` (신규) | 연령×성별 좌우 막대 |
-| `src/components/analysis/charts/*.test.ts` (신규) | 각 차트 정적 마크업 테스트 |
-| `src/styles/global-styles.ts` (수정) | `--color-chart-female`, `--color-chart-grid`, `--color-positive`/`--color-negative` 별칭 추가 |
-| `src/components/analysis/analysis-result-view.tsx` (수정) | 트렌드/유동/거주/매출 탭에 차트 마운트 |
-| `docs/features/analysis/result.md` (수정) | 차트 설계·피라미드 배치 정정 반영 |
+| 파일                                                           | 책임                                                                                          |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `src/lib/analysis/chart-data.ts` (신규)                        | DTO → 정규화 series 순수함수 (`toTrendPoints`, `toPyramidRows`, `toGenderSegments`)           |
+| `src/lib/analysis/chart-data.test.ts` (신규)                   | 위 순수함수 단위 테스트                                                                       |
+| `src/components/analysis/charts/chart-frame.tsx` (신규)        | 반응형 SVG 래퍼 + 툴팁 오버레이 컨테이너                                                      |
+| `src/components/analysis/charts/use-chart-tooltip.ts` (신규)   | `'use client'` 호버/포커스 툴팁 상태 훅                                                       |
+| `src/components/analysis/charts/line-chart.tsx` (신규)         | 분기별 라인 + 추세 배지                                                                       |
+| `src/components/analysis/charts/donut-chart.tsx` (신규)        | 성별 도넛(2 세그먼트)                                                                         |
+| `src/components/analysis/charts/population-pyramid.tsx` (신규) | 연령×성별 좌우 막대                                                                           |
+| `src/components/analysis/charts/*.test.ts` (신규)              | 각 차트 정적 마크업 테스트                                                                    |
+| `src/styles/global-styles.ts` (수정)                           | `--color-chart-female`, `--color-chart-grid`, `--color-positive`/`--color-negative` 별칭 추가 |
+| `src/components/analysis/analysis-result-view.tsx` (수정)      | 트렌드/유동/거주/매출 탭에 차트 마운트                                                        |
+| `docs/features/analysis/result.md` (수정)                      | 차트 설계·피라미드 배치 정정 반영                                                             |
 
 ---
 
 ## Task 1: 데이터 정규화 순수함수 (`chart-data.ts`)
 
 **Files:**
+
 - Create: `src/lib/analysis/chart-data.ts`
 - Test: `src/lib/analysis/chart-data.test.ts`
 
 **Interfaces:**
+
 - Consumes: `formatPeriodCode` from `@/lib/analysis/presentation`; `CommercialTrend`, `CommercialFootTraffic` from `@/types/commercial-analysis`.
 - Produces:
   - `type TrendPoint = { periodLabel: string; value: number | null; changeRate: number | null }`
@@ -206,12 +208,14 @@ git commit -m "[FE] feat: 분석 차트 데이터 정규화 순수함수 추가"
 ## Task 2: 차트 색상 토큰 + 공통 프레임/툴팁
 
 **Files:**
+
 - Modify: `src/styles/global-styles.ts` (`:root` 토큰 블록에 추가)
 - Create: `src/components/analysis/charts/use-chart-tooltip.ts`
 - Create: `src/components/analysis/charts/chart-frame.tsx`
 - Test: `src/components/analysis/charts/chart-frame.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - CSS 토큰: `--color-chart-female`, `--color-chart-grid`, `--color-positive`, `--color-negative`
   - `useChartTooltip(): { active: TooltipState | null; show: (t: TooltipState) => void; hide: () => void }` where `type TooltipState = { x: number; y: number; label: string; value: string }`
@@ -364,11 +368,13 @@ git commit -m "[FE] feat: 차트 색상 토큰과 공통 SVG 프레임·툴팁 �
 ## Task 3: 분기별 라인 차트 + 트렌드 탭 마운트
 
 **Files:**
+
 - Create: `src/components/analysis/charts/line-chart.tsx`
 - Test: `src/components/analysis/charts/line-chart.test.ts`
 - Modify: `src/components/analysis/analysis-result-view.tsx` (트렌드 탭 `trends.map` 내부의 `AnalysisMetricList` → `LineChart`)
 
 **Interfaces:**
+
 - Consumes: `TrendPoint` (Task 1), `ChartFrame`/`useChartTooltip` (Task 2), `formatAnalysisValue` from presentation.
 - Produces: `LineChart(props: { points: TrendPoint[]; unit: string; direction?: 'INCREASE' | 'DECREASE' | 'STAGNANT' | null }): JSX.Element`
 
@@ -401,7 +407,9 @@ describe('LineChart', () => {
   it('전부 null이면 데이터 없음을 안내한다', () => {
     const markup = renderToStaticMarkup(
       createElement(LineChart, {
-        points: [{ periodLabel: '2023년 3분기', value: null, changeRate: null }],
+        points: [
+          { periodLabel: '2023년 3분기', value: null, changeRate: null },
+        ],
         unit: '원',
       }),
     )
@@ -617,11 +625,13 @@ git commit -m "[FE] feat: 트렌드 탭 분기별 라인 차트 도입"
 ## Task 4: 성별 도넛 차트 + 거주·매출 탭 마운트
 
 **Files:**
+
 - Create: `src/components/analysis/charts/donut-chart.tsx`
 - Test: `src/components/analysis/charts/donut-chart.test.ts`
 - Modify: `src/components/analysis/analysis-result-view.tsx` (거주 탭 성별 도넛 섹션, 매출 탭 성별 매출건수 섹션)
 
 **Interfaces:**
+
 - Consumes: `GenderSegment` (Task 1), `ChartFrame`/`useChartTooltip` (Task 2).
 - Produces: `DonutChart(props: { segments: GenderSegment[]; unit?: string; ariaLabel: string }): JSX.Element`
 
@@ -725,10 +735,7 @@ export type DonutChartProps = {
   ariaLabel: string
 }
 
-export default function DonutChart({
-  segments,
-  ariaLabel,
-}: DonutChartProps) {
+export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0)
   if (segments.length === 0 || total <= 0) return <Empty>데이터 없음</Empty>
 
@@ -876,11 +883,13 @@ git commit -m "[FE] feat: 거주·매출 탭 성별 도넛 차트 도입"
 ## Task 5: 연령×성별 인구 피라미드 + 유동인구 탭 마운트
 
 **Files:**
+
 - Create: `src/components/analysis/charts/population-pyramid.tsx`
 - Test: `src/components/analysis/charts/population-pyramid.test.ts`
 - Modify: `src/components/analysis/analysis-result-view.tsx` (유동인구 탭에 신규 섹션)
 
 **Interfaces:**
+
 - Consumes: `PyramidRow` (Task 1), `ChartFrame`/`useChartTooltip` (Task 2).
 - Produces: `PopulationPyramid(props: { rows: PyramidRow[]; unit?: string }): JSX.Element`
 
@@ -1100,11 +1109,9 @@ import { toPyramidRows } from '@/lib/analysis/chart-data'
     footTrafficQuery.isError ||
     isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
   }
-  empty={
-    toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
-      row => row.male === null && row.female === null,
-    )
-  }
+  empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
+    row => row.male === null && row.female === null,
+  )}
   onRetry={() => void footTrafficQuery.refetch()}
 >
   <PopulationPyramid
@@ -1129,6 +1136,7 @@ git commit -m "[FE] feat: 유동인구 연령·성별 인구 피라미드 도입
 ## Task 6: 정본 명세 갱신 + 전체 검증
 
 **Files:**
+
 - Modify: `docs/features/analysis/result.md`
 
 - [ ] **Step 1: 명세 갱신**
