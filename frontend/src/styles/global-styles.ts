@@ -28,6 +28,9 @@ const GlobalStyles = createGlobalStyle`
     --color-primary-700: var(--color-blue-500);
     --color-primary-600: var(--color-blue-600);
     --color-primary-100: var(--color-blue-50);
+    --color-chart-female: #f2698f; /* 여성 계열: primary(blue)와 명도·색상 대비 확보 */
+    --color-positive: var(--color-green-500); /* 상승 */
+    --color-negative: var(--color-red-500); /* 하락 */
     --color-text-900: #191f28;
     --color-text-800: var(--color-grey-800);
     --color-text-700: var(--color-grey-700);

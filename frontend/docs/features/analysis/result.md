@@ -122,13 +122,13 @@ flowchart LR
 
 ### D3-4. 사용 라이브러리 / 기술
 
-| 역할          | 요구 사항                                      | 구체 구현                             |
-| ------------- | ---------------------------------------------- | ------------------------------------- |
-| 라우트 모달   | URL 유지, 직접 접근 fallback, history 복원     | Next.js parallel/intercepting routes  |
-| 서버 상태     | 섹션별 query, 조건부 조회, 재시도              | 기존 TanStack React Query             |
-| dialog 접근성 | focus trap, Escape, focus restore, scroll lock | 기존 dialog primitive가 있으면 재사용 |
-| 지표 시각화   | 디자인 토큰, responsive, 별도 패키지 없음      | 기존 CSS/SVG/semantic HTML            |
-| 공유          | 현재 URL 복사, 지원 시 native share            | Web Share API + Clipboard fallback    |
+| 역할          | 요구 사항                                      | 구체 구현                                                                                                           |
+| ------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 라우트 모달   | URL 유지, 직접 접근 fallback, history 복원     | Next.js parallel/intercepting routes                                                                                |
+| 서버 상태     | 섹션별 query, 조건부 조회, 재시도              | 기존 TanStack React Query                                                                                           |
+| dialog 접근성 | focus trap, Escape, focus restore, scroll lock | 기존 dialog primitive가 있으면 재사용                                                                               |
+| 지표 시각화   | 디자인 토큰, responsive, 별도 패키지 없음      | 기존 CSS/SVG/semantic HTML, 자체 SVG 차트 프리미티브(라인·도넛·피라미드)를 `src/components/analysis/charts/`에 둔다 |
+| 공유          | 현재 URL 복사, 지원 시 native share            | Web Share API + Clipboard fallback                                                                                  |
 
 ---
 
@@ -164,6 +164,13 @@ flowchart LR
 | `benchmark` 비교        | 제공되는 동일 업종 기준 비교             | `GET /api/v1/commercials/{commercialCode}/benchmarks`                                         |
 
 활성화하지 않은 탭은 요청하지 않는다. 요약에서 이미 받은 동일 endpoint 결과는 query key를 공유해 재사용한다.
+
+**표현 규칙**
+
+- 트렌드: 분기별 **라인 차트** + `trendDirection` 배지(↑↓→) + `changeRate`.
+- 유동인구: `byAgeGenderPercentItem` 기반 **연령×성별 인구 피라미드** 추가.
+- 거주: 전체 성비(`malePercentage`/`femalePercentage`) **성별 도넛**. 연령별 성별 데이터 부재로 피라미드는 두지 않는다.
+- 매출: `countByGenderItem` 기반 **성별 매출건수 도넛** 추가.
 
 ### D4-3. 상권 저장과 인증
 
@@ -299,6 +306,7 @@ AND tab ∈ allowedTabs
 
 ## 변경 이력
 
-| 버전 | 날짜       | 변경 내용                                                          | 작성자 |
-| ---- | ---------- | ------------------------------------------------------------------ | ------ |
-| 1.0  | 2026-07-24 | 데스크톱 라우트 모달 + 모바일/직접 접근 전체 페이지 명세 최초 작성 | Codex  |
+| 버전 | 날짜       | 변경 내용                                                                                 | 작성자 |
+| ---- | ---------- | ----------------------------------------------------------------------------------------- | ------ |
+| 1.0  | 2026-07-24 | 데스크톱 라우트 모달 + 모바일/직접 접근 전체 페이지 명세 최초 작성                        | Codex  |
+| 1.1  | 2026-08-06 | High 슬라이스 SVG 차트(라인·도넛·피라미드) 도입, 피라미드는 데이터 근거상 유동인구에 배치 | Claude |
