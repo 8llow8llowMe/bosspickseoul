@@ -1186,41 +1186,39 @@ export default function AnalysisResultView({
         >
           <GroupHeading>유동인구</GroupHeading>
           <DashboardGrid>
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="시간대별 유동인구"
-                loading={footTrafficQuery.isPending}
-                error={
-                  footTrafficQuery.isError ||
-                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-                }
-                empty={
-                  !hasObjectValues(
-                    footTraffic?.byTimeSlotItem as Record<
-                      string,
-                      number | null
-                    > | null,
-                  )
-                }
-                onRetry={() => void footTrafficQuery.refetch()}
-              >
-                <ChartBox $maxWidth={560}>
-                  <LineChart
-                    points={toLinePoints(
-                      createRows(
-                        footTraffic?.byTimeSlotItem as Record<
-                          string,
-                          number | null
-                        >,
-                        footTimeDefinitions,
-                      ),
-                    )}
-                    unit="명"
-                    ariaLabel="시간대별 유동인구 추이"
-                  />
-                </ChartBox>
-              </AnalysisResultSection>
-            </FullSpanItem>
+            <AnalysisResultSection
+              title="시간대별 유동인구"
+              loading={footTrafficQuery.isPending}
+              error={
+                footTrafficQuery.isError ||
+                isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
+              }
+              empty={
+                !hasObjectValues(
+                  footTraffic?.byTimeSlotItem as Record<
+                    string,
+                    number | null
+                  > | null,
+                )
+              }
+              onRetry={() => void footTrafficQuery.refetch()}
+            >
+              <ChartBox $maxWidth={560}>
+                <LineChart
+                  points={toLinePoints(
+                    createRows(
+                      footTraffic?.byTimeSlotItem as Record<
+                        string,
+                        number | null
+                      >,
+                      footTimeDefinitions,
+                    ),
+                  )}
+                  unit="명"
+                  ariaLabel="시간대별 유동인구 추이"
+                />
+              </ChartBox>
+            </AnalysisResultSection>
 
             <AnalysisResultSection
               title="요일별 유동인구"
@@ -1285,41 +1283,39 @@ export default function AnalysisResultView({
         >
           <GroupHeading>매출</GroupHeading>
           <DashboardGrid>
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="시간대별 매출"
-                loading={salesQuery.isPending}
-                error={
-                  salesQuery.isError ||
-                  isResponseError(salesQuery.data as ApiResponse<unknown>)
-                }
-                empty={
-                  !hasObjectValues(
-                    sales?.amountByTimeSlotItem as Record<
-                      string,
-                      number | null
-                    > | null,
-                  )
-                }
-                onRetry={() => void salesQuery.refetch()}
-              >
-                <ChartBox $maxWidth={560}>
-                  <LineChart
-                    points={toLinePoints(
-                      createRows(
-                        sales?.amountByTimeSlotItem as Record<
-                          string,
-                          number | null
-                        >,
-                        salesTimeDefinitions,
-                      ),
-                    )}
-                    unit="원"
-                    ariaLabel="시간대별 매출 추이"
-                  />
-                </ChartBox>
-              </AnalysisResultSection>
-            </FullSpanItem>
+            <AnalysisResultSection
+              title="시간대별 매출"
+              loading={salesQuery.isPending}
+              error={
+                salesQuery.isError ||
+                isResponseError(salesQuery.data as ApiResponse<unknown>)
+              }
+              empty={
+                !hasObjectValues(
+                  sales?.amountByTimeSlotItem as Record<
+                    string,
+                    number | null
+                  > | null,
+                )
+              }
+              onRetry={() => void salesQuery.refetch()}
+            >
+              <ChartBox $maxWidth={560}>
+                <LineChart
+                  points={toLinePoints(
+                    createRows(
+                      sales?.amountByTimeSlotItem as Record<
+                        string,
+                        number | null
+                      >,
+                      salesTimeDefinitions,
+                    ),
+                  )}
+                  unit="원"
+                  ariaLabel="시간대별 매출 추이"
+                />
+              </ChartBox>
+            </AnalysisResultSection>
 
             <AnalysisResultSection
               title="요일별 매출"

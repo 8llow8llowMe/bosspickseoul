@@ -38,9 +38,40 @@ export const resolveActiveSpyId = (
 }
 
 /**
+ * Sticky header height (matches `ReportSection`'s `scroll-margin-top` in
+ * `analysis-result-view.tsx`, desktop value). Used as the top inset of the
+ * observer's `rootMargin` so a section only counts as "current" once it has
+ * scrolled clear of the header — without this, a section registers as
+ * intersecting while it's still hidden underneath the sticky header, which
+ * shows the *previous* tab's neighbor as active.
+ */
+const HEADER_OFFSET_PX = 112
+
+/**
+ * Walks up from `el` looking for the nearest ancestor that actually scrolls
+ * (`overflow-y: auto|scroll`) — e.g. the analysis-result modal's inner
+ * `ScrollArea` on desktop, where the page itself never scrolls but that
+ * wrapper does. Stops before `<body>`/`<html>`; returns `null` when none is
+ * found, which tells `IntersectionObserver` to use the default viewport
+ * root (the plain, non-modal `/analysis/result` page).
+ */
+const findScrollContainer = (el: Element): Element | null => {
+  let node = el.parentElement
+  while (node && node !== document.body && node !== document.documentElement) {
+    const overflowY = window.getComputedStyle(node).overflowY
+    if (overflowY === 'auto' || overflowY === 'scroll') {
+      return node
+    }
+    node = node.parentElement
+  }
+  return null
+}
+
+/**
  * IntersectionObserver-backed scroll-spy: returns the id of the section
- * currently sitting at the top of the viewport, out of `ids`. SSR-safe —
- * all DOM/observer access happens inside an effect.
+ * currently sitting at the top of the viewport (or the modal's scroll
+ * container, whichever actually scrolls), out of `ids`. SSR-safe — all
+ * DOM/observer access happens inside an effect.
  *
  * Pass a referentially stable `ids` array (e.g. a module-level constant) —
  * it drives the effect's dependency and re-subscribes the observer whenever
@@ -60,6 +91,7 @@ export function useScrollSpy(ids: readonly string[]): string {
     if (elements.length === 0) return
 
     const state = new Map<string, ScrollSpyEntry>()
+    const root = findScrollContainer(elements[0].el)
 
     const observer = new IntersectionObserver(
       observedEntries => {
@@ -69,7 +101,10 @@ export function useScrollSpy(ids: readonly string[]): string {
           state.set(matched.id, {
             id: matched.id,
             isIntersecting: entry.isIntersecting,
-            top: entry.boundingClientRect.top,
+            // Relative to the observing root's own top edge, not the
+            // browser viewport — inside the modal, `root` sits offset from
+            // the viewport, and boundingClientRect alone doesn't know that.
+            top: entry.boundingClientRect.top - (entry.rootBounds?.top ?? 0),
           })
         })
         const known = ids
@@ -77,7 +112,11 @@ export function useScrollSpy(ids: readonly string[]): string {
           .filter((entry): entry is ScrollSpyEntry => entry !== undefined)
         setActiveId(current => resolveActiveSpyId(known, ids, current))
       },
-      { rootMargin: '0px 0px -70% 0px', threshold: [0, 1] },
+      {
+        root,
+        rootMargin: `-${HEADER_OFFSET_PX}px 0px -60% 0px`,
+        threshold: [0, 1],
+      },
     )
 
     elements.forEach(({ el }) => observer.observe(el))
