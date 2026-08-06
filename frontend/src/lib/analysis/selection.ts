@@ -1,3 +1,5 @@
+import { resolveDistrictCodeFromAdministration } from '@/lib/map/geometry'
+
 export const ANALYSIS_PERIOD_CODE = '20233' as const
 
 export const ANALYSIS_STEPS = [
@@ -150,3 +152,41 @@ export const createAnalysisResultHref = (
   params.set('tab', tab)
   return `/analysis/result?${params}`
 }
+
+export const selectAdministrationWithParent = (
+  selection: AnalysisSelection,
+  administrationCode: string,
+): AnalysisSelection => ({
+  districtCode: resolveDistrictCodeFromAdministration(administrationCode),
+  administrationCode,
+  commercialCode: null,
+  serviceCode: null,
+  periodCode: ANALYSIS_PERIOD_CODE,
+})
+
+export const selectCommercialWithParents = (
+  selection: AnalysisSelection,
+  {
+    commercialCode,
+    administrationCode,
+  }: {
+    commercialCode: string
+    administrationCode: string
+  },
+): AnalysisSelection => ({
+  districtCode: resolveDistrictCodeFromAdministration(administrationCode),
+  administrationCode,
+  commercialCode,
+  serviceCode: selection.serviceCode,
+  periodCode: ANALYSIS_PERIOD_CODE,
+})
+
+export const shouldAutoNavigateToAnalysis = (
+  selection: AnalysisSelection,
+): boolean =>
+  Boolean(
+    selection.districtCode &&
+    selection.administrationCode &&
+    selection.commercialCode &&
+    selection.serviceCode,
+  )

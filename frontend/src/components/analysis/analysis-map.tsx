@@ -7,6 +7,8 @@ import styled from 'styled-components'
 import { Button } from '@/components/ui/button'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
+import { resolveMapLayerByZoom, type MapLayer } from '@/lib/analysis/map-layer'
+import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import {
   createBounds,
   normalizeBoundary,
@@ -23,6 +25,8 @@ export type AnalysisMapProps = {
   onSelect: (code: string) => void
   onPreviewChange: (code: string | null) => void
   onViewportBoundsChange: (bounds: GeoBounds) => void
+  onZoomLayerChange?: (layer: MapLayer) => void
+  fitTo?: { code: string; level: number; seq: number } | null
 }
 
 type AnalysisMapLayerInput = Pick<
@@ -140,15 +144,19 @@ export default function AnalysisMap({
   onSelect,
   onPreviewChange,
   onViewportBoundsChange,
+  onZoomLayerChange,
+  fitTo,
 }: AnalysisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const mapsRef = useRef<KakaoMapsNamespace | null>(null)
   const clearLayersRef = useRef<() => void>(() => undefined)
+  const areasRef = useRef(areas)
   const callbacksRef = useRef({
     onSelect,
     onPreviewChange,
     onViewportBoundsChange,
+    onZoomLayerChange,
   })
   const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -166,8 +174,13 @@ export default function AnalysisMap({
       onSelect,
       onPreviewChange,
       onViewportBoundsChange,
+      onZoomLayerChange,
     }
-  }, [onPreviewChange, onSelect, onViewportBoundsChange])
+  }, [onPreviewChange, onSelect, onViewportBoundsChange, onZoomLayerChange])
+
+  useEffect(() => {
+    areasRef.current = areas
+  }, [areas])
 
   useEffect(() => {
     let cancelled = false
@@ -194,6 +207,9 @@ export default function AnalysisMap({
             if (bounds) {
               callbacksRef.current.onViewportBoundsChange(bounds)
             }
+            callbacksRef.current.onZoomLayerChange?.(
+              resolveMapLayerByZoom(map.getLevel()),
+            )
           }, VIEWPORT_DEBOUNCE_MS)
         }
         maps.event.addListener(map, 'idle', idleHandler)
@@ -223,38 +239,32 @@ export default function AnalysisMap({
     const map = mapRef.current
     if (sdkStatus !== 'ready' || !maps || !map) return
 
-    const polygons: KakaoMapPolygon[] = []
     const overlays: KakaoMapCustomOverlay[] = []
-    const listeners: Array<{ target: object; handler: () => void }> = []
     const cleanups: Array<() => void> = []
-    const primary = getColorToken('--color-primary-600', '#2272eb')
-    const neutral = getColorToken('--color-border-300', '#b0b8c1')
-    const fill = getColorToken('--color-primary-100', '#e8f3ff')
+
+    const polygonTokens = {
+      baseStroke: getColorToken('--color-primary-600', '#2272eb'),
+      activeStroke: getColorToken('--color-primary-600', '#2272eb'),
+      fill: getColorToken('--color-primary-600', '#2272eb'),
+    }
+
+    const cleanupPolygons = drawAreaPolygonLayer({
+      map,
+      maps,
+      areas,
+      selectedCode,
+      hoveredCode: previewedCode,
+      onSelect: code => callbacksRef.current.onSelect(code),
+      onHoverChange: code => callbacksRef.current.onPreviewChange(code),
+      tokens: polygonTokens,
+      fitToSelected: false,
+    })
 
     areas.forEach((area, index) => {
       const code = String(area.areaCode)
-      const points = normalizeBoundary(area.boundaryCoords)
       const selected = code === selectedCode
       const previewed = code === previewedCode
       const highlighted = selected || previewed
-
-      if (points.length >= 3) {
-        const polygon = new maps.Polygon({
-          map,
-          path: points.map(point => new maps.LatLng(point.lat, point.lng)),
-          strokeWeight: highlighted ? 3 : 1,
-          strokeColor: highlighted ? primary : neutral,
-          strokeOpacity: 1,
-          fillColor: highlighted ? primary : fill,
-          fillOpacity: highlighted ? 0.24 : 0.3,
-          clickable: true,
-        })
-        polygon.setZIndex(highlighted ? 100 : index + 1)
-        const handler = () => callbacksRef.current.onSelect(code)
-        maps.event.addListener(polygon, 'click', handler)
-        polygons.push(polygon)
-        listeners.push({ target: polygon, handler })
-      }
 
       const center = normalizeBoundary([[area.centerLng, area.centerLat]])[0]
       if (!center) return
@@ -298,33 +308,9 @@ export default function AnalysisMap({
       overlays.push(overlay)
     })
 
-    const selectedArea = areas.find(
-      area => String(area.areaCode) === selectedCode,
-    )
-    if (selectedArea) {
-      const points = normalizeBoundary(selectedArea.boundaryCoords)
-      const bounds = createBounds(points)
-      if (bounds) {
-        const kakaoBounds = new maps.LatLngBounds()
-        kakaoBounds.extend(new maps.LatLng(bounds.latSW, bounds.lngSW))
-        kakaoBounds.extend(new maps.LatLng(bounds.latNE, bounds.lngNE))
-        map.setBounds(kakaoBounds)
-      } else {
-        const center = normalizeBoundary([
-          [selectedArea.centerLng, selectedArea.centerLat],
-        ])[0]
-        if (center) {
-          map.setCenter(new maps.LatLng(center.lat, center.lng))
-        }
-      }
-    }
-
     const clearLayers = () => {
-      listeners.forEach(({ target, handler }) => {
-        maps.event.removeListener(target, 'click', handler)
-      })
+      cleanupPolygons()
       cleanups.forEach(cleanup => cleanup())
-      polygons.forEach(polygon => polygon.setMap(null))
       overlays.forEach(overlay => overlay.setMap(null))
     }
     clearLayersRef.current = clearLayers
@@ -332,9 +318,24 @@ export default function AnalysisMap({
     return clearLayers
   }, [areas, layerKey, previewedCode, sdkStatus, selectedCode])
 
+  useEffect(() => {
+    const maps = mapsRef.current
+    const map = mapRef.current
+    if (!maps || !map || !fitTo) return
+    const area = areasRef.current.find(a => String(a.areaCode) === fitTo.code)
+    if (!area) return
+    const bounds = createBounds(normalizeBoundary(area.boundaryCoords))
+    if (!bounds) return
+    // 클릭 영역 중심으로 이동 + 자식 레이어가 보이는 줌 레벨로 확실히 진입
+    const centerLat = (bounds.latSW + bounds.latNE) / 2
+    const centerLng = (bounds.lngSW + bounds.lngNE) / 2
+    map.setCenter(new maps.LatLng(centerLat, centerLng))
+    map.setLevel(fitTo.level)
+  }, [fitTo])
+
   return (
     <Root aria-label="분석 지역 지도">
-      <Canvas ref={containerRef} />
+      <Canvas ref={containerRef} data-kakao-map="true" />
       {sdkStatus === 'loading' ? (
         <Status role="status">
           <StatusContent>지도를 준비하고 있어요</StatusContent>

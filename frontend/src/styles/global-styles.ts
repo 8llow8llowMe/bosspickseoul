@@ -147,6 +147,17 @@ const GlobalStyles = createGlobalStyle`
     max-width: 100%;
   }
 
+  /* Kakao Map 내부 요소는 리셋에서 제외한다. 오버레이(폴리곤) SVG는 폭 0
+     앵커 pane을 넘쳐 그려지도록 인라인 width를 유지해야 하는데, 위 리셋의
+     max-width:100%가 이를 0으로 클램프해 폴리곤이 보이지 않는 문제를 막는다. */
+  [data-kakao-map] img,
+  [data-kakao-map] picture,
+  [data-kakao-map] video,
+  [data-kakao-map] canvas,
+  [data-kakao-map] svg {
+    max-width: none;
+  }
+
   ul,
   ol {
     list-style: none;

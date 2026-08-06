@@ -76,17 +76,19 @@ const Description = styled.p`
 const StepList = styled.ol`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 8px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border-200);
 `
 
 const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
   min-width: 0;
-  min-height: 48px;
-  display: grid;
-  place-items: center;
-  gap: 2px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   border: 1px solid
     ${props =>
       props.$active ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
@@ -99,10 +101,17 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
       : props.$completed
         ? 'var(--color-text-800)'
         : 'var(--color-text-caption)'};
-  padding: 6px 3px;
+  padding: 10px 8px;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  word-break: keep-all;
   cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 
   &:disabled {
     cursor: not-allowed;
@@ -113,6 +122,8 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
 const StepNumber = styled.span`
   font-size: 10px;
   line-height: 14px;
+  font-weight: 600;
+  opacity: 0.8;
 `
 
 const Body = styled.div`

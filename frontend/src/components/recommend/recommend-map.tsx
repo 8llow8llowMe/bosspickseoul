@@ -6,6 +6,7 @@ import styled from 'styled-components'
 import RecommendFeedback from '@/components/recommend/recommend-feedback'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
+import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import {
   getScoreFillOpacity,
   normalizeBoundary,
@@ -471,6 +472,7 @@ export default function RecommendMap({
     'loading',
   )
   const [loadAttempt, setLoadAttempt] = useState(0)
+  const [hoveredAreaCode, setHoveredAreaCode] = useState<string | null>(null)
 
   callbacksRef.current = {
     onBackgroundClick,
@@ -612,11 +614,17 @@ export default function RecommendMap({
       handler: () => void
     }> = []
     const domCleanups: Array<() => void> = []
+    const polygonLayerCleanups: Array<() => void> = []
     const resultLayerEntries: ResultLayerVisualEntry[] = []
     const selectedColor = readColorToken('--color-primary-600', '#2272eb')
     const primaryColor = readColorToken('--color-primary-500', '#3182f6')
     const neutralStroke = readColorToken('--color-border-300', '#d1d6db')
     const neutralFill = readColorToken('--color-surface-muted', '#f2f4f6')
+    const areaPolygonTokens = {
+      baseStroke: readColorToken('--color-primary-700', '#0ea5e9'),
+      activeStroke: readColorToken('--color-primary-600', '#2272eb'),
+      fill: readColorToken('--color-primary-700', '#0ea5e9'),
+    }
 
     const suppressBackground = () => {
       guardRef.current?.suppressForCurrentTask()
@@ -685,18 +693,18 @@ export default function RecommendMap({
     }
 
     if (layerInput.stage === 'district') {
-      layerInput.districtAreas.forEach((area, index) => {
-        const selected = area.areaCode === layerInput.selectedDistrictCode
-        drawPolygon({
-          points: normalizeBoundary(area.boundaryCoords),
-          zIndex: selected ? 100 : index + 10,
-          strokeColor: selected ? selectedColor : neutralStroke,
-          strokeWeight: selected ? 3 : 1,
-          fillColor: selected ? primaryColor : neutralFill,
-          fillOpacity: selected ? 0.24 : 0.34,
-          onClick: () => callbacksRef.current.onDistrictSelect(area.areaCode),
-        })
-      })
+      polygonLayerCleanups.push(
+        drawAreaPolygonLayer({
+          map,
+          maps,
+          areas: layerInput.districtAreas,
+          selectedCode: layerInput.selectedDistrictCode,
+          hoveredCode: hoveredAreaCode,
+          onSelect: code => callbacksRef.current.onDistrictSelect(code),
+          onHoverChange: setHoveredAreaCode,
+          tokens: areaPolygonTokens,
+        }),
+      )
     }
 
     if (layerInput.stage === 'administration') {
@@ -705,19 +713,18 @@ export default function RecommendMap({
           area => area.areaCode === layerInput.selectedDistrictCode,
         ),
       )
-      layerInput.administrationAreas.forEach((area, index) => {
-        const selected = area.areaCode === layerInput.selectedAdministrationCode
-        drawPolygon({
-          points: normalizeBoundary(area.boundaryCoords),
-          zIndex: selected ? 100 : index + 10,
-          strokeColor: selected ? selectedColor : neutralStroke,
-          strokeWeight: selected ? 3 : 1,
-          fillColor: selected ? primaryColor : neutralFill,
-          fillOpacity: selected ? 0.24 : 0.3,
-          onClick: () =>
-            callbacksRef.current.onAdministrationSelect(area.areaCode),
-        })
-      })
+      polygonLayerCleanups.push(
+        drawAreaPolygonLayer({
+          map,
+          maps,
+          areas: layerInput.administrationAreas,
+          selectedCode: layerInput.selectedAdministrationCode,
+          hoveredCode: hoveredAreaCode,
+          onSelect: code => callbacksRef.current.onAdministrationSelect(code),
+          onHoverChange: setHoveredAreaCode,
+          tokens: areaPolygonTokens,
+        }),
+      )
     }
 
     if (layerInput.stage === 'commercial') {
@@ -726,19 +733,18 @@ export default function RecommendMap({
           area => area.areaCode === layerInput.selectedAdministrationCode,
         ),
       )
-      layerInput.commercialAreas.forEach((area, index) => {
-        const previewed = area.areaCode === layerInput.previewedCommercialCode
-        drawPolygon({
-          points: normalizeBoundary(area.boundaryCoords),
-          zIndex: previewed ? 100 : index + 10,
-          strokeColor: previewed ? selectedColor : neutralStroke,
-          strokeWeight: previewed ? 3 : 1,
-          fillColor: previewed ? primaryColor : neutralFill,
-          fillOpacity: previewed ? 0.24 : 0.3,
-          onClick: () =>
-            callbacksRef.current.onCommercialPreviewChange?.(area.areaCode),
-        })
-      })
+      polygonLayerCleanups.push(
+        drawAreaPolygonLayer({
+          map,
+          maps,
+          areas: layerInput.commercialAreas,
+          selectedCode: selectedCommercialCodeRef.current,
+          hoveredCode: hoveredAreaCode,
+          onSelect: code => callbacksRef.current.onCommercialSelect(code),
+          onHoverChange: setHoveredAreaCode,
+          tokens: areaPolygonTokens,
+        }),
+      )
     }
 
     if (layerInput.stage === 'results') {
@@ -845,6 +851,7 @@ export default function RecommendMap({
         maps.event.removeListener(target, 'click', handler)
       })
       domCleanups.forEach(cleanup => cleanup())
+      polygonLayerCleanups.forEach(cleanup => cleanup())
       polygons.forEach(polygon => polygon.setMap(null))
       overlays.forEach(overlay => overlay.setMap(null))
       if (resultLayersRef.current === resultLayerEntries) {
@@ -859,7 +866,7 @@ export default function RecommendMap({
         clearLayersRef.current = () => undefined
       }
     }
-  }, [layerSemanticKey, sdkStatus])
+  }, [hoveredAreaCode, layerSemanticKey, sdkStatus])
 
   useEffect(() => {
     const maps = mapsRef.current
@@ -888,7 +895,11 @@ export default function RecommendMap({
 
   return (
     <MapRegion aria-label="상권 추천 지도" role="region">
-      <MapCanvas ref={containerRef} data-recommend-map-container="true" />
+      <MapCanvas
+        ref={containerRef}
+        data-recommend-map-container="true"
+        data-kakao-map="true"
+      />
       <Badge>추천 범위 고정</Badge>
       <RecenterButton
         type="button"

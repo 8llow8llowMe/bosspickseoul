@@ -12,6 +12,8 @@ declare global {
 
   type KakaoMapInstance = {
     getBounds(): KakaoMapLatLngBounds
+    getLevel(): number
+    setLevel(level: number): void
     relayout(): void
     setBounds(bounds: KakaoMapLatLngBounds): void
     setCenter(position: KakaoMapLatLng): void
@@ -61,12 +63,12 @@ declare global {
     event: {
       addListener(
         target: object,
-        type: 'click' | 'idle',
+        type: 'click' | 'idle' | 'mouseover' | 'mouseout',
         handler: () => void,
       ): void
       removeListener(
         target: object,
-        type: 'click' | 'idle',
+        type: 'click' | 'idle' | 'mouseover' | 'mouseout',
         handler: () => void,
       ): void
       preventMap(): void
