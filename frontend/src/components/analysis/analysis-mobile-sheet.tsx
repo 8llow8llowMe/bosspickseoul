@@ -1,12 +1,13 @@
 'use client'
 
-import { useId, useState, type PropsWithChildren } from 'react'
+import { useId, useState, type PropsWithChildren, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import styled from 'styled-components'
 
 export type AnalysisMobileSheetProps = PropsWithChildren<{
   stepLabel: string
   summary: string
+  aiReportSlot?: ReactNode
 }>
 
 const Sheet = styled.section<{ $expanded: boolean }>`
@@ -94,6 +95,21 @@ const Icon = styled.span`
   }
 `
 
+const AiSlot = styled.div`
+  position: absolute;
+  z-index: 21;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 16px calc(72px + env(safe-area-inset-bottom) + 12px);
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+`
+
 const Body = styled.div<{ $expanded: boolean }>`
   min-height: 0;
   flex: 1;
@@ -108,29 +124,33 @@ const Body = styled.div<{ $expanded: boolean }>`
 export default function AnalysisMobileSheet({
   stepLabel,
   summary,
+  aiReportSlot,
   children,
 }: AnalysisMobileSheetProps) {
   const [expanded, setExpanded] = useState(false)
   const bodyId = useId()
 
   return (
-    <Sheet $expanded={expanded}>
-      <Handle
-        type="button"
-        aria-controls={bodyId}
-        aria-expanded={expanded}
-        aria-label={expanded ? '선택 패널 접기' : '선택 패널 펼치기'}
-        onClick={() => setExpanded(value => !value)}
-      >
-        <HandleCopy>
-          <strong>{stepLabel}</strong>
-          <small>{summary}</small>
-        </HandleCopy>
-        <Icon aria-hidden>{expanded ? <ChevronDown /> : <ChevronUp />}</Icon>
-      </Handle>
-      <Body id={bodyId} $expanded={expanded} aria-hidden={!expanded}>
-        {children}
-      </Body>
-    </Sheet>
+    <>
+      {aiReportSlot ? <AiSlot>{aiReportSlot}</AiSlot> : null}
+      <Sheet $expanded={expanded}>
+        <Handle
+          type="button"
+          aria-controls={bodyId}
+          aria-expanded={expanded}
+          aria-label={expanded ? '선택 패널 접기' : '선택 패널 펼치기'}
+          onClick={() => setExpanded(value => !value)}
+        >
+          <HandleCopy>
+            <strong>{stepLabel}</strong>
+            <small>{summary}</small>
+          </HandleCopy>
+          <Icon aria-hidden>{expanded ? <ChevronDown /> : <ChevronUp />}</Icon>
+        </Handle>
+        <Body id={bodyId} $expanded={expanded} aria-hidden={!expanded}>
+          {children}
+        </Body>
+      </Sheet>
+    </>
   )
 }

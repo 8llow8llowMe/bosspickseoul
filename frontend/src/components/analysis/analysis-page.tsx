@@ -212,7 +212,9 @@ export function AnalysisExplorerSurface({
         <MapArea>
           {map}
           {mapNotice ? <MapNotice>{mapNotice}</MapNotice> : null}
-          {aiReportCard ? <AiReportCardSlot>{aiReportCard}</AiReportCardSlot> : null}
+          {aiReportCard ? (
+            <AiReportCardSlot>{aiReportCard}</AiReportCardSlot>
+          ) : null}
           {aiReportPanel ? (
             <AiReportPanelSlot>{aiReportPanel}</AiReportPanelSlot>
           ) : null}
@@ -564,6 +566,25 @@ export default function AnalysisPage() {
     if (level !== null) requestFit(code, level)
   }
 
+  const mobileAiReportNode =
+    showAiCard && aiLevelKey ? (
+      <AiReportCard
+        targetName={aiTargetName}
+        onOpen={() => {
+          setAiActiveKey(aiLevelKey)
+          setAiPanelOpen(true)
+        }}
+      />
+    ) : showAiPanel ? (
+      <AiReportPanel
+        targetName={aiTargetName}
+        state={aiState}
+        onClose={() => setAiPanelOpen(false)}
+        onRetry={aiRetry}
+        onViewFullAnalysis={openFullAnalysis}
+      />
+    ) : null
+
   const panel = (
     <AnalysisSelectionPanel
       activeStep={activeStep}
@@ -626,6 +647,7 @@ export default function AnalysisPage() {
         <AnalysisMobileSheet
           stepLabel={`${ANALYSIS_STEP_LABELS[activeStep]} 선택`}
           summary={selectionSummary}
+          aiReportSlot={mobileAiReportNode}
         >
           {panel}
         </AnalysisMobileSheet>

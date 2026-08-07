@@ -21,4 +21,16 @@ describe('AnalysisMobileSheet', () => {
     expect(markup).toContain('선택 패널 펼치기')
     expect(markup).toContain('자치구 선택')
   })
+
+  it('aiReportSlot을 시트 안에 렌더한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalysisMobileSheet, {
+        stepLabel: '자치구 선택',
+        summary: '서울 전체',
+        aiReportSlot: createElement('div', null, 'AI_MOBILE'),
+      } as never),
+    )
+
+    expect(markup).toContain('AI_MOBILE')
+  })
 })
