@@ -7,6 +7,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
 import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictException;
+import com.followfollowme.nowdoboss.domainlayer.sharelink.application.exception.ShareLinkException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -41,6 +42,13 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(DistrictException.class)
     public ResponseEntity<Response<Void>> handleDistrictException(DistrictException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(ShareLinkException.class)
+    public ResponseEntity<Response<Void>> handleShareLinkException(ShareLinkException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));

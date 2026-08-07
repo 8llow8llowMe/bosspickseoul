@@ -10,11 +10,14 @@
 
 - `commercial`
 - `district`
+- `sharelink`
 
 ## 인증 방식
 
 - 조회 API가 중심이며, 인증 필요 API만 명시적으로 보호한다.
-- JWT claim 해석은 서비스 내부 Security 기준을 따른다.
+- security-core의 `ResourceServerSecurityConfigurer` 기반으로 JWT claim을 해석하며,
+  기본 permitAll + `@PreAuthorize` 명시 보호 방식을 사용한다.
+- 현재 인증 필요 API는 `POST /api/v1/share-links`(공유 링크 생성)뿐이다.
 
 ## 대표 API 패턴
 
@@ -100,6 +103,19 @@
 새 프리셋 2종 추가:
 - `YOUTH_STARTUP` (청년창업형): 기회·혼잡 중시, 가중치 0.45/0.20/0.25/0.10
 - `RE_EMPLOYMENT_STARTUP` (재취업창업형): 거주수요·안정 중시, 가중치 0.20/0.35/0.05/0.40
+
+## 공유 링크 (sharelink)
+
+- 분석 화면을 상대방에게 공유하기 위한 단축 코드 발급/해석 컨텍스트. 자세한 프론트 연동은
+  `docs/share-link-frontend-guide.md` 참고.
+- `POST /api/v1/share-links` (인증 필수) — `{shareType, payload}`로 base62 8자 공유 코드 발급.
+  payload는 백엔드가 해석하지 않는 opaque JSON 객체(정규화 후 2000자 이하)다.
+- `GET /api/v1/share-links/{shareCode}` (공개) — shareType 메타데이터 + payload 반환.
+  프론트가 shareType별 URL 템플릿에 payload를 합쳐 최종 진입 URL을 조립한다.
+- 중복 방지: `SHA-256(shareType | 정렬된 payload JSON)` 해시 unique. 같은 화면 상태를 다시
+  공유하면 기존 코드의 만료 시각만 연장한다 (기본 TTL `app.share-link.ttl-days` = 90일).
+- 새 화면을 공유 대상으로 추가할 때는 `ShareTargetType`에 상수 하나만 추가하면 된다.
+- 만료 링크는 `410 SHARE_LINK_002`, 미존재 코드는 `404 SHARE_LINK_001`로 응답한다.
 
 ## 정책 추천 (보류)
 

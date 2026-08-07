@@ -20,6 +20,10 @@ spring:
           uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
           predicates:
             - Path=/api/v1/administrations/**
+        - id: commercial-service-share-links
+          uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/share-links/**
         - id: district-service-regions
           uri: lb://${DISTRICT_SERVICE_APP_NAME}
           predicates:
