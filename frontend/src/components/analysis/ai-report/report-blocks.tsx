@@ -86,12 +86,20 @@ function BulletBlock({ title, items }: { title: string; items: string[] }) {
   )
 }
 
-export function CommercialReportBlocks({ view }: { view: CommercialReportView }) {
+export function CommercialReportBlocks({
+  view,
+}: {
+  view: CommercialReportView
+}) {
   return (
     <div>
       <Block>
-        {view.headline.summary ? <Summary>{view.headline.summary}</Summary> : null}
-        {view.headline.insight ? <Insight>{view.headline.insight}</Insight> : null}
+        {view.headline.summary ? (
+          <Summary>{view.headline.summary}</Summary>
+        ) : null}
+        {view.headline.insight ? (
+          <Insight>{view.headline.insight}</Insight>
+        ) : null}
       </Block>
       <BulletBlock title="강점" items={view.strengths} />
       <BulletBlock title="주의" items={view.risks} />
@@ -106,7 +114,9 @@ export function RegionReportBlocks({ view }: { view: RegionReportView }) {
   return (
     <div>
       <Block>
-        {view.headline.summary ? <Summary>{view.headline.summary}</Summary> : null}
+        {view.headline.summary ? (
+          <Summary>{view.headline.summary}</Summary>
+        ) : null}
         {view.headline.marketStatus ? (
           <Insight>{view.headline.marketStatus}</Insight>
         ) : null}

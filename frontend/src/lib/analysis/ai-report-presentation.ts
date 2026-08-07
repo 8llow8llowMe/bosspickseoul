@@ -7,7 +7,9 @@ import type {
 
 const text = (value: string | null | undefined): string => value?.trim() ?? ''
 
-const toList = (value: readonly (string | null)[] | null | undefined): string[] =>
+const toList = (
+  value: readonly (string | null)[] | null | undefined,
+): string[] =>
   (value ?? [])
     .map(item => item?.trim() ?? '')
     .filter((item): item is string => item.length > 0)
@@ -66,13 +68,22 @@ export type CommercialReportView = {
 export const toCommercialReportView = (
   report: CommercialAiReport,
 ): CommercialReportView => ({
-  headline: { summary: text(report.summary), insight: text(report.businessInsight) },
+  headline: {
+    summary: text(report.summary),
+    insight: text(report.businessInsight),
+  },
   strengths: toList(report.strengths),
   risks: toList(report.risks),
   actions: [
-    { title: '추천 업종군', items: toList(report.recommendedBusinessCategories) },
+    {
+      title: '추천 업종군',
+      items: toList(report.recommendedBusinessCategories),
+    },
     { title: '추천 고객층', items: toList(report.recommendedCustomerSegments) },
-    { title: '추천 운영 시간', items: toList(report.recommendedOperatingHours) },
+    {
+      title: '추천 운영 시간',
+      items: toList(report.recommendedOperatingHours),
+    },
     { title: '피해야 할 시간', items: toList(report.avoidOperatingHours) },
     { title: '타깃 연령', items: toList(report.targetAgeGroups) },
     { title: '타깃 성별', items: toList(report.targetGenders) },
@@ -96,8 +107,13 @@ export type RegionReportView = {
   generatedAt: string
 }
 
-export const toRegionReportView = (report: RegionAiReport): RegionReportView => ({
-  headline: { summary: text(report.summary), marketStatus: text(report.marketStatus) },
+export const toRegionReportView = (
+  report: RegionAiReport,
+): RegionReportView => ({
+  headline: {
+    summary: text(report.summary),
+    marketStatus: text(report.marketStatus),
+  },
   recommended: toList(report.recommendedBusinessCategories),
   caution: toList(report.cautionBusinessCategories),
   insight: text(report.businessInsight),

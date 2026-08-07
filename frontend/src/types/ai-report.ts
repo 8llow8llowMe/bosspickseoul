@@ -46,5 +46,6 @@ export type AiReportJob = {
 
 export type DistrictAiReportResponse = ApiResponse<RegionAiReport>
 export type AdministrationAiReportResponse = ApiResponse<RegionAiReport>
-export type CommercialAiReportSubmissionResponse = ApiResponse<AiReportSubmission>
+export type CommercialAiReportSubmissionResponse =
+  ApiResponse<AiReportSubmission>
 export type AiReportJobStatusResponse = ApiResponse<AiReportJob>

@@ -17,9 +17,15 @@ const base = createEmptyAnalysisSelection()
 describe('resolveAiReportLevel', () => {
   it('가장 깊게 선택된 레벨을 고른다(분야는 무관)', () => {
     expect(resolveAiReportLevel(base)).toBeNull()
-    expect(resolveAiReportLevel({ ...base, districtCode: '11680' })).toBe('district')
+    expect(resolveAiReportLevel({ ...base, districtCode: '11680' })).toBe(
+      'district',
+    )
     expect(
-      resolveAiReportLevel({ ...base, districtCode: '11680', administrationCode: '11680640' }),
+      resolveAiReportLevel({
+        ...base,
+        districtCode: '11680',
+        administrationCode: '11680640',
+      }),
     ).toBe('administration')
     expect(
       resolveAiReportLevel({
@@ -35,7 +41,11 @@ describe('resolveAiReportLevel', () => {
 
 describe('resolveAiReportTargetCode', () => {
   it('레벨에 해당하는 코드를 돌려준다', () => {
-    const sel = { ...base, districtCode: '11680', administrationCode: '11680640' }
+    const sel = {
+      ...base,
+      districtCode: '11680',
+      administrationCode: '11680640',
+    }
     expect(resolveAiReportTargetCode(sel, 'district')).toBe('11680')
     expect(resolveAiReportTargetCode(sel, 'administration')).toBe('11680640')
     expect(resolveAiReportTargetCode(sel, 'commercial')).toBeNull()
@@ -79,18 +89,28 @@ describe('toRegionReportView / empty guards', () => {
       businessInsight: '코멘트',
       generatedAt: '2026-08-07',
     })
-    expect(view.headline).toEqual({ summary: '시장 요약', marketStatus: '성장' })
+    expect(view.headline).toEqual({
+      summary: '시장 요약',
+      marketStatus: '성장',
+    })
     expect(view.recommended).toEqual(['카페'])
     expect(view.caution).toEqual([])
   })
 
   it('완전히 빈 상권 뷰는 empty로 판정한다', () => {
     const empty = toCommercialReportView({
-      summary: null, strengths: null, risks: null,
-      recommendedBusinessCategories: null, recommendedCustomerSegments: null,
-      recommendedOperatingHours: null, avoidOperatingHours: null,
-      targetAgeGroups: null, targetGenders: null, operationTips: null,
-      businessInsight: null, generatedAt: null,
+      summary: null,
+      strengths: null,
+      risks: null,
+      recommendedBusinessCategories: null,
+      recommendedCustomerSegments: null,
+      recommendedOperatingHours: null,
+      avoidOperatingHours: null,
+      targetAgeGroups: null,
+      targetGenders: null,
+      operationTips: null,
+      businessInsight: null,
+      generatedAt: null,
     })
     expect(isCommercialReportEmpty(empty)).toBe(true)
   })
@@ -147,10 +167,18 @@ describe('resolveAiReportVisibility', () => {
 
   it('levelKey가 null이면 enabled와 무관하게 둘 다 숨긴다', () => {
     expect(
-      resolveAiReportVisibility({ enabled: true, levelKey: null, panelOpen: false }),
+      resolveAiReportVisibility({
+        enabled: true,
+        levelKey: null,
+        panelOpen: false,
+      }),
     ).toEqual({ showCard: false, showPanel: false })
     expect(
-      resolveAiReportVisibility({ enabled: true, levelKey: null, panelOpen: true }),
+      resolveAiReportVisibility({
+        enabled: true,
+        levelKey: null,
+        panelOpen: true,
+      }),
     ).toEqual({ showCard: false, showPanel: false })
   })
 

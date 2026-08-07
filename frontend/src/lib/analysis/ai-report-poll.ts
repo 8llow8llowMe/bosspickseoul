@@ -42,7 +42,10 @@ export const decideNextPoll = (
     }
   }
   if (elapsedMs >= AI_REPORT_POLL_TIMEOUT_MS) {
-    return { kind: 'error', message: '시간이 초과되었습니다. 다시 시도해 주세요.' }
+    return {
+      kind: 'error',
+      message: '시간이 초과되었습니다. 다시 시도해 주세요.',
+    }
   }
   return { kind: 'poll', intervalMs: AI_REPORT_POLL_INTERVAL_MS }
 }
