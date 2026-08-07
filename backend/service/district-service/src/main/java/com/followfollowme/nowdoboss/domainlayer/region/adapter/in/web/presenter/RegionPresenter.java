@@ -4,11 +4,13 @@ import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.respon
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationDistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationDistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -70,10 +72,19 @@ public class RegionPresenter {
 
     public CommercialAdministrationAreaResponse toCommercialAdministrationAreaResponse(CommercialAdministrationAreaInfo info) {
         return CommercialAdministrationAreaResponse.builder()
+            .commercialCode(info.commercialCode())
+            .commercialName(info.commercialName())
             .districtCode(info.districtCode())
             .districtName(info.districtName())
             .administrationCode(info.administrationCode())
             .administrationName(info.administrationName())
+            .build();
+    }
+
+    public DistrictAreaResponse toDistrictAreaResponse(DistrictAreaInfo info) {
+        return DistrictAreaResponse.builder()
+            .districtCode(info.districtCode())
+            .districtName(info.districtName())
             .build();
     }
 }

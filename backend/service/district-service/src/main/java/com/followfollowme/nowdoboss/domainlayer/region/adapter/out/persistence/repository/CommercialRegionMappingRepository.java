@@ -24,4 +24,6 @@ public interface CommercialRegionMappingRepository extends JpaRepository<Commerc
     Optional<CommercialRegionMappingEntity> findFirstByAdministrationCode(String administrationCode);
 
     Optional<CommercialAdministrationProjection> findFirstByCommercialCode(String commercialCode);
+
+    Optional<DistrictNameProjection> findFirstByDistrictCode(String districtCode);
 }

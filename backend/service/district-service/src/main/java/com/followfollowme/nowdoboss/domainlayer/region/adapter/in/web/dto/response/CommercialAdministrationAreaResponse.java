@@ -7,6 +7,12 @@ import lombok.Builder;
 @Schema(description = "상권 소속 지역 정보 조회 응답 DTO")
 public record CommercialAdministrationAreaResponse(
 
+    @Schema(description = "상권 코드", example = "3110008")
+    String commercialCode,
+
+    @Schema(description = "상권명", example = "역삼역")
+    String commercialName,
+
     @Schema(description = "자치구 코드", example = "11680")
     String districtCode,
 

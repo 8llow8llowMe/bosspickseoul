@@ -4,6 +4,7 @@ import com.followfollowme.nowdoboss.domainlayer.region.application.info.Administ
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationDistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.exception.RegionErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.region.application.exception.RegionException;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
@@ -74,5 +75,10 @@ public class RegionQueryProcessor {
         CommercialRegionMapping commercialRegionMapping = commercialRegionMappingRepositoryPort.findFirstByCommercialCode(commercialCode)
             .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_COMMERCIAL, commercialCode));
         return CommercialAdministrationAreaInfo.from(commercialRegionMapping);
+    }
+
+    public DistrictAreaInfo getDistrictByDistrictCode(String districtCode) {
+        return commercialRegionMappingRepositoryPort.findFirstByDistrictCode(districtCode)
+            .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_DISTRICT, districtCode));
     }
 }

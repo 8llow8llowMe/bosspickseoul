@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.respon
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationDistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.in.RegionWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.region.domain.enums.RegionCodeType;
@@ -27,6 +28,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class RegionWebController {
 
     private final RegionWebUseCase regionWebUseCase;
+
+    @Operation(summary = "자치구 단건 조회", description = "자치구 코드로 자치구 명칭을 조회합니다.")
+    @GetMapping("/districts/{districtCode}")
+    public ResponseEntity<Response<DistrictAreaResponse>> getDistrictByDistrictCode(
+        @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode
+    ) {
+        DistrictAreaResponse response = regionWebUseCase.getDistrictByDistrictCode(districtCode);
+        return ResponseEntity.ok().body(Response.success(response));
+    }
 
     @Operation(summary = "자치구 소속 행정동 목록 조회", description = "선택한 자치구에 포함된 행정동 목록과 중심 좌표를 조회합니다.")
     @GetMapping("/districts/{districtCode}/administrations")
