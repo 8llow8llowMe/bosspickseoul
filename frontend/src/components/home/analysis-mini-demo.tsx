@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import {
@@ -16,6 +16,44 @@ const competitionLabel: Record<CompetitionLevel, string> = {
   low: '낮음',
   medium: '보통',
   high: '높음',
+}
+
+function useRovingRadioGroup(
+  items: readonly { id: string }[],
+  selectedId: string,
+  onSelect: (id: string) => void,
+) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = items.findIndex(item => item.id === selectedId)
+    let nextIndex = currentIndex
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        nextIndex = (currentIndex + 1) % items.length
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        nextIndex = (currentIndex - 1 + items.length) % items.length
+        break
+      case 'Home':
+        nextIndex = 0
+        break
+      case 'End':
+        nextIndex = items.length - 1
+        break
+      default:
+        return
+    }
+
+    event.preventDefault()
+    onSelect(items[nextIndex].id)
+    refs.current[nextIndex]?.focus()
+  }
+
+  return { refs, handleKeyDown }
 }
 
 const Wrapper = styled.div`
@@ -173,11 +211,7 @@ const CompetitionBadge = styled.span<{ $level: CompetitionLevel }>`
   width: fit-content;
   padding: 2px 10px;
   border-radius: var(--radius-pill);
-  background: ${props => {
-    if (props.$level === 'low') return 'var(--color-primary-100)'
-    if (props.$level === 'high') return 'var(--color-surface-muted)'
-    return 'var(--color-surface-muted)'
-  }};
+  background: var(--color-surface-muted);
   color: ${props => {
     if (props.$level === 'low') return 'var(--color-success)'
     if (props.$level === 'high') return 'var(--color-danger)'
@@ -229,18 +263,29 @@ export default function AnalysisMiniDemo() {
   const isPositive = sample.salesChangePct >= 0
   const changeLabel = `${isPositive ? '+' : ''}${sample.salesChangePct}%`
 
+  const districtGroup = useRovingRadioGroup(DISTRICTS, sel.districtId, id =>
+    setSel(prev => ({ ...prev, districtId: id })),
+  )
+  const industryGroup = useRovingRadioGroup(INDUSTRIES, sel.industryId, id =>
+    setSel(prev => ({ ...prev, industryId: id })),
+  )
+
   return (
     <Wrapper>
       <SelectorRow>
         <SelectorGroup role="radiogroup" aria-label="지역 선택">
           <SelectorLabel>지역</SelectorLabel>
-          <OptionList>
-            {DISTRICTS.map(district => (
+          <OptionList onKeyDown={districtGroup.handleKeyDown}>
+            {DISTRICTS.map((district, index) => (
               <Option
                 key={district.id}
+                ref={el => {
+                  districtGroup.refs.current[index] = el
+                }}
                 type="button"
                 role="radio"
                 aria-checked={sel.districtId === district.id}
+                tabIndex={sel.districtId === district.id ? 0 : -1}
                 $active={sel.districtId === district.id}
                 onClick={() =>
                   setSel(prev => ({ ...prev, districtId: district.id }))
@@ -254,13 +299,17 @@ export default function AnalysisMiniDemo() {
 
         <SelectorGroup role="radiogroup" aria-label="업종 선택">
           <SelectorLabel>업종</SelectorLabel>
-          <OptionList>
-            {INDUSTRIES.map(industry => (
+          <OptionList onKeyDown={industryGroup.handleKeyDown}>
+            {INDUSTRIES.map((industry, index) => (
               <Option
                 key={industry.id}
+                ref={el => {
+                  industryGroup.refs.current[index] = el
+                }}
                 type="button"
                 role="radio"
                 aria-checked={sel.industryId === industry.id}
+                tabIndex={sel.industryId === industry.id ? 0 : -1}
                 $active={sel.industryId === industry.id}
                 onClick={() =>
                   setSel(prev => ({ ...prev, industryId: industry.id }))
