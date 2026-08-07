@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
 
@@ -244,6 +244,7 @@ const PANEL_FIT_LEVEL_BY_STEP: Record<AnalysisStep, number | null> = {
 
 export default function AnalysisPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const selection = useMemo(
     () => parseAnalysisSelection(searchParams),
@@ -293,6 +294,19 @@ export default function AnalysisPage() {
     active: aiActive && aiPanelOpen,
     enabled: aiEnabled,
   })
+
+  // 카드는 비로그인 상태에서도 노출한다(기능 존재를 알림). 클릭 시 미로그인이면
+  // 리포트 조회 대신 현재 위치를 보존해 로그인으로 유도한다. 실제 조회는 로그인 필요.
+  const handleAiCardOpen = () => {
+    if (!isLoggedIn) {
+      const search = searchParams.toString()
+      const currentHref = search ? `${pathname}?${search}` : pathname
+      router.push(`/login?redirect=${encodeURIComponent(currentHref)}`)
+      return
+    }
+    setAiActiveKey(aiLevelKey)
+    setAiPanelOpen(true)
+  }
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -481,9 +495,11 @@ export default function AnalysisPage() {
     ? () => router.push(createAnalysisResultHref(selection, 'summary'))
     : undefined
 
+  // 카드/패널 노출은 로그인 여부와 무관하게 하이드레이트만 요구한다(비로그인도 카드 노출).
+  // 미로그인 클릭은 handleAiCardOpen이 로그인으로 유도하므로 패널은 열리지 않는다.
   const { showCard: showAiCard, showPanel: showAiPanel } =
     resolveAiReportVisibility({
-      enabled: aiEnabled,
+      enabled: hasHydrated,
       levelKey: aiLevelKey,
       panelOpen: aiPanelOpen,
     })
@@ -569,13 +585,7 @@ export default function AnalysisPage() {
 
   const mobileAiReportNode =
     showAiCard && aiLevelKey ? (
-      <AiReportCard
-        targetName={aiTargetName}
-        onOpen={() => {
-          setAiActiveKey(aiLevelKey)
-          setAiPanelOpen(true)
-        }}
-      />
+      <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
     ) : showAiPanel ? (
       <AiReportPanel
         targetName={aiTargetName}
@@ -624,13 +634,7 @@ export default function AnalysisPage() {
       mapNotice={mapNotice}
       aiReportCard={
         showAiCard && aiLevelKey ? (
-          <AiReportCard
-            targetName={aiTargetName}
-            onOpen={() => {
-              setAiActiveKey(aiLevelKey)
-              setAiPanelOpen(true)
-            }}
-          />
+          <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
         ) : null
       }
       aiReportPanel={
