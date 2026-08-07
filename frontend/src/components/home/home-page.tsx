@@ -98,7 +98,7 @@ const HeroGrid = styled.div`
   align-items: center;
 
   @media (min-width: 960px) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    grid-template-columns: minmax(0, 1fr) 55%;
   }
 `
 
