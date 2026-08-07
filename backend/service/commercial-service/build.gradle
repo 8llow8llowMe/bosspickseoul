@@ -1,6 +1,7 @@
 dependencies {
     implementation project(":core:common-core")
     implementation project(":core:persistence-core")
+    implementation project(":core:security-core")
     implementation project(":core:shared-commercial")
 
     // Spring Data JPA
@@ -11,6 +12,8 @@ dependencies {
     runtimeOnly 'com.mysql:mysql-connector-j'
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // Spring Security Resource Server (공유 링크 생성 등 인증 필요 API의 JWT 해석)
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     // Resilience4j CircuitBreaker (내부 Feign 호출 장애 전파 차단)
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'

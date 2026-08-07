@@ -11,6 +11,11 @@ logging:
     # Eureka 클라이언트가 주기적으로 Eureka 서버 엔드포인트를 확인할 때 출력하는 반복 로그를 줄이기 위한 설정
     com.netflix.discovery.shared.resolver.aws.ConfigClusterResolver: WARN
 
+app:
+  share-link:
+    # 공유 링크 유효 기간(일). 같은 화면을 다시 공유하면 이 기간만큼 만료가 연장된다.
+    ttl-days: 90
+
 # 내부 서비스 Feign 호출 서킷브레이커. 인스턴스명은 -dev/-prod 접미사와 무관한 논리 서비스명이다.
 # 4xx(FeignClientException)는 호출한 쪽의 요청 문제이므로 상대 서비스 장애로 집계하지 않는다.
 resilience4j:

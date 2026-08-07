@@ -53,3 +53,9 @@ eureka:
 snowflake:
   datacenter-id: ${SNOWFLAKE_DATACENTER_ID}
   worker-id: ${SNOWFLAKE_WORKER_ID}
+
+app:
+  security:
+    jwt:
+      resource:
+        access-key: ${JWT_ACCESS_KEY}
