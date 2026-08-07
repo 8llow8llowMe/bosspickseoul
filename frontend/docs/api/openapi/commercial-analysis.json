@@ -1249,17 +1249,17 @@
           "code": {
             "type": "string",
             "description": "내부 코드 값",
-            "example": "USER"
+            "example": "EXAMPLE_CODE"
           },
           "name": {
             "type": "string",
             "description": "화면 표시 이름",
-            "example": "일반 회원"
+            "example": "예시 이름"
           },
           "description": {
             "type": "string",
-            "description": "코드 설명",
-            "example": "일반 회원 권한입니다."
+            "description": "코드 의미 설명",
+            "example": "코드 의미를 설명하는 문장입니다."
           }
         }
       },
@@ -1649,7 +1649,12 @@
         "properties": {
           "periodTrend": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
-            "description": "직전 분기 대비 추이 메타데이터"
+            "description": "직전 분기 대비 추이 메타데이터 (PeriodTrendType: INCREASE/DECREASE/STAGNANT)",
+            "example": {
+              "code": "INCREASE",
+              "name": "증가",
+              "description": "증가"
+            }
           },
           "periodTotalFootTrafficList": {
             "type": "array",
@@ -3204,7 +3209,12 @@
           },
           "preset": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
-            "description": "후보 탐색 프리셋 메타데이터"
+            "description": "후보 탐색 프리셋 메타데이터 (CandidatePresetType)",
+            "example": {
+              "code": "BALANCED",
+              "name": "균형형",
+              "description": "기회·위험·혼잡·거주수요 네 축을 균형 있게 반영한 기본 추천 프리셋입니다."
+            }
           },
           "priorityMetric": {
             "$ref": "#/components/schemas/ScoreMetricMetadata",

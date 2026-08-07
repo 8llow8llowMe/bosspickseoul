@@ -895,17 +895,17 @@
           "code": {
             "type": "string",
             "description": "내부 코드 값",
-            "example": "USER"
+            "example": "EXAMPLE_CODE"
           },
           "name": {
             "type": "string",
             "description": "화면 표시 이름",
-            "example": "일반 회원"
+            "example": "예시 이름"
           },
           "description": {
             "type": "string",
-            "description": "코드 설명",
-            "example": "일반 회원 권한입니다."
+            "description": "코드 의미 설명",
+            "example": "코드 의미를 설명하는 문장입니다."
           }
         }
       },

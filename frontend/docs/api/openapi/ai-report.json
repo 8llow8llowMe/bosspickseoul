@@ -18,12 +18,60 @@
     }
   ],
   "paths": {
-    "/api/v1/ai-reports/commercials/{commercialCode}": {
-      "get": {
+    "/api/v1/ai-reports/districts/{districtCode}": {
+      "post": {
         "tags": ["AI 리포트"],
-        "summary": "상권 AI 리포트 조회 (동기, deprecated)",
-        "description": "상권과 업종 분석 데이터를 기반으로 AI 요약 리포트를 동기 조회합니다. POST 비동기 엔드포인트로 이전 권장.",
-        "operationId": "getCommercialReport",
+        "summary": "자치구 AI 리포트 제출 (비동기)",
+        "description": "자치구 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다.",
+        "operationId": "submitDistrictReport",
+        "parameters": [
+          {
+            "name": "districtCode",
+            "in": "path",
+            "description": "자치구 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11680
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "description": "기준 분기 코드",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20233"
+            },
+            "example": 20233
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiReportSubmissionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai-reports/commercials/{commercialCode}": {
+      "post": {
+        "tags": ["AI 리포트"],
+        "summary": "상권 AI 리포트 제출 (비동기)",
+        "description": "상권 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다.",
+        "operationId": "submitCommercialReport",
         "parameters": [
           {
             "name": "commercialCode",
@@ -63,7 +111,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseCommercialAiReportResponse"
+                  "$ref": "#/components/schemas/ResponseAiReportSubmissionResponse"
                 }
               }
             }
@@ -74,22 +122,38 @@
             "bearerAuth": []
           }
         ]
-      },
+      }
+    },
+    "/api/v1/ai-reports/commercials/comparisons": {
       "post": {
         "tags": ["AI 리포트"],
-        "summary": "상권 AI 리포트 제출 (비동기)",
-        "description": "상권 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다.",
-        "operationId": "submitCommercialReport",
+        "summary": "상권 비교 AI 인사이트 제출 (비동기)",
+        "description": "상권 비교 AI 인사이트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다.",
+        "operationId": "submitCommercialComparisonReport",
         "parameters": [
           {
-            "name": "commercialCode",
-            "in": "path",
-            "description": "상권 코드",
+            "name": "leftCommercialCode",
+            "in": "query",
+            "description": "좌측 상권 코드",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "description": "좌측 상권 코드",
+              "example": "3110008"
             },
             "example": 3110008
+          },
+          {
+            "name": "rightCommercialCode",
+            "in": "query",
+            "description": "우측 상권 코드",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "우측 상권 코드",
+              "example": "3110012"
+            },
+            "example": 3110012
           },
           {
             "name": "serviceCode",
@@ -97,9 +161,61 @@
             "description": "서비스 코드",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "description": "서비스 코드",
+              "example": "CS100001"
             },
             "example": "CS100001"
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "description": "기준 분기 코드",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20233",
+              "description": "기준 분기 코드",
+              "example": "20233"
+            },
+            "example": 20233
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiReportSubmissionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai-reports/administrations/{administrationCode}": {
+      "post": {
+        "tags": ["AI 리포트"],
+        "summary": "행정동 AI 리포트 제출 (비동기)",
+        "description": "행정동 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다.",
+        "operationId": "submitAdministrationReport",
+        "parameters": [
+          {
+            "name": "administrationCode",
+            "in": "path",
+            "description": "행정동 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11110515
           },
           {
             "name": "periodCode",
@@ -168,166 +284,30 @@
         ]
       }
     },
-    "/api/v1/ai-reports/districts/{districtCode}": {
+    "/api/v1/ai-reports/jobs/{jobId}/stream": {
       "get": {
         "tags": ["AI 리포트"],
-        "summary": "자치구 AI 리포트 조회",
-        "description": "자치구 분석 데이터를 기반으로 AI 요약 리포트를 조회합니다.",
-        "operationId": "getDistrictReport",
+        "summary": "AI 리포트 작업 상태 스트림 (SSE)",
+        "description": "비동기 AI 리포트 작업의 상태 변경을 Server-Sent Events 로 스트리밍합니다.\n이벤트 data 는 작업 상태 조회 응답의 dataBody 와 동일한 JSON 입니다. 본인이 제출한 작업만 구독할 수 있습니다.\n\n수신 주기: 이벤트는 주기적으로 오지 않고 **상태가 바뀔 때만** 전송됩니다.\n일반적으로 구독 즉시 현재 상태 스냅샷 1회 → RUNNING 전이 1회 → COMPLETED/FAILED 1회, 총 2~3회 수신 후\n서버가 연결을 종료합니다 (리포트 생성은 평균 수십 초 소요).\n25초 간격 하트비트는 SSE 코멘트 프레임이라 onmessage 로 수신되지 않으며 클라이언트 처리가 필요 없습니다.\n\n브라우저 기본 EventSource 는 Authorization 헤더를 지원하지 않으므로\nfetch 기반 SSE 클라이언트(예: @microsoft/fetch-event-source)를 사용하세요.\n연결이 끊기면 GET /jobs/{jobId} 폴링으로 폴백하면 됩니다. (상세: docs/ai-report-frontend-guide.md)",
+        "operationId": "streamJobStatus",
         "parameters": [
           {
-            "name": "districtCode",
+            "name": "jobId",
             "in": "path",
-            "description": "자치구 코드",
+            "description": "작업 식별자",
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "example": 11680
-          },
-          {
-            "name": "periodCode",
-            "in": "query",
-            "description": "기준 분기 코드",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "20233"
-            },
-            "example": 20233
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResponseDistrictAiReportResponse"
-                }
-              }
             }
           }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/ai-reports/commercials/comparisons": {
-      "get": {
-        "tags": ["AI 리포트"],
-        "summary": "상권 비교 AI 인사이트 조회",
-        "description": "두 상권의 비교 데이터를 기반으로 추천 상권과 실행 인사이트를 제공합니다.",
-        "operationId": "getCommercialComparisonReport",
-        "parameters": [
-          {
-            "name": "leftCommercialCode",
-            "in": "query",
-            "description": "좌측 상권 코드",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "좌측 상권 코드",
-              "example": "3110008"
-            },
-            "example": 3110008
-          },
-          {
-            "name": "rightCommercialCode",
-            "in": "query",
-            "description": "우측 상권 코드",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "우측 상권 코드",
-              "example": "3110012"
-            },
-            "example": 3110012
-          },
-          {
-            "name": "serviceCode",
-            "in": "query",
-            "description": "서비스 코드",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "서비스 코드",
-              "example": "CS100001"
-            },
-            "example": "CS100001"
-          },
-          {
-            "name": "periodCode",
-            "in": "query",
-            "description": "기준 분기 코드",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "20233",
-              "description": "기준 분기 코드",
-              "example": "20233"
-            },
-            "example": 20233
-          }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "*/*": {
+              "text/event-stream": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseCommercialComparisonAiReportResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/ai-reports/administrations/{administrationCode}": {
-      "get": {
-        "tags": ["AI 리포트"],
-        "summary": "행정동 AI 리포트 조회",
-        "description": "행정동 분석 데이터를 기반으로 AI 요약 리포트를 조회합니다.",
-        "operationId": "getAdministrationReport",
-        "parameters": [
-          {
-            "name": "administrationCode",
-            "in": "path",
-            "description": "행정동 코드",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": 11110515
-          },
-          {
-            "name": "periodCode",
-            "in": "query",
-            "description": "기준 분기 코드",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "20233"
-            },
-            "example": 20233
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResponseAdministrationAiReportResponse"
+                  "$ref": "#/components/schemas/SseEmitter"
                 }
               }
             }
@@ -343,26 +323,70 @@
   },
   "components": {
     "schemas": {
+      "AdministrationAiReportResponse": {
+        "type": "object",
+        "description": "행정동 AI 리포트 응답 DTO",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "시장 요약",
+            "example": "청운효자동은 주거 기반 수요가 안정적인 생활권 상권입니다."
+          },
+          "marketStatus": {
+            "type": "string",
+            "description": "시장 상태 요약",
+            "example": "상권 정체기로 신규 진입보다 차별화 전략이 중요합니다."
+          },
+          "recommendedBusinessCategories": {
+            "type": "array",
+            "description": "추천 업종군",
+            "example": ["제과점", "커피-음료"],
+            "items": {
+              "type": "string"
+            }
+          },
+          "cautionBusinessCategories": {
+            "type": "array",
+            "description": "주의 업종군",
+            "example": ["호프-간이주점"],
+            "items": {
+              "type": "string"
+            }
+          },
+          "businessInsight": {
+            "type": "string",
+            "description": "창업 관점 코멘트",
+            "example": "고정 주거 수요를 겨냥한 단골 중심 운영 전략을 권장합니다."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "리포트 생성 시각",
+            "example": "2026-07-27T10:30:00"
+          }
+        }
+      },
       "AiReportSubmissionResponse": {
         "type": "object",
         "description": "AI 리포트 작업 제출 응답 DTO. 캐시 hit 면 즉시 결과(200), miss 면 jobId(202).",
         "properties": {
           "submissionStatus": {
-            "type": "string",
-            "description": "제출 상태",
-            "enum": ["CACHED", "ACCEPTED"],
-            "example": "ACCEPTED"
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "제출 상태 메타데이터",
+            "example": {
+              "code": "ACCEPTED",
+              "name": "작업 접수됨",
+              "description": "리포트 생성 작업이 접수되었습니다. 작업 상태 조회 API로 완료 여부를 확인해 주세요."
+            }
           },
           "jobType": {
-            "type": "string",
-            "description": "작업 종류",
-            "enum": [
-              "COMMERCIAL",
-              "COMMERCIAL_COMPARISON",
-              "DISTRICT",
-              "ADMINISTRATION"
-            ],
-            "example": "COMMERCIAL"
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "작업 종류 메타데이터",
+            "example": {
+              "code": "COMMERCIAL",
+              "name": "상권 AI 리포트",
+              "description": "상권과 업종 분석 데이터를 기반으로 생성하는 AI 리포트입니다."
+            }
           },
           "jobId": {
             "type": "string",
@@ -371,7 +395,40 @@
           },
           "commercialReport": {
             "$ref": "#/components/schemas/CommercialAiReportResponse",
-            "description": "캐시된 상권 리포트 (CACHED 일 때만 채워짐)"
+            "description": "캐시된 상권 리포트 (CACHED 이고 jobType=COMMERCIAL 일 때 채워짐)"
+          },
+          "commercialComparisonReport": {
+            "$ref": "#/components/schemas/CommercialComparisonAiReportResponse",
+            "description": "캐시된 상권 비교 인사이트 (CACHED 이고 jobType=COMMERCIAL_COMPARISON 일 때 채워짐)"
+          },
+          "districtReport": {
+            "$ref": "#/components/schemas/DistrictAiReportResponse",
+            "description": "캐시된 자치구 리포트 (CACHED 이고 jobType=DISTRICT 일 때 채워짐)"
+          },
+          "administrationReport": {
+            "$ref": "#/components/schemas/AdministrationAiReportResponse",
+            "description": "캐시된 행정동 리포트 (CACHED 이고 jobType=ADMINISTRATION 일 때 채워짐)"
+          }
+        }
+      },
+      "CodeNameDescriptionMetadata": {
+        "type": "object",
+        "description": "코드명 메타데이터 DTO",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "내부 코드 값",
+            "example": "EXAMPLE_CODE"
+          },
+          "name": {
+            "type": "string",
+            "description": "화면 표시 이름",
+            "example": "예시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "코드 의미 설명",
+            "example": "코드 의미를 설명하는 문장입니다."
           }
         }
       },
@@ -381,11 +438,16 @@
         "properties": {
           "summary": {
             "type": "string",
-            "description": "한 줄 요약"
+            "description": "한 줄 요약",
+            "example": "유동인구와 배후 수요가 안정적인 상권으로, 저녁 시간대 외식업 수요가 두드러집니다."
           },
           "strengths": {
             "type": "array",
             "description": "강점 목록",
+            "example": [
+              "역세권 유동인구가 풍부합니다.",
+              "20~30대 유동인구 비중이 높습니다."
+            ],
             "items": {
               "type": "string"
             }
@@ -393,6 +455,10 @@
           "risks": {
             "type": "array",
             "description": "주의점 목록",
+            "example": [
+              "동일 업종 경쟁 점포가 많습니다.",
+              "임대료 수준이 높은 편입니다."
+            ],
             "items": {
               "type": "string"
             }
@@ -400,6 +466,7 @@
           "recommendedBusinessCategories": {
             "type": "array",
             "description": "추천 업종군",
+            "example": ["한식음식점", "커피-음료"],
             "items": {
               "type": "string"
             }
@@ -407,6 +474,7 @@
           "recommendedCustomerSegments": {
             "type": "array",
             "description": "추천 고객층",
+            "example": ["20대 직장인", "30대 여성"],
             "items": {
               "type": "string"
             }
@@ -414,6 +482,7 @@
           "recommendedOperatingHours": {
             "type": "array",
             "description": "추천 운영 시간대",
+            "example": ["11:00~14:00", "17:00~21:00"],
             "items": {
               "type": "string"
             }
@@ -421,6 +490,7 @@
           "avoidOperatingHours": {
             "type": "array",
             "description": "피해야 할 운영 시간대",
+            "example": ["06:00~10:00"],
             "items": {
               "type": "string"
             }
@@ -428,6 +498,7 @@
           "targetAgeGroups": {
             "type": "array",
             "description": "타깃 연령대",
+            "example": ["20대", "30대"],
             "items": {
               "type": "string"
             }
@@ -435,6 +506,7 @@
           "targetGenders": {
             "type": "array",
             "description": "타깃 성별",
+            "example": ["여성"],
             "items": {
               "type": "string"
             }
@@ -442,18 +514,82 @@
           "operationTips": {
             "type": "array",
             "description": "운영 팁",
+            "example": ["점심 회전율을 높이는 세트 메뉴 구성을 권장합니다."],
             "items": {
               "type": "string"
             }
           },
           "businessInsight": {
             "type": "string",
-            "description": "창업 관점 코멘트"
+            "description": "창업 관점 코멘트",
+            "example": "초기 6개월은 점심 수요 확보에 집중하는 전략이 유효합니다."
           },
           "generatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "리포트 생성 시각"
+            "description": "리포트 생성 시각",
+            "example": "2026-07-27T10:30:00"
+          }
+        }
+      },
+      "CommercialComparisonAiReportResponse": {
+        "type": "object",
+        "description": "상권 비교 AI 리포트 응답 DTO",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "비교 결과 전체 요약",
+            "example": "좌측 상권이 유동인구와 매출 안정성 측면에서 우세합니다."
+          },
+          "recommendedSide": {
+            "type": "string",
+            "description": "추천 상권 방향",
+            "example": "LEFT"
+          },
+          "recommendedReasons": {
+            "type": "array",
+            "description": "추천 이유 목록",
+            "example": [
+              "분기 매출 증가율이 높습니다.",
+              "폐업률이 상대적으로 낮습니다."
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "riskComparison": {
+            "type": "string",
+            "description": "위험도 비교 요약",
+            "example": "우측 상권은 경쟁 점포 밀도가 높아 초기 진입 위험이 큽니다."
+          },
+          "timeSlotInsight": {
+            "type": "string",
+            "description": "시간대 비교 요약",
+            "example": "좌측 상권은 저녁, 우측 상권은 점심 시간대 유동인구가 강합니다."
+          },
+          "customerSegmentInsight": {
+            "type": "string",
+            "description": "고객층 비교 요약",
+            "example": "좌측 상권은 20~30대, 우측 상권은 40~50대 비중이 높습니다."
+          },
+          "operationStrategy": {
+            "type": "array",
+            "description": "운영 전략 목록",
+            "example": ["저녁 시간대 중심의 인력 배치를 권장합니다."],
+            "items": {
+              "type": "string"
+            }
+          },
+          "businessInsight": {
+            "type": "string",
+            "description": "한 줄 인사이트",
+            "example": "안정적인 수요 기반을 원한다면 좌측 상권 진입이 유리합니다."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "리포트 생성 시각",
+            "example": "2026-07-27T10:30:00"
           }
         }
       },
@@ -468,6 +604,49 @@
           },
           "resultMessage": {
             "type": "object"
+          }
+        }
+      },
+      "DistrictAiReportResponse": {
+        "type": "object",
+        "description": "자치구 AI 리포트 응답 DTO",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "시장 요약",
+            "example": "강남구는 직장인 수요 기반의 외식업 매출이 꾸준한 지역입니다."
+          },
+          "marketStatus": {
+            "type": "string",
+            "description": "시장 상태 요약",
+            "example": "상권 확장기로 신규 점포 유입이 활발합니다."
+          },
+          "recommendedBusinessCategories": {
+            "type": "array",
+            "description": "추천 업종군",
+            "example": ["한식음식점", "커피-음료"],
+            "items": {
+              "type": "string"
+            }
+          },
+          "cautionBusinessCategories": {
+            "type": "array",
+            "description": "주의 업종군",
+            "example": ["의류점", "PC방"],
+            "items": {
+              "type": "string"
+            }
+          },
+          "businessInsight": {
+            "type": "string",
+            "description": "창업 관점 코멘트",
+            "example": "임대료 부담이 크므로 배후 수요가 검증된 블록 위주로 검토를 권장합니다."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "리포트 생성 시각",
+            "example": "2026-07-27T10:30:00"
           }
         }
       },
@@ -491,25 +670,49 @@
             "description": "작업 식별자"
           },
           "jobType": {
-            "type": "string",
-            "description": "작업 종류",
-            "enum": [
-              "COMMERCIAL",
-              "COMMERCIAL_COMPARISON",
-              "DISTRICT",
-              "ADMINISTRATION"
-            ],
-            "example": "COMMERCIAL"
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "작업 종류 메타데이터",
+            "example": {
+              "code": "COMMERCIAL",
+              "name": "상권 AI 리포트",
+              "description": "상권과 업종 분석 데이터를 기반으로 생성하는 AI 리포트입니다."
+            }
           },
           "status": {
-            "type": "string",
-            "description": "작업 상태",
-            "enum": ["PENDING", "RUNNING", "COMPLETED", "FAILED"],
-            "example": "COMPLETED"
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "작업 상태 메타데이터",
+            "example": {
+              "code": "COMPLETED",
+              "name": "완료",
+              "description": "리포트 생성이 완료되었습니다."
+            }
+          },
+          "progressMessages": {
+            "type": "array",
+            "description": "진행 문구 로테이션 목록 (status=PENDING/RUNNING 일 때만 채워짐). 프론트에서 3~5초 간격으로 순환 표시하는 UX 연출용이며 실제 처리 단계와는 무관합니다.",
+            "example": [
+              "상권 유동인구 흐름을 분석하고 있어요.",
+              "업종별 매출 데이터를 요약하고 있어요."
+            ],
+            "items": {
+              "type": "string"
+            }
           },
           "commercialReport": {
             "$ref": "#/components/schemas/CommercialAiReportResponse",
             "description": "완료된 상권 리포트 (status=COMPLETED 이고 jobType=COMMERCIAL 일 때 채워짐)"
+          },
+          "commercialComparisonReport": {
+            "$ref": "#/components/schemas/CommercialComparisonAiReportResponse",
+            "description": "완료된 상권 비교 인사이트 (status=COMPLETED 이고 jobType=COMMERCIAL_COMPARISON 일 때 채워짐)"
+          },
+          "districtReport": {
+            "$ref": "#/components/schemas/DistrictAiReportResponse",
+            "description": "완료된 자치구 리포트 (status=COMPLETED 이고 jobType=DISTRICT 일 때 채워짐)"
+          },
+          "administrationReport": {
+            "$ref": "#/components/schemas/AdministrationAiReportResponse",
+            "description": "완료된 행정동 리포트 (status=COMPLETED 이고 jobType=ADMINISTRATION 일 때 채워짐)"
           },
           "errorCode": {
             "type": "string",
@@ -533,171 +736,12 @@
           }
         }
       },
-      "DistrictAiReportResponse": {
-        "type": "object",
-        "description": "자치구 AI 리포트 응답 DTO",
-        "properties": {
-          "summary": {
-            "type": "string",
-            "description": "시장 요약"
-          },
-          "marketStatus": {
-            "type": "string",
-            "description": "시장 상태 요약"
-          },
-          "recommendedBusinessCategories": {
-            "type": "array",
-            "description": "추천 업종군",
-            "items": {
-              "type": "string"
-            }
-          },
-          "cautionBusinessCategories": {
-            "type": "array",
-            "description": "주의 업종군",
-            "items": {
-              "type": "string"
-            }
-          },
-          "businessInsight": {
-            "type": "string",
-            "description": "창업 관점 코멘트"
-          },
-          "generatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "리포트 생성 시각"
-          }
-        }
-      },
-      "ResponseDistrictAiReportResponse": {
+      "SseEmitter": {
         "type": "object",
         "properties": {
-          "dataHeader": {
-            "$ref": "#/components/schemas/DataHeader"
-          },
-          "dataBody": {
-            "$ref": "#/components/schemas/DistrictAiReportResponse"
-          }
-        }
-      },
-      "ResponseCommercialAiReportResponse": {
-        "type": "object",
-        "properties": {
-          "dataHeader": {
-            "$ref": "#/components/schemas/DataHeader"
-          },
-          "dataBody": {
-            "$ref": "#/components/schemas/CommercialAiReportResponse"
-          }
-        }
-      },
-      "CommercialComparisonAiReportResponse": {
-        "type": "object",
-        "description": "상권 비교 AI 리포트 응답 DTO",
-        "properties": {
-          "summary": {
-            "type": "string",
-            "description": "비교 결과 전체 요약"
-          },
-          "recommendedSide": {
-            "type": "string",
-            "description": "추천 상권 방향",
-            "example": "LEFT"
-          },
-          "recommendedReasons": {
-            "type": "array",
-            "description": "추천 이유 목록",
-            "items": {
-              "type": "string"
-            }
-          },
-          "riskComparison": {
-            "type": "string",
-            "description": "위험도 비교 요약"
-          },
-          "timeSlotInsight": {
-            "type": "string",
-            "description": "시간대 비교 요약"
-          },
-          "customerSegmentInsight": {
-            "type": "string",
-            "description": "고객층 비교 요약"
-          },
-          "operationStrategy": {
-            "type": "array",
-            "description": "운영 전략 목록",
-            "items": {
-              "type": "string"
-            }
-          },
-          "businessInsight": {
-            "type": "string",
-            "description": "한 줄 인사이트"
-          },
-          "generatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "리포트 생성 시각"
-          }
-        }
-      },
-      "ResponseCommercialComparisonAiReportResponse": {
-        "type": "object",
-        "properties": {
-          "dataHeader": {
-            "$ref": "#/components/schemas/DataHeader"
-          },
-          "dataBody": {
-            "$ref": "#/components/schemas/CommercialComparisonAiReportResponse"
-          }
-        }
-      },
-      "AdministrationAiReportResponse": {
-        "type": "object",
-        "description": "행정동 AI 리포트 응답 DTO",
-        "properties": {
-          "summary": {
-            "type": "string",
-            "description": "시장 요약"
-          },
-          "marketStatus": {
-            "type": "string",
-            "description": "시장 상태 요약"
-          },
-          "recommendedBusinessCategories": {
-            "type": "array",
-            "description": "추천 업종군",
-            "items": {
-              "type": "string"
-            }
-          },
-          "cautionBusinessCategories": {
-            "type": "array",
-            "description": "주의 업종군",
-            "items": {
-              "type": "string"
-            }
-          },
-          "businessInsight": {
-            "type": "string",
-            "description": "창업 관점 코멘트"
-          },
-          "generatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "리포트 생성 시각"
-          }
-        }
-      },
-      "ResponseAdministrationAiReportResponse": {
-        "type": "object",
-        "properties": {
-          "dataHeader": {
-            "$ref": "#/components/schemas/DataHeader"
-          },
-          "dataBody": {
-            "$ref": "#/components/schemas/AdministrationAiReportResponse"
+          "timeout": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       }

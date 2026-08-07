@@ -1,6 +1,6 @@
 {
   "sourceBaseUrl": "https://api-dev.bosspickseoul.com",
-  "fetchedAt": "2026-07-23T22:38:09.918Z",
+  "fetchedAt": "2026-08-07T03:48:13.760Z",
   "services": [
     {
       "id": "region-map",
@@ -12,7 +12,7 @@
       "pathCount": 13,
       "operationCount": 13,
       "schemaCount": 33,
-      "sha256": "c177c446f466116ad6d05f03a1ae7335e1dbdbb6ee3f8196f617bfcc51857e4b"
+      "sha256": "466622ff60003234f34be85dc2af162566dbd0c8b8d59a4ae0b32f69aeb68855"
     },
     {
       "id": "auth-member",
@@ -21,10 +21,10 @@
       "version": "v1",
       "openapi": "3.1.0",
       "sourceUrl": "https://api-dev.bosspickseoul.com/auth-service/v3/api-docs",
-      "pathCount": 7,
-      "operationCount": 8,
-      "schemaCount": 18,
-      "sha256": "aa5bae37fb05520d16b1288740f71cdc665e3b19b3e2dc89028985acbf61ec2d"
+      "pathCount": 13,
+      "operationCount": 15,
+      "schemaCount": 24,
+      "sha256": "67a9df115761e861c78449ab01c4182cbbaf4d0ec011806fdabc26a06209d6aa"
     },
     {
       "id": "commercial-analysis",
@@ -36,7 +36,7 @@
       "pathCount": 22,
       "operationCount": 22,
       "schemaCount": 89,
-      "sha256": "e0fde55d5ce30b232e921269fa153670f1c122bffa670f09da4488c4c0f21c40"
+      "sha256": "510db8d36721da10b171e32b783be06fe4dfac0c361389712df57f3b190b290a"
     },
     {
       "id": "ai-report",
@@ -45,10 +45,10 @@
       "version": "v1",
       "openapi": "3.1.0",
       "sourceUrl": "https://api-dev.bosspickseoul.com/ai-service/v3/api-docs",
-      "pathCount": 5,
+      "pathCount": 6,
       "operationCount": 6,
-      "schemaCount": 13,
-      "sha256": "f71fe5d91fecc85d535bf08b23cc9b4b2ee041b7b1ca161f7442d3c680805a30"
+      "schemaCount": 11,
+      "sha256": "448aa15f4d4d58c0072770b76126fdf0f3df6457b13387aa1a2e60154b0151e8"
     },
     {
       "id": "community",
@@ -60,7 +60,7 @@
       "pathCount": 12,
       "operationCount": 16,
       "schemaCount": 35,
-      "sha256": "326eeea9cb079e352eab81440242d83511376297b0f880c5c6547be57ac40358"
+      "sha256": "72cdc8d398a31f4e93ca1918576e050a3b41ac22ef919765a54f91e0380f92da"
     }
   ]
 }
