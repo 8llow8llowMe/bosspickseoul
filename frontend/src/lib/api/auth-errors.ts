@@ -12,8 +12,7 @@ const CODE_FIELD: Record<string, AuthErrorField> = {
 
 export const classifyAuthError = (
   resultCode: string | null | undefined,
-): AuthErrorField =>
-  (resultCode && CODE_FIELD[resultCode]) || 'general'
+): AuthErrorField => (resultCode && CODE_FIELD[resultCode]) || 'general'
 
 export const getAuthErrorMessage = (
   response: ApiResponse<unknown> | null | undefined,

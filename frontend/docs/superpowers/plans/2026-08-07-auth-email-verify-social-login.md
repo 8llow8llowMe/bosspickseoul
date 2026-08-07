@@ -20,13 +20,13 @@
 
 ### 확정된 백엔드 계약 (dev 실측, 2026-08-07)
 
-| 호출 | 요청 | 성공 | 실패(확인된 코드) |
-|---|---|---|---|
-| `POST /api/v1/auth/email/send-code` | `{email}` | `Response<Void>` success=true | - |
-| `POST /api/v1/auth/email/verify-code` | `{email, code}` | success=true | `AUTH_004` 인증코드 불일치 |
-| `POST /api/v1/members/signup` | `{email,password,name,nickname}` | success=true | `MEMBER_006` 이메일 인증 미완료 |
-| `GET /api/v1/auth/{provider}/authorize` | - | `Response<{authorizationUrl}>` | - |
-| `GET /api/v1/auth/{provider}/login?code&state` | query | `Response<{accessToken,memberId}>` + Set-Cookie(refreshToken) | - |
+| 호출                                           | 요청                             | 성공                                                          | 실패(확인된 코드)               |
+| ---------------------------------------------- | -------------------------------- | ------------------------------------------------------------- | ------------------------------- |
+| `POST /api/v1/auth/email/send-code`            | `{email}`                        | `Response<Void>` success=true                                 | -                               |
+| `POST /api/v1/auth/email/verify-code`          | `{email, code}`                  | success=true                                                  | `AUTH_004` 인증코드 불일치      |
+| `POST /api/v1/members/signup`                  | `{email,password,name,nickname}` | success=true                                                  | `MEMBER_006` 이메일 인증 미완료 |
+| `GET /api/v1/auth/{provider}/authorize`        | -                                | `Response<{authorizationUrl}>`                                | -                               |
+| `GET /api/v1/auth/{provider}/login?code&state` | query                            | `Response<{accessToken,memberId}>` + Set-Cookie(refreshToken) | -                               |
 
 - 인증 상태는 **백엔드가 서버측에서 이메일 기준으로 기억** → signup 바디에 인증 토큰/플래그 없음. 동일 이메일로 send→verify→signup 순서면 성공.
 - ⚠️ dev 카카오 OAuth는 아직 `client_id`/`redirect_uri` 미설정 → 소셜 로그인 **end-to-end 검증은 백엔드 OAuth 설정 완료 후** 가능. FE 구현·단위검증은 이번에 완료한다.
@@ -35,36 +35,40 @@
 
 ## 파일 구조
 
-| 파일 | 책임 | 신규/수정 |
-|---|---|---|
-| `docs/api/openapi/*.json`, `manifest.json`, `endpoints.md` | OpenAPI 스냅샷 최신화 | 수정(스크립트 생성) |
-| `src/lib/api/auth-errors.ts` | resultCode → 필드 분류·문구 헬퍼(순수) | 신규 |
-| `src/lib/api/auth-errors.test.ts` | 위 테스트 | 신규 |
-| `src/components/auth/register-machine.ts` | 회원가입 단계 상태 머신(순수 함수) | 신규 |
-| `src/components/auth/register-machine.test.ts` | 위 테스트 | 신규 |
-| `src/components/auth/register-form.tsx` | 이메일 인증 3단계 UI 연결 | 수정(재작성) |
-| `app/api/auth/social/[provider]/route.ts` | 소셜 콜백 교환·세션 봉인·리다이렉트 | 신규 |
-| `app/api/auth/social/[provider]/route.test.ts` | 위 라우트 테스트 | 신규 |
-| `src/components/auth/social-login.tsx` | 소셜 버튼 + authorize 요청/리다이렉트 | 신규 |
-| `src/components/auth/login-form.tsx` | 비밀번호 토글·카피·소셜 섹션 연결 | 수정 |
-| `src/components/auth/auth-shell.tsx` | 필요 시 프리미티브 추가(PasswordField 등) | 수정(선택) |
+| 파일                                                       | 책임                                      | 신규/수정           |
+| ---------------------------------------------------------- | ----------------------------------------- | ------------------- |
+| `docs/api/openapi/*.json`, `manifest.json`, `endpoints.md` | OpenAPI 스냅샷 최신화                     | 수정(스크립트 생성) |
+| `src/lib/api/auth-errors.ts`                               | resultCode → 필드 분류·문구 헬퍼(순수)    | 신규                |
+| `src/lib/api/auth-errors.test.ts`                          | 위 테스트                                 | 신규                |
+| `src/components/auth/register-machine.ts`                  | 회원가입 단계 상태 머신(순수 함수)        | 신규                |
+| `src/components/auth/register-machine.test.ts`             | 위 테스트                                 | 신규                |
+| `src/components/auth/register-form.tsx`                    | 이메일 인증 3단계 UI 연결                 | 수정(재작성)        |
+| `app/api/auth/social/[provider]/route.ts`                  | 소셜 콜백 교환·세션 봉인·리다이렉트       | 신규                |
+| `app/api/auth/social/[provider]/route.test.ts`             | 위 라우트 테스트                          | 신규                |
+| `src/components/auth/social-login.tsx`                     | 소셜 버튼 + authorize 요청/리다이렉트     | 신규                |
+| `src/components/auth/login-form.tsx`                       | 비밀번호 토글·카피·소셜 섹션 연결         | 수정                |
+| `src/components/auth/auth-shell.tsx`                       | 필요 시 프리미티브 추가(PasswordField 등) | 수정(선택)          |
 
 ---
 
 ## Task 1: OpenAPI 스냅샷 최신화 (chore)
 
 **Files:**
+
 - Modify: `docs/api/openapi/auth-member.json` 외 스크립트 생성물
 
 **Interfaces:**
+
 - Produces: 최신 `auth-member.json`(email/social 엔드포인트 포함). 이후 태스크는 이를 참조만 함.
 
 - [ ] **Step 1: 스냅샷 재생성**
 
 Run:
+
 ```bash
 node scripts/sync-openapi.mjs
 ```
+
 Expected: `인증/회원: N operations, ...` 로그 출력. `docs/api/openapi/auth-member.json`에 `/auth/email/send-code`, `/auth/email/verify-code`, `/auth/{provider}/authorize`, `/auth/{provider}/login` 경로가 포함됨.
 
 - [ ] **Step 2: 변경 확인**
@@ -86,10 +90,12 @@ git commit -m "[FE] chore: OpenAPI 스냅샷 갱신 (인증 이메일 인증·�
 resultCode를 받아 (1) 어떤 입력 필드로 안내할지, (2) 사용자 문구를 반환한다. 백엔드 `resultMessage`가 이미 한국어로 친절하므로 문구는 그대로 쓰되, 특정 코드만 필드 타겟팅을 위해 분류한다.
 
 **Files:**
+
 - Create: `src/lib/api/auth-errors.ts`
 - Test: `src/lib/api/auth-errors.test.ts`
 
 **Interfaces:**
+
 - Consumes: `ApiResponse`(`@/types/api`), `getApiMessage`(`@/lib/api/response`)
 - Produces:
   - `type AuthErrorField = 'email' | 'code' | 'general'`
@@ -99,6 +105,7 @@ resultCode를 받아 (1) 어떤 입력 필드로 안내할지, (2) 사용자 문
 - [ ] **Step 1: 실패 테스트 작성**
 
 Create `src/lib/api/auth-errors.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest'
 import { classifyAuthError, getAuthErrorMessage } from './auth-errors'
@@ -143,6 +150,7 @@ Expected: FAIL (`auth-errors` 모듈 없음).
 - [ ] **Step 3: 구현**
 
 Create `src/lib/api/auth-errors.ts`:
+
 ```ts
 import type { ApiResponse } from '@/types/api'
 import { getApiMessage } from './response'
@@ -158,8 +166,7 @@ const CODE_FIELD: Record<string, AuthErrorField> = {
 
 export const classifyAuthError = (
   resultCode: string | null | undefined,
-): AuthErrorField =>
-  (resultCode && CODE_FIELD[resultCode]) || 'general'
+): AuthErrorField => (resultCode && CODE_FIELD[resultCode]) || 'general'
 
 export const getAuthErrorMessage = (
   response: ApiResponse<unknown> | null | undefined,
@@ -186,10 +193,12 @@ git commit -m "[FE] feat: 인증 에러 resultCode 분류·문구 헬퍼"
 회원가입 흐름을 UI에서 분리한 순수 로직으로 만든다. 단계 전이·제출 가능 판정·이메일 변경 시 리셋을 테스트한다.
 
 **Files:**
+
 - Create: `src/components/auth/register-machine.ts`
 - Test: `src/components/auth/register-machine.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `type RegisterStep = 'email-entry' | 'code-sent' | 'verified'`
   - `type RegisterState = { step: RegisterStep; verifiedEmail: string | null }`
@@ -203,6 +212,7 @@ git commit -m "[FE] feat: 인증 에러 resultCode 분류·문구 헬퍼"
 - [ ] **Step 1: 실패 테스트 작성**
 
 Create `src/components/auth/register-machine.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest'
 import {
@@ -268,6 +278,7 @@ Expected: FAIL (모듈 없음).
 - [ ] **Step 3: 구현**
 
 Create `src/components/auth/register-machine.ts`:
+
 ```ts
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -351,10 +362,12 @@ git commit -m "[FE] feat: 회원가입 단계 상태 머신(순수 로직)"
 Task 2·3의 헬퍼를 사용해 UI를 재작성한다. 이메일 입력→발송, 코드 입력→검증, 검증 후 나머지 필드 활성화→가입. 재전송 쿨다운(180초), 이메일 변경 리셋, 비밀번호 보기 토글, 카피 BossPickSeoul.
 
 **Files:**
+
 - Modify: `src/components/auth/register-form.tsx` (재작성)
 - (선택) Modify: `src/components/auth/auth-shell.tsx` — `SecondaryButton`은 이미 존재. 인라인 발송/확인 버튼은 기존 프리미티브 재사용.
 
 **Interfaces:**
+
 - Consumes: `register-machine`(INITIAL_REGISTER_STATE, onCodeSent, onVerified, onEmailChanged, canSubmit, PATTERN/LENGTH 상수), `auth-errors`(classifyAuthError, getAuthErrorMessage), `AuthShell` 프리미티브, `useAuthStore`(불필요 — 가입 후 로그인 유도), `ApiResponse`.
 
 - [ ] **Step 1: 호출 로직 구현**
@@ -375,6 +388,7 @@ if (res.ok && data?.dataHeader?.success) {
   setError(getAuthErrorMessage(data, '인증코드 발송에 실패했습니다.'))
 }
 ```
+
 ```ts
 // 인증코드 검증
 const res = await fetch('/api/bff/auth/email/verify-code', {
@@ -389,15 +403,24 @@ if (res.ok && data?.dataHeader?.success) {
   setError(getAuthErrorMessage(data, '인증코드 확인에 실패했습니다.'))
 }
 ```
+
 ```ts
 // 가입 (기존 로직 유지, 엔드포인트 동일)
 const res = await fetch('/api/bff/members/signup', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password, name: name.trim(), nickname: nickname.trim() }),
+  body: JSON.stringify({
+    email,
+    password,
+    name: name.trim(),
+    nickname: nickname.trim(),
+  }),
 })
 const data = (await res.json().catch(() => null)) as ApiResponse<unknown> | null
-if (res.ok && data?.dataHeader?.success) { router.replace('/login') ; return }
+if (res.ok && data?.dataHeader?.success) {
+  router.replace('/login')
+  return
+}
 setError(getAuthErrorMessage(data, '가입에 실패했습니다.'))
 ```
 
@@ -424,6 +447,7 @@ Run: `git grep -n "NowDoBoss" src app | grep -viE "test|legacy|comment"`
 - [ ] **Step 5: 브라우저 검증(실 dev API)**
 
 `.env.local`에 `BACKEND_API_URL`/`AUTH_SESSION_SECRET` 설정 후 dev 서버로 검증. **본인이 수신 가능한 실제 이메일**로:
+
 1. preview_start `{name}` 로 dev 서버 기동, `/register` 이동.
 2. 이메일 입력 → 발송 → 받은 코드 입력 → 확인 → 나머지 입력 → 가입 → `/login` 이동 확인.
 3. read_console_messages / read_network_requests 로 오류 없음, 각 호출 200·success 확인.
@@ -445,16 +469,19 @@ git commit -m "[FE] feat: 회원가입 이메일 인증 3단계 UI + 비밀번�
 `app/api/auth/login/route.ts`와 동형. provider 화이트리스트, 백엔드 콜백 호출, refreshToken 세션 봉인, 리다이렉트.
 
 **Files:**
+
 - Create: `app/api/auth/social/[provider]/route.ts`
 - Test: `app/api/auth/social/[provider]/route.test.ts`
 
 **Interfaces:**
+
 - Consumes: `getServerEnv`, `setSession`, `extractCookieValue`, `isApiSuccess`, `ApiResponse`
 - Produces: `GET(request, ctx)` — 성공 시 302 `/`, 실패 시 302 `/login?error=social`
 
 - [ ] **Step 1: 실패 테스트 작성**
 
 Create `app/api/auth/social/[provider]/route.test.ts` (login route.test.ts 패턴):
+
 ```ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -480,19 +507,35 @@ describe('GET /api/auth/social/[provider]', () => {
           dataHeader: { success: true, resultCode: null, resultMessage: null },
           dataBody: { accessToken: 'a.t.k', memberId: '7' },
         }),
-        { status: 200, headers: { 'content-type': 'application/json', 'set-cookie': 'refreshToken=r.t.k; Path=/; HttpOnly' } },
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'set-cookie': 'refreshToken=r.t.k; Path=/; HttpOnly',
+          },
+        },
       ),
     )
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/auth/social/kakao?code=c&state=s'), ctx('kakao'))
+    const res = await GET(
+      new Request('http://x/api/auth/social/kakao?code=c&state=s'),
+      ctx('kakao'),
+    )
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe('http://x/')
-    expect(setSession).toHaveBeenCalledWith({ accessToken: 'a.t.k', refreshToken: 'r.t.k', memberId: '7' })
+    expect(setSession).toHaveBeenCalledWith({
+      accessToken: 'a.t.k',
+      refreshToken: 'r.t.k',
+      memberId: '7',
+    })
   })
 
   it('rejects providers outside the whitelist', async () => {
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/auth/social/evil?code=c&state=s'), ctx('evil'))
+    const res = await GET(
+      new Request('http://x/api/auth/social/evil?code=c&state=s'),
+      ctx('evil'),
+    )
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe('http://x/login?error=social')
     expect(setSession).not.toHaveBeenCalled()
@@ -501,12 +544,22 @@ describe('GET /api/auth/social/[provider]', () => {
   it('redirects to /login?error=social on backend failure', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify({ dataHeader: { success: false, resultCode: 'AUTH_010', resultMessage: '실패' }, dataBody: null }),
+        JSON.stringify({
+          dataHeader: {
+            success: false,
+            resultCode: 'AUTH_010',
+            resultMessage: '실패',
+          },
+          dataBody: null,
+        }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     )
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/auth/social/kakao?code=c&state=s'), ctx('kakao'))
+    const res = await GET(
+      new Request('http://x/api/auth/social/kakao?code=c&state=s'),
+      ctx('kakao'),
+    )
     expect(res.headers.get('location')).toBe('http://x/login?error=social')
     expect(setSession).not.toHaveBeenCalled()
   })
@@ -521,6 +574,7 @@ Expected: FAIL (라우트 없음).
 - [ ] **Step 3: 구현**
 
 Create `app/api/auth/social/[provider]/route.ts`:
+
 ```ts
 import { NextResponse } from 'next/server'
 import { getServerEnv } from '@/lib/env.server'
@@ -538,8 +592,7 @@ export async function GET(
 ) {
   const { provider } = await ctx.params
   const url = new URL(request.url)
-  const fail = () =>
-    NextResponse.redirect(new URL('/login?error=social', url))
+  const fail = () => NextResponse.redirect(new URL('/login?error=social', url))
 
   if (!PROVIDERS.has(provider)) return fail()
 
@@ -552,9 +605,9 @@ export async function GET(
     `${backendApiUrl}/api/v1/auth/${provider}/login?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
     { method: 'GET', headers: { Accept: 'application/json' } },
   )
-  const data = (await upstream.json().catch(() => null)) as
-    | ApiResponse<LoginBody>
-    | null
+  const data = (await upstream
+    .json()
+    .catch(() => null)) as ApiResponse<LoginBody> | null
 
   if (!upstream.ok || !isApiSuccess(data) || !data?.dataBody) return fail()
 
@@ -593,17 +646,20 @@ git commit -m "[FE] feat: 소셜 로그인 콜백 서버 라우트(세션 봉인
 authorize URL을 받아 리다이렉트하는 클라이언트 컴포넌트를 만들고 로그인·가입 화면에 붙인다. 로그인 화면 비밀번호 토글·에러 안내(`?error=social`)도 정리.
 
 **Files:**
+
 - Create: `src/components/auth/social-login.tsx`
 - Modify: `src/components/auth/login-form.tsx`
 - (선택) Modify: `src/components/auth/register-form.tsx` (하단에 동일 소셜 섹션)
 
 **Interfaces:**
+
 - Consumes: `Divider`(auth-shell), 브랜드 이미지 `public/images/KakaoBtnSmall.png`
 - Produces: `default function SocialLogin()` — "또는" 구분선 + 카카오 버튼. onClick 시 authorize 요청.
 
 - [ ] **Step 1: 소셜 컴포넌트 구현**
 
 Create `src/components/auth/social-login.tsx` (`'use client'`):
+
 ```tsx
 'use client'
 
@@ -631,7 +687,10 @@ const ProviderButton = styled.button`
   border-radius: var(--radius-control);
   background: var(--color-surface);
   cursor: pointer;
-  &:disabled { cursor: not-allowed; opacity: var(--button-disabled-opacity-color); }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: var(--button-disabled-opacity-color);
+  }
 `
 
 export default function SocialLogin() {
@@ -640,9 +699,9 @@ export default function SocialLogin() {
     setBusy(provider)
     try {
       const res = await fetch(`/api/bff/auth/${provider}/authorize`)
-      const data = (await res.json().catch(() => null)) as
-        | ApiResponse<{ authorizationUrl: string }>
-        | null
+      const data = (await res.json().catch(() => null)) as ApiResponse<{
+        authorizationUrl: string
+      }> | null
       const url = data?.dataBody?.authorizationUrl
       if (res.ok && data?.dataHeader?.success && url) {
         window.location.href = url
@@ -658,7 +717,12 @@ export default function SocialLogin() {
       <Divider>또는</Divider>
       <List>
         {PROVIDERS.map(p => (
-          <ProviderButton key={p.id} type="button" onClick={() => start(p.id)} disabled={busy !== null}>
+          <ProviderButton
+            key={p.id}
+            type="button"
+            onClick={() => start(p.id)}
+            disabled={busy !== null}
+          >
             <Image src={p.img} alt="" width={20} height={20} aria-hidden />
             {p.label}
           </ProviderButton>
@@ -695,6 +759,7 @@ git commit -m "[FE] feat: 카카오 소셜 로그인 버튼·에러 안내 연�
 ## Task 7: 전체 검증 & 문서 상태 갱신
 
 **Files:**
+
 - Modify: `docs/features/_index.md`(auth 상태), `docs/features/auth/social-login.md`(D8 실측 결과 반영)
 
 - [ ] **Step 1: 단위 테스트 전체**
