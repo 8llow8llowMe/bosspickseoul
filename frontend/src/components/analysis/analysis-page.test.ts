@@ -23,6 +23,20 @@ describe('AnalysisExplorerSurface', () => {
     expect(markup).toContain('모바일 선택')
   })
 
+  it('aiReportCard/aiReportPanel 슬롯을 MapArea 위에 렌더한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalysisExplorerSurface, {
+        map: createElement('div', null, 'MAP'),
+        desktopPanel: createElement('div', null, 'PANEL'),
+        mobilePanel: createElement('div', null, 'MOBILE'),
+        aiReportCard: createElement('div', null, 'AI_CARD'),
+        aiReportPanel: createElement('div', null, 'AI_PANEL'),
+      }),
+    )
+    expect(markup).toContain('AI_CARD')
+    expect(markup).toContain('AI_PANEL')
+  })
+
   it('API 성공 여부와 데이터 길이를 화면 상태로 정규화한다', () => {
     expect(
       getAnalysisQueryStatus({
