@@ -31,16 +31,23 @@
 - 버전: `v1`
 - 원문: https://api-dev.bosspickseoul.com/auth-service/v3/api-docs
 
-| Method | Path                                        | 요약              | 인증   |
-| ------ | ------------------------------------------- | ----------------- | ------ |
-| POST   | `/api/v1/members/signup`                    | 일반 회원가입     | 불필요 |
-| GET    | `/api/v1/members/me/bookmarks`              | 북마크 목록 조회  | 필요   |
-| POST   | `/api/v1/members/me/bookmarks`              | 북마크 추가       | 필요   |
-| POST   | `/api/v1/auth/token/reissue`                | 토큰 재발급       | 불필요 |
-| POST   | `/api/v1/auth/logout`                       | 로그아웃          | 필요   |
-| POST   | `/api/v1/auth/login`                        | 일반 로그인       | 불필요 |
-| GET    | `/api/v1/members/me`                        | 내 회원 정보 조회 | 필요   |
-| DELETE | `/api/v1/members/me/bookmarks/{bookmarkId}` | 북마크 삭제       | 필요   |
+| Method | Path                                        | 요약                      | 인증   |
+| ------ | ------------------------------------------- | ------------------------- | ------ |
+| POST   | `/api/v1/members/signup`                    | 일반 회원가입             | 불필요 |
+| POST   | `/api/v1/members/me/withdraw`               | 회원 탈퇴                 | 필요   |
+| POST   | `/api/v1/members/me/password`               | 비밀번호 변경             | 필요   |
+| GET    | `/api/v1/members/me/bookmarks`              | 북마크 목록 조회          | 필요   |
+| POST   | `/api/v1/members/me/bookmarks`              | 북마크 추가               | 필요   |
+| POST   | `/api/v1/auth/token/reissue`                | 토큰 재발급               | 불필요 |
+| POST   | `/api/v1/auth/logout`                       | 로그아웃                  | 필요   |
+| POST   | `/api/v1/auth/login`                        | 일반 로그인               | 불필요 |
+| POST   | `/api/v1/auth/email/verify-code`            | 이메일 인증코드 검증      | 불필요 |
+| POST   | `/api/v1/auth/email/send-code`              | 이메일 인증코드 발송      | 불필요 |
+| GET    | `/api/v1/members/me`                        | 내 회원 정보 조회         | 필요   |
+| PATCH  | `/api/v1/members/me`                        | 내 회원 정보 수정         | 필요   |
+| GET    | `/api/v1/auth/{provider}/login`             | 소셜 로그인               | 불필요 |
+| GET    | `/api/v1/auth/{provider}/authorize`         | 소셜 로그인 인가 URL 생성 | 불필요 |
+| DELETE | `/api/v1/members/me/bookmarks/{bookmarkId}` | 북마크 삭제               | 필요   |
 
 ## 상권 분석
 
@@ -79,14 +86,14 @@
 - 버전: `v1`
 - 원문: https://api-dev.bosspickseoul.com/ai-service/v3/api-docs
 
-| Method | Path                                                      | 요약                                   | 인증 |
-| ------ | --------------------------------------------------------- | -------------------------------------- | ---- |
-| GET    | `/api/v1/ai-reports/commercials/{commercialCode}`         | 상권 AI 리포트 조회 (동기, deprecated) | 필요 |
-| POST   | `/api/v1/ai-reports/commercials/{commercialCode}`         | 상권 AI 리포트 제출 (비동기)           | 필요 |
-| GET    | `/api/v1/ai-reports/jobs/{jobId}`                         | AI 리포트 작업 상태 조회               | 필요 |
-| GET    | `/api/v1/ai-reports/districts/{districtCode}`             | 자치구 AI 리포트 조회                  | 필요 |
-| GET    | `/api/v1/ai-reports/commercials/comparisons`              | 상권 비교 AI 인사이트 조회             | 필요 |
-| GET    | `/api/v1/ai-reports/administrations/{administrationCode}` | 행정동 AI 리포트 조회                  | 필요 |
+| Method | Path                                                      | 요약                                | 인증 |
+| ------ | --------------------------------------------------------- | ----------------------------------- | ---- |
+| POST   | `/api/v1/ai-reports/districts/{districtCode}`             | 자치구 AI 리포트 제출 (비동기)      | 필요 |
+| POST   | `/api/v1/ai-reports/commercials/{commercialCode}`         | 상권 AI 리포트 제출 (비동기)        | 필요 |
+| POST   | `/api/v1/ai-reports/commercials/comparisons`              | 상권 비교 AI 인사이트 제출 (비동기) | 필요 |
+| POST   | `/api/v1/ai-reports/administrations/{administrationCode}` | 행정동 AI 리포트 제출 (비동기)      | 필요 |
+| GET    | `/api/v1/ai-reports/jobs/{jobId}`                         | AI 리포트 작업 상태 조회            | 필요 |
+| GET    | `/api/v1/ai-reports/jobs/{jobId}/stream`                  | AI 리포트 작업 상태 스트림 (SSE)    | 필요 |
 
 ## 커뮤니티
 
