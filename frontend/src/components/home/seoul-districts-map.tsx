@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import { districts } from '@/data/districts'
 import {
@@ -29,11 +30,18 @@ const DistrictPath = styled.path`
   stroke: var(--color-border-200);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
+  cursor: pointer;
   transition: fill var(--motion-slow) var(--ease-standard);
 
   &:hover {
     fill: var(--color-primary-700);
     transition: fill var(--motion-fast) var(--ease-standard);
+  }
+
+  &:focus-visible {
+    outline: none;
+    fill: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -45,24 +53,19 @@ const DistrictPath = styled.path`
   }
 `
 
-const HoverLabel = styled.div<{ $x: number; $y: number }>`
-  position: absolute;
-  top: ${props => (props.$y / 620) * 100}%;
-  left: ${props => (props.$x / 800) * 100}%;
-  z-index: 1;
-  padding: 2px 8px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-text-700);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
+const DistrictLabel = styled.text`
+  fill: var(--color-text-900);
+  stroke: var(--color-surface);
+  stroke-width: 3px;
+  paint-order: stroke;
+  font-size: 15px;
+  font-weight: 700;
+  text-anchor: middle;
   pointer-events: none;
-  transform: translate(-50%, -140%);
 `
 
 export default function SeoulDistrictsMap() {
+  const router = useRouter()
   const [hoveredCode, setHoveredCode] = useState<string | null>(null)
 
   const hoveredFeature = SEOUL_STATUS_FEATURES.find(
@@ -72,27 +75,58 @@ export default function SeoulDistrictsMap() {
     ? districtNameByCode.get(hoveredFeature.districtCode)
     : undefined
 
+  const goToAnalysis = (districtCode: string) => {
+    router.push(`/analysis?districtCode=${districtCode}`)
+  }
+
+  const handleKeyDown = (
+    event: KeyboardEvent<SVGPathElement>,
+    districtCode: string,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      goToAnalysis(districtCode)
+    }
+  }
+
   return (
     <Wrapper>
-      <MapSvg viewBox={SEOUL_STATUS_VIEW_BOX} aria-hidden="true">
-        {SEOUL_STATUS_FEATURES.map(feature => (
-          <DistrictPath
-            key={feature.districtCode}
-            d={feature.path}
-            onMouseEnter={() => setHoveredCode(feature.districtCode)}
-            onMouseLeave={() =>
-              setHoveredCode(current =>
-                current === feature.districtCode ? null : current,
-              )
-            }
-          />
-        ))}
+      <MapSvg viewBox={SEOUL_STATUS_VIEW_BOX}>
+        {SEOUL_STATUS_FEATURES.map(feature => {
+          const name = districtNameByCode.get(feature.districtCode)
+          return (
+            <DistrictPath
+              key={feature.districtCode}
+              d={feature.path}
+              role="link"
+              tabIndex={0}
+              aria-label={name || '자치구'}
+              onMouseEnter={() => setHoveredCode(feature.districtCode)}
+              onMouseLeave={() =>
+                setHoveredCode(current =>
+                  current === feature.districtCode ? null : current,
+                )
+              }
+              onFocus={() => setHoveredCode(feature.districtCode)}
+              onBlur={() =>
+                setHoveredCode(current =>
+                  current === feature.districtCode ? null : current,
+                )
+              }
+              onClick={() => goToAnalysis(feature.districtCode)}
+              onKeyDown={event => handleKeyDown(event, feature.districtCode)}
+            />
+          )
+        })}
+        {hoveredFeature && hoveredName ? (
+          <DistrictLabel
+            x={hoveredFeature.center.x}
+            y={hoveredFeature.center.y + 14}
+          >
+            {hoveredName}
+          </DistrictLabel>
+        ) : null}
       </MapSvg>
-      {hoveredFeature && hoveredName ? (
-        <HoverLabel $x={hoveredFeature.center.x} $y={hoveredFeature.center.y}>
-          {hoveredName}
-        </HoverLabel>
-      ) : null}
     </Wrapper>
   )
 }
