@@ -10,7 +10,7 @@ import {
   getDemoSample,
   type CompetitionLevel,
 } from '@/data/home-demo'
-import Sparkline from '@/components/home/sparkline'
+import MiniAreaChart from '@/components/home/mini-area-chart'
 
 const competitionLabel: Record<CompetitionLevel, string> = {
   low: '낮음',
@@ -155,12 +155,52 @@ const SampleBadge = styled.span`
   line-height: 18px;
 `
 
+const ChartCard = styled.div`
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  padding: 16px;
+`
+
+const ChartHeader = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+`
+
+const ChartLabel = styled.span`
+  color: var(--color-text-caption);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+`
+
+const ChartChange = styled.span<{ $positive: boolean }>`
+  color: ${props =>
+    props.$positive ? 'var(--color-success)' : 'var(--color-danger)'};
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: color var(--motion-fast) var(--ease-standard);
+`
+
+const ChartFigure = styled.div<{ $positive: boolean }>`
+  color: ${props =>
+    props.$positive ? 'var(--color-success)' : 'var(--color-danger)'};
+  transition: color var(--motion-fast) var(--ease-standard);
+`
+
 const MetricGrid = styled.div`
   display: grid;
   gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 
-  @media (min-width: 560px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  @media (max-width: 420px) {
+    grid-template-columns: 1fr;
   }
 `
 
@@ -174,28 +214,6 @@ const MetricLabel = styled.span`
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
-`
-
-const SalesRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`
-
-const SalesTrend = styled.span<{ $positive: boolean }>`
-  display: inline-flex;
-  color: ${props =>
-    props.$positive ? 'var(--color-success)' : 'var(--color-danger)'};
-  transition: color var(--motion-fast) var(--ease-standard);
-`
-
-const SalesChange = styled.span<{ $positive: boolean }>`
-  color: ${props =>
-    props.$positive ? 'var(--color-success)' : 'var(--color-danger)'};
-  font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  transition: color var(--motion-fast) var(--ease-standard);
 `
 
 const MetricValue = styled.span`
@@ -330,17 +348,17 @@ export default function AnalysisMiniDemo() {
           <SampleBadge>대표 예시 데이터</SampleBadge>
         </ResultHeader>
 
-        <MetricGrid>
-          <MetricBlock>
-            <MetricLabel>매출 추이</MetricLabel>
-            <SalesRow>
-              <SalesTrend $positive={isPositive}>
-                <Sparkline values={sample.salesTrend} />
-              </SalesTrend>
-              <SalesChange $positive={isPositive}>{changeLabel}</SalesChange>
-            </SalesRow>
-          </MetricBlock>
+        <ChartCard>
+          <ChartHeader>
+            <ChartLabel>매출 추이 (최근 6개월)</ChartLabel>
+            <ChartChange $positive={isPositive}>{changeLabel}</ChartChange>
+          </ChartHeader>
+          <ChartFigure $positive={isPositive}>
+            <MiniAreaChart values={sample.salesTrend} />
+          </ChartFigure>
+        </ChartCard>
 
+        <MetricGrid>
           <MetricBlock>
             <MetricLabel>유동인구</MetricLabel>
             <MetricValue>{sample.footTraffic}</MetricValue>
@@ -351,6 +369,16 @@ export default function AnalysisMiniDemo() {
             <CompetitionBadge $level={sample.competition}>
               {competitionLabel[sample.competition]}
             </CompetitionBadge>
+          </MetricBlock>
+
+          <MetricBlock>
+            <MetricLabel>폐업률</MetricLabel>
+            <MetricValue>{sample.closureRate}</MetricValue>
+          </MetricBlock>
+
+          <MetricBlock>
+            <MetricLabel>매출 증감%</MetricLabel>
+            <ChartChange $positive={isPositive}>{changeLabel}</ChartChange>
           </MetricBlock>
         </MetricGrid>
 
