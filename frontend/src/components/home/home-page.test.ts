@@ -4,12 +4,13 @@ import { describe, expect, it } from 'vitest'
 import HomePage from '@/components/home/home-page'
 
 describe('HomePage', () => {
-  it('renders the approved static landing sections and routes', () => {
+  it('renders the redesigned landing sections and routes', () => {
     const html = renderToStaticMarkup(createElement(HomePage))
 
-    expect(html).toContain('서울 상권 판단을 한 흐름으로')
-    expect(html).toContain('진행 과정')
-    expect(html).toContain('연결 서비스')
+    expect(html).toContain('창업 전에, 상권부터 확인하세요.')
+    expect(html).toContain('미리 체험하기')
+    expect(html).toContain('판단 흐름')
+    expect(html).toContain('기능')
 
     for (const href of [
       '/status',
@@ -24,10 +25,10 @@ describe('HomePage', () => {
     }
   })
 
-  it('uses the current brand and does not restore legacy preview images', () => {
+  it('renders the interactive mini-demo and no legacy brand or preview images', () => {
     const html = renderToStaticMarkup(createElement(HomePage))
 
-    expect(html).toContain('BossPickSeoul')
+    expect(html).toContain('대표 예시 데이터')
     expect(html).not.toContain('NowDoBoss')
     expect(html).not.toContain('<img')
   })
