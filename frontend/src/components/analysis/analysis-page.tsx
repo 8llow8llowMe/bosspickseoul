@@ -11,6 +11,14 @@ import AnalysisSelectionPanel, {
   ANALYSIS_STEP_LABELS,
   type AnalysisCandidate,
 } from '@/components/analysis/analysis-selection-panel'
+import AiReportCard from '@/components/analysis/ai-report/ai-report-card'
+import AiReportPanel from '@/components/analysis/ai-report/ai-report-panel'
+import { useAiReport } from '@/hooks/use-ai-report'
+import {
+  resolveAiReportLevel,
+  resolveAiReportTargetCode,
+} from '@/lib/analysis/ai-report-presentation'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   fetchCommercialServiceCategories,
   fetchDistricts,
@@ -30,6 +38,7 @@ import {
   createAnalysisExplorerHref,
   createAnalysisResultHref,
   getActiveAnalysisStep,
+  isCompleteAnalysisSelection,
   parseAnalysisSelection,
   selectAdministrationWithParent,
   selectAnalysisValue,
@@ -133,6 +142,33 @@ const MobilePanel = styled.div`
   }
 `
 
+const AiReportCardSlot = styled.div`
+  position: absolute;
+  z-index: 7;
+  top: 16px;
+  left: 16px;
+  max-width: min(320px, calc(100% - 32px));
+
+  @media (max-width: 840px) {
+    display: none;
+  }
+`
+
+const AiReportPanelSlot = styled.div`
+  position: absolute;
+  z-index: 9;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: min(380px, 92%);
+  border-right: 1px solid var(--color-border-200);
+  box-shadow: var(--shadow-level-3);
+
+  @media (max-width: 840px) {
+    display: none;
+  }
+`
+
 const MapNotice = styled.div`
   position: absolute;
   z-index: 8;
@@ -156,11 +192,15 @@ export function AnalysisExplorerSurface({
   desktopPanel,
   mobilePanel,
   mapNotice,
+  aiReportCard,
+  aiReportPanel,
 }: {
   map: ReactNode
   desktopPanel: ReactNode
   mobilePanel: ReactNode
   mapNotice?: ReactNode
+  aiReportCard?: ReactNode
+  aiReportPanel?: ReactNode
 }) {
   return (
     <Page data-hide-footer="true">
@@ -169,6 +209,10 @@ export function AnalysisExplorerSurface({
         <MapArea>
           {map}
           {mapNotice ? <MapNotice>{mapNotice}</MapNotice> : null}
+          {aiReportCard ? <AiReportCardSlot>{aiReportCard}</AiReportCardSlot> : null}
+          {aiReportPanel ? (
+            <AiReportPanelSlot>{aiReportPanel}</AiReportPanelSlot>
+          ) : null}
           <MobilePanel>{mobilePanel}</MobilePanel>
         </MapArea>
       </Layout>
@@ -214,6 +258,35 @@ export default function AnalysisPage() {
   } | null>(null)
   const requestFit = (code: string, level: number) =>
     setFitRequest(prev => ({ code, level, seq: (prev?.seq ?? 0) + 1 }))
+
+  const hasHydrated = useAuthStore(state => state.hasHydrated)
+  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
+  const aiEnabled = hasHydrated && isLoggedIn
+
+  const aiLevel = resolveAiReportLevel(selection)
+  const aiCode = aiLevel ? resolveAiReportTargetCode(selection, aiLevel) : null
+  const aiLevelKey = aiLevel && aiCode ? `${aiLevel}:${aiCode}` : null
+
+  const [aiActiveKey, setAiActiveKey] = useState<string | null>(null)
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
+  const [prevAiLevelKey, setPrevAiLevelKey] = useState(aiLevelKey)
+
+  // 선택 레벨/코드가 바뀌면 리셋(자동 조회 금지). 렌더 중 key 비교로 즉시 리셋하는
+  // React 권장 패턴("Adjusting state when a prop changes")을 사용해 effect 기반
+  // setState의 cascading render를 피한다.
+  if (prevAiLevelKey !== aiLevelKey) {
+    setPrevAiLevelKey(aiLevelKey)
+    setAiActiveKey(null)
+    setAiPanelOpen(false)
+  }
+
+  const aiActive = Boolean(aiLevelKey) && aiActiveKey === aiLevelKey
+  const { state: aiState, retry: aiRetry } = useAiReport({
+    level: aiLevel,
+    code: aiCode,
+    active: aiActive,
+    enabled: aiEnabled,
+  })
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -394,6 +467,17 @@ export default function AnalysisPage() {
       .filter(Boolean)
       .join(' · ') || '서울 전체'
 
+  // 레벨명: 선택 패널이 아는 이름을 재사용(없으면 코드 fallback)
+  const aiTargetName =
+    (aiLevel ? selectedNames[aiLevel] : undefined) ?? aiCode ?? ''
+
+  const openFullAnalysis = isCompleteAnalysisSelection(selection)
+    ? () => router.push(createAnalysisResultHref(selection, 'summary'))
+    : undefined
+
+  const showAiCard = aiEnabled && Boolean(aiLevelKey) && !aiPanelOpen
+  const showAiPanel = aiEnabled && Boolean(aiLevelKey) && aiPanelOpen
+
   const mapAreas =
     mapLayer === 'district'
       ? allDistrictAreas
@@ -509,6 +593,28 @@ export default function AnalysisPage() {
         />
       }
       mapNotice={mapNotice}
+      aiReportCard={
+        showAiCard && aiLevelKey ? (
+          <AiReportCard
+            targetName={aiTargetName}
+            onOpen={() => {
+              setAiActiveKey(aiLevelKey)
+              setAiPanelOpen(true)
+            }}
+          />
+        ) : null
+      }
+      aiReportPanel={
+        showAiPanel ? (
+          <AiReportPanel
+            targetName={aiTargetName}
+            state={aiState}
+            onClose={() => setAiPanelOpen(false)}
+            onRetry={aiRetry}
+            onViewFullAnalysis={openFullAnalysis}
+          />
+        ) : null
+      }
       mobilePanel={
         <AnalysisMobileSheet
           stepLabel={`${ANALYSIS_STEP_LABELS[activeStep]} 선택`}
