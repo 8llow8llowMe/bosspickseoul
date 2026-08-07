@@ -46,6 +46,7 @@ describe('GET /api/auth/social/[provider]', () => {
   })
 
   it('rejects providers outside the whitelist', async () => {
+    global.fetch = vi.fn()
     const { GET } = await import('./route')
     const res = await GET(
       new Request('http://x/api/auth/social/evil?code=c&state=s'),
@@ -54,6 +55,7 @@ describe('GET /api/auth/social/[provider]', () => {
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe('http://x/login?error=social')
     expect(setSession).not.toHaveBeenCalled()
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
   it('redirects to /login?error=social on backend failure', async () => {

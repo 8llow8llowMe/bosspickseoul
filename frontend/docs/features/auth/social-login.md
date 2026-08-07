@@ -57,7 +57,7 @@
 | 모듈                                          | 책임                                                                                           |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `src/components/auth/social-login.tsx`        | 소셜 버튼 UI + authorize URL 요청/리다이렉트(client)                                           |
-| `app/api/auth/social/[provider]/route.ts`     | 콜백 교환 서버 라우트(GET). 백엔드 login 호출 → 세션 봉인 → 302 redirect                       |
+| `app/api/auth/social/[provider]/route.ts`     | 콜백 교환 서버 라우트(GET). 백엔드 login 호출 → 세션 봉인 → 307 redirect                       |
 | `app/(auth)/social/[provider]/page.tsx`(선택) | 콜백 로딩/에러 표시 페이지(서버 라우트를 직접 redirect_uri로 쓰면 생략 가능)                   |
 | 재사용                                        | `setSession`, `extractCookieValue`, `isApiSuccess`, `getApiMessage`(로그인 라우트와 동일 패턴) |
 
