@@ -16,6 +16,7 @@ import AuthShell, {
   TextInput,
 } from '@/components/auth/auth-shell'
 import GuestOnly from '@/components/auth/guest-only'
+import SocialLogin from '@/components/auth/social-login'
 import {
   classifyAuthError,
   getAuthErrorMessage,
@@ -395,6 +396,8 @@ export default function RegisterForm() {
             </>
           ) : null}
         </AuthForm>
+
+        <SocialLogin />
 
         <FooterRow>
           <span>이미 계정이 있나요?</span>
