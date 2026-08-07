@@ -270,7 +270,7 @@ export default function AnalysisPage() {
 
   const aiLevel = resolveAiReportLevel(selection)
   const aiCode = aiLevel ? resolveAiReportTargetCode(selection, aiLevel) : null
-  const aiLevelKey = buildAiLevelKey(aiLevel, aiCode)
+  const aiLevelKey = buildAiLevelKey(aiLevel, aiCode, selection.serviceCode)
 
   const [aiActiveKey, setAiActiveKey] = useState<string | null>(null)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -289,7 +289,8 @@ export default function AnalysisPage() {
   const { state: aiState, retry: aiRetry } = useAiReport({
     level: aiLevel,
     code: aiCode,
-    active: aiActive,
+    serviceCode: selection.serviceCode,
+    active: aiActive && aiPanelOpen,
     enabled: aiEnabled,
   })
 

@@ -52,4 +52,21 @@ describe('AiReportPanel', () => {
       render({ status: 'loading' }, { onViewFullAnalysis: () => {} }),
     ).toContain('전체 분석 보기')
   })
+
+  it('onViewFullAnalysis가 없으면 안내 문구를, 있으면 버튼만 보여준다', () => {
+    const withoutHandler = render({ status: 'loading' })
+    expect(withoutHandler).toContain(
+      '분야까지 선택하면 전체 분석을 볼 수 있어요',
+    )
+    expect(withoutHandler).not.toContain('전체 분석 보기')
+
+    const withHandler = render(
+      { status: 'loading' },
+      { onViewFullAnalysis: () => {} },
+    )
+    expect(withHandler).toContain('전체 분석 보기')
+    expect(withHandler).not.toContain(
+      '분야까지 선택하면 전체 분석을 볼 수 있어요',
+    )
+  })
 })

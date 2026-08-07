@@ -117,15 +117,24 @@ describe('toRegionReportView / empty guards', () => {
 })
 
 describe('buildAiLevelKey', () => {
-  it('level과 code가 모두 있으면 조합 키를 만든다', () => {
-    expect(buildAiLevelKey('district', '11680')).toBe('district:11680')
-    expect(buildAiLevelKey('commercial', '3110008')).toBe('commercial:3110008')
+  it('district/administration은 serviceCode와 무관하게 조합 키를 만든다', () => {
+    expect(buildAiLevelKey('district', '11680', null)).toBe('district:11680')
+    expect(buildAiLevelKey('administration', '11680640', 'CS100001')).toBe(
+      'administration:11680640',
+    )
+  })
+
+  it('commercial은 serviceCode가 없으면 null, 있으면 조합 키를 만든다', () => {
+    expect(buildAiLevelKey('commercial', '3110008', null)).toBeNull()
+    expect(buildAiLevelKey('commercial', '3110008', 'CS100001')).toBe(
+      'commercial:3110008:CS100001',
+    )
   })
 
   it('level 또는 code 중 하나라도 없으면 null이다', () => {
-    expect(buildAiLevelKey(null, '11680')).toBeNull()
-    expect(buildAiLevelKey('district', null)).toBeNull()
-    expect(buildAiLevelKey(null, null)).toBeNull()
+    expect(buildAiLevelKey(null, '11680', 'CS100001')).toBeNull()
+    expect(buildAiLevelKey('district', null, 'CS100001')).toBeNull()
+    expect(buildAiLevelKey(null, null, null)).toBeNull()
   })
 })
 

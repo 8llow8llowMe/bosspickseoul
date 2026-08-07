@@ -58,6 +58,13 @@ const Footer = styled.footer`
   border-top: 1px solid var(--color-border-200);
 `
 
+const RemainingSelectionHint = styled.p`
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+`
+
 function Content({
   state,
   onRetry,
@@ -112,13 +119,17 @@ export default function AiReportPanel({
       <Body>
         <Content state={state} onRetry={onRetry} />
       </Body>
-      {onViewFullAnalysis ? (
-        <Footer>
+      <Footer>
+        {onViewFullAnalysis ? (
           <Button type="button" onClick={onViewFullAnalysis}>
             전체 분석 보기
           </Button>
-        </Footer>
-      ) : null}
+        ) : (
+          <RemainingSelectionHint>
+            분야까지 선택하면 전체 분석을 볼 수 있어요
+          </RemainingSelectionHint>
+        )}
+      </Footer>
     </Shell>
   )
 }

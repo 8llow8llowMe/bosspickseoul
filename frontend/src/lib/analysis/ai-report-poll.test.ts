@@ -4,7 +4,6 @@ import {
   AI_REPORT_POLL_INTERVAL_MS,
   AI_REPORT_POLL_TIMEOUT_MS,
   decideNextPoll,
-  isPollableJobStatus,
   jobIdFromSubmission,
   reportFromSubmission,
 } from '@/lib/analysis/ai-report-poll'
@@ -55,15 +54,6 @@ describe('submission helpers', () => {
         commercialReport: report,
       }),
     ).toBeNull()
-  })
-})
-
-describe('isPollableJobStatus', () => {
-  it('PENDING/RUNNING만 폴링 대상', () => {
-    expect(isPollableJobStatus('PENDING')).toBe(true)
-    expect(isPollableJobStatus('RUNNING')).toBe(true)
-    expect(isPollableJobStatus('COMPLETED')).toBe(false)
-    expect(isPollableJobStatus('FAILED')).toBe(false)
   })
 })
 

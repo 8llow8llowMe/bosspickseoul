@@ -45,6 +45,7 @@ export type AiReportState =
 type UseAiReportArgs = {
   level: AiReportLevel | null
   code: string | null
+  serviceCode: string | null
   active: boolean
   enabled: boolean
 }
@@ -52,6 +53,7 @@ type UseAiReportArgs = {
 export const useAiReport = ({
   level,
   code,
+  serviceCode,
   active,
   enabled,
 }: UseAiReportArgs): { state: AiReportState; retry: () => void } => {
@@ -72,11 +74,11 @@ export const useAiReport = ({
     staleTime: 5 * 60 * 1000,
   })
 
-  // 상권: POST 제출
+  // 상권: POST 제출 (분야 선택 필수)
   const submitQuery = useQuery({
-    queryKey: ['ai-report', 'commercial-submit', code],
-    queryFn: () => submitCommercialAiReport(code!),
-    enabled: on && isCommercial,
+    queryKey: ['ai-report', 'commercial-submit', code, serviceCode],
+    queryFn: () => submitCommercialAiReport(code!, serviceCode!),
+    enabled: on && isCommercial && Boolean(serviceCode),
     retry: 0,
     staleTime: 5 * 60 * 1000,
   })
@@ -168,7 +170,8 @@ const deriveState = (a: {
   if (a.isRegion) {
     if (a.regionQuery.isError)
       return { status: 'error', message: '리포트를 불러오지 못했습니다.' }
-    if (!a.regionQuery.data) return { status: 'loading' }
+    if (a.regionQuery.isPending) return { status: 'loading' }
+    if (!a.regionQuery.data) return { status: 'empty' }
     const view = toRegionReportView(a.regionQuery.data)
     return isRegionReportEmpty(view)
       ? { status: 'empty' }

@@ -1,15 +1,11 @@
 import type {
   AiReportJob,
-  AiReportJobStatus,
   AiReportSubmission,
   CommercialAiReport,
 } from '@/types/ai-report'
 
 export const AI_REPORT_POLL_INTERVAL_MS = 2000
 export const AI_REPORT_POLL_TIMEOUT_MS = 90000
-
-export const isPollableJobStatus = (status: AiReportJobStatus): boolean =>
-  status === 'PENDING' || status === 'RUNNING'
 
 export const reportFromSubmission = (
   submission: AiReportSubmission,
