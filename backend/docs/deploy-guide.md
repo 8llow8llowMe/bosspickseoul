@@ -152,11 +152,11 @@ vault kv get -field=KAFKA_BOOTSTRAP_SERVERS kv/bosspickseoul/backend/dev/env
 
 ### 인기 순위(Kafka) 활성화 시 필요한 key
 
-commercial-service 의 인기 순위 파이프라인은 기본 비활성입니다. 켤 때 Vault 에 넣을 값은 아래와 같습니다.
+아래 5개 key 는 commercial-service compose 가 기본값 없이 참조하므로 **dev/prod 양쪽 Vault 에 반드시 있어야 합니다.** 값이 없으면 빈 문자열이 주입되어 `boolean`/`int` 바인딩이 실패하고 컨테이너가 기동하지 못합니다. 인기 순위를 아직 쓰지 않더라도 `RANKING_ENABLED=false` 로 key 자체는 넣어둡니다.
 
 | key | dev / prod 값 | 설명 |
 | --- | --- | --- |
-| `RANKING_ENABLED` | `true` | Kafka producer/consumer 빈 등록 여부. `false` 면 브로커 없이도 기동 |
+| `RANKING_ENABLED` | `true` (미사용 시 `false`) | Kafka producer/consumer 빈 등록 여부. `false` 면 브로커 없이도 기동 |
 | `KAFKA_BOOTSTRAP_SERVERS` | `192.168.0.10:19092,192.168.0.10:29092,192.168.0.10:39092` | Kafka 가 다른 호스트(ollama-01)에 있으므로 **EXTERNAL 리스너 주소**를 쓴다 |
 | `RANKING_EVENTS_TOPIC` | `bosspick.analysis-events` | 이벤트 토픽. 기동 시 자동 생성된다 |
 | `RANKING_TOPIC_PARTITIONS` | `3` | 토픽 파티션 수 |
