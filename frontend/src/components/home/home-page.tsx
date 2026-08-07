@@ -13,6 +13,7 @@ import {
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
 import Reveal from '@/components/home/reveal'
+import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 
 const workflowSteps = [
   {
@@ -100,6 +101,24 @@ const Hero = styled.section`
 const Inner = styled.div`
   width: min(1120px, 100%);
   margin: 0 auto;
+`
+
+const HeroGrid = styled.div`
+  display: grid;
+  gap: 32px;
+  align-items: center;
+
+  @media (min-width: 900px) {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  }
+`
+
+const HeroVisual = styled.div`
+  display: none;
+
+  @media (min-width: 900px) {
+    display: block;
+  }
 `
 
 const HeroCopy = styled.div`
@@ -385,23 +404,28 @@ export default function HomePage() {
     <Page>
       <Hero>
         <Inner>
-          <HeroCopy>
-            <Eyebrow>서울 상권 데이터 분석</Eyebrow>
-            <Title>창업 전에, 상권부터 확인하세요.</Title>
-            <Body>
-              서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로 분석합니다.
-              감이 아니라 데이터로 자리를 정하세요.
-            </Body>
-            <Actions>
-              <PrimaryLink href="/analysis">
-                <Search aria-hidden="true" />내 상권 분석하기
-              </PrimaryLink>
-              <SecondaryLink href="/status">
-                <MapPinned aria-hidden="true" />
-                구별현황 보기
-              </SecondaryLink>
-            </Actions>
-          </HeroCopy>
+          <HeroGrid>
+            <HeroCopy>
+              <Eyebrow>서울 상권 데이터 분석</Eyebrow>
+              <Title>창업 전에, 상권부터 확인하세요.</Title>
+              <Body>
+                서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로
+                분석합니다. 감이 아니라 데이터로 자리를 정하세요.
+              </Body>
+              <Actions>
+                <PrimaryLink href="/analysis">
+                  <Search aria-hidden="true" />내 상권 분석하기
+                </PrimaryLink>
+                <SecondaryLink href="/status">
+                  <MapPinned aria-hidden="true" />
+                  구별현황 보기
+                </SecondaryLink>
+              </Actions>
+            </HeroCopy>
+            <HeroVisual>
+              <SeoulDistrictsMap />
+            </HeroVisual>
+          </HeroGrid>
         </Inner>
       </Hero>
 

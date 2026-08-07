@@ -7,6 +7,7 @@ export type DemoSample = {
   salesChangePct: number // 전월 대비 %(부호 포함)
   footTraffic: string
   competition: CompetitionLevel
+  closureRate: string // 연 환산 폐업률 대표 예시
   insight: string
 }
 
@@ -33,6 +34,7 @@ const SAMPLES: Record<string, Omit<DemoSample, 'districtId' | 'industryId'>> = {
     salesChangePct: 5.3,
     footTraffic: '일평균 4.2만 명',
     competition: 'high',
+    closureRate: '연 4.1%',
     insight: '유동인구는 많지만 카페 밀도가 높아 경쟁이 치열합니다.',
   },
   'mapo:cafe': {
@@ -40,6 +42,7 @@ const SAMPLES: Record<string, Omit<DemoSample, 'districtId' | 'industryId'>> = {
     salesChangePct: 4.5,
     footTraffic: '일평균 3.1만 명',
     competition: 'medium',
+    closureRate: '연 2.8%',
     insight: '20~30대 유입이 꾸준해 카페 수요가 안정적입니다.',
   },
   'jongno:restaurant': {
@@ -47,6 +50,7 @@ const SAMPLES: Record<string, Omit<DemoSample, 'districtId' | 'industryId'>> = {
     salesChangePct: 2.1,
     footTraffic: '일평균 5.0만 명',
     competition: 'high',
+    closureRate: '연 3.9%',
     insight: '직장인 점심 수요가 크지만 기존 음식점 경쟁이 강합니다.',
   },
   'seongdong:cafe': {
@@ -54,6 +58,7 @@ const SAMPLES: Record<string, Omit<DemoSample, 'districtId' | 'industryId'>> = {
     salesChangePct: 6.2,
     footTraffic: '일평균 2.4만 명',
     competition: 'low',
+    closureRate: '연 1.6%',
     insight: '상권이 성장 중이라 카페 진입 여지가 있습니다.',
   },
   'mapo:restaurant': {
@@ -61,6 +66,7 @@ const SAMPLES: Record<string, Omit<DemoSample, 'districtId' | 'industryId'>> = {
     salesChangePct: 3.4,
     footTraffic: '일평균 3.4만 명',
     competition: 'medium',
+    closureRate: '연 3.0%',
     insight: '저녁 상권이 활발해 음식점 회전이 빠른 편입니다.',
   },
   'gangnam:convenience': {
@@ -68,6 +74,7 @@ const SAMPLES: Record<string, Omit<DemoSample, 'districtId' | 'industryId'>> = {
     salesChangePct: 2.2,
     footTraffic: '일평균 4.2만 명',
     competition: 'medium',
+    closureRate: '연 2.4%',
     insight: '오피스 수요로 편의점 매출이 평일에 집중됩니다.',
   },
 }
@@ -77,6 +84,7 @@ const FALLBACK: Omit<DemoSample, 'districtId' | 'industryId'> = {
   salesChangePct: 3.0,
   footTraffic: '일평균 3.0만 명',
   competition: 'medium',
+  closureRate: '연 3.2%',
   insight: '대표 예시 기준으로 수요와 경쟁이 보통 수준입니다.',
 }
 
