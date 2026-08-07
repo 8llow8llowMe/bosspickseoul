@@ -57,21 +57,19 @@ describe('GET /api/auth/social/[provider]', () => {
   })
 
   it('redirects to /login?error=social on backend failure', async () => {
-    global.fetch = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            dataHeader: {
-              success: false,
-              resultCode: 'AUTH_010',
-              resultMessage: '실패',
-            },
-            dataBody: null,
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
-      )
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          dataHeader: {
+            success: false,
+            resultCode: 'AUTH_010',
+            resultMessage: '실패',
+          },
+          dataBody: null,
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    )
     const { GET } = await import('./route')
     const res = await GET(
       new Request('http://x/api/auth/social/kakao?code=c&state=s'),
