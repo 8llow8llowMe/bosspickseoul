@@ -59,20 +59,23 @@ function useRovingRadioGroup(
 const Wrapper = styled.div`
   display: grid;
   gap: 20px;
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+  align-items: start;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `
 
-const SelectorRow = styled.div`
+const SelectorColumn = styled.div`
   display: grid;
-  gap: 12px;
-
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  gap: 20px;
 `
 
 const SelectorGroup = styled.div`
   display: grid;
   gap: 8px;
+  align-content: start;
 `
 
 const SelectorLabel = styled.span`
@@ -84,8 +87,13 @@ const SelectorLabel = styled.span`
 
 const OptionList = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
+
+  @media (max-width: 640px) {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 `
 
 const Option = styled.button<{ $active: boolean }>`
@@ -101,6 +109,7 @@ const Option = styled.button<{ $active: boolean }>`
     props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
   font-size: 14px;
   font-weight: 600;
+  text-align: left;
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -290,7 +299,7 @@ export default function AnalysisMiniDemo() {
 
   return (
     <Wrapper>
-      <SelectorRow>
+      <SelectorColumn>
         <SelectorGroup role="radiogroup" aria-label="지역 선택">
           <SelectorLabel>지역</SelectorLabel>
           <OptionList onKeyDown={districtGroup.handleKeyDown}>
@@ -338,7 +347,7 @@ export default function AnalysisMiniDemo() {
             ))}
           </OptionList>
         </SelectorGroup>
-      </SelectorRow>
+      </SelectorColumn>
 
       <ResultCard aria-live="polite">
         <ResultHeader>
