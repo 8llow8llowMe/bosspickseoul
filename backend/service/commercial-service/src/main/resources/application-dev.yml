@@ -59,3 +59,11 @@ app:
     jwt:
       resource:
         access-key: ${JWT_ACCESS_KEY}
+
+infra:
+  redis:
+    mode: ${REDIS_MODE}
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
+    key-prefix: ${REDIS_KEY_PREFIX}

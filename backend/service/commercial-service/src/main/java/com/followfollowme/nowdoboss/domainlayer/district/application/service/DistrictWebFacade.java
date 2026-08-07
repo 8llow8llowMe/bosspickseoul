@@ -1,5 +1,9 @@
 package com.followfollowme.nowdoboss.domainlayer.district.application.service;
 
+import com.followfollowme.nowdoboss.domainlayer.ranking.application.port.out.AnalysisViewEventPort;
+import com.followfollowme.nowdoboss.domainlayer.ranking.domain.enums.AnalysisAreaType;
+import com.followfollowme.nowdoboss.domainlayer.ranking.domain.model.AnalysisViewEvent;
+import java.time.LocalDateTime;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.ChangeIndicatorDistrictResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
@@ -30,6 +34,7 @@ public class DistrictWebFacade implements DistrictWebUseCase {
 
     private final DistrictQueryProcessor districtQueryProcessor;
     private final DistrictPresenter districtPresenter;
+    private final AnalysisViewEventPort analysisViewEventPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -42,6 +47,9 @@ public class DistrictWebFacade implements DistrictWebUseCase {
     @Transactional(readOnly = true)
     public DistrictDetailResponse getDistrictDetail(String districtCode, String currentPeriodCode, String previousPeriodCode) {
         DistrictDetailInfo info = districtQueryProcessor.getDistrictDetail(districtCode, currentPeriodCode, previousPeriodCode);
+        // 인기 순위 집계용 이벤트. 포트 계약상 절대 예외를 던지지 않아 본 조회 응답에는 영향이 없다.
+        analysisViewEventPort.publish(new AnalysisViewEvent(
+            AnalysisAreaType.DISTRICT, districtCode, null, LocalDateTime.now()));
         return districtPresenter.toDistrictDetailResponse(info);
     }
 

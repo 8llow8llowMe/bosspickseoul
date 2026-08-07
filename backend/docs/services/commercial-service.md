@@ -14,6 +14,7 @@
 - `administration`
 - `category`
 - `commercialsummary`
+- `ranking`
 
 ## 인증 방식
 
@@ -125,6 +126,21 @@
 - 새 화면을 공유 대상으로 추가할 때는 `ShareTargetType`에 상수 하나만 추가하면 된다.
 - 만료 링크는 `410 SHARE_LINK_002`, 미존재 코드는 `404 SHARE_LINK_001`로 응답한다.
 
+## 분석 인기 순위 (ranking)
+
+- 사용자가 많이 조회한 상권/자치구/행정동 실시간 인기 순위 (인기 검색어 방식).
+- `GET /api/v1/analysis-rankings?areaType=COMMERCIAL|DISTRICT|ADMINISTRATION&size=10` (공개)
+  — 응답: `{areaType(metadata), windowHours, rankings[{rank, areaCode, areaName?, viewCount}]}`
+- 파이프라인: 분석 조회 Facade → `AnalysisViewEventPort`(Kafka `bosspick.analysis-events`)
+  → `AnalysisViewEventKafkaListener` → Redis ZSET 시간 버킷(`{prefix}:ranking:analysis:{TYPE}:{yyyyMMddHH}`,
+  TTL window+2h) → 조회 시 최근 `app.ranking.window-hours`(기본 24h) 버킷 ZUNIONSTORE.
+- 이벤트 발행 지점(화면당 1회 대표 API): 상권=`/{code}/foot-traffic`, 자치구=`/{code}` 상세, 행정동=`/{code}` 상세.
+- **장애 격리 계약**: `AnalysisViewEventPort` 구현체는 절대 예외를 던지지 않는다.
+  producer `max.block.ms=1000` 으로 브로커 다운 시에도 분석 API 지연은 최대 1초 이내이며 이벤트만 유실된다.
+  `app.ranking.enabled=false`(기본)면 Kafka producer/consumer 빈이 아예 등록되지 않는다.
+  컨슈머는 해석 불가/집계 실패 이벤트를 로그만 남기고 건너뛴다 (poison 재시도 루프 방지).
+- Redis 장애 시 인기 순위 조회만 `503 RANKING_002` 로 응답하고 나머지 분석 API 는 영향 없다.
+
 ## 에러코드 (대역 요약)
 
 컨텍스트별 ErrorCode enum 을 각각 유지한다. 상세 메시지는 각 enum 이 단일 기준점이다.
@@ -136,6 +152,7 @@
 | `AdministrationErrorCode` | `ADMINISTRATION_001`~`ADMINISTRATION_003` | 행정동 지출/매출/점포 미존재 404 |
 | `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
+| `RankingErrorCode` | `RANKING_001`~`RANKING_003` | 영역 타입 400 / 저장소 연결 불가 503 / 조회 개수 400 |
 
 ## 정책 추천 (보류)
 

@@ -1,6 +1,7 @@
 dependencies {
     implementation project(":core:common-core")
     implementation project(":core:persistence-core")
+    implementation project(":core:redis-core")
     implementation project(":core:security-core")
     implementation project(":core:shared-commercial")
 
@@ -14,6 +15,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     // Spring Security Resource Server (공유 링크 생성 등 인증 필요 API의 JWT 해석)
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    // Kafka (분석 조회 이벤트 발행/집계 — 인기 순위 파이프라인)
+    implementation 'org.springframework.kafka:spring-kafka'
+    // Redis (인기 순위 Sorted Set 집계 저장소)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     // Resilience4j CircuitBreaker (내부 Feign 호출 장애 전파 차단)
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'

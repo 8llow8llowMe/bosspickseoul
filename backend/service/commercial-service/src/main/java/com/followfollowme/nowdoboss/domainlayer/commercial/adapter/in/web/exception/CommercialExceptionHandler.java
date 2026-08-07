@@ -7,6 +7,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
 import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictException;
+import com.followfollowme.nowdoboss.domainlayer.ranking.application.exception.RankingException;
 import com.followfollowme.nowdoboss.domainlayer.sharelink.application.exception.ShareLinkException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,13 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(ShareLinkException.class)
     public ResponseEntity<Response<Void>> handleShareLinkException(ShareLinkException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(RankingException.class)
+    public ResponseEntity<Response<Void>> handleRankingException(RankingException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
