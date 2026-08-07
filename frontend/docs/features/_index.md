@@ -5,18 +5,18 @@
 
 ## Feature 목록 & 이관 상태
 
-| Feature    | 공통명세                                 | 대표 라우트                              | 이관 상태                    | 비고                                                  |
-| ---------- | ---------------------------------------- | ---------------------------------------- | ---------------------------- | ----------------------------------------------------- |
-| home       | [home](./home/home.md)                   | `(shell)/`                               | ✅ 이관·검증 완료            | 정적 랜딩 확정. Top 10·지도는 status 소유             |
-| auth       | [auth](./auth/auth.md)                   | `(auth)/login,register,…`                | 🟩 명세 완료·구현(정적 검증) | BFF 세션. 소셜로그인·2단계가입·에러코드 미결(BE 선행) |
-| status     | [status](./status/status.md)             | `(shell)/status`                         | ⬜                           |                                                       |
-| recommend  | [recommend](./recommend/recommend.md)    | `(shell)/recommend`                      | ⬜                           |                                                       |
-| analysis   | [analysis](./analysis/analysis.md)       | `(shell)/analysis,result,simulation…`    | 🟩 명세 완료                 | 지도 탐색 + 라우트 모달/독립 결과 페이지              |
-| simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report`      | 🟩 안전 대기 구현            | V2 Swagger·Gateway 계약 후 실제 기능 재개             |
-| community  | [community](./community/community.md)    | `(shell)/community/{list,register,[id]}` | ⬜                           |                                                       |
-| chatting   | [chatting](./chatting/chatting.md)       | `(shell)/chatting/{list,[roomId]}`       | 🟩 안전 대기 구현            | REST·STOMP·FCM·Gateway 선행                           |
-| profile    | [profile](./profile/profile.md)          | `(shell)/profile/{settings,bookmarks,…}` | 🟡 V2 계약 정합화 진행       | 계정 쓰기·시뮬레이션 저장은 BE 선행                   |
-| share      | [share](./share/share.md)                | `(shell)/share/[token]`                  | ⬜                           |                                                       |
+| Feature    | 공통명세                                 | 대표 라우트                              | 이관 상태                                           | 비고                                                                                                                                                |
+| ---------- | ---------------------------------------- | ---------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| home       | [home](./home/home.md)                   | `(shell)/`                               | ✅ 이관·검증 완료                                   | 정적 랜딩 확정. Top 10·지도는 status 소유                                                                                                           |
+| auth       | [auth](./auth/auth.md)                   | `(auth)/login,register,…`                | 🟩 명세 완료·구현(이메일 인증 가입·소셜로그인 포함) | BFF 세션. 이메일 인증 3단계 가입·소셜로그인(카카오) FE 구현·단위테스트 완료. 소셜 e2e는 dev 카카오 OAuth 설정(client_id/redirect_uri) 대기(BE 선행) |
+| status     | [status](./status/status.md)             | `(shell)/status`                         | ⬜                                                  |                                                                                                                                                     |
+| recommend  | [recommend](./recommend/recommend.md)    | `(shell)/recommend`                      | ⬜                                                  |                                                                                                                                                     |
+| analysis   | [analysis](./analysis/analysis.md)       | `(shell)/analysis,result,simulation…`    | 🟩 명세 완료                                        | 지도 탐색 + 라우트 모달/독립 결과 페이지                                                                                                            |
+| simulation | [simulation](./simulation/simulation.md) | `(shell)/simulation,compare,report`      | 🟩 안전 대기 구현                                   | V2 Swagger·Gateway 계약 후 실제 기능 재개                                                                                                           |
+| community  | [community](./community/community.md)    | `(shell)/community/{list,register,[id]}` | ⬜                                                  |                                                                                                                                                     |
+| chatting   | [chatting](./chatting/chatting.md)       | `(shell)/chatting/{list,[roomId]}`       | 🟩 안전 대기 구현                                   | REST·STOMP·FCM·Gateway 선행                                                                                                                         |
+| profile    | [profile](./profile/profile.md)          | `(shell)/profile/{settings,bookmarks,…}` | 🟡 V2 계약 정합화 진행                              | 계정 쓰기·시뮬레이션 저장은 BE 선행                                                                                                                 |
+| share      | [share](./share/share.md)                | `(shell)/share/[token]`                  | ⬜                                                  |                                                                                                                                                     |
 
 ## 상태 범례
 
