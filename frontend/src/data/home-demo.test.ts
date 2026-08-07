@@ -13,7 +13,9 @@ describe('home-demo', () => {
   })
 
   it('default selection references existing ids', () => {
-    expect(DISTRICTS.some(d => d.id === DEFAULT_SELECTION.districtId)).toBe(true)
+    expect(DISTRICTS.some(d => d.id === DEFAULT_SELECTION.districtId)).toBe(
+      true,
+    )
     expect(INDUSTRIES.some(i => i.id === DEFAULT_SELECTION.industryId)).toBe(
       true,
     )
