@@ -21,7 +21,7 @@ BossPickSeoul(구 NowDoBoss) FE를 Next.js App Router로 이관하면서, 인증
 | 요청 배경          | 리브랜딩 + Next 이관 + 백엔드 재아키텍처. 토큰을 클라이언트에 두던 방식의 XSS 위험 제거                                                                                                                                                      |
 | 기존 동작 (as-is)  | legacy `util/auth/customAxios.tsx`가 클라이언트에서 accessToken을 `localStorage`/쿠키에 보관하고 요청마다 헤더 주입, 401 시 클라이언트가 refresh 호출. 소셜 로그인(카카오 등) + 2단계 일반가입 + 이메일 인증 존재                            |
 | 목표 동작 (to-be)  | 브라우저는 백엔드를 직접 호출하지 않는다. Next 서버(BFF)가 토큰을 **암호화 HttpOnly 세션 쿠키**에 보관하고 server-to-server로 게이트웨이를 호출하며, access 만료 시 서버가 투명하게 재발급·재시도한다. 브라우저 JS는 토큰을 절대 보지 못한다 |
-| 구현 제외 범위     | **소셜 로그인(OAuth)** — 백엔드에 엔드포인트 없음(→ D8 미결). **2단계 가입·이메일 인증·중복확인** — 백엔드 단일 signup만 존재(→ D8 미결). 비밀번호 변경·회원 탈퇴는 profile Feature 소관                                                     |
+| 구현 제외 범위     | 실시간 이메일 **중복확인** — 전용 엔드포인트 없음(가입 응답으로 판별). 비밀번호 변경·회원 탈퇴는 profile Feature 소관. (※ 소셜 로그인·이메일 인증은 백엔드 지원 확인되어 **구현 대상으로 전환** — v1.1)                                    |
 | 연관 기능 / 의존성 | 모든 인증 필요 Feature(status·recommend·analysis·simulation·community·chatting·profile)가 이 세션 메커니즘에 의존. chatting은 WebSocket으로 별도 인증 경로 필요(해당 Feature에서 정의)                                                       |
 
 ---
@@ -57,15 +57,16 @@ BossPickSeoul(구 NowDoBoss) FE를 Next.js App Router로 이관하면서, 인증
 | --- | ---------------------- | --------------------------------------------------------- | ------------------------------------ |
 | 1   | BFF 세션/토큰 커스터디 | 로그인·로그아웃·재발급·가드·세션복원의 서버측 메커니즘    | [session-bff](./session-bff.md)      |
 | 2   | 로그인                 | 이메일/비밀번호 로그인 화면 및 플로우                     | [login](./login.md)                  |
-| 3   | 회원가입               | 단일 단계 회원가입(email/pw/name/nickname) 화면 및 플로우 | [register](./register.md)            |
+| 3   | 회원가입               | 이메일 인증(발송·검증) 후 회원가입(email/pw/name/nickname) | [register](./register.md)            |
 | 4   | 로그아웃               | 세션 종료 + 백엔드 logout                                 | [session-bff](./session-bff.md) D4-2 |
-| 5   | 소셜 로그인(OAuth)     | **백엔드 미지원 — 미결**                                  | [session-bff](./session-bff.md) D8   |
+| 5   | 소셜 로그인(OAuth)     | authorize URL → 콜백 교환 → 세션 봉인(카카오 우선)        | [social-login](./social-login.md)    |
 
 ## S4. 세부 명세
 
 - [session-bff — BFF 세션/토큰 커스터디](./session-bff.md) **(정본 메커니즘, 다른 Feature의 전제)**
 - [login — 로그인](./login.md)
-- [register — 회원가입](./register.md)
+- [register — 회원가입(이메일 인증 2단계)](./register.md)
+- [social-login — 소셜 로그인(OAuth)](./social-login.md)
 
 ## S5. 테스트케이스
 
@@ -91,3 +92,4 @@ BossPickSeoul(구 NowDoBoss) FE를 Next.js App Router로 이관하면서, 인증
 | 버전 | 날짜       | 변경 내용                      | 작성자 |
 | ---- | ---------- | ------------------------------ | ------ |
 | 1.0  | 2026-07-21 | 최초 작성 (brainstorming 산출) | FE     |
+| 1.1  | 2026-08-07 | 이메일 인증 2단계 회원가입 + 소셜 로그인(카카오 우선) 구현 대상 전환. `social-login.md` 추가 | Claude Code |
