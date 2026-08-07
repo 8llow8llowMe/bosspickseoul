@@ -1,13 +1,13 @@
 # BossPickSeoul Backend API Reference
 
-> 서비스별 전체 엔드포인트 요약. 인증이 필요한 API는 `🔒` 표시.
+> 서비스별 전체 엔드포인트 요약. 인증이 필요한 API는 `🔒` 표시, 토큰이 있으면 활용하고 없어도 되는 API는 `선택` 표시.
 
 ## 노출 경로
 
 | 서비스 | 외부 경로 | 비고 |
 |--------|----------|------|
 | auth-service | nginx → auth-service 직접 | 게이트웨이를 경유하지 않음. 게이트웨이는 Swagger 문서 집계(`/auth-service/**`)만 프록시 |
-| commercial-service | nginx → api-gateway → 서비스 | `/api/v1/commercials`, `/api/v1/districts`, `/api/v1/administrations` |
+| commercial-service | nginx → api-gateway → 서비스 | `/api/v1/commercials`, `/api/v1/districts`, `/api/v1/administrations`, `/api/v1/share-links` |
 | district-service | nginx → api-gateway → 서비스 | `/api/v1/map`, `/api/v1/regions` |
 | community-service | nginx → api-gateway → 서비스 | `/api/v1/community` |
 | ai-service | nginx → api-gateway → 서비스 | `/api/v1/ai-reports` |
@@ -57,6 +57,7 @@
 | `AUTH` | `001~014` | `AUTH_100` | `101~104` | `AUTH_105` |
 | `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116` | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
+| `SHARE_LINK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
 | `MAP` | `001~008` | `MAP_100` | `101~102` | `MAP_103` |
 | `AI` | `001~011` | `AI_100` | (없음) | `AI_101` |
 | `DISTRICT` `001~003` / `ADMINISTRATION` `001~003` / `REGION` `001~005` | 조회 실패 등 | (검증 코드 없음) | - | - |
@@ -181,6 +182,19 @@
 | GET | `/api/v1/districts/{districtCode}/sales/top-administrations` | 자치구 행정동별 매출 상위 | - |
 | GET | `/api/v1/districts` | 전체 자치구 목록 | - |
 
+### 공유 링크 (`/api/v1/share-links`)
+
+| Method | Path | 설명 | 인증 |
+|--------|------|------|------|
+| POST | `/` | 분석 화면 공유 링크 생성 (`shareType` + `payload`) — 동일 상태 재공유 시 기존 코드 재사용 + 만료 연장 | 선택 |
+| GET | `/{shareCode}` | 공유 코드 해석 (`shareType` + `payload` 반환) | - |
+
+- `POST` 는 **선택적 인증** — Bearer 토큰이 있으면 최초 공유자가 기록되고, 없어도 생성됩니다.
+- `shareType` (`ShareTargetType`) 5종: `COMMERCIAL_ANALYSIS` / `DISTRICT_ANALYSIS` / `ADMINISTRATION_ANALYSIS` / `COMMERCIAL_COMPARISON` / `AI_REPORT`
+- `payload` 는 백엔드가 해석하지 않는 JSON 객체(정규화 후 2000자 이하)로, 화면 복원은 프론트 책임입니다.
+- `shareCode` 는 base62 8자, TTL 90일. 만료 시 `410`, 미존재 시 `404`.
+- 프론트 연동 상세는 [`share-link-frontend-guide.md`](share-link-frontend-guide.md) 참고.
+
 ---
 
 ## district-service
@@ -266,17 +280,16 @@
 | POST | `/commercials/comparisons` | 상권 비교 AI 인사이트 **작업 제출(비동기)** | 🔒 |
 | POST | `/districts/{districtCode}` | 자치구 AI 리포트 **작업 제출(비동기)** | 🔒 |
 | POST | `/administrations/{administrationCode}` | 행정동 AI 리포트 **작업 제출(비동기)** | 🔒 |
-| GET | `/jobs/{jobId}` | 작업 상태·결과 조회 (본인이 제출한 작업만) | 🔒 |
-| GET | `/commercials/{commercialCode}` | 상권 AI 리포트 동기 조회 — **deprecated** | 🔒 |
-| GET | `/commercials/comparisons` | 상권 비교 AI 인사이트 동기 조회 — **deprecated** | 🔒 |
-| GET | `/districts/{districtCode}` | 자치구 AI 리포트 동기 조회 — **deprecated** | 🔒 |
-| GET | `/administrations/{administrationCode}` | 행정동 AI 리포트 동기 조회 — **deprecated** | 🔒 |
+| GET | `/jobs/{jobId}` | 작업 상태·결과 조회 (폴링, 본인이 제출한 작업만) | 🔒 |
+| GET | `/jobs/{jobId}/stream` | 작업 상태 SSE 스트림 (`text/event-stream`, 25초 하트비트, 본인 작업만) | 🔒 |
 
 **주의사항**:
 - 모든 엔드포인트가 인증 필요 — 외부 LLM 비용이 발생하므로 비로그인 호출을 막습니다.
+- 동기 GET 조회 엔드포인트 4종은 **삭제**되었습니다. 리포트 4종 모두 제출(`POST`) → SSE(`GET /jobs/{jobId}/stream`) 또는 폴링(`GET /jobs/{jobId}`) 방식을 사용하세요.
 - 내부 Feign 호출을 `CompletableFuture` 병렬 실행으로 처리하고, `commercial-service`·`district-service` 에서 수집한 데이터로 프롬프트를 구성합니다.
-- LLM 호출이 포함되어 동기 조회는 응답에 수십 초가 걸립니다. 리포트 4종 모두 제출(`POST`) → 폴링(`GET /jobs/{jobId}`) 방식을 사용하세요.
+- 브라우저 기본 `EventSource` 는 `Authorization` 헤더를 지원하지 않으므로 **fetch 기반 SSE 클라이언트**를 사용하고, 스트림이 끊기면 폴링으로 폴백합니다.
 - 작업 상태 응답의 `submissionStatus` / `jobType` / `status` 는 `{code, name, description}` metadata 객체로 내려갑니다.
+- `status` 가 `PENDING` / `RUNNING` 일 때만 `progressMessages: List<String>` (리포트 종류별 진행 문구 로테이션 목록)이 함께 내려갑니다.
 
 ---
 
@@ -285,8 +298,8 @@
 | 서비스 | 엔드포인트 수 | 구성 |
 |--------|-------------|------|
 | auth-service | 15 | 인증 7 + 회원 5 + 북마크 3 |
-| commercial-service | 27 | 상권 18 + 자치구 8 + 행정동 1 |
+| commercial-service | 29 | 상권 18 + 자치구 8 + 행정동 1 + 공유링크 2 |
 | district-service | 13 | 지도 8 + 지역코드 5 |
 | community-service | 16 | 게시글 9 + 댓글 4 + 신고 1 + 모더레이션 2 |
-| ai-service | 6 | AI 리포트 6 |
-| **합계** | **77** | |
+| ai-service | 6 | 리포트 제출 4 + 작업 조회 2 (폴링 + SSE) |
+| **합계** | **79** | |

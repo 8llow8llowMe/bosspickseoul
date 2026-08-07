@@ -2,7 +2,7 @@
 
 ## Auth Service
 
-- 책임: 회원 인증, 인가 진입점, 토큰 발급/재발급/로그아웃, 회원 기본 정보
+- 책임: 회원 인증, 인가 진입점, 토큰 발급/재발급/로그아웃, 소셜 로그인(kakao/naver), 이메일 인증코드 발송·검증, 회원 기본 정보, 북마크
 - 컨텍스트: `auth`, `member`
 - 특징: `AuthSecurityConfigurer` 기반 인증/인가 서비스
 
@@ -17,7 +17,7 @@
 
 - 책임: 지역 계층 탐색, 코드 조회, 지도 영역 조회
 - 컨텍스트: `region`, `map`
-- 특징: `/api/v1/regions`, `/api/v1/map` 체계로 정리 중
+- 특징: `/api/v1/regions`, `/api/v1/map` 체계로 정리 완료
 
 ## Community Service
 
@@ -34,4 +34,4 @@
 
 - 책임: 상권/자치구/행정동/비교 분석 데이터를 LLM 으로 요약하는 AI 리포트 서비스
 - 컨텍스트: `aireport`
-- 특징: Ollama / OpenAI 어댑터 분기, Redis 기반 결과 캐시, 인증된 사용자 한정 비동기 작업 모델 (`POST /commercials/{code}` + `GET /jobs/{id}`), 토큰 사용량 카운터
+- 특징: Ollama / OpenAI 어댑터 분기, Redis 기반 결과 캐시, 인증된 사용자 한정 리포트 4종(상권/비교/자치구/행정동) 비동기 제출 + 폴링/SSE 조회 (`POST` 제출 + `GET /jobs/{id}`, `GET /jobs/{id}/stream`), 토큰 사용량 카운터

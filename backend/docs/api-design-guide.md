@@ -42,6 +42,8 @@ return ResponseEntity.ok().body(Response.success(response));
 - 인증 사용자 전용 API는 `@PreAuthorize`를 명시한다.
 - member 식별은 JWT claim을 기준으로 처리한다.
 - 클라이언트가 임의 헤더로 member 식별값을 주입하는 방식은 사용하지 않는다.
+- **선택적 인증** — 공개 API지만 로그인 사용자를 식별하고 싶으면 `@PreAuthorize` 없이
+  `@AuthenticationPrincipal MemberLoginActive`를 null 허용으로 받아 분기한다 (예: `POST /api/v1/share-links`).
 
 ## 7. 비동기 작업 패턴
 
@@ -53,6 +55,8 @@ LLM 호출 등 응답이 길어지는 작업은 다음 패턴을 따른다 (참�
   - 동일 사용자/요청 in-flight 일 때는 기존 jobId 재사용 (멱등)
 - **상태 조회 endpoint** — `GET /jobs/{jobId}`
   - 본인 작업만 조회 가능 (다른 사용자 jobId 는 `404` 로 응답해 존재 자체 노출 차단)
+- **상태 스트림 endpoint** — `GET /jobs/{jobId}/stream` (`text/event-stream`, SSE)
+  - 폴링 외에 우선 제공할 수 있다. 하트비트로 연결을 유지하고, 상태 조회와 동일하게 본인 작업만 구독 가능
 - **응답 DTO** — `submissionStatus` 또는 `status` 필드로 분기 표현. 결과 페이로드는 status 별 nullable
   - 상태/타입 필드는 raw enum 문자열 대신 `{code, name, description}` metadata 객체(`CodeNameDescriptionMetadata`)로
     내려 프론트가 그대로 표시할 수 있게 한다 (`coding-conventions.md` §11)

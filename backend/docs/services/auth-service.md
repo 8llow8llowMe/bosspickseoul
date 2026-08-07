@@ -17,9 +17,23 @@
 
 ## 대표 API 패턴
 
-- `AuthWebController`, `MemberWebController`
+- `AuthWebController`, `MemberWebController`, `MemberBookmarkWebController`
 - `AuthWebUseCase -> AuthWebFacade`
 - `MemberWebUseCase -> MemberWebFacade`
+
+## 인증 API (`/api/v1/auth`)
+
+- `POST /api/v1/auth/login` — 이메일/비밀번호 로그인. 응답 body에 accessToken, `Set-Cookie`로 refresh 쿠키 발급.
+- `POST /api/v1/auth/logout` — 로그아웃. refresh 삭제 + access 블랙리스트, refresh 쿠키 제거(maxAge=0).
+- `POST /api/v1/auth/token/reissue` — 토큰 재발급. `@CookieValue(name = "refreshToken", required = false)`로
+  쿠키를 읽으며, 쿠키 미첨부 시에도 컨트롤러 진입 후 도메인 검증(`AUTH_002`)으로 처리한다.
+
+**refresh 쿠키 계약** (`RefreshCookieProvider`):
+- `httpOnly=true`, `sameSite=Strict`
+- `path=/api/v1/auth/token/reissue` — **reissue 전용 스코프**. 다른 경로에는 쿠키가 전송되지 않으므로
+  로그아웃 등 다른 API가 쿠키 값을 읽는 설계를 하면 안 된다.
+- `secure`는 prod 프로필에서만 true
+- `maxAge=jwt.refresh-expiration` (초 단위)
 
 ## 현재 구현 주의점
 
@@ -67,7 +81,9 @@
 - `POST /email/verify-code` — 코드 검증(`AUTH_004`/`AUTH_005`). 성공 시 30분간 가입 가능.
 - 가입(`POST /members/signup`)은 인증 플래그가 없으면 `MEMBER_006`(400)로 거부하고, 성공 시 플래그를 소비한다.
 - 이메일은 전 구간 trim+소문자 정규화(Redis 키/DB 저장 정합). 코드: SecureRandom 8자(I/O/0/1 제외), TTL 5분.
-  Redis 키는 `{prefix}:auth:emailVerification*:{email}`.
+  Redis 키는 3종 — `{prefix}:auth:emailVerificationCode:{email}` (발급 코드, TTL 5분),
+  `{prefix}:auth:emailVerificationCooldown:{email}` (재발송 쿨다운 60초),
+  `{prefix}:auth:emailVerified:{email}` (인증 완료 플래그, 30분).
 - 발송: `spring.mail.*`(SMTP, env `MAIL_HOST/PORT/USERNAME/PASSWORD`) + `authMailTaskExecutor` 비동기,
   로그에는 이메일을 마스킹해 남긴다. 자격증명 미설정이어도 기동은 가능하며 발송 시점에만 실패한다.
   **배포 전 Vault dev/prod secret에 MAIL_* 키 추가 필요.**
@@ -82,6 +98,10 @@
 - 계정 정책: 이메일 미제공 동의 시 `AUTH_009`(400). 동일 이메일의 일반 계정은 소셜로 자동 연결,
   다른 provider 기가입이면 `AUTH_008`(409). 탈퇴/정지 회원은 소셜 로그인도 차단.
   소셜 계정(password null)의 비밀번호 변경은 `MEMBER_007`(400).
+- 소셜 로그인 추가 에러코드: 지원하지 않는 provider 경로는 `AUTH_007 UNSUPPORTED_OAUTH_PROVIDER`(400),
+  프로필(닉네임) 미제공 동의는 `AUTH_011 OAUTH_PROFILE_REQUIRED`(400), provider 측 이메일 미인증은
+  `AUTH_012 OAUTH_EMAIL_UNVERIFIED`(400), 인가 코드 교환/인증 실패는 `AUTH_013 OAUTH_AUTHORIZATION_FAILED`(400),
+  provider 통신 불가(서킷 오픈 포함)는 `AUTH_014 OAUTH_PROVIDER_UNAVAILABLE`(502).
 - 구조: 도메인 enum `member/domain/enums/OAuthProvider`(회원 속성) + `Member.provider` 컬럼(nullable).
   provider별 구현은 `OAuthAuthorizationUrlProvider`/`OAuthMemberQueryPort`(supports() 키 라우팅,
   adapter는 `OAuthMemberQueryResult`로 변환) + HTTP Interface(WebClient, 응답 타임아웃 10초).
@@ -110,3 +130,18 @@
 - `application/service/MemberBookmarkWebFacade.java`
 - `adapter/in/web/controller/MemberBookmarkWebController.java`
 - `adapter/in/web/exception/MemberExceptionHandler.java` — `@RestControllerAdvice`, `MemberException`·`BookmarkException` 통합 처리
+
+## 검증 에러코드 대역 (Bean Validation)
+
+요청 검증 실패는 도메인별 1xx 대역 코드로 응답한다. 필드별 코드의 단일 기준점은 각 `*ValidationMessage` 카탈로그다.
+
+| 대역 | 코드 | 설명 |
+|------|------|------|
+| AUTH | `AUTH_100` | 검증 실패 폴백 (INVALID_REQUEST) |
+| AUTH | `AUTH_101`~`AUTH_104` | 필드별 검증 코드 (`AuthValidationMessage` — 이메일 필수/형식, 비밀번호 필수, 인증코드 필수) |
+| AUTH | `AUTH_105` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
+| MEMBER | `MEMBER_100` | 검증 실패 폴백 (INVALID_REQUEST) |
+| MEMBER | `MEMBER_101`~`MEMBER_112` | 필드별 검증 코드 (`MemberValidationMessage` — 이메일/비밀번호/이름/닉네임/프로필 URL 등) |
+| MEMBER | `MEMBER_113` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
+| BOOKMARK | `BOOKMARK_001`~`BOOKMARK_003` | 도메인 에러 (중복 409 / 미존재 404 / 타인 북마크 403) |
+| BOOKMARK | `BOOKMARK_1xx` | 필드별 검증 코드 (`BookmarkValidationMessage` — 대상 타입/코드/이름, 조회 개수) |

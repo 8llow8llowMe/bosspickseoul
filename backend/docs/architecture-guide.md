@@ -4,7 +4,8 @@
 
 - 백엔드는 기본적으로 MSA + Hexagonal Architecture를 기준으로 설계한다.
 - 서비스는 `auth-service`, `commercial-service`, `district-service`, `community-service`, `batch-service`, `ai-service`를 기준으로 유지한다.
-- 공통 모듈은 `common-core`, `persistence-core`, `redis-core`, `security-core`를 사용한다.
+- 공통 모듈은 `common-core`, `persistence-core`, `redis-core`, `security-core`, `shared-commercial`을 사용한다.
+- 모듈별 사용처: `redis-core`는 ai/auth/api-gateway, `security-core`는 ai/auth/commercial/community가 사용한다.
 
 ## 2. 기본 패키지 구조
 
@@ -16,6 +17,7 @@ domainlayer/<context>
   |  |  |- dto/request
   |  |  |- dto/response
   |  |  |- dto/item
+  |  |  |- exception          (*ExceptionHandler)
   |  |  \- presenter
   |  \- out
   |     |- persistence
@@ -25,6 +27,7 @@ domainlayer/<context>
   |     \- client
   |- application
   |  |- command
+  |  |- exception             (*ErrorCode, *Exception, *ValidationMessage)
   |  |- info
   |  |- mapper
   |  |- model
@@ -36,6 +39,8 @@ domainlayer/<context>
   \- domain
      \- model
 ```
+
+- `application/exception`, `adapter/in/web/exception` 구성은 `coding-conventions.md` §8-1의 필수 패턴을 따른다.
 
 ## 3. 계층 책임
 

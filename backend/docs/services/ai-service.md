@@ -126,8 +126,15 @@ ai:
   llm:
     provider: OLLAMA
     base-url: http://localhost:11434
+    api-key: ""                       # OpenAI 호환 provider 용, OLLAMA 는 빈 값 허용
     model: qwen2.5:7b-instruct
+    timeout-ms: 30000                 # LLM read timeout (AI_LLM_TIMEOUT_MS)
+    max-tokens: 1200
+    temperature: 0.2
+    reasoning-effort: low             # reasoning 지원 모델용, 기본 low
 ```
+
+LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbreaker.instances.llm` 이 적용되며, slow-call 판정 임계값은 read timeout(`AI_LLM_TIMEOUT_MS`, 기본 30000ms)과 동일 값으로 연동해 사실상 실패율 기준만 사용한다.
 
 ### Async TaskExecutor
 
@@ -147,7 +154,7 @@ ai:
 | GET | `/api/v1/ai-reports/jobs/{jobId}` | 필수 | **작업 상태 / 결과 조회** (본인 작업만, SSE 폴백) |
 | GET | `/api/v1/ai-reports/jobs/{jobId}/stream` | 필수 | **작업 상태 SSE 스트림** (본인 작업만, 종결 시 서버가 연결 종료) |
 
-> 모든 AI 리포트 엔드포인트는 인증된 사용자 전용이다. 레거시 GET 4개도 비공개 LLM 비용 증폭 / DoS 경로를 막기 위해 `@PreAuthorize("isAuthenticated()")` 가 적용되어 있다.
+> 모든 AI 리포트 엔드포인트는 인증된 사용자 전용이다.
 
 > comparison / district / administration 도 동일한 비동기 모델로 전환 완료
 > (`POST /commercials/comparisons`, `POST /districts/{code}`, `POST /administrations/{code}`).
@@ -165,6 +172,10 @@ ai:
 | `AI_006` | 503 | 작업 저장소 사용 불가 |
 | `AI_008` | 500 | 작업 실패 — 워커 디스패치 실패 또는 예측 못한 예외 (외부 노출 메시지는 항상 ErrorCode 의 한국어 메시지로 sanitize 됨) |
 | `AI_009` | 504 | 작업이 시간 내에 완료되지 않음 (lazy 만료) |
+| `AI_010` | 500 | 지원하지 않는 LLM 응답 스키마 정의 (LLM_SCHEMA_UNSUPPORTED) |
+| `AI_011` | 500 | AI 리포트 요청 식별자(멱등성 키) 생성 실패 (IDEMPOTENCY_KEY_GENERATION_FAILED) |
+| `AI_100` | 400 | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
+| `AI_101` | 400 | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
 
 **인증 실패 응답은 ai-service 가 발행하지 않고 `security-core` 의 `SecurityErrorCode` 를 사용한다** — 인증 누락 `SECURITY_001`, 권한 부족 `SECURITY_006` 등.
 
@@ -188,6 +199,17 @@ ai:
 - `status.code` ∈ `{PENDING, RUNNING, COMPLETED, FAILED}`
 - `COMPLETED` 일 때만 jobType 에 대응하는 리포트 필드 하나가 채워짐
 - `FAILED` 일 때만 `errorCode`, `errorMessage` 채워짐
+- `progressMessages: List<String>` — 진행 중(`status.isInFlight()`, PENDING/RUNNING) 일 때만 jobType 별 로테이션 문구가 채워지고, 종결 상태(COMPLETED/FAILED)에서는 null
+
+### District / Administration AI Report
+
+- response DTO: `DistrictAiReportResponse` / `AdministrationAiReportResponse`
+- 자치구/행정동 리포트는 LLM 응답 JSON 에 아래 필드를 필수로 요구한다 (프롬프트에 명세, 파싱 실패 시 `AI_003`)
+  - `summary`
+  - `marketStatus`
+  - `recommendedBusinessCategories[]`
+  - `cautionBusinessCategories[]`
+  - `businessInsight`
 
 ### Commercial Comparison AI Report
 

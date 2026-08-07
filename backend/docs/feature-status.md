@@ -28,7 +28,7 @@
 
 ### `ai-service` — 상권 AI 리포트 비동기 작업 모델 + 토큰 사용량 카운터 (PR-1)
 
-**상태**: ✅ 완료 (`/commercials` 엔드포인트만 — `/comparisons`, `/districts`, `/administrations` 는 다음 PR 예정)
+**상태**: ✅ 완료 (`/commercials`, `/commercials/comparisons`, `/districts`, `/administrations` 4종 전부 비동기 전환 완료)
 
 **목적**: LLM 호출이 길어 동기 대기 UX 가 나쁨. 캐시 hit 면 즉시 응답, miss 면 작업 ID 발급 후 백그라운드 처리, 사용자 polling. 동시에 사용자별 토큰 사용량 일별 누적해 운영 capacity 가시화.
 
@@ -89,17 +89,61 @@ ai:
 - 회귀 테스트 추가: `AiReportJobProcessorTest` (9 케이스) + `AiReportWorkerTest` (6 케이스).
 
 **리뷰 반영 (round 2)**:
-- **레거시 GET 4개 인증 필수화** (`@PreAuthorize("isAuthenticated()")` + `@SecurityRequirement`) — 비인증 cache miss → LLM 호출로 비용 증폭 + 공개 DoS 경로 차단 + 사용자 단위 추적 가능.
+- **레거시 GET 4개 인증 필수화** (`@PreAuthorize("isAuthenticated()")` + `@SecurityRequirement`) — 비인증 cache miss → LLM 호출로 비용 증폭 + 공개 DoS 경로 차단 + 사용자 단위 추적 가능. (이후 4종 비동기 전환 완료와 함께 동기 GET 4개는 **완전 삭제됨**)
 - **save → reserve 순서 reverse + race-loss cleanup**: PENDING 작업 entry 를 먼저 저장한 뒤 `setIfAbsent` 로 idempotency 키 발행. 패배 시 자기가 저장한 orphan 작업을 `deleteJob` 으로 즉시 제거. 결과: 외부에 노출된 idempotency 키는 항상 valid jobId 를 가리킨다.
 - **결과 스냅샷 임베드**: `AiReportJob.commercialReport` 필드 신설. 워커 완료 시 `completedWithCommercialReport(report, now)` 로 결과를 job 자체에 저장. `getJobInfo` 는 캐시 의존 없이 job 스냅샷에서 직접 응답. (legacy 미임베드 작업만 cache fallback)
 - **MockMvc 컨트롤러 회귀 테스트**: `AiReportWebControllerTest` (5 케이스) — POST 200 (CACHED) / 202 (ACCEPTED) / GET COMPLETED / GET 404 (다른 사용자) / GET RUNNING 응답 형태.
 - 결과: ai-service 테스트 27건 (Processor 10 + Worker 6 + Controller 5 + 기존 6).
 
 **다음 PR 후보**:
-- comparison / district / administration 도 동일 비동기 모델로 전환
 - Bucket4j rate limit (사용자별 분당 5건 / 일당 30건)
 - 사용량 조회 endpoint `/usage/me` (필요 시점에)
 - durable queue (Redis Streams 또는 외부 큐) 검토 — 멀티 인스턴스 운영 시
+
+---
+
+### `ai-service` — AI 리포트 작업 상태 SSE 스트리밍
+
+**상태**: ✅ 완료
+
+**목적**: 폴링(1~2초 간격)의 불필요한 요청/지연 제거. 작업 상태 변화를 서버가 push.
+
+**엔드포인트**:
+- `GET /api/v1/ai-reports/jobs/{jobId}/stream` — 인증 필수, 본인 작업만
+  - `text/event-stream` 응답, `job-update` 이벤트로 상태 push
+  - 25초 간격 하트비트로 프록시 idle timeout 방지
+  - 존재하지 않거나 타인의 jobId 는 스트림 시작 전에 404 JSON 오류
+
+**클라이언트 계약**:
+- 브라우저 기본 `EventSource` 는 Authorization 헤더 미지원 → fetch 기반 SSE 클라이언트 사용
+- SSE 우선, 연결 실패·중단 시 `GET /jobs/{jobId}` 폴링으로 폴백
+- 작업 상태 응답(`AiReportJobStatusResponse`)의 `status` / `jobType` 은 `{code, name, description}` metadata 객체
+- `status` 가 PENDING/RUNNING 일 때만 `progressMessages: List<String>` (진행 문구 로테이션 목록) 포함
+
+프론트 연동 상세는 `ai-report-frontend-guide.md` 참고.
+
+---
+
+### `commercial-service` — 분석 화면 공유 링크
+
+**상태**: ✅ 완료
+
+**목적**: 분석 화면 상태를 단축 코드로 공유. 백엔드는 payload 를 해석하지 않고 저장/반환만 담당, 화면 복원은 프론트 책임.
+
+**엔드포인트**:
+- `POST /api/v1/share-links` — **선택적 인증** (Bearer 토큰 있으면 최초 공유자 기록, 없어도 생성 가능)
+- `GET /api/v1/share-links/{shareCode}` — 공개 (인증 불필요)
+
+**설계 결정**:
+- `sharelink` 컨텍스트 — commercial-service 의 유일한 write 컨텍스트
+- `ShareTargetType` 5종: `COMMERCIAL_ANALYSIS` / `DISTRICT_ANALYSIS` / `ADMINISTRATION_ANALYSIS` / `COMMERCIAL_COMPARISON` / `AI_REPORT`
+- `shareCode`: base62 8자, TTL 90일 — 만료 시 `410`, 미존재 시 `404`
+- `payload`: 백엔드가 해석하지 않는 JSON 객체, 정규화(key 정렬) 후 2000자 이하
+- 동일 상태 재공유 시 기존 코드 재사용 + 만료 연장 (공유 버튼 연타에 안전)
+
+**ErrorCode**: `SHARE_LINK_001~006` (비즈니스) + `SHARE_LINK_101~102` (필드 검증). 폴백/파라미터 타입 불일치는 `COMMERCIAL_100` / `COMMERCIAL_102` 재사용.
+
+프론트 연동 상세는 `share-link-frontend-guide.md` 참고.
 
 ---
 
@@ -386,17 +430,19 @@ INDEX(status)
 |--------|------|------|------|
 | GET | `/{code}/trend` | 상권 분기별 트렌드 분석 | 불필요 |
 | GET | `/recommendations/by-service` | 업종 기반 상권 자동 추천 | 불필요 |
+| POST | `/api/v1/share-links` | 분석 화면 공유 링크 생성 | 선택 |
+| GET | `/api/v1/share-links/{shareCode}` | 공유 코드 해석 | 불필요 |
 
 ### `ai-service` (`/api/v1/ai-reports`)
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
 | POST | `/commercials/{commercialCode}` | 상권 AI 리포트 비동기 제출 (cache hit 200 / miss 202 + jobId) | ✅ |
-| GET | `/jobs/{jobId}` | 작업 상태/결과 조회 (본인 작업만) | ✅ |
-| GET | `/commercials/{commercialCode}` | (deprecated) 동기 상권 리포트 | ✅ |
-| GET | `/commercials/comparisons` | 상권 비교 AI 인사이트 | ✅ |
-| GET | `/districts/{districtCode}` | 자치구 AI 리포트 | ✅ |
-| GET | `/administrations/{administrationCode}` | 행정동 AI 리포트 | ✅ |
+| POST | `/commercials/comparisons` | 상권 비교 AI 인사이트 비동기 제출 | ✅ |
+| POST | `/districts/{districtCode}` | 자치구 AI 리포트 비동기 제출 | ✅ |
+| POST | `/administrations/{administrationCode}` | 행정동 AI 리포트 비동기 제출 | ✅ |
+| GET | `/jobs/{jobId}` | 작업 상태/결과 조회 (폴링, 본인 작업만) | ✅ |
+| GET | `/jobs/{jobId}/stream` | 작업 상태 SSE 스트림 (본인 작업만) | ✅ |
 
 ### `auth-service` (`/api/v1/members`)
 

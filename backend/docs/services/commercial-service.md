@@ -11,6 +11,9 @@
 - `commercial`
 - `district`
 - `sharelink`
+- `administration`
+- `category`
+- `commercialsummary`
 
 ## 인증 방식
 
@@ -24,6 +27,8 @@
 
 - `CommercialWebController`
 - `DistrictWebController`
+- `AdministrationWebController` (`/api/v1/administrations`)
+- `ShareLinkWebController` (`/api/v1/share-links`)
 - `CommercialWebUseCase -> CommercialWebFacade`
 - `DistrictWebUseCase -> DistrictWebFacade`
 
@@ -41,7 +46,7 @@
 - `CommercialCandidateQueryProcessor.getCompositeHeatmapScores(...)` — 동일한 가중치 공식으로 **전체 상권 리스트**의 복합 점수를 반환한다. 히트맵 composite 모드의 소스다. `ScoreMetricMetadata` 의 `code` 는 `COMPOSITE_<PRESET>` 로 합성 발급한다.
 - `CommercialProfileQueryProcessor.getProfile(...)` — 단일 상권의 집계 지표(매출/유동인구/점포/개폐업률/거주인구/소득/시설) + 자치구·행정동 메타를 반환한다. 점수는 포함하지 않는다.
 - `CommercialComparePreviewQueryProcessor.getPreview(...)` — 기존 `CommercialComparisonQueryProcessor.compareCommercials(...)` 결과를 재사용해 6개 headline 지표 + recommendedSide 만 프로젝션한다.
-- 내부용 엔드포인트 (`@Hidden`): `/commercials/candidates`, `/commercials/heatmap-composite`, `/commercials/{code}/profile`, `/commercials/compare-preview`. 외부 노출은 district-service `/api/v1/map/commercials/...` 만 사용한다.
+- 내부용 엔드포인트 (`@Hidden`, 총 5개): `/commercials/heatmap`, `/commercials/candidates`, `/commercials/heatmap-composite`, `/commercials/{code}/profile`, `/commercials/compare-preview`. 외부 노출은 district-service `/api/v1/map/commercials/...` 만 사용한다.
 - `CandidatePresetType` 는 `CodeNameDescribable` 을 구현하며 가중치는 `application/model` 안에만 존재한다. adapter 계층으로 새지 않도록 유지.
 ## Hidden Heatmap / Candidate Response Shape
 
@@ -62,6 +67,7 @@
   - `score`
   - `grade`
   - `summaryLabel`
+  - `breakdown: List<MetricBreakdownItem>` (composite 모드에서 지표별 기여 상세, 단일 지표 모드는 null)
 
 ### `GET /api/v1/commercials/candidates`
 
@@ -118,6 +124,18 @@
   공유하면 기존 코드의 만료 시각만 연장한다 (기본 TTL `app.share-link.ttl-days` = 90일).
 - 새 화면을 공유 대상으로 추가할 때는 `ShareTargetType`에 상수 하나만 추가하면 된다.
 - 만료 링크는 `410 SHARE_LINK_002`, 미존재 코드는 `404 SHARE_LINK_001`로 응답한다.
+
+## 에러코드 (대역 요약)
+
+컨텍스트별 ErrorCode enum 을 각각 유지한다. 상세 메시지는 각 enum 이 단일 기준점이다.
+
+| Enum | 대역 | 비고 |
+|------|------|------|
+| `CommercialErrorCode` | `COMMERCIAL_002`~`COMMERCIAL_012` | 도메인 에러 (미존재 404, 통신 불가 503 등) + 검증 `COMMERCIAL_100`/`COMMERCIAL_102` |
+| `DistrictErrorCode` | `DISTRICT_001`~`DISTRICT_003` | 지표 미존재 404, 분기 코드 형식 400 |
+| `AdministrationErrorCode` | `ADMINISTRATION_001`~`ADMINISTRATION_003` | 행정동 지출/매출/점포 미존재 404 |
+| `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |
+| `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 
 ## 정책 추천 (보류)
 
