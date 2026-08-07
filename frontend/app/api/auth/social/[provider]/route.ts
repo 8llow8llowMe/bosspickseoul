@@ -32,6 +32,11 @@ export async function GET(
     .catch(() => null)) as ApiResponse<LoginBody> | null
 
   if (!upstream.ok || !isApiSuccess(data) || !data?.dataBody) return fail()
+  if (
+    typeof data.dataBody.accessToken !== 'string' ||
+    !data.dataBody.accessToken
+  )
+    return fail()
 
   const setCookie =
     upstream.headers.getSetCookie?.() ?? upstream.headers.get('set-cookie')

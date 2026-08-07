@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import styled from 'styled-components'
-import { Divider } from '@/components/auth/auth-shell'
+import { Divider, Notice } from '@/components/auth/auth-shell'
 import type { ApiResponse } from '@/types/api'
 
 const PROVIDERS = [
@@ -32,8 +32,10 @@ const ProviderButton = styled.button`
 
 export default function SocialLogin() {
   const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const start = async (provider: string) => {
     setBusy(provider)
+    setError(null)
     try {
       const res = await fetch(`/api/bff/auth/${provider}/authorize`)
       const data = (await res.json().catch(() => null)) as ApiResponse<{
@@ -44,14 +46,17 @@ export default function SocialLogin() {
         window.location.assign(url)
         return
       }
+      setError('소셜 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.')
       setBusy(null)
     } catch {
+      setError('소셜 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.')
       setBusy(null)
     }
   }
   return (
     <>
       <Divider>또는</Divider>
+      {error ? <Notice $tone="error">{error}</Notice> : null}
       <List>
         {PROVIDERS.map(p => (
           <ProviderButton

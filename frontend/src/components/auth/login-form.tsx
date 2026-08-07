@@ -14,10 +14,9 @@ import AuthShell, {
   TextInput,
 } from '@/components/auth/auth-shell'
 import GuestOnly from '@/components/auth/guest-only'
+import { EMAIL_PATTERN } from '@/components/auth/register-machine'
 import SocialLogin from '@/components/auth/social-login'
 import { useAuthStore } from '@/stores/auth-store'
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const PasswordFieldWrapper = styled.div`
   position: relative;
