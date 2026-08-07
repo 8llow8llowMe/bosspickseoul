@@ -23,6 +23,8 @@
 
 > **2026-04-28 갱신**: AI 리포트 비동기 잡 모델(POST + jobId 폴링) 섹션 추가, 화면별 호출 순서에 폴링 흐름 반영. 마이페이지 / 커뮤니티 피드 / 관리자 신고 처리 호출 순서 추가.
 
+> **2026-08-07 갱신**: AI 리포트 4종 전부 비동기 전환 완료 — Legacy 동기 GET 4종 삭제, 작업 상태 SSE 스트림(`GET /jobs/{jobId}/stream`) 도입(SSE 우선 + 폴링 폴백). 분석 결과 공유 단축 링크(`/api/v1/share-links`) 섹션 추가.
+
 ---
 
 ## auth-service
@@ -295,6 +297,7 @@
 
 | Method | Path | 화면 |
 |--------|------|------|
+| GET | `/api/v1/commercials/{code}/service-categories` | 업종 선택 드롭다운 — 상권 내 업종 카테고리 목록 |
 | GET | `/api/v1/commercials/{code}/foot-traffic` | 유동인구 탭 — 시간대·요일·연령 차트 |
 | GET | `/api/v1/commercials/{code}/services/{serviceCode}/sales` | 매출 탭 — 매출 분석 차트 |
 | GET | `/api/v1/commercials/{code}/services/{serviceCode}/stores` | 점포 탭 — 개폐업 현황 |
@@ -373,6 +376,28 @@
 }
 ```
 - 말풍선 UX: 상권 2개 선택 완료 시 지도 위에 오버레이
+
+---
+
+### 분석 결과 공유 — 단축 링크
+
+| Method | Path | 화면 |
+|--------|------|------|
+| POST | `/api/v1/share-links` | 분석 화면의 "공유하기" 버튼 |
+| GET | `/api/v1/share-links/{shareCode}` | `/s/{shareCode}` 공유 링크 진입 페이지 |
+
+**흐름**
+1. 분석 화면에서 공유 버튼 클릭 → `POST /share-links` 에 `shareType` + `payload`(화면 재현에 필요한 최소 상태) 전송
+2. 응답의 `shareCode` 로 프론트가 공유 URL 조립: `https://www.bosspickseoul.com/s/{shareCode}` → 클립보드 복사/공유
+3. 수신자가 `/s/{shareCode}` 진입 → `GET /share-links/{shareCode}` 호출
+4. `shareType.code` 로 URL 템플릿 선택 + `payload` 병합 → `router.replace` 로 원 분석 화면 복원
+
+**프론트 처리 포인트**
+- `POST` 는 **비로그인도 가능** (선택적 인증) — 공유 버튼에 로그인 게이트를 두지 않는다. 토큰이 있으면 최초 공유자가 기록된다.
+- `shareType` 5종: `COMMERCIAL_ANALYSIS` / `DISTRICT_ANALYSIS` / `ADMINISTRATION_ANALYSIS` / `COMMERCIAL_COMPARISON` / `AI_REPORT`
+- 같은 화면 상태를 다시 공유하면 기존 코드가 재사용되고 만료(TTL 90일)만 연장된다 — 연타에 안전
+- 만료된 코드는 `410`, 존재하지 않는 코드는 `404` → 안내 후 홈 이동
+- 상세 구현은 `share-link-frontend-guide.md` 참고
 
 ---
 
@@ -591,14 +616,18 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 
 > **모든 AI 리포트 엔드포인트는 인증 필수** (`@PreAuthorize("isAuthenticated()")`). 비로그인 사용자에겐 401 응답이 내려가므로 프론트는 로그인 유도 처리.
 
-### AI 리포트 — 비동기 잡 모델 (권장)
+### AI 리포트 — 비동기 잡 모델
 
-상권 AI 리포트는 **비동기 제출 + 폴링** 패턴을 사용한다. 캐시 hit 시 즉시 응답, miss 시 백그라운드에서 LLM 추론 후 jobId로 조회.
+AI 리포트 4종 전부 **비동기 제출 + SSE/폴링** 패턴을 사용한다. 캐시 hit 시 즉시 응답, miss 시 백그라운드에서 LLM 추론 후 jobId로 조회.
 
 | Method | Path | 인증 | 화면 |
 |--------|------|------|------|
 | POST | `/api/v1/ai-reports/commercials/{commercialCode}` | ✓ | 상권 상세 > "AI 분석" 탭 진입 시 즉시 호출 |
-| GET | `/api/v1/ai-reports/jobs/{jobId}` | ✓ | AI 탭 폴링 (1~2초 간격, 본인 작업만 조회 가능) |
+| POST | `/api/v1/ai-reports/commercials/comparisons` | ✓ | 상권 비교 결과 하단 "AI 종합 판단" 섹션 |
+| POST | `/api/v1/ai-reports/districts/{districtCode}` | ✓ | 자치구 상세 > "AI 분석" 탭 |
+| POST | `/api/v1/ai-reports/administrations/{administrationCode}` | ✓ | 행정동 상세 > "AI 분석" 탭 |
+| GET | `/api/v1/ai-reports/jobs/{jobId}/stream` | ✓ | 작업 상태 SSE 스트림 (**권장**, `text/event-stream`, 25초 하트비트, 본인 작업만) |
+| GET | `/api/v1/ai-reports/jobs/{jobId}` | ✓ | AI 탭 폴링 (SSE 폴백용, 1~2초 간격, 본인 작업만 조회 가능) |
 
 **`POST /ai-reports/commercials/{commercialCode}`** — 제출
 ```
@@ -620,25 +649,40 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 
 **`GET /ai-reports/jobs/{jobId}`** — 상태 조회
 
+`status` / `jobType` 은 `{code, name, description}` metadata 객체로 내려가고, `progressMessages` 는 `PENDING`/`RUNNING` 일 때만 채워진다.
+
 ```json
-// PENDING / RUNNING — 폴링 계속
-{ "status": "RUNNING" }
+// PENDING / RUNNING — 계속 대기 (진행 문구 로테이션용 progressMessages 포함)
+{
+  "status": { "code": "RUNNING", "name": "분석 중", "description": "AI가 리포트를 생성하고 있습니다." },
+  "jobType": { "code": "COMMERCIAL", "name": "상권 리포트", "description": "상권 AI 분석 리포트" },
+  "progressMessages": ["상권 데이터를 수집하고 있어요...", "AI가 지표를 분석하고 있어요..."]
+}
 
-// COMPLETED — 결과 포함, 폴링 중단
-{ "status": "COMPLETED", "jobType": "COMMERCIAL", "commercialReport": { ... } }
+// COMPLETED — 결과 포함, 구독/폴링 중단
+{
+  "status": { "code": "COMPLETED", "name": "완료", "description": "리포트 생성이 완료되었습니다." },
+  "jobType": { "code": "COMMERCIAL", "name": "상권 리포트", "description": "상권 AI 분석 리포트" },
+  "commercialReport": { "summary": "..." }
+}
 
-// FAILED — 폴링 중단, 에러 표시
-{ "status": "FAILED", "errorCode": "AI_002", "errorMessage": "LLM 서비스를 일시적으로 사용할 수 없습니다." }
+// FAILED — 구독/폴링 중단, 에러 표시
+{
+  "status": { "code": "FAILED", "name": "실패", "description": "리포트 생성에 실패했습니다." },
+  "errorCode": "AI_002",
+  "errorMessage": "LLM 서비스를 일시적으로 사용할 수 없습니다."
+}
 ```
 
-**프론트 폴링 구현 가이드 (필수)**:
+**프론트 구현 가이드 (필수)** — **SSE 우선, 실패 시 폴링 폴백**:
 1. POST → 응답 status 확인
 2. 200이면 `commercialReport` 즉시 렌더
-3. 202면 `jobId` 저장 → `GET /jobs/{jobId}` 1~2초 간격 폴링
-4. `status === 'COMPLETED'` → 결과 렌더, 폴링 중단
-5. `status === 'FAILED'` → `errorCode` 기반 fallback 메시지, 폴링 중단
-6. **타임아웃 가드**: 60초 폴링해도 PENDING/RUNNING이면 사용자에게 "잠시 후 다시 시도" 안내 (서버 lazy 만료: PENDING 30초 / RUNNING 5분 → `AI_009` FAILED 전환)
-7. 타 사용자의 `jobId` 조회 시 404 (`AI_005`)
+3. 202면 `jobId` 저장 → `GET /jobs/{jobId}/stream` SSE 구독 (fetch 기반 클라이언트 — 브라우저 기본 `EventSource` 는 Authorization 헤더 미지원). 스트림 연결 실패·중단 시 `GET /jobs/{jobId}` 1~2초 간격 폴링으로 폴백
+4. `status.code === 'COMPLETED'` → 결과 렌더, 구독/폴링 중단
+5. `status.code === 'FAILED'` → `errorCode` 기반 fallback 메시지, 구독/폴링 중단
+6. `progressMessages` 로 진행 문구 로테이션 표시 (PENDING/RUNNING일 때만 존재)
+7. **타임아웃 가드**: 60초 기다려도 PENDING/RUNNING이면 사용자에게 "잠시 후 다시 시도" 안내 (서버 lazy 만료: PENDING 30초 / RUNNING 5분 → `AI_009` FAILED 전환)
+8. 타 사용자의 `jobId` 조회 시 404 (`AI_005`)
 
 **ErrorCode 핸들링**:
 | 코드 | 의미 | 프론트 처리 |
@@ -649,29 +693,7 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 | `AI_005` | 작업 미존재 / 본인 작업 아님 | 새 제출로 재시도 |
 | `AI_009` | 작업 타임아웃 | "분석에 시간이 오래 걸려 중단되었습니다. 다시 시도해주세요" |
 
----
-
-### AI 리포트 — Legacy 동기 GET (deprecated, 다음 PR에서 비동기로 통일 예정)
-
-| Method | Path | 인증 | 화면 | 상태 |
-|--------|------|------|------|------|
-| GET | `/api/v1/ai-reports/commercials/{commercialCode}` | ✓ | 상권 상세 > "AI 분석" 탭 | **deprecated** — POST 비동기로 이전 권장 |
-| GET | `/api/v1/ai-reports/commercials/comparisons` | ✓ | 상권 비교 결과 하단 "AI 종합 판단" 섹션 | 동기 (비동기 전환 예정) |
-| GET | `/api/v1/ai-reports/districts/{districtCode}` | ✓ | 자치구 상세 > "AI 분석" 탭 | 동기 (비동기 전환 예정) |
-| GET | `/api/v1/ai-reports/administrations/{administrationCode}` | ✓ | 행정동 상세 > "AI 분석" 탭 | 동기 (비동기 전환 예정) |
-
-**`GET /ai-reports/commercials/comparisons`**
-```
-?leftCommercialCode=3110008&rightCommercialCode=3110015
-&serviceCode=CS100001&periodCode=20233
-```
-
-**동기 GET 공통 주의사항 (프론트 필수)**:
-- Ollama/OpenAI 호출 포함 → **응답 시간 3~30초** 소요
-- 로딩 스피너 + "AI가 분석 중입니다..." 표시 필수
-- 에러 시 fallback 메시지 ("AI 분석을 일시적으로 제공하지 못하고 있습니다")
-- 분석 데이터 로드 완료 후 AI 탭은 **지연 로드(lazy load)** — 초기 화면 블로킹 금지
-- 비동기 모델 전환 후엔 동일 화면에 폴링 패턴 적용 필요
+> 과거의 동기 GET 조회 4종은 **완전히 삭제**되었다. 모든 AI 리포트 화면은 위 POST 제출 → SSE/폴링 패턴만 사용한다. 상세 구현은 `ai-report-frontend-guide.md` 참고.
 
 ---
 
@@ -694,16 +716,17 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
 3. GET /commercials/{code}/foot-traffic
 4. GET /commercials/{code}/trend
 5. AI 탭 클릭 시:
-   a. POST /ai-reports/commercials/{code}         → 제출
-   b. 200 → 즉시 렌더 / 202 → jobId로 폴링
-   c. GET /ai-reports/jobs/{jobId} (1~2초 간격)   → COMPLETED까지 반복
+   a. POST /ai-reports/commercials/{code}          → 제출
+   b. 200 → 즉시 렌더 / 202 → jobId로 상태 구독
+   c. GET /ai-reports/jobs/{jobId}/stream (SSE 우선) → COMPLETED까지 수신
+      실패 시 GET /ai-reports/jobs/{jobId} (1~2초 간격) 폴링 폴백
 ```
 
 ### 두 상권 비교 시
 ```
 1. GET /commercials/compare-preview                → 말풍선 미리보기 (즉시)
 2. GET /commercials/compare                        → 비교 상세 화면 진입 시
-3. GET /ai-reports/commercials/comparisons         → AI 판단 섹션 (지연 로드, 동기 — 비동기 전환 예정)
+3. POST /ai-reports/commercials/comparisons        → AI 판단 섹션 (지연 로드, 제출 후 SSE/폴링)
 ```
 
 ### 업종 선택 후 추천 시

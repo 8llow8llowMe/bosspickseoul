@@ -28,7 +28,7 @@
 
 - 게시글/댓글은 소프트 삭제 기준을 사용한다.
 - 게시글 목록/피드는 `SliceResponse` 기반 무한 스크롤을 우선한다.
-- 상권별 게시글은 `GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode={code}` 로 조회한다. Post 엔티티는 `commercialCode` 직속 필드 대신 `targetType + targetCode` 일반화 구조를 사용하며, `idx_community_post_target_created` 인덱스가 뒷받침한다.
+- 상권별 게시글은 `GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode={code}` 로 조회한다. Post 엔티티는 `commercialCode` 직속 필드 대신 `targetType + targetCode` 일반화 구조를 사용하며, `idx_community_post_target_type_target_code_created_at` 인덱스가 뒷받침한다.
 - No-offset 커서는 LATEST 정렬에서 `id`, POPULAR 정렬에서 `(likeCount, id)` 복합 커서를 쓴다. `lastPostId == 0` 은 초기 로드 관례다.
 - 좋아요/신고 저장 흐름은 `domain -> entity -> repository.save -> entity -> domain` 패턴을 유지한다.
 - 정렬 파라미터는 enum 기반 `sortType`, `orderType` 기준을 따른다. `CommunitySortType` 과 `OrderType` 은 모두 `CodeNameDescribable` 을 구현한다 (`displayName` 필드 + metadata 변환).
@@ -38,7 +38,7 @@
 
 - `community_post` 테이블에 `view_count BIGINT DEFAULT 0` 추가
 - `GET /api/v1/community/posts/{postId}` 호출 시 `CommunityCommandProcessor.incrementViewCount()` 자동 실행
-- `CommunityPostWebFacade.getPost()` — `@Transactional(readOnly=false)` 적용 (조회수 쓰기 포함)
+- `CommunityPostWebFacade.getPost()` — `@Transactional`(기본값, 쓰기 트랜잭션) 적용 (조회수 쓰기 포함)
 - 경쟁 조건은 데모 수준에서 허용
 
 ## 게시글 검색 (신규)
@@ -48,9 +48,22 @@
 - `CommunityPostCustomRepositoryImpl` — `title.containsIgnoreCase(keyword).or(content.containsIgnoreCase(keyword))`
 - 기존 `executeSliceQuery`, `applyCursorCondition` 패턴 재사용
 
+## 상권 비교 draft (신규)
+
+- `POST /api/v1/community/posts/drafts/commercial-comparisons` — 상권 비교 결과를 바탕으로 게시글 초안(제목/본문)을 생성한다.
+- 요청: `CommunityCommercialComparisonDraftRequest` — `targetType` / `targetCode` / `leftCommercialCode` / `rightCommercialCode` / `serviceCode` / `periodCode` (전 필드 필수, `COMMUNITY_113`~`COMMUNITY_116` 검증)
+- **`@PreAuthorize` 없음 = 비인증 호출 가능.** "작성/수정/삭제/좋아요/신고는 인증 사용자 기준" 원칙의 예외다.
+  draft 생성은 게시글을 저장하지 않고 초안 텍스트만 반환하며, 실제 게시글 작성(`POST /posts`)은 여전히 인증 필수다.
+
+## 좋아요 (신규)
+
+- `POST /api/v1/community/posts/{postId}/likes` — 게시글 좋아요 토글 (등록/취소, 인증 필수)
+- `POST /api/v1/community/posts/{postId}/comments/{commentId}/likes` — 댓글 좋아요 토글 (인증 필수)
+- `GET /api/v1/community/posts/liked` — 현재 사용자가 좋아요한 게시글 목록 (인증 필수, 커서 페이지네이션)
+
 ## 대댓글 (신규, depth 1 고정)
 
-- `community_comment` 테이블에 `parent_comment_id BIGINT NULL` + `idx_community_comment_parent_id` 추가
+- `community_comment` 테이블에 `parent_comment_id BIGINT NULL` + `idx_community_comment_parent_comment_id` 추가
 - `POST /api/v1/community/posts/{postId}/comments` — `parentCommentId` 옵션 필드 추가
 - depth 1 고정: `CommunityCommandProcessor.validateParentComment()` 에서 3중 검증 (게시글 소속 / 최상위 여부 / ACTIVE 상태)
 - 계층 조립: DB flat list → `CommunityCommentPresenter`에서 in-memory groupBy
@@ -67,7 +80,17 @@
 - 신규 컨트롤러: `ModerationWebController` — `@PreAuthorize("hasAuthority('MANAGER')")`
 - 신규 enum: `ReportStatus` (PENDING/APPROVED/DISMISSED), `ModerationDecision` (APPROVE_AND_HIDE/DISMISS)
 - 아키텍처: `ModerationWebFacade`는 `CommunityReportPort`를 직접 주입하지 않고 `ModerationQueryProcessor`를 통해 접근
+- **주의: `/api/v1/moderation/**` 는 API Gateway 에 라우트가 없다** (게이트웨이는 `/api/v1/community/**` 만 community-service 로 라우팅). 게이트웨이 경유 호출은 404 가 나며, 현재는 내부망 직접 호출 전용이다. 라우트 추가 여부는 별도 결정이 필요하다.
 
 ## 피드 필터 일관성 (버그 수정)
 
 - `CommunityQueryProcessor.getFeed()` — `targetType`이 null일 때 `targetCode`도 null로 정규화해 DB 쿼리에 고아 필터가 전달되지 않도록 수정
+
+## 에러코드
+
+| 대역 | 코드 | 설명 |
+|------|------|------|
+| 도메인 | `COMMUNITY_001`~`COMMUNITY_012` | 대상/정렬 타입 400, 게시글·댓글·신고 미존재 404, 권한 403, 중복 신고·기처리 신고 409 등 |
+| 검증 폴백 | `COMMUNITY_100` | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
+| 검증 필드별 | `COMMUNITY_101`~`COMMUNITY_116` | `CommunityValidationMessage` 가 단일 기준점. `COMMUNITY_113`~`COMMUNITY_116` 은 상권 비교 draft 전용 (좌/우 상권 코드, 서비스 코드, 분기 코드) |
+| 타입 오류 | `COMMUNITY_117` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |

@@ -19,6 +19,7 @@
 | 자치구, 행정동 상세 분석 | `commercial-service`의 `/api/v1/districts/**`, `/api/v1/administrations/**` |
 | 커뮤니티 | `community-service`의 `/api/v1/community/**` |
 | AI 리포트 | `ai-service`의 `/api/v1/ai-reports/**` |
+| 분석 결과 공유 | `commercial-service`의 `/api/v1/share-links/**` |
 
 지도 위에서 쓰는 히트맵, 후보 상권, 상권 프로필, 비교 미리보기는 `commercial-service`를 직접 호출하지 말고 `/api/v1/map/**`을 우선 사용한다. `district-service`가 상권 분석 결과에 경계 좌표를 조합해서 내려준다.
 
@@ -163,7 +164,7 @@
 | 지도 말풍선 비교 | `GET /api/v1/map/commercials/compare-preview` | 두 상권 선택 직후 가벼운 미리보기 |
 | 비교 상세 페이지 | `GET /api/v1/commercials/compare` | 매출, 유동인구, 점포, 인구 등 상세 비교 |
 | 비교 공유 글 초안 | `POST /api/v1/community/posts/drafts/commercial-comparisons` | 비교 결과 기반 커뮤니티 글 초안 |
-| 비교 AI 인사이트 | `GET /api/v1/ai-reports/commercials/comparisons` | 비교 결과 하단 AI 요약 |
+| 비교 AI 인사이트 | `POST /api/v1/ai-reports/commercials/comparisons` | 비동기 제출 → 202 시 jobId로 SSE/폴링 조회 |
 
 권장 흐름:
 
@@ -173,6 +174,7 @@
 3. 사용자가 비교 상세로 이동하면 /commercials/compare 호출
 4. 공유하기 클릭 시 drafts/commercial-comparisons 호출
 5. AI 비교 인사이트는 별도 섹션에서 lazy load
+   — POST 제출 후 200이면 즉시 렌더, 202이면 jobId로 SSE 구독(실패 시 폴링 폴백)
 ```
 
 ## District And Administration Detail
@@ -236,30 +238,60 @@ GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode=3110008&sortType=LA
 
 ## AI Reports
 
-모든 AI 리포트 API는 인증이 필요하다.
+모든 AI 리포트 API는 인증이 필요하다. 동기 GET 조회 엔드포인트는 **제거**되었으므로 반드시 POST 제출 → SSE/폴링 흐름을 사용한다. 상세 구현은 `ai-report-frontend-guide.md`를 참고한다.
 
 | UI | API | Usage |
 | --- | --- | --- |
 | 상권 AI 분석 버튼 | `POST /api/v1/ai-reports/commercials/{commercialCode}` | 비동기 작업 제출, 캐시 hit 시 즉시 결과 |
-| AI 작업 폴링 | `GET /api/v1/ai-reports/jobs/{jobId}` | PENDING/RUNNING/COMPLETED/FAILED 상태 확인 |
-| 상권 AI 동기 조회 | `GET /api/v1/ai-reports/commercials/{commercialCode}` | deprecated, 신규 화면은 POST + polling 권장 |
-| 비교 AI 인사이트 | `GET /api/v1/ai-reports/commercials/comparisons` | 두 상권 비교 AI 요약 |
-| 자치구 AI 리포트 | `GET /api/v1/ai-reports/districts/{districtCode}` | 자치구 상세 AI 섹션 |
-| 행정동 AI 리포트 | `GET /api/v1/ai-reports/administrations/{administrationCode}` | 행정동 상세 AI 섹션 |
+| 비교 AI 인사이트 | `POST /api/v1/ai-reports/commercials/comparisons` | 두 상권 비교 AI 요약 비동기 제출 |
+| 자치구 AI 리포트 | `POST /api/v1/ai-reports/districts/{districtCode}` | 자치구 상세 AI 섹션 비동기 제출 |
+| 행정동 AI 리포트 | `POST /api/v1/ai-reports/administrations/{administrationCode}` | 행정동 상세 AI 섹션 비동기 제출 |
+| AI 작업 SSE 스트림 | `GET /api/v1/ai-reports/jobs/{jobId}/stream` | 작업 상태 실시간 수신 (**권장**, `job-update` 이벤트) |
+| AI 작업 폴링 | `GET /api/v1/ai-reports/jobs/{jobId}` | SSE 실패 시 폴백, 상태 + 완료 시 리포트 |
 
-상권 AI 권장 흐름:
+AI 권장 흐름 (**SSE 우선, 실패 시 폴링 폴백**):
 
 ```text
 1. 사용자가 "AI 분석 보기" 클릭
-2. POST /ai-reports/commercials/{commercialCode}
-3. 200이면 commercialReport 즉시 표시
-4. 202이면 jobId 저장 후 /ai-reports/jobs/{jobId} 폴링
-5. COMPLETED면 결과 표시
-6. FAILED면 fallback 메시지 표시
-7. 60초 이상 계속 RUNNING이면 사용자에게 재시도 안내
+2. POST /ai-reports/... 제출
+3. 200이면 리포트 즉시 표시
+4. 202이면 jobId 저장 후 /ai-reports/jobs/{jobId}/stream SSE 구독
+   (브라우저 기본 EventSource는 Authorization 헤더 미지원 → fetch 기반 SSE 클라이언트 사용)
+5. SSE 연결 실패나 중단 시 /ai-reports/jobs/{jobId} 폴링으로 폴백
+6. COMPLETED면 결과 표시
+7. FAILED면 fallback 메시지 표시
+8. 60초 이상 계속 RUNNING이면 사용자에게 재시도 안내
 ```
 
+- 작업 상태 응답의 `status`/`jobType`은 `{code, name, description}` 객체이므로 `status.code`로 분기한다.
+- PENDING/RUNNING 동안에는 `progressMessages` 배열로 진행 문구를 로테이션 표시한다.
+
 AI API는 비용과 시간이 드는 작업이므로 초기 페이지 렌더링에 포함하지 말고 사용자가 요청하거나 섹션이 화면에 들어올 때 lazy load한다.
+
+## Share Link
+
+분석 화면 공유는 `commercial-service`의 `/api/v1/share-links/**`를 사용한다. 상세 구현은 `share-link-frontend-guide.md`를 참고한다.
+
+| UI | API | Usage |
+| --- | --- | --- |
+| 공유하기 버튼 | `POST /api/v1/share-links` | `shareType` + `payload`로 단축 코드 생성 |
+| `/s/{shareCode}` 진입 | `GET /api/v1/share-links/{shareCode}` | 코드를 `shareType` + `payload`로 해석 |
+
+권장 흐름:
+
+```text
+1. 공유 버튼 클릭 시 POST /share-links {shareType, payload}
+2. 응답 {shareCode, shareType, expiresAt}에서 shareCode로 공유 URL 조립: /s/{shareCode}
+3. 수신자가 /s/{shareCode} 진입 시 GET /share-links/{shareCode}
+4. shareType.code로 URL 템플릿 선택 + payload 병합 → router.replace로 원 화면 복원
+```
+
+프론트 처리 포인트:
+
+- 생성/해석 모두 **비로그인 가능** — 공유 버튼에 로그인 게이팅을 두지 않는다. 토큰을 실어 보내면 최초 공유자가 기록되므로 로그인 상태면 첨부를 권장한다.
+- `payload`는 화면 재현에 필요한 최소 상태만 담는다 (백엔드는 해석하지 않고 그대로 반환).
+- 같은 상태 재공유 시 기존 코드가 재사용되고 만료(90일)만 연장된다.
+- 만료 `410`, 미존재 `404` → 안내 후 홈으로 폴백한다.
 
 ## Recommended Screen Composition
 

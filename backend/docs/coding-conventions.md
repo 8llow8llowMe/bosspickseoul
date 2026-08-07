@@ -94,7 +94,7 @@ public record ExampleResponse(
 @Getter @RequiredArgsConstructor
 public enum CommercialErrorCode {
 
-    INVALID_TOP_N("COMMERCIAL_001", "topN은 5 이상 30 이하여야 합니다.", HttpStatus.BAD_REQUEST);
+    SERVICE_CODE_REQUIRED("COMMERCIAL_003", "서비스 업종 코드는 필수입니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;
@@ -114,7 +114,7 @@ public class CommercialException extends RuntimeException {
 }
 
 // 3. 처리
-throw new CommercialException(CommercialErrorCode.INVALID_TOP_N);
+throw new CommercialException(CommercialErrorCode.SERVICE_CODE_REQUIRED);
 ```
 
 ### 8-2. 검증 에러코드 규약 (필수)
@@ -424,16 +424,12 @@ application/port/out/query/CommercialHeatmapScoresQueryResult
   - 위치: `adapter/out/persistence/`
 - 어댑터에서 넘기는 타입: domain/model (MapStruct 매퍼 거침)
 
-> community-service 의 `CommunityPostPort`, `CommunityCommentPort` 등은 레거시 네이밍을 유지한다.
-> 새 포트를 추가할 때는 `*RepositoryPort` 를 따른다.
-
 ### 12-3. 인프라 특화 포트 (Redis / LLM / Geo / JDBC 배치 등)
 
 도메인 의미를 그대로 표현한 이름을 사용한다. 전송 기술을 접두사로 붙여도 그 기술이 도메인 성격을 드러낼 때만 허용.
 
 - 예: `AiLlmPort`, `AiReportCachePort`, `JwtTokenStorePort`, `CoordinateTransformPort`
-- JDBC 배치 전용 포트는 `*BulkPort` 또는 `*CommandPort` 사용.
-  (batch-service 의 `AreaBoundaryJdbcPort` 는 레거시 — 향후 작업 시 `AreaBoundaryBulkPort` 로 정리 예정.)
+- JDBC 배치 전용 포트는 `*BulkPort` 또는 `*CommandPort` 사용. (예: batch-service 의 `AreaBoundaryBulkPort`)
 
 ## 13. Method Signature Wrapping
 

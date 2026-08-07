@@ -31,10 +31,11 @@ backend/
 **포함:**
 - `dto.Response<T>` — 공통 응답 래퍼
 - `dto.DataHeader` — 응답 헤더
+- `dto.ValidationErrorBody` / `dto.ValidationErrorItem` — 검증 오류 응답 본문
 - `dto.metadata.*` — `CodeNameDescribable`, `ScoreMetricDescribable`, `CodeNameDescriptionMetadata`, `ScoreMetricMetadata`
 - `enums.OrderType` — 정렬 방향 (ASC/DESC)
-- `exception.BadRequestException` — 공통 예외
-- `config.*` — Jasypt, Swagger 공통 설정
+- `exception.ValidationErrorSupport` — 공통 검증 예외 → 응답 변환 유틸
+- `config.*` — Jasypt, Swagger 공통 설정 (`SwaggerSecurityConfigurer` 포함)
 - `properties.*` — 공통 properties 바인딩
 
 **포함 기준**: 도메인에 비의존적인 **범용 인프라**. 특정 서비스만 쓰는 도메인 개념은 금지.
@@ -96,6 +97,7 @@ backend/
 
 **포함:**
 - `enums.HeatmapModeType` — 히트맵 모드 (단일 지표 / 복합 추천)
+- `enums.GradeLevel` — 등급 구간 (commercial/district 공용)
 
 **존재 이유**:
 - `commercial-service`와 `district-service`는 피어 관계라 서로 import 불가
@@ -136,7 +138,7 @@ backend/
 - `POST /api/v1/members/signup`, `GET /api/v1/members/me`
 - `/api/v1/members/me/bookmarks` — 관심 상권 저장
 
-**특수 의존**: `core:security-core`의 `auth/` 패키지 (JWT 발급 전용)
+**특수 의존**: `core:security-core`의 `auth/` 패키지 (JWT 발급 전용), `core:redis-core` (토큰/이메일 인증/OAuth state 저장)
 
 ---
 
@@ -149,8 +151,12 @@ backend/
 - 히트맵: 단일 지표 / 복합 점수
 - 비교: 상권 A vs B, 비교 프리뷰
 - 후보 상권: 프리셋 기반 상위 N, 업종 기반 추천
+- 행정동/자치구: `/api/v1/administrations/{code}`, `/api/v1/districts/**`
+- 공유 링크: `POST/GET /api/v1/share-links`
 
-**특수 의존**: `core:shared-commercial` (HeatmapModeType)
+**컨텍스트**: administration, category, commercial, commercialsummary, district, sharelink (6개)
+
+**특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
 
 ---
 
@@ -161,7 +167,7 @@ backend/
 **주요 API:**
 - 지도 영역 좌표
 - 지도 화면용 히트맵 (commercial-service를 Feign 호출)
-- 지역 검색 (자동완성)
+- `GET /api/v1/regions/code-lookup` — 지역 명칭→코드 정확 조회
 
 **특수 의존**: `core:shared-commercial`, geotools (좌표 변환)
 
@@ -172,9 +178,9 @@ backend/
 **역할**: 커뮤니티 게시글·댓글·좋아요·신고·모더레이션
 
 **주요 API:**
-- `/api/v1/community/posts`, `/comments`
+- `/api/v1/community/posts`, `/api/v1/community/posts/{postId}/comments`
 - `/api/v1/community/reports` — 신고
-- `/api/v1/community/moderation/reports` — 관리자 처리
+- `/api/v1/moderation/reports` — 관리자 처리
 
 **특수 설계**: `ModerationQueryProcessor` — Facade가 out-port 직접 접근 금지
 
@@ -182,12 +188,10 @@ backend/
 
 ## service/batch-service
 
-**역할**: 서울시 공공데이터 대량 적재, 스케줄링
+**역할**: 대량 데이터 적재용 일회성/수동 실행 배치
 
 **처리:**
-- 분기별 상권 데이터 갱신
-- change_commercial(상권변화지표) 적재
-- 정책 시드 데이터 관리
+- 영역 좌표(area_boundary) 대량 적재 (`AreaBoundaryImportJob`)
 
 ---
 
@@ -196,10 +200,14 @@ backend/
 **역할**: LLM 기반 분석 리포트
 
 **주요 API:**
-- `POST /api/v1/ai/reports` — 상권 AI 분석 리포트 생성 (비동기)
-- 상권 비교 원라이너 인사이트
+- `POST /api/v1/ai-reports/commercials/{code}` — 상권 AI 리포트 생성 (비동기)
+- `POST /api/v1/ai-reports/commercials/comparisons` — 상권 비교 리포트
+- `POST /api/v1/ai-reports/districts/{code}` — 자치구 리포트
+- `POST /api/v1/ai-reports/administrations/{code}` — 행정동 리포트
+- `GET /api/v1/ai-reports/jobs/{jobId}` — 작업 상태 폴링
+- `GET /api/v1/ai-reports/jobs/{jobId}/stream` — 작업 상태 SSE 스트림
 
-**처리 흐름**: Controller → Facade → `AiReportProcessor` → LLM Client → 결과 저장
+**처리 흐름**: Controller → Facade → `AiReportJobProcessor` → `AiReportWorker`(`@Async("aiReportTaskExecutor")`) → Redis 상태 저장/이벤트
 
 ---
 

@@ -28,6 +28,15 @@ deploy agent가 Vault KV secret 전체를 읽고, 각 key-value를 `.env.runtime
 | Dockerfile | `{service}.Dockerfile` |
 | Compose 파일 | `docker-compose-{service}.yml` |
 
+## 배포 호스트
+
+환경별 배포 대상 호스트가 분리되어 있습니다.
+
+| 환경 | 호스트 | IP | 포트 대역 | Jenkins agent label |
+| --- | --- | --- | --- | --- |
+| dev | `main-server` (hostname: `raspberrypi`) | `192.168.0.11` | `6XXX` | `deploy-backend-dev` |
+| prod | `backend-1` | `192.168.0.13` | `9XXX` | `deploy-backend-prod` |
+
 ## 포트 규칙
 
 BossPickSeoul 백엔드는 dev=`6XXX`, prod=`9XXX` 대역을 사용합니다.
@@ -59,10 +68,13 @@ $HOME/${DEPLOY_BASE_PARENT}/${PROJECT_SLUG}/${DEPLOY_APP_DIR}/${serviceGroup}/${
 | `PROJECT_SLUG` | `bosspickseoul` |
 | `DEPLOY_APP_DIR` | `backend` |
 
+`serviceGroup`은 `cloud`(service-discovery, api-gateway) 또는 `service`(도메인 서비스) 중 하나입니다.
+
 예시는 아래와 같습니다.
 
 ```text
 $HOME/deploy/bosspickseoul/backend/service/district-service
+$HOME/deploy/bosspickseoul/backend/cloud/api-gateway
 ```
 
 ## Vault Secret 구조
@@ -90,12 +102,14 @@ Vault KV 데이터 예시는 아래와 같습니다.
   "DISTRICT_SERVICE_PORT": "8082",
   "DISTRICT_SERVICE_PORT_DEV": "6082",
   "DISTRICT_SERVICE_PORT_PROD": "9082",
-  "DISTRICT_DB_URL": "jdbc:mysql://192.168.0.11:3306/bosspickseoul_district",
+  "DISTRICT_DB_URL": "jdbc:mysql://192.168.0.11:3306/bosspickseoul_district_dev?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul&zeroDateTimeBehavior=convertToNull&rewriteBatchedStatements=true",
   "DB_USERNAME": "followfollowme",
   "DB_PASSWORD": "change-me",
   "JASYPT_ENCRYPTOR_KEY": "change-me"
 }
 ```
+
+DB 스키마 이름은 dev에서 `_dev` 접미사를 사용하고(`bosspickseoul_district_dev`), prod는 접미사 없이 `bosspickseoul_district`를 사용합니다. 실제 형태는 `.env.example`을 기준으로 합니다.
 
 Jenkins는 위 데이터를 아래처럼 `.env.runtime`으로 생성합니다.
 
@@ -105,7 +119,7 @@ SPRING_PROFILES_ACTIVE=dev
 DISTRICT_SERVICE_PORT=8082
 DISTRICT_SERVICE_PORT_DEV=6082
 DISTRICT_SERVICE_PORT_PROD=9082
-DISTRICT_DB_URL=jdbc:mysql://192.168.0.11:3306/bosspickseoul_district
+DISTRICT_DB_URL=jdbc:mysql://192.168.0.11:3306/bosspickseoul_district_dev?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul&zeroDateTimeBehavior=convertToNull&rewriteBatchedStatements=true
 DB_USERNAME=followfollowme
 DB_PASSWORD=change-me
 JASYPT_ENCRYPTOR_KEY=change-me
@@ -151,6 +165,7 @@ docker compose
 | `VAULT_SECRET_ROOT` | 빈 값 | 비워두면 `kv/${PROJECT_SLUG}/backend`를 사용합니다. |
 | `VAULT_SECRET_PATH` | 빈 값 | 입력하면 `VAULT_SECRET_ROOT`보다 우선합니다. |
 | `VAULT_ENGINE_VERSION` | `2` | Vault KV 엔진 버전입니다. |
+| `DEPLOY_LOCK_NAME` | `backend-1-deploy` | 동일 호스트 동시 배포를 막는 lock 이름입니다. dev 배포에는 `main-server-deploy` 사용을 권장합니다. |
 
 Jenkins가 사용하는 Vault AppRole `secret_id`는 운영 IaC 기준으로 만료 없이(`secret_id_ttl=0`) 관리합니다. 따라서 정기 만료로 빌드가 깨지지 않아야 하며, Jenkins Web UI의 `bosspickseoul-vault-secret-id` 값은 노출 또는 보안 점검 시에만 수동 회전합니다.
 

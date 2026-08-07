@@ -153,6 +153,15 @@ GET /api/v1/map/commercials/heatmap?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37
 GET /api/v1/map/commercials/heatmap?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37.7&serviceCode=CS100001&periodCode=20233&preset=BALANCED&priorityMetric=OPPORTUNITY_SCORE&composite=true
 ```
 
+`priorityMetric` 은 선택 파라미터다. 생략하면 프리셋별 기본 우선 지표가 적용된다.
+
+파라미터 배타 규칙 (위반 시 400):
+
+| 조합 | 결과 |
+| --- | --- |
+| `composite=false` + `preset` 또는 `priorityMetric` 전달 | `MAP_005` 400 |
+| `composite=true` + `metricType` 전달 | `MAP_004` 400 |
+
 응답의 주요 필드:
 
 | Field | Usage |
@@ -234,7 +243,7 @@ GET /api/v1/map/commercials/{commercialCode}/profile?serviceCode=CS100001&period
 - `commercialCode`, `commercialName`: 패널 제목
 - `districtName`, `administrationName`: 지역 breadcrumb
 - `keyMetrics`: 주요 지표 카드
-- `centerLng`, `centerLat`, `boundaryCoords`: 지도 포커싱 또는 경계 강조
+- `centerLng`, `centerLat`, `boundaryCoords`: 1단계에서는 항상 null/빈 배열로 내려간다. 지도 포커싱과 경계 강조에는 직전 candidates/heatmap 응답의 경계 정보를 재사용한다.
 
 프론트는 상권 목록, 후보 추천, 히트맵 응답에서 이미 받은 `boundaryCoords`를 캐싱해두면 상세 API 호출 후 지도 강조를 빠르게 처리할 수 있다.
 

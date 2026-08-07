@@ -34,6 +34,8 @@ public class XxxServiceApplication {
   - `*BeansConfig`
   - `*PropertiesConfig`
   - `*FeaturesConfig`
+  - `*SwaggerConfig` (5개 서비스 표준)
+- 필요 시 `AsyncConfig`(전용 `ThreadPoolTaskExecutor` 빈), `SecurityErrorWriterConfig`(보안 에러 응답 작성)를 추가한다.
 
 ```java
 @Configuration
@@ -54,6 +56,22 @@ public class XxxServiceBeansConfig {
     SnowflakePropertiesConfig.class
 })
 public class XxxServicePropertiesConfig {
+}
+```
+
+- Resource Server 서비스는 `JwtResourceServerPropertiesConfig`를 함께 import한다.
+- 서비스 도메인 프로퍼티는 `@EnableConfigurationProperties`로 바인딩한다. (참고: `CommercialServicePropertiesConfig`)
+
+```java
+@Configuration
+@Import({
+    JasyptPropertiesConfig.class,
+    SwaggerPropertiesConfig.class,
+    SnowflakePropertiesConfig.class,
+    JwtResourceServerPropertiesConfig.class
+})
+@EnableConfigurationProperties(ShareLinkProperties.class)
+public class CommercialServicePropertiesConfig {
 }
 ```
 
