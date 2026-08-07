@@ -35,7 +35,14 @@ export const resolveAiReportTargetCode = (
 export const buildAiLevelKey = (
   level: AiReportLevel | null,
   code: string | null,
-): string | null => (level && code ? `${level}:${code}` : null)
+  serviceCode: string | null,
+): string | null => {
+  if (!level || !code) return null
+  if (level === 'commercial') {
+    return serviceCode ? `commercial:${code}:${serviceCode}` : null
+  }
+  return `${level}:${code}`
+}
 
 export const isAiReportActive = (
   levelKey: string | null,

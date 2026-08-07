@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client'
+import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import type {
   AdministrationAiReportResponse,
   AiReportJob,
@@ -12,9 +13,15 @@ import type {
 export const aiReportPath = {
   district: (code: string) => `/ai-reports/districts/${code}`,
   administration: (code: string) => `/ai-reports/administrations/${code}`,
-  commercialSubmit: (code: string) => `/ai-reports/commercials/${code}`,
   job: (jobId: string) => `/ai-reports/jobs/${jobId}`,
 }
+
+export const buildCommercialSubmitPath = (
+  commercialCode: string,
+  serviceCode: string,
+  periodCode: string,
+): string =>
+  `/ai-reports/commercials/${commercialCode}?serviceCode=${serviceCode}&periodCode=${periodCode}`
 
 export const fetchDistrictAiReport = async (
   districtCode: string,
@@ -36,9 +43,11 @@ export const fetchAdministrationAiReport = async (
 
 export const submitCommercialAiReport = async (
   commercialCode: string,
+  serviceCode: string,
+  periodCode: string = ANALYSIS_PERIOD_CODE,
 ): Promise<AiReportSubmission> => {
   const res = await apiClient.post<CommercialAiReportSubmissionResponse>(
-    aiReportPath.commercialSubmit(commercialCode),
+    buildCommercialSubmitPath(commercialCode, serviceCode, periodCode),
   )
   return res.data.dataBody
 }
