@@ -8,86 +8,72 @@ import {
   MapPinned,
   MessageCircle,
   Search,
-  TrendingUp,
   UsersRound,
 } from 'lucide-react'
 import styled from 'styled-components'
+import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
+import Reveal from '@/components/home/reveal'
 
-const quickActions = [
+const workflowSteps = [
+  {
+    step: '01',
+    title: '현황 확인',
+    body: '구별현황에서 자치구별 매출·유동인구·업종 분포를 비교합니다.',
+  },
+  {
+    step: '02',
+    title: '상권 분석',
+    body: '지역과 업종을 지정해 매출 추이와 경쟁 강도를 리포트로 확인합니다.',
+  },
+  {
+    step: '03',
+    title: '후보 추천',
+    body: '조건에 맞는 상권을 추천받아 후보를 좁히고 저장합니다.',
+  },
+  {
+    step: '04',
+    title: '창업 시뮬레이션',
+    body: '예상 비용과 매출을 시뮬레이션해 실행 가능성을 점검합니다.',
+  },
+] as const
+
+const featureCards = [
   {
     title: '구별현황',
-    body: '서울 자치구별 상권 흐름을 먼저 확인합니다.',
+    body: '자치구별 상권 지표를 한눈에 비교합니다.',
     href: '/status',
     icon: Building2,
   },
   {
     title: '상권분석',
-    body: '업종과 지역 조건을 입력해 분석 리포트로 이어갑니다.',
+    body: '업종·지역별 매출과 경쟁을 리포트로 분석합니다.',
     href: '/analysis',
     icon: BarChart3,
   },
   {
     title: '상권추천',
-    body: '후보 지역을 빠르게 좁히고 저장합니다.',
+    body: '조건에 맞는 후보 상권을 추천합니다.',
     href: '/recommend',
     icon: MapPinned,
   },
   {
     title: '시뮬레이션',
-    body: '창업 조건을 비용과 리포트 흐름으로 검토합니다.',
+    body: '창업 비용과 예상 수익을 시뮬레이션합니다.',
     href: '/simulation',
     icon: FileText,
   },
-] as const
-
-const workflowSteps = [
-  {
-    step: '01',
-    title: '서울 상권의 현재 상태를 확인합니다.',
-    body: '구별현황에서 유동 인구, 점포 수, 주요 업종 지표를 먼저 비교합니다.',
-  },
-  {
-    step: '02',
-    title: '관심 지역을 분석 리포트로 구체화합니다.',
-    body: '업종과 지역을 입력하고 후보 입지를 데이터 카드와 요약 지표로 검토합니다.',
-  },
-  {
-    step: '03',
-    title: '추천과 시뮬레이션으로 다음 판단을 이어갑니다.',
-    body: '추천 후보를 저장하고, 창업 시뮬레이션으로 비용과 실행 가능성을 확인합니다.',
-  },
-  {
-    step: '04',
-    title: '커뮤니티와 채팅에서 실제 고민을 나눕니다.',
-    body: '분석 이후의 질문과 경험을 커뮤니티, 실시간 채팅으로 이어갈 수 있습니다.',
-  },
-] as const
-
-const serviceCards = [
-  {
-    title: '추천 후보 비교',
-    body: '지도와 데이터 기준으로 관심 지역을 빠르게 좁힙니다.',
-    href: '/recommend',
-    icon: TrendingUp,
-  },
   {
     title: '커뮤니티',
-    body: '창업 경험과 상권 질문을 게시글로 공유합니다.',
+    body: '창업자들과 상권 정보를 나눕니다.',
     href: '/community/list',
     icon: UsersRound,
   },
   {
     title: '실시간 채팅',
-    body: '관심 주제별 방에서 빠르게 대화를 시작합니다.',
+    body: '관심 주제방에서 실시간으로 대화합니다.',
     href: '/chatting/list',
     icon: MessageCircle,
   },
-] as const
-
-const metrics = [
-  { label: '서울 자치구', value: '25개' },
-  { label: '판단 흐름', value: '4단계' },
-  { label: '연결 기능', value: '6개' },
 ] as const
 
 const Page = styled.main`
@@ -103,28 +89,17 @@ const Section = styled.section`
 `
 
 const Hero = styled.section`
-  padding: 48px 20px 56px;
+  padding: 56px 20px 48px;
   background: var(--color-background);
 
   @media (max-width: 640px) {
-    padding: 36px 16px 44px;
+    padding: 40px 16px 36px;
   }
 `
 
 const Inner = styled.div`
   width: min(1120px, 100%);
   margin: 0 auto;
-`
-
-const HeroGrid = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.98fr);
-  gap: 32px;
-  align-items: center;
-
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
-  }
 `
 
 const HeroCopy = styled.div`
@@ -216,123 +191,6 @@ const SecondaryLink = styled(Link)`
   }
 `
 
-const PreviewPanel = styled.aside`
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-2);
-  overflow: hidden;
-`
-
-const PreviewContent = styled.div`
-  display: grid;
-  gap: 20px;
-  padding: 28px;
-
-  @media (max-width: 640px) {
-    padding: 24px 20px;
-  }
-`
-
-const PreviewTitle = styled.h2`
-  color: var(--color-text-900);
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 28px;
-`
-
-const PreviewBody = styled.p`
-  color: var(--color-text-600);
-  font-size: 14px;
-  line-height: 22px;
-  word-break: keep-all;
-`
-
-const MetricList = styled.div`
-  display: grid;
-  border-top: 1px solid var(--color-border-200);
-`
-
-const MetricRow = styled.div`
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--color-border-200);
-  color: var(--color-text-700);
-  font-size: 14px;
-
-  &:last-child {
-    border-bottom: none;
-  }
-`
-
-const MetricValue = styled.span`
-  color: var(--color-text-900);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 30px;
-  font-variant-numeric: tabular-nums;
-`
-
-const QuickGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 28px;
-
-  @media (max-width: 960px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 560px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const QuickCard = styled(Link)`
-  min-height: 156px;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  padding: 18px;
-  color: var(--color-text-700);
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-
-  &:hover {
-    border-color: var(--color-primary-700);
-    box-shadow: var(--shadow-level-2);
-    color: var(--color-primary-700);
-  }
-
-  svg {
-    width: 24px;
-    height: 24px;
-    stroke: currentColor;
-  }
-`
-
-const QuickTitle = styled.h3`
-  color: var(--color-text-900);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
-`
-
-const QuickBody = styled.p`
-  color: var(--color-text-600);
-  font-size: 14px;
-  line-height: 22px;
-  word-break: keep-all;
-`
-
 const SectionHeader = styled.div`
   max-width: 680px;
   display: grid;
@@ -354,6 +212,11 @@ const SectionBody = styled.p`
   font-size: 16px;
   line-height: 24px;
   word-break: keep-all;
+`
+
+const DemoWrap = styled.div`
+  width: min(760px, 100%);
+  margin: 0 auto;
 `
 
 const MutedBand = styled(Section)`
@@ -402,17 +265,21 @@ const WorkflowBody = styled.p`
   word-break: keep-all;
 `
 
-const ServiceGrid = styled.div`
+const FeatureGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 
   @media (max-width: 960px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
 `
 
-const ServiceCard = styled(Link)`
+const FeatureCard = styled(Link)`
   min-height: 176px;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -435,7 +302,7 @@ const ServiceCard = styled(Link)`
   }
 `
 
-const ServiceHeader = styled.div`
+const FeatureHeader = styled.div`
   display: flex;
   gap: 10px;
   align-items: center;
@@ -448,27 +315,24 @@ const ServiceHeader = styled.div`
   }
 `
 
-const ServiceTitle = styled.h3`
+const FeatureTitle = styled.h3`
   color: var(--color-text-900);
   font-size: 18px;
   font-weight: 600;
   line-height: 26px;
 `
 
-const ServiceBody = styled.p`
+const FeatureBody = styled.p`
   color: var(--color-text-600);
   font-size: 14px;
   line-height: 22px;
   word-break: keep-all;
 `
 
-const ServiceCta = styled.span`
+const FeatureCta = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   color: var(--color-primary-700);
-  font-size: 14px;
-  font-weight: 600;
 
   svg {
     width: 16px;
@@ -521,85 +385,64 @@ export default function HomePage() {
     <Page>
       <Hero>
         <Inner>
-          <HeroGrid>
-            <HeroCopy>
-              <Eyebrow>서울 상권 데이터와 창업 판단 흐름</Eyebrow>
-              <Title>
-                서울 상권을 읽고, 분석하고, 다음 행동까지 이어갑니다.
-              </Title>
-              <Body>
-                구별현황으로 시장을 확인하고, 분석과 추천, 시뮬레이션,
-                커뮤니티까지 한 흐름 안에서 창업 판단을 구체화합니다.
-              </Body>
-              <Actions>
-                <PrimaryLink href="/analysis">
-                  <Search aria-hidden="true" />
-                  상권분석 시작
-                </PrimaryLink>
-                <SecondaryLink href="/recommend">
-                  <MapPinned aria-hidden="true" />
-                  추천 보기
-                </SecondaryLink>
-              </Actions>
-            </HeroCopy>
-
-            <PreviewPanel>
-              <PreviewContent>
-                <div>
-                  <PreviewTitle>서울 상권 판단을 한 흐름으로</PreviewTitle>
-                  <PreviewBody>
-                    지역 현황부터 분석, 추천, 실행 검토까지 필요한 기능을
-                    순서대로 이어갑니다.
-                  </PreviewBody>
-                </div>
-                <MetricList>
-                  {metrics.map(metric => (
-                    <MetricRow key={metric.label}>
-                      <span>{metric.label}</span>
-                      <MetricValue>{metric.value}</MetricValue>
-                    </MetricRow>
-                  ))}
-                </MetricList>
-              </PreviewContent>
-            </PreviewPanel>
-          </HeroGrid>
-
-          <QuickGrid>
-            {quickActions.map(action => {
-              const ActionIcon = action.icon
-
-              return (
-                <QuickCard key={action.href} href={action.href}>
-                  <ActionIcon aria-hidden="true" />
-                  <QuickTitle>{action.title}</QuickTitle>
-                  <QuickBody>{action.body}</QuickBody>
-                </QuickCard>
-              )
-            })}
-          </QuickGrid>
+          <HeroCopy>
+            <Eyebrow>서울 상권 데이터 분석</Eyebrow>
+            <Title>창업 전에, 상권부터 확인하세요.</Title>
+            <Body>
+              서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로 분석합니다.
+              감이 아니라 데이터로 자리를 정하세요.
+            </Body>
+            <Actions>
+              <PrimaryLink href="/analysis">
+                <Search aria-hidden="true" />내 상권 분석하기
+              </PrimaryLink>
+              <SecondaryLink href="/status">
+                <MapPinned aria-hidden="true" />
+                구별현황 보기
+              </SecondaryLink>
+            </Actions>
+          </HeroCopy>
         </Inner>
       </Hero>
+
+      <Section>
+        <Inner>
+          <SectionHeader>
+            <Eyebrow>미리 체험하기</Eyebrow>
+            <SectionTitle>
+              지역과 업종을 고르면, 분석이 이렇게 나옵니다.
+            </SectionTitle>
+            <SectionBody>
+              실제 리포트의 축약본입니다. 아래 수치는 대표 예시입니다.
+            </SectionBody>
+          </SectionHeader>
+
+          <DemoWrap>
+            <AnalysisMiniDemo />
+          </DemoWrap>
+        </Inner>
+      </Section>
 
       <MutedBand>
         <Inner>
           <SectionHeader>
-            <Eyebrow>진행 과정</Eyebrow>
-            <SectionTitle>처음 조회에서 실행 판단까지 이어집니다.</SectionTitle>
-            <SectionBody>
-              BossPickSeoul의 주요 기능은 각각 떨어진 화면이 아니라, 상권을 읽고
-              다음 판단을 좁혀가는 순서로 연결됩니다.
-            </SectionBody>
+            <Eyebrow>판단 흐름</Eyebrow>
+            <SectionTitle>
+              현황 확인부터 창업 판단까지, 네 단계로 좁힙니다.
+            </SectionTitle>
           </SectionHeader>
 
           <WorkflowList>
-            {workflowSteps.map(item => (
-              <WorkflowItem key={item.step}>
-                <Step>{item.step}</Step>
-                <div>
-                  <WorkflowTitle>{item.title}</WorkflowTitle>
-                  <WorkflowBody>{item.body}</WorkflowBody>
-                </div>
-              </WorkflowItem>
+            {workflowSteps.map((item, index) => (
+              <Reveal key={item.step} delay={index * 80}>
+                <WorkflowItem>
+                  <Step>{item.step}</Step>
+                  <div>
+                    <WorkflowTitle>{item.title}</WorkflowTitle>
+                    <WorkflowBody>{item.body}</WorkflowBody>
+                  </div>
+                </WorkflowItem>
+              </Reveal>
             ))}
           </WorkflowList>
         </Inner>
@@ -608,45 +451,42 @@ export default function HomePage() {
       <Section>
         <Inner>
           <SectionHeader>
-            <Eyebrow>연결 서비스</Eyebrow>
+            <Eyebrow>기능</Eyebrow>
             <SectionTitle>
-              분석 이후의 탐색과 대화도 함께 이어갑니다.
+              상권 판단에 필요한 기능을 한 곳에 모았습니다.
             </SectionTitle>
-            <SectionBody>
-              추천 후보를 저장하고, 커뮤니티와 채팅에서 실제 고민을 나누면서
-              분석 이후의 의사결정을 계속 진행할 수 있습니다.
-            </SectionBody>
           </SectionHeader>
 
-          <ServiceGrid>
-            {serviceCards.map(card => {
+          <FeatureGrid>
+            {featureCards.map((card, index) => {
               const CardIcon = card.icon
 
               return (
-                <ServiceCard key={card.href} href={card.href}>
-                  <ServiceHeader>
-                    <CardIcon aria-hidden="true" />
-                    <ServiceTitle>{card.title}</ServiceTitle>
-                  </ServiceHeader>
-                  <ServiceBody>{card.body}</ServiceBody>
-                  <ServiceCta>
-                    흐름 보기
-                    <ArrowRight aria-hidden="true" />
-                  </ServiceCta>
-                </ServiceCard>
+                <Reveal key={card.href} delay={Math.min(index * 80, 240)}>
+                  <FeatureCard href={card.href}>
+                    <FeatureHeader>
+                      <CardIcon aria-hidden="true" />
+                      <FeatureTitle>{card.title}</FeatureTitle>
+                    </FeatureHeader>
+                    <FeatureBody>{card.body}</FeatureBody>
+                    <FeatureCta>
+                      <ArrowRight aria-hidden="true" />
+                    </FeatureCta>
+                  </FeatureCard>
+                </Reveal>
               )
             })}
-          </ServiceGrid>
+          </FeatureGrid>
         </Inner>
       </Section>
 
       <FinalSection>
         <FinalInner>
           <div>
-            <FinalTitle>창업 판단을 데이터 흐름으로 정리하세요.</FinalTitle>
+            <FinalTitle>지금 내 상권을 분석해 보세요.</FinalTitle>
             <FinalBody>
-              관심 지역을 확인한 뒤 분석 리포트와 추천, 저장, 커뮤니티로 바로
-              이어갈 수 있습니다.
+              회원가입 후 분석 리포트와 추천, 시뮬레이션을 이어서 사용할 수
+              있습니다.
             </FinalBody>
           </div>
           <Actions>
@@ -654,9 +494,9 @@ export default function HomePage() {
               <Bookmark aria-hidden="true" />
               시작하기
             </PrimaryLink>
-            <SecondaryLink href="/community/list">
-              <MessageCircle aria-hidden="true" />
-              커뮤니티 보기
+            <SecondaryLink href="/analysis">
+              <ArrowRight aria-hidden="true" />
+              상권 분석 바로가기
             </SecondaryLink>
           </Actions>
         </FinalInner>
