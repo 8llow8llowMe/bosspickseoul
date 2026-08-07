@@ -97,16 +97,18 @@ const HeroGrid = styled.div`
   gap: 32px;
   align-items: center;
 
-  @media (min-width: 900px) {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  @media (min-width: 960px) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   }
 `
 
 const HeroVisual = styled.div`
-  display: none;
+  width: min(320px, 100%);
+  margin: 0 auto;
 
-  @media (min-width: 900px) {
-    display: block;
+  @media (min-width: 960px) {
+    width: 100%;
+    margin: 0;
   }
 `
 
@@ -352,24 +354,10 @@ const FeatureCta = styled.span`
   }
 `
 
-const FinalSection = styled.section`
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+const ClosingCta = styled.div`
+  margin-top: 40px;
+  padding-top: 32px;
   border-top: 1px solid var(--color-border-200);
-  padding: 40px 20px 56px;
-  background: var(--color-background);
-
-  @media (max-width: 640px) {
-    min-height: auto;
-    padding: 48px 16px 56px;
-  }
-`
-
-const FinalInner = styled.div`
-  width: min(1120px, 100%);
-  margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 20px;
@@ -380,7 +368,7 @@ const FinalInner = styled.div`
   }
 `
 
-const FinalTitle = styled.h2`
+const ClosingTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 22px;
   font-weight: 700;
@@ -388,7 +376,7 @@ const FinalTitle = styled.h2`
   word-break: keep-all;
 `
 
-const FinalBody = styled.p`
+const ClosingBody = styled.p`
   margin-top: 8px;
   color: var(--color-text-600);
   font-size: 14px;
@@ -501,30 +489,27 @@ export default function HomePage() {
               )
             })}
           </FeatureGrid>
+
+          <ClosingCta>
+            <div>
+              <ClosingTitle>지금 내 상권을 분석해 보세요.</ClosingTitle>
+              <ClosingBody>
+                회원가입 후 분석 리포트와 상권 추천을 이어서 사용할 수 있습니다.
+              </ClosingBody>
+            </div>
+            <Actions>
+              <PrimaryLink href="/register">
+                <Bookmark aria-hidden="true" />
+                시작하기
+              </PrimaryLink>
+              <SecondaryLink href="/analysis">
+                <ArrowRight aria-hidden="true" />
+                상권 분석 바로가기
+              </SecondaryLink>
+            </Actions>
+          </ClosingCta>
         </Inner>
       </Section>
-
-      <FinalSection>
-        <FinalInner>
-          <div>
-            <FinalTitle>지금 내 상권을 분석해 보세요.</FinalTitle>
-            <FinalBody>
-              회원가입 후 분석 리포트와 추천, 시뮬레이션을 이어서 사용할 수
-              있습니다.
-            </FinalBody>
-          </div>
-          <Actions>
-            <PrimaryLink href="/register">
-              <Bookmark aria-hidden="true" />
-              시작하기
-            </PrimaryLink>
-            <SecondaryLink href="/analysis">
-              <ArrowRight aria-hidden="true" />
-              상권 분석 바로가기
-            </SecondaryLink>
-          </Actions>
-        </FinalInner>
-      </FinalSection>
     </Page>
   )
 }

@@ -1,7 +1,19 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import HomePage from '@/components/home/home-page'
+
+// SeoulDistrictsMap (rendered inside the hero) calls useRouter() for
+// click-to-navigate. renderToStaticMarkup has no App Router context, so the
+// real hook throws outside a client boundary. Mock it the same way
+// analysis-result-view-ssr.test.ts does for SSR-style rendering tests.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: () => undefined,
+    replace: () => undefined,
+    back: () => undefined,
+  }),
+}))
 
 describe('HomePage', () => {
   it('renders the redesigned landing sections and routes', () => {
