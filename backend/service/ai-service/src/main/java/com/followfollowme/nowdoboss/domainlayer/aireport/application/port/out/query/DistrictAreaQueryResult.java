@@ -5,12 +5,8 @@ import lombok.Builder;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Builder
-public record CommercialAdministrationQueryResult(
-    String commercialCode,
-    String commercialName,
+public record DistrictAreaQueryResult(
     String districtCode,
-    String districtName,
-    String administrationCode,
-    String administrationName
+    String districtName
 ) {
 }

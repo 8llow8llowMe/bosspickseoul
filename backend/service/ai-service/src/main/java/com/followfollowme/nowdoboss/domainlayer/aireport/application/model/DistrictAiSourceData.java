@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder
 public record DistrictAiSourceData(
     String districtCode,
+    String districtName,
     String periodCode,
     String changeIndicatorName,
     String averageOpenedMonths,

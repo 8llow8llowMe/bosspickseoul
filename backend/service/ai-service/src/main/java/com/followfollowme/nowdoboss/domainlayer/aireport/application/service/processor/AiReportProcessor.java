@@ -218,7 +218,10 @@ public class AiReportProcessor {
         }
 
         DistrictAiSourceData sourceData = buildDistrictSourceData(
-            districtCode, periodCode, districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode)
+            districtCode,
+            regionAnalysisQueryPort.getDistrict(districtCode).districtName(),
+            periodCode,
+            districtAnalysisQueryPort.getDistrictDetail(districtCode, periodCode)
         );
         AiGenerationResult<DistrictAiDraft> llmResult = aiLlmPort.generateDistrictReport(sourceData);
         DistrictAiDraft draft = llmResult.draft();
@@ -294,6 +297,7 @@ public class AiReportProcessor {
 
         return CommercialAiSourceData.builder()
             .commercialCode(commercialCode)
+            .commercialName(administrationInfo.commercialName())
             .serviceCode(serviceCode)
             .periodCode(periodCode)
             .districtCode(administrationInfo.districtCode())
@@ -461,10 +465,11 @@ public class AiReportProcessor {
 
     private DistrictAiSourceData buildDistrictSourceData(
 
-        String districtCode, String periodCode, DistrictDetailQueryResult districtDetail
+        String districtCode, String districtName, String periodCode, DistrictDetailQueryResult districtDetail
     ) {
         return DistrictAiSourceData.builder()
             .districtCode(districtCode)
+            .districtName(districtName)
             .periodCode(periodCode)
             .changeIndicatorName(districtDetail.changeIndicator().changeIndicatorName())
             .averageOpenedMonths(String.valueOf(districtDetail.changeIndicator().averageOpenedMonths()))
