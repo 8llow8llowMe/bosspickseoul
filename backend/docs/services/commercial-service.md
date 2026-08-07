@@ -17,7 +17,8 @@
 - 조회 API가 중심이며, 인증 필요 API만 명시적으로 보호한다.
 - security-core의 `ResourceServerSecurityConfigurer` 기반으로 JWT claim을 해석하며,
   기본 permitAll + `@PreAuthorize` 명시 보호 방식을 사용한다.
-- 현재 인증 필요 API는 `POST /api/v1/share-links`(공유 링크 생성)뿐이다.
+- 현재 인증 필수 API는 없다. `POST /api/v1/share-links`는 **선택적 인증** —
+  Bearer 토큰이 있으면 최초 공유자를 기록하고, 없어도 생성할 수 있다.
 
 ## 대표 API 패턴
 
@@ -108,8 +109,9 @@
 
 - 분석 화면을 상대방에게 공유하기 위한 단축 코드 발급/해석 컨텍스트. 자세한 프론트 연동은
   `docs/share-link-frontend-guide.md` 참고.
-- `POST /api/v1/share-links` (인증 필수) — `{shareType, payload}`로 base62 8자 공유 코드 발급.
+- `POST /api/v1/share-links` (선택적 인증) — `{shareType, payload}`로 base62 8자 공유 코드 발급.
   payload는 백엔드가 해석하지 않는 opaque JSON 객체(정규화 후 2000자 이하)다.
+  Bearer 토큰이 있으면 최초 공유자(memberId)를 기록하고, 비로그인 생성이면 null로 남는다.
 - `GET /api/v1/share-links/{shareCode}` (공개) — shareType 메타데이터 + payload 반환.
   프론트가 shareType별 URL 템플릿에 payload를 합쳐 최종 진입 URL을 조립한다.
 - 중복 방지: `SHA-256(shareType | 정렬된 payload JSON)` 해시 unique. 같은 화면 상태를 다시

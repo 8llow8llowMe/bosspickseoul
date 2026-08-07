@@ -54,6 +54,14 @@ class ShareLinkCommandProcessorTest {
     }
 
     @Test
+    void createShareLink_allowsAnonymousCreation() throws JsonProcessingException {
+        ShareLink created = processor.createShareLink(null, command("{\"code\": \"1\"}"));
+
+        assertThat(created.shareCode()).matches("[0-9A-Za-z]{8}");
+        assertThat(created.memberId()).isNull();
+    }
+
+    @Test
     void createShareLink_createsSeparateLinksForDifferentShareTypes() throws JsonProcessingException {
         ShareLink commercial = processor.createShareLink(1L, command("{\"code\": \"1\"}"));
         ShareLink aiReport = processor.createShareLink(1L,

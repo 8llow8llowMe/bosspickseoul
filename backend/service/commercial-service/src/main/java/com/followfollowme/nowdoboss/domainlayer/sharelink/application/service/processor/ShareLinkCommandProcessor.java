@@ -50,13 +50,13 @@ public class ShareLinkCommandProcessor {
     }
 
     /**
-     * 공유 링크를 생성한다.
+     * 공유 링크를 생성한다. memberId는 비로그인 생성이면 null이다.
      *
      * <p>payload 정규화(JSON key 정렬) 후 해시로 중복을 판정하므로, 같은 화면 상태를 다시 공유하면
      * 새 행을 만들지 않고 기존 공유 코드의 만료 시각만 연장해 돌려준다.
      */
     @Transactional
-    public ShareLink createShareLink(long memberId, ShareLinkCreateCommand command) {
+    public ShareLink createShareLink(Long memberId, ShareLinkCreateCommand command) {
         ShareTargetType shareType = ShareTargetType.from(command.shareType());
         String canonicalPayload = canonicalize(command.payload());
         String payloadHash = sha256Hex(shareType.name() + "|" + canonicalPayload);

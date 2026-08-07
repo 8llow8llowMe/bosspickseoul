@@ -13,12 +13,14 @@
 
 | API | 인증 | 용도 |
 | --- | --- | --- |
-| `POST /api/v1/share-links` | **필수** (Bearer) | 화면 상태로 단축 공유 코드 발급 |
+| `POST /api/v1/share-links` | **선택** (Bearer) | 화면 상태로 단축 공유 코드 발급 |
 | `GET /api/v1/share-links/{shareCode}` | 불필요 | 공유 코드를 shareType + payload로 해석 |
 
-- 생성은 로그인 사용자만 가능하다. 비로그인 사용자에게는 공유 버튼을 로그인 유도로 처리한다.
-- 해석은 공개다. 링크를 받은 사람은 로그인 없이 화면에 진입할 수 있다
-  (진입한 화면 자체가 인증 필요하면 그 화면의 정책을 따른다).
+- 생성/해석 모두 로그인 없이 가능하다. 공유 버튼에 로그인 게이트를 두지 않는다.
+- 생성 시 Bearer 토큰을 보내면 최초 공유자가 기록된다. 로그인 상태라면 토큰을 실어 보내는 것을 권장한다.
+- 링크를 받은 사람은 로그인 없이 분석 화면에 진입할 수 있다. 단, 화면 안의 **AI 리포트 영역은
+  ai-service 정책에 따라 로그인 필수**이므로 비로그인 수신자에게는 잠금 카드로 노출된다
+  (`ai-report-frontend-guide.md`의 잠금 카드 패턴 참고). 로그인하면 같은 화면에서 AI 분석 결과까지 볼 수 있다.
 
 ## shareType 목록
 
@@ -36,7 +38,7 @@
 
 ```http
 POST /api/v1/share-links
-Authorization: Bearer {accessToken}
+Authorization: Bearer {accessToken}   # 선택 — 있으면 최초 공유자 기록
 Content-Type: application/json
 
 {
@@ -120,7 +122,7 @@ router.replace(builder(payload));
 | 잘못된 shareType | 400 | `SHARE_LINK_003` | 생성 요청 버그 — shareType 오타 확인 |
 | payload가 객체가 아님 | 400 | `SHARE_LINK_004` | 생성 요청 버그 — payload 구성 확인 |
 | payload 크기 초과 | 400 | `SHARE_LINK_005` | payload에 결과 데이터를 담지 않았는지 확인 |
-| 미인증 생성 시도 | 401 | `SECURITY_001` | 로그인 유도 (호출 전에 로그인 여부로 차단 권장) |
+| 만료/위조 토큰으로 생성 | 401 | `SECURITY_*` | 토큰 갱신 후 재시도, 실패 시 토큰 없이 호출해도 됨 |
 
 검증 오류(필수값 누락)는 `SHARE_LINK_101`(shareType), `SHARE_LINK_102`(payload)로 응답한다.
 

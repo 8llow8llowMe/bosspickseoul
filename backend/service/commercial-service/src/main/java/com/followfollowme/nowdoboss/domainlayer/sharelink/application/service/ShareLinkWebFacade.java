@@ -21,7 +21,7 @@ public class ShareLinkWebFacade implements ShareLinkWebUseCase {
     private final ShareLinkPresenter shareLinkPresenter;
 
     @Override
-    public ShareLinkCreateResponse createShareLink(long memberId, ShareLinkCreateRequest request) {
+    public ShareLinkCreateResponse createShareLink(Long memberId, ShareLinkCreateRequest request) {
         ShareLinkCreateCommand command = new ShareLinkCreateCommand(request.shareType(), request.payload());
         return shareLinkPresenter.toCreateResponse(shareLinkCommandProcessor.createShareLink(memberId, command));
     }

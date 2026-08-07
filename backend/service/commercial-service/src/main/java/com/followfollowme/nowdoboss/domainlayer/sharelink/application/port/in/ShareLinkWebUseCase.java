@@ -6,7 +6,7 @@ import com.followfollowme.nowdoboss.domainlayer.sharelink.adapter.in.web.dto.res
 
 public interface ShareLinkWebUseCase {
 
-    ShareLinkCreateResponse createShareLink(long memberId, ShareLinkCreateRequest request);
+    ShareLinkCreateResponse createShareLink(Long memberId, ShareLinkCreateRequest request);
 
     ShareLinkResolveResponse resolveShareLink(String shareCode);
 }
