@@ -24,25 +24,27 @@
 
 ## 파일 구조
 
-| 파일 | 책임 | 신규/수정 |
-|---|---|---|
-| `src/data/home-demo.ts` | 미니데모 정적 샘플·타입·`getDemoSample` 폴백 조회 | 신규 |
-| `src/data/home-demo.test.ts` | `getDemoSample` 단위테스트 | 신규 |
-| `src/components/home/sparkline.tsx` | 숫자 배열 → 인라인 SVG 스파크라인 + `sparklinePath` 순수함수 | 신규 |
-| `src/components/home/sparkline.test.ts` | `sparklinePath` 단위테스트 | 신규 |
-| `src/components/home/reveal.tsx` | 스크롤 진입 reveal 래퍼(`'use client'`, IntersectionObserver, reduced-motion) | 신규 |
-| `src/components/home/analysis-mini-demo.tsx` | 미니데모 본체(`'use client'`) — 선택·카드·CTA | 신규 |
-| `src/components/home/home-page.tsx` | 홈 재작성(서버) — 새 섹션·카피·데모/Reveal 통합 | 수정(재작성) |
+| 파일                                         | 책임                                                                          | 신규/수정    |
+| -------------------------------------------- | ----------------------------------------------------------------------------- | ------------ |
+| `src/data/home-demo.ts`                      | 미니데모 정적 샘플·타입·`getDemoSample` 폴백 조회                             | 신규         |
+| `src/data/home-demo.test.ts`                 | `getDemoSample` 단위테스트                                                    | 신규         |
+| `src/components/home/sparkline.tsx`          | 숫자 배열 → 인라인 SVG 스파크라인 + `sparklinePath` 순수함수                  | 신규         |
+| `src/components/home/sparkline.test.ts`      | `sparklinePath` 단위테스트                                                    | 신규         |
+| `src/components/home/reveal.tsx`             | 스크롤 진입 reveal 래퍼(`'use client'`, IntersectionObserver, reduced-motion) | 신규         |
+| `src/components/home/analysis-mini-demo.tsx` | 미니데모 본체(`'use client'`) — 선택·카드·CTA                                 | 신규         |
+| `src/components/home/home-page.tsx`          | 홈 재작성(서버) — 새 섹션·카피·데모/Reveal 통합                               | 수정(재작성) |
 
 ---
 
 ## Task 1: home-demo 정적 데이터 + getDemoSample (순수, TDD)
 
 **Files:**
+
 - Create: `src/data/home-demo.ts`
 - Test: `src/data/home-demo.test.ts`
 
 **Interfaces (Produces):**
+
 - `type CompetitionLevel = 'low' | 'medium' | 'high'`
 - `type DemoSample = { districtId: string; industryId: string; salesTrend: number[]; salesChangePct: number; footTraffic: string; competition: CompetitionLevel; insight: string }`
 - `const DISTRICTS: { id: string; name: string }[]`
@@ -53,6 +55,7 @@
 - [ ] **Step 1: 실패 테스트 작성**
 
 Create `src/data/home-demo.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest'
 import {
@@ -69,7 +72,9 @@ describe('home-demo', () => {
   })
 
   it('default selection references existing ids', () => {
-    expect(DISTRICTS.some(d => d.id === DEFAULT_SELECTION.districtId)).toBe(true)
+    expect(DISTRICTS.some(d => d.id === DEFAULT_SELECTION.districtId)).toBe(
+      true,
+    )
     expect(INDUSTRIES.some(i => i.id === DEFAULT_SELECTION.industryId)).toBe(
       true,
     )
@@ -99,6 +104,7 @@ describe('home-demo', () => {
 - [ ] **Step 3: 구현**
 
 Create `src/data/home-demo.ts` (샘플 수치는 "대표 예시"이며 실제 데이터가 아니다):
+
 ```ts
 export type CompetitionLevel = 'low' | 'medium' | 'high'
 
@@ -199,16 +205,19 @@ export function getDemoSample(
 ## Task 2: 스파크라인 (인라인 SVG + 순수 path, TDD)
 
 **Files:**
+
 - Create: `src/components/home/sparkline.tsx`
 - Test: `src/components/home/sparkline.test.ts`
 
 **Interfaces (Produces):**
+
 - `function sparklinePath(values: number[], width: number, height: number): string` — SVG polyline `points` 문자열("x,y x,y ..."). 값이 1개 이하이면 빈 문자열. 최소값→height, 최대값→0 정규화(위가 큰 값). 값이 모두 같으면 중앙선.
 - `default function Sparkline(props: { values: number[]; width?: number; height?: number; className?: string }): JSX.Element` — `<svg>` + `<polyline>` (stroke `currentColor`, fill none). 참고: 기존 인라인 SVG 방식 `src/components/analysis/charts/line-chart.tsx`.
 
 - [ ] **Step 1: 실패 테스트 작성**
 
 Create `src/components/home/sparkline.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest'
 import { sparklinePath } from './sparkline'
@@ -245,6 +254,7 @@ describe('sparklinePath', () => {
 - [ ] **Step 3: 구현**
 
 Create `src/components/home/sparkline.tsx`:
+
 ```tsx
 export function sparklinePath(
   values: number[],
@@ -311,14 +321,17 @@ export default function Sparkline({
 스크롤 진입 시 자식을 1회 페이드/상승시키는 래퍼. IntersectionObserver 사용, `prefers-reduced-motion`에서는 즉시 표시(모션 없음). 서버 렌더 자식을 감싸 사용한다.
 
 **Files:**
+
 - Create: `src/components/home/reveal.tsx`
 
 **Interfaces (Produces):**
+
 - `default function Reveal(props: { children: ReactNode; delay?: number; className?: string }): JSX.Element` — 초기 opacity 0 + translateY, 뷰포트 진입 시 1회 visible. reduced-motion이면 처음부터 visible.
 
 - [ ] **Step 1: 구현**
 
 Create `src/components/home/reveal.tsx`:
+
 ```tsx
 'use client'
 
@@ -394,15 +407,18 @@ export default function Reveal({
 Task 1·2를 사용해 데모 본체를 만든다. 지역·업종 선택(키보드 조작) → `getDemoSample` → 카드 갱신(`aria-live`), CTA는 `/analysis`.
 
 **Files:**
+
 - Create: `src/components/home/analysis-mini-demo.tsx`
 
 **Interfaces:**
+
 - Consumes: `getDemoSample`, `DISTRICTS`, `INDUSTRIES`, `DEFAULT_SELECTION`, `DemoSample`, `CompetitionLevel`(`@/data/home-demo`); `Sparkline`(`@/components/home/sparkline`); `next/link`.
 - Produces: `default function AnalysisMiniDemo(): JSX.Element`.
 
 - [ ] **Step 1: 컴포넌트 구현**
 
 `'use client'`. 요구사항:
+
 - 상태: `const [sel, setSel] = useState(DEFAULT_SELECTION)`. `const sample = getDemoSample(sel.districtId, sel.industryId)`.
 - 선택 UI: 지역·업종 각각 **라디오 그룹형 세그먼트**(버튼들) 또는 접근성 있는 컨트롤. 각 그룹은 `role="radiogroup"` + `aria-label`("지역 선택"/"업종 선택"), 각 옵션은 `<button role="radio" aria-checked>` 또는 실제 radio input. 선택 버튼은 `--color-primary-700`/`--color-primary-100` 토큰으로 활성 표시. 키보드 포커스 링(`--shadow-focus-primary`).
 - 카드: `aria-live="polite"` 컨테이너. 내부:
@@ -425,26 +441,31 @@ Task 1·2를 사용해 데모 본체를 만든다. 지역·업종 선택(키보�
 새 섹션 구성으로 재작성하고, 미니데모/ Reveal을 통합한다. 카피는 아래 문구를 **그대로** 사용. 기존 styled-components 중 재사용 가능한 것은 유지(Inner/PrimaryLink 등), 불필요해진 것(PreviewPanel/MetricList 등 약한 지표 패널)은 제거.
 
 **Files:**
+
 - Modify: `src/components/home/home-page.tsx` (재작성). 서버 컴포넌트 유지(파일 상단 `'use client'` 없음). 미니데모는 client 컴포넌트를 import해 배치, Reveal로 섹션 감싸기.
 
 **Interfaces:**
+
 - Consumes: `AnalysisMiniDemo`(`@/components/home/analysis-mini-demo`), `Reveal`(`@/components/home/reveal`), `next/link`, lucide 아이콘.
 
 **섹션 & 카피(그대로 사용):**
 
-1) **Hero**
+1. **Hero**
+
 - Eyebrow: `서울 상권 데이터 분석`
 - Title: `창업 전에, 상권부터 확인하세요.`
 - Body: `서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로 분석합니다. 감이 아니라 데이터로 자리를 정하세요.`
 - Primary CTA: `내 상권 분석하기` → `/analysis`
 - Secondary CTA: `구별현황 보기` → `/status`
 
-2) **상권 분석 미니데모** (Hero 직후) — 섹션 헤더 + `<AnalysisMiniDemo />`
+2. **상권 분석 미니데모** (Hero 직후) — 섹션 헤더 + `<AnalysisMiniDemo />`
+
 - Eyebrow: `미리 체험하기`
 - Title: `지역과 업종을 고르면, 분석이 이렇게 나옵니다.`
 - Body: `실제 리포트의 축약본입니다. 아래 수치는 대표 예시입니다.`
 
-3) **판단 흐름** (Reveal로 각 스텝 순차 등장, delay 단계별 증가)
+3. **판단 흐름** (Reveal로 각 스텝 순차 등장, delay 단계별 증가)
+
 - Eyebrow: `판단 흐름`
 - Title: `현황 확인부터 창업 판단까지, 네 단계로 좁힙니다.`
 - Steps:
@@ -453,7 +474,8 @@ Task 1·2를 사용해 데모 본체를 만든다. 지역·업종 선택(키보�
   - `03` / `후보 추천` / `조건에 맞는 상권을 추천받아 후보를 좁히고 저장합니다.`
   - `04` / `창업 시뮬레이션` / `예상 비용과 매출을 시뮬레이션해 실행 가능성을 점검합니다.`
 
-4) **기능** (카드 6개, 호버 상승, 실제 라우트)
+4. **기능** (카드 6개, 호버 상승, 실제 라우트)
+
 - Eyebrow: `기능`
 - Title: `상권 판단에 필요한 기능을 한 곳에 모았습니다.`
 - 카드:
@@ -464,13 +486,15 @@ Task 1·2를 사용해 데모 본체를 만든다. 지역·업종 선택(키보�
   - `커뮤니티` → `/community/list` / `창업자들과 상권 정보를 나눕니다.`
   - `실시간 채팅` → `/chatting/list` / `관심 주제방에서 실시간으로 대화합니다.`
 
-5) **마무리 CTA**
+5. **마무리 CTA**
+
 - Title: `지금 내 상권을 분석해 보세요.`
 - Body: `회원가입 후 분석 리포트와 추천, 시뮬레이션을 이어서 사용할 수 있습니다.`
 - Primary CTA: `시작하기` → `/register`
 - Secondary CTA: `상권 분석 바로가기` → `/analysis`
 
 **요구사항:**
+
 - 기존 metrics 배열/PreviewPanel/MetricList/Quick actions 4카드 등 v1 전용 구조는 제거(새 구성으로 대체). "판단 흐름 4단계/연결 기능 6개" 같은 의미 약한 지표 문구는 넣지 않는다.
 - 카드 hover는 `--color-primary-700` 보더 + `--shadow-level-2` + `--motion-fast` 전환(기존 QuickCard/ServiceCard 패턴 재사용 가능).
 - 판단 흐름·기능 섹션은 `<Reveal>`로 감싸 진입 애니메이션(delay 예: 0/80/160/240ms).
@@ -486,6 +510,7 @@ Task 1·2를 사용해 데모 본체를 만든다. 지역·업종 선택(키보�
 ## Task 6: 전체 검증 · 브라우저 도그푸딩 · 문서 상태
 
 **Files:**
+
 - Modify: `docs/features/_index.md`(home 행), `docs/features/home/mini-demo.md`(D8), `docs/features/home/home.md`(필요 시)
 
 - [ ] **Step 1: 단위테스트 + 품질 게이트** — Run: `pnpm test`(전체 PASS) 및 `pnpm qa:verify`(exit 0). 실패 시 수정 후 재실행.
