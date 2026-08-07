@@ -30,6 +30,29 @@ export const resolveAiReportTargetCode = (
   return selection.districtCode
 }
 
+export const buildAiLevelKey = (
+  level: AiReportLevel | null,
+  code: string | null,
+): string | null => (level && code ? `${level}:${code}` : null)
+
+export const isAiReportActive = (
+  levelKey: string | null,
+  activeKey: string | null,
+): boolean => Boolean(levelKey) && activeKey === levelKey
+
+export const resolveAiReportVisibility = ({
+  enabled,
+  levelKey,
+  panelOpen,
+}: {
+  enabled: boolean
+  levelKey: string | null
+  panelOpen: boolean
+}): { showCard: boolean; showPanel: boolean } => ({
+  showCard: enabled && Boolean(levelKey) && !panelOpen,
+  showPanel: enabled && Boolean(levelKey) && panelOpen,
+})
+
 export type ReportBlockList = { title: string; items: string[] }
 
 export type CommercialReportView = {

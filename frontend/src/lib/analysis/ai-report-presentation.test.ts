@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildAiLevelKey,
+  isAiReportActive,
   isCommercialReportEmpty,
   resolveAiReportLevel,
   resolveAiReportTargetCode,
+  resolveAiReportVisibility,
   toCommercialReportView,
   toRegionReportView,
 } from '@/lib/analysis/ai-report-presentation'
@@ -90,5 +93,81 @@ describe('toRegionReportView / empty guards', () => {
       businessInsight: null, generatedAt: null,
     })
     expect(isCommercialReportEmpty(empty)).toBe(true)
+  })
+})
+
+describe('buildAiLevelKey', () => {
+  it('level과 code가 모두 있으면 조합 키를 만든다', () => {
+    expect(buildAiLevelKey('district', '11680')).toBe('district:11680')
+    expect(buildAiLevelKey('commercial', '3110008')).toBe('commercial:3110008')
+  })
+
+  it('level 또는 code 중 하나라도 없으면 null이다', () => {
+    expect(buildAiLevelKey(null, '11680')).toBeNull()
+    expect(buildAiLevelKey('district', null)).toBeNull()
+    expect(buildAiLevelKey(null, null)).toBeNull()
+  })
+})
+
+describe('isAiReportActive', () => {
+  it('activeKey가 levelKey와 같은 비-null 값일 때만 active다', () => {
+    expect(isAiReportActive('district:11680', 'district:11680')).toBe(true)
+  })
+
+  it('levelKey가 null이면 activeKey가 무엇이든 active가 아니다', () => {
+    expect(isAiReportActive(null, null)).toBe(false)
+    expect(isAiReportActive(null, 'district:11680')).toBe(false)
+  })
+
+  it('activeKey가 없거나 다른 키를 가리키면 active가 아니다', () => {
+    expect(isAiReportActive('district:11680', null)).toBe(false)
+    expect(isAiReportActive('district:11680', 'administration:11680640')).toBe(
+      false,
+    )
+  })
+})
+
+describe('resolveAiReportVisibility', () => {
+  it('enabled=false면 levelKey/panelOpen과 무관하게 둘 다 숨긴다', () => {
+    expect(
+      resolveAiReportVisibility({
+        enabled: false,
+        levelKey: 'district:11680',
+        panelOpen: false,
+      }),
+    ).toEqual({ showCard: false, showPanel: false })
+    expect(
+      resolveAiReportVisibility({
+        enabled: false,
+        levelKey: 'district:11680',
+        panelOpen: true,
+      }),
+    ).toEqual({ showCard: false, showPanel: false })
+  })
+
+  it('levelKey가 null이면 enabled와 무관하게 둘 다 숨긴다', () => {
+    expect(
+      resolveAiReportVisibility({ enabled: true, levelKey: null, panelOpen: false }),
+    ).toEqual({ showCard: false, showPanel: false })
+    expect(
+      resolveAiReportVisibility({ enabled: true, levelKey: null, panelOpen: true }),
+    ).toEqual({ showCard: false, showPanel: false })
+  })
+
+  it('enabled && levelKey 상태에서 panelOpen이 카드/패널을 상호 배타적으로 전환한다', () => {
+    expect(
+      resolveAiReportVisibility({
+        enabled: true,
+        levelKey: 'district:11680',
+        panelOpen: false,
+      }),
+    ).toEqual({ showCard: true, showPanel: false })
+    expect(
+      resolveAiReportVisibility({
+        enabled: true,
+        levelKey: 'district:11680',
+        panelOpen: true,
+      }),
+    ).toEqual({ showCard: false, showPanel: true })
   })
 })
