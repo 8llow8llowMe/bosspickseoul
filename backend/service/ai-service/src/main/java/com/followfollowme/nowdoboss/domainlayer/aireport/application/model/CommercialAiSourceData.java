@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder
 public record CommercialAiSourceData(
     String commercialCode,
+    String commercialName,
     String serviceCode,
     String periodCode,
     String districtCode,

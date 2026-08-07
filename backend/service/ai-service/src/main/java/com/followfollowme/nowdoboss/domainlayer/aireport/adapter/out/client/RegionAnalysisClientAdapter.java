@@ -8,6 +8,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.Re
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.AdministrationCommercialQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.AdministrationDistrictQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.DistrictAreaQueryResult;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,11 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
     @Override
     public CommercialAdministrationQueryResult getCommercialAdministration(String commercialCode) {
         return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getCommercialAdministration(commercialCode));
+    }
+
+    @Override
+    public DistrictAreaQueryResult getDistrict(String districtCode) {
+        return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getDistrict(districtCode));
     }
 
     private String extractDistrictCode(String administrationCode) {

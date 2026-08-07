@@ -17,6 +17,8 @@ public class AiReportPromptTemplate {
         근거 없는 사실을 지어내지 마세요.
         창업 성공, 수익, 성장 가능성을 단정적으로 표현하지 마세요.
         응답은 반드시 한국어로 작성하세요.
+        리포트 문장에서 지역(자치구/행정동/상권)과 업종을 언급할 때는 코드가 아닌 명칭을 사용하세요.
+        명칭이 제공되지 않은 항목은 코드를 쓰지 말고 "이 지역", "해당 업종" 같은 일반 표현을 사용하세요.
         JSON 외의 문장이나 설명은 추가하지 마세요.
         """;
 
@@ -30,7 +32,8 @@ public class AiReportPromptTemplate {
             %s
 
             [대상]
-            - 상권 코드: %s
+            - 상권명: %s (상권 코드 %s)
+            - 위치: %s %s
             - 업종 코드: %s
             - 기준 분기: %s
 
@@ -57,7 +60,10 @@ public class AiReportPromptTemplate {
             %s
             """.formatted(
             COMMON_RULES,
+            sourceData.commercialName(),
             sourceData.commercialCode(),
+            sourceData.districtName(),
+            sourceData.administrationName(),
             sourceData.serviceCode(),
             sourceData.periodCode(),
             commercialPromptFormatter.format(sourceData)
@@ -69,9 +75,9 @@ public class AiReportPromptTemplate {
             %s
 
             [대상]
-            - 좌측 상권 코드: %s
-            - 우측 상권 코드: %s
-            - 서비스 코드: %s
+            - 좌측 상권: %s (%s %s, 상권 코드 %s)
+            - 우측 상권: %s (%s %s, 상권 코드 %s)
+            - 업종 코드: %s
             - 기준 분기: %s
 
             [응답 언어 규칙]
@@ -93,7 +99,13 @@ public class AiReportPromptTemplate {
             %s
             """.formatted(
             COMMON_RULES,
+            sourceData.leftCommercialName(),
+            sourceData.leftDistrictName(),
+            sourceData.leftAdministrationName(),
             sourceData.leftCommercialCode(),
+            sourceData.rightCommercialName(),
+            sourceData.rightDistrictName(),
+            sourceData.rightAdministrationName(),
             sourceData.rightCommercialCode(),
             sourceData.serviceCode(),
             sourceData.periodCode(),
@@ -106,33 +118,7 @@ public class AiReportPromptTemplate {
             %s
 
             [대상]
-            - 자치구 코드: %s
-            - 기준 분기: %s
-
-            [응답 언어 규칙]
-            - 모든 문자열 필드는 한국어로 작성하세요.
-            - `recommendedBusinessCategories`, `cautionBusinessCategories`는 한국어 업종명으로 작성하세요.
-
-            [필수 JSON 필드]
-            - summary: string
-            - marketStatus: string
-            - recommendedBusinessCategories: string[]
-            - cautionBusinessCategories: string[]
-            - businessInsight: string
-
-            위 필드명을 그대로 사용한 평평한 JSON 객체 하나만 반환하세요. 다른 키를 만들지 마세요.
-
-            [입력 데이터]
-            %s
-            """.formatted(COMMON_RULES, sourceData.districtCode(), sourceData.periodCode(), districtPromptFormatter.format(sourceData));
-    }
-
-    public String buildAdministrationPrompt(AdministrationAiSourceData sourceData) {
-        return """
-            %s
-
-            [대상]
-            - 행정동 코드: %s
+            - 자치구: %s (자치구 코드 %s)
             - 기준 분기: %s
 
             [응답 언어 규칙]
@@ -152,6 +138,40 @@ public class AiReportPromptTemplate {
             %s
             """.formatted(
             COMMON_RULES,
+            sourceData.districtName(),
+            sourceData.districtCode(),
+            sourceData.periodCode(),
+            districtPromptFormatter.format(sourceData)
+        );
+    }
+
+    public String buildAdministrationPrompt(AdministrationAiSourceData sourceData) {
+        return """
+            %s
+
+            [대상]
+            - 행정동: %s %s (행정동 코드 %s)
+            - 기준 분기: %s
+
+            [응답 언어 규칙]
+            - 모든 문자열 필드는 한국어로 작성하세요.
+            - `recommendedBusinessCategories`, `cautionBusinessCategories`는 한국어 업종명으로 작성하세요.
+
+            [필수 JSON 필드]
+            - summary: string
+            - marketStatus: string
+            - recommendedBusinessCategories: string[]
+            - cautionBusinessCategories: string[]
+            - businessInsight: string
+
+            위 필드명을 그대로 사용한 평평한 JSON 객체 하나만 반환하세요. 다른 키를 만들지 마세요.
+
+            [입력 데이터]
+            %s
+            """.formatted(
+            COMMON_RULES,
+            sourceData.districtName(),
+            sourceData.administrationName(),
             sourceData.administrationCode(),
             sourceData.periodCode(),
             administrationPromptFormatter.format(sourceData)

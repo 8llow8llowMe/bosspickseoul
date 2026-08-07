@@ -4,6 +4,7 @@ import com.followfollowme.nowdoboss.common.dto.Response;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.AdministrationCommercialQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.AdministrationDistrictQueryResult;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.query.DistrictAreaQueryResult;
 import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,4 +27,7 @@ public interface RegionAnalysisClient {
 
     @GetMapping("/api/v1/regions/commercials/{commercialCode}/administration")
     Response<CommercialAdministrationQueryResult> getCommercialAdministration(@PathVariable String commercialCode);
+
+    @GetMapping("/api/v1/regions/districts/{districtCode}")
+    Response<DistrictAreaQueryResult> getDistrict(@PathVariable String districtCode);
 }
