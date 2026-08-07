@@ -18,7 +18,7 @@ class RankingQueryProcessorTest {
 
     private final RankingQueryProcessor processor = new RankingQueryProcessor(
         new StubAnalysisRankingStorePort(),
-        new RankingProperties(false, "bosspick.analysis-events", 24, 50)
+        new RankingProperties(false, "bosspick.analysis-events", 24, 50, 3, 1)
     );
 
     @Test

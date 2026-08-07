@@ -125,6 +125,49 @@ DB_PASSWORD=change-me
 JASYPT_ENCRYPTOR_KEY=change-me
 ```
 
+### Vault key 추가 절차
+
+기능을 켜려고 새 환경변수가 필요할 때는 아래 순서로 처리합니다. **`.env.runtime` 은 Vault 값으로 매 배포마다 새로 생성되므로 서버에서 직접 고치면 다음 배포에 사라집니다.**
+
+1. `.env.example` 에 key 를 추가합니다 (dev/prod 공통 계약).
+2. 서비스 compose 의 `environment` 에 `${KEY}` 를 추가합니다. compose 에 없으면 Vault 에 넣어도 컨테이너에 주입되지 않습니다.
+3. Vault 의 dev/prod secret 양쪽에 key 를 추가합니다. **dev/prod 는 같은 key 목록을 유지하고 value 만 다르게 둡니다.**
+4. 해당 서비스를 재배포합니다 (PR 에 서비스 라벨을 붙여 머지).
+
+Web UI 대신 CLI 로 넣는다면 기존 key 를 지우지 않도록 `patch` 를 사용합니다. `put` 은 secret 전체를 덮어써서 나머지 key 가 모두 사라집니다.
+
+```bash
+export VAULT_ADDR=https://vault.8llow8llowme.com
+vault login
+
+# 기존 key 를 보존하며 일부만 추가/수정
+vault kv patch kv/bosspickseoul/backend/dev/env \
+  RANKING_ENABLED=true \
+  KAFKA_BOOTSTRAP_SERVERS=192.168.0.10:19092,192.168.0.10:29092,192.168.0.10:39092 \
+  RANKING_TOPIC_REPLICAS=3
+
+# 반영 확인 (값이 민감하면 특정 key 만 조회)
+vault kv get -field=KAFKA_BOOTSTRAP_SERVERS kv/bosspickseoul/backend/dev/env
+```
+
+### 인기 순위(Kafka) 활성화 시 필요한 key
+
+commercial-service 의 인기 순위 파이프라인은 기본 비활성입니다. 켤 때 Vault 에 넣을 값은 아래와 같습니다.
+
+| key | dev / prod 값 | 설명 |
+| --- | --- | --- |
+| `RANKING_ENABLED` | `true` | Kafka producer/consumer 빈 등록 여부. `false` 면 브로커 없이도 기동 |
+| `KAFKA_BOOTSTRAP_SERVERS` | `192.168.0.10:19092,192.168.0.10:29092,192.168.0.10:39092` | Kafka 가 다른 호스트(ollama-01)에 있으므로 **EXTERNAL 리스너 주소**를 쓴다 |
+| `RANKING_EVENTS_TOPIC` | `bosspick.analysis-events` | 이벤트 토픽. 기동 시 자동 생성된다 |
+| `RANKING_TOPIC_PARTITIONS` | `3` | 토픽 파티션 수 |
+| `RANKING_TOPIC_REPLICAS` | `3` | **브로커 수를 넘으면 토픽 생성이 실패한다.** 3노드 클러스터는 3 |
+
+주의할 점 3가지입니다.
+
+- **컨테이너명 DNS 를 쓰면 안 됩니다.** `kafka-1:9092` 는 Kafka 와 같은 호스트의 컨테이너에서만 해석됩니다. 백엔드(main-server)와 Kafka(ollama-01)가 분리되어 있으므로 반드시 IP + EXTERNAL 포트를 씁니다. 이때 Kafka 쪽 `.env` 의 `KAFKA_EXTERNAL_HOST` 가 실제 IP 로 설정되어 있어야 합니다.
+- **복제 계수를 브로커 수보다 크게 넣으면 조용히 실패합니다.** 토픽 생성이 실패하고, 발행 실패는 WARN 로그만 남기도록 설계되어 있어 앱은 정상인데 순위만 안 쌓입니다.
+- 발행되는 이벤트는 `acks=1` 이라 유실을 허용합니다. 브로커의 `min.insync.replicas` 는 `acks=all` 일 때만 강제되므로 이 토픽에는 적용되지 않습니다. 인기 순위는 부가 데이터라는 설계 전제입니다.
+
 ## Jenkins Credential
 
 파이프라인은 Vault HTTP API와 AppRole 로그인을 사용해 Vault secret을 읽습니다.
