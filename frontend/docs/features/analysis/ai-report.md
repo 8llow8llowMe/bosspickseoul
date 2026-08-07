@@ -5,7 +5,7 @@
 > **연관 명세**: [분석 결과 리포트](./result.md), [지도 기반 분석 대상 탐색](./explorer.md)
 > **대상**: 웹 (Next.js App Router)
 > **작성자**: Claude
-> **상태**: 명세 작성 (첫 슬라이스)
+> **상태**: 구현 완료 (첫 슬라이스)
 
 이 문서는 상권 분석 탐색(`/analysis`) 흐름에 **AI 리포트**를 붙이는 첫 슬라이스를 구현 수준으로 상세화한다. AI 리포트는 데이터 대시보드(결과 리포트)와 **필요 선택 깊이가 다르다**는 점에서 출발한다: 자치구만 골라도, 행정동·상권까지만 골라도 각 레벨의 AI 리포트를 받을 수 있다. 따라서 "분야까지 다 고른 뒤의 최종 대시보드"에 끼워넣지 않고, **선택 화면에서 현재 선택 레벨을 따라가는 컴패니언**으로 제공한다.
 
@@ -16,7 +16,7 @@
 ## D0. 배경 / 기획 의도
 
 | 항목              | 내용                                                                                                                                                        |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 충족 요구사항     | S3 상권 분석 — AI 리포트 인사이트 제공 (신규 세부)                                                                                                          |
 | 해결하려는 문제   | AI 리포트는 자치구/행정동/상권 각 레벨에서 이용 가능한데, 이를 분야까지 전부 선택해야 열리는 데이터 대시보드에 붙이면 리포트의 진짜 granularity를 낭비한다. |
 | 목표 동작 (to-be) | 선택 패널 오른쪽에 "[지역] AI 리포트 분석하기" 카드 배너를 띄우고, 클릭 시 2뎁스 컴패니언 패널을 열어 해당 레벨의 AI 리포트를 표시한다.                     |
@@ -46,30 +46,30 @@
 
 > **Figma 디자인**: 별도 Figma 없음. 본 명세와 `frontend/DESIGN.md`, 네이버 지도 스택 패널 레퍼런스를 구현 정본으로 사용한다.
 
-| UI 요소               | 사용자 동작 | 트리거 기능                     | 결과 / UI 반영 상태                                            |
-| --------------------- | ----------- | ------------------------------- | ------------------------------------------------------------- |
-| AI 리포트 카드 배너   | 클릭        | 컴패니언 패널 오픈 + 리포트 조회 | 2뎁스 패널이 열리고 현재 레벨 리포트를 로딩→표시               |
-| 레벨 선택(패널/지도)  | 클릭        | 카드/패널 레벨 리셋             | 카드가 새 레벨 "분석하기" CTA로 갱신, 호출은 하지 않음         |
-| 패널 접기(`<`)        | 클릭        | 패널 collapse                   | 지도 폭 복원, 카드 배너만 남김                                |
-| 다시 시도             | 클릭        | 리포트 재조회                   | 실패/타임아웃 상태에서 재호출(상권은 재-POST)                 |
-| 전체 분석 보기        | 클릭        | 결과 대시보드 모달 이동         | 분야 선택이 완료된 경우 `/analysis/result` 모달로 에스컬레이션 |
+| UI 요소              | 사용자 동작 | 트리거 기능                      | 결과 / UI 반영 상태                                            |
+| -------------------- | ----------- | -------------------------------- | -------------------------------------------------------------- |
+| AI 리포트 카드 배너  | 클릭        | 컴패니언 패널 오픈 + 리포트 조회 | 2뎁스 패널이 열리고 현재 레벨 리포트를 로딩→표시               |
+| 레벨 선택(패널/지도) | 클릭        | 카드/패널 레벨 리셋              | 카드가 새 레벨 "분석하기" CTA로 갱신, 호출은 하지 않음         |
+| 패널 접기(`<`)       | 클릭        | 패널 collapse                    | 지도 폭 복원, 카드 배너만 남김                                 |
+| 다시 시도            | 클릭        | 리포트 재조회                    | 실패/타임아웃 상태에서 재호출(상권은 재-POST)                  |
+| 전체 분석 보기       | 클릭        | 결과 대시보드 모달 이동          | 분야 선택이 완료된 경우 `/analysis/result` 모달로 에스컬레이션 |
 
 ---
 
 ## D2. 동작 요구사항
 
-| #   | 요구사항                                                                                                       | 상세 참조 |
-| --- | ------------------------------------------------------------------------------------------------------------- | --------- |
-| 1   | 자치구·행정동·상권 중 한 레벨이 선택되면 선택 패널 오른쪽에 해당 레벨명을 담은 카드 배너를 표시한다.           | D4-1      |
-| 2   | 리포트 조회는 카드 배너 클릭 시에만 발생한다. 레벨 선택·미리보기(hover)만으로는 조회하지 않는다.               | D4-1, D5  |
-| 3   | 카드가 보고하는 레벨은 항상 가장 깊게 선택된 단계(자치구 < 행정동 < 상권)이다.                                 | D5        |
-| 4   | 선택 레벨이 바뀌면 열려 있던 패널·카드는 새 레벨의 "분석하기" CTA 상태로 리셋되고, 재클릭해야 조회한다.        | D5, D6    |
-| 5   | 자치구·행정동 리포트는 동기 GET으로 조회한다.                                                                 | D4-2      |
-| 6   | 상권 리포트는 POST 제출 후 `CACHED`면 즉시, `ACCEPTED`면 작업(`jobId`)을 폴링해 `COMPLETED`에서 표시한다.      | D4-3      |
-| 7   | 조회 중/실패/타임아웃/빈 결과 상태를 패널 내부에서 분기해 표시하고, 실패·타임아웃은 재시도를 제공한다.         | D6        |
-| 8   | 데스크톱은 2뎁스 슬라이드 패널로, 모바일은 기존 바텀시트 계열 surface로 표시한다.                             | D4-4, D6  |
-| 9   | 결과 대시보드(`/analysis/result`)는 기존 모달을 유지하고, AI 패널은 "전체 분석 보기"로만 연결한다.            | D4-4      |
-| 10  | 비로그인·미하이드레이트·유효하지 않은 코드에서는 카드 배너를 노출하지 않는다(기존 `enabled` 게이트 재사용).    | D5        |
+| #   | 요구사항                                                                                                    | 상세 참조 |
+| --- | ----------------------------------------------------------------------------------------------------------- | --------- |
+| 1   | 자치구·행정동·상권 중 한 레벨이 선택되면 선택 패널 오른쪽에 해당 레벨명을 담은 카드 배너를 표시한다.        | D4-1      |
+| 2   | 리포트 조회는 카드 배너 클릭 시에만 발생한다. 레벨 선택·미리보기(hover)만으로는 조회하지 않는다.            | D4-1, D5  |
+| 3   | 카드가 보고하는 레벨은 항상 가장 깊게 선택된 단계(자치구 < 행정동 < 상권)이다.                              | D5        |
+| 4   | 선택 레벨이 바뀌면 열려 있던 패널·카드는 새 레벨의 "분석하기" CTA 상태로 리셋되고, 재클릭해야 조회한다.     | D5, D6    |
+| 5   | 자치구·행정동 리포트는 동기 GET으로 조회한다.                                                               | D4-2      |
+| 6   | 상권 리포트는 POST 제출 후 `CACHED`면 즉시, `ACCEPTED`면 작업(`jobId`)을 폴링해 `COMPLETED`에서 표시한다.   | D4-3      |
+| 7   | 조회 중/실패/타임아웃/빈 결과 상태를 패널 내부에서 분기해 표시하고, 실패·타임아웃은 재시도를 제공한다.      | D6        |
+| 8   | 데스크톱은 2뎁스 슬라이드 패널로, 모바일은 기존 바텀시트 계열 surface로 표시한다.                           | D4-4, D6  |
+| 9   | 결과 대시보드(`/analysis/result`)는 기존 모달을 유지하고, AI 패널은 "전체 분석 보기"로만 연결한다.          | D4-4      |
+| 10  | 비로그인·미하이드레이트·유효하지 않은 코드에서는 카드 배너를 노출하지 않는다(기존 `enabled` 게이트 재사용). | D5        |
 
 ---
 
@@ -79,17 +79,17 @@
 
 ### D3-1. 컴포넌트 / 모듈 구성
 
-| 모듈 / 컴포넌트                                        | 책임                                                          | 비고                              |
-| ------------------------------------------------------ | ------------------------------------------------------------- | --------------------------------- |
-| `src/types/ai-report.ts`                               | OpenAPI(`docs/api/openapi/ai-report.json`) 응답 스키마 미러   | 레거시 field 금지                 |
-| `src/lib/api/ai-report.ts`                             | 4개 호출 어댑터 + 응답 envelope 언랩                          | `apiClient`(`/api/bff`) 사용      |
-| `src/lib/analysis/ai-report-presentation.ts`           | 레벨별 응답 → 뷰모델(블록/리스트) 정규화 순수함수             | 테스트 대상                       |
-| `src/components/analysis/ai-report/use-ai-report.ts`   | 레벨 분기 조회 훅(동기 GET / 상권 POST+폴링), 상태 머신 반환  | React Query                       |
-| `src/components/analysis/ai-report/ai-report-card.tsx` | 카드 배너 CTA(레벨명·아이콘·클릭)                             | 선택 패널 옆 슬롯                 |
-| `src/components/analysis/ai-report/ai-report-panel.tsx`| 2뎁스 패널 셸(헤더·접기·상태 분기·전체분석 링크)              | 데스크톱 슬라이드 / 모바일 시트   |
-| `src/components/analysis/ai-report/report-blocks.tsx`  | 상권 3블록 + 자치구/행정동 단순 블록 렌더                     | 표현 전용                         |
-| `analysis-page.tsx`                                    | 카드 슬롯·2뎁스 패널 레이아웃 배치, 선택 상태 연결            | 기존 그리드 확장                  |
-| `analysis-mobile-sheet.tsx`                            | 모바일 카드 CTA·리포트 시트 연결                              | 기존 시트 재사용                  |
+| 모듈 / 컴포넌트                                         | 책임                                                         | 비고                            |
+| ------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------- |
+| `src/types/ai-report.ts`                                | OpenAPI(`docs/api/openapi/ai-report.json`) 응답 스키마 미러  | 레거시 field 금지               |
+| `src/lib/api/ai-report.ts`                              | 4개 호출 어댑터 + 응답 envelope 언랩                         | `apiClient`(`/api/bff`) 사용    |
+| `src/lib/analysis/ai-report-presentation.ts`            | 레벨별 응답 → 뷰모델(블록/리스트) 정규화 순수함수            | 테스트 대상                     |
+| `src/components/analysis/ai-report/use-ai-report.ts`    | 레벨 분기 조회 훅(동기 GET / 상권 POST+폴링), 상태 머신 반환 | React Query                     |
+| `src/components/analysis/ai-report/ai-report-card.tsx`  | 카드 배너 CTA(레벨명·아이콘·클릭)                            | 선택 패널 옆 슬롯               |
+| `src/components/analysis/ai-report/ai-report-panel.tsx` | 2뎁스 패널 셸(헤더·접기·상태 분기·전체분석 링크)             | 데스크톱 슬라이드 / 모바일 시트 |
+| `src/components/analysis/ai-report/report-blocks.tsx`   | 상권 3블록 + 자치구/행정동 단순 블록 렌더                    | 표현 전용                       |
+| `analysis-page.tsx`                                     | 카드 슬롯·2뎁스 패널 레이아웃 배치, 선택 상태 연결           | 기존 그리드 확장                |
+| `analysis-mobile-sheet.tsx`                             | 모바일 카드 CTA·리포트 시트 연결                             | 기존 시트 재사용                |
 
 ```mermaid
 flowchart TD
@@ -111,7 +111,7 @@ flowchart TD
 
 ```text
 idle ──클릭──▶ loading ──성공──▶ ready
-                 │                 
+                 │
                  ├──실패/타임아웃──▶ error ──재시도──▶ loading
                  └──빈 결과──▶ empty
 ```
@@ -121,34 +121,34 @@ idle ──클릭──▶ loading ──성공──▶ ready
 
 ### D3-3. 데이터 모델 (OpenAPI 미러)
 
-| 모델                                | 주요 필드                                                                                                                                                              | 비고                         |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `DistrictAiReportResponse`          | `summary`, `marketStatus`, `recommendedBusinessCategories[]`, `cautionBusinessCategories[]`, `businessInsight`, `generatedAt`                                          | 자치구·행정동 동일 구조      |
-| `AdministrationAiReportResponse`    | 위와 동일                                                                                                                                                             |                              |
-| `CommercialAiReportResponse`        | `summary`, `strengths[]`, `risks[]`, `recommendedBusinessCategories[]`, `recommendedCustomerSegments[]`, `recommendedOperatingHours[]`, `avoidOperatingHours[]`, `targetAgeGroups[]`, `targetGenders[]`, `operationTips[]`, `businessInsight`, `generatedAt` | 3블록 매핑 원천              |
-| `AiReportSubmissionResponse`        | `submissionStatus`(`CACHED`\|`ACCEPTED`), `jobType`, `jobId?`, `commercialReport?`                                                                                    | POST 응답                    |
-| `AiReportJobStatusResponse`         | `jobId`, `jobType`, `status`(`PENDING`\|`RUNNING`\|`COMPLETED`\|`FAILED`), `commercialReport?`, `errorCode?`, `errorMessage?`                                          | 폴링 응답                    |
+| 모델                             | 주요 필드                                                                                                                                                                                                                                                    | 비고                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| `DistrictAiReportResponse`       | `summary`, `marketStatus`, `recommendedBusinessCategories[]`, `cautionBusinessCategories[]`, `businessInsight`, `generatedAt`                                                                                                                                | 자치구·행정동 동일 구조 |
+| `AdministrationAiReportResponse` | 위와 동일                                                                                                                                                                                                                                                    |                         |
+| `CommercialAiReportResponse`     | `summary`, `strengths[]`, `risks[]`, `recommendedBusinessCategories[]`, `recommendedCustomerSegments[]`, `recommendedOperatingHours[]`, `avoidOperatingHours[]`, `targetAgeGroups[]`, `targetGenders[]`, `operationTips[]`, `businessInsight`, `generatedAt` | 3블록 매핑 원천         |
+| `AiReportSubmissionResponse`     | `submissionStatus`(`CACHED`\|`ACCEPTED`), `jobType`, `jobId?`, `commercialReport?`                                                                                                                                                                           | POST 응답               |
+| `AiReportJobStatusResponse`      | `jobId`, `jobType`, `status`(`PENDING`\|`RUNNING`\|`COMPLETED`\|`FAILED`), `commercialReport?`, `errorCode?`, `errorMessage?`                                                                                                                                | 폴링 응답               |
 
 모든 응답은 표준 envelope(`dataHeader`/`dataBody`)로 감싸지며, 어댑터가 `dataBody`를 언랩해 위 모델을 반환한다(기존 도메인과 동일).
 
 **상권 3블록 → 필드 매핑**
 
-| 블록          | 필드                                                                                                                                        |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 헤드라인      | `summary` + `businessInsight`                                                                                                               |
-| 강점·주의     | `strengths[]` / `risks[]`                                                                                                                    |
-| 추천 실행     | `recommendedBusinessCategories[]`, `recommendedCustomerSegments[]`, `recommendedOperatingHours[]`, `avoidOperatingHours[]`, `targetAgeGroups[]`, `targetGenders[]`, `operationTips[]` |
+| 블록      | 필드                                                                                                                                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 헤드라인  | `summary` + `businessInsight`                                                                                                                                                         |
+| 강점·주의 | `strengths[]` / `risks[]`                                                                                                                                                             |
+| 추천 실행 | `recommendedBusinessCategories[]`, `recommendedCustomerSegments[]`, `recommendedOperatingHours[]`, `avoidOperatingHours[]`, `targetAgeGroups[]`, `targetGenders[]`, `operationTips[]` |
 
 **자치구/행정동 블록**: 헤드라인(`summary`+`marketStatus`) / 추천·주의 업종군(`recommendedBusinessCategories[]` / `cautionBusinessCategories[]`) / 코멘트(`businessInsight`).
 
 ### D3-4. 사용 라이브러리 / 기술
 
-| 역할        | 요구 사항                              | 구체 구현                                                                    |
-| ----------- | -------------------------------------- | ---------------------------------------------------------------------------- |
-| 서버 상태   | 조건부 조회, 폴링, 재시도              | 기존 TanStack React Query (`enabled`, `refetchInterval`)                     |
-| 폴링        | PENDING/RUNNING 동안만, 상한 타임아웃  | `refetchInterval` 콜백으로 상태 기반 on/off + 경과시간 상한 가드            |
-| 표현        | 디자인 토큰, responsive, 별도 패키지 X | 기존 CSS/SVG/semantic HTML, `DESIGN.md` 토큰만                               |
-| 인증        | 로그인·세션                            | 기존 BFF 세션 쿠키(`/api/bff`가 Bearer 주입), `useAuthStore` `enabled` 게이트 |
+| 역할      | 요구 사항                              | 구체 구현                                                                     |
+| --------- | -------------------------------------- | ----------------------------------------------------------------------------- |
+| 서버 상태 | 조건부 조회, 폴링, 재시도              | 기존 TanStack React Query (`enabled`, `refetchInterval`)                      |
+| 폴링      | PENDING/RUNNING 동안만, 상한 타임아웃  | `refetchInterval` 콜백으로 상태 기반 on/off + 경과시간 상한 가드              |
+| 표현      | 디자인 토큰, responsive, 별도 패키지 X | 기존 CSS/SVG/semantic HTML, `DESIGN.md` 토큰만                                |
+| 인증      | 로그인·세션                            | 기존 BFF 세션 쿠키(`/api/bff`가 Bearer 주입), `useAuthStore` `enabled` 게이트 |
 
 ---
 
@@ -176,6 +176,7 @@ idle ──클릭──▶ loading ──성공──▶ ready
    - `status === 'COMPLETED'` → `commercialReport` 렌더(`ready`).
    - `status === 'FAILED'` → `errorMessage`와 함께 `error` + 재시도(재-POST).
    - 상한 초과 → 타임아웃 `error` + 재시도.
+
 - 폴링 중에는 진행 상태(생성 중 스켈레톤 + 경과 안내)를 패널 내부에 표시한다.
 - deprecated 동기 GET(`GET /ai-reports/commercials/{code}`)은 사용하지 않는다.
 
@@ -229,18 +230,18 @@ idle ──클릭──▶ loading ──성공──▶ ready
 
 ## D7. 테스트케이스
 
-| ID          | 유형 | 사전 조건                      | 동작                          | 기대 결과                                                        |
-| ----------- | ---- | ------------------------------ | ----------------------------- | --------------------------------------------------------------- |
-| TC-AIR-001  | U    | 자치구 선택, 로그인            | 카드 클릭                     | 패널 오픈, 자치구 리포트 GET 후 단순 블록 표시                  |
-| TC-AIR-002  | U    | 상권 선택, 로그인              | 카드 클릭 → `ACCEPTED`        | 폴링 진행 표시 후 `COMPLETED`에서 3블록 표시                    |
-| TC-AIR-003  | U    | 상권 선택                      | 카드 클릭 → `CACHED`          | 폴링 없이 즉시 3블록 표시                                       |
-| TC-AIR-004  | U    | 상권 폴링 중 `FAILED`          | —                             | 에러 메시지 + 다시 시도(재-POST) 노출                          |
-| TC-AIR-005  | U    | 상한 초과까지 미완료           | —                             | 타임아웃 에러 + 재시도, 잔여 폴링 없음                          |
-| TC-AIR-006  | U    | 패널 오픈(자치구 리포트) 상태  | 다른 자치구/행정동 선택       | 리포트 폐기, 새 레벨 "분석하기" CTA로 리셋(자동 조회 안 함)     |
-| TC-AIR-007  | B    | 비로그인                       | 레벨 선택                     | 카드 배너 미노출                                                |
-| TC-AIR-008  | U    | 순수함수 `ai-report-presentation` | 각 레벨 응답 정규화        | 블록/리스트 뷰모델과 빈/`null` fallback이 정확                  |
-| TC-AIR-009  | D    | 모바일 뷰포트                  | 카드 CTA 클릭                 | 2뎁스 스택 대신 시트 surface로 리포트 표시                      |
-| TC-AIR-010  | U    | 분야까지 선택 완료             | "전체 분석 보기" 클릭         | `/analysis/result` 모달로 이동                                  |
+| ID         | 유형 | 사전 조건                         | 동작                    | 기대 결과                                                   |
+| ---------- | ---- | --------------------------------- | ----------------------- | ----------------------------------------------------------- |
+| TC-AIR-001 | U    | 자치구 선택, 로그인               | 카드 클릭               | 패널 오픈, 자치구 리포트 GET 후 단순 블록 표시              |
+| TC-AIR-002 | U    | 상권 선택, 로그인                 | 카드 클릭 → `ACCEPTED`  | 폴링 진행 표시 후 `COMPLETED`에서 3블록 표시                |
+| TC-AIR-003 | U    | 상권 선택                         | 카드 클릭 → `CACHED`    | 폴링 없이 즉시 3블록 표시                                   |
+| TC-AIR-004 | U    | 상권 폴링 중 `FAILED`             | —                       | 에러 메시지 + 다시 시도(재-POST) 노출                       |
+| TC-AIR-005 | U    | 상한 초과까지 미완료              | —                       | 타임아웃 에러 + 재시도, 잔여 폴링 없음                      |
+| TC-AIR-006 | U    | 패널 오픈(자치구 리포트) 상태     | 다른 자치구/행정동 선택 | 리포트 폐기, 새 레벨 "분석하기" CTA로 리셋(자동 조회 안 함) |
+| TC-AIR-007 | B    | 비로그인                          | 레벨 선택               | 카드 배너 미노출                                            |
+| TC-AIR-008 | U    | 순수함수 `ai-report-presentation` | 각 레벨 응답 정규화     | 블록/리스트 뷰모델과 빈/`null` fallback이 정확              |
+| TC-AIR-009 | D    | 모바일 뷰포트                     | 카드 CTA 클릭           | 2뎁스 스택 대신 시트 surface로 리포트 표시                  |
+| TC-AIR-010 | U    | 분야까지 선택 완료                | "전체 분석 보기" 클릭   | `/analysis/result` 모달로 이동                              |
 
 ---
 
@@ -255,6 +256,7 @@ idle ──클릭──▶ loading ──성공──▶ ready
 
 ## 변경 이력
 
-| 날짜       | 작성자 | 변경                          |
-| ---------- | ------ | ----------------------------- |
+| 날짜       | 작성자 | 변경                                                 |
+| ---------- | ------ | ---------------------------------------------------- |
+| 2026-08-07 | Claude | 첫 슬라이스 구현 완료(자치구·행정동·상권 컴패니언) |
 | 2026-08-07 | Claude | 최초 작성 (첫 슬라이스: 자치구·행정동·상권 컴패니언) |
