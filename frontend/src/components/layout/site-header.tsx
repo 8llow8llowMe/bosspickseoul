@@ -34,8 +34,18 @@ const Header = styled.header<{ $isScrolled: boolean }>`
     box-shadow var(--motion-fast) var(--ease-standard);
 `
 
-const Inner = styled.div`
-  width: min(1120px, calc(100% - 40px));
+// 페이지별 헤더 콘텐츠 폭. 메인은 기본(1120), 상권분석·상권추천은 풀블리드 맵에
+// 맞춰 최대, 구별현황은 페이지 본문 폭(min(1400px, calc(100% - 48px)))에 맞춘다.
+type HeaderWidthVariant = 'default' | 'full' | 'status'
+
+const INNER_WIDTH: Record<HeaderWidthVariant, string> = {
+  default: 'min(1120px, calc(100% - 40px))',
+  full: 'calc(100% - 40px)',
+  status: 'min(1400px, calc(100% - 48px))',
+}
+
+const Inner = styled.div<{ $width: HeaderWidthVariant }>`
+  width: ${props => INNER_WIDTH[props.$width]};
   min-height: 64px;
   padding: 10px 0;
   margin: 0 auto;
@@ -353,6 +363,12 @@ export default function SiteHeader() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const isHome = pathname === '/'
+  const headerWidth: HeaderWidthVariant =
+    pathname === '/analysis' || pathname === '/recommend'
+      ? 'full'
+      : pathname === '/status'
+        ? 'status'
+        : 'default'
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
@@ -425,7 +441,7 @@ export default function SiteHeader() {
 
   return (
     <Header $isScrolled={isScrolled} data-site-header>
-      <Inner>
+      <Inner $width={headerWidth}>
         <Brand
           href="/"
           onClick={event => {
