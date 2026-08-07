@@ -139,7 +139,7 @@
   producer `max.block.ms=1000` 으로 브로커 다운 시에도 분석 API 지연은 최대 1초 이내이며 이벤트만 유실된다.
   `app.ranking.enabled=false`(기본)면 Kafka producer/consumer 빈이 아예 등록되지 않는다.
   컨슈머는 해석 불가/집계 실패 이벤트를 로그만 남기고 건너뛴다 (poison 재시도 루프 방지).
-- Redis 장애 시 인기 순위 조회만 `503 RANKING_002` 로 응답하고 나머지 분석 API 는 영향 없다.
+- Redis 장애 시 인기 순위 조회만 `503 RANKING_001` 로 응답하고 나머지 분석 API 는 영향 없다.
 
 ## 에러코드 (대역 요약)
 
@@ -152,7 +152,7 @@
 | `AdministrationErrorCode` | `ADMINISTRATION_001`~`ADMINISTRATION_003` | 행정동 지출/매출/점포 미존재 404 |
 | `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
-| `RankingErrorCode` | `RANKING_001`~`RANKING_003` | 영역 타입 400 / 저장소 연결 불가 503 / 조회 개수 400 |
+| `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102) |
 
 ## 정책 추천 (보류)
 
