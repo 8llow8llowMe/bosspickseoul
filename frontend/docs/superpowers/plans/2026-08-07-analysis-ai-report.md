@@ -24,18 +24,18 @@
 
 ## File Structure
 
-| 파일 | 책임 | 테스트 |
-| --- | --- | --- |
-| `src/types/ai-report.ts` | OpenAPI 응답 스키마 미러(도메인 타입) | (typecheck) |
-| `src/lib/api/ai-report.ts` | 엔드포인트 경로 빌더 + 4개 fetch 어댑터 | 경로 빌더 |
-| `src/lib/analysis/ai-report-presentation.ts` | 레벨 결정 + 리포트→뷰모델 정규화(순수) | ✅ |
-| `src/lib/analysis/ai-report-poll.ts` | 제출/작업 → 상태·폴링 결정(순수) | ✅ |
-| `src/hooks/use-ai-report.ts` | React Query 조회/폴링 훅(얇은 글루) | (typecheck) |
-| `src/components/analysis/ai-report/report-blocks.tsx` | 상권 3블록 + 지역 블록 렌더(순수 프레젠테이션) | ✅ 마크업 |
-| `src/components/analysis/ai-report/ai-report-card.tsx` | 카드 배너 CTA(프레젠테이션) | ✅ 마크업 |
-| `src/components/analysis/ai-report/ai-report-panel.tsx` | 패널 셸: 상태 prop → 로딩/폴링/완료/빈/에러 렌더 | ✅ 마크업 |
-| `src/components/analysis/analysis-page.tsx` | Surface에 카드/패널 슬롯 추가 + 페이지 상태 배선 | ✅ Surface 마크업 |
-| `src/components/analysis/analysis-mobile-sheet.tsx` | 모바일 카드 CTA + 시트 연결 | ✅ 마크업 |
+| 파일                                                    | 책임                                             | 테스트            |
+| ------------------------------------------------------- | ------------------------------------------------ | ----------------- |
+| `src/types/ai-report.ts`                                | OpenAPI 응답 스키마 미러(도메인 타입)            | (typecheck)       |
+| `src/lib/api/ai-report.ts`                              | 엔드포인트 경로 빌더 + 4개 fetch 어댑터          | 경로 빌더         |
+| `src/lib/analysis/ai-report-presentation.ts`            | 레벨 결정 + 리포트→뷰모델 정규화(순수)           | ✅                |
+| `src/lib/analysis/ai-report-poll.ts`                    | 제출/작업 → 상태·폴링 결정(순수)                 | ✅                |
+| `src/hooks/use-ai-report.ts`                            | React Query 조회/폴링 훅(얇은 글루)              | (typecheck)       |
+| `src/components/analysis/ai-report/report-blocks.tsx`   | 상권 3블록 + 지역 블록 렌더(순수 프레젠테이션)   | ✅ 마크업         |
+| `src/components/analysis/ai-report/ai-report-card.tsx`  | 카드 배너 CTA(프레젠테이션)                      | ✅ 마크업         |
+| `src/components/analysis/ai-report/ai-report-panel.tsx` | 패널 셸: 상태 prop → 로딩/폴링/완료/빈/에러 렌더 | ✅ 마크업         |
+| `src/components/analysis/analysis-page.tsx`             | Surface에 카드/패널 슬롯 추가 + 페이지 상태 배선 | ✅ Surface 마크업 |
+| `src/components/analysis/analysis-mobile-sheet.tsx`     | 모바일 카드 CTA + 시트 연결                      | ✅ 마크업         |
 
 각 순수함수 파일은 같은 이름 `.test.ts`를 옆에 둔다(기존 관례).
 
@@ -44,11 +44,13 @@
 ## Task 1: 도메인 타입 + API 어댑터
 
 **Files:**
+
 - Create: `src/types/ai-report.ts`
 - Create: `src/lib/api/ai-report.ts`
 - Test: `src/lib/api/ai-report.test.ts`
 
 **Interfaces:**
+
 - Produces (types): `AiReportLevel`, `CommercialAiReport`, `RegionAiReport`, `AiReportSubmission`, `AiReportJob`, `AiReportJobStatus`, `AiReportSubmissionStatus`.
 - Produces (api): `aiReportPath` (경로 빌더 객체), `fetchDistrictAiReport`, `fetchAdministrationAiReport`, `submitCommercialAiReport`, `fetchAiReportJob`.
 
@@ -105,7 +107,8 @@ export type AiReportJob = {
 
 export type DistrictAiReportResponse = ApiResponse<RegionAiReport>
 export type AdministrationAiReportResponse = ApiResponse<RegionAiReport>
-export type CommercialAiReportSubmissionResponse = ApiResponse<AiReportSubmission>
+export type CommercialAiReportSubmissionResponse =
+  ApiResponse<AiReportSubmission>
 export type AiReportJobStatusResponse = ApiResponse<AiReportJob>
 ```
 
@@ -208,10 +211,12 @@ git commit -m "[FE] feat: AI 리포트 도메인 타입·API 어댑터 추가"
 ## Task 2: 레벨 결정 + 리포트 뷰모델 정규화 (순수)
 
 **Files:**
+
 - Create: `src/lib/analysis/ai-report-presentation.ts`
 - Test: `src/lib/analysis/ai-report-presentation.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AnalysisSelection` (`@/lib/analysis/selection`), `CommercialAiReport`, `RegionAiReport`, `AiReportLevel` (`@/types/ai-report`).
 - Produces: `resolveAiReportLevel(selection)`, `resolveAiReportTargetCode(selection, level)`, `toCommercialReportView(report)`, `toRegionReportView(report)`, types `CommercialReportView`, `RegionReportView`, `ReportBlockList`, `isCommercialReportEmpty(view)`, `isRegionReportEmpty(view)`.
 
@@ -234,9 +239,15 @@ const base = createEmptyAnalysisSelection()
 describe('resolveAiReportLevel', () => {
   it('가장 깊게 선택된 레벨을 고른다(분야는 무관)', () => {
     expect(resolveAiReportLevel(base)).toBeNull()
-    expect(resolveAiReportLevel({ ...base, districtCode: '11680' })).toBe('district')
+    expect(resolveAiReportLevel({ ...base, districtCode: '11680' })).toBe(
+      'district',
+    )
     expect(
-      resolveAiReportLevel({ ...base, districtCode: '11680', administrationCode: '11680640' }),
+      resolveAiReportLevel({
+        ...base,
+        districtCode: '11680',
+        administrationCode: '11680640',
+      }),
     ).toBe('administration')
     expect(
       resolveAiReportLevel({
@@ -252,7 +263,11 @@ describe('resolveAiReportLevel', () => {
 
 describe('resolveAiReportTargetCode', () => {
   it('레벨에 해당하는 코드를 돌려준다', () => {
-    const sel = { ...base, districtCode: '11680', administrationCode: '11680640' }
+    const sel = {
+      ...base,
+      districtCode: '11680',
+      administrationCode: '11680640',
+    }
     expect(resolveAiReportTargetCode(sel, 'district')).toBe('11680')
     expect(resolveAiReportTargetCode(sel, 'administration')).toBe('11680640')
     expect(resolveAiReportTargetCode(sel, 'commercial')).toBeNull()
@@ -296,18 +311,28 @@ describe('toRegionReportView / empty guards', () => {
       businessInsight: '코멘트',
       generatedAt: '2026-08-07',
     })
-    expect(view.headline).toEqual({ summary: '시장 요약', marketStatus: '성장' })
+    expect(view.headline).toEqual({
+      summary: '시장 요약',
+      marketStatus: '성장',
+    })
     expect(view.recommended).toEqual(['카페'])
     expect(view.caution).toEqual([])
   })
 
   it('완전히 빈 상권 뷰는 empty로 판정한다', () => {
     const empty = toCommercialReportView({
-      summary: null, strengths: null, risks: null,
-      recommendedBusinessCategories: null, recommendedCustomerSegments: null,
-      recommendedOperatingHours: null, avoidOperatingHours: null,
-      targetAgeGroups: null, targetGenders: null, operationTips: null,
-      businessInsight: null, generatedAt: null,
+      summary: null,
+      strengths: null,
+      risks: null,
+      recommendedBusinessCategories: null,
+      recommendedCustomerSegments: null,
+      recommendedOperatingHours: null,
+      avoidOperatingHours: null,
+      targetAgeGroups: null,
+      targetGenders: null,
+      operationTips: null,
+      businessInsight: null,
+      generatedAt: null,
     })
     expect(isCommercialReportEmpty(empty)).toBe(true)
   })
@@ -331,7 +356,9 @@ import type {
 
 const text = (value: string | null | undefined): string => value?.trim() ?? ''
 
-const toList = (value: readonly (string | null)[] | null | undefined): string[] =>
+const toList = (
+  value: readonly (string | null)[] | null | undefined,
+): string[] =>
   (value ?? [])
     .map(item => item?.trim() ?? '')
     .filter((item): item is string => item.length > 0)
@@ -367,13 +394,22 @@ export type CommercialReportView = {
 export const toCommercialReportView = (
   report: CommercialAiReport,
 ): CommercialReportView => ({
-  headline: { summary: text(report.summary), insight: text(report.businessInsight) },
+  headline: {
+    summary: text(report.summary),
+    insight: text(report.businessInsight),
+  },
   strengths: toList(report.strengths),
   risks: toList(report.risks),
   actions: [
-    { title: '추천 업종군', items: toList(report.recommendedBusinessCategories) },
+    {
+      title: '추천 업종군',
+      items: toList(report.recommendedBusinessCategories),
+    },
     { title: '추천 고객층', items: toList(report.recommendedCustomerSegments) },
-    { title: '추천 운영 시간', items: toList(report.recommendedOperatingHours) },
+    {
+      title: '추천 운영 시간',
+      items: toList(report.recommendedOperatingHours),
+    },
     { title: '피해야 할 시간', items: toList(report.avoidOperatingHours) },
     { title: '타깃 연령', items: toList(report.targetAgeGroups) },
     { title: '타깃 성별', items: toList(report.targetGenders) },
@@ -397,8 +433,13 @@ export type RegionReportView = {
   generatedAt: string
 }
 
-export const toRegionReportView = (report: RegionAiReport): RegionReportView => ({
-  headline: { summary: text(report.summary), marketStatus: text(report.marketStatus) },
+export const toRegionReportView = (
+  report: RegionAiReport,
+): RegionReportView => ({
+  headline: {
+    summary: text(report.summary),
+    marketStatus: text(report.marketStatus),
+  },
   recommended: toList(report.recommendedBusinessCategories),
   caution: toList(report.cautionBusinessCategories),
   insight: text(report.businessInsight),
@@ -430,10 +471,12 @@ git commit -m "[FE] feat: AI 리포트 레벨 결정·뷰모델 정규화 순수
 ## Task 3: 제출/폴링 결정 (순수)
 
 **Files:**
+
 - Create: `src/lib/analysis/ai-report-poll.ts`
 - Test: `src/lib/analysis/ai-report-poll.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AiReportSubmission`, `AiReportJob`, `AiReportJobStatus`, `CommercialAiReport` (`@/types/ai-report`).
 - Produces: `AI_REPORT_POLL_INTERVAL_MS`, `AI_REPORT_POLL_TIMEOUT_MS`, `isPollableJobStatus(status)`, `reportFromSubmission(sub)`, `jobIdFromSubmission(sub)`, `PollDecision` type, `decideNextPoll(job, elapsedMs)`.
 
@@ -454,16 +497,49 @@ import type { AiReportJob, CommercialAiReport } from '@/types/ai-report'
 
 const report = { summary: 'ok' } as CommercialAiReport
 const job = (over: Partial<AiReportJob>): AiReportJob => ({
-  jobId: 'j1', jobType: 'COMMERCIAL', status: 'PENDING',
-  commercialReport: null, errorCode: null, errorMessage: null, ...over,
+  jobId: 'j1',
+  jobType: 'COMMERCIAL',
+  status: 'PENDING',
+  commercialReport: null,
+  errorCode: null,
+  errorMessage: null,
+  ...over,
 })
 
 describe('submission helpers', () => {
   it('CACHED면 리포트를, ACCEPTED면 jobId를 뽑는다', () => {
-    expect(reportFromSubmission({ submissionStatus: 'CACHED', jobType: 'COMMERCIAL', jobId: null, commercialReport: report })).toBe(report)
-    expect(reportFromSubmission({ submissionStatus: 'ACCEPTED', jobType: 'COMMERCIAL', jobId: 'j1', commercialReport: null })).toBeNull()
-    expect(jobIdFromSubmission({ submissionStatus: 'ACCEPTED', jobType: 'COMMERCIAL', jobId: 'j1', commercialReport: null })).toBe('j1')
-    expect(jobIdFromSubmission({ submissionStatus: 'CACHED', jobType: 'COMMERCIAL', jobId: null, commercialReport: report })).toBeNull()
+    expect(
+      reportFromSubmission({
+        submissionStatus: 'CACHED',
+        jobType: 'COMMERCIAL',
+        jobId: null,
+        commercialReport: report,
+      }),
+    ).toBe(report)
+    expect(
+      reportFromSubmission({
+        submissionStatus: 'ACCEPTED',
+        jobType: 'COMMERCIAL',
+        jobId: 'j1',
+        commercialReport: null,
+      }),
+    ).toBeNull()
+    expect(
+      jobIdFromSubmission({
+        submissionStatus: 'ACCEPTED',
+        jobType: 'COMMERCIAL',
+        jobId: 'j1',
+        commercialReport: null,
+      }),
+    ).toBe('j1')
+    expect(
+      jobIdFromSubmission({
+        submissionStatus: 'CACHED',
+        jobType: 'COMMERCIAL',
+        jobId: null,
+        commercialReport: report,
+      }),
+    ).toBeNull()
   })
 })
 
@@ -478,22 +554,40 @@ describe('isPollableJobStatus', () => {
 
 describe('decideNextPoll', () => {
   it('COMPLETED+리포트 → ready', () => {
-    expect(decideNextPoll(job({ status: 'COMPLETED', commercialReport: report }), 1000)).toEqual({ kind: 'ready', report })
+    expect(
+      decideNextPoll(
+        job({ status: 'COMPLETED', commercialReport: report }),
+        1000,
+      ),
+    ).toEqual({ kind: 'ready', report })
   })
   it('COMPLETED인데 리포트 없음 → error', () => {
-    expect(decideNextPoll(job({ status: 'COMPLETED' }), 1000).kind).toBe('error')
+    expect(decideNextPoll(job({ status: 'COMPLETED' }), 1000).kind).toBe(
+      'error',
+    )
   })
   it('FAILED → errorMessage 사용', () => {
-    expect(decideNextPoll(job({ status: 'FAILED', errorMessage: '실패함' }), 1000)).toEqual({ kind: 'error', message: '실패함' })
+    expect(
+      decideNextPoll(job({ status: 'FAILED', errorMessage: '실패함' }), 1000),
+    ).toEqual({ kind: 'error', message: '실패함' })
   })
   it('진행 중이고 타임아웃 전 → poll(간격)', () => {
-    expect(decideNextPoll(job({ status: 'RUNNING' }), 1000)).toEqual({ kind: 'poll', intervalMs: AI_REPORT_POLL_INTERVAL_MS })
+    expect(decideNextPoll(job({ status: 'RUNNING' }), 1000)).toEqual({
+      kind: 'poll',
+      intervalMs: AI_REPORT_POLL_INTERVAL_MS,
+    })
   })
   it('타임아웃 초과 → error', () => {
-    expect(decideNextPoll(job({ status: 'RUNNING' }), AI_REPORT_POLL_TIMEOUT_MS).kind).toBe('error')
+    expect(
+      decideNextPoll(job({ status: 'RUNNING' }), AI_REPORT_POLL_TIMEOUT_MS)
+        .kind,
+    ).toBe('error')
   })
   it('job 아직 없음(undefined)+타임아웃 전 → poll', () => {
-    expect(decideNextPoll(undefined, 0)).toEqual({ kind: 'poll', intervalMs: AI_REPORT_POLL_INTERVAL_MS })
+    expect(decideNextPoll(undefined, 0)).toEqual({
+      kind: 'poll',
+      intervalMs: AI_REPORT_POLL_INTERVAL_MS,
+    })
   })
 })
 ```
@@ -550,7 +644,10 @@ export const decideNextPoll = (
     }
   }
   if (elapsedMs >= AI_REPORT_POLL_TIMEOUT_MS) {
-    return { kind: 'error', message: '시간이 초과되었습니다. 다시 시도해 주세요.' }
+    return {
+      kind: 'error',
+      message: '시간이 초과되었습니다. 다시 시도해 주세요.',
+    }
   }
   return { kind: 'poll', intervalMs: AI_REPORT_POLL_INTERVAL_MS }
 }
@@ -573,9 +670,11 @@ git commit -m "[FE] feat: AI 리포트 제출·폴링 결정 순수함수"
 ## Task 4: useAiReport 훅 (얇은 글루)
 
 **Files:**
+
 - Create: `src/hooks/use-ai-report.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1 어댑터, Task 2 정규화, Task 3 폴링 결정.
 - Produces: `AiReportState` (discriminated union), `useAiReport({ level, code, active, enabled })` → `{ state, retry }`.
 - `active`: 카드가 클릭되어 조회가 켜졌는지. `enabled`: 하이드레이트+로그인.
@@ -696,7 +795,9 @@ export const useAiReport = ({
         queryKey: ['ai-report', 'commercial-submit', code],
       })
       if (jobId) {
-        void queryClient.invalidateQueries({ queryKey: ['ai-report', 'job', jobId] })
+        void queryClient.invalidateQueries({
+          queryKey: ['ai-report', 'job', jobId],
+        })
       }
     }
   }, [queryClient, level, code, isRegion, isCommercial, jobId])
@@ -721,7 +822,11 @@ export const useAiReport = ({
 
 ```ts
 import type { UseQueryResult } from '@tanstack/react-query'
-import type { AiReportJob, AiReportSubmission, RegionAiReport } from '@/types/ai-report'
+import type {
+  AiReportJob,
+  AiReportSubmission,
+  RegionAiReport,
+} from '@/types/ai-report'
 
 const deriveState = (a: {
   on: boolean
@@ -737,7 +842,8 @@ const deriveState = (a: {
   if (!a.on) return { status: 'idle' }
 
   if (a.isRegion) {
-    if (a.regionQuery.isError) return { status: 'error', message: '리포트를 불러오지 못했습니다.' }
+    if (a.regionQuery.isError)
+      return { status: 'error', message: '리포트를 불러오지 못했습니다.' }
     if (!a.regionQuery.data) return { status: 'loading' }
     const view = toRegionReportView(a.regionQuery.data)
     return isRegionReportEmpty(view)
@@ -746,7 +852,8 @@ const deriveState = (a: {
   }
 
   if (a.isCommercial) {
-    if (a.submitQuery.isError) return { status: 'error', message: 'AI 리포트 요청에 실패했습니다.' }
+    if (a.submitQuery.isError)
+      return { status: 'error', message: 'AI 리포트 요청에 실패했습니다.' }
     if (a.cachedReport) {
       const view = toCommercialReportView(a.cachedReport)
       return isCommercialReportEmpty(view)
@@ -756,7 +863,8 @@ const deriveState = (a: {
     if (!a.jobId) return { status: 'loading' }
     const elapsed = a.startedAt ? Date.now() - a.startedAt : 0
     const decision = decideNextPoll(a.jobQuery.data, elapsed)
-    if (decision.kind === 'error') return { status: 'error', message: decision.message }
+    if (decision.kind === 'error')
+      return { status: 'error', message: decision.message }
     if (decision.kind === 'ready') {
       const view = toCommercialReportView(decision.report)
       return isCommercialReportEmpty(view)
@@ -789,10 +897,12 @@ git commit -m "[FE] feat: useAiReport 조회·폴링 훅"
 ## Task 5: 리포트 블록 컴포넌트 (프레젠테이션)
 
 **Files:**
+
 - Create: `src/components/analysis/ai-report/report-blocks.tsx`
 - Test: `src/components/analysis/ai-report/report-blocks.test.ts`
 
 **Interfaces:**
+
 - Consumes: `CommercialReportView`, `RegionReportView`, `ReportBlockList` (`@/lib/analysis/ai-report-presentation`).
 - Produces: `CommercialReportBlocks({ view })`, `RegionReportBlocks({ view })` (default exports 아님, named).
 
@@ -949,12 +1059,20 @@ function BulletBlock({ title, items }: { title: string; items: string[] }) {
   )
 }
 
-export function CommercialReportBlocks({ view }: { view: CommercialReportView }) {
+export function CommercialReportBlocks({
+  view,
+}: {
+  view: CommercialReportView
+}) {
   return (
     <div>
       <Block>
-        {view.headline.summary ? <Summary>{view.headline.summary}</Summary> : null}
-        {view.headline.insight ? <Insight>{view.headline.insight}</Insight> : null}
+        {view.headline.summary ? (
+          <Summary>{view.headline.summary}</Summary>
+        ) : null}
+        {view.headline.insight ? (
+          <Insight>{view.headline.insight}</Insight>
+        ) : null}
       </Block>
       <BulletBlock title="강점" items={view.strengths} />
       <BulletBlock title="주의" items={view.risks} />
@@ -969,7 +1087,9 @@ export function RegionReportBlocks({ view }: { view: RegionReportView }) {
   return (
     <div>
       <Block>
-        {view.headline.summary ? <Summary>{view.headline.summary}</Summary> : null}
+        {view.headline.summary ? (
+          <Summary>{view.headline.summary}</Summary>
+        ) : null}
         {view.headline.marketStatus ? (
           <Insight>{view.headline.marketStatus}</Insight>
         ) : null}
@@ -1003,10 +1123,12 @@ git commit -m "[FE] feat: AI 리포트 블록 렌더 컴포넌트"
 ## Task 6: 카드 배너 컴포넌트
 
 **Files:**
+
 - Create: `src/components/analysis/ai-report/ai-report-card.tsx`
 - Test: `src/components/analysis/ai-report/ai-report-card.test.ts`
 
 **Interfaces:**
+
 - Produces: `AiReportCard({ targetName, onOpen })` (default export). `targetName`은 레벨명(예: "삼평동").
 
 - [ ] **Step 1: 실패 테스트** — `src/components/analysis/ai-report/ai-report-card.test.ts`
@@ -1103,10 +1225,12 @@ git commit -m "[FE] feat: AI 리포트 카드 배너 컴포넌트"
 ## Task 7: 패널 셸 컴포넌트 (상태 → 마크업)
 
 **Files:**
+
 - Create: `src/components/analysis/ai-report/ai-report-panel.tsx`
 - Test: `src/components/analysis/ai-report/ai-report-panel.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AiReportState` (`@/hooks/use-ai-report`), `CommercialReportBlocks`/`RegionReportBlocks` (Task 5).
 - Produces: `AiReportPanel({ targetName, state, onClose, onRetry, onViewFullAnalysis })` (default export). `onViewFullAnalysis?`: 분야 선택 완료 시에만 전달(없으면 링크 미표시).
 
@@ -1153,7 +1277,10 @@ describe('AiReportPanel', () => {
       status: 'ready-region',
       view: {
         headline: { summary: '시장 요약', marketStatus: '성장' },
-        recommended: ['카페'], caution: [], insight: '코멘트', generatedAt: '',
+        recommended: ['카페'],
+        caution: [],
+        insight: '코멘트',
+        generatedAt: '',
       },
     })
     expect(markup).toContain('시장 요약')
@@ -1162,7 +1289,9 @@ describe('AiReportPanel', () => {
 
   it('전체 분석 링크는 onViewFullAnalysis가 있을 때만 노출한다', () => {
     expect(render({ status: 'loading' })).not.toContain('전체 분석 보기')
-    expect(render({ status: 'loading' }, { onViewFullAnalysis: () => {} })).toContain('전체 분석 보기')
+    expect(
+      render({ status: 'loading' }, { onViewFullAnalysis: () => {} }),
+    ).toContain('전체 분석 보기')
   })
 })
 ```
@@ -1314,10 +1443,12 @@ git commit -m "[FE] feat: AI 리포트 패널 셸(상태 분기 렌더)"
 ## Task 8: 데스크톱 통합 (Surface 슬롯 + 페이지 배선)
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-page.tsx` (Surface에 슬롯 추가, `AnalysisPage`에 상태 배선)
 - Modify: `src/components/analysis/analysis-page.test.ts` (Surface 슬롯 마크업 검증)
 
 **Interfaces:**
+
 - Consumes: `useAiReport` (Task 4), `AiReportCard` (Task 6), `AiReportPanel` (Task 7), `resolveAiReportLevel`/`resolveAiReportTargetCode` (Task 2), `useAuthStore` (`@/stores/auth-store`), `isCompleteAnalysisSelection`/`createAnalysisResultHref` (`@/lib/analysis/selection`).
 - `AnalysisExplorerSurface`에 optional props 추가: `aiReportCard?: ReactNode`, `aiReportPanel?: ReactNode`.
 
@@ -1399,8 +1530,12 @@ export function AnalysisExplorerSurface({
         <MapArea>
           {map}
           {mapNotice ? <MapNotice>{mapNotice}</MapNotice> : null}
-          {aiReportCard ? <AiReportCardSlot>{aiReportCard}</AiReportCardSlot> : null}
-          {aiReportPanel ? <AiReportPanelSlot>{aiReportPanel}</AiReportPanelSlot> : null}
+          {aiReportCard ? (
+            <AiReportCardSlot>{aiReportCard}</AiReportCardSlot>
+          ) : null}
+          {aiReportPanel ? (
+            <AiReportPanelSlot>{aiReportPanel}</AiReportPanelSlot>
+          ) : null}
           <MobilePanel>{mobilePanel}</MobilePanel>
         </MapArea>
       </Layout>
@@ -1458,8 +1593,7 @@ const { state: aiState, retry: aiRetry } = useAiReport({
 })
 
 // 레벨명: 선택 패널이 아는 이름을 재사용(없으면 코드 fallback)
-const aiTargetName =
-  selectedNames?.[aiLevel as AnalysisStep] ?? aiCode ?? ''
+const aiTargetName = selectedNames?.[aiLevel as AnalysisStep] ?? aiCode ?? ''
 
 const openFullAnalysis = isCompleteAnalysisSelection(selection)
   ? () => router.push(createAnalysisResultHref(selection))
@@ -1515,10 +1649,12 @@ git commit -m "[FE] feat: 데스크톱 AI 리포트 카드·패널 통합"
 ## Task 9: 모바일 통합 (시트)
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-mobile-sheet.tsx`
 - Modify: `src/components/analysis/analysis-mobile-sheet.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AiReportCard`, `AiReportPanel`, `useAiReport` 결과(상위에서 prop으로 전달). 모바일은 2뎁스 스택 대신 기존 시트 위에 카드 CTA를 얹고, 열면 시트/풀스크린으로 패널을 표시한다.
 - 상위(`AnalysisPage` 모바일 경로)에서 `aiReportCard`/`aiReportPanel` 노드를 `mobilePanel` 구성에 함께 전달하거나, 시트 컴포넌트가 관련 props를 받도록 확장.
 
@@ -1560,6 +1696,7 @@ git commit -m "[FE] feat: 모바일 AI 리포트 시트 통합"
 ## Task 10: 최종 검증 + 명세 상태 갱신
 
 **Files:**
+
 - Modify: `docs/features/_index.md` (analysis 행 또는 신규 기능 상태), `docs/features/analysis/ai-report.md` (상태 → 구현 완료)
 
 - [ ] **Step 1: 전체 QA 검증**
@@ -1585,6 +1722,7 @@ git commit -m "[FE] docs: AI 리포트 컴패니언 첫 슬라이스 구현 완�
 ## Self-Review
 
 **Spec coverage (D2 요구사항 → Task):**
+
 - D2-1 카드 배너(레벨명) → Task 6, 8
 - D2-2 클릭 게이트(선택만으론 조회X) → Task 8 (`aiActive`/`aiActiveKey`)
 - D2-3 가장 깊은 레벨 → Task 2 `resolveAiReportLevel`
@@ -1602,6 +1740,7 @@ git commit -m "[FE] docs: AI 리포트 컴패니언 첫 슬라이스 구현 완�
 **Type consistency:** `AiReportState`(Task 4)를 Task 7·8이 동일하게 소비. `CommercialReportView`/`RegionReportView`(Task 2)를 Task 4·5·7이 동일 필드로 사용. `aiReportPath`/어댑터 시그니처(Task 1)를 Task 4가 그대로 호출. 카드 prop `{targetName,onOpen}`·패널 prop `{targetName,state,onClose,onRetry,onViewFullAnalysis}`가 Task 6·7 정의와 Task 8 사용처 일치.
 
 **알려진 확인 지점(구현 시 현물 대조):**
+
 - `@/components/ui/button`의 export 형태(Button named vs default) — Task 7.
 - `AnalysisPage`의 선택 이름 맵 변수명(`selectedNames` 가정) — Task 8.
 - `analysis-mobile-sheet.tsx`의 props·스냅 구조 — Task 9.

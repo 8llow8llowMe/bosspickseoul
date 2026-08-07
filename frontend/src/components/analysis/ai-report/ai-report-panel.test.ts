@@ -36,7 +36,10 @@ describe('AiReportPanel', () => {
       status: 'ready-region',
       view: {
         headline: { summary: '시장 요약', marketStatus: '성장' },
-        recommended: ['카페'], caution: [], insight: '코멘트', generatedAt: '',
+        recommended: ['카페'],
+        caution: [],
+        insight: '코멘트',
+        generatedAt: '',
       },
     })
     expect(markup).toContain('시장 요약')
@@ -45,6 +48,8 @@ describe('AiReportPanel', () => {
 
   it('전체 분석 링크는 onViewFullAnalysis가 있을 때만 노출한다', () => {
     expect(render({ status: 'loading' })).not.toContain('전체 분석 보기')
-    expect(render({ status: 'loading' }, { onViewFullAnalysis: () => {} })).toContain('전체 분석 보기')
+    expect(
+      render({ status: 'loading' }, { onViewFullAnalysis: () => {} }),
+    ).toContain('전체 분석 보기')
   })
 })

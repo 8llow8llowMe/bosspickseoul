@@ -1,7 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import {
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 
 import {
   fetchAdministrationAiReport,
@@ -94,7 +98,10 @@ export const useAiReport = ({
   useEffect(() => {
     if (!jobId) return
     const key = `${jobId}:${attempt}`
-    const timer = setTimeout(() => setTimedOutKey(key), AI_REPORT_POLL_TIMEOUT_MS)
+    const timer = setTimeout(
+      () => setTimedOutKey(key),
+      AI_REPORT_POLL_TIMEOUT_MS,
+    )
     return () => clearTimeout(timer)
   }, [jobId, attempt])
   const pollTimedOut = currentKey !== null && timedOutKey === currentKey
@@ -123,7 +130,9 @@ export const useAiReport = ({
         queryKey: ['ai-report', 'commercial-submit', code],
       })
       if (jobId) {
-        void queryClient.invalidateQueries({ queryKey: ['ai-report', 'job', jobId] })
+        void queryClient.invalidateQueries({
+          queryKey: ['ai-report', 'job', jobId],
+        })
       }
     }
   }, [queryClient, level, code, isRegion, isCommercial, jobId])
@@ -157,7 +166,8 @@ const deriveState = (a: {
   if (!a.on) return { status: 'idle' }
 
   if (a.isRegion) {
-    if (a.regionQuery.isError) return { status: 'error', message: '리포트를 불러오지 못했습니다.' }
+    if (a.regionQuery.isError)
+      return { status: 'error', message: '리포트를 불러오지 못했습니다.' }
     if (!a.regionQuery.data) return { status: 'loading' }
     const view = toRegionReportView(a.regionQuery.data)
     return isRegionReportEmpty(view)
@@ -166,7 +176,8 @@ const deriveState = (a: {
   }
 
   if (a.isCommercial) {
-    if (a.submitQuery.isError) return { status: 'error', message: 'AI 리포트 요청에 실패했습니다.' }
+    if (a.submitQuery.isError)
+      return { status: 'error', message: 'AI 리포트 요청에 실패했습니다.' }
     if (a.cachedReport) {
       const view = toCommercialReportView(a.cachedReport)
       return isCommercialReportEmpty(view)
@@ -175,7 +186,8 @@ const deriveState = (a: {
     }
     if (!a.jobId) return { status: 'loading' }
     const decision = decideNextPoll(a.jobQuery.data, a.pollElapsedMs)
-    if (decision.kind === 'error') return { status: 'error', message: decision.message }
+    if (decision.kind === 'error')
+      return { status: 'error', message: decision.message }
     if (decision.kind === 'ready') {
       const view = toCommercialReportView(decision.report)
       return isCommercialReportEmpty(view)
