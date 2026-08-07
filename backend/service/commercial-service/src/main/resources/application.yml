@@ -5,6 +5,21 @@ spring:
     import: optional:classpath:observability-common.yml
   profiles:
     active: local
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      # 인기 순위 이벤트는 유실 허용 부가 데이터 — 브로커 장애 시 요청 스레드를 잡아두지 않도록
+      # 블로킹/재시도 상한을 짧게 둔다. max.block.ms 가 send() 호출의 최대 대기 시간이다.
+      acks: "1"
+      retries: 1
+      properties:
+        enable.idempotence: false
+        max.block.ms: 1000
+        request.timeout.ms: 3000
+        delivery.timeout.ms: 5000
+    consumer:
+      group-id: commercial-ranking
+      auto-offset-reset: latest
 
 logging:
   level:
@@ -15,6 +30,13 @@ app:
   share-link:
     # 공유 링크 유효 기간(일). 같은 화면을 다시 공유하면 이 기간만큼 만료가 연장된다.
     ttl-days: 90
+  ranking:
+    # false(기본)면 Kafka producer/consumer 빈이 등록되지 않아 브로커 없이도 정상 기동한다.
+    # 인기 순위 조회 API 는 Redis 만 사용하므로 이 플래그와 무관하게 항상 활성이다.
+    enabled: ${RANKING_ENABLED:false}
+    events-topic: ${RANKING_EVENTS_TOPIC:bosspick.analysis-events}
+    window-hours: 24
+    max-size: 50
 
 # 내부 서비스 Feign 호출 서킷브레이커. 인스턴스명은 -dev/-prod 접미사와 무관한 논리 서비스명이다.
 # 4xx(FeignClientException)는 호출한 쪽의 요청 문제이므로 상대 서비스 장애로 집계하지 않는다.

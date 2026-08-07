@@ -24,6 +24,10 @@ spring:
           uri: lb://commercial-service
           predicates:
             - Path=/api/v1/share-links/**
+        - id: commercial-service-analysis-rankings
+          uri: lb://commercial-service
+          predicates:
+            - Path=/api/v1/analysis-rankings/**
         - id: district-service-regions
           uri: lb://district-service
           predicates:
