@@ -4,11 +4,8 @@ import {
   BarChart3,
   Bookmark,
   Building2,
-  FileText,
   MapPinned,
-  MessageCircle,
   Search,
-  UsersRound,
 } from 'lucide-react'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
@@ -57,24 +54,6 @@ const featureCards = [
     href: '/recommend',
     icon: MapPinned,
   },
-  {
-    title: '시뮬레이션',
-    body: '창업 비용과 예상 수익을 시뮬레이션합니다.',
-    href: '/simulation',
-    icon: FileText,
-  },
-  {
-    title: '커뮤니티',
-    body: '창업자들과 상권 정보를 나눕니다.',
-    href: '/community/list',
-    icon: UsersRound,
-  },
-  {
-    title: '실시간 채팅',
-    body: '관심 주제방에서 실시간으로 대화합니다.',
-    href: '/chatting/list',
-    icon: MessageCircle,
-  },
 ] as const
 
 const Page = styled.main`
@@ -82,19 +61,29 @@ const Page = styled.main`
 `
 
 const Section = styled.section`
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   padding: 64px 20px;
 
   @media (max-width: 640px) {
-    padding: 48px 16px;
+    min-height: auto;
+    padding: 64px 16px;
   }
 `
 
 const Hero = styled.section`
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   padding: 56px 20px 48px;
   background: var(--color-background);
 
   @media (max-width: 640px) {
-    padding: 40px 16px 36px;
+    min-height: auto;
+    padding: 56px 16px;
   }
 `
 
@@ -149,6 +138,13 @@ const Body = styled.p`
   font-size: 16px;
   line-height: 24px;
   word-break: keep-all;
+`
+
+const BodyEmphasis = styled.strong`
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-900);
+  font-weight: 700;
 `
 
 const Actions = styled.div`
@@ -289,10 +285,6 @@ const FeatureGrid = styled.div`
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 960px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
@@ -361,12 +353,17 @@ const FeatureCta = styled.span`
 `
 
 const FinalSection = styled.section`
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   border-top: 1px solid var(--color-border-200);
   padding: 40px 20px 56px;
   background: var(--color-background);
 
   @media (max-width: 640px) {
-    padding: 36px 16px 48px;
+    min-height: auto;
+    padding: 48px 16px 56px;
   }
 `
 
@@ -410,7 +407,10 @@ export default function HomePage() {
               <Title>창업 전에, 상권부터 확인하세요.</Title>
               <Body>
                 서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로
-                분석합니다. 감이 아니라 데이터로 자리를 정하세요.
+                분석합니다.
+                <BodyEmphasis>
+                  감이 아니라 데이터로 자리를 정하세요.
+                </BodyEmphasis>
               </Body>
               <Actions>
                 <PrimaryLink href="/analysis">

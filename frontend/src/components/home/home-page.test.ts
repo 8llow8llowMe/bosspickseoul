@@ -12,15 +12,7 @@ describe('HomePage', () => {
     expect(html).toContain('판단 흐름')
     expect(html).toContain('기능')
 
-    for (const href of [
-      '/status',
-      '/analysis',
-      '/recommend',
-      '/simulation',
-      '/community/list',
-      '/chatting/list',
-      '/register',
-    ]) {
+    for (const href of ['/status', '/analysis', '/recommend', '/register']) {
       expect(html).toContain(`href="${href}"`)
     }
   })
