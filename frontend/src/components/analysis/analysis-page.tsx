@@ -15,8 +15,11 @@ import AiReportCard from '@/components/analysis/ai-report/ai-report-card'
 import AiReportPanel from '@/components/analysis/ai-report/ai-report-panel'
 import { useAiReport } from '@/hooks/use-ai-report'
 import {
+  buildAiLevelKey,
+  isAiReportActive,
   resolveAiReportLevel,
   resolveAiReportTargetCode,
+  resolveAiReportVisibility,
 } from '@/lib/analysis/ai-report-presentation'
 import { useAuthStore } from '@/stores/auth-store'
 import {
@@ -265,7 +268,7 @@ export default function AnalysisPage() {
 
   const aiLevel = resolveAiReportLevel(selection)
   const aiCode = aiLevel ? resolveAiReportTargetCode(selection, aiLevel) : null
-  const aiLevelKey = aiLevel && aiCode ? `${aiLevel}:${aiCode}` : null
+  const aiLevelKey = buildAiLevelKey(aiLevel, aiCode)
 
   const [aiActiveKey, setAiActiveKey] = useState<string | null>(null)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -280,7 +283,7 @@ export default function AnalysisPage() {
     setAiPanelOpen(false)
   }
 
-  const aiActive = Boolean(aiLevelKey) && aiActiveKey === aiLevelKey
+  const aiActive = isAiReportActive(aiLevelKey, aiActiveKey)
   const { state: aiState, retry: aiRetry } = useAiReport({
     level: aiLevel,
     code: aiCode,
@@ -475,8 +478,12 @@ export default function AnalysisPage() {
     ? () => router.push(createAnalysisResultHref(selection, 'summary'))
     : undefined
 
-  const showAiCard = aiEnabled && Boolean(aiLevelKey) && !aiPanelOpen
-  const showAiPanel = aiEnabled && Boolean(aiLevelKey) && aiPanelOpen
+  const { showCard: showAiCard, showPanel: showAiPanel } =
+    resolveAiReportVisibility({
+      enabled: aiEnabled,
+      levelKey: aiLevelKey,
+      panelOpen: aiPanelOpen,
+    })
 
   const mapAreas =
     mapLayer === 'district'
