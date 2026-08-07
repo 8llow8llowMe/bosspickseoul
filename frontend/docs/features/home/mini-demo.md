@@ -101,16 +101,16 @@ export function getDemoSample(
 
 ## D4. 상세 동작 정의
 
-### D4-1. 선택 → 조회 → 렌더
+### D4-1. 선택 → 조회 → 렌더 (좌측 세로 탭)
 
-- 지역/업종 UI는 접근성 있는 선택 컨트롤(예: 라디오 그룹형 세그먼트 또는 `<select>`)로 구현하며 키보드로 조작 가능.
+- **레이아웃**: 2열 그리드 — 좌측 세로 탭 컬럼(지역 radiogroup + 업종 radiogroup, 옵션 세로 정렬) + 우측 결과 카드. 모바일(≤640)은 단일 컬럼으로 스택.
+- 각 그룹은 `role="radiogroup"`, 옵션은 `role="radio"`. 로빙 tabindex + 화살표/Home/End 키 이동(`useRovingRadioGroup`).
 - 선택 변경 → `getDemoSample(districtId, industryId)` → `DemoSample` → 카드 각 요소 갱신.
 
 ### D4-2. 카드 구성
 
-- 매출 추이: `Sparkline`(salesTrend) + `salesChangePct` 배지(양수/음수 색은 `--color-success`/`--color-danger`).
-- 유동인구: `footTraffic` 텍스트.
-- 경쟁 강도: `competition` → 배지(낮음/보통/높음). 색은 기존 시맨틱 토큰 범위 내.
+- 매출 추이: **6개월 인라인 SVG 영역 차트**(월 라벨·기준선·끝점 강조) + `salesChangePct` 배지(부호·`--color-success`/`--color-danger`).
+- 지표 그리드(2열): 유동인구(`footTraffic`), 경쟁 강도(`competition`→낮음/보통/높음 배지, 배경 `--color-surface-muted` 통일·텍스트만 시맨틱색), 폐업률(`closureRate`), 매출 증감(`salesChangePct`).
 - 해석: `insight` 한 줄.
 - 라벨: "대표 예시 데이터" 명시.
 - CTA: "이 조건으로 실제 분석하기" → `/analysis`.
@@ -164,9 +164,20 @@ export function getDemoSample(
 
 ---
 
+## 부록: 서울 자치구 인터랙티브 지도 (seoul-districts-map)
+
+히어로 우측을 채우는 인터랙티브 요소. 상권분석과 직접 연결되는 진입점이자 시각 임팩트용.
+
+- **컴포넌트**: `src/components/home/seoul-districts-map.tsx`(`'use client'`). 데이터는 `src/data/seoul-status-map.ts`의 `SEOUL_STATUS_FEATURES`(25개 자치구 SVG path, viewBox `0 0 800 620`), 이름은 `src/data/districts.ts`(`gooCode`↔`gooName`).
+- **호버**: 자치구에 색 채움(빠르게 IN, 마우스아웃 시 `--motion-slow`로 서서히 페이드아웃). 호버 자치구 **중앙**(`feature.center`)에 SVG `<text>`로 이름 라벨. `prefers-reduced-motion`에서 전환 제거.
+- **클릭**: `router.push('/analysis?districtCode=' + feature.districtCode)` — 지도의 `districtCode`가 분석의 `districtCode`(SIG 코드)와 동일해 매핑 없이 해당 자치구가 사전 선택된 상태로 상권분석 진입.
+- **접근성**: 클릭 가능해졌으므로 각 자치구 `role="link"`·`tabIndex=0`·`aria-label`(자치구명)·Enter/Space 이동·포커스 표시. (순수 장식 아님 → `aria-hidden` 제거)
+- **크기**: 히어로 그리드에서 우측 컬럼 `55%`를 차지하도록 배치, SVG `width:100%`로 컬럼을 채움.
+
 ## 변경 이력
 
-| 버전 | 날짜       | 변경 내용                                                               | 작성자      |
-| ---- | ---------- | ----------------------------------------------------------------------- | ----------- |
-| 1.0  | 2026-08-07 | 최초 작성                                                               | Claude Code |
-| 1.1  | 2026-08-07 | 구현 반영 — 상태 확정, D8 미결 사항(조합 범위·수치 오인 방지) 확정 처리 | Claude Code |
+| 버전 | 날짜       | 변경 내용                                                                                                              | 작성자      |
+| ---- | ---------- | ---------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.0  | 2026-08-07 | 최초 작성                                                                                                              | Claude Code |
+| 1.1  | 2026-08-07 | 구현 반영 — 상태 확정, D8 미결 사항(조합 범위·수치 오인 방지) 확정 처리                                                | Claude Code |
+| 1.2  | 2026-08-07 | 폴리시 — 좌측 세로 탭 레이아웃, 6개월 영역차트·폐업률 지표 추가, 서울 자치구 인터랙티브 지도(클릭→분석 연동) 부록 추가 | Claude Code |
