@@ -14,7 +14,7 @@ public interface AnalysisRankingStorePort {
     void recordView(AnalysisViewEvent event);
 
     /**
-     * 최근 윈도우 내 조회 수 상위 목록을 반환한다. 저장소 장애 시 RANKING_002 를 던진다.
+     * 최근 윈도우 내 조회 수 상위 목록을 반환한다. 저장소 장애 시 RANKING_001 을 던진다.
      */
     List<AnalysisRankingEntry> getTopRankings(AnalysisAreaType areaType, int size);
 }

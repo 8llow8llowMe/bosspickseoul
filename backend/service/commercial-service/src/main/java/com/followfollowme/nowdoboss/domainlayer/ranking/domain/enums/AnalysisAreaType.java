@@ -1,13 +1,14 @@
 package com.followfollowme.nowdoboss.domainlayer.ranking.domain.enums;
 
 import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescribable;
-import com.followfollowme.nowdoboss.domainlayer.ranking.application.exception.RankingErrorCode;
-import com.followfollowme.nowdoboss.domainlayer.ranking.application.exception.RankingException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
  * 인기 순위 집계 대상 분석 영역 타입.
+ *
+ * <p>RequestParam 은 enum 으로 직접 바인딩한다 (api-design-guide §5 — Swagger 허용값 자동 노출).
+ * 잘못된 값은 MethodArgumentTypeMismatchException 으로 서비스 공통 COMMERCIAL_102 가 응답한다.
  */
 @Getter
 @RequiredArgsConstructor
@@ -19,12 +20,4 @@ public enum AnalysisAreaType implements CodeNameDescribable {
 
     private final String displayName;
     private final String description;
-
-    public static AnalysisAreaType from(String value) {
-        try {
-            return AnalysisAreaType.valueOf(value.toUpperCase());
-        } catch (RuntimeException exception) {
-            throw new RankingException(RankingErrorCode.INVALID_AREA_TYPE);
-        }
-    }
 }

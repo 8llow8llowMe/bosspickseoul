@@ -12,7 +12,7 @@
 - 컨텍스트: `commercial`, `district`, `sharelink`, `ranking`
 - `ranking`: 분석 조회 이벤트를 Kafka 로 발행/집계해 Redis Sorted Set 실시간 인기 순위를 제공한다.
   `RANKING_ENABLED=false`(기본)면 Kafka 빈이 등록되지 않아 브로커 없이도 정상 기동하며,
-  파이프라인 장애는 인기 순위 API(RANKING_002 503)에만 영향을 준다.
+  파이프라인 장애는 인기 순위 API(RANKING_001 503)에만 영향을 준다.
 - 특징: 조회 중심 서비스, Presenter/Info 구조 사용. `sharelink`는 유일한 write 컨텍스트로,
   Resource Server(JWT) 기반 선택적 인증(`POST /api/v1/share-links`, 토큰 있으면 공유자 기록)을 사용한다.
 

@@ -4,6 +4,7 @@ import com.followfollowme.nowdoboss.domainlayer.ranking.adapter.in.web.dto.respo
 import com.followfollowme.nowdoboss.domainlayer.ranking.adapter.in.web.presenter.AnalysisRankingPresenter;
 import com.followfollowme.nowdoboss.domainlayer.ranking.application.port.in.RankingWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.ranking.application.service.processor.RankingQueryProcessor;
+import com.followfollowme.nowdoboss.domainlayer.ranking.domain.enums.AnalysisAreaType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +16,7 @@ public class RankingWebFacade implements RankingWebUseCase {
     private final AnalysisRankingPresenter analysisRankingPresenter;
 
     @Override
-    public AnalysisRankingResponse getAnalysisRankings(String areaType, int size) {
+    public AnalysisRankingResponse getAnalysisRankings(AnalysisAreaType areaType, int size) {
         return analysisRankingPresenter.toRankingResponse(rankingQueryProcessor.getTopRankings(areaType, size));
     }
 }

@@ -16,16 +16,15 @@ public class RankingQueryProcessor {
     private final AnalysisRankingStorePort analysisRankingStorePort;
     private final RankingProperties rankingProperties;
 
-    public AnalysisRankingInfo getTopRankings(String areaType, int size) {
-        AnalysisAreaType parsedAreaType = AnalysisAreaType.from(areaType);
+    public AnalysisRankingInfo getTopRankings(AnalysisAreaType areaType, int size) {
         if (size < 1 || size > rankingProperties.maxSize()) {
             throw new RankingException(RankingErrorCode.INVALID_SIZE);
         }
 
         return new AnalysisRankingInfo(
-            parsedAreaType,
+            areaType,
             rankingProperties.windowHours(),
-            analysisRankingStorePort.getTopRankings(parsedAreaType, size)
+            analysisRankingStorePort.getTopRankings(areaType, size)
         );
     }
 }

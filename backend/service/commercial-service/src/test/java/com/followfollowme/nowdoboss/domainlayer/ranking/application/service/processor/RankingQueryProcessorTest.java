@@ -23,7 +23,7 @@ class RankingQueryProcessorTest {
 
     @Test
     void getTopRankings_returnsEntriesWithWindowHours() {
-        AnalysisRankingInfo info = processor.getTopRankings("commercial", 10);
+        AnalysisRankingInfo info = processor.getTopRankings(AnalysisAreaType.COMMERCIAL, 10);
 
         assertThat(info.areaType()).isEqualTo(AnalysisAreaType.COMMERCIAL);
         assertThat(info.windowHours()).isEqualTo(24);
@@ -31,22 +31,17 @@ class RankingQueryProcessorTest {
         assertThat(info.entries().get(0).areaCode()).isEqualTo("3110008");
     }
 
-    @Test
-    void getTopRankings_rejectsUnknownAreaType() {
-        assertThatThrownBy(() -> processor.getTopRankings("UNKNOWN", 10))
-            .isInstanceOf(RankingException.class)
-            .extracting(exception -> ((RankingException) exception).getErrorCode())
-            .isEqualTo(RankingErrorCode.INVALID_AREA_TYPE);
-    }
+    // areaType 은 enum RequestParam 바인딩이라 잘못된 값은 컨트롤러 진입 전에
+    // MethodArgumentTypeMismatchException(COMMERCIAL_102)으로 걸러진다.
 
     @Test
     void getTopRankings_rejectsSizeOutOfRange() {
-        assertThatThrownBy(() -> processor.getTopRankings("COMMERCIAL", 0))
+        assertThatThrownBy(() -> processor.getTopRankings(AnalysisAreaType.COMMERCIAL, 0))
             .isInstanceOf(RankingException.class)
             .extracting(exception -> ((RankingException) exception).getErrorCode())
             .isEqualTo(RankingErrorCode.INVALID_SIZE);
 
-        assertThatThrownBy(() -> processor.getTopRankings("COMMERCIAL", 51))
+        assertThatThrownBy(() -> processor.getTopRankings(AnalysisAreaType.COMMERCIAL, 51))
             .isInstanceOf(RankingException.class)
             .extracting(exception -> ((RankingException) exception).getErrorCode())
             .isEqualTo(RankingErrorCode.INVALID_SIZE);
