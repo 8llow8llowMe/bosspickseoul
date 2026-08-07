@@ -82,16 +82,22 @@ export const useAiReport = ({
     : null
   const jobId = submitQuery.data ? jobIdFromSubmission(submitQuery.data) : null
 
-  // 폴링 타임아웃 여부. 렌더 중에는 Date.now()/ref를 읽지 않고, jobId별 타이머(effect)가
-  // 마감 시각에 정확히 한 번 상태를 뒤집는 방식으로 추적한다. 실제 타임아웃 판정 자체는
-  // Task 3의 decideNextPoll(순수 함수)에 위임한다.
-  const [timedOutJobId, setTimedOutJobId] = useState<string | null>(null)
+  // 폴링 타임아웃 여부. 렌더 중에는 Date.now()/ref를 읽지 않고, (jobId, attempt) 조합별
+  // 타이머(effect)가 마감 시각에 정확히 한 번 상태를 뒤집는 방식으로 추적한다. 실제
+  // 타임아웃 판정 자체는 Task 3의 decideNextPoll(순수 함수)에 위임한다.
+  // attempt는 retry() 호출마다 증가하는 nonce로, 백엔드가 재요청에도 동일한 jobId를
+  // 반환하는 경우(PENDING/RUNNING 중 idempotent 응답) 타이머가 재무장되도록 보장하고,
+  // 이전 시도에서 걸린 타임아웃이 새 시도를 오염시키지 않도록 막는다.
+  const [attempt, setAttempt] = useState(0)
+  const [timedOutKey, setTimedOutKey] = useState<string | null>(null)
+  const currentKey = jobId !== null ? `${jobId}:${attempt}` : null
   useEffect(() => {
     if (!jobId) return
-    const timer = setTimeout(() => setTimedOutJobId(jobId), AI_REPORT_POLL_TIMEOUT_MS)
+    const key = `${jobId}:${attempt}`
+    const timer = setTimeout(() => setTimedOutKey(key), AI_REPORT_POLL_TIMEOUT_MS)
     return () => clearTimeout(timer)
-  }, [jobId])
-  const pollTimedOut = jobId !== null && timedOutJobId === jobId
+  }, [jobId, attempt])
+  const pollTimedOut = currentKey !== null && timedOutKey === currentKey
   const pollElapsedMs = pollTimedOut ? AI_REPORT_POLL_TIMEOUT_MS : 0
 
   const jobQuery = useQuery({
@@ -107,7 +113,7 @@ export const useAiReport = ({
   })
 
   const retry = useCallback(() => {
-    setTimedOutJobId(null)
+    setAttempt(a => a + 1)
     if (isRegion) {
       void queryClient.invalidateQueries({
         queryKey: ['ai-report', 'region', level, code],
