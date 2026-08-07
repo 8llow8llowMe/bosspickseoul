@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,16 +32,17 @@ public class ShareLinkWebController {
     @Operation(
         summary = "공유 링크 생성",
         description = "분석 화면 상태(payload)로 단축 공유 코드를 발급합니다. "
-            + "같은 화면 상태를 다시 공유하면 기존 코드의 만료 시각을 연장해 재사용합니다.",
+            + "같은 화면 상태를 다시 공유하면 기존 코드의 만료 시각을 연장해 재사용합니다. "
+            + "인증은 선택입니다 — Bearer 토큰이 있으면 최초 공유자가 기록되고, 없어도 생성할 수 있습니다.",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Response<ShareLinkCreateResponse>> createShareLink(
         @AuthenticationPrincipal MemberLoginActive loginActive,
         @Valid @RequestBody ShareLinkCreateRequest request
     ) {
-        ShareLinkCreateResponse response = shareLinkWebUseCase.createShareLink(loginActive.memberId(), request);
+        Long memberId = (loginActive != null) ? loginActive.memberId() : null;
+        ShareLinkCreateResponse response = shareLinkWebUseCase.createShareLink(memberId, request);
         return ResponseEntity.ok().body(Response.success(response));
     }
 

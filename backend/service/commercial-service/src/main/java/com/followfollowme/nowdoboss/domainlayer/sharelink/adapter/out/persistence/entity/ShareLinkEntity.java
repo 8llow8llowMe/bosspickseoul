@@ -52,8 +52,7 @@ public class ShareLinkEntity {
     @Comment("shareType + 정규화 payload 의 SHA-256 해시 (중복 공유 방지)")
     private String payloadHash;
 
-    @Column(nullable = false)
-    @Comment("최초 공유 회원 아이디 (FK: member.id)")
+    @Comment("최초 공유 회원 아이디 (FK: member.id). 비로그인 생성이면 null")
     private Long memberId;
 
     @Column(nullable = false)

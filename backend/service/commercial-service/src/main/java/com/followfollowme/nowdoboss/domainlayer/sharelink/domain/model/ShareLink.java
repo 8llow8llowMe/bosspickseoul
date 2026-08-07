@@ -15,7 +15,8 @@ public record ShareLink(
 
     String payloadHash,
 
-    long memberId,
+    // 비로그인 생성이 허용되므로 null 가능. 로그인 상태로 생성하면 최초 공유자가 기록된다.
+    Long memberId,
 
     LocalDateTime expiresAt,
 

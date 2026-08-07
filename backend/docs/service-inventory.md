@@ -11,7 +11,7 @@
 - 책임: 상권 상세 분석, 자치구 분석, 상권 요약 조회, 분석 화면 공유 링크
 - 컨텍스트: `commercial`, `district`, `sharelink`
 - 특징: 조회 중심 서비스, Presenter/Info 구조 사용. `sharelink`는 유일한 write 컨텍스트로,
-  Resource Server(JWT) 기반 인증 API(`POST /api/v1/share-links`)를 사용한다.
+  Resource Server(JWT) 기반 선택적 인증(`POST /api/v1/share-links`, 토큰 있으면 공유자 기록)을 사용한다.
 
 ## District Service
 
