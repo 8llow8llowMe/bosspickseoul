@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
  */
 class KafkaAnalysisViewEventAdapterTest {
 
-    private final RankingProperties properties = new RankingProperties(true, "bosspick.analysis-events", 24, 50);
+    private final RankingProperties properties = new RankingProperties(true, "bosspick.analysis-events", 24, 50, 3, 1);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private AnalysisViewEvent event() {
