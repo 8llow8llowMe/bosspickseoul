@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.region.application.port.out;
 
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.domain.model.CommercialRegionMapping;
 import java.util.List;
@@ -20,4 +21,6 @@ public interface CommercialRegionMappingRepositoryPort {
     Optional<CommercialRegionMapping> findFirstByAdministrationCode(String administrationCode);
 
     Optional<CommercialRegionMapping> findFirstByCommercialCode(String commercialCode);
+
+    Optional<DistrictAreaInfo> findFirstByDistrictCode(String districtCode);
 }

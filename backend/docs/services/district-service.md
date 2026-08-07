@@ -25,11 +25,12 @@
 
 ## 지역 계층 API (`/api/v1/regions`)
 
+- `GET /districts/{districtCode}` — 자치구 단건 조회 (코드→명칭, AI 리포트 등 내부 조회용)
 - `GET /districts/{districtCode}/administrations` — 자치구 소속 행정동 목록
 - `GET /districts/{districtCode}/administrations/{administrationCode}/commercials` — 행정동 소속 상권 목록
 - `GET /code-lookup` — 코드/코드명 조회
 - `GET /administrations/{administrationCode}` — 행정동 단건 조회
-- `GET /commercials/{commercialCode}/administration` — 상권의 소속 행정동(및 자치구) 조회
+- `GET /commercials/{commercialCode}/administration` — 상권의 소속 행정동(및 자치구) 조회 (상권명 포함)
 
 ## 현재 구현 주의점
 

@@ -2,6 +2,7 @@ package com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence;
 
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.entity.CommercialRegionMappingEntity;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.out.persistence.repository.CommercialRegionMappingRepository;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.mapper.CommercialRegionMappingMapper;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.out.CommercialRegionMappingRepositoryPort;
@@ -58,10 +59,21 @@ public class CommercialRegionMappingRepositoryAdapter implements CommercialRegio
     public Optional<CommercialRegionMapping> findFirstByCommercialCode(String commercialCode) {
         return commercialRegionMappingRepository.findFirstByCommercialCode(commercialCode)
             .map(projection -> CommercialRegionMapping.builder()
+                .commercialCode(projection.getCommercialCode())
+                .commercialName(projection.getCommercialName())
                 .districtCode(projection.getDistrictCode())
                 .districtName(projection.getDistrictName())
                 .administrationCode(projection.getAdministrationCode())
                 .administrationName(projection.getAdministrationName())
+                .build());
+    }
+
+    @Override
+    public Optional<DistrictAreaInfo> findFirstByDistrictCode(String districtCode) {
+        return commercialRegionMappingRepository.findFirstByDistrictCode(districtCode)
+            .map(projection -> DistrictAreaInfo.builder()
+                .districtCode(projection.getDistrictCode())
+                .districtName(projection.getDistrictName())
                 .build());
     }
 }

@@ -4,12 +4,14 @@ import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.respon
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationDistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.presenter.RegionPresenter;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.AdministrationDistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.nowdoboss.domainlayer.region.application.info.DistrictAreaInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.nowdoboss.domainlayer.region.application.port.in.RegionWebUseCase;
 import com.followfollowme.nowdoboss.domainlayer.region.application.service.processor.RegionQueryProcessor;
@@ -59,5 +61,12 @@ public class RegionWebFacade implements RegionWebUseCase {
     public CommercialAdministrationAreaResponse getCommercialAdministrationByCommercialCode(String commercialCode) {
         CommercialAdministrationAreaInfo info = regionQueryProcessor.getCommercialAdministrationByCommercialCode(commercialCode);
         return regionPresenter.toCommercialAdministrationAreaResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DistrictAreaResponse getDistrictByDistrictCode(String districtCode) {
+        DistrictAreaInfo info = regionQueryProcessor.getDistrictByDistrictCode(districtCode);
+        return regionPresenter.toDistrictAreaResponse(info);
     }
 }

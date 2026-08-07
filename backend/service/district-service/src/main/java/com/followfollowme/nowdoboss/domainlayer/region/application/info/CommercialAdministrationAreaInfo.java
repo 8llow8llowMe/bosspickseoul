@@ -5,6 +5,8 @@ import lombok.Builder;
 
 @Builder
 public record CommercialAdministrationAreaInfo(
+    String commercialCode,
+    String commercialName,
     String districtCode,
     String districtName,
     String administrationCode,
@@ -13,6 +15,8 @@ public record CommercialAdministrationAreaInfo(
 
     public static CommercialAdministrationAreaInfo from(CommercialRegionMapping commercialRegionMapping) {
         return CommercialAdministrationAreaInfo.builder()
+            .commercialCode(commercialRegionMapping.commercialCode())
+            .commercialName(commercialRegionMapping.commercialName())
             .districtCode(commercialRegionMapping.districtCode())
             .districtName(commercialRegionMapping.districtName())
             .administrationCode(commercialRegionMapping.administrationCode())

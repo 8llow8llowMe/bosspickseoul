@@ -4,6 +4,7 @@ import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.respon
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.AdministrationDistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAdministrationAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.CommercialAreaResponse;
+import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.adapter.in.web.dto.response.RegionCodeLookupResponse;
 import com.followfollowme.nowdoboss.domainlayer.region.domain.enums.RegionCodeType;
 import java.util.List;
@@ -19,4 +20,6 @@ public interface RegionWebUseCase {
     AdministrationDistrictAreaResponse getAdministrationDistrictByAdministrationCode(String administrationCode);
 
     CommercialAdministrationAreaResponse getCommercialAdministrationByCommercialCode(String commercialCode);
+
+    DistrictAreaResponse getDistrictByDistrictCode(String districtCode);
 }
