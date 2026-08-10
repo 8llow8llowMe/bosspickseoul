@@ -876,6 +876,7 @@ idle → submitting → ┬── cached (200)        → completed
 - **호출**: `GET /api/v1/districts/top-ten`, `GET /api/v1/map/districts` (lite).
 - **상태**: loading → 자치구 카드 6칸 skeleton. error → 토스트.
 - **금지**: 마케팅 hero 그라디언트, decorative glow, glass panel.
+- **예외(승인 2026-08-10)**: 랜딩 히어로(`/`)의 "떠 있는 분석 창" 카드(`src/components/home/hero-window.tsx`의 `WindowCard`, `hero-glass.ts`의 `glassSurface`, `hero-section.tsx`의 `DockButton`)에 한해 `backdrop-filter` 글래스를 허용한다. 창(window) 은유를 위한 기능적 표현이며, 다른 화면·마케팅 배너로 확산 금지.
 
 **S-DISC-1. `/recommend`**
 
@@ -1227,7 +1228,7 @@ idle → submitting → ┬── cached (200)        → completed
 - [x] Primary `#0ea5e9`, hover `#2272eb`, weak bg `#e8f3ff` 적용 (레거시 `#1549b5`/`#336dd3`/`rgba(21, 73, 181,` 코드 잔존 없음, 2026-07-15 `rg` 검증)
 - [x] Radius 스케일을 `4px`/`8px`/`12px`/`16px`/`9999px`로 제한 (`border-radius: (1[7-9]|[2-9][0-9])px` grep 무결과)
 - [ ] Shadow가 전 화면에서 단일 black opacity 계열만 사용하는지 — 화면별 실사 필요
-- [x] 장식용 gradient/glass 코드 없음 (`linear-gradient|radial-gradient|backdrop-filter|glassmorphism` grep 무결과, `src/components/home` 포함)
+- [x] 장식용 gradient/glass 코드 없음 — 2026-07-15 `rg` 검증 기준(전면 재검증은 Task 09에서). 단, 2026-08-10 승인 예외로 `src/components/home/hero-window.tsx`, `hero-section.tsx`(및 `hero-glass.ts`의 `glassSurface`)에는 히어로 글래스 `backdrop-filter`가 존재한다 — S-HOME `금지`/`예외` 항목 참고
 - [ ] 숫자·금액·지표·count에 `font-variant-numeric: tabular-nums` 전면 적용 — 화면별 실사 필요
 - [x] `prefers-reduced-motion: reduce` 대응 — `motion-instant/fast/standard/slow/page`, `ease-enter/exit/standard` 토큰이 `global-styles.ts` 및 `components/ui/*`에서 다수 사용 확인
 
@@ -1259,6 +1260,7 @@ idle → submitting → ┬── cached (200)        → completed
 ### Task 05. Home — 완료로 보임
 
 - `src/components/home/home-page.tsx`에서 `linear-gradient|radial-gradient|backdrop-filter|glassmorphism` grep 무결과.
+- [x] (2026-08-10 갱신) 같은 디렉터리의 `hero-window.tsx`, `hero-section.tsx`는 예외적으로 `backdrop-filter` 글래스를 사용한다 — S-HOME `예외(승인 2026-08-10)` 항목에 정본화됨. `home-page.tsx` 자체는 여전히 grep 무결과.
 - [ ] 잔여: 375px 뷰포트에서 첫 화면 overflow 여부는 Task 09 manual QA 대상.
 
 ### Task 06. Data Workflows — Manual QA 필요
@@ -1282,6 +1284,7 @@ idle → submitting → ┬── cached (200)        → completed
 - [ ] 375 / 768 / 1280px 3개 뷰포트에서 아래 Route Checklist 전수 시각 확인:
       `/`, `/login`, `/register`, `/status`, `/recommend`, `/analysis`, `/analysis/result`, `/simulation`, `/simulation/report`, `/simulation/compare`, `/community/list`, `/community/register`, `/chatting/list`, `/profile/settings`, `/profile/bookmarks`
 - [ ] Static Search Checklist 재실행 및 결과 기록:
+
   ```sh
   rg -n "#1549b5|#336dd3|rgba\(21, 73, 181" src app
   rg -n "linear-gradient|radial-gradient|backdrop-filter|filter: blur|box-shadow" src/components app
@@ -1289,6 +1292,9 @@ idle → submitting → ┬── cached (200)        → completed
   rg -n "letter-spacing: -" src/components app
   rg -n "font-size: clamp|vw" src/components app
   ```
+
+  - 위 두 번째 명령(`backdrop-filter` 포함)의 `src/components/home` 매치는 승인된 히어로 글래스 예외인 `hero-window.tsx`/`hero-section.tsx`만 예상된다(S-HOME `예외(승인 2026-08-10)` 참고). 그 외 경로에서 새 매치가 나오면 회귀로 간주하고 확인한다.
+
 - [x] `docs/design-guide.md` 갱신/deprecated 표시 — 이번 문서 통합(Task 4)으로 archive 이동 + 이 문서로 흡수 완료.
 - [ ] QA 결과를 `frontend/docs/runbook/qa.md` 또는 신규 QA 노트에 기록
 
