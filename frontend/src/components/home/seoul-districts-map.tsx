@@ -38,10 +38,19 @@ const DistrictPath = styled.path`
     transition: fill var(--motion-fast) var(--ease-standard);
   }
 
+  /* 마우스 pointer-down(:focus) 시 브라우저 기본 파란 아웃라인 제거 */
+  &:focus {
+    outline: none;
+  }
+
+  &:active {
+    outline: none;
+  }
+
+  /* 키보드 탐색(:focus-visible)만 fill 강조로 표시(아웃라인 없음) */
   &:focus-visible {
     outline: none;
     fill: var(--color-primary-700);
-    box-shadow: var(--shadow-focus-primary);
   }
 
   @media (prefers-reduced-motion: reduce) {
