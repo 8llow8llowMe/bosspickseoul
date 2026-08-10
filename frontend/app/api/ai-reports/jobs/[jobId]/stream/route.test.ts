@@ -26,7 +26,10 @@ describe('AI 리포트 스트리밍 라우트', () => {
   it('무세션이면 401', async () => {
     getSession.mockResolvedValue(null)
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/ai-reports/jobs/j1/stream'), ctx)
+    const res = await GET(
+      new Request('http://x/api/ai-reports/jobs/j1/stream'),
+      ctx,
+    )
     expect(res.status).toBe(401)
   })
 
@@ -41,7 +44,10 @@ describe('AI 리포트 스트리밍 라우트', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/ai-reports/jobs/j1/stream'), ctx)
+    const res = await GET(
+      new Request('http://x/api/ai-reports/jobs/j1/stream'),
+      ctx,
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('text/event-stream')
     expect(res.headers.get('cache-control')).toContain('no-transform')
@@ -54,8 +60,16 @@ describe('AI 리포트 스트리밍 라우트', () => {
   })
 
   it('백엔드가 401을 반환하면 재발급 후 재시도한다', async () => {
-    const session1 = { accessToken: 'old-token', refreshToken: 'r1', memberId: '1' }
-    const session2 = { accessToken: 'new-token', refreshToken: 'r2', memberId: '1' }
+    const session1 = {
+      accessToken: 'old-token',
+      refreshToken: 'r1',
+      memberId: '1',
+    }
+    const session2 = {
+      accessToken: 'new-token',
+      refreshToken: 'r2',
+      memberId: '1',
+    }
     getSession.mockResolvedValue(session1)
     reissueSession.mockResolvedValue(session2)
     const upstreamBody = new ReadableStream()
@@ -70,7 +84,10 @@ describe('AI 리포트 스트리밍 라우트', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/ai-reports/jobs/j1/stream'), ctx)
+    const res = await GET(
+      new Request('http://x/api/ai-reports/jobs/j1/stream'),
+      ctx,
+    )
     expect(res.status).toBe(200)
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(setSession).toHaveBeenCalledWith(session2)
@@ -81,13 +98,22 @@ describe('AI 리포트 스트리밍 라우트', () => {
   })
 
   it('401 후 재발급이 실패하면 세션을 지우고 401을 반환한다', async () => {
-    const session1 = { accessToken: 'old-token', refreshToken: 'r1', memberId: '1' }
+    const session1 = {
+      accessToken: 'old-token',
+      refreshToken: 'r1',
+      memberId: '1',
+    }
     getSession.mockResolvedValue(session1)
     reissueSession.mockResolvedValue(null)
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 401 }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 401 }))
     vi.stubGlobal('fetch', fetchMock)
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/ai-reports/jobs/j1/stream'), ctx)
+    const res = await GET(
+      new Request('http://x/api/ai-reports/jobs/j1/stream'),
+      ctx,
+    )
     expect(res.status).toBe(401)
     expect(clearSession).toHaveBeenCalledTimes(1)
     expect(setSession).not.toHaveBeenCalled()
@@ -104,7 +130,10 @@ describe('AI 리포트 스트리밍 라우트', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
     const { GET } = await import('./route')
-    const res = await GET(new Request('http://x/api/ai-reports/jobs/j1/stream'), ctx)
+    const res = await GET(
+      new Request('http://x/api/ai-reports/jobs/j1/stream'),
+      ctx,
+    )
     expect(res.status).toBe(404)
     expect(await res.text()).toContain('AI_005')
   })

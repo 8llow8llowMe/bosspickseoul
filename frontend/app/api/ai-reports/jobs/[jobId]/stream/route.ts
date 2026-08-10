@@ -19,7 +19,10 @@ const connect = (
 ) =>
   fetch(`${backendApiUrl}/api/v1/ai-reports/jobs/${jobId}/stream`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'text/event-stream' },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'text/event-stream',
+    },
     signal,
     redirect: 'manual',
   })
@@ -33,10 +36,18 @@ export async function GET(
 
   let session: SessionPayload | null = await getSession()
   if (!session) {
-    return NextResponse.json({ message: '로그인이 필요합니다.' }, { status: 401 })
+    return NextResponse.json(
+      { message: '로그인이 필요합니다.' },
+      { status: 401 },
+    )
   }
 
-  let upstream = await connect(backendApiUrl, jobId, session.accessToken, req.signal)
+  let upstream = await connect(
+    backendApiUrl,
+    jobId,
+    session.accessToken,
+    req.signal,
+  )
   if (upstream.status === 401) {
     const next = await reissueSession(session, backendApiUrl)
     if (!next) {
@@ -48,7 +59,12 @@ export async function GET(
     }
     await setSession(next)
     session = next
-    upstream = await connect(backendApiUrl, jobId, session.accessToken, req.signal)
+    upstream = await connect(
+      backendApiUrl,
+      jobId,
+      session.accessToken,
+      req.signal,
+    )
   }
 
   // 실패 응답(404 AI_005 등)만 본문을 읽어 그대로 전달한다.

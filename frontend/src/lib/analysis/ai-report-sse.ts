@@ -25,7 +25,8 @@ export const parseSseBuffer = (
     for (const line of block.split('\n')) {
       if (line === '' || line.startsWith(':')) continue // 하트비트/빈 줄 무시
       if (line.startsWith('event:')) event = line.slice(6).trim()
-      else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+      else if (line.startsWith('data:'))
+        dataLines.push(line.slice(5).trimStart())
     }
     if (dataLines.length > 0) events.push({ event, data: dataLines.join('\n') })
   }

@@ -69,9 +69,9 @@ describe('submission helpers', () => {
 describe('reportFromJob', () => {
   it('레벨에 맞는 필드를 선택한다', () => {
     const region = { summary: 'r' } as never
-    expect(
-      reportFromJob(job({ districtReport: region }), 'district'),
-    ).toBe(region)
+    expect(reportFromJob(job({ districtReport: region }), 'district')).toBe(
+      region,
+    )
     expect(
       reportFromJob(job({ commercialReport: cReport }), 'commercial'),
     ).toBe(cReport)
@@ -87,7 +87,11 @@ describe('decideNextPoll', () => {
   it('FAILED → errorMessage/errorCode 사용', () => {
     expect(
       decideNextPoll(
-        job({ status: meta('FAILED'), errorMessage: '실패함', errorCode: 'AI_002' }),
+        job({
+          status: meta('FAILED'),
+          errorMessage: '실패함',
+          errorCode: 'AI_002',
+        }),
         1000,
       ),
     ).toEqual({ kind: 'error', message: '실패함', errorCode: 'AI_002' })
@@ -100,8 +104,10 @@ describe('decideNextPoll', () => {
   })
   it('타임아웃 초과 → error', () => {
     expect(
-      decideNextPoll(job({ status: meta('RUNNING') }), AI_REPORT_POLL_TIMEOUT_MS)
-        .kind,
+      decideNextPoll(
+        job({ status: meta('RUNNING') }),
+        AI_REPORT_POLL_TIMEOUT_MS,
+      ).kind,
     ).toBe('error')
   })
   it('job 없음+타임아웃 전 → poll', () => {

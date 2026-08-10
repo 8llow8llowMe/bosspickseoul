@@ -24,20 +24,20 @@
 
 ## File Structure
 
-| 파일 | 책임 | 상태 |
-| --- | --- | --- |
-| `src/types/ai-report.ts` | 응답 스키마 미러(Meta 객체 계약) | 재작성 |
-| `src/lib/api/ai-report.ts` | 3종 제출 + 폴링 어댑터, 경로 빌더 | 재작성 |
-| `src/lib/analysis/ai-report-poll.ts` | 제출/폴링 판정·리포트 선택 순수함수 | 재작성 |
-| `src/lib/analysis/ai-report-presentation.ts` | 뷰모델 정규화 + 가시성 헬퍼(잠금 포함) | 일부 수정(Task 6) |
-| `src/lib/analysis/ai-report-sse.ts` | SSE 프레임 파서 + 구독기 | 신규 |
-| `src/lib/analysis/ai-report-samples.ts` | 잠금 카드용 레벨별 정적 샘플 | 신규 |
-| `app/api/ai-reports/jobs/[jobId]/stream/route.ts` | 전용 SSE 스트리밍 라우트 | 신규 |
-| `src/hooks/use-ai-report.ts` | 제출 + SSE/폴링 상태 머신 | 재작성(Task 1 poll-only → Task 4 SSE) |
-| `src/hooks/use-progress-rotation.ts` | progressMessages 4초 순환 | 신규 |
-| `src/components/analysis/ai-report/ai-report-panel.tsx` | 패널 셸(단계·진행문구·에러) | 수정(Task 5) |
-| `src/components/analysis/ai-report/ai-report-lock-card.tsx` | 잠금 카드 | 신규(Task 6) |
-| `src/components/analysis/analysis-page.tsx` | 카드/잠금/패널 배치·게이팅 | 수정(Task 7) |
+| 파일                                                        | 책임                                   | 상태                                  |
+| ----------------------------------------------------------- | -------------------------------------- | ------------------------------------- |
+| `src/types/ai-report.ts`                                    | 응답 스키마 미러(Meta 객체 계약)       | 재작성                                |
+| `src/lib/api/ai-report.ts`                                  | 3종 제출 + 폴링 어댑터, 경로 빌더      | 재작성                                |
+| `src/lib/analysis/ai-report-poll.ts`                        | 제출/폴링 판정·리포트 선택 순수함수    | 재작성                                |
+| `src/lib/analysis/ai-report-presentation.ts`                | 뷰모델 정규화 + 가시성 헬퍼(잠금 포함) | 일부 수정(Task 6)                     |
+| `src/lib/analysis/ai-report-sse.ts`                         | SSE 프레임 파서 + 구독기               | 신규                                  |
+| `src/lib/analysis/ai-report-samples.ts`                     | 잠금 카드용 레벨별 정적 샘플           | 신규                                  |
+| `app/api/ai-reports/jobs/[jobId]/stream/route.ts`           | 전용 SSE 스트리밍 라우트               | 신규                                  |
+| `src/hooks/use-ai-report.ts`                                | 제출 + SSE/폴링 상태 머신              | 재작성(Task 1 poll-only → Task 4 SSE) |
+| `src/hooks/use-progress-rotation.ts`                        | progressMessages 4초 순환              | 신규                                  |
+| `src/components/analysis/ai-report/ai-report-panel.tsx`     | 패널 셸(단계·진행문구·에러)            | 수정(Task 5)                          |
+| `src/components/analysis/ai-report/ai-report-lock-card.tsx` | 잠금 카드                              | 신규(Task 6)                          |
+| `src/components/analysis/analysis-page.tsx`                 | 카드/잠금/패널 배치·게이팅             | 수정(Task 7)                          |
 
 각 파일의 테스트는 동일 경로 `*.test.ts`.
 
@@ -48,6 +48,7 @@
 백엔드 계약이 문자열 → `{code,name,description}` 객체로 바뀌고 region도 POST가 되므로, 타입·API·poll·훅·기존 테스트를 **원자적으로** 함께 옮긴다. 이 단계는 SSE 없이 3종 전부 POST+폴링으로 동작하는 그린 상태를 만든다.
 
 **Files:**
+
 - Modify: `src/types/ai-report.ts` (rewrite)
 - Modify: `src/lib/api/ai-report.ts` (rewrite)
 - Modify: `src/lib/analysis/ai-report-poll.ts` (rewrite)
@@ -55,6 +56,7 @@
 - Test: `src/lib/api/ai-report.test.ts` (update), `src/lib/analysis/ai-report-poll.test.ts` (update), `src/components/analysis/ai-report/ai-report-panel.test.ts` (update for new state shape)
 
 **Interfaces:**
+
 - Produces:
   - `type Meta<C extends string = string> = { code: C; name: string; description: string }`
   - `AiReportJobTypeCode = 'COMMERCIAL' | 'COMMERCIAL_COMPARISON' | 'DISTRICT' | 'ADMINISTRATION'`
@@ -82,7 +84,11 @@ export type Meta<C extends string = string> = {
 }
 
 export type AiReportSubmissionCode = 'CACHED' | 'ACCEPTED'
-export type AiReportJobStatusCode = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+export type AiReportJobStatusCode =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
 export type AiReportJobTypeCode =
   | 'COMMERCIAL'
   | 'COMMERCIAL_COMPARISON'
@@ -138,7 +144,8 @@ export type AiReportJob = ReportFields & {
 export type DistrictAiReportSubmissionResponse = ApiResponse<AiReportSubmission>
 export type AdministrationAiReportSubmissionResponse =
   ApiResponse<AiReportSubmission>
-export type CommercialAiReportSubmissionResponse = ApiResponse<AiReportSubmission>
+export type CommercialAiReportSubmissionResponse =
+  ApiResponse<AiReportSubmission>
 export type AiReportJobStatusResponse = ApiResponse<AiReportJob>
 ```
 
@@ -293,9 +300,9 @@ describe('submission helpers', () => {
 describe('reportFromJob', () => {
   it('레벨에 맞는 필드를 선택한다', () => {
     const region = { summary: 'r' } as never
-    expect(
-      reportFromJob(job({ districtReport: region }), 'district'),
-    ).toBe(region)
+    expect(reportFromJob(job({ districtReport: region }), 'district')).toBe(
+      region,
+    )
     expect(
       reportFromJob(job({ commercialReport: cReport }), 'commercial'),
     ).toBe(cReport)
@@ -311,7 +318,11 @@ describe('decideNextPoll', () => {
   it('FAILED → errorMessage/errorCode 사용', () => {
     expect(
       decideNextPoll(
-        job({ status: meta('FAILED'), errorMessage: '실패함', errorCode: 'AI_002' }),
+        job({
+          status: meta('FAILED'),
+          errorMessage: '실패함',
+          errorCode: 'AI_002',
+        }),
         1000,
       ),
     ).toEqual({ kind: 'error', message: '실패함', errorCode: 'AI_002' })
@@ -324,8 +335,10 @@ describe('decideNextPoll', () => {
   })
   it('타임아웃 초과 → error', () => {
     expect(
-      decideNextPoll(job({ status: meta('RUNNING') }), AI_REPORT_POLL_TIMEOUT_MS)
-        .kind,
+      decideNextPoll(
+        job({ status: meta('RUNNING') }),
+        AI_REPORT_POLL_TIMEOUT_MS,
+      ).kind,
     ).toBe('error')
   })
   it('job 없음+타임아웃 전 → poll', () => {
@@ -498,7 +511,11 @@ export type AiReportErrorKind =
   | 'generic'
 export type AiReportState =
   | { status: 'idle' }
-  | { status: 'loading'; stage: AiReportStage | null; progressMessages: string[] }
+  | {
+      status: 'loading'
+      stage: AiReportStage | null
+      progressMessages: string[]
+    }
   | { status: 'ready-commercial'; view: CommercialReportView }
   | { status: 'ready-region'; view: RegionReportView }
   | { status: 'empty' }
@@ -631,7 +648,9 @@ const buildReady = (
 
 const loadingFromJob = (job: AiReportJob | undefined): AiReportState => ({
   status: 'loading',
-  stage: job ? { name: job.status.name, description: job.status.description } : null,
+  stage: job
+    ? { name: job.status.name, description: job.status.description }
+    : null,
   progressMessages: job?.progressMessages ?? [],
 })
 
@@ -705,10 +724,12 @@ git commit -m "[FE] refactor(ai-report): 계약 객체화 + 3종 POST 제출·�
 ## Task 2: SSE 프레임 파서 + 구독기 (무의존)
 
 **Files:**
+
 - Create: `src/lib/analysis/ai-report-sse.ts`
 - Test: `src/lib/analysis/ai-report-sse.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `parseSseBuffer(buffer: string): { events: SseEvent[]; rest: string }` where `SseEvent = { event: string; data: string }`
   - `buildJobStreamUrl(jobId: string): string`
@@ -731,9 +752,7 @@ import type { AiReportJob } from '@/types/ai-report'
 
 describe('buildJobStreamUrl', () => {
   it('전용 스트리밍 라우트 경로를 만든다', () => {
-    expect(buildJobStreamUrl('job-1')).toBe(
-      '/api/ai-reports/jobs/job-1/stream',
-    )
+    expect(buildJobStreamUrl('job-1')).toBe('/api/ai-reports/jobs/job-1/stream')
   })
 })
 
@@ -776,7 +795,11 @@ describe('subscribeJobStream', () => {
     let done = false
     await subscribeJobStream(
       'j1',
-      { onEvent: j => events.push(j), onError: () => {}, onDone: () => (done = true) },
+      {
+        onEvent: j => events.push(j),
+        onError: () => {},
+        onDone: () => (done = true),
+      },
       new AbortController().signal,
     )
     expect(events).toHaveLength(1)
@@ -839,7 +862,8 @@ export const parseSseBuffer = (
     for (const line of block.split('\n')) {
       if (line === '' || line.startsWith(':')) continue // 하트비트/빈 줄 무시
       if (line.startsWith('event:')) event = line.slice(6).trim()
-      else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+      else if (line.startsWith('data:'))
+        dataLines.push(line.slice(5).trimStart())
     }
     if (dataLines.length > 0) events.push({ event, data: dataLines.join('\n') })
   }
@@ -906,10 +930,12 @@ git commit -m "[FE] feat(ai-report): SSE 프레임 파서 + fetch reader 구독�
 ## Task 3: 전용 SSE 스트리밍 라우트
 
 **Files:**
+
 - Create: `app/api/ai-reports/jobs/[jobId]/stream/route.ts`
 - Test: `app/api/ai-reports/jobs/[jobId]/stream/route.test.ts`
 
 **Interfaces:**
+
 - Consumes: `getServerEnv`(`@/lib/env.server`), `getSession`/`setSession`/`clearSession`(`@/lib/auth/session`), `reissueSession`(`@/lib/auth/reissue`) — 기존 `/api/bff` 라우트와 동일 패턴.
 - Produces: `GET(req, ctx)` — 세션 Bearer 주입 후 백엔드 SSE를 `text/event-stream`으로 파이프. 무세션 → 401 JSON. 401 → 재발급 1회 재시도. 성공 응답은 **버퍼링하지 않는다**.
 
@@ -940,7 +966,10 @@ afterEach(() => vi.unstubAllGlobals())
 describe('AI 리포트 스트리밍 라우트', () => {
   it('무세션이면 401', async () => {
     getSession.mockResolvedValue(null)
-    const res = await GET(new Request('http://x/api/ai-reports/jobs/j1/stream'), ctx)
+    const res = await GET(
+      new Request('http://x/api/ai-reports/jobs/j1/stream'),
+      ctx,
+    )
     expect(res.status).toBe(401)
   })
 
@@ -954,7 +983,10 @@ describe('AI 리포트 스트리밍 라우트', () => {
       }),
     )
     vi.stubGlobal('fetch', fetchMock)
-    const res = await GET(new Request('http://x/api/ai-reports/jobs/j1/stream'), ctx)
+    const res = await GET(
+      new Request('http://x/api/ai-reports/jobs/j1/stream'),
+      ctx,
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('text/event-stream')
     expect(res.headers.get('cache-control')).toContain('no-transform')
@@ -999,7 +1031,10 @@ const connect = (
 ) =>
   fetch(`${backendApiUrl}/api/v1/ai-reports/jobs/${jobId}/stream`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'text/event-stream' },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'text/event-stream',
+    },
     signal,
     redirect: 'manual',
   })
@@ -1013,10 +1048,18 @@ export async function GET(
 
   let session: SessionPayload | null = await getSession()
   if (!session) {
-    return NextResponse.json({ message: '로그인이 필요합니다.' }, { status: 401 })
+    return NextResponse.json(
+      { message: '로그인이 필요합니다.' },
+      { status: 401 },
+    )
   }
 
-  let upstream = await connect(backendApiUrl, jobId, session.accessToken, req.signal)
+  let upstream = await connect(
+    backendApiUrl,
+    jobId,
+    session.accessToken,
+    req.signal,
+  )
   if (upstream.status === 401) {
     const next = await reissueSession(session, backendApiUrl)
     if (!next) {
@@ -1028,7 +1071,12 @@ export async function GET(
     }
     await setSession(next)
     session = next
-    upstream = await connect(backendApiUrl, jobId, session.accessToken, req.signal)
+    upstream = await connect(
+      backendApiUrl,
+      jobId,
+      session.accessToken,
+      req.signal,
+    )
   }
 
   // 실패 응답(404 AI_005 등)만 본문을 읽어 그대로 전달한다.
@@ -1076,10 +1124,12 @@ git commit -m "[FE] feat(ai-report): 전용 SSE 스트리밍 라우트(세션 Be
 Task 1의 폴링 훅에 SSE 구독을 얹는다. jobId가 생기면 SSE로 job 스냅샷을 받아 로컬 상태를 갱신하고, SSE `onError`(비종결)면 폴링을 활성화한다.
 
 **Files:**
+
 - Modify: `src/hooks/use-ai-report.ts`
 - Test: `src/hooks/use-ai-report.test.ts` (create)
 
 **Interfaces:**
+
 - Consumes: `subscribeJobStream`(`@/lib/analysis/ai-report-sse`)
 - Produces: 동일한 `useAiReport` 시그니처. 내부에 `sseJob` 로컬 상태와 `fallbackToPolling` 플래그 추가.
 
@@ -1087,9 +1137,9 @@ Task 1의 폴링 훅에 SSE 구독을 얹는다. jobId가 생기면 SSE로 job �
 
 `use-ai-report.ts`에 아래를 추가/수정한다.
 
-1) import 추가: `import { subscribeJobStream } from '@/lib/analysis/ai-report-sse'`
+1. import 추가: `import { subscribeJobStream } from '@/lib/analysis/ai-report-sse'`
 
-2) 훅 본문에서 jobId 확정 직후, 폴링(`jobQuery`) 정의 **앞에** SSE 구독 상태를 둔다:
+2. 훅 본문에서 jobId 확정 직후, 폴링(`jobQuery`) 정의 **앞에** SSE 구독 상태를 둔다:
 
 ```ts
 const [sseJob, setSseJob] = useState<AiReportJob | null>(null)
@@ -1127,13 +1177,13 @@ useEffect(() => {
 }, [on, jobId, cachedReport])
 ```
 
-3) `jobQuery`의 `enabled`를 폴백 조건으로 좁힌다:
+3. `jobQuery`의 `enabled`를 폴백 조건으로 좁힌다:
 
 ```ts
 enabled: on && Boolean(jobId) && !cachedReport && pollingFallback,
 ```
 
-4) `deriveState`가 SSE job과 폴링 job 중 최신을 쓰도록, `job = sseJob ?? a.jobQuery.data`로 합류시킨다. `deriveState` 호출부에 `sseJob`을 넘기고, 내부에서 `const job = a.sseJob ?? a.jobQuery.data`로 바꾼 뒤 `decideNextPoll(job, ...)`/`reportFromJob(job!, ...)`/`loadingFromJob(job ?? undefined)`에 사용한다.
+4. `deriveState`가 SSE job과 폴링 job 중 최신을 쓰도록, `job = sseJob ?? a.jobQuery.data`로 합류시킨다. `deriveState` 호출부에 `sseJob`을 넘기고, 내부에서 `const job = a.sseJob ?? a.jobQuery.data`로 바꾼 뒤 `decideNextPoll(job, ...)`/`reportFromJob(job!, ...)`/`loadingFromJob(job ?? undefined)`에 사용한다.
 
 > 결과: SSE가 살아 있으면 `sseJob`으로 즉시 단계/완료를 반영하고, 끊기면 `pollingFallback=true`로 폴링이 켜져 동일 상태 머신을 계속 굴린다. 종결 도달 시 `decideNextPoll`이 `ready`/`error`를 반환하고, 폴링 `refetchInterval`은 `false`가 되어 멈춘다.
 
@@ -1152,11 +1202,19 @@ import * as sse from '@/lib/analysis/ai-report-sse'
 import { useAiReport } from '@/hooks/use-ai-report'
 import type { AiReportJob, AiReportSubmission, Meta } from '@/types/ai-report'
 
-const meta = <C extends string>(c: C): Meta<C> => ({ code: c, name: c, description: c })
+const meta = <C extends string>(c: C): Meta<C> => ({
+  code: c,
+  name: c,
+  description: c,
+})
 const wrapper = ({ children }: { children: ReactNode }) =>
   createElement(
     QueryClientProvider,
-    { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+    {
+      client: new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      }),
+    },
     children,
   )
 
@@ -1197,7 +1255,9 @@ describe('useAiReport', () => {
         }),
       { wrapper },
     )
-    await waitFor(() => expect(result.current.state.status).toBe('ready-region'))
+    await waitFor(() =>
+      expect(result.current.state.status).toBe('ready-region'),
+    )
   })
 
   it('SSE onError면 폴링 폴백으로 전환된다', async () => {
@@ -1212,19 +1272,17 @@ describe('useAiReport', () => {
     vi.spyOn(sse, 'subscribeJobStream').mockImplementation(async (_id, cb) => {
       cb.onError(new Error('drop'))
     })
-    const pollSpy = vi
-      .spyOn(api, 'fetchAiReportJob')
-      .mockResolvedValue({
-        jobId: 'j2',
-        jobType: meta('DISTRICT'),
-        status: meta('COMPLETED'),
-        progressMessages: null,
-        commercialReport: null,
-        districtReport: { summary: '폴백요약' } as never,
-        administrationReport: null,
-        errorCode: null,
-        errorMessage: null,
-      } as AiReportJob)
+    const pollSpy = vi.spyOn(api, 'fetchAiReportJob').mockResolvedValue({
+      jobId: 'j2',
+      jobType: meta('DISTRICT'),
+      status: meta('COMPLETED'),
+      progressMessages: null,
+      commercialReport: null,
+      districtReport: { summary: '폴백요약' } as never,
+      administrationReport: null,
+      errorCode: null,
+      errorMessage: null,
+    } as AiReportJob)
     const { result } = renderHook(
       () =>
         useAiReport({
@@ -1237,7 +1295,9 @@ describe('useAiReport', () => {
       { wrapper },
     )
     await waitFor(() => expect(pollSpy).toHaveBeenCalled())
-    await waitFor(() => expect(result.current.state.status).toBe('ready-region'))
+    await waitFor(() =>
+      expect(result.current.state.status).toBe('ready-region'),
+    )
   })
 })
 ```
@@ -1259,12 +1319,14 @@ git commit -m "[FE] feat(ai-report): SSE 우선 구독 + 폴링 폴백 훅 결�
 ## Task 5: 진행문구 순환 훅 + 패널 단계/진행/에러 UI
 
 **Files:**
+
 - Create: `src/hooks/use-progress-rotation.ts`
 - Test: `src/hooks/use-progress-rotation.test.ts`
 - Modify: `src/components/analysis/ai-report/ai-report-panel.tsx`
 - Test: `src/components/analysis/ai-report/ai-report-panel.test.ts` (확장)
 
 **Interfaces:**
+
 - Produces: `useProgressRotation(messages: string[], intervalMs?: number): string` — 배열을 intervalMs(기본 4000)마다 순환해 현재 문구를 반환. 빈 배열이면 `''`.
 - Consumes: `AiReportState`(단계/진행문구/errorKind).
 
@@ -1351,7 +1413,13 @@ function LoadingBody({
   )
 }
 
-function Content({ state, onRetry }: { state: AiReportState; onRetry: () => void }) {
+function Content({
+  state,
+  onRetry,
+}: {
+  state: AiReportState
+  onRetry: () => void
+}) {
   switch (state.status) {
     case 'loading':
       return (
@@ -1425,6 +1493,7 @@ git commit -m "[FE] feat(ai-report): 진행문구 4초 순환 + 패널 단계/�
 ## Task 6: 미인증 잠금 카드 + 정적 샘플 + 가시성 헬퍼
 
 **Files:**
+
 - Create: `src/lib/analysis/ai-report-samples.ts`
 - Create: `src/components/analysis/ai-report/ai-report-lock-card.tsx`
 - Test: `src/components/analysis/ai-report/ai-report-lock-card.test.ts`
@@ -1432,6 +1501,7 @@ git commit -m "[FE] feat(ai-report): 진행문구 4초 순환 + 패널 단계/�
 - Test: `src/lib/analysis/ai-report-presentation.test.ts` (가시성 케이스 추가)
 
 **Interfaces:**
+
 - Produces:
   - `sampleCommercialView: CommercialReportView`, `sampleRegionView: RegionReportView` (정적 가짜 데이터)
   - `AiReportLockCard({ level, loginHref }: { level: AiReportLevel; loginHref: string })`
@@ -1508,7 +1578,8 @@ import type {
 
 export const sampleCommercialView: CommercialReportView = {
   headline: {
-    summary: '유동인구가 꾸준한 성장 상권으로, 저녁 시간대 매출 비중이 높습니다.',
+    summary:
+      '유동인구가 꾸준한 성장 상권으로, 저녁 시간대 매출 비중이 높습니다.',
     insight: '20~30대 직장인 수요가 탄탄해 객단가 중심 업종에 유리합니다.',
   },
   strengths: ['배후 직장인 밀집', '저녁 피크 매출', '대중교통 접근성'],
@@ -1642,7 +1713,8 @@ export default function AiReportLockCard({
       <Overlay>
         <Lock size={22} aria-hidden />
         <Copy>
-          이 지역의 강점·리스크·추천 업종을 AI가 요약해 드려요 — 로그인하고 확인하기
+          이 지역의 강점·리스크·추천 업종을 AI가 요약해 드려요 — 로그인하고
+          확인하기
         </Copy>
         <Cta href={loginHref}>로그인하고 AI 리포트 보기</Cta>
       </Overlay>
@@ -1669,16 +1741,18 @@ git commit -m "[FE] feat(ai-report): 미인증 잠금 카드(레벨별 blur 샘�
 ## Task 7: analysis-page 배선 (잠금 카드 노출 + 게이팅)
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-page.tsx`
 
 **Interfaces:**
+
 - Consumes: `AiReportLockCard`, 새 `resolveAiReportVisibility({ hydrated, isLoggedIn, levelKey, panelOpen })`.
 
 - [ ] **Step 1: import + 가시성 계산 교체**
 
-1) `import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'` 추가.
+1. `import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'` 추가.
 
-2) `resolveAiReportVisibility` 호출을 교체(약 500번째 줄):
+2. `resolveAiReportVisibility` 호출을 교체(약 500번째 줄):
 
 ```ts
 const {
@@ -1693,7 +1767,7 @@ const {
 })
 ```
 
-3) 로그인 링크(returnUrl) 계산을 컴포넌트 상단 파생값으로 추출(현재 `handleAiCardOpen` 내부 로직 재사용):
+3. 로그인 링크(returnUrl) 계산을 컴포넌트 상단 파생값으로 추출(현재 `handleAiCardOpen` 내부 로직 재사용):
 
 ```ts
 const aiLoginHref = (() => {
@@ -1703,7 +1777,7 @@ const aiLoginHref = (() => {
 })()
 ```
 
-4) `handleAiCardOpen`은 로그인 사용자 전용 경로만 남긴다(비로그인은 잠금 카드가 CTA를 직접 노출하므로 카드 클릭 분기 불필요):
+4. `handleAiCardOpen`은 로그인 사용자 전용 경로만 남긴다(비로그인은 잠금 카드가 CTA를 직접 노출하므로 카드 클릭 분기 불필요):
 
 ```ts
 const handleAiCardOpen = () => {
@@ -1763,6 +1837,7 @@ git commit -m "[FE] feat(ai-report): 비로그인 잠금 카드 노출 + 로그�
 ## Task 8: 인덱스 상태 갱신 + 전체 검증 + 브라우저 확인
 
 **Files:**
+
 - Modify: `docs/features/_index.md` (AI 리포트 상태/링크 갱신 — 기존 형식을 따른다)
 
 - [ ] **Step 1: 인덱스 상태 갱신**
@@ -1777,6 +1852,7 @@ Expected: 모두 PASS (format:check·lint·typecheck·build).
 - [ ] **Step 3: dev 서버 브라우저 검증**
 
 `.claude/launch.json`의 `bosspick-frontend`(포트 5173)로 dev 실행 후 `/analysis`에서 확인:
+
 1. **비로그인**: 자치구/행정동/상권 선택 시 잠금 카드(blur 샘플 + 로그인 CTA) 노출, 네트워크 탭에 `/api/v1/ai-reports/**` 요청 **없음**. CTA href에 `redirect=` 포함.
 2. **로그인 후**: 카드 클릭 → 패널 오픈 → POST 제출 → (ACCEPTED면) 단계 텍스트 + 진행문구 순환 → COMPLETED에서 리포트 렌더. 네트워크 탭에서 `/api/ai-reports/jobs/{jobId}/stream`이 `text/event-stream`으로 열리는지, 응답이 스트리밍(점진 수신)되는지 확인.
 3. **폴백**: 스트림 요청을 차단(예: 오프라인 토글 후 복구)했을 때 `/api/bff/ai-reports/jobs/{jobId}` 3초 폴링으로 완료 도달.
