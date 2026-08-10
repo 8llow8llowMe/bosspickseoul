@@ -51,7 +51,8 @@ const CardLayer = styled.div`
   justify-content: center;
   padding: 20px;
   z-index: 10;
-  /* 카드 위에서도 뒤의 폴리곤이 hover되도록 포인터 이벤트를 통과시킨다 */
+  /* 스테이지 레이어 자체는 이벤트를 통과시켜 카드 바깥 폴리곤은 계속 hover/클릭 가능하다.
+     카드 영역 자체의 이벤트 차단은 WindowCard(hero-window.tsx)의 pointer-events: auto가 담당한다. */
   pointer-events: none;
 
   @media (max-width: 640px) {

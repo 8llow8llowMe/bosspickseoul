@@ -27,8 +27,8 @@ export type HeroWindowProps = {
 }
 
 const WindowCard = styled.div<{ $tinted?: boolean }>`
-  /* 카드 본문은 이벤트를 통과시키고, 내부 상호작용 요소만 다시 활성화한다 */
-  pointer-events: none;
+  /* 카드 본문이 포인터 이벤트를 가로채 뒤에 있는 지도 폴리곤의 hover/클릭을 막는다 */
+  pointer-events: auto;
   width: min(460px, 100%);
   border-radius: 24px;
   overflow: hidden;
@@ -52,7 +52,6 @@ const WindowCard = styled.div<{ $tinted?: boolean }>`
 `
 
 const TitleBar = styled.div`
-  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -110,7 +109,6 @@ const dotStyles = css<{ $variant: DotVariant }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  pointer-events: auto;
   background: ${p =>
     p.$variant === 'close'
       ? '#ff5f57'
@@ -214,8 +212,6 @@ const Actions = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  /* 오버레이 카드가 이벤트를 통과시켜도 버튼은 클릭 가능해야 한다 */
-  pointer-events: auto;
 `
 
 const PrimaryLink = styled(Link)`
