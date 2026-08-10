@@ -12,6 +12,7 @@ import AnalysisSelectionPanel, {
   type AnalysisCandidate,
 } from '@/components/analysis/analysis-selection-panel'
 import AiReportCard from '@/components/analysis/ai-report/ai-report-card'
+import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'
 import AiReportPanel from '@/components/analysis/ai-report/ai-report-panel'
 import { useAiReport } from '@/hooks/use-ai-report'
 import {
@@ -295,18 +296,19 @@ export default function AnalysisPage() {
     enabled: aiEnabled,
   })
 
-  // 카드는 비로그인 상태에서도 노출한다(기능 존재를 알림). 클릭 시 미로그인이면
-  // 리포트 조회 대신 현재 위치를 보존해 로그인으로 유도한다. 실제 조회는 로그인 필요.
+  // 로그인 사용자만 카드를 클릭해 패널을 연다. 비로그인은 잠금 카드가 CTA를
+  // 직접 노출하므로 이 핸들러가 호출될 일이 없다.
   const handleAiCardOpen = () => {
-    if (!isLoggedIn) {
-      const search = searchParams.toString()
-      const currentHref = search ? `${pathname}?${search}` : pathname
-      router.push(`/login?redirect=${encodeURIComponent(currentHref)}`)
-      return
-    }
     setAiActiveKey(aiLevelKey)
     setAiPanelOpen(true)
   }
+
+  // 비로그인 잠금 카드의 CTA가 사용할 returnUrl 로그인 링크.
+  const aiLoginHref = (() => {
+    const search = searchParams.toString()
+    const currentHref = search ? `${pathname}?${search}` : pathname
+    return `/login?redirect=${encodeURIComponent(currentHref)}`
+  })()
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -495,14 +497,17 @@ export default function AnalysisPage() {
     ? () => router.push(createAnalysisResultHref(selection, 'summary'))
     : undefined
 
-  // 카드/패널 노출은 로그인 여부와 무관하게 하이드레이트만 요구한다(비로그인도 카드 노출).
-  // 미로그인 클릭은 handleAiCardOpen이 로그인으로 유도하므로 패널은 열리지 않는다.
-  const { showCard: showAiCard, showPanel: showAiPanel } =
-    resolveAiReportVisibility({
-      enabled: hasHydrated,
-      levelKey: aiLevelKey,
-      panelOpen: aiPanelOpen,
-    })
+  // 로그인 사용자는 카드→패널 흐름을, 비로그인은 잠금 카드(CTA)를 노출한다.
+  const {
+    showCard: showAiCard,
+    showLockCard: showAiLockCard,
+    showPanel: showAiPanel,
+  } = resolveAiReportVisibility({
+    hydrated: hasHydrated,
+    isLoggedIn,
+    levelKey: aiLevelKey,
+    panelOpen: aiPanelOpen,
+  })
 
   const mapAreas =
     mapLayer === 'district'
@@ -586,6 +591,8 @@ export default function AnalysisPage() {
   const mobileAiReportNode =
     showAiCard && aiLevelKey ? (
       <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
+    ) : showAiLockCard && aiLevel ? (
+      <AiReportLockCard level={aiLevel} loginHref={aiLoginHref} />
     ) : showAiPanel ? (
       <AiReportPanel
         targetName={aiTargetName}
@@ -635,6 +642,8 @@ export default function AnalysisPage() {
       aiReportCard={
         showAiCard && aiLevelKey ? (
           <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
+        ) : showAiLockCard && aiLevel ? (
+          <AiReportLockCard level={aiLevel} loginHref={aiLoginHref} />
         ) : null
       }
       aiReportPanel={
