@@ -142,6 +142,10 @@ export const useAiReport = ({
 
   // SSE로 job 스냅샷을 받는다. 종결(COMPLETED/FAILED) 없이 스트림이
   // 닫히거나 에러가 나면 폴링으로 폴백한다. jobId/level 변경·언마운트 시 정리.
+  // attempt를 deps에 포함: 재시도 시 서버가 동일 jobId를 그대로 돌려줘도
+  // (idempotent) 재구독이 강제되어야 한다. 그렇지 않으면 렌더 중 리셋으로
+  // pollingFallback이 false로 꺾이는데 SSE는 재구독되지 않아 두 전송 모두
+  // 멈춘 채로 loading에 고립된다.
   useEffect(() => {
     if (!on || !jobId || cachedReport) return
     const controller = new AbortController()
@@ -163,7 +167,7 @@ export const useAiReport = ({
       controller.signal,
     )
     return () => controller.abort()
-  }, [on, jobId, cachedReport])
+  }, [on, jobId, cachedReport, attempt])
 
   const jobQuery = useQuery({
     queryKey: ['ai-report', 'job', jobId],
