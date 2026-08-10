@@ -6,7 +6,7 @@ import {
   RegionReportBlocks,
 } from '@/components/analysis/ai-report/report-blocks'
 import { Button } from '@/components/ui/button'
-import type { AiReportState } from '@/hooks/use-ai-report'
+import type { AiReportStage, AiReportState } from '@/hooks/use-ai-report'
 import { useProgressRotation } from '@/hooks/use-progress-rotation'
 
 const Shell = styled.aside`
@@ -70,7 +70,7 @@ function LoadingBody({
   stage,
   progressMessages,
 }: {
-  stage: { name: string; description: string } | null
+  stage: AiReportStage | null
   progressMessages: string[]
 }) {
   const rotating = useProgressRotation(progressMessages, 4000)
