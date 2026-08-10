@@ -7,6 +7,7 @@ import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import HeroWindow, { type WindowState } from '@/components/home/hero-window'
 import { glassSurface } from '@/components/home/hero-glass'
 import { useWindowDrag } from '@/components/home/use-window-drag'
+import { deriveWindowDisplay } from '@/components/home/window-display'
 
 const Hero = styled.section`
   min-height: 100dvh;
@@ -141,12 +142,10 @@ export default function HeroSection() {
     }
   }, [])
 
-  // 모바일에서는 드래그·창 조작 어포던스(신호등)를 숨기므로 닫기/접기에 도달할
-  // 방법이 없다. 데스크톱에서 만들어둔 windowState는 그대로 보존하되, 모바일
-  // 뷰포트에서는 카드를 항상 열린 상태로 그려 데스크톱으로 되돌아가면 이전
-  // 상태가 복원되게 한다.
-  const displayState: WindowState = isMobileViewport ? 'open' : windowState
-  const showDock = !isMobileViewport && windowState === 'closed'
+  const { displayState, showDock } = deriveWindowDisplay(
+    windowState,
+    isMobileViewport,
+  )
 
   return (
     <Hero>
@@ -171,9 +170,13 @@ export default function HeroSection() {
                   )
                 }
                 dragHandlers={drag.handlers}
-                style={{
-                  transform: `translate(${drag.offset.x}px, ${drag.offset.y}px)`,
-                }}
+                style={
+                  isMobileViewport
+                    ? undefined
+                    : {
+                        transform: `translate(${drag.offset.x}px, ${drag.offset.y}px)`,
+                      }
+                }
               />
             </CardLayer>
           ) : (
