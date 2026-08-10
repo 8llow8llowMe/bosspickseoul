@@ -103,6 +103,7 @@ public class DistrictQueryProcessor {
 
         // 2. Detail Info 조립
         return DistrictDetailInfo.builder()
+            .districtName(changeInfo.districtName())
             .changeIndicator(changeInfo)
             .footTraffic(footTrafficInfo)
             .store(storeInfo)
@@ -115,6 +116,7 @@ public class DistrictQueryProcessor {
         // 2. Info 변환
         return changeDistrictRepositoryPort.findByPeriodCodeAndDistrictCode(currentPeriodCode, districtCode)
             .map(change -> DistrictChangeIndicatorInfo.builder()
+                .districtName(change.districtName())
                 .changeIndicatorCode(change.changeIndicatorCode())
                 .changeIndicatorName(change.changeIndicatorName())
                 .averageOpenedMonths(change.averageOpenedMonths())
