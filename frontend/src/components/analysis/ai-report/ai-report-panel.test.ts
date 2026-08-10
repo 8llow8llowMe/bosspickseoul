@@ -18,11 +18,18 @@ const render = (state: AiReportState, extra = {}) =>
 
 describe('AiReportPanel', () => {
   it('loading 상태는 생성 중 문구를 노출한다', () => {
-    expect(render({ status: 'loading' })).toContain('리포트를 생성')
+    expect(
+      render({ status: 'loading', stage: null, progressMessages: [] }),
+    ).toContain('리포트를 생성')
   })
 
   it('error 상태는 메시지와 다시 시도 버튼을 노출한다', () => {
-    const markup = render({ status: 'error', message: '실패함' })
+    const markup = render({
+      status: 'error',
+      message: '실패함',
+      errorKind: 'generic',
+      canRetry: true,
+    })
     expect(markup).toContain('실패함')
     expect(markup).toContain('다시 시도')
   })
@@ -47,21 +54,30 @@ describe('AiReportPanel', () => {
   })
 
   it('전체 분석 링크는 onViewFullAnalysis가 있을 때만 노출한다', () => {
-    expect(render({ status: 'loading' })).not.toContain('전체 분석 보기')
     expect(
-      render({ status: 'loading' }, { onViewFullAnalysis: () => {} }),
+      render({ status: 'loading', stage: null, progressMessages: [] }),
+    ).not.toContain('전체 분석 보기')
+    expect(
+      render(
+        { status: 'loading', stage: null, progressMessages: [] },
+        { onViewFullAnalysis: () => {} },
+      ),
     ).toContain('전체 분석 보기')
   })
 
   it('onViewFullAnalysis가 없으면 안내 문구를, 있으면 버튼만 보여준다', () => {
-    const withoutHandler = render({ status: 'loading' })
+    const withoutHandler = render({
+      status: 'loading',
+      stage: null,
+      progressMessages: [],
+    })
     expect(withoutHandler).toContain(
       '분야까지 선택하면 전체 분석을 볼 수 있어요',
     )
     expect(withoutHandler).not.toContain('전체 분석 보기')
 
     const withHandler = render(
-      { status: 'loading' },
+      { status: 'loading', stage: null, progressMessages: [] },
       { onViewFullAnalysis: () => {} },
     )
     expect(withHandler).toContain('전체 분석 보기')
