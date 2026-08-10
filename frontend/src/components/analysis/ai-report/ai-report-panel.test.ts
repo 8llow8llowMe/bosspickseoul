@@ -34,6 +34,26 @@ describe('AiReportPanel', () => {
     expect(markup).toContain('다시 시도')
   })
 
+  it('loading은 단계명과 진행문구를 노출한다', () => {
+    const markup = render({
+      status: 'loading',
+      stage: { name: '생성 중', description: 'AI가 작성 중' },
+      progressMessages: ['유동인구 분석 중'],
+    })
+    expect(markup).toContain('생성 중')
+    expect(markup).toContain('유동인구 분석 중')
+  })
+
+  it('not-found 에러는 다시 요청하기 버튼을 노출한다', () => {
+    const markup = render({
+      status: 'error',
+      message: '작업을 찾지 못했어요',
+      errorKind: 'not-found',
+      canRetry: true,
+    })
+    expect(markup).toContain('다시 요청하기')
+  })
+
   it('empty 상태는 안내 문구를 노출한다', () => {
     expect(render({ status: 'empty' })).toContain('표시할 내용')
   })

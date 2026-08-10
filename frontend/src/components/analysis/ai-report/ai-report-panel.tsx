@@ -7,6 +7,7 @@ import {
 } from '@/components/analysis/ai-report/report-blocks'
 import { Button } from '@/components/ui/button'
 import type { AiReportState } from '@/hooks/use-ai-report'
+import { useProgressRotation } from '@/hooks/use-progress-rotation'
 
 const Shell = styled.aside`
   display: flex;
@@ -65,6 +66,23 @@ const RemainingSelectionHint = styled.p`
   text-align: center;
 `
 
+function LoadingBody({
+  stage,
+  progressMessages,
+}: {
+  stage: { name: string; description: string } | null
+  progressMessages: string[]
+}) {
+  const rotating = useProgressRotation(progressMessages, 4000)
+  return (
+    <div>
+      <StatusText>{stage?.name ?? '리포트를 생성하고 있어요…'}</StatusText>
+      {stage?.description ? <StatusText>{stage.description}</StatusText> : null}
+      {rotating ? <StatusText aria-live="polite">{rotating}</StatusText> : null}
+    </div>
+  )
+}
+
 function Content({
   state,
   onRetry,
@@ -74,16 +92,23 @@ function Content({
 }) {
   switch (state.status) {
     case 'loading':
-      return <StatusText>리포트를 생성하고 있어요…</StatusText>
+      return (
+        <LoadingBody
+          stage={state.stage}
+          progressMessages={state.progressMessages}
+        />
+      )
     case 'empty':
       return <StatusText>표시할 내용이 없어요.</StatusText>
     case 'error':
       return (
         <div>
           <StatusText>{state.message}</StatusText>
-          <Button type="button" onClick={onRetry}>
-            다시 시도
-          </Button>
+          {state.canRetry ? (
+            <Button type="button" onClick={onRetry}>
+              {state.errorKind === 'not-found' ? '다시 요청하기' : '다시 시도'}
+            </Button>
+          ) : null}
         </div>
       )
     case 'ready-commercial':
