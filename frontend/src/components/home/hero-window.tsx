@@ -22,22 +22,32 @@ export type HeroWindowProps = {
   onToggleMinimize: () => void
   dragHandlers?: TitleBarDragHandlers
   style?: CSSProperties
+  /** 지도 자치구 hover 중일 때 카드 배경에 미세한 primary 틴트를 얹는다. */
+  tinted?: boolean
 }
 
-const WindowCard = styled.div`
+const WindowCard = styled.div<{ $tinted?: boolean }>`
   /* 카드 본문은 이벤트를 통과시키고, 내부 상호작용 요소만 다시 활성화한다 */
   pointer-events: none;
   width: min(460px, 100%);
   border-radius: 24px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  background: ${p =>
+    p.$tinted
+      ? 'color-mix(in srgb, var(--color-primary-700) 7%, color-mix(in srgb, var(--color-surface) 55%, transparent))'
+      : 'color-mix(in srgb, var(--color-surface) 55%, transparent)'};
+  transition: background var(--motion-fast) var(--ease-standard);
   ${glassSurface}
-  -webkit-backdrop-filter: blur(16px) saturate(135%);
-  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
+  backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
 
   @media (max-width: 640px) {
     width: min(460px, calc(100% - 24px));
     border-radius: 20px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `
 
@@ -72,6 +82,12 @@ const TrafficLights = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+
+  /* 드래그·창 조작(닫기/접기/최대화)은 데스크톱 전용 어포던스이므로 모바일에서는
+     숨긴다. 카드는 모바일에서 항상 열린 상태로 표시된다(hero-section.tsx). */
+  @media (max-width: 640px) {
+    display: none;
+  }
 `
 
 type DotVariant = 'close' | 'min' | 'max'
@@ -249,13 +265,13 @@ const SecondaryLink = styled(Link)`
 
 const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
   function HeroWindow(
-    { state, onClose, onToggleMinimize, dragHandlers, style },
+    { state, onClose, onToggleMinimize, dragHandlers, style, tinted },
     ref,
   ) {
     const minimized = state === 'minimized'
 
     return (
-      <WindowCard ref={ref} style={style}>
+      <WindowCard ref={ref} style={style} $tinted={tinted}>
         <TitleBar onPointerDown={dragHandlers?.onPointerDown}>
           <WindowTitle>상권 분석</WindowTitle>
           <TrafficLights role="group" aria-label="분석 창 조작">
