@@ -31,6 +31,11 @@ const HeroStage = styled.div`
   position: relative;
   width: min(1120px, 100%);
   margin: 0 auto;
+
+  /* 모바일에서는 오버레이를 해제하고 지도 → 카드 순서로 세로 정렬한다. */
+  @media (max-width: 640px) {
+    position: static;
+  }
 `
 
 const MapLayer = styled.div`
@@ -47,6 +52,13 @@ const CardLayer = styled.div`
   z-index: 10;
   /* 카드 위에서도 뒤의 폴리곤이 hover되도록 포인터 이벤트를 통과시킨다 */
   pointer-events: none;
+
+  @media (max-width: 640px) {
+    position: static;
+    inset: auto;
+    padding: 0;
+    margin-top: 16px;
+  }
 `
 
 const DockButton = styled.button`
@@ -96,6 +108,8 @@ const DockButton = styled.button`
 export default function HeroSection() {
   const [windowState, setWindowState] = useState<WindowState>('open')
   const [dragEnabled, setDragEnabled] = useState(false)
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
+  const [hoveredCode, setHoveredCode] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const drag = useWindowDrag({
@@ -108,33 +122,45 @@ export default function HeroSection() {
     const desktopQuery = window.matchMedia(
       '(min-width: 641px) and (pointer: fine)',
     )
+    const mobileQuery = window.matchMedia('(max-width: 640px)')
     const reducedMotionQuery = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
     )
     const update = () => {
       setDragEnabled(desktopQuery.matches && !reducedMotionQuery.matches)
+      setIsMobileViewport(mobileQuery.matches)
     }
     update()
     desktopQuery.addEventListener('change', update)
+    mobileQuery.addEventListener('change', update)
     reducedMotionQuery.addEventListener('change', update)
     return () => {
       desktopQuery.removeEventListener('change', update)
+      mobileQuery.removeEventListener('change', update)
       reducedMotionQuery.removeEventListener('change', update)
     }
   }, [])
+
+  // 모바일에서는 드래그·창 조작 어포던스(신호등)를 숨기므로 닫기/접기에 도달할
+  // 방법이 없다. 데스크톱에서 만들어둔 windowState는 그대로 보존하되, 모바일
+  // 뷰포트에서는 카드를 항상 열린 상태로 그려 데스크톱으로 되돌아가면 이전
+  // 상태가 복원되게 한다.
+  const displayState: WindowState = isMobileViewport ? 'open' : windowState
+  const showDock = !isMobileViewport && windowState === 'closed'
 
   return (
     <Hero>
       <Inner>
         <HeroStage ref={containerRef}>
           <MapLayer>
-            <SeoulDistrictsMap />
+            <SeoulDistrictsMap onHoverChange={setHoveredCode} />
           </MapLayer>
-          {windowState !== 'closed' ? (
+          {!showDock ? (
             <CardLayer>
               <HeroWindow
                 ref={cardRef}
-                state={windowState}
+                state={displayState}
+                tinted={hoveredCode != null}
                 onClose={() => {
                   setWindowState('closed')
                   drag.reset()
