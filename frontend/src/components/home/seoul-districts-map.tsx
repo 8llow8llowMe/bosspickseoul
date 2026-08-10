@@ -75,6 +75,7 @@ const DistrictPath = styled.path<{
   &:focus-visible {
     outline: none;
     fill: var(--color-primary-700);
+    animation: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
