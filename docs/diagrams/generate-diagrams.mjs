@@ -306,8 +306,11 @@ function infrastructure() {
     },
     {
       title: 'storage',
-      sub: 'Redis quorum 확보',
-      items: [['Redis', 'Redis replica', 'Sentinel 3']],
+      sub: '오브젝트 스토리지 · Redis quorum',
+      items: [
+        ['Minio', 'MinIO', 'S3 호환 오브젝트 스토리지'],
+        ['Redis', 'Redis replica', 'Sentinel 3'],
+      ],
     },
   ];
 

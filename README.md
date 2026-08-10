@@ -1,24 +1,23 @@
-# BossPickSeoul (나도사장 V2)
+# BossPickSeoul (보스픽서울)
 
-> 서울시 상권 공공데이터를 분석해 **"어디서, 무슨 업종으로 창업할지"** 를 판단하도록 돕는 서비스입니다.
+> 서울시 상권 분석 서비스 프로젝트
 >
-> 삼성 청년 SW 아카데미 10기 자율 프로젝트 **NowDoBoss**(자율 프로젝트 우수상 · 2등)를
-> MSA · Next.js · LLM 기반으로 다시 만든 V2 프로젝트입니다.
+> 서울시 상권 공공데이터를 분석해 **"어디서, 무슨 업종으로 창업할지"** 를 판단하도록 돕습니다.
 
 | 항목 | 내용 |
 | --- | --- |
-| 프로젝트명 | BossPickSeoul (나도사장 V2) |
-| 원본 프로젝트 | NowDoBoss — SSAFY 10기 2학기 자율 프로젝트 (2024.04.08 ~ 2024.05.20, 6주) / **우수상(2등)** |
-| V2 개발 기간 | 2025.12 ~ 진행 중 |
+| 프로젝트명 | BossPickSeoul (보스픽서울) |
+| 한 줄 소개 | 서울시 상권 분석 서비스 프로젝트 |
+| 개발 기간 | 2025.12 ~ 진행 중 |
 | 주제 | 창업을 위한 상권 분석 서비스 플랫폼 |
 | 타겟 | 자기 지역 상권을 분석하려는 예비 창업자, 동업종·주변 상권을 확인하려는 기존 창업자 |
 | 도메인 | `www.bosspickseoul.com` (웹) · `api.bosspickseoul.com` (운영 API) · `api-dev.bosspickseoul.com` (개발 API) |
 
-## V2에서 다시 잡은 것
+## 설계 포인트
 
-- **모놀리식 → MSA**: Eureka + Spring Cloud Gateway 기반으로 인증 / 상권 / 지역 / 커뮤니티 / AI / 배치 서비스 분리
+- **MSA**: Eureka + Spring Cloud Gateway 기반으로 인증 / 상권 / 지역 / 커뮤니티 / AI / 배치 서비스 분리
 - **Hexagonal Architecture**: `Controller → WebUseCase → WebFacade → Processor → Port/Adapter` 계층 규약을 전 서비스에 통일
-- **Next.js App Router + BFF**: 브라우저가 토큰을 들고 있지 않도록 암호화 HttpOnly 세션 + 서버 프록시 구조로 전환
+- **Next.js App Router + BFF**: 브라우저가 토큰을 들고 있지 않도록 암호화 HttpOnly 세션 + 서버 프록시 구조로 구성
 - **LLM AI 리포트**: 자체 호스팅 Ollama 기반 분석 리포트, 비동기 job + SSE 스트리밍
 - **IaC 기반 운영**: Jenkins · Vault · Nginx · Redis Sentinel · Kafka · Prometheus/Grafana/Loki를 [별도 Infra 레포](#인프라-구성)에서 코드로 관리
 
@@ -34,7 +33,7 @@
 | 공유 | 분석 화면 상태를 단축 코드로 공유 (base62 8자, TTL 90일) |
 | 인기 순위 | Kafka 분석 이벤트 + Redis ZSET 기반 실시간 인기 상권 랭킹 (옵션 기능) |
 
-> 창업 시뮬레이션과 실시간 채팅은 V1 기능으로, V2 백엔드 재구현 전까지 화면에서 안내 상태로 유지됩니다.
+> 창업 시뮬레이션과 실시간 채팅은 백엔드 구현 전까지 화면에서 안내 상태로 유지됩니다.
 
 ## 시스템 아키텍처
 
@@ -81,6 +80,7 @@ Controller → WebUseCase → WebFacade → Processor → Port → Adapter
 | 시크릿 | HashiCorp Vault KV v2 + AppRole, `kv/bosspickseoul/backend/{env}/env` |
 | 캐시/세션 | Redis master 1 + replica 2 + Sentinel 3 (quorum 2) |
 | 메시징 | Kafka KRaft 3 브로커 (replication 3 / min ISR 2) + Kafka UI |
+| 오브젝트 스토리지 | MinIO (S3 호환) |
 | LLM | Ollama (Radeon 780M · Vulkan 백엔드), `qwen2.5:7b-instruct` |
 | 관측 | Prometheus + Grafana(대시보드 6종 프로비저닝) + Loki/Promtail + node_exporter |
 
@@ -107,7 +107,7 @@ Controller → WebUseCase → WebFacade → Processor → Port → Adapter
 ## 저장소 구조
 
 ```
-NowDoBoss-V2/
+bosspickseoul/
 ├── backend/                  # Spring Boot 멀티모듈 (core / cloud / service)
 │   ├── core/                 # common · persistence · redis · security · shared-commercial
 │   ├── cloud/                # api-gateway · service-discovery
