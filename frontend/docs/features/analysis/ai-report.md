@@ -6,7 +6,7 @@
 > **백엔드 계약(정본)**: `backend/docs/ai-report-frontend-guide.md`
 > **대상**: 웹 (Next.js App Router)
 > **작성자**: Claude
-> **상태**: 설계 확정 (SSE 개편 슬라이스) — 구현 예정
+> **상태**: 구현 완료 (SSE 개편 슬라이스)
 
 이 문서는 상권 분석 탐색(`/analysis`) 흐름에 **AI 리포트**를 붙이는 컴패니언 기능을, 백엔드
 `ai-service`의 개편된 계약(`/api/v1/ai-reports/**`)에 맞춰 상세화한다. AI 리포트는 데이터
