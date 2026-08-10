@@ -90,7 +90,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         // 상권 상세 진입의 대표 신호로 이 API 를 사용한다 (화면당 1회 호출).
         // 포트 계약상 절대 예외를 던지지 않아 본 조회 응답에는 영향이 없다.
         analysisViewEventPort.publish(new AnalysisViewEvent(
-            AnalysisAreaType.COMMERCIAL, commercialCode, null, LocalDateTime.now()));
+            AnalysisAreaType.COMMERCIAL, commercialCode, info.commercialName(), LocalDateTime.now()));
         return commercialPresenter.toCommercialFootTrafficResponse(info);
     }
 

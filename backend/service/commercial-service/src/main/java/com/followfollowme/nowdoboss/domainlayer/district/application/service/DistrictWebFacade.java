@@ -49,7 +49,7 @@ public class DistrictWebFacade implements DistrictWebUseCase {
         DistrictDetailInfo info = districtQueryProcessor.getDistrictDetail(districtCode, currentPeriodCode, previousPeriodCode);
         // 인기 순위 집계용 이벤트. 포트 계약상 절대 예외를 던지지 않아 본 조회 응답에는 영향이 없다.
         analysisViewEventPort.publish(new AnalysisViewEvent(
-            AnalysisAreaType.DISTRICT, districtCode, null, LocalDateTime.now()));
+            AnalysisAreaType.DISTRICT, districtCode, info.districtName(), LocalDateTime.now()));
         return districtPresenter.toDistrictDetailResponse(info);
     }
 
