@@ -157,54 +157,87 @@ describe('isAiReportActive', () => {
 })
 
 describe('resolveAiReportVisibility', () => {
-  it('enabled=false면 levelKey/panelOpen과 무관하게 둘 다 숨긴다', () => {
+  it('hydrated=false면 isLoggedIn/levelKey/panelOpen과 무관하게 셋 다 숨긴다', () => {
     expect(
       resolveAiReportVisibility({
-        enabled: false,
+        hydrated: false,
+        isLoggedIn: true,
         levelKey: 'district:11680',
         panelOpen: false,
       }),
-    ).toEqual({ showCard: false, showPanel: false })
+    ).toEqual({ showCard: false, showLockCard: false, showPanel: false })
     expect(
       resolveAiReportVisibility({
-        enabled: false,
+        hydrated: false,
+        isLoggedIn: true,
         levelKey: 'district:11680',
         panelOpen: true,
       }),
-    ).toEqual({ showCard: false, showPanel: false })
+    ).toEqual({ showCard: false, showLockCard: false, showPanel: false })
   })
 
-  it('levelKey가 null이면 enabled와 무관하게 둘 다 숨긴다', () => {
+  it('levelKey가 null이면 hydrated/isLoggedIn과 무관하게 셋 다 숨긴다', () => {
     expect(
       resolveAiReportVisibility({
-        enabled: true,
+        hydrated: true,
+        isLoggedIn: true,
         levelKey: null,
         panelOpen: false,
       }),
-    ).toEqual({ showCard: false, showPanel: false })
+    ).toEqual({ showCard: false, showLockCard: false, showPanel: false })
     expect(
       resolveAiReportVisibility({
-        enabled: true,
+        hydrated: true,
+        isLoggedIn: false,
         levelKey: null,
         panelOpen: true,
       }),
-    ).toEqual({ showCard: false, showPanel: false })
+    ).toEqual({ showCard: false, showLockCard: false, showPanel: false })
   })
 
-  it('enabled && levelKey 상태에서 panelOpen이 카드/패널을 상호 배타적으로 전환한다', () => {
+  it('hydrated && isLoggedIn && levelKey 상태에서 panelOpen이 카드/패널을 상호 배타적으로 전환한다', () => {
     expect(
       resolveAiReportVisibility({
-        enabled: true,
+        hydrated: true,
+        isLoggedIn: true,
         levelKey: 'district:11680',
         panelOpen: false,
       }),
-    ).toEqual({ showCard: true, showPanel: false })
+    ).toEqual({ showCard: true, showLockCard: false, showPanel: false })
     expect(
       resolveAiReportVisibility({
-        enabled: true,
+        hydrated: true,
+        isLoggedIn: true,
         levelKey: 'district:11680',
         panelOpen: true,
       }),
-    ).toEqual({ showCard: false, showPanel: true })
+    ).toEqual({ showCard: false, showLockCard: false, showPanel: true })
+  })
+
+  it('로그인이면 카드, 비로그인이면 잠금 카드', () => {
+    expect(
+      resolveAiReportVisibility({
+        hydrated: true,
+        isLoggedIn: true,
+        levelKey: 'district:11680',
+        panelOpen: false,
+      }),
+    ).toEqual({ showCard: true, showLockCard: false, showPanel: false })
+    expect(
+      resolveAiReportVisibility({
+        hydrated: true,
+        isLoggedIn: false,
+        levelKey: 'district:11680',
+        panelOpen: false,
+      }),
+    ).toEqual({ showCard: false, showLockCard: true, showPanel: false })
+    expect(
+      resolveAiReportVisibility({
+        hydrated: false,
+        isLoggedIn: false,
+        levelKey: 'district:11680',
+        panelOpen: false,
+      }),
+    ).toEqual({ showCard: false, showLockCard: false, showPanel: false })
   })
 })

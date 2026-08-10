@@ -50,17 +50,23 @@ export const isAiReportActive = (
 ): boolean => Boolean(levelKey) && activeKey === levelKey
 
 export const resolveAiReportVisibility = ({
-  enabled,
+  hydrated,
+  isLoggedIn,
   levelKey,
   panelOpen,
 }: {
-  enabled: boolean
+  hydrated: boolean
+  isLoggedIn: boolean
   levelKey: string | null
   panelOpen: boolean
-}): { showCard: boolean; showPanel: boolean } => ({
-  showCard: enabled && Boolean(levelKey) && !panelOpen,
-  showPanel: enabled && Boolean(levelKey) && panelOpen,
-})
+}): { showCard: boolean; showLockCard: boolean; showPanel: boolean } => {
+  const hasLevel = hydrated && Boolean(levelKey)
+  return {
+    showCard: hasLevel && isLoggedIn && !panelOpen,
+    showLockCard: hasLevel && !isLoggedIn,
+    showPanel: hasLevel && isLoggedIn && panelOpen,
+  }
+}
 
 export type ReportBlockList = { title: string; items: string[] }
 
