@@ -110,6 +110,61 @@ describe('useAiReport', () => {
     )
   })
 
+  it('SSE가 RUNNING 스냅샷을 먼저 준 뒤 끊겨도 폴링의 COMPLETED가 stale sseJob에 가려지지 않는다', async () => {
+    vi.spyOn(api, 'submitDistrictAiReport').mockResolvedValue({
+      submissionStatus: meta('ACCEPTED'),
+      jobType: meta('DISTRICT'),
+      jobId: 'j4',
+      commercialReport: null,
+      districtReport: null,
+      administrationReport: null,
+    } as AiReportSubmission)
+    vi.spyOn(sse, 'subscribeJobStream').mockImplementation(async (_id, cb) => {
+      // 구독 즉시 비종결 스냅샷 1회 수신 (백엔드 계약: 구독 시 즉시 상태 전송) → 이후 드롭.
+      cb.onEvent({
+        jobId: 'j4',
+        jobType: meta('DISTRICT'),
+        status: meta('RUNNING'),
+        progressMessages: ['분석 중'],
+        commercialReport: null,
+        districtReport: null,
+        administrationReport: null,
+        errorCode: null,
+        errorMessage: null,
+      } as AiReportJob)
+      cb.onError(new Error('drop'))
+    })
+    const pollSpy = vi.spyOn(api, 'fetchAiReportJob').mockResolvedValue({
+      jobId: 'j4',
+      jobType: meta('DISTRICT'),
+      status: meta('COMPLETED'),
+      progressMessages: null,
+      commercialReport: null,
+      districtReport: { summary: '폴링완료요약' } as never,
+      administrationReport: null,
+      errorCode: null,
+      errorMessage: null,
+    } as AiReportJob)
+    const { result } = renderHook(
+      () =>
+        useAiReport({
+          level: 'district',
+          code: '11680',
+          serviceCode: null,
+          active: true,
+          enabled: true,
+        }),
+      { wrapper },
+    )
+    await waitFor(() => expect(pollSpy).toHaveBeenCalled())
+    // stale RUNNING sseJob에 가려 loading에 고립되거나 스푸리어스 타임아웃
+    // 에러가 나지 않고, 폴링이 가져온 COMPLETED로 ready-region에 도달해야 한다.
+    await waitFor(
+      () => expect(result.current.state.status).toBe('ready-region'),
+      { timeout: 3000 },
+    )
+  })
+
   it('동일 jobId(idempotent)로 재시도해도 SSE가 재구독되어 종결 상태에 도달한다', async () => {
     vi.spyOn(api, 'submitDistrictAiReport').mockResolvedValue({
       submissionStatus: meta('ACCEPTED'),

@@ -199,6 +199,7 @@ export const useAiReport = ({
     submitQuery,
     jobQuery,
     sseJob,
+    pollingFallback,
     cachedReport,
     jobId,
     pollElapsedMs,
@@ -237,6 +238,7 @@ const deriveState = (a: {
   submitQuery: UseQueryResult<AiReportSubmission>
   jobQuery: UseQueryResult<AiReportJob>
   sseJob: AiReportJob | null
+  pollingFallback: boolean
   cachedReport: CommercialAiReport | RegionAiReport | null
   jobId: string | null
   pollElapsedMs: number
@@ -257,8 +259,16 @@ const deriveState = (a: {
   }
   if (!a.jobId) return { status: 'loading', stage: null, progressMessages: [] }
 
-  // SSE가 살아있으면 그 스냅샷을 우선, 없으면 폴링 결과로 합류.
-  const job = a.sseJob ?? a.jobQuery.data
+  // SSE가 살아있으면 그 스냅샷을 우선. 폴백(pollingFallback)으로 넘어간
+  // 뒤에는 새로 도착한 폴링 결과가 우선해야 한다 — 그렇지 않으면 SSE가 마지막에
+  // 남긴 비종결(RUNNING 등) 스냅샷이 완료된 폴링 결과를 가려 loading에
+  // 고립되고 90초 후 스푸리어스 타임아웃이 발생한다. 다만 폴백 전환 직후
+  // 첫 폴링 응답이 오기 전까지는 sseJob으로 마지막 단계를 계속 보여준다
+  // (단계 표시가 순간적으로 비지 않도록).
+  const job: AiReportJob | undefined =
+    (a.pollingFallback
+      ? (a.jobQuery.data ?? a.sseJob)
+      : (a.sseJob ?? a.jobQuery.data)) ?? undefined
 
   const decision = decideNextPoll(job, a.pollElapsedMs)
   if (decision.kind === 'error') {
