@@ -13,6 +13,7 @@ import {
   submitDistrictAiReport,
   fetchAiReportJob,
 } from '@/lib/api/ai-report'
+import { subscribeJobStream } from '@/lib/analysis/ai-report-sse'
 import {
   toCommercialReportView,
   toRegionReportView,
@@ -45,7 +46,11 @@ export type AiReportErrorKind =
   | 'generic'
 export type AiReportState =
   | { status: 'idle' }
-  | { status: 'loading'; stage: AiReportStage | null; progressMessages: string[] }
+  | {
+      status: 'loading'
+      stage: AiReportStage | null
+      progressMessages: string[]
+    }
   | { status: 'ready-commercial'; view: CommercialReportView }
   | { status: 'ready-region'; view: RegionReportView }
   | { status: 'empty' }
@@ -123,10 +128,47 @@ export const useAiReport = ({
   const pollTimedOut = currentKey !== null && timedOutKey === currentKey
   const pollElapsedMs = pollTimedOut ? AI_REPORT_POLL_TIMEOUT_MS : 0
 
+  // SSE 우선 구독 상태. jobId/attempt가 바뀌면 초기화한다.
+  // (렌더 중 상태 조정 패턴: effect가 아니라 렌더 도중 key 변화를 감지해 직접
+  // setState한다 — react-hooks/set-state-in-effect 회피 + 리렌더 1회로 처리)
+  const [sseJob, setSseJob] = useState<AiReportJob | null>(null)
+  const [pollingFallback, setPollingFallback] = useState(false)
+  const [resetKey, setResetKey] = useState(currentKey)
+  if (resetKey !== currentKey) {
+    setResetKey(currentKey)
+    setSseJob(null)
+    setPollingFallback(false)
+  }
+
+  // SSE로 job 스냅샷을 받는다. 종결(COMPLETED/FAILED) 없이 스트림이
+  // 닫히거나 에러가 나면 폴링으로 폴백한다. jobId/level 변경·언마운트 시 정리.
+  useEffect(() => {
+    if (!on || !jobId || cachedReport) return
+    const controller = new AbortController()
+    let terminal = false
+    void subscribeJobStream(
+      jobId,
+      {
+        onEvent: job => {
+          setSseJob(job)
+          if (job.status.code === 'COMPLETED' || job.status.code === 'FAILED') {
+            terminal = true
+          }
+        },
+        onDone: () => {
+          if (!terminal) setPollingFallback(true)
+        },
+        onError: () => setPollingFallback(true),
+      },
+      controller.signal,
+    )
+    return () => controller.abort()
+  }, [on, jobId, cachedReport])
+
   const jobQuery = useQuery({
     queryKey: ['ai-report', 'job', jobId],
     queryFn: () => fetchAiReportJob(jobId!),
-    enabled: on && Boolean(jobId) && !cachedReport,
+    enabled: on && Boolean(jobId) && !cachedReport && pollingFallback,
     retry: 0,
     refetchInterval: query => {
       const decision = decideNextPoll(query.state.data, pollElapsedMs)
@@ -152,6 +194,7 @@ export const useAiReport = ({
     level,
     submitQuery,
     jobQuery,
+    sseJob,
     cachedReport,
     jobId,
     pollElapsedMs,
@@ -178,7 +221,9 @@ const buildReady = (
 
 const loadingFromJob = (job: AiReportJob | undefined): AiReportState => ({
   status: 'loading',
-  stage: job ? { name: job.status.name, description: job.status.description } : null,
+  stage: job
+    ? { name: job.status.name, description: job.status.description }
+    : null,
   progressMessages: job?.progressMessages ?? [],
 })
 
@@ -187,6 +232,7 @@ const deriveState = (a: {
   level: AiReportLevel | null
   submitQuery: UseQueryResult<AiReportSubmission>
   jobQuery: UseQueryResult<AiReportJob>
+  sseJob: AiReportJob | null
   cachedReport: CommercialAiReport | RegionAiReport | null
   jobId: string | null
   pollElapsedMs: number
@@ -207,7 +253,10 @@ const deriveState = (a: {
   }
   if (!a.jobId) return { status: 'loading', stage: null, progressMessages: [] }
 
-  const decision = decideNextPoll(a.jobQuery.data, a.pollElapsedMs)
+  // SSE가 살아있으면 그 스냅샷을 우선, 없으면 폴링 결과로 합류.
+  const job = a.sseJob ?? a.jobQuery.data
+
+  const decision = decideNextPoll(job, a.pollElapsedMs)
   if (decision.kind === 'error') {
     return {
       status: 'error',
@@ -217,7 +266,7 @@ const deriveState = (a: {
     }
   }
   if (decision.kind === 'ready') {
-    const report = reportFromJob(a.jobQuery.data!, a.level)
+    const report = reportFromJob(job!, a.level)
     return report
       ? buildReady(a.level, report)
       : {
@@ -227,5 +276,5 @@ const deriveState = (a: {
           canRetry: true,
         }
   }
-  return loadingFromJob(a.jobQuery.data)
+  return loadingFromJob(job ?? undefined)
 }
