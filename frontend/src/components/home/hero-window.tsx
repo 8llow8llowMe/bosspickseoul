@@ -59,15 +59,23 @@ const TitleBar = styled.div`
   gap: 12px;
   padding: 20px 40px 12px;
   border-bottom: 1px solid color-mix(in srgb, #ffffff 40%, transparent);
-  cursor: grab;
-  touch-action: none;
+  user-select: none;
+
+  @media (min-width: 641px) {
+    cursor: grab;
+    touch-action: none;
+  }
 
   &:active {
-    cursor: grabbing;
+    @media (min-width: 641px) {
+      cursor: grabbing;
+    }
   }
 
   @media (max-width: 640px) {
     padding: 16px 24px 10px;
+    cursor: default;
+    touch-action: auto;
   }
 `
 
@@ -300,7 +308,11 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
             </DotLink>
           </TrafficLights>
         </TitleBar>
-        <WindowBody $minimized={minimized} aria-hidden={minimized}>
+        <WindowBody
+          $minimized={minimized}
+          aria-hidden={minimized}
+          inert={minimized ? true : undefined}
+        >
           <WindowBodyInner>
             <Eyebrow>서울 상권 데이터 분석</Eyebrow>
             <Title>창업 전에, 상권부터 확인하세요.</Title>
