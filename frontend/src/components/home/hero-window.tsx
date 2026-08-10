@@ -1,6 +1,10 @@
 'use client'
 
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import {
+  forwardRef,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import Link from 'next/link'
 import { Maximize2, MapPinned, Minus, Search, X } from 'lucide-react'
 import styled, { css } from 'styled-components'
@@ -45,6 +49,12 @@ const TitleBar = styled.div`
   gap: 12px;
   padding: 20px 40px 12px;
   border-bottom: 1px solid color-mix(in srgb, #ffffff 40%, transparent);
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
 
   @media (max-width: 640px) {
     padding: 16px 24px 10px;
@@ -237,64 +247,65 @@ const SecondaryLink = styled(Link)`
   }
 `
 
-export default function HeroWindow({
-  state,
-  onClose,
-  onToggleMinimize,
-  dragHandlers,
-  style,
-}: HeroWindowProps) {
-  const minimized = state === 'minimized'
+const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
+  function HeroWindow(
+    { state, onClose, onToggleMinimize, dragHandlers, style },
+    ref,
+  ) {
+    const minimized = state === 'minimized'
 
-  return (
-    <WindowCard style={style}>
-      <TitleBar onPointerDown={dragHandlers?.onPointerDown}>
-        <WindowTitle>상권 분석</WindowTitle>
-        <TrafficLights role="group" aria-label="분석 창 조작">
-          <Dot
-            type="button"
-            $variant="close"
-            aria-label="분석 창 닫고 지도 보기"
-            onClick={onClose}
-          >
-            <X aria-hidden="true" />
-          </Dot>
-          <Dot
-            type="button"
-            $variant="min"
-            aria-label="분석 창 접기"
-            onClick={onToggleMinimize}
-          >
-            <Minus aria-hidden="true" />
-          </Dot>
-          <DotLink
-            href="/analysis"
-            $variant="max"
-            aria-label="상권 분석 시작(전체 화면)"
-          >
-            <Maximize2 aria-hidden="true" />
-          </DotLink>
-        </TrafficLights>
-      </TitleBar>
-      <WindowBody $minimized={minimized} aria-hidden={minimized}>
-        <WindowBodyInner>
-          <Eyebrow>서울 상권 데이터 분석</Eyebrow>
-          <Title>창업 전에, 상권부터 확인하세요.</Title>
-          <Body>
-            서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로 분석합니다.
-            <BodyEmphasis>감이 아니라 데이터로 자리를 정하세요.</BodyEmphasis>
-          </Body>
-          <Actions>
-            <PrimaryLink href="/analysis">
-              <Search aria-hidden="true" />내 상권 분석하기
-            </PrimaryLink>
-            <SecondaryLink href="/status">
-              <MapPinned aria-hidden="true" />
-              구별현황 보기
-            </SecondaryLink>
-          </Actions>
-        </WindowBodyInner>
-      </WindowBody>
-    </WindowCard>
-  )
-}
+    return (
+      <WindowCard ref={ref} style={style}>
+        <TitleBar onPointerDown={dragHandlers?.onPointerDown}>
+          <WindowTitle>상권 분석</WindowTitle>
+          <TrafficLights role="group" aria-label="분석 창 조작">
+            <Dot
+              type="button"
+              $variant="close"
+              aria-label="분석 창 닫고 지도 보기"
+              onClick={onClose}
+            >
+              <X aria-hidden="true" />
+            </Dot>
+            <Dot
+              type="button"
+              $variant="min"
+              aria-label="분석 창 접기"
+              onClick={onToggleMinimize}
+            >
+              <Minus aria-hidden="true" />
+            </Dot>
+            <DotLink
+              href="/analysis"
+              $variant="max"
+              aria-label="상권 분석 시작(전체 화면)"
+            >
+              <Maximize2 aria-hidden="true" />
+            </DotLink>
+          </TrafficLights>
+        </TitleBar>
+        <WindowBody $minimized={minimized} aria-hidden={minimized}>
+          <WindowBodyInner>
+            <Eyebrow>서울 상권 데이터 분석</Eyebrow>
+            <Title>창업 전에, 상권부터 확인하세요.</Title>
+            <Body>
+              서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로 분석합니다.
+              <BodyEmphasis>감이 아니라 데이터로 자리를 정하세요.</BodyEmphasis>
+            </Body>
+            <Actions>
+              <PrimaryLink href="/analysis">
+                <Search aria-hidden="true" />내 상권 분석하기
+              </PrimaryLink>
+              <SecondaryLink href="/status">
+                <MapPinned aria-hidden="true" />
+                구별현황 보기
+              </SecondaryLink>
+            </Actions>
+          </WindowBodyInner>
+        </WindowBody>
+      </WindowCard>
+    )
+  },
+)
+
+export default HeroWindow

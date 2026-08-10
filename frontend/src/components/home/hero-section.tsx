@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import HeroWindow, { type WindowState } from '@/components/home/hero-window'
 import { glassSurface } from '@/components/home/hero-glass'
+import { useWindowDrag } from '@/components/home/use-window-drag'
 
 const Hero = styled.section`
   min-height: 100dvh;
@@ -94,24 +95,59 @@ const DockButton = styled.button`
 
 export default function HeroSection() {
   const [windowState, setWindowState] = useState<WindowState>('open')
+  const [dragEnabled, setDragEnabled] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const drag = useWindowDrag({
+    enabled: dragEnabled,
+    containerRef,
+    cardRef,
+  })
+
+  useEffect(() => {
+    const desktopQuery = window.matchMedia(
+      '(min-width: 641px) and (pointer: fine)',
+    )
+    const reducedMotionQuery = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    )
+    const update = () => {
+      setDragEnabled(desktopQuery.matches && !reducedMotionQuery.matches)
+    }
+    update()
+    desktopQuery.addEventListener('change', update)
+    reducedMotionQuery.addEventListener('change', update)
+    return () => {
+      desktopQuery.removeEventListener('change', update)
+      reducedMotionQuery.removeEventListener('change', update)
+    }
+  }, [])
 
   return (
     <Hero>
       <Inner>
-        <HeroStage>
+        <HeroStage ref={containerRef}>
           <MapLayer>
             <SeoulDistrictsMap />
           </MapLayer>
           {windowState !== 'closed' ? (
             <CardLayer>
               <HeroWindow
+                ref={cardRef}
                 state={windowState}
-                onClose={() => setWindowState('closed')}
+                onClose={() => {
+                  setWindowState('closed')
+                  drag.reset()
+                }}
                 onToggleMinimize={() =>
                   setWindowState(s =>
                     s === 'minimized' ? 'open' : 'minimized',
                   )
                 }
+                dragHandlers={drag.handlers}
+                style={{
+                  transform: `translate(${drag.offset.x}px, ${drag.offset.y}px)`,
+                }}
               />
             </CardLayer>
           ) : (
