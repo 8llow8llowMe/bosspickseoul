@@ -8,10 +8,10 @@ import {
 } from '@tanstack/react-query'
 
 import {
-  fetchAdministrationAiReport,
-  fetchAiReportJob,
-  fetchDistrictAiReport,
+  submitAdministrationAiReport,
   submitCommercialAiReport,
+  submitDistrictAiReport,
+  fetchAiReportJob,
 } from '@/lib/api/ai-report'
 import {
   toCommercialReportView,
@@ -25,22 +25,36 @@ import {
   AI_REPORT_POLL_TIMEOUT_MS,
   decideNextPoll,
   jobIdFromSubmission,
+  reportFromJob,
   reportFromSubmission,
 } from '@/lib/analysis/ai-report-poll'
 import type {
   AiReportJob,
   AiReportLevel,
   AiReportSubmission,
+  CommercialAiReport,
   RegionAiReport,
 } from '@/types/ai-report'
 
+export type AiReportStage = { name: string; description: string }
+export type AiReportErrorKind =
+  | 'unauth'
+  | 'not-found'
+  | 'unavailable'
+  | 'timeout'
+  | 'generic'
 export type AiReportState =
   | { status: 'idle' }
-  | { status: 'loading' }
+  | { status: 'loading'; stage: AiReportStage | null; progressMessages: string[] }
   | { status: 'ready-commercial'; view: CommercialReportView }
   | { status: 'ready-region'; view: RegionReportView }
   | { status: 'empty' }
-  | { status: 'error'; message: string }
+  | {
+      status: 'error'
+      message: string
+      errorKind: AiReportErrorKind
+      canRetry: boolean
+    }
 
 type UseAiReportArgs = {
   level: AiReportLevel | null
@@ -48,6 +62,24 @@ type UseAiReportArgs = {
   serviceCode: string | null
   active: boolean
   enabled: boolean
+}
+
+const submitFor = (
+  level: AiReportLevel,
+  code: string,
+  serviceCode: string | null,
+): Promise<AiReportSubmission> => {
+  if (level === 'district') return submitDistrictAiReport(code)
+  if (level === 'administration') return submitAdministrationAiReport(code)
+  return submitCommercialAiReport(code, serviceCode!)
+}
+
+export const classifyError = (errorCode: string | null): AiReportErrorKind => {
+  if (errorCode?.startsWith('SECURITY_')) return 'unauth'
+  if (errorCode === 'AI_005') return 'not-found'
+  if (errorCode === 'AI_002') return 'unavailable'
+  if (errorCode === 'AI_009' || errorCode === 'TIMEOUT') return 'timeout'
+  return 'generic'
 }
 
 export const useAiReport = ({
@@ -58,42 +90,24 @@ export const useAiReport = ({
   enabled,
 }: UseAiReportArgs): { state: AiReportState; retry: () => void } => {
   const queryClient = useQueryClient()
-  const on = enabled && active && Boolean(level && code)
-  const isRegion = level === 'district' || level === 'administration'
-  const isCommercial = level === 'commercial'
+  const canCommercial = level === 'commercial' ? Boolean(serviceCode) : true
+  const on = enabled && active && Boolean(level && code) && canCommercial
 
-  // 지역(자치구/행정동): 동기 GET
-  const regionQuery = useQuery({
-    queryKey: ['ai-report', 'region', level, code],
-    queryFn: () =>
-      level === 'district'
-        ? fetchDistrictAiReport(code!)
-        : fetchAdministrationAiReport(code!),
-    enabled: on && isRegion,
-    retry: 1,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  // 상권: POST 제출 (분야 선택 필수)
   const submitQuery = useQuery({
-    queryKey: ['ai-report', 'commercial-submit', code, serviceCode],
-    queryFn: () => submitCommercialAiReport(code!, serviceCode!),
-    enabled: on && isCommercial && Boolean(serviceCode),
+    queryKey: ['ai-report', 'submit', level, code, serviceCode],
+    queryFn: () => submitFor(level!, code!, serviceCode),
+    enabled: on,
     retry: 0,
     staleTime: 5 * 60 * 1000,
   })
 
   const cachedReport = submitQuery.data
-    ? reportFromSubmission(submitQuery.data)
+    ? reportFromSubmission(submitQuery.data, level!)
     : null
   const jobId = submitQuery.data ? jobIdFromSubmission(submitQuery.data) : null
 
-  // 폴링 타임아웃 여부. 렌더 중에는 Date.now()/ref를 읽지 않고, (jobId, attempt) 조합별
-  // 타이머(effect)가 마감 시각에 정확히 한 번 상태를 뒤집는 방식으로 추적한다. 실제
-  // 타임아웃 판정 자체는 Task 3의 decideNextPoll(순수 함수)에 위임한다.
-  // attempt는 retry() 호출마다 증가하는 nonce로, 백엔드가 재요청에도 동일한 jobId를
-  // 반환하는 경우(PENDING/RUNNING 중 idempotent 응답) 타이머가 재무장되도록 보장하고,
-  // 이전 시도에서 걸린 타임아웃이 새 시도를 오염시키지 않도록 막는다.
+  // 타임아웃: 렌더 중 Date.now()를 읽지 않고 (jobId, attempt)별 타이머가 마감 시각에
+  // 한 번 상태를 뒤집는다. attempt는 retry마다 증가하는 nonce.
   const [attempt, setAttempt] = useState(0)
   const [timedOutKey, setTimedOutKey] = useState<string | null>(null)
   const currentKey = jobId !== null ? `${jobId}:${attempt}` : null
@@ -112,7 +126,7 @@ export const useAiReport = ({
   const jobQuery = useQuery({
     queryKey: ['ai-report', 'job', jobId],
     queryFn: () => fetchAiReportJob(jobId!),
-    enabled: on && isCommercial && Boolean(jobId) && !cachedReport,
+    enabled: on && Boolean(jobId) && !cachedReport,
     retry: 0,
     refetchInterval: query => {
       const decision = decideNextPoll(query.state.data, pollElapsedMs)
@@ -123,27 +137,19 @@ export const useAiReport = ({
 
   const retry = useCallback(() => {
     setAttempt(a => a + 1)
-    if (isRegion) {
+    void queryClient.invalidateQueries({
+      queryKey: ['ai-report', 'submit', level, code, serviceCode],
+    })
+    if (jobId) {
       void queryClient.invalidateQueries({
-        queryKey: ['ai-report', 'region', level, code],
+        queryKey: ['ai-report', 'job', jobId],
       })
-    } else if (isCommercial) {
-      void queryClient.invalidateQueries({
-        queryKey: ['ai-report', 'commercial-submit', code],
-      })
-      if (jobId) {
-        void queryClient.invalidateQueries({
-          queryKey: ['ai-report', 'job', jobId],
-        })
-      }
     }
-  }, [queryClient, level, code, isRegion, isCommercial, jobId])
+  }, [queryClient, level, code, serviceCode, jobId])
 
   const state = deriveState({
     on,
-    isRegion,
-    isCommercial,
-    regionQuery,
+    level,
     submitQuery,
     jobQuery,
     cachedReport,
@@ -154,51 +160,72 @@ export const useAiReport = ({
   return { state, retry }
 }
 
+const buildReady = (
+  level: AiReportLevel,
+  report: CommercialAiReport | RegionAiReport,
+): AiReportState => {
+  if (level === 'commercial') {
+    const view = toCommercialReportView(report as CommercialAiReport)
+    return isCommercialReportEmpty(view)
+      ? { status: 'empty' }
+      : { status: 'ready-commercial', view }
+  }
+  const view = toRegionReportView(report as RegionAiReport)
+  return isRegionReportEmpty(view)
+    ? { status: 'empty' }
+    : { status: 'ready-region', view }
+}
+
+const loadingFromJob = (job: AiReportJob | undefined): AiReportState => ({
+  status: 'loading',
+  stage: job ? { name: job.status.name, description: job.status.description } : null,
+  progressMessages: job?.progressMessages ?? [],
+})
+
 const deriveState = (a: {
   on: boolean
-  isRegion: boolean
-  isCommercial: boolean
-  regionQuery: UseQueryResult<RegionAiReport>
+  level: AiReportLevel | null
   submitQuery: UseQueryResult<AiReportSubmission>
   jobQuery: UseQueryResult<AiReportJob>
-  cachedReport: Parameters<typeof toCommercialReportView>[0] | null
+  cachedReport: CommercialAiReport | RegionAiReport | null
   jobId: string | null
   pollElapsedMs: number
 }): AiReportState => {
-  if (!a.on) return { status: 'idle' }
+  if (!a.on || !a.level) return { status: 'idle' }
 
-  if (a.isRegion) {
-    if (a.regionQuery.isError)
-      return { status: 'error', message: '리포트를 불러오지 못했습니다.' }
-    if (a.regionQuery.isPending) return { status: 'loading' }
-    if (!a.regionQuery.data) return { status: 'empty' }
-    const view = toRegionReportView(a.regionQuery.data)
-    return isRegionReportEmpty(view)
-      ? { status: 'empty' }
-      : { status: 'ready-region', view }
-  }
-
-  if (a.isCommercial) {
-    if (a.submitQuery.isError)
-      return { status: 'error', message: 'AI 리포트 요청에 실패했습니다.' }
-    if (a.cachedReport) {
-      const view = toCommercialReportView(a.cachedReport)
-      return isCommercialReportEmpty(view)
-        ? { status: 'empty' }
-        : { status: 'ready-commercial', view }
+  if (a.submitQuery.isError) {
+    return {
+      status: 'error',
+      message: 'AI 리포트 요청에 실패했습니다.',
+      errorKind: 'generic',
+      canRetry: true,
     }
-    if (!a.jobId) return { status: 'loading' }
-    const decision = decideNextPoll(a.jobQuery.data, a.pollElapsedMs)
-    if (decision.kind === 'error')
-      return { status: 'error', message: decision.message }
-    if (decision.kind === 'ready') {
-      const view = toCommercialReportView(decision.report)
-      return isCommercialReportEmpty(view)
-        ? { status: 'empty' }
-        : { status: 'ready-commercial', view }
-    }
-    return { status: 'loading' }
   }
+  if (a.cachedReport) return buildReady(a.level, a.cachedReport)
+  if (a.submitQuery.isPending) {
+    return { status: 'loading', stage: null, progressMessages: [] }
+  }
+  if (!a.jobId) return { status: 'loading', stage: null, progressMessages: [] }
 
-  return { status: 'idle' }
+  const decision = decideNextPoll(a.jobQuery.data, a.pollElapsedMs)
+  if (decision.kind === 'error') {
+    return {
+      status: 'error',
+      message: decision.message,
+      errorKind: classifyError(decision.errorCode),
+      canRetry: true,
+    }
+  }
+  if (decision.kind === 'ready') {
+    const report = reportFromJob(a.jobQuery.data!, a.level)
+    return report
+      ? buildReady(a.level, report)
+      : {
+          status: 'error',
+          message: '리포트를 불러오지 못했습니다.',
+          errorKind: 'generic',
+          canRetry: true,
+        }
+  }
+  return loadingFromJob(a.jobQuery.data)
 }

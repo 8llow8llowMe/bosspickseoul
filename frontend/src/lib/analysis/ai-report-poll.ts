@@ -1,46 +1,69 @@
 import type {
   AiReportJob,
+  AiReportLevel,
   AiReportSubmission,
   CommercialAiReport,
+  RegionAiReport,
 } from '@/types/ai-report'
 
-export const AI_REPORT_POLL_INTERVAL_MS = 2000
+export const AI_REPORT_POLL_INTERVAL_MS = 3000
 export const AI_REPORT_POLL_TIMEOUT_MS = 90000
+
+type WithReports = Pick<
+  AiReportJob,
+  'commercialReport' | 'districtReport' | 'administrationReport'
+>
+
+const pickReport = (
+  x: WithReports,
+  level: AiReportLevel,
+): CommercialAiReport | RegionAiReport | null => {
+  if (level === 'commercial') return x.commercialReport
+  if (level === 'district') return x.districtReport
+  return x.administrationReport
+}
 
 export const reportFromSubmission = (
   submission: AiReportSubmission,
-): CommercialAiReport | null =>
-  submission.submissionStatus === 'CACHED' ? submission.commercialReport : null
+  level: AiReportLevel,
+): CommercialAiReport | RegionAiReport | null =>
+  submission.submissionStatus.code === 'CACHED'
+    ? pickReport(submission, level)
+    : null
 
 export const jobIdFromSubmission = (
   submission: AiReportSubmission,
 ): string | null =>
-  submission.submissionStatus === 'ACCEPTED' ? submission.jobId : null
+  submission.submissionStatus.code === 'ACCEPTED' ? submission.jobId : null
+
+export const reportFromJob = (
+  job: AiReportJob,
+  level: AiReportLevel,
+): CommercialAiReport | RegionAiReport | null => pickReport(job, level)
 
 export type PollDecision =
   | { kind: 'poll'; intervalMs: number }
-  | { kind: 'ready'; report: CommercialAiReport }
-  | { kind: 'error'; message: string }
+  | { kind: 'ready' }
+  | { kind: 'error'; message: string; errorCode: string | null }
 
 export const decideNextPoll = (
   job: AiReportJob | undefined,
   elapsedMs: number,
 ): PollDecision => {
-  if (job?.status === 'COMPLETED') {
-    return job.commercialReport
-      ? { kind: 'ready', report: job.commercialReport }
-      : { kind: 'error', message: '리포트를 불러오지 못했습니다.' }
-  }
-  if (job?.status === 'FAILED') {
+  const code = job?.status.code
+  if (code === 'COMPLETED') return { kind: 'ready' }
+  if (code === 'FAILED') {
     return {
       kind: 'error',
-      message: job.errorMessage?.trim() || 'AI 리포트 생성에 실패했습니다.',
+      message: job!.errorMessage?.trim() || 'AI 리포트 생성에 실패했습니다.',
+      errorCode: job!.errorCode,
     }
   }
   if (elapsedMs >= AI_REPORT_POLL_TIMEOUT_MS) {
     return {
       kind: 'error',
       message: '시간이 초과되었습니다. 다시 시도해 주세요.',
+      errorCode: 'TIMEOUT',
     }
   }
   return { kind: 'poll', intervalMs: AI_REPORT_POLL_INTERVAL_MS }

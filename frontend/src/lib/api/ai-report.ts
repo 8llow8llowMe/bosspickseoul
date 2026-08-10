@@ -1,20 +1,27 @@
 import { apiClient } from '@/lib/api/client'
 import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import type {
-  AdministrationAiReportResponse,
+  AdministrationAiReportSubmissionResponse,
   AiReportJob,
   AiReportJobStatusResponse,
   AiReportSubmission,
   CommercialAiReportSubmissionResponse,
-  DistrictAiReportResponse,
-  RegionAiReport,
+  DistrictAiReportSubmissionResponse,
 } from '@/types/ai-report'
 
 export const aiReportPath = {
-  district: (code: string) => `/ai-reports/districts/${code}`,
-  administration: (code: string) => `/ai-reports/administrations/${code}`,
   job: (jobId: string) => `/ai-reports/jobs/${jobId}`,
 }
+
+export const buildDistrictSubmitPath = (
+  code: string,
+  periodCode: string,
+): string => `/ai-reports/districts/${code}?periodCode=${periodCode}`
+
+export const buildAdministrationSubmitPath = (
+  code: string,
+  periodCode: string,
+): string => `/ai-reports/administrations/${code}?periodCode=${periodCode}`
 
 export const buildCommercialSubmitPath = (
   commercialCode: string,
@@ -23,20 +30,22 @@ export const buildCommercialSubmitPath = (
 ): string =>
   `/ai-reports/commercials/${commercialCode}?serviceCode=${serviceCode}&periodCode=${periodCode}`
 
-export const fetchDistrictAiReport = async (
-  districtCode: string,
-): Promise<RegionAiReport> => {
-  const res = await apiClient.get<DistrictAiReportResponse>(
-    aiReportPath.district(districtCode),
+export const submitDistrictAiReport = async (
+  code: string,
+  periodCode: string = ANALYSIS_PERIOD_CODE,
+): Promise<AiReportSubmission> => {
+  const res = await apiClient.post<DistrictAiReportSubmissionResponse>(
+    buildDistrictSubmitPath(code, periodCode),
   )
   return res.data.dataBody
 }
 
-export const fetchAdministrationAiReport = async (
-  administrationCode: string,
-): Promise<RegionAiReport> => {
-  const res = await apiClient.get<AdministrationAiReportResponse>(
-    aiReportPath.administration(administrationCode),
+export const submitAdministrationAiReport = async (
+  code: string,
+  periodCode: string = ANALYSIS_PERIOD_CODE,
+): Promise<AiReportSubmission> => {
+  const res = await apiClient.post<AdministrationAiReportSubmissionResponse>(
+    buildAdministrationSubmitPath(code, periodCode),
   )
   return res.data.dataBody
 }
