@@ -148,10 +148,6 @@ export default function SeoulDistrictsMap({
     setMounted(true)
   }, [])
 
-  useEffect(() => {
-    onHoverChange?.(hoveredCode)
-  }, [hoveredCode, onHoverChange])
-
   const hoveredFeature = SEOUL_STATUS_FEATURES.find(
     feature => feature.districtCode === hoveredCode,
   )
@@ -201,18 +197,26 @@ export default function SeoulDistrictsMap({
               $isTop={(TOP_DISTRICT_CODES as readonly string[]).includes(
                 feature.districtCode,
               )}
-              onMouseEnter={() => setHoveredCode(feature.districtCode)}
-              onMouseLeave={() =>
-                setHoveredCode(current =>
-                  current === feature.districtCode ? null : current,
-                )
-              }
-              onFocus={() => setHoveredCode(feature.districtCode)}
-              onBlur={() =>
-                setHoveredCode(current =>
-                  current === feature.districtCode ? null : current,
-                )
-              }
+              onMouseEnter={() => {
+                setHoveredCode(feature.districtCode)
+                onHoverChange?.(feature.districtCode)
+              }}
+              onMouseLeave={() => {
+                if (hoveredCode === feature.districtCode) {
+                  setHoveredCode(null)
+                  onHoverChange?.(null)
+                }
+              }}
+              onFocus={() => {
+                setHoveredCode(feature.districtCode)
+                onHoverChange?.(feature.districtCode)
+              }}
+              onBlur={() => {
+                if (hoveredCode === feature.districtCode) {
+                  setHoveredCode(null)
+                  onHoverChange?.(null)
+                }
+              }}
               onClick={() => goToAnalysis(feature.districtCode)}
               onKeyDown={event => handleKeyDown(event, feature.districtCode)}
             />
