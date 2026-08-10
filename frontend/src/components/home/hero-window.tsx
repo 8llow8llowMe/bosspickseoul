@@ -4,6 +4,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import Link from 'next/link'
 import { Maximize2, MapPinned, Minus, Search, X } from 'lucide-react'
 import styled, { css } from 'styled-components'
+import { glassSurface } from '@/components/home/hero-glass'
 
 export type WindowState = 'open' | 'minimized' | 'closed'
 
@@ -26,8 +27,7 @@ const WindowCard = styled.div`
   border-radius: 24px;
   overflow: hidden;
   background: color-mix(in srgb, var(--color-surface) 55%, transparent);
-  border: 1px solid color-mix(in srgb, #ffffff 65%, transparent);
-  box-shadow: 0 24px 60px -16px rgba(2, 9, 19, 0.3);
+  ${glassSurface}
   -webkit-backdrop-filter: blur(16px) saturate(135%);
   backdrop-filter: blur(16px) saturate(135%);
 
@@ -59,7 +59,6 @@ const WindowTitle = styled.span`
 `
 
 const TrafficLights = styled.div`
-  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 8px;

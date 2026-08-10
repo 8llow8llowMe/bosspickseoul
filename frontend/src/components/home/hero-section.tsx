@@ -5,6 +5,7 @@ import { PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import HeroWindow, { type WindowState } from '@/components/home/hero-window'
+import { glassSurface } from '@/components/home/hero-glass'
 
 const Hero = styled.section`
   min-height: 100dvh;
@@ -56,14 +57,13 @@ const DockButton = styled.button`
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  border: 1px solid color-mix(in srgb, #ffffff 65%, transparent);
   border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--color-surface) 55%, transparent);
   color: var(--color-text-900);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 24px 60px -16px rgba(2, 9, 19, 0.3);
+  ${glassSurface}
   -webkit-backdrop-filter: blur(16px) saturate(135%);
   backdrop-filter: blur(16px) saturate(135%);
   pointer-events: auto;
