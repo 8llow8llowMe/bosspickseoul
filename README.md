@@ -40,72 +40,7 @@
 
 ### 전체 구성
 
-```mermaid
-flowchart LR
-    U["사용자 브라우저"]
-
-    subgraph EDGE["Public Edge"]
-        NGW["Nginx<br/>www.bosspickseoul.com"]
-        NGA["Nginx<br/>api / api-dev"]
-    end
-
-    subgraph FE["Frontend"]
-        WEB["Next.js 16 App Router<br/>+ BFF Route Handler"]
-    end
-
-    subgraph BE["Backend · Spring Boot 3.4 MSA"]
-        GW["api-gateway<br/>Spring Cloud Gateway"]
-        EU["service-discovery<br/>Eureka"]
-        AUTH["auth-service"]
-        DIS["district-service"]
-        COM["commercial-service"]
-        AI["ai-service"]
-        CMU["community-service"]
-        BAT["batch-service"]
-    end
-
-    subgraph DATA["Data & Platform"]
-        MY[("MySQL")]
-        RD[("Redis<br/>master + replica 2 + Sentinel 3")]
-        KF[("Kafka<br/>KRaft 3-node")]
-        LLM["Ollama / OpenAI"]
-    end
-
-    U --> NGW --> WEB
-    WEB -- "서버 사이드 호출" --> NGA
-    NGA -- "/api/v1/auth, /api/v1/members" --> AUTH
-    NGA -- "그 외 /api/v1/**, SSE" --> GW
-
-    GW --> DIS
-    GW --> COM
-    GW --> AI
-    GW --> CMU
-
-    AUTH -.-> EU
-    GW -.-> EU
-    DIS -.-> EU
-    COM -.-> EU
-    AI -.-> EU
-    CMU -.-> EU
-    BAT -.-> EU
-
-    DIS -- Feign --> COM
-    COM -- Feign --> DIS
-    AI -- Feign --> COM
-    AI -- Feign --> DIS
-
-    AUTH --> MY
-    COM --> MY
-    DIS --> MY
-    CMU --> MY
-    BAT --> MY
-    AUTH --> RD
-    GW --> RD
-    COM --> RD
-    AI --> RD
-    COM -. "분석 이벤트 (옵션)" .-> KF
-    AI --> LLM
-```
+![BossPickSeoul 시스템 아키텍처](docs/images/architecture.png)
 
 **핵심 흐름**
 
@@ -138,63 +73,7 @@ Controller → WebUseCase → WebFacade → Processor → Port → Adapter
 
 인프라는 별도 IaC 레포(`Infra`)에서 Docker Compose + 셸 스크립트로 관리합니다.
 
-```mermaid
-flowchart TB
-    subgraph AIH["ai-host / ollama-01 · 192.168.0.10"]
-        JC["Jenkins Controller<br/>+ Builder Agent"]
-        VAULT["Vault (KV v2, AppRole)"]
-        OLLAMA["Ollama + Open WebUI"]
-        KAFKA["Kafka KRaft 3-node + Kafka UI"]
-    end
-
-    subgraph MAIN["main-server · 192.168.0.11 (dev)"]
-        BEDEV["Backend dev 6XXX"]
-        MYSQL[("MySQL")]
-        RDM[("Redis master + Sentinel 1")]
-    end
-
-    subgraph B1["backend-1 · 192.168.0.13 (prod)"]
-        BEPRD["Backend prod 9XXX"]
-        RDS1[("Redis replica + Sentinel 2")]
-    end
-
-    subgraph STO["storage"]
-        RDS2[("Redis replica + Sentinel 3")]
-    end
-
-    subgraph MON["monitoring · 192.168.0.14"]
-        PROM["Prometheus"]
-        GRAF["Grafana"]
-        LOKI["Loki"]
-    end
-
-    subgraph PUB["public edge"]
-        NGINX["Nginx + Certbot"]
-    end
-
-    NGINX -- "api.bosspickseoul.com" --> BEPRD
-    NGINX -- "api-dev.bosspickseoul.com" --> BEDEV
-
-    JC -- "AppRole 로그인 · KV 조회" --> VAULT
-    JC -- ".env.runtime · compose 배포" --> BEDEV
-    JC -- ".env.runtime · compose 배포" --> BEPRD
-
-    BEDEV --> MYSQL
-    BEPRD --> MYSQL
-    BEDEV --> RDM
-    BEPRD --> RDM
-    RDM -- 복제 --> RDS1
-    RDM -- 복제 --> RDS2
-    BEDEV --> OLLAMA
-    BEPRD --> OLLAMA
-    BEPRD -. "랭킹 이벤트 (옵션)" .-> KAFKA
-
-    PROM -- "scrape actuator · node_exporter" --> BEDEV
-    PROM -- scrape --> BEPRD
-    BEPRD -- "Promtail push" --> LOKI
-    GRAF --> PROM
-    GRAF --> LOKI
-```
+![BossPickSeoul 인프라 및 CI/CD 구성](docs/images/infrastructure.png)
 
 | 영역 | 구성 |
 | --- | --- |
@@ -209,18 +88,7 @@ flowchart TB
 
 ### CI/CD
 
-```mermaid
-flowchart LR
-    GH["GitHub push / webhook"] --> JCTL["Jenkins Controller"]
-    JCTL --> BLD["builder-backend<br/>gradle test · bootJar · image build"]
-    BLD --> DEP["deploy-backend-dev / prod"]
-    JCTL --> VLT["Vault AppRole 로그인"]
-    VLT -- "KV secret" --> DEP
-    DEP --> ENV[".env.runtime 생성"]
-    ENV --> DC["docker compose up -d"]
-    DC --> HC["헬스 체크"]
-```
-
+- 파이프라인 흐름은 위 인프라 구성도 상단 밴드에 함께 정리되어 있습니다.
 - Jenkins 노드는 **역할 + 환경** 기준으로 라벨을 분리합니다 (`builder-backend`, `deploy-backend-dev`, `deploy-backend-prod` 등).
 - 서비스별 `Jenkinsfile-{service}`가 공통 파이프라인 `Jenkinsfile.backend-common.groovy`를 재사용합니다.
 - 시크릿은 Vault가 원본이고, 배포 서버에는 `.env.runtime`으로만 최소 기간 존재합니다.
@@ -250,8 +118,10 @@ NowDoBoss-V2/
 │   ├── src/                  # components · lib · hooks · stores
 │   └── docs/                 # 기능 명세 · 엔지니어링 규약 · 런북
 ├── Jenkinsfile-*             # 서비스별 파이프라인 + 공통 groovy
-└── docs/                     # CI/CD 아키텍처 문서
+└── docs/                     # CI/CD 문서 · 아키텍처 다이어그램(images) 및 생성기(diagrams)
 ```
+
+아키텍처 다이어그램은 손으로 그린 이미지가 아니라 `docs/diagrams/generate-diagrams.mjs`가 생성합니다. 구성이 바뀌면 스크립트를 수정한 뒤 다시 실행해 `docs/images/*.png`를 갱신합니다.
 
 ## 문서
 
