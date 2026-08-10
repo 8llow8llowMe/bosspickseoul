@@ -492,6 +492,13 @@ void run(Map<String, String> config) {
                 defaultValue: false,
                 description: '배포 가능한 브랜치여도 배포를 건너뛰고 빌드만 수행합니다.'
             ),
+            booleanParam(
+                name: 'FORCE_DEPLOY',
+                defaultValue: false,
+                description: '변경 감지와 PR 라벨 게이트를 우회해 이 서비스를 강제 배포합니다. '
+                    + '라벨을 빠뜨리고 머지한 커밋을 수동으로 배포할 때 사용합니다. '
+                    + '브랜치 규칙(PR 빌드 배포 금지, dev/prod 브랜치 한정)과 SKIP_DEPLOY는 그대로 적용됩니다.'
+            ),
             string(
                 name: 'DEPLOY_BASE_PARENT',
                 defaultValue: 'deploy',
@@ -576,7 +583,15 @@ void run(Map<String, String> config) {
 
                 // 공용 경로(Jenkinsfile, core 모듈 등)를 건드리면 위 판단으로는 8개 잡이 모두 대상이 되므로,
                 // 실제 배포 대상은 PR 라벨로 한 번 더 좁힌다. 라벨이 없으면 배포하지 않는다.
-                if (ctx.deployEnv in ['dev', 'prod'] && ctx.serviceAffected == 'true' && ctx.isPullRequest != 'true') {
+                if (params.FORCE_DEPLOY && ctx.deployEnv in ['dev', 'prod'] && ctx.isPullRequest != 'true') {
+                    // 라벨을 빠뜨리고 머지한 커밋을 수동 배포하는 예외 경로.
+                    // 같은 커밋 재빌드는 변경 파일이 없어 '변경 없음 - 생략'에도 걸리므로 두 게이트를 함께 우회한다.
+                    // 웹훅/자동 빌드는 파라미터 기본값(false)으로 돌기 때문에 사람이 명시적으로 켠 빌드에만 작동한다.
+                    echo 'FORCE_DEPLOY가 지정되어 변경 감지와 PR 라벨 게이트를 우회합니다.'
+                    currentBuild.description = '강제 배포(FORCE_DEPLOY) - 변경 감지/라벨 게이트 우회'
+                    ctx.serviceAffected = 'true'
+                    ctx.deployLabelAllowed = 'true'
+                } else if (ctx.deployEnv in ['dev', 'prod'] && ctx.serviceAffected == 'true' && ctx.isPullRequest != 'true') {
                     Map<String, Object> labelContext = resolveDeployLabelContext(ctx)
                     ctx.deployLabelAllowed = isServiceDeployAllowedByLabels(config, labelContext) ? 'true' : 'false'
                 } else {

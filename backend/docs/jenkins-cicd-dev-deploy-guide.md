@@ -59,6 +59,17 @@ GitHub push 또는 pull_request
 
 마지막 행만 `UNSTABLE`로 표시한다. 라벨을 안 붙여서 배포하지 않은 것과, 설정·통신 문제로 라벨을 확인조차 못해 배포하지 않은 것은 구분해야 한다. 후자를 SUCCESS로 두면 credential 오설정으로 배포가 영구히 멈춘 것을 알아채기 어렵다. 사유 코드는 `NO_CREDENTIAL`, `NO_REPOSITORY_SLUG`, `API_ERROR`, `PULL_REQUEST_PARSE_FAILED`다.
 
+**예외 — 수동 강제 배포 (`FORCE_DEPLOY`).** 라벨을 빠뜨리고 머지한 PR을 나중에 배포해야 할 때는,
+해당 서비스 잡의 `develop`(또는 `main`) 브랜치 빌드를 `Build with Parameters`로 열고 **`FORCE_DEPLOY=true`**
+를 켠다. 이 파라미터는 두 게이트를 함께 우회한다.
+
+1. **변경 감지 게이트** — 같은 커밋 재빌드는 변경 파일이 없어 `변경 없음 - 생략`에 걸리는데, 이것도 우회한다.
+2. **PR 라벨 게이트** — 라벨 조회 없이 배포 대상으로 판정한다.
+
+우회하지 않는 것: PR 빌드 배포 금지, dev/prod 브랜치 한정, `SKIP_DEPLOY`. 즉 배포 가능한 브랜치의
+수동 빌드에서만 효과가 있고, 웹훅 자동 빌드는 파라미터 기본값(`false`)으로 돌기 때문에 영향이 없다.
+강제 배포된 빌드는 description 에 `강제 배포(FORCE_DEPLOY)` 로 표시되어 이력에서 구분된다.
+
 라벨 조회에는 `GITHUB_APP_CREDENTIAL_ID` 파라미터의 GitHub App credential을 사용한다 (기본값 `github-app-followfollowme-jenkins`, `Pull requests: Read-only` 권한 필요). 이 파라미터를 비우면 라벨을 확인할 수 없으므로 배포가 생략되고 빌드가 `UNSTABLE`이 된다.
 
 사용 가능한 라벨은 잡의 `serviceName`과 1:1로 대응한다.
@@ -527,6 +538,7 @@ Multibranch Pipeline의 하위 branch/PR job에서 `Build with Parameters`로 �
 | `VAULT_SECRET_PATH` | `kv/bosspickseoul/backend/dev/env` |
 | `VAULT_ENGINE_VERSION` | `2` |
 | `DEPLOY_LOCK_NAME` | `backend-1-deploy` |
+| `FORCE_DEPLOY` | `false` (라벨 누락 머지 커밋을 수동 배포할 때만 `true`) |
 
 `VAULT_SECRET_PATH`를 비워두면 Jenkinsfile은 아래 기본 경로를 사용한다.
 
