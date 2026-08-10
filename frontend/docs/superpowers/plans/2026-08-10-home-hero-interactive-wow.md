@@ -48,10 +48,12 @@
 hover 툴팁에 쓸 하드코딩 대표 수치. 순수 데이터라 TDD로 커버리지를 잠근다.
 
 **Files:**
+
 - Create: `src/data/district-metrics.ts`
 - Test: `src/data/district-metrics.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SEOUL_STATUS_FEATURES`(`src/data/seoul-status-map.ts`, 각 항목 `districtCode: string`), `districts`(`src/data/districts.ts`, `gooCode: number`, `gooName: string`).
 - Produces:
   - `type DistrictMetric = { districtCode: string; salesLabel: string; footTrafficLabel: string; trend: number[] }`
@@ -64,10 +66,7 @@ hover 툴팁에 쓸 하드코딩 대표 수치. 순수 데이터라 TDD로 커�
 // src/data/district-metrics.test.ts
 import { describe, expect, it } from 'vitest'
 import { SEOUL_STATUS_FEATURES } from '@/data/seoul-status-map'
-import {
-  TOP_DISTRICT_CODES,
-  getDistrictMetric,
-} from '@/data/district-metrics'
+import { TOP_DISTRICT_CODES, getDistrictMetric } from '@/data/district-metrics'
 
 describe('district-metrics', () => {
   it('지도에 있는 모든 자치구가 매트릭을 가진다', () => {
@@ -110,31 +109,156 @@ export type DistrictMetric = {
 
 // 대표 예시 수치(실데이터 아님). hover 툴팁의 "느낌" 전달용.
 const METRICS: DistrictMetric[] = [
-  { districtCode: '11110', salesLabel: '월 매출 2.4억', footTrafficLabel: '일 유동 5.1만', trend: [42, 45, 43, 48, 52, 55, 58] },
-  { districtCode: '11140', salesLabel: '월 매출 2.1억', footTrafficLabel: '일 유동 4.7만', trend: [38, 40, 39, 41, 44, 43, 46] },
-  { districtCode: '11170', salesLabel: '월 매출 2.8억', footTrafficLabel: '일 유동 6.0만', trend: [50, 52, 55, 54, 58, 60, 63] },
-  { districtCode: '11200', salesLabel: '월 매출 1.9억', footTrafficLabel: '일 유동 4.2만', trend: [30, 33, 32, 35, 37, 39, 40] },
-  { districtCode: '11215', salesLabel: '월 매출 2.2억', footTrafficLabel: '일 유동 4.9만', trend: [40, 42, 41, 44, 46, 45, 48] },
-  { districtCode: '11230', salesLabel: '월 매출 2.0억', footTrafficLabel: '일 유동 4.4만', trend: [35, 36, 38, 37, 40, 42, 43] },
-  { districtCode: '11260', salesLabel: '월 매출 2.5억', footTrafficLabel: '일 유동 5.3만', trend: [44, 46, 45, 49, 51, 53, 56] },
-  { districtCode: '11290', salesLabel: '월 매출 2.3억', footTrafficLabel: '일 유동 5.0만', trend: [41, 43, 42, 45, 47, 49, 50] },
-  { districtCode: '11305', salesLabel: '월 매출 1.7억', footTrafficLabel: '일 유동 3.8만', trend: [28, 30, 29, 31, 33, 34, 35] },
-  { districtCode: '11320', salesLabel: '월 매출 1.8억', footTrafficLabel: '일 유동 4.0만', trend: [30, 31, 33, 32, 35, 36, 38] },
-  { districtCode: '11350', salesLabel: '월 매출 2.0억', footTrafficLabel: '일 유동 4.5만', trend: [34, 36, 35, 38, 40, 41, 43] },
-  { districtCode: '11380', salesLabel: '월 매출 1.9억', footTrafficLabel: '일 유동 4.3만', trend: [32, 34, 33, 36, 38, 39, 40] },
-  { districtCode: '11410', salesLabel: '월 매출 2.6억', footTrafficLabel: '일 유동 5.6만', trend: [46, 48, 47, 51, 53, 55, 58] },
-  { districtCode: '11440', salesLabel: '월 매출 3.1억', footTrafficLabel: '일 유동 7.2만', trend: [55, 58, 60, 62, 66, 69, 72] },
-  { districtCode: '11470', salesLabel: '월 매출 1.8억', footTrafficLabel: '일 유동 4.1만', trend: [31, 33, 32, 35, 37, 38, 39] },
-  { districtCode: '11500', salesLabel: '월 매출 2.2억', footTrafficLabel: '일 유동 4.8만', trend: [39, 41, 40, 43, 45, 47, 49] },
-  { districtCode: '11530', salesLabel: '월 매출 2.1억', footTrafficLabel: '일 유동 4.6만', trend: [37, 39, 38, 41, 43, 44, 46] },
-  { districtCode: '11545', salesLabel: '월 매출 2.0억', footTrafficLabel: '일 유동 4.4만', trend: [35, 37, 36, 39, 41, 42, 44] },
-  { districtCode: '11560', salesLabel: '월 매출 2.7억', footTrafficLabel: '일 유동 5.8만', trend: [48, 50, 49, 53, 55, 57, 60] },
-  { districtCode: '11590', salesLabel: '월 매출 1.9억', footTrafficLabel: '일 유동 4.2만', trend: [32, 34, 33, 36, 38, 39, 41] },
-  { districtCode: '11620', salesLabel: '월 매출 1.8억', footTrafficLabel: '일 유동 4.0만', trend: [30, 32, 31, 34, 36, 37, 38] },
-  { districtCode: '11650', salesLabel: '월 매출 2.3억', footTrafficLabel: '일 유동 5.0만', trend: [41, 43, 42, 46, 48, 50, 52] },
-  { districtCode: '11680', salesLabel: '월 매출 3.6억', footTrafficLabel: '일 유동 8.4만', trend: [60, 64, 66, 70, 74, 78, 82] },
-  { districtCode: '11710', salesLabel: '월 매출 3.0억', footTrafficLabel: '일 유동 6.9만', trend: [52, 55, 57, 60, 63, 66, 70] },
-  { districtCode: '11740', salesLabel: '월 매출 2.4억', footTrafficLabel: '일 유동 5.2만', trend: [43, 45, 44, 48, 50, 52, 54] },
+  {
+    districtCode: '11110',
+    salesLabel: '월 매출 2.4억',
+    footTrafficLabel: '일 유동 5.1만',
+    trend: [42, 45, 43, 48, 52, 55, 58],
+  },
+  {
+    districtCode: '11140',
+    salesLabel: '월 매출 2.1억',
+    footTrafficLabel: '일 유동 4.7만',
+    trend: [38, 40, 39, 41, 44, 43, 46],
+  },
+  {
+    districtCode: '11170',
+    salesLabel: '월 매출 2.8억',
+    footTrafficLabel: '일 유동 6.0만',
+    trend: [50, 52, 55, 54, 58, 60, 63],
+  },
+  {
+    districtCode: '11200',
+    salesLabel: '월 매출 1.9억',
+    footTrafficLabel: '일 유동 4.2만',
+    trend: [30, 33, 32, 35, 37, 39, 40],
+  },
+  {
+    districtCode: '11215',
+    salesLabel: '월 매출 2.2억',
+    footTrafficLabel: '일 유동 4.9만',
+    trend: [40, 42, 41, 44, 46, 45, 48],
+  },
+  {
+    districtCode: '11230',
+    salesLabel: '월 매출 2.0억',
+    footTrafficLabel: '일 유동 4.4만',
+    trend: [35, 36, 38, 37, 40, 42, 43],
+  },
+  {
+    districtCode: '11260',
+    salesLabel: '월 매출 2.5억',
+    footTrafficLabel: '일 유동 5.3만',
+    trend: [44, 46, 45, 49, 51, 53, 56],
+  },
+  {
+    districtCode: '11290',
+    salesLabel: '월 매출 2.3억',
+    footTrafficLabel: '일 유동 5.0만',
+    trend: [41, 43, 42, 45, 47, 49, 50],
+  },
+  {
+    districtCode: '11305',
+    salesLabel: '월 매출 1.7억',
+    footTrafficLabel: '일 유동 3.8만',
+    trend: [28, 30, 29, 31, 33, 34, 35],
+  },
+  {
+    districtCode: '11320',
+    salesLabel: '월 매출 1.8억',
+    footTrafficLabel: '일 유동 4.0만',
+    trend: [30, 31, 33, 32, 35, 36, 38],
+  },
+  {
+    districtCode: '11350',
+    salesLabel: '월 매출 2.0억',
+    footTrafficLabel: '일 유동 4.5만',
+    trend: [34, 36, 35, 38, 40, 41, 43],
+  },
+  {
+    districtCode: '11380',
+    salesLabel: '월 매출 1.9억',
+    footTrafficLabel: '일 유동 4.3만',
+    trend: [32, 34, 33, 36, 38, 39, 40],
+  },
+  {
+    districtCode: '11410',
+    salesLabel: '월 매출 2.6억',
+    footTrafficLabel: '일 유동 5.6만',
+    trend: [46, 48, 47, 51, 53, 55, 58],
+  },
+  {
+    districtCode: '11440',
+    salesLabel: '월 매출 3.1억',
+    footTrafficLabel: '일 유동 7.2만',
+    trend: [55, 58, 60, 62, 66, 69, 72],
+  },
+  {
+    districtCode: '11470',
+    salesLabel: '월 매출 1.8억',
+    footTrafficLabel: '일 유동 4.1만',
+    trend: [31, 33, 32, 35, 37, 38, 39],
+  },
+  {
+    districtCode: '11500',
+    salesLabel: '월 매출 2.2억',
+    footTrafficLabel: '일 유동 4.8만',
+    trend: [39, 41, 40, 43, 45, 47, 49],
+  },
+  {
+    districtCode: '11530',
+    salesLabel: '월 매출 2.1억',
+    footTrafficLabel: '일 유동 4.6만',
+    trend: [37, 39, 38, 41, 43, 44, 46],
+  },
+  {
+    districtCode: '11545',
+    salesLabel: '월 매출 2.0억',
+    footTrafficLabel: '일 유동 4.4만',
+    trend: [35, 37, 36, 39, 41, 42, 44],
+  },
+  {
+    districtCode: '11560',
+    salesLabel: '월 매출 2.7억',
+    footTrafficLabel: '일 유동 5.8만',
+    trend: [48, 50, 49, 53, 55, 57, 60],
+  },
+  {
+    districtCode: '11590',
+    salesLabel: '월 매출 1.9억',
+    footTrafficLabel: '일 유동 4.2만',
+    trend: [32, 34, 33, 36, 38, 39, 41],
+  },
+  {
+    districtCode: '11620',
+    salesLabel: '월 매출 1.8억',
+    footTrafficLabel: '일 유동 4.0만',
+    trend: [30, 32, 31, 34, 36, 37, 38],
+  },
+  {
+    districtCode: '11650',
+    salesLabel: '월 매출 2.3억',
+    footTrafficLabel: '일 유동 5.0만',
+    trend: [41, 43, 42, 46, 48, 50, 52],
+  },
+  {
+    districtCode: '11680',
+    salesLabel: '월 매출 3.6억',
+    footTrafficLabel: '일 유동 8.4만',
+    trend: [60, 64, 66, 70, 74, 78, 82],
+  },
+  {
+    districtCode: '11710',
+    salesLabel: '월 매출 3.0억',
+    footTrafficLabel: '일 유동 6.9만',
+    trend: [52, 55, 57, 60, 63, 66, 70],
+  },
+  {
+    districtCode: '11740',
+    salesLabel: '월 매출 2.4억',
+    footTrafficLabel: '일 유동 5.2만',
+    trend: [43, 45, 44, 48, 50, 52, 54],
+  },
 ]
 
 const METRIC_BY_CODE = new Map(METRICS.map(m => [m.districtCode, m]))
@@ -170,11 +294,13 @@ git commit -m "[FE] feat(home): 히어로 지도 툴팁용 자치구 대표 매�
 인터랙션 상태를 담을 그릇을 먼저 만든다. 이 태스크는 순수 리팩터 — 화면은 그대로.
 
 **Files:**
+
 - Create: `src/components/home/hero-section.tsx`
 - Modify: `src/components/home/home-page.tsx` (히어로 블록 및 히어로 전용 styled-components 이동)
 - Test: `src/components/home/home-page.test.ts` (기존 어서션 유지 확인)
 
 **Interfaces:**
+
 - Produces: `export default function HeroSection(): JSX.Element` — 현재 `<Hero>...</Hero>` 마크업과 동일 출력(지도 + 글래스 카드 오버레이).
 - Consumes: `SeoulDistrictsMap`(현행 그대로).
 
@@ -212,8 +338,11 @@ export default function HeroSection() {
               <Eyebrow>서울 상권 데이터 분석</Eyebrow>
               <Title>창업 전에, 상권부터 확인하세요.</Title>
               <Body>
-                서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로 분석합니다.
-                <BodyEmphasis>감이 아니라 데이터로 자리를 정하세요.</BodyEmphasis>
+                서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로
+                분석합니다.
+                <BodyEmphasis>
+                  감이 아니라 데이터로 자리를 정하세요.
+                </BodyEmphasis>
               </Body>
               <Actions>
                 <PrimaryLink href="/analysis">
@@ -254,16 +383,19 @@ git commit -m "[FE] refactor(home): 히어로를 HeroSection 클라이언트 컴
 ## Task 3: 살아있는 지도 — 순차 페이드인 + 상위 상권 pulse
 
 **Files:**
+
 - Modify: `src/components/home/seoul-districts-map.tsx`
 - Test: 브라우저 검증(마크업 스냅샷은 불안정하므로 유닛 테스트 없음)
 
 **Interfaces:**
+
 - Consumes: `TOP_DISTRICT_CODES`(Task 1).
 - Produces: 마운트 시 자치구가 인덱스 순서로 지연 페이드인, `TOP_DISTRICT_CODES` 폴리곤에 은은한 pulse. reduced-motion 시 즉시 표시·pulse 없음.
 
 - [ ] **Step 1: 페이드인 상태 + 스타일 추가**
 
 `seoul-districts-map.tsx`에 `useEffect`로 마운트 후 `mounted` 상태를 true로 전환(reveal.tsx 패턴). `DistrictPath`에 `$index`, `$appear`, `$isTop` transient prop을 받아:
+
 - 초기 `opacity: 0`, `mounted` 시 `opacity: 1`, `transition-delay: ${index * 24}ms`(마지막 구도 ~600ms 내 완료).
 - `$isTop`이면 `@keyframes` pulse(예: `filter: drop-shadow`나 `fill` 밝기 2.4s 무한, 아주 낮은 진폭).
 - `@media (prefers-reduced-motion: reduce)`: `opacity: 1; animation: none; transition: none;`.
@@ -285,6 +417,7 @@ const topPulse = keyframes`
 - [ ] **Step 3: 브라우저 검증**
 
 `pnpm dev` → preview_start(`{name}`) → `/` 로드. 확인:
+
 - 페이지 진입 시 자치구가 왼→오/순차로 부드럽게 나타난다.
 - 강남·마포·송파가 은은히 맥동한다(과하지 않게).
 - reduced-motion(resize_window `colorScheme`는 무관 — OS 설정 또는 devtools emulation)에서 즉시 표시.
@@ -304,11 +437,13 @@ git commit -m "[FE] feat(home): 지도 순차 페이드인 + 상위 상권 pulse
 hover 시 자치구 이름 라벨 대신(또는 함께) 매출·유동인구 + 트렌드 스파크라인 미니 툴팁을 SVG 안에 그린다. 좌표 변환을 피하려고 viewBox 단위로 SVG-native 렌더하고, 화면 밖으로 나가지 않게 순수 헬퍼로 클램프한다.
 
 **Files:**
+
 - Create: `src/components/home/tooltip-geometry.ts`
 - Create: `src/components/home/tooltip-geometry.test.ts`
 - Modify: `src/components/home/seoul-districts-map.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `function clampTooltipPosition(center: {x:number;y:number}, size: {width:number;height:number}, viewBox: {width:number;height:number}, offset?: number): {x:number;y:number}` — 툴팁 박스 좌상단 좌표를 `[0, viewBox-size]`로 클램프.
   - `SeoulDistrictsMap` 새 prop: `onHoverChange?: (districtCode: string | null) => void`.
@@ -380,6 +515,7 @@ Expected: PASS.
 - [ ] **Step 5: 지도에 SVG 툴팁 + onHoverChange 배선**
 
 `seoul-districts-map.tsx`:
+
 - prop `onHoverChange?: (code: string | null) => void` 추가. `setHoveredCode`를 감싸 hover 변경 시 `onHoverChange?.(code)` 호출(useEffect로 `hoveredCode` 변화를 구독하거나, set 지점에서 직접 호출).
 - `hoveredFeature`가 있으면 `getDistrictMetric(code)`로 매트릭 조회. `SEOUL_STATUS_VIEW_BOX`를 파싱해 `{width:800,height:620}` 확보(문자열 `"0 0 800 620"` split).
 - 툴팁 박스 크기 상수(예 `{width:184,height:96}`), `clampTooltipPosition(center, size, view)`로 좌상단 좌표 계산.
@@ -404,10 +540,12 @@ git commit -m "[FE] feat(home): 지도 hover 미니 데이터 툴팁 + onHoverCh
 ## Task 5: HeroWindow — 신호등 3버튼 + 창 상태(open/minimize/close) + 독 복귀
 
 **Files:**
+
 - Create: `src/components/home/hero-window.tsx`
 - Modify: `src/components/home/hero-section.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `type WindowState = 'open' | 'minimized' | 'closed'`
   - `function HeroWindow(props: { state: WindowState; onClose: () => void; onMinimize: () => void; onToggleMinimize: () => void; dragHandlers?: TitleBarDragHandlers; style?: CSSProperties }): JSX.Element`
@@ -417,6 +555,7 @@ git commit -m "[FE] feat(home): 지도 hover 미니 데이터 툴팁 + onHoverCh
 - [ ] **Step 1: HeroWindow 마크업 — 타이틀바 + 신호등 + 본문**
 
 `hero-window.tsx`(`'use client'`):
+
 - 최상위 `HeroCopy`(글래스 카드) 안에 `TitleBar`(좌: 창 제목 "상권 분석", 우: 신호등 그룹) + 본문(Eyebrow/Title/Body/Actions).
 - 신호등은 **실제 `<button>` 3개**, 색만이 아니라 아이콘 + `aria-label`:
   - close: `aria-label="분석 창 닫고 지도 보기"`, 빨강, `X` 아이콘(lucide `X`), `onClick={onClose}`.
@@ -427,20 +566,43 @@ git commit -m "[FE] feat(home): 지도 hover 미니 데이터 툴팁 + onHoverCh
 
 ```tsx
 const Dot = styled.button<{ $variant: 'close' | 'min' | 'max' }>`
-  width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: auto;
   background: ${p =>
-    p.$variant === 'close' ? '#ff5f57' : p.$variant === 'min' ? '#febc2e' : '#28c840'};
-  svg { width: 8px; height: 8px; opacity: 0; transition: opacity var(--motion-fast) var(--ease-standard); stroke: rgba(0,0,0,0.55); }
-  &:hover svg, &:focus-visible svg { opacity: 1; }
-  &:focus-visible { outline: 2px solid var(--color-primary-700); outline-offset: 2px; }
+    p.$variant === 'close'
+      ? '#ff5f57'
+      : p.$variant === 'min'
+        ? '#febc2e'
+        : '#28c840'};
+  svg {
+    width: 8px;
+    height: 8px;
+    opacity: 0;
+    transition: opacity var(--motion-fast) var(--ease-standard);
+    stroke: rgba(0, 0, 0, 0.55);
+  }
+  &:hover svg,
+  &:focus-visible svg {
+    opacity: 1;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-700);
+    outline-offset: 2px;
+  }
 `
 ```
 
 - [ ] **Step 2: hero-section에 창 상태 배선 + 독 버튼**
 
 `hero-section.tsx`:
+
 - `const [windowState, setWindowState] = useState<WindowState>('open')`.
 - `<HeroWindow state={windowState} onClose={() => setWindowState('closed')} onMinimize={...} onToggleMinimize={() => setWindowState(s => s === 'minimized' ? 'open' : 'minimized')} />`.
 - `windowState === 'closed'`이면 `HeroWindow`를 언마운트하고 `CardLayer` 대신 화면 모서리(우하단)에 **작은 플로팅 독 버튼** 렌더: `<DockButton onClick={() => setWindowState('open')} aria-label="분석 창 열기">`(lucide `PanelTopOpen`/`LayoutTemplate` + 짧은 텍스트). `pointer-events: auto`, `position: absolute; right/bottom` inset.
@@ -449,6 +611,7 @@ const Dot = styled.button<{ $variant: 'close' | 'min' | 'max' }>`
 - [ ] **Step 3: 브라우저 검증**
 
 `/`에서:
+
 - 🔴 클릭 → 카드 사라지고 지도 전체 공개 + 우하단 "분석 창 열기" 독 버튼 등장 → 클릭 시 카드 복귀.
 - 🟡 클릭 → 타이틀바만 남게 접힘 → 다시 클릭 시 펼침.
 - 🟢 클릭 → `/analysis`로 이동.
@@ -467,11 +630,13 @@ git commit -m "[FE] feat(home): 히어로 신호등 창 컨트롤(닫기/접기/
 ## Task 6: 타이틀바 드래그(데스크톱) + 경계 클램프
 
 **Files:**
+
 - Create: `src/components/home/use-window-drag.ts`
 - Create: `src/components/home/use-window-drag.test.ts`
 - Modify: `src/components/home/hero-window.tsx`, `src/components/home/hero-section.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `function clampOffset(offset: {x:number;y:number}, bounds: {minX:number;maxX:number;minY:number;maxY:number}): {x:number;y:number}`
   - `type TitleBarDragHandlers = { onPointerDown: (e: React.PointerEvent) => void }`
@@ -506,14 +671,24 @@ Expected: FAIL — 모듈 미존재.
 ```ts
 // src/components/home/use-window-drag.ts
 'use client'
-import { useCallback, useRef, useState, type PointerEvent, type RefObject } from 'react'
+import {
+  useCallback,
+  useRef,
+  useState,
+  type PointerEvent,
+  type RefObject,
+} from 'react'
 
 type Offset = { x: number; y: number }
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number }
 
 export function clampOffset(offset: Offset, bounds: Bounds): Offset {
-  const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
-  return { x: clamp(offset.x, bounds.minX, bounds.maxX), y: clamp(offset.y, bounds.minY, bounds.maxY) }
+  const clamp = (v: number, min: number, max: number) =>
+    Math.min(Math.max(v, min), max)
+  return {
+    x: clamp(offset.x, bounds.minX, bounds.maxX),
+    y: clamp(offset.y, bounds.minY, bounds.maxY),
+  }
 }
 
 export type TitleBarDragHandlers = { onPointerDown: (e: PointerEvent) => void }
@@ -524,7 +699,12 @@ export function useWindowDrag(opts: {
   cardRef: RefObject<HTMLElement | null>
 }): { offset: Offset; handlers: TitleBarDragHandlers; reset: () => void } {
   const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 })
-  const start = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null)
+  const start = useRef<{
+    px: number
+    py: number
+    ox: number
+    oy: number
+  } | null>(null)
 
   const computeBounds = useCallback((): Bounds => {
     const c = opts.containerRef.current
@@ -538,11 +718,17 @@ export function useWindowDrag(opts: {
     return { minX: -slackX, maxX: slackX, minY: -slackY, maxY: slackY }
   }, [opts.containerRef, opts.cardRef])
 
-  const onPointerMove = useCallback((e: globalThis.PointerEvent) => {
-    if (!start.current) return
-    const next = { x: start.current.ox + (e.clientX - start.current.px), y: start.current.oy + (e.clientY - start.current.py) }
-    setOffset(clampOffset(next, computeBounds()))
-  }, [computeBounds])
+  const onPointerMove = useCallback(
+    (e: globalThis.PointerEvent) => {
+      if (!start.current) return
+      const next = {
+        x: start.current.ox + (e.clientX - start.current.px),
+        y: start.current.oy + (e.clientY - start.current.py),
+      }
+      setOffset(clampOffset(next, computeBounds()))
+    },
+    [computeBounds],
+  )
 
   const onPointerUp = useCallback(() => {
     start.current = null
@@ -550,12 +736,20 @@ export function useWindowDrag(opts: {
     window.removeEventListener('pointerup', onPointerUp)
   }, [onPointerMove])
 
-  const onPointerDown = useCallback((e: PointerEvent) => {
-    if (!opts.enabled) return
-    start.current = { px: e.clientX, py: e.clientY, ox: offset.x, oy: offset.y }
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-  }, [opts.enabled, offset.x, offset.y, onPointerMove, onPointerUp])
+  const onPointerDown = useCallback(
+    (e: PointerEvent) => {
+      if (!opts.enabled) return
+      start.current = {
+        px: e.clientX,
+        py: e.clientY,
+        ox: offset.x,
+        oy: offset.y,
+      }
+      window.addEventListener('pointermove', onPointerMove)
+      window.addEventListener('pointerup', onPointerUp)
+    },
+    [opts.enabled, offset.x, offset.y, onPointerMove, onPointerUp],
+  )
 
   const reset = useCallback(() => setOffset({ x: 0, y: 0 }), [])
   return { offset, handlers: { onPointerDown }, reset }
@@ -570,13 +764,15 @@ Expected: PASS.
 - [ ] **Step 5: hero-section/hero-window 배선(데스크톱 전용)**
 
 `hero-section.tsx`:
+
 - `containerRef`(HeroStage), `cardRef`(HeroWindow 루트) ref 생성.
 - 데스크톱 판별: `const [enabled, setEnabled] = useState(false)`; `useEffect`에서 `window.matchMedia('(min-width: 641px) and (pointer: fine)').matches` + `!prefers-reduced-motion`로 설정, resize 리스너로 갱신.
 - `const drag = useWindowDrag({ enabled, containerRef, cardRef })`.
-- `HeroWindow`에 `dragHandlers={drag.handlers}`와 `style={{ transform: \`translate(\${drag.offset.x}px, \${drag.offset.y}px)\` }}` 전달. 드래그 중 `transition: none`, 놓으면 복귀 트랜지션은 두지 않음(즉시 추종).
+- `HeroWindow`에 `dragHandlers={drag.handlers}`와 `style={{ transform: \`translate(\${drag.offset.x}px, \${drag.offset.y}px)\` }}`전달. 드래그 중`transition: none`, 놓으면 복귀 트랜지션은 두지 않음(즉시 추종).
 - `onClose` 시 `drag.reset()` 호출(복귀 시 중앙).
 
 `hero-window.tsx`:
+
 - `TitleBar`에 `onPointerDown={dragHandlers?.onPointerDown}`, `cursor: grab`(active `grabbing`), `touch-action: none`. `style`은 카드 루트에 적용.
 - 카드 루트를 `forwardRef`로 만들어 `cardRef` 연결.
 
@@ -596,9 +792,11 @@ git commit -m "[FE] feat(home): 히어로 타이틀바 드래그(데스크톱) +
 ## Task 7: 동적 틴트 + 글래스 개선 + 모바일 세로 정렬 + reduced-motion 최종 점검
 
 **Files:**
+
 - Modify: `src/components/home/hero-section.tsx`, `src/components/home/hero-window.tsx`, `src/components/home/seoul-districts-map.tsx`
 
 **Interfaces:**
+
 - Consumes: `SeoulDistrictsMap`의 `onHoverChange`(Task 4)로 hover 코드를 hero-section이 받음.
 - Produces: hover 자치구가 있으면 카드 배경에 primary 색 5~8% 혼합. 모바일은 오버레이 해제·세로 정렬.
 
@@ -606,12 +804,14 @@ git commit -m "[FE] feat(home): 히어로 타이틀바 드래그(데스크톱) +
 
 `hero-section.tsx`: `const [hoveredCode, setHoveredCode] = useState<string | null>(null)`, `<SeoulDistrictsMap onHoverChange={setHoveredCode} />`. `HeroWindow`에 `tinted={hoveredCode != null}` 전달.
 `hero-window.tsx`의 글래스 배경 개선(예외 승인 범위):
+
 ```css
 background: color-mix(in srgb, var(--color-surface) 55%, transparent);
 -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
 backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
 border-top: 1px solid color-mix(in srgb, #ffffff 70%, transparent);
 ```
+
 `tinted`일 때 배경에 `color-mix(... var(--color-primary-700) 7% ...)` 혼합을 얹어 지도 hover에 "반응". 전환은 `--motion-fast`.
 
 - [ ] **Step 2: 모바일 세로 정렬(오버레이 해제)**
@@ -642,12 +842,14 @@ git commit -m "[FE] feat(home): 카드 동적 틴트 + 글래스 개선 + 모바
 ## Task 8: DESIGN.md 글래스 예외 정본화 + QA 체크리스트 조정 + 인덱스 갱신
 
 **Files:**
+
 - Modify: `DESIGN.md`
 - Modify: `docs/features/_index.md`
 
 - [ ] **Step 1: DESIGN.md 예외 문구 추가**
 
 현 878행 "금지: 마케팅 hero 그라디언트, decorative glow, glass panel." 항목에 예외 각주/보조 문장 추가:
+
 > **예외(승인 2026-08-10):** 랜딩 히어로(`/`)의 "떠 있는 분석 창" 카드에 한해 `backdrop-filter` 글래스를 허용한다. 창(window) 은유를 위한 기능적 표현이며, 다른 화면·마케팅 배너로 확산 금지.
 
 QA 체크리스트의 `backdrop-filter`/`glass` grep 무결과 항목(현 1230/1261/1287행 부근)을 "`src/components/home/hero-window.tsx` **제외** 무결과"로 수정하거나 예외 경로를 명시.
