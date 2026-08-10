@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import styled from 'styled-components'
+import styled, { css, keyframes } from 'styled-components'
 import { districts } from '@/data/districts'
+import { TOP_DISTRICT_CODES } from '@/data/district-metrics'
 import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
@@ -25,17 +26,40 @@ const MapSvg = styled.svg`
   max-width: 100%;
 `
 
-const DistrictPath = styled.path`
+const topPulse = keyframes`
+  0%, 100% {
+    fill: var(--color-primary-100);
+  }
+  50% {
+    fill: color-mix(in srgb, var(--color-primary-700) 22%, var(--color-surface-muted));
+  }
+`
+
+const DistrictPath = styled.path<{
+  $index: number
+  $appear: boolean
+  $isTop: boolean
+}>`
   fill: var(--color-surface-muted);
   stroke: var(--color-border-200);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
   cursor: pointer;
-  transition: fill var(--motion-slow) var(--ease-standard);
+  opacity: ${p => (p.$appear ? 1 : 0)};
+  transition:
+    opacity var(--motion-standard) var(--ease-standard) ${p => p.$index * 24}ms,
+    fill var(--motion-slow) var(--ease-standard);
+  animation: ${p =>
+    p.$isTop
+      ? css`
+          ${topPulse} 2.4s var(--ease-standard) infinite
+        `
+      : 'none'};
 
   &:hover {
     fill: var(--color-primary-700);
     transition: fill var(--motion-fast) var(--ease-standard);
+    animation: none;
   }
 
   /* 마우스 pointer-down(:focus) 시 브라우저 기본 파란 아웃라인 제거 */
@@ -54,6 +78,8 @@ const DistrictPath = styled.path`
   }
 
   @media (prefers-reduced-motion: reduce) {
+    opacity: 1;
+    animation: none;
     transition: none;
 
     &:hover {
@@ -76,6 +102,12 @@ const DistrictLabel = styled.text`
 export default function SeoulDistrictsMap() {
   const router = useRouter()
   const [hoveredCode, setHoveredCode] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+  }, [])
 
   const hoveredFeature = SEOUL_STATUS_FEATURES.find(
     feature => feature.districtCode === hoveredCode,
@@ -101,7 +133,7 @@ export default function SeoulDistrictsMap() {
   return (
     <Wrapper>
       <MapSvg viewBox={SEOUL_STATUS_VIEW_BOX}>
-        {SEOUL_STATUS_FEATURES.map(feature => {
+        {SEOUL_STATUS_FEATURES.map((feature, index) => {
           const name = districtNameByCode.get(feature.districtCode)
           return (
             <DistrictPath
@@ -110,6 +142,11 @@ export default function SeoulDistrictsMap() {
               role="link"
               tabIndex={0}
               aria-label={name || '자치구'}
+              $index={index}
+              $appear={mounted}
+              $isTop={(TOP_DISTRICT_CODES as readonly string[]).includes(
+                feature.districtCode,
+              )}
               onMouseEnter={() => setHoveredCode(feature.districtCode)}
               onMouseLeave={() =>
                 setHoveredCode(current =>
