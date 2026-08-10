@@ -9,7 +9,11 @@ export type Meta<C extends string = string> = {
 }
 
 export type AiReportSubmissionCode = 'CACHED' | 'ACCEPTED'
-export type AiReportJobStatusCode = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+export type AiReportJobStatusCode =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
 export type AiReportJobTypeCode =
   | 'COMMERCIAL'
   | 'COMMERCIAL_COMPARISON'
@@ -65,5 +69,6 @@ export type AiReportJob = ReportFields & {
 export type DistrictAiReportSubmissionResponse = ApiResponse<AiReportSubmission>
 export type AdministrationAiReportSubmissionResponse =
   ApiResponse<AiReportSubmission>
-export type CommercialAiReportSubmissionResponse = ApiResponse<AiReportSubmission>
+export type CommercialAiReportSubmissionResponse =
+  ApiResponse<AiReportSubmission>
 export type AiReportJobStatusResponse = ApiResponse<AiReportJob>

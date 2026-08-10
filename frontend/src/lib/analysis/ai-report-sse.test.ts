@@ -9,9 +9,7 @@ import type { AiReportJob } from '@/types/ai-report'
 
 describe('buildJobStreamUrl', () => {
   it('전용 스트리밍 라우트 경로를 만든다', () => {
-    expect(buildJobStreamUrl('job-1')).toBe(
-      '/api/ai-reports/jobs/job-1/stream',
-    )
+    expect(buildJobStreamUrl('job-1')).toBe('/api/ai-reports/jobs/job-1/stream')
   })
 })
 
@@ -54,7 +52,11 @@ describe('subscribeJobStream', () => {
     let done = false
     await subscribeJobStream(
       'j1',
-      { onEvent: j => events.push(j), onError: () => {}, onDone: () => (done = true) },
+      {
+        onEvent: j => events.push(j),
+        onError: () => {},
+        onDone: () => (done = true),
+      },
       new AbortController().signal,
     )
     expect(events).toHaveLength(1)
