@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import styled, { css, keyframes } from 'styled-components'
 import { districts } from '@/data/districts'
@@ -9,7 +9,7 @@ import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
-import { sparklinePath } from '@/components/home/sparkline'
+import { tooltipAreaChart } from '@/components/home/tooltip-chart'
 import { clampTooltipPosition } from '@/components/home/tooltip-geometry'
 
 const districtNameByCode = new Map(
@@ -22,10 +22,11 @@ const VIEW_BOX_SIZE = {
   height: viewBoxNumbers[viewBoxNumbers.length - 1],
 }
 
-const TOOLTIP_SIZE = { width: 184, height: 96 }
+const TOOLTIP_SIZE = { width: 184, height: 104 }
 const TOOLTIP_PADDING = 12
-const SPARKLINE_WIDTH = 140
-const SPARKLINE_HEIGHT = 28
+const CHART_WIDTH = 140
+const CHART_HEIGHT = 32
+const CHART_OFFSET = { x: 22, y: 64 }
 
 const Wrapper = styled.div`
   position: relative;
@@ -124,12 +125,25 @@ const TooltipMetric = styled.text`
   font-weight: 500;
 `
 
-const TooltipSparkline = styled.polyline`
+const TooltipAreaPath = styled.path`
+  stroke: none;
+`
+
+const TooltipLinePath = styled.path`
   fill: none;
   stroke: var(--color-primary-700);
   stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
+`
+
+const TooltipEndDot = styled.circle`
+  fill: var(--color-primary-700);
+`
+
+const TooltipBaseline = styled.line`
+  stroke: var(--color-border-200);
+  stroke-width: 1px;
 `
 
 type SeoulDistrictsMapProps = {
@@ -140,6 +154,7 @@ export default function SeoulDistrictsMap({
   onHoverChange,
 }: SeoulDistrictsMapProps = {}) {
   const router = useRouter()
+  const gradientId = useId()
   const [hoveredCode, setHoveredCode] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -164,6 +179,9 @@ export default function SeoulDistrictsMap({
         VIEW_BOX_SIZE,
         TOOLTIP_PADDING,
       )
+    : null
+  const tooltipChart = hoveredMetric
+    ? tooltipAreaChart(hoveredMetric.trend, CHART_WIDTH, CHART_HEIGHT)
     : null
 
   const goToAnalysis = (districtCode: string) => {
@@ -222,8 +240,22 @@ export default function SeoulDistrictsMap({
             />
           )
         })}
-        {hoveredFeature && hoveredMetric && tooltipPosition ? (
+        {hoveredFeature && hoveredMetric && tooltipPosition && tooltipChart ? (
           <TooltipGroup>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="0%"
+                  stopColor="var(--color-primary-700)"
+                  stopOpacity={0.35}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--color-primary-700)"
+                  stopOpacity={0}
+                />
+              </linearGradient>
+            </defs>
             <TooltipBackground
               x={tooltipPosition.x}
               y={tooltipPosition.y}
@@ -247,16 +279,25 @@ export default function SeoulDistrictsMap({
               {hoveredMetric.footTrafficLabel}
             </TooltipMetric>
             <g
-              transform={`translate(${tooltipPosition.x + 22}, ${
-                tooltipPosition.y + 62
+              transform={`translate(${tooltipPosition.x + CHART_OFFSET.x}, ${
+                tooltipPosition.y + CHART_OFFSET.y
               })`}
             >
-              <TooltipSparkline
-                points={sparklinePath(
-                  hoveredMetric.trend,
-                  SPARKLINE_WIDTH,
-                  SPARKLINE_HEIGHT,
-                )}
+              <TooltipBaseline
+                x1={0}
+                y1={CHART_HEIGHT}
+                x2={CHART_WIDTH}
+                y2={CHART_HEIGHT}
+              />
+              <TooltipAreaPath
+                d={tooltipChart.areaPath}
+                fill={`url(#${gradientId})`}
+              />
+              <TooltipLinePath d={tooltipChart.linePath} />
+              <TooltipEndDot
+                cx={tooltipChart.lastPoint.x}
+                cy={tooltipChart.lastPoint.y}
+                r={2.5}
               />
             </g>
           </TooltipGroup>
