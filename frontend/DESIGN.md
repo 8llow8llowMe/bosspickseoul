@@ -1228,7 +1228,7 @@ idle → submitting → ┬── cached (200)        → completed
 - [x] Primary `#0ea5e9`, hover `#2272eb`, weak bg `#e8f3ff` 적용 (레거시 `#1549b5`/`#336dd3`/`rgba(21, 73, 181,` 코드 잔존 없음, 2026-07-15 `rg` 검증)
 - [x] Radius 스케일을 `4px`/`8px`/`12px`/`16px`/`9999px`로 제한 (`border-radius: (1[7-9]|[2-9][0-9])px` grep 무결과)
 - [ ] Shadow가 전 화면에서 단일 black opacity 계열만 사용하는지 — 화면별 실사 필요
-- [x] 장식용 gradient/glass 코드 없음 — 2026-07-15 `rg` 검증 기준(전면 재검증은 Task 09에서). 단, 2026-08-10 승인 예외로 `src/components/home/hero-window.tsx`, `hero-section.tsx`(및 `hero-glass.ts`의 `glassSurface`)에는 히어로 글래스 `backdrop-filter`가 존재한다 — S-HOME `금지`/`예외` 항목 참고
+- [x] 장식용 gradient/glass 코드 없음 — 2026-07-15 `rg` 검증 기준(전면 재검증은 Task 09에서). 단, 2026-08-10 승인 예외로 `src/components/home/hero-window.tsx`, `hero-section.tsx`에는 히어로 글래스 `backdrop-filter`가 존재한다(같은 디렉터리의 `hero-glass.ts`는 이 두 파일이 공유하는 글래스 표면 스타일인 shadow/border만 정의하며 `backdrop-filter`는 없음) — S-HOME `금지`/`예외` 항목 참고
 - [ ] 숫자·금액·지표·count에 `font-variant-numeric: tabular-nums` 전면 적용 — 화면별 실사 필요
 - [x] `prefers-reduced-motion: reduce` 대응 — `motion-instant/fast/standard/slow/page`, `ease-enter/exit/standard` 토큰이 `global-styles.ts` 및 `components/ui/*`에서 다수 사용 확인
 
