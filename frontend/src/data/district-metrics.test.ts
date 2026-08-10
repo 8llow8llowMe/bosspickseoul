@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SEOUL_STATUS_FEATURES } from '@/data/seoul-status-map'
-import {
-  TOP_DISTRICT_CODES,
-  getDistrictMetric,
-} from '@/data/district-metrics'
+import { TOP_DISTRICT_CODES, getDistrictMetric } from '@/data/district-metrics'
 
 describe('district-metrics', () => {
   it('지도에 있는 모든 자치구가 매트릭을 가진다', () => {
