@@ -54,6 +54,17 @@ describe('AiReportPanel', () => {
     expect(markup).toContain('다시 요청하기')
   })
 
+  it('canRetry가 false면 다시 시도 버튼을 노출하지 않는다', () => {
+    const markup = render({
+      status: 'error',
+      message: 'x',
+      errorKind: 'generic',
+      canRetry: false,
+    })
+    expect(markup).toContain('x')
+    expect(markup).not.toContain('다시 시도')
+  })
+
   it('empty 상태는 안내 문구를 노출한다', () => {
     expect(render({ status: 'empty' })).toContain('표시할 내용')
   })
