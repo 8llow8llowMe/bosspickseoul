@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.common.config.SwaggerPropertiesConfig;
 import com.followfollowme.nowdoboss.global.properties.AiLlmProperties;
 import com.followfollowme.nowdoboss.global.properties.AiReportCacheProperties;
 import com.followfollowme.nowdoboss.global.properties.AiReportJobProperties;
+import com.followfollowme.nowdoboss.global.properties.AiReportUsageLimitProperties;
 import com.followfollowme.nowdoboss.redis.config.RedisPropertiesConfig;
 import com.followfollowme.nowdoboss.security.resourceserver.config.JwtResourceServerPropertiesConfig;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,6 +22,7 @@ import org.springframework.context.annotation.Import;
 @EnableConfigurationProperties({
     AiReportCacheProperties.class,
     AiReportJobProperties.class,
+    AiReportUsageLimitProperties.class,
     AiLlmProperties.class
 })
 public class AiServicePropertiesConfig {

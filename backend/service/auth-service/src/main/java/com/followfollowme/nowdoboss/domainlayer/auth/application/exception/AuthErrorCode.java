@@ -23,6 +23,9 @@ public enum AuthErrorCode {
     OAUTH_EMAIL_UNVERIFIED("AUTH_012", "소셜 계정의 이메일이 인증되지 않았습니다. 제공자에서 이메일 인증 후 다시 시도해주세요.", HttpStatus.BAD_REQUEST),
     OAUTH_AUTHORIZATION_FAILED("AUTH_013", "소셜 로그인 인증에 실패했습니다. 처음부터 다시 시도해주세요.", HttpStatus.BAD_REQUEST),
     OAUTH_PROVIDER_UNAVAILABLE("AUTH_014", "소셜 로그인 제공자와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.", HttpStatus.BAD_GATEWAY),
+    // 로그인 실패 횟수 초과 잠금. 메시지에 계정 존재 여부/잠금 사유를 담지 않는다 —
+    // 미존재 이메일도 동일하게 잠기므로 이 응답이 "이 이메일은 가입돼 있다"는 신호가 되지 않아야 한다.
+    LOGIN_ATTEMPT_LOCKED("AUTH_015", "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(AUTH_101~104)는 AuthValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

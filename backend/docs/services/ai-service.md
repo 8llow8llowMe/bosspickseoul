@@ -4,7 +4,7 @@
 
 - 상권 / 자치구 / 행정동 / 상권 비교 분석 데이터를 기반으로 AI 리포트를 생성한다.
 - LLM 연동, 프롬프트 구성, 구조화 응답 파싱을 담당한다.
-- AI 리포트 캐시 / 작업 상태 / 사용자별 토큰 사용량을 Redis 로 관리한다.
+- AI 리포트 캐시 / 작업 상태 / 사용자별 토큰 사용량 / 일별 사용량 상한을 Redis 로 관리한다.
 - 내부 서비스 조회 결과를 AI 리포트 입력 데이터로 조합한다.
 
 ## 주요 컨텍스트
@@ -32,7 +32,7 @@
   - `AiReportCachePort` — 결과 캐시 (Redis)
   - `AiReportJobStorePort` — 작업 상태 저장 (Redis)
   - `AiReportJobEventPort` — 작업 상태 변경 브로드캐스트 (Redis pub/sub, 채널 `{prefix}:ai:job:events:{jobId}`)
-  - `AiUsageCounterPort` — 사용자별 토큰 사용량 카운터 (Redis)
+  - `AiUsageCounterPort` — 사용자별 토큰 사용량 카운터 + 일별 사용량 상한 소비/검사 (Redis)
   - `*AnalysisQueryPort` — 다른 서비스 Feign 조회
 - Presenter: `AiReportPresenter`
 - SSE: `AiReportJobSseStreamer` (adapter/in/web/sse) — 잡 상태 변경을 SSE 로 푸시
@@ -43,7 +43,8 @@
 
 ```
 POST /api/v1/ai-reports/commercials/{commercialCode}
-  ├─ 캐시 hit  → 200 OK + CommercialAiReportResponse (submissionStatus=CACHED)
+  ├─ 캐시 hit  → 200 OK + CommercialAiReportResponse (submissionStatus=CACHED, 사용량 제한 대상 아님)
+  ├─ cache miss + 일별 사용량 상한 초과 → 429 (AI_012), 잡 생성 안 함
   ├─ 동일 사용자가 같은 요청을 in-flight 보유 → 202 + 기존 jobId
   └─ cache miss → 202 + 신규 jobId, @Async 워커 픽업
 
@@ -102,13 +103,28 @@ GET /api/v1/ai-reports/jobs/{jobId}/stream (SSE)
 - 만료 처리 시 `errorCode=AI_009 (JOB_TIMEOUT)` 로 마킹하고 idempotency 키를 해제한다 → 사용자가 다시 제출하면 새 작업으로 처리된다.
 - 폴링이 발생하지 않는 작업은 Redis TTL (24h) 까지 잔류 후 자연 소멸한다. 운영상 부담이 보이면 별도 스케줄 정리 잡을 추가할 수 있다.
 
+### 사용량 제한 (계정 단위 LLM 어뷰징 방어)
+
+- 로그인 계정 하나로 LLM 을 무제한 호출하는 것을 막기 위해 **일별 리포트 생성 건수 상한**을 적용한다.
+- 검사 지점: `AiReportJobProcessor.submitJob()` 진입부 — POST 4종(`commercials/{code}`, `commercials/comparisons`,
+  `districts/{code}`, `administrations/{code}`) 이 공유하는 신규 잡 생성 경로다.
+  **캐시 hit 은 LLM 을 호출하지 않으므로 제한 대상이 아니다** (`submitJob` 에 도달하지 않는다).
+- 초과 시 `AI_012 USAGE_LIMIT_EXCEEDED`(429)로 제출을 거절한다. 잡 entry / 멱등성 키 / 워커 디스패치는 일어나지 않는다.
+- 포트: `AiUsageCounterPort.tryConsumeDailyQuota(long memberId)` — 소비 후 상한 이내면 `true`.
+- 저장소: **기존 일별 usage 해시를 재사용**하고 `submissions` 필드만 추가한다. 새 키 스키마를 만들지 않는다.
+  완료 건수인 `count` 는 워커가 생성 성공 후에 올려 실패/타임아웃 호출이 빠지므로 상한 기준으로 쓸 수 없어 필드를 분리했다.
+- 멱등 재사용(같은 요청이 in-flight 라 기존 jobId 를 되돌려주는 경우)도 슬롯 1건을 소비한다 — 반복 제출 자체가 억제 대상이라 보수적으로 센다.
+- **Redis 장애 시 정책: fail-open** (상한 검사를 통과시키고 WARN 로그만 남긴다). 사용량 카운터는 인증/인가가 아니라
+  어뷰징 억제 장치이고, 실제 LLM 동시 호출 총량은 워커 큐(스레드 2 / 큐 200, 포화 시 `AI_007`)가 이미 하드 리밋을 걸고 있어
+  카운터 저장소 장애로 정상 기능을 막는 것은 과하다.
+
 ### Redis 스키마
 
 | 키 | 타입 | TTL | 내용 |
 |----|------|-----|------|
 | `{prefix}:ai:job:{jobId}` | String (JSON) | 24h | `AiReportJob` 직렬화 |
 | `{prefix}:ai:job:idempotency:{memberId}:{hash}` | String | 24h | jobId |
-| `{prefix}:ai:usage:{memberId}:{yyyy-MM-dd}` | Hash | 30d | promptTokens, completionTokens, count |
+| `{prefix}:ai:usage:{memberId}:{yyyy-MM-dd}` | Hash | 30d | promptTokens, completionTokens, count, submissions |
 | `{prefix}:ai:report:commercial:v2:...` | String (JSON) | 24h (`ai.report.cache.ttl-seconds`) | 결과 캐시 |
 
 ### Properties
@@ -123,6 +139,8 @@ ai:
       usage-ttl-seconds: 2592000      # 일별 usage 카운터 TTL (30일)
       pending-timeout-seconds: 30     # PENDING 좀비 lazy 만료 기준
       running-timeout-seconds: 300    # RUNNING 좀비 lazy 만료 기준
+    usage-limit:
+      daily-limit: 30                 # 계정 1개 일별 리포트 생성 상한 (AI_REPORT_USAGE_DAILY_LIMIT)
   llm:
     provider: OLLAMA
     base-url: http://localhost:11434
@@ -178,6 +196,7 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
 | `AI_009` | 504 | 작업이 시간 내에 완료되지 않음 (lazy 만료) |
 | `AI_010` | 500 | 지원하지 않는 LLM 응답 스키마 정의 (LLM_SCHEMA_UNSUPPORTED) |
 | `AI_011` | 500 | AI 리포트 요청 식별자(멱등성 키) 생성 실패 (IDEMPOTENCY_KEY_GENERATION_FAILED) |
+| `AI_012` | 429 | 일별 사용량 상한 초과 (USAGE_LIMIT_EXCEEDED) — 신규 잡 제출만 거절, 캐시 hit 은 영향 없음 |
 | `AI_100` | 400 | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
 | `AI_101` | 400 | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
 
@@ -253,12 +272,7 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
 - 프롬프트 포맷터, 구조화 응답 파서, 캐시 키 규칙을 함께 관리한다.
 - 비동기 작업 워커는 단일 인스턴스 가정 (멱등성은 Redis 키로만 보장). 멀티 인스턴스 운영 시 작업 락 또는 분산 큐 도입 검토 필요.
 - 운영 단가 추적은 현 시점 미적용 — Ollama 로컬 운영 가정. 외부 OpenAI 사용 시 토큰 단가표 + 일/월 누적 cost 가 필요하면 `AiUsageCounterPort` 확장.
-- **사용량 제한(rate limit)은 미구현 — 기록만 한다 (추후 추가).**
-  `AiUsageCounterPort` 가 `{prefix}:ai:usage:{memberId}:{yyyy-MM-dd}` 에 토큰/호출 수를 일별로 적재하고 있으나
-  이 값으로 요청을 막지는 않는다. LLM 이 미니PC 1대(동시 생성 1건)라 어뷰징 시 대기열이 길어질 수 있으므로,
-  도입 시에는 잡 제출(`AiReportJobProcessor.submitJob`) 앞단에서 당일 카운터를 읽어 한도 초과면
-  전용 ErrorCode(예: `AI_012 USAGE_LIMIT_EXCEEDED`, 429)로 거절하는 형태를 권장한다.
-  카운터 인프라가 이미 있어 추가 저장소 없이 확장 가능하다.
+- **사용량 제한(rate limit) 구현 완료** — 상세는 아래 "사용량 제한" 절 참고.
 - 워커 풀(`aiReportTaskExecutor`)은 LLM 동시 생성이 1건인 특성에 맞춰 스레드 2 / 큐 200 으로 둔다.
   스레드를 늘리면 대기 중인 잡이 RUNNING 으로 일찍 전이되어 running-timeout 을 헛되이 소모한다.
   큐가 넘치면 제출이 `AI_007 JOB_QUEUE_FULL`(503) 로 거절되며, 이는 작업 실패(`AI_008`)와 구분된다.

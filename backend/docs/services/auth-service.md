@@ -24,6 +24,7 @@
 ## 인증 API (`/api/v1/auth`)
 
 - `POST /api/v1/auth/login` — 이메일/비밀번호 로그인. 응답 body에 accessToken, `Set-Cookie`로 refresh 쿠키 발급.
+  실패 누적 시 이메일 단위로 잠긴다(`AUTH_015`, 429 — 기본 5회 / 10분).
 - `POST /api/v1/auth/logout` — 로그아웃. refresh 삭제 + access 블랙리스트, refresh 쿠키 제거(maxAge=0).
 - `POST /api/v1/auth/token/reissue` — 토큰 재발급. `@CookieValue(name = "refreshToken", required = false)`로
   쿠키를 읽으며, 쿠키 미첨부 시에도 컨트롤러 진입 후 도메인 검증(`AUTH_002`)으로 처리한다.
@@ -50,9 +51,33 @@
   `jwt.blacklist-fail-open`(env `JWT_BLACKLIST_FAIL_OPEN`, 기본 false=fail-closed `SECURITY_008` 503)로
   게이트웨이와 동일 키로 정렬한다.
 
+**로그인 실패 횟수 제한 / 잠금 (brute-force 방어)**
+- `GeneralLoginProcessor`가 로그인 실패마다 이메일 단위 카운터를 올리고, 임계값 도달 시 잠근다 →
+  `AUTH_015 LOGIN_ATTEMPT_LOCKED`(429). 성공 시 카운터/잠금을 즉시 초기화한다.
+- 임계값/잠금 시간은 프로퍼티: `auth.login.max-failure-count`(env `AUTH_LOGIN_MAX_FAILURE_COUNT`, 기본 5),
+  `auth.login.lock-duration`(env `AUTH_LOGIN_LOCK_DURATION`, 기본 `PT10M`). 실패 카운터 TTL 도 같은 값을 쓴다
+  (실패가 뜸하게 흩어지면 카운터가 자연 소멸해 정상 사용자를 잠그지 않는다).
+- 구현: `LoginAttemptStorePort` / `RedisLoginAttemptStoreAdapter`. Redis 키 2종 —
+  `{prefix}:auth:loginFail:{email}` (누적 실패 횟수, TTL=잠금 시간, 첫 실패에서만 TTL 설정),
+  `{prefix}:auth:loginLock:{email}` (잠금 플래그, TTL=잠금 시간). 잠금이 걸리면 카운터는 삭제한다.
+- **계정 열거 방지**: 카운터/잠금은 **계정 존재 여부와 무관하게 이메일 키만으로** 동작한다. 미존재 이메일도
+  동일하게 카운팅되고 같은 임계값에서 같은 `AUTH_015`로 잠기므로, 잠금 응답이 "이 이메일은 가입돼 있다"는
+  신호가 되지 않는다. 잠금 검사는 회원 조회보다 먼저 수행해 잠긴 이메일에는 DB 조회/bcrypt 비용도 주지 않는다.
+  이메일은 전 구간과 동일하게 trim+소문자 정규화 후 키로 쓰므로 대소문자/공백으로 카운터를 우회할 수 없다.
+- **Redis 장애 시 정책: fail-open**(잠금 없이 로그인은 계속 동작, ERROR 로그로 감지). 이 저장소는 비밀번호 검증을
+  대체하는 게 아니라 시도 횟수를 세는 보조 장치이므로, fail-closed 로 전원 로그인 불가를 만드는 쪽이 사고가 더 크다.
+  (`jwt.blacklist-fail-open`의 기본 fail-closed 와는 성격이 다르다 — 그쪽은 revoke 된 토큰을 놓치면 인증 자체가 깨진다.)
+- 알려진 한계: 이메일 단위 잠금이라 IP 분산 공격에는 계정별로만 유효하다. IP 기반 rate limit(게이트웨이)은 별도 과제.
+
+| 코드 | HttpStatus | 설명 |
+|------|-----------|------|
+| `AUTH_006` | 401 | 로그인 실패 (LOGIN_FAILED) — 미존재/비밀번호 불일치 통합 응답 |
+| `AUTH_015` | 429 | 로그인 실패 횟수 초과 잠금 (LOGIN_ATTEMPT_LOCKED) — 계정 존재 여부와 무관하게 동일 적용 |
+
 **계정 열거 방지**
 - 로그인 실패는 미존재/비밀번호 불일치 구분 없이 `AUTH_006 LOGIN_FAILED`(401)로 통합.
   미존재 이메일에도 더미 bcrypt를 1회 수행해 응답 시간 차이(타이밍 채널)도 제거한다.
+  실패 횟수 잠금(`AUTH_015`)도 미존재 이메일에 동일하게 적용된다(위 절 참고).
 - 탈퇴/정지 상태는 비밀번호가 일치할 때만 노출한다(`MEMBER_004`/`MEMBER_005`).
 - 인증코드 발송은 가입 여부와 무관하게 항상 200 — 기가입 이메일에는 코드 대신 안내 메일을 발송해
   메일박스 소유자만 상태를 알 수 있다. 가입 시 중복(`MEMBER_001` 409)은 이메일 인증(메일박스 소유 증명)
@@ -87,7 +112,8 @@
 - 발송: `spring.mail.*`(SMTP, env `MAIL_HOST/PORT/USERNAME/PASSWORD`) + `authMailTaskExecutor` 비동기,
   로그에는 이메일을 마스킹해 남긴다. 자격증명 미설정이어도 기동은 가능하며 발송 시점에만 실패한다.
   **배포 전 Vault dev/prod secret에 MAIL_* 키 추가 필요.**
-- 후속 권장: send-code/login의 IP 기반 rate limit(게이트웨이), 회원 단위 revocation 마커.
+- 후속 권장: send-code/login의 **IP 기반** rate limit(게이트웨이), 회원 단위 revocation 마커.
+  (계정(이메일) 단위 로그인 실패 잠금은 구현 완료 — `AUTH_015`, 위 "로그인 실패 횟수 제한 / 잠금" 절 참고)
 
 **소셜 로그인 (카카오/네이버)** (`/api/v1/auth`)
 - `GET /{provider}/authorize` — 인가 URL 생성. CSRF 방어용 일회성 `state`(SecureRandom 16바이트 hex)를

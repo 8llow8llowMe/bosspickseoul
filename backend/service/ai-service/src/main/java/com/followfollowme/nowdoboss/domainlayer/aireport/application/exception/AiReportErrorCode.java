@@ -19,6 +19,8 @@ public enum AiReportErrorCode {
     JOB_TIMEOUT("AI_009", "AI 리포트 작업이 시간 내에 완료되지 않았습니다.", HttpStatus.GATEWAY_TIMEOUT),
     LLM_SCHEMA_UNSUPPORTED("AI_010", "지원하지 않는 LLM 응답 스키마 정의입니다. (%s)", HttpStatus.INTERNAL_SERVER_ERROR),
     IDEMPOTENCY_KEY_GENERATION_FAILED("AI_011", "AI 리포트 요청 식별자 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    USAGE_LIMIT_EXCEEDED("AI_012", "오늘 사용할 수 있는 AI 리포트 생성 횟수를 모두 사용했습니다. 내일 다시 시도해 주세요.",
+        HttpStatus.TOO_MANY_REQUESTS),
 
     // 요청 검증(Bean Validation) 전용 코드 — 1xx 대역.
     INVALID_REQUEST("AI_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),

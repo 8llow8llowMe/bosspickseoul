@@ -68,6 +68,12 @@ snowflake:
   datacenter-id: 1
   worker-id: 1
 
+# 일반 로그인 실패 횟수 제한 / 잠금
+auth:
+  login:
+    max-failure-count: ${AUTH_LOGIN_MAX_FAILURE_COUNT:5}
+    lock-duration: ${AUTH_LOGIN_LOCK_DURATION:PT10M}
+
 # Redis
 infra:
   redis:
