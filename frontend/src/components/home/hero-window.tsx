@@ -29,6 +29,9 @@ export type HeroWindowProps = {
 const WindowCard = styled.div<{ $tinted?: boolean }>`
   /* 카드 본문이 포인터 이벤트를 가로채 뒤에 있는 지도 폴리곤의 hover/클릭을 막는다 */
   pointer-events: auto;
+  /* 카드(타이틀바 드래그 포함) 내부 텍스트가 드래그로 선택되지 않게 한다 */
+  -webkit-user-select: none;
+  user-select: none;
   width: min(460px, 100%);
   border-radius: 24px;
   overflow: hidden;
