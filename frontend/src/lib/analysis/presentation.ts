@@ -24,15 +24,36 @@ export const normalizeAnalysisTab = (
     ? (value as AnalysisResultTab)
     : 'summary'
 
+/**
+ * 원 금액을 억/만원 단위로 표기한다. 만원 미만 자리는 버린다(절사).
+ * 예) 345,345,345 → '3억 4534만원', 3,234,278 → '323만원',
+ *     471,000,000,000 → '4,710억원', 5,000 → '5,000원', 0 → '0원'.
+ * null/undefined/비유한수는 '데이터 없음'.
+ */
+export const formatKoreanMoney = (value: number | null | undefined): string => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '데이터 없음'
+  const sign = value < 0 ? '-' : ''
+  const abs = Math.floor(Math.abs(value))
+  const eok = Math.floor(abs / 100_000_000)
+  const man = Math.floor((abs % 100_000_000) / 10_000)
+  const parts: string[] = []
+  if (eok > 0) parts.push(`${eok.toLocaleString('ko-KR')}억`)
+  if (man > 0) parts.push(`${man}만`)
+  if (parts.length === 0) return `${sign}${abs.toLocaleString('ko-KR')}원`
+  return `${sign}${parts.join(' ')}원`
+}
+
 export const formatAnalysisValue = (
   value: number | null | undefined,
   unit = '',
-): string =>
-  typeof value === 'number' && Number.isFinite(value)
+): string => {
+  if (unit === '원') return formatKoreanMoney(value)
+  return typeof value === 'number' && Number.isFinite(value)
     ? `${new Intl.NumberFormat('ko-KR', {
         maximumFractionDigits: 1,
       }).format(value)}${unit}`
     : '데이터 없음'
+}
 
 export const formatPeriodCode = (periodCode: string): string => {
   const match = /^(\d{4})([1-4])$/.exec(periodCode)
