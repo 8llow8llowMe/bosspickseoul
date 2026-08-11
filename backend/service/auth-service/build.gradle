@@ -2,6 +2,7 @@ dependencies {
     implementation project(":core:common-core")
     implementation project(":core:persistence-core")
     implementation project(":core:security-core")
+    implementation project(":core:storage-core")
     implementation project(":core:redis-core")
 
     // Spring Data JPA
