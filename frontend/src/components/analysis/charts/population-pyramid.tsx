@@ -124,7 +124,7 @@ export default function PopulationPyramid({
             dataKey="maleValue"
             name="남성"
             fill={CHART_COLORS.seriesPrimary}
-            radius={[4, 0, 0, 4]}
+            radius={[0, 4, 4, 0]}
             isAnimationActive={false}
           />
           <Bar
