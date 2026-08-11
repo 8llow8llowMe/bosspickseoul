@@ -22,11 +22,11 @@ const VIEW_BOX_SIZE = {
   height: viewBoxNumbers[viewBoxNumbers.length - 1],
 }
 
-const TOOLTIP_SIZE = { width: 184, height: 104 }
+const TOOLTIP_SIZE = { width: 188, height: 116 }
 const TOOLTIP_PADDING = 12
-const CHART_WIDTH = 140
-const CHART_HEIGHT = 32
-const CHART_OFFSET = { x: 22, y: 64 }
+const CHART_WIDTH = 152
+const CHART_HEIGHT = 40
+const CHART_OFFSET = { x: 18, y: 62 }
 
 const Wrapper = styled.div`
   position: relative;
@@ -149,6 +149,8 @@ const TooltipLinePath = styled.path`
 
 const TooltipEndDot = styled.circle`
   fill: var(--color-primary-700);
+  stroke: var(--color-surface);
+  stroke-width: 1.5px;
 `
 
 const TooltipBaseline = styled.line`
@@ -165,6 +167,7 @@ export default function SeoulDistrictsMap({
 }: SeoulDistrictsMapProps = {}) {
   const router = useRouter()
   const gradientId = useId()
+  const shadowId = useId()
   const [hoveredCode, setHoveredCode] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -268,13 +271,29 @@ export default function SeoulDistrictsMap({
                   stopOpacity={0}
                 />
               </linearGradient>
+              <filter
+                id={shadowId}
+                x="-20%"
+                y="-20%"
+                width="140%"
+                height="150%"
+              >
+                <feDropShadow
+                  dx="0"
+                  dy="2"
+                  stdDeviation="4"
+                  floodColor="#020913"
+                  floodOpacity={0.16}
+                />
+              </filter>
             </defs>
             <TooltipBackground
               x={tooltipPosition.x}
               y={tooltipPosition.y}
               width={TOOLTIP_SIZE.width}
               height={TOOLTIP_SIZE.height}
-              rx={8}
+              rx={10}
+              filter={`url(#${shadowId})`}
             />
             <TooltipTitle x={tooltipPosition.x + 12} y={tooltipPosition.y + 20}>
               {hoveredName ?? '자치구'}
@@ -310,7 +329,7 @@ export default function SeoulDistrictsMap({
               <TooltipEndDot
                 cx={tooltipChart.lastPoint.x}
                 cy={tooltipChart.lastPoint.y}
-                r={2.5}
+                r={3}
               />
             </g>
           </TooltipGroup>
