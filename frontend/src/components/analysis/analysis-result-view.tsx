@@ -20,6 +20,7 @@ import DonutChart from '@/components/analysis/charts/donut-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
 import AnalysisResultNav from '@/components/analysis/analysis-result-nav'
+import AnalysisPeriodSelect from '@/components/analysis/analysis-period-select'
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { TabButton, TabList } from '@/components/ui/tabs'
@@ -256,7 +257,7 @@ const ResultLayout = styled.div`
   width: min(1320px, calc(100% - 40px));
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 150px minmax(0, 1fr);
   gap: 28px;
   padding: 20px 0 56px;
 
@@ -305,10 +306,12 @@ const MobileTabList = styled(TabList)`
 const ReportSection = styled.section`
   display: grid;
   gap: 16px;
-  scroll-margin-top: 112px;
+  /* 데스크톱: sticky 헤더(≈63px) 아래로 자연스럽게 안착. */
+  scroll-margin-top: 76px;
 
-  @media (max-width: 640px) {
-    scroll-margin-top: 104px;
+  /* 모바일(≤840px): 헤더에 가로 탭 바가 포함돼 더 높다(≈102px). */
+  @media (max-width: 840px) {
+    scroll-margin-top: 116px;
   }
 `
 
@@ -318,6 +321,15 @@ const GroupHeading = styled.h2`
   font-size: 18px;
   font-weight: 780;
   line-height: 26px;
+`
+
+/** 그룹 헤딩 줄: 왼쪽 제목 + 오른쪽 기간(연/분기) 선택. */
+const GroupHeadingRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 `
 
 const DashboardGrid = styled.div`
@@ -637,7 +649,7 @@ export default function AnalysisResultView({
   const administrationCode = selection.administrationCode ?? ''
   const commercialCode = selection.commercialCode ?? ''
   const serviceCode = selection.serviceCode ?? ''
-  const periodCode = selection.periodCode
+  const [periodCode, setPeriodCode] = useState<string>(selection.periodCode)
   const contextParams = {
     districtCode,
     administrationCode,
@@ -1010,6 +1022,13 @@ export default function AnalysisResultView({
     },
   ] as const
 
+  const renderGroupHeading = (label: string) => (
+    <GroupHeadingRow>
+      <GroupHeading>{label}</GroupHeading>
+      <AnalysisPeriodSelect value={periodCode} onChange={setPeriodCode} />
+    </GroupHeadingRow>
+  )
+
   return (
     <Root>
       <StickyHeader>
@@ -1127,7 +1146,7 @@ export default function AnalysisResultView({
             id={createReportSectionId('summary')}
             ref={registerSection('summary')}
           >
-            <GroupHeading>요약</GroupHeading>
+            {renderGroupHeading('요약')}
             <DashboardGrid>
               <FullSpanItem>
                 <AnalysisResultSection
@@ -1267,7 +1286,7 @@ export default function AnalysisResultView({
             id={createReportSectionId('foot-traffic')}
             ref={registerSection('foot-traffic')}
           >
-            <GroupHeading>유동인구</GroupHeading>
+            {renderGroupHeading('유동인구')}
             <DashboardGrid>
               <AnalysisResultSection
                 title="시간대별 유동인구"
@@ -1362,7 +1381,7 @@ export default function AnalysisResultView({
             id={createReportSectionId('sales')}
             ref={registerSection('sales')}
           >
-            <GroupHeading>매출</GroupHeading>
+            {renderGroupHeading('매출')}
             <DashboardGrid>
               <AnalysisResultSection
                 title="시간대별 매출"
@@ -1490,7 +1509,7 @@ export default function AnalysisResultView({
             id={createReportSectionId('stores')}
             ref={registerSection('stores')}
           >
-            <GroupHeading>점포</GroupHeading>
+            {renderGroupHeading('점포')}
             <DashboardGrid>
               <FullSpanItem>
                 <AnalysisResultSection
@@ -1535,7 +1554,7 @@ export default function AnalysisResultView({
             id={createReportSectionId('living')}
             ref={registerSection('living')}
           >
-            <GroupHeading>생활권</GroupHeading>
+            {renderGroupHeading('생활권')}
             <DashboardGrid>
               <AnalysisResultSection
                 title="연령별 상주인구"
@@ -1668,17 +1687,12 @@ export default function AnalysisResultView({
             id={createReportSectionId('trend')}
             ref={registerSection('trend')}
           >
-            <GroupHeading>트렌드</GroupHeading>
+            {renderGroupHeading('트렌드')}
             <DashboardGrid>
               {trends.map(({ metric, label, unit, query, data }) => (
                 <AnalysisResultSection
                   key={metric}
                   title={label}
-                  description={
-                    data?.trendDirection
-                      ? `최근 추세: ${data.trendDirection}`
-                      : undefined
-                  }
                   loading={query.isPending}
                   error={
                     query.isError ||
@@ -1703,7 +1717,7 @@ export default function AnalysisResultView({
             id={createReportSectionId('benchmark')}
             ref={registerSection('benchmark')}
           >
-            <GroupHeading>비교</GroupHeading>
+            {renderGroupHeading('비교')}
             <DashboardGrid>
               <FullSpanItem>
                 <AnalysisResultSection
