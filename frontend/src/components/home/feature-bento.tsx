@@ -1,7 +1,6 @@
 import Link from 'next/link'
-import { ArrowRight, Bookmark, Sparkles, Users } from 'lucide-react'
+import { ArrowRight, Bookmark, MessageSquare, Sparkles } from 'lucide-react'
 import styled from 'styled-components'
-import MiniAreaChart from '@/components/home/mini-area-chart'
 
 const Section = styled.section`
   min-height: 100dvh;
@@ -108,14 +107,90 @@ const Badge = styled.span`
   margin-left: auto;
   font-size: 12px;
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary-100);
   color: var(--color-primary-700);
 `
 
-const ChartWrap = styled.div`
+const DevBadge = styled.span`
+  margin-left: auto;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-caption);
+`
+
+const ReportCard = styled.div`
   margin-top: auto;
-  color: var(--color-primary-700);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-background-muted);
+  padding: 14px 16px;
+`
+
+const ReportTop = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+`
+
+const ReportTitle = styled.span`
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-900);
+`
+
+const ReportGrade = styled.span`
+  font-size: 12px;
+  color: var(--color-text-caption);
+`
+
+const ReportRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-200);
+`
+
+const ReportKey = styled.span`
+  color: var(--color-text-600);
+`
+
+const ReportValue = styled.span<{ $positive?: boolean }>`
+  font-weight: 600;
+  color: ${p =>
+    p.$positive ? 'var(--color-positive)' : 'var(--color-text-900)'};
+`
+
+const ReportFoot = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-200);
+  font-size: 12px;
+  color: var(--color-text-caption);
+`
+
+const Dots = styled.span`
+  display: inline-flex;
+  gap: 3px;
+
+  i {
+    width: 5px;
+    height: 5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-300);
+  }
+
+  i:first-child {
+    background: var(--color-primary-700);
+  }
 `
 
 const Cta = styled.div`
@@ -211,20 +286,45 @@ export default function FeatureBento() {
               <Badge>실시간 생성</Badge>
             </CardHead>
             <CardBody>
-              AI 에이전트가 상권 데이터를 분석해 맞춤형 리포트를 스트리밍으로
-              완성합니다.
+              지역과 업종만 고르면 AI가 상권 리포트를 만들어 드립니다.
             </CardBody>
-            <ChartWrap>
-              <MiniAreaChart values={[20, 34, 30, 48, 54, 70]} />
-            </ChartWrap>
+            <ReportCard aria-hidden="true">
+              <ReportTop>
+                <ReportTitle>역삼동 · 카페 상권</ReportTitle>
+                <ReportGrade>종합 A-</ReportGrade>
+              </ReportTop>
+              <ReportRow>
+                <ReportKey>매출 추이</ReportKey>
+                <ReportValue $positive>최근 6개월 +18%</ReportValue>
+              </ReportRow>
+              <ReportRow>
+                <ReportKey>유동인구</ReportKey>
+                <ReportValue>일 평균 3.2만</ReportValue>
+              </ReportRow>
+              <ReportRow>
+                <ReportKey>경쟁 강도</ReportKey>
+                <ReportValue>보통 · 32곳</ReportValue>
+              </ReportRow>
+              <ReportFoot>
+                <span>AI가 리포트를 작성하고 있어요 · 대표 예시</span>
+                <Dots>
+                  <i />
+                  <i />
+                  <i />
+                </Dots>
+              </ReportFoot>
+            </ReportCard>
           </Hero>
 
           <Card>
             <CardHead>
-              <Users aria-hidden="true" />
-              <CardTitle>커뮤니티</CardTitle>
+              <MessageSquare aria-hidden="true" />
+              <CardTitle>커뮤니티 · 채팅</CardTitle>
+              <DevBadge>개발중</DevBadge>
             </CardHead>
-            <CardBody>같은 업종 예비 창업자들과 정보를 나눕니다.</CardBody>
+            <CardBody>
+              예비 창업자와 정보를 나누고 실시간으로 대화합니다.
+            </CardBody>
           </Card>
 
           <Card>
@@ -245,7 +345,7 @@ export default function FeatureBento() {
           </div>
           <Actions>
             <PrimaryLink href="/register">
-              <Bookmark aria-hidden="true" />
+              <Sparkles aria-hidden="true" />
               시작하기
             </PrimaryLink>
             <SecondaryLink href="/analysis">
