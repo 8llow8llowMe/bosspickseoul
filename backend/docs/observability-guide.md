@@ -106,6 +106,19 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 - Actuator endpoint는 내부망/VPN/리버스 프록시 보호 범위에서만 접근되도록 운영합니다.
 - 운영 서버가 분리되면 backend-1, backend-2처럼 host label을 명확히 붙입니다.
 
+### 서킷브레이커 알람 (권장 — 미설정)
+
+내부 Feign / LLM / OAuth 호출에 Resilience4j 서킷브레이커가 적용되어 있고, 지표는
+`micrometer-registry-prometheus` 를 통해 `/actuator/prometheus` 로 이미 노출됩니다.
+다만 **Grafana 알람은 아직 설정되어 있지 않아** 서킷이 열려도 사용자 신고 전까지 알 수 없습니다.
+
+- 핵심 지표
+  - `resilience4j_circuitbreaker_state{name="...",state="open"}` — 1 이면 차단 중
+  - `resilience4j_circuitbreaker_calls_seconds_count{kind="failed"}` — 실패 호출 수
+- 인스턴스명: `commercial-service` / `district-service`(내부 Feign), `llm`(ai-service), `kakao` / `naver`(auth-service)
+- 권장 알람: `max_over_time(resilience4j_circuitbreaker_state{state="open"}[1m]) == 1` 이 2분 이상 지속되면 통지.
+  서킷은 10초 뒤 half-open 으로 자동 복구를 시도하므로, 짧은 순단까지 알리면 소음이 됩니다.
+
 ## 빠른 점검
 
 서비스에서 직접 확인:
