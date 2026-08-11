@@ -20,12 +20,13 @@ const List = styled.ul`
 
 const Row = styled.li`
   display: grid;
-  grid-template-columns: minmax(70px, 0.45fr) minmax(120px, 1fr) auto;
+  grid-template-columns: minmax(64px, 0.4fr) minmax(44px, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 
   @media (max-width: 520px) {
     grid-template-columns: 68px minmax(80px, 1fr);
+    gap: 12px;
   }
 `
 
@@ -53,15 +54,15 @@ const Fill = styled.div<{ $width: number }>`
 `
 
 const Value = styled.strong`
-  min-width: 92px;
+  min-width: 0;
   color: var(--color-primary-700);
   font-size: 14px;
   font-weight: 800;
+  white-space: nowrap;
   text-align: right;
 
   @media (max-width: 520px) {
     grid-column: 2;
-    min-width: 0;
     margin-top: -7px;
     text-align: left;
   }
