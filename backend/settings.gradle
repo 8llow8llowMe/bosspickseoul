@@ -6,6 +6,7 @@ include 'core:persistence-core'
 include 'core:redis-core'
 include 'core:security-core'
 include 'core:shared-commercial'
+include 'core:storage-core'
 
 // Cloud
 include 'cloud:api-gateway'
