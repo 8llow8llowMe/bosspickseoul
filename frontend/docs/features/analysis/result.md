@@ -19,7 +19,7 @@
 | 충족 요구사항     | S3-2 분석 결과 리포트                                                                                                                    |
 | 해결하려는 문제   | 기존 결과 화면은 지표를 한 번에 조회·표시하는 긴 페이지라 핵심 판단이 어렵고, 탐색 맥락 복원과 부분 실패 대응이 약하다.                  |
 | 목표 동작 (to-be) | 결과를 공유 가능한 독립 URL로 제공하고, 데스크톱 탐색 흐름에서는 지도 맥락을 남긴 큰 라우트 모달로, 모바일에서는 전체 페이지로 표시한다. |
-| 구현 제외 범위    | PDF 다운로드, 사용자 정의 비교 대상 추가, 분석 결과 전체 북마크, 서버 측 보고서 생성, 차트 라이브러리 신규 도입                          |
+| 구현 제외 범위    | PDF 다운로드, 사용자 정의 비교 대상 추가, 분석 결과 전체 북마크, 서버 측 보고서 생성                          |
 | 연관 세부 기능    | [지도 기반 분석 대상 탐색](./explorer.md), `/analysis/simulation`, 회원 북마크                                                           |
 
 ---
@@ -127,7 +127,7 @@ flowchart LR
 | 라우트 모달   | URL 유지, 직접 접근 fallback, history 복원     | Next.js parallel/intercepting routes                                                                                |
 | 서버 상태     | 섹션별 query, 조건부 조회, 재시도              | 기존 TanStack React Query                                                                                           |
 | dialog 접근성 | focus trap, Escape, focus restore, scroll lock | 기존 dialog primitive가 있으면 재사용                                                                               |
-| 지표 시각화   | 디자인 토큰, responsive, 별도 패키지 없음      | 기존 CSS/SVG/semantic HTML, 자체 SVG 차트 프리미티브(라인·도넛·피라미드)를 `src/components/analysis/charts/`에 둔다 |
+| 지표 시각화   | 디자인 토큰, responsive, 툴팁            | Recharts 기반 래퍼(라인·막대·도넛·피라미드)를 `src/components/analysis/charts/`에 두고, 색·축·그리드·툴팁을 `DESIGN.md` CSS 토큰으로 테마. 래퍼 공개 props는 유지 |
 | 공유          | 현재 URL 복사, 지원 시 native share            | Web Share API + Clipboard fallback                                                                                  |
 
 ---
@@ -235,7 +235,7 @@ AND tab ∈ allowedTabs
 
 - viewport 상하좌우 24~32px 여백을 두고 최대 너비 약 1400px, 최대 높이 `calc(100dvh - 48~64px)` 안에서 자체 스크롤한다.
 - 배경 지도는 dim 처리하되 현재 선택 맥락을 알아볼 수 있어야 한다.
-- 헤더와 탭은 리포트 내부에서 sticky 처리한다.
+- 데스크톱(>840px)은 좌측 세로 사이드바 내비 + 오른쪽 롱스크롤(scroll-spy)로 항목을 탐색하고, 모바일(≤840px)은 상단 가로 sticky 탭으로 폴백한다. 두 경우 모두 헤더는 리포트 내부에서 sticky다. 스크롤·`?tab=` 딥링크·탭별 지연 조회 동작은 탐색 UI 위치와 무관하게 불변이다.
 - `role="dialog"`, `aria-modal="true"`, 제목 연결, focus trap, Escape 닫기, 닫은 뒤 트리거 focus 복원을 제공한다.
 - body scroll은 잠그고 리포트 내부만 스크롤한다.
 
@@ -310,3 +310,4 @@ AND tab ∈ allowedTabs
 | ---- | ---------- | ----------------------------------------------------------------------------------------- | ------ |
 | 1.0  | 2026-07-24 | 데스크톱 라우트 모달 + 모바일/직접 접근 전체 페이지 명세 최초 작성                        | Codex  |
 | 1.1  | 2026-08-06 | High 슬라이스 SVG 차트(라인·도넛·피라미드) 도입, 피라미드는 데이터 근거상 유동인구에 배치 | Claude |
+| 1.2  | 2026-08-11 | 상단 탭 → 데스크톱 좌측 사이드바 내비(모바일 탭 폴백), 자체 SVG 차트 → Recharts 교체 | Claude |
