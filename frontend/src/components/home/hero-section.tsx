@@ -158,10 +158,13 @@ const CardLayer = styled.div`
 `
 
 const DockButton = styled.button`
-  position: fixed;
+  /* 히어로 스테이지(position: relative)의 우하단에 앵커한다. 히어로가
+     100dvh-헤더 높이에 맞춰지므로 스테이지 우하단은 항상 화면 안에 있고,
+     전체 뷰포트 고정(position: fixed)처럼 콘텐츠와 동떨어져 보이지 않는다. */
+  position: absolute;
   right: 24px;
   bottom: 24px;
-  z-index: 30;
+  z-index: 12;
   display: inline-flex;
   align-items: center;
   gap: 8px;
