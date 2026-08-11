@@ -247,11 +247,14 @@ export default function HeroSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- drag는 stable 참조가 아니라 reset()만 필요
   }, [isClosing])
 
-  // 열림(독→카드) 애니메이션 1단계: mount 직후 카드의 실제 위치를 측정해 독
-  // 쪽에서 출발하는 시작 transform을 계산하고, 다음 프레임에 identity로
-  // 전환되도록 enterReady를 켠다.
+  // 열림(독→카드) 애니메이션 1단계: mount 직후 카드를 "identity 위치 +
+  // opacity:0"로 한 프레임 그린 뒤(cardStyle의 enterTransform===null 분기),
+  // 그 프레임에서 카드의 실제 위치를 측정해 독 쪽에서 출발하는 시작 transform을
+  // 계산한다. isClosing이 먼저 true가 되면(열리는 도중 닫기를 누른 경우) 이
+  // 단계는 개입하지 않고 바로 물러난다(Fix 2 — 닫기 쪽 effect 하나만 카드의
+  // transitionend를 구독하게 한다).
   useEffect(() => {
-    if (!isEntering) return
+    if (!isEntering || isClosing) return
     const container = containerRef.current
     const card = cardRef.current
     if (!container || !card) {
@@ -263,12 +266,13 @@ export default function HeroSection() {
       setEnterReady(true)
     })
     return () => window.cancelAnimationFrame(raf)
-  }, [isEntering])
+  }, [isEntering, isClosing])
 
   // 열림 애니메이션 2단계: enterReady가 켜진 뒤(transition 시작) 완료되면 원상
   // 복귀해, 이후 드래그가 다시 transition 없는 1:1 이동으로 동작하게 한다.
+  // 마찬가지로 isClosing이 먼저 true가 되면 물러난다(Fix 2).
   useEffect(() => {
-    if (!isEntering || !enterReady) return
+    if (!isEntering || isClosing || !enterReady) return
     return waitForTransformTransitionEnd(
       cardRef.current,
       TRANSITION_MS + TRANSITION_FALLBACK_BUFFER_MS,
@@ -278,7 +282,7 @@ export default function HeroSection() {
         setEnterReady(false)
       },
     )
-  }, [isEntering, enterReady])
+  }, [isEntering, isClosing, enterReady])
 
   const { displayState, showDock } = deriveWindowDisplay(
     windowState,
@@ -316,14 +320,29 @@ export default function HeroSection() {
       }
     }
     if (isEntering) {
+      if (enterReady) {
+        // 3단계: identity로 흘러가는 실제 애니메이션 구간.
+        return {
+          transform: `translate(${drag.offset.x}px, ${drag.offset.y}px)`,
+          opacity: 1,
+          transition: `transform var(--motion-standard) var(--ease-standard), opacity var(--motion-standard) var(--ease-standard)`,
+        }
+      }
+      if (enterTransform) {
+        // 2단계: 측정을 마친 뒤 독 쪽 시작 transform을 적용한(아직 transition
+        // 없는) 프레임. 다음 프레임에 enterReady가 켜지며 3단계로 넘어간다.
+        return { transform: enterTransform, opacity: 0, transition: 'none' }
+      }
+      // 1단계(측정 전, Fix 1): 아직 독 쪽 시작 transform을 계산하지 못한
+      // 첫 프레임이다. 여기서 FALLBACK_DOCK_TRANSFORM 같은 임의의 transform을
+      // 걸면 아래 measuring effect가 카드의 실제 위치 대신 "이미 변형된" 위치를
+      // 측정해버려(스케일·이동이 섞인 뒤틀린 값) 독 방향 계산이 틀어진다.
+      // 그래서 identity 위치를 그대로 유지하고 opacity만 0으로 감춰, 다음
+      // effect가 "깨끗한" 실제 좌표를 측정하게 한다.
       return {
-        transform: enterReady
-          ? `translate(${drag.offset.x}px, ${drag.offset.y}px)`
-          : (enterTransform ?? FALLBACK_DOCK_TRANSFORM),
-        opacity: enterReady ? 1 : 0,
-        transition: enterReady
-          ? `transform var(--motion-standard) var(--ease-standard), opacity var(--motion-standard) var(--ease-standard)`
-          : 'none',
+        transform: `translate(${drag.offset.x}px, ${drag.offset.y}px)`,
+        opacity: 0,
+        transition: 'none',
       }
     }
     return { transform: `translate(${drag.offset.x}px, ${drag.offset.y}px)` }
