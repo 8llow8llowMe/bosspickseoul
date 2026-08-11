@@ -373,6 +373,7 @@ export default function AnalysisMiniDemo() {
             }))}
             unit=""
             direction={null}
+            height={150}
             ariaLabel={`${districtName} ${industryName} 매출 추이`}
           />
         </ChartCard>
