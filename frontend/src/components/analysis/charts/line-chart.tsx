@@ -53,6 +53,8 @@ export type LineChartProps = {
   unit: string
   direction?: 'INCREASE' | 'DECREASE' | 'STAGNANT' | null
   ariaLabel?: string
+  /** Chart plot height in px (default 240). */
+  height?: number
 }
 
 export const hasLineData = (points: readonly TrendPoint[]): boolean =>
@@ -63,6 +65,7 @@ export default function LineChart({
   unit,
   direction,
   ariaLabel = '분기별 추세 라인 차트',
+  height = 240,
 }: LineChartProps) {
   if (!hasLineData(points)) return <Empty>데이터 없음</Empty>
 
@@ -77,8 +80,8 @@ export default function LineChart({
       ) : null}
       <ResponsiveContainer
         width="100%"
-        height={240}
-        initialDimension={{ width: 300, height: 240 }}
+        height={height}
+        initialDimension={{ width: 300, height }}
       >
         <ReLineChart
           data={points}

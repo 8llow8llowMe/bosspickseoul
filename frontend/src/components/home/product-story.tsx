@@ -54,14 +54,17 @@ const Sticky = styled.div`
   gap: 32px;
   width: min(1120px, 100%);
   margin: 0 auto;
-  padding: 64px 20px;
+  padding: 32px 20px;
 `
 
+// 데모 박스 높이를 고정해 스텝마다 지도/미니데모/막대차트로 바뀌어도
+// 위쪽 리드 타이틀·스텝 목록이 흔들리지 않게 한다.
 const StoryRow = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
-  align-items: center;
+  align-items: stretch;
   gap: 40px;
+  height: 600px;
 `
 
 const StepList = styled.ol`
@@ -136,10 +139,20 @@ const Panel = styled.div`
   border-radius: var(--radius-card);
   background: var(--color-surface);
   padding: 20px;
+  height: 100%;
   min-height: 320px;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+`
+
+const DemoArea = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 `
 
 const SampleLabel = styled.span`
@@ -183,6 +196,7 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
         unit="점"
         emphasisLabels={['역삼동']}
         maxBarSize={44}
+        height={320}
         ariaLabel="추천 상권 종합 점수 막대 차트"
       />
     )
@@ -197,16 +211,22 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
       unit="만원"
       emphasisLabels={['순이익']}
       maxBarSize={64}
+      height={320}
       ariaLabel="창업 비용·매출 시뮬레이션 막대 차트"
     />
   )
 }
 
 function PanelCard({ demo }: { demo: StoryDemo }) {
+  // 미니데모는 자체적으로 "대표 예시 데이터" 배지를 가지므로 중복 라벨을 숨긴다.
   return (
     <Panel>
-      <SampleLabel>대표 예시 데이터</SampleLabel>
-      <DemoPanel demo={demo} />
+      {demo === 'mini-demo' ? null : (
+        <SampleLabel>대표 예시 데이터</SampleLabel>
+      )}
+      <DemoArea>
+        <DemoPanel demo={demo} />
+      </DemoArea>
     </Panel>
   )
 }

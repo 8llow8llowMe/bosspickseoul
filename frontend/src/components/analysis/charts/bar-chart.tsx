@@ -33,6 +33,8 @@ export type BarChartProps = {
   emphasisLabels?: readonly string[]
   /** Caps bar thickness (px). Prevents overly wide bars when there are few categories. */
   maxBarSize?: number
+  /** Chart plot height in px (default 240). */
+  height?: number
 }
 
 export const resolveBarCells = (
@@ -53,6 +55,7 @@ export default function BarChart({
   ariaLabel,
   emphasisLabels,
   maxBarSize,
+  height = 240,
 }: BarChartProps) {
   const cells = resolveBarCells(items, emphasisLabels)
   const hasData = cells.some(cell => typeof cell.value === 'number')
@@ -61,8 +64,8 @@ export default function BarChart({
   return (
     <ResponsiveContainer
       width="100%"
-      height={240}
-      initialDimension={{ width: 300, height: 240 }}
+      height={height}
+      initialDimension={{ width: 300, height }}
       role="img"
       aria-label={ariaLabel}
     >
