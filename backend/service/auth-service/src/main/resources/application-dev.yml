@@ -60,6 +60,15 @@ infra:
     port: ${REDIS_PORT}
     password: ${REDIS_PASSWORD}
     key-prefix: ${REDIS_KEY_PREFIX}
+  storage:
+    # 백엔드는 MinIO 와 다른 호스트에 있으므로 컨테이너명이 아니라 사설 IP 로 접속한다.
+    endpoint: ${MINIO_ENDPOINT}
+    # 브라우저가 이미지를 조회할 공개 주소. DB 에는 key 만 저장하고 응답 시 이 값으로 URL 을 조립한다.
+    public-url: ${MINIO_PUBLIC_URL}
+    bucket: ${MINIO_BUCKET}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    max-file-bytes: ${MINIO_MAX_FILE_BYTES:5242880}
 
 jwt:
   access-key: ${JWT_ACCESS_KEY}
@@ -87,14 +96,3 @@ oauth:
     client-id: ${OAUTH_NAVER_CLIENT_ID:}
     client-secret: ${OAUTH_NAVER_CLIENT_SECRET:}
     redirect-uri: ${OAUTH_NAVER_REDIRECT_URI:}
-
-infra:
-  storage:
-    # 백엔드는 MinIO 와 다른 호스트에 있으므로 컨테이너명이 아니라 사설 IP 로 접속한다.
-    endpoint: ${MINIO_ENDPOINT}
-    # 브라우저가 이미지를 조회할 공개 주소. DB 에는 key 만 저장하고 응답 시 이 값으로 URL 을 조립한다.
-    public-url: ${MINIO_PUBLIC_URL}
-    bucket: ${MINIO_BUCKET}
-    access-key: ${MINIO_ACCESS_KEY}
-    secret-key: ${MINIO_SECRET_KEY}
-    max-file-bytes: ${MINIO_MAX_FILE_BYTES:5242880}
