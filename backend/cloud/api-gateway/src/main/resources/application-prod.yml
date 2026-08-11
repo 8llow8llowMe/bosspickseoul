@@ -1,0 +1,85 @@
+# ============================================================================
+# prod 프로파일 (api-gateway)
+#
+# dev 와 다른 점
+#   - Swagger UI 와 문서 집계 라우트를 제거했다. 운영에서 전체 API 스펙을 공개하지 않고,
+#     서비스 쪽 문서도 @Profile("!prod") 로 꺼져 있어 집계할 대상 자체가 없다.
+#   - 문서 라우트(/{service}-service/**)가 없으므로 이 경로를 통한 actuator 외부 노출도 사라진다.
+# ============================================================================
+server:
+  port: ${API_GATEWAY_PORT}
+  shutdown: graceful
+
+spring:
+  cloud:
+    config:
+      enabled: false
+    gateway:
+      routes:
+        - id: commercial-service-commercials
+          uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/commercials/**
+        - id: commercial-service-districts
+          uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/districts/**
+        - id: commercial-service-administrations
+          uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/administrations/**
+        - id: commercial-service-share-links
+          uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/share-links/**
+        - id: commercial-service-analysis-rankings
+          uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/analysis-rankings/**
+        - id: district-service-regions
+          uri: lb://${DISTRICT_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/regions/**
+        - id: district-service-map
+          uri: lb://${DISTRICT_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/map/**
+        - id: community-service
+          uri: lb://${COMMUNITY_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/community/**
+        - id: community-service-moderation
+          uri: lb://${COMMUNITY_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/moderation/**
+        - id: ai-service
+          uri: lb://${AI_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/ai-reports/**
+
+
+
+
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${SERVICE_DISCOVERY_HOSTNAME}:${SERVICE_DISCOVERY_PORT}/eureka/
+
+jwt:
+  access-key: ${JWT_ACCESS_KEY}
+  blacklist-fail-open: ${JWT_BLACKLIST_FAIL_OPEN}
+
+infra:
+  redis:
+    mode: ${REDIS_MODE}
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
+    key-prefix: ${REDIS_KEY_PREFIX}
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
