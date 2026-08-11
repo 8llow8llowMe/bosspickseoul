@@ -109,7 +109,9 @@ backend/
 **존재 이유**: 업로드 로직을 서비스마다 복사하면 검증 누락과 라이브러리 버전 분기가 생긴다.
 검증(크기·형식)을 클라이언트 내부에 두어 호출부가 빠뜨릴 수 없게 했다.
 
-**사용처**: 이 모듈만으로는 노출되는 API 가 없다. 실제 업로드 기능은 이 모듈을 쓰는 서비스에서 붙인다.
+**사용처**: auth-service(프로필 이미지)
+
+상세 계약은 `docs/file-upload-guide.md` 참고.
 
 ---
 
@@ -159,8 +161,9 @@ backend/
 - `POST /api/v1/auth/login|logout|token/reissue`
 - `POST /api/v1/members/signup`, `GET /api/v1/members/me`
 - `/api/v1/members/me/bookmarks` — 관심 상권 저장
+- `POST|DELETE /api/v1/members/me/profile-image` — 프로필 이미지 업로드/삭제
 
-**특수 의존**: `core:security-core`의 `auth/` 패키지 (JWT 발급 전용), `core:redis-core` (토큰/이메일 인증/OAuth state 저장)
+**특수 의존**: `core:security-core`의 `auth/` 패키지 (JWT 발급 전용), `core:redis-core` (토큰/이메일 인증/OAuth state 저장), `core:storage-core` (프로필 이미지)
 
 ---
 

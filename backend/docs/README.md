@@ -24,6 +24,7 @@
   - 지도 화면 구현용. viewport 기반 지도 API 호출법, 줌 레벨 전략, 상권 히트맵/추천/비교 응용 흐름
 - `ai-report-frontend-guide.md`
   - AI 리포트 화면 구현용. 비동기 제출 + SSE/폴링 흐름, 로그인 게이팅(잠금 카드) UI, 단계 표시와 에러 처리
+- `file-upload-guide.md` — 프로필/게시글 이미지 업로드(MinIO) 계약과 설계 원칙
 - `share-link-frontend-guide.md`
   - 분석 화면 공유 기능 구현용. `/api/v1/share-links/**` API 사용법, payload 저장/복원 흐름
 - `observability-guide.md`

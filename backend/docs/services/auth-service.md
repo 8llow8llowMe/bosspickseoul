@@ -145,3 +145,15 @@
 | MEMBER | `MEMBER_113` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
 | BOOKMARK | `BOOKMARK_001`~`BOOKMARK_003` | 도메인 에러 (중복 409 / 미존재 404 / 타인 북마크 403) |
 | BOOKMARK | `BOOKMARK_1xx` | 필드별 검증 코드 (`BookmarkValidationMessage` — 대상 타입/코드/이름, 조회 개수) |
+
+## 프로필 이미지 (MinIO)
+
+- `POST /api/v1/members/me/profile-image` (multipart `imageFile`, 인증 필수) — 업로드 후 즉시 반영.
+  기존 이미지가 있으면 교체하고 이전 객체는 삭제한다.
+- `DELETE /api/v1/members/me/profile-image` (인증 필수) — 이미지 제거 + 객체 삭제
+- **`PATCH /api/v1/members/me` 는 더 이상 `profileImageUrl` 을 받지 않는다.** 임의 URL 주입을 막기 위해
+  이미지는 전용 API 로만 변경한다. 이 PATCH 는 닉네임만 수정한다.
+- 저장 형태: `member.profile_image_key` 에 **오브젝트 키**를 저장하고, 소셜 제공자 이미지는 기존
+  `profile_image_url`(외부 URL)에 남는다. 표시 우선순위는 key > url 이며 조립은 `MemberPresenter` 책임이다.
+- 탈퇴 시 `withdraw()` 가 두 필드를 비우고, 저장된 객체는 커밋 이후 삭제된다.
+- 상세 계약과 에러코드(`STORAGE_001`~`STORAGE_007`)는 `docs/file-upload-guide.md` 참고.

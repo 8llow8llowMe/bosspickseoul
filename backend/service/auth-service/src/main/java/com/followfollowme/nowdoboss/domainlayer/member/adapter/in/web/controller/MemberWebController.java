@@ -6,24 +6,31 @@ import com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.dto.reques
 import com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.dto.request.MemberMyInfoUpdateRequest;
 import com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.dto.request.MemberPasswordChangeRequest;
 import com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.dto.response.MemberMyInfoResponse;
+import com.followfollowme.nowdoboss.domainlayer.member.adapter.in.web.dto.response.MemberProfileImageUploadResponse;
 import com.followfollowme.nowdoboss.domainlayer.member.application.command.MemberGeneralSignupCommand;
 import com.followfollowme.nowdoboss.domainlayer.member.application.port.in.MemberWebUseCase;
 import com.followfollowme.nowdoboss.security.common.dto.MemberLoginActive;
+import com.followfollowme.nowdoboss.storage.support.MultipartFileSupport;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
@@ -55,7 +62,7 @@ public class MemberWebController {
 
     @Operation(
         summary = "내 회원 정보 수정",
-        description = "닉네임과 프로필 이미지 URL을 수정합니다. profileImageUrl을 생략하면 프로필 이미지가 제거됩니다.",
+        description = "닉네임을 수정합니다. 프로필 이미지는 이 API가 아니라 전용 업로드/삭제 API로 관리합니다.",
         security = {@SecurityRequirement(name = "bearerAuth")}
     )
     @PatchMapping("/me")
@@ -64,8 +71,38 @@ public class MemberWebController {
         @AuthenticationPrincipal MemberLoginActive loginActive,
         @Valid @RequestBody MemberMyInfoUpdateRequest request
     ) {
-        MemberMyInfoResponse response = memberWebUseCase.updateMyInfo(
-            loginActive.memberId(), request.nickname(), request.profileImageUrl());
+        MemberMyInfoResponse response = memberWebUseCase.updateMyInfo(loginActive.memberId(), request.nickname());
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Operation(
+        summary = "프로필 이미지 업로드",
+        description = "프로필 이미지를 업로드해 즉시 반영합니다. jpg/png/gif/webp 만 허용하며 파일 내용(매직 바이트)으로 형식을 판정합니다. "
+            + "기존 이미지가 있으면 교체 후 이전 파일은 삭제됩니다.",
+        security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    @PostMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Response<MemberProfileImageUploadResponse>> uploadProfileImage(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
+        @Parameter(description = "업로드할 이미지 파일") @RequestPart("imageFile") MultipartFile imageFile
+    ) {
+        MemberProfileImageUploadResponse response = memberWebUseCase.uploadProfileImage(
+            loginActive.memberId(), MultipartFileSupport.toCommand(imageFile));
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Operation(
+        summary = "프로필 이미지 삭제",
+        description = "프로필 이미지를 제거합니다. 저장된 파일도 함께 삭제됩니다.",
+        security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    @DeleteMapping("/me/profile-image")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Response<MemberMyInfoResponse>> removeProfileImage(
+        @AuthenticationPrincipal MemberLoginActive loginActive
+    ) {
+        MemberMyInfoResponse response = memberWebUseCase.removeProfileImage(loginActive.memberId());
         return ResponseEntity.ok().body(Response.success(response));
     }
 

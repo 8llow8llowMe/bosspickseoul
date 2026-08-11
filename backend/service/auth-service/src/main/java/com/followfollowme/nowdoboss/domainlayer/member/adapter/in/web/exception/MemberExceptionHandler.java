@@ -5,6 +5,8 @@ import com.followfollowme.nowdoboss.common.exception.ValidationErrorSupport;
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.BookmarkException;
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberErrorCode;
 import com.followfollowme.nowdoboss.domainlayer.member.application.exception.MemberException;
+import com.followfollowme.nowdoboss.storage.exception.StorageErrorCode;
+import com.followfollowme.nowdoboss.storage.exception.StorageException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice(basePackages = "com.followfollowme.nowdoboss.domainlayer")
 public class MemberExceptionHandler {
@@ -31,6 +34,28 @@ public class MemberExceptionHandler {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    /**
+     * 스토리지 예외를 공통 Response 형식으로 변환한다.
+     * 이 핸들러가 없으면 파일 업로드 실패가 Spring 기본 500 응답으로 새어 나간다.
+     */
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<Response<Void>> handleStorageException(StorageException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    /**
+     * multipart 상한(spring.servlet.multipart)을 넘긴 요청. 스토리지 자체 크기 검증과 같은 코드로 응답해
+     * 클라이언트가 한 가지 분기만 처리하면 되게 한다.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Response<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
+        StorageErrorCode errorCode = StorageErrorCode.FILE_TOO_LARGE;
+        return ResponseEntity.status(errorCode.getHttpStatus())
+            .body(Response.fail(errorCode.getCode(), errorCode.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

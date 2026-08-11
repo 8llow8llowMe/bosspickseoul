@@ -51,8 +51,13 @@ public class MemberEntity extends BaseEntity {
     @Column(length = 30, nullable = false)
     private String nickname;
 
-    @Comment("프로필 이미지 URL")
+    @Comment("소셜 제공자가 준 외부 프로필 이미지 URL (직접 업로드한 경우 null)")
+    @Column(length = 500)
     private String profileImageUrl;
+
+    @Comment("직접 업로드한 프로필 이미지 오브젝트 키 (URL 이 아니라 키를 저장한다)")
+    @Column(length = 512)
+    private String profileImageKey;
 
     @Comment("권한")
     @Column(nullable = false)
