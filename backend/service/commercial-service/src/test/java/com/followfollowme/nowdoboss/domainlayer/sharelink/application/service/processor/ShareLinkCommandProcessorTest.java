@@ -126,6 +126,11 @@ class ShareLinkCommandProcessorTest {
         }
 
         @Override
+        public int deleteExpiredBefore(java.time.LocalDateTime threshold, int limit) {
+            return 0;
+        }
+
+        @Override
         public ShareLink save(ShareLink shareLink) {
             rows.put(shareLink.id(), shareLink);
             return shareLink;

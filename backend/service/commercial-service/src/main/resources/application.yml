@@ -30,6 +30,14 @@ app:
   share-link:
     # 공유 링크 유효 기간(일). 같은 화면을 다시 공유하면 이 기간만큼 만료가 연장된다.
     ttl-days: 90
+  cleanup:
+    share-link:
+      # 만료 공유 링크 정리. 단일 인스턴스 전제이며, 인스턴스를 늘리면 한 대만 true 로 둔다.
+      enabled: ${CLEANUP_SHARE_LINK_ENABLED:false}
+      cron: ${CLEANUP_SHARE_LINK_CRON:0 20 4 * * *}
+      # 만료 후 이 기간은 남겨 둔다. 만료 직후 접근을 404 가 아니라 410(만료됨)으로 안내하기 위해서다.
+      retention-days: ${CLEANUP_SHARE_LINK_RETENTION_DAYS:30}
+      batch-size: ${CLEANUP_SHARE_LINK_BATCH_SIZE:500}
   ranking:
     # false(기본)면 Kafka producer/consumer 빈이 등록되지 않아 브로커 없이도 정상 기동한다.
     # 인기 순위 조회 API 는 Redis 만 사용하므로 이 플래그와 무관하게 항상 활성이다.

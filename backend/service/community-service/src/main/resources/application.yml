@@ -16,3 +16,14 @@ logging:
   level:
     # Eureka 클라이언트가 주기적으로 Eureka 서버 엔드포인트를 확인할 때 출력하는 반복 로그를 줄이기 위한 설정
     com.netflix.discovery.shared.resolver.aws.ConfigClusterResolver: WARN
+
+app:
+  cleanup:
+    community:
+      # 소프트 삭제 행 하드 삭제 + 미참조 이미지 객체 회수. 단일 인스턴스 전제.
+      enabled: ${CLEANUP_COMMUNITY_ENABLED:false}
+      cron: ${CLEANUP_COMMUNITY_CRON:0 40 4 * * *}
+      retention-days: ${CLEANUP_COMMUNITY_RETENTION_DAYS:30}
+      batch-size: ${CLEANUP_COMMUNITY_BATCH_SIZE:500}
+      # 업로드 직후 아직 게시글에 연결되지 않은 객체를 지우지 않기 위한 여유. 작성 중 이탈을 감안해 넉넉히 둔다.
+      orphan-min-age-hours: ${CLEANUP_COMMUNITY_ORPHAN_MIN_AGE_HOURS:24}
