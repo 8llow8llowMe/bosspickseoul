@@ -28,9 +28,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -109,9 +111,15 @@ public class AiReportJobProcessor {
         try {
             aiReportWorker.runJob(newJobId);
         } catch (RuntimeException dispatchFailure) {
-            log.error("AI report worker dispatch failed jobId={} memberId={} reason={}", newJobId, memberId, dispatchFailure.getMessage());
+            // 대기열 포화(TaskRejectedException)는 "작업 실패"가 아니라 "지금은 받을 수 없음"이다.
+            // 재시도하면 성공할 수 있는 상황이라 사용자 안내가 달라지도록 코드를 구분한다.
+            AiReportErrorCode errorCode = isQueueFull(dispatchFailure)
+                ? AiReportErrorCode.JOB_QUEUE_FULL
+                : AiReportErrorCode.JOB_FAILED;
+            log.error("AI report worker dispatch failed jobId={} memberId={} errorCode={} reason={}",
+                newJobId, memberId, errorCode.getCode(), dispatchFailure.getMessage());
             aiReportJobStorePort.save(pendingJob.failed(
-                AiReportErrorCode.JOB_FAILED.getCode(), AiReportErrorCode.JOB_FAILED.getMessage(), Instant.now()
+                errorCode.getCode(), errorCode.getMessage(), Instant.now()
             ));
             aiReportJobStorePort.releaseIdempotencyKey(memberId, requestHash);
             aiReportJobEventPort.publishJobUpdated(newJobId);
@@ -246,6 +254,11 @@ public class AiReportJobProcessor {
         params.put("administrationCode", administrationCode);
         params.put("periodCode", periodCode);
         return params;
+    }
+
+    private boolean isQueueFull(RuntimeException dispatchFailure) {
+        return dispatchFailure instanceof TaskRejectedException
+            || dispatchFailure.getCause() instanceof RejectedExecutionException;
     }
 
     private String computeRequestHash(AiReportJobType jobType, Map<String, String> params) {
