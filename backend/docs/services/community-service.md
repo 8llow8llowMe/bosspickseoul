@@ -94,3 +94,16 @@
 | 검증 폴백 | `COMMUNITY_100` | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
 | 검증 필드별 | `COMMUNITY_101`~`COMMUNITY_116` | `CommunityValidationMessage` 가 단일 기준점. `COMMUNITY_113`~`COMMUNITY_116` 은 상권 비교 draft 전용 (좌/우 상권 코드, 서비스 코드, 분기 코드) |
 | 타입 오류 | `COMMUNITY_117` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
+
+## 게시글 이미지 (MinIO)
+
+- `POST /api/v1/community/posts/images` (multipart `imageFiles`, 인증 필수, 최대 5장) — 업로드 후
+  **키만 발급**한다. 게시글 연결은 작성/수정 요청의 `imageKeys` 로 이뤄진다.
+- 저장 구조: `community_post_image` 테이블(1:N, `postId`/`imageKey`/`sortOrder`)로 분리했다.
+  `CommunityPost` record 에 필드를 넣으면 위치 인자로 재생성하는 7곳이 모두 바뀌기 때문이다.
+- 수정 시 `imageKeys` 는 **수정 후 남길 목록**이다. 빠진 기존 이미지는 연결 해제 후 커밋 이후 삭제된다.
+- 소유권 검증: 키에 `memberId` 가 포함되어 있어 `ObjectKeyFactory.validateOwnership` 이
+  남이 올린 파일을 자기 게시글에 붙이는 것을 차단한다 (`STORAGE_006`).
+- 목록 응답에는 첫 장을 `thumbnailUrl` 로 내려준다. 게시글별 개별 조회 대신 `IN` 조회로 N+1 을 피한다.
+- 게시글 소프트 삭제 시 이미지 객체는 유지된다(복구 가능성). 미참조 객체 회수는 후속 배치 과제다.
+- 상세 계약은 `docs/file-upload-guide.md` 참고.

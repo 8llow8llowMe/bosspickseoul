@@ -47,3 +47,12 @@ app:
     jwt:
       resource:
         access-key: ENC(YDO9DGO7lP8iCqeTNW/SXWCv0697ep+bbGvMnjoJfMDEtWy1Zq/yfZDsovoggEcmLLOtZfHSpLYoRO0YEUlrOl3CvD5KWXo55haCMx7cZMg=)
+
+infra:
+  storage:
+    endpoint: http://localhost:9000
+    public-url: http://localhost:9000
+    bucket: bosspickseoul-local
+    access-key: minioadmin
+    secret-key: minioadmin
+    max-file-bytes: 5242880

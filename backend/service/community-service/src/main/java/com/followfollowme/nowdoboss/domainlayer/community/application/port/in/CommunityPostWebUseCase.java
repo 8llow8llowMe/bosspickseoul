@@ -10,6 +10,9 @@ import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.res
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.nowdoboss.common.enums.OrderType;
+import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostImageUploadResponse;
+import com.followfollowme.nowdoboss.storage.model.FileUploadCommand;
+import java.util.List;
 
 public interface CommunityPostWebUseCase {
 
@@ -20,6 +23,8 @@ public interface CommunityPostWebUseCase {
     );
 
     CommunityPostDetailResponse createPost(long memberId, CommunityPostCreateRequest request);
+
+    List<CommunityPostImageUploadResponse> uploadPostImages(long memberId, List<FileUploadCommand> commands);
 
     CommunityCommercialComparisonDraftResponse createCommercialComparisonDraft(CommunityCommercialComparisonDraftRequest request);
 
