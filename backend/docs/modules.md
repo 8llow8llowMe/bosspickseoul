@@ -9,6 +9,7 @@ backend/
 │   ├── persistence-core     JPA / QueryDSL / Snowflake ID
 │   ├── redis-core           Redis 설정
 │   ├── security-core        JWT 인증/인가 공통
+│   ├── storage-core         MinIO 오브젝트 스토리지 (업로드/삭제/키 생성/이미지 검증)
 │   └── shared-commercial    도메인 공유 (상권/지도)
 ├── cloud/          (실행 모듈 — bootJar on)
 │   ├── api-gateway          Spring Cloud Gateway
@@ -88,6 +89,27 @@ backend/
   - 에러 핸들러, 예외 정의
 
 **포함 기준**: auth-service와 나머지 서비스가 공유하는 보안 구조. 서비스별 인가 정책은 각 서비스에서.
+
+---
+
+## core/storage-core
+
+**역할**: MinIO(S3 호환) 오브젝트 스토리지 접근 공통 모듈
+
+**포함:**
+- `config.StorageConfigurer` — `MinioClient`, `ObjectStorageClient`, `StorageBucketInitializer` 빈
+- `config.StoragePropertiesConfig` / `properties.StorageProperties` (prefix `infra.storage`)
+- `client.ObjectStorageClient` — 업로드/삭제/공개 URL 조립. 삭제는 `deleteAfterCommit` 으로 커밋 이후 지연 실행
+- `model.ImageFileType` — 매직 바이트 기반 이미지 형식 판정 (확장자/Content-Type 불신)
+- `model.StorageDomain` — 키 prefix (members/profiles, community/posts)
+- `util.ObjectKeyFactory` — 서버 생성 키 `{prefix}/{memberId}/{yyyy}/{MM}/{uuid}.{ext}` + 소유권 검증
+- `support.MultipartFileSupport` — `MultipartFile` → 도메인 자료형 변환 (어댑터 경계 전용)
+- `exception.StorageErrorCode` / `StorageException` (`STORAGE_001`~`STORAGE_007`)
+
+**존재 이유**: 업로드 로직을 서비스마다 복사하면 검증 누락과 라이브러리 버전 분기가 생긴다.
+검증(크기·형식)을 클라이언트 내부에 두어 호출부가 빠뜨릴 수 없게 했다.
+
+**사용처**: 이 모듈만으로는 노출되는 API 가 없다. 실제 업로드 기능은 이 모듈을 쓰는 서비스에서 붙인다.
 
 ---
 
