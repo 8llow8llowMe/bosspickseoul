@@ -127,54 +127,18 @@ const prefersReducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** Bounded reflow-correction checkpoints (ms) — see `scrollToReportSection`. */
-const SCROLL_CORRECTION_DELAYS_MS = [150, 400, 700]
-
-/** Invalidates any in-flight correction loop from a previous call. */
-let scrollCorrectionRequestId = 0
-
 /**
- * Scrolls to the section for `tab` and keeps it aligned for a short, bounded
- * window afterward. Clicking a tab activates its section's (and every
- * section above it's) lazy-loaded queries in the same tick, so the target's
- * layout is still settling — skeletons swapping for real content, heights
- * changing — while the initial `scrollIntoView` is happening. Without this,
- * the first click lands on a stale position and only a second click (after
- * everything has loaded) ends up correct. The correction loop re-aligns
- * (instantly, no re-animation) whenever the target's position actually
- * moved, and gives up re-checking after ~700ms.
+ * 클릭한 탭의 섹션으로 한 번만 부드럽게 스크롤한다. 상단 오프셋(헤더에 가리지
+ * 않도록)은 각 `ReportSection`의 `scroll-margin-top`이 담당한다. 예전의 리플로우
+ * 재정렬 보정 루프는 제거했다 — 클릭 시 자연스러운 단일 이동을 위해.
  */
 const scrollToReportSection = (tab: AnalysisResultTab) => {
   if (typeof document === 'undefined') return
-  const id = createReportSectionId(tab)
-  const requestId = ++scrollCorrectionRequestId
-  const initialBehavior: ScrollBehavior = prefersReducedMotion()
-    ? 'auto'
-    : 'smooth'
-
-  const align = (behavior: ScrollBehavior) => {
-    document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' })
-  }
-
+  const behavior: ScrollBehavior = prefersReducedMotion() ? 'auto' : 'smooth'
   window.requestAnimationFrame(() => {
-    if (requestId !== scrollCorrectionRequestId) return
-    align(initialBehavior)
-
-    let lastTop =
-      document.getElementById(id)?.getBoundingClientRect().top ?? null
-
-    SCROLL_CORRECTION_DELAYS_MS.forEach(delay => {
-      window.setTimeout(() => {
-        if (requestId !== scrollCorrectionRequestId) return
-        const el = document.getElementById(id)
-        if (!el) return
-        const currentTop = el.getBoundingClientRect().top
-        if (lastTop === null || Math.abs(currentTop - lastTop) > 1) {
-          align('auto')
-          lastTop = el.getBoundingClientRect().top
-        }
-      }, delay)
-    })
+    document
+      .getElementById(createReportSectionId(tab))
+      ?.scrollIntoView({ behavior, block: 'start' })
   })
 }
 
