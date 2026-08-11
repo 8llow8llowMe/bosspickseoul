@@ -83,10 +83,14 @@ const TitleBar = styled.div`
 `
 
 const WindowTitle = styled.span`
+  min-width: 0;
+  overflow: hidden;
   color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 `
 
 const TrafficLights = styled.div`
@@ -178,13 +182,6 @@ const WindowBodyInner = styled.div`
     padding: 12px 24px 24px;
     gap: 16px;
   }
-`
-
-const Eyebrow = styled.p`
-  color: var(--color-text-caption);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
 `
 
 const Title = styled.h1`
@@ -281,7 +278,7 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
     return (
       <WindowCard ref={ref} style={style} $tinted={tinted}>
         <TitleBar onPointerDown={dragHandlers?.onPointerDown}>
-          <WindowTitle>상권 분석</WindowTitle>
+          <WindowTitle>서울 상권 데이터 분석</WindowTitle>
           <TrafficLights role="group" aria-label="분석 창 조작">
             <Dot
               type="button"
@@ -314,11 +311,13 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
           inert={minimized ? true : undefined}
         >
           <WindowBodyInner>
-            <Eyebrow>서울 상권 데이터 분석</Eyebrow>
             <Title>창업 전에, 상권부터 확인하세요.</Title>
             <Body>
-              서울 25개 자치구를 업종별 매출·유동인구·경쟁 현황으로 분석합니다.
-              <BodyEmphasis>감이 아니라 데이터로 자리를 정하세요.</BodyEmphasis>
+              서울 25개 자치구의 매출·유동인구·경쟁 현황을 업종별로 분석하고, AI
+              리포트로 핵심을 짚어 드립니다.
+              <BodyEmphasis>
+                감이 아니라 데이터와 AI로 자리를 정하세요.
+              </BodyEmphasis>
             </Body>
             <Actions>
               <PrimaryLink href="/analysis">
