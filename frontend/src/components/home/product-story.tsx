@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
-import MiniAreaChart from '@/components/home/mini-area-chart'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
+import BarChart from '@/components/analysis/charts/bar-chart'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
 import { STORY_STEPS, type StoryDemo } from '@/components/home/story-steps'
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
@@ -147,48 +147,6 @@ const SampleLabel = styled.span`
   color: var(--color-text-caption);
 `
 
-const RecommendRow = styled.div<{ $lead: boolean }>`
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-radius: var(--radius-control);
-  border: 1px solid var(--color-border-200);
-  background: ${p =>
-    p.$lead ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  color: ${p =>
-    p.$lead ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
-  font-size: 14px;
-`
-
-const SimGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-`
-
-const SimCard = styled.div`
-  border-radius: var(--radius-control);
-  background: var(--color-background-muted);
-  padding: 14px;
-`
-
-const SimLabel = styled.p`
-  font-size: 12px;
-  color: var(--color-text-600);
-  margin: 0 0 4px;
-`
-
-const SimValue = styled.p`
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-`
-
-const ChartWrap = styled.div`
-  color: var(--color-primary-700);
-`
-
 const Stack = styled.div`
   width: min(760px, 100%);
   margin: 0 auto;
@@ -212,38 +170,30 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
   if (demo === 'map') return <SeoulDistrictsMap />
   if (demo === 'mini-demo') return <AnalysisMiniDemo />
   if (demo === 'recommend') {
-    const rows = [
-      { name: '역삼동 상권', score: '92점', lead: true },
-      { name: '서교동 상권', score: '88점', lead: false },
-      { name: '연남동 상권', score: '85점', lead: false },
-    ]
     return (
-      <div style={{ display: 'grid', gap: 8 }}>
-        {rows.map(row => (
-          <RecommendRow key={row.name} $lead={row.lead}>
-            <span>{row.name}</span>
-            <span style={{ fontWeight: 600 }}>{row.score}</span>
-          </RecommendRow>
-        ))}
-      </div>
+      <BarChart
+        items={[
+          { label: '역삼동', value: 92 },
+          { label: '서교동', value: 88 },
+          { label: '연남동', value: 85 },
+        ]}
+        unit="점"
+        emphasisLabels={['역삼동']}
+        ariaLabel="추천 상권 종합 점수 막대 차트"
+      />
     )
   }
   return (
-    <div>
-      <ChartWrap>
-        <MiniAreaChart values={[32, 40, 38, 52, 60, 74]} />
-      </ChartWrap>
-      <SimGrid>
-        <SimCard>
-          <SimLabel>예상 월매출</SimLabel>
-          <SimValue>4,200만</SimValue>
-        </SimCard>
-        <SimCard>
-          <SimLabel>고정비</SimLabel>
-          <SimValue>2,600만</SimValue>
-        </SimCard>
-      </SimGrid>
-    </div>
+    <BarChart
+      items={[
+        { label: '월매출', value: 4200 },
+        { label: '고정비', value: 2600 },
+        { label: '순이익', value: 1600 },
+      ]}
+      unit="만원"
+      emphasisLabels={['순이익']}
+      ariaLabel="창업 비용·매출 시뮬레이션 막대 차트"
+    />
   )
 }
 

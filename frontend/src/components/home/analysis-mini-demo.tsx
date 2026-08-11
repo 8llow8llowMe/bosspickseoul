@@ -10,13 +10,22 @@ import {
   getDemoSample,
   type CompetitionLevel,
 } from '@/data/home-demo'
-import MiniAreaChart from '@/components/home/mini-area-chart'
+import LineChart from '@/components/analysis/charts/line-chart'
 
 const competitionLabel: Record<CompetitionLevel, string> = {
   low: '낮음',
   medium: '보통',
   high: '높음',
 }
+
+const TREND_LABELS = [
+  '6개월 전',
+  '5개월 전',
+  '4개월 전',
+  '3개월 전',
+  '2개월 전',
+  '이번 달',
+] as const
 
 function useRovingRadioGroup(
   items: readonly { id: string }[],
@@ -197,12 +206,6 @@ const ChartChange = styled.span<{ $positive: boolean }>`
   transition: color var(--motion-fast) var(--ease-standard);
 `
 
-const ChartFigure = styled.div<{ $positive: boolean }>`
-  color: ${props =>
-    props.$positive ? 'var(--color-success)' : 'var(--color-danger)'};
-  transition: color var(--motion-fast) var(--ease-standard);
-`
-
 const MetricGrid = styled.div`
   display: grid;
   gap: 16px;
@@ -362,9 +365,16 @@ export default function AnalysisMiniDemo() {
             <ChartLabel>매출 추이 (최근 6개월)</ChartLabel>
             <ChartChange $positive={isPositive}>{changeLabel}</ChartChange>
           </ChartHeader>
-          <ChartFigure $positive={isPositive}>
-            <MiniAreaChart values={sample.salesTrend} />
-          </ChartFigure>
+          <LineChart
+            points={sample.salesTrend.map((value, index) => ({
+              periodLabel: TREND_LABELS[index] ?? '',
+              value,
+              changeRate: null,
+            }))}
+            unit=""
+            direction={null}
+            ariaLabel={`${districtName} ${industryName} 매출 추이`}
+          />
         </ChartCard>
 
         <MetricGrid>
