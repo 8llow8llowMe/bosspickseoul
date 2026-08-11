@@ -11,7 +11,10 @@ public record MemberMyInfo(
     String email,
     String name,
     String nickname,
+    // 소셜 제공자 외부 URL. 직접 업로드본이 있으면 null 이다.
     String profileImageUrl,
+    // 직접 업로드본의 오브젝트 키. 공개 URL 조립은 Presenter 책임이다.
+    String profileImageKey,
     SecurityRole role,
     OAuthProvider provider
 ) {
@@ -23,6 +26,7 @@ public record MemberMyInfo(
             .name(member.name())
             .nickname(member.nickname())
             .profileImageUrl(member.profileImageUrl())
+            .profileImageKey(member.profileImageKey())
             .role(member.role())
             .provider(member.provider())
             .build();

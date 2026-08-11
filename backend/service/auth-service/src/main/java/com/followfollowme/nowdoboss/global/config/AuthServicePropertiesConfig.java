@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.common.config.SwaggerPropertiesConfig;
 import com.followfollowme.nowdoboss.persistence.config.SnowflakePropertiesConfig;
 import com.followfollowme.nowdoboss.redis.config.RedisPropertiesConfig;
 import com.followfollowme.nowdoboss.security.auth.config.JwtAuthPropertiesConfig;
+import com.followfollowme.nowdoboss.storage.config.StoragePropertiesConfig;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
@@ -14,7 +15,8 @@ import org.springframework.context.annotation.Import;
     SwaggerPropertiesConfig.class,
     JwtAuthPropertiesConfig.class,
     RedisPropertiesConfig.class,
-    SnowflakePropertiesConfig.class
+    SnowflakePropertiesConfig.class,
+    StoragePropertiesConfig.class
 })
 public class AuthServicePropertiesConfig {
 
