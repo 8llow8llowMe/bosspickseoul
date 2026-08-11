@@ -9,7 +9,13 @@ import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.res
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostSummaryItem;
 import com.followfollowme.nowdoboss.domainlayer.community.application.model.CommunityCommercialComparisonDraftInfo;
+import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.item.CommunityPostImageItem;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPost;
+import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityPostImage;
+import com.followfollowme.nowdoboss.storage.client.ObjectStorageClient;
+import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.model.LikedCommunityPost;
 import com.followfollowme.nowdoboss.persistence.dto.SliceResponse;
@@ -17,11 +23,16 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class CommunityPostPresenter {
+
+    private final ObjectStorageClient objectStorageClient;
 
     private static final int PREVIEW_CONTENT_LENGTH = 120;
 
-    public CommunityPostListResponse toPostListResponse(CommunityTargetMeta targetMeta, Slice<CommunityPost> posts) {
+    public CommunityPostListResponse toPostListResponse(
+        CommunityTargetMeta targetMeta, Slice<CommunityPost> posts, Map<Long, List<CommunityPostImage>> imagesByPostId
+    ) {
         CommunityBoardTargetItem board = (targetMeta != null)
             ? CommunityBoardTargetItem.builder()
                 .targetType(targetMeta.targetType().toMetadata())
@@ -32,7 +43,7 @@ public class CommunityPostPresenter {
 
         return CommunityPostListResponse.builder()
             .board(board)
-            .posts(SliceResponse.of(posts.map(this::toPostSummaryItem)))
+            .posts(SliceResponse.of(posts.map(post -> toPostSummaryItem(post, imagesByPostId))))
             .build();
     }
 
@@ -42,8 +53,9 @@ public class CommunityPostPresenter {
             .build();
     }
 
-    public CommunityPostDetailResponse toPostDetailResponse(CommunityPost post) {
+    public CommunityPostDetailResponse toPostDetailResponse(CommunityPost post, List<CommunityPostImage> images) {
         return CommunityPostDetailResponse.builder()
+            .images(toImageItems(images))
             .postId(post.id())
             .memberId(post.memberId())
             .targetType(post.targetType().toMetadata())
@@ -83,8 +95,9 @@ public class CommunityPostPresenter {
             .build();
     }
 
-    private CommunityPostSummaryItem toPostSummaryItem(CommunityPost post) {
+    private CommunityPostSummaryItem toPostSummaryItem(CommunityPost post, Map<Long, List<CommunityPostImage>> imagesByPostId) {
         return CommunityPostSummaryItem.builder()
+            .thumbnailUrl(toThumbnailUrl(imagesByPostId.get(post.id())))
             .postId(post.id())
             .memberId(post.memberId())
             .targetType(post.targetType().toMetadata())
@@ -119,5 +132,26 @@ public class CommunityPostPresenter {
         return content.length() > PREVIEW_CONTENT_LENGTH
             ? content.substring(0, PREVIEW_CONTENT_LENGTH) + "..."
             : content;
+    }
+
+    private List<CommunityPostImageItem> toImageItems(List<CommunityPostImage> images) {
+        if (images == null || images.isEmpty()) {
+            return List.of();
+        }
+        return images.stream()
+            .map(image -> CommunityPostImageItem.builder()
+                .imageKey(image.imageKey())
+                .imageUrl(objectStorageClient.toPublicUrl(image.imageKey()))
+                .sortOrder(image.sortOrder())
+                .build())
+            .toList();
+    }
+
+    /** 목록 카드용 대표 이미지. 정렬 순서상 첫 장을 쓴다. */
+    private String toThumbnailUrl(List<CommunityPostImage> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        return objectStorageClient.toPublicUrl(images.get(0).imageKey());
     }
 }

@@ -1,6 +1,8 @@
 package com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response;
 
 import com.followfollowme.nowdoboss.common.dto.metadata.CodeNameDescriptionMetadata;
+import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.item.CommunityPostImageItem;
+import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -8,6 +10,9 @@ import lombok.Builder;
 @Builder
 @Schema(description = "게시글 상세 응답 DTO")
 public record CommunityPostDetailResponse(
+
+    @Schema(description = "첨부 이미지 목록 (없으면 빈 배열)")
+    List<CommunityPostImageItem> images,
 
     @Schema(description = "게시글 ID")
     long postId,

@@ -9,6 +9,9 @@ import lombok.Builder;
 @Schema(description = "게시글 요약 항목 DTO")
 public record CommunityPostSummaryItem(
 
+    @Schema(description = "대표 이미지 URL (첨부 이미지가 없으면 null)", nullable = true)
+    String thumbnailUrl,
+
     @Schema(description = "게시글 ID")
     long postId,
 
