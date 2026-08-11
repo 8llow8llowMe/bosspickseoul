@@ -111,6 +111,23 @@ Vault KV 데이터 예시는 아래와 같습니다.
 
 DB 스키마 이름은 dev에서 `_dev` 접미사를 사용하고(`bosspickseoul_district_dev`), prod는 접미사 없이 `bosspickseoul_district`를 사용합니다. 실제 형태는 `.env.example`을 기준으로 합니다.
 
+### `SPRING_PROFILES_ACTIVE` 는 환경별로 다르게 넣는다
+
+위 예시는 dev secret 기준입니다. **prod secret(`kv/bosspickseoul/backend/prod/env`)에는 `"SPRING_PROFILES_ACTIVE": "prod"` 를 넣습니다.**
+
+prod 프로파일이 dev와 다른 점은 두 가지입니다.
+
+| 항목 | dev | prod |
+| --- | --- | --- |
+| `spring.jpa.hibernate.ddl-auto` | `update` (엔티티 변경이 스키마에 자동 반영) | **`none`** (애플리케이션이 운영 스키마를 바꾸지 않음) |
+| Swagger / API 문서 | 활성 | 비활성 (`*SwaggerConfig` 가 `@Profile("!prod")`, 게이트웨이는 문서 라우트 자체를 제거) |
+
+prod에서 `dev` 프로파일을 쓰면 **운영 DB 스키마가 애플리케이션 배포로 자동 변경되고**, 전체 API 스펙이 공개됩니다.
+또한 게이트웨이의 문서 라우트(`/{service}-service/**`)가 살아 있어 그 경로로 하위 서비스의 actuator 까지 도달할 수 있습니다.
+
+`ddl-auto: none` 이므로 **prod 스키마 변경은 사람이 적용합니다.** 엔티티에 컬럼/인덱스를 추가하는 변경을 배포할 때는
+`backend/scripts/migration/` 의 런북을 먼저 실행한 뒤 애플리케이션을 배포합니다.
+
 Jenkins는 위 데이터를 아래처럼 `.env.runtime`으로 생성합니다.
 
 ```env

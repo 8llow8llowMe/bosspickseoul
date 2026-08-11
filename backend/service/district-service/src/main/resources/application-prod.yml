@@ -1,0 +1,61 @@
+# ============================================================================
+# prod 프로파일
+#
+# dev 와 같은 구조를 유지하고, 운영에서 위험한 항목만 다르게 둔다.
+#   - ddl-auto: none — 애플리케이션이 운영 DB 스키마를 바꾸지 않는다.
+#     스키마 변경은 scripts/migration 런북으로 사람이 적용한다.
+#   - Swagger: 서비스의 *SwaggerConfig 가 @Profile("!prod") 라 이 프로파일에서는 빈이 등록되지 않는다.
+#
+# 값은 dev 와 동일한 env 키를 쓰되 Vault prod secret(kv/bosspickseoul/backend/prod/env)에서 주입된다.
+# ============================================================================
+server:
+  port: ${DISTRICT_SERVICE_PORT}
+  shutdown: graceful
+
+spring:
+  cloud:
+    config:
+      enabled: false
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${INTERNAL_CLIENT_CONNECT_TIMEOUT_MS}
+            readTimeout: ${INTERNAL_CLIENT_READ_TIMEOUT_MS}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DISTRICT_DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: true
+    defer-datasource-initialization: true
+    generate-ddl: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        show_sql: false
+        jdbc:
+          batch_size: 100
+        default_batch_fetch_size: 100
+
+# Feign이 조회할 상대 서비스의 Eureka 등록명. Eureka 등록명은 환경별 접미사가 붙으므로
+# (예: commercial-service-dev) 코드의 논리명 대신 이 매핑을 통해 실제 등록명으로 해석한다.
+feign-client:
+  target-services:
+    commercial-service: ${COMMERCIAL_SERVICE_APP_NAME}
+
+eureka:
+  instance:
+    # Docker 컨테이너 환경: 컨테이너 IP로 등록해야 게이트웨이 lb:// 라우팅이
+    # 컨테이너 hostname(컨테이너 ID) DNS 해석 실패 없이 연결된다.
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+  client:
+    serviceUrl:
+      defaultZone: http://${SERVICE_DISCOVERY_HOSTNAME}:${SERVICE_DISCOVERY_PORT}/eureka/

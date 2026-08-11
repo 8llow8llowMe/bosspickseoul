@@ -25,7 +25,9 @@ allprojects {
 // 서브모듈 공통 설정
 subprojects { project ->
     // 껍데이 그룹 프로젝트 필터링
-    if (project.name in ['core', 'cloud']) {
+    // 'service' 도 포함해야 한다. 빠뜨리면 껍데기 프로젝트에 Spring Boot 플러그인이 붙어
+    // main class 없이 bootJar 를 만들려다 루트 `./gradlew build` 가 실패한다.
+    if (project.name in ['core', 'cloud', 'service']) {
         // 필요 최소한의 설정만 하고 Spring Boot / bootJar 모두 끔
         apply plugin: 'java'
 
