@@ -96,10 +96,9 @@ export default function MiniAreaChart({
     <svg
       className={className}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      width="100%"
-      height="auto"
       preserveAspectRatio="none"
       aria-hidden="true"
+      style={{ width: '100%', height: 'auto' }}
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

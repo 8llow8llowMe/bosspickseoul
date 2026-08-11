@@ -4,9 +4,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { viewportProgress } from '@/components/home/scroll-fill'
 
-export function useScrollProgress(
-  ref: RefObject<HTMLElement | null>,
-): number {
+export function useScrollProgress(ref: RefObject<HTMLElement | null>): number {
   const [progress, setProgress] = useState(0)
   const frame = useRef<number | null>(null)
 
@@ -18,6 +16,7 @@ export function useScrollProgress(
       typeof window !== 'undefined' &&
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProgress(1)
       return
     }
@@ -25,9 +24,7 @@ export function useScrollProgress(
     const measure = () => {
       frame.current = null
       const rect = el.getBoundingClientRect()
-      setProgress(
-        viewportProgress(rect.top, rect.height, window.innerHeight),
-      )
+      setProgress(viewportProgress(rect.top, rect.height, window.innerHeight))
     }
 
     const onScroll = () => {
