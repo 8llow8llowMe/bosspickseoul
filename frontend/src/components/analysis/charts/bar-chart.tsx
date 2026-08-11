@@ -31,6 +31,8 @@ export type BarChartProps = {
   ariaLabel: string
   /** Labels (matched against `item.label`) whose bar renders in a distinct primary shade. */
   emphasisLabels?: readonly string[]
+  /** Caps bar thickness (px). Prevents overly wide bars when there are few categories. */
+  maxBarSize?: number
 }
 
 export const resolveBarCells = (
@@ -50,6 +52,7 @@ export default function BarChart({
   unit,
   ariaLabel,
   emphasisLabels,
+  maxBarSize,
 }: BarChartProps) {
   const cells = resolveBarCells(items, emphasisLabels)
   const hasData = cells.some(cell => typeof cell.value === 'number')
@@ -88,6 +91,7 @@ export default function BarChart({
           dataKey="value"
           name="값"
           radius={[4, 4, 0, 0]}
+          maxBarSize={maxBarSize}
           isAnimationActive={false}
         >
           {cells.map(cell => (

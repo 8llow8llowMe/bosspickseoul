@@ -1,5 +1,11 @@
 import Link from 'next/link'
-import { ArrowRight, Bookmark, MessageSquare, Sparkles } from 'lucide-react'
+import {
+  ArrowRight,
+  Bookmark,
+  Check,
+  MessageSquare,
+  Sparkles,
+} from 'lucide-react'
 import styled from 'styled-components'
 
 const Section = styled.section`
@@ -170,26 +176,16 @@ const ReportValue = styled.span<{ $positive?: boolean }>`
 const ReportFoot = styled.div`
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   padding-top: 8px;
   border-top: 1px solid var(--color-border-200);
   font-size: 12px;
   color: var(--color-text-caption);
-`
 
-const Dots = styled.span`
-  display: inline-flex;
-  gap: 3px;
-
-  i {
-    width: 5px;
-    height: 5px;
-    border-radius: var(--radius-pill);
-    background: var(--color-border-300);
-  }
-
-  i:first-child {
-    background: var(--color-primary-700);
+  svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
   }
 `
 
@@ -306,12 +302,8 @@ export default function FeatureBento() {
                 <ReportValue>보통 · 32곳</ReportValue>
               </ReportRow>
               <ReportFoot>
-                <span>AI가 리포트를 작성하고 있어요 · 대표 예시</span>
-                <Dots>
-                  <i />
-                  <i />
-                  <i />
-                </Dots>
+                <Check aria-hidden="true" />
+                <span>AI가 자동 생성한 리포트 예시</span>
               </ReportFoot>
             </ReportCard>
           </Hero>
