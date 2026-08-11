@@ -17,7 +17,7 @@ import { deriveWindowDisplay } from '@/components/home/window-display'
 //   발생하지 않는 예외 상황(예: display:none 전환, 브라우저 버그)을 대비한
 //   setTimeout 폴백의 기준 시간으로 쓴다.
 const MINIMIZE_SCALE = 0.15
-const DOCK_INSET = 20
+const DOCK_INSET = 24
 const TRANSITION_MS = 250
 const TRANSITION_FALLBACK_BUFFER_MS = 80
 const FALLBACK_DOCK_TRANSFORM = `translate(220px, 160px) scale(${MINIMIZE_SCALE})`
