@@ -290,10 +290,19 @@ export default function HeroSection() {
       return
     }
     setEnterTransform(computeDockTransform(container, card, { x: 0, y: 0 }))
-    const raf = window.requestAnimationFrame(() => {
-      setEnterReady(true)
+    // 독 쪽 시작 위치(stage 2)가 실제로 "페인트된" 다음 프레임에 enterReady를
+    // 켜야, 브라우저가 transform 트랜지션의 시작점을 dock-start로 인식한다.
+    // 단일 rAF는 stage 2 페인트 전에 켜질 수 있어(→ 시작·끝이 모두 identity라
+    // transform 애니메이션이 생략되고 opacity fade만 남는다) 이중 rAF로 한
+    // 프레임 더 기다려 "독에서 자라나는" 전환이 확실히 재생되게 한다.
+    let raf2 = 0
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => setEnterReady(true))
     })
-    return () => window.cancelAnimationFrame(raf)
+    return () => {
+      window.cancelAnimationFrame(raf1)
+      window.cancelAnimationFrame(raf2)
+    }
   }, [isEntering, isClosing])
 
   // 열림 애니메이션 2단계: enterReady가 켜진 뒤(transition 시작) 완료되면 원상
