@@ -76,6 +76,13 @@ infra:
     port: 6379
     password:
     key-prefix: ${REDIS_KEY_PREFIX:bosspickseoul-dev}
+  storage:
+    endpoint: http://localhost:9000
+    public-url: http://localhost:9000
+    bucket: bosspickseoul-local
+    access-key: minioadmin
+    secret-key: minioadmin
+    max-file-bytes: 5242880
 
 eureka:
   client:
@@ -84,12 +91,3 @@ eureka:
 
 jwt:
   access-key: ENC(YDO9DGO7lP8iCqeTNW/SXWCv0697ep+bbGvMnjoJfMDEtWy1Zq/yfZDsovoggEcmLLOtZfHSpLYoRO0YEUlrOl3CvD5KWXo55haCMx7cZMg=)
-
-infra:
-  storage:
-    endpoint: http://localhost:9000
-    public-url: http://localhost:9000
-    bucket: bosspickseoul-local
-    access-key: minioadmin
-    secret-key: minioadmin
-    max-file-bytes: 5242880
