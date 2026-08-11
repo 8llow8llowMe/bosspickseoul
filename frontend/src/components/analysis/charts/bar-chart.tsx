@@ -56,8 +56,16 @@ export default function BarChart({
   if (!hasData) return <Empty>데이터 없음</Empty>
 
   return (
-    <ResponsiveContainer width="100%" height={240} role="img" aria-label={ariaLabel}>
-      <ReBarChart data={cells} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
+    <ResponsiveContainer
+      width="100%"
+      height={240}
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <ReBarChart
+        data={cells}
+        margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
+      >
         <XAxis
           dataKey="label"
           tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
@@ -75,7 +83,12 @@ export default function BarChart({
           content={<ChartTooltipContent unit={unit} />}
           cursor={{ fill: 'var(--color-primary-100)' }}
         />
-        <Bar dataKey="value" name="값" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+        <Bar
+          dataKey="value"
+          name="값"
+          radius={[4, 4, 0, 0]}
+          isAnimationActive={false}
+        >
           {cells.map(cell => (
             <Cell
               key={cell.label}

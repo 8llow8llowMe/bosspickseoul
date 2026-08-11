@@ -1,7 +1,13 @@
 'use client'
 
 import styled from 'styled-components'
-import { Cell, Pie, PieChart as RePieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import {
+  Cell,
+  Pie,
+  PieChart as RePieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from 'recharts'
 
 import type { GenderSegment } from '@/lib/analysis/chart-data'
 import { CHART_COLORS, ChartTooltipContent } from './chart-theme'
@@ -73,7 +79,10 @@ export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
             isAnimationActive={false}
           >
             {slices.map((slice, index) => (
-              <Cell key={slice.label} fill={SLICE_COLORS[index % SLICE_COLORS.length]} />
+              <Cell
+                key={slice.label}
+                fill={SLICE_COLORS[index % SLICE_COLORS.length]}
+              />
             ))}
           </Pie>
         </RePieChart>
@@ -81,7 +90,9 @@ export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
       <Legend>
         {slices.map((slice, index) => (
           <li key={slice.label}>
-            <i style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }} />
+            <i
+              style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }}
+            />
             {slice.label} {slice.percent}%
           </li>
         ))}

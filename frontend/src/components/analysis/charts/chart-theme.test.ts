@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { CHART_COLORS, formatChartValue } from '@/components/analysis/charts/chart-theme'
+import {
+  CHART_COLORS,
+  formatChartValue,
+} from '@/components/analysis/charts/chart-theme'
 
 describe('chart-theme', () => {
   it('시리즈 색은 디자인 토큰 CSS 변수 문자열을 노출한다', () => {
