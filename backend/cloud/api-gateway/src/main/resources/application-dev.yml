@@ -40,6 +40,10 @@ spring:
           uri: lb://${COMMUNITY_SERVICE_APP_NAME}
           predicates:
             - Path=/api/v1/community/**
+        - id: community-service-moderation
+          uri: lb://${COMMUNITY_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/moderation/**
         - id: ai-service
           uri: lb://${AI_SERVICE_APP_NAME}
           predicates:
@@ -47,31 +51,31 @@ spring:
         - id: auth-service-docs
           uri: lb://${AUTH_SERVICE_APP_NAME}
           predicates:
-            - Path=/auth-service/**
+            - Path=/auth-service/v3/api-docs/**
           filters:
             - StripPrefix=1
         - id: commercial-service-docs
           uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
           predicates:
-            - Path=/commercial-service/**
+            - Path=/commercial-service/v3/api-docs/**
           filters:
             - StripPrefix=1
         - id: district-service-docs
           uri: lb://${DISTRICT_SERVICE_APP_NAME}
           predicates:
-            - Path=/district-service/**
+            - Path=/district-service/v3/api-docs/**
           filters:
             - StripPrefix=1
         - id: community-service-docs
           uri: lb://${COMMUNITY_SERVICE_APP_NAME}
           predicates:
-            - Path=/community-service/**
+            - Path=/community-service/v3/api-docs/**
           filters:
             - StripPrefix=1
         - id: ai-service-docs
           uri: lb://${AI_SERVICE_APP_NAME}
           predicates:
-            - Path=/ai-service/**
+            - Path=/ai-service/v3/api-docs/**
           filters:
             - StripPrefix=1
 
