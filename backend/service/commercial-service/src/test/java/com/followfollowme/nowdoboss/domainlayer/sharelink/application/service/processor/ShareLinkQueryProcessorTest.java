@@ -75,6 +75,11 @@ class ShareLinkQueryProcessorTest {
         }
 
         @Override
+        public int deleteExpiredBefore(java.time.LocalDateTime threshold, int limit) {
+            return 0;
+        }
+
+        @Override
         public ShareLink save(ShareLink toSave) {
             return toSave;
         }

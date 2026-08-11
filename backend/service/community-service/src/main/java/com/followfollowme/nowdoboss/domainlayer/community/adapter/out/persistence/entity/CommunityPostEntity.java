@@ -24,13 +24,23 @@ import org.hibernate.annotations.Comment;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
     name = "community_post",
+    // 인덱스 뒷자리를 커서 컬럼(id)에 맞춘다. 목록 조회는 createdAt 이 아니라 id 로 정렬/커서를 잡으므로,
+    // createdAt 으로 끝나는 인덱스는 정렬에 쓰이지 못하고 filesort 가 발생한다.
     indexes = {
-        @Index(name = "idx_community_post_target_type_target_code_created_at",
-            columnList = "targetType,targetCode,createdAt"),
-        @Index(name = "idx_community_post_member_id_created_at",
-            columnList = "memberId,createdAt"),
-        @Index(name = "idx_community_post_status_created_at",
-            columnList = "status,createdAt")
+        // 게시판: where targetType, targetCode, status + order by id
+        @Index(name = "idx_community_post_target_status_id",
+            columnList = "targetType,targetCode,status,id"),
+        // 내가 쓴 글: where memberId + order by id
+        @Index(name = "idx_community_post_member_id_id",
+            columnList = "memberId,id"),
+        // 전체 피드(최신): where status + order by id
+        @Index(name = "idx_community_post_status_id",
+            columnList = "status,id"),
+        // 인기순: where status + order by likeCount desc, id desc
+        // popularSince(createdAt) 필터는 인덱스 범위로 쓰지 못하고 잔여 조건으로 평가된다.
+        // 기간이 넓어 대부분의 행이 통과하므로, 범위 필터보다 정렬을 인덱스로 처리하는 편이 유리하다.
+        @Index(name = "idx_community_post_status_like_count_id",
+            columnList = "status,likeCount,id")
     }
 )
 @Comment("커뮤니티 게시글")

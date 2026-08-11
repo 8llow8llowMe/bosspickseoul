@@ -8,11 +8,18 @@ import com.followfollowme.nowdoboss.storage.model.StorageDomain;
 import com.followfollowme.nowdoboss.storage.model.StoredObject;
 import com.followfollowme.nowdoboss.storage.properties.StorageProperties;
 import com.followfollowme.nowdoboss.storage.util.ObjectKeyFactory;
+import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
+import io.minio.messages.Item;
 import java.io.ByteArrayInputStream;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -114,6 +121,41 @@ public class ObjectStorageClient {
             return;
         }
         objectKeys.forEach(this::deleteAfterCommit);
+    }
+
+    /**
+     * prefix 아래에서 {@code minimumAge} 보다 오래된 객체 키를 나열한다. 고아 객체 회수 배치용이다.
+     *
+     * <p>방금 업로드해 아직 DB 에 연결되지 않은 객체를 지우지 않도록 <b>나이 조건이 필수</b>다.
+     * 업로드 → 연결 사이의 시간차보다 충분히 큰 값을 넘겨야 한다.
+     *
+     * <p>조회 실패 시 예외를 던지지 않고 빈 목록을 반환한다. 정리 배치가 실패해도 서비스 기능에는
+     * 영향이 없어야 하고, 다음 주기에 다시 시도하면 되기 때문이다.
+     */
+    public List<String> listObjectKeysOlderThan(String prefix, Duration minimumAge) {
+        List<String> objectKeys = new ArrayList<>();
+        ZonedDateTime threshold = ZonedDateTime.now().minus(minimumAge);
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(ListObjectsArgs.builder()
+                .bucket(storageProperties.bucket())
+                .prefix(prefix)
+                .recursive(true)
+                .build());
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                if (item.isDir()) {
+                    continue;
+                }
+                ZonedDateTime lastModified = item.lastModified();
+                if (lastModified == null || lastModified.isBefore(threshold)) {
+                    objectKeys.add(item.objectName());
+                }
+            }
+        } catch (Exception exception) {
+            log.warn("객체 목록 조회에 실패해 이번 주기 정리를 건너뜁니다. prefix={} reason={}", prefix, exception.getMessage());
+            return List.of();
+        }
+        return objectKeys;
     }
 
     public String toPublicUrl(String objectKey) {

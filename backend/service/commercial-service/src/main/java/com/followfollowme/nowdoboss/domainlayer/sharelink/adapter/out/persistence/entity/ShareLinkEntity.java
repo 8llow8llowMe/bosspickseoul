@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -26,6 +27,10 @@ import org.hibernate.annotations.Comment;
     uniqueConstraints = {
         @UniqueConstraint(name = "uk_share_link_share_code", columnNames = "shareCode"),
         @UniqueConstraint(name = "uk_share_link_payload_hash", columnNames = "payloadHash")
+    },
+    // 만료 행 정리 배치가 expiresAt 범위로 스캔한다.
+    indexes = {
+        @Index(name = "idx_share_link_expires_at", columnList = "expiresAt")
     }
 )
 @Comment("분석 화면 공유 링크")
