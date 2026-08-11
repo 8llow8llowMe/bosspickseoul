@@ -109,7 +109,7 @@ backend/
 **존재 이유**: 업로드 로직을 서비스마다 복사하면 검증 누락과 라이브러리 버전 분기가 생긴다.
 검증(크기·형식)을 클라이언트 내부에 두어 호출부가 빠뜨릴 수 없게 했다.
 
-**사용처**: auth-service(프로필 이미지)
+**사용처**: auth-service(프로필 이미지), community-service(게시글 이미지)
 
 상세 계약은 `docs/file-upload-guide.md` 참고.
 
@@ -206,8 +206,11 @@ backend/
 - `/api/v1/community/posts`, `/api/v1/community/posts/{postId}/comments`
 - `/api/v1/community/reports` — 신고
 - `/api/v1/moderation/reports` — 관리자 처리
+- `POST /api/v1/community/posts/images` — 게시글 이미지 업로드 (키 발급)
 
 **특수 설계**: `ModerationQueryProcessor` — Facade가 out-port 직접 접근 금지
+
+**특수 의존**: `core:storage-core` (게시글 이미지)
 
 ---
 

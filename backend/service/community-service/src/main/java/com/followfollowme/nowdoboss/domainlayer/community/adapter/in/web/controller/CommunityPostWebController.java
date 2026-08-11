@@ -10,7 +10,13 @@ import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.res
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostDetailResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostLikeResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
+import com.followfollowme.nowdoboss.domainlayer.community.adapter.in.web.dto.response.CommunityPostImageUploadResponse;
 import com.followfollowme.nowdoboss.domainlayer.community.application.port.in.CommunityPostWebUseCase;
+import com.followfollowme.nowdoboss.storage.support.MultipartFileSupport;
+import java.util.List;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import com.followfollowme.nowdoboss.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.nowdoboss.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,6 +43,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/community/posts")
 @Tag(name = "커뮤니티 게시글", description = "커뮤니티 게시글 조회, 작성, 수정, 삭제, 좋아요 API를 제공합니다.")
 public class CommunityPostWebController {
+
+    private static final int MAX_POST_IMAGE_COUNT = 5;
 
     private final CommunityPostWebUseCase communityPostWebUseCase;
 
@@ -82,6 +90,23 @@ public class CommunityPostWebController {
             size
         );
         return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Operation(
+        summary = "게시글 이미지 업로드",
+        description = "게시글에 첨부할 이미지를 업로드하고 오브젝트 키를 발급받습니다. 최대 5장, jpg/png/gif/webp 만 허용합니다. "
+            + "발급받은 imageKey 를 게시글 작성/수정 요청의 imageKeys 에 담아 보내면 게시글에 연결됩니다.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Response<List<CommunityPostImageUploadResponse>>> uploadPostImages(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
+        @Parameter(description = "업로드할 이미지 파일 목록 (최대 5장)") @RequestPart("imageFiles") List<MultipartFile> imageFiles
+    ) {
+        List<CommunityPostImageUploadResponse> responses = communityPostWebUseCase.uploadPostImages(
+            loginActive.memberId(), MultipartFileSupport.toCommands(imageFiles, MAX_POST_IMAGE_COUNT));
+        return ResponseEntity.ok().body(Response.success(responses));
     }
 
     @Operation(summary = "게시글 작성", description = "새 게시글을 작성합니다.", security = @SecurityRequirement(name = "bearerAuth"))
