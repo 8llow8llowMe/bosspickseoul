@@ -32,6 +32,10 @@ const WindowCard = styled.div<{ $tinted?: boolean }>`
   width: min(460px, 100%);
   border-radius: 24px;
   overflow: hidden;
+  /* 독으로 축소/독에서 확대되는 전환 애니메이션(hero-section.tsx의 style prop)이
+     우하단 모서리를 기준으로 scale된다. translate만 쓰는 평상시 드래그
+     transform은 origin의 영향을 받지 않으므로 항상 적용해도 안전하다. */
+  transform-origin: bottom right;
   background: ${p =>
     p.$tinted
       ? 'color-mix(in srgb, var(--color-primary-700) 7%, color-mix(in srgb, var(--color-surface) 55%, transparent))'
