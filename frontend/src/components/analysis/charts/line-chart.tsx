@@ -15,7 +15,7 @@ import type { TrendPoint } from '@/lib/analysis/chart-data'
 import {
   CHART_COLORS,
   ChartTooltipContent,
-  formatChartValue,
+  formatAxisTick,
 } from './chart-theme'
 
 const DIRECTION_META: Record<
@@ -92,11 +92,11 @@ export default function LineChart({
             axisLine={{ stroke: CHART_COLORS.grid }}
           />
           <YAxis
-            width={40}
+            width={44}
             tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={value => formatChartValue(value)}
+            tickFormatter={value => formatAxisTick(value)}
           />
           <Tooltip
             content={<ChartTooltipContent unit={unit} />}

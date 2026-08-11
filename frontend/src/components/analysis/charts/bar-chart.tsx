@@ -15,7 +15,7 @@ import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
 import {
   CHART_COLORS,
   ChartTooltipContent,
-  formatChartValue,
+  formatAxisTick,
 } from './chart-theme'
 
 const Empty = styled.p`
@@ -74,11 +74,11 @@ export default function BarChart({
           axisLine={{ stroke: CHART_COLORS.grid }}
         />
         <YAxis
-          width={40}
+          width={44}
           tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
           tickLine={false}
           axisLine={false}
-          tickFormatter={value => formatChartValue(value)}
+          tickFormatter={value => formatAxisTick(value)}
         />
         <Tooltip
           content={<ChartTooltipContent unit={unit} />}

@@ -20,6 +20,25 @@ export const formatChartValue = (
   unit = '',
 ): string => formatAnalysisValue(value, unit)
 
+/**
+ * 축 눈금용 컴팩트 표기. 큰 수를 만/억 단위로 짧게 만들어 축이 가려지지 않게 한다.
+ * 예) 600,000 → '60만', 4,500,000 → '450만', 100,000,000 → '1억',
+ *     250,000,000 → '2.5억'. 1만 미만은 로케일 콤마 그대로, 0은 '0'.
+ */
+export const formatAxisTick = (value: number): string => {
+  if (!Number.isFinite(value)) return ''
+  if (value === 0) return '0'
+  const sign = value < 0 ? '-' : ''
+  const abs = Math.abs(value)
+  const trim = (n: number): string => {
+    const rounded = Math.round(n * 10) / 10
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+  }
+  if (abs >= 100_000_000) return `${sign}${trim(abs / 100_000_000)}억`
+  if (abs >= 10_000) return `${sign}${trim(abs / 10_000)}만`
+  return `${sign}${abs.toLocaleString('ko-KR')}`
+}
+
 const TooltipBox = styled.div`
   border: 1px solid ${CHART_COLORS.border};
   border-radius: var(--radius-control);
