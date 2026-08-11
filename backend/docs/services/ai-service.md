@@ -139,7 +139,10 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
 ### Async TaskExecutor
 
 - 빈 이름: `aiReportTaskExecutor` (컨벤션: `api-design-guide.md` §7 워커 규칙)
-- corePoolSize=4, maxPoolSize=8, queueCapacity=50, threadNamePrefix=`ai-report-worker-`
+- corePoolSize=2, maxPoolSize=2, queueCapacity=200, threadNamePrefix=`ai-report-worker-`
+  - LLM 이 동시 생성 1건(Ollama `OLLAMA_NUM_PARALLEL=1`)이라 스레드를 늘려도 전부 LLM 앞에서 대기한다.
+    오히려 대기 중인 잡이 RUNNING 으로 일찍 전이되어 running-timeout 을 헛되이 소모하므로 스레드는 최소로 두고
+    대기는 큐가 흡수하게 한다. 큐 포화 시 제출은 `AI_007 JOB_QUEUE_FULL`(503) 로 거절된다.
 - shutdown 시 30초 대기
 - 관측: Spring Boot 자동 계측으로 `executor_*{name="aiReportTaskExecutor"}` 노출 → Grafana `BossPickSeoul Executor / Thread Pool` 대시보드의 `name` 범례로 표시
 
@@ -170,6 +173,7 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
 | `AI_004` | 503 | 캐시 사용 불가 |
 | `AI_005` | 404 | 작업 미존재 / 본인 작업 아님 |
 | `AI_006` | 503 | 작업 저장소 사용 불가 |
+| `AI_007` | 503 | 대기열 포화 — 워커 큐가 가득 차 제출 거절 (재시도하면 성공 가능, `AI_008` 과 구분) |
 | `AI_008` | 500 | 작업 실패 — 워커 디스패치 실패 또는 예측 못한 예외 (외부 노출 메시지는 항상 ErrorCode 의 한국어 메시지로 sanitize 됨) |
 | `AI_009` | 504 | 작업이 시간 내에 완료되지 않음 (lazy 만료) |
 | `AI_010` | 500 | 지원하지 않는 LLM 응답 스키마 정의 (LLM_SCHEMA_UNSUPPORTED) |
@@ -249,4 +253,13 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
 - 프롬프트 포맷터, 구조화 응답 파서, 캐시 키 규칙을 함께 관리한다.
 - 비동기 작업 워커는 단일 인스턴스 가정 (멱등성은 Redis 키로만 보장). 멀티 인스턴스 운영 시 작업 락 또는 분산 큐 도입 검토 필요.
 - 운영 단가 추적은 현 시점 미적용 — Ollama 로컬 운영 가정. 외부 OpenAI 사용 시 토큰 단가표 + 일/월 누적 cost 가 필요하면 `AiUsageCounterPort` 확장.
+- **사용량 제한(rate limit)은 미구현 — 기록만 한다 (추후 추가).**
+  `AiUsageCounterPort` 가 `{prefix}:ai:usage:{memberId}:{yyyy-MM-dd}` 에 토큰/호출 수를 일별로 적재하고 있으나
+  이 값으로 요청을 막지는 않는다. LLM 이 미니PC 1대(동시 생성 1건)라 어뷰징 시 대기열이 길어질 수 있으므로,
+  도입 시에는 잡 제출(`AiReportJobProcessor.submitJob`) 앞단에서 당일 카운터를 읽어 한도 초과면
+  전용 ErrorCode(예: `AI_012 USAGE_LIMIT_EXCEEDED`, 429)로 거절하는 형태를 권장한다.
+  카운터 인프라가 이미 있어 추가 저장소 없이 확장 가능하다.
+- 워커 풀(`aiReportTaskExecutor`)은 LLM 동시 생성이 1건인 특성에 맞춰 스레드 2 / 큐 200 으로 둔다.
+  스레드를 늘리면 대기 중인 잡이 RUNNING 으로 일찍 전이되어 running-timeout 을 헛되이 소모한다.
+  큐가 넘치면 제출이 `AI_007 JOB_QUEUE_FULL`(503) 로 거절되며, 이는 작업 실패(`AI_008`)와 구분된다.
 - 조회 전략과 사용자 경험 기준은 `backend/docs/services/ai-service-strategy.md` 를 따른다.
