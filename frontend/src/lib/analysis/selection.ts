@@ -2,6 +2,22 @@ import { resolveDistrictCodeFromAdministration } from '@/lib/map/geometry'
 
 export const ANALYSIS_PERIOD_CODE = '20233' as const
 
+/** 기간 선택 드롭다운에서 제공하는 연도·분기 옵션. */
+export const ANALYSIS_PERIOD_YEARS = [2021, 2022, 2023] as const
+export const ANALYSIS_PERIOD_QUARTERS = [1, 2, 3, 4] as const
+
+/** `YYYYQ` 기간 코드(예: '20233' = 2023년 3분기)를 연/분기로 분해한다. */
+export const parseAnalysisPeriod = (
+  code: string,
+): { year: number; quarter: number } => ({
+  year: Number(code.slice(0, 4)),
+  quarter: Number(code.slice(4)),
+})
+
+/** 연/분기를 `YYYYQ` 기간 코드로 합친다. */
+export const buildAnalysisPeriod = (year: number, quarter: number): string =>
+  `${year}${quarter}`
+
 export const ANALYSIS_STEPS = [
   'district',
   'administration',

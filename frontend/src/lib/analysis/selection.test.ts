@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ANALYSIS_PERIOD_CODE,
+  buildAnalysisPeriod,
+  parseAnalysisPeriod,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
   createEmptyAnalysisSelection,
@@ -22,6 +24,15 @@ const completeSelection: AnalysisSelection = {
   serviceCode: 'CS100001',
   periodCode: ANALYSIS_PERIOD_CODE,
 }
+
+describe('analysis period helpers', () => {
+  it('기간 코드를 연/분기로 분해하고 다시 합친다', () => {
+    expect(parseAnalysisPeriod('20233')).toEqual({ year: 2023, quarter: 3 })
+    expect(parseAnalysisPeriod('20214')).toEqual({ year: 2021, quarter: 4 })
+    expect(buildAnalysisPeriod(2023, 3)).toBe('20233')
+    expect(buildAnalysisPeriod(2021, 4)).toBe('20214')
+  })
+})
 
 describe('analysis selection', () => {
   it('상위 선택을 바꾸면 하위 선택을 초기화한다', () => {

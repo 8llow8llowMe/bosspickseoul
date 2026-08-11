@@ -19,6 +19,8 @@ import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
+import AnalysisResultNav from '@/components/analysis/analysis-result-nav'
+import AnalysisPeriodSelect from '@/components/analysis/analysis-period-select'
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { TabButton, TabList } from '@/components/ui/tabs'
@@ -126,54 +128,18 @@ const prefersReducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** Bounded reflow-correction checkpoints (ms) — see `scrollToReportSection`. */
-const SCROLL_CORRECTION_DELAYS_MS = [150, 400, 700]
-
-/** Invalidates any in-flight correction loop from a previous call. */
-let scrollCorrectionRequestId = 0
-
 /**
- * Scrolls to the section for `tab` and keeps it aligned for a short, bounded
- * window afterward. Clicking a tab activates its section's (and every
- * section above it's) lazy-loaded queries in the same tick, so the target's
- * layout is still settling — skeletons swapping for real content, heights
- * changing — while the initial `scrollIntoView` is happening. Without this,
- * the first click lands on a stale position and only a second click (after
- * everything has loaded) ends up correct. The correction loop re-aligns
- * (instantly, no re-animation) whenever the target's position actually
- * moved, and gives up re-checking after ~700ms.
+ * 클릭한 탭의 섹션으로 한 번만 부드럽게 스크롤한다. 상단 오프셋(헤더에 가리지
+ * 않도록)은 각 `ReportSection`의 `scroll-margin-top`이 담당한다. 예전의 리플로우
+ * 재정렬 보정 루프는 제거했다 — 클릭 시 자연스러운 단일 이동을 위해.
  */
 const scrollToReportSection = (tab: AnalysisResultTab) => {
   if (typeof document === 'undefined') return
-  const id = createReportSectionId(tab)
-  const requestId = ++scrollCorrectionRequestId
-  const initialBehavior: ScrollBehavior = prefersReducedMotion()
-    ? 'auto'
-    : 'smooth'
-
-  const align = (behavior: ScrollBehavior) => {
-    document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' })
-  }
-
+  const behavior: ScrollBehavior = prefersReducedMotion() ? 'auto' : 'smooth'
   window.requestAnimationFrame(() => {
-    if (requestId !== scrollCorrectionRequestId) return
-    align(initialBehavior)
-
-    let lastTop =
-      document.getElementById(id)?.getBoundingClientRect().top ?? null
-
-    SCROLL_CORRECTION_DELAYS_MS.forEach(delay => {
-      window.setTimeout(() => {
-        if (requestId !== scrollCorrectionRequestId) return
-        const el = document.getElementById(id)
-        if (!el) return
-        const currentTop = el.getBoundingClientRect().top
-        if (lastTop === null || Math.abs(currentTop - lastTop) > 1) {
-          align('auto')
-          lastTop = el.getBoundingClientRect().top
-        }
-      }, delay)
-    })
+    document
+      .getElementById(createReportSectionId(tab))
+      ?.scrollIntoView({ behavior, block: 'start' })
   })
 }
 
@@ -286,6 +252,51 @@ const Content = styled.div`
   }
 `
 
+/** 데스크톱: [사이드바][콘텐츠] 2컬럼. 모바일(≤840px)은 단일 컬럼. */
+const ResultLayout = styled.div`
+  width: min(1320px, calc(100% - 40px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 28px;
+  padding: 20px 0 56px;
+
+  @media (max-width: 840px) {
+    grid-template-columns: 1fr;
+    width: min(100% - 28px, 1320px);
+    gap: 0;
+    padding: 16px 0 max(36px, env(safe-area-inset-bottom));
+  }
+`
+
+/** 좌측 사이드바: 스크롤 컨테이너 기준 sticky. 모바일에서는 숨김. */
+const SidebarColumn = styled.aside`
+  position: sticky;
+  top: 96px;
+  align-self: start;
+  height: fit-content;
+
+  @media (max-width: 840px) {
+    display: none;
+  }
+`
+
+/** 사이드바 오른쪽 콘텐츠 컬럼. 폭/패딩은 ResultLayout이 담당. */
+const ContentColumn = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 28px;
+`
+
+/** 모바일 전용 상단 가로 탭. 데스크톱에서는 숨김. */
+const MobileTabList = styled(TabList)`
+  display: none;
+
+  @media (max-width: 840px) {
+    display: flex;
+  }
+`
+
 /**
  * One anchor per tab. Rendered unconditionally so the tab bar becomes a
  * scroll-spy over a single long page instead of swapping content.
@@ -295,10 +306,12 @@ const Content = styled.div`
 const ReportSection = styled.section`
   display: grid;
   gap: 16px;
-  scroll-margin-top: 112px;
+  /* 데스크톱: sticky 헤더(≈63px) 아래로 자연스럽게 안착. */
+  scroll-margin-top: 76px;
 
-  @media (max-width: 640px) {
-    scroll-margin-top: 104px;
+  /* 모바일(≤840px): 헤더에 가로 탭 바가 포함돼 더 높다(≈102px). */
+  @media (max-width: 840px) {
+    scroll-margin-top: 116px;
   }
 `
 
@@ -308,6 +321,15 @@ const GroupHeading = styled.h2`
   font-size: 18px;
   font-weight: 780;
   line-height: 26px;
+`
+
+/** 그룹 헤딩 줄: 왼쪽 제목 + 오른쪽 기간(연/분기) 선택. */
+const GroupHeadingRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 `
 
 const DashboardGrid = styled.div`
@@ -627,7 +649,7 @@ export default function AnalysisResultView({
   const administrationCode = selection.administrationCode ?? ''
   const commercialCode = selection.commercialCode ?? ''
   const serviceCode = selection.serviceCode ?? ''
-  const periodCode = selection.periodCode
+  const [periodCode, setPeriodCode] = useState<string>(selection.periodCode)
   const contextParams = {
     districtCode,
     administrationCode,
@@ -1000,6 +1022,13 @@ export default function AnalysisResultView({
     },
   ] as const
 
+  const renderGroupHeading = (label: string) => (
+    <GroupHeadingRow>
+      <GroupHeading>{label}</GroupHeading>
+      <AnalysisPeriodSelect value={periodCode} onChange={setPeriodCode} />
+    </GroupHeadingRow>
+  )
+
   return (
     <Root>
       <StickyHeader>
@@ -1032,7 +1061,7 @@ export default function AnalysisResultView({
               {onClose ? <X /> : <ArrowLeft />}
             </IconButton>
           </HeaderTop>
-          <TabList aria-label="분석 결과 항목" role="tablist">
+          <MobileTabList aria-label="분석 결과 항목" role="tablist">
             {ANALYSIS_TABS.map(tab => (
               <HeaderTabButton
                 key={tab.value}
@@ -1046,686 +1075,696 @@ export default function AnalysisResultView({
                 {tab.label}
               </HeaderTabButton>
             ))}
-          </TabList>
+          </MobileTabList>
         </HeaderInner>
       </StickyHeader>
 
-      <Content>
-        <ContextHero>
-          <ContextCopy>
-            <p>선택 업종 {serviceName}</p>
-            <h2>
-              {profile?.commercialName ?? '선택 상권'}의 창업 데이터를 확인해
-              보세요
-            </h2>
-          </ContextCopy>
-          <ActionRow>
-            <Button
-              size="medium"
-              variant="secondary"
-              leftIcon={<Share2 />}
-              onClick={() => void handleShare()}
-            >
-              공유
-            </Button>
-            <Button
-              size="medium"
-              variant="secondary"
-              leftIcon={bookmark ? <Check /> : <Bookmark />}
-              isLoading={bookmarkMutation.isPending}
-              disabled={!hasHydrated || profileQuery.isPending}
-              onClick={handleBookmark}
-            >
-              {bookmark ? '저장됨' : '상권 저장'}
-            </Button>
-            <Button
-              size="medium"
-              rightIcon={<ExternalLink />}
-              onClick={() =>
-                router.push(
-                  `/analysis/simulation?${new URLSearchParams({
-                    serviceCode,
-                    serviceCodeName: '',
-                    gugun: profile?.districtName ?? '',
-                  })}`,
-                )
-              }
-            >
-              시뮬레이션
-            </Button>
-          </ActionRow>
-        </ContextHero>
-
-        {actionFeedback ? (
-          <Feedback $error={actionFeedback.error} role="status">
-            {actionFeedback.message}
-          </Feedback>
-        ) : null}
-        {bookmarksQuery.errorMessage ? (
-          <Feedback $error>{bookmarksQuery.errorMessage}</Feedback>
-        ) : null}
-
-        <ReportSection
-          id={createReportSectionId('summary')}
-          ref={registerSection('summary')}
-        >
-          <GroupHeading>요약</GroupHeading>
-          <DashboardGrid>
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="핵심 지표"
-                description="선택한 상권과 업종의 주요 수치를 먼저 확인하세요."
-                loading={profileQuery.isPending}
-                error={
-                  profileQuery.isError ||
-                  isResponseError(profileQuery.data as ApiResponse<unknown>)
-                }
-                empty={!profile?.keyMetrics && !salesSummary && !stores}
-                onRetry={() => void profileQuery.refetch()}
+      <ResultLayout>
+        <SidebarColumn>
+          <AnalysisResultNav
+            tabs={ANALYSIS_TABS}
+            activeTab={spyTab}
+            onSelect={handleTabClick}
+          />
+        </SidebarColumn>
+        <ContentColumn>
+          <ContextHero>
+            <ContextCopy>
+              <p>선택 업종 {serviceName}</p>
+              <h2>
+                {profile?.commercialName ?? '선택 상권'}의 창업 데이터를 확인해
+                보세요
+              </h2>
+            </ContextCopy>
+            <ActionRow>
+              <Button
+                size="medium"
+                variant="secondary"
+                leftIcon={<Share2 />}
+                onClick={() => void handleShare()}
               >
-                {renderCards(summaryCards)}
-              </AnalysisResultSection>
-            </FullSpanItem>
-
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="지역별 월 매출 비교"
-                loading={salesSummaryQuery.isPending}
-                error={
-                  salesSummaryQuery.isError ||
-                  isResponseError(
-                    salesSummaryQuery.data as ApiResponse<unknown>,
+                공유
+              </Button>
+              <Button
+                size="medium"
+                variant="secondary"
+                leftIcon={bookmark ? <Check /> : <Bookmark />}
+                isLoading={bookmarkMutation.isPending}
+                disabled={!hasHydrated || profileQuery.isPending}
+                onClick={handleBookmark}
+              >
+                {bookmark ? '저장됨' : '상권 저장'}
+              </Button>
+              <Button
+                size="medium"
+                rightIcon={<ExternalLink />}
+                onClick={() =>
+                  router.push(
+                    `/analysis/simulation?${new URLSearchParams({
+                      serviceCode,
+                      serviceCodeName: '',
+                      gugun: profile?.districtName ?? '',
+                    })}`,
                   )
                 }
-                empty={!hasObjectValues(salesSummary)}
-                onRetry={() => void salesSummaryQuery.refetch()}
               >
-                <ComparisonGrid>
-                  {[
-                    salesSummary?.district,
-                    salesSummary?.administration,
-                    salesSummary?.commercial,
-                  ].map((item, index) => (
-                    <ComparisonItem key={item?.code ?? index}>
-                      <span>
-                        {item?.name ?? ['자치구', '행정동', '상권'][index]}
-                      </span>
-                      <strong>
-                        {formatAnalysisValue(item?.monthlySalesAmount, '원')}
-                      </strong>
-                    </ComparisonItem>
-                  ))}
-                </ComparisonGrid>
-              </AnalysisResultSection>
-            </FullSpanItem>
+                시뮬레이션
+              </Button>
+            </ActionRow>
+          </ContextHero>
 
-            <FullSpanItem>
+          {actionFeedback ? (
+            <Feedback $error={actionFeedback.error} role="status">
+              {actionFeedback.message}
+            </Feedback>
+          ) : null}
+          {bookmarksQuery.errorMessage ? (
+            <Feedback $error>{bookmarksQuery.errorMessage}</Feedback>
+          ) : null}
+
+          <ReportSection
+            id={createReportSectionId('summary')}
+            ref={registerSection('summary')}
+          >
+            {renderGroupHeading('요약')}
+            <DashboardGrid>
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="핵심 지표"
+                  description="선택한 상권과 업종의 주요 수치를 먼저 확인하세요."
+                  loading={profileQuery.isPending}
+                  error={
+                    profileQuery.isError ||
+                    isResponseError(profileQuery.data as ApiResponse<unknown>)
+                  }
+                  empty={!profile?.keyMetrics && !salesSummary && !stores}
+                  onRetry={() => void profileQuery.refetch()}
+                >
+                  {renderCards(summaryCards)}
+                </AnalysisResultSection>
+              </FullSpanItem>
+
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="지역별 월 매출 비교"
+                  loading={salesSummaryQuery.isPending}
+                  error={
+                    salesSummaryQuery.isError ||
+                    isResponseError(
+                      salesSummaryQuery.data as ApiResponse<unknown>,
+                    )
+                  }
+                  empty={!hasObjectValues(salesSummary)}
+                  onRetry={() => void salesSummaryQuery.refetch()}
+                >
+                  <ComparisonGrid>
+                    {[
+                      salesSummary?.district,
+                      salesSummary?.administration,
+                      salesSummary?.commercial,
+                    ].map((item, index) => (
+                      <ComparisonItem key={item?.code ?? index}>
+                        <span>
+                          {item?.name ?? ['자치구', '행정동', '상권'][index]}
+                        </span>
+                        <strong>
+                          {formatAnalysisValue(item?.monthlySalesAmount, '원')}
+                        </strong>
+                      </ComparisonItem>
+                    ))}
+                  </ComparisonGrid>
+                </AnalysisResultSection>
+              </FullSpanItem>
+
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="점포 현황"
+                  loading={storesQuery.isPending}
+                  error={
+                    storesQuery.isError ||
+                    isResponseError(storesQuery.data as ApiResponse<unknown>)
+                  }
+                  empty={!hasObjectValues(stores)}
+                  onRetry={() => void storesQuery.refetch()}
+                >
+                  {renderCards([
+                    {
+                      label: '총 점포',
+                      value: stores?.totalStoreCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '개업률',
+                      value: stores?.openingRate,
+                      unit: '%',
+                    },
+                    {
+                      label: '폐업률',
+                      value: stores?.closureRate,
+                      unit: '%',
+                    },
+                    {
+                      label: '프랜차이즈',
+                      value: stores?.franchiseStoreCount,
+                      unit: '개',
+                    },
+                  ])}
+                </AnalysisResultSection>
+              </FullSpanItem>
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="생활권·시설"
+                  loading={
+                    populationQuery.isPending || facilitiesQuery.isPending
+                  }
+                  error={
+                    populationQuery.isError ||
+                    facilitiesQuery.isError ||
+                    isResponseError(
+                      populationQuery.data as ApiResponse<unknown>,
+                    ) ||
+                    isResponseError(
+                      facilitiesQuery.data as ApiResponse<unknown>,
+                    )
+                  }
+                  empty={
+                    !hasObjectValues(population) && !hasObjectValues(facilities)
+                  }
+                  onRetry={() => {
+                    void populationQuery.refetch()
+                    void facilitiesQuery.refetch()
+                  }}
+                >
+                  {renderCards([
+                    {
+                      label: '상주인구',
+                      value: population?.byAgeItem?.totalResidentPopulation,
+                      unit: '명',
+                    },
+                    {
+                      label: '주요 시설',
+                      value: facilities?.totalFacilityCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '학교',
+                      value: facilities?.schoolCountItem?.totalSchoolCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '대중교통',
+                      value: facilities?.totalTransportationFacilityCount,
+                      unit: '개',
+                    },
+                  ])}
+                </AnalysisResultSection>
+              </FullSpanItem>
+            </DashboardGrid>
+          </ReportSection>
+
+          <ReportSection
+            id={createReportSectionId('foot-traffic')}
+            ref={registerSection('foot-traffic')}
+          >
+            {renderGroupHeading('유동인구')}
+            <DashboardGrid>
               <AnalysisResultSection
-                title="점포 현황"
-                loading={storesQuery.isPending}
+                title="시간대별 유동인구"
+                loading={footTrafficQuery.isPending}
                 error={
-                  storesQuery.isError ||
-                  isResponseError(storesQuery.data as ApiResponse<unknown>)
-                }
-                empty={!hasObjectValues(stores)}
-                onRetry={() => void storesQuery.refetch()}
-              >
-                {renderCards([
-                  {
-                    label: '총 점포',
-                    value: stores?.totalStoreCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '개업률',
-                    value: stores?.openingRate,
-                    unit: '%',
-                  },
-                  {
-                    label: '폐업률',
-                    value: stores?.closureRate,
-                    unit: '%',
-                  },
-                  {
-                    label: '프랜차이즈',
-                    value: stores?.franchiseStoreCount,
-                    unit: '개',
-                  },
-                ])}
-              </AnalysisResultSection>
-            </FullSpanItem>
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="생활권·시설"
-                loading={populationQuery.isPending || facilitiesQuery.isPending}
-                error={
-                  populationQuery.isError ||
-                  facilitiesQuery.isError ||
-                  isResponseError(
-                    populationQuery.data as ApiResponse<unknown>,
-                  ) ||
-                  isResponseError(facilitiesQuery.data as ApiResponse<unknown>)
+                  footTrafficQuery.isError ||
+                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
                 }
                 empty={
-                  !hasObjectValues(population) && !hasObjectValues(facilities)
-                }
-                onRetry={() => {
-                  void populationQuery.refetch()
-                  void facilitiesQuery.refetch()
-                }}
-              >
-                {renderCards([
-                  {
-                    label: '상주인구',
-                    value: population?.byAgeItem?.totalResidentPopulation,
-                    unit: '명',
-                  },
-                  {
-                    label: '주요 시설',
-                    value: facilities?.totalFacilityCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '학교',
-                    value: facilities?.schoolCountItem?.totalSchoolCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '대중교통',
-                    value: facilities?.totalTransportationFacilityCount,
-                    unit: '개',
-                  },
-                ])}
-              </AnalysisResultSection>
-            </FullSpanItem>
-          </DashboardGrid>
-        </ReportSection>
-
-        <ReportSection
-          id={createReportSectionId('foot-traffic')}
-          ref={registerSection('foot-traffic')}
-        >
-          <GroupHeading>유동인구</GroupHeading>
-          <DashboardGrid>
-            <AnalysisResultSection
-              title="시간대별 유동인구"
-              loading={footTrafficQuery.isPending}
-              error={
-                footTrafficQuery.isError ||
-                isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-              }
-              empty={
-                !hasObjectValues(
-                  footTraffic?.byTimeSlotItem as Record<
-                    string,
-                    number | null
-                  > | null,
-                )
-              }
-              onRetry={() => void footTrafficQuery.refetch()}
-            >
-              <ChartBox $maxWidth={560}>
-                <LineChart
-                  points={toLinePoints(
-                    createRows(
-                      footTraffic?.byTimeSlotItem as Record<
-                        string,
-                        number | null
-                      >,
-                      footTimeDefinitions,
-                    ),
-                  )}
-                  unit="명"
-                  ariaLabel="시간대별 유동인구 추이"
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-
-            <AnalysisResultSection
-              title="요일별 유동인구"
-              loading={footTrafficQuery.isPending}
-              error={
-                footTrafficQuery.isError ||
-                isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-              }
-              empty={
-                !hasObjectValues(
-                  footTraffic?.byDayOfWeekItem as Record<
-                    string,
-                    number | null
-                  > | null,
-                )
-              }
-              onRetry={() => void footTrafficQuery.refetch()}
-            >
-              <ChartBox $maxWidth={460}>
-                <BarChart
-                  items={createRows(
-                    footTraffic?.byDayOfWeekItem as Record<
+                  !hasObjectValues(
+                    footTraffic?.byTimeSlotItem as Record<
                       string,
                       number | null
-                    >,
-                    footDayDefinitions,
-                  )}
-                  unit="명"
-                  ariaLabel="요일별 유동인구 막대 차트"
-                  emphasisLabels={['토', '일']}
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-
-            <AnalysisResultSection
-              title="연령·성별 유동인구"
-              loading={footTrafficQuery.isPending}
-              error={
-                footTrafficQuery.isError ||
-                isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-              }
-              empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
-                row => row.male === null && row.female === null,
-              )}
-              onRetry={() => void footTrafficQuery.refetch()}
-            >
-              <ChartBox $maxWidth={460}>
-                <PopulationPyramid
-                  rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
-                  unit="%"
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-          </DashboardGrid>
-        </ReportSection>
-
-        <ReportSection
-          id={createReportSectionId('sales')}
-          ref={registerSection('sales')}
-        >
-          <GroupHeading>매출</GroupHeading>
-          <DashboardGrid>
-            <AnalysisResultSection
-              title="시간대별 매출"
-              loading={salesQuery.isPending}
-              error={
-                salesQuery.isError ||
-                isResponseError(salesQuery.data as ApiResponse<unknown>)
-              }
-              empty={
-                !hasObjectValues(
-                  sales?.amountByTimeSlotItem as Record<
-                    string,
-                    number | null
-                  > | null,
-                )
-              }
-              onRetry={() => void salesQuery.refetch()}
-            >
-              <ChartBox $maxWidth={560}>
-                <LineChart
-                  points={toLinePoints(
-                    createRows(
-                      sales?.amountByTimeSlotItem as Record<
-                        string,
-                        number | null
-                      >,
-                      salesTimeDefinitions,
-                    ),
-                  )}
-                  unit="원"
-                  ariaLabel="시간대별 매출 추이"
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-
-            <AnalysisResultSection
-              title="요일별 매출"
-              loading={salesQuery.isPending}
-              error={
-                salesQuery.isError ||
-                isResponseError(salesQuery.data as ApiResponse<unknown>)
-              }
-              empty={
-                !hasObjectValues(
-                  sales?.amountByDayOfWeekItem as Record<
-                    string,
-                    number | null
-                  > | null,
-                )
-              }
-              onRetry={() => void salesQuery.refetch()}
-            >
-              <ChartBox $maxWidth={460}>
-                <BarChart
-                  items={createRows(
-                    sales?.amountByDayOfWeekItem as Record<
-                      string,
-                      number | null
-                    >,
-                    salesDayDefinitions,
-                  )}
-                  unit="원"
-                  ariaLabel="요일별 매출 막대 차트"
-                  emphasisLabels={['토', '일']}
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-
-            <AnalysisResultSection
-              title="연령별 매출"
-              loading={salesQuery.isPending}
-              error={
-                salesQuery.isError ||
-                isResponseError(salesQuery.data as ApiResponse<unknown>)
-              }
-              empty={
-                !hasObjectValues(
-                  sales?.amountByAgeItem as Record<
-                    string,
-                    number | null
-                  > | null,
-                )
-              }
-              onRetry={() => void salesQuery.refetch()}
-            >
-              <ChartBox $maxWidth={460}>
-                <BarChart
-                  items={createRows(
-                    sales?.amountByAgeItem as Record<string, number | null>,
-                    salesAgeDefinitions,
-                  )}
-                  unit="원"
-                  ariaLabel="연령별 매출 막대 차트"
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-
-            <AnalysisResultSection
-              title="성별 매출 건수"
-              loading={salesQuery.isPending}
-              error={
-                salesQuery.isError ||
-                isResponseError(salesQuery.data as ApiResponse<unknown>)
-              }
-              empty={toGenderSegments(
-                sales?.countByGenderItem?.maleSalesCount,
-                sales?.countByGenderItem?.femaleSalesCount,
-              ).every(segment => segment.value <= 0)}
-              onRetry={() => void salesQuery.refetch()}
-            >
-              <ChartBox $maxWidth={200}>
-                <DonutChart
-                  segments={toGenderSegments(
-                    sales?.countByGenderItem?.maleSalesCount,
-                    sales?.countByGenderItem?.femaleSalesCount,
-                  )}
-                  ariaLabel="성별 매출 건수 도넛"
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-          </DashboardGrid>
-        </ReportSection>
-
-        <ReportSection
-          id={createReportSectionId('stores')}
-          ref={registerSection('stores')}
-        >
-          <GroupHeading>점포</GroupHeading>
-          <DashboardGrid>
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="점포 분석"
-                description="개·폐업과 프랜차이즈 현황을 함께 확인하세요."
-                loading={storesQuery.isPending}
-                error={
-                  storesQuery.isError ||
-                  isResponseError(storesQuery.data as ApiResponse<unknown>)
+                    > | null,
+                  )
                 }
-                empty={!hasObjectValues(stores)}
-                onRetry={() => void storesQuery.refetch()}
-              >
-                {renderCards([
-                  {
-                    label: '총 점포',
-                    value: stores?.totalStoreCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '유사 업종 점포',
-                    value: stores?.similarStoreCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '개업 점포',
-                    value: stores?.openedStoreCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '폐업 점포',
-                    value: stores?.closedStoreCount,
-                    unit: '개',
-                  },
-                ])}
-              </AnalysisResultSection>
-            </FullSpanItem>
-          </DashboardGrid>
-        </ReportSection>
-
-        <ReportSection
-          id={createReportSectionId('living')}
-          ref={registerSection('living')}
-        >
-          <GroupHeading>생활권</GroupHeading>
-          <DashboardGrid>
-            <AnalysisResultSection
-              title="연령별 상주인구"
-              loading={populationQuery.isPending}
-              error={
-                populationQuery.isError ||
-                isResponseError(populationQuery.data as ApiResponse<unknown>)
-              }
-              empty={!hasObjectValues(population?.byAgeItem)}
-              onRetry={() => void populationQuery.refetch()}
-            >
-              <ChartBox $maxWidth={460}>
-                <BarChart
-                  items={createRows(
-                    population?.byAgeItem as Record<
-                      string,
-                      number | null | undefined
-                    >,
-                    populationAgeDefinitions,
-                  )}
-                  unit="명"
-                  ariaLabel="연령별 상주인구 막대 차트"
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-            <AnalysisResultSection
-              title="성별 상주인구"
-              loading={populationQuery.isPending}
-              error={
-                populationQuery.isError ||
-                isResponseError(populationQuery.data as ApiResponse<unknown>)
-              }
-              empty={toGenderSegments(
-                population?.malePercentage,
-                population?.femalePercentage,
-              ).every(segment => segment.value <= 0)}
-              onRetry={() => void populationQuery.refetch()}
-            >
-              <ChartBox $maxWidth={200}>
-                <DonutChart
-                  segments={toGenderSegments(
-                    population?.malePercentage,
-                    population?.femalePercentage,
-                  )}
-                  ariaLabel="성별 상주인구 도넛"
-                />
-              </ChartBox>
-            </AnalysisResultSection>
-            <AnalysisResultSection
-              title="소득과 소비"
-              loading={incomeQuery.isPending}
-              error={
-                incomeQuery.isError ||
-                isResponseError(incomeQuery.data as ApiResponse<unknown>) ||
-                incomeSummaryQuery.isError
-              }
-              empty={
-                !hasObjectValues(income) && !hasObjectValues(incomeSummary)
-              }
-              onRetry={() => {
-                void incomeQuery.refetch()
-                void incomeSummaryQuery.refetch()
-              }}
-            >
-              <MetricCard>
-                <span>월 평균 소득</span>
-                <strong>
-                  {formatAnalysisValue(
-                    income?.averageIncomeItem?.monthlyAverageIncomeAmount,
-                    '원',
-                  )}
-                </strong>
-              </MetricCard>
-              <AnalysisMetricList
-                rows={createRows(
-                  income?.expenseByCategoryItem as Record<
-                    string,
-                    number | null | undefined
-                  >,
-                  expenseDefinitions,
-                )}
-                unit="원"
-              />
-            </AnalysisResultSection>
-            <FullSpanItem>
-              <AnalysisResultSection
-                title="주요 시설과 교통"
-                loading={facilitiesQuery.isPending}
-                error={
-                  facilitiesQuery.isError ||
-                  isResponseError(facilitiesQuery.data as ApiResponse<unknown>)
-                }
-                empty={!hasObjectValues(facilities)}
-                onRetry={() => void facilitiesQuery.refetch()}
-              >
-                {renderCards([
-                  {
-                    label: '전체 시설',
-                    value: facilities?.totalFacilityCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '전체 학교',
-                    value: facilities?.schoolCountItem?.totalSchoolCount,
-                    unit: '개',
-                  },
-                  {
-                    label: '초·중·고',
-                    value:
-                      (facilities?.schoolCountItem?.elementarySchoolCount ??
-                        0) +
-                      (facilities?.schoolCountItem?.middleSchoolCount ?? 0) +
-                      (facilities?.schoolCountItem?.highSchoolCount ?? 0),
-                    unit: '개',
-                  },
-                  {
-                    label: '대중교통 시설',
-                    value: facilities?.totalTransportationFacilityCount,
-                    unit: '개',
-                  },
-                ])}
-              </AnalysisResultSection>
-            </FullSpanItem>
-          </DashboardGrid>
-        </ReportSection>
-
-        <ReportSection
-          id={createReportSectionId('trend')}
-          ref={registerSection('trend')}
-        >
-          <GroupHeading>트렌드</GroupHeading>
-          <DashboardGrid>
-            {trends.map(({ metric, label, unit, query, data }) => (
-              <AnalysisResultSection
-                key={metric}
-                title={label}
-                description={
-                  data?.trendDirection
-                    ? `최근 추세: ${data.trendDirection}`
-                    : undefined
-                }
-                loading={query.isPending}
-                error={
-                  query.isError ||
-                  isResponseError(query.data as ApiResponse<unknown>)
-                }
-                empty={!data?.periods?.length}
-                onRetry={() => void query.refetch()}
+                onRetry={() => void footTrafficQuery.refetch()}
               >
                 <ChartBox $maxWidth={560}>
                   <LineChart
-                    points={toTrendPoints(data)}
-                    unit={unit}
-                    direction={data?.trendDirection ?? null}
+                    points={toLinePoints(
+                      createRows(
+                        footTraffic?.byTimeSlotItem as Record<
+                          string,
+                          number | null
+                        >,
+                        footTimeDefinitions,
+                      ),
+                    )}
+                    unit="명"
+                    ariaLabel="시간대별 유동인구 추이"
                   />
                 </ChartBox>
               </AnalysisResultSection>
-            ))}
-          </DashboardGrid>
-        </ReportSection>
 
-        <ReportSection
-          id={createReportSectionId('benchmark')}
-          ref={registerSection('benchmark')}
-        >
-          <GroupHeading>비교</GroupHeading>
-          <DashboardGrid>
-            <FullSpanItem>
               <AnalysisResultSection
-                title="비교 분석"
-                description={benchmark?.summary ?? undefined}
-                loading={benchmarkQuery.isPending}
+                title="요일별 유동인구"
+                loading={footTrafficQuery.isPending}
                 error={
-                  benchmarkQuery.isError ||
-                  isResponseError(benchmarkQuery.data as ApiResponse<unknown>)
+                  footTrafficQuery.isError ||
+                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
                 }
-                empty={!hasObjectValues(benchmark)}
-                onRetry={() => void benchmarkQuery.refetch()}
+                empty={
+                  !hasObjectValues(
+                    footTraffic?.byDayOfWeekItem as Record<
+                      string,
+                      number | null
+                    > | null,
+                  )
+                }
+                onRetry={() => void footTrafficQuery.refetch()}
               >
-                {benchmark?.benchmarkHighlights?.length ? (
-                  <HighlightList>
-                    {benchmark.benchmarkHighlights.map(highlight => (
-                      <li key={highlight}>{highlight}</li>
-                    ))}
-                  </HighlightList>
-                ) : (
-                  <EmptyState
-                    title="비교 하이라이트가 없어요"
-                    description="제공된 지역별 매출과 소비 수치를 확인해 주세요."
+                <ChartBox $maxWidth={460}>
+                  <BarChart
+                    items={createRows(
+                      footTraffic?.byDayOfWeekItem as Record<
+                        string,
+                        number | null
+                      >,
+                      footDayDefinitions,
+                    )}
+                    unit="명"
+                    ariaLabel="요일별 유동인구 막대 차트"
+                    emphasisLabels={['토', '일']}
                   />
-                )}
-                <ComparisonGrid>
-                  {[
-                    benchmark?.salesSummary?.district,
-                    benchmark?.salesSummary?.administration,
-                    benchmark?.salesSummary?.commercial,
-                  ].map((item, index) => (
-                    <ComparisonItem key={item?.code ?? index}>
-                      <span>
-                        {item?.name ?? ['자치구', '행정동', '상권'][index]}
-                      </span>
-                      <strong>
-                        {formatAnalysisValue(item?.monthlySalesAmount, '원')}
-                      </strong>
-                    </ComparisonItem>
-                  ))}
-                </ComparisonGrid>
+                </ChartBox>
               </AnalysisResultSection>
-            </FullSpanItem>
-          </DashboardGrid>
-        </ReportSection>
-      </Content>
+
+              <AnalysisResultSection
+                title="연령·성별 유동인구"
+                loading={footTrafficQuery.isPending}
+                error={
+                  footTrafficQuery.isError ||
+                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
+                }
+                empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
+                  row => row.male === null && row.female === null,
+                )}
+                onRetry={() => void footTrafficQuery.refetch()}
+              >
+                <ChartBox $maxWidth={460}>
+                  <PopulationPyramid
+                    rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
+                    unit="%"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+            </DashboardGrid>
+          </ReportSection>
+
+          <ReportSection
+            id={createReportSectionId('sales')}
+            ref={registerSection('sales')}
+          >
+            {renderGroupHeading('매출')}
+            <DashboardGrid>
+              <AnalysisResultSection
+                title="시간대별 매출"
+                loading={salesQuery.isPending}
+                error={
+                  salesQuery.isError ||
+                  isResponseError(salesQuery.data as ApiResponse<unknown>)
+                }
+                empty={
+                  !hasObjectValues(
+                    sales?.amountByTimeSlotItem as Record<
+                      string,
+                      number | null
+                    > | null,
+                  )
+                }
+                onRetry={() => void salesQuery.refetch()}
+              >
+                <ChartBox $maxWidth={560}>
+                  <LineChart
+                    points={toLinePoints(
+                      createRows(
+                        sales?.amountByTimeSlotItem as Record<
+                          string,
+                          number | null
+                        >,
+                        salesTimeDefinitions,
+                      ),
+                    )}
+                    unit="원"
+                    ariaLabel="시간대별 매출 추이"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+
+              <AnalysisResultSection
+                title="요일별 매출"
+                loading={salesQuery.isPending}
+                error={
+                  salesQuery.isError ||
+                  isResponseError(salesQuery.data as ApiResponse<unknown>)
+                }
+                empty={
+                  !hasObjectValues(
+                    sales?.amountByDayOfWeekItem as Record<
+                      string,
+                      number | null
+                    > | null,
+                  )
+                }
+                onRetry={() => void salesQuery.refetch()}
+              >
+                <ChartBox $maxWidth={460}>
+                  <BarChart
+                    items={createRows(
+                      sales?.amountByDayOfWeekItem as Record<
+                        string,
+                        number | null
+                      >,
+                      salesDayDefinitions,
+                    )}
+                    unit="원"
+                    ariaLabel="요일별 매출 막대 차트"
+                    emphasisLabels={['토', '일']}
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+
+              <AnalysisResultSection
+                title="연령별 매출"
+                loading={salesQuery.isPending}
+                error={
+                  salesQuery.isError ||
+                  isResponseError(salesQuery.data as ApiResponse<unknown>)
+                }
+                empty={
+                  !hasObjectValues(
+                    sales?.amountByAgeItem as Record<
+                      string,
+                      number | null
+                    > | null,
+                  )
+                }
+                onRetry={() => void salesQuery.refetch()}
+              >
+                <ChartBox $maxWidth={460}>
+                  <BarChart
+                    items={createRows(
+                      sales?.amountByAgeItem as Record<string, number | null>,
+                      salesAgeDefinitions,
+                    )}
+                    unit="원"
+                    ariaLabel="연령별 매출 막대 차트"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+
+              <AnalysisResultSection
+                title="성별 매출 건수"
+                loading={salesQuery.isPending}
+                error={
+                  salesQuery.isError ||
+                  isResponseError(salesQuery.data as ApiResponse<unknown>)
+                }
+                empty={toGenderSegments(
+                  sales?.countByGenderItem?.maleSalesCount,
+                  sales?.countByGenderItem?.femaleSalesCount,
+                ).every(segment => segment.value <= 0)}
+                onRetry={() => void salesQuery.refetch()}
+              >
+                <ChartBox $maxWidth={200}>
+                  <DonutChart
+                    segments={toGenderSegments(
+                      sales?.countByGenderItem?.maleSalesCount,
+                      sales?.countByGenderItem?.femaleSalesCount,
+                    )}
+                    ariaLabel="성별 매출 건수 도넛"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+            </DashboardGrid>
+          </ReportSection>
+
+          <ReportSection
+            id={createReportSectionId('stores')}
+            ref={registerSection('stores')}
+          >
+            {renderGroupHeading('점포')}
+            <DashboardGrid>
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="점포 분석"
+                  description="개·폐업과 프랜차이즈 현황을 함께 확인하세요."
+                  loading={storesQuery.isPending}
+                  error={
+                    storesQuery.isError ||
+                    isResponseError(storesQuery.data as ApiResponse<unknown>)
+                  }
+                  empty={!hasObjectValues(stores)}
+                  onRetry={() => void storesQuery.refetch()}
+                >
+                  {renderCards([
+                    {
+                      label: '총 점포',
+                      value: stores?.totalStoreCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '유사 업종 점포',
+                      value: stores?.similarStoreCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '개업 점포',
+                      value: stores?.openedStoreCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '폐업 점포',
+                      value: stores?.closedStoreCount,
+                      unit: '개',
+                    },
+                  ])}
+                </AnalysisResultSection>
+              </FullSpanItem>
+            </DashboardGrid>
+          </ReportSection>
+
+          <ReportSection
+            id={createReportSectionId('living')}
+            ref={registerSection('living')}
+          >
+            {renderGroupHeading('생활권')}
+            <DashboardGrid>
+              <AnalysisResultSection
+                title="연령별 상주인구"
+                loading={populationQuery.isPending}
+                error={
+                  populationQuery.isError ||
+                  isResponseError(populationQuery.data as ApiResponse<unknown>)
+                }
+                empty={!hasObjectValues(population?.byAgeItem)}
+                onRetry={() => void populationQuery.refetch()}
+              >
+                <ChartBox $maxWidth={460}>
+                  <BarChart
+                    items={createRows(
+                      population?.byAgeItem as Record<
+                        string,
+                        number | null | undefined
+                      >,
+                      populationAgeDefinitions,
+                    )}
+                    unit="명"
+                    ariaLabel="연령별 상주인구 막대 차트"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+              <AnalysisResultSection
+                title="성별 상주인구"
+                loading={populationQuery.isPending}
+                error={
+                  populationQuery.isError ||
+                  isResponseError(populationQuery.data as ApiResponse<unknown>)
+                }
+                empty={toGenderSegments(
+                  population?.malePercentage,
+                  population?.femalePercentage,
+                ).every(segment => segment.value <= 0)}
+                onRetry={() => void populationQuery.refetch()}
+              >
+                <ChartBox $maxWidth={200}>
+                  <DonutChart
+                    segments={toGenderSegments(
+                      population?.malePercentage,
+                      population?.femalePercentage,
+                    )}
+                    ariaLabel="성별 상주인구 도넛"
+                  />
+                </ChartBox>
+              </AnalysisResultSection>
+              <AnalysisResultSection
+                title="소득과 소비"
+                loading={incomeQuery.isPending}
+                error={
+                  incomeQuery.isError ||
+                  isResponseError(incomeQuery.data as ApiResponse<unknown>) ||
+                  incomeSummaryQuery.isError
+                }
+                empty={
+                  !hasObjectValues(income) && !hasObjectValues(incomeSummary)
+                }
+                onRetry={() => {
+                  void incomeQuery.refetch()
+                  void incomeSummaryQuery.refetch()
+                }}
+              >
+                <MetricCard>
+                  <span>월 평균 소득</span>
+                  <strong>
+                    {formatAnalysisValue(
+                      income?.averageIncomeItem?.monthlyAverageIncomeAmount,
+                      '원',
+                    )}
+                  </strong>
+                </MetricCard>
+                <AnalysisMetricList
+                  rows={createRows(
+                    income?.expenseByCategoryItem as Record<
+                      string,
+                      number | null | undefined
+                    >,
+                    expenseDefinitions,
+                  )}
+                  unit="원"
+                />
+              </AnalysisResultSection>
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="주요 시설과 교통"
+                  loading={facilitiesQuery.isPending}
+                  error={
+                    facilitiesQuery.isError ||
+                    isResponseError(
+                      facilitiesQuery.data as ApiResponse<unknown>,
+                    )
+                  }
+                  empty={!hasObjectValues(facilities)}
+                  onRetry={() => void facilitiesQuery.refetch()}
+                >
+                  {renderCards([
+                    {
+                      label: '전체 시설',
+                      value: facilities?.totalFacilityCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '전체 학교',
+                      value: facilities?.schoolCountItem?.totalSchoolCount,
+                      unit: '개',
+                    },
+                    {
+                      label: '초·중·고',
+                      value:
+                        (facilities?.schoolCountItem?.elementarySchoolCount ??
+                          0) +
+                        (facilities?.schoolCountItem?.middleSchoolCount ?? 0) +
+                        (facilities?.schoolCountItem?.highSchoolCount ?? 0),
+                      unit: '개',
+                    },
+                    {
+                      label: '대중교통 시설',
+                      value: facilities?.totalTransportationFacilityCount,
+                      unit: '개',
+                    },
+                  ])}
+                </AnalysisResultSection>
+              </FullSpanItem>
+            </DashboardGrid>
+          </ReportSection>
+
+          <ReportSection
+            id={createReportSectionId('trend')}
+            ref={registerSection('trend')}
+          >
+            {renderGroupHeading('트렌드')}
+            <DashboardGrid>
+              {trends.map(({ metric, label, unit, query, data }) => (
+                <AnalysisResultSection
+                  key={metric}
+                  title={label}
+                  loading={query.isPending}
+                  error={
+                    query.isError ||
+                    isResponseError(query.data as ApiResponse<unknown>)
+                  }
+                  empty={!data?.periods?.length}
+                  onRetry={() => void query.refetch()}
+                >
+                  <ChartBox $maxWidth={560}>
+                    <LineChart
+                      points={toTrendPoints(data)}
+                      unit={unit}
+                      direction={data?.trendDirection ?? null}
+                    />
+                  </ChartBox>
+                </AnalysisResultSection>
+              ))}
+            </DashboardGrid>
+          </ReportSection>
+
+          <ReportSection
+            id={createReportSectionId('benchmark')}
+            ref={registerSection('benchmark')}
+          >
+            {renderGroupHeading('비교')}
+            <DashboardGrid>
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="비교 분석"
+                  description={benchmark?.summary ?? undefined}
+                  loading={benchmarkQuery.isPending}
+                  error={
+                    benchmarkQuery.isError ||
+                    isResponseError(benchmarkQuery.data as ApiResponse<unknown>)
+                  }
+                  empty={!hasObjectValues(benchmark)}
+                  onRetry={() => void benchmarkQuery.refetch()}
+                >
+                  {benchmark?.benchmarkHighlights?.length ? (
+                    <HighlightList>
+                      {benchmark.benchmarkHighlights.map(highlight => (
+                        <li key={highlight}>{highlight}</li>
+                      ))}
+                    </HighlightList>
+                  ) : (
+                    <EmptyState
+                      title="비교 하이라이트가 없어요"
+                      description="제공된 지역별 매출과 소비 수치를 확인해 주세요."
+                    />
+                  )}
+                  <ComparisonGrid>
+                    {[
+                      benchmark?.salesSummary?.district,
+                      benchmark?.salesSummary?.administration,
+                      benchmark?.salesSummary?.commercial,
+                    ].map((item, index) => (
+                      <ComparisonItem key={item?.code ?? index}>
+                        <span>
+                          {item?.name ?? ['자치구', '행정동', '상권'][index]}
+                        </span>
+                        <strong>
+                          {formatAnalysisValue(item?.monthlySalesAmount, '원')}
+                        </strong>
+                      </ComparisonItem>
+                    ))}
+                  </ComparisonGrid>
+                </AnalysisResultSection>
+              </FullSpanItem>
+            </DashboardGrid>
+          </ReportSection>
+        </ContentColumn>
+      </ResultLayout>
     </Root>
   )
 }

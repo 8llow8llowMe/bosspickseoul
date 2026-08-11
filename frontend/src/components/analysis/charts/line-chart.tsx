@@ -1,31 +1,34 @@
 'use client'
 
-import { useMemo } from 'react'
 import styled from 'styled-components'
+import {
+  CartesianGrid,
+  Line,
+  LineChart as ReLineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
-import { formatAnalysisValue } from '@/lib/analysis/presentation'
 import type { TrendPoint } from '@/lib/analysis/chart-data'
-import ChartFrame from './chart-frame'
-import { useChartTooltip } from './use-chart-tooltip'
-
-const W = 480
-const H = 240
-const PAD = { top: 28, right: 24, bottom: 36, left: 24 }
+import {
+  CHART_COLORS,
+  ChartTooltipContent,
+  formatAxisTick,
+} from './chart-theme'
 
 const DIRECTION_META: Record<
   'INCREASE' | 'DECREASE' | 'STAGNANT',
   { symbol: string; label: string; token: string }
 > = {
-  INCREASE: { symbol: '↑', label: '상승', token: 'var(--color-positive)' },
-  DECREASE: { symbol: '↓', label: '하락', token: 'var(--color-negative)' },
+  INCREASE: { symbol: '↑', label: '상승', token: CHART_COLORS.positive },
+  DECREASE: { symbol: '↓', label: '하락', token: CHART_COLORS.negative },
   STAGNANT: { symbol: '→', label: '보합', token: 'var(--color-text-600)' },
 }
 
-const Empty = styled.p`
-  padding: 24px 0;
-  color: var(--color-text-600);
-  font-size: 13px;
-  text-align: center;
+const Wrap = styled.div`
+  width: 100%;
 `
 
 const Badge = styled.span<{ $token: string }>`
@@ -38,6 +41,13 @@ const Badge = styled.span<{ $token: string }>`
   font-weight: 700;
 `
 
+const Empty = styled.p`
+  padding: 24px 0;
+  color: var(--color-text-600);
+  font-size: 13px;
+  text-align: center;
+`
+
 export type LineChartProps = {
   points: TrendPoint[]
   unit: string
@@ -45,140 +55,66 @@ export type LineChartProps = {
   ariaLabel?: string
 }
 
+export const hasLineData = (points: readonly TrendPoint[]): boolean =>
+  points.some(point => typeof point.value === 'number')
+
 export default function LineChart({
   points,
   unit,
   direction,
   ariaLabel = '분기별 추세 라인 차트',
 }: LineChartProps) {
-  const { active, show, hide } = useChartTooltip()
-
-  const geometry = useMemo(() => {
-    const values = points
-      .map(point => point.value)
-      .filter((value): value is number => value !== null)
-    if (values.length === 0) return null
-    const max = Math.max(...values)
-    const min = Math.min(...values)
-    const span = max - min || 1
-    const innerW = W - PAD.left - PAD.right
-    const innerH = H - PAD.top - PAD.bottom
-    const step = points.length > 1 ? innerW / (points.length - 1) : 0
-    const coords = points.map((point, index) => ({
-      point,
-      x: PAD.left + step * index,
-      y:
-        point.value === null
-          ? null
-          : PAD.top + innerH - ((point.value - min) / span) * innerH,
-    }))
-    return { coords }
-  }, [points])
-
-  if (!geometry) return <Empty>데이터 없음</Empty>
-
-  const runs: Array<Array<{ x: number; y: number }>> = []
-  let current: Array<{ x: number; y: number }> = []
-  for (const coord of geometry.coords) {
-    if (coord.y === null) {
-      if (current.length > 0) {
-        runs.push(current)
-        current = []
-      }
-      continue
-    }
-    current.push({ x: coord.x, y: coord.y })
-  }
-  if (current.length > 0) runs.push(current)
+  if (!hasLineData(points)) return <Empty>데이터 없음</Empty>
 
   const meta = direction ? DIRECTION_META[direction] : null
 
-  const describePoint = (point: TrendPoint): string => {
-    const valueLabel = formatAnalysisValue(point.value, unit)
-    if (point.changeRate === null) return valueLabel
-    const sign = point.changeRate > 0 ? '+' : ''
-    return `${valueLabel} · 전분기 대비 ${sign}${point.changeRate}%`
-  }
-
   return (
-    <div>
+    <Wrap role="img" aria-label={ariaLabel}>
       {meta ? (
         <Badge $token={meta.token}>
           {meta.symbol} {meta.label}
         </Badge>
       ) : null}
-      <ChartFrame
-        viewBoxWidth={W}
-        viewBoxHeight={H}
-        ariaLabel={ariaLabel}
-        ariaRole="group"
-        tooltip={active}
+      <ResponsiveContainer
+        width="100%"
+        height={240}
+        initialDimension={{ width: 300, height: 240 }}
       >
-        {runs
-          .filter(run => run.length >= 2)
-          .map((run, index) => (
-            <polyline
-              key={index}
-              points={run.map(({ x, y }) => `${x},${y}`).join(' ')}
-              fill="none"
-              stroke="var(--color-primary-600)"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ))}
-        {geometry.coords.map((coord, index) =>
-          coord.y === null ? null : (
-            <g key={index}>
-              <circle
-                cx={coord.x}
-                cy={coord.y}
-                r={4}
-                fill="var(--color-primary-600)"
-                tabIndex={0}
-                aria-label={`${coord.point.periodLabel} ${describePoint(coord.point)}`}
-                onMouseEnter={() =>
-                  show({
-                    x: coord.x,
-                    y: coord.y as number,
-                    label: coord.point.periodLabel,
-                    value: describePoint(coord.point),
-                  })
-                }
-                onFocus={() =>
-                  show({
-                    x: coord.x,
-                    y: coord.y as number,
-                    label: coord.point.periodLabel,
-                    value: describePoint(coord.point),
-                  })
-                }
-                onMouseLeave={hide}
-                onBlur={hide}
-              />
-              <text
-                x={coord.x}
-                y={coord.y - 10}
-                textAnchor="middle"
-                fontSize={11}
-                fontWeight={700}
-                fill="var(--color-text-900)"
-              >
-                {formatAnalysisValue(coord.point.value, unit)}
-              </text>
-              <text
-                x={coord.x}
-                y={H - 14}
-                textAnchor="middle"
-                fontSize={11}
-                fill="var(--color-text-600)"
-              >
-                {coord.point.periodLabel}
-              </text>
-            </g>
-          ),
-        )}
-      </ChartFrame>
-    </div>
+        <ReLineChart
+          data={points}
+          margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
+        >
+          <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} />
+          <XAxis
+            dataKey="periodLabel"
+            tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
+            tickLine={false}
+            axisLine={{ stroke: CHART_COLORS.grid }}
+          />
+          <YAxis
+            width={44}
+            tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={value => formatAxisTick(value)}
+          />
+          <Tooltip
+            content={<ChartTooltipContent unit={unit} />}
+            cursor={{ stroke: CHART_COLORS.grid }}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            name="값"
+            stroke={CHART_COLORS.seriesPrimary}
+            strokeWidth={2}
+            dot={{ r: 3, fill: CHART_COLORS.seriesPrimary }}
+            activeDot={{ r: 5 }}
+            connectNulls
+            isAnimationActive={false}
+          />
+        </ReLineChart>
+      </ResponsiveContainer>
+    </Wrap>
   )
 }

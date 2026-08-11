@@ -1,21 +1,22 @@
 'use client'
 
-import { useMemo } from 'react'
 import styled from 'styled-components'
-
 import {
-  formatAnalysisValue,
-  getMetricMaximum,
-  type AnalysisMetricRow,
-} from '@/lib/analysis/presentation'
-import ChartFrame from './chart-frame'
+  Bar,
+  BarChart as ReBarChart,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
-const W = 460
-const H = 220
-const PAD = { top: 30, right: 16, bottom: 34, left: 16 }
-const BAR_GAP_RATIO = 0.36
-const MIN_BAR_HEIGHT = 2
-const MIN_BAR_WIDTH = 4
+import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
+import {
+  CHART_COLORS,
+  ChartTooltipContent,
+  formatAxisTick,
+} from './chart-theme'
 
 const Empty = styled.p`
   padding: 24px 0;
@@ -32,94 +33,75 @@ export type BarChartProps = {
   emphasisLabels?: readonly string[]
 }
 
+export const resolveBarCells = (
+  items: readonly AnalysisMetricRow[],
+  emphasisLabels: readonly string[] = [],
+): Array<{ label: string; value: number | null; emphasis: boolean }> => {
+  const emphasis = new Set(emphasisLabels)
+  return items.map(item => ({
+    label: item.label,
+    value: item.value,
+    emphasis: emphasis.has(item.label),
+  }))
+}
+
 export default function BarChart({
   items,
   unit,
   ariaLabel,
   emphasisLabels,
 }: BarChartProps) {
-  const geometry = useMemo(() => {
-    if (items.length === 0 || items.every(item => item.value === null)) {
-      return null
-    }
-
-    const maximum = getMetricMaximum(items) || 1
-    const innerW = W - PAD.left - PAD.right
-    const innerH = H - PAD.top - PAD.bottom
-    const slot = innerW / items.length
-    const barWidth = Math.max(MIN_BAR_WIDTH, slot * (1 - BAR_GAP_RATIO))
-    const baseline = PAD.top + innerH
-
-    const bars = items.map(item => {
-      const height =
-        item.value === null
-          ? 0
-          : Math.max(MIN_BAR_HEIGHT, (item.value / maximum) * innerH)
-      return {
-        item,
-        height,
-        emphasized: emphasisLabels?.includes(item.label) ?? false,
-      }
-    })
-
-    return { bars, barWidth, slot, baseline }
-  }, [items, emphasisLabels])
-
-  if (!geometry) return <Empty>데이터 없음</Empty>
-
-  const { bars, barWidth, slot, baseline } = geometry
+  const cells = resolveBarCells(items, emphasisLabels)
+  const hasData = cells.some(cell => typeof cell.value === 'number')
+  if (!hasData) return <Empty>데이터 없음</Empty>
 
   return (
-    <ChartFrame
-      viewBoxWidth={W}
-      viewBoxHeight={H}
-      ariaLabel={ariaLabel}
-      ariaRole="group"
+    <ResponsiveContainer
+      width="100%"
+      height={240}
+      initialDimension={{ width: 300, height: 240 }}
+      role="img"
+      aria-label={ariaLabel}
     >
-      {bars.map((bar, index) => {
-        const centerX = PAD.left + slot * (index + 0.5)
-        const valueLabelY =
-          bar.item.value === null ? baseline - 8 : baseline - bar.height - 8
-        return (
-          <g key={bar.item.label}>
-            {bar.item.value !== null ? (
-              <rect
-                x={centerX - barWidth / 2}
-                y={baseline - bar.height}
-                width={barWidth}
-                height={bar.height}
-                rx={4}
-                fill={
-                  bar.emphasized
-                    ? 'var(--color-primary-700)'
-                    : 'var(--color-primary-600)'
-                }
-              >
-                <title>{`${bar.item.label} ${formatAnalysisValue(bar.item.value, unit)}`}</title>
-              </rect>
-            ) : null}
-            <text
-              x={centerX}
-              y={valueLabelY}
-              textAnchor="middle"
-              fontSize={11}
-              fontWeight={700}
-              fill="var(--color-text-900)"
-            >
-              {formatAnalysisValue(bar.item.value, unit)}
-            </text>
-            <text
-              x={centerX}
-              y={H - 14}
-              textAnchor="middle"
-              fontSize={11}
-              fill="var(--color-text-600)"
-            >
-              {bar.item.label}
-            </text>
-          </g>
-        )
-      })}
-    </ChartFrame>
+      <ReBarChart
+        data={cells}
+        margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
+      >
+        <XAxis
+          dataKey="label"
+          tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
+          tickLine={false}
+          axisLine={{ stroke: CHART_COLORS.grid }}
+        />
+        <YAxis
+          width={44}
+          tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={value => formatAxisTick(value)}
+        />
+        <Tooltip
+          content={<ChartTooltipContent unit={unit} />}
+          cursor={{ fill: 'var(--color-primary-100)' }}
+        />
+        <Bar
+          dataKey="value"
+          name="값"
+          radius={[4, 4, 0, 0]}
+          isAnimationActive={false}
+        >
+          {cells.map(cell => (
+            <Cell
+              key={cell.label}
+              fill={
+                cell.emphasis
+                  ? CHART_COLORS.seriesPrimary
+                  : CHART_COLORS.seriesSecondary
+              }
+            />
+          ))}
+        </Bar>
+      </ReBarChart>
+    </ResponsiveContainer>
   )
 }

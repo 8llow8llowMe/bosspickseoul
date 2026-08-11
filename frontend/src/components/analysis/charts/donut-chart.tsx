@@ -1,18 +1,18 @@
 'use client'
 
 import styled from 'styled-components'
+import {
+  Cell,
+  Pie,
+  PieChart as RePieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from 'recharts'
 
 import type { GenderSegment } from '@/lib/analysis/chart-data'
-import ChartFrame from './chart-frame'
+import { CHART_COLORS, ChartTooltipContent } from './chart-theme'
 
-const SIZE = 220
-const R = 80
-const STROKE = 34
-const CENTER = SIZE / 2
-const FULL_CIRCLE_THRESHOLD = 0.9999
-
-const tokenForLabel = (label: string) =>
-  label === '남성' ? 'var(--color-primary-600)' : 'var(--color-chart-female)'
+const SLICE_COLORS = [CHART_COLORS.seriesPrimary, CHART_COLORS.seriesSecondary]
 
 const Empty = styled.p`
   padding: 24px 0;
@@ -24,121 +24,81 @@ const Empty = styled.p`
 const Legend = styled.ul`
   display: flex;
   justify-content: center;
-  gap: 16px;
+  gap: 14px;
   margin-top: 8px;
-`
 
-const LegendItem = styled.li<{ $token: string }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-text-700);
-  font-size: 12px;
-  font-weight: 600;
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-700);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
 
-  &::before {
-    content: '';
+  i {
     width: 10px;
     height: 10px;
-    border-radius: 50%;
-    background: ${props => props.$token};
+    border-radius: 3px;
   }
 `
-
-const polar = (fraction: number) => {
-  const angle = 2 * Math.PI * fraction - Math.PI / 2
-  return { x: CENTER + R * Math.cos(angle), y: CENTER + R * Math.sin(angle) }
-}
 
 export type DonutChartProps = {
   segments: GenderSegment[]
   ariaLabel: string
 }
 
-export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
-  const visible = segments.filter(segment => segment.value > 0)
-  const total = visible.reduce((sum, segment) => sum + segment.value, 0)
-  if (visible.length === 0 || total <= 0) return <Empty>데이터 없음</Empty>
+export const toDonutSlices = (
+  segments: readonly GenderSegment[],
+): Array<{ label: string; value: number; percent: number }> => {
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0)
+  return segments.map(segment => ({
+    label: segment.label,
+    value: segment.value,
+    percent: total > 0 ? Math.round((segment.value / total) * 100) : 0,
+  }))
+}
 
-  const arcs = visible.reduce<
-    Array<{
-      segment: GenderSegment
-      percent: number
-      token: string
-      d: string
-      isFullCircle: boolean
-      mid: { x: number; y: number }
-      cursorEnd: number
-    }>
-  >((acc, segment, index) => {
-    const cursorStart = index === 0 ? 0 : acc[index - 1].cursorEnd
-    const fraction = segment.value / total
-    const cursorEnd = cursorStart + fraction
-    const start = polar(cursorStart)
-    const end = polar(cursorEnd)
-    const largeArc = fraction > 0.5 ? 1 : 0
-    const percent = Math.round(fraction * 100)
-    acc.push({
-      segment,
-      percent,
-      token: tokenForLabel(segment.label),
-      d: `M ${start.x} ${start.y} A ${R} ${R} 0 ${largeArc} 1 ${end.x} ${end.y}`,
-      isFullCircle: fraction >= FULL_CIRCLE_THRESHOLD,
-      mid: polar(cursorStart + fraction / 2),
-      cursorEnd,
-    })
-    return acc
-  }, [])
+export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
+  const slices = toDonutSlices(segments)
+  const hasData = slices.some(slice => slice.value > 0)
+  if (!hasData) return <Empty>데이터 없음</Empty>
 
   return (
-    <div>
-      <ChartFrame
-        viewBoxWidth={SIZE}
-        viewBoxHeight={SIZE}
-        ariaLabel={ariaLabel}
+    <div role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer
+        width="100%"
+        height={180}
+        initialDimension={{ width: 300, height: 180 }}
       >
-        {arcs.map(arc =>
-          arc.isFullCircle ? (
-            <circle
-              key={arc.segment.label}
-              cx={CENTER}
-              cy={CENTER}
-              r={R}
-              fill="none"
-              stroke={arc.token}
-              strokeWidth={STROKE}
-            />
-          ) : (
-            <path
-              key={arc.segment.label}
-              d={arc.d}
-              fill="none"
-              stroke={arc.token}
-              strokeWidth={STROKE}
-              strokeLinecap="butt"
-            />
-          ),
-        )}
-        {arcs.map(arc => (
-          <text
-            key={`${arc.segment.label}-label`}
-            x={arc.mid.x}
-            y={arc.mid.y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={12}
-            fontWeight={700}
-            fill="var(--color-surface)"
+        <RePieChart>
+          <Tooltip content={<ChartTooltipContent unit="%" />} />
+          <Pie
+            data={slices}
+            dataKey="value"
+            nameKey="label"
+            innerRadius="58%"
+            outerRadius="82%"
+            stroke="none"
+            isAnimationActive={false}
           >
-            {arc.percent}%
-          </text>
-        ))}
-      </ChartFrame>
+            {slices.map((slice, index) => (
+              <Cell
+                key={slice.label}
+                fill={SLICE_COLORS[index % SLICE_COLORS.length]}
+              />
+            ))}
+          </Pie>
+        </RePieChart>
+      </ResponsiveContainer>
       <Legend>
-        {arcs.map(arc => (
-          <LegendItem key={arc.segment.label} $token={arc.token}>
-            {arc.segment.label} {arc.percent}%
-          </LegendItem>
+        {slices.map((slice, index) => (
+          <li key={slice.label}>
+            <i
+              style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }}
+            />
+            {slice.label} {slice.percent}%
+          </li>
         ))}
       </Legend>
     </div>
