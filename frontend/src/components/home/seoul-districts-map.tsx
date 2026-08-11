@@ -31,12 +31,19 @@ const CHART_OFFSET = { x: 22, y: 64 }
 const Wrapper = styled.div`
   position: relative;
   width: 100%;
+  height: 100%;
 `
 
+// 히어로(hero-section.tsx)가 이 컴포넌트의 유일한 사용처이며, 데스크톱에서는
+// 뷰포트 높이(100dvh - 헤더높이)에 맞춰 지도를 스케일해 25개 자치구 폴리곤이
+// 모두 한 화면에 보이게 한다. Wrapper/MapSvg를 height: 100%로 두면 SVG의 기본
+// preserveAspectRatio="xMidYMid meet"이 가로/세로 중 더 제약이 큰 쪽에 맞춰
+// 축소하며 중앙 정렬한다(모바일처럼 상위 컨테이너 높이가 부정형이면 퍼센트
+// 높이가 auto로 풀려 기존과 동일하게 폭 기준으로 자연스러운 높이를 갖는다).
 const MapSvg = styled.svg`
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   max-width: 100%;
 `
 
@@ -200,7 +207,10 @@ export default function SeoulDistrictsMap({
 
   return (
     <Wrapper>
-      <MapSvg viewBox={SEOUL_STATUS_VIEW_BOX}>
+      <MapSvg
+        viewBox={SEOUL_STATUS_VIEW_BOX}
+        preserveAspectRatio="xMidYMid meet"
+      >
         {SEOUL_STATUS_FEATURES.map((feature, index) => {
           const name = districtNameByCode.get(feature.districtCode)
           return (
