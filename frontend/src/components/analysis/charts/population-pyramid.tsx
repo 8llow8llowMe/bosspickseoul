@@ -1,18 +1,21 @@
 'use client'
 
 import styled from 'styled-components'
+import {
+  Bar,
+  BarChart as ReBarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
-import { formatAnalysisValue } from '@/lib/analysis/presentation'
 import type { PyramidRow } from '@/lib/analysis/chart-data'
-import ChartFrame from './chart-frame'
-
-const W = 480
-const ROW_H = 30
-const GAP = 8
-const CENTER_LABEL_W = 60
-const SIDE_PAD = 20
-const MALE_TOKEN = 'var(--color-primary-600)'
-const FEMALE_TOKEN = 'var(--color-chart-female)'
+import {
+  CHART_COLORS,
+  ChartTooltipContent,
+  formatChartValue,
+} from './chart-theme'
 
 const Empty = styled.p`
   padding: 24px 0;
@@ -24,24 +27,21 @@ const Empty = styled.p`
 const Legend = styled.ul`
   display: flex;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 8px;
-`
+  gap: 14px;
+  margin-top: 6px;
 
-const LegendItem = styled.li<{ $token: string }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-text-700);
-  font-size: 12px;
-  font-weight: 600;
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-700);
+    font-size: 12px;
+  }
 
-  &::before {
-    content: '';
+  i {
     width: 10px;
     height: 10px;
-    border-radius: var(--radius-compact);
-    background: ${props => props.$token};
+    border-radius: 3px;
   }
 `
 
@@ -50,95 +50,96 @@ export type PopulationPyramidProps = {
   unit?: string
 }
 
+export const toPyramidChartData = (
+  rows: readonly PyramidRow[],
+): Array<{
+  ageLabel: string
+  maleValue: number
+  femaleValue: number
+  maleAbs: number | null
+  femaleAbs: number | null
+}> =>
+  rows.map(row => ({
+    ageLabel: row.ageLabel,
+    maleValue: row.male === null ? 0 : -row.male,
+    femaleValue: row.female === null ? 0 : row.female,
+    maleAbs: row.male,
+    femaleAbs: row.female,
+  }))
+
 export default function PopulationPyramid({
   rows,
   unit = '%',
 }: PopulationPyramidProps) {
-  const values = rows.flatMap(row =>
-    [row.male, row.female].filter((v): v is number => v !== null),
-  )
-  if (values.length === 0) return <Empty>데이터 없음</Empty>
-
-  const max = Math.max(...values, 1)
-  const half = (W - CENTER_LABEL_W) / 2 - SIDE_PAD
-  const centerLeft = SIDE_PAD + half
-  const centerRight = centerLeft + CENTER_LABEL_W
-  const height = rows.length * (ROW_H + GAP)
+  const data = toPyramidChartData(rows)
+  const hasData = rows.some(row => row.male !== null || row.female !== null)
+  if (!hasData) return <Empty>데이터 없음</Empty>
 
   return (
-    <div>
+    <div role="img" aria-label="연령·성별 인구 피라미드">
+      <ResponsiveContainer width="100%" height={260}>
+        <ReBarChart
+          data={data}
+          layout="vertical"
+          stackOffset="sign"
+          margin={{ top: 4, right: 12, bottom: 4, left: 12 }}
+        >
+          <XAxis
+            type="number"
+            tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: CHART_COLORS.grid }}
+            tickFormatter={value => formatChartValue(Math.abs(value), unit)}
+          />
+          <YAxis
+            type="category"
+            dataKey="ageLabel"
+            width={44}
+            tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip
+            cursor={{ fill: 'var(--color-primary-100)' }}
+            content={({ active, payload, label }) => (
+              <ChartTooltipContent
+                active={active}
+                label={typeof label === 'string' ? label : undefined}
+                unit={unit}
+                payload={(payload ?? []).map(entry => ({
+                  name: entry.name as string | undefined,
+                  value:
+                    typeof entry.value === 'number'
+                      ? Math.abs(entry.value)
+                      : (entry.value as number | undefined),
+                }))}
+              />
+            )}
+          />
+          <Bar
+            dataKey="maleValue"
+            name="남성"
+            fill={CHART_COLORS.seriesPrimary}
+            radius={[4, 0, 0, 4]}
+            isAnimationActive={false}
+          />
+          <Bar
+            dataKey="femaleValue"
+            name="여성"
+            fill={CHART_COLORS.seriesSecondary}
+            radius={[0, 4, 4, 0]}
+            isAnimationActive={false}
+          />
+        </ReBarChart>
+      </ResponsiveContainer>
       <Legend>
-        <LegendItem $token={MALE_TOKEN}>남성</LegendItem>
-        <LegendItem $token={FEMALE_TOKEN}>여성</LegendItem>
+        <li>
+          <i style={{ background: CHART_COLORS.seriesPrimary }} /> 남성
+        </li>
+        <li>
+          <i style={{ background: CHART_COLORS.seriesSecondary }} /> 여성
+        </li>
       </Legend>
-      <ChartFrame
-        viewBoxWidth={W}
-        viewBoxHeight={height}
-        ariaLabel="연령별 성별 인구 피라미드"
-      >
-        {rows.map((row, index) => {
-          const y = index * (ROW_H + GAP)
-          const maleW =
-            row.male === null ? 0 : Math.max(0, (row.male / max) * half)
-          const femaleW =
-            row.female === null ? 0 : Math.max(0, (row.female / max) * half)
-          return (
-            <g key={row.ageLabel}>
-              <rect
-                x={centerLeft - maleW}
-                y={y}
-                width={maleW}
-                height={ROW_H}
-                rx={4}
-                fill={MALE_TOKEN}
-              >
-                <title>{`${row.ageLabel} 남성 ${formatAnalysisValue(row.male, unit)}`}</title>
-              </rect>
-              <rect
-                x={centerRight}
-                y={y}
-                width={femaleW}
-                height={ROW_H}
-                rx={4}
-                fill={FEMALE_TOKEN}
-              >
-                <title>{`${row.ageLabel} 여성 ${formatAnalysisValue(row.female, unit)}`}</title>
-              </rect>
-              <text
-                x={W / 2}
-                y={y + ROW_H / 2}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={12}
-                fontWeight={700}
-                fill="var(--color-text-900)"
-              >
-                {row.ageLabel}
-              </text>
-              <text
-                x={centerLeft - maleW - 6}
-                y={y + ROW_H / 2}
-                textAnchor="end"
-                dominantBaseline="middle"
-                fontSize={11}
-                fill="var(--color-text-600)"
-              >
-                {formatAnalysisValue(row.male, unit)}
-              </text>
-              <text
-                x={centerRight + femaleW + 6}
-                y={y + ROW_H / 2}
-                textAnchor="start"
-                dominantBaseline="middle"
-                fontSize={11}
-                fill="var(--color-text-600)"
-              >
-                {formatAnalysisValue(row.female, unit)}
-              </text>
-            </g>
-          )
-        })}
-      </ChartFrame>
     </div>
   )
 }

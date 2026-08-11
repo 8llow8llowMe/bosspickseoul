@@ -2,44 +2,41 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
+import PopulationPyramid, {
+  toPyramidChartData,
+} from '@/components/analysis/charts/population-pyramid'
+import type { PyramidRow } from '@/lib/analysis/chart-data'
 
-describe('PopulationPyramid', () => {
-  it('연령 라벨과 남/여 값을 좌우로 노출한다', () => {
-    const markup = renderToStaticMarkup(
-      createElement(PopulationPyramid, {
-        rows: [
-          { ageLabel: '20대', male: 12, female: 18 },
-          { ageLabel: '30대', male: 10, female: 8 },
-        ],
-        unit: '%',
-      }),
-    )
-    expect(markup).toContain('20대')
-    expect(markup).toContain('남성')
-    expect(markup).toContain('여성')
-    expect(markup).toContain('18%')
+const row = (
+  ageLabel: string,
+  male: number | null,
+  female: number | null,
+): PyramidRow => ({ ageLabel, male, female })
+
+describe('PopulationPyramid / toPyramidChartData', () => {
+  it('남성 값은 좌측 발산을 위해 음수로, 원본은 abs에 보존한다', () => {
+    const data = toPyramidChartData([row('20대', 12, 8)])
+    expect(data[0]).toEqual({
+      ageLabel: '20대',
+      maleValue: -12,
+      femaleValue: 8,
+      maleAbs: 12,
+      femaleAbs: 8,
+    })
   })
 
-  it('모든 값이 null이면 데이터 없음을 안내한다', () => {
+  it('null은 막대값 0으로 두되 abs는 null로 보존한다', () => {
+    const data = toPyramidChartData([row('20대', null, 8)])
+    expect(data[0].maleValue).toBe(0)
+    expect(data[0].maleAbs).toBeNull()
+  })
+
+  it('전부 null이면 데이터 없음 안내를 렌더한다', () => {
     const markup = renderToStaticMarkup(
       createElement(PopulationPyramid, {
-        rows: [{ ageLabel: '20대', male: null, female: null }],
-        unit: '%',
+        rows: [row('20대', null, null)],
       }),
     )
     expect(markup).toContain('데이터 없음')
-  })
-
-  it('한쪽 성별만 값이 있으면 나머지는 데이터 없음, 접근성 title은 유지한다', () => {
-    const markup = renderToStaticMarkup(
-      createElement(PopulationPyramid, {
-        rows: [{ ageLabel: '30대', male: 20, female: null }],
-        unit: '%',
-      }),
-    )
-    expect(markup).toContain('20%')
-    expect(markup).toContain('데이터 없음')
-    expect(markup).toContain('30대 남성')
   })
 })
