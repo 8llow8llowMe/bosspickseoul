@@ -43,10 +43,12 @@
 ### Task 1: 스크롤 진행도 순수 함수 (`scroll-fill.ts`)
 
 **Files:**
+
 - Create: `src/components/home/scroll-fill.ts`
 - Test: `src/components/home/scroll-fill.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `viewportProgress(top: number, elementHeight: number, viewportHeight: number): number` — 0(요소가 뷰포트 하단에 막 진입)~1(요소가 뷰포트 상단을 완전히 통과). `top`은 `getBoundingClientRect().top`.
   - `filledWordCount(progress: number, total: number): number` — 채울 단어 수(반올림, 0~total 클램프).
@@ -164,9 +166,11 @@ git commit -m "feat(home): 스크롤 진행도 순수 함수(scroll-fill) 추가
 ### Task 2: 스크롤 진행도 훅 (`use-scroll-progress.ts`)
 
 **Files:**
+
 - Create: `src/components/home/use-scroll-progress.ts`
 
 **Interfaces:**
+
 - Consumes: `viewportProgress` (Task 1).
 - Produces: `useScrollProgress(ref: RefObject<HTMLElement | null>): number` — 대상 요소의 진행도(0~1). 스크롤/리사이즈 시 rAF 스로틀로 갱신. `prefers-reduced-motion: reduce`이면 항상 1 반환(최종 상태). SSR/초기값 0.
 
@@ -181,9 +185,7 @@ git commit -m "feat(home): 스크롤 진행도 순수 함수(scroll-fill) 추가
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { viewportProgress } from '@/components/home/scroll-fill'
 
-export function useScrollProgress(
-  ref: RefObject<HTMLElement | null>,
-): number {
+export function useScrollProgress(ref: RefObject<HTMLElement | null>): number {
   const [progress, setProgress] = useState(0)
   const frame = useRef<number | null>(null)
 
@@ -202,9 +204,7 @@ export function useScrollProgress(
     const measure = () => {
       frame.current = null
       const rect = el.getBoundingClientRect()
-      setProgress(
-        viewportProgress(rect.top, rect.height, window.innerHeight),
-      )
+      setProgress(viewportProgress(rect.top, rect.height, window.innerHeight))
     }
 
     const onScroll = () => {
@@ -243,10 +243,12 @@ git commit -m "feat(home): 스크롤 진행도 훅(use-scroll-progress) 추가"
 ### Task 3: ① 앵커 문장 (`anchor-statement.tsx`)
 
 **Files:**
+
 - Create: `src/components/home/anchor-statement.tsx`
 - Test: `src/components/home/anchor-statement.test.ts`
 
 **Interfaces:**
+
 - Consumes: `useScrollProgress` (Task 2), `filledWordCount` (Task 1).
 - Produces: `default AnchorStatement()` — props 없음. 앵커 카피를 단어 span으로 렌더, 스크롤 진행도로 앞에서부터 본문색으로 채움. 미채움 단어는 `--color-border-200`, 채운 단어는 `--color-text-900`.
 
@@ -321,7 +323,8 @@ const Statement = styled.p`
 `
 
 const Word = styled.span<{ $filled: boolean }>`
-  color: ${p => (p.$filled ? 'var(--color-text-900)' : 'var(--color-border-200)')};
+  color: ${p =>
+    p.$filled ? 'var(--color-text-900)' : 'var(--color-border-200)'};
   transition: color var(--motion-standard) var(--ease-standard);
 
   @media (prefers-reduced-motion: reduce) {
@@ -366,11 +369,13 @@ git commit -m "feat(home): ① 앵커 문장 텍스트채우기 컴포넌트 추
 ### Task 4: ② 스티키 제품 데모 스토리텔링 (`story-steps.ts`, `product-story.tsx`)
 
 **Files:**
+
 - Create: `src/components/home/story-steps.ts`
 - Create: `src/components/home/product-story.tsx`
 - Test: `src/components/home/product-story.test.ts`
 
 **Interfaces:**
+
 - Consumes: `useScrollProgress` (Task 2), `activeStepFromProgress` (Task 1), 재활용 `SeoulDistrictsMap`(default, props 옵셔널), `AnalysisMiniDemo`(default), `MiniAreaChart`(`{ values, labels?, className? }`).
 - Produces:
   - `story-steps.ts`: `type StoryDemo = 'map' | 'mini-demo' | 'recommend' | 'simulation'`; `type StoryStep = { step: string; title: string; body: string; demo: StoryDemo }`; `export const STORY_STEPS: readonly StoryStep[]`(4개).
@@ -389,13 +394,22 @@ import ProductStory from '@/components/home/product-story'
 
 // SeoulDistrictsMap이 useRouter를 호출하므로 SSR 렌더용으로 모킹(home-page.test.ts와 동일)
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: () => undefined, replace: () => undefined, back: () => undefined }),
+  useRouter: () => ({
+    push: () => undefined,
+    replace: () => undefined,
+    back: () => undefined,
+  }),
 }))
 
 describe('ProductStory', () => {
   it('4개 스텝 제목과 샘플 라벨을 렌더한다', () => {
     const html = renderToStaticMarkup(createElement(ProductStory))
-    for (const title of ['현황 확인', '상권 분석', '후보 추천', '창업 시뮬레이션']) {
+    for (const title of [
+      '현황 확인',
+      '상권 분석',
+      '후보 추천',
+      '창업 시뮬레이션',
+    ]) {
       expect(html).toContain(title)
     }
     expect(html).toContain('대표 예시 데이터')
@@ -523,14 +537,16 @@ const StepNum = styled.span<{ $active: boolean }>`
   font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: ${p => (p.$active ? 'var(--color-primary-700)' : 'var(--color-text-caption)')};
+  color: ${p =>
+    p.$active ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
 `
 
 const StepTitle = styled.h3<{ $active: boolean }>`
   font-size: 17px;
   font-weight: 600;
   line-height: 24px;
-  color: ${p => (p.$active ? 'var(--color-text-900)' : 'var(--color-text-700)')};
+  color: ${p =>
+    p.$active ? 'var(--color-text-900)' : 'var(--color-text-700)'};
 `
 
 const StepBody = styled.p`
@@ -564,8 +580,10 @@ const RecommendRow = styled.div<{ $lead: boolean }>`
   padding: 12px 14px;
   border-radius: var(--radius-control);
   border: 1px solid var(--color-border-200);
-  background: ${p => (p.$lead ? 'var(--color-primary-100)' : 'var(--color-surface)')};
-  color: ${p => (p.$lead ? 'var(--color-primary-700)' : 'var(--color-text-700)')};
+  background: ${p =>
+    p.$lead ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  color: ${p =>
+    p.$lead ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
   font-size: 14px;
 `
 
@@ -753,10 +771,12 @@ git commit -m "feat(home): ② 스티키 제품 데모 스토리텔링 추가"
 ### Task 5: ③ 벤토 기능 + CTA (`feature-bento.tsx`)
 
 **Files:**
+
 - Create: `src/components/home/feature-bento.tsx`
 - Test: `src/components/home/feature-bento.test.ts`
 
 **Interfaces:**
+
 - Consumes: 재활용 `MiniAreaChart`(`{ values }`), `next/link`, `lucide-react`(`Sparkles`, `Users`, `Bookmark`, `ArrowRight`).
 - Produces: `default FeatureBento()` — props 없음. 벤토(대: AI 리포트 + 미니차트 / 소: 커뮤니티, 저장·알림) + CTA 밴드("시작하기"→`/register`, "상권 분석 바로가기"→`/analysis`).
 
@@ -1072,10 +1092,12 @@ git commit -m "feat(home): ③ 벤토 기능 요약 + CTA 추가"
 ### Task 6: 홈 페이지 조립 + 기존 섹션 제거 (`home-page.tsx`)
 
 **Files:**
+
 - Modify: `src/components/home/home-page.tsx`
 - Modify: `src/components/home/home-page.test.ts`
 
 **Interfaces:**
+
 - Consumes: `HeroSection`(기존), `AnchorStatement`(Task 3), `ProductStory`(Task 4), `FeatureBento`(Task 5).
 - Produces: 새 `HomePage` — `<HeroSection/> <AnchorStatement/> <ProductStory/> <FeatureBento/>`.
 
@@ -1178,6 +1200,7 @@ git commit -m "feat(home): 히어로 하위 3부(앵커/스토리/벤토) 조립
 ### Task 7: 검증 · 브라우저 확인 · 명세 상태 갱신
 
 **Files:**
+
 - Modify: `docs/features/_index.md`(home 행 비고 갱신)
 
 - [ ] **Step 1: 정적 검증**
@@ -1188,6 +1211,7 @@ Expected: format:check·lint·typecheck·build 전부 PASS. 실패 시 원인 �
 - [ ] **Step 2: 브라우저 스모크(preview_start)**
 
 `.claude/launch.json`에 dev 서버 설정이 있으면 `preview_start`로 홈을 띄운다. 확인 항목:
+
 - 앵커 문장이 스크롤에 따라 채워진다(데스크톱).
 - ② 좌측 스텝이 sticky로 고정되고 스크롤에 따라 활성 스텝·데모 패널이 바뀐다.
 - ③ 벤토·CTA가 정상 표시되고 링크가 동작한다.
@@ -1210,6 +1234,7 @@ git commit -m "docs(home): _index 비고에 히어로 하위 섹션 재설계 �
 ## Self-Review
 
 **Spec coverage:**
+
 - D2-1 앵커 채움 → Task 1(`filledWordCount`)·Task 3. ✅
 - D2-2 sticky 활성 스텝 → Task 1(`activeStepFromProgress`)·Task 4. ✅
 - D2-3 데모 패널 전환 → Task 4(`DemoPanel`). ✅
@@ -1226,6 +1251,7 @@ git commit -m "docs(home): _index 비고에 히어로 하위 섹션 재설계 �
 **Type consistency:** `viewportProgress`/`filledWordCount`/`activeStepFromProgress`(Task 1) 시그니처가 Task 2·3·4 사용처와 일치. `STORY_STEPS`/`StoryStep`/`StoryDemo`(Task 4) 일치. `MiniAreaChart` props(`values`) 일치. `SeoulDistrictsMap`/`AnalysisMiniDemo` default import 일치.
 
 **주의(실행자):**
+
 - reduced-motion/모바일은 Task 4 `useStackedMode`로 스택 모드 전환(스텝별 텍스트+데모 전부 나열)되어 단일-활성 고정 문제가 없다. `mounted` 게이트로 SSR=스티키 초기 렌더와 일치시켜 hydration 불일치를 피한다. Task 7-2에서 reduced-motion 데스크톱·모바일 폭 둘 다 스택으로 뜨는지 확인.
 - `matchMedia('(max-width: 640px)')`의 640px 경계는 Sticky/Track의 `@media(max-width: 640px)`와 일치시켜 유지한다(둘 다 640px). 한쪽만 바꾸지 말 것.
 - 히어로 카피 문자열은 Task 6-1에서 실제 `hero-section.tsx` 값과 대조 후 확정.
