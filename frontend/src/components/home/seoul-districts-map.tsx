@@ -45,6 +45,9 @@ const MapSvg = styled.svg`
   width: 100%;
   height: 100%;
   max-width: 100%;
+  /* 자치구 폴리곤/툴팁 제목 등 지도 내 텍스트가 드래그로 선택되지 않게 한다 */
+  -webkit-user-select: none;
+  user-select: none;
 `
 
 const topPulse = keyframes`
