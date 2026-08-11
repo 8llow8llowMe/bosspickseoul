@@ -43,7 +43,8 @@ public class AiReportWebController {
 
     @Operation(
         summary = "상권 AI 리포트 제출 (비동기)",
-        description = "상권 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다."
+        description = "상권 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다. "
+            + "캐시 miss 인데 일별 사용량 상한을 넘겼으면 429 (AI_012) 로 거절됩니다."
     )
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
@@ -62,7 +63,8 @@ public class AiReportWebController {
 
     @Operation(
         summary = "상권 비교 AI 인사이트 제출 (비동기)",
-        description = "상권 비교 AI 인사이트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다."
+        description = "상권 비교 AI 인사이트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다. "
+            + "캐시 miss 인데 일별 사용량 상한을 넘겼으면 429 (AI_012) 로 거절됩니다."
     )
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
@@ -78,7 +80,8 @@ public class AiReportWebController {
 
     @Operation(
         summary = "자치구 AI 리포트 제출 (비동기)",
-        description = "자치구 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다."
+        description = "자치구 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다. "
+            + "캐시 miss 인데 일별 사용량 상한을 넘겼으면 429 (AI_012) 로 거절됩니다."
     )
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")
@@ -94,7 +97,8 @@ public class AiReportWebController {
 
     @Operation(
         summary = "행정동 AI 리포트 제출 (비동기)",
-        description = "행정동 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다."
+        description = "행정동 AI 리포트 작업을 제출합니다. 캐시 hit 면 200 + 결과, miss 면 202 + jobId 를 반환합니다. "
+            + "캐시 miss 인데 일별 사용량 상한을 넘겼으면 429 (AI_012) 로 거절됩니다."
     )
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("isAuthenticated()")

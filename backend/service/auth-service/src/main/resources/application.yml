@@ -16,6 +16,12 @@ infra:
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:nowdoboss}
 
+# 일반 로그인 brute-force 방어. 프로필별 override 가 없어도 동작하도록 공통 기본값을 둔다.
+auth:
+  login:
+    max-failure-count: ${AUTH_LOGIN_MAX_FAILURE_COUNT:5}
+    lock-duration: ${AUTH_LOGIN_LOCK_DURATION:PT10M}
+
 logging:
   level:
     # Eureka 클라이언트가 주기적으로 Eureka 서버 엔드포인트를 확인할 때 출력하는 반복 로그를 줄이기 위한 설정

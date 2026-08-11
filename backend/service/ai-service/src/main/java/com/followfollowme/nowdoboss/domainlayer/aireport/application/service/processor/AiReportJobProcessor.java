@@ -13,6 +13,7 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.Comme
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiUsageCounterPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.worker.AiReportWorker;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJob;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJobStatus;
@@ -44,6 +45,7 @@ public class AiReportJobProcessor {
     private final AiReportCachePort aiReportCachePort;
     private final AiReportJobEventPort aiReportJobEventPort;
     private final AiReportWorker aiReportWorker;
+    private final AiUsageCounterPort aiUsageCounterPort;
     private final AiReportJobProperties aiReportJobProperties;
 
     public AiReportSubmissionInfo submitCommercialReport(
@@ -84,7 +86,19 @@ public class AiReportJobProcessor {
         return submitJob(memberId, AiReportJobType.ADMINISTRATION, administrationParams(administrationCode, periodCode));
     }
 
+    /**
+     * 새 잡 생성 경로. 이 메서드에 도달했다는 것은 캐시 miss = 실제로 LLM 을 호출한다는 뜻이라,
+     * 사용량 상한 검사는 여기서만 수행한다. 캐시 hit(이미 만들어진 리포트 반환)은 LLM 을 쓰지 않으므로
+     * 제한 대상이 아니다.
+     *
+     * <p>멱등 재사용(같은 요청이 in-flight 라 기존 jobId 를 되돌려주는 경우)도 슬롯을 1건 소비한다.
+     * 상한을 잡 생성 직전에 두면 흐름이 단순하고, 반복 제출 자체가 억제 대상이라 보수적으로 센다.
+     */
     private AiReportSubmissionInfo submitJob(long memberId, AiReportJobType jobType, Map<String, String> params) {
+        if (!aiUsageCounterPort.tryConsumeDailyQuota(memberId)) {
+            throw new AiReportException(AiReportErrorCode.USAGE_LIMIT_EXCEEDED);
+        }
+
         String requestHash = computeRequestHash(jobType, params);
         String newJobId = UUID.randomUUID().toString();
 

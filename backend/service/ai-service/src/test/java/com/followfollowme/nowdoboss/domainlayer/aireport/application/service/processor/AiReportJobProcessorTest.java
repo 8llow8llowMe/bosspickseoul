@@ -21,10 +21,13 @@ import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiRepo
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.AiReportJobSubscription;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiReportJobStorePort;
+import com.followfollowme.nowdoboss.domainlayer.aireport.application.port.out.AiUsageCounterPort;
 import com.followfollowme.nowdoboss.domainlayer.aireport.application.service.worker.AiReportWorker;
+import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiUsageMeta;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJob;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.nowdoboss.domainlayer.aireport.domain.model.AiReportJobType;
@@ -57,12 +60,34 @@ class AiReportJobProcessorTest {
     private AiReportWorker worker;
 
     private AiReportJobProperties props;
+    private StubAiUsageCounterPort usageCounter;
     private AiReportJobProcessor processor;
 
     @BeforeEach
     void setUp() {
         props = new AiReportJobProperties(86_400L, 2_592_000L, 30L, 300L);
-        processor = new AiReportJobProcessor(jobStore, cache, jobEventPort, worker, props);
+        usageCounter = new StubAiUsageCounterPort();
+        processor = new AiReportJobProcessor(jobStore, cache, jobEventPort, worker, usageCounter, props);
+    }
+
+    /**
+     * 사용량 카운터 스텁. 상한 미달/초과와 Redis 장애(fail-open)를 한 곳에서 흉내낸다.
+     * 실제 어댑터의 Redis 예외 처리는 {@code RedisAiUsageCounterAdapterTest} 가 검증한다.
+     */
+    private static final class StubAiUsageCounterPort implements AiUsageCounterPort {
+
+        private boolean withinQuota = true;
+        private int consumeCallCount;
+
+        @Override
+        public void record(Long memberId, AiUsageMeta usage) {
+        }
+
+        @Override
+        public boolean tryConsumeDailyQuota(long memberId) {
+            consumeCallCount++;
+            return withinQuota;
+        }
     }
 
     @Test
@@ -76,6 +101,71 @@ class AiReportJobProcessorTest {
         assertThat(result.commercialReport()).isSameAs(info);
         assertThat(result.jobId()).isNull();
         verifyNoInteractions(jobStore, worker);
+        // 캐시 hit 은 LLM 을 호출하지 않으므로 사용량 슬롯을 소비하지 않는다.
+        assertThat(usageCounter.consumeCallCount).isZero();
+    }
+
+    @Test
+    void submitCommercialReport_withinDailyLimit_consumesQuotaAndProceeds() {
+        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+
+        AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
+        assertThat(usageCounter.consumeCallCount).isEqualTo(1);
+        verify(worker).runJob(result.jobId());
+    }
+
+    @Test
+    void submitCommercialReport_dailyLimitExceeded_throwsUsageLimitExceededAndSkipsJobCreation() {
+        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
+        usageCounter.withinQuota = false;
+
+        assertThatThrownBy(() -> processor.submitCommercialReport(7L, "C", "S", "P"))
+            .isInstanceOf(AiReportException.class)
+            .extracting(t -> ((AiReportException) t).getErrorCode())
+            .isEqualTo(AiReportErrorCode.USAGE_LIMIT_EXCEEDED);
+        // 429 로 거절되면 잡 entry / 멱등성 키 / 워커 디스패치가 전부 발생하지 않는다.
+        verifyNoInteractions(jobStore, worker);
+    }
+
+    @Test
+    void submitUsageLimitExceeded_appliesToAllFourSubmissionFlows() {
+        usageCounter.withinQuota = false;
+        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
+        when(cache.getCommercialComparisonReport("L", "R", "S", "P")).thenReturn(Optional.empty());
+        when(cache.getDistrictReport("D", "P")).thenReturn(Optional.empty());
+        when(cache.getAdministrationReport("A", "P")).thenReturn(Optional.empty());
+
+        assertUsageLimitRejected(() -> processor.submitCommercialReport(7L, "C", "S", "P"));
+        assertUsageLimitRejected(() -> processor.submitCommercialComparisonReport(
+            7L, new CommercialComparisonAiQuery("L", "R", "S", "P")
+        ));
+        assertUsageLimitRejected(() -> processor.submitDistrictReport(7L, "D", "P"));
+        assertUsageLimitRejected(() -> processor.submitAdministrationReport(7L, "A", "P"));
+
+        verifyNoInteractions(jobStore, worker);
+    }
+
+    @Test
+    void submitCommercialReport_counterUnavailable_failsOpenAndProceeds() {
+        // 카운터 저장소(Redis) 장애 시 어댑터가 true 를 돌려주므로(fail-open) 제출은 정상 진행된다.
+        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+        usageCounter.withinQuota = true;
+
+        AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
+        verify(worker).runJob(result.jobId());
+    }
+
+    private void assertUsageLimitRejected(org.assertj.core.api.ThrowableAssert.ThrowingCallable callable) {
+        assertThatThrownBy(callable)
+            .isInstanceOf(AiReportException.class)
+            .extracting(t -> ((AiReportException) t).getErrorCode())
+            .isEqualTo(AiReportErrorCode.USAGE_LIMIT_EXCEEDED);
     }
 
     @Test

@@ -44,7 +44,10 @@ public class AuthWebController {
     private final AuthWebUseCase authWebUseCase;
     private final RefreshCookieProvider refreshCookieProvider;
 
-    @Operation(summary = "일반 로그인", description = "이메일과 비밀번호로 로그인합니다.")
+    @Operation(
+        summary = "일반 로그인",
+        description = "이메일과 비밀번호로 로그인합니다. 실패가 누적되면 해당 이메일이 일정 시간 잠깁니다(AUTH_015, 429)."
+    )
     @PostMapping("/login")
     public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(@RequestBody AuthGeneralLoginRequest request) {
         AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request));
