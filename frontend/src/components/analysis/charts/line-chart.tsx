@@ -75,7 +75,11 @@ export default function LineChart({
           {meta.symbol} {meta.label}
         </Badge>
       ) : null}
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer
+        width="100%"
+        height={240}
+        initialDimension={{ width: 300, height: 240 }}
+      >
         <ReLineChart
           data={points}
           margin={{ top: 8, right: 16, bottom: 4, left: 8 }}

@@ -66,7 +66,11 @@ export default function DonutChart({ segments, ariaLabel }: DonutChartProps) {
 
   return (
     <div role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer width="100%" height={180}>
+      <ResponsiveContainer
+        width="100%"
+        height={180}
+        initialDimension={{ width: 300, height: 180 }}
+      >
         <RePieChart>
           <Tooltip content={<ChartTooltipContent unit="%" />} />
           <Pie

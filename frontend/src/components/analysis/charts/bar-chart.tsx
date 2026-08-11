@@ -59,6 +59,7 @@ export default function BarChart({
     <ResponsiveContainer
       width="100%"
       height={240}
+      initialDimension={{ width: 300, height: 240 }}
       role="img"
       aria-label={ariaLabel}
     >
