@@ -14,15 +14,10 @@ const Container = styled.section`
 `
 
 const Lead = styled.div`
-  width: min(1120px, 100%);
-  margin: 0 auto;
-  padding: 96px 20px 8px;
+  width: 100%;
+  margin: 0;
   display: grid;
   gap: 10px;
-
-  @media (max-width: 640px) {
-    padding: 64px 16px 0;
-  }
 `
 
 const Eyebrow = styled.p`
@@ -53,21 +48,20 @@ const Sticky = styled.div`
   position: sticky;
   top: 0;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 32px;
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 64px 20px;
+`
+
+const StoryRow = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
   align-items: center;
   gap: 40px;
-  width: min(1120px, 100%);
-  margin: 0 auto;
-  padding: 64px 20px;
-
-  @media (max-width: 640px) {
-    position: static;
-    min-height: auto;
-    grid-template-columns: 1fr;
-    gap: 24px;
-    padding: 48px 16px;
-  }
 `
 
 const StepList = styled.ol`
@@ -114,7 +108,13 @@ const StepNum = styled.span<{ $active: boolean }>`
     p.$active ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
 `
 
+const StepText = styled.span`
+  display: grid;
+  gap: 2px;
+`
+
 const StepTitle = styled.h3<{ $active: boolean }>`
+  display: block;
   font-size: 17px;
   font-weight: 600;
   line-height: 24px;
@@ -123,7 +123,8 @@ const StepTitle = styled.h3<{ $active: boolean }>`
 `
 
 const StepBody = styled.p`
-  margin-top: 4px;
+  display: block;
+  margin: 0;
   font-size: 14px;
   line-height: 21px;
   color: var(--color-text-600);
@@ -176,9 +177,12 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
           { label: '역삼동', value: 92 },
           { label: '서교동', value: 88 },
           { label: '연남동', value: 85 },
+          { label: '성수동', value: 83 },
+          { label: '망원동', value: 79 },
         ]}
         unit="점"
         emphasisLabels={['역삼동']}
+        maxBarSize={44}
         ariaLabel="추천 상권 종합 점수 막대 차트"
       />
     )
@@ -192,6 +196,7 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
       ]}
       unit="만원"
       emphasisLabels={['순이익']}
+      maxBarSize={64}
       ariaLabel="창업 비용·매출 시뮬레이션 막대 차트"
     />
   )
@@ -244,15 +249,25 @@ export default function ProductStory() {
   const stacked = useStackedMode()
 
   // 스텝 클릭 시 해당 스텝 구간의 중앙으로 스크롤한다.
-  // useScrollProgress의 진행도 정의를 역산: progress = (vh - top) / (H + vh).
+  // useScrollProgress의 진행도 정의: progress = (vh - top) / (H + vh).
+  // 스티키가 고정(pin)되는 구간은 progress ∈ [vh/(H+vh), H/(H+vh)]이므로,
+  // 스텝 중앙 목표를 그 범위로 클램프해야 트랙 위/아래로 튀지 않는다.
   const scrollToStep = (index: number) => {
     const el = trackRef.current
     if (!el) return
     const vh = window.innerHeight
     const trackHeight = el.offsetHeight
     const trackTop = el.getBoundingClientRect().top + window.scrollY
-    const targetProgress = (index + 0.5) / STORY_STEPS.length
-    const target = targetProgress * (trackHeight + vh) - vh + trackTop
+    const denom = trackHeight + vh
+    const pinStart = vh / denom
+    const pinEnd = trackHeight / denom
+    const margin = 0.02
+    const center = (index + 0.5) / STORY_STEPS.length
+    const targetProgress = Math.min(
+      pinEnd - margin,
+      Math.max(pinStart + margin, center),
+    )
+    const target = targetProgress * denom - vh + trackTop
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.scrollTo({
       top: Math.max(0, target),
@@ -263,8 +278,8 @@ export default function ProductStory() {
   if (stacked) {
     return (
       <Container>
-        <StoryLead />
         <Stack>
+          <StoryLead />
           {STORY_STEPS.map(item => (
             <StackItem key={item.step}>
               <StackHead>
@@ -282,31 +297,37 @@ export default function ProductStory() {
 
   return (
     <Container>
-      <StoryLead />
       <Track ref={trackRef}>
         <Sticky>
-          <StepList>
-            {STORY_STEPS.map((item, index) => {
-              const isActive = index === active
-              return (
-                <li key={item.step}>
-                  <StepButton
-                    type="button"
-                    $active={isActive}
-                    aria-current={isActive ? 'true' : undefined}
-                    onClick={() => scrollToStep(index)}
-                  >
-                    <StepNum $active={isActive}>{item.step}</StepNum>
-                    <div>
-                      <StepTitle $active={isActive}>{item.title}</StepTitle>
-                      <StepBody>{item.body}</StepBody>
-                    </div>
-                  </StepButton>
-                </li>
-              )
-            })}
-          </StepList>
-          <PanelCard demo={STORY_STEPS[active].demo} />
+          <StoryLead />
+          <StoryRow>
+            <StepList>
+              {STORY_STEPS.map((item, index) => {
+                const isActive = index === active
+                return (
+                  <li key={item.step}>
+                    <StepButton
+                      type="button"
+                      $active={isActive}
+                      aria-current={isActive ? 'true' : undefined}
+                      onClick={() => scrollToStep(index)}
+                    >
+                      <StepNum as="span" $active={isActive}>
+                        {item.step}
+                      </StepNum>
+                      <StepText>
+                        <StepTitle as="span" $active={isActive}>
+                          {item.title}
+                        </StepTitle>
+                        <StepBody as="span">{item.body}</StepBody>
+                      </StepText>
+                    </StepButton>
+                  </li>
+                )
+              })}
+            </StepList>
+            <PanelCard demo={STORY_STEPS[active].demo} />
+          </StoryRow>
         </Sticky>
       </Track>
     </Container>
