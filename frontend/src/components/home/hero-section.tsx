@@ -78,15 +78,21 @@ function waitForTransformTransitionEnd(
   }
 }
 
+// SiteHeader(sticky) 실측 높이: Inner min-height 64px + border-bottom 1px
+// (border-color는 스크롤 여부로 투명/표시만 바뀌고 border-style은 항상 solid라
+// 1px 레이아웃 공간은 스크롤 상태와 무관하게 항상 차지한다).
+const HEADER_HEIGHT = '65px'
+
 const Hero = styled.section`
-  min-height: 100dvh;
+  height: calc(100dvh - ${HEADER_HEIGHT});
+  min-height: calc(100dvh - ${HEADER_HEIGHT});
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 56px 20px 48px;
+  padding: 0 20px 48px;
   background: var(--color-background);
 
   @media (max-width: 640px) {
+    height: auto;
     min-height: auto;
     padding: 56px 16px;
   }
@@ -95,21 +101,40 @@ const Hero = styled.section`
 const Inner = styled.div`
   width: min(1120px, 100%);
   margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  @media (max-width: 640px) {
+    flex: none;
+  }
 `
 
 const HeroStage = styled.div`
   position: relative;
   width: min(1120px, 100%);
   margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
   /* 모바일에서는 오버레이를 해제하고 지도 → 카드 순서로 세로 정렬한다. */
   @media (max-width: 640px) {
     position: static;
+    flex: none;
   }
 `
 
 const MapLayer = styled.div`
   width: 100%;
+  flex: 1;
+  min-height: 0;
+
+  @media (max-width: 640px) {
+    flex: none;
+  }
 `
 
 const CardLayer = styled.div`
@@ -133,10 +158,10 @@ const CardLayer = styled.div`
 `
 
 const DockButton = styled.button`
-  position: absolute;
-  right: 20px;
-  bottom: 20px;
-  z-index: 10;
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
   display: inline-flex;
   align-items: center;
   gap: 8px;
