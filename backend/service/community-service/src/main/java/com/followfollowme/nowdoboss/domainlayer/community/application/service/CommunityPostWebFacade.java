@@ -61,7 +61,13 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         return communityPostPresenter.toPostListResponse(targetMeta, feed, toImagesByPostId(feed));
     }
 
+    /**
+     * 게시글 작성. 본문 저장과 이미지 연결을 한 트랜잭션으로 묶는다.
+     * 분리하면 이미지 키 소유권 검증에 실패했을 때 이미지 없는 게시글이 이미 커밋된 채로 남는다.
+     * (파일 업로드 자체는 별도 API 에서 트랜잭션 밖으로 끝난 상태라 여기서 원격 I/O 는 일어나지 않는다)
+     */
     @Override
+    @Transactional
     public CommunityPostDetailResponse createPost(long memberId, CommunityPostCreateRequest request) {
         CreatePostCommand command = new CreatePostCommand(
             request.targetType(), request.targetCode(), request.title(), request.content(), request.imageKeys());
@@ -118,7 +124,12 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         return communityPostPresenter.toPostDetailResponse(updated, communityPostImageProcessor.getImages(postId));
     }
 
+    /**
+     * 게시글 수정. 트랜잭션이 없으면 아래 deleteAllAfterCommit 이 동기화 없음 경로로 빠져 즉시 삭제되므로,
+     * "롤백 시 파일은 남긴다"는 보장이 무력화된다.
+     */
     @Override
+    @Transactional
     public CommunityPostDetailResponse updatePost(long memberId, long postId, CommunityPostUpdateRequest request) {
         CommunityPost post = communityQueryProcessor.getPost(postId);
         UpdatePostCommand command = new UpdatePostCommand(request.title(), request.content(), request.imageKeys());
@@ -130,11 +141,13 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     }
 
     @Override
+    @Transactional
     public void deletePost(long memberId, long postId) {
         communityCommandProcessor.deletePost(memberId, communityQueryProcessor.getPost(postId));
     }
 
     @Override
+    @Transactional
     public CommunityPostLikeResponse togglePostLike(long memberId, long postId) {
         CommunityPost post = communityQueryProcessor.getPost(postId);
         long likeCount = communityCommandProcessor.togglePostLike(memberId, post);
@@ -165,6 +178,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
      * 게시글 이미지 업로드. 업로드 시점에는 게시글에 연결하지 않고 키만 발급한다.
      * 클라이언트가 그 키를 게시글 작성/수정 요청에 담아 보내면 그때 연결된다.
      * 키에 memberId 가 들어 있어, 연결 시점에 남의 파일을 붙이려는 시도를 걸러낼 수 있다.
+     *
+     * <p>DB 를 건드리지 않고 원격 I/O 만 하므로 의도적으로 트랜잭션을 걸지 않는다.
      */
     @Override
     public List<CommunityPostImageUploadResponse> uploadPostImages(long memberId, List<FileUploadCommand> commands) {
