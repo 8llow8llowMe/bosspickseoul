@@ -6,6 +6,7 @@ import {
   parseAnalysisPeriod,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
+  createAiReportHref,
   createEmptyAnalysisSelection,
   getActiveAnalysisStep,
   isCompleteAnalysisSelection,
@@ -73,6 +74,9 @@ describe('analysis selection', () => {
     )
     expect(createAnalysisResultHref(completeSelection, 'summary')).toBe(
       '/analysis/result?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20233&tab=summary',
+    )
+    expect(createAiReportHref(completeSelection)).toBe(
+      '/analysis/report?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20233',
     )
   })
 

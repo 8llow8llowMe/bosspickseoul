@@ -169,6 +169,11 @@ export const createAnalysisResultHref = (
   return `/analysis/result?${params}`
 }
 
+export const createAiReportHref = (selection: AnalysisSelection) => {
+  const params = createSelectionSearchParams(selection, true)
+  return `/analysis/report?${params}`
+}
+
 export const selectAdministrationWithParent = (
   selection: AnalysisSelection,
   administrationCode: string,
