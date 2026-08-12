@@ -244,6 +244,7 @@ export default function AiReportBody({
           state={state}
           loginHref={loginHref}
           onRetry={retry}
+          variant={variant}
         />
       </InsightSection>
       <Footer>

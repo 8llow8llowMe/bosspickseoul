@@ -23,22 +23,23 @@ const shimmer = keyframes`
 const Grid = styled.div<{ $variant: 'full' | 'compact' }>`
   display: grid;
   grid-template-columns: ${props =>
-    props.$variant === 'compact' ? '1fr' : 'repeat(4, minmax(0, 1fr))'};
+    props.$variant === 'compact'
+      ? 'repeat(2, minmax(0, 1fr))'
+      : 'repeat(4, minmax(0, 1fr))'};
   gap: 10px;
 
   @media (max-width: 680px) {
-    grid-template-columns: ${props =>
-      props.$variant === 'compact' ? '1fr' : 'repeat(2, minmax(0, 1fr))'};
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 `
 
-const Card = styled.div`
+const Card = styled.div<{ $variant: 'full' | 'compact' }>`
   display: grid;
   gap: 6px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
-  padding: 16px;
+  padding: ${props => (props.$variant === 'compact' ? '12px' : '16px')};
 
   span {
     color: var(--color-text-caption);
@@ -52,11 +53,14 @@ const toneColor = (tone?: MetricTone) => {
   return 'var(--color-text-900)'
 }
 
-const Value = styled.strong<{ $tone?: MetricTone }>`
+const Value = styled.strong<{
+  $tone?: MetricTone
+  $variant: 'full' | 'compact'
+}>`
   color: ${props => toneColor(props.$tone)};
-  font-size: 19px;
+  font-size: ${props => (props.$variant === 'compact' ? '17px' : '19px')};
   font-weight: 750;
-  line-height: 28px;
+  line-height: ${props => (props.$variant === 'compact' ? '24px' : '28px')};
 `
 
 const Skeleton = styled.div`
@@ -81,12 +85,14 @@ export default function ReportMetricCards({
   return (
     <Grid $variant={variant}>
       {cards.map(card => (
-        <Card key={card.label} aria-busy={card.loading}>
+        <Card key={card.label} $variant={variant} aria-busy={card.loading}>
           <span>{card.label}</span>
           {card.loading ? (
             <Skeleton aria-hidden />
           ) : (
-            <Value $tone={card.tone}>{card.display}</Value>
+            <Value $tone={card.tone} $variant={variant}>
+              {card.display}
+            </Value>
           )}
         </Card>
       ))}

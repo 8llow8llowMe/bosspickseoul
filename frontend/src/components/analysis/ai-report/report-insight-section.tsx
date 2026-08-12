@@ -1,6 +1,17 @@
 'use client'
 
-import { AlertTriangle, Check } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  Clock,
+  CircleSlash,
+  Lightbulb,
+  Sparkles,
+  Store,
+  UserRound,
+  Users,
+} from 'lucide-react'
 import styled, { keyframes } from 'styled-components'
 
 import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'
@@ -61,20 +72,24 @@ const Skeleton = styled.div<{ $width?: string }>`
 
 const HeadlineBlock = styled.section`
   display: grid;
-  gap: 8px;
+  gap: 10px;
   padding: 0 0 16px;
 `
 
 const Summary = styled.p`
-  font-size: 15px;
-  line-height: 22px;
+  border-left: 3px solid var(--color-primary-700);
+  padding-left: 12px;
   color: var(--color-text-900);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
 `
 
 const Insight = styled.p`
+  padding-left: 15px;
+  color: var(--color-text-600);
   font-size: 13px;
   line-height: 20px;
-  color: var(--color-text-600);
 `
 
 type AccentTone = 'success' | 'warning'
@@ -82,11 +97,22 @@ type AccentTone = 'success' | 'warning'
 const toneVar = (tone: AccentTone) =>
   tone === 'success' ? 'var(--color-success)' : 'var(--color-warning)'
 
+const AccentGrid = styled.div<{ $variant: 'full' | 'compact' }>`
+  display: grid;
+  grid-template-columns: ${props =>
+    props.$variant === 'compact' ? '1fr' : 'repeat(2, minmax(0, 1fr))'};
+  gap: 12px;
+  margin: 0 0 16px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`
+
 const AccentBlock = styled.section<{ $tone: AccentTone }>`
   display: grid;
   gap: 8px;
   padding: 14px 16px;
-  margin: 0 0 12px;
   border: 1px solid ${props => toneVar(props.$tone)};
   border-radius: var(--radius-control);
   background: color-mix(
@@ -97,9 +123,16 @@ const AccentBlock = styled.section<{ $tone: AccentTone }>`
 `
 
 const AccentTitle = styled.h4<{ $tone: AccentTone }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 700;
   color: ${props => toneVar(props.$tone)};
+
+  svg {
+    flex-shrink: 0;
+  }
 `
 
 const AccentList = styled.ul`
@@ -122,15 +155,36 @@ const AccentItem = styled.li<{ $tone: AccentTone }>`
   }
 `
 
-const ActionSection = styled.section`
+const ActionGrid = styled.div<{ $variant: 'full' | 'compact' }>`
+  display: grid;
+  grid-template-columns: ${props =>
+    props.$variant === 'compact' ? '1fr' : 'repeat(2, minmax(0, 1fr))'};
+  gap: 10px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const ActionCard = styled.section`
   display: grid;
   gap: 8px;
-  padding: 12px 0;
-  border-top: 1px solid var(--color-border-200);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  padding: 12px;
+`
 
-  &:first-of-type {
-    border-top: none;
-  }
+const ActionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`
+
+const ActionIcon = styled.span`
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-text-600);
 `
 
 const ActionTitle = styled.h4`
@@ -160,16 +214,32 @@ const ErrorWrap = styled.div`
   text-align: center;
 `
 
+const ACTION_ICONS: Record<string, LucideIcon> = {
+  '추천 업종군': Store,
+  '추천 고객층': Users,
+  '추천 운영 시간': Clock,
+  '피해야 할 시간': CircleSlash,
+  '타깃 연령': UserRound,
+  '타깃 성별': Users,
+  '운영 팁': Lightbulb,
+}
+
 function ActionBlock({ block }: { block: ReportBlockList }) {
+  const Icon = ACTION_ICONS[block.title] ?? Sparkles
   return (
-    <ActionSection>
-      <ActionTitle>{block.title}</ActionTitle>
+    <ActionCard>
+      <ActionHeader>
+        <ActionIcon>
+          <Icon size={16} aria-hidden />
+        </ActionIcon>
+        <ActionTitle>{block.title}</ActionTitle>
+      </ActionHeader>
       <Chips>
         {block.items.map(item => (
           <Chip key={item}>{item}</Chip>
         ))}
       </Chips>
-    </ActionSection>
+    </ActionCard>
   )
 }
 
@@ -192,12 +262,19 @@ function LoadingStage({ state }: { state: AiReportState }) {
   )
 }
 
-function ReadyView({ state }: { state: AiReportState }) {
+function ReadyView({
+  state,
+  variant,
+}: {
+  state: AiReportState
+  variant: 'full' | 'compact'
+}) {
   if (state.status === 'ready-region') {
     return <RegionReportBlocks view={state.view} />
   }
   if (state.status !== 'ready-commercial') return null
   const { view } = state
+  const hasAccents = view.strengths.length > 0 || view.risks.length > 0
   return (
     <div>
       <HeadlineBlock>
@@ -208,35 +285,49 @@ function ReadyView({ state }: { state: AiReportState }) {
           <Insight>{view.headline.insight}</Insight>
         ) : null}
       </HeadlineBlock>
-      {view.strengths.length > 0 ? (
-        <AccentBlock $tone="success">
-          <AccentTitle $tone="success">강점</AccentTitle>
-          <AccentList>
-            {view.strengths.map(item => (
-              <AccentItem key={item} $tone="success">
+      {hasAccents ? (
+        <AccentGrid $variant={variant}>
+          {view.strengths.length > 0 ? (
+            <AccentBlock $tone="success">
+              <AccentTitle $tone="success">
                 <Check size={14} aria-hidden />
-                <span>{item}</span>
-              </AccentItem>
-            ))}
-          </AccentList>
-        </AccentBlock>
-      ) : null}
-      {view.risks.length > 0 ? (
-        <AccentBlock $tone="warning">
-          <AccentTitle $tone="warning">주의</AccentTitle>
-          <AccentList>
-            {view.risks.map(item => (
-              <AccentItem key={item} $tone="warning">
+                강점
+              </AccentTitle>
+              <AccentList>
+                {view.strengths.map(item => (
+                  <AccentItem key={item} $tone="success">
+                    <Check size={14} aria-hidden />
+                    <span>{item}</span>
+                  </AccentItem>
+                ))}
+              </AccentList>
+            </AccentBlock>
+          ) : null}
+          {view.risks.length > 0 ? (
+            <AccentBlock $tone="warning">
+              <AccentTitle $tone="warning">
                 <AlertTriangle size={14} aria-hidden />
-                <span>{item}</span>
-              </AccentItem>
-            ))}
-          </AccentList>
-        </AccentBlock>
+                주의
+              </AccentTitle>
+              <AccentList>
+                {view.risks.map(item => (
+                  <AccentItem key={item} $tone="warning">
+                    <AlertTriangle size={14} aria-hidden />
+                    <span>{item}</span>
+                  </AccentItem>
+                ))}
+              </AccentList>
+            </AccentBlock>
+          ) : null}
+        </AccentGrid>
       ) : null}
-      {view.actions.map(block => (
-        <ActionBlock key={block.title} block={block} />
-      ))}
+      {view.actions.length > 0 ? (
+        <ActionGrid $variant={variant}>
+          {view.actions.map(block => (
+            <ActionBlock key={block.title} block={block} />
+          ))}
+        </ActionGrid>
+      ) : null}
     </div>
   )
 }
@@ -266,11 +357,13 @@ export default function ReportInsightSection({
   state,
   loginHref,
   onRetry,
+  variant = 'full',
 }: {
   mode: InsightMode
   state: AiReportState
   loginHref: string
   onRetry: () => void
+  variant?: 'full' | 'compact'
 }) {
   if (mode === 'locked') {
     return <AiReportLockCard level="commercial" loginHref={loginHref} />
@@ -282,7 +375,7 @@ export default function ReportInsightSection({
     return <ErrorView state={state} onRetry={onRetry} />
   }
   if (mode === 'ready') {
-    return <ReadyView state={state} />
+    return <ReadyView state={state} variant={variant} />
   }
   return <LoadingStage state={state} />
 }
