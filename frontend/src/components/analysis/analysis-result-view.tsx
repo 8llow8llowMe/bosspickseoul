@@ -37,7 +37,7 @@ import {
   fetchCommercialStores,
   fetchCommercialTrend,
 } from '@/lib/api/commercial-analysis'
-import { isApiSuccess } from '@/lib/api/response'
+import { getResponseBody, isApiSuccess, isResponseError } from '@/lib/api/response'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
 import {
@@ -513,13 +513,6 @@ const HighlightList = styled.ul`
     content: '';
   }
 `
-
-const isResponseError = (response: ApiResponse<unknown> | undefined) =>
-  response !== undefined && !isApiSuccess(response)
-
-const getResponseBody = <T,>(
-  response: ApiResponse<T | null> | undefined,
-): T | null => (isApiSuccess(response) ? (response?.dataBody ?? null) : null)
 
 const hasObjectValues = (value: object | null | undefined) =>
   Boolean(
