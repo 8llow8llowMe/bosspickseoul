@@ -83,6 +83,8 @@ const StepList = styled.ol`
 `
 
 const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 60px;
   display: flex;
