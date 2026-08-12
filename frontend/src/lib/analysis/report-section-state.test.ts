@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveMetricCards } from '@/lib/analysis/report-section-state'
+import {
+  resolveChartSlot,
+  resolveMetricCards,
+} from '@/lib/analysis/report-section-state'
 import type { CommercialProfile } from '@/types/recommend'
 
 const profile = {
@@ -48,5 +51,17 @@ describe('resolveMetricCards', () => {
     })
     expect(cards[3].display).toBe('데이터 없음')
     expect(cards[3].tone).toBe('neutral')
+  })
+})
+
+describe('resolveChartSlot', () => {
+  it('로딩이 최우선', () => {
+    expect(resolveChartSlot(true, true)).toBe('loading')
+  })
+  it('로딩 아니고 비었으면 empty', () => {
+    expect(resolveChartSlot(false, true)).toBe('empty')
+  })
+  it('데이터 있으면 ready', () => {
+    expect(resolveChartSlot(false, false)).toBe('ready')
   })
 })

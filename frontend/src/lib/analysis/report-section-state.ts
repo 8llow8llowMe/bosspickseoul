@@ -69,3 +69,10 @@ export const resolveMetricCards = ({
     },
   ]
 }
+
+export type ChartSlotState = 'loading' | 'ready' | 'empty'
+
+export const resolveChartSlot = (
+  loading: boolean,
+  isEmpty: boolean,
+): ChartSlotState => (loading ? 'loading' : isEmpty ? 'empty' : 'ready')
