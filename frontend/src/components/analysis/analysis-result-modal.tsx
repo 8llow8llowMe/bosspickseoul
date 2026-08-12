@@ -4,10 +4,12 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type KeyboardEvent,
   type MouseEvent,
   type PropsWithChildren,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 
@@ -83,7 +85,20 @@ export function AnalysisResultModalSurface({
 }: AnalysisResultModalSurfaceProps) {
   const surfaceRef = useRef<HTMLElement>(null)
 
+  // document.body에 포털링: 사이드바 패널처럼 z-index가 낮은 stacking context
+  // 안에서 열리면 SiteHeader(z-index:20) 같은 상위 레이어에 덮이므로, 루트로
+  // 포털해 항상 최상단(z-index:100)에 뜨게 한다. SSR/첫 페인트 가드 — mounted가
+  // true가 되는 커밋에서 실제 Surface DOM이 생기므로, 아래 포커스 이펙트도
+  // mounted를 의존성에 넣어 그 시점에만 surfaceRef를 찾는다.
+  const [mounted, setMounted] = useState(false)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     const previousActiveElement =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -104,7 +119,7 @@ export function AnalysisResultModalSurface({
       document.body.style.overflow = previousOverflow
       previousActiveElement?.focus()
     }
-  }, [ariaLabel])
+  }, [ariaLabel, mounted])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
@@ -138,7 +153,9 @@ export function AnalysisResultModalSurface({
     }
   }
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <Overlay onMouseDown={handleOverlayMouseDown}>
       <Surface
         ref={surfaceRef}
@@ -150,7 +167,8 @@ export function AnalysisResultModalSurface({
       >
         <ScrollArea>{children}</ScrollArea>
       </Surface>
-    </Overlay>
+    </Overlay>,
+    document.body,
   )
 }
 

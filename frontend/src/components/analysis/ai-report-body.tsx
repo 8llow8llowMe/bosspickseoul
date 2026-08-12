@@ -102,9 +102,11 @@ const FooterLink = styled.a`
 export default function AiReportBody({
   selection,
   variant = 'full',
+  title,
 }: {
   selection: AnalysisSelection
   variant?: 'full' | 'compact'
+  title?: string
 }) {
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
@@ -200,10 +202,12 @@ export default function AiReportBody({
 
   return (
     <Body $variant={variant}>
-      <Header>
-        <Title>{profile?.commercialName ?? '상권 리포트'}</Title>
-        {serviceCode ? <SubLabel>업종 코드 {serviceCode}</SubLabel> : null}
-      </Header>
+      {variant !== 'compact' ? (
+        <Header>
+          <Title>{title ?? profile?.commercialName ?? '상권 리포트'}</Title>
+          {serviceCode ? <SubLabel>업종 코드 {serviceCode}</SubLabel> : null}
+        </Header>
+      ) : null}
       {isCommercial ? (
         <>
           <ReportMetricCards cards={cards} variant={variant} />

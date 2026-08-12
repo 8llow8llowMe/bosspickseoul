@@ -68,6 +68,14 @@ const ModalHeader = styled.div`
   background: var(--color-surface);
 `
 
+/** 전용 페이지의 Content 래퍼(width:min(1080px))와 같은 여백/최대폭을 맞춰
+ * 모달 안에서도 카드·차트가 엣지-투-엣지로 늘어지지 않게 한다. */
+const ModalBody = styled.div`
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  padding: clamp(16px, 3vw, 28px);
+`
+
 export default function AiReportPanel({
   targetName,
   selection,
@@ -115,7 +123,13 @@ export default function AiReportPanel({
               <X size={18} aria-hidden />
             </IconButton>
           </ModalHeader>
-          <AiReportBody selection={selection} variant="full" />
+          <ModalBody>
+            <AiReportBody
+              selection={selection}
+              variant="full"
+              title={targetName}
+            />
+          </ModalBody>
         </AnalysisResultModalSurface>
       ) : null}
     </Shell>
