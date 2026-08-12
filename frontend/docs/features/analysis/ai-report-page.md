@@ -183,12 +183,91 @@ AI 리포트가 지금은 **텍스트 서술만** 있고(사이드바 패널), �
 
 ---
 
-## 열린 결정 (구현 착수 시 확정)
+## 열린 결정 (구현 시 확정됨)
 
-1. 라우트명: `analysis/report` vs `analysis/ai-report`. (기존 `result`와 톤 맞춤 권장)
-2. 비로그인 시 데이터 차트도 가릴지, AI 영역만 잠글지.
-3. 지표/차트 각 페처 응답의 정확한 필드→표시 매핑: `analysis-result-view.tsx`의 기존 변환을 셀렉터로 추출해 공유(중복 방지).
-4. "성장률" 지표의 계산 소스(`fetchCommercialTrend` sales 방향 or salesSummary 증감).
+1. ✅ 라우트명 `analysis/report` 확정.
+2. ✅ 비로그인 = **데이터 차트 노출 + AI 영역만 잠금**.
+3. ✅ 필드→표시 매핑을 공유 셀렉터 `commercial-chart-selectors.ts`로 추출(결과 뷰·리포트 공유).
+4. ✅ "성장률" = `fetchCommercialTrend({metricType:'SALES'})`의 `trendDirection` + 최신 분기 `changeRate`.
+
+---
+
+## D9. 확장: 사이드바 인라인 리포트 + 크게보기 모달 (공유 본문)
+
+> **작성일**: 2026-08-12 (확장) · 상태: 설계 확정, 구현 전 → writing-plans
+
+### D9-1. 배경 / 문제
+
+전용 페이지(`/analysis/report`)는 정독용으로 좋으나 **페이지 이동**을 강제한다. 지도 맥락에서 상권을 훑는 사용자는 사이드바를 떠나지 않고 리포트를 보고 싶다. 또한 현재 전용 페이지는 **본문 배경과 카드가 모두 회색**(`--color-surface-muted`)이라 콘텐츠 구분이 약하다.
+
+### D9-2. 목표 동작 (to-be)
+
+- 지도 사이드바 AI 패널이 **전체 리포트(지표 4카드 + 엄선 차트 3개 + AI 인사이트)를 세로 1열**로 인라인 표시.
+- 패널 헤더의 **"크게보기"** 버튼 → **모달**로 같은 리포트를 크게(넓은 레이아웃).
+- 전용 페이지는 **즐겨찾기/공유 URL용으로 유지**.
+- 배경 대비 개선: 리포트 본문 배경 = 흰색.
+
+### D9-3. 아키텍처: 공유 본문 컴포넌트
+
+- 현재 `ai-report-page-view.tsx`의 본문(4개 fast 쿼리 + `useAiReport` + 지표/차트/인사이트 조립)을 **`ai-report-body.tsx`(`AiReportBody`)** 로 추출.
+  - Props: `{ selection: AnalysisSelection; variant: 'compact' | 'full' }`.
+  - 데이터·AI를 **자체 소유**. react-query 키(`['analysis',...]`, `['ai-report','submit',...]`)가 dedupe하므로, 페이지·사이드바·모달이 동시에 없거나 동일 selection이어도 **중복 제출 없음**.
+- 세 표면이 **동일 본문** 재사용:
+  | 표면 | variant | 래퍼 |
+  | ---- | ------- | ---- |
+  | 전용 페이지 `/analysis/report` | `full` | `ai-report-page-view.tsx`(헤더+본문+푸터, Main 흰 배경) |
+  | 사이드바 패널 | `compact` | `ai-report-panel.tsx`(헤더[크게보기]+본문+푸터) |
+  | 크게보기 모달 | `full` | `ui/dialog.tsx` 재사용 + 본문 |
+
+### D9-4. variant 차이 (같은 데이터, 크기만)
+
+| | `compact`(사이드바) | `full`(모달·페이지) |
+| --- | --- | --- |
+| 지표 카드 | 1열 스택(또는 2열) | 2~4열 |
+| 차트 높이(`height` prop) | 축소(예 160) | 200 |
+| 여백/폭 | 좁게 | 넉넉 |
+
+### D9-5. 사이드바 패널 변경
+
+- 헤더에 **"크게보기"** 버튼(확대 아이콘) → 모달 오픈. 기존 **"AI 리포트 보기"(페이지 이동 CTA)는 제거하고 "크게보기"로 대체**.
+- 본문 = `<AiReportBody selection variant="compact" />` (기존 `CommercialReportBlocks` 텍스트-only 본문 대체).
+- 푸터 **"전체 분석 보기"**(→ `/analysis/result`)는 유지.
+- `analysis-page.tsx`가 패널에 **`selection`을 전달**(현재 `state`만 전달 → 본문이 자체 쿼리하도록 selection 필요). 기존 `useAiReport`/카드-프리뷰 로직과 충돌 없이(키 dedupe).
+
+### D9-6. 크게보기 모달
+
+- `ui/dialog.tsx` 재사용. 내용 = `<AiReportBody selection variant="full" />`.
+- 데스크톱: 중앙 큰 다이얼로그. 모바일: 전체화면 시트.
+- 접근성: `role="dialog"`, ESC/오버레이 닫기, 포커스 트랩(다이얼로그 컴포넌트 준수), 열기 버튼으로 포커스 복귀.
+
+### D9-7. 비로그인 & 배경
+
+- 비로그인: `AiReportBody` 내부 `resolveInsightMode`가 처리 → **차트·지표 노출 + AI만 잠금**(D6 정책과 통일). 사이드바도 동일(기존 "잠금 카드만" → 본문 표시로 통일).
+- 배경: `AiReportBody`/페이지 `Main`/모달 본문 배경 = **`var(--color-surface)`(흰색)**. 지표 카드·차트 카드는 `--color-surface-muted` 유지 → 대비 확보. 임의 색 추가 없음(`DESIGN.md` 토큰).
+
+### D9-8. 반응형 / 성능
+
+- 사이드바(좁음)에 차트 3개 세로 = 스크롤 길어짐 → 패널 자체 스크롤 허용, 차트 `height` 축소로 완화.
+- 쿼리는 selection 단위로 캐시 공유(페이지↔사이드바↔모달 재요청 없음).
+
+### D9-9. 테스트
+
+- `AiReportBody` variant 분기(순수 로직이 있으면 리졸버로, 렌더는 기존 관행상 소스-계약/순수 리졸버 테스트).
+- 모달 열림/닫힘 상태 로직(순수 훅/상태), "크게보기" 버튼 존재(source-contract).
+- 배경 토큰(`--color-surface`) 적용 확인(source-contract 또는 스냅 대체 금지—토큰 문자열 확인).
+- 회귀: 전용 페이지·사이드바·모달이 동일 `AiReportBody`를 렌더하는지(중복 로직 없음).
+
+### D9-10. 재사용 / 신규
+
+| 구분 | 대상 |
+| ---- | ---- |
+| 재사용 | `AiReportPageView`의 쿼리/리졸버/섹션 컴포넌트 전부, `ui/dialog.tsx`, `report-{metric-cards,chart-section,insight-section}`, 차트 `height` prop |
+| 신규 | `ai-report-body.tsx`(`AiReportBody`, variant), 크게보기 모달 래퍼(패널 내 상태), "크게보기" 버튼 |
+| 수정 | `ai-report-page-view.tsx`(본문→AiReportBody 위임 + Main 흰 배경), `ai-report-panel.tsx`(본문 교체 + 크게보기 버튼, selection prop), `analysis-page.tsx`(패널에 selection 전달) |
+
+### D9-11. 열린 결정 (D9)
+
+- 모두 확정: (a) "AI 리포트 보기" → "크게보기"(모달) **대체**, (b) 비로그인 사이드바 **차트 노출+AI 잠금 통일**, (c) compact 사이드바에 **차트 포함**, (d) 본문 배경 **흰색**.
 
 ---
 
@@ -197,3 +276,5 @@ AI 리포트가 지금은 **텍스트 서술만** 있고(사이드바 패널), �
 | 날짜       | 내용                                                                  |
 | ---------- | --------------------------------------------------------------------- |
 | 2026-08-12 | 초안: 전용 AI 리포트 페이지(상권 v1), 2단 속도, 진입 A, 큐레이션 확정 |
+| 2026-08-12 | 구현 완료(PR #110). 열린 결정 1~4 확정 반영                            |
+| 2026-08-12 | D9 확장 설계: 공유 본문(`AiReportBody`) + 사이드바 인라인 + 크게보기 모달 + 흰 배경 |
