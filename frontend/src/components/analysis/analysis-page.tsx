@@ -39,6 +39,7 @@ import { isApiSuccess } from '@/lib/api/response'
 import {
   ANALYSIS_PERIOD_CODE,
   ANALYSIS_STEPS,
+  createAiReportHref,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
   getActiveAnalysisStep,
@@ -309,6 +310,10 @@ export default function AnalysisPage() {
     const currentHref = search ? `${pathname}?${search}` : pathname
     return `/login?redirect=${encodeURIComponent(currentHref)}`
   })()
+
+  // 상권 레벨일 때만 전용 AI 리포트 페이지로 진입하는 CTA를 패널에 내려준다.
+  const aiReportHref =
+    aiLevel === 'commercial' ? createAiReportHref(selection) : undefined
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -600,6 +605,7 @@ export default function AnalysisPage() {
         onClose={() => setAiPanelOpen(false)}
         onRetry={aiRetry}
         onViewFullAnalysis={openFullAnalysis}
+        aiReportHref={aiReportHref}
       />
     ) : null
 
@@ -654,6 +660,7 @@ export default function AnalysisPage() {
             onClose={() => setAiPanelOpen(false)}
             onRetry={aiRetry}
             onViewFullAnalysis={openFullAnalysis}
+            aiReportHref={aiReportHref}
           />
         ) : null
       }

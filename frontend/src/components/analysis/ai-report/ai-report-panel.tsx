@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import Link from 'next/link'
 import styled from 'styled-components'
 
 import {
@@ -20,14 +21,38 @@ const Header = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border-200);
+`
+
+const HeaderText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 `
 
 const Title = styled.h3`
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text-900);
+`
+
+/** 상권 레벨일 때만 상위(analysis-page.tsx)가 createAiReportHref로 만들어 내려주는
+ * 전용 AI 리포트 페이지 진입 CTA. */
+const ReportLink = styled(Link)`
+  align-self: flex-start;
+  color: var(--color-primary-700);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    outline: none;
+  }
 `
 
 const CloseButton = styled.button`
@@ -126,17 +151,24 @@ export default function AiReportPanel({
   onClose,
   onRetry,
   onViewFullAnalysis,
+  aiReportHref,
 }: {
   targetName: string
   state: AiReportState
   onClose: () => void
   onRetry: () => void
   onViewFullAnalysis?: () => void
+  aiReportHref?: string
 }) {
   return (
     <Shell aria-label={`${targetName} AI 리포트`}>
       <Header>
-        <Title>{targetName} AI 리포트</Title>
+        <HeaderText>
+          <Title>{targetName} AI 리포트</Title>
+          {aiReportHref ? (
+            <ReportLink href={aiReportHref}>AI 리포트 보기</ReportLink>
+          ) : null}
+        </HeaderText>
         <CloseButton type="button" aria-label="닫기" onClick={onClose}>
           <X size={18} aria-hidden />
         </CloseButton>

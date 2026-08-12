@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -62,5 +64,17 @@ describe('AnalysisExplorerSurface', () => {
         itemCount: 2,
       }),
     ).toBe('ready')
+  })
+
+  // 소스 계약: 상권 레벨 AI 리포트 패널의 "AI 리포트 보기" CTA href는 선택(selection)을
+  // 아는 이 컴포넌트가 createAiReportHref로 만들어 AiReportPanel에 내려준다.
+  // 라벨 자체는 ai-report-panel.test.ts에서 검증한다.
+  it('상권 레벨 AI 리포트 패널에 createAiReportHref로 만든 href를 내려준다', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('./analysis-page.tsx', import.meta.url)),
+      'utf8',
+    )
+    expect(src).toContain('createAiReportHref')
+    expect(src).toContain('aiReportHref')
   })
 })

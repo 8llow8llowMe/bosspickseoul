@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -115,5 +117,33 @@ describe('AiReportPanel', () => {
     expect(withHandler).not.toContain(
       '분야까지 선택하면 전체 분석을 볼 수 있어요',
     )
+  })
+
+  it('aiReportHref가 있으면 전용 AI 리포트 페이지 CTA를 렌더한다', () => {
+    const withoutHref = render({
+      status: 'loading',
+      stage: null,
+      progressMessages: [],
+    })
+    expect(withoutHref).not.toContain('AI 리포트 보기')
+
+    const withHref = render(
+      { status: 'loading', stage: null, progressMessages: [] },
+      { aiReportHref: '/analysis/report?commercialCode=1' },
+    )
+    expect(withHref).toContain('AI 리포트 보기')
+    expect(withHref).toContain('/analysis/report?commercialCode=1')
+  })
+
+  // 소스 계약: CTA 라벨은 패널이 직접 소유한다. href는 선택(selection)을 아는
+  // 상위(analysis-page.tsx)가 createAiReportHref로 만들어 prop으로 내려준다 —
+  // 그 계약은 analysis-page.test.ts에서 검증한다.
+  it('패널은 전용 AI 리포트 페이지 CTA 라벨을 소스에 포함한다', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('./ai-report-panel.tsx', import.meta.url)),
+      'utf8',
+    )
+    expect(src).toContain('AI 리포트 보기')
+    expect(src).toContain('aiReportHref')
   })
 })
