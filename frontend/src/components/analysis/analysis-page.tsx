@@ -670,6 +670,23 @@ export default function AnalysisPage() {
       onSubmit={handlePanelSubmit}
     />
   )
+  // 모바일 시트 전용: 데스크탑 panel과 동일한 props를 참조 동일성 유지한 채
+  // variant="sheet"만 추가한다(memo 비교 대상 콜백은 데스크탑과 동일 참조).
+  const sheetPanel = (
+    <AnalysisSelectionPanel
+      activeStep={activeStep}
+      selection={selection}
+      selectedNames={selectedNames}
+      items={activeCandidates}
+      status={activeStatus}
+      onStepChange={setRequestedStep}
+      onSelect={handlePanelSelect}
+      onPreviewChange={setPreviewedCode}
+      onRetry={handlePanelRetry}
+      onSubmit={handlePanelSubmit}
+      variant="sheet"
+    />
+  )
 
   return (
     <AnalysisExplorerSurface
@@ -712,7 +729,7 @@ export default function AnalysisPage() {
           summary={selectionSummary}
           aiReport={mobileAiReport}
         >
-          {panel}
+          {sheetPanel}
         </AnalysisMobileSheet>
       }
     />

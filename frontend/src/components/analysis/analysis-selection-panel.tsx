@@ -31,6 +31,7 @@ export type AnalysisSelectionPanelProps = {
   onPreviewChange: (code: string | null) => void
   onRetry: () => void
   onSubmit: () => void
+  variant?: 'panel' | 'sheet'
 }
 
 export const ANALYSIS_STEP_LABELS: Record<AnalysisStep, string> = {
@@ -140,11 +141,21 @@ const StepName = styled.span`
   white-space: nowrap;
 `
 
-const Body = styled.div`
+const Body = styled.div<{ $variant: 'panel' | 'sheet' }>`
   min-height: 0;
   flex: 1;
   overflow-y: auto;
   padding: 18px 20px 24px;
+
+  ${props =>
+    props.$variant === 'sheet' &&
+    `
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* legacy Edge */
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    `}
 `
 
 const BodyTitle = styled.div`
@@ -166,16 +177,24 @@ const BodyTitle = styled.div`
   }
 `
 
-const CandidateList = styled.ul`
+const CandidateList = styled.ul<{ $variant: 'panel' | 'sheet' }>`
   display: grid;
   gap: 8px;
+  ${props =>
+    props.$variant === 'sheet' &&
+    `grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));`}
 `
 
-const CandidateButton = styled.button<{ $selected: boolean }>`
+const CandidateButton = styled.button<{
+  $selected: boolean
+  $variant: 'panel' | 'sheet'
+}>`
   width: 100%;
   min-height: 52px;
+  height: ${props => (props.$variant === 'sheet' ? '100%' : 'auto')};
   display: flex;
-  align-items: center;
+  align-items: ${props =>
+    props.$variant === 'sheet' ? 'flex-start' : 'center'};
   gap: 10px;
   border: 1px solid
     ${props =>
@@ -195,18 +214,19 @@ const CandidateButton = styled.button<{ $selected: boolean }>`
   }
 `
 
-const CandidateCopy = styled.span`
+const CandidateCopy = styled.span<{ $variant: 'panel' | 'sheet' }>`
   min-width: 0;
   flex: 1;
   display: grid;
   gap: 2px;
 
   strong {
-    overflow: hidden;
     font-size: 14px;
     font-weight: 650;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    ${props =>
+      props.$variant === 'sheet'
+        ? 'white-space: normal; word-break: keep-all;'
+        : 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'}
   }
 
   small {
@@ -347,6 +367,7 @@ function AnalysisSelectionPanel({
   onPreviewChange,
   onRetry,
   onSubmit,
+  variant = 'panel',
 }: AnalysisSelectionPanelProps) {
   const selectedCode = selectionCodeByStep(selection, activeStep)
   const isComplete = isCompleteAnalysisSelection(selection)
@@ -357,13 +378,15 @@ function AnalysisSelectionPanel({
 
   return (
     <Root aria-label="상권 분석 조건 선택">
-      <Header>
-        <Eyebrow>상권 분석</Eyebrow>
-        <Title>분석할 지역을 선택해 주세요</Title>
-        <Description>
-          지도와 목록에서 지역을 좁힌 뒤 원하는 업종을 선택하세요.
-        </Description>
-      </Header>
+      {variant !== 'sheet' ? (
+        <Header>
+          <Eyebrow>상권 분석</Eyebrow>
+          <Title>분석할 지역을 선택해 주세요</Title>
+          <Description>
+            지도와 목록에서 지역을 좁힌 뒤 원하는 업종을 선택하세요.
+          </Description>
+        </Header>
+      ) : null}
 
       <StepList aria-label="분석 조건 단계">
         {ANALYSIS_STEPS.map((step, index) => {
@@ -389,7 +412,7 @@ function AnalysisSelectionPanel({
         })}
       </StepList>
 
-      <Body>
+      <Body $variant={variant}>
         <BodyTitle>
           <h2>{ANALYSIS_STEP_LABELS[activeStep]} 선택</h2>
           {status === 'ready' ? <span>{items.length}개</span> : null}
@@ -462,7 +485,7 @@ function AnalysisSelectionPanel({
         ) : null}
 
         {status === 'ready' && !isChipStep ? (
-          <CandidateList>
+          <CandidateList $variant={variant}>
             {items.map(item => {
               const selected = item.code === selectedCode
               return (
@@ -470,6 +493,7 @@ function AnalysisSelectionPanel({
                   <CandidateButton
                     type="button"
                     $selected={selected}
+                    $variant={variant}
                     aria-selected={selected}
                     onClick={() => onSelect(item.code)}
                     onFocus={() => onPreviewChange(item.code)}
@@ -477,7 +501,7 @@ function AnalysisSelectionPanel({
                     onPointerEnter={() => onPreviewChange(item.code)}
                     onPointerLeave={() => onPreviewChange(null)}
                   >
-                    <CandidateCopy>
+                    <CandidateCopy $variant={variant}>
                       <strong>{item.name}</strong>
                       {item.description ? (
                         <small>{item.description}</small>

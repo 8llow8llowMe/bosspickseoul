@@ -193,6 +193,8 @@ const Layer = styled.div<{ $active: boolean }>`
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
   opacity: ${props => (props.$active ? 1 : 0)};
   visibility: ${props => (props.$active ? 'visible' : 'hidden')};
   pointer-events: ${props => (props.$active ? 'auto' : 'none')};
@@ -200,6 +202,10 @@ const Layer = styled.div<{ $active: boolean }>`
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
+  }
+
+  &::-webkit-scrollbar {
+    display: none;
   }
 
   > section {
