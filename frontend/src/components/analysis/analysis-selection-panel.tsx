@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { Check, ChevronRight, RotateCcw } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -322,7 +323,7 @@ const canOpenStep = (
   return Boolean(selection.commercialCode)
 }
 
-export default function AnalysisSelectionPanel({
+function AnalysisSelectionPanel({
   activeStep,
   selection,
   selectedNames,
@@ -491,3 +492,8 @@ export default function AnalysisSelectionPanel({
     </Root>
   )
 }
+
+// 호버 미리보기(previewedCode)는 페이지 최상단 state라 값이 바뀌면 페이지가
+// 리렌더된다. 패널은 previewedCode를 쓰지 않으므로 memo로 감싸 props가 실제로
+// 바뀔 때만 리렌더하게 한다(호버 시 칩 25개 불필요 리렌더 차단).
+export default memo(AnalysisSelectionPanel)

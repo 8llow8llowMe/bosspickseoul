@@ -126,7 +126,7 @@ describe('drawAreaPolygonLayer', () => {
 
   it('cleanup은 리스너를 모두 제거하고 폴리곤을 지운다', () => {
     const { maps, map, listeners, polygons } = createFakeMaps()
-    const cleanup = drawAreaPolygonLayer({
+    const { cleanup } = drawAreaPolygonLayer({
       map: map as never,
       maps: maps as never,
       areas,
@@ -139,5 +139,29 @@ describe('drawAreaPolygonLayer', () => {
     cleanup()
     expect(listeners).toHaveLength(0)
     expect(polygons[0].map).toBeNull()
+  })
+
+  it('setHighlight는 레이어를 다시 그리지 않고 영향받는 폴리곤만 restyle 한다', () => {
+    const { maps, map, polygons } = createFakeMaps()
+    const setOptions = vi.spyOn(maps.Polygon.prototype, 'setOptions')
+    const { setHighlight } = drawAreaPolygonLayer({
+      map: map as never,
+      maps: maps as never,
+      areas,
+      selectedCode: null,
+      hoveredCode: null,
+      onSelect: () => undefined,
+      onHoverChange: () => undefined,
+      tokens,
+    })
+
+    // 폴리곤은 재생성되지 않는다(개수 유지).
+    setHighlight({ selectedCode: null, hoveredCode: '11680' })
+    expect(polygons).toHaveLength(1)
+    expect(setOptions).toHaveBeenCalledTimes(1)
+
+    // 변화가 없으면 아무 것도 하지 않는다.
+    setHighlight({ selectedCode: null, hoveredCode: '11680' })
+    expect(setOptions).toHaveBeenCalledTimes(1)
   })
 })

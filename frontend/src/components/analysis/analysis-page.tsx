@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
@@ -260,8 +267,11 @@ export default function AnalysisPage() {
     level: number
     seq: number
   } | null>(null)
-  const requestFit = (code: string, level: number) =>
-    setFitRequest(prev => ({ code, level, seq: (prev?.seq ?? 0) + 1 }))
+  const requestFit = useCallback(
+    (code: string, level: number) =>
+      setFitRequest(prev => ({ code, level, seq: (prev?.seq ?? 0) + 1 })),
+    [],
+  )
 
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
@@ -342,13 +352,36 @@ export default function AnalysisPage() {
     retry: 1,
   })
 
-  const districts = unwrapArray(districtsQuery.data)
-  const allDistrictAreas = unwrapMapAreas(districtMapQuery.data)
-  const administrations = unwrapArray(administrationsQuery.data)
-  const allAdministrationAreas = unwrapMapAreas(administrationMapQuery.data)
-  const commercials = unwrapArray(commercialsQuery.data)
-  const allCommercialAreas = unwrapMapAreas(commercialMapQuery.data)
-  const services = unwrapArray(servicesQuery.data)
+  // 언랩 결과를 쿼리 데이터에 memo 한다. 지도 areas 참조가 매 렌더 새로 바뀌면
+  // 지도 그리기 이펙트가 호버마다 재실행되므로, 참조 안정화가 성능의 핵심이다.
+  const districts = useMemo(
+    () => unwrapArray(districtsQuery.data),
+    [districtsQuery.data],
+  )
+  const allDistrictAreas = useMemo(
+    () => unwrapMapAreas(districtMapQuery.data),
+    [districtMapQuery.data],
+  )
+  const administrations = useMemo(
+    () => unwrapArray(administrationsQuery.data),
+    [administrationsQuery.data],
+  )
+  const allAdministrationAreas = useMemo(
+    () => unwrapMapAreas(administrationMapQuery.data),
+    [administrationMapQuery.data],
+  )
+  const commercials = useMemo(
+    () => unwrapArray(commercialsQuery.data),
+    [commercialsQuery.data],
+  )
+  const allCommercialAreas = useMemo(
+    () => unwrapMapAreas(commercialMapQuery.data),
+    [commercialMapQuery.data],
+  )
+  const services = useMemo(
+    () => unwrapArray(servicesQuery.data),
+    [servicesQuery.data],
+  )
   const requiredStep = getActiveAnalysisStep(selection)
   const activeStep =
     ANALYSIS_STEPS.indexOf(requestedStep) > ANALYSIS_STEPS.indexOf(requiredStep)
@@ -402,35 +435,48 @@ export default function AnalysisPage() {
     }
   }, [administrations, commercials, districts, router, selection, services])
 
-  const districtCandidates: AnalysisCandidate[] = districts.flatMap(item =>
-    item.districtCode && item.districtName
-      ? [{ code: String(item.districtCode), name: item.districtName }]
-      : [],
+  // 후보 배열은 쿼리 데이터에만 의존하도록 memo 한다. 호버(previewedCode)로
+  // 페이지가 리렌더돼도 참조가 유지돼야 memo된 선택 패널이 리렌더되지 않는다.
+  const districtCandidates: AnalysisCandidate[] = useMemo(
+    () =>
+      districts.flatMap(item =>
+        item.districtCode && item.districtName
+          ? [{ code: String(item.districtCode), name: item.districtName }]
+          : [],
+      ),
+    [districts],
   )
-  const administrationCandidates: AnalysisCandidate[] = administrations.map(
-    (item: AdministrationArea) => ({
-      code: String(item.administrationCode),
-      name: item.administrationName,
-    }),
+  const administrationCandidates: AnalysisCandidate[] = useMemo(
+    () =>
+      administrations.map((item: AdministrationArea) => ({
+        code: String(item.administrationCode),
+        name: item.administrationName,
+      })),
+    [administrations],
   )
-  const commercialCandidates: AnalysisCandidate[] = commercials.map(
-    (item: CommercialArea) => ({
-      code: String(item.commercialCode),
-      name: item.commercialName,
-      description: item.commercialClassificationName,
-    }),
+  const commercialCandidates: AnalysisCandidate[] = useMemo(
+    () =>
+      commercials.map((item: CommercialArea) => ({
+        code: String(item.commercialCode),
+        name: item.commercialName,
+        description: item.commercialClassificationName,
+      })),
+    [commercials],
   )
-  const serviceCandidates: AnalysisCandidate[] = services.flatMap(
-    (item: CommercialServiceCategory) =>
-      item.serviceCode && item.serviceName
-        ? [
-            {
-              code: item.serviceCode,
-              name: item.serviceName,
-              description: item.serviceType?.name,
-            },
-          ]
-        : [],
+  const serviceCandidates: AnalysisCandidate[] = useMemo(
+    () =>
+      services.flatMap((item: CommercialServiceCategory) =>
+        item.serviceCode && item.serviceName
+          ? [
+              {
+                code: item.serviceCode,
+                name: item.serviceName,
+                description: item.serviceType?.name,
+              },
+            ]
+          : [],
+      ),
+    [services],
   )
 
   const candidatesByStep: Record<AnalysisStep, AnalysisCandidate[]> = {
@@ -456,19 +502,29 @@ export default function AnalysisPage() {
     itemCount: activeCandidates.length,
   })
 
-  const selectedNames: Partial<Record<AnalysisStep, string>> = {
-    district: districtCandidates.find(
-      item => item.code === selection.districtCode,
-    )?.name,
-    administration: administrationCandidates.find(
-      item => item.code === selection.administrationCode,
-    )?.name,
-    commercial: commercialCandidates.find(
-      item => item.code === selection.commercialCode,
-    )?.name,
-    service: serviceCandidates.find(item => item.code === selection.serviceCode)
-      ?.name,
-  }
+  const selectedNames: Partial<Record<AnalysisStep, string>> = useMemo(
+    () => ({
+      district: districtCandidates.find(
+        item => item.code === selection.districtCode,
+      )?.name,
+      administration: administrationCandidates.find(
+        item => item.code === selection.administrationCode,
+      )?.name,
+      commercial: commercialCandidates.find(
+        item => item.code === selection.commercialCode,
+      )?.name,
+      service: serviceCandidates.find(
+        item => item.code === selection.serviceCode,
+      )?.name,
+    }),
+    [
+      districtCandidates,
+      administrationCandidates,
+      commercialCandidates,
+      serviceCandidates,
+      selection,
+    ],
+  )
   const selectionSummary =
     ANALYSIS_STEPS.map(step => selectedNames[step])
       .filter(Boolean)
@@ -518,12 +574,15 @@ export default function AnalysisPage() {
         ? '표시할 지도 영역이 없어요. 목록에서 지역을 선택해 주세요.'
         : null
 
-  const handleSelect = (step: AnalysisStep, code: string) => {
-    const next = selectAnalysisValue(selection, step, code)
-    router.replace(createAnalysisExplorerHref(next))
-    setRequestedStep(getNextStep(step))
-    setPreviewedCode(null)
-  }
+  const handleSelect = useCallback(
+    (step: AnalysisStep, code: string) => {
+      const next = selectAnalysisValue(selection, step, code)
+      router.replace(createAnalysisExplorerHref(next))
+      setRequestedStep(getNextStep(step))
+      setPreviewedCode(null)
+    },
+    [selection, router],
+  )
 
   const handleMapSelect = (code: string) => {
     if (mapLayer === 'district') {
@@ -563,11 +622,28 @@ export default function AnalysisPage() {
     setPreviewedCode(null)
   }
 
-  const handlePanelSelect = (code: string) => {
-    handleSelect(activeStep, code)
-    const level = PANEL_FIT_LEVEL_BY_STEP[activeStep]
-    if (level !== null) requestFit(code, level)
-  }
+  const handlePanelSelect = useCallback(
+    (code: string) => {
+      handleSelect(activeStep, code)
+      const level = PANEL_FIT_LEVEL_BY_STEP[activeStep]
+      if (level !== null) requestFit(code, level)
+    },
+    [handleSelect, activeStep, requestFit],
+  )
+
+  // 패널 재시도/제출 콜백 안정화. activeQuery는 매 렌더 새 객체라 latest-ref로 참조.
+  const activeQueryRef = useRef(activeQuery)
+  useEffect(() => {
+    activeQueryRef.current = activeQuery
+  }, [activeQuery])
+  const handlePanelRetry = useCallback(
+    () => void activeQueryRef.current.refetch(),
+    [],
+  )
+  const handlePanelSubmit = useCallback(
+    () => router.push(createAnalysisResultHref(selection, 'summary')),
+    [router, selection],
+  )
 
   const mobileAiReportNode =
     showAiCard && aiLevelKey ? (
@@ -592,10 +668,8 @@ export default function AnalysisPage() {
       onStepChange={setRequestedStep}
       onSelect={handlePanelSelect}
       onPreviewChange={setPreviewedCode}
-      onRetry={() => void activeQuery.refetch()}
-      onSubmit={() =>
-        router.push(createAnalysisResultHref(selection, 'summary'))
-      }
+      onRetry={handlePanelRetry}
+      onSubmit={handlePanelSubmit}
     />
   )
 

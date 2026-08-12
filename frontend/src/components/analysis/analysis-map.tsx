@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
 import { resolveMapLayerByZoom, type MapLayer } from '@/lib/analysis/map-layer'
-import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
+import {
+  drawAreaPolygonLayer,
+  type AreaPolygonLayerHandle,
+} from '@/lib/map/draw-area-polygon-layer'
 import {
   createBounds,
   normalizeBoundary,
@@ -29,9 +32,11 @@ export type AnalysisMapProps = {
   fitTo?: { code: string; level: number; seq: number } | null
 }
 
+// 레이어 재생성을 결정하는 구조적 입력만 포함한다. previewedCode(호버)는
+// 레이어를 다시 그리지 않고 setHighlight로 증분 갱신하므로 키에서 제외한다.
 type AnalysisMapLayerInput = Pick<
   AnalysisMapProps,
-  'activeStep' | 'areas' | 'selectedCode' | 'previewedCode'
+  'activeStep' | 'areas' | 'selectedCode'
 >
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.978 }
@@ -108,12 +113,10 @@ export const createAnalysisMapLayerKey = ({
   activeStep,
   areas,
   selectedCode,
-  previewedCode,
 }: AnalysisMapLayerInput): string =>
   JSON.stringify({
     activeStep,
     selectedCode,
-    previewedCode,
     areas: [...areas]
       .sort((a, b) => String(a.areaCode).localeCompare(String(b.areaCode)))
       .map(area => ({
@@ -152,6 +155,13 @@ export default function AnalysisMap({
   const mapsRef = useRef<KakaoMapsNamespace | null>(null)
   const clearLayersRef = useRef<() => void>(() => undefined)
   const areasRef = useRef(areas)
+  // 호버 하이라이트를 레이어 재생성 없이 증분 적용하기 위한 핸들/라벨 참조.
+  const layerHandleRef = useRef<AreaPolygonLayerHandle | null>(null)
+  const labelByCodeRef = useRef<
+    Map<string, { overlay: KakaoMapCustomOverlay; baseZIndex: number }>
+  >(new Map())
+  // 무거운 그리기 이펙트가 최신 previewedCode를 dep 없이 seed 할 수 있게 보관.
+  const previewedCodeRef = useRef(previewedCode)
   const callbacksRef = useRef({
     onSelect,
     onPreviewChange,
@@ -166,7 +176,6 @@ export default function AnalysisMap({
     activeStep,
     areas,
     selectedCode,
-    previewedCode,
   })
 
   useEffect(() => {
@@ -177,6 +186,11 @@ export default function AnalysisMap({
       onZoomLayerChange,
     }
   }, [onPreviewChange, onSelect, onViewportBoundsChange, onZoomLayerChange])
+
+  // 그리기 이펙트보다 먼저 선언해, 레이어 재생성 시 최신 hover 값을 seed 하도록 한다.
+  useEffect(() => {
+    previewedCodeRef.current = previewedCode
+  }, [previewedCode])
 
   useEffect(() => {
     areasRef.current = areas
@@ -248,22 +262,28 @@ export default function AnalysisMap({
       fill: getColorToken('--color-primary-600', '#2272eb'),
     }
 
-    const cleanupPolygons = drawAreaPolygonLayer({
+    const layerHandle = drawAreaPolygonLayer({
       map,
       maps,
       areas,
       selectedCode,
-      hoveredCode: previewedCode,
+      hoveredCode: previewedCodeRef.current,
       onSelect: code => callbacksRef.current.onSelect(code),
       onHoverChange: code => callbacksRef.current.onPreviewChange(code),
       tokens: polygonTokens,
       fitToSelected: false,
     })
+    layerHandleRef.current = layerHandle
+
+    const labelByCode = new Map<
+      string,
+      { overlay: KakaoMapCustomOverlay; baseZIndex: number }
+    >()
 
     areas.forEach((area, index) => {
       const code = String(area.areaCode)
       const selected = code === selectedCode
-      const previewed = code === previewedCode
+      const previewed = code === previewedCodeRef.current
       const highlighted = selected || previewed
 
       const center = normalizeBoundary([[area.centerLng, area.centerLat]])[0]
@@ -296,27 +316,46 @@ export default function AnalysisMap({
         marker.removeEventListener('pointerleave', clearPreview)
       })
 
+      const baseZIndex = index + 100
       const overlay = new maps.CustomOverlay({
         map,
         position: new maps.LatLng(center.lat, center.lng),
         content: marker,
         xAnchor: 0.5,
         yAnchor: 0.5,
-        zIndex: highlighted ? 200 : index + 100,
+        zIndex: highlighted ? 200 : baseZIndex,
         clickable: true,
       })
       overlays.push(overlay)
+      labelByCode.set(code, { overlay, baseZIndex })
     })
 
+    labelByCodeRef.current = labelByCode
+
     const clearLayers = () => {
-      cleanupPolygons()
+      layerHandle.cleanup()
       cleanups.forEach(cleanup => cleanup())
       overlays.forEach(overlay => overlay.setMap(null))
+      layerHandleRef.current = null
+      labelByCodeRef.current = new Map()
     }
     clearLayersRef.current = clearLayers
 
     return clearLayers
-  }, [areas, layerKey, previewedCode, sdkStatus, selectedCode])
+  }, [areas, layerKey, sdkStatus, selectedCode])
+
+  // 호버(previewedCode)·선택 하이라이트를 레이어 재생성 없이 증분 적용한다.
+  // 이 이펙트가 매 호버마다 25개 폴리곤을 다시 그리던 비용을 O(변경분)으로 낮춘다.
+  useEffect(() => {
+    layerHandleRef.current?.setHighlight({
+      selectedCode,
+      hoveredCode: previewedCode,
+    })
+    labelByCodeRef.current.forEach(({ overlay, baseZIndex }, code) => {
+      const raised = code === selectedCode || code === previewedCode
+      overlay.setZIndex(raised ? 200 : baseZIndex)
+    })
+  }, [previewedCode, selectedCode])
 
   useEffect(() => {
     const maps = mapsRef.current
