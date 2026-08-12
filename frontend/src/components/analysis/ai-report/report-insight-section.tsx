@@ -22,17 +22,9 @@ import { useProgressRotation } from '@/hooks/use-progress-rotation'
 import type { ReportBlockList } from '@/lib/analysis/ai-report-presentation'
 import type { InsightMode } from '@/lib/analysis/report-section-state'
 
-const shimmer = keyframes`
-  0% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.6;
+const spin = keyframes`
+  to {
+    transform: rotate(360deg);
   }
 `
 
@@ -52,18 +44,22 @@ const StageDesc = styled.p`
   text-align: center;
 `
 
-const SkeletonStack = styled.div`
-  display: grid;
-  gap: 8px;
-  padding: 16px 0;
+const LoadingWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 0 16px;
 `
 
-const Skeleton = styled.div<{ $width?: string }>`
-  width: ${props => props.$width ?? '100%'};
-  height: 16px;
-  border-radius: var(--radius-compact);
-  background: var(--color-border-300);
-  animation: ${shimmer} 1.2s var(--ease-standard) infinite;
+const Spinner = styled.div`
+  width: 30px;
+  height: 30px;
+  margin-bottom: 8px;
+  border: 3px solid var(--color-border-200);
+  border-top-color: var(--color-primary-700);
+  border-radius: var(--radius-pill);
+  animation: ${spin} 0.8s linear infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -249,16 +245,15 @@ function LoadingStage({ state }: { state: AiReportState }) {
     state.status === 'loading' ? state.progressMessages : []
   const rotating = useProgressRotation(progressMessages, 4000)
   return (
-    <div aria-live="polite">
-      <StatusText>{stage?.name ?? 'AI가 리포트를 생성하고 있어요…'}</StatusText>
-      {stage?.description ? <StageDesc>{stage.description}</StageDesc> : null}
+    <LoadingWrap
+      role="status"
+      aria-live="polite"
+      aria-label="AI 리포트 생성 중"
+    >
+      <Spinner aria-hidden />
+      <StatusText>{stage?.name ?? 'AI 리포트를 생성하고 있어요…'}</StatusText>
       {rotating ? <StageDesc>{rotating}</StageDesc> : null}
-      <SkeletonStack aria-hidden>
-        <Skeleton $width="80%" />
-        <Skeleton $width="100%" />
-        <Skeleton $width="60%" />
-      </SkeletonStack>
-    </div>
+    </LoadingWrap>
   )
 }
 

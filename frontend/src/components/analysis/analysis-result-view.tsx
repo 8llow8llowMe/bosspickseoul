@@ -457,9 +457,10 @@ const MetricCard = styled.div`
   display: grid;
   gap: 6px;
   border: 1px solid var(--color-border-200);
+  border-top: 2px solid var(--color-primary-700);
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
-  padding: 16px;
+  padding: 18px 16px 16px;
 
   span {
     color: var(--color-text-caption);
@@ -468,9 +469,9 @@ const MetricCard = styled.div`
 
   strong {
     color: var(--color-text-900);
-    font-size: 19px;
-    font-weight: 750;
-    line-height: 28px;
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 30px;
   }
 `
 
@@ -553,6 +554,93 @@ const renderCards = (
     ))}
   </CardGrid>
 )
+
+const SalesBarList = styled.div`
+  display: grid;
+  gap: 12px;
+  padding: 6px 2px 2px;
+`
+
+const SalesBarRow = styled.div`
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 64px 1fr auto;
+    gap: 8px;
+  }
+`
+
+const SalesBarLabel = styled.span`
+  overflow: hidden;
+  color: var(--color-text-700);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`
+
+const SalesBarTrack = styled.div`
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+`
+
+const SalesBarFill = styled.div<{ $percent: number; $strong?: boolean }>`
+  height: 100%;
+  width: ${props => Math.max(0, Math.min(100, props.$percent))}%;
+  border-radius: var(--radius-pill);
+  background: ${props =>
+    props.$strong ? 'var(--color-primary-700)' : 'var(--color-primary-600)'};
+  transition: width var(--motion-slow) var(--ease-standard);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`
+
+const SalesBarValue = styled.span`
+  color: var(--color-text-900);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+`
+
+const renderSalesComparisonBars = (
+  items: readonly {
+    label: string
+    value: number | null | undefined
+    strong?: boolean
+  }[],
+) => {
+  const max = Math.max(
+    0,
+    ...items.map(item => (typeof item.value === 'number' ? item.value : 0)),
+  )
+  return (
+    <SalesBarList>
+      {items.map(item => {
+        const hasValue = typeof item.value === 'number'
+        const percent = hasValue && max > 0 ? (item.value! / max) * 100 : 0
+        return (
+          <SalesBarRow key={item.label}>
+            <SalesBarLabel>{item.label}</SalesBarLabel>
+            <SalesBarTrack>
+              <SalesBarFill $percent={percent} $strong={item.strong} />
+            </SalesBarTrack>
+            <SalesBarValue>
+              {hasValue ? formatAnalysisValue(item.value, '원') : '데이터 없음'}
+            </SalesBarValue>
+          </SalesBarRow>
+        )
+      })}
+    </SalesBarList>
+  )
+}
 
 export default function AnalysisResultView({
   onClose,
@@ -1100,22 +1188,17 @@ export default function AnalysisResultView({
                   empty={!hasObjectValues(salesSummary)}
                   onRetry={() => void salesSummaryQuery.refetch()}
                 >
-                  <ComparisonGrid>
-                    {[
+                  {renderSalesComparisonBars(
+                    [
                       salesSummary?.district,
                       salesSummary?.administration,
                       salesSummary?.commercial,
-                    ].map((item, index) => (
-                      <ComparisonItem key={item?.code ?? index}>
-                        <span>
-                          {item?.name ?? ['자치구', '행정동', '상권'][index]}
-                        </span>
-                        <strong>
-                          {formatAnalysisValue(item?.monthlySalesAmount, '원')}
-                        </strong>
-                      </ComparisonItem>
-                    ))}
-                  </ComparisonGrid>
+                    ].map((item, index) => ({
+                      label: item?.name ?? ['자치구', '행정동', '상권'][index],
+                      value: item?.monthlySalesAmount,
+                      strong: index === 2,
+                    })),
+                  )}
                 </AnalysisResultSection>
               </FullSpanItem>
 
