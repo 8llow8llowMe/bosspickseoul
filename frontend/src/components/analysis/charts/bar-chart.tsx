@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 
+import { computeNiceYScale } from '@/lib/analysis/chart-scale'
 import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
 import {
   CHART_COLORS,
@@ -61,6 +62,8 @@ export default function BarChart({
   const hasData = cells.some(cell => typeof cell.value === 'number')
   if (!hasData) return <Empty>데이터 없음</Empty>
 
+  const yScale = computeNiceYScale(cells.map(cell => cell.value))
+
   return (
     <ResponsiveContainer
       width="100%"
@@ -84,6 +87,9 @@ export default function BarChart({
           tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
           tickLine={false}
           axisLine={false}
+          domain={yScale.domain}
+          ticks={yScale.ticks}
+          allowDataOverflow
           tickFormatter={value => formatAxisTick(value)}
         />
         <Tooltip

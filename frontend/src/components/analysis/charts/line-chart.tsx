@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 
+import { computeNiceYScale } from '@/lib/analysis/chart-scale'
 import type { TrendPoint } from '@/lib/analysis/chart-data'
 import {
   CHART_COLORS,
@@ -70,6 +71,7 @@ export default function LineChart({
   if (!hasLineData(points)) return <Empty>데이터 없음</Empty>
 
   const meta = direction ? DIRECTION_META[direction] : null
+  const yScale = computeNiceYScale(points.map(point => point.value))
 
   return (
     <Wrap role="img" aria-label={ariaLabel}>
@@ -99,6 +101,9 @@ export default function LineChart({
             tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
             tickLine={false}
             axisLine={false}
+            domain={yScale.domain}
+            ticks={yScale.ticks}
+            allowDataOverflow
             tickFormatter={value => formatAxisTick(value)}
           />
           <Tooltip
