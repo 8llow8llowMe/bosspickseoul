@@ -18,7 +18,7 @@ import {
   resolveMetricCards,
 } from '@/lib/analysis/report-section-state'
 import {
-  ANALYSIS_PERIOD_CODE,
+  createAiReportHref,
   createAnalysisResultHref,
   type AnalysisSelection,
 } from '@/lib/analysis/selection'
@@ -120,7 +120,7 @@ export default function AiReportPageView({
 
   const commercialCode = selection.commercialCode
   const serviceCode = selection.serviceCode
-  const periodCode = selection.periodCode ?? ANALYSIS_PERIOD_CODE
+  const periodCode = selection.periodCode
   const enabled = Boolean(commercialCode && serviceCode)
 
   // 빠른 층: 상권 프로필·매출·유동인구·매출 추세를 병렬로 즉시 요청한다.
@@ -193,12 +193,13 @@ export default function AiReportPageView({
     state,
   })
 
+  // 로그인 후 되돌아올 리다이렉트 대상은 전체 selection(구/행정동/상권/업종/기간)을
+  // 보존해야 한다 — serviceCode가 빠지면 로그인 후에도 프로필·매출·추세 쿼리가
+  // enabled=false로 멈춰 지표·차트가 영구히 비고 AI 인사이트도 idle에 고립된다.
   const loginHref = useMemo(
     () =>
-      `/login?redirect=${encodeURIComponent(
-        `/analysis/report?commercialCode=${commercialCode ?? ''}`,
-      )}`,
-    [commercialCode],
+      `/login?redirect=${encodeURIComponent(createAiReportHref(selection))}`,
+    [selection],
   )
   const resultHref = createAnalysisResultHref(selection, 'summary')
 
