@@ -65,9 +65,9 @@ const Empty = styled.p`
   text-align: center;
 `
 
-const Skeleton = styled.div`
+const Skeleton = styled.div<{ $variant: 'full' | 'compact' }>`
   width: 100%;
-  height: 200px;
+  height: ${props => (props.$variant === 'compact' ? 160 : 200)}px;
   border-radius: var(--radius-compact);
   background: var(--color-border-300);
   animation: ${shimmer} 1.2s var(--ease-standard) infinite;
@@ -113,7 +113,7 @@ export default function ReportChartSection({
       <Card aria-busy={salesTimeSlot === 'loading'}>
         <CardTitle>언제 파나 · 시간대별 매출</CardTitle>
         {salesTimeSlot === 'loading' ? (
-          <Skeleton aria-hidden />
+          <Skeleton $variant={variant} aria-hidden />
         ) : salesTimeSlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
@@ -129,7 +129,7 @@ export default function ReportChartSection({
       <Card aria-busy={footDaySlot === 'loading'}>
         <CardTitle>언제 붐비나 · 요일별 유동인구</CardTitle>
         {footDaySlot === 'loading' ? (
-          <Skeleton aria-hidden />
+          <Skeleton $variant={variant} aria-hidden />
         ) : footDaySlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
@@ -146,7 +146,7 @@ export default function ReportChartSection({
       <Card aria-busy={footPyramidSlot === 'loading'}>
         <CardTitle>누가 오나 · 연령·성별 유동인구</CardTitle>
         {footPyramidSlot === 'loading' ? (
-          <Skeleton aria-hidden />
+          <Skeleton $variant={variant} aria-hidden />
         ) : footPyramidSlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (

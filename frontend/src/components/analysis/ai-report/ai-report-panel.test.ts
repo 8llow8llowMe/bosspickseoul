@@ -1,149 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import AiReportPanel from '@/components/analysis/ai-report/ai-report-panel'
-import type { AiReportState } from '@/hooks/use-ai-report'
-
-const render = (state: AiReportState, extra = {}) =>
-  renderToStaticMarkup(
-    createElement(AiReportPanel, {
-      targetName: '삼평동',
-      state,
-      onClose: () => {},
-      onRetry: () => {},
-      ...extra,
-    }),
-  )
-
 describe('AiReportPanel', () => {
-  it('loading 상태는 생성 중 문구를 노출한다', () => {
-    expect(
-      render({ status: 'loading', stage: null, progressMessages: [] }),
-    ).toContain('리포트를 생성')
-  })
-
-  it('error 상태는 메시지와 다시 시도 버튼을 노출한다', () => {
-    const markup = render({
-      status: 'error',
-      message: '실패함',
-      errorKind: 'generic',
-      canRetry: true,
-    })
-    expect(markup).toContain('실패함')
-    expect(markup).toContain('다시 시도')
-  })
-
-  it('loading은 단계명과 진행문구를 노출한다', () => {
-    const markup = render({
-      status: 'loading',
-      stage: { name: '생성 중', description: 'AI가 작성 중' },
-      progressMessages: ['유동인구 분석 중'],
-    })
-    expect(markup).toContain('생성 중')
-    expect(markup).toContain('유동인구 분석 중')
-  })
-
-  it('not-found 에러는 다시 요청하기 버튼을 노출한다', () => {
-    const markup = render({
-      status: 'error',
-      message: '작업을 찾지 못했어요',
-      errorKind: 'not-found',
-      canRetry: true,
-    })
-    expect(markup).toContain('다시 요청하기')
-  })
-
-  it('canRetry가 false면 다시 시도 버튼을 노출하지 않는다', () => {
-    const markup = render({
-      status: 'error',
-      message: 'x',
-      errorKind: 'generic',
-      canRetry: false,
-    })
-    expect(markup).toContain('x')
-    expect(markup).not.toContain('다시 시도')
-  })
-
-  it('empty 상태는 안내 문구를 노출한다', () => {
-    expect(render({ status: 'empty' })).toContain('표시할 내용')
-  })
-
-  it('ready-region 상태는 지역 블록을 렌더한다', () => {
-    const markup = render({
-      status: 'ready-region',
-      view: {
-        headline: { summary: '시장 요약', marketStatus: '성장' },
-        recommended: ['카페'],
-        caution: [],
-        insight: '코멘트',
-        generatedAt: '',
-      },
-    })
-    expect(markup).toContain('시장 요약')
-    expect(markup).toContain('카페')
-  })
-
-  it('전체 분석 링크는 onViewFullAnalysis가 있을 때만 노출한다', () => {
-    expect(
-      render({ status: 'loading', stage: null, progressMessages: [] }),
-    ).not.toContain('전체 분석 보기')
-    expect(
-      render(
-        { status: 'loading', stage: null, progressMessages: [] },
-        { onViewFullAnalysis: () => {} },
-      ),
-    ).toContain('전체 분석 보기')
-  })
-
-  it('onViewFullAnalysis가 없으면 안내 문구를, 있으면 버튼만 보여준다', () => {
-    const withoutHandler = render({
-      status: 'loading',
-      stage: null,
-      progressMessages: [],
-    })
-    expect(withoutHandler).toContain(
-      '분야까지 선택하면 전체 분석을 볼 수 있어요',
-    )
-    expect(withoutHandler).not.toContain('전체 분석 보기')
-
-    const withHandler = render(
-      { status: 'loading', stage: null, progressMessages: [] },
-      { onViewFullAnalysis: () => {} },
-    )
-    expect(withHandler).toContain('전체 분석 보기')
-    expect(withHandler).not.toContain(
-      '분야까지 선택하면 전체 분석을 볼 수 있어요',
-    )
-  })
-
-  it('aiReportHref가 있으면 전용 AI 리포트 페이지 CTA를 렌더한다', () => {
-    const withoutHref = render({
-      status: 'loading',
-      stage: null,
-      progressMessages: [],
-    })
-    expect(withoutHref).not.toContain('AI 리포트 보기')
-
-    const withHref = render(
-      { status: 'loading', stage: null, progressMessages: [] },
-      { aiReportHref: '/analysis/report?commercialCode=1' },
-    )
-    expect(withHref).toContain('AI 리포트 보기')
-    expect(withHref).toContain('/analysis/report?commercialCode=1')
-  })
-
-  // 소스 계약: CTA 라벨은 패널이 직접 소유한다. href는 선택(selection)을 아는
-  // 상위(analysis-page.tsx)가 createAiReportHref로 만들어 prop으로 내려준다 —
-  // 그 계약은 analysis-page.test.ts에서 검증한다.
-  it('패널은 전용 AI 리포트 페이지 CTA 라벨을 소스에 포함한다', () => {
+  it('패널은 크게보기 버튼과 AiReportBody(compact) + 모달을 렌더한다', () => {
     const src = readFileSync(
       fileURLToPath(new URL('./ai-report-panel.tsx', import.meta.url)),
       'utf8',
     )
-    expect(src).toContain('AI 리포트 보기')
-    expect(src).toContain('aiReportHref')
+    expect(src).toContain('크게보기')
+    expect(src).toContain('AiReportBody')
+    expect(src).toContain('variant="compact"')
+    expect(src).toContain('AnalysisResultModalSurface')
+    expect(src).not.toContain('createAiReportHref') // CTA 대체됨
   })
 })

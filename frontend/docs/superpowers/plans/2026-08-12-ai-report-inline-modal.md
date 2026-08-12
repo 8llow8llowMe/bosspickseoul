@@ -26,9 +26,11 @@
 ## File Structure
 
 **신규**
+
 - `src/components/analysis/ai-report-body.tsx` — `AiReportBody({ selection, variant })`. 쿼리+AI+섹션 조립 + 흰 배경 컨테이너 + "전체 데이터 분석 보기" 푸터 링크.
 
 **수정**
+
 - `src/components/analysis/ai-report-page-view.tsx` — 본문 로직 제거 → `<AiReportBody variant="full" />` 위임, `Main` 배경 흰색.
 - `src/components/analysis/ai-report/report-metric-cards.tsx` — `variant`/`compact`로 그리드 열 수 제어.
 - `src/components/analysis/ai-report/report-chart-section.tsx` — `variant`/`compact`로 차트 `height`(+그리드) 제어.
@@ -44,11 +46,13 @@
 `AiReportBody`가 compact(사이드바)와 full(페이지·모달)에서 다른 밀도로 렌더하려면 두 섹션 컴포넌트가 레이아웃 variant를 받아야 한다. 추가 prop이며 기본값=현행(full) → 기존 사용처 무영향.
 
 **Files:**
+
 - Modify: `src/components/analysis/ai-report/report-metric-cards.tsx`
 - Modify: `src/components/analysis/ai-report/report-chart-section.tsx`
 - Test: 각 컴포넌트 `*.test.ts`(source-contract, 선례식) — 없으면 생성
 
 **Interfaces:**
+
 - Produces:
   - `ReportMetricCards({ cards, variant }: { cards: MetricCardModel[]; variant?: 'full' | 'compact' })` — `variant='compact'`면 그리드 1열, 아니면 기존 반응형(4열→축소). 기본 `'full'`.
   - `ReportChartSection({ sales, foot, salesLoading, footLoading, variant }: … & { variant?: 'full' | 'compact' })` — `variant='compact'`면 차트 `height`를 축소값(160)으로, 아니면 200. 기본 `'full'`.
@@ -112,11 +116,13 @@ git commit -m "feat(analysis): 리포트 지표/차트 섹션에 variant(compact
 `ai-report-page-view.tsx`의 데이터/AI/섹션 조립을 재사용 본문으로 옮기고, 페이지는 얇은 래퍼로 만든다. 본문 배경을 흰색으로.
 
 **Files:**
+
 - Create: `src/components/analysis/ai-report-body.tsx`
 - Modify: `src/components/analysis/ai-report-page-view.tsx`
 - Test: `app/(shell)/analysis/report/report-route.test.ts` 확장(본문 위임 확인) 또는 `ai-report-body`의 source-contract 테스트
 
 **Interfaces:**
+
 - Produces: `AiReportBody({ selection, variant }: { selection: AnalysisSelection; variant?: 'full' | 'compact' })` — 내부에서 4개 fast 쿼리 + `useAiReport` 소유, `ReportMetricCards`/`ReportChartSection`/`ReportInsightSection`에 `variant` 전달, 헤더(상권명+업종코드)·"전체 데이터 분석 보기" 푸터 링크 포함. 루트 컨테이너 배경 `var(--color-surface)`.
 - Consumes: 기존 `ai-report-page-view.tsx`가 쓰던 import 전부(쿼리 페처, 리졸버, 훅, selection 헬퍼).
 
@@ -175,10 +181,12 @@ git commit -m "refactor(analysis): AiReportBody 공유 본문 추출 + 페이지
 크게보기 모달은 기존 `AnalysisResultModalSurface`(ESC·포커스트랩·스크롤락·오버레이닫기·모바일 풀스크린)를 재사용한다. 라벨만 일반화한다.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-result-modal.tsx`
 - Test: `src/components/analysis/analysis-result-modal.test.ts`(기존)에 추가
 
 **Interfaces:**
+
 - Produces: `AnalysisResultModalSurface({ onClose, children, ariaLabel }: { onClose: () => void; children: ReactNode; ariaLabel?: string })` — `ariaLabel` 기본 `'상권 분석 결과'`. `role="dialog"` `aria-label={ariaLabel}`, 초기 포커스 대상 닫기 버튼 셀렉터를 `[aria-label="${ariaLabel} 닫기"]`로 일반화(기존 결과 모달 라벨 유지 → 무변).
 
 - [ ] **Step 1: 실패 테스트 작성** — `analysis-result-modal.test.ts`에 append(source-contract):
@@ -216,10 +224,12 @@ git commit -m "refactor(analysis): AnalysisResultModalSurface ariaLabel 파라�
 패널 본문을 `AiReportBody variant="compact"`로 교체하고, 헤더 "크게보기" 버튼으로 `variant="full"` 본문을 모달에 띄운다.
 
 **Files:**
+
 - Modify: `src/components/analysis/ai-report/ai-report-panel.tsx`
 - Test: `src/components/analysis/ai-report/ai-report-panel.test.ts`(기존)
 
 **Interfaces:**
+
 - Produces: `AiReportPanel({ targetName, selection, onClose, ariaLabel? })` — props 변경: `state`/`onRetry`/`onViewFullAnalysis`/`aiReportHref` 제거(본문이 AI·재시도·결과링크 소유), **`selection: AnalysisSelection` 추가**. 내부 `useState`로 모달 open 상태. 헤더에 "크게보기" 버튼(확대 아이콘, 예 `lucide-react`의 `Maximize2`). 본문 `<AiReportBody selection={selection} variant="compact" />`. 모달 open 시 `<AnalysisResultModalSurface onClose ariaLabel={`${targetName} AI 리포트`}><AiReportBody selection variant="full" /></AnalysisResultModalSurface>`.
 - Consumes: `AiReportBody`(Task 2), `AnalysisResultModalSurface`(Task 3), `AnalysisSelection`.
 
@@ -233,7 +243,7 @@ it('패널은 크게보기 버튼과 AiReportBody(compact) + 모달을 렌더한
   )
   expect(src).toContain('크게보기')
   expect(src).toContain('AiReportBody')
-  expect(src).toContain("variant=\"compact\"")
+  expect(src).toContain('variant="compact"')
   expect(src).toContain('AnalysisResultModalSurface')
   expect(src).not.toContain('createAiReportHref') // CTA 대체됨
 })
@@ -261,11 +271,13 @@ git commit -m "feat(analysis): 사이드바 패널 인라인 리포트(compact) 
 패널 prop 변경에 맞춰 상위 배선을 갱신하고 전체를 green으로 만든다.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-page.tsx`
 - Modify: `src/components/analysis/analysis-page.test.ts`(있으면; 기존 `createAiReportHref` assert 조정)
 - Modify: `docs/features/_index.md`
 
 **Interfaces:**
+
 - Consumes: `AiReportPanel`(Task 4 새 props). analysis-page는 이미 `selection`을 가짐.
 
 - [ ] **Step 1: 실패 테스트 작성** — `analysis-page.test.ts`(source-contract) 갱신: 패널에 `selection` 전달 확인, 구 `aiReportHref` 제거 확인:
@@ -306,6 +318,7 @@ git commit -m "feat(analysis): 사이드바 패널 배선(selection) + 인덱스
 ## Self-Review (작성자 체크)
 
 **1. 스펙 커버리지 (D9 → Task)**
+
 - D9-3 공유 본문 `AiReportBody` → Task 2. D9-4 variant → Task 1(+2). D9-5 패널 크게보기 대체·compact 본문·selection → Task 4/5. D9-6 모달 재사용 → Task 3/4. D9-7 비로그인 통일(본문이 처리)·흰 배경 → Task 2(+본문). D9-8 반응형/캐시 dedupe → Task 1/2 설계. D9-9 테스트 → 각 Task. D9-10/11 재사용·결정 → 전반 반영.
 
 **2. 플레이스홀더 스캔** — 각 Task 실제 코드/테스트 포함. UI styled 세부는 "기존 톤/토큰 준수"로 위임(렌더 테스트 불가 환경). TODO 없음.
@@ -313,6 +326,7 @@ git commit -m "feat(analysis): 사이드바 패널 배선(selection) + 인덱스
 **3. 타입 일관성** — `variant?: 'full' | 'compact'`가 ReportMetricCards/ReportChartSection/AiReportBody에서 동일 유니온. `AiReportPanel`이 `selection: AnalysisSelection` + `ariaLabel?` 사용, `AnalysisResultModalSurface`가 `ariaLabel?: string` 제공 — 일치. 패널에서 제거한 `state`/`onRetry`/`aiReportHref`를 analysis-page(Task 5)에서 동일하게 제거해 정합.
 
 ## 실행 격리 / 참고
+
 - 브랜치 `feature/fe/ai-report-page`(PR #110 연장), base `develop`.
 - 부분 검증 `pnpm exec vitest run <경로>`, 최종 `pnpm qa:verify` + 전체 vitest.
 - 회귀 핵심: 전용 페이지(`/analysis/report`)가 리팩터 후에도 동일 렌더(Task 2), 결과 모달(`AnalysisResultModal`)이 `ariaLabel` 기본값으로 무변(Task 3).

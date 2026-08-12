@@ -14,10 +14,8 @@ import AnalysisSelectionPanel, {
 import AiReportCard from '@/components/analysis/ai-report/ai-report-card'
 import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'
 import AiReportPanel from '@/components/analysis/ai-report/ai-report-panel'
-import { useAiReport } from '@/hooks/use-ai-report'
 import {
   buildAiLevelKey,
-  isAiReportActive,
   resolveAiReportLevel,
   resolveAiReportTargetCode,
   resolveAiReportVisibility,
@@ -39,11 +37,9 @@ import { isApiSuccess } from '@/lib/api/response'
 import {
   ANALYSIS_PERIOD_CODE,
   ANALYSIS_STEPS,
-  createAiReportHref,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
   getActiveAnalysisStep,
-  isCompleteAnalysisSelection,
   parseAnalysisSelection,
   selectAdministrationWithParent,
   selectAnalysisValue,
@@ -269,13 +265,11 @@ export default function AnalysisPage() {
 
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
-  const aiEnabled = hasHydrated && isLoggedIn
 
   const aiLevel = resolveAiReportLevel(selection)
   const aiCode = aiLevel ? resolveAiReportTargetCode(selection, aiLevel) : null
   const aiLevelKey = buildAiLevelKey(aiLevel, aiCode, selection.serviceCode)
 
-  const [aiActiveKey, setAiActiveKey] = useState<string | null>(null)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [prevAiLevelKey, setPrevAiLevelKey] = useState(aiLevelKey)
 
@@ -284,23 +278,13 @@ export default function AnalysisPage() {
   // setState의 cascading render를 피한다.
   if (prevAiLevelKey !== aiLevelKey) {
     setPrevAiLevelKey(aiLevelKey)
-    setAiActiveKey(null)
     setAiPanelOpen(false)
   }
 
-  const aiActive = isAiReportActive(aiLevelKey, aiActiveKey)
-  const { state: aiState, retry: aiRetry } = useAiReport({
-    level: aiLevel,
-    code: aiCode,
-    serviceCode: selection.serviceCode,
-    active: aiActive && aiPanelOpen,
-    enabled: aiEnabled,
-  })
-
   // 로그인 사용자만 카드를 클릭해 패널을 연다. 비로그인은 잠금 카드가 CTA를
-  // 직접 노출하므로 이 핸들러가 호출될 일이 없다.
+  // 직접 노출하므로 이 핸들러가 호출될 일이 없다. AI 상태·재시도·결과 링크는
+  // 이제 AiReportBody가 selection으로 직접 소유한다.
   const handleAiCardOpen = () => {
-    setAiActiveKey(aiLevelKey)
     setAiPanelOpen(true)
   }
 
@@ -310,10 +294,6 @@ export default function AnalysisPage() {
     const currentHref = search ? `${pathname}?${search}` : pathname
     return `/login?redirect=${encodeURIComponent(currentHref)}`
   })()
-
-  // 상권 레벨일 때만 전용 AI 리포트 페이지로 진입하는 CTA를 패널에 내려준다.
-  const aiReportHref =
-    aiLevel === 'commercial' ? createAiReportHref(selection) : undefined
 
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
@@ -498,10 +478,6 @@ export default function AnalysisPage() {
   const aiTargetName =
     (aiLevel ? selectedNames[aiLevel] : undefined) ?? aiCode ?? ''
 
-  const openFullAnalysis = isCompleteAnalysisSelection(selection)
-    ? () => router.push(createAnalysisResultHref(selection, 'summary'))
-    : undefined
-
   // 로그인 사용자는 카드→패널 흐름을, 비로그인은 잠금 카드(CTA)를 노출한다.
   const {
     showCard: showAiCard,
@@ -601,11 +577,8 @@ export default function AnalysisPage() {
     ) : showAiPanel ? (
       <AiReportPanel
         targetName={aiTargetName}
-        state={aiState}
+        selection={selection}
         onClose={() => setAiPanelOpen(false)}
-        onRetry={aiRetry}
-        onViewFullAnalysis={openFullAnalysis}
-        aiReportHref={aiReportHref}
       />
     ) : null
 
@@ -656,11 +629,8 @@ export default function AnalysisPage() {
         showAiPanel ? (
           <AiReportPanel
             targetName={aiTargetName}
-            state={aiState}
+            selection={selection}
             onClose={() => setAiPanelOpen(false)}
-            onRetry={aiRetry}
-            onViewFullAnalysis={openFullAnalysis}
-            aiReportHref={aiReportHref}
           />
         ) : null
       }
