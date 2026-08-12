@@ -703,7 +703,7 @@ export default function RecommendMap({
           onSelect: code => callbacksRef.current.onDistrictSelect(code),
           onHoverChange: setHoveredAreaCode,
           tokens: areaPolygonTokens,
-        }),
+        }).cleanup,
       )
     }
 
@@ -723,7 +723,7 @@ export default function RecommendMap({
           onSelect: code => callbacksRef.current.onAdministrationSelect(code),
           onHoverChange: setHoveredAreaCode,
           tokens: areaPolygonTokens,
-        }),
+        }).cleanup,
       )
     }
 
@@ -743,7 +743,7 @@ export default function RecommendMap({
           onSelect: code => callbacksRef.current.onCommercialSelect(code),
           onHoverChange: setHoveredAreaCode,
           tokens: areaPolygonTokens,
-        }),
+        }).cleanup,
       )
     }
 

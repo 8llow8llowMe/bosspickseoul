@@ -44,7 +44,6 @@ describe('AnalysisMap', () => {
       activeStep: 'district' as const,
       areas,
       selectedCode: '11680',
-      previewedCode: null,
     }
 
     expect(createAnalysisMapLayerKey(input)).toBe(

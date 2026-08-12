@@ -21,7 +21,13 @@ declare global {
 
   type KakaoMapPolygon = {
     setMap(map: KakaoMapInstance | null): void
-    setOptions(options: { strokeColor?: string; strokeWeight?: number }): void
+    setOptions(options: {
+      strokeColor?: string
+      strokeWeight?: number
+      strokeOpacity?: number
+      fillColor?: string
+      fillOpacity?: number
+    }): void
     setZIndex(zIndex: number): void
   }
 
