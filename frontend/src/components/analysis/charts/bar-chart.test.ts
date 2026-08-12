@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -38,5 +41,14 @@ describe('BarChart', () => {
       }),
     )
     expect(markup).toContain('데이터 없음')
+  })
+
+  it('BarChart는 optional height prop을 노출한다', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('./bar-chart.tsx', import.meta.url)),
+      'utf8',
+    )
+    expect(src).toContain('height?: number')
+    expect(src).toContain('height = 240')
   })
 })

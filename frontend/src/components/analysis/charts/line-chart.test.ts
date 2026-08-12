@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -37,5 +40,14 @@ describe('LineChart', () => {
       }),
     )
     expect(markup).toContain('상승')
+  })
+
+  it('LineChart는 optional height prop을 노출한다', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('./line-chart.tsx', import.meta.url)),
+      'utf8',
+    )
+    expect(src).toContain('height?: number')
+    expect(src).toContain('height = 240')
   })
 })

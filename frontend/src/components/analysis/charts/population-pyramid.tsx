@@ -48,6 +48,8 @@ const Legend = styled.ul`
 export type PopulationPyramidProps = {
   rows: PyramidRow[]
   unit?: string
+  /** Chart plot height in px (default 260). */
+  height?: number
 }
 
 export const toPyramidChartData = (
@@ -70,6 +72,7 @@ export const toPyramidChartData = (
 export default function PopulationPyramid({
   rows,
   unit = '%',
+  height = 260,
 }: PopulationPyramidProps) {
   const data = toPyramidChartData(rows)
   const hasData = rows.some(row => row.male !== null || row.female !== null)
@@ -79,8 +82,8 @@ export default function PopulationPyramid({
     <div role="img" aria-label="연령·성별 인구 피라미드">
       <ResponsiveContainer
         width="100%"
-        height={260}
-        initialDimension={{ width: 300, height: 260 }}
+        height={height}
+        initialDimension={{ width: 300, height }}
       >
         <ReBarChart
           data={data}
