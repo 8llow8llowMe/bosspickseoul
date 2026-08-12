@@ -217,9 +217,70 @@ const CandidateIcon = styled.span`
   }
 `
 
-const LoadingList = styled.div`
+const CandidateGrid = styled.ul`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+`
+
+const ChipButton = styled.button<{ $selected: boolean }>`
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid
+    ${props =>
+      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  color: ${props =>
+    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+  padding: 8px 22px;
+  font-size: 14px;
+  font-weight: ${props => (props.$selected ? 700 : 600)};
+  line-height: 1.3;
+  text-align: center;
+  word-break: keep-all;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primary-600);
+    outline: none;
+  }
+`
+
+const ChipCheck = styled.span`
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-700);
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`
+
+const LoadingList = styled.div<{ $variant: 'grid' | 'list' }>`
   display: grid;
   gap: 8px;
+
+  ${props =>
+    props.$variant === 'grid'
+      ? 'grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));'
+      : ''}
 `
 
 const Footer = styled.footer`
@@ -275,6 +336,10 @@ export default function AnalysisSelectionPanel({
 }: AnalysisSelectionPanelProps) {
   const selectedCode = selectionCodeByStep(selection, activeStep)
   const isComplete = isCompleteAnalysisSelection(selection)
+  // 자치구·행정동은 짧은 이름 + 설명 없음 → compact 칩 격자.
+  // 상권·업종은 분류/업종 설명이 있어 가독성 위해 행 리스트 유지.
+  const isChipStep =
+    activeStep === 'district' || activeStep === 'administration'
 
   return (
     <Root aria-label="상권 분석 조건 선택">
@@ -315,9 +380,13 @@ export default function AnalysisSelectionPanel({
         </BodyTitle>
 
         {status === 'loading' ? (
-          <LoadingList role="status" aria-label="선택 항목 불러오는 중">
-            {Array.from({ length: 5 }, (_, index) => (
-              <Skeleton key={index} $height="52px" />
+          <LoadingList
+            role="status"
+            aria-label="선택 항목 불러오는 중"
+            $variant={isChipStep ? 'grid' : 'list'}
+          >
+            {Array.from({ length: isChipStep ? 9 : 5 }, (_, index) => (
+              <Skeleton key={index} $height={isChipStep ? '44px' : '52px'} />
             ))}
           </LoadingList>
         ) : null}
@@ -346,7 +415,37 @@ export default function AnalysisSelectionPanel({
           />
         ) : null}
 
-        {status === 'ready' ? (
+        {status === 'ready' && isChipStep ? (
+          <CandidateGrid>
+            {items.map(item => {
+              const selected = item.code === selectedCode
+              return (
+                <li key={item.code}>
+                  <ChipButton
+                    type="button"
+                    $selected={selected}
+                    aria-selected={selected}
+                    title={item.name}
+                    onClick={() => onSelect(item.code)}
+                    onFocus={() => onPreviewChange(item.code)}
+                    onBlur={() => onPreviewChange(null)}
+                    onPointerEnter={() => onPreviewChange(item.code)}
+                    onPointerLeave={() => onPreviewChange(null)}
+                  >
+                    {item.name}
+                    {selected ? (
+                      <ChipCheck aria-hidden>
+                        <Check />
+                      </ChipCheck>
+                    ) : null}
+                  </ChipButton>
+                </li>
+              )
+            })}
+          </CandidateGrid>
+        ) : null}
+
+        {status === 'ready' && !isChipStep ? (
           <CandidateList>
             {items.map(item => {
               const selected = item.code === selectedCode
