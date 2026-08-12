@@ -18,6 +18,7 @@ import AnalysisSelectionPanel, {
   ANALYSIS_STEP_LABELS,
   type AnalysisCandidate,
 } from '@/components/analysis/analysis-selection-panel'
+import AiReportBody from '@/components/analysis/ai-report-body'
 import AiReportCard from '@/components/analysis/ai-report/ai-report-card'
 import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'
 import AiReportPanel from '@/components/analysis/ai-report/ai-report-panel'
@@ -109,7 +110,7 @@ const Layout = styled.div`
   display: grid;
   grid-template-columns: 380px minmax(0, 1fr);
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: block;
   }
 `
@@ -125,7 +126,7 @@ const DesktopPanel = styled.div`
     height: 100%;
   }
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: none;
   }
 `
@@ -136,7 +137,7 @@ const MapArea = styled.div`
   min-height: 0;
   overflow: hidden;
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     width: 100%;
     height: 100%;
   }
@@ -145,7 +146,7 @@ const MapArea = styled.div`
 const MobilePanel = styled.div`
   display: none;
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: contents;
   }
 `
@@ -157,7 +158,7 @@ const AiReportCardSlot = styled.div`
   left: 16px;
   max-width: min(320px, calc(100% - 32px));
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: none;
   }
 `
@@ -172,7 +173,7 @@ const AiReportPanelSlot = styled.div`
   border-right: 1px solid var(--color-border-200);
   box-shadow: var(--shadow-level-3);
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: none;
   }
 `
@@ -645,18 +646,15 @@ export default function AnalysisPage() {
     [router, selection],
   )
 
-  const mobileAiReportNode =
-    showAiCard && aiLevelKey ? (
-      <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
-    ) : showAiLockCard && aiLevel ? (
-      <AiReportLockCard level={aiLevel} loginHref={aiLoginHref} />
-    ) : showAiPanel ? (
-      <AiReportPanel
-        targetName={aiTargetName}
-        selection={selection}
-        onClose={() => setAiPanelOpen(false)}
-      />
-    ) : null
+  // 모바일 시트: 데스크탑의 카드→패널 게이팅과 달리, 리포트가 가용한 레벨(aiLevelKey)
+  // 이면 진입 칩을 노출하고 리포트 뷰에서 AiReportBody를 직접 렌더한다(미인증 잠금은
+  // AiReportBody 내부 인사이트 섹션의 로그인 CTA가 담당).
+  const mobileAiReport = aiLevelKey
+    ? {
+        title: `${aiTargetName} AI 리포트`,
+        content: <AiReportBody selection={selection} variant="compact" />,
+      }
+    : null
 
   const panel = (
     <AnalysisSelectionPanel
@@ -712,7 +710,7 @@ export default function AnalysisPage() {
         <AnalysisMobileSheet
           stepLabel={`${ANALYSIS_STEP_LABELS[activeStep]} 선택`}
           summary={selectionSummary}
-          aiReportSlot={mobileAiReportNode}
+          aiReport={mobileAiReport}
         >
           {panel}
         </AnalysisMobileSheet>
