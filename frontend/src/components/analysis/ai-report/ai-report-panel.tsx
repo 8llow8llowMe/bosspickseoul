@@ -68,9 +68,17 @@ const ModalHeader = styled.div`
   background: var(--color-surface);
 `
 
-/** 전용 페이지의 Content 래퍼(width:min(1080px))와 같은 여백/최대폭을 맞춰
- * 모달 안에서도 카드·차트가 엣지-투-엣지로 늘어지지 않게 한다. */
+/** AnalysisResultModalSurface의 Surface는 공용 회색 배경(--color-surface-muted)을
+ * 유지해야 하는(라우트 결과 모달과 공유) 컴포넌트라 여기서 바꾸지 않는다. 대신
+ * 이 래퍼가 모달 내부 전체를 흰 배경으로 엣지-투-엣지 채우고, 그 안에서 콘텐츠만
+ * 전용 페이지의 Content 래퍼(width:min(1080px))와 같은 폭으로 중앙 정렬한다. */
 const ModalBody = styled.div`
+  width: 100%;
+  min-height: 100%;
+  background: var(--color-surface);
+`
+
+const ModalContent = styled.div`
   width: min(1080px, 100%);
   margin: 0 auto;
   padding: clamp(16px, 3vw, 28px);
@@ -124,11 +132,13 @@ export default function AiReportPanel({
             </IconButton>
           </ModalHeader>
           <ModalBody>
-            <AiReportBody
-              selection={selection}
-              variant="full"
-              title={targetName}
-            />
+            <ModalContent>
+              <AiReportBody
+                selection={selection}
+                variant="full"
+                title={targetName}
+              />
+            </ModalContent>
           </ModalBody>
         </AnalysisResultModalSurface>
       ) : null}

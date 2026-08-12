@@ -30,16 +30,19 @@ const shimmer = keyframes`
   }
 `
 
-const Grid = styled.div`
+const Grid = styled.div<{ $variant: 'full' | 'compact' }>`
   display: grid;
   gap: 12px;
+  grid-template-columns: 1fr;
 
   @media (min-width: 768px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: ${props =>
+      props.$variant === 'compact' ? '1fr' : 'repeat(2, minmax(0, 1fr))'};
   }
 
   @media (min-width: 1080px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: ${props =>
+      props.$variant === 'compact' ? '1fr' : 'repeat(3, minmax(0, 1fr))'};
   }
 `
 
@@ -109,7 +112,7 @@ export default function ReportChartSection({
   )
 
   return (
-    <Grid>
+    <Grid $variant={variant}>
       <Card aria-busy={salesTimeSlot === 'loading'}>
         <CardTitle>언제 파나 · 시간대별 매출</CardTitle>
         {salesTimeSlot === 'loading' ? (

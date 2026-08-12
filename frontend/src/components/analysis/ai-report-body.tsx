@@ -25,6 +25,7 @@ import {
 import {
   fetchCommercialFootTraffic,
   fetchCommercialSales,
+  fetchCommercialServiceCategories,
   fetchCommercialTrend,
 } from '@/lib/api/commercial-analysis'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
@@ -33,6 +34,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import type {
   CommercialFootTraffic,
   CommercialSales,
+  CommercialServiceCategory,
 } from '@/types/commercial-analysis'
 import type { CommercialProfile } from '@/types/recommend'
 
@@ -138,6 +140,13 @@ export default function AiReportBody({
     enabled: Boolean(commercialCode),
     retry: 1,
   })
+  // 쿼리 키를 결과 페이지(analysis-result-view)와 동일하게 맞춰 캐시를 공유한다.
+  const servicesQuery = useQuery({
+    queryKey: ['analysis', 'services', commercialCode],
+    queryFn: () => fetchCommercialServiceCategories(commercialCode!),
+    enabled: Boolean(commercialCode),
+    retry: 1,
+  })
   const salesTrendQuery = useQuery({
     queryKey: [
       'analysis',
@@ -162,6 +171,12 @@ export default function AiReportBody({
   const sales = getResponseBody(salesQuery.data) as CommercialSales | null
   const foot = getResponseBody(footQuery.data) as CommercialFootTraffic | null
   const growth = selectSalesGrowth(getResponseBody(salesTrendQuery.data))
+  const services = getResponseBody(servicesQuery.data) as
+    | CommercialServiceCategory[]
+    | null
+  const serviceName = services?.find(
+    item => item.serviceCode === serviceCode,
+  )?.serviceName
 
   const cards = resolveMetricCards({
     profile,
@@ -205,7 +220,9 @@ export default function AiReportBody({
       {variant !== 'compact' ? (
         <Header>
           <Title>{title ?? profile?.commercialName ?? '상권 리포트'}</Title>
-          {serviceCode ? <SubLabel>업종 코드 {serviceCode}</SubLabel> : null}
+          {serviceCode ? (
+            <SubLabel>업종 · {serviceName ?? serviceCode}</SubLabel>
+          ) : null}
         </Header>
       ) : null}
       {isCommercial ? (
