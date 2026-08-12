@@ -14,6 +14,8 @@ export const ANALYSIS_SHEET_EXPANDED_RATIO = 0.72
 export const ANALYSIS_SHEET_MINIMUM_MAP_HEIGHT = 180
 /** 탭과 드래그를 가르는 이동 임계값(px). */
 export const ANALYSIS_SHEET_DRAG_TOLERANCE = 4
+/** 드래그로 스냅을 전환하는 최소 이동 비율(전체 여정 대비). */
+export const ANALYSIS_SHEET_SNAP_RATIO = 0.3
 
 export const getAnalysisSheetHeightBounds = (
   viewportHeight: number,
@@ -53,15 +55,13 @@ export const resolveAnalysisSheetSnapFromDrag = (
     return startSnap
   }
 
-  const startHeight =
-    startSnap === 'expanded' ? expandedHeight : collapsedHeight
-  const draggedHeight = Math.min(
-    expandedHeight,
-    Math.max(collapsedHeight, startHeight - deltaY),
-  )
-  const midpoint = (collapsedHeight + expandedHeight) / 2
-
-  return draggedHeight >= midpoint ? 'expanded' : 'collapsed'
+  const travel = expandedHeight - collapsedHeight
+  const threshold = travel * ANALYSIS_SHEET_SNAP_RATIO
+  // deltaY<0 = 위로(펼치는 방향), deltaY>0 = 아래로(접는 방향)
+  if (startSnap === 'collapsed') {
+    return -deltaY >= threshold ? 'expanded' : 'collapsed'
+  }
+  return deltaY >= threshold ? 'collapsed' : 'expanded'
 }
 
 export const didAnalysisSheetDrag = (deltaY: number): boolean =>
