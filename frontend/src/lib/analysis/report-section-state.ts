@@ -1,5 +1,6 @@
 import { formatAnalysisValue } from '@/lib/analysis/presentation'
 import type { SalesGrowth } from '@/lib/analysis/commercial-chart-selectors'
+import type { AiReportState } from '@/hooks/use-ai-report'
 import type { CommercialProfile } from '@/types/recommend'
 
 export type MetricTone = 'positive' | 'negative' | 'neutral'
@@ -76,3 +77,27 @@ export const resolveChartSlot = (
   loading: boolean,
   isEmpty: boolean,
 ): ChartSlotState => (loading ? 'loading' : isEmpty ? 'empty' : 'ready')
+
+export type InsightMode = 'locked' | 'loading' | 'ready' | 'empty' | 'error'
+
+export const resolveInsightMode = ({
+  hydrated,
+  isLoggedIn,
+  state,
+}: {
+  hydrated: boolean
+  isLoggedIn: boolean
+  state: AiReportState
+}): InsightMode => {
+  if (hydrated && !isLoggedIn) return 'locked'
+  switch (state.status) {
+    case 'ready-commercial':
+      return 'ready'
+    case 'empty':
+      return 'empty'
+    case 'error':
+      return 'error'
+    default:
+      return 'loading'
+  }
+}

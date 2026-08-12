@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   resolveChartSlot,
+  resolveInsightMode,
   resolveMetricCards,
 } from '@/lib/analysis/report-section-state'
+import type { AiReportState } from '@/hooks/use-ai-report'
 import type { CommercialProfile } from '@/types/recommend'
 
 const profile = {
@@ -63,5 +65,41 @@ describe('resolveChartSlot', () => {
   })
   it('데이터 있으면 ready', () => {
     expect(resolveChartSlot(false, false)).toBe('ready')
+  })
+})
+
+const loading: AiReportState = {
+  status: 'loading',
+  stage: null,
+  progressMessages: [],
+}
+
+describe('resolveInsightMode', () => {
+  it('비로그인(hydrated)이면 locked', () => {
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: false, state: loading }),
+    ).toBe('locked')
+  })
+  it('로그인 + loading이면 loading', () => {
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state: loading }),
+    ).toBe('loading')
+  })
+  it('ready-commercial이면 ready', () => {
+    const state = { status: 'ready-commercial', view: {} } as AiReportState
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
+    ).toBe('ready')
+  })
+  it('error이면 error', () => {
+    const state = {
+      status: 'error',
+      message: 'x',
+      errorKind: 'generic',
+      canRetry: true,
+    } as AiReportState
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
+    ).toBe('error')
   })
 })
