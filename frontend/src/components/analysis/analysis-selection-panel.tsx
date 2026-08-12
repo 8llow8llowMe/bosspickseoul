@@ -76,7 +76,9 @@ const Description = styled.p`
 
 const StepList = styled.ol`
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* minmax(0, 1fr)로 트랙을 고정한다. 기본 1fr(=minmax(auto,1fr))은 긴 선택명이
+     트랙을 밀어 폭이 들쭉날쭉해지므로, 내용과 무관하게 항상 4등분되게 한다. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border-200);
@@ -87,6 +89,7 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
   height: 100%;
   min-width: 0;
   min-height: 60px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -127,6 +130,14 @@ const StepNumber = styled.span`
   line-height: 14px;
   font-weight: 600;
   opacity: 0.8;
+`
+
+// 선택명이 길어도 트랙을 넘치지 않도록 한 줄 말줄임. 전체 이름은 버튼 title로 노출.
+const StepName = styled.span`
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `
 
 const Body = styled.div`
@@ -357,6 +368,7 @@ function AnalysisSelectionPanel({
       <StepList aria-label="분석 조건 단계">
         {ANALYSIS_STEPS.map((step, index) => {
           const name = selectedNames[step]
+          const label = name ?? ANALYSIS_STEP_LABELS[step]
           const completed = Boolean(selectionCodeByStep(selection, step))
           return (
             <li key={step}>
@@ -366,10 +378,11 @@ function AnalysisSelectionPanel({
                 $completed={completed}
                 aria-current={activeStep === step ? 'step' : undefined}
                 disabled={!canOpenStep(selection, step)}
+                title={label}
                 onClick={() => onStepChange(step)}
               >
                 <StepNumber>{index + 1}단계</StepNumber>
-                <span>{name ?? ANALYSIS_STEP_LABELS[step]}</span>
+                <StepName>{label}</StepName>
               </StepButton>
             </li>
           )
