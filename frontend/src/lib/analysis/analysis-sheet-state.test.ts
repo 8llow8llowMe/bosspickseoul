@@ -54,6 +54,31 @@ describe('resolveAnalysisSheetSnapFromDrag', () => {
     ).toBe('collapsed')
   })
 
+  it('접힘에서 travel의 30% 이상 위로 끌면 펼침으로 스냅한다', () => {
+    // -150px 위로 = 150 > 134.4 → 펼침 (기존 midpoint(224) 기준이면 접힘으로 오판)
+    expect(
+      resolveAnalysisSheetSnapFromDrag('collapsed', -150, collapsed, expanded),
+    ).toBe('expanded')
+  })
+
+  it('접힘에서 travel의 30% 미만이면 접힘을 유지한다', () => {
+    expect(
+      resolveAnalysisSheetSnapFromDrag('collapsed', -120, collapsed, expanded),
+    ).toBe('collapsed')
+  })
+
+  it('펼침에서 travel의 30% 이상 아래로 끌면 접힘으로 스냅한다', () => {
+    expect(
+      resolveAnalysisSheetSnapFromDrag('expanded', 150, collapsed, expanded),
+    ).toBe('collapsed')
+  })
+
+  it('펼침에서 travel의 30% 미만이면 펼침을 유지한다', () => {
+    expect(
+      resolveAnalysisSheetSnapFromDrag('expanded', 120, collapsed, expanded),
+    ).toBe('expanded')
+  })
+
   it('경계값이 비정상이면 시작 스냅을 유지한다', () => {
     expect(resolveAnalysisSheetSnapFromDrag('expanded', 100, 0, expanded)).toBe(
       'expanded',
