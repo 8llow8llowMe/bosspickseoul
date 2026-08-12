@@ -102,4 +102,10 @@ describe('resolveInsightMode', () => {
       resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
     ).toBe('error')
   })
+  it('idle(선택 불완전 등으로 조회 자체를 안 함)이면 무한 로딩 대신 empty', () => {
+    const state: AiReportState = { status: 'idle' }
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
+    ).toBe('empty')
+  })
 })

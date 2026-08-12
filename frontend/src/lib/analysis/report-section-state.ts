@@ -97,6 +97,11 @@ export const resolveInsightMode = ({
       return 'empty'
     case 'error':
       return 'error'
+    // idle: 선택이 불완전/부적격이라 useAiReport가 조회를 시작하지 않은 상태.
+    // "로딩 중"이 아니라 "조회 대상 없음"이므로 안내(empty) 뷰가 맞다 —
+    // 그렇지 않으면 카드/차트는 비어 있는데 인사이트만 무한 로딩 스피너로 남는다.
+    case 'idle':
+      return 'empty'
     default:
       return 'loading'
   }
