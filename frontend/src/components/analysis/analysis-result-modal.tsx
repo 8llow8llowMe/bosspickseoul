@@ -15,6 +15,7 @@ import AnalysisResultView from '@/components/analysis/analysis-result-view'
 
 export type AnalysisResultModalSurfaceProps = PropsWithChildren<{
   onClose: () => void
+  ariaLabel?: string
 }>
 
 const Overlay = styled.div`
@@ -78,6 +79,7 @@ const getFocusableElements = (root: HTMLElement) =>
 export function AnalysisResultModalSurface({
   onClose,
   children,
+  ariaLabel = '상권 분석 결과',
 }: AnalysisResultModalSurfaceProps) {
   const surfaceRef = useRef<HTMLElement>(null)
 
@@ -92,7 +94,7 @@ export function AnalysisResultModalSurface({
     const frame = requestAnimationFrame(() => {
       const surface = surfaceRef.current
       const closeButton = surface?.querySelector<HTMLElement>(
-        '[aria-label="상권 분석 결과 닫기"]',
+        `[aria-label="${ariaLabel} 닫기"]`,
       )
       ;(closeButton ?? surface)?.focus()
     })
@@ -102,7 +104,7 @@ export function AnalysisResultModalSurface({
       document.body.style.overflow = previousOverflow
       previousActiveElement?.focus()
     }
-  }, [])
+  }, [ariaLabel])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
@@ -142,7 +144,7 @@ export function AnalysisResultModalSurface({
         ref={surfaceRef}
         role="dialog"
         aria-modal="true"
-        aria-label="상권 분석 결과"
+        aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
