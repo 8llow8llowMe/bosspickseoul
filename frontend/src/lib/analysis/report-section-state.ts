@@ -1,0 +1,71 @@
+import { formatAnalysisValue } from '@/lib/analysis/presentation'
+import type { SalesGrowth } from '@/lib/analysis/commercial-chart-selectors'
+import type { CommercialProfile } from '@/types/recommend'
+
+export type MetricTone = 'positive' | 'negative' | 'neutral'
+export type MetricCardModel = {
+  label: string
+  display: string
+  loading: boolean
+  tone?: MetricTone
+}
+
+const formatGrowth = (
+  growth: SalesGrowth,
+): { display: string; tone: MetricTone } => {
+  if (growth.changeRate === null)
+    return { display: '데이터 없음', tone: 'neutral' }
+  const pct = growth.changeRate * 100
+  const sign = pct > 0 ? '+' : ''
+  const tone: MetricTone =
+    growth.direction === 'INCREASE'
+      ? 'positive'
+      : growth.direction === 'DECREASE'
+        ? 'negative'
+        : 'neutral'
+  return { display: `${sign}${pct.toFixed(1)}%`, tone }
+}
+
+export const resolveMetricCards = ({
+  profile,
+  profileLoading,
+  growth,
+  growthLoading,
+}: {
+  profile: CommercialProfile | null
+  profileLoading: boolean
+  growth: SalesGrowth
+  growthLoading: boolean
+}): MetricCardModel[] => {
+  const km = profile?.keyMetrics ?? null
+  const g = formatGrowth(growth)
+  return [
+    {
+      label: '월 매출',
+      loading: profileLoading,
+      display: profileLoading
+        ? ''
+        : formatAnalysisValue(km?.totalSalesAmount, '원'),
+    },
+    {
+      label: '유동인구',
+      loading: profileLoading,
+      display: profileLoading
+        ? ''
+        : formatAnalysisValue(km?.totalFootTraffic, '명'),
+    },
+    {
+      label: '점포 수',
+      loading: profileLoading,
+      display: profileLoading
+        ? ''
+        : formatAnalysisValue(km?.totalStoreCount, '개'),
+    },
+    {
+      label: '성장률',
+      loading: growthLoading,
+      display: growthLoading ? '' : g.display,
+      tone: growthLoading ? undefined : g.tone,
+    },
+  ]
+}
