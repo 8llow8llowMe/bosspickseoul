@@ -77,19 +77,20 @@ const Skeleton = styled.div`
   }
 `
 
-const CHART_HEIGHT = 200
-
 export default function ReportChartSection({
   sales,
   foot,
   salesLoading,
   footLoading,
+  variant = 'full',
 }: {
   sales: CommercialSales | null
   foot: CommercialFootTraffic | null
   salesLoading: boolean
   footLoading: boolean
+  variant?: 'full' | 'compact'
 }) {
+  const CHART_HEIGHT = variant === 'compact' ? 160 : 200
   const salesTimePoints = buildSalesTimeLine(sales)
   const footDayBars = buildFootDayBars(foot)
   const footPyramidRows = buildFootAgeGenderPyramid(foot)

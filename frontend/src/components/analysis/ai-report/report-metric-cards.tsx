@@ -20,13 +20,15 @@ const shimmer = keyframes`
   }
 `
 
-const Grid = styled.div`
+const Grid = styled.div<{ $variant: 'full' | 'compact' }>`
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: ${props =>
+    props.$variant === 'compact' ? '1fr' : 'repeat(4, minmax(0, 1fr))'};
   gap: 10px;
 
   @media (max-width: 680px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: ${props =>
+      props.$variant === 'compact' ? '1fr' : 'repeat(2, minmax(0, 1fr))'};
   }
 `
 
@@ -71,11 +73,13 @@ const Skeleton = styled.div`
 
 export default function ReportMetricCards({
   cards,
+  variant = 'full',
 }: {
   cards: MetricCardModel[]
+  variant?: 'full' | 'compact'
 }) {
   return (
-    <Grid>
+    <Grid $variant={variant}>
       {cards.map(card => (
         <Card key={card.label} aria-busy={card.loading}>
           <span>{card.label}</span>
