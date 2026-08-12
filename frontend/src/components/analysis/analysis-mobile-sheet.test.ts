@@ -22,7 +22,7 @@ describe('AnalysisMobileSheet', () => {
     expect(markup).toContain('자치구 선택')
   })
 
-  it('aiReport가 있으면 진입 칩과 리포트 헤더 제목을 렌더한다', () => {
+  it('aiReport가 있으면 선택 뷰에서 진입 칩을 렌더한다', () => {
     const markup = renderToStaticMarkup(
       createElement(
         AnalysisMobileSheet,
@@ -37,9 +37,9 @@ describe('AnalysisMobileSheet', () => {
         createElement('div', null, '선택 본문'),
       ),
     )
-
     expect(markup).toContain('AI 리포트')
-    expect(markup).toContain('강남구 AI 리포트')
+    // 리포트 제목은 리포트 뷰 진입 시에만 핸들행에 노출된다(기본 접힘/선택 뷰엔 없음)
+    expect(markup).not.toContain('강남구 AI 리포트')
   })
 
   it('aiReport가 없으면 진입 칩을 렌더하지 않는다', () => {

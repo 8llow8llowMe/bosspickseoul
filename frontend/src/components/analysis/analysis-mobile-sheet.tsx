@@ -10,7 +10,7 @@ import {
   type PropsWithChildren,
   type ReactNode,
 } from 'react'
-import { ChevronLeft, ChevronUp, Sparkles } from 'lucide-react'
+import { ChevronLeft, Sparkles } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
@@ -143,27 +143,6 @@ const HandleCopy = styled.span`
   }
 `
 
-const Icon = styled.span<{ $expanded: boolean }>`
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-600);
-  transition: transform var(--motion-standard) var(--ease-standard);
-  transform: ${props => (props.$expanded ? 'rotate(180deg)' : 'none')};
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
-
-  svg {
-    width: 20px;
-    height: 20px;
-  }
-`
-
 const AiChip = styled.button`
   display: inline-flex;
   align-items: center;
@@ -228,40 +207,33 @@ const Layer = styled.div<{ $active: boolean }>`
   }
 `
 
-const ReportHeader = styled.div`
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border-200);
-  background: var(--color-surface);
-`
-
 const BackButton = styled.button`
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 6px 10px 6px 6px;
-  border-radius: var(--radius-control);
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 700;
   cursor: pointer;
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
   }
 
+  /* 프로그램 포커스 시 UA 기본 아웃라인(검은 테두리)이 뜨지 않게 함 */
+  &:focus {
+    outline: none;
+  }
   &:hover,
   &:focus-visible {
     background: var(--color-surface-muted);
-    outline: none;
+    color: var(--color-text-900);
   }
 `
 
@@ -440,6 +412,16 @@ export default function AnalysisMobileSheet({
       data-sheet-snap={snap}
     >
       <HandleRow>
+        {aiReport && effectiveView === 'report' ? (
+          <BackButton
+            ref={backButtonRef}
+            type="button"
+            aria-label="선택으로 돌아가기"
+            onClick={() => setView('selection')}
+          >
+            <ChevronLeft aria-hidden />
+          </BackButton>
+        ) : null}
         <HandleToggle
           ref={toggleRef}
           type="button"
@@ -453,13 +435,14 @@ export default function AnalysisMobileSheet({
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          <HandleCopy>
-            <strong>{stepLabel}</strong>
-            <small>{summary}</small>
-          </HandleCopy>
-          <Icon $expanded={isExpanded} aria-hidden>
-            <ChevronUp />
-          </Icon>
+          {aiReport && effectiveView === 'report' ? (
+            <ReportTitle>{aiReport.title}</ReportTitle>
+          ) : (
+            <HandleCopy>
+              <strong>{stepLabel}</strong>
+              <small>{summary}</small>
+            </HandleCopy>
+          )}
         </HandleToggle>
         {aiReport && effectiveView === 'selection' ? (
           <AiChip
@@ -486,23 +469,7 @@ export default function AnalysisMobileSheet({
           aria-hidden={effectiveView !== 'report'}
           inert={effectiveView !== 'report' || undefined}
         >
-          {aiReport ? (
-            <>
-              <ReportHeader>
-                <BackButton
-                  ref={backButtonRef}
-                  type="button"
-                  aria-label="선택으로 돌아가기"
-                  onClick={() => setView('selection')}
-                >
-                  <ChevronLeft aria-hidden />
-                  뒤로
-                </BackButton>
-                <ReportTitle>{aiReport.title}</ReportTitle>
-              </ReportHeader>
-              {effectiveView === 'report' ? aiReport.content : null}
-            </>
-          ) : null}
+          {aiReport && effectiveView === 'report' ? aiReport.content : null}
         </Layer>
       </Body>
     </Sheet>
