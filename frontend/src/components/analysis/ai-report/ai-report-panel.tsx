@@ -58,6 +58,16 @@ const Body = styled.div`
   overflow-y: auto;
 `
 
+const ModalHeader = styled.div`
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px 0;
+  background: var(--color-surface);
+`
+
 export default function AiReportPanel({
   targetName,
   selection,
@@ -96,6 +106,15 @@ export default function AiReportPanel({
           onClose={() => setExpanded(false)}
           ariaLabel={`${targetName} AI 리포트`}
         >
+          <ModalHeader>
+            <IconButton
+              type="button"
+              aria-label={`${targetName} AI 리포트 닫기`}
+              onClick={() => setExpanded(false)}
+            >
+              <X size={18} aria-hidden />
+            </IconButton>
+          </ModalHeader>
           <AiReportBody selection={selection} variant="full" />
         </AnalysisResultModalSurface>
       ) : null}

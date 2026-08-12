@@ -194,20 +194,28 @@ export default function AiReportBody({
   )
   const resultHref = createAnalysisResultHref(selection, 'summary')
 
+  // 커머셜(상권) v1 스코프: 지표 카드·차트는 상권 데이터 전용이라 자치구/행정동
+  // 레벨에서는 렌더하지 않는다(비어있는 카드/차트 대신 AI 텍스트 리포트만 노출).
+  const isCommercial = level === 'commercial'
+
   return (
     <Body $variant={variant}>
       <Header>
         <Title>{profile?.commercialName ?? '상권 리포트'}</Title>
         {serviceCode ? <SubLabel>업종 코드 {serviceCode}</SubLabel> : null}
       </Header>
-      <ReportMetricCards cards={cards} variant={variant} />
-      <ReportChartSection
-        sales={sales}
-        foot={foot}
-        salesLoading={salesQuery.isLoading}
-        footLoading={footQuery.isLoading}
-        variant={variant}
-      />
+      {isCommercial ? (
+        <>
+          <ReportMetricCards cards={cards} variant={variant} />
+          <ReportChartSection
+            sales={sales}
+            foot={foot}
+            salesLoading={salesQuery.isLoading}
+            footLoading={footQuery.isLoading}
+            variant={variant}
+          />
+        </>
+      ) : null}
       <InsightSection>
         <SectionTitle>AI 인사이트</SectionTitle>
         <ReportInsightSection

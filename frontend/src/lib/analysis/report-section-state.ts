@@ -92,6 +92,7 @@ export const resolveInsightMode = ({
   if (hydrated && !isLoggedIn) return 'locked'
   switch (state.status) {
     case 'ready-commercial':
+    case 'ready-region':
       return 'ready'
     case 'empty':
       return 'empty'

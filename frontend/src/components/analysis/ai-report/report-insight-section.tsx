@@ -4,6 +4,7 @@ import { AlertTriangle, Check } from 'lucide-react'
 import styled, { keyframes } from 'styled-components'
 
 import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'
+import { RegionReportBlocks } from '@/components/analysis/ai-report/report-blocks'
 import { Button } from '@/components/ui/button'
 import type { AiReportState } from '@/hooks/use-ai-report'
 import { useProgressRotation } from '@/hooks/use-progress-rotation'
@@ -192,6 +193,9 @@ function LoadingStage({ state }: { state: AiReportState }) {
 }
 
 function ReadyView({ state }: { state: AiReportState }) {
+  if (state.status === 'ready-region') {
+    return <RegionReportBlocks view={state.view} />
+  }
   if (state.status !== 'ready-commercial') return null
   const { view } = state
   return (

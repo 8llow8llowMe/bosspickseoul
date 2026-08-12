@@ -91,6 +91,12 @@ describe('resolveInsightMode', () => {
       resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
     ).toBe('ready')
   })
+  it('ready-region이면 ready(자치구/행정동 텍스트 리포트)', () => {
+    const state = { status: 'ready-region', view: {} } as AiReportState
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
+    ).toBe('ready')
+  })
   it('error이면 error', () => {
     const state = {
       status: 'error',
