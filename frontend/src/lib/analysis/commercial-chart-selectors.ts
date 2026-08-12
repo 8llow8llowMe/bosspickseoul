@@ -1,4 +1,7 @@
-import { toMetricRows, type AnalysisMetricRow } from '@/lib/analysis/presentation'
+import {
+  toMetricRows,
+  type AnalysisMetricRow,
+} from '@/lib/analysis/presentation'
 import {
   toPyramidRows,
   type PyramidRow,
@@ -88,14 +91,21 @@ export const createRows = (
 export const toLinePoints = (
   rows: readonly AnalysisMetricRow[],
 ): TrendPoint[] =>
-  rows.map(row => ({ periodLabel: row.label, value: row.value, changeRate: null }))
+  rows.map(row => ({
+    periodLabel: row.label,
+    value: row.value,
+    changeRate: null,
+  }))
 
 export const buildSalesTimeLine = (
   sales: CommercialSales | null,
 ): TrendPoint[] =>
   toLinePoints(
     createRows(
-      sales?.amountByTimeSlotItem as Record<string, number | null> | null | undefined,
+      sales?.amountByTimeSlotItem as
+        | Record<string, number | null>
+        | null
+        | undefined,
       salesTimeDefinitions,
     ),
   )

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { getResponseBody, isApiSuccess, isResponseError, getApiMessage } from './response'
+import {
+  getResponseBody,
+  isApiSuccess,
+  isResponseError,
+  getApiMessage,
+} from './response'
 import type { ApiResponse } from '@/types/api'
 
 const ok: ApiResponse<{ x: number }> = {
@@ -27,7 +32,7 @@ describe('response', () => {
   })
 })
 
-const okResponse = <T,>(body: T): ApiResponse<T> => ({
+const okResponse = <T>(body: T): ApiResponse<T> => ({
   dataHeader: { success: true, resultCode: null, resultMessage: null },
   dataBody: body,
 })

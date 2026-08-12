@@ -37,7 +37,11 @@ import {
   fetchCommercialStores,
   fetchCommercialTrend,
 } from '@/lib/api/commercial-analysis'
-import { getResponseBody, isApiSuccess, isResponseError } from '@/lib/api/response'
+import {
+  getResponseBody,
+  isApiSuccess,
+  isResponseError,
+} from '@/lib/api/response'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
 import {

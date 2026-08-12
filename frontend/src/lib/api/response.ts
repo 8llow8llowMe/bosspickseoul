@@ -24,6 +24,6 @@ export const isResponseError = (
   response: ApiResponse<unknown> | undefined,
 ): boolean => response !== undefined && !isApiSuccess(response)
 
-export const getResponseBody = <T,>(
+export const getResponseBody = <T>(
   response: ApiResponse<T | null> | undefined,
 ): T | null => (isApiSuccess(response) ? (response?.dataBody ?? null) : null)

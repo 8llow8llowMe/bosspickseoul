@@ -4,7 +4,10 @@ import {
   buildSalesTimeLine,
   selectSalesGrowth,
 } from '@/lib/analysis/commercial-chart-selectors'
-import type { CommercialSales, CommercialTrend } from '@/types/commercial-analysis'
+import type {
+  CommercialSales,
+  CommercialTrend,
+} from '@/types/commercial-analysis'
 
 describe('buildSalesTimeLine', () => {
   it('시간대별 매출을 6개 라인 포인트로 변환한다', () => {
@@ -20,7 +23,11 @@ describe('buildSalesTimeLine', () => {
     } as unknown as CommercialSales
     const points = buildSalesTimeLine(sales)
     expect(points).toHaveLength(6)
-    expect(points[0]).toEqual({ periodLabel: '00~06시', value: 10, changeRate: null })
+    expect(points[0]).toEqual({
+      periodLabel: '00~06시',
+      value: 10,
+      changeRate: null,
+    })
     expect(points[2].value).toBeNull()
   })
   it('null 입력은 6개 null 포인트', () => {
@@ -44,11 +51,23 @@ describe('selectSalesGrowth', () => {
         { periodCode: '20233', value: 118, changeRate: 0.18 },
       ],
     } as unknown as CommercialTrend
-    expect(selectSalesGrowth(trend)).toEqual({ direction: 'INCREASE', changeRate: 0.18 })
+    expect(selectSalesGrowth(trend)).toEqual({
+      direction: 'INCREASE',
+      changeRate: 0.18,
+    })
   })
   it('빈/비유한 변화율은 null', () => {
-    expect(selectSalesGrowth(null)).toEqual({ direction: null, changeRate: null })
-    const noRate = { trendDirection: 'STAGNANT', periods: [{ periodCode: '20233', value: 1, changeRate: null }] } as unknown as CommercialTrend
-    expect(selectSalesGrowth(noRate)).toEqual({ direction: 'STAGNANT', changeRate: null })
+    expect(selectSalesGrowth(null)).toEqual({
+      direction: null,
+      changeRate: null,
+    })
+    const noRate = {
+      trendDirection: 'STAGNANT',
+      periods: [{ periodCode: '20233', value: 1, changeRate: null }],
+    } as unknown as CommercialTrend
+    expect(selectSalesGrowth(noRate)).toEqual({
+      direction: 'STAGNANT',
+      changeRate: null,
+    })
   })
 })

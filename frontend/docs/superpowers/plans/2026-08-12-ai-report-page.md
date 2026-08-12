@@ -26,6 +26,7 @@
 ## File Structure
 
 **신규**
+
 - `app/(shell)/analysis/report/page.tsx` — 서버 셸(metadata + Suspense).
 - `src/components/analysis/ai-report-page.tsx` — `'use client'` 서피스(searchParams 파싱 → 뷰).
 - `src/components/analysis/ai-report-page-view.tsx` — 2단 속도 오케스트레이션(쿼리+AI+섹션 조립).
@@ -37,6 +38,7 @@
 - 각 신규 로직 파일의 `*.test.ts`.
 
 **수정**
+
 - `src/lib/api/response.ts` — `getResponseBody`/`isResponseError` 추가(결과 뷰 private → 공유).
 - `src/lib/analysis/selection.ts` — `createAiReportHref` 추가.
 - `src/components/analysis/analysis-result-view.tsx` — 위 두 모듈에서 import(로컬 중복 제거).
@@ -51,11 +53,13 @@
 기존 결과 뷰의 private 헬퍼를 공용 `response.ts`로 올려 리포트 페이지와 공유(중복 방지).
 
 **Files:**
+
 - Modify: `src/lib/api/response.ts` (현재 `isApiSuccess` export)
 - Modify: `src/components/analysis/analysis-result-view.tsx:517-522` (로컬 정의 제거→import)
 - Test: `src/lib/api/response.test.ts` (없으면 생성)
 
 **Interfaces:**
+
 - Produces: `getResponseBody<T>(response: ApiResponse<T | null> | undefined): T | null`, `isResponseError(response: ApiResponse<unknown> | undefined): boolean`
 - Consumes: `isApiSuccess`(동일 파일), `ApiResponse`(`@/types/api`)
 
@@ -66,7 +70,7 @@ import { describe, expect, it } from 'vitest'
 import { getResponseBody, isResponseError } from '@/lib/api/response'
 import type { ApiResponse } from '@/types/api'
 
-const ok = <T,>(body: T): ApiResponse<T> => ({
+const ok = <T>(body: T): ApiResponse<T> => ({
   dataHeader: { success: true, resultCode: null, resultMessage: null },
   dataBody: body,
 })
@@ -84,7 +88,9 @@ describe('getResponseBody', () => {
   })
   it('undefined/실패 응답은 null', () => {
     expect(getResponseBody(undefined)).toBeNull()
-    expect(getResponseBody(fail() as ApiResponse<{ a: number } | null>)).toBeNull()
+    expect(
+      getResponseBody(fail() as ApiResponse<{ a: number } | null>),
+    ).toBeNull()
   })
 })
 
@@ -111,7 +117,7 @@ export const isResponseError = (
   response: ApiResponse<unknown> | undefined,
 ): boolean => response !== undefined && !isApiSuccess(response)
 
-export const getResponseBody = <T,>(
+export const getResponseBody = <T>(
   response: ApiResponse<T | null> | undefined,
 ): T | null => (isApiSuccess(response) ? (response?.dataBody ?? null) : null)
 ```
@@ -119,7 +125,11 @@ export const getResponseBody = <T,>(
 그리고 `analysis-result-view.tsx`의 로컬 `isResponseError`/`getResponseBody`(L517-522) 삭제 후, 기존 import에 추가:
 
 ```ts
-import { getResponseBody, isApiSuccess, isResponseError } from '@/lib/api/response'
+import {
+  getResponseBody,
+  isApiSuccess,
+  isResponseError,
+} from '@/lib/api/response'
 ```
 
 - [ ] **Step 4: 통과 확인** — Run: `pnpm exec vitest run src/lib/api/response.test.ts`. Expected: PASS. 또한 `pnpm exec tsc --noEmit --incremental false`로 결과 뷰 타입 회귀 없음 확인.
@@ -138,10 +148,12 @@ git commit -m "refactor(analysis): getResponseBody/isResponseError를 공용 res
 사이드바 CTA와 깔때기에서 쓸 전용 페이지 URL 빌더. `createAnalysisResultHref` 패턴을 그대로 따른다.
 
 **Files:**
+
 - Modify: `src/lib/analysis/selection.ts:163` 근처(`createAnalysisResultHref` 옆)
 - Test: `src/lib/analysis/selection.test.ts` (기존 URL 테스트에 append)
 
 **Interfaces:**
+
 - Consumes: private `createSelectionSearchParams(selection, includePeriod)`(동일 파일, `includePeriod=true`면 `periodCode=ANALYSIS_PERIOD_CODE`), `AnalysisSelection`
 - Produces: `createAiReportHref(selection: AnalysisSelection): string` → `/analysis/report?districtCode=…&administrationCode=…&commercialCode=…&serviceCode=…&periodCode=20233`
 
@@ -180,11 +192,13 @@ git commit -m "feat(analysis): createAiReportHref 링크 빌더 추가"
 결과 뷰에 module-private로 있는 차트 정의·변환을 공유 모듈로 옮기고(중복 제거), 리포트가 쓸 큐레이션 빌더 3종 + 성장률 셀렉터를 추가한다.
 
 **Files:**
+
 - Create: `src/lib/analysis/commercial-chart-selectors.ts`
 - Create: `src/lib/analysis/commercial-chart-selectors.test.ts`
 - Modify: `src/components/analysis/analysis-result-view.tsx` (L552-632의 `createRows`/`toLinePoints`/`*Definitions` 삭제 → import)
 
 **Interfaces:**
+
 - Consumes: `toMetricRows`/`AnalysisMetricRow`(`@/lib/analysis/presentation`), `toPyramidRows`/`TrendPoint`/`PyramidRow`(`@/lib/analysis/chart-data`), 타입 `CommercialFootTraffic`/`CommercialSales`/`CommercialTrend`(`@/types/commercial-analysis`)
 - Produces:
   - `footTimeDefinitions`, `footDayDefinitions`, `salesTimeDefinitions`, `salesDayDefinitions`, `salesAgeDefinitions`, `populationAgeDefinitions`, `expenseDefinitions` (각 `readonly (readonly [string,string])[]`)
@@ -205,7 +219,10 @@ import {
   buildSalesTimeLine,
   selectSalesGrowth,
 } from '@/lib/analysis/commercial-chart-selectors'
-import type { CommercialSales, CommercialTrend } from '@/types/commercial-analysis'
+import type {
+  CommercialSales,
+  CommercialTrend,
+} from '@/types/commercial-analysis'
 
 describe('buildSalesTimeLine', () => {
   it('시간대별 매출을 6개 라인 포인트로 변환한다', () => {
@@ -221,7 +238,11 @@ describe('buildSalesTimeLine', () => {
     } as unknown as CommercialSales
     const points = buildSalesTimeLine(sales)
     expect(points).toHaveLength(6)
-    expect(points[0]).toEqual({ periodLabel: '00~06시', value: 10, changeRate: null })
+    expect(points[0]).toEqual({
+      periodLabel: '00~06시',
+      value: 10,
+      changeRate: null,
+    })
     expect(points[2].value).toBeNull()
   })
   it('null 입력은 6개 null 포인트', () => {
@@ -245,12 +266,24 @@ describe('selectSalesGrowth', () => {
         { periodCode: '20233', value: 118, changeRate: 0.18 },
       ],
     } as unknown as CommercialTrend
-    expect(selectSalesGrowth(trend)).toEqual({ direction: 'INCREASE', changeRate: 0.18 })
+    expect(selectSalesGrowth(trend)).toEqual({
+      direction: 'INCREASE',
+      changeRate: 0.18,
+    })
   })
   it('빈/비유한 변화율은 null', () => {
-    expect(selectSalesGrowth(null)).toEqual({ direction: null, changeRate: null })
-    const noRate = { trendDirection: 'STAGNANT', periods: [{ periodCode: '20233', value: 1, changeRate: null }] } as unknown as CommercialTrend
-    expect(selectSalesGrowth(noRate)).toEqual({ direction: 'STAGNANT', changeRate: null })
+    expect(selectSalesGrowth(null)).toEqual({
+      direction: null,
+      changeRate: null,
+    })
+    const noRate = {
+      trendDirection: 'STAGNANT',
+      periods: [{ periodCode: '20233', value: 1, changeRate: null }],
+    } as unknown as CommercialTrend
+    expect(selectSalesGrowth(noRate)).toEqual({
+      direction: 'STAGNANT',
+      changeRate: null,
+    })
   })
 })
 ```
@@ -260,7 +293,10 @@ describe('selectSalesGrowth', () => {
 - [ ] **Step 3: 구현** — `commercial-chart-selectors.ts` 작성. `*Definitions`는 `analysis-result-view.tsx:572-632`에서 **그대로** 옮긴다(값 변경 없음):
 
 ```ts
-import { toMetricRows, type AnalysisMetricRow } from '@/lib/analysis/presentation'
+import {
+  toMetricRows,
+  type AnalysisMetricRow,
+} from '@/lib/analysis/presentation'
 import {
   toPyramidRows,
   type PyramidRow,
@@ -350,14 +386,21 @@ export const createRows = (
 export const toLinePoints = (
   rows: readonly AnalysisMetricRow[],
 ): TrendPoint[] =>
-  rows.map(row => ({ periodLabel: row.label, value: row.value, changeRate: null }))
+  rows.map(row => ({
+    periodLabel: row.label,
+    value: row.value,
+    changeRate: null,
+  }))
 
 export const buildSalesTimeLine = (
   sales: CommercialSales | null,
 ): TrendPoint[] =>
   toLinePoints(
     createRows(
-      sales?.amountByTimeSlotItem as Record<string, number | null> | null | undefined,
+      sales?.amountByTimeSlotItem as
+        | Record<string, number | null>
+        | null
+        | undefined,
       salesTimeDefinitions,
     ),
   )
@@ -424,12 +467,14 @@ git commit -m "refactor(analysis): 상권 차트 셀렉터 공유 모듈 추출 
 리포트 맥락(더 낮은 높이)에 맞추려면 차트 높이를 조절해야 한다. 현재 `LineChart`(240)·`BarChart`(240)·`PopulationPyramid`(260)는 하드코딩이므로 optional prop을 추가한다(기본값=현재 값 → 기존 사용처 무변).
 
 **Files:**
+
 - Modify: `src/components/analysis/charts/line-chart.tsx` (props L51-56, height L80)
 - Modify: `src/components/analysis/charts/bar-chart.tsx` (props L28-34, height L61)
 - Modify: `src/components/analysis/charts/population-pyramid.tsx` (props L48-51, height L82)
 - Test: 각 차트의 기존 `*.test.ts`에 prop 기본값/전달 순수 검증 추가(렌더 대신 export된 상수/기본값 확인). 렌더 불가 시, 최소한 컴포넌트 파일이 `height`를 받는지 소스 문자열 검증으로 대체.
 
 **Interfaces:**
+
 - Produces(각 차트): 새 optional prop `height?: number`. `LineChart` 기본 240, `BarChart` 기본 240, `PopulationPyramid` 기본 260. 내부 `ResponsiveContainer height={height}`.
 
 - [ ] **Step 1: 실패 테스트 작성** — `src/components/analysis/charts/line-chart.test.ts`에 소스 계약 테스트 추가(node 환경 관행):
@@ -492,11 +537,13 @@ git commit -m "feat(charts): Line/Bar/Pyramid에 optional height prop 추가"
 `/analysis/report` 서버 셸과 클라이언트 서피스를 만든다. 결과 페이지 패턴(`result/page.tsx` → `analysis-result-page.tsx`)을 그대로 미러링한다.
 
 **Files:**
+
 - Create: `app/(shell)/analysis/report/page.tsx`
 - Create: `src/components/analysis/ai-report-page.tsx`
 - Create: `app/(shell)/analysis/report/report-route.test.ts` (소스 계약 테스트)
 
 **Interfaces:**
+
 - Consumes: `createPageMetadata`(`@/lib/metadata`), `useSearchParams`(next/navigation), `parseAnalysisSelection`(`@/lib/analysis/selection`)
 - Produces: default export `Page`(server), `AiReportPage`(client, 이후 Task 9에서 `<AiReportPageView/>` 렌더). 이 Task에서는 서피스가 selection을 파싱해 `<AiReportPageView selection=… />` 자리를 잡되, 뷰가 아직 없으면 임시로 selection 요약만 렌더하고 Task 9에서 교체.
 
@@ -532,7 +579,8 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: 'AI 상권 리포트',
-  description: '선택한 상권·업종의 핵심 지표와 AI 리포트를 한 화면에서 확인합니다.',
+  description:
+    '선택한 상권·업종의 핵심 지표와 AI 리포트를 한 화면에서 확인합니다.',
   path: '/analysis/report',
   index: false,
 })
@@ -558,7 +606,12 @@ export default function AiReportPage() {
   const searchParams = useSearchParams()
   const selection = parseAnalysisSelection(searchParams)
   // Task 9에서 <AiReportPageView selection={selection} /> 로 교체
-  return <main data-hide-footer="true" data-selection={selection.commercialCode ?? ''} />
+  return (
+    <main
+      data-hide-footer="true"
+      data-selection={selection.commercialCode ?? ''}
+    />
+  )
 }
 ```
 
@@ -578,11 +631,13 @@ git commit -m "feat(analysis): /analysis/report 라우트 셸 + 클라이언트 
 `fetchCommercialProfile.keyMetrics` 기반 3카드(월매출/유동인구/점포수) + 성장률 카드. 각 카드 로딩 시 스켈레톤.
 
 **Files:**
+
 - Create: `src/lib/analysis/report-section-state.ts` (순수 상태 리졸버 — 이 Task에서 지표 부분 시작)
 - Create: `src/components/analysis/ai-report/report-metric-cards.tsx`
 - Test: `src/lib/analysis/report-section-state.test.ts`
 
 **Interfaces:**
+
 - Consumes: `CommercialProfile`(`@/types/recommend`), `SalesGrowth`(Task 3), `formatAnalysisValue`(`@/lib/analysis/presentation`)
 - Produces:
   - `type MetricCardModel = { label: string; display: string; loading: boolean; tone?: 'positive'|'negative'|'neutral' }`
@@ -614,7 +669,12 @@ describe('resolveMetricCards', () => {
       growth: { direction: 'INCREASE', changeRate: 0.182 },
       growthLoading: false,
     })
-    expect(cards.map(c => c.label)).toEqual(['월 매출', '유동인구', '점포 수', '성장률'])
+    expect(cards.map(c => c.label)).toEqual([
+      '월 매출',
+      '유동인구',
+      '점포 수',
+      '성장률',
+    ])
     expect(cards[3].display).toBe('+18.2%')
     expect(cards[3].tone).toBe('positive')
     expect(cards[0].loading).toBe(false)
@@ -658,12 +718,19 @@ export type MetricCardModel = {
   tone?: MetricTone
 }
 
-const formatGrowth = (growth: SalesGrowth): { display: string; tone: MetricTone } => {
-  if (growth.changeRate === null) return { display: '데이터 없음', tone: 'neutral' }
+const formatGrowth = (
+  growth: SalesGrowth,
+): { display: string; tone: MetricTone } => {
+  if (growth.changeRate === null)
+    return { display: '데이터 없음', tone: 'neutral' }
   const pct = growth.changeRate * 100
   const sign = pct > 0 ? '+' : ''
   const tone: MetricTone =
-    growth.direction === 'INCREASE' ? 'positive' : growth.direction === 'DECREASE' ? 'negative' : 'neutral'
+    growth.direction === 'INCREASE'
+      ? 'positive'
+      : growth.direction === 'DECREASE'
+        ? 'negative'
+        : 'neutral'
   return { display: `${sign}${pct.toFixed(1)}%`, tone }
 }
 
@@ -681,10 +748,33 @@ export const resolveMetricCards = ({
   const km = profile?.keyMetrics ?? null
   const g = formatGrowth(growth)
   return [
-    { label: '월 매출', loading: profileLoading, display: profileLoading ? '' : formatAnalysisValue(km?.totalSalesAmount, '원') },
-    { label: '유동인구', loading: profileLoading, display: profileLoading ? '' : formatAnalysisValue(km?.totalFootTraffic, '명') },
-    { label: '점포 수', loading: profileLoading, display: profileLoading ? '' : formatAnalysisValue(km?.totalStoreCount, '개') },
-    { label: '성장률', loading: growthLoading, display: growthLoading ? '' : g.display, tone: growthLoading ? undefined : g.tone },
+    {
+      label: '월 매출',
+      loading: profileLoading,
+      display: profileLoading
+        ? ''
+        : formatAnalysisValue(km?.totalSalesAmount, '원'),
+    },
+    {
+      label: '유동인구',
+      loading: profileLoading,
+      display: profileLoading
+        ? ''
+        : formatAnalysisValue(km?.totalFootTraffic, '명'),
+    },
+    {
+      label: '점포 수',
+      loading: profileLoading,
+      display: profileLoading
+        ? ''
+        : formatAnalysisValue(km?.totalStoreCount, '개'),
+    },
+    {
+      label: '성장률',
+      loading: growthLoading,
+      display: growthLoading ? '' : g.display,
+      tone: growthLoading ? undefined : g.tone,
+    },
   ]
 }
 ```
@@ -696,13 +786,21 @@ export const resolveMetricCards = ({
 import styled from 'styled-components'
 import type { MetricCardModel } from '@/lib/analysis/report-section-state'
 // Grid/Card/Skeleton styled 정의(기존 MetricCard 스타일 톤 준수), tone→색 매핑
-export default function ReportMetricCards({ cards }: { cards: MetricCardModel[] }) {
+export default function ReportMetricCards({
+  cards,
+}: {
+  cards: MetricCardModel[]
+}) {
   return (
     <Grid>
       {cards.map(card => (
         <Card key={card.label} aria-busy={card.loading}>
           <span>{card.label}</span>
-          {card.loading ? <Skeleton aria-hidden /> : <Value $tone={card.tone}>{card.display}</Value>}
+          {card.loading ? (
+            <Skeleton aria-hidden />
+          ) : (
+            <Value $tone={card.tone}>{card.display}</Value>
+          )}
         </Card>
       ))}
     </Grid>
@@ -728,11 +826,13 @@ git commit -m "feat(analysis): 리포트 핵심 지표 4카드(성장률) + 상�
 시간대별 매출(Line)·요일별 유동인구(Bar)·연령·성별 유동인구(Pyramid). 각 차트별 스켈레톤/"데이터 없음".
 
 **Files:**
+
 - Modify: `src/lib/analysis/report-section-state.ts` (차트 상태 리졸버 추가)
 - Create: `src/components/analysis/ai-report/report-chart-section.tsx`
 - Test: `src/lib/analysis/report-section-state.test.ts` (append)
 
 **Interfaces:**
+
 - Consumes: `buildSalesTimeLine`/`buildFootDayBars`/`buildFootAgeGenderPyramid`(Task 3), `hasLineData`(`@/components/analysis/charts/line-chart`), 차트 컴포넌트(Task 4, `height` prop)
 - Produces:
   - `type ChartSlotState = 'loading' | 'ready' | 'empty'`
@@ -763,8 +863,10 @@ describe('resolveChartSlot', () => {
 
 ```ts
 export type ChartSlotState = 'loading' | 'ready' | 'empty'
-export const resolveChartSlot = (loading: boolean, isEmpty: boolean): ChartSlotState =>
-  loading ? 'loading' : isEmpty ? 'empty' : 'ready'
+export const resolveChartSlot = (
+  loading: boolean,
+  isEmpty: boolean,
+): ChartSlotState => (loading ? 'loading' : isEmpty ? 'empty' : 'ready')
 ```
 
 `report-chart-section.tsx`(빈 검사: Line은 `hasLineData(points)`, Bar는 모든 value null 여부, Pyramid는 모든 male/female null; 각 차트 `height={200}`):
@@ -781,14 +883,19 @@ import {
   buildFootAgeGenderPyramid,
 } from '@/lib/analysis/commercial-chart-selectors'
 import { resolveChartSlot } from '@/lib/analysis/report-section-state'
-import type { CommercialFootTraffic, CommercialSales } from '@/types/commercial-analysis'
+import type {
+  CommercialFootTraffic,
+  CommercialSales,
+} from '@/types/commercial-analysis'
 // 각 차트를 카드로 감싸고 제목(언제 파나/붐비나/누가 오나)과 slot 분기 렌더
 export default function ReportChartSection(props: {
   sales: CommercialSales | null
   foot: CommercialFootTraffic | null
   salesLoading: boolean
   footLoading: boolean
-}) { /* … 3 slot 렌더 … */ }
+}) {
+  /* … 3 slot 렌더 … */
+}
 ```
 
 > ⚠️ 빈 검사 헬퍼는 Task 3의 빌더 결과에 대해 계산한다(예: Bar `items.every(r => r.value === null)`, Pyramid `rows.every(r => r.male === null && r.female === null)`). 차트 카드 스타일은 결과 뷰 차트 카드 톤을 따른다.
@@ -809,11 +916,13 @@ git commit -m "feat(analysis): 리포트 엄선 차트 3섹션 + 슬롯 상태"
 `useAiReport` 상태를 받아: loading→진행 스테퍼+스켈레톤, ready-commercial→요약/강점(green)/주의(warning)/추천(칩), error→재시도, empty→안내. 비로그인→`AiReportLockCard`.
 
 **Files:**
+
 - Modify: `src/lib/analysis/report-section-state.ts` (AI 섹션 상태 리졸버)
 - Create: `src/components/analysis/ai-report/report-insight-section.tsx`
 - Test: `src/lib/analysis/report-section-state.test.ts` (append)
 
 **Interfaces:**
+
 - Consumes: `AiReportState`(`@/hooks/use-ai-report`), `CommercialReportView`(`@/lib/analysis/ai-report-presentation`), `AiReportLockCard`(default, props `{ level, loginHref }`), `resolveAiReportVisibility`(`@/lib/analysis/ai-report-presentation`)
 - Produces:
   - `type InsightMode = 'locked' | 'loading' | 'ready' | 'empty' | 'error'`
@@ -826,22 +935,39 @@ git commit -m "feat(analysis): 리포트 엄선 차트 3섹션 + 슬롯 상태"
 import { resolveInsightMode } from '@/lib/analysis/report-section-state'
 import type { AiReportState } from '@/hooks/use-ai-report'
 
-const loading: AiReportState = { status: 'loading', stage: null, progressMessages: [] }
+const loading: AiReportState = {
+  status: 'loading',
+  stage: null,
+  progressMessages: [],
+}
 
 describe('resolveInsightMode', () => {
   it('비로그인(hydrated)이면 locked', () => {
-    expect(resolveInsightMode({ hydrated: true, isLoggedIn: false, state: loading })).toBe('locked')
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: false, state: loading }),
+    ).toBe('locked')
   })
   it('로그인 + loading이면 loading', () => {
-    expect(resolveInsightMode({ hydrated: true, isLoggedIn: true, state: loading })).toBe('loading')
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state: loading }),
+    ).toBe('loading')
   })
   it('ready-commercial이면 ready', () => {
     const state = { status: 'ready-commercial', view: {} } as AiReportState
-    expect(resolveInsightMode({ hydrated: true, isLoggedIn: true, state })).toBe('ready')
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
+    ).toBe('ready')
   })
   it('error이면 error', () => {
-    const state = { status: 'error', message: 'x', errorKind: 'generic', canRetry: true } as AiReportState
-    expect(resolveInsightMode({ hydrated: true, isLoggedIn: true, state })).toBe('error')
+    const state = {
+      status: 'error',
+      message: 'x',
+      errorKind: 'generic',
+      canRetry: true,
+    } as AiReportState
+    expect(
+      resolveInsightMode({ hydrated: true, isLoggedIn: true, state }),
+    ).toBe('error')
   })
 })
 ```
@@ -897,6 +1023,7 @@ git commit -m "feat(analysis): AI 인사이트 섹션(2단 속도/잠금/에러)
 빠른 층(병렬 쿼리)과 느린 층(useAiReport)을 조립하고, 헤더·푸터·깔때기 링크를 붙인다. 사이드바에 "AI 리포트 보기" CTA를 추가한다.
 
 **Files:**
+
 - Create: `src/components/analysis/ai-report-page-view.tsx`
 - Modify: `src/components/analysis/ai-report-page.tsx` (임시 렌더 → `<AiReportPageView selection={selection} />`)
 - Modify: `src/components/analysis/ai-report/ai-report-panel.tsx` (헤더/푸터에 `createAiReportHref` CTA)
@@ -904,6 +1031,7 @@ git commit -m "feat(analysis): AI 인사이트 섹션(2단 속도/잠금/에러)
 - Test: `src/components/analysis/ai-report/ai-report-panel.test.ts` (CTA href 존재 소스 검증 — 기존 테스트 톤)
 
 **Interfaces:**
+
 - Consumes: `parseAnalysisSelection`/`isCompleteAnalysisSelection`/`createAiReportHref`/`createAnalysisResultHref`(selection.ts), `resolveAiReportLevel`/`resolveAiReportTargetCode`(ai-report-presentation), `useAiReport`(hooks), `useAuthStore`(stores/auth-store), `fetchCommercialProfile`(`@/lib/api/recommend`), `fetchCommercialSales`/`fetchCommercialFootTraffic`/`fetchCommercialTrend`(`@/lib/api/commercial-analysis`), `getResponseBody`(Task 1), `selectSalesGrowth`(Task 3), `resolveMetricCards`/`resolveInsightMode`(Task 6/8), 세 섹션 컴포넌트(Task 6/7/8)
 - Produces: `AiReportPageView({ selection }: { selection: AnalysisSelection })`
 
@@ -958,7 +1086,11 @@ import ReportInsightSection from '@/components/analysis/ai-report/report-insight
 
 const PERIOD = '20233' // ANALYSIS_PERIOD_CODE (selection.periodCode 우선)
 
-export default function AiReportPageView({ selection }: { selection: AnalysisSelection }) {
+export default function AiReportPageView({
+  selection,
+}: {
+  selection: AnalysisSelection
+}) {
   const hasHydrated = useAuthStore(s => s.hasHydrated)
   const isLoggedIn = useAuthStore(s => s.isLoggedIn)
 
@@ -969,13 +1101,15 @@ export default function AiReportPageView({ selection }: { selection: AnalysisSel
 
   const profileQuery = useQuery({
     queryKey: ['analysis', 'profile', commercialCode, serviceCode, periodCode],
-    queryFn: () => fetchCommercialProfile(commercialCode!, serviceCode!, periodCode),
+    queryFn: () =>
+      fetchCommercialProfile(commercialCode!, serviceCode!, periodCode),
     enabled,
     retry: 1,
   })
   const salesQuery = useQuery({
     queryKey: ['analysis', 'sales', commercialCode, serviceCode, periodCode],
-    queryFn: () => fetchCommercialSales(commercialCode!, serviceCode!, periodCode),
+    queryFn: () =>
+      fetchCommercialSales(commercialCode!, serviceCode!, periodCode),
     enabled,
     retry: 1,
   })
@@ -986,7 +1120,14 @@ export default function AiReportPageView({ selection }: { selection: AnalysisSel
     retry: 1,
   })
   const salesTrendQuery = useQuery({
-    queryKey: ['analysis', 'trend', commercialCode, serviceCode, 'SALES', periodCode],
+    queryKey: [
+      'analysis',
+      'trend',
+      commercialCode,
+      serviceCode,
+      'SALES',
+      periodCode,
+    ],
     queryFn: () =>
       fetchCommercialTrend(commercialCode!, {
         serviceCode: serviceCode!,
@@ -1019,10 +1160,15 @@ export default function AiReportPageView({ selection }: { selection: AnalysisSel
     active: true,
     enabled: hasHydrated && isLoggedIn,
   })
-  const insightMode = resolveInsightMode({ hydrated: hasHydrated, isLoggedIn, state })
+  const insightMode = resolveInsightMode({
+    hydrated: hasHydrated,
+    isLoggedIn,
+    state,
+  })
 
   const loginHref = useMemo(
-    () => `/login?redirect=${encodeURIComponent('/analysis/report?commercialCode=' + (commercialCode ?? ''))}`,
+    () =>
+      `/login?redirect=${encodeURIComponent('/analysis/report?commercialCode=' + (commercialCode ?? ''))}`,
     [commercialCode],
   )
   const resultHref = createAnalysisResultHref(selection, 'summary')
@@ -1040,7 +1186,12 @@ export default function AiReportPageView({ selection }: { selection: AnalysisSel
         salesLoading={salesQuery.isLoading}
         footLoading={footQuery.isLoading}
       />
-      <ReportInsightSection mode={insightMode} state={state} loginHref={loginHref} onRetry={retry} />
+      <ReportInsightSection
+        mode={insightMode}
+        state={state}
+        loginHref={loginHref}
+        onRetry={retry}
+      />
       <Footer>
         <a href={resultHref}>전체 데이터 분석 보기</a>
       </Footer>
@@ -1069,6 +1220,7 @@ git commit -m "feat(analysis): AI 리포트 전용 페이지 2단 속도 오케�
 ## Self-Review (작성자 체크)
 
 **1. 스펙 커버리지 (D2 요구사항 → Task)**
+
 - D2-1 빠른 층 즉시 렌더 → Task 6/7/9. D2-2 느린 층 자리+스테퍼 → Task 8. D2-3 도착 시 채움 → Task 8/9. D2-4 차트 3종 → Task 7. D2-5 지표 4카드 → Task 6. D2-6 강점/주의 색 위계 → Task 8(green/warning). D2-7 비로그인 잠금 → Task 8(resolveInsightMode locked). D2-8 결과 페이지 위임 링크 → Task 9(footer). D2-9 부분 실패 격리 → 쿼리별 독립 상태(Task 6/7/9, react-query per-query). D2-10 DESIGN 토큰·reduced-motion → 각 UI Task ⚠️ 노트.
 - 열린 결정: 라우트명(report), 비로그인(차트 노출+AI 잠금), 필드 매핑(공유 셀렉터 Task 3), 성장률 소스(SALES trend Task 3/6) — 모두 확정·반영.
 
@@ -1077,6 +1229,7 @@ git commit -m "feat(analysis): AI 리포트 전용 페이지 2단 속도 오케�
 **3. 타입 일관성** — `getResponseBody`(Task 1)·`SalesGrowth`/`selectSalesGrowth`(Task 3)·`MetricCardModel`/`resolveMetricCards`(Task 6)·`ChartSlotState`/`resolveChartSlot`(Task 7)·`InsightMode`/`resolveInsightMode`(Task 8)의 시그니처가 Task 9 소비처와 일치. `AiReportState` 내로잉(`ready-commercial`) 일관.
 
 ## 실행 격리 / 참고
+
 - 워크트리: `.worktrees/bosspick-ai-report`(브랜치 `feature/fe/ai-report-page`, `develop@38bef6c` 기준). 의존성 설치 완료.
 - 명세 정본: 이 워크트리 `docs/features/analysis/ai-report-page.md`(PR #109 브랜치에서 복사).
 - 각 Task의 부분 검증은 `pnpm exec vitest run <경로>`, 최종은 `pnpm qa:verify`.
