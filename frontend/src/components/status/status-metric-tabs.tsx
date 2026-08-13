@@ -24,23 +24,23 @@ const METRIC_TABS: ReadonlyArray<{
 const TabList = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 `
 
+// 지표 선택은 콘텐츠(지도/리스트)에 폭을 양보하도록 컴팩트한 칩으로 둔다.
 const TabButton = styled.button<{ $selected: boolean }>`
-  min-width: 72px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: ${props => (props.$selected ? '2px' : '1px')} solid
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid
     ${props =>
       props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-card);
   background: ${props =>
     props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$selected ? 'var(--color-text-900)' : 'var(--color-text-700)'};
-  font-size: 14px;
-  font-weight: ${props => (props.$selected ? 800 : 700)};
+    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+  font-size: 13px;
+  font-weight: ${props => (props.$selected ? 700 : 600)};
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -49,7 +49,7 @@ const TabButton = styled.button<{ $selected: boolean }>`
 
   &:hover {
     border-color: var(--color-primary-600);
-    color: var(--color-text-900);
+    color: var(--color-primary-700);
   }
 `
 

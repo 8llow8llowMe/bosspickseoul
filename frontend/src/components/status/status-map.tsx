@@ -134,12 +134,30 @@ const DistrictLabel = styled.div<{
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
-  text-shadow: 0 1px 2px var(--color-surface);
+  text-shadow:
+    0 0 2px var(--color-surface),
+    0 1px 2px var(--color-surface);
   white-space: nowrap;
+
+  /* 좁은 지도 캔버스(모바일·태블릿)에서 비Top10 구 이름이 겹치지 않게 축소한다. */
+  @container (max-width: 460px) {
+    font-size: 9.5px;
+  }
 `
+
+// 1~3위 카드는 밝은 연두(초록+노랑)로 강조한다(1위 가장 진하고 3위로 갈수록 연하게).
+// green-500 단독 틴트는 탁해 보여, 노랑을 섞어 맑고 밝은 연두로 만든다.
+const RANK_ACCENT =
+  'color-mix(in srgb, var(--color-green-500) 55%, var(--color-yellow-500))'
+const TOP_RANK_FILL: Record<number, string> = {
+  1: `color-mix(in srgb, ${RANK_ACCENT} 45%, var(--color-surface))`,
+  2: `color-mix(in srgb, ${RANK_ACCENT} 28%, var(--color-surface))`,
+  3: `color-mix(in srgb, ${RANK_ACCENT} 15%, var(--color-surface))`,
+}
 
 const RankedDistrictLabel = styled.button<{
   $selected: boolean
+  $rank: number | null
   $x: number
   $y: number
 }>`
@@ -154,13 +172,21 @@ const RankedDistrictLabel = styled.button<{
   gap: 1px;
   padding: 4px 6px;
   border: ${props => (props.$selected ? '3px' : '1px')} solid
-    ${props =>
-      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-300)'};
+    ${props => {
+      if (props.$selected) return 'var(--color-primary-600)'
+      if (props.$rank && props.$rank <= 3)
+        return `color-mix(in srgb, ${RANK_ACCENT} 55%, var(--color-border-300))`
+      return 'var(--color-border-300)'
+    }};
   border-radius: var(--radius-control);
-  background: ${props =>
-    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  background: ${props => {
+    if (props.$selected) return 'var(--color-primary-100)'
+    if (props.$rank && TOP_RANK_FILL[props.$rank])
+      return TOP_RANK_FILL[props.$rank]
+    return 'var(--color-surface)'
+  }};
   color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-900)'};
   box-shadow: var(--shadow-level-1);
   cursor: pointer;
   pointer-events: auto;
@@ -179,6 +205,13 @@ const RankedDistrictLabel = styled.button<{
     outline: 2px solid var(--color-blue-500);
     outline-offset: 2px;
   }
+
+  /* 좁은 지도 캔버스에서 순위 배지 크기를 줄여 겹침을 완화한다. */
+  @container (max-width: 460px) {
+    min-width: 32px;
+    min-height: 28px;
+    padding: 3px 4px;
+  }
 `
 
 const RankDistrictName = styled.span`
@@ -186,6 +219,10 @@ const RankDistrictName = styled.span`
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
+
+  @container (max-width: 460px) {
+    font-size: 9px;
+  }
 `
 
 const RankNumber = styled.span`
@@ -193,6 +230,10 @@ const RankNumber = styled.span`
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+
+  @container (max-width: 460px) {
+    font-size: 12px;
+  }
 `
 
 const Caption = styled.figcaption`
@@ -558,6 +599,7 @@ export default function StatusMap({
                 <RankedDistrictLabel
                   key={label.districtCode}
                   $selected={isSelected}
+                  $rank={label.rank}
                   $x={displayX}
                   $y={displayY}
                   aria-label={`${label.rank}위 ${label.districtName}, ${METRIC_LABELS[metric]} 기준`}
