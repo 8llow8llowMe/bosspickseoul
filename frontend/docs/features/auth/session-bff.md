@@ -139,6 +139,8 @@ RQ([React Query]) --> PX[/api/bff/*/] --> G[Gateway] --> SVC[백엔드]
 
 동작: `/api/bff/<path>` 요청 → 세션 복호화 → Bearer 주입 후 게이트웨이 포워드(**프록시가 `/api/v1` 프리픽스를 자동 부가** — 호출부는 `/api/bff/members/me`처럼 논리 경로만 사용, 프록시가 `/api/v1/members/me`로 매핑) → **401이면** refreshToken으로 `/auth/token/reissue` 호출 → 새 accessToken(+회전된 refresh)으로 세션 갱신 → 원요청 1회 재시도. 재발급도 실패하면 세션 제거 + 401 반환.
 
+선재발급·익명 폴백: forward 전에 accessToken의 `exp`를 확인해 만료(임박)면 forward 전에 재발급(single-flight)을 먼저 시도하고, 재발급 실패 시에는 세션을 제거하고 **토큰 없이(익명) forward**한다(공개 API는 200 유지, 보호 API는 백엔드가 401 반환). 배경: 백엔드가 만료된 토큰에 401이 아닌 500을 반환하는 문제에 대한 FE측 방어막이며, 근본 해결은 백엔드가 401을 반환하도록 수정하는 것이다.
+
 ### D4-4. 미들웨어 인증 가드
 
 보호 라우트 매처(`(shell)/**` 등 인증 필요 경로)에서 세션 쿠키 부재 시 `/login?redirect=<원경로>`로 리다이렉트. 공개 경로(`/login`, `/register`, 공개 랜딩)는 통과.

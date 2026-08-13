@@ -6,7 +6,8 @@ import {
   clearSession,
   type SessionPayload,
 } from '@/lib/auth/session'
-import { reissueSession } from '@/lib/auth/reissue'
+import { isAccessTokenExpired } from '@/lib/auth/jwt'
+import { refreshSessionOnce } from '@/lib/auth/refresh-single-flight'
 
 const HOP = new Set([
   'host',
@@ -55,6 +56,21 @@ async function handle(
       : await req.arrayBuffer()
 
   let session = await getSession()
+
+  // 선재발급: accessToken이 만료(임박)면 forward 전에 갱신을 시도한다.
+  // 백엔드가 만료 토큰에 401이 아닌 500을 주는 문제를 우회 — 만료 토큰을 애초에 보내지 않는다.
+  if (session && isAccessTokenExpired(session.accessToken, Date.now())) {
+    const next = await refreshSessionOnce(session, backendApiUrl)
+    if (next) {
+      await setSession(next)
+      session = next
+    } else {
+      // 재발급도 실패 → 세션 제거 후 토큰 없이(익명) 전달. 공개 API는 200, 보호 API는 백엔드 401.
+      await clearSession()
+      session = null
+    }
+  }
+
   let upstream = await forward(
     req,
     backendApiUrl,
@@ -65,7 +81,7 @@ async function handle(
   )
 
   if (upstream.status === 401 && session) {
-    const next = await reissueSession(session, backendApiUrl)
+    const next = await refreshSessionOnce(session, backendApiUrl)
     if (!next) {
       await clearSession()
       return NextResponse.json(
