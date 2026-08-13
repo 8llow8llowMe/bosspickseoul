@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  formatSinoUnit,
   formatStatusChange,
   formatStatusValue,
 } from '@/lib/status/status-formatters'
@@ -84,8 +85,12 @@ const formatNumber = (
     ? `${numberFormatter.format(value)}${suffix}`
     : '데이터 없음'
 
+// 금액·인원은 억/만 단위(만 단위 반올림)로 축약 표기한다.
 const formatMoney = (value: number | null | undefined): string =>
-  formatNumber(value, '원')
+  formatSinoUnit(value, '원')
+
+const formatPeople = (value: number | null | undefined): string =>
+  formatSinoUnit(value, '명')
 
 const getMetadataName = (
   metadata: CodeNameDescriptionMetadata | null | undefined,
@@ -312,28 +317,36 @@ const RowList = styled.dl`
 
 const Row = styled.div`
   min-height: 40px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   padding: 8px 12px;
   background: var(--color-surface-muted);
 `
 
 const RowLabel = styled.dt`
+  flex: 0 0 auto;
+  max-width: 55%;
   min-width: 0;
+  overflow: hidden;
   color: var(--color-text-700);
   font-size: 13px;
   line-height: 20px;
-  word-break: keep-all;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 `
 
+// 값이 길면(예: "774억 4039만원 · -20.1%") 라벨을 덮지 않고 다음 줄로 접힌다.
 const RowValue = styled.dd`
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--color-text-900);
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  word-break: break-word;
 `
 
 const EmptyMessage = styled.p`
@@ -478,16 +491,14 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
         ? [
             {
               label: item.periodCode,
-              value: formatNumber(item.totalFootTraffic, '명'),
+              value: formatPeople(item.totalFootTraffic),
             },
           ]
         : [],
   )
   const timeRows = TIME_SLOT_LABELS.flatMap(([label, key]) => {
     const value = footTraffic?.timeSlot?.[key]
-    return isFiniteNumber(value)
-      ? [{ label, value: formatNumber(value, '명') }]
-      : []
+    return isFiniteNumber(value) ? [{ label, value: formatPeople(value) }] : []
   })
   const genderRows: DetailRow[] = []
   const maleFootTraffic = footTraffic?.gender?.maleFootTraffic
@@ -496,27 +507,23 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
   if (isFiniteNumber(maleFootTraffic)) {
     genderRows.push({
       label: '남성',
-      value: formatNumber(maleFootTraffic, '명'),
+      value: formatPeople(maleFootTraffic),
     })
   }
   if (isFiniteNumber(femaleFootTraffic)) {
     genderRows.push({
       label: '여성',
-      value: formatNumber(femaleFootTraffic, '명'),
+      value: formatPeople(femaleFootTraffic),
     })
   }
 
   const ageRows = AGE_GROUP_LABELS.flatMap(([label, key]) => {
     const value = footTraffic?.ageGroup?.[key]
-    return isFiniteNumber(value)
-      ? [{ label, value: formatNumber(value, '명') }]
-      : []
+    return isFiniteNumber(value) ? [{ label, value: formatPeople(value) }] : []
   })
   const dayRows = DAY_OF_WEEK_LABELS.flatMap(([label, key]) => {
     const value = footTraffic?.dayOfWeek?.[key]
-    return isFiniteNumber(value)
-      ? [{ label, value: formatNumber(value, '명') }]
-      : []
+    return isFiniteNumber(value) ? [{ label, value: formatPeople(value) }] : []
   })
 
   return (
