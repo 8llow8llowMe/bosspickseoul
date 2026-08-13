@@ -20,6 +20,7 @@ import {
   didAnalysisSheetDrag,
   getAnalysisSheetHeightBounds,
   resolveAnalysisSheetSnapFromDrag,
+  resolveAnalysisSheetViewportHeight,
   shouldSuppressAnalysisSheetClick,
   type AnalysisSheetSnap,
 } from '@/lib/analysis/analysis-sheet-state'
@@ -317,7 +318,15 @@ export default function AnalysisMobileSheet({
     }
 
     event.currentTarget.setPointerCapture(event.pointerId)
-    const viewportHeight = sheetRef.current?.parentElement?.clientHeight ?? 0
+    // 시트는 display:contents 래퍼(MobilePanel) 안에 있어 parentElement.clientHeight가 0이다.
+    // 절대배치된 시트의 offsetParent(=위치지정 조상 MapArea)가 실제 지도 영역 높이를 가지므로
+    // 이를 우선 사용하고, 없으면 parentElement/innerHeight로 폴백한다.
+    const offsetParent = sheetRef.current?.offsetParent
+    const viewportHeight = resolveAnalysisSheetViewportHeight(
+      offsetParent instanceof HTMLElement ? offsetParent.clientHeight : null,
+      sheetRef.current?.parentElement?.clientHeight,
+      typeof window === 'undefined' ? null : window.innerHeight,
+    )
 
     pointerIdRef.current = event.pointerId
     startYRef.current = event.clientY

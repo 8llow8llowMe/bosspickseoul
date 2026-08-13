@@ -5,8 +5,32 @@ import {
   didAnalysisSheetDrag,
   getAnalysisSheetHeightBounds,
   resolveAnalysisSheetSnapFromDrag,
+  resolveAnalysisSheetViewportHeight,
   shouldSuppressAnalysisSheetClick,
 } from '@/lib/analysis/analysis-sheet-state'
+
+describe('resolveAnalysisSheetViewportHeight', () => {
+  it('첫 번째 유한·양수 후보를 쓴다', () => {
+    expect(resolveAnalysisSheetViewportHeight(747, 0, 812)).toBe(747)
+  })
+
+  it('0(=display:contents 래퍼의 clientHeight)은 건너뛰고 다음 후보로 폴백한다', () => {
+    // 회귀 방지: parentElement.clientHeight가 0이어도 offsetParent/innerHeight로 폴백해야
+    // 드래그 스냅 경계가 collapsed===expanded로 붕괴하지 않는다.
+    expect(resolveAnalysisSheetViewportHeight(0, 812)).toBe(812)
+    expect(resolveAnalysisSheetViewportHeight(0, 0, 900)).toBe(900)
+  })
+
+  it('null/undefined/NaN 후보는 무시한다', () => {
+    expect(
+      resolveAnalysisSheetViewportHeight(null, undefined, Number.NaN, 640),
+    ).toBe(640)
+  })
+
+  it('유효한 후보가 없으면 0을 반환한다', () => {
+    expect(resolveAnalysisSheetViewportHeight(0, null, undefined)).toBe(0)
+  })
+})
 
 describe('getAnalysisSheetHeightBounds', () => {
   it('비정상 뷰포트는 접힘 높이로 고정한다', () => {
