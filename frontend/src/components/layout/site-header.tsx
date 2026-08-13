@@ -45,6 +45,7 @@ const INNER_WIDTH: Record<HeaderWidthVariant, string> = {
 }
 
 const Inner = styled.div<{ $width: HeaderWidthVariant }>`
+  position: relative;
   width: ${props => INNER_WIDTH[props.$width]};
   min-height: 64px;
   padding: 10px 0;
@@ -147,8 +148,10 @@ const ActionLink = styled(Link)<{ $primary?: boolean }>`
   }
 `
 
+// 데스크톱 전용 로그인/회원가입. 모바일·태블릿(≤960)에서는 햄버거 패널로만
+// 노출해 헤더 우측에 인증 버튼이 중복 표시되지 않게 한다.
 const DesktopAuthLink = styled(ActionLink)`
-  @media (max-width: 640px) {
+  @media (max-width: 960px) {
     display: none;
   }
 `
@@ -217,8 +220,14 @@ const IconSlot = styled.span`
   }
 `
 
+// 로그인 상태 아바타·드롭다운도 데스크톱 전용. 모바일·태블릿에서는 햄버거
+// 패널 안 계정 영역으로 통일한다(햄버거 + 아바타 동시 노출 방지).
 const DropdownWrap = styled.div`
   position: relative;
+
+  @media (max-width: 960px) {
+    display: none;
+  }
 `
 
 const DropdownMenu = styled.div`
@@ -287,10 +296,15 @@ const MobileToggle = styled.button`
   }
 `
 
+// 햄버거 패널: 문서 흐름에서 빠져(absolute) 하단 콘텐츠를 밀지 않고, 헤더 우측
+// 햄버거 버튼 바로 아래에 오른쪽 정렬로 떠오른다.
 const MobilePanel = styled.div`
-  width: 100%;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: min(320px, calc(100vw - 32px));
   display: none;
-  padding-top: 8px;
 
   @media (max-width: 960px) {
     display: block;
@@ -301,10 +315,34 @@ const MobileList = styled.div`
   display: grid;
   gap: 4px;
   padding: 12px;
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-2);
+  background: var(--color-float-background);
+  box-shadow: var(--shadow-level-3);
+`
+
+const MobileAccount = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 10px;
+  color: var(--color-text-800);
+`
+
+const MobileAccountName = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`
+
+const MobileDivider = styled.div`
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--color-border-200);
 `
 
 const MobileLink = styled(Link)<{ $active?: boolean }>`
@@ -370,6 +408,7 @@ export default function SiteHeader() {
         ? 'status'
         : 'default'
   const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const innerRef = useRef<HTMLDivElement | null>(null)
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
   const memberInfo = useAuthStore(state => state.memberInfo)
@@ -437,11 +476,39 @@ export default function SiteHeader() {
     }
   }, [])
 
+  // 햄버거 패널: 헤더(Inner) 바깥 클릭 또는 Esc로 닫는다.
+  useEffect(() => {
+    if (!isMobileOpen) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        innerRef.current &&
+        !innerRef.current.contains(event.target as Node)
+      ) {
+        setIsMobileOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isMobileOpen])
+
   const avatarLabel = memberInfo?.nickname?.slice(0, 1) ?? 'N'
 
   return (
     <Header $isScrolled={isScrolled} data-site-header>
-      <Inner $width={headerWidth}>
+      <Inner ref={innerRef} $width={headerWidth}>
         <Brand
           href="/"
           onClick={event => {
@@ -570,8 +637,15 @@ export default function SiteHeader() {
                   {item.label}
                 </MobileLink>
               ))}
+              <MobileDivider />
               {hasHydrated && isLoggedIn && memberInfo ? (
                 <>
+                  <MobileAccount>
+                    <Avatar $image={memberInfo.profileImageUrl}>
+                      {memberInfo.profileImageUrl ? null : avatarLabel}
+                    </Avatar>
+                    <MobileAccountName>{memberInfo.nickname}</MobileAccountName>
+                  </MobileAccount>
                   {profileMenuItems.map(item => {
                     const ItemIcon = item.icon
 
