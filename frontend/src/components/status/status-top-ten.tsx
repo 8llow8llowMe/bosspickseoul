@@ -236,7 +236,7 @@ export default function StatusTopTen({
 
   return (
     <Section aria-labelledby={headingId}>
-      <Heading id={headingId}>{METRIC_LABELS[metric]} 상위 10개 자치구</Heading>
+      <Heading id={headingId}>{METRIC_LABELS[metric]} TOP 10</Heading>
       {topTenItems.length > 0 ? (
         <RankingList>
           {topTenItems.map(item => {

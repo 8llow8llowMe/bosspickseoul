@@ -43,6 +43,28 @@ export const formatSinoUnit = (
   return `${man}만${suffix}`
 }
 
+/**
+ * 개월 수를 "N년 M개월" 형태로 표기한다(만 12개월 기준). 반올림해서 정수 개월로
+ * 환산한다. 예) 102 → "8년 6개월", 96 → "8년", 5 → "5개월", 0 → "0개월".
+ */
+export const formatMonths = (value: number | null | undefined): string => {
+  if (!isFiniteNumber(value) || value < 0) {
+    return EMPTY_STATUS_VALUE
+  }
+
+  const totalMonths = Math.round(value)
+  const years = Math.floor(totalMonths / 12)
+  const months = totalMonths % 12
+
+  if (years > 0 && months > 0) {
+    return `${years}년 ${months}개월`
+  }
+  if (years > 0) {
+    return `${years}년`
+  }
+  return `${months}개월`
+}
+
 export const formatStatusValue = (
   metric: StatusMetric,
   value: number | null | undefined,

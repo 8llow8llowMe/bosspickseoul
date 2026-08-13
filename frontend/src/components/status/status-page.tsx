@@ -128,48 +128,23 @@ const DesktopGrid = styled.div`
   }
 `
 
+// 우측 영역은 단일 열에서 지도↔상세를 토글한다: 선택이 없으면 지도, 자치구를
+// 선택하면 같은 자리에 상세 카드를 전체 폭으로 보여준다(리스트는 좌측 고정).
 const DesktopContent = styled.div`
   min-width: 0;
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 0px) minmax(360px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
-  column-gap: 0;
-  transition:
-    grid-template-columns var(--motion-standard) var(--ease-standard),
-    column-gap var(--motion-standard) var(--ease-standard);
 
-  &[data-has-selection='true'] {
-    grid-template-columns: minmax(0, var(--status-side-track)) minmax(
-        360px,
-        1fr
-      );
-    column-gap: 20px;
+  &[data-has-selection='true'] [data-status-map-panel] {
+    display: none;
   }
 
-  /* 태블릿(768~1023): 상세를 지도 옆에 나란히 둘 폭이 부족하므로 한 열로 두고,
-     선택이 없으면 지도, 선택되면 상세를 전체 폭으로 보여준다(맵↔상세 토글). */
-  @media (max-width: 1023px) {
-    grid-template-columns: minmax(0, 1fr);
-    column-gap: 0;
-
-    &[data-has-selection='true'] {
-      grid-template-columns: minmax(0, 1fr);
-      column-gap: 0;
-    }
-
-    &[data-has-selection='true'] [data-status-map-panel] {
-      display: none;
-    }
-
-    &:not([data-has-selection='true']) [data-status-detail-slot] {
-      display: none;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
+  &:not([data-has-selection='true']) [data-status-detail-slot] {
+    display: none;
   }
 `
 
@@ -177,23 +152,11 @@ const DesktopDetailSlot = styled.div`
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-16px);
-  transition:
-    opacity var(--motion-standard) var(--ease-standard),
-    transform var(--motion-standard) var(--ease-standard);
 
-  &[data-has-selection='true'] {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
-  }
-
-  /* 상세는 남는 높이 안에서 내부 스크롤(스크롤바 숨김). */
+  /* 상세는 전체 폭을 쓰고, 남는 높이 안에서 내부 스크롤(스크롤바 숨김). */
   & > article {
-    width: var(--status-side-track);
-    min-width: var(--status-side-track);
+    width: 100%;
+    min-width: 0;
     max-height: 100%;
     overflow-y: auto;
     scrollbar-width: none;
@@ -201,22 +164,6 @@ const DesktopDetailSlot = styled.div`
     &::-webkit-scrollbar {
       display: none;
     }
-  }
-
-  /* 태블릿: 상세를 전체 폭으로 펼친다(맵↔상세 토글). */
-  @media (max-width: 1023px) {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-
-    & > article {
-      width: 100%;
-      min-width: 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
   }
 `
 
@@ -236,42 +183,22 @@ const DesktopPanel = styled.section`
   }
 `
 
-// 지도 패널은 스크롤 없이 남는 높이를 지도로 채운다(헤딩 auto + 지도 1fr).
+// 지도 패널은 스크롤 없이 남는 높이를 지도로 채운다(폴리곤만 배치).
 const MapPanel = styled(DesktopPanel)`
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 12px;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 
   > figure {
     min-height: 0;
     height: 100%;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
   }
 
   > figure > div {
     height: 100%;
     aspect-ratio: auto;
   }
-`
-
-const MapHeading = styled.div`
-  display: grid;
-  gap: 6px;
-`
-
-const MapTitle = styled.h2`
-  color: var(--color-text-900);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 28px;
-`
-
-const MapDescription = styled.p`
-  color: var(--color-text-600);
-  font-size: 14px;
-  line-height: 22px;
-  word-break: keep-all;
 `
 
 const MobileStage = styled.section`
@@ -462,7 +389,7 @@ function StatusPageContent() {
     const isLoading = topTenQuery.isPending || topTenQuery.isFetching
 
     return (
-      <Page data-hide-mobile-footer="true">
+      <Page data-hide-footer="true">
         <PageInner>
           <Hero>
             <Eyebrow>서울 구별 상권</Eyebrow>
@@ -494,7 +421,7 @@ function StatusPageContent() {
   }
 
   return (
-    <Page data-hide-mobile-footer="true">
+    <Page data-hide-footer="true">
       <PageInner>
         <Hero>
           <Eyebrow>서울 구별 상권</Eyebrow>
@@ -548,13 +475,6 @@ function StatusPageContent() {
               </DesktopDetailSlot>
 
               <MapPanel data-status-map-panel>
-                <MapHeading>
-                  <MapTitle>서울 자치구 지도</MapTitle>
-                  <MapDescription>
-                    현재 상위 10개 자치구의 위치와 순위를 지도에서 비교할 수
-                    있습니다.
-                  </MapDescription>
-                </MapHeading>
                 <StatusMap
                   items={currentItems}
                   metric={metric}
@@ -602,7 +522,7 @@ function StatusPageContent() {
 
 function StatusPageFallback() {
   return (
-    <Page data-hide-mobile-footer="true">
+    <Page data-hide-footer="true">
       <PageInner>
         <StatusFeedback state="loading" />
       </PageInner>

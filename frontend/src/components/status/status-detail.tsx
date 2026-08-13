@@ -1,16 +1,25 @@
 'use client'
 
-import type { Ref } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import type { ReactNode, Ref } from 'react'
+import { ArrowLeft, X } from 'lucide-react'
 import styled from 'styled-components'
+import BarChart from '@/components/analysis/charts/bar-chart'
+import DonutChart from '@/components/analysis/charts/donut-chart'
+import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
+import LineChart from '@/components/analysis/charts/line-chart'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { GenderSegment, TrendPoint } from '@/lib/analysis/chart-data'
 import {
+  type AnalysisMetricRow,
+  formatPeriodCode,
+} from '@/lib/analysis/presentation'
+import {
+  formatMonths,
   formatSinoUnit,
   formatStatusChange,
   formatStatusValue,
 } from '@/lib/status/status-formatters'
 import type {
-  CodeNameDescriptionMetadata,
   DistrictDetail,
   StatusMetric,
   StatusRankedItem,
@@ -33,13 +42,6 @@ type ChangeTone = 'danger' | 'neutral' | 'success' | 'warning'
 type DetailRow = {
   label: string
   value: string
-}
-
-const METRIC_LABELS: Record<StatusMetric, string> = {
-  footTraffic: '유동인구',
-  sales: '매출',
-  opened: '개업',
-  closed: '폐업',
 }
 
 const TIME_SLOT_LABELS = [
@@ -70,31 +72,31 @@ const DAY_OF_WEEK_LABELS = [
   ['일요일', 'sundayFootTraffic'],
 ] as const
 
-const numberFormatter = new Intl.NumberFormat('ko-KR', {
-  maximumFractionDigits: 2,
-})
+const koreanIntegerFormatter = new Intl.NumberFormat('ko-KR')
 
 const isFiniteNumber = (value: number | null | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
-const formatNumber = (
-  value: number | null | undefined,
-  suffix: string,
-): string =>
-  isFiniteNumber(value)
-    ? `${numberFormatter.format(value)}${suffix}`
-    : '데이터 없음'
-
-// 금액·인원은 억/만 단위(만 단위 반올림)로 축약 표기한다.
+// 금액은 억/만 단위(만 단위 반올림)로 축약 표기한다.
 const formatMoney = (value: number | null | undefined): string =>
   formatSinoUnit(value, '원')
 
-const formatPeople = (value: number | null | undefined): string =>
-  formatSinoUnit(value, '명')
+// 점포 개수 등 소규모 정수는 콤마 + 단위로 표기한다.
+const formatCount = (value: number): string =>
+  `${koreanIntegerFormatter.format(value)}개`
 
-const getMetadataName = (
-  metadata: CodeNameDescriptionMetadata | null | undefined,
-): string | null => metadata?.name?.trim() || null
+// 라벨↔키 정의로 차트용 행({label, value})을 만든다. 숫자가 아니면 value=null.
+const toChartRows = <T,>(
+  source: T | null | undefined,
+  definitions: readonly (readonly [label: string, key: keyof T])[],
+): AnalysisMetricRow[] =>
+  definitions.map(([label, key]) => {
+    const value = source?.[key]
+    return {
+      label,
+      value: typeof value === 'number' && Number.isFinite(value) ? value : null,
+    }
+  })
 
 const getChangeTone = (
   metric: StatusMetric,
@@ -169,12 +171,6 @@ const BackButton = styled.button`
   }
 `
 
-const Eyebrow = styled.p`
-  color: var(--color-text-600);
-  font-size: 13px;
-  font-weight: 600;
-`
-
 const Title = styled.h2`
   color: var(--color-text-900);
   font-size: 22px;
@@ -182,11 +178,12 @@ const Title = styled.h2`
   line-height: 30px;
 `
 
+// 값(00명)과 변화(감소 -x%)를 한 줄에 가로로 붙여 컴팩트하게 보여준다.
 const HeaderMetric = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
-  gap: 8px 12px;
+  gap: 10px;
 `
 
 const HeaderValue = styled.strong`
@@ -215,93 +212,85 @@ const HeaderChange = styled.span<{ $tone: ChangeTone }>`
 `
 
 const CloseButton = styled.button`
-  min-width: 44px;
-  min-height: 44px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  padding: 0 12px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
 
   &:hover {
     border-color: var(--color-primary-600);
     color: var(--color-text-900);
   }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-600);
+    outline-offset: 2px;
+  }
 `
 
 const Body = styled.div`
   display: grid;
-  gap: 12px;
+  gap: 24px;
   padding: 20px;
 `
 
-const DetailDisclosure = styled.details`
-  overflow: hidden;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-
-  &[open] > summary {
-    border-bottom: 1px solid var(--color-border-200);
-    color: var(--color-text-900);
-  }
-
-  &[open] > summary::after {
-    transform: rotate(225deg);
-  }
+// 드롭다운 대신 보고서 방식: 그룹 제목(유동인구/점포/매출) 아래에 데이터를 나열한다.
+const ReportSection = styled.section`
+  display: grid;
+  gap: 14px;
 `
 
-const DisclosureSummary = styled.summary`
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  padding: 10px 14px;
-  color: var(--color-text-700);
+const GroupHeading = styled.h3`
+  color: var(--color-text-900);
   font-size: 16px;
   font-weight: 700;
-  cursor: pointer;
-  list-style: none;
-
-  &::-webkit-details-marker {
-    display: none;
-  }
-
-  &::after {
-    width: 8px;
-    height: 8px;
-    flex: 0 0 auto;
-    margin-left: auto;
-    border-right: 2px solid var(--color-text-600);
-    border-bottom: 2px solid var(--color-text-600);
-    content: '';
-    transform: rotate(45deg);
-    transition: transform var(--motion-fast) var(--ease-standard);
-  }
+  line-height: 24px;
 `
 
-const DisclosureContent = styled.div`
+// 넓은 상세 폭을 활용해 차트를 세로 나열이 아니라 2열 그리드로 배치한다.
+const ChartGrid = styled.div`
   display: grid;
+  grid-template-columns: 1fr;
   gap: 16px;
-  padding: 16px;
+
+  & > * {
+    min-width: 0;
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 `
 
-const Group = styled.section`
+const ChartCard = styled.div<{ $full?: boolean }>`
+  min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  align-content: start;
+  padding: 16px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+
+  ${props => (props.$full ? 'grid-column: 1 / -1;' : '')}
 `
 
-const GroupTitle = styled.h3`
+const CardTitle = styled.h4`
   color: var(--color-text-800);
   font-size: 14px;
   font-weight: 700;
   line-height: 22px;
 `
 
-const GroupDescription = styled.p`
+const CardDescription = styled.p`
   color: var(--color-text-600);
   font-size: 13px;
   line-height: 20px;
@@ -432,21 +421,27 @@ function DetailRows({ rows }: { rows: DetailRow[] }) {
   )
 }
 
-function DetailGroup({
+// 차트 카드: 제목 + (제목과 다를 때만) 설명 캡션 + 차트/데이터.
+function ChartPanel({
   title,
   description,
-  rows,
+  full,
+  children,
 }: {
   title: string
   description?: string | null
-  rows: DetailRow[]
+  full?: boolean
+  children: ReactNode
 }) {
+  const desc = description?.trim()
   return (
-    <Group>
-      <GroupTitle>{title}</GroupTitle>
-      {description ? <GroupDescription>{description}</GroupDescription> : null}
-      <DetailRows rows={rows} />
-    </Group>
+    <ChartCard $full={full}>
+      <CardTitle>{title}</CardTitle>
+      {desc && desc !== title ? (
+        <CardDescription>{desc}</CardDescription>
+      ) : null}
+      {children}
+    </ChartCard>
   )
 }
 
@@ -458,203 +453,218 @@ function ChangeIndicatorSection({ detail }: { detail: DistrictDetail }) {
   if (indicatorName) {
     rows.push({ label: '변화 지표', value: indicatorName })
   }
-
   if (isFiniteNumber(indicator?.averageOpenedMonths)) {
     rows.push({
       label: '평균 개업 영업 기간',
-      value: formatNumber(indicator.averageOpenedMonths, '개월'),
+      value: formatMonths(indicator.averageOpenedMonths),
     })
   }
-
   if (isFiniteNumber(indicator?.averageClosedMonths)) {
     rows.push({
       label: '평균 폐업 영업 기간',
-      value: formatNumber(indicator.averageClosedMonths, '개월'),
+      value: formatMonths(indicator.averageClosedMonths),
     })
   }
 
   return (
-    <DetailDisclosure open>
-      <DisclosureSummary>상권 변화 지표</DisclosureSummary>
-      <DisclosureContent>
-        <DetailRows rows={rows} />
-      </DisclosureContent>
-    </DetailDisclosure>
+    <ReportSection>
+      <GroupHeading>상권 변화 지표</GroupHeading>
+      <DetailRows rows={rows} />
+    </ReportSection>
   )
 }
 
 function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
   const footTraffic = detail.footTraffic
-  const periodRows = (footTraffic?.periodTotalFootTrafficList ?? []).flatMap(
-    item =>
-      item?.periodCode && isFiniteNumber(item.totalFootTraffic)
-        ? [
-            {
-              label: item.periodCode,
-              value: formatPeople(item.totalFootTraffic),
-            },
-          ]
-        : [],
+  const periodPoints: TrendPoint[] = (
+    footTraffic?.periodTotalFootTrafficList ?? []
+  ).flatMap(item =>
+    item?.periodCode && isFiniteNumber(item.totalFootTraffic)
+      ? [
+          {
+            periodLabel: formatPeriodCode(item.periodCode),
+            value: item.totalFootTraffic,
+            changeRate: null,
+          },
+        ]
+      : [],
   )
-  const timeRows = TIME_SLOT_LABELS.flatMap(([label, key]) => {
-    const value = footTraffic?.timeSlot?.[key]
-    return isFiniteNumber(value) ? [{ label, value: formatPeople(value) }] : []
-  })
-  const genderRows: DetailRow[] = []
+  const timeRows = toChartRows(footTraffic?.timeSlot, TIME_SLOT_LABELS)
+  const ageRows = toChartRows(footTraffic?.ageGroup, AGE_GROUP_LABELS)
+  const dayRows = toChartRows(footTraffic?.dayOfWeek, DAY_OF_WEEK_LABELS)
+
+  const genderSegments: GenderSegment[] = []
   const maleFootTraffic = footTraffic?.gender?.maleFootTraffic
   const femaleFootTraffic = footTraffic?.gender?.femaleFootTraffic
-
   if (isFiniteNumber(maleFootTraffic)) {
-    genderRows.push({
-      label: '남성',
-      value: formatPeople(maleFootTraffic),
-    })
+    genderSegments.push({ label: '남성', value: maleFootTraffic })
   }
   if (isFiniteNumber(femaleFootTraffic)) {
-    genderRows.push({
-      label: '여성',
-      value: formatPeople(femaleFootTraffic),
-    })
+    genderSegments.push({ label: '여성', value: femaleFootTraffic })
   }
 
-  const ageRows = AGE_GROUP_LABELS.flatMap(([label, key]) => {
-    const value = footTraffic?.ageGroup?.[key]
-    return isFiniteNumber(value) ? [{ label, value: formatPeople(value) }] : []
-  })
-  const dayRows = DAY_OF_WEEK_LABELS.flatMap(([label, key]) => {
-    const value = footTraffic?.dayOfWeek?.[key]
-    return isFiniteNumber(value) ? [{ label, value: formatPeople(value) }] : []
-  })
-
   return (
-    <DetailDisclosure>
-      <DisclosureSummary>유동인구</DisclosureSummary>
-      <DisclosureContent>
-        <DetailGroup
+    <ReportSection>
+      <GroupHeading>유동인구</GroupHeading>
+      <ChartGrid>
+        <ChartPanel
+          full
           description={footTraffic?.periodTrend?.description}
-          rows={periodRows}
-          title={getMetadataName(footTraffic?.periodTrend) ?? '기간별 추이'}
-        />
-        <DetailGroup
+          title="분기별 추이"
+        >
+          <LineChart
+            ariaLabel="분기별 유동인구 추이"
+            height={200}
+            points={periodPoints}
+            unit="명"
+          />
+        </ChartPanel>
+        <ChartPanel
           description={footTraffic?.timeSlot?.dominantTimeSlotType?.description}
-          rows={timeRows}
-          title={
-            getMetadataName(footTraffic?.timeSlot?.dominantTimeSlotType) ??
-            '시간대별 유동인구'
-          }
-        />
-        <DetailGroup
-          description={footTraffic?.gender?.dominantGenderType?.description}
-          rows={genderRows}
-          title={
-            getMetadataName(footTraffic?.gender?.dominantGenderType) ??
-            '성별 유동인구'
-          }
-        />
-        <DetailGroup
-          description={footTraffic?.ageGroup?.dominantAgeGroupType?.description}
-          rows={ageRows}
-          title={
-            getMetadataName(footTraffic?.ageGroup?.dominantAgeGroupType) ??
-            '연령대별 유동인구'
-          }
-        />
-        <DetailGroup
+          title="시간대별 유동인구"
+        >
+          <BarChart
+            ariaLabel="시간대별 유동인구"
+            height={200}
+            items={timeRows}
+            unit="명"
+          />
+        </ChartPanel>
+        <ChartPanel
           description={
             footTraffic?.dayOfWeek?.dominantDayOfWeekType?.description
           }
-          rows={dayRows}
-          title={
-            getMetadataName(footTraffic?.dayOfWeek?.dominantDayOfWeekType) ??
-            '요일별 유동인구'
-          }
-        />
-      </DisclosureContent>
-    </DetailDisclosure>
+          title="요일별 유동인구"
+        >
+          <BarChart
+            ariaLabel="요일별 유동인구"
+            height={200}
+            items={dayRows}
+            unit="명"
+          />
+        </ChartPanel>
+        <ChartPanel
+          description={footTraffic?.ageGroup?.dominantAgeGroupType?.description}
+          title="연령대별 유동인구"
+        >
+          <BarChart
+            ariaLabel="연령대별 유동인구"
+            height={200}
+            items={ageRows}
+            unit="명"
+          />
+        </ChartPanel>
+        <ChartPanel
+          description={footTraffic?.gender?.dominantGenderType?.description}
+          title="성별 유동인구"
+        >
+          <DonutChart
+            ariaLabel="성별 유동인구 비율"
+            segments={genderSegments}
+          />
+        </ChartPanel>
+      </ChartGrid>
+    </ReportSection>
   )
 }
 
 function StoreSection({ detail }: { detail: DistrictDetail }) {
   const store = detail.store
-  const serviceRows = (store?.topStoreServices ?? []).flatMap(item =>
+  const serviceRows: AnalysisMetricRow[] = (
+    store?.topStoreServices ?? []
+  ).flatMap(item =>
     item?.serviceName && isFiniteNumber(item.totalStoreCount)
-      ? [
-          {
-            label: item.serviceName,
-            value: formatNumber(item.totalStoreCount, '개'),
-          },
-        ]
+      ? [{ label: item.serviceName, value: item.totalStoreCount }]
       : [],
   )
-  const openedRows = (store?.topOpenedAdministrations ?? []).flatMap(item =>
-    item?.administrationName &&
-    (isFiniteNumber(item.openedStoreCount) || isFiniteNumber(item.openingRate))
-      ? [
-          {
-            label: item.administrationName,
-            value: `${formatNumber(item.openedStoreCount, '개')} · ${formatStatusChange(item.openingRate)}`,
-          },
-        ]
+  const openedRows: AnalysisMetricRow[] = (
+    store?.topOpenedAdministrations ?? []
+  ).flatMap(item =>
+    item?.administrationName && isFiniteNumber(item.openedStoreCount)
+      ? [{ label: item.administrationName, value: item.openedStoreCount }]
       : [],
   )
-  const closedRows = (store?.topClosedAdministrations ?? []).flatMap(item =>
-    item?.administrationName &&
-    (isFiniteNumber(item.closedStoreCount) || isFiniteNumber(item.closureRate))
-      ? [
-          {
-            label: item.administrationName,
-            value: `${formatNumber(item.closedStoreCount, '개')} · ${formatStatusChange(item.closureRate)}`,
-          },
-        ]
+  const closedRows: AnalysisMetricRow[] = (
+    store?.topClosedAdministrations ?? []
+  ).flatMap(item =>
+    item?.administrationName && isFiniteNumber(item.closedStoreCount)
+      ? [{ label: item.administrationName, value: item.closedStoreCount }]
       : [],
   )
 
   return (
-    <DetailDisclosure>
-      <DisclosureSummary>점포</DisclosureSummary>
-      <DisclosureContent>
-        <DetailGroup rows={serviceRows} title="업종별 점포수" />
-        <DetailGroup rows={openedRows} title="행정동별 개업" />
-        <DetailGroup rows={closedRows} title="행정동별 폐업" />
-      </DisclosureContent>
-    </DetailDisclosure>
+    <ReportSection>
+      <GroupHeading>점포</GroupHeading>
+      <ChartGrid>
+        <ChartPanel full title="업종별 점포수">
+          <HorizontalBarChart
+            ariaLabel="업종별 점포수"
+            items={serviceRows}
+            unit="개"
+            valueFormatter={formatCount}
+          />
+        </ChartPanel>
+        <ChartPanel title="행정동별 개업">
+          <HorizontalBarChart
+            ariaLabel="행정동별 개업 점포수"
+            items={openedRows}
+            unit="개"
+            valueFormatter={formatCount}
+          />
+        </ChartPanel>
+        <ChartPanel title="행정동별 폐업">
+          <HorizontalBarChart
+            ariaLabel="행정동별 폐업 점포수"
+            items={closedRows}
+            unit="개"
+            valueFormatter={formatCount}
+          />
+        </ChartPanel>
+      </ChartGrid>
+    </ReportSection>
   )
 }
 
 function SalesSection({ detail }: { detail: DistrictDetail }) {
   const sales = detail.sales
-  const serviceRows = (sales?.topSalesServices ?? []).flatMap(item =>
+  const serviceRows: AnalysisMetricRow[] = (
+    sales?.topSalesServices ?? []
+  ).flatMap(item =>
     item?.serviceName && isFiniteNumber(item.salesChangeRate)
-      ? [
-          {
-            label: item.serviceName,
-            value: formatStatusChange(item.salesChangeRate),
-          },
-        ]
+      ? [{ label: item.serviceName, value: item.salesChangeRate }]
       : [],
   )
-  const administrationRows = (sales?.topSalesAdministrations ?? []).flatMap(
-    item =>
-      item?.administrationName &&
-      (isFiniteNumber(item.totalSalesAmount) ||
-        isFiniteNumber(item.salesChangeRate))
-        ? [
-            {
-              label: item.administrationName,
-              value: `${formatMoney(item.totalSalesAmount)} · ${formatStatusChange(item.salesChangeRate)}`,
-            },
-          ]
-        : [],
+  const administrationRows: AnalysisMetricRow[] = (
+    sales?.topSalesAdministrations ?? []
+  ).flatMap(item =>
+    item?.administrationName && isFiniteNumber(item.totalSalesAmount)
+      ? [{ label: item.administrationName, value: item.totalSalesAmount }]
+      : [],
   )
 
   return (
-    <DetailDisclosure>
-      <DisclosureSummary>매출</DisclosureSummary>
-      <DisclosureContent>
-        <DetailGroup rows={serviceRows} title="업종별 매출 변화" />
-        <DetailGroup rows={administrationRows} title="행정동별 매출" />
-      </DisclosureContent>
-    </DetailDisclosure>
+    <ReportSection>
+      <GroupHeading>매출</GroupHeading>
+      <ChartGrid>
+        <ChartPanel title="업종별 매출 변화율">
+          <HorizontalBarChart
+            ariaLabel="업종별 매출 변화율"
+            diverging
+            items={serviceRows}
+            unit="%"
+            valueFormatter={formatStatusChange}
+          />
+        </ChartPanel>
+        <ChartPanel title="행정동별 매출">
+          <HorizontalBarChart
+            ariaLabel="행정동별 매출액"
+            items={administrationRows}
+            unit="원"
+            valueFormatter={formatMoney}
+          />
+        </ChartPanel>
+      </ChartGrid>
+    </ReportSection>
   )
 }
 
@@ -682,7 +692,6 @@ function DetailHeader({
           </BackButton>
         ) : null}
         <HeaderContent>
-          <Eyebrow>{METRIC_LABELS[metric]} 상세 현황</Eyebrow>
           <Title>
             {selectedItem ? `${selectedItem.districtName} 상세` : '자치구 상세'}
           </Title>
@@ -702,8 +711,8 @@ function DetailHeader({
         </HeaderContent>
       </HeaderMain>
       {onClose ? (
-        <CloseButton type="button" onClick={onClose}>
-          닫기
+        <CloseButton aria-label="상세 닫기" type="button" onClick={onClose}>
+          <X aria-hidden="true" size={20} strokeWidth={2} />
         </CloseButton>
       ) : null}
     </Header>
