@@ -1,0 +1,129 @@
+'use client'
+
+import styled from 'styled-components'
+import {
+  Bar,
+  BarChart as ReBarChart,
+  Cell,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+
+import { computeNiceYScale } from '@/lib/analysis/chart-scale'
+import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
+import {
+  CHART_COLORS,
+  ChartTooltipContent,
+  formatAxisTick,
+} from './chart-theme'
+
+const Empty = styled.p`
+  padding: 24px 0;
+  color: var(--color-text-600);
+  font-size: 13px;
+  text-align: center;
+`
+
+export type HorizontalBarChartProps = {
+  items: readonly AnalysisMetricRow[]
+  unit: string
+  ariaLabel: string
+  /** Colors bars by sign (positive vs negative) instead of the primary series color. */
+  diverging?: boolean
+  /** Per-row height in px (drives the chart's total height). Default 34. */
+  rowHeight?: number
+  /** Width reserved for the category (label) axis. Default 96. */
+  yAxisWidth?: number
+  /** Formats the value label drawn at the end of each bar. Defaults to a compact 만/억 tick. */
+  valueFormatter?: (value: number) => string
+}
+
+/**
+ * 가로 막대 차트. 카테고리(업종·행정동 등 긴 한글 라벨)를 왼쪽 축에 두어
+ * 세로 막대보다 라벨이 겹치지 않고, 순위/증감 비교에 적합하다.
+ */
+export default function HorizontalBarChart({
+  items,
+  unit,
+  ariaLabel,
+  diverging = false,
+  rowHeight = 34,
+  yAxisWidth = 96,
+  valueFormatter,
+}: HorizontalBarChartProps) {
+  const hasData = items.some(item => typeof item.value === 'number')
+  if (!hasData) return <Empty>데이터 없음</Empty>
+
+  const values = items.map(item => item.value)
+  const scale = computeNiceYScale(values)
+  const domain: [number, number] = diverging
+    ? scale.domain
+    : [0, scale.domain[1]]
+  const formatLabel = valueFormatter ?? formatAxisTick
+  const height = Math.max(120, items.length * rowHeight + 24)
+
+  return (
+    <ResponsiveContainer
+      width="100%"
+      height={height}
+      initialDimension={{ width: 300, height }}
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <ReBarChart
+        data={items}
+        layout="vertical"
+        margin={{ top: 4, right: 52, bottom: 4, left: 8 }}
+      >
+        <XAxis type="number" domain={domain} hide />
+        <YAxis
+          type="category"
+          dataKey="label"
+          width={yAxisWidth}
+          tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
+          tickLine={false}
+          axisLine={false}
+        />
+        <Tooltip
+          content={<ChartTooltipContent unit={unit} />}
+          cursor={{ fill: 'var(--color-primary-100)' }}
+        />
+        <Bar
+          dataKey="value"
+          name="값"
+          radius={[0, 4, 4, 0]}
+          maxBarSize={26}
+          isAnimationActive={false}
+        >
+          {items.map((item, index) => (
+            <Cell
+              key={`${item.label}-${index}`}
+              fill={
+                diverging
+                  ? (item.value ?? 0) < 0
+                    ? CHART_COLORS.negative
+                    : CHART_COLORS.positive
+                  : CHART_COLORS.seriesPrimary
+              }
+            />
+          ))}
+          <LabelList
+            dataKey="value"
+            position="right"
+            formatter={value =>
+              typeof value === 'number' ? formatLabel(value) : ''
+            }
+            style={{
+              fill: 'var(--color-text-700)',
+              fontSize: 11,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          />
+        </Bar>
+      </ReBarChart>
+    </ResponsiveContainer>
+  )
+}

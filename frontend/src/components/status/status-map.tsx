@@ -42,7 +42,6 @@ const MapCanvas = styled.div`
   aspect-ratio: 800 / 620;
   overflow: hidden;
   container-type: size;
-  border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
 `
@@ -145,14 +144,14 @@ const DistrictLabel = styled.div<{
   }
 `
 
-// 1~3위 카드는 밝은 연두(초록+노랑)로 강조한다(1위 가장 진하고 3위로 갈수록 연하게).
-// green-500 단독 틴트는 탁해 보여, 노랑을 섞어 맑고 밝은 연두로 만든다.
-const RANK_ACCENT =
-  'color-mix(in srgb, var(--color-green-500) 55%, var(--color-yellow-500))'
+// 1~3위 배지는 success green(--color-green-500)으로 강조한다(1위 가장 진하고
+// 3위로 갈수록 연하게). green은 DESIGN.md에서 'HIGH 등급/긍정 지표'의 semantic
+// 색이라 상위 순위와 의미가 맞고, 선택(primary blue)과 색상이 겹치지 않는다.
+const RANK_ACCENT = 'var(--color-green-500)'
 const TOP_RANK_FILL: Record<number, string> = {
-  1: `color-mix(in srgb, ${RANK_ACCENT} 45%, var(--color-surface))`,
-  2: `color-mix(in srgb, ${RANK_ACCENT} 28%, var(--color-surface))`,
-  3: `color-mix(in srgb, ${RANK_ACCENT} 15%, var(--color-surface))`,
+  1: `color-mix(in srgb, ${RANK_ACCENT} 24%, var(--color-surface))`,
+  2: `color-mix(in srgb, ${RANK_ACCENT} 15%, var(--color-surface))`,
+  3: `color-mix(in srgb, ${RANK_ACCENT} 8%, var(--color-surface))`,
 }
 
 const RankedDistrictLabel = styled.button<{
@@ -234,12 +233,6 @@ const RankNumber = styled.span`
   @container (max-width: 460px) {
     font-size: 12px;
   }
-`
-
-const Caption = styled.figcaption`
-  color: var(--color-text-600);
-  font-size: 13px;
-  line-height: 20px;
 `
 
 const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
@@ -618,9 +611,6 @@ export default function StatusMap({
           </MapLabelLayer>
         </MapViewport>
       </MapCanvas>
-      <Caption>
-        구 이름 아래 숫자는 {METRIC_LABELS[metric]} 기준 Top10 순위입니다.
-      </Caption>
     </Figure>
   )
 }
