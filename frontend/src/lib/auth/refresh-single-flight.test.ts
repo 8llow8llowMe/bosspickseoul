@@ -63,7 +63,9 @@ describe('refreshSessionOnce', () => {
       { status: 'rejected', reason: expect.any(Error) },
       { status: 'rejected', reason: expect.any(Error) },
     ])
-    expect(results[0].reason.message).toBe('network down')
+    expect((results[0] as PromiseRejectedResult).reason.message).toBe(
+      'network down',
+    )
 
     // reissue는 1회만 호출됨
     expect(reissue).toHaveBeenCalledTimes(1)
