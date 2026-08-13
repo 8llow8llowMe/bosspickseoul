@@ -81,10 +81,7 @@ export default function AiReportLockCard({
       </Sample>
       <Overlay>
         <Lock size={22} aria-hidden />
-        <Copy>
-          이 지역의 강점·리스크·추천 업종을 AI가 요약해 드려요 — 로그인하고
-          확인하기
-        </Copy>
+        <Copy>이 지역의 강점·리스크·추천 업종을 AI가 요약해 드려요</Copy>
         <Cta href={loginHref}>로그인하고 AI 리포트 보기</Cta>
       </Overlay>
     </Wrap>
