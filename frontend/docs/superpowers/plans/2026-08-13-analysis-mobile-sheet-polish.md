@@ -20,15 +20,15 @@
 
 ## File Structure
 
-| 파일 | 책임 | 관련 이슈 |
-|---|---|---|
-| `src/lib/analysis/analysis-sheet-state.ts` | 스냅/드래그 순수 로직 | #1 |
-| `src/lib/analysis/analysis-sheet-state.test.ts` | 위 로직 단위테스트 | #1 |
-| `src/components/analysis/analysis-mobile-sheet.tsx` | 바텀시트 셸: 드래그, 핸들행 헤더, back, 스크롤 표면 | #2 #3 #4 #7 |
-| `src/components/analysis/analysis-mobile-sheet.test.ts` | 시트 SSR 마크업 테스트 | #3 (갱신) |
-| `src/components/analysis/analysis-selection-panel.tsx` | 선택 패널(헤더/스텝/카드) — `variant` 분기 | #6 #8 #2 |
-| `src/components/analysis/analysis-page.tsx` | 페이지 높이·패널 조립 | #9 |
-| `src/components/analysis/ai-report/ai-report-lock-card.tsx` | 비로그인 잠금 카피 | #5 |
+| 파일                                                        | 책임                                                | 관련 이슈   |
+| ----------------------------------------------------------- | --------------------------------------------------- | ----------- |
+| `src/lib/analysis/analysis-sheet-state.ts`                  | 스냅/드래그 순수 로직                               | #1          |
+| `src/lib/analysis/analysis-sheet-state.test.ts`             | 위 로직 단위테스트                                  | #1          |
+| `src/components/analysis/analysis-mobile-sheet.tsx`         | 바텀시트 셸: 드래그, 핸들행 헤더, back, 스크롤 표면 | #2 #3 #4 #7 |
+| `src/components/analysis/analysis-mobile-sheet.test.ts`     | 시트 SSR 마크업 테스트                              | #3 (갱신)   |
+| `src/components/analysis/analysis-selection-panel.tsx`      | 선택 패널(헤더/스텝/카드) — `variant` 분기          | #6 #8 #2    |
+| `src/components/analysis/analysis-page.tsx`                 | 페이지 높이·패널 조립                               | #9          |
+| `src/components/analysis/ai-report/ai-report-lock-card.tsx` | 비로그인 잠금 카피                                  | #5          |
 
 ---
 
@@ -37,10 +37,12 @@
 현재 `resolveAnalysisSheetSnapFromDrag`는 중간점(50% travel) 기준이라 드래그로 스냅을 바꾸려면 시트 여정의 절반 이상을 끌어야 한다 → "클릭할 때만 열린다"는 체감. 방향성 30% 임계값으로 바꿔, 접힘↔펼침 어느 방향이든 `expanded-collapsed` 여정의 30% 이상 끌면 스냅이 전환되게 한다.
 
 **Files:**
+
 - Modify: `src/lib/analysis/analysis-sheet-state.ts:40-65`
 - Test: `src/lib/analysis/analysis-sheet-state.test.ts:35-65`
 
 **Interfaces:**
+
 - Produces: `resolveAnalysisSheetSnapFromDrag(startSnap, deltaY, collapsedHeight, expandedHeight): AnalysisSheetSnap` — 시그니처 불변. 판정 규칙만 midpoint→30% 방향 임계값으로 교체.
 - Consumes: `analysis-mobile-sheet.tsx`가 pointerup에서 그대로 호출(변경 없음).
 
@@ -133,10 +135,12 @@ git commit -m "fix(analysis): 바텀시트 드래그 스냅 임계값 midpoint�
 접힘/선택 뷰: `[스텝라벨+요약]` + `[AI 리포트 칩]` (확장 chevron 제거). 리포트 뷰: `[< 아이콘만]` + `[답십리1동 AI 리포트 제목]`로 핸들행을 교체하고, 리포트 Layer 안의 중복 `ReportHeader`를 제거한다. back 버튼은 테두리·프로그램 포커스 아웃라인 없이 아이콘만.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-mobile-sheet.tsx` (HandleRow 렌더 `:442-474`, ReportHeader/BackButton 스타일 `:231-266`, 리포트 Layer `:484-506`, Icon import/사용 `:13,146-165,460-462`)
 - Test: `src/components/analysis/analysis-mobile-sheet.test.ts:25-43`
 
 **Interfaces:**
+
 - Consumes: `AnalysisMobileSheetProps`(stepLabel, summary, aiReport, children) 불변. 내부 `SheetView`, `effectiveView`, 드래그 핸들러 재사용.
 - Produces: 외부 API 변화 없음. `openReport`/`setView('selection')` 흐름 유지.
 
@@ -289,10 +293,12 @@ git commit -m "feat(analysis): 시트 핸들행 헤더 재구성(리포트 back+
 선택 뷰의 스크롤은 패널 내부 `Body`, 리포트 뷰의 스크롤은 시트 `Layer`에서 발생한다. 두 표면 모두 스크롤바만 감추고 스크롤은 유지한다. 패널은 데스크탑과 공유되므로 `variant`(Task 4에서 도입)로 시트에서만 숨긴다.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-mobile-sheet.tsx` — `Layer` styled(`:208-229`)
 - Modify: `src/components/analysis/analysis-selection-panel.tsx` — `Body` styled(`:143-148`), Task 4의 `variant`와 결합
 
 **Interfaces:**
+
 - Consumes: Task 4가 `AnalysisSelectionPanel`에 추가하는 `variant?: 'panel' | 'sheet'`.
 
 - [ ] **Step 1: 시트 Layer 스크롤바 숨김**
@@ -329,19 +335,23 @@ git commit -m "style(analysis): 바텀시트 스크롤바 숨김(스크롤 유�
 `AnalysisSelectionPanel`에 `variant?: 'panel' | 'sheet'`(기본 `'panel'`)를 도입한다. `sheet`에서: (a) `Header`(Eyebrow/Title/Description) 숨김 → 스텝 상자+카드가 바로 보이게(#6), (b) 상권/업종 후보를 한 줄에 여러 개 보이는 격자로(글자 잘림 없이)(#8), (c) Task 3의 스크롤바 숨김 적용. 데스크탑(`panel`)은 전부 기존 유지.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-selection-panel.tsx` (`AnalysisSelectionPanelProps` `:23-34`, `Header`/`Body`/`CandidateList`/`CandidateCopy` styled, 렌더 `:358-508`)
 - Modify: `src/components/analysis/analysis-page.tsx` — 시트에 넣는 패널에 `variant="sheet"` 전달 (`:709-717`)
 
 **Interfaces:**
+
 - Produces: `AnalysisSelectionPanelProps`에 `variant?: 'panel' | 'sheet'` 추가(옵셔널, 기본 `'panel'`). 기존 호출부(데스크탑 `:659-672`)는 무변경.
 - Consumes: `analysis-page.tsx`가 `children={panel}` 대신 시트 전용 `variant="sheet"` 패널을 전달.
 
 - [ ] **Step 1: variant prop 추가 + 데스크탑/시트 패널 분리**
 
 `analysis-selection-panel.tsx`:
+
 - `AnalysisSelectionPanelProps`에 `variant?: 'panel' | 'sheet'` 추가, 함수 시그니처에서 `variant = 'panel'` 기본값.
 
 `analysis-page.tsx`:
+
 - 기존 `const panel = (<AnalysisSelectionPanel ... />)`(데스크탑용, variant 생략=panel)는 그대로.
 - 시트용 별도 엘리먼트를 만들어 전달(같은 props + `variant="sheet"`):
 
@@ -366,13 +376,17 @@ mobilePanel={
 렌더에서 `Header`(`:360-366`)를 `variant !== 'sheet'`일 때만 렌더:
 
 ```tsx
-{variant !== 'sheet' ? (
-  <Header>
-    <Eyebrow>상권 분석</Eyebrow>
-    <Title>분석할 지역을 선택해 주세요</Title>
-    <Description>지도와 목록에서 지역을 좁힌 뒤 원하는 업종을 선택하세요.</Description>
-  </Header>
-) : null}
+{
+  variant !== 'sheet' ? (
+    <Header>
+      <Eyebrow>상권 분석</Eyebrow>
+      <Title>분석할 지역을 선택해 주세요</Title>
+      <Description>
+        지도와 목록에서 지역을 좁힌 뒤 원하는 업종을 선택하세요.
+      </Description>
+    </Header>
+  ) : null
+}
 ```
 
 시트에서는 `StepList`(4개 단계 상자) + `Body`(카드)가 곧바로 보인다. `StepList`/`Body` 상단 패딩이 헤더 제거 후에도 자연스러운지 확인, 필요하면 `sheet`에서 `StepList` `padding` 상단만 소폭 축소(토큰/기존 값 범위 내).
@@ -445,6 +459,7 @@ git commit -m "feat(analysis): 선택 패널 sheet 변형 — 헤더 숨김·상
 버튼 "로그인하고 AI 리포트 보기"가 바로 아래 있으므로 카피의 "— 로그인하고 확인하기"는 중복. 문구만 제거한다. 이 카드는 데스크탑 카드/모바일 리포트 뷰(ReportInsightSection locked)가 공유하므로 양쪽에 동시 반영된다.
 
 **Files:**
+
 - Modify: `src/components/analysis/ai-report/ai-report-lock-card.tsx:84-87`
 
 - [ ] **Step 1: 문구 교체**
@@ -471,6 +486,7 @@ git commit -m "copy(analysis): 잠금 카드 중복 CTA 문구 제거"
 측정 결과: 헤더 실제 높이 **65px**(Inner min-height 64px + Header `border-bottom` 1px, 스크롤 여부와 무관하게 transparent 1px도 레이아웃 점유), `Page`는 `calc(100dvh - 64px)`만 빼서 헤더 65 + 본문 748 = **813px > 812** → 1px 세로 스크롤. 헤더 실높이만큼 빼 정확히 100dvh를 채운다.
 
 **Files:**
+
 - Modify: `src/components/analysis/analysis-page.tsx:99-106` (`Page` styled)
 
 - [ ] **Step 1: Page 높이 보정**
@@ -506,6 +522,7 @@ git commit -m "fix(analysis): 페이지 높이 헤더 65px 보정으로 100dvh �
 ## Self-Review
 
 **1. Spec coverage (9개 이슈):**
+
 - #1 드래그 30% 스냅 → Task 1 ✅
 - #2 스크롤바 숨김(스크롤 유지) → Task 3(+Task 4 Body 결합) ✅
 - #3 리포트 헤더를 핸들행으로 통합 → Task 2 ✅
@@ -521,5 +538,6 @@ git commit -m "fix(analysis): 페이지 높이 헤더 65px 보정으로 100dvh �
 **3. Type consistency:** `variant: 'panel' | 'sheet'`를 Task 3/4에서 일관되게 사용(`$variant` styled prop 포함). `resolveAnalysisSheetSnapFromDrag` 시그니처 불변. `AnalysisMobileSheetProps` 불변. `ReportTitle`은 Task 2에서 핸들행이 재사용(제거하지 않음), `ReportHeader`/`Icon`/`ChevronUp`만 제거.
 
 **주의(리뷰 포인트):**
+
 - Task 4에서 데스크탑 패널 `memo` 리렌더 회귀 없는지(추가 prop은 리터럴 `variant`뿐).
 - Task 2 back 버튼 프로그램 포커스 시 `:focus { outline:none }`로 검은 테두리 제거하되, 키보드 사용자 `:focus-visible` 표시는 유지.
