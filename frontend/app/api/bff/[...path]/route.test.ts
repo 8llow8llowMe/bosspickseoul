@@ -20,6 +20,20 @@ const ctx = (path: string[]) => ({ params: Promise.resolve({ path }) })
 const session1 = { accessToken: 'old-token', refreshToken: 'r1', memberId: '1' }
 const session2 = { accessToken: 'new-token', refreshToken: 'r2', memberId: '1' }
 
+const jwt = (exp: number) =>
+  `h.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.s`
+const nowSec = () => Math.floor(Date.now() / 1000)
+const expiredJwtSession = {
+  accessToken: jwt(nowSec() - 60),
+  refreshToken: 'r1',
+  memberId: '1',
+}
+const freshJwtSession = {
+  accessToken: jwt(nowSec() + 3600),
+  refreshToken: 'r1',
+  memberId: '1',
+}
+
 beforeEach(() => {
   getSession.mockReset()
   setSession.mockReset()
@@ -151,6 +165,57 @@ describe('BFF proxy /api/bff/[...path]', () => {
     await GET(req, ctx(['members', 'me']))
     const [, init] = fetchMock.mock.calls[0]
     expect(init.body).toBeUndefined()
+  })
+
+  it('만료 JWT면 forward 전에 선재발급하고 새 토큰으로 1회만 forward한다', async () => {
+    getSession.mockResolvedValue(expiredJwtSession)
+    reissueSession.mockResolvedValue(session2)
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{}', { status: 200 }))
+    global.fetch = fetchMock
+    const { GET } = await import('./route')
+    const req = new Request('http://x/api/bff/districts', { method: 'GET' })
+    const res = await GET(req, ctx(['districts']))
+    expect(res.status).toBe(200)
+    expect(reissueSession).toHaveBeenCalledTimes(1)
+    expect(setSession).toHaveBeenCalledWith(session2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(
+      (fetchMock.mock.calls[0][1].headers as Headers).get('authorization'),
+    ).toBe('Bearer new-token')
+  })
+
+  it('만료 JWT + 재발급 실패면 세션을 비우고 토큰 없이(익명) forward한다', async () => {
+    getSession.mockResolvedValue(expiredJwtSession)
+    reissueSession.mockResolvedValue(null)
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{}', { status: 200 }))
+    global.fetch = fetchMock
+    const { GET } = await import('./route')
+    const req = new Request('http://x/api/bff/districts', { method: 'GET' })
+    const res = await GET(req, ctx(['districts']))
+    expect(res.status).toBe(200)
+    expect(clearSession).toHaveBeenCalledTimes(1)
+    expect(setSession).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(
+      (fetchMock.mock.calls[0][1].headers as Headers).has('authorization'),
+    ).toBe(false)
+  })
+
+  it('유효 JWT면 선재발급을 하지 않는다', async () => {
+    getSession.mockResolvedValue(freshJwtSession)
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{}', { status: 200 }))
+    global.fetch = fetchMock
+    const { GET } = await import('./route')
+    const req = new Request('http://x/api/bff/districts', { method: 'GET' })
+    await GET(req, ctx(['districts']))
+    expect(reissueSession).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('sends no body on a HEAD request', async () => {
