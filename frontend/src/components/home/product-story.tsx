@@ -34,12 +34,22 @@ const LeadTitle = styled.h2`
   font-weight: 700;
   line-height: 36px;
   word-break: keep-all;
+
+  @media (max-width: 768px) {
+    font-size: 24px;
+    line-height: 34px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 21px;
+    line-height: 30px;
+  }
 `
 
 const Track = styled.div`
   height: calc(100dvh * ${STORY_STEPS.length});
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     height: auto;
   }
 `
@@ -161,17 +171,35 @@ const SampleLabel = styled.span`
   color: var(--color-text-caption);
 `
 
+// SiteHeader(sticky) 실측 높이(64px + border 1px). hero-section.tsx와 동일 상수.
+const HEADER_HEIGHT = '65px'
+
 const Stack = styled.div`
   width: min(760px, 100%);
   margin: 0 auto;
-  display: grid;
-  gap: 32px;
-  padding: 48px 16px;
+  padding: 0 20px;
+
+  @media (max-width: 480px) {
+    padding: 0 16px;
+  }
+`
+
+// 리드(섹션 표제)는 짧은 인트로로만 두고, 각 스텝만 한 화면(100dvh - 헤더)씩
+// 차지하게 해 "한 화면 = 한 스텝" 슬라이드로 스크롤되게 한다(단순 나열 개선).
+const StackLead = styled.div`
+  padding: 56px 0 8px;
+
+  @media (max-width: 480px) {
+    padding: 40px 0 8px;
+  }
 `
 
 const StackItem = styled.article`
-  display: grid;
-  gap: 12px;
+  min-height: calc(100dvh - ${HEADER_HEIGHT});
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
 `
 
 const StackHead = styled.div`
@@ -238,7 +266,7 @@ function useStackedMode(): boolean {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const narrow = window.matchMedia('(max-width: 640px)')
+    const narrow = window.matchMedia('(max-width: 768px)')
     const update = () => setStacked(reduced.matches || narrow.matches)
     update()
     reduced.addEventListener('change', update)
@@ -299,7 +327,9 @@ export default function ProductStory() {
     return (
       <Container>
         <Stack>
-          <StoryLead />
+          <StackLead>
+            <StoryLead />
+          </StackLead>
           {STORY_STEPS.map(item => (
             <StackItem key={item.step}>
               <StackHead>

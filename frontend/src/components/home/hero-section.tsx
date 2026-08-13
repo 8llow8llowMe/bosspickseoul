@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { PanelTopOpen } from 'lucide-react'
+import { ChevronDown, PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import HeroWindow, { type WindowState } from '@/components/home/hero-window'
@@ -92,9 +92,11 @@ const Hero = styled.section`
   background: var(--color-background);
 
   @media (max-width: 640px) {
+    /* 모바일: 지도(폴리곤)와 카드를 각각 한 화면(100dvh - 헤더)씩 세로로 쌓아,
+       스크롤 한 번에 지도 → 분석 카드로 넘어가게 한다. */
     height: auto;
     min-height: auto;
-    padding: 56px 16px;
+    padding: 0 16px 24px;
   }
 `
 
@@ -120,20 +122,80 @@ const HeroStage = styled.div`
   flex-direction: column;
   min-height: 0;
 
-  /* 모바일에서는 오버레이를 해제하고 지도 → 카드 순서로 세로 정렬한다. */
+  /* 모바일에서는 오버레이를 해제하고 지도 → 카드 순서로 세로 정렬한다.
+     position은 relative를 유지해 독 버튼 등 absolute 자식의 기준을 잃지 않는다. */
   @media (max-width: 640px) {
-    position: static;
     flex: none;
   }
+`
+
+// 모바일 첫 화면(스크린 1) 래퍼. 데스크톱에서는 display:contents로 완전히
+// 투명해져 MapLayer가 기존처럼 HeroStage의 직접 자식(flex:1)으로 동작한다.
+// 모바일에서는 [안내 문구][지도][스크롤 힌트]를 한 화면(100dvh - 헤더)에 담아,
+// 지도만 세로 중앙에 떠 보이던 빈 여백을 상·하 요소로 채운다.
+const MapScreen = styled.div`
+  display: contents;
+
+  @media (max-width: 640px) {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - ${HEADER_HEIGHT});
+  }
+`
+
+// 지도 위 안내(모바일 전용). 데스크톱은 카드가 히어로 카피를 담으므로 숨긴다.
+const MobileIntro = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 20px 4px 8px;
+  }
+`
+
+const MobileIntroEyebrow = styled.p`
+  color: var(--color-text-caption);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+`
+
+const MobileIntroTitle = styled.p`
+  color: var(--color-text-900);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  word-break: keep-all;
 `
 
 const MapLayer = styled.div`
   width: 100%;
   flex: 1;
   min-height: 0;
+`
+
+// 스크롤 유도(모바일 전용). 지도 아래 남는 공간을 채우고 카드 화면으로의
+// 이동을 안내한다.
+const MobileScrollHint = styled.div`
+  display: none;
 
   @media (max-width: 640px) {
-    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 0 4px;
+    color: var(--color-text-caption);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
   }
 `
 
@@ -149,11 +211,12 @@ const CardLayer = styled.div`
      카드 영역 자체의 이벤트 차단은 WindowCard(hero-window.tsx)의 pointer-events: auto가 담당한다. */
   pointer-events: none;
 
+  /* 모바일: 카드도 한 화면(100dvh - 헤더) 높이 영역에 세로 중앙 정렬한다. */
   @media (max-width: 640px) {
     position: static;
     inset: auto;
     padding: 0;
-    margin-top: 16px;
+    min-height: calc(100dvh - ${HEADER_HEIGHT});
   }
 `
 
@@ -389,9 +452,21 @@ export default function HeroSection() {
     <Hero>
       <Inner>
         <HeroStage ref={containerRef}>
-          <MapLayer>
-            <SeoulDistrictsMap onHoverChange={setHoveredCode} />
-          </MapLayer>
+          <MapScreen>
+            <MobileIntro aria-hidden="true">
+              <MobileIntroEyebrow>서울 상권 지도</MobileIntroEyebrow>
+              <MobileIntroTitle>
+                자치구를 눌러 바로 분석을 시작하세요.
+              </MobileIntroTitle>
+            </MobileIntro>
+            <MapLayer>
+              <SeoulDistrictsMap onHoverChange={setHoveredCode} />
+            </MapLayer>
+            <MobileScrollHint aria-hidden="true">
+              아래로 스크롤
+              <ChevronDown />
+            </MobileScrollHint>
+          </MapScreen>
           {!showDock ? (
             <CardLayer>
               <HeroWindow

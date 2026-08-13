@@ -40,8 +40,12 @@ const Sticky = styled.div`
   justify-content: center;
   padding: 96px 20px;
 
+  @media (max-width: 768px) {
+    padding: 72px 20px;
+  }
+
   @media (max-width: 640px) {
-    padding: 96px 16px;
+    padding: 56px 16px;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -62,8 +66,16 @@ const Statement = styled.p`
   word-break: keep-all;
   will-change: transform, opacity;
 
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
+
   @media (max-width: 640px) {
     font-size: 24px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 21px;
   }
 `
 

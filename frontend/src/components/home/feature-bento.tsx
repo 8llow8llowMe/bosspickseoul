@@ -15,9 +15,14 @@ const Section = styled.section`
   justify-content: center;
   padding: 64px 20px;
 
-  @media (max-width: 640px) {
+  /* 태블릿 이하에서는 화면을 꽉 채우지 않고 콘텐츠 높이에 맞춰 여백 과다를 줄인다. */
+  @media (max-width: 768px) {
     min-height: auto;
-    padding: 64px 16px;
+    padding: 56px 20px;
+  }
+
+  @media (max-width: 640px) {
+    padding: 48px 16px;
   }
 `
 
@@ -31,6 +36,10 @@ const Header = styled.div`
   display: grid;
   gap: 10px;
   margin-bottom: 28px;
+
+  @media (max-width: 640px) {
+    margin-bottom: 20px;
+  }
 `
 
 const Eyebrow = styled.p`
@@ -46,6 +55,16 @@ const Title = styled.h2`
   font-weight: 700;
   line-height: 36px;
   word-break: keep-all;
+
+  @media (max-width: 640px) {
+    font-size: 22px;
+    line-height: 30px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 20px;
+    line-height: 28px;
+  }
 `
 
 const Bento = styled.div`
@@ -201,6 +220,8 @@ const Cta = styled.div`
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 20px;
   }
 `
 
@@ -221,12 +242,19 @@ const Actions = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+
+  /* 모바일: 버튼을 세로로 쌓고 폭을 채워 탭 영역을 키운다. */
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `
 
 const PrimaryLink = styled(Link)`
   min-height: 48px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 0 18px;
   border-radius: var(--radius-control);
@@ -250,6 +278,7 @@ const SecondaryLink = styled(Link)`
   min-height: 48px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 0 18px;
   border-radius: var(--radius-control);
