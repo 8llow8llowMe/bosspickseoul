@@ -133,6 +133,11 @@ const SheetBody = styled.div<{ $isExpanded: boolean }>`
   overscroll-behavior: contain;
   padding: 0 16px calc(20px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 
   ${props =>
     !props.$isExpanded &&

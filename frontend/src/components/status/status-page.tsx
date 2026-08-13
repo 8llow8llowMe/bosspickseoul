@@ -26,30 +26,42 @@ const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
 const DETAIL_ERROR_MESSAGE =
   '선택한 자치구의 상세 현황을 불러오지 못했습니다. 다시 시도해 주세요.'
+// 구별현황은 한 화면(100dvh - 헤더 65px)에 들어오도록 세로 flex로 구성하고,
+// 지도/리스트가 남는 높이를 채우며 긴 패널은 내부 스크롤로 처리한다.
 const Page = styled.main`
   width: 100%;
-  padding: 40px 0 72px;
+  height: calc(100dvh - 65px);
+  padding: 20px 0 24px;
+  display: flex;
+  flex-direction: column;
 
   @media (max-width: 1023px) {
-    padding: 24px 0 0;
+    padding: 16px 0 20px;
+  }
+
+  @media (max-width: 767px) {
+    padding: 12px 0 0;
   }
 `
 
 const PageInner = styled.div`
   width: min(1400px, calc(100% - 48px));
+  height: 100%;
+  min-height: 0;
   margin: 0 auto;
-  display: grid;
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 
   @media (max-width: 1023px) {
     width: min(100%, calc(100% - 32px));
-    gap: 16px;
+    gap: 12px;
   }
 `
 
 const Hero = styled.header`
   display: grid;
-  gap: 10px;
+  gap: 4px;
 `
 
 const Eyebrow = styled.p`
@@ -60,51 +72,69 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(26px, 3vw, 36px);
+  font-size: clamp(20px, 2.2vw, 28px);
   font-weight: 800;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.02em;
   word-break: keep-all;
 `
 
+// 설명은 세로 공간을 아끼기 위해 데스크톱에서만 노출한다(태블릿·모바일 숨김).
 const HeroDescription = styled.p`
   max-width: 680px;
   color: var(--color-text-600);
-  font-size: 15px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 21px;
   word-break: keep-all;
-`
-
-const TabsSurface = styled.div`
-  padding: 12px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-1);
-`
-
-const MetricPanel = styled.section`
-  min-width: 0;
-`
-
-const DesktopGrid = styled.div`
-  --status-side-track: 280px;
-
-  display: grid;
-  grid-template-columns: var(--status-side-track) minmax(0, 1fr);
-  align-items: start;
-  gap: 20px;
 
   @media (max-width: 1023px) {
     display: none;
   }
 `
 
+const TabsSurface = styled.div`
+  padding: 6px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+`
+
+const MetricPanel = styled.section`
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+`
+
+const DesktopGrid = styled.div`
+  --status-side-track: 280px;
+
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--status-side-track) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 20px;
+
+  /* 태블릿(768~1023): 간격만 줄이고 리스트 폭(280)은 유지해 값이 잘리지 않게 한다. */
+  @media (max-width: 1023px) {
+    gap: 16px;
+  }
+
+  /* 모바일(<768)에서만 바텀시트(MobileStage)로 전환한다. */
+  @media (max-width: 767px) {
+    display: none;
+  }
+`
+
 const DesktopContent = styled.div`
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 0px) minmax(360px, 1fr);
-  align-items: start;
+  align-items: stretch;
   column-gap: 0;
   transition:
     grid-template-columns var(--motion-standard) var(--ease-standard),
@@ -118,6 +148,26 @@ const DesktopContent = styled.div`
     column-gap: 20px;
   }
 
+  /* 태블릿(768~1023): 상세를 지도 옆에 나란히 둘 폭이 부족하므로 한 열로 두고,
+     선택이 없으면 지도, 선택되면 상세를 전체 폭으로 보여준다(맵↔상세 토글). */
+  @media (max-width: 1023px) {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+
+    &[data-has-selection='true'] {
+      grid-template-columns: minmax(0, 1fr);
+      column-gap: 0;
+    }
+
+    &[data-has-selection='true'] [data-status-map-panel] {
+      display: none;
+    }
+
+    &:not([data-has-selection='true']) [data-status-detail-slot] {
+      display: none;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
@@ -125,6 +175,7 @@ const DesktopContent = styled.div`
 
 const DesktopDetailSlot = styled.div`
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
@@ -139,9 +190,29 @@ const DesktopDetailSlot = styled.div`
     transform: translateX(0);
   }
 
+  /* 상세는 남는 높이 안에서 내부 스크롤(스크롤바 숨김). */
   & > article {
     width: var(--status-side-track);
     min-width: var(--status-side-track);
+    max-height: 100%;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  /* 태블릿: 상세를 전체 폭으로 펼친다(맵↔상세 토글). */
+  @media (max-width: 1023px) {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+
+    & > article {
+      width: 100%;
+      min-width: 0;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -151,16 +222,37 @@ const DesktopDetailSlot = styled.div`
 
 const DesktopPanel = styled.section`
   min-width: 0;
-  padding: 20px;
+  min-height: 0;
+  padding: 16px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-level-1);
+  overflow-y: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `
 
+// 지도 패널은 스크롤 없이 남는 높이를 지도로 채운다(헤딩 auto + 지도 1fr).
 const MapPanel = styled(DesktopPanel)`
   display: grid;
-  gap: 16px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+
+  > figure {
+    min-height: 0;
+    height: 100%;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  > figure > div {
+    height: 100%;
+    aspect-ratio: auto;
+  }
 `
 
 const MapHeading = styled.div`
@@ -185,10 +277,14 @@ const MapDescription = styled.p`
 const MobileStage = styled.section`
   display: none;
 
-  @media (max-width: 1023px) {
+  /* 모바일(<768)에서만 지도+바텀시트 스테이지를 사용한다. 태블릿 이상은
+     DesktopGrid의 2단(리스트+지도/상세)로 처리한다. */
+  @media (max-width: 767px) {
     position: relative;
+    /* 남는 세로 공간을 지도+시트가 모두 채워 하단 빈 공간을 없앤다. */
+    flex: 1;
+    min-height: 0;
     width: calc(100% + 32px);
-    height: clamp(360px, 62dvh, 560px);
     display: block;
     overflow: hidden;
     margin-left: -16px;
@@ -202,15 +298,25 @@ const MobileMapLayer = styled.div`
   inset: 0;
   min-height: 0;
   padding: 12px;
+  display: grid;
+  /* 지도를 스테이지 상단(탭 바로 아래)에 붙여, 빈 공간이 지도 위가 아니라
+     시트가 올라오는 하단 쪽에 모이게 한다. */
+  align-content: start;
 
   > figure {
-    height: 100%;
-    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+    height: auto;
   }
 
   > figure > div {
-    height: 100%;
-    aspect-ratio: auto;
+    height: auto;
+    max-height: 100%;
+    aspect-ratio: 800 / 620;
+  }
+
+  /* 모바일 스테이지에서는 캡션을 숨겨(순위 배지로 충분) 지도 몫을 넓힌다. */
+  > figure > figcaption {
+    display: none;
   }
 `
 
@@ -221,6 +327,8 @@ function StatusPageContent() {
   const rawSearchParams = searchParams.toString()
   const metric = parseStatusMetric(searchParams.get('metric'))
   const requestedDistrictCode = searchParams.get('district')
+  // 지도는 상단 정렬로 항상 보이고, 시트는 기본 '펼침'으로 하단을 Top10 리스트가
+  // 채우게 한다(빈 공간 제거). 지도 몫(MINIMUM_MAP_HEIGHT)이 확보돼 가리지 않는다.
   const [sheetState, setSheetState] = useState<StatusSheetState>({
     districtCode: null,
     snap: 'expanded',
@@ -422,7 +530,10 @@ function StatusPageContent() {
             </DesktopPanel>
 
             <DesktopContent data-has-selection={selectedItem !== null}>
-              <DesktopDetailSlot data-has-selection={selectedItem !== null}>
+              <DesktopDetailSlot
+                data-has-selection={selectedItem !== null}
+                data-status-detail-slot
+              >
                 {selectedItem ? (
                   <StatusDetail
                     detail={detail}
@@ -436,7 +547,7 @@ function StatusPageContent() {
                 ) : null}
               </DesktopDetailSlot>
 
-              <MapPanel>
+              <MapPanel data-status-map-panel>
                 <MapHeading>
                   <MapTitle>서울 자치구 지도</MapTitle>
                   <MapDescription>

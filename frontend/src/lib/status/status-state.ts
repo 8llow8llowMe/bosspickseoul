@@ -23,8 +23,9 @@ type StatusSheetBodyTarget = StatusSheetFocusTarget & {
 }
 
 export const STATUS_SHEET_COLLAPSED_HEIGHT = 52
-export const STATUS_SHEET_EXPANDED_RATIO = 0.66
-export const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 180
+export const STATUS_SHEET_EXPANDED_RATIO = 0.6
+// 지도를 상단 정렬로 두므로, 펼친 시트가 지도를 가리지 않도록 지도 몫을 크게 잡는다.
+export const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 290
 
 export const createStatusHref = (
   pathname: string,
