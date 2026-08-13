@@ -99,7 +99,7 @@ const unwrapMapAreas = (
 const Page = styled.main`
   position: relative;
   width: 100%;
-  height: calc(100dvh - 64px);
+  height: calc(100dvh - 65px);
   min-height: 560px;
   overflow: hidden;
   background: var(--color-surface-muted);
