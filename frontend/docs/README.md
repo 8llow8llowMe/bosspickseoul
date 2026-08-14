@@ -11,7 +11,7 @@ BossPickSeoul FE 문서 인덱스. 작업 지도는 `../CLAUDE.md`.
 
 ## 보조
 
-- `runbook/` — 실행·운영: migration / qa / cutover / seo
+- `runbook/` — 실행·운영: migration / qa / cutover / seo / deployment
 - `superpowers/` — specs(설계서) / plans(실행 계획)
 - `_archive/` — 통폐합 전 원문 보관 (참조 전용, 정본 아님)
 
