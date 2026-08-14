@@ -1505,6 +1505,7 @@ export default function AnalysisResultView({
                       sales?.countByGenderItem?.femaleSalesCount,
                     )}
                     ariaLabel="성별 매출 건수 도넛"
+                    unit="건"
                   />
                 </ChartBox>
               </AnalysisResultSection>
@@ -1606,6 +1607,7 @@ export default function AnalysisResultView({
                       population?.femalePercentage,
                     )}
                     ariaLabel="성별 상주인구 도넛"
+                    unit="%"
                   />
                 </ChartBox>
               </AnalysisResultSection>

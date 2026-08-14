@@ -35,7 +35,10 @@ export type HorizontalBarChartProps = {
   diverging?: boolean
   /** Per-row height in px (drives the chart's total height). Default 34. */
   rowHeight?: number
-  /** Width reserved for the category (label) axis. Default 96. */
+  /**
+   * Width reserved for the category (label) axis. If omitted, it auto-fits the
+   * longest label so short labels (예: "반찬가게") don't leave a wide left gap.
+   */
   yAxisWidth?: number
   /** Formats the value label drawn at the end of each bar. Defaults to a compact 만/억 tick. */
   valueFormatter?: (value: number) => string
@@ -51,7 +54,7 @@ export default function HorizontalBarChart({
   ariaLabel,
   diverging = false,
   rowHeight = 34,
-  yAxisWidth = 96,
+  yAxisWidth,
   valueFormatter,
 }: HorizontalBarChartProps) {
   const hasData = items.some(item => typeof item.value === 'number')
@@ -63,6 +66,14 @@ export default function HorizontalBarChart({
     ? scale.domain
     : [0, scale.domain[1]]
   const formatLabel = valueFormatter ?? formatAxisTick
+  // 라벨 축 폭: 지정이 없으면 가장 긴 라벨 길이에 맞춰(한글 ≈ 13px/자) 자동 산정해
+  // 짧은 라벨에서 왼쪽 여백이 과하게 벌어지는 문제를 없앤다. 52~140px로 제한.
+  const longestLabelLength = items.reduce(
+    (max, item) => Math.max(max, item.label.length),
+    0,
+  )
+  const axisWidth =
+    yAxisWidth ?? Math.min(140, Math.max(52, longestLabelLength * 13 + 8))
   const height = Math.max(120, items.length * rowHeight + 24)
 
   return (
@@ -82,13 +93,15 @@ export default function HorizontalBarChart({
         <YAxis
           type="category"
           dataKey="label"
-          width={yAxisWidth}
+          width={axisWidth}
           tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
           tickLine={false}
           axisLine={false}
         />
         <Tooltip
-          content={<ChartTooltipContent unit={unit} />}
+          content={
+            <ChartTooltipContent unit={unit} valueFormatter={valueFormatter} />
+          }
           cursor={{ fill: 'var(--color-primary-100)' }}
         />
         <Bar

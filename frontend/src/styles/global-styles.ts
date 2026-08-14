@@ -141,6 +141,19 @@ const GlobalStyles = createGlobalStyle`
     outline-offset: 2px;
   }
 
+  /* recharts는 차트 SVG(.recharts-surface)와 내부 g 레이어에 tabindex를 넣고
+     클릭 시 포커스를 줘, 위 :focus-visible 규칙의 파란 아웃라인이 뜬다. 차트는
+     role="img"라 키보드 조작 대상이 아니므로 컨테이너·서페이스·내부 요소 전부에서
+     아웃라인을 제거한다. */
+  .recharts-responsive-container:focus,
+  .recharts-responsive-container:focus-visible,
+  .recharts-wrapper:focus,
+  .recharts-wrapper:focus-visible,
+  .recharts-wrapper :focus,
+  .recharts-wrapper :focus-visible {
+    outline: none;
+  }
+
   img,
   picture,
   video,

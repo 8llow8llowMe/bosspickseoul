@@ -36,6 +36,8 @@ export type BarChartProps = {
   maxBarSize?: number
   /** Chart plot height in px (default 240). */
   height?: number
+  /** Formats the tooltip value. Defaults to a unit-based compact format. */
+  valueFormatter?: (value: number) => string
 }
 
 export const resolveBarCells = (
@@ -57,6 +59,7 @@ export default function BarChart({
   emphasisLabels,
   maxBarSize,
   height = 240,
+  valueFormatter,
 }: BarChartProps) {
   const cells = resolveBarCells(items, emphasisLabels)
   const hasData = cells.some(cell => typeof cell.value === 'number')
@@ -93,7 +96,9 @@ export default function BarChart({
           tickFormatter={value => formatAxisTick(value)}
         />
         <Tooltip
-          content={<ChartTooltipContent unit={unit} />}
+          content={
+            <ChartTooltipContent unit={unit} valueFormatter={valueFormatter} />
+          }
           cursor={{ fill: 'var(--color-primary-100)' }}
         />
         <Bar

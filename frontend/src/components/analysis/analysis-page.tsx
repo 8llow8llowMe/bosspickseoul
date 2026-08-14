@@ -260,6 +260,8 @@ export default function AnalysisPage() {
     getActiveAnalysisStep(selection),
   )
   const [previewedCode, setPreviewedCode] = useState<string | null>(null)
+  // 지도에서 상권을 고르면 증가시켜, 모바일 시트를 펼쳐 업종 선택을 유도한다.
+  const [sheetExpandSignal, setSheetExpandSignal] = useState(0)
   const [viewportBounds, setViewportBounds] =
     useState<GeoBounds>(SEOUL_MAP_BOUNDS)
   const [mapLayer, setMapLayer] = useState<MapLayer>('district')
@@ -621,6 +623,8 @@ export default function AnalysisPage() {
     router.replace(createAnalysisExplorerHref(next))
     setRequestedStep('service')
     setPreviewedCode(null)
+    // 상권 선택 완료 → 다음은 업종 선택. 모바일 시트를 펼쳐 선택을 유도한다.
+    setSheetExpandSignal(signal => signal + 1)
   }
 
   const handlePanelSelect = useCallback(
@@ -728,6 +732,7 @@ export default function AnalysisPage() {
           stepLabel={`${ANALYSIS_STEP_LABELS[activeStep]} 선택`}
           summary={selectionSummary}
           aiReport={mobileAiReport}
+          expandSignal={sheetExpandSignal}
         >
           {sheetPanel}
         </AnalysisMobileSheet>

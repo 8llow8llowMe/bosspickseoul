@@ -35,14 +35,11 @@ type StatusDetailProps = {
   onBack?: () => void
   backButtonRef?: Ref<HTMLButtonElement>
   onClose?: () => void
+  /** 'sheet'는 모바일 바텀시트용 컴팩트 헤더(작은 뒤로가기·제목)를 적용한다. */
+  variant?: 'panel' | 'sheet'
 }
 
 type ChangeTone = 'danger' | 'neutral' | 'success' | 'warning'
-
-type DetailRow = {
-  label: string
-  value: string
-}
 
 const TIME_SLOT_LABELS = [
   ['00~06시', 'footTrafficTime00To06'],
@@ -80,6 +77,9 @@ const isFiniteNumber = (value: number | null | undefined): value is number =>
 // 금액은 억/만 단위(만 단위 반올림)로 축약 표기한다.
 const formatMoney = (value: number | null | undefined): string =>
   formatSinoUnit(value, '원')
+
+// 유동인구(명)도 억/만 단위로 축약해 툴팁이 "123,124,234명"처럼 길게 뜨지 않게 한다.
+const formatPeople = (value: number): string => formatSinoUnit(value, '명')
 
 // 점포 개수 등 소규모 정수는 콤마 + 단위로 표기한다.
 const formatCount = (value: number): string =>
@@ -122,12 +122,12 @@ const Root = styled.article`
   box-shadow: var(--shadow-level-1);
 `
 
-const Header = styled.header`
+const Header = styled.header<{ $compact?: boolean }>`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  padding: 20px;
+  gap: ${props => (props.$compact ? '12px' : '16px')};
+  padding: ${props => (props.$compact ? '14px 16px' : '20px')};
   border-bottom: 1px solid var(--color-border-200);
 `
 
@@ -146,10 +146,10 @@ const HeaderContent = styled.div`
   gap: 8px;
 `
 
-const BackButton = styled.button`
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
+const BackButton = styled.button<{ $compact?: boolean }>`
+  width: ${props => (props.$compact ? '28px' : '44px')};
+  height: ${props => (props.$compact ? '28px' : '44px')};
+  min-width: ${props => (props.$compact ? '28px' : '44px')};
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -171,11 +171,11 @@ const BackButton = styled.button`
   }
 `
 
-const Title = styled.h2`
+const Title = styled.h2<{ $compact?: boolean }>`
   color: var(--color-text-900);
-  font-size: 22px;
+  font-size: ${props => (props.$compact ? '16px' : '22px')};
   font-weight: 700;
-  line-height: 30px;
+  line-height: ${props => (props.$compact ? '22px' : '30px')};
 `
 
 // 값(00명)과 변화(감소 -x%)를 한 줄에 가로로 붙여 컴팩트하게 보여준다.
@@ -255,6 +255,105 @@ const GroupHeading = styled.h3`
   line-height: 24px;
 `
 
+// 상권 흐름: 서울시 상권변화지표(운영/폐업 영업개월을 서울 평균과 비교한 4분류)를
+// 소상공인이 바로 이해하도록 평서문 헤드라인 + 근거 문장으로 풀어 보여준다.
+// 개업/폐업 평균 영업기간은 그 판단의 근거이므로 아래 스탯 타일로 함께 둔다.
+type IndicatorTone = 'success' | 'info' | 'warning' | 'danger'
+
+const INDICATOR_COPY: Record<
+  string,
+  { headline: string; body: string; tone: IndicatorTone }
+> = {
+  상권확장: {
+    headline: '확장되는 상권이에요',
+    body: '점포가 오래 유지되고 새로 여는 가게도 자리를 잡는, 커지는 상권이에요.',
+    tone: 'success',
+  },
+  다이나믹: {
+    headline: '변화가 활발한 상권이에요',
+    body: '새 가게 유입과 교체가 빠른, 역동적인 상권이에요.',
+    tone: 'info',
+  },
+  정체: {
+    headline: '정체된 상권이에요',
+    body: '새 유입이 적어 큰 변화 없이 머물러 있는 상권이에요.',
+    tone: 'warning',
+  },
+  상권축소: {
+    headline: '위축되는 상권이에요',
+    body: '점포가 오래 버티지 못하고 줄어드는, 축소되는 상권이에요.',
+    tone: 'danger',
+  },
+}
+
+const toneColor = (tone: IndicatorTone): string => {
+  if (tone === 'success') return 'var(--color-success)'
+  if (tone === 'warning') return 'var(--color-warning)'
+  if (tone === 'danger') return 'var(--color-danger)'
+  return 'var(--color-primary-600)'
+}
+
+// 톤은 좌측 선이 아니라 배경 틴트로 전한다(기존 토큰에서 color-mix로 파생 →
+// 새 토큰 없이 다크모드 자동 대응). 선은 같은 색 계열로 은은하게만.
+const StatusCallout = styled.div<{ $tone: IndicatorTone }>`
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: ${props =>
+    `color-mix(in srgb, ${toneColor(props.$tone)} 9%, var(--color-surface))`};
+  border: 1px solid
+    ${props => `color-mix(in srgb, ${toneColor(props.$tone)} 20%, transparent)`};
+`
+
+const StatusHeadline = styled.strong`
+  color: var(--color-text-900);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+`
+
+const StatusBody = styled.p`
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
+`
+
+// 원 분류명(다이나믹 등)을 근거 문장 끝에 작게 붙여 서울시 용어와의 연결을 남긴다.
+const StatusTag = styled.span`
+  color: var(--color-text-500);
+  font-weight: 600;
+`
+
+const StatGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+`
+
+const StatTile = styled.div`
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+`
+
+const StatLabel = styled.span`
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 18px;
+`
+
+const StatValue = styled.strong`
+  color: var(--color-text-900);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 26px;
+`
+
 // 넓은 상세 폭을 활용해 차트를 세로 나열이 아니라 2열 그리드로 배치한다.
 const ChartGrid = styled.div`
   display: grid;
@@ -294,48 +393,6 @@ const CardDescription = styled.p`
   color: var(--color-text-600);
   font-size: 13px;
   line-height: 20px;
-`
-
-const RowList = styled.dl`
-  display: grid;
-  gap: 1px;
-  overflow: hidden;
-  border-radius: var(--radius-control);
-  background: var(--color-border-200);
-`
-
-const Row = styled.div`
-  min-height: 40px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--color-surface-muted);
-`
-
-const RowLabel = styled.dt`
-  flex: 0 0 auto;
-  max-width: 55%;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text-700);
-  font-size: 13px;
-  line-height: 20px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-`
-
-// 값이 길면(예: "774억 4039만원 · -20.1%") 라벨을 덮지 않고 다음 줄로 접힌다.
-const RowValue = styled.dd`
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--color-text-900);
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  word-break: break-word;
 `
 
 const EmptyMessage = styled.p`
@@ -404,23 +461,6 @@ const getChangeCue = (metric: StatusMetric, changeRate: number): string => {
   return changeRate > 0 ? '증가' : '감소'
 }
 
-function DetailRows({ rows }: { rows: DetailRow[] }) {
-  if (rows.length === 0) {
-    return <EmptyMessage>데이터 없음</EmptyMessage>
-  }
-
-  return (
-    <RowList>
-      {rows.map((row, index) => (
-        <Row key={`${row.label}-${index}`}>
-          <RowLabel>{row.label}</RowLabel>
-          <RowValue>{row.value}</RowValue>
-        </Row>
-      ))}
-    </RowList>
-  )
-}
-
 // 차트 카드: 제목 + (제목과 다를 때만) 설명 캡션 + 차트/데이터.
 function ChartPanel({
   title,
@@ -447,29 +487,57 @@ function ChartPanel({
 
 function ChangeIndicatorSection({ detail }: { detail: DistrictDetail }) {
   const indicator = detail.changeIndicator
-  const rows: DetailRow[] = []
   const indicatorName = indicator?.changeIndicatorName?.trim()
+  const copy = indicatorName ? INDICATOR_COPY[indicatorName] : undefined
+  const openedMonths = indicator?.averageOpenedMonths
+  const closedMonths = indicator?.averageClosedMonths
+  const hasAnyStat =
+    isFiniteNumber(openedMonths) || isFiniteNumber(closedMonths)
 
-  if (indicatorName) {
-    rows.push({ label: '변화 지표', value: indicatorName })
-  }
-  if (isFiniteNumber(indicator?.averageOpenedMonths)) {
-    rows.push({
-      label: '평균 개업 영업 기간',
-      value: formatMonths(indicator.averageOpenedMonths),
-    })
-  }
-  if (isFiniteNumber(indicator?.averageClosedMonths)) {
-    rows.push({
-      label: '평균 폐업 영업 기간',
-      value: formatMonths(indicator.averageClosedMonths),
-    })
+  if (!indicatorName && !hasAnyStat) {
+    return (
+      <ReportSection>
+        <GroupHeading>상권 흐름</GroupHeading>
+        <EmptyMessage>데이터 없음</EmptyMessage>
+      </ReportSection>
+    )
   }
 
   return (
     <ReportSection>
-      <GroupHeading>상권 변화 지표</GroupHeading>
-      <DetailRows rows={rows} />
+      <GroupHeading>상권 흐름</GroupHeading>
+      {indicatorName ? (
+        <StatusCallout $tone={copy?.tone ?? 'info'}>
+          <StatusHeadline>
+            {copy ? copy.headline : indicatorName}
+          </StatusHeadline>
+          {copy ? (
+            <StatusBody>
+              {copy.body} <StatusTag>· {indicatorName}</StatusTag>
+            </StatusBody>
+          ) : null}
+        </StatusCallout>
+      ) : null}
+      {hasAnyStat ? (
+        <StatGrid>
+          <StatTile>
+            <StatLabel>개업 매장 평균 영업 기간</StatLabel>
+            <StatValue>
+              {isFiniteNumber(openedMonths)
+                ? formatMonths(openedMonths)
+                : '데이터 없음'}
+            </StatValue>
+          </StatTile>
+          <StatTile>
+            <StatLabel>폐업 매장 평균 영업 기간</StatLabel>
+            <StatValue>
+              {isFiniteNumber(closedMonths)
+                ? formatMonths(closedMonths)
+                : '데이터 없음'}
+            </StatValue>
+          </StatTile>
+        </StatGrid>
+      ) : null}
     </ReportSection>
   )
 }
@@ -517,6 +585,7 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
             height={200}
             points={periodPoints}
             unit="명"
+            valueFormatter={formatPeople}
           />
         </ChartPanel>
         <ChartPanel
@@ -528,6 +597,7 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
             height={200}
             items={timeRows}
             unit="명"
+            valueFormatter={formatPeople}
           />
         </ChartPanel>
         <ChartPanel
@@ -541,6 +611,7 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
             height={200}
             items={dayRows}
             unit="명"
+            valueFormatter={formatPeople}
           />
         </ChartPanel>
         <ChartPanel
@@ -552,6 +623,7 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
             height={200}
             items={ageRows}
             unit="명"
+            valueFormatter={formatPeople}
           />
         </ChartPanel>
         <ChartPanel
@@ -561,6 +633,8 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
           <DonutChart
             ariaLabel="성별 유동인구 비율"
             segments={genderSegments}
+            unit="명"
+            valueFormatter={formatPeople}
           />
         </ChartPanel>
       </ChartGrid>
@@ -674,25 +748,32 @@ function DetailHeader({
   onBack,
   backButtonRef,
   onClose,
+  variant = 'panel',
 }: Pick<
   StatusDetailProps,
-  'metric' | 'selectedItem' | 'onBack' | 'backButtonRef' | 'onClose'
+  'metric' | 'selectedItem' | 'onBack' | 'backButtonRef' | 'onClose' | 'variant'
 >) {
+  const compact = variant === 'sheet'
   return (
-    <Header>
+    <Header $compact={compact}>
       <HeaderMain>
         {onBack ? (
           <BackButton
             ref={backButtonRef}
+            $compact={compact}
             aria-label="상위 10개로 돌아가기"
             type="button"
             onClick={onBack}
           >
-            <ArrowLeft aria-hidden="true" size={20} strokeWidth={2} />
+            <ArrowLeft
+              aria-hidden="true"
+              size={compact ? 16 : 20}
+              strokeWidth={2}
+            />
           </BackButton>
         ) : null}
         <HeaderContent>
-          <Title>
+          <Title $compact={compact}>
             {selectedItem ? `${selectedItem.districtName} 상세` : '자치구 상세'}
           </Title>
           {selectedItem ? (
@@ -729,6 +810,7 @@ export default function StatusDetail({
   onBack,
   backButtonRef,
   onClose,
+  variant = 'panel',
 }: StatusDetailProps) {
   return (
     <Root aria-busy={isLoading || undefined}>
@@ -738,6 +820,7 @@ export default function StatusDetail({
         onBack={onBack}
         onClose={onClose}
         selectedItem={selectedItem}
+        variant={variant}
       />
       {isLoading ? (
         <LoadingBody aria-live="polite">
