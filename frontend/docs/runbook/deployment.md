@@ -64,14 +64,33 @@ kv/bosspickseoul/frontend/dev/env
 kv/bosspickseoul/frontend/prod/env
 ```
 
-key 목록은 `frontend/.env.example` 이 기준이다. 코드에서 새 env 를 읽기 시작하면 그 파일과 Vault 를 함께 갱신한다.
+key 목록은 `frontend/.env.example` 이 기준이다. 코드에서 새 env 를 읽기 시작하면 그 파일과 Vault 를 함께 갱신한다. Vault 쪽 정리는 Infra 레포 `vault/README.md` 에도 같은 표가 있다.
 
 파이프라인이 없으면 즉시 실패시키는 key:
 
-- 빌드 단계 — `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`
+- 빌드 단계 — `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`
 - 배포 단계 — `TIME_ZONE`, `AUTH_SESSION_SECRET`, `BACKEND_API_URL`, `FRONTEND_WEB_PORT_DEV` / `FRONTEND_WEB_PORT_PROD`
 
-`AUTH_SESSION_SECRET` 은 32자 이상이어야 한다. 짧으면 기동은 되지만 세션을 다루는 첫 요청에서 예외가 난다. 생성: `openssl rand -base64 48`
+### `AUTH_SESSION_SECRET` 은 배포마다 만드는 값이 아니다
+
+**환경당 한 번 만들고 고정한다.** 이 값은 세션 쿠키의 A256GCM 암호화 키(SHA-256 해시)다 — `src/lib/auth/session.ts` 가 `accessToken` / `refreshToken` / `memberId` 를 이걸로 암호화해 쿠키에 담는다.
+
+배포 때마다 새로 만들면 기존 쿠키를 복호화할 수 없어 **로그인한 사용자가 전원 로그아웃**된다. 유출됐을 때만 의도적으로 교체하고, 그때도 "전원 로그아웃되는 작업"으로 다룬다. dev 와 prod 는 서로 다른 값을 쓴다(한쪽이 유출돼도 다른 환경 세션이 뚫리지 않게).
+
+32자 이상이어야 한다. 짧으면 컨테이너는 뜨지만 세션을 다루는 첫 요청에서 예외가 난다. 생성: `openssl rand -base64 48`
+
+### Vault 에 넣지 않는 것
+
+| key | 이유 |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | 브라우저 REST 호출은 same-origin `/api/bff` 로 나가고(`src/lib/api/client.ts`) 백엔드 주소는 서버 쪽 `BACKEND_API_URL` 만 안다. 번들에 넣을 이유가 없다. |
+| `NEXT_PUBLIC_KAKAOMAP_API_KEY` | 카카오는 지도 SDK 와 공유 SDK 가 같은 JavaScript 키 하나를 쓴다. `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY` 로 통합했다. |
+| `NEXT_PUBLIC_FIREBASE_*` | FCM 웹 푸시(채팅 알림)용. 넷(`API_KEY`/`MESSAGING_SENDER_ID`/`APP_ID`/`VAPID_KEY`)이 모두 있어야 켜지고, 하나라도 비면 `src/lib/firebase-messaging.ts` 가 스스로 비활성화한다. 푸시를 쓰기로 정할 때 넣는다. |
+| `BOSSPICK_API_DOCS_URL` | 로컬에서 OpenAPI 문서를 받아오는 스크립트 전용. |
+
+### `BACKEND_API_URL` 은 공개 도메인을 쓴다
+
+dev 프론트와 dev 게이트웨이가 둘 다 `192.168.0.11` 이라 `http://192.168.0.11:6000` 으로 질러도 될 것 같지만, **auth API(`/api/v1/auth`, `/api/v1/members`)는 게이트웨이를 거치지 않고 auth-service(6081)로 직결**된다. 그 분기를 nginx 가 하므로 공개 도메인을 통과해야 한다. SSR 요청이 `.11 → .12(nginx) → .11` 로 한 바퀴 도는 건 맞지만 라우팅 정합성이 우선이다.
 
 ---
 

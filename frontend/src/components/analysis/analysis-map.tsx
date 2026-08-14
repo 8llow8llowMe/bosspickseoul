@@ -201,7 +201,7 @@ export default function AnalysisMap({
     let idleHandler: (() => void) | null = null
     let viewportTimer: ReturnType<typeof setTimeout> | null = null
 
-    loadKakaoMapSdk(env.kakaoMapApiKey)
+    loadKakaoMapSdk(env.kakaoJavascriptKey)
       .then(maps => {
         if (cancelled || !containerRef.current) return
 
