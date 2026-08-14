@@ -5,6 +5,9 @@ coverage
 dist
 *.tsbuildinfo
 
+# Jenkins 빌더가 배포 단계로 넘기려고 만드는 산출물 번들
+frontend-web-bundle.tar.gz
+
 .env
 .env.local
 .env.production.local

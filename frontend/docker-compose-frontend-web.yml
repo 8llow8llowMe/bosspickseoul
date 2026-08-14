@@ -1,0 +1,91 @@
+# BossPickSeoul 프론트(Next.js SSR) 배포 정의.
+#
+# 배치:
+#   dev  -> main-server (192.168.0.11), 호스트 포트 6300 (dev 는 6xxx 대역)
+#   prod -> backend-1   (192.168.0.13), 호스트 포트 9300 (bosspickseoul prod 는 9xxx 대역)
+#   storage(192.168.0.12)에는 올리지 않는다. 총 메모리 1.9GB / swap 0 에 nginx·MinIO·redis-node3 가
+#   함께 있어 OOM 이 나면 전 도메인의 인그레스가 같이 죽는다.
+#
+# ⚠️ NEXT_PUBLIC_* 는 여기에 두지 않는다.
+#    Next.js 는 NEXT_PUBLIC_* 를 **빌드 시점에 코드로 인라인**하므로 런타임 주입은 무시된다.
+#    이 값들은 Jenkins 빌드 단계에서 Vault 로부터 주입된다. (Jenkinsfile.frontend-common.groovy)
+#    여기 있는 것은 서버에서만 읽는 값(BFF 세션 키, 내부 백엔드 주소)뿐이다.
+x-frontend-web-environment: &frontend_web_environment
+  TZ: ${TIME_ZONE}
+  NODE_ENV: production
+  NEXT_TELEMETRY_DISABLED: "1"
+  # BFF 세션 암호화 키. 32자 이상이어야 하며 미설정 시 서버가 기동 직후 요청에서 예외를 던진다.
+  AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
+  # 서버 컴포넌트/Route Handler 가 호출할 백엔드 주소.
+  # 브라우저가 쓰는 NEXT_PUBLIC_API_URL(공개 도메인)과 달리 사설망 주소를 써도 된다.
+  BACKEND_API_URL: ${BACKEND_API_URL}
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  frontend-web-dev:
+    image: bosspickseoul-frontend-web:latest
+    container_name: bosspickseoul-frontend-web-dev
+    labels:
+      observability.project: bosspickseoul
+      observability.group: frontend
+      observability.service: frontend-web
+      observability.env: dev
+      observability.application: bosspickseoul-frontend-web
+      observability.deployment: bosspickseoul-frontend-web-dev
+    build:
+      context: .
+      dockerfile: frontend-web.Dockerfile
+    ports:
+      - "${FRONTEND_WEB_PORT_DEV}:3000" # host:container
+    environment:
+      <<: *frontend_web_environment
+    # Node 는 JVM 과 달리 컨테이너 상한을 heap 에 자동 반영하지 않는다.
+    # 상한에 근접하면 GC 대신 OOM kill 이 나므로 old space 를 명시적으로 낮춰 잡는다.
+    command: ["node", "--max-old-space-size=384", "server.js"]
+    deploy:
+      resources:
+        limits:
+          memory: ${FRONTEND_WEB_MEM_LIMIT_DEV:-512m}
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+  frontend-web-prod:
+    image: bosspickseoul-frontend-web:latest
+    container_name: bosspickseoul-frontend-web-prod
+    labels:
+      observability.project: bosspickseoul
+      observability.group: frontend
+      observability.service: frontend-web
+      observability.env: prod
+      observability.application: bosspickseoul-frontend-web
+      observability.deployment: bosspickseoul-frontend-web-prod
+    build:
+      context: .
+      dockerfile: frontend-web.Dockerfile
+    ports:
+      - "${FRONTEND_WEB_PORT_PROD}:3000" # host:container
+    environment:
+      <<: *frontend_web_environment
+    command: ["node", "--max-old-space-size=576", "server.js"]
+    deploy:
+      resources:
+        limits:
+          memory: ${FRONTEND_WEB_MEM_LIMIT_PROD:-768m}
+    restart: unless-stopped
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
+networks:
+  8llow8llowme-net:
+    name: 8llow8llowme-net
+    external: true
