@@ -523,7 +523,7 @@ export default function RecommendMap({
     let viewportTimer: ReturnType<typeof setTimeout> | null = null
 
     setSdkStatus('loading')
-    loadKakaoMapSdk(env.kakaoMapApiKey)
+    loadKakaoMapSdk(env.kakaoJavascriptKey)
       .then(maps => {
         if (cancelled || !containerRef.current) return
 
