@@ -56,6 +56,8 @@ export type LineChartProps = {
   ariaLabel?: string
   /** Chart plot height in px (default 240). */
   height?: number
+  /** Formats the tooltip value. Defaults to a unit-based compact format. */
+  valueFormatter?: (value: number) => string
 }
 
 export const hasLineData = (points: readonly TrendPoint[]): boolean =>
@@ -67,6 +69,7 @@ export default function LineChart({
   direction,
   ariaLabel = '분기별 추세 라인 차트',
   height = 240,
+  valueFormatter,
 }: LineChartProps) {
   if (!hasLineData(points)) return <Empty>데이터 없음</Empty>
 
@@ -107,7 +110,12 @@ export default function LineChart({
             tickFormatter={value => formatAxisTick(value)}
           />
           <Tooltip
-            content={<ChartTooltipContent unit={unit} />}
+            content={
+              <ChartTooltipContent
+                unit={unit}
+                valueFormatter={valueFormatter}
+              />
+            }
             cursor={{ stroke: CHART_COLORS.grid }}
           />
           <Line

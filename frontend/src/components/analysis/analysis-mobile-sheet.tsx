@@ -30,6 +30,11 @@ export type AnalysisMobileSheetProps = PropsWithChildren<{
   summary: string
   /** 현재 선택 레벨의 AI 리포트. 있으면 진입 칩과 리포트 뷰를 노출한다. */
   aiReport?: { title: string; content: ReactNode } | null
+  /**
+   * 값이 바뀔 때마다 시트를 펼친다(예: 지도에서 상권 선택 → 업종 선택 유도).
+   * 부모가 증가시키는 카운터를 넘긴다. 마운트 시엔 펼치지 않는다.
+   */
+  expandSignal?: number
 }>
 
 type SheetView = 'selection' | 'report'
@@ -258,6 +263,7 @@ export default function AnalysisMobileSheet({
   stepLabel,
   summary,
   aiReport,
+  expandSignal,
   children,
 }: AnalysisMobileSheetProps) {
   const [snap, setSnap] = useState<AnalysisSheetSnap>('collapsed')
@@ -265,6 +271,15 @@ export default function AnalysisMobileSheet({
   const [dragVisualState, setDragVisualState] =
     useState<DragVisualState | null>(null)
   const bodyId = useId()
+
+  // expandSignal이 바뀌면 시트를 펼친다(상권 선택 → 업종 선택 유도). 마운트 시엔
+  // 펼치지 않고, 이후 사용자가 접으면 다음 신호 전까지 다시 올라오지 않는다.
+  // (effect 대신 렌더 단계 파생 — report view 처리와 동일한 React 권장 패턴)
+  const [prevExpandSignal, setPrevExpandSignal] = useState(expandSignal)
+  if (expandSignal !== prevExpandSignal) {
+    setPrevExpandSignal(expandSignal)
+    if (expandSignal !== undefined) setSnap('expanded')
+  }
 
   // 리포트가 사라지거나 다른 대상으로 바뀌면 선택 뷰로 되돌린다.
   // (effect 대신 렌더 단계 파생 — React 권장 패턴)

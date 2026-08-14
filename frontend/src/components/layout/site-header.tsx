@@ -303,7 +303,7 @@ const MobilePanel = styled.div`
   top: calc(100% + 8px);
   right: 0;
   z-index: 30;
-  width: min(320px, calc(100vw - 32px));
+  width: min(180px, calc(100vw - 32px));
   display: none;
 
   @media (max-width: 960px) {

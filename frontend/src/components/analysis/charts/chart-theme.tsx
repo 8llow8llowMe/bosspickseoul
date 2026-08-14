@@ -39,7 +39,7 @@ export const formatAxisTick = (value: number): string => {
   return `${sign}${abs.toLocaleString('ko-KR')}`
 }
 
-const TooltipBox = styled.div`
+export const TooltipBox = styled.div`
   border: 1px solid ${CHART_COLORS.border};
   border-radius: var(--radius-control);
   background: ${CHART_COLORS.surface};
@@ -69,6 +69,11 @@ export type ChartTooltipContentProps = {
   }>
   label?: string
   unit?: string
+  /**
+   * 값 포맷터. 지정하면 unit 기반 기본 포맷 대신 이 함수로 툴팁 값을 표기한다
+   * (예: 유동인구 명 단위를 "1억 4528만명"처럼 억/만으로 축약).
+   */
+  valueFormatter?: (value: number) => string
 }
 
 export function ChartTooltipContent({
@@ -76,15 +81,20 @@ export function ChartTooltipContent({
   payload,
   label,
   unit = '',
+  valueFormatter,
 }: ChartTooltipContentProps) {
   if (!active || !payload || payload.length === 0) return null
+  const formatValue = (value: number | undefined): string =>
+    typeof value === 'number' && Number.isFinite(value) && valueFormatter
+      ? valueFormatter(value)
+      : formatChartValue(value, unit)
   return (
     <TooltipBox>
       {label ? <span>{label}</span> : null}
       {payload.map((entry, index) => (
         <strong key={entry.name ?? index}>
           {entry.name ? `${entry.name} ` : ''}
-          {formatChartValue(entry.value, unit)}
+          {formatValue(entry.value)}
         </strong>
       ))}
     </TooltipBox>

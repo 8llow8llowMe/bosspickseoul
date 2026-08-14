@@ -392,6 +392,7 @@ export default function StatusMobileSheet({
             isLoading={isDetailLoading}
             metric={metric}
             selectedItem={selectedItem}
+            variant="sheet"
             onBack={onBackToTopTen}
             onRetry={onRetryDetail}
           />
