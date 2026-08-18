@@ -14,10 +14,10 @@ BossPickSeoul 프론트(Next.js SSR)를 Jenkins 로 배포하는 절차와 규�
 
 ## 1. 배치
 
-| 환경 | 브랜치 | 호스트 | 호스트 포트 | 도메인 |
-| --- | --- | --- | --- | --- |
-| dev | `develop` | main-server `192.168.0.11` | 6300 | `https://dev.bosspickseoul.com` |
-| prod | `main` | backend-1 `192.168.0.13` | 9300 | `https://www.bosspickseoul.com` |
+| 환경 | 브랜치    | 호스트                     | 호스트 포트 | 도메인                          |
+| ---- | --------- | -------------------------- | ----------- | ------------------------------- |
+| dev  | `develop` | main-server `192.168.0.11` | 6300        | `https://dev.bosspickseoul.com` |
+| prod | `main`    | backend-1 `192.168.0.13`   | 9300        | `https://www.bosspickseoul.com` |
 
 dev 를 main-server 에 둔 이유는 dev 백엔드·dev MySQL·`backend-dev-agent` 가 이미 그 호스트에 있어서다.
 prod 를 backend-1 에 둔 이유는 prod 백엔드의 지정석이 그 호스트이고(`api.bosspickseoul.conf` 가 `192.168.0.13` 을 본다) 실여유 메모리가 가장 크기 때문이다.
@@ -36,8 +36,8 @@ prod 를 backend-1 에 둔 이유는 prod 백엔드의 지정석이 그 호스�
 - **PR 이 머지된 뒤** 대상 브랜치 빌드에서만 배포한다. `develop` 머지 → dev, `main` 머지 → prod.
 - 배포 대상은 **PR 라벨**로 지정한다. 라벨이 없으면 배포하지 않는다(fail-closed).
 
-| 라벨 | 효과 |
-| --- | --- |
+| 라벨           | 효과                       |
+| -------------- | -------------------------- |
 | `frontend-web` | 이 잡을 배포 대상으로 지정 |
 
 라벨을 빠뜨리고 머지했다면 잡을 수동 실행하면서 **`FORCE_DEPLOY` 를 체크**한다. 변경 감지와 라벨 게이트를 함께 우회한다. (같은 커밋 재빌드는 변경 파일이 0건이라 라벨만 우회해서는 여전히 생략된다)
@@ -50,10 +50,10 @@ prod 를 backend-1 에 둔 이유는 prod 백엔드의 지정석이 그 호스�
 
 이걸 헷갈리면 배포가 조용히 잘못된다.
 
-| 시점 | 대상 | 경로 |
-| --- | --- | --- |
-| **빌드** | `NEXT_PUBLIC_*` | Vault → Jenkins 빌드 단계 env → `next build` 가 코드에 문자열로 인라인 |
-| **런타임** | 그 외 전부 | Vault → `.env.runtime` → compose `environment` |
+| 시점       | 대상            | 경로                                                                   |
+| ---------- | --------------- | ---------------------------------------------------------------------- |
+| **빌드**   | `NEXT_PUBLIC_*` | Vault → Jenkins 빌드 단계 env → `next build` 가 코드에 문자열로 인라인 |
+| **런타임** | 그 외 전부      | Vault → `.env.runtime` → compose `environment`                         |
 
 `NEXT_PUBLIC_*` 를 compose 에 넣어봐야 **무시된다.** 이미 번들에 박혀 있기 때문이다. 그래서 dev 와 prod 는 같은 커밋이어도 서로 다른 산출물이 나오며, 파이프라인이 환경별로 따로 빌드한다.
 
@@ -85,12 +85,12 @@ key 목록은 `frontend/.env.example` 이 기준이다. 코드에서 새 env 를
 
 ### Vault 에 넣지 않는 것
 
-| key | 이유 |
-| --- | --- |
-| `NEXT_PUBLIC_API_URL` | 브라우저 REST 호출은 same-origin `/api/bff` 로 나가고(`src/lib/api/client.ts`) 백엔드 주소는 서버 쪽 `BACKEND_API_URL` 만 안다. 번들에 넣을 이유가 없다. |
-| `NEXT_PUBLIC_KAKAOMAP_API_KEY` | 카카오는 지도 SDK 와 공유 SDK 가 같은 JavaScript 키 하나를 쓴다. `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY` 로 통합했다. |
-| `NEXT_PUBLIC_FIREBASE_*` | FCM 웹 푸시(채팅 알림)용. 넷(`API_KEY`/`MESSAGING_SENDER_ID`/`APP_ID`/`VAPID_KEY`)이 모두 있어야 켜지고, 하나라도 비면 `src/lib/firebase-messaging.ts` 가 스스로 비활성화한다. 푸시를 쓰기로 정할 때 넣는다. |
-| `BOSSPICK_API_DOCS_URL` | 로컬에서 OpenAPI 문서를 받아오는 스크립트 전용. |
+| key                            | 이유                                                                                                                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_API_URL`          | 브라우저 REST 호출은 same-origin `/api/bff` 로 나가고(`src/lib/api/client.ts`) 백엔드 주소는 서버 쪽 `BACKEND_API_URL` 만 안다. 번들에 넣을 이유가 없다.                                                     |
+| `NEXT_PUBLIC_KAKAOMAP_API_KEY` | 카카오는 지도 SDK 와 공유 SDK 가 같은 JavaScript 키 하나를 쓴다. `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY` 로 통합했다.                                                                                             |
+| `NEXT_PUBLIC_FIREBASE_*`       | FCM 웹 푸시(채팅 알림)용. 넷(`API_KEY`/`MESSAGING_SENDER_ID`/`APP_ID`/`VAPID_KEY`)이 모두 있어야 켜지고, 하나라도 비면 `src/lib/firebase-messaging.ts` 가 스스로 비활성화한다. 푸시를 쓰기로 정할 때 넣는다. |
+| `BOSSPICK_API_DOCS_URL`        | 로컬에서 OpenAPI 문서를 받아오는 스크립트 전용.                                                                                                                                                              |
 
 ### `BACKEND_API_URL` 은 공개 도메인을 쓴다
 
@@ -106,11 +106,11 @@ dev 프론트와 dev 게이트웨이가 둘 다 `192.168.0.11` 이라 `http://19
 
 **빌더는 백엔드와 공유하고, deploy agent 는 따로 둔다.**
 
-| 노드 | 서버 | 라벨 | 해야 할 일 |
-| --- | --- | --- | --- |
-| `ai-host-builder` | ollama-01 `192.168.0.10` | `builder-frontend` 추가 | **Jenkins UI 에서 라벨만 추가** (컨테이너 신설 불필요) |
-| `frontend-dev-agent` | main-server `192.168.0.11` | `deploy-frontend-dev` | 노드 생성 + 컨테이너 기동 |
-| `frontend-prod-agent` | backend-1 `192.168.0.13` | `deploy-frontend-prod` | 노드 생성 + 컨테이너 기동 (운영 배포 시) |
+| 노드                  | 서버                       | 라벨                    | 해야 할 일                                             |
+| --------------------- | -------------------------- | ----------------------- | ------------------------------------------------------ |
+| `ai-host-builder`     | ollama-01 `192.168.0.10`   | `builder-frontend` 추가 | **Jenkins UI 에서 라벨만 추가** (컨테이너 신설 불필요) |
+| `frontend-dev-agent`  | main-server `192.168.0.11` | `deploy-frontend-dev`   | 노드 생성 + 컨테이너 기동                              |
+| `frontend-prod-agent` | backend-1 `192.168.0.13`   | `deploy-frontend-prod`  | 노드 생성 + 컨테이너 기동 (운영 배포 시)               |
 
 빌더 노드명은 컨테이너명(`jenkins-builder-agent`)과 다르다. 노드명은 `ai-host-builder` 다.
 
@@ -161,13 +161,13 @@ prod 는 `bosspickseoul.com` 인증서가 이미 있으므로 `bosspickseoul.con
 
 파이프라인은 2단계로 검증한다. 어디서 멈췄는지가 곧 원인이다.
 
-| 증상 | 원인 후보 |
-| --- | --- |
-| `standalone 산출물이 없습니다` | `next.config.ts` 의 `output: 'standalone'` 이 빠졌다 |
-| 컨테이너가 `exited` | 로그 확인. `AUTH_SESSION_SECRET` 미설정, 포트 충돌, 네이티브 모듈 로드 실패 순으로 흔하다 |
-| `running` 인데 HTTP 응답 없음 | `HOSTNAME=0.0.0.0` 이 안 잡혔거나 서버가 기동 중 예외로 멈춰 있다 |
-| `Runtime env key check` 에서 `<missing>` | Vault 해당 환경 경로에 key 가 없다 |
-| 라벨 확인 실패(UNSTABLE) | `GITHUB_APP_CREDENTIAL_ID` 오설정. 배포는 막히고 빌드만 UNSTABLE 로 남는다 |
+| 증상                                     | 원인 후보                                                                                 |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `standalone 산출물이 없습니다`           | `next.config.ts` 의 `output: 'standalone'` 이 빠졌다                                      |
+| 컨테이너가 `exited`                      | 로그 확인. `AUTH_SESSION_SECRET` 미설정, 포트 충돌, 네이티브 모듈 로드 실패 순으로 흔하다 |
+| `running` 인데 HTTP 응답 없음            | `HOSTNAME=0.0.0.0` 이 안 잡혔거나 서버가 기동 중 예외로 멈춰 있다                         |
+| `Runtime env key check` 에서 `<missing>` | Vault 해당 환경 경로에 key 가 없다                                                        |
+| 라벨 확인 실패(UNSTABLE)                 | `GITHUB_APP_CREDENTIAL_ID` 오설정. 배포는 막히고 빌드만 UNSTABLE 로 남는다                |
 
 수동 확인:
 
