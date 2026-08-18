@@ -104,22 +104,27 @@ dev 프론트와 dev 게이트웨이가 둘 다 `192.168.0.11` 이라 `http://19
 
 ### 4.1 Jenkins 노드
 
-**노드는 프로젝트마다 늘리지 않는다.** 호스트당 하나를 두고 라벨을 여러 개 붙인다. 프론트 배포에 필요한 것(Docker socket, 그 호스트의 홈 디렉터리)이 백엔드와 같아서 노드를 나눌 이유가 없다.
+**빌더는 백엔드와 공유하고, deploy agent 는 따로 둔다.**
 
-| 노드 | 서버 | 필요한 라벨 | 해야 할 일 |
+| 노드 | 서버 | 라벨 | 해야 할 일 |
 | --- | --- | --- | --- |
-| `jenkins-builder-agent` | ollama-01 `192.168.0.10` | `builder-frontend` 추가 | **Jenkins UI 에서 라벨만 추가** |
-| `backend-dev-agent` | main-server `192.168.0.11` | `deploy-frontend-dev` 추가 | **Jenkins UI 에서 라벨만 추가** |
-| `backend-prod-agent` | backend-1 `192.168.0.13` | `deploy-frontend-prod` 포함 | 컨테이너 자체가 미기동 — 띄울 때 라벨 함께 지정 |
+| `ai-host-builder` | ollama-01 `192.168.0.10` | `builder-frontend` 추가 | **Jenkins UI 에서 라벨만 추가** (컨테이너 신설 불필요) |
+| `frontend-dev-agent` | main-server `192.168.0.11` | `deploy-frontend-dev` | 노드 생성 + 컨테이너 기동 |
+| `frontend-prod-agent` | backend-1 `192.168.0.13` | `deploy-frontend-prod` | 노드 생성 + 컨테이너 기동 (운영 배포 시) |
 
-dev 배포에 새로 띄울 컨테이너는 **없다.** Jenkins UI 에서 두 노드의 라벨 문자열만 고치면 된다.
+빌더 노드명은 컨테이너명(`jenkins-builder-agent`)과 다르다. 노드명은 `ai-host-builder` 다.
 
-- 빌드: `jenkins-builder-agent` 이미지에 Node 22 와 pnpm 이 이미 들어 있다(`jenkins-builder-agent.Dockerfile`). 프론트 전용 빌더를 새로 띄우면 pnpm 캐시 볼륨이 분리되어 첫 빌드가 매번 느려진다.
-- 배포: deploy agent 가 하는 일은 `tar` 전개 + `docker compose up` + health check 뿐이다.
+- **빌드는 공유한다.** `jenkins-builder-agent.Dockerfile` 에 Java 21, Node 22, pnpm 이 모두 들어 있고 Gradle/pnpm 캐시가 named volume 으로 붙어 있다. 프론트 전용 빌더를 띄우면 캐시 볼륨이 분리되어 콜드 빌드가 매번 느려진다.
+- **배포는 나눈다.** 하는 일은 백엔드와 같지만(`tar` 전개 + `docker compose up` + health check), 담당이 갈리고 한쪽 agent 를 재시작하는 일이 다른 쪽 배포를 건드리지 않는 게 낫다. executor 경합도 없어진다. 비용은 컨테이너당 약 150MB.
 
-**executor 수를 2 이상으로 올려둔다.** 한 노드가 백엔드와 프론트 배포를 함께 받으므로 executor 가 1 이면 한쪽이 끝날 때까지 다른 쪽이 큐에서 대기한다. 같은 대상에 동시 배포가 나가는 것은 파이프라인의 `lock`(`backend-1-deploy`, `frontend-deploy`)이 막는다.
+한 호스트에 deploy agent 가 둘이 되므로 Infra 레포의 `install-jenkins-agent.sh` 에 env 파일을 인수로 넘긴다.
 
-노드 생성과 라벨은 IaC 대상이 아니다(JCasC 미도입). 정본은 Infra 레포 `jenkins/README.md` 의 노드/라벨 표다.
+```bash
+cd ~/infra/jenkins
+sh install-jenkins-agent.sh .env.frontend-dev
+```
+
+노드 생성과 라벨 지정은 IaC 대상이 아니다(JCasC 미도입). 정본은 Infra 레포 `jenkins/README.md` 의 노드/라벨 표다.
 
 ### 4.2 멀티브랜치 파이프라인 잡
 
