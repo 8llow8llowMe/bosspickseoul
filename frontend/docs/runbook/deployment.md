@@ -104,15 +104,22 @@ dev 프론트와 dev 게이트웨이가 둘 다 `192.168.0.11` 이라 `http://19
 
 ### 4.1 Jenkins 노드
 
-| 노드 | 서버 | 라벨 | 상태 |
+**노드는 프로젝트마다 늘리지 않는다.** 호스트당 하나를 두고 라벨을 여러 개 붙인다. 프론트 배포에 필요한 것(Docker socket, 그 호스트의 홈 디렉터리)이 백엔드와 같아서 노드를 나눌 이유가 없다.
+
+| 노드 | 서버 | 필요한 라벨 | 해야 할 일 |
 | --- | --- | --- | --- |
-| `jenkins-builder-agent` | ollama-01 `192.168.0.10` | `builder-frontend` **추가 필요** | 컨테이너는 기동 중 |
-| `frontend-dev-agent` | main-server `192.168.0.11` | `deploy-frontend-dev` | **추가 필요** |
-| `frontend-prod-agent` | backend-1 `192.168.0.13` | `deploy-frontend-prod` | **추가 필요** |
+| `jenkins-builder-agent` | ollama-01 `192.168.0.10` | `builder-frontend` 추가 | **Jenkins UI 에서 라벨만 추가** |
+| `backend-dev-agent` | main-server `192.168.0.11` | `deploy-frontend-dev` 추가 | **Jenkins UI 에서 라벨만 추가** |
+| `backend-prod-agent` | backend-1 `192.168.0.13` | `deploy-frontend-prod` 포함 | 컨테이너 자체가 미기동 — 띄울 때 라벨 함께 지정 |
 
-빌드용 노드는 새로 만들지 않는다. `jenkins-builder-agent` 이미지에 이미 Node 22 와 pnpm 이 들어 있으므로 Jenkins UI 에서 라벨에 `builder-frontend` 만 추가하면 된다.
+dev 배포에 새로 띄울 컨테이너는 **없다.** Jenkins UI 에서 두 노드의 라벨 문자열만 고치면 된다.
 
-배포 agent 는 Infra 레포 `jenkins/docker-compose-jenkins-deploy-agent.yml` 로 띄운다. 같은 호스트에 여러 agent 를 둘 때는 `.env` 에서 `JENKINS_DEPLOY_AGENT_NAME` / `PROJECT_NAME` / `CONTAINER_NAME` / `WORKDIR` 를 모두 다르게 준다.
+- 빌드: `jenkins-builder-agent` 이미지에 Node 22 와 pnpm 이 이미 들어 있다(`jenkins-builder-agent.Dockerfile`). 프론트 전용 빌더를 새로 띄우면 pnpm 캐시 볼륨이 분리되어 첫 빌드가 매번 느려진다.
+- 배포: deploy agent 가 하는 일은 `tar` 전개 + `docker compose up` + health check 뿐이다.
+
+**executor 수를 2 이상으로 올려둔다.** 한 노드가 백엔드와 프론트 배포를 함께 받으므로 executor 가 1 이면 한쪽이 끝날 때까지 다른 쪽이 큐에서 대기한다. 같은 대상에 동시 배포가 나가는 것은 파이프라인의 `lock`(`backend-1-deploy`, `frontend-deploy`)이 막는다.
+
+노드 생성과 라벨은 IaC 대상이 아니다(JCasC 미도입). 정본은 Infra 레포 `jenkins/README.md` 의 노드/라벨 표다.
 
 ### 4.2 멀티브랜치 파이프라인 잡
 
