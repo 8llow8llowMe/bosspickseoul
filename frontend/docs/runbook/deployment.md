@@ -69,7 +69,9 @@ key 목록은 `frontend/.env.example` 이 기준이다. 코드에서 새 env 를
 파이프라인이 없으면 즉시 실패시키는 key:
 
 - 빌드 단계 — `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`
-- 배포 단계 — `TIME_ZONE`, `AUTH_SESSION_SECRET`, `BACKEND_API_URL`, `FRONTEND_WEB_PORT_DEV` / `FRONTEND_WEB_PORT_PROD`
+- 배포 단계 — `TIME_ZONE`, `AUTH_SESSION_SECRET`, `BACKEND_API_URL`, 그리고 배포 환경의 포트 하나 (dev 면 `FRONTEND_WEB_PORT_DEV`, prod 면 `FRONTEND_WEB_PORT_PROD`)
+
+포트는 그 환경에 해당하는 것만 Vault 에 넣으면 된다. compose 파일 하나에 dev/prod 서비스가 같이 정의되어 있어 `docker compose config` 가 배포하지 않는 쪽까지 해석하지만, 양쪽 다 기본값(`:-6300` / `:-9300`)을 갖고 있어 반대편 값이 없어도 된다. 기본값이 실제 배포 포트를 조용히 대체하는 일은 없다 — 배포하는 환경의 포트는 파이프라인의 `Runtime env key check` 가 없으면 배포를 중단시킨다.
 
 ### `AUTH_SESSION_SECRET` 은 배포마다 만드는 값이 아니다
 
