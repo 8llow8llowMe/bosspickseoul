@@ -13,7 +13,7 @@
 x-frontend-web-environment: &frontend_web_environment
   TZ: ${TIME_ZONE}
   NODE_ENV: production
-  NEXT_TELEMETRY_DISABLED: "1"
+  NEXT_TELEMETRY_DISABLED: '1'
   # BFF 세션 암호화 키. 32자 이상이어야 하며 미설정 시 서버가 기동 직후 요청에서 예외를 던진다.
   AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
   # 서버 컴포넌트/Route Handler 가 호출할 백엔드 주소.
@@ -21,10 +21,10 @@ x-frontend-web-environment: &frontend_web_environment
   BACKEND_API_URL: ${BACKEND_API_URL}
 
 x-logging: &default-logging
-  driver: "json-file"
+  driver: 'json-file'
   options:
-    max-size: "5m"
-    max-file: "2"
+    max-size: '5m'
+    max-file: '2'
 
 services:
   frontend-web-dev:
@@ -46,14 +46,14 @@ services:
     # 같은 이름을 쓰면 각 환경의 .env.runtime 에 있는 값 하나로 둘 다 해석되고,
     # 실제로 기동하는 서비스는 파이프라인이 지정한 하나뿐이다.
     ports:
-      - "${FRONTEND_WEB_PORT}:3000" # host:container
+      - '${FRONTEND_WEB_PORT}:3000' # host:container
     environment:
       <<: *frontend_web_environment
     # Node 는 JVM 과 달리 컨테이너 상한을 heap 에 자동 반영하지 않는다.
     # 상한에 근접하면 GC 대신 OOM kill 이 나므로 old space 를 명시적으로 낮춰 잡는다.
     # FRONTEND_WEB_MEM_LIMIT 의 70~75% 다. Vault 에서 상한을 바꾸면 이 값도 함께 조정한다.
     # (환경변수로 빼지 않는 이유: 비밀도 아니고 환경별로 다를 값도 아니라 코드에 남기는 게 낫다)
-    command: ["node", "--max-old-space-size=384", "server.js"]
+    command: ['node', '--max-old-space-size=384', 'server.js']
     deploy:
       resources:
         limits:
@@ -79,11 +79,11 @@ services:
       dockerfile: frontend-web.Dockerfile
     # 이름을 dev 와 공유하는 이유는 frontend-web-dev 의 ports 주석 참고.
     ports:
-      - "${FRONTEND_WEB_PORT}:3000" # host:container
+      - '${FRONTEND_WEB_PORT}:3000' # host:container
     environment:
       <<: *frontend_web_environment
     # 값 산정 기준은 frontend-web-dev 의 command 주석 참고.
-    command: ["node", "--max-old-space-size=576", "server.js"]
+    command: ['node', '--max-old-space-size=576', 'server.js']
     deploy:
       resources:
         limits:
