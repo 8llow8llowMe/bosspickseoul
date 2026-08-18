@@ -34,11 +34,16 @@ frontendPipeline.run([
         'NEXT_PUBLIC_WS_URL',
         'NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY'
     ],
-    // 컨테이너 기동에 필요한 런타임 값. '{ENV}' 는 DEV/PROD 로 치환됩니다.
+    // 컨테이너 기동에 필요한 런타임 값입니다. compose 가 참조하는 보간 변수 전체와 일치해야 합니다.
+    // compose 에 기본값(`:-`)을 두지 않으므로, 하나라도 비면 배포 전에 여기서 막힙니다.
+    // 포트와 메모리 상한은 환경 접미사가 없습니다. 환경별 .env.runtime 이 따로 만들어지므로
+    // 접미사로 구분할 필요가 없고, 접미사를 붙이면 배포하지 않는 쪽 값까지 Vault 에 넣어야 합니다.
+    // ('{ENV}' 를 쓰면 DEV/PROD 로 치환됩니다. 지금 쓰는 키는 없지만 규칙은 남겨둡니다)
     requiredRuntimeEnvKeys: [
         'TIME_ZONE',
         'AUTH_SESSION_SECRET',
         'BACKEND_API_URL',
-        'FRONTEND_WEB_PORT_{ENV}'
+        'FRONTEND_WEB_PORT',
+        'FRONTEND_WEB_MEM_LIMIT'
     ]
 ])
