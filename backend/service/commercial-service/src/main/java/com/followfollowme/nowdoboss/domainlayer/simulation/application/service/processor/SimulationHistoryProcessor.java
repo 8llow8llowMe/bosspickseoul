@@ -48,6 +48,7 @@ public class SimulationHistoryProcessor {
             .storeSize(command.storeSize())
             .floorType(command.floorType())
             .totalPrice(command.totalPrice())
+            .dataBaseYear(serviceType.baseYear())
             .createdAt(LocalDateTime.now())
             .build());
         return toInfo(saved);
@@ -89,6 +90,7 @@ public class SimulationHistoryProcessor {
             .storeSize(history.storeSize())
             .floorType(history.floorType())
             .totalPrice(history.totalPrice())
+            .dataBaseYear(history.dataBaseYear())
             .createdAt(history.createdAt())
             .build();
     }

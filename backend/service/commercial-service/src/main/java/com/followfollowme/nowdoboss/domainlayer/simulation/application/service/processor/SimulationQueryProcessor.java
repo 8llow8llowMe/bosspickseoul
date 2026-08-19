@@ -27,6 +27,7 @@ public class SimulationQueryProcessor {
         return SimulationStoreSizeInfo.builder()
             .serviceCode(serviceType.serviceCode())
             .serviceName(serviceType.serviceName())
+            .dataBaseYear(serviceType.baseYear())
             .small(SimulationSizeInfo.fromSquareMeter(serviceType.smallSize()))
             .medium(SimulationSizeInfo.fromSquareMeter(serviceType.mediumSize()))
             .large(SimulationSizeInfo.fromSquareMeter(serviceType.largeSize()))

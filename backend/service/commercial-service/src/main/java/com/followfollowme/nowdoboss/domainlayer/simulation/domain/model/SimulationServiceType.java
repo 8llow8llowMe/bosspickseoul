@@ -8,6 +8,7 @@ import lombok.Builder;
 @Builder
 public record SimulationServiceType(
     long id,
+    String baseYear,
     String serviceCode,
     String serviceName,
     int smallSize,

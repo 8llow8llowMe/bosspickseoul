@@ -21,8 +21,9 @@ import org.hibernate.annotations.Comment;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
     name = "simulation_service_type",
+    // 기준 연도별로 데이터를 쌓고, 조회는 활성 연도(app.simulation.data-base-year)만 사용한다.
     uniqueConstraints = {
-        @UniqueConstraint(name = "uk_simulation_service_type_service_code", columnNames = "serviceCode")
+        @UniqueConstraint(name = "uk_simulation_service_type_base_year_service_code", columnNames = {"baseYear", "serviceCode"})
     })
 @Comment("업종별 시뮬레이션 기준 정보 — 매장 크기와 권리금 수준")
 public class SimulationServiceTypeEntity {
@@ -31,6 +32,10 @@ public class SimulationServiceTypeEntity {
     @Comment("시뮬레이션 업종 아이디")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Comment("데이터 기준 연도 (재수집 시 새 연도로 적재)")
+    @Column(length = 4, nullable = false)
+    private String baseYear;
 
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)

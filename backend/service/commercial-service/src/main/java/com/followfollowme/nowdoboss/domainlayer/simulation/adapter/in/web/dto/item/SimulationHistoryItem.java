@@ -39,6 +39,9 @@ public record SimulationHistoryItem(
     @Schema(description = "총 창업 비용 (만원)", example = "12345")
     long totalPrice,
 
+    @Schema(description = "계산에 사용된 기준 데이터 연도", example = "2024")
+    String dataBaseYear,
+
     @Schema(description = "저장 시각")
     LocalDateTime createdAt
 ) {

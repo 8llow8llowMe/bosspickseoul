@@ -10,6 +10,7 @@ import lombok.Builder;
 @Builder
 public record SimulationReportInfo(
     SimulationConditionInfo condition,
+    String dataBaseYear,
     long totalPrice,
     SimulationKeyMoneyInfo keyMoney,
     SimulationCostDetailInfo costDetail,

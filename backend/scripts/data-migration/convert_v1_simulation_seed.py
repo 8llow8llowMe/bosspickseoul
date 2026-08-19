@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 
 BATCH_SIZE = 500
+# V1 덤프 수집 기준 연도. 재수집 시 새 연도로 바꿔 실행하면 기존 데이터와 공존 적재된다.
+BASE_YEAR = "2024"
 
 
 def extract_values_block(dump_path: Path, table: str) -> str:
@@ -80,7 +82,7 @@ def main(dump_dir: Path) -> None:
     for row in rent_rows:
         first_floor, other_floor, total, _id, district_code, district_name = row
         name = strip_quotes(district_name).strip()  # V1 데이터에 트레일링 공백이 있어 정리한다
-        rent_values.append(f"('{strip_quotes(district_code)}', '{name}', {first_floor}, {other_floor}, {total})")
+        rent_values.append(f"('{BASE_YEAR}', '{strip_quotes(district_code)}', '{name}', {first_floor}, {other_floor}, {total})")
 
     # service_type: (key_money, key_money_level, key_money_ratio, large, medium, small, id, service_code, service_code_name)
     service_rows = parse_tuples(extract_values_block(dump_dir / "nowdoboss_service_type.sql", "service_type"))
@@ -90,7 +92,7 @@ def main(dump_dir: Path) -> None:
         key_money, key_money_level, key_money_ratio, large, medium, small, v1_id, service_code, service_name = row
         service_by_v1_id[v1_id] = (strip_quotes(service_code), strip_quotes(service_name))
         service_values.append(
-            f"('{strip_quotes(service_code)}', '{strip_quotes(service_name)}', {small}, {medium}, {large}, "
+            f"('{BASE_YEAR}', '{strip_quotes(service_code)}', '{strip_quotes(service_name)}', {small}, {medium}, {large}, "
             f"{key_money}, {key_money_level}, {key_money_ratio})"
         )
 
@@ -101,11 +103,11 @@ def main(dump_dir: Path) -> None:
     )
     seed_sql = [header]
     seed_sql.append(
-        "INSERT INTO simulation_rent (district_code, district_name, first_floor_rent, other_floor_rent, total_rent)\nVALUES\n"
+        "INSERT INTO simulation_rent (base_year, district_code, district_name, first_floor_rent, other_floor_rent, total_rent)\nVALUES\n"
         + ",\n".join(rent_values) + ";\n\n"
     )
     seed_sql.append(
-        "INSERT INTO simulation_service_type (service_code, service_name, small_size, medium_size, large_size, "
+        "INSERT INTO simulation_service_type (base_year, service_code, service_name, small_size, medium_size, large_size, "
         "key_money_average, key_money_level, key_money_ratio)\nVALUES\n"
         + ",\n".join(service_values) + ";\n"
     )
@@ -123,21 +125,21 @@ def main(dump_dir: Path) -> None:
             continue
         service_code, service_name = mapped
         franchisee_values.append(
-            f"('{service_code}', '{service_name}', {brand_name}, {subscription}, {education}, {deposit}, {etc}, "
+            f"('{BASE_YEAR}', '{service_code}', '{service_name}', {brand_name}, {subscription}, {education}, {deposit}, {etc}, "
             f"{total_levy}, {unit_area}, {interior}, {area})"
         )
 
     lines = [
         "-- 창업 시뮬레이션 프랜차이즈 시드 데이터 (V1 NowDoBoss 덤프 이식, 기준: 2023-2024 수집분)\n"
         "-- 실행: commercial-service DB에 수동 적재 (행 수가 많아 리소스가 아닌 스크립트 위치에 둔다)\n"
-        "-- 주의: 유니크 제약이 없어 재실행하면 행이 그대로 중복된다.\n"
-        "--       재적재 시 반드시 TRUNCATE TABLE simulation_franchisee; 를 먼저 실행할 것.\n"
+        f"-- 주의: 유니크 제약이 없어 재실행하면 행이 그대로 중복된다.\n"
+        f"--       같은 기준 연도를 재적재할 때는 DELETE FROM simulation_franchisee WHERE base_year = '{BASE_YEAR}'; 를 먼저 실행할 것.\n"
         "-- 생성 스크립트: backend/scripts/data-migration/convert_v1_simulation_seed.py\n\n"
     ]
     for i in range(0, len(franchisee_values), BATCH_SIZE):
         batch = franchisee_values[i:i + BATCH_SIZE]
         lines.append(
-            "INSERT INTO simulation_franchisee (service_code, service_name, brand_name, subscription, education, "
+            "INSERT INTO simulation_franchisee (base_year, service_code, service_name, brand_name, subscription, education, "
             "deposit, etc, total_levy, unit_area, interior, area)\nVALUES\n" + ",\n".join(batch) + ";\n\n"
         )
     franchisee_seed.write_text("".join(lines), encoding="utf-8", newline="\n")

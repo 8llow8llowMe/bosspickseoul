@@ -36,6 +36,7 @@ public class SimulationPresenter {
         return SimulationStoreSizesResponse.builder()
             .serviceCode(info.serviceCode())
             .serviceName(info.serviceName())
+            .dataBaseYear(info.dataBaseYear())
             .small(toSizeItem(info.small()))
             .medium(toSizeItem(info.medium()))
             .large(toSizeItem(info.large()))
@@ -60,6 +61,7 @@ public class SimulationPresenter {
     public SimulationReportResponse toReportResponse(SimulationReportInfo info) {
         return SimulationReportResponse.builder()
             .condition(toConditionItem(info.condition()))
+            .dataBaseYear(info.dataBaseYear())
             .totalPrice(info.totalPrice())
             .keyMoney(SimulationKeyMoneyItem.builder()
                 .keyMoneyRatio(info.keyMoney().keyMoneyRatio())
@@ -90,6 +92,7 @@ public class SimulationPresenter {
             .storeSize(info.storeSize())
             .floorType(info.floorType().toMetadata())
             .totalPrice(info.totalPrice())
+            .dataBaseYear(info.dataBaseYear())
             .createdAt(info.createdAt())
             .build();
     }

@@ -8,6 +8,7 @@ import lombok.Builder;
 @Builder
 public record SimulationRent(
     long id,
+    String baseYear,
     String districtCode,
     String districtName,
     int firstFloorRent,

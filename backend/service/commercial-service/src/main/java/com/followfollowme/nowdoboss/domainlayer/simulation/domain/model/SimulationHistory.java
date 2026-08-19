@@ -20,6 +20,7 @@ public record SimulationHistory(
     int storeSize,
     SimulationFloorType floorType,
     long totalPrice,
+    String dataBaseYear,
     LocalDateTime createdAt
 ) {
 

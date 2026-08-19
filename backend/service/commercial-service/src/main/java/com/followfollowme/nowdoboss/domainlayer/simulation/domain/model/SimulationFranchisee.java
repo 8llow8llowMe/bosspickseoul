@@ -8,6 +8,7 @@ import lombok.Builder;
 @Builder
 public record SimulationFranchisee(
     long id,
+    String baseYear,
     String serviceCode,
     String serviceName,
     String brandName,

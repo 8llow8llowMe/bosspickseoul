@@ -21,8 +21,9 @@ import org.hibernate.annotations.Comment;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
     name = "simulation_rent",
+    // 기준 연도별로 데이터를 쌓고, 조회는 활성 연도(app.simulation.data-base-year)만 사용한다.
     uniqueConstraints = {
-        @UniqueConstraint(name = "uk_simulation_rent_district_code", columnNames = "districtCode")
+        @UniqueConstraint(name = "uk_simulation_rent_base_year_district_code", columnNames = {"baseYear", "districtCode"})
     })
 @Comment("자치구별 임대료 기준 (창업 시뮬레이션용)")
 public class SimulationRentEntity {
@@ -31,6 +32,10 @@ public class SimulationRentEntity {
     @Comment("임대료 아이디")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Comment("데이터 기준 연도 (재수집 시 새 연도로 적재)")
+    @Column(length = 4, nullable = false)
+    private String baseYear;
 
     @Comment("자치구 코드")
     @Column(length = 5, nullable = false)
