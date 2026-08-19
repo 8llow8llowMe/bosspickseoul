@@ -157,7 +157,16 @@
 - 시드: `resources/db/simulation-seed.sql`(rent+service_type),
   `backend/scripts/data-migration/simulation-franchisee-seed.sql`(대용량이라 스크립트 위치).
   생성기: `backend/scripts/data-migration/convert_v1_simulation_seed.py` (V1 덤프 → V2 시드).
-  **데이터 기준 시점은 2023-2024 수집분** — 최신화는 별도 과제.
+- **기준 연도(base_year) 버전 관리**: 기준 데이터 3종은 `base_year` 컬럼으로 연도별 공존 적재하고,
+  조회는 `app.simulation.data-base-year` 설정(기본 2024)의 활성 연도만 사용한다.
+  재수집 시 새 연도로 적재 → 설정값 전환 → 기존 연도는 롤백용으로 유지.
+  응답(`dataBaseYear`)과 저장 이력에 기준 연도가 노출된다.
+- **재수집 출처(원천)**:
+  - 프랜차이즈 비용: 공정거래위원회 가맹사업정보제공시스템(franchise.ftc.go.kr) 정보공개서 —
+    공공데이터포털 OpenAPI "가맹정보 정보공개서 목록 조회", "업종별 창업비용 현황"
+  - 자치구 임대료: 한국부동산원 상업용부동산 임대동향조사(R-ONE, reb.or.kr) 분기별 지역별 임대료(소규모/중대형 상가),
+    서울열린데이터광장 "서울시 매장용빌딩 임대료" 통계
+  - 권리금 수준: 한국부동산원 상업용부동산 임대동향조사 내 권리금 현황
 - V1 대비 정비: 자치구를 코드로 받음(코드명 X), `floorType` enum(FIRST_FLOOR/OTHER, 문자열 "1층" 비교 제거),
   프랜차이즈를 franchiseeId 로 지정(브랜드명 문자열 X), 분기-월 매핑을 표준으로 정정,
   "월 최소 목표 매출"(보증금 오표시) 필드는 제공하지 않음.
