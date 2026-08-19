@@ -8,8 +8,8 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum CommercialSummaryErrorCode {
 
-    SALES_NOT_FOUND("COMMERCIAL_SUMMARY_001", "%s 매출 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    INCOME_NOT_FOUND("COMMERCIAL_SUMMARY_002", "%s 지출 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+    SALES_NOT_FOUND("COMMERCIAL_SUMMARY_001", "해당 분기의 %s 매출 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    INCOME_NOT_FOUND("COMMERCIAL_SUMMARY_002", "해당 분기의 %s 지출 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;
