@@ -44,6 +44,10 @@ spring:
           uri: lb://community-service
           predicates:
             - Path=/api/v1/moderation/**
+        - id: commercial-service-simulations
+          uri: lb://commercial-service
+          predicates:
+            - Path=/api/v1/simulations/**
         - id: ai-service
           uri: lb://ai-service
           predicates:

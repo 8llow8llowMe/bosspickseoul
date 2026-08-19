@@ -9,6 +9,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercialsummary.application.ex
 import com.followfollowme.nowdoboss.domainlayer.district.application.exception.DistrictException;
 import com.followfollowme.nowdoboss.domainlayer.ranking.application.exception.RankingException;
 import com.followfollowme.nowdoboss.domainlayer.sharelink.application.exception.ShareLinkException;
+import com.followfollowme.nowdoboss.domainlayer.simulation.application.exception.SimulationException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -57,6 +58,13 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(RankingException.class)
     public ResponseEntity<Response<Void>> handleRankingException(RankingException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(SimulationException.class)
+    public ResponseEntity<Response<Void>> handleSimulationException(SimulationException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
