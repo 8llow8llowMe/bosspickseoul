@@ -7,6 +7,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.inco
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.CommercialHeatmapSource;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.model.MetricRange;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.port.out.ChangeCommercialRepositoryPort;
 import com.followfollowme.nowdoboss.domainlayer.commercial.domain.enums.ChangeIndicatorCode;
@@ -91,7 +92,9 @@ public class CommercialHeatmapQueryProcessor {
                 commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode),
                 change
             );
-        } catch (IllegalArgumentException exception) {
+        } catch (CommercialException | IllegalArgumentException exception) {
+            // 일부 지표 데이터가 없는 상권(예: 해당 업종 매출 없음 COMMERCIAL_007)은
+            // 요청 전체를 실패시키지 않고 점수 산정 대상에서만 제외한다.
             return CommercialHeatmapSource.empty(commercialCode);
         }
     }
