@@ -346,4 +346,9 @@ AI API는 비용과 시간이 드는 작업이므로 초기 페이지 렌더링�
 - AI API는 명시적 사용자 액션 또는 lazy section에서만 호출한다.
 - 인증 API는 refresh cookie 기반이므로 API 클라이언트에서 credentials 옵션을 유지한다.
 - 에러 응답은 `dataHeader.resultCode`를 기준으로 분기하고, validation error는 `resultMessage.errors[]`를 필드별로 매핑한다.
+- **"다시 시도" UI는 HTTP 상태로 구분한다** (상세: `api-reference.md` "오류 처리 규약"):
+  - 네트워크 무응답 / **5xx** → "잠시 후 다시 시도해 주세요" + 다시 시도 버튼 (일시 장애, 재시도 유효)
+  - **404** → 재시도 버튼을 띄우지 말고 `dataHeader.resultMessage`를 그대로 표시
+    (예: "해당 분기의 매출 데이터가 없습니다. 다른 분기를 선택해 주세요." — 분기 셀렉터로 유도)
+  - 그 외 4xx → 입력 수정/로그인 유도 등 원인별 안내
 - 지도용 상권 API는 `/api/v1/map/**`을 우선 사용하고, 순수 분석 차트만 `/api/v1/commercials/**`를 직접 사용한다.
