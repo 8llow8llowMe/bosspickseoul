@@ -17,6 +17,9 @@ public record SimulationReportResponse(
     @Schema(description = "시뮬레이션 조건 (요청 조건 + 조회된 명칭)")
     SimulationConditionItem condition,
 
+    @Schema(description = "계산에 사용된 기준 데이터 연도 (임대료/권리금/프랜차이즈 비용 수집 기준)", example = "2024")
+    String dataBaseYear,
+
     @Schema(description = "예상 총 창업 비용 (만원)", example = "12345")
     long totalPrice,
 

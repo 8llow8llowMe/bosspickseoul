@@ -75,6 +75,7 @@ public class SimulationReportProcessor {
 
         return SimulationReportInfo.builder()
             .condition(buildCondition(command, serviceType, rent, selectedFranchisee))
+            .dataBaseYear(serviceType.baseYear())
             .totalPrice(totalWon / TEN_THOUSAND)
             .keyMoney(SimulationKeyMoneyInfo.builder()
                 .keyMoneyRatio(serviceType.keyMoneyRatio())

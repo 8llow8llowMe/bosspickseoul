@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SimulationServiceTypeRepository extends JpaRepository<SimulationServiceTypeEntity, Long> {
 
-    Optional<SimulationServiceTypeEntity> findByServiceCode(String serviceCode);
+    Optional<SimulationServiceTypeEntity> findByBaseYearAndServiceCode(String baseYear, String serviceCode);
 }

@@ -5,6 +5,7 @@ import com.followfollowme.nowdoboss.common.config.SwaggerPropertiesConfig;
 import com.followfollowme.nowdoboss.global.properties.CleanupProperties;
 import com.followfollowme.nowdoboss.global.properties.RankingProperties;
 import com.followfollowme.nowdoboss.global.properties.ShareLinkProperties;
+import com.followfollowme.nowdoboss.global.properties.SimulationProperties;
 import com.followfollowme.nowdoboss.persistence.config.SnowflakePropertiesConfig;
 import com.followfollowme.nowdoboss.redis.config.RedisPropertiesConfig;
 import com.followfollowme.nowdoboss.security.resourceserver.config.JwtResourceServerPropertiesConfig;
@@ -20,7 +21,9 @@ import org.springframework.context.annotation.Import;
     JwtResourceServerPropertiesConfig.class,
     RedisPropertiesConfig.class
 })
-@EnableConfigurationProperties({ShareLinkProperties.class, RankingProperties.class, CleanupProperties.class})
+@EnableConfigurationProperties({
+    ShareLinkProperties.class, RankingProperties.class, CleanupProperties.class, SimulationProperties.class
+})
 public class CommercialServicePropertiesConfig {
 
 }

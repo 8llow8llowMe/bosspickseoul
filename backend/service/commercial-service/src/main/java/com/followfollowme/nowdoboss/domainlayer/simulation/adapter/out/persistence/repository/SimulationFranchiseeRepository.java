@@ -6,10 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SimulationFranchiseeRepository extends JpaRepository<SimulationFranchiseeEntity, Long> {
 
-    List<SimulationFranchiseeEntity> findAllByServiceCode(String serviceCode);
+    List<SimulationFranchiseeEntity> findAllByBaseYearAndServiceCode(String baseYear, String serviceCode);
 
-    List<SimulationFranchiseeEntity> findTop10ByServiceCodeAndIdGreaterThanOrderByIdAsc(String serviceCode, long lastId);
+    List<SimulationFranchiseeEntity> findTop10ByBaseYearAndServiceCodeAndIdGreaterThanOrderByIdAsc(
+        String baseYear, String serviceCode, long lastId);
 
-    List<SimulationFranchiseeEntity> findTop10ByServiceCodeAndBrandNameContainingAndIdGreaterThanOrderByIdAsc(
-        String serviceCode, String keyword, long lastId);
+    List<SimulationFranchiseeEntity> findTop10ByBaseYearAndServiceCodeAndBrandNameContainingAndIdGreaterThanOrderByIdAsc(
+        String baseYear, String serviceCode, String keyword, long lastId);
 }

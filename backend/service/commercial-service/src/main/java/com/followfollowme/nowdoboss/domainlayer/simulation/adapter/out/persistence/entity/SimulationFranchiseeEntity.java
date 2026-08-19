@@ -22,9 +22,9 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "simulation_franchisee",
     // brandName 검색은 %키워드% 부분 일치라 B-Tree 인덱스를 타지 못한다.
-    // serviceCode 인덱스가 (service_code, id) 커서 페이징을 받치고, 업종당 행 수가 적어 LIKE 후필터로 충분하다.
+    // (base_year, service_code) 인덱스가 활성 연도 필터 + 커서 페이징을 받치고, 업종당 행 수가 적어 LIKE 후필터로 충분하다.
     indexes = {
-        @Index(name = "idx_simulation_franchisee_service_code", columnList = "serviceCode")
+        @Index(name = "idx_simulation_franchisee_base_year_service_code", columnList = "baseYear, serviceCode")
     })
 @Comment("프랜차이즈 창업 비용 기준 (공정거래위원회 정보공개서 기반)")
 public class SimulationFranchiseeEntity {
@@ -33,6 +33,10 @@ public class SimulationFranchiseeEntity {
     @Comment("프랜차이즈 아이디")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Comment("데이터 기준 연도 (재수집 시 새 연도로 적재)")
+    @Column(length = 4, nullable = false)
+    private String baseYear;
 
     @Comment("서비스 업종 코드")
     @Column(length = 8, nullable = false)

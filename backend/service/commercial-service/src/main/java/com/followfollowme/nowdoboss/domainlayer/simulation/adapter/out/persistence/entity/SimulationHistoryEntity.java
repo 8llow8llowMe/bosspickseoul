@@ -78,6 +78,10 @@ public class SimulationHistoryEntity {
     @Column(nullable = false)
     private Long totalPrice;
 
+    @Comment("계산에 사용된 기준 데이터 연도")
+    @Column(length = 4, nullable = false)
+    private String dataBaseYear;
+
     @Comment("저장 시각")
     @Column(nullable = false)
     private LocalDateTime createdAt;

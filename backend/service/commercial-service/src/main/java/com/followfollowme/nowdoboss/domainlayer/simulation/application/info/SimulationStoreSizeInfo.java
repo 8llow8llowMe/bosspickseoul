@@ -6,6 +6,7 @@ import lombok.Builder;
 public record SimulationStoreSizeInfo(
     String serviceCode,
     String serviceName,
+    String dataBaseYear,
     SimulationSizeInfo small,
     SimulationSizeInfo medium,
     SimulationSizeInfo large

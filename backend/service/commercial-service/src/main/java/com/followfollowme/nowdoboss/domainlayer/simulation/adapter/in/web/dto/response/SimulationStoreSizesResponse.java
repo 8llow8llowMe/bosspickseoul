@@ -14,6 +14,9 @@ public record SimulationStoreSizesResponse(
     @Schema(description = "서비스 업종명", example = "한식음식점")
     String serviceName,
 
+    @Schema(description = "기준 데이터 연도", example = "2024")
+    String dataBaseYear,
+
     @Schema(description = "소형 매장 크기")
     SimulationSizeItem small,
 

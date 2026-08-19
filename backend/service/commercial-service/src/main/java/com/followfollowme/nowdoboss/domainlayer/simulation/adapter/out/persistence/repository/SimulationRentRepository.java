@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SimulationRentRepository extends JpaRepository<SimulationRentEntity, Long> {
 
-    Optional<SimulationRentEntity> findByDistrictCode(String districtCode);
+    Optional<SimulationRentEntity> findByBaseYearAndDistrictCode(String baseYear, String districtCode);
 }

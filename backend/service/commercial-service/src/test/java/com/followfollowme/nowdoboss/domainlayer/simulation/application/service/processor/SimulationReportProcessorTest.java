@@ -82,6 +82,7 @@ class SimulationReportProcessorTest {
         assertThat(report.costDetail().interior()).isEqualTo(5_000L);
         assertThat(report.totalPrice()).isEqualTo(17_200L);
         assertThat(report.condition().brandName()).isEqualTo("본죽");
+        assertThat(report.dataBaseYear()).isEqualTo("2024");
     }
 
     @Test
@@ -197,7 +198,7 @@ class SimulationReportProcessorTest {
 
     private SimulationServiceType serviceType() {
         return SimulationServiceType.builder()
-            .id(1L).serviceCode(SERVICE).serviceName("한식음식점")
+            .id(1L).baseYear("2024").serviceCode(SERVICE).serviceName("한식음식점")
             .smallSize(36).mediumSize(65).largeSize(94)
             .keyMoneyAverage(5_670).keyMoneyLevel(75.3D).keyMoneyRatio(75.4D)
             .build();

@@ -48,6 +48,7 @@ public class SimulationHistoryRepositoryAdapter implements SimulationHistoryRepo
             .storeSize(history.storeSize())
             .floorType(history.floorType())
             .totalPrice(history.totalPrice())
+            .dataBaseYear(history.dataBaseYear())
             .createdAt(history.createdAt())
             .build();
     }
@@ -65,6 +66,7 @@ public class SimulationHistoryRepositoryAdapter implements SimulationHistoryRepo
             .storeSize(entity.getStoreSize())
             .floorType(entity.getFloorType())
             .totalPrice(entity.getTotalPrice())
+            .dataBaseYear(entity.getDataBaseYear())
             .createdAt(entity.getCreatedAt())
             .build();
     }
