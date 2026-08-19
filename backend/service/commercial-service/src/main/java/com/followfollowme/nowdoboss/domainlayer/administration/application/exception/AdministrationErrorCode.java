@@ -8,9 +8,9 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum AdministrationErrorCode {
 
-    INCOME_NOT_FOUND("ADMINISTRATION_001", "행정동 지출 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    SALES_NOT_FOUND("ADMINISTRATION_002", "행정동 매출 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    STORE_NOT_FOUND("ADMINISTRATION_003", "행정동 점포 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+    INCOME_NOT_FOUND("ADMINISTRATION_001", "해당 분기의 행정동 지출 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    SALES_NOT_FOUND("ADMINISTRATION_002", "해당 분기의 행정동 매출 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    STORE_NOT_FOUND("ADMINISTRATION_003", "해당 분기의 행정동 점포 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

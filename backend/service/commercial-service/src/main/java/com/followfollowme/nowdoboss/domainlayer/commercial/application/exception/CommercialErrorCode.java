@@ -12,12 +12,13 @@ public enum CommercialErrorCode {
     SERVICE_CODE_REQUIRED("COMMERCIAL_003", "서비스 업종 코드는 필수입니다.", HttpStatus.BAD_REQUEST),
     PERIOD_CODE_INVALID("COMMERCIAL_004", "기준 분기 코드 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     COMPARISON_SAME_COMMERCIAL("COMMERCIAL_005", "비교 대상 상권이 서로 같을 수 없습니다.", HttpStatus.BAD_REQUEST),
-    FOOT_TRAFFIC_NOT_FOUND("COMMERCIAL_006", "유동 인구 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    SALES_NOT_FOUND("COMMERCIAL_007", "매출 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    FACILITY_NOT_FOUND("COMMERCIAL_008", "집객시설 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    RESIDENT_POPULATION_NOT_FOUND("COMMERCIAL_009", "상주인구 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    INCOME_NOT_FOUND("COMMERCIAL_010", "소득소비 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    STORE_NOT_FOUND("COMMERCIAL_011", "점포 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    // 분기 종속 데이터 부재는 "일시 오류"가 아니라 "해당 분기 데이터 없음"으로 안내한다 (사용자가 분기를 바꾸도록 유도).
+    FOOT_TRAFFIC_NOT_FOUND("COMMERCIAL_006", "해당 분기의 유동인구 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    SALES_NOT_FOUND("COMMERCIAL_007", "해당 분기의 매출 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    FACILITY_NOT_FOUND("COMMERCIAL_008", "해당 분기의 집객시설 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    RESIDENT_POPULATION_NOT_FOUND("COMMERCIAL_009", "해당 분기의 상주인구 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    INCOME_NOT_FOUND("COMMERCIAL_010", "해당 분기의 소득소비 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    STORE_NOT_FOUND("COMMERCIAL_011", "해당 분기의 점포 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
     INTERNAL_SERVICE_UNAVAILABLE("COMMERCIAL_012", "지역 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
