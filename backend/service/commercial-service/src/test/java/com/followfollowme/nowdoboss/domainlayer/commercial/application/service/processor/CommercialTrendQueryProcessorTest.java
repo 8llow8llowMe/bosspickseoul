@@ -125,5 +125,10 @@ class CommercialTrendQueryProcessorTest {
         ) {
             return List.of();
         }
+
+        @Override
+        public List<StoreCommercial> findAllByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+            return List.of();
+        }
     }
 }

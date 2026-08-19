@@ -15,7 +15,14 @@ public record CandidateCommercialInfo(
     String opportunityLabel,
     String riskLabel,
     List<MetricBreakdownInfo> metricBreakdown,
-    List<String> reasonTags
+    List<String> reasonTags,
+    List<BlueOceanCategoryInfo> blueOceanCategories
 ) {
 
+    public CandidateCommercialInfo withBlueOceanCategories(List<BlueOceanCategoryInfo> categories) {
+        return new CandidateCommercialInfo(
+            rank, commercialCode, commercialName, compositeScore, grade, summaryLabel,
+            selectionReason, opportunityLabel, riskLabel, metricBreakdown, reasonTags, categories
+        );
+    }
 }
