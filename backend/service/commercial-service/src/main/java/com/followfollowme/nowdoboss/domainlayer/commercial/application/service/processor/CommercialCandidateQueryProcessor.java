@@ -27,6 +27,7 @@ public class CommercialCandidateQueryProcessor {
     private static final double TAG_LOW_THRESHOLD = 30D;
 
     private final CommercialHeatmapQueryProcessor commercialHeatmapQueryProcessor;
+    private final CommercialBlueOceanQueryProcessor commercialBlueOceanQueryProcessor;
 
     public static CandidatePresetType resolvePresetFromServiceCode(String serviceCode) {
         if (serviceCode == null) {
@@ -331,7 +332,25 @@ public class CommercialCandidateQueryProcessor {
         String periodCode, String serviceCode, List<String> commercialCodes, int topN
     ) {
         CandidatePresetType preset = resolvePresetFromServiceCode(serviceCode);
-        return getTopCandidates(periodCode, serviceCode, commercialCodes, preset, preset.getDefaultPriorityMetric(), topN);
+        CandidateCommercialsResponseInfo response =
+            getTopCandidates(periodCode, serviceCode, commercialCodes, preset, preset.getDefaultPriorityMetric(), topN);
+
+        // 블루오션 업종(행정동엔 많은데 내 상권엔 적은 업종)은 확정된 Top N 에만 붙인다.
+        // 후보 전체에 붙이면 후보 수만큼 지역 조회가 늘어나므로 추천 경로 전용으로 제한한다.
+        List<CandidateCommercialInfo> enrichedItems = response.items().stream()
+            .map(item -> item.withBlueOceanCategories(
+                commercialBlueOceanQueryProcessor.getBlueOceanCategories(periodCode, item.commercialCode())))
+            .toList();
+
+        return CandidateCommercialsResponseInfo.builder()
+            .serviceCode(response.serviceCode())
+            .periodCode(response.periodCode())
+            .preset(response.preset())
+            .priorityMetric(response.priorityMetric())
+            .topN(response.topN())
+            .summary(response.summary())
+            .items(enrichedItems)
+            .build();
     }
 
     private record Ranked(CommercialAllMetricScoresInfo source, Double composite) {

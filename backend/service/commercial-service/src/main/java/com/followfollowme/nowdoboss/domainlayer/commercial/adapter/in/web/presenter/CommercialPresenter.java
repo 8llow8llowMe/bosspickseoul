@@ -1,5 +1,6 @@
 package com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.presenter;
 
+import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.BlueOceanCategoryItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CandidateCommercialItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialAverageIncomeItem;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.item.CommercialComparisonTargetItem;
@@ -39,6 +40,7 @@ import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.re
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialStoreAnalysisResponse;
 import com.followfollowme.nowdoboss.domainlayer.commercial.adapter.in.web.dto.response.CommercialServiceCategoryResponse;
+import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.BlueOceanCategoryInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.CandidateCommercialsResponseInfo;
 import com.followfollowme.nowdoboss.domainlayer.commercial.application.info.candidate.MetricBreakdownInfo;
@@ -281,6 +283,19 @@ public class CommercialPresenter {
             .riskLabel(info.riskLabel())
             .metricBreakdown(info.metricBreakdown().stream().map(this::toMetricBreakdownItem).toList())
             .reasonTags(info.reasonTags())
+            .blueOceanCategories(info.blueOceanCategories() == null
+                ? null
+                : info.blueOceanCategories().stream().map(this::toBlueOceanCategoryItem).toList())
+            .build();
+    }
+
+    private BlueOceanCategoryItem toBlueOceanCategoryItem(BlueOceanCategoryInfo info) {
+        return BlueOceanCategoryItem.builder()
+            .serviceCode(info.serviceCode())
+            .serviceName(info.serviceName())
+            .commercialStoreCount(info.commercialStoreCount())
+            .administrationStoreCount(info.administrationStoreCount())
+            .storeRate(info.storeRate())
             .build();
     }
 

@@ -46,4 +46,12 @@ public class StoreCommercialRepositoryAdapter implements StoreCommercialReposito
             .map(storeCommercialMapper::toDomainFromEntity)
             .toList();
     }
+
+    @Override
+    public List<StoreCommercial> findAllByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        return storeCommercialRepository.findAllByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+            .stream()
+            .map(storeCommercialMapper::toDomainFromEntity)
+            .toList();
+    }
 }

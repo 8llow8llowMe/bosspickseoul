@@ -39,7 +39,11 @@ public record CandidateCommercialItem(
     List<MetricBreakdownItem> metricBreakdown,
 
     @Schema(description = "추천 이유 태그", example = "[\"기회도 상위\", \"위험도 낮음\"]")
-    List<String> reasonTags
+    List<String> reasonTags,
+
+    @Schema(description = "블루오션 업종 Top 5 — 소속 행정동엔 많지만 이 상권엔 적은 업종 (업종별 상권 추천 응답에서만 채워짐)",
+        nullable = true)
+    List<BlueOceanCategoryItem> blueOceanCategories
 ) {
 
 }
