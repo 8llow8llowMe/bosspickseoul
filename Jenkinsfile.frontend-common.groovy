@@ -635,6 +635,25 @@ void run(Map<String, Object> config) {
 
     boolean shouldDeploy = shouldDeployToEnvironment(ctx) && ctx.deployLabelAllowed != 'false'
 
+    // 배포하지 않는 브랜치 빌드는 CI(빌드/검사)도 돌리지 않습니다.
+    // CI 게이트는 PR 빌드가 담당하므로 머지/직접 push 빌드에서 다시 돌려봐야 같은 결과의
+    // 반복이고, backend/ 만 바뀐 push 나 라벨 없는 머지가 이 잡을 FAILURE 로 물들입니다.
+    // (배포 자체는 위 라벨 게이트가 이미 막고 있습니다 — 이 분기는 낭비와 오해를 없애는 것)
+    // 단, SKIP_DEPLOY 는 "배포 없이 빌드만 수행" 이 목적이므로 이 생략 대상에서 제외합니다.
+    if (ctx.isPullRequest != 'true' && !params.SKIP_DEPLOY && !shouldDeploy) {
+        stage('배포 대상 아님 - 생략') {
+            echo "배포하지 않는 브랜치 빌드이므로 빌드/검사를 생략합니다. deployEnv=${ctx.deployEnv}, deployLabelAllowed=${ctx.deployLabelAllowed}"
+            echo 'CI 는 PR 빌드에서 수행됩니다. 이 커밋을 배포하려면 FORCE_DEPLOY 로 수동 실행하세요.'
+            // 라벨 확인 실패(UNSTABLE) 시에는 isServiceDeployAllowedByLabels 가 사유 description 을 이미 설정합니다.
+            if (!currentBuild.description) {
+                currentBuild.description = ctx.deployLabelAllowed == 'false'
+                    ? '배포 대상 라벨 미지정 - 빌드/배포 생략'
+                    : '배포 대상 브랜치 아님 - 빌드/배포 생략'
+            }
+        }
+        return
+    }
+
     stage('프론트 빌드') {
         node(config.buildAgentLabel) {
             try {
