@@ -97,8 +97,19 @@ List<String> resolveChangedFiles(Map<String, String> ctx) {
         String diffOutput
         if (ctx.isPullRequest == 'true' && env.CHANGE_TARGET?.trim()) {
             // PR 빌드: 대상 브랜치와의 merge-base 기준으로 PR이 실제 건드린 파일만 계산합니다.
+            //
+            // 여기서 git fetch 를 직접 실행하면 안 됩니다. 파이프라인 sh 에는 checkout 단계의
+            // credential(GIT_ASKPASS)이 없어 사설 레포 fetch 가 exit 128("could not read
+            // Username")로 죽고, fail-open 규칙에 따라 무관한 PR 에서도 전체 CI 가 돕니다.
+            // (실제 사고: 백엔드만 105개 파일 바뀐 PR 에서 프론트 잡이 CI 를 돌다 빨간불)
+            // 멀티브랜치 PR 잡은 checkout 이 대상 브랜치를 refspec 에 포함해 방금
+            // credential 로 받아뒀으므로(origin/<target>), 그 ref 를 그대로 씁니다.
             String target = env.CHANGE_TARGET.trim()
-            sh "git fetch --no-tags origin +refs/heads/${target}:refs/remotes/origin/${target}"
+            int hasTargetRef = sh(returnStatus: true, script: "git rev-parse --verify --quiet refs/remotes/origin/${target}")
+            if (hasTargetRef != 0) {
+                echo "origin/${target} ref 가 워크스페이스에 없어 변경 파일을 판단할 수 없습니다. 전체 빌드로 진행합니다."
+                return null
+            }
             diffOutput = sh(returnStdout: true, script: "git diff --name-only origin/${target}...HEAD").trim()
         } else if (env.GIT_PREVIOUS_SUCCESSFUL_COMMIT?.trim()) {
             // 브랜치 빌드: 이 잡의 마지막 성공 빌드 이후 변경분만 계산합니다.
