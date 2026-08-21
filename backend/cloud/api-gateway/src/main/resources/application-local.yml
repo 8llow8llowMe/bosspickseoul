@@ -48,6 +48,10 @@ spring:
           uri: lb://commercial-service
           predicates:
             - Path=/api/v1/simulations/**
+        - id: commercial-service-analysis-bookmarks
+          uri: lb://commercial-service
+          predicates:
+            - Path=/api/v1/analysis-bookmarks/**
         - id: ai-service
           uri: lb://ai-service
           predicates:
