@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.e
 import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.common.exception.ValidationErrorSupport;
 import com.followfollowme.bosspickseoul.domainlayer.administration.application.exception.AdministrationException;
+import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
@@ -65,6 +66,13 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(SimulationException.class)
     public ResponseEntity<Response<Void>> handleSimulationException(SimulationException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(AnalysisBookmarkException.class)
+    public ResponseEntity<Response<Void>> handleAnalysisBookmarkException(AnalysisBookmarkException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
