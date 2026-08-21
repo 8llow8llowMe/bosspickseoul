@@ -230,7 +230,8 @@
 
 - `policy` 도메인 전체 제거됨 (스크래퍼 및 스키마 재설계 후 재구현 예정)
 - `CommercialProfileResponse`에서 `policyRecommendations` 필드 제거됨
-- 재개 시 `docs/feature-status.md` "미구현 / 보류 기능" 섹션 참고
+- 잔여 시드(`resources/db/policy-seed.sql`)도 제거됨 — 참조 엔티티/테이블이 없는 고아 파일이었다
+- 재개 시 데이터 스키마부터 새로 설계한다 (기존 시드/스키마를 전제하지 않음). `docs/feature-status.md` "미구현 / 보류 기능" 섹션 참고
 
 ## Notes
 
