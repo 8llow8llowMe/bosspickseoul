@@ -147,7 +147,11 @@ boolean isServiceAffected(Map<String, String> config, List<String> changedFiles)
         'backend/build.gradle',
         'backend/settings.gradle',
         'backend/gradle',
-        'Jenkinsfile'
+        // 파이프라인 정의 변경은 '이 잡의' 파일에만 반응한다.
+        // 'Jenkinsfile' 프리픽스 하나로 두면 프론트 파이프라인 파일이나 다른 서비스의
+        // Jenkinsfile-* 변경에도 8개 잡 전체가 gradle CI 를 돌게 된다.
+        'Jenkinsfile.backend-common.groovy',
+        "Jenkinsfile-${config.serviceName}".toString()
     ]
     String servicePrefix = "${config.fsPath}/"
 
