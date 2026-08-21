@@ -44,7 +44,7 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
         ignore-exceptions:
-          - com.followfollowme.nowdoboss.domainlayer.auth.application.exception.AuthException
+          - com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.AuthException
     instances:
       kakao:
         base-config: default

@@ -1,0 +1,84 @@
+package com.followfollowme.bosspickseoul.domainlayer.region.application.service.processor;
+
+import com.followfollowme.bosspickseoul.domainlayer.region.application.info.AdministrationAreaInfo;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.info.AdministrationDistrictAreaInfo;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.info.CommercialAdministrationAreaInfo;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.info.CommercialAreaInfo;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.info.DistrictAreaInfo;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.exception.RegionErrorCode;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.exception.RegionException;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.info.RegionCodeLookupInfo;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.CommercialRegionMappingRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.CoordinateTransformPort;
+import com.followfollowme.bosspickseoul.domainlayer.region.domain.enums.RegionCodeType;
+import com.followfollowme.bosspickseoul.domainlayer.region.domain.model.CommercialRegionMapping;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.locationtech.jts.geom.Point;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class RegionQueryProcessor {
+
+    private final CommercialRegionMappingRepositoryPort commercialRegionMappingRepositoryPort;
+    private final CoordinateTransformPort coordinateTransformPort;
+
+    public List<AdministrationAreaInfo> getAdministrationsByDistrictCode(String districtCode) {
+        List<CommercialRegionMapping> areas = commercialRegionMappingRepositoryPort.findAllByDistrictCode(districtCode);
+
+        Set<String> seen = new HashSet<>();
+
+        return areas.stream()
+            .filter(area -> seen.add(area.administrationCode()))
+            .map(area -> {
+                Point center = coordinateTransformPort.toWgs84(area.x(), area.y());
+                return AdministrationAreaInfo.from(area.administrationCode(), area.administrationName(), center);
+            })
+            .toList();
+    }
+
+    public List<CommercialAreaInfo> getCommercialsByAdministrationCode(String districtCode, String administrationCode) {
+        if (!administrationCode.startsWith(districtCode)) {
+            throw new RegionException(RegionErrorCode.ADMINISTRATION_NOT_IN_DISTRICT, administrationCode, districtCode);
+        }
+
+        return commercialRegionMappingRepositoryPort.findAllByAdministrationCode(administrationCode)
+            .stream()
+            .map(area -> {
+                Point center = coordinateTransformPort.toWgs84(area.x(), area.y());
+                return CommercialAreaInfo.from(area, center);
+            })
+            .toList();
+    }
+
+    public RegionCodeLookupInfo lookupRegionCode(RegionCodeType type, String name) {
+        return switch (type) {
+            case DISTRICT -> commercialRegionMappingRepositoryPort.findDistinctByDistrictName(name)
+                .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_DISTRICT, name));
+            case ADMINISTRATION -> commercialRegionMappingRepositoryPort.findDistinctByAdministrationName(name)
+                .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_ADMINISTRATION, name));
+            case COMMERCIAL -> commercialRegionMappingRepositoryPort.findDistinctByCommercialName(name)
+                .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_COMMERCIAL, name));
+        };
+    }
+
+    public AdministrationDistrictAreaInfo getAdministrationDistrictByAdministrationCode(String administrationCode) {
+        CommercialRegionMapping commercialRegionMapping = commercialRegionMappingRepositoryPort.findFirstByAdministrationCode(administrationCode)
+            .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_ADMINISTRATION, administrationCode));
+        return AdministrationDistrictAreaInfo.from(commercialRegionMapping);
+    }
+
+    public CommercialAdministrationAreaInfo getCommercialAdministrationByCommercialCode(String commercialCode) {
+        CommercialRegionMapping commercialRegionMapping = commercialRegionMappingRepositoryPort.findFirstByCommercialCode(commercialCode)
+            .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_COMMERCIAL, commercialCode));
+        return CommercialAdministrationAreaInfo.from(commercialRegionMapping);
+    }
+
+    public DistrictAreaInfo getDistrictByDistrictCode(String districtCode) {
+        return commercialRegionMappingRepositoryPort.findFirstByDistrictCode(districtCode)
+            .orElseThrow(() -> new RegionException(RegionErrorCode.NOT_FOUND_DISTRICT, districtCode));
+    }
+}

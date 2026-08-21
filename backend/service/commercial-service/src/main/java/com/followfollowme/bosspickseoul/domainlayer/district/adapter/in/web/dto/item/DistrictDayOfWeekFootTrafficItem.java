@@ -1,0 +1,35 @@
+package com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item;
+
+import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
+
+@Builder
+@Schema(description = "요일별 유동인구 상세 항목 DTO")
+public record DistrictDayOfWeekFootTrafficItem(
+    @Schema(description = "월요일 유동인구", example = "780000")
+    long mondayFootTraffic,
+
+    @Schema(description = "화요일 유동인구", example = "790000")
+    long tuesdayFootTraffic,
+
+    @Schema(description = "수요일 유동인구", example = "800000")
+    long wednesdayFootTraffic,
+
+    @Schema(description = "목요일 유동인구", example = "810000")
+    long thursdayFootTraffic,
+
+    @Schema(description = "금요일 유동인구", example = "900000")
+    long fridayFootTraffic,
+
+    @Schema(description = "토요일 유동인구", example = "1020000")
+    long saturdayFootTraffic,
+
+    @Schema(description = "일요일 유동인구", example = "747230")
+    long sundayFootTraffic,
+
+    @Schema(description = "우세 요일 메타데이터")
+    CodeNameDescriptionMetadata dominantDayOfWeekType
+) {
+
+}

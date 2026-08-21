@@ -1,0 +1,20 @@
+package com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility;
+
+import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.FacilityCommercial;
+import lombok.Builder;
+
+@Builder
+public record CommercialFacilityInfo(
+    long totalFacilityCount,
+    CommercialSchoolCountInfo schoolCountInfo,
+    long totalTransportationFacilityCount
+) {
+
+    public static CommercialFacilityInfo from(FacilityCommercial facilityCommercial) {
+        return CommercialFacilityInfo.builder()
+            .totalFacilityCount(facilityCommercial.totalFacilityCount())
+            .schoolCountInfo(CommercialSchoolCountInfo.from(facilityCommercial))
+            .totalTransportationFacilityCount(facilityCommercial.subwayStationCount() + facilityCommercial.busStopCount())
+            .build();
+    }
+}

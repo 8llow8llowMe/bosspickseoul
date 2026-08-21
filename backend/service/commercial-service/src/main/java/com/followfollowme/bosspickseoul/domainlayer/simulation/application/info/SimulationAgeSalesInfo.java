@@ -1,0 +1,11 @@
+package com.followfollowme.bosspickseoul.domainlayer.simulation.application.info;
+
+import lombok.Builder;
+
+@Builder
+public record SimulationAgeSalesInfo(
+    String ageGroupName,
+    long salesAmount
+) {
+
+}
