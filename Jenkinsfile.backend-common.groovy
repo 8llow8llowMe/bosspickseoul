@@ -131,41 +131,54 @@ List<String> resolveChangedFiles(Map<String, String> ctx) {
     }
 }
 
-// 변경 파일이 이 서비스 빌드에 영향을 주는지 판단합니다.
-// 자기 서비스 경로 또는 공용 경로(core 모듈, gradle 루트 설정, 파이프라인 정의) 변경 시에만 빌드합니다.
-boolean isServiceAffected(Map<String, String> config, List<String> changedFiles) {
+// 변경 파일이 이 서비스 잡에 주는 영향 "범위" 를 판단합니다.
+//   'own'      — 자기 서비스 경로 또는 공용 코드(core 모듈, gradle 루트 설정) 변경,
+//                또는 판단 불가(fail-open). CI 를 반드시 돕니다. 공용 코드를 'own' 으로 두는
+//                이유: core 변경이 다른 서비스의 컴파일을 깨는지는 PR 단계에서 잡아야 합니다.
+//   'pipeline' — 이 잡의 파이프라인 정의 파일만 변경. PR 라벨 스코프로 CI 생략이 가능합니다.
+//   'none'     — 이 잡과 무관. 빌드/배포를 건너뜁니다.
+String resolveAffectedScope(Map<String, String> config, List<String> changedFiles) {
     if (changedFiles == null) {
-        return true
+        return 'own'
     }
     if (changedFiles.isEmpty()) {
         echo '변경 파일이 없어 빌드/배포를 건너뜁니다.'
-        return false
+        return 'none'
     }
 
-    List<String> sharedPrefixes = [
+    String servicePrefix = "${config.fsPath}/"
+    List<String> sharedCodePrefixes = [
         'backend/core/',
         'backend/build.gradle',
         'backend/settings.gradle',
-        'backend/gradle',
-        // 파이프라인 정의 변경은 '이 잡의' 파일에만 반응한다.
-        // 'Jenkinsfile' 프리픽스 하나로 두면 프론트 파이프라인 파일이나 다른 서비스의
-        // Jenkinsfile-* 변경에도 8개 잡 전체가 gradle CI 를 돌게 된다.
+        'backend/gradle'
+    ]
+    // 파이프라인 정의 변경은 '이 잡의' 파일에만 반응한다.
+    // 'Jenkinsfile' 프리픽스 하나로 두면 프론트 파이프라인 파일이나 다른 서비스의
+    // Jenkinsfile-* 변경에도 8개 잡 전체가 gradle CI 를 돌게 된다.
+    List<String> pipelinePrefixes = [
         'Jenkinsfile.backend-common.groovy',
         "Jenkinsfile-${config.serviceName}".toString()
     ]
-    String servicePrefix = "${config.fsPath}/"
 
-    List<String> matched = changedFiles.findAll { path ->
-        path.startsWith(servicePrefix) || sharedPrefixes.any { prefix -> path.startsWith(prefix) }
+    List<String> ownMatched = changedFiles.findAll { path ->
+        path.startsWith(servicePrefix) || sharedCodePrefixes.any { prefix -> path.startsWith(prefix) }
+    }
+    List<String> pipelineMatched = changedFiles.findAll { path ->
+        pipelinePrefixes.any { prefix -> path.startsWith(prefix) }
     }
 
-    if (matched) {
-        echo "이 서비스에 영향 있는 변경 ${matched.size()}건: ${matched.take(10).join(', ')}${matched.size() > 10 ? ' ...' : ''}"
-        return true
+    if (ownMatched) {
+        echo "이 서비스에 영향 있는 변경 ${ownMatched.size()}건: ${ownMatched.take(10).join(', ')}${ownMatched.size() > 10 ? ' ...' : ''}"
+        return 'own'
+    }
+    if (pipelineMatched) {
+        echo "파이프라인 정의 변경 ${pipelineMatched.size()}건: ${pipelineMatched.join(', ')}"
+        return 'pipeline'
     }
 
     echo "변경 파일 ${changedFiles.size()}건 중 ${config.serviceName} 관련 변경이 없어 빌드/배포를 건너뜁니다."
-    return false
+    return 'none'
 }
 
 // origin remote URL에서 GitHub owner/repo 슬러그를 뽑아냅니다. 판단 불가 시 빈 문자열을 반환합니다.
@@ -594,7 +607,31 @@ void run(Map<String, String> config) {
                 // 모노레포에서 잡 8개가 같은 push에 전부 트리거되므로,
                 // 이 서비스와 무관한 변경이면 빌드/배포를 건너뛴다.
                 List<String> changedFiles = resolveChangedFiles(ctx)
-                ctx.serviceAffected = isServiceAffected(config, changedFiles) ? 'true' : 'false'
+                String affectedScope = resolveAffectedScope(config, changedFiles)
+
+                // 파이프라인 정의 파일'만' 바뀐 PR 은 라벨 스코프로 한 번 더 거른다.
+                // 프론트 라벨만 붙은 PR 이 공용 Jenkinsfile 을 수정하면 백엔드 8개 잡까지
+                // gradle CI 를 돌아 빌더를 점유하고 GitHub 체크를 어지럽히는 것을 막는다.
+                // 자기 코드/공용 코드가 바뀐 'own' 은 라벨과 무관하게 반드시 CI 를 돈다.
+                if (ctx.isPullRequest == 'true' && affectedScope == 'pipeline') {
+                    Map<String, Object> prLabelContext = resolveDeployLabelContext(ctx)
+                    if (prLabelContext.resolved == 'true') {
+                        List<String> allLabels = prLabelContext.labels as List<String>
+                        // 배포 스코프 라벨 규약은 두 파이프라인 공통이다: backend-{service} / frontend-{service}
+                        List<String> scopedLabels = allLabels.findAll { name ->
+                            name.startsWith('backend-') || name.startsWith('frontend-')
+                        }
+                        String expectedLabel = "${params.DEPLOY_LABEL_PREFIX?.trim() ?: 'backend-'}${config.serviceName}"
+                        if (scopedLabels && !scopedLabels.contains(expectedLabel)) {
+                            echo "PR 라벨(${scopedLabels.join(', ')})이 다른 서비스로 지정되어 파이프라인 정의 변경 CI 를 건너뜁니다."
+                            ctx.skipReason = "PR 라벨 스코프 밖(${scopedLabels.join(', ')}) - CI 생략"
+                            affectedScope = 'none'
+                        }
+                    }
+                    // 라벨 조회 실패 시에는 안전하게 CI 를 그대로 돈다(fail-open).
+                }
+
+                ctx.serviceAffected = (affectedScope != 'none') ? 'true' : 'false'
 
                 // 공용 경로(Jenkinsfile, core 모듈 등)를 건드리면 위 판단으로는 8개 잡이 모두 대상이 되므로,
                 // 실제 배포 대상은 PR 라벨로 한 번 더 좁힌다. 라벨이 없으면 배포하지 않는다.
@@ -648,7 +685,7 @@ void run(Map<String, String> config) {
     if (ctx.serviceAffected == 'false') {
         stage('변경 없음 - 생략') {
             echo "이번 변경은 ${config.serviceName}에 영향이 없어 빌드/배포를 건너뜁니다."
-            currentBuild.description = '변경 없음 - 빌드/배포 생략'
+            currentBuild.description = ctx.skipReason ?: '변경 없음 - 빌드/배포 생략'
         }
         return
     }
