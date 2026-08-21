@@ -26,6 +26,8 @@
   - AI 리포트 화면 구현용. 비동기 제출 + SSE/폴링 흐름, 로그인 게이팅(잠금 카드) UI, 단계 표시와 에러 처리
 - `simulation-data-sources.md`
   - 창업 시뮬레이션 기준 데이터의 원천 출처(공정위/한국부동산원 API)와 base_year 재수집·적재 절차
+- `simulation-frontend-guide.md`
+  - 창업 시뮬레이션 화면 구현용. 입력 마법사 플로우, API 5종 요청/응답 매핑, 저장 이력, 에러 처리
 - `file-upload-guide.md` — 프로필/게시글 이미지 업로드(MinIO) 계약과 설계 원칙
 - `share-link-frontend-guide.md`
   - 분석 화면 공유 기능 구현용. `/api/v1/share-links/**` API 사용법, payload 저장/복원 흐름
