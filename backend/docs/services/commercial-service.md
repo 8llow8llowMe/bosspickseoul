@@ -16,6 +16,7 @@
 - `commercialsummary`
 - `ranking`
 - `simulation`
+- `analysisbookmark`
 
 ## 인증 방식
 
@@ -26,6 +27,7 @@
   Bearer 토큰이 있으면 최초 공유자를 기록하고, 없어도 생성할 수 있다.
 - 시뮬레이션 저장/목록(`POST·GET /api/v1/simulations/histories`)은 **인증 필수** (`@PreAuthorize("isAuthenticated()")`).
   그 외 시뮬레이션 API(계산/매장 크기/프랜차이즈 검색)는 공개다.
+- 분석 보관함(`/api/v1/analysis-bookmarks/**`)은 회원 소유 데이터라 전 API **인증 필수**.
 
 ## 대표 API 패턴
 
@@ -186,6 +188,26 @@
 - 새 화면을 공유 대상으로 추가할 때는 `ShareTargetType`에 상수 하나만 추가하면 된다.
 - 만료 링크는 `410 SHARE_LINK_002`, 미존재 코드는 `404 SHARE_LINK_001`로 응답한다.
 
+## 분석 보관함 (analysisbookmark)
+
+- 회원이 보고 있는 분석 화면 상태를 만료 없이 저장해 두고 다시 여는 개인 보관함.
+  게이트웨이 라우트 `/api/v1/analysis-bookmarks/**`, 전 API 인증 필수.
+- payload 포맷·정규화(key 정렬)·해시 규칙(`SHA-256(shareType | 정렬된 payload JSON)`, 2000자 제한)과
+  `ShareTargetType`(화면 5종)은 **공유 링크와 동일하게 재사용**한다. 프론트는 공유 링크에 쓰는 payload 를
+  그대로 저장하면 되고, 복원도 동일한 URL 템플릿 조립 방식을 쓴다 (`docs/share-link-frontend-guide.md`).
+- 공유 링크를 직접 재사용하지 않고 별도 테이블(`analysis_bookmark`)을 두는 이유:
+  ① 공유 링크는 TTL(90일)+정리 스케줄러로 **만료**되지만 보관함은 만료가 없어야 한다.
+  ② 공유 링크의 payloadHash 는 **전역 unique**(최초 공유자만 기록)라 회원 소유 모델과 맞지 않는다.
+  보관함은 `(memberId, payloadHash)` unique 로 회원별 중복만 막는다.
+- `POST /api/v1/analysis-bookmarks` — `{shareType, payload, bookmarkName?}` 저장. 같은 화면 상태 재저장은 409.
+- `GET /api/v1/analysis-bookmarks?page=&size=` — 본인 보관함 최신순 페이지 (size 1~50).
+- `DELETE /api/v1/analysis-bookmarks/{bookmarkId}` — 본인 항목 삭제. 타인 항목은 존재 여부를 숨기려 404.
+- id 는 Snowflake 생성 (AUTO_INCREMENT 아님). prod DDL 은
+  `backend/scripts/migration/analysis-bookmark-table-runbook.sql` 수동 적용.
+- 자치구/행정동/상권 **엔티티 자체**의 즐겨찾기는 auth-service 회원 북마크
+  (`/api/v1/members/me/bookmarks`, `MemberBookmarkTargetType`)가 담당한다.
+  보관함은 "조건까지 포함한 화면 상태" 저장이라는 점에서 역할이 다르다.
+
 ## 분석 인기 순위 (ranking)
 
 - 사용자가 많이 조회한 상권/자치구/행정동 실시간 인기 순위 (인기 검색어 방식).
@@ -225,6 +247,7 @@
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 | `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102) |
 | `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_004` | 업종/임대료/프랜차이즈 미존재 404, 프랜차이즈 미선택 400. 검증 대역 `SIMULATION_100`~`SIMULATION_101` |
+| `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_005` | 미존재 404 / 중복 저장 409 / payload·타입 검증 400. 요청 필드 검증 메시지는 `AnalysisBookmarkValidationMessage` |
 
 ## 정책 추천 (보류)
 

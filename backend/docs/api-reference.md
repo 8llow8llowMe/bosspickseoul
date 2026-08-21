@@ -7,7 +7,7 @@
 | 서비스 | 외부 경로 | 비고 |
 |--------|----------|------|
 | auth-service | nginx → auth-service 직접 | 게이트웨이를 경유하지 않음. 게이트웨이는 Swagger 문서 집계(`/auth-service/**`)만 프록시 |
-| commercial-service | nginx → api-gateway → 서비스 | `/api/v1/commercials`, `/api/v1/districts`, `/api/v1/administrations`, `/api/v1/share-links` |
+| commercial-service | nginx → api-gateway → 서비스 | `/api/v1/commercials`, `/api/v1/districts`, `/api/v1/administrations`, `/api/v1/share-links`, `/api/v1/simulations`, `/api/v1/analysis-bookmarks` |
 | district-service | nginx → api-gateway → 서비스 | `/api/v1/map`, `/api/v1/regions` |
 | community-service | nginx → api-gateway → 서비스 | `/api/v1/community` |
 | ai-service | nginx → api-gateway → 서비스 | `/api/v1/ai-reports` |
@@ -210,6 +210,17 @@
 - `payload` 는 백엔드가 해석하지 않는 JSON 객체(정규화 후 2000자 이하)로, 화면 복원은 프론트 책임입니다.
 - `shareCode` 는 base62 8자, TTL 90일. 만료 시 `410`, 미존재 시 `404`.
 - 프론트 연동 상세는 [`share-link-frontend-guide.md`](share-link-frontend-guide.md) 참고.
+
+### 분석 보관함 (`/api/v1/analysis-bookmarks`)
+
+| Method | Path | 설명 | 인증 |
+|--------|------|------|------|
+| POST | `/` | 분석 화면 상태 보관 (`shareType` + `payload` + 선택 `bookmarkName`) — 동일 상태 재저장 시 `409` | 🔒 |
+| GET | `/?page=&size=` | 내 보관함 최신순 목록 (size 1~50) | 🔒 |
+| DELETE | `/{bookmarkId}` | 보관 항목 삭제 (타인 항목은 `404`) | 🔒 |
+
+- `shareType`/`payload` 계약은 공유 링크와 동일하며, 공유 링크와 달리 **만료가 없고 본인만 조회**합니다.
+- 프론트 연동 상세는 [`share-link-frontend-guide.md`](share-link-frontend-guide.md)의 "분석 보관함" 섹션 참고.
 
 ---
 
