@@ -137,3 +137,24 @@ router.replace(builder(payload));
 /s/{shareCode} 진입 → GET /share-links/{shareCode}
 → shareType으로 URL 템플릿 선택 + payload 병합 → router.replace(최종 URL)
 ```
+
+## 분석 보관함 (같은 payload 재사용)
+
+공유 링크와 같은 payload/shareType 계약으로 **내 보관함에 저장**하는 기능이 별도로 있다
+(`/api/v1/analysis-bookmarks/**`, 전부 로그인 필수). 공유 버튼 옆 "보관" 버튼에 연결하면 된다.
+
+| API | 인증 | 용도 |
+| --- | --- | --- |
+| `POST /api/v1/analysis-bookmarks` | 필수 | `{shareType, payload, bookmarkName?}` 저장 |
+| `GET /api/v1/analysis-bookmarks?page=&size=` | 필수 | 내 보관함 최신순 목록 (size 1~50) |
+| `DELETE /api/v1/analysis-bookmarks/{bookmarkId}` | 필수 | 보관 항목 삭제 |
+
+- payload 구성 규칙(최소 상태만, 2000자 제한, key 순서 무관)은 공유 링크와 완전히 동일하다.
+  **공유용으로 만든 payload 빌더를 그대로 재사용**하면 된다.
+- 목록 응답의 각 항목은 `{bookmarkId, shareType(metadata), payload, bookmarkName, createdAt}` —
+  해석 API 호출 없이 payload 가 바로 오므로, 항목 클릭 시 `ROUTE_BUILDERS`로 즉시 이동하면 된다.
+- 공유 링크와 달리 **만료가 없다**. `bookmarkName`(50자 이하)은 선택이며 미지정 시 null.
+- 에러: 같은 화면 상태 재저장 409 `ANALYSIS_BOOKMARK_002`(이미 저장됨 토스트),
+  타 회원 항목/미존재 삭제 404 `ANALYSIS_BOOKMARK_001`, payload 검증 400 `ANALYSIS_BOOKMARK_003~005`.
+- 자치구/행정동/상권 **자체**를 즐겨찾기하는 회원 북마크(`/api/v1/members/me/bookmarks`)와는 별개다.
+  보관함은 "조건(업종/분기 등)까지 포함한 화면 상태" 저장이다.

@@ -147,6 +147,31 @@ ai:
 
 ---
 
+### `commercial-service` — 분석 화면 보관함
+
+**상태**: ✅ 완료
+
+**목적**: 회원이 보고 있는 분석 화면 상태(조건 포함)를 만료 없이 저장/복원하는 개인 보관함. payload 계약은 공유 링크와 동일해 프론트가 payload 빌더를 재사용한다.
+
+**엔드포인트** (`/api/v1/analysis-bookmarks`, 전부 인증 필수):
+- `POST /` — `{shareType, payload, bookmarkName?}` 저장, 동일 상태 재저장 `409`
+- `GET /?page=&size=` — 본인 보관함 최신순 페이지 (size 1~50)
+- `DELETE /{bookmarkId}` — 본인 항목 삭제, 타인 항목은 `404` (존재 여부 비노출)
+
+**설계 결정**:
+- `analysisbookmark` 컨텍스트 — 공유 링크(`sharelink`)와 별도 테이블 `analysis_bookmark`.
+  공유 링크는 만료(TTL 90일)와 전역 payloadHash unique(최초 공유자 기록) 구조라 회원 소유 보관함에 부적합.
+- 정규화(key 정렬)·해시(`SHA-256(shareType | canonical payload)`)·2000자 제한·`ShareTargetType` 5종은 공유 링크와 동일 규칙 재사용
+- 중복 방지: `(memberId, payloadHash)` unique — 회원별로만 중복 차단
+- id 는 Snowflake — prod DDL 은 `scripts/migration/analysis-bookmark-table-runbook.sql`
+- 엔티티 자체 즐겨찾기(auth-service 회원 북마크)와 역할 구분: 보관함은 "조건까지 포함한 화면 상태" 저장
+
+**ErrorCode**: `ANALYSIS_BOOKMARK_001~005` (미존재 404 / 중복 409 / payload·타입 검증 400)
+
+프론트 연동 상세는 `share-link-frontend-guide.md`의 "분석 보관함" 섹션 참고.
+
+---
+
 ### `commercial-service` — 상권 트렌드 분석 API
 
 **상태**: ✅ 완료
@@ -432,6 +457,9 @@ INDEX(status)
 | GET | `/recommendations/by-service` | 업종 기반 상권 자동 추천 | 불필요 |
 | POST | `/api/v1/share-links` | 분석 화면 공유 링크 생성 | 선택 |
 | GET | `/api/v1/share-links/{shareCode}` | 공유 코드 해석 | 불필요 |
+| POST | `/api/v1/analysis-bookmarks` | 분석 화면 보관함 저장 | ✅ |
+| GET | `/api/v1/analysis-bookmarks` | 내 보관함 목록 (최신순 페이지) | ✅ |
+| DELETE | `/api/v1/analysis-bookmarks/{bookmarkId}` | 보관 항목 삭제 | ✅ |
 
 ### `ai-service` (`/api/v1/ai-reports`)
 
