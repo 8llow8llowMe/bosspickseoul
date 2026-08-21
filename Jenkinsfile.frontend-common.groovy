@@ -154,7 +154,13 @@ boolean isServiceAffected(Map<String, String> config, List<String> changedFiles)
         return false
     }
 
-    List<String> sharedPrefixes = ['Jenkinsfile']
+    // 파이프라인 정의 변경은 '이 잡의' 파일에만 반응한다.
+    // 'Jenkinsfile' 프리픽스 하나로 두면 백엔드 파이프라인 파일(Jenkinsfile.backend-common.groovy,
+    // Jenkinsfile-{service} 8종) 변경에도 프론트 잡이 CI 를 돌게 된다.
+    List<String> sharedPrefixes = [
+        'Jenkinsfile.frontend-common.groovy',
+        "Jenkinsfile-frontend-${config.serviceName}".toString()
+    ]
     String servicePrefix = "${config.fsPath}/"
 
     List<String> matched = changedFiles.findAll { path ->
