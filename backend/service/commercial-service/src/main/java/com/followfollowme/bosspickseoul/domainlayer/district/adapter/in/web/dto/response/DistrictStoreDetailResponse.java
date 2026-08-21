@@ -1,0 +1,24 @@
+package com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response;
+
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictClosedStoreAdministrationTopItem;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictOpenedStoreAdministrationTopItem;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictStoreServiceTopItem;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
+import lombok.Builder;
+
+@Builder
+@Schema(description = "자치구 점포 상세 응답 DTO")
+public record DistrictStoreDetailResponse(
+
+    @Schema(description = "점포 수 상위 8개 업종 목록")
+    List<DistrictStoreServiceTopItem> topStoreServices,
+
+    @Schema(description = "개업률 상위 행정동 Top 5")
+    List<DistrictOpenedStoreAdministrationTopItem> topOpenedAdministrations,
+
+    @Schema(description = "폐업률 상위 행정동 Top 5")
+    List<DistrictClosedStoreAdministrationTopItem> topClosedAdministrations
+) {
+
+}

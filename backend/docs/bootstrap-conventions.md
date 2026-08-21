@@ -7,8 +7,8 @@
 ```java
 @EnableDiscoveryClient
 @SpringBootApplication(scanBasePackages = {
-    "com.followfollowme.nowdoboss.domainlayer",
-    "com.followfollowme.nowdoboss.global"
+    "com.followfollowme.bosspickseoul.domainlayer",
+    "com.followfollowme.bosspickseoul.global"
 })
 public class XxxServiceApplication {
 }
@@ -20,8 +20,8 @@ public class XxxServiceApplication {
 @EnableFeignClients
 @EnableDiscoveryClient
 @SpringBootApplication(scanBasePackages = {
-    "com.followfollowme.nowdoboss.domainlayer",
-    "com.followfollowme.nowdoboss.global"
+    "com.followfollowme.bosspickseoul.domainlayer",
+    "com.followfollowme.bosspickseoul.global"
 })
 public class XxxServiceApplication {
 }

@@ -1,0 +1,18 @@
+package com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out;
+
+import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.SalesCommercial;
+import java.util.List;
+import java.util.Optional;
+
+public interface SalesCommercialRepositoryPort {
+
+    List<String> findDistinctServiceCodesByCommercialCode(String commercialCode);
+
+    Optional<SalesCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode);
+
+    List<SalesCommercial> findByCommercialCodeAndServiceCodeAndPeriodCodeIn(
+        String commercialCode,
+        String serviceCode,
+        List<String> periodCodes
+    );
+}
