@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { formatStatusChange, formatStatusValue } from './status-formatters'
 
 describe('formatStatusValue', () => {
-  it('formats foot traffic by flooring to ten-thousands', () => {
-    expect(formatStatusValue('footTraffic', 5_847_230)).toBe('584만 명')
+  it('formats foot traffic by rounding to ten-thousands', () => {
+    expect(formatStatusValue('footTraffic', 5_847_230)).toBe('585만명')
   })
 
   it('formats sales with eok and man-won units', () => {
-    expect(formatStatusValue('sales', 15_847_230_000)).toBe('158억 4,723만원')
+    expect(formatStatusValue('sales', 15_847_230_000)).toBe('158억 4723만원')
   })
 
   it.each(['opened', 'closed'] as const)(
@@ -42,8 +42,9 @@ describe('formatStatusValue', () => {
   )
 
   it.each([
-    [50_000_000, '5,000만원'],
-    [0, '0만원'],
+    [50_000_000, '5000만원'],
+    // 1만 미만은 만 단위 없이 그대로 표기한다 (formatSinoUnit 의 TEN_THOUSAND 분기)
+    [0, '0원'],
   ])('omits the zero-eok unit for sales value %s', (value, expected) => {
     expect(formatStatusValue('sales', value)).toBe(expected)
   })

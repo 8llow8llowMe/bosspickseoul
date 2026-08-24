@@ -3,6 +3,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 
+import {
+  STATUS_SHEET_COLLAPSED_HEIGHT,
+  STATUS_SHEET_EXPANDED_RATIO,
+  STATUS_SHEET_MINIMUM_MAP_HEIGHT,
+} from '@/lib/status/status-state'
 import type { StatusRankedItem } from '@/types/status'
 import StatusMobileSheet from './status-mobile-sheet'
 
@@ -136,8 +141,15 @@ describe('StatusMobileSheet', () => {
   it('공유 높이 상수와 테두리를 제외한 핸들 높이를 스타일에 반영한다', () => {
     const { styles } = renderSheet('collapsed')
 
-    expect(styles).toContain('--status-sheet-collapsed-height:52px')
-    expect(styles).toMatch(/min\(\s*66%,\s*calc\(100% - 180px\)\s*\)/)
+    // 값을 다시 적지 않고 공유 상수를 참조한다. 이 테스트의 목적이 "상수를 스타일에
+    // 반영하는지" 확인하는 것이라, 숫자를 복제하면 상수를 바꿀 때마다 여기서 깨진다.
+    expect(styles).toContain(
+      `--status-sheet-collapsed-height:${STATUS_SHEET_COLLAPSED_HEIGHT}px`,
+    )
+    // styled-components 출력의 줄바꿈/공백에 영향받지 않도록 공백을 제거해 비교한다.
+    expect(styles.replace(/\s/g, '')).toContain(
+      `min(${STATUS_SHEET_EXPANDED_RATIO * 100}%,calc(100%-${STATUS_SHEET_MINIMUM_MAP_HEIGHT}px))`,
+    )
     expect(styles).toContain('calc(var(--status-sheet-collapsed-height) - 1px)')
   })
 })
