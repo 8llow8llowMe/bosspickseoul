@@ -35,7 +35,8 @@ public class AnalysisBookmarkPresenter {
 
     private AnalysisBookmarkItem toItem(AnalysisBookmarkInfo info) {
         return AnalysisBookmarkItem.builder()
-            .bookmarkId(info.bookmarkId())
+            // Snowflake 값이 JS Number.MAX_SAFE_INTEGER 를 넘으므로 문자열로 내려준다.
+            .bookmarkId(String.valueOf(info.bookmarkId()))
             .shareType(info.shareType().toMetadata())
             .payload(parsePayload(info.payload()))
             .bookmarkName(info.bookmarkName())

@@ -10,8 +10,9 @@ import lombok.Builder;
 @Schema(description = "분석 보관함 항목 DTO")
 public record AnalysisBookmarkItem(
 
-    @Schema(description = "보관함 항목 아이디", example = "7345678901234567890")
-    long bookmarkId,
+    @Schema(description = "보관함 항목 아이디 — Snowflake 값이 JS Number.MAX_SAFE_INTEGER 를 넘으므로 문자열로 내려준다",
+        example = "7345678901234567890")
+    String bookmarkId,
 
     @Schema(description = "분석 화면 타입 메타데이터")
     CodeNameDescriptionMetadata shareType,
