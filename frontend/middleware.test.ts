@@ -53,7 +53,8 @@ describe('middleware', () => {
     expect(res.status).toBe(307)
     const location = res.headers.get('location')
     expect(location).toBeTruthy()
-    const url = new URL(location as string)
+    // Location 은 상대 경로다. 브라우저처럼 요청 URL 기준으로 해석해 검증한다.
+    const url = new URL(location as string, 'http://x')
     expect(url.pathname).toBe('/login')
     expect(url.searchParams.get('redirect')).toBe(
       '/community/register?from=list&draft=1',
@@ -98,7 +99,8 @@ describe('middleware', () => {
     expect(res.status).toBe(307)
     const location = res.headers.get('location')
     expect(location).toBeTruthy()
-    const url = new URL(location as string)
+    // Location 은 상대 경로다. 브라우저처럼 요청 URL 기준으로 해석해 검증한다.
+    const url = new URL(location as string, 'http://x')
     expect(url.pathname).toBe('/login')
     expect(url.searchParams.get('redirect')).toBe(
       '/analysis/simulation?serviceCode=CS100001',
@@ -143,7 +145,8 @@ describe('middleware', () => {
     expect(res.status).toBe(307)
     const location = res.headers.get('location')
     expect(location).toBeTruthy()
-    const url = new URL(location as string)
+    // Location 은 상대 경로다. 브라우저처럼 요청 URL 기준으로 해석해 검증한다.
+    const url = new URL(location as string, 'http://x')
     expect(url.pathname).toBe('/login')
     expect(url.searchParams.get('redirect')).toBe('/profile')
   })
