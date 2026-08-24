@@ -692,6 +692,23 @@ void run(Map<String, String> config) {
 
     boolean shouldDeploy = shouldDeployToEnvironment(ctx) && ctx.deployLabelAllowed != 'false'
 
+    // 배포하지 않는 브랜치 빌드는 CI(JAR 빌드)도 돌리지 않습니다.
+    // CI 게이트는 PR 빌드가 담당하므로, 머지 빌드에서 라벨 없는 잡까지 gradle 을 돌리면
+    // frontend-web 만 붙은 PR 머지에 백엔드 8개 잡이 빌더를 점유합니다.
+    // 단, SKIP_DEPLOY 는 "배포 없이 빌드만 수행" 이 목적이므로 이 생략 대상에서 제외합니다.
+    if (ctx.isPullRequest != 'true' && !params.SKIP_DEPLOY && !shouldDeploy) {
+        stage('배포 대상 아님 - 생략') {
+            echo "배포하지 않는 브랜치 빌드이므로 JAR 빌드를 생략합니다. deployEnv=${ctx.deployEnv}, deployLabelAllowed=${ctx.deployLabelAllowed}"
+            echo 'CI 는 PR 빌드에서 수행됩니다. 이 커밋을 배포하려면 FORCE_DEPLOY 로 수동 실행하세요.'
+            if (!currentBuild.description) {
+                currentBuild.description = ctx.deployLabelAllowed == 'false'
+                    ? '배포 대상 라벨 미지정 - 빌드/배포 생략'
+                    : '배포 대상 브랜치 아님 - 빌드/배포 생략'
+            }
+        }
+        return
+    }
+
     stage('JAR 빌드') {
         node(config.buildAgentLabel) {
             try {
