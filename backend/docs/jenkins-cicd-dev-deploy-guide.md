@@ -31,13 +31,13 @@ GitHub push 또는 pull_request
 
 ## 1-1. 모노레포 빌드/배포 범위 결정
 
-모노레포라서 한 번의 push에 백엔드 잡 8개가 모두 트리거된다. 아래 2단 게이트로 실제 작업 범위를 좁힌다.
+모노레포라서 한 번의 push에 백엔드 잡 8개가 모두 **시작**된다. Multibranch Pipeline은 잡 생성을 라벨로 막을 수 없지만, 파이프라인 안에서 아래 게이트로 Gradle/배포를 건너뛴다.
 
-**1단계 — 변경 경로로 빌드 여부 결정** (`isServiceAffected`)
+**1단계 — 변경 경로로 빌드 여부 결정** (`resolveAffectedScope`)
 
-자기 서비스 경로(`config.fsPath`) 또는 공용 경로(`backend/core/`, `backend/build.gradle`, `backend/settings.gradle`, `backend/gradle`, `Jenkinsfile`)가 변경되면 빌드한다. 무관하면 `변경 없음 - 생략` 스테이지만 남기고 종료한다. 비교 기준은 PR 빌드는 대상 브랜치와의 merge-base, 브랜치 빌드는 `GIT_PREVIOUS_SUCCESSFUL_COMMIT`이다. 기준을 판단할 수 없으면 전체 빌드로 진행한다(fail-open).
+자기 서비스 경로(`config.fsPath`) 또는 공용 경로(`backend/core/`, `backend/build.gradle`, `backend/settings.gradle`, `backend/gradle`)가 변경되면 영향 있음으로 본다. 무관하면 `변경 없음 - 생략` 스테이지만 남기고 종료한다. 비교 기준은 PR 빌드는 대상 브랜치와의 merge-base, 브랜치 빌드는 `GIT_PREVIOUS_SUCCESSFUL_COMMIT`이다. 기준을 판단할 수 없으면 전체 빌드로 진행한다(fail-open).
 
-**2단계 — PR 라벨로 배포 여부 결정** (`isServiceDeployAllowedByLabels`)
+**2단계 — PR 라벨로 배포(및 머지 빌드의 JAR 빌드) 여부 결정** (`isServiceDeployAllowedByLabels`)
 
 `Github label filter` 플러그인은 **PR discovery 단계만** 제한한다. 즉 라벨을 붙이면 그 서비스의 PR 빌드만 생성되지만, 머지 후 `develop`/`main` 브랜치 빌드는 8개 잡 모두에 대해 생성되므로 라벨이 반영되지 않는다. 그래서 브랜치 빌드에서는 파이프라인이 직접 PR 라벨을 조회한다.
 
@@ -47,15 +47,17 @@ GitHub push 또는 pull_request
 
 **라벨이 없으면 어떤 서비스도 배포하지 않는다 (fail-closed).** 배포는 의도적으로 지정한 대상만 나가야 하므로, 라벨이 없을 때 전체 배포로 넓히지 않는다. 즉 **배포하려면 PR에 라벨을 반드시 붙여야 한다.**
 
+머지 후 브랜치 빌드(`develop`/`main`)에서 배포 대상이 아니면 **JAR 빌드도 생략**한다. CI 게이트는 PR 빌드가 담당하고, `frontend-web`만 붙은 PR 머지에 백엔드 8개가 gradle을 도는 낭비를 막기 위해서다. 배포 없이 빌드만 확인하고 싶으면 `SKIP_DEPLOY`로 수동 실행한다.
+
 판단 규칙:
 
-| 상황 | 배포 | 빌드 결과 |
-| --- | --- | --- |
-| 내 서비스 라벨(`backend-{serviceName}`) 있음 | 배포 | SUCCESS |
-| `backend-*` 라벨이 있으나 내 서비스 라벨 없음 | 생략 | SUCCESS (`배포 대상 라벨 미지정 - 배포 생략`) |
-| `backend-*` 라벨이 전혀 없음 | 생략 | SUCCESS |
-| PR 없이 브랜치에 직접 push | 생략 | SUCCESS |
-| credential 미설정 / API 실패 / owner-repo 판단 실패 | 생략 | **UNSTABLE** (`라벨 확인 실패({사유}) - 배포 생략`) |
+| 상황 | JAR 빌드 | 배포 | 빌드 결과 |
+| --- | --- | --- | --- |
+| 내 서비스 라벨(`backend-{serviceName}`) 있음 | 수행 | 배포 | SUCCESS |
+| `backend-*` 라벨이 있으나 내 서비스 라벨 없음 | 생략 | 생략 | SUCCESS (`배포 대상 라벨 미지정 - 빌드/배포 생략`) |
+| `backend-*` 라벨이 전혀 없음 (`frontend-web`만 등) | 생략 | 생략 | SUCCESS (`배포 대상 라벨 미지정 - 빌드/배포 생략`) |
+| PR 없이 브랜치에 직접 push | 생략 | 생략 | SUCCESS (`배포 대상 브랜치 아님` 또는 라벨 미지정) |
+| credential 미설정 / API 실패 / owner-repo 판단 실패 | 생략 | 생략 | **UNSTABLE** (`라벨 확인 실패({사유}) - 배포 생략`) |
 
 마지막 행만 `UNSTABLE`로 표시한다. 라벨을 안 붙여서 배포하지 않은 것과, 설정·통신 문제로 라벨을 확인조차 못해 배포하지 않은 것은 구분해야 한다. 후자를 SUCCESS로 두면 credential 오설정으로 배포가 영구히 멈춘 것을 알아채기 어렵다. 사유 코드는 `NO_CREDENTIAL`, `NO_REPOSITORY_SLUG`, `API_ERROR`, `PULL_REQUEST_PARSE_FAILED`다.
 
@@ -82,9 +84,9 @@ backend-auth-service      backend-community-service
 
 **운영 시 주의**
 
-- **라벨을 안 붙이면 배포가 아예 일어나지 않는다.** 머지했는데 dev에 반영되지 않으면 먼저 PR 라벨을 확인한다. 빌드 로그의 `라벨 배포 허용 여부`와 `PR #NN 라벨:` 줄을 보면 된다.
-- 공용 경로(`Jenkinsfile`, `backend/core/`)를 바꾸면 8개 잡이 모두 **빌드**되지만, 배포는 라벨 대상만 수행된다.
-- 배포되지 않은 서비스도 빌드는 수행하므로 공용 코드 변경이 컴파일을 깨뜨리는지는 브랜치 빌드에서 검증된다. (라벨 필터 때문에 PR 빌드는 라벨 대상 서비스만 돌아 검증 공백이 생기므로 의도된 동작이다.)
+- **라벨을 안 붙이면 배포도 JAR 빌드도 일어나지 않는다.** 머지했는데 dev에 반영되지 않으면 먼저 PR 라벨을 확인한다. 빌드 로그의 `라벨 배포 허용 여부`와 `PR #NN 라벨:` 줄을 보면 된다.
+- Multibranch 잡은 머지마다 8개가 시작되지만, 라벨이 없는 잡은 `배포 대상 아님 - 생략`으로 Gradle 없이 끝난다. 잡은 뜨되 빌더는 점유하지 않는다.
+- 공용 경로(`backend/core/` 등) 변경의 CI는 **PR에 영향받는 서비스 라벨을 모두 붙여야** 해당 PR 잡에서 검증된다. 라벨 없는 서비스는 머지 빌드에서도 JAR를 돌리지 않는다.
 - 공용 코드 변경을 배포 대상에서 제외하면, 해당 서비스 컨테이너는 **다음 배포 때까지 이전 코드로 동작한다.** 라벨을 좁힐 때 이 점을 고려해야 한다.
 
 ## 2. 필요한 Jenkins 플러그인
