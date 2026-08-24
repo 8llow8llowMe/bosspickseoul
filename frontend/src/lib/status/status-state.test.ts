@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   applyStatusSheetContentTransition,
   createStatusHref,
+  STATUS_SHEET_COLLAPSED_HEIGHT,
+  STATUS_SHEET_EXPANDED_RATIO,
+  STATUS_SHEET_MINIMUM_MAP_HEIGHT,
   createStatusQuery,
   getStatusSheetHeightBounds,
   getNextSheetSnap,
@@ -37,13 +40,26 @@ describe('createStatusHref', () => {
 })
 
 describe('getStatusSheetHeightBounds', () => {
+  // expandedHeight = min(높이 x EXPANDED_RATIO, 높이 - MINIMUM_MAP_HEIGHT)
+  // 지도 최소 높이(290px)를 확보하는 쪽이 대개 더 작아서 아래 세 경우 모두 그쪽이 선택된다.
+  // 상수를 의도적으로 바꾸면 이 표도 함께 갱신해야 한다.
   it.each([
-    [560, { collapsedHeight: 52, expandedHeight: 369.6 }],
-    [523.28, { collapsedHeight: 52, expandedHeight: 343.28 }],
-    [360, { collapsedHeight: 52, expandedHeight: 180 }],
-  ])('returns the two snap heights for a %spx viewport', (height, expected) => {
-    expect(getStatusSheetHeightBounds(height)).toEqual(expected)
-  })
+    [560, 560 - STATUS_SHEET_MINIMUM_MAP_HEIGHT],
+    [523.28, 523.28 - STATUS_SHEET_MINIMUM_MAP_HEIGHT],
+    [360, 360 - STATUS_SHEET_MINIMUM_MAP_HEIGHT],
+  ])(
+    'returns the two snap heights for a %spx viewport',
+    (height, expectedExpanded) => {
+      const bounds = getStatusSheetHeightBounds(height)
+
+      expect(bounds.collapsedHeight).toBe(STATUS_SHEET_COLLAPSED_HEIGHT)
+      expect(bounds.expandedHeight).toBeCloseTo(expectedExpanded, 5)
+      // 비율 상한을 넘지 않는지도 함께 확인한다.
+      expect(bounds.expandedHeight).toBeLessThanOrEqual(
+        height * STATUS_SHEET_EXPANDED_RATIO,
+      )
+    },
+  )
 
   it.each([Number.NaN, Number.POSITIVE_INFINITY, 0, -1])(
     'falls back to the collapsed height for an invalid viewport: %s',
