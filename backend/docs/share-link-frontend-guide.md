@@ -146,15 +146,28 @@ router.replace(builder(payload));
 | API | 인증 | 용도 |
 | --- | --- | --- |
 | `POST /api/v1/analysis-bookmarks` | 필수 | `{shareType, payload, bookmarkName?}` 저장 |
-| `GET /api/v1/analysis-bookmarks?page=&size=` | 필수 | 내 보관함 최신순 목록 (size 1~50) |
+| `GET /api/v1/analysis-bookmarks?shareType=&page=&size=` | 필수 | 내 보관함 최신순 목록 (size 1~50, shareType 선택 필터) |
+| `PATCH /api/v1/analysis-bookmarks/{bookmarkId}` | 필수 | 이름 수정 (`{bookmarkName}`, null/공백이면 이름 제거) |
 | `DELETE /api/v1/analysis-bookmarks/{bookmarkId}` | 필수 | 보관 항목 삭제 |
 
 - payload 구성 규칙(최소 상태만, 2000자 제한, key 순서 무관)은 공유 링크와 완전히 동일하다.
   **공유용으로 만든 payload 빌더를 그대로 재사용**하면 된다.
 - 목록 응답의 각 항목은 `{bookmarkId, shareType(metadata), payload, bookmarkName, createdAt}` —
   해석 API 호출 없이 payload 가 바로 오므로, 항목 클릭 시 `ROUTE_BUILDERS`로 즉시 이동하면 된다.
+- **`bookmarkId` 는 문자열이다.** 숫자로 파싱하지 말 것 — Snowflake 값이
+  `Number.MAX_SAFE_INTEGER` 를 넘어 숫자 변환 시 값이 손상된다. 받은 문자열 그대로
+  PATCH/DELETE 경로에 넣으면 된다.
 - 공유 링크와 달리 **만료가 없다**. `bookmarkName`(50자 이하)은 선택이며 미지정 시 null.
-- 에러: 같은 화면 상태 재저장 409 `ANALYSIS_BOOKMARK_002`(이미 저장됨 토스트),
-  타 회원 항목/미존재 삭제 404 `ANALYSIS_BOOKMARK_001`, payload 검증 400 `ANALYSIS_BOOKMARK_003~005`.
+- 화면 타입별 탭 UI 는 `?shareType=COMMERCIAL_ANALYSIS` 필터로 만들면 된다.
+- 에러 처리:
+
+| 상황 | HTTP | resultCode | 프론트 처리 |
+| --- | --- | --- | --- |
+| 같은 화면 상태 재저장 | 409 | `ANALYSIS_BOOKMARK_002` | "이미 저장됨" 토스트. dataBody 의 `existingBookmarkId`(문자열, 드물게 null)로 해제(삭제) 토글 구현 가능 |
+| 타 회원 항목/미존재 수정·삭제 | 404 | `ANALYSIS_BOOKMARK_001` | 목록 새로고침 |
+| payload/타입 검증 | 400 | `ANALYSIS_BOOKMARK_003~005` | 저장 요청 버그 — payload 구성 확인 |
+| 저장 상한(기본 100개) 초과 | 400 | `ANALYSIS_BOOKMARK_006` | resultMessage 그대로 안내 ("보관함이 가득 찼습니다…") |
+
+- 필수값/길이/페이지 파라미터 검증 오류는 `ANALYSIS_BOOKMARK_101~105` 로 응답한다.
 - 자치구/행정동/상권 **자체**를 즐겨찾기하는 회원 북마크(`/api/v1/members/me/bookmarks`)와는 별개다.
   보관함은 "조건(업종/분기 등)까지 포함한 화면 상태" 저장이다.

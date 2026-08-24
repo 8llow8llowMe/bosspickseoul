@@ -193,15 +193,27 @@
 - 회원이 보고 있는 분석 화면 상태를 만료 없이 저장해 두고 다시 여는 개인 보관함.
   게이트웨이 라우트 `/api/v1/analysis-bookmarks/**`, 전 API 인증 필수.
 - payload 포맷·정규화(key 정렬)·해시 규칙(`SHA-256(shareType | 정렬된 payload JSON)`, 2000자 제한)과
-  `ShareTargetType`(화면 5종)은 **공유 링크와 동일하게 재사용**한다. 프론트는 공유 링크에 쓰는 payload 를
-  그대로 저장하면 되고, 복원도 동일한 URL 템플릿 조립 방식을 쓴다 (`docs/share-link-frontend-guide.md`).
+  `ShareTargetType`(화면 5종)은 **공유 링크와 동일 규칙을 재사용**한다. 규칙의 단일 기준점은
+  `sharelink/application/support/SharePayloadCanonicalizer` 로, 두 컨텍스트가 같은 컴포넌트를 쓴다.
+  프론트는 공유 링크에 쓰는 payload 를 그대로 저장하면 되고, 복원도 동일한 URL 템플릿 조립 방식을 쓴다
+  (`docs/share-link-frontend-guide.md`).
 - 공유 링크를 직접 재사용하지 않고 별도 테이블(`analysis_bookmark`)을 두는 이유:
   ① 공유 링크는 TTL(90일)+정리 스케줄러로 **만료**되지만 보관함은 만료가 없어야 한다.
   ② 공유 링크의 payloadHash 는 **전역 unique**(최초 공유자만 기록)라 회원 소유 모델과 맞지 않는다.
   보관함은 `(memberId, payloadHash)` unique 로 회원별 중복만 막는다.
-- `POST /api/v1/analysis-bookmarks` — `{shareType, payload, bookmarkName?}` 저장. 같은 화면 상태 재저장은 409.
-- `GET /api/v1/analysis-bookmarks?page=&size=` — 본인 보관함 최신순 페이지 (size 1~50).
-- `DELETE /api/v1/analysis-bookmarks/{bookmarkId}` — 본인 항목 삭제. 타인 항목은 존재 여부를 숨기려 404.
+- `POST /api/v1/analysis-bookmarks` — `{shareType, payload, bookmarkName?}` 저장.
+  같은 화면 상태 재저장은 409 이며, 실패 응답 dataBody 의 `existingBookmarkId` 로 기존 항목을 알려준다
+  (동시 저장 경합은 DB 유니크 제약 + `DataIntegrityViolationException` 핸들러가 같은 409 로 변환, 이때는 dataBody 없음).
+  회원당 저장 상한(`app.analysis-bookmark.max-per-member`, 기본 100)을 넘으면 400.
+- `GET /api/v1/analysis-bookmarks?shareType=&page=&size=` — 본인 보관함 최신순 페이지 (size 1~50).
+  `shareType` 은 선택 필터. 정렬은 `createdAt desc, id desc` — 같은 시각 행이 페이지 경계에서
+  중복/누락되지 않도록 id(Snowflake, 시간순 유니크)를 2차 정렬로 둔다.
+- `PATCH /api/v1/analysis-bookmarks/{bookmarkId}` — 이름 수정. null/공백이면 이름 제거.
+- `DELETE /api/v1/analysis-bookmarks/{bookmarkId}` — 본인 항목 삭제.
+  수정/삭제 모두 소유자 조건을 쿼리에 포함한 단일 UPDATE/DELETE 로 처리하고,
+  타인 항목은 존재 여부를 숨기려 미존재와 동일하게 404.
+- 응답의 `bookmarkId` 는 **문자열**이다 — Snowflake 값이 JS `Number.MAX_SAFE_INTEGER` 를 넘어
+  숫자로 내려주면 브라우저에서 정밀도가 손상된다.
 - id 는 Snowflake 생성 (AUTO_INCREMENT 아님). prod DDL 은
   `backend/scripts/migration/analysis-bookmark-table-runbook.sql` 수동 적용.
 - 자치구/행정동/상권 **엔티티 자체**의 즐겨찾기는 auth-service 회원 북마크
@@ -247,7 +259,7 @@
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 | `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102) |
 | `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_004` | 업종/임대료/프랜차이즈 미존재 404, 프랜차이즈 미선택 400. 검증 대역 `SIMULATION_100`~`SIMULATION_101` |
-| `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_005` | 미존재 404 / 중복 저장 409 / payload·타입 검증 400. 요청 필드 검증 메시지는 `AnalysisBookmarkValidationMessage` |
+| `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_006` | 미존재 404 / 중복 저장 409(dataBody 에 기존 항목 아이디) / payload·타입 검증 400 / 저장 상한 초과 400. 검증 대역은 `ANALYSIS_BOOKMARK_101`~`ANALYSIS_BOOKMARK_105` (`AnalysisBookmarkValidationMessage`) |
 
 ## 정책 추천 (보류)
 

@@ -215,11 +215,14 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| POST | `/` | 분석 화면 상태 보관 (`shareType` + `payload` + 선택 `bookmarkName`) — 동일 상태 재저장 시 `409` | 🔒 |
-| GET | `/?page=&size=` | 내 보관함 최신순 목록 (size 1~50) | 🔒 |
+| POST | `/` | 분석 화면 상태 보관 (`shareType` + `payload` + 선택 `bookmarkName`) — 동일 상태 재저장 시 `409` (dataBody 에 `existingBookmarkId`) | 🔒 |
+| GET | `/?shareType=&page=&size=` | 내 보관함 최신순 목록 (size 1~50, `shareType` 선택 필터) | 🔒 |
+| PATCH | `/{bookmarkId}` | 보관함 이름 수정 (`bookmarkName` null/공백이면 이름 제거) | 🔒 |
 | DELETE | `/{bookmarkId}` | 보관 항목 삭제 (타인 항목은 `404`) | 🔒 |
 
 - `shareType`/`payload` 계약은 공유 링크와 동일하며, 공유 링크와 달리 **만료가 없고 본인만 조회**합니다.
+- 응답의 `bookmarkId` 는 JS 정밀도 손상을 막기 위해 **문자열**입니다.
+- 회원당 저장 상한(기본 100개)을 넘으면 `400 ANALYSIS_BOOKMARK_006` 으로 응답합니다.
 - 프론트 연동 상세는 [`share-link-frontend-guide.md`](share-link-frontend-guide.md)의 "분석 보관함" 섹션 참고.
 
 ---
