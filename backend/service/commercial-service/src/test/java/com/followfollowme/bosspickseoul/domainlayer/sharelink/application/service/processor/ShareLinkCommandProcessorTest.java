@@ -9,6 +9,7 @@ import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.comman
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.exception.ShareLinkErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.exception.ShareLinkException;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.port.out.ShareLinkRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.support.SharePayloadCanonicalizer;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.domain.enums.ShareTargetType;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.domain.model.ShareLink;
 import com.followfollowme.bosspickseoul.global.properties.ShareLinkProperties;
@@ -27,7 +28,7 @@ class ShareLinkCommandProcessorTest {
         new SnowflakeIdGenerator(0, 0),
         repositoryPort,
         new ShareLinkProperties(90),
-        objectMapper
+        new SharePayloadCanonicalizer(objectMapper)
     );
 
     @Test
