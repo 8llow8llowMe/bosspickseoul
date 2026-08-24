@@ -3,6 +3,8 @@ package com.followfollowme.bosspickseoul.domainlayer.sharelink.domain.enums;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescribable;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.exception.ShareLinkErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.exception.ShareLinkException;
+import java.util.Locale;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -25,11 +27,23 @@ public enum ShareTargetType implements CodeNameDescribable {
     private final String displayName;
     private final String description;
 
-    public static ShareTargetType from(String value) {
-        try {
-            return ShareTargetType.valueOf(value.toUpperCase());
-        } catch (RuntimeException exception) {
-            throw new ShareLinkException(ShareLinkErrorCode.INVALID_SHARE_TARGET_TYPE);
+    /**
+     * 대소문자 무관 파싱. 다른 컨텍스트(분석 보관함 등)가 자신의 에러 코드로 번역할 수 있도록
+     * 예외 대신 Optional 을 돌려준다. 로케일에 따라 대문자 변환이 달라지지 않도록 Locale.ROOT 를 쓴다.
+     */
+    public static Optional<ShareTargetType> parse(String value) {
+        if (value == null) {
+            return Optional.empty();
         }
+        try {
+            return Optional.of(ShareTargetType.valueOf(value.toUpperCase(Locale.ROOT)));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public static ShareTargetType from(String value) {
+        return parse(value)
+            .orElseThrow(() -> new ShareLinkException(ShareLinkErrorCode.INVALID_SHARE_TARGET_TYPE));
     }
 }
