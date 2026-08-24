@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { getServerEnv } from '@/lib/env.server'
+import { redirectToPath } from '@/lib/http/redirect'
 import { setSession } from '@/lib/auth/session'
 import { extractCookieValue } from '@/lib/auth/set-cookie'
 import { isApiSuccess } from '@/lib/api/response'
@@ -13,13 +13,15 @@ export async function GET(
   ctx: { params: Promise<{ provider: string }> },
 ) {
   const { provider } = await ctx.params
-  const url = new URL(request.url)
-  const fail = () => NextResponse.redirect(new URL('/login?error=social', url))
+  // 오리진은 쓰지 않는다. standalone 서버가 컨테이너 바인드 주소로 오리진을 구성하므로
+  // 프록시 뒤에서는 http://0.0.0.0:3000 이 되어 도달 불가능한 주소로 리다이렉트된다.
+  const { searchParams } = new URL(request.url)
+  const fail = () => redirectToPath('/login?error=social')
 
   if (!PROVIDERS.has(provider)) return fail()
 
-  const code = url.searchParams.get('code')
-  const state = url.searchParams.get('state')
+  const code = searchParams.get('code')
+  const state = searchParams.get('state')
   if (!code || !state) return fail()
 
   const { backendApiUrl } = getServerEnv()
@@ -48,5 +50,5 @@ export async function GET(
     refreshToken,
     memberId: data.dataBody.memberId,
   })
-  return NextResponse.redirect(new URL('/', url))
+  return redirectToPath('/')
 }

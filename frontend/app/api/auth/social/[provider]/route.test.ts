@@ -37,7 +37,7 @@ describe('GET /api/auth/social/[provider]', () => {
       ctx('kakao'),
     )
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toBe('http://x/')
+    expect(res.headers.get('location')).toBe('/')
     expect(setSession).toHaveBeenCalledWith({
       accessToken: 'a.t.k',
       refreshToken: 'r.t.k',
@@ -53,7 +53,7 @@ describe('GET /api/auth/social/[provider]', () => {
       ctx('evil'),
     )
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toBe('http://x/login?error=social')
+    expect(res.headers.get('location')).toBe('/login?error=social')
     expect(setSession).not.toHaveBeenCalled()
     expect(global.fetch).not.toHaveBeenCalled()
   })
@@ -77,7 +77,7 @@ describe('GET /api/auth/social/[provider]', () => {
       new Request('http://x/api/auth/social/kakao?code=c&state=s'),
       ctx('kakao'),
     )
-    expect(res.headers.get('location')).toBe('http://x/login?error=social')
+    expect(res.headers.get('location')).toBe('/login?error=social')
     expect(setSession).not.toHaveBeenCalled()
   })
 })
