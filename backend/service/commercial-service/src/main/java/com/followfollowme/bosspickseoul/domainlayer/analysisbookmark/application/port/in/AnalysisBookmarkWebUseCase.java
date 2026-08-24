@@ -8,7 +8,9 @@ public interface AnalysisBookmarkWebUseCase {
 
     AnalysisBookmarkCreateResponse createBookmark(long memberId, AnalysisBookmarkCreateRequest request);
 
-    AnalysisBookmarksResponse getBookmarks(long memberId, int page, int size);
+    AnalysisBookmarksResponse getBookmarks(long memberId, String shareType, int page, int size);
+
+    void updateBookmarkName(long memberId, long bookmarkId, String bookmarkName);
 
     void deleteBookmark(long memberId, long bookmarkId);
 }
