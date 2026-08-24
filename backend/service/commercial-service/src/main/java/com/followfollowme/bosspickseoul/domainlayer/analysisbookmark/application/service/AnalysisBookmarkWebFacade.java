@@ -34,9 +34,15 @@ public class AnalysisBookmarkWebFacade implements AnalysisBookmarkWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public AnalysisBookmarksResponse getBookmarks(long memberId, int page, int size) {
+    public AnalysisBookmarksResponse getBookmarks(long memberId, String shareType, int page, int size) {
         return analysisBookmarkPresenter.toBookmarksResponse(
-            analysisBookmarkQueryProcessor.getBookmarks(memberId, page, size));
+            analysisBookmarkQueryProcessor.getBookmarks(memberId, shareType, page, size));
+    }
+
+    @Override
+    @Transactional
+    public void updateBookmarkName(long memberId, long bookmarkId, String bookmarkName) {
+        analysisBookmarkCommandProcessor.updateBookmarkName(memberId, bookmarkId, bookmarkName);
     }
 
     @Override

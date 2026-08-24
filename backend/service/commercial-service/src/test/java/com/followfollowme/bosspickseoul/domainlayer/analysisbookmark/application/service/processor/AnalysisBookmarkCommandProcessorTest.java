@@ -6,16 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.command.AnalysisBookmarkCreateCommand;
+import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkDuplicateException;
 import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkException;
-import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.port.out.AnalysisBookmarkRepositoryPort;
-import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.port.out.query.AnalysisBookmarkPageQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.domain.model.AnalysisBookmark;
+import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.support.SharePayloadCanonicalizer;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.domain.enums.ShareTargetType;
+import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.domain.model.AnalysisBookmark;
+import com.followfollowme.bosspickseoul.global.properties.AnalysisBookmarkProperties;
 import com.followfollowme.bosspickseoul.persistence.util.SnowflakeIdGenerator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class AnalysisBookmarkCommandProcessorTest {
@@ -25,7 +23,8 @@ class AnalysisBookmarkCommandProcessorTest {
     private final AnalysisBookmarkCommandProcessor processor = new AnalysisBookmarkCommandProcessor(
         new SnowflakeIdGenerator(0, 0),
         repositoryPort,
-        objectMapper
+        new SharePayloadCanonicalizer(objectMapper),
+        new AnalysisBookmarkProperties(100)
     );
 
     @Test
@@ -41,14 +40,18 @@ class AnalysisBookmarkCommandProcessorTest {
     }
 
     @Test
-    void create_rejectsDuplicatePayloadRegardlessOfKeyOrder() throws JsonProcessingException {
-        processor.create(1L, command("{\"a\": \"1\", \"b\": \"2\"}", null));
+    void create_rejectsDuplicatePayloadWithExistingBookmarkId() throws JsonProcessingException {
+        AnalysisBookmark first = processor.create(1L, command("{\"a\": \"1\", \"b\": \"2\"}", null));
 
+        // key 순서가 달라도 같은 화면 상태로 판정하고, 기존 항목 아이디를 실어 던진다
         AnalysisBookmarkCreateCommand reordered = command("{\"b\": \"2\", \"a\": \"1\"}", null);
         assertThatThrownBy(() -> processor.create(1L, reordered))
-            .isInstanceOf(AnalysisBookmarkException.class)
-            .extracting(exception -> ((AnalysisBookmarkException) exception).getErrorCode())
-            .isEqualTo(AnalysisBookmarkErrorCode.ALREADY_BOOKMARKED);
+            .isInstanceOf(AnalysisBookmarkDuplicateException.class)
+            .satisfies(exception -> {
+                AnalysisBookmarkDuplicateException duplicate = (AnalysisBookmarkDuplicateException) exception;
+                assertThat(duplicate.getErrorCode()).isEqualTo(AnalysisBookmarkErrorCode.ALREADY_BOOKMARKED);
+                assertThat(duplicate.getExistingBookmarkId()).isEqualTo(first.id());
+            });
         assertThat(repositoryPort.rowCount()).isEqualTo(1);
     }
 
@@ -72,10 +75,36 @@ class AnalysisBookmarkCommandProcessorTest {
     }
 
     @Test
+    void create_acceptsLowerCaseShareType() throws JsonProcessingException {
+        AnalysisBookmark created = processor.create(1L, new AnalysisBookmarkCreateCommand(
+            "commercial_analysis", objectMapper.readTree("{\"code\": \"1\"}"), null));
+
+        assertThat(created.shareType()).isEqualTo(ShareTargetType.COMMERCIAL_ANALYSIS);
+    }
+
+    @Test
     void create_normalizesBlankBookmarkNameToNull() throws JsonProcessingException {
         AnalysisBookmark created = processor.create(1L, command("{\"code\": \"1\"}", "   "));
 
         assertThat(created.bookmarkName()).isNull();
+    }
+
+    @Test
+    void create_rejectsWhenBookmarkLimitExceeded() throws JsonProcessingException {
+        AnalysisBookmarkCommandProcessor limitedProcessor = new AnalysisBookmarkCommandProcessor(
+            new SnowflakeIdGenerator(0, 0),
+            repositoryPort,
+            new SharePayloadCanonicalizer(objectMapper),
+            new AnalysisBookmarkProperties(1)
+        );
+        limitedProcessor.create(1L, command("{\"code\": \"1\"}", null));
+
+        AnalysisBookmarkCreateCommand another = command("{\"code\": \"2\"}", null);
+        assertThatThrownBy(() -> limitedProcessor.create(1L, another))
+            .isInstanceOf(AnalysisBookmarkException.class)
+            .extracting(exception -> ((AnalysisBookmarkException) exception).getErrorCode())
+            .isEqualTo(AnalysisBookmarkErrorCode.BOOKMARK_LIMIT_EXCEEDED);
+        assertThat(repositoryPort.rowCount()).isEqualTo(1);
     }
 
     @Test
@@ -112,6 +141,34 @@ class AnalysisBookmarkCommandProcessorTest {
     }
 
     @Test
+    void updateBookmarkName_updatesOwnBookmark() throws JsonProcessingException {
+        AnalysisBookmark created = processor.create(1L, command("{\"code\": \"1\"}", null));
+
+        processor.updateBookmarkName(1L, created.id(), "새 이름");
+
+        assertThat(repositoryPort.findNameById(created.id())).isEqualTo("새 이름");
+    }
+
+    @Test
+    void updateBookmarkName_clearsNameWhenBlank() throws JsonProcessingException {
+        AnalysisBookmark created = processor.create(1L, command("{\"code\": \"1\"}", "원래 이름"));
+
+        processor.updateBookmarkName(1L, created.id(), "   ");
+
+        assertThat(repositoryPort.findNameById(created.id())).isNull();
+    }
+
+    @Test
+    void updateBookmarkName_rejectsOtherMembersBookmarkAsNotFound() throws JsonProcessingException {
+        AnalysisBookmark created = processor.create(1L, command("{\"code\": \"1\"}", null));
+
+        assertThatThrownBy(() -> processor.updateBookmarkName(2L, created.id(), "새 이름"))
+            .isInstanceOf(AnalysisBookmarkException.class)
+            .extracting(exception -> ((AnalysisBookmarkException) exception).getErrorCode())
+            .isEqualTo(AnalysisBookmarkErrorCode.BOOKMARK_NOT_FOUND);
+    }
+
+    @Test
     void delete_removesOwnBookmark() throws JsonProcessingException {
         AnalysisBookmark created = processor.create(1L, command("{\"code\": \"1\"}", null));
 
@@ -124,7 +181,7 @@ class AnalysisBookmarkCommandProcessorTest {
     void delete_rejectsOtherMembersBookmarkAsNotFound() throws JsonProcessingException {
         AnalysisBookmark created = processor.create(1L, command("{\"code\": \"1\"}", null));
 
-        // 타인 항목은 존재 여부를 노출하지 않도록 404 로 응답한다
+        // 타인 항목은 존재 여부를 노출하지 않도록 동일하게 404 로 응답한다
         assertThatThrownBy(() -> processor.delete(2L, created.id()))
             .isInstanceOf(AnalysisBookmarkException.class)
             .extracting(exception -> ((AnalysisBookmarkException) exception).getErrorCode())
@@ -143,41 +200,5 @@ class AnalysisBookmarkCommandProcessorTest {
     private AnalysisBookmarkCreateCommand command(String payloadJson, String bookmarkName) throws JsonProcessingException {
         return new AnalysisBookmarkCreateCommand(
             ShareTargetType.COMMERCIAL_ANALYSIS.name(), objectMapper.readTree(payloadJson), bookmarkName);
-    }
-
-    private static class StubAnalysisBookmarkRepositoryPort implements AnalysisBookmarkRepositoryPort {
-
-        private final Map<Long, AnalysisBookmark> rows = new HashMap<>();
-
-        @Override
-        public AnalysisBookmark save(AnalysisBookmark bookmark) {
-            rows.put(bookmark.id(), bookmark);
-            return bookmark;
-        }
-
-        @Override
-        public boolean existsByMemberIdAndPayloadHash(long memberId, String payloadHash) {
-            return rows.values().stream()
-                .anyMatch(row -> row.memberId() == memberId && row.payloadHash().equals(payloadHash));
-        }
-
-        @Override
-        public Optional<AnalysisBookmark> findById(long bookmarkId) {
-            return Optional.ofNullable(rows.get(bookmarkId));
-        }
-
-        @Override
-        public void deleteById(long bookmarkId) {
-            rows.remove(bookmarkId);
-        }
-
-        @Override
-        public AnalysisBookmarkPageQueryResult findAllByMemberId(long memberId, int page, int size) {
-            throw new UnsupportedOperationException("커맨드 프로세서 테스트에서는 사용하지 않는다.");
-        }
-
-        int rowCount() {
-            return rows.size();
-        }
     }
 }
