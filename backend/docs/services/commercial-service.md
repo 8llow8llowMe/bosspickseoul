@@ -17,6 +17,7 @@
 - `ranking`
 - `simulation`
 - `analysisbookmark`
+- `policy`
 
 ## 인증 방식
 
@@ -35,6 +36,7 @@
 - `DistrictWebController`
 - `AdministrationWebController` (`/api/v1/administrations`)
 - `ShareLinkWebController` (`/api/v1/share-links`)
+- `PolicyWebController` (`/api/v1/policies`)
 - `CommercialWebUseCase -> CommercialWebFacade`
 - `DistrictWebUseCase -> DistrictWebFacade`
 
@@ -127,6 +129,26 @@
 새 프리셋 2종 추가:
 - `YOUTH_STARTUP` (청년창업형): 기회·혼잡 중시, 가중치 0.45/0.20/0.25/0.10
 - `RE_EMPLOYMENT_STARTUP` (재취업창업형): 거주수요·안정 중시, 가중치 0.20/0.35/0.05/0.40
+
+## 지원 정책 추천 (policy)
+
+상권의 자치구·업종에 맞는 소상공인 지원 정책을 추천하는 컨텍스트. 게이트웨이 라우트 `/api/v1/policies`.
+
+- `GET /api/v1/policies?districtCode=&serviceCode=&size=` — 신청 가능 정책 추천(기본 5건). 공개
+- `GET /api/v1/commercials/{commercialCode}/profile` 응답의 `policyRecommendations` 에 상위 5건 동봉
+
+**지역·업종은 null 이 "제한 없음"이다.** 전국 정책은 `district_code` 가 NULL, 전업종 정책은
+`service_category_code` 가 NULL 이다. 조회는 **범위 포함** 매칭이라 자치구를 지정해도 전국 정책이 함께 나온다.
+
+업종은 코드 앞 3자리를 대분류로 쓴다(`CS100001` → `CS1`). 접두어보다 짧은 값이 오면 업종 조건에서 제외한다 —
+그대로 넣으면 아무 정책도 매칭되지 않아 빈 목록이 되기 때문이다.
+
+정렬은 `자치구 전용 → 마감 임박순 → 상시 모집` 이고, 신청 기간이 지난 정책은 조회에서 빠진다.
+
+- 신규 테이블: `policy` (인덱스 `idx_policy_apply_end_at_district_code_service_category_code` —
+  종료 정책을 먼저 걸러내는 것이 선택도가 가장 높아 마감일을 선두에 둔다)
+- 시드: `resources/db/policy-seed.sql` (14건). ⚠️ **실데이터가 아니라 계약 검증용 표본**이다.
+  실데이터 적재는 `feature-status.md` 의 "정책 추천 실 데이터 연동" 참고.
 
 ## 창업 시뮬레이션 (simulation)
 

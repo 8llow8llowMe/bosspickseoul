@@ -429,28 +429,128 @@ INDEX(status)
 
 ---
 
+### `commercial-service` — 창업 시뮬레이션
+
+**상태**: ✅ 완료 (백엔드) / ⏸ 프론트 미연결
+
+**목적**: 업종·매장 크기·프랜차이즈 조건으로 창업 비용과 예상 수익을 계산해 리포트로 제공.
+
+**엔드포인트**:
+- `GET /api/v1/simulations/store-sizes` — 업종별 소/중/대 매장 크기(㎡·평), 공개
+- `GET /api/v1/simulations/franchisees` — 프랜차이즈 브랜드 검색(`keyword`, `serviceCode`, 커서), 공개
+- `POST /api/v1/simulations/reports` — 리포트 생성(저장 없음), 공개
+- `POST /api/v1/simulations/histories` — 결과를 내 이력에 저장, 인증 필요
+- `GET /api/v1/simulations/histories` — 내 이력 목록, 인증 필요
+
+**설계 결정**:
+- **생성과 저장을 분리** — 로그인 없이 결과를 볼 수 있고, 저장하려는 시점에만 인증을 요구한다.
+  가입 전에 가치를 먼저 보여주기 위한 선택이다.
+- 조회 3종은 공개, 이력 2종만 `@PreAuthorize("isAuthenticated()")`
+
+**ErrorCode**: `SIMULATION_001~004` (비즈니스) + `SIMULATION_100~101` (검증)
+
+**⚠️ 프론트 연결 필요**: 프론트에 화면 컴포넌트(`simulation-form-page`, `simulation-report-page`,
+`simulation-compare-page`)가 이미 있으나, 라우트가 `SimulationUnavailablePage` 를 렌더한다.
+`src/lib/api/simulation.ts` 가 V1 경로(`/simulation/store`, `/simulation/franchisee`,
+`/simulation`, `/simulation/save`)를 호출하고 있어 위 V2 경로로 교체해야 한다.
+프론트가 대기 상태로 전환한 시점(`df626c33`, 2026-07-28)보다 백엔드 API 가 나중에 들어와 생긴 공백이다.
+
+---
+
+### `commercial-service` — 실시간 인기 순위
+
+**상태**: ✅ 완료
+
+**목적**: 분석 화면 조회 이벤트를 모아 인기 지역 순위를 제공.
+
+**엔드포인트**:
+- `GET /api/v1/analysis-rankings` — 최근 조회 기준 인기 지역 순위, 공개
+
+**설계 결정**:
+- **발행과 조회를 분리** — 조회 API 는 Redis Sorted Set 만 읽으므로 `RANKING_ENABLED` 와 무관하게
+  항상 동작한다. 파이프라인이 꺼져 있으면 빈 순위가 나올 뿐 장애가 아니다.
+- `RANKING_ENABLED=false`(기본)면 Kafka producer/consumer 빈이 등록되지 않아 브로커 없이도 기동한다.
+  producer 자리는 `NoOpAnalysisViewEventAdapter` 가 채운다.
+- **인기 순위는 유실 허용 부가 데이터** — producer 는 `acks=1`, `max.block.ms=1000` 으로 두어
+  브로커 장애가 분석 API 응답을 막지 않는다. 발행 실패는 WARN 로그만 남기고 흡수한다.
+- 토픽(`bosspick.analysis-events`)은 기동 시 `KafkaAdmin` 이 생성한다(`RankingTopicConfig`).
+  브로커의 `auto.create.topics.enable` 과 무관한 admin API 를 쓴다.
+
+**ErrorCode**: `RANKING_001~002`
+
+배포 시 필요한 Vault key 는 `deploy-guide.md` 의 "인기 순위(Kafka) 활성화 시 필요한 key" 참고.
+
+---
+
+### `auth-service` / `community-service` — 이미지 업로드
+
+**상태**: ✅ 완료 (백엔드) / ⏸ 프론트 미연결
+
+**엔드포인트**:
+- `POST /api/v1/members/me/profile-image` — 프로필 이미지 업로드(`multipart/form-data`), 인증 필요
+- `DELETE /api/v1/members/me/profile-image` — 프로필 이미지 삭제, 인증 필요
+- `POST /api/v1/community/posts/images` — 게시글 이미지 업로드(`multipart/form-data`), 인증 필요
+
+**설계 결정**:
+- 저장소는 MinIO. 업로드 응답으로 공개 URL 을 돌려주고, 본문/프로필에는 URL 만 저장한다.
+- 업로드 상한은 환경변수로 조정한다: `MULTIPART_MAX_FILE_SIZE`(기본 5MB),
+  `MULTIPART_MAX_REQUEST_SIZE`(기본 30MB). 두 서비스 compose 에 배선되어 있다.
+
+**⚠️ 프론트 연결 필요**: 커뮤니티 편집기는 "이미지 첨부 · 준비 중"으로 비활성이고,
+프로필 화면은 `profileImageUrl` 을 표시만 하며 업로드/삭제 배선이 없다.
+
+---
+
+### `commercial-service` — 지원 정책 추천
+
+**상태**: ✅ 완료 (도메인·API·시드) / ⏸ 실데이터 연동은 별도
+
+**목적**: 상권의 자치구·업종에 맞는 소상공인 지원 정책을 추천.
+
+**엔드포인트**:
+- `GET /api/v1/policies` — 자치구·업종 조건 추천 (`districtCode`, `serviceCode`, `size` 기본 5), 공개
+- `GET /api/v1/commercials/{commercialCode}/profile` 응답의 `policyRecommendations` 에 상위 5건 포함
+
+**설계 결정**:
+- **null 이 "제한 없음"** — 전국 정책은 `districtCode` 가 null, 전업종 정책은 `serviceCategoryCode` 가 null 이다.
+  별도 "전체" 코드를 두면 조회 조건이 "특정 값 OR 전체코드" 두 갈래로 갈라져 인덱스와 쿼리가 복잡해진다.
+- **범위 포함 매칭** — 자치구를 지정해도 지역 제한이 없는 정책이 함께 나온다. 사용자는 "내가 받을 수 있는 것"을
+  보려는 것이지 "내 자치구에만 있는 것"을 보려는 게 아니다.
+- **업종은 대분류(앞 3자리)로 매칭** — `CS100001` → `CS1`. 정책은 세부 업종까지 나누지 않는다.
+  값이 접두어보다 짧으면 조건에서 제외한다. 짧은 값을 그대로 넣으면 아무것도 매칭되지 않아 빈 목록이 되기 때문이다.
+- **정렬: 자치구 전용 → 마감 임박순 → 상시 모집** — 구체적인 정책이 유용하고, 기한이 있는 쪽이 급하다.
+- 프로필 통합은 Facade 가 조합한다. 요청에는 자치구가 없고 상권 코드만 오므로,
+  프로필이 확정한 `districtCode` 로 정책을 조회한다.
+
+**ErrorCode**: `POLICY_001~002` (비즈니스) + `POLICY_101` (검증). 폴백/타입 불일치는 `COMMERCIAL_100` / `COMMERCIAL_102` 재사용.
+
+**시드**: `resources/db/policy-seed.sql` — 14건. ⚠️ **실데이터가 아니라 도메인·API 계약 검증용 표본**이다.
+전지역/업종한정/자치구한정 세 갈래를 모두 포함해 매칭·정렬을 확인할 수 있게 구성했다.
+
+---
+
 ## 미구현 / 보류 기능
 
 ---
 
 ### `commercial-service` — 정책 추천 실 데이터 연동
 
-**상태**: ⏸ 보류
+**상태**: ⏸ 보류 (도메인은 완료, **실데이터 수집만 남음**)
 
-**이유**:
+도메인·API·시드는 아래 "지원 정책 추천"으로 완료했다. 남은 것은 실제 정책 데이터 확보 하나다.
+
+**남은 이유**:
 1. 실제 정책 데이터 스크래퍼 미구축 (서울시 소상공인지원센터, K-Startup 등 외부 API/크롤링 필요)
-2. 수집 데이터 구조 확인 후 DB 스키마 재설계 필요
-3. 코드 골격은 별도 브랜치 또는 재설계 시 새로 작성
+2. 기관마다 응답 형식이 달라 정규화 매핑이 필요하다
 
 **재개 시 필요한 작업**:
-1. 정책 데이터 수집 스크래퍼 구현 (별도 batch-service 또는 외부 스크립트)
-2. 수집 결과 기반 `policy` 테이블 스키마 정규화 설계
-   - 지원 유형 분류, 지역 범위 계층 구조, 기간 파싱 등 검토
-3. `policy` 도메인 전체 스택 재구현 (entity → port → processor → controller)
-4. 시드 SQL 작성 및 적재
-5. `CommercialProfileResponse`에 정책 추천 목록 재통합 (`policyRecommendations` 필드)
+1. 공공 API 조사 및 키 발급 (서울열린데이터광장 / K-Startup 등)
+2. `batch-service` 에 적재 job 구현 — `AreaBoundaryImportJobConfig` + `Tasklet` 패턴을 그대로 따르면 된다
+3. 기관 응답을 `PolicySupportType` 5종과 `districtCode`/`serviceCategoryCode` 규칙으로 정규화
+4. 시드 데이터(`policy-seed.sql`) 제거 또는 실데이터로 교체
 
-**현재 `CommercialProfileResponse` 상태**: `policyRecommendations` 필드 제거됨 (재추가 필요)
+**스키마 변경은 필요 없을 전망**이다. `policy` 테이블은 기관 응답 형태에 종속되지 않게 설계했고,
+적재 job 이 정규화를 담당하면 도메인·API 는 그대로 쓸 수 있다.
 
 ---
 

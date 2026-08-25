@@ -60,6 +60,10 @@ spring:
           uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
           predicates:
             - Path=/api/v1/analysis-bookmarks/**
+        - id: commercial-service-policies
+          uri: lb://${COMMERCIAL_SERVICE_APP_NAME}
+          predicates:
+            - Path=/api/v1/policies/**
         - id: ai-service
           uri: lb://${AI_SERVICE_APP_NAME}
           predicates:

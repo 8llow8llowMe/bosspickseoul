@@ -7,7 +7,7 @@
 | 서비스 | 외부 경로 | 비고 |
 |--------|----------|------|
 | auth-service | nginx → auth-service 직접 | 게이트웨이를 경유하지 않음. 게이트웨이는 Swagger 문서 집계(`/auth-service/**`)만 프록시 |
-| commercial-service | nginx → api-gateway → 서비스 | `/api/v1/commercials`, `/api/v1/districts`, `/api/v1/administrations`, `/api/v1/share-links`, `/api/v1/simulations`, `/api/v1/analysis-bookmarks` |
+| commercial-service | nginx → api-gateway → 서비스 | `/api/v1/commercials`, `/api/v1/districts`, `/api/v1/administrations`, `/api/v1/share-links`, `/api/v1/simulations`, `/api/v1/analysis-bookmarks`, `/api/v1/analysis-rankings`, `/api/v1/policies` |
 | district-service | nginx → api-gateway → 서비스 | `/api/v1/map`, `/api/v1/regions` |
 | community-service | nginx → api-gateway → 서비스 | `/api/v1/community` |
 | ai-service | nginx → api-gateway → 서비스 | `/api/v1/ai-reports` |
@@ -74,6 +74,9 @@
 | `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116` | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
+| `SIMULATION` | `001~004` | `SIMULATION_100` | `101` | (`COMMERCIAL_102` 사용) |
+| `RANKING` | `001~002` | (`COMMERCIAL_100` 사용) | (없음) | (`COMMERCIAL_102` 사용) |
+| `POLICY` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `MAP` | `001~008` | `MAP_100` | `101~102` | `MAP_103` |
 | `AI` | `001~011` (`007` 대기열 포화) | `AI_100` | (없음) | `AI_101` |
 | `DISTRICT` `001~003` / `ADMINISTRATION` `001~003` / `REGION` `001~005` | 조회 실패 등 | (검증 코드 없음) | - | - |
@@ -109,6 +112,8 @@
 | POST | `/signup` | 이메일 회원가입 (이메일 인증 완료 상태여야 함) | - |
 | GET | `/me` | 내 정보 조회 | 🔒 |
 | PATCH | `/me` | 닉네임·프로필 이미지 수정 (`profileImageUrl` 생략 시 이미지 제거) | 🔒 |
+| POST | `/me/profile-image` | 프로필 이미지 업로드 (`multipart/form-data`) | 🔒 |
+| DELETE | `/me/profile-image` | 프로필 이미지 삭제 | 🔒 |
 | POST | `/me/password` | 비밀번호 변경 — 전 기기 토큰 재발급 차단, 재로그인 필요 | 🔒 |
 | POST | `/me/withdraw` | 회원 탈퇴 — 개인정보 마스킹, 전 기기 재발급 차단, 동일 이메일 재가입 불가 | 🔒 |
 
@@ -225,6 +230,42 @@
 - 회원당 저장 상한(기본 100개)을 넘으면 `400 ANALYSIS_BOOKMARK_006` 으로 응답합니다.
 - 프론트 연동 상세는 [`share-link-frontend-guide.md`](share-link-frontend-guide.md)의 "분석 보관함" 섹션 참고.
 
+### 시뮬레이션 (`/api/v1/simulations`)
+
+창업 비용·수익 시뮬레이션입니다. 조회는 비인증이고, 이력 저장/조회만 로그인이 필요합니다.
+
+| Method | Path | 설명 | 인증 |
+|--------|------|------|------|
+| GET | `/store-sizes` | 업종별 매장 크기 기준 (소/중/대, ㎡·평) | - |
+| GET | `/franchisees` | 프랜차이즈 브랜드 검색 (`keyword`, `serviceCode`, 커서) | - |
+| POST | `/reports` | 시뮬레이션 리포트 생성 (저장하지 않음) | - |
+| POST | `/histories` | 시뮬레이션 결과를 내 이력에 저장 | 🔒 |
+| GET | `/histories` | 내 시뮬레이션 이력 목록 | 🔒 |
+
+리포트 생성(`POST /reports`)과 저장(`POST /histories`)이 분리되어 있습니다. 로그인하지 않아도 결과를 볼 수 있고, 저장하려는 시점에만 인증이 필요합니다.
+
+### 인기 순위 (`/api/v1/analysis-rankings`)
+
+| Method | Path | 설명 | 인증 |
+|--------|------|------|------|
+| GET | `/` | 최근 분석 조회 기준 인기 지역 순위 | - |
+
+분석 조회 이벤트를 Kafka 로 발행하고 consumer 가 Redis Sorted Set 에 집계한 결과를 읽습니다. 조회 API 는 Redis 만 사용하므로 `RANKING_ENABLED` 와 무관하게 항상 동작하며, 파이프라인이 꺼져 있으면 빈 순위가 나옵니다. 자세한 구성은 [`deploy-guide.md`](deploy-guide.md) 의 "인기 순위(Kafka) 활성화 시 필요한 key" 참고.
+
+### 지원 정책 (`/api/v1/policies`)
+
+| Method | Path | 설명 | 인증 |
+|--------|------|------|------|
+| GET | `/` | 자치구·업종 조건으로 신청 가능한 지원 정책 추천 (`districtCode`, `serviceCode`, `size` 기본 5) | - |
+
+**범위 포함 매칭입니다.** 자치구를 지정해도 지역 제한이 없는 전국 정책이 함께 나옵니다. 업종도 같습니다. 사용자는 "내가 받을 수 있는 것"을 보려는 것이지 "내 자치구에만 있는 것"을 보려는 게 아니기 때문입니다.
+
+`serviceCode` 는 앞 3자리를 업종 대분류로 사용합니다 (`CS100001` → `CS1`). 정책은 세부 업종까지 나누지 않고 대분류 단위로 대상을 지정합니다.
+
+정렬은 **자치구 전용 → 마감 임박순 → 상시 모집** 순입니다. 신청 기간이 지난 정책은 제외됩니다.
+
+같은 결과가 `GET /api/v1/commercials/{commercialCode}/profile` 응답의 `policyRecommendations` 에도 상위 5건 포함됩니다. 상권 프로필을 볼 때 별도 호출 없이 정책을 함께 보여주기 위함입니다.
+
 ---
 
 ## district-service
@@ -246,6 +287,7 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
+| GET | `/districts/{districtCode}` | 자치구 단건 조회 | - |
 | GET | `/districts/{districtCode}/administrations` | 자치구 내 행정동 목록 | - |
 | GET | `/districts/{districtCode}/administrations/{administrationCode}/commercials` | 행정동 내 상권 목록 | - |
 | GET | `/code-lookup` | 이름으로 지역 코드 역조회 | - |
@@ -268,6 +310,7 @@
 | DELETE | `/{postId}` | 게시글 삭제 (소프트 삭제) | 🔒 |
 | POST | `/{postId}/likes` | 좋아요 토글 | 🔒 |
 | GET | `/liked` | 내가 좋아요한 게시글 목록 | 🔒 |
+| POST | `/images` | 게시글 이미지 업로드 (`multipart/form-data`) | 🔒 |
 | POST | `/drafts/commercial-comparisons` | 상권 비교 결과 커뮤니티 게시글 초안 생성 | - |
 
 ### 댓글 (`/api/v1/community/posts/{postId}/comments`)
@@ -327,9 +370,9 @@
 
 | 서비스 | 엔드포인트 수 | 구성 |
 |--------|-------------|------|
-| auth-service | 15 | 인증 7 + 회원 5 + 북마크 3 |
-| commercial-service | 29 | 상권 18 + 자치구 8 + 행정동 1 + 공유링크 2 |
-| district-service | 13 | 지도 8 + 지역코드 5 |
-| community-service | 16 | 게시글 9 + 댓글 4 + 신고 1 + 모더레이션 2 |
+| auth-service | 17 | 인증 7 + 회원 7 + 북마크 3 |
+| commercial-service | 40 | 상권 18 + 자치구 8 + 행정동 1 + 공유링크 2 + 보관함 4 + 시뮬레이션 5 + 인기순위 1 + 정책 1 |
+| district-service | 14 | 지도 8 + 지역코드 6 |
+| community-service | 17 | 게시글 10 + 댓글 4 + 신고 1 + 모더레이션 2 |
 | ai-service | 6 | 리포트 제출 4 + 작업 조회 2 (폴링 + SSE) |
-| **합계** | **79** | |
+| **합계** | **94** | |

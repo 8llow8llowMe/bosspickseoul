@@ -46,6 +46,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.candidate.MetricBreakdownInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.preview.CommercialComparePreviewInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.profile.CommercialProfileInfo;
+import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.in.web.presenter.PolicyPresenter;
+import com.followfollowme.bosspickseoul.domainlayer.policy.application.info.PolicyRecommendationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.profile.CommercialProfileKeyMetricsInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
@@ -85,10 +87,14 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dt
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.trend.CommercialTrendInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.trend.CommercialTrendItem;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class CommercialPresenter {
+
+    private final PolicyPresenter policyPresenter;
 
     public CommercialServiceCategoryResponse toCommercialServiceCategoryResponse(CommercialServiceCategoryInfo info) {
         return CommercialServiceCategoryResponse.builder()
@@ -229,7 +235,13 @@ public class CommercialPresenter {
             .build();
     }
 
-    public CommercialProfileResponse toCommercialProfileResponse(CommercialProfileInfo info) {
+    /**
+     * 상권 프로필에 지원 정책 추천을 함께 담는다. 정책 항목 변환은 PolicyPresenter 에 위임해
+     * 정책 표현 규칙(표시명 등)이 두 곳으로 갈라지지 않게 한다.
+     */
+    public CommercialProfileResponse toCommercialProfileResponse(
+        CommercialProfileInfo info, PolicyRecommendationInfo policyInfo
+    ) {
         return CommercialProfileResponse.builder()
             .periodCode(info.periodCode())
             .serviceCode(info.serviceCode())
@@ -240,6 +252,7 @@ public class CommercialPresenter {
             .administrationCode(info.administrationCode())
             .administrationName(info.administrationName())
             .keyMetrics(toCommercialProfileKeyMetricsItem(info.keyMetrics()))
+            .policyRecommendations(policyPresenter.toItems(policyInfo.policies()))
             .build();
     }
 

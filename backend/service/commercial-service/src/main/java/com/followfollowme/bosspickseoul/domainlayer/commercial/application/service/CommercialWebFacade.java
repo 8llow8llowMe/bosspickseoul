@@ -28,6 +28,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.preview.CommercialComparePreviewInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.profile.CommercialProfileInfo;
+import com.followfollowme.bosspickseoul.domainlayer.policy.application.info.PolicyRecommendationInfo;
+import com.followfollowme.bosspickseoul.domainlayer.policy.application.service.processor.PolicyQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.store.CommercialServiceCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
@@ -63,6 +65,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CommercialWebFacade implements CommercialWebUseCase {
 
+    /** 상권 프로필에 함께 내리는 정책 추천 개수. 화면 카드가 소화할 수 있는 만큼만 담는다. */
+    private static final int PROFILE_POLICY_RECOMMENDATION_SIZE = 5;
+
     private final CommercialQueryProcessor commercialQueryProcessor;
     private final CommercialComparisonQueryProcessor commercialComparisonQueryProcessor;
     private final CommercialBenchmarkQueryProcessor commercialBenchmarkQueryProcessor;
@@ -72,6 +77,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     private final CommercialComparePreviewQueryProcessor commercialComparePreviewQueryProcessor;
     private final CommercialTrendQueryProcessor commercialTrendQueryProcessor;
     private final CommercialPresenter commercialPresenter;
+    private final PolicyQueryProcessor policyQueryProcessor;
     private final AnalysisViewEventPort analysisViewEventPort;
     private final CommercialSummaryQueryProcessor commercialSummaryQueryProcessor;
     private final CommercialSummaryPresenter commercialSummaryPresenter;
@@ -203,7 +209,10 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Transactional(readOnly = true)
     public CommercialProfileResponse getCommercialProfile(String periodCode, String commercialCode, String serviceCode) {
         CommercialProfileInfo info = commercialProfileQueryProcessor.getProfile(periodCode, commercialCode, serviceCode);
-        return commercialPresenter.toCommercialProfileResponse(info);
+        // 프로필이 확정한 자치구로 정책을 찾는다. 요청에는 자치구가 없고 상권 코드만 오기 때문이다.
+        PolicyRecommendationInfo policyInfo = policyQueryProcessor.getRecommendations(
+            info.districtCode(), serviceCode, PROFILE_POLICY_RECOMMENDATION_SIZE);
+        return commercialPresenter.toCommercialProfileResponse(info, policyInfo);
     }
 
     @Override

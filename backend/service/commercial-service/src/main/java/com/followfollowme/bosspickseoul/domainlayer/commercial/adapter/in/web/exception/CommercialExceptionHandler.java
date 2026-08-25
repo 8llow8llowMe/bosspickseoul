@@ -14,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.applicatio
 import com.followfollowme.bosspickseoul.domainlayer.district.application.exception.DistrictException;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.application.exception.RankingException;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.exception.ShareLinkException;
+import com.followfollowme.bosspickseoul.domainlayer.policy.application.exception.PolicyException;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.application.exception.SimulationException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -66,6 +67,13 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(RankingException.class)
     public ResponseEntity<Response<Void>> handleRankingException(RankingException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(PolicyException.class)
+    public ResponseEntity<Response<Void>> handlePolicyException(PolicyException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
