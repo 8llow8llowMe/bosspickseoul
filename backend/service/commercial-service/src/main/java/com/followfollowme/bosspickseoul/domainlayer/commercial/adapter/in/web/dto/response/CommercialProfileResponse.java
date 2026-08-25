@@ -1,7 +1,9 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response;
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialProfileKeyMetricsItem;
+import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.in.web.dto.item.PolicyItem;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -33,7 +35,10 @@ public record CommercialProfileResponse(
     String administrationName,
 
     @Schema(description = "핵심 지표")
-    CommercialProfileKeyMetricsItem keyMetrics
+    CommercialProfileKeyMetricsItem keyMetrics,
+
+    @Schema(description = "이 상권의 자치구·업종으로 신청 가능한 지원 정책. 없으면 빈 배열")
+    List<PolicyItem> policyRecommendations
 ) {
 
 }
