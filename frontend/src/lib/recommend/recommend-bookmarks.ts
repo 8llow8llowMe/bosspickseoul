@@ -1,3 +1,5 @@
+import { readApiMessage } from '@/lib/api/api-error'
+import type { ApiMessage } from '@/types/api'
 import type {
   BookmarkSlice,
   BookmarkTargetType,
@@ -130,17 +132,6 @@ export const getCommercialBookmarkView = (
   bookmarks: readonly MemberBookmark[],
 ): MemberBookmark[] => (enabled ? [...bookmarks] : [])
 
-const readApiMessage = (value: unknown): string | null => {
-  if (typeof value === 'string' && value.trim()) return value
-  if (!isRecord(value)) return null
-
-  const messages = Object.values(value).filter(
-    (message): message is string =>
-      typeof message === 'string' && message.trim() !== '',
-  )
-  return messages.length > 0 ? messages.join('\n') : null
-}
-
 export const getCommercialBookmarkError = (
   firstPage: unknown,
   queryError: unknown,
@@ -154,8 +145,9 @@ export const getCommercialBookmarkError = (
     isRecord(firstPage.dataHeader) &&
     firstPage.dataHeader.success === false
   ) {
+    // 대표 문구와 필드별 `errors`를 구분하는 파서는 `@/lib/api/api-error` 하나뿐이다.
     return (
-      readApiMessage(firstPage.dataHeader.resultMessage) ??
+      readApiMessage(firstPage.dataHeader.resultMessage as ApiMessage) ??
       '회원 북마크를 불러오지 못했습니다.'
     )
   }

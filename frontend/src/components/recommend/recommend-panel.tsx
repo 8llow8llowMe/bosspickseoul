@@ -2,6 +2,7 @@
 
 import type { Ref } from 'react'
 import styled, { css, keyframes } from 'styled-components'
+import type { NormalizedApiError } from '@/lib/api/api-error'
 import type {
   RecommendationCriteria,
   RecommendationOption,
@@ -29,8 +30,8 @@ export type RecommendPanelProps = {
   isAdministrationsLoading: boolean
   isCandidatesLoading: boolean
   isRecommendationLoading: boolean
-  administrationsError?: string
-  candidatesError?: string
+  administrationsError?: NormalizedApiError | null
+  candidatesError?: NormalizedApiError | null
   feedback: RecommendResultFeedback | null
   bookmarkError?: string | null
   isBookmarked?: (commercialCode: string) => boolean
@@ -286,6 +287,7 @@ export default function RecommendPanel({
           previewedCommercialCode={previewedCommercialCode}
           results={results}
           selectedCommercialCode={selectedCommercialCode}
+          selectedServiceCode={submitted.service.code}
           onPreviewChange={onResultPreviewChange}
           onBookmarkToggle={onBookmarkToggle}
           onRetry={onRetry}

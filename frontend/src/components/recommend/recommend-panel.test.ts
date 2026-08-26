@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
+import type { ApiErrorKind, NormalizedApiError } from '@/lib/api/api-error'
 import type { CandidateCommercial } from '@/types/recommend'
 import type {
   RecommendationCriteria,
@@ -11,6 +12,14 @@ import * as recommendConditionFormModule from './recommend-condition-form'
 import RecommendFeedback from './recommend-feedback'
 import RecommendPanel, * as recommendPanelModule from './recommend-panel'
 import RecommendResultList, * as recommendResultListModule from './recommend-result-list'
+
+const apiError = (kind: ApiErrorKind, message: string): NormalizedApiError => ({
+  kind,
+  status: kind === 'not-found' ? 404 : kind === 'server' ? 500 : null,
+  code: null,
+  message,
+  fieldErrors: [],
+})
 
 const readyDraft: RecommendationCriteria = {
   district: { code: '11680', name: '강남구' },
@@ -290,7 +299,7 @@ describe('RecommendPanel', () => {
     {
       name: 'administrations',
       props: {
-        administrationsError: '행정동 조회에 실패했어요.',
+        administrationsError: apiError('server', '행정동 조회에 실패했어요.'),
         onRetryAdministrations: vi.fn(),
       },
       error: '행정동 조회에 실패했어요.',
@@ -299,7 +308,7 @@ describe('RecommendPanel', () => {
     {
       name: 'candidates',
       props: {
-        candidatesError: '후보 상권 조회에 실패했어요.',
+        candidatesError: apiError('network', '후보 상권 조회에 실패했어요.'),
         onRetryCandidates: vi.fn(),
       },
       error: '후보 상권 조회에 실패했어요.',
@@ -318,6 +327,47 @@ describe('RecommendPanel', () => {
       expect(markup).toContain(error)
       expect(markup).toContain('role="alert"')
       expect(markup).toMatch(new RegExp(`<button[^>]*>${retryLabel}</button>`))
+    },
+  )
+
+  it.each([
+    {
+      name: 'administrations',
+      props: {
+        administrationsError: apiError(
+          'not-found',
+          '해당 자치구의 행정동 데이터가 없습니다.',
+        ),
+        onRetryAdministrations: vi.fn(),
+      },
+      error: '해당 자치구의 행정동 데이터가 없습니다.',
+      retryLabel: '행정동 다시 불러오기',
+    },
+    {
+      name: 'candidates',
+      props: {
+        candidatesError: apiError(
+          'not-found',
+          '해당 행정동의 상권 데이터가 없습니다.',
+        ),
+        onRetryCandidates: vi.fn(),
+      },
+      error: '해당 행정동의 상권 데이터가 없습니다.',
+      retryLabel: '후보 상권 다시 불러오기',
+    },
+  ])(
+    'keeps the server message but hides retry for a non-retryable $name failure',
+    ({ props, error, retryLabel }) => {
+      const markup = renderPanel({
+        ...baseProps,
+        ...props,
+        view: 'criteria',
+      })
+
+      expect(markup).toContain(error)
+      expect(markup).toContain('role="alert"')
+      expect(getSubmitMarkup(markup)).toContain('disabled=""')
+      expect(markup).not.toContain(retryLabel)
     },
   )
 
@@ -387,7 +437,7 @@ describe('RecommendPanel', () => {
     expect(markup).toContain('위험도 낮음')
     expect(markup).toContain('유동인구 우세')
     expect(markup).toContain('매출 경쟁력')
-    expect(markup).toContain('집계 중')
+    expect(markup).toContain('데이터 없음')
   })
 
   it('highlights a shared map preview without exposing selection semantics and clears it', () => {
