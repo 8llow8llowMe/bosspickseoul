@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE } from '@/lib/auth/session-constants'
-import { redirectToPath } from '@/lib/http/redirect'
+import { redirectRequestToPath } from '@/lib/http/redirect'
 
 // 인증 필요한 보호 경로 접두사
 //
@@ -48,9 +48,11 @@ export function middleware(req: NextRequest) {
   const hasSession = Boolean(req.cookies.get(SESSION_COOKIE)?.value)
   if (hasSession) return NextResponse.next()
 
-  // nextUrl 의 오리진을 쓰지 않는다. standalone 서버는 컨테이너 바인드 주소로 오리진을
-  // 구성하므로 프록시 뒤에서는 http://0.0.0.0:3000 으로 나가 브라우저가 도달할 수 없다.
-  return redirectToPath(
+  // 미들웨어는 절대 URL 이 필요하다 — 어댑터가 Location 을 파싱해 요청 host 와 비교한다.
+  // 다만 nextUrl 의 오리진은 쓸 수 없다(standalone 바인드 주소 0.0.0.0:3000). 오리진은
+  // 프록시 헤더에서 유도한다. 자세한 근거는 lib/http/redirect.ts 참고.
+  return redirectRequestToPath(
+    req,
     `/login?redirect=${encodeURIComponent(`${pathname}${search}`)}`,
   )
 }
