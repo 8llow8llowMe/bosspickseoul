@@ -3,7 +3,7 @@
 import styled from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSharedSimulationPayload } from '@/lib/api/share'
-import { createSimulationReport } from '@/lib/api/simulation'
+import { createSimulationReport } from '@/lib/api/simulation-v1-legacy'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import SimulationReportView from './simulation-report-view'
 

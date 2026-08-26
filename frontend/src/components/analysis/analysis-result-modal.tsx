@@ -10,10 +10,13 @@ import {
   type PropsWithChildren,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import styled from 'styled-components'
 
 import AnalysisResultView from '@/components/analysis/analysis-result-view'
+
+/** 이 모달이 대응하는 라우트. 이 경로가 아니면 렌더하지 않는다. */
+const ANALYSIS_RESULT_PATHNAME = '/analysis/result'
 
 export type AnalysisResultModalSurfaceProps = PropsWithChildren<{
   onClose: () => void
@@ -174,7 +177,17 @@ export function AnalysisResultModalSurface({
 
 export default function AnalysisResultModal() {
   const router = useRouter()
+  const pathname = usePathname()
   const handleClose = useCallback(() => router.back(), [router])
+
+  // 형제 라우트(예: /analysis/simulation)로 이동하면 이 모달은 사라져야 한다.
+  //
+  // Next 의 parallel route 는 **소프트 내비게이션에서 슬롯의 활성 상태를 유지**한다
+  // (`@modal/default.tsx` 는 하드 로드에서만 쓰인다). 그래서 가드가 없으면 결과 모달이
+  // 그대로 남고, 안의 뷰가 새 경로의 searchParams(분석 조건이 없다)를 읽어
+  // "분석 조건을 다시 선택해 주세요" 를 띄운다 — 실제로는 뒤에 목적지 화면이
+  // 정상 렌더돼 있는데 모달이 덮고 있는 상태다.
+  if (pathname !== ANALYSIS_RESULT_PATHNAME) return null
 
   return (
     <AnalysisResultModalSurface onClose={handleClose}>

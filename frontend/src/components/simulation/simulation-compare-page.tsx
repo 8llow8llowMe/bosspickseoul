@@ -7,13 +7,13 @@ import styled from 'styled-components'
 import {
   createSimulationReport,
   fetchSavedSimulationList,
-} from '@/lib/api/simulation'
+} from '@/lib/api/simulation-v1-legacy'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { formatLargeWon } from '@/lib/format'
 import type {
   SimulationReportRequest,
   SimulationSavedItem,
-} from '@/types/simulation'
+} from '@/types/simulation-v1-legacy'
 
 const Page = styled.main`
   width: min(1200px, calc(100% - 48px));

@@ -1306,11 +1306,15 @@ export default function AnalysisResultView({
                 size="medium"
                 rightIcon={<ExternalLink />}
                 onClick={() =>
+                  // V2 계약은 코드로 받는다. 예전에는 `gugun`(자치구 *이름*)과 빈
+                  // `serviceCodeName` 을 보내는 V1 형태였는데, `districtCode` 가 없어
+                  // 시뮬레이션 쪽 컨텍스트 카드가 자치구를 복원하지 못했다.
                   router.push(
                     `/analysis/simulation?${new URLSearchParams({
+                      districtCode,
+                      administrationCode,
+                      commercialCode,
                       serviceCode,
-                      serviceCodeName: '',
-                      gugun: profile?.districtName ?? '',
                     })}`,
                   )
                 }

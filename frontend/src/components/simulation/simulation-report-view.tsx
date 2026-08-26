@@ -6,7 +6,7 @@ import { formatLargeWon } from '@/lib/format'
 import type {
   SimulationReport,
   SimulationReportRequest,
-} from '@/types/simulation'
+} from '@/types/simulation-v1-legacy'
 
 const Page = styled.main`
   width: min(1200px, calc(100% - 48px));

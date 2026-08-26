@@ -12,7 +12,10 @@ import {
   simulationCatalog,
   simulationCategories,
 } from '@/data/simulation-catalog'
-import { fetchFranchiseList, fetchStoreSize } from '@/lib/api/simulation'
+import {
+  fetchFranchiseList,
+  fetchStoreSize,
+} from '@/lib/api/simulation-v1-legacy'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { useSelectPlaceStore } from '@/stores/select-place-store'
 
