@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AnalysisExplorerSurface,
   getAnalysisQueryStatus,
-} from '@/components/analysis/analysis-page'
+} from '@/components/analysis/analysis-map-shell'
 
 describe('AnalysisExplorerSurface', () => {
   it('푸터 제거 속성과 데스크톱·모바일 선택 surface를 제공한다', () => {
@@ -69,9 +69,9 @@ describe('AnalysisExplorerSurface', () => {
   // 소스 계약: AiReportPanel은 이제 selection을 그대로 받아 AI 상태·재시도·결과
   // 링크를 AiReportBody(공유 본문)에서 직접 소유한다. 구 aiReportHref/createAiReportHref
   // 배선은 패널이 모달로 대체되며 제거됐다 — 라벨 계약은 ai-report-panel.test.ts에서 검증한다.
-  it('analysis-page는 패널에 selection을 넘긴다', () => {
+  it('지도 셸은 패널에 selection을 넘긴다', () => {
     const src = readFileSync(
-      fileURLToPath(new URL('./analysis-page.tsx', import.meta.url)),
+      fileURLToPath(new URL('./analysis-map-shell.tsx', import.meta.url)),
       'utf8',
     )
     expect(src).toContain('selection={selection}')

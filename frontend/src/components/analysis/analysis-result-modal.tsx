@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -10,14 +9,16 @@ import {
   type PropsWithChildren,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { usePathname, useRouter } from 'next/navigation'
 import styled from 'styled-components'
 
-import AnalysisResultView from '@/components/analysis/analysis-result-view'
-
-/** 이 모달이 대응하는 라우트. 이 경로가 아니면 렌더하지 않는다. */
-const ANALYSIS_RESULT_PATHNAME = '/analysis/result'
-
+/**
+ * 결과 레이어·AI 리포트 크게보기가 공유하는 dialog 표면(포털·포커스 트랩·Escape·
+ * 스크롤 락). 표면만 제공하고 닫기 정책은 호출부가 정한다 —
+ * 예전의 기본 export `AnalysisResultModal`(= `router.back()`)은
+ * `@modal` intercepting route 전용이었고 지도 셸 도입으로 폐기됐다
+ * (`docs/features/analysis/map-shell.md` D3-1). 닫기 규칙의 정본은
+ * `analysis-map-shell.tsx` 의 `closeResultLayer` 다.
+ */
 export type AnalysisResultModalSurfaceProps = PropsWithChildren<{
   onClose: () => void
   ariaLabel?: string
@@ -172,26 +173,5 @@ export function AnalysisResultModalSurface({
       </Surface>
     </Overlay>,
     document.body,
-  )
-}
-
-export default function AnalysisResultModal() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const handleClose = useCallback(() => router.back(), [router])
-
-  // 형제 라우트(예: /analysis/simulation)로 이동하면 이 모달은 사라져야 한다.
-  //
-  // Next 의 parallel route 는 **소프트 내비게이션에서 슬롯의 활성 상태를 유지**한다
-  // (`@modal/default.tsx` 는 하드 로드에서만 쓰인다). 그래서 가드가 없으면 결과 모달이
-  // 그대로 남고, 안의 뷰가 새 경로의 searchParams(분석 조건이 없다)를 읽어
-  // "분석 조건을 다시 선택해 주세요" 를 띄운다 — 실제로는 뒤에 목적지 화면이
-  // 정상 렌더돼 있는데 모달이 덮고 있는 상태다.
-  if (pathname !== ANALYSIS_RESULT_PATHNAME) return null
-
-  return (
-    <AnalysisResultModalSurface onClose={handleClose}>
-      <AnalysisResultView onClose={handleClose} />
-    </AnalysisResultModalSurface>
   )
 }

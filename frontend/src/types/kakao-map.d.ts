@@ -12,6 +12,7 @@ declare global {
 
   type KakaoMapInstance = {
     getBounds(): KakaoMapLatLngBounds
+    getCenter(): KakaoMapLatLng
     getLevel(): number
     setLevel(level: number): void
     relayout(): void

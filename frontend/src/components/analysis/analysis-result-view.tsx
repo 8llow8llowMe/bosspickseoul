@@ -3,15 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Archive,
-  ArrowLeft,
-  Bookmark,
-  Check,
-  ExternalLink,
-  Share2,
-  X,
-} from 'lucide-react'
+import { Archive, Bookmark, Check, ExternalLink, Share2, X } from 'lucide-react'
 import styled from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
@@ -81,6 +73,11 @@ import {
   expenseDefinitions,
 } from '@/lib/analysis/commercial-chart-selectors'
 import {
+  MAP_CAMERA_PARAM,
+  parseMapCamera,
+  type MapCamera,
+} from '@/lib/analysis/map-camera'
+import {
   createAnalysisExplorerHref,
   createAnalysisResultHref,
   isCompleteAnalysisSelection,
@@ -120,10 +117,15 @@ export const createInvalidResultMessage = (
     ? null
     : '분석 조건을 다시 선택해 주세요'
 
+/**
+ * 탭 전환 URL. 카메라(`c`)를 **보존**한다 — 탭은 결과 뷰 상태고 카메라는 지도 뷰
+ * 상태라 서로 무관하지만, 한쪽을 갱신하며 다른 쪽을 지우면 지도가 되돌아간다.
+ */
 export const createResultTabHref = (
   selection: AnalysisSelection,
   tab: AnalysisResultTab,
-) => createAnalysisResultHref(selection, tab)
+  camera?: MapCamera | null,
+) => createAnalysisResultHref(selection, tab, camera)
 
 export const getCommercialBookmarkLoginHref = (currentHref: string) =>
   `/login?redirect=${encodeURIComponent(currentHref)}`
@@ -673,7 +675,18 @@ export default function AnalysisResultView({
   const administrationCode = selection.administrationCode ?? ''
   const commercialCode = selection.commercialCode ?? ''
   const serviceCode = selection.serviceCode ?? ''
-  const [periodCode, setPeriodCode] = useState<string>(selection.periodCode)
+  /**
+   * 기간(분기)은 **URL 이 정본**이다(`periodCode`). 로컬 state 였을 때는 사용자가
+   * 분기를 바꾸고 새로고침하면 조용히 기본 분기로 되돌아갔다 — 카메라 복원과 같은
+   * 성격의 결함이다. 분석 쿼리 10여 개의 쿼리 키이기도 하므로, URL 에서 오면 첫
+   * 페인트 요청부터 올바른 분기로 나간다.
+   */
+  const periodCode = selection.periodCode
+  /** URL 카메라. 탭·기간 전환이 `c` 를 지우지 않게 그대로 실어 보낸다. */
+  const camera = useMemo(
+    () => parseMapCamera(searchParams.get(MAP_CAMERA_PARAM)),
+    [searchParams],
+  )
   const contextParams = {
     districtCode,
     administrationCode,
@@ -695,12 +708,8 @@ export default function AnalysisResultView({
 
   // 공유 링크 / 분석 화면 보관함이 공유하는 payload. 조건이 불완전하면 null 이라 버튼을 막는다.
   const sharePayload = useMemo(
-    () =>
-      buildCommercialAnalysisPayload(
-        { ...selection, periodCode },
-        searchParams.get('tab'),
-      ),
-    [selection, periodCode, searchParams],
+    () => buildCommercialAnalysisPayload(selection, searchParams.get('tab')),
+    [selection, searchParams],
   )
   const sharePayloadKey = sharePayload
     ? normalizeSharePayload(sharePayload)
@@ -736,11 +745,25 @@ export default function AnalysisResultView({
     scrollToReportSection(activeTab)
   }, [activeTab])
 
+  /**
+   * 기간 전환. 카메라와 같은 **`replace`** 정책이다 — `push` 면 뒤로가기가 분기 이력으로
+   * 찬다. 탭 전환이 이미 `replace` 이므로 같은 방식을 따른다(map-shell.md D5).
+   */
+  const handlePeriodChange = (nextPeriodCode: string) => {
+    router.replace(
+      createResultTabHref(
+        { ...selection, periodCode: nextPeriodCode },
+        activeTab,
+        camera,
+      ),
+    )
+  }
+
   const handleTabClick = (tab: AnalysisResultTab) => {
     // 목표 섹션(과 그 위의 모든 섹션)의 lazy 쿼리를 즉시 켜서, 스크롤이
     // 끝나기 전에 레이아웃이 최종 높이로 수렴하게 한다.
     activate(collectTabsUpTo(tab))
-    router.replace(createResultTabHref(selection, tab))
+    router.replace(createResultTabHref(selection, tab, camera))
     scrollToReportSection(tab)
   }
 
@@ -1198,7 +1221,7 @@ export default function AnalysisResultView({
   const renderGroupHeading = (label: string) => (
     <GroupHeadingRow>
       <GroupHeading>{label}</GroupHeading>
-      <AnalysisPeriodSelect value={periodCode} onChange={setPeriodCode} />
+      <AnalysisPeriodSelect value={periodCode} onChange={handlePeriodChange} />
     </GroupHeadingRow>
   )
 
@@ -1223,15 +1246,19 @@ export default function AnalysisResultView({
                 </span>
               </HeaderNameRow>
             </HeaderCopy>
+            {/* 닫으면 실제로 뒤에 지도가 있으므로 모든 경로에서 "닫기"가 정직한
+                표현이다. 하드 로드 전용 분기(ArrowLeft + '조건 다시 선택')는 독립
+                결과 페이지 개념과 함께 폐기됐다(map-shell.md D4-5). */}
             <IconButton
               type="button"
-              aria-label={onClose ? '상권 분석 결과 닫기' : '조건 다시 선택'}
+              aria-label="상권 분석 결과 닫기"
               onClick={
                 onClose ??
-                (() => router.push(createAnalysisExplorerHref(selection)))
+                (() =>
+                  router.replace(createAnalysisExplorerHref(selection, camera)))
               }
             >
-              {onClose ? <X /> : <ArrowLeft />}
+              <X />
             </IconButton>
           </HeaderTop>
           <MobileTabList aria-label="분석 결과 항목" role="tablist">
