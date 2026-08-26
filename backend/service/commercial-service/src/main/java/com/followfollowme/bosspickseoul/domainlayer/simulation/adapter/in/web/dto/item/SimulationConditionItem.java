@@ -12,7 +12,7 @@ public record SimulationConditionItem(
     boolean franchisee,
 
     @Schema(description = "프랜차이즈 아이디 (비프랜차이즈면 null)", nullable = true)
-    Long franchiseeId,
+    String franchiseeId,
 
     @Schema(description = "브랜드 이름 (비프랜차이즈면 null)", nullable = true)
     String brandName,

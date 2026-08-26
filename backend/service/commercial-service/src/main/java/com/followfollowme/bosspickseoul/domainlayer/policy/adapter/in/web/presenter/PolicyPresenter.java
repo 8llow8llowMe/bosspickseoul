@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.policy.adapter.in.web.presenter;
 
+import com.followfollowme.bosspickseoul.common.util.ResponseId;
 import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.in.web.dto.item.PolicyItem;
 import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.in.web.dto.response.PolicyRecommendationResponse;
 import com.followfollowme.bosspickseoul.domainlayer.policy.application.info.PolicyRecommendationInfo;
@@ -24,7 +25,7 @@ public class PolicyPresenter {
 
     private PolicyItem toItem(Policy policy) {
         return PolicyItem.builder()
-            .policyId(policy.id())
+            .policyId(ResponseId.of(policy.id()))
             .title(policy.title())
             .organization(policy.organization())
             .supportType(policy.supportType().name())

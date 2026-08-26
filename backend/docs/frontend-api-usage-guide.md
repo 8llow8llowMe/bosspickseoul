@@ -23,6 +23,20 @@
 
 지도 위에서 쓰는 히트맵, 후보 상권, 상권 프로필, 비교 미리보기는 `commercial-service`를 직접 호출하지 말고 `/api/v1/map/**`을 우선 사용한다. `district-service`가 상권 분석 결과에 경계 좌표를 조합해서 내려준다.
 
+## 아이디는 문자열로 받는다
+
+**응답의 모든 아이디 필드는 문자열이다.** `postId`, `commentId`, `memberId`, `policyId`, `bookmarkId`, `reportId`, 커서 `lastId` 전부 해당한다.
+
+- 타입 정의를 `number`로 두면 안 된다. `id: string`이다.
+- **`Number(id)` / `parseInt(id)` / `+id`로 되돌리지 않는다.** 되돌리는 순간 뒷자리가 날아가 서로 다른 게시글이 같은 아이디로 보인다.
+  아이디는 끝까지 문자열로 들고 다니고, 비교는 `===`로 한다.
+- 서버로 보낼 때는 받은 문자열을 그대로 실으면 된다. path·query·body 어디든 서버가 숫자로 변환한다.
+- 커서 페이징도 같다. `lastPostId`에 직전 응답의 `postId`를 문자열 그대로 넘긴다.
+- 아이디가 아닌 수치(`likeCount`, `viewCount`, `totalPrice`, `totalElements`)는 계속 `number`다.
+- 없는 아이디는 `"0"`이 아니라 `null`이다. (예: 삭제된 신고 대상의 `targetAuthorId`)
+
+이유는 [`api-reference.md`](api-reference.md) 의 "식별자는 전부 문자열입니다" 참고.
+
 ## Auth And Member
 
 ### Login Page

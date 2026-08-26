@@ -9,8 +9,8 @@ import lombok.Builder;
 @Schema(description = "북마크 추가 응답 DTO")
 public record MemberBookmarkCreateResponse(
 
-    @Schema(description = "북마크 아이디", example = "202507110001")
-    Long bookmarkId,
+    @Schema(description = "북마크 아이디", example = "7345678901234567890")
+    String bookmarkId,
 
     @Schema(description = "북마크 대상 타입", example = "COMMERCIAL")
     MemberBookmarkTargetType targetType,

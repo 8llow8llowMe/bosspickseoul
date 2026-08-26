@@ -9,13 +9,13 @@ import lombok.Builder;
 @Schema(description = "댓글 항목")
 public record CommunityCommentItem(
     @Schema(description = "댓글 ID")
-    long commentId,
+    String commentId,
 
     @Schema(description = "게시글 ID")
-    long postId,
+    String postId,
 
     @Schema(description = "작성자 회원 ID")
-    long memberId,
+    String memberId,
 
     @Schema(description = "본문")
     String content,

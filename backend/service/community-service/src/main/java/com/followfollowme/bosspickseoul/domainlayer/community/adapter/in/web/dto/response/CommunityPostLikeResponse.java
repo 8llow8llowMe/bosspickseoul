@@ -7,7 +7,7 @@ import lombok.Builder;
 @Schema(description = "게시글 좋아요 응답")
 public record CommunityPostLikeResponse(
     @Schema(description = "게시글 ID")
-    long postId,
+    String postId,
 
     @Schema(description = "좋아요 적용 여부")
     boolean liked,

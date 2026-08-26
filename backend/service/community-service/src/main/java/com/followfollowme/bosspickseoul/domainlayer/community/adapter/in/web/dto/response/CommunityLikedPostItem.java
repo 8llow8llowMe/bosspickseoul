@@ -10,10 +10,10 @@ import lombok.Builder;
 public record CommunityLikedPostItem(
 
     @Schema(description = "게시글 ID")
-    long postId,
+    String postId,
 
     @Schema(description = "작성자 회원 ID")
-    long memberId,
+    String memberId,
 
     @Schema(description = "대상 유형 메타데이터")
     CodeNameDescriptionMetadata targetType,

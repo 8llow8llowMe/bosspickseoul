@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.presenter;
 
+import com.followfollowme.bosspickseoul.common.util.ResponseId;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.item.CommunityBoardTargetItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityCommercialComparisonDraftResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityLikedPostItem;
@@ -56,8 +57,8 @@ public class CommunityPostPresenter {
     public CommunityPostDetailResponse toPostDetailResponse(CommunityPost post, List<CommunityPostImage> images) {
         return CommunityPostDetailResponse.builder()
             .images(toImageItems(images))
-            .postId(post.id())
-            .memberId(post.memberId())
+            .postId(ResponseId.of(post.id()))
+            .memberId(ResponseId.of(post.memberId()))
             .targetType(post.targetType().toMetadata())
             .targetCode(post.targetCode())
             .targetName(post.targetName())
@@ -73,7 +74,7 @@ public class CommunityPostPresenter {
 
     public CommunityPostLikeResponse toPostLikeResponse(long postId, boolean liked, long likeCount) {
         return CommunityPostLikeResponse.builder()
-            .postId(postId)
+            .postId(ResponseId.of(postId))
             .liked(liked)
             .likeCount(likeCount)
             .build();
@@ -98,8 +99,8 @@ public class CommunityPostPresenter {
     private CommunityPostSummaryItem toPostSummaryItem(CommunityPost post, Map<Long, List<CommunityPostImage>> imagesByPostId) {
         return CommunityPostSummaryItem.builder()
             .thumbnailUrl(toThumbnailUrl(imagesByPostId.get(post.id())))
-            .postId(post.id())
-            .memberId(post.memberId())
+            .postId(ResponseId.of(post.id()))
+            .memberId(ResponseId.of(post.memberId()))
             .targetType(post.targetType().toMetadata())
             .targetCode(post.targetCode())
             .targetName(post.targetName())
@@ -114,8 +115,8 @@ public class CommunityPostPresenter {
     private CommunityLikedPostItem toLikedPostItem(LikedCommunityPost likedPost) {
         CommunityPost post = likedPost.post();
         return CommunityLikedPostItem.builder()
-            .postId(post.id())
-            .memberId(post.memberId())
+            .postId(ResponseId.of(post.id()))
+            .memberId(ResponseId.of(post.memberId()))
             .targetType(post.targetType().toMetadata())
             .targetCode(post.targetCode())
             .targetName(post.targetName())

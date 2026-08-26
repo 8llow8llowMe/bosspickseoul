@@ -9,16 +9,16 @@ import lombok.Builder;
 public record CommunityReplyItem(
 
     @Schema(description = "댓글 ID")
-    long commentId,
+    String commentId,
 
     @Schema(description = "게시글 ID")
-    long postId,
+    String postId,
 
     @Schema(description = "작성자 회원 ID")
-    long memberId,
+    String memberId,
 
     @Schema(description = "부모 댓글 ID")
-    long parentCommentId,
+    String parentCommentId,
 
     @Schema(description = "본문")
     String content,
