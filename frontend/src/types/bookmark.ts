@@ -13,7 +13,14 @@ import type {
 export type BookmarkTargetType = 'COMMERCIAL' | 'ADMINISTRATION' | 'DISTRICT'
 
 export type MemberBookmark = {
-  bookmarkId: number
+  /**
+   * ⚠️ **문자열이다.** Snowflake 값이 `Number.MAX_SAFE_INTEGER` 를 넘으므로
+   * 숫자로 파싱하면 값이 손상된다. 백엔드가 아직 JSON 숫자로 내려주기 때문에
+   * `@/lib/api/user` 의 `parseMemberBookmarkResponse` 가 파싱 전에 문자열로 감싼다.
+   * FE 어디에서도 `Number(...)` 로 바꾸지 않고, 받은 문자열 그대로 DELETE 경로와
+   * `lastBookmarkId` 커서에 넣는다.
+   */
+  bookmarkId: string
   targetType: BookmarkTargetType
   targetCode: string
   targetName: string

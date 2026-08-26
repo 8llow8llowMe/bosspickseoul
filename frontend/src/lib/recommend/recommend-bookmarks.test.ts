@@ -34,7 +34,7 @@ const response = (contents: unknown[], hasNext: unknown = false) =>
 describe('commercial bookmark collection', () => {
   it('collects every valid V2 target type across pages and deduplicates by bookmarkId', () => {
     const duplicatedDistrict = {
-      bookmarkId: 42,
+      bookmarkId: '42',
       targetType: 'DISTRICT',
       targetCode: '11680',
       targetName: '강남구',
@@ -43,7 +43,7 @@ describe('commercial bookmark collection', () => {
     const pages = [
       response([
         {
-          bookmarkId: 41,
+          bookmarkId: '41',
           targetType: 'COMMERCIAL',
           targetCode: 'C001',
           targetName: '테헤란로',
@@ -54,7 +54,7 @@ describe('commercial bookmark collection', () => {
       response([
         duplicatedDistrict,
         {
-          bookmarkId: 43,
+          bookmarkId: '43',
           targetType: 'ADMINISTRATION',
           targetCode: '11680510',
           targetName: '신사동',
@@ -64,10 +64,10 @@ describe('commercial bookmark collection', () => {
     ]
 
     expect(collectMemberBookmarks(pages)).toEqual([
-      expect.objectContaining({ bookmarkId: 41, targetType: 'COMMERCIAL' }),
-      expect.objectContaining({ bookmarkId: 42, targetType: 'DISTRICT' }),
+      expect.objectContaining({ bookmarkId: '41', targetType: 'COMMERCIAL' }),
+      expect.objectContaining({ bookmarkId: '42', targetType: 'DISTRICT' }),
       expect.objectContaining({
-        bookmarkId: 43,
+        bookmarkId: '43',
         targetType: 'ADMINISTRATION',
       }),
     ])
@@ -77,14 +77,14 @@ describe('commercial bookmark collection', () => {
     const pages = [
       response([
         {
-          bookmarkId: 41,
+          bookmarkId: '41',
           targetType: 'COMMERCIAL',
           targetCode: 'C001',
           targetName: '테헤란로',
           createdAt: '2026-07-24T10:00:00',
         },
         {
-          bookmarkId: 42,
+          bookmarkId: '42',
           targetType: 'DISTRICT',
           targetCode: '11680',
           targetName: '강남구',
@@ -93,7 +93,7 @@ describe('commercial bookmark collection', () => {
       ]),
       response([
         {
-          bookmarkId: 43,
+          bookmarkId: '43',
           targetType: 'COMMERCIAL',
           targetCode: 'C002',
           targetName: '가로수길',
@@ -103,8 +103,8 @@ describe('commercial bookmark collection', () => {
     ]
 
     expect(collectCommercialBookmarks(pages)).toEqual([
-      expect.objectContaining({ bookmarkId: 41, targetCode: 'C001' }),
-      expect.objectContaining({ bookmarkId: 43, targetCode: 'C002' }),
+      expect.objectContaining({ bookmarkId: '41', targetCode: 'C001' }),
+      expect.objectContaining({ bookmarkId: '43', targetCode: 'C002' }),
     ])
   })
 
@@ -119,7 +119,7 @@ describe('commercial bookmark collection', () => {
         bookmarks: {
           contents: [
             {
-              bookmarkId: 9,
+              bookmarkId: '9',
               targetType: 'COMMERCIAL',
               targetCode: 'PRIVATE',
               targetName: '노출 금지',
@@ -142,9 +142,26 @@ describe('commercial bookmark collection', () => {
     ).toEqual([])
   })
 
+  it('숫자 bookmarkId 는 정밀도가 이미 깨진 값이라 거부한다', () => {
+    // `Number.isSafeInteger` 로 느슨하게 통과시키면 19자리 Snowflake 가 손상된 채
+    // DELETE 경로로 흘러 다른 행을 지운다. 숫자는 항목 자체를 버리는 편이 안전하다.
+    const numericId = response([
+      {
+        bookmarkId: 41,
+        targetType: 'COMMERCIAL',
+        targetCode: 'C001',
+        targetName: '테헤란로',
+        createdAt: '2026-07-24',
+      },
+    ])
+
+    expect(normalizeMemberBookmarkResponse(numericId)).toBeNull()
+    expect(collectCommercialBookmarks([numericId])).toEqual([])
+  })
+
   it('deduplicates repeated pages by bookmarkId', () => {
     const duplicated = {
-      bookmarkId: 41,
+      bookmarkId: '41',
       targetType: 'COMMERCIAL',
       targetCode: 'C001',
       targetName: '테헤란로',
@@ -162,7 +179,7 @@ describe('commercial bookmark collection', () => {
   it('treats one malformed item among valid items as a malformed page', () => {
     const partiallyMalformed = response([
       {
-        bookmarkId: 41,
+        bookmarkId: '41',
         targetType: 'COMMERCIAL',
         targetCode: 'C001',
         targetName: '테헤란로',
@@ -266,7 +283,7 @@ describe('commercial bookmark pagination', () => {
         response(
           [
             {
-              bookmarkId: 91,
+              bookmarkId: '91',
               targetType: 'COMMERCIAL',
               targetCode: 'C001',
               targetName: '테헤란로',
@@ -277,7 +294,7 @@ describe('commercial bookmark pagination', () => {
         ),
         [],
       ),
-    ).toBe(91)
+    ).toBe('91')
   })
 
   it('terminates on an empty, malformed, or repeated cursor', () => {
@@ -292,7 +309,7 @@ describe('commercial bookmark pagination', () => {
         response(
           [
             {
-              bookmarkId: 91,
+              bookmarkId: '91',
               targetType: 'COMMERCIAL',
               targetCode: 'C001',
               targetName: '테헤란로',
@@ -302,7 +319,7 @@ describe('commercial bookmark pagination', () => {
           true,
         ),
         [response([], true), response([], true)] as MemberBookmarksResponse[],
-        91,
+        '91',
       ),
     ).toBe(undefined)
   })
@@ -313,7 +330,7 @@ describe('commercial bookmark pagination', () => {
         response(
           [
             {
-              bookmarkId: 91,
+              bookmarkId: '91',
               targetType: 'COMMERCIAL',
               targetCode: 'C001',
               targetName: '테헤란로',
@@ -323,8 +340,8 @@ describe('commercial bookmark pagination', () => {
           true,
         ),
         [],
-        80,
-        [undefined, 91, 80],
+        '80',
+        [undefined, '91', '80'],
       ),
     ).toBe(undefined)
   })
@@ -335,7 +352,7 @@ describe('commercial bookmark visibility', () => {
     const items = collectCommercialBookmarks([
       response([
         {
-          bookmarkId: 41,
+          bookmarkId: '41',
           targetType: 'COMMERCIAL',
           targetCode: 'C001',
           targetName: '테헤란로',
@@ -450,7 +467,7 @@ describe('commercial bookmark auto-fetch', () => {
         enabled: true,
         hasNextPage: true,
         isFetchingNextPage: false,
-        nextCursor: 91,
+        nextCursor: '91',
       }),
     ).toBe(true)
     expect(
@@ -458,7 +475,7 @@ describe('commercial bookmark auto-fetch', () => {
         enabled: true,
         hasNextPage: true,
         isFetchingNextPage: true,
-        nextCursor: 91,
+        nextCursor: '91',
       }),
     ).toBe(false)
   })
@@ -477,7 +494,7 @@ describe('commercial bookmark auto-fetch', () => {
         enabled: false,
         hasNextPage: true,
         isFetchingNextPage: false,
-        nextCursor: 91,
+        nextCursor: '91',
       }),
     ).toBe(false)
   })
@@ -488,7 +505,7 @@ describe('commercial bookmark auto-fetch', () => {
         enabled: true,
         hasNextPage: true,
         isFetchingNextPage: false,
-        nextCursor: 91,
+        nextCursor: '91',
         hasError: true,
       }),
     ).toBe(false)

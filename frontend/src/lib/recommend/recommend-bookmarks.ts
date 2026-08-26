@@ -24,14 +24,19 @@ export const isMemberBookmarkQueryEnabled = (
   enabled: boolean,
 ): memberId is string => enabled && Boolean(memberId)
 
+/**
+ * `bookmarkId` 는 **문자열만** 받는다. 숫자로 들어온 값은 Snowflake 정밀도가 이미
+ * `JSON.parse` 단계에서 깨진 값이므로, 손상된 아이디로 DELETE 를 쏘게 두지 않고
+ * 항목 자체를 버린다. 정상 경로에서는 `@/lib/api/user` 의
+ * `parseMemberBookmarkResponse` 가 파싱 전에 문자열로 감싸 준다.
+ */
 export const normalizeMemberBookmark = (
   value: unknown,
 ): MemberBookmark | null => {
   if (
     !isRecord(value) ||
-    typeof value.bookmarkId !== 'number' ||
-    !Number.isSafeInteger(value.bookmarkId) ||
-    value.bookmarkId < 0 ||
+    typeof value.bookmarkId !== 'string' ||
+    !/^\d+$/.test(value.bookmarkId) ||
     typeof value.targetType !== 'string' ||
     !bookmarkTargetTypes.includes(value.targetType as BookmarkTargetType) ||
     typeof value.targetCode !== 'string' ||
@@ -82,7 +87,7 @@ export const normalizeMemberBookmarkResponse = (
 export const collectMemberBookmarks = (
   pages: readonly unknown[],
 ): MemberBookmark[] => {
-  const seenBookmarkIds = new Set<number>()
+  const seenBookmarkIds = new Set<string>()
 
   return pages.flatMap(page => {
     const slice = normalizeMemberBookmarkResponse(page)
@@ -109,9 +114,9 @@ export const collectCommercialBookmarks = (
 export const getCommercialBookmarkNextPageParam = (
   lastPage: unknown,
   _allPages: readonly MemberBookmarksResponse[],
-  lastPageParam?: number,
+  lastPageParam?: string,
   allPageParams: readonly unknown[] = [],
-): number | undefined => {
+): string | undefined => {
   const slice = normalizeMemberBookmarkResponse(lastPage)
   if (!slice?.hasNext || slice.contents.length === 0) return undefined
 
@@ -235,7 +240,7 @@ export const shouldAutoFetchNextBookmarkPage = ({
   hasError?: boolean
   hasNextPage: boolean
   isFetchingNextPage: boolean
-  nextCursor: number | undefined
+  nextCursor: string | undefined
 }): boolean =>
   enabled &&
   !hasError &&
