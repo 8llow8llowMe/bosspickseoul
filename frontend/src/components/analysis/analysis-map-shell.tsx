@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -12,7 +13,11 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
 
-import AnalysisMap from '@/components/analysis/analysis-map'
+import AnalysisMap, {
+  type CameraSettle,
+  type MapFitRequest,
+} from '@/components/analysis/analysis-map'
+import { AnalysisMapShellProvider } from '@/components/analysis/analysis-map-shell-context'
 import AnalysisMobileSheet from '@/components/analysis/analysis-mobile-sheet'
 import AnalysisSelectionPanel, {
   ANALYSIS_STEP_LABELS,
@@ -37,10 +42,11 @@ import {
   fetchAdministrationMapAreas,
   fetchAdministrations,
   fetchCommercialMapAreas,
+  fetchCommercialProfile,
   fetchCommercials,
   fetchDistrictMapAreas,
-  SEOUL_MAP_BOUNDS,
 } from '@/lib/api/recommend'
+import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
 import {
@@ -48,6 +54,7 @@ import {
   ANALYSIS_STEPS,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
+  createEmptyAnalysisSelection,
   getActiveAnalysisStep,
   parseAnalysisSelection,
   selectAdministrationWithParent,
@@ -55,8 +62,21 @@ import {
   selectCommercialWithParents,
   type AnalysisStep,
 } from '@/lib/analysis/selection'
-import { type MapLayer } from '@/lib/analysis/map-layer'
-import { findContainingArea } from '@/lib/map/geometry'
+import { resolveMapLayerByZoom, type MapLayer } from '@/lib/analysis/map-layer'
+import {
+  CAMERA_LEVEL_BY_DEPTH,
+  createCameraBounds,
+  MAP_CAMERA_PARAM,
+  parseMapCamera,
+  SEOUL_DEFAULT_CAMERA,
+  serializeMapCamera,
+  type MapCamera,
+} from '@/lib/analysis/map-camera'
+import {
+  createBounds,
+  findContainingArea,
+  normalizeBoundary,
+} from '@/lib/map/geometry'
 import type { ApiResponse } from '@/types/api'
 import type { CommercialServiceCategory } from '@/types/commercial-analysis'
 import type {
@@ -197,6 +217,11 @@ const MapNotice = styled.div`
   transform: translateX(-50%);
 `
 
+/**
+ * 지도 셸의 표면. 결과 레이어는 이 표면 **밖**(document.body 포털)에 뜨므로,
+ * `inert` 를 이 표면에 걸면 지도 라벨(`<button>`)·선택 패널이 포커스 트랩 밖으로
+ * 새지 않는다(map-shell.md D6).
+ */
 export function AnalysisExplorerSurface({
   map,
   desktopPanel,
@@ -204,6 +229,7 @@ export function AnalysisExplorerSurface({
   mapNotice,
   aiReportCard,
   aiReportPanel,
+  inert = false,
 }: {
   map: ReactNode
   desktopPanel: ReactNode
@@ -211,9 +237,14 @@ export function AnalysisExplorerSurface({
   mapNotice?: ReactNode
   aiReportCard?: ReactNode
   aiReportPanel?: ReactNode
+  inert?: boolean
 }) {
   return (
-    <Page data-hide-footer="true">
+    <Page
+      data-hide-footer="true"
+      inert={inert}
+      aria-hidden={inert ? true : undefined}
+    >
       <Layout>
         <DesktopPanel>{desktopPanel}</DesktopPanel>
         <MapArea>
@@ -238,9 +269,9 @@ const getNextStep = (step: AnalysisStep): AnalysisStep => {
 }
 
 // 선택 후 지도가 진입할 줌 레벨 (resolveMapLayerByZoom: >=7 자치구 / 5~6 행정동 / <=4 상권)
-const ADMINISTRATION_ZOOM_LEVEL = 6 // 자치구 선택 → 행정동이 보이는 depth
-const COMMERCIAL_ZOOM_LEVEL = 4 // 행정동 선택 → 상권이 보이는 depth
-const COMMERCIAL_FRAME_ZOOM_LEVEL = 3 // 상권 선택 → 상권을 좀 더 가깝게 프레임
+const ADMINISTRATION_ZOOM_LEVEL = CAMERA_LEVEL_BY_DEPTH.district // 자치구 선택 → 행정동이 보이는 depth
+const COMMERCIAL_ZOOM_LEVEL = CAMERA_LEVEL_BY_DEPTH.administration // 행정동 선택 → 상권이 보이는 depth
+const COMMERCIAL_FRAME_ZOOM_LEVEL = CAMERA_LEVEL_BY_DEPTH.commercial // 상권 선택 → 상권을 좀 더 가깝게 프레임
 
 const PANEL_FIT_LEVEL_BY_STEP: Record<AnalysisStep, number | null> = {
   district: ADMINISTRATION_ZOOM_LEVEL,
@@ -249,33 +280,120 @@ const PANEL_FIT_LEVEL_BY_STEP: Record<AnalysisStep, number | null> = {
   service: null, // 업종은 지도 위치와 무관 → 이동 없음
 }
 
-export default function AnalysisPage() {
+/** 결과 레이어가 열리는 경로. 셸은 이 경로에서만 레이어 슬롯을 활성으로 본다. */
+export const ANALYSIS_RESULT_PATHNAME = '/analysis/result'
+
+/**
+ * `c` 없는 URL 의 폴백 카메라를 어느 depth 까지 맞췄는지 나타내는 순위(D4-4).
+ * 앞 단계 geometry 가 먼저 도착하므로 district → administration → commercial 로
+ * **단계적으로 수렴**한다. 순위가 올라가는 방향으로만 fit 한다.
+ */
+const FALLBACK_DEPTH_RANK = {
+  none: 0,
+  district: 1,
+  administration: 2,
+  commercial: 3,
+} as const
+
+type FallbackDepth = keyof typeof FALLBACK_DEPTH_RANK
+
+/** 영역 geometry(또는 중심점)에서 카메라 중심을 뽑는다. */
+const resolveAreaCenter = (
+  areas: readonly AreaBoundaryItem[],
+  code: string | null,
+): { lat: number; lng: number } | null => {
+  if (!code) return null
+  const area = areas.find(item => String(item.areaCode) === code)
+  if (!area) return null
+
+  const bounds = createBounds(normalizeBoundary(area.boundaryCoords))
+  if (bounds) {
+    return {
+      lat: (bounds.latSW + bounds.latNE) / 2,
+      lng: (bounds.lngSW + bounds.lngNE) / 2,
+    }
+  }
+  return Number.isFinite(area.centerLat) && Number.isFinite(area.centerLng)
+    ? { lat: area.centerLat, lng: area.centerLng }
+    : null
+}
+
+function AnalysisMapShellBody({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const searchParamsKey = searchParams.toString()
   const selection = useMemo(
     () => parseAnalysisSelection(searchParams),
     [searchParams],
   )
+  const resultOpen = pathname === ANALYSIS_RESULT_PATHNAME
+
+  // ── 카메라: URL 이 정본이다 ────────────────────────────────────────────────
+  const urlCamera = useMemo(
+    () => parseMapCamera(searchParams.get(MAP_CAMERA_PARAM)),
+    [searchParams],
+  )
+  /**
+   * `c` 없이 진입했는지를 **마운트 시점에** 확정한다. 첫 `idle` 이 `c` 를 써 넣으면
+   * `urlCamera` 는 곧 non-null 이 되지만, 폴백 수렴(D4-4 순위 2~4)은 목표 depth 까지
+   * 계속 진행돼야 하므로 "처음에 없었다"는 사실을 따로 기억한다.
+   *
+   * ref 가 아니라 state 인 이유: 이 값이 `cameraProfileQuery` 의 `enabled` 를 결정하므로
+   * **렌더 중에 읽어야** 한다. 초기화 함수로 한 번 정해지고 이후 절대 바뀌지 않는다.
+   */
+  const [enteredWithoutCamera] = useState(() => urlCamera === null)
+  const fallbackDepthRef = useRef<FallbackDepth>('none')
+  /** 지도 생성에 쓰는 초기 카메라. 마운트 시점 값으로 고정한다. */
+  const [initialCamera] = useState<MapCamera>(
+    () => urlCamera ?? SEOUL_DEFAULT_CAMERA,
+  )
+  /** href 빌더가 보존할 "현재 카메라". `c` 가 없으면 초기 카메라를 쓴다. */
+  const camera = urlCamera ?? initialCamera
+
   const [requestedStep, setRequestedStep] = useState<AnalysisStep>(() =>
     getActiveAnalysisStep(selection),
   )
   const [previewedCode, setPreviewedCode] = useState<string | null>(null)
   // 지도에서 상권을 고르면 증가시켜, 모바일 시트를 펼쳐 업종 선택을 유도한다.
   const [sheetExpandSignal, setSheetExpandSignal] = useState(0)
-  const [viewportBounds, setViewportBounds] =
-    useState<GeoBounds>(SEOUL_MAP_BOUNDS)
-  const [mapLayer, setMapLayer] = useState<MapLayer>('district')
-  const [fitRequest, setFitRequest] = useState<{
-    code: string
-    level: number
-    seq: number
-  } | null>(null)
+  /**
+   * 지도 3종 쿼리 키. 첫 값은 URL 카메라의 근사 창이고, 첫 `idle` 이 실제(외향 양자화)
+   * bounds 로 교체한다. 양자화 덕분에 111m 미만 미세 팬은 같은 키가 되어 재조회가 없다.
+   */
+  const [viewportBounds, setViewportBounds] = useState<GeoBounds>(() =>
+    createCameraBounds(initialCamera),
+  )
+  // `idle` 을 기다리지 않고 초기 카메라의 level 로 활성 레이어를 정한다(TC-MS-063).
+  const [mapLayer, setMapLayer] = useState<MapLayer>(() =>
+    resolveMapLayerByZoom(initialCamera.level),
+  )
+  const [fitRequest, setFitRequest] = useState<MapFitRequest | null>(null)
   const requestFit = useCallback(
     (code: string, level: number) =>
       setFitRequest(prev => ({ code, level, seq: (prev?.seq ?? 0) + 1 })),
     [],
   )
+  const requestFitToCenter = useCallback(
+    (center: { lat: number; lng: number }, level: number) =>
+      setFitRequest(prev => ({ center, level, seq: (prev?.seq ?? 0) + 1 })),
+    [],
+  )
+
+  // ── 지도 마운트 판정(map-shell.md D5) ─────────────────────────────────────
+  // 좁은 뷰포트 + 결과 열림이면 지도가 1px도 보이지 않으므로 언마운트한다.
+  // `narrow === null`(측정 전)에도 마운트하지 않아, 하드 로드 첫 페인트에서
+  // 지도를 만들었다가 곧바로 버리는 낭비를 피한다.
+  const narrow = useNarrowViewport()
+  const shouldMountMap = !resultOpen || narrow === false
+
+  /**
+   * 결과 레이어를 이 셸 인스턴스가 `push` 로 열었는가.
+   * App Router 레이아웃은 `/analysis` ↔ `/analysis/result` 이동에서 리마운트되지
+   * 않으므로 이 ref 로 판정이 성립한다. 하드 로드·새 탭·`/s/{shareCode}` 의 `replace`
+   * 진입은 셸이 새로 마운트되어 `false` 다 → `replace` 경로를 탄다(D4-5).
+   */
+  const openedByPushRef = useRef(false)
 
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
@@ -317,6 +435,8 @@ export default function AnalysisPage() {
   const districtMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'districts', viewportBounds],
     queryFn: () => fetchDistrictMapAreas(viewportBounds),
+    // 지도가 없으면 폴리곤을 그릴 대상이 없다 → 받을 이유가 없다(D4-2).
+    enabled: shouldMountMap,
     retry: retryUnlessClientError(1),
   })
   const administrationsQuery = useQuery({
@@ -328,7 +448,9 @@ export default function AnalysisPage() {
   const administrationMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'administrations', viewportBounds],
     queryFn: () => fetchAdministrationMapAreas(viewportBounds),
-    enabled: mapLayer === 'administration' || mapLayer === 'commercial',
+    enabled:
+      shouldMountMap &&
+      (mapLayer === 'administration' || mapLayer === 'commercial'),
     retry: retryUnlessClientError(1),
   })
   const commercialsQuery = useQuery({
@@ -346,13 +468,41 @@ export default function AnalysisPage() {
   const commercialMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'commercials', viewportBounds],
     queryFn: () => fetchCommercialMapAreas(viewportBounds),
-    enabled: mapLayer === 'commercial',
+    enabled: shouldMountMap && mapLayer === 'commercial',
     retry: retryUnlessClientError(1),
   })
   const servicesQuery = useQuery({
     queryKey: ['analysis', 'services', selection.commercialCode],
     queryFn: () => fetchCommercialServiceCategories(selection.commercialCode!),
     enabled: Boolean(selection.commercialCode),
+    retry: retryUnlessClientError(1),
+  })
+
+  /**
+   * `c` 없는 결과 URL 의 폴백 카메라(D4-4 순위 2)용 상권 중심점.
+   *
+   * 쿼리 키가 `AnalysisResultView` 의 profile 쿼리와 **완전히 동일**하므로 React Query
+   * 캐시를 공유한다 → 추가 네트워크 요청 0회. 결과 레이어가 열려 있을 때만 켜서,
+   * 탐색 화면에서 지도 폴리곤으로 충분한 경우에 요청이 새로 생기지 않게 한다.
+   */
+  const cameraProfileQuery = useQuery({
+    queryKey: [
+      'analysis',
+      'profile',
+      selection.commercialCode ?? '',
+      selection.serviceCode ?? '',
+      selection.periodCode,
+    ],
+    queryFn: () =>
+      fetchCommercialProfile(
+        selection.commercialCode!,
+        selection.serviceCode!,
+        selection.periodCode,
+      ),
+    enabled:
+      enteredWithoutCamera &&
+      resultOpen &&
+      Boolean(selection.commercialCode && selection.serviceCode),
     retry: retryUnlessClientError(1),
   })
 
@@ -386,6 +536,140 @@ export default function AnalysisPage() {
     () => unwrapArray(servicesQuery.data),
     [servicesQuery.data],
   )
+  // ── 카메라 emit → URL replace + 조회 bounds 갱신 ──────────────────────────
+  /**
+   * 지도 정지(`idle` + 250ms) 뒤 **제스처당 1회** 호출된다.
+   *
+   * URL 은 항상 `replace` 다 — `push` 면 팬·줌 한 번마다 히스토리가 쌓여 뒤로가기가
+   * 지도 이동 이력으로 가득 찬다(D5 히스토리 정책). 직렬화 결과가 직전 URL 값과
+   * 같으면 아무것도 하지 않는다(프로그래매틱 fit 직후의 idle 이 여기서 걸러진다).
+   */
+  const handleCameraSettle = useCallback(
+    ({ camera: settled, bounds, layer }: CameraSettle) => {
+      setViewportBounds(previous =>
+        previous.lngSW === bounds.lngSW &&
+        previous.latSW === bounds.latSW &&
+        previous.lngNE === bounds.lngNE &&
+        previous.latNE === bounds.latNE
+          ? previous
+          : bounds,
+      )
+      setMapLayer(layer)
+
+      const next = serializeMapCamera(settled)
+      const params = new URLSearchParams(searchParamsKey)
+      if (params.get(MAP_CAMERA_PARAM) === next) return
+
+      params.set(MAP_CAMERA_PARAM, next)
+      router.replace(`${pathname}?${params}`)
+    },
+    [pathname, router, searchParamsKey],
+  )
+
+  /**
+   * `c` 없는 링크의 폴백 카메라 수렴(D4-4 순위 2~4).
+   *
+   * geometry 는 bounds 를 알아야 받을 수 있고 bounds 는 카메라에서 나오므로, 얕은
+   * depth 부터 fit → idle → 다음 depth 조회 → fit 으로 단계적으로 수렴한다.
+   * fit 후 첫 idle 이 `c` 를 URL 에 처음 기록한다 — **로드 즉시 replace 를 쏘지 않는다**.
+   *
+   * ⚠️ 이 이펙트는 파생 상태를 계산하는 게 아니라 **외부 시스템(카카오 지도)에 명령을
+   * 보낸다.** `fitRequest` 는 그 명령 채널이고(기존 `requestFit` 과 같은 배선), 목표는
+   * 쿼리 데이터가 도착하는 시점에만 정해진다. 목표 계산과 명령을 분리해 명령이 이펙트
+   * 끝에서 한 번만 나가게 했다 — 렌더 중 계산으로 옮기면 "앞으로만 한 번" 규칙에
+   * 필요한 ref 를 렌더에서 읽어야 해서 더 나쁜 위반이 된다.
+   */
+  useEffect(() => {
+    if (!enteredWithoutCamera || !shouldMountMap) return
+
+    const desired: FallbackDepth =
+      selection.commercialCode && selection.serviceCode
+        ? 'commercial'
+        : selection.administrationCode
+          ? 'administration'
+          : selection.districtCode
+            ? 'district'
+            : 'none'
+    if (desired === 'none') return
+
+    const reached = FALLBACK_DEPTH_RANK[fallbackDepthRef.current]
+    if (reached >= FALLBACK_DEPTH_RANK[desired]) return
+
+    const profileResponse = cameraProfileQuery.data
+    const profile = isApiSuccess(profileResponse)
+      ? (profileResponse?.dataBody ?? null)
+      : null
+
+    /** 가장 깊은 depth 부터 시도하고, 아직 geometry 가 없으면 상위 depth 로 내려간다. */
+    const resolveTarget = (): {
+      depth: keyof typeof CAMERA_LEVEL_BY_DEPTH
+      center: { lat: number; lng: number }
+    } | null => {
+      if (desired === 'commercial') {
+        const center =
+          profile &&
+          Number.isFinite(profile.centerLat) &&
+          Number.isFinite(profile.centerLng)
+            ? { lat: profile.centerLat, lng: profile.centerLng }
+            : resolveAreaCenter(allCommercialAreas, selection.commercialCode)
+        if (center) return { depth: 'commercial', center }
+      }
+
+      if (
+        FALLBACK_DEPTH_RANK[desired] >= FALLBACK_DEPTH_RANK.administration &&
+        reached < FALLBACK_DEPTH_RANK.administration
+      ) {
+        const center = resolveAreaCenter(
+          allAdministrationAreas,
+          selection.administrationCode,
+        )
+        if (center) return { depth: 'administration', center }
+      }
+
+      if (reached < FALLBACK_DEPTH_RANK.district) {
+        const center = resolveAreaCenter(
+          allDistrictAreas,
+          selection.districtCode,
+        )
+        if (center) return { depth: 'district', center }
+      }
+
+      return null
+    }
+
+    const target = resolveTarget()
+    if (!target) return
+
+    fallbackDepthRef.current = target.depth
+    requestFitToCenter(target.center, CAMERA_LEVEL_BY_DEPTH[target.depth])
+  }, [
+    allAdministrationAreas,
+    allCommercialAreas,
+    allDistrictAreas,
+    cameraProfileQuery.data,
+    enteredWithoutCamera,
+    requestFitToCenter,
+    selection.administrationCode,
+    selection.commercialCode,
+    selection.districtCode,
+    selection.serviceCode,
+    shouldMountMap,
+  ])
+
+  /**
+   * 결과 레이어 닫기(D4-5). 어떤 진입 경로에서도 사이트를 벗어나지 않는다.
+   * `history.length`·`document.referrer` 는 신뢰할 수 없으므로 추측하지 않고,
+   * 셸이 `push` 를 직접 했는지만 본다.
+   */
+  const closeResultLayer = useCallback(() => {
+    if (openedByPushRef.current) {
+      openedByPushRef.current = false
+      router.back()
+      return
+    }
+    router.replace(createAnalysisExplorerHref(selection, camera))
+  }, [camera, router, selection])
+
   const requiredStep = getActiveAnalysisStep(selection)
   const activeStep =
     ANALYSIS_STEPS.indexOf(requestedStep) > ANALYSIS_STEPS.indexOf(requiredStep)
@@ -400,7 +684,9 @@ export default function AnalysisPage() {
         item => String(item.districtCode) === selection.districtCode,
       )
     ) {
-      router.replace('/analysis')
+      router.replace(
+        createAnalysisExplorerHref(createEmptyAnalysisSelection(), camera),
+      )
       return
     }
 
@@ -413,7 +699,7 @@ export default function AnalysisPage() {
       )
     ) {
       const next = selectAnalysisValue(selection, 'administration', '')
-      router.replace(createAnalysisExplorerHref(next))
+      router.replace(createAnalysisExplorerHref(next, camera))
       return
     }
 
@@ -425,7 +711,7 @@ export default function AnalysisPage() {
       )
     ) {
       const next = selectAnalysisValue(selection, 'commercial', '')
-      router.replace(createAnalysisExplorerHref(next))
+      router.replace(createAnalysisExplorerHref(next, camera))
       return
     }
 
@@ -435,9 +721,17 @@ export default function AnalysisPage() {
       !services.some(item => String(item.serviceCode) === selection.serviceCode)
     ) {
       const next = selectAnalysisValue(selection, 'service', '')
-      router.replace(createAnalysisExplorerHref(next))
+      router.replace(createAnalysisExplorerHref(next, camera))
     }
-  }, [administrations, commercials, districts, router, selection, services])
+  }, [
+    administrations,
+    camera,
+    commercials,
+    districts,
+    router,
+    selection,
+    services,
+  ])
 
   // 후보 배열은 쿼리 데이터에만 의존하도록 memo 한다. 호버(previewedCode)로
   // 페이지가 리렌더돼도 참조가 유지돼야 memo된 선택 패널이 리렌더되지 않는다.
@@ -587,17 +881,17 @@ export default function AnalysisPage() {
   const handleSelect = useCallback(
     (step: AnalysisStep, code: string) => {
       const next = selectAnalysisValue(selection, step, code)
-      router.replace(createAnalysisExplorerHref(next))
+      router.replace(createAnalysisExplorerHref(next, camera))
       setRequestedStep(getNextStep(step))
       setPreviewedCode(null)
     },
-    [selection, router],
+    [camera, selection, router],
   )
 
   const handleMapSelect = (code: string) => {
     if (mapLayer === 'district') {
       const next = selectAnalysisValue(selection, 'district', code)
-      router.replace(createAnalysisExplorerHref(next))
+      router.replace(createAnalysisExplorerHref(next, camera))
       setRequestedStep('administration')
       setPreviewedCode(null)
       requestFit(code, ADMINISTRATION_ZOOM_LEVEL)
@@ -605,7 +899,7 @@ export default function AnalysisPage() {
     }
     if (mapLayer === 'administration') {
       const next = selectAdministrationWithParent(selection, code)
-      router.replace(createAnalysisExplorerHref(next))
+      router.replace(createAnalysisExplorerHref(next, camera))
       setRequestedStep('commercial')
       setPreviewedCode(null)
       requestFit(code, COMMERCIAL_ZOOM_LEVEL)
@@ -627,7 +921,7 @@ export default function AnalysisPage() {
           administrationCode: String(admin.areaCode),
         })
       : selectAnalysisValue(selection, 'commercial', code)
-    router.replace(createAnalysisExplorerHref(next))
+    router.replace(createAnalysisExplorerHref(next, camera))
     setRequestedStep('service')
     setPreviewedCode(null)
     // 상권 선택 완료 → 다음은 업종 선택. 모바일 시트를 펼쳐 선택을 유도한다.
@@ -652,10 +946,15 @@ export default function AnalysisPage() {
     () => void activeQueryRef.current.refetch(),
     [],
   )
-  const handlePanelSubmit = useCallback(
-    () => router.push(createAnalysisResultHref(selection, 'summary')),
-    [router, selection],
-  )
+  /**
+   * 결과 레이어 열기. 히스토리 정책상 **유일한 `push`** 다 — 브라우저 뒤로가기로
+   * 자연스럽게 닫히게 하기 위해서다(D5). 셸이 직접 push 했음을 ref 에 남겨,
+   * 닫기가 `back()` 을 쓸 수 있는지 판정한다(D4-5).
+   */
+  const handlePanelSubmit = useCallback(() => {
+    openedByPushRef.current = true
+    router.push(createAnalysisResultHref(selection, 'summary', camera))
+  }, [camera, router, selection])
 
   // 모바일 시트: 데스크탑의 카드→패널 게이팅과 달리, 리포트가 가용한 레벨(aiLevelKey)
   // 이면 진입 칩을 노출하고 리포트 뷰에서 AiReportBody를 직접 렌더한다(미인증 잠금은
@@ -701,51 +1000,91 @@ export default function AnalysisPage() {
     />
   )
 
+  const shellContext = useMemo(
+    () => ({ camera, closeResultLayer }),
+    [camera, closeResultLayer],
+  )
+
   return (
-    <AnalysisExplorerSurface
-      desktopPanel={panel}
-      map={
-        <AnalysisMap
-          activeStep={mapLayer}
-          areas={mapAreas}
-          selectedCode={mapSelectedCode}
-          previewedCode={
-            activeStep === 'service' ? selection.commercialCode : previewedCode
-          }
-          onSelect={handleMapSelect}
-          onPreviewChange={setPreviewedCode}
-          onViewportBoundsChange={setViewportBounds}
-          onZoomLayerChange={setMapLayer}
-          fitTo={fitRequest}
+    <AnalysisMapShellProvider value={shellContext}>
+      <AnalysisExplorerSurface
+        inert={resultOpen}
+        desktopPanel={panel}
+        map={
+          shouldMountMap ? (
+            <AnalysisMap
+              activeStep={mapLayer}
+              areas={mapAreas}
+              selectedCode={mapSelectedCode}
+              previewedCode={
+                activeStep === 'service'
+                  ? selection.commercialCode
+                  : previewedCode
+              }
+              onSelect={handleMapSelect}
+              onPreviewChange={setPreviewedCode}
+              onCameraSettle={handleCameraSettle}
+              initialCamera={initialCamera}
+              camera={urlCamera}
+              fitTo={fitRequest}
+            />
+          ) : null
+        }
+        mapNotice={shouldMountMap ? mapNotice : null}
+        aiReportCard={
+          showAiCard && aiLevelKey ? (
+            <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
+          ) : showAiLockCard && aiLevel ? (
+            <AiReportLockCard level={aiLevel} loginHref={aiLoginHref} />
+          ) : null
+        }
+        aiReportPanel={
+          showAiPanel ? (
+            <AiReportPanel
+              targetName={aiTargetName}
+              selection={selection}
+              onClose={() => setAiPanelOpen(false)}
+            />
+          ) : null
+        }
+        mobilePanel={
+          <AnalysisMobileSheet
+            stepLabel={`${ANALYSIS_STEP_LABELS[activeStep]} 선택`}
+            summary={selectionSummary}
+            aiReport={mobileAiReport}
+            expandSignal={sheetExpandSignal}
+          >
+            {sheetPanel}
+          </AnalysisMobileSheet>
+        }
+      />
+      {/* 결과 레이어 슬롯. `/analysis` 는 null, `/analysis/result` 는 결과 레이어다. */}
+      {children}
+    </AnalysisMapShellProvider>
+  )
+}
+
+/**
+ * 지도 셸. `(map-shell)` 라우트 그룹의 레이아웃이 `/analysis` 와 `/analysis/result`
+ * **두 라우트만** 이 셸로 감싼다. `analysis/layout.tsx` 에 올리면
+ * `/analysis/report`·`/analysis/simulation/**` 까지 지도가 깔린다(D6).
+ */
+export default function AnalysisMapShell({
+  children,
+}: {
+  children?: ReactNode
+}) {
+  return (
+    <Suspense
+      fallback={
+        <main
+          data-hide-footer="true"
+          aria-label="상권 분석 화면 준비 중"
+          role="status"
         />
       }
-      mapNotice={mapNotice}
-      aiReportCard={
-        showAiCard && aiLevelKey ? (
-          <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
-        ) : showAiLockCard && aiLevel ? (
-          <AiReportLockCard level={aiLevel} loginHref={aiLoginHref} />
-        ) : null
-      }
-      aiReportPanel={
-        showAiPanel ? (
-          <AiReportPanel
-            targetName={aiTargetName}
-            selection={selection}
-            onClose={() => setAiPanelOpen(false)}
-          />
-        ) : null
-      }
-      mobilePanel={
-        <AnalysisMobileSheet
-          stepLabel={`${ANALYSIS_STEP_LABELS[activeStep]} 선택`}
-          summary={selectionSummary}
-          aiReport={mobileAiReport}
-          expandSignal={sheetExpandSignal}
-        >
-          {sheetPanel}
-        </AnalysisMobileSheet>
-      }
-    />
+    >
+      <AnalysisMapShellBody>{children}</AnalysisMapShellBody>
+    </Suspense>
   )
 }

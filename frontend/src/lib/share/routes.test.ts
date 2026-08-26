@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { createMapCamera } from '@/lib/analysis/map-camera'
+import { createAnalysisResultHref } from '@/lib/analysis/selection'
 import {
   buildAdministrationAnalysisPayload,
   buildAiReportPayload,
   buildCommercialAnalysisPayload,
+  normalizeSharePayload,
   type SharePayload,
 } from './payload'
 import {
@@ -129,5 +132,71 @@ describe('getShareTypeLabel', () => {
   it('알려진 타입은 한글 라벨, 모르는 타입은 기본 라벨', () => {
     expect(getShareTypeLabel('AI_REPORT')).toBe('AI 리포트')
     expect(getShareTypeLabel('NOPE')).toBe('분석 화면')
+  })
+})
+
+/**
+ * 카메라는 payload 에 **들어가지 않는다**(map-shell.md D4-6). 들어가면 지도를 1m
+ * 움직인 것만으로 다른 상태가 되어 공유 코드가 무한 증식하고, "보관됨" 배지가
+ * 팬마다 풀린다. 이 계약을 여기서 못 박는다.
+ */
+describe('공유·보관함 payload 는 카메라를 담지 않는다 (D4-6)', () => {
+  // TC-MS-024
+  it('payload 문자열에 c·lat·lng·level 이 없다', () => {
+    const payload = buildCommercialAnalysisPayload(selection, 'sales')!
+    const normalized = normalizeSharePayload(payload)
+
+    expect(Object.keys(payload)).not.toContain('c')
+    expect(normalized).not.toMatch(/"(c|lat|lng|level)"/)
+    expect(normalized).not.toContain('37.54893')
+  })
+
+  // TC-MS-024 — 카메라만 다른 두 URL 은 같은 payload 키
+  it('카메라만 다른 두 결과 URL 이 같은 payload 키를 만든다', () => {
+    const near = createMapCamera(37.54893, 127.06612, 3)
+    const far = createMapCamera(37.5665, 126.978, 8)
+
+    const hrefNear = createAnalysisResultHref(selection, 'sales', near)
+    const hrefFar = createAnalysisResultHref(selection, 'sales', far)
+    expect(hrefNear).not.toBe(hrefFar)
+
+    const keyOf = (href: string) => {
+      const params = new URL(href, 'http://x').searchParams
+      return normalizeSharePayload(
+        buildCommercialAnalysisPayload(
+          {
+            districtCode: params.get('districtCode'),
+            administrationCode: params.get('administrationCode'),
+            commercialCode: params.get('commercialCode'),
+            serviceCode: params.get('serviceCode'),
+            periodCode: params.get('periodCode') ?? '',
+          },
+          params.get('tab'),
+        )!,
+      )
+    }
+
+    expect(keyOf(hrefNear)).toBe(keyOf(hrefFar))
+  })
+
+  // TC-MS-025
+  it('카메라가 끼어들지 않고 기존 라운드트립이 유지된다', () => {
+    const payload = buildCommercialAnalysisPayload(selection, 'sales')!
+    const { href, parsed } = roundTrip('COMMERCIAL_ANALYSIS', payload)
+
+    expect(href).not.toContain('c=')
+    expect(parsed).toEqual(payload)
+  })
+
+  it('사용자가 고른 분기는 payload 에 그대로 담긴다', () => {
+    // periodCode 는 카메라와 달리 **분석 조건**이므로 payload 에 있어야 한다.
+    const payload = buildCommercialAnalysisPayload({
+      ...selection,
+      periodCode: '20221',
+    })!
+
+    expect(payload.periodCode).toBe('20221')
+    const { href } = roundTrip('COMMERCIAL_ANALYSIS', payload)
+    expect(href).toContain('periodCode=20221')
   })
 })

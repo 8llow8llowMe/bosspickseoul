@@ -31,7 +31,7 @@ describe('AnalysisMap', () => {
         previewedCode: null,
         onSelect: () => undefined,
         onPreviewChange: () => undefined,
-        onViewportBoundsChange: () => undefined,
+        onCameraSettle: () => undefined,
       }),
     )
 

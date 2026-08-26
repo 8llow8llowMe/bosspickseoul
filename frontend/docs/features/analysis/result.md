@@ -20,13 +20,15 @@
 | 해결하려는 문제   | 기존 결과 화면은 지표를 한 번에 조회·표시하는 긴 페이지라 핵심 판단이 어렵고, 탐색 맥락 복원과 부분 실패 대응이 약하다.                  |
 | 목표 동작 (to-be) | 결과를 공유 가능한 독립 URL로 제공하고, 데스크톱 탐색 흐름에서는 지도 맥락을 남긴 큰 라우트 모달로, 모바일에서는 전체 페이지로 표시한다. |
 | 구현 제외 범위    | PDF 다운로드, 사용자 정의 비교 대상 추가, 분석 결과 전체 북마크, 서버 측 보고서 생성                                                     |
-| 연관 세부 기능    | [지도 기반 분석 대상 탐색](./explorer.md), `/analysis/simulation`, 회원 북마크                                                           |
+| 연관 세부 기능    | [지도 기반 분석 대상 탐색](./explorer.md), [지도 셸 + URL 카메라](./map-shell.md), `/analysis/simulation`, 회원 북마크                   |
 
 ---
 
 ## D1. 기능 개요
 
-`/analysis/result`는 URL의 자치구·행정동·상권·업종·시점 코드를 검증한 후 공통 리포트 컴포넌트로 분석 지표를 표시한다. 탐색 화면에서 데스크톱으로 이동하면 동일 라우트를 인터셉트한 큰 모달로 열고, 직접 접근·새로고침·모바일에서는 독립 전체 페이지로 렌더링한다.
+`/analysis/result`는 URL의 자치구·행정동·상권·업종·시점 코드를 검증한 후 공통 리포트 컴포넌트로 분석 지표를 표시한다.
+
+> **⚠️ 표시 표면 구조는 [map-shell.md](./map-shell.md)가 정본이다(2026-08-26 개정).** 아래 D2-1·D2-2, D3-1의 `@modal` 관련 행, D3-2 다이어그램, D5 "표시 surface 결정", D6 "모바일·독립 페이지"의 _독립 전체 페이지_ 서술은 폐기됐다. 결과는 진입 경로와 무관하게 **지도 셸 위의 단일 레이어**로 열린다. 지표·탭·부분 실패·저장·공유 규칙은 이 문서가 계속 정본이다.
 
 ```text
 결과 URL → 조건 검증·이름 복원 → 핵심 요약 조회 → 선택 탭 지연 조회 → 공유/상권 저장/시뮬레이션
@@ -49,18 +51,18 @@
 
 ## D2. 동작 요구사항
 
-| #   | 요구사항                                                                                           | 상세 참조 |
-| --- | -------------------------------------------------------------------------------------------------- | --------- |
-| 1   | 데스크톱 탐색 흐름은 지도 위에 상하좌우 24~32px 여백이 있는 큰 라우트 모달로 결과를 표시한다.      | D3, D6    |
-| 2   | 모바일, 직접 URL 접근, 새로고침은 동일 결과를 독립 전체 페이지로 표시한다.                         | D3, D6    |
-| 3   | 모달 닫기, Escape, 브라우저 뒤로가기는 기존 `/analysis` 선택 상태로 복귀한다.                      | D5        |
-| 4   | 결과 탭은 `summary`, `foot-traffic`, `sales`, `stores`, `living`, `trend`, `benchmark`를 제공한다. | D4        |
-| 5   | 최초 진입은 핵심 요약 데이터만 우선 조회하고 상세 탭 데이터는 활성화 시 조회한다.                  | D4        |
-| 6   | 섹션별 API 실패는 다른 성공 섹션을 가리지 않으며 섹션 단위 재시도를 제공한다.                      | D6        |
-| 7   | 필수 쿼리가 없거나 유효하지 않으면 오류 페이지 대신 조건 재선택 안내와 `/analysis` CTA를 제공한다. | D5, D6    |
-| 8   | 현재 탭과 모든 선택 코드는 공유 URL에 포함하고, 표시 이름은 API 응답에서 복원한다.                 | D5        |
-| 9   | `keyMetrics`의 nullable 값과 빈 경계·빈 지표 배열을 정상적으로 fallback한다.                       | D6        |
-| 10  | 리포트 저장 표현은 API 범위에 맞춰 “상권 저장”으로 제한하고 업종·시점 저장을 암시하지 않는다.      | D4        |
+| #   | 요구사항                                                                                             | 상세 참조                                                                    |
+| --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 1   | ~~데스크톱 탐색 흐름은 지도 위 라우트 모달~~ → 데스크톱은 지도 셸 위 인셋 레이어(여백 24~32px).      | [map-shell D3-1](./map-shell.md#d3-1-시스템-구성)                            |
+| 2   | ~~모바일·직접 접근·새로고침은 독립 전체 페이지~~ → 모든 진입이 같은 레이어. 좁은 뷰포트는 전체 화면. | [map-shell D5](./map-shell.md#d5-비즈니스-로직)                              |
+| 3   | 닫기·Escape·브라우저 뒤로가기는 카메라를 유지한 `/analysis` 선택 상태로 복귀한다.                    | [map-shell D4-5](./map-shell.md#d4-5-결과-레이어-열기닫기와-routerback-폴백) |
+| 4   | 결과 탭은 `summary`, `foot-traffic`, `sales`, `stores`, `living`, `trend`, `benchmark`를 제공한다.   | D4                                                                           |
+| 5   | 최초 진입은 핵심 요약 데이터만 우선 조회하고 상세 탭 데이터는 활성화 시 조회한다.                    | D4                                                                           |
+| 6   | 섹션별 API 실패는 다른 성공 섹션을 가리지 않으며 섹션 단위 재시도를 제공한다.                        | D6                                                                           |
+| 7   | 필수 쿼리가 없거나 유효하지 않으면 오류 페이지 대신 조건 재선택 안내와 `/analysis` CTA를 제공한다.   | D5, D6                                                                       |
+| 8   | 현재 탭과 모든 선택 코드는 공유 URL에 포함하고, 표시 이름은 API 응답에서 복원한다.                   | D5                                                                           |
+| 9   | `keyMetrics`의 nullable 값과 빈 경계·빈 지표 배열을 정상적으로 fallback한다.                         | D6                                                                           |
+| 10  | 리포트 저장 표현은 API 범위에 맞춰 “상권 저장”으로 제한하고 업종·시점 저장을 암시하지 않는다.        | D4                                                                           |
 
 ---
 
@@ -68,29 +70,24 @@
 
 ### D3-1. 라우팅과 컴포넌트 구성
 
-| 모듈 / 컴포넌트                      | 책임                                                    | 비고                           |
-| ------------------------------------ | ------------------------------------------------------- | ------------------------------ |
-| `analysis/layout.tsx`                | `children`과 `@modal` slot 구성, 분석 범위 footer 숨김  | App Router parallel route      |
-| `analysis/@modal/default.tsx`        | 모달이 없는 기본 상태                                   | `null` 반환                    |
-| `analysis/@modal/(.)result/page.tsx` | 탐색에서 이동한 결과 라우트 intercept                   | 데스크톱에서만 모달 shell 사용 |
-| `analysis/result/page.tsx`           | 직접 접근·새로고침·모바일의 독립 결과 페이지            | canonical route                |
-| `AnalysisResultView`                 | 두 surface가 공유하는 조건 헤더, 탭, 섹션, 액션         | 데이터/표현 중복 금지          |
-| `AnalysisResultModal`                | dialog semantics, focus trap, Escape, scroll lock, 닫기 | 데스크톱 전용                  |
-| `AnalysisResultSection`              | section loading/error/empty/success 경계                | 부분 실패 격리                 |
-| `analysis result API adapter`        | OpenAPI DTO를 화면 모델로 매핑                          | 레거시 field 사용 금지         |
+| 모듈 / 컴포넌트 | 책임 | 비고 |
+| ~~`analysis/layout.tsx`~~ | ~~`children`과 `@modal` slot~~ | **폐기** → `(map-shell)/layout.tsx` |
+| ~~`analysis/@modal/**`~~ | ~~intercepting route~~ | **폐기**([map-shell D3-1](./map-shell.md#d3-1-시스템-구성)) |
+| `analysis/(map-shell)/result/page.tsx` | 결과 레이어 라우트 (유일한 결과 표면) | 메타데이터 유지 |
+| `AnalysisResultView` | 두 surface가 공유하는 조건 헤더, 탭, 섹션, 액션 | 데이터/표현 중복 금지 |
+| `AnalysisResultModalSurface` | dialog semantics, focus trap, Escape, scroll lock, 닫기 | 전 경로 공용(AI 리포트도 재사용) |
+| `AnalysisResultSection` | section loading/error/empty/success 경계 | 부분 실패 격리 |
+| `analysis result API adapter` | OpenAPI DTO를 화면 모델로 매핑 | 레거시 field 사용 금지 |
 
 ```mermaid
 flowchart TD
-  Nav["/analysis에서 push"] --> Intercept["analysis/@modal/(.)result"]
-  Direct["직접 접근 / 새로고침"] --> Canonical["analysis/result/page"]
-  Mobile["모바일 탐색 이동"] --> Canonical
-  Intercept --> Modal["AnalysisResultModal"]
-  Canonical --> Full["Full-page shell"]
-  Modal --> View["AnalysisResultView"]
-  Full --> View
+  Nav["/analysis에서 push"] --> Route["analysis/(map-shell)/result/page"]
+  Direct["직접 접근 / 새로고침 / 공유 링크"] --> Route
+  Route --> Surface["AnalysisResultModalSurface (portal, dialog)"]
+  Surface --> View["AnalysisResultView"]
 ```
 
-인터셉트 라우트가 모바일에서 매칭되더라도 modal shell은 viewport 조건을 확인해 독립 페이지와 동일한 full-screen surface를 사용한다. 핵심 데이터와 UI는 `AnalysisResultView` 하나만 유지한다.
+진입 경로가 무엇이든 표면은 한 벌이다. 좁은 뷰포트에서는 같은 surface가 `100dvh` 전체 화면이 된다. 핵심 데이터와 UI는 `AnalysisResultView` 하나만 유지한다.
 
 ### D3-2. 데이터 흐름
 
@@ -209,11 +206,13 @@ AND tab ∈ allowedTabs
 
 ### 표시 surface 결정
 
-| 진입 환경                 | 결과 surface             | 닫기 동작                                              |
-| ------------------------- | ------------------------ | ------------------------------------------------------ |
-| 데스크톱 `/analysis` 이력 | 지도 위 인셋 라우트 모달 | `router.back()`으로 선택 URL 복원                      |
-| 모바일 `/analysis` 이력   | 전체 화면 결과           | browser back으로 선택 URL 복원                         |
-| 직접 URL/새 탭/새로고침   | 독립 전체 페이지         | 헤더 “조건 다시 선택”으로 코드가 담긴 `/analysis` 이동 |
+> 이 표는 [map-shell D4-5 / D5](./map-shell.md#d4-5-결과-레이어-열기닫기와-routerback-폴백)로 대체됐다. 요약: 표면은 항상 지도 셸 위 레이어이며, 닫기는 셸이 `push`로 열었으면 `router.back()`, 아니면 카메라를 유지한 `/analysis` 로 `router.replace` 한다.
+
+| 진입 환경                    | 결과 surface                       | 닫기 동작                                       |
+| ---------------------------- | ---------------------------------- | ----------------------------------------------- |
+| 데스크톱 `/analysis` 이력    | 지도 셸 위 인셋 레이어             | `router.back()`                                 |
+| 좁은 뷰포트 `/analysis` 이력 | 전체 화면 레이어(뒤 지도 언마운트) | `router.back()`                                 |
+| 직접 URL/새 탭/새로고침/공유 | 동일 레이어                        | `router.replace('/analysis?…&c=…')` — 이탈 금지 |
 
 ### 탭 URL 동기화
 
@@ -239,12 +238,12 @@ AND tab ∈ allowedTabs
 - `role="dialog"`, `aria-modal="true"`, 제목 연결, focus trap, Escape 닫기, 닫은 뒤 트리거 focus 복원을 제공한다.
 - body scroll은 잠그고 리포트 내부만 스크롤한다.
 
-### 모바일·독립 페이지
+### 모바일·좁은 뷰포트
 
-- 모바일은 모달 외곽 여백이나 큰 바텀시트를 사용하지 않고 `100dvh` 전체 페이지로 표시한다.
+- 모바일은 레이어 외곽 여백이나 큰 바텀시트를 사용하지 않고 `100dvh` 전체 화면으로 표시한다.
 - 헤더, 탭, 핵심 액션은 safe-area를 반영한다.
 - 탭은 수평 스크롤 또는 접근 가능한 압축형 탐색을 사용하고 현재 탭을 항상 식별할 수 있게 한다.
-- 직접 접근 페이지에는 지도 배경에 의존하지 않는 상권·업종·기준 시점 요약을 제공한다.
+- 좁은 뷰포트에서는 뒤 지도를 언마운트하므로, 레이어 자체가 상권·업종·기준 시점 요약을 제공해야 한다([map-shell D5](./map-shell.md#d5-비즈니스-로직)).
 - 전역 푸터는 렌더링하지 않는다.
 
 ### 상태 처리
@@ -306,8 +305,9 @@ AND tab ∈ allowedTabs
 
 ## 변경 이력
 
-| 버전 | 날짜       | 변경 내용                                                                                 | 작성자 |
-| ---- | ---------- | ----------------------------------------------------------------------------------------- | ------ |
-| 1.0  | 2026-07-24 | 데스크톱 라우트 모달 + 모바일/직접 접근 전체 페이지 명세 최초 작성                        | Codex  |
-| 1.1  | 2026-08-06 | High 슬라이스 SVG 차트(라인·도넛·피라미드) 도입, 피라미드는 데이터 근거상 유동인구에 배치 | Claude |
-| 1.2  | 2026-08-11 | 상단 탭 → 데스크톱 좌측 사이드바 내비(모바일 탭 폴백), 자체 SVG 차트 → Recharts 교체      | Claude |
+| 버전 | 날짜       | 변경 내용                                                                                                                       | 작성자 |
+| ---- | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1.0  | 2026-07-24 | 데스크톱 라우트 모달 + 모바일/직접 접근 전체 페이지 명세 최초 작성                                                              | Codex  |
+| 1.1  | 2026-08-06 | High 슬라이스 SVG 차트(라인·도넛·피라미드) 도입, 피라미드는 데이터 근거상 유동인구에 배치                                       | Claude |
+| 1.2  | 2026-08-11 | 상단 탭 → 데스크톱 좌측 사이드바 내비(모바일 탭 폴백), 자체 SVG 차트 → Recharts 교체                                            | Claude |
+| 1.3  | 2026-08-26 | 표시 표면 구조(`@modal` 인터셉트 + 독립 페이지 2벌)를 폐기하고 지도 셸 위 단일 레이어로 대체. 정본: [map-shell](./map-shell.md) | Claude |
