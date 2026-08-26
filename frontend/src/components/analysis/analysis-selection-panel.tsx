@@ -7,6 +7,7 @@ import styled from 'styled-components'
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import {
   ANALYSIS_STEPS,
   isCompleteAnalysisSelection,
@@ -26,6 +27,15 @@ export type AnalysisSelectionPanelProps = {
   selectedNames: Partial<Record<AnalysisStep, string>>
   items: readonly AnalysisCandidate[]
   status: 'loading' | 'error' | 'empty' | 'ready'
+  /**
+   * `status === 'error'`일 때의 정규화된 오류(`resolveApiError(query)`).
+   * `kind === 'not-found'`면 재시도 버튼 없이 서버 문구만 노출한다.
+   *
+   * optional 이 아니다 — 빠뜨리면 404 에도 재시도 버튼이 붙는 예전 UX 로 조용히 되돌아가고
+   * 타입체커가 잡지 못한다. `AnalysisResultSection`·`StatusFeedback` 과 시그니처를 맞춘다.
+   * (오류 종류를 알 수 없는 실패는 호출부가 명시적으로 `null` 을 넘긴다.)
+   */
+  error: NormalizedApiError | null
   onStepChange: (step: AnalysisStep) => void
   onSelect: (code: string) => void
   onPreviewChange: (code: string | null) => void
@@ -362,6 +372,7 @@ function AnalysisSelectionPanel({
   selectedNames,
   items,
   status,
+  error,
   onStepChange,
   onSelect,
   onPreviewChange,
@@ -432,17 +443,23 @@ function AnalysisSelectionPanel({
 
         {status === 'error' ? (
           <EmptyState
-            title="목록을 불러오지 못했어요"
-            description="잠시 후 다시 시도해 주세요."
+            title={
+              error?.kind === 'not-found'
+                ? '선택 가능한 항목이 없어요'
+                : '목록을 불러오지 못했어요'
+            }
+            description={error?.message ?? '잠시 후 다시 시도해 주세요.'}
             action={
-              <Button
-                size="medium"
-                variant="secondary"
-                leftIcon={<RotateCcw />}
-                onClick={onRetry}
-              >
-                다시 시도
-              </Button>
+              !error || isRetryable(error.kind) ? (
+                <Button
+                  size="medium"
+                  variant="secondary"
+                  leftIcon={<RotateCcw />}
+                  onClick={onRetry}
+                >
+                  다시 시도
+                </Button>
+              ) : undefined
             }
           />
         ) : null}

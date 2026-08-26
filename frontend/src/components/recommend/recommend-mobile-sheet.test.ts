@@ -21,6 +21,7 @@ import RecommendMobileSheet, {
   shouldSuppressRecommendationSheetClick,
   tryCaptureRecommendationSheetPointer,
 } from './recommend-mobile-sheet'
+import RecommendResultList from './recommend-result-list'
 
 const selectedResult: CandidateCommercial = {
   rank: 1,
@@ -456,5 +457,71 @@ describe('RecommendMobileSheet', () => {
     expect(bodyStyles).toContain('env(safe-area-inset-bottom)')
     expect(expanded.styles).toContain('overscroll-behavior:contain')
     expect(expanded.styles).toMatch(/prefers-reduced-motion:\s*reduce/)
+  })
+})
+
+describe('RecommendMobileSheet result content', () => {
+  const renderSheetWithResults = (item: CandidateCommercial) => {
+    const styleSheet = new ServerStyleSheet()
+
+    try {
+      const markup = renderToStaticMarkup(
+        styleSheet.collectStyles(
+          createElement(
+            RecommendMobileSheet,
+            {
+              snap: 'expanded' as const,
+              view: 'results' as const,
+              selectedResult: item,
+              onSnapChange: vi.fn(),
+            },
+            createElement(RecommendResultList, {
+              results: [item],
+              selectedCommercialCode: item.commercialCode,
+              selectedServiceCode: 'CS100001',
+              isLoading: false,
+              feedback: null,
+              onSelect: vi.fn(),
+              onRetry: vi.fn(),
+            }),
+          ),
+        ),
+      )
+
+      return { markup, styles: styleSheet.getStyleTags() }
+    } finally {
+      styleSheet.seal()
+    }
+  }
+
+  it('shows blue ocean categories inside the sheet body and lets long names wrap', () => {
+    const { markup, styles } = renderSheetWithResults({
+      ...selectedResult,
+      blueOceanCategories: [
+        {
+          serviceCode: 'CS100005',
+          serviceName: '컴퓨터및주변장치판매',
+          commercialStoreCount: 0,
+          administrationStoreCount: 29,
+          storeRate: 3.33,
+        },
+      ],
+    })
+
+    expect(markup).toContain('data-blue-ocean="true"')
+    expect(markup).toContain('컴퓨터및주변장치판매')
+    expect(markup).toContain('상권 0곳 / 행정동 29곳 (3.33%)')
+    // 긴 한국어 업종명이 카드 밖으로 넘치지 않아야 한다.
+    expect(styles).toContain('overflow-wrap:anywhere')
+    expect(styles).toContain('flex-wrap:wrap')
+  })
+
+  it('omits the blue ocean section when the backend sends no categories', () => {
+    const { markup } = renderSheetWithResults({
+      ...selectedResult,
+      blueOceanCategories: [],
+    })
+
+    expect(markup).not.toContain('data-blue-ocean="true"')
   })
 })

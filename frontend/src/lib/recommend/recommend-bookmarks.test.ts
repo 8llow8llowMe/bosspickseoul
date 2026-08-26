@@ -364,6 +364,56 @@ describe('commercial bookmark visibility', () => {
     ).toBe('북마크 조회 실패')
   })
 
+  it('renders a validation envelope as its summary instead of [object Object]', () => {
+    // 검증 실패 응답의 resultMessage 는 `{message, errors[]}` 객체다.
+    // 예전처럼 Object.values(...).join() 하면 errors 배열이 `[object Object]`로 샜다.
+    const validationEnvelope = {
+      dataHeader: {
+        success: false,
+        resultCode: 'BOOKMARK_101',
+        resultMessage: {
+          message: '요청 값을 확인해 주세요.',
+          errors: [
+            {
+              code: 'BOOKMARK_101',
+              field: 'targetType',
+              message: 'targetType은 필수입니다.',
+            },
+          ],
+        },
+      },
+      dataBody: null,
+    }
+    const message = getCommercialBookmarkError(validationEnvelope, null)
+
+    expect(message).toBe('요청 값을 확인해 주세요.')
+    expect(message).not.toContain('[object Object]')
+  })
+
+  it('falls back to the field messages when the envelope has no summary', () => {
+    expect(
+      getCommercialBookmarkError(
+        {
+          dataHeader: {
+            success: false,
+            resultCode: 'BOOKMARK_101',
+            resultMessage: {
+              errors: [
+                {
+                  code: 'BOOKMARK_101',
+                  field: 'targetType',
+                  message: 'targetType은 필수입니다.',
+                },
+              ],
+            },
+          },
+          dataBody: null,
+        },
+        null,
+      ),
+    ).toBe('targetType은 필수입니다.')
+  })
+
   it('surfaces a failed later page instead of presenting a partial collection as success', () => {
     expect(
       getCommercialBookmarkCollectionError(

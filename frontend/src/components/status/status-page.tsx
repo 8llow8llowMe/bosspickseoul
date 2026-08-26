@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
 import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
-import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
+import { isApiSuccess } from '@/lib/api/response'
 import { normalizeStatusTopTen } from '@/lib/status/status-adapter'
 import {
   createStatusHref,
@@ -24,8 +25,6 @@ import StatusTopTen from './status-top-ten'
 
 const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
-const DETAIL_ERROR_MESSAGE =
-  '선택한 자치구의 상세 현황을 불러오지 못했습니다. 다시 시도해 주세요.'
 // 구별현황은 한 화면(100dvh - 헤더 65px)에 들어오도록 세로 flex로 구성하고,
 // 지도/리스트가 남는 높이를 채우며 긴 패널은 내부 스크롤로 처리한다.
 const Page = styled.main`
@@ -264,6 +263,8 @@ function StatusPageContent() {
   const topTenQuery = useQuery({
     queryKey: ['status', 'topTen'],
     queryFn: fetchStatusTopTen,
+    // 404(데이터 부재)·4xx는 재시도해도 결과가 같다. 5xx/통신 실패만 재시도한다.
+    retry: retryUnlessClientError(3),
   })
 
   const topTen = useMemo(() => {
@@ -299,20 +300,16 @@ function StatusPageContent() {
       return fetchStatusDetail(selectedDistrictCode)
     },
     enabled: selectedDistrictCode !== null,
+    retry: retryUnlessClientError(3),
   })
 
   const detail =
     detailQuery.data && isApiSuccess(detailQuery.data)
       ? detailQuery.data.dataBody
       : null
-  const detailErrorMessage = detailQuery.isError
-    ? DETAIL_ERROR_MESSAGE
-    : detailQuery.data && !isApiSuccess(detailQuery.data)
-      ? getApiMessage(detailQuery.data, DETAIL_ERROR_MESSAGE)
-      : null
+  const detailError = resolveApiError(detailQuery)
   const isDetailLoading =
-    detailQuery.isPending ||
-    (detailErrorMessage !== null && detailQuery.isFetching)
+    detailQuery.isPending || (detailError !== null && detailQuery.isFetching)
   useEffect(() => {
     const currentQuery = new URLSearchParams(rawSearchParams)
     const districtCode = topTen
@@ -403,14 +400,7 @@ function StatusPageContent() {
             <StatusFeedback state="loading" />
           ) : (
             <StatusFeedback
-              message={
-                topTenQuery.isError
-                  ? '구별 상권 현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
-                  : getApiMessage(
-                      topTenQuery.data,
-                      '구별 상권 현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
-                    )
-              }
+              error={resolveApiError(topTenQuery)}
               state="error"
               onRetry={() => void topTenQuery.refetch()}
             />
@@ -464,7 +454,7 @@ function StatusPageContent() {
                 {selectedItem ? (
                   <StatusDetail
                     detail={detail}
-                    errorMessage={detailErrorMessage}
+                    error={detailError}
                     isLoading={isDetailLoading}
                     metric={metric}
                     selectedItem={selectedItem}
@@ -500,7 +490,7 @@ function StatusPageContent() {
             </MobileMapLayer>
             <StatusMobileSheet
               detail={detail}
-              detailErrorMessage={detailErrorMessage}
+              detailError={detailError}
               isDetailLoading={isDetailLoading}
               items={currentItems}
               metric={metric}

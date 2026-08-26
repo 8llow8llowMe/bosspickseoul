@@ -14,7 +14,6 @@ import {
   consumeRecommendationResponse,
   createCommercialProfileQueryCombiner,
   createResultsLoadedAction,
-  getRecommendationQueryError,
   getRecommendationStage,
   getRecommendBookmarkLoginHref,
   handleRecommendationBookmarkToggle,
@@ -436,37 +435,50 @@ describe('recommend page query orchestration helpers', () => {
     ])
   })
 
-  it('normalizes transport and API failures without reading missing headers unsafely', () => {
-    expect(
-      getRecommendationQueryError(
-        true,
-        undefined,
-        '행정동 정보를 불러오지 못했습니다.',
-      ),
-    ).toBe('행정동 정보를 불러오지 못했습니다.')
-
-    expect(
-      getRecommendationQueryError(
-        false,
+  it('keeps blue ocean categories through recommendation normalization', () => {
+    const response = successfulResponse({
+      serviceCode: 'CS100001',
+      periodCode: '20233',
+      preset: null,
+      priorityMetric: null,
+      topN: 5,
+      summary: '',
+      items: [
         {
-          dataHeader: {
-            success: false,
-            resultCode: 'REGION_NOT_READY',
-            resultMessage: '지역 데이터 준비 중',
-          },
-          dataBody: [],
+          ...candidate(1, 'C1'),
+          blueOceanCategories: [
+            null,
+            {
+              serviceCode: 'CS100005',
+              serviceName: '여관',
+              commercialStoreCount: 0,
+              administrationStoreCount: 29,
+              storeRate: 3.33,
+            },
+          ],
         },
-        '행정동 정보를 불러오지 못했습니다.',
-      ),
-    ).toBe('지역 데이터 준비 중')
+        { ...candidate(2, 'C2'), blueOceanCategories: null },
+      ],
+    }) as unknown as CandidateCommercialsResponse
 
-    expect(
-      getRecommendationQueryError(
-        false,
-        {} as never,
-        '행정동 정보를 불러오지 못했습니다.',
-      ),
-    ).toBe('행정동 정보를 불러오지 못했습니다.')
+    expect(normalizeRecommendationResults(response, ['C1', 'C2'])).toEqual([
+      expect.objectContaining({
+        commercialCode: 'C1',
+        blueOceanCategories: [
+          {
+            serviceCode: 'CS100005',
+            serviceName: '여관',
+            commercialStoreCount: 0,
+            administrationStoreCount: 29,
+            storeRate: 3.33,
+          },
+        ],
+      }),
+      expect.objectContaining({
+        commercialCode: 'C2',
+        blueOceanCategories: [],
+      }),
+    ])
   })
 
   it('wires the current submitted request key into resultsLoaded', () => {

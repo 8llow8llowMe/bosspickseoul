@@ -10,6 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import styled from 'styled-components'
+import type { NormalizedApiError } from '@/lib/api/api-error'
 import {
   applyStatusSheetContentTransition,
   getStatusSheetHeightBounds,
@@ -34,7 +35,7 @@ type StatusMobileSheetProps = {
   selectedItem: StatusRankedItem | null
   detail: DistrictDetail | null
   isDetailLoading: boolean
-  detailErrorMessage: string | null
+  detailError: NormalizedApiError | null
   snap: StatusSheetSnap
   onSnapChange: (snap: StatusSheetSnap) => void
   onSelect: (districtCode: string) => void
@@ -154,7 +155,7 @@ export default function StatusMobileSheet({
   selectedItem,
   detail,
   isDetailLoading,
-  detailErrorMessage,
+  detailError,
   snap,
   onSnapChange,
   onSelect,
@@ -388,7 +389,7 @@ export default function StatusMobileSheet({
           <StatusDetail
             backButtonRef={backButtonRef}
             detail={detail}
-            errorMessage={detailErrorMessage}
+            error={detailError}
             isLoading={isDetailLoading}
             metric={metric}
             selectedItem={selectedItem}
