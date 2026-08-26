@@ -1,24 +1,13 @@
-import type { ApiMessage, ApiResponse } from '@/types/api'
+import { readApiMessage } from '@/lib/api/api-error'
+import type { ApiResponse } from '@/types/api'
 
 export const isApiSuccess = <T>(response: ApiResponse<T> | null | undefined) =>
   response?.dataHeader.success === true
 
-const normalizeApiMessage = (message: ApiMessage | undefined) => {
-  if (!message) {
-    return null
-  }
-
-  if (typeof message === 'string') {
-    return message
-  }
-
-  return Object.values(message).join('\n')
-}
-
 export const getApiMessage = (
   response: ApiResponse<unknown> | null | undefined,
   fallback = '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-) => normalizeApiMessage(response?.dataHeader.resultMessage) ?? fallback
+) => readApiMessage(response?.dataHeader.resultMessage ?? null) ?? fallback
 
 export const isResponseError = (
   response: ApiResponse<unknown> | undefined,
