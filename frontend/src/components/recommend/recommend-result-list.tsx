@@ -4,7 +4,7 @@ import { useId, useRef } from 'react'
 import { Bookmark as BookmarkIcon } from 'lucide-react'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { CandidateCommercial } from '@/types/recommend'
+import type { BlueOceanCategory, CandidateCommercial } from '@/types/recommend'
 import RecommendFeedback from './recommend-feedback'
 
 export type RecommendResultFeedback = {
@@ -12,11 +12,18 @@ export type RecommendResultFeedback = {
   title: string
   description?: string
   actionLabel?: string
+  /**
+   * 재시도 버튼 노출 여부. **`isRetryable(kind)` 결과만 넣는다.**
+   * 404(데이터 부재)는 재시도해도 결과가 같으므로 버튼을 띄우지 않는다.
+   */
+  isRetryable?: boolean
 }
 
 export type RecommendResultListProps = {
   results: CandidateCommercial[]
   selectedCommercialCode: string | null
+  /** 사용자가 선택한 업종 코드. 블루오션 목록에서 같은 업종에 배지를 붙이는 데만 쓴다. */
+  selectedServiceCode?: string | null
   previewedCommercialCode?: string | null
   isLoading: boolean
   feedback: RecommendResultFeedback | null
@@ -114,6 +121,79 @@ const Score = styled.span`
   font-size: 18px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+`
+
+const ScoreUnavailable = styled.span`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: right;
+`
+
+const BlueOcean = styled.section`
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-200);
+`
+
+const BlueOceanHeading = styled.h3`
+  color: var(--color-text-900);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 19px;
+`
+
+const BlueOceanNote = styled.p`
+  color: var(--color-text-600);
+  font-size: 12px;
+  line-height: 18px;
+`
+
+const BlueOceanList = styled.ul`
+  display: grid;
+  gap: 8px;
+`
+
+const BlueOceanItem = styled.li`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: 13px;
+  line-height: 19px;
+`
+
+const BlueOceanName = styled.span`
+  min-width: 0;
+  color: var(--color-text-900);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+`
+
+const BlueOceanSeparator = styled.span`
+  margin-right: 4px;
+  color: var(--color-text-caption);
+`
+
+const BlueOceanCounts = styled.span`
+  color: var(--color-text-600);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+`
+
+const SelectedServiceBadge = styled.span`
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-100);
+  color: var(--color-primary-600);
+  font-size: 12px;
+  font-weight: 700;
 `
 
 const Details = styled.div`
@@ -225,10 +305,23 @@ const VisuallyHidden = styled.span`
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object'
 
-const formatScore = (score: unknown): number | string =>
+/**
+ * 점수가 `null`이면 "지표 데이터가 없어 점수를 낼 수 없다"는 뜻이다(집계 대기가 아니다).
+ * 백엔드가 데이터 없는 상권을 404 대신 `compositeScore: null`로 강등해 내려준다.
+ */
+export const SCORE_UNAVAILABLE_LABEL = '데이터 없음'
+export const SCORE_UNAVAILABLE_DESCRIPTION =
+  '지표 데이터가 없어 점수를 계산하지 못했어요.'
+
+export const BLUE_OCEAN_HEADING = '이 상권에 비어 있는 업종'
+export const BLUE_OCEAN_NOTE =
+  '소속 행정동에 비해 이 상권에 적게 들어온 업종이에요. 비율이 낮을수록 아직 자리가 비어 있다는 뜻이에요.'
+
+const hasScore = (score: unknown): score is number =>
   typeof score === 'number' && Number.isFinite(score)
-    ? Math.round(score)
-    : '집계 중'
+
+export const formatScore = (score: unknown): number | string =>
+  hasScore(score) ? Math.round(score) : SCORE_UNAVAILABLE_LABEL
 
 const readTrimmedString = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : ''
@@ -254,6 +347,54 @@ const getMetricKeyPart = (metric: unknown): string => {
 
 const getMetricScore = (metric: unknown): unknown =>
   isRecord(metric) ? metric.score : null
+
+const readCount = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.trunc(value)
+    : 0
+
+/**
+ * 블루오션 목록을 화면에 쓸 수 있는 형태로만 남긴다.
+ * `null`·빈 배열·형태가 깨진 항목은 모두 걸러진다 — 호출부는 길이가 0이면 섹션을 렌더하지 않는다.
+ */
+export const readBlueOceanCategories = (
+  value: unknown,
+): BlueOceanCategory[] => {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap(category => {
+    if (!isRecord(category)) return []
+
+    const serviceName = readTrimmedString(category.serviceName)
+    if (!serviceName) return []
+
+    return [
+      {
+        serviceCode: readTrimmedString(category.serviceCode),
+        serviceName,
+        commercialStoreCount: readCount(category.commercialStoreCount),
+        administrationStoreCount: readCount(category.administrationStoreCount),
+        storeRate:
+          typeof category.storeRate === 'number' &&
+          Number.isFinite(category.storeRate)
+            ? category.storeRate
+            : Number.NaN,
+      },
+    ]
+  })
+}
+
+/** 소수점 둘째 자리까지만 남기고 불필요한 0은 지운다. 3.33 → "3.33", 5 → "5". */
+export const formatStoreRate = (storeRate: number): string | null =>
+  Number.isFinite(storeRate) ? String(Number(storeRate.toFixed(2))) : null
+
+/** `상권 N곳 / 행정동 M곳 (X%)` — 비율을 알 수 없으면 괄호를 생략한다. */
+export const formatBlueOceanCounts = (category: BlueOceanCategory): string => {
+  const counts = `상권 ${category.commercialStoreCount}곳 / 행정동 ${category.administrationStoreCount}곳`
+  const rate = formatStoreRate(category.storeRate)
+
+  return rate === null ? counts : `${counts} (${rate}%)`
+}
 
 export type RecommendationPreviewInteraction = {
   focusedCommercialCode: string | null
@@ -319,6 +460,7 @@ export const clearRecommendationPreviewIfInactive = (
 export default function RecommendResultList({
   results,
   selectedCommercialCode,
+  selectedServiceCode = null,
   previewedCommercialCode = null,
   isLoading,
   feedback,
@@ -364,14 +506,21 @@ export default function RecommendResultList({
   }
 
   if (feedback) {
-    const actionLabel =
-      feedback.actionLabel ??
-      (feedback.tone === 'error' ? '다시 시도' : undefined)
+    // 오류 피드백의 재시도 노출은 `isRetryable(kind)` 결과(= feedback.isRetryable)로만 결정한다.
+    // 404처럼 재시도해도 결과가 같은 실패에는 버튼을 띄우지 않고 서버 문구만 보여준다.
+    // info 톤의 안내 액션(예: 조건 다시 선택)은 오류 재시도가 아니므로 그대로 유지한다.
+    const canAct = feedback.tone === 'info' || feedback.isRetryable === true
+    const actionLabel = canAct
+      ? (feedback.actionLabel ??
+        (feedback.tone === 'error' ? '다시 시도' : undefined))
+      : undefined
 
     return (
       <RecommendFeedback
-        {...feedback}
         actionLabel={actionLabel}
+        description={feedback.description}
+        title={feedback.title}
+        tone={feedback.tone}
         onAction={actionLabel ? onRetry : undefined}
       />
     )
@@ -404,6 +553,10 @@ export default function RecommendResultList({
           item.riskLabel,
           ...reasonTags,
         ]).slice(0, 3)
+        const blueOceanCategories = readBlueOceanCategories(
+          item.blueOceanCategories,
+        )
+        const isScoreUnavailable = !hasScore(item.compositeScore)
 
         return (
           <li key={item.commercialCode}>
@@ -412,6 +565,7 @@ export default function RecommendResultList({
               $selected={isSelected}
               data-previewed={isPreviewed || undefined}
               data-result-card="true"
+              data-score-unavailable={isScoreUnavailable || undefined}
             >
               <SelectionButton
                 $selected={isSelected}
@@ -454,7 +608,16 @@ export default function RecommendResultList({
                     <Reason>{item.selectionReason}</Reason>
                   ) : null}
                 </Copy>
-                <Score>{formatScore(item.compositeScore)}</Score>
+                {isScoreUnavailable ? (
+                  <ScoreUnavailable>
+                    {SCORE_UNAVAILABLE_LABEL}
+                    <VisuallyHidden>
+                      {` ${SCORE_UNAVAILABLE_DESCRIPTION}`}
+                    </VisuallyHidden>
+                  </ScoreUnavailable>
+                ) : (
+                  <Score>{formatScore(item.compositeScore)}</Score>
+                )}
               </SelectionButton>
 
               {isSelected ? (
@@ -480,6 +643,38 @@ export default function RecommendResultList({
                       </MetricRow>
                     ))}
                   </Metrics>
+                  {blueOceanCategories.length > 0 ? (
+                    <BlueOcean data-blue-ocean="true">
+                      <BlueOceanHeading>{BLUE_OCEAN_HEADING}</BlueOceanHeading>
+                      <BlueOceanNote>{BLUE_OCEAN_NOTE}</BlueOceanNote>
+                      <BlueOceanList>
+                        {blueOceanCategories.map((category, index) => (
+                          <BlueOceanItem
+                            data-blue-ocean-item="true"
+                            key={`${item.commercialCode}-blue-ocean-${
+                              category.serviceCode || category.serviceName
+                            }-${index}`}
+                          >
+                            <BlueOceanName>
+                              {category.serviceName}
+                            </BlueOceanName>
+                            {selectedServiceCode &&
+                            category.serviceCode === selectedServiceCode ? (
+                              <SelectedServiceBadge data-selected-service="true">
+                                선택 업종
+                              </SelectedServiceBadge>
+                            ) : null}
+                            <BlueOceanCounts>
+                              <BlueOceanSeparator aria-hidden="true">
+                                ·
+                              </BlueOceanSeparator>
+                              {formatBlueOceanCounts(category)}
+                            </BlueOceanCounts>
+                          </BlueOceanItem>
+                        ))}
+                      </BlueOceanList>
+                    </BlueOcean>
+                  ) : null}
                 </Details>
               ) : null}
 

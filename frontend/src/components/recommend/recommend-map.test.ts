@@ -254,7 +254,7 @@ describe('recommend result overlay helpers', () => {
       '1위 1위 상권, 80점',
     )
     expect(createRankMarkerAriaLabel(result(2, 'second'))).toBe(
-      '2위 2위 상권, 점수 집계 중',
+      '2위 2위 상권, 점수 데이터 없음',
     )
   })
 

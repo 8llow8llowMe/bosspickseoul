@@ -10,12 +10,35 @@ import type {
 } from '@/types/recommend'
 
 export const RECOMMENDATION_PERIOD_CODE = '20233'
+/**
+ * 백엔드가 허용하는 `topN` 범위. **5~30을 벗어나면 400(COMMERCIAL_101)** 이다.
+ * (`GET /api/v1/commercials/recommendations/by-service`, topN: minimum 5 / maximum 30)
+ */
+export const RECOMMENDATION_TOP_N_MIN = 5
+export const RECOMMENDATION_TOP_N_MAX = 30
+/** 기본 추천 개수. 화면 문구("추천 Top 5")와 짝을 이룬다. */
 export const RECOMMENDATION_TOP_N = 5 as const
+
 export const SEOUL_MAP_BOUNDS: GeoBounds = {
   lngSW: 126.7,
   latSW: 37.4,
   lngNE: 127.3,
   latNE: 37.75,
+}
+
+/**
+ * 허용 범위 밖의 `topN`을 요청 직전에 잘라낸다.
+ * 값을 밖에서 받는 경로(쿼리스트링·설정 등)가 생겨도 400으로 새지 않게 하는 마지막 방어선이다.
+ */
+export const clampRecommendationTopN = (topN: unknown): number => {
+  if (typeof topN !== 'number' || !Number.isFinite(topN)) {
+    return RECOMMENDATION_TOP_N
+  }
+
+  return Math.min(
+    RECOMMENDATION_TOP_N_MAX,
+    Math.max(RECOMMENDATION_TOP_N_MIN, Math.trunc(topN)),
+  )
 }
 
 const buildBoundsSearchParams = (bounds: GeoBounds) =>
@@ -32,7 +55,7 @@ export const buildRecommendationSearchParams = ({
   const params = new URLSearchParams({ serviceCode })
   commercialCodes.forEach(code => params.append('commercialCodes', code))
   params.set('periodCode', periodCode)
-  params.set('topN', String(topN))
+  params.set('topN', String(clampRecommendationTopN(topN)))
   return params
 }
 

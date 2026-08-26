@@ -8,6 +8,7 @@ import DonutChart from '@/components/analysis/charts/donut-chart'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
 import { Skeleton } from '@/components/ui/skeleton'
+import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import type { GenderSegment, TrendPoint } from '@/lib/analysis/chart-data'
 import {
   type AnalysisMetricRow,
@@ -30,7 +31,11 @@ type StatusDetailProps = {
   selectedItem: StatusRankedItem | null
   detail: DistrictDetail | null
   isLoading: boolean
-  errorMessage: string | null
+  /**
+   * 정규화된 API 오류(`resolveApiError(query)`). 성공이면 null.
+   * `kind === 'not-found'`면 데이터 부재이므로 재시도 버튼을 렌더하지 않는다.
+   */
+  error: NormalizedApiError | null
   onRetry: () => void
   onBack?: () => void
   backButtonRef?: Ref<HTMLButtonElement>
@@ -805,7 +810,7 @@ export default function StatusDetail({
   selectedItem,
   detail,
   isLoading,
-  errorMessage,
+  error,
   onRetry,
   onBack,
   backButtonRef,
@@ -832,15 +837,23 @@ export default function StatusDetail({
           <Skeleton $height="48px" />
           <Skeleton $height="48px" />
         </LoadingBody>
-      ) : errorMessage !== null ? (
-        <ErrorBody aria-live="assertive">
-          <ErrorTitle>상세 현황을 불러오지 못했어요</ErrorTitle>
-          <ErrorMessage>
-            {errorMessage.trim() || '잠시 후 다시 시도해 주세요.'}
-          </ErrorMessage>
-          <RetryButton type="button" onClick={onRetry}>
-            다시 시도
-          </RetryButton>
+      ) : error !== null ? (
+        // not-found 는 데이터 부재라 발화를 가로챌 이유가 없다(polite).
+        <ErrorBody
+          aria-live={error.kind === 'not-found' ? 'polite' : 'assertive'}
+        >
+          <ErrorTitle>
+            {error.kind === 'not-found'
+              ? '상세 현황 데이터가 없어요'
+              : '상세 현황을 불러오지 못했어요'}
+          </ErrorTitle>
+          {/* 빈 메시지는 normalizeApiError 가 이미 종류별 기본 문구로 채운다. */}
+          <ErrorMessage>{error.message}</ErrorMessage>
+          {isRetryable(error.kind) ? (
+            <RetryButton type="button" onClick={onRetry}>
+              다시 시도
+            </RetryButton>
+          ) : null}
         </ErrorBody>
       ) : detail ? (
         <Body>

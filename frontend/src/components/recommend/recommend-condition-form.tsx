@@ -4,6 +4,7 @@ import { useId, type ChangeEvent, type FormEvent } from 'react'
 import styled from 'styled-components'
 import { districts } from '@/data/districts'
 import { simulationCatalog } from '@/data/simulation-catalog'
+import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import type {
   RecommendationCriteria,
   RecommendationOption,
@@ -16,8 +17,9 @@ export type RecommendConditionFormProps = {
   candidatesCount: number
   isAdministrationsLoading: boolean
   isCandidatesLoading: boolean
-  administrationsError?: string
-  candidatesError?: string
+  /** 정규화된 실패. 재시도 버튼 노출은 `isRetryable(kind)`로만 판단한다. */
+  administrationsError?: NormalizedApiError | null
+  candidatesError?: NormalizedApiError | null
   onRetryAdministrations?: () => void
   onRetryCandidates?: () => void
   onDistrictChange: (district: RecommendationOption) => void
@@ -142,7 +144,7 @@ export default function RecommendConditionForm({
     : isAdministrationsLoading
       ? '행정동을 불러오는 중입니다.'
       : administrationsError
-        ? administrationsError
+        ? administrationsError.message
         : administrations.length === 0
           ? '현재 자치구의 행정동 데이터가 준비되지 않았습니다.'
           : null
@@ -151,7 +153,7 @@ export default function RecommendConditionForm({
     draft.administration && isCandidatesLoading
       ? '후보 상권을 불러오는 중입니다.'
       : draft.administration && candidatesError
-        ? candidatesError
+        ? candidatesError.message
         : draft.administration &&
             !isCandidatesLoading &&
             !candidatesError &&
@@ -261,7 +263,9 @@ export default function RecommendConditionForm({
             role={administrationsError ? 'alert' : undefined}
           >
             <span>{administrationHelp}</span>
-            {administrationsError && onRetryAdministrations ? (
+            {administrationsError &&
+            isRetryable(administrationsError.kind) &&
+            onRetryAdministrations ? (
               <RetryButton type="button" onClick={onRetryAdministrations}>
                 행정동 다시 불러오기
               </RetryButton>
@@ -276,7 +280,9 @@ export default function RecommendConditionForm({
             role={candidatesError ? 'alert' : undefined}
           >
             <span>{candidateHelp}</span>
-            {candidatesError && onRetryCandidates ? (
+            {candidatesError &&
+            isRetryable(candidatesError.kind) &&
+            onRetryCandidates ? (
               <RetryButton type="button" onClick={onRetryCandidates}>
                 후보 상권 다시 불러오기
               </RetryButton>
