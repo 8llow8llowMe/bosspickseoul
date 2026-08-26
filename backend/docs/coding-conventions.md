@@ -19,6 +19,18 @@
   - 선택적 검색 조건이나 필터 값인 경우
   - 미설정 상태와 기본값 상태를 구분해야 하는 경우
 
+### 2-1. 응답 DTO의 식별자는 `String`
+
+- **응답 DTO의 아이디 필드는 예외 없이 `String`으로 선언하고, Presenter에서 `ResponseId.of(...)`로 변환합니다.**
+- 이유: Snowflake 아이디는 `(timestamp - epoch) << 22`로 약 `7.5e17`이고, JavaScript `Number.MAX_SAFE_INTEGER`(`9.0e15`)를 넘습니다.
+  숫자로 내리면 클라이언트에서 뒷자리가 조용히 날아가 서로 다른 아이디가 같은 값으로 보입니다.
+- auto-increment로 만들어 지금은 안전한 아이디도 함께 `String`입니다. 필드마다 타입이 갈리면 프론트가 분기해야 하고,
+  생성 전략이 바뀌는 순간 조용히 깨집니다.
+- 도메인·Info·Port·Entity는 계속 `long`을 씁니다. **경계를 넘는 지점(Presenter)에서만** 변환합니다.
+- 아이디가 아닌 수치(`likeCount`, `totalPrice`, `totalElements` 등)는 계산에 쓰이므로 숫자로 둡니다.
+- 요청 DTO는 그대로 `long` / `Long`입니다. Jackson과 Spring이 문자열을 알아서 변환합니다.
+- 없는 아이디는 `"0"` 같은 sentinel이 아니라 `null`로 내립니다. `ResponseId.of(null)`이 `null`을 돌려줍니다.
+
 ## 3. Port / Adapter 파라미터 기준
 
 - 단순 조회, 수정, 삭제 정도는 DTO를 만들지 않고 개별 파라미터를 우선 사용합니다.

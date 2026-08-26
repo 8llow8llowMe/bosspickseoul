@@ -11,7 +11,7 @@ import lombok.Builder;
 public record ModerationDecisionResponse(
 
     @Schema(description = "신고 아이디")
-    long reportId,
+    String reportId,
 
     @Schema(description = "처리 결정")
     ModerationDecision decision,

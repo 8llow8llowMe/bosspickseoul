@@ -8,7 +8,7 @@ import lombok.Builder;
 public record SimulationFranchiseeSearchItem(
 
     @Schema(description = "프랜차이즈 아이디", example = "101")
-    long franchiseeId,
+    String franchiseeId,
 
     @Schema(description = "브랜드 이름", example = "본죽")
     String brandName,

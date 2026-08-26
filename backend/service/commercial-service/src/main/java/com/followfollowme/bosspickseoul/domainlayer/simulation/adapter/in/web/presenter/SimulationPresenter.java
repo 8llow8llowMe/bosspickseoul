@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.presenter;
 
+import com.followfollowme.bosspickseoul.common.util.ResponseId;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.item.SimulationAgeSalesItem;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.item.SimulationConditionItem;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.item.SimulationCostDetailItem;
@@ -46,7 +47,7 @@ public class SimulationPresenter {
     public SimulationFranchiseesResponse toFranchiseesResponse(List<SimulationFranchiseeSearchInfo> infos) {
         List<SimulationFranchiseeSearchItem> items = infos.stream()
             .map(info -> SimulationFranchiseeSearchItem.builder()
-                .franchiseeId(info.franchiseeId())
+                .franchiseeId(ResponseId.of(info.franchiseeId()))
                 .brandName(info.brandName())
                 .serviceCode(info.serviceCode())
                 .serviceName(info.serviceName())
@@ -82,7 +83,7 @@ public class SimulationPresenter {
 
     public SimulationHistoryItem toHistoryItem(SimulationHistoryInfo info) {
         return SimulationHistoryItem.builder()
-            .historyId(info.historyId())
+            .historyId(ResponseId.of(info.historyId()))
             .franchisee(info.franchisee())
             .brandName(info.brandName())
             .districtCode(info.districtCode())
@@ -123,7 +124,7 @@ public class SimulationPresenter {
     private SimulationConditionItem toConditionItem(SimulationConditionInfo info) {
         return SimulationConditionItem.builder()
             .franchisee(info.franchisee())
-            .franchiseeId(info.franchiseeId())
+            .franchiseeId(ResponseId.of(info.franchiseeId()))
             .brandName(info.brandName())
             .districtCode(info.districtCode())
             .districtName(info.districtName())
@@ -137,7 +138,7 @@ public class SimulationPresenter {
 
     private SimulationSimilarFranchiseeItem toSimilarFranchiseeItem(SimulationSimilarFranchiseeInfo info) {
         return SimulationSimilarFranchiseeItem.builder()
-            .franchiseeId(info.franchiseeId())
+            .franchiseeId(ResponseId.of(info.franchiseeId()))
             .brandName(info.brandName())
             .totalPrice(info.totalPrice())
             .subscription(info.subscription())

@@ -11,16 +11,16 @@ import lombok.Builder;
 public record ModerationReportItem(
 
     @Schema(description = "신고 아이디")
-    long reportId,
+    String reportId,
 
     @Schema(description = "신고 대상 타입 (POST, COMMENT)")
     CommunityReportTargetKind targetKind,
 
     @Schema(description = "신고 대상 아이디")
-    long targetId,
+    String targetId,
 
     @Schema(description = "신고한 회원 아이디")
-    long reporterMemberId,
+    String reporterMemberId,
 
     @Schema(description = "신고 사유")
     String reason,
@@ -37,7 +37,8 @@ public record ModerationReportItem(
     @Schema(description = "신고 대상 내용 미리보기 (최대 100자)")
     String targetPreview,
 
-    @Schema(description = "신고 대상 작성자 아이디 (조회 실패 시 0)")
-    long targetAuthorId
+    @Schema(description = "신고 대상 작성자 아이디 (대상이 이미 삭제되어 조회되지 않으면 null)",
+        example = "7345678901234567890", nullable = true)
+    String targetAuthorId
 ) {
 }

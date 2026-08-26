@@ -8,8 +8,8 @@ import lombok.Builder;
 @Schema(description = "지원 정책 항목 DTO")
 public record PolicyItem(
 
-    @Schema(description = "정책 아이디", example = "1234567890123")
-    long policyId,
+    @Schema(description = "정책 아이디", example = "7345678901234567890")
+    String policyId,
 
     @Schema(description = "정책명", example = "2026 소상공인 경영개선 자금")
     String title,

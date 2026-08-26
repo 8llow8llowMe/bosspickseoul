@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.presenter;
 
+import com.followfollowme.bosspickseoul.common.util.ResponseId;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.item.MemberBookmarkItem;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberBookmarkCreateResponse;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberBookmarksResponse;
@@ -13,7 +14,7 @@ public class MemberBookmarkPresenter {
 
     public MemberBookmarkCreateResponse toCreateResponse(MemberBookmarkInfo info) {
         return MemberBookmarkCreateResponse.builder()
-            .bookmarkId(info.id())
+            .bookmarkId(ResponseId.of(info.id()))
             .targetType(info.targetType())
             .targetCode(info.targetCode())
             .targetName(info.targetName())
@@ -32,7 +33,7 @@ public class MemberBookmarkPresenter {
 
     private MemberBookmarkItem toBookmarkItem(MemberBookmarkInfo info) {
         return MemberBookmarkItem.builder()
-            .bookmarkId(info.id())
+            .bookmarkId(ResponseId.of(info.id()))
             .targetType(info.targetType())
             .targetCode(info.targetCode())
             .targetName(info.targetName())

@@ -13,7 +13,7 @@ public record SimulationFranchiseesResponse(
     List<SimulationFranchiseeSearchItem> franchisees,
 
     @Schema(description = "다음 페이지 커서 (마지막 항목의 franchiseeId, 결과가 없으면 null)", nullable = true)
-    Long lastId
+    String lastId
 ) {
 
 }

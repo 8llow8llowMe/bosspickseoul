@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.presenter;
 
+import com.followfollowme.bosspickseoul.common.util.ResponseId;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.ModerationDecisionResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.ModerationReportItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.ModerationReportsResponse;
@@ -32,7 +33,7 @@ public class ModerationPresenter {
 
     public ModerationDecisionResponse toDecisionResponse(CommunityReport report, ModerationDecision decision) {
         return ModerationDecisionResponse.builder()
-            .reportId(report.id())
+            .reportId(ResponseId.of(report.id()))
             .decision(decision)
             .status(report.status())
             .resolvedAt(report.resolvedAt())
@@ -46,7 +47,7 @@ public class ModerationPresenter {
     ) {
         String targetTitle = null;
         String targetPreview = null;
-        long targetAuthorId = 0L;
+        Long targetAuthorId = null;
 
         if (report.targetKind() == CommunityReportTargetKind.POST) {
             CommunityPost post = postsById.get(report.targetId());
@@ -64,16 +65,16 @@ public class ModerationPresenter {
         }
 
         return ModerationReportItem.builder()
-            .reportId(report.id())
+            .reportId(ResponseId.of(report.id()))
             .targetKind(report.targetKind())
-            .targetId(report.targetId())
-            .reporterMemberId(report.reporterMemberId())
+            .targetId(ResponseId.of(report.targetId()))
+            .reporterMemberId(ResponseId.of(report.reporterMemberId()))
             .reason(report.reason())
             .status(report.status())
             .createdAt(report.createdAt())
             .targetTitle(targetTitle)
             .targetPreview(targetPreview)
-            .targetAuthorId(targetAuthorId)
+            .targetAuthorId(ResponseId.of(targetAuthorId))
             .build();
     }
 

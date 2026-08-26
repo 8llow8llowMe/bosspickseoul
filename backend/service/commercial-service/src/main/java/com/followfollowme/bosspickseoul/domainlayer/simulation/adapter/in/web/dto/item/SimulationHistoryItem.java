@@ -10,7 +10,7 @@ import lombok.Builder;
 public record SimulationHistoryItem(
 
     @Schema(description = "이력 아이디", example = "1")
-    long historyId,
+    String historyId,
 
     @Schema(description = "프랜차이즈 창업 여부", example = "true")
     boolean franchisee,

@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.presenter;
 
+import com.followfollowme.bosspickseoul.common.util.ResponseId;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityCommentItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityCommentLikeResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityCommentsResponse;
@@ -32,7 +33,7 @@ public class CommunityCommentPresenter {
 
     public CommunityCommentLikeResponse toCommentLikeResponse(long commentId, boolean liked, long likeCount) {
         return CommunityCommentLikeResponse.builder()
-            .commentId(commentId)
+            .commentId(ResponseId.of(commentId))
             .liked(liked)
             .likeCount(likeCount)
             .build();
@@ -40,9 +41,9 @@ public class CommunityCommentPresenter {
 
     private CommunityCommentItem toCommentItem(CommunityComment comment, List<CommunityComment> replies) {
         return CommunityCommentItem.builder()
-            .commentId(comment.id())
-            .postId(comment.postId())
-            .memberId(comment.memberId())
+            .commentId(ResponseId.of(comment.id()))
+            .postId(ResponseId.of(comment.postId()))
+            .memberId(ResponseId.of(comment.memberId()))
             .content(comment.content())
             .likeCount(comment.likeCount())
             .createdAt(comment.createdAt())
@@ -53,10 +54,10 @@ public class CommunityCommentPresenter {
 
     private CommunityReplyItem toReplyItem(CommunityComment comment) {
         return CommunityReplyItem.builder()
-            .commentId(comment.id())
-            .postId(comment.postId())
-            .memberId(comment.memberId())
-            .parentCommentId(comment.parentCommentId())
+            .commentId(ResponseId.of(comment.id()))
+            .postId(ResponseId.of(comment.postId()))
+            .memberId(ResponseId.of(comment.memberId()))
+            .parentCommentId(ResponseId.of(comment.parentCommentId()))
             .content(comment.content())
             .likeCount(comment.likeCount())
             .createdAt(comment.createdAt())
