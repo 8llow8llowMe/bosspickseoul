@@ -8,7 +8,7 @@ import { createSimulationShareLink } from '@/lib/api/share'
 import {
   createSimulationReport,
   saveSimulationReport,
-} from '@/lib/api/simulation'
+} from '@/lib/api/simulation-v1-legacy'
 import { env } from '@/lib/env'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { loadKakaoSdk } from '@/lib/kakao'
@@ -17,7 +17,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import type {
   SimulationReportRequest,
   SimulationSaveRequest,
-} from '@/types/simulation'
+} from '@/types/simulation-v1-legacy'
 import SimulationReportView from './simulation-report-view'
 
 const EmptyState = styled.div`
