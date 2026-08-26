@@ -20,7 +20,7 @@ export const useMemberBookmarks = (
   const queryEnabled = isMemberBookmarkQueryEnabled(memberId, enabled)
   const query = useInfiniteQuery({
     queryKey: getMemberBookmarksQueryKey(memberId ?? ''),
-    initialPageParam: undefined as number | undefined,
+    initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
       if (!memberId) throw new Error('회원 정보를 확인하지 못했습니다.')
 
@@ -32,7 +32,7 @@ export const useMemberBookmarks = (
       getCommercialBookmarkNextPageParam(
         lastPage,
         allPages,
-        typeof lastPageParam === 'number' ? lastPageParam : undefined,
+        typeof lastPageParam === 'string' ? lastPageParam : undefined,
         allPageParams,
       ),
     enabled: queryEnabled,
@@ -56,7 +56,7 @@ export const useMemberBookmarks = (
   const lastPage = pages.at(-1)
   const rawLastPageParam = data?.pageParams.at(-1)
   const lastPageParam =
-    typeof rawLastPageParam === 'number' ? rawLastPageParam : undefined
+    typeof rawLastPageParam === 'string' ? rawLastPageParam : undefined
   const nextCursor = getCommercialBookmarkNextPageParam(
     lastPage,
     pages,

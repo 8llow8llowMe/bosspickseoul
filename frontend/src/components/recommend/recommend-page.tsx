@@ -96,7 +96,8 @@ type QueryPendingState = {
 }
 
 type BookmarkMutationInput = {
-  bookmarkId: number | null
+  /** Snowflake 문자열. `null` 이면 아직 저장 안 된 상태(=생성). */
+  bookmarkId: string | null
   commercialCode: string
   commercialName: string
   memberId: string
