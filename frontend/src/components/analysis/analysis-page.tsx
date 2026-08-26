@@ -41,6 +41,7 @@ import {
   fetchDistrictMapAreas,
   SEOUL_MAP_BOUNDS,
 } from '@/lib/api/recommend'
+import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
 import {
   ANALYSIS_PERIOD_CODE,
@@ -311,24 +312,24 @@ export default function AnalysisPage() {
   const districtsQuery = useQuery({
     queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
     queryFn: () => fetchDistricts(ANALYSIS_PERIOD_CODE),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const districtMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'districts', viewportBounds],
     queryFn: () => fetchDistrictMapAreas(viewportBounds),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const administrationsQuery = useQuery({
     queryKey: ['analysis', 'administrations', selection.districtCode],
     queryFn: () => fetchAdministrations(selection.districtCode!),
     enabled: Boolean(selection.districtCode),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const administrationMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'administrations', viewportBounds],
     queryFn: () => fetchAdministrationMapAreas(viewportBounds),
     enabled: mapLayer === 'administration' || mapLayer === 'commercial',
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const commercialsQuery = useQuery({
     queryKey: [
@@ -340,19 +341,19 @@ export default function AnalysisPage() {
     queryFn: () =>
       fetchCommercials(selection.districtCode!, selection.administrationCode!),
     enabled: Boolean(selection.districtCode && selection.administrationCode),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const commercialMapQuery = useQuery({
     queryKey: ['analysis', 'map', 'commercials', viewportBounds],
     queryFn: () => fetchCommercialMapAreas(viewportBounds),
     enabled: mapLayer === 'commercial',
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const servicesQuery = useQuery({
     queryKey: ['analysis', 'services', selection.commercialCode],
     queryFn: () => fetchCommercialServiceCategories(selection.commercialCode!),
     enabled: Boolean(selection.commercialCode),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
 
   // 언랩 결과를 쿼리 데이터에 memo 한다. 지도 areas 참조가 매 렌더 새로 바뀌면
@@ -504,6 +505,12 @@ export default function AnalysisPage() {
     ),
     itemCount: activeCandidates.length,
   })
+  // 패널은 memo라 매 렌더 새 오류 객체를 만들면 비교가 깨진다. 원인이 바뀔 때만 만든다.
+  const { data: activeQueryData, error: activeQueryError } = activeQuery
+  const activeError = useMemo(
+    () => resolveApiError({ data: activeQueryData, error: activeQueryError }),
+    [activeQueryData, activeQueryError],
+  )
 
   const selectedNames: Partial<Record<AnalysisStep, string>> = useMemo(
     () => ({
@@ -667,6 +674,7 @@ export default function AnalysisPage() {
       selectedNames={selectedNames}
       items={activeCandidates}
       status={activeStatus}
+      error={activeError}
       onStepChange={setRequestedStep}
       onSelect={handlePanelSelect}
       onPreviewChange={setPreviewedCode}
@@ -683,6 +691,7 @@ export default function AnalysisPage() {
       selectedNames={selectedNames}
       items={activeCandidates}
       status={activeStatus}
+      error={activeError}
       onStepChange={setRequestedStep}
       onSelect={handlePanelSelect}
       onPreviewChange={setPreviewedCode}

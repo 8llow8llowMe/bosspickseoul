@@ -3,6 +3,7 @@
 import styled from 'styled-components'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 
 type LoadingFeedbackProps = {
   state: 'loading'
@@ -18,7 +19,12 @@ type EmptyFeedbackProps = {
 type ErrorFeedbackProps = {
   state: 'error'
   title?: string
-  message?: string
+  /**
+   * 정규화된 API 오류(`resolveApiError(query)`).
+   * `kind === 'not-found'`면 데이터 부재이므로 재시도 버튼 없이 서버 문구만 노출한다.
+   * null이면 종류를 모르는 실패로 보고 기존 UX(재시도 노출)를 유지한다.
+   */
+  error: NormalizedApiError | null
   onRetry: () => void
 }
 
@@ -112,15 +118,32 @@ export default function StatusFeedback(props: StatusFeedbackProps) {
     )
   }
 
+  const { error } = props
+  const isNotFound = error?.kind === 'not-found'
+
   return (
-    <FeedbackCard aria-live="assertive">
-      <Title>{props.title ?? '상권 현황을 불러오지 못했어요'}</Title>
+    // not-found 는 실패가 아니라 데이터 부재라 의미가 `empty` 분기에 가깝다.
+    // assertive 로 두면 스크린리더 발화를 가로채므로 polite 로 낮춘다.
+    <FeedbackCard aria-live={isNotFound ? 'polite' : 'assertive'}>
+      <Title>
+        {props.title ??
+          (isNotFound
+            ? '표시할 상권 현황이 없어요'
+            : '상권 현황을 불러오지 못했어요')}
+      </Title>
       <Description>
-        {props.message ?? '잠시 후 다시 시도해 주세요.'}
+        {error?.message ?? '잠시 후 다시 시도해 주세요.'}
       </Description>
-      <Button size="large" type="button" variant="dark" onClick={props.onRetry}>
-        다시 시도
-      </Button>
+      {!error || isRetryable(error.kind) ? (
+        <Button
+          size="large"
+          type="button"
+          variant="dark"
+          onClick={props.onRetry}
+        >
+          다시 시도
+        </Button>
+      ) : null}
     </FeedbackCard>
   )
 }
