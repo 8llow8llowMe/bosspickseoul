@@ -65,11 +65,21 @@ type ExpectedPostSummary = {
   createdAt: string
 }
 
+type ExpectedFieldError = {
+  code: string | null
+  field: string
+  message: string
+}
+
 type ExpectedApiResponse<T> = {
   dataHeader: {
     success: boolean
     resultCode: string | null
-    resultMessage: string | Record<string, string> | null
+    // 검증 실패 응답은 `{ message, errors[] }` 객체다 (`src/types/api.ts` 참고).
+    resultMessage:
+      | string
+      | { message?: string; errors?: ExpectedFieldError[] }
+      | null
   }
   dataBody: T
 }
