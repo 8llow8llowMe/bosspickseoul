@@ -15,13 +15,13 @@ import { getResponseBody } from '@/lib/api/response'
 import {
   parseStoreSizeInput,
   squareMeterToPyeong,
-} from '@/lib/simulation/wizard'
+} from '@/lib/simulation/conditions'
 import type {
   SimulationFloorType,
   SimulationSizeItem,
 } from '@/types/simulation'
 
-export type SimulationStoreSizeStepProps = {
+export type SimulationStoreConditionFieldsProps = {
   serviceCode: string
   storeSize: number | null
   floorType: SimulationFloorType | null
@@ -70,10 +70,44 @@ const PresetSkeleton = styled.div`
   gap: 8px;
 `
 
-const Conversion = styled.p`
-  color: var(--color-text-caption);
-  font-size: 12px;
-  line-height: 18px;
+/**
+ * 크기·층 입력은 넓은 컬럼에서도 폭을 제한한다.
+ *
+ * 좌측 컬럼이 1000px 가까이 되면 세 자리 숫자 하나 받는 칸이 화면을 가로지르게 되는데,
+ * 그러면 클릭 목표는 커지지 않고 "무엇을 넣는 칸인지"만 흐려진다. 칩 격자는 선택지 수만큼,
+ * 입력칸은 값 길이만큼만 넓힌다.
+ */
+const Controls = styled.div`
+  max-width: 520px;
+  display: grid;
+  gap: 12px;
+`
+
+const SizeFieldRow = styled.div`
+  max-width: 220px;
+`
+
+const FloorControls = styled.div`
+  max-width: 340px;
+`
+
+/**
+ * 직접 입력 필드.
+ *
+ * `styled(TextField)`의 className은 TextField가 나머지 props를 그대로 넘기는 내부 `<input>`에
+ * 붙는다 — 그래서 여기서 준 규칙이 입력 텍스트에 적용된다. `tabular-nums`는 DESIGN.md S-SIM-1이
+ * 이 필드에 요구하는 값이다(자릿수가 흔들리면 프리셋과 나란히 읽기 어렵다).
+ */
+const SizeField = styled(TextField)`
+  font-variant-numeric: tabular-nums;
+`
+
+/* 단위는 입력칸 안 오른쪽에 둔다 — 숫자만 넣는 칸임이 라벨을 읽지 않아도 보인다. */
+const Unit = styled.span`
+  color: var(--color-text-600);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
 `
 
 const readPreset = (
@@ -94,13 +128,13 @@ const readPreset = (
  * 층 구분은 반드시 enum 피커로만 제출한다. 정의되지 않은 값이 본문에 들어가면 백엔드가
  * `dataHeader` 봉투 **없는** Spring 기본 400을 내려 화면이 서버 메시지를 쓸 수 없다(명세 D6-1).
  */
-export default function SimulationStoreSizeStep({
+export default function SimulationStoreConditionFields({
   serviceCode,
   storeSize,
   floorType,
   onStoreSizeChange,
   onFloorTypeChange,
-}: SimulationStoreSizeStepProps) {
+}: SimulationStoreConditionFieldsProps) {
   // 직접 입력의 "쓰는 중" 원문. null이면 프리셋/상위 상태(storeSize)를 그대로 따라간다.
   // 상태를 effect로 되맞추지 않고 파생값으로 두어 프리셋 클릭이 즉시 입력칸에 반영되게 한다.
   const [draft, setDraft] = useState<string | null>(null)
@@ -159,35 +193,48 @@ export default function SimulationStoreSizeStep({
           />
         ) : null}
 
-        {presetChoices.length > 0 ? (
-          <SimulationChoiceGrid
-            label="매장 크기 프리셋"
-            choices={presetChoices}
-            selectedCode={storeSize === null ? null : String(storeSize)}
-            onSelect={code => {
-              setDraft(null)
-              onStoreSizeChange(Number(code))
-            }}
-            minColumnWidth={120}
-          />
-        ) : null}
+        <Controls>
+          {presetChoices.length > 0 ? (
+            <SimulationChoiceGrid
+              label="매장 크기 프리셋"
+              choices={presetChoices}
+              selectedCode={storeSize === null ? null : String(storeSize)}
+              onSelect={code => {
+                setDraft(null)
+                onStoreSizeChange(Number(code))
+              }}
+              minColumnWidth={120}
+            />
+          ) : null}
 
-        <TextField
-          fullWidth
-          inputMode="numeric"
-          label="직접 입력 (㎡)"
-          placeholder="예: 66"
-          value={sizeInput}
-          errorText={inputError ? '1 이상의 숫자를 입력해 주세요' : undefined}
-          onChange={event => {
-            const next = event.target.value
-            setDraft(next)
-            onStoreSizeChange(parseStoreSizeInput(next))
-          }}
-        />
-        {parsedInput !== null ? (
-          <Conversion>약 {squareMeterToPyeong(parsedInput)}평</Conversion>
-        ) : null}
+          <SizeFieldRow>
+            <SizeField
+              fullWidth
+              emphasized
+              inputMode="numeric"
+              label="면적 직접 입력"
+              // 칸 안 단위(㎡)는 TextField의 slot 규약상 aria-hidden이라 접근성 이름에 단위를
+              // 직접 실어 준다. 보이는 라벨 문구가 이 이름에 포함되므로 Label-in-Name도 지킨다.
+              aria-label="면적 직접 입력 (제곱미터)"
+              placeholder="예: 66"
+              value={sizeInput}
+              rightSlot={<Unit>㎡</Unit>}
+              errorText={
+                inputError ? '1 이상의 숫자를 입력해 주세요' : undefined
+              }
+              helperText={
+                parsedInput === null
+                  ? '프리셋과 다른 면적이면 여기에 숫자로 입력해 주세요'
+                  : `약 ${squareMeterToPyeong(parsedInput)}평`
+              }
+              onChange={event => {
+                const next = event.target.value
+                setDraft(next)
+                onStoreSizeChange(parseStoreSizeInput(next))
+              }}
+            />
+          </SizeFieldRow>
+        </Controls>
       </Block>
 
       <Block>
@@ -195,16 +242,18 @@ export default function SimulationStoreSizeStep({
           <h3>층 구분</h3>
           <p>1층인지에 따라 임대료 기준이 달라져요.</p>
         </Heading>
-        <SimulationChoiceGrid
-          label="층 구분"
-          choices={SIMULATION_FLOOR_TYPES.map(item => ({
-            code: item.code,
-            name: item.name,
-          }))}
-          selectedCode={floorType}
-          onSelect={code => onFloorTypeChange(code as SimulationFloorType)}
-          minColumnWidth={120}
-        />
+        <FloorControls>
+          <SimulationChoiceGrid
+            label="층 구분"
+            choices={SIMULATION_FLOOR_TYPES.map(item => ({
+              code: item.code,
+              name: item.name,
+            }))}
+            selectedCode={floorType}
+            onSelect={code => onFloorTypeChange(code as SimulationFloorType)}
+            minColumnWidth={120}
+          />
+        </FloorControls>
       </Block>
     </Root>
   )

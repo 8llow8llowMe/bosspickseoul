@@ -12,23 +12,15 @@ export type SimulationResultPreviewProps = {
   report: SimulationReport
 }
 
-const Root = styled.section`
+/* 카드 테두리·그림자는 감싸는 결과 패널이 갖는다 — 카드 안에 카드를 겹치지 않는다. */
+const Root = styled.div`
   display: grid;
-  gap: 20px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  padding: 24px;
-  box-shadow: var(--shadow-level-2);
-
-  @media (max-width: 640px) {
-    padding: 20px;
-  }
+  gap: 16px;
 `
 
 const Head = styled.header`
   display: grid;
-  gap: 8px;
+  gap: 4px;
 `
 
 const Caption = styled.p`
@@ -40,9 +32,9 @@ const Caption = styled.p`
 
 const Headline = styled.p`
   color: var(--color-text-900);
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 750;
-  line-height: 42px;
+  line-height: 40px;
   font-variant-numeric: tabular-nums;
   word-break: keep-all;
 
@@ -52,34 +44,45 @@ const Headline = styled.p`
   }
 `
 
+const Tags = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+`
+
+/**
+ * 조건 요약은 **행 흐름**이다. 2열 그리드로 두면 항목이 5개일 때 마지막 하나가 홀로 남아
+ * 붕 떠 보였다. 라벨 왼쪽·값 오른쪽 행은 항목 수가 몇 개든 같은 모양으로 쌓인다.
+ */
 const Conditions = styled.dl`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
   border-top: 1px solid var(--color-border-200);
-  padding-top: 20px;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
+  padding-top: 12px;
 
   > div {
     min-width: 0;
-    display: grid;
-    gap: 4px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
   }
 
   dt {
+    flex: 0 0 auto;
     color: var(--color-text-caption);
-    font-size: 12px;
-    line-height: 18px;
+    font-size: 13px;
+    line-height: 20px;
   }
 
   dd {
+    min-width: 0;
     color: var(--color-text-900);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     line-height: 22px;
+    text-align: right;
     word-break: keep-all;
   }
 `
@@ -90,7 +93,7 @@ const Notice = styled.p`
   gap: 8px;
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
-  padding: 12px 14px;
+  padding: 12px;
   color: var(--color-text-700);
   font-size: 13px;
   line-height: 20px;
@@ -111,19 +114,19 @@ const Pending = styled.div`
   gap: 4px;
   border: 1px dashed var(--color-border-300);
   border-radius: var(--radius-control);
-  padding: 16px;
+  padding: 12px;
 
   strong {
     color: var(--color-text-800);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
-    line-height: 22px;
+    line-height: 20px;
   }
 
   span {
     color: var(--color-text-600);
-    font-size: 13px;
-    line-height: 20px;
+    font-size: 12px;
+    line-height: 18px;
     word-break: keep-all;
   }
 `
@@ -143,15 +146,15 @@ export default function SimulationResultPreview({
   const { condition } = report
 
   return (
-    <Root aria-label="시뮬레이션 계산 결과">
+    <Root>
       <Head>
         <Caption>예상 총 창업 비용</Caption>
         <Headline>{formatLargeWon(report.totalPrice)}</Headline>
-        <div>
+        <Tags>
           <Badge $tone="blue">
             {condition.franchisee ? '프랜차이즈' : '개인 창업'}
           </Badge>
-        </div>
+        </Tags>
       </Head>
 
       <Conditions>

@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import SimulationWizardPage from '@/components/simulation/simulation-wizard-page'
+import SimulationBuilderPage from '@/components/simulation/simulation-builder-page'
 import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
@@ -13,7 +13,7 @@ export const metadata: Metadata = createPageMetadata({
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <SimulationWizardPage />
+      <SimulationBuilderPage />
     </Suspense>
   )
 }

@@ -1,34 +1,34 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  SIMULATION_CONDITION_SECTIONS,
   SIMULATION_DISTRICT_OPTIONS,
-  SIMULATION_WIZARD_STEPS,
-  canOpenSimulationStep,
-  createEmptySimulationWizardState,
-  createSimulationWizardState,
-  describeSimulationWizardGap,
-  getActiveSimulationStep,
-  getAdjacentSimulationStep,
+  createEmptySimulationConditionState,
+  createSimulationConditionState,
+  describeSimulationConditionGap,
+  describeSimulationSectionValue,
   isSameSimulationReportRequest,
-  isSimulationStepComplete,
-  isSimulationWizardComplete,
+  isSimulationConditionsComplete,
+  isSimulationSectionComplete,
+  listMissingSimulationSections,
   parseStoreSizeInput,
-  resolveSimulationFieldStep,
-  resolveSimulationRecoveryStep,
+  resolveSimulationFieldSection,
+  resolveSimulationRecoverySection,
   selectBrand,
   selectDistrict,
   selectFloorType,
   selectFranchisee,
   selectService,
   selectStoreSize,
+  simulationSectionDomId,
   squareMeterToPyeong,
   toSimulationReportRequest,
-  type SimulationWizardState,
-} from '@/lib/simulation/wizard'
+  type SimulationConditionState,
+} from '@/lib/simulation/conditions'
 
 const completeState = (
-  overrides: Partial<SimulationWizardState> = {},
-): SimulationWizardState => ({
+  overrides: Partial<SimulationConditionState> = {},
+): SimulationConditionState => ({
   franchisee: false,
   franchiseeId: null,
   brandName: null,
@@ -48,50 +48,55 @@ describe('SIMULATION_DISTRICT_OPTIONS', () => {
   })
 })
 
-describe('단계 진행', () => {
-  it('앞 단계가 비면 뒤 단계를 열 수 없다', () => {
-    const state = createEmptySimulationWizardState()
+describe('섹션 완료 판정', () => {
+  it('단계 잠금이 없다 — 아무 섹션이나 먼저 채울 수 있다', () => {
+    // 마법사를 걷어낸 뒤의 핵심 계약이다. 창업 형태가 비어 있어도 자치구는 완료로 잡힌다.
+    const state = selectDistrict(createEmptySimulationConditionState(), '11740')
 
-    expect(canOpenSimulationStep(state, 'franchise')).toBe(true)
-    expect(canOpenSimulationStep(state, 'district')).toBe(false)
-    expect(canOpenSimulationStep(state, 'store')).toBe(false)
+    expect(isSimulationSectionComplete(state, 'district')).toBe(true)
+    expect(isSimulationSectionComplete(state, 'franchise')).toBe(false)
+    expect(listMissingSimulationSections(state)).toEqual([
+      'franchise',
+      'service',
+      'store',
+    ])
   })
 
   it('프랜차이즈 여부는 false로 골라도 완료로 본다', () => {
-    const state = selectFranchisee(createEmptySimulationWizardState(), false)
+    const state = selectFranchisee(createEmptySimulationConditionState(), false)
 
-    expect(isSimulationStepComplete(state, 'franchise')).toBe(true)
-    expect(getActiveSimulationStep(state)).toBe('district')
+    expect(isSimulationSectionComplete(state, 'franchise')).toBe(true)
+    expect(listMissingSimulationSections(state)).not.toContain('franchise')
   })
 
-  it('프랜차이즈 창업은 브랜드까지 골라야 업종 단계가 끝난다', () => {
-    let state = selectFranchisee(createEmptySimulationWizardState(), true)
+  it('프랜차이즈 창업은 브랜드까지 골라야 업종 섹션이 끝난다', () => {
+    let state = selectFranchisee(createEmptySimulationConditionState(), true)
     state = selectDistrict(state, '11740')
     state = selectService(state, 'CS100001')
 
-    expect(isSimulationStepComplete(state, 'service')).toBe(false)
-    expect(describeSimulationWizardGap(state)).toBe(
+    expect(isSimulationSectionComplete(state, 'service')).toBe(false)
+    expect(describeSimulationConditionGap(state)).toBe(
       '창업할 브랜드를 선택해 주세요',
     )
 
     state = selectBrand(state, { franchiseeId: 101, brandName: '테스트브랜드' })
-    expect(isSimulationStepComplete(state, 'service')).toBe(true)
+    expect(isSimulationSectionComplete(state, 'service')).toBe(true)
   })
 
-  it('개인 창업은 업종만 고르면 업종 단계가 끝난다', () => {
-    let state = selectFranchisee(createEmptySimulationWizardState(), false)
+  it('개인 창업은 업종만 고르면 업종 섹션이 끝난다', () => {
+    let state = selectFranchisee(createEmptySimulationConditionState(), false)
     state = selectService(state, 'CS100001')
 
-    expect(isSimulationStepComplete(state, 'service')).toBe(true)
+    expect(isSimulationSectionComplete(state, 'service')).toBe(true)
   })
 
   it('지원하지 않는 업종 코드는 완료로 보지 않는다', () => {
     const state = selectService(
-      selectFranchisee(createEmptySimulationWizardState(), false),
+      selectFranchisee(createEmptySimulationConditionState(), false),
       'CS999999',
     )
 
-    expect(isSimulationStepComplete(state, 'service')).toBe(false)
+    expect(isSimulationSectionComplete(state, 'service')).toBe(false)
   })
 
   it('업종을 바꾸면 브랜드와 매장 크기를 함께 비운다', () => {
@@ -117,23 +122,63 @@ describe('단계 진행', () => {
     expect(state.brandName).toBeNull()
   })
 
-  it('되돌리기는 앞뒤 단계를 순서대로 준다', () => {
-    expect(getAdjacentSimulationStep('service', -1)).toBe('district')
-    expect(getAdjacentSimulationStep('service', 1)).toBe('store')
-    expect(getAdjacentSimulationStep('franchise', -1)).toBeNull()
-    expect(getAdjacentSimulationStep('store', 1)).toBeNull()
-  })
-
-  it('모든 단계가 끝나면 완료다', () => {
+  it('모든 섹션이 끝나면 완료다', () => {
     const state = completeState()
 
     expect(
-      SIMULATION_WIZARD_STEPS.every(step =>
-        isSimulationStepComplete(state, step),
+      SIMULATION_CONDITION_SECTIONS.every(section =>
+        isSimulationSectionComplete(state, section),
       ),
     ).toBe(true)
-    expect(isSimulationWizardComplete(state)).toBe(true)
-    expect(describeSimulationWizardGap(state)).toBeNull()
+    expect(isSimulationConditionsComplete(state)).toBe(true)
+    expect(listMissingSimulationSections(state)).toEqual([])
+    expect(describeSimulationConditionGap(state)).toBeNull()
+  })
+})
+
+describe('섹션 값 요약', () => {
+  it('고른 값을 그대로 보여주고, 비면 null이다', () => {
+    const state = completeState({
+      franchisee: true,
+      franchiseeId: 7,
+      brandName: '아이러브피자&치킨',
+      serviceCode: 'CS100007',
+    })
+
+    expect(describeSimulationSectionValue(state, 'franchise')).toBe(
+      '프랜차이즈',
+    )
+    expect(describeSimulationSectionValue(state, 'district')).toBe('강동구')
+    expect(describeSimulationSectionValue(state, 'service')).toBe(
+      '치킨전문점 · 아이러브피자&치킨',
+    )
+    expect(describeSimulationSectionValue(state, 'store')).toBe('66㎡ · 1층')
+    expect(
+      describeSimulationSectionValue(
+        createEmptySimulationConditionState(),
+        'district',
+      ),
+    ).toBeNull()
+  })
+
+  it('매장 조건은 절반만 골라도 그만큼 보여준다', () => {
+    const state = completeState({ floorType: null })
+
+    expect(describeSimulationSectionValue(state, 'store')).toBe('66㎡')
+    expect(
+      describeSimulationSectionValue(
+        completeState({ storeSize: null }),
+        'store',
+      ),
+    ).toBe('1층')
+  })
+})
+
+describe('섹션 앵커', () => {
+  it('오류 배너와 요약 바가 같은 id로 스크롤한다', () => {
+    expect(simulationSectionDomId('district')).toBe(
+      'simulation-section-district',
+    )
   })
 })
 
@@ -162,7 +207,7 @@ describe('매장 크기 입력', () => {
 describe('요청 정규화', () => {
   it('미완성이면 요청을 만들지 않는다', () => {
     expect(
-      toSimulationReportRequest(createEmptySimulationWizardState()),
+      toSimulationReportRequest(createEmptySimulationConditionState()),
     ).toBeNull()
   })
 
@@ -206,7 +251,7 @@ describe('요청 정규화', () => {
 
 describe('초기값 복원', () => {
   it('분석에서 넘어온 자치구·업종을 채운다', () => {
-    const state = createSimulationWizardState({
+    const state = createSimulationConditionState({
       districtCode: '11740',
       serviceCode: 'CS100001',
     })
@@ -217,7 +262,7 @@ describe('초기값 복원', () => {
   })
 
   it('지원하지 않는 값은 조용히 버린다', () => {
-    const state = createSimulationWizardState({
+    const state = createSimulationConditionState({
       districtCode: '99999',
       serviceCode: 'CS999999',
       storeSize: -1,
@@ -229,23 +274,23 @@ describe('초기값 복원', () => {
   })
 })
 
-describe('오류 → 되돌릴 단계', () => {
-  it('임대료 없는 자치구는 자치구 단계로, 사라진 브랜드는 업종 단계로 보낸다', () => {
-    expect(resolveSimulationRecoveryStep('SIMULATION_002')).toBe('district')
-    expect(resolveSimulationRecoveryStep('SIMULATION_003')).toBe('service')
-    expect(resolveSimulationRecoveryStep('SIMULATION_001')).toBe('service')
+describe('오류 → 되돌릴 조건', () => {
+  it('임대료 없는 자치구는 자치구로, 사라진 브랜드는 업종으로 보낸다', () => {
+    expect(resolveSimulationRecoverySection('SIMULATION_002')).toBe('district')
+    expect(resolveSimulationRecoverySection('SIMULATION_003')).toBe('service')
+    expect(resolveSimulationRecoverySection('SIMULATION_001')).toBe('service')
   })
 
-  it('모르는 코드는 단계를 정하지 않는다', () => {
-    expect(resolveSimulationRecoveryStep(null)).toBeNull()
-    expect(resolveSimulationRecoveryStep('COMMERCIAL_100')).toBeNull()
+  it('모르는 코드는 섹션을 정하지 않는다', () => {
+    expect(resolveSimulationRecoverySection(null)).toBeNull()
+    expect(resolveSimulationRecoverySection('COMMERCIAL_100')).toBeNull()
   })
 
-  it('필드 오류를 단계로 옮긴다', () => {
-    expect(resolveSimulationFieldStep('storeSize')).toBe('store')
-    expect(resolveSimulationFieldStep('districtCode')).toBe('district')
-    expect(resolveSimulationFieldStep('franchiseeId')).toBe('service')
-    expect(resolveSimulationFieldStep('unknown')).toBeNull()
+  it('필드 오류를 섹션으로 옮긴다', () => {
+    expect(resolveSimulationFieldSection('storeSize')).toBe('store')
+    expect(resolveSimulationFieldSection('districtCode')).toBe('district')
+    expect(resolveSimulationFieldSection('franchiseeId')).toBe('service')
+    expect(resolveSimulationFieldSection('unknown')).toBeNull()
   })
 })
 

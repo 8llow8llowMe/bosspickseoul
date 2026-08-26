@@ -14,7 +14,7 @@ import {
   findDistrictByCode,
   findDistrictByName,
   describeSimulationServiceName,
-} from '@/lib/simulation/wizard'
+} from '@/lib/simulation/conditions'
 import { isSimulationServiceCode } from '@/data/simulation-service-types'
 
 type SearchParamsReader = {
@@ -66,4 +66,30 @@ export const parseSimulationAnalysisContext = (
     serviceName: describeSimulationServiceName(serviceCode),
     commercialCode,
   }
+}
+
+/**
+ * 지금 화면의 선택이 **여전히 분석에서 가져온 조건 그대로인가.**
+ *
+ * 이게 필요한 이유: 컨텍스트 카드가 "조건을 그대로 채워 뒀어요"라고 말하는데 사용자가
+ * 자치구·업종을 바꿔 버리면 카드가 거짓말을 하게 된다. 실제로 카드는 `서대문구`·`한식음식점`인데
+ * 계산 결과는 `강동구`·`치킨전문점`인 화면이 나왔다. 어느 쪽이 진짜인지 알 수 없다.
+ *
+ * 판정은 **컨텍스트가 실제로 채운 값만** 본다. 자치구만 넘어온 링크에서 사용자가 업종을 고르는 건
+ * "조건을 바꾼" 것이 아니라 원래 비어 있던 칸을 채운 것이므로 어긋남이 아니다.
+ */
+export const isSimulationContextApplied = (
+  context: SimulationAnalysisContext,
+  selection: {
+    districtCode: string | null
+    serviceCode: string | null
+  },
+): boolean => {
+  if (context.districtCode && context.districtCode !== selection.districtCode) {
+    return false
+  }
+  if (context.serviceCode && context.serviceCode !== selection.serviceCode) {
+    return false
+  }
+  return true
 }

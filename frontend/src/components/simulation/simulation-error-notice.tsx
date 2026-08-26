@@ -6,18 +6,18 @@ import styled from 'styled-components'
 import { Button } from '@/components/ui/button'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import {
-  SIMULATION_WIZARD_STEP_LABELS,
-  resolveSimulationFieldStep,
-  resolveSimulationRecoveryStep,
-  type SimulationWizardStep,
-} from '@/lib/simulation/wizard'
+  SIMULATION_CONDITION_SECTION_LABELS,
+  resolveSimulationFieldSection,
+  resolveSimulationRecoverySection,
+  type SimulationConditionSection,
+} from '@/lib/simulation/conditions'
 
 export type SimulationErrorNoticeProps = {
   error: NormalizedApiError
   /** 재시도 실행. 버튼 노출 자체는 `isRetryable(kind)`만 결정한다. */
   onRetry?: () => void
-  /** 조건 재선택 — 되돌릴 단계를 받아 마법사를 그 단계로 연다. */
-  onReselect?: (step: SimulationWizardStep) => void
+  /** 조건 재선택 — 되돌릴 섹션을 받아 그 조건 섹션으로 데려간다. */
+  onReselect?: (section: SimulationConditionSection) => void
 }
 
 const TITLE_BY_KIND: Record<NormalizedApiError['kind'], string> = {
@@ -103,7 +103,7 @@ const Actions = styled.div`
  * 404(`not-found`)에는 재시도 버튼이 붙지 않고 서버 `resultMessage`를 그대로 보여준 뒤
  * 조건을 다시 고르게 한다 — 같은 조건으로 다시 눌러도 결과가 같기 때문이다.
  *
- * `resultCode`는 "어느 단계로 되돌릴지"를 고를 때만 참고한다(임대료 없는 자치구 vs 사라진 브랜드).
+ * `resultCode`는 "어느 조건으로 되돌릴지"를 고를 때만 참고한다(임대료 없는 자치구 vs 사라진 브랜드).
  */
 export default function SimulationErrorNotice({
   error,
@@ -111,10 +111,11 @@ export default function SimulationErrorNotice({
   onReselect,
 }: SimulationErrorNoticeProps) {
   const retryable = isRetryable(error.kind)
-  const fieldStep = error.fieldErrors
-    .map(item => resolveSimulationFieldStep(item.field))
-    .find((step): step is SimulationWizardStep => step !== null)
-  const recoveryStep = resolveSimulationRecoveryStep(error.code) ?? fieldStep
+  const fieldSection = error.fieldErrors
+    .map(item => resolveSimulationFieldSection(item.field))
+    .find((section): section is SimulationConditionSection => section !== null)
+  const recoverySection =
+    resolveSimulationRecoverySection(error.code) ?? fieldSection
 
   return (
     <Root role="alert">
@@ -146,14 +147,14 @@ export default function SimulationErrorNotice({
             다시 시도
           </Button>
         ) : null}
-        {!retryable && recoveryStep && onReselect ? (
+        {!retryable && recoverySection && onReselect ? (
           <Button
             size="medium"
             variant="secondary"
             leftIcon={<SlidersHorizontal />}
-            onClick={() => onReselect(recoveryStep)}
+            onClick={() => onReselect(recoverySection)}
           >
-            {SIMULATION_WIZARD_STEP_LABELS[recoveryStep]} 다시 선택
+            {SIMULATION_CONDITION_SECTION_LABELS[recoverySection]} 다시 선택
           </Button>
         ) : null}
       </Actions>

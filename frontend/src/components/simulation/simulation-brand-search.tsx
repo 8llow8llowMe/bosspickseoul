@@ -54,8 +54,10 @@ const Heading = styled.div`
   }
 `
 
+/* 10건이 한 줄씩 쌓이면 넓은 컬럼에서 섹션 높이만 잡아먹는다 — 폭이 되면 여러 열로 흘린다. */
 const ResultList = styled.ul`
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 8px;
 `
 
@@ -178,6 +180,7 @@ export default function SimulationBrandSearch({
 
       <TextField
         fullWidth
+        emphasized
         label="브랜드 검색"
         placeholder="브랜드명을 입력해 주세요"
         value={keywordInput}

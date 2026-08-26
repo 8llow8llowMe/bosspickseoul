@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseSimulationAnalysisContext } from '@/lib/simulation/analysis-context'
+import {
+  isSimulationContextApplied,
+  parseSimulationAnalysisContext,
+  type SimulationAnalysisContext,
+} from '@/lib/simulation/analysis-context'
 
 const params = (init: Record<string, string>) => new URLSearchParams(init)
 
@@ -55,5 +59,60 @@ describe('parseSimulationAnalysisContext', () => {
         params({ serviceCode: '', gugun: '  ', commercialCode: '' }),
       ),
     ).toBeNull()
+  })
+})
+
+describe('isSimulationContextApplied', () => {
+  const context: SimulationAnalysisContext = {
+    districtCode: '11410',
+    districtName: '서대문구',
+    serviceCode: 'CS100001',
+    serviceName: '한식음식점',
+    commercialCode: null,
+  }
+
+  it('가져온 조건 그대로면 true', () => {
+    expect(
+      isSimulationContextApplied(context, {
+        districtCode: '11410',
+        serviceCode: 'CS100001',
+      }),
+    ).toBe(true)
+  })
+
+  it('하나라도 바뀌면 false — 카드가 "그대로 채워 뒀어요"를 못 쓰게 한다', () => {
+    expect(
+      isSimulationContextApplied(context, {
+        districtCode: '11740',
+        serviceCode: 'CS100001',
+      }),
+    ).toBe(false)
+    expect(
+      isSimulationContextApplied(context, {
+        districtCode: '11410',
+        serviceCode: 'CS100007',
+      }),
+    ).toBe(false)
+    expect(
+      isSimulationContextApplied(context, {
+        districtCode: null,
+        serviceCode: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('컨텍스트가 채우지 않은 칸을 사용자가 고르는 건 어긋남이 아니다', () => {
+    const districtOnly: SimulationAnalysisContext = {
+      ...context,
+      serviceCode: null,
+      serviceName: null,
+    }
+
+    expect(
+      isSimulationContextApplied(districtOnly, {
+        districtCode: '11410',
+        serviceCode: 'CS100007',
+      }),
+    ).toBe(true)
   })
 })

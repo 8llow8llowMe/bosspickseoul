@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-/** 마법사 라우트 — placeholder를 떼고 입력 마법사를 붙였다. */
-const wizardRouteFiles = [
+/** 조건 입력 라우트 — placeholder를 떼고 단일 화면 2단 입력을 붙였다. */
+const builderRouteFiles = [
   './page.tsx',
   '../analysis/simulation/page.tsx',
 ] as const
@@ -20,17 +20,20 @@ const readRoute = (routeFile: string) =>
   readFileSync(fileURLToPath(new URL(routeFile, import.meta.url)), 'utf8')
 
 describe('simulation route adapters', () => {
-  it.each(wizardRouteFiles)('%s renders the V2 input wizard', routeFile => {
-    const source = readRoute(routeFile)
+  it.each(builderRouteFiles)(
+    '%s renders the V2 condition builder',
+    routeFile => {
+      const source = readRoute(routeFile)
 
-    expect(source).toContain('SimulationWizardPage')
-    expect(source).not.toContain('SimulationUnavailablePage')
-    // useSearchParams를 쓰는 클라이언트 컴포넌트라 Suspense 경계가 필요하다.
-    expect(source).toContain('Suspense')
-    // 마법사는 V1 폼 컴포넌트를 되살리지 않는다.
-    expect(source).not.toContain('SimulationFormPage')
-    expect(source).not.toContain('RequireAuth')
-  })
+      expect(source).toContain('SimulationBuilderPage')
+      expect(source).not.toContain('SimulationUnavailablePage')
+      // useSearchParams를 쓰는 클라이언트 컴포넌트라 Suspense 경계가 필요하다.
+      expect(source).toContain('Suspense')
+      // 입력 화면은 V1 폼 컴포넌트를 되살리지 않는다.
+      expect(source).not.toContain('SimulationFormPage')
+      expect(source).not.toContain('RequireAuth')
+    },
+  )
 
   it('/analysis/simulation은 분석 컨텍스트 variant로 렌더한다', () => {
     expect(readRoute('../analysis/simulation/page.tsx')).toContain(

@@ -8,6 +8,14 @@ export type TextFieldProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
   'size'
 > & {
+  /**
+   * 테두리를 grey300(DESIGN.md §Border Strong "emphasized borders")으로 올린다.
+   *
+   * 기본값 false — 기존 사용처(로그인·회원가입·커뮤니티 등)의 모양을 바꾸지 않는다.
+   * 흰 카드 위에 칩 격자와 나란히 놓여 "입력 가능한 칸"임이 grey200 테두리로는 읽히지 않는
+   * 자리에서만 켠다.
+   */
+  emphasized?: boolean
   errorText?: ReactNode
   fieldSize?: TextFieldSize
   fullWidth?: boolean
@@ -42,6 +50,7 @@ const FieldLabel = styled.span`
 `
 
 const InputShell = styled.span<{
+  $emphasized: boolean
   $hasError: boolean
   $size: TextFieldSize
 }>`
@@ -49,8 +58,12 @@ const InputShell = styled.span<{
   align-items: center;
   gap: 8px;
   border: 1px solid
-    ${props =>
-      props.$hasError ? 'var(--color-danger)' : 'var(--color-border-200)'};
+    ${props => {
+      if (props.$hasError) return 'var(--color-danger)'
+      return props.$emphasized
+        ? 'var(--color-border-300)'
+        : 'var(--color-border-200)'
+    }};
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
   padding: 0 14px;
@@ -93,6 +106,13 @@ const Input = styled.input`
   background: transparent;
   color: var(--color-text-900);
   font: inherit;
+
+  /* DESIGN.md §Disabled: 비활성 입력도 테두리(grey200)를 유지한다 — 다시 활성화될 때
+     칸의 형태가 흔들리지 않게. 그래서 커서와 글자색만 비활성으로 바꾼다. */
+  &:disabled {
+    color: var(--color-text-caption);
+    cursor: not-allowed;
+  }
 `
 
 const HelperText = styled.span<{ $hasError: boolean }>`
@@ -105,6 +125,7 @@ const HelperText = styled.span<{ $hasError: boolean }>`
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
   (
     {
+      emphasized = false,
       errorText,
       fieldSize = 'large',
       fullWidth = true,
@@ -121,7 +142,11 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
     return (
       <Field $fullWidth={fullWidth}>
         {label ? <FieldLabel>{label}</FieldLabel> : null}
-        <InputShell $hasError={hasError} $size={fieldSize}>
+        <InputShell
+          $emphasized={emphasized}
+          $hasError={hasError}
+          $size={fieldSize}
+        >
           {leftSlot ? <Slot aria-hidden="true">{leftSlot}</Slot> : null}
           <Input ref={ref} aria-invalid={hasError || undefined} {...props} />
           {rightSlot ? <Slot aria-hidden="true">{rightSlot}</Slot> : null}
