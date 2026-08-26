@@ -45,6 +45,10 @@
   - 큰 작업에서 멀티 에이전트 역할 분리와 검증 흐름 기준
 - `service-inventory.md`
   - 현재 서비스 책임, 상태, 주의점 요약
+- `modules.md`
+  - Gradle 멀티모듈 구성과 모듈 간 의존 방향
+- `bootstrap-conventions.md`
+  - 새 모듈/서비스를 만들 때의 초기 설정 관례
 - `deploy-guide.md`
   - Docker Compose, Vault, Jenkins 공통 배포 모델과 파라미터 기준
 - `jenkins-cicd-dev-deploy-guide.md`

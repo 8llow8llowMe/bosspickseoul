@@ -29,6 +29,8 @@ public final class CommunityValidationMessage {
     public static final String PERIOD_CODE_REQUIRED = "COMMUNITY_116:기준 분기 코드는 필수입니다.";
     public static final String IMAGE_COUNT_INVALID = "COMMUNITY_118:이미지는 최대 5장까지 첨부할 수 있습니다.";
 
+    public static final String PAGE_SIZE_INVALID = "COMMUNITY_119:조회 개수는 1 이상 50 이하여야 합니다.";
+
     private CommunityValidationMessage() {
     }
 }

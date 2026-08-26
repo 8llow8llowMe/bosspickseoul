@@ -2,18 +2,23 @@ package com.followfollowme.bosspickseoul.domainlayer.ranking.adapter.in.web.cont
 
 import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.adapter.in.web.dto.response.AnalysisRankingResponse;
+import com.followfollowme.bosspickseoul.domainlayer.ranking.application.exception.RankingValidationMessage;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.application.port.in.RankingWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.domain.enums.AnalysisAreaType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/analysis-rankings")
@@ -30,7 +35,9 @@ public class AnalysisRankingWebController {
     @GetMapping
     public ResponseEntity<Response<AnalysisRankingResponse>> getAnalysisRankings(
         @Parameter(description = "분석 영역 타입") @RequestParam AnalysisAreaType areaType,
-        @Parameter(description = "조회 개수 (1~50)", example = "10") @RequestParam(defaultValue = "10") int size
+        @Parameter(description = "조회 개수 (1~50)", example = "10") @RequestParam(defaultValue = "10")
+        @Min(value = 1, message = RankingValidationMessage.PAGE_SIZE_INVALID)
+        @Max(value = 50, message = RankingValidationMessage.PAGE_SIZE_INVALID) int size
     ) {
         AnalysisRankingResponse response = rankingWebUseCase.getAnalysisRankings(areaType, size);
         return ResponseEntity.ok().body(Response.success(response));

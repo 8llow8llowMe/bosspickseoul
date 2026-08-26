@@ -8,13 +8,19 @@
 
 ## Commercial Service
 
-- 책임: 상권 상세 분석, 자치구 분석, 상권 요약 조회, 분석 화면 공유 링크, 분석 인기 순위
-- 컨텍스트: `commercial`, `district`, `sharelink`, `ranking`
+- 책임: 상권 상세 분석, 자치구·행정동 분석, 상권 요약 조회, 분석 화면 공유 링크, 분석 보관함,
+  창업 시뮬레이션, 분석 인기 순위, 지원 정책 추천
+- 컨텍스트: `commercial`, `district`, `administration`, `commercialsummary`, `category`,
+  `sharelink`, `analysisbookmark`, `simulation`, `ranking`, `policy`
 - `ranking`: 분석 조회 이벤트를 Kafka 로 발행/집계해 Redis Sorted Set 실시간 인기 순위를 제공한다.
   `RANKING_ENABLED=false`(기본)면 Kafka 빈이 등록되지 않아 브로커 없이도 정상 기동하며,
   파이프라인 장애는 인기 순위 API(RANKING_001 503)에만 영향을 준다.
-- 특징: 조회 중심 서비스, Presenter/Info 구조 사용. `sharelink`는 유일한 write 컨텍스트로,
-  Resource Server(JWT) 기반 선택적 인증(`POST /api/v1/share-links`, 토큰 있으면 공유자 기록)을 사용한다.
+- `policy`: 자치구·업종 조건으로 지원 정책을 추천한다. 도메인·API·시드는 완료됐고 실데이터 적재만 남았다.
+- 특징: 조회 중심 서비스, Presenter/Info 구조 사용. write 컨텍스트는 셋이다 —
+  `sharelink`(선택적 인증: `POST /api/v1/share-links`, 토큰 있으면 공유자 기록),
+  `analysisbookmark`(전 API 인증 필수), `simulation`의 이력 저장(`POST /api/v1/simulations/histories`).
+- advice 는 `CommercialExceptionHandler` 하나뿐이다. 그래서 하위 컨텍스트들은 필드별 검증 코드만
+  자기 대역(`SHARE_LINK_1xx` 등)을 쓰고, 검증 폴백과 파라미터 타입 불일치는 `COMMERCIAL_100` / `COMMERCIAL_102` 로 나온다.
 
 ## District Service
 
@@ -24,9 +30,11 @@
 
 ## Community Service
 
-- 책임: 자치구/행정동/상권 대상 커뮤니티, 게시글/댓글/좋아요/신고, 게시글 이미지 첨부
+- 책임: 자치구/행정동/상권 대상 커뮤니티, 게시글/댓글/좋아요/신고, 게시글 이미지 첨부, 모더레이션
 - 컨텍스트: `community`
 - 특징: `SliceResponse`, 소프트 삭제, 도메인 중심 write 흐름 사용
+- 목록 3종의 `size` 는 1~50 이다. 커서 기반이라 offset 없이 `lastPostId`(+ 인기순은 `lastLikeCount`)로 이어 받는다.
+- 모더레이션(`/api/v1/moderation/**`)은 `MANAGER` 권한 전용이다.
 
 ## Batch Service
 
