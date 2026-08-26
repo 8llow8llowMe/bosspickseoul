@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 
 import RecommendFeedback from '@/components/recommend/recommend-feedback'
+import { classifyStatus, isRetryable } from '@/lib/api/api-error'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
@@ -80,13 +81,21 @@ export const readKakaoViewportBounds = (
   })
 }
 
+/**
+ * Kakao SDK 로드 실패는 **응답 자체가 없는** 실패다 → `classifyStatus(null)` = `network`.
+ * 재시도 노출은 상태를 직접 비교하지 않고 공통 유틸(`isRetryable`)로만 결정한다.
+ */
+const MAP_SDK_ERROR_KIND = classifyStatus(null)
+const IS_MAP_SDK_ERROR_RETRYABLE = isRetryable(MAP_SDK_ERROR_KIND)
+
 export const createRankMarkerAriaLabel = (
   item: RecommendationMapItem,
 ): string => {
+  // 점수가 없으면 "집계 대기"가 아니라 지표 데이터 부재다.
   const score =
     item.compositeScore !== null && Number.isFinite(item.compositeScore)
       ? `${Math.round(item.compositeScore)}점`
-      : '점수 집계 중'
+      : '점수 데이터 없음'
 
   return `${item.rank}위 ${item.commercialName}, ${score}`
 }
@@ -913,9 +922,17 @@ export default function RecommendMap({
           <RecommendFeedback
             tone="error"
             title="지도를 불러오지 못했어요"
-            description="잠시 후 다시 시도해 주세요."
-            actionLabel="다시 시도"
-            onAction={() => setLoadAttempt(attempt => attempt + 1)}
+            description={
+              IS_MAP_SDK_ERROR_RETRYABLE
+                ? '잠시 후 다시 시도해 주세요.'
+                : '지도 서비스를 사용할 수 없어요.'
+            }
+            actionLabel={IS_MAP_SDK_ERROR_RETRYABLE ? '다시 시도' : undefined}
+            onAction={
+              IS_MAP_SDK_ERROR_RETRYABLE
+                ? () => setLoadAttempt(attempt => attempt + 1)
+                : undefined
+            }
           />
         </FeedbackLayer>
       ) : null}

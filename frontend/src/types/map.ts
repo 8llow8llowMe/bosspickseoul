@@ -44,12 +44,6 @@ export type RecommendCommercial = {
     administrationClosedRate: number
     otherClosedRate: number
   }
-  blueOceanInfo: {
-    serviceCodeName: string
-    myStore: number
-    totalStore: number
-    storeRate: number
-  }[]
 }
 
 export type RecommendSavedItem = {

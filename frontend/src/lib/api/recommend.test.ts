@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '@/lib/api/client'
 import {
   buildRecommendationSearchParams,
+  clampRecommendationTopN,
   fetchAdministrations,
   fetchCommercialMapAreas,
   fetchCommercialRecommendations,
+  RECOMMENDATION_TOP_N,
+  RECOMMENDATION_TOP_N_MAX,
+  RECOMMENDATION_TOP_N_MIN,
 } from './recommend'
 
 describe('buildRecommendationSearchParams', () => {
@@ -19,6 +23,24 @@ describe('buildRecommendationSearchParams', () => {
     ).toBe(
       'serviceCode=CS100010&commercialCodes=3110008&commercialCodes=3110012&periodCode=20233&topN=5',
     )
+  })
+
+  it('clamps topN into the range the backend accepts', () => {
+    // 5~30을 벗어나면 백엔드가 400(COMMERCIAL_101)로 거절한다.
+    expect(clampRecommendationTopN(1)).toBe(RECOMMENDATION_TOP_N_MIN)
+    expect(clampRecommendationTopN(100)).toBe(RECOMMENDATION_TOP_N_MAX)
+    expect(clampRecommendationTopN(12.7)).toBe(12)
+    expect(clampRecommendationTopN(Number.NaN)).toBe(RECOMMENDATION_TOP_N)
+    expect(clampRecommendationTopN(undefined)).toBe(RECOMMENDATION_TOP_N)
+
+    expect(
+      buildRecommendationSearchParams({
+        serviceCode: 'CS100010',
+        commercialCodes: ['3110008'],
+        periodCode: '20233',
+        topN: 50,
+      }).get('topN'),
+    ).toBe('30')
   })
 })
 

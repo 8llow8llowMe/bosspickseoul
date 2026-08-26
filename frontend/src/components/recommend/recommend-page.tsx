@@ -44,9 +44,14 @@ import {
   type RecommendationOption,
   type RecommendationView,
 } from '@/lib/recommend/recommend-state'
+import {
+  isRetryable,
+  resolveApiError,
+  type NormalizedApiError,
+} from '@/lib/api/api-error'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { useAuthStore } from '@/stores/auth-store'
-import type { ApiMessage, ApiResponse } from '@/types/api'
+import type { ApiResponse } from '@/types/api'
 import type { MemberBookmarkResponse } from '@/types/bookmark'
 import type {
   AdministrationArea,
@@ -67,6 +72,7 @@ import RecommendFeedback from './recommend-feedback'
 import RecommendMap from './recommend-map'
 import RecommendMobileSheet from './recommend-mobile-sheet'
 import RecommendPanel, { type RecommendPanelProps } from './recommend-panel'
+import { readBlueOceanCategories } from './recommend-result-list'
 
 type ProfileQueryLike = {
   data?: CommercialProfileResponse
@@ -141,26 +147,6 @@ const isSuccessfulApiResponse = <T,>(
   response: ApiResponse<T> | null | undefined,
 ): response is ApiResponse<T> =>
   response?.dataHeader?.success === true && response.dataBody !== undefined
-
-const normalizeMessage = (message: ApiMessage | undefined): string | null => {
-  if (!message) return null
-  if (typeof message === 'string') return message
-
-  const values = Object.values(message).filter(Boolean)
-  return values.length > 0 ? values.join('\n') : null
-}
-
-export const getRecommendationQueryError = (
-  isTransportError: boolean,
-  response: ApiResponse<unknown> | null | undefined,
-  fallback: string,
-): string | null => {
-  if (isTransportError) return fallback
-  if (!response) return null
-  if (response.dataHeader?.success === true) return null
-
-  return normalizeMessage(response.dataHeader?.resultMessage) ?? fallback
-}
 
 export const readMapAreas = (
   response: MapAreasResponse | null | undefined,
@@ -326,6 +312,8 @@ const normalizeCandidateCommercial = (
           (reasonTag): reasonTag is string => typeof reasonTag === 'string',
         )
       : [],
+    // 백엔드가 산정에 실패하면 빈 목록으로 강등하는 계약이라 `null`·`[]`는 오류가 아니다.
+    blueOceanCategories: readBlueOceanCategories(item.blueOceanCategories),
   }
 }
 
@@ -971,37 +959,57 @@ export default function RecommendPage() {
     state.submitted,
   ])
 
-  const administrationsError = state.draft.district
-    ? getRecommendationQueryError(
-        administrationsQuery.isError,
-        administrationsQuery.data,
-        '행정동 정보를 불러오지 못했습니다.',
-      )
-    : null
-  const candidatesError = state.draft.administration
-    ? getRecommendationQueryError(
-        commercialsQuery.isError,
-        commercialsQuery.data,
-        '상권 후보를 불러오지 못했습니다.',
-      )
-    : null
-  const recommendationError = state.submitted
-    ? getRecommendationQueryError(
-        recommendationQuery.isError,
-        recommendationQuery.data,
-        '추천 상권을 불러오지 못했습니다.',
-      )
-    : null
+  // 조건 폼의 두 실패도 같은 규약을 따른다 — 404는 재시도해도 같으므로 버튼 없이 서버 문구만 남는다.
+  const administrationsError = useMemo(
+    () =>
+      state.draft.district
+        ? resolveApiError({
+            error: administrationsQuery.error,
+            data: administrationsQuery.data,
+          })
+        : null,
+    [
+      administrationsQuery.data,
+      administrationsQuery.error,
+      state.draft.district,
+    ],
+  )
+  const candidatesError = useMemo(
+    () =>
+      state.draft.administration
+        ? resolveApiError({
+            error: commercialsQuery.error,
+            data: commercialsQuery.data,
+          })
+        : null,
+    [commercialsQuery.data, commercialsQuery.error, state.draft.administration],
+  )
+  // 추천 실패는 HTTP 상태로 분기한다. 404(데이터 부재)는 재시도해도 결과가 같으므로
+  // 재시도 버튼 없이 서버 문구만 보여준다 — 노출 판정은 `isRetryable`가 유일한 기준이다.
+  // 매 렌더마다 새 객체가 나오면 아래 useMemo들이 통째로 무효화되므로 쿼리 상태에만 묶어둔다.
+  const recommendationError = useMemo(
+    () =>
+      state.submitted
+        ? resolveApiError({
+            error: recommendationQuery.error,
+            data: recommendationQuery.data,
+          })
+        : null,
+    [recommendationQuery.data, recommendationQuery.error, state.submitted],
+  )
 
   const recommendationFeedback = useMemo<
     RecommendPanelProps['feedback']
   >(() => {
     if (recommendationError) {
+      const canRetry = isRetryable(recommendationError.kind)
+
       return {
         tone: 'error',
         title: '추천 상권을 불러오지 못했어요',
-        description: recommendationError,
-        actionLabel: '다시 시도',
+        description: recommendationError.message,
+        isRetryable: canRetry,
+        actionLabel: canRetry ? '다시 시도' : undefined,
       }
     }
 
@@ -1344,28 +1352,25 @@ export default function RecommendPage() {
     ],
   )
 
-  const districtMapError = getRecommendationQueryError(
-    districtMapQuery.isError,
-    districtMapQuery.data,
-    '자치구 지도 정보를 불러오지 못했습니다.',
-  )
+  const districtMapError = resolveApiError({
+    error: districtMapQuery.error,
+    data: districtMapQuery.data,
+  })
   const administrationMapError =
     mapStage === 'administration'
-      ? getRecommendationQueryError(
-          administrationMapQuery.isError,
-          administrationMapQuery.data,
-          '행정동 지도 정보를 불러오지 못했습니다.',
-        )
+      ? resolveApiError({
+          error: administrationMapQuery.error,
+          data: administrationMapQuery.data,
+        })
       : null
   const commercialMapError =
     mapStage === 'commercial'
-      ? getRecommendationQueryError(
-          commercialMapQuery.isError,
-          commercialMapQuery.data,
-          '상권 지도 정보를 불러오지 못했습니다.',
-        )
+      ? resolveApiError({
+          error: commercialMapQuery.error,
+          data: commercialMapQuery.data,
+        })
       : null
-  const mapError =
+  const mapError: NormalizedApiError | null =
     mapStage === 'district'
       ? districtMapError
       : mapStage === 'administration'
@@ -1381,6 +1386,8 @@ export default function RecommendPage() {
         : districtMapQuery
   const retryMap = activeMapQuery.refetch
   const isMapRetrying = activeMapQuery.isFetching
+  // 404(지도 데이터 부재)는 재시도해도 같다 → 버튼을 띄우지 않고 서버 문구만 남긴다.
+  const isMapErrorRetryable = mapError !== null && isRetryable(mapError.kind)
 
   return (
     <Page data-hide-footer="true">
@@ -1432,15 +1439,23 @@ export default function RecommendPage() {
           <MapFeedbackSlot>
             <RecommendFeedback
               actionLabel={
-                isMapRetrying ? '지도 불러오는 중' : '지도 다시 불러오기'
+                !isMapErrorRetryable
+                  ? undefined
+                  : isMapRetrying
+                    ? '지도 불러오는 중'
+                    : '지도 다시 불러오기'
               }
-              description={mapError}
+              description={mapError.message}
               isActionDisabled={isMapRetrying}
               title="지도 정보를 불러오지 못했어요"
               tone="error"
-              onAction={() => {
-                void retryMap()
-              }}
+              onAction={
+                isMapErrorRetryable
+                  ? () => {
+                      void retryMap()
+                    }
+                  : undefined
+              }
             />
           </MapFeedbackSlot>
         ) : null}

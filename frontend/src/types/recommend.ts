@@ -53,6 +53,23 @@ export type MetricBreakdownItem = {
   summaryLabel: string | null
 }
 
+/**
+ * 블루오션 업종 — 소속 행정동에는 많지만 이 상권에는 적은(비어 있는) 업종.
+ *
+ * `storeRate = commercialStoreCount / administrationStoreCount * 100` (행정동 대비 점유율, %).
+ * **낮을수록 비어 있다 = 진입 기회가 있다.** 백엔드가 오름차순 Top 5로 내려준다.
+ */
+export type BlueOceanCategory = {
+  serviceCode: string
+  serviceName: string
+  /** 이 상권의 해당 업종 점포 수 */
+  commercialStoreCount: number
+  /** 소속 행정동의 해당 업종 점포 수 */
+  administrationStoreCount: number
+  /** 행정동 대비 상권 점유율(%). 낮을수록 비어 있다. */
+  storeRate: number
+}
+
 export type CandidateCommercial = {
   rank: number
   commercialCode: string
@@ -65,6 +82,11 @@ export type CandidateCommercial = {
   riskLabel: string | null
   metricBreakdown: MetricBreakdownItem[]
   reasonTags: string[]
+  /**
+   * 블루오션 업종 Top 5. 업종별 상권 추천 응답에서만 채워진다.
+   * 백엔드가 산정에 실패하면 빈 목록으로 강등하므로 `null`·`[]` 모두 정상 상황이다.
+   */
+  blueOceanCategories?: BlueOceanCategory[] | null
 }
 
 export type CandidateCommercials = {
@@ -111,5 +133,6 @@ export type RecommendationRequest = {
   serviceCode: string
   commercialCodes: string[]
   periodCode: string
-  topN: 5
+  /** 백엔드 허용 범위는 5~30. 벗어나면 400(COMMERCIAL_101)이라 요청 직전에 clamp 한다. */
+  topN: number
 }
