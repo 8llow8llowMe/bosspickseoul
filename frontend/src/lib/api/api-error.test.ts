@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   classifyStatus,
+  isCanceledError,
   isRetryable,
   normalizeApiError,
   normalizeApiResponseFailure,
@@ -47,9 +48,21 @@ const validationBody: ApiResponse<null> = {
   dataBody: null,
 }
 
+/** HTTP 200 인데 dataHeader.success=false 인 본문 (상태를 알 수 없는 경로) */
+const successFalseBody: ApiResponse<null> = {
+  dataHeader: {
+    success: false,
+    resultCode: 'COMMUNITY_001',
+    resultMessage: '게시글을 찾을 수 없습니다.',
+  },
+  dataBody: null,
+}
+
 describe('classifyStatus', () => {
   it('상태 코드만으로 종류를 정한다', () => {
     expect(classifyStatus(null)).toBe('network')
+    // 상태 0 은 "코드 자체가 없음"이다 (CORS 차단·프록시 조기 종료)
+    expect(classifyStatus(0)).toBe('network')
     expect(classifyStatus(500)).toBe('server')
     expect(classifyStatus(503)).toBe('server')
     expect(classifyStatus(404)).toBe('not-found')
@@ -57,6 +70,10 @@ describe('classifyStatus', () => {
     expect(classifyStatus(403)).toBe('unauthorized')
     expect(classifyStatus(400)).toBe('client')
     expect(classifyStatus(410)).toBe('client')
+    expect(classifyStatus(422)).toBe('client')
+    // 429 는 규약상 "그 외 4xx" — 재시도 버튼을 붙이지 않는다.
+    // 서버 문구가 "잠시 후 다시 시도"라고 말하는 경우가 있으니 화면 카피는 그 점을 고려해야 한다.
+    expect(classifyStatus(429)).toBe('client')
   })
 })
 
@@ -97,10 +114,31 @@ describe('readApiMessage', () => {
     ).toBe('a는 필수입니다.\nb는 필수입니다.')
   })
 
-  it('errors 배열이 [object Object] 로 새지 않는다', () => {
+  it('요약이 없고 errors 만 있어도 [object Object] 로 새지 않는다', () => {
+    // 예전 구현의 Object.values(...).join() 이 배열을 [object Object] 로 렌더했다.
+    const message = readApiMessage({
+      errors: [{ code: 'A_101', field: 'a', message: 'a는 필수입니다.' }],
+    })
+
+    expect(message).toBe('a는 필수입니다.')
+    expect(message).not.toContain('[object Object]')
+  })
+
+  it('resultMessage 가 배열이나 숫자면 null 이다', () => {
+    expect(readApiMessage([] as unknown as null)).toBeNull()
+    expect(readApiMessage(42 as unknown as null)).toBeNull()
+  })
+
+  it('field 가 없는 errors 항목은 버린다', () => {
+    // 폼 매핑이 undefined 키를 만들지 않도록 field 까지 확인한다.
     expect(
-      readApiMessage(validationBody.dataHeader.resultMessage),
-    ).not.toContain('[object Object]')
+      readApiMessage({
+        errors: [
+          { message: 'field 없는 항목' } as never,
+          { code: null, field: 'b', message: 'b는 필수입니다.' },
+        ],
+      }),
+    ).toBe('b는 필수입니다.')
   })
 
   it('빈 값은 null 이다', () => {
@@ -144,8 +182,9 @@ describe('normalizeApiError', () => {
     expect(result.message).toContain('잠시 후')
   })
 
-  it('응답이 없으면 network 이고 상태는 null 이다', () => {
-    const result = normalizeApiError(new Error('Network Error'))
+  it('알 수 없는 값은 network 로 두고 상태는 null 이다', () => {
+    // 메시지도 형태도 없는 값 — 통신 실패로 보수적으로 처리한다.
+    const result = normalizeApiError(null)
 
     expect(result.kind).toBe('network')
     expect(result.status).toBeNull()
@@ -161,6 +200,59 @@ describe('normalizeApiError', () => {
 
     expect(result.kind).toBe('unauthorized')
     expect(result.message).toBe('세션이 만료되었습니다. 다시 로그인해 주세요.')
+  })
+
+  it('앱이 던진 도메인 오류는 메시지를 살리고 재시도하지 않는다', () => {
+    // 이 저장소는 "200 + success:false" 를 쿼리 함수에서 직접 throw 한다
+    // (community-list-page.tsx 의 CommunityListQueryError 등).
+    class CommunityListQueryError extends Error {}
+    const result = normalizeApiError(
+      new CommunityListQueryError('게시글을 불러오지 못했습니다.'),
+    )
+
+    expect(result.kind).toBe('client')
+    expect(result.message).toBe('게시글을 불러오지 못했습니다.')
+    expect(isRetryable(result.kind)).toBe(false)
+  })
+
+  it('axios 통신 실패는 network 이고 axios 내부 문구를 노출하지 않는다', () => {
+    const result = normalizeApiError(
+      Object.assign(new Error('Network Error'), {
+        isAxiosError: true,
+        code: 'ERR_NETWORK',
+      }),
+    )
+
+    expect(result.kind).toBe('network')
+    expect(result.message).not.toBe('Network Error')
+    expect(isRetryable(result.kind)).toBe(true)
+  })
+
+  it('axios 타임아웃도 network 이다', () => {
+    const result = normalizeApiError(
+      Object.assign(new Error('timeout of 5000ms exceeded'), {
+        isAxiosError: true,
+        code: 'ECONNABORTED',
+      }),
+    )
+
+    expect(result.kind).toBe('network')
+    expect(isRetryable(result.kind)).toBe(true)
+  })
+
+  it('fetch 통신 실패(TypeError)도 network 이다', () => {
+    expect(normalizeApiError(new TypeError('Failed to fetch')).kind).toBe(
+      'network',
+    )
+  })
+
+  it('본문이 HTML 문자열이어도 상태로 분류한다', () => {
+    const result = normalizeApiError(
+      axiosError(502, '<html>Bad Gateway</html>'),
+    )
+
+    expect(result.kind).toBe('server')
+    expect(result.message).not.toContain('<html>')
   })
 
   it('본문이 없어도 상태별 기본 문구를 준다', () => {
@@ -189,6 +281,23 @@ describe('normalizeApiResponseFailure', () => {
   })
 })
 
+describe('isCanceledError', () => {
+  it('취소된 요청을 알아본다', () => {
+    expect(isCanceledError(new DOMException('중단됨', 'AbortError'))).toBe(true)
+    expect(
+      isCanceledError(
+        Object.assign(new Error('canceled'), { code: 'ERR_CANCELED' }),
+      ),
+    ).toBe(true)
+  })
+
+  it('일반 오류는 취소가 아니다', () => {
+    expect(isCanceledError(new Error('boom'))).toBe(false)
+    expect(isCanceledError(axiosError(500, null))).toBe(false)
+    expect(isCanceledError(null)).toBe(false)
+  })
+})
+
 describe('resolveApiError', () => {
   it('던져진 에러를 우선 읽는다', () => {
     expect(
@@ -197,7 +306,32 @@ describe('resolveApiError', () => {
   })
 
   it('200 이지만 success=false 인 본문도 오류로 잡는다', () => {
-    expect(resolveApiError({ data: notFoundBody })?.kind).toBe('client')
+    const result = resolveApiError({ data: successFalseBody })
+
+    // 본문이 도착했으므로 통신 실패가 아니다. 상태를 모르므로 재시도 대상이 아닌 client 로 둔다.
+    expect(result?.kind).toBe('client')
+    expect(result?.message).toBe('게시글을 찾을 수 없습니다.')
+    expect(isRetryable(result!.kind)).toBe(false)
+  })
+
+  it('취소된 요청은 오류가 아니다', () => {
+    expect(
+      resolveApiError({ error: new DOMException('중단됨', 'AbortError') }),
+    ).toBeNull()
+  })
+
+  it('직전 성공 데이터가 있어도 새 실패를 그대로 알린다', () => {
+    // React Query 는 refetch 실패 시 직전 data 를 유지한 채 error 를 채운다.
+    // 이 함수는 "실패했다"까지만 알리고, 이전 데이터를 계속 보여줄지는 화면이 정한다.
+    const result = resolveApiError({
+      error: axiosError(503, null),
+      data: {
+        dataHeader: { success: true, resultCode: null, resultMessage: null },
+        dataBody: { x: 1 },
+      },
+    })
+
+    expect(result?.kind).toBe('server')
   })
 
   it('오류가 없으면 null 이다', () => {
@@ -218,6 +352,19 @@ describe('retryUnlessClientError', () => {
     expect(retryUnlessClientError(1)(0, axiosError(404, notFoundBody))).toBe(
       false,
     )
+  })
+
+  it('취소된 요청은 재시도하지 않는다', () => {
+    expect(
+      retryUnlessClientError(3)(0, new DOMException('중단됨', 'AbortError')),
+    ).toBe(false)
+  })
+
+  it('기본 한도는 1회다', () => {
+    const retry = retryUnlessClientError()
+
+    expect(retry(0, axiosError(500, null))).toBe(true)
+    expect(retry(1, axiosError(500, null))).toBe(false)
   })
 
   it('5xx 는 한도까지 재시도한다', () => {

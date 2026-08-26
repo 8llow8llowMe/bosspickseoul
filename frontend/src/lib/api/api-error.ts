@@ -43,9 +43,14 @@ const DEFAULT_MESSAGE: Record<ApiErrorKind, string> = {
   client: '요청을 처리하지 못했습니다.',
 }
 
-/** HTTP 상태 → 종류. 상태가 없으면(무응답) `network`. */
+/**
+ * HTTP 상태 → 종류. 상태가 없으면(무응답) `network`.
+ *
+ * `0` 이하도 `network` 다 — CORS 차단이나 프록시 조기 종료로 status 0 인 응답 객체가 붙는 경우가 있고,
+ * 규약상 "상태 코드 자체가 없음"은 통신 실패다.
+ */
 export const classifyStatus = (status: number | null): ApiErrorKind => {
-  if (status === null) return 'network'
+  if (status === null || status <= 0) return 'network'
   if (status >= 500) return 'server'
   if (status === 404) return 'not-found'
   if (status === 401 || status === 403) return 'unauthorized'
@@ -68,10 +73,21 @@ const readFieldErrors = (message: ApiMessage): ApiFieldError[] => {
   if (!isRecord(message)) return []
   const { errors } = message as ApiValidationMessage
   if (!Array.isArray(errors)) return []
-  return errors.filter(
-    (item): item is ApiFieldError =>
-      isRecord(item) && typeof item.message === 'string',
-  )
+  // 타입은 선언일 뿐 런타임 보장이 아니라서 unknown 으로 낮춰 놓고 직접 확인한다.
+  // `field` 까지 확인해야 폼 매핑이 안전하다 — 없는 항목을 통과시키면 소비자가
+  // `errors[i].field` 로 인풋을 찾을 때 조용히 `undefined` 키가 만들어진다.
+  return (errors as unknown[])
+    .filter(
+      (item): item is Record<string, unknown> =>
+        isRecord(item) &&
+        typeof item.message === 'string' &&
+        typeof item.field === 'string',
+    )
+    .map(item => ({
+      code: typeof item.code === 'string' ? item.code : null,
+      field: item.field as string,
+      message: item.message as string,
+    }))
 }
 
 /**
@@ -129,15 +145,70 @@ const build = (
 })
 
 /**
- * 던져진 에러(axios rejection 등)를 정규화한다.
+ * 사용자가 화면을 떠나거나 조건을 바꿔서 **취소된** 요청인가.
+ *
+ * 취소는 실패가 아니다. 오류 배너를 띄우거나 재시도하면 안 된다.
+ * (`use-ai-report.ts` 가 AbortController 로 SSE/폴링을 끊는다.)
+ */
+export const isCanceledError = (error: unknown): boolean => {
+  if (!isRecord(error)) return false
+  return (
+    error.name === 'AbortError' ||
+    error.name === 'CanceledError' ||
+    error.code === 'ERR_CANCELED'
+  )
+}
+
+/**
+ * 응답 객체가 없는 에러의 종류를 정한다.
+ *
+ * 상태가 없다고 전부 통신 실패는 아니다. 이 저장소는 "200 + `dataHeader.success=false`" 를
+ * 쿼리 함수에서 **직접 throw** 하는 곳이 있다(`community-list-page.tsx` 의 `CommunityListQueryError` 등).
+ * 그걸 `network` 로 보면 서버가 준 문구가 사라지고, 재시도해도 같은 결과인데 재시도 버튼이 붙는다.
+ *
+ * 그래서 통신 실패라고 판별할 수 있는 것만 `network` 로 두고, 나머지 앱이 던진 오류는
+ * 재시도 대상이 아닌 `client` 로 보수적으로 분류한다.
+ */
+const classifyResponselessError = (error: unknown): ApiErrorKind => {
+  if (!isRecord(error)) return 'network'
+  // axios 의 통신 실패·타임아웃(ERR_NETWORK / ECONNABORTED)은 response 없이 온다.
+  if (error.isAxiosError === true) return 'network'
+  // fetch 의 통신 실패는 `TypeError: Failed to fetch`.
+  if (error.name === 'TypeError') return 'network'
+  // 앱이 던진 도메인 오류 — 메시지를 살리고 재시도하지 않는다.
+  if (typeof error.message === 'string' && error.message.trim()) return 'client'
+  return 'network'
+}
+
+/**
+ * 던져진 에러(axios rejection, 앱이 throw 한 도메인 오류 등)를 정규화한다.
  *
  * BFF(`/api/bff`)는 백엔드 상태 코드를 그대로 통과시키므로 `response.status`가 곧 백엔드 상태다.
  * 단 세션 만료 시 BFF가 자체 401(`{ message }`)을 만들어 내려보내므로 그 형태도 받아준다.
+ *
+ * **취소된 요청은 이 함수로 판별할 수 없다.** 호출 전에 `isCanceledError` 로 걸러라
+ * (`resolveApiError` 는 이미 걸러 준다).
  */
 export const normalizeApiError = (error: unknown): NormalizedApiError => {
   const status = readStatus(error)
-  const kind = classifyStatus(status)
   const body = readResponseBody(error)
+
+  if (status === null && body === undefined) {
+    const kind = classifyResponselessError(error)
+    const message =
+      isRecord(error) && typeof error.message === 'string'
+        ? error.message.trim()
+        : ''
+    // axios 가 만드는 "Network Error" / "timeout of 0ms exceeded" 는 사용자에게 보여줄 문구가 아니다.
+    const usable = kind === 'client' && message ? message : null
+    return build(
+      kind,
+      null,
+      usable ? { resultCode: null, resultMessage: usable } : null,
+    )
+  }
+
+  const kind = classifyStatus(status)
 
   if (isApiResponse(body)) {
     return build(kind, status, body.dataHeader)
@@ -181,6 +252,8 @@ export const resolveApiError = (query: {
   error?: unknown
   data?: unknown
 }): NormalizedApiError | null => {
+  // 취소는 실패가 아니다 — 화면에 아무것도 띄우지 않는다.
+  if (isCanceledError(query.error)) return null
   if (query.error) return normalizeApiError(query.error)
   if (isApiResponse(query.data)) {
     return normalizeApiResponseFailure(query.data as ApiResponse<unknown>)
@@ -195,5 +268,7 @@ export const resolveApiError = (query: {
  */
 export const retryUnlessClientError =
   (max = 1) =>
-  (failureCount: number, error: unknown): boolean =>
-    isRetryable(normalizeApiError(error).kind) && failureCount < max
+  (failureCount: number, error: unknown): boolean => {
+    if (isCanceledError(error)) return false
+    return isRetryable(normalizeApiError(error).kind) && failureCount < max
+  }
