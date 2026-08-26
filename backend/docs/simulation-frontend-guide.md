@@ -100,7 +100,8 @@
 | `SIMULATION_002` (404) | 임대료 데이터 없는 자치구 | 자치구 선택 안내 (`resultMessage` 표시) |
 | `SIMULATION_003` (404) | 존재하지 않는 franchiseeId | 브랜드 재선택 유도 |
 | `SIMULATION_004` (400) | 프랜차이즈인데 franchiseeId 누락 | 폼 검증으로 예방 |
-| `SIMULATION_100`/`101` (400) | 요청 검증 실패 | `resultMessage.errors[]` 필드별 표시 |
+| `SIMULATION_101`~`109` (400) | 요청 검증 실패 (필드별) | `resultMessage.errors[]` 필드별 표시 |
+| `COMMERCIAL_100` / `COMMERCIAL_102` (400) | 검증 폴백 / 파라미터 타입 불일치 | `resultMessage.message` 표시 |
 | 5xx / 무응답 | 일시 장애 | "잠시 후 다시 시도" + 재시도 버튼 |
 
 ## 관련 문서

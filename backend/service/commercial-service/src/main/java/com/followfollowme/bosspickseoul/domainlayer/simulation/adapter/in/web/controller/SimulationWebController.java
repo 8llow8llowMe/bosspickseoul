@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dt
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.response.SimulationHistorySaveResponse;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.response.SimulationReportResponse;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.response.SimulationStoreSizesResponse;
+import com.followfollowme.bosspickseoul.domainlayer.simulation.application.exception.SimulationValidationMessage;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.application.port.in.SimulationWebUseCase;
 import com.followfollowme.bosspickseoul.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
@@ -94,8 +95,11 @@ public class SimulationWebController {
     @GetMapping("/histories")
     public ResponseEntity<Response<SimulationHistoriesResponse>> getHistories(
         @AuthenticationPrincipal MemberLoginActive principal,
-        @Parameter(description = "페이지 (0부터)") @RequestParam(defaultValue = "0") @Min(0) int page,
-        @Parameter(description = "페이지 크기 (1~50)") @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
+        @Parameter(description = "페이지 (0부터)") @RequestParam(defaultValue = "0")
+        @Min(value = 0, message = SimulationValidationMessage.PAGE_INVALID) int page,
+        @Parameter(description = "페이지 크기 (1~50)") @RequestParam(defaultValue = "10")
+        @Min(value = 1, message = SimulationValidationMessage.PAGE_SIZE_INVALID)
+        @Max(value = 50, message = SimulationValidationMessage.PAGE_SIZE_INVALID) int size
     ) {
         return ResponseEntity.ok().body(Response.success(
             simulationWebUseCase.getHistories(principal.memberId(), page, size)));

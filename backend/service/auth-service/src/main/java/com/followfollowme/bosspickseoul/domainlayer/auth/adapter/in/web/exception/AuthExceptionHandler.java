@@ -4,11 +4,14 @@ import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.common.exception.ValidationErrorSupport;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.AuthErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.AuthException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * auth 컨텍스트 전용 advice.
@@ -30,5 +33,20 @@ public class AuthExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Response<Void>> handleValidation(MethodArgumentNotValidException exception) {
         return ValidationErrorSupport.toResponse(exception, AuthErrorCode.INVALID_REQUEST.getCode());
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Response<Void>> handleConstraintViolation(ConstraintViolationException exception) {
+        return ValidationErrorSupport.toResponse(exception, AuthErrorCode.INVALID_REQUEST.getCode());
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Response<Void>> handleHandlerMethodValidation(HandlerMethodValidationException exception) {
+        return ValidationErrorSupport.toResponse(exception, AuthErrorCode.INVALID_REQUEST.getCode());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Response<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        return ValidationErrorSupport.toResponse(exception, AuthErrorCode.PARAMETER_TYPE_INVALID.getCode());
     }
 }

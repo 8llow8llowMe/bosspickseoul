@@ -76,7 +76,9 @@
 
 주의:
 
-- `PATCH /members/me`에서 `profileImageUrl`을 생략하면 프로필 이미지 제거로 처리된다. 유지하려면 기존 값을 다시 보내야 한다.
+- `PATCH /members/me`는 `nickname`만 받는다. `profileImageUrl`을 실어 보내도 **오류 없이 조용히 무시된다**
+  (Jackson 기본 설정이 알 수 없는 필드를 버린다). 이미지가 안 바뀌는데 200 이 오므로 원인을 찾기 어렵다.
+  프로필 이미지는 `POST /members/me/profile-image`(업로드)와 `DELETE /members/me/profile-image`(삭제)로만 바꾼다.
 - 비밀번호 변경과 탈퇴 성공 후에는 refresh cookie가 만료되므로 프론트 인증 상태를 비우고 로그인 화면으로 보낸다.
 
 ## Map Main

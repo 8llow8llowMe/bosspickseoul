@@ -447,7 +447,8 @@ INDEX(status)
   가입 전에 가치를 먼저 보여주기 위한 선택이다.
 - 조회 3종은 공개, 이력 2종만 `@PreAuthorize("isAuthenticated()")`
 
-**ErrorCode**: `SIMULATION_001~004` (비즈니스) + `SIMULATION_100~101` (검증)
+**ErrorCode**: `SIMULATION_001~004` (비즈니스) + `SIMULATION_101~109` (필드별 검증, `SimulationValidationMessage`).
+검증 폴백과 파라미터 타입 불일치는 commercial-service 공통 advice 가 `COMMERCIAL_100` / `COMMERCIAL_102` 로 처리한다.
 
 **⚠️ 프론트 연결 필요**: 프론트에 화면 컴포넌트(`simulation-form-page`, `simulation-report-page`,
 `simulation-compare-page`)가 이미 있으나, 라우트가 `SimulationUnavailablePage` 를 렌더한다.

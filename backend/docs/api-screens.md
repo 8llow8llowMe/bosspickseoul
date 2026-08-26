@@ -102,7 +102,8 @@
 3. `POST /members/signup` — 인증되지 않은 이메일이면 `MEMBER_006` 으로 거절됩니다.
 
 **`PATCH /members/me`**
-- 닉네임과 프로필 이미지 URL 수정. `profileImageUrl` 을 **생략하면 이미지가 제거**되므로, 유지하려면 기존 값을 그대로 실어 보내야 합니다.
+- 닉네임만 수정합니다. **`profileImageUrl` 은 더 이상 받지 않습니다** — 임의 URL 을 회원 정보에 넣으면 외부 이미지를 우리 서비스인 것처럼 노출시킬 수 있어 막았습니다.
+- 프로필 이미지는 `POST /members/me/profile-image` (업로드) 와 `DELETE /members/me/profile-image` (삭제) 로 관리합니다.
 
 **`POST /members/me/password` · `POST /members/me/withdraw`**
 - 둘 다 Refresh 쿠키를 만료시키고 전 기기의 토큰 재발급을 차단합니다 → 프론트는 성공 응답 후 로컬 인증 상태를 비우고 로그인 페이지로 이동

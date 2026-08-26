@@ -279,16 +279,9 @@
 | `AdministrationErrorCode` | `ADMINISTRATION_001`~`ADMINISTRATION_003` | 행정동 지출/매출/점포 미존재 404 |
 | `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
-| `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102) |
-| `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_004` | 업종/임대료/프랜차이즈 미존재 404, 프랜차이즈 미선택 400. 검증 대역 `SIMULATION_100`~`SIMULATION_101` |
+| `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102). 검증 대역은 `RANKING_101` (`RankingValidationMessage`) |
+| `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_004` | 업종/임대료/프랜차이즈 미존재 404, 프랜차이즈 미선택 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
 | `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_006` | 미존재 404 / 중복 저장 409(dataBody 에 기존 항목 아이디) / payload·타입 검증 400 / 저장 상한 초과 400. 검증 대역은 `ANALYSIS_BOOKMARK_101`~`ANALYSIS_BOOKMARK_105` (`AnalysisBookmarkValidationMessage`) |
-
-## 정책 추천 (보류)
-
-- `policy` 도메인 전체 제거됨 (스크래퍼 및 스키마 재설계 후 재구현 예정)
-- `CommercialProfileResponse`에서 `policyRecommendations` 필드 제거됨
-- 잔여 시드(`resources/db/policy-seed.sql`)도 제거됨 — 참조 엔티티/테이블이 없는 고아 파일이었다
-- 재개 시 데이터 스키마부터 새로 설계한다 (기존 시드/스키마를 전제하지 않음). `docs/feature-status.md` "미구현 / 보류 기능" 섹션 참고
 
 ## Notes
 

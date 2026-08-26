@@ -70,21 +70,27 @@
 |--------------|---------|----------|------------|-------------------|
 | `MEMBER` | `001~007` | `MEMBER_100` | `101~112` | `MEMBER_113` |
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
-| `AUTH` | `001~014` | `AUTH_100` | `101~104` | `AUTH_105` |
-| `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116` | `COMMUNITY_117` |
+| `AUTH` | `001~015` | `AUTH_100` | `101~104` | `AUTH_105` |
+| `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116`, `118~119` | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
-| `SIMULATION` | `001~004` | `SIMULATION_100` | `101` | (`COMMERCIAL_102` 사용) |
-| `RANKING` | `001~002` | (`COMMERCIAL_100` 사용) | (없음) | (`COMMERCIAL_102` 사용) |
+| `ANALYSIS_BOOKMARK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~105` | (`COMMERCIAL_102` 사용) |
+| `SIMULATION` | `001~004` | (`COMMERCIAL_100` 사용) | `101~109` | (`COMMERCIAL_102` 사용) |
+| `RANKING` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `POLICY` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `MAP` | `001~008` | `MAP_100` | `101~102` | `MAP_103` |
-| `AI` | `001~011` (`007` 대기열 포화) | `AI_100` | (없음) | `AI_101` |
+| `AI` | `001~012` (`007` 대기열 포화, `012` 일일 사용량 초과) | `AI_100` | (없음) | `AI_101` |
+| `STORAGE` | `001~007` | 파일 업로드 (형식·용량·저장소 실패) | - | - |
+| `JWT` | `001~006` | 게이트웨이 토큰 검증 (만료·서명 불일치·폐기 등) | - | - |
 | `DISTRICT` `001~003` / `ADMINISTRATION` `001~003` / `REGION` `001~005` | 조회 실패 등 | (검증 코드 없음) | - | - |
 | `COMMERCIAL_SUMMARY` `001~002` / `AREA_BOUNDARY` `001` | 요약·경계 데이터 | - | - | - |
 | `SECURITY` | `001~008` | 인증·인가 필터 계층 (토큰 만료·폐기·검증 불가 등) | - | - |
 
 - 필드별 코드의 단일 기준점은 각 도메인의 `application/exception/{Domain}ValidationMessage` 상수 클래스입니다.
 - `BOOKMARK` 는 별도 advice 가 없어 auth-service 의 `MemberExceptionHandler` 가 처리하므로 폴백·타입 코드는 `MEMBER` 대역을 씁니다.
+- commercial-service 는 advice 가 하나뿐입니다. 그래서 `SHARE_LINK`·`ANALYSIS_BOOKMARK`·`SIMULATION`·`RANKING`·`POLICY` 는 필드별 코드만 자기 대역을 쓰고, 폴백과 타입 불일치는 `COMMERCIAL_100` / `COMMERCIAL_102` 로 나옵니다.
+- `STORAGE` 는 auth-service·community-service 의 advice 가, `JWT` 는 게이트웨이 필터가 그대로 클라이언트에 내려주는 코드입니다. 두 대역은 도메인 접두어 규칙 밖에 있어 검증 대역이 없습니다.
+- `COMMUNITY` 만 번호가 이어지지 않습니다. `117` 이 타입 불일치 코드로 먼저 배포된 뒤 필드 코드 `118`(이미지 장수)·`119`(조회 개수)가 추가됐습니다. 되돌리면 이미 배포된 프론트가 깨지므로 번호만 어긋난 상태로 둡니다.
 - 규약 상세는 [`coding-conventions.md` §8-2](coding-conventions.md) 참고.
 
 ---
@@ -111,7 +117,7 @@
 |--------|------|------|------|
 | POST | `/signup` | 이메일 회원가입 (이메일 인증 완료 상태여야 함) | - |
 | GET | `/me` | 내 정보 조회 | 🔒 |
-| PATCH | `/me` | 닉네임·프로필 이미지 수정 (`profileImageUrl` 생략 시 이미지 제거) | 🔒 |
+| PATCH | `/me` | 닉네임 수정 (`nickname` 만 받는다 — 프로필 이미지는 아래 전용 API 로 관리) | 🔒 |
 | POST | `/me/profile-image` | 프로필 이미지 업로드 (`multipart/form-data`) | 🔒 |
 | DELETE | `/me/profile-image` | 프로필 이미지 삭제 | 🔒 |
 | POST | `/me/password` | 비밀번호 변경 — 전 기기 토큰 재발급 차단, 재로그인 필요 | 🔒 |
@@ -248,7 +254,9 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| GET | `/` | 최근 분석 조회 기준 인기 지역 순위 | - |
+| GET | `/` | 최근 분석 조회 기준 인기 지역 순위 (`areaType` 필수, `size` 1~50 기본 10) | - |
+
+`size` 가 범위를 벗어나면 `RANKING_101` 로 거절합니다.
 
 분석 조회 이벤트를 Kafka 로 발행하고 consumer 가 Redis Sorted Set 에 집계한 결과를 읽습니다. 조회 API 는 Redis 만 사용하므로 `RANKING_ENABLED` 와 무관하게 항상 동작하며, 파이프라인이 꺼져 있으면 빈 순위가 나옵니다. 자세한 구성은 [`deploy-guide.md`](deploy-guide.md) 의 "인기 순위(Kafka) 활성화 시 필요한 key" 참고.
 
@@ -302,16 +310,18 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| GET | `/` | 피드 목록 (정렬·`targetType`·`targetCode` 필터, 무한스크롤) | - |
-| GET | `/search` | 키워드 검색 | - |
+| GET | `/` | 피드 목록 (정렬·`targetType`·`targetCode` 필터, 무한스크롤, `size` 1~50) | - |
+| GET | `/search` | 키워드 검색 (`size` 1~50) | - |
 | GET | `/{postId}` | 게시글 상세 (조회수 +1 자동) | - |
 | POST | `/` | 게시글 작성 | 🔒 |
 | PATCH | `/{postId}` | 게시글 수정 (작성자 본인만) | 🔒 |
 | DELETE | `/{postId}` | 게시글 삭제 (소프트 삭제) | 🔒 |
 | POST | `/{postId}/likes` | 좋아요 토글 | 🔒 |
-| GET | `/liked` | 내가 좋아요한 게시글 목록 | 🔒 |
+| GET | `/liked` | 내가 좋아요한 게시글 목록 (`size` 1~50) | 🔒 |
 | POST | `/images` | 게시글 이미지 업로드 (`multipart/form-data`) | 🔒 |
 | POST | `/drafts/commercial-comparisons` | 상권 비교 결과 커뮤니티 게시글 초안 생성 | - |
+
+목록 3종(`/`, `/search`, `/liked`)의 `size` 는 1~50 입니다. 범위를 벗어나면 `COMMUNITY_119` 로 거절합니다. 커서는 `lastPostId` 이고, 인기순 정렬일 때만 `lastLikeCount` 를 함께 넘깁니다.
 
 ### 댓글 (`/api/v1/community/posts/{postId}/comments`)
 

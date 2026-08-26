@@ -11,6 +11,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostLikeResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostImageUploadResponse;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityValidationMessage;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.in.CommunityPostWebUseCase;
 import com.followfollowme.bosspickseoul.storage.support.MultipartFileSupport;
 import java.util.List;
@@ -24,10 +25,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -38,6 +42,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/community/posts")
@@ -57,7 +62,9 @@ public class CommunityPostWebController {
         @Parameter(description = "대상 코드 필터") @RequestParam(required = false) String targetCode,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
         @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
-        @Parameter(description = "조회 개수", example = "20") @RequestParam(defaultValue = "20") int size
+        @Parameter(description = "조회 개수 (1~50)", example = "20") @RequestParam(defaultValue = "20")
+        @Min(value = 1, message = CommunityValidationMessage.PAGE_SIZE_INVALID)
+        @Max(value = 50, message = CommunityValidationMessage.PAGE_SIZE_INVALID) int size
     ) {
         CommunityPostListResponse response = communityPostWebUseCase.getPosts(
             sortType,
@@ -79,7 +86,9 @@ public class CommunityPostWebController {
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
         @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
-        @Parameter(description = "조회 개수", example = "10") @RequestParam(defaultValue = "10") int size
+        @Parameter(description = "조회 개수 (1~50)", example = "10") @RequestParam(defaultValue = "10")
+        @Min(value = 1, message = CommunityValidationMessage.PAGE_SIZE_INVALID)
+        @Max(value = 50, message = CommunityValidationMessage.PAGE_SIZE_INVALID) int size
     ) {
         CommunityPostListResponse response = communityPostWebUseCase.searchPosts(
             keyword,
@@ -205,7 +214,9 @@ public class CommunityPostWebController {
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
         @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
-        @Parameter(description = "조회 개수", example = "20") @RequestParam(defaultValue = "20") int size
+        @Parameter(description = "조회 개수 (1~50)", example = "20") @RequestParam(defaultValue = "20")
+        @Min(value = 1, message = CommunityValidationMessage.PAGE_SIZE_INVALID)
+        @Max(value = 50, message = CommunityValidationMessage.PAGE_SIZE_INVALID) int size
     ) {
         CommunityLikedPostsResponse response = communityPostWebUseCase.getLikedPosts(
             loginActive.memberId(),
