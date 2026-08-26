@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Archive,
   ArrowLeft,
   Bookmark,
   Check,
@@ -38,10 +39,21 @@ import {
   fetchCommercialTrend,
 } from '@/lib/api/commercial-analysis'
 import {
+  getApiMessage,
   getResponseBody,
   isApiSuccess,
   isResponseError,
 } from '@/lib/api/response'
+import {
+  classifyAnalysisBookmarkSaveError,
+  createAnalysisBookmark,
+  deleteAnalysisBookmark,
+} from '@/lib/api/analysis-bookmark'
+import { createShareLink, createShareUrl } from '@/lib/api/share'
+import {
+  buildCommercialAnalysisPayload,
+  normalizeSharePayload,
+} from '@/lib/share/payload'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
 import {
@@ -680,6 +692,32 @@ export default function AnalysisResultView({
     message: string
   } | null>(null)
 
+  // 공유 링크 / 분석 화면 보관함이 공유하는 payload. 조건이 불완전하면 null 이라 버튼을 막는다.
+  const sharePayload = useMemo(
+    () =>
+      buildCommercialAnalysisPayload(
+        { ...selection, periodCode },
+        searchParams.get('tab'),
+      ),
+    [selection, periodCode, searchParams],
+  )
+  const sharePayloadKey = sharePayload
+    ? normalizeSharePayload(sharePayload)
+    : ''
+  /**
+   * 보관된 항목 id(문자열). ⚠️ Snowflake 값이라 절대 숫자로 바꾸지 않는다.
+   * 화면 상태(기간·탭)가 바뀌면 다른 화면이므로 보관 상태를 초기화한다.
+   */
+  const [archived, setArchived] = useState<{
+    payloadKey: string
+    bookmarkId: string | null
+  } | null>(null)
+  const archivedBookmarkId =
+    archived && archived.payloadKey === sharePayloadKey
+      ? archived.bookmarkId
+      : null
+  const isArchived = archived?.payloadKey === sharePayloadKey
+
   const spyId = useScrollSpy(REPORT_SECTION_IDS)
   const spyTab = normalizeAnalysisTab(spyId.replace('report-', ''))
   const {
@@ -953,6 +991,86 @@ export default function AnalysisResultView({
     },
   })
 
+  const shareMutation = useMutation({
+    mutationFn: (payload: NonNullable<typeof sharePayload>) =>
+      createShareLink({ shareType: 'COMMERCIAL_ANALYSIS', payload }),
+  })
+
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!sharePayload) {
+        throw new Error('분석 조건을 확인하지 못했어요.')
+      }
+      if (archivedBookmarkId) {
+        const removed = await deleteAnalysisBookmark(archivedBookmarkId)
+        if (!isApiSuccess(removed)) {
+          throw new Error(getApiMessage(removed, '보관을 해제하지 못했어요.'))
+        }
+        return { mode: 'removed' as const, bookmarkId: null }
+      }
+
+      const saved = await createAnalysisBookmark({
+        shareType: 'COMMERCIAL_ANALYSIS',
+        payload: sharePayload,
+        ...(profile?.commercialName
+          ? {
+              bookmarkName: `${profile.commercialName} ${serviceName}`.slice(
+                0,
+                50,
+              ),
+            }
+          : {}),
+      })
+      if (!isApiSuccess(saved)) {
+        throw new Error(getApiMessage(saved, '보관함에 저장하지 못했어요.'))
+      }
+      return {
+        mode: 'saved' as const,
+        bookmarkId: getResponseBody(saved)?.bookmark?.bookmarkId ?? null,
+      }
+    },
+    onSuccess: result => {
+      setArchived(
+        result.mode === 'saved'
+          ? { payloadKey: sharePayloadKey, bookmarkId: result.bookmarkId }
+          : null,
+      )
+      setActionFeedback({
+        error: false,
+        message:
+          result.mode === 'saved'
+            ? '이 분석 화면을 보관함에 저장했어요.'
+            : '보관을 해제했어요.',
+      })
+    },
+    onError: error => {
+      const failure = classifyAnalysisBookmarkSaveError(error)
+
+      // 409: 이미 같은 화면 상태가 있다. existingBookmarkId 가 오면 해제 토글로 이어간다.
+      if (failure.kind === 'duplicate') {
+        setArchived({
+          payloadKey: sharePayloadKey,
+          bookmarkId: failure.existingBookmarkId,
+        })
+        setActionFeedback({
+          error: false,
+          message: failure.existingBookmarkId
+            ? '이미 보관함에 저장된 화면이에요. 한 번 더 누르면 보관을 해제해요.'
+            : '이미 보관함에 저장된 화면이에요. 해제는 보관함에서 할 수 있어요.',
+        })
+        return
+      }
+
+      if (failure.kind === 'unauthorized') {
+        router.push(getCommercialBookmarkLoginHref(currentHref))
+        return
+      }
+
+      // 400 ANALYSIS_BOOKMARK_006(저장 상한)은 서버 문구를 그대로 보여준다.
+      setActionFeedback({ error: true, message: failure.message })
+    },
+  })
+
   if (invalidMessage) {
     return (
       <Root>
@@ -971,30 +1089,73 @@ export default function AnalysisResultView({
     )
   }
 
+  /**
+   * V2 공유 링크(`POST /share-links`)를 발급해 `/s/{shareCode}` 를 공유한다.
+   * 로그인은 필요 없다 — BFF 세션이 있으면 최초 공유자만 기록된다.
+   * 같은 화면 상태는 기존 코드가 재사용되므로 버튼 연타에 안전하다.
+   */
   const handleShare = async () => {
-    const absoluteUrl =
-      typeof window === 'undefined'
-        ? currentHref
-        : new URL(currentHref, window.location.origin).toString()
+    if (!sharePayload) {
+      setActionFeedback({
+        error: true,
+        message: '분석 조건을 다시 선택한 뒤 공유해 주세요.',
+      })
+      return
+    }
+
     try {
+      const response = await shareMutation.mutateAsync(sharePayload)
+      if (!isApiSuccess(response)) {
+        throw new Error(
+          getApiMessage(response, '공유 링크를 발급하지 못했어요.'),
+        )
+      }
+      const shareCode = getResponseBody(response)?.shareCode
+      if (!shareCode) {
+        throw new Error('공유 링크를 발급하지 못했어요.')
+      }
+
+      const shareUrl = createShareUrl(
+        shareCode,
+        typeof window === 'undefined' ? null : window.location.origin,
+      )
       if (typeof navigator.share === 'function') {
         await navigator.share({
           title: `${profile?.commercialName ?? '상권'} 분석 결과`,
-          url: absoluteUrl,
+          url: shareUrl,
         })
       } else {
-        await navigator.clipboard.writeText(absoluteUrl)
+        await navigator.clipboard.writeText(shareUrl)
       }
       setActionFeedback({
         error: false,
-        message: '현재 분석 URL을 공유할 수 있게 준비했어요.',
+        message: '공유 링크를 준비했어요. 링크는 90일간 열 수 있어요.',
       })
-    } catch {
+    } catch (error) {
+      // 사용자가 공유 시트를 닫은 것(AbortError)은 실패가 아니다.
+      if (error instanceof Error && error.name === 'AbortError') return
       setActionFeedback({
         error: true,
-        message: '공유하지 못했습니다. 다시 시도해 주세요.',
+        message: classifyAnalysisBookmarkSaveError(error).message,
       })
     }
+  }
+
+  /** 분석 화면 보관함 저장/해제. 지역 북마크(상권 저장)와는 다른 개념이다. */
+  const handleArchive = () => {
+    if (!hasHydrated || archiveMutation.isPending) return
+    if (!isLoggedIn) {
+      router.push(getCommercialBookmarkLoginHref(currentHref))
+      return
+    }
+    if (!sharePayload) {
+      setActionFeedback({
+        error: true,
+        message: '분석 조건을 다시 선택한 뒤 보관해 주세요.',
+      })
+      return
+    }
+    archiveMutation.mutate()
   }
 
   const handleBookmark = () => {
@@ -1112,9 +1273,22 @@ export default function AnalysisResultView({
                 size="medium"
                 variant="secondary"
                 leftIcon={<Share2 />}
+                isLoading={shareMutation.isPending}
+                disabled={!sharePayload}
                 onClick={() => void handleShare()}
               >
                 공유
+              </Button>
+              <Button
+                size="medium"
+                variant="secondary"
+                leftIcon={isArchived ? <Check /> : <Archive />}
+                isLoading={archiveMutation.isPending}
+                disabled={!hasHydrated || !sharePayload}
+                onClick={handleArchive}
+                title="업종·기간 조건까지 포함한 지금 화면을 보관함에 저장합니다"
+              >
+                {isArchived ? '보관됨' : '화면 보관'}
               </Button>
               <Button
                 size="medium"
@@ -1123,6 +1297,7 @@ export default function AnalysisResultView({
                 isLoading={bookmarkMutation.isPending}
                 disabled={!hasHydrated || profileQuery.isPending}
                 onClick={handleBookmark}
+                title="상권 자체를 지역 북마크에 저장합니다"
               >
                 {bookmark ? '저장됨' : '상권 저장'}
               </Button>

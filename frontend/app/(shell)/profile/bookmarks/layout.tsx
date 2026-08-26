@@ -1,7 +1,7 @@
 import ProfileSectionLayout from '@/components/profile/profile-section-layout'
 
 const tabs = [
-  { label: '자치구·행정동', href: '/profile/bookmarks/analysis' },
+  { label: '지역·화면', href: '/profile/bookmarks/analysis' },
   { label: '상권', href: '/profile/bookmarks/recommend' },
   { label: '시뮬레이션', href: '/profile/bookmarks/simulation' },
 ] as const
