@@ -34,7 +34,7 @@ const renderSheet = (
           selectedItem: selectedItemOverride,
           detail: null,
           isDetailLoading: false,
-          detailErrorMessage: null,
+          detailError: null,
           snap,
           onSnapChange: vi.fn(),
           onSelect: vi.fn(),

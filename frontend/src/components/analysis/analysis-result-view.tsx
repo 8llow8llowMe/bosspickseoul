@@ -37,11 +37,8 @@ import {
   fetchCommercialStores,
   fetchCommercialTrend,
 } from '@/lib/api/commercial-analysis'
-import {
-  getResponseBody,
-  isApiSuccess,
-  isResponseError,
-} from '@/lib/api/response'
+import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
+import { getResponseBody, isApiSuccess } from '@/lib/api/response'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
 import {
@@ -79,7 +76,6 @@ import { useScrollSpy } from '@/lib/analysis/use-scroll-spy'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
-import type { ApiResponse } from '@/types/api'
 import type {
   CommercialBenchmark,
   CommercialFacility,
@@ -710,32 +706,32 @@ export default function AnalysisResultView({
     queryFn: () =>
       fetchCommercialProfile(commercialCode, serviceCode, periodCode),
     enabled,
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const servicesQuery = useQuery({
     queryKey: ['analysis', 'services', commercialCode],
     queryFn: () => fetchCommercialServiceCategories(commercialCode),
     enabled: Boolean(commercialCode),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const salesSummaryQuery = useQuery({
     queryKey: ['analysis', 'sales-summary', commercialCode, contextParams],
     queryFn: () => fetchCommercialSalesSummary(commercialCode, contextParams),
     enabled,
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const storesQuery = useQuery({
     queryKey: ['analysis', 'stores', commercialCode, serviceCode, periodCode],
     queryFn: () =>
       fetchCommercialStores(commercialCode, serviceCode, periodCode),
     enabled,
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const populationQuery = useQuery({
     queryKey: ['analysis', 'population', commercialCode, periodCode],
     queryFn: () => fetchCommercialPopulation(commercialCode, periodCode),
     enabled,
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const incomeSummaryQuery = useQuery({
     queryKey: [
@@ -754,32 +750,32 @@ export default function AnalysisResultView({
         periodCode,
       ),
     enabled,
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const facilitiesQuery = useQuery({
     queryKey: ['analysis', 'facilities', commercialCode, periodCode],
     queryFn: () => fetchCommercialFacilities(commercialCode, periodCode),
     enabled,
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const footTrafficQuery = useQuery({
     queryKey: ['analysis', 'foot-traffic', commercialCode, periodCode],
     queryFn: () => fetchCommercialFootTraffic(commercialCode, periodCode),
     enabled: enabled && activated.has('foot-traffic'),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const salesQuery = useQuery({
     queryKey: ['analysis', 'sales', commercialCode, serviceCode, periodCode],
     queryFn: () =>
       fetchCommercialSales(commercialCode, serviceCode, periodCode),
     enabled: enabled && activated.has('sales'),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const incomeQuery = useQuery({
     queryKey: ['analysis', 'income', commercialCode, periodCode],
     queryFn: () => fetchCommercialIncome(commercialCode, periodCode),
     enabled: enabled && activated.has('living'),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const salesTrendQuery = useQuery({
     queryKey: [
@@ -798,7 +794,7 @@ export default function AnalysisResultView({
         periodCount: 4,
       }),
     enabled: enabled && activated.has('trend'),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const footTrendQuery = useQuery({
     queryKey: [
@@ -817,7 +813,7 @@ export default function AnalysisResultView({
         periodCount: 4,
       }),
     enabled: enabled && activated.has('trend'),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const storeTrendQuery = useQuery({
     queryKey: [
@@ -836,7 +832,7 @@ export default function AnalysisResultView({
         periodCount: 4,
       }),
     enabled: enabled && activated.has('trend'),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
   const benchmarkQuery = useQuery({
     queryKey: [
@@ -849,7 +845,7 @@ export default function AnalysisResultView({
     queryFn: () =>
       fetchCommercialBenchmark(commercialCode, serviceCode, periodCode),
     enabled: enabled && activated.has('benchmark'),
-    retry: 1,
+    retry: retryUnlessClientError(1),
   })
 
   const profile = getResponseBody(profileQuery.data) as CommercialProfile | null
@@ -1164,10 +1160,7 @@ export default function AnalysisResultView({
                   title="핵심 지표"
                   description="선택한 상권과 업종의 주요 수치를 먼저 확인하세요."
                   loading={profileQuery.isPending}
-                  error={
-                    profileQuery.isError ||
-                    isResponseError(profileQuery.data as ApiResponse<unknown>)
-                  }
+                  error={resolveApiError(profileQuery)}
                   empty={!profile?.keyMetrics && !salesSummary && !stores}
                   onRetry={() => void profileQuery.refetch()}
                 >
@@ -1179,12 +1172,7 @@ export default function AnalysisResultView({
                 <AnalysisResultSection
                   title="지역별 월 매출 비교"
                   loading={salesSummaryQuery.isPending}
-                  error={
-                    salesSummaryQuery.isError ||
-                    isResponseError(
-                      salesSummaryQuery.data as ApiResponse<unknown>,
-                    )
-                  }
+                  error={resolveApiError(salesSummaryQuery)}
                   empty={!hasObjectValues(salesSummary)}
                   onRetry={() => void salesSummaryQuery.refetch()}
                 >
@@ -1206,10 +1194,7 @@ export default function AnalysisResultView({
                 <AnalysisResultSection
                   title="점포 현황"
                   loading={storesQuery.isPending}
-                  error={
-                    storesQuery.isError ||
-                    isResponseError(storesQuery.data as ApiResponse<unknown>)
-                  }
+                  error={resolveApiError(storesQuery)}
                   empty={!hasObjectValues(stores)}
                   onRetry={() => void storesQuery.refetch()}
                 >
@@ -1244,14 +1229,8 @@ export default function AnalysisResultView({
                     populationQuery.isPending || facilitiesQuery.isPending
                   }
                   error={
-                    populationQuery.isError ||
-                    facilitiesQuery.isError ||
-                    isResponseError(
-                      populationQuery.data as ApiResponse<unknown>,
-                    ) ||
-                    isResponseError(
-                      facilitiesQuery.data as ApiResponse<unknown>,
-                    )
+                    resolveApiError(populationQuery) ??
+                    resolveApiError(facilitiesQuery)
                   }
                   empty={
                     !hasObjectValues(population) && !hasObjectValues(facilities)
@@ -1297,10 +1276,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="시간대별 유동인구"
                 loading={footTrafficQuery.isPending}
-                error={
-                  footTrafficQuery.isError ||
-                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(footTrafficQuery)}
                 empty={
                   !hasObjectValues(
                     footTraffic?.byTimeSlotItem as Record<
@@ -1331,10 +1307,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="요일별 유동인구"
                 loading={footTrafficQuery.isPending}
-                error={
-                  footTrafficQuery.isError ||
-                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(footTrafficQuery)}
                 empty={
                   !hasObjectValues(
                     footTraffic?.byDayOfWeekItem as Record<
@@ -1364,10 +1337,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="연령·성별 유동인구"
                 loading={footTrafficQuery.isPending}
-                error={
-                  footTrafficQuery.isError ||
-                  isResponseError(footTrafficQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(footTrafficQuery)}
                 empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
                   row => row.male === null && row.female === null,
                 )}
@@ -1392,10 +1362,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="시간대별 매출"
                 loading={salesQuery.isPending}
-                error={
-                  salesQuery.isError ||
-                  isResponseError(salesQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(salesQuery)}
                 empty={
                   !hasObjectValues(
                     sales?.amountByTimeSlotItem as Record<
@@ -1426,10 +1393,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="요일별 매출"
                 loading={salesQuery.isPending}
-                error={
-                  salesQuery.isError ||
-                  isResponseError(salesQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(salesQuery)}
                 empty={
                   !hasObjectValues(
                     sales?.amountByDayOfWeekItem as Record<
@@ -1459,10 +1423,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="연령별 매출"
                 loading={salesQuery.isPending}
-                error={
-                  salesQuery.isError ||
-                  isResponseError(salesQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(salesQuery)}
                 empty={
                   !hasObjectValues(
                     sales?.amountByAgeItem as Record<
@@ -1488,10 +1449,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="성별 매출 건수"
                 loading={salesQuery.isPending}
-                error={
-                  salesQuery.isError ||
-                  isResponseError(salesQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(salesQuery)}
                 empty={toGenderSegments(
                   sales?.countByGenderItem?.maleSalesCount,
                   sales?.countByGenderItem?.femaleSalesCount,
@@ -1523,10 +1481,7 @@ export default function AnalysisResultView({
                   title="점포 분석"
                   description="개·폐업과 프랜차이즈 현황을 함께 확인하세요."
                   loading={storesQuery.isPending}
-                  error={
-                    storesQuery.isError ||
-                    isResponseError(storesQuery.data as ApiResponse<unknown>)
-                  }
+                  error={resolveApiError(storesQuery)}
                   empty={!hasObjectValues(stores)}
                   onRetry={() => void storesQuery.refetch()}
                 >
@@ -1566,10 +1521,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="연령별 상주인구"
                 loading={populationQuery.isPending}
-                error={
-                  populationQuery.isError ||
-                  isResponseError(populationQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(populationQuery)}
                 empty={!hasObjectValues(population?.byAgeItem)}
                 onRetry={() => void populationQuery.refetch()}
               >
@@ -1590,10 +1542,7 @@ export default function AnalysisResultView({
               <AnalysisResultSection
                 title="성별 상주인구"
                 loading={populationQuery.isPending}
-                error={
-                  populationQuery.isError ||
-                  isResponseError(populationQuery.data as ApiResponse<unknown>)
-                }
+                error={resolveApiError(populationQuery)}
                 empty={toGenderSegments(
                   population?.malePercentage,
                   population?.femalePercentage,
@@ -1615,9 +1564,11 @@ export default function AnalysisResultView({
                 title="소득과 소비"
                 loading={incomeQuery.isPending}
                 error={
-                  incomeQuery.isError ||
-                  isResponseError(incomeQuery.data as ApiResponse<unknown>) ||
-                  incomeSummaryQuery.isError
+                  // incomeSummary 는 이 섹션에서 렌더하지 않고 `empty` 계산에만 쓰인다.
+                  // 그래서 던져진 실패(isError)만 오류로 보고, 본문 실패(200 + success:false)로는
+                  // 이미 받아 둔 소득 데이터를 가리지 않는다 — 변경 전 조건과 등가.
+                  resolveApiError(incomeQuery) ??
+                  resolveApiError({ error: incomeSummaryQuery.error })
                 }
                 empty={
                   !hasObjectValues(income) && !hasObjectValues(incomeSummary)
@@ -1651,12 +1602,7 @@ export default function AnalysisResultView({
                 <AnalysisResultSection
                   title="주요 시설과 교통"
                   loading={facilitiesQuery.isPending}
-                  error={
-                    facilitiesQuery.isError ||
-                    isResponseError(
-                      facilitiesQuery.data as ApiResponse<unknown>,
-                    )
-                  }
+                  error={resolveApiError(facilitiesQuery)}
                   empty={!hasObjectValues(facilities)}
                   onRetry={() => void facilitiesQuery.refetch()}
                 >
@@ -1702,10 +1648,7 @@ export default function AnalysisResultView({
                   key={metric}
                   title={label}
                   loading={query.isPending}
-                  error={
-                    query.isError ||
-                    isResponseError(query.data as ApiResponse<unknown>)
-                  }
+                  error={resolveApiError(query)}
                   empty={!data?.periods?.length}
                   onRetry={() => void query.refetch()}
                 >
@@ -1732,10 +1675,7 @@ export default function AnalysisResultView({
                   title="비교 분석"
                   description={benchmark?.summary ?? undefined}
                   loading={benchmarkQuery.isPending}
-                  error={
-                    benchmarkQuery.isError ||
-                    isResponseError(benchmarkQuery.data as ApiResponse<unknown>)
-                  }
+                  error={resolveApiError(benchmarkQuery)}
                   empty={!hasObjectValues(benchmark)}
                   onRetry={() => void benchmarkQuery.refetch()}
                 >
