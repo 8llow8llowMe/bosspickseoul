@@ -15,6 +15,7 @@
 **Tech Stack:** Next.js App Router · TypeScript · styled-components · React Query v5 · recharts · vitest(node 환경 + `renderToStaticMarkup`)
 
 **Spec:**
+
 - 정본 세부 명세: `frontend/docs/features/simulation/simulation-report.md` (D0~D8)
 - 공통 명세: `frontend/docs/features/simulation/simulation.md`
 - 디자인 정본: `frontend/DESIGN.md` §5.3 S-SIM-1 ~ S-SIM-3
@@ -26,22 +27,22 @@
 
 플랜 전체에 걸리는 제약이다. **모든 태스크의 요구사항에 암묵적으로 포함된다.**
 
-| # | 제약 | 근거 |
-| --- | --- | --- |
-| G1 | **금액은 전부 만원 단위**다. 표기는 `formatLargeWon`(`@/lib/format`, **만원 입력**). `@/lib/status/status-formatters` 는 **원 입력**이라 바꿔 쓰면 정확히 10,000배 틀린다. | D6 "금액 단위" |
-| G2 | `dataBaseYear` 안내문(`{연도}년 기준 데이터로 계산된 결과입니다.`)은 **필수 노출**. 항상 응답의 `dataBaseYear` 를 쓴다 (상수 `SIMULATION_SEED_BASE_YEAR` 아님). | D2 #6, D6 |
-| G3 | `genderAgeAnalysis` / `seasonAnalysis` 가 `null` 인 것은 **200 성공 응답 안의 결측**이다. 오류 UI·재시도 버튼을 띄우지 말고 `@/lib/simulation/report-sections` 판정으로 **해당 섹션만 숨긴다**. | D2 #7, D6 |
-| G4 | `costDetail.levy` 는 `null`(비프랜차이즈 → 항목 숨김)과 `0`(부담금 0원 → **표기**)을 구분한다. `!levy` falsy 검사 금지. | D2 #9, D6 |
-| G5 | `keyMoney` 는 **총비용에 포함되지 않는다.** 반드시 `참고` 배지와 함께 총비용과 분리해 표기한다. | D2 #8 |
-| G6 | `topAgeGroups[].salesAmount` 는 **자치구×업종 전체 분기 매출**이다(원천 `sales_district`). ① 범위 라벨(`{자치구} {업종} 전체 기준`)을 제목·축에 붙이고 ② **억 단위로 축약**한다. | D2 #13, D4-3-1 |
-| G7 | 오류 분기는 `@/lib/api/api-error` 의 `kind` 로만 한다. **화면이 HTTP 상태를 직접 비교하지 않는다.** 재시도 버튼 노출은 `isRetryable(kind)` 하나가 결정한다(404 = 버튼 없음). | D5 "오류 → 화면 분기" |
-| G8 | `periodCode` 를 **입력으로 노출하지 않는다.** 리포트에는 `condition.periodCode` 로 기준 분기만 표기한다. | D8-1 #2 |
-| G9 | `floorType` 은 요청=enum 문자열(`'FIRST_FLOOR' \| 'OTHER'`), 응답=`{code,name,description}` 객체다. 응답 객체를 그대로 재요청에 넣지 않는다. | D6 |
-| G10 | 비교는 **부분 성공 금지**. 한쪽 실패 시 전체 실패로 처리하고 오류 UI를 **하나만** 띄운다. | D2 #10, D5 |
-| G11 | 임의 색상·radius·shadow·spacing 토큰 추가 금지. `DESIGN.md` 의 CSS 변수만 쓴다. | `frontend/CLAUDE.md` 금지사항 |
-| G12 | 완료 보고 전 `pnpm qa:verify`(= `format:check && lint && typecheck && build`)와 `pnpm test` 를 **실제로 실행**한다. 미실행 명령을 통과했다고 보고하지 않는다. | `frontend/CLAUDE.md` |
-| G13 | 이력 **삭제 UI를 만들지 않는다**(삭제 API 없음). 시뮬레이션 **공유 CTA를 그리지 않는다**(`ShareTargetType` 에 상수 없음). | D4-4, S-SIM-4 |
-| G14 | 테스트는 저장소 관용구를 따른다 — jsdom/testing-library 없이 **node 환경 + `renderToStaticMarkup` 문자열 assertion**, 또는 순수 함수 단위 테스트. | `simulation-result-preview.test.ts` |
+| #   | 제약                                                                                                                                                                                            | 근거                                |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| G1  | **금액은 전부 만원 단위**다. 표기는 `formatLargeWon`(`@/lib/format`, **만원 입력**). `@/lib/status/status-formatters` 는 **원 입력**이라 바꿔 쓰면 정확히 10,000배 틀린다.                      | D6 "금액 단위"                      |
+| G2  | `dataBaseYear` 안내문(`{연도}년 기준 데이터로 계산된 결과입니다.`)은 **필수 노출**. 항상 응답의 `dataBaseYear` 를 쓴다 (상수 `SIMULATION_SEED_BASE_YEAR` 아님).                                 | D2 #6, D6                           |
+| G3  | `genderAgeAnalysis` / `seasonAnalysis` 가 `null` 인 것은 **200 성공 응답 안의 결측**이다. 오류 UI·재시도 버튼을 띄우지 말고 `@/lib/simulation/report-sections` 판정으로 **해당 섹션만 숨긴다**. | D2 #7, D6                           |
+| G4  | `costDetail.levy` 는 `null`(비프랜차이즈 → 항목 숨김)과 `0`(부담금 0원 → **표기**)을 구분한다. `!levy` falsy 검사 금지.                                                                         | D2 #9, D6                           |
+| G5  | `keyMoney` 는 **총비용에 포함되지 않는다.** 반드시 `참고` 배지와 함께 총비용과 분리해 표기한다.                                                                                                 | D2 #8                               |
+| G6  | `topAgeGroups[].salesAmount` 는 **자치구×업종 전체 분기 매출**이다(원천 `sales_district`). ① 범위 라벨(`{자치구} {업종} 전체 기준`)을 제목·축에 붙이고 ② **억 단위로 축약**한다.                | D2 #13, D4-3-1                      |
+| G7  | 오류 분기는 `@/lib/api/api-error` 의 `kind` 로만 한다. **화면이 HTTP 상태를 직접 비교하지 않는다.** 재시도 버튼 노출은 `isRetryable(kind)` 하나가 결정한다(404 = 버튼 없음).                    | D5 "오류 → 화면 분기"               |
+| G8  | `periodCode` 를 **입력으로 노출하지 않는다.** 리포트에는 `condition.periodCode` 로 기준 분기만 표기한다.                                                                                        | D8-1 #2                             |
+| G9  | `floorType` 은 요청=enum 문자열(`'FIRST_FLOOR' \| 'OTHER'`), 응답=`{code,name,description}` 객체다. 응답 객체를 그대로 재요청에 넣지 않는다.                                                    | D6                                  |
+| G10 | 비교는 **부분 성공 금지**. 한쪽 실패 시 전체 실패로 처리하고 오류 UI를 **하나만** 띄운다.                                                                                                       | D2 #10, D5                          |
+| G11 | 임의 색상·radius·shadow·spacing 토큰 추가 금지. `DESIGN.md` 의 CSS 변수만 쓴다.                                                                                                                 | `frontend/CLAUDE.md` 금지사항       |
+| G12 | 완료 보고 전 `pnpm qa:verify`(= `format:check && lint && typecheck && build`)와 `pnpm test` 를 **실제로 실행**한다. 미실행 명령을 통과했다고 보고하지 않는다.                                   | `frontend/CLAUDE.md`                |
+| G13 | 이력 **삭제 UI를 만들지 않는다**(삭제 API 없음). 시뮬레이션 **공유 CTA를 그리지 않는다**(`ShareTargetType` 에 상수 없음).                                                                       | D4-4, S-SIM-4                       |
+| G14 | 테스트는 저장소 관용구를 따른다 — jsdom/testing-library 없이 **node 환경 + `renderToStaticMarkup` 문자열 assertion**, 또는 순수 함수 단위 테스트.                                               | `simulation-result-preview.test.ts` |
 
 ---
 
@@ -49,11 +50,11 @@
 
 3개를 **순차**로 올린다. 각 PR의 base 는 **항상 `develop`** 이다 (스택 PR base 사고 재발 방지 — 인계 문서의 결정).
 
-| PR | 브랜치 | 범위 | 선행 |
-| --- | --- | --- | --- |
-| **B1** | `feature/fe/simulation-report` | 조건 URL 코덱 · 리포트 표시 로직 · 상세 리포트 화면 6섹션 · 라우트 4개 중 `report` 2개 교체 · 입력 화면에서 리포트로 잇기 | 없음 |
-| **B2** | `feature/fe/simulation-history` | 저장 CTA(비로그인 로그인 유도) · 이력 목록(`/profile/bookmarks/simulation`) · 이력 → 리포트 재조회 | B1 머지 |
-| **B3** | `feature/fe/simulation-compare` | 컴팩트 조건 편집기 · A/B 비교 화면 · 라우트 `compare` 2개 교체 · 리포트의 `비교에 추가` 활성 | B1 머지 (B2 무관) |
+| PR     | 브랜치                          | 범위                                                                                                                      | 선행              |
+| ------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| **B1** | `feature/fe/simulation-report`  | 조건 URL 코덱 · 리포트 표시 로직 · 상세 리포트 화면 6섹션 · 라우트 4개 중 `report` 2개 교체 · 입력 화면에서 리포트로 잇기 | 없음              |
+| **B2** | `feature/fe/simulation-history` | 저장 CTA(비로그인 로그인 유도) · 이력 목록(`/profile/bookmarks/simulation`) · 이력 → 리포트 재조회                        | B1 머지           |
+| **B3** | `feature/fe/simulation-compare` | 컴팩트 조건 편집기 · A/B 비교 화면 · 라우트 `compare` 2개 교체 · 리포트의 `비교에 추가` 활성                              | B1 머지 (B2 무관) |
 
 **PR 간 인터페이스** (B2·B3 가 B1에 의존하는 지점):
 
@@ -68,38 +69,40 @@
 
 ## File Structure (B1)
 
-| 파일 | 책임 |
-| --- | --- |
-| `src/lib/simulation/report-route.ts` (신규) | 조건 ↔ 쿼리스트링. 접두사(`a.`/`b.`)를 받아 비교 화면도 같은 코덱을 쓴다 |
-| `src/lib/simulation/report-route.test.ts` (신규) | 왕복 변환·검증 실패 시 null |
-| `src/lib/simulation/report-query.ts` (신규) | `simulationReportQueryKey` — 입력 화면과 리포트 화면이 **같은 캐시 키**를 쓰게 하는 유일한 출처 |
-| `src/lib/simulation/report-presentation.ts` (신규) | 비용 구성 행, 기준 분기 문구, 집계 범위 라벨, 억 단위 축약, 연령 막대 행, 성수기 월 문구 |
-| `src/lib/simulation/report-presentation.test.ts` (신규) | G1·G4·G6·G8 를 순수 함수 단위로 고정 |
-| `src/components/simulation/report/simulation-report-summary.tsx` (신규) | 헤드라인 총비용 + 조건 요약 + 기준 연도 안내 + CTA 슬롯 |
-| `src/components/simulation/report/simulation-cost-breakdown.tsx` (신규) | 비용 구성 도넛 + 표 |
-| `src/components/simulation/report/simulation-key-money-card.tsx` (신규) | 권리금 3지표 + `참고` 배지 |
-| `src/components/simulation/report/simulation-similar-franchisees.tsx` (신규) | 유사 예산 Top 5 표 (모바일 가로 스크롤) |
-| `src/components/simulation/report/simulation-customer-insight.tsx` (신규) | 성별 도넛 + 연령 Top3 막대 + 범위 라벨 + 기준 분기 |
-| `src/components/simulation/report/simulation-season-card.tsx` (신규) | 성수기/비성수기 월 배지 + 기준 분기 |
-| `src/components/simulation/report/simulation-report-view.tsx` (신규) | 위 6개를 조립하는 **순수 표시** 컴포넌트 |
-| `src/components/simulation/report/simulation-report-view.test.ts` (신규) | 섹션 숨김·범위 라벨·권리금 분리 |
-| `src/components/simulation/report/simulation-report-page.tsx` (신규) | URL 파싱 → `useQuery` → 로딩/오류/결과 분기 (**유일한 네트워크 소유자**) |
-| `app/(shell)/simulation/report/page.tsx` (수정) | placeholder 제거 |
-| `app/(shell)/analysis/simulation/report/page.tsx` (수정) | placeholder 제거 |
-| `src/components/simulation/simulation-result-preview.tsx` (수정) | `준비 중` 블록 → `상세 리포트 보기` 링크 |
-| `src/components/simulation/simulation-result-preview.test.ts` (수정) | 위 변경 반영 |
-| `src/components/simulation/simulation-summary-bar.tsx` (수정) | 계산 후 `자세히` 를 리포트 링크로 |
-| `src/components/simulation/simulation-builder-page.tsx` (수정) | 계산 성공 시 쿼리 캐시 시딩 + 리포트 href 전달 |
+| 파일                                                                         | 책임                                                                                            |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/lib/simulation/report-route.ts` (신규)                                  | 조건 ↔ 쿼리스트링. 접두사(`a.`/`b.`)를 받아 비교 화면도 같은 코덱을 쓴다                        |
+| `src/lib/simulation/report-route.test.ts` (신규)                             | 왕복 변환·검증 실패 시 null                                                                     |
+| `src/lib/simulation/report-query.ts` (신규)                                  | `simulationReportQueryKey` — 입력 화면과 리포트 화면이 **같은 캐시 키**를 쓰게 하는 유일한 출처 |
+| `src/lib/simulation/report-presentation.ts` (신규)                           | 비용 구성 행, 기준 분기 문구, 집계 범위 라벨, 억 단위 축약, 연령 막대 행, 성수기 월 문구        |
+| `src/lib/simulation/report-presentation.test.ts` (신규)                      | G1·G4·G6·G8 를 순수 함수 단위로 고정                                                            |
+| `src/components/simulation/report/simulation-report-summary.tsx` (신규)      | 헤드라인 총비용 + 조건 요약 + 기준 연도 안내 + CTA 슬롯                                         |
+| `src/components/simulation/report/simulation-cost-breakdown.tsx` (신규)      | 비용 구성 도넛 + 표                                                                             |
+| `src/components/simulation/report/simulation-key-money-card.tsx` (신규)      | 권리금 3지표 + `참고` 배지                                                                      |
+| `src/components/simulation/report/simulation-similar-franchisees.tsx` (신규) | 유사 예산 Top 5 표 (모바일 가로 스크롤)                                                         |
+| `src/components/simulation/report/simulation-customer-insight.tsx` (신규)    | 성별 도넛 + 연령 Top3 막대 + 범위 라벨 + 기준 분기                                              |
+| `src/components/simulation/report/simulation-season-card.tsx` (신규)         | 성수기/비성수기 월 배지 + 기준 분기                                                             |
+| `src/components/simulation/report/simulation-report-view.tsx` (신규)         | 위 6개를 조립하는 **순수 표시** 컴포넌트                                                        |
+| `src/components/simulation/report/simulation-report-view.test.ts` (신규)     | 섹션 숨김·범위 라벨·권리금 분리                                                                 |
+| `src/components/simulation/report/simulation-report-page.tsx` (신규)         | URL 파싱 → `useQuery` → 로딩/오류/결과 분기 (**유일한 네트워크 소유자**)                        |
+| `app/(shell)/simulation/report/page.tsx` (수정)                              | placeholder 제거                                                                                |
+| `app/(shell)/analysis/simulation/report/page.tsx` (수정)                     | placeholder 제거                                                                                |
+| `src/components/simulation/simulation-result-preview.tsx` (수정)             | `준비 중` 블록 → `상세 리포트 보기` 링크                                                        |
+| `src/components/simulation/simulation-result-preview.test.ts` (수정)         | 위 변경 반영                                                                                    |
+| `src/components/simulation/simulation-summary-bar.tsx` (수정)                | 계산 후 `자세히` 를 리포트 링크로                                                               |
+| `src/components/simulation/simulation-builder-page.tsx` (수정)               | 계산 성공 시 쿼리 캐시 시딩 + 리포트 href 전달                                                  |
 
 ---
 
 ### Task 1: 조건 ↔ URL 코덱
 
 **Files:**
+
 - Create: `frontend/src/lib/simulation/report-route.ts`
 - Test: `frontend/src/lib/simulation/report-route.test.ts`
 
 **Interfaces:**
+
 - Consumes: `createSimulationConditionState` / `isSimulationConditionsComplete` / `toSimulationReportRequest` (`@/lib/simulation/conditions`)
 - Produces:
   - `toSimulationReportSearchParams(request: SimulationReportRequest, prefix?: string): URLSearchParams`
@@ -371,11 +374,13 @@ git commit -m "[FE] feat: 시뮬레이션 조건을 쿼리스트링으로 왕복
 ### Task 2: 리포트 표시 로직 (순수 모듈)
 
 **Files:**
+
 - Create: `frontend/src/lib/simulation/report-presentation.ts`
 - Create: `frontend/src/lib/simulation/report-query.ts`
 - Test: `frontend/src/lib/simulation/report-presentation.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SimulationReport` 계열 타입, `formatLargeWon`(`@/lib/format`), `AnalysisMetricRow`(`@/lib/analysis/presentation`), `GenderSegment`(`@/lib/analysis/chart-data`)
 - Produces:
   - `toCostBreakdown(report: SimulationReport): CostBreakdownRow[]` — `CostBreakdownRow = { key: string; label: string; amount: number }`
@@ -404,10 +409,7 @@ import {
   toGenderSalesSegments,
 } from '@/lib/simulation/report-presentation'
 import { simulationReportQueryKey } from '@/lib/simulation/report-query'
-import type {
-  SimulationCondition,
-  SimulationReport,
-} from '@/types/simulation'
+import type { SimulationCondition, SimulationReport } from '@/types/simulation'
 
 const condition: SimulationCondition = {
   franchisee: false,
@@ -422,7 +424,9 @@ const condition: SimulationCondition = {
   periodCode: '20233',
 }
 
-const report = (overrides: Partial<SimulationReport> = {}): SimulationReport => ({
+const report = (
+  overrides: Partial<SimulationReport> = {},
+): SimulationReport => ({
   condition,
   dataBaseYear: '2024',
   totalPrice: 23_450,
@@ -438,13 +442,28 @@ describe('toCostBreakdown', () => {
   it('비프랜차이즈면 가맹 부담금 항목이 없다', () => {
     const rows = toCostBreakdown(report())
 
-    expect(rows.map(row => row.key)).toEqual(['rentPrice', 'deposit', 'interior'])
-    expect(rows.map(row => row.label)).toEqual(['월 임대료', '보증금', '인테리어'])
+    expect(rows.map(row => row.key)).toEqual([
+      'rentPrice',
+      'deposit',
+      'interior',
+    ])
+    expect(rows.map(row => row.label)).toEqual([
+      '월 임대료',
+      '보증금',
+      '인테리어',
+    ])
   })
 
   it('levy 가 0 이면 항목을 남긴다 — 0 은 "부담금 0원"이지 결측이 아니다', () => {
     const rows = toCostBreakdown(
-      report({ costDetail: { rentPrice: 300, deposit: 3_000, interior: 5_000, levy: 0 } }),
+      report({
+        costDetail: {
+          rentPrice: 300,
+          deposit: 3_000,
+          interior: 5_000,
+          levy: 0,
+        },
+      }),
     )
 
     expect(rows.map(row => row.key)).toContain('levy')
@@ -453,10 +472,21 @@ describe('toCostBreakdown', () => {
 
   it('levy 가 있으면 마지막 항목으로 붙는다', () => {
     const rows = toCostBreakdown(
-      report({ costDetail: { rentPrice: 300, deposit: 3_000, interior: 5_000, levy: 1_200 } }),
+      report({
+        costDetail: {
+          rentPrice: 300,
+          deposit: 3_000,
+          interior: 5_000,
+          levy: 1_200,
+        },
+      }),
     )
 
-    expect(rows.at(-1)).toEqual({ key: 'levy', label: '가맹 부담금', amount: 1_200 })
+    expect(rows.at(-1)).toEqual({
+      key: 'levy',
+      label: '가맹 부담금',
+      amount: 1_200,
+    })
   })
 })
 
@@ -510,7 +540,11 @@ describe('toAgeSalesRows / toGenderSalesSegments', () => {
 
   it('성별 비중을 도넛 조각으로 옮긴다', () => {
     expect(
-      toGenderSalesSegments({ malePercent: 54, femalePercent: 46, topAgeGroups: [] }),
+      toGenderSalesSegments({
+        malePercent: 54,
+        femalePercent: 46,
+        topAgeGroups: [],
+      }),
     ).toEqual([
       { label: '남성', value: 54 },
       { label: '여성', value: 46 },
@@ -660,9 +694,8 @@ export const describeSimulationPeriod = (periodCode: string): string => {
  * 집계 범위 라벨. **이 문구가 빠지면 사용자가 273억원을 자기 점포 예상 매출로 읽는다.**
  * (원천이 `sales_district` 라 자치구×업종 전체 분기 매출이다.)
  */
-export const describeAgeSalesScope = (
-  condition: SimulationCondition,
-): string => `${condition.districtName} ${condition.serviceName} 전체 기준`
+export const describeAgeSalesScope = (condition: SimulationCondition): string =>
+  `${condition.districtName} ${condition.serviceName} 전체 기준`
 
 /**
  * 만원 입력을 축·배지에 얹을 수 있게 **억 단위로 축약**한다.
@@ -715,6 +748,7 @@ git commit -m "[FE] feat: 리포트 표시 로직과 계산 캐시 키를 순수
 ### Task 3: 리포트 섹션 컴포넌트 6종
 
 **Files:**
+
 - Create: `frontend/src/components/simulation/report/simulation-report-summary.tsx`
 - Create: `frontend/src/components/simulation/report/simulation-cost-breakdown.tsx`
 - Create: `frontend/src/components/simulation/report/simulation-key-money-card.tsx`
@@ -723,6 +757,7 @@ git commit -m "[FE] feat: 리포트 표시 로직과 계산 캐시 키를 순수
 - Create: `frontend/src/components/simulation/report/simulation-season-card.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 2 의 `toCostBreakdown` / `describeSimulationPeriod` / `describeAgeSalesScope` / `formatSalesAmountCompact` / `toAgeSalesRows` / `toGenderSalesSegments` / `describeSeasonMonths`, `formatDataBaseYearNotice`(`@/lib/simulation/report-sections`), `formatLargeWon`(`@/lib/format`), `Badge`(`@/components/ui/badge`), `DonutChart`(`@/components/analysis/charts/donut-chart`), `HorizontalBarChart`(`@/components/analysis/charts/horizontal-bar-chart`)
 - Produces (전부 default export):
   - `SimulationReportSummary({ report, actions }: { report: SimulationReport; actions?: ReactNode })`
@@ -733,6 +768,7 @@ git commit -m "[FE] feat: 리포트 표시 로직과 계산 캐시 키를 순수
   - `SimulationSeasonCard({ condition, analysis }: { condition: SimulationCondition; analysis: SimulationSeasonAnalysis })`
 
 **공통 규칙** (6개 파일 모두):
+
 - 파일 최상단 `'use client'`.
 - 섹션 껍데기(테두리·radius·padding)는 **각 컴포넌트가 스스로 갖는다.** 조립하는 view 가 카드를 또 씌우지 않는다.
   껍데기 값은 `simulation-result-panel.tsx` 의 `Root` 와 같은 값을 쓴다:
@@ -1561,10 +1597,12 @@ git commit -m "[FE] feat: 시뮬레이션 리포트 섹션 6종을 만든다"
 ### Task 4: 리포트 조립 뷰 + 결측 섹션 숨김
 
 **Files:**
+
 - Create: `frontend/src/components/simulation/report/simulation-report-view.tsx`
 - Test: `frontend/src/components/simulation/report/simulation-report-view.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 3 의 6개 컴포넌트, `hasGenderAgeAnalysis` / `hasSeasonAnalysis` (`@/lib/simulation/report-sections`)
 - Produces: `SimulationReportView({ report, actions }: { report: SimulationReport; actions?: ReactNode })`
 
@@ -1580,7 +1618,9 @@ import { describe, expect, it } from 'vitest'
 import SimulationReportView from '@/components/simulation/report/simulation-report-view'
 import type { SimulationReport } from '@/types/simulation'
 
-const report = (overrides: Partial<SimulationReport> = {}): SimulationReport => ({
+const report = (
+  overrides: Partial<SimulationReport> = {},
+): SimulationReport => ({
   condition: {
     franchisee: false,
     franchiseeId: null,
@@ -1620,7 +1660,14 @@ describe('SimulationReportView', () => {
 
   it('levy 가 0 이면 가맹 부담금을 0원으로 표기한다', () => {
     const markup = render(
-      report({ costDetail: { rentPrice: 300, deposit: 3_000, interior: 5_000, levy: 0 } }),
+      report({
+        costDetail: {
+          rentPrice: 300,
+          deposit: 3_000,
+          interior: 5_000,
+          levy: 0,
+        },
+      }),
     )
 
     expect(markup).toContain('가맹 부담금')
@@ -1785,6 +1832,7 @@ pnpm vitest run src/components/simulation/report/simulation-report-view.test.ts
 Expected: PASS (9 tests)
 
 > 실패 시 흔한 원인 두 가지:
+>
 > - `not.toContain('성수기')` 가 걸린다 → 다른 섹션 문구에 "성수기"가 들어갔다. 각주 문구를 고친다.
 > - recharts 가 node 환경에서 경고를 낸다 → 렌더는 되므로 assertion 이 실패하지 않는 한 무시한다.
 >   실제로 throw 하면 차트를 `next/dynamic` 이 아니라 **부모에서 조건 렌더**로 감싸지 말고,
@@ -1802,6 +1850,7 @@ git commit -m "[FE] feat: 리포트 본문을 조립하고 결측 섹션을 숨�
 ### Task 5: 리포트 화면 + 라우트 교체 + 입력 화면 연결
 
 **Files:**
+
 - Create: `frontend/src/components/simulation/report/simulation-report-page.tsx`
 - Modify: `frontend/app/(shell)/simulation/report/page.tsx`
 - Modify: `frontend/app/(shell)/analysis/simulation/report/page.tsx`
@@ -1812,6 +1861,7 @@ git commit -m "[FE] feat: 리포트 본문을 조립하고 결측 섹션을 숨�
 - Modify: `frontend/src/components/simulation/simulation-builder-page.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 1(`parseSimulationReportRequest`, `buildSimulationReportHref`, `simulationBuilderHref`), Task 2(`simulationReportQueryKey`), Task 4(`SimulationReportView`), `createSimulationReport`(`@/lib/api/simulation`), `resolveApiError` / `retryUnlessClientError`(`@/lib/api/api-error`), `getResponseBody`(`@/lib/api/response`), `SimulationErrorNotice`
 - Produces: `SimulationReportPage({ variant }: { variant?: 'standalone' | 'analysis' })`
 
@@ -1906,7 +1956,9 @@ export default function SimulationReportPage({
   )
 
   const query = useQuery({
-    queryKey: request ? simulationReportQueryKey(request) : ['simulation-report', 'none'],
+    queryKey: request
+      ? simulationReportQueryKey(request)
+      : ['simulation-report', 'none'],
     queryFn: () => createSimulationReport(request!),
     enabled: request !== null,
     retry: retryUnlessClientError,
@@ -1941,7 +1993,12 @@ export default function SimulationReportPage({
       <Container>
         <Head>
           <h1>창업 시뮬레이션 리포트</h1>
-          <Button variant="ghost" as={Link} href={builderHref} leftIcon={<ArrowLeft />}>
+          <Button
+            variant="ghost"
+            as={Link}
+            href={builderHref}
+            leftIcon={<ArrowLeft />}
+          >
             조건 다시 고르기
           </Button>
         </Head>
@@ -2019,9 +2076,9 @@ export type SimulationResultPreviewProps = {
 `Pending` styled-component 와 그 JSX 를 삭제하고 그 자리에:
 
 ```tsx
-      <Button as={Link} href={reportHref} size="large" rightIcon={<ArrowRight />}>
-        상세 리포트 보기
-      </Button>
+<Button as={Link} href={reportHref} size="large" rightIcon={<ArrowRight />}>
+  상세 리포트 보기
+</Button>
 ```
 
 `simulation-result-panel.tsx` — `reportHref: string | null` 을 props 에 추가하고
@@ -2040,23 +2097,23 @@ import { simulationReportQueryKey } from '@/lib/simulation/report-query'
 ```
 
 ```tsx
-  const queryClient = useQueryClient()
+const queryClient = useQueryClient()
 
-  const reportMutation = useMutation({
-    mutationFn: (payload: SimulationReportRequest) =>
-      createSimulationReport(payload),
-    // 리포트 화면이 같은 조건으로 다시 POST 하지 않게 캐시를 미리 채운다.
-    onSuccess: (data, payload) => {
-      queryClient.setQueryData(simulationReportQueryKey(payload), data)
-    },
-  })
+const reportMutation = useMutation({
+  mutationFn: (payload: SimulationReportRequest) =>
+    createSimulationReport(payload),
+  // 리포트 화면이 같은 조건으로 다시 POST 하지 않게 캐시를 미리 채운다.
+  onSuccess: (data, payload) => {
+    queryClient.setQueryData(simulationReportQueryKey(payload), data)
+  },
+})
 ```
 
 ```tsx
-  const reportHref =
-    currentReport && reportMutation.variables
-      ? buildSimulationReportHref(reportMutation.variables, variant)
-      : null
+const reportHref =
+  currentReport && reportMutation.variables
+    ? buildSimulationReportHref(reportMutation.variables, variant)
+    : null
 ```
 
 `variant` 는 `'standalone' | 'analysis'` 로 이미 컴포넌트 props 에 있다. 그대로 넘긴다.
@@ -2067,19 +2124,19 @@ import { simulationReportQueryKey } from '@/lib/simulation/report-query'
 `simulation-result-preview.test.ts` 의 마지막 케이스(`이번 슬라이스에서는 상세 항목을 그리지 않는다`)를 교체한다:
 
 ```ts
-  it('상세 리포트로 가는 링크를 준다', () => {
-    const markup = renderToStaticMarkup(
-      createElement(SimulationResultPreview, {
-        report: report(),
-        reportHref: '/simulation/report?franchisee=false',
-      }),
-    )
+it('상세 리포트로 가는 링크를 준다', () => {
+  const markup = renderToStaticMarkup(
+    createElement(SimulationResultPreview, {
+      report: report(),
+      reportHref: '/simulation/report?franchisee=false',
+    }),
+  )
 
-    expect(markup).toContain('상세 리포트 보기')
-    expect(markup).toContain('/simulation/report?franchisee=false')
-    // 상세 수치는 리포트 화면 몫이다 — 미리보기에서 같은 값을 다르게 표기하지 않는다.
-    expect(markup).not.toContain('4,200')
-  })
+  expect(markup).toContain('상세 리포트 보기')
+  expect(markup).toContain('/simulation/report?franchisee=false')
+  // 상세 수치는 리포트 화면 몫이다 — 미리보기에서 같은 값을 다르게 표기하지 않는다.
+  expect(markup).not.toContain('4,200')
+})
 ```
 
 나머지 케이스에는 전부 `reportHref: '/simulation/report'` 를 추가한다.
@@ -2118,6 +2175,7 @@ gh pr create --base develop --title "[FE] feat: 창업 시뮬레이션 상세 �
 다른 포트에서는 POST 가 전부 403 이라 계산이 되지 않는다.
 
 확인 항목:
+
 1. `/simulation` 에서 조건 4개 선택 → 계산 → `상세 리포트 보기` → 리포트가 **재호출 없이** 즉시 뜬다 (Network 탭에 `reports` POST 가 1회)
 2. 리포트에서 새로고침 → 같은 화면이 다시 뜬다 (이번엔 POST 1회 발생)
 3. 개인 창업으로 계산 → 비용 구성에 `가맹 부담금` 항목이 **없다**
@@ -2133,24 +2191,26 @@ gh pr create --base develop --title "[FE] feat: 창업 시뮬레이션 상세 �
 
 ## File Structure (B2)
 
-| 파일 | 책임 |
-| --- | --- |
-| `src/lib/simulation/history-presentation.ts` (신규) | 이력 항목 → 표시 문구 · 이력 → 리포트 href |
-| `src/lib/simulation/history-presentation.test.ts` (신규) | 조건 요약·href 왕복 |
-| `src/components/simulation/report/simulation-save-button.tsx` (신규) | 저장 CTA. 비로그인 → 로그인 유도, 저장 후 `저장됨` |
-| `src/components/simulation/report/simulation-save-button.test.ts` (신규) | 비로그인/저장 전/저장 후 문구 |
-| `src/components/simulation/simulation-history-list.tsx` (신규) | 이력 목록 카드 + 페이지네이션 (순수 표시) |
-| `src/components/simulation/simulation-history-list.test.ts` (신규) | 빈 목록·항목 렌더·삭제 버튼 부재 |
-| `src/components/profile/profile-simulation-bookmarks-page.tsx` (수정) | placeholder → 실제 목록 |
-| `src/components/simulation/report/simulation-report-page.tsx` (수정) | `actions` 슬롯에 저장 버튼 |
+| 파일                                                                     | 책임                                               |
+| ------------------------------------------------------------------------ | -------------------------------------------------- |
+| `src/lib/simulation/history-presentation.ts` (신규)                      | 이력 항목 → 표시 문구 · 이력 → 리포트 href         |
+| `src/lib/simulation/history-presentation.test.ts` (신규)                 | 조건 요약·href 왕복                                |
+| `src/components/simulation/report/simulation-save-button.tsx` (신규)     | 저장 CTA. 비로그인 → 로그인 유도, 저장 후 `저장됨` |
+| `src/components/simulation/report/simulation-save-button.test.ts` (신규) | 비로그인/저장 전/저장 후 문구                      |
+| `src/components/simulation/simulation-history-list.tsx` (신규)           | 이력 목록 카드 + 페이지네이션 (순수 표시)          |
+| `src/components/simulation/simulation-history-list.test.ts` (신규)       | 빈 목록·항목 렌더·삭제 버튼 부재                   |
+| `src/components/profile/profile-simulation-bookmarks-page.tsx` (수정)    | placeholder → 실제 목록                            |
+| `src/components/simulation/report/simulation-report-page.tsx` (수정)     | `actions` 슬롯에 저장 버튼                         |
 
 ### Task 6: 이력 표시 로직
 
 **Files:**
+
 - Create: `frontend/src/lib/simulation/history-presentation.ts`
 - Test: `frontend/src/lib/simulation/history-presentation.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SimulationHistoryItem`, `buildSimulationReportHref`(B1)
 - Produces:
   - `describeSimulationHistoryCondition(item: SimulationHistoryItem): string`
@@ -2230,7 +2290,9 @@ describe('buildSimulationHistoryReportHref', () => {
     expect(buildSimulationHistoryReportHref(item())).toContain(
       '/simulation/report?',
     )
-    expect(buildSimulationHistoryReportHref(item())).toContain('districtCode=11740')
+    expect(buildSimulationHistoryReportHref(item())).toContain(
+      'districtCode=11740',
+    )
   })
 })
 ```
@@ -2304,15 +2366,18 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 ### Task 7: 저장 버튼
 
 **Files:**
+
 - Create: `frontend/src/components/simulation/report/simulation-save-button.tsx`
 - Test: `frontend/src/components/simulation/report/simulation-save-button.test.ts`
 - Modify: `frontend/src/components/simulation/report/simulation-report-page.tsx`
 
 **Interfaces:**
+
 - Consumes: `saveSimulationHistory` / `buildSimulationHistorySaveRequest`(`@/lib/api/simulation`), `useAuthStore`(`@/stores/auth-store`), `resolveApiError`
 - Produces: `SimulationSaveButton({ request, totalPrice, currentHref }: { request: SimulationReportRequest; totalPrice: number; currentHref: string })`
 
 동작:
+
 - `isLoggedIn === false` → `<Button as={Link} href={'/login?redirect=' + encodeURIComponent(currentHref)}>저장하려면 로그인</Button>`
   (저장소 관용구: `analysis-result-view.tsx:131`)
 - 로그인 상태 → `useMutation(saveSimulationHistory)`. 성공 시 버튼을 `저장됨` disabled 로 바꾸고
@@ -2325,9 +2390,15 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 테스트는 세 상태의 문구를 고정한다:
 
 ```ts
-  it('비로그인이면 로그인 유도 링크를 준다', () => { /* isLoggedIn=false 로 store 초기화 후 렌더 */ })
-  it('로그인 상태면 저장 버튼을 준다', () => { /* '결과 저장' 포함 */ })
-  it('삭제·공유 버튼을 그리지 않는다', () => { /* not.toContain('삭제'), not.toContain('공유') */ })
+it('비로그인이면 로그인 유도 링크를 준다', () => {
+  /* isLoggedIn=false 로 store 초기화 후 렌더 */
+})
+it('로그인 상태면 저장 버튼을 준다', () => {
+  /* '결과 저장' 포함 */
+})
+it('삭제·공유 버튼을 그리지 않는다', () => {
+  /* not.toContain('삭제'), not.toContain('공유') */
+})
 ```
 
 > zustand store 를 테스트에서 세팅하려면 `useAuthStore.setState({ isLoggedIn: true, hasHydrated: true })`
@@ -2339,17 +2410,20 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 ### Task 8: 이력 목록 + 프로필 화면 교체
 
 **Files:**
+
 - Create: `frontend/src/components/simulation/simulation-history-list.tsx`
 - Test: `frontend/src/components/simulation/simulation-history-list.test.ts`
 - Modify: `frontend/src/components/profile/profile-simulation-bookmarks-page.tsx`
 
 **Interfaces:**
+
 - Consumes: `fetchSimulationHistories`(`@/lib/api/simulation`), Task 6 의 표시 함수, `formatDateTime`(`@/lib/format`), `profile-ui` 의 `CardGrid`/`ContentCard`/`EmptyState` 등
 - Produces:
   - `SimulationHistoryList({ histories, page, totalPages, onPageChange })` — **순수 표시**
   - `ProfileSimulationBookmarksPage()` — `useQuery` 소유
 
 동작:
+
 - `useQuery({ queryKey: [SIMULATION_HISTORY_QUERY_SCOPE, page], queryFn: () => fetchSimulationHistories(page, 10), retry: retryUnlessClientError })`
 - 카드: 총비용(`formatLargeWon`) · 조건 요약 · `{dataBaseYear}년 기준` · `formatDateTime(createdAt)` · `리포트 보기` 링크
 - 프랜차이즈 항목은 `리포트 보기` 대신 `브랜드 다시 고르기` → `/simulation` (Task 6 주의사항)
@@ -2374,27 +2448,29 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 
 ## File Structure (B3)
 
-| 파일 | 책임 |
-| --- | --- |
-| `src/lib/simulation/compare-route.ts` (신규) | `a.`/`b.` 접두사 쌍 코덱 (B1 코덱 재사용) |
-| `src/lib/simulation/compare-route.test.ts` (신규) | 쌍 왕복·한쪽 결손 |
-| `src/lib/simulation/compare-presentation.ts` (신규) | 좌우 미러 막대 비율, 총비용 차액 문구, 승자 판정 |
-| `src/lib/simulation/compare-presentation.test.ts` (신규) | 동점·차액·중립 문구 |
-| `src/components/simulation/compare/simulation-condition-compact-editor.tsx` (신규) | 좁은 카드용 조건 편집기 |
-| `src/components/simulation/compare/simulation-compare-columns.tsx` (신규) | 좌우 결과 미러 (순수 표시) |
-| `src/components/simulation/compare/simulation-compare-columns.test.ts` (신규) | 승자 강조·중립 문구·미러 정렬 |
-| `src/components/simulation/compare/simulation-compare-page.tsx` (신규) | 컨트롤러 2개 + `createSimulationReportPair` |
-| `app/(shell)/simulation/compare/page.tsx` (수정) | placeholder 제거 |
-| `app/(shell)/analysis/simulation/compare/page.tsx` (수정) | placeholder 제거 |
-| `src/components/simulation/report/simulation-report-page.tsx` (수정) | `비교에 추가` CTA 활성 |
+| 파일                                                                               | 책임                                             |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `src/lib/simulation/compare-route.ts` (신규)                                       | `a.`/`b.` 접두사 쌍 코덱 (B1 코덱 재사용)        |
+| `src/lib/simulation/compare-route.test.ts` (신규)                                  | 쌍 왕복·한쪽 결손                                |
+| `src/lib/simulation/compare-presentation.ts` (신규)                                | 좌우 미러 막대 비율, 총비용 차액 문구, 승자 판정 |
+| `src/lib/simulation/compare-presentation.test.ts` (신규)                           | 동점·차액·중립 문구                              |
+| `src/components/simulation/compare/simulation-condition-compact-editor.tsx` (신규) | 좁은 카드용 조건 편집기                          |
+| `src/components/simulation/compare/simulation-compare-columns.tsx` (신규)          | 좌우 결과 미러 (순수 표시)                       |
+| `src/components/simulation/compare/simulation-compare-columns.test.ts` (신규)      | 승자 강조·중립 문구·미러 정렬                    |
+| `src/components/simulation/compare/simulation-compare-page.tsx` (신규)             | 컨트롤러 2개 + `createSimulationReportPair`      |
+| `app/(shell)/simulation/compare/page.tsx` (수정)                                   | placeholder 제거                                 |
+| `app/(shell)/analysis/simulation/compare/page.tsx` (수정)                          | placeholder 제거                                 |
+| `src/components/simulation/report/simulation-report-page.tsx` (수정)               | `비교에 추가` CTA 활성                           |
 
 ### Task 10: 비교 URL 코덱 + 표시 로직
 
 **Files:**
+
 - Create: `frontend/src/lib/simulation/compare-route.ts`, `frontend/src/lib/simulation/compare-presentation.ts`
 - Test: 각각의 `.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `buildSimulationCompareHref(pair: { left: SimulationReportRequest | null; right: SimulationReportRequest | null }, variant?): string`
   - `parseSimulationComparePair(params): { left: SimulationReportRequest | null; right: SimulationReportRequest | null }`
@@ -2402,6 +2478,7 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
   - `toMirrorCostRows(left: SimulationReport, right: SimulationReport): { key: string; label: string; leftAmount: number; rightAmount: number; leftRatio: number; rightRatio: number }[]`
 
 핵심 규칙:
+
 - 접두사는 `a.` / `b.`. B1 의 `toSimulationReportSearchParams(request, 'a.')` 를 그대로 쓴다 — 코덱을 두 벌 만들지 않는다.
 - 한쪽만 있어도 **오류가 아니다.** 있는 쪽을 채우고 없는 쪽은 편집기를 빈 상태로 연다.
 - `describeSimulationCostGap` 의 중립 문구: **"초기 비용만 비교한 결과예요. 매출·수익 지표는 계산하지 않아요."**
@@ -2414,13 +2491,16 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 ### Task 11: 컴팩트 조건 편집기
 
 **Files:**
+
 - Create: `frontend/src/components/simulation/compare/simulation-condition-compact-editor.tsx`
 
 **Interfaces:**
+
 - Consumes: `useSimulationConditions`(`@/lib/simulation/use-simulation-conditions`) — 호출부가 소유하고 컨트롤러를 props 로 내려준다
 - Produces: `SimulationConditionCompactEditor({ label, conditions, onCalculate }: { label: string; conditions: SimulationConditionsController; onCalculate?: () => void })`
 
 동작:
+
 - 좁은 카드(≈420px)에 들어가야 하므로 **칩 격자를 쓰지 않는다.** 네이티브 `<select>` 4개 + 면적 `TextField`:
   창업 형태 / 자치구(25) / 업종(30) / 층 구분, 그리고 면적 입력.
 - **브랜드 검색은 `SimulationBrandSearch` 를 그대로 재사용**한다 — 업종 선택 전에는 열지 않는다(계약상 강제).
@@ -2436,11 +2516,13 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 ### Task 12: 비교 화면
 
 **Files:**
+
 - Create: `frontend/src/components/simulation/compare/simulation-compare-columns.tsx`, `frontend/src/components/simulation/compare/simulation-compare-page.tsx`
 - Test: `frontend/src/components/simulation/compare/simulation-compare-columns.test.ts`
 - Modify: `app/(shell)/simulation/compare/page.tsx`, `app/(shell)/analysis/simulation/compare/page.tsx`
 
 동작:
+
 - `simulation-compare-page.tsx` 가 `useSimulationConditions` 를 **2개** 만든다(left/right). 각각 URL 의 `a.`/`b.` 로 초기화한다.
 - `useMutation({ mutationFn: () => createSimulationReportPair([left.reportRequest!, right.reportRequest!]) })`
   — `Promise.all` 이 한쪽 실패를 전체 실패로 만든다(G10). **`Promise.allSettled` 로 바꾸지 않는다.**
@@ -2468,30 +2550,30 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 
 **1. 명세 커버리지**
 
-| 명세 항목 | 담당 태스크 |
-| --- | --- |
-| D2 #1 업종 → 브랜드 순서 | Task 11 (편집기가 `SimulationBrandSearch` 재사용, 업종 전 미노출) |
-| D2 #2 비프랜차이즈 `franchiseeId` 제거 | 기존 `buildSimulationReportRequest` + Task 1 코덱 테스트 |
-| D2 #3 빈 `periodCode` 제거 | 기존 `toSimulationReportRequest` (변경 없음) |
-| D2 #4·#5 커서 페이징 | 기존 `SimulationBrandSearch` (변경 없음) |
-| D2 #6 `dataBaseYear` 노출 | Task 3 Step 1, Task 4 테스트 |
-| D2 #7 결측 섹션 숨김 | Task 4 |
-| D2 #8 권리금 분리 | Task 3 Step 3, Task 4 테스트 |
-| D2 #9 `levy` null vs 0 | Task 2 `toCostBreakdown`, Task 4 테스트 |
-| D2 #10 비교 전체 실패 | Task 12 |
-| D2 #11 저장만 인증 | Task 7 |
-| D2 #12 `size` 1~50 | 기존 `isPositiveStoreSize` + 서버 검증 → `client` kind 로 표시 |
-| D2 #13 집계 범위 라벨 + 억 축약 | Task 2, Task 3 Step 5, Task 4 테스트 |
-| D2 #14 `periodCode` 비노출 | Task 2 `describeSimulationPeriod`(표기 전용), Task 11 |
-| D4-4 저장/이력 | Task 6~8 |
-| D6 반응형 (표 가로 스크롤·비교 세로 스택) | Task 3 Step 4, Task 12 |
-| TC-SIM-101 | 기존 `conditions.test.ts` + Task 1 |
-| TC-SIM-102 | Task 4 `결측 섹션은 숨기고…` |
-| TC-SIM-103 | 기존 `simulation-error-notice.test.ts` (변경 없음) + Task 5 Step 7 #5 |
-| TC-SIM-104 | Task 7, Task 9 |
-| TC-SIM-105 | Task 10, Task 12 |
-| TC-SIM-106 | Task 2 · Task 4 |
-| TC-SIM-107 | Task 2 `describeSimulationPeriod` + Task 11 |
+| 명세 항목                                 | 담당 태스크                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| D2 #1 업종 → 브랜드 순서                  | Task 11 (편집기가 `SimulationBrandSearch` 재사용, 업종 전 미노출)     |
+| D2 #2 비프랜차이즈 `franchiseeId` 제거    | 기존 `buildSimulationReportRequest` + Task 1 코덱 테스트              |
+| D2 #3 빈 `periodCode` 제거                | 기존 `toSimulationReportRequest` (변경 없음)                          |
+| D2 #4·#5 커서 페이징                      | 기존 `SimulationBrandSearch` (변경 없음)                              |
+| D2 #6 `dataBaseYear` 노출                 | Task 3 Step 1, Task 4 테스트                                          |
+| D2 #7 결측 섹션 숨김                      | Task 4                                                                |
+| D2 #8 권리금 분리                         | Task 3 Step 3, Task 4 테스트                                          |
+| D2 #9 `levy` null vs 0                    | Task 2 `toCostBreakdown`, Task 4 테스트                               |
+| D2 #10 비교 전체 실패                     | Task 12                                                               |
+| D2 #11 저장만 인증                        | Task 7                                                                |
+| D2 #12 `size` 1~50                        | 기존 `isPositiveStoreSize` + 서버 검증 → `client` kind 로 표시        |
+| D2 #13 집계 범위 라벨 + 억 축약           | Task 2, Task 3 Step 5, Task 4 테스트                                  |
+| D2 #14 `periodCode` 비노출                | Task 2 `describeSimulationPeriod`(표기 전용), Task 11                 |
+| D4-4 저장/이력                            | Task 6~8                                                              |
+| D6 반응형 (표 가로 스크롤·비교 세로 스택) | Task 3 Step 4, Task 12                                                |
+| TC-SIM-101                                | 기존 `conditions.test.ts` + Task 1                                    |
+| TC-SIM-102                                | Task 4 `결측 섹션은 숨기고…`                                          |
+| TC-SIM-103                                | 기존 `simulation-error-notice.test.ts` (변경 없음) + Task 5 Step 7 #5 |
+| TC-SIM-104                                | Task 7, Task 9                                                        |
+| TC-SIM-105                                | Task 10, Task 12                                                      |
+| TC-SIM-106                                | Task 2 · Task 4                                                       |
+| TC-SIM-107                                | Task 2 `describeSimulationPeriod` + Task 11                           |
 
 **갭 (의도적으로 이 플랜 밖)**
 
