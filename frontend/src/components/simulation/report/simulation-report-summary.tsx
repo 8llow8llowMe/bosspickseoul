@@ -1,29 +1,32 @@
 'use client'
 
-import { ArrowRight, Info } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Info } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Badge } from '@/components/ui/badge'
-import { ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
 import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
 
-export type SimulationResultPreviewProps = {
+export type SimulationReportSummaryProps = {
   report: SimulationReport
-  /** 상세 리포트 경로. 호출부가 variant 를 알고 있으므로 여기서 만들지 않는다. */
-  reportHref: string
+  /** 저장·비교 CTA. B1 에서는 넘기지 않는다(B2·B3 이 채운다). */
+  actions?: ReactNode
 }
 
-/* 카드 테두리·그림자는 감싸는 결과 패널이 갖는다 — 카드 안에 카드를 겹치지 않는다. */
-const Root = styled.div`
+const Root = styled.section`
   display: grid;
   gap: 16px;
-`
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  padding: 24px;
+  box-shadow: var(--shadow-level-2);
 
-const Head = styled.header`
-  display: grid;
-  gap: 4px;
+  @media (max-width: 640px) {
+    padding: 20px;
+  }
 `
 
 const Caption = styled.p`
@@ -47,17 +50,6 @@ const Headline = styled.p`
   }
 `
 
-const Tags = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-`
-
-/**
- * 조건 요약은 **행 흐름**이다. 2열 그리드로 두면 항목이 5개일 때 마지막 하나가 홀로 남아
- * 붕 떠 보였다. 라벨 왼쪽·값 오른쪽 행은 항목 수가 몇 개든 같은 모양으로 쌓인다.
- */
 const Conditions = styled.dl`
   display: grid;
   border-top: 1px solid var(--color-border-200);
@@ -112,33 +104,40 @@ const Notice = styled.p`
   }
 `
 
+const Actions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  button,
+  a {
+    flex: 1 1 160px;
+  }
+`
+
 /**
- * 계산 결과 **최소 렌더**.
+ * 리포트 헤드라인 — 총 창업 비용과 그 조건.
  *
- * 이 미리보기는 총 창업 비용·조건 요약·기준 연도까지만 보여주고, 상세 리포트로 가는
- * CTA 를 준다. 비용 구성·권리금·유사 프랜차이즈·성별연령·성수기는 리포트 화면
- * (`/simulation/report`)의 몫이라 여기서 미리 그리지 않는다 — 두 곳에서 같은 값을
- * 다르게 표기하는 사고를 막기 위해서다.
- *
- * 금액 단위는 **만원**이다. `formatLargeWon`이 만원 단위 입력을 "N억 M만원"으로 바꾼다.
+ * 권리금은 여기 없다. 총비용에 포함되지 않는 값이라 헤드라인 옆에 두면 합계로 읽힌다(G5).
  */
-export default function SimulationResultPreview({
+export default function SimulationReportSummary({
   report,
-  reportHref,
-}: SimulationResultPreviewProps) {
+  actions,
+}: SimulationReportSummaryProps) {
   const { condition } = report
 
   return (
-    <Root>
-      <Head>
+    <Root aria-label="예상 총 창업 비용">
+      <div>
         <Caption>예상 총 창업 비용</Caption>
         <Headline>{formatLargeWon(report.totalPrice)}</Headline>
-        <Tags>
-          <Badge $tone="blue">
-            {condition.franchisee ? '프랜차이즈' : '개인 창업'}
-          </Badge>
-        </Tags>
-      </Head>
+      </div>
+
+      <div>
+        <Badge $tone="blue">
+          {condition.franchisee ? '프랜차이즈' : '개인 창업'}
+        </Badge>
+      </div>
 
       <Conditions>
         <div>
@@ -170,9 +169,7 @@ export default function SimulationResultPreview({
         <span>{formatDataBaseYearNotice(report.dataBaseYear)}</span>
       </Notice>
 
-      <ButtonLink href={reportHref} size="large" rightIcon={<ArrowRight />}>
-        상세 리포트 보기
-      </ButtonLink>
+      {actions ? <Actions>{actions}</Actions> : null}
     </Root>
   )
 }

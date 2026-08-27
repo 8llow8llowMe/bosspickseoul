@@ -55,6 +55,7 @@ const render = (overrides: Partial<SimulationResultPanelProps> = {}) => {
       state,
       gap: describeSimulationConditionGap(state),
       report: null,
+      reportHref: null,
       error: null,
       isPending: false,
       onCalculate: () => {},
@@ -90,7 +91,11 @@ describe('SimulationResultPanel', () => {
   })
 
   it('계산 결과가 오면 금액과 기준 연도 안내만 남는다', () => {
-    const markup = render({ state: completeState(), report: report() })
+    const markup = render({
+      state: completeState(),
+      report: report(),
+      reportHref: '/simulation/report?franchisee=false',
+    })
 
     expect(markup).toContain('2억 3,450만원')
     expect(markup).toContain('2024년 기준 데이터로 계산된 결과입니다.')

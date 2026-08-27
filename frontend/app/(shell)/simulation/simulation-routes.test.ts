@@ -8,11 +8,15 @@ const builderRouteFiles = [
   '../analysis/simulation/page.tsx',
 ] as const
 
-/** 리포트·비교 라우트 — 다음 슬라이스 대상이라 아직 준비 중 화면이다. */
-const pendingRouteFiles = [
+/** 리포트 라우트 — placeholder를 떼고 상세 리포트 화면을 붙였다. */
+const reportRouteFiles = [
   './report/page.tsx',
-  './compare/page.tsx',
   '../analysis/simulation/report/page.tsx',
+] as const
+
+/** 비교 라우트 — 다음 슬라이스(B3) 대상이라 아직 준비 중 화면이다. */
+const pendingRouteFiles = [
+  './compare/page.tsx',
   '../analysis/simulation/compare/page.tsx',
 ] as const
 
@@ -37,6 +41,22 @@ describe('simulation route adapters', () => {
 
   it('/analysis/simulation은 분석 컨텍스트 variant로 렌더한다', () => {
     expect(readRoute('../analysis/simulation/page.tsx')).toContain(
+      'variant="analysis"',
+    )
+  })
+
+  it.each(reportRouteFiles)('%s renders the V2 report page', routeFile => {
+    const source = readRoute(routeFile)
+
+    expect(source).toContain('SimulationReportPage')
+    expect(source).not.toContain('SimulationUnavailablePage')
+    // useSearchParams를 쓰는 클라이언트 컴포넌트라 Suspense 경계가 필요하다.
+    expect(source).toContain('Suspense')
+    expect(source).not.toContain('RequireAuth')
+  })
+
+  it('/analysis/simulation/report는 분석 컨텍스트 variant로 렌더한다', () => {
+    expect(readRoute('../analysis/simulation/report/page.tsx')).toContain(
       'variant="analysis"',
     )
   })

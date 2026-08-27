@@ -22,6 +22,8 @@ export type SimulationResultPanelProps = {
   /** 완료되지 않았을 때 "무엇이 남았는지" 한 줄. 완료면 null. */
   gap: string | null
   report: SimulationReport | null
+  /** 상세 리포트 경로. `report`가 있어도 조건이 URL로 못 옮겨지면 null일 수 있다. */
+  reportHref: string | null
   error: NormalizedApiError | null
   isPending: boolean
   onCalculate: () => void
@@ -139,16 +141,19 @@ export default function SimulationResultPanel({
   state,
   gap,
   report,
+  reportHref,
   error,
   isPending,
   onCalculate,
   onReselect,
 }: SimulationResultPanelProps) {
   // 결과가 있으면 결과만 보여준다. 조건을 고치면 호출부가 결과를 내리고 다시 이 패널로 돌아온다.
-  if (report) {
+  // reportHref 가 없으면(조건이 URL로 못 옮겨진 경우) 결과 자체가 없는 것으로 취급한다 —
+  // "상세 리포트 보기" 링크 없이 결과만 보여주면 사용자가 다음 화면으로 갈 수 없다.
+  if (report && reportHref) {
     return (
       <Root aria-label="시뮬레이션 계산 결과">
-        <SimulationResultPreview report={report} />
+        <SimulationResultPreview report={report} reportHref={reportHref} />
       </Root>
     )
   }

@@ -10,6 +10,7 @@ const render = (overrides: Partial<SimulationSummaryBarProps> = {}) =>
   renderToStaticMarkup(
     createElement(SimulationSummaryBar, {
       totalPrice: null,
+      reportHref: null,
       gap: null,
       isPending: false,
       onCalculate: () => {},
@@ -43,5 +44,16 @@ describe('SimulationSummaryBar', () => {
     expect(markup).toContain('2억 3,450만원')
     expect(markup).toContain('자세히')
     expect(markup).not.toContain('계산하기')
+  })
+
+  it('계산 후 reportHref가 있으면 상세 리포트로 가는 링크를 준다', () => {
+    const markup = render({
+      totalPrice: 23_450,
+      reportHref: '/simulation/report?franchisee=false',
+      gap: null,
+    })
+
+    expect(markup).toContain('자세히')
+    expect(markup).toContain('/simulation/report?franchisee=false')
   })
 })

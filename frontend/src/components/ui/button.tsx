@@ -1,5 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react'
 import { forwardRef } from 'react'
+import Link from 'next/link'
 import styled, { css, keyframes } from 'styled-components'
 
 export type ButtonVariant =
@@ -108,7 +109,7 @@ const dotPulse = keyframes`
   }
 `
 
-const Root = styled.button<{
+const buttonBase = css<{
   $size: ButtonSize
   $variant: ButtonVariant
 }>`
@@ -132,6 +133,13 @@ const Root = styled.button<{
 
   ${props => sizeStyles[props.$size]}
   ${props => variantStyles[props.$variant]}
+`
+
+const Root = styled.button<{
+  $size: ButtonSize
+  $variant: ButtonVariant
+}>`
+  ${buttonBase}
 
   &:disabled {
     cursor: not-allowed;
@@ -224,3 +232,37 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 )
 
 Button.displayName = 'Button'
+
+const LinkRoot = styled(Link)<{ $size: ButtonSize; $variant: ButtonVariant }>`
+  ${buttonBase}
+  text-decoration: none;
+`
+
+export type ButtonLinkProps = ComponentProps<typeof Link> & {
+  leftIcon?: ReactNode
+  rightIcon?: ReactNode
+  size?: ButtonSize
+  variant?: ButtonVariant
+}
+
+/**
+ * 링크형 버튼. `Button`은 `<button>` 전용(`forwardRef<HTMLButtonElement>`)이라 `as` prop을
+ * 받지 않는다 — 네비게이션은 이 컴포넌트로 처리한다. `buttonBase`를 공유해 CSS가 두 곳에서
+ * 갈라지지 않는다.
+ */
+export function ButtonLink({
+  children,
+  leftIcon,
+  rightIcon,
+  size = 'big',
+  variant = 'primary',
+  ...props
+}: ButtonLinkProps) {
+  return (
+    <LinkRoot $size={size} $variant={variant} {...props}>
+      {leftIcon ? <IconSlot aria-hidden="true">{leftIcon}</IconSlot> : null}
+      {children}
+      {rightIcon ? <IconSlot aria-hidden="true">{rightIcon}</IconSlot> : null}
+    </LinkRoot>
+  )
+}

@@ -1,14 +1,16 @@
 'use client'
 
-import { ArrowDown, Calculator } from 'lucide-react'
+import { ArrowRight, Calculator } from 'lucide-react'
 import styled from 'styled-components'
 
-import { Button } from '@/components/ui/button'
+import { Button, ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
 
 export type SimulationSummaryBarProps = {
   /** 계산이 끝났으면 만원 단위 총비용. 아직이면 null. */
   totalPrice: number | null
+  /** 상세 리포트 경로. 결과가 있어도 조건이 URL로 못 옮겨지면 null일 수 있다. */
+  reportHref: string | null
   /** 남은 조건 한 줄. 완료면 null. */
   gap: string | null
   isPending: boolean
@@ -81,12 +83,13 @@ const Action = styled.div`
 /**
  * 모바일 하단 sticky 요약 바.
  *
- * 계산 **전**에는 남은 조건 + `계산하기`, 계산 **후**에는 총비용 + `자세히`(결과로 스크롤)다.
- * 모바일에서는 결과가 입력 4섹션 아래에 오므로, 이 바가 없으면 계산 버튼과 금액이
- * 둘 다 화면 밖에 있게 된다.
+ * 계산 **전**에는 남은 조건 + `계산하기`, 계산 **후**에는 총비용 + `자세히`(상세 리포트로
+ * 가는 링크)다. 모바일에서는 결과가 입력 4섹션 아래에 오므로, 이 바가 없으면 계산 버튼과
+ * 금액이 둘 다 화면 밖에 있게 된다.
  */
 export default function SimulationSummaryBar({
   totalPrice,
+  reportHref,
   gap,
   isPending,
   onCalculate,
@@ -105,11 +108,20 @@ export default function SimulationSummaryBar({
         <Pending>{gap ?? '조건을 다 골랐어요. 계산해 보세요'}</Pending>
       )}
       <Action>
-        {calculated ? (
+        {calculated && reportHref ? (
+          <ButtonLink
+            href={reportHref}
+            size="medium"
+            variant="secondary"
+            rightIcon={<ArrowRight />}
+          >
+            자세히
+          </ButtonLink>
+        ) : calculated ? (
           <Button
             size="medium"
             variant="secondary"
-            rightIcon={<ArrowDown />}
+            rightIcon={<ArrowRight />}
             onClick={onViewResult}
           >
             자세히

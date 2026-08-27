@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Lock, Search } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -30,6 +30,8 @@ import {
   simulationSectionDomId,
   type SimulationConditionSection,
 } from '@/lib/simulation/conditions'
+import { simulationReportQueryKey } from '@/lib/simulation/report-query'
+import { buildSimulationReportHref } from '@/lib/simulation/report-route'
 import type { SimulationReportRequest } from '@/types/simulation'
 
 export type SimulationBuilderPageProps = {
@@ -188,9 +190,15 @@ export default function SimulationBuilderPage({
     serviceCode: context?.serviceCode ?? null,
   })
 
+  const queryClient = useQueryClient()
+
   const reportMutation = useMutation({
     mutationFn: (payload: SimulationReportRequest) =>
       createSimulationReport(payload),
+    // 리포트 화면이 같은 조건으로 다시 POST 하지 않게 캐시를 미리 채운다.
+    onSuccess: (data, payload) => {
+      queryClient.setQueryData(simulationReportQueryKey(payload), data)
+    },
   })
 
   const error = resolveApiError({
@@ -205,6 +213,10 @@ export default function SimulationBuilderPage({
   const report = getResponseBody(reportMutation.data)
   const currentError = isCurrent ? error : null
   const currentReport = isCurrent && !error ? report : null
+  const reportHref =
+    currentReport && reportMutation.variables
+      ? buildSimulationReportHref(reportMutation.variables, variant)
+      : null
 
   const resultRef = useRef<HTMLDivElement | null>(null)
 
@@ -393,6 +405,7 @@ export default function SimulationBuilderPage({
               state={state}
               gap={conditions.gap}
               report={currentReport}
+              reportHref={reportHref}
               error={currentError}
               isPending={reportMutation.isPending}
               onCalculate={calculate}
@@ -404,6 +417,7 @@ export default function SimulationBuilderPage({
 
       <SimulationSummaryBar
         totalPrice={currentReport?.totalPrice ?? null}
+        reportHref={reportHref}
         gap={conditions.gap}
         isPending={reportMutation.isPending}
         onCalculate={calculate}
