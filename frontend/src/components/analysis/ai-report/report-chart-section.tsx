@@ -1,10 +1,11 @@
 'use client'
 
-import styled, { keyframes } from 'styled-components'
+import styled from 'styled-components'
 
 import BarChart from '@/components/analysis/charts/bar-chart'
 import LineChart, { hasLineData } from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   buildFootAgeGenderPyramid,
   buildFootDayBars,
@@ -15,20 +16,6 @@ import type {
   CommercialFootTraffic,
   CommercialSales,
 } from '@/types/commercial-analysis'
-
-const shimmer = keyframes`
-  0% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.6;
-  }
-`
 
 const Grid = styled.div<{ $variant: 'full' | 'compact' }>`
   display: grid;
@@ -68,18 +55,6 @@ const Empty = styled.p`
   text-align: center;
 `
 
-const Skeleton = styled.div<{ $variant: 'full' | 'compact' }>`
-  width: 100%;
-  height: ${props => (props.$variant === 'compact' ? 160 : 200)}px;
-  border-radius: var(--radius-compact);
-  background: var(--color-border-300);
-  animation: ${shimmer} 1.2s var(--ease-standard) infinite;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
-`
-
 export default function ReportChartSection({
   sales,
   foot,
@@ -116,7 +91,7 @@ export default function ReportChartSection({
       <Card aria-busy={salesTimeSlot === 'loading'}>
         <CardTitle>언제 파나 · 시간대별 매출</CardTitle>
         {salesTimeSlot === 'loading' ? (
-          <Skeleton $variant={variant} aria-hidden />
+          <Skeleton $height={`${CHART_HEIGHT}px`} aria-hidden />
         ) : salesTimeSlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
@@ -132,7 +107,7 @@ export default function ReportChartSection({
       <Card aria-busy={footDaySlot === 'loading'}>
         <CardTitle>언제 붐비나 · 요일별 유동인구</CardTitle>
         {footDaySlot === 'loading' ? (
-          <Skeleton $variant={variant} aria-hidden />
+          <Skeleton $height={`${CHART_HEIGHT}px`} aria-hidden />
         ) : footDaySlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
@@ -149,7 +124,7 @@ export default function ReportChartSection({
       <Card aria-busy={footPyramidSlot === 'loading'}>
         <CardTitle>누가 오나 · 연령·성별 유동인구</CardTitle>
         {footPyramidSlot === 'loading' ? (
-          <Skeleton $variant={variant} aria-hidden />
+          <Skeleton $height={`${CHART_HEIGHT}px`} aria-hidden />
         ) : footPyramidSlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
