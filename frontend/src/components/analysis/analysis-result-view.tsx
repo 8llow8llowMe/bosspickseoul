@@ -31,7 +31,6 @@ import {
   fetchCommercialTrend,
 } from '@/lib/api/commercial-analysis'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
-// isResponseError 는 오류 UI 규약 적용(#1)으로 이 파일에서 쓰이지 않게 됐다.
 // getApiMessage 는 보관·공유 응답의 실패 문구를 읽는 데 계속 쓴다.
 import {
   getApiMessage,

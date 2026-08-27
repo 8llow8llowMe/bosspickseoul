@@ -21,31 +21,6 @@ export type CommercialArea = {
   centerLng: number
 }
 
-export type RecommendCommercial = {
-  commercialCode: number
-  commercialCodeName: string
-  salesCommercialInfo: {
-    mySales: number
-    administrationSales: number
-    otherSales: number
-  }
-  footTrafficCommercialInfo: {
-    myFootTraffic: number
-    administrationFootTraffic: number
-    otherFootTraffic: number
-  }
-  storeCommercialInfo: {
-    myStores: number
-    administrationStores: number
-    otherStores: number
-  }
-  closedRateCommercialInfo: {
-    myClosedRate: number
-    administrationClosedRate: number
-    otherClosedRate: number
-  }
-}
-
 export type RecommendSavedItem = {
   userId: number
   commercialCode: string
@@ -69,5 +44,4 @@ export type RecommendSavedListBody = {
 
 export type AdministrationAreasResponse = ApiResponse<AdministrationArea[]>
 export type CommercialAreasResponse = ApiResponse<CommercialArea[]>
-export type RecommendCommercialResponse = ApiResponse<RecommendCommercial[]>
 export type RecommendSavedListResponse = ApiResponse<RecommendSavedListBody>

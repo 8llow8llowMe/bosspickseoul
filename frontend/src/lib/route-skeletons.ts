@@ -27,7 +27,6 @@ type RouteKey =
   | 'communityDetail'
   | 'chattingList'
   | 'chattingDetail'
-  | 'share'
 
 export const routeSkeletons: Record<RouteKey, RoutePlaceholderDefinition> = {
   home: {
@@ -188,13 +187,6 @@ export const routeSkeletons: Record<RouteKey, RoutePlaceholderDefinition> = {
     title: '채팅 상세',
     path: '/chatting/[roomId]',
     description: '채팅방 상세 화면 라우트 골격입니다.',
-    visibility: 'noindex',
-  },
-  share: {
-    title: '공유 리포트',
-    path: '/share/[token]',
-    description:
-      '외부 공유용 리포트 화면 라우트 골격입니다. 토큰형 URL 정책은 이후 단계에서 확정합니다.',
     visibility: 'noindex',
   },
 }

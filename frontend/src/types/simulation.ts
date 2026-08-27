@@ -260,21 +260,3 @@ export type SimulationReportResponse = ApiResponse<SimulationReport>
 export type SimulationHistorySaveResponse =
   ApiResponse<SimulationHistorySaveResult>
 export type SimulationHistoriesResponse = ApiResponse<SimulationHistories>
-
-/* ------------------------------------------------------------------ *
- * V1 잔재 — 삭제 예정
- * ------------------------------------------------------------------ */
-
-/**
- * `src/lib/api/share.ts`(#3 소유, 이 슬라이스에서 수정 금지)가 아직 이 이름들을
- * `@/types/simulation`에서 import 한다. 해당 파일을 건드리지 않고 컴파일을 유지하기 위한 re-export다.
- *
- * V2 `ShareTargetType` 5종에 시뮬레이션이 없다 — 시뮬레이션 공유는 V2 범위 밖이다.
- * share 슬라이스에서 `/share/[token]`의 V1 시뮬레이션 처리가 정리되면 이 re-export도 삭제한다.
- */
-export type {
-  SharedSimulationPayload,
-  SharedSimulationPayloadResponse,
-  SimulationShareRequest,
-  SimulationShareResponse,
-} from '@/types/simulation-v1-legacy'
