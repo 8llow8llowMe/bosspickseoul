@@ -40,7 +40,7 @@ const Page = styled.main`
 `
 
 const Container = styled.div`
-  width: min(1320px, calc(100% - 40px));
+  width: min(800px, calc(100% - 40px));
   margin: 0 auto;
   display: grid;
   gap: 16px;

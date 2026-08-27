@@ -369,6 +369,9 @@ const navigationItems = [
   { href: '/status', label: '구별현황' },
   { href: '/analysis', label: '상권분석' },
   { href: '/recommend', label: '상권추천' },
+  // 독립 진입점(/simulation)만 노출한다. /analysis/simulation 은 상권분석 하위
+  // 흐름이라 isPathActive 가 '/analysis' 를 활성으로 잡는 게 의도된 동작이다.
+  { href: '/simulation', label: '시뮬레이션' },
   // 상권분석 + AI 리포트 방향 강조를 위해 커뮤니티·채팅은 헤더에서 임시 숨김.
   // 라우트/페이지는 유지되므로 재노출 시 아래 두 줄의 주석만 해제하면 됨.
   // { href: '/community/list', label: '커뮤니티' },
