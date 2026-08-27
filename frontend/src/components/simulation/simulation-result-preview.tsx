@@ -1,15 +1,18 @@
 'use client'
 
-import { Info } from 'lucide-react'
+import { ArrowRight, Info } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
 import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
 
 export type SimulationResultPreviewProps = {
   report: SimulationReport
+  /** 상세 리포트 경로. 호출부가 variant 를 알고 있으므로 여기서 만들지 않는다. */
+  reportHref: string
 }
 
 /* 카드 테두리·그림자는 감싸는 결과 패널이 갖는다 — 카드 안에 카드를 겹치지 않는다. */
@@ -109,39 +112,19 @@ const Notice = styled.p`
   }
 `
 
-const Pending = styled.div`
-  display: grid;
-  gap: 4px;
-  border: 1px dashed var(--color-border-300);
-  border-radius: var(--radius-control);
-  padding: 12px;
-
-  strong {
-    color: var(--color-text-800);
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 20px;
-  }
-
-  span {
-    color: var(--color-text-600);
-    font-size: 12px;
-    line-height: 18px;
-    word-break: keep-all;
-  }
-`
-
 /**
  * 계산 결과 **최소 렌더**.
  *
- * 이번 슬라이스는 총 창업 비용·조건 요약·기준 연도까지만 보여준다.
- * 비용 구성·권리금·유사 프랜차이즈·성별연령·성수기는 다음 슬라이스의 리포트 화면 몫이라
- * 여기서 미리 그리지 않는다 — 두 곳에서 같은 값을 다르게 표기하는 사고를 막기 위해서다.
+ * 이 미리보기는 총 창업 비용·조건 요약·기준 연도까지만 보여주고, 상세 리포트로 가는
+ * CTA 를 준다. 비용 구성·권리금·유사 프랜차이즈·성별연령·성수기는 리포트 화면
+ * (`/simulation/report`)의 몫이라 여기서 미리 그리지 않는다 — 두 곳에서 같은 값을
+ * 다르게 표기하는 사고를 막기 위해서다.
  *
  * 금액 단위는 **만원**이다. `formatLargeWon`이 만원 단위 입력을 "N억 M만원"으로 바꾼다.
  */
 export default function SimulationResultPreview({
   report,
+  reportHref,
 }: SimulationResultPreviewProps) {
   const { condition } = report
 
@@ -187,13 +170,9 @@ export default function SimulationResultPreview({
         <span>{formatDataBaseYearNotice(report.dataBaseYear)}</span>
       </Notice>
 
-      <Pending>
-        <strong>상세 리포트는 준비 중이에요</strong>
-        <span>
-          비용 구성, 권리금, 유사 프랜차이즈, 고객 분석은 곧 리포트 화면에서
-          제공할 예정이에요.
-        </span>
-      </Pending>
+      <ButtonLink href={reportHref} size="large" rightIcon={<ArrowRight />}>
+        상세 리포트 보기
+      </ButtonLink>
     </Root>
   )
 }

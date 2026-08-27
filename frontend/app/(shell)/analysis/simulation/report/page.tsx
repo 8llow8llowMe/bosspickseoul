@@ -1,14 +1,19 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import SimulationUnavailablePage from '@/components/simulation/simulation-unavailable-page'
+import SimulationReportPage from '@/components/simulation/report/simulation-report-page'
 import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '창업 시뮬레이션 리포트',
-  description: '창업 시뮬레이션 리포트의 V2 API 계약 준비 상태를 안내합니다.',
+  description: '분석한 상권 조건의 예상 창업 비용 리포트를 보여줍니다.',
   path: '/analysis/simulation/report',
   index: false,
 })
 
 export default function Page() {
-  return <SimulationUnavailablePage kind="report" />
+  return (
+    <Suspense fallback={null}>
+      <SimulationReportPage variant="analysis" />
+    </Suspense>
+  )
 }
