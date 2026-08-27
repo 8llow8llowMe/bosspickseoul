@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildSimulationCompareHref,
   parseSimulationCompareConditionPair,
+  parseSimulationComparePair,
 } from '@/lib/simulation/compare-route'
-import { toSimulationReportRequest } from '@/lib/simulation/conditions'
 import type { SimulationReportRequest } from '@/types/simulation'
 
 const personal: SimulationReportRequest = {
@@ -27,18 +27,6 @@ const franchise: SimulationReportRequest = {
 /** `buildSimulationCompareHref` 의 결과에서 쿼리만 떼어 파서에 물린다. */
 const readBack = (href: string) =>
   new URLSearchParams(href.slice(href.indexOf('?') + 1))
-
-/**
- * 쿼리스트링 → 요청 쌍. 화면이 하는 것과 같은 두 단계다(조건 코덱 → 완성 판정).
- * 완성 판정은 `toSimulationReportRequest` 한 곳이 하므로 여기서 따로 두지 않는다.
- */
-const readRequestPair = (params: URLSearchParams) => {
-  const pair = parseSimulationCompareConditionPair(params)
-  return {
-    left: toSimulationReportRequest(pair.left),
-    right: toSimulationReportRequest(pair.right),
-  }
-}
 
 describe('buildSimulationCompareHref', () => {
   it('좌우를 a. / b. 접두사로 싣는다', () => {
@@ -90,9 +78,9 @@ describe('buildSimulationCompareHref', () => {
   })
 })
 
-describe('쿼리스트링 → 요청 쌍 (조건 코덱 + 완성 판정)', () => {
+describe('parseSimulationComparePair (쿼리스트링 → 완성된 요청 쌍)', () => {
   it('쌍을 왕복시켜도 값이 그대로다', () => {
-    const pair = readRequestPair(
+    const pair = parseSimulationComparePair(
       readBack(
         buildSimulationCompareHref({ left: personal, right: franchise }),
       ),
@@ -103,7 +91,7 @@ describe('쿼리스트링 → 요청 쌍 (조건 코덱 + 완성 판정)', () =>
   })
 
   it('한쪽이 결손이면 그쪽만 null 이고 오류가 아니다', () => {
-    const pair = readRequestPair(
+    const pair = parseSimulationComparePair(
       readBack(buildSimulationCompareHref({ left: personal, right: null })),
     )
 
@@ -122,7 +110,7 @@ describe('쿼리스트링 → 요청 쌍 (조건 코덱 + 완성 판정)', () =>
       'b.districtCode': '11680',
     })
 
-    const pair = readRequestPair(params)
+    const pair = parseSimulationComparePair(params)
     expect(pair.left).toEqual(personal)
     expect(pair.right).toBeNull()
   })
@@ -136,7 +124,7 @@ describe('쿼리스트링 → 요청 쌍 (조건 코덱 + 완성 판정)', () =>
       'a.floorType': 'OTHER',
     })
 
-    expect(readRequestPair(params).left).toBeNull()
+    expect(parseSimulationComparePair(params).left).toBeNull()
   })
 
   it('접두사 없는 단일 리포트 키는 어느 쪽으로도 읽지 않는다', () => {
@@ -148,7 +136,7 @@ describe('쿼리스트링 → 요청 쌍 (조건 코덱 + 완성 판정)', () =>
       floorType: 'FIRST_FLOOR',
     })
 
-    const pair = readRequestPair(params)
+    const pair = parseSimulationComparePair(params)
     expect(pair.left).toBeNull()
     expect(pair.right).toBeNull()
   })
