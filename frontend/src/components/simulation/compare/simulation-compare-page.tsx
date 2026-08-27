@@ -203,13 +203,18 @@ export default function SimulationComparePage({
     retry: retryUnlessClientError(),
   })
 
+  // `query` 객체는 매 렌더 새 참조지만 `refetch` 는 안정적이다 — deps 에는 이쪽을 쓴다.
+  const { refetch } = query
+
   /**
-   * `비교하기` 는 계산을 명령하지 않는다. **URL 을 편집기 상태와 맞출 뿐**이고, 그 URL 이
+   * `비교하기` 는 계산을 직접 명령하지 않는다. **URL 을 편집기 상태와 맞추고**, 그 URL 이
    * 쿼리를 트리거한다.
    *
-   * 이미 같은 URL 이면 할 일이 없다 — 그 URL 이 가리키는 결과는 아래에 이미 떠 있거나
-   * 오류 안내가 자기 재시도 버튼을 달고 있다. 같은 URL 로 재탐색을 걸면 세그먼트가 다시
-   * 마운트될 수 있고, 그러면 방금 받은 결과가 날아간다.
+   * 조건을 고치지 않고 눌렀다면 URL 은 이미 맞으므로 재탐색할 것이 없다. 그때는
+   * `refetch()` 로 같은 조건을 다시 계산한다. 아무것도 하지 않으면 활성인 버튼이 눌러도
+   * 반응하지 않는 상태가 되는데, 재시도 버튼이 없는 오류(404 는 `isRetryable` 이 false 라
+   * 안내에 버튼이 붙지 않는다)에서는 화면 어디에도 응답이 없어 사용자가 다음에 무엇을
+   * 해야 하는지 알 수 없다. 라벨이 `비교하기` 인 이상 누르면 비교해야 한다.
    *
    * `push` 가 아니라 `replace` 인 이유: 조건을 고쳐 가며 여러 번 누르는 화면이라 매 계산이
    * 히스토리에 쌓이면 뒤로가기가 이 화면 안에서만 맴돈다.
@@ -222,8 +227,21 @@ export default function SimulationComparePage({
       variant,
     )
 
-    if (href !== `${pathname}?${searchParams}`) router.replace(href)
-  }, [leftRequest, rightRequest, pathname, searchParams, router, variant])
+    if (href === `${pathname}?${searchParams}`) {
+      void refetch()
+      return
+    }
+
+    router.replace(href)
+  }, [
+    leftRequest,
+    rightRequest,
+    pathname,
+    searchParams,
+    router,
+    variant,
+    refetch,
+  ])
 
   const error = resolveApiError({ error: query.error, data: undefined })
   // 응답 봉투 안의 실패도 오류다 — 한쪽만 봉투 실패면 그 화면은 비교가 아니다.
