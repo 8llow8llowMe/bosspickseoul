@@ -219,7 +219,7 @@ const CandidateButton = styled.button<{
 
   &:hover,
   &:focus-visible {
-    border-color: var(--color-primary-500);
+    border-color: var(--color-primary-600);
     outline: none;
   }
 `
