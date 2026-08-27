@@ -122,19 +122,13 @@ public class AuthSecurityConfigurer {
     private CorsConfiguration getCorsConfiguration(long maxAge) {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
+        // auth-service 는 게이트웨이를 거치지 않고 nginx 에서 직결되므로 목록을 게이트웨이와 맞춰 둔다.
+        // 회원/북마크(/api/v1/members/**)는 BFF 프록시 경유라 브라우저 Origin 이 여기까지 전달된다.
         config.setAllowedOriginPatterns(List.of(
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "http://localhost:8000",
-            "http://bosspickseoul-dev.store:[*]",
-            "http://*.bosspickseoul-dev.store:[*]",
-            "https://bosspickseoul.com",
-            "https://www.bosspickseoul.com",
-            // auth-service는 API Gateway를 거치지 않고 단독 호출되므로, 집계 Swagger UI가
-            // 서빙되는 API 도메인 origin을 직접 허용해야 Try it out(same-origin)이 통과된다.
-            // (게이트웨이는 reactive same-origin 우회가 있지만 servlet CORS는 없음)
-            "https://api.bosspickseoul.com",
-            "https://api-dev.bosspickseoul.com"
+            "http://localhost:5173",           // FE 로컬(next dev). 3000 이 로컬에서 점유라 5173 으로 바꿔 씀
+            "https://dev.bosspickseoul.com",   // 개발 웹. BFF 가 브라우저 Origin 보존 전달 (빼면 members 쓰기만 403)
+            "https://www.bosspickseoul.com",   // 운영 웹. 이유는 개발 웹과 동일 — Swagger 용 아님
+            "https://api-dev.bosspickseoul.com" // 개발 Swagger Try it out. nginx TLS 종료로 스킴이 달라 교차 출처 판정
         ));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
