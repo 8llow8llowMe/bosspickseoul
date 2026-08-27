@@ -213,6 +213,12 @@ const HeaderChange = styled.span<{ $tone: ChangeTone }>`
   border-radius: var(--radius-pill);
   background: ${props =>
     `color-mix(in srgb, ${changeToneColor(props.$tone)} 10%, var(--color-surface))`};
+  /* 테두리는 StatusCallout 과 같은 20% 다. 이게 없으면 neutral(=border-300, #d1d6db)
+     처럼 대비가 낮은 tone 은 흰 배경 위에서 틴트가 사라져 칩이 아니라 맨 텍스트로 보인다
+     — 같은 행에서 tone 마다 모양이 달라진다. */
+  border: 1px solid
+    ${props =>
+      `color-mix(in srgb, ${changeToneColor(props.$tone)} 20%, transparent)`};
   color: var(--color-text-800);
   font-size: 14px;
   font-weight: 700;
