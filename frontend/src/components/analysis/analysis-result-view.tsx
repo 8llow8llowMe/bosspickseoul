@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, Bookmark, Check, ExternalLink, Share2, X } from 'lucide-react'
@@ -88,6 +88,11 @@ import { useActivatedSections } from '@/lib/analysis/use-activated-sections'
 import { useScrollSpy } from '@/lib/analysis/use-scroll-spy'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
+import { useToast } from '@/components/ui/toast'
+import {
+  rememberPendingAction,
+  takePendingAction,
+} from '@/lib/auth/pending-action'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
   CommercialBenchmark,
@@ -128,6 +133,17 @@ export const createResultTabHref = (
 
 export const getCommercialBookmarkLoginHref = (currentHref: string) =>
   `/login?redirect=${encodeURIComponent(currentHref)}`
+
+/** 보관 동작의 토스트 키. 성공·오류·안내가 한 장을 나눠 쓴다. */
+const ARCHIVE_TOAST_KEY = 'analysis-archive'
+
+/**
+ * 로그인 때문에 중단된 보관 동작의 식별자.
+ *
+ * payload 키를 함께 담는 이유: 동작 이름만 담으면 로그인 후 **다른 상권**으로 돌아왔을 때도
+ * 이어하기가 떠서, 사용자가 고르지도 않은 화면을 보관하게 된다.
+ */
+const archiveIntentKey = (payloadKey: string) => `archive:${payloadKey}`
 
 export const createReportSectionId = (tab: AnalysisResultTab) => `report-${tab}`
 
@@ -700,10 +716,27 @@ export default function AnalysisResultView({
     memberId,
     hasHydrated && isLoggedIn,
   )
-  const [actionFeedback, setActionFeedback] = useState<{
-    error: boolean
-    message: string
-  } | null>(null)
+  const { showToast } = useToast()
+
+  /**
+   * 동작 결과는 **토스트**로 알린다.
+   *
+   * 예전에는 본문 흐름에 `<p>` 로 끼워 넣었는데 두 가지가 문제였다: ① 뜰 때마다 아래
+   * 리포트 전체가 밀렸고, ② 지우는 코드가 없어 한 번 뜨면 화면에 계속 남았다.
+   *
+   * `dedupeKey` 로 동작마다 한 장만 유지한다 — 보관 버튼을 연달아 누를 때
+   * "저장했어요/해제했어요"가 쌓이면 지금 상태가 무엇인지 알 수 없다.
+   */
+  const notify = useCallback(
+    (
+      dedupeKey: string,
+      message: string,
+      tone: 'success' | 'error' = 'success',
+    ) => {
+      showToast({ message, tone, dedupeKey })
+    },
+    [showToast],
+  )
 
   // 공유 링크 / 분석 화면 보관함이 공유하는 payload. 조건이 불완전하면 null 이라 버튼을 막는다.
   const sharePayload = useMemo(
@@ -998,19 +1031,19 @@ export default function AnalysisResultView({
       if (memberId) {
         await invalidateMemberBookmarksQuery(queryClient, memberId)
       }
-      setActionFeedback({
-        error: false,
-        message: bookmark ? '상권 저장을 해제했어요.' : '상권을 저장했어요.',
-      })
+      notify(
+        'commercial-bookmark',
+        bookmark ? '상권 저장을 해제했어요.' : '상권을 저장했어요.',
+      )
     },
     onError: error => {
-      setActionFeedback({
-        error: true,
-        message:
-          error instanceof Error
-            ? error.message
-            : '상권 저장을 처리하지 못했습니다.',
-      })
+      notify(
+        'commercial-bookmark',
+        error instanceof Error
+          ? error.message
+          : '상권 저장을 처리하지 못했습니다.',
+        'error',
+      )
     },
   })
 
@@ -1058,13 +1091,12 @@ export default function AnalysisResultView({
           ? { payloadKey: sharePayloadKey, bookmarkId: result.bookmarkId }
           : null,
       )
-      setActionFeedback({
-        error: false,
-        message:
-          result.mode === 'saved'
-            ? '이 분석 화면을 보관함에 저장했어요.'
-            : '보관을 해제했어요.',
-      })
+      notify(
+        ARCHIVE_TOAST_KEY,
+        result.mode === 'saved'
+          ? '이 분석 화면을 보관함에 저장했어요.'
+          : '보관을 해제했어요.',
+      )
     },
     onError: error => {
       const failure = classifyAnalysisBookmarkSaveError(error)
@@ -1075,12 +1107,12 @@ export default function AnalysisResultView({
           payloadKey: sharePayloadKey,
           bookmarkId: failure.existingBookmarkId,
         })
-        setActionFeedback({
-          error: false,
-          message: failure.existingBookmarkId
+        notify(
+          ARCHIVE_TOAST_KEY,
+          failure.existingBookmarkId
             ? '이미 보관함에 저장된 화면이에요. 한 번 더 누르면 보관을 해제해요.'
             : '이미 보관함에 저장된 화면이에요. 해제는 보관함에서 할 수 있어요.',
-        })
+        )
         return
       }
 
@@ -1090,9 +1122,64 @@ export default function AnalysisResultView({
       }
 
       // 400 ANALYSIS_BOOKMARK_006(저장 상한)은 서버 문구를 그대로 보여준다.
-      setActionFeedback({ error: true, message: failure.message })
+      notify(ARCHIVE_TOAST_KEY, failure.message, 'error')
     },
   })
+
+  /** 분석 화면 보관함 저장/해제. 지역 북마크(상권 저장)와는 다른 개념이다. */
+  const handleArchive = useCallback(() => {
+    if (!hasHydrated || archiveMutation.isPending) return
+    if (!isLoggedIn) {
+      // 돌아왔을 때 "무엇을 하려 했는지"를 남긴다. 이게 없으면 로그인 후 같은 버튼을
+      // 다시 찾아 눌러야 한다.
+      rememberPendingAction(archiveIntentKey(sharePayloadKey))
+      router.push(getCommercialBookmarkLoginHref(currentHref))
+      return
+    }
+    if (!sharePayload) {
+      notify(
+        ARCHIVE_TOAST_KEY,
+        '분석 조건을 다시 선택한 뒤 보관해 주세요.',
+        'error',
+      )
+      return
+    }
+    archiveMutation.mutate()
+  }, [
+    archiveMutation,
+    currentHref,
+    hasHydrated,
+    isLoggedIn,
+    notify,
+    router,
+    sharePayload,
+    sharePayloadKey,
+  ])
+
+  /**
+   * 로그인하고 돌아왔을 때 중단됐던 보관을 이어준다.
+   *
+   * 자동으로 실행하지 않고 **누를 거리를 하나 준다.** 보관은 토글이라, 페이지가 열리자마자
+   * 조용히 실행되면 사용자가 의도하지 않은 해제까지 일어날 수 있고 되돌릴 방법이 화면에 없다.
+   *
+   * `takePendingAction()` 이 읽으면서 지우므로 StrictMode 의 effect 두 번 호출에도
+   * 토스트는 한 장만 뜬다. 훅이라서 아래 조기 반환(`invalidMessage`)보다 **앞**에 있어야 한다.
+   */
+  const archiveResumeRef = useRef(false)
+  useEffect(() => {
+    if (archiveResumeRef.current) return
+    if (!hasHydrated || !isLoggedIn || !sharePayloadKey) return
+
+    const pending = takePendingAction()
+    if (pending !== archiveIntentKey(sharePayloadKey)) return
+
+    archiveResumeRef.current = true
+    showToast({
+      message: '로그인했어요. 보던 화면을 이어서 보관할 수 있어요.',
+      dedupeKey: ARCHIVE_TOAST_KEY,
+      action: { label: '이어서 보관하기', onAction: handleArchive },
+    })
+  }, [handleArchive, hasHydrated, isLoggedIn, sharePayloadKey, showToast])
 
   if (invalidMessage) {
     return (
@@ -1119,10 +1206,7 @@ export default function AnalysisResultView({
    */
   const handleShare = async () => {
     if (!sharePayload) {
-      setActionFeedback({
-        error: true,
-        message: '분석 조건을 다시 선택한 뒤 공유해 주세요.',
-      })
+      notify('share', '분석 조건을 다시 선택한 뒤 공유해 주세요.', 'error')
       return
     }
 
@@ -1150,35 +1234,12 @@ export default function AnalysisResultView({
       } else {
         await navigator.clipboard.writeText(shareUrl)
       }
-      setActionFeedback({
-        error: false,
-        message: '공유 링크를 준비했어요. 링크는 90일간 열 수 있어요.',
-      })
+      notify('share', '공유 링크를 준비했어요. 링크는 90일간 열 수 있어요.')
     } catch (error) {
       // 사용자가 공유 시트를 닫은 것(AbortError)은 실패가 아니다.
       if (error instanceof Error && error.name === 'AbortError') return
-      setActionFeedback({
-        error: true,
-        message: classifyAnalysisBookmarkSaveError(error).message,
-      })
+      notify('share', classifyAnalysisBookmarkSaveError(error).message, 'error')
     }
-  }
-
-  /** 분석 화면 보관함 저장/해제. 지역 북마크(상권 저장)와는 다른 개념이다. */
-  const handleArchive = () => {
-    if (!hasHydrated || archiveMutation.isPending) return
-    if (!isLoggedIn) {
-      router.push(getCommercialBookmarkLoginHref(currentHref))
-      return
-    }
-    if (!sharePayload) {
-      setActionFeedback({
-        error: true,
-        message: '분석 조건을 다시 선택한 뒤 보관해 주세요.',
-      })
-      return
-    }
-    archiveMutation.mutate()
   }
 
   const handleBookmark = () => {
@@ -1350,11 +1411,8 @@ export default function AnalysisResultView({
             </ActionRow>
           </ContextHero>
 
-          {actionFeedback ? (
-            <Feedback $error={actionFeedback.error} role="status">
-              {actionFeedback.message}
-            </Feedback>
-          ) : null}
+          {/* 이건 토스트로 옮기지 않는다. 동작의 결과가 아니라 **목록 조회 실패**라
+              상태가 지속되는 동안 계속 보여야 한다 — 자동으로 사라지면 안 된다. */}
           {bookmarksQuery.errorMessage ? (
             <Feedback $error>{bookmarksQuery.errorMessage}</Feedback>
           ) : null}
