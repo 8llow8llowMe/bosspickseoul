@@ -27,13 +27,22 @@ describe('profile V2 API contract', () => {
     expect(source).not.toContain('@/lib/api/profile')
   })
 
-  it('does not request a legacy simulation saved list', () => {
+  it('reads the simulation saved list from the V2 histories endpoint only', () => {
+    // 이 단언은 placeholder 시절 `useQuery` 자체를 금지했다. B2 에서 V2 이력 목록이
+    // 실제로 붙었으므로, 막아야 할 것을 다시 적는다: **V1 저장 목록 경로**다.
     const source = readSource(
       'src/components/profile/profile-simulation-bookmarks-page.tsx',
     )
 
     expect(source).not.toContain('fetchSavedSimulationList')
-    expect(source).not.toContain('useQuery')
-    expect(source).toContain('V2 API')
+    expect(source).toContain('fetchSimulationHistories')
+  })
+
+  it('keeps the simulation history endpoints on the V2 path', () => {
+    const source = readSource('src/lib/api/simulation.ts')
+
+    expect(source).toContain("'/simulations/histories'")
+    expect(source).not.toContain('/simulation/list')
+    expect(source).not.toContain('/simulation/save')
   })
 })

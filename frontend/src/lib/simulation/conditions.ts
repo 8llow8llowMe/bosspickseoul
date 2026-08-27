@@ -96,7 +96,17 @@ export const createEmptySimulationConditionState =
     floorType: null,
   })
 
-/** 분석 화면에서 넘어온 조건 등으로 초기값을 채운다. 지원하지 않는 값은 조용히 버린다. */
+/** 브랜드 아이디는 검색 응답에서만 오는 양의 정수다. 그 밖의 값은 조건으로 인정하지 않는다. */
+const isFranchiseeId = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+
+/**
+ * 분석 화면·복원 링크에서 넘어온 조건으로 초기값을 채운다. 지원하지 않는 값은 조용히 버린다.
+ *
+ * 브랜드(`franchiseeId`/`brandName`)는 **`franchisee === true` 일 때만** 살린다.
+ * `selectFranchisee` 가 창업 형태를 바꿀 때 브랜드를 비우는 것과 같은 규칙이다 — 손상된 링크로
+ * `franchisee=false&franchiseeId=101` 이 들어와도 화면에 모순된 상태가 만들어지지 않게 한다.
+ */
 export const createSimulationConditionState = (
   initial: Partial<SimulationConditionState> = {},
 ): SimulationConditionState => {
@@ -104,6 +114,13 @@ export const createSimulationConditionState = (
 
   if (initial.franchisee === true || initial.franchisee === false) {
     state.franchisee = initial.franchisee
+  }
+  if (state.franchisee === true) {
+    if (isFranchiseeId(initial.franchiseeId)) {
+      state.franchiseeId = initial.franchiseeId
+    }
+    const brandName = initial.brandName?.trim()
+    if (brandName) state.brandName = brandName
   }
   if (initial.districtCode && findDistrictByCode(initial.districtCode)) {
     state.districtCode = initial.districtCode

@@ -246,6 +246,85 @@ describe('simulation API endpoints', () => {
     expect(get).toHaveBeenCalledWith('/simulations/histories?page=2&size=50')
   })
 
+  it('franchisees 응답의 문자열 아이디를 number 로 정규화한다', async () => {
+    // dev 실측: 응답은 franchiseeId·lastId 를 **문자열**로 준다("14954"). 요청 계약은 integer 다.
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      data: ok({
+        franchisees: [
+          {
+            franchiseeId: '14954',
+            brandName: '맛나분식',
+            serviceCode: 'CS100008',
+            serviceName: '분식전문점',
+          },
+        ],
+        lastId: '15136',
+      }),
+    })
+
+    const response = await fetchSimulationFranchisees({
+      serviceCode: 'CS100008',
+    })
+    const body = response.dataBody
+
+    expect(body?.franchisees[0].franchiseeId).toBe(14954)
+    expect(body?.lastId).toBe(15136)
+  })
+
+  it('결과가 없어 lastId 가 null 이면 null 그대로 둔다', async () => {
+    // null 은 "더 부르지 마라"는 신호다. 0 으로 바꾸면 "0번 다음부터"라는 커서가 된다.
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      data: ok({ franchisees: [], lastId: null }),
+    })
+
+    const response = await fetchSimulationFranchisees({
+      serviceCode: 'CS100008',
+    })
+
+    expect(response.dataBody?.lastId).toBeNull()
+  })
+
+  it('reports 응답의 문자열 아이디도 number 로 정규화한다', async () => {
+    vi.spyOn(apiClient, 'post').mockResolvedValue({
+      data: ok({
+        condition: { franchisee: true, franchiseeId: '14954' },
+        similarFranchisees: [{ franchiseeId: '14954', brandName: '맛나분식' }],
+      }),
+    })
+
+    const response = await createSimulationReport({
+      franchisee: true,
+      franchiseeId: 14954,
+      districtCode: '11740',
+      serviceCode: 'CS100008',
+      storeSize: 40,
+      floorType: 'OTHER',
+    })
+    const body = response.dataBody
+
+    expect(body?.condition.franchiseeId).toBe(14954)
+    expect(body?.similarFranchisees[0].franchiseeId).toBe(14954)
+  })
+
+  it('비프랜차이즈 리포트의 franchiseeId: null 은 null 로 남는다', async () => {
+    vi.spyOn(apiClient, 'post').mockResolvedValue({
+      data: ok({
+        condition: { franchisee: false, franchiseeId: null },
+        similarFranchisees: [],
+      }),
+    })
+
+    const response = await createSimulationReport({
+      franchisee: false,
+      districtCode: '11740',
+      serviceCode: 'CS100001',
+      storeSize: 66,
+      floorType: 'FIRST_FLOOR',
+    })
+
+    expect(response.dataBody?.condition.franchiseeId).toBeNull()
+  })
+
   it('V1 경로(/simulation, /simulation/store)를 더는 부르지 않는다', async () => {
     const get = vi.spyOn(apiClient, 'get').mockResolvedValue({ data: ok({}) })
     const post = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: ok({}) })

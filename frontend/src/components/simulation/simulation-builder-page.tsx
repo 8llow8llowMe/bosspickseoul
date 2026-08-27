@@ -31,7 +31,10 @@ import {
   type SimulationConditionSection,
 } from '@/lib/simulation/conditions'
 import { simulationReportQueryKey } from '@/lib/simulation/report-query'
-import { buildSimulationReportHref } from '@/lib/simulation/report-route'
+import {
+  buildSimulationReportHref,
+  parseSimulationConditionState,
+} from '@/lib/simulation/report-route'
 import type { SimulationReportRequest } from '@/types/simulation'
 
 export type SimulationBuilderPageProps = {
@@ -185,9 +188,16 @@ export default function SimulationBuilderPage({
   const context =
     variant === 'analysis' ? parseSimulationAnalysisContext(searchParams) : null
 
+  // 리포트에서 되돌아왔다면 쿼리스트링에 조건이 실려 있다. 그걸 초기값으로 삼고,
+  // 분석 컨텍스트는 **비어 있는 칸만** 메운다 — 조건이 실려 있는데 컨텍스트가 덮으면
+  // 사용자가 방금 바꾼 값이 되돌아온 자리에서 다시 뒤집힌다.
+  // (컨텍스트의 레거시 `gugun`(구 이름)은 조건 코덱이 모르므로 이 합성이 여전히 필요하다.)
+  const restored = parseSimulationConditionState(searchParams)
+
   const conditions = useSimulationConditions({
-    districtCode: context?.districtCode ?? null,
-    serviceCode: context?.serviceCode ?? null,
+    ...restored,
+    districtCode: restored.districtCode ?? context?.districtCode ?? null,
+    serviceCode: restored.serviceCode ?? context?.serviceCode ?? null,
   })
 
   const queryClient = useQueryClient()
@@ -215,7 +225,12 @@ export default function SimulationBuilderPage({
   const currentReport = isCurrent && !error ? report : null
   const reportHref =
     currentReport && reportMutation.variables
-      ? buildSimulationReportHref(reportMutation.variables, variant)
+      ? buildSimulationReportHref(
+          reportMutation.variables,
+          variant,
+          // 브랜드명은 요청 본문에 없다. 리포트에서 되돌아올 때 복원하려면 URL 이 들고 있어야 한다.
+          conditions.state.brandName,
+        )
       : null
 
   const resultRef = useRef<HTMLDivElement | null>(null)
