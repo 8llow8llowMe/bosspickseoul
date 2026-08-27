@@ -18,10 +18,7 @@ import {
   toSimulationReportSearchParams,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
-import {
-  toSimulationReportRequest,
-  type SimulationConditionState,
-} from '@/lib/simulation/conditions'
+import type { SimulationConditionState } from '@/lib/simulation/conditions'
 import type { SimulationReportRequest } from '@/types/simulation'
 
 type SearchParamsReader = { get(name: string): string | null }
@@ -85,20 +82,3 @@ export const parseSimulationCompareConditionPair = (
   left: parseSimulationConditionState(params, SIMULATION_COMPARE_PREFIX.left),
   right: parseSimulationConditionState(params, SIMULATION_COMPARE_PREFIX.right),
 })
-
-/**
- * 쿼리스트링 → 요청 쌍. 완성되지 않은 쪽은 `null`.
- *
- * 완성 판정은 `toSimulationReportRequest` **한 곳**이 한다 — 여기서 따로 판정하면
- * 프랜차이즈인데 브랜드가 없는 조건 같은 경우가 두 화면에서 다르게 취급된다.
- */
-export const parseSimulationComparePair = (
-  params: SearchParamsReader,
-): SimulationCompareRequestPair => {
-  const conditions = parseSimulationCompareConditionPair(params)
-
-  return {
-    left: toSimulationReportRequest(conditions.left),
-    right: toSimulationReportRequest(conditions.right),
-  }
-}

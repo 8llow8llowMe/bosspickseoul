@@ -93,7 +93,7 @@ const Select = styled.select`
   text-overflow: ellipsis;
 
   &:hover {
-    border-color: var(--color-primary-300);
+    border-color: var(--color-primary-600);
   }
 
   &:focus-visible {
