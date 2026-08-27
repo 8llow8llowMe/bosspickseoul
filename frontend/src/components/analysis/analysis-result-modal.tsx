@@ -30,15 +30,13 @@ const Overlay = styled.div`
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(15, 23, 18, 0.58);
+  background: var(--color-overlay);
   padding: clamp(24px, 3vw, 32px);
-  backdrop-filter: blur(3px);
 
   @media (max-width: 840px) {
     display: block;
     padding: 0;
     background: var(--color-surface-muted);
-    backdrop-filter: none;
   }
 `
 

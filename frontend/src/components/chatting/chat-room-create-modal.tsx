@@ -16,7 +16,7 @@ const Overlay = styled.div`
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(17, 25, 40, 0.48);
+  background: var(--color-overlay);
 `
 
 const Card = styled.section`

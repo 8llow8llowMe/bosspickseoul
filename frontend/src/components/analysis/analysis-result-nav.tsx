@@ -29,8 +29,11 @@ const Nav = styled.nav`
   gap: 2px;
 `
 
+/**
+ * 활성 상태는 `primary-100` 배경 + `primary-700` 글자 + weight 700 으로 이미 세 겹이다.
+ * 예전에는 여기에 좌측 3px 블루 바(`::before`)까지 있었는데 네 번째 중복이라 걷어냈다.
+ */
 const Item = styled.button<{ $active: boolean }>`
-  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -48,18 +51,6 @@ const Item = styled.button<{ $active: boolean }>`
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
-
-  &::before {
-    position: absolute;
-    top: 8px;
-    bottom: 8px;
-    left: 0;
-    width: 3px;
-    border-radius: 2px;
-    background: ${props =>
-      props.$active ? 'var(--color-primary-600)' : 'transparent'};
-    content: '';
-  }
 
   &:hover {
     background: var(--color-surface-muted);

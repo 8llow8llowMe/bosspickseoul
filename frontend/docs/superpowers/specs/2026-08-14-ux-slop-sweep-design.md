@@ -3,7 +3,7 @@
 - 작성일: 2026-08-14
 - 브랜치: `feature/fe/ux-slop-sweep` (base `develop`)
 - 범위: 프론트엔드 전용. DESIGN.md 정본 준수, 백엔드 API 계약 변경 없음.
-- 상태: **PR1 구현 완료(2026-08-27, base `d39002f`)** · **PR2 완료(2026-08-27, 재검증 결과 대폭 축소 — §8)** · PR3~4·PR-Home 미착수
+- 상태: **PR1 구현 완료(2026-08-27, base `d39002f`)** · **PR2 완료(2026-08-27, 재검증 결과 대폭 축소 — §8)** · **PR3 완료(2026-08-27 — §9)** · PR4·PR-Home 미착수
 - 원 브랜치 `feature/fe/ux-slop-sweep`(base `2c6209c`)에는 이 문서만 있었고 구현은 없었다. PR1 은 `feature/fe/ux-slop-sweep-pr1` 에서 develop 기준으로 새로 잡아 진행했다.
 
 > 다른 컴퓨터에서 이어받기 위한 자족 문서. 진단 근거·승인된 방향·PR 로드맵·PR1 상세 변경목록을 모두 포함한다.
@@ -250,3 +250,68 @@ S-SIM-2 에 그 이유를 적었다.**
 
 - `pnpm exec vitest run` — 142 files / **1206 tests 통과**(`src/lib/format.test.ts` 6건 신규)
 - `pnpm qa:verify` 통과
+
+---
+
+## 9. PR3 실행 결과 (2026-08-27) — 「상권분석/결과/AI」
+
+착수 전 §3.2 「상권분석」 진단을 develop(`343695e` + PR2) 기준으로 전수 재검증했다.
+PR1 이 이미 걷어낸 항목(블루 상단바·블루 정적값·✨·모달 24px 라운딩)을 빼면 PR3 고유
+대상은 5건이 남았고, **전부 살아 있었다.** 여기에 같은 위반 3건을 함께 처리했다.
+
+### 처리한 대상
+
+| 대상                                                            | 처리                                                                                  | 근거                                                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `report-metric-cards.tsx` 지표 스켈레톤                         | `--`(`METRIC_PENDING_DISPLAY`) + 캡션 그레이. 로컬 `Skeleton`·`keyframes` 통째로 삭제 | DESIGN.md 353·360·604·763 — 「금액·지표는 skeleton 금지」 |
+| `analysis-result-modal.tsx` scrim `rgba(15,23,18,0.58)`         | `var(--color-overlay)`                                                                | 토큰이 이미 `rgba(2,9,19,0.5)` 로 존재했다                |
+| `analysis-result-modal.tsx` · `analysis-result-view.tsx` 글래스 | `backdrop-filter` 제거. sticky 헤더 배경은 `var(--color-surface)` 로 불투명하게       | DESIGN.md 633 금지 / 882 예외는 홈 히어로 한정            |
+| `analysis-result-nav.tsx` 활성 좌측 3px 블루 바                 | `::before` 와 그것만을 위한 `position: relative` 제거                                 | 활성은 배경·글자색·weight 로 이미 3중 전달                |
+| `analysis-result-view.tsx` 지시형 히어로                        | `{상권}의 창업 데이터를 확인해 보세요` → 아이브로우 `선택 업종` + `h2 {업종명}`       | 제목이 정보여야 한다(아래 설명)                           |
+
+### 진단에 없었지만 같은 위반이라 함께 처리한 것
+
+- `chat-room-create-modal.tsx` 의 세 번째 하드코딩 scrim(`rgba(17,25,40,0.48)`) → `var(--color-overlay)`.
+  같은 역할에 값이 셋이면 정본이 없는 것과 같다. 이제 모달 scrim 은 네 곳 전부 토큰 하나다.
+- `report-chart-section.tsx` 의 로컬 `Skeleton` → 공용 `@/components/ui/skeleton`.
+  로컬본은 배경이 `--color-border-300`(`#d1d6db`) 이라 DESIGN.md 가 정한 `grey100`(`#f2f4f6`)
+  보다 훨씬 무거웠다. 높이도 차트와 같은 `CHART_HEIGHT` 상수에서 뽑아 어긋날 수 없게 했다.
+  (로컬본이 갖고 있던 `prefers-reduced-motion` 가드는 `global-styles.ts:196` 의 전역 리셋이
+  이미 덮는다 — 잃는 것이 없다.)
+- `analysis-result-view.tsx` 의 `Feedback` 죽은 블루 분기 제거. 동작 피드백이 토스트로
+  옮겨간 뒤(#146) 호출부가 `$error` 로만 남아 비-error 인 `primary-700` 갈래는 도달 불가였다.
+
+### 지시형 히어로를 왜 저렇게 바꿨나
+
+바로 위 sticky 헤더의 `h1` 이 이미 상권명 + `자치구 · 행정동 · 기간 기준` 을 말하고,
+데이터는 이 블록 **아래에** 전부 펼쳐져 있다. 그 사이에서 「{상권}의 창업 데이터를
+확인해 보세요」는 상권명을 한 번 더 반복하고 아무것도 더하지 않는다. 헤더가 말하지
+않는 유일한 조건인 **업종**을 제목 자리로 올려, 이 액션 행(공유·보관·저장·시뮬레이션)이
+무엇에 대한 것인지 제목이 실제로 답하게 했다.
+
+### 범위 밖으로 남긴 것
+
+| 대상                                                                | 사유                                                                                                                                                                                                             |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-report-lock-card.tsx` 의 blur 샘플 본문                         | **명세가 명시적으로 요구한다** — `docs/features/analysis/ai-report.md:71` 「잠금 카드(blur 샘플 + 가치 카피 + 로그인 CTA)」. `aria-hidden` 이고 `blur(6px)`·`opacity .6` 라 판독 불가. **유지 결정**(2026-08-27) |
+| `analysis-map.tsx:95` · `analysis-map-shell.tsx:210` 흰 표면        | `rgba(255,255,255,0.94)` off-token. 지도 오버레이라 실기기 확인이 필요해 이번 범위에서 뺐다                                                                                                                      |
+| `profile-*` 의 "V2 API 계약 대기 중" 4곳, `profile-ui.tsx` 대시보더 | PR4(접근성+상태규격) 범위                                                                                                                                                                                        |
+
+### 회귀 점검
+
+PR1 체크리스트 grep 전부 0 — 비표준 웨이트, vw 폰트 스케일, 네거티브 트래킹, `Sparkles`,
+uppercase 아이브로우. `border-radius > 16px` 는 `hero-window.tsx` 2곳(PR-Home)만 남았다.
+`backdrop-filter` 는 이제 승인 예외인 `hero-window.tsx`·`hero-section.tsx` 에만 있다 —
+DESIGN.md 1286 행의 체크리스트 서술이 다시 사실이 됐다(PR3 전에는 사실이 아니었다).
+
+### 검증
+
+- `pnpm exec vitest run` 142 files / 1206 통과. `resolveMetricCards` 로딩 테스트는 이름이
+  「display 빈 문자열」인데 `display` 를 단언하지 않아 규칙을 지키지 못했다 — `--` 를 단언하도록 고쳤다.
+- `pnpm qa:verify` 통과.
+- dev 5173 실 데이터 — `/analysis/report` 로딩 중 지표 4칸이 `--`(`rgb(139,149,161)`,
+  `aria-busy="true"`), 차트 스켈레톤 3개가 `rgb(242,244,246)`(= grey100 정본) · 200px · 1.2s.
+- **결과 레이어(`/analysis/result`)의 시각 확인은 하지 못했다.** Browser pane 이 표시 상태가
+  아니면 탭이 `document.hidden` 이라 하이드레이션이 미뤄지고 지도 셸이 SSR 마크업만 남긴다
+  (`document.body.innerText` 43자). PR3 전 커밋에서도 동일하게 재현되므로 이 변경과 무관한
+  환경 제약이다. scrim·sticky 헤더·nav 바·히어로 카피는 **소스와 빌드로만 확인**했다.

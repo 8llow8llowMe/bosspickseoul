@@ -27,6 +27,13 @@ const formatGrowth = (
   return { display: `${sign}${pct.toFixed(1)}%`, tone }
 }
 
+/**
+ * 로딩 중 지표는 **`--`** 다. DESIGN.md §4-8 이 skeleton 을 금지한다 — 지표 자리의
+ * 회색 블록은 "값이 있는데 가려져 있다"로 읽히고, 도착한 값이 `데이터 없음` 이면
+ * 화면이 두 번 바뀐다. `--` 는 자리를 잡아두면서 아직 값이 아님을 그대로 말한다.
+ */
+export const METRIC_PENDING_DISPLAY = '--'
+
 export const resolveMetricCards = ({
   profile,
   profileLoading,
@@ -45,27 +52,27 @@ export const resolveMetricCards = ({
       label: '월 매출',
       loading: profileLoading,
       display: profileLoading
-        ? ''
+        ? METRIC_PENDING_DISPLAY
         : formatAnalysisValue(km?.totalSalesAmount, '원'),
     },
     {
       label: '유동인구',
       loading: profileLoading,
       display: profileLoading
-        ? ''
+        ? METRIC_PENDING_DISPLAY
         : formatAnalysisValue(km?.totalFootTraffic, '명'),
     },
     {
       label: '점포 수',
       loading: profileLoading,
       display: profileLoading
-        ? ''
+        ? METRIC_PENDING_DISPLAY
         : formatAnalysisValue(km?.totalStoreCount, '개'),
     },
     {
       label: '성장률',
       loading: growthLoading,
-      display: growthLoading ? '' : g.display,
+      display: growthLoading ? METRIC_PENDING_DISPLAY : g.display,
       tone: growthLoading ? undefined : g.tone,
     },
   ]

@@ -1,24 +1,10 @@
 'use client'
 
-import styled, { keyframes } from 'styled-components'
+import styled from 'styled-components'
 import type {
   MetricCardModel,
   MetricTone,
 } from '@/lib/analysis/report-section-state'
-
-const shimmer = keyframes`
-  0% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.6;
-  }
-`
 
 const Grid = styled.div<{ $variant: 'full' | 'compact' }>`
   display: grid;
@@ -53,26 +39,21 @@ const toneColor = (tone?: MetricTone) => {
   return 'var(--color-text-900)'
 }
 
+/**
+ * 로딩 중에는 값 대신 `--`(`METRIC_PENDING_DISPLAY`)가 들어온다 — skeleton 블록을 쓰지
+ * 않는다(DESIGN.md §4-8). 자리는 그대로 두되 색만 캡션 그레이로 낮춰, 도착한 값과
+ * 아직 오지 않은 자리가 한눈에 구분되게 한다.
+ */
 const Value = styled.strong<{
   $tone?: MetricTone
   $variant: 'full' | 'compact'
+  $pending: boolean
 }>`
-  color: ${props => toneColor(props.$tone)};
+  color: ${props =>
+    props.$pending ? 'var(--color-text-caption)' : toneColor(props.$tone)};
   font-size: ${props => (props.$variant === 'compact' ? '17px' : '19px')};
   font-weight: 700;
   line-height: ${props => (props.$variant === 'compact' ? '24px' : '28px')};
-`
-
-const Skeleton = styled.div`
-  width: 60%;
-  height: 22px;
-  border-radius: var(--radius-compact);
-  background: var(--color-border-300);
-  animation: ${shimmer} 1.2s var(--ease-standard) infinite;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
 `
 
 export default function ReportMetricCards({
@@ -87,13 +68,9 @@ export default function ReportMetricCards({
       {cards.map(card => (
         <Card key={card.label} $variant={variant} aria-busy={card.loading}>
           <span>{card.label}</span>
-          {card.loading ? (
-            <Skeleton aria-hidden />
-          ) : (
-            <Value $tone={card.tone} $variant={variant}>
-              {card.display}
-            </Value>
-          )}
+          <Value $tone={card.tone} $variant={variant} $pending={card.loading}>
+            {card.display}
+          </Value>
         </Card>
       ))}
     </Grid>
