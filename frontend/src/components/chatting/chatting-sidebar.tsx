@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import ChatRoomCreateModal from '@/components/chatting/chat-room-create-modal'
 import ChatRoomSearch from '@/components/chatting/chat-room-search'
+import { buildLoginHref, currentBrowserPath } from '@/lib/auth/return-path'
 import { useAuthStore } from '@/stores/auth-store'
 
 const Card = styled.section`
@@ -90,7 +91,7 @@ export default function ChattingSidebar({
 
   const handleOpenCreate = () => {
     if (hasHydrated && !isLoggedIn) {
-      router.push('/login')
+      router.push(buildLoginHref(currentBrowserPath()))
       return
     }
 

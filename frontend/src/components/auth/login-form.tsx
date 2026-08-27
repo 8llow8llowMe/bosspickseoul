@@ -16,6 +16,7 @@ import AuthShell, {
 import GuestOnly from '@/components/auth/guest-only'
 import { EMAIL_PATTERN } from '@/components/auth/register-machine'
 import SocialLogin from '@/components/auth/social-login'
+import { safeReturnPath } from '@/lib/auth/return-path'
 import { useAuthStore } from '@/stores/auth-store'
 
 const PasswordFieldWrapper = styled.div`
@@ -39,15 +40,6 @@ const PasswordToggle = styled.button`
   cursor: pointer;
 `
 
-// 오픈 리다이렉트 방지: 내부 경로(/로 시작, //로 시작하지 않고, 백슬래시를 포함하지 않음)만 허용한다.
-const safeRedirect = (value: string | null): string =>
-  value &&
-  value.startsWith('/') &&
-  !value.startsWith('//') &&
-  !value.includes('\\')
-    ? value
-    : '/'
-
 export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -56,6 +48,9 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const isSocialError = searchParams.get('error') === 'social'
+  // 이메일 로그인과 카카오 로그인이 **같은 판정**을 쓴다 (`@/lib/auth/return-path`).
+  // 한쪽만 느슨하면 그쪽이 오픈 리다이렉트 구멍이 된다.
+  const returnTo = safeReturnPath(searchParams.get('redirect'))
 
   const handleChange =
     (key: 'email' | 'password') =>
@@ -87,7 +82,7 @@ export default function LoginForm() {
 
       if (res.ok) {
         await useAuthStore.getState().hydrate()
-        router.replace(safeRedirect(searchParams.get('redirect')))
+        router.replace(returnTo)
         return
       }
 
@@ -150,7 +145,7 @@ export default function LoginForm() {
           </PrimaryButton>
         </AuthForm>
 
-        <SocialLogin />
+        <SocialLogin returnTo={returnTo} />
 
         <FooterRow>
           <span>계정이 아직 없나요?</span>

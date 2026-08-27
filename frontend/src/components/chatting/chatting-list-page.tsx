@@ -20,6 +20,7 @@ import {
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { subscribeChatRoomNotifications } from '@/lib/firebase-messaging'
 import { formatChatRoomMembers, getChatRoomCategoryLabel } from '@/lib/chatting'
+import { buildLoginHref, currentBrowserPath } from '@/lib/auth/return-path'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ChatRoomDetail } from '@/types/chatting'
 
@@ -337,7 +338,7 @@ export default function ChattingListPage() {
 
   const handleEnterRoom = (roomId: number) => {
     if (hasHydrated && !isLoggedIn) {
-      router.push('/login')
+      router.push(buildLoginHref(currentBrowserPath()))
       return
     }
 

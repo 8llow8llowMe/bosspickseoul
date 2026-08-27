@@ -13,6 +13,7 @@ import {
   isMemberInfoQueryEnabled,
   resolveMemberInfoResponse,
 } from '@/lib/member-info-query'
+import { buildLoginHref, currentBrowserPath } from '@/lib/auth/return-path'
 import { useAuthStore } from '@/stores/auth-store'
 
 const Container = styled.main`
@@ -187,7 +188,7 @@ export default function ProfileShell({ children }: ProfileShellProps) {
       setSession,
       onError: () => {
         clearSession()
-        router.replace('/login')
+        router.replace(buildLoginHref(currentBrowserPath()))
       },
     })
   }, [clearSession, resolvedResponse, router, setSession])
