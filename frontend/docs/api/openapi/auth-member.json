@@ -81,6 +81,71 @@
         ]
       }
     },
+    "/api/v1/members/me/profile-image": {
+      "post": {
+        "tags": ["회원"],
+        "summary": "프로필 이미지 업로드",
+        "description": "프로필 이미지를 업로드해 즉시 반영합니다. jpg/png/gif/webp 만 허용하며 파일 내용(매직 바이트)으로 형식을 판정합니다. 기존 이미지가 있으면 교체 후 이전 파일은 삭제됩니다.",
+        "operationId": "uploadProfileImage",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "imageFile": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "업로드할 이미지 파일"
+                  }
+                },
+                "required": ["imageFile"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMemberProfileImageUploadResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": ["회원"],
+        "summary": "프로필 이미지 삭제",
+        "description": "프로필 이미지를 제거합니다. 저장된 파일도 함께 삭제됩니다.",
+        "operationId": "removeProfileImage",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMemberMyInfoResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/members/me/password": {
       "post": {
         "tags": ["회원"],
@@ -258,7 +323,7 @@
       "post": {
         "tags": ["인증/인가"],
         "summary": "일반 로그인",
-        "description": "이메일과 비밀번호로 로그인합니다.",
+        "description": "이메일과 비밀번호로 로그인합니다. 실패가 누적되면 해당 이메일이 일정 시간 잠깁니다(AUTH_015, 429).",
         "operationId": "loginWithCredentials",
         "requestBody": {
           "content": {
@@ -371,7 +436,7 @@
       "patch": {
         "tags": ["회원"],
         "summary": "내 회원 정보 수정",
-        "description": "닉네임과 프로필 이미지 URL을 수정합니다. profileImageUrl을 생략하면 프로필 이미지가 제거됩니다.",
+        "description": "닉네임을 수정합니다. 프로필 이미지는 이 API가 아니라 전용 업로드/삭제 API로 관리합니다.",
         "operationId": "updateMyInfo",
         "requestBody": {
           "content": {
@@ -585,6 +650,33 @@
           }
         }
       },
+      "MemberProfileImageUploadResponse": {
+        "type": "object",
+        "description": "프로필 이미지 업로드 응답 DTO",
+        "properties": {
+          "profileImageKey": {
+            "type": "string",
+            "description": "저장된 오브젝트 키 (서버 내부 식별자)",
+            "example": "members/profiles/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png"
+          },
+          "profileImageUrl": {
+            "type": "string",
+            "description": "프로필 이미지 공개 URL",
+            "example": "https://minio.8llow8llowme.com/bosspickseoul/members/profiles/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png"
+          }
+        }
+      },
+      "ResponseMemberProfileImageUploadResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/MemberProfileImageUploadResponse"
+          }
+        }
+      },
       "MemberPasswordChangeRequest": {
         "type": "object",
         "description": "비밀번호 변경 요청 DTO",
@@ -637,10 +729,9 @@
         "description": "북마크 추가 응답 DTO",
         "properties": {
           "bookmarkId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "북마크 아이디",
-            "example": 202507110001
+            "example": 7345678901234568000
           },
           "targetType": {
             "type": "string",
@@ -783,13 +874,6 @@
             "example": "길동짱",
             "maxLength": 10,
             "minLength": 0
-          },
-          "profileImageUrl": {
-            "type": "string",
-            "description": "변경할 프로필 이미지 URL (미입력 시 프로필 이미지 제거)",
-            "example": "https://cdn.bosspickseoul.com/profiles/1.png",
-            "maxLength": 255,
-            "minLength": 0
           }
         }
       },
@@ -875,10 +959,9 @@
         "description": "북마크 항목",
         "properties": {
           "bookmarkId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "북마크 아이디",
-            "example": 202507110001
+            "example": 7345678901234568000
           },
           "targetType": {
             "type": "string",

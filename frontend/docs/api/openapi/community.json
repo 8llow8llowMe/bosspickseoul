@@ -139,12 +139,14 @@
           {
             "name": "size",
             "in": "query",
-            "description": "조회 개수",
+            "description": "조회 개수 (1~50)",
             "required": false,
             "schema": {
               "type": "integer",
               "format": "int32",
-              "default": 20
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1
             },
             "example": 20
           }
@@ -350,6 +352,51 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ResponseCommunityCommentLikeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/community/posts/images": {
+      "post": {
+        "tags": ["커뮤니티 게시글"],
+        "summary": "게시글 이미지 업로드",
+        "description": "게시글에 첨부할 이미지를 업로드하고 오브젝트 키를 발급받습니다. 최대 5장, jpg/png/gif/webp 만 허용합니다. 발급받은 imageKey 를 게시글 작성/수정 요청의 imageKeys 에 담아 보내면 게시글에 연결됩니다.",
+        "operationId": "uploadPostImages",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "imageFiles": {
+                    "type": "array",
+                    "description": "업로드할 이미지 파일 목록 (최대 5장)",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": ["imageFiles"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseListCommunityPostImageUploadResponse"
                 }
               }
             }
@@ -644,12 +691,14 @@
           {
             "name": "size",
             "in": "query",
-            "description": "조회 개수",
+            "description": "조회 개수 (1~50)",
             "required": false,
             "schema": {
               "type": "integer",
               "format": "int32",
-              "default": 10
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1
             },
             "example": 10
           }
@@ -724,12 +773,14 @@
           {
             "name": "size",
             "in": "query",
-            "description": "조회 개수",
+            "description": "조회 개수 (1~50)",
             "required": false,
             "schema": {
               "type": "integer",
               "format": "int32",
-              "default": 20
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1
             },
             "example": 20
           }
@@ -885,6 +936,18 @@
             "example": "강남역 상권에 대해 알아보겠습니다.",
             "maxLength": 5000,
             "minLength": 0
+          },
+          "imageKeys": {
+            "type": "array",
+            "description": "첨부 이미지 오브젝트 키 목록 (이미지 업로드 API 응답의 imageKey). 배열 순서가 노출 순서가 됩니다.",
+            "example": [
+              "community/posts/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 0
           }
         }
       },
@@ -913,6 +976,13 @@
         "type": "object",
         "description": "게시글 상세 응답 DTO",
         "properties": {
+          "images": {
+            "type": "array",
+            "description": "첨부 이미지 목록 (없으면 빈 배열)",
+            "items": {
+              "$ref": "#/components/schemas/CommunityPostImageItem"
+            }
+          },
           "postId": {
             "type": "integer",
             "format": "int64",
@@ -967,6 +1037,28 @@
             "type": "string",
             "format": "date-time",
             "description": "수정 시각"
+          }
+        }
+      },
+      "CommunityPostImageItem": {
+        "type": "object",
+        "description": "게시글 첨부 이미지 항목",
+        "properties": {
+          "imageKey": {
+            "type": "string",
+            "description": "오브젝트 키 (게시글 수정 시 그대로 다시 보내면 유지됩니다)",
+            "example": "community/posts/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png"
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "이미지 공개 URL",
+            "example": "https://minio.8llow8llowme.com/bosspickseoul/community/posts/202507110001/2026/08/3f2a9c11.png"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32",
+            "description": "노출 순서 (0부터)",
+            "example": 0
           }
         }
       },
@@ -1173,6 +1265,36 @@
           }
         }
       },
+      "CommunityPostImageUploadResponse": {
+        "type": "object",
+        "description": "게시글 이미지 업로드 응답 DTO",
+        "properties": {
+          "imageKey": {
+            "type": "string",
+            "description": "오브젝트 키. 게시글 작성/수정 요청의 imageKeys 에 그대로 담아 보냅니다.",
+            "example": "community/posts/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png"
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "업로드 직후 미리보기용 공개 URL",
+            "example": "https://minio.8llow8llowme.com/bosspickseoul/community/posts/202507110001/2026/08/3f2a9c11.png"
+          }
+        }
+      },
+      "ResponseListCommunityPostImageUploadResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityPostImageUploadResponse"
+            }
+          }
+        }
+      },
       "CommunityCommercialComparisonDraftRequest": {
         "type": "object",
         "description": "상권 비교 게시글 초안 생성 요청 DTO",
@@ -1322,16 +1444,33 @@
       },
       "CommunityPostUpdateRequest": {
         "type": "object",
+        "description": "게시글 수정 요청",
         "properties": {
           "title": {
             "type": "string",
+            "description": "게시글 제목",
+            "example": "강남역 상권 분석 (수정)",
             "maxLength": 120,
             "minLength": 0
           },
           "content": {
             "type": "string",
+            "description": "게시글 본문",
+            "example": "내용을 보강했습니다.",
             "maxLength": 5000,
             "minLength": 0
+          },
+          "imageKeys": {
+            "type": "array",
+            "description": "수정 후 남길 이미지 오브젝트 키 목록. 기존 이미지 중 여기 없는 항목은 삭제됩니다.",
+            "example": [
+              "community/posts/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 0
           }
         }
       },
@@ -1450,6 +1589,10 @@
         "type": "object",
         "description": "게시글 요약 항목 DTO",
         "properties": {
+          "thumbnailUrl": {
+            "type": "string",
+            "description": "대표 이미지 URL (첨부 이미지가 없으면 null)"
+          },
           "postId": {
             "type": "integer",
             "format": "int64",

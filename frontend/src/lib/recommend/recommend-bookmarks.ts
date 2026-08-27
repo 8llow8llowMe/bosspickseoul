@@ -27,8 +27,8 @@ export const isMemberBookmarkQueryEnabled = (
 /**
  * `bookmarkId` 는 **문자열만** 받는다. 숫자로 들어온 값은 Snowflake 정밀도가 이미
  * `JSON.parse` 단계에서 깨진 값이므로, 손상된 아이디로 DELETE 를 쏘게 두지 않고
- * 항목 자체를 버린다. 정상 경로에서는 `@/lib/api/user` 의
- * `parseMemberBookmarkResponse` 가 파싱 전에 문자열로 감싸 준다.
+ * 항목 자체를 버린다. auth-service 는 문자열로 내려주므로 정상 경로에서는 걸리지
+ * 않는다 — 이 판정은 계약이 되돌아갔을 때의 방어선이다.
  */
 export const normalizeMemberBookmark = (
   value: unknown,

@@ -13,19 +13,536 @@
   ],
   "tags": [
     {
+      "name": "분석 보관함",
+      "description": "분석 화면 상태(조건 포함)를 회원 보관함에 저장/조회/수정/삭제하는 API를 제공합니다."
+    },
+    {
+      "name": "공유 링크",
+      "description": "분석 화면 공유 링크 생성, 해석 API를 제공합니다."
+    },
+    {
       "name": "자치구 분석",
       "description": "자치구 단위 상권 분석 정보를 조회하는 API입니다."
+    },
+    {
+      "name": "지원 정책",
+      "description": "소상공인 지원 정책 추천 API를 제공합니다."
     },
     {
       "name": "행정동 분석",
       "description": "행정동 단위 상권 분석 조회 API"
     },
     {
+      "name": "분석 인기 순위",
+      "description": "사용자가 많이 조회한 상권/자치구/행정동 실시간 인기 순위 API를 제공합니다."
+    },
+    {
       "name": "상권 분석",
       "description": "상권 분석, 비교, 벤치마크 조회 API를 제공합니다."
+    },
+    {
+      "name": "창업 시뮬레이션",
+      "description": "자치구·업종·매장 조건 기반 창업 비용 시뮬레이션 API를 제공합니다."
     }
   ],
   "paths": {
+    "/api/v1/simulations/reports": {
+      "post": {
+        "tags": ["창업 시뮬레이션"],
+        "summary": "창업 시뮬레이션 계산",
+        "description": "자치구·업종·매장 면적·층·프랜차이즈 여부로 예상 창업 비용을 계산합니다.\n총비용 = 월 임대료(면적×자치구 3.3㎡당 임대료) + 보증금(월 임대료 10개월분) + 인테리어 + 가맹 부담금(프랜차이즈만).\n함께 권리금 수준, 유사 예산 프랜차이즈 Top 5, 성별·연령 매출 분석, 성수기/비성수기를 제공합니다.\n인증 없이 호출할 수 있습니다.",
+        "operationId": "simulate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseSimulationReportResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulations/histories": {
+      "get": {
+        "tags": ["창업 시뮬레이션"],
+        "summary": "저장된 시뮬레이션 목록 조회",
+        "description": "본인이 저장한 시뮬레이션 이력을 최신순으로 조회합니다.",
+        "operationId": "getHistories",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "페이지 (0부터)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "페이지 크기 (1~50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseSimulationHistoriesResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": ["창업 시뮬레이션"],
+        "summary": "시뮬레이션 결과 저장",
+        "description": "시뮬레이션 조건과 총비용을 회원 보관함에 저장합니다.",
+        "operationId": "saveHistory",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationHistorySaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseSimulationHistorySaveResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/share-links": {
+      "post": {
+        "tags": ["공유 링크"],
+        "summary": "공유 링크 생성",
+        "description": "분석 화면 상태(payload)로 단축 공유 코드를 발급합니다. 같은 화면 상태를 다시 공유하면 기존 코드의 만료 시각을 연장해 재사용합니다. 인증은 선택입니다 — Bearer 토큰이 있으면 최초 공유자가 기록되고, 없어도 생성할 수 있습니다.",
+        "operationId": "createShareLink",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareLinkCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseShareLinkCreateResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/analysis-bookmarks": {
+      "get": {
+        "tags": ["분석 보관함"],
+        "summary": "분석 보관함 목록 조회",
+        "description": "본인이 보관한 분석 화면을 최신순으로 조회합니다. shareType 으로 화면 타입을 필터링할 수 있습니다.",
+        "operationId": "getBookmarks",
+        "parameters": [
+          {
+            "name": "shareType",
+            "in": "query",
+            "description": "분석 화면 타입 필터 (선택, 예: COMMERCIAL_ANALYSIS)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "페이지 (0부터)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "페이지 크기 (1~50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAnalysisBookmarksResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": ["분석 보관함"],
+        "summary": "분석 화면 보관",
+        "description": "현재 보고 있는 분석 화면 상태(payload)를 보관함에 저장합니다.\npayload 는 공유 링크 생성과 동일한 화면 상태 JSON 이며, 다시 열 때 그대로 화면을 복원할 수 있습니다.\n공유 링크와 달리 만료되지 않고 본인만 볼 수 있습니다.\n같은 화면 상태를 다시 저장하면 409 로 응답하며, dataBody 의 existingBookmarkId 로 기존 항목을 알려줍니다.\n회원당 저장 상한(기본 100개)을 넘으면 400 ANALYSIS_BOOKMARK_006 으로 응답합니다.",
+        "operationId": "createBookmark",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisBookmarkCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAnalysisBookmarkCreateResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/analysis-bookmarks/{bookmarkId}": {
+      "delete": {
+        "tags": ["분석 보관함"],
+        "summary": "분석 보관함 삭제",
+        "description": "본인이 보관한 항목을 삭제합니다. 타인 항목은 404 로 응답합니다.",
+        "operationId": "deleteBookmark",
+        "parameters": [
+          {
+            "name": "bookmarkId",
+            "in": "path",
+            "description": "보관함 항목 아이디",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": ["분석 보관함"],
+        "summary": "분석 보관함 이름 수정",
+        "description": "본인이 보관한 항목의 이름을 수정합니다. bookmarkName 이 null 또는 공백이면 이름을 제거합니다. 타인 항목은 404 로 응답합니다.",
+        "operationId": "updateBookmarkName",
+        "parameters": [
+          {
+            "name": "bookmarkId",
+            "in": "path",
+            "description": "보관함 항목 아이디",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisBookmarkNameUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/simulations/store-sizes": {
+      "get": {
+        "tags": ["창업 시뮬레이션"],
+        "summary": "업종별 매장 크기 기준 조회",
+        "description": "업종별 소/중/대 매장 크기(㎡·평)를 조회합니다. 인증 없이 호출할 수 있습니다.",
+        "operationId": "getStoreSizes",
+        "parameters": [
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "서비스 업종 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseSimulationStoreSizesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulations/franchisees": {
+      "get": {
+        "tags": ["창업 시뮬레이션"],
+        "summary": "프랜차이즈 검색",
+        "description": "업종 내 프랜차이즈를 브랜드명 키워드로 검색합니다. 커서(lastId) 기반으로 최대 10건씩 반환하며, 응답의 lastId 를 다음 요청에 넘기면 이어서 조회됩니다. 인증 없이 호출할 수 있습니다.",
+        "operationId": "searchFranchisees",
+        "parameters": [
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "서비스 업종 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "브랜드명 키워드 (부분 일치, 생략 시 전체)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lastId",
+            "in": "query",
+            "description": "커서 — 직전 응답의 lastId (첫 조회면 생략)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseSimulationFranchiseesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/share-links/{shareCode}": {
+      "get": {
+        "tags": ["공유 링크"],
+        "summary": "공유 링크 해석",
+        "description": "공유 코드를 화면 타입과 payload로 해석합니다. 프론트엔드는 shareType으로 진입 URL 템플릿을 고르고 payload를 합쳐 최종 URL을 조립합니다. 인증 없이 호출할 수 있습니다.",
+        "operationId": "resolveShareLink",
+        "parameters": [
+          {
+            "name": "shareCode",
+            "in": "path",
+            "description": "단축 공유 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "a1B2c3D4"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseShareLinkResolveResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policies": {
+      "get": {
+        "tags": ["지원 정책"],
+        "summary": "지원 정책 추천 조회",
+        "description": "자치구와 업종 조건으로 신청 가능한 지원 정책을 추천합니다. 지역·업종은 범위 포함으로 매칭하므로, 자치구를 지정해도 지역 제한이 없는 전국 정책이 함께 나옵니다. 자치구 전용 정책이 앞에 오고 마감 임박순으로 정렬되며, 상시 모집은 뒤로 갑니다. 조건을 모두 생략하면 전체 정책을 같은 정렬로 조회합니다. 인증 없이 호출할 수 있습니다.",
+        "operationId": "getPolicyRecommendations",
+        "parameters": [
+          {
+            "name": "districtCode",
+            "in": "query",
+            "description": "자치구 코드. 생략하면 지역 조건 없이 조회",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11680
+          },
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "업종 코드. 앞 3자리를 대분류로 사용한다",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "조회 개수",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 5,
+              "maximum": 50,
+              "minimum": 1
+            },
+            "example": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponsePolicyRecommendationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/districts": {
       "get": {
         "tags": ["자치구 분석"],
@@ -1114,6 +1631,52 @@
         }
       }
     },
+    "/api/v1/analysis-rankings": {
+      "get": {
+        "tags": ["분석 인기 순위"],
+        "summary": "분석 인기 순위 조회",
+        "description": "최근 시간 윈도우 내 조회 수 기준 인기 순위를 반환합니다. 집계 파이프라인(Kafka/Redis) 장애 시에도 다른 분석 API에는 영향이 없으며, 이 API만 RANKING_001(503)로 응답합니다.",
+        "operationId": "getAnalysisRankings",
+        "parameters": [
+          {
+            "name": "areaType",
+            "in": "query",
+            "description": "분석 영역 타입",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["COMMERCIAL", "DISTRICT", "ADMINISTRATION"]
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "조회 개수 (1~50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1
+            },
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAnalysisRankingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/administrations/{administrationCode}": {
       "get": {
         "tags": ["행정동 분석"],
@@ -1170,6 +1733,74 @@
   },
   "components": {
     "schemas": {
+      "SimulationReportRequest": {
+        "type": "object",
+        "description": "창업 시뮬레이션 계산 요청 DTO",
+        "properties": {
+          "franchisee": {
+            "type": "boolean",
+            "description": "프랜차이즈 창업 여부",
+            "example": true
+          },
+          "franchiseeId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "프랜차이즈 아이디 (franchisee=true 일 때 필수, 프랜차이즈 검색 API 응답의 franchiseeId)"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11740,
+            "minLength": 1
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100001",
+            "minLength": 1
+          },
+          "storeSize": {
+            "type": "integer",
+            "format": "int32",
+            "description": "매장 면적 (㎡)",
+            "example": 66
+          },
+          "floorType": {
+            "type": "string",
+            "description": "층 구분",
+            "enum": ["FIRST_FLOOR", "OTHER"],
+            "example": "FIRST_FLOOR"
+          },
+          "periodCode": {
+            "type": "string",
+            "description": "기준 분기 코드 (미지정 시 20233)",
+            "example": 20233,
+            "pattern": "^\\d{4}[1-4]$"
+          }
+        },
+        "required": ["floorType", "franchisee", "storeSize"]
+      },
+      "CodeNameDescriptionMetadata": {
+        "type": "object",
+        "description": "코드명 메타데이터 DTO",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "내부 코드 값",
+            "example": "EXAMPLE_CODE"
+          },
+          "name": {
+            "type": "string",
+            "description": "화면 표시 이름",
+            "example": "예시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "코드 의미 설명",
+            "example": "코드 의미를 설명하는 문장입니다."
+          }
+        }
+      },
       "DataHeader": {
         "type": "object",
         "properties": {
@@ -1181,6 +1812,910 @@
           },
           "resultMessage": {
             "type": "object"
+          }
+        }
+      },
+      "ResponseSimulationReportResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/SimulationReportResponse"
+          }
+        }
+      },
+      "SimulationAgeSalesItem": {
+        "type": "object",
+        "description": "연령대별 매출 항목 DTO",
+        "properties": {
+          "ageGroupName": {
+            "type": "string",
+            "description": "연령대 이름",
+            "example": "20대"
+          },
+          "salesAmount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "매출액 (만원)",
+            "example": 125000
+          }
+        }
+      },
+      "SimulationConditionItem": {
+        "type": "object",
+        "description": "시뮬레이션 조건 항목 DTO",
+        "properties": {
+          "franchisee": {
+            "type": "boolean",
+            "description": "프랜차이즈 창업 여부",
+            "example": true
+          },
+          "franchiseeId": {
+            "type": "string",
+            "description": "프랜차이즈 아이디 (비프랜차이즈면 null)"
+          },
+          "brandName": {
+            "type": "string",
+            "description": "브랜드 이름 (비프랜차이즈면 null)"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11740
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강동구"
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100001"
+          },
+          "serviceName": {
+            "type": "string",
+            "description": "서비스 업종명",
+            "example": "한식음식점"
+          },
+          "storeSize": {
+            "type": "integer",
+            "format": "int32",
+            "description": "매장 면적 (㎡)",
+            "example": 66
+          },
+          "floorType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "층 구분 메타데이터",
+            "example": {
+              "code": "FIRST_FLOOR",
+              "name": "1층",
+              "description": "1층 매장 기준 임대료를 적용합니다."
+            }
+          },
+          "periodCode": {
+            "type": "string",
+            "description": "기준 분기 코드",
+            "example": 20233
+          }
+        }
+      },
+      "SimulationCostDetailItem": {
+        "type": "object",
+        "description": "창업 비용 상세 항목 DTO (단위: 만원)",
+        "properties": {
+          "rentPrice": {
+            "type": "integer",
+            "format": "int64",
+            "description": "월 임대료 (만원)",
+            "example": 290
+          },
+          "deposit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "보증금 — 월 임대료 10개월분 (만원)",
+            "example": 2900
+          },
+          "interior": {
+            "type": "integer",
+            "format": "int64",
+            "description": "인테리어 비용 (만원)",
+            "example": 4500
+          },
+          "levy": {
+            "type": "integer",
+            "format": "int64",
+            "description": "가맹 부담금 합계 (만원, 비프랜차이즈면 null)"
+          }
+        }
+      },
+      "SimulationGenderAgeItem": {
+        "type": "object",
+        "description": "성별·연령 매출 분석 항목 DTO",
+        "properties": {
+          "malePercent": {
+            "type": "number",
+            "format": "double",
+            "description": "남성 매출 비중 (%)",
+            "example": 46.2
+          },
+          "femalePercent": {
+            "type": "number",
+            "format": "double",
+            "description": "여성 매출 비중 (%)",
+            "example": 53.8
+          },
+          "topAgeGroups": {
+            "type": "array",
+            "description": "매출 상위 연령대 Top 3",
+            "items": {
+              "$ref": "#/components/schemas/SimulationAgeSalesItem"
+            }
+          }
+        }
+      },
+      "SimulationKeyMoneyItem": {
+        "type": "object",
+        "description": "권리금 수준 항목 DTO",
+        "properties": {
+          "keyMoneyRatio": {
+            "type": "number",
+            "format": "double",
+            "description": "권리금 유 비율 (%)",
+            "example": 75.4
+          },
+          "keyMoneyAverage": {
+            "type": "integer",
+            "format": "int32",
+            "description": "권리금 수준 평균 (만원)",
+            "example": 5670
+          },
+          "keyMoneyLevel": {
+            "type": "number",
+            "format": "double",
+            "description": "권리금 수준 ㎡당 평균 (만원/㎡)",
+            "example": 75.3
+          }
+        }
+      },
+      "SimulationReportResponse": {
+        "type": "object",
+        "description": "창업 시뮬레이션 리포트 응답 DTO",
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/SimulationConditionItem",
+            "description": "시뮬레이션 조건 (요청 조건 + 조회된 명칭)"
+          },
+          "dataBaseYear": {
+            "type": "string",
+            "description": "계산에 사용된 기준 데이터 연도 (임대료/권리금/프랜차이즈 비용 수집 기준)",
+            "example": 2024
+          },
+          "totalPrice": {
+            "type": "integer",
+            "format": "int64",
+            "description": "예상 총 창업 비용 (만원)",
+            "example": 12345
+          },
+          "keyMoney": {
+            "$ref": "#/components/schemas/SimulationKeyMoneyItem",
+            "description": "권리금 수준"
+          },
+          "costDetail": {
+            "$ref": "#/components/schemas/SimulationCostDetailItem",
+            "description": "비용 상세 (임대료/보증금/인테리어/가맹 부담금)"
+          },
+          "similarFranchisees": {
+            "type": "array",
+            "description": "예상 총비용과 근접한 유사 프랜차이즈 Top 5",
+            "items": {
+              "$ref": "#/components/schemas/SimulationSimilarFranchiseeItem"
+            }
+          },
+          "genderAgeAnalysis": {
+            "$ref": "#/components/schemas/SimulationGenderAgeItem",
+            "description": "성별·연령 매출 분석 (기준 데이터 없으면 null)"
+          },
+          "seasonAnalysis": {
+            "$ref": "#/components/schemas/SimulationSeasonItem",
+            "description": "성수기/비성수기 분석 (기준 데이터 없으면 null)"
+          }
+        }
+      },
+      "SimulationSeasonItem": {
+        "type": "object",
+        "description": "성수기/비성수기 분석 항목 DTO",
+        "properties": {
+          "peakMonths": {
+            "type": "array",
+            "description": "성수기 월 목록",
+            "example": [7, 8, 9],
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "offPeakMonths": {
+            "type": "array",
+            "description": "비성수기 월 목록",
+            "example": [1, 2, 3],
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "SimulationSimilarFranchiseeItem": {
+        "type": "object",
+        "description": "유사 예산 프랜차이즈 항목 DTO (단위: 만원)",
+        "properties": {
+          "franchiseeId": {
+            "type": "string",
+            "description": "프랜차이즈 아이디",
+            "example": 101
+          },
+          "brandName": {
+            "type": "string",
+            "description": "브랜드 이름",
+            "example": "본죽"
+          },
+          "totalPrice": {
+            "type": "integer",
+            "format": "int64",
+            "description": "예상 총 창업 비용 (만원)",
+            "example": 11800
+          },
+          "subscription": {
+            "type": "integer",
+            "format": "int64",
+            "description": "가입비 (만원)",
+            "example": 1000
+          },
+          "education": {
+            "type": "integer",
+            "format": "int64",
+            "description": "교육비 (만원)",
+            "example": 300
+          },
+          "deposit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "가맹 보증금 (만원)",
+            "example": 500
+          },
+          "etc": {
+            "type": "integer",
+            "format": "int64",
+            "description": "기타 비용 (만원)",
+            "example": 200
+          },
+          "interior": {
+            "type": "integer",
+            "format": "int64",
+            "description": "인테리어 비용 (만원)",
+            "example": 4200
+          }
+        }
+      },
+      "SimulationHistorySaveRequest": {
+        "type": "object",
+        "description": "창업 시뮬레이션 결과 저장 요청 DTO",
+        "properties": {
+          "franchisee": {
+            "type": "boolean",
+            "description": "프랜차이즈 창업 여부",
+            "example": true
+          },
+          "franchiseeId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "프랜차이즈 아이디 (franchisee=true 일 때 필수)"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11740,
+            "minLength": 1
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100001",
+            "minLength": 1
+          },
+          "storeSize": {
+            "type": "integer",
+            "format": "int32",
+            "description": "매장 면적 (㎡)",
+            "example": 66
+          },
+          "floorType": {
+            "type": "string",
+            "description": "층 구분",
+            "enum": ["FIRST_FLOOR", "OTHER"],
+            "example": "FIRST_FLOOR"
+          },
+          "totalPrice": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 창업 비용 (만원)",
+            "example": 12345
+          }
+        },
+        "required": ["floorType", "franchisee", "storeSize", "totalPrice"]
+      },
+      "ResponseSimulationHistorySaveResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/SimulationHistorySaveResponse"
+          }
+        }
+      },
+      "SimulationHistoryItem": {
+        "type": "object",
+        "description": "저장된 시뮬레이션 이력 항목 DTO",
+        "properties": {
+          "historyId": {
+            "type": "string",
+            "description": "이력 아이디",
+            "example": 1
+          },
+          "franchisee": {
+            "type": "boolean",
+            "description": "프랜차이즈 창업 여부",
+            "example": true
+          },
+          "brandName": {
+            "type": "string",
+            "description": "브랜드 이름 (비프랜차이즈면 null)"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11740
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강동구"
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100001"
+          },
+          "serviceName": {
+            "type": "string",
+            "description": "서비스 업종명",
+            "example": "한식음식점"
+          },
+          "storeSize": {
+            "type": "integer",
+            "format": "int32",
+            "description": "매장 면적 (㎡)",
+            "example": 66
+          },
+          "floorType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "층 구분 메타데이터"
+          },
+          "totalPrice": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 창업 비용 (만원)",
+            "example": 12345
+          },
+          "dataBaseYear": {
+            "type": "string",
+            "description": "계산에 사용된 기준 데이터 연도",
+            "example": 2024
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "저장 시각"
+          }
+        }
+      },
+      "SimulationHistorySaveResponse": {
+        "type": "object",
+        "description": "시뮬레이션 결과 저장 응답 DTO",
+        "properties": {
+          "history": {
+            "$ref": "#/components/schemas/SimulationHistoryItem",
+            "description": "저장된 시뮬레이션 이력"
+          }
+        }
+      },
+      "JsonNode": {
+        "type": "object"
+      },
+      "ShareLinkCreateRequest": {
+        "type": "object",
+        "description": "공유 링크 생성 요청",
+        "properties": {
+          "shareType": {
+            "type": "string",
+            "description": "공유 대상 화면 타입",
+            "enum": [
+              "COMMERCIAL_ANALYSIS",
+              "DISTRICT_ANALYSIS",
+              "ADMINISTRATION_ANALYSIS",
+              "COMMERCIAL_COMPARISON",
+              "AI_REPORT"
+            ],
+            "example": "COMMERCIAL_ANALYSIS",
+            "minLength": 1
+          },
+          "payload": {
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "화면 진입 상태 payload (JSON 객체, 백엔드는 해석하지 않고 그대로 보관)",
+            "example": {
+              "commercialCode": "3110008",
+              "serviceCode": "CS100001",
+              "periodCode": "20233"
+            }
+          }
+        },
+        "required": ["payload"]
+      },
+      "ResponseShareLinkCreateResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/ShareLinkCreateResponse"
+          }
+        }
+      },
+      "ShareLinkCreateResponse": {
+        "type": "object",
+        "description": "공유 링크 생성 응답",
+        "properties": {
+          "shareCode": {
+            "type": "string",
+            "description": "단축 공유 코드. 프론트엔드가 공유용 URL(예: /s/{shareCode})을 조립할 때 사용",
+            "example": "a1B2c3D4"
+          },
+          "shareType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "공유 대상 화면 타입 메타데이터"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "공유 링크 만료 시각",
+            "example": "2026-11-05T12:34:56"
+          }
+        }
+      },
+      "AnalysisBookmarkCreateRequest": {
+        "type": "object",
+        "description": "분석 보관함 저장 요청 DTO",
+        "properties": {
+          "shareType": {
+            "type": "string",
+            "description": "분석 화면 타입 (공유 링크와 동일)",
+            "enum": [
+              "COMMERCIAL_ANALYSIS",
+              "DISTRICT_ANALYSIS",
+              "ADMINISTRATION_ANALYSIS",
+              "COMMERCIAL_COMPARISON",
+              "AI_REPORT"
+            ],
+            "example": "COMMERCIAL_ANALYSIS",
+            "minLength": 1
+          },
+          "payload": {
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "화면 진입 상태 payload (공유 링크와 동일한 JSON 객체)",
+            "example": {
+              "commercialCode": "3110008",
+              "serviceCode": "CS100001",
+              "periodCode": "20233"
+            }
+          },
+          "bookmarkName": {
+            "type": "string",
+            "description": "보관함 이름 (선택, 50자 이하)",
+            "example": "역삼역 한식 후보",
+            "maxLength": 50,
+            "minLength": 0
+          }
+        },
+        "required": ["payload"]
+      },
+      "AnalysisBookmarkCreateResponse": {
+        "type": "object",
+        "description": "분석 보관함 저장 응답 DTO",
+        "properties": {
+          "bookmark": {
+            "$ref": "#/components/schemas/AnalysisBookmarkItem",
+            "description": "저장된 보관함 항목"
+          }
+        }
+      },
+      "AnalysisBookmarkItem": {
+        "type": "object",
+        "description": "분석 보관함 항목 DTO",
+        "properties": {
+          "bookmarkId": {
+            "type": "string",
+            "description": "보관함 항목 아이디 — Snowflake 값이 JS Number.MAX_SAFE_INTEGER 를 넘으므로 문자열로 내려준다",
+            "example": 7345678901234568000
+          },
+          "shareType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "분석 화면 타입 메타데이터"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "화면 진입 상태 payload (저장 시 JSON 객체 그대로) — 공유 링크 해석과 동일하게 화면을 복원한다",
+            "example": {
+              "commercialCode": "3110008",
+              "serviceCode": "CS100001",
+              "periodCode": "20233"
+            }
+          },
+          "bookmarkName": {
+            "type": "string",
+            "description": "보관함 이름 (미지정이면 null)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "저장 시각"
+          }
+        }
+      },
+      "ResponseAnalysisBookmarkCreateResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/AnalysisBookmarkCreateResponse"
+          }
+        }
+      },
+      "AnalysisBookmarkNameUpdateRequest": {
+        "type": "object",
+        "description": "분석 보관함 이름 수정 요청 DTO",
+        "properties": {
+          "bookmarkName": {
+            "type": "string",
+            "description": "새 보관함 이름 (null 또는 공백이면 이름을 제거한다)",
+            "example": "역삼역 한식 후보",
+            "maxLength": 50,
+            "minLength": 0
+          }
+        }
+      },
+      "ResponseVoid": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "type": "object"
+          }
+        }
+      },
+      "ResponseSimulationStoreSizesResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/SimulationStoreSizesResponse"
+          }
+        }
+      },
+      "SimulationSizeItem": {
+        "type": "object",
+        "description": "매장 크기 항목 DTO",
+        "properties": {
+          "squareMeter": {
+            "type": "integer",
+            "format": "int32",
+            "description": "면적 (㎡)",
+            "example": 66
+          },
+          "pyeong": {
+            "type": "integer",
+            "format": "int32",
+            "description": "평 환산",
+            "example": 19
+          }
+        }
+      },
+      "SimulationStoreSizesResponse": {
+        "type": "object",
+        "description": "업종별 매장 크기 기준 응답 DTO",
+        "properties": {
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100001"
+          },
+          "serviceName": {
+            "type": "string",
+            "description": "서비스 업종명",
+            "example": "한식음식점"
+          },
+          "dataBaseYear": {
+            "type": "string",
+            "description": "기준 데이터 연도",
+            "example": 2024
+          },
+          "small": {
+            "$ref": "#/components/schemas/SimulationSizeItem",
+            "description": "소형 매장 크기"
+          },
+          "medium": {
+            "$ref": "#/components/schemas/SimulationSizeItem",
+            "description": "중형 매장 크기"
+          },
+          "large": {
+            "$ref": "#/components/schemas/SimulationSizeItem",
+            "description": "대형 매장 크기"
+          }
+        }
+      },
+      "ResponseSimulationHistoriesResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/SimulationHistoriesResponse"
+          }
+        }
+      },
+      "SimulationHistoriesResponse": {
+        "type": "object",
+        "description": "저장된 시뮬레이션 이력 목록 응답 DTO",
+        "properties": {
+          "histories": {
+            "type": "array",
+            "description": "이력 목록 (최신순)",
+            "items": {
+              "$ref": "#/components/schemas/SimulationHistoryItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "description": "현재 페이지 (0부터)",
+            "example": 0
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "페이지 크기",
+            "example": 10
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64",
+            "description": "전체 건수",
+            "example": 23
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "description": "전체 페이지 수",
+            "example": 3
+          }
+        }
+      },
+      "ResponseSimulationFranchiseesResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/SimulationFranchiseesResponse"
+          }
+        }
+      },
+      "SimulationFranchiseeSearchItem": {
+        "type": "object",
+        "description": "프랜차이즈 검색 항목 DTO",
+        "properties": {
+          "franchiseeId": {
+            "type": "string",
+            "description": "프랜차이즈 아이디",
+            "example": 101
+          },
+          "brandName": {
+            "type": "string",
+            "description": "브랜드 이름",
+            "example": "본죽"
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100001"
+          },
+          "serviceName": {
+            "type": "string",
+            "description": "서비스 업종명",
+            "example": "한식음식점"
+          }
+        }
+      },
+      "SimulationFranchiseesResponse": {
+        "type": "object",
+        "description": "프랜차이즈 검색 응답 DTO (커서 페이징, 최대 10건)",
+        "properties": {
+          "franchisees": {
+            "type": "array",
+            "description": "프랜차이즈 목록 (id 오름차순)",
+            "items": {
+              "$ref": "#/components/schemas/SimulationFranchiseeSearchItem"
+            }
+          },
+          "lastId": {
+            "type": "string",
+            "description": "다음 페이지 커서 (마지막 항목의 franchiseeId, 결과가 없으면 null)"
+          }
+        }
+      },
+      "ResponseShareLinkResolveResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/ShareLinkResolveResponse"
+          }
+        }
+      },
+      "ShareLinkResolveResponse": {
+        "type": "object",
+        "description": "공유 링크 해석 응답",
+        "properties": {
+          "shareType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "공유 대상 화면 타입 메타데이터"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "화면 진입 상태 payload (생성 시 저장한 JSON 객체 그대로)",
+            "example": {
+              "commercialCode": "3110008",
+              "serviceCode": "CS100001",
+              "periodCode": "20233"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "공유 링크 생성 시각",
+            "example": "2026-08-07T12:34:56"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "공유 링크 만료 시각",
+            "example": "2026-11-05T12:34:56"
+          }
+        }
+      },
+      "PolicyItem": {
+        "type": "object",
+        "description": "지원 정책 항목 DTO",
+        "properties": {
+          "policyId": {
+            "type": "string",
+            "description": "정책 아이디",
+            "example": 7345678901234568000
+          },
+          "title": {
+            "type": "string",
+            "description": "정책명",
+            "example": 2026
+          },
+          "organization": {
+            "type": "string",
+            "description": "지원 기관",
+            "example": "서울신용보증재단"
+          },
+          "supportType": {
+            "type": "string",
+            "description": "지원 유형 코드",
+            "example": "FUNDING"
+          },
+          "supportTypeName": {
+            "type": "string",
+            "description": "지원 유형 표시명",
+            "example": "자금"
+          },
+          "targetSummary": {
+            "type": "string",
+            "description": "지원 대상 요약",
+            "example": "서울시 소재 업력 1년 이상 소상공인"
+          },
+          "supportContent": {
+            "type": "string",
+            "description": "지원 내용",
+            "example": "업체당 최대 5천만원, 연 2.0% 고정금리"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "지원 대상 자치구 코드. null 이면 서울 전역/전국",
+            "example": 11680
+          },
+          "serviceCategoryCode": {
+            "type": "string",
+            "description": "지원 대상 업종 대분류. null 이면 전업종",
+            "example": "CS1"
+          },
+          "applyStartAt": {
+            "type": "string",
+            "format": "date",
+            "description": "신청 시작일. null 이면 제한 없음",
+            "example": "2026-03-01"
+          },
+          "applyEndAt": {
+            "type": "string",
+            "format": "date",
+            "description": "신청 마감일. null 이면 상시 모집",
+            "example": "2026-12-31"
+          },
+          "detailUrl": {
+            "type": "string",
+            "description": "상세 안내 URL"
+          }
+        }
+      },
+      "PolicyRecommendationResponse": {
+        "type": "object",
+        "description": "지원 정책 추천 응답 DTO",
+        "properties": {
+          "districtCode": {
+            "type": "string",
+            "description": "조회에 사용한 자치구 코드. null 이면 지역 조건 없이 조회",
+            "example": 11680
+          },
+          "serviceCategoryCode": {
+            "type": "string",
+            "description": "조회에 사용한 업종 대분류. null 이면 업종 조건 없이 조회",
+            "example": "CS1"
+          },
+          "policies": {
+            "type": "array",
+            "description": "추천 정책 목록. 조건에 맞는 정책이 없으면 빈 배열",
+            "items": {
+              "$ref": "#/components/schemas/PolicyItem"
+            }
+          }
+        }
+      },
+      "ResponsePolicyRecommendationResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/PolicyRecommendationResponse"
           }
         }
       },
@@ -1239,27 +2774,6 @@
             "format": "int32",
             "description": "평균 폐업 영업 개월 수",
             "example": 9
-          }
-        }
-      },
-      "CodeNameDescriptionMetadata": {
-        "type": "object",
-        "description": "코드명 메타데이터 DTO",
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "내부 코드 값",
-            "example": "EXAMPLE_CODE"
-          },
-          "name": {
-            "type": "string",
-            "description": "화면 표시 이름",
-            "example": "예시 이름"
-          },
-          "description": {
-            "type": "string",
-            "description": "코드 의미 설명",
-            "example": "코드 의미를 설명하는 문장입니다."
           }
         }
       },
@@ -3129,6 +4643,40 @@
           }
         }
       },
+      "BlueOceanCategoryItem": {
+        "type": "object",
+        "description": "블루오션 업종 항목 DTO — 소속 행정동에는 많지만 해당 상권에는 적은(비어 있는) 업종",
+        "properties": {
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100005"
+          },
+          "serviceName": {
+            "type": "string",
+            "description": "서비스 업종명",
+            "example": "제과점"
+          },
+          "commercialStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "해당 상권의 업종 점포 수",
+            "example": 0
+          },
+          "administrationStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "소속 행정동의 업종 점포 수",
+            "example": 24
+          },
+          "storeRate": {
+            "type": "number",
+            "format": "double",
+            "description": "행정동 대비 상권 점유율(%) — 낮을수록 비어 있는 업종",
+            "example": 4
+          }
+        }
+      },
       "CandidateCommercialItem": {
         "type": "object",
         "description": "후보 상권 항목 DTO",
@@ -3189,6 +4737,13 @@
             "example": ["기회도 상위", "위험도 낮음"],
             "items": {
               "type": "string"
+            }
+          },
+          "blueOceanCategories": {
+            "type": "array",
+            "description": "블루오션 업종 Top 5 — 소속 행정동엔 많지만 이 상권엔 적은 업종 (업종별 상권 추천 응답에서만 채워짐)",
+            "items": {
+              "$ref": "#/components/schemas/BlueOceanCategoryItem"
             }
           }
         }
@@ -3529,6 +5084,116 @@
           },
           "dataBody": {
             "$ref": "#/components/schemas/CommercialComparisonResponse"
+          }
+        }
+      },
+      "AnalysisRankingItem": {
+        "type": "object",
+        "description": "분석 인기 순위 항목",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "description": "순위 (1부터)",
+            "example": 1
+          },
+          "areaCode": {
+            "type": "string",
+            "description": "영역 코드",
+            "example": 3110008
+          },
+          "areaName": {
+            "type": "string",
+            "description": "영역 이름 (수집되지 않았으면 null)",
+            "example": "강남역"
+          },
+          "viewCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "윈도우 내 조회 수",
+            "example": 128
+          }
+        }
+      },
+      "AnalysisRankingResponse": {
+        "type": "object",
+        "description": "분석 인기 순위 응답",
+        "properties": {
+          "areaType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "분석 영역 타입 메타데이터"
+          },
+          "windowHours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "집계 시간 윈도우 (시간 단위)",
+            "example": 24
+          },
+          "rankings": {
+            "type": "array",
+            "description": "인기 순위 목록 (조회 수 내림차순)",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRankingItem"
+            }
+          }
+        }
+      },
+      "ResponseAnalysisRankingResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/AnalysisRankingResponse"
+          }
+        }
+      },
+      "AnalysisBookmarksResponse": {
+        "type": "object",
+        "description": "분석 보관함 목록 응답 DTO",
+        "properties": {
+          "bookmarks": {
+            "type": "array",
+            "description": "보관함 목록 (최신순)",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisBookmarkItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "description": "현재 페이지 (0부터)",
+            "example": 0
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "페이지 크기",
+            "example": 10
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64",
+            "description": "전체 건수",
+            "example": 12
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "description": "전체 페이지 수",
+            "example": 2
+          }
+        }
+      },
+      "ResponseAnalysisBookmarksResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/AnalysisBookmarksResponse"
           }
         }
       },
