@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  getResponseBody,
-  isApiSuccess,
-  isResponseError,
-  getApiMessage,
-} from './response'
+import { getResponseBody, isApiSuccess, getApiMessage } from './response'
 import type { ApiResponse } from '@/types/api'
 
 const ok: ApiResponse<{ x: number }> = {
@@ -53,14 +48,5 @@ describe('getResponseBody', () => {
     expect(
       getResponseBody(failResponse() as ApiResponse<{ a: number } | null>),
     ).toBeNull()
-  })
-})
-
-describe('isResponseError', () => {
-  it('undefined는 에러 아님(미도착)', () => {
-    expect(isResponseError(undefined)).toBe(false)
-  })
-  it('실패 응답은 에러', () => {
-    expect(isResponseError(failResponse())).toBe(true)
   })
 })
