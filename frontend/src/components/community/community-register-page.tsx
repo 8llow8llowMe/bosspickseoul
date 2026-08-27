@@ -63,9 +63,13 @@ const Eyebrow = styled.p`
 
 const Title = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(25px, 3vw, 32px);
+  font-size: 32px;
   line-height: 1.3;
   word-break: keep-all;
+
+  @media (max-width: 640px) {
+    font-size: 25px;
+  }
 `
 
 const Description = styled.p`

@@ -83,7 +83,7 @@ const Side = styled.p`
 const Total = styled.p`
   color: var(--color-text-900);
   font-size: 24px;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 34px;
   font-variant-numeric: tabular-nums;
   word-break: keep-all;

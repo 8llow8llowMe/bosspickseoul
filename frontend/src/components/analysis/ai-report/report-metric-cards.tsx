@@ -59,7 +59,7 @@ const Value = styled.strong<{
 }>`
   color: ${props => toneColor(props.$tone)};
   font-size: ${props => (props.$variant === 'compact' ? '17px' : '19px')};
-  font-weight: 750;
+  font-weight: 700;
   line-height: ${props => (props.$variant === 'compact' ? '24px' : '28px')};
 `
 

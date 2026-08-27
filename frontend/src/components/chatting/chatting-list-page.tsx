@@ -40,11 +40,9 @@ const Hero = styled.section`
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 `
 
 const HeroTitle = styled.h1`
@@ -365,7 +363,7 @@ export default function ChattingListPage() {
     <ChattingShell rail={<ChattingSidebar />}>
       <Main>
         <Hero>
-          <Eyebrow>Chatting</Eyebrow>
+          <Eyebrow>채팅</Eyebrow>
           <HeroTitle>
             운영 경험을 바로 대화로 연결하는 실시간 채팅방입니다.
           </HeroTitle>

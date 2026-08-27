@@ -89,15 +89,16 @@ const Eyebrow = styled.p`
   color: var(--color-primary-700);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 `
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(25px, 4vw, 34px);
+  font-size: 34px;
   line-height: 1.28;
-  letter-spacing: -0.02em;
+
+  @media (max-width: 640px) {
+    font-size: 25px;
+  }
 `
 
 const HeroDescription = styled.p`
@@ -328,7 +329,6 @@ const PostTitle = styled.h3`
   color: var(--color-text-900);
   font-size: 19px;
   line-height: 1.45;
-  letter-spacing: -0.01em;
 `
 
 const Preview = styled.p`
@@ -499,7 +499,7 @@ export default function CommunityListView({
       <Hero>
         <HeroTop>
           <HeroCopy>
-            <Eyebrow>Boss Community</Eyebrow>
+            <Eyebrow>커뮤니티</Eyebrow>
             <HeroTitle>사장님들의 운영 이야기가 모이는 곳</HeroTitle>
             <HeroDescription>
               지역의 변화부터 매장 운영 노하우까지, 현장에서 얻은 경험을 나누고

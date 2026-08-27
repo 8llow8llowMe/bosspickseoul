@@ -251,7 +251,7 @@ export default function RegisterForm() {
   return (
     <GuestOnly>
       <AuthShell
-        eyebrow="Join"
+        eyebrow="회원가입"
         title="BossPickSeoul 계정을 시작합니다."
         description="이메일 인증 후 비밀번호와 프로필 정보를 입력하면 가입이 완료됩니다."
       >

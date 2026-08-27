@@ -10,7 +10,7 @@ import {
   type PropsWithChildren,
   type ReactNode,
 } from 'react'
-import { ChevronLeft, Sparkles } from 'lucide-react'
+import { ChevronLeft, FileText } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
@@ -480,7 +480,7 @@ export default function AnalysisMobileSheet({
             aria-label="AI 리포트 보기"
             onClick={openReport}
           >
-            <Sparkles aria-hidden />
+            <FileText aria-hidden />
             AI 리포트
           </AiChip>
         ) : null}

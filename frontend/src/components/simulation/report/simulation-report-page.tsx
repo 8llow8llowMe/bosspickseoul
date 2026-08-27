@@ -61,7 +61,7 @@ const Head = styled.header`
   h1 {
     color: var(--color-text-900);
     font-size: 22px;
-    font-weight: 750;
+    font-weight: 700;
     line-height: 32px;
     word-break: keep-all;
   }

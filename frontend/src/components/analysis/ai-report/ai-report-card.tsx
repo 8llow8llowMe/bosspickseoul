@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import styled from 'styled-components'
 
 const CardButton = styled.button`
@@ -39,7 +39,7 @@ export default function AiReportCard({
 }) {
   return (
     <CardButton type="button" onClick={onOpen}>
-      <Sparkles size={18} aria-hidden />
+      <FileText size={18} aria-hidden />
       <Label>
         <Target>{targetName}</Target>
         <Cta>AI 리포트 분석하기</Cta>

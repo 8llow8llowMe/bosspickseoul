@@ -132,7 +132,7 @@ const TooltipTitle = styled.text`
 const TooltipMetric = styled.text`
   fill: var(--color-text-700);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 `
 
 const TooltipAreaPath = styled.path`

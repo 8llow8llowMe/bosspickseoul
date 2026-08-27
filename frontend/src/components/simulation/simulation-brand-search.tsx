@@ -90,7 +90,7 @@ const BrandButton = styled.button<{ $selected: boolean }>`
     overflow: hidden;
     color: var(--color-text-900);
     font-size: 14px;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 22px;
     text-overflow: ellipsis;
     white-space: nowrap;

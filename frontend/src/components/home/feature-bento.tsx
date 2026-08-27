@@ -3,8 +3,9 @@ import {
   ArrowRight,
   Bookmark,
   Check,
+  FileText,
   MessageSquare,
-  Sparkles,
+  UserPlus,
 } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -306,7 +307,7 @@ export default function FeatureBento() {
         <Bento>
           <Hero>
             <CardHead>
-              <Sparkles aria-hidden="true" />
+              <FileText aria-hidden="true" />
               <CardTitle>AI 리포트</CardTitle>
               <Badge>실시간 생성</Badge>
             </CardHead>
@@ -366,7 +367,7 @@ export default function FeatureBento() {
           </div>
           <Actions>
             <PrimaryLink href="/register">
-              <Sparkles aria-hidden="true" />
+              <UserPlus aria-hidden="true" />
               시작하기
             </PrimaryLink>
             <SecondaryLink href="/analysis">

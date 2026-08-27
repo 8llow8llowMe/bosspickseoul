@@ -153,10 +153,13 @@ const TargetBadge = styled.span`
 
 const ArticleTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(24px, 4vw, 34px);
+  font-size: 34px;
   line-height: 1.28;
-  letter-spacing: -0.02em;
   overflow-wrap: anywhere;
+
+  @media (max-width: 640px) {
+    font-size: 24px;
+  }
 `
 
 const MetaRow = styled.div`

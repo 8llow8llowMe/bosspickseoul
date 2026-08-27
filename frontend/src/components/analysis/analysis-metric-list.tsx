@@ -55,9 +55,9 @@ const Fill = styled.div<{ $width: number }>`
 
 const Value = styled.strong`
   min-width: 0;
-  color: var(--color-primary-700);
+  color: var(--color-text-900);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
   text-align: right;
 

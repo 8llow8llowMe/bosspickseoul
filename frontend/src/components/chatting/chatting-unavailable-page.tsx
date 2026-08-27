@@ -98,7 +98,7 @@ const Notice = styled.div`
   gap: 10px;
   align-items: flex-start;
   padding: 14px 16px;
-  border-left: 3px solid var(--color-primary-700);
+  border-radius: var(--radius-card);
   background: var(--color-primary-100);
   color: var(--color-text-700);
   font-size: 14px;
@@ -260,7 +260,7 @@ export default function ChattingUnavailablePage({
             V2 API 준비 중
           </Status>
           <div>
-            <Eyebrow>Chatting</Eyebrow>
+            <Eyebrow>채팅</Eyebrow>
             <Title>{title}</Title>
           </div>
           <Description>

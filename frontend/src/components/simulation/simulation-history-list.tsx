@@ -52,7 +52,7 @@ const Card = styled.li`
 const Price = styled.strong`
   color: var(--color-text-900);
   font-size: 20px;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 28px;
 `
 

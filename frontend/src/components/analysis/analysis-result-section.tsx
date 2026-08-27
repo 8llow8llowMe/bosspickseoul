@@ -43,7 +43,7 @@ const Header = styled.header`
   h2 {
     color: var(--color-text-900);
     font-size: 18px;
-    font-weight: 750;
+    font-weight: 700;
     line-height: 27px;
   }
 

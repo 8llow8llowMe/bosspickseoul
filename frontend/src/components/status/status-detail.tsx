@@ -198,18 +198,21 @@ const HeaderValue = styled.strong`
   line-height: 28px;
 `
 
+const changeToneColor = (tone: ChangeTone): string => {
+  if (tone === 'danger') return 'var(--color-danger)'
+  if (tone === 'success') return 'var(--color-success)'
+  if (tone === 'warning') return 'var(--color-warning)'
+  return 'var(--color-border-300)'
+}
+
 const HeaderChange = styled.span<{ $tone: ChangeTone }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding-left: 8px;
-  border-left: 3px solid
-    ${props => {
-      if (props.$tone === 'danger') return 'var(--color-danger)'
-      if (props.$tone === 'success') return 'var(--color-success)'
-      if (props.$tone === 'warning') return 'var(--color-warning)'
-      return 'var(--color-border-300)'
-    }};
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: ${props =>
+    `color-mix(in srgb, ${changeToneColor(props.$tone)} 10%, var(--color-surface))`};
   color: var(--color-text-800);
   font-size: 14px;
   font-weight: 700;

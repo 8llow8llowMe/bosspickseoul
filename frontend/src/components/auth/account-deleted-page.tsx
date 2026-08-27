@@ -23,7 +23,7 @@ const PrimaryLink = styled(Link)`
 export default function AccountDeletedPage() {
   return (
     <AuthShell
-      eyebrow="Account"
+      eyebrow="회원 탈퇴"
       title="회원 탈퇴가 완료되었습니다."
       description="개인 정보와 기존 세션이 정리되었습니다. 다시 서비스를 이용하려면 새 계정으로 가입해야 합니다."
     >

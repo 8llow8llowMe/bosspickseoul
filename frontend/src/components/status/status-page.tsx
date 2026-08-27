@@ -71,11 +71,14 @@ const Eyebrow = styled.p`
 
 const HeroTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(20px, 2.2vw, 28px);
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.02em;
   word-break: keep-all;
+
+  @media (max-width: 640px) {
+    font-size: 20px;
+  }
 `
 
 // 설명은 세로 공간을 아끼기 위해 데스크톱에서만 노출한다(태블릿·모바일 숨김).

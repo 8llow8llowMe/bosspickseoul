@@ -234,11 +234,15 @@ const HeaderNameRow = styled.div`
     overflow: hidden;
     max-width: 100%;
     color: var(--color-text-900);
-    font-size: clamp(16px, 2vw, 20px);
-    font-weight: 780;
+    font-size: 20px;
+    font-weight: 700;
     line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    @media (max-width: 640px) {
+      font-size: 16px;
+    }
   }
 
   span {
@@ -361,7 +365,7 @@ const ReportSection = styled.section`
 const GroupHeading = styled.h2`
   color: var(--color-text-900);
   font-size: 18px;
-  font-weight: 780;
+  font-weight: 700;
   line-height: 26px;
 `
 
@@ -447,7 +451,7 @@ const ContextCopy = styled.div`
   h2 {
     color: var(--color-text-900);
     font-size: 21px;
-    font-weight: 750;
+    font-weight: 700;
     line-height: 30px;
   }
 `
@@ -487,7 +491,6 @@ const MetricCard = styled.div`
   display: grid;
   gap: 6px;
   border: 1px solid var(--color-border-200);
-  border-top: 2px solid var(--color-primary-700);
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
   padding: 18px 16px 16px;
@@ -500,7 +503,7 @@ const MetricCard = styled.div`
   strong {
     color: var(--color-text-900);
     font-size: 21px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 30px;
   }
 `
