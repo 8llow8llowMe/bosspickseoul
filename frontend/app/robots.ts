@@ -15,7 +15,7 @@ export default function robots(): MetadataRoute.Robots {
           '/analysis',
           '/simulation',
           '/chatting/',
-          '/share/',
+          '/s/',
         ],
       },
     ],
