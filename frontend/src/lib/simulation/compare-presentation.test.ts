@@ -198,9 +198,9 @@ describe('toMirrorCostRows', () => {
 })
 
 describe('formatMirrorAmount', () => {
-  it('null 은 해당 없음이고 0 은 0만원이다', () => {
+  it('null 은 해당 없음이고 0 은 0원이다', () => {
     expect(formatMirrorAmount(null)).toBe('해당 없음')
-    expect(formatMirrorAmount(0)).toBe('0만원')
+    expect(formatMirrorAmount(0)).toBe('0원')
     expect(formatMirrorAmount(23_450)).toBe('2억 3,450만원')
   })
 })

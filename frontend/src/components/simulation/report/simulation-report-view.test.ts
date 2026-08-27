@@ -58,7 +58,8 @@ describe('SimulationReportView', () => {
     )
 
     expect(markup).toContain('가맹 부담금')
-    expect(markup).toContain('0만원')
+    // `0만원` 은 `3,000만원` 의 부분문자열이라 이 자리를 검증하지 못했다.
+    expect(markup).toContain('0원')
   })
 
   it('권리금을 총비용과 분리해 참고로 표기한다', () => {
