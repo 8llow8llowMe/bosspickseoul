@@ -11,6 +11,7 @@
 
 | Method | Path                                                                                        | 요약                         | 인증   |
 | ------ | ------------------------------------------------------------------------------------------- | ---------------------------- | ------ |
+| GET    | `/api/v1/regions/districts/{districtCode}`                                                  | 자치구 단건 조회             | 불필요 |
 | GET    | `/api/v1/regions/districts/{districtCode}/administrations`                                  | 자치구 소속 행정동 목록 조회 | 불필요 |
 | GET    | `/api/v1/regions/districts/{districtCode}/administrations/{administrationCode}/commercials` | 행정동 소속 상권 목록 조회   | 불필요 |
 | GET    | `/api/v1/regions/commercials/{commercialCode}/administration`                               | 상권 소속 지역 조회          | 불필요 |
@@ -35,6 +36,8 @@
 | ------ | ------------------------------------------- | ------------------------- | ------ |
 | POST   | `/api/v1/members/signup`                    | 일반 회원가입             | 불필요 |
 | POST   | `/api/v1/members/me/withdraw`               | 회원 탈퇴                 | 필요   |
+| POST   | `/api/v1/members/me/profile-image`          | 프로필 이미지 업로드      | 필요   |
+| DELETE | `/api/v1/members/me/profile-image`          | 프로필 이미지 삭제        | 필요   |
 | POST   | `/api/v1/members/me/password`               | 비밀번호 변경             | 필요   |
 | GET    | `/api/v1/members/me/bookmarks`              | 북마크 목록 조회          | 필요   |
 | POST   | `/api/v1/members/me/bookmarks`              | 북마크 추가               | 필요   |
@@ -57,6 +60,18 @@
 
 | Method | Path                                                                 | 요약                          | 인증   |
 | ------ | -------------------------------------------------------------------- | ----------------------------- | ------ |
+| POST   | `/api/v1/simulations/reports`                                        | 창업 시뮬레이션 계산          | 불필요 |
+| GET    | `/api/v1/simulations/histories`                                      | 저장된 시뮬레이션 목록 조회   | 필요   |
+| POST   | `/api/v1/simulations/histories`                                      | 시뮬레이션 결과 저장          | 필요   |
+| POST   | `/api/v1/share-links`                                                | 공유 링크 생성                | 필요   |
+| GET    | `/api/v1/analysis-bookmarks`                                         | 분석 보관함 목록 조회         | 필요   |
+| POST   | `/api/v1/analysis-bookmarks`                                         | 분석 화면 보관                | 필요   |
+| DELETE | `/api/v1/analysis-bookmarks/{bookmarkId}`                            | 분석 보관함 삭제              | 필요   |
+| PATCH  | `/api/v1/analysis-bookmarks/{bookmarkId}`                            | 분석 보관함 이름 수정         | 필요   |
+| GET    | `/api/v1/simulations/store-sizes`                                    | 업종별 매장 크기 기준 조회    | 불필요 |
+| GET    | `/api/v1/simulations/franchisees`                                    | 프랜차이즈 검색               | 불필요 |
+| GET    | `/api/v1/share-links/{shareCode}`                                    | 공유 링크 해석                | 불필요 |
+| GET    | `/api/v1/policies`                                                   | 지원 정책 추천 조회           | 불필요 |
 | GET    | `/api/v1/districts`                                                  | 전체 자치구 목록 조회         | 불필요 |
 | GET    | `/api/v1/districts/{districtCode}`                                   | 자치구 통합 상세 조회         | 불필요 |
 | GET    | `/api/v1/districts/{districtCode}/stores/top-services`               | 자치구 점포 상세 조회         | 불필요 |
@@ -78,6 +93,7 @@
 | GET    | `/api/v1/commercials/{commercialCode}/benchmarks`                    | 상권 벤치마크 조회            | 불필요 |
 | GET    | `/api/v1/commercials/recommendations/by-service`                     | 업종별 상권 추천              | 불필요 |
 | GET    | `/api/v1/commercials/compare`                                        | 상권 A/B 비교 조회            | 불필요 |
+| GET    | `/api/v1/analysis-rankings`                                          | 분석 인기 순위 조회           | 불필요 |
 | GET    | `/api/v1/administrations/{administrationCode}`                       | 행정동 통합 상세 조회         | 불필요 |
 
 ## AI 리포트
@@ -110,6 +126,7 @@
 | GET    | `/api/v1/community/posts/{postId}/comments`                   | 댓글 목록 조회             | 불필요 |
 | POST   | `/api/v1/community/posts/{postId}/comments`                   | 댓글 작성                  | 필요   |
 | POST   | `/api/v1/community/posts/{postId}/comments/{commentId}/likes` | 댓글 좋아요 토글           | 필요   |
+| POST   | `/api/v1/community/posts/images`                              | 게시글 이미지 업로드       | 필요   |
 | POST   | `/api/v1/community/posts/drafts/commercial-comparisons`       | 상권 비교 게시글 초안 생성 | 불필요 |
 | PATCH  | `/api/v1/moderation/reports/{reportId}`                       | 신고 처리                  | 필요   |
 | GET    | `/api/v1/community/posts/{postId}`                            | 게시글 상세 조회           | 불필요 |

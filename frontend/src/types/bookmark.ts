@@ -14,9 +14,9 @@ export type BookmarkTargetType = 'COMMERCIAL' | 'ADMINISTRATION' | 'DISTRICT'
 
 export type MemberBookmark = {
   /**
-   * ⚠️ **문자열이다.** Snowflake 값이 `Number.MAX_SAFE_INTEGER` 를 넘으므로
-   * 숫자로 파싱하면 값이 손상된다. 백엔드가 아직 JSON 숫자로 내려주기 때문에
-   * `@/lib/api/user` 의 `parseMemberBookmarkResponse` 가 파싱 전에 문자열로 감싼다.
+   * ⚠️ **문자열이다.** Snowflake 값이 `Number.MAX_SAFE_INTEGER`(16자리)를 넘어서
+   * 숫자로 파싱하면 `JSON.parse` 단계에서 이미 값이 손상된다. auth-service 가
+   * `MemberBookmarkItem.bookmarkId` 를 JSON **문자열**로 내려주므로 그대로 쓰면 된다.
    * FE 어디에서도 `Number(...)` 로 바꾸지 않고, 받은 문자열 그대로 DELETE 경로와
    * `lastBookmarkId` 커서에 넣는다.
    */

@@ -22,6 +22,38 @@
     }
   ],
   "paths": {
+    "/api/v1/regions/districts/{districtCode}": {
+      "get": {
+        "tags": ["지역 조회"],
+        "summary": "자치구 단건 조회",
+        "description": "자치구 코드로 자치구 명칭을 조회합니다.",
+        "operationId": "getDistrictByDistrictCode",
+        "parameters": [
+          {
+            "name": "districtCode",
+            "in": "path",
+            "description": "자치구 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 11680
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDistrictAreaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/regions/districts/{districtCode}/administrations": {
       "get": {
         "tags": ["지역 조회"],
@@ -820,6 +852,47 @@
   },
   "components": {
     "schemas": {
+      "DataHeader": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "resultCode": {
+            "type": "string"
+          },
+          "resultMessage": {
+            "type": "object"
+          }
+        }
+      },
+      "DistrictAreaResponse": {
+        "type": "object",
+        "description": "자치구 단건 조회 응답 DTO",
+        "properties": {
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": 11680
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강남구"
+          }
+        }
+      },
+      "ResponseDistrictAreaResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/DistrictAreaResponse"
+          }
+        }
+      },
       "AdministrationAreaResponse": {
         "type": "object",
         "description": "자치구 소속 행정동 목록 조회 응답 DTO",
@@ -845,20 +918,6 @@
             "format": "double",
             "description": "중심 경도 (WGS84)",
             "example": 127.039585
-          }
-        }
-      },
-      "DataHeader": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "resultCode": {
-            "type": "string"
-          },
-          "resultMessage": {
-            "type": "object"
           }
         }
       },
@@ -932,6 +991,16 @@
         "type": "object",
         "description": "상권 소속 지역 정보 조회 응답 DTO",
         "properties": {
+          "commercialCode": {
+            "type": "string",
+            "description": "상권 코드",
+            "example": 3110008
+          },
+          "commercialName": {
+            "type": "string",
+            "description": "상권명",
+            "example": "역삼역"
+          },
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",

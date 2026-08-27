@@ -1,6 +1,6 @@
 {
   "sourceBaseUrl": "https://api-dev.bosspickseoul.com",
-  "fetchedAt": "2026-08-07T03:48:13.760Z",
+  "fetchedAt": "2026-08-27T12:12:46.422Z",
   "services": [
     {
       "id": "region-map",
@@ -9,10 +9,10 @@
       "version": "v1",
       "openapi": "3.1.0",
       "sourceUrl": "https://api-dev.bosspickseoul.com/district-service/v3/api-docs",
-      "pathCount": 13,
-      "operationCount": 13,
-      "schemaCount": 33,
-      "sha256": "466622ff60003234f34be85dc2af162566dbd0c8b8d59a4ae0b32f69aeb68855"
+      "pathCount": 14,
+      "operationCount": 14,
+      "schemaCount": 35,
+      "sha256": "dafbca4317087f79701d43baf311f7cee66424d9bcacf948358504a8d967b0c8"
     },
     {
       "id": "auth-member",
@@ -21,10 +21,10 @@
       "version": "v1",
       "openapi": "3.1.0",
       "sourceUrl": "https://api-dev.bosspickseoul.com/auth-service/v3/api-docs",
-      "pathCount": 13,
-      "operationCount": 15,
-      "schemaCount": 24,
-      "sha256": "67a9df115761e861c78449ab01c4182cbbaf4d0ec011806fdabc26a06209d6aa"
+      "pathCount": 14,
+      "operationCount": 17,
+      "schemaCount": 26,
+      "sha256": "21db3703429ad1d9ff5deceb127122adf43d6fa0a59c5e1449c393f1ee6f0e94"
     },
     {
       "id": "commercial-analysis",
@@ -33,10 +33,10 @@
       "version": "v1",
       "openapi": "3.1.0",
       "sourceUrl": "https://api-dev.bosspickseoul.com/commercial-service/v3/api-docs",
-      "pathCount": 22,
-      "operationCount": 22,
-      "schemaCount": 89,
-      "sha256": "510db8d36721da10b171e32b783be06fe4dfac0c361389712df57f3b190b290a"
+      "pathCount": 32,
+      "operationCount": 35,
+      "schemaCount": 132,
+      "sha256": "94d646db6c59bb34932bbe701792ac57198d48218647aab12b16d716935183b0"
     },
     {
       "id": "ai-report",
@@ -48,7 +48,7 @@
       "pathCount": 6,
       "operationCount": 6,
       "schemaCount": 11,
-      "sha256": "448aa15f4d4d58c0072770b76126fdf0f3df6457b13387aa1a2e60154b0151e8"
+      "sha256": "c3c07d5a0575fd41c307edfea7d81bbfa280292ad3779503be82de9ec9377ee2"
     },
     {
       "id": "community",
@@ -57,10 +57,10 @@
       "version": "v1",
       "openapi": "3.1.0",
       "sourceUrl": "https://api-dev.bosspickseoul.com/community-service/v3/api-docs",
-      "pathCount": 12,
-      "operationCount": 16,
-      "schemaCount": 35,
-      "sha256": "72cdc8d398a31f4e93ca1918576e050a3b41ac22ef919765a54f91e0380f92da"
+      "pathCount": 13,
+      "operationCount": 17,
+      "schemaCount": 38,
+      "sha256": "e7e3829509fee4f39741339ec52a936254986d05b9e3ec655b3924fba3fdc262"
     }
   ]
 }
