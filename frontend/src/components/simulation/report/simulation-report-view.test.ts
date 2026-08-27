@@ -91,8 +91,8 @@ describe('SimulationReportView', () => {
 
     expect(markup).toContain('강동구 한식음식점 전체 기준')
     expect(markup).toContain('2023년 3분기 기준')
-    // 273억을 자기 점포 매출로 읽지 않게 원문 숫자를 축에 그대로 얹지 않는다.
-    expect(markup).not.toContain('2,733,782')
+    // 축 라벨은 여기서 검증할 수 없다 — recharts 의 ResponsiveContainer 가 SSR 에서 폭 0이라
+    // 차트 내부를 전혀 그리지 않는다. 억 단위 축약 배선은 simulation-customer-insight.test.ts 가 본다.
   })
 
   it('성수기 데이터가 있으면 월 배지를 그린다', () => {
