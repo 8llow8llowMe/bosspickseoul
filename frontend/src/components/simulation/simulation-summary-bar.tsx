@@ -58,7 +58,7 @@ const Copy = styled.div`
     overflow: hidden;
     color: var(--color-text-900);
     font-size: 18px;
-    font-weight: 750;
+    font-weight: 700;
     line-height: 26px;
     font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;

@@ -47,7 +47,7 @@ const Surface = styled.section`
   height: min(920px, calc(100dvh - clamp(48px, 6vw, 64px)));
   overflow: hidden;
   border: 1px solid var(--color-border-200);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: var(--color-surface-muted);
   box-shadow: var(--shadow-level-4);
 

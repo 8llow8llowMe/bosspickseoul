@@ -87,7 +87,7 @@ const Rank = styled.span`
   min-width: 28px;
   color: var(--color-text-900);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
 `
 
@@ -119,7 +119,7 @@ const Reason = styled.span`
 const Score = styled.span`
   color: var(--color-text-900);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 `
 

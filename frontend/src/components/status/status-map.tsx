@@ -226,7 +226,7 @@ const RankDistrictName = styled.span`
 
 const RankNumber = styled.span`
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 

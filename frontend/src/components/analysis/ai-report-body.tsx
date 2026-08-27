@@ -52,9 +52,13 @@ const Header = styled.header`
 
 const Title = styled.h1`
   color: var(--color-text-900);
-  font-size: clamp(20px, 3vw, 26px);
-  font-weight: 780;
+  font-size: 26px;
+  font-weight: 700;
   line-height: 1.3;
+
+  @media (max-width: 640px) {
+    font-size: 20px;
+  }
 `
 
 const SubLabel = styled.span`

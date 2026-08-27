@@ -34,8 +34,6 @@ const Eyebrow = styled.p`
   color: var(--color-text-caption);
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 `
 
 const Title = styled.h1`

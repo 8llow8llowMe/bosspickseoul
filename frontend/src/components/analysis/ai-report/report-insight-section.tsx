@@ -7,7 +7,7 @@ import {
   Clock,
   CircleSlash,
   Lightbulb,
-  Sparkles,
+  ListChecks,
   Store,
   UserRound,
   Users,
@@ -73,8 +73,6 @@ const HeadlineBlock = styled.section`
 `
 
 const Summary = styled.p`
-  border-left: 3px solid var(--color-primary-700);
-  padding-left: 12px;
   color: var(--color-text-900);
   font-size: 16px;
   font-weight: 700;
@@ -221,7 +219,7 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
 }
 
 function ActionBlock({ block }: { block: ReportBlockList }) {
-  const Icon = ACTION_ICONS[block.title] ?? Sparkles
+  const Icon = ACTION_ICONS[block.title] ?? ListChecks
   return (
     <ActionCard>
       <ActionHeader>

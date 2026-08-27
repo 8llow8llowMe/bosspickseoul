@@ -296,7 +296,7 @@ const MapRegion = styled.section`
     color: var(--color-text-900, #191f28);
     font: inherit;
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
     cursor: pointer;
     box-shadow: 0 1px 4px rgb(0 0 0 / 14%);

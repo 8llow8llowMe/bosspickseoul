@@ -39,7 +39,7 @@ const Caption = styled.p`
 const Headline = styled.p`
   color: var(--color-text-900);
   font-size: 30px;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 40px;
   font-variant-numeric: tabular-nums;
   word-break: keep-all;

@@ -66,7 +66,7 @@ const Header = styled.header`
 `
 
 const Eyebrow = styled.p`
-  color: var(--color-primary-700);
+  color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 700;
 `
@@ -74,7 +74,7 @@ const Eyebrow = styled.p`
 const Title = styled.h1`
   color: var(--color-text-900);
   font-size: 24px;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 34px;
   word-break: keep-all;
 `
@@ -232,7 +232,7 @@ const CandidateCopy = styled.span<{ $variant: 'panel' | 'sheet' }>`
 
   strong {
     font-size: 14px;
-    font-weight: 650;
+    font-weight: 600;
     ${props =>
       props.$variant === 'sheet'
         ? 'white-space: normal; word-break: keep-all;'

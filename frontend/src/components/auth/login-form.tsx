@@ -98,7 +98,7 @@ export default function LoginForm() {
   return (
     <GuestOnly>
       <AuthShell
-        eyebrow="Account"
+        eyebrow="로그인"
         title="다시 돌아오신 것을 환영합니다."
         description="로그인 후 분석, 추천, 커뮤니티, 채팅 기능을 이어서 사용할 수 있습니다."
       >

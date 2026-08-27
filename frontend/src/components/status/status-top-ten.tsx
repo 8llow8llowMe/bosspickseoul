@@ -118,7 +118,7 @@ const RankBadge = styled.span<{ $selected: boolean; $top: boolean }>`
     return 'var(--color-text-600)'
   }};
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 `
 

@@ -117,7 +117,6 @@ const Heading = styled.h2`
   color: var(--color-text-900);
   font-size: 22px;
   line-height: 30px;
-  letter-spacing: -0.02em;
 `
 
 const SummaryHeader = styled.div`

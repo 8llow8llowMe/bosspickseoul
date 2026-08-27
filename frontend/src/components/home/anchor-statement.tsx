@@ -62,7 +62,6 @@ const Statement = styled.p`
   font-size: 32px;
   font-weight: 700;
   line-height: 1.5;
-  letter-spacing: -0.01em;
   word-break: keep-all;
   will-change: transform, opacity;
 
