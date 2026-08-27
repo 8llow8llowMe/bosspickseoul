@@ -214,10 +214,13 @@ export type SimulationHistorySaveRequest = {
 
 export type SimulationHistoryItem = {
   /**
-   * AUTO_INCREMENT 정수다. 다른 도메인의 Snowflake 아이디(문자열)와 달리 **number**로 안전하다.
-   * (Swagger: `integer/int64`.)
+   * **문자열이다** (Swagger: `type: string`). 백엔드가 응답 아이디를 전면 문자열화했다.
+   *
+   * `franchiseeId`처럼 number로 정규화하지 않는 이유: 이 아이디를 **요청에 싣는 곳이 없다**
+   * (삭제·상세 API가 없다). 목록의 키로만 쓰이므로 와이어 형태 그대로 두는 편이
+   * 정확하고, 나중에 Snowflake가 되어도 정밀도를 잃지 않는다.
    */
-  historyId: number
+  historyId: string
   franchisee: boolean
   /** 비프랜차이즈면 null. 저장 응답에는 `franchiseeId`가 없고 `brandName`만 되채워진다. */
   brandName: string | null

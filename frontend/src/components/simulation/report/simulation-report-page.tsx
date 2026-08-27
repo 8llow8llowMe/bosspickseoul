@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import styled from 'styled-components'
 
 import SimulationErrorNotice from '@/components/simulation/simulation-error-notice'
 import SimulationReportView from '@/components/simulation/report/simulation-report-view'
+import SimulationSaveButton from '@/components/simulation/report/simulation-save-button'
 import { ButtonLink } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -84,6 +85,7 @@ export default function SimulationReportPage({
   variant = 'standalone',
 }: SimulationReportPageProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   // 조건 상태를 먼저 복원하고 거기서 요청을 뽑는다. 상태를 따로 들고 있어야
   // 되돌아가기 링크가 **미완성 조건까지** 실어 보낼 수 있다(요청은 미완성이면 null 이다).
@@ -176,7 +178,16 @@ export default function SimulationReportPage({
             onReselect={reselectSection}
           />
         ) : report ? (
-          <SimulationReportView report={report} />
+          <SimulationReportView
+            report={report}
+            actions={
+              <SimulationSaveButton
+                request={request}
+                totalPrice={report.totalPrice}
+                currentHref={`${pathname}?${searchParams}`}
+              />
+            }
+          />
         ) : null}
       </Container>
     </Page>
