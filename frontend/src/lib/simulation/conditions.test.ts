@@ -272,6 +272,43 @@ describe('초기값 복원', () => {
     expect(state.serviceCode).toBeNull()
     expect(state.storeSize).toBeNull()
   })
+
+  it('프랜차이즈면 브랜드(아이디·이름)까지 복원한다', () => {
+    const state = createSimulationConditionState({
+      franchisee: true,
+      franchiseeId: 101,
+      brandName: '테스트브랜드',
+      districtCode: '11740',
+      serviceCode: 'CS100001',
+    })
+
+    expect(state.franchiseeId).toBe(101)
+    expect(state.brandName).toBe('테스트브랜드')
+  })
+
+  it('비프랜차이즈에 실려 온 브랜드는 버린다', () => {
+    // selectFranchisee 가 형태를 바꿀 때 브랜드를 비우는 것과 같은 규칙이다.
+    // 손상된 링크로 `franchisee=false&franchiseeId=101` 이 들어와도 상태가 모순되지 않게 한다.
+    const state = createSimulationConditionState({
+      franchisee: false,
+      franchiseeId: 101,
+      brandName: '테스트브랜드',
+    })
+
+    expect(state.franchiseeId).toBeNull()
+    expect(state.brandName).toBeNull()
+  })
+
+  it('브랜드 아이디가 양의 정수가 아니면 버린다', () => {
+    for (const franchiseeId of [0, -1, 1.5, Number.NaN]) {
+      const state = createSimulationConditionState({
+        franchisee: true,
+        franchiseeId,
+      })
+
+      expect(state.franchiseeId).toBeNull()
+    }
+  })
 })
 
 describe('오류 → 되돌릴 조건', () => {

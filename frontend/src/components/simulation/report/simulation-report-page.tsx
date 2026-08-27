@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useCallback, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import styled from 'styled-components'
@@ -14,9 +14,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { createSimulationReport } from '@/lib/api/simulation'
 import { getResponseBody } from '@/lib/api/response'
+import {
+  simulationSectionDomId,
+  toSimulationReportRequest,
+  type SimulationConditionSection,
+} from '@/lib/simulation/conditions'
 import { simulationReportQueryKey } from '@/lib/simulation/report-query'
 import {
-  parseSimulationReportRequest,
+  parseSimulationConditionState,
   simulationBuilderHref,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
@@ -78,10 +83,17 @@ const Loading = styled.div`
 export default function SimulationReportPage({
   variant = 'standalone',
 }: SimulationReportPageProps) {
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const request = useMemo(
-    () => parseSimulationReportRequest(searchParams),
+  // 조건 상태를 먼저 복원하고 거기서 요청을 뽑는다. 상태를 따로 들고 있어야
+  // 되돌아가기 링크가 **미완성 조건까지** 실어 보낼 수 있다(요청은 미완성이면 null 이다).
+  const conditionState = useMemo(
+    () => parseSimulationConditionState(searchParams),
     [searchParams],
+  )
+  const request = useMemo(
+    () => toSimulationReportRequest(conditionState),
+    [conditionState],
   )
 
   const query = useQuery({
@@ -96,7 +108,21 @@ export default function SimulationReportPage({
     retry: retryUnlessClientError(),
   })
 
-  const builderHref = simulationBuilderHref(variant)
+  // 고른 조건을 실어 보낸다. 이게 없으면 리포트를 빠져나오는 순간 조건 4개가 초기화된다.
+  const builderHref = simulationBuilderHref(variant, conditionState)
+
+  /**
+   * 오류가 지목한 조건 섹션으로 데려간다.
+   *
+   * 입력 화면과 달리 여기서는 **라우트를 넘어가야** 하므로 DOM 스크롤이 아니라 해시다.
+   * 섹션 id 는 `simulationSectionDomId` 한 곳에서 만들어 양쪽이 같은 앵커를 쓴다.
+   */
+  const reselectSection = useCallback(
+    (section: SimulationConditionSection) => {
+      router.push(`${builderHref}#${simulationSectionDomId(section)}`)
+    },
+    [builderHref, router],
+  )
 
   // 조건이 없는 URL 은 오류가 아니다 — 손상된 링크이거나 직접 들어온 경우다.
   if (!request) {
@@ -147,6 +173,7 @@ export default function SimulationReportPage({
             onRetry={() => {
               void query.refetch()
             }}
+            onReselect={reselectSection}
           />
         ) : report ? (
           <SimulationReportView report={report} />
