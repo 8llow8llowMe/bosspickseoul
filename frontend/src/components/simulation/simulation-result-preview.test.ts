@@ -101,5 +101,7 @@ describe('SimulationResultPreview', () => {
     expect(markup).toContain('/simulation/report?franchisee=false')
     // 상세 수치는 리포트 화면 몫이다 — 미리보기에서 같은 값을 다르게 표기하지 않는다.
     expect(markup).not.toContain('4,200')
+    expect(markup).not.toContain('5,000')
+    expect(markup).not.toContain('3,000')
   })
 })

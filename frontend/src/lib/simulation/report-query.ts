@@ -14,6 +14,10 @@ export const SIMULATION_REPORT_QUERY_SCOPE = 'simulation-report'
 /**
  * 조건을 정렬된 쿼리스트링 문자열 하나로 눌러 키를 만든다.
  * 객체를 그대로 키에 넣으면 `franchiseeId` 키의 유무(undefined vs 없음)로 키가 갈릴 수 있다.
+ *
+ * ⚠️ 이 키는 `periodCode` 를 담지 않는다 — `toSimulationReportSearchParams` 가 싣지 않기 때문이다.
+ *    오늘은 아무도 `periodCode` 를 보내지 않아 무해하지만, 분기를 조건으로 노출하게 되면
+ *    **키에도 반드시 함께 넣어야 한다.** 안 그러면 다른 분기의 결과가 재사용된다.
  */
 export const simulationReportQueryKey = (
   request: SimulationReportRequest,

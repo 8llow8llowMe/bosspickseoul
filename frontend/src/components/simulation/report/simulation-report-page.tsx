@@ -134,8 +134,9 @@ export default function SimulationReportPage({
           </ButtonLink>
         </Head>
 
-        {query.isPending ? (
-          <Loading aria-label="리포트 계산 중">
+        {/* v5 에서 오류 후 refetch 는 status='error' 그대로 두고 fetchStatus 만 바뀐다 — isPending 만 보면 재시도가 화면에 드러나지 않는다. 이미 그릴 리포트가 있으면 조용한 background refetch 로 화면을 덮지 않는다. */}
+        {!report && (query.isPending || query.isFetching) ? (
+          <Loading aria-label="리포트 계산 중" role="status">
             <Skeleton $height="220px" />
             <Skeleton $height="280px" />
             <Skeleton $height="180px" />
