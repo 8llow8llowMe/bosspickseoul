@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
+import { buildLoginHref, currentBrowserPath } from '@/lib/auth/return-path'
 import { useAuthStore } from '@/stores/auth-store'
 
 const Fallback = styled.div`
@@ -24,7 +25,8 @@ export default function RequireAuth({ children }: RequireAuthProps) {
 
   useEffect(() => {
     if (hasHydrated && !isLoggedIn) {
-      router.replace('/login')
+      // 보고 있던 화면을 싣는다. 로그인 후 여기로 되돌아온다.
+      router.replace(buildLoginHref(currentBrowserPath()))
     }
   }, [hasHydrated, isLoggedIn, router])
 
