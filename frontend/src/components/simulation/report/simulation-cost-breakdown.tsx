@@ -31,7 +31,7 @@ const Root = styled.section`
 
 const Layout = styled.div`
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 400px minmax(0, 1fr);
   align-items: center;
   gap: 20px;
 

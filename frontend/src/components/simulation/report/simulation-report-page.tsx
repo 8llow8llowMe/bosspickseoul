@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Scale } from 'lucide-react'
 import styled from 'styled-components'
 
 import SimulationErrorNotice from '@/components/simulation/simulation-error-notice'
@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/ui'
 import { Skeleton } from '@/components/ui/skeleton'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { createSimulationReport } from '@/lib/api/simulation'
+import { buildSimulationCompareHref } from '@/lib/simulation/compare-route'
 import { getResponseBody } from '@/lib/api/response'
 import {
   simulationSectionDomId,
@@ -40,7 +41,7 @@ const Page = styled.main`
 `
 
 const Container = styled.div`
-  width: min(1320px, calc(100% - 40px));
+  width: min(800px, calc(100% - 40px));
   margin: 0 auto;
   display: grid;
   gap: 16px;
@@ -181,11 +182,25 @@ export default function SimulationReportPage({
           <SimulationReportView
             report={report}
             actions={
-              <SimulationSaveButton
-                request={request}
-                totalPrice={report.totalPrice}
-                currentHref={`${pathname}?${searchParams}`}
-              />
+              <>
+                <SimulationSaveButton
+                  request={request}
+                  totalPrice={report.totalPrice}
+                  currentHref={`${pathname}?${searchParams}`}
+                />
+                {/* 이 조건을 왼쪽에 채운 비교 화면을 연다. 오른쪽은 비어 있는 채로
+                    편집기가 열린다 — 한쪽만 있는 URL 은 오류가 아니다. */}
+                <ButtonLink
+                  variant="secondary"
+                  href={buildSimulationCompareHref(
+                    { left: request, right: null },
+                    variant,
+                  )}
+                  leftIcon={<Scale />}
+                >
+                  비교에 추가
+                </ButtonLink>
+              </>
             }
           />
         ) : null}

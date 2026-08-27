@@ -14,8 +14,8 @@ const reportRouteFiles = [
   '../analysis/simulation/report/page.tsx',
 ] as const
 
-/** 비교 라우트 — 다음 슬라이스(B3) 대상이라 아직 준비 중 화면이다. */
-const pendingRouteFiles = [
+/** 비교 라우트 — placeholder를 떼고 A/B 비교 화면을 붙였다(B3). */
+const compareRouteFiles = [
   './compare/page.tsx',
   '../analysis/simulation/compare/page.tsx',
 ] as const
@@ -61,13 +61,22 @@ describe('simulation route adapters', () => {
     )
   })
 
-  it.each(pendingRouteFiles)('%s uses the V2 API waiting state', routeFile => {
+  it.each(compareRouteFiles)('%s renders the V2 compare page', routeFile => {
     const source = readRoute(routeFile)
 
-    expect(source).toContain('SimulationUnavailablePage')
-    expect(source).not.toContain('SimulationReportPage')
-    expect(source).not.toContain('SimulationComparePage')
+    expect(source).toContain('SimulationComparePage')
+    expect(source).not.toContain('SimulationUnavailablePage')
+    // useSearchParams를 쓰는 클라이언트 컴포넌트라 Suspense 경계가 필요하다.
+    expect(source).toContain('Suspense')
+    // 비교는 저장과 달리 인증이 필요 없다 — 리포트 계산 자체가 공개 API 다.
     expect(source).not.toContain('RequireAuth')
-    expect(source).toContain('V2 API 계약 준비 상태')
+    // "준비 중" 문구가 남아 있으면 라우트를 반만 교체한 것이다.
+    expect(source).not.toContain('V2 API 계약 준비 상태')
+  })
+
+  it('/analysis/simulation/compare는 분석 컨텍스트 variant로 렌더한다', () => {
+    expect(readRoute('../analysis/simulation/compare/page.tsx')).toContain(
+      'variant="analysis"',
+    )
   })
 })
