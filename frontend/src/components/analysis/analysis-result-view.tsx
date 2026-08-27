@@ -195,8 +195,7 @@ const StickyHeader = styled.header`
   z-index: 10;
   top: 0;
   border-bottom: 1px solid var(--color-border-200);
-  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
-  backdrop-filter: blur(14px);
+  background: var(--color-surface);
 `
 
 const HeaderInner = styled.div`
@@ -466,9 +465,13 @@ const ActionRow = styled.div`
   }
 `
 
-const Feedback = styled.p<{ $error?: boolean }>`
-  color: ${props =>
-    props.$error ? 'var(--color-danger)' : 'var(--color-primary-700)'};
+/**
+ * 오류 문구 전용이다. 예전에는 `$error` 가 아닐 때 `primary-700`(블루)로 성공을
+ * 알리는 분기가 있었는데, 동작 피드백이 토스트로 옮겨간 뒤(#146) 호출부가 남지
+ * 않아 죽은 분기였다. 블루는 상호작용 전용이라 되살릴 분기도 아니다.
+ */
+const Feedback = styled.p`
+  color: var(--color-danger);
   font-size: 13px;
   line-height: 20px;
 `
@@ -1352,12 +1355,13 @@ export default function AnalysisResultView({
         </SidebarColumn>
         <ContentColumn>
           <ContextHero>
+            {/* 제목은 정보여야 한다. 예전에는 `{상권}의 창업 데이터를 확인해 보세요`
+                였는데, 상권명은 바로 위 sticky 헤더의 h1 이 이미 말하고 있고 데이터는
+                이 블록 아래에 전부 펼쳐져 있어서 "확인해 보세요"가 남는 게 없었다.
+                헤더가 말하지 않는 유일한 조건인 **업종**을 제목 자리에 올린다. */}
             <ContextCopy>
-              <p>선택 업종 {serviceName}</p>
-              <h2>
-                {profile?.commercialName ?? '선택 상권'}의 창업 데이터를 확인해
-                보세요
-              </h2>
+              <p>선택 업종</p>
+              <h2>{serviceName}</h2>
             </ContextCopy>
             <ActionRow>
               <Button
@@ -1417,7 +1421,7 @@ export default function AnalysisResultView({
           {/* 이건 토스트로 옮기지 않는다. 동작의 결과가 아니라 **목록 조회 실패**라
               상태가 지속되는 동안 계속 보여야 한다 — 자동으로 사라지면 안 된다. */}
           {bookmarksQuery.errorMessage ? (
-            <Feedback $error>{bookmarksQuery.errorMessage}</Feedback>
+            <Feedback>{bookmarksQuery.errorMessage}</Feedback>
           ) : null}
 
           <ReportSection

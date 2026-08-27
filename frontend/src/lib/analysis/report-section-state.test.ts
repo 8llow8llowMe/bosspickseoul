@@ -35,7 +35,9 @@ describe('resolveMetricCards', () => {
     expect(cards[3].tone).toBe('positive')
     expect(cards[0].loading).toBe(false)
   })
-  it('로딩 중이면 loading=true, display 빈 문자열', () => {
+  it('로딩 중이면 loading=true, display 는 `--`', () => {
+    // 지표는 skeleton 이 아니라 `--` 로 기다린다(DESIGN.md §4-8). 예전 이름은
+    // 「display 빈 문자열」이었는데 display 를 단언하지 않아 규칙을 지키지 못했다.
     const cards = resolveMetricCards({
       profile: null,
       profileLoading: true,
@@ -43,6 +45,8 @@ describe('resolveMetricCards', () => {
       growthLoading: true,
     })
     expect(cards.every(c => c.loading)).toBe(true)
+    expect(cards.map(c => c.display)).toEqual(['--', '--', '--', '--'])
+    expect(cards.every(c => c.tone === undefined)).toBe(true)
   })
   it('성장률 변화율 없으면 데이터 없음·neutral', () => {
     const cards = resolveMetricCards({
