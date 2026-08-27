@@ -18,7 +18,10 @@ import {
   toSimulationReportSearchParams,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
-import type { SimulationConditionState } from '@/lib/simulation/conditions'
+import {
+  toSimulationReportRequest,
+  type SimulationConditionState,
+} from '@/lib/simulation/conditions'
 import type { SimulationReportRequest } from '@/types/simulation'
 
 type SearchParamsReader = { get(name: string): string | null }
@@ -82,3 +85,24 @@ export const parseSimulationCompareConditionPair = (
   left: parseSimulationConditionState(params, SIMULATION_COMPARE_PREFIX.left),
   right: parseSimulationConditionState(params, SIMULATION_COMPARE_PREFIX.right),
 })
+
+/**
+ * 쿼리스트링 → **완성된 요청 쌍.** 비교 결과 조회의 정본이 이 함수다.
+ *
+ * 조건 코덱(`parseSimulationCompareConditionPair`)과 완성 판정(`toSimulationReportRequest`)을
+ * 잇기만 한다. 완성 판정을 여기서 다시 쓰지 않는 것이 요점이다 — 판정이 두 벌이 되면
+ * "버튼은 눌리는데 조회는 안 되는" 조합이 생긴다.
+ *
+ * 편집기 초기값이 필요하면 `parseSimulationCompareConditionPair` 를 쓴다. 그쪽은 미완성도
+ * 읽어 주고, 이쪽은 완성된 것만 준다. 둘은 쓰임이 다르다.
+ */
+export const parseSimulationComparePair = (
+  params: SearchParamsReader,
+): SimulationCompareRequestPair => {
+  const pair = parseSimulationCompareConditionPair(params)
+
+  return {
+    left: toSimulationReportRequest(pair.left),
+    right: toSimulationReportRequest(pair.right),
+  }
+}
