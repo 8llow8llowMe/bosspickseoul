@@ -166,7 +166,7 @@ const AiChip = styled.button`
   svg {
     width: 14px;
     height: 14px;
-    color: var(--color-brand-primary, var(--color-text-600));
+    color: var(--color-text-600);
   }
 
   &:hover,

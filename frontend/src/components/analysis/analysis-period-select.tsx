@@ -45,7 +45,7 @@ const Select = styled.select`
   cursor: pointer;
 
   &:hover {
-    border-color: var(--color-primary-300);
+    border-color: var(--color-primary-600);
   }
 
   &:focus-visible {
