@@ -7,6 +7,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.A
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.AuthException;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.EmailVerificationStorePort;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.MailSendPort;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.support.VerificationCodeGenerator;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.model.Member;
 import com.followfollowme.bosspickseoul.global.properties.EmailSendLimitProperties;
@@ -38,7 +39,8 @@ class EmailVerificationProcessorTest {
             storePort,
             mailSendPort,
             new StubMemberRepositoryPort(),
-            new EmailSendLimitProperties(IP_MAX_SEND_COUNT, Duration.ofHours(1))
+            new EmailSendLimitProperties(IP_MAX_SEND_COUNT, Duration.ofHours(1)),
+            new VerificationCodeGenerator()
         );
     }
 
@@ -155,6 +157,18 @@ class EmailVerificationProcessorTest {
 
         @Override
         public void sendAlreadyRegisteredNotice(String email) {
+        }
+
+        @Override
+        public void sendPasswordResetCode(String email, String code) {
+        }
+
+        @Override
+        public void sendPasswordResetNotRegisteredNotice(String email) {
+        }
+
+        @Override
+        public void sendPasswordResetSocialOnlyNotice(String email, String providerName) {
         }
     }
 
