@@ -617,6 +617,7 @@ export default function RecommendMobileSheet({
       $isDragging={isDraggingCurrentSnap}
       $snap={effectiveSnap}
       aria-label="상권 추천"
+      data-map-overlay="true"
       data-sheet-snap={effectiveSnap}
     >
       <HandleButton

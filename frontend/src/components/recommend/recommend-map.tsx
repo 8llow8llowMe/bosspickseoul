@@ -16,9 +16,15 @@ import {
 import { drawAreaLabelLayer } from '@/lib/map/draw-area-label-layer'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import {
+  collectResultCameraPoints,
   getScoreFillOpacity,
   normalizeBoundary,
   normalizeViewportBounds,
+  resolveCameraPadding,
+  resolveRecommendCameraTarget,
+  MIN_CAMERA_PADDING,
+  type CameraPadding,
+  type MapCameraTarget,
   type MapPoint,
   type RecommendationMapItem,
 } from '@/lib/recommend/recommend-map-model'
@@ -33,6 +39,13 @@ export type RecommendMapProps = {
   selectedDistrictCode: string | null
   selectedAdministrationCode: string | null
   selectedCommercialCode: string | null
+  /**
+   * 사용자가 결과 항목을 **직접 고른** 경우에만 `true`. 결과 도착 시 1위가 자동
+   * 선택되는 것과 구분해서, 그때는 카메라를 결과 전체에 맞춘다.
+   */
+  isResultSelectionExplicit?: boolean
+  /** 추천 결과를 받아 오는 중이면 카메라를 건드리지 않는다. */
+  isResultsLoading?: boolean
   previewedCommercialCode?: string | null
   onDistrictSelect: (districtCode: string) => void
   onAdministrationSelect: (administrationCode: string) => void
@@ -424,16 +437,58 @@ const getResultPoints = (
   return center.length > 0 ? center : null
 }
 
-const setMapBounds = (
+/**
+ * 지도 위에 떠 있는 패널(`data-map-overlay`)을 지도 좌표계로 재서 카메라 패딩을 만든다.
+ * CSS 폭을 상수로 베껴 두면 레이아웃이 바뀔 때 조용히 어긋나므로 실제 크기를 읽는다.
+ */
+const readCameraPadding = (map: KakaoMapInstance): CameraPadding => {
+  if (typeof document === 'undefined') {
+    return {
+      top: MIN_CAMERA_PADDING,
+      right: MIN_CAMERA_PADDING,
+      bottom: MIN_CAMERA_PADDING,
+      left: MIN_CAMERA_PADDING,
+    }
+  }
+
+  const mapRect = map.getNode().getBoundingClientRect()
+  const overlays = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-map-overlay="true"]'),
+  ).flatMap(element => {
+    const rect = element.getBoundingClientRect()
+
+    if (rect.width === 0 || rect.height === 0) return []
+
+    return [
+      {
+        left: rect.left - mapRect.left,
+        top: rect.top - mapRect.top,
+        right: rect.right - mapRect.left,
+        bottom: rect.bottom - mapRect.top,
+      },
+    ]
+  })
+
+  return resolveCameraPadding(
+    { width: mapRect.width, height: mapRect.height },
+    overlays,
+  )
+}
+
+const applyCameraTarget = (
   maps: KakaoMapsNamespace,
   map: KakaoMapInstance,
-  points: readonly MapPoint[] | null,
+  target: MapCameraTarget | null,
 ) => {
+  // `keep` 은 「지금 보고 있는 화면을 그대로 둔다」다. 추천 결과가 0건일 때
+  // 행정동으로 확대하거나 서울 전역으로 튕기면, 사용자는 자기가 보던 화면을 잃는다.
+  if (!target || target.kind === 'keep') return
+
   // 아직 아무것도 안 골랐으면 맞출 대상이 없다. 예전에는 서울 전역 bbox 에
   // 억지로 fit 해서 level 9 / 중심 (37.564, 127.001) 로 밀렸는데, 상권분석은
   // 같은 상황에서 기본 카메라(level 8 / 서울시청)를 그대로 둔다. 첫 진입 화면이
   // 두 페이지에서 달라 보이던 원인이라 여기서도 기본 카메라로 맞춘다.
-  if (!points || points.length === 0) {
+  if (target.kind === 'reset') {
     map.setCenter(
       new maps.LatLng(SEOUL_DEFAULT_CAMERA.lat, SEOUL_DEFAULT_CAMERA.lng),
     )
@@ -441,12 +496,21 @@ const setMapBounds = (
     return
   }
 
+  const { points } = target
   const bounds = new maps.LatLngBounds()
 
   points.forEach(point => {
     bounds.extend(new maps.LatLng(point.lat, point.lng))
   })
-  map.setBounds(bounds)
+
+  const padding = readCameraPadding(map)
+  map.setBounds(
+    bounds,
+    padding.top,
+    padding.right,
+    padding.bottom,
+    padding.left,
+  )
 
   if (points.length === 1) {
     map.setCenter(new maps.LatLng(points[0].lat, points[0].lng))
@@ -462,6 +526,8 @@ export default function RecommendMap({
   selectedDistrictCode,
   selectedAdministrationCode,
   selectedCommercialCode,
+  isResultSelectionExplicit = false,
+  isResultsLoading = false,
   previewedCommercialCode = null,
   onDistrictSelect,
   onAdministrationSelect,
@@ -502,7 +568,7 @@ export default function RecommendMap({
   })
   const guardRef = useRef<BackgroundClickGuard | null>(null)
   const lastViewportBoundsKeyRef = useRef('')
-  const fitPointsRef = useRef<readonly MapPoint[] | null>(null)
+  const cameraTargetRef = useRef<MapCameraTarget | null>(null)
   const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   )
@@ -544,16 +610,22 @@ export default function RecommendMap({
   const selectedDistrict = districtAreas.find(
     area => area.areaCode === selectedDistrictCode,
   )
-  const fitPoints =
-    getResultPoints(selectedResult) ??
-    getAreaPoints(selectedAdministration) ??
-    getAreaPoints(selectedDistrict) ??
-    null
-  const fitPointsKey = JSON.stringify(fitPoints)
+  const cameraTarget = resolveRecommendCameraTarget({
+    stage,
+    isResultsLoading,
+    // 결과 도착 시 자동 선택된 1위로 카메라를 당기면 나머지 추천이 화면 밖으로 밀린다.
+    selectedResultPoints: isResultSelectionExplicit
+      ? getResultPoints(selectedResult)
+      : null,
+    resultPoints: collectResultCameraPoints(resultAreas),
+    administrationPoints: getAreaPoints(selectedAdministration),
+    districtPoints: getAreaPoints(selectedDistrict),
+  })
+  const cameraTargetKey = JSON.stringify(cameraTarget)
   const layerSemanticKey = createRecommendMapLayerSemanticKey(
     layerInputRef.current,
   )
-  fitPointsRef.current = fitPoints
+  cameraTargetRef.current = cameraTarget
 
   useEffect(() => {
     let cancelled = false
@@ -636,7 +708,7 @@ export default function RecommendMap({
       map.relayout()
       // 맞출 대상이 없을 때는 건드리지 않는다 — 사용자가 옮겨 둔 화면을
       // 창 크기 변화만으로 기본 카메라로 되돌리면 안 된다.
-      if (fitPointsRef.current) setMapBounds(maps, map, fitPointsRef.current)
+      applyCameraTarget(maps, map, cameraTargetRef.current)
     })
     if (containerRef.current) observer.observe(containerRef.current)
 
@@ -965,9 +1037,9 @@ export default function RecommendMap({
     const maps = mapsRef.current
     const map = mapRef.current
     if (sdkStatus === 'ready' && maps && map) {
-      setMapBounds(maps, map, fitPointsRef.current)
+      applyCameraTarget(maps, map, cameraTargetRef.current)
     }
-  }, [fitPointsKey, sdkStatus])
+  }, [cameraTargetKey, sdkStatus])
 
   useEffect(() => {
     updateResultLayerPreviewVisuals(
@@ -981,7 +1053,7 @@ export default function RecommendMap({
   const recenter = () => {
     const maps = mapsRef.current
     const map = mapRef.current
-    if (maps && map) setMapBounds(maps, map, fitPointsRef.current)
+    if (maps && map) applyCameraTarget(maps, map, cameraTargetRef.current)
   }
 
   return (

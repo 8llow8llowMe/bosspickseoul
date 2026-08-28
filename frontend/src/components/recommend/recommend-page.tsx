@@ -36,6 +36,7 @@ import {
 } from '@/lib/api/recommend'
 import {
   buildRecommendationMapItems,
+  buildResultBoundaryBounds,
   filterAreasByCodes,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
@@ -975,9 +976,65 @@ export default function RecommendPage() {
     })),
     combine: combineProfiles,
   })
+  const resultCommercialCodes = useMemo(
+    () => results.map(result => String(result.commercialCode)),
+    [results],
+  )
+  // 결과 상권의 경계는 profile 이 주지 않는다(`boundaryCoords: []`). 뷰포트 질의만
+  // 경계를 주므로, 결과 중심점을 감싸는 **고정 bbox** 로 한 번 더 받아 캐시한다.
+  // 지도 뷰포트에 묶지 않는 것이 핵심 — 묶으면 패닝할 때마다 폴리곤이 깜빡인다.
+  const resultBoundaryBounds = useMemo(() => {
+    const centersByCode = new Map(
+      commercials.map(commercial => [
+        String(commercial.commercialCode),
+        commercial,
+      ]),
+    )
+
+    return buildResultBoundaryBounds(
+      resultCommercialCodes.flatMap(code => {
+        const commercial = centersByCode.get(code)
+
+        return commercial
+          ? [
+              {
+                centerLng: commercial.centerLng,
+                centerLat: commercial.centerLat,
+              },
+            ]
+          : []
+      }),
+    )
+  }, [commercials, resultCommercialCodes])
+  const resultBoundaryQuery = useQuery({
+    queryKey: [
+      'recommend',
+      'map',
+      'result-boundaries',
+      resultCommercialCodes.join(','),
+      resultBoundaryBounds,
+    ],
+    queryFn: () => fetchCommercialMapAreas(resultBoundaryBounds!),
+    enabled: mapStage === 'results' && resultBoundaryBounds !== null,
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+  const resultBoundaries = useMemo(
+    () =>
+      filterAreasByCodes(
+        readMapAreas(resultBoundaryQuery.data),
+        resultCommercialCodes,
+      ),
+    [resultBoundaryQuery.data, resultCommercialCodes],
+  )
   const resultAreas = useMemo(
-    () => buildRecommendationMapItems(results, profiles, commercials),
-    [commercials, profiles, results],
+    () =>
+      buildRecommendationMapItems(
+        results,
+        profiles,
+        commercials,
+        resultBoundaries,
+      ),
+    [commercials, profiles, resultBoundaries, results],
   )
 
   useEffect(() => {
@@ -1530,6 +1587,14 @@ export default function RecommendPage() {
             administrationAreas={administrationAreas}
             commercialAreas={commercialAreas}
             districtAreas={districtAreas}
+            isResultSelectionExplicit={state.resultSelectionSource === 'user'}
+            // 경계가 도착하기 전에 중심점으로 한 번 맞추고 다시 맞추면 카메라가 두 번
+            // 움직인다. 경계 질의가 끝날 때까지 카메라를 잡아 둔다.
+            isResultsLoading={
+              isRecommendationQueryBusy(recommendationQuery) ||
+              (resultBoundaryBounds !== null &&
+                isRecommendationQueryBusy(resultBoundaryQuery))
+            }
             previewedCommercialCode={previewedCommercialCode}
             resultAreas={resultAreas}
             selectedAdministrationCode={
@@ -1547,7 +1612,10 @@ export default function RecommendPage() {
           />
         </MapSlot>
 
-        <DesktopPanelSlot aria-label="상권 추천 조건과 결과">
+        <DesktopPanelSlot
+          aria-label="상권 추천 조건과 결과"
+          data-map-overlay="true"
+        >
           <RecommendPanel
             {...panelProps}
             resultHeadingRef={desktopResultHeadingRef}

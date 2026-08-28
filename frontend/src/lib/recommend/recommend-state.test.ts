@@ -29,6 +29,7 @@ describe('createInitialRecommendationState', () => {
       view: 'criteria',
       pickerStep: null,
       selectedCommercialCode: null,
+      resultSelectionSource: null,
       sheetSnap: 'expanded',
     })
   })
@@ -113,6 +114,7 @@ describe('recommendationReducer', () => {
       view: 'criteria',
       pickerStep: null,
       selectedCommercialCode: null,
+      resultSelectionSource: null,
       sheetSnap: 'expanded',
     })
   })
@@ -243,6 +245,7 @@ describe('recommendationReducer', () => {
       }),
     ).toMatchObject({
       selectedCommercialCode: '3110008',
+      resultSelectionSource: 'auto',
       sheetSnap: 'expanded',
     })
     expect(
@@ -253,8 +256,32 @@ describe('recommendationReducer', () => {
       }),
     ).toMatchObject({
       selectedCommercialCode: null,
+      resultSelectionSource: 'auto',
       sheetSnap: 'expanded',
     })
+  })
+
+  // 자동 선택된 1위로 카메라를 당기면 나머지 추천이 화면 밖으로 밀린다.
+  // 지도가 상권 하나로 좁혀지는 것은 사용자가 직접 골랐을 때뿐이어야 한다.
+  it('marks who picked the result so the camera can tell them apart', () => {
+    const state = recommendationReducer(readyState(), {
+      type: 'submitted',
+      commercialCodes: ['3110008', '3110009'],
+    })
+    const requestKey = state.submitted?.requestKey ?? ''
+    const autoSelected = recommendationReducer(state, {
+      type: 'resultsLoaded',
+      requestKey,
+      commercialCode: '3110008',
+    })
+
+    expect(autoSelected.resultSelectionSource).toBe('auto')
+    expect(
+      recommendationReducer(autoSelected, {
+        type: 'resultSelected',
+        commercialCode: '3110009',
+      }).resultSelectionSource,
+    ).toBe('user')
   })
 
   it('ignores a stale results response after returning to criteria', () => {
@@ -393,6 +420,7 @@ describe('recommendationReducer', () => {
       view: 'criteria',
       pickerStep: null,
       selectedCommercialCode: null,
+      resultSelectionSource: null,
       sheetSnap: 'expanded',
     })
   })

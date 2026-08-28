@@ -36,6 +36,15 @@ export type RecommendationState = {
   /** `view === 'picker'` 일 때만 의미가 있다. 그 외에는 항상 `null`. */
   pickerStep: RecommendConditionStep | null
   selectedCommercialCode: string | null
+  /**
+   * `selectedCommercialCode` 를 **누가 정했는가**.
+   *
+   * 결과가 도착하면 1위가 자동으로 선택된다(목록·상세가 빈 채로 뜨지 않게). 그런데
+   * 카메라까지 1위로 당겨 버리면 나머지 추천이 화면 밖으로 밀려난다. 그래서 자동 선택
+   * (`'auto'`)은 카메라를 결과 전체에 맞추고, 사용자가 직접 고른 경우(`'user'`)에만
+   * 그 상권으로 좁힌다.
+   */
+  resultSelectionSource: 'auto' | 'user' | null
   sheetSnap: RecommendationSheetSnap
 }
 
@@ -94,6 +103,7 @@ export const createInitialRecommendationState = (): RecommendationState => ({
   view: 'criteria',
   pickerStep: null,
   selectedCommercialCode: null,
+  resultSelectionSource: null,
   sheetSnap: 'expanded',
 })
 
@@ -114,6 +124,7 @@ export function recommendationReducer(
         view: 'criteria',
         pickerStep: null,
         selectedCommercialCode: null,
+        resultSelectionSource: null,
         sheetSnap: 'expanded',
       }
     case 'administrationSelected': {
@@ -132,6 +143,7 @@ export function recommendationReducer(
         view: needsService ? 'picker' : 'criteria',
         pickerStep: needsService ? 'service' : null,
         selectedCommercialCode: null,
+        resultSelectionSource: null,
         sheetSnap: 'expanded',
       }
     }
@@ -146,6 +158,7 @@ export function recommendationReducer(
         view: 'criteria',
         pickerStep: null,
         selectedCommercialCode: null,
+        resultSelectionSource: null,
         sheetSnap: 'expanded',
       }
     case 'submitted': {
@@ -179,6 +192,7 @@ export function recommendationReducer(
         view: 'results',
         pickerStep: null,
         selectedCommercialCode: null,
+        resultSelectionSource: null,
         sheetSnap: 'expanded',
       }
     }
@@ -198,6 +212,7 @@ export function recommendationReducer(
       return {
         ...state,
         selectedCommercialCode: action.commercialCode,
+        resultSelectionSource: 'auto',
         sheetSnap: 'expanded',
       }
     }
@@ -213,6 +228,7 @@ export function recommendationReducer(
       return {
         ...state,
         selectedCommercialCode: action.commercialCode,
+        resultSelectionSource: 'user',
         sheetSnap: 'collapsed',
       }
     case 'editRequested':
@@ -222,6 +238,7 @@ export function recommendationReducer(
         view: 'criteria',
         pickerStep: null,
         selectedCommercialCode: null,
+        resultSelectionSource: null,
         sheetSnap: 'expanded',
       }
     case 'pickerOpened':
