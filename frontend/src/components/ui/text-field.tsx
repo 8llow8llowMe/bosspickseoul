@@ -57,7 +57,9 @@ const InputShell = styled.span<{
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid
+  /* DESIGN.md §Error (inline field): 에러는 red500 **2px** 테두리다. box-sizing 이
+     border-box 라 두꺼워져도 칸 높이는 그대로고 안쪽 여백만 1px 줄어든다. */
+  border: ${props => (props.$hasError ? '2px' : '1px')} solid
     ${props => {
       if (props.$hasError) return 'var(--color-danger)'
       return props.$emphasized
