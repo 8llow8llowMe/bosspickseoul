@@ -256,7 +256,12 @@ export default function RegisterForm() {
         title="BossPickSeoul 계정을 시작합니다."
         description="이메일 인증 후 비밀번호와 프로필 정보를 입력하면 가입이 완료됩니다."
       >
-        <AuthForm onSubmit={handleSubmit}>
+        {/* 브라우저 기본 검증을 끈다. type="email" 이 켜져 있으면 크롬이 자체
+            말풍선을 띄우며 제출을 가로채, 아래 EMAIL_PATTERN 검사와 DESIGN.md
+            §Error (inline field) 규격의 인라인 에러가 아예 도달하지 못한다.
+            type="email" 자체는 모바일 키보드 힌트 때문에 유지한다.
+            (community-editor-form 도 같은 이유로 noValidate 다) */}
+        <AuthForm noValidate onSubmit={handleSubmit}>
           {error?.field === 'general' ? (
             <Notice $tone="error">{error.message}</Notice>
           ) : null}
