@@ -119,7 +119,12 @@ export default function LoginForm() {
         title="다시 돌아오신 것을 환영합니다."
         description="로그인 후 분석, 추천, 커뮤니티, 채팅 기능을 이어서 사용할 수 있습니다."
       >
-        <AuthForm onSubmit={handleSubmit}>
+        {/* 브라우저 기본 검증을 끈다. type="email" 이 켜져 있으면 크롬이 자체
+            말풍선을 띄우며 제출을 가로채, 아래 EMAIL_PATTERN 검사와 DESIGN.md
+            §Error (inline field) 규격의 인라인 에러가 아예 도달하지 못한다.
+            type="email" 자체는 모바일 키보드 힌트 때문에 유지한다.
+            (community-editor-form 도 같은 이유로 noValidate 다) */}
+        <AuthForm noValidate onSubmit={handleSubmit}>
           {isSocialError ? (
             <Notice $tone="error">
               소셜 로그인에 실패했습니다. 다시 시도해 주세요.
