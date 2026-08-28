@@ -35,4 +35,8 @@ dependencies {
     // 안전한 QueryDSL 버전 (OpenFeign 포크 사용)
     implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.1'
     annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.1:jpa'
+
+    // QueryDSL 커스텀 구현은 컴파일로 검증되지 않는다. 동적 조건 조립과 정렬은
+    // 실제 스키마에 질의해야 확인되므로 @DataJpaTest 슬라이스용 임베디드 DB 를 둔다.
+    testRuntimeOnly 'com.h2database:h2'
 }
