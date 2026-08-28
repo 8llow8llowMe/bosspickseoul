@@ -130,7 +130,6 @@ describe('RecommendMap server rendering', () => {
     expect(markup).toContain('aria-label="상권 추천 지도"')
     expect(markup).toContain('role="region"')
     expect(markup).toContain('data-recommend-map-container="true"')
-    expect(markup).toContain('추천 범위 고정')
     expect(markup).toMatch(/<button[^>]*>선택 범위로 이동<\/button>/)
   })
 
@@ -311,6 +310,8 @@ describe('recommend result overlay helpers', () => {
               setOptions: (options: {
                 strokeColor: string
                 strokeWeight: number
+                fillColor: string
+                fillOpacity: number
               }) => void
               setZIndex: (zIndex: number) => void
             } | null
@@ -321,10 +322,18 @@ describe('recommend result overlay helpers', () => {
           }>,
           selectedCode: string | null,
           previewedCode: string | null,
-          primaryColor: string,
-          selectedColor: string,
+          tokens: {
+            baseStroke: string
+            activeStroke: string
+            fill: string
+          },
         ) => void)
       | undefined
+    const tokens = {
+      baseStroke: '#2272eb',
+      activeStroke: '#2272eb',
+      fill: '#2272eb',
+    }
     const marker = { setAttribute: vi.fn() }
     const polygon = {
       setMap: vi.fn(),
@@ -351,33 +360,31 @@ describe('recommend result overlay helpers', () => {
     ]
 
     expect(updateResultLayerPreviewVisuals).toBeTypeOf('function')
-    updateResultLayerPreviewVisuals?.(
-      entries,
-      'first',
-      'second',
-      '#3182f6',
-      '#2272eb',
-    )
+    updateResultLayerPreviewVisuals?.(entries, 'first', 'second', tokens)
 
     expect(entries[1].marker).toBe(marker)
     expect(marker.setAttribute).toHaveBeenCalledWith('data-previewed', 'true')
+    // preview 는 공용 hovered 규격(2px)을 타고, fill 은 점수 농도 0.29 에 +0.10.
     expect(polygon.setOptions).toHaveBeenCalledWith({
-      strokeColor: '#3182f6',
+      strokeColor: '#2272eb',
       strokeWeight: 2,
+      fillColor: '#2272eb',
+      fillOpacity: 0.39,
     })
     expect(polygon.setMap).not.toHaveBeenCalled()
     expect(overlay.setMap).not.toHaveBeenCalled()
 
-    updateResultLayerPreviewVisuals?.(
-      entries,
-      'second',
-      null,
-      '#3182f6',
-      '#2272eb',
-    )
+    updateResultLayerPreviewVisuals?.(entries, 'second', null, tokens)
 
     expect(entries[1].marker).toBe(marker)
     expect(marker.setAttribute).toHaveBeenCalledWith('aria-pressed', 'true')
+    // selected 는 공용 2.5px, fill 은 0.29 에 +0.20.
+    expect(polygon.setOptions).toHaveBeenLastCalledWith({
+      strokeColor: '#2272eb',
+      strokeWeight: 2.5,
+      fillColor: '#2272eb',
+      fillOpacity: 0.49,
+    })
     expect(polygon.setMap).not.toHaveBeenCalled()
     expect(overlay.setMap).not.toHaveBeenCalled()
   })
@@ -482,12 +489,12 @@ describe('recommend result overlay helpers', () => {
     )
   })
 
-  it('uses the Primary 600 family for the selected administration context', () => {
+  it('결과 단계 행정동은 채움 없는 중립 외곽선이다 — 선택된 것처럼 보이면 안 된다', () => {
     const getResultContextPolygonStyle = Reflect.get(
       recommendMapModule,
       'getResultContextPolygonStyle',
     ) as
-      | ((primaryColor: string) => {
+      | ((outlineColor: string) => {
           strokeColor: string
           strokeWeight: number
           fillColor: string
@@ -496,11 +503,13 @@ describe('recommend result overlay helpers', () => {
       | undefined
 
     expect(getResultContextPolygonStyle).toBeTypeOf('function')
-    expect(getResultContextPolygonStyle?.('#2272eb')).toEqual({
-      strokeColor: '#2272eb',
-      strokeWeight: 2,
-      fillColor: '#2272eb',
-      fillOpacity: 0.1,
+    expect(getResultContextPolygonStyle?.('#d1d6db')).toEqual({
+      strokeColor: '#d1d6db',
+      strokeWeight: 1.5,
+      fillColor: '#d1d6db',
+      // 결과 단계 행정동은 배경 맥락이라 채우지 않는다 — 채우면 행정동을
+      // 선택한 것처럼 읽힌다.
+      fillOpacity: 0,
     })
   })
 })

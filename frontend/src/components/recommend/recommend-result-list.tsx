@@ -1,9 +1,15 @@
 'use client'
 
-import { useId, useRef } from 'react'
+import { createElement, useId, useRef } from 'react'
 import { Bookmark as BookmarkIcon } from 'lucide-react'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
+import ScoreGauge from '@/components/ui/score-gauge'
+import {
+  COMPOSITE_SCORE_POLARITY,
+  resolveMetricPolarity,
+} from '@/lib/recommend/metric-polarity'
+import { resolveServiceIcon } from '@/lib/recommend/service-icons'
 import type { BlueOceanCategory, CandidateCommercial } from '@/types/recommend'
 import RecommendFeedback from './recommend-feedback'
 
@@ -98,29 +104,22 @@ const Copy = styled.span`
 `
 
 const Name = styled.span`
-  overflow: hidden;
   color: var(--color-text-900);
   font-size: 15px;
   font-weight: 700;
   line-height: 21px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 `
 
+/* 추천 이유는 왜 이 순위인지를 말하는 유일한 문장이다. 잘라내면 남는 게
+   "공격형 기준으로 기회도 보통을 우선 반영…" 처럼 결론이 사라진 조각뿐이다. */
 const Reason = styled.span`
-  overflow: hidden;
   color: var(--color-text-600);
   font-size: 13px;
   line-height: 19px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`
-
-const Score = styled.span`
-  color: var(--color-text-900);
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 `
 
 /**
@@ -169,12 +168,113 @@ const BlueOceanList = styled.ul`
 `
 
 const BlueOceanItem = styled.li`
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+  line-height: 19px;
+`
+
+/* 아이콘은 장식이다 — 이름 옆의 보조 신호일 뿐 아이콘만으로 업종을 식별하게 하지 않는다. */
+const BlueOceanIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-500);
+`
+
+const BlueOceanHead = styled.span`
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 8px;
-  font-size: 13px;
-  line-height: 19px;
+`
+
+/*
+ * 덤벨 — 이 상권 점포 수(●)와 행정동 점포 수(○)를 **다섯 업종 공통 눈금**에 찍고
+ * 사이를 잇는다. 두 점 사이의 거리가 곧 「비어 있는 정도」다.
+ *
+ * 비율(`storeRate`)로 막대를 그렸더니 다섯 개가 서로 구별되지 않았다 — 「비어 있는
+ * 업종」이 정의상 비율 하위 5개라 늘 85~100% 에 몰린다. 점포 수는 9~65 로 벌어진다.
+ * 숫자는 원본 비율까지 그대로 남긴다: 그림은 비교를, 숫자는 사실을 말한다.
+ */
+const Dumbbell = styled.span`
+  grid-column: 2;
+  position: relative;
+  display: block;
+  height: 14px;
+`
+
+/* 양 끝 점이 잘리지 않게 점 반지름만큼 안쪽으로 들인다. */
+const DumbbellPlot = styled.span`
+  position: absolute;
+  inset: 0 5px;
+`
+
+const DumbbellAxis = styled.span`
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+`
+
+const DumbbellGap = styled.span<{ $start: number; $end: number }>`
+  position: absolute;
+  top: 50%;
+  left: ${({ $start }) => $start}%;
+  width: ${({ $start, $end }) => $end - $start}%;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--score-high);
+`
+
+const DumbbellDot = styled.span<{ $at: number; $whole: boolean }>`
+  position: absolute;
+  top: 50%;
+  left: ${({ $at }) => $at}%;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  transform: translateY(-50%);
+  border: 2px solid
+    ${({ $whole }) => ($whole ? 'var(--score-high)' : 'var(--color-text-700)')};
+  border-radius: 50%;
+  background: ${({ $whole }) =>
+    $whole ? 'var(--color-surface)' : 'var(--color-text-700)'};
+`
+
+const BlueOceanLegend = styled.p`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--color-text-600);
+  font-size: 12px;
+  line-height: 18px;
+`
+
+const LegendKey = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+`
+
+const LegendDot = styled.span<{ $whole: boolean }>`
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  border: 2px solid
+    ${({ $whole }) => ($whole ? 'var(--score-high)' : 'var(--color-text-700)')};
+  border-radius: 50%;
+  background: ${({ $whole }) =>
+    $whole ? 'var(--color-surface)' : 'var(--color-text-700)'};
 `
 
 const BlueOceanName = styled.span`
@@ -185,12 +285,8 @@ const BlueOceanName = styled.span`
   word-break: keep-all;
 `
 
-const BlueOceanSeparator = styled.span`
-  margin-right: 4px;
-  color: var(--color-text-caption);
-`
-
 const BlueOceanCounts = styled.span`
+  grid-column: 2;
   color: var(--color-text-600);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -238,7 +334,7 @@ const Metrics = styled.dl`
 `
 
 const MetricRow = styled.div`
-  min-height: 44px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -252,6 +348,8 @@ const MetricRow = styled.div`
   }
 
   dd {
+    display: flex;
+    align-items: center;
     color: var(--color-text-900);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -327,7 +425,7 @@ export const SCORE_UNAVAILABLE_DESCRIPTION =
 
 export const BLUE_OCEAN_HEADING = '이 상권에 비어 있는 업종'
 export const BLUE_OCEAN_NOTE =
-  '소속 행정동에 비해 이 상권에 적게 들어온 업종이에요. 비율이 낮을수록 아직 자리가 비어 있다는 뜻이에요.'
+  '소속 행정동에 비해 이 상권에 적게 들어온 업종이에요. 두 점 사이가 멀수록 아직 자리가 비어 있다는 뜻이에요.'
 
 const hasScore = (score: unknown): score is number =>
   typeof score === 'number' && Number.isFinite(score)
@@ -359,6 +457,15 @@ const getMetricKeyPart = (metric: unknown): string => {
 
 const getMetricScore = (metric: unknown): unknown =>
   isRecord(metric) ? metric.score : null
+
+const getMetricCode = (metric: unknown): string =>
+  isRecord(metric) && isRecord(metric.metricType)
+    ? readTrimmedString(metric.metricType.code)
+    : ''
+
+/** 게이지에 넘길 점수. 숫자가 아니면 `null` 이고, 그때 게이지는 그려지지 않는다. */
+const readGaugeScore = (score: unknown): number | null =>
+  hasScore(score) ? score : null
 
 const readCount = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0
@@ -394,6 +501,52 @@ export const readBlueOceanCategories = (
       },
     ]
   })
+}
+
+/**
+ * 다섯 업종이 함께 쓰는 가로 눈금의 최댓값 = 행정동 점포 수 중 가장 큰 값.
+ *
+ * **눈금을 공유해야 비교가 성립한다.** 항목마다 제 눈금을 쓰면 선 길이가 아무것도
+ * 말하지 않는다.
+ */
+export const getBlueOceanAxisMax = (
+  categories: readonly BlueOceanCategory[],
+): number =>
+  categories.reduce(
+    (max, category) => Math.max(max, category.administrationStoreCount),
+    0,
+  )
+
+/** 덤벨의 두 점 위치(%). `start` 는 이 상권, `end` 는 행정동 전체. */
+export type BlueOceanRange = { start: number; end: number }
+
+/**
+ * **비율이 아니라 점포 수를 그린다.**
+ *
+ * 「비어 있는 업종」은 정의상 `storeRate` 하위 5개라 비율은 늘 좁은 띠(85~100%)에
+ * 몰린다 — 비율로 그린 막대는 다섯 개가 서로 구별되지 않았다. 점포 수는 9~65 로
+ * 크게 벌어지고, 덤으로 **비율이 감추던 것**을 드러낸다: 행정동에도 9곳뿐인 업종은
+ * 비율이 낮아도 기회의 크기 자체가 작다.
+ *
+ * 두 점 사이의 거리가 곧 「비어 있는 정도」다. 비율을 안 쓰므로 방향이 뒤집힐 여지가
+ * 애초에 없다.
+ */
+export const getBlueOceanRange = (
+  category: BlueOceanCategory,
+  axisMax: number,
+): BlueOceanRange | null => {
+  if (!Number.isFinite(axisMax) || axisMax <= 0) return null
+
+  const here = Math.min(Math.max(category.commercialStoreCount, 0), axisMax)
+  const whole = Math.min(
+    Math.max(category.administrationStoreCount, 0),
+    axisMax,
+  )
+
+  // 상권이 행정동보다 많은 것은 데이터가 뒤집힌 경우다. 「비어 있다」로 그리지 않는다.
+  if (whole < here) return null
+
+  return { start: (here / axisMax) * 100, end: (whole / axisMax) * 100 }
 }
 
 /** 소수점 둘째 자리까지만 남기고 불필요한 0은 지운다. 3.33 → "3.33", 5 → "5". */
@@ -568,6 +721,8 @@ export default function RecommendResultList({
         const blueOceanCategories = readBlueOceanCategories(
           item.blueOceanCategories,
         )
+        // 눈금을 공유해야 다섯 업종의 선 길이가 서로 비교된다.
+        const blueOceanAxisMax = getBlueOceanAxisMax(blueOceanCategories)
         const isScoreUnavailable = !hasScore(item.compositeScore)
 
         return (
@@ -628,7 +783,12 @@ export default function RecommendResultList({
                     </VisuallyHidden>
                   </ScoreUnavailable>
                 ) : (
-                  <Score>{formatScore(item.compositeScore)}</Score>
+                  <ScoreGauge
+                    label="종합 점수"
+                    polarity={COMPOSITE_SCORE_POLARITY}
+                    score={readGaugeScore(item.compositeScore)}
+                    size="lg"
+                  />
                 )}
               </SelectionButton>
 
@@ -651,7 +811,19 @@ export default function RecommendResultList({
                         )}-${index}`}
                       >
                         <dt>{getMetricLabel(metric, index)}</dt>
-                        <dd>{formatScore(getMetricScore(metric))}</dd>
+                        <dd>
+                          {hasScore(getMetricScore(metric)) ? (
+                            <ScoreGauge
+                              label={getMetricLabel(metric, index)}
+                              polarity={resolveMetricPolarity(
+                                getMetricCode(metric),
+                              )}
+                              score={readGaugeScore(getMetricScore(metric))}
+                            />
+                          ) : (
+                            formatScore(getMetricScore(metric))
+                          )}
+                        </dd>
                       </MetricRow>
                     ))}
                   </Metrics>
@@ -659,31 +831,71 @@ export default function RecommendResultList({
                     <BlueOcean data-blue-ocean="true">
                       <BlueOceanHeading>{BLUE_OCEAN_HEADING}</BlueOceanHeading>
                       <BlueOceanNote>{BLUE_OCEAN_NOTE}</BlueOceanNote>
+                      <BlueOceanLegend aria-hidden="true">
+                        <LegendKey>
+                          <LegendDot $whole={false} />이 상권
+                        </LegendKey>
+                        <LegendKey>
+                          <LegendDot $whole />
+                          행정동 전체
+                        </LegendKey>
+                      </BlueOceanLegend>
                       <BlueOceanList>
-                        {blueOceanCategories.map((category, index) => (
-                          <BlueOceanItem
-                            data-blue-ocean-item="true"
-                            key={`${item.commercialCode}-blue-ocean-${
-                              category.serviceCode || category.serviceName
-                            }-${index}`}
-                          >
-                            <BlueOceanName>
-                              {category.serviceName}
-                            </BlueOceanName>
-                            {selectedServiceCode &&
-                            category.serviceCode === selectedServiceCode ? (
-                              <SelectedServiceBadge data-selected-service="true">
-                                선택 업종
-                              </SelectedServiceBadge>
-                            ) : null}
-                            <BlueOceanCounts>
-                              <BlueOceanSeparator aria-hidden="true">
-                                ·
-                              </BlueOceanSeparator>
-                              {formatBlueOceanCounts(category)}
-                            </BlueOceanCounts>
-                          </BlueOceanItem>
-                        ))}
+                        {blueOceanCategories.map((category, index) => {
+                          const range = getBlueOceanRange(
+                            category,
+                            blueOceanAxisMax,
+                          )
+
+                          return (
+                            <BlueOceanItem
+                              data-blue-ocean-item="true"
+                              key={`${item.commercialCode}-blue-ocean-${
+                                category.serviceCode || category.serviceName
+                              }-${index}`}
+                            >
+                              <BlueOceanIcon aria-hidden="true">
+                                {createElement(
+                                  resolveServiceIcon(category.serviceCode),
+                                  { size: 16, strokeWidth: 1.8 },
+                                )}
+                              </BlueOceanIcon>
+                              <BlueOceanHead>
+                                <BlueOceanName>
+                                  {category.serviceName}
+                                </BlueOceanName>
+                                {selectedServiceCode &&
+                                category.serviceCode === selectedServiceCode ? (
+                                  <SelectedServiceBadge data-selected-service="true">
+                                    선택 업종
+                                  </SelectedServiceBadge>
+                                ) : null}
+                              </BlueOceanHead>
+                              {range === null ? null : (
+                                <Dumbbell
+                                  aria-hidden="true"
+                                  data-dumbbell={`${category.commercialStoreCount}-${category.administrationStoreCount}`}
+                                >
+                                  <DumbbellPlot>
+                                    <DumbbellAxis />
+                                    <DumbbellGap
+                                      $end={range.end}
+                                      $start={range.start}
+                                    />
+                                    <DumbbellDot $at={range.end} $whole />
+                                    <DumbbellDot
+                                      $at={range.start}
+                                      $whole={false}
+                                    />
+                                  </DumbbellPlot>
+                                </Dumbbell>
+                              )}
+                              <BlueOceanCounts>
+                                {formatBlueOceanCounts(category)}
+                              </BlueOceanCounts>
+                            </BlueOceanItem>
+                          )
+                        })}
                       </BlueOceanList>
                     </BlueOcean>
                   ) : null}

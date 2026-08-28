@@ -1,13 +1,18 @@
 'use client'
 
-import { memo } from 'react'
-import { Check, ChevronRight, RotateCcw } from 'lucide-react'
+import { memo, useMemo } from 'react'
+import { RotateCcw } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
+import OptionPicker from '@/components/ui/option-picker'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
+import {
+  canGroupByDescription,
+  groupOptionsByDescription,
+} from '@/lib/option-filter'
 import {
   ANALYSIS_STEPS,
   isCompleteAnalysisSelection,
@@ -100,7 +105,6 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
   height: 100%;
   min-width: 0;
   min-height: 60px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -144,11 +148,11 @@ const StepNumber = styled.span`
 `
 
 // 선택명이 길어도 트랙을 넘치지 않도록 한 줄 말줄임. 전체 이름은 버튼 title로 노출.
+/* 이름이 길다고 잘라내지 않는다 — 어느 상권을 보고 있는지가 이 탭의 전부다.
+   keep-all 로 단어를 지키되, 한 단어가 트랙보다 길면 그때만 끊는다. */
 const StepName = styled.span`
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 `
 
 const Body = styled.div<{ $variant: 'panel' | 'sheet' }>`
@@ -184,136 +188,6 @@ const BodyTitle = styled.div`
   span {
     color: var(--color-text-caption);
     font-size: 12px;
-  }
-`
-
-const CandidateList = styled.ul<{ $variant: 'panel' | 'sheet' }>`
-  display: grid;
-  gap: 8px;
-  ${props =>
-    props.$variant === 'sheet' &&
-    `grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));`}
-`
-
-const CandidateButton = styled.button<{
-  $selected: boolean
-  $variant: 'panel' | 'sheet'
-}>`
-  width: 100%;
-  min-height: 52px;
-  height: ${props => (props.$variant === 'sheet' ? '100%' : 'auto')};
-  display: flex;
-  align-items: ${props =>
-    props.$variant === 'sheet' ? 'flex-start' : 'center'};
-  gap: 10px;
-  border: 1px solid
-    ${props =>
-      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-control);
-  background: ${props =>
-    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  color: var(--color-text-800);
-  padding: 10px 12px 10px 14px;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--color-primary-600);
-    outline: none;
-  }
-`
-
-const CandidateCopy = styled.span<{ $variant: 'panel' | 'sheet' }>`
-  min-width: 0;
-  flex: 1;
-  display: grid;
-  gap: 2px;
-
-  strong {
-    font-size: 14px;
-    font-weight: 600;
-    ${props =>
-      props.$variant === 'sheet'
-        ? 'white-space: normal; word-break: keep-all;'
-        : 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'}
-  }
-
-  small {
-    color: var(--color-text-caption);
-    font-size: 12px;
-    line-height: 18px;
-  }
-`
-
-const CandidateIcon = styled.span`
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary-700);
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
-`
-
-const CandidateGrid = styled.ul`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 8px;
-`
-
-const ChipButton = styled.button<{ $selected: boolean }>`
-  position: relative;
-  width: 100%;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid
-    ${props =>
-      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-control);
-  background: ${props =>
-    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
-  padding: 8px 22px;
-  font-size: 14px;
-  font-weight: ${props => (props.$selected ? 700 : 600)};
-  line-height: 1.3;
-  text-align: center;
-  word-break: keep-all;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--color-primary-600);
-    outline: none;
-  }
-`
-
-const ChipCheck = styled.span`
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary-700);
-
-  svg {
-    width: 14px;
-    height: 14px;
   }
 `
 
@@ -386,6 +260,15 @@ function AnalysisSelectionPanel({
   // 상권·업종은 분류/업종 설명이 있어 가독성 위해 행 리스트 유지.
   const isChipStep =
     activeStep === 'district' || activeStep === 'administration'
+  // 업종은 카탈로그가 6카테고리를 이미 갖고 있다. 평면으로 펼치면 31개가
+  // 구분 없이 쏟아지므로 그룹 그대로 넘긴다.
+  const groups = useMemo(
+    () =>
+      activeStep === 'service' && canGroupByDescription(items)
+        ? groupOptionsByDescription(items)
+        : undefined,
+    [activeStep, items],
+  )
 
   return (
     <Root aria-label="상권 분석 조건 선택">
@@ -471,67 +354,17 @@ function AnalysisSelectionPanel({
           />
         ) : null}
 
-        {status === 'ready' && isChipStep ? (
-          <CandidateGrid>
-            {items.map(item => {
-              const selected = item.code === selectedCode
-              return (
-                <li key={item.code}>
-                  <ChipButton
-                    type="button"
-                    $selected={selected}
-                    aria-selected={selected}
-                    title={item.name}
-                    onClick={() => onSelect(item.code)}
-                    onFocus={() => onPreviewChange(item.code)}
-                    onBlur={() => onPreviewChange(null)}
-                    onPointerEnter={() => onPreviewChange(item.code)}
-                    onPointerLeave={() => onPreviewChange(null)}
-                  >
-                    {item.name}
-                    {selected ? (
-                      <ChipCheck aria-hidden>
-                        <Check />
-                      </ChipCheck>
-                    ) : null}
-                  </ChipButton>
-                </li>
-              )
-            })}
-          </CandidateGrid>
-        ) : null}
-
-        {status === 'ready' && !isChipStep ? (
-          <CandidateList $variant={variant}>
-            {items.map(item => {
-              const selected = item.code === selectedCode
-              return (
-                <li key={item.code}>
-                  <CandidateButton
-                    type="button"
-                    $selected={selected}
-                    $variant={variant}
-                    aria-selected={selected}
-                    onClick={() => onSelect(item.code)}
-                    onFocus={() => onPreviewChange(item.code)}
-                    onBlur={() => onPreviewChange(null)}
-                    onPointerEnter={() => onPreviewChange(item.code)}
-                    onPointerLeave={() => onPreviewChange(null)}
-                  >
-                    <CandidateCopy $variant={variant}>
-                      <strong>{item.name}</strong>
-                      {item.description ? (
-                        <small>{item.description}</small>
-                      ) : null}
-                    </CandidateCopy>
-                    <CandidateIcon aria-hidden>
-                      {selected ? <Check /> : <ChevronRight />}
-                    </CandidateIcon>
-                  </CandidateButton>
-                </li>
-              )
-            })}
-          </CandidateList>
+        {status === 'ready' ? (
+          <OptionPicker
+            groups={groups}
+            items={groups ? undefined : items}
+            layout={isChipStep ? 'grid' : 'list'}
+            selectedCode={selectedCode}
+            variant={variant}
+            searchPlaceholder={`${ANALYSIS_STEP_LABELS[activeStep]} 검색`}
+            onPreviewChange={onPreviewChange}
+            onSelect={onSelect}
+          />
         ) : null}
       </Body>
 

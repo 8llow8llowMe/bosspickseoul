@@ -144,7 +144,7 @@ export const canStartRecommendationSheetPointer = ({
 
 export const isRecommendationSheetInteractive = (
   view: RecommendationView,
-): boolean => view === 'criteria' || view === 'results'
+): boolean => view === 'criteria' || view === 'picker' || view === 'results'
 
 export const didRecommendationSheetDrag = (deltaY: number): boolean =>
   Number.isFinite(deltaY) &&
@@ -617,6 +617,7 @@ export default function RecommendMobileSheet({
       $isDragging={isDraggingCurrentSnap}
       $snap={effectiveSnap}
       aria-label="상권 추천"
+      data-map-overlay="true"
       data-sheet-snap={effectiveSnap}
     >
       <HandleButton

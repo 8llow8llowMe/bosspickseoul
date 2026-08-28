@@ -581,6 +581,29 @@ Total target length: 250-400 lines. Keep sections concise and actionable.
 - 지도 위 오버레이는 텍스트 대비를 충분히 확보한다.
 - V2 1차 범위 제외: 풀스크린 지도 + Kakao Map 폴리곤 히트맵(`/map` 류) — Kakao Map SDK 미이식. 자치구 grid + bar metric으로 1차 대체한다. (자세한 Out of Scope 목록은 [디자인 생성 프롬프트/레퍼런스](#디자인-생성-프롬프트레퍼런스) §8 참고)
 
+#### 영역 폴리곤 (Area Polygon)
+
+상권분석·상권추천의 지도 폴리곤은 화면이 달라도 같은 규격을 쓴다. 정본은
+`src/lib/map/area-polygon-style.ts` 의 `resolveAreaPolygonStyle` 이며, 컴포넌트가
+stroke 굵기나 파랑 계열을 직접 정하지 않는다.
+
+- **색은 `--color-primary-600` 하나다.** 외곽선·채움 모두 같은 파랑을 쓰고, 상태는
+  굵기와 농도로만 구분한다. 지도 한 화면에 파랑을 둘 이상 두지 않는다.
+
+| 상태     | stroke | fill 농도 |
+| -------- | ------ | --------- |
+| default  | 1.5px  | 0.08      |
+| hovered  | 2px    | 0.18      |
+| selected | 2.5px  | 0.28      |
+
+- 자체 농도 체계가 있는 레이어(추천 결과의 점수 기반 농도 등)는
+  `resolveAreaPolygonStyle` 의 `baseFillOpacity` 로 base 만 갈아끼우고, 상태 증분
+  (+0.10 / +0.20)과 stroke 규격은 위 표를 그대로 따른다. 상한은 0.6 이다.
+- **hover 는 폴리곤 본체에서도 열려 있어야 한다.** 마커·리스트 항목에만 호버가
+  걸려 있으면 지도를 직접 짚는 사용자가 아무 반응도 받지 못한다.
+- hover 로만 드러나는 정보는 두지 않는다(§접근성). 폴리곤 호버는 이미 다른 곳에
+  적힌 정보를 강조할 뿐이어야 한다.
+
 ### 접근성
 
 - 텍스트 대비는 WCAG AA 이상을 목표로 한다.

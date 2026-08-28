@@ -7,11 +7,24 @@ import RecommendFeedback from '@/components/recommend/recommend-feedback'
 import { classifyStatus, isRetryable } from '@/lib/api/api-error'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
+import { SEOUL_DEFAULT_CAMERA } from '@/lib/analysis/map-camera'
+import {
+  resolveAreaPolygonState,
+  resolveAreaPolygonStyle,
+  type AreaPolygonStyleTokens,
+} from '@/lib/map/area-polygon-style'
+import { drawAreaLabelLayer } from '@/lib/map/draw-area-label-layer'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import {
+  collectResultCameraPoints,
   getScoreFillOpacity,
   normalizeBoundary,
   normalizeViewportBounds,
+  resolveCameraPadding,
+  resolveRecommendCameraTarget,
+  MIN_CAMERA_PADDING,
+  type CameraPadding,
+  type MapCameraTarget,
   type MapPoint,
   type RecommendationMapItem,
 } from '@/lib/recommend/recommend-map-model'
@@ -26,6 +39,13 @@ export type RecommendMapProps = {
   selectedDistrictCode: string | null
   selectedAdministrationCode: string | null
   selectedCommercialCode: string | null
+  /**
+   * 사용자가 결과 항목을 **직접 고른** 경우에만 `true`. 결과 도착 시 1위가 자동
+   * 선택되는 것과 구분해서, 그때는 카메라를 결과 전체에 맞춘다.
+   */
+  isResultSelectionExplicit?: boolean
+  /** 추천 결과를 받아 오는 중이면 카메라를 건드리지 않는다. */
+  isResultsLoading?: boolean
   previewedCommercialCode?: string | null
   onDistrictSelect: (districtCode: string) => void
   onAdministrationSelect: (administrationCode: string) => void
@@ -59,11 +79,6 @@ type RecommendMapLayerStructuralInput = Pick<
   | 'previewedCommercialCode'
 >
 
-const SEOUL_CENTER = { lat: 37.5665, lng: 126.978 }
-const SEOUL_BOUNDS: MapPoint[] = [
-  { lat: 37.4133, lng: 126.7341 },
-  { lat: 37.7151, lng: 127.2693 },
-]
 const VIEWPORT_BOUNDS_DEBOUNCE_MS = 300
 
 export const readKakaoViewportBounds = (
@@ -207,12 +222,26 @@ export const createRecommendMapLayerSemanticKey = ({
   ])
 }
 
+// 결과 폴리곤도 단계 폴리곤과 같은 3상태 규격(1.5/2/2.5px)을 탄다.
+// 다만 fill 농도는 점수 기반 값을 base 로 넘겨 순위 정보를 지도에 남긴다.
+export const getResultPolygonStyle = (
+  item: RecommendationMapItem,
+  state: 'default' | 'hovered' | 'selected',
+  tokens: AreaPolygonStyleTokens,
+  baseZIndex: number,
+) =>
+  resolveAreaPolygonStyle(
+    state,
+    tokens,
+    baseZIndex,
+    getScoreFillOpacity(item.compositeScore, item.rank),
+  )
+
 export const updateResultLayerPreviewVisuals = (
   entries: ResultLayerVisualEntry[],
   selectedCommercialCode: string | null,
   previewedCommercialCode: string | null,
-  primaryColor: string,
-  selectedColor: string,
+  tokens: AreaPolygonStyleTokens,
 ): void => {
   const drawingOrder = getResultDrawingOrder(
     entries.map(entry => entry.item),
@@ -224,34 +253,49 @@ export const updateResultLayerPreviewVisuals = (
   )
 
   entries.forEach(entry => {
-    const selected = entry.item.commercialCode === selectedCommercialCode
-    const previewed =
-      !selected && entry.item.commercialCode === previewedCommercialCode
-    const zIndex = zIndexes.get(entry.item.commercialCode) ?? 0
+    const code = entry.item.commercialCode
+    // hovered 자리에 preview(마커 포커스/호버, 폴리곤 호버)를 대응시킨다.
+    const state = resolveAreaPolygonState(
+      code,
+      selectedCommercialCode,
+      previewedCommercialCode,
+    )
+    const zIndex = zIndexes.get(code) ?? 0
+    const style = getResultPolygonStyle(entry.item, state, tokens, 0)
 
-    entry.marker?.setAttribute('aria-pressed', String(selected))
-    entry.marker?.setAttribute('data-previewed', String(previewed))
+    entry.marker?.setAttribute('aria-pressed', String(state === 'selected'))
+    entry.marker?.setAttribute('data-previewed', String(state === 'hovered'))
     entry.polygon?.setOptions({
-      strokeColor: selected ? selectedColor : primaryColor,
-      strokeWeight: selected ? 3 : previewed ? 2 : 1,
+      strokeColor: style.strokeColor,
+      strokeWeight: style.strokeWeight,
+      fillColor: style.fillColor,
+      fillOpacity: style.fillOpacity,
     })
+    // z 순서는 겹침을 다루는 getResultDrawingOrder 가 이미 정한다(공용 zIndex 미사용).
     entry.polygon?.setZIndex(zIndex + 10)
     entry.overlay?.setZIndex(zIndex + 100)
   })
 }
 
+/**
+ * 결과 단계에서 행정동은 **배경 맥락**이지 선택 대상이 아니다.
+ *
+ * 예전에는 primary 파랑으로 2px + fill 0.1 을 칠해, 결과 화면이 「행정동을
+ * 선택한 상태」로 읽혔다 — 정작 고른 것은 그 안의 상권인데. 채움을 없애고
+ * 중립색 외곽선만 남겨 어디를 보고 있는지만 알린다.
+ */
 export const getResultContextPolygonStyle = (
-  primaryColor: string,
+  outlineColor: string,
 ): {
   strokeColor: string
   strokeWeight: number
   fillColor: string
   fillOpacity: number
 } => ({
-  strokeColor: primaryColor,
-  strokeWeight: 2,
-  fillColor: primaryColor,
-  fillOpacity: 0.1,
+  strokeColor: outlineColor,
+  strokeWeight: 1.5,
+  fillColor: outlineColor,
+  fillOpacity: 0,
 })
 
 export const createBackgroundClickGuard = (
@@ -332,23 +376,6 @@ const MapCanvas = styled.div`
   min-height: 420px;
 `
 
-const Badge = styled.span`
-  position: absolute;
-  z-index: 3;
-  top: 12px;
-  left: 12px;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 94%);
-  color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 700;
-`
-
 const RecenterButton = styled.button`
   position: absolute;
   z-index: 3;
@@ -410,21 +437,83 @@ const getResultPoints = (
   return center.length > 0 ? center : null
 }
 
-const setMapBounds = (
+/**
+ * 지도 위에 떠 있는 패널(`data-map-overlay`)을 지도 좌표계로 재서 카메라 패딩을 만든다.
+ * CSS 폭을 상수로 베껴 두면 레이아웃이 바뀔 때 조용히 어긋나므로 실제 크기를 읽는다.
+ */
+const readCameraPadding = (map: KakaoMapInstance): CameraPadding => {
+  if (typeof document === 'undefined') {
+    return {
+      top: MIN_CAMERA_PADDING,
+      right: MIN_CAMERA_PADDING,
+      bottom: MIN_CAMERA_PADDING,
+      left: MIN_CAMERA_PADDING,
+    }
+  }
+
+  const mapRect = map.getNode().getBoundingClientRect()
+  const overlays = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-map-overlay="true"]'),
+  ).flatMap(element => {
+    const rect = element.getBoundingClientRect()
+
+    if (rect.width === 0 || rect.height === 0) return []
+
+    return [
+      {
+        left: rect.left - mapRect.left,
+        top: rect.top - mapRect.top,
+        right: rect.right - mapRect.left,
+        bottom: rect.bottom - mapRect.top,
+      },
+    ]
+  })
+
+  return resolveCameraPadding(
+    { width: mapRect.width, height: mapRect.height },
+    overlays,
+  )
+}
+
+const applyCameraTarget = (
   maps: KakaoMapsNamespace,
   map: KakaoMapInstance,
-  points: readonly MapPoint[],
+  target: MapCameraTarget | null,
 ) => {
-  const targetPoints = points.length > 0 ? points : SEOUL_BOUNDS
+  // `keep` 은 「지금 보고 있는 화면을 그대로 둔다」다. 추천 결과가 0건일 때
+  // 행정동으로 확대하거나 서울 전역으로 튕기면, 사용자는 자기가 보던 화면을 잃는다.
+  if (!target || target.kind === 'keep') return
+
+  // 아직 아무것도 안 골랐으면 맞출 대상이 없다. 예전에는 서울 전역 bbox 에
+  // 억지로 fit 해서 level 9 / 중심 (37.564, 127.001) 로 밀렸는데, 상권분석은
+  // 같은 상황에서 기본 카메라(level 8 / 서울시청)를 그대로 둔다. 첫 진입 화면이
+  // 두 페이지에서 달라 보이던 원인이라 여기서도 기본 카메라로 맞춘다.
+  if (target.kind === 'reset') {
+    map.setCenter(
+      new maps.LatLng(SEOUL_DEFAULT_CAMERA.lat, SEOUL_DEFAULT_CAMERA.lng),
+    )
+    map.setLevel(SEOUL_DEFAULT_CAMERA.level)
+    return
+  }
+
+  const { points } = target
   const bounds = new maps.LatLngBounds()
 
-  targetPoints.forEach(point => {
+  points.forEach(point => {
     bounds.extend(new maps.LatLng(point.lat, point.lng))
   })
-  map.setBounds(bounds)
 
-  if (targetPoints.length === 1) {
-    map.setCenter(new maps.LatLng(targetPoints[0].lat, targetPoints[0].lng))
+  const padding = readCameraPadding(map)
+  map.setBounds(
+    bounds,
+    padding.top,
+    padding.right,
+    padding.bottom,
+    padding.left,
+  )
+
+  if (points.length === 1) {
+    map.setCenter(new maps.LatLng(points[0].lat, points[0].lng))
   }
 }
 
@@ -437,6 +526,8 @@ export default function RecommendMap({
   selectedDistrictCode,
   selectedAdministrationCode,
   selectedCommercialCode,
+  isResultSelectionExplicit = false,
+  isResultsLoading = false,
   previewedCommercialCode = null,
   onDistrictSelect,
   onAdministrationSelect,
@@ -450,9 +541,10 @@ export default function RecommendMap({
   const mapsRef = useRef<KakaoMapsNamespace | null>(null)
   const clearLayersRef = useRef<() => void>(() => undefined)
   const resultLayersRef = useRef<ResultLayerVisualEntry[]>([])
-  const resultLayerColorsRef = useRef({
-    primary: '#3182f6',
-    selected: '#2272eb',
+  const resultLayerTokensRef = useRef<AreaPolygonStyleTokens>({
+    baseStroke: '#2272eb',
+    activeStroke: '#2272eb',
+    fill: '#2272eb',
   })
   const selectedCommercialCodeRef = useRef(selectedCommercialCode)
   const previewedCommercialCodeRef = useRef(previewedCommercialCode)
@@ -476,12 +568,16 @@ export default function RecommendMap({
   })
   const guardRef = useRef<BackgroundClickGuard | null>(null)
   const lastViewportBoundsKeyRef = useRef('')
-  const fitPointsRef = useRef<readonly MapPoint[]>(SEOUL_BOUNDS)
+  const cameraTargetRef = useRef<MapCameraTarget | null>(null)
   const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   )
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [hoveredAreaCode, setHoveredAreaCode] = useState<string | null>(null)
+  const hoveredAreaCodeRef = useRef<string | null>(null)
+  hoveredAreaCodeRef.current = hoveredAreaCode
+  // 현재 단계 레이어들의 호버 하이라이트 적용 함수. 레이어를 다시 그릴 때 교체된다.
+  const stageHighlightsRef = useRef<Array<(hovered: string | null) => void>>([])
 
   callbacksRef.current = {
     onBackgroundClick,
@@ -514,16 +610,22 @@ export default function RecommendMap({
   const selectedDistrict = districtAreas.find(
     area => area.areaCode === selectedDistrictCode,
   )
-  const fitPoints =
-    getResultPoints(selectedResult) ??
-    getAreaPoints(selectedAdministration) ??
-    getAreaPoints(selectedDistrict) ??
-    SEOUL_BOUNDS
-  const fitPointsKey = JSON.stringify(fitPoints)
+  const cameraTarget = resolveRecommendCameraTarget({
+    stage,
+    isResultsLoading,
+    // 결과 도착 시 자동 선택된 1위로 카메라를 당기면 나머지 추천이 화면 밖으로 밀린다.
+    selectedResultPoints: isResultSelectionExplicit
+      ? getResultPoints(selectedResult)
+      : null,
+    resultPoints: collectResultCameraPoints(resultAreas),
+    administrationPoints: getAreaPoints(selectedAdministration),
+    districtPoints: getAreaPoints(selectedDistrict),
+  })
+  const cameraTargetKey = JSON.stringify(cameraTarget)
   const layerSemanticKey = createRecommendMapLayerSemanticKey(
     layerInputRef.current,
   )
-  fitPointsRef.current = fitPoints
+  cameraTargetRef.current = cameraTarget
 
   useEffect(() => {
     let cancelled = false
@@ -540,8 +642,11 @@ export default function RecommendMap({
         const map =
           mapRef.current ??
           new maps.Map(containerRef.current, {
-            center: new maps.LatLng(SEOUL_CENTER.lat, SEOUL_CENTER.lng),
-            level: 8,
+            center: new maps.LatLng(
+              SEOUL_DEFAULT_CAMERA.lat,
+              SEOUL_DEFAULT_CAMERA.lng,
+            ),
+            level: SEOUL_DEFAULT_CAMERA.level,
           })
         mapRef.current = map
         mapClickHandler = () => {
@@ -601,7 +706,9 @@ export default function RecommendMap({
       if (!maps) return
 
       map.relayout()
-      setMapBounds(maps, map, fitPointsRef.current)
+      // 맞출 대상이 없을 때는 건드리지 않는다 — 사용자가 옮겨 둔 화면을
+      // 창 크기 변화만으로 기본 카메라로 되돌리면 안 된다.
+      applyCameraTarget(maps, map, cameraTargetRef.current)
     })
     if (containerRef.current) observer.observe(containerRef.current)
 
@@ -620,19 +727,23 @@ export default function RecommendMap({
     const overlays: KakaoMapCustomOverlay[] = []
     const kakaoListeners: Array<{
       target: object
+      type: 'click' | 'mouseover' | 'mouseout'
       handler: () => void
     }> = []
     const domCleanups: Array<() => void> = []
     const polygonLayerCleanups: Array<() => void> = []
+    stageHighlightsRef.current = []
     const resultLayerEntries: ResultLayerVisualEntry[] = []
-    const selectedColor = readColorToken('--color-primary-600', '#2272eb')
-    const primaryColor = readColorToken('--color-primary-500', '#3182f6')
+    // 지도 위 파랑은 primary-600 하나로 통일한다(상권분석 지도와 동일).
+    // 예전에는 결과 단계가 미정의 토큰 --color-primary-500 을 읽어 폴백 #3182f6 으로,
+    // 단계 폴리곤은 primary-700 으로 칠해져 한 화면에 파랑이 셋이었다.
+    const mapPrimaryColor = readColorToken('--color-primary-600', '#2272eb')
     const neutralStroke = readColorToken('--color-border-300', '#d1d6db')
     const neutralFill = readColorToken('--color-surface-muted', '#f2f4f6')
     const areaPolygonTokens = {
-      baseStroke: readColorToken('--color-primary-700', '#0ea5e9'),
-      activeStroke: readColorToken('--color-primary-600', '#2272eb'),
-      fill: readColorToken('--color-primary-700', '#0ea5e9'),
+      baseStroke: mapPrimaryColor,
+      activeStroke: mapPrimaryColor,
+      fill: mapPrimaryColor,
     }
 
     const suppressBackground = () => {
@@ -648,6 +759,7 @@ export default function RecommendMap({
       fillColor,
       fillOpacity,
       onClick,
+      onHoverChange,
     }: {
       points: readonly MapPoint[]
       zIndex: number
@@ -656,6 +768,7 @@ export default function RecommendMap({
       fillColor: string
       fillOpacity: number
       onClick?: () => void
+      onHoverChange?: (hovered: boolean) => void
     }): KakaoMapPolygon | null => {
       if (points.length < 3) return null
 
@@ -667,7 +780,7 @@ export default function RecommendMap({
         strokeOpacity: 1,
         fillColor,
         fillOpacity,
-        clickable: Boolean(onClick),
+        clickable: Boolean(onClick || onHoverChange),
       })
       polygon.setZIndex(zIndex)
       polygons.push(polygon)
@@ -678,7 +791,18 @@ export default function RecommendMap({
           onClick()
         }
         maps.event.addListener(polygon, 'click', handler)
-        kakaoListeners.push({ target: polygon, handler })
+        kakaoListeners.push({ target: polygon, type: 'click', handler })
+      }
+
+      if (onHoverChange) {
+        const overHandler = () => onHoverChange(true)
+        const outHandler = () => onHoverChange(false)
+        maps.event.addListener(polygon, 'mouseover', overHandler)
+        maps.event.addListener(polygon, 'mouseout', outHandler)
+        kakaoListeners.push(
+          { target: polygon, type: 'mouseover', handler: overHandler },
+          { target: polygon, type: 'mouseout', handler: outHandler },
+        )
       }
 
       return polygon
@@ -701,18 +825,48 @@ export default function RecommendMap({
       })
     }
 
+    // 한 단계의 면(폴리곤)과 이름표(뱃지)를 함께 그린다. 면만 있으면 어느
+    // 폴리곤이 어디인지 지도만 보고는 알 수 없고, 뱃지는 폴리곤 클릭이 닿지
+    // 않는 키보드 사용자에게 유일한 선택 수단이기도 하다.
+    const drawSelectableAreas = (
+      areas: readonly AreaBoundaryItem[],
+      selectedCode: string | null,
+      onSelect: (code: string) => void,
+    ) => {
+      const polygonHandle = drawAreaPolygonLayer({
+        map,
+        maps,
+        areas,
+        selectedCode,
+        hoveredCode: hoveredAreaCodeRef.current,
+        onSelect,
+        onHoverChange: setHoveredAreaCode,
+        tokens: areaPolygonTokens,
+      })
+      const labelHandle = drawAreaLabelLayer({
+        map,
+        maps,
+        areas,
+        selectedCode,
+        previewedCode: hoveredAreaCodeRef.current,
+        onSelect,
+        onPreviewChange: setHoveredAreaCode,
+        onBeforeSelect: suppressBackground,
+      })
+      polygonLayerCleanups.push(polygonHandle.cleanup, labelHandle.cleanup)
+      // 선택이 바뀌면 layerSemanticKey 가 바뀌어 레이어를 통째로 다시 그린다.
+      // 여기서 갱신하는 건 호버/포커스뿐이라 selectedCode 는 닫아 두면 된다.
+      stageHighlightsRef.current.push(hovered => {
+        polygonHandle.setHighlight({ selectedCode, hoveredCode: hovered })
+        labelHandle.setHighlight({ selectedCode, previewedCode: hovered })
+      })
+    }
+
     if (layerInput.stage === 'district') {
-      polygonLayerCleanups.push(
-        drawAreaPolygonLayer({
-          map,
-          maps,
-          areas: layerInput.districtAreas,
-          selectedCode: layerInput.selectedDistrictCode,
-          hoveredCode: hoveredAreaCode,
-          onSelect: code => callbacksRef.current.onDistrictSelect(code),
-          onHoverChange: setHoveredAreaCode,
-          tokens: areaPolygonTokens,
-        }).cleanup,
+      drawSelectableAreas(
+        layerInput.districtAreas,
+        layerInput.selectedDistrictCode,
+        code => callbacksRef.current.onDistrictSelect(code),
       )
     }
 
@@ -722,17 +876,10 @@ export default function RecommendMap({
           area => area.areaCode === layerInput.selectedDistrictCode,
         ),
       )
-      polygonLayerCleanups.push(
-        drawAreaPolygonLayer({
-          map,
-          maps,
-          areas: layerInput.administrationAreas,
-          selectedCode: layerInput.selectedAdministrationCode,
-          hoveredCode: hoveredAreaCode,
-          onSelect: code => callbacksRef.current.onAdministrationSelect(code),
-          onHoverChange: setHoveredAreaCode,
-          tokens: areaPolygonTokens,
-        }).cleanup,
+      drawSelectableAreas(
+        layerInput.administrationAreas,
+        layerInput.selectedAdministrationCode,
+        code => callbacksRef.current.onAdministrationSelect(code),
       )
     }
 
@@ -742,17 +889,10 @@ export default function RecommendMap({
           area => area.areaCode === layerInput.selectedAdministrationCode,
         ),
       )
-      polygonLayerCleanups.push(
-        drawAreaPolygonLayer({
-          map,
-          maps,
-          areas: layerInput.commercialAreas,
-          selectedCode: selectedCommercialCodeRef.current,
-          hoveredCode: hoveredAreaCode,
-          onSelect: code => callbacksRef.current.onCommercialSelect(code),
-          onHoverChange: setHoveredAreaCode,
-          tokens: areaPolygonTokens,
-        }).cleanup,
+      drawSelectableAreas(
+        layerInput.commercialAreas,
+        selectedCommercialCodeRef.current,
+        code => callbacksRef.current.onCommercialSelect(code),
       )
     }
 
@@ -761,7 +901,7 @@ export default function RecommendMap({
         layerInput.administrationAreas.find(
           area => area.areaCode === layerInput.selectedAdministrationCode,
         ),
-        getResultContextPolygonStyle(selectedColor),
+        getResultContextPolygonStyle(neutralStroke),
       )
       const orderedResults = getResultDrawingOrder(
         layerInput.resultAreas,
@@ -770,15 +910,26 @@ export default function RecommendMap({
       )
 
       orderedResults.forEach((area, index) => {
+        const defaultStyle = getResultPolygonStyle(
+          area,
+          'default',
+          areaPolygonTokens,
+          0,
+        )
         const polygon = drawPolygon({
           points: normalizeBoundary(area.boundaryCoords),
           zIndex: index + 10,
-          strokeColor: primaryColor,
-          strokeWeight: 1,
-          fillColor: primaryColor,
-          fillOpacity: getScoreFillOpacity(area.compositeScore, area.rank),
+          strokeColor: defaultStyle.strokeColor,
+          strokeWeight: defaultStyle.strokeWeight,
+          fillColor: defaultStyle.fillColor,
+          fillOpacity: defaultStyle.fillOpacity,
           onClick: () =>
             callbacksRef.current.onCommercialSelect(area.commercialCode),
+          // 순위 마커에만 있던 preview 를 폴리곤 본체에도 연다(단계 폴리곤과 동일).
+          onHoverChange: hovered =>
+            callbacksRef.current.onCommercialPreviewChange?.(
+              hovered ? area.commercialCode : null,
+            ),
         })
         const entry: ResultLayerVisualEntry = {
           item: area,
@@ -840,27 +991,24 @@ export default function RecommendMap({
         entry.overlay = overlay
       })
       resultLayersRef.current = resultLayerEntries
-      resultLayerColorsRef.current = {
-        primary: primaryColor,
-        selected: selectedColor,
-      }
+      resultLayerTokensRef.current = areaPolygonTokens
       updateResultLayerPreviewVisuals(
         resultLayerEntries,
         selectedCommercialCodeRef.current,
         previewedCommercialCodeRef.current,
-        primaryColor,
-        selectedColor,
+        areaPolygonTokens,
       )
     } else {
       resultLayersRef.current = []
     }
 
     const clearLayers = () => {
-      kakaoListeners.forEach(({ target, handler }) => {
-        maps.event.removeListener(target, 'click', handler)
+      kakaoListeners.forEach(({ target, type, handler }) => {
+        maps.event.removeListener(target, type, handler)
       })
       domCleanups.forEach(cleanup => cleanup())
       polygonLayerCleanups.forEach(cleanup => cleanup())
+      stageHighlightsRef.current = []
       polygons.forEach(polygon => polygon.setMap(null))
       overlays.forEach(overlay => overlay.setMap(null))
       if (resultLayersRef.current === resultLayerEntries) {
@@ -875,31 +1023,37 @@ export default function RecommendMap({
         clearLayersRef.current = () => undefined
       }
     }
-  }, [hoveredAreaCode, layerSemanticKey, sdkStatus])
+  }, [layerSemanticKey, sdkStatus])
+
+  // 호버·포커스는 레이어를 다시 그리지 않고 증분 적용한다. 예전에는
+  // `hoveredAreaCode` 가 위 이펙트의 의존성이라 호버 한 번에 레이어가 통째로
+  // 새로 그려졌다 — 이름 뱃지는 <button> 이라, 키보드로 탭해 들어간 순간
+  // 포커스가 preview 를 켜고 그 버튼이 파괴되며 포커스를 잃는다.
+  useEffect(() => {
+    stageHighlightsRef.current.forEach(apply => apply(hoveredAreaCode))
+  }, [hoveredAreaCode])
 
   useEffect(() => {
     const maps = mapsRef.current
     const map = mapRef.current
     if (sdkStatus === 'ready' && maps && map) {
-      setMapBounds(maps, map, fitPointsRef.current)
+      applyCameraTarget(maps, map, cameraTargetRef.current)
     }
-  }, [fitPointsKey, sdkStatus])
+  }, [cameraTargetKey, sdkStatus])
 
   useEffect(() => {
-    const colors = resultLayerColorsRef.current
     updateResultLayerPreviewVisuals(
       resultLayersRef.current,
       selectedCommercialCode,
       previewedCommercialCode,
-      colors.primary,
-      colors.selected,
+      resultLayerTokensRef.current,
     )
   }, [previewedCommercialCode, selectedCommercialCode])
 
   const recenter = () => {
     const maps = mapsRef.current
     const map = mapRef.current
-    if (maps && map) setMapBounds(maps, map, fitPointsRef.current)
+    if (maps && map) applyCameraTarget(maps, map, cameraTargetRef.current)
   }
 
   return (
@@ -909,7 +1063,6 @@ export default function RecommendMap({
         data-recommend-map-container="true"
         data-kakao-map="true"
       />
-      <Badge>추천 범위 고정</Badge>
       <RecenterButton
         type="button"
         disabled={sdkStatus !== 'ready'}

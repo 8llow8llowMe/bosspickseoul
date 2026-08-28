@@ -27,7 +27,9 @@ describe('createInitialRecommendationState', () => {
       },
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
+      resultSelectionSource: null,
       sheetSnap: 'expanded',
     })
   })
@@ -42,6 +44,44 @@ describe('createStableCommercialCodes', () => {
 })
 
 describe('recommendationReducer', () => {
+  it('행정동을 고르면 업종 선택 뷰를 바로 연다 — 업종은 지도에 없다', () => {
+    const state = recommendationReducer(createInitialRecommendationState(), {
+      type: 'districtSelected',
+      district: { code: '11680', name: '강남구' },
+    })
+
+    const next = recommendationReducer(state, {
+      type: 'administrationSelected',
+      administration: { code: '11680650', name: '역삼2동' },
+    })
+
+    expect(next.view).toBe('picker')
+    expect(next.pickerStep).toBe('service')
+    // 목록이 길어 접힌 시트에서 열면 아무것도 안 보인다.
+    expect(next.sheetSnap).toBe('expanded')
+  })
+
+  it('업종을 이미 골랐으면 행정동을 바꿔도 선택 뷰를 열지 않는다', () => {
+    const withService = recommendationReducer(
+      recommendationReducer(createInitialRecommendationState(), {
+        type: 'districtSelected',
+        district: { code: '11680', name: '강남구' },
+      }),
+      {
+        type: 'serviceSelected',
+        service: { code: 'CS100010', name: '커피-음료' },
+      },
+    )
+
+    const next = recommendationReducer(withService, {
+      type: 'administrationSelected',
+      administration: { code: '11680650', name: '역삼2동' },
+    })
+
+    expect(next.view).toBe('criteria')
+    expect(next.pickerStep).toBeNull()
+  })
+
   it('keeps the service while resetting district-dependent state', () => {
     const initial: RecommendationState = {
       ...readyState(),
@@ -54,6 +94,7 @@ describe('recommendationReducer', () => {
         requestKey: 'existing-request',
       },
       view: 'results',
+      pickerStep: null,
       selectedCommercialCode: '3110008',
       sheetSnap: 'collapsed',
     }
@@ -71,7 +112,9 @@ describe('recommendationReducer', () => {
       },
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
+      resultSelectionSource: null,
       sheetSnap: 'expanded',
     })
   })
@@ -88,6 +131,7 @@ describe('recommendationReducer', () => {
         requestKey: 'existing-request',
       },
       view: 'results',
+      pickerStep: null,
       selectedCommercialCode: '3110008',
       sheetSnap: 'collapsed',
     }
@@ -105,6 +149,7 @@ describe('recommendationReducer', () => {
       },
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
       sheetSnap: 'expanded',
     })
@@ -122,6 +167,7 @@ describe('recommendationReducer', () => {
         requestKey: 'existing-request',
       },
       view: 'results',
+      pickerStep: null,
       selectedCommercialCode: '3110008',
       sheetSnap: 'collapsed',
     }
@@ -199,6 +245,7 @@ describe('recommendationReducer', () => {
       }),
     ).toMatchObject({
       selectedCommercialCode: '3110008',
+      resultSelectionSource: 'auto',
       sheetSnap: 'expanded',
     })
     expect(
@@ -209,8 +256,32 @@ describe('recommendationReducer', () => {
       }),
     ).toMatchObject({
       selectedCommercialCode: null,
+      resultSelectionSource: 'auto',
       sheetSnap: 'expanded',
     })
+  })
+
+  // 자동 선택된 1위로 카메라를 당기면 나머지 추천이 화면 밖으로 밀린다.
+  // 지도가 상권 하나로 좁혀지는 것은 사용자가 직접 골랐을 때뿐이어야 한다.
+  it('marks who picked the result so the camera can tell them apart', () => {
+    const state = recommendationReducer(readyState(), {
+      type: 'submitted',
+      commercialCodes: ['3110008', '3110009'],
+    })
+    const requestKey = state.submitted?.requestKey ?? ''
+    const autoSelected = recommendationReducer(state, {
+      type: 'resultsLoaded',
+      requestKey,
+      commercialCode: '3110008',
+    })
+
+    expect(autoSelected.resultSelectionSource).toBe('auto')
+    expect(
+      recommendationReducer(autoSelected, {
+        type: 'resultSelected',
+        commercialCode: '3110009',
+      }).resultSelectionSource,
+    ).toBe('user')
   })
 
   it('ignores a stale results response after returning to criteria', () => {
@@ -347,7 +418,9 @@ describe('recommendationReducer', () => {
       draft: readyState().draft,
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
+      resultSelectionSource: null,
       sheetSnap: 'expanded',
     })
   })

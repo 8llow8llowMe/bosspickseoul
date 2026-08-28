@@ -4,13 +4,19 @@ import type { Ref } from 'react'
 import styled, { css, keyframes } from 'styled-components'
 import type { NormalizedApiError } from '@/lib/api/api-error'
 import type {
+  RecommendConditionStep,
   RecommendationCriteria,
-  RecommendationOption,
   RecommendationView,
   SubmittedRecommendation,
 } from '@/lib/recommend/recommend-state'
-import type { AdministrationArea, CandidateCommercial } from '@/types/recommend'
+import type { OptionGroup, OptionItem } from '@/components/ui/option-picker'
+import type {
+  AdministrationArea,
+  CandidateCommercial,
+  RecommendationBasis,
+} from '@/types/recommend'
 import RecommendConditionForm from './recommend-condition-form'
+import RecommendConditionPicker from './recommend-condition-picker'
 import RecommendFeedback from './recommend-feedback'
 import RecommendResultList, {
   type RecommendResultFeedback,
@@ -24,6 +30,8 @@ export type RecommendPanelProps = {
   administrations: AdministrationArea[]
   candidatesCount: number
   results: CandidateCommercial[]
+  /** 서버가 정한 추천 기준(프리셋·우선 지표·요약). 못 읽으면 `null`. */
+  recommendationBasis?: RecommendationBasis | null
   selectedCommercialCode: string | null
   previewedCommercialCode?: string | null
   periodLabel: string
@@ -36,9 +44,15 @@ export type RecommendPanelProps = {
   bookmarkError?: string | null
   isBookmarked?: (commercialCode: string) => boolean
   isBookmarkPending?: (commercialCode: string) => boolean
-  onDistrictChange: (district: RecommendationOption) => void
-  onAdministrationChange: (administration: RecommendationOption) => void
-  onServiceChange: (service: RecommendationOption) => void
+  /** `view === 'picker'` 일 때 어느 조건을 고르는 중인지. */
+  pickerStep?: RecommendConditionStep | null
+  /** 선택 뷰가 보여줄 항목. 지역은 평면, 업종은 그룹으로 온다. */
+  pickerItems?: readonly OptionItem[]
+  pickerGroups?: readonly OptionGroup[]
+  onOpenStep: (step: RecommendConditionStep) => void
+  onClosePicker: () => void
+  onPickerPreviewChange?: (code: string | null) => void
+  onPickerSelect: (code: string) => void
   onSubmit: () => void
   onEdit: () => void
   onResultSelect: (commercialCode: string) => void
@@ -163,6 +177,49 @@ const Period = styled.p`
   line-height: 20px;
 `
 
+/* 서버가 정한 추천 기준. 사용자가 고른 조건(SubmittedSummary)과 시각적으로
+   구분돼야 한다 — 같은 칩으로 그리면 사용자가 고른 것처럼 읽힌다. */
+const Basis = styled.section`
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius-field);
+  background: var(--color-surface-muted);
+`
+
+const BasisTitle = styled.h3`
+  color: var(--color-text-700);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+`
+
+const BasisList = styled.dl`
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: baseline;
+
+  dt {
+    color: var(--color-text-caption);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  dd {
+    color: var(--color-text-900);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
+  }
+`
+
+const BasisNote = styled.p`
+  color: var(--color-text-600);
+  font-size: 12px;
+  line-height: 18px;
+`
+
 export default function RecommendPanel({
   variant = 'desktop',
   view,
@@ -171,6 +228,7 @@ export default function RecommendPanel({
   administrations,
   candidatesCount,
   results,
+  recommendationBasis,
   selectedCommercialCode,
   previewedCommercialCode,
   periodLabel,
@@ -183,9 +241,13 @@ export default function RecommendPanel({
   bookmarkError,
   isBookmarked,
   isBookmarkPending,
-  onDistrictChange,
-  onAdministrationChange,
-  onServiceChange,
+  pickerStep,
+  pickerItems,
+  pickerGroups,
+  onOpenStep,
+  onClosePicker,
+  onPickerPreviewChange,
+  onPickerSelect,
   onSubmit,
   onEdit,
   onResultSelect,
@@ -210,19 +272,40 @@ export default function RecommendPanel({
             <Heading>어디에 어떤 가게를 열까요?</Heading>
           </Header>
           <RecommendConditionForm
-            administrations={administrations}
+            administrationsCount={administrations.length}
             administrationsError={administrationsError}
             candidatesCount={candidatesCount}
             candidatesError={candidatesError}
             draft={draft}
             isAdministrationsLoading={isAdministrationsLoading}
             isCandidatesLoading={isCandidatesLoading}
-            onAdministrationChange={onAdministrationChange}
-            onDistrictChange={onDistrictChange}
+            onOpenStep={onOpenStep}
             onRetryAdministrations={onRetryAdministrations}
             onRetryCandidates={onRetryCandidates}
-            onServiceChange={onServiceChange}
             onSubmit={onSubmit}
+          />
+        </Content>
+      </Surface>
+    )
+  }
+
+  if (view === 'picker' && pickerStep) {
+    return (
+      <Surface $variant={variant}>
+        <Content
+          data-panel-transition-key={transitionKey}
+          data-panel-view="picker"
+          key={transitionKey}
+        >
+          <RecommendConditionPicker
+            groups={pickerGroups}
+            items={pickerItems}
+            selectedCode={draft[pickerStep]?.code ?? null}
+            step={pickerStep}
+            variant={variant}
+            onClose={onClosePicker}
+            onPreviewChange={onPickerPreviewChange}
+            onSelect={onPickerSelect}
           />
         </Content>
       </Surface>
@@ -270,6 +353,30 @@ export default function RecommendPanel({
             <SummaryItem>{submitted.service.name}</SummaryItem>
           </SubmittedSummary>
           <Period>{periodLabel}</Period>
+          {recommendationBasis ? (
+            <Basis aria-label="추천 기준">
+              <BasisTitle>이 순서를 정한 기준</BasisTitle>
+              <BasisList>
+                {recommendationBasis.presetName ? (
+                  <>
+                    <dt>추천 성향</dt>
+                    <dd>{recommendationBasis.presetName}</dd>
+                  </>
+                ) : null}
+                {recommendationBasis.priorityMetricName ? (
+                  <>
+                    <dt>우선 지표</dt>
+                    <dd>{recommendationBasis.priorityMetricName}</dd>
+                  </>
+                ) : null}
+              </BasisList>
+              {recommendationBasis.priorityMetricDescription ? (
+                <BasisNote>
+                  {recommendationBasis.priorityMetricDescription}
+                </BasisNote>
+              ) : null}
+            </Basis>
+          ) : null}
         </Header>
         {bookmarkError ? (
           <RecommendFeedback

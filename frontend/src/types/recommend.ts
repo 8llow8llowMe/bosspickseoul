@@ -99,6 +99,19 @@ export type CandidateCommercials = {
   items: CandidateCommercial[]
 }
 
+/**
+ * 서버가 정한 추천 기준. 사용자가 고르지 않고 응답에 실려 온다 —
+ * Top N 순위를 정한 근거라서 화면에 그대로 보여 준다.
+ * 읽지 못한 조각은 `null` 이고, 그 조각만 화면에서 빠진다.
+ */
+export type RecommendationBasis = {
+  presetName: string | null
+  presetDescription: string | null
+  priorityMetricName: string | null
+  priorityMetricDescription: string | null
+  summary: string | null
+}
+
 export type CommercialProfile = {
   commercialCode: string
   commercialName: string

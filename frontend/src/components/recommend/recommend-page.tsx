@@ -18,6 +18,8 @@ import {
 import styled from 'styled-components'
 
 import { districts } from '@/data/districts'
+import { simulationCatalog } from '@/data/simulation-catalog'
+import type { OptionGroup, OptionItem } from '@/components/ui/option-picker'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import {
@@ -34,6 +36,7 @@ import {
 } from '@/lib/api/recommend'
 import {
   buildRecommendationMapItems,
+  buildResultBoundaryBounds,
   filterAreasByCodes,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
@@ -41,6 +44,7 @@ import {
   createInitialRecommendationState,
   formatRecommendationPeriod,
   recommendationReducer,
+  type RecommendConditionStep,
   type RecommendationOption,
   type RecommendationView,
 } from '@/lib/recommend/recommend-state'
@@ -65,6 +69,7 @@ import type {
   GeoBounds,
   MetricBreakdownItem,
   MapAreasResponse,
+  RecommendationBasis,
   ScoreMetricMetadata,
 } from '@/types/recommend'
 
@@ -316,6 +321,51 @@ const normalizeCandidateCommercial = (
     // 백엔드가 산정에 실패하면 빈 목록으로 강등하는 계약이라 `null`·`[]`는 오류가 아니다.
     blueOceanCategories: readBlueOceanCategories(item.blueOceanCategories),
   }
+}
+
+/**
+ * 추천 기준(프리셋·우선 지표·요약)을 응답에서 꺼낸다.
+ *
+ * 이 셋은 **Top N 순위를 정한 근거 자체**인데 사용자가 고르지 않는다 — 서버가
+ * 정해서 응답에 실어 준다. 화면에 안 그리면 사용자는 왜 이 순서인지 모른 채
+ * 순위만 보게 되고, 카드의 `selectionReason`("공격형 기준으로 …")에 나오는
+ * "공격형"이 무슨 말인지 설명할 자리가 사라진다.
+ *
+ * 백엔드가 필드를 비우거나 형태가 어긋나면 그 조각만 버린다 — 기준을 못 읽는 건
+ * 결과를 못 읽는 것과 다르고, 순위 자체는 그대로 쓸 수 있어야 한다.
+ */
+const readMetadataText = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+
+  return trimmed.length > 0 ? trimmed : null
+}
+
+const readMetadataField = (value: unknown, field: string): string | null => {
+  if (!value || typeof value !== 'object') return null
+
+  return readMetadataText((value as Record<string, unknown>)[field])
+}
+
+export const normalizeRecommendationBasis = (
+  response: CandidateCommercialsResponse | null | undefined,
+): RecommendationBasis | null => {
+  if (!isSuccessfulApiResponse(response) || !response.dataBody) return null
+
+  const body = response.dataBody as unknown as Record<string, unknown>
+  const basis: RecommendationBasis = {
+    presetName: readMetadataField(body.preset, 'name'),
+    presetDescription: readMetadataField(body.preset, 'description'),
+    priorityMetricName: readMetadataField(body.priorityMetric, 'name'),
+    priorityMetricDescription: readMetadataField(
+      body.priorityMetric,
+      'description',
+    ),
+    summary: readMetadataText(body.summary),
+  }
+
+  // 한 조각도 못 읽으면 그릴 게 없다 — 빈 껍데기를 렌더하지 않는다.
+  return Object.values(basis).some(value => value !== null) ? basis : null
 }
 
 export const normalizeRecommendationResults = (
@@ -886,6 +936,10 @@ export default function RecommendPage() {
       ),
     [recommendationQuery.data, state.submitted?.commercialCodes],
   )
+  const recommendationBasis = useMemo(
+    () => normalizeRecommendationBasis(recommendationQuery.data),
+    [recommendationQuery.data],
+  )
   const profileScope = useMemo<CommercialProfileScope>(
     () => ({
       districtCode: state.submitted?.district.code ?? '',
@@ -922,9 +976,65 @@ export default function RecommendPage() {
     })),
     combine: combineProfiles,
   })
+  const resultCommercialCodes = useMemo(
+    () => results.map(result => String(result.commercialCode)),
+    [results],
+  )
+  // 결과 상권의 경계는 profile 이 주지 않는다(`boundaryCoords: []`). 뷰포트 질의만
+  // 경계를 주므로, 결과 중심점을 감싸는 **고정 bbox** 로 한 번 더 받아 캐시한다.
+  // 지도 뷰포트에 묶지 않는 것이 핵심 — 묶으면 패닝할 때마다 폴리곤이 깜빡인다.
+  const resultBoundaryBounds = useMemo(() => {
+    const centersByCode = new Map(
+      commercials.map(commercial => [
+        String(commercial.commercialCode),
+        commercial,
+      ]),
+    )
+
+    return buildResultBoundaryBounds(
+      resultCommercialCodes.flatMap(code => {
+        const commercial = centersByCode.get(code)
+
+        return commercial
+          ? [
+              {
+                centerLng: commercial.centerLng,
+                centerLat: commercial.centerLat,
+              },
+            ]
+          : []
+      }),
+    )
+  }, [commercials, resultCommercialCodes])
+  const resultBoundaryQuery = useQuery({
+    queryKey: [
+      'recommend',
+      'map',
+      'result-boundaries',
+      resultCommercialCodes.join(','),
+      resultBoundaryBounds,
+    ],
+    queryFn: () => fetchCommercialMapAreas(resultBoundaryBounds!),
+    enabled: mapStage === 'results' && resultBoundaryBounds !== null,
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+  const resultBoundaries = useMemo(
+    () =>
+      filterAreasByCodes(
+        readMapAreas(resultBoundaryQuery.data),
+        resultCommercialCodes,
+      ),
+    [resultBoundaryQuery.data, resultCommercialCodes],
+  )
   const resultAreas = useMemo(
-    () => buildRecommendationMapItems(results, profiles, commercials),
-    [commercials, profiles, results],
+    () =>
+      buildRecommendationMapItems(
+        results,
+        profiles,
+        commercials,
+        resultBoundaries,
+      ),
+    [commercials, profiles, resultBoundaries, results],
   )
 
   useEffect(() => {
@@ -1278,6 +1388,76 @@ export default function RecommendPage() {
     isFetching: recommendationQuery.isFetching,
   })
 
+  const pickerStep = state.pickerStep
+  // 선택 뷰 항목은 **완전 목록**에서만 온다. 지도 영역 질의(/map/**)는 뷰포트
+  // 기반이라 화면 밖 지역이 빠지고, 그걸 목록으로 쓰면 도달 불가능한 선택지가
+  // 생긴다(condition-selector 명세 D5-2).
+  const pickerItems = useMemo<OptionItem[] | undefined>(() => {
+    if (pickerStep === 'district') {
+      return districts.map(district => ({
+        code: String(district.gooCode),
+        name: district.gooName,
+      }))
+    }
+    if (pickerStep === 'administration') {
+      return administrations.map(administration => ({
+        code: String(administration.administrationCode),
+        name: administration.administrationName,
+      }))
+    }
+
+    return undefined
+  }, [administrations, pickerStep])
+
+  const pickerGroups = useMemo<OptionGroup[] | undefined>(
+    () =>
+      pickerStep === 'service'
+        ? Object.entries(simulationCatalog).map(([label, services]) => ({
+            label,
+            items: services.map(service => ({
+              code: service.code,
+              name: service.name,
+            })),
+          }))
+        : undefined,
+    [pickerStep],
+  )
+
+  const handleOpenStep = useCallback((step: RecommendConditionStep) => {
+    dispatch({ type: 'pickerOpened', step })
+  }, [])
+
+  const handleClosePicker = useCallback(() => {
+    dispatch({ type: 'pickerClosed' })
+  }, [])
+
+  const handlePickerSelect = useCallback(
+    (code: string) => {
+      if (pickerStep === 'district') {
+        handleMapDistrictSelect(code)
+        return
+      }
+      if (pickerStep === 'administration') {
+        handleMapAdministrationSelect(code)
+        return
+      }
+
+      const service = Object.values(simulationCatalog)
+        .flat()
+        .find(item => item.code === code)
+
+      if (service) {
+        handleServiceChange({ code: service.code, name: service.name })
+      }
+    },
+    [
+      handleMapAdministrationSelect,
+      handleMapDistrictSelect,
+      handleServiceChange,
+      pickerStep,
+    ],
+  )
+
   const panelProps = useMemo<RecommendPanelProps>(
     () => ({
       view: state.view,
@@ -1286,6 +1466,13 @@ export default function RecommendPage() {
       administrations,
       candidatesCount: commercials.length,
       results,
+      recommendationBasis,
+      pickerStep,
+      pickerItems,
+      pickerGroups,
+      onOpenStep: handleOpenStep,
+      onClosePicker: handleClosePicker,
+      onPickerSelect: handlePickerSelect,
       selectedCommercialCode: state.selectedCommercialCode,
       previewedCommercialCode,
       periodLabel: formatRecommendationPeriod(
@@ -1308,9 +1495,6 @@ export default function RecommendPage() {
           : null) ?? bookmarksQuery.errorMessage,
       isBookmarked,
       isBookmarkPending,
-      onDistrictChange: handleDistrictChange,
-      onAdministrationChange: handleAdministrationChange,
-      onServiceChange: handleServiceChange,
       onSubmit: handleSubmit,
       onEdit: handleEdit,
       onResultSelect: handleResultSelect,
@@ -1328,13 +1512,10 @@ export default function RecommendPage() {
       bookmarksQuery.errorMessage,
       candidatesError,
       commercials.length,
-      handleAdministrationChange,
       handleBookmarkToggle,
-      handleDistrictChange,
       handleEdit,
       handleResultPreviewChange,
       handleResultSelect,
-      handleServiceChange,
       handleSubmit,
       isAdministrationsBusy,
       isBookmarked,
@@ -1342,6 +1523,13 @@ export default function RecommendPage() {
       isCandidatesBusy,
       isRecommendationBusy,
       memberId,
+      handleClosePicker,
+      handleOpenStep,
+      handlePickerSelect,
+      pickerGroups,
+      pickerItems,
+      pickerStep,
+      recommendationBasis,
       recommendationFeedback,
       recommendationQuery.data,
       previewedCommercialCode,
@@ -1399,6 +1587,14 @@ export default function RecommendPage() {
             administrationAreas={administrationAreas}
             commercialAreas={commercialAreas}
             districtAreas={districtAreas}
+            isResultSelectionExplicit={state.resultSelectionSource === 'user'}
+            // 경계가 도착하기 전에 중심점으로 한 번 맞추고 다시 맞추면 카메라가 두 번
+            // 움직인다. 경계 질의가 끝날 때까지 카메라를 잡아 둔다.
+            isResultsLoading={
+              isRecommendationQueryBusy(recommendationQuery) ||
+              (resultBoundaryBounds !== null &&
+                isRecommendationQueryBusy(resultBoundaryQuery))
+            }
             previewedCommercialCode={previewedCommercialCode}
             resultAreas={resultAreas}
             selectedAdministrationCode={
@@ -1416,7 +1612,10 @@ export default function RecommendPage() {
           />
         </MapSlot>
 
-        <DesktopPanelSlot aria-label="상권 추천 조건과 결과">
+        <DesktopPanelSlot
+          aria-label="상권 추천 조건과 결과"
+          data-map-overlay="true"
+        >
           <RecommendPanel
             {...panelProps}
             resultHeadingRef={desktopResultHeadingRef}

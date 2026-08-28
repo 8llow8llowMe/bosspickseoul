@@ -16,7 +16,18 @@ declare global {
     getLevel(): number
     setLevel(level: number): void
     relayout(): void
-    setBounds(bounds: KakaoMapLatLngBounds): void
+    getNode(): HTMLElement
+    /**
+     * 패딩은 px 단위다. 지도 위에 떠 있는 패널을 피해 카메라를 맞출 때 쓴다.
+     * 생략하면 카카오 기본 여백(32px)이 적용된다.
+     */
+    setBounds(
+      bounds: KakaoMapLatLngBounds,
+      paddingTop?: number,
+      paddingRight?: number,
+      paddingBottom?: number,
+      paddingLeft?: number,
+    ): void
     setCenter(position: KakaoMapLatLng): void
   }
 
