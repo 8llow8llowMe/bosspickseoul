@@ -12,21 +12,28 @@ import {
 } from 'react'
 import styled from 'styled-components'
 
+import {
+  BOTTOM_SHEET_COLLAPSED_HEIGHT,
+  BOTTOM_SHEET_EXPANDED_RATIO,
+  BOTTOM_SHEET_MINIMUM_MAP_HEIGHT,
+  didBottomSheetDrag,
+  getBottomSheetHeightBounds,
+  resolveBottomSheetSnapFromDrag,
+  resolveBottomSheetViewportHeight,
+  shouldSuppressBottomSheetClick,
+} from '@/lib/map/bottom-sheet-state'
 import type {
   RecommendationSheetSnap,
   RecommendationView,
 } from '@/lib/recommend/recommend-state'
-import type { CandidateCommercial } from '@/types/recommend'
 
 export type { RecommendationSheetSnap } from '@/lib/recommend/recommend-state'
 
-export const RECOMMENDATION_SHEET_COLLAPSED_HEIGHT = 44
-export const RECOMMENDATION_SHEET_MINIMUM_MAP_HEIGHT = 180
-export const RECOMMENDATION_SHEET_EXPANDED_RATIO = 0.72
-export const RECOMMENDATION_SHEET_FLING_VELOCITY = 0.45
-
-const RECOMMENDATION_SHEET_DRAG_TOLERANCE = 4
-
+/**
+ * 시트의 규격·스냅 판정은 **`lib/map/bottom-sheet-state` 가 정본이다.** 이 파일이
+ * 자기 복사본을 들고 있던 동안 분석 시트와 접힘 높이(44 vs 72px)·판정이 어긋났다
+ * (ux-followups C). 남은 것은 포인터 캡처·포커스 복원처럼 이 시트만 쓰는 배관이다.
+ */
 export type RecommendationSheetBounds = {
   collapsedHeight: number
   expandedHeight: number
@@ -83,57 +90,6 @@ export const getRecommendationSheetReleaseVelocity = (
   return elapsed > 0 && distance !== 0 ? distance / elapsed : fallbackVelocity
 }
 
-export const getRecommendationSheetBounds = (
-  viewportHeight: number,
-): RecommendationSheetBounds => {
-  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) {
-    return {
-      collapsedHeight: RECOMMENDATION_SHEET_COLLAPSED_HEIGHT,
-      expandedHeight: RECOMMENDATION_SHEET_COLLAPSED_HEIGHT,
-    }
-  }
-
-  return {
-    collapsedHeight: RECOMMENDATION_SHEET_COLLAPSED_HEIGHT,
-    expandedHeight: Math.max(
-      RECOMMENDATION_SHEET_COLLAPSED_HEIGHT,
-      Math.min(
-        viewportHeight * RECOMMENDATION_SHEET_EXPANDED_RATIO,
-        viewportHeight - RECOMMENDATION_SHEET_MINIMUM_MAP_HEIGHT,
-      ),
-    ),
-  }
-}
-
-export const resolveRecommendationSheetSnap = (
-  startSnap: RecommendationSheetSnap,
-  deltaY: number,
-  velocityY: number,
-  bounds: RecommendationSheetBounds,
-): RecommendationSheetSnap => {
-  const availableDistance = bounds.expandedHeight - bounds.collapsedHeight
-
-  if (
-    !Number.isFinite(deltaY) ||
-    !Number.isFinite(velocityY) ||
-    !Number.isFinite(availableDistance) ||
-    availableDistance <= 0
-  ) {
-    return startSnap
-  }
-
-  if (Math.abs(velocityY) >= RECOMMENDATION_SHEET_FLING_VELOCITY) {
-    return velocityY < 0 ? 'expanded' : 'collapsed'
-  }
-
-  const startHeight =
-    startSnap === 'expanded' ? bounds.expandedHeight : bounds.collapsedHeight
-  const currentHeight = startHeight - deltaY
-  const midpoint = (bounds.expandedHeight + bounds.collapsedHeight) / 2
-
-  return currentHeight >= midpoint ? 'expanded' : 'collapsed'
-}
-
 export const canStartRecommendationSheetPointer = ({
   isPrimary,
   hasActivePointer,
@@ -145,15 +101,6 @@ export const canStartRecommendationSheetPointer = ({
 export const isRecommendationSheetInteractive = (
   view: RecommendationView,
 ): boolean => view === 'criteria' || view === 'picker' || view === 'results'
-
-export const didRecommendationSheetDrag = (deltaY: number): boolean =>
-  Number.isFinite(deltaY) &&
-  Math.abs(deltaY) > RECOMMENDATION_SHEET_DRAG_TOLERANCE
-
-export const shouldSuppressRecommendationSheetClick = (
-  didDrag: boolean,
-  eventDetail: number,
-): boolean => didDrag && eventDetail !== 0
 
 export const releaseRecommendationSheetPointerCapture = (
   target: RecommendationPointerCaptureTarget | null,
@@ -242,13 +189,14 @@ export const finishRecommendationSheetPointer = (
   bounds: RecommendationSheetBounds,
   wasDragging = false,
 ) => ({
-  nextSnap: resolveRecommendationSheetSnap(
+  nextSnap: resolveBottomSheetSnapFromDrag(
     startSnap,
     deltaY,
+    bounds.collapsedHeight,
+    bounds.expandedHeight,
     velocityY,
-    bounds,
   ),
-  suppressClick: wasDragging || didRecommendationSheetDrag(deltaY),
+  suppressClick: wasDragging || didBottomSheetDrag(deltaY),
 })
 
 const Sheet = styled.section<{
@@ -256,12 +204,12 @@ const Sheet = styled.section<{
   $isDragging: boolean
   $snap: RecommendationSheetSnap
 }>`
-  --recommend-sheet-collapsed-height: ${RECOMMENDATION_SHEET_COLLAPSED_HEIGHT}px;
+  --recommend-sheet-collapsed-height: ${BOTTOM_SHEET_COLLAPSED_HEIGHT}px;
   --recommend-sheet-expanded-height: max(
-    ${RECOMMENDATION_SHEET_COLLAPSED_HEIGHT}px,
+    ${BOTTOM_SHEET_COLLAPSED_HEIGHT}px,
     min(
-      ${RECOMMENDATION_SHEET_EXPANDED_RATIO * 100}%,
-      calc(100% - ${RECOMMENDATION_SHEET_MINIMUM_MAP_HEIGHT}px)
+      ${BOTTOM_SHEET_EXPANDED_RATIO * 100}%,
+      calc(100% - ${BOTTOM_SHEET_MINIMUM_MAP_HEIGHT}px)
     )
   );
 
@@ -303,29 +251,63 @@ const Sheet = styled.section<{
   }
 `
 
+/**
+ * 손잡이 줄이 **접힘 높이 전체**다. 분석 시트와 같은 규격 — 잡이 막대를 위에 두고
+ * 그 아래로 제목·요약 한 줄을 보여준다. 접었을 때 아무 내용도 안 보이면 시트가
+ * 「닫힌 것」처럼 읽혀 다시 펼칠 단서가 막대뿐이 된다(ux-followups C-1).
+ */
 const HandleButton = styled.button<{ $isExpanded: boolean }>`
+  position: relative;
   width: 100%;
-  min-height: 44px;
   height: var(--recommend-sheet-collapsed-height);
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  /* 접혔을 때는 이 줄이 화면 맨 아래라 홈 인디케이터를 피해야 한다. 펼치면
+     아래쪽은 본문이 맡으므로 여백을 되돌린다. */
   padding: ${props =>
-    props.$isExpanded ? '0' : '0 0 env(safe-area-inset-bottom)'};
+    props.$isExpanded
+      ? '8px 16px'
+      : '8px 16px max(8px, env(safe-area-inset-bottom))'};
   border: 0;
   background: var(--color-surface);
+  color: var(--color-text-900);
+  text-align: left;
   cursor: ns-resize;
   touch-action: none;
   user-select: none;
+
+  &::before {
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-300);
+    content: '';
+    transform: translateX(-50%);
+  }
 `
 
-const HandleIndicator = styled.span`
-  width: 40px;
-  height: 4px;
-  justify-self: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-border-300);
-  pointer-events: none;
+const HandleCopy = styled.span`
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+
+  strong {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  small {
+    overflow: hidden;
+    color: var(--color-text-caption);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 `
 
 const SheetBody = styled.div<{ $isExpanded: boolean }>`
@@ -347,13 +329,17 @@ const SheetBody = styled.div<{ $isExpanded: boolean }>`
 type RecommendMobileSheetProps = PropsWithChildren<{
   snap: RecommendationSheetSnap
   view: RecommendationView
-  selectedResult: CandidateCommercial | null
+  /** 접힘 높이에 보이는 첫 줄. `resolveRecommendSheetHeadline` 이 정한다. */
+  title: string
+  summary: string
   onSnapChange: (snap: RecommendationSheetSnap) => void
 }>
 
 export default function RecommendMobileSheet({
   snap,
   view,
+  title,
+  summary,
   onSnapChange,
   children,
 }: RecommendMobileSheetProps) {
@@ -464,9 +450,14 @@ export default function RecommendMobileSheet({
       return
     }
 
-    const viewportHeight =
-      sheetRef.current?.parentElement?.clientHeight ??
-      (typeof window === 'undefined' ? 0 : window.innerHeight)
+    // 시트는 display:contents 래퍼 안에 있어 parentElement.clientHeight 가 0 일 수
+    // 있다. 절대배치된 시트의 offsetParent(=지도 영역)를 먼저 본다.
+    const offsetParent = sheetRef.current?.offsetParent
+    const viewportHeight = resolveBottomSheetViewportHeight(
+      offsetParent instanceof HTMLElement ? offsetParent.clientHeight : null,
+      sheetRef.current?.parentElement?.clientHeight,
+      typeof window === 'undefined' ? null : window.innerHeight,
+    )
 
     suppressPointerClickRef.current = false
 
@@ -482,7 +473,7 @@ export default function RecommendMobileSheet({
     pointerIdRef.current = event.pointerId
     startYRef.current = event.clientY
     startSnapRef.current = effectiveSnap
-    dragBoundsRef.current = getRecommendationSheetBounds(viewportHeight)
+    dragBoundsRef.current = getBottomSheetHeightBounds(viewportHeight)
     lastPointerSampleRef.current = {
       y: event.clientY,
       time: event.timeStamp,
@@ -513,8 +504,7 @@ export default function RecommendMobileSheet({
       y: event.clientY,
       time: event.timeStamp,
     }
-    didDragRef.current =
-      didDragRef.current || didRecommendationSheetDrag(deltaY)
+    didDragRef.current = didDragRef.current || didBottomSheetDrag(deltaY)
     setDragVisualState({
       deltaY,
       startSnap: startSnapRef.current,
@@ -592,7 +582,7 @@ export default function RecommendMobileSheet({
 
   const handleToggle = (event: ReactMouseEvent<HTMLButtonElement>) => {
     if (
-      shouldSuppressRecommendationSheetClick(
+      shouldSuppressBottomSheetClick(
         suppressPointerClickRef.current,
         event.detail,
       )
@@ -634,7 +624,10 @@ export default function RecommendMobileSheet({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <HandleIndicator aria-hidden="true" />
+        <HandleCopy>
+          <strong>{title}</strong>
+          <small>{summary}</small>
+        </HandleCopy>
       </HandleButton>
 
       <SheetBody
