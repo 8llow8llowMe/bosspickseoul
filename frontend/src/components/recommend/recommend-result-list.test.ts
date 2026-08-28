@@ -8,6 +8,7 @@ import RecommendResultList, {
   SCORE_UNAVAILABLE_LABEL,
   formatBlueOceanCounts,
   formatScore,
+  getBlueOceanVacancy,
   readBlueOceanCategories,
   type RecommendResultListProps,
 } from './recommend-result-list'
@@ -244,5 +245,120 @@ describe('retry affordance', () => {
     })
 
     expect(markup).toMatch(/<button[^>]*>다시 시도<\/button>/)
+  })
+})
+
+// T-D7 — storeRate 는 낮을수록 좋다. 그대로 막대로 그리면 「짧을수록 좋은 막대」가 되어
+// 같은 화면의 점수 게이지(길수록 좋음)와 방향이 충돌한다.
+describe('빈 자리 막대', () => {
+  it('막대는 storeRate 가 아니라 100 - storeRate 를 그린다', () => {
+    expect(getBlueOceanVacancy(11.11)).toBeCloseTo(88.89, 5)
+    expect(getBlueOceanVacancy(3.33)).toBeCloseTo(96.67, 5)
+    // 완전히 차 있는 업종은 기회가 0 이다 — 막대도 비어 있어야 한다.
+    expect(getBlueOceanVacancy(100)).toBe(0)
+  })
+
+  it('비율을 알 수 없으면 막대를 그리지 않는다', () => {
+    expect(getBlueOceanVacancy(Number.NaN)).toBeNull()
+  })
+
+  it('카드에 막대가 실제로 들어간다', () => {
+    const markup = renderList({
+      results: [
+        candidate({
+          blueOceanCategories: [blueOceanCategory({ storeRate: 11.11 })],
+        }),
+      ],
+    })
+
+    expect(markup).toContain('data-vacancy="88.89"')
+    // 숫자는 원본 비율을 남긴다 — 그림은 방향을, 숫자는 사실을 말한다.
+    expect(markup).toContain('(11.11%)')
+  })
+
+  it('비율이 깨진 항목은 숫자만 남기고 막대를 뺀다', () => {
+    const markup = renderList({
+      results: [
+        candidate({
+          blueOceanCategories: readBlueOceanCategories([
+            {
+              serviceCode: 'CS100001',
+              serviceName: '한식음식점',
+              commercialStoreCount: 0,
+              administrationStoreCount: 8,
+              storeRate: '알 수 없음',
+            },
+          ]),
+        }),
+      ],
+    })
+
+    expect(markup).toContain('한식음식점')
+    expect(markup).not.toContain('data-vacancy=')
+  })
+})
+
+// T-D8 — 카탈로그 밖의 코드가 실제로 온다. 아이콘 없이 덜렁 남는 항목을 만들지 않는다.
+describe('업종 아이콘', () => {
+  it('매핑 없는 코드에도 아이콘이 붙는다', () => {
+    const markup = renderList({
+      results: [
+        candidate({
+          blueOceanCategories: [
+            blueOceanCategory({
+              serviceCode: 'CS200013',
+              serviceName: '기타법무서비스',
+            }),
+          ],
+        }),
+      ],
+    })
+
+    expect(markup).toContain('기타법무서비스')
+    expect(markup).toContain('<svg')
+  })
+})
+
+describe('점수 게이지', () => {
+  it('총점을 도넛으로 그리고 숫자도 함께 남긴다', () => {
+    const markup = renderList({ results: [candidate({ compositeScore: 84 })] })
+
+    expect(markup).toContain('aria-label="종합 점수 84점, 좋음"')
+    expect(markup).toContain('>84<')
+  })
+
+  // 위험도 100 을 초록으로 칠하면 화면이 정반대로 말한다.
+  it('위험도가 높으면 나쁨 색이다', () => {
+    const markup = renderList({
+      results: [
+        candidate({
+          metricBreakdown: [
+            {
+              metricType: {
+                code: 'RISK_SCORE',
+                name: '위험도',
+                description: '',
+                scoreDescription: '점수가 높을수록 위험 요인이 큽니다',
+              },
+              score: 100,
+              grade: null,
+              summaryLabel: null,
+            },
+          ],
+        }),
+      ],
+    })
+
+    expect(markup).toContain('data-score-quality="poor"')
+    expect(markup).toContain('var(--score-low)')
+  })
+
+  it('점수가 없는 상권에는 게이지를 그리지 않는다', () => {
+    const markup = renderList({
+      results: [candidate({ compositeScore: null })],
+    })
+
+    expect(markup).toContain(SCORE_UNAVAILABLE_LABEL)
+    expect(markup).not.toContain('data-score-gauge="true"')
   })
 })

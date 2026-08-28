@@ -59,6 +59,21 @@ const GlobalStyles = createGlobalStyle`
     --color-background-muted: var(--color-grey-50);
     --color-float-background: #ffffff;
     --color-overlay: rgba(2, 9, 19, 0.5);
+    /*
+     * Score Scale (DESIGN.md §Score Scale). 등급 HIGH ≥ 70 / MEDIUM 40~70 / LOW < 40.
+     *
+     * **점수가 아니라 「좋음/보통/나쁨」에 매핑한다.** 위험도·혼잡도는 점수가 높을수록
+     * 나쁘므로, 점수를 그대로 이 토큰에 이으면 「위험도 100」이 초록이 된다.
+     * 방향 변환은 lib/recommend/metric-polarity.ts 가 맡는다.
+     *
+     * --score-neutral 은 **방향을 모르는 지표**용이다. 백엔드가 지표를 추가했을 때
+     * 색으로 조용히 거짓말하지 않기 위해 색으로 판단하지 않는다는 표시다.
+     */
+    --score-high: var(--color-green-500);
+    --score-mid: var(--color-orange-500);
+    --score-low: var(--color-red-500);
+    --score-neutral: var(--color-grey-400);
+
     --color-success: var(--color-green-500);
     --color-warning: var(--color-orange-500);
     --color-danger: var(--color-red-500);

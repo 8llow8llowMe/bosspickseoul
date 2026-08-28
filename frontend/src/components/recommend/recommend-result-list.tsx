@@ -1,9 +1,15 @@
 'use client'
 
-import { useId, useRef } from 'react'
+import { createElement, useId, useRef } from 'react'
 import { Bookmark as BookmarkIcon } from 'lucide-react'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
+import ScoreGauge from '@/components/ui/score-gauge'
+import {
+  COMPOSITE_SCORE_POLARITY,
+  resolveMetricPolarity,
+} from '@/lib/recommend/metric-polarity'
+import { resolveServiceIcon } from '@/lib/recommend/service-icons'
 import type { BlueOceanCategory, CandidateCommercial } from '@/types/recommend'
 import RecommendFeedback from './recommend-feedback'
 
@@ -116,13 +122,6 @@ const Reason = styled.span`
   word-break: keep-all;
 `
 
-const Score = styled.span`
-  color: var(--color-text-900);
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-`
-
 /**
  * DESIGN.md §Skeleton·§Loading: 「금액·지표는 `--`(skeleton 금지 — 가짜 값처럼 보임)」.
  * 점수 칸은 지표 자리라 로딩 중 회색 블록을 두지 않고 `--` 로 비워 둔다.
@@ -169,12 +168,50 @@ const BlueOceanList = styled.ul`
 `
 
 const BlueOceanItem = styled.li`
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+  line-height: 19px;
+`
+
+/* 아이콘은 장식이다 — 이름 옆의 보조 신호일 뿐 아이콘만으로 업종을 식별하게 하지 않는다. */
+const BlueOceanIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-500);
+`
+
+const BlueOceanHead = styled.span`
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 8px;
-  font-size: 13px;
-  line-height: 19px;
+`
+
+/*
+ * `storeRate` 는 **낮을수록** 좋다(비어 있다). 그대로 막대로 그리면 「짧을수록 좋은
+ * 막대」가 되어, 같은 화면의 점수 게이지(길수록 좋음)와 의미가 충돌한다. 그래서
+ * 「빈 자리」(100 - storeRate)를 그린다 — 길수록 기회다. 숫자는 원본 비율을 남긴다:
+ * 그림은 방향을, 숫자는 사실을 말한다.
+ */
+const VacancyBar = styled.span`
+  grid-column: 2;
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+`
+
+const VacancyFill = styled.span<{ $ratio: number }>`
+  display: block;
+  width: ${({ $ratio }) => $ratio}%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--score-high);
 `
 
 const BlueOceanName = styled.span`
@@ -185,12 +222,8 @@ const BlueOceanName = styled.span`
   word-break: keep-all;
 `
 
-const BlueOceanSeparator = styled.span`
-  margin-right: 4px;
-  color: var(--color-text-caption);
-`
-
 const BlueOceanCounts = styled.span`
+  grid-column: 2;
   color: var(--color-text-600);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -238,7 +271,7 @@ const Metrics = styled.dl`
 `
 
 const MetricRow = styled.div`
-  min-height: 44px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -252,6 +285,8 @@ const MetricRow = styled.div`
   }
 
   dd {
+    display: flex;
+    align-items: center;
     color: var(--color-text-900);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -360,6 +395,15 @@ const getMetricKeyPart = (metric: unknown): string => {
 const getMetricScore = (metric: unknown): unknown =>
   isRecord(metric) ? metric.score : null
 
+const getMetricCode = (metric: unknown): string =>
+  isRecord(metric) && isRecord(metric.metricType)
+    ? readTrimmedString(metric.metricType.code)
+    : ''
+
+/** 게이지에 넘길 점수. 숫자가 아니면 `null` 이고, 그때 게이지는 그려지지 않는다. */
+const readGaugeScore = (score: unknown): number | null =>
+  hasScore(score) ? score : null
+
 const readCount = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0
     ? Math.trunc(value)
@@ -395,6 +439,21 @@ export const readBlueOceanCategories = (
     ]
   })
 }
+
+/**
+ * 「빈 자리」 비율 = 100 - storeRate.
+ *
+ * `storeRate` 는 **낮을수록** 좋다(행정동 대비 이 상권에 적게 들어왔다 = 자리가 비어
+ * 있다). 그대로 막대 길이로 쓰면 「짧을수록 좋은 막대」가 되어, 바로 위 점수 게이지
+ * (길수록 좋음)와 같은 화면에서 방향이 충돌한다. 뒤집어야 **길수록 기회**가 된다.
+ *
+ * 비율을 알 수 없으면 `null` 이고, 그때는 막대를 그리지 않는다 — 0% 막대는
+ * 「기회가 전혀 없다」는 다른 말이다.
+ */
+export const getBlueOceanVacancy = (storeRate: number): number | null =>
+  Number.isFinite(storeRate)
+    ? Math.min(Math.max(100 - storeRate, 0), 100)
+    : null
 
 /** 소수점 둘째 자리까지만 남기고 불필요한 0은 지운다. 3.33 → "3.33", 5 → "5". */
 export const formatStoreRate = (storeRate: number): string | null =>
@@ -628,7 +687,12 @@ export default function RecommendResultList({
                     </VisuallyHidden>
                   </ScoreUnavailable>
                 ) : (
-                  <Score>{formatScore(item.compositeScore)}</Score>
+                  <ScoreGauge
+                    label="종합 점수"
+                    polarity={COMPOSITE_SCORE_POLARITY}
+                    score={readGaugeScore(item.compositeScore)}
+                    size="lg"
+                  />
                 )}
               </SelectionButton>
 
@@ -651,7 +715,19 @@ export default function RecommendResultList({
                         )}-${index}`}
                       >
                         <dt>{getMetricLabel(metric, index)}</dt>
-                        <dd>{formatScore(getMetricScore(metric))}</dd>
+                        <dd>
+                          {hasScore(getMetricScore(metric)) ? (
+                            <ScoreGauge
+                              label={getMetricLabel(metric, index)}
+                              polarity={resolveMetricPolarity(
+                                getMetricCode(metric),
+                              )}
+                              score={readGaugeScore(getMetricScore(metric))}
+                            />
+                          ) : (
+                            formatScore(getMetricScore(metric))
+                          )}
+                        </dd>
                       </MetricRow>
                     ))}
                   </Metrics>
@@ -660,30 +736,49 @@ export default function RecommendResultList({
                       <BlueOceanHeading>{BLUE_OCEAN_HEADING}</BlueOceanHeading>
                       <BlueOceanNote>{BLUE_OCEAN_NOTE}</BlueOceanNote>
                       <BlueOceanList>
-                        {blueOceanCategories.map((category, index) => (
-                          <BlueOceanItem
-                            data-blue-ocean-item="true"
-                            key={`${item.commercialCode}-blue-ocean-${
-                              category.serviceCode || category.serviceName
-                            }-${index}`}
-                          >
-                            <BlueOceanName>
-                              {category.serviceName}
-                            </BlueOceanName>
-                            {selectedServiceCode &&
-                            category.serviceCode === selectedServiceCode ? (
-                              <SelectedServiceBadge data-selected-service="true">
-                                선택 업종
-                              </SelectedServiceBadge>
-                            ) : null}
-                            <BlueOceanCounts>
-                              <BlueOceanSeparator aria-hidden="true">
-                                ·
-                              </BlueOceanSeparator>
-                              {formatBlueOceanCounts(category)}
-                            </BlueOceanCounts>
-                          </BlueOceanItem>
-                        ))}
+                        {blueOceanCategories.map((category, index) => {
+                          const vacancy = getBlueOceanVacancy(
+                            category.storeRate,
+                          )
+
+                          return (
+                            <BlueOceanItem
+                              data-blue-ocean-item="true"
+                              key={`${item.commercialCode}-blue-ocean-${
+                                category.serviceCode || category.serviceName
+                              }-${index}`}
+                            >
+                              <BlueOceanIcon aria-hidden="true">
+                                {createElement(
+                                  resolveServiceIcon(category.serviceCode),
+                                  { size: 16, strokeWidth: 1.8 },
+                                )}
+                              </BlueOceanIcon>
+                              <BlueOceanHead>
+                                <BlueOceanName>
+                                  {category.serviceName}
+                                </BlueOceanName>
+                                {selectedServiceCode &&
+                                category.serviceCode === selectedServiceCode ? (
+                                  <SelectedServiceBadge data-selected-service="true">
+                                    선택 업종
+                                  </SelectedServiceBadge>
+                                ) : null}
+                              </BlueOceanHead>
+                              {vacancy === null ? null : (
+                                <VacancyBar
+                                  aria-hidden="true"
+                                  data-vacancy={vacancy}
+                                >
+                                  <VacancyFill $ratio={vacancy} />
+                                </VacancyBar>
+                              )}
+                              <BlueOceanCounts>
+                                {formatBlueOceanCounts(category)}
+                              </BlueOceanCounts>
+                            </BlueOceanItem>
+                          )
+                        })}
                       </BlueOceanList>
                     </BlueOcean>
                   ) : null}
