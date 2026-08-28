@@ -95,7 +95,7 @@ const SubmitButton = styled.button`
   border: 1px solid var(--color-primary-700);
   border-radius: var(--radius-control);
   background: var(--color-primary-700);
-  color: var(--color-text-900);
+  color: #ffffff;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
