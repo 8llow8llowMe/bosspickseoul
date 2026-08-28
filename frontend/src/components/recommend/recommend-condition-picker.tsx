@@ -8,7 +8,13 @@ import { countOptions } from '@/lib/option-filter'
 import OptionPicker, {
   type OptionGroup,
   type OptionItem,
+  type OptionPickerFeatured,
 } from '@/components/ui/option-picker'
+import {
+  POPULAR_SERVICE_CODES,
+  POPULAR_SERVICE_LABEL,
+} from '@/lib/recommend/popular-services'
+import { resolveServiceIcon } from '@/lib/recommend/service-icons'
 import type { RecommendConditionStep } from '@/lib/recommend/recommend-state'
 
 import {
@@ -86,6 +92,18 @@ const Body = styled.div`
   overflow-y: auto;
 `
 
+/* 인기 섹션에만 아이콘을 붙인다. 전체 목록 30개에 다 붙이면 음식점 10개가 같은
+   대분류 아이콘으로 반복돼 구분에 기여하지 않고 잡음만 된다(ux-followups A-3-2). */
+const POPULAR_SERVICES: OptionPickerFeatured = {
+  label: POPULAR_SERVICE_LABEL,
+  codes: POPULAR_SERVICE_CODES,
+  iconFor: item => {
+    const Icon = resolveServiceIcon(item.code)
+
+    return <Icon />
+  },
+}
+
 export default function RecommendConditionPicker({
   step,
   items,
@@ -135,9 +153,10 @@ export default function RecommendConditionPicker({
         <OptionPicker
           groups={groups}
           items={groups ? undefined : items}
-          // 업종은 백엔드가 카테고리를 설명으로 실어 주지 않는 정적 카탈로그라
-          // 목록 레이아웃으로 두고, 지역은 이름이 짧아 칩 격자가 낫다.
-          layout={step === 'service' ? 'list' : 'grid'}
+          // 업종은 30개를 6그룹으로 훑어야 해서 좌측정렬 2열 격자로 두고(이름이
+          // 길어 칩 격자는 접힌다), 지역은 이름이 짧아 칩 격자가 낫다.
+          layout={step === 'service' ? 'grid-wide' : 'grid'}
+          featured={step === 'service' ? POPULAR_SERVICES : undefined}
           selectedCode={selectedCode}
           searchPlaceholder={RECOMMEND_CONDITION_PLACEHOLDERS[step].replace(
             '선택',
