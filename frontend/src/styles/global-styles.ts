@@ -36,7 +36,9 @@ const GlobalStyles = createGlobalStyle`
     --color-text-700: var(--color-grey-700);
     --color-text-600: var(--color-grey-600);
     --color-text-500: var(--color-grey-600);
-    --color-text-caption: var(--color-grey-500);
+    /* WCAG AA(DESIGN.md 569행) 때문에 grey500(#8b95a1, 3.04:1)이 아니라 grey600(4.62:1)이다.
+       12px 캡션은 large text 예외에 들지 않아 grey500 으로는 본문 기준 AA 를 넘지 못한다. */
+    --color-text-caption: var(--color-grey-600);
     --color-placeholder: var(--color-grey-400);
     --color-border-300: var(--color-grey-300);
     --color-border-200: var(--color-grey-200);
