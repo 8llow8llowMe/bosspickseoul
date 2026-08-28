@@ -14,16 +14,16 @@ import { ChevronLeft, FileText } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
-  ANALYSIS_SHEET_COLLAPSED_HEIGHT,
-  ANALYSIS_SHEET_EXPANDED_RATIO,
-  ANALYSIS_SHEET_MINIMUM_MAP_HEIGHT,
-  didAnalysisSheetDrag,
-  getAnalysisSheetHeightBounds,
-  resolveAnalysisSheetSnapFromDrag,
-  resolveAnalysisSheetViewportHeight,
-  shouldSuppressAnalysisSheetClick,
-  type AnalysisSheetSnap,
-} from '@/lib/analysis/analysis-sheet-state'
+  BOTTOM_SHEET_COLLAPSED_HEIGHT,
+  BOTTOM_SHEET_EXPANDED_RATIO,
+  BOTTOM_SHEET_MINIMUM_MAP_HEIGHT,
+  didBottomSheetDrag,
+  getBottomSheetHeightBounds,
+  resolveBottomSheetSnapFromDrag,
+  resolveBottomSheetViewportHeight,
+  shouldSuppressBottomSheetClick,
+  type BottomSheetSnap,
+} from '@/lib/map/bottom-sheet-state'
 
 export type AnalysisMobileSheetProps = PropsWithChildren<{
   stepLabel: string
@@ -41,20 +41,20 @@ type SheetView = 'selection' | 'report'
 
 type DragVisualState = {
   deltaY: number
-  startSnap: AnalysisSheetSnap
+  startSnap: BottomSheetSnap
 }
 
 const Sheet = styled.section<{
   $dragDeltaY: number
   $isDragging: boolean
-  $snap: AnalysisSheetSnap
+  $snap: BottomSheetSnap
 }>`
-  --analysis-sheet-collapsed-height: ${ANALYSIS_SHEET_COLLAPSED_HEIGHT}px;
+  --analysis-sheet-collapsed-height: ${BOTTOM_SHEET_COLLAPSED_HEIGHT}px;
   --analysis-sheet-expanded-height: max(
-    ${ANALYSIS_SHEET_COLLAPSED_HEIGHT}px,
+    ${BOTTOM_SHEET_COLLAPSED_HEIGHT}px,
     min(
-      ${ANALYSIS_SHEET_EXPANDED_RATIO * 100}%,
-      calc(100% - ${ANALYSIS_SHEET_MINIMUM_MAP_HEIGHT}px)
+      ${BOTTOM_SHEET_EXPANDED_RATIO * 100}%,
+      calc(100% - ${BOTTOM_SHEET_MINIMUM_MAP_HEIGHT}px)
     )
   );
 
@@ -266,7 +266,7 @@ export default function AnalysisMobileSheet({
   expandSignal,
   children,
 }: AnalysisMobileSheetProps) {
-  const [snap, setSnap] = useState<AnalysisSheetSnap>('collapsed')
+  const [snap, setSnap] = useState<BottomSheetSnap>('collapsed')
   const [view, setView] = useState<SheetView>('selection')
   const [dragVisualState, setDragVisualState] =
     useState<DragVisualState | null>(null)
@@ -298,7 +298,7 @@ export default function AnalysisMobileSheet({
   const backButtonRef = useRef<HTMLButtonElement>(null)
   const pointerIdRef = useRef<number | null>(null)
   const startYRef = useRef<number | null>(null)
-  const startSnapRef = useRef<AnalysisSheetSnap | null>(null)
+  const startSnapRef = useRef<BottomSheetSnap | null>(null)
   const dragBoundsRef = useRef<{
     collapsedHeight: number
     expandedHeight: number
@@ -337,7 +337,7 @@ export default function AnalysisMobileSheet({
     // 절대배치된 시트의 offsetParent(=위치지정 조상 MapArea)가 실제 지도 영역 높이를 가지므로
     // 이를 우선 사용하고, 없으면 parentElement/innerHeight로 폴백한다.
     const offsetParent = sheetRef.current?.offsetParent
-    const viewportHeight = resolveAnalysisSheetViewportHeight(
+    const viewportHeight = resolveBottomSheetViewportHeight(
       offsetParent instanceof HTMLElement ? offsetParent.clientHeight : null,
       sheetRef.current?.parentElement?.clientHeight,
       typeof window === 'undefined' ? null : window.innerHeight,
@@ -346,7 +346,7 @@ export default function AnalysisMobileSheet({
     pointerIdRef.current = event.pointerId
     startYRef.current = event.clientY
     startSnapRef.current = snap
-    dragBoundsRef.current = getAnalysisSheetHeightBounds(viewportHeight)
+    dragBoundsRef.current = getBottomSheetHeightBounds(viewportHeight)
     didDragRef.current = false
     suppressClickRef.current = false
     setDragVisualState({ deltaY: 0, startSnap: snap })
@@ -362,7 +362,7 @@ export default function AnalysisMobileSheet({
     }
 
     const deltaY = event.clientY - startYRef.current
-    didDragRef.current = didDragRef.current || didAnalysisSheetDrag(deltaY)
+    didDragRef.current = didDragRef.current || didBottomSheetDrag(deltaY)
     setDragVisualState({ deltaY, startSnap: startSnapRef.current })
   }
 
@@ -380,7 +380,7 @@ export default function AnalysisMobileSheet({
       return
     }
 
-    const nextSnap = resolveAnalysisSheetSnapFromDrag(
+    const nextSnap = resolveBottomSheetSnapFromDrag(
       startSnap,
       event.clientY - startY,
       bounds.collapsedHeight,
@@ -415,7 +415,7 @@ export default function AnalysisMobileSheet({
 
   const handleToggle = (event: ReactMouseEvent<HTMLButtonElement>) => {
     if (
-      shouldSuppressAnalysisSheetClick(suppressClickRef.current, event.detail)
+      shouldSuppressBottomSheetClick(suppressClickRef.current, event.detail)
     ) {
       suppressClickRef.current = false
       return

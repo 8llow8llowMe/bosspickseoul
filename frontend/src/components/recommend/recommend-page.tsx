@@ -40,6 +40,7 @@ import {
   filterAreasByCodes,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
+import { resolveRecommendSheetHeadline } from '@/lib/recommend/sheet-headline'
 import {
   createInitialRecommendationState,
   formatRecommendationPeriod,
@@ -73,6 +74,7 @@ import type {
   ScoreMetricMetadata,
 } from '@/types/recommend'
 
+import { RECOMMEND_CONDITION_LABELS } from './recommend-condition-bar'
 import RecommendFeedback from './recommend-feedback'
 import RecommendMap from './recommend-map'
 import RecommendMobileSheet from './recommend-mobile-sheet'
@@ -1423,6 +1425,27 @@ export default function RecommendPage() {
     [pickerStep],
   )
 
+  // 접힘 상태(72px)에 보여줄 첫 줄. 시트는 문구를 만들지 않고 받아 쓴다.
+  const sheetHeadline = useMemo(
+    () =>
+      resolveRecommendSheetHeadline({
+        view: state.view,
+        pickerLabel: pickerStep ? RECOMMEND_CONDITION_LABELS[pickerStep] : null,
+        draft: state.draft,
+        resultCount: results.length,
+        selectedResult,
+        isResultLoading: isRecommendationBusy,
+      }),
+    [
+      isRecommendationBusy,
+      pickerStep,
+      results.length,
+      selectedResult,
+      state.draft,
+      state.view,
+    ],
+  )
+
   const handleOpenStep = useCallback((step: RecommendConditionStep) => {
     dispatch({ type: 'pickerOpened', step })
   }, [])
@@ -1623,8 +1646,9 @@ export default function RecommendPage() {
         </DesktopPanelSlot>
 
         <RecommendMobileSheet
-          selectedResult={selectedResult}
           snap={state.sheetSnap}
+          summary={sheetHeadline.summary}
+          title={sheetHeadline.title}
           view={state.view}
           onSnapChange={snap => dispatch({ type: 'sheetSnapChanged', snap })}
         >

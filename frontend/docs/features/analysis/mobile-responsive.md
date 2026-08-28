@@ -92,10 +92,13 @@
 
 ### D3-1. 시스템 구성
 
-- **`lib/analysis/analysis-sheet-state.ts`** (신규): 스냅/드래그 순수 로직.
-  `status-state`·`recommend-state`와 같은 형태 — `getAnalysisSheetHeightBounds`,
-  `resolveAnalysisSheetSnapFromDrag`, `didAnalysisSheetDrag`, `shouldSuppressAnalysisSheetClick`,
+- **`lib/map/bottom-sheet-state.ts`**: 스냅/드래그 순수 로직 — `getBottomSheetHeightBounds`,
+  `resolveBottomSheetSnapFromDrag`, `didBottomSheetDrag`, `shouldSuppressBottomSheetClick`,
   높이 상수. 단위 테스트로 검증한다.
+  > **2026-08-28**: 원래 `lib/analysis/analysis-sheet-state.ts` 였다. 상권추천 시트가 자기
+  > 복사본을 들고 있어 접힘 높이(72 vs 44px)와 스냅 판정이 어긋나던 것을 고치면서
+  > **두 화면이 함께 쓰는 모듈로 승격**하고 이름에서 `analysis` 를 뺐다
+  > ([recommend/ux-followups C](../recommend/ux-followups.md#c-모바일-바텀시트-통일)).
 - **`AnalysisMobileSheet`** (재설계): 바텀시트 컨테이너. 로컬 상태 `snap`(collapsed/expanded),
   `view`(selection/report), `dragVisualState`. 슬롯으로 `children`(선택 패널)과
   `aiReport?: { title; content }`(리포트 뷰 콘텐츠)를 받는다.
@@ -113,7 +116,7 @@ analysis-page(선택/AI 레벨 계산)
   └─ aiLevelKey ? { title, <AiReportBody/> }  → AnalysisMobileSheet aiReport (리포트 레이어)
 
 AnalysisMobileSheet(로컬 UI 상태만)
-  snap:  collapsed | expanded   (핸들 드래그/탭 → analysis-sheet-state 헬퍼)
+  snap:  collapsed | expanded   (핸들 드래그/탭 → bottom-sheet-state 헬퍼)
   view:  selection | report     (AI 칩 / ‹ 뒤로)
   effectiveView = aiReport ? view : 'selection'   (리포트 없으면 항상 선택 뷰)
 ```
@@ -136,7 +139,7 @@ AnalysisMobileSheet(로컬 UI 상태만)
 | 기술                                 | 역할                                                                              |
 | ------------------------------------ | --------------------------------------------------------------------------------- |
 | styled-components                    | 시트/레이어 스타일, `height` clamp + `opacity` 트랜지션                           |
-| `analysis-sheet-state`(신규)         | 스냅 경계·드래그 판정 순수 로직(status/recommend와 동형)                          |
+| `lib/map/bottom-sheet-state`         | 스냅 경계·드래그 판정 순수 로직(**상권추천 시트와 공유**)                         |
 | Pointer Events + `setPointerCapture` | 핸들 드래그(터치/마우스 공통), 탭/드래그 판정                                     |
 | `DESIGN.md` 토큰                     | `motion-standard`/`ease-standard`, `radius-sheet`/`radius-pill`, `shadow-level-4` |
 | `env(safe-area-inset-*)`             | 홈 인디케이터 인셋                                                                |
@@ -154,10 +157,10 @@ dragDeltaY, expanded)`로 계산한다. `base`는 현재 스냅 높이, `dragDel
 var(--ease-standard)`로 스냅.
   - 접힘 높이 `72px`(단계 라벨+요약+칩을 담아 status(52)/recommend(44)보다 큼), 펼침 높이
     `max(72px, min(72dvh, calc(100% - 180px)))`.
-- **드래그 판정**: `getAnalysisSheetHeightBounds(viewportHeight)`로 경계 계산 →
-  `resolveAnalysisSheetSnapFromDrag(startSnap, deltaY, …)`가 드래그 높이의 중점 기준으로 스냅
-  결정. 이동량이 임계(`4px`) 미만이면 탭으로 간주(`didAnalysisSheetDrag`).
-- **탭/키보드**: 핸들 `onClick`은 `shouldSuppressAnalysisSheetClick`으로 드래그 뒤 따라오는
+- **드래그 판정**: `getBottomSheetHeightBounds(viewportHeight)`로 경계 계산 →
+  `resolveBottomSheetSnapFromDrag(startSnap, deltaY, …)`가 드래그 높이의 중점 기준으로 스냅
+  결정. 이동량이 임계(`4px`) 미만이면 탭으로 간주(`didBottomSheetDrag`).
+- **탭/키보드**: 핸들 `onClick`은 `shouldSuppressBottomSheetClick`으로 드래그 뒤 따라오는
   마우스 click을 무시하고, 키보드 click(`detail===0`)은 허용해 토글한다.
 - **핸들**: 상단 grabber pill(`radius-pill`·`border-300`, 40×4) + 단계 라벨(`strong`) + 선택
   요약(`small`) + (가용 시) AI 칩 + chevron(펼침 시 180° 회전). `touch-action: none`으로 드래그
@@ -192,7 +195,7 @@ var(--ease-standard)`로 스냅.
 ```
 1. analysis-page: aiLevelKey 있으면 aiReport={ title, <AiReportBody/> } 주입
 2. 시트: collapsed 초기 — 핸들 + (가용 시) AI 칩
-3. 핸들 드래그/탭 → snap 토글(analysis-sheet-state 헬퍼로 스냅 결정)
+3. 핸들 드래그/탭 → snap 토글(bottom-sheet-state 헬퍼로 스냅 결정)
 4. AI 칩 탭 → view=report(+expanded), 리포트 레이어 크로스페이드·콘텐츠 마운트
 5. ‹ 뒤로 → view=selection / 선택 대상 변경 → 자동 selection
 6. reduced-motion → height/opacity 트랜지션 제거(즉시 전환)
@@ -229,17 +232,17 @@ var(--ease-standard)`로 스냅.
 
 ## D7. 테스트케이스
 
-| #   | 시나리오           | 입력/조작                          | 기대 결과                                            |
-| --- | ------------------ | ---------------------------------- | ---------------------------------------------------- |
-| 1   | 기본 접힘 + 접근성 | 초기 렌더                          | `aria-expanded=false`, "선택 패널 펼치기", 단계 라벨 |
-| 2   | AI 칩/제목 노출    | `aiReport` 주입                    | 진입 칩 "AI 리포트" + 리포트 헤더 제목 렌더          |
-| 3   | AI 칩 미노출       | `aiReport` 없음                    | 진입 칩("AI 리포트 보기") 미렌더                     |
-| 4   | 스냅 경계 계산     | `getAnalysisSheetHeightBounds`     | 지도 최소 여백/비율 규칙대로 펼침 높이 산출          |
-| 5   | 드래그 스냅 판정   | `resolveAnalysisSheetSnapFromDrag` | 중점 기준 접힘/펼침, 비정상 경계는 시작 스냅 유지    |
-| 6   | 드래그/탭 구분     | `didAnalysisSheetDrag`             | 임계 초과만 드래그                                   |
-| 7   | click 억제         | `shouldSuppressAnalysisSheetClick` | 드래그 후 마우스 click만 무시, 키보드 허용           |
+| #   | 시나리오           | 입력/조작                        | 기대 결과                                            |
+| --- | ------------------ | -------------------------------- | ---------------------------------------------------- |
+| 1   | 기본 접힘 + 접근성 | 초기 렌더                        | `aria-expanded=false`, "선택 패널 펼치기", 단계 라벨 |
+| 2   | AI 칩/제목 노출    | `aiReport` 주입                  | 진입 칩 "AI 리포트" + 리포트 헤더 제목 렌더          |
+| 3   | AI 칩 미노출       | `aiReport` 없음                  | 진입 칩("AI 리포트 보기") 미렌더                     |
+| 4   | 스냅 경계 계산     | `getBottomSheetHeightBounds`     | 지도 최소 여백/비율 규칙대로 펼침 높이 산출          |
+| 5   | 드래그 스냅 판정   | `resolveBottomSheetSnapFromDrag` | 중점 기준 접힘/펼침, 비정상 경계는 시작 스냅 유지    |
+| 6   | 드래그/탭 구분     | `didBottomSheetDrag`             | 임계 초과만 드래그                                   |
+| 7   | click 억제         | `shouldSuppressBottomSheetClick` | 드래그 후 마우스 click만 무시, 키보드 허용           |
 
-> 스냅/드래그 순수 로직은 `analysis-sheet-state.test.ts`, 컴포넌트 SSR 계약은
+> 스냅/드래그 순수 로직은 `lib/map/bottom-sheet-state.test.ts`, 컴포넌트 SSR 계약은
 > `analysis-mobile-sheet.test.ts`로 검증. 실기기 드래그·크로스페이드·reduced-motion은 로컬
 > 확인(`pnpm dev`, 375px, reduced-motion 토글).
 

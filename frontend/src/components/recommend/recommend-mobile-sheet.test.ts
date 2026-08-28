@@ -4,21 +4,21 @@ import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CandidateCommercial } from '@/types/recommend'
+import {
+  BOTTOM_SHEET_COLLAPSED_HEIGHT,
+  BOTTOM_SHEET_EXPANDED_RATIO,
+  BOTTOM_SHEET_MINIMUM_MAP_HEIGHT,
+  didBottomSheetDrag,
+  shouldSuppressBottomSheetClick,
+} from '@/lib/map/bottom-sheet-state'
 import RecommendMobileSheet, {
   canStartRecommendationSheetPointer,
-  didRecommendationSheetDrag,
   finishRecommendationSheetPointer,
-  getRecommendationSheetBounds,
   getRecommendationSheetReleaseVelocity,
   isRecommendationSheetInteractive,
-  RECOMMENDATION_SHEET_EXPANDED_RATIO,
-  RECOMMENDATION_SHEET_MINIMUM_MAP_HEIGHT,
-  RECOMMENDATION_SHEET_COLLAPSED_HEIGHT,
   releaseRecommendationSheetPointerCapture,
-  resolveRecommendationSheetSnap,
   restoreRecommendationSheetHandleFocus,
   selectRecommendationSheetFocusEffect,
-  shouldSuppressRecommendationSheetClick,
   tryCaptureRecommendationSheetPointer,
 } from './recommend-mobile-sheet'
 import RecommendResultList from './recommend-result-list'
@@ -39,7 +39,10 @@ const selectedResult: CandidateCommercial = {
 
 const renderSheet = (
   snap: 'collapsed' | 'expanded',
-  result: CandidateCommercial | null = selectedResult,
+  headline: { title: string; summary: string } = {
+    title: '추천 결과',
+    summary: '추천 상권 5곳',
+  },
   view: 'criteria' | 'results' = 'results',
 ) => {
   const styleSheet = new ServerStyleSheet()
@@ -52,7 +55,8 @@ const renderSheet = (
           {
             snap,
             view,
-            selectedResult: result,
+            title: headline.title,
+            summary: headline.summary,
             onSnapChange: vi.fn(),
           },
           createElement(
@@ -103,77 +107,9 @@ const getElementStyles = (elementTag: string, styles: string): string => {
     .join(' ')
 }
 
-describe('getRecommendationSheetBounds', () => {
-  it.each([Number.NaN, Number.POSITIVE_INFINITY, 0, -1])(
-    '유효하지 않은 viewport 높이 %s에서는 collapsed 높이를 고정한다',
-    viewportHeight => {
-      expect(getRecommendationSheetBounds(viewportHeight)).toEqual({
-        collapsedHeight: 44,
-        expandedHeight: 44,
-      })
-    },
-  )
-
-  it('지도 최소 노출 높이를 보장하며 560px viewport에서는 380px로 펼친다', () => {
-    expect(getRecommendationSheetBounds(560)).toEqual({
-      collapsedHeight: 44,
-      expandedHeight: 380,
-    })
-  })
-
-  it('viewport가 작아도 expanded 높이는 collapsed보다 작아지지 않는다', () => {
-    expect(getRecommendationSheetBounds(200)).toEqual({
-      collapsedHeight: 44,
-      expandedHeight: 44,
-    })
-  })
-})
-
-describe('resolveRecommendationSheetSnap', () => {
-  const bounds = {
-    collapsedHeight: 44,
-    expandedHeight: 380,
-  }
-
-  it('느린 drag가 중간점을 넘으면 가까운 snap으로 이동한다', () => {
-    expect(resolveRecommendationSheetSnap('collapsed', -169, 0.1, bounds)).toBe(
-      'expanded',
-    )
-    expect(resolveRecommendationSheetSnap('expanded', 169, 0.1, bounds)).toBe(
-      'collapsed',
-    )
-  })
-
-  it('빠른 flick은 이동 거리가 짧아도 방향 snap으로 이동한다', () => {
-    expect(resolveRecommendationSheetSnap('collapsed', -10, -0.5, bounds)).toBe(
-      'expanded',
-    )
-    expect(resolveRecommendationSheetSnap('expanded', 10, 0.5, bounds)).toBe(
-      'collapsed',
-    )
-  })
-
-  it('중간점을 넘지 않은 느린 drag는 시작 snap을 유지한다', () => {
-    expect(
-      resolveRecommendationSheetSnap('collapsed', -167, -0.1, bounds),
-    ).toBe('collapsed')
-    expect(resolveRecommendationSheetSnap('expanded', 167, 0.1, bounds)).toBe(
-      'expanded',
-    )
-  })
-
-  it('유효하지 않은 delta나 이동 거리는 시작 snap을 유지한다', () => {
-    expect(
-      resolveRecommendationSheetSnap('collapsed', Number.NaN, 0, bounds),
-    ).toBe('collapsed')
-    expect(
-      resolveRecommendationSheetSnap('expanded', 200, 0, {
-        collapsedHeight: 44,
-        expandedHeight: 44,
-      }),
-    ).toBe('expanded')
-  })
-})
+// 규격·스냅 판정은 `lib/map/bottom-sheet-state` 로 옮겼다(ux-followups C).
+// 그 순수 로직의 테스트도 그 모듈 옆에 있다 — 여기서는 시트가 그것을 어떻게
+// 쓰는지(합성·렌더)만 본다.
 
 describe('getRecommendationSheetReleaseVelocity', () => {
   it('pointerup 위치가 마지막 move와 같으면 마지막 이동 속도를 유지한다', () => {
@@ -200,8 +136,11 @@ describe('getRecommendationSheetReleaseVelocity', () => {
 })
 
 describe('추천 바텀시트 pointer interaction guard', () => {
-  it('criteria와 results 모두 click과 drag 상호작용을 허용한다', () => {
+  // C-3 — 조건 선택 UX 에서 더한 picker 뷰가 통일 작업에서 빠지지 않게 한다.
+  // 세 뷰 모두 시트를 잡고 끌 수 있어야 한다.
+  it('criteria·picker·results 모두 click과 drag 상호작용을 허용한다', () => {
     expect(isRecommendationSheetInteractive('criteria')).toBe(true)
+    expect(isRecommendationSheetInteractive('picker')).toBe(true)
     expect(isRecommendationSheetInteractive('results')).toBe(true)
   })
 
@@ -241,20 +180,20 @@ describe('추천 바텀시트 pointer interaction guard', () => {
   })
 
   it('4px를 초과한 이동만 drag로 판정한다', () => {
-    expect(didRecommendationSheetDrag(4)).toBe(false)
-    expect(didRecommendationSheetDrag(-4.1)).toBe(true)
+    expect(didBottomSheetDrag(4)).toBe(false)
+    expect(didBottomSheetDrag(-4.1)).toBe(true)
   })
 
   it('pointer drag 뒤 생성된 click만 막고 키보드 click은 허용한다', () => {
-    expect(shouldSuppressRecommendationSheetClick(true, 1)).toBe(true)
-    expect(shouldSuppressRecommendationSheetClick(true, 0)).toBe(false)
-    expect(shouldSuppressRecommendationSheetClick(false, 1)).toBe(false)
+    expect(shouldSuppressBottomSheetClick(true, 1)).toBe(true)
+    expect(shouldSuppressBottomSheetClick(true, 0)).toBe(false)
+    expect(shouldSuppressBottomSheetClick(false, 1)).toBe(false)
   })
 
   it('pointermove가 누락돼도 pointerup의 최종 이동으로 drag를 판정한다', () => {
     expect(
       finishRecommendationSheetPointer('collapsed', -10, 0, {
-        collapsedHeight: 44,
+        collapsedHeight: BOTTOM_SHEET_COLLAPSED_HEIGHT,
         expandedHeight: 380,
       }),
     ).toEqual({
@@ -379,7 +318,11 @@ describe('restoreRecommendationSheetHandleFocus', () => {
 
 describe('RecommendMobileSheet', () => {
   it('criteria에서도 collapsed를 유지하고 handle을 활성화한다', () => {
-    const { markup } = renderSheet('collapsed', null, 'criteria')
+    const { markup } = renderSheet(
+      'collapsed',
+      { title: '상권 추천 조건', summary: '자치구부터 선택해 주세요' },
+      'criteria',
+    )
     const handleTag = markup.match(/<button(?=[^>]*aria-controls)[^>]*>/)?.[0]
 
     expect(markup).toContain('data-sheet-snap="collapsed"')
@@ -389,14 +332,16 @@ describe('RecommendMobileSheet', () => {
     expect(handleTag).toContain('aria-label="상권 추천 바텀시트 펼치기"')
   })
 
-  it('collapsed 상태에서는 핸들만 남기고 본문을 비활성화한다', () => {
+  it('collapsed 상태에서 첫 줄만 보여주고 본문을 비활성화한다', () => {
     const { markup } = renderSheet('collapsed')
     const controlsId = markup.match(/aria-controls="([^"]+)"/)?.[1]
 
     expect(markup).toContain('data-sheet-snap="collapsed"')
     expect(markup).toContain('aria-expanded="false"')
-    expect(markup).not.toContain('1위')
-    expect(markup).not.toContain('망원시장')
+    // C-1 — 접었을 때 아무 내용도 안 보이면 시트가 「닫힌 것」처럼 읽힌다.
+    expect(markup).toContain('추천 결과')
+    expect(markup).toContain('추천 상권 5곳')
+    // 첫 줄만이다. 본문(순위·점수 카드)은 여전히 비활성이다.
     expect(markup).not.toContain('87점')
     expect(markup).toContain('aria-label="상권 추천 바텀시트 펼치기"')
     expect(controlsId).toBeTruthy()
@@ -416,11 +361,15 @@ describe('RecommendMobileSheet', () => {
     expect(bodyTag).not.toContain('inert=""')
   })
 
-  it('선택 결과가 없어도 collapsed에서는 핸들만 표시한다', () => {
-    const { markup } = renderSheet('collapsed', null)
+  it('첫 줄은 받은 문구를 그대로 쓴다 — 시트가 문구를 만들지 않는다', () => {
+    const { markup } = renderSheet('collapsed', {
+      title: '업종 선택',
+      summary: '강남구 · 역삼1동',
+    })
 
-    expect(markup).not.toContain('추천 결과를 확인해 보세요')
-    expect(markup).toContain('aria-label="상권 추천 바텀시트 펼치기"')
+    expect(markup).toContain('업종 선택')
+    expect(markup).toContain('강남구 · 역삼1동')
+    expect(markup).not.toContain('추천 상권 5곳')
   })
 
   it('높이·safe area·overscroll·reduced motion 규칙을 스타일에 반영한다', () => {
@@ -447,10 +396,11 @@ describe('RecommendMobileSheet', () => {
       expanded.styles,
     )
 
-    expect(RECOMMENDATION_SHEET_COLLAPSED_HEIGHT).toBe(44)
-    expect(RECOMMENDATION_SHEET_MINIMUM_MAP_HEIGHT).toBe(180)
-    expect(RECOMMENDATION_SHEET_EXPANDED_RATIO).toBe(0.72)
-    expect(expanded.styles).toContain('--recommend-sheet-collapsed-height:44px')
+    // 분석 시트와 같은 값을 쓴다 — 공유 모듈이 정본이다(ux-followups C).
+    expect(BOTTOM_SHEET_COLLAPSED_HEIGHT).toBe(72)
+    expect(BOTTOM_SHEET_MINIMUM_MAP_HEIGHT).toBe(180)
+    expect(BOTTOM_SHEET_EXPANDED_RATIO).toBe(0.72)
+    expect(expanded.styles).toContain('--recommend-sheet-collapsed-height:72px')
     expect(expanded.styles).toMatch(/min\(\s*72%,\s*calc\(100% - 180px\)\s*\)/)
     expect(peekHandleStyles).toContain('env(safe-area-inset-bottom)')
     expect(expandedHandleStyles).not.toContain('env(safe-area-inset-bottom)')
@@ -472,7 +422,8 @@ describe('RecommendMobileSheet result content', () => {
             {
               snap: 'expanded' as const,
               view: 'results' as const,
-              selectedResult: item,
+              title: '추천 결과',
+              summary: `${item.rank}위 ${item.commercialName}`,
               onSnapChange: vi.fn(),
             },
             createElement(RecommendResultList, {
