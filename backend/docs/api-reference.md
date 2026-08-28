@@ -79,9 +79,9 @@
 
 | 도메인 접두어 | 비즈니스 | 검증 폴백 | 필드별 검증 | 파라미터 타입 불일치 |
 |--------------|---------|----------|------------|-------------------|
-| `MEMBER` | `001~007` | `MEMBER_100` | `101~112` | `MEMBER_113` |
+| `MEMBER` | `001~009` | `MEMBER_100` | `101~112` | `MEMBER_113` |
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
-| `AUTH` | `001~015` | `AUTH_100` | `101~104` | `AUTH_105` |
+| `AUTH` | `001~017` | `AUTH_100` | `101~104`, `106~108` | `AUTH_105` |
 | `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116`, `118~119` | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
@@ -113,12 +113,14 @@
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
 | POST | `/login` | 이메일/비밀번호 로그인, Access 토큰 + Refresh 쿠키 발급 | - |
-| POST | `/logout` | 로그아웃, Refresh 토큰 무효화 + Access 토큰 jti 블랙리스트 등록 | 🔒 |
+| POST | `/logout` | 현재 기기 세션만 로그아웃 (해당 refresh 무효화 + Access 토큰 jti 블랙리스트, 다른 기기 로그인 유지) | 🔒 |
 | POST | `/token/reissue` | Access 토큰 재발급 (Refresh 쿠키 필요, 토큰 회전) | - |
 | GET | `/{provider}/authorize` | 소셜 로그인 인가 URL 생성 (`kakao` / `naver`, CSRF `state` 포함·10분 유효) | - |
 | GET | `/{provider}/login` | 소셜 로그인 콜백 (`code`, `state`) — 미가입 이메일이면 자동 가입 후 로그인 | - |
-| POST | `/email/send-code` | 회원가입용 이메일 인증코드 발송 (60초 쿨다운, 가입 여부 노출 없이 항상 성공 응답) | - |
+| POST | `/email/send-code` | 회원가입용 이메일 인증코드 발송 (60초 쿨다운 + IP 발송 상한, 가입 여부 노출 없이 항상 성공 응답) | - |
 | POST | `/email/verify-code` | 인증코드 검증 — 성공 시 30분 동안 해당 이메일로 가입 가능 | - |
+| POST | `/password/reset/send-code` | 비밀번호 재설정 코드 발송 (일반 계정 전용, 계정 존재 여부 노출 없이 항상 성공 응답) | - |
+| POST | `/password/reset` | 코드 검증 후 비밀번호 재설정 — 성공 시 전 기기 세션 무효화 | - |
 
 **Refresh 토큰**은 응답 바디가 아니라 `HttpOnly` + `SameSite=Strict` 쿠키(`refreshToken`)로 전달됩니다. 로그아웃·비밀번호 변경·탈퇴 시 쿠키가 만료 처리됩니다.
 
@@ -132,6 +134,8 @@
 | POST | `/me/profile-image` | 프로필 이미지 업로드 (`multipart/form-data`) | 🔒 |
 | DELETE | `/me/profile-image` | 프로필 이미지 삭제 | 🔒 |
 | POST | `/me/password` | 비밀번호 변경 — 전 기기 토큰 재발급 차단, 재로그인 필요 | 🔒 |
+| POST | `/me/password/setup` | 비밀번호 최초 설정 (소셜 전용 계정에 이메일 로그인 수단 추가) | 🔒 |
+| DELETE | `/me/password` | 소셜 전용 계정 전환 — 비밀번호 제거 (소셜 연결 계정만, 전 기기 로그아웃) | 🔒 |
 | POST | `/me/withdraw` | 회원 탈퇴 — 개인정보 마스킹, 전 기기 재발급 차단, 동일 이메일 재가입 불가 | 🔒 |
 
 비밀번호 변경·탈퇴는 Refresh 토큰을 삭제해 재발급을 차단합니다. 다른 기기에 남은 **기존 Access 토큰은 만료 시까지 유효할 수 있으며**, 회원 API 는 회원 상태 검사로 추가 차단됩니다.

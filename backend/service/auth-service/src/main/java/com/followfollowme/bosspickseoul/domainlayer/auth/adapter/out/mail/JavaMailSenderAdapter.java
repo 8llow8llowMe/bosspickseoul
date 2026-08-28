@@ -16,6 +16,9 @@ public class JavaMailSenderAdapter implements MailSendPort {
 
     private static final String CODE_SUBJECT = "[BossPickSeoul] 이메일 인증코드 안내";
     private static final String NOTICE_SUBJECT = "[BossPickSeoul] 회원가입 안내";
+    private static final String RESET_SUBJECT = "[BossPickSeoul] 비밀번호 재설정 안내";
+    private static final String SOCIAL_LINKED_SUBJECT = "[BossPickSeoul] 소셜 로그인 연결 안내";
+    private static final String PASSWORD_REMOVED_SUBJECT = "[BossPickSeoul] 소셜 전용 계정 전환 안내";
 
     private final JavaMailSender javaMailSender;
 
@@ -33,6 +36,36 @@ public class JavaMailSenderAdapter implements MailSendPort {
     @Async("authMailTaskExecutor")
     public void sendAlreadyRegisteredNotice(String email) {
         send(email, NOTICE_SUBJECT, buildNoticeBody());
+    }
+
+    @Override
+    @Async("authMailTaskExecutor")
+    public void sendPasswordResetCode(String email, String code) {
+        send(email, RESET_SUBJECT, buildResetCodeBody(code));
+    }
+
+    @Override
+    @Async("authMailTaskExecutor")
+    public void sendPasswordResetNotRegisteredNotice(String email) {
+        send(email, RESET_SUBJECT, buildResetNotRegisteredBody());
+    }
+
+    @Override
+    @Async("authMailTaskExecutor")
+    public void sendPasswordResetSocialOnlyNotice(String email, String providerName) {
+        send(email, RESET_SUBJECT, buildResetSocialOnlyBody(providerName));
+    }
+
+    @Override
+    @Async("authMailTaskExecutor")
+    public void sendSocialLinkedNotice(String email, String providerName) {
+        send(email, SOCIAL_LINKED_SUBJECT, buildSocialLinkedBody(providerName));
+    }
+
+    @Override
+    @Async("authMailTaskExecutor")
+    public void sendPasswordRemovedNotice(String email, String providerName) {
+        send(email, PASSWORD_REMOVED_SUBJECT, buildPasswordRemovedBody(providerName));
     }
 
     private void send(String email, String subject, String body) {
@@ -77,5 +110,60 @@ public class JavaMailSenderAdapter implements MailSendPort {
               <p style="color: #888; font-size: 12px; margin-top: 16px;">본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>
             </div>
             """;
+    }
+
+    private String buildResetCodeBody(String code) {
+        return """
+            <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #1a1a2e;">BossPickSeoul 비밀번호 재설정</h2>
+              <p>아래 인증코드를 5분 이내에 입력하고 새 비밀번호를 설정해주세요.</p>
+              <div style="background: #f4f4f8; border-radius: 8px; padding: 16px; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 6px;">%s</div>
+              <p style="color: #888; font-size: 12px; margin-top: 16px;">본인이 요청하지 않았다면 이 메일을 무시해주세요. 비밀번호는 변경되지 않습니다.</p>
+            </div>
+            """.formatted(code);
+    }
+
+    private String buildResetNotRegisteredBody() {
+        return """
+            <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #1a1a2e;">BossPickSeoul 비밀번호 재설정 안내</h2>
+              <p>이 이메일로 가입된 계정이 없습니다.</p>
+              <p>이메일 주소를 다시 확인하시거나, 회원가입을 진행해주세요.</p>
+              <p style="color: #888; font-size: 12px; margin-top: 16px;">본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>
+            </div>
+            """;
+    }
+
+    private String buildResetSocialOnlyBody(String providerName) {
+        return """
+            <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #1a1a2e;">BossPickSeoul 비밀번호 재설정 안내</h2>
+              <p>이 계정은 <b>%s 로그인</b>으로 가입되어 별도의 비밀번호가 없습니다.</p>
+              <p>로그인 화면에서 %s 로그인을 이용해주세요.</p>
+              <p style="color: #888; font-size: 12px; margin-top: 16px;">본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>
+            </div>
+            """.formatted(providerName, providerName);
+    }
+
+    private String buildSocialLinkedBody(String providerName) {
+        return """
+            <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #1a1a2e;">BossPickSeoul 소셜 로그인 연결 안내</h2>
+              <p>회원님의 계정에 <b>%s 로그인</b>이 연결되었습니다.</p>
+              <p>이제 기존 이메일 로그인과 %s 로그인 모두 사용할 수 있습니다.</p>
+              <p style="color: #d32f2f; font-size: 13px; margin-top: 16px;">본인이 한 것이 아니라면 즉시 비밀번호를 변경해주세요.</p>
+            </div>
+            """.formatted(providerName, providerName);
+    }
+
+    private String buildPasswordRemovedBody(String providerName) {
+        return """
+            <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #1a1a2e;">BossPickSeoul 소셜 전용 계정 전환 안내</h2>
+              <p>회원님의 계정이 <b>%s 전용 계정</b>으로 전환되어 비밀번호가 제거되었습니다.</p>
+              <p>이제 %s 로그인으로만 이용할 수 있으며, 보안을 위해 모든 기기에서 로그아웃되었습니다.</p>
+              <p style="color: #d32f2f; font-size: 13px; margin-top: 16px;">본인이 한 것이 아니라면 즉시 %s 계정의 보안 상태를 확인해주세요.</p>
+            </div>
+            """.formatted(providerName, providerName, providerName);
     }
 }

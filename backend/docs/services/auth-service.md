@@ -23,18 +23,34 @@
 
 ## 인증 API (`/api/v1/auth`)
 
-- `POST /api/v1/auth/login` — 이메일/비밀번호 로그인. 응답 body에 accessToken, `Set-Cookie`로 refresh 쿠키 발급.
+- `POST /api/v1/auth/login` — 이메일/비밀번호 로그인. 요청 DTO 는 `@Valid` 검증(빈 값/형식 오류는 400,
+  실패 카운터에 오르지 않음). 응답 body에 accessToken, `Set-Cookie`로 refresh 쿠키 발급.
   실패 누적 시 이메일 단위로 잠긴다(`AUTH_015`, 429 — 기본 5회 / 10분).
-- `POST /api/v1/auth/logout` — 로그아웃. refresh 삭제 + access 블랙리스트, refresh 쿠키 제거(maxAge=0).
+- `POST /api/v1/auth/logout` — **현재 기기 세션만** 로그아웃. 쿠키의 refresh 토큰으로 세션을 특정해
+  해당 refresh 만 삭제 + 현재 access 블랙리스트, refresh 쿠키 제거(maxAge=0). 다른 기기 로그인은 유지된다.
+  쿠키가 없거나 만료/위조면 세션 삭제는 건너뛰고 access 무효화만 수행한다.
 - `POST /api/v1/auth/token/reissue` — 토큰 재발급. `@CookieValue(name = "refreshToken", required = false)`로
-  쿠키를 읽으며, 쿠키 미첨부 시에도 컨트롤러 진입 후 도메인 검증(`AUTH_002`)으로 처리한다.
+  쿠키를 읽으며, 쿠키 미첨부 시에도 컨트롤러 진입 후 도메인 검증(`AUTH_001`)으로 처리한다.
 
 **refresh 쿠키 계약** (`RefreshCookieProvider`):
 - `httpOnly=true`, `sameSite=Strict`
-- `path=/api/v1/auth/token/reissue` — **reissue 전용 스코프**. 다른 경로에는 쿠키가 전송되지 않으므로
-  로그아웃 등 다른 API가 쿠키 값을 읽는 설계를 하면 안 된다.
+- `path=/api/v1/auth` — reissue 와 logout 이 함께 쿠키를 읽는다 (로그아웃이 현재 기기 세션을
+  특정하려면 쿠키의 refresh 토큰이 필요). auth 경로 밖으로는 여전히 전송되지 않는다.
 - `secure`는 prod 프로필에서만 true
 - `maxAge=jwt.refresh-expiration` (초 단위)
+
+**다중 기기 로그인 세션**
+- refresh 토큰은 회원당 단일 슬롯이 아니라 **기기(로그인)별 세션 키**로 저장한다. 세션 아이디는
+  refresh 토큰의 jti 다. Redis 키 2종 —
+  `{prefix}:auth:refreshToken:{memberId}:{sessionId}` (세션별 토큰, TTL=refresh 만료),
+  `{prefix}:auth:refreshSessions:{memberId}` (세션 ZSET, score=마지막 갱신 시각).
+- 기기 상한은 `auth.session.max-devices`(기본 5). 초과 시 **가장 오래 갱신되지 않은 세션**부터
+  밀어내며, 밀려난 기기는 access 만료 시점에 재로그인이 필요하다(`AUTH_001`).
+- 회전(reissue)은 새 sessionId 키로 교체하고 이전 키를 즉시 삭제한다 — 같은 jti 로 재발급하면
+  iat 가 초 단위라 같은 초 안에서 동일 토큰이 재생성되어 회전이 무력화되기 때문이고,
+  이전 토큰의 재사용(탈취 재생)도 이 삭제로 차단된다.
+- 무효화 범위: 로그아웃 = 현재 세션만(`revokeCurrentSession`, 관용 처리),
+  탈퇴/비밀번호 변경/상태 이상 = 전 기기 세션(`revokeAllSessions`, 실패 전파·롤백).
 
 ## 현재 구현 주의점
 
@@ -93,7 +109,7 @@
 - `POST /me/withdraw` — 논리 탈퇴. name/nickname `탈퇴회원` 마스킹 + profileImageUrl/password 제거 +
   status=WITHDRAWN + 세션 revoke. email 유지로 동일 이메일 재가입 차단.
 - revoke는 보안 이벤트 경로에서 **실패 시 전파되어 DB 변경과 함께 롤백**된다(무효화 없는 성공 방지).
-  로그아웃은 기존대로 관용 처리(`revokeToken` vs `revokeAllSessions`).
+  로그아웃은 기존대로 관용 처리(`revokeCurrentSession` vs `revokeAllSessions`).
 - 알려진 한계: 다른 기기의 기존 access token은 만료까지 유효(재발급은 차단됨). `JWT_ACCESS_EXPIRATION`
   단축(PT30M 권장) 또는 회원 단위 revocation 마커(후속) 참고. 토큰 재발급은 회원 상태를 검증해
   정지/탈퇴 회원의 reissue를 차단하고 refresh를 삭제한다.
@@ -101,8 +117,12 @@
   `backend/scripts/migration/member-email-unique-index-runbook.sql` 수동 적용 필요(ddl-auto는 미보장).
 
 **이메일 인증 (가입 필수)** (`/api/v1/auth`)
-- `POST /email/send-code` — 인증코드 발송. 60초 쿨다운(`AUTH_003`, 429)이 가입 여부 판별보다 먼저 적용되고,
-  응답은 항상 200(기가입 이메일은 안내 메일 발송).
+- `POST /email/send-code` — 인증코드 발송. **IP 발송 상한**(`AUTH_016`, 429 — 기본 10회/1시간,
+  `auth.email-send.ip-max-send-count`/`ip-window`) → 이메일 60초 쿨다운(`AUTH_003`, 429) 순으로
+  가입 여부 판별보다 먼저 적용되고, 응답은 항상 200(기가입 이메일은 안내 메일 발송).
+  IP 상한은 이메일 키 쿨다운으로 못 막는 "한 IP 가 여러 이메일로 뿌리는" 남용 방어다.
+  클라이언트 IP 는 `ClientIpResolver`(X-Forwarded-For → X-Real-IP → remoteAddr)로 얻고
+  Redis `{prefix}:auth:emailSendIp:{ip}` 고정 윈도우 카운터(장애 시 fail-open)로 센다.
 - `POST /email/verify-code` — 코드 검증(`AUTH_004`/`AUTH_005`). 성공 시 30분간 가입 가능.
 - 가입(`POST /members/signup`)은 인증 플래그가 없으면 `MEMBER_006`(400)로 거부하고, 성공 시 플래그를 소비한다.
 - 이메일은 전 구간 trim+소문자 정규화(Redis 키/DB 저장 정합). 코드: SecureRandom 8자(I/O/0/1 제외), TTL 5분.
@@ -112,8 +132,51 @@
 - 발송: `spring.mail.*`(SMTP, env `MAIL_HOST/PORT/USERNAME/PASSWORD`) + `authMailTaskExecutor` 비동기,
   로그에는 이메일을 마스킹해 남긴다. 자격증명 미설정이어도 기동은 가능하며 발송 시점에만 실패한다.
   **배포 전 Vault dev/prod secret에 MAIL_* 키 추가 필요.**
-- 후속 권장: send-code/login의 **IP 기반** rate limit(게이트웨이), 회원 단위 revocation 마커.
-  (계정(이메일) 단위 로그인 실패 잠금은 구현 완료 — `AUTH_015`, 위 "로그인 실패 횟수 제한 / 잠금" 절 참고)
+- 후속 권장: login 의 **IP 기반** rate limit(게이트웨이), 회원 단위 revocation 마커.
+  (send-code 의 IP 상한은 구현 완료 — `AUTH_016`, 위 참조. 계정(이메일) 단위 로그인 실패 잠금도
+  구현 완료 — `AUTH_015`, 위 "로그인 실패 횟수 제한 / 잠금" 절 참고)
+
+**계정 정책 (의도적으로 제공하지 않는 것)**
+- **이메일 변경 기능은 제공하지 않는다.** 이메일은 로그인 식별자이자 DB unique 키(`uk_member_email`)로
+  사실상 계정의 PK 역할이다. 소셜 자동 연결(`AUTH_008`)·재가입 차단·이메일 인증 이력이 모두 이메일에
+  묶여 있어, 변경을 허용하면 이 보증들이 전부 흔들린다. 이메일을 바꾸려면 새 계정 가입이 정책이다.
+- **탈퇴 시 타 서비스 데이터는 보존한다.** 개인정보(이름/닉네임/프로필/비밀번호)는 auth 에서만 보관하며
+  탈퇴 시 마스킹·제거된다. 커뮤니티 게시글/분석 보관함/시뮬레이션 이력에는 memberId 만 남고
+  개인 식별 정보가 없어 그대로 둔다. 보관함·이력은 인증 필수라 탈퇴 후 접근 자체가 불가하다.
+  (추후 커뮤니티에 작성자 닉네임 표시를 도입하면, 탈퇴 회원은 마스킹된 값("탈퇴회원")이 그대로
+  노출되도록 auth 조회 계약을 유지할 것.)
+
+**비밀번호 재설정 (일반 계정 전용)** (`/api/v1/auth`)
+- `POST /password/reset/send-code` — 재설정 코드 발송 (미인증). **응답은 항상 200** 이고 분기는
+  메일 내용으로만 전달한다: 일반 계정=재설정 코드 / 미가입=미가입 안내 / 소셜 전용(password null)=
+  소셜 로그인 이용 안내. 응답으로 구분하면 계정 열거 벡터가 되기 때문이다.
+- `POST /password/reset` — `{email, code, newPassword}`. 성공 시 비밀번호 교체 + **전 기기 세션
+  무효화**(deleteAllSessions — 탈취범이 유지 중인 세션 차단). 코드 불일치 `AUTH_004`, 만료/미발급
+  `AUTH_005`, **5회 오입력 시 코드 무효화 + `AUTH_017`**(브루트포스 방어).
+- 저장소는 회원가입 인증과 **키 분리** (`PasswordResetStorePort` / `RedisPasswordResetStoreAdapter`) —
+  `{prefix}:auth:passwordResetCode|passwordResetCooldown|passwordResetFail:{email}`.
+  공유하면 재설정 코드로 회원가입이 통과하거나 그 반대가 된다. 코드 TTL 5분 / 쿨다운 60초는
+  회원가입 인증과 동일하고, 코드 생성기는 공용(`VerificationCodeGenerator`).
+- IP 발송 상한 카운터(`emailSendIp`)는 회원가입 발송과 **공유**한다 — "이 IP 가 메일을 몇 번
+  보냈나"는 API 구분 없이 센다.
+- 새 비밀번호 검증 코드 대역: `AUTH_106~108` (member 비밀번호 정책과 동일 규칙).
+
+**계정 연결/전환 (일반 ↔ 소셜)** — 프론트 연동은 `docs/auth-account-frontend-guide.md` 참고
+- **일반 → +소셜 (자동 연결)**: 일반 계정이 있는 이메일로 소셜 로그인하면 그 계정에 provider 가
+  연결되고(`OAuthLoginProcessor.resolveExistingMember` — `withProvider`), 이후 두 로그인 수단 모두
+  사용 가능하다. 양쪽 다 메일함 소유가 증명된 상태(소셜=provider 이메일 검증, 일반=가입 시 이메일
+  인증)라 자동 연결이 안전하다. 연결 순간 **통보 메일**(`sendSocialLinkedNotice`)을 발송해
+  본인이 아닌 연결을 즉시 감지할 수 있게 한다.
+- **소셜 → +이메일 (비밀번호 최초 설정)**: `POST /members/me/password/setup` (인증 필수) —
+  password 가 null 인 계정만 허용(`MEMBER_008` 로 중복 설정 거부), 설정 후 이메일 로그인도 가능.
+  로그인 수단 "추가"라 세션은 무효화하지 않는다 (변경/재설정과 다른 점).
+- **소셜 전용 전환(비밀번호 제거)**: `DELETE /members/me/password` (인증 필수) — 연결된 계정
+  (password 있음 + provider 있음)만 허용한다. 일반 전용 계정은 `MEMBER_009` 거부(마지막 로그인
+  수단 제거 방지), 이미 소셜 전용이면 `MEMBER_007`. 성공 시 password=null 저장 + **전 기기 세션
+  무효화**(로그인 수단이 줄어드는 보안 이벤트) + 전환 통보 메일(`sendPasswordRemovedNotice`).
+  전환 후에도 "비밀번호 최초 설정"으로 이메일 로그인을 복구할 수 있다.
+- `/members/me` 응답에 `hasPassword` 를 노출한다 — FE 가 (일반 / 소셜 전용 / 연결됨) 상태를
+  구분해 비밀번호 메뉴(변경·설정·전환)를 분기하는 기준이다.
 
 **소셜 로그인 (카카오/네이버)** (`/api/v1/auth`)
 - `GET /{provider}/authorize` — 인가 URL 생성. CSRF 방어용 일회성 `state`(SecureRandom 16바이트 hex)를

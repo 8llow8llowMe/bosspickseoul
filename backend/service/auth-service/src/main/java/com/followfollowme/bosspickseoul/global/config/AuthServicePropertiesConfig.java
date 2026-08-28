@@ -2,6 +2,8 @@ package com.followfollowme.bosspickseoul.global.config;
 
 import com.followfollowme.bosspickseoul.common.config.JasyptPropertiesConfig;
 import com.followfollowme.bosspickseoul.common.config.SwaggerPropertiesConfig;
+import com.followfollowme.bosspickseoul.global.properties.AuthSessionProperties;
+import com.followfollowme.bosspickseoul.global.properties.EmailSendLimitProperties;
 import com.followfollowme.bosspickseoul.global.properties.LoginAttemptProperties;
 import com.followfollowme.bosspickseoul.persistence.config.SnowflakePropertiesConfig;
 import com.followfollowme.bosspickseoul.redis.config.RedisPropertiesConfig;
@@ -21,7 +23,7 @@ import org.springframework.context.annotation.Import;
     StoragePropertiesConfig.class
 })
 @EnableConfigurationProperties({
-    LoginAttemptProperties.class
+    LoginAttemptProperties.class, AuthSessionProperties.class, EmailSendLimitProperties.class
 })
 public class AuthServicePropertiesConfig {
 

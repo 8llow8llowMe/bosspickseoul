@@ -317,6 +317,47 @@ private Long targetId;
     columnList = "memberId,targetType,targetCode", unique = true)
 ```
 
+### 9-6. 쿼리 작성 규칙 (필수)
+
+수단을 이 순서로 고릅니다. 아래로 내려갈수록 비용이 커지므로 위에서 해결되면 내려가지 않습니다.
+
+| 상황 | 수단 | 위치 |
+|------|------|------|
+| 조건이 고정된 단순 조회 | 파생 쿼리 (`findByMemberIdAndPayloadHash` 등) | `repository/` |
+| 조건이 고정된 복합 조회, 조건부 UPDATE/DELETE | 정적 JPQL `@Query` | `repository/` |
+| **조건이 동적으로 켜지고 꺼지는 조회, 조인, 집계** | **QueryDSL** (`BooleanBuilder`, 엔티티 조인) | `repository/custom/{X}CustomRepository` + `Impl` |
+| DB 방언이 필요한 대량 쓰기 (`ON DUPLICATE KEY UPDATE` 등) | JDBC (`JdbcTemplate.batchUpdate`) | batch-service `adapter/out/persistence/Jdbc*Adapter` |
+| 네이티브 `@Query(nativeQuery = true)` | **쓰지 않습니다** | 위 수단으로 안 되면 설계를 다시 봅니다 |
+
+- **동적 조건을 JPQL 로 쓰지 않습니다.** `(:param IS NULL OR ...)` 가 조건 수만큼 늘어 쿼리가 조건 대장이 되고,
+  DB 는 실행계획을 조건별로 최적화하지 못합니다. QueryDSL 은 null 인 조건이 where 에 아예 들어가지 않습니다.
+  본보기: `PolicyCustomRepositoryImpl` (자치구·업종이 각각 있을 때만 조건을 붙입니다).
+- 연관관계 어노테이션을 쓰지 않으므로(§9-1) 조인은 QueryDSL **엔티티 조인**으로 잇습니다. 두 엔티티를
+  나열하고 where 로 묶는 세타 조인은 조인 의도가 문장에 드러나지 않아 피합니다.
+- 커서 페이징은 `limit(size + 1)` 로 한 건 더 가져와 `hasNext` 를 판정합니다.
+  본보기: `CommunityPostCustomRepositoryImpl.executeSliceQuery`.
+- `JPAQueryFactory` 는 `persistence-core` 의 `QuerydslConfigurer` 를 서비스 BeansConfig 에서 `@Import` 해 얻습니다.
+  `@DataJpaTest` 슬라이스에는 이 빈이 없으므로 테스트에도 `@Import` 합니다.
+- **`@Param` 은 쓰지 않습니다.** Spring Boot 플러그인이 `-parameters` 를 켜 주므로 메서드 파라미터명이
+  쿼리의 이름과 같으면 그대로 바인딩됩니다. 이름이 다를 때만 `@Param` 을 붙입니다.
+- **커스텀 구현은 컴파일로 검증되지 않습니다.** 조건을 빼먹거나 정렬 방향을 뒤집어도 빌드는 통과하고
+  결과만 조용히 틀립니다. 동적 조건 조립·조인·정렬은 반드시 `@DataJpaTest` 슬라이스 테스트로 실제 스키마에
+  질의해 봅니다. 본보기: `PolicyCustomRepositoryImplTest`.
+
+### 9-7. N+1 금지 (필수)
+
+루프나 스트림 안에서 단건 조회를 부르지 않습니다. 항목 수만큼 왕복이 생깁니다.
+
+- **DB 단건 조회 반복** → `in` 절 벌크 조회로 바꿉니다 (`findAllByIds(Collection<Long>)`).
+  본보기: 모더레이션 신고 목록은 신고를 순회하며 대상을 건당 조회하던 것을 종류별 `in` 절 2번으로 바꿨습니다
+  (`ModerationQueryProcessor.findReportTargets`).
+- 연관관계 어노테이션을 쓰지 않으므로(§9-1) **지연로딩 N+1 은 구조적으로 없습니다.** 남는 것은 손으로 쓴
+  루프뿐이니, 리뷰에서 `for` / `stream` 안의 `Port.` · `Repository.` 호출을 봅니다.
+- 조립을 Facade 에서 하지 않습니다. 벌크 조회와 맵 구성은 Processor 의 책임입니다. Facade 는 Processor 결과를
+  Presenter 에 넘기는 오케스트레이션만 합니다.
+- **성격상 반복이 맞는 것은 그대로 둡니다.** 호출 단위가 원천의 단위인 경우입니다 — 오브젝트 스토리지의
+  키별 삭제(`ObjectStorageClient.deleteQuietly`), 공유 코드 충돌 재시도 루프처럼요. 그 이유를 주석으로 남깁니다.
+
 ## 10. Internal Client 규칙
 
 - Spring 백엔드 서비스 간 조회 / 연동은 기본적으로 `FeignClient`를 사용합니다.

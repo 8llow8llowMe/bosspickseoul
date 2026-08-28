@@ -63,8 +63,10 @@ public class CommunityCleanupProcessor {
             return 0;
         }
 
+        // 참조 여부는 한 번에 모아 와서 메모리에서 판정한다. 후보마다 조회하면 후보 수만큼 왕복이 생긴다.
         Set<String> referenced = new HashSet<>(communityCleanupRepositoryPort.findAllReferencedImageKeys());
         int deleted = 0;
+        // 삭제만 키 단위로 반복한다. 오브젝트 스토리지는 호출 단위가 객체 하나라 묶을 수 없다 (N+1 아님).
         for (String candidate : candidates) {
             if (referenced.contains(candidate)) {
                 continue;

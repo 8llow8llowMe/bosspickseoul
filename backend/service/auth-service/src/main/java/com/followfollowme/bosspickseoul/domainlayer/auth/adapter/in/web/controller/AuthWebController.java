@@ -4,10 +4,13 @@ import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.request.AuthEmailCodeSendRequest;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.request.AuthEmailCodeVerifyRequest;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.request.AuthGeneralLoginRequest;
+import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.request.AuthPasswordResetCodeSendRequest;
+import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.request.AuthPasswordResetRequest;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthOAuthAuthorizeResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.provider.RefreshCookieProvider;
+import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.support.ClientIpResolver;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.AuthGeneralLoginCommand;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.TokenReissueCommand;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.AuthCookieResult;
@@ -18,6 +21,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -43,13 +47,14 @@ public class AuthWebController {
 
     private final AuthWebUseCase authWebUseCase;
     private final RefreshCookieProvider refreshCookieProvider;
+    private final ClientIpResolver clientIpResolver;
 
     @Operation(
         summary = "일반 로그인",
         description = "이메일과 비밀번호로 로그인합니다. 실패가 누적되면 해당 이메일이 일정 시간 잠깁니다(AUTH_015, 429)."
     )
     @PostMapping("/login")
-    public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(@RequestBody AuthGeneralLoginRequest request) {
+    public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(@Valid @RequestBody AuthGeneralLoginRequest request) {
         AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request));
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
@@ -58,13 +63,16 @@ public class AuthWebController {
 
     @Operation(
         summary = "로그아웃",
-        description = "로그아웃하고 리프레시 토큰을 무효화합니다.",
+        description = "현재 기기의 세션만 로그아웃합니다 (리프레시 토큰 무효화 + Access 토큰 블랙리스트). 다른 기기의 로그인은 유지됩니다.",
         security = {@SecurityRequirement(name = "bearerAuth")}
     )
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Response<Void>> logout(@AuthenticationPrincipal MemberLoginActive loginActive) {
-        authWebUseCase.logout(loginActive.memberId(), loginActive.tokenId());
+    public ResponseEntity<Response<Void>> logout(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
+        @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken
+    ) {
+        authWebUseCase.logout(loginActive.memberId(), loginActive.tokenId(), refreshToken);
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.clearRefreshCookie().toString())
             .body(Response.success());
@@ -92,10 +100,13 @@ public class AuthWebController {
             .body(Response.success(result.response()));
     }
 
-    @Operation(summary = "이메일 인증코드 발송", description = "회원가입용 이메일 인증코드를 발송합니다. 60초 쿨다운이 적용되며, 가입 여부와 무관하게 항상 성공으로 응답합니다(기가입 이메일에는 안내 메일 발송).")
+    @Operation(summary = "이메일 인증코드 발송", description = "회원가입용 이메일 인증코드를 발송합니다. 이메일당 60초 쿨다운(AUTH_003)과 IP당 시간당 발송 상한(AUTH_016)이 적용되며, 가입 여부와 무관하게 항상 성공으로 응답합니다(기가입 이메일에는 안내 메일 발송).")
     @PostMapping("/email/send-code")
-    public ResponseEntity<Response<Void>> sendEmailVerificationCode(@Valid @RequestBody AuthEmailCodeSendRequest request) {
-        authWebUseCase.sendEmailVerificationCode(request.email());
+    public ResponseEntity<Response<Void>> sendEmailVerificationCode(
+        @Valid @RequestBody AuthEmailCodeSendRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        authWebUseCase.sendEmailVerificationCode(request.email(), clientIpResolver.resolve(httpServletRequest));
         return ResponseEntity.ok().body(Response.success());
     }
 
@@ -103,6 +114,28 @@ public class AuthWebController {
     @PostMapping("/email/verify-code")
     public ResponseEntity<Response<Void>> verifyEmailVerificationCode(@Valid @RequestBody AuthEmailCodeVerifyRequest request) {
         authWebUseCase.verifyEmailVerificationCode(request.email(), request.code());
+        return ResponseEntity.ok().body(Response.success());
+    }
+
+    @Operation(summary = "비밀번호 재설정 코드 발송", description = """
+        비밀번호 재설정 인증코드를 메일로 발송합니다. 일반(이메일+비밀번호) 계정 전용입니다.
+        계정 존재 여부와 무관하게 항상 성공으로 응답하며, 미가입 이메일과 소셜 전용 계정에는
+        각각 안내 메일이 발송됩니다. 이메일당 60초 쿨다운(AUTH_003)과 IP당 발송 상한(AUTH_016)이 적용됩니다.""")
+    @PostMapping("/password/reset/send-code")
+    public ResponseEntity<Response<Void>> sendPasswordResetCode(
+        @Valid @RequestBody AuthPasswordResetCodeSendRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        authWebUseCase.sendPasswordResetCode(request.email(), clientIpResolver.resolve(httpServletRequest));
+        return ResponseEntity.ok().body(Response.success());
+    }
+
+    @Operation(summary = "비밀번호 재설정", description = """
+        메일로 받은 인증코드로 비밀번호를 재설정합니다. 성공 시 전 기기 세션이 무효화되어 재로그인이 필요합니다.
+        코드 불일치는 AUTH_004, 만료/미발급은 AUTH_005, 5회 실패 시 코드가 무효화되고 AUTH_017 로 응답합니다.""")
+    @PostMapping("/password/reset")
+    public ResponseEntity<Response<Void>> resetPassword(@Valid @RequestBody AuthPasswordResetRequest request) {
+        authWebUseCase.resetPassword(request.email(), request.code(), request.newPassword());
         return ResponseEntity.ok().body(Response.success());
     }
 

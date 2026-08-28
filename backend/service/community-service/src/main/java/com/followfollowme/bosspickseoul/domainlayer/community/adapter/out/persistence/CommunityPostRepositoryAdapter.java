@@ -10,6 +10,8 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.LikedCommunityPost;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Slice;
@@ -83,6 +85,16 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
     @Override
     public Optional<CommunityPost> findById(long postId) {
         return communityPostRepository.findById(postId).map(communityMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public List<CommunityPost> findAllByIds(Collection<Long> postIds) {
+        if (postIds.isEmpty()) {
+            return List.of();
+        }
+        return communityPostRepository.findAllById(postIds).stream()
+            .map(communityMapper::toDomainFromEntity)
+            .toList();
     }
 
     @Override

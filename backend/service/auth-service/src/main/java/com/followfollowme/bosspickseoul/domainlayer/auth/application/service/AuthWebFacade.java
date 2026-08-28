@@ -16,6 +16,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.pro
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.processor.GeneralLoginProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.processor.JwtTokenProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.processor.OAuthLoginProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.processor.PasswordResetProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.enums.OAuthProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class AuthWebFacade implements AuthWebUseCase {
     private final OAuthLoginProcessor oAuthLoginProcessor;
     private final JwtTokenProcessor jwtTokenProcessor;
     private final EmailVerificationProcessor emailVerificationProcessor;
+    private final PasswordResetProcessor passwordResetProcessor;
     private final AuthPresenter authPresenter;
 
     @Override
@@ -47,8 +49,9 @@ public class AuthWebFacade implements AuthWebUseCase {
     }
 
     @Override
-    public void logout(long memberId, String tokenId) {
-        jwtTokenProcessor.revokeToken(memberId, tokenId);
+    public void logout(long memberId, String tokenId, String refreshToken) {
+        // 다중 기기 로그인을 지원하므로 현재 기기 세션만 무효화한다. 전 기기 무효화는 보안 이벤트 경로 전용.
+        jwtTokenProcessor.revokeCurrentSession(memberId, tokenId, refreshToken);
     }
 
     @Override
@@ -64,14 +67,26 @@ public class AuthWebFacade implements AuthWebUseCase {
     }
 
     @Override
-    public void sendEmailVerificationCode(String email) {
+    public void sendEmailVerificationCode(String email, String clientIp) {
         // Redis/메일 중심 흐름이라 트랜잭션 경계를 두지 않는다 (DB 조회는 단건 findByEmail뿐).
-        emailVerificationProcessor.sendCode(email);
+        emailVerificationProcessor.sendCode(email, clientIp);
     }
 
     @Override
     public void verifyEmailVerificationCode(String email, String code) {
         emailVerificationProcessor.verifyCode(email, code);
+    }
+
+    @Override
+    public void sendPasswordResetCode(String email, String clientIp) {
+        // Redis/메일 중심 흐름이라 트랜잭션 경계를 두지 않는다 (DB 조회는 단건 findByEmail뿐).
+        passwordResetProcessor.sendResetCode(email, clientIp);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(String email, String code, String newPassword) {
+        passwordResetProcessor.resetPassword(email, code, newPassword);
     }
 
     @Override

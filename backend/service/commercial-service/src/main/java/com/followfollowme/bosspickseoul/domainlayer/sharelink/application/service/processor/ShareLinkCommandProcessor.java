@@ -81,6 +81,12 @@ public class ShareLinkCommandProcessor {
         }
     }
 
+    /**
+     * 충돌하지 않는 공유 코드를 얻는다.
+     *
+     * <p>루프 안에서 조회를 부르지만 N+1 이 아니다. 항목 수만큼 도는 게 아니라 충돌했을 때만
+     * 다시 도는 재시도이고, 상한이 있어 최악의 경우도 {@code MAX_CODE_GENERATION_RETRY} 번이다.
+     */
     private String generateUniqueShareCode() {
         for (int attempt = 0; attempt < MAX_CODE_GENERATION_RETRY; attempt++) {
             String shareCode = generateShareCode();

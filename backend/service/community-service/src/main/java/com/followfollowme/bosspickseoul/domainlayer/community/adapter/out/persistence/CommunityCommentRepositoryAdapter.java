@@ -6,6 +6,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityCommentStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityComment;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,16 @@ public class CommunityCommentRepositoryAdapter implements CommunityCommentReposi
     @Override
     public Optional<CommunityComment> findById(long commentId) {
         return communityCommentRepository.findById(commentId).map(communityMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public List<CommunityComment> findAllByIds(Collection<Long> commentIds) {
+        if (commentIds.isEmpty()) {
+            return List.of();
+        }
+        return communityCommentRepository.findAllById(commentIds).stream()
+            .map(communityMapper::toDomainFromEntity)
+            .toList();
     }
 
     @Override
