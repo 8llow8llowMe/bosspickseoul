@@ -1,5 +1,6 @@
 'use client'
 
+import { ChevronDown } from 'lucide-react'
 import { useId, type ChangeEvent, type FormEvent } from 'react'
 import styled from 'styled-components'
 import { districts } from '@/data/districts'
@@ -50,19 +51,75 @@ const Label = styled.label`
   line-height: 20px;
 `
 
-const Select = styled.select`
+const SelectShell = styled.div`
+  position: relative;
+  display: grid;
+
+  /* 화살표는 select 위에 얹히므로 클릭을 가로채면 안 된다. */
+  svg {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+    color: var(--color-text-600);
+    pointer-events: none;
+    transition: color var(--motion-fast) var(--ease-standard);
+  }
+
+  &:has(select:disabled) svg {
+    color: var(--color-placeholder);
+  }
+`
+
+const Select = styled.select<{ $isPlaceholder: boolean }>`
   width: 100%;
   min-height: 48px;
+  /* 오른쪽 40px 은 위 화살표 자리다. appearance:none 이라 네이티브 화살표는 없다. */
   padding: 0 40px 0 14px;
-  border: 1px solid var(--color-border-300);
+  /* 채움형 필드는 평상시 테두리를 그리지 않는다(DESIGN.md §Inputs & Forms).
+     자리는 2px transparent 로 잡아 둬서 포커스·에러로 바뀔 때 칸이 흔들리지 않는다. */
+  border: 2px solid transparent;
   border-radius: var(--radius-field);
-  background: var(--color-surface);
-  color: var(--color-text-900);
+  background: var(--color-surface-muted);
+  /* select 는 폰트를 상속하지 않는다 — 두지 않으면 UA 기본 16px 로 떨어져
+     자기 라벨(14px)보다 커진다. */
+  font: inherit;
+  font-size: 15px;
+  color: ${props =>
+    props.$isPlaceholder
+      ? 'var(--color-placeholder)'
+      : 'var(--color-text-900)'};
   cursor: pointer;
+  appearance: none;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 
+  /* 전역 :focus-visible 아웃라인(global-styles.ts)은 지우지 않는다 —
+     키보드 포커스 표시는 그쪽이 담당하고, 여기서는 칸의 상태만 바꾼다.
+     클릭 포커스에서도 반응하도록 :focus-visible 이 아니라 :focus 를 쓴다. */
+  &:focus {
+    border-color: var(--color-primary-700);
+    background: var(--color-surface);
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--color-danger);
+    background: color-mix(
+      in srgb,
+      var(--color-danger) 6%,
+      var(--color-surface)
+    );
+  }
+
+  /* 비활성도 같은 면을 유지한다 — 다시 활성화될 때 칸의 형태가 흔들리지 않게.
+     구분은 글자·화살표 흐림과 헬퍼 문구가 맡는다. */
   &:disabled {
-    background: var(--color-surface-muted);
     color: var(--color-text-caption);
+    cursor: not-allowed;
   }
 `
 
@@ -214,47 +271,55 @@ export default function RecommendConditionForm({
     <Form onSubmit={handleSubmit}>
       <Field>
         <Label htmlFor={districtId}>자치구</Label>
-        <Select
-          id={districtId}
-          value={draft.district?.code ?? ''}
-          onChange={handleDistrictChange}
-        >
-          <option value="">자치구 선택</option>
-          {districtOptions.map(district => (
-            <option key={district.code} value={district.code}>
-              {district.name}
-            </option>
-          ))}
-        </Select>
+        <SelectShell>
+          <Select
+            $isPlaceholder={!draft.district}
+            id={districtId}
+            value={draft.district?.code ?? ''}
+            onChange={handleDistrictChange}
+          >
+            <option value="">자치구 선택</option>
+            {districtOptions.map(district => (
+              <option key={district.code} value={district.code}>
+                {district.name}
+              </option>
+            ))}
+          </Select>
+          <ChevronDown aria-hidden="true" />
+        </SelectShell>
       </Field>
 
       <Field>
         <Label htmlFor={administrationId}>행정동</Label>
-        <Select
-          id={administrationId}
-          aria-describedby={
-            [
-              administrationHelp && administrationHelpId,
-              candidateHelp && candidateHelpId,
-            ]
-              .filter(Boolean)
-              .join(' ') || undefined
-          }
-          aria-invalid={Boolean(administrationsError) || undefined}
-          disabled={!draft.district || isAdministrationsLoading}
-          value={draft.administration?.code ?? ''}
-          onChange={handleAdministrationChange}
-        >
-          <option value="">행정동 선택</option>
-          {administrations.map(administration => (
-            <option
-              key={administration.administrationCode}
-              value={administration.administrationCode}
-            >
-              {administration.administrationName}
-            </option>
-          ))}
-        </Select>
+        <SelectShell>
+          <Select
+            $isPlaceholder={!draft.administration}
+            id={administrationId}
+            aria-describedby={
+              [
+                administrationHelp && administrationHelpId,
+                candidateHelp && candidateHelpId,
+              ]
+                .filter(Boolean)
+                .join(' ') || undefined
+            }
+            aria-invalid={Boolean(administrationsError) || undefined}
+            disabled={!draft.district || isAdministrationsLoading}
+            value={draft.administration?.code ?? ''}
+            onChange={handleAdministrationChange}
+          >
+            <option value="">행정동 선택</option>
+            {administrations.map(administration => (
+              <option
+                key={administration.administrationCode}
+                value={administration.administrationCode}
+              >
+                {administration.administrationName}
+              </option>
+            ))}
+          </Select>
+          <ChevronDown aria-hidden="true" />
+        </SelectShell>
         {administrationHelp ? (
           <Helper
             $isError={Boolean(administrationsError)}
@@ -293,23 +358,27 @@ export default function RecommendConditionForm({
 
       <Field>
         <Label htmlFor={serviceId}>업종</Label>
-        <Select
-          id={serviceId}
-          disabled={!draft.administration}
-          value={draft.service?.code ?? ''}
-          onChange={handleServiceChange}
-        >
-          <option value="">업종 선택</option>
-          {Object.entries(simulationCatalog).map(([category, services]) => (
-            <optgroup key={category} label={category}>
-              {services.map(service => (
-                <option key={service.code} value={service.code}>
-                  {service.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </Select>
+        <SelectShell>
+          <Select
+            $isPlaceholder={!draft.service}
+            id={serviceId}
+            disabled={!draft.administration}
+            value={draft.service?.code ?? ''}
+            onChange={handleServiceChange}
+          >
+            <option value="">업종 선택</option>
+            {Object.entries(simulationCatalog).map(([category, services]) => (
+              <optgroup key={category} label={category}>
+                {services.map(service => (
+                  <option key={service.code} value={service.code}>
+                    {service.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </Select>
+          <ChevronDown aria-hidden="true" />
+        </SelectShell>
       </Field>
 
       <SubmitButton
