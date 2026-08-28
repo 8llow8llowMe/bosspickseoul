@@ -74,8 +74,10 @@ export const TextInput = styled.input`
   width: 100%;
   height: 48px;
   padding: 0 14px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  /* 채움형이라 평상시 테두리를 그리지 않는다. 자리는 2px transparent 로 잡아
+     포커스·에러에서 칸이 흔들리지 않게 한다(DESIGN.md §Inputs & Forms). */
+  border: 2px solid transparent;
+  border-radius: var(--radius-field);
   outline: none;
   background: var(--color-surface-muted);
   color: var(--color-text-900);
@@ -91,19 +93,26 @@ export const TextInput = styled.input`
   &:focus {
     border-color: var(--color-primary-700);
     background: var(--color-surface);
-    box-shadow: var(--shadow-focus-primary);
+    box-shadow: none;
   }
 
   /* DESIGN.md §Error (inline field): red500 2px 테두리. 프롭이 아니라 aria-invalid 를
      선택자로 삼아 시각 표시와 보조기술 표시가 갈라질 수 없게 한다. box-sizing 이
      border-box 라 높이 48px 는 유지된다. */
   &[aria-invalid='true'] {
-    border: 2px solid var(--color-danger);
+    border-color: var(--color-danger);
+    background: color-mix(
+      in srgb,
+      var(--color-danger) 6%,
+      var(--color-surface)
+    );
   }
 
+  /* 에러 상태에서 포커스해도 후광을 덧대지 않는다 — 빨간 테두리 위에 링이 하나 더
+     생기면 이중선으로 보이고, 정상 포커스(테두리만)와 규격도 갈린다.
+     상태는 테두리 색 하나로만 말한다. */
   &[aria-invalid='true']:focus {
     border-color: var(--color-danger);
-    box-shadow: var(--shadow-focus-danger);
   }
 `
 

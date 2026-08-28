@@ -174,7 +174,7 @@ const SearchInput = styled.input`
   min-height: 48px;
   padding: 0 15px;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   background: var(--color-surface);
   color: var(--color-text-900);
   font: inherit;

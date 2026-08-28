@@ -1,5 +1,18 @@
 import { createGlobalStyle } from 'styled-components'
 
+/**
+ * ⚠️ 이 파일을 고쳤는데 브라우저에 반영되지 않으면 **dev 서버를 재시작**한다.
+ * `createGlobalStyle` 은 HMR 로 다시 주입되지 않아, 새로 추가한 토큰이 소스에는
+ * 있는데 방출 CSS 에는 없는 상태가 된다(실측: `--radius-field` 를 추가했더니
+ * 컴포넌트 변경은 즉시 반영되는데 이 토큰만 미정의라 radius 가 0 으로 렌더됐다.
+ * 재시작하니 바로 붙었다). 컴포넌트 스타일만 보고 "반영됐다"고 판단하면 안 된다.
+ *
+ * 토큰 메모:
+ * - `--radius-field`(12px) 는 폼 필드 전용이다. `--radius-control`(8px) 은 버튼·칩·탭이
+ *   126곳에서 함께 쓰므로 입력창만 키우려고 값을 갈랐다. DESIGN.md §Inputs & Forms 참고.
+ * - `--color-text-caption` 이 grey600 인 것은 grey500(#8b95a1)이 흰 배경 3.04:1 로
+ *   WCAG AA 미달이기 때문이다. 12px 캡션은 large text 예외에 들지 않는다.
+ */
 const GlobalStyles = createGlobalStyle`
   :root {
     --font-ui-fallback: 'Toss Product Sans', 'Tossface', 'Pretendard', 'SF Pro KR', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Basier Square', 'Apple SD Gothic Neo', Roboto, 'Noto Sans KR', 'Malgun Gothic', sans-serif;
@@ -36,8 +49,6 @@ const GlobalStyles = createGlobalStyle`
     --color-text-700: var(--color-grey-700);
     --color-text-600: var(--color-grey-600);
     --color-text-500: var(--color-grey-600);
-    /* WCAG AA(DESIGN.md 569행) 때문에 grey500(#8b95a1, 3.04:1)이 아니라 grey600(4.62:1)이다.
-       12px 캡션은 large text 예외에 들지 않아 grey500 으로는 본문 기준 AA 를 넘지 못한다. */
     --color-text-caption: var(--color-grey-600);
     --color-placeholder: var(--color-grey-400);
     --color-border-300: var(--color-grey-300);
@@ -57,6 +68,7 @@ const GlobalStyles = createGlobalStyle`
     --radius-compact: 4px;
     --radius-control: 8px;
     --radius-card: 12px;
+    --radius-field: 12px;
     --radius-sheet: 16px;
     --radius-pill: 9999px;
 

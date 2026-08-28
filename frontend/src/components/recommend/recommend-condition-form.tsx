@@ -55,7 +55,7 @@ const Select = styled.select`
   min-height: 48px;
   padding: 0 40px 0 14px;
   border: 1px solid var(--color-border-300);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   background: var(--color-surface);
   color: var(--color-text-900);
   cursor: pointer;

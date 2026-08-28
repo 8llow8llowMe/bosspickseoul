@@ -139,8 +139,9 @@ export const TextInput = styled.input`
   width: 100%;
   height: 48px;
   padding: 0 14px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  /* 채움형 — 평상시 테두리 없음(DESIGN.md §Inputs & Forms). */
+  border: 2px solid transparent;
+  border-radius: var(--radius-field);
   outline: none;
   background: var(--color-surface-muted);
   color: var(--color-text-900);

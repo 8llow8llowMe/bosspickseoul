@@ -62,7 +62,7 @@ const Input = styled.input`
   min-height: 50px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   background: white;
   color: var(--color-text-900);
 `
@@ -72,7 +72,7 @@ const TextArea = styled.textarea`
   min-height: 120px;
   padding: 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   resize: vertical;
   background: white;
   color: var(--color-text-900);
@@ -84,7 +84,7 @@ const Select = styled.select`
   min-height: 50px;
   padding: 0 14px;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   background: white;
   color: var(--color-text-900);
 `
