@@ -75,6 +75,9 @@ const SlotButton = styled.button<{ $filled: boolean }>`
   display: inline-flex;
   align-items: center;
   padding: 0 10px;
+  /* button 은 border 를 선언하지 않으면 UA 기본 2px outset 이 그대로 나온다.
+     전역 리셋은 font·color 만 다룬다(global-styles.ts). */
+  border: none;
   border-radius: var(--radius-field);
   background: transparent;
   color: ${props =>
@@ -88,8 +91,10 @@ const SlotButton = styled.button<{ $filled: boolean }>`
   cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-standard);
 
+  /* 바탕(BarShell)이 이미 surface-muted 라, 호버도 같은 회색이면 아무 일도
+     일어나지 않는다. 눌리는 자리는 흰 면으로 떠오르게 한다. */
   &:hover:not(:disabled) {
-    background: var(--color-surface-muted);
+    background: var(--color-surface);
   }
 
   &:disabled {

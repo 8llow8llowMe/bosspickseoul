@@ -50,6 +50,7 @@ const BackButton = styled.button`
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  border: none;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-700);

@@ -100,6 +100,7 @@ const ClearButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: none;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-caption);
