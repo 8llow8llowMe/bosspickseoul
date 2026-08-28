@@ -8,7 +8,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 public interface AnalysisBookmarkRepository extends JpaRepository<AnalysisBookmarkEntity, Long> {
 
@@ -19,16 +18,16 @@ public interface AnalysisBookmarkRepository extends JpaRepository<AnalysisBookma
     /** 소유자 조건을 DELETE 에 포함해 단일 쿼리로 처리한다 (엔티티 로딩 없음). */
     @Modifying
     @Query("delete from AnalysisBookmarkEntity b where b.id = :bookmarkId and b.memberId = :memberId")
-    int deleteByIdAndMemberId(@Param("bookmarkId") Long bookmarkId, @Param("memberId") Long memberId);
+    int deleteByIdAndMemberId(Long bookmarkId, Long memberId);
 
     /** 소유자 조건을 UPDATE 에 포함해 단일 쿼리로 처리한다 (엔티티 로딩 없음). */
     @Modifying
     @Query("update AnalysisBookmarkEntity b set b.bookmarkName = :bookmarkName "
         + "where b.id = :bookmarkId and b.memberId = :memberId")
     int updateBookmarkName(
-        @Param("bookmarkId") Long bookmarkId,
-        @Param("memberId") Long memberId,
-        @Param("bookmarkName") String bookmarkName
+        Long bookmarkId,
+        Long memberId,
+        String bookmarkName
     );
 
     // createdAt 이 같은 행이 페이지 경계에서 중복/누락되지 않도록 id(Snowflake, 시간순 유니크)를 2차 정렬로 둔다.

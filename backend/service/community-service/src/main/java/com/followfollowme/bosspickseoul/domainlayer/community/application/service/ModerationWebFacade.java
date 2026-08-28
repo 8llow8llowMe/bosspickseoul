@@ -4,16 +4,12 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.ModerationDecisionResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.ModerationReportsResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.presenter.ModerationPresenter;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.model.ModerationReportTargets;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.in.ModerationWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.ModerationCommandProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.ModerationQueryProcessor;
-import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
-import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityComment;
-import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityReport;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,18 +26,9 @@ public class ModerationWebFacade implements ModerationWebUseCase {
     @Transactional(readOnly = true)
     public ModerationReportsResponse getPendingReports() {
         List<CommunityReport> reports = moderationQueryProcessor.findPendingReports();
-        Map<Long, CommunityPost> postsById = new HashMap<>();
-        Map<Long, CommunityComment> commentsById = new HashMap<>();
-        for (CommunityReport report : reports) {
-            if (report.targetKind() == CommunityReportTargetKind.POST) {
-                moderationQueryProcessor.findPostById(report.targetId())
-                    .ifPresent(post -> postsById.put(report.targetId(), post));
-            } else {
-                moderationQueryProcessor.findCommentById(report.targetId())
-                    .ifPresent(comment -> commentsById.put(report.targetId(), comment));
-            }
-        }
-        return moderationPresenter.toReportsResponse(reports, postsById, commentsById);
+        ModerationReportTargets targets = moderationQueryProcessor.findReportTargets(reports);
+
+        return moderationPresenter.toReportsResponse(reports, targets.postsById(), targets.commentsById());
     }
 
     @Override

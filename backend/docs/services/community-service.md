@@ -73,6 +73,10 @@
 
 - `GET /api/v1/moderation/reports` — PENDING 신고 목록 (MANAGER only)
   - 응답에 `targetTitle`, `targetPreview` (최대 100자), `targetAuthorId` 포함 — 매니저가 DB 직접 조회 없이 트리아지 가능
+  - 대상 컨텐츠는 **종류별 `in` 절 2번**으로 모아 온다 (`ModerationQueryProcessor.findReportTargets`).
+    신고를 순회하며 건당 조회하면 신고 수만큼 왕복이 생긴다 (coding-conventions §9-7).
+  - 이미 삭제된 대상은 `targetTitle`·`targetPreview`·`targetAuthorId` 가 `null` 이다. 신고는 남고 대상만
+    사라지는 경우가 있어 없는 것을 오류로 다루지 않는다.
 - `PATCH /api/v1/moderation/reports/{reportId}` — `{ "decision": "APPROVE_AND_HIDE" | "DISMISS" }` (MANAGER only)
 - `community_report` 테이블에 `status`, `resolved_at`, `resolved_by_member_id` 컬럼 + `idx_community_report_status` 추가
 - `APPROVE_AND_HIDE` 시 대상 post/comment 상태를 `DELETED`로 변경

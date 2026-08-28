@@ -149,6 +149,9 @@
   종료 정책을 먼저 걸러내는 것이 선택도가 가장 높아 마감일을 선두에 둔다)
 - 시드: `resources/db/policy-seed.sql` (14건). ⚠️ **실데이터가 아니라 계약 검증용 표본**이다.
   실데이터 적재는 `feature-status.md` 의 "정책 추천 실 데이터 연동" 참고.
+- 조회는 **QueryDSL** (`PolicyCustomRepositoryImpl`). 자치구·업종이 각각 있을 때만 조건을 붙이는
+  동적 조회라 JPQL 로 쓰면 `(:param IS NULL OR ...)` 가 늘어난다 (coding-conventions §9-6).
+  동적 조건 조립과 정렬은 `PolicyCustomRepositoryImplTest` 슬라이스 테스트가 실제 스키마에 질의해 확인한다.
 
 ## 창업 시뮬레이션 (simulation)
 

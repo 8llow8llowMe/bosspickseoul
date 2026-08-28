@@ -7,7 +7,6 @@ import com.followfollowme.bosspickseoul.domainlayer.policy.domain.model.Policy;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,7 +21,7 @@ public class PolicyRepositoryAdapter implements PolicyRepositoryPort {
         String districtCode, String serviceCategoryCode, LocalDate baseDate, int limit
     ) {
         return policyRepository
-            .findRecommendations(districtCode, serviceCategoryCode, baseDate, PageRequest.of(0, limit))
+            .findRecommendations(districtCode, serviceCategoryCode, baseDate, limit)
             .stream()
             .map(policyMapper::toDomain)
             .toList();
