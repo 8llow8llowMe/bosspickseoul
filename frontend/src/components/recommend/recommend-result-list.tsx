@@ -193,25 +193,88 @@ const BlueOceanHead = styled.span`
 `
 
 /*
- * `storeRate` 는 **낮을수록** 좋다(비어 있다). 그대로 막대로 그리면 「짧을수록 좋은
- * 막대」가 되어, 같은 화면의 점수 게이지(길수록 좋음)와 의미가 충돌한다. 그래서
- * 「빈 자리」(100 - storeRate)를 그린다 — 길수록 기회다. 숫자는 원본 비율을 남긴다:
- * 그림은 방향을, 숫자는 사실을 말한다.
+ * 덤벨 — 이 상권 점포 수(●)와 행정동 점포 수(○)를 **다섯 업종 공통 눈금**에 찍고
+ * 사이를 잇는다. 두 점 사이의 거리가 곧 「비어 있는 정도」다.
+ *
+ * 비율(`storeRate`)로 막대를 그렸더니 다섯 개가 서로 구별되지 않았다 — 「비어 있는
+ * 업종」이 정의상 비율 하위 5개라 늘 85~100% 에 몰린다. 점포 수는 9~65 로 벌어진다.
+ * 숫자는 원본 비율까지 그대로 남긴다: 그림은 비교를, 숫자는 사실을 말한다.
  */
-const VacancyBar = styled.span`
+const Dumbbell = styled.span`
   grid-column: 2;
+  position: relative;
   display: block;
-  height: 6px;
+  height: 14px;
+`
+
+/* 양 끝 점이 잘리지 않게 점 반지름만큼 안쪽으로 들인다. */
+const DumbbellPlot = styled.span`
+  position: absolute;
+  inset: 0 5px;
+`
+
+const DumbbellAxis = styled.span`
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 2px;
+  transform: translateY(-50%);
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
 `
 
-const VacancyFill = styled.span<{ $ratio: number }>`
-  display: block;
-  width: ${({ $ratio }) => $ratio}%;
-  height: 100%;
-  border-radius: inherit;
+const DumbbellGap = styled.span<{ $start: number; $end: number }>`
+  position: absolute;
+  top: 50%;
+  left: ${({ $start }) => $start}%;
+  width: ${({ $start, $end }) => $end - $start}%;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-pill);
   background: var(--score-high);
+`
+
+const DumbbellDot = styled.span<{ $at: number; $whole: boolean }>`
+  position: absolute;
+  top: 50%;
+  left: ${({ $at }) => $at}%;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  transform: translateY(-50%);
+  border: 2px solid
+    ${({ $whole }) => ($whole ? 'var(--score-high)' : 'var(--color-text-700)')};
+  border-radius: 50%;
+  background: ${({ $whole }) =>
+    $whole ? 'var(--color-surface)' : 'var(--color-text-700)'};
+`
+
+const BlueOceanLegend = styled.p`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--color-text-600);
+  font-size: 12px;
+  line-height: 18px;
+`
+
+const LegendKey = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+`
+
+const LegendDot = styled.span<{ $whole: boolean }>`
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  border: 2px solid
+    ${({ $whole }) => ($whole ? 'var(--score-high)' : 'var(--color-text-700)')};
+  border-radius: 50%;
+  background: ${({ $whole }) =>
+    $whole ? 'var(--color-surface)' : 'var(--color-text-700)'};
 `
 
 const BlueOceanName = styled.span`
@@ -362,7 +425,7 @@ export const SCORE_UNAVAILABLE_DESCRIPTION =
 
 export const BLUE_OCEAN_HEADING = '이 상권에 비어 있는 업종'
 export const BLUE_OCEAN_NOTE =
-  '소속 행정동에 비해 이 상권에 적게 들어온 업종이에요. 비율이 낮을수록 아직 자리가 비어 있다는 뜻이에요.'
+  '소속 행정동에 비해 이 상권에 적게 들어온 업종이에요. 두 점 사이가 멀수록 아직 자리가 비어 있다는 뜻이에요.'
 
 const hasScore = (score: unknown): score is number =>
   typeof score === 'number' && Number.isFinite(score)
@@ -441,19 +504,50 @@ export const readBlueOceanCategories = (
 }
 
 /**
- * 「빈 자리」 비율 = 100 - storeRate.
+ * 다섯 업종이 함께 쓰는 가로 눈금의 최댓값 = 행정동 점포 수 중 가장 큰 값.
  *
- * `storeRate` 는 **낮을수록** 좋다(행정동 대비 이 상권에 적게 들어왔다 = 자리가 비어
- * 있다). 그대로 막대 길이로 쓰면 「짧을수록 좋은 막대」가 되어, 바로 위 점수 게이지
- * (길수록 좋음)와 같은 화면에서 방향이 충돌한다. 뒤집어야 **길수록 기회**가 된다.
- *
- * 비율을 알 수 없으면 `null` 이고, 그때는 막대를 그리지 않는다 — 0% 막대는
- * 「기회가 전혀 없다」는 다른 말이다.
+ * **눈금을 공유해야 비교가 성립한다.** 항목마다 제 눈금을 쓰면 선 길이가 아무것도
+ * 말하지 않는다.
  */
-export const getBlueOceanVacancy = (storeRate: number): number | null =>
-  Number.isFinite(storeRate)
-    ? Math.min(Math.max(100 - storeRate, 0), 100)
-    : null
+export const getBlueOceanAxisMax = (
+  categories: readonly BlueOceanCategory[],
+): number =>
+  categories.reduce(
+    (max, category) => Math.max(max, category.administrationStoreCount),
+    0,
+  )
+
+/** 덤벨의 두 점 위치(%). `start` 는 이 상권, `end` 는 행정동 전체. */
+export type BlueOceanRange = { start: number; end: number }
+
+/**
+ * **비율이 아니라 점포 수를 그린다.**
+ *
+ * 「비어 있는 업종」은 정의상 `storeRate` 하위 5개라 비율은 늘 좁은 띠(85~100%)에
+ * 몰린다 — 비율로 그린 막대는 다섯 개가 서로 구별되지 않았다. 점포 수는 9~65 로
+ * 크게 벌어지고, 덤으로 **비율이 감추던 것**을 드러낸다: 행정동에도 9곳뿐인 업종은
+ * 비율이 낮아도 기회의 크기 자체가 작다.
+ *
+ * 두 점 사이의 거리가 곧 「비어 있는 정도」다. 비율을 안 쓰므로 방향이 뒤집힐 여지가
+ * 애초에 없다.
+ */
+export const getBlueOceanRange = (
+  category: BlueOceanCategory,
+  axisMax: number,
+): BlueOceanRange | null => {
+  if (!Number.isFinite(axisMax) || axisMax <= 0) return null
+
+  const here = Math.min(Math.max(category.commercialStoreCount, 0), axisMax)
+  const whole = Math.min(
+    Math.max(category.administrationStoreCount, 0),
+    axisMax,
+  )
+
+  // 상권이 행정동보다 많은 것은 데이터가 뒤집힌 경우다. 「비어 있다」로 그리지 않는다.
+  if (whole < here) return null
+
+  return { start: (here / axisMax) * 100, end: (whole / axisMax) * 100 }
+}
 
 /** 소수점 둘째 자리까지만 남기고 불필요한 0은 지운다. 3.33 → "3.33", 5 → "5". */
 export const formatStoreRate = (storeRate: number): string | null =>
@@ -627,6 +721,8 @@ export default function RecommendResultList({
         const blueOceanCategories = readBlueOceanCategories(
           item.blueOceanCategories,
         )
+        // 눈금을 공유해야 다섯 업종의 선 길이가 서로 비교된다.
+        const blueOceanAxisMax = getBlueOceanAxisMax(blueOceanCategories)
         const isScoreUnavailable = !hasScore(item.compositeScore)
 
         return (
@@ -735,10 +831,20 @@ export default function RecommendResultList({
                     <BlueOcean data-blue-ocean="true">
                       <BlueOceanHeading>{BLUE_OCEAN_HEADING}</BlueOceanHeading>
                       <BlueOceanNote>{BLUE_OCEAN_NOTE}</BlueOceanNote>
+                      <BlueOceanLegend aria-hidden="true">
+                        <LegendKey>
+                          <LegendDot $whole={false} />이 상권
+                        </LegendKey>
+                        <LegendKey>
+                          <LegendDot $whole />
+                          행정동 전체
+                        </LegendKey>
+                      </BlueOceanLegend>
                       <BlueOceanList>
                         {blueOceanCategories.map((category, index) => {
-                          const vacancy = getBlueOceanVacancy(
-                            category.storeRate,
+                          const range = getBlueOceanRange(
+                            category,
+                            blueOceanAxisMax,
                           )
 
                           return (
@@ -765,13 +871,24 @@ export default function RecommendResultList({
                                   </SelectedServiceBadge>
                                 ) : null}
                               </BlueOceanHead>
-                              {vacancy === null ? null : (
-                                <VacancyBar
+                              {range === null ? null : (
+                                <Dumbbell
                                   aria-hidden="true"
-                                  data-vacancy={vacancy}
+                                  data-dumbbell={`${category.commercialStoreCount}-${category.administrationStoreCount}`}
                                 >
-                                  <VacancyFill $ratio={vacancy} />
-                                </VacancyBar>
+                                  <DumbbellPlot>
+                                    <DumbbellAxis />
+                                    <DumbbellGap
+                                      $end={range.end}
+                                      $start={range.start}
+                                    />
+                                    <DumbbellDot $at={range.end} $whole />
+                                    <DumbbellDot
+                                      $at={range.start}
+                                      $whole={false}
+                                    />
+                                  </DumbbellPlot>
+                                </Dumbbell>
                               )}
                               <BlueOceanCounts>
                                 {formatBlueOceanCounts(category)}

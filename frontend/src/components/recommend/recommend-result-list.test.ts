@@ -8,7 +8,8 @@ import RecommendResultList, {
   SCORE_UNAVAILABLE_LABEL,
   formatBlueOceanCounts,
   formatScore,
-  getBlueOceanVacancy,
+  getBlueOceanAxisMax,
+  getBlueOceanRange,
   readBlueOceanCategories,
   type RecommendResultListProps,
 } from './recommend-result-list'
@@ -248,53 +249,111 @@ describe('retry affordance', () => {
   })
 })
 
-// T-D7 — storeRate 는 낮을수록 좋다. 그대로 막대로 그리면 「짧을수록 좋은 막대」가 되어
-// 같은 화면의 점수 게이지(길수록 좋음)와 방향이 충돌한다.
-describe('빈 자리 막대', () => {
-  it('막대는 storeRate 가 아니라 100 - storeRate 를 그린다', () => {
-    expect(getBlueOceanVacancy(11.11)).toBeCloseTo(88.89, 5)
-    expect(getBlueOceanVacancy(3.33)).toBeCloseTo(96.67, 5)
-    // 완전히 차 있는 업종은 기회가 0 이다 — 막대도 비어 있어야 한다.
-    expect(getBlueOceanVacancy(100)).toBe(0)
+// T-D7 — 비율(storeRate)로 막대를 그렸더니 다섯 개가 서로 구별되지 않았다.
+// 「비어 있는 업종」이 정의상 비율 하위 5개라 늘 좁은 띠에 몰린다. 점포 수를 그린다.
+describe('빈 자리 덤벨', () => {
+  // 실제 관측 데이터: 섬유제품 3/42 · 의류임대 1/9 · 완구 2/16 · 네일숍 7/55 · 예술학원 9/65
+  const observed = [
+    blueOceanCategory({
+      serviceName: '섬유제품',
+      commercialStoreCount: 3,
+      administrationStoreCount: 42,
+      storeRate: 7.14,
+    }),
+    blueOceanCategory({
+      serviceName: '의류임대',
+      commercialStoreCount: 1,
+      administrationStoreCount: 9,
+      storeRate: 11.11,
+    }),
+    blueOceanCategory({
+      serviceName: '예술학원',
+      commercialStoreCount: 9,
+      administrationStoreCount: 65,
+      storeRate: 13.85,
+    }),
+  ]
+
+  it('다섯 업종이 눈금을 공유한다', () => {
+    expect(getBlueOceanAxisMax(observed)).toBe(65)
+    expect(getBlueOceanAxisMax([])).toBe(0)
   })
 
-  it('비율을 알 수 없으면 막대를 그리지 않는다', () => {
-    expect(getBlueOceanVacancy(Number.NaN)).toBeNull()
+  it('두 점은 비율이 아니라 점포 수 자리에 찍힌다', () => {
+    expect(getBlueOceanRange(observed[0], 65)).toEqual({
+      start: (3 / 65) * 100,
+      end: (42 / 65) * 100,
+    })
   })
 
-  it('카드에 막대가 실제로 들어간다', () => {
-    const markup = renderList({
-      results: [
-        candidate({
-          blueOceanCategories: [blueOceanCategory({ storeRate: 11.11 })],
-        }),
-      ],
+  /**
+   * 비율 막대가 감추던 것: 의류임대(11.11%)는 섬유제품(7.14%)보다 비율이 높아
+   * 「빈 자리」 막대가 더 짧았는데, 정작 행정동에도 9곳뿐이라 기회의 크기 자체가 작다.
+   * 점포 수로 그리면 선 길이가 그 사실을 말한다.
+   */
+  it('행정동 규모가 작은 업종은 선도 짧다', () => {
+    const 섬유제품 = getBlueOceanRange(observed[0], 65)!
+    const 의류임대 = getBlueOceanRange(observed[1], 65)!
+
+    expect(의류임대.end - 의류임대.start).toBeLessThan(
+      섬유제품.end - 섬유제품.start,
+    )
+  })
+
+  it('다섯 항목의 선 길이가 실제로 벌어진다', () => {
+    const spans = observed.map(category => {
+      const range = getBlueOceanRange(category, 65)!
+      return range.end - range.start
     })
 
-    expect(markup).toContain('data-vacancy="88.89"')
-    // 숫자는 원본 비율을 남긴다 — 그림은 방향을, 숫자는 사실을 말한다.
-    expect(markup).toContain('(11.11%)')
+    // 비율 막대는 86~93% 안에 몰려 폭 차이가 7%p 뿐이었다.
+    expect(Math.max(...spans) - Math.min(...spans)).toBeGreaterThan(60)
   })
 
-  it('비율이 깨진 항목은 숫자만 남기고 막대를 뺀다', () => {
+  it('눈금이 없거나 데이터가 뒤집히면 그리지 않는다', () => {
+    expect(getBlueOceanRange(observed[0], 0)).toBeNull()
+    expect(getBlueOceanRange(observed[0], Number.NaN)).toBeNull()
+    expect(
+      getBlueOceanRange(
+        blueOceanCategory({
+          commercialStoreCount: 9,
+          administrationStoreCount: 2,
+        }),
+        65,
+      ),
+    ).toBeNull()
+  })
+
+  it('카드에 덤벨과 범례가 실제로 들어간다', () => {
+    const markup = renderList({
+      results: [candidate({ blueOceanCategories: observed })],
+    })
+
+    expect(markup).toContain('data-dumbbell="3-42"')
+    expect(markup).toContain('data-dumbbell="9-65"')
+    expect(markup).toContain('이 상권')
+    expect(markup).toContain('행정동 전체')
+    // 숫자는 원본 비율까지 그대로 남긴다 — 그림은 비교를, 숫자는 사실을 말한다.
+    expect(markup).toContain('(7.14%)')
+  })
+
+  it('점포 수가 모두 0 이면 숫자만 남기고 덤벨을 뺀다', () => {
     const markup = renderList({
       results: [
         candidate({
-          blueOceanCategories: readBlueOceanCategories([
-            {
-              serviceCode: 'CS100001',
+          blueOceanCategories: [
+            blueOceanCategory({
               serviceName: '한식음식점',
               commercialStoreCount: 0,
-              administrationStoreCount: 8,
-              storeRate: '알 수 없음',
-            },
-          ]),
+              administrationStoreCount: 0,
+            }),
+          ],
         }),
       ],
     })
 
     expect(markup).toContain('한식음식점')
-    expect(markup).not.toContain('data-vacancy=')
+    expect(markup).not.toContain('data-dumbbell=')
   })
 })
 
