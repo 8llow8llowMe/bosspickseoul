@@ -65,6 +65,7 @@ import type {
   GeoBounds,
   MetricBreakdownItem,
   MapAreasResponse,
+  RecommendationBasis,
   ScoreMetricMetadata,
 } from '@/types/recommend'
 
@@ -316,6 +317,51 @@ const normalizeCandidateCommercial = (
     // 백엔드가 산정에 실패하면 빈 목록으로 강등하는 계약이라 `null`·`[]`는 오류가 아니다.
     blueOceanCategories: readBlueOceanCategories(item.blueOceanCategories),
   }
+}
+
+/**
+ * 추천 기준(프리셋·우선 지표·요약)을 응답에서 꺼낸다.
+ *
+ * 이 셋은 **Top N 순위를 정한 근거 자체**인데 사용자가 고르지 않는다 — 서버가
+ * 정해서 응답에 실어 준다. 화면에 안 그리면 사용자는 왜 이 순서인지 모른 채
+ * 순위만 보게 되고, 카드의 `selectionReason`("공격형 기준으로 …")에 나오는
+ * "공격형"이 무슨 말인지 설명할 자리가 사라진다.
+ *
+ * 백엔드가 필드를 비우거나 형태가 어긋나면 그 조각만 버린다 — 기준을 못 읽는 건
+ * 결과를 못 읽는 것과 다르고, 순위 자체는 그대로 쓸 수 있어야 한다.
+ */
+const readMetadataText = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+
+  return trimmed.length > 0 ? trimmed : null
+}
+
+const readMetadataField = (value: unknown, field: string): string | null => {
+  if (!value || typeof value !== 'object') return null
+
+  return readMetadataText((value as Record<string, unknown>)[field])
+}
+
+export const normalizeRecommendationBasis = (
+  response: CandidateCommercialsResponse | null | undefined,
+): RecommendationBasis | null => {
+  if (!isSuccessfulApiResponse(response) || !response.dataBody) return null
+
+  const body = response.dataBody as unknown as Record<string, unknown>
+  const basis: RecommendationBasis = {
+    presetName: readMetadataField(body.preset, 'name'),
+    presetDescription: readMetadataField(body.preset, 'description'),
+    priorityMetricName: readMetadataField(body.priorityMetric, 'name'),
+    priorityMetricDescription: readMetadataField(
+      body.priorityMetric,
+      'description',
+    ),
+    summary: readMetadataText(body.summary),
+  }
+
+  // 한 조각도 못 읽으면 그릴 게 없다 — 빈 껍데기를 렌더하지 않는다.
+  return Object.values(basis).some(value => value !== null) ? basis : null
 }
 
 export const normalizeRecommendationResults = (
@@ -886,6 +932,10 @@ export default function RecommendPage() {
       ),
     [recommendationQuery.data, state.submitted?.commercialCodes],
   )
+  const recommendationBasis = useMemo(
+    () => normalizeRecommendationBasis(recommendationQuery.data),
+    [recommendationQuery.data],
+  )
   const profileScope = useMemo<CommercialProfileScope>(
     () => ({
       districtCode: state.submitted?.district.code ?? '',
@@ -1286,6 +1336,7 @@ export default function RecommendPage() {
       administrations,
       candidatesCount: commercials.length,
       results,
+      recommendationBasis,
       selectedCommercialCode: state.selectedCommercialCode,
       previewedCommercialCode,
       periodLabel: formatRecommendationPeriod(
@@ -1342,6 +1393,7 @@ export default function RecommendPage() {
       isCandidatesBusy,
       isRecommendationBusy,
       memberId,
+      recommendationBasis,
       recommendationFeedback,
       recommendationQuery.data,
       previewedCommercialCode,

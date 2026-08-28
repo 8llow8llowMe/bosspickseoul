@@ -21,6 +21,7 @@ import {
   isRecommendationBookmarkPending,
   handleRecommendationResponseOnce,
   isRecommendationQueryBusy,
+  normalizeRecommendationBasis,
   normalizeRecommendationResults,
   readAdministrations,
   readCommercials,
@@ -687,5 +688,85 @@ describe('recommend page query orchestration helpers', () => {
     expect(selectResultHeadingForViewport(true, null, mobileHeading)).toBe(
       mobileHeading,
     )
+  })
+})
+
+describe('normalizeRecommendationBasis', () => {
+  const wrap = (dataBody: unknown): CandidateCommercialsResponse =>
+    ({
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody,
+    }) as unknown as CandidateCommercialsResponse
+
+  it('프리셋·우선 지표·요약을 꺼낸다', () => {
+    expect(
+      normalizeRecommendationBasis(
+        wrap({
+          preset: {
+            code: 'AGGRESSIVE_OPPORTUNITY',
+            name: '공격형',
+            description: '공격적 진입 프리셋입니다.',
+          },
+          priorityMetric: {
+            code: 'OPPORTUNITY_SCORE',
+            name: '기회도',
+            description: '상권 기회 지표입니다.',
+          },
+          summary: '공격형 프리셋 기준으로 선별했습니다.',
+          items: [],
+        }),
+      ),
+    ).toEqual({
+      presetName: '공격형',
+      presetDescription: '공격적 진입 프리셋입니다.',
+      priorityMetricName: '기회도',
+      priorityMetricDescription: '상권 기회 지표입니다.',
+      summary: '공격형 프리셋 기준으로 선별했습니다.',
+    })
+  })
+
+  it('일부 조각만 와도 나머지는 null 로 두고 살린다', () => {
+    // 기준을 못 읽는 것과 결과를 못 읽는 것은 다르다 — 순위는 그대로 써야 한다.
+    expect(
+      normalizeRecommendationBasis(
+        wrap({ preset: { name: '공격형' }, items: [] }),
+      ),
+    ).toEqual({
+      presetName: '공격형',
+      presetDescription: null,
+      priorityMetricName: null,
+      priorityMetricDescription: null,
+      summary: null,
+    })
+  })
+
+  it('빈 문자열·공백은 값이 아니다', () => {
+    expect(
+      normalizeRecommendationBasis(
+        wrap({ preset: { name: '   ' }, summary: '', items: [] }),
+      ),
+    ).toBeNull()
+  })
+
+  it('한 조각도 못 읽으면 null 이라 빈 껍데기를 렌더하지 않는다', () => {
+    expect(normalizeRecommendationBasis(wrap({ items: [] }))).toBeNull()
+  })
+
+  it('프리셋이 객체가 아니어도 죽지 않는다', () => {
+    expect(
+      normalizeRecommendationBasis(
+        wrap({ preset: '공격형', priorityMetric: null, items: [] }),
+      ),
+    ).toBeNull()
+  })
+
+  it('실패 응답이면 null', () => {
+    expect(normalizeRecommendationBasis(null)).toBeNull()
+    expect(
+      normalizeRecommendationBasis({
+        dataHeader: { success: false, resultCode: 'E', resultMessage: 'x' },
+        dataBody: null,
+      } as unknown as CandidateCommercialsResponse),
+    ).toBeNull()
   })
 })
