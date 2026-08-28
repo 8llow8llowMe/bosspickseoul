@@ -146,6 +146,38 @@
   (추후 커뮤니티에 작성자 닉네임 표시를 도입하면, 탈퇴 회원은 마스킹된 값("탈퇴회원")이 그대로
   노출되도록 auth 조회 계약을 유지할 것.)
 
+**비밀번호 재설정 (일반 계정 전용)** (`/api/v1/auth`)
+- `POST /password/reset/send-code` — 재설정 코드 발송 (미인증). **응답은 항상 200** 이고 분기는
+  메일 내용으로만 전달한다: 일반 계정=재설정 코드 / 미가입=미가입 안내 / 소셜 전용(password null)=
+  소셜 로그인 이용 안내. 응답으로 구분하면 계정 열거 벡터가 되기 때문이다.
+- `POST /password/reset` — `{email, code, newPassword}`. 성공 시 비밀번호 교체 + **전 기기 세션
+  무효화**(deleteAllSessions — 탈취범이 유지 중인 세션 차단). 코드 불일치 `AUTH_004`, 만료/미발급
+  `AUTH_005`, **5회 오입력 시 코드 무효화 + `AUTH_017`**(브루트포스 방어).
+- 저장소는 회원가입 인증과 **키 분리** (`PasswordResetStorePort` / `RedisPasswordResetStoreAdapter`) —
+  `{prefix}:auth:passwordResetCode|passwordResetCooldown|passwordResetFail:{email}`.
+  공유하면 재설정 코드로 회원가입이 통과하거나 그 반대가 된다. 코드 TTL 5분 / 쿨다운 60초는
+  회원가입 인증과 동일하고, 코드 생성기는 공용(`VerificationCodeGenerator`).
+- IP 발송 상한 카운터(`emailSendIp`)는 회원가입 발송과 **공유**한다 — "이 IP 가 메일을 몇 번
+  보냈나"는 API 구분 없이 센다.
+- 새 비밀번호 검증 코드 대역: `AUTH_106~108` (member 비밀번호 정책과 동일 규칙).
+
+**계정 연결/전환 (일반 ↔ 소셜)** — 프론트 연동은 `docs/auth-account-frontend-guide.md` 참고
+- **일반 → +소셜 (자동 연결)**: 일반 계정이 있는 이메일로 소셜 로그인하면 그 계정에 provider 가
+  연결되고(`OAuthLoginProcessor.resolveExistingMember` — `withProvider`), 이후 두 로그인 수단 모두
+  사용 가능하다. 양쪽 다 메일함 소유가 증명된 상태(소셜=provider 이메일 검증, 일반=가입 시 이메일
+  인증)라 자동 연결이 안전하다. 연결 순간 **통보 메일**(`sendSocialLinkedNotice`)을 발송해
+  본인이 아닌 연결을 즉시 감지할 수 있게 한다.
+- **소셜 → +이메일 (비밀번호 최초 설정)**: `POST /members/me/password/setup` (인증 필수) —
+  password 가 null 인 계정만 허용(`MEMBER_008` 로 중복 설정 거부), 설정 후 이메일 로그인도 가능.
+  로그인 수단 "추가"라 세션은 무효화하지 않는다 (변경/재설정과 다른 점).
+- **소셜 전용 전환(비밀번호 제거)**: `DELETE /members/me/password` (인증 필수) — 연결된 계정
+  (password 있음 + provider 있음)만 허용한다. 일반 전용 계정은 `MEMBER_009` 거부(마지막 로그인
+  수단 제거 방지), 이미 소셜 전용이면 `MEMBER_007`. 성공 시 password=null 저장 + **전 기기 세션
+  무효화**(로그인 수단이 줄어드는 보안 이벤트) + 전환 통보 메일(`sendPasswordRemovedNotice`).
+  전환 후에도 "비밀번호 최초 설정"으로 이메일 로그인을 복구할 수 있다.
+- `/members/me` 응답에 `hasPassword` 를 노출한다 — FE 가 (일반 / 소셜 전용 / 연결됨) 상태를
+  구분해 비밀번호 메뉴(변경·설정·전환)를 분기하는 기준이다.
+
 **소셜 로그인 (카카오/네이버)** (`/api/v1/auth`)
 - `GET /{provider}/authorize` — 인가 URL 생성. CSRF 방어용 일회성 `state`(SecureRandom 16바이트 hex)를
   Redis(`{prefix}:auth:oauthState:{state}`, TTL 10분)에 provider와 함께 저장하고 URL에 포함한다.
