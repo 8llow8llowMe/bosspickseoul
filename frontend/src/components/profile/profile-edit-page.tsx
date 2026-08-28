@@ -88,8 +88,8 @@ export default function ProfileEditPage() {
         </AccountSummary>
       </SectionPanel>
       <SectionNotice $tone="info">
-        V2 API 계약 대기 중입니다. 프로필 이미지 업로드와 닉네임 수정 API 제공
-        후 별도 작업으로 연결합니다.
+        프로필 사진과 닉네임 변경은 아직 준비 중이에요. 준비되면 이 화면에서
+        바로 수정할 수 있습니다.
       </SectionNotice>
     </SectionStack>
   )

@@ -93,11 +93,11 @@ export default function ProfileRecommendBookmarksPage() {
         <SectionPanel>
           <SectionTitle>상권 북마크</SectionTitle>
           <SectionBody>
-            아직 저장된 상권이 없습니다. 상권 분석이나 추천 화면에서 저장한
-            상권이 이 목록에 표시됩니다.
+            아직 저장된 상권이 없어요. 상권 분석이나 추천 화면에서 저장하면 이
+            목록에 표시됩니다.
           </SectionBody>
         </SectionPanel>
-        <EmptyState>저장된 추천 상권이 아직 없습니다.</EmptyState>
+        <EmptyState>저장된 추천 상권이 아직 없어요.</EmptyState>
       </SectionStack>
     )
   }

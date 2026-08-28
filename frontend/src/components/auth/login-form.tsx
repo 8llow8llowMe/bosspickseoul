@@ -9,6 +9,7 @@ import AuthShell, {
   FieldLabel,
   FooterLink,
   FooterRow,
+  FieldError,
   Notice,
   PrimaryButton,
   TextInput,
@@ -40,11 +41,18 @@ const PasswordToggle = styled.button`
   cursor: pointer;
 `
 
+type LoginFormError = {
+  field: 'email' | 'password' | 'general'
+  message: string
+} | null
+
 export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [form, setForm] = useState({ email: '', password: '' })
-  const [error, setError] = useState<string | null>(null)
+  // 어느 칸을 고쳐야 하는지 아는 실패는 그 칸에 붙인다(DESIGN.md §Error (inline field)).
+  // 자격증명 불일치는 이메일·비밀번호 중 어느 쪽인지 서버가 알려주지 않으므로 배너로 둔다.
+  const [error, setError] = useState<LoginFormError>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const isSocialError = searchParams.get('error') === 'social'
@@ -64,11 +72,14 @@ export default function LoginForm() {
 
     const email = form.email.trim()
     if (!EMAIL_PATTERN.test(email)) {
-      setError('올바른 이메일 형식을 입력해주세요.')
+      setError({
+        field: 'email',
+        message: '올바른 이메일 형식을 입력해주세요.',
+      })
       return
     }
     if (!form.password) {
-      setError('비밀번호를 입력해주세요.')
+      setError({ field: 'password', message: '비밀번호를 입력해주세요.' })
       return
     }
 
@@ -87,9 +98,15 @@ export default function LoginForm() {
       }
 
       const data = (await res.json()) as { message?: string }
-      setError(data.message ?? '이메일 또는 비밀번호를 다시 확인해주세요.')
+      setError({
+        field: 'general',
+        message: data.message ?? '이메일 또는 비밀번호를 다시 확인해주세요.',
+      })
     } catch {
-      setError('네트워크 연결을 확인한 뒤 다시 시도해주세요.')
+      setError({
+        field: 'general',
+        message: '네트워크 연결을 확인한 뒤 다시 시도해주세요.',
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -108,7 +125,9 @@ export default function LoginForm() {
               소셜 로그인에 실패했습니다. 다시 시도해 주세요.
             </Notice>
           ) : null}
-          {error ? <Notice $tone="error">{error}</Notice> : null}
+          {error?.field === 'general' ? (
+            <Notice $tone="error">{error.message}</Notice>
+          ) : null}
           <Field>
             <FieldLabel>이메일</FieldLabel>
             <TextInput
@@ -118,7 +137,14 @@ export default function LoginForm() {
               placeholder="name@example.com"
               value={form.email}
               onChange={handleChange('email')}
+              aria-invalid={error?.field === 'email' || undefined}
+              aria-describedby={
+                error?.field === 'email' ? 'login-email-error' : undefined
+              }
             />
+            {error?.field === 'email' ? (
+              <FieldError id="login-email-error">{error.message}</FieldError>
+            ) : null}
           </Field>
           <Field>
             <FieldLabel>비밀번호</FieldLabel>
@@ -130,6 +156,12 @@ export default function LoginForm() {
                 placeholder="비밀번호를 입력하세요."
                 value={form.password}
                 onChange={handleChange('password')}
+                aria-invalid={error?.field === 'password' || undefined}
+                aria-describedby={
+                  error?.field === 'password'
+                    ? 'login-password-error'
+                    : undefined
+                }
               />
               <PasswordToggle
                 type="button"
@@ -139,6 +171,9 @@ export default function LoginForm() {
                 {showPassword ? '숨기기' : '표시'}
               </PasswordToggle>
             </PasswordFieldWrapper>
+            {error?.field === 'password' ? (
+              <FieldError id="login-password-error">{error.message}</FieldError>
+            ) : null}
           </Field>
           <PrimaryButton type="submit" disabled={isSubmitting}>
             {isSubmitting ? '로그인 중...' : '로그인'}

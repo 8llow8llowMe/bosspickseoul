@@ -11,7 +11,7 @@ const Root = styled.div`
   display: grid;
   justify-items: center;
   gap: 12px;
-  border: 1px dashed var(--color-border-300);
+  border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   padding: 32px 20px;

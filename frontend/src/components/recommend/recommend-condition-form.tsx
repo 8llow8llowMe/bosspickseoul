@@ -95,7 +95,7 @@ const SubmitButton = styled.button`
   border: 1px solid var(--color-primary-700);
   border-radius: var(--radius-control);
   background: var(--color-primary-700);
-  color: var(--color-text-900);
+  color: #ffffff;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -158,7 +158,7 @@ export default function RecommendConditionForm({
             !isCandidatesLoading &&
             !candidatesError &&
             candidatesCount === 0
-          ? '현재 행정동의 추천 대상 상권이 없습니다.'
+          ? '현재 행정동에는 추천할 상권이 없어요.'
           : null
 
   const isSubmitDisabled =

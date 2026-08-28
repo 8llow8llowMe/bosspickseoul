@@ -29,7 +29,7 @@ const TabList = styled.div`
 
 // 지표 선택은 콘텐츠(지도/리스트)에 폭을 양보하도록 컴팩트한 칩으로 둔다.
 const TabButton = styled.button<{ $selected: boolean }>`
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 13px;
   border: 1px solid
     ${props =>

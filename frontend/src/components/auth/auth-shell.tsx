@@ -93,6 +93,25 @@ export const TextInput = styled.input`
     background: var(--color-surface);
     box-shadow: var(--shadow-focus-primary);
   }
+
+  /* DESIGN.md §Error (inline field): red500 2px 테두리. 프롭이 아니라 aria-invalid 를
+     선택자로 삼아 시각 표시와 보조기술 표시가 갈라질 수 없게 한다. box-sizing 이
+     border-box 라 높이 48px 는 유지된다. */
+  &[aria-invalid='true'] {
+    border: 2px solid var(--color-danger);
+  }
+
+  &[aria-invalid='true']:focus {
+    border-color: var(--color-danger);
+    box-shadow: var(--shadow-focus-danger);
+  }
+`
+
+/** DESIGN.md §Error (inline field) 의 「error text below in red500 13px」. */
+export const FieldError = styled.span`
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 20px;
 `
 
 export const PrimaryButton = styled.button`

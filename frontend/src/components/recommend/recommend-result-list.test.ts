@@ -61,6 +61,26 @@ const renderList = (
   )
 }
 
+/**
+ * DESIGN.md §Skeleton·§Loading: 「금액·지표는 `--`(skeleton 금지 — 가짜 값처럼 보임)」.
+ * 점수 칸에 회색 블록을 두면 값이 이미 있는데 가려진 것처럼 읽힌다.
+ */
+describe('추천 목록 로딩 규격', () => {
+  it('로딩 중 점수 칸은 skeleton 이 아니라 `--` 다', () => {
+    const markup = renderList({ isLoading: true, results: [] })
+
+    expect(markup).toContain('--')
+    // 순위·이름 칸의 블록 skeleton 은 그대로 유지된다(지표가 아니다).
+    expect(markup).toContain('data-result-skeleton="true"')
+  })
+
+  it('로딩 중에는 점수 숫자를 만들어내지 않는다', () => {
+    const markup = renderList({ isLoading: true, results: [] })
+
+    expect(markup).not.toContain('77')
+  })
+})
+
 describe('blue ocean categories', () => {
   it('renders the emptiness ratio and the direction note for the selected card', () => {
     const markup = renderList({

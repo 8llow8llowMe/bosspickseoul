@@ -110,7 +110,7 @@ export const MetaItem = styled.span`
 
 export const EmptyState = styled.div`
   padding: 24px;
-  border: 1px dashed var(--color-border-300);
+  border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   color: var(--color-text-600);
   font-size: 14px;

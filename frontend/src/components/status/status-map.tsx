@@ -163,7 +163,7 @@ const RankedDistrictLabel = styled.button<{
   ${labelPosition}
   z-index: ${props => (props.$selected ? 4 : 3)};
   min-width: 38px;
-  min-height: 34px;
+  min-height: 36px;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -205,11 +205,24 @@ const RankedDistrictLabel = styled.button<{
     outline-offset: 2px;
   }
 
-  /* 좁은 지도 캔버스에서 순위 배지 크기를 줄여 겹침을 완화한다. */
+  /* 좁은 지도 캔버스에서 순위 배지 크기를 줄여 겹침을 완화한다.
+     배지를 시각적으로 키우면 겹침이 되살아나므로, 크기는 그대로 두고
+     ::after 로 히트 영역만 DESIGN.md 751행의 최소 36px 까지 넓힌다.
+     ::after 는 레이아웃을 차지하지 않아 이웃 배지를 밀어내지 않는다. */
   @container (max-width: 460px) {
     min-width: 32px;
     min-height: 28px;
     padding: 3px 4px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 36px;
+      height: 36px;
+      transform: translate(-50%, -50%);
+    }
   }
 `
 

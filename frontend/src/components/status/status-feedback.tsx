@@ -112,7 +112,7 @@ export default function StatusFeedback(props: StatusFeedbackProps) {
       <FeedbackCard aria-live="polite">
         <Title>{props.title ?? '표시할 상권 현황이 없어요'}</Title>
         <Description>
-          {props.description ?? '조회할 수 있는 자치구 데이터가 아직 없습니다.'}
+          {props.description ?? '조회할 수 있는 자치구 데이터가 아직 없어요.'}
         </Description>
       </FeedbackCard>
     )

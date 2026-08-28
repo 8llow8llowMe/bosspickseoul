@@ -10,6 +10,7 @@ import AuthShell, {
   FooterLink,
   FooterRow,
   HelperText,
+  FieldError,
   Notice,
   PrimaryButton,
   SecondaryButton,
@@ -274,9 +275,13 @@ export default function RegisterForm() {
               value={form.email}
               onChange={handleEmailChange}
               readOnly={isVerified}
+              aria-invalid={error?.field === 'email' || undefined}
+              aria-describedby={
+                error?.field === 'email' ? 'register-email-error' : undefined
+              }
             />
             {error?.field === 'email' ? (
-              <Notice $tone="error">{error.message}</Notice>
+              <FieldError id="register-email-error">{error.message}</FieldError>
             ) : null}
           </Field>
 
@@ -302,9 +307,15 @@ export default function RegisterForm() {
                 value={code}
                 onChange={event => setCode(event.target.value)}
                 readOnly={isVerified}
+                aria-invalid={error?.field === 'code' || undefined}
+                aria-describedby={
+                  error?.field === 'code' ? 'register-code-error' : undefined
+                }
               />
               {error?.field === 'code' ? (
-                <Notice $tone="error">{error.message}</Notice>
+                <FieldError id="register-code-error">
+                  {error.message}
+                </FieldError>
               ) : null}
               {state.step === 'code-sent' ? (
                 <ResendRow>

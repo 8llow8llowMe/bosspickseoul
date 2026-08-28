@@ -202,7 +202,7 @@ const ChangeBadge = styled.span<{ $tone: ChangeTone }>`
 
 const EmptyMessage = styled.p`
   padding: 24px 16px;
-  border: 1px dashed var(--color-border-300);
+  border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
   color: var(--color-text-600);
   font-size: 14px;
@@ -288,7 +288,7 @@ export default function StatusTopTen({
         </RankingList>
       ) : (
         <EmptyMessage>
-          선택한 지표의 상위 자치구 데이터가 아직 없습니다.
+          선택한 지표의 상위 자치구 데이터가 아직 없어요.
         </EmptyMessage>
       )}
     </Section>

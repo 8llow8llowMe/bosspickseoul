@@ -282,7 +282,7 @@ describe('RecommendPanel', () => {
     {
       name: 'candidate empty',
       props: { candidatesCount: 0 },
-      helper: '현재 행정동의 추천 대상 상권이 없습니다.',
+      helper: '현재 행정동에는 추천할 상권이 없어요.',
     },
   ])('disables submit for $name and explains why', ({ props, helper }) => {
     const markup = renderPanel({
@@ -420,7 +420,7 @@ describe('RecommendPanel', () => {
       view: 'results',
     })
 
-    expect(markup).toContain('현재 조건으로 추천 가능한 상권이 없습니다.')
+    expect(markup).toContain('현재 조건으로 추천할 상권이 없어요.')
   })
 
   it('renders selected details with rounded and unavailable metric scores', () => {
@@ -728,7 +728,7 @@ describe('RecommendPanel', () => {
     expect(markup).toMatch(/<button[^>]*>범위 다시 불러오기<\/button>/)
   })
 
-  it('uses high-contrast existing tokens for primary and error copy', () => {
+  it('uses the canonical primary/error tokens for CTA and feedback', () => {
     const criteriaStyles = renderStyles(
       createElement(RecommendPanel, {
         ...baseProps,
@@ -754,8 +754,12 @@ describe('RecommendPanel', () => {
     expect(criteriaStyles).toContain(
       'border:1px solid var(--color-primary-700)',
     )
+    // 주 CTA 는 흰 텍스트다 — DESIGN.md §Primary (Fill) 정본이고, 저장소의 나머지
+    // primary 버튼 14곳이 전부 흰 텍스트다. 이 버튼만 charcoal 이면 규격이 갈린다.
+    // (blue500 + white = 2.77:1 로 AA 미달인 건 fill 색 자체의 문제라 디자인 시스템
+    //  차원에서 따로 다룬다 — DESIGN.md §Primary (Fill) 의 '알려진 격차' 주석.)
     expect(criteriaStyles).toContain(
-      'background:var(--color-primary-700);color:var(--color-text-900)',
+      'background:var(--color-primary-700);color:#ffffff',
     )
     expect(resultStyles).toContain('border:1px solid var(--color-primary-600)')
     expect(resultStyles).toContain(
