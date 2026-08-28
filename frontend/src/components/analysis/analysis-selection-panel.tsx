@@ -105,7 +105,6 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
   height: 100%;
   min-width: 0;
   min-height: 60px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -149,11 +148,11 @@ const StepNumber = styled.span`
 `
 
 // 선택명이 길어도 트랙을 넘치지 않도록 한 줄 말줄임. 전체 이름은 버튼 title로 노출.
+/* 이름이 길다고 잘라내지 않는다 — 어느 상권을 보고 있는지가 이 탭의 전부다.
+   keep-all 로 단어를 지키되, 한 단어가 트랙보다 길면 그때만 끊는다. */
 const StepName = styled.span`
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 `
 
 const Body = styled.div<{ $variant: 'panel' | 'sheet' }>`

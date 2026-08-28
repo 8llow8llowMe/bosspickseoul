@@ -63,8 +63,9 @@ const SearchShell = styled.div`
 const SearchInput = styled.input`
   width: 100%;
   min-height: 40px;
-  padding: 0 36px;
-  border: 2px solid transparent;
+  /* 테두리 두께가 1→2px 로 자라도 칸이 흔들리지 않게 padding 으로 상쇄한다. */
+  padding: 0 35px;
+  border: 1px solid transparent;
   border-radius: var(--radius-field);
   background: var(--color-surface-muted);
   color: var(--color-text-900);
@@ -78,10 +79,16 @@ const SearchInput = styled.input`
     color: var(--color-placeholder);
   }
 
-  /* 전역 :focus-visible 아웃라인은 지우지 않는다 — 키보드 표시는 그쪽 담당. */
-  &:focus {
+  /* 전역 :focus-visible 아웃라인(2px, offset 2px)을 그대로 두면 테두리와 겹쳐
+     파란 선이 두 줄로 보인다. TextField 처럼 아웃라인을 끄고 테두리 하나로
+     표시한다 — 평상시 1px → 포커스 2px 로 두께가 자란다. */
+  &:focus,
+  &:focus-visible {
+    padding: 0 34px;
+    border-width: 2px;
     border-color: var(--color-primary-700);
     background: var(--color-surface);
+    outline: none;
   }
 `
 
@@ -221,13 +228,13 @@ const CandidateCopy = styled.span<{ $variant: OptionPickerVariant }>`
   display: grid;
   gap: 2px;
 
+  /* 이름을 잘라내지 않는다 — 「남산골공원」과 「남산골공원상가」를 ... 만 보고
+     구분할 수 없다. 단어는 지키되 한 단어가 칸보다 길면 그때만 끊는다. */
   strong {
     font-size: 14px;
     font-weight: 600;
-    ${props =>
-      props.$variant === 'sheet'
-        ? 'white-space: normal; word-break: keep-all;'
-        : 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'}
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
 
   small {

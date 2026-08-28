@@ -98,22 +98,22 @@ const Copy = styled.span`
 `
 
 const Name = styled.span`
-  overflow: hidden;
   color: var(--color-text-900);
   font-size: 15px;
   font-weight: 700;
   line-height: 21px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 `
 
+/* 추천 이유는 왜 이 순위인지를 말하는 유일한 문장이다. 잘라내면 남는 게
+   "공격형 기준으로 기회도 보통을 우선 반영…" 처럼 결론이 사라진 조각뿐이다. */
 const Reason = styled.span`
-  overflow: hidden;
   color: var(--color-text-600);
   font-size: 13px;
   line-height: 19px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 `
 
 const Score = styled.span`

@@ -264,18 +264,25 @@ export const updateResultLayerPreviewVisuals = (
   })
 }
 
+/**
+ * 결과 단계에서 행정동은 **배경 맥락**이지 선택 대상이 아니다.
+ *
+ * 예전에는 primary 파랑으로 2px + fill 0.1 을 칠해, 결과 화면이 「행정동을
+ * 선택한 상태」로 읽혔다 — 정작 고른 것은 그 안의 상권인데. 채움을 없애고
+ * 중립색 외곽선만 남겨 어디를 보고 있는지만 알린다.
+ */
 export const getResultContextPolygonStyle = (
-  primaryColor: string,
+  outlineColor: string,
 ): {
   strokeColor: string
   strokeWeight: number
   fillColor: string
   fillOpacity: number
 } => ({
-  strokeColor: primaryColor,
-  strokeWeight: 2,
-  fillColor: primaryColor,
-  fillOpacity: 0.1,
+  strokeColor: outlineColor,
+  strokeWeight: 1.5,
+  fillColor: outlineColor,
+  fillOpacity: 0,
 })
 
 export const createBackgroundClickGuard = (
@@ -354,23 +361,6 @@ const MapRegion = styled.section`
 const MapCanvas = styled.div`
   width: 100%;
   min-height: 420px;
-`
-
-const Badge = styled.span`
-  position: absolute;
-  z-index: 3;
-  top: 12px;
-  left: 12px;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 94%);
-  color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 700;
 `
 
 const RecenterButton = styled.button`
@@ -839,7 +829,7 @@ export default function RecommendMap({
         layerInput.administrationAreas.find(
           area => area.areaCode === layerInput.selectedAdministrationCode,
         ),
-        getResultContextPolygonStyle(mapPrimaryColor),
+        getResultContextPolygonStyle(neutralStroke),
       )
       const orderedResults = getResultDrawingOrder(
         layerInput.resultAreas,
@@ -1001,7 +991,6 @@ export default function RecommendMap({
         data-recommend-map-container="true"
         data-kakao-map="true"
       />
-      <Badge>추천 범위 고정</Badge>
       <RecenterButton
         type="button"
         disabled={sdkStatus !== 'ready'}

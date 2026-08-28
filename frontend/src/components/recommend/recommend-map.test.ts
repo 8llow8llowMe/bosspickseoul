@@ -130,7 +130,6 @@ describe('RecommendMap server rendering', () => {
     expect(markup).toContain('aria-label="상권 추천 지도"')
     expect(markup).toContain('role="region"')
     expect(markup).toContain('data-recommend-map-container="true"')
-    expect(markup).toContain('추천 범위 고정')
     expect(markup).toMatch(/<button[^>]*>선택 범위로 이동<\/button>/)
   })
 
@@ -490,12 +489,12 @@ describe('recommend result overlay helpers', () => {
     )
   })
 
-  it('uses the Primary 600 family for the selected administration context', () => {
+  it('결과 단계 행정동은 채움 없는 중립 외곽선이다 — 선택된 것처럼 보이면 안 된다', () => {
     const getResultContextPolygonStyle = Reflect.get(
       recommendMapModule,
       'getResultContextPolygonStyle',
     ) as
-      | ((primaryColor: string) => {
+      | ((outlineColor: string) => {
           strokeColor: string
           strokeWeight: number
           fillColor: string
@@ -504,11 +503,13 @@ describe('recommend result overlay helpers', () => {
       | undefined
 
     expect(getResultContextPolygonStyle).toBeTypeOf('function')
-    expect(getResultContextPolygonStyle?.('#2272eb')).toEqual({
-      strokeColor: '#2272eb',
-      strokeWeight: 2,
-      fillColor: '#2272eb',
-      fillOpacity: 0.1,
+    expect(getResultContextPolygonStyle?.('#d1d6db')).toEqual({
+      strokeColor: '#d1d6db',
+      strokeWeight: 1.5,
+      fillColor: '#d1d6db',
+      // 결과 단계 행정동은 배경 맥락이라 채우지 않는다 — 채우면 행정동을
+      // 선택한 것처럼 읽힌다.
+      fillOpacity: 0,
     })
   })
 })
