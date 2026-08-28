@@ -55,7 +55,8 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 - **Grey 100** (`#f2f4f6`): Secondary background, card fills, disabled surfaces.
 - **Grey 200** (`#e5e8eb`): Default border color, dividers, input backgrounds.
 - **Grey 400** (`#b0b8c1`): Placeholder text, disabled icon fills.
-- **Grey 500** (`#8b95a1`): Caption text, secondary labels.
+- **Grey 500** (`#8b95a1`): Disabled text, decorative dividers. **Not for caption text** — 3.04:1 on white fails the AA bar set below.
+- **Grey 600** (`#6b7684`): Caption text, secondary labels (4.62:1 on white). `--color-text-caption` points here.
 - **Grey 600** (`#6b7684`): Body text, descriptions, metadata.
 - **Grey 700** (`#4e5968`): Emphasized body text, sub-headings.
 - **Grey 800** (`#333d4b`): Strong labels, navigation text.
@@ -105,6 +106,12 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 
 - Background: `#0ea5e9` (blue500)
 - Text: `#ffffff`
+
+> ⚠️ 알려진 격차: 이 조합은 2.77:1 로 아래 접근성 절의 AA(4.5:1) 를 넘지 못한다.
+> 흰 텍스트는 전 화면 primary 버튼의 규격이므로 **이 조합을 유지**하고, 해결은 개별
+> 버튼이 아니라 fill 색 자체를 어둡게 하는 디자인 시스템 차원의 결정으로 다룬다
+> (별도 슬라이스). 개별 화면이 텍스트 색을 바꿔 이탈하지 않는다.
+
 - Radius: `var(--button-border-radius)` (typically 8px-12px)
 - Font: 16px weight 600
 - Pressed: dimmed overlay (opacity reduction)
@@ -272,7 +279,7 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 - Background Surface: Light Gray (`#f2f4f6`)
 - Heading text: Dark Charcoal (`#191f28`)
 - Body text: Medium Gray (`#6b7684`)
-- Caption text: Gray (`#8b95a1`)
+- Caption text: Gray (`#6b7684`, grey600 — grey500 fails AA)
 - Placeholder: Soft Gray (`#b0b8c1`)
 - Border: Gray 200 (`#e5e8eb`)
 - Success/Positive: Green (`#03b26c`)
@@ -349,7 +356,7 @@ _Personas below are fictional archetypes informed by publicly described Korean f
 | State                             | Treatment                                                                                                                                                                                                                                   |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Empty (first use)**             | Single paragraph of `grey700` body text explaining _why_ the screen is empty (`아직 거래내역이 없어요`), plus one suggested action as a secondary button (blue50 bg, blue500 text). Never an illustration. Never `데이터가 없습니다`.       |
-| **Empty (filter cleared)**        | Single line of `grey500` caption (`조건에 맞는 결과가 없어요`). No button — user resets the filter themselves.                                                                                                                              |
+| **Empty (filter cleared)**        | Single line of `grey600` caption (`조건에 맞는 결과가 없어요`). No button — user resets the filter themselves.                                                                                                                              |
 | **Loading (first paint)**         | Skeleton blocks matching the final layout's structure at `#f2f4f6` (grey100). Financial amounts render as `--` until resolved; they never appear as skeleton blocks (would look like they have a placeholder value).                        |
 | **Loading (refresh)**             | Top bar pull-down spinner in blue500. No overlay, no blocking. Content stays visible with its previous values.                                                                                                                              |
 | **Error (inline field)**          | `#f04452` (red500) 2px border on the input, error text below in red500 13px. One actionable sentence (`계좌번호를 다시 확인해주세요`).                                                                                                      |
@@ -600,7 +607,7 @@ Total target length: 250-400 lines. Keep sections concise and actionable.
 4. **Badge** — pill, score 등급 표시(HIGH/MEDIUM/LOW), 트렌드(↑↓→), 프리셋명.
 5. **Tabs** — active: blue text 또는 blue underline. inactive: grey text. 가로 스크롤 모바일.
 6. **Dialog** — centered modal + bottom-sheet 양쪽 base. 16px top radius(sheet).
-7. **EmptyState** — 라인 일러스트 + 한 줄 + CTA 1개.
+7. **EmptyState** — 한 줄 + CTA 1개. **일러스트 없음**(위 Empty 상태 표·§한국어 요약과 같다).
 8. **Skeleton** — `grey100` block, 1.2s shimmer(8% white). 금액·지표는 `--` fallback(skeleton 금지 — 가짜 값처럼 보임).
 
 **보조 컴포넌트**
