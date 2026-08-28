@@ -31,6 +31,8 @@
 - `file-upload-guide.md` — 프로필/게시글 이미지 업로드(MinIO) 계약과 설계 원칙
 - `share-link-frontend-guide.md`
   - 분석 화면 공유 기능 구현용. `/api/v1/share-links/**` API 사용법, payload 저장/복원 흐름
+- `auth-account-frontend-guide.md`
+  - 비밀번호 재설정과 일반↔소셜 계정 연결/전환 UX 구현용. 계정 모델, 자동 연결 정책, 비밀번호 설정 흐름
 - `observability-guide.md`
   - Prometheus, Grafana, Loki 기반 백엔드 관측 기준
 - `backend-ai-data-infra-roadmap.md`
