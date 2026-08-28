@@ -188,6 +188,33 @@ const GlobalStyles = createGlobalStyle`
     max-width: none;
   }
 
+  /* 폴리곤 위에 얹는 지역 이름 뱃지(drawAreaLabelLayer). 상권분석·상권추천이
+     같은 모양을 써야 해서 여기 둔다 — 뱃지 DOM 은 Kakao 오버레이 pane 안에
+     들어가므로 컴포넌트 styled 블록으로는 두 화면이 공유할 수 없다. */
+  [data-kakao-map] .area-map-label {
+    min-width: 44px;
+    min-height: 34px;
+    border: 1px solid var(--color-border-300);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: var(--shadow-level-2);
+    color: var(--color-text-800);
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  [data-kakao-map] .area-map-label[data-selected='true'],
+  [data-kakao-map] .area-map-label:focus-visible,
+  [data-kakao-map] .area-map-label:hover {
+    border-color: var(--color-primary-600);
+    background: var(--color-primary-700);
+    color: #fff;
+    outline: none;
+  }
+
   ul,
   ol {
     list-style: none;

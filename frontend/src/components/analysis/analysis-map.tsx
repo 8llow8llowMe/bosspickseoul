@@ -18,6 +18,10 @@ import {
   type MapCamera,
 } from '@/lib/analysis/map-camera'
 import {
+  drawAreaLabelLayer,
+  type AreaLabelLayerHandle,
+} from '@/lib/map/draw-area-label-layer'
+import {
   drawAreaPolygonLayer,
   type AreaPolygonLayerHandle,
 } from '@/lib/map/draw-area-polygon-layer'
@@ -86,30 +90,6 @@ const Root = styled.div`
   min-height: 320px;
   overflow: hidden;
   background: var(--color-surface-muted);
-
-  .analysis-map-label {
-    min-width: 44px;
-    min-height: 34px;
-    border: 1px solid var(--color-border-300);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: var(--shadow-level-2);
-    color: var(--color-text-800);
-    padding: 7px 10px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .analysis-map-label[data-selected='true'],
-  .analysis-map-label:focus-visible,
-  .analysis-map-label:hover {
-    border-color: var(--color-primary-600);
-    background: var(--color-primary-700);
-    color: #fff;
-    outline: none;
-  }
 `
 
 const Canvas = styled.div`
@@ -195,9 +175,7 @@ export default function AnalysisMap({
   const areasRef = useRef(areas)
   // 호버 하이라이트를 레이어 재생성 없이 증분 적용하기 위한 핸들/라벨 참조.
   const layerHandleRef = useRef<AreaPolygonLayerHandle | null>(null)
-  const labelByCodeRef = useRef<
-    Map<string, { overlay: KakaoMapCustomOverlay; baseZIndex: number }>
-  >(new Map())
+  const labelHandleRef = useRef<AreaLabelLayerHandle | null>(null)
   // 무거운 그리기 이펙트가 최신 previewedCode를 dep 없이 seed 할 수 있게 보관.
   const previewedCodeRef = useRef(previewedCode)
   const callbacksRef = useRef({ onSelect, onPreviewChange, onCameraSettle })
@@ -304,9 +282,6 @@ export default function AnalysisMap({
     const map = mapRef.current
     if (sdkStatus !== 'ready' || !maps || !map) return
 
-    const overlays: KakaoMapCustomOverlay[] = []
-    const cleanups: Array<() => void> = []
-
     const polygonTokens = {
       baseStroke: getColorToken('--color-primary-600', '#2272eb'),
       activeStroke: getColorToken('--color-primary-600', '#2272eb'),
@@ -326,69 +301,22 @@ export default function AnalysisMap({
     })
     layerHandleRef.current = layerHandle
 
-    const labelByCode = new Map<
-      string,
-      { overlay: KakaoMapCustomOverlay; baseZIndex: number }
-    >()
-
-    areas.forEach((area, index) => {
-      const code = String(area.areaCode)
-      const selected = code === selectedCode
-      const previewed = code === previewedCodeRef.current
-      const highlighted = selected || previewed
-
-      const center = normalizeBoundary([[area.centerLng, area.centerLat]])[0]
-      if (!center) return
-
-      const marker = document.createElement('button')
-      marker.type = 'button'
-      marker.className = 'analysis-map-label'
-      marker.textContent = area.areaName
-      marker.dataset.selected = String(selected)
-      marker.setAttribute('aria-pressed', String(selected))
-      marker.setAttribute('aria-label', `${area.areaName} 선택`)
-
-      const choose = (event: Event) => {
-        event.stopPropagation()
-        callbacksRef.current.onSelect(code)
-      }
-      const preview = () => callbacksRef.current.onPreviewChange(code)
-      const clearPreview = () => callbacksRef.current.onPreviewChange(null)
-      marker.addEventListener('click', choose)
-      marker.addEventListener('focus', preview)
-      marker.addEventListener('pointerenter', preview)
-      marker.addEventListener('blur', clearPreview)
-      marker.addEventListener('pointerleave', clearPreview)
-      cleanups.push(() => {
-        marker.removeEventListener('click', choose)
-        marker.removeEventListener('focus', preview)
-        marker.removeEventListener('pointerenter', preview)
-        marker.removeEventListener('blur', clearPreview)
-        marker.removeEventListener('pointerleave', clearPreview)
-      })
-
-      const baseZIndex = index + 100
-      const overlay = new maps.CustomOverlay({
-        map,
-        position: new maps.LatLng(center.lat, center.lng),
-        content: marker,
-        xAnchor: 0.5,
-        yAnchor: 0.5,
-        zIndex: highlighted ? 200 : baseZIndex,
-        clickable: true,
-      })
-      overlays.push(overlay)
-      labelByCode.set(code, { overlay, baseZIndex })
+    const labelHandle = drawAreaLabelLayer({
+      map,
+      maps,
+      areas,
+      selectedCode,
+      previewedCode: previewedCodeRef.current,
+      onSelect: code => callbacksRef.current.onSelect(code),
+      onPreviewChange: code => callbacksRef.current.onPreviewChange(code),
     })
-
-    labelByCodeRef.current = labelByCode
+    labelHandleRef.current = labelHandle
 
     const clearLayers = () => {
       layerHandle.cleanup()
-      cleanups.forEach(cleanup => cleanup())
-      overlays.forEach(overlay => overlay.setMap(null))
+      labelHandle.cleanup()
       layerHandleRef.current = null
-      labelByCodeRef.current = new Map()
+      labelHandleRef.current = null
     }
     clearLayersRef.current = clearLayers
 
@@ -402,10 +330,7 @@ export default function AnalysisMap({
       selectedCode,
       hoveredCode: previewedCode,
     })
-    labelByCodeRef.current.forEach(({ overlay, baseZIndex }, code) => {
-      const raised = code === selectedCode || code === previewedCode
-      overlay.setZIndex(raised ? 200 : baseZIndex)
-    })
+    labelHandleRef.current?.setHighlight({ selectedCode, previewedCode })
   }, [previewedCode, selectedCode])
 
   // `sdkStatus` 를 의존성에 넣는 이유: 지도가 준비되기 **전에** 들어온 fit 요청(SDK

@@ -7,11 +7,13 @@ import RecommendFeedback from '@/components/recommend/recommend-feedback'
 import { classifyStatus, isRetryable } from '@/lib/api/api-error'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
+import { SEOUL_DEFAULT_CAMERA } from '@/lib/analysis/map-camera'
 import {
   resolveAreaPolygonState,
   resolveAreaPolygonStyle,
   type AreaPolygonStyleTokens,
 } from '@/lib/map/area-polygon-style'
+import { drawAreaLabelLayer } from '@/lib/map/draw-area-label-layer'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import {
   getScoreFillOpacity,
@@ -64,11 +66,6 @@ type RecommendMapLayerStructuralInput = Pick<
   | 'previewedCommercialCode'
 >
 
-const SEOUL_CENTER = { lat: 37.5665, lng: 126.978 }
-const SEOUL_BOUNDS: MapPoint[] = [
-  { lat: 37.4133, lng: 126.7341 },
-  { lat: 37.7151, lng: 127.2693 },
-]
 const VIEWPORT_BOUNDS_DEBOUNCE_MS = 300
 
 export const readKakaoViewportBounds = (
@@ -440,18 +437,29 @@ const getResultPoints = (
 const setMapBounds = (
   maps: KakaoMapsNamespace,
   map: KakaoMapInstance,
-  points: readonly MapPoint[],
+  points: readonly MapPoint[] | null,
 ) => {
-  const targetPoints = points.length > 0 ? points : SEOUL_BOUNDS
+  // 아직 아무것도 안 골랐으면 맞출 대상이 없다. 예전에는 서울 전역 bbox 에
+  // 억지로 fit 해서 level 9 / 중심 (37.564, 127.001) 로 밀렸는데, 상권분석은
+  // 같은 상황에서 기본 카메라(level 8 / 서울시청)를 그대로 둔다. 첫 진입 화면이
+  // 두 페이지에서 달라 보이던 원인이라 여기서도 기본 카메라로 맞춘다.
+  if (!points || points.length === 0) {
+    map.setCenter(
+      new maps.LatLng(SEOUL_DEFAULT_CAMERA.lat, SEOUL_DEFAULT_CAMERA.lng),
+    )
+    map.setLevel(SEOUL_DEFAULT_CAMERA.level)
+    return
+  }
+
   const bounds = new maps.LatLngBounds()
 
-  targetPoints.forEach(point => {
+  points.forEach(point => {
     bounds.extend(new maps.LatLng(point.lat, point.lng))
   })
   map.setBounds(bounds)
 
-  if (targetPoints.length === 1) {
-    map.setCenter(new maps.LatLng(targetPoints[0].lat, targetPoints[0].lng))
+  if (points.length === 1) {
+    map.setCenter(new maps.LatLng(points[0].lat, points[0].lng))
   }
 }
 
@@ -504,12 +512,16 @@ export default function RecommendMap({
   })
   const guardRef = useRef<BackgroundClickGuard | null>(null)
   const lastViewportBoundsKeyRef = useRef('')
-  const fitPointsRef = useRef<readonly MapPoint[]>(SEOUL_BOUNDS)
+  const fitPointsRef = useRef<readonly MapPoint[] | null>(null)
   const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   )
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [hoveredAreaCode, setHoveredAreaCode] = useState<string | null>(null)
+  const hoveredAreaCodeRef = useRef<string | null>(null)
+  hoveredAreaCodeRef.current = hoveredAreaCode
+  // 현재 단계 레이어들의 호버 하이라이트 적용 함수. 레이어를 다시 그릴 때 교체된다.
+  const stageHighlightsRef = useRef<Array<(hovered: string | null) => void>>([])
 
   callbacksRef.current = {
     onBackgroundClick,
@@ -546,7 +558,7 @@ export default function RecommendMap({
     getResultPoints(selectedResult) ??
     getAreaPoints(selectedAdministration) ??
     getAreaPoints(selectedDistrict) ??
-    SEOUL_BOUNDS
+    null
   const fitPointsKey = JSON.stringify(fitPoints)
   const layerSemanticKey = createRecommendMapLayerSemanticKey(
     layerInputRef.current,
@@ -568,8 +580,11 @@ export default function RecommendMap({
         const map =
           mapRef.current ??
           new maps.Map(containerRef.current, {
-            center: new maps.LatLng(SEOUL_CENTER.lat, SEOUL_CENTER.lng),
-            level: 8,
+            center: new maps.LatLng(
+              SEOUL_DEFAULT_CAMERA.lat,
+              SEOUL_DEFAULT_CAMERA.lng,
+            ),
+            level: SEOUL_DEFAULT_CAMERA.level,
           })
         mapRef.current = map
         mapClickHandler = () => {
@@ -629,7 +644,9 @@ export default function RecommendMap({
       if (!maps) return
 
       map.relayout()
-      setMapBounds(maps, map, fitPointsRef.current)
+      // 맞출 대상이 없을 때는 건드리지 않는다 — 사용자가 옮겨 둔 화면을
+      // 창 크기 변화만으로 기본 카메라로 되돌리면 안 된다.
+      if (fitPointsRef.current) setMapBounds(maps, map, fitPointsRef.current)
     })
     if (containerRef.current) observer.observe(containerRef.current)
 
@@ -653,6 +670,7 @@ export default function RecommendMap({
     }> = []
     const domCleanups: Array<() => void> = []
     const polygonLayerCleanups: Array<() => void> = []
+    stageHighlightsRef.current = []
     const resultLayerEntries: ResultLayerVisualEntry[] = []
     // 지도 위 파랑은 primary-600 하나로 통일한다(상권분석 지도와 동일).
     // 예전에는 결과 단계가 미정의 토큰 --color-primary-500 을 읽어 폴백 #3182f6 으로,
@@ -745,18 +763,48 @@ export default function RecommendMap({
       })
     }
 
+    // 한 단계의 면(폴리곤)과 이름표(뱃지)를 함께 그린다. 면만 있으면 어느
+    // 폴리곤이 어디인지 지도만 보고는 알 수 없고, 뱃지는 폴리곤 클릭이 닿지
+    // 않는 키보드 사용자에게 유일한 선택 수단이기도 하다.
+    const drawSelectableAreas = (
+      areas: readonly AreaBoundaryItem[],
+      selectedCode: string | null,
+      onSelect: (code: string) => void,
+    ) => {
+      const polygonHandle = drawAreaPolygonLayer({
+        map,
+        maps,
+        areas,
+        selectedCode,
+        hoveredCode: hoveredAreaCodeRef.current,
+        onSelect,
+        onHoverChange: setHoveredAreaCode,
+        tokens: areaPolygonTokens,
+      })
+      const labelHandle = drawAreaLabelLayer({
+        map,
+        maps,
+        areas,
+        selectedCode,
+        previewedCode: hoveredAreaCodeRef.current,
+        onSelect,
+        onPreviewChange: setHoveredAreaCode,
+        onBeforeSelect: suppressBackground,
+      })
+      polygonLayerCleanups.push(polygonHandle.cleanup, labelHandle.cleanup)
+      // 선택이 바뀌면 layerSemanticKey 가 바뀌어 레이어를 통째로 다시 그린다.
+      // 여기서 갱신하는 건 호버/포커스뿐이라 selectedCode 는 닫아 두면 된다.
+      stageHighlightsRef.current.push(hovered => {
+        polygonHandle.setHighlight({ selectedCode, hoveredCode: hovered })
+        labelHandle.setHighlight({ selectedCode, previewedCode: hovered })
+      })
+    }
+
     if (layerInput.stage === 'district') {
-      polygonLayerCleanups.push(
-        drawAreaPolygonLayer({
-          map,
-          maps,
-          areas: layerInput.districtAreas,
-          selectedCode: layerInput.selectedDistrictCode,
-          hoveredCode: hoveredAreaCode,
-          onSelect: code => callbacksRef.current.onDistrictSelect(code),
-          onHoverChange: setHoveredAreaCode,
-          tokens: areaPolygonTokens,
-        }).cleanup,
+      drawSelectableAreas(
+        layerInput.districtAreas,
+        layerInput.selectedDistrictCode,
+        code => callbacksRef.current.onDistrictSelect(code),
       )
     }
 
@@ -766,17 +814,10 @@ export default function RecommendMap({
           area => area.areaCode === layerInput.selectedDistrictCode,
         ),
       )
-      polygonLayerCleanups.push(
-        drawAreaPolygonLayer({
-          map,
-          maps,
-          areas: layerInput.administrationAreas,
-          selectedCode: layerInput.selectedAdministrationCode,
-          hoveredCode: hoveredAreaCode,
-          onSelect: code => callbacksRef.current.onAdministrationSelect(code),
-          onHoverChange: setHoveredAreaCode,
-          tokens: areaPolygonTokens,
-        }).cleanup,
+      drawSelectableAreas(
+        layerInput.administrationAreas,
+        layerInput.selectedAdministrationCode,
+        code => callbacksRef.current.onAdministrationSelect(code),
       )
     }
 
@@ -786,17 +827,10 @@ export default function RecommendMap({
           area => area.areaCode === layerInput.selectedAdministrationCode,
         ),
       )
-      polygonLayerCleanups.push(
-        drawAreaPolygonLayer({
-          map,
-          maps,
-          areas: layerInput.commercialAreas,
-          selectedCode: selectedCommercialCodeRef.current,
-          hoveredCode: hoveredAreaCode,
-          onSelect: code => callbacksRef.current.onCommercialSelect(code),
-          onHoverChange: setHoveredAreaCode,
-          tokens: areaPolygonTokens,
-        }).cleanup,
+      drawSelectableAreas(
+        layerInput.commercialAreas,
+        selectedCommercialCodeRef.current,
+        code => callbacksRef.current.onCommercialSelect(code),
       )
     }
 
@@ -912,6 +946,7 @@ export default function RecommendMap({
       })
       domCleanups.forEach(cleanup => cleanup())
       polygonLayerCleanups.forEach(cleanup => cleanup())
+      stageHighlightsRef.current = []
       polygons.forEach(polygon => polygon.setMap(null))
       overlays.forEach(overlay => overlay.setMap(null))
       if (resultLayersRef.current === resultLayerEntries) {
@@ -926,7 +961,15 @@ export default function RecommendMap({
         clearLayersRef.current = () => undefined
       }
     }
-  }, [hoveredAreaCode, layerSemanticKey, sdkStatus])
+  }, [layerSemanticKey, sdkStatus])
+
+  // 호버·포커스는 레이어를 다시 그리지 않고 증분 적용한다. 예전에는
+  // `hoveredAreaCode` 가 위 이펙트의 의존성이라 호버 한 번에 레이어가 통째로
+  // 새로 그려졌다 — 이름 뱃지는 <button> 이라, 키보드로 탭해 들어간 순간
+  // 포커스가 preview 를 켜고 그 버튼이 파괴되며 포커스를 잃는다.
+  useEffect(() => {
+    stageHighlightsRef.current.forEach(apply => apply(hoveredAreaCode))
+  }, [hoveredAreaCode])
 
   useEffect(() => {
     const maps = mapsRef.current
