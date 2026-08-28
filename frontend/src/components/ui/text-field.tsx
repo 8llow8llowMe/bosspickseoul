@@ -57,17 +57,24 @@ const InputShell = styled.span<{
   display: flex;
   align-items: center;
   gap: 8px;
-  /* DESIGN.md §Error (inline field): 에러는 red500 **2px** 테두리다. box-sizing 이
-     border-box 라 두꺼워져도 칸 높이는 그대로고 안쪽 여백만 1px 줄어든다. */
-  border: ${props => (props.$hasError ? '2px' : '1px')} solid
-    ${props => {
-      if (props.$hasError) return 'var(--color-danger)'
-      return props.$emphasized
-        ? 'var(--color-border-300)'
-        : 'var(--color-border-200)'
-    }};
-  border-radius: var(--radius-control);
-  background: var(--color-surface-muted);
+  /* 채움형 필드는 평상시 테두리를 그리지 않는다 — 회색 면이 이미 입력칸임을
+     말해주는데 테두리까지 있으면 처리가 겹쳐 테두리만 떠 보인다(DESIGN.md
+     §Inputs & Forms). 자리는 2px transparent 로 잡아 둬서 포커스·에러로 바뀔 때
+     칸이 흔들리지 않는다. emphasized 는 면 대비가 필요한 자리라 테두리를 유지한다. */
+  border: 2px solid
+    ${props => (props.$hasError ? 'var(--color-danger)' : 'transparent')};
+  /* emphasized 는 면 대비가 부족한 자리에서 칸 경계를 살리는 변형이다. 테두리를
+     2px 로 그리면 개편 전(1px)보다 두 배 무거워지므로, 자리를 잡는 2px 투명
+     테두리는 그대로 두고 **1px inset 링**으로 두께만 되돌린다. */
+  box-shadow: ${props =>
+    !props.$hasError && props.$emphasized
+      ? 'inset 0 0 0 1px var(--color-border-300)'
+      : 'none'};
+  border-radius: var(--radius-field);
+  background: ${props =>
+    props.$hasError
+      ? 'color-mix(in srgb, var(--color-danger) 6%, var(--color-surface))'
+      : 'var(--color-surface-muted)'};
   padding: 0 14px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
@@ -79,11 +86,12 @@ const InputShell = styled.span<{
   &:focus-within {
     border-color: ${props =>
       props.$hasError ? 'var(--color-danger)' : 'var(--color-primary-700)'};
-    box-shadow: ${props =>
+    /* 포커스에서는 emphasized 의 inset 링을 지운다 — 테두리와 겹쳐 이중선이 된다. */
+    box-shadow: none;
+    background: ${props =>
       props.$hasError
-        ? 'var(--shadow-focus-danger)'
-        : 'var(--shadow-focus-primary)'};
-    background: var(--color-surface);
+        ? 'color-mix(in srgb, var(--color-danger) 6%, var(--color-surface))'
+        : 'var(--color-surface)'};
   }
 `
 

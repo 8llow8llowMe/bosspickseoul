@@ -230,7 +230,7 @@ const ComposerInput = styled.textarea`
   min-height: 120px;
   padding: 14px 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   resize: vertical;
   background: white;
   color: var(--color-text-900);

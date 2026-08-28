@@ -151,8 +151,17 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 ### Inputs & Forms
 
 - Background: `#f2f4f6` (grey100) for contained variant
-- Border: 1px solid `#e5e8eb`, focus: 2px solid `#0ea5e9`
-- Radius: 8px
+- **Border: none at rest.** The grey fill already reads as an input; adding a border on top
+  is a double treatment and the border ends up floating over the fill. Reserve the border
+  for state: focus `2px #0ea5e9`, error `2px #f04452`.
+  Keep the resting border at `2px solid transparent` so the box does not shift 2px when a
+  state arrives. The `emphasized` variant (fields on low-contrast surfaces) draws a
+  `1px` inset ring instead of a border, so it does not read twice as heavy as before.
+- Outlined fields (white background — search bars, community forms) keep their `1px` border;
+  the double-treatment problem does not apply to them.
+- **Radius: 12px** (`--radius-field`). 8px reads square on a 48px-tall field. Buttons, chips
+  and tabs stay on `--radius-control` (8px) — 126 call sites share that token, so form
+  fields got their own.
 - Text: `#191f28`, Placeholder: `#b0b8c1` (grey400)
 - Error border: `#f04452` (red500)
 - Special: SplitTextField for OTP, SecureKeypad for financial input
@@ -196,7 +205,8 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 ### Border Radius Scale
 
 - Compact (4px): Small badges, inline elements
-- Standard (8px): Inputs, small buttons, compact cards
+- Standard (8px): Small buttons, chips, tabs, compact cards
+- Field (12px): Form inputs, textareas, selects (`--radius-field`)
 - Comfortable (12px): Standard cards, dialog corners
 - Large (16px): Featured cards, bottom sheet top corners
 - Pill (9999px): Toggle switches, floating chips
@@ -300,7 +310,7 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 2. Primary interactive color is `#0ea5e9` (blue500) -- never `#0064FF` (brand blue)
 3. Financial numbers: 700 weight, tabular numerals, right-aligned in lists
 4. Grey scale has warm undertones: grey900 `#191f28`, grey50 `#f9fafb`
-5. Border-radius: 8px inputs, 12px cards, 16px sheets, pill for toggles
+5. Border-radius: 12px inputs, 8px buttons/chips, 12px cards, 16px sheets, pill for toggles
 6. Shadows are single-layer, pure black opacity, no colored tints
 7. Mobile-first: design at 375px, 20px horizontal padding
 
@@ -359,7 +369,7 @@ _Personas below are fictional archetypes informed by publicly described Korean f
 | **Empty (filter cleared)**        | Single line of `grey600` caption (`조건에 맞는 결과가 없어요`). No button — user resets the filter themselves.                                                                                                                              |
 | **Loading (first paint)**         | Skeleton blocks matching the final layout's structure at `#f2f4f6` (grey100). Financial amounts render as `--` until resolved; they never appear as skeleton blocks (would look like they have a placeholder value).                        |
 | **Loading (refresh)**             | Top bar pull-down spinner in blue500. No overlay, no blocking. Content stays visible with its previous values.                                                                                                                              |
-| **Error (inline field)**          | `#f04452` (red500) 2px border on the input, error text below in red500 13px. One actionable sentence (`계좌번호를 다시 확인해주세요`).                                                                                                      |
+| **Error (inline field)**          | `#f04452` (red500) 2px border on the input plus a 6% danger tint on the fill, error text below in red500 13px. One actionable sentence (`계좌번호를 다시 확인해주세요`).                                                                    |
 | **Error (toast)**                 | `#191f28` background, white 14px 400 text, 3s auto-dismiss. One sentence. No icons. Bottom of screen with 20px inset.                                                                                                                       |
 | **Error (screen-blocking)**       | Reserved for server outage. White screen, centered single-line message in `grey900` 16px weight 600, retry button in blue500 below. No illustration.                                                                                        |
 | **Success (inline flash)**        | Brief flash of `#e8f3ff` (blue50) background behind the updated element, 300ms fade to default. For routine actions like toggling a setting.                                                                                                |

@@ -35,7 +35,7 @@ const Field = styled.label`
 const Select = styled.select`
   appearance: none;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   background: var(--color-surface);
   color: var(--color-text-800);
   padding: 5px 26px 5px 10px;

@@ -83,7 +83,7 @@ const Select = styled.select`
   min-height: 44px;
   appearance: none;
   border: 1px solid var(--color-border-300);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   background: var(--color-surface-muted);
   color: var(--color-text-900);
   padding: 0 32px 0 12px;

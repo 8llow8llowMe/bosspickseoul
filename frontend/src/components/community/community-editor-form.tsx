@@ -98,7 +98,7 @@ const Input = styled.input`
   min-height: 52px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   background: var(--color-surface);
   color: var(--color-text-900);
   font: inherit;
@@ -115,7 +115,7 @@ const TextArea = styled.textarea`
   min-height: 320px;
   padding: 16px;
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   resize: vertical;
   background: var(--color-surface);
   color: var(--color-text-900);
