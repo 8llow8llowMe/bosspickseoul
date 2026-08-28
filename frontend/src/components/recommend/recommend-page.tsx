@@ -18,6 +18,8 @@ import {
 import styled from 'styled-components'
 
 import { districts } from '@/data/districts'
+import { simulationCatalog } from '@/data/simulation-catalog'
+import type { OptionGroup, OptionItem } from '@/components/ui/option-picker'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import {
@@ -41,6 +43,7 @@ import {
   createInitialRecommendationState,
   formatRecommendationPeriod,
   recommendationReducer,
+  type RecommendConditionStep,
   type RecommendationOption,
   type RecommendationView,
 } from '@/lib/recommend/recommend-state'
@@ -1328,6 +1331,76 @@ export default function RecommendPage() {
     isFetching: recommendationQuery.isFetching,
   })
 
+  const pickerStep = state.pickerStep
+  // 선택 뷰 항목은 **완전 목록**에서만 온다. 지도 영역 질의(/map/**)는 뷰포트
+  // 기반이라 화면 밖 지역이 빠지고, 그걸 목록으로 쓰면 도달 불가능한 선택지가
+  // 생긴다(condition-selector 명세 D5-2).
+  const pickerItems = useMemo<OptionItem[] | undefined>(() => {
+    if (pickerStep === 'district') {
+      return districts.map(district => ({
+        code: String(district.gooCode),
+        name: district.gooName,
+      }))
+    }
+    if (pickerStep === 'administration') {
+      return administrations.map(administration => ({
+        code: String(administration.administrationCode),
+        name: administration.administrationName,
+      }))
+    }
+
+    return undefined
+  }, [administrations, pickerStep])
+
+  const pickerGroups = useMemo<OptionGroup[] | undefined>(
+    () =>
+      pickerStep === 'service'
+        ? Object.entries(simulationCatalog).map(([label, services]) => ({
+            label,
+            items: services.map(service => ({
+              code: service.code,
+              name: service.name,
+            })),
+          }))
+        : undefined,
+    [pickerStep],
+  )
+
+  const handleOpenStep = useCallback((step: RecommendConditionStep) => {
+    dispatch({ type: 'pickerOpened', step })
+  }, [])
+
+  const handleClosePicker = useCallback(() => {
+    dispatch({ type: 'pickerClosed' })
+  }, [])
+
+  const handlePickerSelect = useCallback(
+    (code: string) => {
+      if (pickerStep === 'district') {
+        handleMapDistrictSelect(code)
+        return
+      }
+      if (pickerStep === 'administration') {
+        handleMapAdministrationSelect(code)
+        return
+      }
+
+      const service = Object.values(simulationCatalog)
+        .flat()
+        .find(item => item.code === code)
+
+      if (service) {
+        handleServiceChange({ code: service.code, name: service.name })
+      }
+    },
+    [
+      handleMapAdministrationSelect,
+      handleMapDistrictSelect,
+      handleServiceChange,
+      pickerStep,
+    ],
+  )
+
   const panelProps = useMemo<RecommendPanelProps>(
     () => ({
       view: state.view,
@@ -1337,6 +1410,12 @@ export default function RecommendPage() {
       candidatesCount: commercials.length,
       results,
       recommendationBasis,
+      pickerStep,
+      pickerItems,
+      pickerGroups,
+      onOpenStep: handleOpenStep,
+      onClosePicker: handleClosePicker,
+      onPickerSelect: handlePickerSelect,
       selectedCommercialCode: state.selectedCommercialCode,
       previewedCommercialCode,
       periodLabel: formatRecommendationPeriod(
@@ -1359,9 +1438,6 @@ export default function RecommendPage() {
           : null) ?? bookmarksQuery.errorMessage,
       isBookmarked,
       isBookmarkPending,
-      onDistrictChange: handleDistrictChange,
-      onAdministrationChange: handleAdministrationChange,
-      onServiceChange: handleServiceChange,
       onSubmit: handleSubmit,
       onEdit: handleEdit,
       onResultSelect: handleResultSelect,
@@ -1379,13 +1455,10 @@ export default function RecommendPage() {
       bookmarksQuery.errorMessage,
       candidatesError,
       commercials.length,
-      handleAdministrationChange,
       handleBookmarkToggle,
-      handleDistrictChange,
       handleEdit,
       handleResultPreviewChange,
       handleResultSelect,
-      handleServiceChange,
       handleSubmit,
       isAdministrationsBusy,
       isBookmarked,
@@ -1393,6 +1466,12 @@ export default function RecommendPage() {
       isCandidatesBusy,
       isRecommendationBusy,
       memberId,
+      handleClosePicker,
+      handleOpenStep,
+      handlePickerSelect,
+      pickerGroups,
+      pickerItems,
+      pickerStep,
       recommendationBasis,
       recommendationFeedback,
       recommendationQuery.data,

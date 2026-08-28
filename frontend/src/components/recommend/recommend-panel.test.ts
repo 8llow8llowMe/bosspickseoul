@@ -81,6 +81,9 @@ const baseProps = {
   isCandidatesLoading: false,
   isRecommendationLoading: false,
   feedback: null,
+  onOpenStep: vi.fn(),
+  onClosePicker: vi.fn(),
+  onPickerSelect: vi.fn(),
   onDistrictChange: vi.fn(),
   onAdministrationChange: vi.fn(),
   onServiceChange: vi.fn(),
@@ -252,14 +255,57 @@ describe('RecommendPanel', () => {
     expect(getRecommendPanelTransitionKey?.('results')).toBe('results')
   })
 
-  it('renders all labelled criteria fields and an enabled submit action', () => {
+  it('조건 바가 세 조각을 고른 값으로 보여주고 제출을 연다', () => {
     const markup = renderPanel({ ...baseProps, view: 'criteria' })
 
-    expect(markup).toMatch(/<label[^>]*for="[^"]+"[^>]*>자치구<\/label>/)
-    expect(markup).toMatch(/<label[^>]*for="[^"]+"[^>]*>행정동<\/label>/)
-    expect(markup).toMatch(/<label[^>]*for="[^"]+"[^>]*>업종<\/label>/)
+    // 조각은 되감기 버튼이다 — 이미 고른 값도 다시 고를 수 있어야 한다.
+    expect(markup).toMatch(
+      /<button[^>]*data-step="district"[^>]*>강남구<\/button>/,
+    )
+    expect(markup).toMatch(
+      /<button[^>]*data-step="administration"[^>]*>역삼1동<\/button>/,
+    )
+    expect(markup).toMatch(
+      /<button[^>]*data-step="service"[^>]*>커피-음료<\/button>/,
+    )
     expect(getSubmitMarkup(markup)).not.toContain('disabled=""')
     expect(markup).toContain('상권 추천받기')
+  })
+
+  it('안 고른 조각은 플레이스홀더로 두고, 상위가 비면 하위를 잠근다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      draft: { district: null, administration: null, service: null },
+      view: 'criteria',
+    })
+
+    expect(markup).toContain('자치구 선택')
+    expect(markup).toContain('행정동 선택')
+    expect(markup).toContain('업종 선택')
+    // 자치구를 안 고르면 행정동 조각을 열 수 없다.
+    expect(markup).toMatch(
+      /<button[^>]*data-step="administration"[^>]*disabled/,
+    )
+    // 업종은 지역과 독립이라 언제든 고를 수 있다.
+    expect(markup).not.toMatch(/<button[^>]*data-step="service"[^>]*disabled/)
+  })
+
+  it('선택 뷰는 같은 패널의 세 번째 뷰다 — 시트를 겹치지 않는다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      pickerStep: 'district',
+      pickerItems: [
+        { code: '11680', name: '강남구' },
+        { code: '11110', name: '종로구' },
+      ],
+      view: 'picker',
+    })
+
+    expect(markup).toContain('data-panel-view="picker"')
+    expect(markup).toContain('자치구 선택')
+    expect(markup).toContain('강남구')
+    expect(markup).toContain('종로구')
+    expect(markup).toContain('조건으로 돌아가기')
   })
 
   it.each([

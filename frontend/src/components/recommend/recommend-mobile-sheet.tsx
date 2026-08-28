@@ -144,7 +144,7 @@ export const canStartRecommendationSheetPointer = ({
 
 export const isRecommendationSheetInteractive = (
   view: RecommendationView,
-): boolean => view === 'criteria' || view === 'results'
+): boolean => view === 'criteria' || view === 'picker' || view === 'results'
 
 export const didRecommendationSheetDrag = (deltaY: number): boolean =>
   Number.isFinite(deltaY) &&

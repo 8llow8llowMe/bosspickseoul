@@ -3,7 +3,15 @@ export type RecommendationOption = {
   readonly name: string
 }
 
-export type RecommendationView = 'criteria' | 'results'
+/**
+ * `picker` 는 조건 하나를 고르는 화면이다. 별도 오버레이가 아니라 **같은 패널의
+ * 세 번째 뷰**다 — 모바일에서 이 패널이 곧 바텀시트라, 시트 위에 시트를 겹치지
+ * 않으려면 뷰 전환이어야 한다(condition-selector 명세 D4-2).
+ */
+export type RecommendationView = 'criteria' | 'picker' | 'results'
+
+/** 조건 바의 조각. 선택 뷰가 어느 조건을 다루는지 가리킨다. */
+export type RecommendConditionStep = 'district' | 'administration' | 'service'
 export type RecommendationSheetSnap = 'expanded' | 'collapsed'
 
 export type RecommendationCriteria = {
@@ -25,6 +33,8 @@ export type RecommendationState = {
   draft: RecommendationCriteria
   submitted: SubmittedRecommendation | null
   view: RecommendationView
+  /** `view === 'picker'` 일 때만 의미가 있다. 그 외에는 항상 `null`. */
+  pickerStep: RecommendConditionStep | null
   selectedCommercialCode: string | null
   sheetSnap: RecommendationSheetSnap
 }
@@ -36,6 +46,8 @@ type RecommendationAction =
       administration: RecommendationOption
     }
   | { type: 'serviceSelected'; service: RecommendationOption }
+  | { type: 'pickerOpened'; step: RecommendConditionStep }
+  | { type: 'pickerClosed' }
   | {
       type: 'submitted'
       commercialCodes: readonly (string | number)[]
@@ -80,6 +92,7 @@ export const createInitialRecommendationState = (): RecommendationState => ({
   },
   submitted: null,
   view: 'criteria',
+  pickerStep: null,
   selectedCommercialCode: null,
   sheetSnap: 'expanded',
 })
@@ -99,6 +112,7 @@ export function recommendationReducer(
         },
         submitted: null,
         view: 'criteria',
+        pickerStep: null,
         selectedCommercialCode: null,
         sheetSnap: 'expanded',
       }
@@ -111,6 +125,7 @@ export function recommendationReducer(
         },
         submitted: null,
         view: 'criteria',
+        pickerStep: null,
         selectedCommercialCode: null,
         sheetSnap: 'expanded',
       }
@@ -123,6 +138,7 @@ export function recommendationReducer(
         },
         submitted: null,
         view: 'criteria',
+        pickerStep: null,
         selectedCommercialCode: null,
         sheetSnap: 'expanded',
       }
@@ -155,6 +171,7 @@ export function recommendationReducer(
           ),
         },
         view: 'results',
+        pickerStep: null,
         selectedCommercialCode: null,
         sheetSnap: 'expanded',
       }
@@ -197,7 +214,23 @@ export function recommendationReducer(
         ...state,
         submitted: null,
         view: 'criteria',
+        pickerStep: null,
         selectedCommercialCode: null,
+        sheetSnap: 'expanded',
+      }
+    case 'pickerOpened':
+      return {
+        ...state,
+        view: 'picker',
+        pickerStep: action.step,
+        // 선택 뷰는 목록이 길다 — 접힌 시트에서 열면 아무것도 안 보인다.
+        sheetSnap: 'expanded',
+      }
+    case 'pickerClosed':
+      return {
+        ...state,
+        view: 'criteria',
+        pickerStep: null,
         sheetSnap: 'expanded',
       }
     case 'sheetSnapChanged':

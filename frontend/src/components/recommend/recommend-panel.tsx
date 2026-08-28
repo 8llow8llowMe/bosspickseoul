@@ -4,17 +4,19 @@ import type { Ref } from 'react'
 import styled, { css, keyframes } from 'styled-components'
 import type { NormalizedApiError } from '@/lib/api/api-error'
 import type {
+  RecommendConditionStep,
   RecommendationCriteria,
-  RecommendationOption,
   RecommendationView,
   SubmittedRecommendation,
 } from '@/lib/recommend/recommend-state'
+import type { OptionGroup, OptionItem } from '@/components/ui/option-picker'
 import type {
   AdministrationArea,
   CandidateCommercial,
   RecommendationBasis,
 } from '@/types/recommend'
 import RecommendConditionForm from './recommend-condition-form'
+import RecommendConditionPicker from './recommend-condition-picker'
 import RecommendFeedback from './recommend-feedback'
 import RecommendResultList, {
   type RecommendResultFeedback,
@@ -42,9 +44,15 @@ export type RecommendPanelProps = {
   bookmarkError?: string | null
   isBookmarked?: (commercialCode: string) => boolean
   isBookmarkPending?: (commercialCode: string) => boolean
-  onDistrictChange: (district: RecommendationOption) => void
-  onAdministrationChange: (administration: RecommendationOption) => void
-  onServiceChange: (service: RecommendationOption) => void
+  /** `view === 'picker'` 일 때 어느 조건을 고르는 중인지. */
+  pickerStep?: RecommendConditionStep | null
+  /** 선택 뷰가 보여줄 항목. 지역은 평면, 업종은 그룹으로 온다. */
+  pickerItems?: readonly OptionItem[]
+  pickerGroups?: readonly OptionGroup[]
+  onOpenStep: (step: RecommendConditionStep) => void
+  onClosePicker: () => void
+  onPickerPreviewChange?: (code: string | null) => void
+  onPickerSelect: (code: string) => void
   onSubmit: () => void
   onEdit: () => void
   onResultSelect: (commercialCode: string) => void
@@ -233,9 +241,13 @@ export default function RecommendPanel({
   bookmarkError,
   isBookmarked,
   isBookmarkPending,
-  onDistrictChange,
-  onAdministrationChange,
-  onServiceChange,
+  pickerStep,
+  pickerItems,
+  pickerGroups,
+  onOpenStep,
+  onClosePicker,
+  onPickerPreviewChange,
+  onPickerSelect,
   onSubmit,
   onEdit,
   onResultSelect,
@@ -260,19 +272,40 @@ export default function RecommendPanel({
             <Heading>어디에 어떤 가게를 열까요?</Heading>
           </Header>
           <RecommendConditionForm
-            administrations={administrations}
+            administrationsCount={administrations.length}
             administrationsError={administrationsError}
             candidatesCount={candidatesCount}
             candidatesError={candidatesError}
             draft={draft}
             isAdministrationsLoading={isAdministrationsLoading}
             isCandidatesLoading={isCandidatesLoading}
-            onAdministrationChange={onAdministrationChange}
-            onDistrictChange={onDistrictChange}
+            onOpenStep={onOpenStep}
             onRetryAdministrations={onRetryAdministrations}
             onRetryCandidates={onRetryCandidates}
-            onServiceChange={onServiceChange}
             onSubmit={onSubmit}
+          />
+        </Content>
+      </Surface>
+    )
+  }
+
+  if (view === 'picker' && pickerStep) {
+    return (
+      <Surface $variant={variant}>
+        <Content
+          data-panel-transition-key={transitionKey}
+          data-panel-view="picker"
+          key={transitionKey}
+        >
+          <RecommendConditionPicker
+            groups={pickerGroups}
+            items={pickerItems}
+            selectedCode={draft[pickerStep]?.code ?? null}
+            step={pickerStep}
+            variant={variant}
+            onClose={onClosePicker}
+            onPreviewChange={onPickerPreviewChange}
+            onSelect={onPickerSelect}
           />
         </Content>
       </Surface>

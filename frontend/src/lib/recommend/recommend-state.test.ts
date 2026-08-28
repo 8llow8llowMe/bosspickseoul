@@ -27,6 +27,7 @@ describe('createInitialRecommendationState', () => {
       },
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
       sheetSnap: 'expanded',
     })
@@ -54,6 +55,7 @@ describe('recommendationReducer', () => {
         requestKey: 'existing-request',
       },
       view: 'results',
+      pickerStep: null,
       selectedCommercialCode: '3110008',
       sheetSnap: 'collapsed',
     }
@@ -71,6 +73,7 @@ describe('recommendationReducer', () => {
       },
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
       sheetSnap: 'expanded',
     })
@@ -88,6 +91,7 @@ describe('recommendationReducer', () => {
         requestKey: 'existing-request',
       },
       view: 'results',
+      pickerStep: null,
       selectedCommercialCode: '3110008',
       sheetSnap: 'collapsed',
     }
@@ -105,6 +109,7 @@ describe('recommendationReducer', () => {
       },
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
       sheetSnap: 'expanded',
     })
@@ -122,6 +127,7 @@ describe('recommendationReducer', () => {
         requestKey: 'existing-request',
       },
       view: 'results',
+      pickerStep: null,
       selectedCommercialCode: '3110008',
       sheetSnap: 'collapsed',
     }
@@ -347,6 +353,7 @@ describe('recommendationReducer', () => {
       draft: readyState().draft,
       submitted: null,
       view: 'criteria',
+      pickerStep: null,
       selectedCommercialCode: null,
       sheetSnap: 'expanded',
     })
