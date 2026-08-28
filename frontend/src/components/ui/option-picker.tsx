@@ -1,7 +1,7 @@
 'use client'
 
 import { Check, ChevronRight, Search, X } from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 
 import {
@@ -15,8 +15,24 @@ import {
 
 export type { OptionGroup, OptionItem }
 
-export type OptionPickerLayout = 'grid' | 'list'
+/**
+ * `grid` 칩 격자(이름이 짧은 지역) · `list` 한 줄에 하나(설명이 붙는 목록) ·
+ * `grid-wide` 좌측정렬 2열(이름이 길지만 개수가 많은 목록).
+ */
+export type OptionPickerLayout = 'grid' | 'list' | 'grid-wide'
 export type OptionPickerVariant = 'panel' | 'sheet'
+
+/**
+ * 목록 위에 먼저 얹는 섹션. 「자주 찾는 것」을 카탈로그 순서보다 앞에 두는 용도다.
+ * 검색 중에는 숨긴다 — 같은 항목이 두 번 나오면 어느 쪽을 눌러야 하는지 헷갈린다.
+ */
+export type OptionPickerFeatured = {
+  label: string
+  /** 표시 순서 그대로 쓴다. 목록에 없는 코드는 조용히 건너뛴다. */
+  codes: readonly string[]
+  /** 항목에 붙일 아이콘. 없으면 이름만 나온다. */
+  iconFor?: (item: OptionItem) => ReactNode
+}
 
 export type OptionPickerProps = {
   /** 평면 목록(자치구·행정동·상권). `groups` 와 배타적이다. */
@@ -34,6 +50,8 @@ export type OptionPickerProps = {
   searchPlaceholder?: string
   /** 검색 결과가 0건일 때 문구. 목록 자체가 빈 경우는 호출자가 처리한다. */
   emptyMessage?: string
+  /** 목록 맨 위 「자주 찾는 것」 섹션. 넘기지 않으면 아무것도 달라지지 않는다. */
+  featured?: OptionPickerFeatured
 }
 
 const Root = styled.div`
@@ -77,6 +95,12 @@ const SearchInput = styled.input`
 
   &::placeholder {
     color: var(--color-placeholder);
+  }
+
+  /* WebKit 이 type="search" 에 붙이는 기본 지우기 버튼. 우리 ClearButton 과
+     겹쳐 같은 ✕ 가 두 개 나란히 보인다. 라벨 있는 쪽만 남긴다. */
+  &::-webkit-search-cancel-button {
+    display: none;
   }
 
   /* 전역 :focus-visible 아웃라인(2px, offset 2px)을 그대로 두면 테두리와 겹쳐
@@ -260,6 +284,112 @@ const CandidateIcon = styled.span`
   }
 `
 
+/* 2열 격자. 이름이 긴 업종이 있어 칩(중앙정렬)이 아니라 좌측정렬이고, 열 수를
+   폭에 맡기지 않고 2로 고정한다 — 3열이 되면 이름이 세 줄로 접힌다. */
+const WideGrid = styled.ul`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+`
+
+const WideButton = styled.button<{ $selected: boolean }>`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  border: 1px solid
+    ${props =>
+      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  color: ${props =>
+    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+  /* 우측 여백은 선택 표시(ChipCheck)가 앉을 자리다. 선택될 때만 아이콘을
+     끼워 넣으면 글자가 밀려 흔들린다. */
+  padding: 10px 26px 10px 12px;
+  font-size: 14px;
+  font-weight: ${props => (props.$selected ? 700 : 600)};
+  line-height: 1.3;
+  text-align: left;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primary-600);
+    outline: none;
+  }
+`
+
+/* 「자주 찾는 것」은 검색을 치기 전에 대부분을 끝내는 자리라 전체 목록보다
+   타깃이 크다. 아이콘을 위에 얹는 세로 배치로 3열까지 들어간다. */
+const FeaturedGrid = styled.ul`
+  display: grid;
+  /* 88px 은 375px 모바일 시트에서 3열이 들어가는 상한이다. 96px 로 두면 딱
+     한 칸이 모자라 2열로 접히고, 인기 섹션만 화면 절반을 먹는다. */
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+`
+
+const FeaturedButton = styled.button<{ $selected: boolean }>`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid
+    ${props =>
+      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  color: ${props =>
+    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: ${props => (props.$selected ? 700 : 600)};
+  line-height: 1.3;
+  text-align: center;
+  word-break: keep-all;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primary-600);
+    outline: none;
+  }
+`
+
+/* 아이콘은 장식이다. 이름 위의 보조 신호일 뿐이라 아이콘만으로 항목을
+   식별하게 하지 않는다(`aria-hidden`). */
+const FeaturedIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-700);
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+`
+
 /* 호출자 헤더는 단계 전체 개수를 말한다(예: 「25개」). 검색 중에는 그 숫자와
    눈앞의 항목 수가 어긋나므로, 걸러진 결과 수를 여기서 따로 알린다. */
 const MatchCount = styled.p`
@@ -287,6 +417,7 @@ export default function OptionPicker({
   searchThreshold = OPTION_SEARCH_THRESHOLD,
   searchPlaceholder = '이름으로 검색',
   emptyMessage = '검색 결과가 없어요.',
+  featured,
 }: OptionPickerProps) {
   const [query, setQuery] = useState('')
   const searchId = useId()
@@ -310,7 +441,89 @@ export default function OptionPicker({
 
   const preview = (code: string | null) => onPreviewChange?.(code)
 
+  const optionByCode = useMemo(() => {
+    const source = groups ? groups.flatMap(group => group.items) : (items ?? [])
+
+    return new Map(source.map(item => [item.code, item]))
+  }, [groups, items])
+
+  // 코드로 항목을 되찾는다 — 이름을 두 곳에 적어 두면 카탈로그가 바뀔 때 한쪽만
+  // 낡는다. 목록에 없는 코드는 조용히 건너뛴다.
+  const featuredItems = useMemo(
+    () =>
+      (featured?.codes ?? [])
+        .map(code => optionByCode.get(code))
+        .filter((item): item is OptionItem => Boolean(item)),
+    [featured, optionByCode],
+  )
+
+  const showFeatured = featuredItems.length > 0 && !query.trim()
+
+  const renderFeatured = (section: OptionPickerFeatured) => (
+    <FeaturedGrid>
+      {featuredItems.map(item => {
+        const selected = item.code === selectedCode
+        const icon = section.iconFor?.(item)
+
+        return (
+          <li key={item.code}>
+            <FeaturedButton
+              type="button"
+              $selected={selected}
+              aria-selected={selected}
+              title={item.name}
+              onClick={() => onSelect(item.code)}
+              onFocus={() => preview(item.code)}
+              onBlur={() => preview(null)}
+              onPointerEnter={() => preview(item.code)}
+              onPointerLeave={() => preview(null)}
+            >
+              {icon ? <FeaturedIcon aria-hidden>{icon}</FeaturedIcon> : null}
+              {item.name}
+              {selected ? (
+                <ChipCheck aria-hidden>
+                  <Check />
+                </ChipCheck>
+              ) : null}
+            </FeaturedButton>
+          </li>
+        )
+      })}
+    </FeaturedGrid>
+  )
+
   const renderItems = (list: readonly OptionItem[]) => {
+    if (layout === 'grid-wide') {
+      return (
+        <WideGrid>
+          {list.map(item => {
+            const selected = item.code === selectedCode
+            return (
+              <li key={item.code}>
+                <WideButton
+                  type="button"
+                  $selected={selected}
+                  aria-selected={selected}
+                  onClick={() => onSelect(item.code)}
+                  onFocus={() => preview(item.code)}
+                  onBlur={() => preview(null)}
+                  onPointerEnter={() => preview(item.code)}
+                  onPointerLeave={() => preview(null)}
+                >
+                  {item.name}
+                  {selected ? (
+                    <ChipCheck aria-hidden>
+                      <Check />
+                    </ChipCheck>
+                  ) : null}
+                </WideButton>
+              </li>
+            )
+          })}
+        </WideGrid>
+      )
+    }
+
     if (layout === 'grid') {
       return (
         <CandidateGrid>
@@ -408,17 +621,25 @@ export default function OptionPicker({
 
       {matchCount === 0 ? (
         <NoMatch role="status">{emptyMessage}</NoMatch>
-      ) : visibleGroups ? (
-        <GroupList>
-          {visibleGroups.map(group => (
-            <section key={group.label}>
-              <GroupLabel>{group.label}</GroupLabel>
-              {renderItems(group.items)}
-            </section>
-          ))}
-        </GroupList>
       ) : (
-        renderItems(visibleItems ?? [])
+        <GroupList>
+          {showFeatured && featured ? (
+            <section>
+              <GroupLabel>{featured.label}</GroupLabel>
+              {renderFeatured(featured)}
+            </section>
+          ) : null}
+          {visibleGroups ? (
+            visibleGroups.map(group => (
+              <section key={group.label}>
+                <GroupLabel>{group.label}</GroupLabel>
+                {renderItems(group.items)}
+              </section>
+            ))
+          ) : (
+            <section>{renderItems(visibleItems ?? [])}</section>
+          )}
+        </GroupList>
       )}
     </Root>
   )
