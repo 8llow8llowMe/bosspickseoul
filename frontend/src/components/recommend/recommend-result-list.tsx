@@ -123,6 +123,18 @@ const Score = styled.span`
   font-variant-numeric: tabular-nums;
 `
 
+/**
+ * DESIGN.md §Skeleton·§Loading: 「금액·지표는 `--`(skeleton 금지 — 가짜 값처럼 보임)」.
+ * 점수 칸은 지표 자리라 로딩 중 회색 블록을 두지 않고 `--` 로 비워 둔다.
+ */
+const ScorePending = styled.span`
+  color: var(--color-text-caption);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+`
+
 const ScoreUnavailable = styled.span`
   color: var(--color-text-caption);
   font-size: 12px;
@@ -498,7 +510,7 @@ export default function RecommendResultList({
           >
             <Skeleton $height="28px" />
             <Skeleton $height="40px" />
-            <Skeleton $height="24px" />
+            <ScorePending>--</ScorePending>
           </SkeletonRow>
         ))}
       </LoadingState>
@@ -531,7 +543,7 @@ export default function RecommendResultList({
       <RecommendFeedback
         tone="info"
         title="추천 결과가 없어요"
-        description="현재 조건으로 추천 가능한 상권이 없습니다."
+        description="현재 조건으로 추천할 상권이 없어요."
       />
     )
   }

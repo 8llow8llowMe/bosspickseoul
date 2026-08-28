@@ -392,7 +392,7 @@ function ProfileAnalysisArchiveTab() {
 
       {items.length === 0 ? (
         <EmptyState>
-          아직 보관한 분석 화면이 없습니다. 분석 결과 화면의 &lsquo;화면
+          아직 보관한 분석 화면이 없어요. 분석 결과 화면의 &lsquo;화면
           보관&rsquo; 버튼으로 저장할 수 있어요.
         </EmptyState>
       ) : (
@@ -456,7 +456,7 @@ function ProfileRegionBookmarkTab() {
         </SectionBody>
       </SectionPanel>
       {bookmarks.length === 0 ? (
-        <EmptyState>저장한 자치구나 행정동이 아직 없습니다.</EmptyState>
+        <EmptyState>저장한 자치구나 행정동이 아직 없어요.</EmptyState>
       ) : (
         <ProfileRegionBookmarkCards bookmarks={bookmarks} />
       )}

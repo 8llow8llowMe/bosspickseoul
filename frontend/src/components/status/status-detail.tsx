@@ -526,7 +526,11 @@ function ChangeIndicatorSection({ detail }: { detail: DistrictDetail }) {
     return (
       <ReportSection>
         <GroupHeading>상권 흐름</GroupHeading>
-        <EmptyMessage>데이터 없음</EmptyMessage>
+        {/* DESIGN.md §Empty: 왜 비었는지 한 줄. 값 자리의 `데이터 없음` 표기와 달리
+            여기는 섹션 전체의 빈 상태라 사유가 드러나야 한다. */}
+        <EmptyMessage>
+          이 자치구는 상권 흐름 지표가 아직 집계되지 않았어요.
+        </EmptyMessage>
       </ReportSection>
     )
   }
@@ -887,7 +891,9 @@ export default function StatusDetail({
         </Body>
       ) : (
         <Body>
-          <EmptyMessage>데이터 없음</EmptyMessage>
+          <EmptyMessage>
+            이 자치구의 상세 현황 데이터가 아직 없어요.
+          </EmptyMessage>
         </Body>
       )}
     </Root>

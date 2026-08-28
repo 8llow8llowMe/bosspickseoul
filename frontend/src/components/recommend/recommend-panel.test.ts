@@ -282,7 +282,7 @@ describe('RecommendPanel', () => {
     {
       name: 'candidate empty',
       props: { candidatesCount: 0 },
-      helper: '현재 행정동의 추천 대상 상권이 없습니다.',
+      helper: '현재 행정동에는 추천할 상권이 없어요.',
     },
   ])('disables submit for $name and explains why', ({ props, helper }) => {
     const markup = renderPanel({
@@ -420,7 +420,7 @@ describe('RecommendPanel', () => {
       view: 'results',
     })
 
-    expect(markup).toContain('현재 조건으로 추천 가능한 상권이 없습니다.')
+    expect(markup).toContain('현재 조건으로 추천할 상권이 없어요.')
   })
 
   it('renders selected details with rounded and unavailable metric scores', () => {

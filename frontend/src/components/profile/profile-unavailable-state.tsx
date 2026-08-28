@@ -9,6 +9,7 @@ import {
 type ProfileUnavailableStateProps = {
   title: string
   description: string
+  /** 사용자에게 보일 기능 주어. 예: `회원 탈퇴 기능은` */
   dependency: string
 }
 
@@ -24,8 +25,8 @@ export default function ProfileUnavailableState({
         <SectionBody>{description}</SectionBody>
       </SectionPanel>
       <SectionNotice $tone="info">
-        V2 API 계약 대기 중입니다. {dependency} 제공 후 별도 작업으로
-        연결합니다.
+        {dependency} 아직 준비 중이에요. 준비되면 이 화면에서 바로 이용할 수
+        있습니다.
       </SectionNotice>
     </SectionStack>
   )

@@ -1022,7 +1022,7 @@ export default function RecommendPage() {
       return {
         tone: 'info',
         title: '추천 결과가 없어요',
-        description: '현재 조건으로 추천 가능한 상권이 없습니다.',
+        description: '현재 조건으로 추천할 상권이 없어요.',
       }
     }
 
