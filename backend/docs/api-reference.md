@@ -81,7 +81,7 @@
 |--------------|---------|----------|------------|-------------------|
 | `MEMBER` | `001~007` | `MEMBER_100` | `101~112` | `MEMBER_113` |
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
-| `AUTH` | `001~015` | `AUTH_100` | `101~104` | `AUTH_105` |
+| `AUTH` | `001~016` | `AUTH_100` | `101~104` | `AUTH_105` |
 | `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116`, `118~119` | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
@@ -113,7 +113,7 @@
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
 | POST | `/login` | 이메일/비밀번호 로그인, Access 토큰 + Refresh 쿠키 발급 | - |
-| POST | `/logout` | 로그아웃, Refresh 토큰 무효화 + Access 토큰 jti 블랙리스트 등록 | 🔒 |
+| POST | `/logout` | 현재 기기 세션만 로그아웃 (해당 refresh 무효화 + Access 토큰 jti 블랙리스트, 다른 기기 로그인 유지) | 🔒 |
 | POST | `/token/reissue` | Access 토큰 재발급 (Refresh 쿠키 필요, 토큰 회전) | - |
 | GET | `/{provider}/authorize` | 소셜 로그인 인가 URL 생성 (`kakao` / `naver`, CSRF `state` 포함·10분 유효) | - |
 | GET | `/{provider}/login` | 소셜 로그인 콜백 (`code`, `state`) — 미가입 이메일이면 자동 가입 후 로그인 | - |
