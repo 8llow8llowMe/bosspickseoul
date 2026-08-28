@@ -151,7 +151,11 @@ const HeaderContent = styled.div`
   gap: 8px;
 `
 
+// compact 는 모바일 바텀시트 헤더다. 시각 크기 28px 은 컴팩트 헤더의 여백 규격이라
+// 유지하되, DESIGN.md 753행 「모바일 헤더 액션 최소 40px」을 만족하도록 ::after 로
+// 히트 영역만 40px 로 넓힌다(레이아웃 비점유라 헤더 높이가 밀리지 않는다).
 const BackButton = styled.button<{ $compact?: boolean }>`
+  position: relative;
   width: ${props => (props.$compact ? '28px' : '44px')};
   height: ${props => (props.$compact ? '28px' : '44px')};
   min-width: ${props => (props.$compact ? '28px' : '44px')};
@@ -173,6 +177,16 @@ const BackButton = styled.button<{ $compact?: boolean }>`
   &:focus-visible {
     outline: 2px solid var(--color-primary-600);
     outline-offset: 2px;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 40px);
+    height: max(100%, 40px);
+    transform: translate(-50%, -50%);
   }
 `
 
