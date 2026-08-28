@@ -7,6 +7,11 @@ import RecommendFeedback from '@/components/recommend/recommend-feedback'
 import { classifyStatus, isRetryable } from '@/lib/api/api-error'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
+import {
+  resolveAreaPolygonState,
+  resolveAreaPolygonStyle,
+  type AreaPolygonStyleTokens,
+} from '@/lib/map/area-polygon-style'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
 import {
   getScoreFillOpacity,
@@ -207,12 +212,26 @@ export const createRecommendMapLayerSemanticKey = ({
   ])
 }
 
+// 결과 폴리곤도 단계 폴리곤과 같은 3상태 규격(1.5/2/2.5px)을 탄다.
+// 다만 fill 농도는 점수 기반 값을 base 로 넘겨 순위 정보를 지도에 남긴다.
+export const getResultPolygonStyle = (
+  item: RecommendationMapItem,
+  state: 'default' | 'hovered' | 'selected',
+  tokens: AreaPolygonStyleTokens,
+  baseZIndex: number,
+) =>
+  resolveAreaPolygonStyle(
+    state,
+    tokens,
+    baseZIndex,
+    getScoreFillOpacity(item.compositeScore, item.rank),
+  )
+
 export const updateResultLayerPreviewVisuals = (
   entries: ResultLayerVisualEntry[],
   selectedCommercialCode: string | null,
   previewedCommercialCode: string | null,
-  primaryColor: string,
-  selectedColor: string,
+  tokens: AreaPolygonStyleTokens,
 ): void => {
   const drawingOrder = getResultDrawingOrder(
     entries.map(entry => entry.item),
@@ -224,17 +243,25 @@ export const updateResultLayerPreviewVisuals = (
   )
 
   entries.forEach(entry => {
-    const selected = entry.item.commercialCode === selectedCommercialCode
-    const previewed =
-      !selected && entry.item.commercialCode === previewedCommercialCode
-    const zIndex = zIndexes.get(entry.item.commercialCode) ?? 0
+    const code = entry.item.commercialCode
+    // hovered 자리에 preview(마커 포커스/호버, 폴리곤 호버)를 대응시킨다.
+    const state = resolveAreaPolygonState(
+      code,
+      selectedCommercialCode,
+      previewedCommercialCode,
+    )
+    const zIndex = zIndexes.get(code) ?? 0
+    const style = getResultPolygonStyle(entry.item, state, tokens, 0)
 
-    entry.marker?.setAttribute('aria-pressed', String(selected))
-    entry.marker?.setAttribute('data-previewed', String(previewed))
+    entry.marker?.setAttribute('aria-pressed', String(state === 'selected'))
+    entry.marker?.setAttribute('data-previewed', String(state === 'hovered'))
     entry.polygon?.setOptions({
-      strokeColor: selected ? selectedColor : primaryColor,
-      strokeWeight: selected ? 3 : previewed ? 2 : 1,
+      strokeColor: style.strokeColor,
+      strokeWeight: style.strokeWeight,
+      fillColor: style.fillColor,
+      fillOpacity: style.fillOpacity,
     })
+    // z 순서는 겹침을 다루는 getResultDrawingOrder 가 이미 정한다(공용 zIndex 미사용).
     entry.polygon?.setZIndex(zIndex + 10)
     entry.overlay?.setZIndex(zIndex + 100)
   })
@@ -450,9 +477,10 @@ export default function RecommendMap({
   const mapsRef = useRef<KakaoMapsNamespace | null>(null)
   const clearLayersRef = useRef<() => void>(() => undefined)
   const resultLayersRef = useRef<ResultLayerVisualEntry[]>([])
-  const resultLayerColorsRef = useRef({
-    primary: '#3182f6',
-    selected: '#2272eb',
+  const resultLayerTokensRef = useRef<AreaPolygonStyleTokens>({
+    baseStroke: '#2272eb',
+    activeStroke: '#2272eb',
+    fill: '#2272eb',
   })
   const selectedCommercialCodeRef = useRef(selectedCommercialCode)
   const previewedCommercialCodeRef = useRef(previewedCommercialCode)
@@ -620,19 +648,22 @@ export default function RecommendMap({
     const overlays: KakaoMapCustomOverlay[] = []
     const kakaoListeners: Array<{
       target: object
+      type: 'click' | 'mouseover' | 'mouseout'
       handler: () => void
     }> = []
     const domCleanups: Array<() => void> = []
     const polygonLayerCleanups: Array<() => void> = []
     const resultLayerEntries: ResultLayerVisualEntry[] = []
-    const selectedColor = readColorToken('--color-primary-600', '#2272eb')
-    const primaryColor = readColorToken('--color-primary-500', '#3182f6')
+    // 지도 위 파랑은 primary-600 하나로 통일한다(상권분석 지도와 동일).
+    // 예전에는 결과 단계가 미정의 토큰 --color-primary-500 을 읽어 폴백 #3182f6 으로,
+    // 단계 폴리곤은 primary-700 으로 칠해져 한 화면에 파랑이 셋이었다.
+    const mapPrimaryColor = readColorToken('--color-primary-600', '#2272eb')
     const neutralStroke = readColorToken('--color-border-300', '#d1d6db')
     const neutralFill = readColorToken('--color-surface-muted', '#f2f4f6')
     const areaPolygonTokens = {
-      baseStroke: readColorToken('--color-primary-700', '#0ea5e9'),
-      activeStroke: readColorToken('--color-primary-600', '#2272eb'),
-      fill: readColorToken('--color-primary-700', '#0ea5e9'),
+      baseStroke: mapPrimaryColor,
+      activeStroke: mapPrimaryColor,
+      fill: mapPrimaryColor,
     }
 
     const suppressBackground = () => {
@@ -648,6 +679,7 @@ export default function RecommendMap({
       fillColor,
       fillOpacity,
       onClick,
+      onHoverChange,
     }: {
       points: readonly MapPoint[]
       zIndex: number
@@ -656,6 +688,7 @@ export default function RecommendMap({
       fillColor: string
       fillOpacity: number
       onClick?: () => void
+      onHoverChange?: (hovered: boolean) => void
     }): KakaoMapPolygon | null => {
       if (points.length < 3) return null
 
@@ -667,7 +700,7 @@ export default function RecommendMap({
         strokeOpacity: 1,
         fillColor,
         fillOpacity,
-        clickable: Boolean(onClick),
+        clickable: Boolean(onClick || onHoverChange),
       })
       polygon.setZIndex(zIndex)
       polygons.push(polygon)
@@ -678,7 +711,18 @@ export default function RecommendMap({
           onClick()
         }
         maps.event.addListener(polygon, 'click', handler)
-        kakaoListeners.push({ target: polygon, handler })
+        kakaoListeners.push({ target: polygon, type: 'click', handler })
+      }
+
+      if (onHoverChange) {
+        const overHandler = () => onHoverChange(true)
+        const outHandler = () => onHoverChange(false)
+        maps.event.addListener(polygon, 'mouseover', overHandler)
+        maps.event.addListener(polygon, 'mouseout', outHandler)
+        kakaoListeners.push(
+          { target: polygon, type: 'mouseover', handler: overHandler },
+          { target: polygon, type: 'mouseout', handler: outHandler },
+        )
       }
 
       return polygon
@@ -761,7 +805,7 @@ export default function RecommendMap({
         layerInput.administrationAreas.find(
           area => area.areaCode === layerInput.selectedAdministrationCode,
         ),
-        getResultContextPolygonStyle(selectedColor),
+        getResultContextPolygonStyle(mapPrimaryColor),
       )
       const orderedResults = getResultDrawingOrder(
         layerInput.resultAreas,
@@ -770,15 +814,26 @@ export default function RecommendMap({
       )
 
       orderedResults.forEach((area, index) => {
+        const defaultStyle = getResultPolygonStyle(
+          area,
+          'default',
+          areaPolygonTokens,
+          0,
+        )
         const polygon = drawPolygon({
           points: normalizeBoundary(area.boundaryCoords),
           zIndex: index + 10,
-          strokeColor: primaryColor,
-          strokeWeight: 1,
-          fillColor: primaryColor,
-          fillOpacity: getScoreFillOpacity(area.compositeScore, area.rank),
+          strokeColor: defaultStyle.strokeColor,
+          strokeWeight: defaultStyle.strokeWeight,
+          fillColor: defaultStyle.fillColor,
+          fillOpacity: defaultStyle.fillOpacity,
           onClick: () =>
             callbacksRef.current.onCommercialSelect(area.commercialCode),
+          // 순위 마커에만 있던 preview 를 폴리곤 본체에도 연다(단계 폴리곤과 동일).
+          onHoverChange: hovered =>
+            callbacksRef.current.onCommercialPreviewChange?.(
+              hovered ? area.commercialCode : null,
+            ),
         })
         const entry: ResultLayerVisualEntry = {
           item: area,
@@ -840,24 +895,20 @@ export default function RecommendMap({
         entry.overlay = overlay
       })
       resultLayersRef.current = resultLayerEntries
-      resultLayerColorsRef.current = {
-        primary: primaryColor,
-        selected: selectedColor,
-      }
+      resultLayerTokensRef.current = areaPolygonTokens
       updateResultLayerPreviewVisuals(
         resultLayerEntries,
         selectedCommercialCodeRef.current,
         previewedCommercialCodeRef.current,
-        primaryColor,
-        selectedColor,
+        areaPolygonTokens,
       )
     } else {
       resultLayersRef.current = []
     }
 
     const clearLayers = () => {
-      kakaoListeners.forEach(({ target, handler }) => {
-        maps.event.removeListener(target, 'click', handler)
+      kakaoListeners.forEach(({ target, type, handler }) => {
+        maps.event.removeListener(target, type, handler)
       })
       domCleanups.forEach(cleanup => cleanup())
       polygonLayerCleanups.forEach(cleanup => cleanup())
@@ -886,13 +937,11 @@ export default function RecommendMap({
   }, [fitPointsKey, sdkStatus])
 
   useEffect(() => {
-    const colors = resultLayerColorsRef.current
     updateResultLayerPreviewVisuals(
       resultLayersRef.current,
       selectedCommercialCode,
       previewedCommercialCode,
-      colors.primary,
-      colors.selected,
+      resultLayerTokensRef.current,
     )
   }, [previewedCommercialCode, selectedCommercialCode])
 

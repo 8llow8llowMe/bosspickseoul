@@ -311,6 +311,8 @@ describe('recommend result overlay helpers', () => {
               setOptions: (options: {
                 strokeColor: string
                 strokeWeight: number
+                fillColor: string
+                fillOpacity: number
               }) => void
               setZIndex: (zIndex: number) => void
             } | null
@@ -321,10 +323,18 @@ describe('recommend result overlay helpers', () => {
           }>,
           selectedCode: string | null,
           previewedCode: string | null,
-          primaryColor: string,
-          selectedColor: string,
+          tokens: {
+            baseStroke: string
+            activeStroke: string
+            fill: string
+          },
         ) => void)
       | undefined
+    const tokens = {
+      baseStroke: '#2272eb',
+      activeStroke: '#2272eb',
+      fill: '#2272eb',
+    }
     const marker = { setAttribute: vi.fn() }
     const polygon = {
       setMap: vi.fn(),
@@ -351,33 +361,31 @@ describe('recommend result overlay helpers', () => {
     ]
 
     expect(updateResultLayerPreviewVisuals).toBeTypeOf('function')
-    updateResultLayerPreviewVisuals?.(
-      entries,
-      'first',
-      'second',
-      '#3182f6',
-      '#2272eb',
-    )
+    updateResultLayerPreviewVisuals?.(entries, 'first', 'second', tokens)
 
     expect(entries[1].marker).toBe(marker)
     expect(marker.setAttribute).toHaveBeenCalledWith('data-previewed', 'true')
+    // preview 는 공용 hovered 규격(2px)을 타고, fill 은 점수 농도 0.29 에 +0.10.
     expect(polygon.setOptions).toHaveBeenCalledWith({
-      strokeColor: '#3182f6',
+      strokeColor: '#2272eb',
       strokeWeight: 2,
+      fillColor: '#2272eb',
+      fillOpacity: 0.39,
     })
     expect(polygon.setMap).not.toHaveBeenCalled()
     expect(overlay.setMap).not.toHaveBeenCalled()
 
-    updateResultLayerPreviewVisuals?.(
-      entries,
-      'second',
-      null,
-      '#3182f6',
-      '#2272eb',
-    )
+    updateResultLayerPreviewVisuals?.(entries, 'second', null, tokens)
 
     expect(entries[1].marker).toBe(marker)
     expect(marker.setAttribute).toHaveBeenCalledWith('aria-pressed', 'true')
+    // selected 는 공용 2.5px, fill 은 0.29 에 +0.20.
+    expect(polygon.setOptions).toHaveBeenLastCalledWith({
+      strokeColor: '#2272eb',
+      strokeWeight: 2.5,
+      fillColor: '#2272eb',
+      fillOpacity: 0.49,
+    })
     expect(polygon.setMap).not.toHaveBeenCalled()
     expect(overlay.setMap).not.toHaveBeenCalled()
   })
