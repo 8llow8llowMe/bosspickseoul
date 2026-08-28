@@ -30,18 +30,10 @@ const Form = styled.form`
   gap: 16px;
 `
 
+/* 바탕은 비운다. 조각 자체가 회색 채움 칩이라, 바탕까지 회색이면 조각이 다시
+   배경에 묻혀 버튼으로 안 읽힌다. */
 const BarShell = styled.div`
-  padding: 4px 2px;
-  border-radius: var(--radius-field);
-  background: var(--color-surface-muted);
-  overflow-x: auto;
-
-  /* 조건 바는 한 줄이다. 좁은 화면에서는 가로로 밀어서 본다. */
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  width: 100%;
 `
 
 const Helper = styled.div<{ $isError?: boolean }>`

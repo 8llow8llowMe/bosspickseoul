@@ -116,7 +116,12 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         sheetSnap: 'expanded',
       }
-    case 'administrationSelected':
+    case 'administrationSelected': {
+      // 자치구·행정동은 지도에서 고를 수 있지만 **업종은 지도에 없다.** 지역이
+      // 다 차면 남은 하나를 바로 열어 준다 — 상권분석이 지도 선택마다 다음
+      // 단계로 넘기는 것과 같은 원리다. 이미 고른 업종이 있으면 건드리지 않는다.
+      const needsService = state.draft.service === null
+
       return {
         ...state,
         draft: {
@@ -124,11 +129,12 @@ export function recommendationReducer(
           administration: action.administration,
         },
         submitted: null,
-        view: 'criteria',
-        pickerStep: null,
+        view: needsService ? 'picker' : 'criteria',
+        pickerStep: needsService ? 'service' : null,
         selectedCommercialCode: null,
         sheetSnap: 'expanded',
       }
+    }
     case 'serviceSelected':
       return {
         ...state,

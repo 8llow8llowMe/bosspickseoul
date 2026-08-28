@@ -43,6 +43,44 @@ describe('createStableCommercialCodes', () => {
 })
 
 describe('recommendationReducer', () => {
+  it('행정동을 고르면 업종 선택 뷰를 바로 연다 — 업종은 지도에 없다', () => {
+    const state = recommendationReducer(createInitialRecommendationState(), {
+      type: 'districtSelected',
+      district: { code: '11680', name: '강남구' },
+    })
+
+    const next = recommendationReducer(state, {
+      type: 'administrationSelected',
+      administration: { code: '11680650', name: '역삼2동' },
+    })
+
+    expect(next.view).toBe('picker')
+    expect(next.pickerStep).toBe('service')
+    // 목록이 길어 접힌 시트에서 열면 아무것도 안 보인다.
+    expect(next.sheetSnap).toBe('expanded')
+  })
+
+  it('업종을 이미 골랐으면 행정동을 바꿔도 선택 뷰를 열지 않는다', () => {
+    const withService = recommendationReducer(
+      recommendationReducer(createInitialRecommendationState(), {
+        type: 'districtSelected',
+        district: { code: '11680', name: '강남구' },
+      }),
+      {
+        type: 'serviceSelected',
+        service: { code: 'CS100010', name: '커피-음료' },
+      },
+    )
+
+    const next = recommendationReducer(withService, {
+      type: 'administrationSelected',
+      administration: { code: '11680650', name: '역삼2동' },
+    })
+
+    expect(next.view).toBe('criteria')
+    expect(next.pickerStep).toBeNull()
+  })
+
   it('keeps the service while resetting district-dependent state', () => {
     const initial: RecommendationState = {
       ...readyState(),

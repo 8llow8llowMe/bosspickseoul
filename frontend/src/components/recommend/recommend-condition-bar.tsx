@@ -57,55 +57,70 @@ export type RecommendConditionBarProps = {
 
 const Bar = styled.ol`
   display: flex;
-  align-items: center;
-  gap: 2px;
+  /* 조각들이 같은 높이로 늘어나야 한 줄로 읽힌다 — 이름이 길어 두 줄이 되는
+     조각이 생겨도 나머지가 따라 커진다. */
+  align-items: stretch;
+  gap: 4px;
   min-width: 0;
 `
 
 const Slot = styled.li`
+  /* 세 조각이 폭을 나눠 가진다. min-width: 0 이 없으면 긴 이름이 트랙을 밀어
+     조각 폭이 들쭉날쭉해진다. */
+  flex: 1 1 0;
   min-width: 0;
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
+  gap: 4px;
 `
 
 const SlotButton = styled.button<{ $filled: boolean }>`
+  width: 100%;
   min-width: 0;
-  min-height: 40px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
-  padding: 0 10px;
+  justify-content: center;
+  padding: 6px 8px;
   /* button 은 border 를 선언하지 않으면 UA 기본 2px outset 이 그대로 나온다.
      전역 리셋은 font·color 만 다룬다(global-styles.ts). */
   border: none;
   border-radius: var(--radius-field);
-  background: transparent;
+  /* 조각이 「누를 수 있는 칸」으로 읽혀야 한다. 투명하게 두면 배경과 구분되지
+     않아 버튼인지 알 수 없다 — 채움형 필드와 같은 회색 면을 준다. */
+  background: ${props =>
+    props.$filled ? 'var(--color-primary-100)' : 'var(--color-surface-muted)'};
   color: ${props =>
-    props.$filled ? 'var(--color-text-900)' : 'var(--color-placeholder)'};
-  font-size: 15px;
-  font-weight: ${props => (props.$filled ? 700 : 400)};
-  /* 조건 바는 한 줄이 존재 이유다. 좁으면 말줄임하고 줄바꿈하지 않는다. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    props.$filled ? 'var(--color-primary-700)' : 'var(--color-placeholder)'};
+  font-size: 14px;
+  font-weight: ${props => (props.$filled ? 700 : 500)};
+  line-height: 1.35;
+  text-align: center;
+  /* 이름을 잘라내지 않는다. 길면 두 줄로 가고 나머지 조각이 같이 커진다. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   cursor: pointer;
-  transition: background-color var(--motion-fast) var(--ease-standard);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 
-  /* 바탕(BarShell)이 이미 surface-muted 라, 호버도 같은 회색이면 아무 일도
-     일어나지 않는다. 눌리는 자리는 흰 면으로 떠오르게 한다. */
   &:hover:not(:disabled) {
-    background: var(--color-surface);
+    background: ${props =>
+      props.$filled ? 'var(--color-primary-100)' : 'var(--color-border-200)'};
   }
 
   &:disabled {
+    background: var(--color-surface-muted);
     color: var(--color-placeholder);
     cursor: not-allowed;
+    opacity: 0.6;
   }
 `
 
 const Divider = styled.span`
   display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
   color: var(--color-placeholder);
 
   svg {
