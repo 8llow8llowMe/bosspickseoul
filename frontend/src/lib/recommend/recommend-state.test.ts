@@ -562,3 +562,76 @@ describe('administrationNameResolved — 렌더 루프 방어', () => {
     ).not.toBe(seeded)
   })
 })
+
+/*
+ * URL 이 들고 온 행정동 코드는 **앞 5자리가 자치구와 맞는지만** 검증된다
+ * (`parseRecommendUrlState`). 그래서 `11680999` 같은 없는 동이 통과해 「추천할 상권이
+ * 없어요」로 없는 동을 있는 것처럼 안내한다. 목록이 도착하면 버려야 한다.
+ */
+describe('administrationRejected', () => {
+  const seededResults = () =>
+    recommendationReducer(
+      createInitialRecommendationState({
+        district: { code: '11680', name: '강남구' },
+        administration: { code: '11680999', name: '' },
+        service: { code: 'CS100001', name: '한식음식점' },
+      }),
+      { type: 'submitted', commercialCodes: ['3110008', '3110009'] },
+    )
+
+  it('행정동만 버리고 자치구·업종은 남긴다', () => {
+    const after = recommendationReducer(seededResults(), {
+      type: 'administrationRejected',
+      code: '11680999',
+    })
+
+    expect(after.draft.administration).toBeNull()
+    expect(after.draft.district).toEqual({ code: '11680', name: '강남구' })
+    expect(after.draft.service).toEqual({
+      code: 'CS100001',
+      name: '한식음식점',
+    })
+  })
+
+  /*
+   * 없는 동으로 만든 제출을 살려 두면 결과 화면에 그대로 머문다 — 이 버그의 증상이
+   * 바로 그 막다른 화면이다.
+   */
+  it('그 행정동으로 만든 제출과 결과 화면을 함께 버린다', () => {
+    const after = recommendationReducer(seededResults(), {
+      type: 'administrationRejected',
+      code: '11680999',
+    })
+
+    expect(after.submitted).toBeNull()
+    expect(after.view).toBe('criteria')
+    expect(after.selectedCommercialCode).toBeNull()
+    expect(after.resultSelectionSource).toBeNull()
+  })
+
+  // 목록이 늦게 오는 동안 사용자가 다른 동을 골랐으면, 낡은 판정으로 그것을 버리면 안 된다.
+  it('그 사이 다른 행정동을 골랐으면 아무것도 하지 않는다', () => {
+    const other = recommendationReducer(seededResults(), {
+      type: 'administrationSelected',
+      administration: { code: '11680640', name: '역삼1동' },
+    })
+
+    expect(
+      recommendationReducer(other, {
+        type: 'administrationRejected',
+        code: '11680999',
+      }),
+    ).toBe(other)
+  })
+
+  it('행정동이 없으면 아무것도 하지 않는다', () => {
+    const empty = createInitialRecommendationState()
+
+    expect(
+      recommendationReducer(empty, {
+        type: 'administrationRejected',
+        code: '11680999',
+      }),
+    ).toBe(empty)
+  })
+})

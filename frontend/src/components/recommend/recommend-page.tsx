@@ -1089,19 +1089,35 @@ function RecommendPageBody() {
   /**
    * 행정동 이름은 URL 이 모른다(정적 목록이 없다). 목록이 도착하면 채운다.
    * 이름이 이미 있으면 건드리지 않는다 — 사용자가 고른 것을 덮어쓰지 않기 위해서다.
+   *
+   * **목록에 없으면 그 행정동을 버린다.** URL 검증은 앞 5자리 비교뿐이라
+   * `11680999` 같은 없는 동이 통과한다(`parseRecommendUrlState`). 여기가 그것을
+   * 걸러내는 유일한 지점이다 — 목록이 오기 전에는 없는 동인지 알 방법이 없다.
    */
   useEffect(() => {
     const administration = state.draft.administration
 
     if (!administration || administration.name) return
+    /*
+     * **목록이 도착한 뒤에만 판정한다.** 로딩 중에는 `administrations` 가 빈 배열이라,
+     * 이 가드가 없으면 **멀쩡한 링크의 행정동을 즉시 버린다.** 실패(네트워크 오류)일
+     * 때도 버리지 않는다 — 일시적인 오류로 사용자의 조건을 지울 이유가 없다.
+     */
+    if (!administrationsQuery.isSuccess) return
 
     const matched = administrations.find(
       item => String(item.administrationCode) === administration.code,
     )
 
+    if (!matched) {
+      dispatch({ type: 'administrationRejected', code: administration.code })
+
+      return
+    }
+
     // 이름이 비어 있으면 채울 것이 없다. 그대로 dispatch 하면 리듀서가 매번 새 객체를
     // 만들고 이 이펙트의 deps 가 다시 바뀌어 **렌더 루프에 빠진다.**
-    if (!matched?.administrationName) return
+    if (!matched.administrationName) return
 
     dispatch({
       type: 'administrationNameResolved',
@@ -1110,7 +1126,11 @@ function RecommendPageBody() {
         name: matched.administrationName,
       },
     })
-  }, [administrations, state.draft.administration])
+  }, [
+    administrations,
+    administrationsQuery.isSuccess,
+    state.draft.administration,
+  ])
 
   /**
    * `view=results` 로 들어온 링크는 후보 상권 목록이 와야 제출할 수 있다
@@ -1119,21 +1139,26 @@ function RecommendPageBody() {
   const seededSubmitRef = useRef(!urlSeed.isResultsView)
   useEffect(() => {
     if (seededSubmitRef.current || state.submitted) return
-    if (!state.draft.administration || !state.draft.service) return
 
     /*
-     * 사용자가 그 사이 조건을 바꿨으면 **자동 제출하지 않는다.** 후보 목록이 늦게 오는
+     * 씨앗이 지목한 조건이 아니면 **자동 제출하지 않는다.** 후보 목록이 늦게 오는
      * 동안(모바일 회선) 자치구를 바꿔 두면, 새 목록이 도착하는 순간 「상권 추천받기」를
      * 누르지도 않았는데 결과 화면으로 점프한다.
+     *
+     * **조건이 사라진 경우도 여기로 온다** — 없는 행정동이라 버려졌을 때가 그렇다
+     * (`administrationRejected`). 그 제출은 되살아나지 않으므로 여기서 거울을 풀어
+     * 줘야 한다. 풀어 주지 않으면 아래 URL 거울이 영영 막혀 **주소창에 없는 동 코드가
+     * 그대로 남는다.** 그래서 널 검사보다 이 비교가 **먼저** 와야 한다.
      */
     if (
-      state.draft.administration.code !== urlSeed.administration?.code ||
-      state.draft.service.code !== urlSeed.service?.code
+      state.draft.administration?.code !== urlSeed.administration?.code ||
+      state.draft.service?.code !== urlSeed.service?.code
     ) {
       seededSubmitRef.current = true
       return
     }
 
+    if (!state.draft.administration || !state.draft.service) return
     if (commercials.length === 0) return
 
     seededSubmitRef.current = true
@@ -1161,11 +1186,6 @@ function RecommendPageBody() {
    * 상태 → URL 거울. 이 이펙트가 **URL 정리도 겸한다** — 복원할 수 없어 버린 코드
    * (잘못된 자치구·업종 등)는 다음 반영에서 주소창에서도 사라진다.
    *
-   * **`router.replace` 가 아니라 `history.replaceState` 다.** `router.replace` 는
-   * **쿼리를 통째로 비우는 경우를 반영하지 못했다** — 잘못된 자치구가 든 링크로 들어오면
-   * 화면은 비워지는데 주소창에는 그 코드가 그대로 남았다(실측). 파라미터가 하나라도
-   * 남는 경우는 정상 반영됐다. 원인은 특정하지 못했다.
-   *
    * ⚠️ **첫 인자로 `window.history.state` 를 넘기는 것은 의도적이다. `null` 로 바꾸지 마라.**
    *
    * Next 가 덮어쓴 `replaceState` 는 `data?.__NA` 가 있으면 「내부 호출」로 보고
@@ -1173,14 +1193,18 @@ function RecommendPageBody() {
    * `history.state` 에는 `HistoryUpdater` 가 심은 `__NA: true` 가 항상 들어 있으므로, 이
    * 호출은 **주소창만 바꾸고 라우터의 `canonicalUrl` 은 건드리지 않는다.**
    *
-   * 대가는 **라우터의 `canonicalUrl` 이 진입 시점에 굳는 것**이다. 앱 라우터가 커밋되면
-   * `HistoryUpdater` 가 주소창을 낡은 URL 로 되돌릴 수 있다. dev 에서 Fast Refresh 로는
-   * 실제로 그렇게 된다. **프로덕션 트리거는 확인하지 못했다** — 이 저장소에 `router.refresh()`
-   * 사용처가 없고 프리페치는 리듀서 상태를 바꾸지 않는다.
+   * **`null` 을 넘기면 조건을 하나 고를 때마다 RSC 왕복이 붙는다.** 그때는
+   * `applyUrlFromHistoryPushReplace` 가 `ACTION_RESTORE` 를 디스패치하는데, Next 16 의
+   * `restore-reducer` 는 그것을 `startPPRNavigation` + `spawnDynamicRequests` 로 처리한다
+   * — 이름만 「복원」이지 **네비게이션 한 번**이다. 이 이펙트는 상태가 바뀔 때마다 돌기
+   * 때문에 칩을 고를 때마다 서버 요청이 나간다. `router.replace` 도 같은 이유로 비싸다.
    *
-   * ⚠️ **파라미터를 전부 버리는 정리는 신뢰할 수 없다**(명세 §4). `router.replace` 도
-   * `replaceState(null)` 도 `replaceState(history.state)` 도 재현이 엇갈렸다. 화면은 항상
-   * 올바르게 비워지지만 **주소창에 잘못된 코드가 남을 수 있다.** 미해결이다.
+   * 대가는 **라우터의 `canonicalUrl` 이 진입 시점에 굳는 것**이다. `appRouterState` 가
+   * 한 번이라도 커밋되면 `HistoryUpdater` 의 `useInsertionEffect` 가
+   * `replaceState(…, canonicalUrl)` 로 **주소창을 진입 URL 로 되돌린다.** 지금 이 화면에는
+   * 그 트리거가 없다 — `router.refresh()` 사용처가 없고, 유일한 `router.push` 는 화면을
+   * 떠나며, 프리페치는 리듀서 상태를 바꾸지 않는다. **`router.refresh()`·서버 액션·
+   * 병렬/인터셉트 라우트를 이 화면에 들이면 그때 깨진다**(dev 의 Fast Refresh 가 그 예다).
    *
    * 히스토리에 항목을 쌓지 않아 「조건 하나씩 되감기」도 생기지 않는다.
    *
