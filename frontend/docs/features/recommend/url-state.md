@@ -84,13 +84,21 @@ UI 라서 링크로 복원할 가치가 없다. 그 상태로 새로고침하면
 
 ### 2-1. `router.replace` 가 아니라 `history.replaceState` 인 이유 (실측)
 
-처음에는 `/analysis` 와 같이 `router.replace` 로 썼다. **쿼리를 통째로 비우는 경우를
-반영하지 못했다** — 잘못된 자치구가 든 링크로 들어오면 화면은 비워지는데 주소창에는 그
-코드가 그대로 남았다. `/recommend` 로 가는 replace 를 같은 라우트라 건너뛰는 것으로 보인다.
+처음에는 `/analysis` 와 같이 `router.replace` 로 썼다. **파라미터를 전부 버리는 경우를
+반영하지 못했다** — 잘못된 자치구가 든 링크에서 화면은 비워지는데 주소창에는 코드가 남았다.
 파라미터가 하나라도 남는 경우(예: 업종만 버릴 때)는 정상 반영됐다.
 
-`replaceState` 로 바꾸니 같은 링크가 `/recommend` 로 정리된다. URL 이 정본이 아니라 거울인
-이 화면에서는 라우터를 갱신할 이유도 없다 — `useSearchParams` 는 마운트 때 한 번만 읽는다.
+`replaceState` 로 바꾸면 URL 이 정본이 아니라 거울인 이 화면의 설계와도 맞는다 — 라우터를
+흔들어 리렌더·RSC 왕복을 일으킬 이유가 없고, `useSearchParams` 는 마운트 때 한 번만 읽는다.
+
+⚠️ **다만 「전부 버리는 경우」의 정리는 어느 방식으로도 안정적으로 재현되지 않았다**(§4).
+원인 미상이다.
+
+⚠️ **첫 인자는 반드시 `null` 이다.** `window.history.state` 를 넘기면 Next 가 덮어쓴
+`replaceState` 가 `data?.__NA` 를 보고 「내부 호출」로 판정해 `applyUrlFromHistoryPushReplace`
+를 건너뛴다. 그러면 주소창만 바뀌고 **라우터의 `canonicalUrl` 은 진입 시점에 굳어**, 이후 앱
+라우터가 한 번 커밋되면 주소창이 낡은 URL 로 되돌아간다. `null` 이면
+`copyNextJsInternalHistoryState` 가 `__NA` 와 내부 트리를 보존한다.
 
 ## 3. 이름은 URL 에 넣지 않는다
 
@@ -126,6 +134,11 @@ UI 라서 링크로 복원할 가치가 없다. 그 상태로 새로고침하면
 | `commercialCode` 가 결과에 없다               | 선택만 버린다. 결과 목록은 그대로(1위 자동 선택)     |
 | `view` 가 `results` 가 아닌 임의 값           | 없는 것으로 본다                                     |
 
+**복원이 끝나기 전에는 URL 을 쓰지 않는다.** 마운트 직후 `view` 는 아직 `'criteria'` 라서,
+그대로 반영하면 링크가 들고 온 `view=results`·`commercialCode` 를 주소창에서 **먼저 지운다.**
+그 틈에 주소를 복사하거나 새로고침하면 결과·선택이 빠진 링크가 된다 — 공유받은 링크를 다시
+공유하는 흔한 경로다.
+
 **버린 것은 URL 에서도 지운다.** 상태 → URL 거울이 다음 `replace` 에서 정리하므로 별도 처리가
 필요 없다 — 주소창이 화면과 어긋난 채 남지 않는다.
 
@@ -155,8 +168,9 @@ URL 이 그 선택을 도로 지우지 않는다.
 2. `recommend-state.ts` — `createInitialRecommendationState` 가 씨앗을 받게
 3. `recommend-condition-bar.tsx` — 빈 이름 → 자리표시자 (§3)
 4. `recommend-page.tsx` — `useSearchParams` 로 씨앗, 상태 변화 시 `replace`, 행정동 이름 backfill
-5. `app/(shell)/recommend/page.tsx` — **`<Suspense>` 경계**. `useSearchParams` 는 이것 없이
-   정적 렌더에서 빌드가 깨진다(`/analysis` 도 `AnalysisMapShell` 에서 같은 이유로 감싼다)
+5. **`<Suspense>` 경계** — `useSearchParams` 는 이것 없이 정적 렌더에서 빌드가 깨진다.
+   라우트가 아니라 `recommend-page.tsx` 의 기본 export 가 감싼다(`/analysis` 가
+   `AnalysisMapShell` 에서 감싸는 것과 같은 방식이다 — 경계가 그 화면과 함께 산다)
 
 ## 6. 이번 범위 밖
 
@@ -166,6 +180,13 @@ URL 이 그 선택을 도로 지우지 않는다.
 - **화면 보관함 payload 빌더** — 이 명세가 끝나면 `COMMERCIAL_COMPARISON` 미지원 사유가
   사라진다. 빌더 추가는 [share](../share/share.md) 쪽 작업이라 그쪽에서 잇는다.
 - **분석 ↔ 추천 딥링크** (D8-2) — 이 명세가 선행 조건이다.
+
+### 알려진 빈틈 (후속)
+
+- **존재하지 않는 행정동 코드가 걸러지지 않는다.** 검증이 앞 5자리 비교뿐이라
+  `administrationCode=11680999` 처럼 자치구만 맞으면 통과한다. 조건 바에는 자리표시자가
+  뜨는데 내부 상태에는 값이 있어 「추천할 상권이 없어요」로 오도하고, 잘못된 코드가 URL 에
+  남는다. 목록이 도착했는데 그 코드가 없으면 버리는 처리가 필요하다.
 
 ## 7. 테스트케이스
 
@@ -196,7 +217,7 @@ node 환경 + `renderToStaticMarkup` 문자열 assertion 컨벤션을 따른다.
 | 1위 자동 선택              | 제출 직후                                                | **`commercialCode` 가 붙지 않는다**                                        |
 | 3위 직접 선택              | 목록에서 3위 클릭                                        | `commercialCode=3120198` 추가                                              |
 | **3위 링크 복원**          | 그 URL 을 새로 열기                                      | 3위가 펼쳐지고 칩은 `강남구·역삼1동·한식음식점`, 지도도 3위                |
-| 잘못된 자치구              | `districtCode=99999&…&view=results`                      | 조건 전체 버림 + 주소창이 `/recommend` 로 정리                             |
+| 잘못된 자치구              | `districtCode=99999&…&view=results`                      | 조건 전체 버림 ✅ / **주소창 정리는 재현이 엇갈린다** ⚠️                   |
 | 잘못된 업종만              | `districtCode=11680&serviceCode=CS999999`                | 업종만 버림, 자치구는 남음                                                 |
 | **행정동만 (딥링크 대비)** | `administrationCode=11680640&serviceCode=…&view=results` | 자치구를 유도해 `강남구` 복원 + 결과까지 복원 + URL 에 `districtCode` 추가 |
 

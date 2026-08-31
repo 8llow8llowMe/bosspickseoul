@@ -73,8 +73,9 @@ describe('recommend page query orchestration helpers', () => {
         onAuthenticatedToggle,
       }),
     ).toBe(false)
-    expect(getRecommendBookmarkLoginHref()).toBe('/login?redirect=%2Frecommend')
-    expect(navigate).toHaveBeenCalledWith('/login?redirect=%2Frecommend')
+    // window 가 없는 환경(SSR·node 테스트)에서는 되돌아갈 곳이 홈이라 쿼리가 붙지 않는다.
+    expect(getRecommendBookmarkLoginHref()).toBe('/login')
+    expect(navigate).toHaveBeenCalledWith('/login')
     expect(onAuthenticatedToggle).not.toHaveBeenCalled()
   })
 
@@ -808,5 +809,48 @@ describe('createResultsLoadedAction — 링크가 지목한 상권', () => {
     expect(
       createResultsLoadedAction('key', [], '3120198').commercialCode,
     ).toBeNull()
+  })
+})
+
+/**
+ * URL 상태가 생기기 전에는 `/recommend` 로 고정해도 잃을 것이 없었다. 이제는 조건·결과·
+ * 고른 상권이 전부 사라진 채 돌아온다.
+ */
+describe('북마크 로그인 복귀 주소', () => {
+  const withLocation = <T>(
+    pathname: string,
+    search: string,
+    run: () => T,
+  ): T => {
+    const original = (globalThis as { window?: unknown }).window
+    ;(globalThis as { window?: unknown }).window = {
+      location: { pathname, search },
+    }
+
+    try {
+      return run()
+    } finally {
+      if (original === undefined)
+        delete (globalThis as { window?: unknown }).window
+      else (globalThis as { window?: unknown }).window = original
+    }
+  }
+
+  it('지금 보고 있는 조건·결과를 그대로 들고 돌아온다', () => {
+    expect(
+      withLocation(
+        '/recommend',
+        '?districtCode=11680&view=results&commercialCode=3120198',
+        getRecommendBookmarkLoginHref,
+      ),
+    ).toBe(
+      '/login?redirect=%2Frecommend%3FdistrictCode%3D11680%26view%3Dresults%26commercialCode%3D3120198',
+    )
+  })
+
+  it('조건이 없으면 쿼리 없는 경로로 돌아온다', () => {
+    expect(withLocation('/recommend', '', getRecommendBookmarkLoginHref)).toBe(
+      '/login?redirect=%2Frecommend',
+    )
   })
 })

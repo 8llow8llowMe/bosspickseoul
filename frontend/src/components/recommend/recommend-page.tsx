@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { buildLoginHref, currentBrowserPath } from '@/lib/auth/return-path'
 import {
   useMutation,
   useQueries,
@@ -607,8 +608,15 @@ export const applyRecommendationPreviewChange = (
   setPreviewedCommercialCode(commercialCode)
 }
 
+/**
+ * 북마크하려다 로그인으로 보낼 때의 복귀 주소.
+ *
+ * `/recommend` 로 고정하면 **조건·결과·고른 상권이 전부 사라진 채 돌아온다.** URL 상태가
+ * 생기기 전에는 복원할 것이 없어 무해했지만 이제는 손실이다. 주소창을 그대로 집는다 —
+ * 거울 이펙트가 이미 현재 상태를 써 두었다.
+ */
 export const getRecommendBookmarkLoginHref = (): string =>
-  '/login?redirect=%2Frecommend'
+  buildLoginHref(currentBrowserPath())
 
 export const handleRecommendationBookmarkToggle = ({
   hasHydrated,
@@ -1091,7 +1099,9 @@ function RecommendPageBody() {
       item => String(item.administrationCode) === administration.code,
     )
 
-    if (!matched) return
+    // 이름이 비어 있으면 채울 것이 없다. 그대로 dispatch 하면 리듀서가 매번 새 객체를
+    // 만들고 이 이펙트의 deps 가 다시 바뀌어 **렌더 루프에 빠진다.**
+    if (!matched?.administrationName) return
 
     dispatch({
       type: 'administrationNameResolved',
@@ -1110,6 +1120,20 @@ function RecommendPageBody() {
   useEffect(() => {
     if (seededSubmitRef.current || state.submitted) return
     if (!state.draft.administration || !state.draft.service) return
+
+    /*
+     * 사용자가 그 사이 조건을 바꿨으면 **자동 제출하지 않는다.** 후보 목록이 늦게 오는
+     * 동안(모바일 회선) 자치구를 바꿔 두면, 새 목록이 도착하는 순간 「상권 추천받기」를
+     * 누르지도 않았는데 결과 화면으로 점프한다.
+     */
+    if (
+      state.draft.administration.code !== urlSeed.administration?.code ||
+      state.draft.service.code !== urlSeed.service?.code
+    ) {
+      seededSubmitRef.current = true
+      return
+    }
+
     if (commercials.length === 0) return
 
     seededSubmitRef.current = true
@@ -1124,6 +1148,7 @@ function RecommendPageBody() {
     state.draft.administration,
     state.draft.service,
     state.submitted,
+    urlSeed,
   ])
 
   /**
@@ -1136,14 +1161,27 @@ function RecommendPageBody() {
    * 상태 → URL 거울. 이 이펙트가 **URL 정리도 겸한다** — 복원할 수 없어 버린 코드
    * (잘못된 자치구·업종 등)는 다음 반영에서 주소창에서도 사라진다.
    *
-   * **`router.replace` 가 아니라 `history.replaceState` 다.** `/analysis` 는
-   * `router.replace` 를 쓰지만 그쪽은 URL 이 정본이라 라우터를 갱신해야 한다. 여기서는
-   * URL 이 거울이라 리렌더·RSC 왕복이 필요 없고, 무엇보다 **`router.replace` 는 쿼리를
-   * 통째로 비우는 경우를 반영하지 못했다** — 잘못된 자치구가 든 링크로 들어오면 화면은
-   * 비워지는데 주소창에는 그 코드가 그대로 남았다(실측). `/recommend` 로 가는 replace 를
-   * 같은 라우트라 건너뛰는 것으로 보인다. `replaceState` 는 그 경우도 정리한다.
+   * **`router.replace` 가 아니라 `history.replaceState` 다.** `router.replace` 는
+   * **쿼리를 통째로 비우는 경우를 반영하지 못했다** — 잘못된 자치구가 든 링크로 들어오면
+   * 화면은 비워지는데 주소창에는 그 코드가 그대로 남았다(실측). 파라미터가 하나라도
+   * 남는 경우는 정상 반영됐다. 원인은 특정하지 못했다.
    *
-   * `useSearchParams` 가 갱신되지 않지만 **마운트 때 한 번만 읽으므로 상관없다**(§2).
+   * ⚠️ **첫 인자로 `window.history.state` 를 넘기는 것은 의도적이다. `null` 로 바꾸지 마라.**
+   *
+   * Next 가 덮어쓴 `replaceState` 는 `data?.__NA` 가 있으면 「내부 호출」로 보고
+   * `applyUrlFromHistoryPushReplace` 를 건너뛴다(`app-router.js` L255·L271). 이 페이지의
+   * `history.state` 에는 `HistoryUpdater` 가 심은 `__NA: true` 가 항상 들어 있으므로, 이
+   * 호출은 **주소창만 바꾸고 라우터의 `canonicalUrl` 은 건드리지 않는다.**
+   *
+   * 대가는 **라우터의 `canonicalUrl` 이 진입 시점에 굳는 것**이다. 앱 라우터가 커밋되면
+   * `HistoryUpdater` 가 주소창을 낡은 URL 로 되돌릴 수 있다. dev 에서 Fast Refresh 로는
+   * 실제로 그렇게 된다. **프로덕션 트리거는 확인하지 못했다** — 이 저장소에 `router.refresh()`
+   * 사용처가 없고 프리페치는 리듀서 상태를 바꾸지 않는다.
+   *
+   * ⚠️ **파라미터를 전부 버리는 정리는 신뢰할 수 없다**(명세 §4). `router.replace` 도
+   * `replaceState(null)` 도 `replaceState(history.state)` 도 재현이 엇갈렸다. 화면은 항상
+   * 올바르게 비워지지만 **주소창에 잘못된 코드가 남을 수 있다.** 미해결이다.
+   *
    * 히스토리에 항목을 쌓지 않아 「조건 하나씩 되감기」도 생기지 않는다.
    *
    * **중복은 ref 가 아니라 실제 주소창과 비교해서 막는다.** ref 로 막으면 StrictMode 가
@@ -1151,6 +1189,13 @@ function RecommendPageBody() {
    */
   useEffect(() => {
     if (typeof window === 'undefined') return
+    /*
+     * 복원이 끝나기 전에는 쓰지 않는다. 마운트 직후 `state.view` 는 아직 `'criteria'`
+     * 라서, 그대로 반영하면 **링크가 들고 온 `view=results`·`commercialCode` 를 주소창에서
+     * 먼저 지워 버린다.** 그 사이 사용자가 주소를 복사하거나 새로고침하면 결과·선택이
+     * 영구히 빠진 링크가 된다 — 공유받은 링크를 다시 공유하는 흔한 경로다.
+     */
+    if (!seededSubmitRef.current) return
 
     const href = createRecommendHref(state)
     const current = `${window.location.pathname}${window.location.search}`

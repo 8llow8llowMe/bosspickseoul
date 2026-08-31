@@ -257,6 +257,12 @@ export function recommendationReducer(
       // 그 사이 사용자가 다른 행정동을 골랐으면 낡은 이름이다. 버린다.
       if (!current || current.code !== action.administration.code) return state
 
+      /*
+       * 이름이 이미 같으면 **새 객체를 만들지 않는다.** 만들면 이 값을 deps 로 쓰는
+       * 이펙트가 매번 다시 돌아 dispatch 를 되풀이한다(렌더 루프).
+       */
+      if (current.name === action.administration.name) return state
+
       const { submitted } = state
 
       return {

@@ -534,3 +534,31 @@ describe('administrationNameResolved — submitted 도 채운다', () => {
     )
   })
 })
+
+// 리듀서가 매번 새 객체를 만들면, 이 값을 deps 로 쓰는 이펙트가 dispatch 를 되풀이해
+// 렌더 루프에 빠진다. 백엔드가 행정동 이름을 빈 문자열로 주면 실제로 그 경로를 탄다.
+describe('administrationNameResolved — 렌더 루프 방어', () => {
+  const seeded = createInitialRecommendationState({
+    district: { code: '11680', name: '강남구' },
+    administration: { code: '11680640', name: '역삼1동' },
+    service: null,
+  })
+
+  it('이름이 같으면 같은 상태를 그대로 돌려준다', () => {
+    expect(
+      recommendationReducer(seeded, {
+        type: 'administrationNameResolved',
+        administration: { code: '11680640', name: '역삼1동' },
+      }),
+    ).toBe(seeded)
+  })
+
+  it('이름이 실제로 바뀔 때만 새 상태를 만든다', () => {
+    expect(
+      recommendationReducer(seeded, {
+        type: 'administrationNameResolved',
+        administration: { code: '11680640', name: '역삼일동' },
+      }),
+    ).not.toBe(seeded)
+  })
+})
