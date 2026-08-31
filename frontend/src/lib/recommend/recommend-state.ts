@@ -91,6 +91,7 @@ type RecommendationAction =
    * 순간 조건 화면으로 되돌아간다.
    */
   | { type: 'administrationNameResolved'; administration: RecommendationOption }
+  | { type: 'administrationRejected'; code: string }
   | { type: 'editRequested' }
   | { type: 'sheetSnapChanged'; snap: RecommendationSheetSnap }
 
@@ -277,6 +278,37 @@ export function recommendationReducer(
           submitted && submitted.administration.code === current.code
             ? { ...submitted, administration: action.administration }
             : submitted,
+      }
+    }
+    /*
+     * URL 이 들고 온 행정동이 그 자치구 목록에 **없을 때** 버린다.
+     * `parseRecommendUrlState` 는 앞 5자리만 맞춰 보므로 `11680999` 같은 없는 동이
+     * 통과한다. 그대로 두면 조건 바에는 자리표시자가 뜨는데 내부 상태에는 값이 있어,
+     * 「현재 행정동에는 추천할 상권이 없어요」로 **없는 동을 있는 것처럼** 안내하는
+     * 막다른 화면이 된다.
+     *
+     * 자치구·업종은 남긴다 — `parseRecommendUrlState` 가 「행정동부터 버린다」로
+     * 처리하는 것과 같은 규칙이다(명세 §4). 버린 것은 URL 거울이 주소창에서도 지운다.
+     */
+    case 'administrationRejected': {
+      const current = state.draft.administration
+
+      /*
+       * 목록이 늦게 오는 동안 사용자가 다른 동을 골랐을 수 있다. 그때 이 판정은
+       * 낡은 것이라 **사용자가 방금 고른 것을 버리게 된다.** 코드가 같을 때만 쓴다.
+       */
+      if (!current || current.code !== action.code) return state
+
+      return {
+        ...state,
+        draft: { ...state.draft, administration: null },
+        // 없는 동으로 만든 제출을 살려 두면 결과 화면의 막다른 상태가 그대로 남는다.
+        submitted: null,
+        view: 'criteria',
+        pickerStep: null,
+        selectedCommercialCode: null,
+        resultSelectionSource: null,
+        sheetSnap: 'expanded',
       }
     }
     case 'resultSelected':
