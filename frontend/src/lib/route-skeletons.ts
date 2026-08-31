@@ -1,4 +1,16 @@
-import type { RoutePlaceholderDefinition } from '@/components/routing/route-placeholder-page'
+/**
+ * 라우트별 메타데이터. `app/sitemap.ts` 가 경로와 색인 여부를 여기서 읽는다.
+ *
+ * 원래는 `route-placeholder-page.tsx` 가 이 타입을 내보내고 자리표시 화면도 그렸지만,
+ * 실제 화면이 전부 붙은 뒤로 그 컴포넌트를 마운트하는 라우트가 없어졌다. 타입만 여기로
+ * 옮기고 컴포넌트는 지웠다.
+ */
+export type RouteSkeletonDefinition = {
+  title: string
+  path: string
+  description: string
+  visibility: 'index' | 'noindex'
+}
 
 type RouteKey =
   | 'home'
@@ -28,7 +40,7 @@ type RouteKey =
   | 'chattingList'
   | 'chattingDetail'
 
-export const routeSkeletons: Record<RouteKey, RoutePlaceholderDefinition> = {
+export const routeSkeletons: Record<RouteKey, RouteSkeletonDefinition> = {
   home: {
     title: '메인 페이지',
     path: '/',
