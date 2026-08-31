@@ -16,7 +16,7 @@ export async function generateMetadata({
 
   return createPageMetadata({
     title: `채팅방 ${roomId} 준비 중`,
-    description: '실시간 채팅 V2 API 계약 준비 상태를 안내합니다.',
+    description: '실시간 채팅을 준비하고 있습니다.',
     path: `/chatting/${roomId}`,
     index: false,
   })
