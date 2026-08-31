@@ -473,14 +473,34 @@ PR3 은 `#156`(`6053ff5`)으로, PR4 는 §10 으로 이미 끝나 있었다. �
 
 **이제 `var()` 로 참조되는 미정의 색 토큰은 저장소에 0건이다.**
 
+### ③ 리뷰가 잡은 것 — 화면만 보고 라우트를 안 봤다
+
+`chatting-unavailable-page.tsx` 에서 「V2 API」·「계약」을 걷어냈지만, **같은 두 라우트의
+`metadata.description` 이 그 문구를 그대로 들고 있었다.** `index: false` 가 검색 노출은
+막지만 공유 프리뷰는 막지 않아, 링크를 붙이면 OG 카드 본문으로 그대로 떴다.
+
+새로 넣은 「백로그를 노출하지 않는다」 단언도 **컴포넌트 마크업만** 보고 있어서 이 자리를
+덮지 못했다. 초록인데 문구는 살아 있었다. 단언 범위를 라우트 소스까지 넓혔다.
+
+**카피 진단은 컴포넌트에서 끝나지 않는다** — 같은 문구가 `metadata`·`aria-label`·테스트
+픽스처에 복제돼 있을 수 있다. 이번 스윕에서 다섯 번째로 「진단한 자리 옆에 같은 위반이 있다」
+가 반복됐다.
+
+이어서 `route-skeletons.ts` 의 죽은 필드 `title`·`description` 도 걷어냈다. sitemap 은
+`path`·`visibility` 만 읽는데, 27개 엔트리가 「이후 인증 폼과 FCM 분기 로직을 이관합니다」
+같은 낡은 내부 카피를 나르고 있었다. 다음 사람이 이걸 메타데이터 정본으로 오해하면 방금 고친
+누출이 그대로 재발한다.
+
 ### 검증
 
-- `pnpm exec vitest run` **154 files / 1349 통과**.
+- `pnpm exec vitest run` **154 files / 1350 통과**.
 - `pnpm qa:verify` **exit 0**. `next-env.d.ts` 오염은 되돌렸다.
 - `/recommend` 실측 — 발행 CSS 가 `outline: 2px solid var(--color-primary-700, #0ea5e9)`,
   `--color-primary-700` → `#0ea5e9`. `/sitemap.xml` 정상(타입 이동 무영향).
+- `/sitemap.xml` 이 필드 제거 전후로 같은 4건(`/`·`/status`·`/recommend`·`/community/list`)임을 실측.
+- 새 metadata 단언은 **일부러 문구를 되돌려 빨간불이 뜨는 것까지** 확인했다(빈 단언 방지).
 - **채팅 화면은 눈으로 못 봤다.** `/chatting/*` 이 로그인 뒤에 있고 자격증명을 넣을 수 없다.
-  카피는 `renderToStaticMarkup` 단언으로만 확인했다.
+  카피는 `renderToStaticMarkup` 단언과 라우트 소스 단언으로만 확인했다.
 
 ### 남은 것
 
