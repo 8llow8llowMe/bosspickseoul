@@ -235,6 +235,7 @@ describe('recommend page query orchestration helpers', () => {
         type: 'resultsLoaded',
         requestKey: 'same-request',
         commercialCode: 'C1',
+        source: 'auto',
       },
     ])
     expect(focusCount).toBe(1)
@@ -489,6 +490,7 @@ describe('recommend page query orchestration helpers', () => {
       type: 'resultsLoaded',
       requestKey: 'current-request',
       commercialCode: 'C1',
+      source: 'auto',
     })
   })
 
@@ -767,6 +769,44 @@ describe('normalizeRecommendationBasis', () => {
         dataHeader: { success: false, resultCode: 'E', resultMessage: 'x' },
         dataBody: null,
       } as unknown as CandidateCommercialsResponse),
+    ).toBeNull()
+  })
+})
+
+// 링크가 지목한 상권이 1위 자동 선택에 덮이면 「3위를 보던 화면」 링크가 1위로 열린다.
+// 브라우저에서 실제로 그렇게 되는 것을 확인하고 두 이펙트를 하나로 합쳤다.
+describe('createResultsLoadedAction — 링크가 지목한 상권', () => {
+  const results = [
+    { rank: 1, commercialCode: '3110008' },
+    { rank: 2, commercialCode: '3110009' },
+    { rank: 3, commercialCode: '3120198' },
+  ] as unknown as CandidateCommercial[]
+
+  it('지목한 상권이 결과에 있으면 1위 대신 그것을 고른다', () => {
+    const action = createResultsLoadedAction('key', results, '3120198')
+
+    expect(action.commercialCode).toBe('3120198')
+    expect(action.source).toBe('user')
+  })
+
+  it('지목이 없으면 1위를 자동 선택한다', () => {
+    const action = createResultsLoadedAction('key', results)
+
+    expect(action.commercialCode).toBe('3110008')
+    expect(action.source).toBe('auto')
+  })
+
+  // 결과가 바뀌어 그 상권이 사라진 오래된 링크.
+  it('지목한 상권이 결과에 없으면 1위로 물러난다', () => {
+    const action = createResultsLoadedAction('key', results, '9999999')
+
+    expect(action.commercialCode).toBe('3110008')
+    expect(action.source).toBe('auto')
+  })
+
+  it('결과가 비면 아무것도 고르지 않는다', () => {
+    expect(
+      createResultsLoadedAction('key', [], '3120198').commercialCode,
     ).toBeNull()
   })
 })

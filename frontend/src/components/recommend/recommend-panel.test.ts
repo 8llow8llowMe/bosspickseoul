@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
+import { readRecommendConditionName } from './recommend-condition-bar'
 import { describe, expect, it, vi } from 'vitest'
 import type { ApiErrorKind, NormalizedApiError } from '@/lib/api/api-error'
 import type { CandidateCommercial } from '@/types/recommend'
@@ -813,5 +814,48 @@ describe('RecommendPanel', () => {
     )
     expect(errorStyles).toContain('border:1px solid var(--color-danger)')
     expect(errorStyles).toContain('color:var(--color-text-900)')
+  })
+})
+
+// T-13 — URL 로 복원한 행정동은 목록이 오기 전까지 이름이 빈 문자열이다.
+// 그대로 두면 `??` 를 통과해 조각이 글자 없이 빈 채로 그려진다.
+describe('조건 바 — 이름이 아직 없을 때', () => {
+  it('빈 이름은 자리표시자로 대체한다', () => {
+    expect(
+      readRecommendConditionName(
+        {
+          district: { code: '11680', name: '강남구' },
+          administration: { code: '11680640', name: '' },
+          service: null,
+        },
+        'administration',
+      ),
+    ).toBeNull()
+  })
+
+  it('공백만 있는 이름도 없는 것으로 본다', () => {
+    expect(
+      readRecommendConditionName(
+        {
+          district: null,
+          administration: { code: '11680640', name: '   ' },
+          service: null,
+        },
+        'administration',
+      ),
+    ).toBeNull()
+  })
+
+  it('이름이 있으면 그대로 돌려준다', () => {
+    expect(
+      readRecommendConditionName(
+        {
+          district: { code: '11680', name: '강남구' },
+          administration: null,
+          service: null,
+        },
+        'district',
+      ),
+    ).toBe('강남구')
   })
 })

@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -8,7 +9,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   useMutation,
   useQueries,
@@ -43,12 +44,17 @@ import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookma
 import { resolveRecommendSheetHeadline } from '@/lib/recommend/sheet-headline'
 import {
   createInitialRecommendationState,
+  type RecommendationSeed,
   formatRecommendationPeriod,
   recommendationReducer,
   type RecommendConditionStep,
   type RecommendationOption,
   type RecommendationView,
 } from '@/lib/recommend/recommend-state'
+import {
+  createRecommendHref,
+  parseRecommendUrlState,
+} from '@/lib/recommend/recommend-url'
 import {
   isRetryable,
   resolveApiError,
@@ -523,15 +529,36 @@ export const getRecommendationStage = (
   return district ? 'administration' : 'district'
 }
 
+/**
+ * 결과가 도착했을 때 무엇을 고를지 정한다.
+ *
+ * 기본은 **1위 자동 선택**이다(목록·상세가 빈 채로 뜨지 않게). 다만 링크가 상권을
+ * 지목했고 그것이 결과에 있으면 **그쪽이 이긴다** — 「3위를 보던 화면」 링크를 열었는데
+ * 1위가 펼쳐지면 링크가 조용히 거짓말한 것이다.
+ *
+ * 이 판정을 별도 이펙트로 두면 `resultsLoaded` 와 순서를 다투다 1위가 덮어쓴다.
+ * 실제로 그렇게 만들었다가 링크의 선택이 사라지는 것을 브라우저에서 확인했다.
+ */
 export const createResultsLoadedAction = (
   requestKey: string,
   results: readonly CandidateCommercial[],
-) =>
-  ({
+  preferredCommercialCode: string | null = null,
+) => {
+  const preferred =
+    preferredCommercialCode !== null &&
+    results.some(
+      result => String(result.commercialCode) === preferredCommercialCode,
+    )
+      ? preferredCommercialCode
+      : null
+
+  return {
     type: 'resultsLoaded',
     requestKey,
-    commercialCode: results[0]?.commercialCode ?? null,
-  }) as const
+    commercialCode: preferred ?? results[0]?.commercialCode ?? null,
+    source: preferred ? 'user' : 'auto',
+  } as const
+}
 
 export const selectResultHeadingForViewport = <T,>(
   isDesktop: boolean,
@@ -549,11 +576,14 @@ export const handleRecommendationResponseOnce = ({
   results,
   dispatch,
   heading,
+  preferredCommercialCode = null,
 }: {
   marker: HandledRecommendationMarker
   requestKey: string
   dataUpdatedAt: number
   results: readonly CandidateCommercial[]
+  /** 링크가 지목한 상권. 결과에 있으면 1위 대신 이것을 고른다. */
+  preferredCommercialCode?: string | null
   dispatch: (action: ReturnType<typeof createResultsLoadedAction>) => void
   heading: {
     focus: (options?: FocusOptions) => void
@@ -563,7 +593,9 @@ export const handleRecommendationResponseOnce = ({
     return false
   }
 
-  dispatch(createResultsLoadedAction(requestKey, results))
+  dispatch(
+    createResultsLoadedAction(requestKey, results, preferredCommercialCode),
+  )
   heading?.focus({ preventScroll: true })
   return true
 }
@@ -743,8 +775,14 @@ const VisuallyHiddenHeading = styled.h1`
   white-space: nowrap;
 `
 
-export default function RecommendPage() {
+function RecommendPageBody() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  /**
+   * URL 씨앗은 **마운트 때 한 번만** 읽는다. 이후 URL 은 상태의 거울일 뿐이라
+   * 다시 읽으면 방금 우리가 쓴 값을 되읽어 루프가 된다.
+   */
+  const [urlSeed] = useState(() => parseRecommendUrlState(searchParams))
   const queryClient = useQueryClient()
   const hasHydrated = useAuthStore(auth => auth.hasHydrated)
   const isLoggedIn = useAuthStore(auth => auth.isLoggedIn)
@@ -764,7 +802,7 @@ export default function RecommendPage() {
   const activeBookmarkMemberIdRef = useRef(memberId)
   const [state, dispatch] = useReducer(
     recommendationReducer,
-    undefined,
+    urlSeed satisfies RecommendationSeed,
     createInitialRecommendationState,
   )
   const [viewportBounds, setViewportBounds] =
@@ -1039,6 +1077,89 @@ export default function RecommendPage() {
     [commercials, profiles, resultBoundaries, results],
   )
 
+  // ── URL 복원 ─────────────────────────────────────────────────────────────
+  /**
+   * 행정동 이름은 URL 이 모른다(정적 목록이 없다). 목록이 도착하면 채운다.
+   * 이름이 이미 있으면 건드리지 않는다 — 사용자가 고른 것을 덮어쓰지 않기 위해서다.
+   */
+  useEffect(() => {
+    const administration = state.draft.administration
+
+    if (!administration || administration.name) return
+
+    const matched = administrations.find(
+      item => String(item.administrationCode) === administration.code,
+    )
+
+    if (!matched) return
+
+    dispatch({
+      type: 'administrationNameResolved',
+      administration: {
+        code: administration.code,
+        name: matched.administrationName,
+      },
+    })
+  }, [administrations, state.draft.administration])
+
+  /**
+   * `view=results` 로 들어온 링크는 후보 상권 목록이 와야 제출할 수 있다
+   * (`submitted` 가 코드 목록을 요구한다). 목록이 도착하는 **첫 순간 한 번만** 제출한다.
+   */
+  const seededSubmitRef = useRef(!urlSeed.isResultsView)
+  useEffect(() => {
+    if (seededSubmitRef.current || state.submitted) return
+    if (!state.draft.administration || !state.draft.service) return
+    if (commercials.length === 0) return
+
+    seededSubmitRef.current = true
+    dispatch({
+      type: 'submitted',
+      commercialCodes: commercials.map(commercial =>
+        String(commercial.commercialCode),
+      ),
+    })
+  }, [
+    commercials,
+    state.draft.administration,
+    state.draft.service,
+    state.submitted,
+  ])
+
+  /**
+   * 링크가 지목한 상권. **첫 응답에만** 쓰고 비운다 — 그 뒤 사용자가 조건을 바꿔
+   * 다시 추천받으면 1위부터 보는 것이 맞다.
+   */
+  const seedSelectionRef = useRef(urlSeed.commercialCode)
+
+  /**
+   * 상태 → URL 거울. 이 이펙트가 **URL 정리도 겸한다** — 복원할 수 없어 버린 코드
+   * (잘못된 자치구·업종 등)는 다음 반영에서 주소창에서도 사라진다.
+   *
+   * **`router.replace` 가 아니라 `history.replaceState` 다.** `/analysis` 는
+   * `router.replace` 를 쓰지만 그쪽은 URL 이 정본이라 라우터를 갱신해야 한다. 여기서는
+   * URL 이 거울이라 리렌더·RSC 왕복이 필요 없고, 무엇보다 **`router.replace` 는 쿼리를
+   * 통째로 비우는 경우를 반영하지 못했다** — 잘못된 자치구가 든 링크로 들어오면 화면은
+   * 비워지는데 주소창에는 그 코드가 그대로 남았다(실측). `/recommend` 로 가는 replace 를
+   * 같은 라우트라 건너뛰는 것으로 보인다. `replaceState` 는 그 경우도 정리한다.
+   *
+   * `useSearchParams` 가 갱신되지 않지만 **마운트 때 한 번만 읽으므로 상관없다**(§2).
+   * 히스토리에 항목을 쌓지 않아 「조건 하나씩 되감기」도 생기지 않는다.
+   *
+   * **중복은 ref 가 아니라 실제 주소창과 비교해서 막는다.** ref 로 막으면 StrictMode 가
+   * 이펙트를 두 번 부를 때 첫 호출이 ref 를 채우고 두 번째가 조기 반환한다.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const href = createRecommendHref(state)
+    const current = `${window.location.pathname}${window.location.search}`
+
+    if (current === href) return
+
+    window.history.replaceState(window.history.state, '', href)
+  }, [state])
+
   useEffect(() => {
     if (
       !state.submitted ||
@@ -1052,7 +1173,7 @@ export default function RecommendPage() {
       typeof window === 'undefined' ||
       typeof window.matchMedia !== 'function' ||
       window.matchMedia('(min-width: 1024px)').matches
-    handleRecommendationResponseOnce({
+    const handled = handleRecommendationResponseOnce({
       marker: handledResultRef,
       requestKey: state.submitted.requestKey,
       dataUpdatedAt: recommendationQuery.dataUpdatedAt,
@@ -1063,7 +1184,11 @@ export default function RecommendPage() {
         desktopResultHeadingRef.current,
         mobileResultHeadingRef.current,
       ),
+      preferredCommercialCode: seedSelectionRef.current,
     })
+
+    // 실제로 반영됐을 때만 비운다. 마커가 걸러 낸 호출에서 비우면 링크의 선택을 잃는다.
+    if (handled) seedSelectionRef.current = null
   }, [
     recommendationQuery.data,
     recommendationQuery.dataUpdatedAt,
@@ -1685,5 +1810,19 @@ export default function RecommendPage() {
         ) : null}
       </Stage>
     </Page>
+  )
+}
+
+/**
+ * `useSearchParams` 는 Suspense 경계 없이는 정적 렌더에서 빌드가 깨진다.
+ * `/analysis` 도 같은 이유로 셸을 감싼다.
+ */
+export default function RecommendPage() {
+  return (
+    <Suspense
+      fallback={<Page data-hide-footer="true" aria-label="상권 추천 준비 중" />}
+    >
+      <RecommendPageBody />
+    </Suspense>
   )
 }
