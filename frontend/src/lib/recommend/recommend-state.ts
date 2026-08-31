@@ -14,6 +14,16 @@ export type RecommendationView = 'criteria' | 'picker' | 'results'
 export type RecommendConditionStep = 'district' | 'administration' | 'service'
 export type RecommendationSheetSnap = 'expanded' | 'collapsed'
 
+/**
+ * URL 이 넘겨 주는 씨앗. 조건만 담는다 — 화면 단계(`view=results`)와 고른 상권은
+ * 후보 목록·결과가 도착한 뒤에야 의미가 생겨서 화면이 따로 다룬다.
+ */
+export type RecommendationSeed = {
+  district: RecommendationOption | null
+  administration: RecommendationOption | null
+  service: RecommendationOption | null
+}
+
 export type RecommendationCriteria = {
   district: RecommendationOption | null
   administration: RecommendationOption | null
@@ -65,8 +75,22 @@ type RecommendationAction =
       type: 'resultsLoaded'
       requestKey: string
       commercialCode: string | null
+      /**
+       * 이 선택을 **누가 정했는가**. 링크(`?commercialCode=`)가 지목한 상권이면
+       * `'user'` 다 — 자동 선택된 1위와 구분해야 URL 이 그 선택을 도로 지우지 않는다.
+       */
+      source?: 'auto' | 'user'
     }
   | { type: 'resultSelected'; commercialCode: string }
+  /**
+   * URL 로 복원한 행정동의 **이름만** 채운다.
+   *
+   * `administrationSelected` 와 다르다 — 그건 사용자가 지역을 바꾼 것이라
+   * 제출·결과·선택을 모두 버린다. 이건 같은 행정동의 이름을 뒤늦게 알게 된 것뿐이라
+   * **아무것도 버리지 않는다.** 둘을 합치면 링크로 들어온 결과 화면이 이름이 도착하는
+   * 순간 조건 화면으로 되돌아간다.
+   */
+  | { type: 'administrationNameResolved'; administration: RecommendationOption }
   | { type: 'editRequested' }
   | { type: 'sheetSnapChanged'; snap: RecommendationSheetSnap }
 
@@ -93,11 +117,22 @@ export const formatRecommendationPeriod = (periodCode: string): string => {
   return match ? `${match[1]}년 ${match[2]}분기 기준` : `${periodCode} 기준`
 }
 
-export const createInitialRecommendationState = (): RecommendationState => ({
+/**
+ * 초기 상태. **URL 로 씨앗을 뿌릴 수 있다**(`/recommend?districtCode=…`).
+ *
+ * 씨앗은 **마운트 때 한 번만** 쓰인다. 그 뒤로는 리듀서가 정본이고 URL 은 거울이라,
+ * 양방향 동기화가 서로를 덮어쓰는 루프가 구조적으로 생기지 않는다.
+ *
+ * `submitted` 는 씨앗으로 채우지 않는다 — 후보 상권 코드 목록이 있어야 만들 수 있고
+ * 그건 API 응답이다. 화면이 목록을 받으면 그때 제출한다.
+ */
+export const createInitialRecommendationState = (
+  seed?: RecommendationSeed | null,
+): RecommendationState => ({
   draft: {
-    district: null,
-    administration: null,
-    service: null,
+    district: seed?.district ?? null,
+    administration: seed?.administration ?? null,
+    service: seed?.service ?? null,
   },
   submitted: null,
   view: 'criteria',
@@ -212,8 +247,36 @@ export function recommendationReducer(
       return {
         ...state,
         selectedCommercialCode: action.commercialCode,
-        resultSelectionSource: 'auto',
+        resultSelectionSource: action.source ?? 'auto',
         sheetSnap: 'expanded',
+      }
+    }
+    case 'administrationNameResolved': {
+      const current = state.draft.administration
+
+      // 그 사이 사용자가 다른 행정동을 골랐으면 낡은 이름이다. 버린다.
+      if (!current || current.code !== action.administration.code) return state
+
+      /*
+       * 이름이 이미 같으면 **새 객체를 만들지 않는다.** 만들면 이 값을 deps 로 쓰는
+       * 이펙트가 매번 다시 돌아 dispatch 를 되풀이한다(렌더 루프).
+       */
+      if (current.name === action.administration.name) return state
+
+      const { submitted } = state
+
+      return {
+        ...state,
+        draft: { ...state.draft, administration: action.administration },
+        /*
+         * `submitted` 도 함께 채운다. 결과 헤더는 draft 가 아니라 submitted 를 읽는데
+         * (`recommend-panel.tsx`), URL 로 들어오면 이름을 모르는 채 제출되므로
+         * draft 만 채우면 **결과 헤더의 행정동 칩이 빈 채로 남는다.** 실제로 그랬다.
+         */
+        submitted:
+          submitted && submitted.administration.code === current.code
+            ? { ...submitted, administration: action.administration }
+            : submitted,
       }
     }
     case 'resultSelected':

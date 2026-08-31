@@ -456,3 +456,109 @@ describe('formatRecommendationPeriod', () => {
     expect(formatRecommendationPeriod('unknown')).toBe('unknown 기준')
   })
 })
+
+// URL 로 복원한 행정동은 이름을 모른 채 들어온다. 목록이 오면 이름만 채운다.
+describe('administrationNameResolved', () => {
+  const seeded = () =>
+    recommendationReducer(
+      createInitialRecommendationState({
+        district: { code: '11680', name: '강남구' },
+        administration: { code: '11680640', name: '' },
+        service: { code: 'CS100001', name: '한식음식점' },
+      }),
+      { type: 'submitted', commercialCodes: ['3110008', '3110009'] },
+    )
+
+  /**
+   * 가장 중요한 성질이다. `administrationSelected` 와 합쳤다면 링크로 들어온 결과
+   * 화면이 이름이 도착하는 순간 조건 화면으로 되돌아간다.
+   */
+  it('이름만 채우고 제출·화면 단계를 버리지 않는다', () => {
+    const before = seeded()
+    const after = recommendationReducer(before, {
+      type: 'administrationNameResolved',
+      administration: { code: '11680640', name: '역삼1동' },
+    })
+
+    expect(after.draft.administration).toEqual({
+      code: '11680640',
+      name: '역삼1동',
+    })
+    expect(after.view).toBe('results')
+    // 제출 자체는 살아 있다 — 이름만 채워지고 재요청 키는 그대로다.
+    expect(after.submitted?.requestKey).toBe(before.submitted?.requestKey)
+    expect(after.submitted?.commercialCodes).toEqual(
+      before.submitted?.commercialCodes,
+    )
+  })
+
+  it('그 사이 다른 행정동을 골랐으면 낡은 이름을 버린다', () => {
+    const other = recommendationReducer(seeded(), {
+      type: 'administrationSelected',
+      administration: { code: '11680700', name: '세곡동' },
+    })
+
+    expect(
+      recommendationReducer(other, {
+        type: 'administrationNameResolved',
+        administration: { code: '11680640', name: '역삼1동' },
+      }),
+    ).toBe(other)
+  })
+})
+
+// 결과 헤더는 draft 가 아니라 submitted 를 읽는다. draft 만 채우면 칩이 빈 채로 남는다.
+describe('administrationNameResolved — submitted 도 채운다', () => {
+  it('제출된 조건의 행정동 이름도 함께 채운다', () => {
+    const submittedState = recommendationReducer(
+      createInitialRecommendationState({
+        district: { code: '11680', name: '강남구' },
+        administration: { code: '11680640', name: '' },
+        service: { code: 'CS100001', name: '한식음식점' },
+      }),
+      { type: 'submitted', commercialCodes: ['3110008'] },
+    )
+
+    expect(submittedState.submitted?.administration.name).toBe('')
+
+    const resolved = recommendationReducer(submittedState, {
+      type: 'administrationNameResolved',
+      administration: { code: '11680640', name: '역삼1동' },
+    })
+
+    expect(resolved.submitted?.administration.name).toBe('역삼1동')
+    expect(resolved.draft.administration?.name).toBe('역삼1동')
+    // requestKey 는 코드로 만들어지므로 이름이 채워져도 재요청이 일어나지 않는다.
+    expect(resolved.submitted?.requestKey).toBe(
+      submittedState.submitted?.requestKey,
+    )
+  })
+})
+
+// 리듀서가 매번 새 객체를 만들면, 이 값을 deps 로 쓰는 이펙트가 dispatch 를 되풀이해
+// 렌더 루프에 빠진다. 백엔드가 행정동 이름을 빈 문자열로 주면 실제로 그 경로를 탄다.
+describe('administrationNameResolved — 렌더 루프 방어', () => {
+  const seeded = createInitialRecommendationState({
+    district: { code: '11680', name: '강남구' },
+    administration: { code: '11680640', name: '역삼1동' },
+    service: null,
+  })
+
+  it('이름이 같으면 같은 상태를 그대로 돌려준다', () => {
+    expect(
+      recommendationReducer(seeded, {
+        type: 'administrationNameResolved',
+        administration: { code: '11680640', name: '역삼1동' },
+      }),
+    ).toBe(seeded)
+  })
+
+  it('이름이 실제로 바뀔 때만 새 상태를 만든다', () => {
+    expect(
+      recommendationReducer(seeded, {
+        type: 'administrationNameResolved',
+        administration: { code: '11680640', name: '역삼일동' },
+      }),
+    ).not.toBe(seeded)
+  })
+})

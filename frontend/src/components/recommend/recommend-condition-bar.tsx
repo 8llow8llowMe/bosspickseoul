@@ -43,10 +43,21 @@ export const canOpenRecommendConditionStep = (
   return true
 }
 
+/**
+ * 조건 바에 그릴 이름. **빈 문자열도 `null` 로 본다.**
+ *
+ * URL 로 복원할 때 행정동은 코드만 알고 이름은 목록이 와야 안다(`{ code, name: '' }`).
+ * 그대로 두면 `??` 를 통과해 조각이 **글자 없이 빈 채로** 그려진다. 자리표시자를
+ * 보여 주는 편이 낫다 — 그 조각은 목록을 불러오는 동안 어차피 잠겨 있다.
+ */
 export const readRecommendConditionName = (
   draft: RecommendationCriteria,
   step: RecommendConditionStep,
-): string | null => draft[step]?.name ?? null
+): string | null => {
+  const name = draft[step]?.name?.trim()
+
+  return name ? name : null
+}
 
 export type RecommendConditionBarProps = {
   draft: RecommendationCriteria

@@ -73,8 +73,9 @@ describe('recommend page query orchestration helpers', () => {
         onAuthenticatedToggle,
       }),
     ).toBe(false)
-    expect(getRecommendBookmarkLoginHref()).toBe('/login?redirect=%2Frecommend')
-    expect(navigate).toHaveBeenCalledWith('/login?redirect=%2Frecommend')
+    // window 가 없는 환경(SSR·node 테스트)에서는 되돌아갈 곳이 홈이라 쿼리가 붙지 않는다.
+    expect(getRecommendBookmarkLoginHref()).toBe('/login')
+    expect(navigate).toHaveBeenCalledWith('/login')
     expect(onAuthenticatedToggle).not.toHaveBeenCalled()
   })
 
@@ -235,6 +236,7 @@ describe('recommend page query orchestration helpers', () => {
         type: 'resultsLoaded',
         requestKey: 'same-request',
         commercialCode: 'C1',
+        source: 'auto',
       },
     ])
     expect(focusCount).toBe(1)
@@ -489,6 +491,7 @@ describe('recommend page query orchestration helpers', () => {
       type: 'resultsLoaded',
       requestKey: 'current-request',
       commercialCode: 'C1',
+      source: 'auto',
     })
   })
 
@@ -768,5 +771,86 @@ describe('normalizeRecommendationBasis', () => {
         dataBody: null,
       } as unknown as CandidateCommercialsResponse),
     ).toBeNull()
+  })
+})
+
+// 링크가 지목한 상권이 1위 자동 선택에 덮이면 「3위를 보던 화면」 링크가 1위로 열린다.
+// 브라우저에서 실제로 그렇게 되는 것을 확인하고 두 이펙트를 하나로 합쳤다.
+describe('createResultsLoadedAction — 링크가 지목한 상권', () => {
+  const results = [
+    { rank: 1, commercialCode: '3110008' },
+    { rank: 2, commercialCode: '3110009' },
+    { rank: 3, commercialCode: '3120198' },
+  ] as unknown as CandidateCommercial[]
+
+  it('지목한 상권이 결과에 있으면 1위 대신 그것을 고른다', () => {
+    const action = createResultsLoadedAction('key', results, '3120198')
+
+    expect(action.commercialCode).toBe('3120198')
+    expect(action.source).toBe('user')
+  })
+
+  it('지목이 없으면 1위를 자동 선택한다', () => {
+    const action = createResultsLoadedAction('key', results)
+
+    expect(action.commercialCode).toBe('3110008')
+    expect(action.source).toBe('auto')
+  })
+
+  // 결과가 바뀌어 그 상권이 사라진 오래된 링크.
+  it('지목한 상권이 결과에 없으면 1위로 물러난다', () => {
+    const action = createResultsLoadedAction('key', results, '9999999')
+
+    expect(action.commercialCode).toBe('3110008')
+    expect(action.source).toBe('auto')
+  })
+
+  it('결과가 비면 아무것도 고르지 않는다', () => {
+    expect(
+      createResultsLoadedAction('key', [], '3120198').commercialCode,
+    ).toBeNull()
+  })
+})
+
+/**
+ * URL 상태가 생기기 전에는 `/recommend` 로 고정해도 잃을 것이 없었다. 이제는 조건·결과·
+ * 고른 상권이 전부 사라진 채 돌아온다.
+ */
+describe('북마크 로그인 복귀 주소', () => {
+  const withLocation = <T>(
+    pathname: string,
+    search: string,
+    run: () => T,
+  ): T => {
+    const original = (globalThis as { window?: unknown }).window
+    ;(globalThis as { window?: unknown }).window = {
+      location: { pathname, search },
+    }
+
+    try {
+      return run()
+    } finally {
+      if (original === undefined)
+        delete (globalThis as { window?: unknown }).window
+      else (globalThis as { window?: unknown }).window = original
+    }
+  }
+
+  it('지금 보고 있는 조건·결과를 그대로 들고 돌아온다', () => {
+    expect(
+      withLocation(
+        '/recommend',
+        '?districtCode=11680&view=results&commercialCode=3120198',
+        getRecommendBookmarkLoginHref,
+      ),
+    ).toBe(
+      '/login?redirect=%2Frecommend%3FdistrictCode%3D11680%26view%3Dresults%26commercialCode%3D3120198',
+    )
+  })
+
+  it('조건이 없으면 쿼리 없는 경로로 돌아온다', () => {
+    expect(withLocation('/recommend', '', getRecommendBookmarkLoginHref)).toBe(
+      '/login?redirect=%2Frecommend',
+    )
   })
 })
