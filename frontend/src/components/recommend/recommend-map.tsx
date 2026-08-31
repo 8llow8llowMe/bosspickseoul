@@ -360,7 +360,7 @@ const MapRegion = styled.section`
   }
 
   & .recommend-rank-marker:focus-visible {
-    outline: 3px solid var(--color-primary-200, #90c2ff);
+    outline: 2px solid var(--color-primary-700, #0ea5e9);
     outline-offset: 2px;
   }
 
