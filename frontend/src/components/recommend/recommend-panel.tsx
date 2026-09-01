@@ -512,7 +512,10 @@ export default function RecommendPanel({
               <CompareGap id={COMPARE_GAP_ID}>{compareGap}</CompareGap>
             ) : null}
             {compareHref ? (
-              <CompareCta data-testid="recommend-compare-cta" href={compareHref}>
+              <CompareCta
+                data-testid="recommend-compare-cta"
+                href={compareHref}
+              >
                 {`비교하기 (${selection.length}/${COMPARE_MAX_COMMERCIALS})`}
               </CompareCta>
             ) : (

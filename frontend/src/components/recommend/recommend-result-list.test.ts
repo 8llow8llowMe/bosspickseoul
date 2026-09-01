@@ -428,9 +428,7 @@ describe('점수 게이지', () => {
  */
 describe('비교 담기 체크박스', () => {
   const findCheckbox = (markup: string, name: string): string =>
-    markup.match(
-      new RegExp(`<input[^>]*aria-label="${name}"[^>]*>`),
-    )?.[0] ?? ''
+    markup.match(new RegExp(`<input[^>]*aria-label="${name}"[^>]*>`))?.[0] ?? ''
 
   it('compareSelection 에 있는 코드는 체크 상태다', () => {
     const markup = renderList({
