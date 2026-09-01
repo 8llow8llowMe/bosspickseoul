@@ -25,7 +25,7 @@ public class SimulationHistoryRepositoryAdapter implements SimulationHistoryRepo
     @Override
     public SimulationHistoryPageQueryResult findAllByMemberId(long memberId, int page, int size) {
         Page<SimulationHistoryEntity> entities =
-            simulationHistoryRepository.findAllByMemberIdOrderByCreatedAtDesc(memberId, PageRequest.of(page, size));
+            simulationHistoryRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(memberId, PageRequest.of(page, size));
         return SimulationHistoryPageQueryResult.builder()
             .histories(entities.getContent().stream().map(this::toDomain).toList())
             .page(entities.getNumber())
