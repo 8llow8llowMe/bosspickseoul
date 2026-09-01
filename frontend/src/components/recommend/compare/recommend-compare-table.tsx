@@ -9,6 +9,7 @@ import {
   createAnalysisResultHref,
 } from '@/lib/analysis/selection'
 import {
+  COMPARE_EMPTY_CELL,
   COMPARE_NEUTRAL_NOTICE,
   toCompareMetricRows,
   toCompareScoreRows,
@@ -33,7 +34,12 @@ const Root = styled.section`
   gap: 16px;
 `
 
-/* 표가 넘칠 때 **페이지 본문이 아니라 이 컨테이너만** 가로로 구른다. */
+/*
+ * 표가 넘칠 때 **페이지 본문이 아니라 이 컨테이너만** 가로로 구른다.
+ * 스크롤 컨테이너는 **하나뿐**이다(명세 §5.5). 점수 블록과 원지표 블록을 각각
+ * 다른 컨테이너에 넣으면 둘이 따로 구른다 — 3열의 점수를 보면서 1열의 원지표를
+ * 보게 되고, 고정된 지표 이름 열은 그 어긋남을 알려 주지 않는다.
+ */
 const Scroller = styled.div`
   overflow-x: auto;
   border: 1px solid var(--color-border-200);
@@ -139,11 +145,29 @@ const HighestBadge = styled.span`
   font-weight: 700;
 `
 
-const GroupCaption = styled.caption`
-  padding: 14px 14px 0;
+/*
+ * 두 블록을 가르는 소제목 행. `<caption>` 은 표당 하나뿐이라 표를 하나로 합치면서
+ * 행으로 내렸다 — 열 너비를 한 표가 정하게 하려면 `<table>` 이 하나여야 한다.
+ */
+const SectionHead = styled.th`
+  padding: 14px 14px 6px;
+  border-bottom: 1px solid var(--color-border-200);
   color: var(--color-text-600);
   font-size: 13px;
+  font-weight: 400;
   text-align: left;
+
+  tbody + tbody & {
+    border-top: 1px solid var(--color-border-300);
+    padding-top: 18px;
+  }
+`
+
+/* 가로로 굴러도 소제목이 남아 있게 한다 — 셀은 표 폭만큼 넓다. */
+const SectionLabel = styled.span`
+  position: sticky;
+  left: 14px;
+  display: inline-block;
 `
 
 const Notice = styled.p`
@@ -182,8 +206,6 @@ const AnalysisLink = styled(Link)`
   }
 `
 
-const EMPTY_SCORE = '—'
-
 export default function RecommendCompareTable({
   columns,
   districtCode,
@@ -195,44 +217,55 @@ export default function RecommendCompareTable({
   const metricRows = toCompareMetricRows(columns)
   const failed = new Set(failedProfileCodes)
 
-  const renderHead = (caption: string) => (
-    <>
-      <GroupCaption>{caption}</GroupCaption>
-      <thead>
-        <tr>
-          <CornerHead scope="col">지표</CornerHead>
-          {columns.map(column => (
-            <ColumnHead key={column.commercialCode} scope="col">
-              {typeof column.candidate?.rank === 'number' ? (
-                <Rank>{column.candidate.rank}위</Rank>
-              ) : null}
-              <Name>
-                {column.candidate?.commercialName ??
-                  column.profile?.commercialName ??
-                  `상권 ${column.commercialCode}`}
-              </Name>
-            </ColumnHead>
-          ))}
-        </tr>
-      </thead>
-    </>
+  const columnCount = columns.length + 1
+
+  const renderSectionHead = (caption: string) => (
+    <tr>
+      <SectionHead colSpan={columnCount} scope="colgroup">
+        <SectionLabel>{caption}</SectionLabel>
+      </SectionHead>
+    </tr>
   )
 
   return (
     <Root>
+      {/*
+       * 점수 블록과 원지표 블록은 **한 표**다(명세 §5.2). 표가 둘이면 열 너비를
+       * 각자 계산해 「84」 와 「8,452만원 가장 높음」 이 다른 폭을 만들고, 넘칠
+       * 때는 서로 다른 열까지 굴러간다. 한 열의 점수와 그 열의 원지표를 나란히
+       * 읽는 것이 이 화면의 전부라 그 어긋남은 화면의 목적을 지운다.
+       */}
       <Scroller>
-        <Table data-compare-scores="true">
-          {renderHead(
-            '추천이 매긴 점수예요. 100점에 가까울수록 그 지표가 강해요.',
-          )}
-          <tbody>
+        <Table>
+          <thead>
+            <tr>
+              <CornerHead scope="col">지표</CornerHead>
+              {columns.map(column => (
+                <ColumnHead key={column.commercialCode} scope="col">
+                  {typeof column.candidate?.rank === 'number' ? (
+                    <Rank>{column.candidate.rank}위</Rank>
+                  ) : null}
+                  <Name>
+                    {column.candidate?.commercialName ??
+                      column.profile?.commercialName ??
+                      `상권 ${column.commercialCode}`}
+                  </Name>
+                </ColumnHead>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody data-compare-scores="true">
+            {renderSectionHead(
+              '추천이 매긴 점수예요. 100점에 가까울수록 그 지표가 강해요.',
+            )}
             {scoreRows.map(row => (
               <tr key={row.key}>
                 <RowHead scope="row">{row.label}</RowHead>
                 {row.cells.map(cell => (
                   <Cell key={`${row.key}-${cell.commercialCode}`}>
                     {cell.score === null ? (
-                      EMPTY_SCORE
+                      COMPARE_EMPTY_CELL
                     ) : (
                       <ScoreValue
                         style={{ color: getScoreQualityColor(cell.quality) }}
@@ -250,15 +283,17 @@ export default function RecommendCompareTable({
               </tr>
             ))}
           </tbody>
-        </Table>
-      </Scroller>
 
-      <Scroller>
-        <Table data-compare-metrics="true">
-          {renderHead(
-            '값 그대로예요. 어느 쪽이 좋은지는 계획에 따라 달라져요.',
-          )}
-          <tbody>
+          {/*
+           * 원지표 셀에는 `--score-*` 토큰이 **절대** 붙지 않는다. 이 9개 지표는
+           * `METRIC_POLARITY` 에 방향이 없어(점포가 많은 것이 활황인지 과열인지
+           * 제품이 답을 갖고 있지 않다) 색으로 답하는 척하면 화면이 조용히 반대로
+           * 말한다. `data-compare-metrics` 는 그 부재를 단언하는 테스트의 손잡이다.
+           */}
+          <tbody data-compare-metrics="true">
+            {renderSectionHead(
+              '값 그대로예요. 어느 쪽이 좋은지는 계획에 따라 달라져요.',
+            )}
             {metricRows.map(row => (
               <tr key={row.key}>
                 <RowHead scope="row">{row.label}</RowHead>
