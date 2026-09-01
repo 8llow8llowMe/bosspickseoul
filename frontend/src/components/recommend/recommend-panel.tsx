@@ -3,6 +3,10 @@
 import type { Ref } from 'react'
 import styled, { css, keyframes } from 'styled-components'
 import type { NormalizedApiError } from '@/lib/api/api-error'
+import {
+  ANALYSIS_PERIOD_CODE,
+  createAnalysisResultHref,
+} from '@/lib/analysis/selection'
 import type {
   RecommendConditionStep,
   RecommendationCriteria,
@@ -331,6 +335,23 @@ export default function RecommendPanel({
     )
   }
 
+  /**
+   * 추천 카드 → `/analysis/result` 딥링크. 조건 넷을 모두 아는 자리이므로
+   * 탐색 화면(4단계 마법사)을 거치지 않고 결과 화면으로 바로 보낸다.
+   * 기간은 분석 화면의 기본 분기를 쓴다 — 추천은 기간을 조건으로 받지 않는다.
+   */
+  const buildAnalysisHref = (commercialCode: string) =>
+    createAnalysisResultHref(
+      {
+        districtCode: submitted.district.code,
+        administrationCode: submitted.administration.code,
+        commercialCode,
+        serviceCode: submitted.service.code,
+        periodCode: ANALYSIS_PERIOD_CODE,
+      },
+      'summary',
+    )
+
   return (
     <Surface $variant={variant}>
       <Content
@@ -394,6 +415,7 @@ export default function RecommendPanel({
           results={results}
           selectedCommercialCode={selectedCommercialCode}
           selectedServiceCode={submitted.service.code}
+          buildAnalysisHref={buildAnalysisHref}
           onPreviewChange={onResultPreviewChange}
           onBookmarkToggle={onBookmarkToggle}
           onRetry={onRetry}

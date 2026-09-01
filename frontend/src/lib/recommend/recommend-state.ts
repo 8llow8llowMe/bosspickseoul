@@ -358,3 +358,25 @@ export function recommendationReducer(
       }
   }
 }
+
+/**
+ * 비어 있는 첫 조건을 안내 문구로 바꾼다. 모두 채웠으면 null.
+ *
+ * 「상권 추천받기」는 조건 셋이 다 차야 열린다. 그런데 자치구·업종만 고른 상태는
+ * 로딩도 오류도 아니라서 기존 헬퍼가 전부 `null` 이었고, **비활성 버튼만 남아
+ * 무엇이 빠졌는지 알 수 없었다.** 특히 행정동은 건너뛸 수 있어 보여서 여기서 막힌다.
+ *
+ * `/analysis`(「상권과 업종을 선택해 주세요」)와 `/simulation`
+ * (`describeSimulationConditionGap`)은 이미 같은 안내를 한다 — 세 화면 중
+ * `/recommend` 만 빠져 있었다.
+ */
+export const describeRecommendConditionGap = (
+  draft: RecommendationCriteria,
+): string | null => {
+  if (!draft.district) return '창업할 자치구를 선택해 주세요'
+  // 행정동이 선택이 아니라 필수임을 여기서 분명히 말한다.
+  if (!draft.administration) return '살펴볼 행정동까지 선택해 주세요'
+  if (!draft.service) return '창업할 업종을 선택해 주세요'
+
+  return null
+}

@@ -1,7 +1,8 @@
 'use client'
 
 import { createElement, useId, useRef } from 'react'
-import { Bookmark as BookmarkIcon } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowUpRight, Bookmark as BookmarkIcon } from 'lucide-react'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
 import ScoreGauge from '@/components/ui/score-gauge'
@@ -38,6 +39,16 @@ export type RecommendResultListProps = {
   isBookmarked?: (commercialCode: string) => boolean
   isBookmarkPending?: (commercialCode: string) => boolean
   onBookmarkToggle?: (commercialCode: string, commercialName: string) => void
+  /**
+   * 추천받은 상권을 `/analysis` 로 넘기는 링크를 만든다.
+   *
+   * 추천 결과에서 상권분석으로 가는 길이 없어, 1위를 받아도 자세히 보려면
+   * 4단계 마법사를 손으로 다시 밟아야 했다. 조건 넷을 모두 아는 자리이므로
+   * 탐색 화면이 아니라 결과 화면으로 곧장 보낸다.
+   *
+   * 생략하면 링크를 그리지 않는다 — 조건이 덜 찬 화면에서도 이 목록을 쓴다.
+   */
+  buildAnalysisHref?: (commercialCode: string) => string | null
   onRetry: () => void
 }
 
@@ -386,6 +397,33 @@ const BookmarkButton = styled.button<{ $bookmarked: boolean }>`
   }
 `
 
+/* 북마크(아이콘 정사각)와 같은 줄에 서므로 높이를 맞춘다. 보조 행동이라
+   채움 없이 테두리만 두고 주 선택 버튼과 무게를 다르게 한다. */
+const AnalysisLink = styled(Link)`
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-300);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-900);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+
+  &:hover {
+    border-color: var(--color-primary-600);
+    color: var(--color-primary-700);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`
+
 const LoadingState = styled.div`
   display: grid;
   gap: 12px;
@@ -634,6 +672,7 @@ export default function RecommendResultList({
   isBookmarked = () => false,
   isBookmarkPending = () => false,
   onBookmarkToggle,
+  buildAnalysisHref,
   onRetry,
 }: RecommendResultListProps) {
   const detailsIdPrefix = useId()
@@ -724,6 +763,7 @@ export default function RecommendResultList({
         // 눈금을 공유해야 다섯 업종의 선 길이가 서로 비교된다.
         const blueOceanAxisMax = getBlueOceanAxisMax(blueOceanCategories)
         const isScoreUnavailable = !hasScore(item.compositeScore)
+        const analysisHref = buildAnalysisHref?.(item.commercialCode) ?? null
 
         return (
           <li key={item.commercialCode}>
@@ -903,6 +943,16 @@ export default function RecommendResultList({
               ) : null}
 
               <SecondaryActions data-result-secondary-actions="true">
+                {analysisHref ? (
+                  <AnalysisLink
+                    aria-label={`${item.commercialName} 상권 분석 보기`}
+                    data-analysis-link="true"
+                    href={analysisHref}
+                  >
+                    상권 분석 보기
+                    <ArrowUpRight aria-hidden="true" />
+                  </AnalysisLink>
+                ) : null}
                 {onBookmarkToggle ? (
                   <BookmarkButton
                     $bookmarked={isSaved}

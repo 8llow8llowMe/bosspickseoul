@@ -319,7 +319,31 @@ describe('RecommendPanel', () => {
           service: null,
         },
       },
-      helper: '자치구를 먼저 선택해 주세요.',
+      helper: '창업할 자치구를 선택해 주세요',
+    },
+    {
+      // 자치구·업종만 고른 상태. 로딩도 오류도 아니라서 예전에는 아무 문구 없이
+      // 비활성 버튼만 남았다 — 행정동이 필수라는 사실을 알 길이 없었다.
+      name: 'missing administration',
+      props: {
+        draft: {
+          district: { code: '11680', name: '강남구' },
+          administration: null,
+          service: { code: 'CS100010', name: '커피-음료' },
+        },
+      },
+      helper: '살펴볼 행정동까지 선택해 주세요',
+    },
+    {
+      name: 'missing service',
+      props: {
+        draft: {
+          district: { code: '11680', name: '강남구' },
+          administration: { code: '11680640', name: '역삼1동' },
+          service: null,
+        },
+      },
+      helper: '창업할 업종을 선택해 주세요',
     },
     {
       name: 'administration loading',
@@ -340,6 +364,34 @@ describe('RecommendPanel', () => {
 
     expect(getSubmitMarkup(markup)).toContain('disabled=""')
     expect(markup).toContain(helper)
+  })
+
+  it('비활성 제출 버튼이 빠진 조건 문구를 aria-describedby 로 가리킨다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      draft: {
+        district: { code: '11680', name: '강남구' },
+        administration: null,
+        service: { code: 'CS100010', name: '커피-음료' },
+      },
+      view: 'criteria',
+    })
+
+    expect(markup).toContain('id="recommend-condition-gap"')
+    expect(getSubmitMarkup(markup)).toContain(
+      'aria-describedby="recommend-condition-gap"',
+    )
+  })
+
+  it('로딩 문구가 있으면 빠진 조건 문구를 겹쳐 띄우지 않는다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      isAdministrationsLoading: true,
+      view: 'criteria',
+    })
+
+    expect(markup).toContain('행정동을 불러오는 중입니다.')
+    expect(markup).not.toContain('data-testid="recommend-condition-gap"')
   })
 
   it.each([
@@ -443,6 +495,27 @@ describe('RecommendPanel', () => {
 
     expect(criteriaMarkup).toContain('data-panel-transition-key="criteria"')
     expect(sheetResultsMarkup).toContain('data-panel-transition-key="results"')
+  })
+
+  it('추천 카드에서 상권분석 결과로 가는 딥링크를 만든다', () => {
+    // 추천 결과 → 분석으로 가는 길이 없어 4단계 마법사를 손으로 다시 밟아야 했다.
+    // 조건 넷을 모두 아는 자리이므로 탐색 화면이 아니라 결과 화면으로 바로 보낸다.
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      view: 'results',
+    })
+
+    expect(markup).toContain('상권 분석 보기')
+
+    const link =
+      markup.match(/<a[^>]*data-analysis-link="true"[^>]*>/)?.[0] ?? ''
+    expect(link).toContain('href="/analysis/result?')
+    expect(link).toContain('districtCode=11680')
+    expect(link).toContain('administrationCode=11680101')
+    expect(link).toContain('commercialCode=3110008')
+    expect(link).toContain('serviceCode=CS100010')
+    expect(link).toContain('tab=summary')
   })
 
   it('renders the submitted result snapshot and edit action', () => {

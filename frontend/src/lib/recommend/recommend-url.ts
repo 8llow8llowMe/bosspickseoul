@@ -170,3 +170,32 @@ export const createRecommendHref = (
 
   return query ? `/recommend?${query}` : '/recommend'
 }
+
+/**
+ * 분석 화면에서 넘어오는 딥링크. **코드만 나른다.**
+ *
+ * `/analysis` 는 상권·업종까지 고르게 하지만 추천은 상권을 *찾아 주는* 쪽이라
+ * 상권 코드는 싣지 않는다. 업종은 `findSimulationCategoryByCode` 가 모르는 코드면
+ * `parseRecommendUrlState` 가 조용히 버리고 자치구·행정동만 살린다.
+ */
+export const createRecommendHrefFromCodes = ({
+  districtCode,
+  administrationCode,
+  serviceCode,
+}: {
+  districtCode?: string | null
+  administrationCode?: string | null
+  serviceCode?: string | null
+}): string => {
+  const params = new URLSearchParams()
+
+  if (districtCode) params.set(RECOMMEND_URL_PARAMS.district, districtCode)
+  if (administrationCode) {
+    params.set(RECOMMEND_URL_PARAMS.administration, administrationCode)
+  }
+  if (serviceCode) params.set(RECOMMEND_URL_PARAMS.service, serviceCode)
+
+  const query = params.toString()
+
+  return query ? `/recommend?${query}` : '/recommend'
+}

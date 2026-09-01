@@ -2,9 +2,10 @@
 
 import styled from 'styled-components'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
-import type {
-  RecommendConditionStep,
-  RecommendationCriteria,
+import {
+  describeRecommendConditionGap,
+  type RecommendConditionStep,
+  type RecommendationCriteria,
 } from '@/lib/recommend/recommend-state'
 
 import RecommendConditionBar from './recommend-condition-bar'
@@ -80,6 +81,9 @@ const SubmitButton = styled.button`
   }
 `
 
+/** 비활성 제출 버튼이 `aria-describedby` 로 가리키는 안내 문구의 id. */
+const CONDITION_GAP_ID = 'recommend-condition-gap'
+
 export const submitRecommendationIfEnabled = (
   isSubmitDisabled: boolean,
   onSubmit: () => void,
@@ -101,7 +105,7 @@ export default function RecommendConditionForm({
   onSubmit,
 }: RecommendConditionFormProps) {
   const administrationHelp = !draft.district
-    ? '자치구를 먼저 선택해 주세요.'
+    ? null // 아래 conditionGap 이 「창업할 자치구를 선택해 주세요」로 덮는다.
     : isAdministrationsLoading
       ? '행정동을 불러오는 중입니다.'
       : administrationsError
@@ -131,6 +135,16 @@ export default function RecommendConditionForm({
     candidatesCount === 0 ||
     Boolean(administrationsError) ||
     Boolean(candidatesError)
+
+  /**
+   * 로딩·오류 문구가 이미 자리를 잡았으면 그것이 더 급한 소식이라 양보한다.
+   * 그 외에 버튼이 잠겨 있으면 **무엇이 빠졌는지 반드시 말한다** — 아무 문구도
+   * 없이 비활성 버튼만 남는 상태가 이 화면의 원래 문제였다.
+   */
+  const conditionGap =
+    administrationHelp || candidateHelp
+      ? null
+      : describeRecommendConditionGap(draft)
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -181,7 +195,18 @@ export default function RecommendConditionForm({
         </Helper>
       ) : null}
 
+      {conditionGap ? (
+        <Helper data-testid="recommend-condition-gap" id={CONDITION_GAP_ID}>
+          <span>{conditionGap}</span>
+        </Helper>
+      ) : null}
+
       <SubmitButton
+        /**
+         * `disabled` 버튼은 초점을 받지 못해 보조기기가 이유를 읽어 줄 기회가 없다.
+         * 빠진 조건 문구를 `aria-describedby` 로 묶어 둔다.
+         */
+        aria-describedby={conditionGap ? CONDITION_GAP_ID : undefined}
         data-testid="recommend-submit"
         disabled={isSubmitDisabled}
         type="submit"
