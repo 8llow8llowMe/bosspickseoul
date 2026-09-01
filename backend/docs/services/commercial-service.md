@@ -210,6 +210,9 @@
   프론트가 shareType별 URL 템플릿에 payload를 합쳐 최종 진입 URL을 조립한다.
 - 중복 방지: `SHA-256(shareType | 정렬된 payload JSON)` 해시 unique. 같은 화면 상태를 다시
   공유하면 기존 코드의 만료 시각만 연장한다 (기본 TTL `app.share-link.ttl-days` = 90일).
+  - 동시에 같은 payload 로 두 건이 들어오면 조회를 둘 다 통과해 insert 가 겹친다. 위반이 난
+    트랜잭션은 이미 롤백 대상이라 같은 트랜잭션에서 기존 행을 다시 읽어 줄 수 없으므로,
+    `SHARE_LINK_007`(409) 로 재시도를 안내한다. 재시도하면 기존 링크를 그대로 받는다.
 - 새 화면을 공유 대상으로 추가할 때는 `ShareTargetType`에 상수 하나만 추가하면 된다.
 - 만료 링크는 `410 SHARE_LINK_002`, 미존재 코드는 `404 SHARE_LINK_001`로 응답한다.
 

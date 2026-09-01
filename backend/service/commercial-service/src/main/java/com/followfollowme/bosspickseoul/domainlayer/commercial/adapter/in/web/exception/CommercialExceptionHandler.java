@@ -17,7 +17,9 @@ import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.except
 import com.followfollowme.bosspickseoul.domainlayer.policy.application.exception.PolicyException;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.application.exception.SimulationException;
 import jakarta.validation.ConstraintViolationException;
+import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.exception.ShareLinkErrorCode;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,6 +31,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class CommercialExceptionHandler {
 
     private static final String ANALYSIS_BOOKMARK_UNIQUE_CONSTRAINT = "uk_analysis_bookmark_member_id_payload_hash";
+    private static final String SHARE_LINK_PAYLOAD_UNIQUE_CONSTRAINT = "uk_share_link_payload_hash";
 
     @ExceptionHandler(CommercialException.class)
     public ResponseEntity<Response<Void>> handleCommercialException(CommercialException exception) {
@@ -113,18 +116,30 @@ public class CommercialExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Response<Void>> handleDataIntegrityViolation(DataIntegrityViolationException exception) {
-        if (!isAnalysisBookmarkUniqueViolation(exception)) {
+        String message = exception.getMostSpecificCause().getMessage();
+        if (message == null) {
             throw exception;
         }
 
-        AnalysisBookmarkErrorCode errorCode = AnalysisBookmarkErrorCode.ALREADY_BOOKMARKED;
-        return ResponseEntity.status(errorCode.getHttpStatus())
-            .body(Response.fail(errorCode.getCode(), errorCode.getMessage()));
+        if (message.contains(ANALYSIS_BOOKMARK_UNIQUE_CONSTRAINT)) {
+            return toResponse(AnalysisBookmarkErrorCode.ALREADY_BOOKMARKED.getCode(),
+                AnalysisBookmarkErrorCode.ALREADY_BOOKMARKED.getMessage(),
+                AnalysisBookmarkErrorCode.ALREADY_BOOKMARKED.getHttpStatus());
+        }
+        // 공유 링크 생성은 같은 payload 면 기존 링크를 돌려주는 멱등 동작이지만, 동시 요청은
+        // 조회를 둘 다 통과해 insert 가 겹친다. 위반이 난 트랜잭션은 이미 롤백 대상이라
+        // 같은 트랜잭션에서 기존 행을 다시 읽어 줄 수 없으므로, 재시도하면 기존 링크를 받도록 409 로 안내한다.
+        if (message.contains(SHARE_LINK_PAYLOAD_UNIQUE_CONSTRAINT)) {
+            return toResponse(ShareLinkErrorCode.CONCURRENT_CREATION.getCode(),
+                ShareLinkErrorCode.CONCURRENT_CREATION.getMessage(),
+                ShareLinkErrorCode.CONCURRENT_CREATION.getHttpStatus());
+        }
+
+        throw exception;
     }
 
-    private boolean isAnalysisBookmarkUniqueViolation(DataIntegrityViolationException exception) {
-        String message = exception.getMostSpecificCause().getMessage();
-        return message != null && message.contains(ANALYSIS_BOOKMARK_UNIQUE_CONSTRAINT);
+    private ResponseEntity<Response<Void>> toResponse(String code, String message, HttpStatus status) {
+        return ResponseEntity.status(status).body(Response.fail(code, message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
