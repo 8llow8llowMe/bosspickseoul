@@ -1943,7 +1943,7 @@ export default function AnalysisResultView({
             id={createReportSectionId('benchmark')}
             ref={registerSection('benchmark')}
           >
-            {renderGroupHeading('비교')}
+            {renderGroupHeading('지역 평균 대비')}
             <DashboardGrid>
               <FullSpanItem>
                 <AnalysisResultSection

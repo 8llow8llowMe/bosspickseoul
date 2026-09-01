@@ -12,7 +12,7 @@ export const ANALYSIS_TABS: readonly AnalysisTabDefinition[] = [
   { value: 'stores', label: '점포' },
   { value: 'living', label: '생활권' },
   { value: 'trend', label: '트렌드' },
-  { value: 'benchmark', label: '비교' },
+  { value: 'benchmark', label: '지역 평균 대비' },
 ] as const
 
 const allowedTabs = new Set(ANALYSIS_TABS.map(tab => tab.value))
