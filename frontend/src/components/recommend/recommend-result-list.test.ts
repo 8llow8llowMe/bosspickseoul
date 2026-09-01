@@ -10,9 +10,10 @@ import RecommendResultList, {
   formatScore,
   getBlueOceanAxisMax,
   getBlueOceanRange,
-  readBlueOceanCategories,
   type RecommendResultListProps,
 } from './recommend-result-list'
+// 읽는 규칙은 `/recommend` 와 `/recommend/compare` 가 공유하는 lib 로 옮겼다.
+import { readBlueOceanCategories } from '@/lib/recommend/recommend-response'
 
 const SELECTED_SERVICE_CODE = 'CS100001'
 

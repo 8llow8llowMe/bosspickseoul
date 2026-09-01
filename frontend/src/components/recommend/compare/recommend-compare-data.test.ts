@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCompareRecommendationRequest,
   selectCompareColumns,
-  selectTopRankedCandidates,
 } from '@/lib/recommend/compare-data'
-import type { CandidateCommercial } from '@/types/recommend'
+import { normalizeRecommendationResults } from '@/lib/recommend/recommend-response'
+import type {
+  CandidateCommercial,
+  CandidateCommercialsResponse,
+} from '@/types/recommend'
 
 const candidate = (code: string, rank: number): CandidateCommercial => ({
   rank,
@@ -102,33 +105,62 @@ describe('selectCompareColumns', () => {
   })
 })
 
-describe('selectTopRankedCandidates', () => {
-  it('rank 순으로 세우고 Top N 까지만 남긴다', () => {
-    // 응답이 순서를 지켜 준다는 보장이 없다. /recommend 는 rank 로 정렬하고
-    // Top N 으로 자른 뒤 화면에 올린다 — 비교도 같은 다섯 개를 봐야 한다.
-    const shuffled = [6, 3, 1, 5, 2, 4].map(rank => candidate(`C${rank}`, rank))
+/*
+ * 비교 화면은 응답을 스스로 읽지 않는다 — `/recommend` 와 **같은 함수**를 쓴다.
+ * 예전에는 `selectTopRankedCandidates` 가 날것의 `items` 를 정렬·중복제거만 했고,
+ * 그래서 계약을 어긴 payload 에서 두 화면이 갈라졌다. 그 갈라짐을 여기서 못 박는다.
+ */
+describe('normalizeRecommendationResults — 두 화면이 공유하는 읽기 규칙', () => {
+  const response = (items: readonly unknown[]) =>
+    ({
+      dataHeader: { success: true, resultCode: 'SUCCESS', resultMessage: null },
+      dataBody: {
+        serviceCode: 'CS100010',
+        periodCode: '20233',
+        preset: null,
+        priorityMetric: null,
+        topN: 5,
+        summary: '',
+        items,
+      },
+    }) as unknown as CandidateCommercialsResponse
 
-    const result = selectTopRankedCandidates({
-      candidates: shuffled,
-      allowedCommercialCodes: ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'],
-    })
+  it('rank 가 없는 행을 먼저 버려 정렬이 무너지지 않는다', () => {
+    // `left.rank - right.rank` 가 NaN 이면 정렬 결과가 규정되지 않는다 —
+    // 두 화면이 같은 상권에 다른 「N위」를 적게 되는 지점이다.
+    const items = [
+      candidate('C3', 3),
+      { ...candidate('C_NO_RANK', 1), rank: null },
+      candidate('C1', 1),
+      candidate('C2', 2),
+    ]
 
-    expect(result.map(item => item.commercialCode)).toEqual([
-      'C1',
-      'C2',
-      'C3',
-      'C4',
-      'C5',
-    ])
+    expect(
+      normalizeRecommendationResults(response(items), [
+        'C1',
+        'C2',
+        'C3',
+        'C_NO_RANK',
+      ]).map(item => item.commercialCode),
+    ).toEqual(['C1', 'C2', 'C3'])
   })
 
-  it('요청하지 않은 코드와 중복을 버린다', () => {
-    const result = selectTopRankedCandidates({
-      candidates: [candidate('A', 1), candidate('A', 2), candidate('Z', 3)],
-      allowedCommercialCodes: ['A'],
-    })
+  it('배열이 아닌 metricBreakdown 은 빈 배열로 바꾼다', () => {
+    // 날것으로 통과시키면 `readScore` 의 `.find` 가 던져 비교 화면이 통째로 죽는다.
+    const items = [{ ...candidate('C1', 1), metricBreakdown: '없음' }]
 
-    expect(result.map(item => item.commercialCode)).toEqual(['A'])
-    expect(result[0].rank).toBe(1)
+    expect(
+      normalizeRecommendationResults(response(items), ['C1'])[0]
+        .metricBreakdown,
+    ).toEqual([])
+  })
+
+  it('숫자로 온 commercialCode 는 /recommend 와 마찬가지로 버린다', () => {
+    // `String(...)` 으로 살려 두면 비교에만 있는 열이 생긴다.
+    const items = [{ ...candidate('C1', 1), commercialCode: 3120197 }]
+
+    expect(
+      normalizeRecommendationResults(response(items), ['3120197']),
+    ).toEqual([])
   })
 })

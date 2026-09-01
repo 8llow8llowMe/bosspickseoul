@@ -10,6 +10,11 @@ import {
   COMPOSITE_SCORE_POLARITY,
   resolveMetricPolarity,
 } from '@/lib/recommend/metric-polarity'
+import {
+  isRecord,
+  readBlueOceanCategories,
+  readTrimmedString,
+} from '@/lib/recommend/recommend-response'
 import { resolveServiceIcon } from '@/lib/recommend/service-icons'
 import type { BlueOceanCategory, CandidateCommercial } from '@/types/recommend'
 import RecommendFeedback from './recommend-feedback'
@@ -474,9 +479,6 @@ const VisuallyHidden = styled.span`
   white-space: nowrap;
 `
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object'
-
 /**
  * 점수가 `null`이면 "지표 데이터가 없어 점수를 낼 수 없다"는 뜻이다(집계 대기가 아니다).
  * 백엔드가 데이터 없는 상권을 404 대신 `compositeScore: null`로 강등해 내려준다.
@@ -494,9 +496,6 @@ const hasScore = (score: unknown): score is number =>
 
 export const formatScore = (score: unknown): number | string =>
   hasScore(score) ? Math.round(score) : SCORE_UNAVAILABLE_LABEL
-
-const readTrimmedString = (value: unknown): string =>
-  typeof value === 'string' ? value.trim() : ''
 
 const uniqueLabels = (labels: readonly unknown[]): string[] => [
   ...new Set(labels.map(readTrimmedString).filter(Boolean)),
@@ -528,42 +527,6 @@ const getMetricCode = (metric: unknown): string =>
 /** 게이지에 넘길 점수. 숫자가 아니면 `null` 이고, 그때 게이지는 그려지지 않는다. */
 const readGaugeScore = (score: unknown): number | null =>
   hasScore(score) ? score : null
-
-const readCount = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Math.trunc(value)
-    : 0
-
-/**
- * 블루오션 목록을 화면에 쓸 수 있는 형태로만 남긴다.
- * `null`·빈 배열·형태가 깨진 항목은 모두 걸러진다 — 호출부는 길이가 0이면 섹션을 렌더하지 않는다.
- */
-export const readBlueOceanCategories = (
-  value: unknown,
-): BlueOceanCategory[] => {
-  if (!Array.isArray(value)) return []
-
-  return value.flatMap(category => {
-    if (!isRecord(category)) return []
-
-    const serviceName = readTrimmedString(category.serviceName)
-    if (!serviceName) return []
-
-    return [
-      {
-        serviceCode: readTrimmedString(category.serviceCode),
-        serviceName,
-        commercialStoreCount: readCount(category.commercialStoreCount),
-        administrationStoreCount: readCount(category.administrationStoreCount),
-        storeRate:
-          typeof category.storeRate === 'number' &&
-          Number.isFinite(category.storeRate)
-            ? category.storeRate
-            : Number.NaN,
-      },
-    ]
-  })
-}
 
 /**
  * 다섯 업종이 함께 쓰는 가로 눈금의 최댓값 = 행정동 점포 수 중 가장 큰 값.

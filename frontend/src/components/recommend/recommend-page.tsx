@@ -52,6 +52,7 @@ import {
   isRecord,
   isSuccessfulApiResponse,
   isValidCoordinate,
+  normalizeRecommendationResults,
   readCommercials,
 } from '@/lib/recommend/recommend-response'
 import { resolveRecommendSheetHeadline } from '@/lib/recommend/sheet-headline'
@@ -86,10 +87,8 @@ import type {
   CommercialProfileResponse,
   CoordinateTuple,
   GeoBounds,
-  MetricBreakdownItem,
   MapAreasResponse,
   RecommendationBasis,
-  ScoreMetricMetadata,
 } from '@/types/recommend'
 
 import { RECOMMEND_CONDITION_LABELS } from './recommend-condition-bar'
@@ -97,7 +96,6 @@ import RecommendFeedback from './recommend-feedback'
 import RecommendMap from './recommend-map'
 import RecommendMobileSheet from './recommend-mobile-sheet'
 import RecommendPanel, { type RecommendPanelProps } from './recommend-panel'
-import { readBlueOceanCategories } from './recommend-result-list'
 
 type ProfileQueryLike = {
   data?: CommercialProfileResponse
@@ -214,85 +212,6 @@ export const readAdministrations = (
   })
 }
 
-const readNullableString = (value: unknown): string | null =>
-  typeof value === 'string' ? value : null
-
-const normalizeScoreMetricMetadata = (value: unknown): ScoreMetricMetadata => {
-  if (
-    !isRecord(value) ||
-    typeof value.code !== 'string' ||
-    typeof value.name !== 'string' ||
-    typeof value.description !== 'string' ||
-    typeof value.scoreDescription !== 'string'
-  ) {
-    return null
-  }
-
-  return {
-    code: value.code,
-    name: value.name,
-    description: value.description,
-    scoreDescription: value.scoreDescription,
-  }
-}
-
-const normalizeMetricBreakdown = (value: unknown): MetricBreakdownItem[] =>
-  Array.isArray(value)
-    ? value.flatMap(metric => {
-        if (!isRecord(metric)) return []
-
-        return [
-          {
-            metricType: normalizeScoreMetricMetadata(metric.metricType),
-            score:
-              typeof metric.score === 'number' && Number.isFinite(metric.score)
-                ? metric.score
-                : null,
-            grade: readNullableString(metric.grade),
-            summaryLabel: readNullableString(metric.summaryLabel),
-          },
-        ]
-      })
-    : []
-
-const normalizeCandidateCommercial = (
-  item: unknown,
-): CandidateCommercial | null => {
-  if (
-    !isRecord(item) ||
-    typeof item.commercialCode !== 'string' ||
-    typeof item.commercialName !== 'string' ||
-    typeof item.rank !== 'number' ||
-    !Number.isFinite(item.rank)
-  ) {
-    return null
-  }
-
-  return {
-    rank: item.rank,
-    commercialCode: item.commercialCode,
-    commercialName: item.commercialName,
-    compositeScore:
-      typeof item.compositeScore === 'number' &&
-      Number.isFinite(item.compositeScore)
-        ? item.compositeScore
-        : null,
-    grade: readNullableString(item.grade),
-    summaryLabel: readNullableString(item.summaryLabel),
-    selectionReason: readNullableString(item.selectionReason),
-    opportunityLabel: readNullableString(item.opportunityLabel),
-    riskLabel: readNullableString(item.riskLabel),
-    metricBreakdown: normalizeMetricBreakdown(item.metricBreakdown),
-    reasonTags: Array.isArray(item.reasonTags)
-      ? item.reasonTags.filter(
-          (reasonTag): reasonTag is string => typeof reasonTag === 'string',
-        )
-      : [],
-    // 백엔드가 산정에 실패하면 빈 목록으로 강등하는 계약이라 `null`·`[]`는 오류가 아니다.
-    blueOceanCategories: readBlueOceanCategories(item.blueOceanCategories),
-  }
-}
-
 /**
  * 추천 기준(프리셋·우선 지표·요약)을 응답에서 꺼낸다.
  *
@@ -336,45 +255,6 @@ export const normalizeRecommendationBasis = (
 
   // 한 조각도 못 읽으면 그릴 게 없다 — 빈 껍데기를 렌더하지 않는다.
   return Object.values(basis).some(value => value !== null) ? basis : null
-}
-
-export const normalizeRecommendationResults = (
-  response: CandidateCommercialsResponse | null | undefined,
-  allowedCommercialCodes: readonly string[],
-): CandidateCommercial[] => {
-  if (
-    !isSuccessfulApiResponse(response) ||
-    !Array.isArray(response.dataBody?.items)
-  ) {
-    return []
-  }
-
-  const allowedCodes = new Set(allowedCommercialCodes.map(String))
-  const seen = new Set<string>()
-
-  return (response.dataBody.items as unknown[])
-    .flatMap(item => {
-      const normalized = normalizeCandidateCommercial(item)
-      return normalized ? [normalized] : []
-    })
-    .sort((left, right) => {
-      return left.rank - right.rank
-    })
-    .filter(item => {
-      const commercialCode = String(item.commercialCode)
-
-      if (
-        !commercialCode ||
-        !allowedCodes.has(commercialCode) ||
-        seen.has(commercialCode)
-      ) {
-        return false
-      }
-
-      seen.add(commercialCode)
-      return true
-    })
-    .slice(0, RECOMMENDATION_TOP_N)
 }
 
 const normalizeCommercialProfile = (

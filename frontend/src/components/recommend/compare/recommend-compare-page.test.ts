@@ -11,6 +11,7 @@ import {
   recommendProfileKey,
   recommendResultsKey,
 } from '@/lib/recommend/recommend-query-keys'
+import { normalizeRecommendationResults } from '@/lib/recommend/recommend-response'
 import type {
   CandidateCommercial,
   CandidateCommercialsResponse,
@@ -391,6 +392,55 @@ describe('RecommendComparePage', () => {
     // 200 이라 재시도할 오류가 없다 — 버튼을 띄우지 않는다(`isRetryable` 규약).
     expect(html).not.toContain('다시 시도')
     expect(html).toContain('data-compare-scores="true"')
+  })
+
+  /*
+   * 계약 위반 payload 에서 두 화면이 **같은 목록**을 봐야 한다. 비교가 응답을
+   * 날것으로 정렬하던 때는 `rank: null` 한 줄에 정렬 순서가 규정되지 않았고,
+   * 배열이 아닌 `metricBreakdown` 하나에 `readScore` 가 던져 화면이 통째로 죽었다.
+   */
+  const malformedRecommendationResponse = {
+    dataHeader: okHeader,
+    dataBody: {
+      ...recommendationResponse.dataBody,
+      items: [
+        // 배열이 아닌 metricBreakdown — `readScore` 의 `.find` 가 던지던 자리다.
+        {
+          ...candidate('3120197', 1, 88),
+          metricBreakdown: '점수 없음',
+        },
+        // rank 가 없다 — /recommend 는 이 행을 버린다.
+        { ...candidate('3120192', 2, 71), rank: null },
+        candidate('3110958', 3, 60),
+      ],
+    },
+  } as unknown as CandidateCommercialsResponse
+
+  it('계약을 어긴 응답에서도 /recommend 와 같은 후보만 남긴다', () => {
+    const THREE_CODES = ['3120197', '3120192', '3110958']
+    setCompareParams(THREE_CODES)
+    const client = createClient()
+    primeCommercials(client)
+    client.setQueryData(recommendationKey(), malformedRecommendationResponse)
+    primeProfiles(client, THREE_CODES)
+
+    // `/recommend` 가 보는 목록 — 두 화면이 같은 함수를 쓴다.
+    const survivors = normalizeRecommendationResults(
+      malformedRecommendationResponse,
+      ALL_CODES,
+    ).map(item => item.commercialCode)
+    expect(survivors).toEqual(['3120197', '3110958'])
+
+    // 배열이 아닌 metricBreakdown 에도 던지지 않는다.
+    const html = render(client)
+
+    expect(html).toContain('data-compare-scores="true"')
+    // 살아남은 두 열은 /recommend 가 매긴 순위 그대로다.
+    expect(html).toContain('1위')
+    expect(html).toContain('3위')
+    // rank 가 없어 /recommend 가 버린 열은 비교에서도 빠지고, 뺐다고 말한다.
+    expect(html).toContain('추천 결과에 없는 상권 1개')
+    expect(html).not.toContain('상권 3120192')
   })
 
   it('상권 코드가 2개 미만이면 표 대신 안내를 낸다', () => {

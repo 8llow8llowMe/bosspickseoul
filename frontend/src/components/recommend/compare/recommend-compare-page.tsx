@@ -25,7 +25,6 @@ import { isApiSuccess } from '@/lib/api/response'
 import {
   buildCompareRecommendationRequest,
   selectCompareColumns,
-  selectTopRankedCandidates,
 } from '@/lib/recommend/compare-data'
 import {
   COMPARE_MIN_COMMERCIALS,
@@ -38,7 +37,10 @@ import {
   recommendProfileKey,
   recommendResultsKey,
 } from '@/lib/recommend/recommend-query-keys'
-import { readCommercials } from '@/lib/recommend/recommend-response'
+import {
+  normalizeRecommendationResults,
+  readCommercials,
+} from '@/lib/recommend/recommend-response'
 import { formatRecommendationPeriod } from '@/lib/recommend/recommend-state'
 import {
   createRecommendHrefFromCodes,
@@ -156,16 +158,15 @@ export default function RecommendComparePage() {
       ),
     enabled: isComplete && allCodes.length > 0,
   })
-  // 후보도 `/recommend` 와 같은 규칙으로 줄인다 — 같은 다섯 개, 같은 순위.
-  const candidates = useMemo(() => {
-    const body = recommendationQuery.data
-    const items = body && isApiSuccess(body) ? (body.dataBody?.items ?? []) : []
-
-    return selectTopRankedCandidates({
-      candidates: items,
-      allowedCommercialCodes: allCodes,
-    })
-  }, [allCodes, recommendationQuery.data])
+  /*
+   * 후보도 `/recommend` 와 **같은 함수**로 줄인다 — 같은 다섯 개, 같은 순위.
+   * 날것의 `items` 를 정렬만 하면 `rank: null` 한 줄에 정렬이 무너지고
+   * 배열이 아닌 `metricBreakdown` 하나에 표가 통째로 죽는다(명세 §4).
+   */
+  const candidates = useMemo(
+    () => normalizeRecommendationResults(recommendationQuery.data, allCodes),
+    [allCodes, recommendationQuery.data],
+  )
 
   // 3) 열마다 프로필.
   const profileQueries = useQueries({

@@ -34,46 +34,6 @@ export const buildCompareRecommendationRequest = ({
 })
 
 /**
- * 추천 응답의 후보를 `/recommend` 가 화면에 올리는 것과 **같은 목록**으로 줄인다.
- *
- * `recommend-page.tsx` 의 `normalizeRecommendationResults` 와 같은 규칙이다 —
- * rank 순 정렬 → 요청한 코드만 → 중복 제거 → `RECOMMENDATION_TOP_N` 까지.
- * 응답을 날것으로 쓰면 백엔드가 여섯 개를 주거나 순서를 흐트러뜨리는 날,
- * `/recommend` 는 Top 5 밖으로 밀어낸 상권에 비교 화면만 순위와 점수를 붙이고
- * 「추천 결과에 없는 상권」 안내도 뜨지 않는다.
- */
-export const selectTopRankedCandidates = ({
-  candidates,
-  allowedCommercialCodes,
-  topN = RECOMMENDATION_TOP_N,
-}: {
-  candidates: readonly CandidateCommercial[]
-  allowedCommercialCodes: readonly string[]
-  topN?: number
-}): CandidateCommercial[] => {
-  const allowed = new Set(allowedCommercialCodes.map(String))
-  const seen = new Set<string>()
-
-  return [...candidates]
-    .sort((left, right) => left.rank - right.rank)
-    .filter(item => {
-      const commercialCode = String(item.commercialCode)
-
-      if (
-        !commercialCode ||
-        !allowed.has(commercialCode) ||
-        seen.has(commercialCode)
-      ) {
-        return false
-      }
-
-      seen.add(commercialCode)
-      return true
-    })
-    .slice(0, topN)
-}
-
-/**
  * 추천 응답 + 프로필을 열로 세운다.
  *
  * 순서는 **URL 순서**다(사용자가 고른 순서). 추천 Top N 에 없는 코드는 빼고
