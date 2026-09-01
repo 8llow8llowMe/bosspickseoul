@@ -13,7 +13,8 @@ public enum ShareLinkErrorCode {
     INVALID_SHARE_TARGET_TYPE("SHARE_LINK_003", "유효하지 않은 공유 대상 타입입니다.", HttpStatus.BAD_REQUEST),
     PAYLOAD_NOT_OBJECT("SHARE_LINK_004", "공유 데이터는 JSON 객체 형식이어야 합니다.", HttpStatus.BAD_REQUEST),
     PAYLOAD_TOO_LARGE("SHARE_LINK_005", "공유 데이터가 허용 크기를 초과했습니다.", HttpStatus.BAD_REQUEST),
-    SHARE_CODE_GENERATION_FAILED("SHARE_LINK_006", "공유 코드 생성에 실패했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.INTERNAL_SERVER_ERROR);
+    SHARE_CODE_GENERATION_FAILED("SHARE_LINK_006", "공유 코드 생성에 실패했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.INTERNAL_SERVER_ERROR),
+    CONCURRENT_CREATION("SHARE_LINK_007", "같은 화면이 동시에 공유되었습니다. 다시 시도해 주세요.", HttpStatus.CONFLICT);
 
     // 요청 검증(Bean Validation) 필드별 코드(SHARE_LINK_101~)는 ShareLinkValidationMessage 가 단일 기준점이며,
     // 여기서는 중복 정의하지 않는다. 검증 폴백/타입 불일치는 서비스 공통 CommercialErrorCode 1xx 를 사용한다.
