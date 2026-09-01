@@ -1,17 +1,22 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.model;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialValidationMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 
 @Schema(description = "상권 비교 조회 조건")
 public record CommercialComparisonQuery(
 
     @Schema(description = "좌측 상권 코드", requiredMode = Schema.RequiredMode.REQUIRED, example = "3110008")
+    @NotBlank(message = CommercialValidationMessage.LEFT_COMMERCIAL_CODE_REQUIRED)
     String leftCommercialCode,
 
     @Schema(description = "우측 상권 코드", requiredMode = Schema.RequiredMode.REQUIRED, example = "3110012")
+    @NotBlank(message = CommercialValidationMessage.RIGHT_COMMERCIAL_CODE_REQUIRED)
     String rightCommercialCode,
 
     @Schema(description = "서비스 코드", requiredMode = Schema.RequiredMode.REQUIRED, example = "CS100001")
+    @NotBlank(message = CommercialValidationMessage.SERVICE_CODE_REQUIRED)
     String serviceCode,
 
     @Schema(description = "기준 분기 코드", example = "20233", defaultValue = "20233")

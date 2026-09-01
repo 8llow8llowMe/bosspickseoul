@@ -27,6 +27,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
@@ -133,7 +134,7 @@ public class CommercialWebController {
     @GetMapping("/compare")
     public ResponseEntity<Response<CommercialComparisonResponse>> compareCommercials(
         @ParameterObject
-        @ModelAttribute CommercialComparisonQuery query
+        @Valid @ModelAttribute CommercialComparisonQuery query
     ) {
         CommercialComparisonResponse response = commercialWebUseCase.compareCommercials(query);
         return ResponseEntity.ok().body(Response.success(response));
@@ -219,7 +220,7 @@ public class CommercialWebController {
     @GetMapping("/compare-preview")
     public ResponseEntity<Response<CommercialComparePreviewResponse>> getCommercialComparePreview(
         @ParameterObject
-        @ModelAttribute CommercialComparisonQuery query
+        @Valid @ModelAttribute CommercialComparisonQuery query
     ) {
         CommercialComparePreviewResponse response = commercialWebUseCase.getCommercialComparePreview(query);
         return ResponseEntity.ok().body(Response.success(response));

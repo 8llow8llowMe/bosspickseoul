@@ -83,14 +83,14 @@
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
 | `AUTH` | `001~018` | `AUTH_100` | `101~104`, `106~108` | `AUTH_105` |
 | `COMMUNITY` | `001~013` | `COMMUNITY_100` | `101~116`, `118~119` | `COMMUNITY_117` |
-| `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
+| `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101`, `103~105` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~007` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
 | `ANALYSIS_BOOKMARK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~105` | (`COMMERCIAL_102` 사용) |
 | `SIMULATION` | `001~004` | (`COMMERCIAL_100` 사용) | `101~109` | (`COMMERCIAL_102` 사용) |
 | `RANKING` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `POLICY` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `MAP` | `001~008` | `MAP_100` | `101~102` | `MAP_103` |
-| `AI` | `001~012` (`007` 대기열 포화, `012` 일일 사용량 초과) | `AI_100` | (없음) | `AI_101` |
+| `AI` | `001~012` (`007` 대기열 포화, `012` 일일 사용량 초과) | `AI_100` | `102~104` | `AI_101` |
 | `STORAGE` | `001~007` | 파일 업로드 (형식·용량·저장소 실패) | - | - |
 | `JWT` | `001~006` | 게이트웨이 토큰 검증 (만료·서명 불일치·폐기 등) | - | - |
 | `DISTRICT` `001~003` / `ADMINISTRATION` `001~003` / `REGION` `001~005` | 조회 실패 등 | (검증 코드 없음) | - | - |
@@ -101,6 +101,8 @@
 - `BOOKMARK` 는 별도 advice 가 없어 auth-service 의 `MemberExceptionHandler` 가 처리하므로 폴백·타입 코드는 `MEMBER` 대역을 씁니다.
 - commercial-service 는 advice 가 하나뿐입니다. 그래서 `SHARE_LINK`·`ANALYSIS_BOOKMARK`·`SIMULATION`·`RANKING`·`POLICY` 는 필드별 코드만 자기 대역을 쓰고, 폴백과 타입 불일치는 `COMMERCIAL_100` / `COMMERCIAL_102` 로 나옵니다.
 - `STORAGE` 는 auth-service·community-service 의 advice 가, `JWT` 는 게이트웨이 필터가 그대로 클라이언트에 내려주는 코드입니다. 두 대역은 도메인 접두어 규칙 밖에 있어 검증 대역이 없습니다.
+- `COMMERCIAL`·`AI` 도 타입 불일치 코드가 먼저 배포된 뒤 필드 코드가 추가돼 번호가 이어지지 않습니다
+  (`COMMERCIAL_102` 다음 `103~105`, `AI_101` 다음 `102~104`). 되돌리면 이미 배포된 프론트가 깨지므로 그대로 둡니다.
 - `COMMUNITY` 만 번호가 이어지지 않습니다. `117` 이 타입 불일치 코드로 먼저 배포된 뒤 필드 코드 `118`(이미지 장수)·`119`(조회 개수)가 추가됐습니다. 되돌리면 이미 배포된 프론트가 깨지므로 번호만 어긋난 상태로 둡니다.
 - 규약 상세는 [`coding-conventions.md` §8-2](coding-conventions.md) 참고.
 

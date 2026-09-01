@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
@@ -72,7 +73,7 @@ public class AiReportWebController {
     public ResponseEntity<Response<AiReportSubmissionResponse>> submitCommercialComparisonReport(
         @AuthenticationPrincipal MemberLoginActive principal,
         @ParameterObject
-        @ModelAttribute CommercialComparisonAiQuery query
+        @Valid @ModelAttribute CommercialComparisonAiQuery query
     ) {
         AiReportSubmissionInfo info = aiReportWebUseCase.submitCommercialComparisonReport(principal.memberId(), query);
         return toSubmissionResponseEntity(info);
