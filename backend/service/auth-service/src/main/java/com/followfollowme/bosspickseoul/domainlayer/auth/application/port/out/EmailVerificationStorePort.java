@@ -29,4 +29,9 @@ public interface EmailVerificationStorePort {
      * 저장소 장애 시 0 을 반환한다 (fail-open — 상한은 보조 방어라 발송 자체를 막지 않는다).
      */
     long increaseIpSendCount(String clientIp, Duration window);
+
+    /** 인증코드 검증 실패 횟수를 1 올리고 누적값을 돌려준다 (브루트포스 방어). */
+    long increaseVerifyFailureCount(String email, Duration ttl);
+
+    void clearVerifyFailures(String email);
 }

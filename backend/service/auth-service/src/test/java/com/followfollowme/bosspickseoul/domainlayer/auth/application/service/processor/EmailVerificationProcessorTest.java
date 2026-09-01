@@ -88,6 +88,40 @@ class EmailVerificationProcessorTest {
     }
 
     @Test
+    void verifyCode_wrongCodeFiveTimes_invalidatesCode() {
+        processor.sendCode("user@example.com", CLIENT_IP);
+
+        // 4회까지는 코드 불일치, 5회째에 코드 무효화 (브루트포스 방어)
+        for (int attempt = 0; attempt < 4; attempt++) {
+            assertThatThrownBy(() -> processor.verifyCode("user@example.com", "WRONGCOD"))
+                .isInstanceOf(AuthException.class)
+                .extracting(exception -> ((AuthException) exception).getErrorCode())
+                .isEqualTo(AuthErrorCode.INVALID_EMAIL_CODE);
+        }
+        assertThatThrownBy(() -> processor.verifyCode("user@example.com", "WRONGCOD"))
+            .isInstanceOf(AuthException.class)
+            .extracting(exception -> ((AuthException) exception).getErrorCode())
+            .isEqualTo(AuthErrorCode.EMAIL_CODE_ATTEMPTS_EXCEEDED);
+
+        // 무효화 이후에는 올바른 코드였더라도 만료 응답이 된다
+        assertThatThrownBy(() -> processor.verifyCode("user@example.com", "ANYCODE1"))
+            .isInstanceOf(AuthException.class)
+            .extracting(exception -> ((AuthException) exception).getErrorCode())
+            .isEqualTo(AuthErrorCode.EXPIRED_EMAIL_CODE);
+    }
+
+    @Test
+    void verifyCode_correctCode_succeedsAndClearsFailures() {
+        processor.sendCode("user@example.com", CLIENT_IP);
+        String code = storePort.codes.get("user@example.com");
+
+        processor.verifyCode("user@example.com", code);
+
+        assertThat(storePort.verifyFailures).isEmpty();
+        assertThat(storePort.codes).isEmpty();
+    }
+
+    @Test
     void sendCode_withinEmailCooldown_rejects() {
         processor.sendCode("user@example.com", CLIENT_IP);
 
@@ -102,6 +136,7 @@ class EmailVerificationProcessorTest {
         private final Map<String, String> codes = new HashMap<>();
         private final Set<String> cooldowns = new HashSet<>();
         private final Map<String, Long> ipCounts = new HashMap<>();
+        private final Map<String, Long> verifyFailures = new HashMap<>();
         private boolean ipCounterBroken;
 
         @Override
@@ -143,6 +178,16 @@ class EmailVerificationProcessorTest {
                 return 0L;
             }
             return ipCounts.merge(clientIp, 1L, Long::sum);
+        }
+
+        @Override
+        public long increaseVerifyFailureCount(String email, Duration ttl) {
+            return verifyFailures.merge(email, 1L, Long::sum);
+        }
+
+        @Override
+        public void clearVerifyFailures(String email) {
+            verifyFailures.remove(email);
         }
     }
 

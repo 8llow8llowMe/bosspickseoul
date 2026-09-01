@@ -19,6 +19,7 @@ public class EmailVerificationProcessor {
     private static final Duration CODE_TTL = Duration.ofMinutes(5);
     private static final Duration VERIFIED_TTL = Duration.ofMinutes(30);
     private static final Duration RESEND_COOLDOWN = Duration.ofSeconds(60);
+    private static final int MAX_VERIFY_FAILURES = 5;
 
     private final EmailVerificationStorePort emailVerificationStorePort;
     private final MailSendPort mailSendPort;
@@ -52,9 +53,10 @@ public class EmailVerificationProcessor {
             return;
         }
 
-        // 4. 인증코드 생성/저장 후 비동기 발송
+        // 4. 인증코드 생성/저장 후 비동기 발송 (새 코드 발급 시 이전 실패 카운터도 함께 초기화)
         String code = verificationCodeGenerator.generate();
         emailVerificationStorePort.saveCode(email, code, CODE_TTL);
+        emailVerificationStorePort.clearVerifyFailures(email);
         mailSendPort.sendVerificationCode(email, code);
     }
 
@@ -64,13 +66,20 @@ public class EmailVerificationProcessor {
         String storedCode = emailVerificationStorePort.findCode(email)
             .orElseThrow(() -> new AuthException(AuthErrorCode.EXPIRED_EMAIL_CODE));
 
+        // 실패가 누적되면 코드를 무효화해 브루트포스를 차단한다 (비밀번호 재설정과 동일 방어).
         if (!storedCode.equals(code)) {
+            long failures = emailVerificationStorePort.increaseVerifyFailureCount(email, CODE_TTL);
+            if (failures >= MAX_VERIFY_FAILURES) {
+                emailVerificationStorePort.deleteCode(email);
+                throw new AuthException(AuthErrorCode.EMAIL_CODE_ATTEMPTS_EXCEEDED);
+            }
             throw new AuthException(AuthErrorCode.INVALID_EMAIL_CODE);
         }
 
         // 인증완료 플래그를 먼저 저장하고 코드를 지운다 — 중간 장애 시 "코드만 소비된" 상태를 피한다.
         emailVerificationStorePort.saveVerified(email, VERIFIED_TTL);
         emailVerificationStorePort.deleteCode(email);
+        emailVerificationStorePort.clearVerifyFailures(email);
     }
 
     /**

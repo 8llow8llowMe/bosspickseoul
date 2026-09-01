@@ -237,6 +237,15 @@ class PasswordResetProcessorTest {
         public long increaseIpSendCount(String clientIp, Duration window) {
             return ipCounts.merge(clientIp, 1L, Long::sum);
         }
+
+        @Override
+        public long increaseVerifyFailureCount(String email, Duration ttl) {
+            return 0L;
+        }
+
+        @Override
+        public void clearVerifyFailures(String email) {
+        }
     }
 
     private static class StubMailSendPort implements MailSendPort {
