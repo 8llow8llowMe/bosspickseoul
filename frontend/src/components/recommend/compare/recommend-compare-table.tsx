@@ -219,9 +219,14 @@ export default function RecommendCompareTable({
 
   const columnCount = columns.length + 1
 
+  /**
+   * `scope="rowgroup"` 이다. 이 칸은 열을 머리하지 않고, 자기 `tbody` 안에서
+   * 뒤따르는 행들을 머리한다 — 전체 폭 `th` 가 행 그룹을 머리하는 경우다.
+   * `colgroup` 을 쓰면 보조기술이 축을 반대로 읽는다.
+   */
   const renderSectionHead = (caption: string) => (
     <tr>
-      <SectionHead colSpan={columnCount} scope="colgroup">
+      <SectionHead colSpan={columnCount} scope="rowgroup">
         <SectionLabel>{caption}</SectionLabel>
       </SectionHead>
     </tr>

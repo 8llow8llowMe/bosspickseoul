@@ -115,6 +115,16 @@ describe('RecommendCompareTable', () => {
     expect(metricSection).not.toContain('--score-mid')
   })
 
+  it('블록 머리 칸은 열이 아니라 행 그룹을 머리한다', () => {
+    // 전체 폭 th 가 자기 tbody 의 뒤따르는 행들을 머리하므로 rowgroup 이다.
+    // colgroup 이면 보조기술이 축을 반대로 읽는다.
+    const markup = render()
+
+    // 점수 블록과 원지표 블록, 두 개다.
+    expect(markup.match(/scope="rowgroup"/g)).toHaveLength(2)
+    expect(markup).not.toContain('scope="colgroup"')
+  })
+
   it('점수 행에는 품질 색을 쓴다', () => {
     const markup = render()
     const scoreSection = markup.split('data-compare-scores="true"')[1] ?? ''
