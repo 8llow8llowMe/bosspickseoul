@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.community.domain.enums;
 
 import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityException;
+import java.util.Locale;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -16,7 +17,7 @@ public enum CommunityReportTargetKind {
 
     public static CommunityReportTargetKind from(String value) {
         try {
-            return CommunityReportTargetKind.valueOf(value.toUpperCase());
+            return CommunityReportTargetKind.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (RuntimeException exception) {
             throw new CommunityException(CommunityErrorCode.INVALID_REPORT_TARGET_KIND);
         }

@@ -395,6 +395,24 @@ private Long targetId;
     `ignore-exceptions`로 제외해, 사용자 실수가 서킷을 열지 않게 합니다.
   - 모든 외부 호출은 connect/read(response) timeout을 반드시 명시합니다. 타임아웃 없는 블로킹 호출 금지.
 
+## 10-1. 대소문자 변환은 로케일을 지정한다 (필수)
+
+요청 문자열을 enum 으로 파싱할 때처럼 **의미가 고정된 문자열**을 대소문자 변환할 때는
+`toUpperCase(Locale.ROOT)` / `toLowerCase(Locale.ROOT)` 를 쓴다.
+
+로케일을 지정하지 않으면 JVM 기본 로케일을 따라간다. 터키어 로케일에서
+`"commercial".toUpperCase()` 는 `COMMERCIAL` 이 아니라 `COMMERCİAL` 이라, 같은 요청이
+서버가 뜬 지역에 따라 통과하기도 하고 400 이 되기도 한다. 사용자에게 보여줄 문자열이 아니라
+코드값을 다루는 자리이므로 로케일 의존은 이득 없이 위험만 남는다.
+
+```java
+// 지양
+CommunityTargetType.valueOf(value.toUpperCase());
+
+// 권장
+CommunityTargetType.valueOf(value.toUpperCase(Locale.ROOT));
+```
+
 ## 11. Enum Metadata 규칙
 
 - enum metadata는 기존 코드베이스와 맞춰 기본 설명 필드명을 `description`으로 통일합니다.

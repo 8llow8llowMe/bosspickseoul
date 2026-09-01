@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.community.domain.enums;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescribable;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityException;
+import java.util.Locale;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -18,7 +19,7 @@ public enum CommunityTargetType implements CodeNameDescribable {
 
     public static CommunityTargetType from(String value) {
         try {
-            return CommunityTargetType.valueOf(value.toUpperCase());
+            return CommunityTargetType.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (RuntimeException exception) {
             throw new CommunityException(CommunityErrorCode.INVALID_TARGET_TYPE);
         }
