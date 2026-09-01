@@ -30,6 +30,9 @@
 - 게시글 목록/피드는 `SliceResponse` 기반 무한 스크롤을 우선한다.
 - 상권별 게시글은 `GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode={code}` 로 조회한다. Post 엔티티는 `commercialCode` 직속 필드 대신 `targetType + targetCode` 일반화 구조를 사용하며, `idx_community_post_target_type_target_code_created_at` 인덱스가 뒷받침한다.
 - No-offset 커서는 LATEST 정렬에서 `id`, POPULAR 정렬에서 `(likeCount, id)` 복합 커서를 쓴다. `lastPostId == 0` 은 초기 로드 관례다.
+- 커서 목록 조회 포트는 Spring Data `Slice` 가 아니라 `application/port/out/query/SliceQueryResult`
+  를 돌려준다. 커서 목록에 필요한 건 내용과 다음 페이지 존재 여부 둘뿐이라, 영속성 프레임워크 타입은
+  adapter 안에서 끝낸다 (`architecture-guide.md` Port/Adapter 규칙).
 - 좋아요/신고 저장 흐름은 `domain -> entity -> repository.save -> entity -> domain` 패턴을 유지한다.
 - **좋아요/신고 중복은 조회 검사와 DB 유니크 제약으로 2중 방어한다.** 조회 검사만으로는 동시 요청이
   둘 다 통과하므로, 마지막 방어선은 유니크 제약(`uk_community_post_like_...`,

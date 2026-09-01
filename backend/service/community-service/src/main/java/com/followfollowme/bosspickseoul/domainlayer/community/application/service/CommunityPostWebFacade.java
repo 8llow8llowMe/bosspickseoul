@@ -25,7 +25,7 @@ import com.followfollowme.bosspickseoul.storage.model.StoredObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.domain.Slice;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityAnalysisType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
@@ -56,7 +56,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
             targetMeta = communityQueryProcessor.getTargetMeta(targetType, targetCode);
         }
 
-        Slice<CommunityPost> feed = communityQueryProcessor.getFeed(
+        SliceQueryResult<CommunityPost> feed = communityQueryProcessor.getFeed(
             sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size);
         return communityPostPresenter.toPostListResponse(targetMeta, feed, toImagesByPostId(feed));
     }
@@ -169,7 +169,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     public CommunityPostListResponse searchPosts(
         String keyword, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
     ) {
-        Slice<CommunityPost> searched = communityQueryProcessor.searchPosts(
+        SliceQueryResult<CommunityPost> searched = communityQueryProcessor.searchPosts(
             keyword, sortType, orderType, lastPostId, lastLikeCount, size);
         return communityPostPresenter.toPostListResponse(null, searched, toImagesByPostId(searched));
     }
@@ -200,8 +200,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
             .toList();
     }
 
-    private Map<Long, List<CommunityPostImage>> toImagesByPostId(Slice<CommunityPost> posts) {
+    private Map<Long, List<CommunityPostImage>> toImagesByPostId(SliceQueryResult<CommunityPost> posts) {
         return communityPostImageProcessor.getImagesByPostIds(
-            posts.getContent().stream().map(CommunityPost::id).toList());
+            posts.content().stream().map(CommunityPost::id).toList());
     }
 }
