@@ -264,9 +264,10 @@ const CompareCta = styled(Link)`
 `
 
 /*
- * 진짜 `<button disabled>` 를 쓰지 않는다 — 브라우저에 따라 비활성 버튼은
- * `aria-describedby` 를 읽어 주지 않는다("무엇이 빠졌는지 반드시 말한다" 규약이
- * 깨진다). `aria-disabled` 로 대신 막고 role 은 활성 상태(`<a>`)와 맞춰 "link" 로 둔다.
+ * `recommend-condition-form.tsx` 의 `SubmitButton` 과 같은 패턴이다: 네이티브
+ * `disabled` + `aria-describedby` 로 「무엇이 빠졌는지 말한다」(#178 규약). 별도
+ * 메커니즘(aria-disabled 등)을 새로 들이지 않는다 — 같은 기능 영역 안에서
+ * 규약을 구현하는 방법이 둘로 갈리면 안 된다.
  */
 const CompareCtaDisabled = styled.button`
   min-height: 52px;
@@ -517,9 +518,8 @@ export default function RecommendPanel({
             ) : (
               <CompareCtaDisabled
                 aria-describedby={compareGap ? COMPARE_GAP_ID : undefined}
-                aria-disabled="true"
                 data-testid="recommend-compare-cta"
-                role="link"
+                disabled
                 type="button"
               >
                 {`비교하기 (${selection.length}/${COMPARE_MAX_COMMERCIALS})`}

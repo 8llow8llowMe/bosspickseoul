@@ -983,6 +983,7 @@ export default function RecommendResultList({
                 {onCompareToggle ? (
                   <CompareCheckbox>
                     <input
+                      aria-label={`${item.commercialName} 비교 담기`}
                       checked={compareSelection.includes(item.commercialCode)}
                       disabled={
                         isCompareFull &&
