@@ -10,9 +10,10 @@ import RecommendResultList, {
   formatScore,
   getBlueOceanAxisMax,
   getBlueOceanRange,
-  readBlueOceanCategories,
   type RecommendResultListProps,
 } from './recommend-result-list'
+// 읽는 규칙은 `/recommend` 와 `/recommend/compare` 가 공유하는 lib 로 옮겼다.
+import { readBlueOceanCategories } from '@/lib/recommend/recommend-response'
 
 const SELECTED_SERVICE_CODE = 'CS100001'
 
@@ -419,5 +420,86 @@ describe('점수 게이지', () => {
 
     expect(markup).toContain(SCORE_UNAVAILABLE_LABEL)
     expect(markup).not.toContain('data-score-gauge="true"')
+  })
+})
+
+/**
+ * 카드 본문 클릭(지도 포커스)과는 다른 행동이라 별도 체크박스로 뒀다
+ * (recommend-panel.tsx 의 비교하기 고정 바가 이 선택을 읽는다).
+ */
+describe('비교 담기 체크박스', () => {
+  const findCheckbox = (markup: string, name: string): string =>
+    markup.match(new RegExp(`<input[^>]*aria-label="${name}"[^>]*>`))?.[0] ?? ''
+
+  it('compareSelection 에 있는 코드는 체크 상태다', () => {
+    const markup = renderList({
+      results: [candidate({ commercialCode: '3110008' })],
+      compareSelection: ['3110008'],
+      onCompareToggle: vi.fn(),
+    })
+
+    const checkbox = findCheckbox(
+      markup,
+      '길동주민센터\\(강동도서관\\) 비교 담기',
+    )
+
+    expect(checkbox).toContain('checked=""')
+  })
+
+  it('compareSelection 에 없는 코드는 체크 해제 상태다', () => {
+    const markup = renderList({
+      results: [candidate({ commercialCode: '3110008' })],
+      compareSelection: [],
+      onCompareToggle: vi.fn(),
+    })
+
+    const checkbox = findCheckbox(
+      markup,
+      '길동주민센터\\(강동도서관\\) 비교 담기',
+    )
+
+    expect(checkbox).not.toContain('checked=""')
+  })
+
+  it('카드마다 상권 이름으로 구분되는 접근성 이름을 갖는다', () => {
+    const markup = renderList({
+      results: [
+        candidate({ commercialCode: '3110008', commercialName: '강남역 상권' }),
+      ],
+      compareSelection: [],
+      onCompareToggle: vi.fn(),
+    })
+
+    expect(markup).toContain('aria-label="강남역 상권 비교 담기"')
+  })
+
+  it('4개를 채우면 안 고른 카드의 체크박스만 잠기고, 이미 고른 카드는 그대로 활성 상태다', () => {
+    const results = [
+      candidate({ commercialCode: '1', commercialName: '상권 1', rank: 1 }),
+      candidate({ commercialCode: '2', commercialName: '상권 2', rank: 2 }),
+      candidate({ commercialCode: '3', commercialName: '상권 3', rank: 3 }),
+      candidate({ commercialCode: '4', commercialName: '상권 4', rank: 4 }),
+      candidate({ commercialCode: '5', commercialName: '상권 5', rank: 5 }),
+    ]
+
+    const markup = renderToStaticMarkup(
+      createElement(RecommendResultList, {
+        results,
+        selectedCommercialCode: null,
+        isLoading: false,
+        feedback: null,
+        compareSelection: ['1', '2', '3', '4'],
+        isCompareFull: true,
+        onCompareToggle: vi.fn(),
+        onSelect: vi.fn(),
+        onRetry: vi.fn(),
+      }),
+    )
+
+    const fifthCheckbox = findCheckbox(markup, '상권 5 비교 담기')
+    const firstCheckbox = findCheckbox(markup, '상권 1 비교 담기')
+
+    expect(fifthCheckbox).toContain('disabled=""')
+    expect(firstCheckbox).not.toContain('disabled=""')
   })
 })

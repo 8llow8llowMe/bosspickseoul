@@ -42,6 +42,19 @@ import {
   filterAreasByCodes,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
+import { COMPARE_MAX_COMMERCIALS } from '@/lib/recommend/compare-url'
+import {
+  recommendCommercialsKey,
+  recommendProfileKey,
+  recommendResultsKey,
+} from '@/lib/recommend/recommend-query-keys'
+import {
+  isRecord,
+  isSuccessfulApiResponse,
+  isValidCoordinate,
+  normalizeRecommendationResults,
+  readCommercials,
+} from '@/lib/recommend/recommend-response'
 import { resolveRecommendSheetHeadline } from '@/lib/recommend/sheet-headline'
 import {
   createInitialRecommendationState,
@@ -70,15 +83,12 @@ import type {
   AreaBoundaryItem,
   CandidateCommercial,
   CandidateCommercialsResponse,
-  CommercialArea,
   CommercialProfile,
   CommercialProfileResponse,
   CoordinateTuple,
   GeoBounds,
-  MetricBreakdownItem,
   MapAreasResponse,
   RecommendationBasis,
-  ScoreMetricMetadata,
 } from '@/types/recommend'
 
 import { RECOMMEND_CONDITION_LABELS } from './recommend-condition-bar'
@@ -86,7 +96,6 @@ import RecommendFeedback from './recommend-feedback'
 import RecommendMap from './recommend-map'
 import RecommendMobileSheet from './recommend-mobile-sheet'
 import RecommendPanel, { type RecommendPanelProps } from './recommend-panel'
-import { readBlueOceanCategories } from './recommend-result-list'
 
 type ProfileQueryLike = {
   data?: CommercialProfileResponse
@@ -135,19 +144,6 @@ export type RecommendationBookmarkReservationRegistry = Map<
   Map<string, symbol>
 >
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object'
-
-const isValidCoordinate = (lng: unknown, lat: unknown): boolean =>
-  typeof lng === 'number' &&
-  typeof lat === 'number' &&
-  Number.isFinite(lng) &&
-  Number.isFinite(lat) &&
-  lng >= -180 &&
-  lng <= 180 &&
-  lat >= -90 &&
-  lat <= 90
-
 const normalizeCoordinateTuples = (value: unknown): CoordinateTuple[] =>
   Array.isArray(value)
     ? value.flatMap(coordinate =>
@@ -157,11 +153,6 @@ const normalizeCoordinateTuples = (value: unknown): CoordinateTuple[] =>
           : [],
       )
     : []
-
-const isSuccessfulApiResponse = <T,>(
-  response: ApiResponse<T> | null | undefined,
-): response is ApiResponse<T> =>
-  response?.dataHeader?.success === true && response.dataBody !== undefined
 
 export const readMapAreas = (
   response: MapAreasResponse | null | undefined,
@@ -221,117 +212,6 @@ export const readAdministrations = (
   })
 }
 
-export const readCommercials = (
-  response: ApiResponse<CommercialArea[]> | null | undefined,
-): CommercialArea[] => {
-  if (!isSuccessfulApiResponse(response) || !Array.isArray(response.dataBody)) {
-    return []
-  }
-
-  return (response.dataBody as unknown[]).flatMap(commercial => {
-    if (
-      !isRecord(commercial) ||
-      typeof commercial.commercialCode !== 'string' ||
-      typeof commercial.commercialName !== 'string' ||
-      typeof commercial.commercialClassificationCode !== 'string' ||
-      typeof commercial.commercialClassificationName !== 'string' ||
-      !isValidCoordinate(commercial.centerLng, commercial.centerLat)
-    ) {
-      return []
-    }
-
-    return [
-      {
-        commercialCode: commercial.commercialCode,
-        commercialName: commercial.commercialName,
-        commercialClassificationCode: commercial.commercialClassificationCode,
-        commercialClassificationName: commercial.commercialClassificationName,
-        centerLng: commercial.centerLng as number,
-        centerLat: commercial.centerLat as number,
-      },
-    ]
-  })
-}
-
-const readNullableString = (value: unknown): string | null =>
-  typeof value === 'string' ? value : null
-
-const normalizeScoreMetricMetadata = (value: unknown): ScoreMetricMetadata => {
-  if (
-    !isRecord(value) ||
-    typeof value.code !== 'string' ||
-    typeof value.name !== 'string' ||
-    typeof value.description !== 'string' ||
-    typeof value.scoreDescription !== 'string'
-  ) {
-    return null
-  }
-
-  return {
-    code: value.code,
-    name: value.name,
-    description: value.description,
-    scoreDescription: value.scoreDescription,
-  }
-}
-
-const normalizeMetricBreakdown = (value: unknown): MetricBreakdownItem[] =>
-  Array.isArray(value)
-    ? value.flatMap(metric => {
-        if (!isRecord(metric)) return []
-
-        return [
-          {
-            metricType: normalizeScoreMetricMetadata(metric.metricType),
-            score:
-              typeof metric.score === 'number' && Number.isFinite(metric.score)
-                ? metric.score
-                : null,
-            grade: readNullableString(metric.grade),
-            summaryLabel: readNullableString(metric.summaryLabel),
-          },
-        ]
-      })
-    : []
-
-const normalizeCandidateCommercial = (
-  item: unknown,
-): CandidateCommercial | null => {
-  if (
-    !isRecord(item) ||
-    typeof item.commercialCode !== 'string' ||
-    typeof item.commercialName !== 'string' ||
-    typeof item.rank !== 'number' ||
-    !Number.isFinite(item.rank)
-  ) {
-    return null
-  }
-
-  return {
-    rank: item.rank,
-    commercialCode: item.commercialCode,
-    commercialName: item.commercialName,
-    compositeScore:
-      typeof item.compositeScore === 'number' &&
-      Number.isFinite(item.compositeScore)
-        ? item.compositeScore
-        : null,
-    grade: readNullableString(item.grade),
-    summaryLabel: readNullableString(item.summaryLabel),
-    selectionReason: readNullableString(item.selectionReason),
-    opportunityLabel: readNullableString(item.opportunityLabel),
-    riskLabel: readNullableString(item.riskLabel),
-    metricBreakdown: normalizeMetricBreakdown(item.metricBreakdown),
-    reasonTags: Array.isArray(item.reasonTags)
-      ? item.reasonTags.filter(
-          (reasonTag): reasonTag is string => typeof reasonTag === 'string',
-        )
-      : [],
-    // 백엔드가 산정에 실패하면 빈 목록으로 강등하는 계약이라 `null`·`[]`는 오류가 아니다.
-    blueOceanCategories: readBlueOceanCategories(item.blueOceanCategories),
-  }
-}
-
 /**
  * 추천 기준(프리셋·우선 지표·요약)을 응답에서 꺼낸다.
  *
@@ -375,45 +255,6 @@ export const normalizeRecommendationBasis = (
 
   // 한 조각도 못 읽으면 그릴 게 없다 — 빈 껍데기를 렌더하지 않는다.
   return Object.values(basis).some(value => value !== null) ? basis : null
-}
-
-export const normalizeRecommendationResults = (
-  response: CandidateCommercialsResponse | null | undefined,
-  allowedCommercialCodes: readonly string[],
-): CandidateCommercial[] => {
-  if (
-    !isSuccessfulApiResponse(response) ||
-    !Array.isArray(response.dataBody?.items)
-  ) {
-    return []
-  }
-
-  const allowedCodes = new Set(allowedCommercialCodes.map(String))
-  const seen = new Set<string>()
-
-  return (response.dataBody.items as unknown[])
-    .flatMap(item => {
-      const normalized = normalizeCandidateCommercial(item)
-      return normalized ? [normalized] : []
-    })
-    .sort((left, right) => {
-      return left.rank - right.rank
-    })
-    .filter(item => {
-      const commercialCode = String(item.commercialCode)
-
-      if (
-        !commercialCode ||
-        !allowedCodes.has(commercialCode) ||
-        seen.has(commercialCode)
-      ) {
-        return false
-      }
-
-      seen.add(commercialCode)
-      return true
-    })
-    .slice(0, RECOMMENDATION_TOP_N)
 }
 
 const normalizeCommercialProfile = (
@@ -823,6 +664,11 @@ function RecommendPageBody() {
   const [previewedCommercialCode, setPreviewedCommercialCode] = useState<
     string | null
   >(null)
+  /**
+   * 비교 담기 선택. 화면 안 일시 상태다 — **URL 에 넣지 않는다.** 추천 결과를
+   * 공유한 링크가 받는 사람의 체크 상태까지 옮길 이유가 없다.
+   */
+  const [compareSelection, setCompareSelection] = useState<string[]>([])
   const desktopResultHeadingRef = useRef<HTMLHeadingElement>(null)
   const mobileResultHeadingRef = useRef<HTMLHeadingElement>(null)
   const handledResultRef = useRef('')
@@ -913,13 +759,10 @@ function RecommendPageBody() {
   )
 
   const commercialsQuery = useQuery({
-    queryKey: [
-      'recommend',
-      'regions',
-      'commercials',
+    queryKey: recommendCommercialsKey(
       state.draft.district?.code,
       state.draft.administration?.code,
-    ],
+    ),
     queryFn: () =>
       fetchCommercials(
         state.draft.district!.code,
@@ -958,15 +801,13 @@ function RecommendPageBody() {
   )
 
   const recommendationQuery = useQuery({
-    queryKey: [
-      'recommend',
-      'results',
-      state.submitted?.district.code,
-      state.submitted?.administration.code,
-      state.submitted?.service.code,
-      RECOMMENDATION_PERIOD_CODE,
-      state.submitted?.commercialCodesKey,
-    ],
+    queryKey: recommendResultsKey({
+      districtCode: state.submitted?.district.code,
+      administrationCode: state.submitted?.administration.code,
+      serviceCode: state.submitted?.service.code,
+      periodCode: RECOMMENDATION_PERIOD_CODE,
+      commercialCodesKey: state.submitted?.commercialCodesKey,
+    }),
     queryFn: () =>
       fetchCommercialRecommendations({
         serviceCode: state.submitted!.service.code,
@@ -1007,13 +848,11 @@ function RecommendPageBody() {
 
   const profiles = useQueries({
     queries: results.map(result => ({
-      queryKey: [
-        'recommend',
-        'profile',
+      queryKey: recommendProfileKey(
         result.commercialCode,
         state.submitted?.service.code,
         RECOMMENDATION_PERIOD_CODE,
-      ],
+      ),
       queryFn: () =>
         fetchCommercialProfile(
           result.commercialCode,
@@ -1404,6 +1243,23 @@ function RecommendPageBody() {
     },
     [],
   )
+  const handleCompareToggle = useCallback((commercialCode: string) => {
+    setCompareSelection(current =>
+      current.includes(commercialCode)
+        ? current.filter(code => code !== commercialCode)
+        : current.length >= COMPARE_MAX_COMMERCIALS
+          ? current
+          : [...current, commercialCode],
+    )
+  }, [])
+  /**
+   * 조건을 바꿔 추천을 다시 받으면 선택을 비운다 — 다른 행정동의 상권이
+   * 섞이면 비교가 성립하지 않는다.
+   */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCompareSelection([])
+  }, [state.submitted?.requestKey])
   const handleBookmarkToggle = useCallback(
     (commercialCode: string, commercialName: string) => {
       handleRecommendationBookmarkToggle({
@@ -1717,6 +1573,8 @@ function RecommendPageBody() {
       onResultSelect: handleResultSelect,
       onResultPreviewChange: handleResultPreviewChange,
       onBookmarkToggle: handleBookmarkToggle,
+      compareSelection,
+      onCompareToggle: handleCompareToggle,
       onRetry: retryRecommendation,
       onRetryAdministrations: retryAdministrations,
       onRetryCandidates: retryCandidates,
@@ -1729,7 +1587,9 @@ function RecommendPageBody() {
       bookmarksQuery.errorMessage,
       candidatesError,
       commercials.length,
+      compareSelection,
       handleBookmarkToggle,
+      handleCompareToggle,
       handleEdit,
       handleResultPreviewChange,
       handleResultSelect,

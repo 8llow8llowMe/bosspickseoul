@@ -1,12 +1,18 @@
 'use client'
 
 import type { Ref } from 'react'
+import Link from 'next/link'
 import styled, { css, keyframes } from 'styled-components'
 import type { NormalizedApiError } from '@/lib/api/api-error'
 import {
   ANALYSIS_PERIOD_CODE,
   createAnalysisResultHref,
 } from '@/lib/analysis/selection'
+import {
+  COMPARE_MAX_COMMERCIALS,
+  COMPARE_MIN_COMMERCIALS,
+  createCompareHref,
+} from '@/lib/recommend/compare-url'
 import type {
   RecommendConditionStep,
   RecommendationCriteria,
@@ -62,6 +68,9 @@ export type RecommendPanelProps = {
   onResultSelect: (commercialCode: string) => void
   onResultPreviewChange?: (commercialCode: string | null) => void
   onBookmarkToggle?: (commercialCode: string, commercialName: string) => void
+  /** 비교 담기 선택. URL 에 넣지 않는 화면 안 일시 상태다. */
+  compareSelection?: readonly string[]
+  onCompareToggle?: (commercialCode: string) => void
   onRetry: () => void
   onRetryAdministrations?: () => void
   onRetryCandidates?: () => void
@@ -224,6 +233,57 @@ const BasisNote = styled.p`
   line-height: 18px;
 `
 
+const COMPARE_GAP_ID = 'recommend-compare-gap'
+
+const CompareBar = styled.div`
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border-200);
+`
+
+const CompareGap = styled.p`
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
+`
+
+const CompareCta = styled(Link)`
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: var(--color-primary-700);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+`
+
+/*
+ * `recommend-condition-form.tsx` 의 `SubmitButton` 과 같은 패턴이다: 네이티브
+ * `disabled` + `aria-describedby` 로 「무엇이 빠졌는지 말한다」(#178 규약). 별도
+ * 메커니즘(aria-disabled 등)을 새로 들이지 않는다 — 같은 기능 영역 안에서
+ * 규약을 구현하는 방법이 둘로 갈리면 안 된다.
+ */
+const CompareCtaDisabled = styled.button`
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-primary-700);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  opacity: var(--button-disabled-opacity-color);
+  cursor: not-allowed;
+`
+
 export default function RecommendPanel({
   variant = 'desktop',
   view,
@@ -257,6 +317,8 @@ export default function RecommendPanel({
   onResultSelect,
   onResultPreviewChange,
   onBookmarkToggle,
+  compareSelection,
+  onCompareToggle,
   onRetry,
   onRetryAdministrations,
   onRetryCandidates,
@@ -352,6 +414,26 @@ export default function RecommendPanel({
       'summary',
     )
 
+  // `compareSelection` 이 아예 없을 수도 있다 — 비교 기능을 켜지 않은 호출부다.
+  // 그때는 고정 바 자체를 그리지 않는다(아래 렌더 분기), 이 값은 계산용 안전망일 뿐이다.
+  const selection = compareSelection ?? []
+  const isCompareFull = selection.length >= COMPARE_MAX_COMMERCIALS
+  const compareGap =
+    selection.length < COMPARE_MIN_COMMERCIALS
+      ? `비교할 상권을 ${COMPARE_MIN_COMMERCIALS}개 이상 골라 주세요`
+      : isCompareFull
+        ? `한 번에 ${COMPARE_MAX_COMMERCIALS}개까지 비교할 수 있어요`
+        : null
+  const compareHref =
+    selection.length >= COMPARE_MIN_COMMERCIALS
+      ? createCompareHref({
+          districtCode: submitted.district.code,
+          administrationCode: submitted.administration.code,
+          serviceCode: submitted.service.code,
+          commercialCodes: selection,
+        })
+      : null
+
   return (
     <Surface $variant={variant}>
       <Content
@@ -410,17 +492,44 @@ export default function RecommendPanel({
           isBookmarked={isBookmarked}
           isBookmarkPending={isBookmarkPending}
           feedback={feedback}
+          isCompareFull={isCompareFull}
           isLoading={isRecommendationLoading}
           previewedCommercialCode={previewedCommercialCode}
           results={results}
           selectedCommercialCode={selectedCommercialCode}
           selectedServiceCode={submitted.service.code}
           buildAnalysisHref={buildAnalysisHref}
+          compareSelection={compareSelection}
           onPreviewChange={onResultPreviewChange}
           onBookmarkToggle={onBookmarkToggle}
+          onCompareToggle={onCompareToggle}
           onRetry={onRetry}
           onSelect={onResultSelect}
         />
+        {compareSelection ? (
+          <CompareBar>
+            {compareGap ? (
+              <CompareGap id={COMPARE_GAP_ID}>{compareGap}</CompareGap>
+            ) : null}
+            {compareHref ? (
+              <CompareCta
+                data-testid="recommend-compare-cta"
+                href={compareHref}
+              >
+                {`비교하기 (${selection.length}/${COMPARE_MAX_COMMERCIALS})`}
+              </CompareCta>
+            ) : (
+              <CompareCtaDisabled
+                aria-describedby={compareGap ? COMPARE_GAP_ID : undefined}
+                data-testid="recommend-compare-cta"
+                disabled
+                type="button"
+              >
+                {`비교하기 (${selection.length}/${COMPARE_MAX_COMMERCIALS})`}
+              </CompareCtaDisabled>
+            )}
+          </CompareBar>
+        ) : null}
       </Content>
     </Surface>
   )

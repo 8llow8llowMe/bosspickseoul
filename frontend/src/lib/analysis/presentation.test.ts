@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  ANALYSIS_TABS,
   formatAnalysisValue,
   formatKoreanMoney,
   formatPeriodCode,
@@ -56,5 +57,17 @@ describe('analysis presentation', () => {
       { label: '화', value: null },
     ])
     expect(getMetricMaximum(rows)).toBe(10)
+  })
+
+  it('benchmark 탭 라벨이 내용과 맞는다', () => {
+    // 「비교」는 상권끼리 비교한다는 기대를 만든다. 이 탭은 지역 평균 대비다.
+    const benchmark = ANALYSIS_TABS.find(tab => tab.value === 'benchmark')
+
+    expect(benchmark?.label).toBe('지역 평균 대비')
+  })
+
+  it('탭 쿼리 값은 바꾸지 않는다', () => {
+    // 값을 바꾸면 공유된 ?tab=benchmark 링크가 깨진다.
+    expect(ANALYSIS_TABS.map(tab => tab.value)).toContain('benchmark')
   })
 })

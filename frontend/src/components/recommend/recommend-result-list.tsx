@@ -10,6 +10,11 @@ import {
   COMPOSITE_SCORE_POLARITY,
   resolveMetricPolarity,
 } from '@/lib/recommend/metric-polarity'
+import {
+  isRecord,
+  readBlueOceanCategories,
+  readTrimmedString,
+} from '@/lib/recommend/recommend-response'
 import { resolveServiceIcon } from '@/lib/recommend/service-icons'
 import type { BlueOceanCategory, CandidateCommercial } from '@/types/recommend'
 import RecommendFeedback from './recommend-feedback'
@@ -50,6 +55,11 @@ export type RecommendResultListProps = {
    */
   buildAnalysisHref?: (commercialCode: string) => string | null
   onRetry: () => void
+  /** 비교 담기 선택. 카드 본문 클릭(지도 포커스)과 **다른 행동**이다. */
+  compareSelection?: readonly string[]
+  onCompareToggle?: (commercialCode: string) => void
+  /** 상한을 채웠는가. 채웠으면 안 고른 카드의 체크박스를 잠근다. */
+  isCompareFull?: boolean
 }
 
 const List = styled.ol`
@@ -374,6 +384,25 @@ const SecondaryActions = styled.div`
   padding: 0 14px 14px;
 `
 
+const CompareCheckbox = styled.label`
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-300);
+  border-radius: var(--radius-control);
+  color: var(--color-text-700);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: var(--button-disabled-opacity-color);
+  }
+`
+
 const BookmarkButton = styled.button<{ $bookmarked: boolean }>`
   min-width: 44px;
   min-height: 44px;
@@ -450,9 +479,6 @@ const VisuallyHidden = styled.span`
   white-space: nowrap;
 `
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object'
-
 /**
  * 점수가 `null`이면 "지표 데이터가 없어 점수를 낼 수 없다"는 뜻이다(집계 대기가 아니다).
  * 백엔드가 데이터 없는 상권을 404 대신 `compositeScore: null`로 강등해 내려준다.
@@ -470,9 +496,6 @@ const hasScore = (score: unknown): score is number =>
 
 export const formatScore = (score: unknown): number | string =>
   hasScore(score) ? Math.round(score) : SCORE_UNAVAILABLE_LABEL
-
-const readTrimmedString = (value: unknown): string =>
-  typeof value === 'string' ? value.trim() : ''
 
 const uniqueLabels = (labels: readonly unknown[]): string[] => [
   ...new Set(labels.map(readTrimmedString).filter(Boolean)),
@@ -504,42 +527,6 @@ const getMetricCode = (metric: unknown): string =>
 /** 게이지에 넘길 점수. 숫자가 아니면 `null` 이고, 그때 게이지는 그려지지 않는다. */
 const readGaugeScore = (score: unknown): number | null =>
   hasScore(score) ? score : null
-
-const readCount = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Math.trunc(value)
-    : 0
-
-/**
- * 블루오션 목록을 화면에 쓸 수 있는 형태로만 남긴다.
- * `null`·빈 배열·형태가 깨진 항목은 모두 걸러진다 — 호출부는 길이가 0이면 섹션을 렌더하지 않는다.
- */
-export const readBlueOceanCategories = (
-  value: unknown,
-): BlueOceanCategory[] => {
-  if (!Array.isArray(value)) return []
-
-  return value.flatMap(category => {
-    if (!isRecord(category)) return []
-
-    const serviceName = readTrimmedString(category.serviceName)
-    if (!serviceName) return []
-
-    return [
-      {
-        serviceCode: readTrimmedString(category.serviceCode),
-        serviceName,
-        commercialStoreCount: readCount(category.commercialStoreCount),
-        administrationStoreCount: readCount(category.administrationStoreCount),
-        storeRate:
-          typeof category.storeRate === 'number' &&
-          Number.isFinite(category.storeRate)
-            ? category.storeRate
-            : Number.NaN,
-      },
-    ]
-  })
-}
 
 /**
  * 다섯 업종이 함께 쓰는 가로 눈금의 최댓값 = 행정동 점포 수 중 가장 큰 값.
@@ -674,6 +661,9 @@ export default function RecommendResultList({
   onBookmarkToggle,
   buildAnalysisHref,
   onRetry,
+  compareSelection = [],
+  onCompareToggle,
+  isCompareFull = false,
 }: RecommendResultListProps) {
   const detailsIdPrefix = useId()
   const previewInteractionRef = useRef<RecommendationPreviewInteraction>(
@@ -952,6 +942,21 @@ export default function RecommendResultList({
                     상권 분석 보기
                     <ArrowUpRight aria-hidden="true" />
                   </AnalysisLink>
+                ) : null}
+                {onCompareToggle ? (
+                  <CompareCheckbox>
+                    <input
+                      aria-label={`${item.commercialName} 비교 담기`}
+                      checked={compareSelection.includes(item.commercialCode)}
+                      disabled={
+                        isCompareFull &&
+                        !compareSelection.includes(item.commercialCode)
+                      }
+                      type="checkbox"
+                      onChange={() => onCompareToggle(item.commercialCode)}
+                    />
+                    <span>비교</span>
+                  </CompareCheckbox>
                 ) : null}
                 {onBookmarkToggle ? (
                   <BookmarkButton
