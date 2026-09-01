@@ -4,7 +4,9 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.A
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.AuthException;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTokenIssueInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTokenReissueInfo;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.RefreshSessionInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.JwtTokenStorePort;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.exception.MemberErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.port.out.MemberRepositoryPort;
@@ -14,6 +16,8 @@ import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProvider;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProvider.RefreshTokenClaims;
 import com.followfollowme.bosspickseoul.security.common.enums.SecurityRole;
 import com.followfollowme.bosspickseoul.security.common.exception.SecurityJwtException;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -31,21 +35,48 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class JwtTokenProcessor {
 
+    private static final String UNKNOWN_DEVICE = "알 수 없는 기기";
+    private static final int DEVICE_INFO_MAX_LENGTH = 150;
+
     private final JwtAuthProvider jwtAuthProvider;
     private final JwtAuthProperties jwtAuthProperties;
     private final JwtTokenStorePort jwtTokenStorePort;
     private final MemberRepositoryPort memberRepositoryPort;
 
-    public JwtTokenIssueInfo issueTokens(long memberId, SecurityRole role) {
+    /** @param deviceInfo 요청의 User-Agent. 세션 목록 화면의 기기 표시에만 쓴다 (신뢰 필요 판단에는 사용 금지). */
+    public JwtTokenIssueInfo issueTokens(long memberId, SecurityRole role, String deviceInfo) {
         // 1. 새 기기 세션 아이디로 토큰 쌍 발급
         String sessionId = UUID.randomUUID().toString();
         String accessToken = jwtAuthProvider.issueAccessToken(memberId, role);
         String refreshToken = jwtAuthProvider.issueRefreshToken(memberId, sessionId);
 
-        // 2. Save refresh token to Redis (세션별 키)
-        jwtTokenStorePort.save(memberId, sessionId, refreshToken);
+        // 2. Save refresh token to Redis (세션별 키 + 기기 메타)
+        RefreshSessionMeta meta = new RefreshSessionMeta(sanitizeDeviceInfo(deviceInfo), LocalDateTime.now());
+        jwtTokenStorePort.save(memberId, sessionId, refreshToken, meta);
 
         return JwtTokenIssueInfo.of(memberId, role, accessToken, refreshToken);
+    }
+
+    /** 로그인 중인 기기 세션 목록. refreshToken(요청 쿠키)으로 현재 기기 여부를 판정한다. */
+    public List<RefreshSessionInfo> getSessions(long memberId, String refreshToken) {
+        String currentSessionId = resolveSessionId(memberId, refreshToken).orElse(null);
+        return jwtTokenStorePort.findAllSessions(memberId).stream()
+            .map(session -> RefreshSessionInfo.builder()
+                .sessionId(session.sessionId())
+                .deviceInfo(session.deviceInfo() == null ? UNKNOWN_DEVICE : session.deviceInfo())
+                .createdAt(session.createdAt())
+                .lastUsedAt(session.lastUsedAt())
+                .current(session.sessionId().equals(currentSessionId))
+                .build())
+            .toList();
+    }
+
+    /**
+     * 특정 기기 세션을 해제한다. 이미 없는 세션이어도 멱등하게 성공 처리한다.
+     * 해제된 기기의 access 토큰은 만료까지 유효할 수 있다 (기존 다중 기기 한계와 동일).
+     */
+    public void revokeSessionById(long memberId, String sessionId) {
+        jwtTokenStorePort.deleteSession(memberId, sessionId);
     }
 
     /**
@@ -100,11 +131,14 @@ public class JwtTokenProcessor {
         // 4. Issue and rotate tokens — 새 sessionId 로 교체 회전한다. 같은 jti 를 유지하면
         //    iat 가 초 단위라 같은 초 안에서 동일 토큰이 재생성되어 회전이 무력화되기 때문이다.
         //    이전 세션 키는 즉시 삭제되어 회전 전 토큰의 재사용(탈취 재생)이 차단된다.
+        //    세션 메타(기기 정보/최초 로그인 시각)는 같은 기기의 연속이므로 이어받는다.
+        RefreshSessionMeta meta = jwtTokenStorePort.findSessionMeta(memberId, claims.tokenId())
+            .orElseGet(() -> new RefreshSessionMeta(UNKNOWN_DEVICE, LocalDateTime.now()));
         String newSessionId = UUID.randomUUID().toString();
         String newAccessToken = jwtAuthProvider.issueAccessToken(member.id(), member.role());
         String newRefreshToken = jwtAuthProvider.issueRefreshToken(member.id(), newSessionId);
         jwtTokenStorePort.deleteSession(member.id(), claims.tokenId());
-        jwtTokenStorePort.save(member.id(), newSessionId, newRefreshToken);
+        jwtTokenStorePort.save(member.id(), newSessionId, newRefreshToken, meta);
 
         return JwtTokenReissueInfo.of(newAccessToken, newRefreshToken);
     }
@@ -125,6 +159,18 @@ public class JwtTokenProcessor {
             // 만료/위조 refresh — 세션 삭제 없이 진행한다 (만료면 키도 곧/이미 사라진다).
             return Optional.empty();
         }
+    }
+
+    /** UA 는 위조 가능한 표시용 문자열이므로 제어문자 제거 + 길이 절단만 한다. */
+    private String sanitizeDeviceInfo(String deviceInfo) {
+        if (deviceInfo == null || deviceInfo.isBlank()) {
+            return UNKNOWN_DEVICE;
+        }
+        String cleaned = deviceInfo.replaceAll("[\\p{Cntrl}]", " ").trim();
+        if (cleaned.isEmpty()) {
+            return UNKNOWN_DEVICE;
+        }
+        return cleaned.length() > DEVICE_INFO_MAX_LENGTH ? cleaned.substring(0, DEVICE_INFO_MAX_LENGTH) : cleaned;
     }
 
     private void blacklistAccessToken(long memberId, String tokenId) {

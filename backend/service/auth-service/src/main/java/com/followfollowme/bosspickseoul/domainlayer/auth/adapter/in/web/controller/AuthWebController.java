@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.requ
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.request.AuthPasswordResetRequest;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthOAuthAuthorizeResponse;
+import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthSessionsResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.provider.RefreshCookieProvider;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.support.ClientIpResolver;
@@ -29,10 +30,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -54,8 +57,12 @@ public class AuthWebController {
         description = "이메일과 비밀번호로 로그인합니다. 실패가 누적되면 해당 이메일이 일정 시간 잠깁니다(AUTH_015, 429)."
     )
     @PostMapping("/login")
-    public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(@Valid @RequestBody AuthGeneralLoginRequest request) {
-        AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request));
+    public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(
+        @Valid @RequestBody AuthGeneralLoginRequest request,
+        @Parameter(hidden = true) @RequestHeader(value = HttpHeaders.USER_AGENT, required = false) String userAgent
+    ) {
+        AuthCookieResult<AuthGeneralLoginResponse> result =
+            authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request), userAgent);
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
             .body(Response.success(result.response()));
@@ -92,9 +99,10 @@ public class AuthWebController {
     public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithOAuthCode(
         @Parameter(description = "소셜 로그인 제공자", required = true, example = "kakao") @PathVariable OAuthProvider provider,
         @Parameter(description = "provider가 콜백으로 전달한 인가코드", required = true) @RequestParam("code") String code,
-        @Parameter(description = "인가 URL 생성 시 발급된 state", required = true) @RequestParam("state") String state
+        @Parameter(description = "인가 URL 생성 시 발급된 state", required = true) @RequestParam("state") String state,
+        @Parameter(hidden = true) @RequestHeader(value = HttpHeaders.USER_AGENT, required = false) String userAgent
     ) {
-        AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.oauthLogin(provider, code, state);
+        AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.oauthLogin(provider, code, state, userAgent);
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
             .body(Response.success(result.response()));
@@ -114,6 +122,36 @@ public class AuthWebController {
     @PostMapping("/email/verify-code")
     public ResponseEntity<Response<Void>> verifyEmailVerificationCode(@Valid @RequestBody AuthEmailCodeVerifyRequest request) {
         authWebUseCase.verifyEmailVerificationCode(request.email(), request.code());
+        return ResponseEntity.ok().body(Response.success());
+    }
+
+    @Operation(
+        summary = "로그인 기기 세션 목록",
+        description = "현재 로그인 중인 기기 세션 목록을 마지막 사용 시각 내림차순으로 조회합니다. current 가 true 인 항목이 이 요청을 보낸 기기입니다.",
+        security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    @GetMapping("/sessions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Response<AuthSessionsResponse>> getSessions(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
+        @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken
+    ) {
+        return ResponseEntity.ok().body(Response.success(
+            authWebUseCase.getSessions(loginActive.memberId(), refreshToken)));
+    }
+
+    @Operation(
+        summary = "로그인 기기 세션 해제",
+        description = "특정 기기 세션을 해제합니다(해당 기기는 access 만료 시점에 재로그인 필요). 이미 없는 세션이어도 성공으로 응답합니다(멱등).",
+        security = {@SecurityRequirement(name = "bearerAuth")}
+    )
+    @DeleteMapping("/sessions/{sessionId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Response<Void>> revokeSession(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
+        @Parameter(description = "해제할 세션 아이디 (목록 조회 응답의 sessionId)", required = true) @PathVariable String sessionId
+    ) {
+        authWebUseCase.revokeSession(loginActive.memberId(), sessionId);
         return ResponseEntity.ok().body(Response.success());
     }
 
