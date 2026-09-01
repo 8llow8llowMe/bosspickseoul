@@ -161,6 +161,9 @@
 - `GET /api/v1/simulations/franchisees?serviceCode=&keyword=&lastId=` — 브랜드 검색, 커서(lastId) 기반 최대 10건. 공개
 - `POST /api/v1/simulations/reports` — 시뮬레이션 계산. 공개
 - `POST /api/v1/simulations/histories` / `GET /api/v1/simulations/histories?page=&size=` — 결과 저장/목록. **인증 필수**
+  - 목록 정렬은 `createdAt DESC, id DESC` 다. 같은 조건을 연달아 저장하면 `createdAt` 이 겹치는데,
+    시각만으로 정렬하면 페이지마다 순서가 달라져 어떤 행은 두 페이지에 나오고 어떤 행은 빠진다.
+    분석 보관함과 같은 규칙으로 id 를 2차 정렬에 둔다.
 
 ### 산식 (내부 계산은 원 단위, 응답은 만원)
 
