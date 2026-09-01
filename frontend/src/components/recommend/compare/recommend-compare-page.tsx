@@ -204,6 +204,14 @@ export default function RecommendComparePage() {
   const recommendationError = resolveApiError(recommendationQuery)
   // 상권 목록이 없으면 추천 요청 자체가 성립하지 않는다 — 둘 다 점수 블록의 실패다.
   const scoreError = commercialsError ?? recommendationError
+  /*
+   * 200 인데 목록이 비어 오는 길이 있다(상권이 없는 행정동, 혹은 응답 모양이 바뀌어
+   * `readCommercials` 가 전부 거르는 경우). 그때 추천 쿼리는 `enabled: false` 로
+   * 영원히 멈춰 오류도 로딩도 아니게 되고, 점수 열이 말없이 `—` 로만 남는다.
+   * 오류가 아니므로 재시도 버튼은 붙이지 않고(§7 의 `isRetryable` 규약) 사실만 말한다.
+   */
+  const commercialsEmpty =
+    isComplete && commercialsQuery.isSuccess && allCodes.length === 0
   const scoresReady = scoreError === null && recommendationQuery.isSuccess
   const scoresLoading =
     !scoresReady &&
@@ -344,6 +352,15 @@ export default function RecommendComparePage() {
             '추천 점수를 불러오지 못했어요',
             scoreError,
             '지금은 추천 점수를 보여 줄 수 없어요.',
+            handleRetryScores,
+          )
+        : null}
+
+      {!scoreError && commercialsEmpty
+        ? renderBlockError(
+            '추천 점수를 매길 수 없어요',
+            null,
+            '이 행정동에서 받아 온 상권 목록이 비어 있어요. 아래 지표는 그대로 볼 수 있어요.',
             handleRetryScores,
           )
         : null}

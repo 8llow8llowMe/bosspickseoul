@@ -16,7 +16,11 @@ import {
 export const COMPARE_MIN_COMMERCIALS = 2
 export const COMPARE_MAX_COMMERCIALS = 4
 
-export const COMPARE_COMMERCIALS_PARAM = 'commercialCodes'
+/*
+ * 이 모듈 안에서만 쓴다. 파서와 생성기가 **같은 이름**을 보게 묶어 두는 것이
+ * 존재 이유라, 밖으로 내보내면 이름이 두 군데서 자라난다.
+ */
+const COMPARE_COMMERCIALS_PARAM = 'commercialCodes'
 
 const COMPARE_PATH = '/recommend/compare'
 

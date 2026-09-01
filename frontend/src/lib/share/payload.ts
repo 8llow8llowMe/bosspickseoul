@@ -86,8 +86,11 @@ export type SharePayloadByType = {
    */
   DISTRICT_ANALYSIS: SharePayload
   /**
-   * **미지원.** 상권 비교 화면(`/recommend`)은 검색 파라미터를 아예 읽지 않아
-   * 링크를 만들어도 원래 화면으로 돌아가지 못한다.
+   * **빌더 미구현.** `/recommend/compare` 는 URL 만으로 복원된다
+   * (`compare-url.ts` — 자치구·행정동·업종 + `commercialCodes`). 되돌아갈 화면이
+   * 없어서가 아니라, 공유 링크만으로 충분한지 먼저 보기로 한 것이다(비교 화면
+   * 명세 §10 「범위 밖」). 빌더를 붙일 때는 `createCompareHref` 의 파라미터를
+   * 그대로 payload 로 옮기면 된다.
    */
   COMMERCIAL_COMPARISON: SharePayload
 }
