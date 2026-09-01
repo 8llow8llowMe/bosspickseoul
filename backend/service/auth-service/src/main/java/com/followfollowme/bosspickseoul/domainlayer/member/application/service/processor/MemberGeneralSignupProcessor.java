@@ -39,6 +39,16 @@ public class MemberGeneralSignupProcessor {
         signupEmailVerificationPort.consume(email);
     }
 
+    /**
+     * 개발/테스트 전용 즉시 가입 — 이메일 인증 게이트만 건너뛰고 나머지 규칙(정규화/중복 검증/
+     * 비밀번호 인코딩)은 일반 가입과 동일하다. 노출은 {@code @Profile("!prod")} 컨트롤러가 책임진다.
+     */
+    public Member devSignup(MemberGeneralSignupCommand command) {
+        String email = command.email().trim().toLowerCase(Locale.ROOT);
+        validateEmailNotExists(email);
+        return memberRepositoryPort.save(createMember(command, email));
+    }
+
     private void validateEmailVerified(String email) {
         if (!signupEmailVerificationPort.isVerified(email)) {
             throw new MemberException(MemberErrorCode.EMAIL_NOT_VERIFIED);
