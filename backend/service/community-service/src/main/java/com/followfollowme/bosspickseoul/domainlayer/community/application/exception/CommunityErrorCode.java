@@ -20,6 +20,7 @@ public enum CommunityErrorCode {
     INVALID_REPORT_TARGET_KIND("COMMUNITY_010", "유효하지 않은 신고 대상 타입입니다.", HttpStatus.BAD_REQUEST),
     REPORT_NOT_FOUND("COMMUNITY_011", "신고를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     REPORT_ALREADY_PROCESSED("COMMUNITY_012", "이미 처리된 신고입니다.", HttpStatus.CONFLICT),
+    CONCURRENT_REACTION("COMMUNITY_013", "요청이 동시에 처리되었습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.CONFLICT),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(COMMUNITY_101~116)는 CommunityValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

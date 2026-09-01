@@ -31,6 +31,11 @@
 - 상권별 게시글은 `GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode={code}` 로 조회한다. Post 엔티티는 `commercialCode` 직속 필드 대신 `targetType + targetCode` 일반화 구조를 사용하며, `idx_community_post_target_type_target_code_created_at` 인덱스가 뒷받침한다.
 - No-offset 커서는 LATEST 정렬에서 `id`, POPULAR 정렬에서 `(likeCount, id)` 복합 커서를 쓴다. `lastPostId == 0` 은 초기 로드 관례다.
 - 좋아요/신고 저장 흐름은 `domain -> entity -> repository.save -> entity -> domain` 패턴을 유지한다.
+- **좋아요/신고 중복은 조회 검사와 DB 유니크 제약으로 2중 방어한다.** 조회 검사만으로는 동시 요청이
+  둘 다 통과하므로, 마지막 방어선은 유니크 제약(`uk_community_post_like_...`,
+  `uk_community_comment_like_...`, `uk_community_report_target_kind_target_id_reporter_member_id`)이다.
+  제약 위반은 `CommunityExceptionHandler` 가 409 로 변환한다 — 좋아요는 `COMMUNITY_013`,
+  신고는 기존 `COMMUNITY_009`. 그 외 제약 위반은 원인을 감추지 않도록 그대로 500 으로 남긴다.
 - 정렬 파라미터는 enum 기반 `sortType`, `orderType` 기준을 따른다. `CommunitySortType` 과 `OrderType` 은 모두 `CodeNameDescribable` 을 구현한다 (`displayName` 필드 + metadata 변환).
 - 커뮤니티 타깃명 표시용 지역 메타는 로컬 참조 테이블 `commercial_region_mapping`으로만 조회하고, 원천 책임은 `district-service`에 둔다.
 

@@ -25,6 +25,10 @@ import org.hibernate.annotations.Comment;
 @Table(
     name = "community_report",
     indexes = {
+        // 중복 신고는 exists 검사로 막지만, 동시 요청은 둘 다 검사를 통과할 수 있다.
+        // 마지막 방어선을 DB 에 두고 위반은 핸들러가 DUPLICATE_REPORT(409) 로 변환한다.
+        @Index(name = "uk_community_report_target_kind_target_id_reporter_member_id",
+            columnList = "targetKind,targetId,reporterMemberId", unique = true),
         @Index(name = "idx_community_report_target_kind_target_id",
             columnList = "targetKind,targetId"),
         @Index(name = "idx_community_report_reporter_member_id",
