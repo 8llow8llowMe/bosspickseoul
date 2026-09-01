@@ -33,6 +33,65 @@ const renderErrorPanel = (error: ReturnType<typeof apiError>) =>
     }),
   )
 
+const renderPanel = (
+  overrides: Partial<Parameters<typeof AnalysisSelectionPanel>[0]> = {},
+) =>
+  renderToStaticMarkup(
+    createElement(AnalysisSelectionPanel, {
+      activeStep: 'commercial',
+      selection: createEmptyAnalysisSelection(),
+      selectedNames: {},
+      items: [],
+      status: 'ready',
+      error: null,
+      onStepChange: () => undefined,
+      onSelect: () => undefined,
+      onPreviewChange: () => undefined,
+      onRetry: () => undefined,
+      onSubmit: () => undefined,
+      ...overrides,
+    }),
+  )
+
+describe('AnalysisSelectionPanel 추천 탈출구', () => {
+  it('선택이 덜 끝났으면 고른 조건을 실어 /recommend 로 보낸다', () => {
+    // 이 화면은 「어느 상권인지 이미 아는」 사람을 전제로 4단계를 요구한다.
+    // 모르는 사람이 상권을 찾아 주는 도구로 건너갈 길이 없었다.
+    const markup = renderPanel({
+      selection: {
+        ...createEmptyAnalysisSelection(),
+        districtCode: '11680',
+        administrationCode: '11680640',
+      },
+    })
+
+    const link =
+      markup.match(
+        /<a[^>]*data-testid="analysis-recommend-escape"[^>]*>/,
+      )?.[0] ?? ''
+
+    expect(markup).toContain('어디가 좋을지 모르겠다면 상권 추천받기')
+    expect(link).toContain('href="/recommend?')
+    expect(link).toContain('districtCode=11680')
+    expect(link).toContain('administrationCode=11680640')
+  })
+
+  it('선택이 끝나면 감춰서 주 CTA 와 경쟁하지 않는다', () => {
+    const markup = renderPanel({
+      activeStep: 'service',
+      selection: {
+        districtCode: '11680',
+        administrationCode: '11680640',
+        commercialCode: '3110958',
+        serviceCode: 'CS100010',
+        periodCode: '20233',
+      },
+    })
+
+    expect(markup).not.toContain('analysis-recommend-escape')
+  })
+})
+
 describe('AnalysisSelectionPanel', () => {
   it('4단계와 미완료 안내를 표시한다', () => {
     const markup = renderToStaticMarkup(

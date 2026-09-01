@@ -1,6 +1,7 @@
 'use client'
 
 import { memo, useMemo } from 'react'
+import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -19,6 +20,7 @@ import {
   type AnalysisSelection,
   type AnalysisStep,
 } from '@/lib/analysis/selection'
+import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
 
 export type AnalysisCandidate = {
   code: string
@@ -220,6 +222,26 @@ const Helper = styled.p`
   text-align: center;
 `
 
+/* Footer 의 `button { width: 100% }` 에 걸리지 않도록 링크로 둔다. 주 CTA
+   (「분석 결과 보기」)와 경쟁하지 않게 채움 없이 밑줄 텍스트로만 그린다. */
+const RecommendEscape = styled(Link)`
+  justify-self: center;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--color-text-600);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--color-text-900);
+  }
+`
+
 const selectionCodeByStep = (
   selection: AnalysisSelection,
   step: AnalysisStep,
@@ -377,6 +399,28 @@ function AnalysisSelectionPanel({
             ? '2023년 3분기 기준으로 분석해요'
             : '상권과 업종을 선택해 주세요'}
         </Helper>
+        {/*
+          이 화면은 「어느 상권인지 이미 아는」 사람을 전제로 4단계를 요구한다.
+          모르는 사람에게는 상권을 찾아 주는 `/recommend` 가 맞는 도구인데
+          여기서 그리로 가는 길이 없었다(본문 내부 링크 0개).
+
+          고른 조건은 그대로 넘긴다 — 파라미터 이름이 두 화면에서 같아서
+          변환이 필요 없다(`recommend-url.ts` 참고).
+
+          선택이 끝난 뒤에는 감춘다. 그때는 주 CTA 가 유일한 다음 걸음이어야 한다.
+        */}
+        {isComplete ? null : (
+          <RecommendEscape
+            data-testid="analysis-recommend-escape"
+            href={createRecommendHrefFromCodes({
+              districtCode: selection.districtCode,
+              administrationCode: selection.administrationCode,
+              serviceCode: selection.serviceCode,
+            })}
+          >
+            어디가 좋을지 모르겠다면 상권 추천받기
+          </RecommendEscape>
+        )}
       </Footer>
     </Root>
   )

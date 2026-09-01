@@ -48,12 +48,41 @@ describe('analysis selection', () => {
       },
     )
     expect(
+      selectAnalysisValue(completeSelection, 'administration', '11680645'),
+    ).toEqual({
+      ...completeSelection,
+      administrationCode: '11680645',
+      commercialCode: null,
+      serviceCode: null,
+    })
+  })
+
+  it('상권만 바꿔도 업종은 유지한다', () => {
+    // 같은 업종으로 후보 상권을 견주는 흐름을 지킨다. 상권을 바꿀 때마다 업종이
+    // 사라지면 4단계가 리셋되고 「분석 결과 보기」가 다시 잠긴다.
+    expect(
       selectAnalysisValue(completeSelection, 'commercial', '3110010'),
     ).toEqual({
       ...completeSelection,
       commercialCode: '3110010',
-      serviceCode: null,
     })
+  })
+
+  it('지도 경로와 목록 경로가 같은 업종 유지 규칙을 쓴다', () => {
+    // 지도 클릭(selectCommercialWithParents)만 업종을 보존하고 목록 클릭은
+    // 버리던 불일치가 되살아나면 이 단언이 깨진다.
+    const fromList = selectAnalysisValue(
+      completeSelection,
+      'commercial',
+      '3110010',
+    )
+    const fromMap = selectCommercialWithParents(completeSelection, {
+      commercialCode: '3110010',
+      administrationCode: completeSelection.administrationCode!,
+    })
+
+    expect(fromList.serviceCode).toBe(completeSelection.serviceCode)
+    expect(fromMap.serviceCode).toBe(completeSelection.serviceCode)
   })
 
   it('선택 완료 여부와 다음 활성 단계를 계산한다', () => {

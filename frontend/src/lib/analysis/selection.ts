@@ -143,10 +143,21 @@ export const selectAnalysisValue = (
   }
 
   if (step === 'commercial') {
+    /**
+     * **업종을 버리지 않는다.** 같은 업종으로 후보 상권 여럿을 견줘 보는 것이
+     * 이 화면의 주된 쓰임인데, 상권을 바꿀 때마다 업종이 사라지면 매번 다시
+     * 골라야 한다(4단계 리셋 + 「분석 결과 보기」 재비활성).
+     *
+     * 지도에서 상권을 고르는 경로(`selectCommercialWithParents`)는 이미 업종을
+     * 보존한다 — 목록 경로만 버리고 있었다. 둘을 같은 규칙으로 맞춘다.
+     *
+     * 새 상권에 그 업종이 없을 수 있지만 여기서 검사하지 않는다. 업종 목록은
+     * 상권별 API 로 오므로, 목록이 도착한 뒤 `analysis-map-shell` 의 정합성
+     * 효과가 URL 에서 지운다(같은 파일의 다른 단계들과 동일한 방식).
+     */
     return {
       ...selection,
       commercialCode: value,
-      serviceCode: null,
     }
   }
 
