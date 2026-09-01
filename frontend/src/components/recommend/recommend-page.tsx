@@ -47,6 +47,12 @@ import {
   recommendProfileKey,
   recommendResultsKey,
 } from '@/lib/recommend/recommend-query-keys'
+import {
+  isRecord,
+  isSuccessfulApiResponse,
+  isValidCoordinate,
+  readCommercials,
+} from '@/lib/recommend/recommend-response'
 import { resolveRecommendSheetHeadline } from '@/lib/recommend/sheet-headline'
 import {
   createInitialRecommendationState,
@@ -75,7 +81,6 @@ import type {
   AreaBoundaryItem,
   CandidateCommercial,
   CandidateCommercialsResponse,
-  CommercialArea,
   CommercialProfile,
   CommercialProfileResponse,
   CoordinateTuple,
@@ -140,19 +145,6 @@ export type RecommendationBookmarkReservationRegistry = Map<
   Map<string, symbol>
 >
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object'
-
-const isValidCoordinate = (lng: unknown, lat: unknown): boolean =>
-  typeof lng === 'number' &&
-  typeof lat === 'number' &&
-  Number.isFinite(lng) &&
-  Number.isFinite(lat) &&
-  lng >= -180 &&
-  lng <= 180 &&
-  lat >= -90 &&
-  lat <= 90
-
 const normalizeCoordinateTuples = (value: unknown): CoordinateTuple[] =>
   Array.isArray(value)
     ? value.flatMap(coordinate =>
@@ -162,11 +154,6 @@ const normalizeCoordinateTuples = (value: unknown): CoordinateTuple[] =>
           : [],
       )
     : []
-
-const isSuccessfulApiResponse = <T,>(
-  response: ApiResponse<T> | null | undefined,
-): response is ApiResponse<T> =>
-  response?.dataHeader?.success === true && response.dataBody !== undefined
 
 export const readMapAreas = (
   response: MapAreasResponse | null | undefined,
@@ -221,38 +208,6 @@ export const readAdministrations = (
         administrationName: administration.administrationName,
         centerLng: administration.centerLng as number,
         centerLat: administration.centerLat as number,
-      },
-    ]
-  })
-}
-
-export const readCommercials = (
-  response: ApiResponse<CommercialArea[]> | null | undefined,
-): CommercialArea[] => {
-  if (!isSuccessfulApiResponse(response) || !Array.isArray(response.dataBody)) {
-    return []
-  }
-
-  return (response.dataBody as unknown[]).flatMap(commercial => {
-    if (
-      !isRecord(commercial) ||
-      typeof commercial.commercialCode !== 'string' ||
-      typeof commercial.commercialName !== 'string' ||
-      typeof commercial.commercialClassificationCode !== 'string' ||
-      typeof commercial.commercialClassificationName !== 'string' ||
-      !isValidCoordinate(commercial.centerLng, commercial.centerLat)
-    ) {
-      return []
-    }
-
-    return [
-      {
-        commercialCode: commercial.commercialCode,
-        commercialName: commercial.commercialName,
-        commercialClassificationCode: commercial.commercialClassificationCode,
-        commercialClassificationName: commercial.commercialClassificationName,
-        centerLng: commercial.centerLng as number,
-        centerLat: commercial.centerLat as number,
       },
     ]
   })

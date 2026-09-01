@@ -24,6 +24,56 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParamsBox.current,
 }))
 
+/*
+ * 컴포넌트가 **실제로 만든** 쿼리 옵션을 붙잡는다. `renderToStaticMarkup` 은 효과를
+ * 돌리지 않아 `queryFn` 이 저절로 실행되지 않으므로, 붙잡은 옵션의 `queryFn` 을
+ * 테스트가 직접 돌려 나가는 요청을 본다. 화면의 배선을 그대로 통과하는 경로라
+ * `allCodes` 를 `state.commercialCodes` 로 바꿔치면 여기서 빨간불이 난다.
+ */
+const capturedQueries = vi.hoisted(() => ({
+  current: [] as { queryKey: readonly unknown[]; queryFn: () => unknown }[],
+}))
+
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
+    '@tanstack/react-query',
+  )
+
+  return {
+    ...actual,
+    useQuery: (options: Parameters<typeof actual.useQuery>[0]) => {
+      capturedQueries.current.push(
+        options as unknown as (typeof capturedQueries.current)[number],
+      )
+      return actual.useQuery(options)
+    },
+  }
+})
+
+const recommendationRequests = vi.hoisted(() => ({
+  current: [] as { serviceCode: string; commercialCodes: string[] }[],
+}))
+
+const recommendationResponseBox = vi.hoisted(
+  () => ({ current: null }) as { current: unknown },
+)
+
+vi.mock('@/lib/api/recommend', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/api/recommend')>(
+    '@/lib/api/recommend',
+  )
+
+  return {
+    ...actual,
+    fetchCommercialRecommendations: (
+      request: Parameters<typeof actual.fetchCommercialRecommendations>[0],
+    ) => {
+      recommendationRequests.current.push(request)
+      return Promise.resolve(recommendationResponseBox.current)
+    },
+  }
+})
+
 const DISTRICT_CODE = '11680'
 const ADMINISTRATION_CODE = '11680640'
 const SERVICE_CODE = 'CS100010'
@@ -32,17 +82,30 @@ const SELECTED_CODES = ['3120197', '3120192']
 
 const okHeader = { success: true, resultCode: 'SUCCESS', resultMessage: null }
 
+/** `readCommercials` 가 걸러 내야 하는 행. 좌표가 없으면 /recommend 도 버린다. */
+const BROKEN_CODE = '3129999'
+
 const commercialsResponse = {
   dataHeader: okHeader,
-  dataBody: ALL_CODES.map(code => ({
-    commercialCode: code,
-    commercialName: `상권 ${code}`,
-    commercialClassificationCode: 'A',
-    commercialClassificationName: '골목상권',
-    centerLat: 37.5,
-    centerLng: 127,
-  })),
-} as CommercialAreasResponse
+  dataBody: [
+    ...ALL_CODES.map(code => ({
+      commercialCode: code,
+      commercialName: `상권 ${code}`,
+      commercialClassificationCode: 'A',
+      commercialClassificationName: '골목상권',
+      centerLat: 37.5,
+      centerLng: 127,
+    })),
+    {
+      commercialCode: BROKEN_CODE,
+      commercialName: '좌표 없는 상권',
+      commercialClassificationCode: 'A',
+      commercialClassificationName: '골목상권',
+      centerLat: null,
+      centerLng: null,
+    },
+  ],
+} as unknown as CommercialAreasResponse
 
 const candidate = (
   code: string,
@@ -185,6 +248,9 @@ const render = (client: QueryClient) =>
 describe('RecommendComparePage', () => {
   beforeEach(() => {
     searchParamsBox.current = new URLSearchParams()
+    capturedQueries.current = []
+    recommendationRequests.current = []
+    recommendationResponseBox.current = recommendationResponse
   })
 
   it('업종명 제목과 자치구·행정동·기간 부제를 낸다', () => {
@@ -279,6 +345,52 @@ describe('RecommendComparePage', () => {
     expect(html).toContain('상권 지표를 불러오지 못했어요')
     expect(html).toContain('data-compare-scores="true"')
     expect(html).not.toContain('비교할 상권이 부족해요')
+  })
+
+  it('추천 요청에 선택된 코드가 아니라 행정동 전체 코드가 나간다', async () => {
+    // 🔴 명세 §4·§9 의 그 지점. 선택된 코드만 넘기면 topN 이 5로 clamp 되고
+    // 점수가 그 부분집합 안에서 다시 계산돼 두 화면이 다른 숫자를 말한다.
+    setCompareParams()
+    const client = createClient()
+    primeCommercials(client)
+
+    render(client) // 추천은 캐시에 없다 — queryFn 을 붙잡아 직접 돌린다.
+
+    const options = capturedQueries.current.find(
+      query => query.queryKey[1] === 'results',
+    )
+    expect(options).toBeDefined()
+    await options!.queryFn()
+
+    expect(recommendationRequests.current).toHaveLength(1)
+    const [request] = recommendationRequests.current
+    // 행정동 전체 목록이다. 고른 2개가 아니다.
+    expect(request.commercialCodes).toEqual([...ALL_CODES].sort())
+    expect(request.commercialCodes).not.toEqual(SELECTED_CODES)
+    // `readCommercials` 가 버리는 행은 /recommend 와 마찬가지로 들어가지 않는다.
+    expect(request.commercialCodes).not.toContain(BROKEN_CODE)
+    // 캐시 키와 요청 본문이 **같은 목록**에서 나온다 — 어긋나면 캐시가 갈라진다.
+    expect(options!.queryKey[6]).toBe(request.commercialCodes.join(','))
+  })
+
+  it('프로필이 전부 빈 본문으로 와도 원지표 블록이 사실을 말한다', () => {
+    setCompareParams()
+    const client = createClient()
+    primeCommercials(client)
+    client.setQueryData(recommendationKey(), recommendationResponse)
+    SELECTED_CODES.forEach(code => {
+      client.setQueryData(
+        recommendProfileKey(code, SERVICE_CODE, RECOMMENDATION_PERIOD_CODE),
+        { dataHeader: okHeader, dataBody: null },
+      )
+    })
+
+    const html = render(client)
+
+    expect(html).toContain('상권 지표를 불러오지 못했어요')
+    // 200 이라 재시도할 오류가 없다 — 버튼을 띄우지 않는다(`isRetryable` 규약).
+    expect(html).not.toContain('다시 시도')
+    expect(html).toContain('data-compare-scores="true"')
   })
 
   it('상권 코드가 2개 미만이면 표 대신 안내를 낸다', () => {

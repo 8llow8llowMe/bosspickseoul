@@ -25,6 +25,7 @@ import { isApiSuccess } from '@/lib/api/response'
 import {
   buildCompareRecommendationRequest,
   selectCompareColumns,
+  selectTopRankedCandidates,
 } from '@/lib/recommend/compare-data'
 import {
   COMPARE_MIN_COMMERCIALS,
@@ -37,6 +38,7 @@ import {
   recommendProfileKey,
   recommendResultsKey,
 } from '@/lib/recommend/recommend-query-keys'
+import { readCommercials } from '@/lib/recommend/recommend-response'
 import { formatRecommendationPeriod } from '@/lib/recommend/recommend-state'
 import {
   createRecommendHrefFromCodes,
@@ -125,12 +127,16 @@ export default function RecommendComparePage() {
       fetchCommercials(state.districtCode!, state.administrationCode!),
     enabled: isComplete,
   })
-  const allCodes = useMemo(() => {
-    const body = commercialsQuery.data
-    return body && isApiSuccess(body)
-      ? (body.dataBody ?? []).map(item => String(item.commercialCode))
-      : []
-  }, [commercialsQuery.data])
+  /*
+   * 목록을 읽는 규칙은 `/recommend` 와 **같은 함수**여야 한다. 한쪽이 거르는 행을
+   * 다른 쪽이 통과시키면 `commercialCodesKey` 가 갈라져 캐시가 둘로 쪼개지고,
+   * 추천이 매겨지는 코드 집합 자체가 달라진다(명세 §4).
+   */
+  const allCodes = useMemo(
+    () =>
+      readCommercials(commercialsQuery.data).map(item => item.commercialCode),
+    [commercialsQuery.data],
+  )
 
   // 2) 추천 — /recommend 와 같은 요청, 같은 키.
   const recommendationQuery = useQuery({
@@ -150,10 +156,16 @@ export default function RecommendComparePage() {
       ),
     enabled: isComplete && allCodes.length > 0,
   })
+  // 후보도 `/recommend` 와 같은 규칙으로 줄인다 — 같은 다섯 개, 같은 순위.
   const candidates = useMemo(() => {
     const body = recommendationQuery.data
-    return body && isApiSuccess(body) ? (body.dataBody?.items ?? []) : []
-  }, [recommendationQuery.data])
+    const items = body && isApiSuccess(body) ? (body.dataBody?.items ?? []) : []
+
+    return selectTopRankedCandidates({
+      candidates: items,
+      allowedCommercialCodes: allCodes,
+    })
+  }, [allCodes, recommendationQuery.data])
 
   // 3) 열마다 프로필.
   const profileQueries = useQueries({
@@ -205,10 +217,15 @@ export default function RecommendComparePage() {
     // 200 인데 본문이 비어 온 경우도 그 열의 지표는 없는 것이다.
     return profileQueries[index]?.isSuccess === true && !profileByCode[code]
   })
-  const allProfilesFailed =
+  /*
+   * 열 전부의 지표가 없으면 **어떻게 없어졌든** 원지표 블록이 사실을 말한다.
+   * 200 인데 본문이 비어 온 경우에는 정규화할 오류가 없어 `metricsError` 가 null 이다 —
+   * 그때도 카드는 나오고, 재시도 버튼만 `isRetryable` 규약대로 빠진다.
+   */
+  const metricsUnavailable =
     state.commercialCodes.length > 0 &&
     failedProfileCodes.length === state.commercialCodes.length
-  const metricsError = allProfilesFailed
+  const metricsError = metricsUnavailable
     ? (profileErrors.find(error => error !== null) ?? null)
     : null
   const metricsLoading = profileQueries.some(
@@ -244,15 +261,16 @@ export default function RecommendComparePage() {
 
   const renderBlockError = (
     title: string,
-    error: NormalizedApiError,
+    error: NormalizedApiError | null,
+    fallbackDescription: string,
     onRetry: () => void,
   ) => (
     <EmptyState
       title={title}
-      description={error.message}
+      description={error ? error.message : fallbackDescription}
       action={
         // 재시도 노출은 `isRetryable(kind)` 로만 판단한다 — 404 는 다시 물어도 같다.
-        isRetryable(error.kind) ? (
+        error && isRetryable(error.kind) ? (
           <Button
             size="medium"
             variant="secondary"
@@ -324,14 +342,16 @@ export default function RecommendComparePage() {
         ? renderBlockError(
             '추천 점수를 불러오지 못했어요',
             scoreError,
+            '지금은 추천 점수를 보여 줄 수 없어요.',
             handleRetryScores,
           )
         : null}
 
-      {metricsError
+      {metricsUnavailable
         ? renderBlockError(
             '상권 지표를 불러오지 못했어요',
             metricsError,
+            '이 조건에서 받아 온 상권 지표가 없어요.',
             handleRetryMetrics,
           )
         : null}

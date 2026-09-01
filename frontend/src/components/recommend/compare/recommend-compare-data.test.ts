@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCompareRecommendationRequest,
   selectCompareColumns,
+  selectTopRankedCandidates,
 } from '@/lib/recommend/compare-data'
 import type { CandidateCommercial } from '@/types/recommend'
 
@@ -98,5 +99,36 @@ describe('selectCompareColumns', () => {
     expect(columns.map(column => column.commercialCode)).toEqual(['A', 'B'])
     expect(columns.every(column => column.candidate === null)).toBe(true)
     expect(missingCodes).toEqual([])
+  })
+})
+
+describe('selectTopRankedCandidates', () => {
+  it('rank 순으로 세우고 Top N 까지만 남긴다', () => {
+    // 응답이 순서를 지켜 준다는 보장이 없다. /recommend 는 rank 로 정렬하고
+    // Top N 으로 자른 뒤 화면에 올린다 — 비교도 같은 다섯 개를 봐야 한다.
+    const shuffled = [6, 3, 1, 5, 2, 4].map(rank => candidate(`C${rank}`, rank))
+
+    const result = selectTopRankedCandidates({
+      candidates: shuffled,
+      allowedCommercialCodes: ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'],
+    })
+
+    expect(result.map(item => item.commercialCode)).toEqual([
+      'C1',
+      'C2',
+      'C3',
+      'C4',
+      'C5',
+    ])
+  })
+
+  it('요청하지 않은 코드와 중복을 버린다', () => {
+    const result = selectTopRankedCandidates({
+      candidates: [candidate('A', 1), candidate('A', 2), candidate('Z', 3)],
+      allowedCommercialCodes: ['A'],
+    })
+
+    expect(result.map(item => item.commercialCode)).toEqual(['A'])
+    expect(result[0].rank).toBe(1)
   })
 })

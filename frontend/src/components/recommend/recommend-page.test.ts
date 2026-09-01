@@ -24,7 +24,6 @@ import {
   normalizeRecommendationBasis,
   normalizeRecommendationResults,
   readAdministrations,
-  readCommercials,
   readMapAreas,
   readRecommendationPeriodCode,
   releaseRecommendationBookmarkMutation,
@@ -33,6 +32,8 @@ import {
   selectResultHeadingForViewport,
   shouldApplyRecommendationBookmarkMutation,
 } from './recommend-page'
+// 읽는 규칙은 `/recommend` 와 `/recommend/compare` 가 공유하는 lib 로 옮겼다.
+import { readCommercials } from '@/lib/recommend/recommend-response'
 
 const candidate = (
   rank: number,
