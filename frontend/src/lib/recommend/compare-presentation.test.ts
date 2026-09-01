@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  COMPARE_EMPTY_CELL,
   toCompareMetricRows,
   toCompareScoreRows,
   type CompareColumnInput,
@@ -73,8 +74,36 @@ describe('toCompareScoreRows', () => {
     expect(rows[0].cells[0]).toEqual({
       commercialCode: 'A',
       score: 84,
+      formatted: '84',
       quality: 'good',
     })
+  })
+
+  it('종합 점수는 화면 표기만 반올림하고 등급 판정은 원값을 쓴다', () => {
+    // /recommend 카드가 Math.round 로 적는 것과 같은 숫자로 보여야 한다 —
+    // 그렇지 않으면 같은 상권이 두 화면에서 다른 숫자로 보인다.
+    const rows = toCompareScoreRows([
+      column('A', candidate('A', 83.99470969264185), null),
+    ])
+
+    expect(rows[0].cells[0].formatted).toBe('84')
+    expect(rows[0].cells[0].score).toBe(83.99470969264185)
+  })
+
+  it('점수가 없으면 표기도 대시다', () => {
+    const rows = toCompareScoreRows([column('A', null, null)])
+
+    expect(rows[0].cells[0].formatted).toBe(COMPARE_EMPTY_CELL)
+  })
+
+  it('반올림 경계에서는 표기가 등급 판정보다 앞서 반올림되지 않는다', () => {
+    // 69.6 을 먼저 반올림하면 70(=GOOD_THRESHOLD)이 되어 "70인데 fair"라는
+    // 존재하지 않는 불일치를 화면이 스스로 만들어낸다. 표기는 반올림해 '70'을
+    // 보여주더라도 등급은 반올림 전 69.6 을 기준으로 매겨져야 한다.
+    const rows = toCompareScoreRows([column('A', candidate('A', 69.6), null)])
+
+    expect(rows[0].cells[0].formatted).toBe('70')
+    expect(rows[0].cells[0].quality).toBe('fair')
   })
 
   it('위험도가 높으면 나쁨으로 판정한다', () => {
@@ -93,6 +122,7 @@ describe('toCompareScoreRows', () => {
     expect(rows[0].cells[0]).toEqual({
       commercialCode: 'A',
       score: null,
+      formatted: COMPARE_EMPTY_CELL,
       quality: 'neutral',
     })
   })

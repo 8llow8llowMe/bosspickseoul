@@ -34,6 +34,7 @@ export type CompareColumnInput = {
 export type CompareScoreCell = {
   commercialCode: string
   score: number | null
+  formatted: string
   quality: ScoreQuality
 }
 
@@ -95,6 +96,17 @@ const readScore = (
 const isFinite = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
+/**
+ * 화면 표기는 반올림하지만 등급 판정(`resolveScoreQuality`)에는 원값을 그대로
+ * 넘긴다. 69.6 을 먼저 반올림하면 70(=GOOD_THRESHOLD)이 되어 "70인데 fair"라는
+ * 존재하지 않는 불일치를 만들어낸다. /recommend 카드가 이미 `Math.round` 로
+ * 적고 있어(recommend-result-list.tsx, score-gauge.tsx) 여기서도 맞춘다 — 같은
+ * 상권이 두 화면에서 다른 숫자로 보이면 §4 가 막으려던 그 불일치가 사용자 눈에
+ * 그대로 드러난다.
+ */
+const formatScore = (score: number | null): string =>
+  score === null ? COMPARE_EMPTY_CELL : String(Math.round(score))
+
 export const toCompareScoreRows = (
   columns: readonly CompareColumnInput[],
 ): CompareScoreRow[] => [
@@ -108,6 +120,7 @@ export const toCompareScoreRows = (
       return {
         commercialCode,
         score,
+        formatted: formatScore(score),
         quality: resolveScoreQuality(score, COMPOSITE_SCORE_POLARITY),
       }
     }),
@@ -120,6 +133,7 @@ export const toCompareScoreRows = (
       return {
         commercialCode,
         score,
+        formatted: formatScore(score),
         // 방향은 여기서 정하지 않는다. METRIC_POLARITY 가 정본이고,
         // 모르는 코드면 neutral 이라 색으로 판단하지 않는다.
         quality: resolveScoreQuality(score, resolveMetricPolarity(row.key)),

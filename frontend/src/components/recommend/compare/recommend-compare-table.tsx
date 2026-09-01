@@ -237,7 +237,7 @@ export default function RecommendCompareTable({
                       <ScoreValue
                         style={{ color: getScoreQualityColor(cell.quality) }}
                       >
-                        {cell.score}
+                        {cell.formatted}
                         {getScoreQualityLabel(cell.quality) ? (
                           <VisuallyHidden>
                             {` ${getScoreQualityLabel(cell.quality)}`}
