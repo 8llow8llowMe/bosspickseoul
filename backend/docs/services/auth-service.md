@@ -51,6 +51,12 @@
   이전 토큰의 재사용(탈취 재생)도 이 삭제로 차단된다.
 - 무효화 범위: 로그아웃 = 현재 세션만(`revokeCurrentSession`, 관용 처리),
   탈퇴/비밀번호 변경/상태 이상 = 전 기기 세션(`revokeAllSessions`, 실패 전파·롤백).
+- **세션 목록/개별 해제**: `GET /auth/sessions` — 기기 세션 목록(deviceInfo/createdAt/lastUsedAt/current,
+  마지막 사용 내림차순), `DELETE /auth/sessions/{sessionId}` — 특정 기기 해제(멱등, 해제된 기기의
+  access 는 만료까지 유효). 기기 정보는 로그인 요청의 User-Agent 를 정제(제어문자 제거, 150자 절단)해
+  세션 메타 키(`{prefix}:auth:refreshSessionMeta:{memberId}:{sessionId}`)에 저장하며 **표시용**이다
+  (위조 가능하므로 신뢰가 필요한 판단에는 쓰지 않는다). 회전 시 메타(기기 정보/최초 로그인 시각)는
+  새 세션 키로 이어진다. current 판정은 요청 쿠키의 refresh 토큰 jti 비교로 한다.
 
 ## 현재 구현 주의점
 
@@ -124,6 +130,8 @@
   클라이언트 IP 는 `ClientIpResolver`(X-Forwarded-For → X-Real-IP → remoteAddr)로 얻고
   Redis `{prefix}:auth:emailSendIp:{ip}` 고정 윈도우 카운터(장애 시 fail-open)로 센다.
 - `POST /email/verify-code` — 코드 검증(`AUTH_004`/`AUTH_005`). 성공 시 30분간 가입 가능.
+  **5회 오입력 시 코드 무효화 + `AUTH_018`** (비밀번호 재설정 `AUTH_017`과 동일한 브루트포스 방어,
+  실패 카운터 키 `{prefix}:auth:emailVerificationFail:{email}`, TTL=코드 TTL).
 - 가입(`POST /members/signup`)은 인증 플래그가 없으면 `MEMBER_006`(400)로 거부하고, 성공 시 플래그를 소비한다.
 - 이메일은 전 구간 trim+소문자 정규화(Redis 키/DB 저장 정합). 코드: SecureRandom 8자(I/O/0/1 제외), TTL 5분.
   Redis 키는 3종 — `{prefix}:auth:emailVerificationCode:{email}` (발급 코드, TTL 5분),

@@ -81,7 +81,7 @@
 |--------------|---------|----------|------------|-------------------|
 | `MEMBER` | `001~009` | `MEMBER_100` | `101~112` | `MEMBER_113` |
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
-| `AUTH` | `001~017` | `AUTH_100` | `101~104`, `106~108` | `AUTH_105` |
+| `AUTH` | `001~018` | `AUTH_100` | `101~104`, `106~108` | `AUTH_105` |
 | `COMMUNITY` | `001~012` | `COMMUNITY_100` | `101~116`, `118~119` | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
@@ -121,6 +121,8 @@
 | POST | `/email/verify-code` | 인증코드 검증 — 성공 시 30분 동안 해당 이메일로 가입 가능 | - |
 | POST | `/password/reset/send-code` | 비밀번호 재설정 코드 발송 (일반 계정 전용, 계정 존재 여부 노출 없이 항상 성공 응답) | - |
 | POST | `/password/reset` | 코드 검증 후 비밀번호 재설정 — 성공 시 전 기기 세션 무효화 | - |
+| GET | `/sessions` | 로그인 중인 기기 세션 목록 (deviceInfo·마지막 사용 시각·현재 기기 여부) | 🔒 |
+| DELETE | `/sessions/{sessionId}` | 특정 기기 세션 해제 (멱등) | 🔒 |
 
 **Refresh 토큰**은 응답 바디가 아니라 `HttpOnly` + `SameSite=Strict` 쿠키(`refreshToken`)로 전달됩니다. 로그아웃·비밀번호 변경·탈퇴 시 쿠키가 만료 처리됩니다.
 
