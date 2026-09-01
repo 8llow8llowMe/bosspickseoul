@@ -7,7 +7,10 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.A
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.exception.AuthException;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTokenIssueInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTokenReissueInfo;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.RefreshSessionInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.JwtTokenStorePort;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.query.RefreshSessionQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.enums.MemberStatus;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.model.Member;
@@ -15,8 +18,11 @@ import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProperties;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProvider;
 import com.followfollowme.bosspickseoul.security.common.enums.SecurityRole;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -48,15 +54,15 @@ class JwtTokenProcessorTest {
     @Test
     void issueTokens_twice_keepsBothDeviceSessions() {
         // 두 기기에서 각각 로그인해도 서로의 세션을 덮어쓰지 않는다
-        processor.issueTokens(MEMBER_ID, SecurityRole.USER);
-        processor.issueTokens(MEMBER_ID, SecurityRole.USER);
+        processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
 
         assertThat(tokenStorePort.sessionCount(MEMBER_ID)).isEqualTo(2);
     }
 
     @Test
     void reissueTokens_rotatesSessionWithoutGrowingCount() {
-        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER);
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
 
         JwtTokenReissueInfo reissued = processor.reissueTokens(issued.refreshToken());
 
@@ -67,7 +73,7 @@ class JwtTokenProcessorTest {
 
     @Test
     void reissueTokens_withRotatedOutToken_rejects() {
-        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER);
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
         processor.reissueTokens(issued.refreshToken());
 
         // 회전 전 토큰의 세션 키는 삭제되어 재사용(탈취 재생) 시 거부된다
@@ -79,7 +85,7 @@ class JwtTokenProcessorTest {
 
     @Test
     void reissueTokens_withEvictedSession_rejectsAsExpired() {
-        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER);
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
         tokenStorePort.deleteAllSessions(MEMBER_ID);
 
         // 상한 초과로 밀려났거나 무효화된 세션은 재로그인 대상이다
@@ -91,8 +97,8 @@ class JwtTokenProcessorTest {
 
     @Test
     void revokeCurrentSession_removesOnlyThatDevice() {
-        JwtTokenIssueInfo deviceA = processor.issueTokens(MEMBER_ID, SecurityRole.USER);
-        JwtTokenIssueInfo deviceB = processor.issueTokens(MEMBER_ID, SecurityRole.USER);
+        JwtTokenIssueInfo deviceA = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        JwtTokenIssueInfo deviceB = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
 
         processor.revokeCurrentSession(MEMBER_ID, "access-token-id", deviceA.refreshToken());
 
@@ -104,7 +110,7 @@ class JwtTokenProcessorTest {
 
     @Test
     void revokeCurrentSession_withoutRefreshCookie_onlyBlacklistsAccessToken() {
-        processor.issueTokens(MEMBER_ID, SecurityRole.USER);
+        processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
 
         processor.revokeCurrentSession(MEMBER_ID, "access-token-id", null);
 
@@ -114,9 +120,60 @@ class JwtTokenProcessorTest {
     }
 
     @Test
+    void getSessions_marksCurrentDeviceAndShowsDeviceInfo() {
+        JwtTokenIssueInfo deviceA = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "device-A");
+        processor.issueTokens(MEMBER_ID, SecurityRole.USER, "device-B");
+
+        List<RefreshSessionInfo> sessions = processor.getSessions(MEMBER_ID, deviceA.refreshToken());
+
+        assertThat(sessions).hasSize(2);
+        assertThat(sessions).filteredOn(RefreshSessionInfo::current)
+            .singleElement()
+            .satisfies(current -> assertThat(current.deviceInfo()).isEqualTo("device-A"));
+    }
+
+    @Test
+    void getSessions_withoutRefreshCookie_marksNothingCurrent() {
+        processor.issueTokens(MEMBER_ID, SecurityRole.USER, "device-A");
+
+        List<RefreshSessionInfo> sessions = processor.getSessions(MEMBER_ID, null);
+
+        assertThat(sessions).hasSize(1);
+        assertThat(sessions.getFirst().current()).isFalse();
+    }
+
+    @Test
+    void revokeSessionById_removesOnlyTargetSession() {
+        JwtTokenIssueInfo deviceA = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "device-A");
+        JwtTokenIssueInfo deviceB = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "device-B");
+        String deviceASessionId = jwtAuthProvider.parseRefreshToken(deviceA.refreshToken()).tokenId();
+
+        processor.revokeSessionById(MEMBER_ID, deviceASessionId);
+
+        // A 기기만 해제되고 B 기기는 계속 재발급할 수 있다. 이미 없는 세션 해제는 멱등하다.
+        assertThat(tokenStorePort.sessionCount(MEMBER_ID)).isEqualTo(1);
+        assertThat(processor.reissueTokens(deviceB.refreshToken())).isNotNull();
+        processor.revokeSessionById(MEMBER_ID, deviceASessionId);
+    }
+
+    @Test
+    void reissueTokens_carriesOverSessionMeta() {
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "device-A");
+        RefreshSessionMeta originalMeta = tokenStorePort.metas.values().iterator().next();
+
+        JwtTokenReissueInfo reissued = processor.reissueTokens(issued.refreshToken());
+
+        // 회전으로 세션 키가 바뀌어도 기기 정보와 최초 로그인 시각은 이어진다
+        String newSessionId = jwtAuthProvider.parseRefreshToken(reissued.newRefreshToken()).tokenId();
+        RefreshSessionMeta carried = tokenStorePort.findSessionMeta(MEMBER_ID, newSessionId).orElseThrow();
+        assertThat(carried.deviceInfo()).isEqualTo("device-A");
+        assertThat(carried.createdAt()).isEqualTo(originalMeta.createdAt());
+    }
+
+    @Test
     void revokeAllSessions_removesEveryDevice() {
-        processor.issueTokens(MEMBER_ID, SecurityRole.USER);
-        processor.issueTokens(MEMBER_ID, SecurityRole.USER);
+        processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
 
         processor.revokeAllSessions(MEMBER_ID, "access-token-id");
 
@@ -136,12 +193,14 @@ class JwtTokenProcessorTest {
 
     private static class StubJwtTokenStorePort implements JwtTokenStorePort {
 
-        private final Map<String, String> tokens = new HashMap<>();
+        private final Map<String, String> tokens = new LinkedHashMap<>();
+        private final Map<String, RefreshSessionMeta> metas = new LinkedHashMap<>();
         private final Set<String> blacklistedTokenIds = new HashSet<>();
 
         @Override
-        public void save(long memberId, String sessionId, String refreshToken) {
+        public void save(long memberId, String sessionId, String refreshToken, RefreshSessionMeta meta) {
             tokens.put(memberId + ":" + sessionId, refreshToken);
+            metas.put(memberId + ":" + sessionId, meta);
         }
 
         @Override
@@ -150,13 +209,36 @@ class JwtTokenProcessorTest {
         }
 
         @Override
+        public Optional<RefreshSessionMeta> findSessionMeta(long memberId, String sessionId) {
+            return Optional.ofNullable(metas.get(memberId + ":" + sessionId));
+        }
+
+        @Override
+        public List<RefreshSessionQueryResult> findAllSessions(long memberId) {
+            return tokens.keySet().stream()
+                .filter(key -> key.startsWith(memberId + ":"))
+                .map(key -> {
+                    String sessionId = key.substring((memberId + ":").length());
+                    RefreshSessionMeta meta = metas.get(key);
+                    return new RefreshSessionQueryResult(
+                        sessionId,
+                        meta == null ? null : meta.deviceInfo(),
+                        meta == null ? null : meta.createdAt(),
+                        LocalDateTime.now());
+                })
+                .toList();
+        }
+
+        @Override
         public void deleteSession(long memberId, String sessionId) {
             tokens.remove(memberId + ":" + sessionId);
+            metas.remove(memberId + ":" + sessionId);
         }
 
         @Override
         public void deleteAllSessions(long memberId) {
             tokens.keySet().removeIf(key -> key.startsWith(memberId + ":"));
+            metas.keySet().removeIf(key -> key.startsWith(memberId + ":"));
         }
 
         @Override

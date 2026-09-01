@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.auth.application.port.in;
 
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthOAuthAuthorizeResponse;
+import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthSessionsResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.AuthGeneralLoginCommand;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.TokenReissueCommand;
@@ -10,7 +11,8 @@ import com.followfollowme.bosspickseoul.domainlayer.member.domain.enums.OAuthPro
 
 public interface AuthWebUseCase {
 
-    AuthCookieResult<AuthGeneralLoginResponse> generalLogin(AuthGeneralLoginCommand command);
+    /** deviceInfo 는 요청의 User-Agent 로, 기기 세션 목록 표시에 쓴다. */
+    AuthCookieResult<AuthGeneralLoginResponse> generalLogin(AuthGeneralLoginCommand command, String deviceInfo);
 
     /** 현재 기기 세션만 로그아웃한다. refreshToken 은 요청 쿠키 값으로, 없으면 access 무효화만 수행한다. */
     void logout(long memberId, String tokenId, String refreshToken);
@@ -30,5 +32,11 @@ public interface AuthWebUseCase {
 
     AuthOAuthAuthorizeResponse generateOAuthAuthorizationUrl(OAuthProvider provider);
 
-    AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state);
+    AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state, String deviceInfo);
+
+    /** 로그인 중인 기기 세션 목록. refreshToken(요청 쿠키)으로 현재 기기를 표시한다. */
+    AuthSessionsResponse getSessions(long memberId, String refreshToken);
+
+    /** 특정 기기 세션 해제 (본인 세션만, 멱등). */
+    void revokeSession(long memberId, String sessionId);
 }

@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.auth.application.service;
 
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthGeneralLoginResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthOAuthAuthorizeResponse;
+import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.AuthSessionsResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.response.TokenReissueResponse;
 import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.presenter.AuthPresenter;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.AuthGeneralLoginCommand;
@@ -35,12 +36,13 @@ public class AuthWebFacade implements AuthWebUseCase {
 
     @Override
     @Transactional
-    public AuthCookieResult<AuthGeneralLoginResponse> generalLogin(AuthGeneralLoginCommand command) {
+    public AuthCookieResult<AuthGeneralLoginResponse> generalLogin(AuthGeneralLoginCommand command, String deviceInfo) {
         // 1. 일반 로그인 자격 검증
         GeneralLoginInfo generalLoginInfo = generalLoginProcessor.generalLogin(command);
 
         // 2. 토큰 발급
-        JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(generalLoginInfo.memberId(), generalLoginInfo.role());
+        JwtTokenIssueInfo jwtTokenIssueInfo =
+            jwtTokenProcessor.issueTokens(generalLoginInfo.memberId(), generalLoginInfo.role(), deviceInfo);
 
         // 3. Presenter를 통한 Info -> Response 변환
         AuthGeneralLoginResponse response = authPresenter.toGeneralLoginResponse(jwtTokenIssueInfo);
@@ -96,17 +98,27 @@ public class AuthWebFacade implements AuthWebUseCase {
     }
 
     @Override
-    public AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state) {
+    public AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state, String deviceInfo) {
         // 1. state 검증 + provider 프로필 조회 — 외부 HTTP 왕복이므로 트랜잭션 밖에서 수행한다.
         OAuthMemberQueryResult oAuthMember = oAuthLoginProcessor.fetchOAuthMember(provider, authCode, state);
 
         // 2. 회원 조회/생성 (Processor의 트랜잭션 경계) 후 토큰 발급
         GeneralLoginInfo loginInfo = oAuthLoginProcessor.login(provider, oAuthMember);
-        JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(loginInfo.memberId(), loginInfo.role());
+        JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(loginInfo.memberId(), loginInfo.role(), deviceInfo);
 
         // 3. Presenter를 통한 Info -> Response 변환
         AuthGeneralLoginResponse response = authPresenter.toGeneralLoginResponse(jwtTokenIssueInfo);
 
         return AuthCookieResult.of(response, jwtTokenIssueInfo.refreshToken());
+    }
+
+    @Override
+    public AuthSessionsResponse getSessions(long memberId, String refreshToken) {
+        return authPresenter.toSessionsResponse(jwtTokenProcessor.getSessions(memberId, refreshToken));
+    }
+
+    @Override
+    public void revokeSession(long memberId, String sessionId) {
+        jwtTokenProcessor.revokeSessionById(memberId, sessionId);
     }
 }

@@ -321,12 +321,25 @@ class PasswordResetProcessorTest {
         private final List<Long> allSessionsDeletedMemberIds = new ArrayList<>();
 
         @Override
-        public void save(long memberId, String sessionId, String refreshToken) {
+        public void save(long memberId, String sessionId, String refreshToken,
+            com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta meta) {
         }
 
         @Override
         public Optional<String> find(long memberId, String sessionId) {
             return Optional.empty();
+        }
+
+        @Override
+        public Optional<com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta>
+            findSessionMeta(long memberId, String sessionId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public List<com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.query.RefreshSessionQueryResult>
+            findAllSessions(long memberId) {
+            return List.of();
         }
 
         @Override
