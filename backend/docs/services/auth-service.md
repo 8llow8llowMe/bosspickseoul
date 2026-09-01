@@ -208,6 +208,16 @@
 - **배포 전 Vault dev/prod secret에 OAUTH_KAKAO_*/OAUTH_NAVER_* 6개 키 추가 필요**
   (client-id/client-secret/redirect-uri — redirect-uri는 provider 콘솔 등록값과 일치).
 
+## 개발 편의 API (prod 미노출)
+
+- `POST /api/v1/members/signup/dev` — **이메일 인증 없이 즉시 회원가입** (테스트 계정 생성 전용).
+  정규화/중복 검증(`MEMBER_001` 409)/비밀번호 규칙은 일반 가입과 동일하고, 인증 게이트만 건너뛴다.
+  응답으로 `{memberId, email}` 을 돌려줘 바로 로그인 테스트로 이어갈 수 있다.
+- 컨트롤러/파사드가 `@Profile("!prod")` 라 **운영에서는 빈이 등록되지 않아 경로 자체가 404** 다.
+  운영 계약 문서(api-reference.md)에는 싣지 않는다. Swagger 에는 "개발용 (prod 미노출)" 태그로 노출된다.
+- 운영 유스케이스(`MemberWebUseCase`)와 분리된 `MemberDevSignupUseCase` 를 쓴다 —
+  개발 편의 메서드가 운영 계약에 섞이지 않게 하기 위함이다.
+
 ## 상권 북마크 시스템 (신규)
 
 **엔드포인트** (`/api/v1/members/me/bookmarks`):
