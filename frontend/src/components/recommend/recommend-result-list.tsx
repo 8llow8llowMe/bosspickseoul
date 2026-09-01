@@ -50,6 +50,11 @@ export type RecommendResultListProps = {
    */
   buildAnalysisHref?: (commercialCode: string) => string | null
   onRetry: () => void
+  /** 비교 담기 선택. 카드 본문 클릭(지도 포커스)과 **다른 행동**이다. */
+  compareSelection?: readonly string[]
+  onCompareToggle?: (commercialCode: string) => void
+  /** 상한을 채웠는가. 채웠으면 안 고른 카드의 체크박스를 잠근다. */
+  isCompareFull?: boolean
 }
 
 const List = styled.ol`
@@ -374,6 +379,25 @@ const SecondaryActions = styled.div`
   padding: 0 14px 14px;
 `
 
+const CompareCheckbox = styled.label`
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-300);
+  border-radius: var(--radius-control);
+  color: var(--color-text-700);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: var(--button-disabled-opacity-color);
+  }
+`
+
 const BookmarkButton = styled.button<{ $bookmarked: boolean }>`
   min-width: 44px;
   min-height: 44px;
@@ -674,6 +698,9 @@ export default function RecommendResultList({
   onBookmarkToggle,
   buildAnalysisHref,
   onRetry,
+  compareSelection = [],
+  onCompareToggle,
+  isCompareFull = false,
 }: RecommendResultListProps) {
   const detailsIdPrefix = useId()
   const previewInteractionRef = useRef<RecommendationPreviewInteraction>(
@@ -952,6 +979,20 @@ export default function RecommendResultList({
                     상권 분석 보기
                     <ArrowUpRight aria-hidden="true" />
                   </AnalysisLink>
+                ) : null}
+                {onCompareToggle ? (
+                  <CompareCheckbox>
+                    <input
+                      checked={compareSelection.includes(item.commercialCode)}
+                      disabled={
+                        isCompareFull &&
+                        !compareSelection.includes(item.commercialCode)
+                      }
+                      type="checkbox"
+                      onChange={() => onCompareToggle(item.commercialCode)}
+                    />
+                    <span>비교</span>
+                  </CompareCheckbox>
                 ) : null}
                 {onBookmarkToggle ? (
                   <BookmarkButton

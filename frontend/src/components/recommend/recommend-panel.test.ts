@@ -932,3 +932,54 @@ describe('조건 바 — 이름이 아직 없을 때', () => {
     ).toBe('강남구')
   })
 })
+
+describe('RecommendPanel — 비교하기', () => {
+  it('비교 선택이 1개면 CTA 가 잠기고 무엇이 필요한지 말한다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      view: 'results',
+      compareSelection: ['3110008'],
+    })
+
+    const cta =
+      markup.match(
+        /<a[^>]*data-testid="recommend-compare-cta"[^>]*>|<button[^>]*data-testid="recommend-compare-cta"[^>]*>/,
+      )?.[0] ?? ''
+
+    expect(markup).toContain('비교할 상권을 2개 이상 골라 주세요')
+    expect(cta).toContain('aria-describedby="recommend-compare-gap"')
+    expect(markup).toContain('id="recommend-compare-gap"')
+  })
+
+  it('비교 선택이 2개면 비교 화면 링크를 만든다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      view: 'results',
+      compareSelection: ['3110008', '3110958'],
+    })
+
+    const cta =
+      markup.match(/<a[^>]*data-testid="recommend-compare-cta"[^>]*>/)?.[0] ??
+      ''
+
+    expect(cta).toContain('href="/recommend/compare?')
+    expect(cta).toContain('districtCode=11680')
+    expect(cta).toContain('administrationCode=11680101')
+    expect(cta).toContain('serviceCode=CS100010')
+    expect(cta).toContain('commercialCodes=3110008%2C3110958')
+    expect(markup).toContain('비교하기 (2/4)')
+  })
+
+  it('4개를 채우면 더 고를 수 없다고 말한다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      view: 'results',
+      compareSelection: ['1', '2', '3', '4'],
+    })
+
+    expect(markup).toContain('한 번에 4개까지 비교할 수 있어요')
+  })
+})

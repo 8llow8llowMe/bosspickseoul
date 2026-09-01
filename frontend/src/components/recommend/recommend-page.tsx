@@ -42,6 +42,7 @@ import {
   filterAreasByCodes,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
+import { COMPARE_MAX_COMMERCIALS } from '@/lib/recommend/compare-url'
 import {
   recommendCommercialsKey,
   recommendProfileKey,
@@ -783,6 +784,11 @@ function RecommendPageBody() {
   const [previewedCommercialCode, setPreviewedCommercialCode] = useState<
     string | null
   >(null)
+  /**
+   * 비교 담기 선택. 화면 안 일시 상태다 — **URL 에 넣지 않는다.** 추천 결과를
+   * 공유한 링크가 받는 사람의 체크 상태까지 옮길 이유가 없다.
+   */
+  const [compareSelection, setCompareSelection] = useState<string[]>([])
   const desktopResultHeadingRef = useRef<HTMLHeadingElement>(null)
   const mobileResultHeadingRef = useRef<HTMLHeadingElement>(null)
   const handledResultRef = useRef('')
@@ -1357,6 +1363,23 @@ function RecommendPageBody() {
     },
     [],
   )
+  const handleCompareToggle = useCallback((commercialCode: string) => {
+    setCompareSelection(current =>
+      current.includes(commercialCode)
+        ? current.filter(code => code !== commercialCode)
+        : current.length >= COMPARE_MAX_COMMERCIALS
+          ? current
+          : [...current, commercialCode],
+    )
+  }, [])
+  /**
+   * 조건을 바꿔 추천을 다시 받으면 선택을 비운다 — 다른 행정동의 상권이
+   * 섞이면 비교가 성립하지 않는다.
+   */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCompareSelection([])
+  }, [state.submitted?.requestKey])
   const handleBookmarkToggle = useCallback(
     (commercialCode: string, commercialName: string) => {
       handleRecommendationBookmarkToggle({
@@ -1670,6 +1693,8 @@ function RecommendPageBody() {
       onResultSelect: handleResultSelect,
       onResultPreviewChange: handleResultPreviewChange,
       onBookmarkToggle: handleBookmarkToggle,
+      compareSelection,
+      onCompareToggle: handleCompareToggle,
       onRetry: retryRecommendation,
       onRetryAdministrations: retryAdministrations,
       onRetryCandidates: retryCandidates,
@@ -1682,7 +1707,9 @@ function RecommendPageBody() {
       bookmarksQuery.errorMessage,
       candidatesError,
       commercials.length,
+      compareSelection,
       handleBookmarkToggle,
+      handleCompareToggle,
       handleEdit,
       handleResultPreviewChange,
       handleResultSelect,
