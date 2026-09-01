@@ -6,20 +6,20 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.model.
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunitySearchPostCriteria;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.LikedCommunityPost;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Slice;
 
 public interface CommunityPostRepositoryPort {
 
-    Slice<CommunityPost> getBoardPosts(CommunityBoardPostCriteria criteria);
+    SliceQueryResult<CommunityPost> getBoardPosts(CommunityBoardPostCriteria criteria);
 
-    Slice<CommunityPost> getFeedPosts(CommunityFeedCriteria criteria);
+    SliceQueryResult<CommunityPost> getFeedPosts(CommunityFeedCriteria criteria);
 
-    Slice<LikedCommunityPost> getLikedPosts(CommunityLikedPostCriteria criteria);
+    SliceQueryResult<LikedCommunityPost> getLikedPosts(CommunityLikedPostCriteria criteria);
 
-    Slice<CommunityPost> searchPosts(CommunitySearchPostCriteria criteria);
+    SliceQueryResult<CommunityPost> searchPosts(CommunitySearchPostCriteria criteria);
 
     Optional<CommunityPost> findById(long postId);
 

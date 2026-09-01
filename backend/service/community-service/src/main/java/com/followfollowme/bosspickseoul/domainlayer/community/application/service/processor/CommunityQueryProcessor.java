@@ -21,7 +21,7 @@ import com.followfollowme.bosspickseoul.common.enums.OrderType;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Slice;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -40,7 +40,7 @@ public class CommunityQueryProcessor {
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
     }
 
-    public Slice<CommunityPost> getBoardPosts(
+    public SliceQueryResult<CommunityPost> getBoardPosts(
         String targetType, String targetCode,
         CommunitySortType sortType, OrderType orderType,
         long lastPostId, long lastLikeCount, int size
@@ -88,7 +88,7 @@ public class CommunityQueryProcessor {
         return comment;
     }
 
-    public Slice<CommunityPost> getFeed(
+    public SliceQueryResult<CommunityPost> getFeed(
         CommunitySortType sortType, OrderType orderType,
         String targetType, String targetCode,
         long lastPostId, long lastLikeCount, int size
@@ -116,7 +116,7 @@ public class CommunityQueryProcessor {
         return communityPostRepositoryPort.getFeedPosts(criteria);
     }
 
-    public Slice<LikedCommunityPost> getLikedPosts(
+    public SliceQueryResult<LikedCommunityPost> getLikedPosts(
         long memberId,
         CommunitySortType sortType, OrderType orderType,
         long lastPostId, long lastLikeCount, int size
@@ -133,7 +133,7 @@ public class CommunityQueryProcessor {
         return communityPostRepositoryPort.getLikedPosts(criteria);
     }
 
-    public Slice<CommunityPost> searchPosts(
+    public SliceQueryResult<CommunityPost> searchPosts(
         String keyword,
         CommunitySortType sortType, OrderType orderType,
         long lastPostId, long lastLikeCount, int size

@@ -15,12 +15,13 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.Commu
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPostImage;
 import com.followfollowme.bosspickseoul.storage.client.ObjectStorageClient;
 import java.util.List;
+import java.util.function.Function;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.LikedCommunityPost;
 import com.followfollowme.bosspickseoul.persistence.dto.SliceResponse;
-import org.springframework.data.domain.Slice;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -32,7 +33,7 @@ public class CommunityPostPresenter {
     private static final int PREVIEW_CONTENT_LENGTH = 120;
 
     public CommunityPostListResponse toPostListResponse(
-        CommunityTargetMeta targetMeta, Slice<CommunityPost> posts, Map<Long, List<CommunityPostImage>> imagesByPostId
+        CommunityTargetMeta targetMeta, SliceQueryResult<CommunityPost> posts, Map<Long, List<CommunityPostImage>> imagesByPostId
     ) {
         CommunityBoardTargetItem board = (targetMeta != null)
             ? CommunityBoardTargetItem.builder()
@@ -44,13 +45,13 @@ public class CommunityPostPresenter {
 
         return CommunityPostListResponse.builder()
             .board(board)
-            .posts(SliceResponse.of(posts.map(post -> toPostSummaryItem(post, imagesByPostId))))
+            .posts(toSliceResponse(posts, post -> toPostSummaryItem(post, imagesByPostId)))
             .build();
     }
 
-    public CommunityLikedPostsResponse toLikedPostsResponse(Slice<LikedCommunityPost> posts) {
+    public CommunityLikedPostsResponse toLikedPostsResponse(SliceQueryResult<LikedCommunityPost> posts) {
         return CommunityLikedPostsResponse.builder()
-            .posts(SliceResponse.of(posts.map(this::toLikedPostItem)))
+            .posts(toSliceResponse(posts, this::toLikedPostItem))
             .build();
     }
 
@@ -154,5 +155,10 @@ public class CommunityPostPresenter {
             return null;
         }
         return objectStorageClient.toPublicUrl(images.get(0).imageKey());
+    }
+
+    /** 커서 조회 결과를 응답 형태로 옮긴다. hasNext 는 그대로 넘겨 무한스크롤 종료 조건을 유지한다. */
+    private <S, T> SliceResponse<T> toSliceResponse(SliceQueryResult<S> slice, Function<S, T> mapper) {
+        return new SliceResponse<>(slice.content().stream().map(mapper).toList(), slice.hasNext());
     }
 }

@@ -14,7 +14,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Slice;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -25,8 +25,8 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
     private final CommunityMapper communityMapper;
 
     @Override
-    public Slice<CommunityPost> getBoardPosts(CommunityBoardPostCriteria criteria) {
-        return communityPostRepository.findBoardPostsNoOffset(
+    public SliceQueryResult<CommunityPost> getBoardPosts(CommunityBoardPostCriteria criteria) {
+        return toSliceQueryResult(communityPostRepository.findBoardPostsNoOffset(
             criteria.targetType(),
             criteria.targetCode(),
             CommunityPostStatus.ACTIVE,
@@ -36,12 +36,12 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
             criteria.lastLikeCount(),
             criteria.size(),
             criteria.popularSince()
-        ).map(communityMapper::toDomainFromEntity);
+        ).map(communityMapper::toDomainFromEntity));
     }
 
     @Override
-    public Slice<CommunityPost> getFeedPosts(CommunityFeedCriteria criteria) {
-        return communityPostRepository.findFeedPostsNoOffset(
+    public SliceQueryResult<CommunityPost> getFeedPosts(CommunityFeedCriteria criteria) {
+        return toSliceQueryResult(communityPostRepository.findFeedPostsNoOffset(
             CommunityPostStatus.ACTIVE,
             criteria.sortType(),
             criteria.orderType(),
@@ -51,12 +51,12 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
             criteria.lastLikeCount(),
             criteria.size(),
             criteria.popularSince()
-        ).map(communityMapper::toDomainFromEntity);
+        ).map(communityMapper::toDomainFromEntity));
     }
 
     @Override
-    public Slice<LikedCommunityPost> getLikedPosts(CommunityLikedPostCriteria criteria) {
-        return communityPostRepository.findLikedPostsNoOffset(
+    public SliceQueryResult<LikedCommunityPost> getLikedPosts(CommunityLikedPostCriteria criteria) {
+        return toSliceQueryResult(communityPostRepository.findLikedPostsNoOffset(
             criteria.memberId(),
             CommunityPostStatus.ACTIVE,
             criteria.sortType(),
@@ -65,12 +65,12 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
             criteria.lastLikeCount(),
             criteria.size(),
             criteria.popularSince()
-        ).map(entity -> new LikedCommunityPost(communityMapper.toDomainFromEntity(entity), null));
+        ).map(entity -> new LikedCommunityPost(communityMapper.toDomainFromEntity(entity), null)));
     }
 
     @Override
-    public Slice<CommunityPost> searchPosts(CommunitySearchPostCriteria criteria) {
-        return communityPostRepository.findSearchPostsNoOffset(
+    public SliceQueryResult<CommunityPost> searchPosts(CommunitySearchPostCriteria criteria) {
+        return toSliceQueryResult(communityPostRepository.findSearchPostsNoOffset(
             criteria.keyword(),
             CommunityPostStatus.ACTIVE,
             criteria.sortType(),
@@ -79,7 +79,7 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
             criteria.lastLikeCount(),
             criteria.size(),
             criteria.popularSince()
-        ).map(communityMapper::toDomainFromEntity);
+        ).map(communityMapper::toDomainFromEntity));
     }
 
     @Override
@@ -102,5 +102,10 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
         return communityMapper.toDomainFromEntity(
             communityPostRepository.save(communityMapper.toEntityFromDomain(post))
         );
+    }
+
+    /** Spring Data 의 Slice 를 포트 계약(SliceQueryResult)으로 바꾼다 — 프레임워크 타입은 여기서 멈춘다. */
+    private <T> SliceQueryResult<T> toSliceQueryResult(org.springframework.data.domain.Slice<T> slice) {
+        return SliceQueryResult.of(slice.getContent(), slice.hasNext());
     }
 }
