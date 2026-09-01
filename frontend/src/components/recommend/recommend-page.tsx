@@ -42,6 +42,11 @@ import {
   filterAreasByCodes,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
+import {
+  recommendCommercialsKey,
+  recommendProfileKey,
+  recommendResultsKey,
+} from '@/lib/recommend/recommend-query-keys'
 import { resolveRecommendSheetHeadline } from '@/lib/recommend/sheet-headline'
 import {
   createInitialRecommendationState,
@@ -913,13 +918,10 @@ function RecommendPageBody() {
   )
 
   const commercialsQuery = useQuery({
-    queryKey: [
-      'recommend',
-      'regions',
-      'commercials',
+    queryKey: recommendCommercialsKey(
       state.draft.district?.code,
       state.draft.administration?.code,
-    ],
+    ),
     queryFn: () =>
       fetchCommercials(
         state.draft.district!.code,
@@ -958,15 +960,13 @@ function RecommendPageBody() {
   )
 
   const recommendationQuery = useQuery({
-    queryKey: [
-      'recommend',
-      'results',
-      state.submitted?.district.code,
-      state.submitted?.administration.code,
-      state.submitted?.service.code,
-      RECOMMENDATION_PERIOD_CODE,
-      state.submitted?.commercialCodesKey,
-    ],
+    queryKey: recommendResultsKey({
+      districtCode: state.submitted?.district.code,
+      administrationCode: state.submitted?.administration.code,
+      serviceCode: state.submitted?.service.code,
+      periodCode: RECOMMENDATION_PERIOD_CODE,
+      commercialCodesKey: state.submitted?.commercialCodesKey,
+    }),
     queryFn: () =>
       fetchCommercialRecommendations({
         serviceCode: state.submitted!.service.code,
@@ -1007,13 +1007,11 @@ function RecommendPageBody() {
 
   const profiles = useQueries({
     queries: results.map(result => ({
-      queryKey: [
-        'recommend',
-        'profile',
+      queryKey: recommendProfileKey(
         result.commercialCode,
         state.submitted?.service.code,
         RECOMMENDATION_PERIOD_CODE,
-      ],
+      ),
       queryFn: () =>
         fetchCommercialProfile(
           result.commercialCode,
