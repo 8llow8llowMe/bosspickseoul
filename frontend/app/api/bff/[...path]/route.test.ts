@@ -60,6 +60,40 @@ describe('BFF proxy /api/bff/[...path]', () => {
     expect(url).toBe('http://backend:8080/api/v1/members/me')
   })
 
+  /**
+   * 프로필 이미지(A3)와 게시글 이미지(A4)가 이 경로로 multipart 를 보낸다.
+   *
+   * 두 가지가 함께 지켜져야 한다. ① `content-type` 이 **boundary 까지 그대로** 넘어갈
+   * 것 — 홉바이홉 목록에 넣어 지워 버리면 백엔드가 본문을 파싱하지 못한다. ② 본문이
+   * **바이트 그대로** 넘어갈 것 — 여기서 다시 인코딩하면 boundary 와 어긋난다.
+   * 전용 라우트를 만들지 않고 이 프록시에 기대는 근거가 이 단언이다.
+   */
+  it('forwards multipart bodies byte-for-byte with the boundary intact', async () => {
+    getSession.mockResolvedValue(session1)
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{}', { status: 200 }))
+    global.fetch = fetchMock
+    const { POST } = await import('./route')
+
+    const form = new FormData()
+    form.append('imageFile', new File(['abc'], 'a.png', { type: 'image/png' }))
+    const req = new Request('http://x/api/bff/members/me/profile-image', {
+      method: 'POST',
+      body: form,
+    })
+    const sentBytes = await req.clone().arrayBuffer()
+    const sentType = req.headers.get('content-type')
+
+    await POST(req, ctx(['members', 'me', 'profile-image']))
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('http://backend:8080/api/v1/members/me/profile-image')
+    expect(init.headers.get('content-type')).toBe(sentType)
+    expect(sentType).toContain('boundary=')
+    expect(new Uint8Array(init.body)).toEqual(new Uint8Array(sentBytes))
+  })
+
   it('injects the session Bearer token and drops any inbound client Authorization header', async () => {
     getSession.mockResolvedValue(session1)
     const fetchMock = vi
