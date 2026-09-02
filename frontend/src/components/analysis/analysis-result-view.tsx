@@ -49,6 +49,7 @@ import {
   normalizeSharePayload,
 } from '@/lib/share/payload'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
+import AnalysisPolicyList from '@/components/analysis/analysis-policy-list'
 import { fetchCommercialProfile } from '@/lib/api/recommend'
 import {
   toGenderSegments,
@@ -954,6 +955,8 @@ export default function AnalysisResultView({
   })
 
   const profile = getResponseBody(profileQuery.data) as CommercialProfile | null
+  /* 응답이 필드를 안 주는 경우(구버전 배포)도 빈 목록으로 다룬다. */
+  const policyRecommendations = profile?.policyRecommendations ?? []
   const services = getResponseBody(servicesQuery.data) as
     | CommercialServiceCategory[]
     | null
@@ -1540,6 +1543,32 @@ export default function AnalysisResultView({
                       unit: '개',
                     },
                   ])}
+                </AnalysisResultSection>
+              </FullSpanItem>
+
+              {/*
+                지원 정책은 **새 호출 없이** 그린다 — 이미 도는 `profileQuery` 의
+                `policyRecommendations` 를 읽는다. 백엔드가 진작 내려주고 있었는데
+                타입에 없어서 버리고 있던 값이다.
+
+                여덟 번째 탭을 만들지 않은 이유: 최대 5건이고, 정책 데이터가 없는
+                환경에서는 탭 자체가 빈 화면이 된다. 요약의 실행 가능한 마무리로 둔다.
+              */}
+              <FullSpanItem>
+                <AnalysisResultSection
+                  title="받을 수 있는 지원"
+                  description="이 상권의 자치구와 업종으로 신청 가능한 지원 정책이에요. 지역 제한이 없는 전국 정책도 함께 나와요."
+                  loading={profileQuery.isPending}
+                  error={resolveApiError(profileQuery)}
+                  empty={policyRecommendations.length === 0}
+                  emptyDescription="이 조건에서 안내할 지원 정책이 없어요."
+                  onRetry={() => void profileQuery.refetch()}
+                >
+                  <AnalysisPolicyList
+                    policies={policyRecommendations}
+                    districtCode={profile?.districtCode ?? null}
+                    districtName={profile?.districtName ?? null}
+                  />
                 </AnalysisResultSection>
               </FullSpanItem>
             </DashboardGrid>

@@ -1,3 +1,4 @@
+import type { PolicyItem } from '@/types/policy'
 import type { ApiResponse } from '@/types/api'
 
 export type CoordinateTuple = readonly [lng: number, lat: number]
@@ -133,6 +134,14 @@ export type CommercialProfile = {
     monthlyAverageIncomeAmount?: number | null
     totalFacilityCount?: number | null
   } | null
+  /**
+   * 이 상권의 자치구·업종으로 매칭된 지원 정책 상위 5건.
+   *
+   * ⚠️ **api-docs 에 없는 필드다.** 이 엔드포인트는 백엔드에서 `@Hidden` 이라
+   * OpenAPI 스냅샷에 나타나지 않아 계약 대조로 잡히지 않는다 — 응답 실측으로 적었다.
+   * 백엔드가 이미 내려주고 있었는데 이 타입에 없어서 FE 가 통째로 버리고 있었다.
+   */
+  policyRecommendations?: PolicyItem[] | null
 }
 
 export type MapAreasBody = { areas: AreaBoundaryItem[] }
