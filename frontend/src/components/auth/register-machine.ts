@@ -1,9 +1,13 @@
+import { PASSWORD_PATTERN } from '@/lib/auth/password-rules'
+
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// 백엔드 비밀번호 제약과 정확히 동일(register.md D4-3):
-export const PASSWORD_PATTERN = new RegExp(
-  String.raw`^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()\-_=+\[\]{};:'",.<>/?\\|])\S{8,20}$`,
-)
+/**
+ * 비밀번호 규칙은 `@/lib/auth/password-rules` 가 정본이다. 여기서는 기존 import 경로를
+ * 깨지 않으려고 다시 내보내기만 한다 — **재정의하지 말 것.** 프로필의 비밀번호 변경·
+ * 최초 설정 화면이 같은 상수를 쓴다.
+ */
+export { PASSWORD_PATTERN }
 export const NAME_MAX_LENGTH = 10
 export const NICKNAME_MAX_LENGTH = 10
 

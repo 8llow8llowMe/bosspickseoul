@@ -22,6 +22,21 @@ export type MemberInfo = {
     name: string
     description: string
   }
+  /**
+   * 소셜 로그인 제공자(`KAKAO` 등). **일반 계정이면 `null`.**
+   *
+   * `hasPassword` 와 조합해 계정 상태를 가른다 —
+   * `true+null`=일반, `false+소셜`=소셜 전용, `true+소셜`=연결됨.
+   * (`src/lib/auth/member-password-state.ts` 가 그 판정을 한다.)
+   *
+   * ⚠️ 두 필드는 예전부터 서버 응답에 있었고 `app/api/auth/me/route.ts` 가
+   * `dataBody` 를 통째로 넘겨 이미 클라이언트에 도착해 있었다. **이 타입에만
+   * 빠져 있었다** — 같은 종류의 누락이 `policyRecommendations`(#192),
+   * `commercialComparisonReport`(#188)에 이어 세 번째다.
+   */
+  provider: string | null
+  /** 비밀번호가 설정돼 있는가. 소셜로만 가입했으면 `false`. */
+  hasPassword: boolean
 }
 
 export type LoginResponseBody = {
