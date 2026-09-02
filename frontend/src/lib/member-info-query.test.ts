@@ -20,6 +20,9 @@ const member = (memberId: string): MemberInfo => ({
     name: '회원',
     description: '일반 회원',
   },
+  // 일반 계정(이메일+비밀번호). 소셜 계정이면 `provider: 'KAKAO'` 가 온다.
+  provider: null,
+  hasPassword: true,
 })
 
 const success = (memberId: string) => ({
