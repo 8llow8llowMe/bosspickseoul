@@ -3,22 +3,33 @@ import type {
   AiReportLevel,
   AiReportSubmission,
   CommercialAiReport,
+  CommercialComparisonAiReport,
   RegionAiReport,
 } from '@/types/ai-report'
+
+/** 어떤 대상이든 완료 시 채워지는 리포트 하나. */
+export type AnyAiReport =
+  | CommercialAiReport
+  | CommercialComparisonAiReport
+  | RegionAiReport
 
 export const AI_REPORT_POLL_INTERVAL_MS = 3000
 export const AI_REPORT_POLL_TIMEOUT_MS = 90000
 
 type WithReports = Pick<
   AiReportJob,
-  'commercialReport' | 'districtReport' | 'administrationReport'
+  | 'commercialReport'
+  | 'commercialComparisonReport'
+  | 'districtReport'
+  | 'administrationReport'
 >
 
 const pickReport = (
   x: WithReports,
   level: AiReportLevel,
-): CommercialAiReport | RegionAiReport | null => {
+): AnyAiReport | null => {
   if (level === 'commercial') return x.commercialReport
+  if (level === 'comparison') return x.commercialComparisonReport
   if (level === 'district') return x.districtReport
   return x.administrationReport
 }
@@ -26,7 +37,7 @@ const pickReport = (
 export const reportFromSubmission = (
   submission: AiReportSubmission,
   level: AiReportLevel,
-): CommercialAiReport | RegionAiReport | null =>
+): AnyAiReport | null =>
   submission.submissionStatus.code === 'CACHED'
     ? pickReport(submission, level)
     : null
@@ -39,7 +50,7 @@ export const jobIdFromSubmission = (
 export const reportFromJob = (
   job: AiReportJob,
   level: AiReportLevel,
-): CommercialAiReport | RegionAiReport | null => pickReport(job, level)
+): AnyAiReport | null => pickReport(job, level)
 
 export type PollDecision =
   | { kind: 'poll'; intervalMs: number }

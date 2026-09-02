@@ -31,6 +31,7 @@ import {
 } from '@/lib/recommend/recommend-url'
 
 import RecommendCompareTable from './recommend-compare-table'
+import RecommendComparisonAiPanel from './recommend-comparison-ai-panel'
 import RecommendComparisonVerdict from './recommend-comparison-verdict'
 
 /**
@@ -112,6 +113,12 @@ export default function RecommendComparePage() {
   const backHref = recommendHref.includes('?')
     ? `${recommendHref}&${RECOMMEND_URL_PARAMS.view}=${RESULTS_VIEW}`
     : recommendHref
+
+  /*
+   * 로그인 후 **이 비교 화면으로** 돌아와야 한다. `searchParams` 를 그대로 이어 붙여
+   * 고른 상권과 조건을 잃지 않는다 — `/recommend/compare` 만 넘기면 빈 화면으로 돌아온다.
+   */
+  const returnTo = `/recommend/compare?${searchParams.toString()}`
 
   const comparisonQuery = useQuery({
     queryKey: recommendComparisonKey({
@@ -224,6 +231,19 @@ export default function RecommendComparePage() {
           leftName={body?.left?.commercialName ?? null}
           rightName={body?.right?.commercialName ?? null}
           verdict={verdict}
+        />
+      ) : null}
+
+      {/*
+        AI 리포트는 표 **위**가 아니라 리포트 바로 다음에 둔다 — 판단끼리 모아 두고
+        값(표)은 그 아래에 그대로 남긴다. 비로그인에게도 자리는 보인다(제출만 잠긴다).
+      */}
+      {!error && isComplete ? (
+        <RecommendComparisonAiPanel
+          leftCommercialCode={leftCommercialCode!}
+          rightCommercialCode={rightCommercialCode!}
+          serviceCode={state.serviceCode!}
+          returnTo={returnTo}
         />
       ) : null}
 

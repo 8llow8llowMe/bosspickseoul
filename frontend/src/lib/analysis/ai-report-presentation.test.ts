@@ -4,10 +4,12 @@ import {
   buildAiLevelKey,
   isAiReportActive,
   isCommercialReportEmpty,
+  isComparisonReportEmpty,
   resolveAiReportLevel,
   resolveAiReportTargetCode,
   resolveAiReportVisibility,
   toCommercialReportView,
+  toComparisonReportView,
   toRegionReportView,
 } from '@/lib/analysis/ai-report-presentation'
 import { createEmptyAnalysisSelection } from '@/lib/analysis/selection'
@@ -239,5 +241,73 @@ describe('resolveAiReportVisibility', () => {
         panelOpen: false,
       }),
     ).toEqual({ showCard: false, showLockCard: false, showPanel: false })
+  })
+})
+
+describe('상권 비교 AI 리포트 뷰', () => {
+  const report = {
+    summary: ' 두 상권 모두 점심 수요가 강해요. ',
+    recommendedSide: '역삼역',
+    // 빈 문자열·공백은 걸러진다. (null 방어는 공용 `toList` 몫이라 타입에는 없다)
+    recommendedReasons: ['유동인구가 꾸준해요', '  ', ''],
+    riskComparison: '선릉역은 폐업률이 높아요',
+    timeSlotInsight: '',
+    customerSegmentInsight: null,
+    operationStrategy: ['점심 세트를 준비하세요'],
+    businessInsight: '카페라면 역삼역이 유리해요',
+    generatedAt: '2026-09-02T00:00:00Z',
+  }
+
+  it('요약·추천측·이유를 다듬어 세운다', () => {
+    const view = toComparisonReportView(report)
+
+    expect(view.headline.summary).toBe('두 상권 모두 점심 수요가 강해요.')
+    expect(view.headline.insight).toBe('카페라면 역삼역이 유리해요')
+    expect(view.recommendedSide).toBe('역삼역')
+    // 공백만 있는 항목은 걸러진다.
+    expect(view.reasons).toEqual(['유동인구가 꾸준해요'])
+  })
+
+  /** 빈 인사이트가 제목만 남은 자리를 만들지 않아야 한다. */
+  it('내용이 없는 블록은 아예 세우지 않는다', () => {
+    const view = toComparisonReportView(report)
+    const titles = view.blocks.map(block => block.title)
+
+    expect(titles).toContain('위험 비교')
+    expect(titles).toContain('운영 전략')
+    expect(titles).not.toContain('시간대 인사이트')
+    expect(titles).not.toContain('고객층 인사이트')
+  })
+
+  it('전부 비면 empty 로 판정한다', () => {
+    const view = toComparisonReportView({
+      summary: null,
+      recommendedSide: null,
+      recommendedReasons: null,
+      riskComparison: null,
+      timeSlotInsight: null,
+      customerSegmentInsight: null,
+      operationStrategy: null,
+      businessInsight: null,
+      generatedAt: null,
+    })
+
+    expect(isComparisonReportEmpty(view)).toBe(true)
+  })
+
+  it('추천측 하나만 있어도 비어 있지 않다', () => {
+    const view = toComparisonReportView({
+      summary: null,
+      recommendedSide: '역삼역',
+      recommendedReasons: null,
+      riskComparison: null,
+      timeSlotInsight: null,
+      customerSegmentInsight: null,
+      operationStrategy: null,
+      businessInsight: null,
+      generatedAt: null,
+    })
+
+    expect(isComparisonReportEmpty(view)).toBe(false)
   })
 })

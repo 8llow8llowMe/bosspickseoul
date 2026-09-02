@@ -1,4 +1,5 @@
 import { formatAnalysisValue } from '@/lib/analysis/presentation'
+import type { CodeNameDescriptionMetadata } from '@/types/recommend'
 import {
   COMPARISON_METRIC_GROUPS,
   COMPARISON_METRIC_GROUP_LABELS,
@@ -111,6 +112,24 @@ const readText = (value: string | null | undefined): string | null =>
   typeof value === 'string' && value.trim() ? value.trim() : null
 
 /**
+ * 추천측을 **상권 이름**으로 바꾼다.
+ *
+ * 백엔드 `recommendedSide.name` 은 "우측 상권 우세" 같은 방향 라벨이라 그대로 적으면
+ * 사용자가 "우측이 어느 쪽이더라" 하고 표를 되짚어야 한다(실측에서 확인). `code`
+ * (LEFT/RIGHT)로 실제 이름을 찾아 준다. 이름을 모르면 방향 라벨로 물러난다.
+ */
+const resolveRecommendedName = (
+  side: CodeNameDescriptionMetadata,
+  leftName: string | null,
+  rightName: string | null,
+): string | null => {
+  if (!side) return null
+  if (side.code === 'LEFT' && leftName) return leftName
+  if (side.code === 'RIGHT' && rightName) return rightName
+  return readText(side.name)
+}
+
+/**
  * 리포트 영역이 쓸 **판단** 묶음. 표는 이걸 보지 않는다.
  *
  * `comparisonHighlights` 와 `highlights` 는 백엔드에 둘 다 있고 내용이 겹칠 수
@@ -123,7 +142,11 @@ export const toComparisonVerdict = (
   if (!body) return null
 
   const verdict: ComparisonVerdict = {
-    recommendedSideName: readText(body.recommendedSide?.name ?? null),
+    recommendedSideName: resolveRecommendedName(
+      body.recommendedSide,
+      body.left?.commercialName ?? null,
+      body.right?.commercialName ?? null,
+    ),
     summary: readText(body.comparisonSummary),
     businessFitSummary: readText(body.businessFitSummary),
     reasons: readList(body.recommendedReasons),

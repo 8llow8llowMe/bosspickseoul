@@ -13,13 +13,17 @@ import {
   submitDistrictAiReport,
   fetchAiReportJob,
 } from '@/lib/api/ai-report'
+import { submitCommercialComparisonAiReport } from '@/lib/api/commercial-comparison'
 import { subscribeJobStream } from '@/lib/analysis/ai-report-sse'
 import {
   toCommercialReportView,
+  toComparisonReportView,
   toRegionReportView,
   isCommercialReportEmpty,
+  isComparisonReportEmpty,
   isRegionReportEmpty,
   type CommercialReportView,
+  type ComparisonReportView,
   type RegionReportView,
 } from '@/lib/analysis/ai-report-presentation'
 import {
@@ -28,12 +32,14 @@ import {
   jobIdFromSubmission,
   reportFromJob,
   reportFromSubmission,
+  type AnyAiReport,
 } from '@/lib/analysis/ai-report-poll'
 import type {
   AiReportJob,
   AiReportLevel,
   AiReportSubmission,
   CommercialAiReport,
+  CommercialComparisonAiReport,
   RegionAiReport,
 } from '@/types/ai-report'
 
@@ -52,6 +58,7 @@ export type AiReportState =
       progressMessages: string[]
     }
   | { status: 'ready-commercial'; view: CommercialReportView }
+  | { status: 'ready-comparison'; view: ComparisonReportView }
   | { status: 'ready-region'; view: RegionReportView }
   | { status: 'empty' }
   | {
@@ -67,15 +74,28 @@ type UseAiReportArgs = {
   serviceCode: string | null
   active: boolean
   enabled: boolean
+  /**
+   * 비교(`level === 'comparison'`) 전용 **우측** 상권 코드. 그때 `code` 는 좌측이다.
+   * 다른 대상은 코드가 하나뿐이라 쓰지 않는다.
+   */
+  rightCode?: string | null
 }
 
 const submitFor = (
   level: AiReportLevel,
   code: string,
   serviceCode: string | null,
+  rightCode: string | null,
 ): Promise<AiReportSubmission> => {
   if (level === 'district') return submitDistrictAiReport(code)
   if (level === 'administration') return submitAdministrationAiReport(code)
+  if (level === 'comparison') {
+    return submitCommercialComparisonAiReport({
+      leftCommercialCode: code,
+      rightCommercialCode: rightCode!,
+      serviceCode: serviceCode!,
+    })
+  }
   return submitCommercialAiReport(code, serviceCode!)
 }
 
@@ -93,14 +113,19 @@ export const useAiReport = ({
   serviceCode,
   active,
   enabled,
+  rightCode = null,
 }: UseAiReportArgs): { state: AiReportState; retry: () => void } => {
   const queryClient = useQueryClient()
   const canCommercial = level === 'commercial' ? Boolean(serviceCode) : true
-  const on = enabled && active && Boolean(level && code) && canCommercial
+  // 비교는 **양쪽 코드와 업종이 다 있어야** 요청이 성립한다.
+  const canCompare =
+    level === 'comparison' ? Boolean(serviceCode && rightCode) : true
+  const on =
+    enabled && active && Boolean(level && code) && canCommercial && canCompare
 
   const submitQuery = useQuery({
-    queryKey: ['ai-report', 'submit', level, code, serviceCode],
-    queryFn: () => submitFor(level!, code!, serviceCode),
+    queryKey: ['ai-report', 'submit', level, code, rightCode, serviceCode],
+    queryFn: () => submitFor(level!, code!, serviceCode, rightCode),
     enabled: on,
     retry: 0,
     staleTime: 5 * 60 * 1000,
@@ -184,14 +209,14 @@ export const useAiReport = ({
   const retry = useCallback(() => {
     setAttempt(a => a + 1)
     void queryClient.invalidateQueries({
-      queryKey: ['ai-report', 'submit', level, code, serviceCode],
+      queryKey: ['ai-report', 'submit', level, code, rightCode, serviceCode],
     })
     if (jobId) {
       void queryClient.invalidateQueries({
         queryKey: ['ai-report', 'job', jobId],
       })
     }
-  }, [queryClient, level, code, serviceCode, jobId])
+  }, [queryClient, level, code, rightCode, serviceCode, jobId])
 
   const state = deriveState({
     on,
@@ -210,13 +235,19 @@ export const useAiReport = ({
 
 const buildReady = (
   level: AiReportLevel,
-  report: CommercialAiReport | RegionAiReport,
+  report: AnyAiReport,
 ): AiReportState => {
   if (level === 'commercial') {
     const view = toCommercialReportView(report as CommercialAiReport)
     return isCommercialReportEmpty(view)
       ? { status: 'empty' }
       : { status: 'ready-commercial', view }
+  }
+  if (level === 'comparison') {
+    const view = toComparisonReportView(report as CommercialComparisonAiReport)
+    return isComparisonReportEmpty(view)
+      ? { status: 'empty' }
+      : { status: 'ready-comparison', view }
   }
   const view = toRegionReportView(report as RegionAiReport)
   return isRegionReportEmpty(view)
@@ -239,7 +270,7 @@ const deriveState = (a: {
   jobQuery: UseQueryResult<AiReportJob>
   sseJob: AiReportJob | null
   pollingFallback: boolean
-  cachedReport: CommercialAiReport | RegionAiReport | null
+  cachedReport: AnyAiReport | null
   jobId: string | null
   pollElapsedMs: number
 }): AiReportState => {
