@@ -3,149 +3,147 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import RecommendCompareTable from '@/components/recommend/compare/recommend-compare-table'
-import type { CompareColumnInput } from '@/lib/recommend/compare-presentation'
-import type { CandidateCommercial, CommercialProfile } from '@/types/recommend'
+import { toComparisonGroups } from '@/lib/recommend/comparison-presentation'
+import type { CommercialComparisonBody } from '@/types/commercial-comparison'
 
-const candidate = (code: string, name: string): CandidateCommercial => ({
-  rank: 2,
-  commercialCode: code,
-  commercialName: name,
-  compositeScore: 84,
-  grade: null,
-  summaryLabel: null,
-  selectionReason: null,
-  opportunityLabel: null,
-  riskLabel: null,
-  reasonTags: [],
-  metricBreakdown: [
-    {
-      metricType: {
-        code: 'RISK_SCORE',
-        name: '위험도',
-        description: '',
-        scoreDescription: '',
-      },
-      score: 95,
-      grade: null,
-      summaryLabel: null,
-    },
-  ],
-})
+const emptyGroups = {
+  salesMetrics: null,
+  footTrafficMetrics: null,
+  storeMetrics: null,
+  spendingMetrics: null,
+  residentPopulationMetrics: null,
+  facilityMetrics: null,
+  salesTimeSlotMetrics: null,
+  salesAgeMetrics: null,
+  salesAgeGenderMetrics: null,
+  footTrafficTimeSlotMetrics: null,
+  footTrafficAgeMetrics: null,
+  footTrafficAgeGenderMetrics: null,
+}
 
-const profile = (code: string, name: string): CommercialProfile => ({
-  commercialCode: code,
-  commercialName: name,
-  districtCode: '11680',
-  districtName: '강남구',
-  administrationCode: '11680640',
-  administrationName: '역삼1동',
-  centerLng: 127,
-  centerLat: 37.5,
-  boundaryCoords: [],
-  keyMetrics: {
-    totalSalesAmount: 84_520_000,
-    totalFootTraffic: 1000,
-    totalStoreCount: 30,
-    similarStoreCount: 5,
-    openingRate: 2.1,
-    closureRate: 1.2,
-    totalResidentPopulation: 500,
-    monthlyAverageIncomeAmount: 3_000_000,
-    totalFacilityCount: 12,
-  },
-})
+const body = (
+  overrides: Partial<CommercialComparisonBody> = {},
+): CommercialComparisonBody =>
+  ({
+    left: null,
+    right: null,
+    comparisonSummary: null,
+    recommendedSide: null,
+    recommendedReasons: null,
+    cautionPoints: null,
+    businessFitSummary: null,
+    dominantTimeSlots: null,
+    dominantAgeGroups: null,
+    comparisonHighlights: null,
+    highlights: null,
+    ...emptyGroups,
+    ...overrides,
+  }) as CommercialComparisonBody
 
-const columns: CompareColumnInput[] = [
-  {
-    commercialCode: '3120197',
-    candidate: candidate('3120197', '역삼역'),
-    profile: profile('3120197', '역삼역'),
-  },
-  {
-    commercialCode: '3110958',
-    candidate: candidate('3110958', '역삼역 4번'),
-    profile: profile('3110958', '역삼역 4번'),
-  },
-]
-
-const render = (
-  props: Partial<Parameters<typeof RecommendCompareTable>[0]> = {},
-) =>
+const render = (overrides: Partial<CommercialComparisonBody> = {}) =>
   renderToStaticMarkup(
     createElement(RecommendCompareTable, {
-      columns,
-      districtCode: '11680',
-      administrationCode: '11680640',
-      serviceCode: 'CS100010',
-      ...props,
+      groups: toComparisonGroups(body(overrides)),
+      leftName: '역삼역',
+      rightName: '선릉역',
     }),
   )
 
 describe('RecommendCompareTable', () => {
-  it('상권 이름과 순위를 열 머리에 적는다', () => {
-    const markup = render()
-
-    expect(markup).toContain('역삼역')
-    expect(markup).toContain('역삼역 4번')
-    expect(markup).toContain('2위')
-  })
-
-  it('중립 문구를 항상 그린다', () => {
-    expect(render()).toContain('어느 상권이 더 나은지는 업종과 계획에 따라')
-  })
-
-  it('열마다 상권 분석 결과로 가는 링크를 만든다', () => {
-    const markup = render()
-    const links = markup.match(/<a[^>]*data-analysis-link="true"[^>]*>/g) ?? []
-
-    expect(links).toHaveLength(2)
-    expect(links[0]).toContain('href="/analysis/result?')
-    expect(links[0]).toContain('commercialCode=3120197')
-    expect(links[0]).toContain('serviceCode=CS100010')
-    expect(links[1]).toContain('commercialCode=3110958')
-  })
-
-  it('원지표 행에는 품질 색을 쓰지 않는다', () => {
-    // 방향이 정의되지 않은 지표를 색으로 판단하면 화면이 조용히 반대로 말한다.
-    const markup = render()
-    const metricSection = markup.split('data-compare-metrics="true"')[1] ?? ''
-
-    expect(metricSection).not.toContain('--score-high')
-    expect(metricSection).not.toContain('--score-low')
-    expect(metricSection).not.toContain('--score-mid')
-  })
-
-  it('블록 머리 칸은 열이 아니라 행 그룹을 머리한다', () => {
-    // 전체 폭 th 가 자기 tbody 의 뒤따르는 행들을 머리하므로 rowgroup 이다.
-    // colgroup 이면 보조기술이 축을 반대로 읽는다.
-    const markup = render()
-
-    // 점수 블록과 원지표 블록, 두 개다.
-    expect(markup.match(/scope="rowgroup"/g)).toHaveLength(2)
-    expect(markup).not.toContain('scope="colgroup"')
-  })
-
-  it('점수 행에는 품질 색을 쓴다', () => {
-    const markup = render()
-    const scoreSection = markup.split('data-compare-scores="true"')[1] ?? ''
-
-    expect(scoreSection).toContain('--score-')
-  })
-
-  it('프로필을 못 불러온 열은 그 사실만 말하고 나머지 열은 남긴다', () => {
+  it('좌·우 값과 차이를 한 표에 적는다', () => {
     const markup = render({
-      columns: [
-        columns[0],
+      salesMetrics: [
         {
-          commercialCode: '3110958',
-          candidate: candidate('3110958', '역삼역 4번'),
-          profile: null,
+          label: '월 매출',
+          leftValue: 1000,
+          rightValue: 600,
+          diffValue: 400,
+          diffRate: 66.7,
+          winnerSide: null,
         },
       ],
-      failedProfileCodes: ['3110958'],
     })
 
-    expect(markup).toContain('지표를 불러오지 못했어요')
     expect(markup).toContain('역삼역')
+    expect(markup).toContain('선릉역')
+    expect(markup).toContain('월 매출')
+    expect(markup).toContain('매출') // 묶음 소제목
+    expect(markup).toContain('+400')
+  })
+
+  /**
+   * 이 표의 존재 이유에 가까운 계약이다. 응답에는 지표마다 `winnerSide` 가 있지만
+   * 표는 그것을 받지도, 그리지도 않는다 — 값 옆에 승패가 붙으면 사용자는 그것을
+   * "더 나은 선택" 으로 읽는다. 판단은 근거가 함께 나오는 리포트 영역이 말한다.
+   */
+  it('winnerSide 가 와도 표에 승패를 드러내지 않는다', () => {
+    const markup = render({
+      salesMetrics: [
+        {
+          label: '월 매출',
+          leftValue: 1000,
+          rightValue: 600,
+          diffValue: 400,
+          diffRate: 66.7,
+          winnerSide: { code: 'LEFT', name: '역삼역 우세', description: '' },
+        },
+      ],
+    })
+
+    expect(markup).not.toContain('우세')
+    expect(markup).not.toContain('승')
+  })
+
+  it('중립 안내를 항상 적는다', () => {
+    const markup = render({
+      storeMetrics: [
+        {
+          label: '점포 수',
+          leftValue: 12,
+          rightValue: 12,
+          diffValue: 0,
+          diffRate: 0,
+          winnerSide: null,
+        },
+      ],
+    })
+
+    expect(markup).toContain('어느 상권이 더 나은지는 업종과 계획에 따라')
+  })
+
+  it('값이 없으면 빈 칸 기호를 적는다', () => {
+    const markup = render({
+      facilityMetrics: [
+        {
+          label: '집객시설',
+          leftValue: null,
+          rightValue: null,
+          diffValue: null,
+          diffRate: null,
+          winnerSide: null,
+        },
+      ],
+    })
+
+    expect(markup).toContain('—')
+  })
+
+  it('행 머리는 scope="row", 묶음 소제목은 scope="rowgroup" 이다', () => {
+    const markup = render({
+      salesMetrics: [
+        {
+          label: '월 매출',
+          leftValue: 1,
+          rightValue: 2,
+          diffValue: -1,
+          diffRate: -50,
+          winnerSide: null,
+        },
+      ],
+    })
+
+    expect(markup).toContain('scope="row"')
+    expect(markup).toContain('scope="rowgroup"')
+    expect(markup).toContain('scope="col"')
   })
 })

@@ -56,3 +56,30 @@ export const recommendProfileKey = (
 export const createCommercialCodesKey = (
   codes: readonly (string | number)[],
 ): string => createStableCommercialCodes(codes).join(',')
+
+/**
+ * 상권 A/B 비교 (`GET /commercials/compare`).
+ *
+ * 좌·우를 **정렬하지 않는다.** 응답의 `diffValue` 가 좌 - 우이고 추천측도 방향을
+ * 가리키므로, 좌우를 바꾼 요청은 다른 화면이다 — 같은 키로 묶으면 뒤집힌 표가
+ * 캐시에서 그대로 나온다.
+ */
+export const recommendComparisonKey = ({
+  leftCommercialCode,
+  rightCommercialCode,
+  serviceCode,
+  periodCode,
+}: {
+  leftCommercialCode?: string | null
+  rightCommercialCode?: string | null
+  serviceCode?: string | null
+  periodCode: string
+}) =>
+  [
+    'recommend',
+    'comparison',
+    leftCommercialCode,
+    rightCommercialCode,
+    serviceCode,
+    periodCode,
+  ] as const

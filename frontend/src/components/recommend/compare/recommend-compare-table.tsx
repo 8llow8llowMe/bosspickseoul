@@ -1,32 +1,16 @@
 'use client'
 
-import Link from 'next/link'
-import { ArrowUpRight } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
-  ANALYSIS_PERIOD_CODE,
-  createAnalysisResultHref,
-} from '@/lib/analysis/selection'
-import {
-  COMPARE_EMPTY_CELL,
-  COMPARE_NEUTRAL_NOTICE,
-  toCompareMetricRows,
-  toCompareScoreRows,
-  type CompareColumnInput,
-} from '@/lib/recommend/compare-presentation'
-import {
-  getScoreQualityColor,
-  getScoreQualityLabel,
-} from '@/lib/recommend/metric-polarity'
+  COMPARISON_NEUTRAL_NOTICE,
+  type ComparisonGroup,
+} from '@/lib/recommend/comparison-presentation'
 
 export type RecommendCompareTableProps = {
-  columns: readonly CompareColumnInput[]
-  districtCode: string
-  administrationCode: string
-  serviceCode: string
-  /** 프로필을 못 받은 열. 그 열의 원지표 자리에만 사실을 적는다. */
-  failedProfileCodes?: readonly string[]
+  groups: readonly ComparisonGroup[]
+  leftName: string
+  rightName: string
 }
 
 const Root = styled.section`
@@ -36,9 +20,8 @@ const Root = styled.section`
 
 /*
  * 표가 넘칠 때 **페이지 본문이 아니라 이 컨테이너만** 가로로 구른다.
- * 스크롤 컨테이너는 **하나뿐**이다(명세 §5.5). 점수 블록과 원지표 블록을 각각
- * 다른 컨테이너에 넣으면 둘이 따로 구른다 — 3열의 점수를 보면서 1열의 원지표를
- * 보게 되고, 고정된 지표 이름 열은 그 어긋남을 알려 주지 않는다.
+ * 스크롤 컨테이너는 **하나뿐**이다(명세 §5.5). 묶음마다 컨테이너를 두면 서로 따로
+ * 굴러서, 매출 묶음의 우측 열을 보면서 시설 묶음의 좌측 열을 보게 된다.
  */
 const Scroller = styled.div`
   overflow-x: auto;
@@ -63,7 +46,7 @@ const stickyFirstColumn = `
 
 const RowHead = styled.th`
   ${stickyFirstColumn}
-  min-width: 132px;
+  min-width: 148px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--color-border-200);
   color: var(--color-text-700);
@@ -88,13 +71,6 @@ const ColumnHead = styled.th`
   vertical-align: top;
 `
 
-const Rank = styled.span`
-  display: block;
-  color: var(--color-text-caption);
-  font-size: 12px;
-  font-weight: 700;
-`
-
 const Name = styled.span`
   display: block;
   color: var(--color-text-900);
@@ -112,41 +88,13 @@ const Cell = styled.td`
   white-space: nowrap;
 `
 
-/*
- * 색은 styled-components 템플릿이 아니라 인라인 style 로 건다 — 이 저장소는
- * ServerStyleSheet 없이 renderToStaticMarkup 문자열만으로 테스트하므로(§ 전역 제약),
- * \`$color\` prop 으로 만든 CSS 규칙은 <style> 태그에만 있고 문자열 출력에는 없다.
- * \`score-gauge.tsx\` 도 같은 이유로 인라인 style 을 쓴다.
- */
-const ScoreValue = styled.span`
-  font-weight: 700;
-`
-
-/* 공유 컴포넌트가 아니다 — `recommend-result-list.tsx` 도 같은 것을 지역으로 두고 있다.
-   등급 문구는 눈으로는 색이 말하고, 보조기기에는 글자로 말해야 한다. */
-const VisuallyHidden = styled.span`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-`
-
-const HighestBadge = styled.span`
-  margin-left: 6px;
-  padding: 2px 6px;
-  border: 1px solid var(--color-border-300);
-  border-radius: var(--radius-control);
+/* 차이 열은 보조 정보다 — 값보다 약하게 적어 좌·우 비교를 방해하지 않는다. */
+const DiffCell = styled(Cell)`
   color: var(--color-text-600);
-  font-size: 11px;
-  font-weight: 700;
 `
 
 /*
- * 두 블록을 가르는 소제목 행. `<caption>` 은 표당 하나뿐이라 표를 하나로 합치면서
+ * 묶음을 가르는 소제목 행. `<caption>` 은 표당 하나뿐이라 표를 하나로 합치면서
  * 행으로 내렸다 — 열 너비를 한 표가 정하게 하려면 `<table>` 이 하나여야 한다.
  */
 const SectionHead = styled.th`
@@ -176,172 +124,67 @@ const Notice = styled.p`
   line-height: 20px;
 `
 
-const Links = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-`
-
-const AnalysisLink = styled(Link)`
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border-300);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text-900);
-  font-size: 13px;
-  font-weight: 700;
-
-  &:hover {
-    border-color: var(--color-primary-600);
-    color: var(--color-primary-700);
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-`
-
+/**
+ * 비교 지표 표. 좌·우 값과 차이만 적는다.
+ *
+ * 🔴 **승패를 칠하지 않는다.** 응답에는 지표마다 `winnerSide` 가 있지만 이 표는
+ * 그것을 받지 않는다(`ComparisonRow` 에 아예 없다). 색이 붙는 순간 사용자는 그것을
+ * "더 나은 선택"으로 읽는데, 어느 쪽이 맞는지는 업종과 계획에 달렸다. 추천측과
+ * 그 이유는 근거가 함께 나오는 리포트 영역이 말한다.
+ */
 export default function RecommendCompareTable({
-  columns,
-  districtCode,
-  administrationCode,
-  serviceCode,
-  failedProfileCodes = [],
+  groups,
+  leftName,
+  rightName,
 }: RecommendCompareTableProps) {
-  const scoreRows = toCompareScoreRows(columns)
-  const metricRows = toCompareMetricRows(columns)
-  const failed = new Set(failedProfileCodes)
-
-  const columnCount = columns.length + 1
-
-  /**
-   * `scope="rowgroup"` 이다. 이 칸은 열을 머리하지 않고, 자기 `tbody` 안에서
-   * 뒤따르는 행들을 머리한다 — 전체 폭 `th` 가 행 그룹을 머리하는 경우다.
-   * `colgroup` 을 쓰면 보조기술이 축을 반대로 읽는다.
-   */
-  const renderSectionHead = (caption: string) => (
-    <tr>
-      <SectionHead colSpan={columnCount} scope="rowgroup">
-        <SectionLabel>{caption}</SectionLabel>
-      </SectionHead>
-    </tr>
-  )
+  // 지표 이름 + 좌 + 우 + 차이.
+  const columnCount = 4
 
   return (
     <Root>
-      {/*
-       * 점수 블록과 원지표 블록은 **한 표**다(명세 §5.2). 표가 둘이면 열 너비를
-       * 각자 계산해 「84」 와 「8,452만원 가장 높음」 이 다른 폭을 만들고, 넘칠
-       * 때는 서로 다른 열까지 굴러간다. 한 열의 점수와 그 열의 원지표를 나란히
-       * 읽는 것이 이 화면의 전부라 그 어긋남은 화면의 목적을 지운다.
-       */}
+      <Notice>{COMPARISON_NEUTRAL_NOTICE}</Notice>
+
       <Scroller>
         <Table>
           <thead>
             <tr>
               <CornerHead scope="col">지표</CornerHead>
-              {columns.map(column => (
-                <ColumnHead key={column.commercialCode} scope="col">
-                  {typeof column.candidate?.rank === 'number' ? (
-                    <Rank>{column.candidate.rank}위</Rank>
-                  ) : null}
-                  <Name>
-                    {column.candidate?.commercialName ??
-                      column.profile?.commercialName ??
-                      `상권 ${column.commercialCode}`}
-                  </Name>
-                </ColumnHead>
-              ))}
+              <ColumnHead scope="col">
+                <Name>{leftName}</Name>
+              </ColumnHead>
+              <ColumnHead scope="col">
+                <Name>{rightName}</Name>
+              </ColumnHead>
+              <ColumnHead scope="col">
+                <Name>차이</Name>
+              </ColumnHead>
             </tr>
           </thead>
 
-          <tbody data-compare-scores="true">
-            {renderSectionHead(
-              '추천이 매긴 점수예요. 100점에 가까울수록 그 지표가 강해요.',
-            )}
-            {scoreRows.map(row => (
-              <tr key={row.key}>
-                <RowHead scope="row">{row.label}</RowHead>
-                {row.cells.map(cell => (
-                  <Cell key={`${row.key}-${cell.commercialCode}`}>
-                    {cell.score === null ? (
-                      COMPARE_EMPTY_CELL
-                    ) : (
-                      <ScoreValue
-                        style={{ color: getScoreQualityColor(cell.quality) }}
-                      >
-                        {cell.formatted}
-                        {getScoreQualityLabel(cell.quality) ? (
-                          <VisuallyHidden>
-                            {` ${getScoreQualityLabel(cell.quality)}`}
-                          </VisuallyHidden>
-                        ) : null}
-                      </ScoreValue>
-                    )}
-                  </Cell>
-                ))}
+          {groups.map(group => (
+            <tbody key={group.key}>
+              <tr>
+                {/*
+                  `scope="rowgroup"` 이다. 이 칸은 열을 머리하지 않고, 자기 `tbody`
+                  안에서 뒤따르는 행들을 머리한다 — 전체 폭 `th` 가 행 그룹을 머리하는
+                  경우다. `colgroup` 을 쓰면 보조기술이 축을 반대로 읽는다.
+                */}
+                <SectionHead colSpan={columnCount} scope="rowgroup">
+                  <SectionLabel>{group.label}</SectionLabel>
+                </SectionHead>
               </tr>
-            ))}
-          </tbody>
-
-          {/*
-           * 원지표 셀에는 `--score-*` 토큰이 **절대** 붙지 않는다. 이 9개 지표는
-           * `METRIC_POLARITY` 에 방향이 없어(점포가 많은 것이 활황인지 과열인지
-           * 제품이 답을 갖고 있지 않다) 색으로 답하는 척하면 화면이 조용히 반대로
-           * 말한다. `data-compare-metrics` 는 그 부재를 단언하는 테스트의 손잡이다.
-           */}
-          <tbody data-compare-metrics="true">
-            {renderSectionHead(
-              '값 그대로예요. 어느 쪽이 좋은지는 계획에 따라 달라져요.',
-            )}
-            {metricRows.map(row => (
-              <tr key={row.key}>
-                <RowHead scope="row">{row.label}</RowHead>
-                {row.cells.map(cell => (
-                  <Cell key={`${row.key}-${cell.commercialCode}`}>
-                    {failed.has(cell.commercialCode)
-                      ? '지표를 불러오지 못했어요'
-                      : cell.formatted}
-                    {cell.isHighest && !failed.has(cell.commercialCode) ? (
-                      <HighestBadge>가장 높음</HighestBadge>
-                    ) : null}
-                  </Cell>
-                ))}
-              </tr>
-            ))}
-          </tbody>
+              {group.rows.map(row => (
+                <tr key={row.key}>
+                  <RowHead scope="row">{row.label}</RowHead>
+                  <Cell>{row.left}</Cell>
+                  <Cell>{row.right}</Cell>
+                  <DiffCell>{row.diff}</DiffCell>
+                </tr>
+              ))}
+            </tbody>
+          ))}
         </Table>
       </Scroller>
-
-      <Notice>{COMPARE_NEUTRAL_NOTICE}</Notice>
-
-      <Links>
-        {columns.map(column => (
-          <AnalysisLink
-            key={column.commercialCode}
-            data-analysis-link="true"
-            href={createAnalysisResultHref(
-              {
-                districtCode,
-                administrationCode,
-                commercialCode: column.commercialCode,
-                serviceCode,
-                periodCode: ANALYSIS_PERIOD_CODE,
-              },
-              'summary',
-            )}
-          >
-            {column.candidate?.commercialName ?? column.commercialCode} 분석
-            보기
-            <ArrowUpRight aria-hidden="true" />
-          </AnalysisLink>
-        ))}
-      </Links>
     </Root>
   )
 }

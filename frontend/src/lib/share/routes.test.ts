@@ -64,12 +64,12 @@ describe('ROUTE_BUILDERS 라운드트립 (payload → URL → payload)', () => {
       districtCode: '11680',
       administrationCode: '11680510',
       serviceCode: 'CS100001',
-      commercialCodes: ['3110008', '3110012', '3110020'],
+      commercialCodes: ['3110008', '3110012'],
     })!
     const { href, parsed } = roundTrip('COMMERCIAL_COMPARISON', payload)
 
     expect(href).toBe(
-      '/recommend/compare?districtCode=11680&administrationCode=11680510&serviceCode=CS100001&commercialCodes=3110008%2C3110012%2C3110020',
+      '/recommend/compare?districtCode=11680&administrationCode=11680510&serviceCode=CS100001&commercialCodes=3110008%2C3110012',
     )
     expect(parsed).toEqual(payload)
   })
