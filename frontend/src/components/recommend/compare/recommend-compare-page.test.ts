@@ -303,4 +303,36 @@ describe('RecommendComparePage', () => {
 
     expect(markup).toContain('비교할 지표가 없어요')
   })
+
+  /*
+   * 비교를 읽은 다음의 출구다. 초안 본문은 URL 에 싣지 않고 **코드 네 개만** 넘긴다 —
+   * 글쓰기 화면이 그것으로 백엔드에 초안을 받는다(로그인 왕복을 통과해야 하므로).
+   */
+  it('비교 결과를 받으면 커뮤니티 글쓰기로 나가는 길을 준다', () => {
+    const markup = render(
+      `${BASE}&commercialCodes=3110008,3110012`,
+      body({
+        left: {
+          commercialCode: '3110008',
+          commercialName: '강남역 상권',
+          districtCode: '11680',
+          districtName: '강남구',
+          administrationCode: '11680640',
+          administrationName: '역삼1동',
+        },
+      } as Partial<CommercialComparisonBody>),
+    )
+
+    expect(markup).toContain(
+      'href="/community/register?draftSource=comparison&amp;' +
+        'leftCommercialCode=3110008&amp;rightCommercialCode=3110012&amp;' +
+        'serviceCode=CS100010&amp;administrationCode=11680640"',
+    )
+  })
+
+  it('비교 결과가 아직 없으면 글쓰기 길을 열지 않는다', () => {
+    const markup = render(`${BASE}&commercialCodes=3110008,3110012`)
+
+    expect(markup).not.toContain('draftSource=comparison')
+  })
 })

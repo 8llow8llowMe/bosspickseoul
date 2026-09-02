@@ -13,6 +13,8 @@ import {
   toggleCommunityPostLike,
   updateCommunityPost,
 } from '@/lib/api/community'
+import { createCommercialComparisonDraft } from '@/lib/api/community-drafts'
+import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
 import type {
   CommunityId,
   CommunityCommentCreateRequest,
@@ -27,6 +29,7 @@ import type {
   CommunityPostListResponse,
   CommunityPostUpdateRequest,
   CommunityReportCreateRequest,
+  CommunityComparisonDraftResponse,
   CommunitySearchParams,
   CommunityVoidResponse,
 } from '@/types/community'
@@ -65,6 +68,14 @@ export interface CommunityDataSource {
   createReport: (
     payload: CommunityReportCreateRequest,
   ) => Promise<CommunityVoidResponse>
+  /**
+   * 상권 비교 초안. 게시글 CRUD 가 아니라 **글쓰기 화면을 채우는 재료**다.
+   * 데이터 소스에 두는 이유는 `?mock=1` 글쓰기가 실제 백엔드를 때리지 않게 하기 위함이다.
+   */
+  createComparisonDraft: (
+    params: ComparisonDraftParams,
+    signal?: AbortSignal,
+  ) => Promise<CommunityComparisonDraftResponse>
 }
 
 export const realCommunitySource: CommunityDataSource = {
@@ -81,4 +92,5 @@ export const realCommunitySource: CommunityDataSource = {
   deleteComment: deleteCommunityComment,
   toggleCommentLike: toggleCommunityCommentLike,
   createReport: createCommunityReport,
+  createComparisonDraft: createCommercialComparisonDraft,
 }
