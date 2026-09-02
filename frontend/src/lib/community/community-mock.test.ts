@@ -122,6 +122,8 @@ describe('community mock source', () => {
         viewCount: expect.any(Number),
         createdAt: summary.createdAt,
         updatedAt: expect.any(String),
+        // 기본 fixture 에는 첨부가 없다. 첨부는 createPost/updatePost 로만 생긴다.
+        images: [],
       })
       expect(detail.content.length).toBeGreaterThan(0)
       expect('previewContent' in detail).toBe(false)
@@ -297,12 +299,14 @@ describe('community mock source', () => {
       targetCode: '11680',
       title: '동률 첫 게시글',
       content: '좋아요 수가 같은 첫 게시글입니다.',
+      imageKeys: [],
     })
     const newer = await source.createPost({
       targetType: 'DISTRICT',
       targetCode: '11680',
       title: '동률 둘째 게시글',
       content: '좋아요 수가 같은 둘째 게시글입니다.',
+      imageKeys: [],
     })
 
     const popular = await source.getPosts(
@@ -337,6 +341,7 @@ describe('community mock source', () => {
               likeCount: older.dataBody.likeCount,
               commentCount: older.dataBody.commentCount,
               createdAt: older.dataBody.createdAt,
+              thumbnailUrl: null,
             },
           ],
           hasNext: false,
@@ -419,12 +424,14 @@ describe('community mock source', () => {
       targetCode: '11680',
       title: 'KEYSET 공통 검색',
       content: '첫 게시글',
+      imageKeys: [],
     })
     const second = await source.createPost({
       targetType: 'DISTRICT',
       targetCode: '11680',
       title: 'KEYSET 공통 검색',
       content: '둘째 게시글',
+      imageKeys: [],
     })
 
     const search = await source.searchPosts({
@@ -503,6 +510,7 @@ describe('community mock source', () => {
       targetCode: '11680',
       title: 'A 전용 게시글',
       content: '다른 source에는 없어야 합니다.',
+      imageKeys: [],
     })
     await sourceA.togglePostLike('2')
 
@@ -531,6 +539,7 @@ describe('community mock source', () => {
       targetCode: '3110008',
       title: ' 새 게시글 ',
       content: ' 새 본문 ',
+      imageKeys: [],
     })
 
     expect(created.dataHeader).toEqual(successHeader)
@@ -551,6 +560,7 @@ describe('community mock source', () => {
       viewCount: 0,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
+      images: [],
     })
     expect(
       (await source.getPosts(cursor())).dataBody.posts.contents[0]?.postId,
@@ -559,6 +569,7 @@ describe('community mock source', () => {
     const updated = await source.updatePost(created.dataBody.postId, {
       title: ' 수정한 제목 ',
       content: ' 수정한 본문 ',
+      imageKeys: [],
     })
 
     expect(updated.dataBody).toEqual({
@@ -577,6 +588,83 @@ describe('community mock source', () => {
     )
   })
 
+  it('업로드한 키를 게시글에 연결하고 첫 장을 썸네일로 쓴다', async () => {
+    const source = createCommunityMockSource()
+    const uploaded = await source.uploadPostImages([
+      new File(['x'], 'a.png', { type: 'image/png' }),
+      new File(['x'], 'b.png', { type: 'image/png' }),
+    ])
+
+    const created = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
+      title: '사진 있는 글',
+      content: '본문',
+      imageKeys: uploaded.map(image => image.imageKey),
+    })
+
+    expect(created.dataBody.images.map(image => image.imageKey)).toEqual(
+      uploaded.map(image => image.imageKey),
+    )
+    // 배열 순서가 노출 순서다.
+    expect(created.dataBody.images.map(image => image.sortOrder)).toEqual([
+      0, 1,
+    ])
+
+    const list = await source.getPosts(cursor({ size: 20 }))
+    const summary = list.dataBody.posts.contents.find(
+      post => post.postId === created.dataBody.postId,
+    )
+    expect(summary?.thumbnailUrl).toBe(created.dataBody.images[0].imageUrl)
+  })
+
+  /**
+   * **목이 백엔드와 같은 규칙을 따르는지 고정한다.**
+   *
+   * `imageKeys` 는 「수정 후 남길 목록」이라 여기 없는 기존 이미지는 사라진다. 목이
+   * 이 규칙을 안 따르면 `?mock=1` 로는 멀쩡한데 실서버에서만 사진이 지워지는, 가장
+   * 늦게 발견되는 종류의 차이가 생긴다.
+   */
+  it('수정은 남길 목록대로 첨부를 교체한다 — 빈 목록이면 전부 지운다', async () => {
+    const source = createCommunityMockSource()
+    const uploaded = await source.uploadPostImages([
+      new File(['x'], 'a.png', { type: 'image/png' }),
+      new File(['x'], 'b.png', { type: 'image/png' }),
+    ])
+    const created = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
+      title: '사진 있는 글',
+      content: '본문',
+      imageKeys: uploaded.map(image => image.imageKey),
+    })
+
+    // 첫 장만 남긴다 -> 둘째 장은 사라진다.
+    const kept = await source.updatePost(created.dataBody.postId, {
+      title: '제목만 수정',
+      content: '본문',
+      imageKeys: [uploaded[0].imageKey],
+    })
+    expect(kept.dataBody.images.map(image => image.imageKey)).toEqual([
+      uploaded[0].imageKey,
+    ])
+
+    // 빈 목록 -> 전부 삭제. 화면이 키를 되돌려 보내지 않으면 이 상태가 된다.
+    const wiped = await source.updatePost(created.dataBody.postId, {
+      title: '제목만 수정',
+      content: '본문',
+      imageKeys: [],
+    })
+    expect(wiped.dataBody.images).toEqual([])
+
+    const list = await source.getPosts(cursor({ size: 20 }))
+    expect(
+      list.dataBody.posts.contents.find(
+        post => post.postId === created.dataBody.postId,
+      )?.thumbnailUrl,
+    ).toBeNull()
+  })
+
   it('지역 picker가 제공하는 모든 자치구 중 강동구 게시글을 생성한다', async () => {
     const source = createCommunityMockSource()
     const created = await source.createPost({
@@ -584,6 +672,7 @@ describe('community mock source', () => {
       targetCode: '11740',
       title: '강동구 운영 이야기',
       content: '강동구 매장 운영 경험입니다.',
+      imageKeys: [],
     })
 
     expect(created.dataBody).toMatchObject({
@@ -603,6 +692,7 @@ describe('community mock source', () => {
       targetCode: '11680',
       title: '  ',
       content: ' 본문 양끝 공백 ',
+      imageKeys: [],
     })
 
     expect(created.dataBody.title).toBe('  ')
@@ -619,6 +709,7 @@ describe('community mock source', () => {
     const updated = await source.updatePost(created.dataBody.postId, {
       title: '',
       content: ' ',
+      imageKeys: [],
     })
     expect(updated.dataBody.title).toBe('')
     expect(updated.dataBody.content).toBe(' ')
@@ -940,6 +1031,7 @@ describe('community mock source', () => {
       source.updatePost('2', {
         title: '권한 없는 수정',
         content: '권한 없는 본문',
+        imageKeys: [],
       }),
     ).rejects.toThrow('게시글 2을 수정할 권한이 없습니다.')
     await expect(source.deletePost('2')).rejects.toThrow(
@@ -960,7 +1052,11 @@ describe('community mock source', () => {
       '게시글 99999을 찾을 수 없습니다.',
     )
     await expect(
-      source.updatePost('99999', { title: '수정', content: '본문' }),
+      source.updatePost('99999', {
+        title: '수정',
+        content: '본문',
+        imageKeys: [],
+      }),
     ).rejects.toThrow('게시글 99999을 찾을 수 없습니다.')
     await expect(source.deletePost('99999')).rejects.toThrow(
       '게시글 99999을 찾을 수 없습니다.',

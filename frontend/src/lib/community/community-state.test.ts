@@ -43,6 +43,7 @@ const postsResponse: CommunityPostListResponse = {
           likeCount: 13,
           commentCount: 2,
           createdAt: '2026-07-27T00:00:00Z',
+          thumbnailUrl: null,
         },
       ],
       hasNext: true,

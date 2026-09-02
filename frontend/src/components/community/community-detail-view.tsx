@@ -14,6 +14,7 @@ import {
 import type { AdjacentPostState } from '@/lib/community/adjacent-posts'
 import { createCommunityPostHref } from '@/lib/community/community-state'
 import type { CommunityViewer } from '@/lib/community/community-state'
+import { sortPostImages } from '@/lib/community/post-images'
 import type {
   CommunityId,
   CommunityComment,
@@ -186,6 +187,23 @@ const ArticleContent = styled.div`
   line-height: 1.9;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+`
+
+const ArticleImages = styled.ul`
+  display: grid;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+
+  img {
+    width: 100%;
+    max-width: 640px;
+    height: auto;
+    display: block;
+    border: 1px solid var(--color-border-200);
+    border-radius: var(--radius-card);
+  }
 `
 
 const ArticleFooter = styled.footer`
@@ -485,6 +503,26 @@ export default function CommunityDetailView({
             </ArticleHeader>
 
             <ArticleContent>{detail.content}</ArticleContent>
+
+            {detail.images.length > 0 ? (
+              <ArticleImages>
+                {sortPostImages(detail.images).map((image, index) => (
+                  <li key={image.imageKey}>
+                    {/*
+                      MinIO 공개 URL 이라 `next/image` 최적화 대상이 아니다 — 원격
+                      호스트를 `next.config` 에 등록하지 않으면 런타임에 실패한다.
+                      `loading="lazy"` 로 목록 아래 이미지는 늦게 받는다.
+                    */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={image.imageUrl}
+                      alt={`첨부 이미지 ${index + 1}`}
+                      loading="lazy"
+                    />
+                  </li>
+                ))}
+              </ArticleImages>
+            ) : null}
 
             {postMutationError ? (
               <InlineMessage $error role="alert">

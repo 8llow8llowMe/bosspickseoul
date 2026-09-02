@@ -12,6 +12,7 @@ import type {
   CommunityMetadata,
   CommunityPostCreateRequest,
   CommunityPostDetail,
+  CommunityPostImage,
   CommunityPostSummary,
   CommunityPostUpdateRequest,
   CommunityReply,
@@ -76,6 +77,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 4,
     commentCount: 3,
     createdAt: '2026-07-27T08:30:00.000Z',
+    thumbnailUrl: null,
   },
   {
     postId: '2',
@@ -89,6 +91,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 16,
     commentCount: 1,
     createdAt: '2026-07-27T05:00:00.000Z',
+    thumbnailUrl: null,
   },
   {
     postId: '3',
@@ -102,6 +105,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 25,
     commentCount: 0,
     createdAt: '2026-07-27T06:00:00.000Z',
+    thumbnailUrl: null,
   },
   {
     postId: '4',
@@ -115,6 +119,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 7,
     commentCount: 1,
     createdAt: '2026-07-27T03:00:00.000Z',
+    thumbnailUrl: null,
   },
   {
     postId: '5',
@@ -128,6 +133,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 12,
     commentCount: 2,
     createdAt: '2026-07-27T07:00:00.000Z',
+    thumbnailUrl: null,
   },
   {
     postId: '6',
@@ -141,6 +147,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 20,
     commentCount: 0,
     createdAt: '2026-07-27T04:00:00.000Z',
+    thumbnailUrl: null,
   },
   {
     postId: '7',
@@ -154,6 +161,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 31,
     commentCount: 2,
     createdAt: '2026-07-27T09:00:00.000Z',
+    thumbnailUrl: null,
   },
   {
     postId: '8',
@@ -167,6 +175,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 9,
     commentCount: 1,
     createdAt: '2026-07-27T07:45:00.000Z',
+    thumbnailUrl: null,
   },
 ]
 
@@ -181,7 +190,24 @@ const contentByPostId: Record<CommunityId, string> = {
   8: '여름 시즌에 함께 작은 팝업을 열 식음료 브랜드 사장님을 찾고 있습니다. 공간과 운영 시간을 유연하게 협의하고 싶습니다.',
 }
 
+/**
+ * 목 이미지의 표시용 URL. 실제 파일이 없으므로 **네트워크를 타지 않는 data URI** 를 쓴다
+ * — 깨진 이미지 아이콘을 보여 주면 목 데이터가 고장 난 것처럼 읽힌다.
+ */
+const mockImageUrl = (imageKey: string): string =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="#e5e7eb"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif" font-size="14" fill="#6b7280">mock ${imageKey.slice(-8)}</text></svg>`,
+  )}`
+
+const toMockImages = (imageKeys: string[]): CommunityPostImage[] =>
+  imageKeys.map((imageKey, index) => ({
+    imageKey,
+    imageUrl: mockImageUrl(imageKey),
+    sortOrder: index,
+  }))
+
 const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
+  images: [],
   postId: post.postId,
   memberId: post.memberId,
   targetType: post.targetType,
@@ -682,11 +708,24 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       })
     },
 
+    async uploadPostImages(files: File[]) {
+      /*
+       * 목은 파일을 어디에도 올리지 않는다. 키 모양만 실제와 맞춘다
+       * (`{prefix}/{memberId}/{yyyy}/{MM}/{name}`) — 화면이 키를 그대로 되돌려 보내는
+       * 흐름을 목에서도 그대로 밟게 하려는 것이다.
+       */
+      return files.map((file, index) => {
+        const imageKey = `community/posts/${MOCK_COMMUNITY_MEMBER_ID}/mock/${state.nextPostId}-${index}-${file.name}`
+        return { imageKey, imageUrl: mockImageUrl(imageKey) }
+      })
+    },
+
     async createPost(payload: CommunityPostCreateRequest) {
       const target = resolveTarget(payload.targetType, payload.targetCode)
       const createdAt = nextTimestamp(state)
       const postId = state.nextPostId
       state.nextPostId = incrementId(postId)
+      const images = toMockImages(payload.imageKeys)
       const detail: CommunityPostDetail = {
         postId,
         memberId: MOCK_COMMUNITY_MEMBER_ID,
@@ -698,6 +737,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
         viewCount: 0,
         createdAt,
         updatedAt: createdAt,
+        images,
       }
       const summary: CommunityPostSummary = {
         postId,
@@ -708,6 +748,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
         likeCount: 0,
         commentCount: 0,
         createdAt,
+        thumbnailUrl: images[0]?.imageUrl ?? null,
       }
 
       state.details.push(detail)
@@ -729,6 +770,13 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       detail.title = payload.title
       detail.content = payload.content
       detail.updatedAt = nextTimestamp(state)
+      /*
+       * **백엔드와 같은 규칙을 흉내 낸다.** `imageKeys` 는 「수정 후 남길 목록」이라
+       * 여기 없는 기존 이미지는 사라진다. 목이 이 규칙을 안 따르면 `?mock=1` 로는
+       * 멀쩡한데 실서버에서만 사진이 지워지는, 가장 늦게 발견되는 종류의 차이가 생긴다.
+       */
+      detail.images = toMockImages(payload.imageKeys)
+      post.thumbnailUrl = detail.images[0]?.imageUrl ?? null
 
       return ok(detail)
     },

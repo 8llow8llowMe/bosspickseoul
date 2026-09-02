@@ -36,6 +36,7 @@ import {
   parseCommunityTargetType,
   type CommunityViewer,
 } from '@/lib/community/community-state'
+import { sortPostImages, toImageKeys } from '@/lib/community/post-images'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
   CommunityComparisonDraft,
@@ -259,6 +260,18 @@ export const createCommunityEditorPayload = (
   const content = {
     title: value.title,
     content: value.content,
+    /*
+     * ⚠️ **두 모드 모두 반드시 싣는다.**
+     *
+     * 수정에서 `imageKeys` 는 「수정 후 남길 목록」이고, 백엔드
+     * `CommunityPostImageProcessor.normalize(null)` 이 **빈 목록**을 돌려준다. 즉 이
+     * 필드를 빼고 보내는 것과 `[]` 를 보내는 것이 같은 뜻이다 — 둘 다 기존 이미지를
+     * 연결 해제하고 **파일까지 지운다.** 제목 한 글자만 고쳐도 그렇다.
+     *
+     * 그래서 폼이 기존 이미지를 담은 채 시작하고(`initialValue.images`) 그것을 여기서
+     * 그대로 되돌려 보낸다.
+     */
+    imageKeys: toImageKeys(value.images),
   }
 
   if (mode === 'edit') {
@@ -648,6 +661,8 @@ export default function CommunityRegisterPage() {
       ? {
           title: detail.title,
           content: detail.content,
+          // 기존 첨부를 그대로 들고 시작한다 — 안 그러면 저장 순간 전부 삭제된다.
+          images: sortPostImages(detail.images),
           location: {
             targetType: parseCommunityTargetType(
               detail.targetType?.code ?? null,
@@ -659,6 +674,7 @@ export default function CommunityRegisterPage() {
       : {
           title: draft?.title ?? '',
           content: draft?.content ?? '',
+          images: [],
           location: draft
             ? {
                 targetType: parseCommunityTargetType(
@@ -696,6 +712,18 @@ export default function CommunityRegisterPage() {
         mockEnabled={mockEnabled}
         pending={submitMutation.isPending}
         errorMessage={mutationError}
+        onUploadImages={async files => {
+          /*
+           * 업로드는 게시글 저장과 **별개 단계**다. 여기서는 키만 받고, 그 키가
+           * 저장 시 `imageKeys` 로 실려야 실제로 연결된다. 목 소스도 같은 자리를
+           * 쓰므로 `?mock=1` 글쓰기가 실제 스토리지를 건드리지 않는다.
+           */
+          const uploaded = await source.uploadPostImages(files)
+          return uploaded.map((image, index) => ({
+            ...image,
+            sortOrder: index,
+          }))
+        }}
         onCancel={handleCancel}
         onSubmit={value => submitMutation.mutate(value)}
       />

@@ -1,11 +1,18 @@
 'use client'
 
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
 import CommunityLocationPicker, {
   type CommunityLocationValue,
 } from '@/components/community/community-location-picker'
 import { validateCommunityDraft } from '@/lib/community/community-state'
+import {
+  MAX_POST_IMAGES,
+  POST_IMAGE_RULE_TEXT,
+  selectPostImages,
+} from '@/lib/community/post-images'
+import { IMAGE_ACCEPT_ATTRIBUTE } from '@/lib/upload/image-rules'
+import type { CommunityPostImage } from '@/types/community'
 
 export type CommunityEditorMode = 'create' | 'edit'
 
@@ -13,6 +20,13 @@ export type CommunityEditorValue = {
   title: string
   content: string
   location: CommunityLocationValue
+  /**
+   * 저장 시점에 게시글에 **남길** 이미지 전부. 「이번에 추가한 것」이 아니다.
+   *
+   * 수정 화면은 기존 이미지를 여기에 그대로 담은 채 시작한다 — 백엔드가 이 목록에
+   * 없는 기존 이미지를 파일까지 지우기 때문이다(`lib/community/post-images.ts`).
+   */
+  images: CommunityPostImage[]
 }
 
 export type CommunityEditorFormProps = {
@@ -23,6 +37,11 @@ export type CommunityEditorFormProps = {
   errorMessage: string | null
   onCancel: () => void
   onSubmit: (value: CommunityEditorValue) => void
+  /**
+   * 고른 파일을 올리고 **연결 가능한 키**로 바꿔 준다. 업로드는 게시글 저장과 별개
+   * 단계라 폼이 직접 API 를 부르지 않고 호출부에서 받는다(mock 소스도 같은 자리를 쓴다).
+   */
+  onUploadImages: (files: File[]) => Promise<CommunityPostImage[]>
 }
 
 export const resolveCommunityEditorSubmission = (
@@ -30,6 +49,7 @@ export const resolveCommunityEditorSubmission = (
   title: string,
   content: string,
   location: CommunityLocationValue,
+  images: CommunityPostImage[] = [],
 ): { error: string | null; value: CommunityEditorValue | null } => {
   const error = validateCommunityDraft(title, content)
 
@@ -50,6 +70,7 @@ export const resolveCommunityEditorSubmission = (
       title: title.trim(),
       content: content.trim(),
       location,
+      images,
     },
   }
 }
@@ -139,18 +160,84 @@ const Helper = styled.p`
   line-height: 1.65;
 `
 
-const DisabledUpload = styled.button`
+const UploadButton = styled.button`
   width: fit-content;
   min-height: 48px;
   padding: 0 16px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
-  background: var(--color-surface-muted);
-  color: var(--color-text-500);
+  background: var(--color-surface);
+  color: var(--color-text-900);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
-  cursor: not-allowed;
+  cursor: pointer;
+
+  &:disabled {
+    background: var(--color-surface-muted);
+    color: var(--color-text-500);
+    cursor: not-allowed;
+  }
+`
+
+/** 파일 입력은 감추되 키보드·스크린리더 접근은 남긴다(`display: none` 이 아닌 이유). */
+const HiddenFileInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+`
+
+const ThumbList = styled.ul`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+`
+
+const Thumb = styled.li`
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  background: var(--color-surface-muted);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+`
+
+const ThumbRemove = styled.button`
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 `
 
 const Message = styled.p`
@@ -208,14 +295,75 @@ export default function CommunityEditorForm({
   errorMessage,
   onCancel,
   onSubmit,
+  onUploadImages,
 }: CommunityEditorFormProps) {
   const id = useId()
   const [title, setTitle] = useState(initialValue.title)
   const [content, setContent] = useState(initialValue.content)
   const [location, setLocation] = useState(initialValue.location)
+  /*
+   * 수정 화면은 **기존 이미지를 담은 채** 시작한다. 빈 배열로 시작하면 사용자가 사진을
+   * 건드리지 않아도 저장 순간 전부 삭제된다 — 백엔드가 이 목록에 없는 기존 이미지를
+   * 파일까지 지우기 때문이다.
+   */
+  const [images, setImages] = useState<CommunityPostImage[]>(
+    initialValue.images,
+  )
+  const [imageMessage, setImageMessage] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [validationMessage, setValidationMessage] = useState<string | null>(
     null,
   )
+
+  const handleFilesPicked = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const picked = Array.from(event.target.files ?? [])
+    // 같은 파일을 다시 골랐을 때도 onChange 가 나도록 값을 비운다.
+    event.target.value = ''
+    if (picked.length === 0) return
+
+    const { accepted, error } = selectPostImages(picked, images.length)
+    // 몇 장이 왜 빠졌는지 반드시 말한다 — 조용히 자르면 올라간 줄 알았던 사진이 없다.
+    setImageMessage(error)
+    if (accepted.length === 0) return
+
+    setUploading(true)
+    try {
+      const uploaded = await onUploadImages(accepted)
+      setImages(current => [
+        ...current,
+        ...uploaded.map((image, index) => ({
+          ...image,
+          sortOrder: current.length + index,
+        })),
+      ])
+    } catch (error) {
+      setImageMessage(
+        error instanceof Error
+          ? error.message
+          : '이미지를 올리지 못했어요. 잠시 후 다시 시도해 주세요.',
+      )
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  /*
+   * 목록에서 빼기만 한다. 저장 전에는 **서버에 아무 요청도 보내지 않는다** — 취소하고
+   * 나갈 수 있어야 하는데 미리 지우면 되돌릴 수 없다. 저장 시 `imageKeys` 에서 빠지는
+   * 것으로 실제 삭제가 일어난다. (연결 안 된 키는 고아로 남지만, 그건 백엔드 회수
+   * 배치의 몫이다 — `file-upload-guide.md` "알려진 한계".)
+   */
+  const handleRemoveImage = (imageKey: string) => {
+    setImageMessage(null)
+    setImages(current =>
+      current
+        .filter(image => image.imageKey !== imageKey)
+        .map((image, index) => ({ ...image, sortOrder: index })),
+    )
+  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -229,6 +377,7 @@ export default function CommunityEditorForm({
       title,
       content,
       location,
+      images,
     )
 
     if (result.error || !result.value) {
@@ -297,11 +446,55 @@ export default function CommunityEditorForm({
       </Field>
 
       <Field>
-        <Label as="p">이미지 첨부</Label>
-        <DisabledUpload type="button" disabled>
-          이미지 첨부 · 준비 중
-        </DisabledUpload>
-        <Helper>이미지 첨부 기능은 준비 중이에요.</Helper>
+        <LabelRow>
+          <Label as="p">이미지 첨부</Label>
+          <Counter aria-live="polite">
+            {images.length} / {MAX_POST_IMAGES}
+          </Counter>
+        </LabelRow>
+
+        <HiddenFileInput
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={IMAGE_ACCEPT_ATTRIBUTE}
+          disabled={pending || uploading || images.length >= MAX_POST_IMAGES}
+          onChange={handleFilesPicked}
+          aria-label="첨부할 이미지 파일 선택"
+        />
+        <UploadButton
+          type="button"
+          disabled={pending || uploading || images.length >= MAX_POST_IMAGES}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {uploading ? '올리는 중' : '이미지 첨부'}
+        </UploadButton>
+
+        {images.length > 0 ? (
+          <ThumbList>
+            {images.map((image, index) => (
+              <Thumb key={image.imageKey}>
+                {/*
+                  MinIO 공개 URL 이라 Next 이미지 최적화 대상이 아니다. 원격 호스트를
+                  `next.config` 에 등록하지 않으면 `next/image` 는 런타임에 실패한다.
+                */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={image.imageUrl} alt={`첨부 이미지 ${index + 1}`} />
+                <ThumbRemove
+                  type="button"
+                  disabled={pending || uploading}
+                  onClick={() => handleRemoveImage(image.imageKey)}
+                  aria-label={`첨부 이미지 ${index + 1} 빼기`}
+                >
+                  ×
+                </ThumbRemove>
+              </Thumb>
+            ))}
+          </ThumbList>
+        ) : null}
+
+        <Helper>{POST_IMAGE_RULE_TEXT}</Helper>
+        {imageMessage ? <Message role="alert">{imageMessage}</Message> : null}
       </Field>
 
       {visibleMessage ? <Message role="alert">{visibleMessage}</Message> : null}

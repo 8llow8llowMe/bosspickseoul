@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CommunityRegisterPage, {
   communityEditorKeys,
+  createCommunityEditorPayload,
   resolveComparisonDraftView,
 } from '@/components/community/community-register-page'
 
@@ -209,5 +210,77 @@ describe('resolveComparisonDraftView', () => {
         draft,
       }),
     ).toEqual({ kind: 'ready', draft })
+  })
+})
+
+describe('createCommunityEditorPayload — 첨부를 잃지 않는다', () => {
+  const images = [
+    {
+      imageKey: 'community/posts/1/2026/09/a.png',
+      imageUrl: 'https://minio.test/a.png',
+      sortOrder: 0,
+    },
+    {
+      imageKey: 'community/posts/1/2026/09/b.png',
+      imageUrl: 'https://minio.test/b.png',
+      sortOrder: 1,
+    },
+  ]
+
+  const value = (overrides = {}) => ({
+    title: '제목',
+    content: '본문',
+    location: {
+      targetType: 'COMMERCIAL' as const,
+      targetCode: '3110008',
+      targetName: '강남역 상권',
+    },
+    images,
+    ...overrides,
+  })
+
+  /**
+   * ⚠️ **이 파일에서 가장 중요한 단언이다.**
+   *
+   * 수정 요청의 `imageKeys` 는 「수정 후 남길 목록」이고, 백엔드
+   * `CommunityPostImageProcessor.normalize(null)` 이 **빈 목록**을 돌려준다. 즉 이
+   * 필드를 빼고 보내면 기존 첨부가 연결 해제되고 **파일까지 지워진다** — 제목 한
+   * 글자만 고쳐도 그렇다. 되돌릴 방법도 없다.
+   */
+  it('수정 payload 가 기존 첨부 키를 그대로 되돌려 보낸다', () => {
+    const payload = createCommunityEditorPayload('edit', value())
+
+    expect(payload).toEqual({
+      title: '제목',
+      content: '본문',
+      imageKeys: [
+        'community/posts/1/2026/09/a.png',
+        'community/posts/1/2026/09/b.png',
+      ],
+    })
+  })
+
+  it('작성 payload 도 첨부 키를 싣는다 — 배열 순서가 노출 순서다', () => {
+    const payload = createCommunityEditorPayload('create', value())
+
+    expect(payload).toMatchObject({
+      targetType: 'COMMERCIAL',
+      targetCode: '3110008',
+      imageKeys: [
+        'community/posts/1/2026/09/a.png',
+        'community/posts/1/2026/09/b.png',
+      ],
+    })
+  })
+
+  /* 사용자가 실제로 다 뺐을 때만 빈 배열이어야 한다. */
+  it('첨부를 모두 뺐으면 빈 배열을 보낸다', () => {
+    expect(createCommunityEditorPayload('edit', value({ images: [] }))).toEqual(
+      {
+        title: '제목',
+        content: '본문',
+        imageKeys: [],
+      },
+    )
   })
 })
