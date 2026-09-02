@@ -5,6 +5,7 @@ import {
   buildAdministrationAnalysisPayload,
   buildAiReportPayload,
   buildCommercialAnalysisPayload,
+  buildCommercialComparisonPayload,
   normalizeSharePayload,
   type SharePayload,
 } from './payload'
@@ -58,6 +59,34 @@ describe('ROUTE_BUILDERS 라운드트립 (payload → URL → payload)', () => {
     expect(parsed).toEqual(payload)
   })
 
+  it('COMMERCIAL_COMPARISON', () => {
+    const payload = buildCommercialComparisonPayload({
+      districtCode: '11680',
+      administrationCode: '11680510',
+      serviceCode: 'CS100001',
+      commercialCodes: ['3110008', '3110012', '3110020'],
+    })!
+    const { href, parsed } = roundTrip('COMMERCIAL_COMPARISON', payload)
+
+    expect(href).toBe(
+      '/recommend/compare?districtCode=11680&administrationCode=11680510&serviceCode=CS100001&commercialCodes=3110008%2C3110012%2C3110020',
+    )
+    expect(parsed).toEqual(payload)
+  })
+
+  it('COMMERCIAL_COMPARISON — 열 순서를 정렬하지 않고 그대로 나른다', () => {
+    const payload = buildCommercialComparisonPayload({
+      districtCode: '11680',
+      administrationCode: '11680510',
+      serviceCode: 'CS100001',
+      commercialCodes: ['3110020', '3110008'],
+    })!
+    const { parsed } = roundTrip('COMMERCIAL_COMPARISON', payload)
+
+    expect(payload.commercialCodes).toEqual(['3110020', '3110008'])
+    expect(parsed.commercialCodes).toEqual(['3110020', '3110008'])
+  })
+
   it('ADMINISTRATION_ANALYSIS', () => {
     const payload = buildAdministrationAnalysisPayload('11680', '11680510')!
     const { href, parsed } = roundTrip('ADMINISTRATION_ANALYSIS', payload)
@@ -77,12 +106,28 @@ describe('buildShareRoute 실패 분기', () => {
     })
   })
 
-  it('상권 비교는 /recommend 가 URL 상태를 못 읽어 unsupported-type 이다', () => {
-    expect(ROUTE_BUILDERS.COMMERCIAL_COMPARISON).toBeNull()
-    expect(buildShareRoute('COMMERCIAL_COMPARISON', {})).toEqual({
-      ok: false,
-      reason: 'unsupported-type',
-    })
+  it('상권 비교는 상권이 하한 미만이면 bad-payload 다', () => {
+    // 빌더는 생겼다(URL 상태를 나르게 됐다). 다만 한 개짜리 비교표는 그릴 게 없다.
+    expect(ROUTE_BUILDERS.COMMERCIAL_COMPARISON).not.toBeNull()
+    expect(
+      buildShareRoute('COMMERCIAL_COMPARISON', {
+        districtCode: '11680',
+        administrationCode: '11680510',
+        serviceCode: 'CS100001',
+        commercialCodes: ['3110008'],
+      }),
+    ).toEqual({ ok: false, reason: 'bad-payload' })
+  })
+
+  it('상권 비교 — commercialCodes 가 배열이 아니면 bad-payload', () => {
+    expect(
+      buildShareRoute('COMMERCIAL_COMPARISON', {
+        districtCode: '11680',
+        administrationCode: '11680510',
+        serviceCode: 'CS100001',
+        commercialCodes: '3110008,3110012',
+      }),
+    ).toEqual({ ok: false, reason: 'bad-payload' })
   })
 
   // `/status` 는 Top10 밖 자치구를 조용히 버린다(URL 재작성 + 안내 없음).
@@ -103,6 +148,7 @@ describe('buildShareRoute 실패 분기', () => {
       'ADMINISTRATION_ANALYSIS',
       'AI_REPORT',
       'COMMERCIAL_ANALYSIS',
+      'COMMERCIAL_COMPARISON',
     ])
   })
 

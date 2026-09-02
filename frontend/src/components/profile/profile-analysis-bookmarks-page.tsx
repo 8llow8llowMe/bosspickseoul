@@ -92,9 +92,13 @@ export function ProfileRegionBookmarkCards({
  * ------------------------------------------------------------------------- */
 
 /**
- * 필터는 **FE 가 실제로 생성하는 타입**만 노출한다.
- * `DISTRICT_ANALYSIS`·`COMMERCIAL_COMPARISON` 은 복원 가능한 URL 상태가 없어 생성되지 않으므로
- * 필터 칩을 두면 항상 빈 목록이 된다. (그래도 목록에 섞여 오면 카드가 미지원으로 안내한다)
+ * 필터는 **FE 가 실제로 생성하는 타입**만 노출한다. 칩을 두면 항상 빈 목록이 되기 때문이다.
+ * (그래도 목록에 섞여 오면 카드가 처리한다)
+ *
+ * - `DISTRICT_ANALYSIS`: 복원 가능한 URL 상태가 없다 — 빌더 자체가 없다(`routes.ts`)
+ * - `COMMERCIAL_COMPARISON`: **빌더는 생겼다.** 저장된 항목이 있으면 카드가 열 수 있다.
+ *   다만 아직 비교 화면에 공유·보관 버튼이 없어 생성되지 않는다. 그 버튼이 붙으면
+ *   여기 칩도 함께 추가한다.
  */
 const ARCHIVE_FILTERS: readonly { label: string; value: ShareType | null }[] = [
   { label: '전체', value: null },

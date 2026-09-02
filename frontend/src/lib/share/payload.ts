@@ -14,6 +14,11 @@
  * - 정규화 후 2000자를 넘으면 `SHARE_LINK_005` / `ANALYSIS_BOOKMARK_003~005` 로 거절된다.
  */
 
+import {
+  COMPARE_MAX_COMMERCIALS,
+  COMPARE_MIN_COMMERCIALS,
+} from '@/lib/recommend/compare-url'
+
 export const SHARE_TYPES = [
   'COMMERCIAL_ANALYSIS',
   'DISTRICT_ANALYSIS',
@@ -72,6 +77,24 @@ export type AdministrationAnalysisPayload = {
   administrationCode: string
 }
 
+/**
+ * 상권 비교(`/recommend/compare`) 복원에 필요한 최소 상태.
+ *
+ * 조건 셋은 전 열 공통이라 하나씩만 담는다(`compare-url.ts` 와 같은 이유).
+ * `commercialCodes` 의 **순서는 의미가 있다** — 사용자가 고른 순서가 곧 열 순서다.
+ * 그래서 정렬하지 않는다. 백엔드 정규화는 key 만 정렬하므로 순서가 다르면 다른
+ * 공유 코드가 되는데, 그게 맞다. 다른 화면이니 다른 링크여야 한다.
+ *
+ * 점수는 담지 않는다. `compare-url.ts` 가 URL 에 점수를 싣지 않는 것과 같은 이유로,
+ * 링크가 낡은 값을 들고 되살아나면 안 된다.
+ */
+export type CommercialComparisonPayload = {
+  districtCode: string
+  administrationCode: string
+  serviceCode: string
+  commercialCodes: string[]
+}
+
 export type SharePayloadByType = {
   COMMERCIAL_ANALYSIS: CommercialAnalysisPayload
   AI_REPORT: AiReportPayload
@@ -85,14 +108,7 @@ export type SharePayloadByType = {
    * `/status` 가 Top10 밖 자치구도 상세로 열게 되면 그때 빌더를 추가한다.
    */
   DISTRICT_ANALYSIS: SharePayload
-  /**
-   * **빌더 미구현.** `/recommend/compare` 는 URL 만으로 복원된다
-   * (`compare-url.ts` — 자치구·행정동·업종 + `commercialCodes`). 되돌아갈 화면이
-   * 없어서가 아니라, 공유 링크만으로 충분한지 먼저 보기로 한 것이다(비교 화면
-   * 명세 §10 「범위 밖」). 빌더를 붙일 때는 `createCompareHref` 의 파라미터를
-   * 그대로 payload 로 옮기면 된다.
-   */
-  COMMERCIAL_COMPARISON: SharePayload
+  COMMERCIAL_COMPARISON: CommercialComparisonPayload
 }
 
 /** 정규화 후 payload 최대 길이. 초과하면 백엔드가 400 으로 거절한다. */
@@ -190,5 +206,48 @@ export const buildAdministrationAnalysisPayload = (
   return {
     districtCode: districtCode.trim(),
     administrationCode: administrationCode.trim(),
+  }
+}
+
+/**
+ * 상권 비교 화면 payload. 조건이 불완전하거나 상권이 하한 미만이면 null 이다
+ * — 호출부에서 공유/보관 버튼을 막는다.
+ *
+ * 중복 제거와 상한 절단은 `compare-url.ts` 의 파서와 **같은 규칙**을 쓴다:
+ * 첫 등장만 남기고, 순서는 건드리지 않는다. 규칙이 갈리면 저장한 링크와
+ * 주소창이 서로 다른 화면을 그린다.
+ */
+export const buildCommercialComparisonPayload = ({
+  districtCode,
+  administrationCode,
+  serviceCode,
+  commercialCodes,
+}: {
+  districtCode: string | null | undefined
+  administrationCode: string | null | undefined
+  serviceCode: string | null | undefined
+  commercialCodes: readonly string[]
+}): CommercialComparisonPayload | null => {
+  if (
+    !isNonEmpty(districtCode) ||
+    !isNonEmpty(administrationCode) ||
+    !isNonEmpty(serviceCode)
+  ) {
+    return null
+  }
+
+  const unique: string[] = []
+  commercialCodes.forEach(code => {
+    const trimmed = typeof code === 'string' ? code.trim() : ''
+    if (trimmed && !unique.includes(trimmed)) unique.push(trimmed)
+  })
+
+  if (unique.length < COMPARE_MIN_COMMERCIALS) return null
+
+  return {
+    districtCode: districtCode.trim(),
+    administrationCode: administrationCode.trim(),
+    serviceCode: serviceCode.trim(),
+    commercialCodes: unique.slice(0, COMPARE_MAX_COMMERCIALS),
   }
 }
