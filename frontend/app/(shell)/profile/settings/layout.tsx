@@ -14,7 +14,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
   return (
     <ProfileSectionLayout
       title="개인 정보 설정"
-      description="현재 계정 정보를 확인하고 제공 예정인 계정 관리 기능을 살펴봅니다."
+      description="계정 정보를 확인하고 관리합니다."
       tabs={tabs}
     >
       {children}
