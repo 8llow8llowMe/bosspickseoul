@@ -984,13 +984,11 @@
             }
           },
           "postId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "게시글 ID"
           },
           "memberId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "작성자 회원 ID"
           },
           "targetType": {
@@ -1078,8 +1076,7 @@
         "description": "게시글 좋아요 응답",
         "properties": {
           "postId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "게시글 ID"
           },
           "liked": {
@@ -1123,18 +1120,15 @@
         "description": "댓글 항목",
         "properties": {
           "commentId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "댓글 ID"
           },
           "postId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "게시글 ID"
           },
           "memberId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "작성자 회원 ID"
           },
           "content": {
@@ -1183,23 +1177,19 @@
         "description": "대댓글 항목",
         "properties": {
           "commentId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "댓글 ID"
           },
           "postId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "게시글 ID"
           },
           "memberId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "작성자 회원 ID"
           },
           "parentCommentId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "부모 댓글 ID"
           },
           "content": {
@@ -1239,8 +1229,7 @@
         "description": "댓글 좋아요 응답",
         "properties": {
           "commentId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "댓글 ID"
           },
           "liked": {
@@ -1410,8 +1399,7 @@
         "description": "신고 처리 결과 응답",
         "properties": {
           "reportId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "신고 아이디"
           },
           "decision": {
@@ -1479,8 +1467,7 @@
         "description": "신고 항목",
         "properties": {
           "reportId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "신고 아이디"
           },
           "targetKind": {
@@ -1489,13 +1476,11 @@
             "enum": ["POST", "COMMENT"]
           },
           "targetId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "신고 대상 아이디"
           },
           "reporterMemberId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "신고한 회원 아이디"
           },
           "reason": {
@@ -1521,9 +1506,9 @@
             "description": "신고 대상 내용 미리보기 (최대 100자)"
           },
           "targetAuthorId": {
-            "type": "integer",
-            "format": "int64",
-            "description": "신고 대상 작성자 아이디 (조회 실패 시 0)"
+            "type": "string",
+            "description": "신고 대상 작성자 아이디 (대상이 이미 삭제되어 조회되지 않으면 null)",
+            "example": 7345678901234568000
           }
         }
       },
@@ -1594,13 +1579,11 @@
             "description": "대표 이미지 URL (첨부 이미지가 없으면 null)"
           },
           "postId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "게시글 ID"
           },
           "memberId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "작성자 회원 ID"
           },
           "targetType": {
@@ -1670,13 +1653,11 @@
         "description": "좋아요한 게시글 항목 DTO",
         "properties": {
           "postId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "게시글 ID"
           },
           "memberId": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "작성자 회원 ID"
           },
           "targetType": {
