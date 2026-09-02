@@ -1,35 +1,10 @@
 import { apiClient } from '@/lib/api/client'
 import type { ApiResponse } from '@/types/api'
-import type { VerifyEmailCodePayload } from '@/types/auth'
 import type {
   CreateMemberBookmarkPayload,
   MemberBookmarkResponse,
   MemberBookmarksResponse,
 } from '@/types/bookmark'
-
-export const sendEmailVerificationCode = async (memberEmail: string) => {
-  const response = await apiClient.post<ApiResponse<null>>(
-    `/email/send/${memberEmail}`,
-  )
-
-  return response.data
-}
-
-export const verifyEmailVerificationCode = async (
-  payload: VerifyEmailCodePayload,
-) => {
-  const response = await apiClient.post<ApiResponse<null>>(
-    `/email/verify/${payload.memberEmail}/${payload.emailCode}`,
-  )
-
-  return response.data
-}
-
-export const logoutUser = async () => {
-  const response = await apiClient.post<ApiResponse<null>>('/member/logout')
-
-  return response.data
-}
 
 /** `lastBookmarkId` 는 커서로 쓰이는 `bookmarkId` 다 — 문자열 그대로 실어 보낸다. */
 export const fetchMemberBookmarks = async (
