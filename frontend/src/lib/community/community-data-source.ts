@@ -14,6 +14,7 @@ import {
   updateCommunityPost,
 } from '@/lib/api/community'
 import { createCommercialComparisonDraft } from '@/lib/api/community-drafts'
+import { uploadCommunityPostImages } from '@/lib/api/community-post-images'
 import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
 import type {
   CommunityId,
@@ -26,6 +27,7 @@ import type {
   CommunityPostCreateRequest,
   CommunityPostDetailResponse,
   CommunityPostLikeResponse,
+  CommunityPostImageUpload,
   CommunityPostListResponse,
   CommunityPostUpdateRequest,
   CommunityReportCreateRequest,
@@ -76,6 +78,14 @@ export interface CommunityDataSource {
     params: ComparisonDraftParams,
     signal?: AbortSignal,
   ) => Promise<CommunityComparisonDraftResponse>
+  /**
+   * 이미지 업로드. 게시글 저장과 **별개 단계**다 — 여기서는 키만 발급받고, 그 키를
+   * 작성/수정 요청의 `imageKeys` 에 담아야 연결된다.
+   *
+   * 데이터 소스에 두는 이유는 초안 생성과 같다: `?mock=1` 글쓰기가 실제 스토리지에
+   * 파일을 올리지 않게 하기 위함이다.
+   */
+  uploadPostImages: (files: File[]) => Promise<CommunityPostImageUpload[]>
 }
 
 export const realCommunitySource: CommunityDataSource = {
@@ -93,4 +103,5 @@ export const realCommunitySource: CommunityDataSource = {
   toggleCommentLike: toggleCommunityCommentLike,
   createReport: createCommunityReport,
   createComparisonDraft: createCommercialComparisonDraft,
+  uploadPostImages: uploadCommunityPostImages,
 }

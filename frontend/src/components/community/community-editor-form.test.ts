@@ -41,16 +41,17 @@ const renderWithQuery = (props: ComponentProps<typeof CommunityEditorForm>) => {
 
 const baseProps: ComponentProps<typeof CommunityEditorForm> = {
   mode: 'create',
-  initialValue: { title: '', content: '', location: {} },
+  initialValue: { title: '', content: '', location: {}, images: [] },
   mockEnabled: true,
   pending: false,
   errorMessage: null,
   onCancel: vi.fn(),
+  onUploadImages: vi.fn(async () => []),
   onSubmit: vi.fn(),
 }
 
 describe('CommunityEditorForm', () => {
-  it('renders required location, title/content limits, counts, and a disabled image control', () => {
+  it('renders required location, title/content limits, and counts', () => {
     const markup = renderWithQuery(baseProps)
 
     expect(markup).toContain('지역·상권 (필수)')
@@ -59,9 +60,65 @@ describe('CommunityEditorForm', () => {
     expect(markup).toContain('maxLength="5000"')
     expect(markup).toContain('0 / 120')
     expect(markup).toContain('0 / 5,000')
+  })
+
+  /*
+   * 이 자리는 「이미지 첨부 · 준비 중」 비활성 버튼이었다. A4 에서 실제로 붙었으므로
+   * 막아야 할 것을 다시 적는다: 자리표시자 문구가 남지 않을 것, 버튼이 실제로 열려
+   * 있을 것, 그리고 허용 형식·장수를 화면이 말할 것.
+   */
+  it('첨부 자리가 더 이상 자리표시자가 아니다', () => {
+    const markup = renderWithQuery(baseProps)
+
+    expect(markup).not.toContain('준비 중')
     expect(markup).toContain('이미지 첨부')
-    expect(markup).toContain('준비 중')
-    expect(markup).toContain('disabled')
+    expect(markup).toContain('0 / 5')
+    expect(markup).toContain('image/jpeg,image/png,image/gif,image/webp')
+    // 첨부 버튼이 비활성이 아니다(0장이므로 아직 올릴 수 있다).
+    expect(markup).not.toMatch(/<button[^>]*disabled[^>]*>이미지 첨부/)
+  })
+
+  it('5장을 다 채우면 첨부 버튼을 닫는다', () => {
+    const markup = renderWithQuery({
+      ...baseProps,
+      initialValue: {
+        ...baseProps.initialValue,
+        images: Array.from({ length: 5 }, (_, index) => ({
+          imageKey: `community/posts/1/2026/09/${index}.png`,
+          imageUrl: `https://minio.test/${index}.png`,
+          sortOrder: index,
+        })),
+      },
+    })
+
+    expect(markup).toContain('5 / 5')
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>이미지 첨부/)
+  })
+
+  /**
+   * **수정 화면은 기존 첨부를 담은 채 시작해야 한다.** 빈 배열로 시작하면 사용자가
+   * 사진을 건드리지 않아도 저장 순간 전부 삭제된다 — 백엔드가 `imageKeys` 를
+   * 「남길 목록」으로 읽고 여기 없는 것을 파일까지 지우기 때문이다.
+   */
+  it('수정 모드는 기존 첨부를 미리 보여 준다', () => {
+    const markup = renderWithQuery({
+      ...baseProps,
+      mode: 'edit',
+      initialValue: {
+        ...baseProps.initialValue,
+        images: [
+          {
+            imageKey: 'community/posts/1/2026/09/a.png',
+            imageUrl: 'https://minio.test/a.png',
+            sortOrder: 0,
+          },
+        ],
+      },
+    })
+
+    expect(markup).toContain('https://minio.test/a.png')
+    expect(markup).toContain('1 / 5')
+    expect(markup).toContain('첨부 이미지 1 빼기')
   })
 
   it('shows the existing target read-only in edit mode', () => {
@@ -71,6 +128,7 @@ describe('CommunityEditorForm', () => {
       initialValue: {
         title: '제목',
         content: '본문',
+        images: [],
         location: {
           targetType: 'COMMERCIAL',
           targetCode: '3110008',
@@ -91,6 +149,7 @@ describe('CommunityEditorForm', () => {
         title: '저장 전 제목',
         content: '저장 전 본문',
         location: {},
+        images: [],
       },
       pending: true,
       errorMessage: '저장하지 못했어요.',
@@ -122,6 +181,7 @@ describe('community editor helpers', () => {
           targetCode: '11680',
           targetName: '강남구',
         },
+        images: [],
       },
     })
     expect(
@@ -144,8 +204,28 @@ describe('community editor helpers', () => {
         title: '제목',
         content: '본문',
         location: {},
+        images: [],
       },
     })
+  })
+
+  /**
+   * 넘겨받은 첨부를 **그대로** 되돌려 준다. 여기서 흘리면 저장 시 `imageKeys` 가
+   * 비고, 백엔드가 그것을 「전부 지워라」로 읽는다.
+   */
+  it('첨부 목록을 그대로 실어 보낸다', () => {
+    const images = [
+      {
+        imageKey: 'community/posts/1/2026/09/a.png',
+        imageUrl: 'https://minio.test/a.png',
+        sortOrder: 0,
+      },
+    ]
+
+    expect(
+      resolveCommunityEditorSubmission('edit', '제목', '본문', {}, images).value
+        ?.images,
+    ).toEqual(images)
   })
 
   it('accepts only a positive integer postId for edit mode', () => {
@@ -161,6 +241,7 @@ describe('community editor helpers', () => {
     const draft = {
       title: '제목',
       content: '본문',
+      images: [],
       location: {
         targetType: 'COMMERCIAL' as const,
         targetCode: '3110008',
@@ -173,10 +254,12 @@ describe('community editor helpers', () => {
       content: '본문',
       targetType: 'COMMERCIAL',
       targetCode: '3110008',
+      imageKeys: [],
     })
     expect(createCommunityEditorPayload('edit', draft)).toEqual({
       title: '제목',
       content: '본문',
+      imageKeys: [],
     })
     expect(() =>
       createCommunityEditorPayload('create', {
@@ -293,6 +376,7 @@ describe('community editor helpers', () => {
         viewCount: 0,
         createdAt: '2026-07-27T00:00:00.000Z',
         updatedAt: '2026-07-27T00:00:00.000Z',
+        images: [],
       },
     } satisfies CommunityPostDetailResponse
     const fresh = {

@@ -40,6 +40,27 @@ export type CommunityPostSummary = {
   likeCount: number
   commentCount: number
   createdAt: string
+  /** 첨부 이미지 첫 장. 첨부가 없으면 null 이다. */
+  thumbnailUrl: string | null
+}
+
+/**
+ * 게시글에 붙은 이미지 한 장.
+ *
+ * `imageKey` 는 **서버가 생성한 오브젝트 키**다(`{prefix}/{memberId}/{yyyy}/{MM}/{uuid}.{ext}`).
+ * 수정 요청에 그대로 되돌려 보내야 하는 값이라 화면이 들고 있어야 한다 — 자세한 이유는
+ * `src/lib/community/post-images.ts` 를 볼 것.
+ */
+export type CommunityPostImage = {
+  imageKey: string
+  imageUrl: string
+  sortOrder: number
+}
+
+/** `POST /community/posts/images` 응답 항목. 아직 게시글에 연결되지 않은 키다. */
+export type CommunityPostImageUpload = {
+  imageKey: string
+  imageUrl: string
 }
 
 export type CommunityPostDetail = {
@@ -55,6 +76,8 @@ export type CommunityPostDetail = {
   viewCount: number
   createdAt: string
   updatedAt: string
+  /** 첨부 이미지. `sortOrder` 오름차순이 노출 순서다. */
+  images: CommunityPostImage[]
 }
 
 export type CommunityPostSlice<T = CommunityPostSummary> = {
@@ -124,11 +147,23 @@ export type CommunityPostCreateRequest = {
   targetCode: string
   title: string
   content: string
+  /** 첨부 이미지 키. **배열 순서가 노출 순서**가 된다. 최대 5장. */
+  imageKeys: string[]
 }
 
 export type CommunityPostUpdateRequest = {
   title: string
   content: string
+  /**
+   * **「수정 후 남길 목록」이다. 「추가할 목록」이 아니다.**
+   *
+   * 백엔드 `CommunityPostImageProcessor.replaceImages` 는 기존 이미지 중 이 목록에 없는
+   * 것을 연결 해제하고 파일까지 지운다. 그리고 `normalize(null)` 이 **빈 목록**을 돌려주므로
+   * 이 필드를 **빼고 보내면 첨부 이미지가 전부 삭제된다.** 제목만 고쳐도 그렇다.
+   *
+   * 그래서 선택 필드가 아니다 — 타입에서 강제해 "깜빡 빠뜨림"을 컴파일 단계에서 막는다.
+   */
+  imageKeys: string[]
 }
 
 export type CommunityCommentCreateRequest = {

@@ -10,9 +10,11 @@ import type {
   CommunityComment,
   CommunityCommentLikeBody,
   CommunityCommentsResponse,
+  CommunityPostDetail,
   CommunityPostDetailResponse,
   CommunityPostLikeResponse,
   CommunityPostListResponse,
+  CommunityPostSummary,
 } from '@/types/community'
 
 import {
@@ -40,15 +42,18 @@ import {
 } from './community-comment-thread'
 import CommunityDetailView from './community-detail-view'
 
+// 픽스처는 deepFreeze 로 readonly 다. 목 내부(`createState`)와 같은 방식으로 캐스팅한다.
 const detail = structuredClone(
   communityMockFixtures.details[0],
-) as (typeof communityMockFixtures.details)[number]
+) as CommunityPostDetail
 const comments = structuredClone(
   communityMockFixtures.comments.filter(
     comment => comment.postId === detail.postId,
   ),
 ) as CommunityComment[]
-const relatedPosts = structuredClone(communityMockFixtures.posts.slice(1, 4))
+const relatedPosts = structuredClone(
+  communityMockFixtures.posts.slice(1, 4),
+) as CommunityPostSummary[]
 const contextKey =
   '{"view":"latest","keyword":"","targetType":null,"targetCode":null}'
 const successHeader = {
@@ -652,5 +657,39 @@ describe('community detail helpers', () => {
 
     await startCommunityPublicQueryRecovery(recoveryRef, 'post-2', recovery)
     expect(recovery).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('CommunityDetailView — 첨부 이미지', () => {
+  it('첨부가 없으면 이미지 영역을 그리지 않는다', () => {
+    const { markup } = renderWithStyles()
+
+    expect(markup).not.toContain('첨부 이미지 1')
+  })
+
+  it('첨부를 sortOrder 순서대로 그린다', () => {
+    const { markup } = renderWithStyles({
+      detail: {
+        ...detail,
+        images: [
+          {
+            imageKey: 'b.png',
+            imageUrl: 'https://minio.test/b.png',
+            sortOrder: 1,
+          },
+          {
+            imageKey: 'a.png',
+            imageUrl: 'https://minio.test/a.png',
+            sortOrder: 0,
+          },
+        ],
+      },
+    })
+
+    expect(markup.indexOf('https://minio.test/a.png')).toBeLessThan(
+      markup.indexOf('https://minio.test/b.png'),
+    )
+    expect(markup).toContain('첨부 이미지 1')
+    expect(markup).toContain('첨부 이미지 2')
   })
 })

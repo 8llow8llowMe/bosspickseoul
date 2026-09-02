@@ -63,6 +63,8 @@ type ExpectedPostSummary = {
   likeCount: number
   commentCount: number
   createdAt: string
+  // Swagger `CommunityPostSummaryItem.thumbnailUrl` — 첨부 첫 장, 없으면 null.
+  thumbnailUrl: string | null
 }
 
 type ExpectedFieldError = {
@@ -99,6 +101,8 @@ type ExpectedPostDetail = {
   viewCount: number
   createdAt: string
   updatedAt: string
+  // Swagger `CommunityPostDetailResponse.images` (`CommunityPostImageItem[]`).
+  images: Array<{ imageKey: string; imageUrl: string; sortOrder: number }>
 }
 
 type ExpectedCommentsBody = {
@@ -172,10 +176,17 @@ describe('community API', () => {
       targetCode: string
       title: string
       content: string
+      imageKeys: string[]
     }>()
+    /*
+     * `imageKeys` 는 **선택 필드가 아니다.** 수정에서 이 필드를 빼고 보내면 백엔드가
+     * 빈 목록으로 읽어 기존 첨부를 전부 지운다(`CommunityPostImageProcessor`).
+     * 타입에서 강제해 "깜빡 빠뜨림"을 컴파일 단계에서 막는다.
+     */
     expectTypeOf<CommunityPostUpdateRequest>().toEqualTypeOf<{
       title: string
       content: string
+      imageKeys: string[]
     }>()
     expectTypeOf<CommunityCommentCreateRequest>().toEqualTypeOf<{
       parentCommentId?: string
@@ -303,10 +314,12 @@ describe('community API', () => {
       targetCode: '3110008',
       title: '강남역 상권 분석',
       content: '본문',
+      imageKeys: [],
     }
     const updatePayload: CommunityPostUpdateRequest = {
       title: '수정 제목',
       content: '수정 본문',
+      imageKeys: [],
     }
 
     const created = await createCommunityPost(createPayload)
