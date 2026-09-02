@@ -1,5 +1,6 @@
 import { districts } from '@/data/districts'
 import type { CommunityDataSource } from '@/lib/community/community-data-source'
+import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
 import type { ApiResponse } from '@/types/api'
 import type {
   CommunityId,
@@ -663,6 +664,22 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       const detail = findDetail(state, postId)
       detail.viewCount += 1
       return ok(detail)
+    },
+
+    /**
+     * 실제 백엔드는 좌·우 지표를 읽어 문장을 만든다. 목은 그 문장을 흉내 내지 않고
+     * **모양만** 맞춘다 — 목이 그럴듯한 분석 문장을 지어내면 화면을 볼 때 진짜 초안과
+     * 구별이 안 된다. 대상 코드가 목에 없으면 `resolveTarget` 이 던지고, 화면은
+     * 그것을 초안 실패로 다룬다(실제 404 와 같은 경로다).
+     */
+    async createComparisonDraft(params: ComparisonDraftParams) {
+      const target = resolveTarget('ADMINISTRATION', params.administrationCode)
+
+      return ok({
+        ...target,
+        title: `${params.leftCommercialCode} · ${params.rightCommercialCode} 상권 비교`,
+        content: `[목 초안] ${target.targetName}의 두 상권을 비교한 내용을 여기에 적습니다.`,
+      })
     },
 
     async createPost(payload: CommunityPostCreateRequest) {

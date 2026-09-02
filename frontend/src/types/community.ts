@@ -159,6 +159,37 @@ export type CommunitySearchParams = CommunityCursorParams & {
   keyword: string
 }
 
+/**
+ * 상권 비교 게시글 초안 (`POST /community/posts/drafts/commercial-comparisons`).
+ *
+ * 비교 결과를 읽은 사람이 그대로 글을 쓸 수 있도록 백엔드가 제목·본문을 만들어 준다.
+ * 초안은 **글쓰기 화면을 채우는 재료일 뿐**이고, 저장은 기존
+ * `CommunityPostCreateRequest` 로 한다.
+ */
+export type CommunityComparisonDraftRequest = {
+  targetType: CommunityTargetType
+  targetCode: string
+  leftCommercialCode: string
+  rightCommercialCode: string
+  serviceCode: string
+  periodCode: string
+}
+
+/**
+ * ⚠️ 응답의 `analysisType`·`analysisRefCode`·`analysisRefName`·`analysisSnapshotKey` 를
+ * **일부러 받지 않는다.** 게시글 저장(`CommunityPostCreateRequest`)도 조회
+ * (`CommunityPostDetail`)도 그 필드를 갖고 있지 않아 **보낼 곳이 없다** — 백엔드 쪽
+ * 절반이 아직 뚫려 있지 않다. 타입에 두면 "쓰이는 줄" 알고 배선하다 조용히 버려진다.
+ * 계약이 갖춰지면 그때 함께 넣는다(`commercial-comparison.ts` 의 `winnerSide` 와 같은 처리).
+ */
+export type CommunityComparisonDraft = {
+  targetType: CommunityMetadata
+  targetCode: string | null
+  targetName: string | null
+  title: string
+  content: string
+}
+
 export type CommunityPostListResponse = ApiResponse<CommunityPostListBody>
 export type CommunityLikedPostsResponse = ApiResponse<CommunityLikedPostsBody>
 export type CommunityPostDetailResponse = ApiResponse<CommunityPostDetail>
@@ -166,3 +197,5 @@ export type CommunityPostLikeResponse = ApiResponse<CommunityLikeBody>
 export type CommunityCommentsResponse = ApiResponse<CommunityCommentsBody>
 export type CommunityCommentLikeResponse = ApiResponse<CommunityCommentLikeBody>
 export type CommunityVoidResponse = ApiResponse<null>
+export type CommunityComparisonDraftResponse =
+  ApiResponse<CommunityComparisonDraft>

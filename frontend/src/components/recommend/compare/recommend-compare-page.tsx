@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RotateCcw } from 'lucide-react'
+import { PenLine, RotateCcw } from 'lucide-react'
 import styled from 'styled-components'
 
-import { Button } from '@/components/ui/button'
+import { Button, ButtonLink } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { findSimulationCategoryByCode } from '@/data/simulation-catalog'
 import { isRetryable, resolveApiError } from '@/lib/api/api-error'
@@ -19,6 +19,7 @@ import {
   isCompleteCompareState,
   parseCompareUrlState,
 } from '@/lib/recommend/compare-url'
+import { createComparisonDraftHref } from '@/lib/community/comparison-draft-url'
 import {
   toComparisonGroups,
   toComparisonVerdict,
@@ -77,6 +78,13 @@ const BackLink = styled(Link)`
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
+`
+
+const Actions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 `
 
 const Notice = styled.p`
@@ -163,6 +171,23 @@ export default function RecommendComparePage() {
     ? `${body.left.districtName} ${body.left.administrationName} · ${periodLabel}`
     : periodLabel
 
+  /*
+   * 비교를 읽은 다음의 출구. **비교 결과를 받은 뒤에만** 연다 — 아직 아무 숫자도
+   * 못 본 사람에게 「이 비교로 글쓰기」는 쓸 내용이 없는 버튼이다.
+   *
+   * 초안 제목·본문은 URL 에 싣지 않는다. 글쓰기 화면이 이 코드들로 백엔드에서 초안을
+   * 받는다 — 글쓰기는 로그인이 필요하고, 그 왕복을 통과하려면 상태가 URL 에 있어야 한다.
+   */
+  const draftHref =
+    body && state.administrationCode && state.serviceCode
+      ? createComparisonDraftHref({
+          leftCommercialCode: leftCommercialCode!,
+          rightCommercialCode: rightCommercialCode!,
+          serviceCode: state.serviceCode,
+          administrationCode: state.administrationCode,
+        })
+      : null
+
   if (!isComplete) {
     const hasConditions = Boolean(
       state.districtCode && state.administrationCode && state.serviceCode,
@@ -190,7 +215,19 @@ export default function RecommendComparePage() {
       <Header>
         <Title>{serviceName ? `${serviceName} 상권 비교` : '상권 비교'}</Title>
         <Subtitle>{subtitle}</Subtitle>
-        <BackLink href={backHref}>추천으로 돌아가기</BackLink>
+        <Actions>
+          <BackLink href={backHref}>추천으로 돌아가기</BackLink>
+          {draftHref ? (
+            <ButtonLink
+              href={draftHref}
+              size="medium"
+              variant="secondary"
+              leftIcon={<PenLine />}
+            >
+              이 비교로 글쓰기
+            </ButtonLink>
+          ) : null}
+        </Actions>
       </Header>
 
       {state.truncated ? (

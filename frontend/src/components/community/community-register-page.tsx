@@ -23,6 +23,11 @@ import {
   MOCK_COMMUNITY_MEMBER_ID,
 } from '@/lib/community/community-mock'
 import {
+  readComparisonDraftRequest,
+  type ComparisonDraftParams,
+  type ComparisonDraftRequest,
+} from '@/lib/community/comparison-draft-url'
+import {
   COMMUNITY_CURSOR_START,
   communityKeys,
   getCommunityLoginHref,
@@ -33,6 +38,7 @@ import {
 } from '@/lib/community/community-state'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
+  CommunityComparisonDraft,
   CommunityId,
   CommunityPostCreateRequest,
   CommunityPostDetailResponse,
@@ -81,6 +87,17 @@ const Description = styled.p`
   word-break: keep-all;
 `
 
+const Notice = styled.p`
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-field);
+  background: var(--color-surface);
+  color: var(--color-text-700);
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: keep-all;
+`
+
 export class CommunityEditorQueryError extends Error {
   constructor(message: string) {
     super(message)
@@ -93,6 +110,72 @@ export const parseCommunityEditorPostId = parseCommunityPostId
 export const communityEditorKeys = {
   edit: (postId: CommunityId, mockEnabled: boolean) =>
     ['community', 'editor', 'edit', postId, mockEnabled] as const,
+  comparisonDraft: (params: ComparisonDraftParams, mockEnabled: boolean) =>
+    [
+      'community',
+      'editor',
+      'comparison-draft',
+      params.leftCommercialCode,
+      params.rightCommercialCode,
+      params.serviceCode,
+      params.administrationCode,
+      mockEnabled,
+    ] as const,
+}
+
+/**
+ * 초안을 못 받아도 **글쓰기를 막지 않는다.** 안내만 하고 빈 폼을 그대로 쓰게 둔다 —
+ * 초안은 편의이지 글쓰기의 전제가 아니다.
+ *
+ * 조용히 빈 폼을 주지 않는 이유는 그 반대편이다: 사용자는 「이 비교로 글쓰기」를 눌러
+ * 왔으므로, 아무 설명 없이 빈 폼이 나오면 자기가 누른 것이 실패했다는 사실조차 모른다.
+ */
+export const COMPARISON_DRAFT_ERROR_NOTICE =
+  '비교 내용을 불러오지 못했어요. 직접 작성하실 수 있어요.'
+
+/**
+ * 초안이 화면을 어떻게 바꾸는가. **순수 함수로 빼 둔 이유**가 있다 —
+ * `renderToStaticMarkup` 은 효과를 돌리지 않고 react-query 는 서버 렌더에서 실패
+ * 상태를 `pending` 으로 보고하므로, 실패 분기를 화면 문자열로는 검증할 수 없다.
+ * 규칙을 여기 모아 두면 그 분기도 테스트가 붙는다(`getCommunityEditorAccess` 와 같은 처리).
+ */
+export type ComparisonDraftView =
+  | { kind: 'none' }
+  | { kind: 'loading' }
+  | { kind: 'failed' }
+  | { kind: 'ready'; draft: CommunityComparisonDraft }
+
+type ComparisonDraftViewOptions = {
+  requestKind: ComparisonDraftRequest['kind']
+  pending: boolean
+  failed: boolean
+  draft: CommunityComparisonDraft | null
+}
+
+export const resolveComparisonDraftView = ({
+  requestKind,
+  pending,
+  failed,
+  draft,
+}: ComparisonDraftViewOptions): ComparisonDraftView => {
+  if (requestKind === 'none') {
+    return { kind: 'none' }
+  }
+
+  // 값이 깨진 링크는 호출해 볼 것도 없다. 곧바로 안내한다.
+  if (requestKind === 'invalid' || failed) {
+    return { kind: 'failed' }
+  }
+
+  if (pending) {
+    return { kind: 'loading' }
+  }
+
+  /*
+   * 성공 응답인데 본문이 비어 있는 경우도 실패로 다룬다 — 빈 제목·본문을 폼에 넣으면
+   * 초안이 온 것처럼 보이지만 사용자가 얻는 것은 없다.
+   */
+  return draft ? { kind: 'ready', draft } : { kind: 'failed' }
 }
 
 type CommunityEditorViewerOptions = {
@@ -293,6 +376,15 @@ export default function CommunityRegisterPage() {
   const mode: CommunityEditorMode = postId ? 'edit' : 'create'
   const mockEnabled = isCommunityMockEnabled(searchParams.get('mock'))
   const source = mockEnabled ? communityMockSource : realCommunitySource
+  /*
+   * 수정 모드에서는 초안을 보지 않는다 — 이미 있는 글을 고치는 중인데 초안이 덮으면
+   * 사용자가 쓴 내용이 사라진다.
+   */
+  const draftRequest =
+    mode === 'create'
+      ? readComparisonDraftRequest(searchParams)
+      : ({ kind: 'none' } as const)
+  const draftParams = draftRequest.kind === 'ready' ? draftRequest.params : null
   const rawSearchParams = searchParams.toString()
   const currentHref = rawSearchParams
     ? `${pathname}?${rawSearchParams}`
@@ -327,6 +419,39 @@ export default function CommunityRegisterPage() {
     staleTime: 0,
     refetchOnMount: 'always',
   })
+  const draftQuery = useQuery({
+    queryKey: communityEditorKeys.comparisonDraft(
+      draftParams ?? {
+        leftCommercialCode: '',
+        rightCommercialCode: '',
+        serviceCode: '',
+        administrationCode: '',
+      },
+      mockEnabled,
+    ),
+    queryFn: async ({ signal }) => {
+      const response = await source.createComparisonDraft(draftParams!, signal)
+
+      if (!isApiSuccess(response)) {
+        throw new CommunityEditorQueryError(getApiMessage(response))
+      }
+
+      return response
+    },
+    enabled: draftParams !== null && baseAccess === 'allowed',
+    // 초안은 한 번 받으면 그대로 쓴다. 폼을 채운 뒤 다시 받아 오면 사용자가 고친
+    // 내용을 덮어쓸 위험만 남는다.
+    staleTime: Infinity,
+    retry: false,
+  })
+  const draftView = resolveComparisonDraftView({
+    requestKind: draftRequest.kind,
+    pending: draftQuery.isPending,
+    failed: draftQuery.isError,
+    draft: draftQuery.data?.dataBody ?? null,
+  })
+  const draft = draftView.kind === 'ready' ? draftView.draft : null
+
   const detail = detailQuery.data?.dataBody
   const access = getCommunityEditorAccess({
     mockEnabled,
@@ -484,6 +609,22 @@ export default function CommunityRegisterPage() {
     )
   }
 
+  /*
+   * ⚠️ 폼이 해결되기 **전에** 렌더되면 안 된다. `CommunityEditorForm` 은
+   * `useState(initialValue)` 로 마운트 시점 값만 읽으므로, 뒤늦게 도착한 초안은
+   * 조용히 무시된다(`key` 를 바꾸면 사용자가 그 사이 친 글자가 날아간다).
+   */
+  if (draftView.kind === 'loading') {
+    return (
+      <Page>
+        <CommunityFeedback
+          kind="loading"
+          title="비교 내용을 불러오는 중이에요"
+        />
+      </Page>
+    )
+  }
+
   if (access === 'forbidden') {
     return (
       <Page>
@@ -516,9 +657,17 @@ export default function CommunityRegisterPage() {
           },
         }
       : {
-          title: '',
-          content: '',
-          location: {},
+          title: draft?.title ?? '',
+          content: draft?.content ?? '',
+          location: draft
+            ? {
+                targetType: parseCommunityTargetType(
+                  draft.targetType?.code ?? null,
+                ),
+                targetCode: draft.targetCode ?? undefined,
+                targetName: draft.targetName ?? undefined,
+              }
+            : {},
         }
 
   return (
@@ -535,6 +684,10 @@ export default function CommunityRegisterPage() {
           답변을 받을 수 있어요.
         </Description>
       </Header>
+
+      {draftView.kind === 'failed' ? (
+        <Notice role="status">{COMPARISON_DRAFT_ERROR_NOTICE}</Notice>
+      ) : null}
 
       <CommunityEditorForm
         key={getCommunityEditorFormKey(mode, postId)}
