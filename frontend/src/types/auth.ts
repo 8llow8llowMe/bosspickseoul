@@ -11,11 +11,6 @@ export type RegisterPayload = {
   profileImage: string | null
 }
 
-export type VerifyEmailCodePayload = {
-  memberEmail: string
-  emailCode: string
-}
-
 export type MemberInfo = {
   memberId: string
   email: string
