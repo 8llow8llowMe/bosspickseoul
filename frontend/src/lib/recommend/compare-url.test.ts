@@ -21,8 +21,8 @@ describe('compare-url', () => {
       districtCode: '11680',
       administrationCode: '11680640',
       serviceCode: 'CS100010',
-      commercialCodes: ['3120197', '3120192', '3110958'],
-      truncated: false,
+      commercialCodes: ['3120197', '3120192'],
+      truncated: true,
     })
     expect(isCompleteCompareState(state)).toBe(true)
   })
@@ -47,10 +47,11 @@ describe('compare-url', () => {
     })
   })
 
-  it('4개를 넘기면 앞 4개만 남기고 잘랐다고 알린다', () => {
+  // 백엔드 비교 계약이 좌/우 두 자리뿐이라 상한이 2다. 넘치면 잘라내고 화면이 그 사실을 말한다.
+  it('2개를 넘기면 앞 2개만 남기고 잘랐다고 알린다', () => {
     const state = parse(`${BASE}&commercialCodes=1,2,3,4,5,6`)
 
-    expect(state.commercialCodes).toEqual(['1', '2', '3', '4'])
+    expect(state.commercialCodes).toEqual(['1', '2'])
     expect(state.truncated).toBe(true)
   })
 
@@ -58,7 +59,8 @@ describe('compare-url', () => {
     // 정렬하지 않는다. 열 순서는 사용자가 고른 순서여야 한다.
     const state = parse(`${BASE}&commercialCodes=9,3,9,1`)
 
-    expect(state.commercialCodes).toEqual(['9', '3', '1'])
+    expect(state.commercialCodes).toEqual(['9', '3'])
+    expect(state.truncated).toBe(true)
   })
 
   it('2개 미만이면 완성된 상태가 아니다', () => {

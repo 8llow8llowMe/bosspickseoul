@@ -14,6 +14,7 @@ import {
   updateCommunityPost,
 } from '@/lib/api/community'
 import type {
+  CommunityId,
   CommunityCommentCreateRequest,
   CommunityCommentLikeResponse,
   CommunityCommentsResponse,
@@ -38,28 +39,28 @@ export interface CommunityDataSource {
   getLikedPosts: (
     params: CommunityCursorParams,
   ) => Promise<CommunityLikedPostsResponse>
-  getPost: (postId: number) => Promise<CommunityPostDetailResponse>
+  getPost: (postId: CommunityId) => Promise<CommunityPostDetailResponse>
   createPost: (
     payload: CommunityPostCreateRequest,
   ) => Promise<CommunityPostDetailResponse>
   updatePost: (
-    postId: number,
+    postId: CommunityId,
     payload: CommunityPostUpdateRequest,
   ) => Promise<CommunityPostDetailResponse>
-  deletePost: (postId: number) => Promise<CommunityVoidResponse>
-  togglePostLike: (postId: number) => Promise<CommunityPostLikeResponse>
-  getComments: (postId: number) => Promise<CommunityCommentsResponse>
+  deletePost: (postId: CommunityId) => Promise<CommunityVoidResponse>
+  togglePostLike: (postId: CommunityId) => Promise<CommunityPostLikeResponse>
+  getComments: (postId: CommunityId) => Promise<CommunityCommentsResponse>
   createComment: (
-    postId: number,
+    postId: CommunityId,
     payload: CommunityCommentCreateRequest,
   ) => Promise<CommunityCommentsResponse>
   deleteComment: (
-    postId: number,
-    commentId: number,
+    postId: CommunityId,
+    commentId: CommunityId,
   ) => Promise<CommunityVoidResponse>
   toggleCommentLike: (
-    postId: number,
-    commentId: number,
+    postId: CommunityId,
+    commentId: CommunityId,
   ) => Promise<CommunityCommentLikeResponse>
   createReport: (
     payload: CommunityReportCreateRequest,

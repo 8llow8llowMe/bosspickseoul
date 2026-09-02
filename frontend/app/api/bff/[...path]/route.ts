@@ -17,13 +17,32 @@ const HOP = new Set([
   'cookie',
 ])
 
-const buildHeaders = (req: Request, accessToken: string | null) => {
+/**
+ * 백엔드가 **요청 쿠키의 refresh 토큰**을 읽어야 하는 경로.
+ *
+ * `GET /auth/sessions` 는 쿠키의 refresh jti 를 세션 목록과 대조해 어느 행이
+ * 「현재 기기」인지 표시한다(BE 66a9e21d). 그런데 이 프록시는 `cookie` 를 홉바이홉으로
+ * 지우고, 애초에 브라우저에는 refresh 쿠키가 없다 — 이 저장소는 refresh 를 서버 세션에
+ * 보관하고 `reissue.ts` 처럼 필요할 때만 명시적으로 실어 보낸다. 그대로 두면 백엔드가
+ * 받는 refresh 는 항상 null 이고 `current` 가 전부 false 로 내려온다.
+ *
+ * **백엔드가 실제로 읽는 곳에만 넣는다.** `DELETE /auth/sessions/{id}` 는 세션 id 만
+ * 쓰므로 제외한다 — 자격증명은 필요한 경로에만 흘린다.
+ */
+const REFRESH_COOKIE_GETS = new Set(['auth/sessions'])
+
+const buildHeaders = (
+  req: Request,
+  accessToken: string | null,
+  refreshCookie: string | null,
+) => {
   const h = new Headers()
   req.headers.forEach((v, k) => {
     if (!HOP.has(k.toLowerCase())) h.set(k, v)
   })
   h.delete('authorization') // BFF is the sole injector; drop any client-supplied Authorization
   if (accessToken) h.set('Authorization', `Bearer ${accessToken}`)
+  if (refreshCookie) h.set('Cookie', `refreshToken=${refreshCookie}`)
   return h
 }
 
@@ -34,13 +53,20 @@ const forward = async (
   search: string,
   session: SessionPayload | null,
   body: ArrayBuffer | undefined,
-) =>
-  fetch(`${backendApiUrl}/api/v1/${path}${search}`, {
+) => {
+  const needsRefreshCookie =
+    req.method === 'GET' && REFRESH_COOKIE_GETS.has(path)
+  return fetch(`${backendApiUrl}/api/v1/${path}${search}`, {
     method: req.method,
-    headers: buildHeaders(req, session?.accessToken ?? null),
+    headers: buildHeaders(
+      req,
+      session?.accessToken ?? null,
+      needsRefreshCookie ? (session?.refreshToken ?? null) : null,
+    ),
     body: body && body.byteLength > 0 ? body : undefined,
     redirect: 'manual',
   })
+}
 
 async function handle(
   req: Request,

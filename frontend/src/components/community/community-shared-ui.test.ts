@@ -326,7 +326,7 @@ describe('CommunityReportDialog', () => {
   const baseProps = {
     open: true,
     targetKind: 'POST' as const,
-    targetId: 7,
+    targetId: '7',
     pending: false,
     errorMessage: null,
     onClose: vi.fn(),
@@ -337,7 +337,7 @@ describe('CommunityReportDialog', () => {
     expectTypeOf<CommunityReportDialogProps>().toEqualTypeOf<{
       open: boolean
       targetKind: 'POST' | 'COMMENT'
-      targetId: number
+      targetId: string
       pending: boolean
       errorMessage: string | null
       onClose: () => void
@@ -427,7 +427,7 @@ describe('community shared UI style contracts', () => {
     const dialog = renderWithStyles(CommunityReportDialog, {
       open: true,
       targetKind: 'POST',
-      targetId: 7,
+      targetId: '7',
       pending: false,
       errorMessage: null,
       onClose: vi.fn(),

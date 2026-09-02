@@ -2,6 +2,7 @@ import { districts } from '@/data/districts'
 import type { CommunityDataSource } from '@/lib/community/community-data-source'
 import type { ApiResponse } from '@/types/api'
 import type {
+  CommunityId,
   CommunityComment,
   CommunityCommentCreateRequest,
   CommunityCursorParams,
@@ -19,7 +20,7 @@ import type {
 } from '@/types/community'
 import type { AdministrationArea, CommercialArea } from '@/types/recommend'
 
-export const MOCK_COMMUNITY_MEMBER_ID = 9001
+export const MOCK_COMMUNITY_MEMBER_ID = '9001'
 
 type DeepReadonly<T> = T extends (...args: never[]) => unknown
   ? T
@@ -63,7 +64,7 @@ const targetMetadata: Record<
 
 const basePosts: CommunityPostSummary[] = [
   {
-    postId: 1,
+    postId: '1',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
     targetType: null,
     targetCode: null,
@@ -76,8 +77,8 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T08:30:00.000Z',
   },
   {
-    postId: 2,
-    memberId: 8202,
+    postId: '2',
+    memberId: '8202',
     targetType: null,
     targetCode: null,
     targetName: null,
@@ -89,8 +90,8 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T05:00:00.000Z',
   },
   {
-    postId: 3,
-    memberId: 8303,
+    postId: '3',
+    memberId: '8303',
     targetType: targetMetadata.DISTRICT,
     targetCode: '11680',
     targetName: '강남구',
@@ -102,7 +103,7 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T06:00:00.000Z',
   },
   {
-    postId: 4,
+    postId: '4',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
     targetType: targetMetadata.DISTRICT,
     targetCode: '11440',
@@ -115,7 +116,7 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T03:00:00.000Z',
   },
   {
-    postId: 5,
+    postId: '5',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
     targetType: targetMetadata.ADMINISTRATION,
     targetCode: '1168064000',
@@ -128,8 +129,8 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T07:00:00.000Z',
   },
   {
-    postId: 6,
-    memberId: 8606,
+    postId: '6',
+    memberId: '8606',
     targetType: targetMetadata.ADMINISTRATION,
     targetCode: '1120065000',
     targetName: '성수1가1동',
@@ -141,8 +142,8 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T04:00:00.000Z',
   },
   {
-    postId: 7,
-    memberId: 8707,
+    postId: '7',
+    memberId: '8707',
     targetType: targetMetadata.COMMERCIAL,
     targetCode: '3110008',
     targetName: '강남역 상권',
@@ -154,7 +155,7 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T09:00:00.000Z',
   },
   {
-    postId: 8,
+    postId: '8',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
     targetType: targetMetadata.COMMERCIAL,
     targetCode: '3120015',
@@ -168,7 +169,7 @@ const basePosts: CommunityPostSummary[] = [
   },
 ]
 
-const contentByPostId: Record<number, string> = {
+const contentByPostId: Record<CommunityId, string> = {
   1: '서울에서 첫 매장을 준비하며 임대차 계약 전에 확인한 항목을 공유합니다. 건물 관리 규약과 예상 공사 기간을 먼저 확인한 것이 가장 도움이 됐습니다.',
   2: '서울 전역 자영업자분들과 우천 시 배달과 방문 고객 대응 경험을 나눠요. 입구의 우산 보관 위치와 배달 포장 순서를 바꾸니 혼잡이 줄었습니다.',
   3: '오피스 점심 수요가 최근 어떻게 달라졌는지 현장 이야기를 듣고 싶어요. 메뉴 구성과 회전율을 함께 고민하고 있습니다.',
@@ -189,26 +190,26 @@ const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
   content: contentByPostId[post.postId] ?? '',
   likeCount: post.likeCount,
   commentCount: post.commentCount,
-  viewCount: post.postId * 37,
+  viewCount: Number(post.postId) * 37,
   createdAt: post.createdAt,
   updatedAt: post.createdAt,
 }))
 
 const baseComments: CommunityComment[] = [
   {
-    commentId: 101,
-    postId: 1,
-    memberId: 8101,
+    commentId: '101',
+    postId: '1',
+    memberId: '8101',
     content: '관리 규약을 먼저 확인한다는 부분이 특히 도움 됐어요.',
     likeCount: 3,
     createdAt: '2026-07-27T08:35:00.000Z',
     updatedAt: '2026-07-27T08:35:00.000Z',
     replies: [
       {
-        commentId: 102,
-        postId: 1,
+        commentId: '102',
+        postId: '1',
         memberId: MOCK_COMMUNITY_MEMBER_ID,
-        parentCommentId: 101,
+        parentCommentId: '101',
         content: '공사 가능 시간도 꼭 함께 확인해 보세요.',
         likeCount: 1,
         createdAt: '2026-07-27T08:38:00.000Z',
@@ -217,9 +218,9 @@ const baseComments: CommunityComment[] = [
     ],
   },
   {
-    commentId: 103,
-    postId: 1,
-    memberId: 8103,
+    commentId: '103',
+    postId: '1',
+    memberId: '8103',
     content: '체크리스트를 공유해 주셔서 감사합니다.',
     likeCount: 2,
     createdAt: '2026-07-27T08:42:00.000Z',
@@ -227,8 +228,8 @@ const baseComments: CommunityComment[] = [
     replies: [],
   },
   {
-    commentId: 201,
-    postId: 2,
+    commentId: '201',
+    postId: '2',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
     content: '우산 보관 위치를 바꾸는 방법을 저도 시도해 볼게요.',
     likeCount: 4,
@@ -237,9 +238,9 @@ const baseComments: CommunityComment[] = [
     replies: [],
   },
   {
-    commentId: 401,
-    postId: 4,
-    memberId: 8401,
+    commentId: '401',
+    postId: '4',
+    memberId: '8401',
     content: '정산 기준 문서가 필요하면 예시를 공유할 수 있어요.',
     likeCount: 5,
     createdAt: '2026-07-27T03:20:00.000Z',
@@ -247,19 +248,19 @@ const baseComments: CommunityComment[] = [
     replies: [],
   },
   {
-    commentId: 501,
-    postId: 5,
-    memberId: 8501,
+    commentId: '501',
+    postId: '5',
+    memberId: '8501',
     content: '아침 메뉴는 몇 가지로 운영하셨나요?',
     likeCount: 6,
     createdAt: '2026-07-27T07:10:00.000Z',
     updatedAt: '2026-07-27T07:10:00.000Z',
     replies: [
       {
-        commentId: 502,
-        postId: 5,
+        commentId: '502',
+        postId: '5',
         memberId: MOCK_COMMUNITY_MEMBER_ID,
-        parentCommentId: 501,
+        parentCommentId: '501',
         content: '음료 두 가지와 샌드위치 한 가지로 시작했습니다.',
         likeCount: 2,
         createdAt: '2026-07-27T07:15:00.000Z',
@@ -268,19 +269,19 @@ const baseComments: CommunityComment[] = [
     ],
   },
   {
-    commentId: 701,
-    postId: 7,
-    memberId: 8701,
+    commentId: '701',
+    postId: '7',
+    memberId: '8701',
     content: '수령 동선을 분리한 위치가 궁금합니다.',
     likeCount: 8,
     createdAt: '2026-07-27T09:05:00.000Z',
     updatedAt: '2026-07-27T09:05:00.000Z',
     replies: [
       {
-        commentId: 702,
-        postId: 7,
-        memberId: 8707,
-        parentCommentId: 701,
+        commentId: '702',
+        postId: '7',
+        memberId: '8707',
+        parentCommentId: '701',
         content: '출입문 반대편 선반을 픽업 전용으로 사용했어요.',
         likeCount: 3,
         createdAt: '2026-07-27T09:08:00.000Z',
@@ -289,9 +290,9 @@ const baseComments: CommunityComment[] = [
     ],
   },
   {
-    commentId: 801,
-    postId: 8,
-    memberId: 8801,
+    commentId: '801',
+    postId: '8',
+    memberId: '8801',
     content: '디저트 브랜드도 참여할 수 있을까요?',
     likeCount: 1,
     createdAt: '2026-07-27T08:00:00.000Z',
@@ -335,18 +336,19 @@ export const communityMockLocations = deepFreeze({
 })
 
 const initialLikedPosts = deepFreeze([
-  { postId: 7, likedAt: '2026-07-27T09:10:00.000Z' },
-  { postId: 1, likedAt: '2026-07-27T08:40:00.000Z' },
+  { postId: '7', likedAt: '2026-07-27T09:10:00.000Z' },
+  { postId: '1', likedAt: '2026-07-27T08:40:00.000Z' },
 ])
 
 type CommunityMockState = {
   posts: CommunityPostSummary[]
   details: CommunityPostDetail[]
   comments: CommunityComment[]
-  likedAtByPostId: Map<number, string>
-  likedCommentIds: Set<number>
-  nextPostId: number
-  nextCommentId: number
+  likedAtByPostId: Map<CommunityId, string>
+  likedCommentIds: Set<CommunityId>
+  /** 다음에 발급할 식별자. 목이라 단조 증가면 충분하다 — 문자열로 들고 BigInt 로 올린다. */
+  nextPostId: CommunityId
+  nextCommentId: CommunityId
   currentTimestampMs: number
 }
 
@@ -383,8 +385,8 @@ const createState = (): CommunityMockState => {
       likedPosts.map(item => [item.postId, item.likedAt]),
     ),
     likedCommentIds: new Set(),
-    nextPostId: Math.max(...posts.map(post => post.postId)) + 1,
-    nextCommentId: Math.max(...commentIds) + 1,
+    nextPostId: nextIdAfter(posts.map(post => post.postId)),
+    nextCommentId: nextIdAfter(commentIds),
     currentTimestampMs: Math.max(
       ...details.flatMap(detail => [
         Date.parse(detail.createdAt),
@@ -453,6 +455,27 @@ const resolveTarget = (
   }
 }
 
+/**
+ * 식별자 대소 비교. **BigInt 로 한다.**
+ *
+ * 문자열 사전순으로 비교하면 자릿수가 다를 때 틀린다("9" > "10"). 실제 Snowflake 는
+ * 대개 자릿수가 같지만, 목 데이터는 1~N 처럼 짧은 값을 쓰므로 여기서 바로 드러난다.
+ * Number 로 되돌리는 것은 애초에 이 변경이 없애려는 정밀도 손실이라 쓰지 않는다.
+ */
+const compareIds = (left: CommunityId, right: CommunityId) =>
+  left === right ? 0 : BigInt(left) < BigInt(right) ? -1 : 1
+
+/** 주어진 식별자들 다음 값. 목 데이터의 발급기다. */
+const nextIdAfter = (ids: readonly CommunityId[]): CommunityId =>
+  String(
+    ids.reduce((max, id) => (BigInt(id) > max ? BigInt(id) : max), BigInt(0)) +
+      BigInt(1),
+  )
+
+/** 식별자를 하나 올린다. */
+const incrementId = (id: CommunityId): CommunityId =>
+  String(BigInt(id) + BigInt(1))
+
 const comparePosts = (
   left: CommunityPostSummary,
   right: CommunityPostSummary,
@@ -463,38 +486,39 @@ const comparePosts = (
   if (params.sortType === 'POPULAR') {
     return (
       direction * (left.likeCount - right.likeCount) ||
-      direction * (left.postId - right.postId)
+      direction * compareIds(left.postId, right.postId)
     )
   }
 
-  return direction * (left.postId - right.postId)
+  return direction * compareIds(left.postId, right.postId)
 }
 
 const isAfterCursor = (
   post: CommunityPostSummary,
   params: CommunityCursorParams,
 ) => {
-  if (params.lastPostId <= 0) {
+  if (compareIds(params.lastPostId, '0') <= 0) {
     return true
   }
 
   if (params.sortType === 'LATEST') {
     return params.orderType === 'ASC'
-      ? post.postId > params.lastPostId
-      : post.postId < params.lastPostId
+      ? compareIds(post.postId, params.lastPostId) > 0
+      : compareIds(post.postId, params.lastPostId) < 0
   }
 
   if (params.orderType === 'ASC') {
     return (
       post.likeCount > params.lastLikeCount ||
       (post.likeCount === params.lastLikeCount &&
-        post.postId > params.lastPostId)
+        compareIds(post.postId, params.lastPostId) > 0)
     )
   }
 
   return (
     post.likeCount < params.lastLikeCount ||
-    (post.likeCount === params.lastLikeCount && post.postId < params.lastPostId)
+    (post.likeCount === params.lastLikeCount &&
+      compareIds(post.postId, params.lastPostId) < 0)
   )
 }
 
@@ -516,7 +540,7 @@ const paginate = <Post extends CommunityPostSummary>(
 
 const getPreviewContent = (content: string) => content.slice(0, 160)
 
-const findPost = (state: CommunityMockState, postId: number) => {
+const findPost = (state: CommunityMockState, postId: CommunityId) => {
   const post = state.posts.find(item => item.postId === postId)
 
   if (!post) {
@@ -526,7 +550,7 @@ const findPost = (state: CommunityMockState, postId: number) => {
   return post
 }
 
-const findDetail = (state: CommunityMockState, postId: number) => {
+const findDetail = (state: CommunityMockState, postId: CommunityId) => {
   const detail = state.details.find(item => item.postId === postId)
 
   if (!detail) {
@@ -538,7 +562,7 @@ const findDetail = (state: CommunityMockState, postId: number) => {
 
 const updatePostCommentCount = (
   state: CommunityMockState,
-  postId: number,
+  postId: CommunityId,
   difference: number,
 ) => {
   const post = findPost(state, postId)
@@ -559,8 +583,8 @@ type CommentLocation =
 
 const findComment = (
   state: CommunityMockState,
-  postId: number,
-  commentId: number,
+  postId: CommunityId,
+  commentId: CommunityId,
 ): CommentLocation => {
   for (const comment of state.comments) {
     if (comment.postId !== postId) continue
@@ -634,7 +658,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       })
     },
 
-    async getPost(postId: number) {
+    async getPost(postId: CommunityId) {
       findPost(state, postId)
       const detail = findDetail(state, postId)
       detail.viewCount += 1
@@ -644,7 +668,8 @@ export const createCommunityMockSource = (): CommunityDataSource => {
     async createPost(payload: CommunityPostCreateRequest) {
       const target = resolveTarget(payload.targetType, payload.targetCode)
       const createdAt = nextTimestamp(state)
-      const postId = state.nextPostId++
+      const postId = state.nextPostId
+      state.nextPostId = incrementId(postId)
       const detail: CommunityPostDetail = {
         postId,
         memberId: MOCK_COMMUNITY_MEMBER_ID,
@@ -674,7 +699,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       return ok(detail)
     },
 
-    async updatePost(postId: number, payload: CommunityPostUpdateRequest) {
+    async updatePost(postId: CommunityId, payload: CommunityPostUpdateRequest) {
       const post = findPost(state, postId)
       const detail = findDetail(state, postId)
 
@@ -691,7 +716,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       return ok(detail)
     },
 
-    async deletePost(postId: number) {
+    async deletePost(postId: CommunityId) {
       const post = findPost(state, postId)
 
       if (post.memberId !== MOCK_COMMUNITY_MEMBER_ID) {
@@ -718,7 +743,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       return ok(null)
     },
 
-    async togglePostLike(postId: number) {
+    async togglePostLike(postId: CommunityId) {
       const post = findPost(state, postId)
       const detail = findDetail(state, postId)
       const liked = !state.likedAtByPostId.has(postId)
@@ -739,7 +764,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       })
     },
 
-    async getComments(postId: number) {
+    async getComments(postId: CommunityId) {
       findPost(state, postId)
       return ok({
         comments: state.comments.filter(comment => comment.postId === postId),
@@ -747,7 +772,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
     },
 
     async createComment(
-      postId: number,
+      postId: CommunityId,
       payload: CommunityCommentCreateRequest,
     ) {
       findPost(state, postId)
@@ -764,7 +789,8 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       }
 
       const createdAt = nextTimestamp(state)
-      const commentId = state.nextCommentId++
+      const commentId = state.nextCommentId
+      state.nextCommentId = incrementId(commentId)
 
       if (parent) {
         parent.replies.push({
@@ -797,7 +823,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       })
     },
 
-    async deleteComment(postId: number, commentId: number) {
+    async deleteComment(postId: CommunityId, commentId: CommunityId) {
       findPost(state, postId)
       const location = findComment(state, postId, commentId)
 
@@ -829,7 +855,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       return ok(null)
     },
 
-    async toggleCommentLike(postId: number, commentId: number) {
+    async toggleCommentLike(postId: CommunityId, commentId: CommunityId) {
       findPost(state, postId)
       const { comment } = findComment(state, postId, commentId)
       const liked = !state.likedCommentIds.has(commentId)

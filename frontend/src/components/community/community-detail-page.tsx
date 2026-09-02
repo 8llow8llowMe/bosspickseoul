@@ -19,6 +19,7 @@ import {
   MOCK_COMMUNITY_MEMBER_ID,
 } from '@/lib/community/community-mock'
 import {
+  COMMUNITY_CURSOR_START,
   communityKeys,
   getCommunityLoginHref,
   isCommunityMockEnabled,
@@ -28,6 +29,7 @@ import {
 import { useAuthStore } from '@/stores/auth-store'
 import type { ApiResponse } from '@/types/api'
 import type {
+  CommunityId,
   CommunityCommentLikeBody,
   CommunityCommentsResponse,
   CommunityListParams,
@@ -67,8 +69,17 @@ export const validateCommunityRelatedResponse = (
   response: CommunityPostListResponse,
 ) => validateCommunityResponse(response)
 
-export const isCommunityOwner = (memberId: number, viewer: CommunityViewer) =>
-  viewer.authenticated && String(memberId) === viewer.memberId
+/**
+ * 내가 쓴 글/댓글인가.
+ *
+ * `memberId` 는 이제 문자열이라 그대로 비교한다. 예전에는 숫자(그것도 Snowflake 가
+ * 절삭된 값)를 `String(...)` 으로 되돌려 세션의 온전한 id 와 맞췄는데, 절삭된 쪽이
+ * 복원될 리가 없어 **본인 글에서도 항상 false** 였다 — 수정·삭제 버튼이 뜨지 않았다.
+ */
+export const isCommunityOwner = (
+  memberId: CommunityId,
+  viewer: CommunityViewer,
+) => viewer.authenticated && memberId === viewer.memberId
 
 export const createCommunityRelatedParams = (
   detail: CommunityPostDetail,
@@ -83,7 +94,7 @@ export const createCommunityRelatedParams = (
   return {
     sortType: 'LATEST',
     orderType: 'DESC',
-    lastPostId: 0,
+    lastPostId: COMMUNITY_CURSOR_START,
     lastLikeCount: 0,
     size: 5,
     targetType,
@@ -125,7 +136,7 @@ export const updateCommunityRelatedLikeCache = (
 
 const updateCommunityRelatedCommentCountCache = (
   response: CommunityPostListResponse,
-  postId: number,
+  postId: CommunityId,
   commentCount: number,
 ): CommunityPostListResponse => ({
   ...response,
@@ -378,7 +389,7 @@ const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback
 
 type CommunityDetailPageProps = {
-  communityId: number
+  communityId: CommunityId
 }
 
 type ReportTarget = Pick<
@@ -658,7 +669,7 @@ export default function CommunityDetailPage({
   const createCommentMutation = useMutation({
     mutationFn: async (payload: {
       content: string
-      parentCommentId?: number
+      parentCommentId?: CommunityId
     }) =>
       validateCommunityCommentsResponse(
         await source.createComment(postId, payload),
@@ -706,7 +717,7 @@ export default function CommunityDetailPage({
   })
 
   const deleteCommentMutation = useMutation({
-    mutationFn: async (commentId: number) =>
+    mutationFn: async (commentId: CommunityId) =>
       validateCommunityResponse(await source.deleteComment(postId, commentId)),
     onSuccess: async () => {
       setCommentMutationError(null)
@@ -735,7 +746,7 @@ export default function CommunityDetailPage({
   })
 
   const commentLikeMutation = useMutation({
-    mutationFn: async (commentId: number) =>
+    mutationFn: async (commentId: CommunityId) =>
       validateCommunityResponse(
         await source.toggleCommentLike(postId, commentId),
       ),

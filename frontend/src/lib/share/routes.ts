@@ -14,6 +14,10 @@ import {
   type SharePayload,
   type ShareType,
 } from '@/lib/share/payload'
+import {
+  COMPARE_MIN_COMMERCIALS,
+  createCompareHref,
+} from '@/lib/recommend/compare-url'
 
 type RouteBuilder = (payload: SharePayload) => string | null
 
@@ -22,6 +26,25 @@ const read = (payload: SharePayload, key: string): string | null => {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed ? trimmed : null
+}
+
+/**
+ * 문자열 배열 값을 읽는다. 중복은 첫 등장만 남기고 **순서는 지킨다**
+ * — `compare-url.ts` 파서와 같은 규칙이다.
+ *
+ * payload 는 보관함·공유 링크 응답으로 되돌아오는 값이라 타입 선언이 런타임을
+ * 보장하지 않는다. 배열이 아니면 빈 배열로 떨어뜨려 호출부가 미지원으로 안내하게 한다.
+ */
+const readList = (payload: SharePayload, key: string): string[] => {
+  const value = payload[key]
+  if (!Array.isArray(value)) return []
+
+  const unique: string[] = []
+  value.forEach(item => {
+    const trimmed = typeof item === 'string' ? item.trim() : ''
+    if (trimmed && !unique.includes(trimmed)) unique.push(trimmed)
+  })
+  return unique
 }
 
 const toQuery = (entries: [string, string | null][]): string => {
@@ -85,6 +108,33 @@ const buildAdministrationAnalysisRoute: RouteBuilder = payload => {
 }
 
 /**
+ * `/recommend/compare` 복원.
+ *
+ * URL 조립은 **직접 하지 않고** `createCompareHref` 에 맡긴다. 파라미터 이름과 상한
+ * 절단이 한 곳에만 있어야 파서와 어긋나지 않는다 — 이 파일이 이름을 따로 알면
+ * 비교 화면의 URL 규칙이 바뀔 때 조용히 갈라진다.
+ *
+ * 상권이 하한(2) 미만이면 null 이다. 한 개짜리 비교표는 그릴 게 없으므로
+ * 조건이 반쯤 사라진 화면을 여느니 미지원으로 안내한다.
+ */
+const buildCommercialComparisonRoute: RouteBuilder = payload => {
+  const districtCode = read(payload, 'districtCode')
+  const administrationCode = read(payload, 'administrationCode')
+  const serviceCode = read(payload, 'serviceCode')
+  if (!districtCode || !administrationCode || !serviceCode) return null
+
+  const commercialCodes = readList(payload, 'commercialCodes')
+  if (commercialCodes.length < COMPARE_MIN_COMMERCIALS) return null
+
+  return createCompareHref({
+    districtCode,
+    administrationCode,
+    serviceCode,
+    commercialCodes,
+  })
+}
+
+/**
  * shareType 별 URL 조립기.
  *
  * **`null` 은 "아직 지원하지 않음"이다.** 조용히 조건이 사라진 기본 화면을 여느니
@@ -98,8 +148,7 @@ export const ROUTE_BUILDERS: Record<ShareType, RouteBuilder | null> = {
   ADMINISTRATION_ANALYSIS: buildAdministrationAnalysisRoute,
   // `/status` 는 Top10 밖 자치구를 조용히 버린다(URL 재작성 + 안내 없음).
   DISTRICT_ANALYSIS: null,
-  // `/recommend` 는 검색 파라미터를 읽지 않는다.
-  COMMERCIAL_COMPARISON: null,
+  COMMERCIAL_COMPARISON: buildCommercialComparisonRoute,
 }
 
 export type ShareRouteResult =
@@ -148,6 +197,15 @@ export const getShareTypeLabel = (shareTypeCode: string | null | undefined) =>
  * 런타임 코드가 URL 을 다시 payload 로 되돌릴 일은 없지만, 두 방향이 어긋나면
  * 공유 링크가 조용히 다른 화면을 열게 되므로 테스트로 못 박는다.
  */
+/**
+ * URL 에서 **배열로 되돌려야 하는** 파라미터.
+ *
+ * `createCompareHref` 가 상권 코드들을 쉼표로 이어 한 파라미터에 담기 때문에,
+ * 그대로 읽으면 문자열이 되어 라운드트립이 성립하지 않는다. 이 이름은 비교 화면
+ * URL 에만 쓰이므로 shareType 을 몰라도 키만으로 구분할 수 있다.
+ */
+const LIST_PARAMS = new Set(['commercialCodes'])
+
 export const parseShareRoute = (href: string): SharePayload => {
   const queryIndex = href.indexOf('?')
   if (queryIndex < 0) return {}
@@ -155,7 +213,12 @@ export const parseShareRoute = (href: string): SharePayload => {
   const params = new URLSearchParams(href.slice(queryIndex + 1))
   const payload: SharePayload = {}
   params.forEach((value, key) => {
-    payload[key] = value
+    payload[key] = LIST_PARAMS.has(key)
+      ? value
+          .split(',')
+          .map(item => item.trim())
+          .filter(Boolean)
+      : value
   })
   return payload
 }

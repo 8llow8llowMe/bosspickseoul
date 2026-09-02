@@ -19,8 +19,10 @@ import AuthShell, {
 import GuestOnly from '@/components/auth/guest-only'
 import SocialLogin from '@/components/auth/social-login'
 import {
+  EMAIL_CODE_COOLDOWN,
   classifyAuthError,
   getAuthErrorMessage,
+  isEmailCodeInvalidated,
   type AuthErrorField,
 } from '@/lib/api/auth-errors'
 import {
@@ -37,7 +39,14 @@ import {
 } from '@/components/auth/register-machine'
 import type { ApiResponse } from '@/types/api'
 
-const RESEND_COOLDOWN_SECONDS = 180
+/**
+ * 백엔드 `EmailVerificationProcessor.RESEND_COOLDOWN` 과 **같은 값이어야 한다.**
+ *
+ * 예전엔 180 이었다. 백엔드는 60초면 재전송을 받아 주는데 화면이 3배를 잠그고 있었고,
+ * 오입력 5회로 코드가 무효화되면(AUTH_018) "다시 요청해 주세요" 를 읽은 채 버튼이
+ * 150초 더 잠긴 막다른 골목이 됐다.
+ */
+const RESEND_COOLDOWN_SECONDS = 60
 
 const INITIAL_FORM: RegisterFormValues = {
   email: '',
@@ -161,8 +170,15 @@ export default function RegisterForm() {
         return
       }
 
+      const resultCode = data?.dataHeader?.resultCode
+      // 서버가 아직 쿨다운이라고 답했다면 화면 카운트다운이 실제와 어긋난 것이다
+      // (다른 탭에서 보냈거나, 무효화 처리로 우리가 쿨다운을 열어 준 뒤일 수 있다).
+      // 남은 시간을 알 수 없으므로 한 주기를 통째로 다시 잠근다 — 과대추정이 안전하다.
+      if (resultCode === EMAIL_CODE_COOLDOWN) {
+        setCooldown(RESEND_COOLDOWN_SECONDS)
+      }
       setError({
-        field: classifyAuthError(data?.dataHeader?.resultCode),
+        field: classifyAuthError(resultCode),
         message: getAuthErrorMessage(data, '인증코드 발송에 실패했습니다.'),
       })
     } catch {
@@ -197,8 +213,15 @@ export default function RegisterForm() {
         return
       }
 
+      const resultCode = data?.dataHeader?.resultCode
+      // 코드가 무효화됐으면(만료 AUTH_005 / 시도초과 AUTH_018) 백엔드에 코드가 남아 있지 않다.
+      // 죽은 값을 입력란에 남겨 두고 재전송까지 잠가 두면 안내만 하고 길은 막는 꼴이 된다.
+      if (isEmailCodeInvalidated(resultCode)) {
+        setCode('')
+        setCooldown(0)
+      }
       setError({
-        field: classifyAuthError(data?.dataHeader?.resultCode),
+        field: classifyAuthError(resultCode),
         message: getAuthErrorMessage(data, '인증코드 확인에 실패했습니다.'),
       })
     } catch {

@@ -13,8 +13,18 @@ import {
  * 접두사는 좌우가 서로 다른 조건을 갖는 `simulation/compare` 의 문제를 푸는 장치다.
  */
 
+/**
+ * 비교는 **정확히 두 개**다.
+ *
+ * 예전에는 상한이 4였다. 표를 추천 응답으로 직접 조립했기 때문에 열 수가 자유로웠다.
+ * 이제 비교의 정본은 백엔드(`GET /commercials/compare`)이고, 그 계약에는
+ * `leftCommercialCode`/`rightCommercialCode` 두 자리뿐이라 N개 비교가 없다.
+ *
+ * 늘리려면 **백엔드 계약이 먼저** 바뀌어야 한다. 여기만 올리면 세 번째 이후가
+ * 조용히 잘려서, 사용자는 고른 것이 다 보이는 줄 안다.
+ */
 export const COMPARE_MIN_COMMERCIALS = 2
-export const COMPARE_MAX_COMMERCIALS = 4
+export const COMPARE_MAX_COMMERCIALS = 2
 
 /*
  * 이 모듈 안에서만 쓴다. 파서와 생성기가 **같은 이름**을 보게 묶어 두는 것이

@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type {
   CommunityCursorParams,
+  CommunityId,
   CommunityTargetType,
 } from '@/types/community'
+
+import { COMMUNITY_CURSOR_START } from './community-state'
 
 import {
   communityMockFixtures,
@@ -23,13 +26,13 @@ const cursor = (
 ): CommunityCursorParams => ({
   sortType: 'LATEST',
   orderType: 'DESC',
-  lastPostId: 0,
+  lastPostId: '0',
   lastLikeCount: 0,
   size: 20,
   ...overrides,
 })
 
-const fixturePost = (postId: number) => {
+const fixturePost = (postId: string) => {
   const post = communityMockFixtures.posts.find(item => item.postId === postId)
 
   if (!post) {
@@ -39,7 +42,7 @@ const fixturePost = (postId: number) => {
   return post
 }
 
-const fixtureDetail = (postId: number) => {
+const fixtureDetail = (postId: string) => {
   const detail = communityMockFixtures.details.find(
     item => item.postId === postId,
   )
@@ -51,7 +54,7 @@ const fixtureDetail = (postId: number) => {
   return detail
 }
 
-const fixturePosts = (postIds: number[]) => postIds.map(fixturePost)
+const fixturePosts = (postIds: CommunityId[]) => postIds.map(fixturePost)
 
 describe('community mock source', () => {
   it('Swagger 요약·상세 fixture를 2/2/2/2 대상 분포와 작성자 혼합으로 제공한다', () => {
@@ -153,16 +156,16 @@ describe('community mock source', () => {
 
   it('완전한 상세 성공 envelope를 반환하고 조회수를 일관되게 증가시킨다', async () => {
     const source = createCommunityMockSource()
-    const detail = fixtureDetail(1)
+    const detail = fixtureDetail('1')
 
-    expect(await source.getPost(1)).toEqual({
+    expect(await source.getPost('1')).toEqual({
       dataHeader: successHeader,
       dataBody: {
         ...detail,
         viewCount: detail.viewCount + 1,
       },
     })
-    expect(await source.getPost(1)).toEqual({
+    expect(await source.getPost('1')).toEqual({
       dataHeader: successHeader,
       dataBody: {
         ...detail,
@@ -192,7 +195,7 @@ describe('community mock source', () => {
           targetName: '강남역 상권',
         },
         posts: {
-          contents: [fixturePost(7)],
+          contents: [fixturePost('7')],
           hasNext: false,
         },
       },
@@ -215,7 +218,7 @@ describe('community mock source', () => {
       dataBody: {
         board: null,
         posts: {
-          contents: fixturePosts([8, 7, 6, 5, 4, 3, 2, 1]),
+          contents: fixturePosts(['8', '7', '6', '5', '4', '3', '2', '1']),
           hasNext: false,
         },
       },
@@ -232,10 +235,24 @@ describe('community mock source', () => {
     )
 
     expect(latest.dataBody.posts.contents.map(post => post.postId)).toEqual([
-      8, 7, 6, 5, 4, 3, 2, 1,
+      '8',
+      '7',
+      '6',
+      '5',
+      '4',
+      '3',
+      '2',
+      '1',
     ])
     expect(popular.dataBody.posts.contents.map(post => post.postId)).toEqual([
-      7, 3, 6, 2, 5, 8, 4, 1,
+      '7',
+      '3',
+      '6',
+      '2',
+      '5',
+      '8',
+      '4',
+      '1',
     ])
   })
 
@@ -248,15 +265,16 @@ describe('community mock source', () => {
 
     expect(first.dataBody.posts.hasNext).toBe(true)
     expect(first.dataBody.posts.contents.map(post => post.postId)).toEqual([
-      7, 3,
+      '7',
+      '3',
     ])
-    expect(last?.postId).toBe(3)
+    expect(last?.postId).toBe('3')
 
     const second = await source.getPosts(
       cursor({
         sortType: 'POPULAR',
         lastLikeCount: last?.likeCount ?? 0,
-        lastPostId: last?.postId ?? 0,
+        lastPostId: last?.postId ?? COMMUNITY_CURSOR_START,
         size: 2,
       }),
     )
@@ -265,7 +283,7 @@ describe('community mock source', () => {
       dataBody: {
         board: null,
         posts: {
-          contents: fixturePosts([6, 2]),
+          contents: fixturePosts(['6', '2']),
           hasNext: true,
         },
       },
@@ -330,16 +348,17 @@ describe('community mock source', () => {
   it('삭제된 LATEST 커서 행 뒤에서도 postId 경계를 유지한다', async () => {
     const source = createCommunityMockSource()
 
-    await source.deletePost(5)
+    await source.deletePost('5')
     const response = await source.getPosts(
       cursor({
-        lastPostId: 5,
+        lastPostId: '5',
         size: 2,
       }),
     )
 
     expect(response.dataBody.posts.contents.map(post => post.postId)).toEqual([
-      4, 3,
+      '4',
+      '3',
     ])
     expect(response.dataBody.posts.hasNext).toBe(true)
   })
@@ -347,18 +366,19 @@ describe('community mock source', () => {
   it('POPULAR 커서 행의 좋아요 수가 바뀌어도 이전 tuple 경계를 유지한다', async () => {
     const source = createCommunityMockSource()
 
-    await source.togglePostLike(2)
+    await source.togglePostLike('2')
     const response = await source.getPosts(
       cursor({
         sortType: 'POPULAR',
         lastLikeCount: 16,
-        lastPostId: 2,
+        lastPostId: '2',
         size: 2,
       }),
     )
 
     expect(response.dataBody.posts.contents.map(post => post.postId)).toEqual([
-      5, 8,
+      '5',
+      '8',
     ])
     expect(response.dataBody.posts.hasNext).toBe(true)
   })
@@ -368,7 +388,7 @@ describe('community mock source', () => {
     const latest = await source.getPosts(
       cursor({
         orderType: 'ASC',
-        lastPostId: 3,
+        lastPostId: '3',
         size: 2,
       }),
     )
@@ -377,16 +397,18 @@ describe('community mock source', () => {
         sortType: 'POPULAR',
         orderType: 'ASC',
         lastLikeCount: 9,
-        lastPostId: 8,
+        lastPostId: '8',
         size: 2,
       }),
     )
 
     expect(latest.dataBody.posts.contents.map(post => post.postId)).toEqual([
-      4, 5,
+      '4',
+      '5',
     ])
     expect(popular.dataBody.posts.contents.map(post => post.postId)).toEqual([
-      5, 2,
+      '5',
+      '2',
     ])
   })
 
@@ -414,7 +436,7 @@ describe('community mock source', () => {
     })
     const liked = await source.getLikedPosts(
       cursor({
-        lastPostId: 7,
+        lastPostId: '7',
         size: 1,
       }),
     )
@@ -422,7 +444,9 @@ describe('community mock source', () => {
     expect(search.dataBody.posts.contents.map(post => post.postId)).toEqual([
       first.dataBody.postId,
     ])
-    expect(liked.dataBody.posts.contents.map(post => post.postId)).toEqual([1])
+    expect(liked.dataBody.posts.contents.map(post => post.postId)).toEqual([
+      '1',
+    ])
   })
 
   it('제목과 본문을 대소문자 구분 없이 검색한다', async () => {
@@ -437,7 +461,7 @@ describe('community mock source', () => {
       dataBody: {
         board: null,
         posts: {
-          contents: [fixturePost(8), fixturePost(4)],
+          contents: [fixturePost('8'), fixturePost('4')],
           hasNext: false,
         },
       },
@@ -454,11 +478,11 @@ describe('community mock source', () => {
         posts: {
           contents: [
             {
-              ...fixturePost(7),
+              ...fixturePost('7'),
               likedAt: '2026-07-27T09:10:00.000Z',
             },
             {
-              ...fixturePost(1),
+              ...fixturePost('1'),
               likedAt: '2026-07-27T08:40:00.000Z',
             },
           ],
@@ -472,7 +496,7 @@ describe('community mock source', () => {
     const sourceA = createCommunityMockSource()
     const sourceB = createCommunityMockSource()
     const basePostCount = communityMockFixtures.posts.length
-    const baseLikeCount = fixturePost(2).likeCount
+    const baseLikeCount = fixturePost('2').likeCount
 
     await sourceA.createPost({
       targetType: 'DISTRICT',
@@ -480,7 +504,7 @@ describe('community mock source', () => {
       title: 'A 전용 게시글',
       content: '다른 source에는 없어야 합니다.',
     })
-    await sourceA.togglePostLike(2)
+    await sourceA.togglePostLike('2')
 
     const sourceAPosts = await sourceA.getPosts(cursor())
     const sourceBPosts = await sourceB.getPosts(cursor())
@@ -488,11 +512,11 @@ describe('community mock source', () => {
     expect(sourceAPosts.dataBody.posts.contents).toHaveLength(basePostCount + 1)
     expect(sourceBPosts.dataBody.posts.contents).toHaveLength(basePostCount)
     expect(
-      sourceBPosts.dataBody.posts.contents.find(post => post.postId === 2)
+      sourceBPosts.dataBody.posts.contents.find(post => post.postId === '2')
         ?.likeCount,
     ).toBe(baseLikeCount)
     expect(communityMockFixtures.posts).toHaveLength(basePostCount)
-    expect(fixturePost(2).likeCount).toBe(baseLikeCount)
+    expect(fixturePost('2').likeCount).toBe(baseLikeCount)
     expect(Object.isFrozen(communityMockFixtures)).toBe(true)
     expect(Object.isFrozen(communityMockFixtures.posts)).toBe(true)
     expect(Object.isFrozen(communityMockFixtures.comments[0]?.replies)).toBe(
@@ -511,7 +535,7 @@ describe('community mock source', () => {
 
     expect(created.dataHeader).toEqual(successHeader)
     expect(created.dataBody).toEqual({
-      postId: expect.any(Number),
+      postId: expect.any(String),
       memberId: MOCK_COMMUNITY_MEMBER_ID,
       targetType: {
         code: 'COMMERCIAL',
@@ -633,22 +657,22 @@ describe('community mock source', () => {
     const cleanSource = createCommunityMockSource()
 
     await expect(
-      sourceWithRejectedRequests.createComment(1, {
-        parentCommentId: 99999,
+      sourceWithRejectedRequests.createComment('1', {
+        parentCommentId: '99999',
         content: '없는 부모 답글',
       }),
     ).rejects.toThrow('댓글 99999을 찾을 수 없습니다.')
     await expect(
-      sourceWithRejectedRequests.createComment(1, {
-        parentCommentId: 102,
+      sourceWithRejectedRequests.createComment('1', {
+        parentCommentId: '102',
         content: '2단계 답글',
       }),
     ).rejects.toThrow('답글에는 추가 답글을 작성할 수 없습니다.')
 
-    const afterRejected = await sourceWithRejectedRequests.createComment(3, {
+    const afterRejected = await sourceWithRejectedRequests.createComment('3', {
       content: '정상 댓글',
     })
-    const clean = await cleanSource.createComment(3, {
+    const clean = await cleanSource.createComment('3', {
       content: '정상 댓글',
     })
 
@@ -657,14 +681,14 @@ describe('community mock source', () => {
 
   it('게시글 좋아요를 토글하고 좋아요 목록을 함께 갱신한다', async () => {
     const source = createCommunityMockSource()
-    const original = fixturePost(2)
-    const originalDetail = fixtureDetail(2)
+    const original = fixturePost('2')
+    const originalDetail = fixtureDetail('2')
 
-    const liked = await source.togglePostLike(2)
+    const liked = await source.togglePostLike('2')
     expect(liked).toEqual({
       dataHeader: successHeader,
       dataBody: {
-        postId: 2,
+        postId: '2',
         liked: true,
         likeCount: original.likeCount + 1,
       },
@@ -672,30 +696,30 @@ describe('community mock source', () => {
 
     const likedPosts = await source.getLikedPosts(cursor())
     expect(
-      likedPosts.dataBody.posts.contents.find(post => post.postId === 2),
+      likedPosts.dataBody.posts.contents.find(post => post.postId === '2'),
     ).toEqual({
       ...original,
       likeCount: original.likeCount + 1,
       likedAt: expect.any(String),
     })
-    expect((await source.getPost(2)).dataBody).toEqual({
+    expect((await source.getPost('2')).dataBody).toEqual({
       ...originalDetail,
       likeCount: original.likeCount + 1,
       viewCount: originalDetail.viewCount + 1,
     })
 
-    const unliked = await source.togglePostLike(2)
+    const unliked = await source.togglePostLike('2')
     expect(unliked.dataBody).toEqual({
-      postId: 2,
+      postId: '2',
       liked: false,
       likeCount: original.likeCount,
     })
     expect(
       (await source.getLikedPosts(cursor())).dataBody.posts.contents.some(
-        post => post.postId === 2,
+        post => post.postId === '2',
       ),
     ).toBe(false)
-    expect((await source.getPost(2)).dataBody).toEqual({
+    expect((await source.getPost('2')).dataBody).toEqual({
       ...originalDetail,
       likeCount: original.likeCount,
       viewCount: originalDetail.viewCount + 2,
@@ -705,38 +729,38 @@ describe('community mock source', () => {
   it('좋아요와 댓글이 있는 게시글 삭제 시 연관 상태를 제거한다', async () => {
     const source = createCommunityMockSource()
     const comment = communityMockFixtures.comments.find(
-      item => item.postId === 1,
+      item => item.postId === '1',
     )
 
-    await source.deletePost(1)
+    await source.deletePost('1')
 
     expect(
       (await source.getPosts(cursor())).dataBody.posts.contents.some(
-        post => post.postId === 1,
+        post => post.postId === '1',
       ),
     ).toBe(false)
     expect(
       (await source.getLikedPosts(cursor())).dataBody.posts.contents.some(
-        post => post.postId === 1,
+        post => post.postId === '1',
       ),
     ).toBe(false)
-    await expect(source.getPost(1)).rejects.toThrow(
+    await expect(source.getPost('1')).rejects.toThrow(
       '게시글 1을 찾을 수 없습니다.',
     )
-    await expect(source.getComments(1)).rejects.toThrow(
+    await expect(source.getComments('1')).rejects.toThrow(
       '게시글 1을 찾을 수 없습니다.',
     )
     await expect(
       source.createReport({
         targetKind: 'POST',
-        targetId: 1,
+        targetId: '1',
         reason: '삭제 후 신고',
       }),
     ).rejects.toThrow('게시글 1을 찾을 수 없습니다.')
     await expect(
       source.createReport({
         targetKind: 'COMMENT',
-        targetId: comment?.commentId ?? 0,
+        targetId: comment?.commentId ?? COMMUNITY_CURSOR_START,
         reason: '삭제 후 댓글 신고',
       }),
     ).rejects.toThrow(`댓글 ${comment?.commentId}을 찾을 수 없습니다.`)
@@ -744,14 +768,14 @@ describe('community mock source', () => {
 
   it('최상위 댓글과 1단계 답글을 만들고 각각 삭제한다', async () => {
     const source = createCommunityMockSource()
-    const topLevel = await source.createComment(3, {
+    const topLevel = await source.createComment('3', {
       content: '첫 댓글입니다.',
     })
     const parent = topLevel.dataBody.comments[0]
 
     expect(parent).toEqual({
-      commentId: expect.any(Number),
-      postId: 3,
+      commentId: expect.any(String),
+      postId: '3',
       memberId: MOCK_COMMUNITY_MEMBER_ID,
       content: '첫 댓글입니다.',
       likeCount: 0,
@@ -760,15 +784,15 @@ describe('community mock source', () => {
       replies: [],
     })
 
-    const withReply = await source.createComment(3, {
+    const withReply = await source.createComment('3', {
       parentCommentId: parent?.commentId,
       content: '첫 답글입니다.',
     })
     const reply = withReply.dataBody.comments[0]?.replies[0]
 
     expect(reply).toEqual({
-      commentId: expect.any(Number),
-      postId: 3,
+      commentId: expect.any(String),
+      postId: '3',
       memberId: MOCK_COMMUNITY_MEMBER_ID,
       parentCommentId: parent?.commentId,
       content: '첫 답글입니다.',
@@ -777,13 +801,13 @@ describe('community mock source', () => {
       updatedAt: expect.any(String),
     })
 
-    await source.deleteComment(3, reply?.commentId ?? 0)
-    expect((await source.getComments(3)).dataBody.comments[0]?.replies).toEqual(
-      [],
-    )
+    await source.deleteComment('3', reply?.commentId ?? 0)
+    expect(
+      (await source.getComments('3')).dataBody.comments[0]?.replies,
+    ).toEqual([])
 
-    await source.deleteComment(3, parent?.commentId ?? 0)
-    expect(await source.getComments(3)).toEqual({
+    await source.deleteComment('3', parent?.commentId ?? 0)
+    expect(await source.getComments('3')).toEqual({
       dataHeader: successHeader,
       dataBody: { comments: [] },
     })
@@ -856,31 +880,31 @@ describe('community mock source', () => {
 
   it('댓글과 답글 삭제가 요약·상세 commentCount를 함께 갱신한다', async () => {
     const source = createCommunityMockSource()
-    const topLevel = await source.createComment(3, {
+    const topLevel = await source.createComment('3', {
       content: '삭제할 최상위 댓글',
     })
     const parentId = topLevel.dataBody.comments[0]?.commentId ?? 0
-    const withReply = await source.createComment(3, {
+    const withReply = await source.createComment('3', {
       parentCommentId: parentId,
       content: '삭제할 답글',
     })
     const replyId = withReply.dataBody.comments[0]?.replies[0]?.commentId ?? 0
 
-    await source.deleteComment(3, replyId)
+    await source.deleteComment('3', replyId)
     expect(
       (await source.getPosts(cursor())).dataBody.posts.contents.find(
-        post => post.postId === 3,
+        post => post.postId === '3',
       )?.commentCount,
     ).toBe(1)
-    expect((await source.getPost(3)).dataBody.commentCount).toBe(1)
+    expect((await source.getPost('3')).dataBody.commentCount).toBe(1)
 
-    await source.deleteComment(3, parentId)
+    await source.deleteComment('3', parentId)
     expect(
       (await source.getPosts(cursor())).dataBody.posts.contents.find(
-        post => post.postId === 3,
+        post => post.postId === '3',
       )?.commentCount,
     ).toBe(0)
-    expect((await source.getPost(3)).dataBody.commentCount).toBe(0)
+    expect((await source.getPost('3')).dataBody.commentCount).toBe(0)
   })
 
   it('유효한 게시글과 댓글의 중복 신고도 성공 envelope로 반환한다', async () => {
@@ -888,7 +912,7 @@ describe('community mock source', () => {
     const comment = communityMockFixtures.comments[0]
     const postReport = {
       targetKind: 'POST' as const,
-      targetId: 1,
+      targetId: '1',
       reason: '중복 홍보 게시글입니다.',
     }
 
@@ -903,7 +927,7 @@ describe('community mock source', () => {
     expect(
       await source.createReport({
         targetKind: 'COMMENT',
-        targetId: comment?.commentId ?? 0,
+        targetId: comment?.commentId ?? COMMUNITY_CURSOR_START,
         reason: '부적절한 댓글입니다.',
       }),
     ).toEqual({ dataHeader: successHeader, dataBody: null })
@@ -913,18 +937,18 @@ describe('community mock source', () => {
     const source = createCommunityMockSource()
 
     await expect(
-      source.updatePost(2, {
+      source.updatePost('2', {
         title: '권한 없는 수정',
         content: '권한 없는 본문',
       }),
     ).rejects.toThrow('게시글 2을 수정할 권한이 없습니다.')
-    await expect(source.deletePost(2)).rejects.toThrow(
+    await expect(source.deletePost('2')).rejects.toThrow(
       '게시글 2을 삭제할 권한이 없습니다.',
     )
-    await expect(source.deleteComment(1, 101)).rejects.toThrow(
+    await expect(source.deleteComment('1', '101')).rejects.toThrow(
       '댓글 101을 삭제할 권한이 없습니다.',
     )
-    await expect(source.deleteComment(7, 702)).rejects.toThrow(
+    await expect(source.deleteComment('7', '702')).rejects.toThrow(
       '댓글 702을 삭제할 권한이 없습니다.',
     )
   })
@@ -932,44 +956,44 @@ describe('community mock source', () => {
   it('존재하지 않는 게시글·댓글·신고 대상은 명확한 Error로 거부한다', async () => {
     const source = createCommunityMockSource()
 
-    await expect(source.getPost(99999)).rejects.toThrow(
+    await expect(source.getPost('99999')).rejects.toThrow(
       '게시글 99999을 찾을 수 없습니다.',
     )
     await expect(
-      source.updatePost(99999, { title: '수정', content: '본문' }),
+      source.updatePost('99999', { title: '수정', content: '본문' }),
     ).rejects.toThrow('게시글 99999을 찾을 수 없습니다.')
-    await expect(source.deletePost(99999)).rejects.toThrow(
+    await expect(source.deletePost('99999')).rejects.toThrow(
       '게시글 99999을 찾을 수 없습니다.',
     )
-    await expect(source.togglePostLike(99999)).rejects.toThrow(
+    await expect(source.togglePostLike('99999')).rejects.toThrow(
       '게시글 99999을 찾을 수 없습니다.',
     )
-    await expect(source.getComments(99999)).rejects.toThrow(
+    await expect(source.getComments('99999')).rejects.toThrow(
       '게시글 99999을 찾을 수 없습니다.',
     )
     await expect(
-      source.createComment(99999, { content: '댓글' }),
+      source.createComment('99999', { content: '댓글' }),
     ).rejects.toThrow('게시글 99999을 찾을 수 없습니다.')
     await expect(
-      source.createComment(1, { parentCommentId: 99999, content: '답글' }),
+      source.createComment('1', { parentCommentId: '99999', content: '답글' }),
     ).rejects.toThrow('댓글 99999을 찾을 수 없습니다.')
-    await expect(source.deleteComment(1, 99999)).rejects.toThrow(
+    await expect(source.deleteComment('1', '99999')).rejects.toThrow(
       '댓글 99999을 찾을 수 없습니다.',
     )
-    await expect(source.toggleCommentLike(1, 99999)).rejects.toThrow(
+    await expect(source.toggleCommentLike('1', '99999')).rejects.toThrow(
       '댓글 99999을 찾을 수 없습니다.',
     )
     await expect(
       source.createReport({
         targetKind: 'POST',
-        targetId: 99999,
+        targetId: '99999',
         reason: '신고',
       }),
     ).rejects.toThrow('게시글 99999을 찾을 수 없습니다.')
     await expect(
       source.createReport({
         targetKind: 'COMMENT',
-        targetId: 99999,
+        targetId: '99999',
         reason: '신고',
       }),
     ).rejects.toThrow('댓글 99999을 찾을 수 없습니다.')

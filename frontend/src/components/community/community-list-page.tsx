@@ -28,6 +28,7 @@ import {
   MOCK_COMMUNITY_MEMBER_ID,
 } from '@/lib/community/community-mock'
 import {
+  COMMUNITY_CURSOR_START,
   communityKeys,
   createCommunityContextKey,
   createCommunityPostHref,
@@ -41,6 +42,7 @@ import {
 } from '@/lib/community/community-state'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
+  CommunityId,
   CommunityCursorParams,
   CommunityLikedPostsBody,
   CommunityLikedPostsResponse,
@@ -164,7 +166,7 @@ export const startCommunityPublicListRecovery = (
 }
 
 const INITIAL_CURSOR = {
-  lastPostId: 0,
+  lastPostId: COMMUNITY_CURSOR_START,
   lastLikeCount: 0,
 }
 
@@ -407,7 +409,7 @@ export const getCommunityBoardTargetName = (
 
 export const createCommunityAdjacentState = (
   posts: CommunityPostSummary[],
-  currentPostId: number,
+  currentPostId: CommunityId,
   contextKey: string,
 ): AdjacentPostState | null => {
   const currentIndex = posts.findIndex(post => post.postId === currentPostId)
@@ -433,7 +435,7 @@ const dedupeCommunityPosts = (
   responses: CommunityListResponse[],
   state: CommunityListState,
 ) => {
-  const seen = new Set<number>()
+  const seen = new Set<CommunityId>()
 
   return responses.flatMap(response => {
     if (!isCommunityListSuccess(response)) {

@@ -969,17 +969,17 @@ describe('RecommendPanel — 비교하기', () => {
     expect(cta).toContain('administrationCode=11680101')
     expect(cta).toContain('serviceCode=CS100010')
     expect(cta).toContain('commercialCodes=3110008%2C3110958')
-    expect(markup).toContain('비교하기 (2/4)')
+    expect(markup).toContain('비교하기 (2/2)')
   })
 
-  it('4개를 채우면 더 고를 수 없다고 말한다', () => {
+  it('2개를 채우면 더 고를 수 없다고 말한다', () => {
     const markup = renderPanel({
       ...baseProps,
       results: [result],
       view: 'results',
-      compareSelection: ['1', '2', '3', '4'],
+      compareSelection: ['1', '2'],
     })
 
-    expect(markup).toContain('한 번에 4개까지 비교할 수 있어요')
+    expect(markup).toContain('한 번에 2개까지 비교할 수 있어요')
   })
 })

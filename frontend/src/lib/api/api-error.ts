@@ -181,6 +181,22 @@ const classifyResponselessError = (error: unknown): ApiErrorKind => {
 }
 
 /**
+ * **앱이 직접 던진** 오류의 문구를 꺼낸다. 아니면 null.
+ *
+ * 화면들은 "200 인데 `dataHeader.success === false`" 를 `new Error(getApiMessage(...))` 로
+ * 바꿔 던진다. 그 문구는 서버가 준 것이라 그대로 보여 줘야 하는데, `normalizeApiError` 에
+ * 넣으면 응답 객체가 없어 통신 실패로 보고 "네트워크 연결을 확인…"으로 덮어 버린다.
+ *
+ * 그래서 분류기들은 정규화 **전에** 이 함수로 먼저 걸러 낸다. 두 곳(`analysis-bookmark`,
+ * `share-errors`)이 같은 판단을 하므로 한 곳에 둔다 — 나뉘어 있으면 조용히 어긋난다.
+ */
+export const readAppThrownMessage = (error: unknown): string | null => {
+  if (isRecord(error) && error.isAxiosError === true) return null
+  if (!(error instanceof Error)) return null
+  return error.message || null
+}
+
+/**
  * 던져진 에러(axios rejection, 앱이 throw 한 도메인 오류 등)를 정규화한다.
  *
  * BFF(`/api/bff`)는 백엔드 상태 코드를 그대로 통과시키므로 `response.status`가 곧 백엔드 상태다.

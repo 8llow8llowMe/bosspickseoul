@@ -10,11 +10,12 @@ import {
   type MouseEvent,
 } from 'react'
 import styled from 'styled-components'
+import type { CommunityId } from '@/types/community'
 
 export type CommunityReportDialogProps = {
   open: boolean
   targetKind: 'POST' | 'COMMENT'
-  targetId: number
+  targetId: CommunityId
   pending: boolean
   errorMessage: string | null
   onClose: () => void

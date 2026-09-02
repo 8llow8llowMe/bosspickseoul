@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { readAdjacentPosts, saveAdjacentPosts } from './adjacent-posts'
 
 const value = {
-  currentPostId: 3,
+  currentPostId: '3',
   contextKey: '{"view":"latest"}',
-  previous: { postId: 2, title: '이전 글' },
-  next: { postId: 4, title: '다음 글' },
+  previous: { postId: '2', title: '이전 글' },
+  next: { postId: '4', title: '다음 글' },
 }
 
 describe('adjacent posts storage', () => {
@@ -19,7 +19,7 @@ describe('adjacent posts storage', () => {
       getItem: () => stored,
     }
     saveAdjacentPosts(storage, value)
-    expect(readAdjacentPosts(storage, 3, value.contextKey)).toEqual(value)
+    expect(readAdjacentPosts(storage, '3', value.contextKey)).toEqual(value)
   })
 
   it('storage 저장 오류를 삼키고 실패를 반환한다', () => {
@@ -47,10 +47,10 @@ describe('adjacent posts storage', () => {
 
   it('깨진 JSON과 누락된 값은 null을 반환한다', () => {
     expect(
-      readAdjacentPosts({ getItem: () => '{' }, 3, value.contextKey),
+      readAdjacentPosts({ getItem: () => '{' }, '3', value.contextKey),
     ).toBeNull()
     expect(
-      readAdjacentPosts({ getItem: () => null }, 3, value.contextKey),
+      readAdjacentPosts({ getItem: () => null }, '3', value.contextKey),
     ).toBeNull()
   })
 
@@ -64,7 +64,7 @@ describe('adjacent posts storage', () => {
               contextKey: value.contextKey,
             }),
         },
-        3,
+        '3',
         value.contextKey,
       ),
     ).toBeNull()
@@ -72,12 +72,14 @@ describe('adjacent posts storage', () => {
       readAdjacentPosts(
         {
           getItem: () =>
+            // postId 가 숫자인 항목은 이제 잘못된 형태다 — 식별자는 문자열이어야 한다.
+            // (예전에는 정반대였다: 문자열이 잘못된 형태였다)
             JSON.stringify({
               ...value,
-              previous: { postId: '2', title: '이전' },
+              previous: { postId: 2, title: '이전' },
             }),
         },
-        3,
+        '3',
         value.contextKey,
       ),
     ).toBeNull()
@@ -85,8 +87,8 @@ describe('adjacent posts storage', () => {
 
   it('다른 게시글 또는 목록 context에서는 복원하지 않는다', () => {
     const storage = { getItem: () => JSON.stringify(value) }
-    expect(readAdjacentPosts(storage, 4, value.contextKey)).toBeNull()
-    expect(readAdjacentPosts(storage, 3, 'other')).toBeNull()
+    expect(readAdjacentPosts(storage, '4', value.contextKey)).toBeNull()
+    expect(readAdjacentPosts(storage, '3', 'other')).toBeNull()
   })
 
   it('previous와 next가 null인 상태를 지원한다', () => {
@@ -94,7 +96,7 @@ describe('adjacent posts storage', () => {
     expect(
       readAdjacentPosts(
         { getItem: () => JSON.stringify(emptyAdjacent) },
-        3,
+        '3',
         value.contextKey,
       ),
     ).toEqual(emptyAdjacent)

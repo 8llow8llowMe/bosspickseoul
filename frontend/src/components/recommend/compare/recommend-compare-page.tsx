@@ -3,52 +3,35 @@
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useMemo } from 'react'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { RotateCcw } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { findSimulationCategoryByCode } from '@/data/simulation-catalog'
-import {
-  isRetryable,
-  resolveApiError,
-  type NormalizedApiError,
-} from '@/lib/api/api-error'
-import {
-  fetchCommercialProfile,
-  fetchCommercialRecommendations,
-  fetchCommercials,
-  RECOMMENDATION_PERIOD_CODE,
-} from '@/lib/api/recommend'
+import { isRetryable, resolveApiError } from '@/lib/api/api-error'
+import { fetchCommercialComparison } from '@/lib/api/commercial-comparison'
+import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import { isApiSuccess } from '@/lib/api/response'
-import {
-  buildCompareRecommendationRequest,
-  selectCompareColumns,
-} from '@/lib/recommend/compare-data'
 import {
   COMPARE_MIN_COMMERCIALS,
   isCompleteCompareState,
   parseCompareUrlState,
 } from '@/lib/recommend/compare-url'
 import {
-  createCommercialCodesKey,
-  recommendCommercialsKey,
-  recommendProfileKey,
-  recommendResultsKey,
-} from '@/lib/recommend/recommend-query-keys'
-import {
-  normalizeRecommendationResults,
-  readCommercials,
-} from '@/lib/recommend/recommend-response'
+  toComparisonGroups,
+  toComparisonVerdict,
+} from '@/lib/recommend/comparison-presentation'
+import { recommendComparisonKey } from '@/lib/recommend/recommend-query-keys'
 import { formatRecommendationPeriod } from '@/lib/recommend/recommend-state'
 import {
   createRecommendHrefFromCodes,
   RECOMMEND_URL_PARAMS,
 } from '@/lib/recommend/recommend-url'
-import type { CommercialProfile } from '@/types/recommend'
 
 import RecommendCompareTable from './recommend-compare-table'
+import RecommendComparisonVerdict from './recommend-comparison-verdict'
 
 /**
  * `view` 가 가질 수 있는 유일한 값(`recommend-url.ts`). 파라미터 **이름**은
@@ -101,6 +84,15 @@ const Notice = styled.p`
   line-height: 20px;
 `
 
+/**
+ * 상권 비교 화면.
+ *
+ * 비교의 정본은 **백엔드**다(`GET /commercials/compare`). 예전에는 추천 응답과
+ * 상권 프로필을 화면에서 조립해 표를 만들었는데, 그 경로는 세 종류의 호출과
+ * 블록별 부분 실패 처리를 화면이 떠안게 했다. 이제 호출은 하나다.
+ *
+ * ⚠️ 계약이 좌/우 두 자리뿐이라 **정확히 두 개**만 비교한다(`COMPARE_MAX_COMMERCIALS`).
+ */
 export default function RecommendComparePage() {
   const searchParams = useSearchParams()
   const state = useMemo(
@@ -108,6 +100,8 @@ export default function RecommendComparePage() {
     [searchParams],
   )
   const isComplete = isCompleteCompareState(state)
+
+  const [leftCommercialCode, rightCommercialCode] = state.commercialCodes
 
   const recommendHref = createRecommendHrefFromCodes({
     districtCode: state.districtCode,
@@ -119,179 +113,48 @@ export default function RecommendComparePage() {
     ? `${recommendHref}&${RECOMMEND_URL_PARAMS.view}=${RESULTS_VIEW}`
     : recommendHref
 
-  // 1) 행정동 전체 상권 — 추천 입력을 재현하기 위해서다.
-  const commercialsQuery = useQuery({
-    queryKey: recommendCommercialsKey(
-      state.districtCode,
-      state.administrationCode,
-    ),
-    queryFn: () =>
-      fetchCommercials(state.districtCode!, state.administrationCode!),
-    enabled: isComplete,
-  })
-  /*
-   * 목록을 읽는 규칙은 `/recommend` 와 **같은 함수**여야 한다. 한쪽이 거르는 행을
-   * 다른 쪽이 통과시키면 `commercialCodesKey` 가 갈라져 캐시가 둘로 쪼개지고,
-   * 추천이 매겨지는 코드 집합 자체가 달라진다(명세 §4).
-   */
-  const allCodes = useMemo(
-    () =>
-      readCommercials(commercialsQuery.data).map(item => item.commercialCode),
-    [commercialsQuery.data],
-  )
-
-  // 2) 추천 — /recommend 와 같은 요청, 같은 키.
-  const recommendationQuery = useQuery({
-    queryKey: recommendResultsKey({
-      districtCode: state.districtCode,
-      administrationCode: state.administrationCode,
+  const comparisonQuery = useQuery({
+    queryKey: recommendComparisonKey({
+      leftCommercialCode,
+      rightCommercialCode,
       serviceCode: state.serviceCode,
       periodCode: RECOMMENDATION_PERIOD_CODE,
-      commercialCodesKey: createCommercialCodesKey(allCodes),
     }),
-    queryFn: () =>
-      fetchCommercialRecommendations(
-        buildCompareRecommendationRequest({
+    queryFn: ({ signal }) =>
+      fetchCommercialComparison(
+        {
+          leftCommercialCode: leftCommercialCode!,
+          rightCommercialCode: rightCommercialCode!,
           serviceCode: state.serviceCode!,
-          allCommercialCodes: allCodes,
-        }),
+          periodCode: RECOMMENDATION_PERIOD_CODE,
+        },
+        signal,
       ),
-    enabled: isComplete && allCodes.length > 0,
-  })
-  /*
-   * 후보도 `/recommend` 와 **같은 함수**로 줄인다 — 같은 다섯 개, 같은 순위.
-   * 날것의 `items` 를 정렬만 하면 `rank: null` 한 줄에 정렬이 무너지고
-   * 배열이 아닌 `metricBreakdown` 하나에 표가 통째로 죽는다(명세 §4).
-   */
-  const candidates = useMemo(
-    () => normalizeRecommendationResults(recommendationQuery.data, allCodes),
-    [allCodes, recommendationQuery.data],
-  )
-
-  // 3) 열마다 프로필.
-  const profileQueries = useQueries({
-    queries: state.commercialCodes.map(code => ({
-      queryKey: recommendProfileKey(
-        code,
-        state.serviceCode,
-        RECOMMENDATION_PERIOD_CODE,
-      ),
-      queryFn: () =>
-        fetchCommercialProfile(
-          code,
-          state.serviceCode!,
-          RECOMMENDATION_PERIOD_CODE,
-        ),
-      enabled: isComplete,
-    })),
+    enabled: isComplete,
   })
 
-  const profileByCode = useMemo(() => {
-    const map: Record<string, CommercialProfile | null> = {}
-    state.commercialCodes.forEach((code, index) => {
-      const body = profileQueries[index]?.data
-      map[code] = body && isApiSuccess(body) ? (body.dataBody ?? null) : null
-    })
-    return map
-  }, [profileQueries, state.commercialCodes])
+  const body =
+    comparisonQuery.data && isApiSuccess(comparisonQuery.data)
+      ? comparisonQuery.data.dataBody
+      : null
 
-  /*
-   * 실패는 **블록별로** 다룬다(명세 §7). 추천이 실패했다고 원지표까지 버리거나,
-   * 프로필이 전부 실패했다고 점수까지 버리면 「부분 실패에서 화면을 통째로 버리지
-   * 않는다」는 원칙이 깨진다.
-   */
-  const commercialsError = resolveApiError(commercialsQuery)
-  const recommendationError = resolveApiError(recommendationQuery)
-  // 상권 목록이 없으면 추천 요청 자체가 성립하지 않는다 — 둘 다 점수 블록의 실패다.
-  const scoreError = commercialsError ?? recommendationError
-  /*
-   * 200 인데 목록이 비어 오는 길이 있다(상권이 없는 행정동, 혹은 응답 모양이 바뀌어
-   * `readCommercials` 가 전부 거르는 경우). 그때 추천 쿼리는 `enabled: false` 로
-   * 영원히 멈춰 오류도 로딩도 아니게 되고, 점수 열이 말없이 `—` 로만 남는다.
-   * 오류가 아니므로 재시도 버튼은 붙이지 않고(§7 의 `isRetryable` 규약) 사실만 말한다.
-   */
-  const commercialsEmpty =
-    isComplete && commercialsQuery.isSuccess && allCodes.length === 0
-  const scoresReady = scoreError === null && recommendationQuery.isSuccess
-  const scoresLoading =
-    !scoresReady &&
-    scoreError === null &&
-    (commercialsQuery.isFetching || recommendationQuery.isFetching)
+  const groups = useMemo(() => toComparisonGroups(body), [body])
+  const verdict = useMemo(() => toComparisonVerdict(body), [body])
 
-  const profileErrors = state.commercialCodes.map(
-    (_, index) => resolveApiError(profileQueries[index] ?? {}) ?? null,
-  )
-  const failedProfileCodes = state.commercialCodes.filter((code, index) => {
-    if (profileErrors[index]) return true
-    // 200 인데 본문이 비어 온 경우도 그 열의 지표는 없는 것이다.
-    return profileQueries[index]?.isSuccess === true && !profileByCode[code]
-  })
-  /*
-   * 열 전부의 지표가 없으면 **어떻게 없어졌든** 원지표 블록이 사실을 말한다.
-   * 200 인데 본문이 비어 온 경우에는 정규화할 오류가 없어 `metricsError` 가 null 이다 —
-   * 그때도 카드는 나오고, 재시도 버튼만 `isRetryable` 규약대로 빠진다.
-   */
-  const metricsUnavailable =
-    state.commercialCodes.length > 0 &&
-    failedProfileCodes.length === state.commercialCodes.length
-  const metricsError = metricsUnavailable
-    ? (profileErrors.find(error => error !== null) ?? null)
-    : null
-  const metricsLoading = profileQueries.some(
-    query => query.isFetching && query.data === undefined,
-  )
-
-  const handleRetryScores = () => {
-    if (commercialsError) void commercialsQuery.refetch()
-    if (recommendationError) void recommendationQuery.refetch()
-  }
-  const handleRetryMetrics = () => {
-    profileQueries.forEach((query, index) => {
-      if (profileErrors[index]) void query.refetch()
-    })
-  }
+  const error = resolveApiError(comparisonQuery)
 
   const serviceName = state.serviceCode
     ? (findSimulationCategoryByCode(state.serviceCode)?.item.name ?? null)
     : null
   /*
-   * 자치구·행정동 **이름**은 프로필에만 있다(`fetchCommercials` 의 `CommercialArea`
-   * 는 이름을 싣지 않는다). 아직 한 열도 못 받았으면 코드를 날것으로 보여 주는
-   * 대신 기간만 적는다.
+   * 자치구·행정동 **이름**은 비교 응답의 좌측 메타에 들어 있다. 아직 못 받았으면
+   * 코드를 날것으로 보여 주는 대신 기간만 적는다.
    */
-  const namedProfile = state.commercialCodes
-    .map(code => profileByCode[code])
-    .find((profile): profile is CommercialProfile => Boolean(profile))
   // `formatRecommendationPeriod` 가 「… 기준」까지 만든다. 여기서 또 붙이지 않는다.
   const periodLabel = formatRecommendationPeriod(RECOMMENDATION_PERIOD_CODE)
-  const subtitle = namedProfile
-    ? `${namedProfile.districtName} ${namedProfile.administrationName} · ${periodLabel}`
+  const subtitle = body?.left
+    ? `${body.left.districtName} ${body.left.administrationName} · ${periodLabel}`
     : periodLabel
-
-  const renderBlockError = (
-    title: string,
-    error: NormalizedApiError | null,
-    fallbackDescription: string,
-    onRetry: () => void,
-  ) => (
-    <EmptyState
-      title={title}
-      description={error ? error.message : fallbackDescription}
-      action={
-        // 재시도 노출은 `isRetryable(kind)` 로만 판단한다 — 404 는 다시 물어도 같다.
-        error && isRetryable(error.kind) ? (
-          <Button
-            size="medium"
-            variant="secondary"
-            leftIcon={<RotateCcw />}
-            onClick={onRetry}
-          >
-            다시 시도
-          </Button>
-        ) : undefined
-      }
-    />
-  )
 
   if (!isComplete) {
     const hasConditions = Boolean(
@@ -306,7 +169,7 @@ export default function RecommendComparePage() {
           }
           description={
             hasConditions
-              ? `상권 추천 결과에서 상권을 ${COMPARE_MIN_COMMERCIALS}개 이상 골라 주세요.`
+              ? `상권 추천 결과에서 상권을 ${COMPARE_MIN_COMMERCIALS}개 골라 주세요.`
               : '자치구·행정동·업종이 있어야 비교할 수 있어요. 추천 결과에서 다시 골라 주세요.'
           }
           action={<BackLink href={backHref}>추천으로 돌아가기</BackLink>}
@@ -314,14 +177,6 @@ export default function RecommendComparePage() {
       </Page>
     )
   }
-
-  const { columns, missingCodes } = selectCompareColumns({
-    requestedCodes: state.commercialCodes,
-    candidates,
-    profileByCode,
-    // 추천을 아직/끝내 모르면 「Top N 에 없다」고 판정할 수 없다.
-    scoresUnavailable: !scoresReady,
-  })
 
   return (
     <Page>
@@ -332,63 +187,61 @@ export default function RecommendComparePage() {
       </Header>
 
       {state.truncated ? (
-        <Notice>한 번에 4개까지 비교할 수 있어요. 앞 4개만 보여 드려요.</Notice>
+        <Notice>한 번에 2개까지 비교할 수 있어요. 앞 2개만 보여 드려요.</Notice>
       ) : null}
 
-      {/* 낡은 링크에서만 나오는 안내다. 통신 실패는 여기에 해당하지 않는다. */}
-      {scoresReady && missingCodes.length > 0 ? (
-        <Notice>
-          추천 결과에 없는 상권 {missingCodes.length}개는 표에서 뺐어요. 추천을
-          다시 받아 주세요.
-        </Notice>
+      {comparisonQuery.isFetching && !body ? (
+        <Notice role="status">비교 결과를 불러오는 중이에요.</Notice>
       ) : null}
 
-      {scoresLoading || metricsLoading ? (
-        <Notice role="status">점수와 지표를 불러오는 중이에요.</Notice>
-      ) : null}
-
-      {scoreError
-        ? renderBlockError(
-            '추천 점수를 불러오지 못했어요',
-            scoreError,
-            '지금은 추천 점수를 보여 줄 수 없어요.',
-            handleRetryScores,
-          )
-        : null}
-
-      {!scoreError && commercialsEmpty
-        ? renderBlockError(
-            '추천 점수를 매길 수 없어요',
-            null,
-            '이 행정동에서 받아 온 상권 목록이 비어 있어요. 아래 지표는 그대로 볼 수 있어요.',
-            handleRetryScores,
-          )
-        : null}
-
-      {metricsUnavailable
-        ? renderBlockError(
-            '상권 지표를 불러오지 못했어요',
-            metricsError,
-            '이 조건에서 받아 온 상권 지표가 없어요.',
-            handleRetryMetrics,
-          )
-        : null}
-
-      {columns.length < COMPARE_MIN_COMMERCIALS ? (
+      {error ? (
         <EmptyState
-          title="비교할 상권이 부족해요"
-          description="추천 결과에서 상권을 다시 골라 주세요."
+          title="비교 결과를 불러오지 못했어요"
+          description={error.message}
+          action={
+            // 재시도 노출은 `isRetryable(kind)` 로만 판단한다 — 404 는 다시 물어도 같다.
+            isRetryable(error.kind) ? (
+              <Button
+                size="medium"
+                variant="secondary"
+                leftIcon={<RotateCcw />}
+                onClick={() => void comparisonQuery.refetch()}
+              >
+                다시 시도
+              </Button>
+            ) : (
+              <BackLink href={backHref}>추천으로 돌아가기</BackLink>
+            )
+          }
+        />
+      ) : null}
+
+      {/*
+        판단은 **여기서만** 말한다. 표는 값만 적는다 — comparison-presentation.ts 주석 참고.
+      */}
+      {verdict ? (
+        <RecommendComparisonVerdict
+          leftName={body?.left?.commercialName ?? null}
+          rightName={body?.right?.commercialName ?? null}
+          verdict={verdict}
+        />
+      ) : null}
+
+      {!error && body && groups.length === 0 ? (
+        <EmptyState
+          title="비교할 지표가 없어요"
+          description="이 조건에서 받아 온 비교 지표가 비어 있어요. 다른 업종이나 분기를 골라 보세요."
           action={<BackLink href={backHref}>추천으로 돌아가기</BackLink>}
         />
-      ) : (
+      ) : null}
+
+      {groups.length > 0 ? (
         <RecommendCompareTable
-          administrationCode={state.administrationCode!}
-          columns={columns}
-          districtCode={state.districtCode!}
-          failedProfileCodes={failedProfileCodes}
-          serviceCode={state.serviceCode!}
+          groups={groups}
+          leftName={body?.left?.commercialName ?? '좌측 상권'}
+          rightName={body?.right?.commercialName ?? '우측 상권'}
         />
-      )}
+      ) : null}
     </Page>
   )
 }
