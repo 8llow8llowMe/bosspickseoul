@@ -2,6 +2,7 @@ import type { AnalysisSelection } from '@/lib/analysis/selection'
 import type {
   AiReportLevel,
   CommercialAiReport,
+  CommercialComparisonAiReport,
   RegionAiReport,
 } from '@/types/ai-report'
 
@@ -111,6 +112,55 @@ export const isCommercialReportEmpty = (view: CommercialReportView): boolean =>
   view.strengths.length === 0 &&
   view.risks.length === 0 &&
   view.actions.length === 0
+
+/**
+ * 상권 비교 AI 리포트 뷰.
+ *
+ * 단일 상권 리포트와 **같은 어휘**로 세운다(요약 + 인사이트 + 목록 블록들) —
+ * `report-insight-section` 을 그대로 재사용하기 위해서다. 비교만의 것은
+ * `recommendedSide`(추천 측)뿐이라 머리에 따로 둔다.
+ */
+export type ComparisonReportView = {
+  headline: { summary: string; insight: string }
+  /** 백엔드가 고른 쪽. 비어 있으면 화면이 그 줄을 통째로 생략한다. */
+  recommendedSide: string
+  reasons: string[]
+  blocks: ReportBlockList[]
+  generatedAt: string
+}
+
+export const toComparisonReportView = (
+  report: CommercialComparisonAiReport,
+): ComparisonReportView => ({
+  headline: {
+    summary: text(report.summary),
+    insight: text(report.businessInsight),
+  },
+  recommendedSide: text(report.recommendedSide),
+  reasons: toList(report.recommendedReasons),
+  /*
+   * 문장 하나짜리 인사이트들도 목록 블록으로 세운다 — 각각을 따로 렌더하면
+   * 비어 있을 때 제목만 남는 자리가 넷 생긴다. `toList` 가 빈 것을 걸러 주므로
+   * 블록 필터 한 번으로 정리된다.
+   */
+  blocks: [
+    { title: '위험 비교', items: toList([report.riskComparison]) },
+    { title: '시간대 인사이트', items: toList([report.timeSlotInsight]) },
+    {
+      title: '고객층 인사이트',
+      items: toList([report.customerSegmentInsight]),
+    },
+    { title: '운영 전략', items: toList(report.operationStrategy) },
+  ].filter(block => block.items.length > 0),
+  generatedAt: text(report.generatedAt),
+})
+
+export const isComparisonReportEmpty = (view: ComparisonReportView): boolean =>
+  !view.headline.summary &&
+  !view.headline.insight &&
+  !view.recommendedSide &&
+  view.reasons.length === 0 &&
+  view.blocks.length === 0
 
 export type RegionReportView = {
   headline: { summary: string; marketStatus: string }

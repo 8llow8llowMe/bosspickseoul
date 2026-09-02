@@ -834,9 +834,21 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       .filter(Boolean)
       .join(' · ') || '서울 전체'
 
-  // 레벨명: 선택 패널이 아는 이름을 재사용(없으면 코드 fallback)
+  /*
+   * 레벨명: 선택 패널이 아는 이름을 재사용(없으면 코드 fallback).
+   *
+   * `AiReportLevel` 에는 `comparison` 도 있지만 이 화면은 그것을 만들지 않는다
+   * (비교는 `/recommend/compare` 소관이고 대상이 둘이라 이름 하나로 안 된다).
+   * 그래서 선택 단계에 있는 레벨일 때만 이름표를 찾는다.
+   */
+  const namedLevel =
+    aiLevel === 'district' ||
+    aiLevel === 'administration' ||
+    aiLevel === 'commercial'
+      ? aiLevel
+      : null
   const aiTargetName =
-    (aiLevel ? selectedNames[aiLevel] : undefined) ?? aiCode ?? ''
+    (namedLevel ? selectedNames[namedLevel] : undefined) ?? aiCode ?? ''
 
   // 로그인 사용자는 카드→패널 흐름을, 비로그인은 잠금 카드(CTA)를 노출한다.
   const {

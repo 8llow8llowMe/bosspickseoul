@@ -2,6 +2,7 @@ import styled from 'styled-components'
 
 import type {
   CommercialReportView,
+  ComparisonReportView,
   RegionReportView,
   ReportBlockList,
 } from '@/lib/analysis/ai-report-presentation'
@@ -105,6 +106,53 @@ export function CommercialReportBlocks({
       <BulletBlock title="주의" items={view.risks} />
       {view.actions.map(block => (
         <ChipList key={block.title} block={block} />
+      ))}
+    </div>
+  )
+}
+
+const Recommended = styled.p`
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 21px;
+  color: var(--color-text-900);
+`
+
+/**
+ * 상권 비교 AI 리포트 본문.
+ *
+ * 단일 상권과 같은 블록 원시 요소를 쓴다 — 두 리포트가 서로 다른 화면처럼 보이면
+ * 사용자는 같은 기능의 두 버전이라고 읽지 않는다.
+ *
+ * 비교만의 것은 「추천」 한 줄이다. 이 값은 **AI 가 고른 쪽**이고, 같은 화면 위쪽
+ * 비교 리포트(`/commercials/compare` 의 `recommendedSide`)와 출처가 다르다.
+ * 둘이 어긋날 수 있으므로 여기서는 근거(추천 이유)를 반드시 함께 세운다.
+ */
+export function ComparisonReportBlocks({
+  view,
+}: {
+  view: ComparisonReportView
+}) {
+  return (
+    <div>
+      <Block>
+        {view.recommendedSide ? (
+          <Recommended>AI 추천: {view.recommendedSide}</Recommended>
+        ) : null}
+        {view.headline.summary ? (
+          <Summary>{view.headline.summary}</Summary>
+        ) : null}
+        {view.headline.insight ? (
+          <Insight>{view.headline.insight}</Insight>
+        ) : null}
+      </Block>
+      <BulletBlock title="추천 이유" items={view.reasons} />
+      {view.blocks.map(block => (
+        <BulletBlock
+          key={block.title}
+          title={block.title}
+          items={block.items}
+        />
       ))}
     </div>
   )

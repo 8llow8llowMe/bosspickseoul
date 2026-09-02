@@ -55,6 +55,9 @@ vi.mock('@/lib/api/commercial-comparison', () => ({
       dataBody: null,
     })
   },
+  // AI 패널이 `use-ai-report` 를 통해 참조한다. 여기서는 누르지 않으므로 호출되지 않지만,
+  // 모듈을 통째로 바꾸는 mock 이라 이름이 빠지면 import 가 undefined 가 된다.
+  submitCommercialComparisonAiReport: () => Promise.reject(new Error('unused')),
 }))
 
 const BASE =
@@ -236,9 +239,18 @@ describe('RecommendComparePage', () => {
     const markup = render(
       `${BASE}&commercialCodes=3110008,3110012`,
       body({
+        left: {
+          commercialCode: '3110008',
+          commercialName: '역삼역',
+          districtCode: '11680',
+          districtName: '강남구',
+          administrationCode: '11680640',
+          administrationName: '역삼1동',
+        },
+        // 백엔드는 방향 라벨을 준다. 화면은 그걸 실제 상권 이름으로 바꿔 적어야 한다.
         recommendedSide: {
           code: 'LEFT',
-          name: '역삼역',
+          name: '좌측 상권 우세',
           description: '',
         },
         recommendedReasons: ['유동인구가 꾸준해요'],
@@ -256,8 +268,10 @@ describe('RecommendComparePage', () => {
       }),
     )
 
-    expect(markup).toContain('비교 리포트')
+    expect(markup).toContain('aria-label="비교 리포트"')
     expect(markup).toContain('추천: 역삼역')
+    // 방향 라벨이 그대로 새면 "우측이 어느 쪽이더라"를 표에서 되짚어야 한다.
+    expect(markup).not.toContain('좌측 상권 우세')
     expect(markup).toContain('유동인구가 꾸준해요')
     expect(markup).toContain('임대료가 높아요')
     // 표 쪽 승패 라벨은 여전히 새지 않는다.
@@ -281,7 +295,7 @@ describe('RecommendComparePage', () => {
       }),
     )
 
-    expect(markup).not.toContain('비교 리포트')
+    expect(markup).not.toContain('aria-label="비교 리포트"')
   })
 
   it('지표가 비어 오면 표 대신 사실을 말한다', () => {
