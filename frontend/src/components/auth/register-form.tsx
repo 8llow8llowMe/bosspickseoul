@@ -37,16 +37,8 @@ import {
   onVerified,
   type RegisterForm as RegisterFormValues,
 } from '@/components/auth/register-machine'
+import { RESEND_COOLDOWN_SECONDS } from '@/lib/auth/verification-cooldown'
 import type { ApiResponse } from '@/types/api'
-
-/**
- * 백엔드 `EmailVerificationProcessor.RESEND_COOLDOWN` 과 **같은 값이어야 한다.**
- *
- * 예전엔 180 이었다. 백엔드는 60초면 재전송을 받아 주는데 화면이 3배를 잠그고 있었고,
- * 오입력 5회로 코드가 무효화되면(AUTH_018) "다시 요청해 주세요" 를 읽은 채 버튼이
- * 150초 더 잠긴 막다른 골목이 됐다.
- */
-const RESEND_COOLDOWN_SECONDS = 60
 
 const INITIAL_FORM: RegisterFormValues = {
   email: '',
