@@ -56,6 +56,11 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const isSocialError = searchParams.get('error') === 'social'
+  /*
+   * 재설정 화면이 성공 후 `?reset=1` 로 보낸다. 재설정은 전 기기 세션을 무효화하므로
+   * 사용자는 갑자기 로그인 화면에 서게 된다 — 아무 말도 없으면 실패한 것처럼 읽힌다.
+   */
+  const isPasswordReset = searchParams.get('reset') === '1'
   // 이메일 로그인과 카카오 로그인이 **같은 판정**을 쓴다 (`@/lib/auth/return-path`).
   // 한쪽만 느슨하면 그쪽이 오픈 리다이렉트 구멍이 된다.
   const returnTo = safeReturnPath(searchParams.get('redirect'))
@@ -125,6 +130,11 @@ export default function LoginForm() {
             type="email" 자체는 모바일 키보드 힌트 때문에 유지한다.
             (community-editor-form 도 같은 이유로 noValidate 다) */}
         <AuthForm noValidate onSubmit={handleSubmit}>
+          {isPasswordReset ? (
+            <Notice $tone="success">
+              비밀번호를 재설정했어요. 새 비밀번호로 로그인해 주세요.
+            </Notice>
+          ) : null}
           {isSocialError ? (
             <Notice $tone="error">
               소셜 로그인에 실패했습니다. 다시 시도해 주세요.
@@ -186,6 +196,11 @@ export default function LoginForm() {
         </AuthForm>
 
         <SocialLogin returnTo={returnTo} />
+
+        <FooterRow>
+          <span>비밀번호를 잊으셨나요?</span>
+          <FooterLink href="/password-reset">비밀번호 재설정</FooterLink>
+        </FooterRow>
 
         <FooterRow>
           <span>계정이 아직 없나요?</span>
