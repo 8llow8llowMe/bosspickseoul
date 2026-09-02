@@ -19,12 +19,35 @@ describe('profile V2 API contract', () => {
   it.each([
     'src/components/profile/profile-edit-page.tsx',
     'src/components/profile/profile-change-password-page.tsx',
-    'src/components/profile/profile-withdraw-page.tsx',
   ])('%s does not execute an unsupported mutation', path => {
     const source = readSource(path)
 
     expect(source).not.toContain('useMutation')
     expect(source).not.toContain('@/lib/api/profile')
+  })
+
+  it('회원 탈퇴는 V2 전용 라우트만 쓴다', () => {
+    // 이 단언은 placeholder 시절 `useMutation` 자체를 금지했다. A1 에서 탈퇴가 실제로
+    // 붙었으므로, 막아야 할 것을 다시 적는다: **V1 삭제 경로**와 백엔드 직접 호출이다.
+    // (`/members/me/withdraw` 는 서버 세션을 파괴해야 해서 전용 라우트를 거친다.)
+    const source = readSource(
+      'src/components/profile/profile-withdraw-page.tsx',
+    )
+
+    expect(source).not.toContain('/member/delete')
+    expect(source).not.toContain('@/lib/api/profile')
+    expect(source).toContain('@/lib/api/member-withdraw')
+  })
+
+  it('탈퇴 라우트는 성공했을 때만 세션을 파괴한다', () => {
+    // 실패해도 세션을 지우면 "로그아웃됐는데 계정은 남은" 상태가 된다.
+    // `clearSession` 이 실패 분기보다 **뒤에** 있어야 한다.
+    const source = readSource('app/api/auth/withdraw/route.ts')
+
+    expect(source).toContain('/api/v1/members/me/withdraw')
+    expect(source.indexOf('clearSession()')).toBeGreaterThan(
+      source.indexOf('upstream.status === 200 ? 500 : upstream.status'),
+    )
   })
 
   it('reads the simulation saved list from the V2 histories endpoint only', () => {
