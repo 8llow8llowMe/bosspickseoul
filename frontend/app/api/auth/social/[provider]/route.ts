@@ -4,6 +4,7 @@ import { redirectToPath } from '@/lib/http/redirect'
 import { AUTH_RETURN_COOKIE, safeReturnPath } from '@/lib/auth/return-path'
 import { setSession } from '@/lib/auth/session'
 import { extractCookieValue } from '@/lib/auth/set-cookie'
+import { withClientUserAgent } from '@/lib/auth/device-headers'
 import { isApiSuccess } from '@/lib/api/response'
 import type { ApiResponse } from '@/types/api'
 
@@ -54,7 +55,11 @@ export async function GET(
   const { backendApiUrl } = getServerEnv()
   const upstream = await fetch(
     `${backendApiUrl}/api/v1/auth/${provider}/login?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
-    { method: 'GET', headers: { Accept: 'application/json' } },
+    // 일반 로그인과 같은 이유로 UA 를 넘긴다 — 기기 세션의 deviceInfo 가 된다.
+    {
+      method: 'GET',
+      headers: withClientUserAgent(request, { Accept: 'application/json' }),
+    },
   )
   const data = (await upstream
     .json()

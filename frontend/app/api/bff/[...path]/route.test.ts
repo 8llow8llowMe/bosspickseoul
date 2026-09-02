@@ -218,6 +218,71 @@ describe('BFF proxy /api/bff/[...path]', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  describe('기기 세션 목록의 refresh 쿠키 주입', () => {
+    it('GET auth/sessions 에는 세션의 refresh 토큰을 Cookie 로 실어 보낸다', async () => {
+      getSession.mockResolvedValue(freshJwtSession)
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response('{}', { status: 200 }))
+      global.fetch = fetchMock
+      const { GET } = await import('./route')
+      const req = new Request('http://x/api/bff/auth/sessions', {
+        method: 'GET',
+      })
+      await GET(req, ctx(['auth', 'sessions']))
+
+      const [, init] = fetchMock.mock.calls[0]
+      expect(init.headers.get('cookie')).toBe('refreshToken=r1')
+    })
+
+    it('그 밖의 경로에는 refresh 쿠키가 새지 않는다', async () => {
+      getSession.mockResolvedValue(freshJwtSession)
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response('{}', { status: 200 }))
+      global.fetch = fetchMock
+      const { GET } = await import('./route')
+      const req = new Request('http://x/api/bff/members/me', { method: 'GET' })
+      await GET(req, ctx(['members', 'me']))
+
+      const [, init] = fetchMock.mock.calls[0]
+      expect(init.headers.get('cookie')).toBeNull()
+    })
+
+    it('세션 해제(DELETE)는 세션 id 만 쓰므로 쿠키를 넣지 않는다', async () => {
+      getSession.mockResolvedValue(freshJwtSession)
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response('{}', { status: 200 }))
+      global.fetch = fetchMock
+      const { DELETE } = await import('./route')
+      const req = new Request('http://x/api/bff/auth/sessions/abc', {
+        method: 'DELETE',
+      })
+      await DELETE(req, ctx(['auth', 'sessions', 'abc']))
+
+      const [, init] = fetchMock.mock.calls[0]
+      expect(init.headers.get('cookie')).toBeNull()
+    })
+
+    it('클라이언트가 보낸 쿠키는 그대로 통과시키지 않는다', async () => {
+      getSession.mockResolvedValue(null)
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response('{}', { status: 200 }))
+      global.fetch = fetchMock
+      const { GET } = await import('./route')
+      const req = new Request('http://x/api/bff/auth/sessions', {
+        method: 'GET',
+        headers: { cookie: 'refreshToken=forged' },
+      })
+      await GET(req, ctx(['auth', 'sessions']))
+
+      const [, init] = fetchMock.mock.calls[0]
+      expect(init.headers.get('cookie')).toBeNull()
+    })
+  })
+
   it('sends no body on a HEAD request', async () => {
     getSession.mockResolvedValue(null)
     const fetchMock = vi

@@ -76,3 +76,52 @@ describe('POST /api/auth/login', () => {
     expect(setSession).not.toHaveBeenCalled()
   })
 })
+
+describe('기기 세션용 User-Agent 전달', () => {
+  const okResponse = () =>
+    new Response(
+      JSON.stringify({
+        dataHeader: { success: true, resultCode: null, resultMessage: null },
+        dataBody: { accessToken: 'a.t.k', memberId: '42' },
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'set-cookie': 'refreshToken=r.t.k; Path=/; HttpOnly',
+        },
+      },
+    )
+
+  it('브라우저 UA 를 백엔드로 넘긴다 (deviceInfo 의 원천이다)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse())
+    global.fetch = fetchMock
+    const { POST } = await import('./route')
+    await POST(
+      new Request('http://x/api/auth/login', {
+        method: 'POST',
+        headers: { 'user-agent': 'Mozilla/5.0 (iPhone)' },
+        body: JSON.stringify({ email: 'a@b.com', password: 'Passw0rd!' }),
+      }),
+    )
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect(init.headers['User-Agent']).toBe('Mozilla/5.0 (iPhone)')
+  })
+
+  it('UA 가 없으면 헤더를 만들어 내지 않는다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse())
+    global.fetch = fetchMock
+    const { POST } = await import('./route')
+    await POST(
+      new Request('http://x/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@b.com', password: 'Passw0rd!' }),
+      }),
+    )
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect(init.headers['User-Agent']).toBeUndefined()
+    expect(init.headers['Content-Type']).toBe('application/json')
+  })
+})
