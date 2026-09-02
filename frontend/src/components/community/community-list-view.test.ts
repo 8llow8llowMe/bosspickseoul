@@ -306,7 +306,7 @@ describe('community list container helpers', () => {
   }
 
   it('selects liked, search, and board requests with exact cursor params', () => {
-    const cursor = { lastPostId: 7, lastLikeCount: 31 }
+    const cursor = { lastPostId: '7', lastLikeCount: 31 }
 
     expect(
       createCommunityListRequest({ ...baseState, view: 'liked' }, cursor),
@@ -315,7 +315,7 @@ describe('community list container helpers', () => {
       params: {
         sortType: 'LATEST',
         orderType: 'DESC',
-        lastPostId: 7,
+        lastPostId: '7',
         lastLikeCount: 31,
         size: 20,
       },
@@ -330,7 +330,7 @@ describe('community list container helpers', () => {
       params: {
         sortType: 'POPULAR',
         orderType: 'DESC',
-        lastPostId: 7,
+        lastPostId: '7',
         lastLikeCount: 31,
         size: 20,
         keyword: '점심',
@@ -350,7 +350,7 @@ describe('community list container helpers', () => {
       params: {
         sortType: 'LATEST',
         orderType: 'DESC',
-        lastPostId: 7,
+        lastPostId: '7',
         lastLikeCount: 31,
         size: 20,
         targetType: 'COMMERCIAL',

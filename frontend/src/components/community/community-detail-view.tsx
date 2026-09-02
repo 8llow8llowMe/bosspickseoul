@@ -15,6 +15,7 @@ import type { AdjacentPostState } from '@/lib/community/adjacent-posts'
 import { createCommunityPostHref } from '@/lib/community/community-state'
 import type { CommunityViewer } from '@/lib/community/community-state'
 import type {
+  CommunityId,
   CommunityComment,
   CommunityCommentLikeBody,
   CommunityPostDetail,
@@ -61,11 +62,11 @@ export type CommunityDetailViewProps = {
   onDeletePost: () => void
   onCreateComment: (payload: {
     content: string
-    parentCommentId?: number
+    parentCommentId?: CommunityId
   }) => Promise<boolean>
-  onDeleteComment: (commentId: number) => Promise<boolean>
+  onDeleteComment: (commentId: CommunityId) => Promise<boolean>
   onToggleCommentLike: (
-    commentId: number,
+    commentId: CommunityId,
   ) => Promise<CommunityCommentLikeBody | null>
   onOpenReport: (
     target: Pick<CommunityReportCreateRequest, 'targetKind' | 'targetId'>,
@@ -375,7 +376,7 @@ const AdjacentTitle = styled.span`
 `
 
 const createDetailPostHref = (
-  postId: number,
+  postId: CommunityId,
   contextKey: string | null | undefined,
   mockEnabled: boolean,
 ) => {

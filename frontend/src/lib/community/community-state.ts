@@ -1,4 +1,5 @@
 import type {
+  CommunityId,
   CommunityLikedPostsResponse,
   CommunityPostListResponse,
   CommunityPostSlice,
@@ -32,14 +33,28 @@ export const parseCommunityTargetType = (value: string | null) => {
   return undefined
 }
 
-export const parseCommunityPostId = (value: string | null) => {
-  if (!value || !/^[1-9]\d*$/.test(value)) {
-    return null
-  }
+/**
+ * 커서의 "처음부터" 를 뜻하는 값.
+ *
+ * 백엔드가 `lastPostId <= 0` 을 첫 페이지로 읽는다. 식별자가 문자열이 되면서
+ * 숫자 0 을 그대로 둘 수 없어 한 곳에 모았다 — 두 화면이 각자 리터럴을 들고 있으면
+ * 한쪽만 고쳐질 때 목록이 조용히 빈다.
+ */
+export const COMMUNITY_CURSOR_START: CommunityId = '0'
 
-  const postId = Number(value)
-  return Number.isSafeInteger(postId) ? postId : null
-}
+/**
+ * URL 의 게시글 id 를 검증한다. **문자열 그대로 돌려준다.**
+ *
+ * 예전에는 `Number(value)` 로 바꾼 뒤 `Number.isSafeInteger` 가 아니면 null 을 냈다.
+ * 그런데 게시글 id 는 Snowflake(약 7.5e17)라 **안전 정수인 적이 없다** — 즉 실제 id 는
+ * 전부 null 이 되고, 호출부인 상세 라우트가 그걸 `notFound()` 로 바꿔 모든 게시글이
+ * 404 가 된다. dev 커뮤니티에 글이 0건이라 아직 드러나지 않았을 뿐이다.
+ *
+ * 자릿수 상한을 두지 않는 이유: Snowflake 는 시간이 갈수록 커지고, 상한을 정해 두면
+ * 언젠가 같은 방식으로 조용히 막힌다. 형태만 보고 존재 여부는 서버에 맡긴다.
+ */
+export const parseCommunityPostId = (value: string | null): string | null =>
+  value && /^[1-9]\d*$/.test(value) ? value : null
 
 export const isCommunityMockEnabled = (
   value: string | null,
@@ -101,7 +116,7 @@ export const createCommunityContextKey = (state: CommunityListState) =>
   })
 
 export const createCommunityPostHref = (
-  postId: number,
+  postId: CommunityId,
   contextKey: string,
   mock: boolean,
 ) => {
@@ -145,9 +160,9 @@ export const getCommunityNextPageParam = (
 export const communityKeys = {
   all: ['community'] as const,
   list: (state: CommunityListState) => ['community', 'list', state] as const,
-  detail: (postId: number, mock: boolean) =>
+  detail: (postId: CommunityId, mock: boolean) =>
     ['community', 'detail', postId, mock] as const,
-  comments: (postId: number, mock: boolean) =>
+  comments: (postId: CommunityId, mock: boolean) =>
     ['community', 'comments', postId, mock] as const,
   related: (
     targetType: CommunityTargetType,

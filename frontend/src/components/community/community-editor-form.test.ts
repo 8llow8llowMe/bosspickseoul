@@ -149,7 +149,7 @@ describe('community editor helpers', () => {
   })
 
   it('accepts only a positive integer postId for edit mode', () => {
-    expect(parseCommunityEditorPostId('7')).toBe(7)
+    expect(parseCommunityEditorPostId('7')).toBe('7')
     expect(parseCommunityEditorPostId('7.5')).toBeNull()
     expect(parseCommunityEditorPostId('0')).toBeNull()
     expect(parseCommunityEditorPostId('-1')).toBeNull()
@@ -187,8 +187,10 @@ describe('community editor helpers', () => {
   })
 
   it('preserves explicit mock mode in the successful detail destination', () => {
-    expect(createCommunityEditorDetailHref(8, true)).toBe('/community/8?mock=1')
-    expect(createCommunityEditorDetailHref(8, false)).toBe('/community/8')
+    expect(createCommunityEditorDetailHref('8', true)).toBe(
+      '/community/8?mock=1',
+    )
+    expect(createCommunityEditorDetailHref('8', false)).toBe('/community/8')
   })
 
   it('rejects a success=false edit response so the retry UI can render', () => {
@@ -234,7 +236,7 @@ describe('community editor helpers', () => {
         hasHydrated: true,
         isLoggedIn: true,
         viewerMemberId: '20',
-        editMemberId: 21,
+        editMemberId: '21',
       }),
     ).toBe('forbidden')
     expect(
@@ -243,7 +245,7 @@ describe('community editor helpers', () => {
         hasHydrated: true,
         isLoggedIn: true,
         viewerMemberId: '21',
-        editMemberId: 21,
+        editMemberId: '21',
       }),
     ).toBe('allowed')
   })
@@ -263,15 +265,15 @@ describe('community editor helpers', () => {
         hasHydrated: false,
         isLoggedIn: false,
         viewerMemberId: '9001',
-        editMemberId: 9001,
+        editMemberId: '9001',
       }),
     ).toBe('allowed')
   })
 
   it('isolates the edit query from public detail cache and forces a fresh editor fetch', async () => {
     const queryClient = new QueryClient()
-    const publicKey = communityKeys.detail(1, false)
-    const editorKey = communityEditorKeys.edit(1, false)
+    const publicKey = communityKeys.detail('1', false)
+    const editorKey = communityEditorKeys.edit('1', false)
     const stale = {
       dataHeader: {
         success: true,
@@ -279,8 +281,8 @@ describe('community editor helpers', () => {
         resultMessage: null,
       },
       dataBody: {
-        postId: 1,
-        memberId: 9001,
+        postId: '1',
+        memberId: '9001',
         targetType: null,
         targetCode: null,
         targetName: null,
@@ -318,8 +320,8 @@ describe('community editor helpers', () => {
   })
 
   it('keeps a stable form initialization key across background edit refetches', () => {
-    const before = getCommunityEditorFormKey('edit', 8)
-    const after = getCommunityEditorFormKey('edit', 8)
+    const before = getCommunityEditorFormKey('edit', '8')
+    const after = getCommunityEditorFormKey('edit', '8')
 
     expect(before).toBe('edit-8')
     expect(after).toBe(before)
@@ -340,9 +342,9 @@ describe('community editor helpers', () => {
 
   it('removes only exact editor queries before clearing a 401 session and redirecting', async () => {
     const queryClient = new QueryClient()
-    const editorKey = communityEditorKeys.edit(1, false)
-    const otherEditorKey = communityEditorKeys.edit(2, false)
-    const publicKey = communityKeys.detail(1, false)
+    const editorKey = communityEditorKeys.edit('1', false)
+    const otherEditorKey = communityEditorKeys.edit('2', false)
+    const publicKey = communityKeys.detail('1', false)
     const cached = { value: 'cached' }
     const clearSession = vi.fn()
     const navigate = vi.fn()

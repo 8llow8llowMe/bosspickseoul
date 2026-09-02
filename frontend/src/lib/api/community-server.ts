@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { getConfiguredBackendApiUrl } from '@/lib/env.server'
-import type { CommunityPostDetail } from '@/types/community'
+import type { CommunityId, CommunityPostDetail } from '@/types/community'
 
 type CommunityMetadataFetchResponse = Pick<Response, 'ok' | 'json'>
 type CommunityMetadataFetcher = (
@@ -18,9 +18,10 @@ const isCommunityPostDetail = (
 
   const detail = value as Partial<CommunityPostDetail>
   return (
-    typeof detail.postId === 'number' &&
-    Number.isSafeInteger(detail.postId) &&
-    detail.postId > 0 &&
+    // postId 는 Snowflake 문자열이다. 예전의 `typeof === 'number' && isSafeInteger`
+    // 검사는 실제 응답을 전부 탈락시켜 메타데이터가 조용히 기본값으로 떨어졌다.
+    typeof detail.postId === 'string' &&
+    /^[1-9]\d*$/.test(detail.postId) &&
     typeof detail.title === 'string' &&
     typeof detail.content === 'string' &&
     (detail.targetName === null || typeof detail.targetName === 'string')
@@ -48,7 +49,7 @@ const readCommunityPostDetail = (value: unknown) => {
 }
 
 export const fetchCommunityPostForMetadata = async (
-  postId: number,
+  postId: CommunityId,
   fetcher: CommunityMetadataFetcher = fetch,
 ) => {
   const backendApiUrl = getConfiguredBackendApiUrl()

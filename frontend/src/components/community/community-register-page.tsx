@@ -23,6 +23,7 @@ import {
   MOCK_COMMUNITY_MEMBER_ID,
 } from '@/lib/community/community-mock'
 import {
+  COMMUNITY_CURSOR_START,
   communityKeys,
   getCommunityLoginHref,
   isCommunityMockEnabled,
@@ -32,6 +33,7 @@ import {
 } from '@/lib/community/community-state'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
+  CommunityId,
   CommunityPostCreateRequest,
   CommunityPostDetailResponse,
   CommunityPostUpdateRequest,
@@ -89,7 +91,7 @@ export class CommunityEditorQueryError extends Error {
 export const parseCommunityEditorPostId = parseCommunityPostId
 
 export const communityEditorKeys = {
-  edit: (postId: number, mockEnabled: boolean) =>
+  edit: (postId: CommunityId, mockEnabled: boolean) =>
     ['community', 'editor', 'edit', postId, mockEnabled] as const,
 }
 
@@ -134,7 +136,7 @@ type CommunityEditorAccessOptions = {
   hasHydrated: boolean
   isLoggedIn: boolean
   viewerMemberId: string | null
-  editMemberId: number | null
+  editMemberId: CommunityId | null
 }
 
 export const getCommunityEditorAccess = ({
@@ -164,7 +166,7 @@ export const getCommunityEditorAccess = ({
 
 export const getCommunityEditorFormKey = (
   mode: CommunityEditorMode,
-  postId: number | null,
+  postId: CommunityId | null,
 ) => (mode === 'edit' && postId ? `edit-${postId}` : 'create')
 
 export const createCommunityEditorPayload = (
@@ -194,7 +196,7 @@ export const createCommunityEditorPayload = (
 }
 
 export const createCommunityEditorDetailHref = (
-  postId: number,
+  postId: CommunityId,
   mockEnabled: boolean,
 ) => `/community/${postId}${mockEnabled ? '?mock=1' : ''}`
 
@@ -308,7 +310,10 @@ export default function CommunityRegisterPage() {
     viewerMemberId: viewer.memberId,
     editMemberId: null,
   })
-  const editQueryKey = communityEditorKeys.edit(postId ?? 0, mockEnabled)
+  const editQueryKey = communityEditorKeys.edit(
+    postId ?? COMMUNITY_CURSOR_START,
+    mockEnabled,
+  )
   const editorQueryKeys: QueryKey[] =
     mode === 'edit' && postId ? [editQueryKey] : []
   const unauthorizedRecoveryRef = useRef<Promise<void> | null>(null)

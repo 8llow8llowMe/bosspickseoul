@@ -53,8 +53,8 @@ type ExpectedMetadata = {
 } | null
 
 type ExpectedPostSummary = {
-  postId: number
-  memberId: number
+  postId: string
+  memberId: string
   targetType: ExpectedMetadata
   targetCode: string | null
   targetName: string | null
@@ -87,8 +87,8 @@ type ExpectedApiResponse<T> = {
 type Simplify<T> = { [K in keyof T]: T[K] }
 
 type ExpectedPostDetail = {
-  postId: number
-  memberId: number
+  postId: string
+  memberId: string
   targetType: ExpectedMetadata
   targetCode: string | null
   targetName: string | null
@@ -103,18 +103,18 @@ type ExpectedPostDetail = {
 
 type ExpectedCommentsBody = {
   comments: Array<{
-    commentId: number
-    postId: number
-    memberId: number
+    commentId: string
+    postId: string
+    memberId: string
     content: string
     likeCount: number
     createdAt: string
     updatedAt: string
     replies: Array<{
-      commentId: number
-      postId: number
-      memberId: number
-      parentCommentId: number
+      commentId: string
+      postId: string
+      memberId: string
+      parentCommentId: string
       content: string
       likeCount: number
       createdAt: string
@@ -145,6 +145,12 @@ type ExpectedPostListBody = {
 describe('community API', () => {
   afterEach(() => vi.restoreAllMocks())
 
+  /**
+   * ⚠️ 이 핀은 **FE 가 스스로 어긋나는 것**만 잡는다. 백엔드가 계약을 바꿔도
+   * 여기는 초록으로 남는다 — 실제로 그렇게 놓쳤다(BE 51458f57 이 식별자를
+   * long -> String 으로 바꾼 뒤 일주일간 FE 는 number 인 채였다).
+   * 백엔드 드리프트는 `docs/api/openapi/` 스냅샷 갱신으로만 드러난다.
+   */
   it('matches the Swagger-required community type contract', () => {
     expectTypeOf<CommunityPostSummary>().toEqualTypeOf<ExpectedPostSummary>()
     expectTypeOf<CommunityPostDetail>().toEqualTypeOf<ExpectedPostDetail>()
@@ -155,7 +161,7 @@ describe('community API', () => {
     expectTypeOf<Simplify<CommunityListParams>>().toEqualTypeOf<{
       sortType: 'LATEST' | 'POPULAR'
       orderType: 'ASC' | 'DESC'
-      lastPostId: number
+      lastPostId: string
       lastLikeCount: number
       size: number
       targetType?: 'DISTRICT' | 'ADMINISTRATION' | 'COMMERCIAL'
@@ -172,25 +178,25 @@ describe('community API', () => {
       content: string
     }>()
     expectTypeOf<CommunityCommentCreateRequest>().toEqualTypeOf<{
-      parentCommentId?: number
+      parentCommentId?: string
       content: string
     }>()
     expectTypeOf<CommunityReportCreateRequest>().toEqualTypeOf<{
       targetKind: 'POST' | 'COMMENT'
-      targetId: number
+      targetId: string
       reason: string
     }>()
     expectTypeOf<CommunityCursorParams>().toEqualTypeOf<{
       sortType: 'LATEST' | 'POPULAR'
       orderType: 'ASC' | 'DESC'
-      lastPostId: number
+      lastPostId: string
       lastLikeCount: number
       size: number
     }>()
     expectTypeOf<Simplify<CommunitySearchParams>>().toEqualTypeOf<{
       sortType: 'LATEST' | 'POPULAR'
       orderType: 'ASC' | 'DESC'
-      lastPostId: number
+      lastPostId: string
       lastLikeCount: number
       size: number
       keyword: string
@@ -212,7 +218,7 @@ describe('community API', () => {
     >()
     expectTypeOf<CommunityCommentLikeResponse>().toEqualTypeOf<
       ExpectedApiResponse<{
-        commentId: number
+        commentId: string
         liked: boolean
         likeCount: number
       }>
@@ -229,7 +235,7 @@ describe('community API', () => {
       orderType: 'DESC' as const,
       targetType: 'COMMERCIAL' as const,
       targetCode: '3110008',
-      lastPostId: 42,
+      lastPostId: '42',
       lastLikeCount: 10,
       size: 20,
     }
@@ -246,7 +252,7 @@ describe('community API', () => {
       keyword: '강남',
       sortType: 'LATEST' as const,
       orderType: 'DESC' as const,
-      lastPostId: 42,
+      lastPostId: '42',
       lastLikeCount: 0,
       size: 10,
     }
@@ -262,7 +268,7 @@ describe('community API', () => {
     const params: CommunityCursorParams = {
       sortType: 'POPULAR',
       orderType: 'DESC',
-      lastPostId: 42,
+      lastPostId: '42',
       lastLikeCount: 10,
       size: 20,
     }
@@ -276,7 +282,7 @@ describe('community API', () => {
   it('fetches a post detail', async () => {
     const get = vi.spyOn(apiClient, 'get').mockResolvedValue({ data: response })
 
-    const result = await fetchCommunityPost(1)
+    const result = await fetchCommunityPost('1')
 
     expect(get).toHaveBeenCalledWith('/community/posts/1')
     expect(result).toBe(response)
@@ -304,8 +310,8 @@ describe('community API', () => {
     }
 
     const created = await createCommunityPost(createPayload)
-    const updated = await updateCommunityPost(1, updatePayload)
-    const deleted = await deleteCommunityPost(1)
+    const updated = await updateCommunityPost('1', updatePayload)
+    const deleted = await deleteCommunityPost('1')
 
     expect(post).toHaveBeenCalledWith('/community/posts', createPayload)
     expect(patch).toHaveBeenCalledWith('/community/posts/1', updatePayload)
@@ -320,7 +326,7 @@ describe('community API', () => {
       .spyOn(apiClient, 'post')
       .mockResolvedValue({ data: response })
 
-    const result = await toggleCommunityPostLike(1)
+    const result = await toggleCommunityPostLike('1')
 
     expect(post).toHaveBeenCalledWith('/community/posts/1/likes')
     expect(result).toBe(response)
@@ -332,12 +338,12 @@ describe('community API', () => {
       .spyOn(apiClient, 'post')
       .mockResolvedValue({ data: response })
     const payload: CommunityCommentCreateRequest = {
-      parentCommentId: 2,
+      parentCommentId: '2',
       content: '답글',
     }
 
-    const comments = await fetchCommunityComments(1)
-    const created = await createCommunityComment(1, payload)
+    const comments = await fetchCommunityComments('1')
+    const created = await createCommunityComment('1', payload)
 
     expect(get).toHaveBeenCalledWith('/community/posts/1/comments')
     expect(post).toHaveBeenCalledWith('/community/posts/1/comments', payload)
@@ -353,8 +359,8 @@ describe('community API', () => {
       .spyOn(apiClient, 'delete')
       .mockResolvedValue({ data: response })
 
-    const toggled = await toggleCommunityCommentLike(1, 2)
-    const deleted = await deleteCommunityComment(1, 2)
+    const toggled = await toggleCommunityCommentLike('1', '2')
+    const deleted = await deleteCommunityComment('1', '2')
 
     expect(post).toHaveBeenCalledWith('/community/posts/1/comments/2/likes')
     expect(remove).toHaveBeenCalledWith('/community/posts/1/comments/2')
@@ -368,7 +374,7 @@ describe('community API', () => {
       .mockResolvedValue({ data: response })
     const payload: CommunityReportCreateRequest = {
       targetKind: 'POST',
-      targetId: 1,
+      targetId: '1',
       reason: '광고성 게시글입니다.',
     }
 

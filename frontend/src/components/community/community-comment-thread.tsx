@@ -9,6 +9,7 @@ import {
 } from '@/lib/community'
 import type { CommunityViewer } from '@/lib/community/community-state'
 import type {
+  CommunityId,
   CommunityComment,
   CommunityCommentLikeBody,
   CommunityReply,
@@ -24,13 +25,13 @@ export type CommunityCommentThreadProps = {
   onRequireLogin: () => void
   onCreateComment: (payload: {
     content: string
-    parentCommentId?: number
+    parentCommentId?: CommunityId
   }) => Promise<boolean>
-  onDeleteComment: (commentId: number) => Promise<boolean>
+  onDeleteComment: (commentId: CommunityId) => Promise<boolean>
   onToggleCommentLike: (
-    commentId: number,
+    commentId: CommunityId,
   ) => Promise<CommunityCommentLikeBody | null>
-  onReport: (target: { targetKind: 'COMMENT'; targetId: number }) => void
+  onReport: (target: { targetKind: 'COMMENT'; targetId: CommunityId }) => void
 }
 
 const MAX_COMMENT_LENGTH = 1000
@@ -335,25 +336,27 @@ export default function CommunityCommentThread({
 }: CommunityCommentThreadProps) {
   const composerId = useId()
   const [draft, setDraft] = useState('')
-  const [replyParentId, setReplyParentId] = useState<number | null>(null)
-  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({})
+  const [replyParentId, setReplyParentId] = useState<CommunityId | null>(null)
+  const [replyDrafts, setReplyDrafts] = useState<Record<CommunityId, string>>(
+    {},
+  )
   const [pendingComposer, setPendingComposer] = useState<
-    'root' | number | null
+    'root' | CommunityId | null
   >(null)
-  const [pendingLikeIds, setPendingLikeIds] = useState<Set<number>>(
+  const [pendingLikeIds, setPendingLikeIds] = useState<Set<CommunityId>>(
     () => new Set(),
   )
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<CommunityId>>(
     () => new Set(),
   )
   const [likedByCommentId, setLikedByCommentId] = useState<
-    Record<number, boolean>
+    Record<CommunityId, boolean>
   >({})
   const [localError, setLocalError] = useState<string | null>(null)
 
   const submitDraft = async (
     content: string,
-    parentCommentId?: number,
+    parentCommentId?: CommunityId,
   ): Promise<boolean> => {
     let hasAccess = false
     requestCommunityCommentAccess({
@@ -410,7 +413,7 @@ export default function CommunityCommentThread({
 
   const handleReplySubmit = async (
     event: FormEvent,
-    parentCommentId: number,
+    parentCommentId: CommunityId,
   ) => {
     event.preventDefault()
     const value = replyDrafts[parentCommentId] ?? ''
@@ -421,7 +424,7 @@ export default function CommunityCommentThread({
     }
   }
 
-  const handleLike = async (commentId: number) => {
+  const handleLike = async (commentId: CommunityId) => {
     if (!authReady) {
       return
     }
@@ -461,7 +464,7 @@ export default function CommunityCommentThread({
     }
   }
 
-  const handleDelete = async (commentId: number) => {
+  const handleDelete = async (commentId: CommunityId) => {
     if (!authReady) {
       return
     }
@@ -496,7 +499,7 @@ export default function CommunityCommentThread({
     }
   }
 
-  const handleReport = (commentId: number) => {
+  const handleReport = (commentId: CommunityId) => {
     if (!authReady) {
       return
     }

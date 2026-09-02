@@ -97,8 +97,8 @@ const baseProps: ComponentProps<typeof CommunityDetailView> = {
   adjacent: {
     currentPostId: detail.postId,
     contextKey,
-    previous: { postId: 8, title: '이전 운영 이야기' },
-    next: { postId: 2, title: '다음 운영 이야기' },
+    previous: { postId: '8', title: '이전 운영 이야기' },
+    next: { postId: '2', title: '다음 운영 이야기' },
   },
   mockEnabled: true,
   ...handlers,
@@ -359,7 +359,7 @@ describe('community detail helpers', () => {
     ).toEqual({
       sortType: 'LATEST',
       orderType: 'DESC',
-      lastPostId: 0,
+      lastPostId: '0',
       lastLikeCount: 0,
       size: 5,
       targetType: 'COMMERCIAL',

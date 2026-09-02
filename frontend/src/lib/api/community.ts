@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client'
 import type {
+  CommunityId,
   CommunityCommentCreateRequest,
   CommunityCommentLikeResponse,
   CommunityCommentsResponse,
@@ -45,7 +46,7 @@ export const fetchLikedCommunityPosts = async (
   return response.data
 }
 
-export const fetchCommunityPost = async (postId: number) => {
+export const fetchCommunityPost = async (postId: CommunityId) => {
   const response = await apiClient.get<CommunityPostDetailResponse>(
     `/community/posts/${postId}`,
   )
@@ -65,7 +66,7 @@ export const createCommunityPost = async (
 }
 
 export const updateCommunityPost = async (
-  postId: number,
+  postId: CommunityId,
   payload: CommunityPostUpdateRequest,
 ) => {
   const response = await apiClient.patch<CommunityPostDetailResponse>(
@@ -76,7 +77,7 @@ export const updateCommunityPost = async (
   return response.data
 }
 
-export const deleteCommunityPost = async (postId: number) => {
+export const deleteCommunityPost = async (postId: CommunityId) => {
   const response = await apiClient.delete<CommunityVoidResponse>(
     `/community/posts/${postId}`,
   )
@@ -84,7 +85,7 @@ export const deleteCommunityPost = async (postId: number) => {
   return response.data
 }
 
-export const toggleCommunityPostLike = async (postId: number) => {
+export const toggleCommunityPostLike = async (postId: CommunityId) => {
   const response = await apiClient.post<CommunityPostLikeResponse>(
     `/community/posts/${postId}/likes`,
   )
@@ -92,7 +93,7 @@ export const toggleCommunityPostLike = async (postId: number) => {
   return response.data
 }
 
-export const fetchCommunityComments = async (postId: number) => {
+export const fetchCommunityComments = async (postId: CommunityId) => {
   const response = await apiClient.get<CommunityCommentsResponse>(
     `/community/posts/${postId}/comments`,
   )
@@ -101,7 +102,7 @@ export const fetchCommunityComments = async (postId: number) => {
 }
 
 export const createCommunityComment = async (
-  postId: number,
+  postId: CommunityId,
   payload: CommunityCommentCreateRequest,
 ) => {
   const response = await apiClient.post<CommunityCommentsResponse>(
@@ -113,8 +114,8 @@ export const createCommunityComment = async (
 }
 
 export const deleteCommunityComment = async (
-  postId: number,
-  commentId: number,
+  postId: CommunityId,
+  commentId: CommunityId,
 ) => {
   const response = await apiClient.delete<CommunityVoidResponse>(
     `/community/posts/${postId}/comments/${commentId}`,
@@ -124,8 +125,8 @@ export const deleteCommunityComment = async (
 }
 
 export const toggleCommunityCommentLike = async (
-  postId: number,
-  commentId: number,
+  postId: CommunityId,
+  commentId: CommunityId,
 ) => {
   const response = await apiClient.post<CommunityCommentLikeResponse>(
     `/community/posts/${postId}/comments/${commentId}/likes`,

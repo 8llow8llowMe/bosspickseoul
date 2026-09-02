@@ -18,15 +18,17 @@ describe('community server metadata API', () => {
   it('does not call a relative or localhost fallback when backend URL is not configured', async () => {
     const fetcher = vi.fn()
 
-    await expect(fetchCommunityPostForMetadata(7, fetcher)).resolves.toBeNull()
+    await expect(
+      fetchCommunityPostForMetadata('7', fetcher),
+    ).resolves.toBeNull()
     expect(fetcher).not.toHaveBeenCalled()
   })
 
   it('calls the canonical Swagger post endpoint with an absolute configured backend URL', async () => {
     process.env.BACKEND_API_URL = 'http://backend:8080/'
     const detail = {
-      postId: 7,
-      memberId: 9001,
+      postId: '7',
+      memberId: '9001',
       targetType: null,
       targetCode: null,
       targetName: null,
@@ -50,7 +52,7 @@ describe('community server metadata API', () => {
       }),
     }))
 
-    await expect(fetchCommunityPostForMetadata(7, fetcher)).resolves.toEqual(
+    await expect(fetchCommunityPostForMetadata('7', fetcher)).resolves.toEqual(
       detail,
     )
     expect(fetcher).toHaveBeenCalledWith(
@@ -77,10 +79,10 @@ describe('community server metadata API', () => {
     }))
 
     await expect(
-      fetchCommunityPostForMetadata(1, httpFailure),
+      fetchCommunityPostForMetadata('1', httpFailure),
     ).resolves.toBeNull()
     await expect(
-      fetchCommunityPostForMetadata(1, envelopeFailure),
+      fetchCommunityPostForMetadata('1', envelopeFailure),
     ).resolves.toBeNull()
   })
 })

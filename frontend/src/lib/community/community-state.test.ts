@@ -33,8 +33,8 @@ const postsResponse: CommunityPostListResponse = {
     posts: {
       contents: [
         {
-          postId: 7,
-          memberId: 1,
+          postId: '7',
+          memberId: '1',
           targetType: null,
           targetCode: null,
           targetName: null,
@@ -66,11 +66,18 @@ const likedPostsResponse: CommunityLikedPostsResponse = {
 }
 
 describe('community state', () => {
-  it('게시글 ID는 정규 양의 안전 정수 문자열만 허용한다', () => {
-    expect(parseCommunityPostId('1')).toBe(1)
-    expect(parseCommunityPostId('9007199254740991')).toBe(
-      Number.MAX_SAFE_INTEGER,
-    )
+  it('게시글 ID는 정규 양의 정수 문자열을 그대로 돌려준다', () => {
+    expect(parseCommunityPostId('1')).toBe('1')
+
+    // 핵심 회귀: Snowflake 는 안전 정수를 훨씬 넘는다. 예전 구현은 Number 로 바꾼 뒤
+    // isSafeInteger 로 걸러서 **실제 게시글 id 를 전부 null 로 만들었고**, 상세 라우트가
+    // 그걸 notFound() 로 바꿔 모든 글이 404 가 됐다.
+    const snowflake = '751234567890123456'
+    expect(Number.isSafeInteger(Number(snowflake))).toBe(false)
+    expect(parseCommunityPostId(snowflake)).toBe(snowflake)
+
+    // 문자열 그대로 나르므로 자릿수가 손상되지 않는다.
+    expect(parseCommunityPostId(snowflake)).not.toBe(String(Number(snowflake)))
 
     for (const invalid of [
       null,
@@ -83,7 +90,6 @@ describe('community state', () => {
       ' 1',
       '1 ',
       '01',
-      '9007199254740992',
     ]) {
       expect(parseCommunityPostId(invalid)).toBeNull()
     }
@@ -196,10 +202,10 @@ describe('community state', () => {
   })
 
   it('글 링크에 목록 context와 활성 mock만 포함한다', () => {
-    expect(createCommunityPostHref(7, '{"view":"latest"}', false)).toBe(
+    expect(createCommunityPostHref('7', '{"view":"latest"}', false)).toBe(
       '/community/7?from=%7B%22view%22%3A%22latest%22%7D',
     )
-    expect(createCommunityPostHref(7, '검색 목록', true)).toBe(
+    expect(createCommunityPostHref('7', '검색 목록', true)).toBe(
       '/community/7?from=%EA%B2%80%EC%83%89+%EB%AA%A9%EB%A1%9D&mock=1',
     )
   })
@@ -216,16 +222,16 @@ describe('community state', () => {
   it('view별 다음 커서를 생성하고 끝에서는 중단한다', () => {
     const slice = postsResponse.dataBody.posts
     expect(getCommunityNextPageParam(slice, 'latest')).toEqual({
-      lastPostId: 7,
+      lastPostId: '7',
       lastLikeCount: 0,
     })
     expect(getCommunityNextPageParam(slice, 'popular')).toEqual({
-      lastPostId: 7,
+      lastPostId: '7',
       lastLikeCount: 13,
     })
     expect(
       getCommunityNextPageParam(likedPostsResponse.dataBody.posts, 'liked'),
-    ).toEqual({ lastPostId: 7, lastLikeCount: 0 })
+    ).toEqual({ lastPostId: '7', lastLikeCount: 0 })
     expect(
       getCommunityNextPageParam({ contents: [], hasNext: true }, 'latest'),
     ).toBeUndefined()
@@ -237,16 +243,16 @@ describe('community state', () => {
   it('namespaced query keys를 안정적으로 만든다', () => {
     const state = parseCommunityListState(new URLSearchParams('view=latest'))
     expect(communityKeys.list(state)).toEqual(['community', 'list', state])
-    expect(communityKeys.detail(1, true)).toEqual([
+    expect(communityKeys.detail('1', true)).toEqual([
       'community',
       'detail',
-      1,
+      '1',
       true,
     ])
-    expect(communityKeys.comments(1, false)).toEqual([
+    expect(communityKeys.comments('1', false)).toEqual([
       'community',
       'comments',
-      1,
+      '1',
       false,
     ])
     expect(communityKeys.related('DISTRICT', '111', false)).toEqual([
