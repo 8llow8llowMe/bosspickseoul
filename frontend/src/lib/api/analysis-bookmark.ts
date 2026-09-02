@@ -8,7 +8,7 @@
  */
 
 import { apiClient } from '@/lib/api/client'
-import { normalizeApiError } from '@/lib/api/api-error'
+import { normalizeApiError, readAppThrownMessage } from '@/lib/api/api-error'
 import type { ShareType } from '@/lib/share/payload'
 import type { ApiResponse } from '@/types/api'
 import type {
@@ -118,10 +118,9 @@ export const classifyAnalysisBookmarkSaveError = (
   error: unknown,
 ): AnalysisBookmarkSaveFailure => {
   // axios 가 아닌, 화면에서 직접 던진 Error(예: 200인데 success:false)는 그 문구를 그대로 쓴다.
-  // `normalizeApiError` 는 응답이 없으면 network 로 보고 "네트워크 연결을 확인…"으로 덮어버린다.
-  const isAxiosError = isRecord(error) && error.isAxiosError === true
-  if (!isAxiosError && error instanceof Error && error.message) {
-    return { kind: 'other', message: error.message, retryable: false }
+  const appThrown = readAppThrownMessage(error)
+  if (appThrown) {
+    return { kind: 'other', message: appThrown, retryable: false }
   }
 
   const normalized = normalizeApiError(error)

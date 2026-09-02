@@ -43,6 +43,7 @@ import {
   deleteAnalysisBookmark,
 } from '@/lib/api/analysis-bookmark'
 import { createShareLink, createShareUrl } from '@/lib/api/share'
+import { classifyShareLinkError } from '@/lib/api/share-errors'
 import {
   buildCommercialAnalysisPayload,
   normalizeSharePayload,
@@ -1208,7 +1209,9 @@ export default function AnalysisResultView({
   /**
    * V2 공유 링크(`POST /share-links`)를 발급해 `/s/{shareCode}` 를 공유한다.
    * 로그인은 필요 없다 — BFF 세션이 있으면 최초 공유자만 기록된다.
-   * 같은 화면 상태는 기존 코드가 재사용되므로 버튼 연타에 안전하다.
+   *
+   * 같은 화면 상태는 기존 코드가 재사용된다. 연타가 정말 동시에 겹치면 백엔드가
+   * 409 로 재시도를 안내하는데, 그건 `createShareLink` 가 흡수한다 — 여기서 볼 일은 없다.
    */
   const handleShare = async () => {
     if (!sharePayload) {
@@ -1244,7 +1247,7 @@ export default function AnalysisResultView({
     } catch (error) {
       // 사용자가 공유 시트를 닫은 것(AbortError)은 실패가 아니다.
       if (error instanceof Error && error.name === 'AbortError') return
-      notify('share', classifyAnalysisBookmarkSaveError(error).message, 'error')
+      notify('share', classifyShareLinkError(error).message, 'error')
     }
   }
 
