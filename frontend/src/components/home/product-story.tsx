@@ -242,6 +242,12 @@ const Cta = styled(Link)`
 
 const PanelWithCta = styled.div`
   display: grid;
+  /* 행을 명시하지 않으면 부모(StoryRow, height:600px + align-items:stretch)가 준
+     남는 높이가 두 행에 분배되고, align-self 가 없는 CTA 가 행 높이만큼 늘어난다
+     (실측: min-height 48px 선언이 120px 로 렌더됐다). 남는 공간은 패널이 전부 갖는다.
+     minmax(0, 1fr) 의 0 은 필수다 — 1fr 만 쓰면 최소 콘텐츠 크기가 하한이 되어
+     좁은 폭에서 패널이 넘친다. */
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 16px;
   min-width: 0;
 
