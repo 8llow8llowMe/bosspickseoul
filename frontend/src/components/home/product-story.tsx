@@ -1,12 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
-import { STORY_STEPS, type StoryDemo } from '@/components/home/story-steps'
+import {
+  STORY_STEPS,
+  type StoryDemo,
+  type StoryStep,
+} from '@/components/home/story-steps'
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
 
 const Container = styled.section`
@@ -208,6 +213,46 @@ const StackHead = styled.div`
   gap: 10px;
 `
 
+// CTA 규격은 `analysis-mini-demo` 의 것과 맞춘다 — 같은 스토리 안에서 버튼이 달라 보이면
+// 단계마다 다른 종류의 행동처럼 읽힌다.
+const Cta = styled(Link)`
+  min-height: 48px;
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border-radius: var(--radius-control);
+  background: var(--color-primary-700);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-primary-600);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-primary);
+  }
+`
+
+const PanelWithCta = styled.div`
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+
+  /* justify-items: start 를 쓰면 안 된다 — 데모 패널까지 내용 폭으로 줄어든다
+     (실측: 343px 자리에서 121px 로 찌그러졌다). 폭을 좁히는 건 CTA 뿐이다.
+     CSS 주석 안에 백틱을 넣으면 styled 템플릿이 거기서 끊긴다. */
+  > a {
+    justify-self: start;
+  }
+`
+
 function DemoPanel({ demo }: { demo: StoryDemo }) {
   if (demo === 'map') return <SeoulDistrictsMap />
   if (demo === 'mini-demo') return <AnalysisMiniDemo />
@@ -245,17 +290,25 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
   )
 }
 
-function PanelCard({ demo }: { demo: StoryDemo }) {
+function PanelCard({ step }: { step: StoryStep }) {
+  const { demo, cta } = step
   // 미니데모는 자체적으로 "대표 예시 데이터" 배지를 가지므로 중복 라벨을 숨긴다.
   return (
-    <Panel>
-      {demo === 'mini-demo' ? null : (
-        <SampleLabel>대표 예시 데이터</SampleLabel>
-      )}
-      <DemoArea>
-        <DemoPanel demo={demo} />
-      </DemoArea>
-    </Panel>
+    <PanelWithCta>
+      <Panel>
+        {demo === 'mini-demo' ? null : (
+          <SampleLabel>대표 예시 데이터</SampleLabel>
+        )}
+        <DemoArea>
+          <DemoPanel demo={demo} />
+        </DemoArea>
+      </Panel>
+      {/*
+        각 단계에서 그 도구로 나가는 길. 없으면 스토리가 「무엇을 해 주는지」만 말하고
+        끝나 막다른 길이 된다(이슈 #176). 미니데모 단계는 데모 안에 이미 CTA 가 있다.
+      */}
+      {cta ? <Cta href={cta.href}>{cta.label}</Cta> : null}
+    </PanelWithCta>
   )
 }
 
@@ -337,7 +390,7 @@ export default function ProductStory() {
                 <StepTitle $active>{item.title}</StepTitle>
               </StackHead>
               <StepBody>{item.body}</StepBody>
-              <PanelCard demo={item.demo} />
+              <PanelCard step={item} />
             </StackItem>
           ))}
         </Stack>
@@ -376,7 +429,7 @@ export default function ProductStory() {
                 )
               })}
             </StepList>
-            <PanelCard demo={STORY_STEPS[active].demo} />
+            <PanelCard step={STORY_STEPS[active]} />
           </StoryRow>
         </Sticky>
       </Track>
