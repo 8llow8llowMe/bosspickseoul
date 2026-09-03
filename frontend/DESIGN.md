@@ -148,6 +148,17 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 - Shadow: `0px 2px 8px rgba(0,0,0,0.08)` -- single-layer, minimal
 - Financial cards: prominent number display with amount in 700 weight, currency label in 400
 
+### Charts
+
+- **가로 막대는 폭에 상한을 둔다 — 기본 560px.** 막대 두께는 26px(`maxBarSize`)에 묶여
+  있는데 길이에 상한이 없으면 넓은 칸에서 가로세로비가 무너진다. 실측으로 `/status`
+  「업종별 점포수」가 1016px 칸에서 **약 31:1** 이 됐고, 그 폭에서는 왼쪽 라벨과 오른쪽
+  값을 눈으로 잇기 어렵다. **막대 길이 : 두께가 대략 15:1 을 넘지 않게 한다.**
+- **가로 막대는 카드 하나를 가로지르게(`full`) 두지 않는다.** 세로 막대·꺾은선·도넛은
+  가로가 넓을수록 좋아지지만, 가로 막대는 나빠진다. 같은 폭으로 나란히 둔다.
+- 값 라벨은 막대 끝에 붙이고 `tabular-nums` 로 자릿수를 맞춘다.
+- 데이터가 없으면 빈 차트를 그리지 않고 "데이터 없음" 문구로 대체한다.
+
 ### Inputs & Forms
 
 - Background: `#f2f4f6` (grey100) for contained variant

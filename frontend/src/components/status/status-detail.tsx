@@ -702,7 +702,12 @@ function StoreSection({ detail }: { detail: DistrictDetail }) {
     <ReportSection>
       <GroupHeading>점포</GroupHeading>
       <ChartGrid>
-        <ChartPanel full title="업종별 점포수">
+        {/*
+          `full` 을 뗐다. 이 칸만 2열을 다 차지해 막대가 800px 까지 늘어났고
+          형제 차트(약 12:1)와 달리 홀로 약 31:1 이 됐다 — 라벨과 값이 멀어져
+          어느 줄의 값인지 잇기 어려웠다. 가로 막대는 같은 폭으로 나란히 둔다.
+        */}
+        <ChartPanel title="업종별 점포수">
           <HorizontalBarChart
             ariaLabel="업종별 점포수"
             items={serviceRows}
