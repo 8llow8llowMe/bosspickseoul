@@ -4,7 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
 
 import type { DemoSelection } from '@/data/home-demo'
-import { useRecommendPreview } from '@/hooks/use-recommend-preview'
+import {
+  useRecommendPreview,
+  type UseRecommendPreviewOptions,
+} from '@/hooks/use-recommend-preview'
 import type {
   AdministrationAreasResponse,
   CandidateCommercialsResponse,
@@ -21,20 +24,30 @@ import type {
  * 훅은 JSX를 반환하지 않으므로, 반환값을 렌더된 문자열에 JSON으로 실어 꺼낸다
  * (외부 변수에 재할당하면 렌더 중 side effect라 react-hooks 규칙에 걸린다).
  */
-function Probe({ selection }: { selection: DemoSelection }) {
-  const state = useRecommendPreview(selection)
+function Probe({
+  selection,
+  options,
+}: {
+  selection: DemoSelection
+  options?: UseRecommendPreviewOptions
+}) {
+  const state = useRecommendPreview(selection, options)
   return createElement('script', {
     type: 'application/json',
     dangerouslySetInnerHTML: { __html: JSON.stringify(state) },
   })
 }
 
-const renderProbe = (client: QueryClient, selection: DemoSelection) => {
+const renderProbe = (
+  client: QueryClient,
+  selection: DemoSelection,
+  options?: UseRecommendPreviewOptions,
+) => {
   const html = renderToStaticMarkup(
     createElement(
       QueryClientProvider,
       { client },
-      createElement(Probe, { selection }),
+      createElement(Probe, { selection, options }),
     ),
   )
   const match = html.match(/<script[^>]*>(.*)<\/script>/)
@@ -226,5 +239,67 @@ describe('useRecommendPreview — 3단 연쇄', () => {
 
     expect(result.isLoading).toBe(false)
     expect(result.view.isSample).toBe(true)
+  })
+})
+
+describe('useRecommendPreview — enabled 게이트(랜딩 첫 화면 보호)', () => {
+  const districtCode = '11680'
+  const administrationCode = '11680660'
+
+  /*
+   * 코디네이터 피드백: 카운터가 스토리 섹션이 뷰포트에 들어오기 전에도
+   * 이 훅을 불러야 해서, 랜딩 첫 페인트부터 행정동·상권·추천 GET 3개가
+   * 나가는 회귀가 생겼었다. enabled:false는 그 세 쿼리를 전부 비활성으로
+   * 묶어야 하고, 그 상태를 "폴백(종결)"이 아니라 "아직 모른다(로딩)"로
+   * 정직하게 보고해야 한다.
+   */
+  it('enabled:false면 응답이 캐시에 있어도 연쇄를 시작한 것으로 치지 않고 로딩으로 남는다', () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    // 캐시에 이미 데이터가 있어도(예: 다른 selection에서 이미 받아둔 상태)
+    // enabled:false인 호출은 그걸 "이 선택의 확정된 답"으로 쓰면 안 된다 —
+    // 여기서는 아예 아무것도 없는 상태로 최소 조건만 확인한다.
+    const result = renderProbe(client, GANGNAM, { enabled: false })
+
+    expect(result.isLoading).toBe(true)
+    expect(result.administrationName).toBeNull()
+  })
+
+  it('enabled:false 동안엔 행정동 쿼리가 fetch 상태로 전환되지 않는다', () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    renderProbe(client, GANGNAM, { enabled: false })
+
+    const administrationsQueryState = client.getQueryCache().find({
+      queryKey: ['home', 'recommendAdministrations', districtCode],
+    })?.state
+
+    // enabled:false로 만든 쿼리는 한 번도 안 불렀으니 'pending'에 머물러야
+    // 한다 — 'success'/'error'로 넘어갔다면 어딘가서 fetch가 나간 것이다.
+    expect(administrationsQueryState?.status).toBe('pending')
+    expect(administrationsQueryState?.fetchStatus).toBe('idle')
+  })
+
+  it('enabled:true(기본값)로 되돌리면 다시 정상적으로 연쇄가 응답을 반영한다', () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    client.setQueryData(['home', 'recommendAdministrations', districtCode], {
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody: [
+        {
+          administrationCode,
+          administrationName: '논현2동',
+          centerLat: 37.51,
+          centerLng: 127.03,
+        },
+      ],
+    } satisfies AdministrationAreasResponse)
+
+    const result = renderProbe(client, GANGNAM, { enabled: true })
+
+    expect(result.administrationName).toBe('논현2동')
   })
 })

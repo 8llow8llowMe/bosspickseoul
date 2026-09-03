@@ -364,11 +364,45 @@ export default function ProductStory() {
   const [selection, setSelection] = useState<DemoSelection>(DEFAULT_SELECTION)
 
   /*
-    카운터는 활성 단계와 무관하게 항상 보이므로, 03단계 패널(RecommendPreview)이
-    마운트되지 않은 스텝에서도 실제 값을 보여줘야 한다. 같은 훅을 같은 selection으로
-    RecommendPreview도 호출하므로 React Query 캐시를 공유해 요청은 1회다.
+    카운터는 스티키 모드에서 01단계와 함께 즉시 마운트되지만, 트랙은 히어로
+    아래(y≈835px)에서 시작해 **랜딩 첫 화면엔 보이지 않는다.** 마운트 == 화면에
+    보임이 아니다 — 여기서 곧장 useRecommendPreview를 부르면 방문자가 스크롤을
+    한 번도 안 해도 행정동·상권·추천 GET 3개가 나간다(최종 리뷰가 지켜온
+    "데스크톱 첫 페인트 = GET 2개"를 되돌리는 회귀).
+    그래서 스티키 모드는 카운터(정확히는 아래 counterAnchorRef)가 실제로
+    뷰포트에 들어온 뒤에만 연쇄를 켠다. 한 번 켜지면(storyInView=true) 다시
+    끄지 않는다 — 스크롤을 올렸다고 진행 중인 요청을 취소하면 안 된다.
+    스택 모드는 애초에 모든 스텝이 항상 함께 렌더되므로(기존 동작) 게이트가
+    필요 없다.
   */
-  const recommendState = useRecommendPreview(selection)
+  const [storyInView, setStoryInView] = useState(false)
+  const counterAnchorRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (storyInView) return
+    const el = counterAnchorRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setStoryInView(true)
+          observer.disconnect()
+        }
+      })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [storyInView])
+
+  /*
+    RecommendPreview(03 패널)도 같은 훅을 같은 selection으로 부른다 — 캐시를
+    공유하므로 네트워크 요청은 1회다. 그 컴포넌트는 스티키 모드에서 active===2일
+    때만 마운트되므로(=사용자가 이미 그 스텝에 있으므로) 자기 호출은 게이트가
+    필요 없다. 여기 카운터용 호출만 storyInView로 늦춘다.
+  */
+  const recommendState = useRecommendPreview(selection, {
+    enabled: stacked || storyInView,
+  })
 
   // 스텝 클릭 시 해당 스텝 구간의 중앙으로 스크롤한다.
   // useScrollProgress의 진행도 정의: progress = (vh - top) / (H + vh).
@@ -432,12 +466,18 @@ export default function ProductStory() {
       <Track ref={trackRef}>
         <Sticky>
           <StoryLead />
-          {/* 활성 스텝 노드를 강조해, 스크롤로 넘길 때 어느 단계가 좁혀지는지 보여준다. */}
-          <FunnelCounter
-            selection={selection}
-            recommend={recommendState}
-            active={active}
-          />
+          {/*
+            활성 스텝 노드를 강조해, 스크롤로 넘길 때 어느 단계가 좁혀지는지
+            보여준다. ref는 03 연쇄를 언제 켤지 판정하는 IntersectionObserver
+            앵커다(위 storyInView 주석) — 스타일에 관여하지 않는다.
+          */}
+          <div ref={counterAnchorRef}>
+            <FunnelCounter
+              selection={selection}
+              recommend={recommendState}
+              active={active}
+            />
+          </div>
           <StoryRow>
             <StepList>
               {STORY_STEPS.map((item, index) => {

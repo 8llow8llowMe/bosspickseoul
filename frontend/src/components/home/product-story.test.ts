@@ -112,6 +112,30 @@ describe('STORY_STEPS — AI 리포트 배치', () => {
   })
 })
 
+describe('ProductStory — 03 연쇄는 스토리 도달 전엔 켜지지 않는다', () => {
+  /*
+   * 코디네이터 피드백: 카운터(FunnelCounter)는 01단계와 함께 즉시 마운트되지만
+   * 트랙은 히어로 아래에서 시작해 랜딩 첫 화면엔 보이지 않는다. 마운트와 별개로
+   * "스토리 섹션이 뷰포트에 실제로 들어왔는가"(IntersectionObserver)를 확인하기
+   * 전엔 03 연쇄(행정동→상권→추천)를 켜면 안 된다.
+   *
+   * renderToStaticMarkup은 커밋(effect) 단계를 실행하지 않으므로 이
+   * IntersectionObserver는 절대 실행되지 않는다 — 즉 이 SSR 렌더는 정확히
+   * "스토리에 아직 안 닿은" 상태를 흉내낸다. 03 노드가 즉시 폴백(대표
+   * 예시 데이터)이나 실데이터로 채워지면, enabled 게이트가 사라졌다는 뜻이다.
+   */
+  it('03 노드는 로딩 표기(—)로 남고, 03 연쇄 응답을 함부로 종결짓지 않는다', () => {
+    const html = renderStory()
+
+    const label = html.indexOf('03 후보 추천')
+    const window = html.slice(label, label + 200)
+
+    expect(window).toContain('—')
+    expect(window).not.toContain('상권')
+    expect(window).not.toContain('추천 5곳')
+  })
+})
+
 describe('STORY_STEPS — 01단계 히어로 재탕 제거', () => {
   it('01단계는 지도를 데모로 쓰지 않는다', () => {
     // 히어로가 같은 SeoulDistrictsMap 을 이미 그린다.
