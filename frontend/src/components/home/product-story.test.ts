@@ -77,3 +77,20 @@ describe('ProductStory', () => {
     expect(hrefs).not.toContain('/analysis')
   })
 })
+
+describe('STORY_STEPS — AI 리포트 배치', () => {
+  it('02단계 제목이 AI 리포트를 명시한다', () => {
+    // AI 리포트는 /analysis/report 와 분석 결과 사이드바에 사는 분석의 산출물이다.
+    // 벤토의 「분석 이후」 칸이 아니라 이 단계가 그것을 말해야 한다.
+    expect(STORY_STEPS[1].title).toBe('상권 분석 · AI 리포트')
+  })
+
+  it('02단계 본문이 AI 가 무엇을 해 주는지 말한다', () => {
+    expect(STORY_STEPS[1].body).toContain('AI')
+  })
+
+  it('02단계는 여전히 CTA 를 갖지 않는다', () => {
+    // 데모(analysis-mini-demo)가 자체 CTA 를 들고 있다. 여기서 또 그리면 버튼이 둘이 된다.
+    expect(STORY_STEPS[1].cta).toBeNull()
+  })
+})

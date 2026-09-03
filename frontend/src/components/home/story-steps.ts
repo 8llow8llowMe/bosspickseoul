@@ -28,8 +28,8 @@ export const STORY_STEPS: readonly StoryStep[] = [
   },
   {
     step: '02',
-    title: '상권 분석',
-    body: '지역과 업종을 골라 매출 추이와 경쟁 강도를 리포트로 확인합니다.',
+    title: '상권 분석 · AI 리포트',
+    body: '지역과 업종을 고르면 매출 추이·경쟁 강도를 읽고, AI 가 판단 근거를 문장으로 정리합니다.',
     demo: 'mini-demo',
     cta: null,
   },

@@ -251,6 +251,12 @@ const CompetitionBadge = styled.span<{ $level: CompetitionLevel }>`
   font-weight: 700;
 `
 
+const InsightLabel = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-caption);
+`
+
 const Insight = styled.p`
   color: var(--color-text-600);
   font-size: 14px;
@@ -402,9 +408,14 @@ export default function AnalysisMiniDemo() {
           </MetricBlock>
         </MetricGrid>
 
+        {/*
+          「예시」를 라벨 안에 넣는 것이 요점이다. 이 문장은 home-demo.ts 의 하드코딩
+          문자열이라, 「AI 리포트 요약」이라고만 쓰면 하드코딩이 AI 출력인 척하게 된다.
+        */}
+        <InsightLabel>AI 리포트 요약 · 예시</InsightLabel>
         <Insight>{sample.insight}</Insight>
 
-        <Cta href="/analysis">이 조건으로 실제 분석하기</Cta>
+        <Cta href="/analysis">이 조건으로 AI 리포트 받기</Cta>
       </ResultCard>
     </Wrapper>
   )
