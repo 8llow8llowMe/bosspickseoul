@@ -16,6 +16,12 @@ spring:
   cloud:
     config:
       enabled: false
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${INTERNAL_CLIENT_CONNECT_TIMEOUT_MS}
+            readTimeout: ${INTERNAL_CLIENT_READ_TIMEOUT_MS}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${COMMUNITY_DB_URL}
@@ -68,3 +74,9 @@ infra:
     access-key: ${MINIO_ACCESS_KEY}
     secret-key: ${MINIO_SECRET_KEY}
     max-file-bytes: ${MINIO_MAX_FILE_BYTES:5242880}
+
+# Feign이 조회할 상대 서비스의 Eureka 등록명. Eureka 등록명은 환경별 접미사가 붙으므로
+# (예: district-service-dev) 코드의 논리명 대신 이 매핑을 통해 실제 등록명으로 해석한다.
+feign-client:
+  target-services:
+    district-service: ${DISTRICT_SERVICE_APP_NAME}

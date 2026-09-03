@@ -12,6 +12,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     // Eureka Client for Service Discovery (Eureka 클라이언트)
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    // OpenFeign (district-service 지역 메타 조회) + CircuitBreaker
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
     // SpringDoc (swagger - openapi 3.0)
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
     // Spring Security Resource Server
