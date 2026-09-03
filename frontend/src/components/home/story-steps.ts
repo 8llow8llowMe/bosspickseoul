@@ -1,4 +1,4 @@
-export type StoryDemo = 'map' | 'mini-demo' | 'recommend' | 'simulation'
+export type StoryDemo = 'metrics' | 'mini-demo' | 'recommend' | 'simulation'
 
 export type StoryStep = {
   step: string
@@ -22,8 +22,8 @@ export const STORY_STEPS: readonly StoryStep[] = [
   {
     step: '01',
     title: '현황 확인',
-    body: '서울 자치구별 매출·유동인구·업종 분포를 지도에서 비교합니다.',
-    demo: 'map',
+    body: '서울 25개 자치구를 유동인구·매출·개업 수로 줄 세워 어디부터 볼지 정합니다.',
+    demo: 'metrics',
     cta: { href: '/status', label: '구별 현황 보기' },
   },
   {

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
-import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
+import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
 import {
@@ -260,7 +260,7 @@ const PanelWithCta = styled.div`
 `
 
 function DemoPanel({ demo }: { demo: StoryDemo }) {
-  if (demo === 'map') return <SeoulDistrictsMap />
+  if (demo === 'metrics') return <MetricRankingBoard />
   if (demo === 'mini-demo') return <AnalysisMiniDemo />
   if (demo === 'recommend') {
     return (
@@ -298,13 +298,17 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
 
 function PanelCard({ step }: { step: StoryStep }) {
   const { demo, cta } = step
-  // 미니데모는 자체적으로 "대표 예시 데이터" 배지를 가지므로 중복 라벨을 숨긴다.
+  /*
+    각 데모가 자기 라벨을 들고 있다 — 미니데모는 SampleBadge, 지표 보드는 폴백일
+    때만 스스로 붙인다(실 데이터인데 「예시」라고 적으면 거짓말이다). 추천·시뮬레이션은
+    아직 하드코딩이라 여기서 그린다.
+  */
   return (
     <PanelWithCta>
       <Panel>
-        {demo === 'mini-demo' ? null : (
+        {demo === 'recommend' || demo === 'simulation' ? (
           <SampleLabel>대표 예시 데이터</SampleLabel>
-        )}
+        ) : null}
         <DemoArea>
           <DemoPanel demo={demo} />
         </DemoArea>

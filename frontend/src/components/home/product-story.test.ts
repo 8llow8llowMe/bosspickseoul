@@ -1,6 +1,7 @@
 // src/components/home/product-story.test.ts
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import ProductStory from '@/components/home/product-story'
 import { STORY_STEPS } from '@/components/home/story-steps'
@@ -14,9 +15,25 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
+/*
+ * 01단계가 MetricRankingBoard(useDistrictTopTen → useQuery)를 그리므로 QueryClientProvider
+ * 없이 렌더하면 "No QueryClient set" 으로 죽는다. 여기서는 top-ten 응답을 캐시에 심지
+ * 않는다 — 그 분기는 metric-ranking-board.test.ts 가 이미 덮는다. 이 파일의 관심사는
+ * 스토리 골격(제목·CTA·라벨)이라 폴백 렌더로 충분하다.
+ */
+const renderStory = () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
+  return renderToStaticMarkup(
+    createElement(QueryClientProvider, { client }, createElement(ProductStory)),
+  )
+}
+
 describe('ProductStory', () => {
   it('4개 스텝 제목과 샘플 라벨을 렌더한다', () => {
-    const html = renderToStaticMarkup(createElement(ProductStory))
+    const html = renderStory()
     for (const title of [
       '현황 확인',
       '상권 분석',
@@ -33,7 +50,7 @@ describe('ProductStory', () => {
    * 말하고 끝났다. 특히 `/recommend`·`/simulation` 은 홈 본문 링크가 **0개**였다.
    */
   it('활성 단계의 CTA 를 렌더한다', () => {
-    const html = renderToStaticMarkup(createElement(ProductStory))
+    const html = renderStory()
 
     /*
      * 스티키 모드는 **활성 단계 하나만** 패널로 그린다(첫 렌더는 01 현황 확인).
@@ -57,7 +74,7 @@ describe('ProductStory', () => {
       href: '/simulation',
       label: '창업 시뮬레이션 해보기',
     })
-    expect(byDemo.map).toEqual({ href: '/status', label: '구별 현황 보기' })
+    expect(byDemo.metrics).toEqual({ href: '/status', label: '구별 현황 보기' })
   })
 
   /*
@@ -92,5 +109,20 @@ describe('STORY_STEPS — AI 리포트 배치', () => {
   it('02단계는 여전히 CTA 를 갖지 않는다', () => {
     // 데모(analysis-mini-demo)가 자체 CTA 를 들고 있다. 여기서 또 그리면 버튼이 둘이 된다.
     expect(STORY_STEPS[1].cta).toBeNull()
+  })
+})
+
+describe('STORY_STEPS — 01단계 히어로 재탕 제거', () => {
+  it('01단계는 지도를 데모로 쓰지 않는다', () => {
+    // 히어로가 같은 SeoulDistrictsMap 을 이미 그린다.
+    expect(STORY_STEPS[0].demo).not.toBe('map')
+  })
+
+  it('01단계 본문이 지표로 줄 세운다고 말한다', () => {
+    expect(STORY_STEPS[0].body).toContain('유동인구')
+  })
+
+  it('01단계 CTA 목적지는 그대로다', () => {
+    expect(STORY_STEPS[0].cta?.href).toBe('/status')
   })
 })
