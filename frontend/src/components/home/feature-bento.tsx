@@ -2,8 +2,7 @@ import Link from 'next/link'
 import {
   ArrowRight,
   Bookmark,
-  Check,
-  FileText,
+  Columns3,
   MessageSquare,
   UserPlus,
 } from 'lucide-react'
@@ -129,15 +128,6 @@ const CardBody = styled.p`
   word-break: keep-all;
 `
 
-const Badge = styled.span`
-  margin-left: auto;
-  font-size: 12px;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-100);
-  color: var(--color-primary-700);
-`
-
 const DevBadge = styled.span`
   margin-left: auto;
   font-size: 12px;
@@ -145,68 +135,6 @@ const DevBadge = styled.span`
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
   color: var(--color-text-caption);
-`
-
-const ReportCard = styled.div`
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: var(--color-background-muted);
-  padding: 14px 16px;
-`
-
-const ReportTop = styled.div`
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-`
-
-const ReportTitle = styled.span`
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-900);
-`
-
-const ReportGrade = styled.span`
-  font-size: 12px;
-  color: var(--color-text-caption);
-`
-
-const ReportRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border-200);
-`
-
-const ReportKey = styled.span`
-  color: var(--color-text-600);
-`
-
-const ReportValue = styled.span<{ $positive?: boolean }>`
-  font-weight: 600;
-  color: ${p =>
-    p.$positive ? 'var(--color-positive)' : 'var(--color-text-900)'};
-`
-
-const ReportFoot = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border-200);
-  font-size: 12px;
-  color: var(--color-text-caption);
-
-  svg {
-    width: 14px;
-    height: 14px;
-    stroke: currentColor;
-  }
 `
 
 const Cta = styled.div`
@@ -307,35 +235,12 @@ export default function FeatureBento() {
         <Bento>
           <Hero>
             <CardHead>
-              <FileText aria-hidden="true" />
-              <CardTitle>AI 리포트</CardTitle>
-              <Badge>실시간 생성</Badge>
+              <Bookmark aria-hidden="true" />
+              <CardTitle>분석 화면 보관함</CardTitle>
             </CardHead>
             <CardBody>
-              지역과 업종만 고르면 AI가 상권 리포트를 만들어 드립니다.
+              분석한 화면을 그대로 저장하고, 링크 하나로 공유합니다.
             </CardBody>
-            <ReportCard aria-hidden="true">
-              <ReportTop>
-                <ReportTitle>역삼동 · 카페 상권</ReportTitle>
-                <ReportGrade>종합 A-</ReportGrade>
-              </ReportTop>
-              <ReportRow>
-                <ReportKey>매출 추이</ReportKey>
-                <ReportValue $positive>최근 6개월 +18%</ReportValue>
-              </ReportRow>
-              <ReportRow>
-                <ReportKey>유동인구</ReportKey>
-                <ReportValue>일 평균 3.2만</ReportValue>
-              </ReportRow>
-              <ReportRow>
-                <ReportKey>경쟁 강도</ReportKey>
-                <ReportValue>보통 · 32곳</ReportValue>
-              </ReportRow>
-              <ReportFoot>
-                <Check aria-hidden="true" />
-                <span>AI가 자동 생성한 리포트 예시</span>
-              </ReportFoot>
-            </ReportCard>
           </Hero>
 
           <Card>
@@ -351,10 +256,10 @@ export default function FeatureBento() {
 
           <Card>
             <CardHead>
-              <Bookmark aria-hidden="true" />
-              <CardTitle>저장 · 알림</CardTitle>
+              <Columns3 aria-hidden="true" />
+              <CardTitle>상권 비교</CardTitle>
             </CardHead>
-            <CardBody>관심 상권을 저장하고 변화를 알림으로 받습니다.</CardBody>
+            <CardBody>후보 상권을 나란히 놓고 지표로 비교합니다.</CardBody>
           </Card>
         </Bento>
 
