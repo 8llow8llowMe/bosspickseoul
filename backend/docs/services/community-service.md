@@ -40,7 +40,15 @@
   제약 위반은 `CommunityExceptionHandler` 가 409 로 변환한다 — 좋아요는 `COMMUNITY_013`,
   신고는 기존 `COMMUNITY_009`. 그 외 제약 위반은 원인을 감추지 않도록 그대로 500 으로 남긴다.
 - 정렬 파라미터는 enum 기반 `sortType`, `orderType` 기준을 따른다. `CommunitySortType` 과 `OrderType` 은 모두 `CodeNameDescribable` 을 구현한다 (`displayName` 필드 + metadata 변환).
-- 커뮤니티 타깃명 표시용 지역 메타는 로컬 참조 테이블 `commercial_region_mapping`으로만 조회하고, 원천 책임은 `district-service`에 둔다.
+- 커뮤니티 대상(자치구/행정동/상권) 검증·명칭 조회는 **district-service 실조회(Feign)** 다
+  (`CommunityTargetMetaClientAdapter` → `/api/v1/regions/**`). 지역 메타는 직접 DB 로 소유하지 않는다.
+  - 이전의 로컬 참조 테이블(`commercial_region_mapping`) 방식은 서비스별 DB 분리 후 복제본을 채우는
+    절차가 없어 dev 에서 모든 대상 검증이 `COMMUNITY_004` 로 떨어졌고, 시딩으로 채우면 지역 데이터
+    갱신 때마다 원천과 불일치가 생기므로 원천 실조회로 전환했다 (commercial-service 와 동일 원칙).
+  - 미존재 코드(district 404)는 `COMMUNITY_004 TARGET_NOT_FOUND`, district-service 통신 불가/서킷
+    오픈은 `503 COMMUNITY_014` 로 응답한다. 서킷브레이커 설정은 commercial-service 와 동일하다.
+  - 기존 로컬 테이블은 사용하지 않으므로 정리 런북
+    `scripts/migration/community-region-reference-drop-runbook.sql` 로 제거한다.
 
 ## 게시글 조회수 (신규)
 
