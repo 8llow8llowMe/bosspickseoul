@@ -21,14 +21,21 @@ import {
 import { buildRankingInsight } from '@/lib/home/ranking-insight'
 import {
   formatStatusValue,
-  formatStatusChange,
+  toChangeBadge,
 } from '@/lib/status/status-formatters'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
+import MetricToggleGroup from '@/components/home/metric-toggle-group'
 
 const RANKING_SIZE = 8
 
-const Section = styled.section`
-  min-height: 100dvh;
+const Section = styled.section<{ $dual?: boolean }>`
+  /*
+    D5-4: 한쪽 열만 살아 있으면 100dvh 를 해제한다 — 살아 있는 한 열(약 170px)만으로
+    900px 높이를 채우면 위아래가 텅 빈 여백이 된다("여백으로 채우지 않는다", D4-3).
+    두 열이 모두 있을 때만(기본값 포함 — 로딩/스켈레톤 단계는 아직 결과를 모르므로
+    두 열을 가정한다) 100dvh 를 준다.
+  */
+  ${props => (props.$dual === false ? '' : 'min-height: 100dvh;')}
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -127,34 +134,13 @@ const ColumnCaption = styled.span`
   color: var(--color-text-caption);
 `
 
-const MetricToggle = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-`
-
-const MetricButton = styled.button<{ $active: boolean }>`
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid
-    ${props =>
-      props.$active ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-pill);
-  background: ${props =>
-    props.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+const MetricEmptyNotice = styled.p`
+  margin: 0;
+  padding: 14px 12px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
   font-size: 13px;
-  font-weight: ${props => (props.$active ? 700 : 600)};
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-
-  &:hover {
-    border-color: var(--color-primary-600);
-  }
+  color: var(--color-text-caption);
 `
 
 const Insight = styled.p`
@@ -246,12 +232,22 @@ export default function PopularDistricts() {
       ? toHomeMetricRankings(metricQuery.data.dataBody)
       : null
 
-  const activeMetricRaw =
-    metricRankings?.find(entry => entry.metric === metric) ?? null
-  const activeMetric =
-    activeMetricRaw && activeMetricRaw.items.length > 0 ? activeMetricRaw : null
+  /*
+    A. `top-ten` 이 200 을 주고도 지표 하나만 빈 배열일 수 있다(예: footTraffic 만
+    비고 매출·개업은 정상). 그 경우에도 세 지표 중 하나라도 데이터가 있으면 토글은
+    남긴다 — 토글이 사라지면 멀쩡한 다른 지표로 넘어갈 방법이 없어진다.
+    세 지표가 전부 비었을 때만(=사실상 API 가 죽은 것과 같다) 우측을 통째로 뺀다.
+  */
+  const hasMetricData =
+    metricRankings !== null &&
+    metricRankings.some(entry => entry.items.length > 0)
+
+  const activeMetric = hasMetricData
+    ? (metricRankings!.find(entry => entry.metric === metric) ?? null)
+    : null
 
   // 두 순위의 차이를 말하는 문장이므로 양쪽이 다 있을 때만 만들 수 있다.
+  // (activeMetric.items 가 비어 있으면 buildRankingInsight 가 알아서 null 을 낸다.)
   const insight =
     view && activeMetric ? buildRankingInsight(view.items, activeMetric) : null
 
@@ -287,8 +283,7 @@ export default function PopularDistricts() {
     name: item.districtName,
     value: item.value,
     valueLabel: formatStatusValue(activeMetric!.metric, item.value),
-    changeLabel: formatStatusChange(item.changeRate),
-    changeDirection: item.changeRate >= 0 ? 'up' : 'down',
+    ...toChangeBadge(item.changeRate),
   }))
 
   const highlightKey = insight?.highlightCode ?? null
@@ -309,32 +304,37 @@ export default function PopularDistricts() {
     </Column>
   ) : null
 
-  const metricColumn = activeMetric ? (
+  // A. 세 지표 중 하나라도 데이터가 있으면 토글은 항상 낸다 — 선택된 지표만
+  // 비었을 때는 토글이 아니라 그 자리에 짧은 안내만 낸다.
+  const metricColumn = hasMetricData ? (
     <Column>
-      <MetricToggle role="group" aria-label="지표 선택">
-        {HOME_METRICS.map(candidate => (
-          <MetricButton
-            key={candidate}
-            type="button"
-            $active={candidate === metric}
-            aria-pressed={candidate === metric}
-            onClick={() => setMetric(candidate)}
-          >
-            {homeMetricLabel(candidate)}
-          </MetricButton>
-        ))}
-      </MetricToggle>
-      <ColumnHeading>{activeMetric.label} 상위 자치구</ColumnHeading>
-      <RankBarList
-        rows={metricRows}
-        ariaLabel={`${activeMetric.label} 상위 자치구 순위`}
-        highlightKey={highlightKey}
+      <MetricToggleGroup
+        options={HOME_METRICS}
+        value={metric}
+        getLabel={homeMetricLabel}
+        onChange={setMetric}
+        ariaLabel="지표 선택"
       />
+      <ColumnHeading>
+        {activeMetric?.label ?? homeMetricLabel(metric)} 상위 자치구
+      </ColumnHeading>
+      {activeMetric && activeMetric.items.length > 0 ? (
+        <RankBarList
+          rows={metricRows}
+          ariaLabel={`${activeMetric.label} 상위 자치구 순위`}
+          highlightKey={highlightKey}
+        />
+      ) : (
+        <MetricEmptyNotice>이 지표는 집계가 없습니다.</MetricEmptyNotice>
+      )}
     </Column>
   ) : null
 
   return (
-    <Section aria-label="지금 많이 본 자치구">
+    <Section
+      aria-label="지금 많이 본 자치구"
+      $dual={Boolean(viewColumn && metricColumn)}
+    >
       <Inner>
         <Header>
           <Eyebrow>

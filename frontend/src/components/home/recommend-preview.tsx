@@ -58,7 +58,10 @@ export default function RecommendPreview() {
       : []
 
   const previewQuery = useQuery({
-    queryKey: ['home', 'recommendPreview'],
+    // D. 키가 상수면 시드가 지역별로 갈리는 순간 다른 지역이 앞 지역의
+    // 캐시를 그대로 받는다(staleTime 30분이 그 오류를 길게 유지한다).
+    // 지금은 시드가 고정이라 아직 문제가 드러나지 않을 뿐이다.
+    queryKey: ['home', 'recommendPreview', commercialCodes],
     queryFn: () =>
       fetchCommercialRecommendations({
         serviceCode: HOME_RECOMMEND_SEED.serviceCode,
@@ -77,6 +80,18 @@ export default function RecommendPreview() {
       ? toRecommendPreview(previewQuery.data.dataBody)
       : RECOMMEND_PREVIEW_FALLBACK
 
+  /*
+    G. 두 쿼리가 아직 결론나지 않은 동안은 "대표 예시 데이터" 라벨을 감춘다.
+    예시 5행 자체는 그대로 그린다(스켈레톤 대신 예시를 먼저 보여주는 결정은
+    유지한다) — 라벨만 숨겨서 첫인상에 라벨이 떴다가 사라지는 깜빡임을 없앤다.
+    시드 쿼리가 아직이면 무조건 로딩. 시드가 끝나 상권 코드가 나왔으면 추천
+    쿼리가 끝날 때까지 로딩. 시드가 끝났는데 코드가 없으면(실패/빈 응답)
+    더 기다릴 게 없으므로 로딩이 아니다 — 그 경우 예시+라벨이 최종 상태다.
+  */
+  const isLoading =
+    seedQuery.isPending ||
+    (commercialCodes.length > 0 && previewQuery.isPending)
+
   const rows: RankBarRow[] = view.rows.map(row => ({
     key: row.key,
     rank: row.rank,
@@ -90,7 +105,7 @@ export default function RecommendPreview() {
       <SeedLabel>{HOME_RECOMMEND_SEED.label}</SeedLabel>
       <RankBarList rows={rows} ariaLabel={`추천 상권 상위 ${rows.length}곳`} />
       {view.reason ? <Reason>{view.reason}</Reason> : null}
-      {view.isSample ? <Sample>대표 예시 데이터</Sample> : null}
+      {view.isSample && !isLoading ? <Sample>대표 예시 데이터</Sample> : null}
     </div>
   )
 }

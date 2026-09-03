@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import styled from 'styled-components'
 
+import MetricToggleGroup from '@/components/home/metric-toggle-group'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import { useDistrictTopTen } from '@/hooks/use-district-top-ten'
 import { isApiSuccess } from '@/lib/api/response'
@@ -14,33 +15,12 @@ import {
   type HomeMetric,
 } from '@/lib/home/metric-rankings'
 import {
-  formatStatusChange,
   formatStatusValue,
+  toChangeBadge,
 } from '@/lib/status/status-formatters'
 
-const Toggles = styled.div`
-  display: flex;
-  gap: 6px;
+const ToggleWrap = styled.div`
   margin-bottom: 12px;
-  flex-wrap: wrap;
-`
-
-const Toggle = styled.button<{ $active: boolean }>`
-  border: 1px solid
-    ${p => (p.$active ? 'var(--color-primary-600)' : 'var(--color-border-200)')};
-  background: ${p =>
-    p.$active ? 'var(--color-primary-600)' : 'var(--color-surface)'};
-  color: ${p => (p.$active ? '#ffffff' : 'var(--color-text-600)')};
-  border-radius: var(--radius-pill);
-  padding: 5px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary);
-  }
 `
 
 const Sample = styled.p`
@@ -53,15 +33,23 @@ export default function MetricRankingBoard() {
   const query = useDistrictTopTen()
   const [metric, setMetric] = useState<HomeMetric>('footTraffic')
 
-  /*
-    top-ten 이 죽어도 단계를 비우지 않는다 — 스토리에서 한 단계만 사라지면
-    번호 01~04 에 구멍이 난다. 폴백은 실 데이터와 모양이 같아 분기가 없다.
-  */
-  const rankings =
+  const rankingsFromApi =
     query.data && isApiSuccess(query.data)
       ? toHomeMetricRankings(query.data.dataBody)
-      : HOME_METRIC_FALLBACK
-  const isFallback = !(query.data && isApiSuccess(query.data))
+      : null
+
+  const activeFromApi =
+    rankingsFromApi?.find(entry => entry.metric === metric) ?? null
+
+  /*
+    top-ten 이 죽거나(실패), 200 이어도 지금 고른 지표가 빈 배열이면 예시로
+    폴백한다 — 둘 다 "이 지표는 쓸 수 있는 실 데이터가 없다"는 같은 상황이다.
+    라벨 없이 빈 상자만 그리는 것보다 "대표 예시 데이터" 라벨이 붙은 예시가 낫다.
+    스토리에서 한 단계만 사라지면 번호 01~04 에 구멍이 나므로, 어느 쪽이든
+    단계 자체는 비우지 않는다.
+  */
+  const isFallback = !activeFromApi || activeFromApi.items.length === 0
+  const rankings = isFallback ? HOME_METRIC_FALLBACK : rankingsFromApi!
 
   const active = rankings.find(entry => entry.metric === metric) ?? rankings[0]
 
@@ -71,25 +59,20 @@ export default function MetricRankingBoard() {
     name: item.districtName,
     value: item.value,
     valueLabel: formatStatusValue(active.metric, item.value),
-    changeLabel: formatStatusChange(item.changeRate),
-    changeDirection: item.changeRate >= 0 ? 'up' : 'down',
+    ...toChangeBadge(item.changeRate),
   }))
 
   return (
     <div>
-      <Toggles role="group" aria-label="지표 선택">
-        {HOME_METRICS.map(item => (
-          <Toggle
-            key={item}
-            type="button"
-            $active={item === active.metric}
-            aria-pressed={item === active.metric}
-            onClick={() => setMetric(item)}
-          >
-            {homeMetricLabel(item)}
-          </Toggle>
-        ))}
-      </Toggles>
+      <ToggleWrap>
+        <MetricToggleGroup
+          options={HOME_METRICS}
+          value={active.metric}
+          getLabel={homeMetricLabel}
+          onChange={setMetric}
+          ariaLabel="지표 선택"
+        />
+      </ToggleWrap>
       <RankBarList
         rows={rows}
         ariaLabel={`자치구 ${active.label} 상위 ${rows.length}곳`}

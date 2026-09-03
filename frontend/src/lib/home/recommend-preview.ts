@@ -10,7 +10,15 @@ export type RecommendPreviewRow = {
 
 export type RecommendPreviewView = {
   rows: RecommendPreviewRow[]
-  /** 1위의 추천 이유. 없으면 null — 문장을 지어내지 않는다. */
+  /**
+   * 화면에 표시되는 목록의 **첫 행**(점수 없어 걸러진 뒤 남은 첫 항목)의 추천
+   * 이유. 없으면 null — 문장을 지어내지 않는다.
+   *
+   * "1위"가 아니라 "필터 후 첫 행"이다 — API 가 준 1위가 `compositeScore`
+   * 없이 걸러졌다면 이 이유는 원래 2위 이하의 것일 수 있다. 다만 `rows` 도
+   * 같은 필터를 거친 뒤의 목록이라 항상 화면의 첫 행과 일치하므로 동작상
+   * 문제는 없다 — 주석이 실제 동작과 어긋나 있었을 뿐이다.
+   */
   reason: string | null
   isSample: boolean
 }

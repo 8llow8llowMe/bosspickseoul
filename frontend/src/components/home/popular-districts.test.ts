@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import PopularDistricts from '@/components/home/popular-districts'
@@ -68,10 +69,38 @@ const createEmptyTopTen = (): DistrictTopTenResponse => ({
 })
 
 /**
+ * 200 이지만 **선택된(기본) 지표만** 비고 나머지 지표는 정상인 경우.
+ * top-ten 이 배열 하나만 못 채운 배포 직후 상태를 흉내낸다 — A 리뷰 지적사항.
+ */
+const createPartialTopTen = (): DistrictTopTenResponse => ({
+  dataHeader: { success: true, resultCode: null, resultMessage: null },
+  dataBody: {
+    footTrafficTopTenItems: [],
+    salesTopTenItems: [
+      {
+        districtCode: '11680',
+        districtName: '강남구',
+        totalSalesAmount: 3_345_727_318_759,
+        salesChangeRate: -1.0,
+      },
+    ],
+    openedStoreTopTenItems: [
+      {
+        districtCode: '11680',
+        districtName: '강남구',
+        openedStoreCount: 1299,
+        openingChangeRate: -12.2,
+      },
+    ],
+    closedStoreTopTenItems: [],
+  },
+})
+
+/**
  * 쿼리 캐시를 미리 채워 SSR 한 번으로 성공 분기를 그리게 한다.
  * (캐시를 비우면 `isPending` 이라 스켈레톤이 나온다 — 아래 첫 테스트가 그 경우다.)
  */
-const render = (
+const buildElement = (
   rankingSeed?: AnalysisRankingResponse,
   topTenSeed?: DistrictTopTenResponse,
 ) => {
@@ -82,13 +111,28 @@ const render = (
   if (rankingSeed) client.setQueryData(QUERY_KEY, rankingSeed)
   if (topTenSeed) client.setQueryData(HOME_TOP_TEN_QUERY_KEY, topTenSeed)
 
-  return renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client },
-      createElement(PopularDistricts),
-    ),
+  return createElement(
+    QueryClientProvider,
+    { client },
+    createElement(PopularDistricts),
   )
+}
+
+const render = (
+  rankingSeed?: AnalysisRankingResponse,
+  topTenSeed?: DistrictTopTenResponse,
+) => renderToStaticMarkup(buildElement(rankingSeed, topTenSeed))
+
+/** styled-components 가 실제로 낸 CSS 규칙을 문자열로 뽑는다(조건부 스타일 검증용). */
+const renderStyles = (element: ReturnType<typeof buildElement>): string => {
+  const styleSheet = new ServerStyleSheet()
+
+  try {
+    renderToStaticMarkup(styleSheet.collectStyles(element))
+    return styleSheet.getStyleTags()
+  } finally {
+    styleSheet.seal()
+  }
 }
 
 describe('PopularDistricts', () => {
@@ -243,5 +287,55 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
 
     expect(html).toContain('aria-busy="true"')
     expect(html).not.toBe('')
+  })
+})
+
+describe('PopularDistricts — 리뷰 수정', () => {
+  const rankings = createResponse([
+    { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1284 },
+    { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 1102 },
+  ])
+
+  /*
+   * A. top-ten 이 200 을 주고도 선택된 지표(기본값 유동인구)만 빈 배열일 수
+   * 있다. 매출·개업은 정상이므로 토글까지 함께 빼면 멀쩡한 지표로 넘어갈
+   * 방법이 없어진다 — 토글은 남기고 그 자리에 안내만 낸다.
+   */
+  it('선택된 지표만 비어도 토글은 남고 그 자리에 안내를 낸다', () => {
+    const html = render(rankings, createPartialTopTen())
+
+    expect(html).toContain('aria-label="지표 선택"')
+    expect(html).toContain('유동인구')
+    expect(html).toContain('매출')
+    expect(html).toContain('개업')
+    expect(html).toContain('이 지표는 집계가 없습니다')
+  })
+
+  /*
+   * B. D5-4 는 한쪽 열만 살아 있으면 100dvh 를 해제하라고 못 박는다 — 그렇지
+   * 않으면 170px 남짓한 내용이 900px 한가운데 떠서 위아래가 텅 빈다.
+   */
+  it('두 열이 모두 있을 때만 100dvh 를 준다', () => {
+    const dualStyles = renderStyles(buildElement(rankings, createTopTen()))
+    expect(dualStyles).toContain('min-height:100dvh')
+
+    const singleStyles = renderStyles(
+      buildElement(rankings, createTopTen(false)),
+    )
+    expect(singleStyles).not.toContain('min-height:100dvh')
+  })
+
+  /*
+   * F. `formatStatusChange(NaN)` 은 "데이터 없음"을 반환하고 `NaN >= 0` 은
+   * false 라 빨간 「데이터 없음」 배지가 찍힌다 — 없는 하락을 있다고 말하는
+   * 셈이다. changeRate 가 유한수가 아니면 배지 자체를 붙이지 않는다.
+   */
+  it('비유한 변화율에는 배지를 붙이지 않는다', () => {
+    const topTen = createTopTen()
+    topTen.dataBody.footTrafficTopTenItems[0].footTrafficChangeRate = NaN
+
+    const html = render(rankings, topTen)
+
+    expect(html).not.toContain('데이터 없음')
   })
 })
