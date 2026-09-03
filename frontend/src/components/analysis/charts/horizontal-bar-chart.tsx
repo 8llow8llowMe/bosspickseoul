@@ -27,6 +27,22 @@ const Empty = styled.p`
   text-align: center;
 `
 
+/**
+ * 막대 **두께**는 `maxBarSize` 로 26px 에 묶여 있는데 **길이**에는 상한이 없어서,
+ * `ResponsiveContainer width="100%"` 가 넓은 칸을 만나면 가로세로비가 무너진다
+ * (실측: `/status` 「업종별 점포수」가 폭 1016px 칸에서 막대 800px · 약 31:1).
+ * 그러면 왼쪽 라벨과 오른쪽 값이 멀어져 **어느 라벨의 값인지 눈으로 잇기 어렵다.**
+ *
+ * 그래서 차트 폭 자체에 상한을 둔다. 좁은 칸에서는 아무 영향이 없고(그대로 100%),
+ * 넓은 칸에서만 왼쪽 정렬로 멈춘다.
+ */
+const CHART_MAX_WIDTH = 560
+
+const Bounded = styled.div<{ $maxWidth: number }>`
+  width: 100%;
+  max-width: ${props => props.$maxWidth}px;
+`
+
 export type HorizontalBarChartProps = {
   items: readonly AnalysisMetricRow[]
   unit: string
@@ -42,6 +58,11 @@ export type HorizontalBarChartProps = {
   yAxisWidth?: number
   /** Formats the value label drawn at the end of each bar. Defaults to a compact 만/억 tick. */
   valueFormatter?: (value: number) => string
+  /**
+   * 차트 폭 상한(px). 기본 {@link CHART_MAX_WIDTH}. 넓은 칸에서 막대가 한없이 길어져
+   * 라벨과 값이 멀어지는 것을 막는다. 좁은 칸에서는 영향이 없다.
+   */
+  maxWidth?: number
 }
 
 /**
@@ -56,6 +77,7 @@ export default function HorizontalBarChart({
   rowHeight = 34,
   yAxisWidth,
   valueFormatter,
+  maxWidth = CHART_MAX_WIDTH,
 }: HorizontalBarChartProps) {
   const hasData = items.some(item => typeof item.value === 'number')
   if (!hasData) return <Empty>데이터 없음</Empty>
@@ -77,66 +99,71 @@ export default function HorizontalBarChart({
   const height = Math.max(120, items.length * rowHeight + 24)
 
   return (
-    <ResponsiveContainer
-      width="100%"
-      height={height}
-      initialDimension={{ width: 300, height }}
-      role="img"
-      aria-label={ariaLabel}
-    >
-      <ReBarChart
-        data={items}
-        layout="vertical"
-        margin={{ top: 4, right: 52, bottom: 4, left: 8 }}
+    <Bounded $maxWidth={maxWidth}>
+      <ResponsiveContainer
+        width="100%"
+        height={height}
+        initialDimension={{ width: 300, height }}
+        role="img"
+        aria-label={ariaLabel}
       >
-        <XAxis type="number" domain={domain} hide />
-        <YAxis
-          type="category"
-          dataKey="label"
-          width={axisWidth}
-          tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <Tooltip
-          content={
-            <ChartTooltipContent unit={unit} valueFormatter={valueFormatter} />
-          }
-          cursor={{ fill: 'var(--color-primary-100)' }}
-        />
-        <Bar
-          dataKey="value"
-          name="값"
-          radius={[0, 4, 4, 0]}
-          maxBarSize={26}
-          isAnimationActive={false}
+        <ReBarChart
+          data={items}
+          layout="vertical"
+          margin={{ top: 4, right: 52, bottom: 4, left: 8 }}
         >
-          {items.map((item, index) => (
-            <Cell
-              key={`${item.label}-${index}`}
-              fill={
-                diverging
-                  ? (item.value ?? 0) < 0
-                    ? CHART_COLORS.negative
-                    : CHART_COLORS.positive
-                  : CHART_COLORS.seriesPrimary
-              }
-            />
-          ))}
-          <LabelList
-            dataKey="value"
-            position="right"
-            formatter={value =>
-              typeof value === 'number' ? formatLabel(value) : ''
-            }
-            style={{
-              fill: 'var(--color-text-700)',
-              fontSize: 11,
-              fontVariantNumeric: 'tabular-nums',
-            }}
+          <XAxis type="number" domain={domain} hide />
+          <YAxis
+            type="category"
+            dataKey="label"
+            width={axisWidth}
+            tick={{ fill: CHART_COLORS.axis, fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
           />
-        </Bar>
-      </ReBarChart>
-    </ResponsiveContainer>
+          <Tooltip
+            content={
+              <ChartTooltipContent
+                unit={unit}
+                valueFormatter={valueFormatter}
+              />
+            }
+            cursor={{ fill: 'var(--color-primary-100)' }}
+          />
+          <Bar
+            dataKey="value"
+            name="값"
+            radius={[0, 4, 4, 0]}
+            maxBarSize={26}
+            isAnimationActive={false}
+          >
+            {items.map((item, index) => (
+              <Cell
+                key={`${item.label}-${index}`}
+                fill={
+                  diverging
+                    ? (item.value ?? 0) < 0
+                      ? CHART_COLORS.negative
+                      : CHART_COLORS.positive
+                    : CHART_COLORS.seriesPrimary
+                }
+              />
+            ))}
+            <LabelList
+              dataKey="value"
+              position="right"
+              formatter={value =>
+                typeof value === 'number' ? formatLabel(value) : ''
+              }
+              style={{
+                fill: 'var(--color-text-700)',
+                fontSize: 11,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            />
+          </Bar>
+        </ReBarChart>
+      </ResponsiveContainer>
+    </Bounded>
   )
 }
