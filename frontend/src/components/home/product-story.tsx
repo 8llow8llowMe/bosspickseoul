@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
+import CostWaterfall from '@/components/home/cost-waterfall'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
-import BarChart from '@/components/analysis/charts/bar-chart'
+import RecommendPreview from '@/components/home/recommend-preview'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
 import {
   STORY_STEPS,
@@ -170,12 +171,6 @@ const DemoArea = styled.div`
   justify-content: center;
 `
 
-const SampleLabel = styled.span`
-  align-self: flex-start;
-  font-size: 12px;
-  color: var(--color-text-caption);
-`
-
 // SiteHeader(sticky) 실측 높이(64px + border 1px). hero-section.tsx와 동일 상수.
 const HEADER_HEIGHT = '65px'
 
@@ -262,53 +257,20 @@ const PanelWithCta = styled.div`
 function DemoPanel({ demo }: { demo: StoryDemo }) {
   if (demo === 'metrics') return <MetricRankingBoard />
   if (demo === 'mini-demo') return <AnalysisMiniDemo />
-  if (demo === 'recommend') {
-    return (
-      <BarChart
-        items={[
-          { label: '역삼동', value: 92 },
-          { label: '서교동', value: 88 },
-          { label: '연남동', value: 85 },
-          { label: '성수동', value: 83 },
-          { label: '망원동', value: 79 },
-        ]}
-        unit="점"
-        emphasisLabels={['역삼동']}
-        maxBarSize={44}
-        height={320}
-        ariaLabel="추천 상권 종합 점수 막대 차트"
-      />
-    )
-  }
-  return (
-    <BarChart
-      items={[
-        { label: '월매출', value: 4200 },
-        { label: '고정비', value: 2600 },
-        { label: '순이익', value: 1600 },
-      ]}
-      unit="만원"
-      emphasisLabels={['순이익']}
-      maxBarSize={64}
-      height={320}
-      ariaLabel="창업 비용·매출 시뮬레이션 막대 차트"
-    />
-  )
+  if (demo === 'recommend') return <RecommendPreview />
+  return <CostWaterfall />
 }
 
 function PanelCard({ step }: { step: StoryStep }) {
   const { demo, cta } = step
   /*
-    각 데모가 자기 라벨을 들고 있다 — 미니데모는 SampleBadge, 지표 보드는 폴백일
-    때만 스스로 붙인다(실 데이터인데 「예시」라고 적으면 거짓말이다). 추천·시뮬레이션은
-    아직 하드코딩이라 여기서 그린다.
+    각 데모가 자기 라벨을 스스로 판단해 붙인다 — CostWaterfall 은 캡션에 항상,
+    MetricRankingBoard 와 RecommendPreview 는 폴백일 때만, AnalysisMiniDemo 는
+    자체 SampleBadge 로. 여기서 또 그리면 라벨이 두 번 찍힌다.
   */
   return (
     <PanelWithCta>
       <Panel>
-        {demo === 'recommend' || demo === 'simulation' ? (
-          <SampleLabel>대표 예시 데이터</SampleLabel>
-        ) : null}
         <DemoArea>
           <DemoPanel demo={demo} />
         </DemoArea>
