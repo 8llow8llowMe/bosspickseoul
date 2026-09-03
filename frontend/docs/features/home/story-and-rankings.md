@@ -58,8 +58,8 @@ dev 서버(1440×900, `getBoundingClientRect`) 실측값이다. 이 숫자들이
 
 > **라우트/위치**: `app/(shell)/page.tsx` → `src/components/home/home-page.tsx`
 > **수정 컴포넌트**: `product-story.tsx`, `story-steps.ts`, `popular-districts.tsx`, `feature-bento.tsx`, `analysis-mini-demo.tsx`
-> **신규 모듈**: `src/lib/home/metric-rankings.ts`(지표 뷰모델), `src/lib/home/ranking-insight.ts`(불일치 문장), `src/hooks/use-district-top-ten.ts`(공유 쿼리 훅), `src/components/home/metric-ranking-board.tsx`, `src/components/home/recommend-preview.tsx`, `src/components/home/cost-waterfall.tsx`
-> **재사용(신규 작성 금지)**: `normalizeStatusTopTen`, `formatStatusValue`, `formatStatusChange`(`src/lib/status/`), `fetchStatusTopTen`(`src/lib/api/status.ts`), `BarChart`(`src/components/analysis/charts/`)
+> **신규 모듈**: `src/lib/home/metric-rankings.ts`(지표 뷰모델), `src/lib/home/ranking-insight.ts`(불일치 문장), `src/hooks/use-district-top-ten.ts`(공유 쿼리 훅), `src/components/home/rank-bar-list.tsx`(01·랭킹 좌우·03 공용 막대), `src/components/home/metric-ranking-board.tsx`, `src/components/home/recommend-preview.tsx`, `src/components/home/cost-waterfall.tsx`
+> **재사용(신규 작성 금지)**: `normalizeStatusTopTen`, `formatStatusValue`, `formatStatusChange`(`src/lib/status/`), `fetchStatusTopTen`(`src/lib/api/status.ts`)
 
 | UI 요소                | 사용자 동작      | 결과 / UI 반영                                                        |
 | ---------------------- | ---------------- | --------------------------------------------------------------------- |
@@ -179,12 +179,12 @@ export const buildRankingInsight = (
 
 ### D3-4. 사용 라이브러리 / 기술 (역할 기준)
 
-| 역할         | 선택                                          | 이유                                                                   |
-| ------------ | --------------------------------------------- | ---------------------------------------------------------------------- |
-| 서버 상태    | `@tanstack/react-query` (기존)                | 섹션별 독립 실패·`staleTime` 이 이 설계의 전제다                       |
-| 막대 시각화  | **CSS width 트랜지션** (차트 라이브러리 아님) | 순위 막대는 축·툴팁·범례가 없다. Recharts 를 끌어오면 홈 번들만 커진다 |
-| 03 추천 막대 | 기존 `BarChart`                               | 이미 스토리에서 쓰던 것. 점수 축이 있어 차트가 맞다                    |
-| 04 워터폴    | CSS flex + height 트랜지션                    | 5칸 고정 데이터. 라이브러리 불필요                                     |
+| 역할         | 선택                                          | 이유                                                                                                                                                   |
+| ------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 서버 상태    | `@tanstack/react-query` (기존)                | 섹션별 독립 실패·`staleTime` 이 이 설계의 전제다                                                                                                       |
+| 막대 시각화  | **CSS width 트랜지션** (차트 라이브러리 아님) | 순위 막대는 축·툴팁·범례가 없다. Recharts 의 `ResponsiveContainer` 는 SSR 에서 폭이 0 이라 이 저장소의 문자열 assertion 테스트로 값을 검증할 수도 없다 |
+| 03 추천 막대 | **`RankBarList` 공용 부품**                   | 01·랭킹과 같은 「순위 + 막대 + 값」 형태다. 여기만 Recharts 를 쓰면 한 화면에서 같은 개념이 두 가지로 그려진다                                         |
+| 04 워터폴    | CSS flex + height 트랜지션                    | 5칸 고정 데이터. 라이브러리 불필요                                                                                                                     |
 
 ---
 
