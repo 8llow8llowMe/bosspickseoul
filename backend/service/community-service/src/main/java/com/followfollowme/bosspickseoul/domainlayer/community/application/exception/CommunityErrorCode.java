@@ -23,6 +23,7 @@ public enum CommunityErrorCode {
     CONCURRENT_REACTION("COMMUNITY_013", "요청이 동시에 처리되었습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.CONFLICT),
     // 대상 검증은 district-service 실조회다 — 통신 불가는 일시 장애이므로 5xx (오류 처리 규약).
     REGION_SERVICE_UNAVAILABLE("COMMUNITY_014", "지역 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
+    INVALID_ANALYSIS_TYPE("COMMUNITY_015", "유효하지 않은 분석 첨부 타입입니다.", HttpStatus.BAD_REQUEST),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(COMMUNITY_101~116)는 CommunityValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
