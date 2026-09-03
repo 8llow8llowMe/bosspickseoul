@@ -17,6 +17,7 @@
 - spacing은 `4, 8, 12, 16, 20, 24, 32, 40, 48, 64` 스케일 안에서 고른다.
 - radius, shadow, font scale은 화면별 임시 값보다 공통 기준을 우선한다.
 - legacy hardcode는 1차 이관에서 필요한 경우 보존하되, 새 작업부터 token 사용을 우선한다.
+- CSS 커스텀 프로퍼티 이름을 추측해서 쓰지 않는다. 존재하지 않는 변수(예: `--color-success-500`, `--color-error-500`)는 빌드·린트 오류 없이 **조용히 무색으로 렌더**된다. 실제 토큰 이름(`--color-positive`, `--color-negative` 등)을 `DESIGN.md`에서 먼저 확인한다.
 
 ## 공통 컴포넌트
 
@@ -30,6 +31,7 @@
 - 텍스트가 카드, 버튼, 필터 영역 밖으로 넘치지 않도록 한다.
 - icon-only button에는 `aria-label`을 둔다.
 - focus style을 제거하지 않는다.
+- 링크·버튼에 `display: contents`를 쓰지 않는다. 박스를 만들지 않기 때문에 **키보드 포커스를 받지 못한다**(같은 요소에서 `display`만 `flex`로 바꾸면 포커스가 복구되고 `contents`로 되돌리면 다시 실패하는 것으로 확인됨).
 
 ## 완료 확인
 
