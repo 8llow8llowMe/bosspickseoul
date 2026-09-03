@@ -54,7 +54,10 @@
 - `CommercialCandidateQueryProcessor.getCompositeHeatmapScores(...)` — 동일한 가중치 공식으로 **전체 상권 리스트**의 복합 점수를 반환한다. 히트맵 composite 모드의 소스다. `ScoreMetricMetadata` 의 `code` 는 `COMPOSITE_<PRESET>` 로 합성 발급한다.
 - `CommercialProfileQueryProcessor.getProfile(...)` — 단일 상권의 집계 지표(매출/유동인구/점포/개폐업률/거주인구/소득/시설) + 자치구·행정동 메타를 반환한다. 점수는 포함하지 않는다.
 - `CommercialComparePreviewQueryProcessor.getPreview(...)` — 기존 `CommercialComparisonQueryProcessor.compareCommercials(...)` 결과를 재사용해 6개 headline 지표 + recommendedSide 만 프로젝션한다.
-- 내부용 엔드포인트 (`@Hidden`, 총 5개): `/commercials/heatmap`, `/commercials/candidates`, `/commercials/heatmap-composite`, `/commercials/{code}/profile`, `/commercials/compare-preview`. 외부 노출은 district-service `/api/v1/map/commercials/...` 만 사용한다.
+- 내부용 엔드포인트 (`@Hidden`, 총 4개): `/commercials/heatmap`, `/commercials/candidates`, `/commercials/heatmap-composite`, `/commercials/compare-preview`. 외부 노출은 district-service `/api/v1/map/commercials/...` 를 사용한다.
+- `GET /commercials/{code}/profile` 은 **공개 계약으로 전환**(@Hidden 해제)했다 — FE 가 분석 결과/지도/AI 리포트
+  3곳에서 직접 사용 중이고, 공개 대체 경로(map profile)에는 `policyRecommendations` 가 없어 숨겨 두면
+  OpenAPI 스냅샷 대조가 안 되어 계약 표류(정책 필드 누락, 타입 어긋남)가 발생했기 때문이다.
 - `CandidatePresetType` 는 `CodeNameDescribable` 을 구현하며 가중치는 `application/model` 안에만 존재한다. adapter 계층으로 새지 않도록 유지.
 ## Hidden Heatmap / Candidate Response Shape
 

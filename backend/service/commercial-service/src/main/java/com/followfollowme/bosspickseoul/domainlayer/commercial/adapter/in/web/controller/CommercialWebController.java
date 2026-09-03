@@ -203,8 +203,10 @@ public class CommercialWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Hidden
-    @Operation(summary = "상권 프로필 조회", description = "후보 카드에 사용할 상권 프로필 집계 지표를 조회합니다.")
+    // FE 가 분석 결과/지도/AI 리포트 화면에서 직접 사용하는 공개 계약이라 @Hidden 을 해제했다
+    // (숨겨져 있는 동안 OpenAPI 스냅샷 대조가 안 되어 policyRecommendations 누락 등 계약 표류가 발생했다).
+    @Operation(summary = "상권 프로필 조회",
+        description = "상권 종합 프로필(집계 지표 + 자치구·행정동 메타 + 지원 정책 추천 상위 5건)을 조회합니다.")
     @GetMapping("/{commercialCode}/profile")
     public ResponseEntity<Response<CommercialProfileResponse>> getCommercialProfile(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
