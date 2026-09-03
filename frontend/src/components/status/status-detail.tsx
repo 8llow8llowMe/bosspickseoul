@@ -6,6 +6,12 @@ import styled from 'styled-components'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
+import {
+  createDistrictAdministrationHref,
+  createDistrictServiceHref,
+  formatChangeSuffix,
+  formatRateSuffix,
+} from '@/lib/status/status-links'
 import LineChart from '@/components/analysis/charts/line-chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
@@ -674,27 +680,59 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
   )
 }
 
-function StoreSection({ detail }: { detail: DistrictDetail }) {
+function StoreSection({
+  detail,
+  districtCode,
+}: {
+  detail: DistrictDetail
+  districtCode: string | null
+}) {
   const store = detail.store
   const serviceRows: AnalysisMetricRow[] = (
     store?.topStoreServices ?? []
   ).flatMap(item =>
     item?.serviceName && isFiniteNumber(item.totalStoreCount)
-      ? [{ label: item.serviceName, value: item.totalStoreCount }]
+      ? [
+          {
+            label: item.serviceName,
+            value: item.totalStoreCount,
+            href: createDistrictServiceHref(districtCode, item.serviceCode),
+          },
+        ]
       : [],
   )
   const openedRows: AnalysisMetricRow[] = (
     store?.topOpenedAdministrations ?? []
   ).flatMap(item =>
     item?.administrationName && isFiniteNumber(item.openedStoreCount)
-      ? [{ label: item.administrationName, value: item.openedStoreCount }]
+      ? [
+          {
+            label: item.administrationName,
+            value: item.openedStoreCount,
+            href: createDistrictAdministrationHref(
+              districtCode,
+              item.administrationCode,
+            ),
+            subLabel: formatRateSuffix('개업률', item.openingRate),
+          },
+        ]
       : [],
   )
   const closedRows: AnalysisMetricRow[] = (
     store?.topClosedAdministrations ?? []
   ).flatMap(item =>
     item?.administrationName && isFiniteNumber(item.closedStoreCount)
-      ? [{ label: item.administrationName, value: item.closedStoreCount }]
+      ? [
+          {
+            label: item.administrationName,
+            value: item.closedStoreCount,
+            href: createDistrictAdministrationHref(
+              districtCode,
+              item.administrationCode,
+            ),
+            subLabel: formatRateSuffix('폐업률', item.closureRate),
+          },
+        ]
       : [],
   )
 
@@ -736,20 +774,44 @@ function StoreSection({ detail }: { detail: DistrictDetail }) {
   )
 }
 
-function SalesSection({ detail }: { detail: DistrictDetail }) {
+function SalesSection({
+  detail,
+  districtCode,
+}: {
+  detail: DistrictDetail
+  districtCode: string | null
+}) {
   const sales = detail.sales
   const serviceRows: AnalysisMetricRow[] = (
     sales?.topSalesServices ?? []
   ).flatMap(item =>
     item?.serviceName && isFiniteNumber(item.salesChangeRate)
-      ? [{ label: item.serviceName, value: item.salesChangeRate }]
+      ? [
+          {
+            label: item.serviceName,
+            value: item.salesChangeRate,
+            href: createDistrictServiceHref(districtCode, item.serviceCode),
+          },
+        ]
       : [],
   )
   const administrationRows: AnalysisMetricRow[] = (
     sales?.topSalesAdministrations ?? []
   ).flatMap(item =>
     item?.administrationName && isFiniteNumber(item.totalSalesAmount)
-      ? [{ label: item.administrationName, value: item.totalSalesAmount }]
+      ? [
+          {
+            label: item.administrationName,
+            value: item.totalSalesAmount,
+            href: createDistrictAdministrationHref(
+              districtCode,
+              item.administrationCode,
+            ),
+            /* 업종별 매출 변화율 차트는 값 자체가 증감률이라 보조 표기가 중복이다.
+               행정동별 매출은 값이 금액이므로 증감률을 여기서 함께 적는다. */
+            subLabel: formatChangeSuffix(item.salesChangeRate),
+          },
+        ]
       : [],
   )
 
@@ -891,8 +953,14 @@ export default function StatusDetail({
         <Body>
           <ChangeIndicatorSection detail={detail} />
           <FootTrafficSection detail={detail} />
-          <StoreSection detail={detail} />
-          <SalesSection detail={detail} />
+          <StoreSection
+            detail={detail}
+            districtCode={selectedItem?.districtCode ?? null}
+          />
+          <SalesSection
+            detail={detail}
+            districtCode={selectedItem?.districtCode ?? null}
+          />
         </Body>
       ) : (
         <Body>

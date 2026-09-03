@@ -63,6 +63,15 @@ export const formatPeriodCode = (periodCode: string): string => {
 export type AnalysisMetricRow = {
   label: string
   value: number | null
+  /**
+   * 라벨을 링크로 만들 목적지. 없으면 링크 없이 텍스트로 그린다.
+   *
+   * 선택 필드로 둔 이유: 이 타입은 `/analysis` 결과 차트·시뮬레이션 리포트도 쓴다.
+   * 필수로 만들면 6개 사용처를 전부 고쳐야 한다.
+   */
+  href?: string
+  /** 값 뒤에 함께 적을 보조 표기(예: 개업률 `8.5%`). 없으면 생략한다. */
+  subLabel?: string
 }
 
 export const toMetricRows = <

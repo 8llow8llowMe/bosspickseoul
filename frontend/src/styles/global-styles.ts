@@ -183,6 +183,24 @@ const GlobalStyles = createGlobalStyle`
     outline: none;
   }
 
+  /* 다만 차트 라벨이 **링크**일 때는 예외다. 위 규칙이 아웃라인을 통째로 지우므로
+     여기서 되살리지 않으면 키보드 사용자가 어디에 있는지 알 수 없다.
+     밑줄을 함께 주는 이유: SVG 에서 outline 이 잘리는 브라우저가 있어 단독으로는
+     못 미덥다(명세 D6-2 는 이 셋을 브라우저에서 실측하라고 요구한다). */
+  .recharts-wrapper a.chart-category-link:focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 2px;
+  }
+
+  a.chart-category-link:focus-visible text,
+  a.chart-category-link:hover text {
+    text-decoration: underline;
+  }
+
+  a.chart-category-link {
+    cursor: pointer;
+  }
+
   img,
   picture,
   video,
