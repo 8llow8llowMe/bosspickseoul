@@ -14,7 +14,7 @@
 
 - **테스트 방식**: jsdom·testing-library 를 쓰지 않는다. `renderToStaticMarkup` 이 낸 HTML **문자열**에 `expect(html).toContain(...)` 으로 단언한다. 순수 함수는 직접 호출한다.
 - **React Query 컴포넌트 테스트**: `new QueryClient({ defaultOptions: { queries: { retry: false } } })` 를 만들고 `client.setQueryData(KEY, seed)` 로 캐시를 미리 채운 뒤 `QueryClientProvider` 로 감싸 SSR 한 번에 성공 분기를 그린다. 캐시를 안 채우면 `isPending` 분기가 나온다.
-- **디자인 토큰**: 새 색·radius·shadow·spacing 토큰을 만들지 않는다. `DESIGN.md` 의 CSS 변수만 쓴다. 변화율 상승/하락은 `--color-success-500` / `--color-error-500` 계열 기존 변수를 쓴다(파일에서 실제 변수명을 확인하고 쓸 것 — 임의로 짓지 않는다).
+- **디자인 토큰**: 새 색·radius·shadow·spacing 토큰을 만들지 않는다. `src/styles/global-styles.ts` 에 **실재하는** 변수만 쓴다. 변화율 상승/하락은 `--color-positive` / `--color-negative` 다(각각 green-500 / red-500 을 가리키며 `feature-bento`·`report-metric-cards`·`chart-theme` 이 이미 같은 용도로 쓴다). `--color-success-500` 같은 이름은 **없다** — 없는 변수는 오류를 내지 않고 조용히 무색으로 렌더된다.
 - **모션**: `@media (prefers-reduced-motion: reduce)` 에서 막대 `width`·워터폴 `height` 트랜지션을 제거하고 최종 상태를 즉시 그린다.
 - **금액 단위**: 시뮬레이션 관련 금액은 **만원**. (simulation Feature 규약)
 - **집계 창 표기**: `formatRankingWindow` 결과(`최근 24시간` 등)를 그대로 쓴다.
@@ -71,7 +71,7 @@
 **Files:**
 
 - Modify: `src/components/home/product-story.tsx` (`PanelWithCta` 정의)
-- Test: `src/components/home/product-story.test.ts`
+- Test: **없음.** styled-components 가 계산한 높이는 SSR 문자열에 나타나지 않아 이 저장소의 문자열 assertion 으로 검증할 수 없다. 검증은 Task 11 의 브라우저 실측(B1)이 한다.
 
 **Interfaces:**
 
@@ -1266,9 +1266,7 @@ const Change = styled.span<{ $direction: 'up' | 'down' }>`
   font-size: 12px;
   font-weight: 600;
   color: ${p =>
-    p.$direction === 'up'
-      ? 'var(--color-success-500)'
-      : 'var(--color-error-500)'};
+    p.$direction === 'up' ? 'var(--color-positive)' : 'var(--color-negative)'};
 `
 
 /** 1위 대비 비율. 최대값이 0 이하면 나눗셈을 하지 않는다(NaN 방지). */
@@ -1327,7 +1325,7 @@ export default function RankBarList({
 }
 ```
 
-> `--color-success-500` / `--color-error-500` / `--color-background-muted` / `--radius-control` / `--motion-slow` 가 실제로 있는 변수인지 `src/styles/global-styles.ts` 에서 확인한다. 이름이 다르면 **거기 있는 이름으로 맞춘다**. 없는 변수를 새로 만들지 않는다.
+> 여기 쓴 변수는 전부 `src/styles/global-styles.ts` 에 실재함을 확인했다 — `--color-positive` · `--color-negative` · `--color-background-muted` · `--color-primary-600` · `--radius-control` · `--motion-slow` · `--ease-standard`. 새 변수를 만들지 않는다.
 
 - [ ] **Step 4: 통과를 확인한다**
 
@@ -1381,8 +1379,8 @@ import type { DistrictTopTenResponse } from '@/types/status'
 const createTopTen = (success = true): DistrictTopTenResponse => ({
   dataHeader: {
     success,
-    resultCode: null,
-    resultMessage: null,
+    resultCode: success ? null : 'DISTRICT_001',
+    resultMessage: success ? null : '자치구 통계를 사용할 수 없습니다.',
   },
   dataBody: {
     footTrafficTopTenItems: [
@@ -1461,7 +1459,7 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
   })
 
   it('지표가 죽으면 좌측만 그리고 인사이트를 내지 않는다', () => {
-    const html = render(rankings)
+    const html = render(rankings, createTopTen(false))
 
     expect(html).toContain('강남구')
     expect(html).not.toContain('유동인구')
@@ -1469,7 +1467,7 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
   })
 
   it('조회수가 죽으면 우측만 그린다', () => {
-    const html = render(undefined, createTopTen())
+    const html = render(createResponse([], { success: false }), createTopTen())
 
     expect(html).toContain('유동인구')
     expect(html).not.toContain('href="/analysis?districtCode=11680"')
@@ -1477,15 +1475,29 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
 
   it('둘 다 죽으면 섹션을 통째로 뺀다', () => {
     // 홈은 랜딩 내러티브라 오류 카드가 서 있으면 첫인상이 고장난 서비스가 된다.
-    const failed = createResponse([], { success: false })
-    const html = render(failed)
+    const html = render(
+      createResponse([], { success: false }),
+      createTopTen(false),
+    )
 
     expect(html).toBe('')
+  })
+
+  it('아직 안 온 것과 죽은 것을 구별한다', () => {
+    // 캐시가 비면 isPending 이다. 기존 스켈레톤이 그대로 나와야 하고,
+    // 「죽었다」로 취급해 섹션을 빼면 로딩 중에 홈이 한 칸 꺼진다.
+    const html = render()
+
+    expect(html).toContain('aria-busy="true"')
+    expect(html).not.toBe('')
   })
 })
 ```
 
-> 기존 테스트들이 `render(seed)` 를 한 인자로 부르고 있으므로, 두 번째 인자를 선택값으로 두면 그대로 통과한다. 실패하면 기존 케이스를 먼저 통과시킨 뒤 진행한다.
+> **`createTopTen(false)` 는 `dataHeader.success: false` 를 낸다.** 캐시를 안 채우는 것과
+> 다르다 — 안 채우면 `isPending` 이고, 그때는 **기존 스켈레톤이 그대로 나와야 한다.**
+> 이 파일의 첫 테스트(「데이터가 오기 전에는 자리를 잡아 두고」)가 이미 그 동작을 고정하고
+> 있으므로, 「죽었다」를 캐시 미충전으로 흉내 내면 그 테스트와 정면으로 부딪친다.
 
 - [ ] **Step 2: 실패를 확인한다**
 
@@ -1566,9 +1578,24 @@ const activeMetric =
 const insight =
   view && activeMetric ? buildRankingInsight(view.items, activeMetric) : null
 
-// 조회수도 지표도 없으면 섹션 자체가 할 말이 없다.
-if (!view && !activeMetric) return null
+/*
+  아직 안 온 것(isPending)과 죽은 것을 구별한다. 둘 다 아직 로딩 중이면
+  **기존 스켈레톤을 그대로 낸다** — 여기서 null 을 내면 로딩 동안 홈이 한 칸 꺼졌다가
+  나중에 아래 섹션을 밀어낸다(기존 코드가 스켈레톤을 둔 이유가 그것이다).
+  둘 다 결론이 났는데 쓸 수 있는 게 없을 때만 섹션을 뺀다.
+*/
+const viewPending = rankingQuery.isPending
+const metricPending = metricQuery.isPending
+
+if (!view && !activeMetric) {
+  if (viewPending || metricPending) return <RankingSkeleton />
+  return null
+}
 ```
+
+> `RankingSkeleton` 은 새 컴포넌트가 아니라 **지금 `isPending` 분기가 그리고 있는 마크업**
+> 이다. 그 JSX 를 파일 안의 작은 함수로 빼서 두 곳에서 부른다. `aria-busy="true"` 와
+> 「지금 많이 본 지역」 문구를 유지해야 이 파일의 첫 테스트가 계속 통과한다.
 
 좌측 행 만들기(변화율 **없음**):
 
@@ -1896,6 +1923,63 @@ export type StoryDemo = 'metrics' | 'mini-demo' | 'recommend' | 'simulation'
     demo: 'metrics',
     cta: { href: '/status', label: '구별 현황 보기' },
   },
+```
+
+`product-story.tsx` 의 `DemoPanel` 에서 **`metrics` 분기만** 바꾼다.
+
+`RecommendPreview` 와 `CostWaterfall` 은 Task 9·10 에서 만든다. 여기서 미리 참조하면
+빌드가 깨진다. `recommend` 와 기본 분기의 **기존 `BarChart` 코드는 그대로 둔다** —
+Task 10 이 마지막으로 교체하고 `import BarChart` 도 그때 지운다.
+
+```tsx
+function DemoPanel({ demo }: { demo: StoryDemo }) {
+  if (demo === 'metrics') return <MetricRankingBoard />
+  if (demo === 'mini-demo') return <AnalysisMiniDemo />
+  if (demo === 'recommend') {
+    return (
+      <BarChart
+        items={[
+          { label: '역삼동', value: 92 },
+          { label: '서교동', value: 88 },
+          { label: '연남동', value: 85 },
+          { label: '성수동', value: 83 },
+          { label: '망원동', value: 79 },
+        ]}
+        unit="점"
+        emphasisLabels={['역삼동']}
+        maxBarSize={44}
+        height={320}
+        ariaLabel="추천 상권 종합 점수 막대 차트"
+      />
+    )
+  }
+  return (
+    <BarChart
+      items={[
+        { label: '월매출', value: 4200 },
+        { label: '고정비', value: 2600 },
+        { label: '순이익', value: 1600 },
+      ]}
+      unit="만원"
+      emphasisLabels={['순이익']}
+      maxBarSize={64}
+      height={320}
+      ariaLabel="창업 비용·매출 시뮬레이션 막대 차트"
+    />
+  )
+}
+```
+
+`SeoulDistrictsMap` import 를 지운다. **컴포넌트 파일 자체는 지우지 않는다** — 히어로가 쓴다.
+
+`PanelCard` 의 「대표 예시 데이터」 라벨 분기에서 `metrics` 를 뺀다. `MetricRankingBoard`
+가 폴백일 때만 스스로 붙이기 때문이다(실 데이터인데 「예시」라고 적으면 거짓말이다).
+아직 하드코딩인 `recommend`·`simulation` 에만 남긴다 — 조건식만 바꾸면 된다.
+
+```tsx
+demo === 'recommend' || demo === 'simulation' ? (
+  <SampleLabel>대표 예시 데이터</SampleLabel>
+) : null
 ```
 
 `product-story.tsx` 의 `DemoPanel`:
@@ -2534,9 +2618,9 @@ export default function CostWaterfall() {
 }
 ```
 
-> `--radius-control` · `--motion-slow` · `--ease-standard` · `--color-primary-100` 이
-> 실제로 있는 변수인지 `src/styles/global-styles.ts` 에서 확인하고, 이름이 다르면
-> **거기 있는 이름으로 맞춘다.** 없는 변수를 새로 만들지 않는다.
+> 여기 쓴 변수는 전부 `src/styles/global-styles.ts` 에 실재함을 확인했다 —
+> `--radius-control` · `--motion-slow` · `--ease-standard` · `--color-primary-100` ·
+> `--color-primary-600` · `--color-border-200`. 새 변수를 만들지 않는다.
 
 - [ ] **Step 4: 통과를 확인한다**
 
@@ -2545,8 +2629,8 @@ Expected: PASS
 
 - [ ] **Step 5: `product-story.tsx` 에서 `BarChart` 를 뺀다**
 
-`DemoPanel` 을 Task 8 Step 7 에 적은 최종 형태로 만들고, `import BarChart` 와
-`SampleLabel` 의 이전 분기를 정리한다.
+Task 8 이 남겨둔 `BarChart` 두 분기를 이제 교체한다. `import BarChart` 를 지운다
+(lint 가 미사용으로 잡는다).
 
 ```tsx
 function DemoPanel({ demo }: { demo: StoryDemo }) {
@@ -2556,6 +2640,12 @@ function DemoPanel({ demo }: { demo: StoryDemo }) {
   return <CostWaterfall />
 }
 ```
+
+`PanelCard` 의 「대표 예시 데이터」 분기도 **통째로 지운다.** 이제 네 데모가 전부 자기
+라벨을 스스로 판단해 붙인다 — `CostWaterfall` 은 캡션에 항상, `MetricRankingBoard` 와
+`RecommendPreview` 는 폴백일 때만, `AnalysisMiniDemo` 는 자체 `SampleBadge` 로.
+여기 남겨두면 워터폴에 라벨이 두 번 찍힌다. `SampleLabel` styled 정의도 쓰는 곳이
+없어지면 함께 지운다(lint 가 잡는다).
 
 - [ ] **Step 6: 슬라이스 3 전체 검증**
 
