@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 
 export type RankBarRow = {
   key: string
@@ -34,7 +34,23 @@ const List = styled.ol`
   list-style: none;
 `
 
-const Row = styled.li<{ $highlighted: boolean }>`
+const Row = styled.li`
+  display: block;
+`
+
+/*
+ * href 유무로 그리드 정의가 갈리면 링크 행과 비링크 행의 열이 어긋난다.
+ * 링크 자신(<a>)과 비링크 박스(<div>)가 이 스타일을 그대로 공유한다.
+ *
+ * 처음엔 <a> 에 display:contents 를 줘서 자식만 그리드 트랙에 놓으려 했는데,
+ * display:contents 인 요소는 박스를 만들지 않아 실제 브라우저에서 키보드
+ * 포커스 자체가 그 요소에 도달하지 못했다(getBoundingClientRect 가 전부 0,
+ * document.activeElement 도 다른 요소를 가리킴 — display 만 flex 로 바꾸면
+ * 바로 포커스가 됐다). 랭킹 링크가 이 섹션의 주 CTA 라 키보드 사용자가
+ * 아예 못 누르는 상태였다. 링크 자신이 그리드 컨테이너가 되는 지금 구조는
+ * 이 문제가 없다.
+ */
+const rowGridStyles = css<{ $highlighted: boolean }>`
   display: grid;
   grid-template-columns: 18px minmax(64px, auto) minmax(0, 1fr) auto;
   gap: 10px;
@@ -43,18 +59,21 @@ const Row = styled.li<{ $highlighted: boolean }>`
   border-radius: var(--radius-control);
   background: ${p =>
     p.$highlighted ? 'var(--color-primary-100)' : 'transparent'};
+`
 
-  /* RowLink 는 grid 레이아웃을 유지하려고 display:contents 를 쓴다 — 박스가
-     없어 전역 :focus-visible 아웃라인(global-styles.ts)이 앵커 자신에게는
-     그려지지 않는다. 실제 박스를 가진 이 행(li)에 대신 그린다. */
-  &:has(a:focus-visible) {
-    outline: 2px solid var(--color-blue-500);
-    outline-offset: 2px;
+const RowLink = styled(Link)<{ $highlighted: boolean }>`
+  ${rowGridStyles}
+  color: inherit;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-primary);
   }
 `
 
-const RowLink = styled(Link)`
-  display: contents;
+const RowContent = styled.div<{ $highlighted: boolean }>`
+  ${rowGridStyles}
 `
 
 const Rank = styled.span`
@@ -141,18 +160,26 @@ export default function RankBarList({
           </>
         )
 
+        const highlighted = row.key === highlightKey
+
         return (
-          <Row
-            key={row.key}
-            $highlighted={row.key === highlightKey}
-            aria-current={row.key === highlightKey ? 'true' : undefined}
-          >
+          <Row key={row.key}>
             {row.href ? (
-              <RowLink href={row.href} aria-label={row.ariaLabel}>
+              <RowLink
+                href={row.href}
+                aria-label={row.ariaLabel}
+                $highlighted={highlighted}
+                aria-current={highlighted ? 'true' : undefined}
+              >
                 {body}
               </RowLink>
             ) : (
-              body
+              <RowContent
+                $highlighted={highlighted}
+                aria-current={highlighted ? 'true' : undefined}
+              >
+                {body}
+              </RowContent>
             )}
           </Row>
         )
