@@ -119,3 +119,17 @@ export const fetchCommercialProfile = async (
   )
   return response.data
 }
+
+/**
+ * 홈 03단계 데모가 쓰는 고정 시드.
+ *
+ * 방문자 지역과 무관한 고정값이므로 **화면에 지역명을 반드시 적는다** — 안 적으면
+ * 사용자가 자기 지역 결과로 오해한다. 코드가 개편되면 폴백이 동작하지만,
+ * 그때 고칠 자리가 한 곳이어야 하므로 여기에만 둔다.
+ */
+export const HOME_RECOMMEND_SEED = {
+  districtCode: '11680', // 강남구
+  administrationCode: '11680640', // 역삼1동
+  serviceCode: 'CS100010', // 커피-음료
+  label: '강남구 역삼1동 · 커피-음료',
+} as const
