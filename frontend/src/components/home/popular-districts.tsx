@@ -32,8 +32,14 @@ const Section = styled.section<{ $dual?: boolean }>`
   /*
     D5-4: 한쪽 열만 살아 있으면 100dvh 를 해제한다 — 살아 있는 한 열(약 170px)만으로
     900px 높이를 채우면 위아래가 텅 빈 여백이 된다("여백으로 채우지 않는다", D4-3).
-    두 열이 모두 있을 때만(기본값 포함 — 로딩/스켈레톤 단계는 아직 결과를 모르므로
-    두 열을 가정한다) 100dvh 를 준다.
+
+    $dual 은 "지금 두 열이 렌더되고 있는가"가 아니라 "두 열이 최종적으로 있을
+    것인가"다 — 아직 pending 인 쿼리는 "있을 것"으로 가정한다. 두 쿼리(조회수·
+    지표)는 서로 다른 네트워크 호출이라 응답 시각이 다르다. "지금 렌더된 열"
+    기준으로 계산하면, 한쪽이 먼저 도착했을 때 아직 안 온 나머지 쪽을 "없다"로
+    오판해 100dvh → auto 로 수축했다가, 나머지 쪽이 도착하면 다시 100dvh 로
+    팽창하는 깜빡임이 **열화 경로가 아니라 정상 로드마다** 발생했다. 결론이
+    난(pending 이 끝난) 뒤에도 없을 때만 진짜로 "없다"로 취급한다.
   */
   ${props => (props.$dual === false ? '' : 'min-height: 100dvh;')}
   display: flex;
@@ -265,6 +271,15 @@ export default function PopularDistricts() {
     return null
   }
 
+  /*
+    두 열이 "최종적으로" 있을 것인가. 아직 pending 인 쪽은 결론이 안 났으니
+    "있을 것"으로 가정한다 — 결론이 난 뒤(성공이든 실패든)에만 실제 존재
+    여부(view/hasMetricData)로 판정한다. 이 계산이 "지금 렌더되는 열" 기준
+    (viewColumn && metricColumn)과 다른 이유는 위 Section 주석 참고.
+  */
+  const viewWillExist = viewPending || view !== null
+  const metricWillExist = metricPending || hasMetricData
+
   const viewRows: RankBarRow[] = (view?.items ?? []).map(item => ({
     key: item.districtCode,
     rank: item.rank,
@@ -333,7 +348,7 @@ export default function PopularDistricts() {
   return (
     <Section
       aria-label="지금 많이 본 자치구"
-      $dual={Boolean(viewColumn && metricColumn)}
+      $dual={viewWillExist && metricWillExist}
     >
       <Inner>
         <Header>

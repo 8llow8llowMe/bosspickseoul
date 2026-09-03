@@ -326,6 +326,26 @@ describe('PopularDistricts — 리뷰 수정', () => {
   })
 
   /*
+   * B(재리뷰 추가). 두 쿼리는 서로 다른 네트워크 호출이라 응답 시각이 다르다.
+   * 한쪽만 먼저 도착했을 때 "지금 렌더된 열" 기준으로 100dvh 를 계산하면,
+   * 아직 안 온 나머지 쪽을 "없다"로 오판해 100dvh → auto 로 수축했다가
+   * 나머지가 도착하면 다시 100dvh 로 팽창한다(스켈레톤 → 수축 → 재팽창).
+   * 이건 열화 경로가 아니라 **정상 로드마다** 일어난다. 아직 pending 인
+   * 쪽은 "최종적으로 있을 것"으로 가정해 100dvh 를 유지해야 한다.
+   */
+  it('혼합 pending — 한쪽만 먼저 응답해도 100dvh 를 유지한다', () => {
+    // 조회수만 먼저 도착, 지표(top-ten)는 아직 pending.
+    const viewOnlyStyles = renderStyles(buildElement(rankings, undefined))
+    expect(viewOnlyStyles).toContain('min-height:100dvh')
+
+    // 지표만 먼저 도착, 조회수(analysis-rankings)는 아직 pending.
+    const metricOnlyStyles = renderStyles(
+      buildElement(undefined, createTopTen()),
+    )
+    expect(metricOnlyStyles).toContain('min-height:100dvh')
+  })
+
+  /*
    * F. `formatStatusChange(NaN)` 은 "데이터 없음"을 반환하고 `NaN >= 0` 은
    * false 라 빨간 「데이터 없음」 배지가 찍힌다 — 없는 하락을 있다고 말하는
    * 셈이다. changeRate 가 유한수가 아니면 배지 자체를 붙이지 않는다.
