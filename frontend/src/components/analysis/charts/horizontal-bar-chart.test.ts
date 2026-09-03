@@ -83,3 +83,103 @@ describe('HorizontalBarChart 폭 상한', () => {
     expect(chart?.props).toMatchObject({ 'aria-label': '업종별 점포수' })
   })
 })
+
+/** 트리를 걸어 조건에 맞는 엘리먼트를 전부 모은다. */
+const collect = (
+  node: ReactNode,
+  match: (el: ReactElement) => boolean,
+  out: ReactElement[] = [],
+): ReactElement[] => {
+  if (Array.isArray(node)) {
+    for (const child of node) collect(child, match, out)
+    return out
+  }
+  if (!isValidElement(node)) return out
+  if (match(node)) out.push(node)
+  collect((node.props as { children?: ReactNode }).children, match, out)
+  return out
+}
+
+const findChartData = (wrapper: ReactElement) => {
+  const [chart] = collect(
+    wrapper,
+    el => 'data' in (el.props as Record<string, unknown>),
+  )
+  return (chart?.props as { data?: Array<Record<string, unknown>> })?.data ?? []
+}
+
+const findYAxis = (wrapper: ReactElement) =>
+  collect(
+    wrapper,
+    el => (el.props as { dataKey?: string }).dataKey === 'label',
+  )[0]
+
+describe('HorizontalBarChart 링크·보조 표기', () => {
+  /* 명세 D4-1. 건수 뒤에 비율을 이어 붙인다. */
+  it('subLabel 이 있으면 값 뒤에 이어 붙인다', () => {
+    const wrapper = call({
+      items: [
+        {
+          label: '삼성1동',
+          value: 132,
+          subLabel: '개업률 8.5%',
+        },
+      ],
+      unit: '개',
+      ariaLabel: '행정동별 개업',
+      valueFormatter: value => `${value}개`,
+    })
+
+    expect(findChartData(wrapper)[0].valueLabel).toBe('132개 · 개업률 8.5%')
+  })
+
+  /* 명세 D2-2. 없는 비율을 지어내지 않는다. */
+  it('subLabel 이 없으면 값만 적는다', () => {
+    const wrapper = call({
+      items: [{ label: '삼성1동', value: 132 }],
+      unit: '개',
+      ariaLabel: '행정동별 개업',
+      valueFormatter: value => `${value}개`,
+    })
+
+    expect(findChartData(wrapper)[0].valueLabel).toBe('132개')
+  })
+
+  /*
+   * 명세 D5. href 가 하나도 없으면 기존 tick(평범한 객체)을 그대로 쓴다 —
+   * 링크가 필요 없는 차트에 링크 렌더러를 끼우지 않는다.
+   */
+  it('href 가 없으면 기존 축 라벨을 그대로 쓴다', () => {
+    const yAxis = findYAxis(
+      call({ items: rows, unit: '개', ariaLabel: '업종별' }),
+    )
+    const tick = (yAxis.props as { tick?: unknown }).tick
+
+    expect(isValidElement(tick)).toBe(false)
+  })
+
+  it('href 가 하나라도 있으면 링크 렌더러를 쓴다', () => {
+    const yAxis = findYAxis(
+      call({
+        items: [
+          {
+            label: '삼성1동',
+            value: 132,
+            href: '/analysis?districtCode=11680',
+          },
+          { label: '역삼1동', value: 90 },
+        ],
+        unit: '개',
+        ariaLabel: '행정동별 개업',
+      }),
+    )
+    const tick = (yAxis.props as { tick?: ReactElement }).tick
+
+    expect(isValidElement(tick)).toBe(true)
+    const map = (tick?.props as { hrefByLabel?: Map<string, string> })
+      .hrefByLabel
+    // href 가 있는 항목만 담긴다 — 없는 항목은 링크가 되지 않는다.
+    expect(map?.get('삼성1동')).toBe('/analysis?districtCode=11680')
+    expect(map?.has('역삼1동')).toBe(false)
+  })
+})
