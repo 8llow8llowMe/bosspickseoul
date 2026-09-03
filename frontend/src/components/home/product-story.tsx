@@ -5,6 +5,7 @@ import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
 import CostWaterfall from '@/components/home/cost-waterfall'
+import FunnelCounter from '@/components/home/funnel-counter'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
@@ -14,6 +15,8 @@ import {
   type StoryStep,
 } from '@/components/home/story-steps'
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
+import { DEFAULT_SELECTION, type DemoSelection } from '@/data/home-demo'
+import { useRecommendPreview } from '@/hooks/use-recommend-preview'
 
 const Container = styled.section`
   position: relative;
@@ -184,6 +187,11 @@ const Stack = styled.div`
   }
 `
 
+// 스택 모드는 Sticky처럼 flex gap이 없어, 카운터와 첫 스텝 사이에 직접 여백을 준다.
+const CounterWrap = styled.div`
+  margin-bottom: 24px;
+`
+
 // 리드(섹션 표제)는 짧은 인트로로만 두고, 각 스텝만 한 화면(100dvh - 헤더)씩
 // 차지하게 해 "한 화면 = 한 스텝" 슬라이드로 스크롤되게 한다(단순 나열 개선).
 const StackLead = styled.div`
@@ -254,14 +262,37 @@ const PanelWithCta = styled.div`
   }
 `
 
-function DemoPanel({ demo }: { demo: StoryDemo }) {
+function DemoPanel({
+  demo,
+  selection,
+  onSelectionChange,
+}: {
+  demo: StoryDemo
+  selection: DemoSelection
+  onSelectionChange: (selection: DemoSelection) => void
+}) {
   if (demo === 'metrics') return <MetricRankingBoard />
-  if (demo === 'mini-demo') return <AnalysisMiniDemo />
-  if (demo === 'recommend') return <RecommendPreview />
+  if (demo === 'mini-demo') {
+    return (
+      <AnalysisMiniDemo
+        selection={selection}
+        onSelectionChange={onSelectionChange}
+      />
+    )
+  }
+  if (demo === 'recommend') return <RecommendPreview selection={selection} />
   return <CostWaterfall />
 }
 
-function PanelCard({ step }: { step: StoryStep }) {
+function PanelCard({
+  step,
+  selection,
+  onSelectionChange,
+}: {
+  step: StoryStep
+  selection: DemoSelection
+  onSelectionChange: (selection: DemoSelection) => void
+}) {
   const { demo, cta } = step
   /*
     각 데모가 자기 라벨을 스스로 판단해 붙인다 — CostWaterfall 은 캡션에 항상,
@@ -272,7 +303,11 @@ function PanelCard({ step }: { step: StoryStep }) {
     <PanelWithCta>
       <Panel>
         <DemoArea>
-          <DemoPanel demo={demo} />
+          <DemoPanel
+            demo={demo}
+            selection={selection}
+            onSelectionChange={onSelectionChange}
+          />
         </DemoArea>
       </Panel>
       {/*
@@ -321,6 +356,20 @@ export default function ProductStory() {
   const active = activeStepFromProgress(progress, STORY_STEPS.length)
   const stacked = useStackedMode()
 
+  /*
+    스티키/스택 두 렌더 분기 위에 둔다 — 02(미니데모)·03(추천 미리보기)·카운터가
+    같은 선택을 봐야 "네 단계로 좁힙니다"가 실제로 좁혀진다(D8-3). 분기 안에서
+    각자 useState를 두면 스텝을 넘나들 때 값이 서로 다른 걸 보게 된다.
+  */
+  const [selection, setSelection] = useState<DemoSelection>(DEFAULT_SELECTION)
+
+  /*
+    카운터는 활성 단계와 무관하게 항상 보이므로, 03단계 패널(RecommendPreview)이
+    마운트되지 않은 스텝에서도 실제 값을 보여줘야 한다. 같은 훅을 같은 selection으로
+    RecommendPreview도 호출하므로 React Query 캐시를 공유해 요청은 1회다.
+  */
+  const recommendState = useRecommendPreview(selection)
+
   // 스텝 클릭 시 해당 스텝 구간의 중앙으로 스크롤한다.
   // useScrollProgress의 진행도 정의: progress = (vh - top) / (H + vh).
   // 스티키가 고정(pin)되는 구간은 progress ∈ [vh/(H+vh), H/(H+vh)]이므로,
@@ -355,6 +404,10 @@ export default function ProductStory() {
           <StackLead>
             <StoryLead />
           </StackLead>
+          {/* 스택 모드는 "지금 보는 단계" 개념이 없어 강조 없이 1회만 그린다. */}
+          <CounterWrap>
+            <FunnelCounter selection={selection} recommend={recommendState} />
+          </CounterWrap>
           {STORY_STEPS.map(item => (
             <StackItem key={item.step}>
               <StackHead>
@@ -362,7 +415,11 @@ export default function ProductStory() {
                 <StepTitle $active>{item.title}</StepTitle>
               </StackHead>
               <StepBody>{item.body}</StepBody>
-              <PanelCard step={item} />
+              <PanelCard
+                step={item}
+                selection={selection}
+                onSelectionChange={setSelection}
+              />
             </StackItem>
           ))}
         </Stack>
@@ -375,6 +432,12 @@ export default function ProductStory() {
       <Track ref={trackRef}>
         <Sticky>
           <StoryLead />
+          {/* 활성 스텝 노드를 강조해, 스크롤로 넘길 때 어느 단계가 좁혀지는지 보여준다. */}
+          <FunnelCounter
+            selection={selection}
+            recommend={recommendState}
+            active={active}
+          />
           <StoryRow>
             <StepList>
               {STORY_STEPS.map((item, index) => {
@@ -401,7 +464,11 @@ export default function ProductStory() {
                 )
               })}
             </StepList>
-            <PanelCard step={STORY_STEPS[active]} />
+            <PanelCard
+              step={STORY_STEPS[active]}
+              selection={selection}
+              onSelectionChange={setSelection}
+            />
           </StoryRow>
         </Sticky>
       </Track>

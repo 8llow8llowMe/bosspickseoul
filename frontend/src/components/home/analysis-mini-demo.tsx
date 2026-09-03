@@ -1,14 +1,14 @@
 'use client'
 
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useRef, type KeyboardEvent } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import {
-  DEFAULT_SELECTION,
   DISTRICTS,
   INDUSTRIES,
   getDemoSample,
   type CompetitionLevel,
+  type DemoSelection,
 } from '@/data/home-demo'
 import LineChart from '@/components/analysis/charts/line-chart'
 
@@ -289,8 +289,16 @@ const Cta = styled(Link)`
   }
 `
 
-export default function AnalysisMiniDemo() {
-  const [sel, setSel] = useState(DEFAULT_SELECTION)
+export type AnalysisMiniDemoProps = {
+  /** `ProductStory` 가 소유한 선택 — 03단계·카운터와 같은 값을 본다(D8-3). */
+  selection: DemoSelection
+  onSelectionChange: (selection: DemoSelection) => void
+}
+
+export default function AnalysisMiniDemo({
+  selection: sel,
+  onSelectionChange,
+}: AnalysisMiniDemoProps) {
   const sample = getDemoSample(sel.districtId, sel.industryId)
   const districtName =
     DISTRICTS.find(district => district.id === sel.districtId)?.name ?? ''
@@ -300,10 +308,10 @@ export default function AnalysisMiniDemo() {
   const changeLabel = `${isPositive ? '+' : ''}${sample.salesChangePct}%`
 
   const districtGroup = useRovingRadioGroup(DISTRICTS, sel.districtId, id =>
-    setSel(prev => ({ ...prev, districtId: id })),
+    onSelectionChange({ ...sel, districtId: id }),
   )
   const industryGroup = useRovingRadioGroup(INDUSTRIES, sel.industryId, id =>
-    setSel(prev => ({ ...prev, industryId: id })),
+    onSelectionChange({ ...sel, industryId: id }),
   )
 
   return (
@@ -324,7 +332,7 @@ export default function AnalysisMiniDemo() {
                 tabIndex={sel.districtId === district.id ? 0 : -1}
                 $active={sel.districtId === district.id}
                 onClick={() =>
-                  setSel(prev => ({ ...prev, districtId: district.id }))
+                  onSelectionChange({ ...sel, districtId: district.id })
                 }
               >
                 {district.name}
@@ -348,7 +356,7 @@ export default function AnalysisMiniDemo() {
                 tabIndex={sel.industryId === industry.id ? 0 : -1}
                 $active={sel.industryId === industry.id}
                 onClick={() =>
-                  setSel(prev => ({ ...prev, industryId: industry.id }))
+                  onSelectionChange({ ...sel, industryId: industry.id })
                 }
               >
                 {industry.name}
