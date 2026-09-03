@@ -153,6 +153,7 @@ class CommunityCommandProcessorAtomicUpdateTest {
     private CommunityPost post(long likeCount, long commentCount, long viewCount) {
         return new CommunityPost(
             POST_ID, MEMBER_ID, CommunityTargetType.COMMERCIAL, "C1", "target", "title", "content",
+            null, null, null, null,
             CommunityPostStatus.ACTIVE, likeCount, commentCount, viewCount, NOW, NOW
         );
     }

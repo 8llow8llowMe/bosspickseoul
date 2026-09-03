@@ -50,6 +50,15 @@
   - 기존 로컬 테이블은 사용하지 않으므로 정리 런북
     `scripts/migration/community-region-reference-drop-runbook.sql` 로 제거한다.
 
+## 분석 첨부 (비교 초안 → 게시글 배선)
+
+- 상권 비교 초안 응답의 `analysisType`·`analysisRefCode`·`analysisRefName`·`analysisSnapshotKey` 를
+  게시글 작성 요청(`POST /community/posts`)이 그대로 되돌려 받아 `community_post` 에 저장하고,
+  상세 응답(`GET /posts/{postId}`)이 다시 내려준다 — FE 가 게시글에서 비교 화면 재진입 UI 를 만들 수 있다.
+- 4필드는 전부 **선택**이다. 비교 초안에서 넘어온 글에만 값이 있고 일반 글은 null.
+  `analysisType` 값이 유효하지 않으면 `400 COMMUNITY_015`, 길이 검증은 `COMMUNITY_120~122`.
+- prod DDL: `scripts/migration/community-post-analysis-columns-runbook.sql` 수동 적용 (dev 는 ddl-auto).
+
 ## 게시글 조회수 (신규)
 
 - `community_post` 테이블에 `view_count BIGINT DEFAULT 0` 추가

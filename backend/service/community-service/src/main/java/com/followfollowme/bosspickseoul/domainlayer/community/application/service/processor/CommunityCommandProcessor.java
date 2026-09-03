@@ -12,6 +12,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityReportRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityAnalysisType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityCommentStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
@@ -57,6 +58,10 @@ public class CommunityCommandProcessor {
             targetMeta.targetName(),
             command.title().trim(),
             command.content().trim(),
+            parseAnalysisType(command.analysisType()),
+            command.analysisRefCode(),
+            command.analysisRefName(),
+            command.analysisSnapshotKey(),
             CommunityPostStatus.ACTIVE,
             0L,
             0L,
@@ -203,6 +208,14 @@ public class CommunityCommandProcessor {
     private CommunityPost getPost(long postId) {
         return communityPostRepositoryPort.findById(postId)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+    }
+
+    /** 분석 첨부 타입은 선택 입력 — 없으면 null, 있으면 유효한 값이어야 한다. */
+    private CommunityAnalysisType parseAnalysisType(String analysisType) {
+        if (analysisType == null || analysisType.isBlank()) {
+            return null;
+        }
+        return CommunityAnalysisType.from(analysisType);
     }
 
     private void validatePostOwner(long memberId, CommunityPost post) {

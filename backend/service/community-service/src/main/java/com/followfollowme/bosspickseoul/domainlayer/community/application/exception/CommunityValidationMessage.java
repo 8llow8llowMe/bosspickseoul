@@ -30,6 +30,9 @@ public final class CommunityValidationMessage {
     public static final String IMAGE_COUNT_INVALID = "COMMUNITY_118:이미지는 최대 5장까지 첨부할 수 있습니다.";
 
     public static final String PAGE_SIZE_INVALID = "COMMUNITY_119:조회 개수는 1 이상 50 이하여야 합니다.";
+    public static final String ANALYSIS_REF_CODE_LENGTH_INVALID = "COMMUNITY_120:분석 참조 코드는 100자 이하만 가능합니다.";
+    public static final String ANALYSIS_REF_NAME_LENGTH_INVALID = "COMMUNITY_121:분석 참조 표시명은 200자 이하만 가능합니다.";
+    public static final String ANALYSIS_SNAPSHOT_KEY_LENGTH_INVALID = "COMMUNITY_122:분석 스냅샷 키는 200자 이하만 가능합니다.";
 
     private CommunityValidationMessage() {
     }

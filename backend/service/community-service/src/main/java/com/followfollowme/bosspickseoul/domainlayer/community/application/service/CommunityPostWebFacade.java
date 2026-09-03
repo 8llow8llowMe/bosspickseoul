@@ -71,7 +71,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Transactional
     public CommunityPostDetailResponse createPost(long memberId, CommunityPostCreateRequest request) {
         CreatePostCommand command = new CreatePostCommand(
-            request.targetType(), request.targetCode(), request.title(), request.content(), request.imageKeys());
+            request.targetType(), request.targetCode(), request.title(), request.content(), request.imageKeys(),
+            request.analysisType(), request.analysisRefCode(), request.analysisRefName(), request.analysisSnapshotKey());
         CommunityPost post = communityCommandProcessor.createPost(memberId, command);
         communityPostImageProcessor.replaceImages(memberId, post.id(), command.imageKeys());
         return communityPostPresenter.toPostDetailResponse(post, communityPostImageProcessor.getImages(post.id()));

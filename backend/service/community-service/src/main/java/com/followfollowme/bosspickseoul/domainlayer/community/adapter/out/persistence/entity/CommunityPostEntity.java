@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity;
 
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityAnalysisType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
 import jakarta.persistence.Column;
@@ -74,6 +75,23 @@ public class CommunityPostEntity {
     @Column(nullable = false, length = 5000)
     @Comment("게시글 본문")
     private String content;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    @Comment("분석 첨부 타입 (비교 초안 글에만 값, 일반 글은 null)")
+    private CommunityAnalysisType analysisType;
+
+    @Column(length = 100)
+    @Comment("분석 참조 코드 (예: 좌상권:우상권:업종:분기)")
+    private String analysisRefCode;
+
+    @Column(length = 200)
+    @Comment("분석 참조 표시명 (예: A상권 vs B상권)")
+    private String analysisRefName;
+
+    @Column(length = 200)
+    @Comment("분석 스냅샷 키 (프론트가 비교 화면 재진입에 사용)")
+    private String analysisSnapshotKey;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

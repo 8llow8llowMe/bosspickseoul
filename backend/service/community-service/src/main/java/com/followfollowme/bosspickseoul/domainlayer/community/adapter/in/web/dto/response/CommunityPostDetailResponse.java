@@ -35,6 +35,18 @@ public record CommunityPostDetailResponse(
     @Schema(description = "본문")
     String content,
 
+    @Schema(description = "분석 첨부 타입 메타데이터 (없으면 null)", nullable = true)
+    CodeNameDescriptionMetadata analysisType,
+
+    @Schema(description = "분석 참조 코드 (없으면 null)", nullable = true)
+    String analysisRefCode,
+
+    @Schema(description = "분석 참조 표시명 (없으면 null)", nullable = true)
+    String analysisRefName,
+
+    @Schema(description = "분석 스냅샷 키 (없으면 null)", nullable = true)
+    String analysisSnapshotKey,
+
     @Schema(description = "좋아요 수")
     long likeCount,
 

@@ -30,7 +30,23 @@ public record CommunityPostCreateRequest(
     @Schema(description = "첨부 이미지 오브젝트 키 목록 (이미지 업로드 API 응답의 imageKey). 배열 순서가 노출 순서가 됩니다.",
         example = "[\"community/posts/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png\"]")
     @Size(max = 5, message = CommunityValidationMessage.IMAGE_COUNT_INVALID)
-    List<String> imageKeys
+    List<String> imageKeys,
+
+    @Schema(description = "분석 첨부 타입 (선택 — 비교 초안 응답의 analysisType.code 를 그대로 전달)",
+        example = "COMMERCIAL_COMPARISON", nullable = true)
+    String analysisType,
+
+    @Schema(description = "분석 참조 코드 (선택 — 초안 응답의 analysisRefCode 그대로)", nullable = true)
+    @Size(max = 100, message = CommunityValidationMessage.ANALYSIS_REF_CODE_LENGTH_INVALID)
+    String analysisRefCode,
+
+    @Schema(description = "분석 참조 표시명 (선택 — 초안 응답의 analysisRefName 그대로)", nullable = true)
+    @Size(max = 200, message = CommunityValidationMessage.ANALYSIS_REF_NAME_LENGTH_INVALID)
+    String analysisRefName,
+
+    @Schema(description = "분석 스냅샷 키 (선택 — 초안 응답의 analysisSnapshotKey 그대로)", nullable = true)
+    @Size(max = 200, message = CommunityValidationMessage.ANALYSIS_SNAPSHOT_KEY_LENGTH_INVALID)
+    String analysisSnapshotKey
 ) {
 
 }
