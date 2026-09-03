@@ -47,6 +47,37 @@ export type StatusRankedItem = {
 
 export type StatusTopTenByMetric = Record<StatusMetric, StatusRankedItem[]>
 
+/**
+ * `GET /analysis-rankings` 항목 (B2 — 분석 인기 순위).
+ *
+ * 쓰는 곳: 홈 「지금 많이 본 지역」 섹션(`components/home/popular-districts.tsx`,
+ * `areaType=DISTRICT`). 표시 로직은 `lib/home/popular-districts.ts` 에 순수 함수로 있다.
+ * 아래 세 가지는 **다른 areaType 으로 화면을 늘릴 때도 그대로 적용된다.**
+ *
+ * 1. **`areaName` 이 null 일 수 있다.** 그대로 그리면 목록에 빈 칸이 뜬다. 자치구는
+ *    정적 표(`@/data/districts`)로 추가 요청 없이 메우고, 그래도 없으면 코드라도
+ *    적는다 — 이름 자리가 비면 누를 수는 있는데 무엇인지 모르는 버튼이 된다.
+ * 2. **변화율이 없다.** 조회 수 집계에 「전기」가 없다. 0 으로 채워 「변동 없음」을
+ *    그리면 틀린 말이 되므로, 다른 지표와 같은 카드에 담는다면 배지를 감춰야 한다.
+ * 3. **이 API 만 따로 죽는다.** 집계 파이프라인(Kafka/Redis) 장애 시 여기만
+ *    `RANKING_001`(503)로 응답하고 다른 분석 API 는 멀쩡하다. 이 실패가 화면 전체의
+ *    실패로 번지지 않게 할 것.
+ */
+export type AnalysisRankingItem = {
+  rank: number
+  areaCode: string
+  /** 영역 이름. **수집되지 않았으면 null 이다**(스냅샷 문구 그대로). */
+  areaName: string | null
+  viewCount: number
+}
+
+export type AnalysisRankingBody = {
+  areaType: CodeNameDescriptionMetadata
+  /** 집계 시간 윈도우(시간). 화면이 "최근 N시간" 을 적을 때 쓴다. */
+  windowHours: number
+  rankings: AnalysisRankingItem[]
+}
+
 export type CodeNameDescriptionMetadata = {
   code: string
   name: string
@@ -163,4 +194,5 @@ export type DistrictDetail = {
 }
 
 export type DistrictTopTenResponse = ApiResponse<DistrictTopTenSummary>
+export type AnalysisRankingResponse = ApiResponse<AnalysisRankingBody>
 export type DistrictDetailResponse = ApiResponse<DistrictDetail>
