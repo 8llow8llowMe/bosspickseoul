@@ -158,6 +158,11 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
   가로가 넓을수록 좋아지지만, 가로 막대는 나빠진다. 같은 폭으로 나란히 둔다.
 - 값 라벨은 막대 끝에 붙이고 `tabular-nums` 로 자릿수를 맞춘다.
 - 데이터가 없으면 빈 차트를 그리지 않고 "데이터 없음" 문구로 대체한다.
+- **라벨 · 트랙 · 값 한 줄로 된 「미터 행」에도 같은 규칙이 적용된다.** 리포트
+  「지역별 월 매출 비교」가 full 스팬 안에서 폭 상한 없이 10px 트랙을 써서 1300px
+  칸에서 약 **108:1** 이 됐다 — 위 31:1 사례보다 나쁘다. 상한 360px + 두께 14px 로
+  약 13:1 이 된다. 얇은 pill 이라 규칙에서 벗어난다고 생각하기 쉬운데, 두께가
+  가로세로비의 분모라 오히려 더 빨리 무너진다.
 
 ### Inputs & Forms
 
@@ -182,6 +187,14 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 - Bottom tab bar: white background, top border `#e5e8eb`
 - Active: `#0ea5e9` icon + `#191f28` text, Inactive: `#b0b8c1` icon + `#8b95a1` text
 - Top app bar: white, sticky, optional backdrop blur
+- **헤더 콘텐츠 폭은 라우트마다 다르게 두지 않는다 — 전 화면 `calc(100% - 40px)`.**
+  예전에는 페이지 본문 폭에 맞춰 셋으로 갈라져 있었는데(메인 `min(1120px, …)`,
+  상권분석·추천 full, 구별현황 `min(1400px, …)`), 페이지를 옮길 때마다 로고와 메뉴가
+  좌우로 튀었다. 헤더는 본문의 일부가 아니라 앱 전체의 고정 틀이므로 본문 폭을
+  따라가지 않는다.
+- **`html` 에 `scrollbar-gutter: stable`.** 스크롤이 생기는 페이지와 안 생기는 페이지를
+  오갈 때 콘텐츠 전체가 스크롤바 폭(실측 15px)만큼 밀린다. 헤더 폭을 통일해도 이건
+  남으므로 자리를 항상 예약한다.
 - Segmented control for section switching
 
 ### Overlays
