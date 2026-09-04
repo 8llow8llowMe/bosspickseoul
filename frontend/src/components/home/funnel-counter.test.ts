@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import FunnelCounter from '@/components/home/funnel-counter'
@@ -144,5 +145,81 @@ describe('FunnelCounter', () => {
     const html = render()
 
     expect(html).not.toContain('aria-current')
+  })
+})
+
+/** 조건부 CSS(미디어쿼리) 검증용 — styled 가 실제로 낸 규칙을 문자열로 뽑는다. */
+const renderStyles = (): string => {
+  const sheet = new ServerStyleSheet()
+
+  try {
+    renderToStaticMarkup(
+      sheet.collectStyles(
+        createElement(FunnelCounter, {
+          selection: DEFAULT_SELECTION,
+          recommend: loadingState,
+        }),
+      ),
+    )
+    return sheet.getStyleTags()
+  } finally {
+    sheet.seal()
+  }
+}
+
+describe('FunnelCounter — 노드 연결(R6)', () => {
+  /*
+   * 4노드가 서로 무관한 박스 4개처럼 보였다. 흐름을 보여주는 건 화살표만이고,
+   * 순서의 의미는 이미 <ol> 과 aria-current 가 나른다 — 그래서 순수 장식이다.
+   */
+  it('노드 사이에 화살표를 3개 둔다(4노드 사이니까 3개)', () => {
+    expect((render().match(/lucide-arrow-right/g) ?? []).length).toBe(3)
+  })
+
+  it('화살표는 접근성 트리에서 감춘다', () => {
+    /*
+     * aria-hidden 총 개수를 세면 안 된다 — lucide 가 svg 에 스스로 붙이고 래퍼도
+     * 붙여서 화살표당 2개가 나온다. 라이브러리 내부에 의존하지 않도록, 각 화살표
+     * 자신이 감춰졌는지만 본다.
+     */
+    const arrows = render().match(/<svg[^>]*lucide-arrow-right[^>]*>/g) ?? []
+
+    expect(arrows).toHaveLength(3)
+    for (const arrow of arrows) {
+      expect(arrow).toContain('aria-hidden="true"')
+    }
+  })
+
+  /*
+   * 2열이 되면 1->2 오른쪽, 2->3 아래-왼쪽, 3->4 오른쪽으로 방향이 깨진다.
+   * 4열일 때만 그린다.
+   */
+  it('2열로 접히는 폭에서는 화살표를 숨긴다', () => {
+    const styles = renderStyles()
+
+    expect(styles).toContain('@media (max-width: 640px)')
+    expect(styles).toContain('display:none')
+  })
+
+  /*
+   * DESIGN.md 는 재무 데이터 표시에 장식을 더하지 말라고 못 박고, home-page.tsx 에
+   * 대해 gradient grep 무결과를 요구한다. 「더 강조하고 싶다」가 색으로 새지 않게
+   * 가드를 둔다.
+   */
+  it('그라데이션을 쓰지 않는다', () => {
+    expect(render() + renderStyles()).not.toContain('gradient')
+  })
+
+  /*
+   * 화살표는 활성 강조와 무관한 정적 장식이다 — active 를 주지 않는 스택 모드에서도
+   * 같은 개수가 나와야 한다.
+   */
+  it('스택 모드에서도 화살표 개수는 같다', () => {
+    const stacked = render()
+    const sticky = render({ active: 1 })
+
+    expect((stacked.match(/lucide-arrow-right/g) ?? []).length).toBe(
+      (sticky.match(/lucide-arrow-right/g) ?? []).length,
+    )
   })
 })
