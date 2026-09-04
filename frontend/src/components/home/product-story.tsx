@@ -10,6 +10,7 @@ import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
+import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
 import {
   STORY_STEPS,
   type StoryDemo,
@@ -386,30 +387,11 @@ export default function ProductStory() {
   })
 
   // 스텝 클릭 시 해당 스텝 구간의 중앙으로 스크롤한다.
-  // useScrollProgress의 진행도 정의: progress = (vh - top) / (H + vh).
-  // 스티키가 고정(pin)되는 구간은 progress ∈ [vh/(H+vh), H/(H+vh)]이므로,
-  // 스텝 중앙 목표를 그 범위로 클램프해야 트랙 위/아래로 튀지 않는다.
+  // pin 구간 클램프 공식은 랭킹 섹션과 공유한다(scroll-to-pinned-step.ts).
   const scrollToStep = (index: number) => {
     const el = trackRef.current
     if (!el) return
-    const vh = window.innerHeight
-    const trackHeight = el.offsetHeight
-    const trackTop = el.getBoundingClientRect().top + window.scrollY
-    const denom = trackHeight + vh
-    const pinStart = vh / denom
-    const pinEnd = trackHeight / denom
-    const margin = 0.02
-    const center = (index + 0.5) / STORY_STEPS.length
-    const targetProgress = Math.min(
-      pinEnd - margin,
-      Math.max(pinStart + margin, center),
-    )
-    const target = targetProgress * denom - vh + trackTop
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.scrollTo({
-      top: Math.max(0, target),
-      behavior: reduce ? 'auto' : 'smooth',
-    })
+    scrollToPinnedStep(el, index, STORY_STEPS.length)
   }
 
   if (stacked) {
