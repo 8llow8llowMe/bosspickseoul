@@ -18,6 +18,7 @@ import {
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
 import { DEFAULT_SELECTION, type DemoSelection } from '@/data/home-demo'
 import { useRecommendPreview } from '@/hooks/use-recommend-preview'
+import { useStackedMode } from '@/hooks/use-stacked-mode'
 
 const Container = styled.section`
   position: relative;
@@ -317,26 +318,6 @@ function PanelCard({
       {cta ? <Cta href={cta.href}>{cta.label}</Cta> : null}
     </PanelWithCta>
   )
-}
-
-// 마운트 후에만 true가 될 수 있는 "스택 모드" 판정(reduced-motion 또는 모바일 폭).
-// 초기값 false로 SSR/첫 렌더는 항상 스티키 모드 → hydration 일치.
-function useStackedMode(): boolean {
-  const [stacked, setStacked] = useState(false)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const narrow = window.matchMedia('(max-width: 768px)')
-    const update = () => setStacked(reduced.matches || narrow.matches)
-    update()
-    reduced.addEventListener('change', update)
-    narrow.addEventListener('change', update)
-    return () => {
-      reduced.removeEventListener('change', update)
-      narrow.removeEventListener('change', update)
-    }
-  }, [])
-  return stacked
 }
 
 function StoryLead() {
