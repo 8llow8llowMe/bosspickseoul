@@ -114,4 +114,50 @@ describe('HOME_METRIC_FALLBACK', () => {
       true,
     )
   })
+
+  /*
+   * 01단계가 Top10 을 그린다(R4). 폴백이 5개면 API 장애 시 화면 행 수가 10 -> 5 로
+   * 줄어든다. 정상/폴백의 개수를 맞춰 둔다.
+   */
+  it('지표마다 10개를 갖는다', () => {
+    for (const entry of HOME_METRIC_FALLBACK) {
+      expect(entry.items).toHaveLength(10)
+    }
+  })
+
+  it('순위가 1부터 10까지 빠짐없이 이어진다', () => {
+    for (const entry of HOME_METRIC_FALLBACK) {
+      expect(entry.items.map(item => item.rank)).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+      ])
+    }
+  })
+
+  /*
+   * 값이 순위와 어긋나면(6위가 5위보다 크면) 폴백이 실 데이터와 다른 모양이 된다.
+   */
+  it('값이 순위 순서대로 감소한다', () => {
+    for (const entry of HOME_METRIC_FALLBACK) {
+      const values = entry.items.map(item => item.value)
+      const sorted = [...values].sort((a, b) => b - a)
+
+      expect(values).toEqual(sorted)
+    }
+  })
+
+  /*
+   * 지어낸 숫자 방지 가드. 자릿수가 실제와 어긋난 폴백은 폴백이 없는 것보다 나쁘다
+   * — dev 실측 스냅샷의 1위 값을 고정해 둔다.
+   */
+  it('실측 스냅샷의 1위 값을 그대로 갖는다', () => {
+    const footTraffic = HOME_METRIC_FALLBACK.find(
+      entry => entry.metric === 'footTraffic',
+    )
+
+    expect(footTraffic?.items[0]).toMatchObject({
+      districtCode: '11680',
+      districtName: '강남구',
+      value: 145_280_452,
+    })
+  })
 })

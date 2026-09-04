@@ -62,10 +62,14 @@ export const toHomeMetricRankings = (
  * 그대로다 — footTraffic·sales 는 원시 카운트(명/원), opened 는 개수(개). 여기서
  * "만"·"억" 같은 축약을 미리 하면 포맷터가 다시 나누어 자릿수가 어긋난다.
  *
- * 값은 지어낸 숫자가 아니라 dev `GET /districts/top-ten` 2026-09-03 실측 스냅샷이다.
+ * 값은 지어낸 숫자가 아니라 dev `GET /districts/top-ten` 2026-09-04 실측 스냅샷이다
+ * (2026-09-03 조회와 값이 동일했다).
  * 지어낸 값은 자릿수가 실제와 8배까지 어긋날 수 있다(1차 구현에서 실제로 그랬다) —
  * 폴백이 API 장애 시 화면에 그대로 렌더되므로, 자릿수가 틀린 숫자는 폴백이 없는 것보다
  * 나쁘다. 변화율이 음수인 것도 실측 그대로다 — 보기 좋으라고 부호를 바꾸지 않는다.
+ *
+ * 지표당 **10개**다 — 01단계가 Top10 을 그리므로(R4) 개수를 정상 상태와 맞춘다.
+ * 변화율은 원시값을 소수점 1자리로 반올림한 것이다.
  */
 export const HOME_METRIC_FALLBACK: HomeMetricRanking[] = [
   {
@@ -106,6 +110,42 @@ export const HOME_METRIC_FALLBACK: HomeMetricRanking[] = [
         districtName: '마포구',
         value: 114_208_917,
         changeRate: -1.3,
+      },
+      {
+        rank: 6,
+        districtCode: '11500',
+        districtName: '강서구',
+        value: 113_105_133,
+        changeRate: 0.4,
+      },
+      {
+        rank: 7,
+        districtCode: '11560',
+        districtName: '영등포구',
+        value: 108_538_800,
+        changeRate: 0.4,
+      },
+      {
+        rank: 8,
+        districtCode: '11740',
+        districtName: '강동구',
+        // 원시 0.045 — 반올림해 0.0 이다. 보기 좋으라고 부호를 만들지 않는다.
+        value: 106_643_794,
+        changeRate: 0,
+      },
+      {
+        rank: 9,
+        districtCode: '11230',
+        districtName: '동대문구',
+        value: 103_704_520,
+        changeRate: -3.6,
+      },
+      {
+        rank: 10,
+        districtCode: '11380',
+        districtName: '은평구',
+        value: 98_440_429,
+        changeRate: 0.4,
       },
     ],
   },
@@ -148,6 +188,41 @@ export const HOME_METRIC_FALLBACK: HomeMetricRanking[] = [
         value: 1_360_529_337_238,
         changeRate: -2.7,
       },
+      {
+        rank: 6,
+        districtCode: '11590',
+        districtName: '동작구',
+        value: 1_354_678_840_981,
+        changeRate: -2.1,
+      },
+      {
+        rank: 7,
+        districtCode: '11140',
+        districtName: '중구',
+        value: 1_343_959_637_931,
+        changeRate: -5.7,
+      },
+      {
+        rank: 8,
+        districtCode: '11230',
+        districtName: '동대문구',
+        value: 1_339_652_794_774,
+        changeRate: 6.5,
+      },
+      {
+        rank: 9,
+        districtCode: '11545',
+        districtName: '금천구',
+        value: 1_294_857_782_250,
+        changeRate: 1.2,
+      },
+      {
+        rank: 10,
+        districtCode: '11110',
+        districtName: '종로구',
+        value: 1_105_629_531_377,
+        changeRate: -4.9,
+      },
     ],
   },
   {
@@ -188,6 +263,41 @@ export const HOME_METRIC_FALLBACK: HomeMetricRanking[] = [
         districtName: '영등포구',
         value: 709,
         changeRate: -4.2,
+      },
+      {
+        rank: 6,
+        districtCode: '11650',
+        districtName: '서초구',
+        value: 637,
+        changeRate: -16.9,
+      },
+      {
+        rank: 7,
+        districtCode: '11620',
+        districtName: '관악구',
+        value: 537,
+        changeRate: -23.7,
+      },
+      {
+        rank: 8,
+        districtCode: '11740',
+        districtName: '강동구',
+        value: 535,
+        changeRate: -31.5,
+      },
+      {
+        rank: 9,
+        districtCode: '11140',
+        districtName: '중구',
+        value: 510,
+        changeRate: -23,
+      },
+      {
+        rank: 10,
+        districtCode: '11215',
+        districtName: '광진구',
+        value: 460,
+        changeRate: -15.5,
       },
     ],
   },
