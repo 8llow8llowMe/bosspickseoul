@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
-import CostWaterfall from '@/components/home/cost-waterfall'
+import CostBreakdownBar from '@/components/home/cost-breakdown-bar'
 import FunnelCounter from '@/components/home/funnel-counter'
 import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
@@ -281,7 +281,7 @@ function DemoPanel({
     )
   }
   if (demo === 'recommend') return <RecommendPreview selection={selection} />
-  return <CostWaterfall />
+  return <CostBreakdownBar />
 }
 
 function PanelCard({
@@ -295,7 +295,7 @@ function PanelCard({
 }) {
   const { demo, cta } = step
   /*
-    각 데모가 자기 라벨을 스스로 판단해 붙인다 — CostWaterfall 은 캡션에 항상,
+    각 데모가 자기 라벨을 스스로 판단해 붙인다 — CostBreakdownBar 는 캡션에 항상,
     MetricRankingBoard 와 RecommendPreview 는 폴백일 때만, AnalysisMiniDemo 는
     자체 SampleBadge 로. 여기서 또 그리면 라벨이 두 번 찍힌다.
   */
