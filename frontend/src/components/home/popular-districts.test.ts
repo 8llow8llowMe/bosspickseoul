@@ -312,37 +312,41 @@ describe('PopularDistricts — 리뷰 수정', () => {
   })
 
   /*
-   * B. D5-4 는 한쪽 열만 살아 있으면 100dvh 를 해제하라고 못 박는다 — 그렇지
+   * B. D5-4 는 한쪽 열만 살아 있으면 화면 높이를 붙잡지 말라고 못 박는다 — 그렇지
    * 않으면 170px 남짓한 내용이 900px 한가운데 떠서 위아래가 텅 빈다.
+   *
+   * R1 이후 dual 의 표현이 `min-height:100dvh` 에서 300dvh 스크롤 트랙으로 바뀌었을
+   * 뿐, 「솔로는 여백으로 채우지 않는다」는 불변식은 그대로다.
    */
-  it('두 열이 모두 있을 때만 100dvh 를 준다', () => {
+  it('두 열이 모두 있을 때만 화면 높이를 붙잡는다', () => {
     const dualStyles = renderStyles(buildElement(rankings, createTopTen()))
-    expect(dualStyles).toContain('min-height:100dvh')
+    expect(dualStyles).toContain('calc(100dvh * 3)')
 
     const singleStyles = renderStyles(
       buildElement(rankings, createTopTen(false)),
     )
+    expect(singleStyles).not.toContain('calc(100dvh * 3)')
     expect(singleStyles).not.toContain('min-height:100dvh')
   })
 
   /*
    * B(재리뷰 추가). 두 쿼리는 서로 다른 네트워크 호출이라 응답 시각이 다르다.
    * 한쪽만 먼저 도착했을 때 "지금 렌더된 열" 기준으로 100dvh 를 계산하면,
-   * 아직 안 온 나머지 쪽을 "없다"로 오판해 100dvh → auto 로 수축했다가
-   * 나머지가 도착하면 다시 100dvh 로 팽창한다(스켈레톤 → 수축 → 재팽창).
+   * 아직 안 온 나머지 쪽을 "없다"로 오판해 수축했다가
+   * 나머지가 도착하면 다시 팽창한다(스켈레톤 → 수축 → 재팽창).
    * 이건 열화 경로가 아니라 **정상 로드마다** 일어난다. 아직 pending 인
-   * 쪽은 "최종적으로 있을 것"으로 가정해 100dvh 를 유지해야 한다.
+   * 쪽은 "최종적으로 있을 것"으로 가정해 트랙을 유지해야 한다.
    */
-  it('혼합 pending — 한쪽만 먼저 응답해도 100dvh 를 유지한다', () => {
+  it('혼합 pending — 한쪽만 먼저 응답해도 트랙을 유지한다', () => {
     // 조회수만 먼저 도착, 지표(top-ten)는 아직 pending.
     const viewOnlyStyles = renderStyles(buildElement(rankings, undefined))
-    expect(viewOnlyStyles).toContain('min-height:100dvh')
+    expect(viewOnlyStyles).toContain('calc(100dvh * 3)')
 
     // 지표만 먼저 도착, 조회수(analysis-rankings)는 아직 pending.
     const metricOnlyStyles = renderStyles(
       buildElement(undefined, createTopTen()),
     )
-    expect(metricOnlyStyles).toContain('min-height:100dvh')
+    expect(metricOnlyStyles).toContain('calc(100dvh * 3)')
   })
 
   /*
@@ -485,5 +489,72 @@ describe('PopularDistricts — 랭킹 우측은 Top5 를 유지한다(R4)', () =
 
     const metricSection = html.slice(html.indexOf('상위 자치구'))
     expect((metricSection.match(/<li/g) ?? []).length).toBe(5)
+  })
+})
+
+const dualSeeds = () =>
+  [
+    createResponse([
+      { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+    ]),
+    createTopTen(),
+  ] as const
+
+describe('PopularDistricts — 스크롤 지표 전환(R1)', () => {
+  /*
+   * 트랙 높이는 임의 값이 아니라 스토리가 쓰는 공식(100dvh x 스텝 수)을 지표 3종에
+   * 그대로 적용한 값이다. 지표를 늘리면 트랙도 같이 늘어나야 하므로
+   * HOME_METRICS.length 로 계산한다 — 300dvh 를 하드코딩하지 않는다.
+   */
+  it('두 열이 다 있으면 지표 수만큼의 스크롤 트랙을 준다', () => {
+    const styles = renderStyles(buildElement(...dualSeeds()))
+
+    expect(styles).toContain('calc(100dvh * 3)')
+  })
+
+  it('스티키는 헤더 높이만큼 내려가 있다', () => {
+    const styles = renderStyles(buildElement(...dualSeeds()))
+
+    expect(styles).toContain('top:65px')
+    expect(styles).toContain('calc(100dvh - 65px)')
+  })
+
+  /*
+   * 한쪽 열만 살아 있으면 비교 맥락("보는 곳")이 없어 300dvh 를 핀 고정할 이유가
+   * 없다. 기존 솔로 렌더(높이 auto)를 그대로 쓴다.
+   */
+  it('한쪽 열만 있으면 트랙을 만들지 않는다', () => {
+    const styles = renderStyles(
+      buildElement(
+        createResponse([
+          { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+        ]),
+        createTopTen(false),
+      ),
+    )
+
+    expect(styles).not.toContain('calc(100dvh * 3)')
+  })
+
+  /*
+   * SSR·첫 렌더는 스티키(스크롤) 모드다 — 서버 마크업에는 기본 지표(유동인구)가
+   * 온다. 지표가 스크롤로 바뀌는 것은 마운트 후 동작이라 이 층에서 검증할 수 없다
+   * (브라우저 사람 눈 확인 대상).
+   */
+  it('첫 렌더는 기본 지표와 토글을 함께 그린다', () => {
+    const html = render(...dualSeeds())
+
+    expect(html).toContain('유동인구')
+    expect(html).toContain('aria-label="지표 선택"')
+  })
+
+  /*
+   * 트랙 모드에서도 좌측 조회수 열은 스크롤과 무관한 고정 콘텐츠다 — 우측 지표만
+   * 바뀐다. 링크가 사라지면 랭킹의 진입점이 없어진다.
+   */
+  it('트랙 모드에서도 좌측 조회수 링크는 그대로다', () => {
+    const html = render(...dualSeeds())
+
+    expect(html).toContain('href="/analysis?districtCode=11680"')
   })
 })
