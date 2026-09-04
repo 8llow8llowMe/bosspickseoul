@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **새 패키지·새 백엔드 호출·새 CSS 토큰을 만들지 않는다.** 색·모션·radius·spacing 은 `DESIGN.md` 토큰만 쓴다.
-- **그라데이션 금지.** `rg -n "linear-gradient|radial-gradient|backdrop-filter" src/components/home` 는 계속 무결과여야 한다(`DESIGN.md` 1368행이 `home-page.tsx` 에 대해 요구).
+- **그라데이션 금지.** `DESIGN.md` 1368행이 요구하는 범위는 **`home-page.tsx`** 다 — `rg -n "linear-gradient|radial-gradient|backdrop-filter|glassmorphism" src/components/home/home-page.tsx` 가 무결과여야 한다. `src/components/home` 전체로 넓히면 안 된다: 히어로 글래스(`hero-section.tsx`·`hero-window.tsx`)가 의도적으로 `backdrop-filter` 를 쓰고 있어 원래부터 히트가 난다. 새로 만지는 파일에 `gradient` 를 넣지 않는 것이 지켜야 할 선이다.
 - 테스트는 jsdom 없이 **node 환경 + `renderToStaticMarkup` 문자열 assertion**. 조건부 CSS 는 `ServerStyleSheet().getStyleTags()` 로 뽑는다. `$prop` 기반 styled CSS 는 마크업 문자열에 안 나오므로 스타일 시트로 검증한다.
 - 홈 컴포넌트 테스트는 **`QueryClientProvider` 로 감싼다**(홈이 BE 를 호출한다).
 - 완료 보고 전 `pnpm test` 와 `pnpm qa:verify`(format:check + lint + typecheck + build) 필수.
@@ -986,8 +986,8 @@ git commit -m "[FE] feat: 카운터 4노드를 화살표로 이어 흐름으로 
 Run: `cd frontend && pnpm test && pnpm qa:verify`
 Expected: 전부 통과.
 
-Run: `cd frontend && rg -n "linear-gradient|radial-gradient|backdrop-filter" src/components/home`
-Expected: 무결과.
+Run: `cd frontend && rg -n "linear-gradient|radial-gradient|backdrop-filter|glassmorphism" src/components/home/home-page.tsx`
+Expected: 무결과. (범위를 `src/components/home` 전체로 넓히지 말 것 — 히어로 글래스가 의도적으로 `backdrop-filter` 를 쓴다.)
 
 ---
 
