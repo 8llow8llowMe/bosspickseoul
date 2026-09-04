@@ -2,6 +2,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 import ProductStory from '@/components/home/product-story'
 import { STORY_STEPS } from '@/components/home/story-steps'
@@ -148,5 +149,47 @@ describe('STORY_STEPS — 01단계 히어로 재탕 제거', () => {
 
   it('01단계 CTA 목적지는 그대로다', () => {
     expect(STORY_STEPS[0].cta?.href).toBe('/status')
+  })
+})
+
+/**
+ * SSR 기본 렌더는 스티키 모드다(`useStackedMode` 초기값 false) — 그래서 이 시트에는
+ * `Sticky` 규칙만 들어오고 `StackItem` 규칙은 들어오지 않는다. 두 규칙이 같은
+ * `calc(100dvh - 65px)` 문자열을 쓰므로, 스택 규칙이 섞이면 이 단언이 무의미해진다.
+ */
+const renderStoryStyles = (): string => {
+  const sheet = new ServerStyleSheet()
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
+  try {
+    renderToStaticMarkup(
+      sheet.collectStyles(
+        createElement(
+          QueryClientProvider,
+          { client },
+          createElement(ProductStory),
+        ),
+      ),
+    )
+    return sheet.getStyleTags()
+  } finally {
+    sheet.seal()
+  }
+}
+
+describe('ProductStory — 스티키가 헤더를 비껴간다(R3)', () => {
+  /*
+   * 실측(1440x900): 아이브로가 y 44-64 로 헤더 밴드(0-65) 안에 완전히 들어가
+   * 100% 가려졌다. top 을 헤더 높이로 내리면 박스 상단 자체가 y=65 로 밀려
+   * 내부 콘텐츠에 그보다 위로 그려질 하한이 없어진다.
+   */
+  it('Sticky 의 top 이 헤더 높이만큼 내려가 있다', () => {
+    expect(renderStoryStyles()).toContain('top:65px')
+  })
+
+  it('Sticky 의 min-height 가 헤더 높이를 뺀 값이다', () => {
+    expect(renderStoryStyles()).toContain('calc(100dvh - 65px)')
   })
 })

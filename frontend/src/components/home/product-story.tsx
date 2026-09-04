@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
-import CostWaterfall from '@/components/home/cost-waterfall'
+import CostBreakdownBar from '@/components/home/cost-breakdown-bar'
 import FunnelCounter from '@/components/home/funnel-counter'
+import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
+import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
 import {
   STORY_STEPS,
   type StoryDemo,
@@ -17,6 +19,7 @@ import {
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
 import { DEFAULT_SELECTION, type DemoSelection } from '@/data/home-demo'
 import { useRecommendPreview } from '@/hooks/use-recommend-preview'
+import { useStackedMode } from '@/hooks/use-stacked-mode'
 
 const Container = styled.section`
   position: relative;
@@ -65,8 +68,10 @@ const Track = styled.div`
 
 const Sticky = styled.div`
   position: sticky;
-  top: 0;
-  min-height: 100dvh;
+  /* top 을 헤더 높이로 내려 pin 된 박스 상단 자체를 헤더 아래로 보낸다 — 내부
+     콘텐츠(아이브로·h2)가 헤더 밴드로 올라갈 하한이 없어진다(R3, 명세 D4-1). */
+  top: ${HEADER_HEIGHT};
+  min-height: calc(100dvh - ${HEADER_HEIGHT});
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -174,9 +179,6 @@ const DemoArea = styled.div`
   justify-content: center;
 `
 
-// SiteHeader(sticky) 실측 높이(64px + border 1px). hero-section.tsx와 동일 상수.
-const HEADER_HEIGHT = '65px'
-
 const Stack = styled.div`
   width: min(760px, 100%);
   margin: 0 auto;
@@ -281,7 +283,7 @@ function DemoPanel({
     )
   }
   if (demo === 'recommend') return <RecommendPreview selection={selection} />
-  return <CostWaterfall />
+  return <CostBreakdownBar />
 }
 
 function PanelCard({
@@ -295,7 +297,7 @@ function PanelCard({
 }) {
   const { demo, cta } = step
   /*
-    각 데모가 자기 라벨을 스스로 판단해 붙인다 — CostWaterfall 은 캡션에 항상,
+    각 데모가 자기 라벨을 스스로 판단해 붙인다 — CostBreakdownBar 는 캡션에 항상,
     MetricRankingBoard 와 RecommendPreview 는 폴백일 때만, AnalysisMiniDemo 는
     자체 SampleBadge 로. 여기서 또 그리면 라벨이 두 번 찍힌다.
   */
@@ -317,26 +319,6 @@ function PanelCard({
       {cta ? <Cta href={cta.href}>{cta.label}</Cta> : null}
     </PanelWithCta>
   )
-}
-
-// 마운트 후에만 true가 될 수 있는 "스택 모드" 판정(reduced-motion 또는 모바일 폭).
-// 초기값 false로 SSR/첫 렌더는 항상 스티키 모드 → hydration 일치.
-function useStackedMode(): boolean {
-  const [stacked, setStacked] = useState(false)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const narrow = window.matchMedia('(max-width: 768px)')
-    const update = () => setStacked(reduced.matches || narrow.matches)
-    update()
-    reduced.addEventListener('change', update)
-    narrow.addEventListener('change', update)
-    return () => {
-      reduced.removeEventListener('change', update)
-      narrow.removeEventListener('change', update)
-    }
-  }, [])
-  return stacked
 }
 
 function StoryLead() {
@@ -405,30 +387,11 @@ export default function ProductStory() {
   })
 
   // 스텝 클릭 시 해당 스텝 구간의 중앙으로 스크롤한다.
-  // useScrollProgress의 진행도 정의: progress = (vh - top) / (H + vh).
-  // 스티키가 고정(pin)되는 구간은 progress ∈ [vh/(H+vh), H/(H+vh)]이므로,
-  // 스텝 중앙 목표를 그 범위로 클램프해야 트랙 위/아래로 튀지 않는다.
+  // pin 구간 클램프 공식은 랭킹 섹션과 공유한다(scroll-to-pinned-step.ts).
   const scrollToStep = (index: number) => {
     const el = trackRef.current
     if (!el) return
-    const vh = window.innerHeight
-    const trackHeight = el.offsetHeight
-    const trackTop = el.getBoundingClientRect().top + window.scrollY
-    const denom = trackHeight + vh
-    const pinStart = vh / denom
-    const pinEnd = trackHeight / denom
-    const margin = 0.02
-    const center = (index + 0.5) / STORY_STEPS.length
-    const targetProgress = Math.min(
-      pinEnd - margin,
-      Math.max(pinStart + margin, center),
-    )
-    const target = targetProgress * denom - vh + trackTop
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.scrollTo({
-      top: Math.max(0, target),
-      behavior: reduce ? 'auto' : 'smooth',
-    })
+    scrollToPinnedStep(el, index, STORY_STEPS.length)
   }
 
   if (stacked) {

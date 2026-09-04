@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ChevronDown, PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
+import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import HeroWindow, { type WindowState } from '@/components/home/hero-window'
 import { glassSurface } from '@/components/home/hero-glass'
@@ -77,11 +78,6 @@ function waitForTransformTransitionEnd(
     el.removeEventListener('transitionend', handleTransitionEnd)
   }
 }
-
-// SiteHeader(sticky) 실측 높이: Inner min-height 64px + border-bottom 1px
-// (border-color는 스크롤 여부로 투명/표시만 바뀌고 border-style은 항상 solid라
-// 1px 레이아웃 공간은 스크롤 상태와 무관하게 항상 차지한다).
-const HEADER_HEIGHT = '65px'
 
 const Hero = styled.section`
   height: calc(100dvh - ${HEADER_HEIGHT});

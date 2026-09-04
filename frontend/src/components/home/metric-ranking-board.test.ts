@@ -126,3 +126,41 @@ describe('MetricRankingBoard', () => {
     expect(render(nanSeed)).not.toContain('데이터 없음')
   })
 })
+
+/** 자르기를 검증하려면 topN 보다 많아야 한다 — 12개를 넣는다. */
+const wideSeed: DistrictTopTenResponse = {
+  dataHeader: { success: true, resultCode: null, resultMessage: null },
+  dataBody: {
+    footTrafficTopTenItems: Array.from({ length: 12 }, (_, index) => ({
+      districtCode: String(11000 + index),
+      districtName: `${index + 1}번구`,
+      totalFootTraffic: 100_000 - index,
+      footTrafficChangeRate: 0,
+    })),
+    salesTopTenItems: [],
+    openedStoreTopTenItems: [],
+    closedStoreTopTenItems: [],
+  },
+}
+
+describe('MetricRankingBoard — 01단계는 Top10 이다(R4)', () => {
+  /*
+   * 패널 가용 높이 536px 에 10행(384px)이 152px 여유로 들어간다는 실측 근거로 올린
+   * 값이다 — 5로 되돌아가면 그 판단이 조용히 사라진다.
+   */
+  it('10행을 그린다', () => {
+    const html = render(wideSeed)
+
+    expect((html.match(/<li/g) ?? []).length).toBe(10)
+  })
+
+  /*
+   * 폴백도 10개다 — API 장애 때 행 수가 10에서 5로 줄면 같은 화면이 두 모양이 된다.
+   */
+  it('폴백으로 떨어져도 행 수는 같다', () => {
+    const html = render()
+
+    expect((html.match(/<li/g) ?? []).length).toBe(10)
+    expect(html).toContain('대표 예시 데이터')
+  })
+})
