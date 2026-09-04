@@ -149,12 +149,27 @@ const MetricEmptyNotice = styled.p`
   color: var(--color-text-caption);
 `
 
-const Insight = styled.p`
+const InsightSlot = styled.p<{ $visible: boolean }>`
   margin-top: 20px;
+  /*
+    2줄(line-height 22px x 2) + 상하 패딩(14px x 2) + 테두리(1px x 2) = 74px (D5-5).
+    문장이 없을 때도 이 높이를 예약해야 지표를 넘길 때 아래 콘텐츠가 튀지 않는다.
+    "가장 좁은 열에서 2줄" 기준이며 모든 브레이크포인트에 같은 값을 쓴다 —
+    데스크톱에서 1줄로 끝나 일부가 비어도, 폭마다 다른 예약 높이를 계산하는 것보다
+    밀림이 아예 없는 편이 낫다.
+  */
+  min-height: 74px;
   padding: 14px 16px;
-  border: 1px dashed var(--color-primary-600);
+  /*
+    테두리를 없애는 대신 transparent 로 둔다 — 2px 를 박스 모델에서 빼지 않아야
+    문장이 나타나는 순간 높이가 2px 튀는 것까지 막는다. 색이 투명이라 화면에는
+    "빈 상자"가 보이지 않는다.
+  */
+  border: 1px dashed
+    ${props => (props.$visible ? 'var(--color-primary-600)' : 'transparent')};
   border-radius: var(--radius-card);
-  background: var(--color-primary-100);
+  background: ${props =>
+    props.$visible ? 'var(--color-primary-100)' : 'transparent'};
   font-size: 14px;
   line-height: 22px;
   color: var(--color-text-700);
@@ -366,7 +381,17 @@ export default function PopularDistricts() {
         ) : (
           (viewColumn ?? metricColumn)
         )}
-        {insight ? <Insight>{insight.sentence}</Insight> : null}
+        {/*
+          항상 마운트해 자리를 예약한다(R2). aria-live 는 지표를 넘겨 문장이
+          바뀌거나 나타나거나 사라질 때 스크린리더가 그 변화를 읽게 한다.
+          두 열이 다 있을 때만 둔다 — 인사이트는 두 순위의 차이를 말하는 문장이라
+          솔로 분기에서는 영원히 비어 있을 자리가 된다.
+        */}
+        {viewColumn && metricColumn ? (
+          <InsightSlot $visible={insight !== null} aria-live="polite">
+            {insight?.sentence ?? null}
+          </InsightSlot>
+        ) : null}
       </Inner>
     </Section>
   )

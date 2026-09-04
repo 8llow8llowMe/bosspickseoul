@@ -359,3 +359,97 @@ describe('PopularDistricts — 리뷰 수정', () => {
     expect(html).not.toContain('데이터 없음')
   })
 })
+
+/*
+ * 규칙 A·B 가 모두 미해당인 dual 시드 — 조회수 상위 3곳과 지표 상위 3곳의 자치구
+ * 집합이 같다. 규칙 A 는 "지표 상위인데 아무도 안 보는 곳"을, 규칙 B 는 "많이 보는데
+ * 지표 밖인 곳"을 찾으므로 두 집합이 겹치면 둘 다 걸리지 않고 문장이 null 이 된다.
+ */
+const createOverlappingRankings = (): AnalysisRankingResponse =>
+  createResponse([
+    { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+    { rank: 2, areaCode: '11710', areaName: '송파구', viewCount: 987 },
+    { rank: 3, areaCode: '11440', areaName: '마포구', viewCount: 654 },
+  ])
+
+const createOverlappingTopTen = (): DistrictTopTenResponse => ({
+  dataHeader: { success: true, resultCode: null, resultMessage: null },
+  dataBody: {
+    footTrafficTopTenItems: [
+      {
+        districtCode: '11680',
+        districtName: '강남구',
+        totalFootTraffic: 145_280_452,
+        footTrafficChangeRate: 0.7,
+      },
+      {
+        districtCode: '11710',
+        districtName: '송파구',
+        totalFootTraffic: 120_476_997,
+        footTrafficChangeRate: -0.2,
+      },
+      {
+        districtCode: '11440',
+        districtName: '마포구',
+        totalFootTraffic: 114_208_917,
+        footTrafficChangeRate: -1.3,
+      },
+    ],
+    salesTopTenItems: [],
+    openedStoreTopTenItems: [],
+    closedStoreTopTenItems: [],
+  },
+})
+
+describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
+  /*
+   * 문장이 없을 때 슬롯을 언마운트하면 그 아래 콘텐츠가 74px 올라온다. 지표를
+   * 토글할 때마다 레이아웃이 튀는 원인이라, 색만 투명으로 두고 자리는 남긴다.
+   */
+  it('문장이 없어도 슬롯은 마운트돼 자리를 예약한다', () => {
+    const html = render(createOverlappingRankings(), createOverlappingTopTen())
+
+    expect(html).toContain('aria-live="polite"')
+    expect(html).not.toContain('들지 않았습니다')
+    expect(html).not.toContain('밖입니다')
+  })
+
+  it('문장이 없을 때도 예약 높이는 같다', () => {
+    const styles = renderStyles(
+      buildElement(createOverlappingRankings(), createOverlappingTopTen()),
+    )
+
+    expect(styles).toContain('min-height:74px')
+  })
+
+  it('문장이 있으면 같은 슬롯에 문장과 강조 테두리가 함께 온다', () => {
+    const element = buildElement(
+      createResponse([
+        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+      ]),
+      createTopTen(),
+    )
+
+    expect(renderToStaticMarkup(element)).toContain('들지 않았습니다')
+
+    const styles = renderStyles(element)
+    expect(styles).toContain('min-height:74px')
+    expect(styles).toContain('var(--color-primary-100)')
+  })
+
+  /*
+   * 인사이트는 두 순위의 차이를 말하는 문장이다 — 한쪽 열만 있으면 만들어질 수
+   * 없으므로 그 분기에서 74px 를 비워 두면 D5-4 가 없앤 죽은 여백이 되살아난다.
+   */
+  it('한쪽 열만 있는 분기에서는 슬롯 자체를 두지 않는다', () => {
+    const html = render(
+      createResponse([
+        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+      ]),
+      createTopTen(false),
+    )
+
+    expect(html).toContain('강남구')
+    expect(html).not.toContain('aria-live="polite"')
+  })
+})
