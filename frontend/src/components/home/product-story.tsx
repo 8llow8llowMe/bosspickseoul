@@ -6,6 +6,7 @@ import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
 import CostWaterfall from '@/components/home/cost-waterfall'
 import FunnelCounter from '@/components/home/funnel-counter'
+import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
@@ -65,8 +66,10 @@ const Track = styled.div`
 
 const Sticky = styled.div`
   position: sticky;
-  top: 0;
-  min-height: 100dvh;
+  /* top 을 헤더 높이로 내려 pin 된 박스 상단 자체를 헤더 아래로 보낸다 — 내부
+     콘텐츠(아이브로·h2)가 헤더 밴드로 올라갈 하한이 없어진다(R3, 명세 D4-1). */
+  top: ${HEADER_HEIGHT};
+  min-height: calc(100dvh - ${HEADER_HEIGHT});
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -173,9 +176,6 @@ const DemoArea = styled.div`
   flex-direction: column;
   justify-content: center;
 `
-
-// SiteHeader(sticky) 실측 높이(64px + border 1px). hero-section.tsx와 동일 상수.
-const HEADER_HEIGHT = '65px'
 
 const Stack = styled.div`
   width: min(760px, 100%);
