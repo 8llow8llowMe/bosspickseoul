@@ -42,3 +42,15 @@ describe('디자인 토큰 대비 (DESIGN.md §Accessibility)', () => {
     expect(squeeze(css)).toContain('--color-grey-500:#8b95a1;')
   })
 })
+
+/*
+ * 세로 스크롤바가 있는 페이지와 없는 페이지 사이를 오갈 때 콘텐츠가 스크롤바 폭
+ * (실측 15px)만큼 좌우로 밀렸다. 헤더 폭을 전 화면 통일한 뒤에도 우측 끝이 홈
+ * 1405 / status 1420 으로 어긋난 원인이 이것이다 — 헤더 규칙이 아니라 스크롤바다.
+ * `scrollbar-gutter: stable` 은 스크롤바 자리를 항상 예약해 그 이동을 없앤다.
+ */
+describe('스크롤바 자리 예약 (페이지 간 가로 밀림 방지)', () => {
+  it('html 이 스크롤바 자리를 항상 예약한다', () => {
+    expect(squeeze(renderGlobalCss())).toContain('scrollbar-gutter:stable')
+  })
+})
