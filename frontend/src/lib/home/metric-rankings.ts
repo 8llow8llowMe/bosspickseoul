@@ -32,24 +32,39 @@ export type HomeMetricRanking = {
   items: StatusRankedItem[]
 }
 
-/** 홈은 Top5 만 그린다. 좌측 조회수 8행 + 토글과 높이가 맞는다. */
-const HOME_TOP_N = 5
+/** 01단계(스토리) 전용. 패널 가용 높이 536px 에 10행(384px)이 152px 여유로 들어간다. */
+export const STORY_METRIC_TOP_N = 10
+
+/**
+ * 랭킹 섹션 우측 전용. 기존 `HOME_TOP_N` 을 용도가 드러나게 개명한 것이다.
+ * 좌측 조회수 8행 + 토글과 높이가 맞는다.
+ *
+ * **10 으로 올리지 말 것.** 높이가 어긋나는 것 외에, `buildRankingInsight` 규칙 B 가
+ * `metric.items.length` 를 읽어 「{지표} Top N 밖」 문장을 만든다 — 10이 되면 문장이
+ * 약해지고 성립 확률도 급감해 이 섹션의 논지(「보는 곳과 숫자가 좋은 곳은 다르다」)가
+ * 조용히 무뎌진다.
+ */
+export const RANKING_METRIC_TOP_N = 5
 
 /**
  * `top-ten` 응답을 홈이 쓰는 모양으로 옮긴다.
  *
  * 값·변화율 계산은 `normalizeStatusTopTen` 이 이미 한다 — 여기서 다시 하지 않는다.
  * 홈에서 따로 포맷하면 같은 숫자가 `/status` 와 홈에서 다르게 보이는 날이 온다.
+ *
+ * `topN` 은 **기본값이 없는 필수 인자**다. 기본값을 두면 두 소비자(01단계·랭킹 우측)가
+ * 다시 하나의 값을 공유하게 되어 R4 가 고치려는 문제가 재발한다.
  */
 export const toHomeMetricRankings = (
   body: DistrictTopTenSummary,
+  topN: number,
 ): HomeMetricRanking[] => {
   const normalized = normalizeStatusTopTen(body)
 
   return HOME_METRICS.map(metric => ({
     metric,
     label: METRIC_LABELS[metric],
-    items: normalized[metric].slice(0, HOME_TOP_N),
+    items: normalized[metric].slice(0, topN),
   }))
 }
 

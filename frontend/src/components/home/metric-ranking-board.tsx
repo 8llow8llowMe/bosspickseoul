@@ -10,6 +10,7 @@ import { isApiSuccess } from '@/lib/api/response'
 import {
   HOME_METRICS,
   HOME_METRIC_FALLBACK,
+  STORY_METRIC_TOP_N,
   homeMetricLabel,
   toHomeMetricRankings,
   type HomeMetric,
@@ -35,7 +36,7 @@ export default function MetricRankingBoard() {
 
   const rankingsFromApi =
     query.data && isApiSuccess(query.data)
-      ? toHomeMetricRankings(query.data.dataBody)
+      ? toHomeMetricRankings(query.data.dataBody, STORY_METRIC_TOP_N)
       : null
 
   const activeFromApi =

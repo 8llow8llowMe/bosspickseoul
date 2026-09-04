@@ -453,3 +453,37 @@ describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
     expect(html).not.toContain('aria-live="polite"')
   })
 })
+
+/** 지표 12개 — 랭킹 우측이 5로 자르는지 보려면 topN 보다 많아야 한다. */
+const createWideTopTen = (): DistrictTopTenResponse => ({
+  dataHeader: { success: true, resultCode: null, resultMessage: null },
+  dataBody: {
+    footTrafficTopTenItems: Array.from({ length: 12 }, (_, index) => ({
+      districtCode: String(11000 + index),
+      districtName: `${index + 1}번구`,
+      totalFootTraffic: 100_000 - index,
+      footTrafficChangeRate: 0,
+    })),
+    salesTopTenItems: [],
+    openedStoreTopTenItems: [],
+    closedStoreTopTenItems: [],
+  },
+})
+
+describe('PopularDistricts — 랭킹 우측은 Top5 를 유지한다(R4)', () => {
+  /*
+   * 같은 응답을 받아도 01단계는 10행, 여기는 5행이다. 좌측 조회수 8행과의 높이,
+   * 그리고 규칙 B 의 「Top 5 밖」 문장을 지키기 위한 분리다.
+   */
+  it('같은 응답에서도 5행만 그린다', () => {
+    const html = render(
+      createResponse([
+        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+      ]),
+      createWideTopTen(),
+    )
+
+    const metricSection = html.slice(html.indexOf('상위 자치구'))
+    expect((metricSection.match(/<li/g) ?? []).length).toBe(5)
+  })
+})

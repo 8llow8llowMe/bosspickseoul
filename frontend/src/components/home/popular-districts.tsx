@@ -15,6 +15,7 @@ import {
 import {
   toHomeMetricRankings,
   HOME_METRICS,
+  RANKING_METRIC_TOP_N,
   homeMetricLabel,
   type HomeMetric,
 } from '@/lib/home/metric-rankings'
@@ -250,7 +251,7 @@ export default function PopularDistricts() {
 
   const metricRankings =
     metricQuery.data && isApiSuccess(metricQuery.data)
-      ? toHomeMetricRankings(metricQuery.data.dataBody)
+      ? toHomeMetricRankings(metricQuery.data.dataBody, RANKING_METRIC_TOP_N)
       : null
 
   /*
