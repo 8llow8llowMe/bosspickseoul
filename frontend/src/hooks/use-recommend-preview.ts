@@ -46,7 +46,7 @@ export type UseRecommendPreviewOptions = {
 }
 
 /**
- * 홈 03단계(후보 추천) 데이터. `RecommendPreview` 와 `FunnelCounter` 가 **같은 훅**을
+ * 홈 03단계(후보 추천) 데이터. `RecommendPreview` 와 스토리의 03단계 수치가 **같은 훅**을
  * 같은 selection으로 호출한다 — React Query가 쿼리 키로 캐시를 공유하므로 네트워크
  * 요청은 1회다(`use-district-top-ten.ts`와 같은 패턴).
  *
