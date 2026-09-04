@@ -34,19 +34,20 @@ const Header = styled.header<{ $isScrolled: boolean }>`
     box-shadow var(--motion-fast) var(--ease-standard);
 `
 
-// 페이지별 헤더 콘텐츠 폭. 메인은 기본(1120), 상권분석·상권추천은 풀블리드 맵에
-// 맞춰 최대, 구별현황은 페이지 본문 폭(min(1400px, calc(100% - 48px)))에 맞춘다.
-type HeaderWidthVariant = 'default' | 'full' | 'status'
+/*
+  헤더 콘텐츠 폭은 **모든 화면에서 같다.**
 
-const INNER_WIDTH: Record<HeaderWidthVariant, string> = {
-  default: 'min(1120px, calc(100% - 40px))',
-  full: 'calc(100% - 40px)',
-  status: 'min(1400px, calc(100% - 48px))',
-}
+  예전에는 라우트별로 세 가지였다 — 메인 `min(1120px, …)`, 상권분석·상권추천
+  `calc(100% - 40px)`, 구별현황 `min(1400px, …)`. 각 페이지 본문 폭에 맞춘 것이었지만,
+  페이지를 옮길 때마다 로고와 메뉴가 좌우로 튀어서 같은 헤더인지 의심하게 됐다.
+  헤더는 본문의 일부가 아니라 앱 전체의 고정 틀이므로, 본문 폭을 따라가지 않고
+  하나로 둔다. 40px 는 좌우 가장자리 여백이다.
+*/
+const HEADER_INNER_WIDTH = 'calc(100% - 40px)'
 
-const Inner = styled.div<{ $width: HeaderWidthVariant }>`
+const Inner = styled.div`
   position: relative;
-  width: ${props => INNER_WIDTH[props.$width]};
+  width: ${HEADER_INNER_WIDTH};
   min-height: 64px;
   padding: 10px 0;
   margin: 0 auto;
@@ -57,7 +58,8 @@ const Inner = styled.div<{ $width: HeaderWidthVariant }>`
   flex-wrap: wrap;
 
   @media (max-width: 640px) {
-    width: min(100% - 32px, 1120px);
+    /* 좁은 화면에서는 가장자리 여백만 줄인다(폭 상한은 두지 않는다). */
+    width: calc(100% - 32px);
   }
 `
 
@@ -404,12 +406,6 @@ export default function SiteHeader() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const isHome = pathname === '/'
-  const headerWidth: HeaderWidthVariant =
-    pathname === '/analysis' || pathname === '/recommend'
-      ? 'full'
-      : pathname === '/status'
-        ? 'status'
-        : 'default'
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const innerRef = useRef<HTMLDivElement | null>(null)
   const hasHydrated = useAuthStore(state => state.hasHydrated)
@@ -511,7 +507,7 @@ export default function SiteHeader() {
 
   return (
     <Header $isScrolled={isScrolled} data-site-header>
-      <Inner ref={innerRef} $width={headerWidth}>
+      <Inner ref={innerRef}>
         <Brand
           href="/"
           onClick={event => {
