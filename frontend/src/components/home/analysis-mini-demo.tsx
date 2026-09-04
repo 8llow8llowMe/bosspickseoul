@@ -1,14 +1,14 @@
 'use client'
 
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useRef, type KeyboardEvent } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import {
-  DEFAULT_SELECTION,
   DISTRICTS,
   INDUSTRIES,
   getDemoSample,
   type CompetitionLevel,
+  type DemoSelection,
 } from '@/data/home-demo'
 import LineChart from '@/components/analysis/charts/line-chart'
 
@@ -251,6 +251,12 @@ const CompetitionBadge = styled.span<{ $level: CompetitionLevel }>`
   font-weight: 700;
 `
 
+const InsightLabel = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-caption);
+`
+
 const Insight = styled.p`
   color: var(--color-text-600);
   font-size: 14px;
@@ -283,8 +289,16 @@ const Cta = styled(Link)`
   }
 `
 
-export default function AnalysisMiniDemo() {
-  const [sel, setSel] = useState(DEFAULT_SELECTION)
+export type AnalysisMiniDemoProps = {
+  /** `ProductStory` 가 소유한 선택 — 03단계·카운터와 같은 값을 본다(D8-3). */
+  selection: DemoSelection
+  onSelectionChange: (selection: DemoSelection) => void
+}
+
+export default function AnalysisMiniDemo({
+  selection: sel,
+  onSelectionChange,
+}: AnalysisMiniDemoProps) {
   const sample = getDemoSample(sel.districtId, sel.industryId)
   const districtName =
     DISTRICTS.find(district => district.id === sel.districtId)?.name ?? ''
@@ -294,10 +308,10 @@ export default function AnalysisMiniDemo() {
   const changeLabel = `${isPositive ? '+' : ''}${sample.salesChangePct}%`
 
   const districtGroup = useRovingRadioGroup(DISTRICTS, sel.districtId, id =>
-    setSel(prev => ({ ...prev, districtId: id })),
+    onSelectionChange({ ...sel, districtId: id }),
   )
   const industryGroup = useRovingRadioGroup(INDUSTRIES, sel.industryId, id =>
-    setSel(prev => ({ ...prev, industryId: id })),
+    onSelectionChange({ ...sel, industryId: id }),
   )
 
   return (
@@ -318,7 +332,7 @@ export default function AnalysisMiniDemo() {
                 tabIndex={sel.districtId === district.id ? 0 : -1}
                 $active={sel.districtId === district.id}
                 onClick={() =>
-                  setSel(prev => ({ ...prev, districtId: district.id }))
+                  onSelectionChange({ ...sel, districtId: district.id })
                 }
               >
                 {district.name}
@@ -342,7 +356,7 @@ export default function AnalysisMiniDemo() {
                 tabIndex={sel.industryId === industry.id ? 0 : -1}
                 $active={sel.industryId === industry.id}
                 onClick={() =>
-                  setSel(prev => ({ ...prev, industryId: industry.id }))
+                  onSelectionChange({ ...sel, industryId: industry.id })
                 }
               >
                 {industry.name}
@@ -402,9 +416,14 @@ export default function AnalysisMiniDemo() {
           </MetricBlock>
         </MetricGrid>
 
+        {/*
+          「예시」를 라벨 안에 넣는 것이 요점이다. 이 문장은 home-demo.ts 의 하드코딩
+          문자열이라, 「AI 리포트 요약」이라고만 쓰면 하드코딩이 AI 출력인 척하게 된다.
+        */}
+        <InsightLabel>AI 리포트 요약 · 예시</InsightLabel>
         <Insight>{sample.insight}</Insight>
 
-        <Cta href="/analysis">이 조건으로 실제 분석하기</Cta>
+        <Cta href="/analysis">이 조건으로 AI 리포트 받기</Cta>
       </ResultCard>
     </Wrapper>
   )

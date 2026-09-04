@@ -21,6 +21,8 @@ pnpm build
 
 문서나 코드 포맷을 실제로 고칠 때만 write 계열 명령을 사용한다. 실행하지 않은 명령은 통과했다고 보고하지 않는다.
 
+`next dev`/`next build`를 돌리면 `next-env.d.ts`의 참조 경로가 `.next/types` ↔ `.next/dev/types` 사이에서 바뀐다. 이는 생성물이라 커밋 대상이 아니다 — 커밋 전 `git checkout -- frontend/next-env.d.ts`로 되돌린다.
+
 ## 의존성 추가 기준
 
 - 새 dependency는 기존 도구로 해결할 수 없는 명확한 이유가 있을 때만 추가한다.

@@ -1,6 +1,7 @@
 // src/components/home/product-story.test.ts
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import ProductStory from '@/components/home/product-story'
 import { STORY_STEPS } from '@/components/home/story-steps'
@@ -14,9 +15,25 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
+/*
+ * 01단계가 MetricRankingBoard(useDistrictTopTen → useQuery)를 그리므로 QueryClientProvider
+ * 없이 렌더하면 "No QueryClient set" 으로 죽는다. 여기서는 top-ten 응답을 캐시에 심지
+ * 않는다 — 그 분기는 metric-ranking-board.test.ts 가 이미 덮는다. 이 파일의 관심사는
+ * 스토리 골격(제목·CTA·라벨)이라 폴백 렌더로 충분하다.
+ */
+const renderStory = () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
+  return renderToStaticMarkup(
+    createElement(QueryClientProvider, { client }, createElement(ProductStory)),
+  )
+}
+
 describe('ProductStory', () => {
   it('4개 스텝 제목과 샘플 라벨을 렌더한다', () => {
-    const html = renderToStaticMarkup(createElement(ProductStory))
+    const html = renderStory()
     for (const title of [
       '현황 확인',
       '상권 분석',
@@ -33,7 +50,7 @@ describe('ProductStory', () => {
    * 말하고 끝났다. 특히 `/recommend`·`/simulation` 은 홈 본문 링크가 **0개**였다.
    */
   it('활성 단계의 CTA 를 렌더한다', () => {
-    const html = renderToStaticMarkup(createElement(ProductStory))
+    const html = renderStory()
 
     /*
      * 스티키 모드는 **활성 단계 하나만** 패널로 그린다(첫 렌더는 01 현황 확인).
@@ -57,7 +74,7 @@ describe('ProductStory', () => {
       href: '/simulation',
       label: '창업 시뮬레이션 해보기',
     })
-    expect(byDemo.map).toEqual({ href: '/status', label: '구별 현황 보기' })
+    expect(byDemo.metrics).toEqual({ href: '/status', label: '구별 현황 보기' })
   })
 
   /*
@@ -75,5 +92,61 @@ describe('ProductStory', () => {
 
     expect(new Set(hrefs).size).toBe(hrefs.length)
     expect(hrefs).not.toContain('/analysis')
+  })
+})
+
+describe('STORY_STEPS — AI 리포트 배치', () => {
+  it('02단계 제목이 AI 리포트를 명시한다', () => {
+    // AI 리포트는 /analysis/report 와 분석 결과 사이드바에 사는 분석의 산출물이다.
+    // 벤토의 「분석 이후」 칸이 아니라 이 단계가 그것을 말해야 한다.
+    expect(STORY_STEPS[1].title).toBe('상권 분석 · AI 리포트')
+  })
+
+  it('02단계 본문이 AI 가 무엇을 해 주는지 말한다', () => {
+    expect(STORY_STEPS[1].body).toContain('AI')
+  })
+
+  it('02단계는 여전히 CTA 를 갖지 않는다', () => {
+    // 데모(analysis-mini-demo)가 자체 CTA 를 들고 있다. 여기서 또 그리면 버튼이 둘이 된다.
+    expect(STORY_STEPS[1].cta).toBeNull()
+  })
+})
+
+describe('ProductStory — 03 연쇄는 스토리 도달 전엔 켜지지 않는다', () => {
+  /*
+   * 코디네이터 피드백: 카운터(FunnelCounter)는 01단계와 함께 즉시 마운트되지만
+   * 트랙은 히어로 아래에서 시작해 랜딩 첫 화면엔 보이지 않는다. 마운트와 별개로
+   * "스토리 섹션이 뷰포트에 실제로 들어왔는가"(IntersectionObserver)를 확인하기
+   * 전엔 03 연쇄(행정동→상권→추천)를 켜면 안 된다.
+   *
+   * renderToStaticMarkup은 커밋(effect) 단계를 실행하지 않으므로 이
+   * IntersectionObserver는 절대 실행되지 않는다 — 즉 이 SSR 렌더는 정확히
+   * "스토리에 아직 안 닿은" 상태를 흉내낸다. 03 노드가 즉시 폴백(대표
+   * 예시 데이터)이나 실데이터로 채워지면, enabled 게이트가 사라졌다는 뜻이다.
+   */
+  it('03 노드는 로딩 표기(—)로 남고, 03 연쇄 응답을 함부로 종결짓지 않는다', () => {
+    const html = renderStory()
+
+    const label = html.indexOf('03 후보 추천')
+    const window = html.slice(label, label + 200)
+
+    expect(window).toContain('—')
+    expect(window).not.toContain('상권')
+    expect(window).not.toContain('추천 5곳')
+  })
+})
+
+describe('STORY_STEPS — 01단계 히어로 재탕 제거', () => {
+  it('01단계는 지도를 데모로 쓰지 않는다', () => {
+    // 히어로가 같은 SeoulDistrictsMap 을 이미 그린다.
+    expect(STORY_STEPS[0].demo).not.toBe('map')
+  })
+
+  it('01단계 본문이 지표로 줄 세운다고 말한다', () => {
+    expect(STORY_STEPS[0].body).toContain('유동인구')
+  })
+
+  it('01단계 CTA 목적지는 그대로다', () => {
+    expect(STORY_STEPS[0].cta?.href).toBe('/status')
   })
 })

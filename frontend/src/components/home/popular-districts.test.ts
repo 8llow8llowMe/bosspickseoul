@@ -1,12 +1,15 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import PopularDistricts from '@/components/home/popular-districts'
+import { HOME_TOP_TEN_QUERY_KEY } from '@/hooks/use-district-top-ten'
 import type {
   AnalysisRankingItem,
   AnalysisRankingResponse,
+  DistrictTopTenResponse,
 } from '@/types/status'
 
 const QUERY_KEY = ['home', 'analysisRankings', 'DISTRICT', 8]
@@ -27,26 +30,109 @@ const createResponse = (
   },
 })
 
+const createTopTen = (success = true): DistrictTopTenResponse => ({
+  dataHeader: {
+    success,
+    resultCode: success ? null : 'DISTRICT_001',
+    resultMessage: success ? null : '자치구 통계를 사용할 수 없습니다.',
+  },
+  dataBody: {
+    footTrafficTopTenItems: [
+      {
+        districtCode: '11140',
+        districtName: '중구',
+        totalFootTraffic: 1_900_000,
+        footTrafficChangeRate: 3.2,
+      },
+      {
+        districtCode: '11680',
+        districtName: '강남구',
+        totalFootTraffic: 1_800_000,
+        footTrafficChangeRate: -1.1,
+      },
+    ],
+    salesTopTenItems: [],
+    openedStoreTopTenItems: [],
+    closedStoreTopTenItems: [],
+  },
+})
+
+/** 성공 응답이지만 네 지표 모두 빈 배열 — 집계가 아직 비어 있는 경우를 흉내낸다. */
+const createEmptyTopTen = (): DistrictTopTenResponse => ({
+  dataHeader: { success: true, resultCode: null, resultMessage: null },
+  dataBody: {
+    footTrafficTopTenItems: [],
+    salesTopTenItems: [],
+    openedStoreTopTenItems: [],
+    closedStoreTopTenItems: [],
+  },
+})
+
+/**
+ * 200 이지만 **선택된(기본) 지표만** 비고 나머지 지표는 정상인 경우.
+ * top-ten 이 배열 하나만 못 채운 배포 직후 상태를 흉내낸다 — A 리뷰 지적사항.
+ */
+const createPartialTopTen = (): DistrictTopTenResponse => ({
+  dataHeader: { success: true, resultCode: null, resultMessage: null },
+  dataBody: {
+    footTrafficTopTenItems: [],
+    salesTopTenItems: [
+      {
+        districtCode: '11680',
+        districtName: '강남구',
+        totalSalesAmount: 3_345_727_318_759,
+        salesChangeRate: -1.0,
+      },
+    ],
+    openedStoreTopTenItems: [
+      {
+        districtCode: '11680',
+        districtName: '강남구',
+        openedStoreCount: 1299,
+        openingChangeRate: -12.2,
+      },
+    ],
+    closedStoreTopTenItems: [],
+  },
+})
+
 /**
  * 쿼리 캐시를 미리 채워 SSR 한 번으로 성공 분기를 그리게 한다.
  * (캐시를 비우면 `isPending` 이라 스켈레톤이 나온다 — 아래 첫 테스트가 그 경우다.)
  */
-const render = (seed?: AnalysisRankingResponse) => {
+const buildElement = (
+  rankingSeed?: AnalysisRankingResponse,
+  topTenSeed?: DistrictTopTenResponse,
+) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
 
-  if (seed) {
-    client.setQueryData(QUERY_KEY, seed)
-  }
+  if (rankingSeed) client.setQueryData(QUERY_KEY, rankingSeed)
+  if (topTenSeed) client.setQueryData(HOME_TOP_TEN_QUERY_KEY, topTenSeed)
 
-  return renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client },
-      createElement(PopularDistricts),
-    ),
+  return createElement(
+    QueryClientProvider,
+    { client },
+    createElement(PopularDistricts),
   )
+}
+
+const render = (
+  rankingSeed?: AnalysisRankingResponse,
+  topTenSeed?: DistrictTopTenResponse,
+) => renderToStaticMarkup(buildElement(rankingSeed, topTenSeed))
+
+/** styled-components 가 실제로 낸 CSS 규칙을 문자열로 뽑는다(조건부 스타일 검증용). */
+const renderStyles = (element: ReturnType<typeof buildElement>): string => {
+  const styleSheet = new ServerStyleSheet()
+
+  try {
+    renderToStaticMarkup(styleSheet.collectStyles(element))
+    return styleSheet.getStyleTags()
+  } finally {
+    styleSheet.seal()
+  }
 }
 
 describe('PopularDistricts', () => {
@@ -99,21 +185,28 @@ describe('PopularDistricts', () => {
       ]),
     )
 
-    expect(html).not.toContain('%')
+    // RankBarList 의 막대 길이는 CSS width:NN% 로 그려진다 — 그건 레이아웃이지
+    // 지어낸 변화율 텍스트가 아니다. style 속성을 뺀 나머지에 '%'가 없는지만 본다.
+    expect(html.replace(/style="[^"]*"/g, '')).not.toContain('%')
   })
 
   /*
    * 이 API 만 따로 죽는다(RANKING_001, 503). 홈은 랜딩 내러티브라 오류 카드가 서 있으면
-   * 첫인상이 고장난 서비스가 된다 — 섹션을 통째로 뺀다.
+   * 첫인상이 고장난 서비스가 된다. top-ten 쪽도 함께 죽었을 때(둘 다 못 쓸 때)만
+   * 섹션을 통째로 뺀다 — top-ten 만 살아 있으면 그쪽만 그린다(듀얼 랭킹 블록의
+   * 「조회수가 죽으면 우측만 그린다」가 그 경우를 따로 검증한다).
    */
   it('집계 실패 응답이면 섹션을 통째로 뺀다', () => {
-    const html = render(createResponse([], { success: false }))
+    const html = render(
+      createResponse([], { success: false }),
+      createTopTen(false),
+    )
 
     expect(html).toBe('')
   })
 
   it('집계가 비어 있으면 섹션을 통째로 뺀다', () => {
-    const html = render(createResponse([]))
+    const html = render(createResponse([]), createEmptyTopTen())
 
     expect(html).toBe('')
   })
@@ -128,5 +221,141 @@ describe('PopularDistricts', () => {
 
     expect(html).toContain('강남구')
     expect(html).not.toContain('최근')
+  })
+})
+
+describe('PopularDistricts — 듀얼 랭킹', () => {
+  const rankings = createResponse([
+    { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1284 },
+    { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 1102 },
+  ])
+
+  it('두 순위가 다 있으면 좌우를 모두 그리고 인사이트를 낸다', () => {
+    const html = render(rankings, createTopTen())
+
+    expect(html).toContain('강남구')
+    expect(html).toContain('유동인구')
+    // 중구는 지표 1위인데 조회수 목록에 없다 → 규칙 A
+    expect(html).toContain('중구')
+    expect(html).toContain('들지 않았습니다')
+  })
+
+  it('지표 쪽 변화율에는 부호를 붙인다', () => {
+    const html = render(rankings, createTopTen())
+
+    expect(html).toContain('+3.2%')
+  })
+
+  it('조회수 쪽에는 변화율을 붙이지 않는다', () => {
+    // 조회수 집계에 전기가 없다. 0 으로 채우면 「변동 없음」이라는 틀린 말이 된다.
+    const html = render(rankings, createTopTen())
+    const viewSection = html.slice(0, html.indexOf('유동인구'))
+
+    // RankBarList 막대 길이는 CSS width:NN% 로 그려진다 — 지어낸 변화율 텍스트가 아니다.
+    expect(viewSection.replace(/style="[^"]*"/g, '')).not.toContain('%')
+  })
+
+  it('지표가 죽으면 좌측만 그리고 인사이트를 내지 않는다', () => {
+    const html = render(rankings, createTopTen(false))
+
+    expect(html).toContain('강남구')
+    expect(html).not.toContain('유동인구')
+    expect(html).not.toContain('들지 않았습니다')
+  })
+
+  it('조회수가 죽으면 우측만 그린다', () => {
+    const html = render(createResponse([], { success: false }), createTopTen())
+
+    expect(html).toContain('유동인구')
+    expect(html).not.toContain('href="/analysis?districtCode=11680"')
+  })
+
+  it('둘 다 죽으면 섹션을 통째로 뺀다', () => {
+    // 홈은 랜딩 내러티브라 오류 카드가 서 있으면 첫인상이 고장난 서비스가 된다.
+    const html = render(
+      createResponse([], { success: false }),
+      createTopTen(false),
+    )
+
+    expect(html).toBe('')
+  })
+
+  it('아직 안 온 것과 죽은 것을 구별한다', () => {
+    // 캐시가 비면 isPending 이다. 기존 스켈레톤이 그대로 나와야 하고,
+    // 「죽었다」로 취급해 섹션을 빼면 로딩 중에 홈이 한 칸 꺼진다.
+    const html = render()
+
+    expect(html).toContain('aria-busy="true"')
+    expect(html).not.toBe('')
+  })
+})
+
+describe('PopularDistricts — 리뷰 수정', () => {
+  const rankings = createResponse([
+    { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1284 },
+    { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 1102 },
+  ])
+
+  /*
+   * A. top-ten 이 200 을 주고도 선택된 지표(기본값 유동인구)만 빈 배열일 수
+   * 있다. 매출·개업은 정상이므로 토글까지 함께 빼면 멀쩡한 지표로 넘어갈
+   * 방법이 없어진다 — 토글은 남기고 그 자리에 안내만 낸다.
+   */
+  it('선택된 지표만 비어도 토글은 남고 그 자리에 안내를 낸다', () => {
+    const html = render(rankings, createPartialTopTen())
+
+    expect(html).toContain('aria-label="지표 선택"')
+    expect(html).toContain('유동인구')
+    expect(html).toContain('매출')
+    expect(html).toContain('개업')
+    expect(html).toContain('이 지표는 집계가 없습니다')
+  })
+
+  /*
+   * B. D5-4 는 한쪽 열만 살아 있으면 100dvh 를 해제하라고 못 박는다 — 그렇지
+   * 않으면 170px 남짓한 내용이 900px 한가운데 떠서 위아래가 텅 빈다.
+   */
+  it('두 열이 모두 있을 때만 100dvh 를 준다', () => {
+    const dualStyles = renderStyles(buildElement(rankings, createTopTen()))
+    expect(dualStyles).toContain('min-height:100dvh')
+
+    const singleStyles = renderStyles(
+      buildElement(rankings, createTopTen(false)),
+    )
+    expect(singleStyles).not.toContain('min-height:100dvh')
+  })
+
+  /*
+   * B(재리뷰 추가). 두 쿼리는 서로 다른 네트워크 호출이라 응답 시각이 다르다.
+   * 한쪽만 먼저 도착했을 때 "지금 렌더된 열" 기준으로 100dvh 를 계산하면,
+   * 아직 안 온 나머지 쪽을 "없다"로 오판해 100dvh → auto 로 수축했다가
+   * 나머지가 도착하면 다시 100dvh 로 팽창한다(스켈레톤 → 수축 → 재팽창).
+   * 이건 열화 경로가 아니라 **정상 로드마다** 일어난다. 아직 pending 인
+   * 쪽은 "최종적으로 있을 것"으로 가정해 100dvh 를 유지해야 한다.
+   */
+  it('혼합 pending — 한쪽만 먼저 응답해도 100dvh 를 유지한다', () => {
+    // 조회수만 먼저 도착, 지표(top-ten)는 아직 pending.
+    const viewOnlyStyles = renderStyles(buildElement(rankings, undefined))
+    expect(viewOnlyStyles).toContain('min-height:100dvh')
+
+    // 지표만 먼저 도착, 조회수(analysis-rankings)는 아직 pending.
+    const metricOnlyStyles = renderStyles(
+      buildElement(undefined, createTopTen()),
+    )
+    expect(metricOnlyStyles).toContain('min-height:100dvh')
+  })
+
+  /*
+   * F. `formatStatusChange(NaN)` 은 "데이터 없음"을 반환하고 `NaN >= 0` 은
+   * false 라 빨간 「데이터 없음」 배지가 찍힌다 — 없는 하락을 있다고 말하는
+   * 셈이다. changeRate 가 유한수가 아니면 배지 자체를 붙이지 않는다.
+   */
+  it('비유한 변화율에는 배지를 붙이지 않는다', () => {
+    const topTen = createTopTen()
+    topTen.dataBody.footTrafficTopTenItems[0].footTrafficChangeRate = NaN
+
+    const html = render(rankings, topTen)
+
+    expect(html).not.toContain('데이터 없음')
   })
 })

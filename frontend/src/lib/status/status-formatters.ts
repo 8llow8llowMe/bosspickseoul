@@ -99,3 +99,27 @@ export const formatStatusChange = (
 
   return `${formattedValue}%`
 }
+
+export type ChangeBadge = {
+  changeLabel: string
+  changeDirection: 'up' | 'down'
+}
+
+/**
+ * 변화율 배지 필드. `changeRate` 가 유한수가 아니면(NaN 등) **빈 객체**를 낸다.
+ *
+ * `formatStatusChange(NaN)` 은 "데이터 없음"을 반환하고 `NaN >= 0` 은 false 라
+ * `changeDirection: 'down'` 이 된다 — 그대로 쓰면 없는 하락을 있다고 말하는
+ * 빨간 배지가 찍힌다. 배지를 붙이는 쪽(`RankBarList`)은 `changeLabel` 이 없으면
+ * 아예 그리지 않으므로, 여기서 필드 자체를 비우는 것으로 막는다.
+ */
+export const toChangeBadge = (
+  changeRate: number,
+): ChangeBadge | Record<string, never> => {
+  if (!Number.isFinite(changeRate)) return {}
+
+  return {
+    changeLabel: formatStatusChange(changeRate),
+    changeDirection: changeRate >= 0 ? 'up' : 'down',
+  }
+}

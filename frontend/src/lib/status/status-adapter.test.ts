@@ -114,4 +114,22 @@ describe('normalizeStatusTopTen', () => {
       }),
     ).toEqual({ footTraffic: [], sales: [], opened: [], closed: [] })
   })
+
+  /*
+   * H-2. 백엔드가 200 을 주면서 배열 하나를 통째로 누락시킬 수 있다. 이 어댑터는
+   * 이제 `/status` 뿐 아니라 홈 랜딩(popular-districts, metric-ranking-board)
+   * 에서도 쓰이므로, 방어 없이 `.slice()` 를 부르면 두 화면 모두 렌더 중
+   * TypeError 로 죽는다.
+   */
+  it('배열 하나가 통째로 빠져도(undefined) 죽지 않고 빈 배열로 취급한다', () => {
+    const malformed = {
+      footTrafficTopTenItems: undefined,
+      salesTopTenItems: [],
+      openedStoreTopTenItems: [],
+      closedStoreTopTenItems: [],
+    } as unknown as Parameters<typeof normalizeStatusTopTen>[0]
+
+    expect(() => normalizeStatusTopTen(malformed)).not.toThrow()
+    expect(normalizeStatusTopTen(malformed).footTraffic).toEqual([])
+  })
 })
