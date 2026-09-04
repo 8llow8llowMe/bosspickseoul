@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js App Router · styled-components · vitest(node 환경, `renderToStaticMarkup` + `ServerStyleSheet` 문자열 단언) · Claude Browser pane 실측
 
-**Spec:** `docs/superpowers/specs/2026-09-04-app-width-system-design.md`
+**Spec:** `frontend/docs/superpowers/specs/2026-09-04-app-width-system-design.md`
 
 ## Global Constraints
 
