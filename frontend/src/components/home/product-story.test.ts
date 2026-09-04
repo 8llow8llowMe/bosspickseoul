@@ -6,6 +6,7 @@ import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 import ProductStory from '@/components/home/product-story'
 import { STORY_STEPS } from '@/components/home/story-steps'
+import { districts } from '@/data/districts'
 
 // SeoulDistrictsMap이 useRouter를 호출하므로 SSR 렌더용으로 모킹(home-page.test.ts와 동일)
 vi.mock('next/navigation', () => ({
@@ -115,8 +116,8 @@ describe('STORY_STEPS — AI 리포트 배치', () => {
 
 describe('ProductStory — 03 연쇄는 스토리 도달 전엔 켜지지 않는다', () => {
   /*
-   * 코디네이터 피드백: 카운터(FunnelCounter)는 01단계와 함께 즉시 마운트되지만
-   * 트랙은 히어로 아래에서 시작해 랜딩 첫 화면엔 보이지 않는다. 마운트와 별개로
+   * 코디네이터 피드백: 스텝 목록은 01단계와 함께 즉시 마운트되지만 트랙은 히어로
+   * 아래에서 시작해 랜딩 첫 화면엔 보이지 않는다. 마운트와 별개로
    * "스토리 섹션이 뷰포트에 실제로 들어왔는가"(IntersectionObserver)를 확인하기
    * 전엔 03 연쇄(행정동→상권→추천)를 켜면 안 된다.
    *
@@ -125,15 +126,22 @@ describe('ProductStory — 03 연쇄는 스토리 도달 전엔 켜지지 않는
    * "스토리에 아직 안 닿은" 상태를 흉내낸다. 03 노드가 즉시 폴백(대표
    * 예시 데이터)이나 실데이터로 채워지면, enabled 게이트가 사라졌다는 뜻이다.
    */
-  it('03 노드는 로딩 표기(—)로 남고, 03 연쇄 응답을 함부로 종결짓지 않는다', () => {
+  it('03 수치는 로딩 표기(—)로 남고, 03 연쇄 응답을 함부로 종결짓지 않는다', () => {
     const html = renderStory()
 
-    const label = html.indexOf('03 후보 추천')
-    const window = html.slice(label, label + 200)
+    /*
+      카운터를 스텝 목록으로 합친 뒤 「03 후보 추천」이 한 문자열로 붙어 있지 않다
+      (번호와 제목이 별개 요소다). 제목부터 본문 시작까지를 잘라 **수치 자리만** 본다
+      — 본문("조건에 맞는 상권을 …")에는 「상권」이 들어 있어 그대로 두면 단언이
+      본문에 걸린다.
+    */
+    const start = html.indexOf('후보 추천')
+    const end = html.indexOf('조건에 맞는', start)
+    const figure = html.slice(start, end)
 
-    expect(window).toContain('—')
-    expect(window).not.toContain('상권')
-    expect(window).not.toContain('추천 5곳')
+    expect(figure).toContain('—')
+    // 연쇄가 켜졌다면 값이 「추천 N곳」 또는 「상권 M곳 중 추천 N곳」이 된다.
+    expect(figure).not.toContain('곳')
   })
 })
 
@@ -191,5 +199,71 @@ describe('ProductStory — 스티키가 헤더를 비껴간다(R3)', () => {
 
   it('Sticky 의 min-height 가 헤더 높이를 뺀 값이다', () => {
     expect(renderStoryStyles()).toContain('calc(100dvh - 65px)')
+  })
+})
+
+/*
+ * 상단 가로 카운터와 좌측 세로 스텝 목록이 같은 01~04 를 두 번 나열하고 있었다.
+ * 둘은 실제로 다른 걸 나른다(카운터는 수량이 좁혀지는 과정, 목록은 각 단계가 무엇을
+ * 하는가) — 하지만 화면에 그 차이를 알리는 신호가 없어 반복으로 읽혔다. 숫자를 그
+ * 숫자를 만든 단계 옆으로 옮겨 하나의 축으로 합친다. 부수 효과로 카운터가 차지한
+ * 115px(83 + gap 32)이 사라져, 스티키 콘텐츠가 화면 높이를 넘던 문제도 해소된다.
+ */
+describe('ProductStory — 카운터를 스텝 목록으로 합쳤다', () => {
+  it('01~04 열거를 두 번 하지 않는다', () => {
+    const html = renderStory()
+
+    expect(html).not.toContain('좁혀지는 선택 수')
+  })
+
+  it('각 단계 행이 그 단계의 수치를 함께 보여준다', () => {
+    const html = renderStory()
+
+    // 하드코딩 금지 — 자치구 목록 길이를 그대로 읽는다.
+    expect(html).toContain(`${districts.length}개 자치구`)
+    expect(html).toContain('강남구')
+    expect(html).toContain('카페')
+  })
+
+  it('04 단계는 선택과 무관한 고정 예시임을 계속 밝힌다', () => {
+    expect(renderStory()).toContain('선택과 무관한 고정 예시')
+  })
+
+  it('03 단계는 로딩 중에 수치를 지어내지 않는다', () => {
+    // 스토리 도달 전에는 추천 연쇄가 꺼져 있다 — 그 상태의 표기는 —(대시)다.
+    expect(renderStory()).toContain('—')
+  })
+
+  /*
+   * 실측(1440x900): 카운터가 있을 때 스티키 콘텐츠가 877px 로 쓸 수 있는 띠
+   * 835px(100dvh − 헤더)를 넘어 바닥 42px 이 화면 밖으로 나갔다. 카운터 제거로
+   * 여유가 생겼지만, 더 낮은 뷰포트에서도 넘치지 않도록 데모 행이 줄어들 수 있어야 한다.
+   */
+  it('데모 행은 기본 600px 이되 좁은 높이에서 줄어들 수 있다', () => {
+    const css = renderStoryStyles()
+
+    expect(css).toContain('flex:0 1 600px')
+    expect(css).toContain('min-height:0')
+  })
+
+  /*
+   * flex 축소는 컨테이너에 **상한**이 있어야 발동한다. min-height 만 있으면
+   * 컨테이너가 콘텐츠만큼 커져 부족분이 생기지 않는다 — 실측(1100x800)으로
+   * 콘텐츠 762px 가 가용 띠 735px 를 27px 넘겼다.
+   */
+  it('스티키 박스에 상한이 있어야 데모 행이 실제로 줄어든다', () => {
+    const css = renderStoryStyles()
+
+    expect(css).toContain('max-height:calc(100dvh - 65px)')
+  })
+
+  /*
+   * 상한만 두면 낮은 뷰포트에서 스텝 목록이 줄어든 행보다 커져 박스 밖으로 그려진다
+   * (실측 1280x620: 행 393px 안에 목록 534px). 밖으로 새는 대신 스크롤한다.
+   */
+  it('스텝 목록은 밖으로 새지 않고 스크롤한다', () => {
+    const css = renderStoryStyles()
+
+    expect(css).toContain('overflow:auto')
   })
 })

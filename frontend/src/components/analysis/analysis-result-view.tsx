@@ -8,6 +8,7 @@ import styled from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
+import SalesComparisonBars from '@/components/analysis/sales-comparison-bars'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
@@ -592,93 +593,6 @@ const renderCards = (
     ))}
   </CardGrid>
 )
-
-const SalesBarList = styled.div`
-  display: grid;
-  gap: 12px;
-  padding: 6px 2px 2px;
-`
-
-const SalesBarRow = styled.div`
-  display: grid;
-  grid-template-columns: 84px 1fr auto;
-  align-items: center;
-  gap: 12px;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 64px 1fr auto;
-    gap: 8px;
-  }
-`
-
-const SalesBarLabel = styled.span`
-  overflow: hidden;
-  color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`
-
-const SalesBarTrack = styled.div`
-  height: 10px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-muted);
-  overflow: hidden;
-`
-
-const SalesBarFill = styled.div<{ $percent: number; $strong?: boolean }>`
-  height: 100%;
-  width: ${props => Math.max(0, Math.min(100, props.$percent))}%;
-  border-radius: var(--radius-pill);
-  background: ${props =>
-    props.$strong ? 'var(--color-primary-700)' : 'var(--color-primary-600)'};
-  transition: width var(--motion-slow) var(--ease-standard);
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
-`
-
-const SalesBarValue = styled.span`
-  color: var(--color-text-900);
-  font-size: 14px;
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
-`
-
-const renderSalesComparisonBars = (
-  items: readonly {
-    label: string
-    value: number | null | undefined
-    strong?: boolean
-  }[],
-) => {
-  const max = Math.max(
-    0,
-    ...items.map(item => (typeof item.value === 'number' ? item.value : 0)),
-  )
-  return (
-    <SalesBarList>
-      {items.map(item => {
-        const hasValue = typeof item.value === 'number'
-        const percent = hasValue && max > 0 ? (item.value! / max) * 100 : 0
-        return (
-          <SalesBarRow key={item.label}>
-            <SalesBarLabel>{item.label}</SalesBarLabel>
-            <SalesBarTrack>
-              <SalesBarFill $percent={percent} $strong={item.strong} />
-            </SalesBarTrack>
-            <SalesBarValue>
-              {hasValue ? formatAnalysisValue(item.value, '원') : '데이터 없음'}
-            </SalesBarValue>
-          </SalesBarRow>
-        )
-      })}
-    </SalesBarList>
-  )
-}
 
 export default function AnalysisResultView({
   onClose,
@@ -1449,7 +1363,12 @@ export default function AnalysisResultView({
                 </AnalysisResultSection>
               </FullSpanItem>
 
-              <FullSpanItem>
+              {/*
+                DESIGN.md 「Charts」: 「가로 막대는 카드 하나를 가로지르게(full) 두지
+                않는다.」 세로 막대·꺾은선·도넛은 넓을수록 좋아지지만 가로 막대는
+                나빠진다 — 일반 그리드 칸에 두어 옆 카드와 같은 폭을 쓴다.
+              */}
+              <div>
                 <AnalysisResultSection
                   title="지역별 월 매출 비교"
                   loading={salesSummaryQuery.isPending}
@@ -1457,8 +1376,8 @@ export default function AnalysisResultView({
                   empty={!hasObjectValues(salesSummary)}
                   onRetry={() => void salesSummaryQuery.refetch()}
                 >
-                  {renderSalesComparisonBars(
-                    [
+                  <SalesComparisonBars
+                    items={[
                       salesSummary?.district,
                       salesSummary?.administration,
                       salesSummary?.commercial,
@@ -1466,10 +1385,10 @@ export default function AnalysisResultView({
                       label: item?.name ?? ['자치구', '행정동', '상권'][index],
                       value: item?.monthlySalesAmount,
                       strong: index === 2,
-                    })),
-                  )}
+                    }))}
+                  />
                 </AnalysisResultSection>
-              </FullSpanItem>
+              </div>
 
               <FullSpanItem>
                 <AnalysisResultSection

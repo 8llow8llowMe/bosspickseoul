@@ -5,7 +5,6 @@ import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
 import CostBreakdownBar from '@/components/home/cost-breakdown-bar'
-import FunnelCounter from '@/components/home/funnel-counter'
 import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
@@ -17,8 +16,17 @@ import {
   type StoryStep,
 } from '@/components/home/story-steps'
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
-import { DEFAULT_SELECTION, type DemoSelection } from '@/data/home-demo'
-import { useRecommendPreview } from '@/hooks/use-recommend-preview'
+import {
+  DEFAULT_SELECTION,
+  findDistrictOption,
+  findIndustryOption,
+  type DemoSelection,
+} from '@/data/home-demo'
+import { districts } from '@/data/districts'
+import {
+  useRecommendPreview,
+  type RecommendPreviewState,
+} from '@/hooks/use-recommend-preview'
 import { useStackedMode } from '@/hooks/use-stacked-mode'
 
 const Container = styled.section`
@@ -71,7 +79,14 @@ const Sticky = styled.div`
   /* top 을 헤더 높이로 내려 pin 된 박스 상단 자체를 헤더 아래로 보낸다 — 내부
      콘텐츠(아이브로·h2)가 헤더 밴드로 올라갈 하한이 없어진다(R3, 명세 D4-1). */
   top: ${HEADER_HEIGHT};
+  /*
+    min 과 max 를 함께 준다. min 만 있으면 컨테이너가 콘텐츠 높이만큼 커져서 줄일
+    여유분이 생기지 않고, StoryRow 의 flex 축소가 발동하지 않는다 — 실측(1100x800)
+    으로 콘텐츠 762px 가 가용 띠 735px 를 27px 넘겼다. 상한을 두면 그 27px 이
+    부족분이 되어 StoryRow 가 그만큼 줄어든다.
+  */
   min-height: calc(100dvh - ${HEADER_HEIGHT});
+  max-height: calc(100dvh - ${HEADER_HEIGHT});
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -81,14 +96,29 @@ const Sticky = styled.div`
   padding: 32px 20px;
 `
 
-// 데모 박스 높이를 고정해 스텝마다 지도/미니데모/막대차트로 바뀌어도
-// 위쪽 리드 타이틀·스텝 목록이 흔들리지 않게 한다.
+/*
+  데모 박스 높이를 고정해 스텝마다 지도/미니데모/막대차트로 바뀌어도 위쪽 리드
+  타이틀·스텝 목록이 흔들리지 않게 한다.
+
+  다만 `height: 600px` 고정은 낮은 뷰포트에서 스티키 콘텐츠를 화면 밖으로 밀어냈다
+  (실측 1440x900: 콘텐츠 877px vs 쓸 수 있는 띠 835px → 바닥 42px 이 잘렸다).
+  `flex: 0 1 600px` 은 **기본 600px 이되 줄어들 수는 있고 늘어나지는 않는다** —
+  늘어나게 두면 큰 화면에서 패널이 과하게 커져 데모가 헐렁해진다.
+*/
 const StoryRow = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  /*
+    행도 묶어야 한다. 행을 명시하지 않으면 암시적 행이 max-content 로 잡혀서,
+    컨테이너가 줄어도 행은 콘텐츠 크기를 유지하고 자식이 박스 밖으로 그려진다
+    (실측 1280x620: 컨테이너 393px 인데 행 534px). minmax 의 0 이 필수다 —
+    1fr 만 쓰면 최소 콘텐츠 크기가 하한이 되어 축소가 일어나지 않는다.
+  */
+  grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   gap: 40px;
-  height: 600px;
+  flex: 0 1 600px;
+  min-height: 0;
 `
 
 const StepList = styled.ol`
@@ -97,6 +127,15 @@ const StepList = styled.ol`
   margin: 0;
   padding: 0;
   list-style: none;
+  /*
+    낮은 뷰포트에서 StoryRow 가 줄어들면 네 행(약 494px)이 그 안에 안 들어간다.
+    넘침 처리가 없으면 목록이 박스 밖으로 그려져 화면 아래로 삐져나간다
+    (실측 1280x620: 행 393px 안에 목록 534px). 밖으로 새는 대신 목록이 스크롤된다.
+    min-height: 0 이 없으면 그리드 자식의 최소 콘텐츠 크기가 하한이 되어 축소 자체가
+    일어나지 않는다.
+  */
+  min-height: 0;
+  overflow: auto;
 `
 
 const StepButton = styled.button<{ $active: boolean }>`
@@ -149,6 +188,45 @@ const StepTitle = styled.h3<{ $active: boolean }>`
     p.$active ? 'var(--color-text-900)' : 'var(--color-text-700)'};
 `
 
+// 스텝 제목과 그 단계의 수치를 한 줄에 둔다 — 숫자가 그 숫자를 만든 단계 옆에
+// 붙어야 「왜 25인가」를 위쪽에서 따로 읽지 않는다.
+const StepTitleRow = styled.span`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+`
+
+const StepValue = styled.span`
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-900);
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+  text-align: right;
+`
+
+/*
+  값을 한정하는 주석(03 「예시」·04 「선택과 무관한 고정 예시」). 값 칸 안에 두면
+  칸이 좁아 두 줄로 접히고, 그 행만 6px 높아져 네 행의 높이가 어긋났다 — 값 아래
+  전체 폭으로 내려 한 줄에 들어가게 한다.
+
+  주석이 없는 행도 이 줄을 비워 예약한다. 예약하지 않으면 주석이 있는 행만 높아진다
+  (인사이트 슬롯과 같은 이유). 스텝 목록은 StoryRow 안이므로 스티키 전체 높이는
+  늘어나지 않는다.
+*/
+const StepNote = styled.span`
+  display: block;
+  min-height: 16px;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-text-caption);
+  text-align: right;
+`
+
 const StepBody = styled.p`
   display: block;
   margin: 0;
@@ -187,11 +265,6 @@ const Stack = styled.div`
   @media (max-width: 480px) {
     padding: 0 16px;
   }
-`
-
-// 스택 모드는 Sticky처럼 flex gap이 없어, 카운터와 첫 스텝 사이에 직접 여백을 준다.
-const CounterWrap = styled.div`
-  margin-bottom: 24px;
 `
 
 // 리드(섹션 표제)는 짧은 인트로로만 두고, 각 스텝만 한 화면(100dvh - 헤더)씩
@@ -321,6 +394,39 @@ function PanelCard({
   )
 }
 
+/**
+ * 각 단계가 「지금 몇 개로 좁혀졌는가」. 옛 `FunnelCounter` 의 네 노드 값을 그대로
+ * 옮긴 것이다 — 모든 숫자는 화면에서 유도한다(하드코딩 금지).
+ */
+function stepFigure(
+  index: number,
+  selection: DemoSelection,
+  recommend: RecommendPreviewState,
+): { value: string; note?: string } {
+  if (index === 0) return { value: `${districts.length}개 자치구` }
+
+  if (index === 1) {
+    const district = findDistrictOption(selection.districtId)?.name ?? '—'
+    const industry = findIndustryOption(selection.industryId)?.name ?? '—'
+    return { value: `${district} · ${industry}` }
+  }
+
+  if (index === 2) {
+    if (recommend.isLoading) return { value: '—' }
+    const picked = recommend.view.rows.length
+    if (recommend.view.isSample)
+      return { value: `추천 ${picked}곳`, note: '예시' }
+    return { value: `상권 ${recommend.commercialsCount}곳 중 추천 ${picked}곳` }
+  }
+
+  /*
+    04는 POST /simulations/reports 가 필요해 앞 세 단계처럼 선택을 이어받을 수 없다
+    (랜딩 방문자마다 쓰기 요청을 보내지 않기로 한 결정) — 앞 단계는 선택을 따라
+    움직이는데 04만 고정이라는 사실을 감추지 않고 그대로 적는다.
+  */
+  return { value: '1개 예시', note: '선택과 무관한 고정 예시' }
+}
+
 function StoryLead() {
   return (
     <Lead>
@@ -401,24 +507,25 @@ export default function ProductStory() {
           <StackLead>
             <StoryLead />
           </StackLead>
-          {/* 스택 모드는 "지금 보는 단계" 개념이 없어 강조 없이 1회만 그린다. */}
-          <CounterWrap>
-            <FunnelCounter selection={selection} recommend={recommendState} />
-          </CounterWrap>
-          {STORY_STEPS.map(item => (
-            <StackItem key={item.step}>
-              <StackHead>
-                <StepNum $active>{item.step}</StepNum>
-                <StepTitle $active>{item.title}</StepTitle>
-              </StackHead>
-              <StepBody>{item.body}</StepBody>
-              <PanelCard
-                step={item}
-                selection={selection}
-                onSelectionChange={setSelection}
-              />
-            </StackItem>
-          ))}
+          {STORY_STEPS.map((item, index) => {
+            const figure = stepFigure(index, selection, recommendState)
+            return (
+              <StackItem key={item.step}>
+                <StackHead>
+                  <StepNum $active>{item.step}</StepNum>
+                  <StepTitle $active>{item.title}</StepTitle>
+                </StackHead>
+                <StepValue>{figure.value}</StepValue>
+                {figure.note ? <StepNote>{figure.note}</StepNote> : null}
+                <StepBody>{item.body}</StepBody>
+                <PanelCard
+                  step={item}
+                  selection={selection}
+                  onSelectionChange={setSelection}
+                />
+              </StackItem>
+            )
+          })}
         </Stack>
       </Container>
     )
@@ -430,21 +537,15 @@ export default function ProductStory() {
         <Sticky>
           <StoryLead />
           {/*
-            활성 스텝 노드를 강조해, 스크롤로 넘길 때 어느 단계가 좁혀지는지
-            보여준다. ref는 03 연쇄를 언제 켤지 판정하는 IntersectionObserver
-            앵커다(위 storyInView 주석) — 스타일에 관여하지 않는다.
+            ref 는 03 연쇄를 언제 켤지 판정하는 IntersectionObserver 앵커다
+            (위 storyInView 주석). 카운터가 있던 자리를 대신한다 — 스토리 본문이
+            뷰포트에 들어온 시점을 재는 것이 원래 의도였다.
           */}
-          <div ref={counterAnchorRef}>
-            <FunnelCounter
-              selection={selection}
-              recommend={recommendState}
-              active={active}
-            />
-          </div>
-          <StoryRow>
+          <StoryRow ref={counterAnchorRef}>
             <StepList>
               {STORY_STEPS.map((item, index) => {
                 const isActive = index === active
+                const figure = stepFigure(index, selection, recommendState)
                 return (
                   <li key={item.step}>
                     <StepButton
@@ -457,9 +558,13 @@ export default function ProductStory() {
                         {item.step}
                       </StepNum>
                       <StepText>
-                        <StepTitle as="span" $active={isActive}>
-                          {item.title}
-                        </StepTitle>
+                        <StepTitleRow>
+                          <StepTitle as="span" $active={isActive}>
+                            {item.title}
+                          </StepTitle>
+                          <StepValue>{figure.value}</StepValue>
+                        </StepTitleRow>
+                        <StepNote>{figure.note ?? ''}</StepNote>
                         <StepBody as="span">{item.body}</StepBody>
                       </StepText>
                     </StepButton>

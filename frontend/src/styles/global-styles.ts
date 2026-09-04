@@ -114,6 +114,12 @@ const GlobalStyles = createGlobalStyle`
   }
 
   html {
+    /*
+      스크롤바 자리를 항상 예약한다. 예약하지 않으면 세로 스크롤바가 있는 페이지와
+      없는 페이지 사이를 오갈 때 콘텐츠 전체가 스크롤바 폭(실측 15px)만큼 좌우로
+      밀린다 — 헤더 폭을 전 화면 통일한 뒤에도 우측 끝이 어긋난 원인이 이것이었다.
+    */
+    scrollbar-gutter: stable;
     font-family: var(--font-pretendard), var(--font-ui-fallback);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
