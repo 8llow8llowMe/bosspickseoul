@@ -42,11 +42,13 @@ rm -rf .next && PORT=5173 pnpm dev
 동작 변화가 0이어야 한다. 토큰과 헬퍼를 만들기만 하고 아직 아무도 쓰지 않는다.
 
 **Files:**
+
 - Modify: `frontend/src/styles/global-styles.ts` (`:root` 블록 끝, `--button-disabled-opacity-color` 다음 줄)
 - Create: `frontend/src/styles/layout.ts`
 - Test: `frontend/src/styles/global-styles.test.ts` (기존 파일에 describe 추가)
 
 **Interfaces:**
+
 - Produces: CSS 변수 `--shell-gutter` · `--w-shell` · `--w-read` · `--w-form` · `--w-wide`
 - Produces: `shellWidth`, `centeredColumn(token: string)` — `styled-components`의 `css` 반환값(`FlattenSimpleInterpolation`)
 
@@ -182,11 +184,13 @@ git commit -m "[FE] feat: 폭 토큰과 셸 헬퍼를 도입한다
 앱의 위아래 틀. 둘이 같은 폭이어야 하고, 이후 모든 라우트가 이 폭에 맞춰진다.
 
 **Files:**
+
 - Modify: `frontend/src/components/layout/site-header.tsx:37-64`
 - Modify: `frontend/src/components/layout/site-footer.tsx:19-27`
 - Test: `frontend/src/components/layout/site-header.test.ts` · `site-footer.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1의 `shellWidth`, `--w-shell`
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
@@ -276,11 +280,13 @@ git commit -m "[FE] refactor: 헤더와 푸터를 셸 토큰으로 전환한다
 가장 어려운 케이스이자 이 작업을 부른 화면. 우측 칸의 두 세입자(지도·상세카드)가 폭 선호가 반대다.
 
 **Files:**
+
 - Modify: `frontend/src/components/status/status-page.tsx:46-52` (`PageInner`)
 - Modify: `frontend/src/components/status/status-detail.tsx:362-366` (`StatGrid`)
 - Test: `frontend/src/components/status/status-detail.test.ts` (신규)
 
 **Interfaces:**
+
 - Consumes: Task 1의 `shellWidth`, `--w-wide`
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
@@ -376,13 +382,18 @@ dev 서버에서 `http://localhost:5173/status` 를 열고 자치구를 하나 �
 
 ```js
 const h = document.querySelector('header div').getBoundingClientRect()
-const inner = document.querySelector('main > div, main div').getBoundingClientRect()
-const grid = [...document.querySelectorAll('div')].find(d =>
-  getComputedStyle(d).gridTemplateColumns.split(' ').length > 2)
+const inner = document
+  .querySelector('main > div, main div')
+  .getBoundingClientRect()
+const grid = [...document.querySelectorAll('div')].find(
+  d => getComputedStyle(d).gridTemplateColumns.split(' ').length > 2,
+)
 JSON.stringify({
   header: [h.left, h.right],
   body: [inner.left, inner.right],
-  cols: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : null,
+  cols: grid
+    ? getComputedStyle(grid).gridTemplateColumns.split(' ').length
+    : null,
 })
 ```
 
@@ -408,12 +419,14 @@ git commit -m "[FE] feat: 구별현황을 셸 전폭으로 열고 지표 그리�
 3개는 개방, 스토리는 `--w-wide` 중앙. 홈은 히어로 카피가 읽기 폭을 넘지 않게 해야 한다.
 
 **Files:**
+
 - Modify: `frontend/src/components/home/hero-section.tsx:100,114`
 - Modify: `frontend/src/components/home/popular-districts.tsx:97`
 - Modify: `frontend/src/components/home/feature-bento.tsx:30`
 - Modify: `frontend/src/components/home/product-story.tsx:94`
 
 **Interfaces:**
+
 - Consumes: Task 1의 `shellWidth`, `centeredColumn`, `--w-read`, `--w-wide`
 
 - [ ] **Step 1: 개방 대상 3개를 전환한다**
@@ -453,10 +466,14 @@ const Inner = styled.div`
 
 ```js
 const h = document.querySelector('header div').getBoundingClientRect()
-JSON.stringify([...document.querySelectorAll('section')].map(s => {
-  const inner = s.firstElementChild?.getBoundingClientRect()
-  return inner ? [s.className.slice(0, 12), inner.left, inner.right] : null
-}).concat([['header', h.left, h.right]]))
+JSON.stringify(
+  [...document.querySelectorAll('section')]
+    .map(s => {
+      const inner = s.firstElementChild?.getBoundingClientRect()
+      return inner ? [s.className.slice(0, 12), inner.left, inner.right] : null
+    })
+    .concat([['header', h.left, h.right]]),
+)
 ```
 
 Expected: 히어로·인기지역·벤토의 `left`/`right` 가 헤더와 같다. 스토리만 다르다(중앙 1400).
@@ -483,11 +500,13 @@ git commit -m "[FE] feat: 홈 섹션을 셸 폭으로 열고 카피에 읽기 �
 상세는 개방, 목록·등록은 중앙. 이 라우트가 거터 미디어쿼리를 가장 많이 들고 있다(4개).
 
 **Files:**
+
 - Modify: `frontend/src/components/community/community-list-view.tsx:49-58`
 - Modify: `frontend/src/components/community/community-register-page.tsx:50-59`
 - Modify: `frontend/src/components/community/community-detail-view.tsx:80-87`
 
 **Interfaces:**
+
 - Consumes: Task 1의 `shellWidth`, `centeredColumn`, `--w-form`, `--w-read`
 
 - [ ] **Step 1: 목록과 등록을 중앙 폼 폭으로 둔다**
@@ -540,10 +559,12 @@ git commit -m "[FE] feat: 커뮤니티 폭을 토큰으로 정리한다
 결과는 개방, AI 리포트는 중앙. 결과 뷰는 브라우저로 열 수 없으므로 실측이 불가능하다.
 
 **Files:**
+
 - Modify: `frontend/src/components/analysis/analysis-result-view.tsx:205,291,305` (세 곳 모두 같은 리터럴)
 - Modify: `frontend/src/components/analysis/ai-report-page-view.tsx:14`
 
 **Interfaces:**
+
 - Consumes: Task 1의 `shellWidth`, `centeredColumn`, `--w-read`
 
 - [ ] **Step 1: 결과 뷰 세 컨테이너를 개방한다**
@@ -598,6 +619,7 @@ AI 리포트는 생성된 산문이라 읽기 화면이므로 중앙 720 이다.
 빌더·비교는 개방, 리포트는 중앙.
 
 **Files:**
+
 - Modify: `frontend/src/components/simulation/simulation-builder-page.tsx:62`
 - Modify: `frontend/src/components/simulation/compare/simulation-compare-page.tsx:48`
 - Modify: `frontend/src/components/simulation/report/simulation-report-page.tsx:44`
@@ -638,6 +660,7 @@ git commit -m "[FE] feat: 시뮬레이션 폭을 토큰으로 정리한다
 남은 두 곳. 프로필은 미들웨어 보호라 실측에 로그인이 필요하다.
 
 **Files:**
+
 - Modify: `frontend/src/components/recommend/compare/recommend-compare-page.tsx:45`
 - Modify: `frontend/src/components/profile/profile-shell.tsx:20,32,134`
 
@@ -681,6 +704,7 @@ git commit -m "[FE] feat: 추천 비교와 프로필을 셸 폭으로 연다
 각 태스크에서 화면별로 쟀지만, 여기서 한 번에 훑어 빠진 곳을 찾는다. **이것이 이 작업의 주 증거다.**
 
 **Files:**
+
 - Create: `frontend/docs/features/layout/width-system-verification.md`
 
 - [ ] **Step 1: 실측 스크립트를 준비한다**
@@ -689,14 +713,20 @@ pane 을 띄운 채로(숨기면 하이드레이션이 죽는다) 각 라우트�
 
 ```js
 ;(() => {
-  const h = document.querySelector('header')?.firstElementChild?.getBoundingClientRect()
+  const h = document
+    .querySelector('header')
+    ?.firstElementChild?.getBoundingClientRect()
   const m = document.querySelector('main')
   const body = m?.firstElementChild?.getBoundingClientRect()
   return JSON.stringify({
     w: window.innerWidth,
     header: h && [Math.round(h.left), Math.round(h.right)],
     body: body && [Math.round(body.left), Math.round(body.right)],
-    delta: h && body && [Math.round(body.left - h.left), Math.round(h.right - body.right)],
+    delta: h &&
+      body && [
+        Math.round(body.left - h.left),
+        Math.round(h.right - body.right),
+      ],
   })
 })()
 ```
@@ -734,6 +764,7 @@ git commit -m "[FE] docs: 폭 체계 실측 결과를 기록한다
 다음 사람이 리터럴로 되돌아가지 않게 규칙을 박는다. 이것이 없으면 6개월 뒤 상한 9종이 다시 생긴다.
 
 **Files:**
+
 - Modify: `frontend/DESIGN.md` §5 Layout Principles (207줄 부근), §4 Navigation (185줄 부근), §4 Charts (151줄 부근)
 
 - [ ] **Step 1: §5 Layout Principles 에 폭 체계를 넣는다**
@@ -757,13 +788,13 @@ git commit -m "[FE] docs: 폭 체계 실측 결과를 기록한다
 넓어질 때는 요소별로 따로 정해야 한다. 셸에 상한이 없으므로 **상한은 요소가 진다.**
 「반응형이니까 괜찮다」는 좁아지는 방향에만 참이다.
 
-| 넓어질수록 좋아짐 | 무관 | 넓어질수록 나빠짐 — 상한 필수 |
-| --- | --- | --- |
-| 지도 | 아이콘 · 배지 | 가로 막대 → 560px |
-| 세로막대 · 꺾은선 · 도넛 | 버튼 | 미터 행 → 360px |
-| 비교표 (열 = 비교 항목) | | 읽기 텍스트 → `--w-read` |
-| 카드 그리드 (열 증가, 상한 있음) | | 리스트 행 (제목과 메타가 멀어진다) |
-| | | 폼 필드 → `--w-form` |
+| 넓어질수록 좋아짐                | 무관          | 넓어질수록 나빠짐 — 상한 필수      |
+| -------------------------------- | ------------- | ---------------------------------- |
+| 지도                             | 아이콘 · 배지 | 가로 막대 → 560px                  |
+| 세로막대 · 꺾은선 · 도넛         | 버튼          | 미터 행 → 360px                    |
+| 비교표 (열 = 비교 항목)          |               | 읽기 텍스트 → `--w-read`           |
+| 카드 그리드 (열 증가, 상한 있음) |               | 리스트 행 (제목과 메타가 멀어진다) |
+|                                  |               | 폼 필드 → `--w-form`               |
 
 **상한 없는 `repeat(auto-fit, …)` 은 금지한다.** 열 수에 상한이 없고 CSS 에
 `max-columns` 가 없으므로 반드시 폭 상한과 짝지운다. `/status` 지표 그리드가
@@ -796,6 +827,7 @@ git commit -m "[FE] docs: 폭 체계를 DESIGN.md 규칙으로 박는다
 스펙 §5 가 중앙 그룹의 잔여 어긋남 처리로 약속한 것이다. **시각 변경이라 사람 눈 승인이 필요하고, 보기 나쁘면 버린다.** 건너뛰어도 회귀는 없다 — 중앙 화면들이 지금과 같은 모습으로 남을 뿐이다.
 
 **Files:**
+
 - Modify: 중앙 라우트 5곳의 페이지 컨테이너 — `product-story.tsx` · `ai-report-page-view.tsx` · `simulation-report-page.tsx` · `community-list-view.tsx` · `community-register-page.tsx`
 
 - [ ] **Step 1: 밴드를 헬퍼로 만든다**
