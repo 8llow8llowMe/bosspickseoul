@@ -31,6 +31,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.Commu
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.bosspickseoul.common.enums.OrderType;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.info.CommunityLikeToggleResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -150,8 +151,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Transactional
     public CommunityPostLikeResponse togglePostLike(long memberId, long postId) {
         CommunityPost post = communityQueryProcessor.getPost(postId);
-        long likeCount = communityCommandProcessor.togglePostLike(memberId, post);
-        return communityPostPresenter.toPostLikeResponse(postId, likeCount > post.likeCount(), likeCount);
+        CommunityLikeToggleResult result = communityCommandProcessor.togglePostLike(memberId, post);
+        return communityPostPresenter.toPostLikeResponse(postId, result.liked(), result.likeCount());
     }
 
     @Override

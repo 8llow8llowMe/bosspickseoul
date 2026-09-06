@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.Commu
 import java.util.List;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.OptionalLong;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -45,5 +46,31 @@ public class CommunityCommentRepositoryAdapter implements CommunityCommentReposi
         return communityMapper.toDomainFromEntity(
             communityCommentRepository.save(communityMapper.toEntityFromDomain(comment))
         );
+    }
+
+    @Override
+    public boolean deleteIfActive(long commentId) {
+        return communityCommentRepository.deleteIfActive(
+            commentId, CommunityCommentStatus.ACTIVE, CommunityCommentStatus.DELETED) == 1;
+    }
+
+    @Override
+    public OptionalLong incrementLikeCountIfActive(long commentId) {
+        int updated = communityCommentRepository.incrementLikeCountIfActive(
+            commentId, CommunityCommentStatus.ACTIVE);
+        return updatedLikeCount(commentId, updated);
+    }
+
+    @Override
+    public OptionalLong decrementLikeCountIfActive(long commentId) {
+        int updated = communityCommentRepository.decrementLikeCountIfActive(
+            commentId, CommunityCommentStatus.ACTIVE);
+        return updatedLikeCount(commentId, updated);
+    }
+
+    private OptionalLong updatedLikeCount(long commentId, int updated) {
+        return updated == 0
+            ? OptionalLong.empty()
+            : findById(commentId).stream().mapToLong(CommunityComment::likeCount).findFirst();
     }
 }

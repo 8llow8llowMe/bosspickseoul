@@ -12,6 +12,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.servic
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityComment;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.info.CommunityLikeToggleResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,8 +59,8 @@ public class CommunityCommentWebFacade implements CommunityCommentWebUseCase {
         validateCommentBelongsToPost(comment, postId);
 
         // 2. 좋아요 토글 및 응답 변환
-        long likeCount = communityCommandProcessor.toggleCommentLike(memberId, comment);
-        return communityCommentPresenter.toCommentLikeResponse(commentId, likeCount > comment.likeCount(), likeCount);
+        CommunityLikeToggleResult result = communityCommandProcessor.toggleCommentLike(memberId, comment);
+        return communityCommentPresenter.toCommentLikeResponse(commentId, result.liked(), result.likeCount());
     }
 
     private void validateCommentBelongsToPost(CommunityComment comment, long postId) {

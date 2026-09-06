@@ -8,5 +8,5 @@ public interface CommunityPostLikeRepositoryPort {
 
     CommunityPostLike save(CommunityPostLike like);
 
-    void delete(long postId, long memberId);
+    boolean delete(long postId, long memberId);
 }

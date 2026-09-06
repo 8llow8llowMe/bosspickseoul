@@ -27,7 +27,7 @@ public class CommunityCommentLikeRepositoryAdapter implements CommunityCommentLi
     }
 
     @Override
-    public void delete(long commentId, long memberId) {
-        communityCommentLikeRepository.deleteByCommentIdAndMemberId(commentId, memberId);
+    public boolean delete(long commentId, long memberId) {
+        return communityCommentLikeRepository.deleteByCommentIdAndMemberId(commentId, memberId) == 1;
     }
 }
