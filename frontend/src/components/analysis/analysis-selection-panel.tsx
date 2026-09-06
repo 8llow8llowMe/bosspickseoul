@@ -21,6 +21,9 @@ import {
   type AnalysisStep,
 } from '@/lib/analysis/selection'
 import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
+import PopularCommercialsShortcut, {
+  type PopularCommercialJump,
+} from '@/components/analysis/popular-commercials-shortcut'
 
 export type AnalysisCandidate = {
   code: string
@@ -48,6 +51,12 @@ export type AnalysisSelectionPanelProps = {
   onPreviewChange: (code: string | null) => void
   onRetry: () => void
   onSubmit: () => void
+  /**
+   * 「지금 많이 본 상권」에서 하나를 고르면 상위 코드까지 실려 온다(역조회는 그 블록이
+   * 한다). 1단계에서만 노출하며, **넘기지 않으면 블록 자체가 없다** — 패널을 단독으로
+   * 렌더하는 테스트가 순위 API 를 부르지 않게 하려고 optional 로 뒀다.
+   */
+  onPopularCommercialJump?: (target: PopularCommercialJump) => void
   variant?: 'panel' | 'sheet'
 }
 
@@ -274,6 +283,7 @@ function AnalysisSelectionPanel({
   onPreviewChange,
   onRetry,
   onSubmit,
+  onPopularCommercialJump,
   variant = 'panel',
 }: AnalysisSelectionPanelProps) {
   const selectedCode = selectionCodeByStep(selection, activeStep)
@@ -327,6 +337,14 @@ function AnalysisSelectionPanel({
           )
         })}
       </StepList>
+
+      {/*
+        4단계를 밟지 않고도 「남들이 보는 상권」으로 곧장 갈 수 있는 지름길. 1단계에서만
+        낸다 — 자치구를 이미 고른 사람에게 다른 자치구의 상권을 들이밀 이유가 없다.
+      */}
+      {activeStep === 'district' && onPopularCommercialJump ? (
+        <PopularCommercialsShortcut onJump={onPopularCommercialJump} />
+      ) : null}
 
       <Body $variant={variant}>
         <BodyTitle>

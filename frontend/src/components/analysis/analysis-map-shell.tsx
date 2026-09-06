@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import styled from 'styled-components'
 
 import AnalysisMap, {
@@ -19,6 +19,7 @@ import AnalysisMap, {
 } from '@/components/analysis/analysis-map'
 import { AnalysisMapShellProvider } from '@/components/analysis/analysis-map-shell-context'
 import AnalysisMobileSheet from '@/components/analysis/analysis-mobile-sheet'
+import { type PopularCommercialJump } from '@/components/analysis/popular-commercials-shortcut'
 import AnalysisSelectionPanel, {
   ANALYSIS_STEP_LABELS,
   type AnalysisCandidate,
@@ -368,6 +369,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
   const [mapLayer, setMapLayer] = useState<MapLayer>(() =>
     resolveMapLayerByZoom(initialCamera.level),
   )
+  const queryClient = useQueryClient()
   const [fitRequest, setFitRequest] = useState<MapFitRequest | null>(null)
   const requestFit = useCallback(
     (code: string, level: number) =>
@@ -949,6 +951,59 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     [handleSelect, activeStep, requestFit],
   )
 
+  /**
+   * 인기 상권 지름길. 역조회가 준 상위 코드로 **4단계 중 3개를 한 번에** 채우고
+   * 업종 선택으로 보낸다. 업종은 사용자가 골라야 하므로 결과로 자동 진입하지 않는다
+   * (`shouldAutoNavigateToAnalysis` 도 4개를 요구한다).
+   *
+   * 카메라는 따로 옮겨야 한다. 역조회는 **코드만** 주고, `fitTo.code` 는 이미 로드된
+   * 영역에서만 목표를 찾으므로 다른 자치구로 건너뛰면 조용히 아무 일도 일어나지 않는다.
+   * 그래서 중심 좌표를 가진 상권 목록을 받아 `center` 로 옮긴다 — **쿼리 키가 셸의
+   * `commercialsQuery` 와 같아서** 방금 바뀐 선택이 어차피 부를 그 요청과 합쳐진다
+   * (추가 요청 0회). 좌표를 못 얻으면 지도는 그대로 두고 넘어간다. 패널은 이미
+   * 3단계가 채워져 있어 사용자는 계속 진행할 수 있다.
+   */
+  const handlePopularCommercialJump = useCallback(
+    (target: PopularCommercialJump) => {
+      const next = selectCommercialWithParents(selection, {
+        commercialCode: target.commercialCode,
+        administrationCode: target.administrationCode,
+      })
+      router.replace(createAnalysisExplorerHref(next, camera))
+      setRequestedStep('service')
+      setPreviewedCode(null)
+
+      void queryClient
+        .fetchQuery({
+          queryKey: [
+            'analysis',
+            'commercials',
+            target.districtCode,
+            target.administrationCode,
+          ],
+          queryFn: () =>
+            fetchCommercials(target.districtCode, target.administrationCode),
+        })
+        .then(response => {
+          const area = unwrapArray(response).find(
+            item => String(item.commercialCode) === target.commercialCode,
+          )
+          if (
+            !area ||
+            !Number.isFinite(area.centerLat) ||
+            !Number.isFinite(area.centerLng)
+          )
+            return
+          requestFitToCenter(
+            { lat: area.centerLat, lng: area.centerLng },
+            COMMERCIAL_ZOOM_LEVEL,
+          )
+        })
+        .catch(() => undefined)
+    },
+    [camera, queryClient, requestFitToCenter, router, selection],
+  )
+
   // 패널 재시도/제출 콜백 안정화. activeQuery는 매 렌더 새 객체라 latest-ref로 참조.
   const activeQueryRef = useRef(activeQuery)
   useEffect(() => {
@@ -991,6 +1046,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       onPreviewChange={setPreviewedCode}
       onRetry={handlePanelRetry}
       onSubmit={handlePanelSubmit}
+      onPopularCommercialJump={handlePopularCommercialJump}
     />
   )
   // 모바일 시트 전용: 데스크탑 panel과 동일한 props를 참조 동일성 유지한 채
@@ -1008,6 +1064,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       onPreviewChange={setPreviewedCode}
       onRetry={handlePanelRetry}
       onSubmit={handlePanelSubmit}
+      onPopularCommercialJump={handlePopularCommercialJump}
       variant="sheet"
     />
   )

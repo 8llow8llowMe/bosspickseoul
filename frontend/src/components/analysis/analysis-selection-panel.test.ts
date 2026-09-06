@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
 
 import AnalysisSelectionPanel from '@/components/analysis/analysis-selection-panel'
@@ -166,5 +167,66 @@ describe('AnalysisSelectionPanel', () => {
     expect(markup).toContain('선택 가능한 항목이 없어요')
     expect(markup).toContain('해당 행정동 코드를 찾을 수 없습니다.')
     expect(markup).not.toContain('다시 시도')
+  })
+})
+
+describe('AnalysisSelectionPanel 인기 상권 지름길', () => {
+  const renderWithJump = (
+    overrides: Partial<Parameters<typeof AnalysisSelectionPanel>[0]> = {},
+  ) =>
+    renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        {
+          client: new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+          }),
+        },
+        createElement(AnalysisSelectionPanel, {
+          activeStep: 'district',
+          selection: createEmptyAnalysisSelection(),
+          selectedNames: {},
+          items: [{ code: '11680', name: '강남구' }],
+          status: 'ready',
+          error: null,
+          onStepChange: () => undefined,
+          onSelect: () => undefined,
+          onPreviewChange: () => undefined,
+          onRetry: () => undefined,
+          onSubmit: () => undefined,
+          onPopularCommercialJump: () => undefined,
+          ...overrides,
+        }),
+      ),
+    )
+
+  it('1단계에서 지름길을 낸다', () => {
+    expect(renderWithJump()).toContain('지금 많이 본 상권')
+  })
+
+  /*
+   * 자치구를 이미 고른 사람에게 다른 자치구의 상권을 들이밀 이유가 없다.
+   * 2단계부터는 패널이 좁아지기도 한다.
+   */
+  it('2단계부터는 지름길을 내지 않는다', () => {
+    const markup = renderWithJump({
+      activeStep: 'administration',
+      selection: { ...createEmptyAnalysisSelection(), districtCode: '11680' },
+    })
+
+    expect(markup).not.toContain('지금 많이 본 상권')
+  })
+
+  /*
+   * 콜백을 넘기지 않으면 블록 자체가 없다 — 패널만 단독으로 그리는 자리(테스트 등)가
+   * 순위 API 를 부르지 않게 하는 장치다.
+   */
+  it('콜백이 없으면 블록을 만들지 않는다', () => {
+    const markup = renderPanel({
+      activeStep: 'district',
+      items: [{ code: '11680', name: '강남구' }],
+    })
+
+    expect(markup).not.toContain('지금 많이 본 상권')
   })
 })

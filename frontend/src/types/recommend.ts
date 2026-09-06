@@ -144,12 +144,29 @@ export type CommercialProfile = {
   policyRecommendations?: PolicyItem[] | null
 }
 
+/**
+ * 상권 소속 지역 (`GET /regions/commercials/{commercialCode}/administration`).
+ *
+ * **상권 코드 하나만 아는 자리에서 상위 코드를 얻는 유일한 역방향 조회다.** 분석 4단계는
+ * 자치구·행정동·상권·업종을 전부 요구하므로, 인기 순위처럼 상권 코드만 주는 데이터는
+ * 이 조회 없이는 화면에 이을 수 없다(엔드포인트 인벤토리 B4).
+ */
+export type CommercialRegion = {
+  commercialCode: string
+  commercialName: string
+  districtCode: string
+  districtName: string
+  administrationCode: string
+  administrationName: string
+}
+
 export type MapAreasBody = { areas: AreaBoundaryItem[] }
 export type AdministrationAreasResponse = ApiResponse<AdministrationArea[]>
 export type CommercialAreasResponse = ApiResponse<CommercialArea[]>
 export type MapAreasResponse = ApiResponse<MapAreasBody>
 export type CandidateCommercialsResponse = ApiResponse<CandidateCommercials>
 export type CommercialProfileResponse = ApiResponse<CommercialProfile>
+export type CommercialRegionResponse = ApiResponse<CommercialRegion>
 
 export type RecommendationRequest = {
   serviceCode: string
