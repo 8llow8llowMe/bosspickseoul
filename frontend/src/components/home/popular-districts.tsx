@@ -28,7 +28,7 @@ import {
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
 import { HEADER_HEIGHT } from '@/components/home/layout-constants'
-import { activeStepFromProgress } from '@/components/home/scroll-fill'
+import { activeStepFromPinnedProgress } from '@/components/home/scroll-fill'
 import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
 import { shellWidth } from '@/styles/layout'
@@ -278,7 +278,13 @@ export default function PopularDistricts() {
   const [pickedMetric, setPickedMetric] = useState<HomeMetric>('footTraffic')
 
   /* 훅은 전부 조기 반환보다 앞에 있어야 한다 — 아래 dual 계산도 그래서 위로 올렸다. */
-  const { ref: trackRef, progress, element: trackElement } = useScrollProgress()
+  const {
+    ref: trackRef,
+    progress,
+    element: trackElement,
+    trackHeight,
+    viewportHeight,
+  } = useScrollProgress()
   const stacked = useStackedMode()
 
   const rawView =
@@ -327,7 +333,12 @@ export default function PopularDistricts() {
     신규 스크롤 계산 함수는 만들지 않는다 — activeStepFromProgress 가 이미 임의의
     스텝 수에 제네릭하다.
   */
-  const scrollIndex = activeStepFromProgress(progress, HOME_METRICS.length)
+  const scrollIndex = activeStepFromPinnedProgress(
+    progress,
+    HOME_METRICS.length,
+    trackHeight,
+    viewportHeight,
+  )
   const metric = useScrollTrack ? HOME_METRICS[scrollIndex] : pickedMetric
 
   const activeMetric = hasMetricData

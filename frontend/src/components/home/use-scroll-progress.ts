@@ -26,6 +26,15 @@ export function useScrollProgress(): {
   ref: (node: HTMLElement | null) => void
   progress: number
   /**
+   * 마지막 측정 시점의 트랙 높이와 뷰포트 높이.
+   *
+   * 스텝 매핑(`activeStepFromPinnedProgress`)이 pin 구간을 계산하려면 이 둘이 필요한데,
+   * 호출부가 `element.getBoundingClientRect()` 를 직접 읽으면 **리사이즈에 반응하지
+   * 않는다**(렌더를 다시 태우지 않으므로). 진행도와 **같은 측정에서** 함께 낸다.
+   */
+  trackHeight: number
+  viewportHeight: number
+  /**
    * 붙어 있는 트랙 요소. 스크롤 위치를 직접 옮기는 곳(`scrollToPinnedStep`)이 쓴다 —
    * 별도 `useRef` 를 두면 그 ref 는 렌더를 다시 태우지 않아 **위 버그가 그대로 재현된다.**
    */
@@ -33,6 +42,7 @@ export function useScrollProgress(): {
 } {
   const [element, setElement] = useState<HTMLElement | null>(null)
   const [progress, setProgress] = useState(0)
+  const [size, setSize] = useState({ trackHeight: 0, viewportHeight: 0 })
   const frame = useRef<number | null>(null)
 
   const ref = useCallback((node: HTMLElement | null) => {
@@ -54,7 +64,14 @@ export function useScrollProgress(): {
     const measure = () => {
       frame.current = null
       const rect = element.getBoundingClientRect()
-      setProgress(viewportProgress(rect.top, rect.height, window.innerHeight))
+      const viewportHeight = window.innerHeight
+      setProgress(viewportProgress(rect.top, rect.height, viewportHeight))
+      setSize(previous =>
+        previous.trackHeight === rect.height &&
+        previous.viewportHeight === viewportHeight
+          ? previous
+          : { trackHeight: rect.height, viewportHeight },
+      )
     }
 
     const onScroll = () => {
@@ -72,5 +89,5 @@ export function useScrollProgress(): {
     }
   }, [element])
 
-  return { ref, progress, element }
+  return { ref, progress, element, ...size }
 }

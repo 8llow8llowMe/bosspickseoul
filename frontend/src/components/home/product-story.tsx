@@ -8,7 +8,7 @@ import BreakEvenChart from '@/components/home/break-even-chart'
 import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
-import { activeStepFromProgress } from '@/components/home/scroll-fill'
+import { activeStepFromPinnedProgress } from '@/components/home/scroll-fill'
 import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
 import {
   STORY_STEPS,
@@ -445,8 +445,19 @@ function StoryLead() {
 }
 
 export default function ProductStory() {
-  const { ref: trackRef, progress, element: trackElement } = useScrollProgress()
-  const active = activeStepFromProgress(progress, STORY_STEPS.length)
+  const {
+    ref: trackRef,
+    progress,
+    element: trackElement,
+    trackHeight,
+    viewportHeight,
+  } = useScrollProgress()
+  const active = activeStepFromPinnedProgress(
+    progress,
+    STORY_STEPS.length,
+    trackHeight,
+    viewportHeight,
+  )
   const stacked = useStackedMode()
 
   /*
