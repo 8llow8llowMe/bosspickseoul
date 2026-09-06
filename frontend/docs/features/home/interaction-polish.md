@@ -610,6 +610,8 @@ dev 서버(`http://localhost:5173`), `getBoundingClientRect`·`getComputedStyle`
 - **R5 이후 04단계 패널 여백이 커졌다.** 가로 스택 바 + 범례는 이전 세로 막대(160px)
   보다 짧아서, 고정 높이 패널 안에서 콘텐츠가 차지하는 비율이 줄었다. 결함은 아니지만
   (`DemoArea` 가 중앙정렬한다) 패널 높이나 여백을 다시 볼 여지가 있다.
+  → **이슈 [#223](https://github.com/8llow8llowMe/bosspickseoul/issues/223) 로 세웠다**(2026-09-06). 실측: `DemoArea` 494px 안에서 01단계는
+  428px(87%)를 쓰는데 04단계 `CostBreakdownBar` 는 153px(31%)다.
 
 ### D8-12 검증 환경에서 겪은 함정
 
@@ -682,6 +684,7 @@ dev 서버(`http://localhost:5173`), `getBoundingClientRect`·`getComputedStyle`
 
 - **04단계 패널 여백**(D8-11 계승). R5 가로 바가 세로 막대보다 짧아 패널 안 여백이
   커졌다. `StoryRow` 를 늘어나게 두지 않은 이유가 이것이다 — 늘리면 여백만 커진다.
+  → **이슈 [#223](https://github.com/8llow8llowMe/bosspickseoul/issues/223).** 폭 체계 설계 §5.1(스토리 폭 개방)과 **한 덩어리**로 함께 다룬다.
 - **스크롤 구동 전환(B2·B4·B5)은 여전히 미검증**이다. 이번 변경은 스크롤 계산을
   건드리지 않았지만(`top`/`max-height` 는 pin 구간 기하와 무관하다) 사람 눈 확인
   대상은 그대로 남는다.
