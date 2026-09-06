@@ -101,8 +101,12 @@ public class SimulationReportProcessor {
         if (command.franchiseeId() == null) {
             throw new SimulationException(SimulationErrorCode.FRANCHISEE_REQUIRED);
         }
-        return simulationFranchiseeRepositoryPort.findById(command.franchiseeId())
+        SimulationFranchisee franchisee = simulationFranchiseeRepositoryPort.findById(command.franchiseeId())
             .orElseThrow(() -> new SimulationException(SimulationErrorCode.FRANCHISEE_NOT_FOUND));
+        if (!command.serviceCode().equals(franchisee.serviceCode())) {
+            throw new SimulationException(SimulationErrorCode.FRANCHISEE_SERVICE_MISMATCH);
+        }
+        return franchisee;
     }
 
     private int resolveMonthlyRentPerUnit(SimulationRent rent, SimulationFloorType floorType) {
