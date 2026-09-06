@@ -32,6 +32,7 @@ public enum AuthErrorCode {
     PASSWORD_RESET_ATTEMPTS_EXCEEDED("AUTH_017", "인증코드 시도 횟수를 초과했습니다. 인증코드를 다시 요청해주세요.", HttpStatus.BAD_REQUEST),
     // 회원가입 인증코드 검증 실패 누적 — 재설정(AUTH_017)과 동일한 브루트포스 방어.
     EMAIL_CODE_ATTEMPTS_EXCEEDED("AUTH_018", "인증코드 시도 횟수를 초과했습니다. 인증코드를 다시 요청해주세요.", HttpStatus.BAD_REQUEST),
+    TOKEN_STORE_UNAVAILABLE("AUTH_019", "인증 정보를 저장할 수 없습니다. 잠시 후 다시 시도해주세요.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(AUTH_101~104)는 AuthValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

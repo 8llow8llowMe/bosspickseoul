@@ -7,6 +7,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTok
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.RefreshSessionInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.JwtTokenStorePort;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshTokenRotationResult;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.exception.MemberErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.exception.MemberException;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.port.out.MemberRepositoryPort;
@@ -52,7 +53,11 @@ public class JwtTokenProcessor {
 
         // 2. Save refresh token to Redis (세션별 키 + 기기 메타)
         RefreshSessionMeta meta = new RefreshSessionMeta(sanitizeDeviceInfo(deviceInfo), LocalDateTime.now());
-        jwtTokenStorePort.save(memberId, sessionId, refreshToken, meta);
+        try {
+            jwtTokenStorePort.save(memberId, sessionId, refreshToken, meta);
+        } catch (DataAccessException e) {
+            throw tokenStoreUnavailable(e);
+        }
 
         return JwtTokenIssueInfo.of(memberId, role, accessToken, refreshToken);
     }
@@ -116,8 +121,13 @@ public class JwtTokenProcessor {
         long memberId = claims.memberId();
 
         // 2. Compare token with Redis value (세션 키 — 다른 기기 로그인으로 밀려났으면 재로그인 필요)
-        String storedToken = jwtTokenStorePort.find(memberId, claims.tokenId())
-            .orElseThrow(() -> new AuthException(AuthErrorCode.EXPIRED_REFRESH_TOKEN));
+        String storedToken;
+        try {
+            storedToken = jwtTokenStorePort.find(memberId, claims.tokenId())
+                .orElseThrow(() -> new AuthException(AuthErrorCode.EXPIRED_REFRESH_TOKEN));
+        } catch (DataAccessException e) {
+            throw tokenStoreUnavailable(e);
+        }
 
         if (!storedToken.equals(refreshToken)) {
             throw new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN);
@@ -132,13 +142,28 @@ public class JwtTokenProcessor {
         //    iat 가 초 단위라 같은 초 안에서 동일 토큰이 재생성되어 회전이 무력화되기 때문이다.
         //    이전 세션 키는 즉시 삭제되어 회전 전 토큰의 재사용(탈취 재생)이 차단된다.
         //    세션 메타(기기 정보/최초 로그인 시각)는 같은 기기의 연속이므로 이어받는다.
-        RefreshSessionMeta meta = jwtTokenStorePort.findSessionMeta(memberId, claims.tokenId())
-            .orElseGet(() -> new RefreshSessionMeta(UNKNOWN_DEVICE, LocalDateTime.now()));
         String newSessionId = UUID.randomUUID().toString();
         String newAccessToken = jwtAuthProvider.issueAccessToken(member.id(), member.role());
         String newRefreshToken = jwtAuthProvider.issueRefreshToken(member.id(), newSessionId);
-        jwtTokenStorePort.deleteSession(member.id(), claims.tokenId());
-        jwtTokenStorePort.save(member.id(), newSessionId, newRefreshToken, meta);
+        RefreshTokenRotationResult rotationResult;
+        try {
+            rotationResult = jwtTokenStorePort.rotate(
+                member.id(),
+                claims.tokenId(),
+                refreshToken,
+                newSessionId,
+                newRefreshToken,
+                new RefreshSessionMeta(UNKNOWN_DEVICE, LocalDateTime.now())
+            );
+        } catch (DataAccessException e) {
+            throw tokenStoreUnavailable(e);
+        }
+        if (rotationResult == RefreshTokenRotationResult.MISSING) {
+            throw new AuthException(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
+        }
+        if (rotationResult == RefreshTokenRotationResult.TOKEN_MISMATCH) {
+            throw new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
 
         return JwtTokenReissueInfo.of(newAccessToken, newRefreshToken);
     }
@@ -194,5 +219,10 @@ public class JwtTokenProcessor {
             case ACTIVE -> {
             } // 정상
         }
+    }
+
+    private AuthException tokenStoreUnavailable(DataAccessException cause) {
+        log.error("[JwtTokenProcessor] 토큰 저장소 접근 실패: error={}", cause.getMessage());
+        return new AuthException(AuthErrorCode.TOKEN_STORE_UNAVAILABLE);
     }
 }

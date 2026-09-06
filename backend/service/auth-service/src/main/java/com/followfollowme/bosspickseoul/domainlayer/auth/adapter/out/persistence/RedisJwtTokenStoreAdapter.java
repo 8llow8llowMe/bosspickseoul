@@ -2,11 +2,14 @@ package com.followfollowme.bosspickseoul.domainlayer.auth.adapter.out.persistenc
 
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.JwtTokenStorePort;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshTokenRotationResult;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.query.RefreshSessionQueryResult;
 import com.followfollowme.bosspickseoul.global.properties.AuthSessionProperties;
 import com.followfollowme.bosspickseoul.redis.properties.RedisProperties;
 import com.followfollowme.bosspickseoul.security.auth.blacklist.AccessTokenBlacklistVerifier;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProperties;
+import com.followfollowme.bosspickseoul.security.common.exception.SecurityErrorCode;
+import com.followfollowme.bosspickseoul.security.common.exception.SecurityJwtException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -15,15 +18,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import com.followfollowme.bosspickseoul.security.common.exception.SecurityErrorCode;
-import com.followfollowme.bosspickseoul.security.common.exception.SecurityJwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 /**
@@ -47,6 +50,39 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessToken
 
     private static final String BLACKLIST_VALUE = "logout";
     private static final String META_DELIMITER = "\n";
+    private static final DefaultRedisScript<Long> DELETE_ALL_SESSIONS_SCRIPT = new DefaultRedisScript<>("""
+        local sessions = redis.call('ZRANGE', KEYS[1], 0, -1)
+        local tokenPrefix = cjson.decode(ARGV[1])
+        local metaPrefix = cjson.decode(ARGV[2])
+        for _, serializedSessionId in ipairs(sessions) do
+            local sessionId = cjson.decode(serializedSessionId)
+            redis.call('DEL', tokenPrefix .. sessionId, metaPrefix .. sessionId)
+        end
+        redis.call('DEL', KEYS[1])
+        return #sessions
+        """, Long.class);
+    private static final DefaultRedisScript<Long> ROTATE_REFRESH_TOKEN_SCRIPT = new DefaultRedisScript<>("""
+        local storedToken = redis.call('GET', KEYS[1])
+        if not storedToken then
+            return 0
+        end
+        if storedToken ~= ARGV[1] then
+            return 1
+        end
+
+        local sessionMeta = redis.call('GET', KEYS[2])
+        if not sessionMeta then
+            sessionMeta = ARGV[4]
+        end
+
+        redis.call('SET', KEYS[3], ARGV[2], 'PX', ARGV[3])
+        redis.call('SET', KEYS[4], sessionMeta, 'PX', ARGV[3])
+        redis.call('ZADD', KEYS[5], ARGV[7], ARGV[6])
+        redis.call('PEXPIRE', KEYS[5], ARGV[3])
+        redis.call('DEL', KEYS[1], KEYS[2])
+        redis.call('ZREM', KEYS[5], ARGV[5])
+        return 2
+        """, Long.class);
 
     private final RedisTemplate<String, String> redisTemplate;
     private final JwtAuthProperties jwtAuthProperties;
@@ -59,33 +95,60 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessToken
 
     @Override
     public void save(long memberId, String sessionId, String refreshToken, RefreshSessionMeta meta) {
-        try {
-            Duration ttl = jwtAuthProperties.refreshExpiration();
-            redisTemplate.opsForValue().set(buildRefreshKey(memberId, sessionId), refreshToken, ttl);
-            redisTemplate.opsForValue().set(buildMetaKey(memberId, sessionId), serializeMeta(meta), ttl);
+        Duration ttl = jwtAuthProperties.refreshExpiration();
+        redisTemplate.opsForValue().set(buildRefreshKey(memberId, sessionId), refreshToken, ttl);
+        redisTemplate.opsForValue().set(buildMetaKey(memberId, sessionId), serializeMeta(meta), ttl);
 
-            // 세션 인덱스 갱신 — score 를 현재 시각으로 올려 "가장 오래 갱신되지 않은" 순서를 유지한다.
-            String sessionsKey = buildSessionsKey(memberId);
-            redisTemplate.opsForZSet().add(sessionsKey, sessionId, System.currentTimeMillis());
-            redisTemplate.expire(sessionsKey, ttl);
+        // 세션 인덱스 갱신 — score 를 현재 시각으로 올려 "가장 오래 갱신되지 않은" 순서를 유지한다.
+        String sessionsKey = buildSessionsKey(memberId);
+        redisTemplate.opsForZSet().add(sessionsKey, sessionId, System.currentTimeMillis());
+        redisTemplate.expire(sessionsKey, ttl);
 
-            evictOldestSessionsOverLimit(memberId, sessionsKey);
-        } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 저장 실패: memberId={}, error={}",
-                memberId, e.getMessage());
+        evictOldestSessionsOverLimit(memberId, sessionsKey);
+    }
+
+    @Override
+    public RefreshTokenRotationResult rotate(
+        long memberId,
+        String currentSessionId,
+        String expectedRefreshToken,
+        String newSessionId,
+        String newRefreshToken,
+        RefreshSessionMeta fallbackMeta
+    ) {
+        Duration ttl = jwtAuthProperties.refreshExpiration();
+        Long result = redisTemplate.execute(
+            ROTATE_REFRESH_TOKEN_SCRIPT,
+            List.of(
+                buildRefreshKey(memberId, currentSessionId),
+                buildMetaKey(memberId, currentSessionId),
+                buildRefreshKey(memberId, newSessionId),
+                buildMetaKey(memberId, newSessionId),
+                buildSessionsKey(memberId)
+            ),
+            expectedRefreshToken,
+            newRefreshToken,
+            ttl.toMillis(),
+            serializeMeta(fallbackMeta),
+            currentSessionId,
+            newSessionId,
+            System.currentTimeMillis()
+        );
+        if (result == null) {
+            throw new DataRetrievalFailureException("Refresh token rotation returned no result");
         }
+        return switch (result.intValue()) {
+            case 0 -> RefreshTokenRotationResult.MISSING;
+            case 1 -> RefreshTokenRotationResult.TOKEN_MISMATCH;
+            case 2 -> RefreshTokenRotationResult.ROTATED;
+            default -> throw new DataRetrievalFailureException("Unknown refresh token rotation result: " + result);
+        };
     }
 
     @Override
     public Optional<String> find(long memberId, String sessionId) {
-        try {
-            String token = redisTemplate.opsForValue().get(buildRefreshKey(memberId, sessionId));
-            return Optional.ofNullable(token);
-        } catch (RedisConnectionFailureException e) {
-            log.error("[RedisJwtTokenStoreAdapter] RefreshToken 조회 실패: memberId={}, error={}",
-                memberId, e.getMessage());
-            return Optional.empty();
-        }
+        String token = redisTemplate.opsForValue().get(buildRefreshKey(memberId, sessionId));
+        return Optional.ofNullable(token);
     }
 
     @Override
@@ -143,15 +206,16 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessToken
 
     @Override
     public void deleteAllSessions(long memberId) {
-        String sessionsKey = buildSessionsKey(memberId);
-        Set<String> sessionIds = redisTemplate.opsForZSet().range(sessionsKey, 0, -1);
-        if (sessionIds != null) {
-            for (String sessionId : sessionIds) {
-                redisTemplate.delete(buildRefreshKey(memberId, sessionId));
-                redisTemplate.delete(buildMetaKey(memberId, sessionId));
-            }
+        // 회전과 같은 원자 경계에서 인덱스를 읽고 삭제해야 새 세션이 살아남지 않는다.
+        Long result = redisTemplate.execute(
+            DELETE_ALL_SESSIONS_SCRIPT,
+            List.of(buildSessionsKey(memberId)),
+            buildRefreshKey(memberId, ""),
+            buildMetaKey(memberId, "")
+        );
+        if (result == null) {
+            throw new DataRetrievalFailureException("Session revocation returned no result");
         }
-        redisTemplate.delete(sessionsKey);
     }
 
     @Override

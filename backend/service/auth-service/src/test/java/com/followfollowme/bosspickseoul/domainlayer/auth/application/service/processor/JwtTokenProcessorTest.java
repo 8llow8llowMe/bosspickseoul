@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTok
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.RefreshSessionInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.JwtTokenStorePort;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshTokenRotationResult;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.query.RefreshSessionQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.enums.MemberStatus;
@@ -17,17 +18,25 @@ import com.followfollowme.bosspickseoul.domainlayer.member.domain.model.Member;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProperties;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProvider;
 import com.followfollowme.bosspickseoul.security.common.enums.SecurityRole;
+import com.followfollowme.bosspickseoul.security.common.exception.SecurityErrorCode;
+import com.followfollowme.bosspickseoul.security.common.exception.SecurityJwtException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.RedisConnectionFailureException;
 
 class JwtTokenProcessorTest {
 
@@ -81,6 +90,96 @@ class JwtTokenProcessorTest {
             .isInstanceOf(AuthException.class)
             .extracting(exception -> ((AuthException) exception).getErrorCode())
             .isEqualTo(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
+    }
+
+    @Test
+    void reissueTokens_withExpiredJwt_preservesSecurityExpiredResponse() {
+        JwtAuthProvider expiredTokenProvider = new JwtAuthProvider(new JwtAuthProperties(
+            ACCESS_KEY, Duration.ofMinutes(30), REFRESH_KEY, Duration.ofSeconds(-1)));
+        String expiredToken = expiredTokenProvider.issueRefreshToken(MEMBER_ID, "expired");
+
+        assertThatThrownBy(() -> processor.reissueTokens(expiredToken))
+            .isInstanceOf(SecurityJwtException.class)
+            .extracting(exception -> ((SecurityJwtException) exception).getErrorCode())
+            .isEqualTo(SecurityErrorCode.TOKEN_EXPIRED);
+        assertThat(tokenStorePort.sessionCount(MEMBER_ID)).isZero();
+    }
+
+    @Test
+    void reissueTokens_concurrentlyWithSameToken_allowsExactlyOneRequest() throws Exception {
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        tokenStorePort.synchronizeNextTwoFinds();
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            List<Future<Boolean>> results = executor.invokeAll(List.of(
+                () -> reissueSucceeds(issued.refreshToken()),
+                () -> reissueSucceeds(issued.refreshToken())
+            ));
+
+            assertThat(results).extracting(Future::get).containsExactlyInAnyOrder(true, false);
+            assertThat(tokenStorePort.sessionCount(MEMBER_ID)).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void issueTokens_whenTokenStoreWriteFails_returnsServiceUnavailable() {
+        tokenStorePort.failWrites = true;
+
+        assertThatThrownBy(() -> processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device"))
+            .isInstanceOf(AuthException.class)
+            .extracting(exception -> ((AuthException) exception).getErrorCode())
+            .isEqualTo(AuthErrorCode.TOKEN_STORE_UNAVAILABLE);
+    }
+
+    @Test
+    void reissueTokens_whenTokenStoreRotationFails_returnsServiceUnavailable() {
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        tokenStorePort.failRotations = true;
+
+        assertThatThrownBy(() -> processor.reissueTokens(issued.refreshToken()))
+            .isInstanceOf(AuthException.class)
+            .extracting(exception -> ((AuthException) exception).getErrorCode())
+            .isEqualTo(AuthErrorCode.TOKEN_STORE_UNAVAILABLE);
+    }
+
+    @Test
+    void reissueTokens_whenLogoutWinsAfterLookup_returnsExpiredWithoutNewSession() {
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        tokenStorePort.beforeRotation = () -> processor.revokeCurrentSession(MEMBER_ID, "access-id", issued.refreshToken());
+
+        assertThatThrownBy(() -> processor.reissueTokens(issued.refreshToken()))
+            .isInstanceOf(AuthException.class)
+            .extracting(exception -> ((AuthException) exception).getErrorCode())
+            .isEqualTo(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
+        assertThat(tokenStorePort.sessionCount(MEMBER_ID)).isZero();
+        assertThat(tokenStorePort.blacklistedTokenIds).contains("access-id");
+    }
+
+    @Test
+    void reissueTokens_whenStoredTokenChangesAfterLookup_returnsInvalidWithoutNewSession() {
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        tokenStorePort.beforeRotation = () -> tokenStorePort.tokens.replaceAll((key, token) -> "changed-token");
+
+        assertThatThrownBy(() -> processor.reissueTokens(issued.refreshToken()))
+            .isInstanceOf(AuthException.class)
+            .extracting(exception -> ((AuthException) exception).getErrorCode())
+            .isEqualTo(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        assertThat(tokenStorePort.sessionCount(MEMBER_ID)).isEqualTo(1);
+        assertThat(tokenStorePort.tokens.values()).containsExactly("changed-token");
+    }
+
+    @Test
+    void reissueTokens_whenTokenStoreReadFails_returnsServiceUnavailable() {
+        JwtTokenIssueInfo issued = processor.issueTokens(MEMBER_ID, SecurityRole.USER, "test-device");
+        tokenStorePort.failReads = true;
+
+        assertThatThrownBy(() -> processor.reissueTokens(issued.refreshToken()))
+            .isInstanceOf(AuthException.class)
+            .extracting(exception -> ((AuthException) exception).getErrorCode())
+            .isEqualTo(AuthErrorCode.TOKEN_STORE_UNAVAILABLE);
     }
 
     @Test
@@ -181,6 +280,15 @@ class JwtTokenProcessorTest {
         assertThat(tokenStorePort.blacklistedTokenIds).contains("access-token-id");
     }
 
+    private boolean reissueSucceeds(String refreshToken) {
+        try {
+            processor.reissueTokens(refreshToken);
+            return true;
+        } catch (AuthException e) {
+            return false;
+        }
+    }
+
     private Member activeMember() {
         return Member.builder()
             .id(MEMBER_ID)
@@ -193,18 +301,59 @@ class JwtTokenProcessorTest {
 
     private static class StubJwtTokenStorePort implements JwtTokenStorePort {
 
-        private final Map<String, String> tokens = new LinkedHashMap<>();
-        private final Map<String, RefreshSessionMeta> metas = new LinkedHashMap<>();
+        private final Map<String, String> tokens = new ConcurrentHashMap<>();
+        private final Map<String, RefreshSessionMeta> metas = new ConcurrentHashMap<>();
         private final Set<String> blacklistedTokenIds = new HashSet<>();
+        private CountDownLatch concurrentFinds;
+        private boolean failWrites;
+        private boolean failRotations;
+        private boolean failReads;
+        private Runnable beforeRotation = () -> {};
 
         @Override
         public void save(long memberId, String sessionId, String refreshToken, RefreshSessionMeta meta) {
+            if (failWrites) {
+                throw new RedisConnectionFailureException("Redis unavailable");
+            }
             tokens.put(memberId + ":" + sessionId, refreshToken);
             metas.put(memberId + ":" + sessionId, meta);
         }
 
         @Override
+        public synchronized RefreshTokenRotationResult rotate(
+            long memberId,
+            String currentSessionId,
+            String expectedRefreshToken,
+            String newSessionId,
+            String newRefreshToken,
+            RefreshSessionMeta fallbackMeta
+        ) {
+            beforeRotation.run();
+            if (failRotations) {
+                throw new RedisConnectionFailureException("Redis unavailable");
+            }
+            String currentKey = memberId + ":" + currentSessionId;
+            String storedToken = tokens.get(currentKey);
+            if (storedToken == null) {
+                return RefreshTokenRotationResult.MISSING;
+            }
+            if (!storedToken.equals(expectedRefreshToken)) {
+                return RefreshTokenRotationResult.TOKEN_MISMATCH;
+            }
+            RefreshSessionMeta meta = metas.getOrDefault(currentKey, fallbackMeta);
+            tokens.remove(currentKey);
+            metas.remove(currentKey);
+            tokens.put(memberId + ":" + newSessionId, newRefreshToken);
+            metas.put(memberId + ":" + newSessionId, meta);
+            return RefreshTokenRotationResult.ROTATED;
+        }
+
+        @Override
         public Optional<String> find(long memberId, String sessionId) {
+            if (failReads) {
+                throw new RedisConnectionFailureException("Redis unavailable");
+            }
+            awaitConcurrentFinds();
             return Optional.ofNullable(tokens.get(memberId + ":" + sessionId));
         }
 
@@ -248,6 +397,25 @@ class JwtTokenProcessorTest {
 
         long sessionCount(long memberId) {
             return tokens.keySet().stream().filter(key -> key.startsWith(memberId + ":")).count();
+        }
+
+        void synchronizeNextTwoFinds() {
+            concurrentFinds = new CountDownLatch(2);
+        }
+
+        private void awaitConcurrentFinds() {
+            if (concurrentFinds == null) {
+                return;
+            }
+            concurrentFinds.countDown();
+            try {
+                if (!concurrentFinds.await(5, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Concurrent refresh requests did not reach the token lookup together");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while synchronizing concurrent refresh requests", e);
+            }
         }
     }
 
