@@ -45,16 +45,16 @@ import type {
   CommunityPostDetailResponse,
   CommunityPostUpdateRequest,
 } from '@/types/community'
+import { centeredColumn } from '@/styles/layout'
 
 const Page = styled.main`
-  width: min(880px, calc(100% - 48px));
-  margin: 0 auto;
+  /* 등록은 폼이다 — 필드가 넓어지면 읽기·입력이 모두 나빠진다. 중앙 컬럼. */
+  ${centeredColumn('var(--w-form)')}
   padding: 40px 0 72px;
   display: grid;
   gap: 24px;
 
   @media (max-width: 640px) {
-    width: min(100% - 32px, 880px);
     padding: 24px 0 48px;
   }
 `

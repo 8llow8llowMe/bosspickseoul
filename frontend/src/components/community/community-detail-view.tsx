@@ -23,6 +23,7 @@ import type {
   CommunityPostSummary,
   CommunityReportCreateRequest,
 } from '@/types/community'
+import { shellWidth } from '@/styles/layout'
 
 type LoadStatus = 'loading' | 'error' | 'empty' | 'ready'
 
@@ -77,12 +78,10 @@ export type CommunityDetailViewProps = {
 }
 
 const Page = styled.main`
-  width: min(1180px, calc(100% - 32px));
-  margin: 0 auto;
+  ${shellWidth}
   padding: 28px 0 72px;
 
   @media (max-width: 640px) {
-    width: min(100% - 24px, 1180px);
     padding-top: 20px;
   }
 `
@@ -114,8 +113,13 @@ const Layout = styled.div`
   }
 `
 
+/*
+  본문 열에는 읽기 폭을 건다. 셸이 전폭이라 2560 에서 이 열이 2200px 까지 가는데
+  그 폭의 산문은 눈이 줄을 놓친다. 사이드바(300px)는 그대로 우측에 붙는다.
+*/
 const MainColumn = styled.div`
   min-width: 0;
+  max-width: var(--w-read);
   display: grid;
   gap: 20px;
 `
