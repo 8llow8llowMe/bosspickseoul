@@ -87,6 +87,10 @@ class SeoulDatasetSourceAdapterTest {
     private byte[] page(long total, int count) throws Exception {
         var rows = new ArrayList<Map<String, String>>();
         for (int i = 0; i < count; i++) rows.add(Map.of("STDR_YYQU_CD", "20241", "TRDAR_CD", "1"));
+        return page(total, rows);
+    }
+
+    private byte[] page(long total, List<Map<String, String>> rows) throws Exception {
         return new ObjectMapper().writeValueAsBytes(Map.of(Dataset.SALES_COMMERCIAL.service(),
                 Map.of("RESULT", Map.of("CODE", "INFO-000"), "list_total_count", total, "row", rows)));
     }
@@ -105,6 +109,30 @@ class SeoulDatasetSourceAdapterTest {
             MessageDigest digest = MessageDigest.getInstance("SHA-256"); digest.update(first); digest.update(last);
             assertThat(source.receipt().checksum()).isEqualTo(HexFormat.of().formatHex(digest.digest()));
             assertThat(source.receipt().inputRows()).isEqualTo(1001);
+        }
+    }
+
+    @Test void apiFiltersOtherQuartersWhenEndpointReturnsTheFullTimeline() throws Exception {
+        var firstRows = new ArrayList<Map<String, String>>();
+        for (int i = 0; i < 999; i++) {
+            firstRows.add(Map.of("STDR_YYQU_CD", "20233", "TRDAR_CD", Integer.toString(i + 1)));
+        }
+        firstRows.add(Map.of("STDR_YYQU_CD", "20241", "TRDAR_CD", "target-1"));
+        byte[] first = page(1001, firstRows);
+        byte[] last = page(1001, List.of(Map.of("STDR_YYQU_CD", "20241", "TRDAR_CD", "target-2")));
+        AtomicInteger calls = new AtomicInteger();
+        var adapter = new SeoulDatasetSourceAdapter(new ObjectMapper(), properties(), uri -> {
+            int call = calls.incrementAndGet();
+            assertThat(uri.getPath()).endsWith(call == 1 ? "/1/1000/20241" : "/1001/1001/20241");
+            return new SeoulDatasetSourceAdapter.ApiResponse(200, call == 1 ? first : last);
+        });
+
+        try (var source = adapter.open(request(ImportRequest.SourceType.API, null))) {
+            assertThat(source.read().fields().get("TRDAR_CD")).isEqualTo("target-1");
+            assertThat(source.read().fields().get("TRDAR_CD")).isEqualTo("target-2");
+            assertThat(source.read()).isNull();
+            assertThat(source.receipt().inputRows()).isEqualTo(2);
+            assertThat(calls).hasValue(2);
         }
     }
 

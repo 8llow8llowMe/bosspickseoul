@@ -88,6 +88,7 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
         private final String key;
         private Iterator<JsonNode> page = Collections.emptyIterator();
         private long total = -1;
+        private long fetchedCount;
 
         ApiSession(ImportRequest request, Path archive) {
             super(request, archive);
@@ -106,24 +107,31 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
         @Override public SourceRow read() {
             checkOpen();
             if (complete) return null;
-            if (!page.hasNext()) {
-                if (total >= 0 && count == total) { complete = true; return null; }
-                fetchPage();
+            while (true) {
+                if (!page.hasNext()) {
+                    if (total >= 0 && fetchedCount == total) { complete = true; return null; }
+                    fetchPage();
+                }
+                JsonNode row = page.next();
+                fetchedCount++;
+                if (!row.isObject()) throw new IllegalArgumentException("API row must be an object");
+                Map<String, String> fields = new LinkedHashMap<>();
+                row.fields().forEachRemaining(entry -> {
+                    if (!entry.getValue().isValueNode()) throw new IllegalArgumentException("API field must be scalar");
+                    fields.put(entry.getKey(), entry.getValue().isNull() ? null : entry.getValue().asText());
+                });
+                String rowPeriod = fields.get("STDR_YYQU_CD");
+                if (rowPeriod == null || !rowPeriod.matches("20[0-9]{2}[1-4]")) {
+                    throw new IllegalArgumentException("API returned an invalid quarter");
+                }
+                if (!String.valueOf(request.period().value()).equals(rowPeriod)) continue;
+                count++;
+                return new SourceRow(fetchedCount, fields);
             }
-            JsonNode row = page.next();
-            if (!row.isObject()) throw new IllegalArgumentException("API row must be an object");
-            Map<String, String> fields = new LinkedHashMap<>();
-            row.fields().forEachRemaining(entry -> {
-                if (!entry.getValue().isValueNode()) throw new IllegalArgumentException("API field must be scalar");
-                fields.put(entry.getKey(), entry.getValue().isNull() ? null : entry.getValue().asText());
-            });
-            if (!String.valueOf(request.period().value()).equals(fields.get("STDR_YYQU_CD")))
-                throw new IllegalArgumentException("API returned a different quarter");
-            return new SourceRow(++count, fields);
         }
 
         private void fetchPage() {
-            long start = count + 1;
+            long start = fetchedCount + 1;
             long end = total < 0 ? start + 999 : Math.min(total, start + 999);
             URI uri = URI.create(base + "/" + key + "/json/" + request.dataset().service() + "/" + start + "/" + end + "/" + request.period().value());
             byte[] body = null;
@@ -156,7 +164,7 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
                 if (total != -1 && total != returnedTotal) throw new IllegalArgumentException("API row count changed during pagination");
                 total = returnedTotal;
                 JsonNode rows = data.path("row");
-                long expected = Math.min(1000, total - count);
+                long expected = Math.min(1000, total - fetchedCount);
                 if (!rows.isArray() || rows.size() != expected) throw new IllegalArgumentException("Incomplete API page");
                 page = rows.elements();
             } catch (IOException e) { throw new IllegalStateException("Cannot archive or decode Seoul API page"); }
