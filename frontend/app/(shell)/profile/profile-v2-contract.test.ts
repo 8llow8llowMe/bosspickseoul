@@ -17,20 +17,47 @@ describe('profile V2 API contract', () => {
   })
 
   it('프로필 이미지는 전용 API 로만 바꾼다', () => {
-    // 이 단언은 placeholder 시절 `useMutation` 자체를 금지했다. A3 에서 이미지 업로드·
-    // 삭제가 실제로 붙었으므로, 막아야 할 것을 다시 적는다.
+    // 이 단언은 두 번 다시 쓰였다. placeholder 시절엔 `useMutation` 자체를, A3(이미지)
+    // 이후엔 PATCH 호출 자체를 금지했다. **A6 에서 닉네임 수정이 `PATCH /members/me` 로
+    // 실제로 붙었으므로**, 화면이 PATCH 를 부르는 것은 이제 정상이다. 막아야 할 것을
+    // 다시 적는다.
     //
-    // **핵심은 `profileImageUrl` 을 PATCH 로 보내지 않는 것**이다. 백엔드가 임의 URL
-    // 주입(외부 이미지를 우리 서비스인 것처럼 노출)을 막으려고 `PATCH /members/me` 에서
-    // 그 필드를 걷어냈다(`file-upload-guide.md`). V1 의 firebase 직접 업로드도 금지다.
+    // **핵심은 처음부터 하나였다 — `profileImageUrl` 을 PATCH 로 보내지 않는 것.**
+    // 백엔드가 임의 URL 주입(외부 이미지를 우리 서비스인 것처럼 노출)을 막으려고
+    // `PATCH /members/me` 의 요청 DTO 에서 그 필드를 걷어냈다(`file-upload-guide.md`).
+    // V1 의 firebase 직접 업로드도 금지다.
     const source = readSource('src/components/profile/profile-edit-page.tsx')
 
-    expect(source).not.toContain('@/lib/api/profile')
     expect(source).not.toContain('/firebase/upload')
-    // PATCH 를 아예 부르지 않는다 — 이 화면이 회원 정보를 고치는 유일한 통로는 전용 API 다.
+    // 백엔드를 직접 때리지 않는다 — 쓰기는 전용 API 모듈을 거친다.
     expect(source).not.toContain('apiClient')
-    expect(source).not.toMatch(/\.patch\(/)
     expect(source).toContain('@/lib/api/member-profile-image')
+  })
+
+  it('회원 정보 PATCH 는 닉네임만 보낸다', () => {
+    // A6. `updateMyInfo` 가 회원 정보 수정의 **유일한 통로**다. 여기에 이미지 필드가
+    // 끼어들면 위 단언(화면 쪽)을 통과하면서도 같은 구멍이 열린다.
+    const source = readSource('src/lib/api/profile.ts')
+
+    expect(source).toContain('.patch<')
+    // 본문은 닉네임 하나뿐이다.
+    expect(source).toMatch(/'\/members\/me',\s*\{ nickname \},/)
+    expect(source).not.toContain('profileImageUrl')
+    expect(source).not.toContain('profileImageKey')
+  })
+
+  it('닉네임 규칙은 정본 한 곳에서만 정의된다', () => {
+    // A6. 가입과 프로필이 같은 상한을 쓴다. 두 벌로 나뉘면 한쪽이 거부하는 값을
+    // 다른 쪽이 통과시키고, 그 어긋남은 백엔드 400(MEMBER_109)으로만 드러난다.
+    expect(readSource('src/lib/auth/nickname-rules.ts')).toContain(
+      'export const NICKNAME_MAX_LENGTH = 10',
+    )
+    expect(readSource('src/components/auth/register-machine.ts')).not.toContain(
+      'export const NICKNAME_MAX_LENGTH =',
+    )
+    expect(
+      readSource('src/components/profile/profile-edit-page.tsx'),
+    ).toContain("from '@/lib/auth/nickname-rules'")
   })
 
   it('이미지 업로드는 BFF 를 거친다 — 전용 라우트를 만들지 않는다', () => {

@@ -6,27 +6,42 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
   ActionRow,
+  Field,
+  FieldLabel,
+  Form,
   HelperText,
   SectionNotice,
   SectionPanel,
   SectionStack,
   SectionTitle,
   SectionBody,
+  TextInput,
 } from '@/components/profile/profile-ui'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { normalizeApiError } from '@/lib/api/api-error'
 import {
   ProfileImageError,
   removeProfileImage,
   uploadProfileImage,
 } from '@/lib/api/member-profile-image'
+import { updateMyInfo } from '@/lib/api/profile'
+import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import {
+  NICKNAME_MAX_LENGTH,
+  NICKNAME_RULE_TEXT,
+  isValidNickname,
+} from '@/lib/auth/nickname-rules'
 import {
   describeImageFileIssue,
   IMAGE_ACCEPT_ATTRIBUTE,
   IMAGE_RULE_TEXT,
   resolveUploadErrorMessage,
 } from '@/lib/upload/image-rules'
-import { invalidateMemberInfoQuery } from '@/lib/member-info-query'
+import {
+  invalidateMemberInfoQuery,
+  writeMemberInfoQuery,
+} from '@/lib/member-info-query'
 import { useAuthStore } from '@/stores/auth-store'
 
 const AccountSummary = styled.dl`
@@ -145,6 +160,26 @@ export const canRemoveProfileImage = (
   return !memberInfo.provider
 }
 
+/**
+ * 저장을 열어도 되는가. **길이 규칙과 "달라졌는가"를 함께 본다.**
+ *
+ * A2 는 못 누르는 이유를 문구로 함께 냈지만(`describeNewPasswordIssue`) 여기서는
+ * 그러지 않는다. 이 폼은 열자마자 **지금 닉네임을 그대로 보여 주고**, 입력은
+ * `maxLength` 로 서버 한계에서 잘린다 — 못 누르는 경우가 "아직 안 바꿨다" 와
+ * "다 지웠다" 둘뿐이고, 둘 다 입력칸을 보면 이미 알 수 있다. 같은 것을 빨간 글씨로
+ * 한 번 더 말하면 정작 읽어야 할 길이 규칙이 그 자리에서 밀려난다.
+ *
+ * 그래도 `isValidNickname` 을 여기서 다시 보는 이유: `maxLength` 는 브라우저의 편의일
+ * 뿐이라(IME 조합·자동완성이 넘길 수 있다) 제출 판정을 거기에 맡기지 않는다.
+ */
+export const canSubmitNickname = (
+  nickname: string,
+  currentNickname: string,
+): boolean => {
+  const trimmed = nickname.trim()
+  return isValidNickname(trimmed) && trimmed !== currentNickname
+}
+
 export default function ProfileEditPage() {
   const memberInfo = useAuthStore(state => state.memberInfo)
   const queryClient = useQueryClient()
@@ -152,8 +187,29 @@ export default function ProfileEditPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [uploadedInThisSession, setUploadedInThisSession] = useState(false)
+  const [nicknameError, setNicknameError] = useState<string | null>(null)
 
   const memberId = memberInfo?.memberId ?? null
+  const currentNickname = memberInfo?.nickname ?? ''
+
+  /*
+   * 입력칸은 **지금 닉네임에서 출발한다.** 그런데 회원 정보는 이 컴포넌트보다 늦게
+   * 도착하고(스토어 hydrate), 저장에 성공하면 또 한 번 바뀐다. 초기값으로만 두면 둘 다
+   * 놓쳐 빈 칸이나 옛 값이 남는다.
+   *
+   * 그래서 씨앗이 된 값을 함께 들고 있다가 서버 값이 달라지면 렌더 중에 다시 심는다
+   * (React 의 "props 가 바뀔 때 state 조정" 패턴). 저장 직후에는 방금 저장한 값이
+   * 그대로 다시 심기고, 편집 중이던 내용은 서버가 실제로 바뀐 그 순간에만 버려진다.
+   */
+  const [nicknameSeed, setNicknameSeed] = useState(currentNickname)
+  const [nickname, setNickname] = useState(currentNickname)
+
+  if (nicknameSeed !== currentNickname) {
+    setNicknameSeed(currentNickname)
+    setNickname(currentNickname)
+  }
+
+  const canSaveNickname = canSubmitNickname(nickname, currentNickname)
 
   /*
    * 성공 후 회원 정보를 무효화하면 `ProfileShell` 의 쿼리가 다시 돌고, 그 결과가
@@ -200,6 +256,41 @@ export default function ProfileEditPage() {
     onError: handleFailure,
   })
 
+  /**
+   * 닉네임 저장. 응답이 **수정된 회원 정보 전체**라 다시 조회하지 않고 캐시에 심는다 —
+   * 그 값이 `ProfileShell` 을 거쳐 스토어까지 흘러 헤더·사이드바의 닉네임도 함께 바뀐다.
+   *
+   * 실패 문구는 **서버가 준 것을 그대로 쓴다**(`MEMBER_108` 필수 · `MEMBER_109` 10자).
+   * 화면이 문구를 따로 지어내면 서버 규칙이 바뀔 때 둘이 어긋난다.
+   */
+  const nicknameMutation = useMutation({
+    mutationFn: () => {
+      setNicknameError(null)
+      return updateMyInfo(nickname.trim())
+    },
+    onSuccess: async response => {
+      // 이 백엔드는 200 에 `success: false` 를 싣는 경우가 있어 본문까지 본다.
+      if (!isApiSuccess(response) || !response.dataBody) {
+        setNicknameError(getApiMessage(response, '닉네임을 바꾸지 못했어요.'))
+        return
+      }
+
+      if (memberId) {
+        writeMemberInfoQuery(queryClient, memberId, response)
+      } else {
+        /*
+         * memberId 를 모르면 어느 키에 심을지 알 수 없다. 실제로는 여기까지 오면
+         * 로그인 상태가 아니라는 뜻이라 도달하지 않지만, 조용히 옛 값을 남기느니
+         * 다음 조회 때 서버에서 다시 받게 둔다.
+         */
+        await refreshMemberInfo()
+      }
+
+      showToast({ message: '닉네임을 변경했어요.', tone: 'success' })
+    },
+    onError: error => setNicknameError(normalizeApiError(error).message),
+  })
+
   const isBusy = uploadMutation.isPending || removeMutation.isPending
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,10 +322,14 @@ export default function ProfileEditPage() {
     )
   }
 
+  /*
+   * 닉네임은 여기서 빠졌다 — 바로 위 패널이 **고칠 수 있는 자리**로 같은 값을 보여
+   * 주기 때문이다. 읽기 전용 행과 입력칸에 같은 값을 두 번 두면, 편집 중에 어느 쪽이
+   * 진짜인지 읽는 사람이 판단해야 한다.
+   */
   const accountItems = [
     ['이메일', memberInfo.email],
     ['이름', memberInfo.name],
-    ['닉네임', memberInfo.nickname],
     ['회원 유형', memberInfo.role?.description ?? '일반 회원'],
   ] as const
 
@@ -298,6 +393,57 @@ export default function ProfileEditPage() {
       </SectionPanel>
 
       <SectionPanel>
+        <SectionTitle>닉네임</SectionTitle>
+        <SectionBody>
+          닉네임은 커뮤니티 글·댓글과 헤더에 함께 보여요.
+        </SectionBody>
+
+        <Form
+          onSubmit={event => {
+            event.preventDefault()
+            if (canSaveNickname && !nicknameMutation.isPending) {
+              nicknameMutation.mutate()
+            }
+          }}
+        >
+          <Field>
+            <FieldLabel>닉네임</FieldLabel>
+            <TextInput
+              type="text"
+              value={nickname}
+              onChange={event => setNickname(event.target.value)}
+              /*
+               * 서버 한계와 같은 값으로 입력 자체를 막는다. 잘린 줄 모르는 일이
+               * 없도록 규칙 문구를 아래에 항상 띄워 둔다.
+               */
+              maxLength={NICKNAME_MAX_LENGTH}
+              autoComplete="nickname"
+              aria-label="닉네임"
+            />
+          </Field>
+
+          <HelperText>{NICKNAME_RULE_TEXT}</HelperText>
+
+          {nicknameError ? (
+            <SectionNotice $tone="error" role="alert">
+              {nicknameError}
+            </SectionNotice>
+          ) : null}
+
+          <ActionRow>
+            <Button
+              type="submit"
+              size="medium"
+              disabled={!canSaveNickname || nicknameMutation.isPending}
+              isLoading={nicknameMutation.isPending}
+            >
+              닉네임 변경
+            </Button>
+          </ActionRow>
+        </Form>
+      </SectionPanel>
+
+      <SectionPanel>
         <SectionTitle>회원 정보</SectionTitle>
         <SectionBody>
           현재 V2 회원 API에서 확인할 수 있는 계정 정보입니다.
@@ -311,10 +457,6 @@ export default function ProfileEditPage() {
           ))}
         </AccountSummary>
       </SectionPanel>
-      <SectionNotice $tone="info">
-        닉네임 변경은 아직 준비 중이에요. 준비되면 이 화면에서 바로 수정할 수
-        있습니다.
-      </SectionNotice>
     </SectionStack>
   )
 }

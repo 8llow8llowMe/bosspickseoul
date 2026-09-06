@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ProfileEditPage, {
   canRemoveProfileImage,
+  canSubmitNickname,
 } from '@/components/profile/profile-edit-page'
+import { NICKNAME_RULE_TEXT } from '@/lib/auth/nickname-rules'
 import { IMAGE_RULE_TEXT } from '@/lib/upload/image-rules'
 
 type TestMemberInfo = {
@@ -135,16 +137,62 @@ describe('ProfileEditPage — 프로필 사진', () => {
   })
 })
 
-describe('ProfileEditPage — 남은 자리표시자', () => {
+describe('canSubmitNickname', () => {
+  it('바뀐 값이고 규칙에 맞을 때만 제출을 연다', () => {
+    expect(canSubmitNickname('길동짱', '길동이')).toBe(true)
+    expect(canSubmitNickname('', '길동이')).toBe(false)
+    expect(canSubmitNickname('   ', '길동이')).toBe(false)
+  })
+
   /*
-   * 사진이 붙었으므로 「사진과 닉네임이 준비 중」은 이제 거짓말이다.
-   * 닉네임만 남는다(`PATCH /members/me`, 별건).
+   * `maxLength` 는 브라우저의 편의일 뿐이라 IME 조합·자동완성이 넘길 수 있다.
+   * 제출 판정을 거기에 맡기지 않는다.
    */
-  it('사진이 준비 중이라고 말하지 않는다', () => {
+  it('입력칸을 넘어온 긴 값도 막는다', () => {
+    expect(canSubmitNickname('가'.repeat(11), '길동이')).toBe(false)
+    expect(canSubmitNickname('가'.repeat(10), '길동이')).toBe(true)
+  })
+
+  /* 성공했다는 안내만 뜨고 아무것도 안 바뀌는 상태를 만들지 않는다. */
+  it('지금 닉네임과 같으면 막는다', () => {
+    expect(canSubmitNickname('길동이', '길동이')).toBe(false)
+  })
+
+  /* 앞뒤 공백만 다른 값은 서버에서 같은 값이 된다. */
+  it('앞뒤 공백을 다듬은 뒤 비교한다', () => {
+    expect(canSubmitNickname('  길동이  ', '길동이')).toBe(false)
+  })
+})
+
+describe('ProfileEditPage — 닉네임', () => {
+  /* `PATCH /members/me` 를 연결했으므로 「준비 중」은 이제 거짓말이다. */
+  it('준비 중이라고 말하지 않는다', () => {
     const markup = render()
 
+    expect(markup).not.toContain('닉네임 변경은 아직 준비 중')
     expect(markup).not.toContain('프로필 사진과 닉네임 변경은 아직 준비 중')
-    expect(markup).toContain('닉네임 변경은 아직 준비 중')
+  })
+
+  it('지금 닉네임이 들어간 입력칸과 저장 버튼을 준다', () => {
+    const markup = render()
+
+    expect(markup).toContain('닉네임 변경')
+    expect(markup).toContain('value="길동이"')
+    expect(markup).toContain('aria-label="닉네임"')
+  })
+
+  /* 서버 한계와 같은 값으로 입력 자체를 막아 잘릴 값을 왕복시키지 않는다. */
+  it('입력 길이를 서버 한계로 막는다', () => {
+    expect(render()).toContain('maxLength="10"')
+  })
+
+  it('규칙을 화면에 적는다', () => {
+    expect(render()).toContain(NICKNAME_RULE_TEXT)
+  })
+
+  /* 열자마자는 지금 닉네임 그대로라 바꿀 것이 없다. */
+  it('처음에는 저장 버튼이 잠겨 있다', () => {
+    expect(render()).toContain('disabled=""')
   })
 })
 
@@ -153,7 +201,18 @@ describe('ProfileEditPage — 계정 정보', () => {
     const markup = render()
 
     expect(markup).toContain('owner@example.com')
-    expect(markup).toContain('길동이')
+    expect(markup).toContain('홍길동')
+  })
+
+  /*
+   * 닉네임은 바로 위 패널이 **고칠 수 있는 자리**로 보여 준다. 읽기 전용 행을 함께
+   * 두면 편집 중에 어느 쪽이 진짜인지 읽는 사람이 판단해야 한다.
+   */
+  it('닉네임은 읽기 전용 행으로 겹쳐 놓지 않는다', () => {
+    const markup = render()
+
+    // 입력칸의 value 하나뿐이어야 한다.
+    expect(markup.match(/길동이/g)?.length).toBe(1)
   })
 
   it('회원 정보가 없으면 폼 대신 안내를 보여 준다', () => {
