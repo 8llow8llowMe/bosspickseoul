@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.Commu
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 public interface CommunityCommentRepositoryPort {
 
@@ -15,4 +16,10 @@ public interface CommunityCommentRepositoryPort {
     List<CommunityComment> findAllByIds(Collection<Long> commentIds);
 
     CommunityComment save(CommunityComment comment);
+
+    boolean deleteIfActive(long commentId);
+
+    OptionalLong incrementLikeCountIfActive(long commentId);
+
+    OptionalLong decrementLikeCountIfActive(long commentId);
 }

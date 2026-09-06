@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.Repor
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityReport;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -42,5 +43,13 @@ public class CommunityReportRepositoryAdapter implements CommunityReportReposito
     public Optional<CommunityReport> findById(long reportId) {
         return communityReportRepository.findById(reportId)
             .map(communityReactionMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public boolean resolvePending(
+        long reportId, ReportStatus status, long resolvedByMemberId, LocalDateTime resolvedAt
+    ) {
+        return communityReportRepository.resolvePending(
+            reportId, ReportStatus.PENDING, status, resolvedByMemberId, resolvedAt) == 1;
     }
 }

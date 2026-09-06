@@ -10,9 +10,11 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.LikedCommunityPost;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import lombok.RequiredArgsConstructor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
 import org.springframework.stereotype.Component;
@@ -102,6 +104,63 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
         return communityMapper.toDomainFromEntity(
             communityPostRepository.save(communityMapper.toEntityFromDomain(post))
         );
+    }
+
+    @Override
+    public Optional<CommunityPost> updateContentIfActive(
+        long postId, long memberId, String title, String content, LocalDateTime updatedAt
+    ) {
+        int updated = communityPostRepository.updateContentIfActive(
+            postId, memberId, title, content, updatedAt, CommunityPostStatus.ACTIVE);
+        return updated == 0 ? Optional.empty() : findById(postId);
+    }
+
+    @Override
+    public boolean deleteIfActive(long postId) {
+        return communityPostRepository.deleteIfActive(
+            postId, CommunityPostStatus.ACTIVE, CommunityPostStatus.DELETED) == 1;
+    }
+
+    @Override
+    public Optional<CommunityPost> incrementViewCountIfActive(long postId) {
+        int updated = communityPostRepository.incrementViewCountIfActive(postId, CommunityPostStatus.ACTIVE);
+        return updated == 0 ? Optional.empty() : findById(postId);
+    }
+
+    @Override
+    public OptionalLong incrementLikeCountIfActive(long postId) {
+        return updatedLikeCount(
+            postId, communityPostRepository.incrementLikeCountIfActive(postId, CommunityPostStatus.ACTIVE));
+    }
+
+    @Override
+    public OptionalLong decrementLikeCountIfActive(long postId) {
+        return updatedLikeCount(
+            postId, communityPostRepository.decrementLikeCountIfActive(postId, CommunityPostStatus.ACTIVE));
+    }
+
+    @Override
+    public OptionalLong incrementCommentCountIfActive(long postId) {
+        return updatedCommentCount(
+            postId, communityPostRepository.incrementCommentCountIfActive(postId, CommunityPostStatus.ACTIVE));
+    }
+
+    @Override
+    public OptionalLong decrementCommentCountIfActive(long postId) {
+        return updatedCommentCount(
+            postId, communityPostRepository.decrementCommentCountIfActive(postId, CommunityPostStatus.ACTIVE));
+    }
+
+    private OptionalLong updatedLikeCount(long postId, int updated) {
+        return updated == 0
+            ? OptionalLong.empty()
+            : findById(postId).stream().mapToLong(CommunityPost::likeCount).findFirst();
+    }
+
+    private OptionalLong updatedCommentCount(long postId, int updated) {
+        return updated == 0
+            ? OptionalLong.empty()
+            : findById(postId).stream().mapToLong(CommunityPost::commentCount).findFirst();
     }
 
     /** Spring Data 의 Slice 를 포트 계약(SliceQueryResult)으로 바꾼다 — 프레임워크 타입은 여기서 멈춘다. */

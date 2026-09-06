@@ -27,7 +27,7 @@ public class CommunityPostLikeRepositoryAdapter implements CommunityPostLikeRepo
     }
 
     @Override
-    public void delete(long postId, long memberId) {
-        communityPostLikeRepository.deleteByPostIdAndMemberId(postId, memberId);
+    public boolean delete(long postId, long memberId) {
+        return communityPostLikeRepository.deleteByPostIdAndMemberId(postId, memberId) == 1;
     }
 }

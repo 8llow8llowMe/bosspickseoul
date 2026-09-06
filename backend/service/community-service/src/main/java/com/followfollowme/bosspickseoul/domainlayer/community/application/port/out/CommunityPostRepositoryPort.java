@@ -10,6 +10,8 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
+import java.time.LocalDateTime;
 
 public interface CommunityPostRepositoryPort {
 
@@ -27,4 +29,19 @@ public interface CommunityPostRepositoryPort {
     List<CommunityPost> findAllByIds(Collection<Long> postIds);
 
     CommunityPost save(CommunityPost post);
+
+    Optional<CommunityPost> updateContentIfActive(
+        long postId, long memberId, String title, String content, LocalDateTime updatedAt);
+
+    boolean deleteIfActive(long postId);
+
+    Optional<CommunityPost> incrementViewCountIfActive(long postId);
+
+    OptionalLong incrementLikeCountIfActive(long postId);
+
+    OptionalLong decrementLikeCountIfActive(long postId);
+
+    OptionalLong incrementCommentCountIfActive(long postId);
+
+    OptionalLong decrementCommentCountIfActive(long postId);
 }

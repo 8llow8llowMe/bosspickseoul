@@ -4,6 +4,8 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.Commu
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityReport;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.ReportStatus;
 
 public interface CommunityReportRepositoryPort {
 
@@ -14,4 +16,7 @@ public interface CommunityReportRepositoryPort {
     List<CommunityReport> findPendingReports();
 
     Optional<CommunityReport> findById(long reportId);
+
+    boolean resolvePending(
+        long reportId, ReportStatus status, long resolvedByMemberId, LocalDateTime resolvedAt);
 }

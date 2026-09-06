@@ -47,7 +47,7 @@
 - `community_post` 테이블에 `view_count BIGINT DEFAULT 0` 추가
 - `GET /api/v1/community/posts/{postId}` 호출 시 `CommunityCommandProcessor.incrementViewCount()` 자동 실행
 - `CommunityPostWebFacade.getPost()` — `@Transactional`(기본값, 쓰기 트랜잭션) 적용 (조회수 쓰기 포함)
-- 경쟁 조건은 데모 수준에서 허용
+- 조회수는 `ACTIVE` 조건의 DB 산술 UPDATE로 증가시킨다. 변경 전 엔티티 전체를 다시 저장하지 않아 동시 좋아요·본문 수정·삭제를 덮어쓰지 않는다. 삭제가 먼저 완료되면 기존 `COMMUNITY_005`(404)를 반환한다.
 
 ## 게시글 검색 (신규)
 
@@ -88,7 +88,7 @@
 - `PATCH /api/v1/moderation/reports/{reportId}` — `{ "decision": "APPROVE_AND_HIDE" | "DISMISS" }` (MANAGER only)
 - `community_report` 테이블에 `status`, `resolved_at`, `resolved_by_member_id` 컬럼 + `idx_community_report_status` 추가
 - `APPROVE_AND_HIDE` 시 대상 post/comment 상태를 `DELETED`로 변경
-  - COMMENT 숨김 시 부모 게시글의 `comment_count`도 `Math.max(0, count - 1)` 감소 (일관성 보장)
+  - COMMENT 숨김은 `ACTIVE -> DELETED` 조건부 UPDATE가 성공한 요청만 부모 게시글의 `comment_count`를 DB에서 0 이하로 내려가지 않게 감소시킨다. 중복 숨김/삭제로 이중 감소하지 않는다.
 - 신규 컨트롤러: `ModerationWebController` — `@PreAuthorize("hasAuthority('MANAGER')")`
 - 신규 enum: `ReportStatus` (PENDING/APPROVED/DISMISSED), `ModerationDecision` (APPROVE_AND_HIDE/DISMISS)
 - 아키텍처: `ModerationWebFacade`는 `CommunityReportPort`를 직접 주입하지 않고 `ModerationQueryProcessor`를 통해 접근
@@ -119,3 +119,18 @@
 - 목록 응답에는 첫 장을 `thumbnailUrl` 로 내려준다. 게시글별 개별 조회 대신 `IN` 조회로 N+1 을 피한다.
 - 게시글 소프트 삭제 시 이미지 객체는 유지된다(복구 가능성). 미참조 객체 회수는 후속 배치 과제다.
 - 상세 계약은 `docs/file-upload-guide.md` 참고.
+
+## 상태 변경 동시성
+
+- 게시글 본문 수정, 조회수·좋아요·댓글 수 변경, 소프트 삭제는 각 필드만 조건부 UPDATE한다. JPA bulk UPDATE 전 flush, 이후 영속성 컨텍스트 clear로 대기 중인 쓰기를 보존하고 갱신 값을 다시 읽는다.
+- 좋아요 등록/취소와 카운터 변경은 같은 쓰기 트랜잭션에서 수행한다. 동시 등록은 기존 DB 유니크 제약으로 방어한다. 취소는 bulk DELETE의 실제 삭제 건수가 1일 때만 감소하며, 다른 요청이 먼저 취소했다면 `COMMUNITY_013`(409)을 반환한다.
+- 본문 수정·좋아요·댓글 작성 중 대상이 먼저 삭제되면 기존 404 오류로 전체 트랜잭션을 롤백한다. 조회 이후 삭제 경합에서 진 요청은 추가 상태 변경 없이 끝난다(처음 조회할 때부터 삭제 상태라면 기존 404 유지).
+- 신고 결정은 `PENDING` 조건부 UPDATE를 선점한 요청만 대상을 숨긴다. 경쟁에서 진 요청은 `COMMUNITY_012`(409)를 반환하며, 신고 결정과 대상 숨김은 같은 트랜잭션으로 커밋/롤백한다.
+- 좋아요 응답의 `liked`는 전후 전체 카운트 비교가 아니라 해당 요청의 등록/취소 결과에서 결정한다. 다른 사용자의 동시 반응으로 전체 카운트가 바뀌어도 사용자 상태를 잘못 표시하지 않는다.
+- Processor 회귀 테스트는 오래된 조회 값 대신 DB 갱신 결과 반환, 동시 취소의 카운터 보호, 중복 댓글 삭제/신고 처리, 삭제와 경합 시 오류를 검증한다. `CommunityRepositoryMySqlConcurrencyTest`는 실제 MySQL의 REPEATABLE READ 트랜잭션으로 병렬 카운터 증가, 오래된 조회 이후 본문 수정, 삭제 후 복구 방지, 동시 좋아요 취소 단일 승자, 실패한 카운터 전이의 롤백을 검증한다.
+### MySQL 동시성 통합 테스트 실행
+
+- 기존 MySQL JDBC 의존성만 사용한다. `COMMUNITY_TEST_DB_URL`이 없으면 통합 테스트는 건너뛴다.
+- 반드시 폐기 가능한 `p0_test` 스키마를 사용한다. 테스트는 `create-drop`으로 테이블을 생성/삭제하며 다른 DB 이름은 거부한다.
+- 환경 변수: `COMMUNITY_TEST_DB_URL=jdbc:mysql://127.0.0.1:13306/p0_test?allowPublicKeyRetrieval=true&useSSL=false`, `COMMUNITY_TEST_DB_USERNAME=root`, `COMMUNITY_TEST_DB_PASSWORD`는 테스트 DB 비밀번호.
+- 실행: `./gradlew :service:community-service:test --tests '*CommunityRepositoryMySqlConcurrencyTest' --rerun-tasks` (backend 디렉터리).

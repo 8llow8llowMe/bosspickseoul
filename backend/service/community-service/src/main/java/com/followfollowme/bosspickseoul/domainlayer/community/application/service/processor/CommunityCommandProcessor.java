@@ -24,6 +24,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.Commu
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityReport;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.bosspickseoul.persistence.util.SnowflakeIdGenerator;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.info.CommunityLikeToggleResult;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -69,42 +70,16 @@ public class CommunityCommandProcessor {
     public CommunityPost updatePost(long memberId, CommunityPost post, UpdatePostCommand command) {
         validatePostOwner(memberId, post);
 
-        return communityPostRepositoryPort.save(new CommunityPost(
-            post.id(),
-            post.memberId(),
-            post.targetType(),
-            post.targetCode(),
-            post.targetName(),
-            command.title().trim(),
-            command.content().trim(),
-            post.status(),
-            post.likeCount(),
-            post.commentCount(),
-            post.viewCount(),
-            post.createdAt(),
-            LocalDateTime.now()
-        ));
+        return communityPostRepositoryPort.updateContentIfActive(
+                post.id(), memberId, command.title().trim(), command.content().trim(), LocalDateTime.now())
+            .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
     }
 
     @Transactional
     public void deletePost(long memberId, CommunityPost post) {
         validatePostOwner(memberId, post);
 
-        communityPostRepositoryPort.save(new CommunityPost(
-            post.id(),
-            post.memberId(),
-            post.targetType(),
-            post.targetCode(),
-            post.targetName(),
-            post.title(),
-            post.content(),
-            CommunityPostStatus.DELETED,
-            post.likeCount(),
-            post.commentCount(),
-            post.viewCount(),
-            post.createdAt(),
-            LocalDateTime.now()
-        ));
+        communityPostRepositoryPort.deleteIfActive(post.id());
     }
 
     @Transactional
@@ -126,7 +101,8 @@ public class CommunityCommandProcessor {
             now
         ));
 
-        savePostWithCommentCount(post, post.commentCount() + 1);
+        communityPostRepositoryPort.incrementCommentCountIfActive(post.id())
+            .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
         return comment;
     }
 
@@ -136,30 +112,22 @@ public class CommunityCommandProcessor {
             throw new CommunityException(CommunityErrorCode.FORBIDDEN_COMMENT_ACCESS);
         }
 
-        CommunityPost post = getPost(comment.postId());
-        savePostWithCommentCount(post, Math.max(0, post.commentCount() - 1));
-
-        communityCommentRepositoryPort.save(new CommunityComment(
-            comment.id(),
-            comment.postId(),
-            comment.memberId(),
-            comment.parentCommentId(),
-            comment.content(),
-            CommunityCommentStatus.DELETED,
-            comment.likeCount(),
-            comment.createdAt(),
-            LocalDateTime.now()
-        ));
+        if (communityCommentRepositoryPort.deleteIfActive(comment.id())) {
+            communityPostRepositoryPort.decrementCommentCountIfActive(comment.postId());
+        }
     }
 
     @Transactional
-    public long togglePostLike(long memberId, CommunityPost post) {
+    public CommunityLikeToggleResult togglePostLike(long memberId, CommunityPost post) {
         boolean exists = communityPostLikeRepositoryPort.exists(post.id(), memberId);
         long nextLikeCount;
 
         if (exists) {
-            communityPostLikeRepositoryPort.delete(post.id(), memberId);
-            nextLikeCount = Math.max(0, post.likeCount() - 1);
+            if (!communityPostLikeRepositoryPort.delete(post.id(), memberId)) {
+                throw new CommunityException(CommunityErrorCode.CONCURRENT_REACTION);
+            }
+            nextLikeCount = communityPostRepositoryPort.decrementLikeCountIfActive(post.id())
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
         } else {
             communityPostLikeRepositoryPort.save(new CommunityPostLike(
                 snowflakeIdGenerator.generateId(),
@@ -167,21 +135,23 @@ public class CommunityCommandProcessor {
                 memberId,
                 LocalDateTime.now()
             ));
-            nextLikeCount = post.likeCount() + 1;
+            nextLikeCount = communityPostRepositoryPort.incrementLikeCountIfActive(post.id())
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
         }
-
-        savePostWithLikeCount(post, nextLikeCount);
-        return nextLikeCount;
+        return new CommunityLikeToggleResult(!exists, nextLikeCount);
     }
 
     @Transactional
-    public long toggleCommentLike(long memberId, CommunityComment comment) {
+    public CommunityLikeToggleResult toggleCommentLike(long memberId, CommunityComment comment) {
         boolean exists = communityCommentLikeRepositoryPort.exists(comment.id(), memberId);
         long nextLikeCount;
 
         if (exists) {
-            communityCommentLikeRepositoryPort.delete(comment.id(), memberId);
-            nextLikeCount = Math.max(0, comment.likeCount() - 1);
+            if (!communityCommentLikeRepositoryPort.delete(comment.id(), memberId)) {
+                throw new CommunityException(CommunityErrorCode.CONCURRENT_REACTION);
+            }
+            nextLikeCount = communityCommentRepositoryPort.decrementLikeCountIfActive(comment.id())
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
         } else {
             communityCommentLikeRepositoryPort.save(new CommunityCommentLike(
                 snowflakeIdGenerator.generateId(),
@@ -189,22 +159,10 @@ public class CommunityCommandProcessor {
                 memberId,
                 LocalDateTime.now()
             ));
-            nextLikeCount = comment.likeCount() + 1;
+            nextLikeCount = communityCommentRepositoryPort.incrementLikeCountIfActive(comment.id())
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
         }
-
-        communityCommentRepositoryPort.save(new CommunityComment(
-            comment.id(),
-            comment.postId(),
-            comment.memberId(),
-            comment.parentCommentId(),
-            comment.content(),
-            comment.status(),
-            nextLikeCount,
-            comment.createdAt(),
-            LocalDateTime.now()
-        ));
-
-        return nextLikeCount;
+        return new CommunityLikeToggleResult(!exists, nextLikeCount);
     }
 
     @Transactional
@@ -266,56 +224,7 @@ public class CommunityCommandProcessor {
 
     @Transactional
     public CommunityPost incrementViewCount(CommunityPost post) {
-        return communityPostRepositoryPort.save(new CommunityPost(
-            post.id(),
-            post.memberId(),
-            post.targetType(),
-            post.targetCode(),
-            post.targetName(),
-            post.title(),
-            post.content(),
-            post.status(),
-            post.likeCount(),
-            post.commentCount(),
-            post.viewCount() + 1,
-            post.createdAt(),
-            post.updatedAt()
-        ));
-    }
-
-    private void savePostWithLikeCount(CommunityPost post, long likeCount) {
-        communityPostRepositoryPort.save(new CommunityPost(
-            post.id(),
-            post.memberId(),
-            post.targetType(),
-            post.targetCode(),
-            post.targetName(),
-            post.title(),
-            post.content(),
-            post.status(),
-            likeCount,
-            post.commentCount(),
-            post.viewCount(),
-            post.createdAt(),
-            LocalDateTime.now()
-        ));
-    }
-
-    private void savePostWithCommentCount(CommunityPost post, long commentCount) {
-        communityPostRepositoryPort.save(new CommunityPost(
-            post.id(),
-            post.memberId(),
-            post.targetType(),
-            post.targetCode(),
-            post.targetName(),
-            post.title(),
-            post.content(),
-            post.status(),
-            post.likeCount(),
-            commentCount,
-            post.viewCount(),
-            post.createdAt(),
-            LocalDateTime.now()
-        ));
+        return communityPostRepositoryPort.incrementViewCountIfActive(post.id())
+            .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
     }
 }
