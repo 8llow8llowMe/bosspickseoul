@@ -12,6 +12,9 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 public class BatchServiceApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(BatchServiceApplication.class, args);
+        var context = SpringApplication.run(BatchServiceApplication.class, args);
+        if (context.getEnvironment().matchesProfiles("quarterly")) {
+            System.exit(SpringApplication.exit(context));
+        }
     }
 }
