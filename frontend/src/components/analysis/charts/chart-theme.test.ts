@@ -68,6 +68,30 @@ describe('createAxisTickFormatter', () => {
     ])
   })
 
+  /*
+   * 실측에서 나온 결함: 자치구 상세 「분기별 추이」 축이 눈금 4개인데
+   * 「1.4억 · 1.4억 · 1.5억 · 1.5억」으로 그려졌다 — 소수 1자리 고정이라 서로 다른
+   * 값이 같은 글자가 됐다. 눈금선 사이 값을 가늠할 수 없다.
+   */
+  it('눈금이 서로 다른 글자가 되도록 소수 자리를 늘린다', () => {
+    const ticks = [140_000_000, 145_000_000, 150_000_000, 155_000_000]
+    const format = createAxisTickFormatter(ticks)
+    const rendered = ticks.map(format)
+
+    expect(rendered).toEqual(['1.4억', '1.45억', '1.5억', '1.55억'])
+    expect(new Set(rendered).size).toBe(ticks.length)
+  })
+
+  it('구분에 필요 없으면 소수를 붙이지 않는다', () => {
+    const ticks = [0, 10_000, 20_000, 30_000]
+    expect(ticks.map(createAxisTickFormatter(ticks))).toEqual([
+      '0',
+      '1만',
+      '2만',
+      '3만',
+    ])
+  })
+
   it('빈 축·비정상 값에도 죽지 않는다', () => {
     const format = createAxisTickFormatter([null, undefined, Number.NaN])
     expect(format(0)).toBe('0')

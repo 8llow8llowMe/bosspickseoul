@@ -20,12 +20,51 @@ export const formatChartValue = (
   unit = '',
 ): string => formatAnalysisValue(value, unit)
 
-const trimUnit = (n: number): string => {
-  const rounded = Math.round(n * 10) / 10
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
-}
+/** `toFixed` 결과에서 의미 없는 0 을 턴다. 1.50 → '1.5', 2.00 → '2'. */
+const trimZeros = (text: string): string =>
+  text.includes('.') ? text.replace(/\.?0+$/, '') : text
 
 type AxisUnit = { divisor: number; suffix: string }
+
+/**
+ * 눈금 라벨이 **자기 눈금을 정확히 가리키는** 최소 소수 자리.
+ *
+ * ⚠️ 자리를 1 로 고정하면 서로 다른 눈금이 같은 글자가 된다. 분기별 추이 축이 실제로
+ * **「1.4억 · 1.4억 · 1.5억 · 1.5억」**으로 그려졌다 — 눈금선은 네 개인데 읽을 수 있는
+ * 값은 두 개뿐이라, 그 사이 값을 가늠할 수 없었다. 이 축은 자리를 2 로 늘려
+ * 「1.4억 · 1.45억 · 1.5억 · 1.55억」이 된다.
+ *
+ * **「서로 다른 글자면 된다」로는 부족하다.** 눈금 `[0, 0.5억, 2.5억]` 은 소수 0 자리로도
+ * 「0 · 1억 · 3억」이라 다 다르지만, 0.5 를 1 로 적는 것은 **틀린 값**이다. 그래서
+ * 기준을 반올림 오차로 둔다 — 오차가 **눈금 간격의 절반**보다 작아야 그 라벨이 옆
+ * 눈금이 아니라 자기 눈금을 가리킨다.
+ */
+const pickDecimals = (values: readonly number[], unit: AxisUnit): number => {
+  const scaled = [...new Set(values)]
+    .map(value => value / unit.divisor)
+    .sort((a, b) => a - b)
+  if (scaled.length < 2) return scaled.some(v => !Number.isInteger(v)) ? 1 : 0
+
+  const minGap = scaled
+    .slice(1)
+    .reduce(
+      (gap, value, index) => Math.min(gap, value - scaled[index]),
+      Infinity,
+    )
+  // 간격이 0 이면(중복 눈금) 비교할 것이 없다.
+  const tolerance = minGap > 0 ? minGap / 2 : Infinity
+
+  for (const decimals of [0, 1, 2]) {
+    const worstError = scaled.reduce(
+      (max, value) =>
+        Math.max(max, Math.abs(Number(value.toFixed(decimals)) - value)),
+      0,
+    )
+    if (worstError < tolerance) return decimals
+  }
+
+  return 2
+}
 
 /** 값의 크기에 맞는 단위 하나. 1만 미만이면 단위 없이 콤마 표기다. */
 const pickAxisUnit = (magnitude: number): AxisUnit => {
@@ -34,7 +73,11 @@ const pickAxisUnit = (magnitude: number): AxisUnit => {
   return { divisor: 1, suffix: '' }
 }
 
-const formatWithUnit = (value: number, unit: AxisUnit): string => {
+const formatWithUnit = (
+  value: number,
+  unit: AxisUnit,
+  decimals: number,
+): string => {
   if (!Number.isFinite(value)) return ''
   if (value === 0) return '0'
 
@@ -42,7 +85,7 @@ const formatWithUnit = (value: number, unit: AxisUnit): string => {
   const abs = Math.abs(value)
 
   return unit.suffix
-    ? `${sign}${trimUnit(abs / unit.divisor)}${unit.suffix}`
+    ? `${sign}${trimZeros((abs / unit.divisor).toFixed(decimals))}${unit.suffix}`
     : `${sign}${abs.toLocaleString('ko-KR')}`
 }
 
@@ -56,6 +99,8 @@ const formatWithUnit = (value: number, unit: AxisUnit): string => {
  *
  * 그래서 **가장 큰 눈금**으로 단위를 한 번 정하고 모든 눈금에 같은 단위를 쓴다.
  * 위 예는 「-1.5만 · -1만 · -0.5만 · 0 · 0.5만 · 1만」이 된다.
+ *
+ * 소수 자리도 여기서 함께 정한다 — `pickDecimals` 참고.
  */
 export const createAxisTickFormatter = (
   values: readonly (number | null | undefined)[],
@@ -68,8 +113,13 @@ export const createAxisTickFormatter = (
     0,
   )
   const unit = pickAxisUnit(magnitude)
+  const finite = values.filter(
+    (value): value is number =>
+      typeof value === 'number' && Number.isFinite(value),
+  )
+  const decimals = pickDecimals(finite, unit)
 
-  return value => formatWithUnit(value, unit)
+  return value => formatWithUnit(value, unit, decimals)
 }
 
 export const TooltipBox = styled.div`
