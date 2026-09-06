@@ -1,4 +1,5 @@
 import styled from 'styled-components'
+import { shellWidth } from '@/styles/layout'
 
 const Footer = styled.footer`
   border-top: 1px solid var(--color-border-200);
@@ -16,13 +17,8 @@ const Footer = styled.footer`
 `
 
 const Inner = styled.div`
-  width: min(1120px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   padding: 24px 0 32px;
-
-  @media (max-width: 640px) {
-    width: min(100% - 32px, 1120px);
-  }
 `
 
 const Title = styled.p`

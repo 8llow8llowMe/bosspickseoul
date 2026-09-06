@@ -45,3 +45,15 @@ describe('SiteFooter', () => {
     expect(markup).toContain('BossPickSeoul')
   })
 })
+
+/** styled-components 는 선언을 압축해 내보낸다 — 공백 차이로 깨지지 않게 지운다. */
+const squeeze = (css: string): string => css.replace(/\s+/g, '')
+
+describe('SiteFooter 폭', () => {
+  it('푸터는 셸 폭을 쓴다 — 헤더와 같은 틀이다', () => {
+    const css = squeeze(renderFooter().styles)
+
+    expect(css).toContain('width:var(--w-shell);')
+    expect(css).not.toContain('min(1120px,calc(100%-40px))')
+  })
+})

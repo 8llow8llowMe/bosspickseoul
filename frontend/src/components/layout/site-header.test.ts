@@ -81,7 +81,13 @@ describe('SiteHeader — 헤더 폭은 모든 화면에서 같다', () => {
     }
   })
 
-  it('양 끝까지 쓰되 가장자리 여백은 남긴다', () => {
-    expect(renderStyles('/')).toContain('calc(100% - 40px)')
+  /*
+    폭 값 자체는 이제 :root 의 셸 토큰이 진다(--w-shell = calc(100% - 거터*2)).
+    헤더가 리터럴을 다시 들면 본문과 갈라지므로 토큰을 쓰는지로 못박는다.
+  */
+  it('양 끝까지 쓰되 가장자리 여백은 남긴다 — 셸 토큰을 쓴다', () => {
+    expect(renderStyles('/').replace(/\s+/g, '')).toContain(
+      'width:var(--w-shell);',
+    )
   })
 })
