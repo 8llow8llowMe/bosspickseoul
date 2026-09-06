@@ -4,21 +4,23 @@ import styled from 'styled-components'
 
 import AiReportBody from '@/components/analysis/ai-report-body'
 import type { AnalysisSelection } from '@/lib/analysis/selection'
+import { centeredColumn } from '@/styles/layout'
 
 const Main = styled.main`
   min-height: calc(100dvh - 64px);
   background: var(--color-surface);
 `
 
+/*
+  AI 리포트는 생성된 산문이라 읽기 화면이다. 넓히면 줄 길이가 길어져 나빠진다.
+*/
 const Content = styled.div`
-  width: min(1080px, calc(100% - 40px));
-  margin: 0 auto;
+  ${centeredColumn('var(--w-read)')}
   padding: 28px 0 56px;
   display: grid;
   gap: 24px;
 
   @media (max-width: 640px) {
-    width: min(100% - 28px, 1080px);
     padding: 20px 0 max(36px, env(safe-area-inset-bottom));
   }
 `

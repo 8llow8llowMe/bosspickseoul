@@ -112,6 +112,7 @@ import type {
   CommercialTrendMetric,
 } from '@/types/commercial-analysis'
 import type { CommercialProfile } from '@/types/recommend'
+import { shellWidth } from '@/styles/layout'
 
 export type AnalysisResultViewProps = {
   onClose?: () => void
@@ -202,8 +203,7 @@ const StickyHeader = styled.header`
 `
 
 const HeaderInner = styled.div`
-  width: min(1320px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   padding: 10px 0 0;
 
   @media (max-width: 640px) {
@@ -288,8 +288,7 @@ const HeaderTabButton = styled(TabButton)`
 `
 
 const Content = styled.div`
-  width: min(1320px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   padding: 28px 0 56px;
   display: grid;
   gap: 28px;
@@ -302,8 +301,7 @@ const Content = styled.div`
 
 /** 데스크톱: [사이드바][콘텐츠] 2컬럼. 모바일(≤840px)은 단일 컬럼. */
 const ResultLayout = styled.div`
-  width: min(1320px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr);
   gap: 28px;
