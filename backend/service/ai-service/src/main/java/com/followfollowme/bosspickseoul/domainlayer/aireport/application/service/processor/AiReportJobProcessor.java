@@ -33,7 +33,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -115,11 +114,11 @@ public class AiReportJobProcessor {
         // Save first so a published idempotency key always points at an existing job.
         aiReportJobStorePort.save(pendingJob);
 
-        Optional<String> existingJobId = aiReportJobStorePort.reserveOrGetExistingJobId(memberId, requestHash, newJobId);
-        if (existingJobId.isPresent()) {
+        String ownerJobId = aiReportJobStorePort.reserveOrGetExistingJobId(memberId, requestHash, newJobId);
+        if (!newJobId.equals(ownerJobId)) {
             // Another request won the reservation race, so remove this unused job entry.
             aiReportJobStorePort.deleteJob(newJobId);
-            return AiReportSubmissionInfo.accepted(jobType, existingJobId.get());
+            return AiReportSubmissionInfo.accepted(jobType, ownerJobId);
         }
 
         try {
@@ -132,11 +131,13 @@ public class AiReportJobProcessor {
                 : AiReportErrorCode.JOB_FAILED;
             log.error("AI report worker dispatch failed jobId={} memberId={} errorCode={} reason={}",
                 newJobId, memberId, errorCode.getCode(), dispatchFailure.getMessage());
-            aiReportJobStorePort.save(pendingJob.failed(
+            boolean failed = aiReportJobStorePort.saveIfStatus(pendingJob.failed(
                 errorCode.getCode(), errorCode.getMessage(), Instant.now()
-            ));
-            aiReportJobStorePort.releaseIdempotencyKey(memberId, requestHash);
-            aiReportJobEventPort.publishJobUpdated(newJobId);
+            ), AiReportJobStatus.PENDING);
+            if (failed) {
+                aiReportJobStorePort.releaseIdempotencyKey(memberId, requestHash, newJobId);
+                aiReportJobEventPort.publishJobUpdated(newJobId);
+            }
         }
 
         return AiReportSubmissionInfo.accepted(jobType, newJobId);
@@ -150,6 +151,12 @@ public class AiReportJobProcessor {
         }
 
         AiReportJob effectiveJob = expireIfStuck(job);
+        if (effectiveJob.status().isTerminal()) {
+            // A terminal write may have committed even when its Redis reply was lost.
+            aiReportJobStorePort.releaseIdempotencyKey(
+                effectiveJob.memberId(), effectiveJob.requestHash(), effectiveJob.jobId()
+            );
+        }
 
         AiReportJobInfo.AiReportJobInfoBuilder builder = AiReportJobInfo.builder()
             .jobId(effectiveJob.jobId())
@@ -218,10 +225,12 @@ public class AiReportJobProcessor {
         AiReportJob expired = job.failed(
             AiReportErrorCode.JOB_TIMEOUT.getCode(), AiReportErrorCode.JOB_TIMEOUT.getMessage(), now
         );
-        aiReportJobStorePort.save(expired);
-        aiReportJobStorePort.releaseIdempotencyKey(job.memberId(), job.requestHash());
-        aiReportJobEventPort.publishJobUpdated(job.jobId());
-        return expired;
+        if (aiReportJobStorePort.saveIfStatus(expired, job.status())) {
+            aiReportJobEventPort.publishJobUpdated(job.jobId());
+            return expired;
+        }
+        return aiReportJobStorePort.findById(job.jobId())
+            .orElseThrow(() -> new AiReportException(AiReportErrorCode.JOB_NOT_FOUND));
     }
 
     /**
@@ -271,7 +280,7 @@ public class AiReportJobProcessor {
     }
 
     private boolean isQueueFull(RuntimeException dispatchFailure) {
-        return dispatchFailure instanceof TaskRejectedException
+        return dispatchFailure instanceof RejectedExecutionException
             || dispatchFailure.getCause() instanceof RejectedExecutionException;
     }
 

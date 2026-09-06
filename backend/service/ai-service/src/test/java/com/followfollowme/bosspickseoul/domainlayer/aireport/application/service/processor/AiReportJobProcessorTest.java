@@ -91,6 +91,30 @@ class AiReportJobProcessorTest {
     }
 
     @Test
+    void getJobInfo_timeoutRaceLost_returnsLatestStatus() {
+        AiReportJob stale = pendingJob(7L, Instant.now().minusSeconds(60));
+        AiReportJob running = stale.withStatus(AiReportJobStatus.RUNNING, Instant.now());
+        when(jobStore.findById("J1")).thenReturn(Optional.of(stale), Optional.of(running));
+
+        assertThat(processor.getJobInfo("J1", 7L).status()).isEqualTo(AiReportJobStatus.RUNNING);
+
+        verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
+        verifyNoInteractions(jobEventPort);
+    }
+
+    @Test
+    void getJobInfo_expiredDuringTimeoutCas_returnsNotFound() {
+        when(jobStore.findById("J1"))
+            .thenReturn(Optional.of(pendingJob(7L, Instant.now().minusSeconds(60))), Optional.empty());
+
+        assertThatThrownBy(() -> processor.getJobInfo("J1", 7L))
+            .isInstanceOfSatisfying(AiReportException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AiReportErrorCode.JOB_NOT_FOUND));
+
+        verifyNoInteractions(jobEventPort);
+    }
+
+    @Test
     void submitCommercialReport_cacheHit_returnsCachedAndSkipsJobLifecycle() {
         CommercialAiReportInfo info = mock(CommercialAiReportInfo.class);
         when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.of(info));
@@ -108,7 +132,7 @@ class AiReportJobProcessorTest {
     @Test
     void submitCommercialReport_withinDailyLimit_consumesQuotaAndProceeds() {
         when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
-        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenAnswer(invocation -> invocation.getArgument(2));
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
@@ -152,7 +176,7 @@ class AiReportJobProcessorTest {
     void submitCommercialReport_counterUnavailable_failsOpenAndProceeds() {
         // 카운터 저장소(Redis) 장애 시 어댑터가 true 를 돌려주므로(fail-open) 제출은 정상 진행된다.
         when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
-        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenAnswer(invocation -> invocation.getArgument(2));
         usageCounter.withinQuota = true;
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
@@ -171,7 +195,7 @@ class AiReportJobProcessorTest {
     @Test
     void submitCommercialReport_cacheMissAndReservationWon_savesPendingThenReservesAndDispatches() {
         when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
-        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenAnswer(invocation -> invocation.getArgument(2));
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
@@ -193,7 +217,7 @@ class AiReportJobProcessorTest {
     @Test
     void submitCommercialReport_cacheMissAndReservationLost_deletesOrphanJobAndReturnsExistingId() {
         when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
-        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.of("existing"));
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn("existing");
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
@@ -208,20 +232,51 @@ class AiReportJobProcessorTest {
     @Test
     void submitCommercialReport_workerDispatchFails_marksJobFailedAndReleasesIdempotency() {
         when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
-        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenReturn(Optional.empty());
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenAnswer(invocation -> invocation.getArgument(2));
+        when(jobStore.saveIfStatus(argThat(job -> job.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.PENDING)))
+            .thenReturn(true);
         doThrow(new RuntimeException("queue full")).when(worker).runJob(anyString());
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
         assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
-        // PENDING 저장 + FAILED 저장 = 2 회
-        verify(jobStore, times(2)).save(any());
-        verify(jobStore).save(argThat(job ->
+        verify(jobStore).save(any());
+        verify(jobStore).saveIfStatus(argThat(job ->
             job.status() == AiReportJobStatus.FAILED
                 && AiReportErrorCode.JOB_FAILED.getCode().equals(job.errorCode())
                 && AiReportErrorCode.JOB_FAILED.getMessage().equals(job.errorMessage())
-        ));
-        verify(jobStore).releaseIdempotencyKey(eq(7L), anyString());
+        ), eq(AiReportJobStatus.PENDING));
+        verify(jobStore).releaseIdempotencyKey(eq(7L), anyString(), eq(result.jobId()));
+    }
+
+    @Test
+    void submitCommercialReport_queueRejected_retainsAcceptedContractWithQueueFullJobError() {
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString()))
+            .thenAnswer(invocation -> invocation.getArgument(2));
+        when(jobStore.saveIfStatus(any(), eq(AiReportJobStatus.PENDING))).thenReturn(true);
+        doThrow(new java.util.concurrent.RejectedExecutionException("queue full")).when(worker).runJob(anyString());
+
+        AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
+
+        assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
+        verify(jobStore).saveIfStatus(argThat(job ->
+            job.status() == AiReportJobStatus.FAILED
+                && AiReportErrorCode.JOB_QUEUE_FULL.getCode().equals(job.errorCode())), eq(AiReportJobStatus.PENDING));
+        verify(jobStore).releaseIdempotencyKey(eq(7L), anyString(), eq(result.jobId()));
+        verify(jobEventPort).publishJobUpdated(result.jobId());
+    }
+
+    @Test
+    void submitCommercialReport_dispatchFailureRaceLost_doesNotReleaseOrPublish() {
+        when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString()))
+            .thenAnswer(invocation -> invocation.getArgument(2));
+        doThrow(new RuntimeException("dispatch failed")).when(worker).runJob(anyString());
+
+        assertThat(processor.submitCommercialReport(7L, "C", "S", "P").submissionStatus())
+            .isEqualTo(AiReportSubmissionStatus.ACCEPTED);
+
+        verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
+        verifyNoInteractions(jobEventPort);
     }
 
     @Test
@@ -248,14 +303,16 @@ class AiReportJobProcessorTest {
     void getJobInfo_pendingPastTimeout_marksFailedAndReleasesIdempotency() {
         Instant stale = Instant.now().minusSeconds(props.pendingTimeoutSeconds() + 5);
         when(jobStore.findById("J1")).thenReturn(Optional.of(pendingJob(7L, stale)));
+        when(jobStore.saveIfStatus(argThat(job -> job.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.PENDING)))
+            .thenReturn(true);
 
         AiReportJobInfo info = processor.getJobInfo("J1", 7L);
 
         assertThat(info.status()).isEqualTo(AiReportJobStatus.FAILED);
         assertThat(info.errorCode()).isEqualTo(AiReportErrorCode.JOB_TIMEOUT.getCode());
         assertThat(info.errorMessage()).isEqualTo(AiReportErrorCode.JOB_TIMEOUT.getMessage());
-        verify(jobStore).save(argThat(job -> job.status() == AiReportJobStatus.FAILED));
-        verify(jobStore).releaseIdempotencyKey(7L, "H");
+        verify(jobStore).saveIfStatus(argThat(job -> job.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.PENDING));
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
         // 타임아웃 전이도 상태 변경이므로 SSE 구독자에게 브로드캐스트되어야 한다.
         verify(jobEventPort).publishJobUpdated("J1");
     }
@@ -308,13 +365,15 @@ class AiReportJobProcessorTest {
             .createdAt(created).startedAt(started)
             .build();
         when(jobStore.findById("J1")).thenReturn(Optional.of(running));
+        when(jobStore.saveIfStatus(argThat(job -> job.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.RUNNING)))
+            .thenReturn(true);
 
         AiReportJobInfo info = processor.getJobInfo("J1", 7L);
 
         assertThat(info.status()).isEqualTo(AiReportJobStatus.FAILED);
         assertThat(info.errorCode()).isEqualTo(AiReportErrorCode.JOB_TIMEOUT.getCode());
-        verify(jobStore).save(argThat(job -> job.status() == AiReportJobStatus.FAILED));
-        verify(jobStore).releaseIdempotencyKey(7L, "H");
+        verify(jobStore).saveIfStatus(argThat(job -> job.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.RUNNING));
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
     }
 
     @Test
@@ -336,7 +395,7 @@ class AiReportJobProcessorTest {
         // 결과는 job 스냅샷에서 직접 — 캐시 만료/무효화에 영향 받지 않음
         verifyNoInteractions(cache);
         verify(jobStore, never()).save(any());
-        verify(jobStore, never()).releaseIdempotencyKey(any(), any());
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
     }
 
     @Test

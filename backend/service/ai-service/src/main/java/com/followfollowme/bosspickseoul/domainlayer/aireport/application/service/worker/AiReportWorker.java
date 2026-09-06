@@ -46,37 +46,46 @@ public class AiReportWorker {
                 log.info("AI report job already advanced before worker pickup jobId={} status={}", jobId, job.status());
                 return;
             }
-            running = aiReportJobStorePort.save(job.withStatus(AiReportJobStatus.RUNNING, Instant.now()));
+            running = job.withStatus(AiReportJobStatus.RUNNING, Instant.now());
+            if (!aiReportJobStorePort.saveIfStatus(running, AiReportJobStatus.PENDING)) {
+                log.info("AI report job advanced concurrently before worker pickup jobId={}", jobId);
+                return;
+            }
             aiReportJobEventPort.publishJobUpdated(jobId);
         } catch (RuntimeException pickupFailure) {
             log.error("AI report job pickup failed jobId={} reason={}", jobId, pickupFailure.getMessage(), pickupFailure);
             return;
         }
 
+        boolean terminalStateSaved = false;
         try {
-            aiReportJobStorePort.save(generateAndComplete(running));
+            terminalStateSaved = aiReportJobStorePort.saveIfStatus(
+                generateAndComplete(running), AiReportJobStatus.RUNNING
+            );
         } catch (AiReportException domainException) {
             log.error(
                 "AI report job failed jobId={} jobType={} memberId={} errorCode={} cause={}",
                 running.jobId(), running.jobType(), running.memberId(),
                 domainException.getErrorCode().getCode(), domainException.getMessage(), domainException
             );
-            aiReportJobStorePort.save(running.failed(
+            terminalStateSaved = aiReportJobStorePort.saveIfStatus(running.failed(
                 domainException.getErrorCode().getCode(), domainException.getErrorCode().getMessage(), Instant.now()
-            ));
+            ), AiReportJobStatus.RUNNING);
         } catch (Exception unexpected) {
             log.error(
                 "AI report job failed unexpectedly jobId={} jobType={} memberId={} type={} cause={}",
                 running.jobId(), running.jobType(), running.memberId(),
                 unexpected.getClass().getSimpleName(), unexpected.getMessage(), unexpected
             );
-            aiReportJobStorePort.save(running.failed(
+            terminalStateSaved = aiReportJobStorePort.saveIfStatus(running.failed(
                 AiReportErrorCode.JOB_FAILED.getCode(), AiReportErrorCode.JOB_FAILED.getMessage(), Instant.now()
-            ));
+            ), AiReportJobStatus.RUNNING);
         } finally {
-            aiReportJobStorePort.releaseIdempotencyKey(running.memberId(), running.requestHash());
-            // 종결 상태(COMPLETED/FAILED) 저장 이후에 발행해야 구독자가 재조회 시 최신 상태를 읽는다.
-            aiReportJobEventPort.publishJobUpdated(running.jobId());
+            if (terminalStateSaved) {
+                aiReportJobStorePort.releaseIdempotencyKey(running.memberId(), running.requestHash(), running.jobId());
+                // 종결 상태(COMPLETED/FAILED) 저장 이후에 발행해야 구독자가 재조회 시 최신 상태를 읽는다.
+                aiReportJobEventPort.publishJobUpdated(running.jobId());
+            }
         }
     }
 

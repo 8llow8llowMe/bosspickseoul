@@ -82,11 +82,15 @@ GET /api/v1/ai-reports/jobs/{jobId}/stream (SSE)
 ### 멱등성 (원자적 보장 + orphan-key 방지)
 
 - `requestHash = SHA256(jobType | param1=v1 | param2=v2 | ...)` 앞 32자
-- 제출 흐름: **(1) PENDING 작업 entry 저장 → (2) `ai:job:idempotency:{memberId}:{requestHash}` 키 `SETNX` 시도**
+- 제출 흐름: **(1) PENDING 작업 entry 저장 → (2) Lua로 `ai:job:idempotency:{memberId}:{requestHash}` 예약 및 소유 jobId 반환을 원자 실행**
   - 이 순서 덕분에 idempotency 키가 외부에 보이는 시점에는 **항상 valid jobId 가 가리키는 작업 entry 가 존재**
-  - 레이스 패배 시(다른 요청이 먼저 SETNX 성공) 자기가 방금 저장한 작업 entry 를 즉시 `deleteJob` 해서 orphan 잔여물 제거
+  - 레이스 패배 시(다른 요청이 먼저 예약 성공) 자기가 방금 저장한 작업 entry 를 즉시 `deleteJob` 해서 orphan 잔여물 제거
 - 동일 사용자 + 동일 요청 동시 두 건이 들어와도 둘 중 하나만 워커 디스패치, 나머지는 같은 jobId 를 재사용해서 받음
-- 워커가 작업을 종료(COMPLETED/FAILED) 하거나 lazy 만료가 발생하면 idempotency 키를 즉시 해제 → 동일 요청 재시도 가능
+- 워커 종료(COMPLETED/FAILED) 또는 lazy 만료의 상태 저장에 성공한 경우, Lua에서 소유 jobId가 일치할 때만 idempotency 키를 해제한다. 지연된 이전 워커는 새 작업의 예약을 해제할 수 없다.
+- `PENDING → RUNNING`, `RUNNING → COMPLETED/FAILED`, timeout 전이는 Redis Lua CAS로 기대 상태를 확인한 뒤 저장한다. 경합에서 진 전이는 상태를 덮어쓰거나 이벤트를 발행하지 않는다.
+- timeout CAS가 실패하면 최신 상태를 재조회한다. 작업이 TTL로 사라졌다면 기존 `AI_005`(404), 저장소 명령 실패는 `AI_006`(503)으로 응답한다. 워커의 종결 상태 저장이 실패하면 예약을 유지하고 lazy timeout으로 복구한다.
+- 종결 상태 저장은 성공했지만 Redis 응답만 유실될 수 있으므로, 조회에서 `COMPLETED/FAILED`를 확인하면 소유자 조건으로 예약 해제를 재시도한다. 이 복구는 이전 작업을 반복 조회해도 새 작업의 예약을 지우지 않는다.
+- 실제 Redis 회귀 테스트: 테스트 Redis의 포트를 `TEST_REDIS_PORT`, 원격/WSL 호스트라면 `TEST_REDIS_HOST`에 설정하고 `:service:ai-service:test`를 실행한다. 테스트는 UUID 접두사 키만 사용·삭제하며 예약 동시성, 이전 소유자의 해제, 완료/timeout 경합과 TTL을 확인한다.
 
 ### 결과 스냅샷 (캐시 의존성 제거)
 
@@ -270,7 +274,7 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
 - Spring 백엔드 서비스 간 동기 HTTP 호출은 기본적으로 `FeignClient` 를 사용한다.
 - 외부 LLM 연동은 provider 특성에 따라 `Spring AI` 또는 `WebClient` 를 선택할 수 있지만, port 경계 밖으로 세부 구현을 노출하지 않는다.
 - 프롬프트 포맷터, 구조화 응답 파서, 캐시 키 규칙을 함께 관리한다.
-- 비동기 작업 워커는 단일 인스턴스 가정 (멱등성은 Redis 키로만 보장). 멀티 인스턴스 운영 시 작업 락 또는 분산 큐 도입 검토 필요.
+- 비동기 작업은 in-process executor를 사용한다. Redis CAS는 인스턴스 간 동일 job의 중복 실행·종결 덮어쓰기를 막지만 프로세스 재시작 후 작업 재전달은 보장하지 않는다. durable queue 도입은 별도 과제다.
 - 운영 단가 추적은 현 시점 미적용 — Ollama 로컬 운영 가정. 외부 OpenAI 사용 시 토큰 단가표 + 일/월 누적 cost 가 필요하면 `AiUsageCounterPort` 확장.
 - **사용량 제한(rate limit) 구현 완료** — 상세는 아래 "사용량 제한" 절 참고.
 - 워커 풀(`aiReportTaskExecutor`)은 LLM 동시 생성이 1건인 특성에 맞춰 스레드 2 / 큐 200 으로 둔다.
