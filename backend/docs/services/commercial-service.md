@@ -201,6 +201,14 @@
   프랜차이즈를 franchiseeId 로 지정(브랜드명 문자열 X), 분기-월 매핑을 표준으로 정정,
   "월 최소 목표 매출"(보증금 오표시) 필드는 제공하지 않음.
 - 성별·연령/성수기 분석은 기준 데이터가 없으면 오류 대신 null 로 응답한다.
+- 프랜차이즈 계산은 선택한 브랜드의 `serviceCode`가 요청 업종과 같은지 확인한다. 다른 업종의 비용 기준을
+  섞으려는 요청은 `SIMULATION_005`(400)로 거절한다.
+
+## 상권 비교 설명 정합성
+
+- 종합 추천은 총 매출, 개업률, 폐업률(낮을수록 우위), 월 평균 소득, 총 거주인구, 총 시설 수의 승패를 사용한다.
+- 추천 이유는 종합 승자가 실제로 이긴 지표만 최대 3개 선택하고 양쪽 계산값을 함께 표시한다.
+- 동률인 지표는 "같습니다"로 표현하며, 종합 요약은 실제 지표에서 확인하지 않은 매출 잠재력이나 수요 안정성을 단정하지 않는다.
 
 ## 공유 링크 (sharelink)
 
@@ -289,7 +297,7 @@
 | `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 | `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102). 검증 대역은 `RANKING_101` (`RankingValidationMessage`) |
-| `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_004` | 업종/임대료/프랜차이즈 미존재 404, 프랜차이즈 미선택 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
+| `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_005` | 업종/임대료/프랜차이즈 미존재 404, 프랜차이즈 미선택·업종 불일치 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
 | `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_006` | 미존재 404 / 중복 저장 409(dataBody 에 기존 항목 아이디) / payload·타입 검증 400 / 저장 상한 초과 400. 검증 대역은 `ANALYSIS_BOOKMARK_101`~`ANALYSIS_BOOKMARK_105` (`AnalysisBookmarkValidationMessage`) |
 
 ## Notes

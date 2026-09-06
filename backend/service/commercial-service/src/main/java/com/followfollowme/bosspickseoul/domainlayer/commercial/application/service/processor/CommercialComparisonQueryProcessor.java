@@ -117,8 +117,9 @@ public class CommercialComparisonQueryProcessor {
             toMetric("교통 시설 수", leftFacility.totalTransportationFacilityCount(), rightFacility.totalTransportationFacilityCount())
         );
 
-        ComparisonWinnerSide recommendedSide = resolveRecommendedSide(
+        List<ComparisonMetricInfo> decisionMetrics = buildDecisionMetrics(
             salesMetrics, storeMetrics, spendingMetrics, residentPopulationMetrics, facilityMetrics);
+        ComparisonWinnerSide recommendedSide = resolveRecommendedSide(decisionMetrics);
         List<String> comparisonHighlights = buildHighlights(left, right, salesMetrics, storeMetrics, residentPopulationMetrics);
 
         return CommercialComparisonInfo.builder()
@@ -126,7 +127,7 @@ public class CommercialComparisonQueryProcessor {
             .right(right)
             .comparisonSummary(buildComparisonSummary(left, right, recommendedSide))
             .recommendedSide(recommendedSide.toMetadata())
-            .recommendedReasons(buildRecommendedReasons(left, right, recommendedSide))
+            .recommendedReasons(buildRecommendedReasons(left, right, recommendedSide, decisionMetrics))
             .cautionPoints(buildCautionPoints(left, right, recommendedSide))
             .dominantTimeSlots(buildDominantTimeSlots(left, right, leftSales.amountByTimeSlotInfo(), rightSales.amountByTimeSlotInfo()))
             .dominantAgeGroups(buildDominantAgeGroups(left, right, leftSales.amountByAgeInfo(), rightSales.amountByAgeInfo()))
@@ -181,7 +182,7 @@ public class CommercialComparisonQueryProcessor {
         };
     }
 
-    private ComparisonWinnerSide resolveRecommendedSide(
+    private List<ComparisonMetricInfo> buildDecisionMetrics(
 
         List<ComparisonMetricInfo> salesMetrics, List<ComparisonMetricInfo> storeMetrics,
 
@@ -189,17 +190,21 @@ public class CommercialComparisonQueryProcessor {
 
         List<ComparisonMetricInfo> facilityMetrics
     ) {
-        int leftScore = 0;
-        int rightScore = 0;
-
-        for (ComparisonMetricInfo metric : List.of(
+        return List.of(
             salesMetrics.get(0),
             storeMetrics.get(2),
             storeMetrics.get(3),
             spendingMetrics.get(0),
             residentPopulationMetrics.get(0),
             facilityMetrics.get(0)
-        )) {
+        );
+    }
+
+    private ComparisonWinnerSide resolveRecommendedSide(List<ComparisonMetricInfo> decisionMetrics) {
+        int leftScore = 0;
+        int rightScore = 0;
+
+        for (ComparisonMetricInfo metric : decisionMetrics) {
             if (ComparisonWinnerSide.LEFT.name().equals(metric.winnerSide().code())) {
                 leftScore++;
             } else if (ComparisonWinnerSide.RIGHT.name().equals(metric.winnerSide().code())) {
@@ -213,16 +218,30 @@ public class CommercialComparisonQueryProcessor {
         return leftScore > rightScore ? ComparisonWinnerSide.LEFT : ComparisonWinnerSide.RIGHT;
     }
 
-    private List<String> buildRecommendedReasons(
+    static List<String> buildRecommendedReasons(
 
-        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide recommendedSide
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide recommendedSide,
+        List<ComparisonMetricInfo> decisionMetrics
     ) {
+        if (recommendedSide == ComparisonWinnerSide.TIE) {
+            return List.of(
+                "두 상권은 핵심 비교 지표의 우위 개수가 같습니다.",
+                "두 상권의 매출·개업률·폐업률·소득·거주인구·시설 지표를 함께 확인해야 합니다."
+            );
+        }
+
         String winner = winnerLabel(left, right, recommendedSide);
-        return List.of(
-            "%s이(가) 매출 규모 측면에서 더 우세합니다.".formatted(winner),
-            "%s이(가) 소비력과 거주 수요 측면에서 더 안정적입니다.".formatted(winner),
-            "%s이(가) 창업 진입 전략을 세우기에 더 유리한 지표 흐름을 보입니다.".formatted(winner)
-        );
+        String opponent = recommendedSide == ComparisonWinnerSide.LEFT ? right.commercialName() : left.commercialName();
+        return decisionMetrics.stream()
+            .filter(metric -> recommendedSide.name().equals(metric.winnerSide().code()))
+            .limit(3)
+            .map(metric -> {
+                double winnerValue = recommendedSide == ComparisonWinnerSide.LEFT ? metric.leftValue() : metric.rightValue();
+                double opponentValue = recommendedSide == ComparisonWinnerSide.LEFT ? metric.rightValue() : metric.leftValue();
+                return "%s이(가) %s 지표에서 %s보다 우세합니다(%s: %s, %s: %s)."
+                    .formatted(winner, metric.label(), opponent, winner, winnerValue, opponent, opponentValue);
+            })
+            .toList();
     }
 
     private List<String> buildCautionPoints(
@@ -267,7 +286,7 @@ public class CommercialComparisonQueryProcessor {
     private String buildBusinessFitSummary(
         CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide recommendedSide
     ) {
-        String template = "%s은(는) 현재 업종 기준으로 매출 잠재력과 수요 안정성의 균형이 더 좋습니다.";
+        String template = "%s은(는) 현재 업종의 핵심 비교 지표 다수에서 상대 상권보다 우세합니다.";
         return switch (recommendedSide) {
             case LEFT -> template.formatted(left.commercialName());
             case RIGHT -> template.formatted(right.commercialName());
@@ -374,13 +393,24 @@ public class CommercialComparisonQueryProcessor {
         ComparisonMetricInfo population = residentPopulationMetrics.get(0);
 
         return List.of(
-            "%s이(가) 총 매출 측면에서 더 우세합니다.".formatted(winnerLabel(left, right, sales.winnerSide())),
-            "%s이(가) 거주 수요 잠재력이 더 높습니다.".formatted(winnerLabel(left, right, population.winnerSide())),
-            "%s이(가) 폐업률 측면에서 더 안정적입니다.".formatted(winnerLabel(left, right, closure.winnerSide()))
+            buildHighlight(left, right, sales, "총 매출", "더 우세합니다"),
+            buildHighlight(left, right, population, "총 거주인구", "더 많습니다"),
+            buildHighlight(left, right, closure, "폐업률", "더 안정적입니다")
         );
     }
 
-    private String winnerLabel(
+    private String buildHighlight(
+        CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonMetricInfo metric,
+        String label, String advantage
+    ) {
+        ComparisonWinnerSide side = ComparisonWinnerSide.fromCode(metric.winnerSide().code());
+        if (side == ComparisonWinnerSide.TIE) {
+            return "두 상권의 %s 지표가 같습니다.".formatted(label);
+        }
+        return "%s이(가) %s 측면에서 %s.".formatted(winnerLabel(left, right, side), label, advantage);
+    }
+
+    private static String winnerLabel(
 
         CommercialComparisonTargetInfo left, CommercialComparisonTargetInfo right, ComparisonWinnerSide winnerSide
     ) {

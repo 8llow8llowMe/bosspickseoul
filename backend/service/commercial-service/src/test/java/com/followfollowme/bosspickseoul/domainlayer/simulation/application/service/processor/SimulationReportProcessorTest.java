@@ -119,6 +119,30 @@ class SimulationReportProcessorTest {
     }
 
     @Test
+    void simulate_franchiseeWithDifferentService_rejectsMixedCostBasis() {
+        when(franchiseePort.findById(1L)).thenReturn(Optional.of(
+            SimulationFranchisee.builder().id(1L).serviceCode("CS100002").build()));
+
+        assertThatThrownBy(() -> processor.simulate(command(true, 1L, SimulationFloorType.FIRST_FLOOR)))
+            .isInstanceOf(SimulationException.class)
+            .satisfies(error -> {
+                SimulationErrorCode code = ((SimulationException) error).getErrorCode();
+                assertThat(code.getCode()).isEqualTo("SIMULATION_005");
+                assertThat(code.getHttpStatus().value()).isEqualTo(400);
+            });
+    }
+
+    @Test
+    void simulate_missingFranchisee_throwsNotFound() {
+        when(franchiseePort.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> processor.simulate(command(true, 1L, SimulationFloorType.FIRST_FLOOR)))
+            .isInstanceOf(SimulationException.class)
+            .extracting(error -> ((SimulationException) error).getErrorCode())
+            .isEqualTo(SimulationErrorCode.FRANCHISEE_NOT_FOUND);
+    }
+
+    @Test
     void simulate_similarFranchisees_sortedByAbsoluteBudgetDifferenceTopFive() {
         // 내 총비용: 임대 200 + 보증 2,000 + 인테리어 0 = 2,200만원 (프랜차이즈 후보 없음 평균 0)
         // 후보 총비용 = 부담금 합(천원)×1000 + 임대·보증. diff 가 작은 순으로 정렬돼야 한다.
