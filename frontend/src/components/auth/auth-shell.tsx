@@ -18,6 +18,28 @@ const Frame = styled.div`
   box-shadow: var(--shadow-level-2);
 `
 
+/*
+  인증 화면에는 헤더가 없다. 그래서 여기서 홈으로 돌아갈 길이 사라진다 —
+  북마크를 누르다 로그인으로 튕겨 온 사용자에게 남는 선택지가 로그인·회원가입·
+  브라우저 뒤로가기뿐이었다(과업 흐름 감사 J3-2). 로고를 앱으로 돌아가는 문으로 둔다.
+*/
+const HomeLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  /* 터치 영역(DESIGN.md §8): 작은 텍스트 링크라도 44px 를 확보한다. */
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--color-text-900);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+
+  &:hover {
+    color: var(--color-primary-700);
+  }
+`
+
 const Content = styled.div`
   display: flex;
   flex-direction: column;
@@ -234,6 +256,9 @@ export default function AuthShell({
     <Container>
       <Frame>
         <Content>
+          <HomeLink href="/" aria-label="BossPickSeoul 홈으로">
+            BossPickSeoul
+          </HomeLink>
           <div>
             <Eyebrow>{eyebrow}</Eyebrow>
             <Title>{title}</Title>

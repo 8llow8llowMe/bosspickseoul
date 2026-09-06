@@ -102,3 +102,21 @@ describe('LoginForm — 재설정 진입점과 복귀', () => {
     expect(markup).not.toContain('비밀번호를 재설정했어요')
   })
 })
+
+/*
+ * 인증 화면에는 헤더가 없어 앱으로 돌아갈 길이 사라졌다 — 북마크를 누르다 로그인으로
+ * 튕겨 온 사용자에게 남은 선택지가 로그인·회원가입·뒤로가기뿐이었다(과업 흐름 감사 J3-2).
+ * 셸이 로고를 홈 링크로 들고 있으므로 두 화면 모두에서 확인한다.
+ */
+describe('인증 화면의 탈출구 (AuthShell)', () => {
+  it('비밀번호 재설정 화면에 홈으로 가는 링크가 있다', () => {
+    expect(render()).toContain('BossPickSeoul 홈으로')
+  })
+
+  it('로그인 화면에도 같은 링크가 있다', () => {
+    const markup = renderToStaticMarkup(createElement(LoginForm))
+
+    expect(markup).toContain('BossPickSeoul 홈으로')
+    expect(markup).toMatch(/<a[^>]+href="\/"/)
+  })
+})
