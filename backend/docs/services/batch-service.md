@@ -11,6 +11,8 @@
 ## 책임과 검증 계획
 
 - 수집 Adapter: API 페이지 제한, 타임아웃, 오류 응답, 원본 checksum, UTF-8/CP949 CSV 및 ZIP 스트리밍 검증.
+- 서울 API 중 일부 행정동·자치구 서비스는 분기 경로 인자를 무시하고 전체 시계열을 반환하므로,
+  원격 페이지 커서와 대상 분기 채택 건수를 분리해 스트리밍 필터링한다.
 - Application: 분기 형식, 데이터셋 계약, 누락과 0 구분, 원천 스키마 변경 실패, 공간 버전 연결 검증.
 - Persistence Adapter: staging chunk 저장, 중복과 공간 코드 검증, 게시 트랜잭션, 게시 동시성 및 불변 이력 검증.
 - 실행 구성: 기본 dryRun, 명시 DB URL와 schema allowlist, Job 종료 코드, 외부 스케줄러 실행 안내.
