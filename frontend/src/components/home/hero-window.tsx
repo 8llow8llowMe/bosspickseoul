@@ -218,6 +218,33 @@ const Actions = styled.div`
   gap: 8px;
 `
 
+/*
+  「어디가 좋을지 모르는 사람」의 갈래. 히어로의 두 CTA 는 분석·현황이라 **이미 어디를
+  볼지 아는 사람**만 연다. `/recommend` 로 가는 홈 본문 링크는 판단 흐름 03단계 하나뿐이었고
+  그것은 3.2 화면 뒤에 있다(이슈 #176 잔여 ①).
+
+  문구는 `/analysis` 선택 패널이 쓰는 것과 **같은 말**이다(`analysis-recommend-escape`).
+  같은 갈래를 같은 문장으로 반복하면 학습된다 — 자리마다 다른 말을 쓰면 매번 새로 읽어야 한다.
+
+  버튼이 아니라 텍스트 링크인 이유: 460px 카드에 같은 무게의 버튼이 셋이면 위계가 무너진다.
+*/
+const EscapeLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* 터치 영역(DESIGN.md §8). 카드 안이라 좌우 패딩은 두지 않는다. */
+  min-height: 44px;
+  color: var(--color-text-600);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--color-primary-700);
+  }
+`
+
 const PrimaryLink = styled(Link)`
   min-height: 48px;
   display: inline-flex;
@@ -331,6 +358,9 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
                 구별현황 보기
               </SecondaryLink>
             </Actions>
+            <EscapeLink href="/recommend">
+              어디가 좋을지 모르겠다면 상권 추천받기
+            </EscapeLink>
           </WindowBodyInner>
         </WindowBody>
       </WindowCard>
