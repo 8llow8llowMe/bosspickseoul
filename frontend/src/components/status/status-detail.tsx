@@ -359,9 +359,18 @@ const StatusTag = styled.span`
   font-weight: 600;
 `
 
-const StatGrid = styled.div`
+/*
+  auto-fit 은 열 수에 상한이 없다. 셸에서 폭 상한을 걷어낸 뒤 2560px 칸에서
+  18열까지 갔다. CSS 에 max-columns 가 없으므로 그리드 자체에 폭 상한을 건다.
+  최소 트랙을 140 -> 200 으로 올려 지표 카드 가독성도 함께 올린다.
+
+  (테스트가 단독 렌더해야 해서 export 한다 — 화면 전체를 렌더하면 SSR 에서
+  쿼리가 pending 이라 스켈레톤만 그려져 이 스타일이 시트에 나오지 않는다.)
+*/
+export const StatGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  max-width: var(--w-wide);
   gap: 12px;
 `
 

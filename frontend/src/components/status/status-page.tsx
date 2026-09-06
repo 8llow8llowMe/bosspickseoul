@@ -22,6 +22,7 @@ import StatusMap from './status-map'
 import StatusMetricTabs from './status-metric-tabs'
 import StatusMobileSheet from './status-mobile-sheet'
 import StatusTopTen from './status-top-ten'
+import { shellWidth } from '@/styles/layout'
 
 const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
@@ -44,16 +45,14 @@ const Page = styled.main`
 `
 
 const PageInner = styled.div`
-  width: min(1400px, calc(100% - 48px));
+  ${shellWidth}
   height: 100%;
   min-height: 0;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
 
   @media (max-width: 1023px) {
-    width: min(100%, calc(100% - 32px));
     gap: 12px;
   }
 `
