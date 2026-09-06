@@ -5,6 +5,7 @@ import type { BlueOceanCategory, CandidateCommercial } from '@/types/recommend'
 import RecommendResultList, {
   BLUE_OCEAN_HEADING,
   BLUE_OCEAN_NOTE,
+  describeBookmarkAction,
   SCORE_UNAVAILABLE_LABEL,
   formatBlueOceanCounts,
   formatScore,
@@ -501,5 +502,50 @@ describe('비교 담기 체크박스', () => {
 
     expect(fifthCheckbox).toContain('disabled=""')
     expect(firstCheckbox).not.toContain('disabled=""')
+  })
+})
+
+/*
+ * 아이콘만 있는 버튼이라 이 라벨이 유일한 설명이다. 비로그인 사용자는 안내 없이
+ * `/login` 으로 튕겼다(과업 흐름 감사 J3-1) — 시뮬레이션 리포트의 「저장하려면 로그인」
+ * 규약에 맞춰 **누르기 전에** 무슨 일이 날지 말한다.
+ */
+describe('describeBookmarkAction', () => {
+  it('로그인 상태에서는 저장·삭제를 말한다', () => {
+    expect(
+      describeBookmarkAction('역삼역', {
+        saved: false,
+        pending: false,
+        loginRequired: false,
+      }),
+    ).toBe('역삼역 북마크 추가')
+    expect(
+      describeBookmarkAction('역삼역', {
+        saved: true,
+        pending: false,
+        loginRequired: false,
+      }),
+    ).toBe('역삼역 북마크 삭제')
+  })
+
+  it('비로그인이면 저장이 아니라 로그인으로 간다고 미리 말한다', () => {
+    expect(
+      describeBookmarkAction('역삼역', {
+        saved: false,
+        pending: false,
+        loginRequired: true,
+      }),
+    ).toBe('역삼역 북마크하려면 로그인')
+  })
+
+  /* 로그인하지 않았는데 처리 중일 수는 없다 — 처리 중이 먼저다. */
+  it('처리 중이면 그 사실을 먼저 말한다', () => {
+    expect(
+      describeBookmarkAction('역삼역', {
+        saved: false,
+        pending: true,
+        loginRequired: true,
+      }),
+    ).toBe('역삼역 북마크 처리 중')
   })
 })

@@ -54,6 +54,8 @@ export type RecommendPanelProps = {
   bookmarkError?: string | null
   isBookmarked?: (commercialCode: string) => boolean
   isBookmarkPending?: (commercialCode: string) => boolean
+  /** 비로그인이면 북마크가 저장이 아니라 로그인 이동이다 — 버튼이 미리 말한다. */
+  isBookmarkLoginRequired?: boolean
   /** `view === 'picker'` 일 때 어느 조건을 고르는 중인지. */
   pickerStep?: RecommendConditionStep | null
   /** 선택 뷰가 보여줄 항목. 지역은 평면, 업종은 그룹으로 온다. */
@@ -305,6 +307,7 @@ export default function RecommendPanel({
   bookmarkError,
   isBookmarked,
   isBookmarkPending,
+  isBookmarkLoginRequired,
   pickerStep,
   pickerItems,
   pickerGroups,
@@ -491,6 +494,7 @@ export default function RecommendPanel({
         <RecommendResultList
           isBookmarked={isBookmarked}
           isBookmarkPending={isBookmarkPending}
+          isBookmarkLoginRequired={isBookmarkLoginRequired}
           feedback={feedback}
           isCompareFull={isCompareFull}
           isLoading={isRecommendationLoading}
