@@ -9,6 +9,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CandidatePresetType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.support.KoreanParticle;
 import com.followfollowme.bosspickseoul.shared.enums.GradeLevel;
 import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import java.util.ArrayList;
@@ -240,12 +241,36 @@ public class CommercialCandidateQueryProcessor {
     private String buildSelectionReason(
         CommercialAllMetricScoresInfo source, CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric
     ) {
-        return "%s 기준으로 %s를 우선 반영했고, 기회도는 %s이며 위험도는 %s입니다."
+        return buildSelectionReason(
+            preset.getDisplayName(),
+            priorityMetric.getDisplayName(),
+            resolveLabel(source, CommercialHeatmapMetricType.OPPORTUNITY_SCORE),
+            resolveLabel(source, CommercialHeatmapMetricType.RISK_SCORE)
+        );
+    }
+
+    /**
+     * 추천 카드에 그대로 보이는 문장이다. 두 가지가 틀려 있었다.
+     *
+     * <p>첫째, 조사가 {@code "%s를"} 로 박혀 있어 받침으로 끝나는 값이 오면 「기회도 높음<b>를</b>」이
+     * 됐다. 둘째, 뒷절이 {@code "기회도는 %s"} 인데 그 자리에 들어가는 요약 라벨이 이미 지표명을
+     * 포함해(「기회도 높음」) 「기회도는 기회도 높음이며」로 겹쳤다.
+     *
+     * <p>그래서 우선 지표는 <b>지표명</b>으로, 뒷절은 <b>요약 라벨</b>로 역할을 갈랐다.
+     * 조사는 {@link KoreanParticle} 이 앞말을 보고 고른다.
+     *
+     * <p>문자열 조립만 하므로 정적이다 — 점수 조회 없이 문장을 그대로 검증할 수 있다.
+     */
+    static String buildSelectionReason(
+        String presetName, String priorityMetricName, String opportunityLabel, String riskLabel
+    ) {
+        return "%s 기준으로 %s%s 우선 반영했고, %s · %s입니다."
             .formatted(
-                preset.getDisplayName(),
-                resolveLabel(source, priorityMetric),
-                resolveLabel(source, CommercialHeatmapMetricType.OPPORTUNITY_SCORE),
-                resolveLabel(source, CommercialHeatmapMetricType.RISK_SCORE)
+                presetName,
+                priorityMetricName,
+                KoreanParticle.objectParticle(priorityMetricName),
+                opportunityLabel,
+                riskLabel
             );
     }
 
