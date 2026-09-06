@@ -326,6 +326,18 @@ class PasswordResetProcessorTest {
         }
 
         @Override
+        public com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshTokenRotationResult rotate(
+            long memberId,
+            String currentSessionId,
+            String expectedRefreshToken,
+            String newSessionId,
+            String newRefreshToken,
+            com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.RefreshSessionMeta fallbackMeta
+        ) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public Optional<String> find(long memberId, String sessionId) {
             return Optional.empty();
         }

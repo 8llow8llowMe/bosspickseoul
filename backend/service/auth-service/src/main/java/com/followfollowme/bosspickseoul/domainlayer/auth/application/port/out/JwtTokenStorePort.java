@@ -14,6 +14,19 @@ public interface JwtTokenStorePort {
      */
     void save(long memberId, String sessionId, String refreshToken, RefreshSessionMeta meta);
 
+    /**
+     * 현재 토큰 일치 확인과 새 세션 교체를 원자적으로 수행한다. 새 세션 아이디는 현재 아이디와 달라야 한다.
+     * MISSING/TOKEN_MISMATCH이면 저장소를 변경하지 않으며, 성공 시 기존 메타(없으면 fallbackMeta)를 승계한다.
+     */
+    RefreshTokenRotationResult rotate(
+        long memberId,
+        String currentSessionId,
+        String expectedRefreshToken,
+        String newSessionId,
+        String newRefreshToken,
+        RefreshSessionMeta fallbackMeta
+    );
+
     Optional<String> find(long memberId, String sessionId);
 
     /** 회전 시 이전 세션의 메타(최초 로그인 시각 등)를 이어받기 위한 조회. */
