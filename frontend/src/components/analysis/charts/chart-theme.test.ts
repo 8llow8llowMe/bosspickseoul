@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CHART_COLORS,
-  formatAxisTick,
+  createAxisTickFormatter,
   formatChartValue,
 } from '@/components/analysis/charts/chart-theme'
 
@@ -17,13 +17,60 @@ describe('chart-theme', () => {
     expect(formatChartValue(1234, '명')).toBe('1,234명')
     expect(formatChartValue(null, '명')).toBe('데이터 없음')
   })
+})
 
-  it('formatAxisTick은 큰 수를 만/억 컴팩트로 짧게 만든다', () => {
-    expect(formatAxisTick(0)).toBe('0')
-    expect(formatAxisTick(600_000)).toBe('60만')
-    expect(formatAxisTick(4_500_000)).toBe('450만')
-    expect(formatAxisTick(100_000_000)).toBe('1억')
-    expect(formatAxisTick(250_000_000)).toBe('2.5억')
-    expect(formatAxisTick(4)).toBe('4')
+/*
+ * 사용자 지적: 손익 차트 축이 「1만 / 5,000 / 0 / -5,000 / -1.5만」처럼 **단위가 섞여**
+ * 보였다. 값마다 단위를 따로 골라서 1만을 넘는 눈금만 만 단위가 됐기 때문이다 —
+ * 같은 축의 눈금끼리 자릿수를 비교할 수 없다.
+ */
+describe('createAxisTickFormatter', () => {
+  it('축 전체가 가장 큰 눈금의 단위를 함께 쓴다', () => {
+    const ticks = [-15_000, -10_000, -5_000, 0, 5_000, 10_000]
+    const format = createAxisTickFormatter(ticks)
+
+    expect(ticks.map(format)).toEqual([
+      '-1.5만',
+      '-1만',
+      '-0.5만',
+      '0',
+      '0.5만',
+      '1만',
+    ])
+  })
+
+  /* 예전 동작을 명시적으로 잠근다 — 이 조합이 다시 나오면 실패한다. */
+  it('한 축 안에서 단위가 섞이지 않는다', () => {
+    const format = createAxisTickFormatter([-15_000, 5_000, 10_000])
+    const rendered = [-15_000, 5_000, 10_000].map(format)
+
+    const withUnit = rendered.filter(text => text.includes('만')).length
+    expect(withUnit).toBe(rendered.length)
+  })
+
+  it('모든 눈금이 1만 미만이면 단위 없이 콤마로 적는다', () => {
+    const format = createAxisTickFormatter([0, 2_500, 5_000])
+    expect([0, 2_500, 5_000].map(format)).toEqual(['0', '2,500', '5,000'])
+  })
+
+  it('만·억 컴팩트 표기 자체는 그대로다', () => {
+    const format = createAxisTickFormatter([4_500_000])
+    expect(format(600_000)).toBe('60만')
+    expect(format(4_500_000)).toBe('450만')
+  })
+
+  it('억 단위 축도 하나로 통일한다', () => {
+    const format = createAxisTickFormatter([0, 50_000_000, 250_000_000])
+    expect([0, 50_000_000, 250_000_000].map(format)).toEqual([
+      '0',
+      '0.5억',
+      '2.5억',
+    ])
+  })
+
+  it('빈 축·비정상 값에도 죽지 않는다', () => {
+    const format = createAxisTickFormatter([null, undefined, Number.NaN])
+    expect(format(0)).toBe('0')
+    expect(format(Number.NaN)).toBe('')
   })
 })

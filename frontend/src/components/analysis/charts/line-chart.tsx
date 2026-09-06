@@ -16,7 +16,7 @@ import type { TrendPoint } from '@/lib/analysis/chart-data'
 import {
   CHART_COLORS,
   ChartTooltipContent,
-  formatAxisTick,
+  createAxisTickFormatter,
 } from './chart-theme'
 
 const DIRECTION_META: Record<
@@ -75,6 +75,8 @@ export default function LineChart({
 
   const meta = direction ? DIRECTION_META[direction] : null
   const yScale = computeNiceYScale(points.map(point => point.value))
+  // 축 전체가 같은 단위를 쓰게 눈금 집합으로 포맷터를 만든다(단위 섞임 방지).
+  const formatTick = createAxisTickFormatter(yScale.ticks)
 
   return (
     <Wrap role="img" aria-label={ariaLabel}>
@@ -107,7 +109,7 @@ export default function LineChart({
             domain={yScale.domain}
             ticks={yScale.ticks}
             allowDataOverflow
-            tickFormatter={value => formatAxisTick(value)}
+            tickFormatter={formatTick}
           />
           <Tooltip
             content={

@@ -16,7 +16,7 @@ import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
 import {
   CHART_COLORS,
   ChartTooltipContent,
-  formatAxisTick,
+  createAxisTickFormatter,
 } from './chart-theme'
 
 const Empty = styled.p`
@@ -66,6 +66,8 @@ export default function BarChart({
   if (!hasData) return <Empty>데이터 없음</Empty>
 
   const yScale = computeNiceYScale(cells.map(cell => cell.value))
+  // 축 전체가 같은 단위를 쓰게 눈금 집합으로 포맷터를 만든다(단위 섞임 방지).
+  const formatTick = createAxisTickFormatter(yScale.ticks)
 
   return (
     <ResponsiveContainer
@@ -93,7 +95,7 @@ export default function BarChart({
           domain={yScale.domain}
           ticks={yScale.ticks}
           allowDataOverflow
-          tickFormatter={value => formatAxisTick(value)}
+          tickFormatter={formatTick}
         />
         <Tooltip
           content={

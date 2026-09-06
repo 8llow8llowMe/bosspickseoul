@@ -20,23 +20,56 @@ export const formatChartValue = (
   unit = '',
 ): string => formatAnalysisValue(value, unit)
 
-/**
- * 축 눈금용 컴팩트 표기. 큰 수를 만/억 단위로 짧게 만들어 축이 가려지지 않게 한다.
- * 예) 600,000 → '60만', 4,500,000 → '450만', 100,000,000 → '1억',
- *     250,000,000 → '2.5억'. 1만 미만은 로케일 콤마 그대로, 0은 '0'.
- */
-export const formatAxisTick = (value: number): string => {
+const trimUnit = (n: number): string => {
+  const rounded = Math.round(n * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
+type AxisUnit = { divisor: number; suffix: string }
+
+/** 값의 크기에 맞는 단위 하나. 1만 미만이면 단위 없이 콤마 표기다. */
+const pickAxisUnit = (magnitude: number): AxisUnit => {
+  if (magnitude >= 100_000_000) return { divisor: 100_000_000, suffix: '억' }
+  if (magnitude >= 10_000) return { divisor: 10_000, suffix: '만' }
+  return { divisor: 1, suffix: '' }
+}
+
+const formatWithUnit = (value: number, unit: AxisUnit): string => {
   if (!Number.isFinite(value)) return ''
   if (value === 0) return '0'
+
   const sign = value < 0 ? '-' : ''
   const abs = Math.abs(value)
-  const trim = (n: number): string => {
-    const rounded = Math.round(n * 10) / 10
-    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
-  }
-  if (abs >= 100_000_000) return `${sign}${trim(abs / 100_000_000)}억`
-  if (abs >= 10_000) return `${sign}${trim(abs / 10_000)}만`
-  return `${sign}${abs.toLocaleString('ko-KR')}`
+
+  return unit.suffix
+    ? `${sign}${trimUnit(abs / unit.divisor)}${unit.suffix}`
+    : `${sign}${abs.toLocaleString('ko-KR')}`
+}
+
+/**
+ * 축 전체가 **하나의 단위**를 쓰도록 포맷터를 만든다.
+ *
+ * ⚠️ 값마다 단위를 따로 고르면(예전 `formatAxisTick` 이 그랬다) 한 축 안에서 단위가
+ * 섞인다. 손익 눈금 `[-15000, -10000, -5000, 0, 5000, 10000]` 이 실제로
+ * **「-1.5만 · -1만 · -5,000 · 0 · 5,000 · 1만」**으로 그려졌다 — 1만을 넘는 값만
+ * 만 단위가 되어, 같은 축의 눈금끼리 자릿수를 비교할 수 없었다.
+ *
+ * 그래서 **가장 큰 눈금**으로 단위를 한 번 정하고 모든 눈금에 같은 단위를 쓴다.
+ * 위 예는 「-1.5만 · -1만 · -0.5만 · 0 · 0.5만 · 1만」이 된다.
+ */
+export const createAxisTickFormatter = (
+  values: readonly (number | null | undefined)[],
+): ((value: number) => string) => {
+  const magnitude = values.reduce<number>(
+    (max, value) =>
+      typeof value === 'number' && Number.isFinite(value)
+        ? Math.max(max, Math.abs(value))
+        : max,
+    0,
+  )
+  const unit = pickAxisUnit(magnitude)
+
+  return value => formatWithUnit(value, unit)
 }
 
 export const TooltipBox = styled.div`
