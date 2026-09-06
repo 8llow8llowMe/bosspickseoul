@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.worker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -58,19 +59,21 @@ class AiReportWorkerTest {
         AiReportJob pending = pendingJob();
         CommercialAiReportInfo report = mock(CommercialAiReportInfo.class);
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
-        when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
-            .thenAnswer(inv -> inv.getArgument(0));
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.RUNNING), eq(AiReportJobStatus.PENDING)))
+            .thenReturn(true);
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.COMPLETED), eq(AiReportJobStatus.RUNNING)))
+            .thenReturn(true);
         AiUsageMeta usage = new AiUsageMeta("ollama", 100, 50);
         when(processor.generateCommercialReport("C", "S", "P"))
             .thenReturn(new AiGenerationResult<>(report, usage));
 
         worker.runJob("J1");
 
-        verify(jobStore).save(argThat(j ->
+        verify(jobStore).saveIfStatus(argThat(j ->
             j.status() == AiReportJobStatus.COMPLETED && j.commercialReport() == report
-        ));
+        ), eq(AiReportJobStatus.RUNNING));
         verify(usageCounter).record(eq(7L), eq(usage));
-        verify(jobStore).releaseIdempotencyKey(7L, "H");
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
         // RUNNING 전이 1회 + 종결(COMPLETED) 1회 발행으로 SSE 구독자가 상태 변화를 감지한다.
         verify(jobEventPort, times(2)).publishJobUpdated("J1");
     }
@@ -79,19 +82,21 @@ class AiReportWorkerTest {
     void runJob_aiException_savesFailedWithDomainCodeAndReleasesIdempotency() {
         AiReportJob pending = pendingJob();
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
-        when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
-            .thenAnswer(inv -> inv.getArgument(0));
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.RUNNING), eq(AiReportJobStatus.PENDING)))
+            .thenReturn(true);
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.RUNNING)))
+            .thenReturn(true);
         when(processor.generateCommercialReport(any(), any(), any()))
             .thenThrow(new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE));
 
         worker.runJob("J1");
 
-        verify(jobStore).save(argThat(j ->
+        verify(jobStore).saveIfStatus(argThat(j ->
             j.status() == AiReportJobStatus.FAILED
                 && AiReportErrorCode.LLM_UNAVAILABLE.getCode().equals(j.errorCode())
                 && AiReportErrorCode.LLM_UNAVAILABLE.getMessage().equals(j.errorMessage())
-        ));
-        verify(jobStore).releaseIdempotencyKey(7L, "H");
+        ), eq(AiReportJobStatus.RUNNING));
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
         verify(usageCounter, never()).record(any(), any());
     }
 
@@ -100,20 +105,22 @@ class AiReportWorkerTest {
         AiReportJob pending = pendingJob();
         String secretLeak = "internal db password=hunter2";
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
-        when(jobStore.save(argThat(j -> j.status() == AiReportJobStatus.RUNNING)))
-            .thenAnswer(inv -> inv.getArgument(0));
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.RUNNING), eq(AiReportJobStatus.PENDING)))
+            .thenReturn(true);
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.RUNNING)))
+            .thenReturn(true);
         when(processor.generateCommercialReport(any(), any(), any()))
             .thenThrow(new RuntimeException(secretLeak));
 
         worker.runJob("J1");
 
-        verify(jobStore).save(argThat(j ->
+        verify(jobStore).saveIfStatus(argThat(j ->
             j.status() == AiReportJobStatus.FAILED
                 && AiReportErrorCode.JOB_FAILED.getCode().equals(j.errorCode())
                 && AiReportErrorCode.JOB_FAILED.getMessage().equals(j.errorMessage())
                 && (j.errorMessage() == null || !j.errorMessage().contains("hunter2"))
-        ));
-        verify(jobStore).releaseIdempotencyKey(7L, "H");
+        ), eq(AiReportJobStatus.RUNNING));
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
     }
 
     @Test
@@ -138,8 +145,8 @@ class AiReportWorkerTest {
         worker.runJob("J1");
 
         verify(jobStore).findById("J1");
-        verify(jobStore, never()).save(any());
-        verify(jobStore, never()).releaseIdempotencyKey(any(), anyString());
+        verify(jobStore, never()).saveIfStatus(any(), any());
+        verify(jobStore, never()).releaseIdempotencyKey(any(), anyString(), anyString());
         verifyNoInteractions(processor, usageCounter);
     }
 
@@ -151,8 +158,52 @@ class AiReportWorkerTest {
         worker.runJob("J1");
 
         verify(jobStore, atLeastOnce()).findById("J1");
-        verify(jobStore, never()).save(any());
+        verify(jobStore, never()).saveIfStatus(any(), any());
         verifyNoInteractions(processor, usageCounter);
+    }
+
+    @Test
+    void runJob_terminalTransitionLost_doesNotOverwriteOrPublishStaleTerminalState() {
+        AiReportJob pending = pendingJob();
+        CommercialAiReportInfo report = mock(CommercialAiReportInfo.class);
+        when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.RUNNING), eq(AiReportJobStatus.PENDING)))
+            .thenReturn(true);
+        when(processor.generateCommercialReport("C", "S", "P"))
+            .thenReturn(new AiGenerationResult<>(report, new AiUsageMeta("ollama", 100, 50)));
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.COMPLETED), eq(AiReportJobStatus.RUNNING)))
+            .thenReturn(false);
+
+        worker.runJob("J1");
+
+        verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
+        verify(jobEventPort, times(1)).publishJobUpdated("J1");
+    }
+
+    @Test
+    void runJob_pickupRaceLost_doesNotGenerateOrReleaseOwner() {
+        when(jobStore.findById("J1")).thenReturn(Optional.of(pendingJob()));
+
+        worker.runJob("J1");
+
+        verifyNoInteractions(processor, usageCounter, jobEventPort);
+        verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
+    }
+
+    @Test
+    void runJob_terminalPersistenceUnavailable_keepsReservationUntilTimeout() {
+        when(jobStore.findById("J1")).thenReturn(Optional.of(pendingJob()));
+        when(jobStore.saveIfStatus(any(), eq(AiReportJobStatus.PENDING))).thenReturn(true);
+        when(processor.generateCommercialReport(any(), any(), any()))
+            .thenThrow(new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE));
+        when(jobStore.saveIfStatus(any(), eq(AiReportJobStatus.RUNNING)))
+            .thenThrow(new AiReportException(AiReportErrorCode.JOB_STORE_UNAVAILABLE));
+
+        assertThatThrownBy(() -> worker.runJob("J1"))
+            .isInstanceOf(AiReportException.class);
+
+        verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
+        verify(jobEventPort, times(1)).publishJobUpdated("J1");
     }
 
     private AiReportJob pendingJob() {
