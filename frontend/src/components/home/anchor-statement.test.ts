@@ -11,8 +11,9 @@ describe('AnchorStatement', () => {
   it('앵커 문장 전체가 텍스트로 렌더된다(SR 낭독 보장)', () => {
     const text = renderText()
 
-    expect(text).toContain('감이 아니라 숫자로 정합니다.')
-    expect(text).toContain('매출·유동인구·경쟁 강도를 업종별로 봅니다.')
+    expect(text).toContain('서울 어느 자치구에 사람이 모이는지 봅니다.')
+    expect(text).toContain('그 자리에서 내 업종이 얼마나 파는지 읽습니다.')
+    expect(text).toContain('그 가게가 한 달에 얼마를 남기는지 계산합니다.')
   })
 
   /*

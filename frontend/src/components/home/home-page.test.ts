@@ -32,8 +32,8 @@ describe('HomePage', () => {
     const text = html.replace(/<[^>]+>/g, '')
 
     expect(text).toContain('창업 전에, 상권부터 확인하세요.') // 히어로 유지
-    expect(text).toContain('네 단계로 좁힙니다.') // ① 네 도구 보드
-    expect(text).toContain('감이 아니라 숫자로 정합니다.') // ② 앵커
+    expect(text).toContain('창업할 지역과 업종을 네 단계로 좁힙니다.') // ① 네 도구 보드
+    expect(text).toContain('서울 어느 자치구에 사람이 모이는지 봅니다.') // ② 앵커
     expect(text).toContain('현황 확인') // ③ 스토리 스텝
     expect(text).toContain('AI 리포트') // ④ 벤토
     expect(html).toContain('대표 예시 데이터')
@@ -48,7 +48,7 @@ describe('HomePage', () => {
 
     // 앵커 문장은 단어별 span 으로 쪼개져 문자열로 찾을 수 없다 — 스토리의 데모 라벨을
     // 기준점으로 쓴다.
-    const board = html.indexOf('네 단계로 좁힙니다.')
+    const board = html.indexOf('창업할 지역과 업종을 네 단계로 좁힙니다.')
     const story = html.indexOf('대표 예시 데이터')
 
     expect(board).toBeGreaterThan(-1)

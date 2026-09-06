@@ -67,7 +67,7 @@ function useRovingRadioGroup(
 
 const Wrapper = styled.div`
   display: grid;
-  gap: 20px;
+  gap: 16px;
   grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
   align-items: start;
 
@@ -136,14 +136,25 @@ const Option = styled.button<{ $active: boolean }>`
   }
 `
 
+/*
+  스토리 02 단계의 데모다. **패널 높이(데모 영역 494px)에 맞춰 접는다.**
+
+  이전에는 이 카드가 587px 이라 패널 안에서 세로 스크롤이 생겼다 — 스토리는 스크롤로
+  단계를 넘기는 구간이라, 그 안에서 또 스크롤되는 영역은 휠이 어느 쪽을 움직일지
+  모호해진다(단계가 안 넘어가거나 카드가 안 내려간다). 여백·차트 높이를 줄여
+  **한 화면에 담기게** 한다.
+
+  줄인 곳: gap 18 → 12 · padding 24 → 20 · 차트 150 → 128. 셋을 조금씩 나눠 줄인 이유는
+  한 곳만 크게 줄이면 그 요소만 눈에 띄게 답답해지기 때문이다.
+*/
 const ResultCard = styled.div`
   display: grid;
-  gap: 18px;
+  gap: 12px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-level-2);
-  padding: 24px;
+  padding: 20px;
   transition: background-color var(--motion-fast) var(--ease-standard);
 
   @media (max-width: 640px) {
@@ -175,7 +186,7 @@ const SampleBadge = styled.span`
 
 const ChartCard = styled.div`
   display: grid;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface-muted);
@@ -206,10 +217,15 @@ const ChartChange = styled.span<{ $positive: boolean }>`
   transition: color var(--motion-fast) var(--ease-standard);
 `
 
+/*
+  지표 4개. `repeat(2, 1fr)` 고정이면 **패널이 아무리 넓어도 2행**이라 데스크톱에서
+  한 행치(약 58px)를 그냥 버렸다 — 02 패널이 넘치던 높이의 대부분이 이것이다.
+  `auto-fit` 으로 바꿔 폭이 되면 4열 1행, 좁으면 2열로 접힌다.
+*/
 const MetricGrid = styled.div`
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 
   @media (max-width: 420px) {
     grid-template-columns: 1fr;
@@ -387,7 +403,7 @@ export default function AnalysisMiniDemo({
             }))}
             unit=""
             direction={null}
-            height={150}
+            height={128}
             ariaLabel={`${districtName} ${industryName} 매출 추이`}
           />
         </ChartCard>

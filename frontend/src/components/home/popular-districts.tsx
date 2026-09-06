@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TrendingUp } from 'lucide-react'
 import styled from 'styled-components'
@@ -278,8 +278,7 @@ export default function PopularDistricts() {
   const [pickedMetric, setPickedMetric] = useState<HomeMetric>('footTraffic')
 
   /* 훅은 전부 조기 반환보다 앞에 있어야 한다 — 아래 dual 계산도 그래서 위로 올렸다. */
-  const trackRef = useRef<HTMLElement | null>(null)
-  const progress = useScrollProgress(trackRef)
+  const { ref: trackRef, progress, element: trackElement } = useScrollProgress()
   const stacked = useStackedMode()
 
   const rawView =
@@ -385,6 +384,7 @@ export default function PopularDistricts() {
         rows={viewRows}
         ariaLabel="지금 많이 본 자치구 조회수 순위"
         highlightKey={highlightKey}
+        variant="card"
       />
     </Column>
   ) : null
@@ -402,9 +402,9 @@ export default function PopularDistricts() {
             트랙 모드에서 setState 만 하면 다음 스크롤 이벤트가 값을 되돌린다 —
             스크롤 위치 자체를 그 지표 구간으로 옮겨 정본을 덮어쓴다(조건①).
           */
-          if (useScrollTrack && trackRef.current) {
+          if (useScrollTrack && trackElement) {
             scrollToPinnedStep(
-              trackRef.current,
+              trackElement,
               HOME_METRICS.indexOf(next),
               HOME_METRICS.length,
             )
@@ -422,6 +422,7 @@ export default function PopularDistricts() {
           rows={metricRows}
           ariaLabel={`${activeMetric.label} 상위 자치구 순위`}
           highlightKey={highlightKey}
+          variant="card"
         />
       ) : (
         <MetricEmptyNotice>이 지표는 집계가 없습니다.</MetricEmptyNotice>

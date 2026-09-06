@@ -1,5 +1,12 @@
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
+import {
+  ArrowRight,
+  Calculator,
+  LineChart,
+  Map,
+  Target,
+  type LucideIcon,
+} from 'lucide-react'
 import styled from 'styled-components'
 
 import { STORY_STEPS } from '@/components/home/story-steps'
@@ -147,6 +154,28 @@ const Card = styled(Link)`
   }
 `
 
+const CardHead = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`
+
+const IconBadge = styled.span`
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+
+  svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+  }
+`
+
 const Step = styled.span`
   color: var(--color-primary-700);
   font-size: 12px;
@@ -170,6 +199,33 @@ const CardBody = styled.span`
   word-break: keep-all;
 `
 
+/*
+  이 단계를 마치면 손에 남는 것. 위 `CardBody`(동작)와 시각적으로 갈라 놓아야 두 줄이
+  같은 말의 반복으로 읽히지 않는다 — 그래서 위에 경계선을 두고 라벨을 붙인다.
+*/
+const Outcome = styled.span`
+  display: grid;
+  gap: 2px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-200);
+`
+
+const OutcomeLabel = styled.span`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+`
+
+const OutcomeText = styled.span`
+  color: var(--color-text-700);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  word-break: keep-all;
+`
+
 const CardTool = styled.span`
   display: inline-flex;
   align-items: center;
@@ -186,14 +242,33 @@ const CardTool = styled.span`
   }
 `
 
-export const TOOL_BOARD_TITLE = '네 단계로 좁힙니다.'
+/*
+  카피 규칙: **주어·목적어를 생략하지 않는다.** 이전 제목 「네 단계로 좁힙니다」는
+  무엇을 좁히는지가 문장에 없었다 — 수식어가 없어도 목적어가 빠지면 같은 공허함이
+  남고, 그것이 곧 「AI 가 쓴 티」다. `home.md` S2 #3 이 수식어만 금지 대상으로
+  적어 둔 탓에 이 형태를 못 걸렀다.
+*/
+/*
+  단계별 아이콘. 카드 네 장이 글자만 다르면 한 덩어리로 읽혀 훑는 눈에 걸리지 않는다 —
+  아이콘이 각 카드에 **눈이 멈출 자리**를 만든다. 의미는 도구가 하는 일에서 곧장 온다
+  (지도=구별현황 · 추이=상권분석 · 과녁=상권추천 · 계산=시뮬레이션). 장식이므로
+  스크린리더에서는 숨긴다 — 카드 제목이 이미 같은 것을 말한다.
+*/
+const STEP_ICONS: Record<string, LucideIcon> = {
+  '01': Map,
+  '02': LineChart,
+  '03': Target,
+  '04': Calculator,
+}
+
+export const TOOL_BOARD_TITLE = '창업할 지역과 업종을 네 단계로 좁힙니다.'
 
 export default function ToolFlowBoard() {
   return (
     <Section aria-label="네 도구 요약">
       <Inner>
         <Header>
-          <Eyebrow>어떻게 쓰나요</Eyebrow>
+          <Eyebrow>이 서비스가 하는 일</Eyebrow>
           <Title>{TOOL_BOARD_TITLE}</Title>
         </Header>
 
@@ -201,9 +276,21 @@ export default function ToolFlowBoard() {
           {STORY_STEPS.map((step, index) => (
             <Item key={step.step}>
               <Card href={step.tool.href}>
-                <Step>{step.step}</Step>
+                <CardHead>
+                  <IconBadge aria-hidden="true">
+                    {(() => {
+                      const Icon = STEP_ICONS[step.step]
+                      return Icon ? <Icon /> : null
+                    })()}
+                  </IconBadge>
+                  <Step>{step.step}</Step>
+                </CardHead>
                 <CardTitle>{step.title}</CardTitle>
                 <CardBody>{step.body}</CardBody>
+                <Outcome>
+                  <OutcomeLabel>손에 남는 것</OutcomeLabel>
+                  <OutcomeText>{step.outcome}</OutcomeText>
+                </Outcome>
                 <CardTool>
                   {step.tool.label}
                   <ArrowRight aria-hidden="true" />
