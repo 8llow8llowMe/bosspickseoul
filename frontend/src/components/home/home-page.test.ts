@@ -33,7 +33,7 @@ describe('HomePage', () => {
 
     expect(text).toContain('창업 전에, 상권부터 확인하세요.') // 히어로 유지
     expect(text).toContain('창업할 지역과 업종을 네 단계로 좁힙니다.') // ① 네 도구 보드
-    expect(text).toContain('서울 어느 자치구에 사람이 모이는지 봅니다.') // ② 앵커
+    expect(text).toContain('BossPickSeoul은 서울 25개 자치구를') // ② 앵커
     expect(text).toContain('현황 확인') // ③ 스토리 스텝
     expect(text).toContain('AI 리포트') // ④ 벤토
     expect(html).toContain('대표 예시 데이터')

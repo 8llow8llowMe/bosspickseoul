@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   activeStepFromPinnedProgress,
   activeStepFromProgress,
+  pinnedPhase,
   filledWordCount,
   pinnedStepProgress,
   viewportProgress,
@@ -157,5 +158,44 @@ describe('pinnedStepProgress ↔ activeStepFromPinnedProgress', () => {
       const target = pinnedStepProgress(index, 3, H, VH)
       expect(activeStepFromPinnedProgress(target, 3, H, VH)).toBe(index)
     }
+  })
+})
+
+/*
+ * 사용자 요청: 「글이 화면 가운데로 이동한 **뒤에** 칠해지기 시작하고, 끝까지 칠해진
+ * **뒤에** 고정이 풀려 올라간다.」
+ *
+ * 예전에는 두 단계가 progress 상수(0.12 / 0.16~0.86)로 못박혀 있어 트랙 높이(200dvh)의
+ * pin 구간(0.333~0.667)과 어긋났다 — 가운데 멈추기 전에 칠해지기 시작했고, 다 칠해지기
+ * 전에 이미 위로 밀려 올라갔다.
+ */
+describe('pinnedPhase', () => {
+  // 트랙 200dvh, 뷰포트 vh → H = 2vh. pin 구간 = [1/3, 2/3]
+  const H = 1600
+  const VH = 800
+  const PIN_START = VH / (H + VH)
+  const PIN_END = H / (H + VH)
+
+  it('pin 이 걸리는 순간 등장이 끝난다(= 글이 가운데 멈춘다)', () => {
+    expect(pinnedPhase(0, H, VH).enter).toBe(0)
+    expect(pinnedPhase(PIN_START, H, VH).enter).toBeCloseTo(1, 5)
+  })
+
+  /* 핵심 단언 — 가운데 멈추기 전에는 한 글자도 칠해지지 않는다. */
+  it('가운데 멈추기 전에는 칠하지 않는다', () => {
+    expect(pinnedPhase(PIN_START * 0.5, H, VH).fill).toBe(0)
+    expect(pinnedPhase(PIN_START, H, VH).fill).toBe(0)
+  })
+
+  it('pin 구간 안에서 칠하기를 끝낸다', () => {
+    const fillEnd = PIN_START + (PIN_END - PIN_START) * 0.8
+    expect(pinnedPhase(fillEnd, H, VH, 0.8).fill).toBeCloseTo(1, 5)
+    // 남은 구간은 다 칠해진 채로 유지된다.
+    expect(pinnedPhase(PIN_END, H, VH, 0.8).fill).toBe(1)
+  })
+
+  /* 측정 전(0)·트랙이 뷰포트보다 짧을 때는 진행도를 그대로 쓴다(멈추지 않는다). */
+  it('pin 구간이 없으면 진행도를 그대로 쓴다', () => {
+    expect(pinnedPhase(0.4, 0, VH)).toEqual({ enter: 0.4, fill: 0.4 })
   })
 })

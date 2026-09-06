@@ -33,6 +33,36 @@ export function activeStepFromProgress(
  * 들어오기 시작할 때 이미 progress 가 0 이 아니고, 다 지나가기 전에 1 에 닿지도 않는다 —
  * **스텝이 실제로 보이는 구간은 그 사이뿐**이다.
  */
+/**
+ * 스티키가 pin 되는 구간을 기준으로 **등장 / 채우기** 두 단계를 낸다.
+ *
+ * 왜 필요한가: 이 두 단계를 progress 상수(0.12·0.16·0.86)로 못박아 두면 **트랙 높이가
+ * 바뀔 때마다 어긋난다.** 실제로 어긋나 있었다 — 트랙 200dvh 에서 pin 구간은
+ * 0.333~0.667 인데 채우기는 0.16 에 시작해 0.86 에 끝났다. 즉 **글이 화면 가운데로
+ * 오기도 전에 칠해지기 시작했고, 다 칠해지기 전에 이미 위로 밀려 올라갔다.**
+ *
+ * - `enter` — 트랙 시작부터 pin 이 걸리는 순간까지 0 → 1. **1 이 되는 시점이 곧 글이
+ *   화면 가운데 멈추는 시점**이다.
+ * - `fill` — pin 구간 안에서만 0 → 1. `fillPortion` 만큼 쓰고 남은 뒤쪽은 **다 칠해진
+ *   문장을 그대로 두는 시간**이다. 그 뒤에 pin 이 풀리며 위로 흘러간다.
+ */
+export function pinnedPhase(
+  progress: number,
+  trackHeight: number,
+  viewportHeight: number,
+  fillPortion = 0.8,
+): { enter: number; fill: number } {
+  const pin = pinWindow(trackHeight, viewportHeight)
+  // 아직 측정 전이거나 트랙이 뷰포트보다 짧으면 pin 구간이 없다 — 진행도를 그대로 쓴다.
+  if (!pin) return { enter: clamp01(progress), fill: clamp01(progress) }
+
+  const enter = clamp01(progress / pin.start)
+  const local = (progress - pin.start) / pin.span
+  const span = Math.max(0.0001, fillPortion)
+
+  return { enter, fill: clamp01(local / span) }
+}
+
 function pinWindow(
   trackHeight: number,
   viewportHeight: number,
