@@ -26,7 +26,13 @@ const Head = styled.header`
   gap: 4px;
 `
 
-const Caption = styled.p`
+/*
+  계산 **전**에는 같은 문구가 `<h2>` 인데(`simulation-result-panel.tsx`) 계산 뒤에
+  `<p>` 로 강등돼 있었다 — 페이지에서 제일 중요한 출력이 제목 아웃라인에서 사라져,
+  제목 단위로 훑는 사용자는 답을 건너뛴다(과업 흐름 감사 J3-3).
+  태그만 h2 로 올리고 크기·색은 그대로 둔다 — 보이는 모습은 변하지 않는다.
+*/
+const Caption = styled.h2`
   color: var(--color-text-caption);
   font-size: 13px;
   font-weight: 600;
