@@ -2,7 +2,13 @@ import type { ReactNode } from 'react'
 import styled from 'styled-components'
 import ProfileTabs from '@/components/profile/profile-tabs'
 
+/*
+  설정 화면은 폼이다. 셸이 전폭이 되면서 우측 본문이 2560 에서 2100px 까지 가는데
+  입력 필드가 그 폭이면 라벨과 값이 멀어져 읽기·입력이 모두 나빠진다.
+  북마크(카드 목록)는 넓어질수록 이득이라 이 상한을 두지 않는다.
+*/
 const Wrapper = styled.section`
+  max-width: var(--w-form);
   display: grid;
   gap: 20px;
 `

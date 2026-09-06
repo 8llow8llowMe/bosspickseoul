@@ -7,6 +7,7 @@ import styled from 'styled-components'
 import AiReportBody from '@/components/analysis/ai-report-body'
 import { AnalysisResultModalSurface } from '@/components/analysis/analysis-result-modal'
 import type { AnalysisSelection } from '@/lib/analysis/selection'
+import { centeredColumn } from '@/styles/layout'
 
 const Shell = styled.aside`
   display: flex;
@@ -71,7 +72,8 @@ const ModalHeader = styled.div`
 /** AnalysisResultModalSurface의 Surface는 공용 회색 배경(--color-surface-muted)을
  * 유지해야 하는(라우트 결과 모달과 공유) 컴포넌트라 여기서 바꾸지 않는다. 대신
  * 이 래퍼가 모달 내부 전체를 흰 배경으로 엣지-투-엣지 채우고, 그 안에서 콘텐츠만
- * 전용 페이지의 Content 래퍼(width:min(1080px))와 같은 폭으로 중앙 정렬한다. */
+ * 전용 페이지의 Content 래퍼와 **같은 읽기 폭**으로 중앙 정렬한다. 같은 산문을
+ * 두 표면이 다른 줄 길이로 보여 주면 같은 리포트로 읽히지 않는다. */
 const ModalBody = styled.div`
   width: 100%;
   min-height: 100%;
@@ -79,8 +81,7 @@ const ModalBody = styled.div`
 `
 
 const ModalContent = styled.div`
-  width: min(1080px, 100%);
-  margin: 0 auto;
+  ${centeredColumn('var(--w-read)')}
   padding: clamp(16px, 3vw, 28px);
 `
 
