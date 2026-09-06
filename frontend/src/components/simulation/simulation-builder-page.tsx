@@ -36,6 +36,7 @@ import {
   parseSimulationConditionState,
 } from '@/lib/simulation/report-route'
 import type { SimulationReportRequest } from '@/types/simulation'
+import { shellWidth } from '@/styles/layout'
 
 export type SimulationBuilderPageProps = {
   /** `analysis`면 상단에 분석 컨텍스트 카드를 얹는다. 그 외 동작은 완전히 같다. */
@@ -59,8 +60,7 @@ const Page = styled.main`
 `
 
 const Container = styled.div`
-  width: min(1320px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   display: grid;
   gap: 16px;
 
