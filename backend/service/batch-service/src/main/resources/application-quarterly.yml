@@ -1,0 +1,51 @@
+# CLI-only imports. Use this profile alone, with an explicitly selected DB and schema allowlist.
+spring:
+  main:
+    web-application-type: none
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${BATCH_DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  batch:
+    jdbc:
+      initialize-schema: never
+    job:
+      enabled: false
+  sql:
+    init:
+      mode: never
+
+eureka:
+  client:
+    enabled: false
+
+batch:
+  dataset-source:
+    api-key: ${SEOUL_OPEN_DATA_API_KEY:}
+    base-url: http://openapi.seoul.go.kr:8088
+    raw-directory: ${BATCH_RAW_DIRECTORY:./data/raw}
+    timeout-seconds: 30
+    max-attempts: 3
+    header-aliases:
+      "[기준_년분기_코드]": STDR_YYQU_CD
+      "[상권_코드]": TRDAR_CD
+      "[행정동_코드]": ADSTRD_CD
+      "[자치구_코드]": SIGNGU_CD
+      "[서비스_업종_코드]": SVC_INDUTY_CD
+      "[당월_매출_금액]": THSMON_SELNG_AMT
+      "[점포_수]": STOR_CO
+      "[총_유동인구_수]": TOT_FLPOP_CO
+      "[총_상주인구_수]": TOT_REPOP_CO
+      "[집객시설_수]": VIATR_FCLTY_CO
+      "[상권_변화_지표]": TRDAR_CHNGE_IX
+      "[지출_총금액]": EXPNDTR_TOTAMT
+
+logging:
+  level:
+    java.net.http: WARN
