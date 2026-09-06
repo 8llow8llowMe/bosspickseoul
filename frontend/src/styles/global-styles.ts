@@ -105,6 +105,29 @@ const GlobalStyles = createGlobalStyle`
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --button-disabled-opacity-color: 0.45;
+
+    /*
+      셸 — 헤더·푸터·모든 라우트 본문이 공유하는 최외곽 테두리. 상한이 없다.
+      정렬은 오직 이 값으로 결정된다. 페이지마다 상한을 다르게 두면 로고와 메뉴가
+      콘텐츠 바깥에 뜬다(1920 폭 /status 에서 좌우 233px 어긋났다).
+    */
+    --shell-gutter: 20px;
+    --w-shell: calc(100% - var(--shell-gutter) * 2);
+
+    /*
+      컬럼 — 셸 "안"에서 콘텐츠 유형별 상한. 페이지 컨테이너가 아니라 그 안의
+      요소에 건다. 셋뿐인 것은 의도다 — 새 폭이 필요하면 리터럴이 아니라 토큰을
+      추가한다. 리터럴 9종의 표류가 이 체계를 부른 원인이다.
+    */
+    --w-read: 720px;
+    --w-form: 880px;
+    --w-wide: 1400px;
+  }
+
+  @media (max-width: 640px) {
+    :root {
+      --shell-gutter: 16px;
+    }
   }
 
   * {

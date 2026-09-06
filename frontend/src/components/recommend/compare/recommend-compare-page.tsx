@@ -34,6 +34,7 @@ import {
 import RecommendCompareTable from './recommend-compare-table'
 import RecommendComparisonAiPanel from './recommend-comparison-ai-panel'
 import RecommendComparisonVerdict from './recommend-comparison-verdict'
+import { shellWidth } from '@/styles/layout'
 
 /**
  * `view` 가 가질 수 있는 유일한 값(`recommend-url.ts`). 파라미터 **이름**은
@@ -42,9 +43,10 @@ import RecommendComparisonVerdict from './recommend-comparison-verdict'
 const RESULTS_VIEW = 'results'
 
 const Page = styled.main`
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 24px 20px 48px;
+  /* 비교표는 열이 비교 항목 수라 넓어질수록 이득이다. 이 파일만 max-width 를
+     쓰고 있었는데 셸은 width 기준이라 함께 맞춘다. */
+  ${shellWidth}
+  padding: 24px 0 48px;
   display: grid;
   gap: 20px;
 `

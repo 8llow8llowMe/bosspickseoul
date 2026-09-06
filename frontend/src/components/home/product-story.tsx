@@ -28,6 +28,7 @@ import {
   type RecommendPreviewState,
 } from '@/hooks/use-recommend-preview'
 import { useStackedMode } from '@/hooks/use-stacked-mode'
+import { centeredColumn } from '@/styles/layout'
 
 const Container = styled.section`
   position: relative;
@@ -91,9 +92,14 @@ const Sticky = styled.div`
   flex-direction: column;
   justify-content: center;
   gap: 32px;
-  width: min(1120px, 100%);
-  margin: 0 auto;
-  padding: 32px 20px;
+  /*
+    스토리만 중앙 컬럼이다. 스티키 스텝목록 + 패널 구조인데 패널을 flex: 0 1 600px
+    으로 늘어나지 않게 못박아 뒀다(R5 가로 스택 바가 짧아 늘리면 헐렁해진다).
+    셸 전폭으로 열면 그 결정 때문에 우측이 크게 빈다. 패널 확장 재설계는 04단계
+    패널 여백 문제와 한 덩어리라 따로 다룬다.
+  */
+  ${centeredColumn('var(--w-wide)')}
+  padding: 32px 0;
 `
 
 /*

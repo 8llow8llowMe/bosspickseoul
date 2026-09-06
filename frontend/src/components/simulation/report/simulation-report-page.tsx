@@ -27,6 +27,7 @@ import {
   simulationBuilderHref,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
+import { centeredColumn } from '@/styles/layout'
 
 export type SimulationReportPageProps = { variant?: SimulationReportVariant }
 
@@ -41,8 +42,8 @@ const Page = styled.main`
 `
 
 const Container = styled.div`
-  width: min(800px, calc(100% - 40px));
-  margin: 0 auto;
+  /* 리포트는 읽기 화면이다 — 800 리터럴을 읽기 토큰(720)에 맞춘다. */
+  ${centeredColumn('var(--w-read)')}
   display: grid;
   gap: 16px;
 

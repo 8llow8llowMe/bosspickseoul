@@ -7,28 +7,28 @@ import {
   UserPlus,
 } from 'lucide-react'
 import styled from 'styled-components'
+import { shellWidth } from '@/styles/layout'
 
 const Section = styled.section`
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 64px 20px;
+  padding: 64px 0;
 
   /* 태블릿 이하에서는 화면을 꽉 채우지 않고 콘텐츠 높이에 맞춰 여백 과다를 줄인다. */
   @media (max-width: 768px) {
     min-height: auto;
-    padding: 56px 20px;
+    padding: 56px 0;
   }
 
   @media (max-width: 640px) {
-    padding: 48px 16px;
+    padding: 48px 0;
   }
 `
 
 const Inner = styled.div`
-  width: min(1120px, 100%);
-  margin: 0 auto;
+  ${shellWidth}
 `
 
 const Header = styled.div`

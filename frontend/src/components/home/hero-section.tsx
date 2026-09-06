@@ -9,6 +9,7 @@ import HeroWindow, { type WindowState } from '@/components/home/hero-window'
 import { glassSurface } from '@/components/home/hero-glass'
 import { useWindowDrag } from '@/components/home/use-window-drag'
 import { deriveWindowDisplay } from '@/components/home/window-display'
+import { shellWidth } from '@/styles/layout'
 
 // "독으로 축소/독에서 확대" 전환 애니메이션 튜닝값.
 // MINIMIZE_SCALE: 카드가 줄어드는 최종 배율(대략적인 "닫힘" 크기).
@@ -84,7 +85,7 @@ const Hero = styled.section`
   min-height: calc(100dvh - ${HEADER_HEIGHT});
   display: flex;
   flex-direction: column;
-  padding: 0 20px 48px;
+  padding: 0 0 48px;
   background: var(--color-background);
 
   @media (max-width: 640px) {
@@ -92,13 +93,12 @@ const Hero = styled.section`
        스크롤 한 번에 지도 → 분석 카드로 넘어가게 한다. */
     height: auto;
     min-height: auto;
-    padding: 0 16px 24px;
+    padding: 0 0 24px;
   }
 `
 
 const Inner = styled.div`
-  width: min(1120px, 100%);
-  margin: 0 auto;
+  ${shellWidth}
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -109,10 +109,13 @@ const Inner = styled.div`
   }
 `
 
+/*
+  스테이지는 셸(Inner) **안쪽**이라 폭을 다시 좁히지 않는다. --w-shell 은
+  calc(100% - …) 이라 두 번 걸면 거터가 두 겹이 된다(실측 40/1880).
+*/
 const HeroStage = styled.div`
   position: relative;
-  width: min(1120px, 100%);
-  margin: 0 auto;
+  width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;

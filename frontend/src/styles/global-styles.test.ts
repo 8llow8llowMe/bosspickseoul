@@ -54,3 +54,32 @@ describe('스크롤바 자리 예약 (페이지 간 가로 밀림 방지)', () =
     expect(squeeze(renderGlobalCss())).toContain('scrollbar-gutter:stable')
   })
 })
+
+/**
+ * DESIGN.md 「셸은 전 라우트 공통, 상한은 요소가 진다」.
+ * 폭이 파일마다 박힌 리터럴 9종이던 것을 토큰으로 접었다. 리터럴로 되돌아가면
+ * 헤더와 본문 정렬이 다시 어긋나므로 여기서 못박는다.
+ */
+describe('폭 토큰 (설계 2026-09-04-app-width-system)', () => {
+  it('셸 거터와 셸 폭이 정의돼 있다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain('--shell-gutter:20px;')
+    expect(css).toContain('--w-shell:calc(100%-var(--shell-gutter)*2);')
+  })
+
+  it('컬럼 토큰은 셋뿐이다 — 미사용 토큰을 미리 만들지 않는다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain('--w-read:720px;')
+    expect(css).toContain('--w-form:880px;')
+    expect(css).toContain('--w-wide:1400px;')
+    expect(css).not.toContain('--w-standard')
+  })
+
+  it('좁은 화면에서 거터가 16px 로 줄어든다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain('--shell-gutter:16px;')
+  })
+})

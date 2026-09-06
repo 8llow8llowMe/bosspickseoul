@@ -13,6 +13,7 @@ import CommunityFeedback from '@/components/community/community-feedback'
 import { formatCommunityCount, formatRelativeTime } from '@/lib/community'
 import type { CommunityListView as CommunityListViewMode } from '@/lib/community/community-state'
 import type { CommunityPostSummary } from '@/types/community'
+import { centeredColumn } from '@/styles/layout'
 
 export type CommunityListStatus = 'loading' | 'error' | 'empty' | 'ready'
 export type CommunityEmptyCause = 'keyword' | 'target' | 'liked' | 'general'
@@ -46,14 +47,17 @@ export type CommunityListViewProps = {
 }
 
 const Page = styled.main`
-  width: min(880px, calc(100% - 48px));
-  margin: 0 auto;
+  /*
+    목록은 중앙 컬럼이다. 글 목록 행이 minmax(0,1fr) auto 라 넓히면 제목과 메타가
+    멀어져 나빠진다. 셸 전폭으로 열려면 우측을 채울 사이드바가 필요한데 그것은
+    폭 체계가 아니라 커뮤니티 기능 기획이다.
+  */
+  ${centeredColumn('var(--w-form)')}
   padding: 40px 0 88px;
   display: grid;
   gap: 24px;
 
   @media (max-width: 640px) {
-    width: min(100% - 32px, 880px);
     padding-top: 24px;
     padding-bottom: 120px;
   }

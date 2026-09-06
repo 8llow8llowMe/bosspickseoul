@@ -31,6 +31,7 @@ import {
 } from '@/lib/simulation/report-route'
 import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditions'
 import type { SimulationReport } from '@/types/simulation'
+import { shellWidth } from '@/styles/layout'
 
 export type SimulationComparePageProps = { variant?: SimulationReportVariant }
 
@@ -45,8 +46,7 @@ const Page = styled.main`
 `
 
 const Container = styled.div`
-  width: min(1000px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   display: grid;
   gap: 16px;
 

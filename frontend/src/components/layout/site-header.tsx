@@ -18,6 +18,7 @@ import styled from 'styled-components'
 import { clearMemberInfoQuery } from '@/lib/member-info-query'
 import { clearMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
+import { shellWidth } from '@/styles/layout'
 
 const Header = styled.header<{ $isScrolled: boolean }>`
   position: sticky;
@@ -35,32 +36,22 @@ const Header = styled.header<{ $isScrolled: boolean }>`
 `
 
 /*
-  헤더 콘텐츠 폭은 **모든 화면에서 같다.**
+  헤더 콘텐츠 폭은 모든 화면에서 같다 — 셸 토큰 하나를 쓴다.
 
-  예전에는 라우트별로 세 가지였다 — 메인 `min(1120px, …)`, 상권분석·상권추천
-  `calc(100% - 40px)`, 구별현황 `min(1400px, …)`. 각 페이지 본문 폭에 맞춘 것이었지만,
-  페이지를 옮길 때마다 로고와 메뉴가 좌우로 튀어서 같은 헤더인지 의심하게 됐다.
-  헤더는 본문의 일부가 아니라 앱 전체의 고정 틀이므로, 본문 폭을 따라가지 않고
-  하나로 둔다. 40px 는 좌우 가장자리 여백이다.
+  예전에는 라우트별로 세 가지였고 페이지를 옮길 때마다 로고와 메뉴가 좌우로 튀었다.
+  헤더는 본문의 일부가 아니라 앱 전체의 고정 틀이다. 이제 본문도 같은 셸을 쓰므로
+  헤더가 기준이 된다.
 */
-const HEADER_INNER_WIDTH = 'calc(100% - 40px)'
-
 const Inner = styled.div`
+  ${shellWidth}
   position: relative;
-  width: ${HEADER_INNER_WIDTH};
   min-height: 64px;
   padding: 10px 0;
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-
-  @media (max-width: 640px) {
-    /* 좁은 화면에서는 가장자리 여백만 줄인다(폭 상한은 두지 않는다). */
-    width: calc(100% - 32px);
-  }
 `
 
 const Brand = styled(Link)`

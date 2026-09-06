@@ -150,6 +150,10 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 
 ### Charts
 
+> 폭 일반 규칙(넓어질 때 무엇이 좋아지는가 · 상한은 요소가 진다)은 §5 「폭 체계」에
+> 있다. 여기에는 차트 고유의 수치와 근거만 둔다 — 요소별 상한값은 차트 절에 있는 편이
+> 찾기 쉽다.
+
 - **가로 막대는 폭에 상한을 둔다 — 기본 560px.** 막대 두께는 26px(`maxBarSize`)에 묶여
   있는데 길이에 상한이 없으면 넓은 칸에서 가로세로비가 무너진다. 실측으로 `/status`
   「업종별 점포수」가 1016px 칸에서 **약 31:1** 이 됐고, 그 폭에서는 왼쪽 라벨과 오른쪽
@@ -187,11 +191,10 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 - Bottom tab bar: white background, top border `#e5e8eb`
 - Active: `#0ea5e9` icon + `#191f28` text, Inactive: `#b0b8c1` icon + `#8b95a1` text
 - Top app bar: white, sticky, optional backdrop blur
-- **헤더 콘텐츠 폭은 라우트마다 다르게 두지 않는다 — 전 화면 `calc(100% - 40px)`.**
-  예전에는 페이지 본문 폭에 맞춰 셋으로 갈라져 있었는데(메인 `min(1120px, …)`,
-  상권분석·추천 full, 구별현황 `min(1400px, …)`), 페이지를 옮길 때마다 로고와 메뉴가
-  좌우로 튀었다. 헤더는 본문의 일부가 아니라 앱 전체의 고정 틀이므로 본문 폭을
-  따라가지 않는다.
+- **헤더 콘텐츠 폭은 라우트마다 다르게 두지 않는다 — 전 화면 셸 토큰 `var(--w-shell)`.**
+  예전에는 페이지 본문 폭에 맞춰 셋으로 갈라져 있어 페이지를 옮길 때마다 로고와 메뉴가
+  좌우로 튀었다. 헤더는 본문의 일부가 아니라 앱 전체의 고정 틀이다. **이제 본문도 같은
+  셸을 쓰므로 헤더가 기준이 된다** — 폭 판정은 §5 「폭 체계」를 따른다.
 - **`html` 에 `scrollbar-gutter: stable`.** 스크롤이 생기는 페이지와 안 생기는 페이지를
   오갈 때 콘텐츠 전체가 스크롤바 폭(실측 15px)만큼 밀린다. 헤더 폭을 통일해도 이건
   남으므로 자리를 항상 예약한다.
@@ -219,6 +222,38 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 - Content: full-width with 20px horizontal padding
 - No explicit multi-column grid -- single-column, mobile-first
 - Transaction lists: full-width rows with consistent left-align for amounts
+
+### 폭 체계 — 셸과 컬럼
+
+**셸 폭과 컬럼 폭은 다른 것이다.** 셸은 헤더·본문이 공유하는 최외곽 테두리로
+**정렬을 결정**하고, 컬럼은 셸 안에서 콘텐츠 유형별 상한으로 **가독성을 결정**한다.
+둘을 리터럴 하나로 뭉개면 헤더와 본문이 어긋난다(1920 폭 `/status` 에서 좌우 233px).
+
+- 셸은 전 라우트 공통 `var(--w-shell)` = `calc(100% - 40px)`, **상한이 없다**
+- 컬럼은 `--w-read`(720) · `--w-form`(880) · `--w-wide`(1400) 셋뿐이다.
+  **새 폭이 필요하면 리터럴이 아니라 토큰을 추가한다**
+- **셸은 페이지의 최외곽 컨테이너에만 건다.** 컬럼 토큰을 페이지 컨테이너에 걸면
+  리터럴이 토큰으로 바뀔 뿐 어긋남은 그대로다. 셸을 중첩해서 걸면 거터가 두 겹이 된다
+- 헬퍼는 `src/styles/layout.ts` 의 `shellWidth` · `centeredColumn(token)` 이다
+
+**넓어질 때 무엇이 좋아지는지는 요소마다 다르다.** 반응형은 좁아질 때를 다루지만,
+넓어질 때는 요소별로 따로 정해야 한다. 셸에 상한이 없으므로 **상한은 요소가 진다.**
+「반응형이니까 괜찮다」는 좁아지는 방향에만 참이다.
+
+| 넓어질수록 좋아짐                | 무관          | 넓어질수록 나빠짐 — 상한 필수      |
+| -------------------------------- | ------------- | ---------------------------------- |
+| 지도                             | 아이콘 · 배지 | 가로 막대 → 560px                  |
+| 세로막대 · 꺾은선 · 도넛         | 버튼          | 미터 행 → 360px                    |
+| 비교표 (열 = 비교 항목)          |               | 읽기 텍스트 → `--w-read`           |
+| 카드 그리드 (열 증가, 상한 있음) |               | 리스트 행 (제목과 메타가 멀어진다) |
+|                                  |               | 폼 필드 → `--w-form`               |
+
+**상한 없는 `repeat(auto-fit, …)` 은 금지한다.** 열 수에 상한이 없고 CSS 에
+`max-columns` 가 없으므로 반드시 폭 상한과 짝지운다. `/status` 지표 그리드가
+`minmax(140px, 1fr)` 만으로 2560px 칸에서 18열까지 갔다 — 최소 트랙 폭은 폭주를
+막지 못한다.
+
+실측 기록은 [width-system-verification](./docs/features/layout/width-system-verification.md).
 
 ### Whitespace Philosophy
 

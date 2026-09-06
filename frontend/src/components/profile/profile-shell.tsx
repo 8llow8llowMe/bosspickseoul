@@ -15,10 +15,10 @@ import {
 } from '@/lib/member-info-query'
 import { buildLoginHref, currentBrowserPath } from '@/lib/auth/return-path'
 import { useAuthStore } from '@/stores/auth-store'
+import { shellWidth } from '@/styles/layout'
 
 const Container = styled.main`
-  width: min(1120px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   padding: 40px 0 72px;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
@@ -29,7 +29,6 @@ const Container = styled.main`
   }
 
   @media (max-width: 640px) {
-    width: min(100% - 32px, 1120px);
     padding: 28px 0 56px;
   }
 `
@@ -131,8 +130,7 @@ const Content = styled.section`
 `
 
 const LoadingState = styled.div`
-  width: min(1120px, calc(100% - 40px));
-  margin: 0 auto;
+  ${shellWidth}
   padding: 80px 0;
   color: var(--color-text-500);
 `

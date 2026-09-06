@@ -31,6 +31,7 @@ import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import { activeStepFromProgress } from '@/components/home/scroll-fill'
 import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
+import { shellWidth } from '@/styles/layout'
 
 const RANKING_SIZE = 8
 
@@ -51,16 +52,16 @@ const Section = styled.section<{ $dual?: boolean }>`
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 64px 20px;
+  padding: 64px 0;
 
   /* 900px 이하에서는 2단이 1단으로 접힌다. 두 목록을 한 화면에 넣으면 글자가 안 읽힌다. */
   @media (max-width: 900px) {
     min-height: auto;
-    padding: 56px 20px;
+    padding: 56px 0;
   }
 
   @media (max-width: 640px) {
-    padding: 48px 16px;
+    padding: 48px 0;
   }
 `
 
@@ -82,20 +83,19 @@ const ScrollSticky = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 64px 20px;
+  padding: 64px 0;
 
   @media (max-width: 900px) {
-    padding: 56px 20px;
+    padding: 56px 0;
   }
 
   @media (max-width: 640px) {
-    padding: 48px 16px;
+    padding: 48px 0;
   }
 `
 
 const Inner = styled.div`
-  width: min(1120px, 100%);
-  margin: 0 auto;
+  ${shellWidth}
 `
 
 const Header = styled.div`
