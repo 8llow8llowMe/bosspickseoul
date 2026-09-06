@@ -4,7 +4,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '비밀번호 변경',
-  description: '비밀번호 변경 V2 API 준비 상태를 안내합니다.',
+  description: '비밀번호를 변경하거나 처음 설정합니다.',
   path: '/profile/settings/change-password',
   index: false,
 })

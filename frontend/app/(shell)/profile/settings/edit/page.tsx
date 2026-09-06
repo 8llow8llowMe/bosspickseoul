@@ -4,7 +4,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '회원 정보',
-  description: '현재 계정 정보와 프로필 수정 API 준비 상태를 확인합니다.',
+  description: '계정 정보를 확인하고 프로필을 수정합니다.',
   path: '/profile/settings/edit',
   index: false,
 })
