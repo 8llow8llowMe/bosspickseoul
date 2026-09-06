@@ -4,7 +4,7 @@ import { createPageMetadata } from '@/lib/metadata'
 
 export const metadata: Metadata = createPageMetadata({
   title: '회원 탈퇴',
-  description: '회원 탈퇴 V2 API와 데이터 삭제 정책 준비 상태를 안내합니다.',
+  description: '회원 탈퇴 절차와 삭제되는 데이터를 안내합니다.',
   path: '/profile/settings/withdraw',
   index: false,
 })
