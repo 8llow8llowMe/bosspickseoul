@@ -638,7 +638,7 @@ Total target length: 250-400 lines. Keep sections concise and actionable.
 - 지도는 화면의 주인공이지만, 컨트롤 패널이 기능을 방해하면 안 된다.
 - 필터 박스, 요약 카드, floating action은 동일한 radius와 shadow 체계를 공유한다.
 - 지도 위 오버레이는 텍스트 대비를 충분히 확보한다.
-- V2 1차 범위 제외: 풀스크린 지도 + Kakao Map 폴리곤 히트맵(`/map` 류) — Kakao Map SDK 미이식. 자치구 grid + bar metric으로 1차 대체한다. (자세한 Out of Scope 목록은 [디자인 생성 프롬프트/레퍼런스](#디자인-생성-프롬프트레퍼런스) §8 참고)
+- V2 1차 범위 제외: **점수 히트맵**(`/map` 류의 복합 점수 레이어) — 엔드포인트가 `@Hidden` 이라 계약이 없다(BE 이슈 #193). **카카오 지도·영역 폴리곤 자체는 이식돼 세 화면이 쓴다.** (자세한 Out of Scope 목록은 [디자인 생성 프롬프트/레퍼런스](#디자인-생성-프롬프트레퍼런스) §8 참고)
 
 #### 영역 폴리곤 (Area Polygon)
 
@@ -1281,9 +1281,17 @@ idle → submitting → ┬── cached (200)        → completed
 
 ### 8. Out of Scope (V2 1차 제외 — 그리지 말 것)
 
-- **풀스크린 지도 + Kakao Map 폴리곤 히트맵** (`/map` 류) — Kakao Map SDK 미이식. 자치구 grid + bar metric으로 1차 대체.
-- **상권/자치구/행정동 단독 상세 라우트** (`/commercials/:code`, `/districts/:code`, `/administrations/:code`) — `/analysis/result` 안에서 통합 처리.
-- **두 상권 비교 단독 화면** (`/compare?left=&right=`).
+> **2026-09-06 정정.** 아래 목록에 **이미 만든 것 두 개**가 「그리지 말 것」으로 남아 있었다.
+> 목록을 믿고 다시 그리지 않도록 실제 상태로 고친다.
+
+- ~~**풀스크린 지도 + Kakao Map 폴리곤 히트맵** (`/map` 류) — Kakao Map SDK 미이식~~
+  → **SDK 는 이식됐다.** `/status`·`/analysis`·`/recommend` 가 카카오 지도 + 영역 폴리곤을 쓴다
+  (규격 정본 `src/lib/map/area-polygon-style.ts`). **다만 히트맵은 여전히 범위 밖이다** —
+  점수 히트맵 엔드포인트가 `@Hidden` 이라 계약이 없고 정본도 미정이다(BE 이슈 #193).
+- **상권/자치구/행정동 단독 상세 라우트** (`/commercials/:code`, `/districts/:code`, `/administrations/:code`) — `/analysis/result` 안에서 통합 처리. (유지)
+- ~~**두 상권 비교 단독 화면** (`/compare?left=&right=`)~~
+  → **만들었다.** 후보 상권 비교 `/recommend/compare`(PR #181)와 시뮬레이션 조건 비교
+  `/simulation/compare`. 라우트 이름만 다르고 화면은 존재한다.
 - **운영자 신고 대시보드** (`/admin/reports`).
 - **다크 모드** (토큰 구조만 분리).
 - **다국어** (한국어 단일).
