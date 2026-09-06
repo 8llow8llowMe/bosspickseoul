@@ -37,6 +37,8 @@
   - Prometheus, Grafana, Loki 기반 백엔드 관측 기준
 - `backend-ai-data-infra-roadmap.md`
   - 데이터 적재, AI 리팩토링, 모니터링, 서버 역할 분리 고도화 로드맵 메모
+- `competition-backend-roadmap-2027.md`
+  - 2027 서울시 공모전 준비를 위한 백엔드 기능·헥사고날 구조 감사와 우선순위별 개발 백로그
 - `feature-status.md`
   - 서비스별 구현 완료 기능 현황. 구현 파일 경로, 엔드포인트, 주요 설계 결정 기록
 - `service-playbook.md`
