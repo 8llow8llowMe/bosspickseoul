@@ -16,3 +16,25 @@
 - 실행 구성: 기본 dryRun, 명시 DB URL와 schema allowlist, Job 종료 코드, 외부 스케줄러 실행 안내.
 
 추가 라이브러리 없이 기존 Spring Batch/JDBC/Jackson/JUnit을 사용한다. 실제 개발 DB 변경과 공공 API 키 사용은 이번 로컬 구현·테스트에 포함하지 않는다.
+
+## 실행 예시
+
+먼저 `quarterly-dataset-schema.sql`을 명시한 개발 스키마에 적용하고 공간 스냅샷을 검증한다.
+
+```text
+SPRING_PROFILES_ACTIVE=quarterly BATCH_DB_URL=jdbc:mysql://host:3306/bosspickseoul_commercial_dev \
+BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev SEOUL_OPEN_DATA_API_KEY=... \
+java -jar batch-service.jar --job=spatial --run-id=spatial-2026-09-06 \
+  --source-file=seoul-spatial-v2024.geojson --spatial-version=seoul-v2024 --dry-run=true
+```
+
+검증 결과를 확인한 뒤 같은 입력을 새 `run-id`로 `--dry-run=false` 실행한다. 사실 데이터는 데이터셋마다 별도 실행한다.
+
+```text
+java -jar batch-service.jar --job=facts --run-id=sales-commercial-20262-001 \
+  --dataset=SALES_COMMERCIAL --period=20262 --source=API \
+  --spatial-version=seoul-v2024 --schema-version=seoul-v1 \
+  --expected-rows=<원천 list_total_count> --source-updated-at=<ISO-8601> --dry-run=true
+```
+
+`--dry-run=false`는 새 run ID로 다시 실행해야 하며, 같은 분기의 이전 release는 삭제하지 않는다. `20233`은 기존 서비스 테이블에서 계속 읽고, 새 release는 공간 버전 인식 조회가 배포될 때까지 기존 API의 기본값으로 사용하지 않는다.
