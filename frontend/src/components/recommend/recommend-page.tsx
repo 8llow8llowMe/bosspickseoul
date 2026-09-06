@@ -1568,6 +1568,11 @@ function RecommendPageBody() {
           : null) ?? bookmarksQuery.errorMessage,
       isBookmarked,
       isBookmarkPending,
+      /*
+        하이드레이션 전에는 판단하지 않는다 — 로그인한 사용자에게 「로그인하려면」이
+        한 프레임 깜빡인다(시뮬레이션 저장 버튼이 같은 이유로 hasHydrated 를 본다).
+      */
+      isBookmarkLoginRequired: hasHydrated && !isLoggedIn,
       onSubmit: handleSubmit,
       onEdit: handleEdit,
       onResultSelect: handleResultSelect,
@@ -1598,6 +1603,8 @@ function RecommendPageBody() {
       isBookmarked,
       isBookmarkPending,
       isCandidatesBusy,
+      isLoggedIn,
+      hasHydrated,
       isRecommendationBusy,
       memberId,
       handleClosePicker,

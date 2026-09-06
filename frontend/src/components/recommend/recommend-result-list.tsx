@@ -43,6 +43,14 @@ export type RecommendResultListProps = {
   onPreviewChange?: (commercialCode: string | null) => void
   isBookmarked?: (commercialCode: string) => boolean
   isBookmarkPending?: (commercialCode: string) => boolean
+  /**
+   * 지금 누르면 저장이 아니라 **로그인으로 이동**하는가.
+   *
+   * 아이콘 버튼이라 눌러 보기 전에는 무슨 일이 날지 알 수 없어, 비로그인 사용자는
+   * 안내 없이 `/login` 으로 튕겼다(과업 흐름 감사 J3-1). 시뮬레이션 리포트가 이미
+   * 「저장하려면 로그인」이라고 **누르기 전에** 말하므로 같은 규약으로 맞춘다.
+   */
+  isBookmarkLoginRequired?: boolean
   onBookmarkToggle?: (commercialCode: string, commercialName: string) => void
   /**
    * 추천받은 상권을 `/analysis` 로 넘기는 링크를 만든다.
@@ -60,6 +68,25 @@ export type RecommendResultListProps = {
   onCompareToggle?: (commercialCode: string) => void
   /** 상한을 채웠는가. 채웠으면 안 고른 카드의 체크박스를 잠근다. */
   isCompareFull?: boolean
+}
+
+/**
+ * 북마크 버튼이 스스로를 설명하는 문장. 아이콘만 있는 버튼이라 이 라벨이 유일한 설명이다.
+ *
+ * **순서가 규칙이다.** 처리 중이면 그 사실이 먼저고, 그다음이 로그인 여부다 —
+ * 로그인하지 않았는데 처리 중일 수는 없다.
+ */
+export const describeBookmarkAction = (
+  commercialName: string,
+  {
+    saved,
+    pending,
+    loginRequired,
+  }: { saved: boolean; pending: boolean; loginRequired: boolean },
+): string => {
+  if (pending) return `${commercialName} 북마크 처리 중`
+  if (loginRequired) return `${commercialName} 북마크하려면 로그인`
+  return `${commercialName} 북마크 ${saved ? '삭제' : '추가'}`
 }
 
 const List = styled.ol`
@@ -658,6 +685,7 @@ export default function RecommendResultList({
   onPreviewChange,
   isBookmarked = () => false,
   isBookmarkPending = () => false,
+  isBookmarkLoginRequired = false,
   onBookmarkToggle,
   buildAnalysisHref,
   onRetry,
@@ -961,12 +989,15 @@ export default function RecommendResultList({
                 {onBookmarkToggle ? (
                   <BookmarkButton
                     $bookmarked={isSaved}
-                    aria-label={
-                      isSavePending
-                        ? `${item.commercialName} 북마크 처리 중`
-                        : `${item.commercialName} 북마크 ${
-                            isSaved ? '삭제' : '추가'
-                          }`
+                    aria-label={describeBookmarkAction(item.commercialName, {
+                      saved: isSaved,
+                      pending: isSavePending,
+                      loginRequired: isBookmarkLoginRequired,
+                    })}
+                    title={
+                      isBookmarkLoginRequired
+                        ? '북마크하려면 로그인이 필요해요'
+                        : undefined
                     }
                     aria-pressed={isSaved}
                     disabled={isSavePending}
