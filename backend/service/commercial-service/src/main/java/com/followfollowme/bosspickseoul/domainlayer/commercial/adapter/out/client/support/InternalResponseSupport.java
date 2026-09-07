@@ -23,11 +23,16 @@ public class InternalResponseSupport {
     /**
      * 서킷은 전송 실패(5xx·타임아웃)만 집계하도록 Feign 호출만 감싼다.
      * dataBody가 없는 응답은 조회 결과 없음으로 보고 null을 반환해 어댑터의 도메인 판단에 맡긴다.
+     *
+     * <p>404 는 상대 서비스 장애가 아니라 "그런 상권 코드 없음"이다 — 현재 district 호출은
+     * 상권 코드 기반 지역 조회뿐이므로 503 대신 COMMERCIAL_NOT_FOUND(404)로 번역한다.
      */
     public <T> T requestAndUnwrap(String targetService, Supplier<Response<T>> requester) {
         Response<T> response;
         try {
             response = circuitBreakerRegistry.circuitBreaker(targetService).executeSupplier(requester::get);
+        } catch (FeignException.NotFound exception) {
+            throw new CommercialException(CommercialErrorCode.COMMERCIAL_NOT_FOUND, exception);
         } catch (CallNotPermittedException | FeignException exception) {
             throw new CommercialException(CommercialErrorCode.INTERNAL_SERVICE_UNAVAILABLE, exception);
         }
