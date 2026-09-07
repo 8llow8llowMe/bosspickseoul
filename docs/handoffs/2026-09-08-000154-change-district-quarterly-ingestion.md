@@ -13,6 +13,15 @@ files:
 
 ## 작업 주제: `CHANGE_DISTRICT` 누락과 레거시 팩트 테이블 15종 대조
 
+### 현재 상태 (2026-09-08 00:20 KST)
+
+- **PR [#246](https://github.com/8llow8llowMe/bosspickseoul/pull/246) 머지 완료.** rebase merge 로
+  들어가 `develop` 의 `a5862dc4`(파이프라인 원본) ~ `1516ff0a`(문서) 구간이 이 작업이다.
+  `feat/batch-quarterly-ingestion` 브랜치는 역할이 끝났다.
+- **이슈 [#245](https://github.com/8llow8llowMe/bosspickseoul/issues/245) 는 열려 있다.**
+  미체크 항목 2개가 아래 「남은 작업」의 추적 위치다.
+- `./gradlew :service:batch-service:check` 통과, 테스트 48건 전부 초록.
+
 ### 왜 이 문서가 있나
 
 `feat/batch-quarterly-ingestion` 의 분기 적재 파이프라인은 `Dataset` 열거형에 적재 대상
@@ -148,8 +157,10 @@ Dataset supports archival files only
    하고 서비스는 여전히 레거시 테이블을 읽는다. 의도된 단계 구분이다.
 2. **`spring-batch-test` 가 의존성에 없다.** Job 배선(`@StepScope` 프록시, 실행 컨텍스트
    승격, 재시작)을 부팅 검증하는 테스트를 쓸 수 없다. 첫 dry-run 이 첫 검증이다.
-3. **브랜치가 `develop` 보다 79 커밋 뒤였다.** 리베이스 필요.
-4. Open API 서비스명 14종 실호출 검증 (위 3번).
+3. **개발 DB dry-run 을 아직 돌리지 않았다.** Persistence 테스트가 `JdbcTemplate` 을 목으로
+   대체하므로 **SQL 문법과 락 동작은 검증된 적이 없다.** 위 `row_number` 결함이 초록불을
+   뚫고 남은 경로가 그대로 열려 있다는 뜻이다. 이슈 #245 의 미체크 항목이다.
+4. Open API 서비스명 14종 실호출 검증 (위 「확정된 사실」 3번). 3번 dry-run 과 함께 확인된다.
 5. `_RT` / `_AVRG` 접미사 컬럼의 음수를 거부한다. 2024년 이후 증감률 컬럼이 추가되면
    fail-closed 로 멈춘다. 조용히 오염되는 것보다 낫지만 알고 있어야 한다.
 
