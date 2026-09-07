@@ -227,17 +227,31 @@ public class CommercialHeatmapQueryProcessor {
         return GradeLevel.fromScore(score).name();
     }
 
-    private String buildSummaryLabel(CommercialHeatmapMetricType metricType, Double score) {
+    /**
+     * 지표 요약 라벨을 만든다.
+     *
+     * <p><b>불변식: 라벨은 어느 갈래에서도 지표명을 품는다.</b> 이 라벨은 지표명 없이 나열되는
+     * 자리에도 쓰이기 때문이다 — 대표적으로 후보 추천 문장
+     * ({@code CommercialCandidateQueryProcessor#buildSelectionReason}) 이 "기회도는 " 같은
+     * 접두사를 붙이지 않고 라벨만 이어 붙인다. 데이터가 없는 갈래에서 지표명을 빼면
+     * "데이터 부족 · 데이터 부족" 처럼 어느 지표가 없는지 알 수 없는 문장이 나간다.
+     *
+     * <p>등급 낱말은 셋 다 받침으로 끝나므로, 이 라벨 뒤에 조사를 붙이는 쪽은
+     * {@code KoreanJosa} 를 쓴다.
+     */
+    static String buildSummaryLabel(CommercialHeatmapMetricType metricType, Double score) {
         GradeLevel grade = GradeLevel.fromScore(score);
-        if (grade == GradeLevel.INSUFFICIENT) {
-            return "데이터 부족";
-        }
-        String gradeWord = grade == GradeLevel.HIGH ? "높음" : grade == GradeLevel.MEDIUM ? "보통" : "낮음";
+        String stateWord = switch (grade) {
+            case INSUFFICIENT -> "데이터 부족";
+            case HIGH -> "높음";
+            case MEDIUM -> "보통";
+            case LOW -> "낮음";
+        };
         return switch (metricType) {
-            case OPPORTUNITY_SCORE -> "기회도 " + gradeWord;
-            case RISK_SCORE -> "위험도 " + gradeWord;
-            case CONGESTION_SCORE -> "혼잡도 " + gradeWord;
-            case RESIDENT_POPULATION_SCORE -> "거주 수요 " + gradeWord;
+            case OPPORTUNITY_SCORE -> "기회도 " + stateWord;
+            case RISK_SCORE -> "위험도 " + stateWord;
+            case CONGESTION_SCORE -> "혼잡도 " + stateWord;
+            case RESIDENT_POPULATION_SCORE -> "거주 수요 " + stateWord;
         };
     }
 }

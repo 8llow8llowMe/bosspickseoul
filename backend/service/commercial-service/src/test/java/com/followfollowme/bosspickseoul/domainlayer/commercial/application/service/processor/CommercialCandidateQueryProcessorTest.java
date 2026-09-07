@@ -65,10 +65,15 @@ class CommercialCandidateQueryProcessorTest {
     }
 
     @Test
-    @DisplayName("점수가 없어 라벨이 '데이터 부족' 으로 와도 문장은 성립한다")
-    void buildSelectionReason_readsWellWhenLabelsAreMissing() {
+    @DisplayName("점수가 없어도 어느 지표가 없는지 문장에 남는다")
+    void buildSelectionReason_keepsMetricNamesWhenDataIsMissing() {
+        // 뒷절에 "기회도는 " 같은 접두사를 붙이지 않으므로, 라벨이 지표명을 품어야 어느 지표가
+        // 없는지 읽는 사람이 알 수 있다. 라벨은 buildSummaryLabel 이 그 불변식을 지켜서 넘겨준다.
         assertThat(CommercialCandidateQueryProcessor.buildSelectionReason(
-            "균형형", "기회도", "데이터 부족", "데이터 부족"))
-            .isEqualTo("균형형 기준으로 기회도를 우선 반영했고, 데이터 부족 · 데이터 부족입니다.");
+            "균형형",
+            "기회도",
+            CommercialHeatmapQueryProcessor.buildSummaryLabel(CommercialHeatmapMetricType.OPPORTUNITY_SCORE, null),
+            CommercialHeatmapQueryProcessor.buildSummaryLabel(CommercialHeatmapMetricType.RISK_SCORE, null)))
+            .isEqualTo("균형형 기준으로 기회도를 우선 반영했고, 기회도 데이터 부족 · 위험도 데이터 부족입니다.");
     }
 }

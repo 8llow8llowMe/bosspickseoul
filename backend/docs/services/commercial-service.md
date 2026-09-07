@@ -121,6 +121,26 @@
 
 현재 문구: `공격형 기준으로 기회도를 우선 반영했고, 기회도 높음 · 위험도 높음입니다.`
 
+#### 요약 라벨의 불변식 — 어느 갈래에서도 지표명을 품는다
+
+뒷절이 `기회도는` 같은 접두사 없이 라벨만 이어 붙이므로, **요약 라벨은 데이터가 없는 갈래에서도
+지표명을 품어야 한다.** 지표명을 빼면 `데이터 부족 · 데이터 부족` 이 되어 어느 지표가 없는지
+읽는 사람이 알 수 없다. 점수 부재는 드문 일이 아니다 — (상권×업종×분기) 조합에 매출 데이터가
+없는 경우가 상당수라 폴백이 존재하는 것이다.
+
+지표 라벨을 만드는 자리는 두 곳이고 둘 다 지표명을 붙인다.
+
+| 위치 | 언제 | 결과 |
+|------|------|------|
+| `CommercialHeatmapQueryProcessor#buildSummaryLabel` | 점수는 있으나 등급이 `INSUFFICIENT` | `기회도 데이터 부족` |
+| `CommercialCandidateQueryProcessor#resolveLabel` | 해당 지표의 점수 자체가 없음 | `기회도 데이터 부족` |
+
+즉 데이터가 없을 때 문장은 이렇게 나간다 —
+`균형형 기준으로 기회도를 우선 반영했고, 기회도 데이터 부족 · 위험도 데이터 부족입니다.`
+
+라벨 생성부를 만질 때 이 불변식을 깨면 `CommercialHeatmapQueryProcessorTest` 와
+`CommercialCandidateQueryProcessorTest` 가 깨진다.
+
 ## 트렌드 분석 (신규)
 
 - `GET /api/v1/commercials/{commercialCode}/trend`
