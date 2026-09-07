@@ -18,6 +18,7 @@ import {
   TrendingDown,
   TrendingUp,
   Users,
+  Wallet,
 } from 'lucide-react'
 
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
@@ -1236,6 +1237,14 @@ export default function AnalysisResultView({
     stores?.franchiseStoreCount,
     totalStoreCount,
   )
+  /*
+    개업에서 폐업을 뺀 순증. 「개업률 7%」만으로는 시장이 느는지 주는지 알 수 없다 —
+    폐업이 더 많으면 7% 여도 줄어드는 상권이다.
+  */
+  const netStoreChange =
+    typeof openedStoreCount === 'number' && typeof closedStoreCount === 'number'
+      ? openedStoreCount - closedStoreCount
+      : null
 
   /*
     `peerStores` 는 **선택한 업종을 뺀** 나머지 업종이다(커피-음료로 조회하면 커피-음료가
@@ -1273,16 +1282,27 @@ export default function AnalysisResultView({
             },
     },
     {
+      /*
+        맥락을 「유사 업종 N개」에서 순증으로 바꿨다 — 유사 업종 수는 아래 점포 현황이
+        제 카드로 보여 주므로, 여기서 또 적으면 같은 말을 두 번 하게 된다.
+      */
       label: '점포 수',
       value: totalStoreCount,
       unit: '개',
       icon: Store,
       context:
-        typeof stores?.similarStoreCount === 'number'
-          ? {
-              text: `유사 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
-            }
-          : null,
+        netStoreChange === null
+          ? null
+          : {
+              /*
+                0 을 「이번 분기 0개」로 적으면 **0개 무엇인지** 알 수 없다. 순증이
+                없다는 뜻이므로 그렇게 적는다.
+              */
+              text:
+                netStoreChange === 0
+                  ? '이번 분기 늘지도 줄지도 않았어요'
+                  : `이번 분기 ${netStoreChange > 0 ? '+' : ''}${netStoreChange}개`,
+            },
     },
     {
       label: '상주인구',
@@ -1489,14 +1509,19 @@ export default function AnalysisResultView({
                 >
                   {renderCards([
                     {
-                      label: '총 점포',
-                      value: stores?.totalStoreCount,
+                      /*
+                        「총 점포」는 핵심 지표의 「점포 수」와 **같은 값**이라 뺐다.
+                        그 자리에 맥락으로만 적혀 있던 유사 업종 수를 제 카드로 올린다 —
+                        경쟁 강도를 재는 수치라 곁다리로 둘 것이 아니다.
+                      */
+                      label: '유사 업종 점포',
+                      value: stores?.similarStoreCount,
                       unit: '개',
                       icon: Store,
                       context:
-                        typeof stores?.similarStoreCount === 'number'
+                        typeof totalStoreCount === 'number'
                           ? {
-                              text: `유사 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
+                              text: `선택 업종 ${new Intl.NumberFormat('ko-KR').format(totalStoreCount)}개`,
                             }
                           : null,
                     },
@@ -1537,7 +1562,7 @@ export default function AnalysisResultView({
                         franchiseShare === undefined
                           ? null
                           : {
-                              text: `총 점포의 ${formatSharePercent(franchiseShare)}`,
+                              text: `점포 수의 ${formatSharePercent(franchiseShare)}`,
                               ratio: franchiseShare,
                             },
                     },
@@ -1564,10 +1589,17 @@ export default function AnalysisResultView({
                 >
                   {renderCards([
                     {
-                      label: '상주인구',
-                      value: population?.byAgeItem?.totalResidentPopulation,
-                      unit: '명',
-                      icon: Users,
+                      /*
+                        「상주인구」는 핵심 지표와 **같은 값**이라 뺐다. 그 자리에 요약
+                        탭에 아예 없던 월평균 소득을 올린다 — 생활권을 말하는 수치이고
+                        (이 섹션의 주제다) 그동안 생활권 탭까지 들어가야 볼 수 있었다.
+                      */
+                      label: '월평균 소득',
+                      value:
+                        profile?.keyMetrics?.monthlyAverageIncomeAmount ??
+                        income?.averageIncomeItem?.monthlyAverageIncomeAmount,
+                      unit: '원',
+                      icon: Wallet,
                       context: null,
                     },
                     {
