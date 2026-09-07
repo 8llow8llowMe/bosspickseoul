@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { TrendingUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,8 +10,12 @@ import { fetchAnalysisRankings } from '@/lib/api/analysis-ranking'
 import { normalizeApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { fetchCommercialRegion } from '@/lib/api/recommend'
 import { getResponseBody, isApiSuccess } from '@/lib/api/response'
-import { toPopularCommercialsView } from '@/lib/analysis/popular-commercials'
+import {
+  type PopularCommercial,
+  toPopularCommercialsView,
+} from '@/lib/analysis/popular-commercials'
 import { formatViewCount } from '@/lib/rankings/ranking-format'
+import { computeScrollReach } from '@/lib/ui/scroll-reach'
 
 /** 패널 1단계에 얹는 목록이라 짧게 유지한다. 자치구 25칩을 아래로 밀어내면 안 된다. */
 const SHORTCUT_SIZE = 3
@@ -132,11 +136,170 @@ const ViewCount = styled.span`
   font-variant-numeric: tabular-nums;
 `
 
+/*
+  칩이 셋뿐이어도 넘친다 — 패널이 min(380px, 92%) 인데 칩 하나가 160~200px 이다.
+  스크롤 여력이 있다는 사실 자체가 드러나지 않아 화살표를 목록 위에 얹는다.
+*/
+const Scroller = styled.div`
+  position: relative;
+  /*
+    전에는 List 자신이 Root 의 그리드 항목이었고 overflow-x: auto 라 min-width: auto
+    가 0 으로 풀렸다. 래퍼를 끼우면서 스크롤 컨테이너가 아닌 이 div 가 그리드 항목이
+    돼 콘텐츠 폭만큼 벌어진다 — 실측으로 Root 379px 를 449px 까지 밀어냈다.
+  */
+  min-width: 0;
+`
+
+const Arrow = styled.button<{ $side: 'left' | 'right' }>`
+  position: absolute;
+  top: 50%;
+  ${props => (props.$side === 'left' ? 'left: 0;' : 'right: 0;')}
+  z-index: 2;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-700);
+  box-shadow: var(--shadow-level-1);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+  }
+
+  &:hover {
+    border-color: var(--color-primary-600);
+    color: var(--color-primary-700);
+  }
+
+  /*
+    터치 기기에서는 스와이프가 자연스럽고, DESIGN.md 44px 터치 규칙을 지키면 원이
+    커져 380px 패널에서 칩을 가린다. 마우스 전용으로 둔다.
+  */
+  @media (max-width: 1024px) {
+    display: none;
+  }
+`
+
 const ErrorText = styled.p`
   color: var(--color-danger);
   font-size: 12px;
   line-height: 18px;
 `
+
+/*
+  목록과 화살표를 한 컴포넌트로 묶는다.
+
+  부모는 조회 상태에 따라 두 번 일찍 return 한다(pending · 집계 비어 있음). 스크롤
+  상태 훅을 부모에 두면 훅 순서가 그 return 들에 걸린다. 여기로 내리면 「항목이
+  있을 때만」 훅이 산다. 부모는 SSR 에서 쿼리가 pending 이라 스켈레톤만 그리므로,
+  테스트에서 이 컴포넌트를 단독 렌더할 수 있는 것도 같은 분리 덕분이다.
+*/
+export function ShortcutTrack({
+  items,
+  busy,
+  pendingCode,
+  onSelect,
+}: {
+  items: PopularCommercial[]
+  busy: boolean
+  pendingCode: string | null
+  onSelect: (commercialCode: string) => void
+}) {
+  const listRef = useRef<HTMLOListElement>(null)
+  const [reach, setReach] = useState({ left: false, right: false })
+
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) return undefined
+
+    const update = () =>
+      setReach(
+        computeScrollReach(list.scrollLeft, list.scrollWidth, list.clientWidth),
+      )
+
+    update()
+    list.addEventListener('scroll', update, { passive: true })
+
+    /* 패널 폭이 바뀌면(창 크기·사이드바 접힘) 넘침 여부가 달라진다. */
+    const observer = new ResizeObserver(update)
+    observer.observe(list)
+
+    return () => {
+      list.removeEventListener('scroll', update)
+      observer.disconnect()
+    }
+  }, [items.length])
+
+  const nudge = (direction: -1 | 1) => {
+    const list = listRef.current
+    if (!list) return
+    list.scrollBy({
+      left: direction * list.clientWidth * 0.8,
+      behavior: 'smooth',
+    })
+  }
+
+  return (
+    <Scroller>
+      {reach.left ? (
+        <Arrow
+          type="button"
+          $side="left"
+          /*
+            목록의 칩이 이미 탭으로 순회된다 — 화살표는 마우스용 중복 조작이라
+            접근성 트리에서 뺀다.
+          */
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => nudge(-1)}
+        >
+          <ChevronLeft />
+        </Arrow>
+      ) : null}
+
+      <List ref={listRef}>
+        {items.map(item => (
+          <li key={item.commercialCode}>
+            <Row
+              type="button"
+              disabled={busy}
+              aria-busy={pendingCode === item.commercialCode || undefined}
+              aria-label={`${item.rank}위 ${item.name}, 조회 ${item.viewCount.toLocaleString('ko-KR')}회. 이 상권으로 조건 채우기`}
+              onClick={() => onSelect(item.commercialCode)}
+            >
+              <Rank>{item.rank}</Rank>
+              <Name>{item.name}</Name>
+              <ViewCount>{formatViewCount(item.viewCount)}</ViewCount>
+            </Row>
+          </li>
+        ))}
+      </List>
+
+      {reach.right ? (
+        <Arrow
+          type="button"
+          $side="right"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => nudge(1)}
+        >
+          <ChevronRight />
+        </Arrow>
+      ) : null}
+    </Scroller>
+  )
+}
 
 export default function PopularCommercialsShortcut({
   onJump,
@@ -225,32 +388,17 @@ export default function PopularCommercialsShortcut({
         {view.windowLabel ? <Caption>· {view.windowLabel}</Caption> : null}
       </Heading>
 
-      <List>
-        {view.items.map(item => {
-          const pending =
-            jumpMutation.isPending &&
-            jumpMutation.variables === item.commercialCode
-
-          return (
-            <li key={item.commercialCode}>
-              <Row
-                type="button"
-                disabled={jumpMutation.isPending}
-                aria-busy={pending || undefined}
-                aria-label={`${item.rank}위 ${item.name}, 조회 ${item.viewCount.toLocaleString('ko-KR')}회. 이 상권으로 조건 채우기`}
-                onClick={() => {
-                  setFailedCode(null)
-                  jumpMutation.mutate(item.commercialCode)
-                }}
-              >
-                <Rank>{item.rank}</Rank>
-                <Name>{item.name}</Name>
-                <ViewCount>{formatViewCount(item.viewCount)}</ViewCount>
-              </Row>
-            </li>
-          )
-        })}
-      </List>
+      <ShortcutTrack
+        items={view.items}
+        busy={jumpMutation.isPending}
+        pendingCode={
+          jumpMutation.isPending ? (jumpMutation.variables ?? null) : null
+        }
+        onSelect={commercialCode => {
+          setFailedCode(null)
+          jumpMutation.mutate(commercialCode)
+        }}
+      />
 
       {failureMessage ? (
         <ErrorText role="alert">{failureMessage}</ErrorText>
