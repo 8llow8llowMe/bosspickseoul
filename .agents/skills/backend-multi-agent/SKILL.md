@@ -25,6 +25,23 @@ Do not use this skill for trivial one-file changes.
 4. `backend/docs/api-design-guide.md`
 5. `backend/docs/done-checklist.md`
 
+## Roles
+
+- **Backend Leader** — fixes scope, out-of-scope, public API direction, and service boundaries; integrates review results
+- **Backend Executor** — implements Controller/Facade/Processor/Port/Adapter changes and drives compile/test/check
+- **DB Reviewer** — reviews entities, QueryResult, repositories, indexes, soft delete, and Redis keys
+- **Hexagonal Reviewer** — reviews layer flow and Port/Adapter boundaries
+- **Security Reviewer** — reviews JWT, Resource Server, gateway, and authorization policy when security changes
+
+## Role Set by Task Shape
+
+| Task | Role Set |
+|------|----------|
+| Single-service feature | Leader + Executor + Hexagonal |
+| DB/Redis/query change | Leader + Executor + DB + Hexagonal |
+| Security/auth change | Leader + Executor + Security + Hexagonal |
+| New service or major refactor | Leader + Executor + DB + Hexagonal + Security when relevant |
+
 ## Procedure
 
 1. Classify the task
@@ -61,6 +78,13 @@ Do not use this skill for trivial one-file changes.
    - docs update
    - final risks
 
+## Cross-Agent Execution
+
+- Use the host agent's supported delegation mechanism and repository-level agent instructions.
+- Keep each delegated task bounded to one role and a verifiable deliverable.
+- Let the executor own implementation; reviewers report findings instead of making overlapping edits.
+- Run independent reviews in parallel only when the host supports safe parallel delegation.
+
 ## Output Format
 
 ```text
@@ -78,9 +102,14 @@ Role Set:
 - Security Reviewer: [if needed]
 
 Execution Order:
-1. ...
-2. ...
-3. ...
+1. Leader fixes scope and boundaries
+2. Executor implements while independent reviewers inspect
+3. Leader integrates accepted findings
+4. Run verification
+
+Review Decisions:
+- accepted: ...
+- rejected: ... (reason)
 
 Verification:
 - ...
@@ -88,4 +117,3 @@ Verification:
 Remaining Risks:
 - ...
 ```
-

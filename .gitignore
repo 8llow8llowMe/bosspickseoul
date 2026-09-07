@@ -21,6 +21,10 @@
 !.agents/skills/mr/SKILL.md
 !.agents/skills/issue/
 !.agents/skills/issue/SKILL.md
+!.agents/skills/context-handoff/
+!.agents/skills/context-handoff/SKILL.md
+!.agents/skills/context-resume/
+!.agents/skills/context-resume/SKILL.md
 
 .claude/*
 !.claude/skills/

@@ -1,38 +1,39 @@
 ---
 name: backend-feature-bootstrap
-description: NowDoBoss 백엔드에 새 서비스 또는 기존 서비스의 새 컨텍스트를 시작할 때 사용한다. architecture-guide / api-design-guide / service-playbook / done-checklist 기준으로 책임·API·패키지 스켈레톤·검증 계획을 묶어 제시한다.
+description: Bootstrap a new backend service or context using the NowDoBoss backend docs, package template, API rules, and verification checklist.
 ---
 
 # Backend Feature Bootstrap
 
-프로젝트 컨벤션을 건너뛰지 않고 새 백엔드 컨텍스트/서비스를 시작하기 위한 스킬.
+Use this skill to start a new backend context or service without skipping the project conventions.
 
 ## When to Use
 
-- 새 서비스 또는 기존 서비스의 새 컨텍스트를 시작할 때
-- 기능의 1차 패키지 스켈레톤과 구현 체크리스트가 필요할 때
-- 반복 가능한 백엔드 bootstrap 경로가 필요할 때
+Use this skill when:
+- a user wants a new service or a new context in an existing service
+- a feature needs a first-pass package skeleton and implementation checklist
+- you want a repeatable bootstrapping path for backend work
 
 ## Read First
 
-1. [backend/docs/architecture-guide.md](../../../backend/docs/architecture-guide.md)
-2. [backend/docs/api-design-guide.md](../../../backend/docs/api-design-guide.md)
-3. [backend/docs/service-playbook.md](../../../backend/docs/service-playbook.md)
-4. [backend/docs/done-checklist.md](../../../backend/docs/done-checklist.md)
-5. 관련이 있으면 [backend/docs/services/](../../../backend/docs/services/)
+1. `backend/docs/architecture-guide.md`
+2. `backend/docs/api-design-guide.md`
+3. `backend/docs/service-playbook.md`
+4. `backend/docs/done-checklist.md`
+5. if relevant, `backend/docs/services/*.md`
 
 ## Procedure
 
-1. 책임 정의
-   - 서비스/컨텍스트가 소유할 것
-   - 경계 밖에 둘 것
+1. Define responsibility
+   - what the service or context owns
+   - what stays outside
 
-2. 공개 인터페이스 정의
-   - REST 경로 (복수형·도메인 계층 반영)
-   - 인증 정책 (`@PreAuthorize`, Resource Server, JWT claim 기반)
-   - request/response 모델 네이밍
+2. Define public interface
+   - plural REST resource paths that reflect the domain hierarchy
+   - auth policy using `@PreAuthorize`, Resource Server, and JWT claims as appropriate
+   - request/response model names
 
-3. 패키지 스켈레톤 생성
+3. Create structure
    ```text
    domainlayer/<context>
      |- adapter
@@ -45,20 +46,20 @@ description: NowDoBoss 백엔드에 새 서비스 또는 기존 서비스의 새
      \- domain/model
    ```
 
-4. 영속성·설정 정의
-   - entity / DDL 요구
-   - 인덱스·soft delete 전략
-   - `@ConfigurationProperties` 필요 여부
+4. Define persistence and config
+   - entity or DDL needs
+   - index and soft-delete strategy
+   - `@ConfigurationProperties` if settings are needed
 
-5. 내부 서비스 연동 (필요 시)
-   - Spring 간 동기 호출은 `FeignClient` 우선
-   - `FeignClient -> Adapter -> QueryResult` 패턴 유지
+5. Define internal service integration when needed
+   - prefer `FeignClient` for synchronous Spring-to-Spring calls
+   - preserve the `FeignClient -> Adapter -> QueryResult` boundary
 
-6. 검증
-   - Swagger (`@Tag/@Operation/@Schema/@SecurityRequirement`)
-   - 트랜잭션 경계
-   - compile / test / check
-   - docs 갱신 (`service-inventory.md`, 필요 시 `services/*.md`)
+6. Verify
+   - Swagger
+   - transaction boundaries
+   - compile/test/check
+   - update `service-inventory.md` and relevant `services/*.md` docs
 
 ## Output Format
 
@@ -69,12 +70,10 @@ BACKEND FEATURE BOOTSTRAP
 Target: [service/context]
 
 Responsibility:
-- In:  ...
-- Out: ...
+- ...
 
 Public APIs:
-- METHOD /api/v1/...
-- auth: ...
+- ...
 
 Package Skeleton:
 - ...
@@ -83,7 +82,7 @@ Persistence / Config:
 - ...
 
 Internal Integration:
-- ... (Feign or 없음)
+- ... (Feign or none)
 
 Verification Plan:
 - ...

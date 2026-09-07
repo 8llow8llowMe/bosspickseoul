@@ -1,6 +1,6 @@
 ---
 name: pr
-description: "BossPickSeoul GitHub Pull Request 본문을 한국어 템플릿으로 작성할 때 사용한다. /pr 요청, PR body, pull request template, PR description, [BE] feat: ... 제목 생성이 트리거다."
+description: "Create a GitHub Pull Request draft in the BossPickSeoul Korean template. Use when the user invokes /pr, $pr, asks for a PR body, pull request template, PR description, or wants a title like [BE] feat: ... with 작업 내용, 타입, 체크리스트, 검증 내역, 참고 사항, and 연관 이슈."
 ---
 
 # PR Draft
@@ -9,13 +9,18 @@ BossPickSeoul Pull Request 본문과 제목을 한국어 템플릿으로 작성�
 
 ## Workflow
 
-1. 변경 범위를 확인한다. 가능하면 `git status`, `git diff --stat`, `git log --oneline`을 참고한다.
-2. 제목은 `[영역] type: 요약` 형식으로 만든다. 예: `[BE] feat: 회원 북마크 시스템 구현`
-3. 본문은 바로 복사 가능한 Markdown만 출력한다.
-4. 실제 확인하지 않은 체크박스는 체크하지 않는다.
-5. 이슈 번호가 없으면 `Issue Number: #`로 둔다.
+1. 변경 범위를 확인한다.
+   - 가능하면 `git status`, `git diff --stat`, `git log --oneline` 기준으로 요약한다.
+   - 사용자가 이미 작업 내용을 제공했다면 제공 내용을 우선한다.
+2. 제목을 만든다.
+   - 형식: `[영역] type: 요약`
+   - 영역 예시: `[BE]`, `[FE]`, `[INFRA]`, `[DOCS]`
+   - type 예시: `feat`, `fix`, `chore`, `refactor`, `style`, `docs`, `test`
+3. 본문은 바로 복사 가능한 Markdown으로만 출력한다.
+4. 실제로 확인하지 않은 항목은 체크하지 않는다.
+5. 이슈 번호가 없으면 `Issue Number: #` 형태로 비워둔다.
 
-## Template
+## Output Template
 
 ```markdown
 ## 📝 작업 내용
@@ -57,9 +62,10 @@ BossPickSeoul Pull Request 본문과 제목을 한국어 템플릿으로 작성�
 Issue Number: #
 ```
 
-## Rules
+## Style Rules
 
-- 한국어로 쓴다.
-- 기능 단위로 묶고 파일 나열식 changelog를 피한다.
-- 검증 실패나 미실행은 숨기지 않는다.
-- secret, token, private key, password는 포함하지 않는다.
+- 제목과 본문은 한국어로 쓴다.
+- 작업 내용은 기능 단위로 묶고, 파일 나열식 changelog를 피한다.
+- 여러 이슈를 묶을 때는 `#25`, `#26`처럼 각 섹션 제목이나 연관 이슈에 표시한다.
+- 검증 내역에는 성공/실패 여부를 숨기지 않는다.
+- 보안값, token, private key, DB password는 절대 포함하지 않는다.

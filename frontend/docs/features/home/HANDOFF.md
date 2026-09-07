@@ -12,11 +12,11 @@
 
 ## 0. codex가 먼저 읽어야 할 것
 
-> ⚠️ 이 저장소는 Codex용 `AGENTS.md`를 `docs/_archive/`로 통폐합했다. 작업 지도는 **`frontend/CLAUDE.md`** 에 있으니 이것부터 읽는다.
+> ⚠️ 작업 지도는 Codex·Cursor용 **`frontend/AGENTS.md`** 와 Claude Code용 **`frontend/CLAUDE.md`** 에 있다. 사용하는 에이전트의 진입 문서부터 읽는다.
 
 | 목적                                      | 파일                                                                         |
 | ----------------------------------------- | ---------------------------------------------------------------------------- |
-| 작업 지도(정본 위치·프로세스·기술선·금지) | `frontend/CLAUDE.md`                                                         |
+| 작업 지도(정본 위치·프로세스·기술선·금지) | `frontend/AGENTS.md` 또는 `frontend/CLAUDE.md`                                |
 | home 설계 정본                            | `frontend/docs/features/home/home.md`                                        |
 | 디자인 시스템 정본                        | `frontend/DESIGN.md`                                                         |
 | 횡단 규칙                                 | `frontend/docs/engineering/` (routing/client-boundary/data-fetching/styling) |

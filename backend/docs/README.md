@@ -83,7 +83,7 @@
 
 ## 스킬 사용 예시
 
-Codex는 `$스킬명`(`.agents/skills/*`), Claude Code는 `/스킬명`(`.claude/skills/*`)으로 호출한다. 두 스택의 스킬 본문은 동일하게 유지한다.
+Codex는 `$스킬명`, Cursor와 Claude Code는 `/스킬명`으로 호출한다. Codex와 Cursor는 `.agents/skills/*`를 공유하고, Claude Code는 `.claude/skills/*`의 동일한 본문을 사용한다.
 
 - `/backend-api-check`, `$backend-api-check`: REST 경로, Swagger, Presenter 흐름 점검
 - `/hexagonal-guard`, `$hexagonal-guard`: Hexagonal 계층 경계 점검
