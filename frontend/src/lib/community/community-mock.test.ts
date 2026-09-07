@@ -561,6 +561,11 @@ describe('community mock source', () => {
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       images: [],
+      // 초안 없이 만든 평범한 글이라 분석 첨부가 없다(BE 0f8b3a28 배선).
+      analysisType: null,
+      analysisRefCode: null,
+      analysisRefName: null,
+      analysisSnapshotKey: null,
     })
     expect(
       (await source.getPosts(cursor())).dataBody.posts.contents[0]?.postId,

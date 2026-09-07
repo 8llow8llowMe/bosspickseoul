@@ -16,7 +16,7 @@
 
 | 목적                                      | 파일                                                                         |
 | ----------------------------------------- | ---------------------------------------------------------------------------- |
-| 작업 지도(정본 위치·프로세스·기술선·금지) | `frontend/AGENTS.md` 또는 `frontend/CLAUDE.md`                                |
+| 작업 지도(정본 위치·프로세스·기술선·금지) | `frontend/AGENTS.md` 또는 `frontend/CLAUDE.md`                               |
 | home 설계 정본                            | `frontend/docs/features/home/home.md`                                        |
 | 디자인 시스템 정본                        | `frontend/DESIGN.md`                                                         |
 | 횡단 규칙                                 | `frontend/docs/engineering/` (routing/client-boundary/data-fetching/styling) |

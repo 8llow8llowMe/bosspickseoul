@@ -1,4 +1,5 @@
 import { districts } from '@/data/districts'
+import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import type { CommunityDataSource } from '@/lib/community/community-data-source'
 import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
 import type { ApiResponse } from '@/types/api'
@@ -701,10 +702,29 @@ export const createCommunityMockSource = (): CommunityDataSource => {
     async createComparisonDraft(params: ComparisonDraftParams) {
       const target = resolveTarget('ADMINISTRATION', params.administrationCode)
 
+      /*
+       * 분석 첨부도 준다. 실제 응답과 **모양이 같아야** 목으로 배선을 확인하는 값이
+       * 있다 — 특히 `analysisType` 이 메타데이터 객체이고 작성 요청은 코드 문자열인
+       * 비대칭을 목에서도 밟게 한다. `analysisRefCode` 는 실제 예시와 같은
+       * `좌:우:업종:분기` 모양으로 만든다.
+       */
       return ok({
         ...target,
         title: `${params.leftCommercialCode} · ${params.rightCommercialCode} 상권 비교`,
         content: `[목 초안] ${target.targetName}의 두 상권을 비교한 내용을 여기에 적습니다.`,
+        analysisType: {
+          code: 'COMMERCIAL_COMPARISON',
+          name: '상권 비교',
+          description: '두 상권을 지표로 비교한 결과',
+        },
+        analysisRefCode: [
+          params.leftCommercialCode,
+          params.rightCommercialCode,
+          params.serviceCode,
+          RECOMMENDATION_PERIOD_CODE,
+        ].join(':'),
+        analysisRefName: `${params.leftCommercialCode} · ${params.rightCommercialCode} 비교`,
+        analysisSnapshotKey: `community/analysis/mock/${params.leftCommercialCode}-${params.rightCommercialCode}.json`,
       })
     },
 
@@ -738,6 +758,21 @@ export const createCommunityMockSource = (): CommunityDataSource => {
         createdAt,
         updatedAt: createdAt,
         images,
+        /*
+         * 작성 요청이 실어 온 첨부를 상세에 그대로 남긴다. 목이 이것을 버리면
+         * 「저장은 됐는데 상세에 안 보이는」 상태가 되어 배선 확인이 헛돈다.
+         * 요청은 코드 문자열이므로 상세용 메타데이터로 되돌린다.
+         */
+        analysisType: payload.analysisType
+          ? {
+              code: payload.analysisType,
+              name: '상권 비교',
+              description: '두 상권을 지표로 비교한 결과',
+            }
+          : null,
+        analysisRefCode: payload.analysisRefCode ?? null,
+        analysisRefName: payload.analysisRefName ?? null,
+        analysisSnapshotKey: payload.analysisSnapshotKey ?? null,
       }
       const summary: CommunityPostSummary = {
         postId,

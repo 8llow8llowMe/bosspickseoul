@@ -24,6 +24,7 @@ import {
 } from '@/lib/community/community-mock'
 import {
   readComparisonDraftRequest,
+  toAnalysisAttachment,
   type ComparisonDraftParams,
   type ComparisonDraftRequest,
 } from '@/lib/community/comparison-draft-url'
@@ -39,6 +40,7 @@ import {
 import { sortPostImages, toImageKeys } from '@/lib/community/post-images'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
+  CommunityAnalysisAttachment,
   CommunityComparisonDraft,
   CommunityId,
   CommunityPostCreateRequest,
@@ -253,9 +255,18 @@ export const getCommunityEditorFormKey = (
   postId: CommunityId | null,
 ) => (mode === 'edit' && postId ? `edit-${postId}` : 'create')
 
+/**
+ * @param attachment 초안에서 온 분석 첨부. **작성에만 싣는다.**
+ *
+ * 수정에 싣지 않는 이유: 백엔드가 분석 컬럼을 부분 갱신 대상에서 빼 두어 **보내지
+ * 않으면 보존된다.** 이미지(`imageKeys`)와 정반대 규칙이다 — 그쪽은 빼면 지워진다.
+ * 폼 값(`CommunityEditorValue`)에 넣지 않은 것도 같은 맥락이다. 사용자가 고치는 값이
+ * 아니라 초안이 준 값을 되돌려 보내는 것뿐이다.
+ */
 export const createCommunityEditorPayload = (
   mode: CommunityEditorMode,
   value: CommunityEditorValue,
+  attachment: CommunityAnalysisAttachment | null = null,
 ): CommunityPostCreateRequest | CommunityPostUpdateRequest => {
   const content = {
     title: value.title,
@@ -288,6 +299,25 @@ export const createCommunityEditorPayload = (
     ...content,
     targetType,
     targetCode: targetCode.trim(),
+    /*
+     * `null` 인 필드는 키째 빼고 보낸다. 백엔드가 선택 입력으로 받으므로 `null` 을
+     * 실어도 되지만, 첨부 없는 평범한 글의 요청 본문에 빈 키 넷이 붙는 것은 계약을
+     * 읽는 사람에게 "쓰이는 값"으로 보인다.
+     */
+    ...(attachment
+      ? {
+          analysisType: attachment.analysisType,
+          ...(attachment.analysisRefCode
+            ? { analysisRefCode: attachment.analysisRefCode }
+            : {}),
+          ...(attachment.analysisRefName
+            ? { analysisRefName: attachment.analysisRefName }
+            : {}),
+          ...(attachment.analysisSnapshotKey
+            ? { analysisSnapshotKey: attachment.analysisSnapshotKey }
+            : {}),
+        }
+      : {}),
   }
 }
 
@@ -506,7 +536,15 @@ export default function CommunityRegisterPage() {
   const submitMutation = useMutation({
     mutationFn: async (value: CommunityEditorValue) => {
       setMutationError(null)
-      const payload = createCommunityEditorPayload(mode, value)
+      /*
+        분석 첨부는 초안에서 온다. 초안 없이 들어온 평범한 글은 `null` 이라 요청에
+        아무 필드도 붙지 않는다.
+      */
+      const payload = createCommunityEditorPayload(
+        mode,
+        value,
+        toAnalysisAttachment(draft),
+      )
       const response =
         mode === 'edit'
           ? await source.updatePost(

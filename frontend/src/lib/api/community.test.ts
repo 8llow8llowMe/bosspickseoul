@@ -103,6 +103,15 @@ type ExpectedPostDetail = {
   updatedAt: string
   // Swagger `CommunityPostDetailResponse.images` (`CommunityPostImageItem[]`).
   images: Array<{ imageKey: string; imageUrl: string; sortOrder: number }>
+  /*
+   * 분석 첨부(BE 0f8b3a28). 비교 초안으로 쓴 글에만 값이 있어 전부 nullable 이다.
+   * `analysisType` 은 **상세 응답에서는 메타데이터 객체**다 — 작성 요청의 코드 문자열과
+   * 타입이 다르다(아래 create 요청 핀 참고).
+   */
+  analysisType?: ExpectedMetadata | null
+  analysisRefCode?: string | null
+  analysisRefName?: string | null
+  analysisSnapshotKey?: string | null
 }
 
 type ExpectedCommentsBody = {
@@ -177,6 +186,14 @@ describe('community API', () => {
       title: string
       content: string
       imageKeys: string[]
+      /*
+       * 분석 첨부는 **작성 요청에만** 있고 수정 요청에는 없다(부분 컬럼 갱신이라 보내지
+       * 않으면 보존된다). `analysisType` 이 **문자열 코드**인 것이 상세 응답과 다른 점이다.
+       */
+      analysisType?: string
+      analysisRefCode?: string
+      analysisRefName?: string
+      analysisSnapshotKey?: string
     }>()
     /*
      * `imageKeys` 는 **선택 필드가 아니다.** 수정에서 이 필드를 빼고 보내면 백엔드가
