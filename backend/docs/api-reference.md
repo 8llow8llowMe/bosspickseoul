@@ -204,7 +204,9 @@
 | GET | `/candidates` | 상위 N개 후보 상권 추천 (프리셋·우선지표 기반) | - |
 | GET | `/recommendations/by-service` | 업종 코드 기반 자동 프리셋 적용 추천 | - |
 
-> `/heatmap`, `/heatmap-composite`, `/candidates`, `/{commercialCode}/profile`, `/compare-preview` 는 `@Hidden` 이라 Swagger UI 에 노출되지 않습니다. district-service 가 지도용으로 감싸 제공하는 내부 지향 API 이므로, 화면에서는 district-service 의 `/api/v1/map/**` 을 쓰는 것이 기본입니다.
+> `/heatmap`, `/heatmap-composite`, `/candidates`, `/compare-preview` 는 `@Hidden` 이라 Swagger UI 에 노출되지 않습니다. district-service 가 지도용으로 감싸 제공하는 내부 지향 API 이므로, 화면에서는 district-service 의 `/api/v1/map/**` 을 쓰는 것이 기본입니다.
+>
+> `/{commercialCode}/profile` 은 **공개 계약**입니다. `@Hidden` 이면 `/v3/api-docs` 에서 빠지고 프론트가 계약을 대조할 수 없습니다. 숨겨 두는 동안 `policyRecommendations` 누락이 드러나지 않았기 때문에, 숨김 대상은 위 4건으로 고정하고 `HiddenEndpointContractTest` 가 목록을 못 박습니다. 숨김을 추가하려면 공개 대체 경로를 먼저 마련하고 그 테스트와 이 문서를 함께 고치세요.
 
 **프리셋 종류** (`CandidatePresetType`):
 - `BALANCED` — 균형형
@@ -291,7 +293,7 @@
 
 정렬은 **자치구 전용 → 마감 임박순 → 상시 모집** 순입니다. 신청 기간이 지난 정책은 제외됩니다.
 
-같은 결과가 `GET /api/v1/commercials/{commercialCode}/profile` 응답의 `policyRecommendations` 에도 상위 5건 포함됩니다. 상권 프로필을 볼 때 별도 호출 없이 정책을 함께 보여주기 위함입니다.
+같은 결과가 `GET /api/v1/commercials/{commercialCode}/profile` 응답의 `policyRecommendations` 에도 상위 5건 포함됩니다. 상권 프로필을 볼 때 별도 호출 없이 정책을 함께 보여주기 위함입니다. district-service 의 `GET /api/v1/map/commercials/{commercialCode}/profile` 도 같은 목록을 그대로 전달합니다.
 
 ---
 
@@ -307,7 +309,7 @@
 | GET | `/commercials/heatmap` | 히트맵 지도용 색상 등급 데이터 | - |
 | GET | `/candidate-presets` | 프리셋 메타데이터 목록 (코드·이름·설명) | - |
 | GET | `/commercials/candidates` | 후보 상권 지도 마커 데이터 | - |
-| GET | `/commercials/{commercialCode}/profile` | 상권 프로필 지도 오버레이용 | - |
+| GET | `/commercials/{commercialCode}/profile` | 상권 프로필 지도 오버레이용 (경계 좌표 + `keyMetrics` + `policyRecommendations`) | - |
 | GET | `/commercials/compare-preview` | 비교 미리보기 지도 오버레이용 | - |
 
 ### 지역 코드 조회 (`/api/v1/regions`)

@@ -58,6 +58,11 @@
 - `GET /commercials/{code}/profile` 은 **공개 계약으로 전환**(@Hidden 해제)했다 — FE 가 분석 결과/지도/AI 리포트
   3곳에서 직접 사용 중이고, 공개 대체 경로(map profile)에는 `policyRecommendations` 가 없어 숨겨 두면
   OpenAPI 스냅샷 대조가 안 되어 계약 표류(정책 필드 누락, 타입 어긋남)가 발생했기 때문이다.
+  누락의 반대편도 함께 메웠다 — district-service 의 map profile 이 이제 `policyRecommendations` 를
+  그대로 전달하므로, FE 는 지도 경로 하나만 써도 정책을 받을 수 있다.
+- 숨김 목록은 `HiddenEndpointContractTest` 가 못 박는다. `@Hidden` 은 `/v3/api-docs` 에서 빠지고,
+  그러면 FE 가 계약 정본으로 쓰는 OpenAPI 스냅샷에도 안 들어와 응답과 타입이 어긋나도 아무도 못 잡는다.
+  **새로 숨기려면 공개 대체 경로가 그 필드를 전부 내려주는지 먼저 확인하고**, 그 테스트와 이 문서를 함께 고친다.
 - `CandidatePresetType` 는 `CodeNameDescribable` 을 구현하며 가중치는 `application/model` 안에만 존재한다. adapter 계층으로 새지 않도록 유지.
 ## Hidden Heatmap / Candidate Response Shape
 
@@ -152,6 +157,12 @@
   종료 정책을 먼저 걸러내는 것이 선택도가 가장 높아 마감일을 선두에 둔다)
 - 시드: `resources/db/policy-seed.sql` (14건). ⚠️ **실데이터가 아니라 계약 검증용 표본**이다.
   실데이터 적재는 `feature-status.md` 의 "정책 추천 실 데이터 연동" 참고.
+- **적재 경로는 수동뿐이다.** 이 저장소에는 Flyway/Liquibase 가 없고, `Jenkinsfile-commercial-service`
+  에도 SQL 실행 단계가 없다. `application-prod.yml` 은 `ddl-auto: none` 이라 애플리케이션이 `policy`
+  테이블을 만들지도 않는다. 즉 **prod 에 표본 정책이 보인다면 누군가 손으로 넣은 것**이고, 아무도 안
+  넣었다면 테이블 자체가 없어 프로필 조회가 실패한다. 배포 담당자가 실제 스키마를 확인해야 한다.
+  표본이 사용자에게 그대로 노출되면("마포구청 / 간판 개선 최대 150만원") 실제 지원금으로 오해될 수
+  있으므로, 실데이터 연동 전까지 prod 에는 넣지 않는 것이 기본이다.
 - 조회는 **QueryDSL** (`PolicyCustomRepositoryImpl`). 자치구·업종이 각각 있을 때만 조건을 붙이는
   동적 조회라 JPQL 로 쓰면 `(:param IS NULL OR ...)` 가 늘어난다 (coding-conventions §9-6).
   동적 조건 조립과 정렬은 `PolicyCustomRepositoryImplTest` 슬라이스 테스트가 실제 스키마에 질의해 확인한다.
