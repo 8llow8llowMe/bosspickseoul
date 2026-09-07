@@ -63,6 +63,27 @@ export type CommunityPostImageUpload = {
   imageUrl: string
 }
 
+/**
+ * 게시글에 붙은 **분석 첨부**. 지금은 상권 비교 초안에서만 생긴다.
+ *
+ * 사용자가 입력하는 값이 아니다 — 초안 응답이 준 것을 저장 때 그대로 되돌려 보낸다.
+ * 그래서 글쓰기 폼(`CommunityEditorValue`)에는 넣지 않는다.
+ *
+ * ⚠️ **`analysisType` 의 타입이 자리마다 다르다.** 초안·상세 응답은 메타데이터 객체인데
+ * **작성 요청은 코드 문자열**이다(`analysisType.code`). 배선할 때 그 변환을 빠뜨리면
+ * 400 `COMMUNITY_015` 가 난다 — 변환은 `toAnalysisAttachment` 한 곳에만 둔다.
+ */
+export type CommunityAnalysisAttachment = {
+  /** 예: `COMMERCIAL_COMPARISON`. 작성 요청에는 이 코드만 보낸다. */
+  analysisType: string
+  /** 예: `3110008:3110012:CS100001:20233`. 최대 100자. */
+  analysisRefCode: string | null
+  /** 사람이 읽는 표시명. 최대 200자. */
+  analysisRefName: string | null
+  /** 스냅샷 오브젝트 키. 최대 200자. */
+  analysisSnapshotKey: string | null
+}
+
 export type CommunityPostDetail = {
   postId: CommunityId
   memberId: CommunityId
@@ -78,6 +99,11 @@ export type CommunityPostDetail = {
   updatedAt: string
   /** 첨부 이미지. `sortOrder` 오름차순이 노출 순서다. */
   images: CommunityPostImage[]
+  /** 분석 첨부. 비교 초안으로 쓴 글에만 값이 있다. */
+  analysisType?: CommunityMetadata | null
+  analysisRefCode?: string | null
+  analysisRefName?: string | null
+  analysisSnapshotKey?: string | null
 }
 
 export type CommunityPostSlice<T = CommunityPostSummary> = {
@@ -149,6 +175,16 @@ export type CommunityPostCreateRequest = {
   content: string
   /** 첨부 이미지 키. **배열 순서가 노출 순서**가 된다. 최대 5장. */
   imageKeys: string[]
+  /**
+   * 분석 첨부(선택). 초안으로 시작한 글만 싣는다.
+   *
+   * **수정 요청에는 없다.** 백엔드가 부분 컬럼만 갱신하므로 보내지 않으면 보존된다 —
+   * 이미지(`imageKeys`)와 정반대 규칙이라 헷갈리지 않게 적어 둔다.
+   */
+  analysisType?: string
+  analysisRefCode?: string
+  analysisRefName?: string
+  analysisSnapshotKey?: string
 }
 
 export type CommunityPostUpdateRequest = {
@@ -211,11 +247,11 @@ export type CommunityComparisonDraftRequest = {
 }
 
 /**
- * ⚠️ 응답의 `analysisType`·`analysisRefCode`·`analysisRefName`·`analysisSnapshotKey` 를
- * **일부러 받지 않는다.** 게시글 저장(`CommunityPostCreateRequest`)도 조회
- * (`CommunityPostDetail`)도 그 필드를 갖고 있지 않아 **보낼 곳이 없다** — 백엔드 쪽
- * 절반이 아직 뚫려 있지 않다. 타입에 두면 "쓰이는 줄" 알고 배선하다 조용히 버려진다.
- * 계약이 갖춰지면 그때 함께 넣는다(`commercial-comparison.ts` 의 `winnerSide` 와 같은 처리).
+ * 초안 응답. 제목·본문 말고 **분석 첨부 4필드**도 준다.
+ *
+ * 전에는 그 4필드를 일부러 받지 않았다 — 작성 요청·상세 응답에 자리가 없어 보낼 곳이
+ * 없었기 때문이다(배선 반쪽). 백엔드가 나머지 절반을 뚫었으므로(작성 요청/상세 응답에
+ * 4필드 추가) 이제 받아서 저장까지 잇는다.
  */
 export type CommunityComparisonDraft = {
   targetType: CommunityMetadata
@@ -223,6 +259,11 @@ export type CommunityComparisonDraft = {
   targetName: string | null
   title: string
   content: string
+  /** 예: `COMMERCIAL_COMPARISON`. **작성 요청에는 `.code` 만 보낸다.** */
+  analysisType?: CommunityMetadata | null
+  analysisRefCode?: string | null
+  analysisRefName?: string | null
+  analysisSnapshotKey?: string | null
 }
 
 export type CommunityPostListResponse = ApiResponse<CommunityPostListBody>

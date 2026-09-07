@@ -1,4 +1,8 @@
 import type { ReadableSearchParams } from '@/lib/recommend/recommend-url'
+import type {
+  CommunityAnalysisAttachment,
+  CommunityComparisonDraft,
+} from '@/types/community'
 
 /**
  * 상권 비교 결과를 커뮤니티 글쓰기로 넘기는 URL 상태.
@@ -106,4 +110,29 @@ export const createComparisonDraftHref = ({
   })
 
   return `${REGISTER_PATH}?${params}`
+}
+
+/**
+ * 초안 응답의 분석 첨부를 **작성 요청 모양으로** 바꾼다. 없으면 `null`.
+ *
+ * ⚠️ **`analysisType` 의 타입이 자리마다 다르다.** 초안·상세 응답은 메타데이터 객체이고
+ * 작성 요청은 **코드 문자열**이다. 그 변환을 여기 한 곳에만 두는 이유: 호출부에서
+ * 객체를 그대로 넘기면 백엔드가 400 `COMMUNITY_015` 로 거절하는데, 그 실패는 사용자가
+ * 글을 다 쓰고 저장을 누른 **가장 늦은 순간**에 드러난다.
+ *
+ * `analysisType` 이 없으면 첨부 자체가 없는 것으로 본다 — 나머지 세 필드는 그것에
+ * 딸린 값이라, 타입 없이 참조 코드만 보내면 백엔드가 무엇에 붙일지 알 수 없다.
+ */
+export const toAnalysisAttachment = (
+  draft: CommunityComparisonDraft | null | undefined,
+): CommunityAnalysisAttachment | null => {
+  const code = draft?.analysisType?.code?.trim()
+  if (!code) return null
+
+  return {
+    analysisType: code,
+    analysisRefCode: draft?.analysisRefCode ?? null,
+    analysisRefName: draft?.analysisRefName ?? null,
+    analysisSnapshotKey: draft?.analysisSnapshotKey ?? null,
+  }
 }

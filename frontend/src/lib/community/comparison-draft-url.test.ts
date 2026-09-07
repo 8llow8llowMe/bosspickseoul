@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createComparisonDraftHref,
   readComparisonDraftRequest,
+  toAnalysisAttachment,
 } from './comparison-draft-url'
 
 const read = (query: string) =>
@@ -75,6 +76,71 @@ describe('comparison-draft-url', () => {
         serviceCode: 'CS100001',
         administrationCode: '11680640',
       },
+    })
+  })
+})
+
+/*
+ * ⚠️ 이 변환이 이 파일에 있는 이유는 **`analysisType` 의 타입이 자리마다 다르기**
+ * 때문이다. 초안·상세 응답은 메타데이터 객체이고 작성 요청은 코드 문자열이다.
+ * 호출부가 객체를 그대로 넘기면 백엔드가 400 `COMMUNITY_015` 로 거절하는데, 그 실패는
+ * 사용자가 글을 다 쓰고 **저장을 누른 가장 늦은 순간**에 드러난다.
+ */
+describe('toAnalysisAttachment', () => {
+  const draft = {
+    targetType: { code: 'ADMINISTRATION', name: '행정동', description: '' },
+    targetCode: '11680640',
+    targetName: '역삼1동',
+    title: '제목',
+    content: '본문',
+    analysisType: {
+      code: 'COMMERCIAL_COMPARISON',
+      name: '상권 비교',
+      description: '',
+    },
+    analysisRefCode: '3110008:3110012:CS100001:20233',
+    analysisRefName: '강남역 · 역삼역 비교',
+    analysisSnapshotKey: 'community/analysis/a.json',
+  }
+
+  it('메타데이터 객체를 코드 문자열로 바꾼다', () => {
+    expect(toAnalysisAttachment(draft)).toEqual({
+      analysisType: 'COMMERCIAL_COMPARISON',
+      analysisRefCode: '3110008:3110012:CS100001:20233',
+      analysisRefName: '강남역 · 역삼역 비교',
+      analysisSnapshotKey: 'community/analysis/a.json',
+    })
+  })
+
+  /*
+   * 타입이 없으면 첨부 자체가 없는 것으로 본다 — 나머지 세 필드는 그것에 딸린 값이라,
+   * 타입 없이 참조 코드만 보내면 백엔드가 무엇에 붙일지 알 수 없다.
+   */
+  it('타입이 없으면 첨부가 없는 것으로 본다', () => {
+    expect(toAnalysisAttachment(null)).toBeNull()
+    expect(toAnalysisAttachment(undefined)).toBeNull()
+    expect(toAnalysisAttachment({ ...draft, analysisType: null })).toBeNull()
+    expect(
+      toAnalysisAttachment({
+        ...draft,
+        analysisType: { code: '   ', name: '', description: '' },
+      }),
+    ).toBeNull()
+  })
+
+  it('딸린 필드가 없으면 null 로 채운다', () => {
+    expect(
+      toAnalysisAttachment({
+        ...draft,
+        analysisRefCode: null,
+        analysisRefName: null,
+        analysisSnapshotKey: null,
+      }),
+    ).toEqual({
+      analysisType: 'COMMERCIAL_COMPARISON',
+      analysisRefCode: null,
+      analysisRefName: null,
+      analysisSnapshotKey: null,
     })
   })
 })

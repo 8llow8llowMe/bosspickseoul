@@ -193,6 +193,34 @@ const ArticleContent = styled.div`
   overflow-wrap: anywhere;
 `
 
+/*
+  분석 첨부. 「이 글이 무엇을 근거로 삼았는지」를 본문 위에 밝힌다 — 본문 아래에 두면
+  긴 글에서는 끝까지 읽어야 알게 되는데, 근거의 출처는 읽기 시작할 때 아는 편이 낫다.
+*/
+const AnalysisNote = styled.aside`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+`
+
+const AnalysisLabel = styled.span`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  font-weight: 600;
+`
+
+const AnalysisName = styled.strong`
+  color: var(--color-text-900);
+  font-size: 13px;
+  font-weight: 700;
+  word-break: keep-all;
+`
+
 const ArticleImages = styled.ul`
   display: grid;
   gap: 12px;
@@ -471,6 +499,9 @@ export default function CommunityDetailView({
   }
 
   const contextKey = fromContext ?? adjacent?.contextKey ?? null
+  /* 첨부는 비교 초안으로 쓴 글에만 있다. `analysisType` 이 없으면 첨부 자체가 없다. */
+  const analysisTypeName =
+    detail.analysisType?.name?.trim() || detail.analysisType?.code?.trim() || ''
   const targetName = detail.targetName?.trim() || '서울 전체'
 
   const requireAuth = (action: () => void) => {
@@ -505,6 +536,21 @@ export default function CommunityDetailView({
                 <span>댓글 {formatCommunityCount(detail.commentCount)}</span>
               </MetaRow>
             </ArticleHeader>
+
+            {/*
+              첨부 이름이 없으면 종류만 적는다. 링크는 걸지 않는다 —
+              `analysisRefCode` 가 `좌:우:업종:분기` 를 이어붙인 문자열인데 그 형식은
+              계약으로 보장된 것이 아니라 예시로만 적혀 있다. 잘못 갈라 링크를 만들면
+              깨진 링크가 되므로, 형식이 계약에 오르면 그때 잇는다.
+            */}
+            {analysisTypeName ? (
+              <AnalysisNote aria-label="분석 첨부">
+                <AnalysisLabel>근거로 삼은 분석</AnalysisLabel>
+                <AnalysisName>
+                  {detail.analysisRefName?.trim() || analysisTypeName}
+                </AnalysisName>
+              </AnalysisNote>
+            ) : null}
 
             <ArticleContent>{detail.content}</ArticleContent>
 
