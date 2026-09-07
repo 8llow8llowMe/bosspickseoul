@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor;
 
 import com.followfollowme.bosspickseoul.common.dto.metadata.ScoreMetricMetadata;
+import com.followfollowme.bosspickseoul.common.util.KoreanJosa;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.candidate.CandidateCommercialInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.candidate.CandidateCommercialsResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.candidate.MetricBreakdownInfo;
@@ -222,6 +223,9 @@ public class CommercialCandidateQueryProcessor {
                 .build());
         }
 
+        String opportunityLabel = resolveLabel(item.source(), CommercialHeatmapMetricType.OPPORTUNITY_SCORE);
+        String riskLabel = resolveLabel(item.source(), CommercialHeatmapMetricType.RISK_SCORE);
+
         return CandidateCommercialInfo.builder()
             .rank(rank)
             .commercialCode(item.source().commercialCode())
@@ -229,23 +233,36 @@ public class CommercialCandidateQueryProcessor {
             .compositeScore(item.composite())
             .grade(compositeGrade(item.composite()))
             .summaryLabel(preset.getDisplayName() + " 추천")
-            .selectionReason(buildSelectionReason(item.source(), preset, priorityMetric))
-            .opportunityLabel(resolveLabel(item.source(), CommercialHeatmapMetricType.OPPORTUNITY_SCORE))
-            .riskLabel(resolveLabel(item.source(), CommercialHeatmapMetricType.RISK_SCORE))
+            .selectionReason(buildSelectionReason(
+                preset.getDisplayName(), priorityMetric.getDisplayName(), opportunityLabel, riskLabel))
+            .opportunityLabel(opportunityLabel)
+            .riskLabel(riskLabel)
             .metricBreakdown(breakdown)
             .reasonTags(buildReasonTags(item.source(), preset, priorityMetric))
             .build();
     }
 
-    private String buildSelectionReason(
-        CommercialAllMetricScoresInfo source, CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric
+    /**
+     * 추천 카드에 그대로 보이는 문장을 만든다.
+     *
+     * <p>앞절은 무엇을 우선 봤는지(지표명), 뒷절은 그래서 어땠는지(요약 라벨)로 역할을 가른다.
+     * 두 자리에 같은 요약 라벨을 넣으면 "기회도는 기회도 높음이며" 처럼 지표명이 겹친다 —
+     * 요약 라벨이 이미 지표명을 품고 있기 때문이다
+     * ({@code CommercialHeatmapQueryProcessor#buildSummaryLabel}).
+     *
+     * <p>조사는 앞말을 보고 고른다. 지표명이 데이터라 상수로 둘 수 없다.
+     *
+     * <p>점수 조회 없이 문구만 검증할 수 있도록 문자열만 받는 정적 메서드로 둔다.
+     */
+    static String buildSelectionReason(
+        String presetDisplayName, String priorityMetricDisplayName, String opportunityLabel, String riskLabel
     ) {
-        return "%s 기준으로 %s를 우선 반영했고, 기회도는 %s이며 위험도는 %s입니다."
+        return "%s 기준으로 %s 우선 반영했고, %s · %s입니다."
             .formatted(
-                preset.getDisplayName(),
-                resolveLabel(source, priorityMetric),
-                resolveLabel(source, CommercialHeatmapMetricType.OPPORTUNITY_SCORE),
-                resolveLabel(source, CommercialHeatmapMetricType.RISK_SCORE)
+                presetDisplayName,
+                KoreanJosa.appendObjective(priorityMetricDisplayName),
+                opportunityLabel,
+                riskLabel
             );
     }
 
