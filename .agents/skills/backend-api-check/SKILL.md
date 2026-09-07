@@ -39,11 +39,18 @@ Open these docs before judging the implementation:
    - internal `Info` is not exposed directly
    - nested response composition is handled by Presenter
    - `SliceResponse` is used when infinite scroll fits the endpoint
+   - Feign response wrappers do not leak into `application`
 
 4. Swagger coverage
    - `@Tag`, `@Operation`, `@Parameter`, `@Schema`
    - Korean descriptions by default
    - `@SecurityRequirement` exists for authenticated APIs
+   - consider `@Hidden` for internal-only APIs
+
+5. Enum metadata
+   - group enum metadata into a dedicated response object when practical
+   - use `code`, `name`, and `description` by default
+   - add `scoreDescription` only when clients need score interpretation
 
 ## Output Format
 

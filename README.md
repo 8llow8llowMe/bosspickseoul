@@ -123,6 +123,14 @@ bosspickseoul/
 
 아키텍처 다이어그램은 손으로 그린 이미지가 아니라 `docs/diagrams/generate-diagrams.mjs`가 생성합니다. 구성이 바뀌면 스크립트를 수정한 뒤 다시 실행해 `docs/images/*.png`를 갱신합니다.
 
+## AI 에이전트 설정
+
+- Codex와 Cursor는 루트 및 하위 디렉터리의 `AGENTS.md`를 작업 지침으로 사용합니다. Claude Code는 대응하는 `CLAUDE.md`를 사용합니다.
+- 프로젝트 스킬의 공용 위치는 `.agents/skills/`이며 Codex와 Cursor가 함께 탐색합니다. Claude Code 호환본은 `.claude/skills/`에 유지합니다.
+- Cursor와 Claude Code에서는 `/issue`, `/pr`, `/mr`, `/context-handoff`, `/context-resume`로 호출합니다.
+- Codex에서는 `$issue`, `$pr`, `$mr`, `$context-handoff`, `$context-resume`로 호출합니다.
+- Cursor가 `.agents/skills/`를 직접 지원하므로 같은 스킬을 `.cursor/skills/`에 중복 저장하지 않습니다.
+
 ## 문서
 
 - [CI/CD Architecture Roadmap](docs/cicd-architecture-roadmap.md) · [Jenkins Node Label and Job Design](docs/jenkins-node-label-job-design.md)

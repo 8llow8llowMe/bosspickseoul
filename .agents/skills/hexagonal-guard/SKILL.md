@@ -33,6 +33,7 @@ Use this skill when:
    - `application` does not depend on `adapter` types
    - out-ports expose contracts only
    - adapters encapsulate JPA/Redis/external API details
+   - Feign response wrappers do not leak into `application`
 
 3. Query and mapping
    - read paths use `QueryResult` when needed
@@ -42,6 +43,10 @@ Use this skill when:
 4. Write flow
    - save flows prefer `domain -> entity -> repository.save -> entity -> domain`
    - ID generation happens in processor or a clear upstream orchestration point
+
+5. Transaction boundary
+   - reads use `@Transactional(readOnly = true)` at the appropriate service boundary
+   - writes use `@Transactional` at the appropriate service boundary
 
 ## Output Format
 

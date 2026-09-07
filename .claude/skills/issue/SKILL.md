@@ -1,6 +1,6 @@
 ---
 name: issue
-description: "BossPickSeoul GitHub 이슈 초안을 한국어 기능 이슈 템플릿으로 작성할 때 사용한다. /issue 요청, issue template, feature issue, bug issue draft, [BE] feat: ... 제목 생성이 트리거다."
+description: "Create a GitHub issue draft using the BossPickSeoul Korean feature issue template. Use when the user invokes /issue, $issue, asks for an issue template, feature issue, bug issue draft, or wants a title like [BE] feat: ... with 기능 설명, 작업 상세 내용, and 참고 자료."
 ---
 
 # Issue Draft
@@ -9,9 +9,13 @@ BossPickSeoul 이슈 초안을 한국어 템플릿으로 작성한다.
 
 ## Workflow
 
-1. 이슈 종류를 판단한다. 기본은 기능 이슈다.
-2. 제목은 `[영역] type: 요약` 형식으로 만든다.
-3. 본문은 GitHub issue body에 바로 붙여넣을 수 있는 Markdown만 출력한다.
+1. 이슈 종류를 판단한다.
+   - 기본은 기능 이슈다.
+   - 버그/문서/인프라 이슈가 더 적절하면 제목 type만 조정한다.
+2. 제목을 만든다.
+   - 형식: `[영역] type: 요약`
+   - 예시: `[BE] feat: 회원 북마크 시스템 구현`
+3. 본문은 GitHub issue body에 바로 붙여넣을 수 있는 Markdown으로 출력한다.
 4. GitHub issue template 파일을 만들라는 요청이 아니면 YAML frontmatter는 포함하지 않는다.
 5. 할 일은 체크박스 형태로 2~6개 작성한다.
 
@@ -35,7 +39,7 @@ BossPickSeoul 이슈 초안을 한국어 템플릿으로 작성한다.
 
 ## GitHub Issue Template File
 
-사용자가 `.github/ISSUE_TEMPLATE`용 템플릿 파일을 요청하면 아래 형식을 사용한다.
+사용자가 `.github/ISSUE_TEMPLATE`에 넣을 템플릿 파일을 요청하면 아래 형식을 사용한다.
 
 ```markdown
 ---
@@ -58,9 +62,9 @@ assignees: ''
 ## 참고할만한 자료(선택)
 ```
 
-## Rules
+## Style Rules
 
-- 한국어로 쓴다.
-- 범위가 크면 기능을 나누는 제안을 먼저 한다.
+- 한국어로 작성한다.
+- 작업 범위가 너무 크면 기능을 나누는 제안을 먼저 한다.
 - 제목은 `[BE] feat: ...`, `[INFRA] chore: ...`, `[DOCS] docs: ...` 형식을 우선한다.
-- secret, token, private key, password는 포함하지 않는다.
+- 보안값, token, private key, DB password는 절대 포함하지 않는다.

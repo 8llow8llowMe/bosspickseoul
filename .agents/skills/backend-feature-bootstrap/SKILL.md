@@ -29,29 +29,37 @@ Use this skill when:
    - what stays outside
 
 2. Define public interface
-   - REST paths
-   - auth policy
+   - plural REST resource paths that reflect the domain hierarchy
+   - auth policy using `@PreAuthorize`, Resource Server, and JWT claims as appropriate
    - request/response model names
 
 3. Create structure
-   - `controller`
-   - `dto/request`, `dto/response`, `dto/item`
-   - `presenter`
-   - `port/in`, `port/out`
-   - `service`, `processor`
-   - `domain/model`
-   - `adapter/out/persistence`
+   ```text
+   domainlayer/<context>
+     |- adapter
+     |  |- in/web { controller, dto/{request,response,item}, presenter }
+     |  \- out   { persistence/{entity,repository,*Adapter}, client }
+     |- application
+     |  |- command, info, mapper, model
+     |  |- port/{in,out}
+     |  \- service { *WebFacade, processor }
+     \- domain/model
+   ```
 
 4. Define persistence and config
    - entity or DDL needs
-   - index and delete strategy
+   - index and soft-delete strategy
    - `@ConfigurationProperties` if settings are needed
 
-5. Verify
+5. Define internal service integration when needed
+   - prefer `FeignClient` for synchronous Spring-to-Spring calls
+   - preserve the `FeignClient -> Adapter -> QueryResult` boundary
+
+6. Verify
    - Swagger
    - transaction boundaries
    - compile/test/check
-   - docs update
+   - update `service-inventory.md` and relevant `services/*.md` docs
 
 ## Output Format
 
@@ -72,6 +80,9 @@ Package Skeleton:
 
 Persistence / Config:
 - ...
+
+Internal Integration:
+- ... (Feign or none)
 
 Verification Plan:
 - ...
