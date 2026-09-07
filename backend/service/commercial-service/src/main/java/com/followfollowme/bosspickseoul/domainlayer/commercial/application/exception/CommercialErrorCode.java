@@ -20,6 +20,8 @@ public enum CommercialErrorCode {
     INCOME_NOT_FOUND("COMMERCIAL_010", "해당 분기의 소득소비 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
     STORE_NOT_FOUND("COMMERCIAL_011", "해당 분기의 점포 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
     INTERNAL_SERVICE_UNAVAILABLE("COMMERCIAL_012", "지역 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
+    // 프로필은 지표별로 부분 강등(null)하고, 모든 지표가 없을 때만 이 코드로 전체 404 를 응답한다.
+    PROFILE_DATA_NOT_FOUND("COMMERCIAL_013", "해당 분기의 상권 분석 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(COMMERCIAL_101)는 CommercialValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

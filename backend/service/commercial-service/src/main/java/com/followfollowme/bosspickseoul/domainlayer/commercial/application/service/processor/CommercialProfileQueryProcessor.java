@@ -1,5 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
@@ -15,9 +17,17 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.CommercialRegionQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.query.CommercialAdministrationQueryResult;
+import java.util.Objects;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 상권 프로필 조회. 분기별 적재 상황에 따라 일부 지표(예: 매출)가 없을 수 있으므로
+ * 지표 단위로 부분 강등(null)하고, 모든 지표가 없을 때만 404(COMMERCIAL_013)를 응답한다.
+ * 지역 매핑(상권 코드 검증)은 프로필의 골격이라 강등하지 않고 그대로 전파한다.
+ */
 @Service
 @RequiredArgsConstructor
 public class CommercialProfileQueryProcessor {
@@ -31,47 +41,69 @@ public class CommercialProfileQueryProcessor {
     private final CommercialRegionQueryPort commercialRegionQueryPort;
 
     public CommercialProfileInfo getProfile(String periodCode, String commercialCode, String serviceCode) {
-        CommercialSalesInfo sales = commercialQueryProcessor
-            .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
-        CommercialFootTrafficInfo footTraffic = commercialQueryProcessor
-            .getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
-        CommercialStoreAnalysisInfo store = commercialQueryProcessor
-            .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
-        CommercialResidentPopulationInfo population = commercialQueryProcessor
-            .getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
-        CommercialIncomeAndExpenseInfo income = commercialQueryProcessor
-            .getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
-        CommercialFacilityInfo facility = commercialQueryProcessor
-            .getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         CommercialAdministrationQueryResult administration =
             commercialRegionQueryPort.getCommercialAdministration(commercialCode);
 
+        CommercialSalesInfo sales = fetchQuietly(() -> commercialQueryProcessor
+            .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode));
+        CommercialFootTrafficInfo footTraffic = fetchQuietly(() -> commercialQueryProcessor
+            .getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode));
+        CommercialStoreAnalysisInfo store = fetchQuietly(() -> commercialQueryProcessor
+            .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode));
+        CommercialResidentPopulationInfo population = fetchQuietly(() -> commercialQueryProcessor
+            .getPopulationByPeriodAndCommercialCode(periodCode, commercialCode));
+        CommercialIncomeAndExpenseInfo income = fetchQuietly(() -> commercialQueryProcessor
+            .getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode));
+        CommercialFacilityInfo facility = fetchQuietly(() -> commercialQueryProcessor
+            .getFacilityByPeriodAndCommercialCode(periodCode, commercialCode));
+
+        if (Stream.of(sales, footTraffic, store, population, income, facility).allMatch(Objects::isNull)) {
+            throw new CommercialException(CommercialErrorCode.PROFILE_DATA_NOT_FOUND);
+        }
+
         CommercialProfileKeyMetricsInfo keyMetrics = CommercialProfileKeyMetricsInfo.builder()
-            .totalSalesAmount(totalSalesAmount(sales.amountByDayOfWeekInfo()))
-            .totalFootTraffic(totalFootTraffic(footTraffic.byDayOfWeekInfo()))
-            .totalStoreCount(store.totalStoreCount())
-            .similarStoreCount(store.similarStoreCount())
-            .openingRate(store.openingRate())
-            .closureRate(store.closureRate())
-            .totalResidentPopulation(population.byAgeInfo().totalResidentPopulation())
-            .monthlyAverageIncomeAmount(income.averageIncomeInfo().monthlyAverageIncomeAmount())
-            .totalFacilityCount(facility.totalFacilityCount())
-            .peakSalesTimeSlot(peakSalesTimeSlot(sales.amountByTimeSlotInfo()))
-            .peakFootTrafficTimeSlot(peakFootTrafficTimeSlot(footTraffic.byTimeSlotInfo()))
-            .dominantSalesAgeGroup(dominantSalesAgeGroup(sales.amountByAgeInfo()))
+            .totalSalesAmount(sales == null ? null : totalSalesAmount(sales.amountByDayOfWeekInfo()))
+            .totalFootTraffic(footTraffic == null ? null : totalFootTraffic(footTraffic.byDayOfWeekInfo()))
+            .totalStoreCount(store == null ? null : store.totalStoreCount())
+            .similarStoreCount(store == null ? null : store.similarStoreCount())
+            .openingRate(store == null ? null : store.openingRate())
+            .closureRate(store == null ? null : store.closureRate())
+            .totalResidentPopulation(population == null ? null : population.byAgeInfo().totalResidentPopulation())
+            .monthlyAverageIncomeAmount(income == null ? null : income.averageIncomeInfo().monthlyAverageIncomeAmount())
+            .totalFacilityCount(facility == null ? null : facility.totalFacilityCount())
+            .peakSalesTimeSlot(sales == null ? null : peakSalesTimeSlot(sales.amountByTimeSlotInfo()))
+            .peakFootTrafficTimeSlot(footTraffic == null ? null : peakFootTrafficTimeSlot(footTraffic.byTimeSlotInfo()))
+            .dominantSalesAgeGroup(sales == null ? null : dominantSalesAgeGroup(sales.amountByAgeInfo()))
             .build();
 
         return CommercialProfileInfo.builder()
             .periodCode(periodCode)
             .serviceCode(serviceCode)
             .commercialCode(commercialCode)
-            .commercialName(sales.commercialName())
+            .commercialName(commercialName(sales, footTraffic))
             .districtCode(administration.districtCode())
             .districtName(administration.districtName())
             .administrationCode(administration.administrationCode())
             .administrationName(administration.administrationName())
             .keyMetrics(keyMetrics)
             .build();
+    }
+
+    /** 분기 종속 데이터 부재(404 계열 CommercialException)는 지표 강등으로 흡수한다. 그 외 예외는 전파. */
+    private static <T> T fetchQuietly(Supplier<T> fetcher) {
+        try {
+            return fetcher.get();
+        } catch (CommercialException exception) {
+            return null;
+        }
+    }
+
+    /** 상권명은 지역 매핑 응답에 없어 지표 Info 에서 가져온다 — 성공한 Info 순서대로 폴백. */
+    private static String commercialName(CommercialSalesInfo sales, CommercialFootTrafficInfo footTraffic) {
+        if (sales != null) {
+            return sales.commercialName();
+        }
+        return footTraffic == null ? null : footTraffic.commercialName();
     }
 
     private static double totalSalesAmount(CommercialSalesByDayOfWeekInfo info) {
