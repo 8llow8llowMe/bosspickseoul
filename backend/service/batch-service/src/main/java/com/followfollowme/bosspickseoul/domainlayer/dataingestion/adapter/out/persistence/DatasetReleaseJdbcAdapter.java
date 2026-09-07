@@ -63,7 +63,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     public void stage(ImportRequest request, List<FactRow> rows) {
         requireRunning(request);
         jdbc.batchUpdate("""
-            INSERT INTO dataset_staging(run_id,row_number,area_code,service_code,payload)
+            INSERT INTO dataset_staging(run_id,source_row_number,area_code,service_code,payload)
             VALUES (?,?,?,?,CAST(? AS JSON))
             """, rows, 1000, (statement, row) -> {
                 statement.setString(1, request.runId());
@@ -79,7 +79,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     public void reject(ImportRequest request, SourceRow row, String reason) {
         requireRunning(request);
         jdbc.update("""
-            INSERT INTO dataset_rejected_row(run_id,row_number,payload,reason) VALUES (?,?,CAST(? AS JSON),?)
+            INSERT INTO dataset_rejected_row(run_id,source_row_number,payload,reason) VALUES (?,?,CAST(? AS JSON),?)
             """, request.runId(), row.rowNumber(), json(row.fields()), truncated(reason));
     }
 

@@ -1,5 +1,7 @@
 -- MySQL 8. Apply manually to the explicitly selected batch schema.
 -- These tables never alter the legacy 20233 service tables.
+-- The source row position is source_row_number, not row_number: ROW_NUMBER is reserved in MySQL 8.0.2+
+-- and an unquoted column of that name fails both this DDL and every staging INSERT.
 CREATE TABLE IF NOT EXISTS dataset_spatial_release (
     spatial_version VARCHAR(64) COLLATE utf8mb4_bin PRIMARY KEY,
     status VARCHAR(16) NOT NULL,
@@ -45,21 +47,21 @@ CREATE TABLE IF NOT EXISTS dataset_release (
 
 CREATE TABLE IF NOT EXISTS dataset_staging (
     run_id VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
-    row_number BIGINT NOT NULL,
+    source_row_number BIGINT NOT NULL,
     area_code VARCHAR(32) NOT NULL,
     service_code VARCHAR(32) NOT NULL DEFAULT '',
     payload JSON NOT NULL,
-    PRIMARY KEY (run_id, row_number),
+    PRIMARY KEY (run_id, source_row_number),
     KEY idx_dataset_staging_natural_key (run_id, area_code, service_code),
     FOREIGN KEY (run_id) REFERENCES dataset_release(run_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS dataset_rejected_row (
     run_id VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
-    row_number BIGINT NOT NULL,
+    source_row_number BIGINT NOT NULL,
     payload JSON NOT NULL,
     reason VARCHAR(512) NOT NULL,
-    PRIMARY KEY (run_id, row_number),
+    PRIMARY KEY (run_id, source_row_number),
     FOREIGN KEY (run_id) REFERENCES dataset_release(run_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

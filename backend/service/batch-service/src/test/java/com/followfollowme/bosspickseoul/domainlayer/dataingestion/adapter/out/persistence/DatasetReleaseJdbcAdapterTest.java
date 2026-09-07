@@ -161,6 +161,22 @@ class DatasetReleaseJdbcAdapterTest {
         status.set("RUNNING");
     }
 
+    /**
+     * MySQL 8 reserves ROW_NUMBER, so an unquoted row_number column breaks every staging write
+     * with a syntax error that only a real database reports. Pin the column names here.
+     */
+    @Test
+    void transientRowWritesAvoidReservedMysqlIdentifiers() {
+        ImportRequest request = request(false, 2, "standard-2024");
+        start(request);
+        adapter.stage(request, List.of(new FactRow(1, "3110008", "CS100001", Map.of("THSMON_SELNG_AMT", "1"))));
+        adapter.reject(request, new SourceRow(2, Map.of("TRDAR_CD", "bad")), "AREA_CODE_INVALID");
+        verify(jdbc).batchUpdate(
+            contains("dataset_staging(run_id,source_row_number,area_code,service_code,payload)"),
+            anyList(), anyInt(), any());
+        verify(jdbc).update(contains("dataset_rejected_row(run_id,source_row_number,payload,reason)"), any(Object[].class));
+    }
+
     private ImportRequest request(boolean dryRun, long expected, String spatial) {
         return new ImportRequest("test-run", Dataset.SALES_COMMERCIAL, new Quarter("20241"), spatial,
             "seoul-v1", ImportRequest.SourceType.API, null, "UTF-8", dryRun, expected, Instant.parse("2026-09-06T00:00:00Z"));
