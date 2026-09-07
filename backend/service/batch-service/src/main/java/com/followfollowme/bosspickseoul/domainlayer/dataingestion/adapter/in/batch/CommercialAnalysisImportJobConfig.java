@@ -3,7 +3,6 @@ package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.ba
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.*;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.*;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRowProcessor;
-import java.util.ArrayList;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -19,9 +18,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration
 @Profile("quarterly")
 public class CommercialAnalysisImportJobConfig {
+    private static final String[] RECEIPT_KEYS = {"sourceChecksum", "rawLocation", "sourceInputRows"};
+
     @Bean
     public Job commercialAnalysisImportJob(JobRepository repository, PlatformTransactionManager transactionManager,
-                                          DatasetSourcePort source, DatasetReleasePort releases, DatasetItemReader datasetItemReader) {
+                                          DatasetReleasePort releases, DatasetItemReader datasetItemReader,
+                                          DatasetStagingStep datasetStagingStep) {
         Step prepare = new StepBuilder("datasetPrepare", repository).allowStartIfComplete(true)
             .tasklet((contribution, context) -> {
                 releases.begin(ImportJobParameters.read(contribution.getStepExecution().getJobParameters()));
@@ -29,25 +31,15 @@ public class CommercialAnalysisImportJobConfig {
                 return RepeatStatus.FINISHED;
             }, transactionManager).build();
         ExecutionContextPromotionListener receiptPromotion = new ExecutionContextPromotionListener();
-        receiptPromotion.setKeys(new String[] {"sourceChecksum", "rawLocation", "sourceInputRows"});
-        DatasetRowProcessor processor = new DatasetRowProcessor();
+        receiptPromotion.setKeys(RECEIPT_KEYS);
         Step load = new StepBuilder("datasetStage", repository).allowStartIfComplete(true)
-            .<SourceRow, RowValidation>chunk(1000, transactionManager).reader(datasetItemReader)
-            .processor(row -> processor.process(ImportJobParameters.read(datasetItemReaderRequest()), row))
-            .writer(chunk -> {
-                ImportRequest request = ImportJobParameters.read(datasetItemReaderRequest());
-                var accepted = new ArrayList<FactRow>();
-                for (RowValidation result : chunk) {
-                    if (result.accepted()) accepted.add(result.fact());
-                    else releases.reject(request, result.source(), result.rejectionReason());
-                }
-                if (!accepted.isEmpty()) releases.stage(request, accepted);
-            }).listener(receiptPromotion).build();
+            .<SourceRow, RowValidation>chunk(1000, transactionManager)
+            .reader(datasetItemReader).processor(datasetStagingStep).writer(datasetStagingStep)
+            .listener(receiptPromotion).build();
         Step validate = new StepBuilder("datasetValidate", repository).allowStartIfComplete(true).tasklet((contribution, context) -> {
             ImportRequest request = ImportJobParameters.read(contribution.getStepExecution().getJobParameters());
             ExecutionContext execution = contribution.getStepExecution().getJobExecution().getExecutionContext();
-            SourceReceipt receipt = new SourceReceipt(execution.getString("sourceChecksum"), execution.getString("rawLocation"), execution.getLong("sourceInputRows"));
-            ValidationResult validation = releases.validate(request, receipt);
+            ValidationResult validation = releases.validate(request, receipt(execution));
             execution.putLong("acceptedRows", validation.acceptedRows());
             execution.putLong("rejectedRows", validation.rejectedRows());
             execution.putLong("duplicateKeys", validation.duplicateKeys());
@@ -58,7 +50,7 @@ public class CommercialAnalysisImportJobConfig {
         Step publish = new StepBuilder("datasetPublish", repository).tasklet((contribution, context) -> {
             ImportRequest request = ImportJobParameters.read(contribution.getStepExecution().getJobParameters());
             ExecutionContext execution = contribution.getStepExecution().getJobExecution().getExecutionContext();
-            SourceReceipt receipt = new SourceReceipt(execution.getString("sourceChecksum"), execution.getString("rawLocation"), execution.getLong("sourceInputRows"));
+            SourceReceipt receipt = receipt(execution);
             ValidationResult validation = new ValidationResult(execution.getLong("acceptedRows"), execution.getLong("rejectedRows"),
                 execution.getLong("duplicateKeys"), execution.getLong("unmappedRows"));
             if (!validation.valid(request.expectedRows()) || receipt.inputRows() != request.expectedRows()) {
@@ -80,13 +72,21 @@ public class CommercialAnalysisImportJobConfig {
             }).start(prepare).next(load).next(validate).next(publish).build();
     }
 
-    private JobParameters datasetItemReaderRequest() {
-        return org.springframework.batch.core.scope.context.StepSynchronizationManager.getContext().getStepExecution().getJobParameters();
+    private static SourceReceipt receipt(ExecutionContext execution) {
+        return new SourceReceipt(execution.getString("sourceChecksum"), execution.getString("rawLocation"),
+            execution.getLong("sourceInputRows"));
     }
 
     @Bean
     @StepScope
     public DatasetItemReader datasetItemReader(DatasetSourcePort source, @Value("#{stepExecution}") StepExecution stepExecution) {
         return new DatasetItemReader(source, ImportJobParameters.read(stepExecution.getJobParameters()), stepExecution);
+    }
+
+    @Bean
+    @StepScope
+    public DatasetStagingStep datasetStagingStep(DatasetRowProcessor rows, DatasetReleasePort releases,
+                                                 @Value("#{stepExecution}") StepExecution stepExecution) {
+        return new DatasetStagingStep(rows, releases, ImportJobParameters.read(stepExecution.getJobParameters()));
     }
 }

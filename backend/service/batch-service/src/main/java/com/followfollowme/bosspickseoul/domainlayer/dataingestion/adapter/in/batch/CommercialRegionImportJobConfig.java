@@ -18,7 +18,7 @@ public class CommercialRegionImportJobConfig {
         var step = new StepBuilder("spatialSnapshotImport", repository).tasklet((contribution, context) -> {
             var parameters = contribution.getStepExecution().getJobParameters();
             var result = processor.importSnapshot(Path.of(parameters.getString("sourceFile")), parameters.getString("spatialVersion"),
-                QuarterlyImportRunner.strictBoolean(parameters.getString("dryRun")));
+                ImportJobParameters.strictBoolean(parameters.getString("dryRun")));
             var execution = contribution.getStepExecution().getExecutionContext();
             execution.putString("spatialVersion", result.spatialVersion());
             execution.putString("checksum", result.checksum());

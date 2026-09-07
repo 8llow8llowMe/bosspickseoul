@@ -34,7 +34,7 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
     public void run(ApplicationArguments args) throws Exception {
         BatchTargetGuard.verify(environment.getProperty("BATCH_DB_URL"), environment.getProperty("spring.datasource.url"),
             environment.getProperty("BATCH_ALLOWED_SCHEMAS"));
-        boolean dryRun = strictBoolean(optional(args, "dry-run", "true"));
+        boolean dryRun = ImportJobParameters.strictBoolean(optional(args, "dry-run", "true"));
         String runId = required(args, "run-id");
         if (!runId.matches("[a-zA-Z0-9_-]{1,64}")) throw new IllegalArgumentException("Invalid run-id");
         Job job;
@@ -57,11 +57,6 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
         }
         JobExecution execution = launcher.run(job, parameters);
         exitCode = execution.getStatus() == BatchStatus.COMPLETED ? 0 : 1;
-    }
-
-    static boolean strictBoolean(String value) {
-        if (!"true".equals(value) && !"false".equals(value)) throw new IllegalArgumentException("dry-run must be true or false");
-        return Boolean.parseBoolean(value);
     }
 
     private String required(ApplicationArguments args, String name) {
