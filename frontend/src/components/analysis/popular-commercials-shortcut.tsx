@@ -55,31 +55,54 @@ const Caption = styled.span`
   font-weight: 500;
 `
 
+/*
+  세 줄 목록이던 것을 한 줄 가로 스크롤로 눕혔다. 세로로 세우면 이 블록만 194px 을
+  먹어 바로 아래 자치구 25칩이 71px 만 받았다(1280x720 실측). 지름길이 본 갈래보다
+  자리를 더 차지하면 안 된다.
+*/
 const List = styled.ol`
-  display: grid;
-  gap: 4px;
+  display: flex;
+  gap: 8px;
+  /* overflow-x 를 켜면 overflow-y 도 auto 로 계산돼 포커스 링이 위아래로 잘린다.
+     링은 outline 2px + offset 2px 라 위아래로 4px 을 먹는다. 여유를 둬 8px 을
+     안쪽에 확보하고 같은 값만큼 밖으로 당겨 블록 높이는 그대로 둔다. */
+  margin: -8px -12px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  > li {
+    flex: 0 0 auto;
+  }
 `
 
 const Row = styled.button`
-  display: grid;
-  grid-template-columns: 20px 1fr auto;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  /* 터치 영역 확보(DESIGN.md §8): 리스트 행 최소 44px */
+  gap: 6px;
+  /* 터치 영역 확보(DESIGN.md §8): 최소 44px */
   min-height: 44px;
-  padding: 0 8px;
-  border: 0;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
-  background: transparent;
+  background: var(--color-surface);
   color: var(--color-text-900);
   font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-standard);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
 
   &:hover:not(:disabled) {
-    background: var(--color-surface);
+    border-color: var(--color-primary-600);
+    background: var(--color-primary-100);
   }
 
   &:disabled {
@@ -94,7 +117,9 @@ const Rank = styled.span`
   font-weight: 700;
 `
 
+/* 가로로 눕혔으니 폭 경쟁은 없다. 다만 한 칩이 패널을 통째로 덮지 않게 상한만 둔다. */
 const Name = styled.span`
+  max-width: 180px;
   overflow: hidden;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -169,7 +194,7 @@ export default function PopularCommercialsShortcut({
         <List aria-hidden="true">
           {Array.from({ length: SHORTCUT_SIZE }, (_, index) => (
             <li key={index}>
-              <Skeleton $height="44px" />
+              <Skeleton $height="44px" $width="132px" />
             </li>
           ))}
         </List>

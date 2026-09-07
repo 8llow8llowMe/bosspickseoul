@@ -74,17 +74,15 @@ const Root = styled.section`
   background: var(--color-surface);
 `
 
+/*
+  눈썹말(「상권 분석」)과 설명문을 뺐다. 앞엣것은 GNB 에서 이미 활성 상태로 강조돼 있고,
+  뒤엣것(「지도와 목록에서 지역을 좁힌 뒤…」)은 바로 아래 4단계 스텝이 같은 순서를
+  그대로 보여 준다. 둘이 먹던 69px 은 자치구 목록으로 돌린다.
+  좌우 여백은 아래 StepList·Body 와 같은 20px 으로 맞춘다(전에는 홀로 24px 이었다).
+*/
 const Header = styled.header`
-  display: grid;
-  gap: 8px;
-  padding: 24px 24px 18px;
+  padding: 16px 20px 14px;
   border-bottom: 1px solid var(--color-border-200);
-`
-
-const Eyebrow = styled.p`
-  color: var(--color-text-caption);
-  font-size: 13px;
-  font-weight: 700;
 `
 
 const Title = styled.h1`
@@ -93,12 +91,6 @@ const Title = styled.h1`
   font-weight: 700;
   line-height: 34px;
   word-break: keep-all;
-`
-
-const Description = styled.p`
-  color: var(--color-text-600);
-  font-size: 14px;
-  line-height: 22px;
 `
 
 const StepList = styled.ol`
@@ -306,11 +298,7 @@ function AnalysisSelectionPanel({
     <Root aria-label="상권 분석 조건 선택">
       {variant !== 'sheet' ? (
         <Header>
-          <Eyebrow>상권 분석</Eyebrow>
           <Title>분석할 지역을 선택해 주세요</Title>
-          <Description>
-            지도와 목록에서 지역을 좁힌 뒤 원하는 업종을 선택하세요.
-          </Description>
         </Header>
       ) : null}
 
