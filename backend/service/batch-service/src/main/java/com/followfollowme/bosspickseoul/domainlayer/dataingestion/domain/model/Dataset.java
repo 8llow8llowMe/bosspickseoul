@@ -24,7 +24,8 @@ public enum Dataset {
     SALES_DISTRICT("VwsmSignguSelngW", AreaScope.DISTRICT, true, List.of("THSMON_SELNG_AMT")),
     STORE_DISTRICT("VwsmSignguStorW", AreaScope.DISTRICT, true, List.of("STOR_CO")),
     FOOT_TRAFFIC_DISTRICT("VwsmSignguFlpopW", AreaScope.DISTRICT, false, List.of("TOT_FLPOP_CO")),
-    CONSUMPTION_DISTRICT("VwsmSignguNcmCnsmpW", AreaScope.DISTRICT, false, List.of("EXPNDTR_TOTAMT"));
+    CONSUMPTION_DISTRICT("VwsmSignguNcmCnsmpW", AreaScope.DISTRICT, false, List.of("EXPNDTR_TOTAMT")),
+    CHANGE_DISTRICT("", AreaScope.DISTRICT, false, List.of("TRDAR_CHNGE_IX"));
 
     /** Categorical change indicator; validated against its code set instead of as a number. */
     public static final String CHANGE_INDICATOR_FIELD = "TRDAR_CHNGE_IX";
