@@ -232,7 +232,7 @@
       "compositeScore": 76.3,
       "grade": "HIGH",
       "summaryLabel": "청년창업형 추천",
-      "selectionReason": "청년창업형 기준으로 기회도 우세를 우선 반영했고, 기회도는 기회도 높음이며 위험도는 위험도 낮음입니다.",
+      "selectionReason": "청년창업형 기준으로 기회도를 우선 반영했고, 기회도 높음 · 위험도 낮음입니다.",
       "opportunityLabel": "기회도 높음",
       "riskLabel": "위험도 낮음",
       "reasonTags": ["기회도 우세", "위험도 낮음", "혼잡도 보통"]

@@ -107,6 +107,20 @@
   - `metricBreakdown`
   - `reasonTags`
 
+### `selectionReason` 문장 규칙
+
+`selectionReason` 은 추천 카드에 **그대로 렌더되는 완성 문장**이다. 프론트가 치환하지 않으니
+백엔드가 내보내는 그대로 사용자가 읽는다. `CommercialCandidateQueryProcessor#buildSelectionReason`
+(정적 메서드 — 점수 조회 없이 문구만 테스트한다) 에서 조립하며 두 가지를 지킨다.
+
+- **앞절은 지표명, 뒷절은 요약 라벨.** 요약 라벨(`기회도 높음`)이 이미 지표명을 품고 있어
+  (`CommercialHeatmapQueryProcessor#buildSummaryLabel`), 두 자리에 같은 라벨을 넣으면
+  "기회도는 기회도 높음이며" 처럼 지표명이 겹친다.
+- **조사는 앞말의 받침을 보고 고른다** (`KoreanJosa`, common-core). 지표명·등급이 데이터에서
+  오는 자리라 `"%s를"` 처럼 박아 두면 앞말이 받침으로 끝나는 순간 비문이 된다.
+
+현재 문구: `공격형 기준으로 기회도를 우선 반영했고, 기회도 높음 · 위험도 높음입니다.`
+
 ## 트렌드 분석 (신규)
 
 - `GET /api/v1/commercials/{commercialCode}/trend`
