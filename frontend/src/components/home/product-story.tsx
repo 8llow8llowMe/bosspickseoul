@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
-import CostBreakdownBar from '@/components/home/cost-breakdown-bar'
+import BreakEvenChart from '@/components/home/break-even-chart'
 import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
-import { activeStepFromProgress } from '@/components/home/scroll-fill'
+import { activeStepFromPinnedProgress } from '@/components/home/scroll-fill'
 import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
 import {
   STORY_STEPS,
@@ -362,7 +362,7 @@ function DemoPanel({
     )
   }
   if (demo === 'recommend') return <RecommendPreview selection={selection} />
-  return <CostBreakdownBar />
+  return <BreakEvenChart />
 }
 
 function PanelCard({
@@ -376,7 +376,7 @@ function PanelCard({
 }) {
   const { demo, cta } = step
   /*
-    각 데모가 자기 라벨을 스스로 판단해 붙인다 — CostBreakdownBar 는 캡션에 항상,
+    각 데모가 자기 라벨을 스스로 판단해 붙인다 — BreakEvenChart 는 캡션에 항상,
     MetricRankingBoard 와 RecommendPreview 는 폴백일 때만, AnalysisMiniDemo 는
     자체 SampleBadge 로. 여기서 또 그리면 라벨이 두 번 찍힌다.
   */
@@ -438,16 +438,26 @@ function StoryLead() {
     <Lead>
       <Eyebrow>이렇게 판단합니다</Eyebrow>
       <LeadTitle>
-        현황 확인부터 창업 시뮬레이션까지, 네 단계로 좁힙니다.
+        자치구 25곳에서 시작해 가게 하나의 손익까지, 네 단계로 좁힙니다.
       </LeadTitle>
     </Lead>
   )
 }
 
 export default function ProductStory() {
-  const trackRef = useRef<HTMLDivElement | null>(null)
-  const progress = useScrollProgress(trackRef)
-  const active = activeStepFromProgress(progress, STORY_STEPS.length)
+  const {
+    ref: trackRef,
+    progress,
+    element: trackElement,
+    trackHeight,
+    viewportHeight,
+  } = useScrollProgress()
+  const active = activeStepFromPinnedProgress(
+    progress,
+    STORY_STEPS.length,
+    trackHeight,
+    viewportHeight,
+  )
   const stacked = useStackedMode()
 
   /*
@@ -501,9 +511,8 @@ export default function ProductStory() {
   // 스텝 클릭 시 해당 스텝 구간의 중앙으로 스크롤한다.
   // pin 구간 클램프 공식은 랭킹 섹션과 공유한다(scroll-to-pinned-step.ts).
   const scrollToStep = (index: number) => {
-    const el = trackRef.current
-    if (!el) return
-    scrollToPinnedStep(el, index, STORY_STEPS.length)
+    if (!trackElement) return
+    scrollToPinnedStep(trackElement, index, STORY_STEPS.length)
   }
 
   if (stacked) {

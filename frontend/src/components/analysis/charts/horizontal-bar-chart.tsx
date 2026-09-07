@@ -17,7 +17,7 @@ import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
 import {
   CHART_COLORS,
   ChartTooltipContent,
-  formatAxisTick,
+  createAxisTickFormatter,
 } from './chart-theme'
 
 const Empty = styled.p`
@@ -153,7 +153,11 @@ export default function HorizontalBarChart({
   const domain: [number, number] = diverging
     ? scale.domain
     : [0, scale.domain[1]]
-  const formatLabel = valueFormatter ?? formatAxisTick
+  /*
+    막대 값 라벨도 **한 단위로 통일**한다. 값마다 따로 고르면 같은 목록에서 「1.2만」과
+    「9,800」이 나란히 놓여 어느 쪽이 큰지 눈으로 못 비교한다(축 눈금과 같은 문제).
+  */
+  const formatLabel = valueFormatter ?? createAxisTickFormatter(values)
   // 라벨 축 폭: 지정이 없으면 가장 긴 라벨 길이에 맞춰(한글 ≈ 13px/자) 자동 산정해
   // 짧은 라벨에서 왼쪽 여백이 과하게 벌어지는 문제를 없앤다. 52~140px로 제한.
   const longestLabelLength = items.reduce(

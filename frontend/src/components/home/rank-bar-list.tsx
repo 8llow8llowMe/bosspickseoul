@@ -24,6 +24,17 @@ export type RankBarListProps = {
   /** 이 키의 행을 강조한다(인사이트 문장이 가리키는 행). */
   highlightKey?: string | null
   ariaLabel: string
+  /**
+   * 행의 밀도.
+   *
+   * - `compact`(기본) — 한 줄에 순위·이름·막대·값을 나란히. 스토리 01 단계처럼 **좁은
+   *   패널에 10행**을 넣어야 하는 자리를 위한 것이다.
+   * - `card` — 순위를 배지로 키우고 막대를 이름 아래 제 줄에 둔다. 「지금 많이 본 지역」
+   *   처럼 **한 섹션을 통째로 쓰는** 자리용.
+   *
+   * 기본값을 `compact` 로 둔 것은 의도다 — 기존 사용처(01 단계)의 모양이 바뀌지 않는다.
+   */
+  variant?: 'compact' | 'card'
 }
 
 const List = styled.ol`
@@ -36,6 +47,11 @@ const List = styled.ol`
 
 const Row = styled.li`
   display: block;
+`
+
+/* 카드 변형은 행마다 테두리가 있어 compact 보다 간격을 넓게 준다. */
+const CardList = styled(List)`
+  gap: 8px;
 `
 
 /*
@@ -74,6 +90,123 @@ const RowLink = styled(Link)<{ $highlighted: boolean }>`
 
 const RowContent = styled.div<{ $highlighted: boolean }>`
   ${rowGridStyles}
+`
+
+/*
+  카드 변형. 한 줄에 다 넣는 대신 **두 줄**로 나눈다 — 위에 이름과 값, 아래에 막대.
+  막대가 제 줄을 가지면 폭을 다 쓰므로 1위와 8위의 차이가 눈에 훨씬 크게 들어온다
+  (compact 에서는 이름·값에 폭을 뺏겨 막대가 짧아진다).
+*/
+const cardGridStyles = css<{ $highlighted: boolean }>`
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-areas:
+    'badge head'
+    'badge bar';
+  column-gap: 12px;
+  row-gap: 6px;
+  align-items: center;
+  /* 터치 영역(DESIGN.md §8): 리스트 행 52px 이상. */
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: ${p =>
+    p.$highlighted ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  border: 1px solid
+    ${p =>
+      p.$highlighted ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+`
+
+const CardRowLink = styled(Link)<{ $highlighted: boolean }>`
+  ${cardGridStyles}
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    border-color: var(--color-primary-600);
+    box-shadow: var(--shadow-level-1);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-primary);
+  }
+`
+
+const CardRowContent = styled.div<{ $highlighted: boolean }>`
+  ${cardGridStyles}
+`
+
+/*
+  1~3 위만 채운 배지를 준다. 순위표에서 위쪽 몇 개가 먼저 읽히는 것이 자연스러운데,
+  전부 같은 모양이면 눈이 1위를 찾는 데도 숫자를 읽어야 한다. 네 번째부터 채우지 않는
+  이유는 그 아래로는 등수 차이가 의미를 갖지 않기 때문이다.
+*/
+const RankBadge = styled.span<{ $top: boolean }>`
+  grid-area: badge;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  background: ${p =>
+    p.$top ? 'var(--color-primary-600)' : 'var(--color-surface-muted)'};
+  color: ${p => (p.$top ? 'white' : 'var(--color-text-600)')};
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+`
+
+const CardHead = styled.span`
+  grid-area: head;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+`
+
+const CardName = styled.span`
+  color: var(--color-text-900);
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`
+
+const CardValue = styled.span`
+  flex: none;
+  color: var(--color-text-700);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+`
+
+const CardTrack = styled.span`
+  grid-area: bar;
+  display: block;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-background-muted);
+  overflow: hidden;
+`
+
+const CardFill = styled.span<{ $top: boolean }>`
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: ${p =>
+    p.$top ? 'var(--color-primary-600)' : 'var(--color-primary-100)'};
+  transition: width var(--motion-slow) var(--ease-standard);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `
 
 const Rank = styled.span`
@@ -131,12 +264,71 @@ export const barPercent = (value: number, max: number): number => {
   return Math.max(0, Math.min(100, (value / max) * 100))
 }
 
+/** 배지·막대를 채워 강조하는 상위 등수. */
+const TOP_RANK_LIMIT = 3
+
 export default function RankBarList({
   rows,
   highlightKey = null,
   ariaLabel,
+  variant = 'compact',
 }: RankBarListProps) {
   const max = Math.max(0, ...rows.map(row => (row.value > 0 ? row.value : 0)))
+
+  if (variant === 'card') {
+    return (
+      <CardList aria-label={ariaLabel}>
+        {rows.map(row => {
+          const percent = barPercent(row.value, max)
+          const top = row.rank <= TOP_RANK_LIMIT
+          const highlighted = row.key === highlightKey
+          const body = (
+            <>
+              <RankBadge $top={top} aria-hidden="true">
+                {row.rank}
+              </RankBadge>
+              <CardHead>
+                <CardName>{row.name}</CardName>
+                <CardValue>
+                  {row.valueLabel}
+                  {row.changeLabel ? (
+                    <Change $direction={row.changeDirection ?? 'up'}>
+                      {row.changeLabel}
+                    </Change>
+                  ) : null}
+                </CardValue>
+              </CardHead>
+              <CardTrack aria-hidden="true">
+                <CardFill $top={top} style={{ width: `${percent}%` }} />
+              </CardTrack>
+            </>
+          )
+
+          return (
+            <Row key={row.key}>
+              {row.href ? (
+                <CardRowLink
+                  href={row.href}
+                  aria-label={row.ariaLabel}
+                  $highlighted={highlighted}
+                  aria-current={highlighted ? 'true' : undefined}
+                >
+                  {body}
+                </CardRowLink>
+              ) : (
+                <CardRowContent
+                  $highlighted={highlighted}
+                  aria-current={highlighted ? 'true' : undefined}
+                >
+                  {body}
+                </CardRowContent>
+              )}
+            </Row>
+          )
+        })}
+      </CardList>
+    )
+  }
 
   return (
     <List aria-label={ariaLabel}>
