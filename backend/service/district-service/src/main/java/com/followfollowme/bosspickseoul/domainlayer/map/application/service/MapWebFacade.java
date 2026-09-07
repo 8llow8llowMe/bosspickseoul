@@ -41,7 +41,10 @@ import com.followfollowme.bosspickseoul.domainlayer.map.domain.enums.AreaType;
 import com.followfollowme.bosspickseoul.shared.enums.GradeLevel;
 import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import java.util.Arrays;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.info.PolicyInfo;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.PolicyQueryResult;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -293,6 +296,7 @@ public class MapWebFacade implements MapWebUseCase {
         if (result == null) {
             return CommercialProfileAreaInfo.builder()
                 .boundaryCoords(List.of())
+                .policyRecommendations(List.of())
                 .build();
         }
         CommercialProfileKeyMetricsQueryResult keyMetricsResult = result.keyMetrics();
@@ -315,6 +319,7 @@ public class MapWebFacade implements MapWebUseCase {
             .districtName(result.districtName())
             .administrationCode(result.administrationCode())
             .administrationName(result.administrationName())
+            .policyRecommendations(toPolicyInfos(result.policyRecommendations()))
             .centerLng(null)
             .centerLat(null)
             .boundaryCoords(List.of())
@@ -419,5 +424,34 @@ public class MapWebFacade implements MapWebUseCase {
         if (topN < 5 || topN > 30) {
             throw new MapException(MapErrorCode.INVALID_TOP_N);
         }
+    }
+
+    /**
+     * 상권 프로필에 동봉된 지원 정책을 그대로 통과시킨다.
+     *
+     * <p>정책 매칭은 commercial-service 의 책임이라 여기서 다시 판정하지 않는다. 지도 프로필이
+     * 좌표와 정책을 한 번에 내려줘야 화면이 공개 계약 하나만 보고 그릴 수 있다.
+     */
+    private List<PolicyInfo> toPolicyInfos(List<PolicyQueryResult> results) {
+        if (results == null) {
+            return List.of();
+        }
+        return results.stream()
+            .filter(Objects::nonNull)
+            .map(policy -> PolicyInfo.builder()
+                .policyId(policy.policyId())
+                .title(policy.title())
+                .organization(policy.organization())
+                .supportType(policy.supportType())
+                .supportTypeName(policy.supportTypeName())
+                .targetSummary(policy.targetSummary())
+                .supportContent(policy.supportContent())
+                .districtCode(policy.districtCode())
+                .serviceCategoryCode(policy.serviceCategoryCode())
+                .applyStartAt(policy.applyStartAt())
+                .applyEndAt(policy.applyEndAt())
+                .detailUrl(policy.detailUrl())
+                .build())
+            .toList();
     }
 }

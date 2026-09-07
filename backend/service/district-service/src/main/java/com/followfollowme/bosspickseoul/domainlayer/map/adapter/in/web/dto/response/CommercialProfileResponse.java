@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.response;
 
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.item.CommercialProfileKeyMetricsItem;
+import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.item.PolicyItem;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.Builder;
@@ -37,7 +38,10 @@ public record CommercialProfileResponse(
     List<List<Double>> boundaryCoords,
 
     @Schema(description = "핵심 지표. Feign 응답 유실 시 null 가능", nullable = true)
-    CommercialProfileKeyMetricsItem keyMetrics
+    CommercialProfileKeyMetricsItem keyMetrics,
+
+    @Schema(description = "이 상권의 자치구·업종으로 매칭된 지원 정책 상위 5건. 매칭이 없으면 빈 배열")
+    List<PolicyItem> policyRecommendations
 ) {
 
 }

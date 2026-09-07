@@ -14,7 +14,8 @@ public record CommercialProfileAreaInfo(
     Double centerLng,
     Double centerLat,
     List<List<Double>> boundaryCoords,
-    CommercialProfileKeyMetricsInfo keyMetrics
+    CommercialProfileKeyMetricsInfo keyMetrics,
+    List<PolicyInfo> policyRecommendations
 ) {
 
 }

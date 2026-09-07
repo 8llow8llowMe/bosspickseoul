@@ -43,12 +43,13 @@
 
 - `GET /api/v1/map/candidate-presets` — 추천 프리셋 메타데이터 목록
 - `GET /api/v1/map/commercials/candidates` — 뷰포트 + 프리셋 + 우선 지표로 후보 상권 Top N 랭킹
-- `GET /api/v1/map/commercials/{code}/profile` — 후보 카드 프로필 (키 지표 집계)
+- `GET /api/v1/map/commercials/{code}/profile` — 후보 카드 프로필 (키 지표 집계 + `policyRecommendations`)
 - `GET /api/v1/map/commercials/compare-preview` — 2개 상권 경량 비교 (headline 지표 + recommendedSide)
 - `GET /api/v1/map/commercials/heatmap` — `composite=true` 추가 시 프리셋 가중 합성 점수 반환. `preset` 은 필수(`MAP_002`), `priorityMetric` 은 **선택** — 미지정 시 프리셋별 기본 우선 지표가 적용된다. 기존 `metricType` 단일 지표 모드는 유지.
 - 점수화는 `commercial-service`의 `CommercialCandidateQueryProcessor`가 수행한다. `district-service`는 경계 좌표를 조합해 응답을 구성한다.
 - 프리셋 가중치와 compositeScore 산출 책임은 `commercial-service` 단독이다. `district-service.CandidatePresetType`은 표시용 enum만 유지한다.
 - Profile 응답의 `centerLng/centerLat/boundaryCoords`는 이번 단계에선 null/빈 배열로 내려간다. 프론트엔드는 직전 candidates/heatmap 응답의 경계 정보를 재사용한다.
+- Profile 응답은 commercial-service 프로필의 `policyRecommendations`(상위 5건)를 **그대로 전달**한다. 지도 프로필만 쓰던 화면이 정책을 보려고 commercial-service 를 따로 호출할 필요가 없다. commercial-service 가 정책을 못 내려주면(빈 값·null) 빈 배열로 내려간다 — 프로필 자체를 실패시키지 않는다.
 ## Heatmap / Candidate Response Shape
 
 ### `GET /api/v1/map/commercials/heatmap`

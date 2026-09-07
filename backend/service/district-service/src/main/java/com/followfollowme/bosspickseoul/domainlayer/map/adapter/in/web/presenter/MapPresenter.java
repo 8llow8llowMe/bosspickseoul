@@ -26,6 +26,8 @@ import com.followfollowme.bosspickseoul.domainlayer.map.application.info.Commerc
 import com.followfollowme.bosspickseoul.domainlayer.map.application.info.ComparePreviewMetricInfo;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.info.ComparePreviewTargetInfo;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.info.MetricBreakdownInfo;
+import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.item.PolicyItem;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.info.PolicyInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -142,7 +144,30 @@ public class MapPresenter {
             .centerLat(info.centerLat())
             .boundaryCoords(info.boundaryCoords())
             .keyMetrics(toCommercialProfileKeyMetricsItem(info.keyMetrics()))
+            .policyRecommendations(toPolicyItems(info.policyRecommendations()))
             .build();
+    }
+
+    private List<PolicyItem> toPolicyItems(List<PolicyInfo> infos) {
+        if (infos == null) {
+            return List.of();
+        }
+        return infos.stream()
+            .map(info -> PolicyItem.builder()
+                .policyId(info.policyId())
+                .title(info.title())
+                .organization(info.organization())
+                .supportType(info.supportType())
+                .supportTypeName(info.supportTypeName())
+                .targetSummary(info.targetSummary())
+                .supportContent(info.supportContent())
+                .districtCode(info.districtCode())
+                .serviceCategoryCode(info.serviceCategoryCode())
+                .applyStartAt(info.applyStartAt())
+                .applyEndAt(info.applyEndAt())
+                .detailUrl(info.detailUrl())
+                .build())
+            .toList();
     }
 
     public CommercialComparePreviewResponse toCommercialComparePreviewResponse(CommercialComparePreviewInfo info) {
