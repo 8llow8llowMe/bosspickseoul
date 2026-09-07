@@ -94,3 +94,56 @@ export const getMetricMaximum = (rows: readonly AnalysisMetricRow[]): number =>
       row.value === null ? maximum : Math.max(maximum, row.value),
     0,
   )
+
+/**
+ * `peerStores` → 가로 막대 행. **점포 수 많은 순**으로 세운다.
+ *
+ * 이 배열은 **선택한 업종을 뺀 나머지 업종**이다(커피-음료로 조회하면 커피-음료가
+ * 목록에 없다). 그래서 화면 문구가 「이 상권의 업종 구성」이라고 말하면 안 된다 —
+ * 선택 업종이 빠진 그림이다.
+ *
+ * 0 개인 업종은 버리지 않고 남긴다. 「치킨전문점 0개」는 **비어 있는 자리**를 뜻하는
+ * 정보라, 목록에서 지우면 그 사실이 사라진다.
+ */
+export const toPeerStoreRows = (
+  peerStores:
+    | ReadonlyArray<{
+        serviceName?: string | null
+        totalStoreCount?: number | null
+      }>
+    | null
+    | undefined,
+): AnalysisMetricRow[] =>
+  (peerStores ?? [])
+    .filter(
+      (item): item is { serviceName: string; totalStoreCount: number } =>
+        typeof item?.serviceName === 'string' &&
+        item.serviceName.trim().length > 0 &&
+        typeof item.totalStoreCount === 'number' &&
+        Number.isFinite(item.totalStoreCount),
+    )
+    .map(item => ({ label: item.serviceName, value: item.totalStoreCount }))
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+
+/**
+ * 그릴 값이 하나라도 있는가. **전부 0 이면 차트를 그리지 않는다** — 길이가 0 인 막대만
+ * 늘어선 그림은 눈금도 못 만들고 아무것도 말하지 않는다.
+ */
+export const hasPositiveRow = (rows: readonly AnalysisMetricRow[]): boolean =>
+  rows.some(row => typeof row.value === 'number' && row.value > 0)
+
+/**
+ * 막대로 그릴 것과 **문장으로 적을 것**을 가른다.
+ *
+ * recharts 는 길이가 0 인 막대에 값 라벨을 그리지 않는다. 그래서 「치킨전문점 0개」를
+ * 차트에 두면 **이름만 있고 숫자가 없는 줄**이 되어, 0 이 아니라 「데이터 없음」으로
+ * 읽힌다. 0 은 「그 업종이 이 상권에 없다」는 정보라 버릴 수도 없다.
+ *
+ * 그래서 차트에서 빼고 **한 줄 문장으로 따로 적는다.** 정보는 남고 차트는 깨지지 않는다.
+ */
+export const splitPeerStoreRows = (
+  rows: readonly AnalysisMetricRow[],
+): { charted: AnalysisMetricRow[]; absentLabels: string[] } => ({
+  charted: rows.filter(row => typeof row.value === 'number' && row.value > 0),
+  absentLabels: rows.filter(row => row.value === 0).map(row => row.label),
+})

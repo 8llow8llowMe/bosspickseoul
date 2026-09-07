@@ -27,6 +27,7 @@ import AnalysisSummaryCards, {
 import SalesComparisonBars from '@/components/analysis/sales-comparison-bars'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
+import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
 import AnalysisResultNav from '@/components/analysis/analysis-result-nav'
@@ -78,6 +79,8 @@ import {
   formatAnalysisValue,
   formatPeriodCode,
   normalizeAnalysisTab,
+  splitPeerStoreRows,
+  toPeerStoreRows,
 } from '@/lib/analysis/presentation'
 import {
   createRows,
@@ -491,6 +494,18 @@ const Feedback = styled.p`
   color: var(--color-danger);
   font-size: 13px;
   line-height: 20px;
+`
+
+/*
+  차트에서 뺀 0 개 업종을 적는 줄. 막대로는 그릴 수 없지만(길이 0 인 막대에는 recharts 가
+  값 라벨을 그리지 않는다) **없다는 사실 자체가 정보**라 문장으로 남긴다.
+*/
+const AbsentNote = styled.p`
+  margin-top: 10px;
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: keep-all;
 `
 
 const MetricCard = styled.div`
@@ -1222,6 +1237,13 @@ export default function AnalysisResultView({
     totalStoreCount,
   )
 
+  /*
+    `peerStores` 는 **선택한 업종을 뺀** 나머지 업종이다(커피-음료로 조회하면 커피-음료가
+    목록에 없다). 그래서 이 목록을 「상권의 업종 구성」이라고 부르면 안 된다.
+  */
+  const { charted: peerStoreRows, absentLabels: absentServiceNames } =
+    splitPeerStoreRows(toPeerStoreRows(stores?.peerStores))
+
   const summaryCards: SummaryCard[] = [
     {
       label: '월 매출',
@@ -1258,7 +1280,7 @@ export default function AnalysisResultView({
       context:
         typeof stores?.similarStoreCount === 'number'
           ? {
-              text: `같은 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
+              text: `유사 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
             }
           : null,
     },
@@ -1474,7 +1496,7 @@ export default function AnalysisResultView({
                       context:
                         typeof stores?.similarStoreCount === 'number'
                           ? {
-                              text: `같은 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
+                              text: `유사 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
                             }
                           : null,
                     },
@@ -1824,25 +1846,68 @@ export default function AnalysisResultView({
                       label: '총 점포',
                       value: stores?.totalStoreCount,
                       unit: '개',
+                      icon: Store,
+                      context: null,
                     },
                     {
                       label: '유사 업종 점포',
                       value: stores?.similarStoreCount,
                       unit: '개',
+                      icon: Store,
+                      context: null,
                     },
                     {
                       label: '개업 점포',
                       value: stores?.openedStoreCount,
                       unit: '개',
+                      icon: TrendingUp,
+                      context: null,
                     },
                     {
                       label: '폐업 점포',
                       value: stores?.closedStoreCount,
                       unit: '개',
+                      icon: TrendingDown,
+                      context: null,
                     },
                   ])}
                 </AnalysisResultSection>
               </FullSpanItem>
+
+              {/*
+                DESIGN.md 「Charts」: 가로 막대는 카드를 가로지르게 두지 않는다 —
+                넓어질수록 라벨과 값이 멀어져 나빠진다. 일반 칸에 둔다.
+              */}
+              <div>
+                <AnalysisResultSection
+                  title="함께 있는 다른 업종"
+                  description="선택한 업종을 뺀 나머지 업종의 점포 수입니다."
+                  loading={storesQuery.isPending}
+                  error={resolveApiError(storesQuery)}
+                  empty={peerStoreRows.length === 0}
+                  onRetry={() => void storesQuery.refetch()}
+                >
+                  <ChartBox $maxWidth={460}>
+                    <HorizontalBarChart
+                      items={peerStoreRows}
+                      unit="개"
+                      ariaLabel="같은 상권의 다른 업종별 점포 수"
+                      /*
+                        `unit` 은 툴팁에만 쓰인다 — 막대 끝 라벨은 기본 포매터(축 눈금용)라
+                        단위 없이 숫자만 찍힌다. 「40」보다 「40개」가 읽힌다.
+                      */
+                      valueFormatter={value =>
+                        `${new Intl.NumberFormat('ko-KR').format(value)}개`
+                      }
+                    />
+                    {absentServiceNames.length > 0 ? (
+                      <AbsentNote>
+                        점포가 없는 업종: {absentServiceNames.join(' · ')}
+                      </AbsentNote>
+                    ) : null}
+                  </ChartBox>
+                </AnalysisResultSection>
+              </div>
             </DashboardGrid>
           </ReportSection>
 
