@@ -64,14 +64,23 @@ const Caption = styled.span`
   먹어 바로 아래 자치구 25칩이 71px 만 받았다(1280x720 실측). 지름길이 본 갈래보다
   자리를 더 차지하면 안 된다.
 */
+/*
+  overflow-x 를 켜면 overflow-y 도 auto 로 계산돼 포커스 링이 위아래로 잘린다.
+  링은 outline 2px + offset 2px 라 위아래로 4px 을 먹는다. 여유를 둬 안쪽에
+  확보하고 같은 값만큼 밖으로 당겨 블록 높이는 그대로 둔다.
+
+  가로 오버행은 Root 의 안쪽 여백(12px)과 같다 — 목록이 블록 가장자리까지 닿는다.
+  **페이드가 이 값을 함께 써야 한다.** Scroller 가장자리에 페이드를 두면 목록이
+  더 넓어서 칩 끝이 페이드 밖에 남는다.
+*/
+const LIST_OVERHANG_X = 12
+const LIST_OVERHANG_Y = 8
+
 const List = styled.ol`
   display: flex;
   gap: 8px;
-  /* overflow-x 를 켜면 overflow-y 도 auto 로 계산돼 포커스 링이 위아래로 잘린다.
-     링은 outline 2px + offset 2px 라 위아래로 4px 을 먹는다. 여유를 둬 8px 을
-     안쪽에 확보하고 같은 값만큼 밖으로 당겨 블록 높이는 그대로 둔다. */
-  margin: -8px -12px;
-  padding: 8px 12px;
+  margin: ${-LIST_OVERHANG_Y}px ${-LIST_OVERHANG_X}px;
+  padding: ${LIST_OVERHANG_Y}px ${LIST_OVERHANG_X}px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none; /* Firefox */
@@ -148,6 +157,32 @@ const Scroller = styled.div`
     돼 콘텐츠 폭만큼 벌어진다 — 실측으로 Root 379px 를 449px 까지 밀어냈다.
   */
   min-width: 0;
+`
+
+/*
+  칩이 화살표 아래로 지나가며 원 주변에 걸쳐 보인다. 목록이 가장자리에서 사라지는
+  것처럼 보이게 배경색으로 덮는다. Root 배경과 같은 색이라야 이어져 보인다.
+
+  화살표(z-index 2)보다 아래, 칩보다 위다. pointer-events 를 끄지 않으면 이 띠가
+  덮은 칩을 누를 수 없다.
+*/
+const Fade = styled.div<{ $side: 'left' | 'right' }>`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  ${props =>
+    props.$side === 'left'
+      ? `left: ${-LIST_OVERHANG_X}px;`
+      : `right: ${-LIST_OVERHANG_X}px;`}
+  z-index: 1;
+  width: ${32 + LIST_OVERHANG_X * 2}px;
+  pointer-events: none;
+  /* 화살표가 놓이는 구간은 완전히 불투명해야 원 뒤로 칩이 비치지 않는다. */
+  background: linear-gradient(
+    ${props => (props.$side === 'left' ? 'to right' : 'to left')},
+    var(--color-surface-muted) 45%,
+    transparent
+  );
 `
 
 const Arrow = styled.button<{ $side: 'left' | 'right' }>`
@@ -253,19 +288,22 @@ export function ShortcutTrack({
   return (
     <Scroller>
       {reach.left ? (
-        <Arrow
-          type="button"
-          $side="left"
-          /*
+        <>
+          <Fade $side="left" aria-hidden="true" />
+          {/*
             목록의 칩이 이미 탭으로 순회된다 — 화살표는 마우스용 중복 조작이라
             접근성 트리에서 뺀다.
-          */
-          aria-hidden="true"
-          tabIndex={-1}
-          onClick={() => nudge(-1)}
-        >
-          <ChevronLeft />
-        </Arrow>
+          */}
+          <Arrow
+            type="button"
+            $side="left"
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={() => nudge(-1)}
+          >
+            <ChevronLeft />
+          </Arrow>
+        </>
       ) : null}
 
       <List ref={listRef}>
@@ -287,15 +325,18 @@ export function ShortcutTrack({
       </List>
 
       {reach.right ? (
-        <Arrow
-          type="button"
-          $side="right"
-          aria-hidden="true"
-          tabIndex={-1}
-          onClick={() => nudge(1)}
-        >
-          <ChevronRight />
-        </Arrow>
+        <>
+          <Fade $side="right" aria-hidden="true" />
+          <Arrow
+            type="button"
+            $side="right"
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={() => nudge(1)}
+          >
+            <ChevronRight />
+          </Arrow>
+        </>
       ) : null}
     </Scroller>
   )
