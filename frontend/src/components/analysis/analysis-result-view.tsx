@@ -7,7 +7,23 @@ import { Archive, Bookmark, Check, ExternalLink, Share2, X } from 'lucide-react'
 import styled from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
+import {
+  Banknote,
+  Building2,
+  Bus,
+  Footprints,
+  GraduationCap,
+  Landmark,
+  Store,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from 'lucide-react'
+
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
+import AnalysisSummaryCards, {
+  type SummaryCard,
+} from '@/components/analysis/analysis-summary-cards'
 import SalesComparisonBars from '@/components/analysis/sales-comparison-bars'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
@@ -477,20 +493,6 @@ const Feedback = styled.p`
   line-height: 20px;
 `
 
-const CardGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 460px) {
-    grid-template-columns: 1fr;
-  }
-`
-
 const MetricCard = styled.div`
   display: grid;
   gap: 6px;
@@ -575,22 +577,31 @@ const hasObjectValues = (value: object | null | undefined) =>
     ),
   )
 
-const renderCards = (
-  cards: readonly {
-    label: string
-    value: number | null | undefined
-    unit: string
-  }[],
-) => (
-  <CardGrid>
-    {cards.map(card => (
-      <MetricCard key={card.label}>
-        <span>{card.label}</span>
-        <strong>{formatAnalysisValue(card.value, card.unit)}</strong>
-      </MetricCard>
-    ))}
-  </CardGrid>
+const renderCards = (cards: readonly SummaryCard[]) => (
+  <AnalysisSummaryCards cards={cards} />
 )
+
+/**
+ * `이 값 / 견줄 값` 을 0~1 비율로. 견줄 값이 없거나 0 이면 막대를 그리지 않는다.
+ *
+ * 비율이 1 을 넘으면(상권이 상위 지역보다 크게 잡히는 이상값) `undefined` 를 낸다 —
+ * 막대는 「전체 중 이만큼」을 뜻하므로 넘치는 값을 그리면 거짓이 된다.
+ */
+const toShareRatio = (
+  value: number | null | undefined,
+  total: number | null | undefined,
+): number | undefined => {
+  if (typeof value !== 'number' || typeof total !== 'number') return undefined
+  if (!Number.isFinite(value) || !Number.isFinite(total) || total <= 0) {
+    return undefined
+  }
+  const ratio = value / total
+  return ratio >= 0 && ratio <= 1 ? ratio : undefined
+}
+
+/** 비율을 사람이 읽는 한 줄로. 0.043 → '4.3%'. */
+const formatSharePercent = (ratio: number): string =>
+  `${new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 }).format(ratio * 100)}%`
 
 export default function AnalysisResultView({
   onClose,
@@ -1175,32 +1186,90 @@ export default function AnalysisResultView({
     bookmarkMutation.mutate()
   }
 
-  const summaryCards = [
+  /*
+    요약 카드의 **비교 맥락**. 전부 이 탭이 이미 받아 둔 응답에서 나온다 — 새 호출은
+    없다. 견줄 값이 없으면 맥락을 만들지 않는다(지어내지 않는다).
+  */
+  const monthlySales =
+    profile?.keyMetrics?.totalSalesAmount ??
+    salesSummary?.commercial?.monthlySalesAmount
+  const administrationSales = salesSummary?.administration?.monthlySalesAmount
+  const administrationName = salesSummary?.administration?.name
+  const salesShare = toShareRatio(monthlySales, administrationSales)
+
+  const totalFootTraffic = profile?.keyMetrics?.totalFootTraffic
+  const residentPopulation =
+    profile?.keyMetrics?.totalResidentPopulation ??
+    population?.byAgeItem?.totalResidentPopulation
+  /*
+    유동인구는 상위 지역 값이 없어 「전체 중 얼마」를 말할 수 없다. 대신 상주인구와의
+    배수로 **상권의 성격**(사는 사람 중심인지 오가는 사람 중심인지)을 적는다. 배수는
+    1 을 넘으므로 막대가 아니라 문구로만 쓴다.
+  */
+  const footTrafficPerResident =
+    typeof totalFootTraffic === 'number' &&
+    typeof residentPopulation === 'number' &&
+    residentPopulation > 0
+      ? totalFootTraffic / residentPopulation
+      : null
+
+  const totalStoreCount =
+    profile?.keyMetrics?.totalStoreCount ?? stores?.totalStoreCount
+  const openedStoreCount = stores?.openedStoreCount
+  const closedStoreCount = stores?.closedStoreCount
+  const franchiseShare = toShareRatio(
+    stores?.franchiseStoreCount,
+    totalStoreCount,
+  )
+
+  const summaryCards: SummaryCard[] = [
     {
       label: '월 매출',
-      value:
-        profile?.keyMetrics?.totalSalesAmount ??
-        salesSummary?.commercial?.monthlySalesAmount,
+      value: monthlySales,
       unit: '원',
+      icon: Banknote,
+      context:
+        salesShare === undefined
+          ? null
+          : {
+              text: `${administrationName ?? '행정동'} 전체의 ${formatSharePercent(salesShare)}`,
+              ratio: salesShare,
+            },
     },
     {
       label: '유동인구',
-      value: profile?.keyMetrics?.totalFootTraffic,
+      value: totalFootTraffic,
       unit: '명',
+      icon: Footprints,
+      context:
+        footTrafficPerResident === null
+          ? null
+          : {
+              text: `상주인구의 ${new Intl.NumberFormat('ko-KR', {
+                maximumFractionDigits: 0,
+              }).format(footTrafficPerResident)}배`,
+            },
     },
     {
       label: '점포 수',
-      value: profile?.keyMetrics?.totalStoreCount ?? stores?.totalStoreCount,
+      value: totalStoreCount,
       unit: '개',
+      icon: Store,
+      context:
+        typeof stores?.similarStoreCount === 'number'
+          ? {
+              text: `같은 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
+            }
+          : null,
     },
     {
       label: '상주인구',
-      value:
-        profile?.keyMetrics?.totalResidentPopulation ??
-        population?.byAgeItem?.totalResidentPopulation,
+      value: residentPopulation,
       unit: '명',
+      icon: Users,
+      context: null,
     },
-  ] as const
+  ]
 
   const renderGroupHeading = (label: string) => (
     <GroupHeadingRow>
@@ -1401,21 +1470,54 @@ export default function AnalysisResultView({
                       label: '총 점포',
                       value: stores?.totalStoreCount,
                       unit: '개',
+                      icon: Store,
+                      context:
+                        typeof stores?.similarStoreCount === 'number'
+                          ? {
+                              text: `같은 업종 ${new Intl.NumberFormat('ko-KR').format(stores.similarStoreCount)}개`,
+                            }
+                          : null,
                     },
                     {
+                      /*
+                        비율만 있으면 「7%」가 몇 개인지 알 수 없다 — 점포가 13곳뿐인
+                        상권에서 7% 는 1개다. 건수를 함께 적어야 크기가 잡힌다.
+                      */
                       label: '개업률',
                       value: stores?.openingRate,
                       unit: '%',
+                      icon: TrendingUp,
+                      context:
+                        typeof openedStoreCount === 'number'
+                          ? {
+                              text: `이번 분기 ${openedStoreCount}개 문 열었어요`,
+                            }
+                          : null,
                     },
                     {
                       label: '폐업률',
                       value: stores?.closureRate,
                       unit: '%',
+                      icon: TrendingDown,
+                      context:
+                        typeof closedStoreCount === 'number'
+                          ? {
+                              text: `이번 분기 ${closedStoreCount}개 문 닫았어요`,
+                            }
+                          : null,
                     },
                     {
                       label: '프랜차이즈',
                       value: stores?.franchiseStoreCount,
                       unit: '개',
+                      icon: Building2,
+                      context:
+                        franchiseShare === undefined
+                          ? null
+                          : {
+                              text: `총 점포의 ${formatSharePercent(franchiseShare)}`,
+                              ratio: franchiseShare,
+                            },
                     },
                   ])}
                 </AnalysisResultSection>
@@ -1443,21 +1545,29 @@ export default function AnalysisResultView({
                       label: '상주인구',
                       value: population?.byAgeItem?.totalResidentPopulation,
                       unit: '명',
+                      icon: Users,
+                      context: null,
                     },
                     {
                       label: '주요 시설',
                       value: facilities?.totalFacilityCount,
                       unit: '개',
+                      icon: Landmark,
+                      context: null,
                     },
                     {
                       label: '학교',
                       value: facilities?.schoolCountItem?.totalSchoolCount,
                       unit: '개',
+                      icon: GraduationCap,
+                      context: null,
                     },
                     {
                       label: '대중교통',
                       value: facilities?.totalTransportationFacilityCount,
                       unit: '개',
+                      icon: Bus,
+                      context: null,
                     },
                   ])}
                 </AnalysisResultSection>
