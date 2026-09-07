@@ -250,6 +250,10 @@ public class CommercialCandidateQueryProcessor {
      * 요약 라벨이 이미 지표명을 품고 있기 때문이다
      * ({@code CommercialHeatmapQueryProcessor#buildSummaryLabel}).
      *
+     * <p><b>이 문장은 요약 라벨이 지표명을 품는다는 데 기댄다.</b> 뒷절에 "기회도는 " 같은 접두사를
+     * 붙이지 않고 라벨만 이어 붙이기 때문이다. 라벨 생성부나 그 폴백에서 지표명을 빼면
+     * "데이터 부족 · 데이터 부족" 처럼 어느 지표가 없는지 알 수 없는 문장이 나간다.
+     *
      * <p>조사는 앞말을 보고 고른다. 지표명이 데이터라 상수로 둘 수 없다.
      *
      * <p>점수 조회 없이 문구만 검증할 수 있도록 문자열만 받는 정적 메서드로 둔다.
@@ -266,9 +270,18 @@ public class CommercialCandidateQueryProcessor {
             );
     }
 
+    /**
+     * 지표 요약 라벨을 꺼낸다. 라벨이 아예 없으면 지표명을 품은 폴백을 만든다.
+     *
+     * <p>폴백에서 지표명을 빼면 {@link #buildSelectionReason} 이 기대는 불변식이 깨진다
+     * ({@code CommercialHeatmapQueryProcessor#buildSummaryLabel} 참고).
+     */
     private String resolveLabel(CommercialAllMetricScoresInfo source, CommercialHeatmapMetricType metricType) {
         CommercialHeatmapScoreInfo scoreInfo = source.scoresByMetric().get(metricType);
-        return scoreInfo == null || scoreInfo.summaryLabel() == null ? "데이터 부족" : scoreInfo.summaryLabel();
+        if (scoreInfo == null || scoreInfo.summaryLabel() == null) {
+            return metricType.getDisplayName() + " 데이터 부족";
+        }
+        return scoreInfo.summaryLabel();
     }
 
     private String buildCandidateSummary(
