@@ -15,7 +15,7 @@ public final class ImportJobParameters {
         String path = p.getString("sourceFile");
         return new ImportRequest(p.getString("runId"), Dataset.parse(p.getString("dataset")), new Quarter(p.getString("period")),
             p.getString("spatialVersion"), p.getString("schemaVersion"), ImportRequest.SourceType.valueOf(p.getString("source")),
-            path == null || path.isBlank() ? null : Path.of(path), p.getString("charset"), Boolean.parseBoolean(p.getString("dryRun")),
+            path == null || path.isBlank() ? null : Path.of(path), p.getString("charset"), strictBoolean(p.getString("dryRun")),
             p.getLong("expectedRows"), Instant.parse(p.getString("sourceUpdatedAt")));
     }
 
@@ -28,5 +28,10 @@ public final class ImportJobParameters {
             .addString("charset", r.charset(), false).addString("dryRun", Boolean.toString(r.dryRun()), false)
             .addLong("expectedRows", r.expectedRows(), false).addString("sourceUpdatedAt", r.sourceUpdatedAt().toString(), false).toJobParameters();
     }
-}
 
+    /** A missing or misspelled flag must never silently mean "publish for real". */
+    public static boolean strictBoolean(String value) {
+        if (!"true".equals(value) && !"false".equals(value)) throw new IllegalArgumentException("dry-run must be true or false");
+        return Boolean.parseBoolean(value);
+    }
+}

@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.*;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRowProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.SpatialImportProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.source.SeoulDatasetSourceAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.SpatialGeoJsonSourceAdapter;
@@ -29,5 +30,6 @@ public class QuarterlyImportConfig {
     @Bean public SpatialImportProcessor spatialImportProcessor(SpatialSourcePort source, SpatialReleasePort releases) {
         return new SpatialImportProcessor(source, releases);
     }
+    @Bean public DatasetRowProcessor datasetRowProcessor() { return new DatasetRowProcessor(); }
 }
 
