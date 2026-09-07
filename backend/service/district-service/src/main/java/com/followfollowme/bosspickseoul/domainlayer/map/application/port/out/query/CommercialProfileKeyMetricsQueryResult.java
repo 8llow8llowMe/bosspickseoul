@@ -1,15 +1,15 @@
 package com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query;
 
 public record CommercialProfileKeyMetricsQueryResult(
-    double totalSalesAmount,
-    double totalFootTraffic,
-    long totalStoreCount,
-    long similarStoreCount,
-    double openingRate,
-    double closureRate,
-    long totalResidentPopulation,
-    long monthlyAverageIncomeAmount,
-    long totalFacilityCount
+    Double totalSalesAmount,
+    Double totalFootTraffic,
+    Long totalStoreCount,
+    Long similarStoreCount,
+    Double openingRate,
+    Double closureRate,
+    Long totalResidentPopulation,
+    Long monthlyAverageIncomeAmount,
+    Long totalFacilityCount
 ) {
 
 }
