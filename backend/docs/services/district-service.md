@@ -50,6 +50,7 @@
 - 프리셋 가중치와 compositeScore 산출 책임은 `commercial-service` 단독이다. `district-service.CandidatePresetType`은 표시용 enum만 유지한다.
 - Profile 응답의 `centerLng/centerLat/boundaryCoords`는 이번 단계에선 null/빈 배열로 내려간다. 프론트엔드는 직전 candidates/heatmap 응답의 경계 정보를 재사용한다.
 - Profile 응답은 commercial-service 프로필의 `policyRecommendations`(상위 5건)를 **그대로 전달**한다. 지도 프로필만 쓰던 화면이 정책을 보려고 commercial-service 를 따로 호출할 필요가 없다. commercial-service 가 정책을 못 내려주면(빈 값·null) 빈 배열로 내려간다 — 프로필 자체를 실패시키지 않는다.
+- commercial-service 를 감싸는 Feign 호출(`InternalResponseSupport`)의 오류 번역: 하위 **404 는 장애가 아니라 데이터 부재** — `MAP_009`(404) 로 바꾸고 하위 응답의 `resultMessage` 를 그대로 싣는다(프론트는 재시도 대신 문구 노출). 5xx·타임아웃·서킷 오픈만 `MAP_008`(503) 이며 서킷 집계 대상이다. `keyMetrics` 수치 필드는 분기 데이터가 없는 지표만 `null` 로 내려간다(부분 강등, 이슈 #229).
 ## Heatmap / Candidate Response Shape
 
 ### `GET /api/v1/map/commercials/heatmap`
@@ -109,7 +110,8 @@
 | `MAP_005` | 400 | composite=false 에 preset 또는 priorityMetric 전달 (사용 불가) |
 | `MAP_006` | 400 | 지도 뷰포트 좌표 오류 |
 | `MAP_007` | 500 | 영역 경계 좌표 변환 실패 |
-| `MAP_008` | 503 | commercial-service 통신 불가 |
+| `MAP_008` | 503 | commercial-service 통신 불가 (5xx·타임아웃·서킷 오픈만 해당) |
+| `MAP_009` | 404 | commercial-service 가 404 를 준 경우 (분기 데이터 부재 등) — `resultMessage` 에 하위 서비스 메시지를 그대로 전달 |
 | `MAP_100` | 400 | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
 | `MAP_101`~`MAP_102` | 400 | topN 필드별 검증 (`MapValidationMessage`) |
 | `MAP_103` | 400 | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |

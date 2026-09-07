@@ -305,7 +305,7 @@
 
 | Enum | 대역 | 비고 |
 |------|------|------|
-| `CommercialErrorCode` | `COMMERCIAL_002`~`COMMERCIAL_012` | 도메인 에러 (미존재 404, 통신 불가 503 등) + 검증 `COMMERCIAL_100`/`COMMERCIAL_102` |
+| `CommercialErrorCode` | `COMMERCIAL_002`~`COMMERCIAL_013` | 도메인 에러 (미존재 404, 통신 불가 503 등) + 검증 `COMMERCIAL_100`/`COMMERCIAL_102`. `COMMERCIAL_013` 은 프로필 전용 — 모든 지표가 부재할 때만 404, 일부 부재는 해당 지표 null 강등 |
 | `DistrictErrorCode` | `DISTRICT_001`~`DISTRICT_003` | 지표 미존재 404, 분기 코드 형식 400 |
 | `AdministrationErrorCode` | `ADMINISTRATION_001`~`ADMINISTRATION_003` | 행정동 지출/매출/점포 미존재 404 |
 | `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |

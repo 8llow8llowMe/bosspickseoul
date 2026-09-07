@@ -188,6 +188,8 @@
 |--------|------|------|------|
 | GET | `/` | 상권 종합 프로필 (유동인구·매출·점포·소득 요약 + 종합 점수) | - |
 
+> 프로필은 지표 단위로 **부분 강등**됩니다. 해당 분기에 특정 지표(예: 매출)가 없으면 `keyMetrics` 의 해당 필드들만 `null` 로 내려가고 나머지 지표는 정상 제공됩니다. 모든 지표가 없을 때만 `COMMERCIAL_013`(404) 을 응답합니다. `commercialName` 은 매출→유동인구 Info 순으로 폴백합니다.
+
 ### 비교 (`/api/v1/commercials/compare`, `/compare-preview`)
 
 | Method | Path | 설명 | 인증 |
@@ -311,6 +313,8 @@
 | GET | `/commercials/candidates` | 후보 상권 지도 마커 데이터 | - |
 | GET | `/commercials/{commercialCode}/profile` | 상권 프로필 지도 오버레이용 (경계 좌표 + `keyMetrics` + `policyRecommendations`) | - |
 | GET | `/commercials/compare-preview` | 비교 미리보기 지도 오버레이용 | - |
+
+> commercial-service 를 감싸는 위 API 들의 오류 번역: 하위 404(분기 데이터 부재 등)는 `MAP_009`(404) 로, 하위 `resultMessage` 를 그대로 전달합니다(재시도 금지, 문구 표시). 5xx·타임아웃·서킷 오픈만 `MAP_008`(503, 재시도 대상) 입니다. 프로필 `keyMetrics` 의 각 수치는 해당 분기 데이터가 없으면 `null` 로 내려갑니다(부분 강등).
 
 ### 지역 코드 조회 (`/api/v1/regions`)
 
