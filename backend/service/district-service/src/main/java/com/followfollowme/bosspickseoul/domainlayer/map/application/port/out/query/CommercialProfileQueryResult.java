@@ -1,5 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query;
 
+import java.util.List;
+
 public record CommercialProfileQueryResult(
     String commercialCode,
     String commercialName,
@@ -7,7 +9,8 @@ public record CommercialProfileQueryResult(
     String districtName,
     String administrationCode,
     String administrationName,
-    CommercialProfileKeyMetricsQueryResult keyMetrics
+    CommercialProfileKeyMetricsQueryResult keyMetrics,
+    List<PolicyQueryResult> policyRecommendations
 ) {
 
 }
