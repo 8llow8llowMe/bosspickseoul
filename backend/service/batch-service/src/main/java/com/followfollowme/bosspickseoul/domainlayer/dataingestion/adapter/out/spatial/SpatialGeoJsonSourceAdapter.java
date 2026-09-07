@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.*;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialSourcePort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.AreaScope;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
@@ -50,8 +51,8 @@ public class SpatialGeoJsonSourceAdapter implements SpatialSourcePort {
             String version = text(root, "spatialVersion");
             require(version.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}"), "Invalid spatialVersion");
             Instant updatedAt = Instant.parse(text(root, "sourceUpdatedAt"));
-            Map<SpatialAreaType, Integer> counts = new EnumMap<>(SpatialAreaType.class);
-            for (SpatialAreaType type : SpatialAreaType.values()) {
+            Map<AreaScope, Integer> counts = new EnumMap<>(AreaScope.class);
+            for (AreaScope type : AreaScope.values()) {
                 JsonNode value = root.path("expectedCounts").path(type.name());
                 require(value.isIntegralNumber() && value.canConvertToInt() && value.intValue() > 0,
                     "Positive expectedCounts required for " + type);
@@ -67,7 +68,7 @@ public class SpatialGeoJsonSourceAdapter implements SpatialSourcePort {
                 geometry(geometry);
                 JsonNode parent = properties.path("parentCode");
                 require(parent.isMissingNode() || parent.isNull() || parent.isTextual(), "parentCode must be text or null");
-                areas.add(new SpatialArea(SpatialAreaType.valueOf(text(properties, "areaType")),
+                areas.add(new SpatialArea(AreaScope.valueOf(text(properties, "areaType")),
                     text(properties, "areaCode"), text(properties, "areaName"),
                     parent.isTextual() ? parent.textValue() : null, mapper.writeValueAsString(geometry)));
             }

@@ -21,7 +21,7 @@ public class DatasetRowProcessor {
             String value = fields.get(field);
             if (value == null || value.isBlank()) return reject(row, "REQUIRED_FIELD_MISSING:" + field);
         }
-        if (dataset == Dataset.CHANGE_COMMERCIAL && !CHANGE_CODES.contains(fields.get("TRDAR_CHNGE_IX"))) {
+        if (dataset.changeIndicator() && !CHANGE_CODES.contains(fields.get(Dataset.CHANGE_INDICATOR_FIELD))) {
             return reject(row, "CHANGE_INDICATOR_INVALID");
         }
         // Preserve new columns and absent optional income fields. Never fabricate zero.
