@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.s
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.*;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialSourcePort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.AreaScope;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -33,8 +34,8 @@ public class SpatialImportProcessor {
     }
 
     private void validate(SpatialSnapshot snapshot) {
-        Map<SpatialAreaType, Set<String>> codes = new EnumMap<>(SpatialAreaType.class);
-        for (SpatialAreaType type : SpatialAreaType.values()) codes.put(type, new HashSet<>());
+        Map<AreaScope, Set<String>> codes = new EnumMap<>(AreaScope.class);
+        for (AreaScope type : AreaScope.values()) codes.put(type, new HashSet<>());
         for (SpatialArea area : snapshot.areas()) {
             if (area.areaType() == null || area.areaCode() == null || !area.areaCode().matches("[0-9]{5,8}")) {
                 throw new IllegalArgumentException("Invalid spatial area type or code");
@@ -46,18 +47,14 @@ public class SpatialImportProcessor {
                 throw new IllegalArgumentException("Duplicate spatial area: " + area.areaType() + "/" + area.areaCode());
             }
         }
-        for (SpatialAreaType type : SpatialAreaType.values()) {
+        for (AreaScope type : AreaScope.values()) {
             Integer expected = snapshot.expectedCounts().get(type);
             if (expected == null || expected <= 0 || codes.get(type).size() != expected) {
                 throw new IllegalArgumentException("Expected count mismatch for " + type);
             }
         }
         for (SpatialArea area : snapshot.areas()) {
-            SpatialAreaType parentType = switch (area.areaType()) {
-                case DISTRICT -> null;
-                case ADMINISTRATION -> SpatialAreaType.DISTRICT;
-                case COMMERCIAL -> SpatialAreaType.ADMINISTRATION;
-            };
+            AreaScope parentType = area.areaType().parent();
             if (parentType == null ? area.parentCode() != null : !codes.get(parentType).contains(area.parentCode())) {
                 throw new IllegalArgumentException("Invalid spatial parent for " + area.areaType() + "/" + area.areaCode());
             }

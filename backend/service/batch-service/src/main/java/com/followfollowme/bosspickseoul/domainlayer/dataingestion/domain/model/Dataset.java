@@ -3,44 +3,54 @@ package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * One Seoul commercial-analysis dataset. Each constant maps to exactly one legacy fact table
+ * so a quarter can be backfilled for every table the services already read.
+ *
+ * <p>A blank service means no Open API contract is registered yet, so the dataset is CSV/ZIP only;
+ * {@code ImportRequest} rejects an API run for it instead of guessing an endpoint.
+ */
 public enum Dataset {
-    SALES_COMMERCIAL("VwsmTrdarSelngQq", "COMMERCIAL", "TRDAR_CD", true, List.of("THSMON_SELNG_AMT")),
-    STORE_COMMERCIAL("VwsmTrdarStorQq", "COMMERCIAL", "TRDAR_CD", true, List.of("STOR_CO")),
-    FOOT_TRAFFIC_COMMERCIAL("VwsmTrdarFlpopQq", "COMMERCIAL", "TRDAR_CD", false, List.of("TOT_FLPOP_CO")),
-    CHANGE_COMMERCIAL("VwsmTrdarIxQq", "COMMERCIAL", "TRDAR_CD", false, List.of("TRDAR_CHNGE_IX")),
-    POPULATION_COMMERCIAL("VwsmTrdarRepopQq", "COMMERCIAL", "TRDAR_CD", false, List.of("TOT_REPOP_CO")),
-    FACILITY_COMMERCIAL("VwsmTrdarFcltyQq", "COMMERCIAL", "TRDAR_CD", false, List.of("VIATR_FCLTY_CO")),
-    CONSUMPTION_COMMERCIAL("", "COMMERCIAL", "TRDAR_CD", false, List.of("EXPNDTR_TOTAMT")),
-    SALES_ADMINISTRATION("VwsmAdstrdSelngW", "ADMINISTRATION", "ADSTRD_CD", true, List.of("THSMON_SELNG_AMT")),
-    STORE_ADMINISTRATION("VwsmAdstrdStorW", "ADMINISTRATION", "ADSTRD_CD", true, List.of("STOR_CO")),
-    CONSUMPTION_ADMINISTRATION("VwsmAdstrdNcmCnsmpW", "ADMINISTRATION", "ADSTRD_CD", false, List.of("EXPNDTR_TOTAMT")),
-    SALES_DISTRICT("VwsmSignguSelngW", "DISTRICT", "SIGNGU_CD", true, List.of("THSMON_SELNG_AMT")),
-    STORE_DISTRICT("VwsmSignguStorW", "DISTRICT", "SIGNGU_CD", true, List.of("STOR_CO")),
-    FOOT_TRAFFIC_DISTRICT("VwsmSignguFlpopW", "DISTRICT", "SIGNGU_CD", false, List.of("TOT_FLPOP_CO")),
-    CONSUMPTION_DISTRICT("VwsmSignguNcmCnsmpW", "DISTRICT", "SIGNGU_CD", false, List.of("EXPNDTR_TOTAMT"));
+    SALES_COMMERCIAL("VwsmTrdarSelngQq", AreaScope.COMMERCIAL, true, List.of("THSMON_SELNG_AMT")),
+    STORE_COMMERCIAL("VwsmTrdarStorQq", AreaScope.COMMERCIAL, true, List.of("STOR_CO")),
+    FOOT_TRAFFIC_COMMERCIAL("VwsmTrdarFlpopQq", AreaScope.COMMERCIAL, false, List.of("TOT_FLPOP_CO")),
+    CHANGE_COMMERCIAL("VwsmTrdarIxQq", AreaScope.COMMERCIAL, false, List.of("TRDAR_CHNGE_IX")),
+    POPULATION_COMMERCIAL("VwsmTrdarRepopQq", AreaScope.COMMERCIAL, false, List.of("TOT_REPOP_CO")),
+    FACILITY_COMMERCIAL("VwsmTrdarFcltyQq", AreaScope.COMMERCIAL, false, List.of("VIATR_FCLTY_CO")),
+    CONSUMPTION_COMMERCIAL("", AreaScope.COMMERCIAL, false, List.of("EXPNDTR_TOTAMT")),
+    SALES_ADMINISTRATION("VwsmAdstrdSelngW", AreaScope.ADMINISTRATION, true, List.of("THSMON_SELNG_AMT")),
+    STORE_ADMINISTRATION("VwsmAdstrdStorW", AreaScope.ADMINISTRATION, true, List.of("STOR_CO")),
+    CONSUMPTION_ADMINISTRATION("VwsmAdstrdNcmCnsmpW", AreaScope.ADMINISTRATION, false, List.of("EXPNDTR_TOTAMT")),
+    SALES_DISTRICT("VwsmSignguSelngW", AreaScope.DISTRICT, true, List.of("THSMON_SELNG_AMT")),
+    STORE_DISTRICT("VwsmSignguStorW", AreaScope.DISTRICT, true, List.of("STOR_CO")),
+    FOOT_TRAFFIC_DISTRICT("VwsmSignguFlpopW", AreaScope.DISTRICT, false, List.of("TOT_FLPOP_CO")),
+    CONSUMPTION_DISTRICT("VwsmSignguNcmCnsmpW", AreaScope.DISTRICT, false, List.of("EXPNDTR_TOTAMT"));
+
+    /** Categorical change indicator; validated against its code set instead of as a number. */
+    public static final String CHANGE_INDICATOR_FIELD = "TRDAR_CHNGE_IX";
 
     private final String service;
-    private final String areaType;
-    private final String areaField;
+    private final AreaScope scope;
     private final boolean industry;
     private final List<String> requiredMetrics;
 
-    Dataset(String service, String areaType, String areaField, boolean industry, List<String> requiredMetrics) {
+    Dataset(String service, AreaScope scope, boolean industry, List<String> requiredMetrics) {
         this.service = service;
-        this.areaType = areaType;
-        this.areaField = areaField;
+        this.scope = scope;
         this.industry = industry;
         this.requiredMetrics = requiredMetrics;
     }
 
     public String service() { return service; }
-    public String areaType() { return areaType; }
-    public String areaField() { return areaField; }
+    public AreaScope scope() { return scope; }
+    public String areaType() { return scope.name(); }
+    public String areaField() { return scope.areaField(); }
     public boolean industry() { return industry; }
     public List<String> requiredMetrics() { return requiredMetrics; }
+
+    public boolean changeIndicator() { return requiredMetrics.contains(CHANGE_INDICATOR_FIELD); }
 
     public static Dataset parse(String value) {
         return valueOf(value.toUpperCase(Locale.ROOT));
     }
 }
-
