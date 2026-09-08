@@ -183,11 +183,55 @@ class SeoulDatasetSourceAdapterTest {
     }
 
     @Test void koreanHeadersWithoutAnAliasFailClosedAndAreNamed() throws Exception {
-        // Otherwise the CSV route would stage "당월_매출_건수" while the API route stages "THSMON_SELNG_CO".
-        Path file = Files.writeString(directory.resolve("unaliased.csv"), "기준_년분기_코드,상권_코드,당월_매출_건수\n20241,100,5\n");
-        var p = properties(); p.getHeaderAliases().put("상권_코드", "TRDAR_CD");
-        assertThatThrownBy(() -> new SeoulDatasetSourceAdapter(new ObjectMapper(), p).open(request(ImportRequest.SourceType.CSV, file)))
-                .hasMessageContaining("without a source column alias").hasMessageContaining("당월_매출_건수").hasMessageNotContaining("TRDAR_CD");
+        // Otherwise the CSV route would stage a Korean key the API route never produces.
+        Path file = Files.writeString(directory.resolve("unaliased.csv"), "기준_년분기_코드,상권_코드,미등록_컬럼\n20241,100,5\n");
+        assertThatThrownBy(() -> new SeoulDatasetSourceAdapter(new ObjectMapper(), properties()).open(request(ImportRequest.SourceType.CSV, file)))
+                .hasMessageContaining("without a source column alias").hasMessageContaining("미등록_컬럼").hasMessageNotContaining("TRDAR_CD");
+    }
+
+    @Test void classpathAliasesCoverPublishedHeadersAfterNormalisation() throws Exception {
+        // Time bands and 율/률 spellings differ between files; one table line per column must still match.
+        Path file = Files.writeString(directory.resolve("published.csv"),
+                "기준_년분기_코드,상권_코드,서비스_업종_코드,당월_매출_금액,시간대_00~06_매출_금액,개업_률,폐업 율\n20241,3110008,CS100001,10,1,2,3\n");
+        try (var source = new SeoulDatasetSourceAdapter(new ObjectMapper(), properties()).open(request(ImportRequest.SourceType.CSV, file))) {
+            assertThat(source.read().fields()).containsOnlyKeys("STDR_YYQU_CD", "TRDAR_CD", "SVC_INDUTY_CD", "THSMON_SELNG_AMT",
+                    "TMZON_00_06_SELNG_AMT", "OPBIZ_RT", "CLSBIZ_RT");
+        }
+        assertThat(new CsvHeaderAliases(Map.of()).size()).isGreaterThan(150);
+    }
+
+    @Test void archiveReplayReproducesAnApiRunsRowsAndChecksumWithoutTransport() throws Exception {
+        var firstRows = new ArrayList<Map<String, String>>();
+        for (int i = 0; i < 1000; i++) firstRows.add(Map.of("STDR_YYQU_CD", i % 2 == 0 ? "20233" : "20241", "TRDAR_CD", Integer.toString(i)));
+        byte[] first = page(1001, firstRows), last = page(1001, List.of(Map.of("STDR_YYQU_CD", "20233", "TRDAR_CD", "last")));
+        var api = new SeoulDatasetSourceAdapter(new ObjectMapper(), properties(), uri -> new SeoulDatasetSourceAdapter.ApiResponse(200,
+                uri.getPath().contains("/1/1000/") ? first : last));
+        String rawLocation, checksum;
+        long rows = 0;
+        try (var source = api.open(request(ImportRequest.SourceType.API, null))) {
+            while (source.read() != null) rows++;
+            rawLocation = source.receipt().rawLocation(); checksum = source.receipt().checksum();
+        }
+        assertThat(rows).isEqualTo(500);
+
+        var replay = new SeoulDatasetSourceAdapter(new ObjectMapper(), properties(), uri -> { throw new AssertionError("Replay must not call the API"); });
+        var other = new ImportRequest("run2", Dataset.SALES_COMMERCIAL, new Quarter("20233"), "standard2024", "seoul-v1",
+                ImportRequest.SourceType.ARCHIVE, Path.of(rawLocation), "UTF-8", true, 501, Instant.parse("2026-09-06T00:00:00Z"));
+        try (var source = replay.open(other)) {
+            long replayed = 0, lastRowNumber = 0;
+            for (var row = source.read(); row != null; row = source.read()) { replayed++; lastRowNumber = row.rowNumber(); }
+            assertThat(replayed).isEqualTo(501);
+            assertThat(lastRowNumber).isEqualTo(1001);
+            assertThat(source.receipt().checksum()).isEqualTo(checksum);
+            assertThat(source.receipt().rawLocation()).isEqualTo(Path.of(rawLocation).toAbsolutePath().normalize().toString());
+        }
+        Files.delete(Path.of(rawLocation).resolve("page-1001.json"));
+        try (var source = replay.open(other)) {
+            assertThatThrownBy(() -> { while (source.read() != null) { } }).hasMessageContaining("missing page-1001.json");
+        }
+        assertThatThrownBy(() -> replay.open(new ImportRequest("run3", Dataset.SALES_COMMERCIAL, new Quarter("20233"), "standard2024", "seoul-v1",
+                ImportRequest.SourceType.ARCHIVE, directory, "UTF-8", true, 1, Instant.parse("2026-09-06T00:00:00Z"))))
+                .hasMessageContaining("no page-1.json");
     }
 
     @Test void apiNumbersAreStagedAsPlainDecimalTextExactlyAsACsvRowWouldBe() throws Exception {

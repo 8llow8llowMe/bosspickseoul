@@ -21,9 +21,11 @@ import java.util.*;
 import java.util.zip.*;
 
 public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
+    private static final int PAGE_SIZE = 1000;
     private final ObjectMapper mapper;
     private final DatasetSourceProperties properties;
     private final HttpTransport transport;
+    private final CsvHeaderAliases headerAliases;
 
     public SeoulDatasetSourceAdapter(ObjectMapper mapper, DatasetSourceProperties properties) {
         this(mapper, properties, jdkTransport(properties));
@@ -33,6 +35,7 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
         this.mapper = mapper;
         this.properties = properties;
         this.transport = transport;
+        this.headerAliases = new CsvHeaderAliases(properties.getHeaderAliases());
         if (properties.getTimeoutSeconds() < 1 || properties.getMaxAttempts() < 1 || properties.getMaxAttempts() > 5)
             throw new IllegalArgumentException("Invalid source timeout or retry limit");
     }
@@ -49,6 +52,8 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
 
     @Override public SourceSession open(ImportRequest request) {
         try {
+            // A replay reads an earlier attempt's immutable pages in place; it neither copies nor creates a directory.
+            if (request.sourceType() == ImportRequest.SourceType.ARCHIVE) return new ArchiveSession(request);
             Path root = properties.getRawDirectory().toAbsolutePath().normalize();
             Files.createDirectories(root);
             // Each attempt has a new directory, including retries with the same runId.
@@ -57,6 +62,8 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
                     ? new ApiSession(request, archive) : new FileSession(request, archive);
         } catch (IOException e) { throw new IllegalStateException("Cannot initialize raw source archive"); }
     }
+
+    static String pageFile(long start) { return "page-" + start + ".json"; }
 
     @FunctionalInterface interface HttpTransport { ApiResponse get(URI uri) throws IOException, InterruptedException; }
     record ApiResponse(int status, byte[] body) {}
@@ -84,26 +91,19 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
         }
     }
 
-    private final class ApiSession extends Session {
-        private final String base;
-        private final String key;
+    /**
+     * Walks Seoul JSON envelopes page by page. The subclass supplies each page's bytes, either from the API
+     * (archiving them as {@code page-<start>.json}) or from such an archive, so both produce the same rows,
+     * row numbers and checksum for the same pages.
+     */
+    private abstract class PageSession extends Session {
         private Iterator<JsonNode> page = Collections.emptyIterator();
         private long total = -1;
         private long fetchedCount;
 
-        ApiSession(ImportRequest request, Path archive) {
-            super(request, archive);
-            base = properties.getBaseUrl(); key = properties.getApiKey();
-            try {
-                URI uri = URI.create(base);
-                boolean https = "https".equals(uri.getScheme()) && (uri.getPort() == -1 || uri.getPort() == 443);
-                boolean http = "http".equals(uri.getScheme()) && uri.getPort() == 8088;
-                if (!"openapi.seoul.go.kr".equals(uri.getHost()) || !(https || http)
-                        || uri.getRawQuery() != null || uri.getRawFragment() != null || uri.getUserInfo() != null
-                        || (uri.getPath() != null && !uri.getPath().isEmpty())) throw new IllegalArgumentException();
-                if (key == null || !key.matches("[a-zA-Z0-9]+")) throw new IllegalArgumentException();
-            } catch (IllegalArgumentException e) { throw new IllegalArgumentException("Invalid Seoul API endpoint or missing API key"); }
-        }
+        PageSession(ImportRequest request, Path archive) { super(request, archive); }
+
+        abstract byte[] pageBytes(long start, long end);
 
         @Override public SourceRow read() {
             checkOpen();
@@ -144,7 +144,51 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
 
         private void fetchPage() {
             long start = fetchedCount + 1;
-            long end = total < 0 ? start + 999 : Math.min(total, start + 999);
+            long end = total < 0 ? start + PAGE_SIZE - 1 : Math.min(total, start + PAGE_SIZE - 1);
+            byte[] body = pageBytes(start, end);
+            digest.update(body);
+            try {
+                // Amounts reach 13 digits; decode them exactly instead of through a double.
+                JsonNode root = mapper.reader().with(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                        .with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).readTree(body);
+                JsonNode data = root == null ? null : root.get(request.dataset().service());
+                if (data == null || !"INFO-000".equals(data.path("RESULT").path("CODE").asText()))
+                    throw new IllegalArgumentException("Seoul API returned an error or unexpected envelope");
+                JsonNode totalNode = data.path("list_total_count");
+                if (!totalNode.isIntegralNumber() || !totalNode.canConvertToLong() || totalNode.longValue() <= 0)
+                    throw new IllegalArgumentException("Invalid API total row count");
+                long returnedTotal = totalNode.longValue();
+                if (total != -1 && total != returnedTotal) throw new IllegalArgumentException("API row count changed during pagination");
+                total = returnedTotal;
+                JsonNode rows = data.path("row");
+                long expected = Math.min(PAGE_SIZE, total - fetchedCount);
+                if (!rows.isArray() || rows.size() != expected) throw new IllegalArgumentException("Incomplete API page");
+                page = rows.elements();
+            } catch (IOException e) { throw new IllegalStateException("Cannot decode Seoul API page"); }
+        }
+
+        @Override public void close() { closed = true; }
+    }
+
+    private final class ApiSession extends PageSession {
+        private final String base;
+        private final String key;
+
+        ApiSession(ImportRequest request, Path archive) {
+            super(request, archive);
+            base = properties.getBaseUrl(); key = properties.getApiKey();
+            try {
+                URI uri = URI.create(base);
+                boolean https = "https".equals(uri.getScheme()) && (uri.getPort() == -1 || uri.getPort() == 443);
+                boolean http = "http".equals(uri.getScheme()) && uri.getPort() == 8088;
+                if (!"openapi.seoul.go.kr".equals(uri.getHost()) || !(https || http)
+                        || uri.getRawQuery() != null || uri.getRawFragment() != null || uri.getUserInfo() != null
+                        || (uri.getPath() != null && !uri.getPath().isEmpty())) throw new IllegalArgumentException();
+                if (key == null || !key.matches("[a-zA-Z0-9]+")) throw new IllegalArgumentException();
+            } catch (IllegalArgumentException e) { throw new IllegalArgumentException("Invalid Seoul API endpoint or missing API key"); }
+        }
+
+        @Override byte[] pageBytes(long start, long end) {
             URI uri = URI.create(base + "/" + key + "/json/" + request.dataset().service() + "/" + start + "/" + end + "/" + request.period().value());
             byte[] body = null;
             for (int attempt = 1; attempt <= properties.getMaxAttempts(); attempt++) {
@@ -162,29 +206,25 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
                 }
             }
             if (body == null) throw new IllegalStateException("Seoul API unavailable after bounded retries");
-            try {
-                Files.write(archive.resolve("page-" + start + ".json"), body, StandardOpenOption.CREATE_NEW);
-                digest.update(body);
-                // Amounts reach 13 digits; decode them exactly instead of through a double.
-                JsonNode root = mapper.reader().with(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-                        .with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).readTree(body);
-                JsonNode data = root == null ? null : root.get(request.dataset().service());
-                if (data == null || !"INFO-000".equals(data.path("RESULT").path("CODE").asText()))
-                    throw new IllegalArgumentException("Seoul API returned an error or unexpected envelope");
-                JsonNode totalNode = data.path("list_total_count");
-                if (!totalNode.isIntegralNumber() || !totalNode.canConvertToLong() || totalNode.longValue() <= 0)
-                    throw new IllegalArgumentException("Invalid API total row count");
-                long returnedTotal = totalNode.longValue();
-                if (total != -1 && total != returnedTotal) throw new IllegalArgumentException("API row count changed during pagination");
-                total = returnedTotal;
-                JsonNode rows = data.path("row");
-                long expected = Math.min(1000, total - fetchedCount);
-                if (!rows.isArray() || rows.size() != expected) throw new IllegalArgumentException("Incomplete API page");
-                page = rows.elements();
-            } catch (IOException e) { throw new IllegalStateException("Cannot archive or decode Seoul API page"); }
+            try { Files.write(archive.resolve(pageFile(start)), body, StandardOpenOption.CREATE_NEW); }
+            catch (IOException e) { throw new IllegalStateException("Cannot archive Seoul API page"); }
+            return body;
+        }
+    }
+
+    /** Replays the {@code page-<start>.json} files of an earlier API attempt; a missing page fails closed. */
+    private final class ArchiveSession extends PageSession {
+        ArchiveSession(ImportRequest request) {
+            super(request, request.sourceFile().toAbsolutePath().normalize());
+            if (!Files.isRegularFile(archive.resolve(pageFile(1))))
+                throw new IllegalArgumentException("Raw archive directory has no " + pageFile(1));
         }
 
-        @Override public void close() { closed = true; }
+        @Override byte[] pageBytes(long start, long end) {
+            try { return Files.readAllBytes(archive.resolve(pageFile(start))); }
+            catch (NoSuchFileException e) { throw new IllegalArgumentException("Raw archive is missing " + pageFile(start)); }
+            catch (IOException e) { throw new IllegalStateException("Cannot read raw archive page"); }
+        }
     }
 
     private final class FileSession extends Session {
@@ -212,7 +252,7 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
                     .onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)));
             List<String> rawHeaders = csv.read();
             if (rawHeaders == null) throw new IllegalArgumentException("CSV has no header");
-            headers = rawHeaders.stream().map(h -> properties.getHeaderAliases().getOrDefault(h.strip().replace(' ', '_'), h.strip())).toList();
+            headers = rawHeaders.stream().map(headerAliases::resolve).toList();
             if (headers.stream().anyMatch(String::isBlank) || new HashSet<>(headers).size() != headers.size())
                 throw new IllegalArgumentException("CSV header is blank or duplicated");
             if (!headers.contains("STDR_YYQU_CD")) throw new IllegalArgumentException("CSV missing quarter header; configure explicit header aliases");
