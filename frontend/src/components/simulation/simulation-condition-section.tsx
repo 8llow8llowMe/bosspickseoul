@@ -95,6 +95,7 @@ const Title = styled.span`
   font-weight: 700;
 `
 
+/** 접힌 상태 전용 요약. 펼쳤을 때 설명은 Panel 안 Description 블록으로 나간다. */
 const Value = styled.span`
   flex: 1 1 auto;
   overflow: hidden;
@@ -106,6 +107,7 @@ const Value = styled.span`
 
 const Meta = styled.span`
   flex: 0 0 auto;
+  margin-left: auto;
   color: var(--color-text-caption);
   font-size: 12px;
 `
@@ -115,6 +117,20 @@ const Edit = styled.span`
   color: var(--color-primary-700);
   font-size: 13px;
   font-weight: 600;
+`
+
+/* 아코디언 헤딩. button 콘텐츠 모델이 phrasing content 라 h2 는 버튼 밖에서 감싼다
+   (ARIA APG 아코디언 패턴). */
+const Heading = styled.h2`
+  margin: 0;
+  font: inherit;
+`
+
+const Description = styled.p`
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
+  word-break: keep-all;
 `
 
 const Panel = styled.div`
@@ -154,11 +170,11 @@ export default function SimulationConditionSectionCard({
         {complete && !expanded ? <Check aria-hidden="true" /> : index}
       </Index>
       <Title>{title}</Title>
-      <Value>
-        {expanded
-          ? description
-          : (summary ?? (locked ? '업종을 고르면 열려요' : '선택 전'))}
-      </Value>
+      {!expanded ? (
+        <Value>
+          {summary ?? (locked ? '업종을 고르면 열려요' : '선택 전')}
+        </Value>
+      ) : null}
       {meta && expanded ? <Meta>{meta}</Meta> : null}
       {complete && !expanded ? <Edit>변경</Edit> : null}
     </>
@@ -166,20 +182,27 @@ export default function SimulationConditionSectionCard({
 
   return (
     <Root id={id} $expanded={expanded} $locked={locked}>
-      {locked ? (
-        <Head as="div">{headContent}</Head>
-      ) : (
-        <Head
-          as="button"
-          type="button"
-          aria-expanded={expanded}
-          onClick={onToggle}
-          ref={headerRef}
-        >
-          {headContent}
-        </Head>
-      )}
-      {expanded ? <Panel>{children}</Panel> : null}
+      <Heading>
+        {locked ? (
+          <Head as="div">{headContent}</Head>
+        ) : (
+          <Head
+            as="button"
+            type="button"
+            aria-expanded={expanded}
+            onClick={onToggle}
+            ref={headerRef}
+          >
+            {headContent}
+          </Head>
+        )}
+      </Heading>
+      {expanded ? (
+        <Panel>
+          {description ? <Description>{description}</Description> : null}
+          {children}
+        </Panel>
+      ) : null}
     </Root>
   )
 }

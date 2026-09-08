@@ -61,4 +61,20 @@ describe('SimulationConditionSectionCard', () => {
     expect(html).toContain('선택 전')
     expect(html).not.toContain('변경')
   })
+
+  /*
+    펼쳤을 때 설명은 wrap 되는 블록이어야 한다. Head 안의 1줄 슬롯에 넣으면
+    375px 에서 잘린다(실측).
+  */
+  it('펼쳐지면 설명이 헤더 밖 블록으로 나온다', () => {
+    const html = render({ description: '자치구별 임대료 기준으로 계산해요.' })
+
+    expect(html).toContain('자치구별 임대료 기준으로 계산해요.')
+    expect(html).not.toContain('선택 전')
+  })
+
+  /* 헤딩이 없으면 스크린리더의 섹션 탐색이 끊긴다. */
+  it('제목이 헤딩 안에 있다', () => {
+    expect(render()).toMatch(/<h2[^>]*>[\s\S]*자치구[\s\S]*<\/h2>/)
+  })
 })
