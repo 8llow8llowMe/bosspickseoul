@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Lock, Search } from 'lucide-react'
@@ -26,6 +26,7 @@ import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditi
 import {
   SIMULATION_CONDITION_SECTION_LABELS,
   SIMULATION_DISTRICT_OPTIONS,
+  describeSimulationSectionValue,
   isSameSimulationReportRequest,
   simulationSectionDomId,
   type SimulationConditionSection,
@@ -35,6 +36,7 @@ import {
   buildSimulationReportHref,
   parseSimulationConditionState,
 } from '@/lib/simulation/report-route'
+import { resolveOpenSection } from '@/lib/simulation/step-flow'
 import type { SimulationReportRequest } from '@/types/simulation'
 import { shellWidth } from '@/styles/layout'
 
@@ -200,6 +202,33 @@ export default function SimulationBuilderPage({
     serviceCode: restored.serviceCode ?? context?.serviceCode ?? null,
   })
 
+  /*
+    사용자가 직접 펼친 단계. 실제로 열리는 단계는 resolveOpenSection 이 정한다 —
+    비어 있는 단계가 이 값을 이긴다(무효화 연쇄를 숨기지 않기 위해).
+  */
+  const [openedByUser, setOpenedByUser] =
+    useState<SimulationConditionSection | null>(null)
+  const openSection = resolveOpenSection(conditions.state, openedByUser)
+
+  /*
+    React 19 의 콜백 ref 는 정리 함수만 반환할 수 있다. `node => map.set(...)` 처럼
+    식 본문으로 쓰면 Map 이 반환돼 타입 오류가 난다 — 블록 본문으로 감싼다.
+  */
+  const headerRefs = useRef(
+    new Map<SimulationConditionSection, HTMLButtonElement | null>(),
+  )
+  const lastFocused = useRef<SimulationConditionSection | null>(null)
+
+  /*
+    단계가 자동으로 바뀌면 새 헤더로 포커스를 옮긴다. 옮기지 않으면 키보드·스크린리더
+    사용자는 방금 사라진 요소 자리에 남아 화면이 바뀐 것을 모른다.
+  */
+  useEffect(() => {
+    if (openSection === null || lastFocused.current === openSection) return
+    lastFocused.current = openSection
+    headerRefs.current.get(openSection)?.focus()
+  }, [openSection])
+
   const queryClient = useQueryClient()
 
   const reportMutation = useMutation({
@@ -304,8 +333,16 @@ export default function SimulationBuilderPage({
               title={SIMULATION_CONDITION_SECTION_LABELS.franchise}
               description="프랜차이즈면 브랜드 가맹 부담금까지 반영해요."
               complete={conditions.isSectionComplete('franchise')}
-              expanded={true}
-              summary={null}
+              expanded={openSection === 'franchise'}
+              summary={describeSimulationSectionValue(state, 'franchise')}
+              onToggle={() =>
+                setOpenedByUser(
+                  openSection === 'franchise' ? null : 'franchise',
+                )
+              }
+              headerRef={node => {
+                headerRefs.current.set('franchise', node)
+              }}
             >
               <SimulationChoiceGrid
                 label="창업 형태"
@@ -325,8 +362,14 @@ export default function SimulationBuilderPage({
               description="자치구별 임대료 기준으로 계산해요."
               meta={`서울 ${SIMULATION_DISTRICT_OPTIONS.length}개 구`}
               complete={conditions.isSectionComplete('district')}
-              expanded={true}
-              summary={null}
+              expanded={openSection === 'district'}
+              summary={describeSimulationSectionValue(state, 'district')}
+              onToggle={() =>
+                setOpenedByUser(openSection === 'district' ? null : 'district')
+              }
+              headerRef={node => {
+                headerRefs.current.set('district', node)
+              }}
             >
               <SimulationChoiceGrid
                 label="자치구"
@@ -346,8 +389,14 @@ export default function SimulationBuilderPage({
               description="업종을 고르면 매장 크기 기준과 브랜드 검색이 열려요."
               meta={`지원 업종 ${SIMULATION_SERVICE_TYPES.length}종`}
               complete={conditions.isSectionComplete('service')}
-              expanded={true}
-              summary={null}
+              expanded={openSection === 'service'}
+              summary={describeSimulationSectionValue(state, 'service')}
+              onToggle={() =>
+                setOpenedByUser(openSection === 'service' ? null : 'service')
+              }
+              headerRef={node => {
+                headerRefs.current.set('service', node)
+              }}
             >
               <ServiceBlock>
                 <SimulationChoiceGrid
@@ -401,9 +450,19 @@ export default function SimulationBuilderPage({
               title={SIMULATION_CONDITION_SECTION_LABELS.store}
               description="매장 크기와 층 구분에 따라 임대료·인테리어 기준이 달라져요."
               complete={conditions.isSectionComplete('store')}
-              expanded={true}
-              summary={null}
+              expanded={openSection === 'store'}
+              summary={describeSimulationSectionValue(state, 'store')}
+              locked={state.serviceCode === null}
+              onToggle={() =>
+                setOpenedByUser(openSection === 'store' ? null : 'store')
+              }
+              headerRef={node => {
+                headerRefs.current.set('store', node)
+              }}
             >
+              {/* store 가 펼쳐지려면 openSection 이 'store' 여야 하고, resolveOpenSection 은
+                  순회 순서(service → store)상 service 가 완료(=serviceCode 있음)일 때만
+                  store 를 연다 — 여기 도달하면 serviceCode 는 항상 있다. */}
               {state.serviceCode ? (
                 <SimulationStoreConditionFields
                   serviceCode={state.serviceCode}
@@ -412,14 +471,7 @@ export default function SimulationBuilderPage({
                   onStoreSizeChange={conditions.setStoreSize}
                   onFloorTypeChange={conditions.setFloorType}
                 />
-              ) : (
-                <LockedBlock>
-                  <p>
-                    업종을 먼저 고르면 그 업종의 평균 면적을 기준으로 크기를
-                    추천해 드려요.
-                  </p>
-                </LockedBlock>
-              )}
+              ) : null}
             </SimulationConditionSectionCard>
           </Form>
 
