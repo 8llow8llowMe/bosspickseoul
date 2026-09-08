@@ -173,11 +173,35 @@ class SeoulDatasetSourceAdapterTest {
     @Test void ms949AndExplicitKoreanAliasesPreserveValues() throws Exception {
         Path file = Files.write(directory.resolve("korean.csv"), "기준 년분기 코드,상권_코드,상권_명\n20241,100,서울\n"
                 .getBytes(java.nio.charset.Charset.forName("MS949")));
-        var p = properties(); p.getHeaderAliases().put("상권_코드", "TRDAR_CD");
+        var p = properties(); p.getHeaderAliases().put("상권_코드", "TRDAR_CD"); p.getHeaderAliases().put("상권_명", "TRDAR_CD_NM");
         var req = new ImportRequest("run1", Dataset.SALES_COMMERCIAL, new Quarter("20241"), "standard2024", "seoul-v1",
                 ImportRequest.SourceType.CSV, file, "MS949", true, 1, Instant.now());
         try (var source = new SeoulDatasetSourceAdapter(new ObjectMapper(), p).open(req)) {
-            assertThat(source.read().fields()).containsEntry("TRDAR_CD", "100").containsEntry("상권_명", "서울");
+            assertThat(source.read().fields()).containsEntry("TRDAR_CD", "100").containsEntry("TRDAR_CD_NM", "서울");
+            assertThat(source.read()).isNull();
+        }
+    }
+
+    @Test void koreanHeadersWithoutAnAliasFailClosedAndAreNamed() throws Exception {
+        // Otherwise the CSV route would stage "당월_매출_건수" while the API route stages "THSMON_SELNG_CO".
+        Path file = Files.writeString(directory.resolve("unaliased.csv"), "기준_년분기_코드,상권_코드,당월_매출_건수\n20241,100,5\n");
+        var p = properties(); p.getHeaderAliases().put("상권_코드", "TRDAR_CD");
+        assertThatThrownBy(() -> new SeoulDatasetSourceAdapter(new ObjectMapper(), p).open(request(ImportRequest.SourceType.CSV, file)))
+                .hasMessageContaining("without a source column alias").hasMessageContaining("당월_매출_건수").hasMessageNotContaining("TRDAR_CD");
+    }
+
+    @Test void apiNumbersAreStagedAsPlainDecimalTextExactlyAsACsvRowWouldBe() throws Exception {
+        // Live Seoul responses (2026-09-08) carry metrics as JSON numbers, e.g. 5.03135509E8, 51551.0, 2.28100689274E11.
+        byte[] body = ("{\"" + Dataset.SALES_COMMERCIAL.service() + "\":{\"RESULT\":{\"CODE\":\"INFO-000\"},\"list_total_count\":1,"
+                + "\"row\":[{\"STDR_YYQU_CD\":\"20241\",\"TRDAR_CD\":\"3110008\",\"THSMON_SELNG_AMT\":5.03135509E8,"
+                + "\"THSMON_SELNG_CO\":51551.0,\"OPBIZ_RT\":0.0,\"BIG_AMT\":2.28100689274E11,\"FRACTION_RT\":12.5,\"NOTE\":null}]}}")
+                .getBytes(StandardCharsets.UTF_8);
+        var adapter = new SeoulDatasetSourceAdapter(new ObjectMapper(), properties(), uri -> new SeoulDatasetSourceAdapter.ApiResponse(200, body));
+        try (var source = adapter.open(request(ImportRequest.SourceType.API, null))) {
+            Map<String, String> fields = source.read().fields();
+            assertThat(fields).containsEntry("TRDAR_CD", "3110008").containsEntry("THSMON_SELNG_AMT", "503135509")
+                    .containsEntry("THSMON_SELNG_CO", "51551").containsEntry("OPBIZ_RT", "0")
+                    .containsEntry("BIG_AMT", "228100689274").containsEntry("FRACTION_RT", "12.5").containsEntry("NOTE", null);
             assertThat(source.read()).isNull();
         }
     }
