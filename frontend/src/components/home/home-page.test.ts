@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
+import { ANCHOR_SENTENCES } from '@/components/home/anchor-statement'
 import HomePage from '@/components/home/home-page'
 
 vi.mock('next/navigation', () => ({
@@ -33,7 +34,9 @@ describe('HomePage', () => {
 
     expect(text).toContain('창업 전에, 상권부터 확인하세요.') // 히어로 유지
     expect(text).toContain('창업할 지역과 업종을 네 단계로 좁힙니다.') // ① 네 도구 보드
-    expect(text).toContain('BossPickSeoul은 서울 25개 자치구를') // ② 앵커
+    // 카피를 여기 베끼지 않는다 — 정본은 ANCHOR_SENTENCES 뿐이다(2026-09-08 에
+    // 앵커 문구가 바뀌면서 이 줄이 홀로 낡아 깨졌다).
+    expect(text).toContain(ANCHOR_SENTENCES[0]) // ② 앵커
     expect(text).toContain('현황 확인') // ③ 스토리 스텝
     expect(text).toContain('AI 리포트') // ④ 벤토
     expect(html).toContain('대표 예시 데이터')
