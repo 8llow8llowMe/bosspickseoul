@@ -40,6 +40,19 @@ const INITIAL_INVESTMENT = 12000
 const MONTHS = 12
 
 /**
+ * 손익 곡선의 플롯 높이(px). 200 → **260**(이슈 #223).
+ *
+ * `DemoArea` 가 494px 인데 200px 짜리 차트를 가운데 두면 04단계만 **60%** 만 찼다
+ * (01 92 · 02 85 · 03 68). 260 으로 올리면 **72%** 가 되어 03 과 나란해진다.
+ *
+ * 더 올리지 않는 이유: 낮은 뷰포트에서 `StoryRow` 가 줄어들면 패널이 내부 스크롤로
+ * 열화한다. 실측으로 1920·1440·1100×800 은 넘침 0 이고, **1280×620 에서만 패널이
+ * 15px 스크롤**한다 — 거기는 이미 스텝 목록이 101px 스크롤하는 구간이라(D9-3) 기존
+ * 열화 규약과 같은 처리다. 이 값을 더 키우면 그 구간이 넓어진다.
+ */
+export const BREAK_EVEN_CHART_HEIGHT = 260
+
+/**
  * 누적 손익. `-초기투자 + 월순이익 × n`.
  *
  * 0 개월(개업 시점)부터 그린다 — 첫 점이 그대로 초기 투자액이라 **얼마에서 시작하는지**가
@@ -160,7 +173,7 @@ export default function BreakEvenChart() {
         points={points}
         unit="만원"
         direction={null}
-        height={200}
+        height={BREAK_EVEN_CHART_HEIGHT}
         ariaLabel={`개업 후 ${MONTHS}개월 누적 손익`}
       />
 
