@@ -1,5 +1,9 @@
 .agents/*
-.codex/
+# .codex/ 는 OMX 가 세션·인증·로그까지 함께 쓰는 로컬 디렉터리다. 역할 정의(agents/*.toml)만 추적한다
+.codex/*
+!.codex/agents/
+.codex/agents/*
+!.codex/agents/*.toml
 .gradle-home/
 .omx/
 
@@ -15,6 +19,8 @@
 !.agents/skills/backend-feature-bootstrap/SKILL.md
 !.agents/skills/backend-multi-agent/
 !.agents/skills/backend-multi-agent/SKILL.md
+!.agents/skills/dev-orchestrator/
+!.agents/skills/dev-orchestrator/SKILL.md
 !.agents/skills/pr/
 !.agents/skills/pr/SKILL.md
 !.agents/skills/mr/
@@ -27,6 +33,10 @@
 !.agents/skills/context-resume/SKILL.md
 
 .claude/*
+# 역할별 subagent 정의 — 정본은 docs/claude-agents.md
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/*.md
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/backend-api-check/
@@ -37,6 +47,8 @@
 !.claude/skills/backend-feature-bootstrap/SKILL.md
 !.claude/skills/backend-multi-agent/
 !.claude/skills/backend-multi-agent/SKILL.md
+!.claude/skills/dev-orchestrator/
+!.claude/skills/dev-orchestrator/SKILL.md
 !.claude/skills/pr/
 !.claude/skills/pr/SKILL.md
 !.claude/skills/mr/
