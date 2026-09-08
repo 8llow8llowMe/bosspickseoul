@@ -21,6 +21,12 @@
 - 구현 중 새 규칙이 생기면 엔트리 문서보다 해당 `docs/*.md`를 먼저 갱신한다.
 - 서비스별 차이는 `docs/services/*.md`에 정리한다.
 
+## 스킬 / 에이전트
+
+- 스킬은 `/스킬명` 으로 호출한다 — 착수 `backend-feature-bootstrap`, 계약 점검 `backend-api-check`, 경계 점검 `hexagonal-guard`, 대형 작업 역할 구성 `backend-multi-agent`, 작업 분류·역할 선택 `dev-orchestrator`.
+- 역할별 subagent 는 `.claude/agents/*.md` 에 있다. 백엔드 구현은 `be-executor`, 검토는 `be-hexagonal-reviewer` / `be-db-reviewer` / `be-security-reviewer` (읽기 전용). 공용 역할과 모델 배정의 정본은 `../docs/claude-agents.md`, 역할 조합은 `docs/team-playbook.md`.
+- 모든 작업을 병렬화하지 않는다. 독립적인 읽기 전용 검토만 한 메시지 안에서 병렬 호출하고, 같은 파일을 고치는 쓰기 역할은 하나만 실행한다.
+
 ## 파일 인코딩 규칙 (필수)
 
 - **모든 소스 / 설정 / 문서 파일은 반드시 `UTF-8` (no BOM) 로 저장한다.**

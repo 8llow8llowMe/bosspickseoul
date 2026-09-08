@@ -1,89 +1,74 @@
 ---
 name: backend-multi-agent
-description: Plan and run larger NowDoBoss backend work with explicit role splits such as leader, executor, DB reviewer, hexagonal reviewer, and security reviewer.
+description: BossPickSeoul 백엔드의 큰 작업(신규 서비스·컨텍스트, DB/Redis/API/보안이 함께 걸린 변경, 대형 리팩토링)을 Leader / Executor / DB Reviewer / Hexagonal Reviewer / Security Reviewer 역할로 나눠 설계·구현·검증한다. 단일 파일 수정 같은 작은 작업에는 사용하지 않는다.
 ---
 
-# Backend Team Playbook
+# Backend Multi-Agent Playbook
 
-Use this skill when a backend task is large enough that implementation and review should be split across explicit roles.
+백엔드 작업이 구현과 검토를 역할로 나눌 만큼 클 때 사용하는 스킬. 작업 분류와 모델 선택은 `dev-orchestrator` 가 먼저 하고, 이 스킬은 **백엔드 대형 작업의 역할 구성**을 정한다.
 
 ## When to Use
 
-Use this skill when:
-- a new backend service or major context is being added
-- DB, Redis, API, and docs are changing together
-- a refactor is large enough that architecture drift is a real risk
-- the user explicitly asks for multi-agent or team-style backend execution
+- 새 백엔드 서비스 또는 주요 컨텍스트 추가
+- DB / Redis / API / docs 가 함께 변경되는 작업
+- 아키텍처 드리프트 위험이 큰 리팩토링
+- 사용자가 명시적으로 멀티 에이전트/팀 방식을 요청할 때
 
-Do not use this skill for trivial one-file changes.
+아래 경우에는 사용하지 않는다.
+
+- 단일 파일 수정
+- 명확한 버그 1건 수정
+- 단순 문구·로그·Swagger 정리
 
 ## Read First
 
-1. `backend/docs/team-playbook.md`
-2. `backend/docs/architecture-guide.md`
-3. `backend/docs/coding-conventions.md`
-4. `backend/docs/api-design-guide.md`
-5. `backend/docs/done-checklist.md`
+1. [backend/docs/team-playbook.md](../../../backend/docs/team-playbook.md)
+2. [backend/docs/architecture-guide.md](../../../backend/docs/architecture-guide.md)
+3. [backend/docs/coding-conventions.md](../../../backend/docs/coding-conventions.md)
+4. [backend/docs/api-design-guide.md](../../../backend/docs/api-design-guide.md)
+5. [backend/docs/done-checklist.md](../../../backend/docs/done-checklist.md)
 
 ## Roles
 
-- **Backend Leader** — fixes scope, out-of-scope, public API direction, and service boundaries; integrates review results
-- **Backend Executor** — implements Controller/Facade/Processor/Port/Adapter changes and drives compile/test/check
-- **DB Reviewer** — reviews entities, QueryResult, repositories, indexes, soft delete, and Redis keys
-- **Hexagonal Reviewer** — reviews layer flow and Port/Adapter boundaries
-- **Security Reviewer** — reviews JWT, Resource Server, gateway, and authorization policy when security changes
+| 역할 | 역할 파일 | 권한 | 책임 |
+|------|-----------|------|------|
+| **Backend Leader** | 없음 — 메인 실행자가 맡는다 | — | 범위·out-of-scope·공개 API 방향·서비스 경계 고정, 검토 결과 통합 |
+| **Backend Executor** | `.claude/agents/be-executor.md` | 쓰기 | Controller/Facade/Processor/Port/Adapter 실구현, compile/test/check 맞춤 |
+| **DB Reviewer** | `.claude/agents/be-db-reviewer.md` | 읽기 전용 | entity, QueryResult, repository, 인덱스, soft delete, Redis key 검토 (N+1 우선) |
+| **Hexagonal Reviewer** | `.claude/agents/be-hexagonal-reviewer.md` | 읽기 전용 | 계층 흐름과 Port/Adapter 경계 검토 (`architecture-guide.md` 기준) |
+| **Security Reviewer** | `.claude/agents/be-security-reviewer.md` | 읽기 전용 | JWT, Resource Server, 게이트웨이, 인가 정책 검토 (보안 변경 시에만) |
 
 ## Role Set by Task Shape
 
-| Task | Role Set |
+| 작업 | Role Set |
 |------|----------|
-| Single-service feature | Leader + Executor + Hexagonal |
-| DB/Redis/query change | Leader + Executor + DB + Hexagonal |
-| Security/auth change | Leader + Executor + Security + Hexagonal |
-| New service or major refactor | Leader + Executor + DB + Hexagonal + Security when relevant |
+| 단일 서비스 기능 추가 | Leader + Executor + Hexagonal |
+| DB/Redis/Query 구조 변경 | Leader + Executor + DB + Hexagonal |
+| 보안/인증 구조 변경 | Leader + Executor + Security + Hexagonal |
+| 신규 서비스 / 대형 리팩토링 | Leader + Executor + DB + Hexagonal + (필요 시 Security) |
 
 ## Procedure
 
-1. Classify the task
-   - single service feature
-   - DB / Redis / query structure change
-   - security change
-   - new service or major refactor
+1. 작업 분류 — 단일 서비스 기능 / DB·쿼리 변경 / 보안 변경 / 신규 서비스·대형 리팩토링
+2. Role Set 선택
+3. Leader 가 먼저 고정 — 범위, out-of-scope, 공개 API 방향, 서비스 경계
+4. 역할 분리 — Executor 는 구현, Reviewer 는 경계/영속성/보안 검토 (중복 편집 금지)
+5. 통합 — Leader 가 검토 의견을 수용/반려하고 최종 일관성 패스 1회
+6. 검증 — compile, test, check, Swagger, docs 갱신
 
-2. Choose the role set
-   - `Backend Leader`
-   - `Backend Executor`
-   - `DB Reviewer`
-   - `Hexagonal Reviewer`
-   - `Security Reviewer`
+## Execution
 
-3. Lock the leader-owned decisions first
-   - scope
-   - out-of-scope
-   - public API direction
-   - service boundary
+현재 호스트(Claude Code, Codex, Cursor)가 제공하는 subagent/agent 위임 기능이 있으면 역할별로 호출한다.
 
-4. Split work cleanly
-   - executor implements
-   - reviewers inspect boundaries, persistence, or security
-   - avoid overlap that causes conflicting edits
+- Claude Code 에서는 `.claude/agents/be-*.md` 가 프로젝트 subagent 로 자동 발견된다. Leader 는 파일이 없고 메인 실행자가 맡는다
+- Codex·Cursor 처럼 BE 전용 역할 파일이 없는 호스트에서는 같은 `be-*.md` 본문을 역할 프롬프트로 읽어 순차 수행한다
+- 각 subagent 에는 역할, 읽을 문서, 허용된 변경 범위, 기대 출력만 전달한다
+- 독립적인 읽기 전용 Reviewer 는 한 메시지 안에서 병렬로 실행할 수 있다 (보통 2개, 최대 3개)
+- 구현은 메인 실행자 또는 단일 Executor 만 맡아 편집 충돌을 막는다
+- Reviewer 는 코드를 수정하지 않고 파일·행·근거가 있는 보고만 반환한다
+- subagent 기능을 사용할 수 없으면 메인 실행자가 같은 역할을 순서대로 수행한다
 
-5. Integrate
-   - accept or reject review findings explicitly
-   - make one coherent final pass
-
-6. Verify
-   - compile/test/check
-   - Swagger
-   - docs update
-   - final risks
-
-## Cross-Agent Execution
-
-- Use the host agent's supported delegation mechanism and repository-level agent instructions.
-- Keep each delegated task bounded to one role and a verifiable deliverable.
-- Let the executor own implementation; reviewers report findings instead of making overlapping edits.
-- Run independent reviews in parallel only when the host supports safe parallel delegation.
+호스트별 도구 이름이나 특정 내장 agent 이름을 스킬의 전제로 삼지 않는다. 최종 판단과 통합은 항상 메인 실행자가 맡는다. **Reviewer 보고를 그대로 믿지 않는다** — 근거 없는 지적은 메인 실행자가 확인한 뒤 반영하고, Executor 의 "통과했다" 는 메인 실행자가 검증 명령을 한 번 더 돌려 확인한다.
 
 ## Output Format
 
@@ -97,22 +82,24 @@ Task:
 Role Set:
 - Leader: ...
 - Executor: ...
-- DB Reviewer: ...
+- DB Reviewer: ... (있으면)
 - Hexagonal Reviewer: ...
-- Security Reviewer: [if needed]
+- Security Reviewer: ... (있으면)
 
 Execution Order:
-1. Leader fixes scope and boundaries
-2. Executor implements while independent reviewers inspect
-3. Leader integrates accepted findings
-4. Run verification
+1. Leader 고정
+2. Executor 구현 / Reviewer 병렬 검토
+3. 통합 패스
+4. 검증
 
 Review Decisions:
 - accepted: ...
-- rejected: ... (reason)
+- rejected: ... (사유)
 
 Verification:
-- ...
+- compile/test/check
+- Swagger
+- docs 갱신 대상
 
 Remaining Risks:
 - ...

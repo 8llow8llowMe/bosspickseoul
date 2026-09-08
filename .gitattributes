@@ -7,3 +7,7 @@ Jenkinsfile* text eol=lf working-tree-encoding=UTF-8
 
 # Shell scripts used by CI/CD
 *.sh        text eol=lf working-tree-encoding=UTF-8
+
+# Agent role definitions and helper scripts (Codex TOML, sync script)
+.codex/**/*.toml text eol=lf working-tree-encoding=UTF-8
+scripts/*.py     text eol=lf working-tree-encoding=UTF-8

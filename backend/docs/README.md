@@ -91,4 +91,7 @@ Codex는 `$스킬명`, Cursor와 Claude Code는 `/스킬명`으로 호출한다.
 - `/hexagonal-guard`, `$hexagonal-guard`: Hexagonal 계층 경계 점검
 - `/backend-feature-bootstrap`, `$backend-feature-bootstrap`: 새 서비스/컨텍스트 시작 가이드
 - `/backend-multi-agent`, `$backend-multi-agent`: 큰 작업을 역할별로 나눠 설계/구현/검증
+- `/dev-orchestrator`, `$dev-orchestrator`: 작업을 SIMPLE/FEATURE/BUG/REFACTOR/ARCHITECTURE 로 분류해 필요한 역할·모델만 호출
 - 자연어 요청도 가능하지만 스킬 호출 형식이 가장 확실하다.
+
+역할별 subagent 정의는 `.claude/agents/*.md`(Claude Code)와 `.codex/agents/*.toml`(Codex)에 있다. 백엔드 역할 조합은 `team-playbook.md`, 모델·권한 배정은 `../../docs/claude-agents.md` / `../../docs/codex-agents.md` 참고.
