@@ -720,6 +720,10 @@ const openSection = resolveOpenSection(state, openedByUser)
 - [ ] **Step 2: 자동 진행 시 포커스를 옮긴다**
 
 ```tsx
+/*
+  React 19 의 콜백 ref 는 정리 함수만 반환할 수 있다. `node => map.set(...)` 처럼
+  식 본문으로 쓰면 Map 이 반환돼 타입 오류가 난다 — 블록 본문으로 감싼다.
+*/
 const headerRefs = useRef(
   new Map<SimulationConditionSection, HTMLButtonElement | null>(),
 )
@@ -752,7 +756,9 @@ useEffect(() => {
   onToggle={() =>
     setOpenedByUser(openSection === 'franchise' ? null : 'franchise')
   }
-  headerRef={node => headerRefs.current.set('franchise', node)}
+  headerRef={node => {
+    headerRefs.current.set('franchise', node)
+  }}
 >
 ```
 
@@ -766,7 +772,9 @@ useEffect(() => {
   onToggle={() =>
     setOpenedByUser(openSection === 'district' ? null : 'district')
   }
-  headerRef={node => headerRefs.current.set('district', node)}
+  headerRef={node => {
+    headerRefs.current.set('district', node)
+  }}
 
 /* service 카드 */
   expanded={openSection === 'service'}
@@ -774,14 +782,18 @@ useEffect(() => {
   onToggle={() =>
     setOpenedByUser(openSection === 'service' ? null : 'service')
   }
-  headerRef={node => headerRefs.current.set('service', node)}
+  headerRef={node => {
+    headerRefs.current.set('service', node)
+  }}
 
 /* store 카드 — 잠금이 붙는다 */
   expanded={openSection === 'store'}
   summary={describeSimulationSectionValue(state, 'store')}
   locked={state.serviceCode === null}
   onToggle={() => setOpenedByUser(openSection === 'store' ? null : 'store')}
-  headerRef={node => headerRefs.current.set('store', node)}
+  headerRef={node => {
+    headerRefs.current.set('store', node)
+  }}
 ```
 
 - [ ] **Step 4: 잠금 안내 블록을 걷어낸다**
