@@ -36,10 +36,10 @@
    | 역할 | 값 | 흰 본체 대비 | 고스트 대비 |
    | --- | --- | --- | --- |
    | `BRAND_INVERSE_BODY` | `#ffffff` | — | 11.0 |
-   | `BRAND_INVERSE_GHOST` | `#333d4b` (grey800) | 11.0 | — |
+   | `BRAND_INVERSE_GHOST` | `#252d3a` | 13.9 | — |
    | `BRAND_INVERSE_ACCENT` | `#12a47c` | 3.17 | 3.47 |
 
-   본래 강조색 `#00795c`를 어두운 배경에 그대로 쓰면 고스트(`#333d4b`) 대비가 **2.04**로 무너져 강조 칸이 카운터에 녹는다. 그래서 반전에서는 강조색을 밝힌다.
+   본래 강조색 `#00795c`를 어두운 배경에 그대로 쓰면 고스트(`#252d3a`) 대비가 **2.57**밖에 안 되어 강조 칸이 카운터에 녹는다. 그래서 반전에서는 강조색을 밝힌다 — `#12a47c` 는 같은 고스트 대비 4.37 다.
 
 ---
 
@@ -280,13 +280,13 @@ export const BRAND_GHOST = '#edf0f3'
 /**
  * 어두운 배경용 반전 팔레트.
  *
- * 본래 강조색 `#00795c` 를 어두운 배경에 그대로 쓰면 반전 고스트(`#333d4b`)
+ * 본래 강조색 `#00795c` 를 어두운 배경에 그대로 쓰면 반전 고스트(`#252d3a`)
  * 대비가 2.04 로 무너져 강조 칸이 카운터에 녹는다. 그래서 반전에서만 밝힌다.
  * `#12a47c` 는 흰 본체 대비 3.17, 반전 고스트 대비 3.47 로 양쪽을 지킨다.
  */
 export const BRAND_INVERSE_BODY = '#ffffff'
 export const BRAND_INVERSE_ACCENT = '#12a47c'
-export const BRAND_INVERSE_GHOST = '#333d4b'
+export const BRAND_INVERSE_GHOST = '#252d3a'
 
 export type BrandMarkVariant = 'primary' | 'grid' | 'solid'
 
@@ -701,7 +701,7 @@ describe('BrandMark 톤', () => {
 
     expect(svg).toContain('fill="#ffffff"')
     expect(svg).toContain('fill="#12a47c"')
-    expect(svg).toContain('fill="#333d4b"')
+    expect(svg).toContain('fill="#252d3a"')
     // 반전에서 원래 강조색을 쓰면 반전 고스트 대비가 2.04 로 무너진다.
     expect(svg).not.toContain('#00795c')
   })
@@ -721,7 +721,7 @@ describe('BrandMark 톤', () => {
 
     const primary = render({ height: 180, container: true })
 
-    expect(primary).toContain('fill="#333d4b"')
+    expect(primary).toContain('fill="#252d3a"')
     expect(primary).not.toContain('#edf0f3')
   })
 
@@ -1768,7 +1768,7 @@ Bash 백그라운드로 띄운 뒤 `preview_start({ url: "http://localhost:5173/
 - apple-icon 의 고스트 7칸이 흰 본체·강조 칸과 구분된다(반전 팔레트가 실제로 작동하는지).
 - 강조 칸이 카운터에 녹지 않는다.
 
-apple-icon 에서 고스트가 본체에 붙어 보이면 `BRAND_INVERSE_GHOST` 를 한 단계 어둡게(`#333d4b` → `#252d3a`) 조정하고 Task 1의 기하 모듈과 Task 3의 테스트를 함께 고친다.
+**실측 결과 이 조정이 실제로 필요했고 이미 반영됐다.** 초안의 `#333d4b`(= `grey800`)는 잉크 배경 대비 1.51 로 너무 잘 보여, 카운터가 「채워진 칸」으로 읽히고 B 판독성이 무너졌다 — 고스트 없는 OG 이미지와 나란히 놓으면 차이가 결정적이다. `#252d3a` 는 배경 대비 1.19 로 라이트 모드 고스트(1.14)의 미묘함을 맞춘다. 위 코드와 Task 1·3 은 이 값으로 갱신됐다.
 
 - [ ] **Step 5: 커밋한다**
 
@@ -1816,7 +1816,7 @@ brand: BossPickSeoul
 - **Brand Ink** (`#191f28`): `--color-brand-ink`. 심볼 본체와 워드마크. `grey900` 과 같은 값이다.
 - **Brand Accent** (`#00795c`): `--color-brand-accent`. 강조 칸 전용. **UI 에서 절대 쓰지 않는다** — `green500`(`#03b26c`)과 계열이 같아 성공·상승 시맨틱과 혼동된다.
 - **Brand Ghost** (`#edf0f3`): `--color-brand-ghost`. 고스트 칸 전용. 48px 이상에서만 등장한다.
-- **반전 팔레트**: 어두운 배경에서 본체 `#ffffff`, 고스트 `#333d4b`, 강조 `#12a47c`. 강조색을 밝히는 이유는 원래 값(`#00795c`)이 반전 고스트 대비 2.04 로 무너지기 때문이다.
+- **반전 팔레트**: 어두운 배경에서 본체 `#ffffff`, 고스트 `#252d3a`, 강조 `#12a47c`. 강조색을 밝히는 이유는 원래 값(`#00795c`)이 반전 고스트 대비 2.04 로 무너지기 때문이다. 고스트가 `grey800`(`#333d4b`)이 아닌 이유는 그 값이 잉크 배경 대비 1.51 로 **너무 잘 보여** 카운터가 채워진 것처럼 읽히고 B 판독성이 무너지기 때문이다 — 라이트 모드 고스트는 배경 대비 1.14 이고 `#252d3a` 는 1.19 로 그 미묘함을 맞춘다.
 ```
 
 - [ ] **Step 3: 서체 서술을 실제와 맞춘다**
@@ -1890,7 +1890,7 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 `docs/superpowers/specs/2026-09-08-brand-logo-design.md` 를 고친다:
 
-1. §6 브랜드 컬러 표에 반전 팔레트 세 줄을 더한다 — `BRAND_INVERSE_BODY #ffffff`, `BRAND_INVERSE_GHOST #333d4b`, `BRAND_INVERSE_ACCENT #12a47c`. 근거로 "원래 강조색은 반전 고스트 대비 2.04 로 무너진다"를 적는다.
+1. §6 브랜드 컬러 표에 반전 팔레트 세 줄을 더한다 — `BRAND_INVERSE_BODY #ffffff`, `BRAND_INVERSE_GHOST #252d3a`, `BRAND_INVERSE_ACCENT #12a47c`. 근거로 "원래 강조색은 반전 고스트 대비 2.04 로 무너진다"와 "고스트는 배경 대비 1.19 여야 한다 — grey800 은 1.51 로 너무 잘 보여 카운터가 채워진 것처럼 읽힌다"를 적는다.
 2. §11.1 에서 `lockup-horizontal.svg`·`lockup-vertical.svg` 행을 지우고, 그 자리에 "정적 락업 SVG 는 만들지 않는다 — `<text>` 는 뷰어 폰트에 의존하고 아웃라인화 도구가 저장소에 없다. 락업은 React 컴포넌트로만 제공한다"를 적는다.
 3. §11.1 의 `apple-icon.png` / `opengraph-image.png` 를 `apple-icon.tsx` / `opengraph-image.tsx` 로 바꾸고, OG 설명에서 워드마크를 지운다. 이유로 "satori 는 WOFF2 미지원, 저장소에는 WOFF2 만 있음"을 적는다.
 4. §13 리스크 표에 한 줄 더한다 — "정적 락업 파일과 OG 워드마크 부재 / Pretendard TTF·OTF 를 싣지 않아 아웃라인화·satori 렌더가 불가 / 후속 과제로 남긴다".
