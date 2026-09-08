@@ -57,9 +57,32 @@
 
 레거시 `change_commercial` 테이블은 v1 마이그레이션에서 원천을 찾지 못해 **비어 있다**(`nowdoboss-to-bosspickseoul-commercial-remaining-runbook.sql` 참고). `VwsmTrdarIxQq`가 20211부터 제공하므로 이 배치의 첫 적재 대상이다.
 
+## 소스 종류
+
+`--source`는 네 가지다. 어느 경로든 staging 이후는 같다.
+
+| `--source` | 입력 | 용도 |
+| --- | --- | --- |
+| `API` | 서울 Open API (`--source-file` 없음) | 기본 경로. 페이지(1,000행)마다 `page-<start>.json`으로 원본을 보관한다 |
+| `ARCHIVE` | 이전 `API` 실행의 raw 디렉터리 (`dataset_release.raw_location`) | 분기 인자를 무시하는 서비스를 **한 번만 내려받고** 나머지 분기는 재생한다. API를 호출하지 않으며 같은 페이지면 checksum도 같다 |
+| `CSV` / `ZIP` | 열린데이터광장 연 단위 파일 | API가 막혔을 때의 대안 |
+
+서울 API는 인증키당 하루 1,000회 제한이 있다. 분기 인자를 무시하는 9종을 분기마다 다시 받으면 22분기 백필에 약 4,300회가 들지만, 첫 분기만 `API`로 받고 나머지를 `ARCHIVE`로 재생하면 약 200회다.
+
 ## CSV 헤더 별칭
 
-CSV 경로는 한글 헤더를 `application-quarterly.yml`의 `header-aliases`로 API 컬럼 코드에 매핑한다. **별칭이 없는 헤더가 하나라도 있으면 그 이름을 나열하고 시작 단계에서 멈춘다.** 통과시키면 API 경로가 만들 수 없는 키가 payload에 들어가고 접미사 기반 숫자 검증도 건너뛰기 때문이다. 별칭 표의 코드 쪽은 실호출 컬럼 목록이고, 한글 쪽은 배포 CSV 헤더 표기를 따랐다. 파일의 표기가 다르면 검사를 느슨하게 하지 말고 줄을 추가한다.
+CSV 경로는 한글 헤더를 API 컬럼 코드로 바꾼다. 표는 classpath `seoul/csv-header-aliases.csv`(한 줄 = `한글헤더,코드`)에 있고, 조회 전에 헤더를 정규화한다(공백·`~` → `_`, `률` → `율`). `application-quarterly.yml`의 `header-aliases`는 배포 파일이 헤더를 다르게 적을 때만 한 줄씩 덧붙이는 자리다.
+
+**별칭이 없는 헤더가 하나라도 있으면 그 이름을 나열하고 시작 단계에서 멈춘다.** 통과시키면 API 경로가 만들 수 없는 키가 payload에 들어가고 접미사 기반 숫자 검증도 건너뛰기 때문이다. 표의 코드 쪽은 실호출 컬럼 목록이고, 한글 쪽은 배포 CSV 헤더 표기를 따랐으나 실제 파일로 대조한 것은 아니다. 파일의 표기가 다르면 검사를 느슨하게 하지 말고 줄을 추가한다.
+
+## 공간 스냅샷 소스
+
+`--job=spatial`의 `--source`는 두 가지다.
+
+- `GEOJSON`(기본): `spatialVersion`·`sourceUpdatedAt`·`expectedCounts`를 가진 FeatureCollection 파일. 2024년 표준단위구역 폴리곤이 준비되면 쓰는 경로다. 서울시는 상권 영역을 shapefile로 배포하고 `TbgisTrdarRelm` API는 중심점·면적·상위 코드만 주므로, 파일은 별도 변환으로 만들어야 한다.
+- `LEGACY`: 서비스가 이미 읽는 `area_boundary`(20233 기준 폴리곤)와 `commercial_region_mapping`(상권 → 행정동)에서 스냅샷을 만든다. `boundary_geo_json`의 맨 링을 닫힌 Polygon으로 감싸고, 행정동의 상위는 코드 앞 5자리, 상권의 상위는 매핑 테이블에서 얻는다. 매핑이 없는 상권이 있으면 코드를 나열하고 멈춘다. checksum은 산출된 영역 전체를 덮으므로 같은 테이블이면 같은 버전이다.
+
+상권 코드는 2024년 이후에도 그대로이므로 `LEGACY` 스냅샷으로 2024년 이후 분기의 `unmapped` 검증을 통과시킬 수 있다. 다만 **폴리곤은 20233 기준**이다. 버전 이름에 그 사실을 남기고(`legacy-20233` 등), 표준단위구역 폴리곤이 준비되면 새 버전으로 별도 게시한다.
 
 ## 책임과 검증 계획
 
@@ -76,31 +99,41 @@ CSV 경로는 한글 헤더를 `application-quarterly.yml`의 `header-aliases`�
 
 ## 남은 작업
 
-- **공간 스냅샷 입력 파일을 만드는 도구가 없다.** `--job=spatial`은 `spatialVersion`·`expectedCounts`·`sourceUpdatedAt`를 가진 GeoJSON을 요구하지만, 서울시가 배포하는 상권 영역은 shapefile이고 `TbgisTrdarRelm` API는 중심점·면적·상위 코드만 준다(폴리곤 없음). 변환 스크립트 또는 `area_boundary` 레거시 테이블에서 20233 기준 스냅샷을 뽑는 경로가 필요하다. 이것이 없으면 사실 데이터 dry-run은 `unmapped` 검증에서 전부 실패한다.
+- **2024년 표준단위구역 폴리곤이 없다.** `LEGACY` 스냅샷은 20233 폴리곤이다. 서울시 shapefile을 WGS84 GeoJSON으로 변환하는 절차(외부 도구, 예: ogr2ogr)를 정하고 `GEOJSON` 소스로 새 버전을 게시해야 지도가 2024년 이후 영역을 그린다.
 - `dataset_fact` / `dataset_active_release`를 읽는 조회 경로가 아직 없다. 배치는 적재만 하고 서비스는 여전히 레거시 테이블을 읽는다. 전환 시 `income_commercial`의 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이).
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다. 첫 dry-run은 개발 DB에서 직접 확인해야 한다.
-- Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB dry-run에서만 검증된다.
-- 분기 인자를 무시하는 서비스는 대상 분기 한 개를 위해 전체 시계열을 내려받는다(`VwsmTrdarRepopQq` 36페이지 등). 백필 중 같은 원본을 분기마다 다시 받는 셈이므로, 한 실행에서 여러 분기를 채택해 release 여러 개로 게시하는 확장을 검토할 만하다.
+- Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB dry-run에서만 검증된다. `LEGACY` 스냅샷 소스도 `area_boundary.boundary_geo_json`의 실제 형태(맨 링인지, 다중 링인지)는 개발 DB에서 확인해야 한다.
 - `--expected-rows`는 분기 인자를 존중하는 서비스에서는 `list_total_count`로 자동 확정할 수 있다. 지금은 dry-run 한 번으로 값을 읽어 새 run-id로 다시 돌리는 절차를 유지한다.
 
 ## 실행 예시
 
-먼저 `quarterly-dataset-schema.sql`을 명시한 개발 스키마에 적용하고 공간 스냅샷을 검증한다.
+먼저 `quarterly-dataset-schema.sql`을 명시한 개발 스키마에 적용하고 공간 스냅샷을 검증한다. 레거시 테이블에서 뽑는 경우:
 
 ```text
 SPRING_PROFILES_ACTIVE=quarterly BATCH_DB_URL=jdbc:mysql://host:3306/bosspickseoul_commercial_dev \
 BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev SEOUL_OPEN_DATA_API_KEY=... \
-java -jar batch-service.jar --job=spatial --run-id=spatial-2026-09-06 \
-  --source-file=seoul-spatial-v2024.geojson --spatial-version=seoul-v2024 --dry-run=true
+java -jar batch-service.jar --job=spatial --run-id=spatial-legacy-20233-001 \
+  --source=LEGACY --spatial-version=legacy-20233 --source-updated-at=2023-12-31T00:00:00Z --dry-run=true
 ```
 
-검증 결과를 확인한 뒤 같은 입력을 새 `run-id`로 `--dry-run=false` 실행한다. 사실 데이터는 데이터셋마다 별도 실행한다.
+준비된 GeoJSON 파일이 있으면 `--source=GEOJSON --source-file=seoul-spatial-v2024.geojson --spatial-version=seoul-v2024`다.
+
+검증 결과를 확인한 뒤 같은 입력을 새 `run-id`로 `--dry-run=false` 실행한다. 사실 데이터는 데이터셋·분기마다 별도 실행한다.
 
 ```text
-java -jar batch-service.jar --job=facts --run-id=sales-commercial-20262-001 \
-  --dataset=SALES_COMMERCIAL --period=20262 --source=API \
-  --spatial-version=seoul-v2024 --schema-version=seoul-v1 \
-  --expected-rows=<대상 분기 행 수> --source-updated-at=<ISO-8601> --dry-run=true
+java -jar batch-service.jar --job=facts --run-id=change-commercial-20241-001 \
+  --dataset=CHANGE_COMMERCIAL --period=20241 --source=API \
+  --spatial-version=legacy-20233 --schema-version=seoul-v1 \
+  --expected-rows=1650 --source-updated-at=<ISO-8601> --dry-run=true
+```
+
+분기 인자를 무시하는 서비스는 첫 분기를 `API`로 받은 뒤 `dataset_release.raw_location`을 다음 분기에 재생한다.
+
+```text
+java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001 \
+  --dataset=POPULATION_COMMERCIAL --period=20242 --source=ARCHIVE \
+  --source-file=<20241 실행의 raw_location 디렉터리> \
+  --spatial-version=legacy-20233 --expected-rows=<20242 행 수> --source-updated-at=<ISO-8601> --dry-run=true
 ```
 
 `--expected-rows`는 **대상 분기 한 개의 행 수**다. 분기 인자를 존중하는 서비스(위 실호출 표의 O)는 `.../1/1/<period>` 한 번 호출한 `list_total_count`가 그 값이다. 분기 인자를 무시하는 서비스(X)는 `list_total_count`가 모든 분기의 합이므로 그대로 쓰면 게시가 항상 실패한다. 값을 모를 때는 `--dry-run=true`로 한 번 실행한다. 게시 단계 예외 메시지에 `expected=… input=… accepted=… rejected=… duplicate=… unmapped=…`가 찍히고, 검증 감사는 게시가 거부돼도 커밋되므로 `dataset_release.accepted_count`에서도 같은 값을 읽을 수 있다. 다만 `expected_rows`는 요청 지문에 포함되므로, 값을 고쳐 다시 실행할 때는 **새 `run-id`** 를 써야 한다.
