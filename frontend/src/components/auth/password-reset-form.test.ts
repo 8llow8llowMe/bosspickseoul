@@ -1,6 +1,21 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
+
+/** styled-components 는 선언을 압축해 내보낸다 — 공백 차이로 깨지지 않게 지운다. */
+const squeeze = (css: string): string => css.replace(/\s+/g, '')
+
+const renderStyles = (element: ReturnType<typeof createElement>): string => {
+  const styleSheet = new ServerStyleSheet()
+
+  try {
+    renderToStaticMarkup(styleSheet.collectStyles(element))
+    return styleSheet.getStyleTags()
+  } finally {
+    styleSheet.seal()
+  }
+}
 
 /**
  * `GuestOnly` 가 `hasHydrated` 를 보고 폼 대신 대기 화면을 그리므로 세션 상태를
@@ -118,5 +133,34 @@ describe('인증 화면의 탈출구 (AuthShell)', () => {
 
     expect(markup).toContain('BossPickSeoul 홈으로')
     expect(markup).toMatch(/<a[^>]+href="\/"/)
+  })
+
+  /*
+   * 셸은 헤더·푸터와 같은 `BrandLockup` 을 쓴다. 이전에는 18px/700 텍스트를
+   * 직접 그려서 인증 화면 4개만 다른 워드마크를 보여줬다. 심볼 SVG 의 존재가
+   * 「락업이지 맨 텍스트가 아니다」의 결정적 증거다 — 맨 텍스트에는 SVG 가 없다.
+   */
+  it('홈 링크가 브랜드 락업을 그린다', () => {
+    const markup = render()
+
+    expect(markup).toContain('viewBox="0 0 44.8 44.8"')
+    expect(markup).toContain('data-role="container" fill="#191f28"')
+    // 심볼은 장식이고 이름은 워드마크가 읽어준다.
+    expect(markup).toContain('aria-hidden="true"')
+    expect(markup.replace(/<[^>]*>/g, '')).toContain('BossPickSeoul')
+  })
+
+  /*
+   * 셸이 조판을 다시 주면 락업의 `BossPick` 700 + `Seoul` 400 무게 분리가
+   * 캐스케이드에 깨진다. 헤더 `Brand` 에서 같은 이유로 폰트 속성을 뺐다.
+   */
+  it('셸의 홈 링크는 조판 속성을 갖지 않는다', () => {
+    const css = squeeze(renderStyles(createElement(PasswordResetForm)))
+    const homeLinkRule = css.match(/\.[\w-]+\{[^}]*min-height:44px[^}]*\}/)
+
+    expect(homeLinkRule).not.toBeNull()
+    expect(homeLinkRule?.[0]).not.toContain('font-size')
+    expect(homeLinkRule?.[0]).not.toContain('font-weight')
+    expect(homeLinkRule?.[0]).not.toContain('letter-spacing')
   })
 })
