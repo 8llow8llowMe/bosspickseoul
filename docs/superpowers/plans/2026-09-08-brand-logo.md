@@ -442,7 +442,10 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```ts
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 ```
+
+`__dirname` 을 쓰지 않는다 — vitest 는 ESM 으로 돌아 정의되지 않는다. 저장소는 이미 `import.meta.url` 관례를 쓴다(`src/components/analysis/analysis-map-shell.route.test.ts:16`).
 
 추가할 내용:
 
@@ -471,7 +474,10 @@ describe('브랜드 컬러 토큰 (로고 전용)', () => {
 })
 
 describe('브랜드 강조색은 로고 전용이다', () => {
-  const projectRoot = path.resolve(__dirname, '../..')
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '../..',
+  )
 
   /** 강조색이 허용되는 곳. 브랜드 자산과 그 문서뿐이다. */
   const allowed = [
@@ -872,6 +878,9 @@ export default function BrandMark({
   const palette = paletteFor(tone, container)
   const { body, ghost, accent } = cellsFor(resolved)
 
+  // `pnpm typecheck` 가 유니온 스프레드를 막으면 이 부분은 자유롭게
+  // 재구성해도 된다. 렌더 결과(`role="img"` + `<title>` 또는
+  // `aria-hidden="true"`)만 테스트대로 유지한다.
   const accessibility = title
     ? ({ role: 'img' } as const)
     : ({ 'aria-hidden': true } as const)
@@ -923,12 +932,16 @@ export default function BrandMark({
       {...accessibility}
     >
       {title ? <title>{title}</title> : null}
+      {/*
+        prop 순서가 계약이다 — 테스트와 정적 `app/icon.svg` 가
+        `data-role="container" fill="…"` 를 연속 문자열로 검사한다.
+      */}
       <rect
         data-role="container"
+        fill={palette.container}
         width={round(side)}
         height={round(side)}
         rx={round(side * 0.25)}
-        fill={palette.container}
       />
       <g
         transform={`translate(${round((side - box.width) / 2)} ${round(
@@ -985,6 +998,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```ts
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -1008,7 +1022,10 @@ import {
  * 좌표를 한쪽만 고치면 이 테스트가 깨진다.
  */
 
-const projectRoot = path.resolve(__dirname, '../../..')
+const projectRoot = path.resolve(
+  fileURLToPath(new URL('.', import.meta.url)),
+  '../../..',
+)
 
 const readAsset = (relative: string): string =>
   readFileSync(path.join(projectRoot, relative), 'utf8')
@@ -1352,7 +1369,8 @@ const Wordmark = styled.span<{ $size: number; $inverse: boolean }>`
   color: ${props =>
     props.$inverse ? '#ffffff' : 'var(--color-text-900)'};
   font-size: ${props => props.$size}px;
-  line-height: ${props => (props.$size * 28) / 19}px;
+  /* 푸터 크기 15px 에서 22.105... 가 나오므로 반올림한다. 19→28, 38→56 은 그대로다. */
+  line-height: ${props => Math.round((props.$size * 28) / 19)}px;
   letter-spacing: -0.01em;
   white-space: nowrap;
 `
@@ -1425,11 +1443,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
  * 격자를 살리려면 46px 가 필요해 들어가지 않는다 — 그래서 Solid 다.
  */
 describe('헤더 기본값 계약', () => {
-  it('기본 컨테이너 32px 는 헤더 min-height 40px 에 들어간다', () => {
+  // 32px 컨테이너는 헤더 min-height 40px 안에 여유 있게 들어간다.
+  // 실제 여유 공간은 Step 7 의 브라우저 실측이 검증한다.
+  it('기본 컨테이너는 32px 다', () => {
     const { html } = renderLockup()
 
     expect(html).toContain('width="32"')
-    expect(32).toBeLessThanOrEqual(40)
   })
 
   it('기본 컨테이너는 격자가 아니라 Solid 를 담는다', () => {
@@ -1508,24 +1527,26 @@ import 블록에 추가한다:
 import BrandLockup from '@/components/brand/brand-lockup'
 ```
 
-`Title` styled 선언(25~31행)을 **지운다**. 그리고 `Inner` 에 아래 규칙을 더해 락업과 본문 사이 간격을 유지한다:
+`Title` styled 선언(25~31행)을 아래 래퍼로 **교체한다**. `Inner` 는 건드리지 않는다:
 
 ```ts
-const Inner = styled.div`
-  ${shellWidth}
-  padding: 24px 0 32px;
-
-  /* 기존 Title 의 margin-bottom: 6px 을 락업이 대신 받는다. */
-  > span {
-    margin-bottom: 6px;
-  }
+/**
+ * 락업 전용 블록 래퍼. `BrandLockup` 의 루트는 `inline-flex` 라서 블록
+ * `<p>` 형제 옆에 그냥 두면 줄상자가 생긴다. `Inner > span` 같은 요소
+ * 선택자로 겨냥하면 락업 구현이 바뀔 때 조용히 깨지므로 명시적으로 감싼다.
+ * 간격 6px 은 기존 `Title` 의 `margin-bottom` 을 그대로 이어받는다.
+ */
+const LockupRow = styled.div`
+  margin-bottom: 6px;
 `
 ```
 
 `SiteFooter` 본문에서 `<Title>BossPickSeoul</Title>` 을 바꾼다:
 
 ```tsx
-        <BrandLockup markHeight={24} wordmarkSize={15} />
+        <LockupRow>
+          <BrandLockup markHeight={24} wordmarkSize={15} />
+        </LockupRow>
 ```
 
 - [ ] **Step 5: 테스트를 돌린다**
