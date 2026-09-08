@@ -54,7 +54,11 @@ public class CommercialAnalysisImportJobConfig {
             ValidationResult validation = new ValidationResult(execution.getLong("acceptedRows"), execution.getLong("rejectedRows"),
                 execution.getLong("duplicateKeys"), execution.getLong("unmappedRows"));
             if (!validation.valid(request.expectedRows()) || receipt.inputRows() != request.expectedRows()) {
-                throw new IllegalStateException("Dataset validation failed; inspect dataset_release and dataset_rejected_row");
+                // The counts are the operator's next --expected-rows and rejection lead; do not make them dig for them.
+                throw new IllegalStateException("Dataset validation failed: expected=" + request.expectedRows()
+                    + " input=" + receipt.inputRows() + " accepted=" + validation.acceptedRows()
+                    + " rejected=" + validation.rejectedRows() + " duplicate=" + validation.duplicateKeys()
+                    + " unmapped=" + validation.unmappedRows() + "; inspect dataset_release and dataset_rejected_row");
             }
             releases.complete(request, receipt, validation);
             return RepeatStatus.FINISHED;
