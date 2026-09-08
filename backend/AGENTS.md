@@ -44,6 +44,7 @@
 - Hexagonal 경계 점검은 `.agents/skills/hexagonal-guard`
 - 새 기능/서비스 시작은 `.agents/skills/backend-feature-bootstrap`
 - 큰 백엔드 작업을 역할별로 나눌 때는 `.agents/skills/backend-multi-agent`
+- 비단순 개발 작업의 역할·모델 분배는 `.agents/skills/dev-orchestrator`
 
 ### 사용 예시
 
@@ -51,7 +52,14 @@
 - `$hexagonal-guard`
 - `$backend-feature-bootstrap`
 - `$backend-multi-agent`
+- `$dev-orchestrator`
 - 자연어로 요청해도 되지만 `$스킬명` 형식이 가장 확실하다.
+
+### 역할별 에이전트
+
+- Codex 역할 파일은 `.codex/agents/*.toml`, 정본은 `../docs/codex-agents.md`. Claude Code 는 `.claude/agents/*.md`, 정본은 `../docs/claude-agents.md`.
+- 공용 7종(`explorer`, `crud_implementer`, `implementer`, `bug_investigator`, `reviewer`, `refactorer`, `architect`)은 양쪽에 있고, 백엔드 전용 4종(`be-executor`, `be-hexagonal-reviewer`, `be-db-reviewer`, `be-security-reviewer`)은 Claude Code 파일만 있다. 다른 호스트에서는 그 파일을 역할 프롬프트로 읽어 순차 적용한다.
+- 모든 작업을 병렬화하지 않는다. 독립적인 읽기 전용 조사·검토만 병렬화하고, 쓰기는 한 실행자가 순차 수행한다.
 
 ## 6. 문서 갱신 규칙
 
