@@ -1,6 +1,6 @@
 ---
 omd: 0.1
-brand: Toss
+brand: BossPickSeoul
 ---
 
 # Custom Design System (based on Toss)
@@ -11,19 +11,64 @@ brand: Toss
 
 Toss is Korea's fintech super-app that redefined what a financial interface could feel like -- calm, confident, and deceptively simple. The page opens on a clean white canvas (`#ffffff`) with deep charcoal headings (`#191f28`) and a signature blue (`#0ea5e9`) that functions as the universal interactive accent. This isn't the cold, institutional blue of legacy banking; it's a bright, optimistic cerulean that says "your money is in good hands, and we'll make it easy."
 
-The custom **Toss Product Sans** typeface is the quiet hero. Developed with Korean type foundries Sandoll and Leedotype, it was purpose-built for financial contexts: numerals and Latin characters are optically weighted to match Korean hangul proportions, and financial symbols (%, commas, ±) are given enhanced legibility. The font ships in 8 weights (300-950) but the UI exercises restraint, primarily using 400, 600, and 700. The system supports both variable-width numerals for display and fixed-width (tabular) numerals for data tables -- context determines mode.
+The custom **Toss Product Sans** typeface is the quiet hero. Developed with Korean type foundries Sandoll and Leedotype, it was purpose-built for financial contexts: numerals and Latin characters are optically weighted to match Korean hangul proportions, and financial symbols (%, commas, ±) are given enhanced legibility. The font ships in 8 weights (300-950) but the UI exercises restraint, primarily using 400, 600, and 700. The system supports both variable-width numerals for display and fixed-width (tabular) numerals for data tables -- context determines mode. **단, 이 저장소는 Toss Product Sans 를 싣지 않는다.** `public/fonts/` 에는 Pretendard 만 있고 Toss Product Sans 는 폴백 목록에 이름만 있다. 위 서술은 원본 시스템의 설계 의도를 기록한 것이고, **실제 렌더 서체는 Pretendard** 다.
 
 What defines Toss visually is its OKLCH-based color system, rebuilt from scratch for perceptual uniformity. Colors at the same scale level appear equally bright regardless of hue, enabling consistent semantic coloring where blue-500, red-500, and green-500 carry identical visual weight without manual tuning.
 
 **Key Characteristics:**
 
 - Toss Blue (`#0ea5e9`) as the primary interactive color -- bright, optimistic, trustworthy
-- Toss Product Sans with Korean-Latin optical balancing and tabular numeral support
+- Pretendard (Toss Product Sans 는 싣지 않는다 — 폴백 이름만 남아 있다)
 - OKLCH color space for perceptual uniformity across all hue scales
 - 10-step grey scale (grey50-grey900) with warm undertones
 - Three-tier token architecture: primitive → semantic → component
 - Minimal shadow system -- trust comes from clarity, not depth
 - Mobile-first at 375px design baseline with accessibility scaling up to 310%
+
+## 1.5. Brand Assets
+
+로고 기하의 정본은 `src/lib/brand/mark-geometry.ts` 다. 좌표를 고칠 일이 있으면 그 파일을 고치고, `src/lib/brand/brand-assets.test.ts` 가 정적 SVG 와의 일치를 지킨다. 설계 근거는 `docs/superpowers/specs/2026-09-08-brand-logo-design.md`.
+
+### 심볼
+
+B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 19 34"`, 모듈 `4`, 갭 `1`, pitch `5`, 모서리는 각짐(`rx` 없음). 아래 카운터 2×2 중 **우하단 한 칸**을 강조색으로 채워 "여러 칸 중 하나를 골랐다"는 Pick 의미를 담는다.
+
+**3열의 노치 3칸 `(15,0) (15,15) (15,30)`은 어떤 변형에서도 채우지 않는다.** 채우면 실루엣이 4×7 사각형이 되어 B 가 죽는다.
+
+### 크기별 변형
+
+| 변형    | 크기      | 구성                           |
+| ------- | --------- | ------------------------------ |
+| Primary | 48px+     | 격자 + 고스트 7칸              |
+| Grid    | 34~47px   | 격자, 고스트 없음              |
+| Solid   | 33px 이하 | 갭 없음, `viewBox="0 0 16 28"` |
+
+34px 에서 갭이 1px 로 렌더된다. 27px 는 0.79px, 20px 는 0.59px 로 무너진다 — 브라우저 1배율 실측. `resolveMarkVariant(height)` 가 이 규칙을 코드로 들고 있다.
+
+### 컨테이너
+
+정사각, `border-radius = 변 길이 × 0.25`, 심볼 높이 `= 변 길이 × 0.625`. 잉크 바탕 + 흰 심볼이 기본이고 어두운 배경에서는 흰 바탕 + 잉크 심볼로 반전한다.
+
+심볼을 컨테이너 없이 워드마크 옆에 두면 안 된다 — 비례가 0.559 라 텍스트 높이에 맞추면 폭 15px 의 조각이 되어 장식 불릿처럼 보인다. 심볼 단독 사용은 34px 이상에서만 허용한다.
+
+### 워드마크와 락업
+
+`BossPick` **700** + `Seoul` **400**, `letter-spacing: -0.01em`. 13자를 전부 700 으로 두면 덩어리로 뭉친다.
+
+가로형 기본값은 컨테이너 32px + 간격 8px + 워드마크 19px 다. 간격은 컨테이너 변의 25% 이고 최소 여백도 같다. `BrandLockup` 컴포넌트를 쓰고 조판을 호출부에서 다시 주지 않는다.
+
+### 자산 파일
+
+| 경로                            | 용도                     |
+| ------------------------------- | ------------------------ |
+| `public/brand/mark-primary.svg` | 배포용 Primary 심볼      |
+| `public/brand/mark-grid.svg`    | 배포용 Grid 심볼         |
+| `public/brand/mark-solid.svg`   | 배포용 Solid 심볼        |
+| `app/icon.svg`                  | 파비콘(컨테이너 + Solid) |
+| `app/apple-icon.tsx`            | 180×180                  |
+| `app/opengraph-image.tsx`       | 1200×630                 |
+
+정적 **락업** SVG 는 없다. `<text>` 는 파일을 여는 사람 컴퓨터에 Pretendard 가 있어야 하고, 글자를 아웃라인 패스로 바꿀 도구가 저장소에 없다. `apple-icon` 과 OG 이미지에 워드마크가 없는 것도 같은 계열의 제약이다 — satori 는 WOFF2 를 지원하지 않고 저장소에는 WOFF2 만 있다. Pretendard TTF/OTF 를 싣는 것이 후속 과제다.
 
 ## 2. Color Palette & Roles
 
@@ -37,8 +82,10 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 
 ### Brand (Logo/Marketing Only)
 
-- **Brand Blue** (`#0064FF`): Official Toss brand color (Pantone 2175 C). Logo and marketing materials only -- distinct from UI blue500.
-- **Brand Gray** (`#202632`): Official secondary brand color (Pantone 433 C). Corporate contexts.
+- **Brand Ink** (`#191f28`): `--color-brand-ink`. 심볼 본체와 워드마크. `grey900` 과 같은 값이다.
+- **Brand Accent** (`#00795c`): `--color-brand-accent`. 강조 칸 전용. **UI 에서 절대 쓰지 않는다** — `green500`(`#03b26c`)과 계열이 같아 성공·상승 시맨틱과 혼동된다.
+- **Brand Ghost** (`#edf0f3`): `--color-brand-ghost`. 고스트 칸 전용. 48px 이상에서만 등장한다.
+- **반전 팔레트**: 어두운 배경에서 본체 `#ffffff`, 고스트 `#252d3a`, 강조 `#12a47c`. 강조색을 밝히는 이유는 원래 값(`#00795c`)이 반전 고스트 대비 2.04 로 무너지기 때문이다. 고스트가 `grey800`(`#333d4b`)이 아닌 이유는 그 값이 잉크 배경 대비 1.51 로 **너무 잘 보여** 카운터가 채워진 것처럼 읽히고 B 판독성이 무너지기 때문이다 — 라이트 모드 고스트는 배경 대비 1.14 이고 `#252d3a` 는 1.19 로 그 미묘함을 맞춘다.
 
 ### Semantic
 
@@ -72,24 +119,24 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 
 ### Font Family
 
-- **Primary**: `"Toss Product Sans", "Tossface", "SF Pro KR", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Basier Square", "Apple SD Gothic Neo", Roboto, "Noto Sans KR", sans-serif`
+- **Primary**: `Pretendard` (`next/font/local`, `src/lib/fonts.ts`). 400 / 500 / 600 / 700 네 무게를 싣는다. 폴백은 `'Toss Product Sans', 'Tossface', 'SF Pro KR', 'SF Pro Display', 'Apple SD Gothic Neo', 'Roboto', 'Noto Sans KR', 'Malgun Gothic', 'system-ui', 'sans-serif'`.
 - **Monospace**: `"SF Mono", SFMono-Regular, Menlo, Consolas, monospace`
 - **Emoji**: `Tossface` -- Toss's custom emoji font (3500+ emojis, open-source on GitHub)
 
 ### Hierarchy
 
-| Role           | Font              | Size  | Weight | Line Height | Letter Spacing | Notes                             |
-| -------------- | ----------------- | ----- | ------ | ----------- | -------------- | --------------------------------- |
-| Display Hero   | Toss Product Sans | 30px  | 700    | 40px (1.33) | normal         | Splash screens, hero moments      |
-| Display Large  | Toss Product Sans | 26px  | 700    | 36px (1.38) | normal         | Section headers, key metrics      |
-| Heading Large  | Toss Product Sans | 22px  | 700    | 30px (1.36) | normal         | Feature titles, modal headers     |
-| Heading        | Toss Product Sans | 20px  | 600    | 28px (1.40) | normal         | Card headings, sub-sections       |
-| Subtitle       | Toss Product Sans | 16px  | 600    | 24px (1.50) | normal         | Navigation titles, list headers   |
-| Body Large     | Toss Product Sans | 16px  | 400    | 24px (1.50) | normal         | Descriptions, explanations        |
-| Body           | Toss Product Sans | 14px  | 400    | 22px (1.57) | normal         | Standard reading text             |
-| Body Small     | Toss Product Sans | 13px  | 400    | 20px (1.54) | normal         | Secondary information             |
-| Caption        | Toss Product Sans | 12px  | 400    | 18px (1.50) | normal         | Timestamps, fine print            |
-| Number Display | Toss Product Sans | 30px+ | 700    | tight       | normal         | Financial amounts -- tabular nums |
+| Role           | Font       | Size  | Weight | Line Height | Letter Spacing | Notes                             |
+| -------------- | ---------- | ----- | ------ | ----------- | -------------- | --------------------------------- |
+| Display Hero   | Pretendard | 30px  | 700    | 40px (1.33) | normal         | Splash screens, hero moments      |
+| Display Large  | Pretendard | 26px  | 700    | 36px (1.38) | normal         | Section headers, key metrics      |
+| Heading Large  | Pretendard | 22px  | 700    | 30px (1.36) | normal         | Feature titles, modal headers     |
+| Heading        | Pretendard | 20px  | 600    | 28px (1.40) | normal         | Card headings, sub-sections       |
+| Subtitle       | Pretendard | 16px  | 600    | 24px (1.50) | normal         | Navigation titles, list headers   |
+| Body Large     | Pretendard | 16px  | 400    | 24px (1.50) | normal         | Descriptions, explanations        |
+| Body           | Pretendard | 14px  | 400    | 22px (1.57) | normal         | Standard reading text             |
+| Body Small     | Pretendard | 13px  | 400    | 20px (1.54) | normal         | Secondary information             |
+| Caption        | Pretendard | 12px  | 400    | 18px (1.50) | normal         | Timestamps, fine print            |
+| Number Display | Pretendard | 30px+ | 700    | tight       | normal         | Financial amounts -- tabular nums |
 
 ### Principles
 
@@ -301,7 +348,7 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 
 ### Don't
 
-- Don't confuse Brand Blue (`#0064FF`) with UI Blue (`#0ea5e9`) -- brand is for marketing/logo only
+- Don't confuse Brand Accent (`#00795c`) with UI Blue (`#0ea5e9`) or Success Green (`#03b26c`) -- brand accent is for the logo mark's accent cell only, never a UI color
 - Don't use heavy shadows -- rely on background color layering, not depth
 - Don't use bold (700) for body text -- reserved for headings and financial amounts
 - Don't mix variable-width and tabular numerals in the same data context
@@ -365,8 +412,8 @@ What defines Toss visually is its OKLCH-based color system, rebuilt from scratch
 
 ### Iteration Guide
 
-1. Always use the full Toss Product Sans font stack with Korean fallbacks
-2. Primary interactive color is `#0ea5e9` (blue500) -- never `#0064FF` (brand blue)
+1. Always use Pretendard (the font this repo actually loads) with its Korean fallback stack -- not Toss Product Sans
+2. Primary interactive color is `#0ea5e9` (blue500) -- never the logo mark's Brand Accent (`#00795c`)
 3. Financial numbers: 700 weight, tabular numerals, right-aligned in lists
 4. Grey scale has warm undertones: grey900 `#191f28`, grey50 `#f9fafb`
 5. Border-radius: 12px inputs, 8px buttons/chips, 12px cards, 16px sheets, pill for toggles

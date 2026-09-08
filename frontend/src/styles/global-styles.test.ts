@@ -2,6 +2,9 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import GlobalStyles from './global-styles'
 
 /** styled-components 는 선언을 압축해 내보낸다 — 공백 차이로 깨지지 않게 지운다. */
@@ -81,5 +84,96 @@ describe('폭 토큰 (설계 2026-09-04-app-width-system)', () => {
     const css = squeeze(renderGlobalCss())
 
     expect(css).toContain('--shell-gutter:16px;')
+  })
+})
+
+/**
+ * 로고 강조색은 `green500`(#03b26c)과 계열이 같다. UI 에 풀리면 성공·상승
+ * 시맨틱과 혼동되므로 브랜드 파일 밖에서는 등장하지 않아야 한다.
+ * 이 분리는 규약으로만 유지되니 여기서 못박는다.
+ */
+describe('브랜드 컬러 토큰 (로고 전용)', () => {
+  it('브랜드 토큰 셋을 :root 에 선언한다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain('--color-brand-ink:#191f28;')
+    expect(css).toContain('--color-brand-accent:#00795c;')
+    expect(css).toContain('--color-brand-ghost:#edf0f3;')
+  })
+
+  it('로고 파랑 금지 — 브랜드 토큰이 blue500 을 참조하지 않는다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).not.toContain('--color-brand-accent:var(--color-blue-500)')
+    expect(css).not.toContain('--color-brand-accent:#0ea5e9')
+    expect(css).not.toContain('--color-brand-accent:#0064ff')
+  })
+})
+
+describe('브랜드 강조색은 로고 전용이다', () => {
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '../..',
+  )
+
+  /** 강조색이 허용되는 곳. 브랜드 자산과 그 문서뿐이다. */
+  const allowed = [
+    'src/lib/brand',
+    'src/components/brand',
+    'src/styles/global-styles.ts',
+    'src/styles/global-styles.test.ts',
+    'public/brand',
+    'app/icon.svg',
+    'app/apple-icon.tsx',
+    'app/opengraph-image.tsx',
+    /* DESIGN.md는 스캔 트리 밖에 있어 도달할 수 없지만 규약 문서로 존재한다 */
+    'DESIGN.md',
+  ].map(entry => path.join(projectRoot, entry))
+
+  const scanned = ['src', 'app', 'public']
+  const extensions = ['.ts', '.tsx', '.css', '.svg', '.md', '.js']
+
+  const collect = (dir: string): string[] => {
+    const out: string[] = []
+
+    for (const name of readdirSync(dir)) {
+      if (name === 'node_modules' || name.startsWith('.')) continue
+
+      const full = path.join(dir, name)
+
+      if (statSync(full).isDirectory()) {
+        out.push(...collect(full))
+        continue
+      }
+
+      if (extensions.some(ext => name.endsWith(ext))) out.push(full)
+    }
+
+    return out
+  }
+
+  /**
+   * hex 리터럴뿐 아니라 `--color-brand-accent`/`--color-brand-ghost`
+   * CSS 변수 참조도 우회로다 — `:root` 에 선언돼 있어 어떤 styled-component
+   * 에서도 `var(--color-brand-accent)` 로 끌어다 쓸 수 있다.
+   * `--color-brand-ink` 는 `grey900` 과 같은 값이라 시맨틱 혼동 위험이 없으므로
+   * 금지 대상에서 뺀다.
+   */
+  const bannedPattern =
+    /#00795c|#12a47c|var\(--color-brand-accent\)|var\(--color-brand-ghost\)/i
+
+  it('#00795c/#12a47c 와 그 CSS 변수 참조가 브랜드 파일 밖에서는 쓰이지 않는다', () => {
+    const offenders = scanned
+      .flatMap(entry => collect(path.join(projectRoot, entry)))
+      .filter(
+        file =>
+          !allowed.some(
+            prefix => file === prefix || file.startsWith(prefix + path.sep),
+          ),
+      )
+      .filter(file => bannedPattern.test(readFileSync(file, 'utf8')))
+      .map(file => path.relative(projectRoot, file))
+
+    expect(offenders).toEqual([])
   })
 })
