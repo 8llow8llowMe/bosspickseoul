@@ -15,7 +15,10 @@ import SimulationResultPanel from '@/components/simulation/simulation-result-pan
 import SimulationStoreConditionFields from '@/components/simulation/simulation-store-condition-fields'
 import SimulationSummaryBar from '@/components/simulation/simulation-summary-bar'
 import { TextField } from '@/components/ui/text-field'
-import { SIMULATION_SERVICE_TYPES } from '@/data/simulation-service-types'
+import {
+  SIMULATION_SERVICE_TYPES,
+  isSimulationServiceCode,
+} from '@/data/simulation-service-types'
 import { resolveApiError } from '@/lib/api/api-error'
 import { createSimulationReport } from '@/lib/api/simulation'
 import { getResponseBody } from '@/lib/api/response'
@@ -580,7 +583,7 @@ export default function SimulationBuilderPage({
               complete={conditions.isSectionComplete('store')}
               expanded={openSection === 'store'}
               summary={describeSimulationSectionValue(state, 'store')}
-              locked={state.serviceCode === null}
+              locked={!isSimulationServiceCode(state.serviceCode)}
               onToggle={() =>
                 setOpenedByUser(openSection === 'store' ? null : 'store')
               }
@@ -589,9 +592,11 @@ export default function SimulationBuilderPage({
               }}
             >
               {/* store 가 펼쳐지려면 openSection 이 'store' 여야 하고, resolveOpenSection 은
-                  순회 순서(service → store)상 service 가 완료(=serviceCode 있음)일 때만
-                  store 를 연다 — 여기 도달하면 serviceCode 는 항상 있다. */}
-              {state.serviceCode ? (
+                  순회 순서(service → store)상 service 가 완료(=isSimulationServiceCode 를
+                  통과)일 때만 store 를 연다 — 여기 도달하면 항상 참이다. 그래도 truthy 검사가
+                  아니라 같은 술어로 다시 확인한다 — `locked` prop 과 다른 판정을 쓰면 「업종
+                  변경」이 만드는 빈 문자열(`''`) 앞에서 둘이 갈라진다. */}
+              {isSimulationServiceCode(state.serviceCode) ? (
                 <SimulationStoreConditionFields
                   serviceCode={state.serviceCode}
                   storeSize={state.storeSize}
