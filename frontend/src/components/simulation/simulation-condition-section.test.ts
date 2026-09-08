@@ -69,8 +69,12 @@ describe('SimulationConditionSectionCard', () => {
   it('펼쳐지면 설명이 헤더 밖 블록으로 나온다', () => {
     const html = render({ description: '자치구별 임대료 기준으로 계산해요.' })
 
-    expect(html).toContain('자치구별 임대료 기준으로 계산해요.')
-    expect(html).not.toContain('선택 전')
+    // expanded면 Value(헤더 요약)가 아예 안 그려지므로 `not.toContain('선택 전')`만으로는
+    // 설명이 헤더 안에 남아 있어도(버그) 통과해 버린다 — 패널 id와 설명 문구의 "순서"를
+    // 함께 묶어야 설명이 Panel(헤더 밖) 블록에 있다는 것을 실제로 검증한다.
+    expect(html).toMatch(
+      /id="simulation-section-district-panel"[\s\S]*자치구별 임대료 기준으로 계산해요\./,
+    )
   })
 
   /* 헤딩이 없으면 스크린리더의 섹션 탐색이 끊긴다. */

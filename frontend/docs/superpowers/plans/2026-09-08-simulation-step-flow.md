@@ -1,5 +1,11 @@
 # 시뮬레이션 입력 단계 아코디언 전환 Implementation Plan
 
+> **정정(2026-09-08 실행 후)**: 이 계획의 Task 1·4 는 「비어 있는 단계가 사용자 의사를 이긴다」와
+> `isLocked` 가드를 전제한다. 실행 중 둘 다 뒤집혔다 — `isLocked` 는 도달 불가능해 제거했고,
+> 우선순위는 「사용자가 연 단계가 이기고 선택할 때마다 그 값을 비운다」로 바뀌었다(gap 우선은
+> 완료된 앞 단계의 「변경」을 죽은 컨트롤로 만들었다). 정본은 명세 D4-1-1 과
+> `src/lib/simulation/step-flow.ts` 다.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 창업 시뮬레이션 입력 화면에서 네 단계를 동시에 펼쳐 두던 것을 「한 번에 한 단계」로 바꿔, 1440×900 한 화면의 버튼 59개를 그 단계 것만 남긴다.
