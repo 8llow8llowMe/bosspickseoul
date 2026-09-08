@@ -279,12 +279,24 @@ const GlobalStyles = createGlobalStyle`
   }
 
   [data-kakao-map] .area-map-label[data-selected='true'],
-  [data-kakao-map] .area-map-label:focus-visible,
   [data-kakao-map] .area-map-label:hover {
     border-color: var(--color-primary-600);
     background: var(--color-primary-700);
     color: #fff;
     outline: none;
+  }
+
+  /*
+    포커스를 hover·선택과 같은 선언에 묶어 두면 'outline: none' 이 링까지 지워서
+    키보드로 라벨을 훑는 것이 화면에 전혀 드러나지 않았다. 채움은 그대로 두고 링만
+    되살린다 — 지도 위 임의의 배경에 놓이므로 글로우보다 링이 확실하다.
+  */
+  [data-kakao-map] .area-map-label:focus-visible {
+    border-color: var(--color-primary-600);
+    background: var(--color-primary-700);
+    color: #fff;
+    outline: 2px solid var(--color-primary-700);
+    outline-offset: 2px;
   }
 
   ul,

@@ -227,3 +227,80 @@ describe('포커스 링은 primary-700 이다', () => {
     expect(offenders).toEqual([])
   })
 })
+
+/**
+ * **hover 와 포커스를 한 선택자에 묶고 링까지 지우면 포커스가 화면에서 사라진다.**
+ *
+ * `&:hover, &:focus-visible { ... outline: none }` 는 두 가지를 동시에 한다 — 포커스를
+ * hover 와 똑같이 보이게 만들고, 전역 `:focus-visible` 링을 지운다. 그러면 키보드
+ * 사용자는 자기가 어디 있는지 알 수 없다. 마우스로 지나간 것과 구별이 안 된다.
+ *
+ * 눈으로는 「아무 일도 안 일어남」이라 리뷰에서 놓친다 — 실제로 11곳이 그랬다(#265).
+ *
+ * 통과하는 형태는 둘이다.
+ * - 묶되 `outline: none` 을 두지 않는다 → 전역 링이 그대로 뜬다
+ * - 포커스를 따로 떼어 자기 신호(`--shadow-focus-primary`·링·테두리 굵기)를 준다
+ *
+ * hover 를 섞지 않은 포커스 전용 블록은 대상이 아니다 — `outline: none` 을 쓰더라도
+ * 대체 신호를 함께 두는 관용구가 있다(`option-picker` 검색칸의 테두리 굵기,
+ * `seoul-districts-map` 의 fill 강조, recharts 의 의도적 제거).
+ */
+describe('포커스가 hover 에 묻히지 않는다', () => {
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+  )
+
+  const collectSources = (dir: string): string[] => {
+    const out: string[] = []
+
+    for (const name of readdirSync(dir)) {
+      if (name === 'node_modules' || name.startsWith('.')) continue
+
+      const full = path.join(dir, name)
+
+      if (statSync(full).isDirectory()) {
+        out.push(...collectSources(full))
+        continue
+      }
+
+      if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full)
+    }
+
+    return out
+  }
+
+  /**
+   * 주석을 **지운 뒤** 스캔한다. 오프셋을 유지하려고 내용만 공백으로 바꾼다 —
+   * 그러지 않으면 「포커스는 hover 와 달라야 한다」처럼 hover 를 언급하는 주석이
+   * 선택자로 읽혀 방금 고친 블록이 위반으로 잡힌다(실제로 그렇게 잡혔다).
+   */
+  const blankComments = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, match =>
+      match.replace(/[^\n]/g, ' '),
+    )
+
+  /**
+   * 선택자에 hover 와 focus-visible 이 함께 있는 블록. 선택자에는 `;` 가 없으므로
+   * 그것을 경계로 써서 앞 선언까지 삼키지 않게 한다.
+   */
+  const bundled =
+    /([^{};]*hover[^{};]*focus-visible[^{};]*|[^{};]*focus-visible[^{};]*hover[^{};]*)\{([^{}]*)\}/g
+
+  it('hover 와 묶인 포커스 블록이 outline 을 지우지 않는다', () => {
+    const offenders: string[] = []
+
+    for (const file of collectSources(projectRoot)) {
+      const source = blankComments(readFileSync(file, 'utf8'))
+
+      for (const match of source.matchAll(bundled)) {
+        if (!/outline: *(none|0)/.test(match[2])) continue
+
+        const line = source.slice(0, match.index).split('\n').length
+        offenders.push(`${path.relative(projectRoot, file)}:${line}`)
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+})
