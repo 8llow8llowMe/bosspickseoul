@@ -217,7 +217,12 @@ export default function SimulationBuilderPage({
   const headerRefs = useRef(
     new Map<SimulationConditionSection, HTMLButtonElement | null>(),
   )
-  const lastFocused = useRef<SimulationConditionSection | null>(null)
+  /*
+    초기값에 첫 렌더의 openSection 을 심는다. null 로 두면 마운트 직후 effect 가
+    「자동 진행」으로 착각해 페이지를 연 사람의 포커스를 1단계 버튼으로 끌어간다.
+    useRef 의 초기값은 첫 렌더에서만 쓰이므로 이후 전환은 그대로 잡힌다.
+  */
+  const lastFocused = useRef<SimulationConditionSection | null>(openSection)
 
   /*
     단계가 자동으로 바뀌면 새 헤더로 포커스를 옮긴다. 옮기지 않으면 키보드·스크린리더
