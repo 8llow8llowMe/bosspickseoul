@@ -126,10 +126,11 @@ describe('브랜드 강조색은 로고 전용이다', () => {
     'app/icon.svg',
     'app/apple-icon.tsx',
     'app/opengraph-image.tsx',
+    /* DESIGN.md는 스캔 트리 밖에 있어 도달할 수 없지만 규약 문서로 존재한다 */
     'DESIGN.md',
   ].map(entry => path.join(projectRoot, entry))
 
-  const scanned = ['src', 'app']
+  const scanned = ['src', 'app', 'public']
   const extensions = ['.ts', '.tsx', '.css', '.svg', '.md']
 
   const collect = (dir: string): string[] => {
@@ -154,7 +155,12 @@ describe('브랜드 강조색은 로고 전용이다', () => {
   it('#00795c 와 #12a47c 가 브랜드 파일 밖에서는 쓰이지 않는다', () => {
     const offenders = scanned
       .flatMap(entry => collect(path.join(projectRoot, entry)))
-      .filter(file => !allowed.some(prefix => file.startsWith(prefix)))
+      .filter(
+        file =>
+          !allowed.some(
+            prefix => file === prefix || file.startsWith(prefix + path.sep),
+          ),
+      )
       .filter(file => /#00795c|#12a47c/i.test(readFileSync(file, 'utf8')))
       .map(file => path.relative(projectRoot, file))
 
