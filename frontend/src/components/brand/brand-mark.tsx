@@ -5,6 +5,8 @@ import {
   BRAND_INVERSE_ACCENT,
   BRAND_INVERSE_BODY,
   BRAND_INVERSE_GHOST,
+  CONTAINER_RADIUS_RATIO,
+  CONTAINER_SYMBOL_RATIO,
   GRID_ACCENT_CELL,
   GRID_BODY_CELLS,
   GRID_GHOST_CELLS,
@@ -111,7 +113,9 @@ export default function BrandMark({
   title,
 }: BrandMarkProps) {
   // 컨테이너 안 심볼 높이는 변 길이의 62.5% 다(명세 §8). 정수로 내린다.
-  const markHeight = container ? Math.floor(height * 0.625) : height
+  const markHeight = container
+    ? Math.floor(height * CONTAINER_SYMBOL_RATIO)
+    : height
   const resolved = variant ?? resolveMarkVariant(markHeight)
 
   const box = viewBoxFor(resolved)
@@ -182,7 +186,7 @@ export default function BrandMark({
         fill={palette.container}
         width={round(side)}
         height={round(side)}
-        rx={round(side * 0.25)}
+        rx={round(side * CONTAINER_RADIUS_RATIO)}
       />
       <g
         transform={`translate(${round((side - box.width) / 2)} ${round(

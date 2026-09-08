@@ -9,6 +9,7 @@ import {
   BRAND_INK,
   BRAND_INVERSE_ACCENT,
   BRAND_INVERSE_BODY,
+  CONTAINER_RADIUS_RATIO,
   GRID_ACCENT_CELL,
   GRID_BODY_CELLS,
   GRID_GHOST_CELLS,
@@ -105,7 +106,7 @@ describe('app/icon.svg (파비콘)', () => {
     const side = containerSideFor('solid')
 
     expect(svg).toContain(`viewBox="0 0 ${side} ${side}"`)
-    expect(svg).toContain(`rx="${side * 0.25}"`)
+    expect(svg).toContain(`rx="${side * CONTAINER_RADIUS_RATIO}"`)
     expect(svg).toContain(`data-role="container" fill="${BRAND_INK}"`)
   })
 

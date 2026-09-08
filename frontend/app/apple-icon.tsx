@@ -5,6 +5,8 @@ import {
   BRAND_INVERSE_ACCENT,
   BRAND_INVERSE_BODY,
   BRAND_INVERSE_GHOST,
+  CONTAINER_RADIUS_RATIO,
+  CONTAINER_SYMBOL_RATIO,
   GRID_ACCENT_CELL,
   GRID_BODY_CELLS,
   GRID_GHOST_CELLS,
@@ -24,7 +26,7 @@ import {
 export const size = { width: 180, height: 180 }
 export const contentType = 'image/png'
 
-const MARK_HEIGHT = Math.floor(size.height * 0.625)
+const MARK_HEIGHT = Math.floor(size.height * CONTAINER_SYMBOL_RATIO)
 const SCALE = MARK_HEIGHT / GRID_VIEWBOX.height
 const OFFSET_X = (size.width - GRID_VIEWBOX.width * SCALE) / 2
 const OFFSET_Y = (size.height - MARK_HEIGHT) / 2
@@ -53,7 +55,7 @@ export default function AppleIcon() {
         width: '100%',
         height: '100%',
         background: BRAND_INK,
-        borderRadius: size.width * 0.25,
+        borderRadius: size.width * CONTAINER_RADIUS_RATIO,
       }}
     >
       {GRID_GHOST_CELLS.map(item => cell(item, BRAND_INVERSE_GHOST))}

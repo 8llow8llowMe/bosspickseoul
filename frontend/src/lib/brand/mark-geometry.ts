@@ -27,6 +27,20 @@ export const BRAND_INVERSE_BODY = '#ffffff'
 export const BRAND_INVERSE_ACCENT = '#12a47c'
 export const BRAND_INVERSE_GHOST = '#252d3a'
 
+/**
+ * 컨테이너 변 길이 대비 심볼 높이 비율(명세 §8). `containerSideFor`,
+ * `BrandMark`(container 모드), `apple-icon.tsx` 세 곳에 흩어져 있던
+ * `0.625` 리터럴을 여기 하나로 모은다. 브랜드 상수이므로 값이 조용히
+ * 바뀌면 아이콘 전부가 같이 리사이즈된다 — `mark-geometry.test.ts` 가 못박는다.
+ */
+export const CONTAINER_SYMBOL_RATIO = 0.625
+
+/**
+ * 컨테이너 border-radius 대비 변 길이 비율(명세 §8). `BrandMark`(container
+ * 모드)와 `apple-icon.tsx` 에 중복돼 있던 `0.25` 리터럴을 여기로 모은다.
+ */
+export const CONTAINER_RADIUS_RATIO = 0.25
+
 export type BrandMarkVariant = 'primary' | 'grid' | 'solid'
 
 export type MarkCell = { readonly x: number; readonly y: number }
@@ -141,4 +155,4 @@ export const markWidthFor = (
  * radius 가 모두 소수 한 자리로 떨어진다.
  */
 export const containerSideFor = (variant: BrandMarkVariant): number =>
-  viewBoxFor(variant).height / 0.625
+  viewBoxFor(variant).height / CONTAINER_SYMBOL_RATIO

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  CONTAINER_RADIUS_RATIO,
+  CONTAINER_SYMBOL_RATIO,
   GRID_ACCENT_CELL,
   GRID_BODY_CELLS,
   GRID_GHOST_CELLS,
@@ -130,10 +132,29 @@ describe('치수 산출', () => {
   it('컨테이너 변 길이는 심볼 높이의 1.6 배다', () => {
     expect(containerSideFor('solid')).toBeCloseTo(44.8, 5)
     expect(containerSideFor('grid')).toBeCloseTo(54.4, 5)
-    expect(containerSideFor('solid') * 0.625).toBeCloseTo(
+    expect(containerSideFor('solid') * CONTAINER_SYMBOL_RATIO).toBeCloseTo(
       SOLID_VIEWBOX.height,
       5,
     )
-    expect(containerSideFor('grid') * 0.625).toBeCloseTo(GRID_VIEWBOX.height, 5)
+    expect(containerSideFor('grid') * CONTAINER_SYMBOL_RATIO).toBeCloseTo(
+      GRID_VIEWBOX.height,
+      5,
+    )
+  })
+})
+
+/**
+ * 브랜드 상수 회귀 방지 — `0.625`(심볼/컨테이너 비율)와 `0.25`(radius 비율)는
+ * `mark-geometry.ts`, `brand-mark.tsx`, `apple-icon.tsx` 세 곳에 흩어져
+ * 있다가 여기 두 상수로 모였다. 값이 조용히 바뀌면 앱아이콘·파비콘·헤더
+ * 락업이 전부 같이 리사이즈되므로 여기서 못박는다.
+ */
+describe('컨테이너 비율 상수', () => {
+  it('심볼/컨테이너 비율은 0.625 다', () => {
+    expect(CONTAINER_SYMBOL_RATIO).toBe(0.625)
+  })
+
+  it('radius 비율은 0.25 다', () => {
+    expect(CONTAINER_RADIUS_RATIO).toBe(0.25)
   })
 })

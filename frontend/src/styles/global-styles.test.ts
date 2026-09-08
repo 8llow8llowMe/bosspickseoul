@@ -131,7 +131,7 @@ describe('브랜드 강조색은 로고 전용이다', () => {
   ].map(entry => path.join(projectRoot, entry))
 
   const scanned = ['src', 'app', 'public']
-  const extensions = ['.ts', '.tsx', '.css', '.svg', '.md']
+  const extensions = ['.ts', '.tsx', '.css', '.svg', '.md', '.js']
 
   const collect = (dir: string): string[] => {
     const out: string[] = []
@@ -152,7 +152,17 @@ describe('브랜드 강조색은 로고 전용이다', () => {
     return out
   }
 
-  it('#00795c 와 #12a47c 가 브랜드 파일 밖에서는 쓰이지 않는다', () => {
+  /**
+   * hex 리터럴뿐 아니라 `--color-brand-accent`/`--color-brand-ghost`
+   * CSS 변수 참조도 우회로다 — `:root` 에 선언돼 있어 어떤 styled-component
+   * 에서도 `var(--color-brand-accent)` 로 끌어다 쓸 수 있다.
+   * `--color-brand-ink` 는 `grey900` 과 같은 값이라 시맨틱 혼동 위험이 없으므로
+   * 금지 대상에서 뺀다.
+   */
+  const bannedPattern =
+    /#00795c|#12a47c|var\(--color-brand-accent\)|var\(--color-brand-ghost\)/i
+
+  it('#00795c/#12a47c 와 그 CSS 변수 참조가 브랜드 파일 밖에서는 쓰이지 않는다', () => {
     const offenders = scanned
       .flatMap(entry => collect(path.join(projectRoot, entry)))
       .filter(
@@ -161,7 +171,7 @@ describe('브랜드 강조색은 로고 전용이다', () => {
             prefix => file === prefix || file.startsWith(prefix + path.sep),
           ),
       )
-      .filter(file => /#00795c|#12a47c/i.test(readFileSync(file, 'utf8')))
+      .filter(file => bannedPattern.test(readFileSync(file, 'utf8')))
       .map(file => path.relative(projectRoot, file))
 
     expect(offenders).toEqual([])
