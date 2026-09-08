@@ -41,8 +41,10 @@ describe('SiteFooter', () => {
   it('일반 footer 마크업은 항상 렌더링한다', () => {
     const { markup } = renderFooter()
 
+    // BrandLockup 은 이름을 BossPick/Seoul 두 span 으로 나눠 그린다 —
+    // 태그를 벗겨 텍스트로 읽었을 때 온전한 이름이 나오는지로 확인한다.
     expect(markup).toContain('<footer')
-    expect(markup).toContain('BossPickSeoul')
+    expect(markup.replace(/<[^>]*>/g, '')).toContain('BossPickSeoul')
   })
 })
 

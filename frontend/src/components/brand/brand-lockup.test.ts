@@ -113,3 +113,36 @@ describe('BrandLockup 톤', () => {
     expect(html).toContain('data-role="container" fill="#ffffff"')
   })
 })
+
+/**
+ * 헤더 계약. `site-header.tsx` 의 `Brand` 는 `min-height: 40px` 이고
+ * 워드마크는 19px 이다. 컨테이너 32px 는 그 안에 여유 있게 들어가고,
+ * 격자를 살리려면 46px 가 필요해 들어가지 않는다 — 그래서 Solid 다.
+ */
+describe('헤더 기본값 계약', () => {
+  // 32px 컨테이너는 헤더 min-height 40px 안에 여유 있게 들어간다.
+  // 실제 여유 공간은 Step 7 의 브라우저 실측이 검증한다.
+  it('기본 컨테이너는 32px 다', () => {
+    const { html } = renderLockup()
+
+    expect(html).toContain('width="32"')
+  })
+
+  it('기본 컨테이너는 격자가 아니라 Solid 를 담는다', () => {
+    const { html } = renderLockup()
+
+    // 심볼 높이는 floor(32 × 0.625) = 20px. 그 크기의 격자 갭은 0.59px 로
+    // 무너지므로 갭 없는 Solid 박스(16×28 → 컨테이너 44.8)여야 한다.
+    expect(html).toContain('viewBox="0 0 44.8 44.8"')
+    expect(html).not.toContain('viewBox="0 0 54.4 54.4"')
+  })
+
+  it('푸터 크기(24px 컨테이너 / 15px 워드마크)도 Solid 를 담는다', () => {
+    const { html, css } = renderLockup({ markHeight: 24, wordmarkSize: 15 })
+
+    expect(html).toContain('width="24"')
+    expect(html).toContain('viewBox="0 0 44.8 44.8"')
+    expect(css).toContain('font-size:15px;')
+    expect(css).toContain('gap:6px;')
+  })
+})

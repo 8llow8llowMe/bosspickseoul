@@ -18,6 +18,7 @@ import styled from 'styled-components'
 import { clearMemberInfoQuery } from '@/lib/member-info-query'
 import { clearMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
+import BrandLockup from '@/components/brand/brand-lockup'
 import { shellWidth } from '@/styles/layout'
 
 const Header = styled.header<{ $isScrolled: boolean }>`
@@ -58,11 +59,7 @@ const Brand = styled(Link)`
   min-height: 40px;
   display: inline-flex;
   align-items: center;
-  color: var(--color-text-900);
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 28px;
+  /* 조판은 BrandLockup 이 책임진다 — 여기서 폰트를 주면 두 곳이 싸운다. */
 `
 
 const Nav = styled.nav`
@@ -501,6 +498,7 @@ export default function SiteHeader() {
       <Inner ref={innerRef}>
         <Brand
           href="/"
+          aria-label="BossPickSeoul 홈"
           onClick={event => {
             setIsMobileOpen(false)
             setIsDropdownOpen(false)
@@ -511,7 +509,7 @@ export default function SiteHeader() {
             }
           }}
         >
-          BossPickSeoul
+          <BrandLockup />
         </Brand>
         <Nav aria-label="primary">
           {navigationItems.map(item => (
