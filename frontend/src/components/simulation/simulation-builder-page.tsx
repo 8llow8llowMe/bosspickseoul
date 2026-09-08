@@ -32,6 +32,7 @@ import {
   SIMULATION_DISTRICT_OPTIONS,
   describeSimulationSectionValue,
   isSameSimulationReportRequest,
+  resolveSimulationSectionFromDomId,
   simulationSectionDomId,
   type SimulationConditionSection,
 } from '@/lib/simulation/conditions'
@@ -318,6 +319,24 @@ export default function SimulationBuilderPage({
     if (target) headerRefs.current.get(target)?.focus()
   }, [openSection])
 
+  /*
+    리포트 화면의 오류 배너 "다시 선택"은 `#${simulationSectionDomId(section)}`를 달고
+    빌더로 돌아온다(simulation-report-page.tsx). 그 해시를 마운트 시 한 번 읽어
+    openedByUser 의 초기값으로 심는다 — 심지 않으면 항상 1단계(또는 첫 미완료 단계)가
+    열린 채로 시작해 사용자가 지목받은 섹션을 다시 찾아 펼쳐야 한다.
+
+    쿼리스트링과 달리 해시는 서버로 전송되지 않아 useSearchParams 로 볼 수 없고,
+    렌더 본문에서 window.location.hash 를 읽으면 SSR(해시 없음)과 하이드레이션 사이
+    첫 렌더 결과가 갈라진다. 그래서 렌더가 아니라 마운트 후 effect 에서 읽는다.
+  */
+  useEffect(() => {
+    const section = resolveSimulationSectionFromDomId(window.location.hash)
+    if (section) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 후 1회, 해시라는 외부 신호를 반영한다.
+      setOpenedByUser(section)
+    }
+  }, [])
+
   const queryClient = useQueryClient()
 
   const reportMutation = useMutation({
@@ -363,15 +382,26 @@ export default function SimulationBuilderPage({
     resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  /** 오류가 지목한 조건 섹션으로 데려간다. 앞 오류를 내리고 나서 이동한다. */
+  /*
+    오류가 지목한 조건 섹션으로 데려간다. 앞 오류를 내리고, 그 섹션을 펼치고 나서 이동한다.
+    계산은 조건 4개가 다 차야 가능하므로 오류 배너가 뜨는 시점엔 항상 전부 접혀 있다 —
+    펼치지 않고 스크롤만 하면 접힌 한 줄만 보이고 칩은 한 번 더 눌러야 나온다.
+
+    스크롤은 setOpenedByUser 직후가 아니라 rAF 안에서 한다. state 업데이트는 비동기라
+    같은 틱에 scrollIntoView를 부르면 아직 접힌 상태의 레이아웃을 기준으로 계산돼
+    펼쳐진 뒤 위치와 어긋난다(analysis-result-view.tsx의 scrollToReportSection과 같은 이유).
+  */
   const reselectSection = useCallback(
     (section: SimulationConditionSection) => {
       reportMutation.reset()
-      document
-        .getElementById(simulationSectionDomId(section))
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setOpenedByUser(section)
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById(simulationSectionDomId(section))
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
     },
-    [reportMutation],
+    [reportMutation, setOpenedByUser],
   )
 
   // 계산이 끝나면(성공이든 실패든) 결과가 화면 밖에 있는 좁은 화면에서만 결과로 데려간다.
