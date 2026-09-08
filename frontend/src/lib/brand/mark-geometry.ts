@@ -16,13 +16,16 @@ export const BRAND_GHOST = '#edf0f3'
 /**
  * 어두운 배경용 반전 팔레트.
  *
- * 본래 강조색 `#00795c` 를 어두운 배경에 그대로 쓰면 반전 고스트(`#333d4b`)
+ * 본래 강조색 `#00795c` 를 어두운 배경에 그대로 쓰면 반전 고스트(`#252d3a`)
  * 대비가 2.04 로 무너져 강조 칸이 카운터에 녹는다. 그래서 반전에서만 밝힌다.
+ * `grey800` 의 `#333d4b` 는 배경 대비가 1.51 로 너무 잘 보여 카운터가 채워진
+ * 것처럼 읽히고 B 판독성이 무너진다. 라이트 모드 고스트는 배경 대비 1.14 이고
+ * `#252d3a` 는 1.19 로 그 미묘함을 맞춘다.
  * `#12a47c` 는 흰 본체 대비 3.17, 반전 고스트 대비 3.47 로 양쪽을 지킨다.
  */
 export const BRAND_INVERSE_BODY = '#ffffff'
 export const BRAND_INVERSE_ACCENT = '#12a47c'
-export const BRAND_INVERSE_GHOST = '#333d4b'
+export const BRAND_INVERSE_GHOST = '#252d3a'
 
 export type BrandMarkVariant = 'primary' | 'grid' | 'solid'
 

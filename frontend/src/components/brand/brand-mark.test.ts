@@ -107,7 +107,7 @@ describe('BrandMark 톤', () => {
 
     expect(svg).toContain('fill="#ffffff"')
     expect(svg).toContain('fill="#12a47c"')
-    expect(svg).toContain('fill="#333d4b"')
+    expect(svg).toContain('fill="#252d3a"')
     // 반전에서 원래 강조색을 쓰면 반전 고스트 대비가 2.04 로 무너진다.
     expect(svg).not.toContain('#00795c')
   })
@@ -127,7 +127,7 @@ describe('BrandMark 톤', () => {
 
     const primary = render({ height: 180, container: true })
 
-    expect(primary).toContain('fill="#333d4b"')
+    expect(primary).toContain('fill="#252d3a"')
     expect(primary).not.toContain('#edf0f3')
   })
 
