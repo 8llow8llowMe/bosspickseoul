@@ -304,6 +304,8 @@ export default function SimulationBuilderPage({
               title={SIMULATION_CONDITION_SECTION_LABELS.franchise}
               description="프랜차이즈면 브랜드 가맹 부담금까지 반영해요."
               complete={conditions.isSectionComplete('franchise')}
+              expanded={true}
+              summary={null}
             >
               <SimulationChoiceGrid
                 label="창업 형태"
@@ -323,6 +325,8 @@ export default function SimulationBuilderPage({
               description="자치구별 임대료 기준으로 계산해요."
               meta={`서울 ${SIMULATION_DISTRICT_OPTIONS.length}개 구`}
               complete={conditions.isSectionComplete('district')}
+              expanded={true}
+              summary={null}
             >
               <SimulationChoiceGrid
                 label="자치구"
@@ -342,6 +346,8 @@ export default function SimulationBuilderPage({
               description="업종을 고르면 매장 크기 기준과 브랜드 검색이 열려요."
               meta={`지원 업종 ${SIMULATION_SERVICE_TYPES.length}종`}
               complete={conditions.isSectionComplete('service')}
+              expanded={true}
+              summary={null}
             >
               <ServiceBlock>
                 <SimulationChoiceGrid
@@ -395,6 +401,8 @@ export default function SimulationBuilderPage({
               title={SIMULATION_CONDITION_SECTION_LABELS.store}
               description="매장 크기와 층 구분에 따라 임대료·인테리어 기준이 달라져요."
               complete={conditions.isSectionComplete('store')}
+              expanded={true}
+              summary={null}
             >
               {state.serviceCode ? (
                 <SimulationStoreConditionFields

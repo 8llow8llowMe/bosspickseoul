@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { Check } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -14,88 +14,117 @@ export type SimulationConditionSectionCardProps = {
   /** 우측 상단 보조 문구 (예: "서울 25개 구"). */
   meta?: ReactNode
   complete: boolean
+  /** 펼쳐졌는가. 접히면 children 을 렌더하지 않는다 — DOM 에서 빼야 탭 순서에서도 빠진다. */
+  expanded: boolean
+  /** 접혔을 때 헤더에 적을 고른 값. 아직 안 골랐으면 null. */
+  summary: string | null
+  /** 잠긴 단계는 펼칠 수 없고 button 도 아니다. */
+  locked?: boolean
+  onToggle?: () => void
+  /** 자동 진행 시 포커스를 옮길 대상. */
+  headerRef?: Ref<HTMLButtonElement>
   children: ReactNode
 }
 
-const Root = styled.section`
-  display: grid;
-  gap: 16px;
-  border: 1px solid var(--color-border-200);
+const Root = styled.section<{ $expanded: boolean; $locked: boolean }>`
+  overflow: hidden;
+  border: 1px solid
+    ${props =>
+      props.$expanded ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
   border-radius: var(--radius-card);
-  background: var(--color-surface);
-  padding: 20px 24px 24px;
+  background: ${props =>
+    props.$locked ? 'var(--color-background-muted)' : 'var(--color-surface)'};
+`
+
+/* as 로 button/div 를 갈아끼우므로 버튼 기본 스타일을 여기서 지운다. */
+const Head = styled.header`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 20px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+
+  &:is(button) {
+    cursor: pointer;
+  }
+
+  &:is(button):hover {
+    background: var(--color-background-muted);
+  }
+
+  &:is(button):focus-visible {
+    outline: 2px solid var(--color-primary-600);
+    outline-offset: -2px;
+  }
 
   @media (max-width: 640px) {
-    padding: 16px;
+    padding: 12px 16px;
   }
 `
 
-const Head = styled.header`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
-`
-
-const Heading = styled.div`
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-`
-
-const TitleRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`
-
-const Marker = styled.span<{ $complete: boolean }>`
-  width: 24px;
-  height: 24px;
+const Index = styled.span<{ $done: boolean }>`
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: var(--radius-control);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
   background: ${props =>
-    props.$complete
-      ? 'var(--color-primary-100)'
-      : 'var(--color-surface-muted)'};
-  color: ${props =>
-    props.$complete ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
+    props.$done ? 'var(--color-primary-600)' : 'var(--color-grey-100)'};
+  color: ${props => (props.$done ? '#ffffff' : 'var(--color-text-caption)')};
   font-size: 12px;
   font-weight: 700;
-  line-height: 18px;
   font-variant-numeric: tabular-nums;
 
   svg {
     width: 14px;
     height: 14px;
-    stroke: currentColor;
   }
 `
 
-const Title = styled.h2`
-  min-width: 0;
+const Title = styled.span`
+  flex: 0 0 auto;
   color: var(--color-text-900);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
-  line-height: 26px;
-  word-break: keep-all;
 `
 
-const Description = styled.p`
+const Value = styled.span`
+  flex: 1 1 auto;
+  overflow: hidden;
   color: var(--color-text-600);
   font-size: 13px;
-  line-height: 20px;
-  word-break: keep-all;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `
 
 const Meta = styled.span`
   flex: 0 0 auto;
   color: var(--color-text-caption);
   font-size: 12px;
-  line-height: 18px;
+`
+
+const Edit = styled.span`
+  flex: 0 0 auto;
+  color: var(--color-primary-700);
+  font-size: 13px;
+  font-weight: 600;
+`
+
+const Panel = styled.div`
+  display: grid;
+  gap: 12px;
+  padding: 0 20px 20px;
+
+  @media (max-width: 640px) {
+    padding: 0 16px 16px;
+  }
 `
 
 /**
@@ -112,26 +141,45 @@ export default function SimulationConditionSectionCard({
   description,
   meta,
   complete,
+  expanded,
+  summary,
+  locked = false,
+  onToggle,
+  headerRef,
   children,
 }: SimulationConditionSectionCardProps) {
+  const headContent = (
+    <>
+      <Index $done={complete && !expanded}>
+        {complete && !expanded ? <Check aria-hidden="true" /> : index}
+      </Index>
+      <Title>{title}</Title>
+      <Value>
+        {expanded
+          ? description
+          : (summary ?? (locked ? '업종을 고르면 열려요' : '선택 전'))}
+      </Value>
+      {meta && expanded ? <Meta>{meta}</Meta> : null}
+      {complete && !expanded ? <Edit>변경</Edit> : null}
+    </>
+  )
+
   return (
-    <Root id={id} aria-labelledby={`${id}-title`}>
-      <Head>
-        <Heading>
-          <TitleRow>
-            <Marker
-              $complete={complete}
-              aria-label={complete ? '선택 완료' : undefined}
-            >
-              {complete ? <Check aria-hidden="true" /> : index}
-            </Marker>
-            <Title id={`${id}-title`}>{title}</Title>
-          </TitleRow>
-          {description ? <Description>{description}</Description> : null}
-        </Heading>
-        {meta ? <Meta>{meta}</Meta> : null}
-      </Head>
-      {children}
+    <Root id={id} $expanded={expanded} $locked={locked}>
+      {locked ? (
+        <Head as="div">{headContent}</Head>
+      ) : (
+        <Head
+          as="button"
+          type="button"
+          aria-expanded={expanded}
+          onClick={onToggle}
+          ref={headerRef}
+        >
+          {headContent}
+        </Head>
+      )}
+      {expanded ? <Panel>{children}</Panel> : null}
     </Root>
   )
 }
