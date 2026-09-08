@@ -35,6 +35,9 @@ batch:
     # CSV 한글 헤더 -> 컬럼 코드 표는 classpath seoul/csv-header-aliases.csv 에 있다.
     # 배포 파일이 헤더를 다르게 적을 때만 여기서 한 줄씩 덧붙인다. 예: "[개업_비율]": OPBIZ_RT
     header-aliases: {}
+    # area_boundary / commercial_region_mapping 이 있는 스키마. district-service 소유라
+    # 팩트를 쓰는 commercial 스키마와 다르다. --source=LEGACY 를 쓸 때만 필요하다.
+    legacy-spatial-schema: ${BATCH_LEGACY_SPATIAL_SCHEMA:}
 
 logging:
   level:

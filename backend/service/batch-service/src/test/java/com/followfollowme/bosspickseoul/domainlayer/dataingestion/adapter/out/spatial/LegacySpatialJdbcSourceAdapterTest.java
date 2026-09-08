@@ -24,6 +24,10 @@ class LegacySpatialJdbcSourceAdapterTest {
     private static final SpatialSourceRequest REQUEST = new SpatialSourceRequest(SpatialSourceRequest.Kind.LEGACY, null,
         "legacy-20233", Instant.parse("2023-12-31T00:00:00Z"));
 
+    /**
+     * The stored shape is a bare, sometimes unclosed ring: every one of the 2,100 dev rows is
+     * {@code [[lng,lat],...]} and 80 of them do not repeat the first point (checked 2026-09-08).
+     */
     @Test
     void liftsLegacyTablesIntoAValidatedSnapshotWithDerivedParentsAndClosedPolygons() {
         JdbcTemplate jdbc = jdbc(mapping("3110001", "11110515"), area("DISTRICT", "11110", "종로구", RING),
@@ -31,7 +35,7 @@ class LegacySpatialJdbcSourceAdapterTest {
         SpatialReleasePort releases = mock(SpatialReleasePort.class);
         when(releases.publish(any())).thenReturn(true);
 
-        var result = new SpatialImportProcessor(new LegacySpatialJdbcSourceAdapter(jdbc, new ObjectMapper()), releases)
+        var result = new SpatialImportProcessor(new LegacySpatialJdbcSourceAdapter(jdbc, new ObjectMapper(), ""), releases)
             .importSnapshot(REQUEST, false);
 
         assertThat(result.spatialVersion()).isEqualTo("legacy-20233");
@@ -54,42 +58,69 @@ class LegacySpatialJdbcSourceAdapterTest {
     @Test
     void checksumIsStableForTheSameTablesAndChangesWhenAnAreaChanges() {
         var adapter = new LegacySpatialJdbcSourceAdapter(jdbc(mapping("3110001", "11110515"), area("DISTRICT", "11110", "종로구", RING),
-            area("ADMINISTRATION", "11110515", "청운효자동", RING), area("COMMERCIAL", "3110001", "이북5도청사", RING)), new ObjectMapper());
+            area("ADMINISTRATION", "11110515", "청운효자동", RING), area("COMMERCIAL", "3110001", "이북5도청사", RING)), new ObjectMapper(), "");
         SpatialSnapshot first = adapter.read(REQUEST);
         SpatialSnapshot again = adapter.read(REQUEST);
         SpatialSnapshot renamed = new LegacySpatialJdbcSourceAdapter(jdbc(mapping("3110001", "11110515"), area("DISTRICT", "11110", "종로구", RING),
-            area("ADMINISTRATION", "11110515", "청운효자동", RING), area("COMMERCIAL", "3110001", "다른이름", RING)), new ObjectMapper()).read(REQUEST);
+            area("ADMINISTRATION", "11110515", "청운효자동", RING), area("COMMERCIAL", "3110001", "다른이름", RING)), new ObjectMapper(), "").read(REQUEST);
         assertThat(first.checksum()).isEqualTo(again.checksum()).hasSize(64).isNotEqualTo(renamed.checksum());
     }
 
     @Test
     void commercialAreaWithoutMappingRowFailsClosedNamingTheCode() {
         var adapter = new LegacySpatialJdbcSourceAdapter(jdbc(List.of(), area("DISTRICT", "11110", "종로구", RING),
-            area("COMMERCIAL", "3110001", "이북5도청사", RING)), new ObjectMapper());
+            area("COMMERCIAL", "3110001", "이북5도청사", RING)), new ObjectMapper(), "");
         assertThatThrownBy(() -> adapter.read(REQUEST)).hasMessageContaining("commercial_region_mapping").hasMessageContaining("3110001");
     }
 
     @Test
     void projectedOrUnrecognisedBoundariesAreRejected() {
         var projected = new LegacySpatialJdbcSourceAdapter(jdbc(List.of(),
-            area("DISTRICT", "11110", "종로구", "[[197093,453418],[197100,453418],[197100,453500],[197093,453418]]")), new ObjectMapper());
+            area("DISTRICT", "11110", "종로구", "[[197093,453418],[197100,453418],[197100,453500],[197093,453418]]")), new ObjectMapper(), "");
         assertThatThrownBy(() -> projected.read(REQUEST)).hasMessageContaining("WGS84 range");
-        var unknown = new LegacySpatialJdbcSourceAdapter(jdbc(List.of(), area("DISTRICT", "11110", "종로구", "\"not-geometry\"")), new ObjectMapper());
+        var unknown = new LegacySpatialJdbcSourceAdapter(jdbc(List.of(), area("DISTRICT", "11110", "종로구", "\"not-geometry\"")), new ObjectMapper(), "");
         assertThatThrownBy(() -> unknown.read(REQUEST)).hasMessageContaining("Unrecognised").hasMessageContaining("11110");
     }
 
     @Test
     void anAlreadyFormedGeometryObjectIsPassedThroughAfterValidation() {
         String multi = "{\"type\":\"MultiPolygon\",\"coordinates\":[[[[126.9,37.5],[127.0,37.5],[127.0,37.6],[126.9,37.5]]]]}";
-        var adapter = new LegacySpatialJdbcSourceAdapter(jdbc(List.of(), area("DISTRICT", "11110", "종로구", multi)), new ObjectMapper());
+        var adapter = new LegacySpatialJdbcSourceAdapter(jdbc(List.of(), area("DISTRICT", "11110", "종로구", multi)), new ObjectMapper(), "");
         assertThat(adapter.read(REQUEST).areas().getFirst().boundaryGeoJson()).isEqualTo(multi);
     }
 
     @Test
     void refusesGeoJsonRequests() {
-        var adapter = new LegacySpatialJdbcSourceAdapter(mock(JdbcTemplate.class), new ObjectMapper());
+        var adapter = new LegacySpatialJdbcSourceAdapter(mock(JdbcTemplate.class), new ObjectMapper(), "");
         assertThatThrownBy(() -> adapter.read(SpatialSourceRequest.geoJson(java.nio.file.Path.of("x.geojson"), "v")))
             .hasMessageContaining("LEGACY");
+    }
+
+    /**
+     * The legacy tables belong to the district service's schema while facts are written to the commercial
+     * one, so an unqualified query reads the wrong database and silently finds nothing.
+     */
+    @Test
+    void qualifiesBothTablesWithTheConfiguredSchema() {
+        JdbcTemplate jdbc = jdbc(mapping("3110001", "11110515"), area("DISTRICT", "11110", "종로구", RING),
+            area("ADMINISTRATION", "11110515", "청운효자동", RING), area("COMMERCIAL", "3110001", "이북5도청사", RING));
+        new LegacySpatialJdbcSourceAdapter(jdbc, new ObjectMapper(), "bosspickseoul_district_dev").read(REQUEST);
+        verify(jdbc).queryForList(contains("FROM bosspickseoul_district_dev.commercial_region_mapping"));
+        verify(jdbc).queryForList(contains("FROM bosspickseoul_district_dev.area_boundary"));
+    }
+
+    @Test
+    void anEmptyBoundaryTableNamesTheSchemaSettingInsteadOfPublishingNothing() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        assertThatThrownBy(() -> new LegacySpatialJdbcSourceAdapter(jdbc, new ObjectMapper(), "wrong_schema").read(REQUEST))
+            .hasMessageContaining("wrong_schema.area_boundary").hasMessageContaining("legacy-spatial-schema");
+    }
+
+    @Test
+    void rejectsASchemaNameThatCouldBeInterpolatedIntoSql() {
+        assertThatThrownBy(() -> new LegacySpatialJdbcSourceAdapter(mock(JdbcTemplate.class), new ObjectMapper(), "db; DROP TABLE x"))
+            .hasMessageContaining("Invalid legacy spatial schema");
     }
 
     @SafeVarargs

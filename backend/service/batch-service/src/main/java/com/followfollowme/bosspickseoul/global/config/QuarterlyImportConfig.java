@@ -25,7 +25,7 @@ public class QuarterlyImportConfig {
     }
     @Bean public SpatialSourcePort spatialSourcePort(ObjectMapper mapper, DatasetSourceProperties properties, JdbcTemplate jdbc) {
         SpatialSourcePort geoJson = new SpatialGeoJsonSourceAdapter(mapper, properties.getRawDirectory());
-        SpatialSourcePort legacy = new LegacySpatialJdbcSourceAdapter(jdbc, mapper);
+        SpatialSourcePort legacy = new LegacySpatialJdbcSourceAdapter(jdbc, mapper, properties.getLegacySpatialSchema());
         return request -> request.kind() == SpatialSourceRequest.Kind.LEGACY ? legacy.read(request) : geoJson.read(request);
     }
     @Bean public SpatialReleasePort spatialReleasePort(JdbcTemplate jdbc, PlatformTransactionManager transactionManager) {
