@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import styled from 'styled-components'
+import BrandLockup from '@/components/brand/brand-lockup'
 
 const Container = styled.div`
   min-height: 100vh;
@@ -27,17 +28,18 @@ const HomeLink = styled(Link)`
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  /* 터치 영역(DESIGN.md §8): 작은 텍스트 링크라도 44px 를 확보한다. */
+  /* 터치 영역(DESIGN.md §8): 락업이 32px 이므로 44px 를 여기서 확보한다. */
   min-height: 44px;
-  padding: 0 4px;
-  color: var(--color-text-900);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
+  /*
+    조판은 BrandLockup 이 책임진다 — 여기서 폰트를 주면 두 곳이 싸우고
+    BossPick 700 + Seoul 400 무게 분리가 캐스케이드에 깨진다.
+    헤더의 Brand 도 같은 이유로 폰트 속성이 없다.
 
-  &:hover {
-    color: var(--color-primary-700);
-  }
+    가로 패딩도 없다. 4px 를 남기면 32px 짜리 잉크 컨테이너가 아래 본문
+    컬럼보다 4px 안쪽에서 시작해 어긋나 보인다 — 18px 텍스트일 때는
+    눈에 띄지 않던 값이다. hover 색도 뺐다: 워드마크가 자기 color 를
+    직접 주므로 부모의 hover 가 닿지 않아 조용히 죽는다(헤더도 없다).
+  */
 `
 
 const Content = styled.div`
@@ -257,7 +259,7 @@ export default function AuthShell({
       <Frame>
         <Content>
           <HomeLink href="/" aria-label="BossPickSeoul 홈으로">
-            BossPickSeoul
+            <BrandLockup />
           </HomeLink>
           <div>
             <Eyebrow>{eyebrow}</Eyebrow>
