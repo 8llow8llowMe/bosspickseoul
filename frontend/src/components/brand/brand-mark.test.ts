@@ -53,6 +53,7 @@ describe('BrandMark 변형', () => {
       expect(svg).not.toContain('x="15" y="15"')
       expect(svg).not.toContain('x="15" y="30"')
       expect(svg).not.toContain('x="12" y="0"')
+      expect(svg).not.toContain('x="12" y="12"')
       expect(svg).not.toContain('x="12" y="24"')
     }
   })

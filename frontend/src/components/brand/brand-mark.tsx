@@ -54,36 +54,36 @@ type Palette = {
   container: string
 }
 
-const paletteFor = (tone: BrandMarkTone, container: boolean): Palette => {
-  if (tone === 'inverse') {
-    return container
-      ? {
-          body: BRAND_INK,
-          ghost: BRAND_GHOST,
-          accent: BRAND_ACCENT,
-          container: BRAND_INVERSE_BODY,
-        }
-      : {
-          body: BRAND_INVERSE_BODY,
-          ghost: BRAND_INVERSE_GHOST,
-          accent: BRAND_INVERSE_ACCENT,
-          container: BRAND_INK,
-        }
-  }
+/** 잉크 바탕 위에 놓이는 팔레트 — 본체가 잉크, 강조는 원래 강조색. */
+const INK_BODY_PALETTE: Palette = {
+  body: BRAND_INK,
+  ghost: BRAND_GHOST,
+  accent: BRAND_ACCENT,
+  container: BRAND_INVERSE_BODY,
+}
 
-  return container
-    ? {
-        body: BRAND_INVERSE_BODY,
-        ghost: BRAND_INVERSE_GHOST,
-        accent: BRAND_INVERSE_ACCENT,
-        container: BRAND_INK,
-      }
-    : {
-        body: BRAND_INK,
-        ghost: BRAND_GHOST,
-        accent: BRAND_ACCENT,
-        container: BRAND_INVERSE_BODY,
-      }
+/**
+ * 흰 바탕 위에 놓이는 팔레트 — 본체가 흰색이므로 강조를 밝힌다.
+ * 원래 강조색 `#00795c` 를 흰/반전 배경에 그대로 쓰면 고스트 대비가
+ * 2.04 로 무너지기 때문이다(`mark-geometry.ts` 의 반전 팔레트 설명 참조).
+ */
+const WHITE_BODY_PALETTE: Palette = {
+  body: BRAND_INVERSE_BODY,
+  ghost: BRAND_INVERSE_GHOST,
+  accent: BRAND_INVERSE_ACCENT,
+  container: BRAND_INK,
+}
+
+/**
+ * 팔레트는 `tone` 과 `container` 의 XOR 로 뒤집힌다 — `tone='inverse'` 이거나
+ * (배타적으로) `container=true` 일 때만 흰 바탕 팔레트를 쓴다. 컨테이너 안은
+ * 톤이 한 번 더 반전되므로(바탕이 곧 심볼의 배경), 잉크 컨테이너 안 심볼은
+ * 다시 흰 바탕 팔레트가 된다 — 두 조건이 같으면(둘 다 참이거나 둘 다 거짓)
+ * 서로를 상쇄해 잉크 바탕 팔레트로 되돌아간다.
+ */
+const paletteFor = (tone: BrandMarkTone, container: boolean): Palette => {
+  const inverted = (tone === 'inverse') !== container
+  return inverted ? WHITE_BODY_PALETTE : INK_BODY_PALETTE
 }
 
 const cellsFor = (
