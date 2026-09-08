@@ -30,8 +30,28 @@ import {
 import { useStackedMode } from '@/hooks/use-stacked-mode'
 import { centeredColumn } from '@/styles/layout'
 
+/*
+  전폭 배경 밴드(이슈 #223).
+
+  홈에서 스토리만 셸(1865@1920)도 읽기 컬럼(980)도 아닌 1400 이라 헤더보다 한쪽
+  233px(1920) · 553px(2560) 좁았다. 실측해 보니 **여는 쪽이 더 나빴다** — 셸 전폭으로
+  열면 데모 영역이 1423px 이 되어 01 의 가로 막대가 1300px 로 늘어나고, 이는 폭 체계
+  §6 이 스스로 정한 「가로 막대 → 560px 상한」을 어긴다. 데모에 상한을 걸어 봐도 2560
+  에서 카드 2105px 안에 데모 1000px 이라 좌우가 550px 씩 빈다.
+
+  그래서 폭 체계 §5 가 **중앙 그룹에 대해 이미 써 둔 처방**을 여기에 적용한다 —
+  「좁은 카드가 넓은 판 위에 놓인 것으로 읽혀 어긋남이 아니게 된다」. 폭은 --w-wide
+  1400 그대로 두고 배경만 전폭으로 깐다. 흰 Panel 카드가 밴드 위에서 떠올라 대비도
+  함께 얻는다.
+
+  ⚠️ 이 토큰은 **StepButton 의 hover 배경과 같았다.** 밴드를 깔면 hover 가 보이지
+  않게 되므로 그쪽을 --color-surface-muted 로 한 단계 내렸다(아래 StepButton).
+
+  스티키·스택 두 분기를 모두 감싸므로 모바일에도 같은 밴드가 깔린다.
+*/
 const Container = styled.section`
   position: relative;
+  background: var(--color-background-muted);
 `
 
 const Lead = styled.div`
@@ -157,9 +177,14 @@ const StepButton = styled.button<{ $active: boolean }>`
   cursor: pointer;
   transition: background-color var(--motion-standard) var(--ease-standard);
 
+  /*
+    비활성 hover 는 --color-surface-muted 다. 예전엔 --color-background-muted 였는데
+    그것이 Container 밴드와 **같은 색**이 되어(#223) hover 가 화면에서 사라졌다 —
+    한 단계 진한 쪽으로 내려 밴드 위에서도 보이게 한다.
+  */
   &:hover {
     background: ${p =>
-      p.$active ? 'var(--color-primary-100)' : 'var(--color-background-muted)'};
+      p.$active ? 'var(--color-primary-100)' : 'var(--color-surface-muted)'};
   }
 
   &:focus-visible {

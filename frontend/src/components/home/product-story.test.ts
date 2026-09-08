@@ -209,6 +209,51 @@ describe('ProductStory — 스티키가 헤더를 비껴간다(R3)', () => {
  * 숫자를 만든 단계 옆으로 옮겨 하나의 축으로 합친다. 부수 효과로 카운터가 차지한
  * 115px(83 + gap 32)이 사라져, 스티키 콘텐츠가 화면 높이를 넘던 문제도 해소된다.
  */
+/*
+ * 이슈 #223. 홈에서 스토리만 셸도 읽기 컬럼도 아닌 폭(1400)이라 1920 에서 헤더보다
+ * 한쪽 233px, 2560 에서 553px 좁았다. 실측해 보니 **여는 쪽이 더 나빴다** — 셸 전폭으로
+ * 열면 01 의 가로 막대가 1300px 이 되어 폭 체계 §6 이 정한 560px 상한을 스스로 어긴다.
+ *
+ * 그래서 폭 체계 §5 가 중앙 그룹에 써 둔 처방을 스토리에 적용한다: **전폭 배경 밴드**.
+ * 좁은 컬럼이 넓은 판 위에 놓인 것으로 읽혀 어긋남이 아니게 된다.
+ */
+describe('ProductStory — 스토리 섹션이 전폭 배경 밴드를 갖는다(#223)', () => {
+  /*
+   * `Container` 의 규칙에 붙여서 본다. `background:var(--color-background-muted)` 만
+   * 찾으면 **자식 컴포넌트의 것에 걸려 항상 통과한다** — 실제로 이 스타일시트에는 그
+   * 선언이 이미 두 군데 있었다(StepButton hover 포함). 밴드를 지워도 초록인 가드가
+   * 될 뻔했다.
+   */
+  it('섹션 컨테이너에 배경 밴드가 깔린다', () => {
+    expect(renderStoryStyles()).toContain(
+      'position:relative;background:var(--color-background-muted)',
+    )
+  })
+
+  /*
+   * **밴드와 hover 가 같은 토큰이면 hover 가 사라진다.** 밴드를 깔기 전 StepButton 의
+   * hover 배경이 정확히 `--color-background-muted` 였다 — 함께 내리지 않으면 목록이
+   * 아예 반응하지 않는 것처럼 보인다. 「아무 일도 안 일어남」이라 눈으로 놓치기 쉬워
+   * 여기서 잠근다.
+   */
+  it('스텝 hover 배경이 밴드 색과 다르다', () => {
+    const css = renderStoryStyles()
+
+    expect(css).toContain(':hover{background:var(--color-surface-muted);}')
+    expect(css).not.toContain(
+      ':hover{background:var(--color-background-muted);}',
+    )
+  })
+
+  /*
+   * 폭은 **열지 않는다**(위 describe 주석). 1400 컬럼을 유지한다는 결정이 조용히
+   * 뒤집히지 않게 토큰을 확인한다.
+   */
+  it('스토리 컬럼은 --w-wide 를 유지한다', () => {
+    expect(renderStoryStyles()).toContain('var(--w-wide)')
+  })
+})
+
 describe('ProductStory — 카운터를 스텝 목록으로 합쳤다', () => {
   it('01~04 열거를 두 번 하지 않는다', () => {
     const html = renderStory()
