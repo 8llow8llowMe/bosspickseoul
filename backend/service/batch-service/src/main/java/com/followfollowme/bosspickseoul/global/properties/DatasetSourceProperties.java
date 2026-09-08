@@ -18,4 +18,10 @@ public class DatasetSourceProperties {
     private int maxAttempts = 3;
     /** Local additions to classpath {@code seoul/csv-header-aliases.csv}; normally empty. */
     private Map<String, String> headerAliases = new LinkedHashMap<>();
+    /**
+     * Schema holding the legacy {@code area_boundary} and {@code commercial_region_mapping} tables.
+     * They live in the district service's schema, not the commercial one the facts are written to,
+     * so a LEGACY spatial import must qualify them. Blank means the batch's own schema.
+     */
+    private String legacySpatialSchema = "";
 }

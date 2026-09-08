@@ -33,10 +33,20 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public class LegacySpatialJdbcSourceAdapter implements SpatialSourcePort {
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
+    private final String qualifier;
 
-    public LegacySpatialJdbcSourceAdapter(JdbcTemplate jdbc, ObjectMapper mapper) {
+    /**
+     * @param schema schema holding the legacy tables, or blank for the batch's own schema. These tables
+     *               belong to the district service, so a commercial-schema batch must name it.
+     */
+    public LegacySpatialJdbcSourceAdapter(JdbcTemplate jdbc, ObjectMapper mapper, String schema) {
         this.jdbc = jdbc;
         this.mapper = mapper;
+        String trimmed = schema == null ? "" : schema.strip();
+        // Interpolated into SQL, so it can never be free text.
+        if (!trimmed.isEmpty() && !trimmed.matches("[A-Za-z0-9_]{1,64}"))
+            throw new IllegalArgumentException("Invalid legacy spatial schema name");
+        this.qualifier = trimmed.isEmpty() ? "" : trimmed + ".";
     }
 
     @Override
@@ -44,12 +54,13 @@ public class LegacySpatialJdbcSourceAdapter implements SpatialSourcePort {
         if (request.kind() != SpatialSourceRequest.Kind.LEGACY) throw new IllegalArgumentException("Legacy source only handles LEGACY requests");
         Map<String, String> commercialParents = new HashMap<>();
         for (Map<String, Object> row : jdbc.queryForList(
-                "SELECT DISTINCT commercial_code, administration_code FROM commercial_region_mapping")) {
+                "SELECT DISTINCT commercial_code, administration_code FROM " + qualifier + "commercial_region_mapping")) {
             String previous = commercialParents.put(text(row, "commercial_code"), text(row, "administration_code"));
             if (previous != null) throw new IllegalArgumentException("Commercial area mapped to two dongs: " + text(row, "commercial_code"));
         }
         List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT area_type, area_code, area_name, boundary_geo_json FROM area_boundary ORDER BY area_type, area_code");
+                "SELECT area_type, area_code, area_name, boundary_geo_json FROM " + qualifier + "area_boundary ORDER BY area_type, area_code");
+        if (rows.isEmpty()) throw new IllegalArgumentException("No rows in " + qualifier + "area_boundary; set batch.dataset-source.legacy-spatial-schema");
         List<SpatialArea> areas = new ArrayList<>(rows.size());
         Map<AreaScope, Integer> counts = new EnumMap<>(AreaScope.class);
         MessageDigest digest = sha256();
