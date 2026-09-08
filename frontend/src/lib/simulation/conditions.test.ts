@@ -13,6 +13,7 @@ import {
   listMissingSimulationSections,
   parseStoreSizeInput,
   resolveSimulationFieldSection,
+  resolveSimulationSectionFromDomId,
   resolveSimulationRecoverySection,
   selectBrand,
   selectDistrict,
@@ -179,6 +180,47 @@ describe('섹션 앵커', () => {
     expect(simulationSectionDomId('district')).toBe(
       'simulation-section-district',
     )
+  })
+
+  /*
+    리포트 화면의 「다시 선택」은 `#simulation-section-<section>` 을 달고 빌더로
+    돌아오고, 빌더는 마운트 effect 에서 이 함수로 해시를 되읽어 펼칠 단계를 정한다.
+    여기서 null 이 나오면 지목받은 단계가 아니라 첫 미완료 단계가 열린다.
+  */
+  it('해시를 섹션으로 되돌린다 — # 가 있든 없든 같다', () => {
+    expect(resolveSimulationSectionFromDomId('#simulation-section-store')).toBe(
+      'store',
+    )
+    expect(resolveSimulationSectionFromDomId('simulation-section-store')).toBe(
+      'store',
+    )
+  })
+
+  it('네 섹션 모두 왕복한다 — 섹션이 늘면 여기서 걸린다', () => {
+    for (const section of SIMULATION_CONDITION_SECTIONS) {
+      expect(
+        resolveSimulationSectionFromDomId(
+          `#${simulationSectionDomId(section)}`,
+        ),
+      ).toBe(section)
+    }
+  })
+
+  it('모르는 id 는 null 이다 — 없는 섹션을 펼치려 들지 않는다', () => {
+    expect(resolveSimulationSectionFromDomId('#simulation-section-brand')).toBe(
+      null,
+    )
+    expect(resolveSimulationSectionFromDomId('#report-cost')).toBe(null)
+    // 접두사만 맞는 값도 통과시키지 않는다.
+    expect(resolveSimulationSectionFromDomId('#simulation-section-')).toBe(null)
+  })
+
+  it('해시가 없으면 null 이다 — 빌더로 직접 들어온 경우다', () => {
+    expect(resolveSimulationSectionFromDomId(null)).toBe(null)
+    expect(resolveSimulationSectionFromDomId(undefined)).toBe(null)
+    expect(resolveSimulationSectionFromDomId('')).toBe(null)
+    // window.location.hash 는 해시가 비어 있어도 '#' 하나가 남을 수 있다.
+    expect(resolveSimulationSectionFromDomId('#')).toBe(null)
   })
 })
 
