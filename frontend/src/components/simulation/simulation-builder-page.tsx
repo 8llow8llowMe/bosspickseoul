@@ -148,6 +148,31 @@ const EmptyText = styled.p`
   text-align: center;
 `
 
+/* 업종을 고른 뒤 칩 30개 대신 보여주는 한 줄. 브랜드 검색에 자리를 내준다. */
+const PickedRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-primary-600);
+  border-radius: var(--radius-control);
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  font-size: 14px;
+  font-weight: 600;
+
+  button {
+    border: 0;
+    background: transparent;
+    color: var(--color-primary-700);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+`
+
 const LockedBlock = styled.div`
   display: grid;
   gap: 12px;
@@ -466,23 +491,41 @@ export default function SimulationBuilderPage({
               }}
             >
               <ServiceBlock>
-                <SimulationChoiceSearch
-                  label="업종 이름으로 찾기"
-                  value={serviceQuery}
-                  shown={serviceChoices.length}
-                  total={SIMULATION_SERVICE_TYPES.length}
-                  onChange={setServiceQuery}
-                />
-                {serviceChoices.length === 0 ? (
-                  <EmptyText>{`'${serviceQuery.trim()}'와 맞는 업종이 없어요.`}</EmptyText>
+                {state.serviceCode &&
+                state.franchisee === true &&
+                !serviceQuery ? (
+                  <PickedRow>
+                    <span>
+                      {describeSimulationSectionValue(state, 'service')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => conditions.setService('')}
+                    >
+                      업종 변경
+                    </button>
+                  </PickedRow>
                 ) : (
-                  <SimulationChoiceGrid
-                    label="업종"
-                    choices={serviceChoices}
-                    selectedCode={state.serviceCode}
-                    onSelect={selectThenAdvance(conditions.setService)}
-                    minColumnWidth={132}
-                  />
+                  <>
+                    <SimulationChoiceSearch
+                      label="업종 이름으로 찾기"
+                      value={serviceQuery}
+                      shown={serviceChoices.length}
+                      total={SIMULATION_SERVICE_TYPES.length}
+                      onChange={setServiceQuery}
+                    />
+                    {serviceChoices.length === 0 ? (
+                      <EmptyText>{`'${serviceQuery.trim()}'와 맞는 업종이 없어요.`}</EmptyText>
+                    ) : (
+                      <SimulationChoiceGrid
+                        label="업종"
+                        choices={serviceChoices}
+                        selectedCode={state.serviceCode}
+                        onSelect={selectThenAdvance(conditions.setService)}
+                        minColumnWidth={132}
+                      />
+                    )}
+                  </>
                 )}
 
                 {/* 브랜드 검색은 serviceCode가 확정된 뒤에만 연다 — 없이 호출하면 400이다.
