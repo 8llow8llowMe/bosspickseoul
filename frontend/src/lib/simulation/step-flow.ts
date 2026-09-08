@@ -21,13 +21,12 @@ const firstIncomplete = (
 /**
  * 어느 단계를 펼칠 것인가. 화면·React 를 모르는 순수 함수다.
  *
- * 첫 입력 · 분석에서 넘어온 프리필 · 이력 복원 · 재편집 · 무효화 연쇄를 **한 규칙으로**
- * 처리한다: 「비어 있는 첫 단계를 연다. 없으면 사용자가 연 단계를 존중하고, 그것도
- * 없으면 닫는다.」
+ * **사용자가 연 단계가 이긴다.** 호출부가 선택할 때마다 `opened` 를 비우므로,
+ * 선택 직후에는 자연히 「비어 있는 첫 단계」가 잡힌다 — 자동 진행과 무효화 연쇄
+ * 노출이 그 한 규칙에서 함께 나온다.
  *
- * 비어 있는 단계가 사용자 의사를 이기는 것이 핵심이다. selectService 가 storeSize 를
- * 비우는데(업종별 값이라 남기면 근거 없는 입력이 된다) 접힌 화면에서는 그 빈칸이
- * 보이지 않는다. 강제로 열지 않으면 "다 골랐다"고 믿는 채로 미완성 상태가 된다.
+ * gap 을 사용자 의사보다 앞세우면 안 된다. 그러면 뒤가 비어 있는 동안 앞 단계의
+ * 「변경」이 눌러도 아무 일이 없는 죽은 컨트롤이 된다.
  *
  * @param opened 사용자가 직접 펼친 단계. 없으면 null.
  */
@@ -35,10 +34,7 @@ export const resolveOpenSection = (
   state: SimulationConditionState,
   opened: SimulationConditionSection | null,
 ): SimulationConditionSection | null => {
-  const gap = firstIncomplete(state)
-  if (gap !== null) return gap
-
   if (opened !== null) return opened
 
-  return null
+  return firstIncomplete(state)
 }

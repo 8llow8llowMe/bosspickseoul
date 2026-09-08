@@ -53,8 +53,9 @@ describe('resolveOpenSection', () => {
   })
 
   /*
-    selectService 가 storeSize 를 비운다. 접힌 화면에서는 그 빈칸이 안 보이므로
-    비워진 첫 단계를 강제로 연다 — 사용자가 연 단계보다 우선한다.
+    selectService 가 storeSize 를 비운다. 호출부는 선택할 때마다 opened 를 비우므로
+    (선택 직후 실제 상황은 null), 접힌 화면에서 그 빈칸이 안 보이지 않게 비워진
+    첫 단계가 곧바로 잡혀야 한다.
   */
   it('앞을 고쳐 뒤가 비워지면 비워진 단계를 연다', () => {
     const broken = state({
@@ -65,7 +66,17 @@ describe('resolveOpenSection', () => {
       floorType: 'FIRST_FLOOR',
     })
 
-    expect(resolveOpenSection(broken, 'service')).toBe('store')
+    expect(resolveOpenSection(broken, null)).toBe('store')
+  })
+
+  /*
+    뒤가 비어 있어도 사용자가 연 단계를 열어야 한다. gap 을 앞세우면 완료된 앞
+    단계의 「변경」이 눌러도 아무 일이 없는 죽은 컨트롤이 된다.
+  */
+  it('뒤가 비어 있어도 사용자가 연 앞 단계를 연다', () => {
+    const midway = state({ franchisee: false, districtCode: '11680' })
+
+    expect(resolveOpenSection(midway, 'district')).toBe('district')
   })
 
   /*

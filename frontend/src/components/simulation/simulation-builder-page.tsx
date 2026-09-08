@@ -212,11 +212,24 @@ export default function SimulationBuilderPage({
 
   /*
     사용자가 직접 펼친 단계. 실제로 열리는 단계는 resolveOpenSection 이 정한다 —
-    비어 있는 단계가 이 값을 이긴다(무효화 연쇄를 숨기지 않기 위해).
+    이 값이 있으면 그것을 이긴다. 선택 핸들러(selectThenAdvance)가 선택할 때마다
+    이 값을 비우므로, 선택 직후에는 자연히 비어 있는 첫 단계가 열린다.
   */
   const [openedByUser, setOpenedByUser] =
     useState<SimulationConditionSection | null>(null)
   const openSection = resolveOpenSection(conditions.state, openedByUser)
+
+  /*
+    선택하면 「사용자가 연 단계」를 비운다. 그래야 resolveOpenSection 이 다음
+    미완료 단계를 잡아 자동 진행하고, 앞 단계를 고쳐 뒤가 비워진 경우에도 그
+    빈 단계를 곧바로 펼친다.
+  */
+  const selectThenAdvance =
+    <T,>(apply: (value: T) => void) =>
+    (value: T) => {
+      apply(value)
+      setOpenedByUser(null)
+    }
 
   /*
     검색어는 그 단계를 벗어나면 버린다(D4-1-1). 단계를 다시 열면 전체 목록에서
@@ -391,7 +404,9 @@ export default function SimulationBuilderPage({
                 selectedCode={
                   state.franchisee === null ? null : String(state.franchisee)
                 }
-                onSelect={code => conditions.setFranchisee(code === 'true')}
+                onSelect={selectThenAdvance<string>(code =>
+                  conditions.setFranchisee(code === 'true'),
+                )}
                 minColumnWidth={200}
               />
             </SimulationConditionSectionCard>
@@ -426,7 +441,7 @@ export default function SimulationBuilderPage({
                   label="자치구"
                   choices={districtChoices}
                   selectedCode={state.districtCode}
-                  onSelect={conditions.setDistrict}
+                  onSelect={selectThenAdvance(conditions.setDistrict)}
                   /* 96px는 375px에서 3열을 유지하는 상한이다(카드 내부 폭 311px).
                      104로 올리면 모바일이 2열로 떨어져 25칩이 13줄이 된다. */
                   minColumnWidth={96}
@@ -465,7 +480,7 @@ export default function SimulationBuilderPage({
                     label="업종"
                     choices={serviceChoices}
                     selectedCode={state.serviceCode}
-                    onSelect={conditions.setService}
+                    onSelect={selectThenAdvance(conditions.setService)}
                     minColumnWidth={132}
                   />
                 )}
@@ -480,7 +495,7 @@ export default function SimulationBuilderPage({
                       key={state.serviceCode}
                       serviceCode={state.serviceCode}
                       selectedFranchiseeId={state.franchiseeId}
-                      onSelect={conditions.setBrand}
+                      onSelect={selectThenAdvance(conditions.setBrand)}
                     />
                   ) : (
                     <LockedBlock>
@@ -531,8 +546,8 @@ export default function SimulationBuilderPage({
                   serviceCode={state.serviceCode}
                   storeSize={state.storeSize}
                   floorType={state.floorType}
-                  onStoreSizeChange={conditions.setStoreSize}
-                  onFloorTypeChange={conditions.setFloorType}
+                  onStoreSizeChange={selectThenAdvance(conditions.setStoreSize)}
+                  onFloorTypeChange={selectThenAdvance(conditions.setFloorType)}
                 />
               ) : null}
             </SimulationConditionSectionCard>
