@@ -1,9 +1,10 @@
 'use client'
 
-import { Check, ChevronRight, Search, X } from 'lucide-react'
-import { useId, useMemo, useState, type ReactNode } from 'react'
+import { Check, ChevronRight, Search } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 
+import { TextField } from '@/components/ui/text-field'
 import {
   countOptions,
   filterOptionGroups,
@@ -63,83 +64,6 @@ const Root = styled.div`
 
 /* 검색은 TextField 규격(채움형)을 따르되, 목록 위에 얹히는 한 줄이라
    라벨·헬퍼 없이 아이콘 두 개만 붙인 얇은 형태로 쓴다. */
-const SearchShell = styled.div`
-  position: relative;
-  display: grid;
-  align-items: center;
-
-  > svg {
-    position: absolute;
-    left: 12px;
-    width: 16px;
-    height: 16px;
-    color: var(--color-text-caption);
-    pointer-events: none;
-  }
-`
-
-const SearchInput = styled.input`
-  width: 100%;
-  min-height: 40px;
-  /* 테두리 두께가 1→2px 로 자라도 칸이 흔들리지 않게 padding 으로 상쇄한다. */
-  padding: 0 35px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-field);
-  background: var(--color-surface-muted);
-  color: var(--color-text-900);
-  font: inherit;
-  font-size: 14px;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
-
-  &::placeholder {
-    color: var(--color-placeholder);
-  }
-
-  /* WebKit 이 type="search" 에 붙이는 기본 지우기 버튼. 우리 ClearButton 과
-     겹쳐 같은 ✕ 가 두 개 나란히 보인다. 라벨 있는 쪽만 남긴다. */
-  &::-webkit-search-cancel-button {
-    display: none;
-  }
-
-  /* 전역 :focus-visible 아웃라인(2px, offset 2px)을 그대로 두면 테두리와 겹쳐
-     파란 선이 두 줄로 보인다. TextField 처럼 아웃라인을 끄고 테두리 하나로
-     표시한다 — 평상시 1px → 포커스 2px 로 두께가 자란다. */
-  &:focus,
-  &:focus-visible {
-    padding: 0 34px;
-    border-width: 2px;
-    border-color: var(--color-primary-700);
-    background: var(--color-surface);
-    outline: none;
-  }
-`
-
-const ClearButton = styled.button`
-  position: absolute;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--color-text-caption);
-  cursor: pointer;
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  &:hover {
-    background: var(--color-surface-muted);
-    color: var(--color-text-800);
-  }
-`
 
 const GroupList = styled.div`
   display: grid;
@@ -463,7 +387,6 @@ export default function OptionPicker({
   featured,
 }: OptionPickerProps) {
   const [query, setQuery] = useState('')
-  const searchId = useId()
 
   const totalCount = countOptions(items, groups)
   const showSearch = totalCount > searchThreshold
@@ -634,26 +557,23 @@ export default function OptionPicker({
   return (
     <Root>
       {showSearch ? (
-        <SearchShell>
-          <Search aria-hidden />
-          <SearchInput
-            id={searchId}
-            type="search"
-            value={query}
-            aria-label={searchPlaceholder}
-            placeholder={searchPlaceholder}
-            onChange={event => setQuery(event.target.value)}
-          />
-          {query ? (
-            <ClearButton
-              type="button"
-              aria-label="검색어 지우기"
-              onClick={() => setQuery('')}
-            >
-              <X />
-            </ClearButton>
-          ) : null}
-        </SearchShell>
+        <TextField
+          fullWidth
+          emphasized
+          /*
+            44px 다. 자체 구현은 40px 이었는데 TextField 의 최소가 44 다 — 좁은 패널에서
+            4px 을 더 쓰지만, 같은 화면의 다른 검색창과 같은 체계 안에 들어오는 값이
+            그보다 크다. large(48)는 상권분석 좌측 패널의 목록 자리를 더 먹어 쓰지 않는다.
+          */
+          fieldSize="medium"
+          type="search"
+          aria-label={searchPlaceholder}
+          placeholder={searchPlaceholder}
+          value={query}
+          leftSlot={<Search aria-hidden="true" />}
+          onClear={() => setQuery('')}
+          onChange={event => setQuery(event.target.value)}
+        />
       ) : null}
 
       {query.trim() && matchCount > 0 ? (

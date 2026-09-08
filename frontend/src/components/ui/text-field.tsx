@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import { forwardRef } from 'react'
 import styled, { css } from 'styled-components'
@@ -22,6 +23,13 @@ export type TextFieldProps = Omit<
   helperText?: ReactNode
   label?: ReactNode
   leftSlot?: ReactNode
+  /**
+   * 검색어 지우기. 넘기면 값이 있을 때만 라벨 있는 ✕ 버튼이 뜬다.
+   *
+   * `rightSlot` 으로 직접 넣지 못하는 이유: 그 자리는 아이콘용이라 `aria-hidden` 이다.
+   * 버튼을 그 안에 넣으면 **포커스는 받는데 스크린리더에는 없는** 컨트롤이 된다.
+   */
+  onClear?: () => void
   rightSlot?: ReactNode
 }
 
@@ -108,20 +116,76 @@ const Slot = styled.span`
   }
 `
 
-const Input = styled.input`
+const Input = styled.input<{ $hasClear: boolean }>`
   width: 100%;
   min-width: 0;
   border: none;
-  outline: none;
   background: transparent;
   color: var(--color-text-900);
   font: inherit;
+
+  /*
+    포커스 신호는 **칸 자체의 2px 테두리 하나**다(DESIGN.md §Inputs & Forms — "focus
+    2px #0ea5e9"). 전역 :focus-visible 아웃라인(같은 색, offset 2px)이 그 위에 겹치면
+    파란 선이 두 줄로 보인다. 클래스 선택자 'outline: none' 은 전역 규칙과 특이도가
+    같아 순서에 밀려 눌리지 않았으므로, :focus-visible 을 함께 붙여 확실히 이긴다.
+
+    포커스를 **지우는** 것이 아니라 두 신호 중 하나를 고르는 것이다 — 칸 테두리는
+    그대로 2px 파랑으로 바뀐다.
+  */
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+
+  /*
+    WebKit 이 type="search" 에 붙이는 기본 지우기 버튼. 우리 ClearButton 과 겹쳐 같은 ✕
+    가 두 개 나란히 보인다 — 라벨 있는 쪽만 남긴다. onClear 를 넘기지 않은 칸에서는
+    네이티브 버튼이 유일한 지우기 수단이므로 건드리지 않는다.
+  */
+  ${props =>
+    props.$hasClear
+      ? css`
+          &::-webkit-search-cancel-button {
+            display: none;
+          }
+        `
+      : null}
 
   /* DESIGN.md §Disabled: 비활성 입력도 테두리(grey200)를 유지한다 — 다시 활성화될 때
      칸의 형태가 흔들리지 않게. 그래서 커서와 글자색만 비활성으로 바꾼다. */
   &:disabled {
     color: var(--color-text-caption);
     cursor: not-allowed;
+  }
+`
+
+/*
+  `Slot` 과 나란히 서지만 **aria-hidden 이 아니다.** 지우기는 장식이 아니라 컨트롤이라
+  접근 이름을 갖고 포커스 순서에도 있어야 한다.
+*/
+const ClearButton = styled.button`
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-caption);
+  cursor: pointer;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    background: var(--color-surface-muted);
+    color: var(--color-text-800);
   }
 `
 
@@ -142,12 +206,15 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
       helperText,
       label,
       leftSlot,
+      onClear,
       rightSlot,
       ...props
     },
     ref,
   ) => {
     const hasError = Boolean(errorText)
+    // 빈 칸에 ✕ 를 두면 누를 것이 없는 버튼이 포커스 순서에 남는다.
+    const showClear = Boolean(onClear) && Boolean(props.value)
 
     return (
       <Field $fullWidth={fullWidth}>
@@ -158,8 +225,22 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
           $size={fieldSize}
         >
           {leftSlot ? <Slot aria-hidden="true">{leftSlot}</Slot> : null}
-          <Input ref={ref} aria-invalid={hasError || undefined} {...props} />
+          <Input
+            ref={ref}
+            $hasClear={Boolean(onClear)}
+            aria-invalid={hasError || undefined}
+            {...props}
+          />
           {rightSlot ? <Slot aria-hidden="true">{rightSlot}</Slot> : null}
+          {showClear ? (
+            <ClearButton
+              type="button"
+              aria-label="검색어 지우기"
+              onClick={onClear}
+            >
+              <X aria-hidden="true" />
+            </ClearButton>
+          ) : null}
         </InputShell>
         {errorText || helperText ? (
           <HelperText $hasError={hasError}>
