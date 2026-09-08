@@ -301,11 +301,18 @@ export default function SimulationBuilderPage({
   /*
     단계가 자동으로 바뀌면 새 헤더로 포커스를 옮긴다. 옮기지 않으면 키보드·스크린리더
     사용자는 방금 사라진 요소 자리에 남아 화면이 바뀐 것을 모른다.
+
+    「전부 접힘」(openSection === null)도 하나의 전이로 취급한다 — 마지막 조건을 고르면
+    방금 열려 있던 패널이 통째로 사라지는데, 예전 early return은 이 경우를 아무것도
+    하지 않고 넘겨 포커스가 복구 없이 <body>로 떨어졌다. 전부 접힐 때는 직전에 열려
+    있던 단계(`previous`)의 헤더 버튼으로 돌려준다 — 그 헤더는 접혀도 여전히 버튼이다.
   */
   useEffect(() => {
-    if (openSection === null || lastFocused.current === openSection) return
+    if (lastFocused.current === openSection) return
+    const previous = lastFocused.current
     lastFocused.current = openSection
-    headerRefs.current.get(openSection)?.focus()
+    const target = openSection ?? previous
+    if (target) headerRefs.current.get(target)?.focus()
   }, [openSection])
 
   const queryClient = useQueryClient()
