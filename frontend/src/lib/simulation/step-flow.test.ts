@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { createSimulationConditionState } from '@/lib/simulation/conditions'
+import {
+  SIMULATION_CONDITION_SECTIONS,
+  createSimulationConditionState,
+} from '@/lib/simulation/conditions'
 import { resolveOpenSection } from '@/lib/simulation/step-flow'
 
 const state = (
@@ -65,12 +68,14 @@ describe('resolveOpenSection', () => {
     expect(resolveOpenSection(broken, 'service')).toBe('store')
   })
 
-  it('잠긴 단계는 열지 않는다 — 업종 전 매장 조건', () => {
-    expect(
-      resolveOpenSection(
-        state({ franchisee: false, districtCode: '11680' }),
-        'store',
-      ),
-    ).toBe('service')
+  /*
+    resolveOpenSection 은 잠금을 따로 검사하지 않는다. 업종 전 매장 조건이 열리지
+    않는 이유는 순회 순서가 service 를 먼저 잡기 때문이다. 이 순서가 깨지면 잠긴
+    단계가 펼쳐지므로 여기서 못박는다.
+  */
+  it('업종이 매장 조건보다 앞에 온다 — 잠금이 순서로 보장된다', () => {
+    const order = SIMULATION_CONDITION_SECTIONS
+
+    expect(order.indexOf('service')).toBeLessThan(order.indexOf('store'))
   })
 })

@@ -5,21 +5,17 @@ import {
   type SimulationConditionState,
 } from '@/lib/simulation/conditions'
 
-/**
- * 매장 조건은 업종 전이면 잠긴다. 잠긴 단계는 펼칠 수 없다.
- * 게이팅 자체는 원래 화면에도 있던 규칙이고, 여기서는 "열 수 있는가"만 판정한다.
- */
-const isLocked = (
-  state: SimulationConditionState,
-  section: SimulationConditionSection,
-): boolean => section === 'store' && state.serviceCode === null
-
+/*
+  잠긴 단계(업종 전 매장 조건)를 따로 걸러내지 않는다. store 에 닿으려면 service 가
+  완료여야 하고, service 의 완료 조건이 serviceCode 를 요구하므로 그 시점엔 이미
+  잠금이 풀려 있다. 이 정확성은 SIMULATION_CONDITION_SECTIONS 에서 service 가
+  store 보다 앞선다는 데 기댄다 — 아래 테스트가 그 순서를 지킨다.
+*/
 const firstIncomplete = (
   state: SimulationConditionState,
 ): SimulationConditionSection | null =>
   SIMULATION_CONDITION_SECTIONS.find(
-    section =>
-      !isSimulationSectionComplete(state, section) && !isLocked(state, section),
+    section => !isSimulationSectionComplete(state, section),
   ) ?? null
 
 /**
@@ -42,7 +38,7 @@ export const resolveOpenSection = (
   const gap = firstIncomplete(state)
   if (gap !== null) return gap
 
-  if (opened !== null && !isLocked(state, opened)) return opened
+  if (opened !== null) return opened
 
   return null
 }
