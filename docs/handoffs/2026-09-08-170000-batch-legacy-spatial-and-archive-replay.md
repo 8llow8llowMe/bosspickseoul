@@ -2,7 +2,7 @@
 project: nowdoboss
 cwd: D:/ProjectWorkSpace/NowDoBoss-V2/.claude/worktrees/batch-2024-schema-review (워크트리 — 기기마다 경로 다름)
 branch: feat/be/batch-2024-schema-review
-timestamp: 2026-09-08T21:30:00+0900
+timestamp: 2026-09-08T17:00:00+0900
 title: 분기 적재 배치 — 헤더 별칭 리소스화, ARCHIVE 재생 소스, LEGACY 공간 스냅샷 소스 추가
 files:
   - backend/service/batch-service/src/main/resources/seoul/csv-header-aliases.csv
@@ -12,7 +12,7 @@ files:
   - backend/docs/services/batch-service.md
 ---
 
-## 같은 날 앞선 인계(`2026-09-08-190000-batch-2024-source-verified.md`) 이후 추가된 것
+## 같은 날 앞선 인계(`2026-09-08-160000-batch-2024-source-verified.md`) 이후 추가된 것
 
 - **yml 별칭 표 제거.** `application-quarterly.yml` 170줄 → classpath `seoul/csv-header-aliases.csv`.
   헤더 정규화(공백·`~` → `_`, `률` → `율`)로 컬럼당 한 줄. yml 은 오버라이드 자리만 남김.

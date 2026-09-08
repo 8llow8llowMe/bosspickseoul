@@ -2,7 +2,7 @@
 project: nowdoboss
 cwd: D:/ProjectWorkSpace/NowDoBoss-V2/.claude/worktrees/batch-2024-schema-review (워크트리 — 기기마다 경로 다름)
 branch: feat/be/batch-2024-schema-review
-timestamp: 2026-09-08T19:00:00+0900
+timestamp: 2026-09-08T16:00:00+0900
 title: 분기 적재 배치 — 원천 실호출로 2024년 이후 차이를 확인하고 API 경로를 15종 전부에 열었다
 files:
   - backend/service/batch-service/src/main/java/.../dataingestion/domain/model/Dataset.java
