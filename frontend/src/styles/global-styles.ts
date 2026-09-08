@@ -38,6 +38,16 @@ const GlobalStyles = createGlobalStyle`
     --color-teal-500: #18a5a5;
     --color-purple-500: #a234c7;
 
+    /*
+     * 브랜드 컬러 — 로고 전용이다. UI 컴포넌트에서 쓰지 않는다.
+     * --color-brand-accent 는 green500 과 계열이 같아 UI 에 풀면
+     * 성공·상승 시맨틱과 혼동된다. 기하와 근거는
+     * src/lib/brand/mark-geometry.ts 와 DESIGN.md 브랜드 자산 섹션.
+     */
+    --color-brand-ink: #191f28;
+    --color-brand-accent: #00795c;
+    --color-brand-ghost: #edf0f3;
+
     --color-primary-700: var(--color-blue-500);
     --color-primary-600: var(--color-blue-600);
     --color-primary-100: var(--color-blue-50);
