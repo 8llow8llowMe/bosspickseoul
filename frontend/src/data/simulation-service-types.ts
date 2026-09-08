@@ -78,8 +78,14 @@ const SIMULATION_SERVICE_CODES = new Set(
 /**
  * 시뮬레이션이 지원하는 업종 코드인가.
  * 마법사의 업종 선택과 쿼리스트링(`?serviceCode=`) 복원에서 404를 예방하는 데 쓴다.
+ *
+ * 타입 서술어(`code is string`)로 선언해 잠금 판정에도 그대로 쓸 수 있게 한다 —
+ * `selectService(state, '')`가 만드는 빈 문자열은 truthy 검사를 통과하지 못하지만
+ * `=== null` 검사는 통과해 버리는 간극이 있었다. 두 판정을 이 술어 하나로 합친다.
  */
-export const isSimulationServiceCode = (code: string | null | undefined) =>
+export const isSimulationServiceCode = (
+  code: string | null | undefined,
+): code is string =>
   typeof code === 'string' && SIMULATION_SERVICE_CODES.has(code)
 
 /** 지원 업종이면 항목, 아니면 null. */

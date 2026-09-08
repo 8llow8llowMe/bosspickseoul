@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Lock, Search } from 'lucide-react'
@@ -9,12 +9,16 @@ import styled from 'styled-components'
 import SimulationAnalysisContextCard from '@/components/simulation/simulation-analysis-context-card'
 import SimulationBrandSearch from '@/components/simulation/simulation-brand-search'
 import SimulationChoiceGrid from '@/components/simulation/simulation-choice-grid'
+import SimulationChoiceSearch from '@/components/simulation/simulation-choice-search'
 import SimulationConditionSectionCard from '@/components/simulation/simulation-condition-section'
 import SimulationResultPanel from '@/components/simulation/simulation-result-panel'
 import SimulationStoreConditionFields from '@/components/simulation/simulation-store-condition-fields'
 import SimulationSummaryBar from '@/components/simulation/simulation-summary-bar'
 import { TextField } from '@/components/ui/text-field'
-import { SIMULATION_SERVICE_TYPES } from '@/data/simulation-service-types'
+import {
+  SIMULATION_SERVICE_TYPES,
+  isSimulationServiceCode,
+} from '@/data/simulation-service-types'
 import { resolveApiError } from '@/lib/api/api-error'
 import { createSimulationReport } from '@/lib/api/simulation'
 import { getResponseBody } from '@/lib/api/response'
@@ -26,7 +30,9 @@ import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditi
 import {
   SIMULATION_CONDITION_SECTION_LABELS,
   SIMULATION_DISTRICT_OPTIONS,
+  describeSimulationSectionValue,
   isSameSimulationReportRequest,
+  resolveSimulationSectionFromDomId,
   simulationSectionDomId,
   type SimulationConditionSection,
 } from '@/lib/simulation/conditions'
@@ -35,6 +41,7 @@ import {
   buildSimulationReportHref,
   parseSimulationConditionState,
 } from '@/lib/simulation/report-route'
+import { resolveOpenSection } from '@/lib/simulation/step-flow'
 import type { SimulationReportRequest } from '@/types/simulation'
 import { shellWidth } from '@/styles/layout'
 
@@ -138,6 +145,38 @@ const ServiceBlock = styled.div`
   gap: 24px;
 `
 
+const EmptyText = styled.p`
+  padding: 18px 0;
+  color: var(--color-text-caption);
+  font-size: 13px;
+  text-align: center;
+`
+
+/* 업종을 고른 뒤 칩 30개 대신 보여주는 한 줄. 브랜드 검색에 자리를 내준다. */
+const PickedRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-primary-600);
+  border-radius: var(--radius-control);
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  font-size: 14px;
+  font-weight: 600;
+
+  button {
+    border: 0;
+    background: transparent;
+    color: var(--color-primary-700);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+`
+
 const LockedBlock = styled.div`
   display: grid;
   gap: 12px;
@@ -200,6 +239,104 @@ export default function SimulationBuilderPage({
     serviceCode: restored.serviceCode ?? context?.serviceCode ?? null,
   })
 
+  /*
+    사용자가 직접 펼친 단계. 실제로 열리는 단계는 resolveOpenSection 이 정한다 —
+    이 값이 있으면 그것을 이긴다. 선택 핸들러(selectThenAdvance)가 선택할 때마다
+    이 값을 비우므로, 선택 직후에는 자연히 비어 있는 첫 단계가 열린다.
+  */
+  const [openedByUser, setOpenedByUser] =
+    useState<SimulationConditionSection | null>(null)
+  const openSection = resolveOpenSection(conditions.state, openedByUser)
+
+  /*
+    선택하면 「사용자가 연 단계」를 비운다. 그래야 resolveOpenSection 이 다음
+    미완료 단계를 잡아 자동 진행하고, 앞 단계를 고쳐 뒤가 비워진 경우에도 그
+    빈 단계를 곧바로 펼친다.
+  */
+  const selectThenAdvance =
+    <T,>(apply: (value: T) => void) =>
+    (value: T) => {
+      apply(value)
+      setOpenedByUser(null)
+    }
+
+  /*
+    검색어는 그 단계를 벗어나면 버린다(D4-1-1). 단계를 다시 열면 전체 목록에서
+    시작하는 편이, 지난번에 걸어둔 필터 때문에 원하는 항목이 안 보이는 것보다 낫다.
+  */
+  const [districtQuery, setDistrictQuery] = useState('')
+  const [serviceQuery, setServiceQuery] = useState('')
+
+  // 렌더 중 key 비교로 즉시 리셋하는 React 권장 패턴("Adjusting state when a prop
+  // changes")을 사용해 effect 기반 setState의 cascading render를 피한다.
+  const [prevOpenSection, setPrevOpenSection] = useState(openSection)
+  if (prevOpenSection !== openSection) {
+    setPrevOpenSection(openSection)
+    if (openSection !== 'district') setDistrictQuery('')
+    if (openSection !== 'service') setServiceQuery('')
+  }
+
+  const districtChoices = districtQuery.trim()
+    ? SIMULATION_DISTRICT_OPTIONS.filter(item =>
+        item.name.includes(districtQuery.trim()),
+      )
+    : SIMULATION_DISTRICT_OPTIONS
+
+  const serviceChoices = serviceQuery.trim()
+    ? SIMULATION_SERVICE_TYPES.filter(item =>
+        item.name.includes(serviceQuery.trim()),
+      )
+    : SIMULATION_SERVICE_TYPES
+
+  /*
+    React 19 의 콜백 ref 는 정리 함수만 반환할 수 있다. `node => map.set(...)` 처럼
+    식 본문으로 쓰면 Map 이 반환돼 타입 오류가 난다 — 블록 본문으로 감싼다.
+  */
+  const headerRefs = useRef(
+    new Map<SimulationConditionSection, HTMLButtonElement | null>(),
+  )
+  /*
+    초기값에 첫 렌더의 openSection 을 심는다. null 로 두면 마운트 직후 effect 가
+    「자동 진행」으로 착각해 페이지를 연 사람의 포커스를 1단계 버튼으로 끌어간다.
+    useRef 의 초기값은 첫 렌더에서만 쓰이므로 이후 전환은 그대로 잡힌다.
+  */
+  const lastFocused = useRef<SimulationConditionSection | null>(openSection)
+
+  /*
+    단계가 자동으로 바뀌면 새 헤더로 포커스를 옮긴다. 옮기지 않으면 키보드·스크린리더
+    사용자는 방금 사라진 요소 자리에 남아 화면이 바뀐 것을 모른다.
+
+    「전부 접힘」(openSection === null)도 하나의 전이로 취급한다 — 마지막 조건을 고르면
+    방금 열려 있던 패널이 통째로 사라지는데, 예전 early return은 이 경우를 아무것도
+    하지 않고 넘겨 포커스가 복구 없이 <body>로 떨어졌다. 전부 접힐 때는 직전에 열려
+    있던 단계(`previous`)의 헤더 버튼으로 돌려준다 — 그 헤더는 접혀도 여전히 버튼이다.
+  */
+  useEffect(() => {
+    if (lastFocused.current === openSection) return
+    const previous = lastFocused.current
+    lastFocused.current = openSection
+    const target = openSection ?? previous
+    if (target) headerRefs.current.get(target)?.focus()
+  }, [openSection])
+
+  /*
+    리포트 화면의 오류 배너 "다시 선택"은 `#${simulationSectionDomId(section)}`를 달고
+    빌더로 돌아온다(simulation-report-page.tsx). 그 해시를 마운트 시 한 번 읽어
+    openedByUser 의 초기값으로 심는다 — 심지 않으면 항상 1단계(또는 첫 미완료 단계)가
+    열린 채로 시작해 사용자가 지목받은 섹션을 다시 찾아 펼쳐야 한다.
+
+    쿼리스트링과 달리 해시는 서버로 전송되지 않아 useSearchParams 로 볼 수 없고,
+    렌더 본문에서 window.location.hash 를 읽으면 SSR(해시 없음)과 하이드레이션 사이
+    첫 렌더 결과가 갈라진다. 그래서 렌더가 아니라 마운트 후 effect 에서 읽는다.
+  */
+  useEffect(() => {
+    const section = resolveSimulationSectionFromDomId(window.location.hash)
+    if (section) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 후 1회, 해시라는 외부 신호를 반영한다.
+      setOpenedByUser(section)
+    }
+  }, [])
+
   const queryClient = useQueryClient()
 
   const reportMutation = useMutation({
@@ -245,15 +382,26 @@ export default function SimulationBuilderPage({
     resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  /** 오류가 지목한 조건 섹션으로 데려간다. 앞 오류를 내리고 나서 이동한다. */
+  /*
+    오류가 지목한 조건 섹션으로 데려간다. 앞 오류를 내리고, 그 섹션을 펼치고 나서 이동한다.
+    계산은 조건 4개가 다 차야 가능하므로 오류 배너가 뜨는 시점엔 항상 전부 접혀 있다 —
+    펼치지 않고 스크롤만 하면 접힌 한 줄만 보이고 칩은 한 번 더 눌러야 나온다.
+
+    스크롤은 setOpenedByUser 직후가 아니라 rAF 안에서 한다. state 업데이트는 비동기라
+    같은 틱에 scrollIntoView를 부르면 아직 접힌 상태의 레이아웃을 기준으로 계산돼
+    펼쳐진 뒤 위치와 어긋난다(analysis-result-view.tsx의 scrollToReportSection과 같은 이유).
+  */
   const reselectSection = useCallback(
     (section: SimulationConditionSection) => {
       reportMutation.reset()
-      document
-        .getElementById(simulationSectionDomId(section))
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setOpenedByUser(section)
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById(simulationSectionDomId(section))
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
     },
-    [reportMutation],
+    [reportMutation, setOpenedByUser],
   )
 
   // 계산이 끝나면(성공이든 실패든) 결과가 화면 밖에 있는 좁은 화면에서만 결과로 데려간다.
@@ -304,6 +452,16 @@ export default function SimulationBuilderPage({
               title={SIMULATION_CONDITION_SECTION_LABELS.franchise}
               description="프랜차이즈면 브랜드 가맹 부담금까지 반영해요."
               complete={conditions.isSectionComplete('franchise')}
+              expanded={openSection === 'franchise'}
+              summary={describeSimulationSectionValue(state, 'franchise')}
+              onToggle={() =>
+                setOpenedByUser(
+                  openSection === 'franchise' ? null : 'franchise',
+                )
+              }
+              headerRef={node => {
+                headerRefs.current.set('franchise', node)
+              }}
             >
               <SimulationChoiceGrid
                 label="창업 형태"
@@ -311,7 +469,9 @@ export default function SimulationBuilderPage({
                 selectedCode={
                   state.franchisee === null ? null : String(state.franchisee)
                 }
-                onSelect={code => conditions.setFranchisee(code === 'true')}
+                onSelect={selectThenAdvance<string>(code =>
+                  conditions.setFranchisee(code === 'true'),
+                )}
                 minColumnWidth={200}
               />
             </SimulationConditionSectionCard>
@@ -323,16 +483,35 @@ export default function SimulationBuilderPage({
               description="자치구별 임대료 기준으로 계산해요."
               meta={`서울 ${SIMULATION_DISTRICT_OPTIONS.length}개 구`}
               complete={conditions.isSectionComplete('district')}
+              expanded={openSection === 'district'}
+              summary={describeSimulationSectionValue(state, 'district')}
+              onToggle={() =>
+                setOpenedByUser(openSection === 'district' ? null : 'district')
+              }
+              headerRef={node => {
+                headerRefs.current.set('district', node)
+              }}
             >
-              <SimulationChoiceGrid
-                label="자치구"
-                choices={SIMULATION_DISTRICT_OPTIONS}
-                selectedCode={state.districtCode}
-                onSelect={conditions.setDistrict}
-                /* 96px는 375px에서 3열을 유지하는 상한이다(카드 내부 폭 311px).
-                   104로 올리면 모바일이 2열로 떨어져 25칩이 13줄이 된다. */
-                minColumnWidth={96}
+              <SimulationChoiceSearch
+                label="자치구 이름으로 찾기"
+                value={districtQuery}
+                shown={districtChoices.length}
+                total={SIMULATION_DISTRICT_OPTIONS.length}
+                onChange={setDistrictQuery}
               />
+              {districtChoices.length === 0 ? (
+                <EmptyText>{`'${districtQuery.trim()}'와 맞는 자치구가 없어요.`}</EmptyText>
+              ) : (
+                <SimulationChoiceGrid
+                  label="자치구"
+                  choices={districtChoices}
+                  selectedCode={state.districtCode}
+                  onSelect={selectThenAdvance(conditions.setDistrict)}
+                  /* 96px는 375px에서 3열을 유지하는 상한이다(카드 내부 폭 311px).
+                     104로 올리면 모바일이 2열로 떨어져 25칩이 13줄이 된다. */
+                  minColumnWidth={96}
+                />
+              )}
             </SimulationConditionSectionCard>
 
             <SimulationConditionSectionCard
@@ -342,15 +521,52 @@ export default function SimulationBuilderPage({
               description="업종을 고르면 매장 크기 기준과 브랜드 검색이 열려요."
               meta={`지원 업종 ${SIMULATION_SERVICE_TYPES.length}종`}
               complete={conditions.isSectionComplete('service')}
+              expanded={openSection === 'service'}
+              summary={describeSimulationSectionValue(state, 'service')}
+              onToggle={() =>
+                setOpenedByUser(openSection === 'service' ? null : 'service')
+              }
+              headerRef={node => {
+                headerRefs.current.set('service', node)
+              }}
             >
               <ServiceBlock>
-                <SimulationChoiceGrid
-                  label="업종"
-                  choices={SIMULATION_SERVICE_TYPES}
-                  selectedCode={state.serviceCode}
-                  onSelect={conditions.setService}
-                  minColumnWidth={132}
-                />
+                {state.serviceCode &&
+                state.franchisee === true &&
+                !serviceQuery ? (
+                  <PickedRow>
+                    <span>
+                      {describeSimulationSectionValue(state, 'service')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => conditions.setService('')}
+                    >
+                      업종 변경
+                    </button>
+                  </PickedRow>
+                ) : (
+                  <>
+                    <SimulationChoiceSearch
+                      label="업종 이름으로 찾기"
+                      value={serviceQuery}
+                      shown={serviceChoices.length}
+                      total={SIMULATION_SERVICE_TYPES.length}
+                      onChange={setServiceQuery}
+                    />
+                    {serviceChoices.length === 0 ? (
+                      <EmptyText>{`'${serviceQuery.trim()}'와 맞는 업종이 없어요.`}</EmptyText>
+                    ) : (
+                      <SimulationChoiceGrid
+                        label="업종"
+                        choices={serviceChoices}
+                        selectedCode={state.serviceCode}
+                        onSelect={selectThenAdvance(conditions.setService)}
+                        minColumnWidth={132}
+                      />
+                    )}
+                  </>
+                )}
 
                 {/* 브랜드 검색은 serviceCode가 확정된 뒤에만 연다 — 없이 호출하면 400이다.
                     감추지 않고 **비활성 상태로 보여주는** 이유: 단계 인디케이터가 없어졌으니
@@ -362,7 +578,7 @@ export default function SimulationBuilderPage({
                       key={state.serviceCode}
                       serviceCode={state.serviceCode}
                       selectedFranchiseeId={state.franchiseeId}
-                      onSelect={conditions.setBrand}
+                      onSelect={selectThenAdvance(conditions.setBrand)}
                     />
                   ) : (
                     <LockedBlock>
@@ -395,23 +611,30 @@ export default function SimulationBuilderPage({
               title={SIMULATION_CONDITION_SECTION_LABELS.store}
               description="매장 크기와 층 구분에 따라 임대료·인테리어 기준이 달라져요."
               complete={conditions.isSectionComplete('store')}
+              expanded={openSection === 'store'}
+              summary={describeSimulationSectionValue(state, 'store')}
+              locked={!isSimulationServiceCode(state.serviceCode)}
+              onToggle={() =>
+                setOpenedByUser(openSection === 'store' ? null : 'store')
+              }
+              headerRef={node => {
+                headerRefs.current.set('store', node)
+              }}
             >
-              {state.serviceCode ? (
+              {/* store 가 펼쳐지려면 openSection 이 'store' 여야 하고, resolveOpenSection 은
+                  순회 순서(service → store)상 service 가 완료(=isSimulationServiceCode 를
+                  통과)일 때만 store 를 연다 — 여기 도달하면 항상 참이다. 그래도 truthy 검사가
+                  아니라 같은 술어로 다시 확인한다 — `locked` prop 과 다른 판정을 쓰면 「업종
+                  변경」이 만드는 빈 문자열(`''`) 앞에서 둘이 갈라진다. */}
+              {isSimulationServiceCode(state.serviceCode) ? (
                 <SimulationStoreConditionFields
                   serviceCode={state.serviceCode}
                   storeSize={state.storeSize}
                   floorType={state.floorType}
-                  onStoreSizeChange={conditions.setStoreSize}
-                  onFloorTypeChange={conditions.setFloorType}
+                  onStoreSizeChange={selectThenAdvance(conditions.setStoreSize)}
+                  onFloorTypeChange={selectThenAdvance(conditions.setFloorType)}
                 />
-              ) : (
-                <LockedBlock>
-                  <p>
-                    업종을 먼저 고르면 그 업종의 평균 면적을 기준으로 크기를
-                    추천해 드려요.
-                  </p>
-                </LockedBlock>
-              )}
+              ) : null}
             </SimulationConditionSectionCard>
           </Form>
 

@@ -68,6 +68,24 @@ export const simulationSectionDomId = (
   section: SimulationConditionSection,
 ): string => `simulation-section-${section}`
 
+/**
+ * DOM id(또는 URL 해시, `#` 포함 여부 무관)를 섹션으로 되돌린다. 리포트 화면이
+ * `#${simulationSectionDomId(section)}`로 되돌아올 때 빌더가 어느 섹션을 펼칠지
+ * 여기서 판정한다. `simulationSectionDomId`를 기준으로 역산해야 문자열을 두 군데서
+ * 따로 조립하는 일을 막는다 — 모르는 값은 null.
+ */
+export const resolveSimulationSectionFromDomId = (
+  raw: string | null | undefined,
+): SimulationConditionSection | null => {
+  if (!raw) return null
+  const id = raw.startsWith('#') ? raw.slice(1) : raw
+  return (
+    SIMULATION_CONDITION_SECTIONS.find(
+      section => simulationSectionDomId(section) === id,
+    ) ?? null
+  )
+}
+
 /* ------------------------------------------------------------------ *
  * 상태
  * ------------------------------------------------------------------ */
