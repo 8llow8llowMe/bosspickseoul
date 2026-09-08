@@ -177,3 +177,53 @@ describe('브랜드 강조색은 로고 전용이다', () => {
     expect(offenders).toEqual([])
   })
 })
+
+/**
+ * 포커스 **링**(outline)은 `--color-primary-700`(= blue500)이다. `--color-primary-600`
+ * (= blue600)은 hover/pressed 전용이다(DESIGN.md §Primary).
+ *
+ * 이 규약이 조용히 깨지는 이유는 **별칭 이름이 명암을 거꾸로 말하기 때문**이다 —
+ * 600 이 700 보다 진하다. 그래서 「포커스는 좀 더 진하게」라고 생각하며 600 을 집으면
+ * 규약을 어기게 되고, 화면에서는 요소마다 링 색이 달라지는 것으로만 드러난다.
+ * 실제로 세 곳이 그렇게 어긋나 있었다(#265).
+ *
+ * 링 대신 **컨트롤 테두리를 바꾸는** 포커스 표현은 이 가드의 대상이 아니다 — 그쪽에는
+ * 아직 600 을 쓰는 곳이 여럿 있고, 통일 여부는 #265 에서 따로 판단한다. 여기서 함께
+ * 막으면 지금 통과할 수 없는 가드가 된다.
+ */
+describe('포커스 링은 primary-700 이다', () => {
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+  )
+
+  const collectSources = (dir: string): string[] => {
+    const out: string[] = []
+
+    for (const name of readdirSync(dir)) {
+      if (name === 'node_modules' || name.startsWith('.')) continue
+
+      const full = path.join(dir, name)
+
+      if (statSync(full).isDirectory()) {
+        out.push(...collectSources(full))
+        continue
+      }
+
+      if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full)
+    }
+
+    return out
+  }
+
+  /** `outline: 2px solid var(--color-primary-600)` 꼴. 굵기·표기 흔들림을 흡수한다. */
+  const bannedRing = /outline:[^;{}]*var\(--color-primary-600\)/
+
+  it('아웃라인에 primary-600 을 쓰는 곳이 없다', () => {
+    const offenders = collectSources(projectRoot)
+      .filter(file => bannedRing.test(readFileSync(file, 'utf8')))
+      .map(file => path.relative(projectRoot, file))
+
+    expect(offenders).toEqual([])
+  })
+})

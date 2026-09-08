@@ -58,8 +58,9 @@ const Head = styled.header`
     background: var(--color-background-muted);
   }
 
+  /* 포커스 링은 primary-700(blue500)이다 — 600 은 hover/pressed 전용이다(DESIGN.md §Primary). */
   &:is(button):focus-visible {
-    outline: 2px solid var(--color-primary-600);
+    outline: 2px solid var(--color-primary-700);
     outline-offset: -2px;
   }
 

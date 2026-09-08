@@ -181,7 +181,7 @@ const BackButton = styled.button<{ $compact?: boolean }>`
   }
 
   &:focus-visible {
-    outline: 2px solid var(--color-primary-600);
+    outline: 2px solid var(--color-primary-700);
     outline-offset: 2px;
   }
 
@@ -265,7 +265,7 @@ const CloseButton = styled.button`
   }
 
   &:focus-visible {
-    outline: 2px solid var(--color-primary-600);
+    outline: 2px solid var(--color-primary-700);
     outline-offset: 2px;
   }
 `
