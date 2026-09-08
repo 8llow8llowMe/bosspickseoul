@@ -76,6 +76,34 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 - **Toss Blue** (`#0ea5e9`): `blue500`. Primary interactive color -- CTAs, links, active states, selection highlights. The workhorse of every tappable element.
 - **Blue Hover** (`#2272eb`): `blue600`. Hover/pressed state for blue500 elements.
+
+> #### ⚠️ `--color-primary-*` 별칭은 명암을 거꾸로 말한다
+>
+> ```css
+> --color-primary-700: var(--color-blue-500); /* #0ea5e9 — 더 밝다 */
+> --color-primary-600: var(--color-blue-600); /* #2272eb — 더 진하다 */
+> ```
+>
+> V1 에서는 `primary-700`(`#1549b5`)이 `primary-600`(`#336dd3`)보다 진했다. Toss 개편에서
+> 700 → blue500, 600 → blue600 으로 갈아끼우며 **관계가 역전됐다**(아래 「레거시 V1 토큰
+> 스냅샷」에 그 매핑이 남아 있다). **이름만 보고 고르면 반대가 된다.**
+>
+> 역할은 위 두 줄이 이미 정한 그대로다. 별칭으로 옮겨 적으면:
+>
+> | 별칭                  | 값                | 역할                                                          |
+> | --------------------- | ----------------- | ------------------------------------------------------------- |
+> | `--color-primary-700` | blue500 `#0ea5e9` | 기본 인터랙티브 — 채움·링크·활성·선택 강조, **그리고 포커스** |
+> | `--color-primary-600` | blue600 `#2272eb` | **hover/pressed 전용**                                        |
+>
+> 그래서 `&:hover { border-color: var(--color-primary-600) }` 는 맞고,
+> `&:focus-visible { outline: 2px solid var(--color-primary-600) }` 는 틀렸다 — 포커스는
+> hover 가 아니다. 포커스 링은 `--color-primary-700`(= 전역 `:focus-visible` 이 쓰는
+> `--color-blue-500`)이고, 링 대신 컨트롤 테두리를 바꾸는 방식이면 `--shadow-focus-primary`
+> 를 함께 얹는다.
+>
+> 아웃라인 링에 `primary-600` 을 쓰지 못하게 `global-styles.test.ts` 가 소스를 스캔해
+> 막는다. 테두리형 포커스에는 아직 `primary-600` 을 쓰는 곳이 남아 있다(#265).
+
 - **Blue Light** (`#e8f3ff`): `blue50`. Informational backgrounds, subtle blue-tinted surfaces.
 - **Pure White** (`#ffffff`): `background`, `layeredBackground`. Page background, card surfaces.
 - **Dark Charcoal** (`#191f28`): `grey900`. Primary heading color, strongest text. Warm near-black with subtle blue undertone.
