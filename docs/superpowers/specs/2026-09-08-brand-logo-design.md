@@ -107,6 +107,11 @@
 | Brand Accent | `#00795C` | 강조 칸 전용 |
 | Brand Ghost | `#EDF0F3` | 고스트 칸 전용 |
 | 다크 배경용 본체 | `#FFFFFF` | 어두운 배경에서 본체와 워드마크 |
+| `BRAND_INVERSE_BODY` | `#FFFFFF` | 반전 팔레트 본체 |
+| `BRAND_INVERSE_GHOST` | `#252D3A` | 반전 팔레트 고스트 |
+| `BRAND_INVERSE_ACCENT` | `#12A47C` | 반전 팔레트 강조 |
+
+**반전 팔레트 근거**: 원래 강조색 `#00795C`를 반전(어두운) 배경에 그대로 쓰면 반전 고스트 대비가 2.04로 무너져 강조 칸이 카운터에 녹는다 — 그래서 반전에서만 밝혀 `#12A47C`를 쓴다. 반전 고스트는 `grey800`(`#333D4B`)이 아니라 `#252D3A`다: 고스트는 배경 대비 1.19여야 한다. `grey800`은 배경 대비 1.51로 너무 잘 보여 카운터가 채워진 것처럼 읽히고 B 판독성이 무너진다. 라이트 모드 고스트(배경 대비 1.14)와 비슷한 미묘함을 반전에서도 재현한 값이 `#252D3A`다.
 
 ### 6.1 대비 근거
 
@@ -221,13 +226,15 @@ Solid 변형의 비례는 16:28 = 0.571로, 격자 변형(0.559)과 미세하게
 | `frontend/public/brand/mark-primary.svg` | Primary 심볼 (격자 + 고스트) |
 | `frontend/public/brand/mark-grid.svg` | Grid 심볼 (고스트 제거) |
 | `frontend/public/brand/mark-solid.svg` | Solid 심볼 |
-| `frontend/public/brand/lockup-horizontal.svg` | 가로형 락업 |
-| `frontend/public/brand/lockup-vertical.svg` | 세로형 락업 |
 | `frontend/app/icon.svg` | 파비콘 (컨테이너 + Solid) |
-| `frontend/app/apple-icon.png` | 180×180 |
-| `frontend/app/opengraph-image.png` | OG 이미지. 1200×630, 배경 Brand Ink, 중앙에 세로형 락업 반전 변형(심볼 Primary 160px + 워드마크 48px), 하단에 한 줄 설명 |
+| `frontend/app/apple-icon.tsx` | 180×180. `next/og` 로 런타임 렌더 |
+| `frontend/app/opengraph-image.tsx` | 1200×630. `next/og` 로 런타임 렌더, 심볼 전용(워드마크 없음) |
 | `frontend/src/components/brand/brand-mark.tsx` | 심볼 컴포넌트 (`variant`, `size` prop) |
 | `frontend/src/components/brand/brand-lockup.tsx` | 락업 컴포넌트 |
+
+**정적 락업 SVG 는 만들지 않는다** — `<text>` 는 뷰어 폰트에 의존하고 아웃라인화 도구가 저장소에 없다. 락업은 React 컴포넌트로만 제공한다.
+
+`apple-icon.png` / `opengraph-image.png` 로 계획했던 정적 이미지는 `apple-icon.tsx` / `opengraph-image.tsx`(`next/og`, satori 런타임 렌더)로 대체됐고, 둘 다 심볼 전용이며 워드마크를 포함하지 않는다 — satori 는 WOFF2 를 지원하지 않는데 저장소에는 Pretendard WOFF2 만 있다.
 
 ### 11.2 변경 파일
 
@@ -259,6 +266,7 @@ Solid 변형의 비례는 16:28 = 0.571로, 격자 변형(0.559)과 미세하게
 | 격자 정체성의 크기 의존 | 33px 이하에서 격자가 사라진다 | 컨테이너 실루엣이 소형 크기의 식별자 역할을 맡는다 |
 | DESIGN.md 서체 불일치 | 문서가 Toss Product Sans를 primary로 서술 | 이번 작업에서 서술만 정정. 서체 도입은 제외 범위 |
 | 각진 모듈과 UI 톤 | UI는 라운드 계열, 로고는 각짐 | 컨테이너 radius 25%가 완충 역할을 한다 |
+| 정적 락업 파일과 OG 워드마크 부재 | Pretendard TTF·OTF 를 싣지 않아 아웃라인화·satori 렌더가 불가 | 후속 과제로 남긴다 |
 
 ## 14. 결정 기록
 
