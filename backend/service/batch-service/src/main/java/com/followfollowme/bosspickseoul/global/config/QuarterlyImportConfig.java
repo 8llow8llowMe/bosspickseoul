@@ -5,7 +5,9 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.po
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRowProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.SpatialImportProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.source.SeoulDatasetSourceAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.LegacySpatialJdbcSourceAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.SpatialGeoJsonSourceAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SpatialSourceRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.SpatialReleaseJdbcAdapter;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSourceProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,8 +23,10 @@ public class QuarterlyImportConfig {
     @Bean public DatasetSourcePort datasetSourcePort(ObjectMapper mapper, DatasetSourceProperties properties) {
         return new SeoulDatasetSourceAdapter(mapper, properties);
     }
-    @Bean public SpatialSourcePort spatialSourcePort(ObjectMapper mapper, DatasetSourceProperties properties) {
-        return new SpatialGeoJsonSourceAdapter(mapper, properties.getRawDirectory());
+    @Bean public SpatialSourcePort spatialSourcePort(ObjectMapper mapper, DatasetSourceProperties properties, JdbcTemplate jdbc) {
+        SpatialSourcePort geoJson = new SpatialGeoJsonSourceAdapter(mapper, properties.getRawDirectory());
+        SpatialSourcePort legacy = new LegacySpatialJdbcSourceAdapter(jdbc, mapper);
+        return request -> request.kind() == SpatialSourceRequest.Kind.LEGACY ? legacy.read(request) : geoJson.read(request);
     }
     @Bean public SpatialReleasePort spatialReleasePort(JdbcTemplate jdbc, PlatformTransactionManager transactionManager) {
         return new SpatialReleaseJdbcAdapter(jdbc, transactionManager);

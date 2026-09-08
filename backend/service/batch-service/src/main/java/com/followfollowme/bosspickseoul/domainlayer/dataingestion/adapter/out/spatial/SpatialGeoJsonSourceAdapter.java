@@ -33,10 +33,11 @@ public class SpatialGeoJsonSourceAdapter implements SpatialSourcePort {
     }
 
     @Override
-    public SpatialSnapshot read(Path sourceFile) {
+    public SpatialSnapshot read(SpatialSourceRequest request) {
+        if (request.kind() != SpatialSourceRequest.Kind.GEOJSON) throw new IllegalArgumentException("GeoJSON source only handles GEOJSON requests");
         try {
             byte[] bytes;
-            try (InputStream stream = Files.newInputStream(sourceFile)) {
+            try (InputStream stream = Files.newInputStream(request.sourceFile())) {
                 bytes = stream.readNBytes(MAX_BYTES + 1);
             }
             require(bytes.length <= MAX_BYTES, "Spatial input exceeds 64 MiB");
@@ -65,7 +66,7 @@ public class SpatialGeoJsonSourceAdapter implements SpatialSourcePort {
                 require("Feature".equals(feature.path("type").asText()), "Expected Feature");
                 JsonNode properties = feature.path("properties");
                 JsonNode geometry = feature.path("geometry");
-                geometry(geometry);
+                GeoJsonGeometry.validate(geometry);
                 JsonNode parent = properties.path("parentCode");
                 require(parent.isMissingNode() || parent.isNull() || parent.isTextual(), "parentCode must be text or null");
                 areas.add(new SpatialArea(AreaScope.valueOf(text(properties, "areaType")),
@@ -113,40 +114,7 @@ public class SpatialGeoJsonSourceAdapter implements SpatialSourcePort {
         return value.textValue();
     }
 
-    private void geometry(JsonNode geometry) {
-        require(!geometry.has("crs"), "Geometry must use WGS84");
-        JsonNode coordinates = geometry.path("coordinates");
-        switch (geometry.path("type").asText()) {
-            case "Polygon" -> polygon(coordinates);
-            case "MultiPolygon" -> {
-                require(coordinates.isArray() && !coordinates.isEmpty(), "Empty MultiPolygon");
-                for (JsonNode polygon : coordinates) polygon(polygon);
-            }
-            default -> throw new IllegalArgumentException("Only Polygon and MultiPolygon geometry is supported");
-        }
-    }
-
-    private void polygon(JsonNode polygon) {
-        require(polygon.isArray() && !polygon.isEmpty(), "Empty Polygon");
-        for (JsonNode ring : polygon) {
-            require(ring.isArray() && ring.size() >= 4, "Polygon ring needs at least four coordinates");
-            for (JsonNode point : ring) {
-                require(point.isArray() && point.size() == 2, "Coordinates must be WGS84 [longitude, latitude]");
-                require(point.get(0).isNumber() && point.get(1).isNumber(), "Coordinates must be numeric");
-                double longitude = point.get(0).doubleValue();
-                double latitude = point.get(1).doubleValue();
-                require(Double.isFinite(longitude) && Double.isFinite(latitude)
-                    && longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90,
-                    "Coordinate outside WGS84 range");
-            }
-            JsonNode first = ring.get(0);
-            JsonNode last = ring.get(ring.size() - 1);
-            require(first.get(0).doubleValue() == last.get(0).doubleValue()
-                && first.get(1).doubleValue() == last.get(1).doubleValue(), "Polygon ring is not closed");
-        }
-    }
-
     private static void require(boolean condition, String message) {
-        if (!condition) throw new IllegalArgumentException(message);
+        GeoJsonGeometry.require(condition, message);
     }
 }

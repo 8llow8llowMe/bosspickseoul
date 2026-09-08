@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SpatialSourceRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.*;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -41,10 +42,12 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
         JobParameters parameters;
         if ("spatial".equals(optional(args, "job", "facts"))) {
             job = spatialJob;
-            parameters = new JobParametersBuilder().addString("runId", runId, true)
-                .addString("sourceFile", required(args, "source-file"), false)
-                .addString("spatialVersion", required(args, "spatial-version"), false)
-                .addString("dryRun", Boolean.toString(dryRun), false).toJobParameters();
+            var kind = SpatialSourceRequest.Kind.valueOf(optional(args, "source", "GEOJSON").toUpperCase(Locale.ROOT));
+            String file = optional(args, "source-file", "");
+            String updatedAt = optional(args, "source-updated-at", "");
+            var request = new SpatialSourceRequest(kind, file.isBlank() ? null : Path.of(file), required(args, "spatial-version"),
+                updatedAt.isBlank() ? null : Instant.parse(updatedAt));
+            parameters = CommercialRegionImportJobConfig.writeRequest(runId, request, dryRun);
         } else {
             if (!"facts".equals(optional(args, "job", "facts"))) throw new IllegalArgumentException("job must be facts or spatial");
             String file = optional(args, "source-file", "");
