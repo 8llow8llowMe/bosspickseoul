@@ -190,6 +190,7 @@ export default function SimulationConditionSectionCard({
             as="button"
             type="button"
             aria-expanded={expanded}
+            aria-controls={expanded ? `${id}-panel` : undefined}
             onClick={onToggle}
             ref={headerRef}
           >
@@ -198,7 +199,7 @@ export default function SimulationConditionSectionCard({
         )}
       </Heading>
       {expanded ? (
-        <Panel>
+        <Panel id={`${id}-panel`}>
           {description ? <Description>{description}</Description> : null}
           {children}
         </Panel>

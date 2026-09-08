@@ -77,4 +77,12 @@ describe('SimulationConditionSectionCard', () => {
   it('제목이 헤딩 안에 있다', () => {
     expect(render()).toMatch(/<h2[^>]*>[\s\S]*자치구[\s\S]*<\/h2>/)
   })
+
+  /* 버튼이 존재하지 않는 id 를 가리키면 안 되므로, 펼쳤을 때만 값이 패널 id 와 같아야 한다. */
+  it('펼치면 aria-controls 가 패널 id 를 가리킨다', () => {
+    const html = render()
+
+    expect(html).toContain('aria-controls="simulation-section-district-panel"')
+    expect(html).toContain('id="simulation-section-district-panel"')
+  })
 })
