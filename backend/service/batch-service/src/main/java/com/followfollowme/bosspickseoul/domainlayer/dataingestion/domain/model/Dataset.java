@@ -7,7 +7,13 @@ import java.util.Locale;
  * One Seoul commercial-analysis dataset. Each constant maps to exactly one legacy fact table
  * so a quarter can be backfilled for every table the services already read.
  *
- * <p>A blank service means no Open API contract is registered yet, so the dataset is CSV/ZIP only;
+ * <p>Every service name was confirmed by a live call on 2026-09-08 (sample key). Two facts about the
+ * live API shape the pipeline: only some services honour the quarter path argument (the rest return the
+ * full 2021+ timeline and are filtered while streaming), and numeric fields arrive as JSON numbers.
+ * The consumption dataset for commercial areas was re-published as "소비-상권배후지"
+ * ({@code VwsmTrdhlNcmCnsmpQq}); it no longer carries the income columns the legacy table has.
+ *
+ * <p>A blank service would mean no Open API contract is registered, so the dataset is CSV/ZIP only;
  * {@code ImportRequest} rejects an API run for it instead of guessing an endpoint.
  */
 public enum Dataset {
@@ -17,7 +23,7 @@ public enum Dataset {
     CHANGE_COMMERCIAL("VwsmTrdarIxQq", AreaScope.COMMERCIAL, false, List.of("TRDAR_CHNGE_IX")),
     POPULATION_COMMERCIAL("VwsmTrdarRepopQq", AreaScope.COMMERCIAL, false, List.of("TOT_REPOP_CO")),
     FACILITY_COMMERCIAL("VwsmTrdarFcltyQq", AreaScope.COMMERCIAL, false, List.of("VIATR_FCLTY_CO")),
-    CONSUMPTION_COMMERCIAL("", AreaScope.COMMERCIAL, false, List.of("EXPNDTR_TOTAMT")),
+    CONSUMPTION_COMMERCIAL("VwsmTrdhlNcmCnsmpQq", AreaScope.COMMERCIAL, false, List.of("EXPNDTR_TOTAMT")),
     SALES_ADMINISTRATION("VwsmAdstrdSelngW", AreaScope.ADMINISTRATION, true, List.of("THSMON_SELNG_AMT")),
     STORE_ADMINISTRATION("VwsmAdstrdStorW", AreaScope.ADMINISTRATION, true, List.of("STOR_CO")),
     CONSUMPTION_ADMINISTRATION("VwsmAdstrdNcmCnsmpW", AreaScope.ADMINISTRATION, false, List.of("EXPNDTR_TOTAMT")),
@@ -25,7 +31,7 @@ public enum Dataset {
     STORE_DISTRICT("VwsmSignguStorW", AreaScope.DISTRICT, true, List.of("STOR_CO")),
     FOOT_TRAFFIC_DISTRICT("VwsmSignguFlpopW", AreaScope.DISTRICT, false, List.of("TOT_FLPOP_CO")),
     CONSUMPTION_DISTRICT("VwsmSignguNcmCnsmpW", AreaScope.DISTRICT, false, List.of("EXPNDTR_TOTAMT")),
-    CHANGE_DISTRICT("", AreaScope.DISTRICT, false, List.of("TRDAR_CHNGE_IX"));
+    CHANGE_DISTRICT("VwsmSignguIxQq", AreaScope.DISTRICT, false, List.of("TRDAR_CHNGE_IX"));
 
     /** Categorical change indicator; validated against its code set instead of as a number. */
     public static final String CHANGE_INDICATOR_FIELD = "TRDAR_CHNGE_IX";

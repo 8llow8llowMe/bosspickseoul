@@ -1,12 +1,13 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class DatasetTest {
@@ -48,15 +49,32 @@ class DatasetTest {
             .containsExactlyInAnyOrder("CHANGE_COMMERCIAL", "CHANGE_DISTRICT");
     }
 
+    /**
+     * Every service name below answered a live sample-key call on 2026-09-08, so the API path is open for
+     * all fifteen datasets. Pinning the names keeps a typo from silently pointing a dataset at a
+     * different Seoul view (the envelope key would then never match and the run fails late).
+     */
     @Test
-    void datasetsWithoutARegisteredApiContractRefuseApiRunsInsteadOfGuessingAnEndpoint() {
-        List<Dataset> archivalOnly = Arrays.stream(Dataset.values()).filter(d -> d.service().isBlank()).toList();
-        assertThat(archivalOnly).isNotEmpty();
-        for (Dataset dataset : archivalOnly) {
-            assertThatThrownBy(() -> request(dataset, ImportRequest.SourceType.API, null))
-                .hasMessageContaining("archival files only");
-            assertThat(request(dataset, ImportRequest.SourceType.CSV, java.nio.file.Path.of("source.csv")).dataset())
-                .isEqualTo(dataset);
+    void everyDatasetHasALiveVerifiedApiServiceSoApiRunsAreAcceptedForAll() {
+        Map<Dataset, String> verified = new EnumMap<>(Dataset.class);
+        verified.put(Dataset.SALES_COMMERCIAL, "VwsmTrdarSelngQq");
+        verified.put(Dataset.STORE_COMMERCIAL, "VwsmTrdarStorQq");
+        verified.put(Dataset.FOOT_TRAFFIC_COMMERCIAL, "VwsmTrdarFlpopQq");
+        verified.put(Dataset.CHANGE_COMMERCIAL, "VwsmTrdarIxQq");
+        verified.put(Dataset.POPULATION_COMMERCIAL, "VwsmTrdarRepopQq");
+        verified.put(Dataset.FACILITY_COMMERCIAL, "VwsmTrdarFcltyQq");
+        verified.put(Dataset.CONSUMPTION_COMMERCIAL, "VwsmTrdhlNcmCnsmpQq");
+        verified.put(Dataset.SALES_ADMINISTRATION, "VwsmAdstrdSelngW");
+        verified.put(Dataset.STORE_ADMINISTRATION, "VwsmAdstrdStorW");
+        verified.put(Dataset.CONSUMPTION_ADMINISTRATION, "VwsmAdstrdNcmCnsmpW");
+        verified.put(Dataset.SALES_DISTRICT, "VwsmSignguSelngW");
+        verified.put(Dataset.STORE_DISTRICT, "VwsmSignguStorW");
+        verified.put(Dataset.FOOT_TRAFFIC_DISTRICT, "VwsmSignguFlpopW");
+        verified.put(Dataset.CONSUMPTION_DISTRICT, "VwsmSignguNcmCnsmpW");
+        verified.put(Dataset.CHANGE_DISTRICT, "VwsmSignguIxQq");
+        for (Dataset dataset : Dataset.values()) {
+            assertThat(dataset.service()).as("%s", dataset).isEqualTo(verified.get(dataset));
+            assertThat(request(dataset, ImportRequest.SourceType.API, null).dataset()).isEqualTo(dataset);
         }
     }
 
