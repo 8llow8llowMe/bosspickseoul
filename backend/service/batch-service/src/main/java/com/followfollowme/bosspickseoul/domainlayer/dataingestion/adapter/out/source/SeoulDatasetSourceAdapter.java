@@ -1,7 +1,8 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.source;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SourceReceipt;
@@ -118,7 +119,7 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
                 Map<String, String> fields = new LinkedHashMap<>();
                 row.fields().forEachRemaining(entry -> {
                     if (!entry.getValue().isValueNode()) throw new IllegalArgumentException("API field must be scalar");
-                    fields.put(entry.getKey(), entry.getValue().isNull() ? null : entry.getValue().asText());
+                    fields.put(entry.getKey(), scalar(entry.getValue()));
                 });
                 String rowPeriod = fields.get("STDR_YYQU_CD");
                 if (rowPeriod == null || !rowPeriod.matches("20[0-9]{2}[1-4]")) {
@@ -128,6 +129,17 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
                 count++;
                 return new SourceRow(fetchedCount, fields);
             }
+        }
+
+        /**
+         * Seoul serialises every metric as a JSON number ({@code 5.03135509E8}, {@code 51551.0}). The payload
+         * must hold the same plain decimal text a CSV row would ({@code 503135509}, {@code 51551}) so both
+         * routes stage identical values and no reader has to parse scientific notation.
+         */
+        private String scalar(JsonNode value) {
+            if (value.isNull()) return null;
+            if (value.isNumber()) return value.decimalValue().stripTrailingZeros().toPlainString();
+            return value.asText();
         }
 
         private void fetchPage() {
@@ -153,7 +165,9 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
             try {
                 Files.write(archive.resolve("page-" + start + ".json"), body, StandardOpenOption.CREATE_NEW);
                 digest.update(body);
-                JsonNode root = mapper.reader().with(JsonParser.Feature.STRICT_DUPLICATE_DETECTION).readTree(body);
+                // Amounts reach 13 digits; decode them exactly instead of through a double.
+                JsonNode root = mapper.reader().with(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                        .with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).readTree(body);
                 JsonNode data = root == null ? null : root.get(request.dataset().service());
                 if (data == null || !"INFO-000".equals(data.path("RESULT").path("CODE").asText()))
                     throw new IllegalArgumentException("Seoul API returned an error or unexpected envelope");
@@ -202,6 +216,10 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
             if (headers.stream().anyMatch(String::isBlank) || new HashSet<>(headers).size() != headers.size())
                 throw new IllegalArgumentException("CSV header is blank or duplicated");
             if (!headers.contains("STDR_YYQU_CD")) throw new IllegalArgumentException("CSV missing quarter header; configure explicit header aliases");
+            // A Korean header left unaliased would stage under a key the API route never produces and skip the
+            // suffix-based numeric checks, so the two routes would silently disagree. Stop and name the headers.
+            List<String> unaliased = headers.stream().filter(h -> !h.matches("[A-Za-z][A-Za-z0-9_]*")).toList();
+            if (!unaliased.isEmpty()) throw new IllegalArgumentException("CSV headers without a source column alias: " + unaliased);
         }
 
         private boolean nextEntry() throws IOException {
