@@ -16,5 +16,6 @@ public class DatasetSourceProperties {
     private Path rawDirectory = Path.of("data", "raw");
     private int timeoutSeconds = 30;
     private int maxAttempts = 3;
-    private Map<String, String> headerAliases = new LinkedHashMap<>(Map.of("기준_년분기_코드", "STDR_YYQU_CD"));
+    /** Local additions to classpath {@code seoul/csv-header-aliases.csv}; normally empty. */
+    private Map<String, String> headerAliases = new LinkedHashMap<>();
 }
