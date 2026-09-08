@@ -9,6 +9,7 @@ import styled from 'styled-components'
 import SimulationAnalysisContextCard from '@/components/simulation/simulation-analysis-context-card'
 import SimulationBrandSearch from '@/components/simulation/simulation-brand-search'
 import SimulationChoiceGrid from '@/components/simulation/simulation-choice-grid'
+import SimulationChoiceSearch from '@/components/simulation/simulation-choice-search'
 import SimulationConditionSectionCard from '@/components/simulation/simulation-condition-section'
 import SimulationResultPanel from '@/components/simulation/simulation-result-panel'
 import SimulationStoreConditionFields from '@/components/simulation/simulation-store-condition-fields'
@@ -140,6 +141,13 @@ const ServiceBlock = styled.div`
   gap: 24px;
 `
 
+const EmptyText = styled.p`
+  padding: 18px 0;
+  color: var(--color-text-caption);
+  font-size: 13px;
+  text-align: center;
+`
+
 const LockedBlock = styled.div`
   display: grid;
   gap: 12px;
@@ -209,6 +217,34 @@ export default function SimulationBuilderPage({
   const [openedByUser, setOpenedByUser] =
     useState<SimulationConditionSection | null>(null)
   const openSection = resolveOpenSection(conditions.state, openedByUser)
+
+  /*
+    검색어는 그 단계를 벗어나면 버린다(D4-1-1). 단계를 다시 열면 전체 목록에서
+    시작하는 편이, 지난번에 걸어둔 필터 때문에 원하는 항목이 안 보이는 것보다 낫다.
+  */
+  const [districtQuery, setDistrictQuery] = useState('')
+  const [serviceQuery, setServiceQuery] = useState('')
+
+  // 렌더 중 key 비교로 즉시 리셋하는 React 권장 패턴("Adjusting state when a prop
+  // changes")을 사용해 effect 기반 setState의 cascading render를 피한다.
+  const [prevOpenSection, setPrevOpenSection] = useState(openSection)
+  if (prevOpenSection !== openSection) {
+    setPrevOpenSection(openSection)
+    if (openSection !== 'district') setDistrictQuery('')
+    if (openSection !== 'service') setServiceQuery('')
+  }
+
+  const districtChoices = districtQuery.trim()
+    ? SIMULATION_DISTRICT_OPTIONS.filter(item =>
+        item.name.includes(districtQuery.trim()),
+      )
+    : SIMULATION_DISTRICT_OPTIONS
+
+  const serviceChoices = serviceQuery.trim()
+    ? SIMULATION_SERVICE_TYPES.filter(item =>
+        item.name.includes(serviceQuery.trim()),
+      )
+    : SIMULATION_SERVICE_TYPES
 
   /*
     React 19 의 콜백 ref 는 정리 함수만 반환할 수 있다. `node => map.set(...)` 처럼
@@ -376,15 +412,26 @@ export default function SimulationBuilderPage({
                 headerRefs.current.set('district', node)
               }}
             >
-              <SimulationChoiceGrid
-                label="자치구"
-                choices={SIMULATION_DISTRICT_OPTIONS}
-                selectedCode={state.districtCode}
-                onSelect={conditions.setDistrict}
-                /* 96px는 375px에서 3열을 유지하는 상한이다(카드 내부 폭 311px).
-                   104로 올리면 모바일이 2열로 떨어져 25칩이 13줄이 된다. */
-                minColumnWidth={96}
+              <SimulationChoiceSearch
+                label="자치구 이름으로 찾기"
+                value={districtQuery}
+                shown={districtChoices.length}
+                total={SIMULATION_DISTRICT_OPTIONS.length}
+                onChange={setDistrictQuery}
               />
+              {districtChoices.length === 0 ? (
+                <EmptyText>{`'${districtQuery.trim()}'와 맞는 자치구가 없어요.`}</EmptyText>
+              ) : (
+                <SimulationChoiceGrid
+                  label="자치구"
+                  choices={districtChoices}
+                  selectedCode={state.districtCode}
+                  onSelect={conditions.setDistrict}
+                  /* 96px는 375px에서 3열을 유지하는 상한이다(카드 내부 폭 311px).
+                     104로 올리면 모바일이 2열로 떨어져 25칩이 13줄이 된다. */
+                  minColumnWidth={96}
+                />
+              )}
             </SimulationConditionSectionCard>
 
             <SimulationConditionSectionCard
@@ -404,13 +451,24 @@ export default function SimulationBuilderPage({
               }}
             >
               <ServiceBlock>
-                <SimulationChoiceGrid
-                  label="업종"
-                  choices={SIMULATION_SERVICE_TYPES}
-                  selectedCode={state.serviceCode}
-                  onSelect={conditions.setService}
-                  minColumnWidth={132}
+                <SimulationChoiceSearch
+                  label="업종 이름으로 찾기"
+                  value={serviceQuery}
+                  shown={serviceChoices.length}
+                  total={SIMULATION_SERVICE_TYPES.length}
+                  onChange={setServiceQuery}
                 />
+                {serviceChoices.length === 0 ? (
+                  <EmptyText>{`'${serviceQuery.trim()}'와 맞는 업종이 없어요.`}</EmptyText>
+                ) : (
+                  <SimulationChoiceGrid
+                    label="업종"
+                    choices={serviceChoices}
+                    selectedCode={state.serviceCode}
+                    onSelect={conditions.setService}
+                    minColumnWidth={132}
+                  />
+                )}
 
                 {/* 브랜드 검색은 serviceCode가 확정된 뒤에만 연다 — 없이 호출하면 400이다.
                     감추지 않고 **비활성 상태로 보여주는** 이유: 단계 인디케이터가 없어졌으니
