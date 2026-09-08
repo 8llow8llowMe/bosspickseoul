@@ -169,11 +169,15 @@ const AiChip = styled.button`
     color: var(--color-text-600);
   }
 
+  /*
+    hover 와 포커스를 한 선택자에 묶고 'outline: none' 까지 두면 키보드 포커스가
+    화면에서 사라진다 — 마우스로 지나간 것과 똑같이 보이고, 링도 없다. 배경 변화는
+    둘 다 유지하고 포커스에서는 전역 :focus-visible 링을 그대로 살려 둔다.
+  */
   &:hover,
   &:focus-visible {
     background: var(--color-surface);
     color: var(--color-text-900);
-    outline: none;
   }
 `
 

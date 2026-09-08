@@ -48,8 +48,10 @@ const Select = styled.select`
     border-color: var(--color-primary-600);
   }
 
+  /* 포커스는 hover 와 같은 색이면 구별되지 않는다 — 포커스 색 + 글로우로 갈라 놓는다. */
   &:focus-visible {
-    border-color: var(--color-primary-600);
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary);
     outline: none;
   }
 `

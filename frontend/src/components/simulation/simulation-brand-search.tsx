@@ -78,9 +78,19 @@ const BrandButton = styled.button<{ $selected: boolean }>`
   text-align: left;
   cursor: pointer;
 
-  &:hover,
-  &:focus-visible {
+  &:hover {
     border-color: var(--color-primary-600);
+  }
+
+  /*
+    포커스는 hover 와 달라야 한다. 링을 지우고 hover 와 똑같은 테두리만 남기면
+    키보드 사용자는 자기가 어디 있는지 알 수 없다 — 마우스로 지나간 것과 구별이
+    안 된다. 테두리는 포커스 색(primary-700)으로 두고 글로우를 얹어 갈라 놓는다
+    (DESIGN.md §Primary — 600 은 hover/pressed 전용).
+  */
+  &:focus-visible {
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary);
     outline: none;
   }
 
