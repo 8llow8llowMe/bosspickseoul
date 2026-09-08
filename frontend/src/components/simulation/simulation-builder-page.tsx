@@ -191,7 +191,9 @@ const LockedBlock = styled.div`
     line-height: 24px;
   }
 
-  svg {
+  /* h3 로 한정한다 — 그냥 svg 로 두면 아래 비활성 TextField 의 검색 아이콘까지
+     16px 로 줄어들어, 같은 화면 위쪽의 업종 검색(18px)과 다르게 보인다. */
+  h3 svg {
     width: 16px;
     height: 16px;
     flex: 0 0 auto;
