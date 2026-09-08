@@ -4,7 +4,6 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.mo
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.AreaScope;
-import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,12 +18,9 @@ public class SpatialImportProcessor {
         this.releases = releases;
     }
 
-    public SpatialImportResult importSnapshot(Path sourceFile, String expectedSpatialVersion, boolean dryRun) {
-        if (expectedSpatialVersion == null || !expectedSpatialVersion.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) {
-            throw new IllegalArgumentException("A safe spatialVersion of at most 64 characters is required");
-        }
-        SpatialSnapshot snapshot = source.read(sourceFile);
-        if (!expectedSpatialVersion.equals(snapshot.spatialVersion())) {
+    public SpatialImportResult importSnapshot(SpatialSourceRequest request, boolean dryRun) {
+        SpatialSnapshot snapshot = source.read(request);
+        if (!request.spatialVersion().equals(snapshot.spatialVersion())) {
             throw new IllegalArgumentException("Source spatialVersion differs from requested spatialVersion");
         }
         validate(snapshot);
