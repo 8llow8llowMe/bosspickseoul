@@ -82,7 +82,22 @@ CSV 경로는 한글 헤더를 API 컬럼 코드로 바꾼다. 표는 classpath 
 - `GEOJSON`(기본): `spatialVersion`·`sourceUpdatedAt`·`expectedCounts`를 가진 FeatureCollection 파일. 2024년 표준단위구역 폴리곤이 준비되면 쓰는 경로다. 서울시는 상권 영역을 shapefile로 배포하고 `TbgisTrdarRelm` API는 중심점·면적·상위 코드만 주므로, 파일은 별도 변환으로 만들어야 한다.
 - `LEGACY`: 서비스가 이미 읽는 `area_boundary`(20233 기준 폴리곤)와 `commercial_region_mapping`(상권 → 행정동)에서 스냅샷을 만든다. `boundary_geo_json`의 맨 링을 닫힌 Polygon으로 감싸고, 행정동의 상위는 코드 앞 5자리, 상권의 상위는 매핑 테이블에서 얻는다. 매핑이 없는 상권이 있으면 코드를 나열하고 멈춘다. checksum은 산출된 영역 전체를 덮으므로 같은 테이블이면 같은 버전이다.
 
+**두 테이블은 district-service 스키마 소유다.** 팩트를 쓰는 commercial 스키마와 다르므로 `BATCH_LEGACY_SPATIAL_SCHEMA`로 지정해야 하고, 배치 계정에 그 스키마 SELECT 권한이 있어야 한다. 지정하지 않으면 조회가 빈 결과가 되고 실행이 그 사실을 알리며 멈춘다.
+
 상권 코드는 2024년 이후에도 그대로이므로 `LEGACY` 스냅샷으로 2024년 이후 분기의 `unmapped` 검증을 통과시킬 수 있다. 다만 **폴리곤은 20233 기준**이다. 버전 이름에 그 사실을 남기고(`legacy-20233` 등), 표준단위구역 폴리곤이 준비되면 새 버전으로 별도 게시한다.
+
+### 개발 DB 실측 (2026-09-08, `bosspickseoul_district_dev`)
+
+| 항목 | 값 |
+| --- | --- |
+| `area_boundary` 영역 수 | 자치구 25 · 행정동 425 · 상권 1,650 (합 2,100) |
+| `boundary_geo_json` 형태 | 2,100건 전부 맨 링 `[[lng,lat],...]` (중첩 링·geometry 객체 없음) |
+| 링이 닫히지 않은 행 | 80건 — 적재 시 첫 점을 덧붙여 닫는다 |
+| `commercial_region_mapping` | 1,650행, 상권 코드 중복 없음, 양방향 누락 0 |
+| 행정동 → 자치구(앞 5자리) | 425건 전부 부모 존재 |
+| 팩트 테이블 코드 → 영역 | `sales_commercial`·`change_district` 모두 누락 0 |
+
+즉 `LEGACY` 스냅샷은 `expectedCounts` 25/425/1650으로 통과하고, 사실 데이터의 `unmapped` 검증도 0이 나온다.
 
 ## 책임과 검증 계획
 
@@ -102,16 +117,25 @@ CSV 경로는 한글 헤더를 API 컬럼 코드로 바꾼다. 표는 classpath 
 - **2024년 표준단위구역 폴리곤이 없다.** `LEGACY` 스냅샷은 20233 폴리곤이다. 서울시 shapefile을 WGS84 GeoJSON으로 변환하는 절차(외부 도구, 예: ogr2ogr)를 정하고 `GEOJSON` 소스로 새 버전을 게시해야 지도가 2024년 이후 영역을 그린다.
 - `dataset_fact` / `dataset_active_release`를 읽는 조회 경로가 아직 없다. 배치는 적재만 하고 서비스는 여전히 레거시 테이블을 읽는다. 전환 시 `income_commercial`의 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이).
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다. 첫 dry-run은 개발 DB에서 직접 확인해야 한다.
-- Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB dry-run에서만 검증된다. `LEGACY` 스냅샷 소스도 `area_boundary.boundary_geo_json`의 실제 형태(맨 링인지, 다중 링인지)는 개발 DB에서 확인해야 한다.
+- Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB dry-run에서만 검증된다. 스키마·테이블 형태는 위 실측으로 확인했으나 **실제 Job 실행은 아직 하지 않았다.**
+- 대상 스키마에 Spring Batch 메타 테이블을 적용하는 일이 dry-run의 선행 조건이다(위 실행 예시).
 - `--expected-rows`는 분기 인자를 존중하는 서비스에서는 `list_total_count`로 자동 확정할 수 있다. 지금은 dry-run 한 번으로 값을 읽어 새 run-id로 다시 돌리는 절차를 유지한다.
 
 ## 실행 예시
 
-먼저 `quarterly-dataset-schema.sql`을 명시한 개발 스키마에 적용하고 공간 스냅샷을 검증한다. 레거시 테이블에서 뽑는 경우:
+먼저 대상 스키마에 **Spring Batch 메타 테이블**과 `quarterly-dataset-schema.sql`을 적용한다. `quarterly` 프로파일은 `initialize-schema: never`라서 메타 테이블이 없으면 기동 단계에서 실패한다. 2026-09-08 기준 `bosspickseoul_commercial_dev`에는 `BATCH_*` 테이블이 하나도 없다(district 스키마에는 있다). spring-batch-core jar의 `schema-mysql.sql`을 먼저 적용하고 다음으로 확인한다.
+
+```sql
+SELECT COUNT(*) FROM information_schema.tables
+ WHERE table_schema = 'bosspickseoul_commercial_dev' AND table_name = 'BATCH_JOB_INSTANCE';  -- 1 이어야 한다
+```
+
+그다음 공간 스냅샷을 검증한다. 레거시 테이블에서 뽑는 경우 `BATCH_LEGACY_SPATIAL_SCHEMA`가 필수다.
 
 ```text
 SPRING_PROFILES_ACTIVE=quarterly BATCH_DB_URL=jdbc:mysql://host:3306/bosspickseoul_commercial_dev \
-BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev SEOUL_OPEN_DATA_API_KEY=... \
+BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev \
+BATCH_LEGACY_SPATIAL_SCHEMA=bosspickseoul_district_dev SEOUL_OPEN_DATA_API_KEY=... \
 java -jar batch-service.jar --job=spatial --run-id=spatial-legacy-20233-001 \
   --source=LEGACY --spatial-version=legacy-20233 --source-updated-at=2023-12-31T00:00:00Z --dry-run=true
 ```

@@ -2,6 +2,17 @@
 -- These tables never alter the legacy 20233 service tables.
 -- The source row position is source_row_number, not row_number: ROW_NUMBER is reserved in MySQL 8.0.2+
 -- and an unquoted column of that name fails both this DDL and every staging INSERT.
+--
+-- PREREQUISITE: the quarterly profile sets spring.batch.jdbc.initialize-schema=never, so Spring Batch's
+-- own metadata tables (BATCH_JOB_INSTANCE, BATCH_JOB_EXECUTION, ...) must already exist in this schema
+-- or the job fails at startup. Verified 2026-09-08: bosspickseoul_commercial_dev has none of them, while
+-- bosspickseoul_district_dev does. Apply schema-mysql.sql from the spring-batch-core jar first:
+--   SELECT COUNT(*) FROM information_schema.tables
+--    WHERE table_schema = DATABASE() AND table_name = 'BATCH_JOB_INSTANCE';   -- must return 1
+--
+-- The LEGACY spatial source reads area_boundary and commercial_region_mapping, which belong to the
+-- district service's schema rather than this one. Point batch.dataset-source.legacy-spatial-schema
+-- (env BATCH_LEGACY_SPATIAL_SCHEMA) at that schema; the batch account needs SELECT on it.
 CREATE TABLE IF NOT EXISTS dataset_spatial_release (
     spatial_version VARCHAR(64) COLLATE utf8mb4_bin PRIMARY KEY,
     status VARCHAR(16) NOT NULL,
