@@ -235,14 +235,30 @@ describe('ProductStory — 스토리 섹션이 전폭 배경 밴드를 갖는다
    * hover 배경이 정확히 `--color-background-muted` 였다 — 함께 내리지 않으면 목록이
    * 아예 반응하지 않는 것처럼 보인다. 「아무 일도 안 일어남」이라 눈으로 놓치기 쉬워
    * 여기서 잠근다.
+   *
+   * 금지 토큰을 적어 두지 않고 **밴드 규칙에서 읽어 온다.** 예전에는 두 토큰을 모두
+   * 문자열로 박아 뒀는데, 그러면 밴드를 `--color-surface-muted` 로 한 단계 올릴 때
+   * hover 와 다시 같은 색이 되는데도 이 테스트는 초록이었다(#258 에서 밴드만 올려
+   * 실측 확인). 밴드 토큰이 무엇으로 바뀌든 충돌 자체를 잡게 한다.
    */
   it('스텝 hover 배경이 밴드 색과 다르다', () => {
     const css = renderStoryStyles()
 
-    expect(css).toContain(':hover{background:var(--color-surface-muted);}')
-    expect(css).not.toContain(
-      ':hover{background:var(--color-background-muted);}',
-    )
+    const band =
+      /position:relative;background:var\((--color-[a-z0-9-]+)\)/.exec(css)?.[1]
+
+    const hoverBackgrounds = [
+      ...css.matchAll(/:hover\{background:var\((--color-[a-z0-9-]+)\);\}/g),
+    ].map(match => match[1])
+
+    expect(band).toBeTruthy()
+    /*
+      hover 선언이 통째로 사라져도 「밴드와 다르다」는 공허하게 참이 된다. 그래서
+      개수를 함께 본다 — 이 스토리에는 hover 배경이 셋이다: 활성 스텝(primary-100),
+      비활성 스텝, CTA 버튼. StepButton 의 hover 블록을 지우면 둘이 사라져 1 이 된다.
+    */
+    expect(hoverBackgrounds).toHaveLength(3)
+    expect(hoverBackgrounds).not.toContain(band)
   })
 
   /*
