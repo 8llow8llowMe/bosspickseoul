@@ -47,6 +47,10 @@
     갱신 때마다 원천과 불일치가 생기므로 원천 실조회로 전환했다 (commercial-service 와 동일 원칙).
   - 미존재 코드(district 404)는 `COMMUNITY_004 TARGET_NOT_FOUND`, district-service 통신 불가/서킷
     오픈은 `503 COMMUNITY_014` 로 응답한다. 서킷브레이커 설정은 commercial-service 와 동일하다.
+  - Feign 대상 Eureka 등록명은 `feign-client.target-services.district-service:
+    ${DISTRICT_SERVICE_APP_NAME}` 이다. **배포 env 와 community compose environment 에
+    `DISTRICT_SERVICE_APP_NAME`(dev 는 `district-service-dev`) 가 있어야 한다.** 빠지면
+    Feign 기동이 `Service id not legal hostname (${DISTRICT_SERVICE_APP_NAME})` 로 실패한다.
   - 기존 로컬 테이블은 사용하지 않으므로 정리 런북
     `scripts/migration/community-region-reference-drop-runbook.sql` 로 제거한다.
 
@@ -62,8 +66,8 @@
   — 대상 검증(쓰기 경로의 필수 검증, 503 전파)과 다른 정책이다. 미존재 회원도 null.
   FE 는 null 이면 대체 문구(예: "알 수 없음")를 쓴다.
 - 서킷브레이커 인스턴스 `auth-service` 추가, dev/prod 는 `feign-client.target-services.auth-service:
-  ${AUTH_SERVICE_APP_NAME}` — **배포 env 에 `AUTH_SERVICE_APP_NAME`(auth 의 Eureka 등록명, dev 는
-  `auth-service-dev`) 추가 필요.**
+  ${AUTH_SERVICE_APP_NAME}` — **배포 env 와 community compose environment 에
+  `AUTH_SERVICE_APP_NAME`(auth 의 Eureka 등록명, dev 는 `auth-service-dev`) 가 있어야 한다.**
 
 ## 분석 첨부 (비교 초안 → 게시글 배선)
 
