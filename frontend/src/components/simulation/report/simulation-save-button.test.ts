@@ -87,7 +87,7 @@ describe('SimulationSaveButton', () => {
   })
 
   it('삭제·공유 버튼을 그리지 않는다', () => {
-    // 삭제 API 가 없고 ShareTargetType 에 시뮬레이션 상수가 없다 (G13).
+    // 삭제는 프로필의 저장 목록 소관이고, 공유는 ShareTargetType 에 상수가 없다.
     authState.current = { hasHydrated: true, isLoggedIn: true }
     const html = render()
 

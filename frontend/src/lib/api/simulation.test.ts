@@ -6,6 +6,7 @@ import {
   buildSimulationReportRequest,
   createSimulationReport,
   createSimulationReportPair,
+  deleteSimulationHistory,
   fetchSimulationFranchisees,
   fetchSimulationHistories,
   fetchSimulationStoreSizes,
@@ -244,6 +245,20 @@ describe('simulation API endpoints', () => {
 
     await fetchSimulationHistories(2, 50)
     expect(get).toHaveBeenCalledWith('/simulations/histories?page=2&size=50')
+  })
+
+  it('histories 삭제는 경로에 historyId 문자열을 그대로 넣는다', async () => {
+    // 이 파일의 아이디 정규화 규칙(문자열 → number)은 **응답 본문 전용**이다.
+    // historyId 는 경로 세그먼트라 숫자로 바꿀 이유가 없고, 바꾸면 큰 값에서 손상된다.
+    const del = vi
+      .spyOn(apiClient, 'delete')
+      .mockResolvedValue({ data: ok(null) })
+
+    await deleteSimulationHistory('7345678901234567890')
+
+    expect(del).toHaveBeenCalledWith(
+      '/simulations/histories/7345678901234567890',
+    )
   })
 
   it('franchisees 응답의 문자열 아이디를 number 로 정규화한다', async () => {

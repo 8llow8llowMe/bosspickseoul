@@ -20,7 +20,7 @@
 | 요청 배경          | 1.0 시점에는 V2 백엔드에 시뮬레이션 도메인이 없어 6개 라우트를 "준비 중" 안내로 막아 두었다. 2026-08 백엔드에 `/api/v1/simulations/**`가 신설되면서 계약이 확정됐고, FE는 아직 V1 경로(`/simulation/store`, `POST /simulation`, `/simulation/save`)와 V1 필드명을 쓰고 있어 **호출하면 전부 404**다. 계약을 V2로 정렬한 뒤 화면을 순차 복원한다.         |
 | 기존 동작 (as-is)  | `/simulation`, `/simulation/report`, `/simulation/compare`와 `/analysis/simulation/*` 6개 라우트가 `SimulationUnavailablePage`(준비 중 안내)만 렌더한다. 레거시 V1 컴포넌트 3종(form/report/compare)은 어떤 라우트에서도 마운트되지 않는 죽은 코드이며, `simulation-report-view`와 `shared-simulation-report-page`만 `/share/[token]`(V1)에서 살아 있다. |
 | 목표 동작 (to-be)  | 입력 마법사(프랜차이즈 → 자치구 → 업종 → 매장 크기·층)로 조건을 받아 `POST /simulations/reports`로 **동기 계산**한 리포트를 렌더하고, 로그인 사용자는 결과를 저장·조회한다. 비로그인도 계산까지는 가능하다.                                                                                                                                              |
-| 구현 제외 범위     | **시뮬레이션 공유** (V2 `ShareTargetType` 5종에 시뮬레이션이 없다 — 백엔드 미지원), **이력 삭제** (삭제 API 없음), 서버 측 비교 API(존재하지 않음), `/share/[token]` V1 처리(share Feature 소관), FE 임의 계산식·목업 결과                                                                                                                               |
+| 구현 제외 범위     | **시뮬레이션 공유** (V2 `ShareTargetType` 5종에 시뮬레이션이 없다 — 백엔드 미지원), 서버 측 비교 API(존재하지 않음), `/share/[token]` V1 처리(share Feature 소관), FE 임의 계산식·목업 결과                                                                                                                                                              |
 | 연관 기능 / 의존성 | auth middleware와 BFF 세션, `/analysis`, `src/data/districts.ts`(자치구 코드 25종), `src/lib/api/api-error.ts`(오류 분류 공통 유틸)                                                                                                                                                                                                                      |
 
 ---
@@ -52,7 +52,7 @@ simulation은 창업 조건(프랜차이즈 여부·자치구·업종·매장 �
 | 9   | 오류는 `@/lib/api/api-error`의 `resolveApiError`/`isRetryable`로만 분류한다. **404에는 재시도 버튼을 띄우지 않고** 서버 `resultMessage`를 그대로 보여준다.            | [S5 오류 표](#s4-1-오류-처리)              |
 | 10  | 프랜차이즈 검색은 커서 페이징이다. 첫 조회에 `lastId`를 싣지 않고, 응답 `lastId`가 `null`이면 더 부르지 않는다.                                                       | [세부 명세](./simulation-report.md) D4-2   |
 | 11  | 비교 화면은 서버 비교 API가 없으므로 `POST /simulations/reports`를 **2회 호출해 클라이언트에서 나란히** 둔다.                                                         | S3 #4                                      |
-| 12  | 시뮬레이션 **공유**와 **이력 삭제** 기능을 만들지 않는다 (백엔드 미지원).                                                                                             | S0 구현 제외 범위                          |
+| 12  | 시뮬레이션 **공유** 기능을 만들지 않는다 (`ShareTargetType` 에 상수 없음). 이력 삭제는 프로필 저장 목록에서 한다 (#276).                                              | S0 구현 제외 범위                          |
 | 13  | 성별·연령 매출은 **자치구×업종 전체** 집계다. 사용자 점포 예상 매출로 읽히지 않도록 범위를 라벨에 드러내고 수치는 억 단위로 축약한다.                                 | [세부 명세](./simulation-report.md) D4-3-1 |
 | 14  | `periodCode`를 입력 단계에 노출하지 않는다. 서버 기본값(20233)을 쓰고 리포트에 기준 분기만 표기한다.                                                                  | [세부 명세](./simulation-report.md) D8-1   |
 
@@ -103,6 +103,7 @@ simulation은 창업 조건(프랜차이즈 여부·자치구·업종·매장 �
 | `POST /simulations/reports`                                  | 공개     | **동기 계산** (SSE·폴링 아님)                   |
 | `POST /simulations/histories`                                | **인증** | 서버가 명칭을 되채워 저장본을 반환              |
 | `GET /simulations/histories?page=&size=`                     | **인증** | 본인 이력 최신순, `size` ≤ 50                   |
+| `DELETE /simulations/histories/{historyId}`                  | **인증** | 미존재·타인 항목 모두 404 `SIMULATION_006`      |
 
 #### V1 → V2 필드 매핑
 
