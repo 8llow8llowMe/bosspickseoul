@@ -12,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.context.annotation.Import;
@@ -32,6 +33,9 @@ class SimulationHistoryRepositoryTest {
 
     @Autowired
     private SimulationHistoryRepository simulationHistoryRepository;
+
+    @Autowired
+    private TestEntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -67,6 +71,31 @@ class SimulationHistoryRepositoryTest {
         assertThat(firstPage).containsExactly(fourth, third);
         assertThat(secondPage).containsExactly(second, first);
         assertThat(firstPage).doesNotContainAnyElementsOf(secondPage);
+    }
+
+    @Test
+    @DisplayName("본인 이력은 삭제되고 삭제 건수 1 을 돌려준다")
+    void deleteByIdAndMemberIdRemovesOwnHistory() {
+        long own = save(SAME_MOMENT);
+
+        int deleted = simulationHistoryRepository.deleteByIdAndMemberId(own, MEMBER_ID);
+
+        // 벌크 JPQL DELETE 는 영속성 컨텍스트를 거치지 않으므로 1차 캐시를 비운 뒤 DB 상태를 확인한다
+        entityManager.clear();
+        assertThat(deleted).isEqualTo(1);
+        assertThat(simulationHistoryRepository.findById(own)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("타인 이력은 소유자 조건에 걸려 삭제되지 않고 0 을 돌려준다")
+    void deleteByIdAndMemberIdIgnoresOtherMembersHistory() {
+        long own = save(SAME_MOMENT);
+
+        int deleted = simulationHistoryRepository.deleteByIdAndMemberId(own, MEMBER_ID + 1);
+
+        entityManager.clear();
+        assertThat(deleted).isZero();
+        assertThat(simulationHistoryRepository.findById(own)).isPresent();
     }
 
     private static List<Long> ids(Page<SimulationHistoryEntity> page) {
