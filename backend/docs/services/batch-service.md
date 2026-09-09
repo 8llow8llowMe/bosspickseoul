@@ -79,7 +79,7 @@ CSV 경로는 한글 헤더를 API 컬럼 코드로 바꾼다. 표는 classpath 
 
 `--job=spatial`의 `--source`는 두 가지다.
 
-- `GEOJSON`(기본): `spatialVersion`·`sourceUpdatedAt`·`expectedCounts`를 가진 FeatureCollection 파일. 2024년 표준단위구역 폴리곤이 준비되면 쓰는 경로다. 서울시는 상권 영역을 shapefile로 배포하고 `TbgisTrdarRelm` API는 중심점·면적·상위 코드만 주므로, 파일은 별도 변환으로 만들어야 한다.
+- `GEOJSON`(기본): `spatialVersion`·`sourceUpdatedAt`·`expectedCounts`를 가진 FeatureCollection 파일. 서울시가 배포하는 영역 shapefile 3종을 `backend/scripts/spatial/seoul_area_shapefiles_to_geojson.py`로 변환해 만든다(아래 「GEOJSON 파일 만들기」). `TbgisTrdarRelm` API는 중심점·면적·상위 코드만 주고 폴리곤을 주지 않는다.
 - `LEGACY`: 서비스가 이미 읽는 `area_boundary`(20233 기준 폴리곤)와 `commercial_region_mapping`(상권 → 행정동)에서 스냅샷을 만든다. `boundary_geo_json`의 맨 링을 닫힌 Polygon으로 감싸고, 행정동의 상위는 코드 앞 5자리, 상권의 상위는 매핑 테이블에서 얻는다. 매핑이 없는 상권이 있으면 코드를 나열하고 멈춘다. checksum은 산출된 영역 전체를 덮으므로 같은 테이블이면 같은 버전이다.
 
 **두 테이블은 district-service 스키마 소유다.** 팩트를 쓰는 commercial 스키마와 다르므로 `BATCH_LEGACY_SPATIAL_SCHEMA`로 지정해야 하고, 배치 계정에 그 스키마 SELECT 권한이 있어야 한다. 지정하지 않으면 조회가 빈 결과가 되고 실행이 그 사실을 알리며 멈춘다.
@@ -99,6 +99,43 @@ CSV 경로는 한글 헤더를 API 컬럼 코드로 바꾼다. 표는 classpath 
 
 즉 `LEGACY` 스냅샷은 `expectedCounts` 25/425/1650으로 통과하고, 사실 데이터의 `unmapped` 검증도 0이 나온다.
 
+### GEOJSON 파일 만들기 (서울시 영역 shapefile 3종)
+
+원천은 서울 열린데이터광장 「상권분석서비스」 영역 데이터셋 3종이다. 모두 ZIP 안에 shapefile(.shp/.dbf/.prj/.cpg)이 있고, 좌표계 **EPSG:5181**(Korea 2000 / Central Belt), DBF 인코딩 UTF-8이다.
+
+| 영역 | 데이터셋 | 건수 | 코드·이름 필드 | 상위 |
+| --- | --- | --- | --- | --- |
+| 자치구 | [OA-22161 영역-자치구](https://data.seoul.go.kr/dataList/OA-22161/S/1/datasetView.do) | 25 | `SIGNGU_CD`, `SIGNGU_NM` | 없음 |
+| 행정동 | [OA-22160 영역-행정동](https://data.seoul.go.kr/dataList/OA-22160/S/1/datasetView.do) | 425 | `ADSTRD_CD`, `ADSTRD_NM` | 코드 앞 5자리 |
+| 상권 | [OA-15560 영역-상권](https://data.seoul.go.kr/dataList/OA-15560/S/1/datasetView.do) | 1,650 | `TRDAR_CD`, `TRDAR_CD_N` | `ADSTRD_CD` 필드 |
+
+변환기는 표준 라이브러리만 쓴다(pip 설치 없음). shapefile·DBF를 직접 읽고, EPSG:5181 → WGS84 역변환을 Krüger 급수로 계산한다(서울 범위 난수 2,000점에서 pyproj 3.8과 0.001mm 이내 일치, 2026-09-09). 외곽/구멍 링을 폴리곤으로 묶어 Polygon·MultiPolygon으로 내고, 링은 닫힌 상태로 RFC 7946 방향(외곽 반시계, 구멍 시계)을 따른다. 건수 25/425/1650, 코드 중복, 상위 코드 누락, 좌표 범위는 `SpatialImportProcessor`와 같은 규칙으로 fail-closed 검사한다. 단위 테스트는 `python -m unittest backend/scripts/spatial/test_seoul_area_shapefiles_to_geojson.py`.
+
+```text
+python backend/scripts/spatial/seoul_area_shapefiles_to_geojson.py   --district "서울시 상권분석서비스(영역-자치구).zip"   --administration "서울시 상권분석서비스(영역-행정동).zip"   --commercial "서울시 상권분석서비스(영역-상권).zip"   --spatial-version seoul-v2024 --output seoul-spatial-v2024.geojson
+```
+
+- `--source-updated-at`을 생략하면 ZIP 내부 파일의 최신 수정 시각을 UTC로 쓴다. 파일 안 `spatialVersion`은 `--spatial-version`과 같아야 하고, 배치의 `--spatial-version`도 그 값이어야 한다.
+- 결과는 결정적이다(같은 입력 → 같은 바이트 → 같은 checksum). 같은 버전명에 다른 바이트를 다시 게시하면 배치가 거부하므로, 입력이 바뀌면 버전명을 올린다(`seoul-v2024-2` 등).
+- 2026-09-09 실측: 3종 변환 결과 2,100건(MultiPolygon 89, 구멍 41), 11.7 MiB. `SpatialGeoJsonSourceAdapter` + `SpatialImportProcessor` dry-run을 통과했다.
+
+**원천 기준 시점을 반드시 확인한다.** 2026-09-09 기준 세 ZIP 안의 파일 시각은 모두 **2023-10-20**이고, `TbgisTrdarRelm` API는 20233·20241·20252 어느 분기로 불러도 같은 중심점·면적을 돌려준다(분기 인자 무시). 즉 지금 배포 중인 shapefile이 20233 폴리곤과 같은 것일 수 있다. 게시 전에 `LEGACY` 스냅샷과 대조한다.
+
+```sql
+-- 게시 후: 두 버전의 같은 상권 폴리곤이 다른지 표본 확인 (같으면 새 버전을 서비스에 쓸 이유가 없다)
+SELECT l.area_code,
+       ST_Area(ST_GeomFromGeoJSON(l.boundary_geo_json)) AS legacy_area,
+       ST_Area(ST_GeomFromGeoJSON(n.boundary_geo_json)) AS new_area
+  FROM dataset_spatial_area l JOIN dataset_spatial_area n
+    ON n.area_type = l.area_type AND n.area_code = l.area_code
+ WHERE l.spatial_version = 'legacy-20233' AND n.spatial_version = 'seoul-v2024' AND l.area_type = 'COMMERCIAL'
+ LIMIT 20;
+```
+
+차이가 없으면 서울시가 새 폴리곤을 아직 배포하지 않은 것이다. 그때는 `LEGACY` 버전을 계속 쓰고, 이 절차는 새 파일이 올라올 때 다시 실행한다. 차이가 있으면 `--dry-run=false`로 게시하고, 팩트를 새 `spatial_version`으로 `--source=ARCHIVE` 재게시해 `unmapped=0`을 확인한다.
+
+**지도 반영은 이 절차의 범위 밖이다.** district-service 지도는 `area_boundary`의 bbox 컬럼과 맨 링 형식을 읽고, `dataset_spatial_area`에는 bbox·center가 없고 지오메트리가 GeoJSON 객체다. 새 버전을 지도에 그리려면 district-service가 `dataset_spatial_area`를 읽도록 하는 별도 설계가 필요하다.
+
 ## 책임과 검증 계획
 
 - 수집 Adapter: API 페이지 제한, 타임아웃, 오류 응답, 원본 checksum, UTF-8/CP949 CSV 및 ZIP 스트리밍 검증.
@@ -114,7 +151,7 @@ CSV 경로는 한글 헤더를 API 컬럼 코드로 바꾼다. 표는 classpath 
 
 ## 남은 작업
 
-- **2024년 표준단위구역 폴리곤이 없다.** `LEGACY` 스냅샷은 20233 폴리곤이다. 서울시 shapefile을 WGS84 GeoJSON으로 변환하는 절차(외부 도구, 예: ogr2ogr)를 정하고 `GEOJSON` 소스로 새 버전을 게시해야 지도가 2024년 이후 영역을 그린다. (#278)
+- **2024년 표준단위구역 폴리곤이 배포됐는지 확인되지 않았다.** 변환 도구와 절차는 있다(「GEOJSON 파일 만들기」). 2026-09-09 기준 서울시 shapefile은 2023-10-20 파일이라 `LEGACY`(20233)와 같을 수 있고, 게시 전 대조가 필요하다. 새 버전이 생겨도 district-service 지도가 `dataset_spatial_area`를 읽도록 바꾸는 후속 작업이 있어야 화면에 반영된다.
 - `dataset_fact` / `dataset_active_release`를 읽는 조회 경로가 아직 없다. 배치는 적재만 하고 서비스는 여전히 레거시 테이블을 읽는다. 전환 시 `income_commercial`의 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이). (#279)
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
 - Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.
@@ -135,7 +172,7 @@ java -jar batch-service.jar --job=spatial --run-id=spatial-legacy-20233-001 \
   --source=LEGACY --spatial-version=legacy-20233 --source-updated-at=2023-12-31T00:00:00Z --dry-run=true
 ```
 
-준비된 GeoJSON 파일이 있으면 `--source=GEOJSON --source-file=seoul-spatial-v2024.geojson --spatial-version=seoul-v2024`다.
+변환기로 만든 파일(「GEOJSON 파일 만들기」)이 있으면 `--source=GEOJSON --source-file=seoul-spatial-v2024.geojson --spatial-version=seoul-v2024`다. `BATCH_LEGACY_SPATIAL_SCHEMA`는 필요 없다.
 
 검증 결과를 확인한 뒤 같은 입력을 새 `run-id`로 `--dry-run=false` 실행한다. 사실 데이터는 데이터셋·분기마다 별도 실행한다. PowerShell 명령과 분기 반복은 [batch-quarterly-import.md](batch-quarterly-import.md)에 있다.
 
