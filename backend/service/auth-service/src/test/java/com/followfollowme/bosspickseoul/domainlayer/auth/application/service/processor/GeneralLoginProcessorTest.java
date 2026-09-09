@@ -27,6 +27,8 @@ class GeneralLoginProcessorTest {
     private static final String EMAIL = "member@example.com";
     private static final String RAW_PASSWORD = "Password1!";
     private static final int MAX_FAILURE_COUNT = 3;
+    private static final int IP_MAX_FAIL_COUNT = 5;
+    private static final String CLIENT_IP = "203.0.113.10";
 
     private PasswordEncoder passwordEncoder;
     private StubMemberRepositoryPort memberRepositoryPort;
@@ -43,7 +45,7 @@ class GeneralLoginProcessorTest {
             memberRepositoryPort,
             passwordEncoder,
             loginAttemptStorePort,
-            new LoginAttemptProperties(MAX_FAILURE_COUNT, Duration.ofMinutes(10))
+            new LoginAttemptProperties(MAX_FAILURE_COUNT, Duration.ofMinutes(10), IP_MAX_FAIL_COUNT, Duration.ofHours(1))
         );
         memberRepositoryPort.register(activeMember());
     }
@@ -139,6 +141,91 @@ class GeneralLoginProcessorTest {
         assertThat(info.memberId()).isEqualTo(1L);
     }
 
+    @Test
+    void generalLogin_manyEmailsFromOneIp_isBlockedByIpLimitEvenThoughNoEmailIsLocked() {
+        // 이메일을 매번 바꾸면 계정 단위 잠금(AUTH_015)에는 걸리지 않는다 — IP 축이 없으면 무제한이다.
+        exhaustIpLimitWithRotatingEmails();
+
+        // 상한을 채운 다음 요청부터 이메일과 무관하게 AUTH_020 으로 거절된다.
+        assertThatThrownBy(() -> processor.generalLogin(command("victim-99@example.com", "wrong-password")))
+            .isInstanceOf(AuthException.class)
+            .extracting(t -> ((AuthException) t).getErrorCode())
+            .isEqualTo(AuthErrorCode.LOGIN_IP_RATE_LIMITED);
+    }
+
+    @Test
+    void generalLogin_ipLimitReached_skipsMemberLookupAndBlocksEvenCorrectPassword() {
+        // 이메일을 돌려가며 IP 상한만 채운다 — 계정 잠금(AUTH_015)이 먼저 걸리면 IP 축을 검증할 수 없다.
+        exhaustIpLimitWithRotatingEmails();
+
+        // IP 상한은 이메일 잠금보다 먼저 검사하므로 DB 조회/bcrypt 비용이 발생하지 않는다.
+        // 비밀번호가 맞아도, 그 이메일이 한 번도 실패한 적 없어도 거절된다.
+        memberRepositoryPort.findByEmailCallCount = 0;
+        assertThatThrownBy(() -> processor.generalLogin(command(EMAIL, RAW_PASSWORD)))
+            .isInstanceOf(AuthException.class)
+            .extracting(t -> ((AuthException) t).getErrorCode())
+            .isEqualTo(AuthErrorCode.LOGIN_IP_RATE_LIMITED);
+        assertThat(memberRepositoryPort.findByEmailCallCount).isZero();
+    }
+
+    @Test
+    void generalLogin_otherIp_isNotAffectedByAnotherIpFailures() {
+        exhaustIpLimitWithRotatingEmails();
+
+        // 카운터는 IP 별로 분리된다 — 공격자 IP 상한이 정상 사용자를 막지 않는다.
+        GeneralLoginInfo info = processor.generalLogin(command(EMAIL, RAW_PASSWORD, "198.51.100.7"));
+        assertThat(info.memberId()).isEqualTo(1L);
+    }
+
+    @Test
+    void generalLogin_successfulLogin_doesNotResetIpCounter() {
+        assertLoginFailed("wrong-password");
+        processor.generalLogin(command(EMAIL, RAW_PASSWORD));
+
+        // 자기 계정 로그인 한 번으로 IP 상한을 초기화할 수 있으면 상한이 무의미해진다.
+        assertThat(loginAttemptStorePort.ipFailureCounts.get(CLIENT_IP)).isEqualTo(1L);
+    }
+
+    @Test
+    void generalLogin_unknownClientIp_skipsIpLimitInsteadOfSharingOneCounter() {
+        // IP 를 못 얻은 요청들이 빈 문자열 키를 공유하면 서로를 잠근다. 그럴 바엔 IP 축을 적용하지 않는다.
+        for (int attempt = 0; attempt < IP_MAX_FAIL_COUNT + 2; attempt++) {
+            String rotatingEmail = "unknown-ip-" + attempt + "@example.com";
+            assertThatThrownBy(() -> processor.generalLogin(command(rotatingEmail, "wrong-password", null)))
+                .isInstanceOf(AuthException.class)
+                .extracting(t -> ((AuthException) t).getErrorCode())
+                .isEqualTo(AuthErrorCode.LOGIN_FAILED);
+        }
+        assertThat(loginAttemptStorePort.ipFailureCounts).isEmpty();
+    }
+
+    @Test
+    void generalLogin_counterStoreUnavailable_failsOpenOnIpLimitToo() {
+        loginAttemptStorePort.unavailable = true;
+
+        for (int attempt = 0; attempt < IP_MAX_FAIL_COUNT + 2; attempt++) {
+            String rotatingEmail = "unavailable-" + attempt + "@example.com";
+            assertThatThrownBy(() -> processor.generalLogin(command(rotatingEmail, "wrong-password")))
+                .isInstanceOf(AuthException.class);
+        }
+
+        // 저장소 장애로 IP 상한까지 막아버리면 정상 사용자 전원이 로그인 불가가 된다.
+        GeneralLoginInfo info = processor.generalLogin(command(EMAIL, RAW_PASSWORD));
+        assertThat(info.memberId()).isEqualTo(1L);
+    }
+
+    /** 계정 잠금을 건드리지 않고 IP 상한만 정확히 채운다 (이메일마다 실패 1회씩). */
+    private void exhaustIpLimitWithRotatingEmails() {
+        for (int attempt = 0; attempt < IP_MAX_FAIL_COUNT; attempt++) {
+            String rotatingEmail = "victim-" + attempt + "@example.com";
+            assertThatThrownBy(() -> processor.generalLogin(command(rotatingEmail, "wrong-password")))
+                .isInstanceOf(AuthException.class)
+                .extracting(t -> ((AuthException) t).getErrorCode())
+                .isEqualTo(AuthErrorCode.LOGIN_FAILED);
+        }
+        assertThat(loginAttemptStorePort.locks).isEmpty();
+    }
+
     private void assertLoginFailed(String password) {
         assertThatThrownBy(() -> processor.generalLogin(command(EMAIL, password)))
             .isInstanceOf(AuthException.class)
@@ -154,7 +241,11 @@ class GeneralLoginProcessorTest {
     }
 
     private AuthGeneralLoginCommand command(String email, String password) {
-        return AuthGeneralLoginCommand.builder().email(email).password(password).build();
+        return command(email, password, CLIENT_IP);
+    }
+
+    private AuthGeneralLoginCommand command(String email, String password, String clientIp) {
+        return AuthGeneralLoginCommand.builder().email(email).password(password).clientIp(clientIp).build();
     }
 
     private Member activeMember() {
@@ -214,6 +305,7 @@ class GeneralLoginProcessorTest {
 
         private final Map<String, Long> failureCounts = new HashMap<>();
         private final Map<String, Duration> locks = new HashMap<>();
+        private final Map<String, Long> ipFailureCounts = new HashMap<>();
         private boolean unavailable;
 
         @Override
@@ -245,6 +337,22 @@ class GeneralLoginProcessorTest {
         public void clearFailures(String email) {
             failureCounts.remove(email);
             locks.remove(email);
+        }
+
+        @Override
+        public long getIpFailureCount(String clientIp) {
+            if (unavailable) {
+                return 0L;
+            }
+            return ipFailureCounts.getOrDefault(clientIp, 0L);
+        }
+
+        @Override
+        public long increaseIpFailureCount(String clientIp, Duration window) {
+            if (unavailable) {
+                return 0L;
+            }
+            return ipFailureCounts.merge(clientIp, 1L, Long::sum);
         }
     }
 }

@@ -33,6 +33,10 @@ public enum AuthErrorCode {
     // 회원가입 인증코드 검증 실패 누적 — 재설정(AUTH_017)과 동일한 브루트포스 방어.
     EMAIL_CODE_ATTEMPTS_EXCEEDED("AUTH_018", "인증코드 시도 횟수를 초과했습니다. 인증코드를 다시 요청해주세요.", HttpStatus.BAD_REQUEST),
     TOKEN_STORE_UNAVAILABLE("AUTH_019", "인증 정보를 저장할 수 없습니다. 잠시 후 다시 시도해주세요.", HttpStatus.SERVICE_UNAVAILABLE),
+    // 로그인 실패의 IP 기준 상한 초과. 이메일 단위 잠금(AUTH_015)으로는 못 막는
+    // "한 IP 가 여러 이메일로 뿌리는" 공격(credential stuffing) 방어다.
+    // 메시지는 AUTH_015 와 동일한 톤으로 두어 어느 축에 걸렸는지 공격자가 구분하지 못하게 한다.
+    LOGIN_IP_RATE_LIMITED("AUTH_020", "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(AUTH_101~104)는 AuthValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

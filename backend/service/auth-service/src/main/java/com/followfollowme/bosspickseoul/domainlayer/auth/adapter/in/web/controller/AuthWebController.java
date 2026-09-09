@@ -54,15 +54,18 @@ public class AuthWebController {
 
     @Operation(
         summary = "일반 로그인",
-        description = "이메일과 비밀번호로 로그인합니다. 실패가 누적되면 해당 이메일이 일정 시간 잠깁니다(AUTH_015, 429)."
+        description = """
+            이메일과 비밀번호로 로그인합니다. 실패가 누적되면 해당 이메일이 일정 시간 잠기고(AUTH_015, 429),
+            같은 IP 의 실패가 시간당 상한을 넘으면 이메일과 무관하게 거절됩니다(AUTH_020, 429)."""
     )
     @PostMapping("/login")
     public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithCredentials(
         @Valid @RequestBody AuthGeneralLoginRequest request,
-        @Parameter(hidden = true) @RequestHeader(value = HttpHeaders.USER_AGENT, required = false) String userAgent
+        @Parameter(hidden = true) @RequestHeader(value = HttpHeaders.USER_AGENT, required = false) String userAgent,
+        HttpServletRequest httpServletRequest
     ) {
-        AuthCookieResult<AuthGeneralLoginResponse> result =
-            authWebUseCase.generalLogin(AuthGeneralLoginCommand.from(request), userAgent);
+        AuthCookieResult<AuthGeneralLoginResponse> result = authWebUseCase.generalLogin(
+            AuthGeneralLoginCommand.from(request, clientIpResolver.resolve(httpServletRequest)), userAgent);
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshCookieProvider.createRefreshCookie(result.refreshToken()).toString())
             .body(Response.success(result.response()));
