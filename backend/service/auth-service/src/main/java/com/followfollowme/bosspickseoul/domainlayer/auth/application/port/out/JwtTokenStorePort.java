@@ -38,7 +38,14 @@ public interface JwtTokenStorePort {
     /** 특정 기기 세션만 무효화한다 (로그아웃). */
     void deleteSession(long memberId, String sessionId);
 
-    /** 회원의 전 기기 세션을 무효화한다 (탈퇴/비밀번호 변경/상태 이상). */
+    /**
+     * 회원의 전 기기 세션을 무효화한다 (탈퇴/비밀번호 변경/상태 이상).
+     *
+     * <p>refresh 삭제와 함께 <b>회원 단위 revocation 마커</b>를 기록한다. refresh 만 지우면
+     * 다른 기기가 이미 들고 있는 access token 이 만료까지 그대로 통하기 때문이다. 마커를 이 안에서
+     * 남기는 이유는 호출부가 4곳(탈퇴/비밀번호 변경/비밀번호 재설정/상태 이상 reissue)이라
+     * 밖에 두면 언젠가 한 곳이 빠지기 때문이다.
+     */
     void deleteAllSessions(long memberId);
 
     void saveAccessTokenIdBlacklist(String tokenId, Duration ttl);

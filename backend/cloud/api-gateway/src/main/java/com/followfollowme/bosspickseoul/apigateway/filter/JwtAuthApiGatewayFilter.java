@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.apigateway.filter;
 import com.followfollowme.bosspickseoul.apigateway.filter.JwtAuthApiGatewayFilter.Config;
 import com.followfollowme.bosspickseoul.apigateway.jwt.AccessTokenBlacklistChecker;
 import com.followfollowme.bosspickseoul.apigateway.jwt.JwtVerifier;
+import com.followfollowme.bosspickseoul.apigateway.jwt.MemberRevocationChecker;
 import com.followfollowme.bosspickseoul.apigateway.jwt.exception.JwtErrorCode;
 import com.followfollowme.bosspickseoul.apigateway.jwt.exception.JwtException;
 import io.jsonwebtoken.Claims;
@@ -29,6 +30,7 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
 
     private final JwtVerifier jwtVerifier;
     private final AccessTokenBlacklistChecker accessTokenBlacklistChecker;
+    private final MemberRevocationChecker memberRevocationChecker;
 
     @Override
     public GatewayFilter apply(Config config) {
@@ -45,6 +47,12 @@ public class JwtAuthApiGatewayFilter extends AbstractGatewayFilterFactory<Config
                     Claims claims = jwtVerifier.validateAndGetClaims(jwt);
                     String tokenId = claims.getId();
                     if (tokenId != null && accessTokenBlacklistChecker.isBlacklisted(tokenId)) {
+                        throw new JwtException(JwtErrorCode.TOKEN_REVOKED);
+                    }
+
+                    // 토큰 하나(jti)가 아니라 회원 전체가 끊긴 경우 — 비밀번호 변경/제거/탈퇴 뒤에도
+                    // 다른 기기의 access 가 만료까지 통하던 구멍을 여기서 막는다.
+                    if (memberRevocationChecker.isRevoked(claims.getSubject(), claims.getIssuedAt())) {
                         throw new JwtException(JwtErrorCode.TOKEN_REVOKED);
                     }
 

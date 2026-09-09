@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.security.auth.jwt;
 
 import com.followfollowme.bosspickseoul.security.auth.blacklist.AccessTokenBlacklistVerifier;
+import com.followfollowme.bosspickseoul.security.auth.blacklist.MemberRevocationVerifier;
 import com.followfollowme.bosspickseoul.security.common.dto.MemberLoginActive;
 import com.followfollowme.bosspickseoul.security.common.exception.SecurityErrorCode;
 import com.followfollowme.bosspickseoul.security.common.exception.SecurityJwtException;
@@ -29,6 +30,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final AuthenticationFailureHandler failureHandler;
     // 구현 빈이 없으면 null — 블랙리스트 검증 없이 기존 동작을 유지한다.
     private final AccessTokenBlacklistVerifier blacklistVerifier;
+    // 구현 빈이 없으면 null — 회원 단위 revocation 검사 없이 기존 동작을 유지한다.
+    private final MemberRevocationVerifier memberRevocationVerifier;
 
     @Override
     protected void doFilterInternal(
@@ -40,6 +43,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             try {
                 MemberLoginActive member = jwtAuthProvider.parseAccessToken(accessToken);
                 validateNotRevoked(member.tokenId());
+                validateNotRevokedByMember(member);
                 SecurityContextHolder.getContext()
                     .setAuthentication(createAuthenticationToken(member));
             } catch (SecurityJwtException e) {
@@ -65,6 +69,30 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         if (blacklistVerifier.isRevoked(tokenId)) {
+            throw new SecurityJwtException(SecurityErrorCode.TOKEN_REVOKED);
+        }
+    }
+
+    /**
+     * 회원 단위 revocation 마커 검사. 비밀번호 변경/제거/탈퇴로 전 기기 세션이 끊긴 뒤에도
+     * 다른 기기의 access 가 만료까지 살아 있던 구멍을 막는다.
+     *
+     * <p><b>iat == revokedAt 은 무효로 본다.</b> iat 가 초 단위라 같은 초에 발급된 토큰이
+     * revoke 보다 앞선 것인지 뒤선 것인지 구분할 수 없다. 통과시키면 revoke 직전에 발급된 토큰이
+     * access 만료까지 살아남아 이 기능이 막으려던 바로 그 구멍이 남고, 거절하면 revoke 와 같은 초에
+     * 재로그인한 사용자가 한 번 더 로그인하면 된다. 안전한 쪽을 고른다.
+     */
+    private void validateNotRevokedByMember(MemberLoginActive member) {
+        if (memberRevocationVerifier == null) {
+            return;
+        }
+
+        long revokedAtEpochSeconds = memberRevocationVerifier.findRevokedAtEpochSeconds(member.memberId());
+        if (revokedAtEpochSeconds <= 0) {
+            return;
+        }
+
+        if (member.issuedAtEpochSeconds() <= revokedAtEpochSeconds) {
             throw new SecurityJwtException(SecurityErrorCode.TOKEN_REVOKED);
         }
     }
