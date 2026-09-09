@@ -246,5 +246,10 @@ class EmailVerificationProcessorTest {
         public Optional<Member> findById(long memberId) {
             return Optional.empty();
         }
+
+        @Override
+        public java.util.List<Member> findAllByIds(java.util.Collection<Long> memberIds) {
+            throw new UnsupportedOperationException("not used in this test");
+        }
     }
 }

@@ -5,6 +5,8 @@ import com.followfollowme.bosspickseoul.domainlayer.member.adapter.out.persisten
 import com.followfollowme.bosspickseoul.domainlayer.member.application.mapper.MemberMapper;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.port.out.MemberRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.model.Member;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -38,5 +40,12 @@ public class MemberRepositoryAdapter implements MemberRepositoryPort {
     public Optional<Member> findById(long memberId) {
         return memberRepository.findById(memberId)
             .map(memberMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public List<Member> findAllByIds(Collection<Long> memberIds) {
+        return memberRepository.findAllById(memberIds).stream()
+            .map(memberMapper::toDomainFromEntity)
+            .toList();
     }
 }
