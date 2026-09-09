@@ -66,3 +66,7 @@ replay_pid*.log
 
 # gstack 로컬 도구 상태 (헤드리스 브라우저 세션·캐시). 기기마다 다르다
 .gstack/
+
+# Python 스크립트 바이트코드 (backend/scripts/**)
+__pycache__/
+*.pyc
