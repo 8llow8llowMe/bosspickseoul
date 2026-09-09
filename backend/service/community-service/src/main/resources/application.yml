@@ -32,6 +32,8 @@ resilience4j:
     instances:
       district-service:
         base-config: default
+      auth-service:
+        base-config: default
 
 logging:
   level:

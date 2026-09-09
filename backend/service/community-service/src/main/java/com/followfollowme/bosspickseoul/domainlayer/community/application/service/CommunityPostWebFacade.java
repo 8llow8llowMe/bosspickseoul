@@ -15,7 +15,9 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.model.
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.in.CommunityPostWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityCommandProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityPostImageProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.MemberSummariesQueryResult.MemberSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityWriterSummaryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostImageUploadResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPostImage;
 import com.followfollowme.bosspickseoul.storage.client.ObjectStorageClient;
@@ -30,6 +32,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.Commu
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityTargetMeta;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.LikedCommunityPost;
 import com.followfollowme.bosspickseoul.common.enums.OrderType;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.info.CommunityLikeToggleResult;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +47,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     private final CommunityCommandProcessor communityCommandProcessor;
     private final CommunityPostPresenter communityPostPresenter;
     private final CommunityPostImageProcessor communityPostImageProcessor;
+    private final CommunityWriterSummaryProcessor communityWriterSummaryProcessor;
     private final ObjectStorageClient objectStorageClient;
 
     @Override
@@ -59,7 +63,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
 
         SliceQueryResult<CommunityPost> feed = communityQueryProcessor.getFeed(
             sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size);
-        return communityPostPresenter.toPostListResponse(targetMeta, feed, toImagesByPostId(feed));
+        return communityPostPresenter.toPostListResponse(targetMeta, feed, toImagesByPostId(feed), toWriterSummaries(feed));
     }
 
     /**
@@ -75,7 +79,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
             request.analysisType(), request.analysisRefCode(), request.analysisRefName(), request.analysisSnapshotKey());
         CommunityPost post = communityCommandProcessor.createPost(memberId, command);
         communityPostImageProcessor.replaceImages(memberId, post.id(), command.imageKeys());
-        return communityPostPresenter.toPostDetailResponse(post, communityPostImageProcessor.getImages(post.id()));
+        return communityPostPresenter.toPostDetailResponse(
+            post, communityPostImageProcessor.getImages(post.id()), toWriterSummaries(post));
     }
 
     @Override
@@ -123,7 +128,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     public CommunityPostDetailResponse getPost(long postId) {
         CommunityPost post = communityQueryProcessor.getPost(postId);
         CommunityPost updated = communityCommandProcessor.incrementViewCount(post);
-        return communityPostPresenter.toPostDetailResponse(updated, communityPostImageProcessor.getImages(postId));
+        return communityPostPresenter.toPostDetailResponse(
+            updated, communityPostImageProcessor.getImages(postId), toWriterSummaries(updated));
     }
 
     /**
@@ -139,7 +145,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         List<String> removedImageKeys = communityPostImageProcessor.replaceImages(memberId, postId, command.imageKeys());
         // 커밋 이후에 지운다. 롤백되면 DB 에는 이미지가 남는데 파일만 사라지는 상태가 되기 때문이다.
         objectStorageClient.deleteAllAfterCommit(removedImageKeys);
-        return communityPostPresenter.toPostDetailResponse(updated, communityPostImageProcessor.getImages(postId));
+        return communityPostPresenter.toPostDetailResponse(
+            updated, communityPostImageProcessor.getImages(postId), toWriterSummaries(updated));
     }
 
     @Override
@@ -161,9 +168,11 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     public CommunityLikedPostsResponse getLikedPosts(
         long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
     ) {
-        return communityPostPresenter.toLikedPostsResponse(
-            communityQueryProcessor.getLikedPosts(memberId, sortType, orderType, lastPostId, lastLikeCount, size)
-        );
+        SliceQueryResult<LikedCommunityPost> likedPosts =
+            communityQueryProcessor.getLikedPosts(memberId, sortType, orderType, lastPostId, lastLikeCount, size);
+        Map<Long, MemberSummaryQueryResult> writerSummaries = communityWriterSummaryProcessor.getWriterSummaries(
+            likedPosts.content().stream().map(likedPost -> likedPost.post().memberId()).distinct().toList());
+        return communityPostPresenter.toLikedPostsResponse(likedPosts, writerSummaries);
     }
 
     @Override
@@ -173,7 +182,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     ) {
         SliceQueryResult<CommunityPost> searched = communityQueryProcessor.searchPosts(
             keyword, sortType, orderType, lastPostId, lastLikeCount, size);
-        return communityPostPresenter.toPostListResponse(null, searched, toImagesByPostId(searched));
+        return communityPostPresenter.toPostListResponse(null, searched, toImagesByPostId(searched), toWriterSummaries(searched));
     }
 
     /**
@@ -205,5 +214,14 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     private Map<Long, List<CommunityPostImage>> toImagesByPostId(SliceQueryResult<CommunityPost> posts) {
         return communityPostImageProcessor.getImagesByPostIds(
             posts.content().stream().map(CommunityPost::id).toList());
+    }
+
+    private Map<Long, MemberSummaryQueryResult> toWriterSummaries(SliceQueryResult<CommunityPost> posts) {
+        return communityWriterSummaryProcessor.getWriterSummaries(
+            posts.content().stream().map(CommunityPost::memberId).distinct().toList());
+    }
+
+    private Map<Long, MemberSummaryQueryResult> toWriterSummaries(CommunityPost post) {
+        return communityWriterSummaryProcessor.getWriterSummaries(List.of(post.memberId()));
     }
 }

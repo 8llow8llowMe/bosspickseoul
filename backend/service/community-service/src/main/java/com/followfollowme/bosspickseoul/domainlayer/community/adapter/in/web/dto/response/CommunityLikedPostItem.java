@@ -15,6 +15,12 @@ public record CommunityLikedPostItem(
     @Schema(description = "작성자 회원 ID")
     String memberId,
 
+    @Schema(description = "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null", nullable = true)
+    String writerNickname,
+
+    @Schema(description = "작성자 프로필 이미지 URL", nullable = true)
+    String writerProfileImageUrl,
+
     @Schema(description = "대상 유형 메타데이터")
     CodeNameDescriptionMetadata targetType,
 

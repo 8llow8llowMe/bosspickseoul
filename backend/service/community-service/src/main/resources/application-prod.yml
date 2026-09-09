@@ -80,3 +80,4 @@ infra:
 feign-client:
   target-services:
     district-service: ${DISTRICT_SERVICE_APP_NAME}
+    auth-service: ${AUTH_SERVICE_APP_NAME}
