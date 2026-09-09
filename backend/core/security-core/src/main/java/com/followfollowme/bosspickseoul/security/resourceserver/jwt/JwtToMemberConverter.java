@@ -23,6 +23,7 @@ public class JwtToMemberConverter implements Converter<Jwt, AbstractAuthenticati
             .memberId(memberId)
             .role(role)
             .tokenId(jwt.getId())
+            .issuedAtEpochSeconds(jwt.getIssuedAt() == null ? 0L : jwt.getIssuedAt().getEpochSecond())
             .build();
 
         Collection<? extends GrantedAuthority> authorities =

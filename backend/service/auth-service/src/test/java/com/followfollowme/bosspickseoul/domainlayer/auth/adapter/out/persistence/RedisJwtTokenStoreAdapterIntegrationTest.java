@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.global.properties.AuthSessionProperties;
 import com.followfollowme.bosspickseoul.redis.properties.RedisProperties;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProperties;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -157,11 +158,40 @@ class RedisJwtTokenStoreAdapterIntegrationTest {
         }
     }
 
+    @Test
+    void allSessionRevocation_writesMemberRevocationMarker_soOtherDevicesAccessTokensDie() {
+        long before = Instant.now().getEpochSecond();
+        adapter.save(MEMBER_ID, "device-a", "token-a", meta);
+
+        adapter.deleteAllSessions(MEMBER_ID);
+
+        // refresh 를 다 지워도 다른 기기의 access 는 만료까지 통한다. 그 구멍을 이 마커가 막는다.
+        long revokedAt = adapter.findRevokedAtEpochSeconds(MEMBER_ID);
+        assertThat(revokedAt).isBetween(before, Instant.now().getEpochSecond());
+
+        // TTL 은 access 만료 — 그 시점이면 옛 토큰이 전부 자연 만료되므로 마커를 더 둘 이유가 없다.
+        Duration accessExpiration = Duration.ofMinutes(30);
+        assertThat(redis.getExpire(memberRevokedAtKey(), TimeUnit.MILLISECONDS))
+            .isBetween(1L, accessExpiration.toMillis());
+    }
+
+    @Test
+    void withoutRevocation_markerIsAbsent() {
+        adapter.save(MEMBER_ID, "device-a", "token-a", meta);
+
+        // 마커가 없으면 0 — 검사 쪽이 "무효화된 적 없음" 으로 읽는다.
+        assertThat(adapter.findRevokedAtEpochSeconds(MEMBER_ID)).isZero();
+    }
+
     private RefreshTokenRotationResult rotate(String newSessionId) {
         return adapter.rotate(MEMBER_ID, "old", "old-token", newSessionId, newSessionId + "-token", meta);
     }
 
     private String key(String type, String sessionId) {
         return prefix + ":auth:" + type + ":" + MEMBER_ID + ":" + sessionId;
+    }
+
+    private String memberRevokedAtKey() {
+        return prefix + ":auth:memberRevokedAt:" + MEMBER_ID;
     }
 }

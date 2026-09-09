@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.security.auth.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.security.auth.blacklist.AccessTokenBlacklistVerifier;
+import com.followfollowme.bosspickseoul.security.auth.blacklist.MemberRevocationVerifier;
 import com.followfollowme.bosspickseoul.security.auth.handler.JwtAuthenticationFailureHandler;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthFilter;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProperties;
@@ -98,9 +99,15 @@ public class AuthSecurityConfigurer {
     @Bean
     public JwtAuthFilter jwtAuthFilter(
         JwtAuthProvider jwtAuthProvider, AuthenticationFailureHandler jwtAuthenticationFailureHandler,
-        ObjectProvider<AccessTokenBlacklistVerifier> blacklistVerifierProvider
+        ObjectProvider<AccessTokenBlacklistVerifier> blacklistVerifierProvider,
+        ObjectProvider<MemberRevocationVerifier> memberRevocationVerifierProvider
     ) {
-        return new JwtAuthFilter(jwtAuthProvider, jwtAuthenticationFailureHandler, blacklistVerifierProvider.getIfAvailable());
+        return new JwtAuthFilter(
+            jwtAuthProvider,
+            jwtAuthenticationFailureHandler,
+            blacklistVerifierProvider.getIfAvailable(),
+            memberRevocationVerifierProvider.getIfAvailable()
+        );
     }
 
     @Bean

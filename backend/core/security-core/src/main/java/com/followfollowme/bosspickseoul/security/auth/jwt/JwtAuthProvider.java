@@ -65,7 +65,13 @@ public class JwtAuthProvider {
             .memberId(Long.parseLong(payload.getSubject()))
             .role(SecurityRole.from(payload.get(CLAIM_ROLE, String.class)))
             .tokenId(payload.getId())
+            .issuedAtEpochSeconds(toEpochSeconds(payload.getIssuedAt()))
             .build();
+    }
+
+    /** iat 가 없는 토큰은 0 으로 둔다 — 회원 revocation 마커와 비교할 때 항상 무효로 걸린다. */
+    private long toEpochSeconds(Date issuedAt) {
+        return issuedAt == null ? 0L : issuedAt.toInstant().getEpochSecond();
     }
 
     private String issueToken(Claims claims, Duration expiration, String secretKey) {

@@ -7,6 +7,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.qu
 import com.followfollowme.bosspickseoul.global.properties.AuthSessionProperties;
 import com.followfollowme.bosspickseoul.redis.properties.RedisProperties;
 import com.followfollowme.bosspickseoul.security.auth.blacklist.AccessTokenBlacklistVerifier;
+import com.followfollowme.bosspickseoul.security.auth.blacklist.MemberRevocationVerifier;
 import com.followfollowme.bosspickseoul.security.auth.jwt.JwtAuthProperties;
 import com.followfollowme.bosspickseoul.security.common.exception.SecurityErrorCode;
 import com.followfollowme.bosspickseoul.security.common.exception.SecurityJwtException;
@@ -38,6 +39,8 @@ import org.springframework.stereotype.Component;
  *       ({@code createdAtEpochMillis\n기기정보}), TTL = refresh 만료</li>
  *   <li>{@code {prefix}:auth:refreshSessions:{memberId}} — 세션 아이디 ZSET (score = 마지막 갱신 시각).
  *       상한 초과 시 가장 오래 갱신되지 않은 세션부터 밀어내는 인덱스</li>
+ *   <li>{@code {prefix}:auth:memberRevokedAt:{memberId}} — 전 기기 세션 무효화 시각(epoch seconds),
+ *       TTL = access 만료. 그 이전에 발급된 access token 을 jti 와 무관하게 거절하는 워터마크</li>
  * </ul>
  *
  * <p>토큰 키가 TTL 로 먼저 사라져 인덱스에 세션 아이디만 남을 수 있지만, 조회는 항상 토큰 키
@@ -46,7 +49,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessTokenBlacklistVerifier {
+public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessTokenBlacklistVerifier, MemberRevocationVerifier {
 
     private static final String BLACKLIST_VALUE = "logout";
     private static final String META_DELIMITER = "\n";
@@ -216,6 +219,42 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessToken
         if (result == null) {
             throw new DataRetrievalFailureException("Session revocation returned no result");
         }
+
+        saveMemberRevocationMarker(memberId);
+    }
+
+    /**
+     * 회원 단위 revocation 마커를 기록한다. refresh 를 다 지워도 다른 기기의 access 는 만료까지
+     * 살아 있으므로, 이 시각보다 먼저 발급된 access 를 전부 무효로 만드는 워터마크가 필요하다.
+     *
+     * <p><b>세션 삭제 뒤에 기록한다.</b> 마커를 먼저 쓰면 그 직후 삭제 전까지의 틈에 동시 재발급이
+     * 성공해 마커보다 늦은 iat 를 가진 토큰이 살아남는다. 삭제를 먼저 하면 그 경합 재발급은 실패하고,
+     * 삭제 직전에 발급된 토큰은 뒤이어 쓰는 마커가 잡는다.
+     *
+     * <p>TTL 은 access 만료다. 그 시점이면 옛 토큰이 전부 자연 만료되므로 마커를 더 둘 이유가 없다.
+     */
+    private void saveMemberRevocationMarker(long memberId) {
+        redisTemplate.opsForValue().set(
+            buildMemberRevokedAtKey(memberId),
+            String.valueOf(Instant.now().getEpochSecond()),
+            jwtAuthProperties.accessExpiration()
+        );
+    }
+
+    @Override
+    public long findRevokedAtEpochSeconds(long memberId) {
+        try {
+            String value = redisTemplate.opsForValue().get(buildMemberRevokedAtKey(memberId));
+            return value == null ? 0L : Long.parseLong(value);
+        } catch (DataAccessException | NumberFormatException e) {
+            // 값을 못 읽는 것도 Redis 에 못 닿는 것과 같은 "판정 불가" 라 동일한 정책으로 다룬다.
+            log.error("[RedisJwtTokenStoreAdapter] 회원 revocation 마커 조회 실패: memberId={}, error={}",
+                memberId, e.getMessage());
+            if (blacklistFailOpen) {
+                return 0L;
+            }
+            throw new SecurityJwtException(SecurityErrorCode.TOKEN_VERIFICATION_UNAVAILABLE);
+        }
     }
 
     @Override
@@ -293,6 +332,10 @@ public class RedisJwtTokenStoreAdapter implements JwtTokenStorePort, AccessToken
 
     private String buildBlacklistKey(String tokenId) {
         return buildKey("auth", "accessTokenBlacklist", tokenId);
+    }
+
+    private String buildMemberRevokedAtKey(long memberId) {
+        return buildKey("auth", "memberRevokedAt", String.valueOf(memberId));
     }
 
     private String buildKey(String domain, String type, String id) {
