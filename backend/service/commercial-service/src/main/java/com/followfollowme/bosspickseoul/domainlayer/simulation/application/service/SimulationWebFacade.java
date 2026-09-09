@@ -77,4 +77,10 @@ public class SimulationWebFacade implements SimulationWebUseCase {
     public SimulationHistoriesResponse getHistories(long memberId, int page, int size) {
         return simulationPresenter.toHistoriesResponse(simulationHistoryProcessor.getHistories(memberId, page, size));
     }
+
+    @Override
+    @Transactional
+    public void deleteHistory(long memberId, long historyId) {
+        simulationHistoryProcessor.delete(memberId, historyId);
+    }
 }

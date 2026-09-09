@@ -35,6 +35,11 @@ public class SimulationHistoryRepositoryAdapter implements SimulationHistoryRepo
             .build();
     }
 
+    @Override
+    public int deleteByIdAndMemberId(long historyId, long memberId) {
+        return simulationHistoryRepository.deleteByIdAndMemberId(historyId, memberId);
+    }
+
     private SimulationHistoryEntity toEntity(SimulationHistory history) {
         return SimulationHistoryEntity.builder()
             .id(history.id())

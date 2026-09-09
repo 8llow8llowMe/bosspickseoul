@@ -66,6 +66,13 @@ public class SimulationHistoryProcessor {
             .build();
     }
 
+    // 소유자 조건을 쿼리에 포함해 단일 쿼리로 처리한다. 타인 항목은 존재 여부를 노출하지 않도록 동일하게 404.
+    public void delete(long memberId, long historyId) {
+        if (simulationHistoryRepositoryPort.deleteByIdAndMemberId(historyId, memberId) == 0) {
+            throw new SimulationException(SimulationErrorCode.HISTORY_NOT_FOUND);
+        }
+    }
+
     private String resolveBrandName(SimulationHistorySaveCommand command) {
         if (!command.franchisee()) {
             return null;
