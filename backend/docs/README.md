@@ -59,6 +59,8 @@
   - GitHub App, webhook, Jenkins Multibranch Pipeline, Vault credential 기반 개발 배포 설정 절차
 - `services/*.md`
   - 서비스별 책임과 구현 주의점
+- `services/batch-quarterly-import.md`
+  - 분기 적재 배치(`quarterly` CLI) 운영 사용법. DDL, dry-run → 실게시, 데이터셋·분기 반복, 검증 SQL
 
 ## 권장 읽기 순서
 
