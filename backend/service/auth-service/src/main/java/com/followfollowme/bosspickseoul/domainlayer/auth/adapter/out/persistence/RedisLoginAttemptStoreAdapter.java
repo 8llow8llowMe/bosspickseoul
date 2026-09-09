@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>{@code {prefix}:auth:loginFail:{email}} — 누적 실패 횟수, TTL = 잠금 시간</li>
  *   <li>{@code {prefix}:auth:loginLock:{email}} — 잠금 플래그, TTL = 잠금 시간</li>
+ *   <li>{@code {prefix}:auth:loginFailIp:{ip}} — IP 누적 실패 횟수, TTL = IP 윈도우
+ *       (이메일 발송 IP 상한 {@code emailSendIp} 와 동일한 고정 윈도우 방식)</li>
  * </ul>
  *
  * <p><b>Redis 장애 시 정책: fail-open (로그인은 되게 한다).</b> 이 저장소는 비밀번호 검증을
@@ -87,12 +89,50 @@ public class RedisLoginAttemptStoreAdapter implements LoginAttemptStorePort {
         }
     }
 
+    /**
+     * IP 상한은 잠금 플래그 없이 카운터 하나만 본다. 이메일 잠금과 달리 "잠갔다"는 상태를 따로
+     * 둘 필요가 없다 — 고정 윈도우가 끝나면 키가 만료되며 자연히 풀린다.
+     */
+    @Override
+    public long getIpFailureCount(String clientIp) {
+        try {
+            String value = redisTemplate.opsForValue().get(buildIpFailKey(clientIp));
+            return value == null ? 0L : Long.parseLong(value);
+        } catch (DataAccessException | NumberFormatException exception) {
+            log.error("[RedisLoginAttemptStoreAdapter] IP 로그인 실패 카운터 조회 실패(fail-open 처리): error={}",
+                exception.getMessage());
+            return 0L;
+        }
+    }
+
+    @Override
+    public long increaseIpFailureCount(String clientIp, Duration window) {
+        try {
+            String key = buildIpFailKey(clientIp);
+            Long count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                // 첫 실패에서만 TTL 을 걸어 고정 윈도우를 만든다. 매 실패마다 갱신하면 공격자가
+                // 시도를 이어가는 동안 윈도우가 끝나지 않아 IP 가 영구히 막힌다.
+                redisTemplate.expire(key, window);
+            }
+            return count == null ? 0L : count;
+        } catch (DataAccessException exception) {
+            log.error("[RedisLoginAttemptStoreAdapter] IP 로그인 실패 카운터 증가 실패(fail-open 처리): error={}",
+                exception.getMessage());
+            return 0L;
+        }
+    }
+
     private String buildFailKey(String email) {
         return buildKey("loginFail", email);
     }
 
     private String buildLockKey(String email) {
         return buildKey("loginLock", email);
+    }
+
+    private String buildIpFailKey(String clientIp) {
+        return buildKey("loginFailIp", clientIp);
     }
 
     private String buildKey(String type, String email) {

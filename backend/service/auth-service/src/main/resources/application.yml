@@ -17,10 +17,14 @@ infra:
     key-prefix: ${REDIS_KEY_PREFIX:nowdoboss}
 
 # 일반 로그인 brute-force 방어. 프로필별 override 가 없어도 동작하도록 공통 기본값을 둔다.
+# 계정(이메일) 축과 IP 축을 함께 둔다 — 이메일 잠금만으로는 한 IP 가 여러 이메일로 뿌리는
+# 공격을 막지 못한다. IP 상한 수치/윈도우는 이미 운영 중인 이메일 발송 IP 상한(AUTH_016)과 맞춘다.
 auth:
   login:
     max-failure-count: ${AUTH_LOGIN_MAX_FAILURE_COUNT:5}
     lock-duration: ${AUTH_LOGIN_LOCK_DURATION:PT10M}
+    ip-max-fail-count: ${AUTH_LOGIN_IP_MAX_FAIL_COUNT:10}
+    ip-window: ${AUTH_LOGIN_IP_WINDOW:PT1H}
 
 logging:
   level:
