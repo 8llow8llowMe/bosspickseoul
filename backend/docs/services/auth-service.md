@@ -25,7 +25,8 @@
 
 - `POST /api/v1/auth/login` — 이메일/비밀번호 로그인. 요청 DTO 는 `@Valid` 검증(빈 값/형식 오류는 400,
   실패 카운터에 오르지 않음). 응답 body에 accessToken, `Set-Cookie`로 refresh 쿠키 발급.
-  실패 누적 시 이메일 단위로 잠긴다(`AUTH_015`, 429 — 기본 5회 / 10분).
+  실패 누적 시 이메일 단위로 잠기고(`AUTH_015`, 429 — 기본 5회 / 10분), 같은 IP 의 실패가 상한을
+  넘으면 이메일과 무관하게 거절된다(`AUTH_020`, 429 — 기본 10회 / 1시간).
 - `POST /api/v1/auth/logout` — **현재 기기 세션만** 로그아웃. 쿠키의 refresh 토큰으로 세션을 특정해
   해당 refresh 만 삭제 + 현재 access 블랙리스트, refresh 쿠키 제거(maxAge=0). 다른 기기 로그인은 유지된다.
   쿠키가 없거나 만료/위조면 세션 삭제는 건너뛰고 access 무효화만 수행한다.
@@ -91,6 +92,35 @@
   `jwt.blacklist-fail-open`(env `JWT_BLACKLIST_FAIL_OPEN`, 기본 false=fail-closed `SECURITY_008` 503)로
   게이트웨이와 동일 키로 정렬한다.
 
+**회원 단위 revocation 마커 (전 기기 access 무효화)**
+- jti 블랙리스트는 **토큰 하나**만 무효화한다. 비밀번호 변경/제거/재설정/탈퇴는 refresh 를 전부
+  지우지만 블랙리스트에 오르는 건 요청을 보낸 기기의 access 뿐이라, 다른 기기의 access 는 만료까지
+  통했다. 그 구멍을 회원별 워터마크로 막는다.
+- Redis 키 `{prefix}:auth:memberRevokedAt:{memberId}` = 무효화 시각(epoch seconds),
+  TTL = access 만료(`JWT_ACCESS_EXPIRATION`). 그 시점이면 옛 토큰이 전부 자연 만료되므로 더 둘 이유가
+  없다. 토큰 수만큼 키를 만들지 않고 회원당 키 하나라 저장 비용이 일정하다.
+- **기록 위치는 `RedisJwtTokenStoreAdapter.deleteAllSessions` 안**이다. 호출부가 4곳(탈퇴/비밀번호
+  변경/비밀번호 재설정/상태 이상 reissue)이라 밖에 두면 언젠가 한 곳이 빠진다. **세션 삭제 뒤에**
+  기록한다 — 마커를 먼저 쓰면 삭제 전까지의 틈에 동시 재발급이 성공해 마커보다 늦은 iat 를 가진
+  토큰이 살아남는다.
+- **검증 지점은 두 곳**이고 둘 다 적용해야 전 서비스에 일관된다.
+  - 리소스 서비스(commercial/district/community/ai): 게이트웨이 `JwtAuthApiGatewayFilter` +
+    `MemberRevocationChecker` → `JWT_005`. 리소스 서비스는 자체 블랙리스트 검증을 하지 않고
+    게이트웨이를 신뢰하는 구조라, 여기에 없으면 리소스 서비스 전체가 빠진다.
+  - auth-service(게이트웨이 우회): security-core `JwtAuthFilter` + `MemberRevocationVerifier`
+    → `SECURITY_007`.
+  - 게이트웨이는 WebFlux 라 security-core(서블릿)에 의존할 수 없어 비교식이 갈라진다. 두 쪽 판정이
+    어긋나면 무효화 시점이 서비스마다 달라지므로 양쪽 모두 테스트로 규칙을 고정했다.
+- 게이트웨이 조회는 `StringRedisTemplate` 을 쓴다. 쓰는 쪽이 평문 문자열이라 기존
+  `RedisTemplate<String, Object>`(JSON 직렬화)로 읽으면 값이 어긋난다. 블랙리스트 체커가 그 템플릿으로도
+  멀쩡한 것은 `hasKey` 만 보고 값을 읽지 않기 때문이다.
+- **경계: `iat == revokedAt` 은 무효로 본다.** iat 가 초 단위라 같은 초에 발급된 토큰이 revoke 보다
+  앞선 것인지 알 수 없다. 통과시키면 revoke 직전 발급 토큰이 access 만료까지 살아남아 이 기능이
+  막으려던 구멍이 그대로 남고, 거절하면 같은 초에 재로그인한 사용자가 한 번 더 로그인하면 된다.
+  iat 클레임이 없는 토큰(0)도 같은 규칙으로 걸린다.
+- 판정 불가(Redis 장애·손상된 값)는 블랙리스트와 같은 `jwt.blacklist-fail-open` 정책을 따른다
+  (기본 fail-closed → 503).
+
 **로그인 실패 횟수 제한 / 잠금 (brute-force 방어)**
 - `GeneralLoginProcessor`가 로그인 실패마다 이메일 단위 카운터를 올리고, 임계값 도달 시 잠근다 →
   `AUTH_015 LOGIN_ATTEMPT_LOCKED`(429). 성공 시 카운터/잠금을 즉시 초기화한다.
@@ -107,12 +137,30 @@
 - **Redis 장애 시 정책: fail-open**(잠금 없이 로그인은 계속 동작, ERROR 로그로 감지). 이 저장소는 비밀번호 검증을
   대체하는 게 아니라 시도 횟수를 세는 보조 장치이므로, fail-closed 로 전원 로그인 불가를 만드는 쪽이 사고가 더 크다.
   (`jwt.blacklist-fail-open`의 기본 fail-closed 와는 성격이 다르다 — 그쪽은 revoke 된 토큰을 놓치면 인증 자체가 깨진다.)
-- 알려진 한계: 이메일 단위 잠금이라 IP 분산 공격에는 계정별로만 유효하다. IP 기반 rate limit(게이트웨이)은 별도 과제.
+**로그인 실패 IP 상한 (credential stuffing 방어)**
+- 이메일 단위 잠금만으로는 **계정마다 임계값 미만으로만 시도하며 이메일을 갈아끼우는** 공격을 막지
+  못한다. 어느 계정도 잠기지 않아 시도 횟수에 사실상 상한이 없다. 그래서 IP 축을 함께 둔다 →
+  `AUTH_020 LOGIN_IP_RATE_LIMITED`(429).
+- 임계값/윈도우: `auth.login.ip-max-fail-count`(env `AUTH_LOGIN_IP_MAX_FAIL_COUNT`, 기본 10),
+  `auth.login.ip-window`(env `AUTH_LOGIN_IP_WINDOW`, 기본 `PT1H`). 이미 운영 중인 이메일 발송 IP
+  상한(`AUTH_016`)과 같은 수치·같은 고정 윈도우 방식이다.
+- Redis 키 `{prefix}:auth:loginFailIp:{ip}` — 첫 실패에서만 TTL 을 걸어 고정 윈도우로 만든다.
+  매 실패마다 갱신하면 공격이 이어지는 동안 윈도우가 끝나지 않아 IP 가 영구히 막힌다.
+- **검사 순서는 IP 상한 → 이메일 잠금 → 회원 조회.** 이미 상한에 걸린 IP 에는 DB 조회/bcrypt 비용도
+  주지 않는다. 클라이언트 IP 는 발송 상한과 동일하게 `ClientIpResolver`(X-Forwarded-For → X-Real-IP
+  → remoteAddr)로 얻는다.
+- **실패에만 카운트한다.** 성공 로그인은 IP 카운터를 초기화하지도 않는다 — 자기 계정 로그인 한 번으로
+  상한을 리셋할 수 있으면 상한이 무의미해진다. 윈도우 만료로만 풀린다.
+- IP 를 못 얻으면(헤더도 remoteAddr 도 빈 비정상 경로) 상한을 적용하지 않는다. 빈 문자열을 키로 쓰면
+  IP 미상 요청들이 한 카운터를 공유해 서로를 잠근다.
+- 메시지는 `AUTH_015` 와 같은 톤이라 응답으로 어느 축에 걸렸는지 구분되지 않는다.
+- Redis 장애 시 정책은 이메일 잠금과 동일하게 **fail-open**(ERROR 로그).
 
 | 코드 | HttpStatus | 설명 |
 |------|-----------|------|
 | `AUTH_006` | 401 | 로그인 실패 (LOGIN_FAILED) — 미존재/비밀번호 불일치 통합 응답 |
 | `AUTH_015` | 429 | 로그인 실패 횟수 초과 잠금 (LOGIN_ATTEMPT_LOCKED) — 계정 존재 여부와 무관하게 동일 적용 |
+| `AUTH_020` | 429 | 로그인 실패 IP 상한 초과 (LOGIN_IP_RATE_LIMITED) — 이메일과 무관하게 IP 단위로 적용 |
 
 **계정 열거 방지**
 - 로그인 실패는 미존재/비밀번호 불일치 구분 없이 `AUTH_006 LOGIN_FAILED`(401)로 통합.
@@ -142,9 +190,10 @@
   status=WITHDRAWN + 세션 revoke. email 유지로 동일 이메일 재가입 차단.
 - revoke는 보안 이벤트 경로에서 **실패 시 전파되어 DB 변경과 함께 롤백**된다(무효화 없는 성공 방지).
   로그아웃은 기존대로 관용 처리(`revokeCurrentSession` vs `revokeAllSessions`).
-- 알려진 한계: 다른 기기의 기존 access token은 만료까지 유효(재발급은 차단됨). `JWT_ACCESS_EXPIRATION`
-  단축(PT30M 권장) 또는 회원 단위 revocation 마커(후속) 참고. 토큰 재발급은 회원 상태를 검증해
-  정지/탈퇴 회원의 reissue를 차단하고 refresh를 삭제한다.
+- 다른 기기의 기존 access token 도 **즉시 무효화된다** — 전 기기 세션 해제 시 회원 단위 revocation
+  마커를 남기고, 그 이전에 발급된 access 는 게이트웨이/auth-service 양쪽에서 거절된다
+  (위 "회원 단위 revocation 마커" 절 참고). 토큰 재발급은 회원 상태도 검증해 정지/탈퇴 회원의
+  reissue를 차단하고 refresh를 삭제한다.
 - `member.email`은 DB unique 제약(`uk_member_email`) — 동시 가입 중복은 409로 변환. 기존 DB에는
   `backend/scripts/migration/member-email-unique-index-runbook.sql` 수동 적용 필요(ddl-auto는 미보장).
 
@@ -166,9 +215,9 @@
 - 발송: `spring.mail.*`(SMTP, env `MAIL_HOST/PORT/USERNAME/PASSWORD`) + `authMailTaskExecutor` 비동기,
   로그에는 이메일을 마스킹해 남긴다. 자격증명 미설정이어도 기동은 가능하며 발송 시점에만 실패한다.
   **배포 전 Vault dev/prod secret에 MAIL_* 키 추가 필요.**
-- 후속 권장: login 의 **IP 기반** rate limit(게이트웨이), 회원 단위 revocation 마커.
-  (send-code 의 IP 상한은 구현 완료 — `AUTH_016`, 위 참조. 계정(이메일) 단위 로그인 실패 잠금도
-  구현 완료 — `AUTH_015`, 위 "로그인 실패 횟수 제한 / 잠금" 절 참고)
+- 후속 권장 항목은 모두 구현 완료다 — send-code 의 IP 상한(`AUTH_016`), 계정 단위 로그인 실패
+  잠금(`AUTH_015`), **login 의 IP 기반 rate limit**(`AUTH_020`, 위 "로그인 실패 IP 상한" 절),
+  **회원 단위 revocation 마커**(위 "회원 단위 revocation 마커" 절).
 
 **계정 정책 (의도적으로 제공하지 않는 것)**
 - **이메일 변경 기능은 제공하지 않는다.** 이메일은 로그인 식별자이자 DB unique 키(`uk_member_email`)로

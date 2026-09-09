@@ -114,7 +114,7 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| POST | `/login` | 이메일/비밀번호 로그인, Access 토큰 + Refresh 쿠키 발급 | - |
+| POST | `/login` | 이메일/비밀번호 로그인, Access 토큰 + Refresh 쿠키 발급 (이메일 단위 실패 잠금 `AUTH_015` + IP 단위 실패 상한 `AUTH_020`, 둘 다 429) | - |
 | POST | `/logout` | 현재 기기 세션만 로그아웃 (해당 refresh 무효화 + Access 토큰 jti 블랙리스트, 다른 기기 로그인 유지) | 🔒 |
 | POST | `/token/reissue` | Access 토큰 재발급 (Refresh 쿠키 필요, 토큰 회전) | - |
 | GET | `/{provider}/authorize` | 소셜 로그인 인가 URL 생성 (`kakao` / `naver`, CSRF `state` 포함·10분 유효) | - |
@@ -142,7 +142,7 @@
 | DELETE | `/me/password` | 소셜 전용 계정 전환 — 비밀번호 제거 (소셜 연결 계정만, 전 기기 로그아웃) | 🔒 |
 | POST | `/me/withdraw` | 회원 탈퇴 — 개인정보 마스킹, 전 기기 재발급 차단, 동일 이메일 재가입 불가 | 🔒 |
 
-비밀번호 변경·탈퇴는 Refresh 토큰을 삭제해 재발급을 차단합니다. 다른 기기에 남은 **기존 Access 토큰은 만료 시까지 유효할 수 있으며**, 회원 API 는 회원 상태 검사로 추가 차단됩니다.
+비밀번호 변경·제거·재설정·탈퇴는 Refresh 토큰을 전부 삭제해 재발급을 차단하고, **회원 단위 revocation 마커**를 남겨 그 시점 이전에 발급된 Access 토큰을 전 기기에서 무효화합니다. 다른 기기의 Access 토큰도 즉시 `401` 이 되며(게이트웨이 `JWT_005`, auth-service `SECURITY_007`), 재로그인이 필요합니다.
 
 ### 북마크 (`/api/v1/members/me/bookmarks`)
 
