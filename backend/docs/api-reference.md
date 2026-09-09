@@ -348,6 +348,8 @@
 
 목록 3종(`/`, `/search`, `/liked`)의 `size` 는 1~50 입니다. 범위를 벗어나면 `COMMUNITY_119` 로 거절합니다. 커서는 `lastPostId` 이고, 인기순 정렬일 때만 `lastLikeCount` 를 함께 넘깁니다.
 
+게시글 목록/검색/상세/좋아요 목록과 댓글 응답에는 `writerNickname`·`writerProfileImageUrl` 이 포함됩니다 (auth-service 실조회). **둘 다 null 가능** — 탈퇴 회원은 닉네임이 `"탈퇴회원"` 으로 내려오고, 회원 서비스 장애 시에는 응답을 실패시키지 않고 두 필드만 null 로 강등되므로 null 이면 대체 문구를 표시하면 됩니다.
+
 ### 댓글 (`/api/v1/community/posts/{postId}/comments`)
 
 | Method | Path | 설명 | 인증 |
