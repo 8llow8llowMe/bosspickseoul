@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.clien
 
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.client.feign.CommunityRegionClient;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.client.support.InternalResponseSupport;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.RegionTargetQueryResults.AdministrationAreaQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.RegionTargetQueryResults.CommercialAreaQueryResult;
@@ -41,7 +42,8 @@ public class CommunityTargetMetaClientAdapter implements CommunityTargetMetaRepo
     private Optional<CommunityTargetMeta> findDistrict(String districtCode) {
         DistrictAreaQueryResult result = responseSupport.requestAndUnwrap(
             InternalResponseSupport.DISTRICT_SERVICE,
-            () -> communityRegionClient.getDistrict(districtCode)
+            () -> communityRegionClient.getDistrict(districtCode),
+            CommunityErrorCode.REGION_SERVICE_UNAVAILABLE
         );
         return Optional.ofNullable(result)
             .map(area -> new CommunityTargetMeta(CommunityTargetType.DISTRICT, area.districtCode(), area.districtName()));
@@ -50,7 +52,8 @@ public class CommunityTargetMetaClientAdapter implements CommunityTargetMetaRepo
     private Optional<CommunityTargetMeta> findAdministration(String administrationCode) {
         AdministrationAreaQueryResult result = responseSupport.requestAndUnwrap(
             InternalResponseSupport.DISTRICT_SERVICE,
-            () -> communityRegionClient.getAdministration(administrationCode)
+            () -> communityRegionClient.getAdministration(administrationCode),
+            CommunityErrorCode.REGION_SERVICE_UNAVAILABLE
         );
         return Optional.ofNullable(result)
             .map(area -> new CommunityTargetMeta(
@@ -60,7 +63,8 @@ public class CommunityTargetMetaClientAdapter implements CommunityTargetMetaRepo
     private Optional<CommunityTargetMeta> findCommercial(String commercialCode) {
         CommercialAreaQueryResult result = responseSupport.requestAndUnwrap(
             InternalResponseSupport.DISTRICT_SERVICE,
-            () -> communityRegionClient.getCommercialAdministration(commercialCode)
+            () -> communityRegionClient.getCommercialAdministration(commercialCode),
+            CommunityErrorCode.REGION_SERVICE_UNAVAILABLE
         );
         return Optional.ofNullable(result)
             .map(area -> new CommunityTargetMeta(

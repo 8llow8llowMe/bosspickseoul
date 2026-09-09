@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostSummaryItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityCommercialComparisonDraftInfo;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.MemberSummariesQueryResult.MemberSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.item.CommunityPostImageItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPostImage;
@@ -33,7 +34,8 @@ public class CommunityPostPresenter {
     private static final int PREVIEW_CONTENT_LENGTH = 120;
 
     public CommunityPostListResponse toPostListResponse(
-        CommunityTargetMeta targetMeta, SliceQueryResult<CommunityPost> posts, Map<Long, List<CommunityPostImage>> imagesByPostId
+        CommunityTargetMeta targetMeta, SliceQueryResult<CommunityPost> posts,
+        Map<Long, List<CommunityPostImage>> imagesByPostId, Map<Long, MemberSummaryQueryResult> writerSummaries
     ) {
         CommunityBoardTargetItem board = (targetMeta != null)
             ? CommunityBoardTargetItem.builder()
@@ -45,21 +47,27 @@ public class CommunityPostPresenter {
 
         return CommunityPostListResponse.builder()
             .board(board)
-            .posts(toSliceResponse(posts, post -> toPostSummaryItem(post, imagesByPostId)))
+            .posts(toSliceResponse(posts, post -> toPostSummaryItem(post, imagesByPostId, writerSummaries)))
             .build();
     }
 
-    public CommunityLikedPostsResponse toLikedPostsResponse(SliceQueryResult<LikedCommunityPost> posts) {
+    public CommunityLikedPostsResponse toLikedPostsResponse(
+        SliceQueryResult<LikedCommunityPost> posts, Map<Long, MemberSummaryQueryResult> writerSummaries
+    ) {
         return CommunityLikedPostsResponse.builder()
-            .posts(toSliceResponse(posts, this::toLikedPostItem))
+            .posts(toSliceResponse(posts, likedPost -> toLikedPostItem(likedPost, writerSummaries)))
             .build();
     }
 
-    public CommunityPostDetailResponse toPostDetailResponse(CommunityPost post, List<CommunityPostImage> images) {
+    public CommunityPostDetailResponse toPostDetailResponse(
+        CommunityPost post, List<CommunityPostImage> images, Map<Long, MemberSummaryQueryResult> writerSummaries
+    ) {
         return CommunityPostDetailResponse.builder()
             .images(toImageItems(images))
             .postId(ResponseId.of(post.id()))
             .memberId(ResponseId.of(post.memberId()))
+            .writerNickname(writerNickname(writerSummaries, post.memberId()))
+            .writerProfileImageUrl(writerProfileImageUrl(writerSummaries, post.memberId()))
             .targetType(post.targetType().toMetadata())
             .targetCode(post.targetCode())
             .targetName(post.targetName())
@@ -101,11 +109,16 @@ public class CommunityPostPresenter {
             .build();
     }
 
-    private CommunityPostSummaryItem toPostSummaryItem(CommunityPost post, Map<Long, List<CommunityPostImage>> imagesByPostId) {
+    private CommunityPostSummaryItem toPostSummaryItem(
+        CommunityPost post, Map<Long, List<CommunityPostImage>> imagesByPostId,
+        Map<Long, MemberSummaryQueryResult> writerSummaries
+    ) {
         return CommunityPostSummaryItem.builder()
             .thumbnailUrl(toThumbnailUrl(imagesByPostId.get(post.id())))
             .postId(ResponseId.of(post.id()))
             .memberId(ResponseId.of(post.memberId()))
+            .writerNickname(writerNickname(writerSummaries, post.memberId()))
+            .writerProfileImageUrl(writerProfileImageUrl(writerSummaries, post.memberId()))
             .targetType(post.targetType().toMetadata())
             .targetCode(post.targetCode())
             .targetName(post.targetName())
@@ -117,11 +130,15 @@ public class CommunityPostPresenter {
             .build();
     }
 
-    private CommunityLikedPostItem toLikedPostItem(LikedCommunityPost likedPost) {
+    private CommunityLikedPostItem toLikedPostItem(
+        LikedCommunityPost likedPost, Map<Long, MemberSummaryQueryResult> writerSummaries
+    ) {
         CommunityPost post = likedPost.post();
         return CommunityLikedPostItem.builder()
             .postId(ResponseId.of(post.id()))
             .memberId(ResponseId.of(post.memberId()))
+            .writerNickname(writerNickname(writerSummaries, post.memberId()))
+            .writerProfileImageUrl(writerProfileImageUrl(writerSummaries, post.memberId()))
             .targetType(post.targetType().toMetadata())
             .targetCode(post.targetCode())
             .targetName(post.targetName())
@@ -132,6 +149,17 @@ public class CommunityPostPresenter {
             .createdAt(post.createdAt())
             .likedAt(likedPost.likedAt())
             .build();
+    }
+
+    /** 작성자 요약이 없으면(미존재 회원, auth 장애 강등) null — 프론트가 대체 문구를 쓴다. */
+    private String writerNickname(Map<Long, MemberSummaryQueryResult> writerSummaries, long memberId) {
+        MemberSummaryQueryResult summary = writerSummaries.get(memberId);
+        return summary == null ? null : summary.nickname();
+    }
+
+    private String writerProfileImageUrl(Map<Long, MemberSummaryQueryResult> writerSummaries, long memberId) {
+        MemberSummaryQueryResult summary = writerSummaries.get(memberId);
+        return summary == null ? null : summary.profileImageUrl();
     }
 
     private String truncateContent(String content) {

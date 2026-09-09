@@ -9,10 +9,14 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.except
 import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityException;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.in.CommunityCommentWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityCommandProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.MemberSummariesQueryResult.MemberSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityWriterSummaryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityComment;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.info.CommunityLikeToggleResult;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +28,12 @@ public class CommunityCommentWebFacade implements CommunityCommentWebUseCase {
     private final CommunityQueryProcessor communityQueryProcessor;
     private final CommunityCommandProcessor communityCommandProcessor;
     private final CommunityCommentPresenter communityCommentPresenter;
+    private final CommunityWriterSummaryProcessor communityWriterSummaryProcessor;
 
     @Override
     @Transactional(readOnly = true)
     public CommunityCommentsResponse getComments(long postId) {
-        return communityCommentPresenter.toCommentsResponse(communityQueryProcessor.getComments(postId));
+        return toCommentsResponse(communityQueryProcessor.getComments(postId));
     }
 
     @Override
@@ -39,7 +44,13 @@ public class CommunityCommentWebFacade implements CommunityCommentWebUseCase {
         communityCommandProcessor.createComment(memberId, post, command);
 
         // 2. 전체 댓글 목록 반환
-        return communityCommentPresenter.toCommentsResponse(communityQueryProcessor.getComments(postId));
+        return toCommentsResponse(communityQueryProcessor.getComments(postId));
+    }
+
+    private CommunityCommentsResponse toCommentsResponse(List<CommunityComment> comments) {
+        Map<Long, MemberSummaryQueryResult> writerSummaries = communityWriterSummaryProcessor.getWriterSummaries(
+            comments.stream().map(CommunityComment::memberId).distinct().toList());
+        return communityCommentPresenter.toCommentsResponse(comments, writerSummaries);
     }
 
     @Override
