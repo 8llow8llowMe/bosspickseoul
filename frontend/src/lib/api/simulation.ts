@@ -4,7 +4,7 @@
  * 브라우저는 BFF(`/api/bff`)만 호출하고 BFF가 `/api/v1/{path}`로 프록시한다.
  * 따라서 여기의 경로에는 `/api/v1` 접두사가 없다.
  *
- * 인증: `store-sizes` / `franchisees` / `reports`는 공개, `histories`(저장·목록)만 인증 필수다.
+ * 인증: `store-sizes` / `franchisees` / `reports`는 공개, `histories`(저장·목록·삭제)만 인증 필수다.
  * 비로그인 사용자도 시뮬레이션을 돌릴 수 있으므로 "저장"에서만 로그인을 유도한다.
  *
  * 오류: 이 파일은 오류를 삼키지 않는다. 호출부에서 `@/lib/api/api-error`의
@@ -19,10 +19,16 @@
  * 이 파일이 **경계에서 한 번** number로 맞춘다. 화면·상태·URL 코덱은 전부 number만 본다.
  * (문자열은 직렬화 정책일 뿐 값은 작은 정수다 — Snowflake가 아니다. 애초에 요청이 integer를
  * 요구하므로 어느 쪽이든 number로 보낼 수밖에 없다.)
+ *
+ * **예외: `historyId`.** 위 정규화는 *비교에 쓰이는 응답 본문의 아이디*(`franchiseeId`·`lastId`)
+ * 이야기다. `historyId`는 비교하지 않고 삭제 경로에만 실리므로 **문자열 그대로** 둔다 —
+ * 경로 세그먼트에는 number가 필요 없고, 숫자로 바꾸면 값이 커질 때 조용히 손상된다
+ * (분석 보관함 `bookmarkId`와 같은 규칙).
  */
 
 import { apiClient } from '@/lib/api/client'
 import { getResponseBody } from '@/lib/api/response'
+import type { ApiResponse } from '@/types/api'
 import type {
   SimulationComparisonRequestPair,
   SimulationFranchisees,
@@ -264,6 +270,22 @@ export const fetchSimulationHistories = async (page = 0, size = 10) => {
       page: String(page),
       size: String(size),
     })}`,
+  )
+
+  return response.data
+}
+
+/**
+ * `DELETE /simulations/histories/{historyId}` — 내 이력 한 건 삭제. **인증 필수.**
+ *
+ * 미존재와 타인 항목을 구분하지 않고 둘 다 `404 SIMULATION_006`이다(타인 이력의 존재
+ * 여부를 노출하지 않기 위함). 404는 재시도해도 같으므로 호출부에서 재시도 버튼을 붙이지 않는다.
+ *
+ * `historyId`는 **문자열 그대로** 경로에 넣는다 — 파일 상단 "예외: `historyId`" 참고.
+ */
+export const deleteSimulationHistory = async (historyId: string) => {
+  const response = await apiClient.delete<ApiResponse<null>>(
+    `/simulations/histories/${encodeURIComponent(historyId)}`,
   )
 
   return response.data

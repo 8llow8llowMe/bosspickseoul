@@ -32,6 +32,7 @@ const render = (
       page: 0,
       totalPages: 1,
       onPageChange: vi.fn(),
+      onDelete: vi.fn(),
       ...props,
     }),
   )
@@ -74,9 +75,28 @@ describe('SimulationHistoryList', () => {
     expect(html).toContain('href="/simulation"')
   })
 
-  it('삭제 버튼을 그리지 않는다', () => {
-    // 삭제 API 가 없다 (G13). 버튼을 두면 누를 수 있는데 되돌릴 방법이 없다.
-    expect(render()).not.toContain('삭제')
+  it('카드마다 삭제 버튼을 두고 어느 이력인지 라벨로 밝힌다', () => {
+    // 카드가 여러 장이면 "삭제"라는 글자만으로는 무엇을 지우는지 알 수 없다.
+    const html = render()
+
+    expect(html).toContain('삭제')
+    expect(html).toContain('강동구 · 한식음식점 · 66㎡ · 1층 저장 기록 삭제')
+  })
+
+  it('삭제 중인 항목의 버튼만 잠근다', () => {
+    // 한 건을 지우는 동안 다른 카드의 삭제까지 잠기면 목록 전체가 멈춘 것처럼 보인다.
+    const html = render({
+      histories: [
+        item({ historyId: '1' }),
+        item({ historyId: '2', districtName: '마포구' }),
+      ],
+      deletingHistoryId: '2',
+    })
+    const openTag = (label: string) =>
+      (html.match(/<button[^>]*>/g) ?? []).find(tag => tag.includes(label))
+
+    expect(openTag('마포구')).toContain('aria-busy="true"')
+    expect(openTag('강동구')).not.toContain('aria-busy')
   })
 
   it('한 페이지뿐이면 페이지 이동을 그리지 않는다', () => {

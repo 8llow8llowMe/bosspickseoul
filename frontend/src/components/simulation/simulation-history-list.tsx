@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
+  Trash2,
 } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -24,6 +25,9 @@ export type SimulationHistoryListProps = {
   page: number
   totalPages: number
   onPageChange: (page: number) => void
+  onDelete: (historyId: string) => void
+  /** 삭제 요청이 떠 있는 항목. 그 카드의 버튼만 잠근다. */
+  deletingHistoryId?: string | null
 }
 
 const Root = styled.div`
@@ -108,13 +112,17 @@ const Pager = styled.nav`
  * 간다. 저장 응답이 `franchiseeId`를 돌려주지 않아 프랜차이즈는 조건이 완성되지 않기 때문인데,
  * 그 판단은 `history-presentation`이 하고 여기서는 문구만 바꾼다.
  *
- * **삭제 버튼이 없다.** 삭제 API가 없어서 눌러도 되돌릴 방법이 없다 (G13).
+ * 삭제는 `onDelete`로 **위임**한다. 확인 대화상자를 두지 않은 것은 분석 보관함 삭제와 같은
+ * 동작으로 맞춘 것이다 — 두 보관함이 같은 프로필 화면에 나란히 있어서 한쪽만 확인창이
+ * 뜨면 규칙이 없어 보인다.
  */
 export default function SimulationHistoryList({
   histories,
   page,
   totalPages,
   onPageChange,
+  onDelete,
+  deletingHistoryId = null,
 }: SimulationHistoryListProps) {
   if (histories.length === 0) {
     return (
@@ -135,13 +143,12 @@ export default function SimulationHistoryList({
       <List>
         {histories.map(history => {
           const replayable = isSimulationHistoryReplayable(history)
+          const condition = describeSimulationHistoryCondition(history)
 
           return (
             <Card key={history.historyId}>
               <Price>{formatLargeWon(history.totalPrice)}</Price>
-              <Condition>
-                {describeSimulationHistoryCondition(history)}
-              </Condition>
+              <Condition>{condition}</Condition>
               <Meta>
                 <span>{history.dataBaseYear}년 기준</span>
                 <span>{formatDateTime(history.createdAt)}</span>
@@ -162,6 +169,16 @@ export default function SimulationHistoryList({
                 >
                   {replayable ? '리포트 보기' : '브랜드 다시 고르기'}
                 </ButtonLink>
+                <Button
+                  size="medium"
+                  variant="secondary"
+                  aria-label={`${condition} 저장 기록 삭제`}
+                  isLoading={deletingHistoryId === history.historyId}
+                  onClick={() => onDelete(history.historyId)}
+                  leftIcon={<Trash2 />}
+                >
+                  삭제
+                </Button>
               </Actions>
             </Card>
           )
