@@ -8,10 +8,12 @@ import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.re
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.request.MemberPasswordSetupRequest;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberMyInfoResponse;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberProfileImageUploadResponse;
+import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberSummariesResponse;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.command.MemberGeneralSignupCommand;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.port.in.MemberWebUseCase;
 import com.followfollowme.bosspickseoul.security.common.dto.MemberLoginActive;
 import com.followfollowme.bosspickseoul.storage.support.MultipartFileSupport;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -29,9 +31,11 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -59,6 +63,16 @@ public class MemberWebController {
     public ResponseEntity<Response<MemberMyInfoResponse>> getMyInfo(@AuthenticationPrincipal MemberLoginActive loginActive) {
         MemberMyInfoResponse response = memberWebUseCase.getMyInfo(loginActive.memberId());
         return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    /**
+     * 내부 서비스(커뮤니티 등) 작성자 표시용. Feign 으로만 호출되는 계약이라 Swagger 에는 숨긴다.
+     * 인증을 걸지 않는 대신 프로필 공개 정보(닉네임/이미지)만 내려주고, 미존재 ID 는 결과에서 뺀다.
+     */
+    @Hidden
+    @GetMapping("/summaries")
+    public ResponseEntity<Response<MemberSummariesResponse>> getMemberSummaries(@RequestParam List<Long> memberIds) {
+        return ResponseEntity.ok().body(Response.success(memberWebUseCase.getMemberSummaries(memberIds)));
     }
 
     @Operation(

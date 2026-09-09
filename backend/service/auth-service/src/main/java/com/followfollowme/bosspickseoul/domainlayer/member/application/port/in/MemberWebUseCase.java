@@ -2,14 +2,19 @@ package com.followfollowme.bosspickseoul.domainlayer.member.application.port.in;
 
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberMyInfoResponse;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberProfileImageUploadResponse;
+import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberSummariesResponse;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.command.MemberGeneralSignupCommand;
 import com.followfollowme.bosspickseoul.storage.model.FileUploadCommand;
+import java.util.List;
 
 public interface MemberWebUseCase {
 
     void generalSignup(MemberGeneralSignupCommand command);
 
     MemberMyInfoResponse getMyInfo(long memberId);
+
+    /** 내부 서비스(커뮤니티 등) 작성자 표시용 회원 요약 일괄 조회. 미존재 ID 는 결과에서 빠진다. */
+    MemberSummariesResponse getMemberSummaries(List<Long> memberIds);
 
     MemberMyInfoResponse updateMyInfo(long memberId, String nickname);
 

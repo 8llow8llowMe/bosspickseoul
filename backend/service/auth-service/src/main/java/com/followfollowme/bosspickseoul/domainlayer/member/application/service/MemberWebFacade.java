@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.member.application.service;
 
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberMyInfoResponse;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberProfileImageUploadResponse;
+import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.dto.response.MemberSummariesResponse;
 import com.followfollowme.bosspickseoul.domainlayer.member.adapter.in.web.presenter.MemberPresenter;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.command.MemberGeneralSignupCommand;
 import com.followfollowme.bosspickseoul.domainlayer.member.application.info.MemberMyInfo;
@@ -17,6 +18,7 @@ import com.followfollowme.bosspickseoul.storage.client.ObjectStorageClient;
 import com.followfollowme.bosspickseoul.storage.model.FileUploadCommand;
 import com.followfollowme.bosspickseoul.storage.model.StorageDomain;
 import com.followfollowme.bosspickseoul.storage.model.StoredObject;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +46,12 @@ public class MemberWebFacade implements MemberWebUseCase {
     public MemberMyInfoResponse getMyInfo(long memberId) {
         MemberMyInfo memberMyInfo = memberQueryProcessor.getMyInfo(memberId);
         return memberPresenter.toMyInfoResponse(memberMyInfo);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MemberSummariesResponse getMemberSummaries(List<Long> memberIds) {
+        return memberPresenter.toSummariesResponse(memberQueryProcessor.getSummaries(memberIds));
     }
 
     @Override

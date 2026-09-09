@@ -199,6 +199,11 @@ class GeneralLoginProcessorTest {
         public Optional<Member> findById(long memberId) {
             return members.values().stream().filter(member -> member.id() == memberId).findFirst();
         }
+
+        @Override
+        public java.util.List<Member> findAllByIds(java.util.Collection<Long> memberIds) {
+            throw new UnsupportedOperationException("not used in this test");
+        }
     }
 
     /**

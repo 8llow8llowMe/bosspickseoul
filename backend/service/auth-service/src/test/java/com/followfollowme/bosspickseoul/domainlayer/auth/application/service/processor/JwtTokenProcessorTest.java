@@ -447,5 +447,10 @@ class JwtTokenProcessorTest {
         public Optional<Member> findById(long memberId) {
             return Optional.ofNullable(members.get(memberId));
         }
+
+        @Override
+        public java.util.List<Member> findAllByIds(java.util.Collection<Long> memberIds) {
+            throw new UnsupportedOperationException("not used in this test");
+        }
     }
 }
