@@ -86,7 +86,7 @@
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101`, `103~105` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~007` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
 | `ANALYSIS_BOOKMARK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~105` | (`COMMERCIAL_102` 사용) |
-| `SIMULATION` | `001~004` | (`COMMERCIAL_100` 사용) | `101~109` | (`COMMERCIAL_102` 사용) |
+| `SIMULATION` | `001~006` | (`COMMERCIAL_100` 사용) | `101~109` | (`COMMERCIAL_102` 사용) |
 | `RANKING` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `POLICY` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `MAP` | `001~008` | `MAP_100` | `101~102` | `MAP_103` |
@@ -261,7 +261,7 @@
 
 ### 시뮬레이션 (`/api/v1/simulations`)
 
-창업 비용·수익 시뮬레이션입니다. 조회는 비인증이고, 이력 저장/조회만 로그인이 필요합니다.
+창업 비용·수익 시뮬레이션입니다. 조회는 비인증이고, 이력 저장/조회/삭제만 로그인이 필요합니다.
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
@@ -270,6 +270,7 @@
 | POST | `/reports` | 시뮬레이션 리포트 생성 (저장하지 않음) | - |
 | POST | `/histories` | 시뮬레이션 결과를 내 이력에 저장 | 🔒 |
 | GET | `/histories` | 내 시뮬레이션 이력 목록 | 🔒 |
+| DELETE | `/histories/{historyId}` | 내 시뮬레이션 이력 삭제 (미존재·타인 항목은 `404 SIMULATION_006`) | 🔒 |
 
 리포트 생성(`POST /reports`)과 저장(`POST /histories`)이 분리되어 있습니다. 로그인하지 않아도 결과를 볼 수 있고, 저장하려는 시점에만 인증이 필요합니다.
 

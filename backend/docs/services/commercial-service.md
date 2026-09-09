@@ -26,7 +26,7 @@
   기본 permitAll + `@PreAuthorize` 명시 보호 방식을 사용한다.
 - `POST /api/v1/share-links`는 **선택적 인증** —
   Bearer 토큰이 있으면 최초 공유자를 기록하고, 없어도 생성할 수 있다.
-- 시뮬레이션 저장/목록(`POST·GET /api/v1/simulations/histories`)은 **인증 필수** (`@PreAuthorize("isAuthenticated()")`).
+- 시뮬레이션 저장/목록/삭제(`POST·GET /api/v1/simulations/histories`, `DELETE /api/v1/simulations/histories/{historyId}`)는 **인증 필수** (`@PreAuthorize("isAuthenticated()")`).
   그 외 시뮬레이션 API(계산/매장 크기/프랜차이즈 검색)는 공개다.
 - 분석 보관함(`/api/v1/analysis-bookmarks/**`)은 회원 소유 데이터라 전 API **인증 필수**.
 
@@ -212,6 +212,9 @@
   - 목록 정렬은 `createdAt DESC, id DESC` 다. 같은 조건을 연달아 저장하면 `createdAt` 이 겹치는데,
     시각만으로 정렬하면 페이지마다 순서가 달라져 어떤 행은 두 페이지에 나오고 어떤 행은 빠진다.
     분석 보관함과 같은 규칙으로 id 를 2차 정렬에 둔다.
+- `DELETE /api/v1/simulations/histories/{historyId}` — 본인 이력 삭제(하드 삭제). **인증 필수**
+  - 소유자 조건을 DELETE 쿼리에 포함해 단일 쿼리로 처리하고, 삭제 건수가 0 이면 미존재·타인 항목을 구분하지 않고
+    `SIMULATION_006`(404) 으로 응답한다. 타인 이력의 존재 여부를 노출하지 않기 위한 분석 보관함과 같은 규칙이다.
 
 ### 산식 (내부 계산은 원 단위, 응답은 만원)
 
@@ -345,7 +348,7 @@
 | `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 | `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102). 검증 대역은 `RANKING_101` (`RankingValidationMessage`) |
-| `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_005` | 업종/임대료/프랜차이즈 미존재 404, 프랜차이즈 미선택·업종 불일치 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
+| `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_006` | 업종/임대료/프랜차이즈/이력 미존재 404, 프랜차이즈 미선택·업종 불일치 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
 | `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_006` | 미존재 404 / 중복 저장 409(dataBody 에 기존 항목 아이디) / payload·타입 검증 400 / 저장 상한 초과 400. 검증 대역은 `ANALYSIS_BOOKMARK_101`~`ANALYSIS_BOOKMARK_105` (`AnalysisBookmarkValidationMessage`) |
 
 ## Notes
