@@ -19,4 +19,6 @@ public interface SimulationWebUseCase {
     SimulationHistorySaveResponse saveHistory(long memberId, SimulationHistorySaveRequest request);
 
     SimulationHistoriesResponse getHistories(long memberId, int page, int size);
+
+    void deleteHistory(long memberId, long historyId);
 }

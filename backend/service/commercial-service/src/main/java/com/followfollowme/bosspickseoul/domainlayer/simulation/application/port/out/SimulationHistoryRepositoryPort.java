@@ -12,4 +12,7 @@ public interface SimulationHistoryRepositoryPort {
      * 페이징 구현(Pageable)은 어댑터 내부 세부사항으로 감춘다.
      */
     SimulationHistoryPageQueryResult findAllByMemberId(long memberId, int page, int size);
+
+    /** 소유자 조건을 포함해 삭제하고 삭제 건수를 돌려준다 (0 이면 미존재 또는 타인 항목). */
+    int deleteByIdAndMemberId(long historyId, long memberId);
 }
