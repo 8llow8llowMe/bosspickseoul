@@ -26,8 +26,8 @@ export type SimulationHistoryListProps = {
   totalPages: number
   onPageChange: (page: number) => void
   onDelete: (historyId: string) => void
-  /** 삭제 요청이 떠 있는 항목. 그 카드의 버튼만 잠근다. */
-  deletingHistoryId?: string | null
+  /** 삭제 요청이 떠 있는 항목들. 그 카드의 버튼만 잠근다. */
+  deletingHistoryIds?: readonly string[]
 }
 
 const Root = styled.div`
@@ -122,10 +122,18 @@ export default function SimulationHistoryList({
   totalPages,
   onPageChange,
   onDelete,
-  deletingHistoryId = null,
+  deletingHistoryIds = [],
 }: SimulationHistoryListProps) {
+  /**
+   * 빈 목록.
+   *
+   * **첫 페이지가 아니면 페이저를 남긴다.** 뒷페이지가 비는 일은 실제로 일어난다(다른
+   * 기기에서 먼저 지웠거나 두 건이 함께 빠졌을 때). 그때 페이저까지 감추면 앞 페이지에
+   * 항목이 남아 있는데도 돌아갈 버튼이 없어 막다른 길이 된다. 호출부가 페이지를 되돌리지만
+   * 그 보정이 도착하기 전 한 프레임에도 길은 열려 있어야 한다.
+   */
   if (histories.length === 0) {
-    return (
+    const empty = (
       <EmptyState
         title="아직 저장한 결과가 없어요"
         description="창업 조건을 계산하고 결과를 저장하면 여기에 모여요."
@@ -135,6 +143,25 @@ export default function SimulationHistoryList({
           </ButtonLink>
         }
       />
+    )
+
+    if (page <= 0) return empty
+
+    return (
+      <Root>
+        {empty}
+        <Pager aria-label="저장 목록 페이지">
+          <Button
+            size="medium"
+            variant="secondary"
+            aria-label="이전 페이지"
+            onClick={() => onPageChange(page - 1)}
+            leftIcon={<ChevronLeft />}
+          >
+            이전
+          </Button>
+        </Pager>
+      </Root>
     )
   }
 
@@ -173,7 +200,7 @@ export default function SimulationHistoryList({
                   size="medium"
                   variant="secondary"
                   aria-label={`${condition} 저장 기록 삭제`}
-                  isLoading={deletingHistoryId === history.historyId}
+                  isLoading={deletingHistoryIds.includes(history.historyId)}
                   onClick={() => onDelete(history.historyId)}
                   leftIcon={<Trash2 />}
                 >

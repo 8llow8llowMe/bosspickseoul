@@ -216,9 +216,11 @@ export type SimulationHistoryItem = {
   /**
    * **문자열이다** (Swagger: `type: string`). 백엔드가 응답 아이디를 전면 문자열화했다.
    *
-   * `franchiseeId`처럼 number로 정규화하지 않는 이유: 이 아이디를 **요청에 싣는 곳이 없다**
-   * (삭제·상세 API가 없다). 목록의 키로만 쓰이므로 와이어 형태 그대로 두는 편이
-   * 정확하고, 나중에 Snowflake가 되어도 정밀도를 잃지 않는다.
+   * `franchiseeId`처럼 number로 정규화하지 않는다. 그쪽은 요청 계약이 `integer`라서 비교가
+   * 어긋나는 걸 막으려고 경계에서 맞추는 것인데, `historyId`는 **비교하지 않고 삭제 경로에만
+   * 싣는다**(`DELETE /simulations/histories/{historyId}`). 경로 세그먼트에는 number가 필요
+   * 없고, 숫자로 바꾸면 값이 커질 때 조용히 손상된다. 자세한 근거는 `lib/api/simulation.ts`
+   * 헤더의 "예외: `historyId`".
    */
   historyId: string
   franchisee: boolean

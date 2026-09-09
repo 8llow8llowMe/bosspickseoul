@@ -26,6 +26,7 @@ import {
   getResponseBody,
   isApiSuccess,
 } from '@/lib/api/response'
+import { describeSimulationHistoryCondition } from '@/lib/simulation/history-presentation'
 import {
   SIMULATION_HISTORY_QUERY_SCOPE,
   simulationHistoriesQueryKey,
@@ -35,13 +36,15 @@ import {
 const PAGE_SIZE = 10
 
 /**
- * 삭제 성공 후 머무를 페이지.
+ * 삭제 성공 후 머무를 페이지 — **빠른 길**이다.
  *
- * 마지막 페이지의 유일한 항목을 지우면 그 페이지 자체가 없어진다. 그대로 두면 재조회가 빈
- * 목록을 돌려주고 "저장한 결과가 없어요"가 뜬다 — 앞 페이지에 항목이 멀쩡히 남아 있는데도.
+ * 마지막 페이지의 유일한 항목을 지우면 그 페이지 자체가 없어진다. 여기서 미리 당겨 두면
+ * 빈 목록을 한 번 그리지 않고 곧바로 앞 페이지를 받는다.
  *
  * 앞 페이지들은 꽉 차 있으므로 `visibleCount <= 1 && page > 0`이면 그 페이지는 마지막이다.
  * 따로 `totalPages`를 볼 필요가 없다.
+ *
+ * 이 함수는 "한 번에 한 건"을 가정한다. 그 가정이 깨지는 경로는 `resolveClampedPage`가 받는다.
  */
 export const resolvePageAfterDelete = ({
   page,
@@ -50,6 +53,26 @@ export const resolvePageAfterDelete = ({
   page: number
   visibleCount: number
 }): number => (visibleCount <= 1 && page > 0 ? page - 1 : page)
+
+/**
+ * 응답의 `totalPages`로 현재 페이지를 가둔다 — **안전망**이다.
+ *
+ * 위의 빠른 길은 한 건씩 성공하는 경우만 맞는다. 가정이 깨지는 경로가 셋 있다:
+ * 삭제가 `404`로 실패했을 때(다른 기기에서 먼저 지운 항목), 두 카드를 잇달아 눌러
+ * 두 건이 함께 빠졌을 때, 남의 삭제로 목록이 줄었을 때. 그러면 빈 페이지가 남는데,
+ * **빈 목록은 페이저까지 감추므로** 앞 페이지에 항목이 멀쩡히 있는데도 "저장한 결과가
+ * 없어요"에 갇혀 돌아갈 버튼이 없다.
+ *
+ * 그래서 조회가 돌아올 때마다 페이지를 유효 범위로 되돌린다. 페이지는 0부터이므로 마지막
+ * 인덱스는 `totalPages - 1`이고, 이력이 하나도 없으면 0이다.
+ */
+export const resolveClampedPage = ({
+  page,
+  totalPages,
+}: {
+  page: number
+  totalPages: number
+}): number => Math.min(page, Math.max(0, totalPages - 1))
 
 /**
  * 삭제 실패를 화면 문구와 후속 동작으로 환산한다.
@@ -73,6 +96,9 @@ export const resolveHistoryDeleteFailure = (
   return { alreadyGone: false, message: normalized.message }
 }
 
+/** 뮤테이션 변수. `label`은 안내 문구에만 쓴다 — 요청 본문에는 들어가지 않는다. */
+type DeleteVariables = { historyId: string; label: string }
+
 /**
  * 저장한 시뮬레이션 결과 목록.
  *
@@ -90,9 +116,10 @@ export default function ProfileSimulationBookmarksPage() {
     error: boolean
     message: string
   } | null>(null)
-  const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(
-    null,
-  )
+  /** 떠 있는 삭제 요청들. 단일 값으로 두면 먼저 끝난 쪽이 남의 잠금까지 풀어 버린다. */
+  const [deletingHistoryIds, setDeletingHistoryIds] = useState<
+    readonly string[]
+  >([])
 
   const query = useQuery({
     queryKey: simulationHistoriesQueryKey(page, PAGE_SIZE),
@@ -103,6 +130,14 @@ export default function ProfileSimulationBookmarksPage() {
   const error = resolveApiError({ error: query.error, data: query.data })
   const body = error ? null : getResponseBody(query.data)
   const histories = body?.histories ?? []
+
+  // 조회가 성공했을 때만 가둔다. 로딩 중에는 `body`가 없어 0페이지로 튕겨 버린다.
+  const clampedPage = body
+    ? resolveClampedPage({ page, totalPages: body.totalPages })
+    : page
+
+  // 렌더 중 보정이다. effect 로 하면 화면을 한 번 커밋한 뒤 다시 렌더해 빈 페이지가 깜빡인다.
+  if (clampedPage !== page) setPage(clampedPage)
 
   /**
    * 페이지 하나가 아니라 **스코프 전체**를 무효화한다. 한 건이 빠지면 뒤 페이지의 경계 항목이
@@ -115,8 +150,9 @@ export default function ProfileSimulationBookmarksPage() {
 
   const deleteMutation = useMutation({
     // ⚠️ 문자열. 경로 세그먼트라 숫자로 바꿀 이유가 없고, 바꾸면 큰 값에서 손상된다.
-    mutationFn: (historyId: string) => deleteSimulationHistory(historyId),
-    onSuccess: async response => {
+    mutationFn: ({ historyId }: DeleteVariables) =>
+      deleteSimulationHistory(historyId),
+    onSuccess: async (response, { label }) => {
       if (!isApiSuccess(response)) {
         setFeedback({
           error: true,
@@ -132,7 +168,9 @@ export default function ProfileSimulationBookmarksPage() {
           visibleCount: histories.length,
         }),
       )
-      setFeedback({ error: false, message: '저장한 기록을 삭제했어요.' })
+      // 대상을 문구에 넣는다. 같은 문장이 반복되면 `role="status"`가 두 번째를 알리지 않는다.
+      setFeedback({ error: false, message: `${label} 기록을 삭제했어요.` })
+      // 잠금은 재조회가 끝난 뒤에 풀린다(`onSettled`). 사라질 행을 다시 누를 수 없다.
       await invalidate()
     },
     onError: async unknownError => {
@@ -140,7 +178,8 @@ export default function ProfileSimulationBookmarksPage() {
       if (failure.alreadyGone) await invalidate()
       setFeedback({ error: true, message: failure.message })
     },
-    onSettled: () => setDeletingHistoryId(null),
+    onSettled: (_data, _error, { historyId }) =>
+      setDeletingHistoryIds(ids => ids.filter(id => id !== historyId)),
   })
 
   return (
@@ -180,11 +219,17 @@ export default function ProfileSimulationBookmarksPage() {
             setFeedback(null)
             setPage(nextPage)
           }}
-          deletingHistoryId={deletingHistoryId}
+          deletingHistoryIds={deletingHistoryIds}
           onDelete={historyId => {
+            const history = histories.find(item => item.historyId === historyId)
+            if (!history) return
+
             setFeedback(null)
-            setDeletingHistoryId(historyId)
-            deleteMutation.mutate(historyId)
+            setDeletingHistoryIds(ids => [...ids, historyId])
+            deleteMutation.mutate({
+              historyId,
+              label: describeSimulationHistoryCondition(history),
+            })
           }}
         />
       )}

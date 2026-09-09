@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  resolveClampedPage,
   resolveHistoryDeleteFailure,
   resolvePageAfterDelete,
 } from './profile-simulation-bookmarks-page'
@@ -25,6 +26,23 @@ describe('resolvePageAfterDelete', () => {
   it('이미 비어 있는 페이지도 앞으로 당긴다', () => {
     // 다른 기기에서 먼저 지워 목록이 빈 채로 들어온 경우.
     expect(resolvePageAfterDelete({ page: 1, visibleCount: 0 })).toBe(0)
+  })
+})
+
+describe('resolveClampedPage', () => {
+  it('마지막 페이지를 넘어선 위치는 끌어당긴다', () => {
+    // 11건 → 2페이지(0·1). 2페이지의 1건이 사라지면 유효한 마지막은 0 이다.
+    expect(resolveClampedPage({ page: 1, totalPages: 1 })).toBe(0)
+  })
+
+  it('범위 안이면 그대로 둔다', () => {
+    expect(resolveClampedPage({ page: 1, totalPages: 3 })).toBe(1)
+    expect(resolveClampedPage({ page: 2, totalPages: 3 })).toBe(2)
+  })
+
+  it('이력이 하나도 없으면 첫 페이지다', () => {
+    // totalPages 0 에서 -1 을 만들면 서버에 보낼 수 없는 page 가 된다.
+    expect(resolveClampedPage({ page: 4, totalPages: 0 })).toBe(0)
   })
 })
 

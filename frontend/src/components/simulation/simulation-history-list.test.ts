@@ -73,6 +73,40 @@ describe('SimulationHistoryList', () => {
 
     expect(html).toContain('아직 저장한 결과가 없어요')
     expect(html).toContain('href="/simulation"')
+    // 첫 페이지에서는 돌아갈 곳이 없다.
+    expect(html).not.toContain('이전 페이지')
+  })
+
+  it('첫 페이지가 아닌 곳이 비면 돌아갈 버튼을 남긴다', () => {
+    // 뒷페이지가 비는 일은 실제로 일어난다(다른 기기에서 먼저 삭제, 두 건 동시 삭제).
+    // 페이저까지 감추면 앞 페이지에 항목이 남아 있는데도 막다른 길이 된다.
+    const html = render({ histories: [], page: 1, totalPages: 2 })
+
+    expect(html).toContain('아직 저장한 결과가 없어요')
+    expect(html).toContain('이전 페이지')
+    expect(
+      (html.match(/<button[^>]*>/g) ?? []).find(tag =>
+        tag.includes('이전 페이지'),
+      ),
+    ).not.toContain('disabled')
+  })
+
+  it('여러 건이 함께 떠 있으면 그 카드들만 잠근다', () => {
+    // 잠금이 단일 값이면 먼저 끝난 삭제가 남의 잠금까지 풀어 버린다.
+    const html = render({
+      histories: [
+        item({ historyId: '1' }),
+        item({ historyId: '2', districtName: '마포구' }),
+        item({ historyId: '3', districtName: '용산구' }),
+      ],
+      deletingHistoryIds: ['1', '3'],
+    })
+    const openTag = (label: string) =>
+      (html.match(/<button[^>]*>/g) ?? []).find(tag => tag.includes(label))
+
+    expect(openTag('강동구')).toContain('aria-busy="true"')
+    expect(openTag('용산구')).toContain('aria-busy="true"')
+    expect(openTag('마포구')).not.toContain('aria-busy')
   })
 
   it('카드마다 삭제 버튼을 두고 어느 이력인지 라벨로 밝힌다', () => {
@@ -90,7 +124,7 @@ describe('SimulationHistoryList', () => {
         item({ historyId: '1' }),
         item({ historyId: '2', districtName: '마포구' }),
       ],
-      deletingHistoryId: '2',
+      deletingHistoryIds: ['2'],
     })
     const openTag = (label: string) =>
       (html.match(/<button[^>]*>/g) ?? []).find(tag => tag.includes(label))
