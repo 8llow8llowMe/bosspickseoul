@@ -6,7 +6,7 @@
 `commercial-service`의 `/api/v1/simulations/**` API를 어떻게 조합해서 쓰는지 정리한다.
 
 - 시뮬레이션은 **동기 계산**이다. AI 리포트와 달리 폴링/SSE 없이 `POST /reports` 한 번으로 결과를 받는다.
-- 계산·조회는 공개, **결과 저장/목록만 인증 필수**다.
+- 계산·조회는 공개, **결과 저장/목록/삭제만 인증 필수**다.
 - 모든 금액 응답 단위는 **만원**, 면적 입력 단위는 **㎡**다.
 
 ## Authentication Policy
@@ -14,7 +14,7 @@
 | API | 인증 |
 |---|---|
 | `GET /simulations/store-sizes`, `GET /simulations/franchisees`, `POST /simulations/reports` | 불필요 (공개) |
-| `POST /simulations/histories`, `GET /simulations/histories` | **필수** (Bearer, 본인 데이터만) |
+| `POST /simulations/histories`, `GET /simulations/histories`, `DELETE /simulations/histories/{historyId}` | **필수** (Bearer, 본인 데이터만) |
 
 비로그인 사용자도 시뮬레이션을 돌릴 수 있고, "저장" 버튼에서만 로그인을 유도하면 된다
 (AI 리포트 잠금 카드와 달리 기능 전체를 막을 필요 없음).
@@ -82,13 +82,15 @@
 
 - `genderAgeAnalysis`/`seasonAnalysis`는 해당 자치구×업종의 매출 데이터가 없으면 null이다 — 오류가 아니므로 섹션만 숨긴다.
 
-### 4. 결과 저장/목록 (인증)
+### 4. 결과 저장/목록/삭제 (인증)
 
 - `POST /api/v1/simulations/histories` — body는 리포트 요청 조건 + `totalPrice`(만원). 서버가 명칭(자치구/업종/브랜드)을 다시 채워 저장하고 저장된 항목을 반환한다.
 - `GET /api/v1/simulations/histories?page=0&size=10` — 본인 이력 최신순, `size` 최대 50.
   응답: `{ histories[], page, size, totalElements, totalPages }`, 각 항목에 `dataBaseYear` 포함
   (과거 저장본이 어떤 기준 연도로 계산됐는지 표시 가능).
-- 삭제 API는 아직 없다 (백엔드 후속 과제).
+- `DELETE /api/v1/simulations/histories/{historyId}` — 본인 이력 한 건을 삭제한다. 성공 시 `dataBody`는 null.
+  미존재·타인 항목은 구분 없이 404 (`SIMULATION_006`)로 응답한다 — 타인 이력의 존재 여부를 노출하지 않기 위함이며,
+  분석 보관함 삭제와 같은 규칙이다. 목록 항목의 `historyId`(문자열)를 그대로 경로에 넣으면 된다.
 
 ## 에러 처리
 
@@ -101,6 +103,7 @@
 | `SIMULATION_003` (404) | 존재하지 않는 franchiseeId | 브랜드 재선택 유도 |
 | `SIMULATION_004` (400) | 프랜차이즈인데 franchiseeId 누락 | 폼 검증으로 예방 |
 | `SIMULATION_005` (400) | 선택한 프랜차이즈와 요청 업종 불일치 | 업종 변경 시 프랜차이즈 선택 초기화 |
+| `SIMULATION_006` (404) | 삭제 대상 이력이 없거나 타인 항목 | 목록에서 해당 항목 제거 후 재조회 (재시도 버튼 없음) |
 | `SIMULATION_101`~`109` (400) | 요청 검증 실패 (필드별) | `resultMessage.errors[]` 필드별 표시 |
 | `COMMERCIAL_100` / `COMMERCIAL_102` (400) | 검증 폴백 / 파라미터 타입 불일치 | `resultMessage.message` 표시 |
 | 5xx / 무응답 | 일시 장애 | "잠시 후 다시 시도" + 재시도 버튼 |

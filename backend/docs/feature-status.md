@@ -441,6 +441,7 @@ INDEX(status)
 - `POST /api/v1/simulations/reports` — 리포트 생성(저장 없음), 공개
 - `POST /api/v1/simulations/histories` — 결과를 내 이력에 저장, 인증 필요
 - `GET /api/v1/simulations/histories` — 내 이력 목록, 인증 필요
+- `DELETE /api/v1/simulations/histories/{historyId}` — 내 이력 삭제(타인·미존재는 404), 인증 필요
 
 **설계 결정**:
 - **생성과 저장을 분리** — 로그인 없이 결과를 볼 수 있고, 저장하려는 시점에만 인증을 요구한다.
