@@ -127,6 +127,14 @@
 - `MemberQueryProcessor.getActiveMember()`가 회원 스코프 API(/me, 북마크, 수정/탈퇴/비밀번호)
   진입 시 ACTIVE 상태를 공통 검증한다. 탈퇴/정지 회원의 만료 전 토큰 접근을 차단.
 
+**내부 회원 요약 API** (`/api/v1/members/summaries`)
+- `GET /summaries?memberIds=1,2,3` — 커뮤니티 등 내부 서비스가 작성자 표시(닉네임/프로필 URL)에 쓰는
+  일괄 조회. Feign 전용 계약이라 `@Hidden` 이며, 공개 정보만 내려주므로 인증을 걸지 않는다
+  (auth 는 permitAll + 메서드 단위 `@PreAuthorize` 구조 — 이 API 는 어노테이션을 붙이지 않는다).
+- 미존재 ID 는 결과에서 빠지고, 탈퇴 회원은 저장 시점에 마스킹된 닉네임("탈퇴회원")이 그대로 나간다.
+  프로필 이미지 URL 은 직접 업로드 키 > 소셜 URL 우선순위로 Presenter 가 조립한다 (내 정보와 동일).
+- 요청 ID 는 distinct 후 최대 100건 — 초과는 `MEMBER_100`(400).
+
 **회원 라이프사이클 API** (`/api/v1/members`)
 - `PATCH /me` — 닉네임/프로필 이미지 URL 수정
 - `POST /me/password` — 비밀번호 변경. 성공 시 세션 revoke(refresh 삭제 + 현재 access 블랙리스트).

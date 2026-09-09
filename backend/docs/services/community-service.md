@@ -50,6 +50,21 @@
   - 기존 로컬 테이블은 사용하지 않으므로 정리 런북
     `scripts/migration/community-region-reference-drop-runbook.sql` 로 제거한다.
 
+## 작성자 표시 (닉네임/프로필 — auth-service 실조회)
+
+- 게시글 목록/검색/상세/좋아요 목록/댓글 응답에 `writerNickname`·`writerProfileImageUrl` 을 내려준다.
+  회원 데이터의 원천인 **auth-service 실조회(Feign)** 다 (`CommunityMemberSummaryClientAdapter` →
+  `GET /api/v1/members/summaries?memberIds=...`, 페이지당 작성자 ID 를 distinct 해서 일괄 1회 호출).
+  닉네임을 스냅샷으로 소유하지 않는 이유는 지역 메타와 동일하다 — 닉네임 변경/탈퇴 마스킹("탈퇴회원")이
+  지연 없이 반영되고, 이중 관리 불일치를 만들지 않는다.
+- **강등 정책**: 작성자 표시는 부가 정보다. auth-service 통신 불가(어댑터의 `503 COMMUNITY_016`)는
+  `CommunityWriterSummaryProcessor` 가 흡수해 작성자 필드만 null 로 내리고 목록/상세 응답은 성공시킨다
+  — 대상 검증(쓰기 경로의 필수 검증, 503 전파)과 다른 정책이다. 미존재 회원도 null.
+  FE 는 null 이면 대체 문구(예: "알 수 없음")를 쓴다.
+- 서킷브레이커 인스턴스 `auth-service` 추가, dev/prod 는 `feign-client.target-services.auth-service:
+  ${AUTH_SERVICE_APP_NAME}` — **배포 env 에 `AUTH_SERVICE_APP_NAME`(auth 의 Eureka 등록명, dev 는
+  `auth-service-dev`) 추가 필요.**
+
 ## 분석 첨부 (비교 초안 → 게시글 배선)
 
 - 상권 비교 초안 응답의 `analysisType`·`analysisRefCode`·`analysisRefName`·`analysisSnapshotKey` 를
