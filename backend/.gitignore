@@ -42,3 +42,6 @@ out/
 .env.*.local
 .env.runtime
 .env.runtime.*
+
+### quarterly CLI raw dumps (BATCH_RAW_DIRECTORY default ./data/raw) ###
+/data/

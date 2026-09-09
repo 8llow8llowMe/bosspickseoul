@@ -110,25 +110,20 @@ CSV 경로는 한글 헤더를 API 컬럼 코드로 바꾼다. 표는 classpath 
 
 행 검증은 fail-closed다. 거부 행이 한 건이라도 있으면 게시하지 않고 Job이 실패한다. 2024년 이후 원천이 컬럼이나 코드 체계를 또 바꾸면 조용히 잘못된 값이 들어가는 대신 `dataset_rejected_row`에 근거를 남기고 멈춘다.
 
-추가 라이브러리 없이 기존 Spring Batch/JDBC/Jackson/JUnit을 사용한다. 원천 서비스명·컬럼·분기 인자 동작은 샘플 키 실호출로 확인했고, 개발 DB 변경과 발급 API 키를 쓰는 전 구간 dry-run은 아직 남아 있다.
+추가 라이브러리 없이 기존 Spring Batch/JDBC/Jackson/JUnit을 사용한다. 원천 서비스명·컬럼·분기 인자 동작은 샘플 키 실호출로 확인했다. 운영 명령·검증 SQL·분기 반복 절차는 [batch-quarterly-import.md](batch-quarterly-import.md)다.
 
 ## 남은 작업
 
-- **2024년 표준단위구역 폴리곤이 없다.** `LEGACY` 스냅샷은 20233 폴리곤이다. 서울시 shapefile을 WGS84 GeoJSON으로 변환하는 절차(외부 도구, 예: ogr2ogr)를 정하고 `GEOJSON` 소스로 새 버전을 게시해야 지도가 2024년 이후 영역을 그린다.
-- `dataset_fact` / `dataset_active_release`를 읽는 조회 경로가 아직 없다. 배치는 적재만 하고 서비스는 여전히 레거시 테이블을 읽는다. 전환 시 `income_commercial`의 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이).
-- `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다. 첫 dry-run은 개발 DB에서 직접 확인해야 한다.
-- Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB dry-run에서만 검증된다. 스키마·테이블 형태는 위 실측으로 확인했으나 **실제 Job 실행은 아직 하지 않았다.**
-- 대상 스키마에 Spring Batch 메타 테이블을 적용하는 일이 dry-run의 선행 조건이다(위 실행 예시).
+- **2024년 표준단위구역 폴리곤이 없다.** `LEGACY` 스냅샷은 20233 폴리곤이다. 서울시 shapefile을 WGS84 GeoJSON으로 변환하는 절차(외부 도구, 예: ogr2ogr)를 정하고 `GEOJSON` 소스로 새 버전을 게시해야 지도가 2024년 이후 영역을 그린다. (#278)
+- `dataset_fact` / `dataset_active_release`를 읽는 조회 경로가 아직 없다. 배치는 적재만 하고 서비스는 여전히 레거시 테이블을 읽는다. 전환 시 `income_commercial`의 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이). (#279)
+- `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
+- Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.
 - `--expected-rows`는 분기 인자를 존중하는 서비스에서는 `list_total_count`로 자동 확정할 수 있다. 지금은 dry-run 한 번으로 값을 읽어 새 run-id로 다시 돌리는 절차를 유지한다.
+- 2026-09-09 개발 DB: `legacy-20233` 공간 게시와 `CHANGE_COMMERCIAL` `20241` dry-run(1650/1650)까지 통과했다. 같은 데이터셋 실게시와 나머지 데이터셋·분기 적재가 남아 있다.
 
 ## 실행 예시
 
-먼저 대상 스키마에 **Spring Batch 메타 테이블**과 `quarterly-dataset-schema.sql`을 적용한다. `quarterly` 프로파일은 `initialize-schema: never`라서 메타 테이블이 없으면 기동 단계에서 실패한다. 2026-09-08 기준 `bosspickseoul_commercial_dev`에는 `BATCH_*` 테이블이 하나도 없다(district 스키마에는 있다). spring-batch-core jar의 `schema-mysql.sql`을 먼저 적용하고 다음으로 확인한다.
-
-```sql
-SELECT COUNT(*) FROM information_schema.tables
- WHERE table_schema = 'bosspickseoul_commercial_dev' AND table_name = 'BATCH_JOB_INSTANCE';  -- 1 이어야 한다
-```
+대상 스키마에 `scripts/migration/spring-batch-schema-mysql.sql`과 `quarterly-dataset-schema.sql`을 적용한다. `quarterly` 프로파일은 `initialize-schema: never`라서 메타 테이블이 없으면 기동 단계에서 실패한다. 2026-09-09 기준 `bosspickseoul_commercial_dev`에는 두 스크립트를 적용했다. 확인 SQL은 `scripts/migration/quarterly-import-verify.sql`이다.
 
 그다음 공간 스냅샷을 검증한다. 레거시 테이블에서 뽑는 경우 `BATCH_LEGACY_SPATIAL_SCHEMA`가 필수다.
 
@@ -142,13 +137,13 @@ java -jar batch-service.jar --job=spatial --run-id=spatial-legacy-20233-001 \
 
 준비된 GeoJSON 파일이 있으면 `--source=GEOJSON --source-file=seoul-spatial-v2024.geojson --spatial-version=seoul-v2024`다.
 
-검증 결과를 확인한 뒤 같은 입력을 새 `run-id`로 `--dry-run=false` 실행한다. 사실 데이터는 데이터셋·분기마다 별도 실행한다.
+검증 결과를 확인한 뒤 같은 입력을 새 `run-id`로 `--dry-run=false` 실행한다. 사실 데이터는 데이터셋·분기마다 별도 실행한다. PowerShell 명령과 분기 반복은 [batch-quarterly-import.md](batch-quarterly-import.md)에 있다.
 
 ```text
 java -jar batch-service.jar --job=facts --run-id=change-commercial-20241-001 \
   --dataset=CHANGE_COMMERCIAL --period=20241 --source=API \
   --spatial-version=legacy-20233 --schema-version=seoul-v1 \
-  --expected-rows=1650 --source-updated-at=<ISO-8601> --dry-run=true
+  --expected-rows=1650 --source-updated-at=2024-03-31T00:00:00Z --dry-run=true
 ```
 
 분기 인자를 무시하는 서비스는 첫 분기를 `API`로 받은 뒤 `dataset_release.raw_location`을 다음 분기에 재생한다.
@@ -157,7 +152,7 @@ java -jar batch-service.jar --job=facts --run-id=change-commercial-20241-001 \
 java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001 \
   --dataset=POPULATION_COMMERCIAL --period=20242 --source=ARCHIVE \
   --source-file=<20241 실행의 raw_location 디렉터리> \
-  --spatial-version=legacy-20233 --expected-rows=<20242 행 수> --source-updated-at=<ISO-8601> --dry-run=true
+  --spatial-version=legacy-20233 --expected-rows=<20242 행 수> --source-updated-at=2024-06-30T00:00:00Z --dry-run=true
 ```
 
 `--expected-rows`는 **대상 분기 한 개의 행 수**다. 분기 인자를 존중하는 서비스(위 실호출 표의 O)는 `.../1/1/<period>` 한 번 호출한 `list_total_count`가 그 값이다. 분기 인자를 무시하는 서비스(X)는 `list_total_count`가 모든 분기의 합이므로 그대로 쓰면 게시가 항상 실패한다. 값을 모를 때는 `--dry-run=true`로 한 번 실행한다. 게시 단계 예외 메시지에 `expected=… input=… accepted=… rejected=… duplicate=… unmapped=…`가 찍히고, 검증 감사는 게시가 거부돼도 커밋되므로 `dataset_release.accepted_count`에서도 같은 값을 읽을 수 있다. 다만 `expected_rows`는 요청 지문에 포함되므로, 값을 고쳐 다시 실행할 때는 **새 `run-id`** 를 써야 한다.

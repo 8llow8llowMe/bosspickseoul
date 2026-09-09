@@ -5,8 +5,9 @@
 --
 -- PREREQUISITE: the quarterly profile sets spring.batch.jdbc.initialize-schema=never, so Spring Batch's
 -- own metadata tables (BATCH_JOB_INSTANCE, BATCH_JOB_EXECUTION, ...) must already exist in this schema
--- or the job fails at startup. Verified 2026-09-08: bosspickseoul_commercial_dev has none of them, while
--- bosspickseoul_district_dev does. Apply schema-mysql.sql from the spring-batch-core jar first:
+-- or the job fails at startup. Apply spring-batch-schema-mysql.sql in this directory first (Spring Batch
+-- 5.2.2). Then confirm with quarterly-import-verify.sql. Operator steps:
+-- backend/docs/services/batch-quarterly-import.md
 --   SELECT COUNT(*) FROM information_schema.tables
 --    WHERE table_schema = DATABASE() AND table_name = 'BATCH_JOB_INSTANCE';   -- must return 1
 --
