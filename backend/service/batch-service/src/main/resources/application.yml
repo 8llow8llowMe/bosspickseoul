@@ -34,11 +34,11 @@ batch:
       max-pages: 20
       timeout-seconds: 30
       max-attempts: 3
-  policy-datasource:
-    url: ${COMMERCIAL_DB_URL:}
-    username: ${DB_USERNAME:}
-    password: ${DB_PASSWORD:}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    datasource:
+      url: ${COMMERCIAL_DB_URL:}
+      username: ${DB_USERNAME:}
+      password: ${DB_PASSWORD:}
+      driver-class-name: com.mysql.cj.jdbc.Driver
 
 ---
 # BATCH_POLICY_ENABLED=true 이면 기존 batch-service(dev)에서도 Quartz JDBC 를 켠다.
