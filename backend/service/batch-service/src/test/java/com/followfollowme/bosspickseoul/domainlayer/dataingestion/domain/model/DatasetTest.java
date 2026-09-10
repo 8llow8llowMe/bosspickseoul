@@ -3,10 +3,10 @@ package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
+import com.followfollowme.bosspickseoul.shared.enums.DatasetKey;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -14,17 +14,13 @@ class DatasetTest {
     /**
      * One dataset per legacy fact table the commercial service already reads. A quarter that cannot be
      * backfilled for one of these tables leaves that screen stuck on 20233, so the list is asserted whole.
+     * The names are also the {@code dataset_active_release.dataset} contract commercial-service resolves through
+     * the shared {@link DatasetKey}, so the two enums must agree name for name.
      */
-    private static final List<String> LEGACY_FACT_TABLES = List.of(
-        "SALES_COMMERCIAL", "STORE_COMMERCIAL", "FOOT_TRAFFIC_COMMERCIAL", "CHANGE_COMMERCIAL",
-        "POPULATION_COMMERCIAL", "FACILITY_COMMERCIAL", "CONSUMPTION_COMMERCIAL",
-        "SALES_ADMINISTRATION", "STORE_ADMINISTRATION", "CONSUMPTION_ADMINISTRATION",
-        "SALES_DISTRICT", "STORE_DISTRICT", "FOOT_TRAFFIC_DISTRICT", "CONSUMPTION_DISTRICT", "CHANGE_DISTRICT");
-
     @Test
-    void coversEveryLegacyFactTableAndNothingElse() {
+    void coversEveryLegacyFactTableAndMatchesTheSharedDatasetKeyContract() {
         assertThat(Arrays.stream(Dataset.values()).map(Dataset::name))
-            .containsExactlyInAnyOrderElementsOf(LEGACY_FACT_TABLES);
+            .containsExactlyInAnyOrderElementsOf(Arrays.stream(DatasetKey.values()).map(DatasetKey::name).toList());
     }
 
     @Test

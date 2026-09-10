@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.common.config.JasyptPropertiesConfig;
 import com.followfollowme.bosspickseoul.common.config.SwaggerPropertiesConfig;
 import com.followfollowme.bosspickseoul.global.properties.AnalysisBookmarkProperties;
 import com.followfollowme.bosspickseoul.global.properties.CleanupProperties;
+import com.followfollowme.bosspickseoul.global.properties.DatasetReadProperties;
 import com.followfollowme.bosspickseoul.global.properties.RankingProperties;
 import com.followfollowme.bosspickseoul.global.properties.ShareLinkProperties;
 import com.followfollowme.bosspickseoul.global.properties.SimulationProperties;
@@ -24,7 +25,7 @@ import org.springframework.context.annotation.Import;
 })
 @EnableConfigurationProperties({
     ShareLinkProperties.class, RankingProperties.class, CleanupProperties.class, SimulationProperties.class,
-    AnalysisBookmarkProperties.class
+    AnalysisBookmarkProperties.class, DatasetReadProperties.class
 })
 public class CommercialServicePropertiesConfig {
 

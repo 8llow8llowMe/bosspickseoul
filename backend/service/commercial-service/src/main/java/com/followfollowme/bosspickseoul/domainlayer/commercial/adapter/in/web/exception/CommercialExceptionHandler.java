@@ -11,6 +11,7 @@ import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
+import com.followfollowme.bosspickseoul.domainlayer.dataset.application.exception.DatasetException;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.exception.DistrictException;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.application.exception.RankingException;
 import com.followfollowme.bosspickseoul.domainlayer.sharelink.application.exception.ShareLinkException;
@@ -49,6 +50,13 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(CommercialSummaryException.class)
     public ResponseEntity<Response<Void>> handleCommercialSummaryException(CommercialSummaryException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DatasetException.class)
+    public ResponseEntity<Response<Void>> handleDatasetException(DatasetException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
