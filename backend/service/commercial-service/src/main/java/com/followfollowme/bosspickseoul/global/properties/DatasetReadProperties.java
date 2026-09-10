@@ -26,6 +26,9 @@ public record DatasetReadProperties(
     Duration resolverCacheTtl
 ) {
 
+    /** 분기 코드 형식 yyyyQ. 라우터도 같은 정본으로 요청값을 거른다 (검증 안 된 문자열이 캐시 키가 되지 않게). */
+    public static final String PERIOD_CODE_PATTERN = "\\d{4}[1-4]";
+
     private static final String DEFAULT_SPATIAL_VERSION = "legacy-20233";
     private static final String DEFAULT_SCHEMA_VERSION = "seoul-v1";
     private static final String DEFAULT_READ_FROM_PERIOD = "20241";
@@ -35,7 +38,7 @@ public record DatasetReadProperties(
         spatialVersion = defaultIfBlank(spatialVersion, DEFAULT_SPATIAL_VERSION);
         schemaVersion = defaultIfBlank(schemaVersion, DEFAULT_SCHEMA_VERSION);
         readFromPeriod = defaultIfBlank(readFromPeriod, DEFAULT_READ_FROM_PERIOD);
-        if (!readFromPeriod.matches("\\d{4}[1-4]")) {
+        if (!readFromPeriod.matches(PERIOD_CODE_PATTERN)) {
             throw new IllegalArgumentException("app.dataset.read-from-period must be yyyyQ, e.g. 20241");
         }
         if (resolverCacheTtl == null || resolverCacheTtl.isNegative()) {

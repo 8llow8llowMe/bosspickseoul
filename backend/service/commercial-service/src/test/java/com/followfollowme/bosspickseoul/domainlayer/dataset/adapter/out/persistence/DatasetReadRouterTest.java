@@ -40,6 +40,17 @@ class DatasetReadRouterTest {
     }
 
     @Test
+    void malformedPeriodsNeverReachTheResolverCache() {
+        // 요청 문자열이 그대로 캐시 키가 되면 값마다 엔트리가 하나씩 영구히 쌓인다. 형식 밖 값은 레거시로 보낸다.
+        DatasetReadRouter router = new DatasetReadRouter(properties(true, "20241"), resolver);
+
+        for (String bad : List.of("9", "zzz", "20241-a", "202411", "20245", "")) {
+            assertThat(router.datasetRunId(DatasetKey.FOOT_TRAFFIC_COMMERCIAL, bad)).as(bad).isEmpty();
+        }
+        verify(resolver, never()).activeRunId(any(), anyString());
+    }
+
+    @Test
     void periodsFromTheCutoffUseTheActiveReleaseWhenPresent() {
         when(resolver.activeRunId(DatasetKey.FOOT_TRAFFIC_COMMERCIAL, "20241")).thenReturn(Optional.of("run-20241"));
         when(resolver.activeRunId(DatasetKey.FOOT_TRAFFIC_COMMERCIAL, "20242")).thenReturn(Optional.empty());
