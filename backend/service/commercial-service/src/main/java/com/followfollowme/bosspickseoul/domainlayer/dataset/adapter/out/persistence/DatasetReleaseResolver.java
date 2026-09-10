@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,6 +33,11 @@ public class DatasetReleaseResolver {
     private final Clock clock;
     private final Map<DatasetActiveReleaseId, CachedRun> cache = new ConcurrentHashMap<>();
 
+    /**
+     * 생성자가 둘이라 Spring 이 주입 생성자를 고를 수 없으므로 명시한다. 없으면 기본 생성자를 찾다가
+     * "No default constructor found" 로 컨텍스트 기동이 실패한다. Clock 을 받는 생성자는 테스트 전용이다.
+     */
+    @Autowired
     public DatasetReleaseResolver(DatasetActiveReleaseRepository datasetActiveReleaseRepository, DatasetReadProperties properties) {
         this(datasetActiveReleaseRepository, properties, Clock.systemUTC());
     }

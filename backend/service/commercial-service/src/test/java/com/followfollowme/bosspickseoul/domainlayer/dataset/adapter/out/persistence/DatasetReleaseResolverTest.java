@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persist
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 @ExtendWith(MockitoExtension.class)
 class DatasetReleaseResolverTest {
@@ -45,6 +47,21 @@ class DatasetReleaseResolverTest {
         };
         resolver = new DatasetReleaseResolver(repository,
             new DatasetReadProperties(true, "legacy-20233", "seoul-v1", "20241", Duration.ofSeconds(60)), clock);
+    }
+
+    /**
+     * 생성자가 둘(주입용 2-인자, 테스트용 3-인자)이라 주입 생성자를 명시하지 않으면 Spring 이
+     * "No default constructor found" 로 컨텍스트 기동에 실패한다. 단위 테스트는 생성자를 직접 부르므로
+     * 이 회귀는 실제 빈 생성으로만 잡힌다.
+     */
+    @Test
+    void springPicksTheInjectionConstructorWhenBuildingTheBean() {
+        new ApplicationContextRunner()
+            .withBean(DatasetActiveReleaseRepository.class, () -> mock(DatasetActiveReleaseRepository.class))
+            .withBean(DatasetReadProperties.class,
+                () -> new DatasetReadProperties(true, "legacy-20233", "seoul-v1", "20241", Duration.ofSeconds(60)))
+            .withUserConfiguration(DatasetReleaseResolver.class)
+            .run(context -> assertThat(context).hasSingleBean(DatasetReleaseResolver.class));
     }
 
     @Test
