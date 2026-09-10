@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class DatasetTest {
@@ -21,6 +22,18 @@ class DatasetTest {
     void coversEveryLegacyFactTableAndMatchesTheSharedDatasetKeyContract() {
         assertThat(Arrays.stream(Dataset.values()).map(Dataset::name))
             .containsExactlyInAnyOrderElementsOf(Arrays.stream(DatasetKey.values()).map(DatasetKey::name).toList());
+    }
+
+    /**
+     * The reader's fail-closed mappers require these columns; a row published without them would turn every
+     * lookup for that quarter into a 500. Row validation must therefore reject such rows before publishing.
+     */
+    @Test
+    void rowValidationRequiresEveryColumnTheReaderNeeds() {
+        for (Dataset dataset : Dataset.values()) {
+            Set<String> readerFields = DatasetKey.valueOf(dataset.name()).readerRequiredFields();
+            assertThat(dataset.requiredMetrics()).as("%s", dataset).containsAll(readerFields);
+        }
     }
 
     @Test

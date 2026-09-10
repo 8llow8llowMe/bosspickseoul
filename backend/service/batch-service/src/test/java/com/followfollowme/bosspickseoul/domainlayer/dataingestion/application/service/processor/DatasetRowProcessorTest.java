@@ -29,7 +29,7 @@ class DatasetRowProcessorTest {
 
     @Test
     void nonIndustryDatasetsStageAnEmptyServiceCode() {
-        Map<String, String> fields = row(Map.of("TRDAR_CD", "3110008", "TOT_FLPOP_CO", "5000"));
+        Map<String, String> fields = complete(Dataset.FOOT_TRAFFIC_COMMERCIAL, Map.of("TRDAR_CD", "3110008", "TOT_FLPOP_CO", "5000"));
         RowValidation result = processor.process(request(Dataset.FOOT_TRAFFIC_COMMERCIAL), new SourceRow(1, fields));
         assertThat(result.accepted()).isTrue();
         assertThat(result.fact().serviceCode()).isEmpty();
@@ -79,10 +79,10 @@ class DatasetRowProcessorTest {
     void everyChangeIndicatorDatasetAcceptsOnlyItsCodeSet() {
         for (Dataset dataset : Dataset.values()) {
             if (!dataset.changeIndicator()) continue;
-            Map<String, String> valid = row(Map.of(dataset.areaField(), "11680", Dataset.CHANGE_INDICATOR_FIELD, "HH"));
+            Map<String, String> valid = complete(dataset, Map.of(dataset.areaField(), "11680", Dataset.CHANGE_INDICATOR_FIELD, "HH"));
             assertThat(processor.process(request(dataset), new SourceRow(1, valid)).accepted())
                 .as("%s accepts HH", dataset).isTrue();
-            Map<String, String> unknown = row(Map.of(dataset.areaField(), "11680", Dataset.CHANGE_INDICATOR_FIELD, "XX"));
+            Map<String, String> unknown = complete(dataset, Map.of(dataset.areaField(), "11680", Dataset.CHANGE_INDICATOR_FIELD, "XX"));
             assertThat(processor.process(request(dataset), new SourceRow(1, unknown)).rejectionReason())
                 .as("%s rejects XX", dataset).isEqualTo("CHANGE_INDICATOR_INVALID");
         }
@@ -97,8 +97,19 @@ class DatasetRowProcessorTest {
     }
 
     private String metricRejection(String value) {
-        Map<String, String> fields = row(Map.of("TRDAR_CD", "3110008", "TOT_FLPOP_CO", value));
+        Map<String, String> fields = complete(Dataset.FOOT_TRAFFIC_COMMERCIAL, Map.of("TRDAR_CD", "3110008", "TOT_FLPOP_CO", value));
         return processor.process(request(Dataset.FOOT_TRAFFIC_COMMERCIAL), new SourceRow(1, fields)).rejectionReason();
+    }
+
+    /** 데이터셋이 요구하는 모든 컬럼을 채운 행. 지표는 "1", 이름·코드 텍스트는 "A" 다. 넘긴 값이 우선한다. */
+    private Map<String, String> complete(Dataset dataset, Map<String, String> values) {
+        Map<String, String> fields = new LinkedHashMap<>();
+        for (String field : dataset.requiredMetrics()) {
+            fields.put(field, field.endsWith("_CO") || field.endsWith("_AMT") || field.endsWith("_AVRG") || field.endsWith("_RT")
+                || field.endsWith("_TOTAMT") ? "1" : "A");
+        }
+        fields.putAll(values);
+        return row(fields);
     }
 
     private Map<String, String> row(Map<String, String> values) {
