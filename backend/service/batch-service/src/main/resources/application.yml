@@ -21,7 +21,7 @@ snowflake:
 
 batch:
   policy:
-    enabled: false
+    enabled: ${BATCH_POLICY_ENABLED:false}
     collect-cron: ${BATCH_POLICY_COLLECT_CRON:0 0 6 * * ?}
     purge-cron: ${BATCH_POLICY_PURGE_CRON:0 30 6 * * ?}
     stale-ratio: 0.5
@@ -34,3 +34,30 @@ batch:
       max-pages: 20
       timeout-seconds: 30
       max-attempts: 3
+  policy-datasource:
+    url: ${COMMERCIAL_DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+---
+# BATCH_POLICY_ENABLED=true 이면 기존 batch-service(dev)에서도 Quartz JDBC 를 켠다.
+# JobStore 는 기본 DataSource(BATCH_DB_URL, district) 의 QRTZ_* 를 쓴다.
+# policy 행은 COMMERCIAL_DB_URL 로 나간다.
+spring:
+  config:
+    activate:
+      on-property: batch.policy.enabled
+  quartz:
+    auto-startup: true
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never
+    overwrite-existing-jobs: true
+    wait-for-jobs-to-complete-on-shutdown: true
+    properties:
+      org.quartz.scheduler.instanceId: AUTO
+      org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+      org.quartz.jobStore.tablePrefix: QRTZ_
+      org.quartz.jobStore.isClustered: true
+      org.quartz.threadPool.threadCount: 2

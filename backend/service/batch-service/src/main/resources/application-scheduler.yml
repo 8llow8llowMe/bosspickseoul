@@ -1,9 +1,7 @@
-# Long-running Quartz scheduler. Does not System.exit (quarterly profile does).
-# Point BATCH_DB_URL at the commercial-service schema — that is where `policy` lives.
-# Apply scripts/migration/policy-ingest-columns-runbook.sql and quartz-schema-mysql.sql first.
-# Spring Batch metadata tables must already exist (spring-batch-schema-mysql.sql).
-#
-# Default jobs stay off: BATCH_POLICY_ENABLED=true 와 BIZINFO_CRTFC_KEY 가 있어야 트리거가 등록된다.
+# Optional standalone profile. Jenkins 의 상시 batch-service 는 이 프로파일 없이
+# BATCH_POLICY_ENABLED=true 만으로도 수집이 켜진다(application.yml on-property).
+# BATCH_DB_URL 은 district 를 유지한다. policy 는 COMMERCIAL_DB_URL.
+# Quartz/Spring Batch 메타는 district 의 QRTZ_* / BATCH_* 를 쓴다.
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

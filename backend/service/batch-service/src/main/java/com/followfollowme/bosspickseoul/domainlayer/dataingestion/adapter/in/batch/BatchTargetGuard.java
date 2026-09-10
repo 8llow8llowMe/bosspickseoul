@@ -9,7 +9,7 @@ public final class BatchTargetGuard {
 
     public static void verify(String explicitUrl, String configuredUrl, String allowedSchemas) {
         if (explicitUrl == null || explicitUrl.isBlank() || !explicitUrl.equals(configuredUrl)) {
-            throw new IllegalArgumentException("BATCH_DB_URL must explicitly match the configured datasource");
+            throw new IllegalArgumentException("Target URL must explicitly match the configured datasource");
         }
         try {
             if (!explicitUrl.startsWith("jdbc:mysql://")) throw new IllegalArgumentException();

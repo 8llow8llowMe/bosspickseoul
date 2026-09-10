@@ -193,7 +193,7 @@
   수집용 `uk_policy_source_external_id`, `idx_policy_source_last_seen_at` 은 추천 조회가 쓰지 않는다)
 - 시드: `resources/db/policy-seed.sql` (14건). **2026-09-09 공고를 수동 대조한 스냅샷**이다.
   안내 URL 은 공고·신청 상세를 가리킨다. 기업마당 두 건은 `BIZINFO` + `pblancId` 로 재매핑했다.
-  실시간 적재는 batch-service `scheduler` 프로파일의 Quartz Job (`feature-status.md` 「기업마당 정책 수집·만료」).
+  실시간 적재는 상시 batch-service 의 Quartz Job 이 `COMMERCIAL_DB_URL` 로 쓴다 (`feature-status.md` 「기업마당 정책 수집·만료」).
 - **공개 API 계약은 그대로**다. 조회는 계속 `apply_end_at IS NULL OR apply_end_at >= today` 만 본다.
 - prod 스키마: `ddl-auto: none`. 컬럼 추가는 `scripts/migration/policy-ingest-columns-runbook.sql` 을 사람이 적용한 뒤
   시드를 다시 넣는다. `Jenkinsfile-commercial-service` 에는 SQL 실행 단계가 없다.

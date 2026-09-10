@@ -557,10 +557,10 @@ INDEX(status)
 **목적**: 기업마당 지원사업 API 를 매일 수집해 `policy` 에 upsert 하고, 원천에서 사라진 공고는 조회에서 숨긴 뒤 유예 기간이 지나면 삭제한다. 공개 API 와 `PolicyItem` 은 바꾸지 않는다.
 
 **프로파일 / Job**:
-- `scheduler` 프로파일 — 장시간 기동. `quarterly` 처럼 `System.exit` 하지 않는다.
+- 상시 batch-service (`dev`) 에서 `BATCH_POLICY_ENABLED=true` 이면 Quartz 가 켜진다. 새 서비스/별도 JAR 가 아니다.
 - `policyCollectJob` cron `0 0 6 * * ?` Asia/Seoul, `policyPurgeJob` `0 30 6 * * ?`
-- Quartz JDBC JobStore (`QRTZ_*`), Spring Batch JobRepository 와 같은 commercial 스키마
-- `BATCH_DB_URL` 은 commercial 스키마여야 한다. `BatchTargetGuard` 가 기동 시 확인한다. prod 스키마 allowlist 는 넓히지 않는다.
+- Quartz JDBC JobStore (`QRTZ_*`) 와 Spring Batch 메타는 **district** (`BATCH_DB_URL`)
+- `policy` 행은 **commercial** (`COMMERCIAL_DB_URL`). Guard 는 commercial URL 과 `BATCH_ALLOWED_SCHEMAS` 를 검사한다. prod 스키마 allowlist 는 넓히지 않는다.
 
 **원천 (1차)**: `GET https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do?crtfcKey=...&dataType=json`
 기업마당에서 발급한 `crtfcKey` (`BIZINFO_CRTFC_KEY`). data.go.kr 키가 아니다.
@@ -574,7 +574,7 @@ HTML 스크래핑·K-Startup·자치구 수집은 범위 밖이다.
 - purge: `last_seen_at` 이 유예(기본 30일)를 넘긴 BIZINFO 행만 DELETE
 
 **스키마**: `policy.source`, `policy.external_id`, `policy.last_seen_at`, `uk_policy_source_external_id`.
-prod 는 `scripts/migration/policy-ingest-columns-runbook.sql` + `quartz-schema-mysql.sql` 을 사람이 적용한다.
+prod 는 commercial 에 `policy-ingest-columns-runbook.sql`, district 에 `quartz-schema-mysql.sql` 을 사람이 적용한다.
 
 **핵심 파일**: `domainlayer/policyingestion/` (`PolicyCollectProcessor`, `BizinfoPolicySourceAdapter`, `PolicyJdbcAdapter`, Quartz Job). 운영은 `services/batch-policy-ingest.md`.
 

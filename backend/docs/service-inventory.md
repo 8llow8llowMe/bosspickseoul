@@ -17,7 +17,7 @@
 - `ranking`: 분석 조회 이벤트를 Kafka 로 발행/집계해 Redis Sorted Set 실시간 인기 순위를 제공한다.
   `RANKING_ENABLED=false`(기본)면 Kafka 빈이 등록되지 않아 브로커 없이도 정상 기동하며,
   파이프라인 장애는 인기 순위 API(RANKING_001 503)에만 영향을 준다.
-- `policy`: 자치구·업종 조건으로 지원 정책을 추천한다. 도메인·API·시드는 완료. 기업마당 수집은 batch-service `scheduler` Job 이 담당한다.
+- `policy`: 자치구·업종 조건으로 지원 정책을 추천한다. 도메인·API·시드는 완료. 기업마당 수집은 상시 batch-service 가 `COMMERCIAL_DB_URL` 로 담당한다.
 - 특징: 조회 중심 서비스, Presenter/Info 구조 사용. write 컨텍스트는 셋이다 —
   `sharelink`(선택적 인증: `POST /api/v1/share-links`, 토큰 있으면 공유자 기록),
   `analysisbookmark`(전 API 인증 필수), `simulation`의 이력 저장(`POST /api/v1/simulations/histories`).
@@ -42,8 +42,8 @@
 
 - 책임: 영역 좌표 적재(`areaboundary`), 서울 Open API 15종 분기 적재와 공간 스냅샷 게시(`dataingestion`,
   `--job=facts|spatial`, `services/batch-service.md`), 기업마당 정책 수집·만료(`policyingestion`,
-  `scheduler` 프로파일, 기본 비활성)
-- 특징: Spring Batch 기반. `quarterly` 는 실행 후 종료, `scheduler` 는 Quartz 로 장시간 기동.
+  `BATCH_POLICY_ENABLED`, 기본 비활성). `policy` 는 `COMMERCIAL_DB_URL`, Quartz 는 `BATCH_DB_URL`
+- 특징: Spring Batch 기반. `quarterly` 는 실행 후 종료, 상시 인스턴스는 Quartz 로 정책 Job 을 돌릴 수 있다.
   `dataset_*` 테이블과 `policy` 수집 컬럼의 DDL 런북은 `scripts/migration/`
 
 ## AI Service

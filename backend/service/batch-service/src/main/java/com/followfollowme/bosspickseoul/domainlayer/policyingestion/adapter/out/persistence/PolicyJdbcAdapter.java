@@ -12,13 +12,12 @@ import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class PolicyJdbcAdapter implements PolicyCommandPort {
 
     private static final int BATCH_SIZE = 200;
@@ -57,6 +56,14 @@ public class PolicyJdbcAdapter implements PolicyCommandPort {
 
     private final JdbcTemplate jdbcTemplate;
     private final SnowflakeIdGenerator snowflakeIdGenerator;
+
+    public PolicyJdbcAdapter(
+        @Qualifier("policyJdbcTemplate") JdbcTemplate jdbcTemplate,
+        SnowflakeIdGenerator snowflakeIdGenerator
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.snowflakeIdGenerator = snowflakeIdGenerator;
+    }
 
     @Override
     public long countBySource(PolicySource source) {

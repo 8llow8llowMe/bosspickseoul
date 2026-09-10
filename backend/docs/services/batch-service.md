@@ -196,19 +196,24 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 
 `--dry-run=false`는 새 run ID로 다시 실행해야 하며, 같은 분기의 이전 release는 삭제하지 않는다. `20233`은 기존 서비스 테이블에서 계속 읽고, 새 release는 공간 버전 인식 조회가 배포될 때까지 기존 API의 기본값으로 사용하지 않는다.
 
-## 기업마당 정책 수집 (`scheduler`)
+## 기업마당 정책 수집
 
-`quarterly` 와 달리 `scheduler` 프로파일은 프로세스를 종료하지 않는다. Quartz JDBC JobStore 가 commercial 스키마의 `QRTZ_*` 테이블을 쓴다.
+상시 `batch-service` 가 district(`BATCH_DB_URL`) 와 commercial(`COMMERCIAL_DB_URL`) 을 같이 본다. 새 스케줄러 서비스는 없다. `BATCH_POLICY_ENABLED=true` 이면 `dev` 프로파일에서도 Quartz 가 켜지고, `quarterly` 처럼 `System.exit` 하지 않는다.
+
+| 대상 | DataSource |
+| --- | --- |
+| Quartz `QRTZ_*`, Spring Batch 메타, 영역 좌표 | `BATCH_DB_URL` (district) |
+| `policy` upsert / stale-mark / purge | `COMMERCIAL_DB_URL` (commercial) |
 
 | Job | cron (Asia/Seoul) | 역할 |
 | --- | --- | --- |
 | `policyCollectJob` | `0 0 6 * * ?` | 기업마당 API upsert + 완전성 게이트를 통과하면 BIZINFO stale-mark |
 | `policyPurgeJob` | `0 30 6 * * ?` | `last_seen_at` 이 유예(기본 30일)를 넘긴 BIZINFO 행 DELETE |
 
-기본 `batch.policy.enabled=false`. 켜려면 `BATCH_POLICY_ENABLED=true` 와 `BIZINFO_CRTFC_KEY`(기업마당 발급키)가 필요하다. `BATCH_DB_URL` 은 commercial 스키마이며 `BATCH_ALLOWED_SCHEMAS` 에 있어야 한다. prod 스키마 이름은 allowlist 에 넣지 않는다.
+기본 `batch.policy.enabled=false`. 켜려면 `BATCH_POLICY_ENABLED=true` 와 `BIZINFO_CRTFC_KEY`(기업마당 발급키), `BATCH_ALLOWED_SCHEMAS`(commercial 스키마 이름)가 필요하다. `BATCH_DB_URL` 은 district 로 둔다. prod 스키마 이름은 allowlist 에 넣지 않는다.
 
 원천은 `https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do` 만 쓴다. 업종·자치구 코드는 1차에서 NULL. `SEED` 행은 stale-mark/purge 대상이 아니다.
 
-운영 절차(개발 서버에서 왜 기존 batch-service 만으로는 안 도는지, DDL, 별도 JAR, 매일 06:00/06:30 시나리오)는 [batch-policy-ingest.md](batch-policy-ingest.md)다.
-스키마 런북: `scripts/migration/policy-ingest-columns-runbook.sql`, `scripts/migration/quartz-schema-mysql.sql`, 확인 `policy-ingest-verify.sql`. Spring Batch 메타 테이블이 없으면 `spring-batch-schema-mysql.sql` 도 적용한다. `spring.quartz.jdbc.initialize-schema` 는 `never` 다.
+운영 절차(Vault 키, DDL 을 어느 스키마에 넣는지, 매일 06:00/06:30 시나리오)는 [batch-policy-ingest.md](batch-policy-ingest.md)다.
+스키마 런북: commercial 은 `scripts/migration/policy-ingest-columns-runbook.sql` + 시드, district 는 `quartz-schema-mysql.sql`. 확인은 `policy-ingest-verify.sql` / `policy-ingest-verify-district.sql`. `spring.quartz.jdbc.initialize-schema` 는 `never` 다.
 
