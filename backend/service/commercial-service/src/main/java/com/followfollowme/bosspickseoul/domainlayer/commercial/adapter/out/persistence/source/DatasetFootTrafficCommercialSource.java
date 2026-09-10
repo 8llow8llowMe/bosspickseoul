@@ -30,6 +30,7 @@ public class DatasetFootTrafficCommercialSource {
         if (runIdByPeriod.isEmpty()) {
             return List.of();
         }
+        // run_id ↔ 분기는 1:1 이다 — dataset_active_release 의 복합 FK 가 (run_id, dataset, period_code, ...) 를 dataset_release 로 묶는다.
         Map<String, String> periodByRunId = runIdByPeriod.entrySet().stream()
             .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
         return datasetFactRepository.findAllByIdRunIdInAndIdAreaCodeAndIdServiceCode(runIdByPeriod.values(), commercialCode, DatasetFactId.NO_SERVICE)
