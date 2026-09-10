@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { Heart, MessageCircle, Pencil, Search } from 'lucide-react'
 import styled from 'styled-components'
 import CommunityFeedback from '@/components/community/community-feedback'
+import CommunityWriter from '@/components/community/community-writer'
 import { formatCommunityCount, formatRelativeTime } from '@/lib/community'
 import type { CommunityListView as CommunityListViewMode } from '@/lib/community/community-state'
 import type { CommunityPostSummary } from '@/types/community'
@@ -345,11 +346,21 @@ const Preview = styled.p`
 `
 
 const PostMeta = styled.div`
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
   color: var(--color-text-caption);
   font-size: 13px;
+
+  /* 긴 닉네임은 말줄임으로 줄이고 시간·반응은 자리를 지킨다. */
+  > [data-community-writer] {
+    flex: 0 1 auto;
+  }
+
+  time {
+    flex: 0 0 auto;
+  }
 `
 
 const MetaDivider = styled.span`
@@ -599,7 +610,10 @@ export default function CommunityListView({
                     <PostTitle>{post.title}</PostTitle>
                     <Preview>{post.previewContent}</Preview>
                     <PostMeta>
-                      <span>사장님</span>
+                      <CommunityWriter
+                        nickname={post.writerNickname}
+                        profileImageUrl={post.writerProfileImageUrl}
+                      />
                       <MetaDivider aria-hidden="true" />
                       <time dateTime={post.createdAt}>
                         {formatRelativeTime(post.createdAt)}

@@ -55,6 +55,8 @@ type ExpectedMetadata = {
 type ExpectedPostSummary = {
   postId: string
   memberId: string
+  writerNickname?: string | null
+  writerProfileImageUrl?: string | null
   targetType: ExpectedMetadata
   targetCode: string | null
   targetName: string | null
@@ -91,6 +93,8 @@ type Simplify<T> = { [K in keyof T]: T[K] }
 type ExpectedPostDetail = {
   postId: string
   memberId: string
+  writerNickname?: string | null
+  writerProfileImageUrl?: string | null
   targetType: ExpectedMetadata
   targetCode: string | null
   targetName: string | null
@@ -119,6 +123,8 @@ type ExpectedCommentsBody = {
     commentId: string
     postId: string
     memberId: string
+    writerNickname?: string | null
+    writerProfileImageUrl?: string | null
     content: string
     likeCount: number
     createdAt: string
@@ -127,6 +133,8 @@ type ExpectedCommentsBody = {
       commentId: string
       postId: string
       memberId: string
+      writerNickname?: string | null
+      writerProfileImageUrl?: string | null
       parentCommentId: string
       content: string
       likeCount: number

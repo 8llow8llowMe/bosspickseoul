@@ -948,6 +948,29 @@
             },
             "maxItems": 5,
             "minItems": 0
+          },
+          "analysisType": {
+            "type": "string",
+            "description": "분석 첨부 타입 (선택 — 비교 초안 응답의 analysisType.code 를 그대로 전달)",
+            "example": "COMMERCIAL_COMPARISON"
+          },
+          "analysisRefCode": {
+            "type": "string",
+            "description": "분석 참조 코드 (선택 — 초안 응답의 analysisRefCode 그대로)",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "analysisRefName": {
+            "type": "string",
+            "description": "분석 참조 표시명 (선택 — 초안 응답의 analysisRefName 그대로)",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "analysisSnapshotKey": {
+            "type": "string",
+            "description": "분석 스냅샷 키 (선택 — 초안 응답의 analysisSnapshotKey 그대로)",
+            "maxLength": 200,
+            "minLength": 0
           }
         }
       },
@@ -991,6 +1014,14 @@
             "type": "string",
             "description": "작성자 회원 ID"
           },
+          "writerNickname": {
+            "type": "string",
+            "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
+          },
+          "writerProfileImageUrl": {
+            "type": "string",
+            "description": "작성자 프로필 이미지 URL"
+          },
           "targetType": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
             "description": "대상 유형 메타데이터"
@@ -1010,6 +1041,22 @@
           "content": {
             "type": "string",
             "description": "본문"
+          },
+          "analysisType": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "분석 첨부 타입 메타데이터 (없으면 null)"
+          },
+          "analysisRefCode": {
+            "type": "string",
+            "description": "분석 참조 코드 (없으면 null)"
+          },
+          "analysisRefName": {
+            "type": "string",
+            "description": "분석 참조 표시명 (없으면 null)"
+          },
+          "analysisSnapshotKey": {
+            "type": "string",
+            "description": "분석 스냅샷 키 (없으면 null)"
           },
           "likeCount": {
             "type": "integer",
@@ -1131,6 +1178,14 @@
             "type": "string",
             "description": "작성자 회원 ID"
           },
+          "writerNickname": {
+            "type": "string",
+            "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
+          },
+          "writerProfileImageUrl": {
+            "type": "string",
+            "description": "작성자 프로필 이미지 URL"
+          },
           "content": {
             "type": "string",
             "description": "본문"
@@ -1187,6 +1242,14 @@
           "memberId": {
             "type": "string",
             "description": "작성자 회원 ID"
+          },
+          "writerNickname": {
+            "type": "string",
+            "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
+          },
+          "writerProfileImageUrl": {
+            "type": "string",
+            "description": "작성자 프로필 이미지 URL"
           },
           "parentCommentId": {
             "type": "string",
@@ -1586,6 +1649,14 @@
             "type": "string",
             "description": "작성자 회원 ID"
           },
+          "writerNickname": {
+            "type": "string",
+            "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
+          },
+          "writerProfileImageUrl": {
+            "type": "string",
+            "description": "작성자 프로필 이미지 URL"
+          },
           "targetType": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
             "description": "대상 유형 메타데이터"
@@ -1659,6 +1730,14 @@
           "memberId": {
             "type": "string",
             "description": "작성자 회원 ID"
+          },
+          "writerNickname": {
+            "type": "string",
+            "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
+          },
+          "writerProfileImageUrl": {
+            "type": "string",
+            "description": "작성자 프로필 이미지 URL"
           },
           "targetType": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",

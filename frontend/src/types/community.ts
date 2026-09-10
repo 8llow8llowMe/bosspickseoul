@@ -32,6 +32,14 @@ export type CommunityMetadata = {
 export type CommunityPostSummary = {
   postId: CommunityId
   memberId: CommunityId
+  /**
+   * 작성자 닉네임 (BE #271). **null 가능** — 탈퇴 회원은 `"탈퇴회원"` 으로 내려오고,
+   * 회원 서비스 장애·미존재 회원이면 null 이다. 화면은 null 을 대체 문구로 적는다
+   * (`formatCommunityWriter`). 스냅샷이 아니라 실조회라 닉네임 변경이 바로 반영된다.
+   */
+  writerNickname?: string | null
+  /** 작성자 프로필 이미지 URL. null 이면 이니셜 아바타를 그린다. */
+  writerProfileImageUrl?: string | null
   targetType: CommunityMetadata
   targetCode: string | null
   targetName: string | null
@@ -87,6 +95,14 @@ export type CommunityAnalysisAttachment = {
 export type CommunityPostDetail = {
   postId: CommunityId
   memberId: CommunityId
+  /**
+   * 작성자 닉네임 (BE #271). **null 가능** — 탈퇴 회원은 `"탈퇴회원"` 으로 내려오고,
+   * 회원 서비스 장애·미존재 회원이면 null 이다. 화면은 null 을 대체 문구로 적는다
+   * (`formatCommunityWriter`). 스냅샷이 아니라 실조회라 닉네임 변경이 바로 반영된다.
+   */
+  writerNickname?: string | null
+  /** 작성자 프로필 이미지 URL. null 이면 이니셜 아바타를 그린다. */
+  writerProfileImageUrl?: string | null
   targetType: CommunityMetadata
   targetCode: string | null
   targetName: string | null
@@ -134,6 +150,14 @@ export type CommunityReply = {
   commentId: CommunityId
   postId: CommunityId
   memberId: CommunityId
+  /**
+   * 작성자 닉네임 (BE #271). **null 가능** — 탈퇴 회원은 `"탈퇴회원"` 으로 내려오고,
+   * 회원 서비스 장애·미존재 회원이면 null 이다. 화면은 null 을 대체 문구로 적는다
+   * (`formatCommunityWriter`). 스냅샷이 아니라 실조회라 닉네임 변경이 바로 반영된다.
+   */
+  writerNickname?: string | null
+  /** 작성자 프로필 이미지 URL. null 이면 이니셜 아바타를 그린다. */
+  writerProfileImageUrl?: string | null
   parentCommentId: CommunityId
   content: string
   likeCount: number
@@ -145,6 +169,14 @@ export type CommunityComment = {
   commentId: CommunityId
   postId: CommunityId
   memberId: CommunityId
+  /**
+   * 작성자 닉네임 (BE #271). **null 가능** — 탈퇴 회원은 `"탈퇴회원"` 으로 내려오고,
+   * 회원 서비스 장애·미존재 회원이면 null 이다. 화면은 null 을 대체 문구로 적는다
+   * (`formatCommunityWriter`). 스냅샷이 아니라 실조회라 닉네임 변경이 바로 반영된다.
+   */
+  writerNickname?: string | null
+  /** 작성자 프로필 이미지 URL. null 이면 이니셜 아바타를 그린다. */
+  writerProfileImageUrl?: string | null
   content: string
   likeCount: number
   createdAt: string

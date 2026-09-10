@@ -1266,6 +1266,59 @@
         }
       }
     },
+    "/api/v1/commercials/{commercialCode}/profile": {
+      "get": {
+        "tags": ["상권 분석"],
+        "summary": "상권 프로필 조회",
+        "description": "상권 종합 프로필(집계 지표 + 자치구·행정동 메타 + 지원 정책 추천 상위 5건)을 조회합니다.",
+        "operationId": "getCommercialProfile",
+        "parameters": [
+          {
+            "name": "commercialCode",
+            "in": "path",
+            "description": "상권 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 3110008
+          },
+          {
+            "name": "serviceCode",
+            "in": "query",
+            "description": "서비스 코드",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS100001"
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "description": "기준 분기 코드",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20233"
+            },
+            "example": 20233
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseCommercialProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/commercials/{commercialCode}/population": {
       "get": {
         "tags": ["상권 분석"],
@@ -1731,6 +1784,43 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/simulations/histories/{historyId}": {
+      "delete": {
+        "tags": ["창업 시뮬레이션"],
+        "summary": "저장된 시뮬레이션 삭제",
+        "description": "본인이 저장한 시뮬레이션 이력을 삭제합니다. 타인 항목은 404 로 응답합니다.",
+        "operationId": "deleteHistory",
+        "parameters": [
+          {
+            "name": "historyId",
+            "in": "path",
+            "description": "시뮬레이션 이력 아이디",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     }
   },
@@ -4084,6 +4174,133 @@
             "items": {
               "$ref": "#/components/schemas/CommercialServiceCategoryResponse"
             }
+          }
+        }
+      },
+      "CommercialProfileKeyMetricsItem": {
+        "type": "object",
+        "description": "후보 상권 프로필 핵심 지표 항목 DTO — 해당 분기 데이터가 없는 지표는 null 로 내려간다",
+        "properties": {
+          "totalSalesAmount": {
+            "type": "number",
+            "format": "double",
+            "description": "총 매출액"
+          },
+          "totalFootTraffic": {
+            "type": "number",
+            "format": "double",
+            "description": "총 유동인구"
+          },
+          "totalStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 점포 수"
+          },
+          "similarStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "유사 업종 점포 수"
+          },
+          "openingRate": {
+            "type": "number",
+            "format": "double",
+            "description": "개업률"
+          },
+          "closureRate": {
+            "type": "number",
+            "format": "double",
+            "description": "폐업률"
+          },
+          "totalResidentPopulation": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 거주인구"
+          },
+          "monthlyAverageIncomeAmount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "월 평균 소득"
+          },
+          "totalFacilityCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 주요 시설 수"
+          },
+          "peakSalesTimeSlot": {
+            "type": "string",
+            "description": "매출 피크 시간대 (예: 17시~21시)"
+          },
+          "peakFootTrafficTimeSlot": {
+            "type": "string",
+            "description": "유동인구 피크 시간대 (예: 11시~14시)"
+          },
+          "dominantSalesAgeGroup": {
+            "type": "string",
+            "description": "매출 주 연령대 (예: 30대)"
+          }
+        }
+      },
+      "CommercialProfileResponse": {
+        "type": "object",
+        "description": "후보 상권 프로필 응답 DTO",
+        "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "기준 분기 코드",
+            "example": 20233
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "업종 코드",
+            "example": "CS100001"
+          },
+          "commercialCode": {
+            "type": "string",
+            "description": "상권 코드",
+            "example": 3110008
+          },
+          "commercialName": {
+            "type": "string",
+            "description": "상권명",
+            "example": "강남역 상권"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드"
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구 이름"
+          },
+          "administrationCode": {
+            "type": "string",
+            "description": "행정동 코드"
+          },
+          "administrationName": {
+            "type": "string",
+            "description": "행정동 이름"
+          },
+          "keyMetrics": {
+            "$ref": "#/components/schemas/CommercialProfileKeyMetricsItem",
+            "description": "핵심 지표"
+          },
+          "policyRecommendations": {
+            "type": "array",
+            "description": "이 상권의 자치구·업종으로 신청 가능한 지원 정책. 없으면 빈 배열",
+            "items": {
+              "$ref": "#/components/schemas/PolicyItem"
+            }
+          }
+        }
+      },
+      "ResponseCommercialProfileResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/CommercialProfileResponse"
           }
         }
       },

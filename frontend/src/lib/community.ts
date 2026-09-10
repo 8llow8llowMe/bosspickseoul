@@ -76,3 +76,25 @@ export const buildCommunityMetadataDescription = (
   content: string,
 ) =>
   `${targetName?.trim() || '서울 창업'} 커뮤니티 게시글 · ${getCommunityExcerpt(content, 90)}`
+
+/**
+ * 작성자를 알 수 없을 때 적는 말. 백엔드가 `writerNickname` 을 null 로 내리는 경우는
+ * 회원 서비스 장애·미존재 회원 두 가지다(BE #271). 둘 다 사용자가 고칠 수 없는 상태라
+ * 오류로 보이게 하지 않고, 닉네임이 없던 시절과 같은 호칭으로 자리를 채운다.
+ *
+ * 탈퇴 회원은 백엔드가 `"탈퇴회원"` 을 **값으로** 내리므로 여기서 다루지 않는다 —
+ * 받은 대로 적는다.
+ */
+export const COMMUNITY_WRITER_FALLBACK = '사장님'
+
+export const formatCommunityWriter = (
+  nickname: string | null | undefined,
+): string => nickname?.trim() || COMMUNITY_WRITER_FALLBACK
+
+/**
+ * 이니셜 아바타의 글자. 프로필 이미지가 없을 때 첫 글자를 보여 준다 — 헤더·프로필의
+ * `Avatar` 가 쓰는 규칙과 같다. 닉네임이 없으면 대체 문구의 첫 글자다.
+ */
+export const getCommunityWriterInitial = (
+  nickname: string | null | undefined,
+): string => formatCommunityWriter(nickname).slice(0, 1)

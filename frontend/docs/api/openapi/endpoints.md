@@ -93,6 +93,7 @@
 | GET    | `/api/v1/commercials/{commercialCode}/services/{serviceCode}/stores` | 상권 점포 분석 조회           | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/services/{serviceCode}/sales`  | 상권 매출 분석 조회           | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/service-categories`            | 상권 업종 목록 조회           | 불필요 |
+| GET    | `/api/v1/commercials/{commercialCode}/profile`                       | 상권 프로필 조회              | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/population`                    | 상권 거주인구 조회            | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/income`                        | 상권 소득·지출 조회           | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/foot-traffic`                  | 상권 유동인구 조회            | 불필요 |
@@ -102,6 +103,7 @@
 | GET    | `/api/v1/commercials/compare`                                        | 상권 A/B 비교 조회            | 불필요 |
 | GET    | `/api/v1/analysis-rankings`                                          | 분석 인기 순위 조회           | 불필요 |
 | GET    | `/api/v1/administrations/{administrationCode}`                       | 행정동 통합 상세 조회         | 불필요 |
+| DELETE | `/api/v1/simulations/histories/{historyId}`                          | 저장된 시뮬레이션 삭제        | 필요   |
 
 ## AI 리포트
 
