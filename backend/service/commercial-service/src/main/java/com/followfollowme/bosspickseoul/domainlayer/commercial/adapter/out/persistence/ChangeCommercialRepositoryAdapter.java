@@ -28,6 +28,8 @@ public class ChangeCommercialRepositoryAdapter implements ChangeCommercialReposi
 
     @Override
     public Optional<ChangeCommercial> findByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        // Optional<Optional<T>> 을 orElseGet 이 평탄화한다. flatMap 으로 "고치면" 릴리스에 행이 없을 때 레거시로 떨어져
+        // 다른 폴리곤 기준의 값이 섞이므로, 릴리스가 있으면 그 결과("없음" 포함)를 그대로 돌려준다.
         return datasetReadRouter.datasetRunId(DatasetKey.CHANGE_COMMERCIAL, periodCode)
             .map(runId -> datasetSource.findByRunIdAndCommercialCode(runId, periodCode, commercialCode))
             .orElseGet(() -> legacySource.findByPeriodCodeAndCommercialCode(periodCode, commercialCode));

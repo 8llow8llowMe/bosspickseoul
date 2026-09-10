@@ -1,4 +1,4 @@
-package com.followfollowme.bosspickseoul.global.config;
+package com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence.repository.DatasetActiveReleaseRepository;
 import com.followfollowme.bosspickseoul.global.properties.DatasetReadProperties;

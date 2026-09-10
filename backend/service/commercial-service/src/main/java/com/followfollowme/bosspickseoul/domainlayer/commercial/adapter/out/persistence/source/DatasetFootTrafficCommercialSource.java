@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.source;
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.FootTrafficCommercial;
+import com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence.entity.DatasetFactId;
 import com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence.repository.DatasetFactRepository;
 import java.util.List;
 import java.util.Map;
@@ -17,13 +18,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DatasetFootTrafficCommercialSource {
 
-    static final String NO_SERVICE = "";
-
     private final DatasetFactRepository datasetFactRepository;
 
-    public Optional<FootTrafficCommercial> findByRunIdAndCommercialCode(String runId, String periodCode, String commercialCode) {
-        return datasetFactRepository.findByIdRunIdAndIdAreaCodeAndIdServiceCode(runId, commercialCode, NO_SERVICE)
-            .map(fact -> FootTrafficCommercialFactMapper.toDomain(fact, periodCode));
+    public Optional<FootTrafficCommercial> findByRunIdAndCommercialCode(String runId, String slotPeriod, String commercialCode) {
+        return datasetFactRepository.findByIdRunIdAndIdAreaCodeAndIdServiceCode(runId, commercialCode, DatasetFactId.NO_SERVICE)
+            .map(fact -> FootTrafficCommercialFactMapper.toDomain(fact, slotPeriod));
     }
 
     /** {@code runIdByPeriod} 는 분기 → 활성 run_id. 한 번의 IN 조회로 여러 분기를 받아 분기 시계열을 만든다. */
@@ -33,7 +32,7 @@ public class DatasetFootTrafficCommercialSource {
         }
         Map<String, String> periodByRunId = runIdByPeriod.entrySet().stream()
             .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
-        return datasetFactRepository.findAllByIdRunIdInAndIdAreaCodeAndIdServiceCode(runIdByPeriod.values(), commercialCode, NO_SERVICE)
+        return datasetFactRepository.findAllByIdRunIdInAndIdAreaCodeAndIdServiceCode(runIdByPeriod.values(), commercialCode, DatasetFactId.NO_SERVICE)
             .stream()
             .map(fact -> FootTrafficCommercialFactMapper.toDomain(fact, periodByRunId.get(fact.getId().getRunId())))
             .toList();

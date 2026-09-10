@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.global.config;
 
+import java.util.Locale;
 import org.hibernate.boot.model.relational.Namespace;
 import org.hibernate.boot.model.relational.Sequence;
 import org.hibernate.mapping.Table;
@@ -15,7 +16,7 @@ import org.hibernate.tool.schema.spi.SchemaFilterProvider;
  */
 public class DatasetSchemaFilterProvider implements SchemaFilterProvider {
 
-    static final String EXCLUDED_TABLE_PREFIX = "dataset_";
+    public static final String EXCLUDED_TABLE_PREFIX = "dataset_";
 
     private static final SchemaFilter EXCLUDE_DATASET_TABLES = new SchemaFilter() {
         @Override
@@ -25,7 +26,7 @@ public class DatasetSchemaFilterProvider implements SchemaFilterProvider {
 
         @Override
         public boolean includeTable(Table table) {
-            return !table.getName().toLowerCase().startsWith(EXCLUDED_TABLE_PREFIX);
+            return !table.getName().toLowerCase(Locale.ROOT).startsWith(EXCLUDED_TABLE_PREFIX);
         }
 
         @Override
