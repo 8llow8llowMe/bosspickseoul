@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ProjectionRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SpatialSourceRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.*;
 import java.nio.file.Path;
@@ -21,14 +22,18 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
     private final JobLauncher launcher;
     private final Job factJob;
     private final Job spatialJob;
+    private final Job projectJob;
     private int exitCode = 1;
 
     public QuarterlyImportRunner(Environment environment, JobLauncher launcher,
-                                 @Qualifier("commercialAnalysisImportJob") Job factJob, @Qualifier("commercialRegionImportJob") Job spatialJob) {
+                                 @Qualifier("commercialAnalysisImportJob") Job factJob,
+                                 @Qualifier("commercialRegionImportJob") Job spatialJob,
+                                 @Qualifier("typedFactProjectionJob") Job projectJob) {
         this.environment = environment;
         this.launcher = launcher;
         this.factJob = factJob;
         this.spatialJob = spatialJob;
+        this.projectJob = projectJob;
     }
 
     @Override
@@ -40,7 +45,8 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
         if (!runId.matches("[a-zA-Z0-9_-]{1,64}")) throw new IllegalArgumentException("Invalid run-id");
         Job job;
         JobParameters parameters;
-        if ("spatial".equals(optional(args, "job", "facts"))) {
+        String jobName = optional(args, "job", "facts");
+        if ("spatial".equals(jobName)) {
             job = spatialJob;
             var kind = SpatialSourceRequest.Kind.valueOf(optional(args, "source", "GEOJSON").toUpperCase(Locale.ROOT));
             String file = optional(args, "source-file", "");
@@ -48,8 +54,13 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
             var request = new SpatialSourceRequest(kind, file.isBlank() ? null : Path.of(file), required(args, "spatial-version"),
                 updatedAt.isBlank() ? null : Instant.parse(updatedAt));
             parameters = CommercialRegionImportJobConfig.writeRequest(runId, request, dryRun);
+        } else if ("project".equals(jobName)) {
+            job = projectJob;
+            parameters = TypedFactProjectionJobConfig.write(new ProjectionRequest(
+                runId, Dataset.parse(required(args, "dataset")), new Quarter(required(args, "period")),
+                required(args, "spatial-version"), optional(args, "schema-version", "seoul-v1"), dryRun));
         } else {
-            if (!"facts".equals(optional(args, "job", "facts"))) throw new IllegalArgumentException("job must be facts or spatial");
+            if (!"facts".equals(jobName)) throw new IllegalArgumentException("job must be facts, spatial or project");
             String file = optional(args, "source-file", "");
             ImportRequest request = new ImportRequest(runId, Dataset.parse(required(args, "dataset")), new Quarter(required(args, "period")),
                 required(args, "spatial-version"), optional(args, "schema-version", "seoul-v1"),

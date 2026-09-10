@@ -8,7 +8,7 @@
 | --- | --- |
 | Spring Batch 메타 + `dataset_*` DDL | `bosspickseoul_commercial_dev`에 적용 |
 | `--job=spatial` LEGACY 실게시 | `legacy-20233` `READY`, 영역 2,100 (25/425/1650) |
-| `CHANGE_COMMERCIAL` `20241`~`20254` | 8분기 실게시. 분기당 1,650행, 거부·중복·미매핑 0 |
+| `CHANGE_COMMERCIAL` `20241`~`20254` | 8분기 `dataset_fact` 실게시. typed 이관(`--job=project`)은 후속 |
 | 나머지 14종 | 미적재 |
 
 사실 데이터는 **데이터셋 × 분기 한 건이 실행 단위**다. 같은 명령을 분기만 바꿔 반복하면 된다. 한 번에 전 구간을 도는 스케줄러는 없다.
@@ -27,6 +27,7 @@
 
 1. `backend/scripts/migration/spring-batch-schema-mysql.sql` — `BATCH_*` (Spring Batch 5.2.2)
 2. `backend/scripts/migration/quarterly-dataset-schema.sql` — `dataset_*`
+3. `backend/scripts/migration/change-commercial-spatial-version.sql` — `change_commercial.spatial_version` (이관 Job 전)
 
 PowerShell에서 `mysql ... < file.sql`은 `<`가 예약 연산자라 실패한다. DDL은 Workbench가 맞다.
 
@@ -109,7 +110,7 @@ $plan = ".\backend\scripts\batch\quarterly-import-plan.ps1"
 
 ### 검증된 대상 (`CHANGE_COMMERCIAL`)
 
-`20241`~`20254` 8분기가 실게시됐다. 분기당 1,650행이 모든 분기에서 같았으므로 이 데이터셋은 probe 없이 `--expected-rows=1650`을 쓴다.
+`20241`~`20254` 8분기가 `dataset_fact`에 실게시됐다. 분기당 1,650행이 모든 분기에서 같았으므로 이 데이터셋은 probe 없이 `--expected-rows=1650`을 쓴다. 화면 조회 정본은 아래 「8. typed 이관」을 한 뒤에 `change_commercial` 컬럼이다.
 
 ```powershell
 java -jar $jar --job=facts --run-id=change-commercial-20242-001 --dataset=CHANGE_COMMERCIAL --period=20242 --source=API --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=1650 --source-updated-at=2024-06-30T00:00:00Z --dry-run=true
@@ -178,7 +179,7 @@ SELECT run_id, raw_location FROM dataset_release
 주의할 점:
 
 - dry-run도 `dataset_release` / staging / rejected에 쓴다. `dataset_fact`와 `dataset_active_release`만 건너뛴다.
-- `--dry-run=false`가 끝나야 조회 포인터가 바뀐다. 서비스 API는 아직 레거시 테이블을 읽으므로 화면은 바로 바뀌지 않는다(#279).
+- `--dry-run=false`가 끝나야 `dataset_active_release` 포인터가 바뀐다. 변화지표 화면은 아래 「8. typed 이관」이 끝나야 `change_commercial`을 본다. 유동인구는 기존 `foot_traffic_commercial` 테이블만 읽는다. JSON 조회 경로는 없다.
 - Job이 `COMPLETED`가 아니면 다음 분기로 가지 않는다.
 
 ## 7. 실패와 재실행
@@ -187,3 +188,30 @@ SELECT run_id, raw_location FROM dataset_release
 - `unmapped_count > 0`이면 공간 버전이 `READY`인지, `--spatial-version`이 게시된 이름과 같은지 본다.
 - `BATCH_JOB_INSTANCE`가 없으면 기동 단계에서 실패한다. 1절 DDL을 다시 확인한다.
 - 공간 dry-run은 DB에 영역을 쓰지 않는다. 사실 적재 전에 실게시(`dry-run=false`)가 필요하다.
+
+## 8. typed 이관 (`--job=project`)
+
+`dataset_fact`는 원천 보관이다. 상권 변화지표 조회는 `change_commercial` 컬럼을 읽는다. 선행으로 `change-commercial-spatial-version.sql`을 적용한다.
+
+이미 게시한 분기마다 한 번 돌린다. 같은 `(period_code, spatial_version)` 행을 지우고 다시 넣는다.
+
+```powershell
+java -jar $jar --job=project --run-id=project-change-commercial-20241-001 --dataset=CHANGE_COMMERCIAL --period=20241 --spatial-version=legacy-20233 --dry-run=true
+java -jar $jar --job=project --run-id=project-change-commercial-20241-002 --dataset=CHANGE_COMMERCIAL --period=20241 --spatial-version=legacy-20233 --dry-run=false
+```
+
+확인:
+
+```sql
+SELECT period_code, spatial_version, COUNT(*) AS rows
+  FROM change_commercial
+ GROUP BY period_code, spatial_version
+ ORDER BY period_code;
+
+SELECT period_code, commercial_code, change_indicator_code, average_opened_months
+  FROM change_commercial
+ WHERE commercial_code = '3001491' AND spatial_version = 'legacy-20233'
+ ORDER BY period_code;
+```
+
+1단계 대상은 `CHANGE_COMMERCIAL`뿐이다. 다른 데이터셋은 Job이 거부한다. 유동인구·행정동·자치구 이관은 후속이다.
