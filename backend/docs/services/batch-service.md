@@ -152,7 +152,7 @@ SELECT l.area_code,
 ## 남은 작업
 
 - **2024년 표준단위구역 폴리곤이 배포됐는지 확인되지 않았다.** 변환 도구와 절차는 있다(「GEOJSON 파일 만들기」). 2026-09-09 기준 서울시 shapefile은 2023-10-20 파일이라 `LEGACY`(20233)와 같을 수 있고, 게시 전 대조가 필요하다. 새 버전이 생겨도 district-service 지도가 `dataset_spatial_area`를 읽도록 바꾸는 후속 작업이 있어야 화면에 반영된다.
-- `dataset_fact` / `dataset_active_release`를 읽는 조회 경로는 commercial-service 에 1단계로 들어갔다(`CHANGE_COMMERCIAL`, `FOOT_TRAFFIC_COMMERCIAL`, 플래그 `app.dataset.read-enabled` 기본 false — `commercial-service.md` 「데이터셋 릴리스 조회 경로」). 나머지 13종은 후속이며, `CONSUMPTION_*` 전환 시 `income_commercial`의 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이).
+- commercial-service 가 `dataset_fact` / `dataset_active_release`를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다(`commercial-service.md` 「분기 데이터셋 조회 방향」). 이 서비스는 2024년 1분기 이후 분기를 적재만 하고, 기존 팩트 테이블에 컬럼을 추가한 뒤 적재분을 이관하는 작업이 후속이다. 이관 시 `CONSUMPTION_*` 의 `income_commercial` 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이).
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
 - Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.
 - `--expected-rows`는 분기 인자를 존중하는 서비스에서는 `list_total_count`로 자동 확정할 수 있다. 지금은 dry-run 한 번으로 값을 읽어 새 run-id로 다시 돌리는 절차를 유지한다.

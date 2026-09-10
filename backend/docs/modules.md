@@ -122,7 +122,7 @@ backend/
 **포함:**
 - `enums.HeatmapModeType` — 히트맵 모드 (단일 지표 / 복합 추천)
 - `enums.GradeLevel` — 등급 구간 (commercial/district 공용)
-- `enums.DatasetKey` — 분기 적재 데이터셋 15종의 이름 계약 (batch-service 가 게시하고 commercial-service 가 활성 release 를 찾는 키)
+- `enums.DatasetKey` — 분기 적재 데이터셋 15종의 이름 계약 (batch-service 가 `dataset_release`/`dataset_active_release` 에 게시하는 키. 조회 서비스의 참조는 2026-09-10 제거)
 
 **존재 이유**:
 - `commercial-service`와 `district-service`는 피어 관계라 서로 import 불가
@@ -130,6 +130,7 @@ backend/
 - 두 서비스가 모두 의존할 수 있는 별도 공유 레이어로 분리
 
 **포함 기준**: **상권·지도 도메인**에 속하면서 복수 서비스에서 공유되는 enum / 값 객체 / 상수. 단일 서비스에서만 쓰면 해당 서비스의 `application/model/`로.
+- 예외: `DatasetKey` 는 현재 batch-service 만 참조하지만, 적재분을 기존 팩트 테이블로 이관하는 후속 작업이 조회 서비스와의 이름·필수 컬럼 계약으로 다시 쓰므로 이관 시점까지 여기 둔다.
 
 ---
 
@@ -180,9 +181,9 @@ backend/
 - 행정동/자치구: `/api/v1/administrations/{code}`, `/api/v1/districts/**`
 - 공유 링크: `POST/GET /api/v1/share-links`
 
-**컨텍스트**: administration, analysisbookmark, category, commercial, commercialsummary, dataset, district, policy, ranking, sharelink, simulation (11개)
+**컨텍스트**: administration, analysisbookmark, category, commercial, commercialsummary, district, policy, ranking, sharelink, simulation (10개)
 
-**특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel, DatasetKey), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
+**특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
 
 ---
 
