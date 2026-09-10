@@ -88,3 +88,54 @@ describe('AnalysisResultView 서버 렌더 구조 안정성 (hydration 회귀 �
     expect(first).toBe(second)
   })
 })
+
+/**
+ * 보고서 하단 추천 링크 (condition-selector D8-2 보조 동선).
+ *
+ * 상권 코드를 실으면 추천이 「이미 정해진 상권」을 받게 돼 추천할 것이 남지 않는다.
+ * 세 코드만 나른다는 규약을 여기서 못박는다.
+ */
+const RECOMMEND_LINK_MARKER = 'data-analysis-recommend-link="true"'
+
+const readRecommendLinkHref = (markup: string): string => {
+  const tag = markup.match(
+    /<a[^>]*data-analysis-recommend-link="true"[^>]*>/,
+  )?.[0]
+  expect(tag).toBeDefined()
+
+  const href = tag?.match(/href="([^"]*)"/)?.[1]
+  expect(href).toBeDefined()
+
+  return href as string
+}
+
+describe('보고서 하단 추천 링크', () => {
+  beforeEach(() => {
+    searchParamsBox.current = new URLSearchParams()
+  })
+
+  it.each(ANALYSIS_TABS.map(tab => tab.value))(
+    'tab=%s 로 열어도 추천 링크가 정확히 한 번 나온다',
+    tab => {
+      const markup = renderForTab(tab)
+
+      expect(markup.split(RECOMMEND_LINK_MARKER).length - 1).toBe(1)
+    },
+  )
+
+  it('자치구·행정동·업종 세 코드를 그대로 넘긴다', () => {
+    const href = readRecommendLinkHref(renderForTab('summary'))
+
+    expect(href).toContain('/recommend?')
+    expect(href).toContain('districtCode=11680')
+    expect(href).toContain('administrationCode=11680640')
+    expect(href).toContain('serviceCode=CS100001')
+  })
+
+  it('상권 코드는 넘기지 않는다 — 추천은 상권을 찾아 주는 쪽이다', () => {
+    const href = readRecommendLinkHref(renderForTab('summary'))
+
+    expect(href).not.toContain('commercialCode')
+    expect(href).not.toContain('3110008')
+  })
+})

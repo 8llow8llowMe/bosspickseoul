@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, Bookmark, Check, ExternalLink, Share2, X } from 'lucide-react'
+import Link from 'next/link'
+import {
+  Archive,
+  ArrowUpRight,
+  Bookmark,
+  Check,
+  ExternalLink,
+  Share2,
+  X,
+} from 'lucide-react'
 import styled from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
@@ -110,9 +119,11 @@ import {
   type AnalysisResultTab,
   type AnalysisSelection,
 } from '@/lib/analysis/selection'
+import { createRecommendHandoffLabel } from '@/lib/analysis/recommend-handoff'
 import { useActivatedSections } from '@/lib/analysis/use-activated-sections'
 import { useScrollSpy } from '@/lib/analysis/use-scroll-spy'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
+import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
 import { useToast } from '@/components/ui/toast'
 import {
@@ -385,6 +396,59 @@ const ReportSection = styled.section`
   /* 모바일(≤840px): 헤더에 가로 탭 바가 포함돼 더 높다(≈102px). */
   @media (max-width: 840px) {
     scroll-margin-top: 116px;
+  }
+`
+
+/**
+ * 보고서 맨 끝에 두는 추천 이탈구. **상단에는 두지 않는다** — 읽기도 전에 나가라는
+ * 신호가 된다(condition-selector D8-2).
+ *
+ * 카드·채움 배경·큰 버튼으로 그리지 않는다. 그렇게 그리면 광고 배너로 읽히고,
+ * 광고처럼 보이는 것은 눌리지 않는다(DESIGN.md 페르소나). 얇은 구분선 한 줄 위에
+ * 문장과 텍스트 링크만 둔다.
+ */
+const RecommendHandoff = styled.div`
+  display: grid;
+  gap: 4px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-200);
+`
+
+const RecommendHandoffNote = styled.p`
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
+`
+
+/* 텍스트 링크지만 손가락으로도 눌린다 — 최소 44px 를 지킨다. 좌우 패딩만큼 음수
+   마진을 줘 글자는 본문 왼쪽 선에 맞춘다. */
+const RecommendHandoffLink = styled(Link)`
+  justify-self: start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -8px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
+  color: var(--color-primary-700);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 22px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  & svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    color: var(--color-primary-600);
+  }
+
+  &:focus-visible {
+    box-shadow: var(--shadow-focus-primary-strong);
   }
 `
 
@@ -1328,6 +1392,27 @@ export default function AnalysisResultView({
     },
   ]
 
+  /*
+    보고서 하단 추천 링크(condition-selector D8-2 보조 동선).
+
+    상권 코드는 싣지 않는다 — 추천은 상권을 *찾아 주는* 쪽이라 상권을 넘기면
+    추천할 것이 남지 않는다. 자치구·행정동·업종 세 코드만 나르고, 파라미터 이름이
+    `/analysis` 와 같아 변환은 없다(`recommend-url.ts`).
+  */
+  const recommendHandoffHref =
+    districtCode && administrationCode && serviceCode
+      ? createRecommendHrefFromCodes({
+          districtCode,
+          administrationCode,
+          serviceCode,
+        })
+      : null
+  const recommendHandoffLabel = createRecommendHandoffLabel({
+    administrationName,
+    serviceName,
+    serviceCode,
+  })
+
   const renderGroupHeading = (label: string) => (
     <GroupHeadingRow>
       <GroupHeading>{label}</GroupHeading>
@@ -2196,6 +2281,22 @@ export default function AnalysisResultView({
               </FullSpanItem>
             </DashboardGrid>
           </ReportSection>
+
+          {recommendHandoffHref === null ? null : (
+            <RecommendHandoff>
+              <RecommendHandoffNote>
+                이 상권이 맞지 않으면 같은 조건으로 다른 상권을 찾아볼 수
+                있어요.
+              </RecommendHandoffNote>
+              <RecommendHandoffLink
+                data-analysis-recommend-link="true"
+                href={recommendHandoffHref}
+              >
+                {recommendHandoffLabel}
+                <ArrowUpRight aria-hidden />
+              </RecommendHandoffLink>
+            </RecommendHandoff>
+          )}
         </ContentColumn>
       </ResultLayout>
     </Root>

@@ -15,7 +15,7 @@
 | 기존 동작 (as-is) | 검색 파라미터를 **아예 읽지 않는다** — `useSearchParams` 가 코드에 없다(실측). 어떤 조건을 고르든 URL 은 항상 `/recommend` |
 | 목표 동작 (to-be) | 조건·결과·선택 상권을 URL 이 나른다. 새로고침·뒤로가기·링크 공유에서 화면이 복원된다                                       |
 | 딸려 오는 것      | 화면 보관함의 `COMMERCIAL_COMPARISON` **미지원 사유가 사라진다**([share D1-1](../share/share.md))                          |
-| 구현 제외 범위    | 카메라 파라미터(`c`), 화면 보관함 payload 빌더, 분석↔추천 딥링크(D8-2) — 아래 §6 참고                                      |
+| 구현 제외 범위    | 카메라 파라미터(`c`), 화면 보관함 payload 빌더 — 아래 §6 참고                                                              |
 
 `/analysis` 는 이미 선택 전체를 URL 로 읽는다(`districtCode`·`administrationCode`·
 `commercialCode`·`serviceCode`·`periodCode`). **추천은 그 규약을 그대로 따른다** — 같은 값에
@@ -206,7 +206,8 @@ URL 이 그 선택을 도로 지우지 않는다.
   규칙을 새로 정해야 해서 별도 슬라이스다.
 - **화면 보관함 payload 빌더** — 이 명세가 끝나면 `COMMERCIAL_COMPARISON` 미지원 사유가
   사라진다. 빌더 추가는 [share](../share/share.md) 쪽 작업이라 그쪽에서 잇는다.
-- **분석 ↔ 추천 딥링크** (D8-2) — 이 명세가 선행 조건이다.
+- **분석 ↔ 추천 딥링크** (D8-2) — 이 명세가 선행 조건이었고, 지금은 **구현 완료**다. 진입점 세
+  곳과 넘기는 코드는 [condition-selector](./condition-selector.md) D8-2 를 본다.
 
 ### 알려진 빈틈 (후속)
 
