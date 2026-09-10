@@ -1,7 +1,7 @@
 # 상권 추천 — 조건 선택 UX 세부 명세서
 
 > **작성일**: 2026-08-28
-> **공통 명세**: 없음 — `recommend` 공통 명세는 아직 작성되지 않았다([\_index](../_index.md) 상태 ⬜). 현행 정본은 코드(`src/components/recommend/**`)이며, 이 문서가 조건 선택 영역에 한해 정본 역할을 한다.
+> **공통 명세**: [상권 추천 공통 명세](./recommend.md) (2026-09-10 사후 작성). 이 문서는 조건 선택 영역에 한해 정본 역할을 한다.
 > **연관 명세**: [지도 기반 분석 대상 탐색](../analysis/explorer.md), [모바일/태블릿 반응형 바텀시트](../analysis/mobile-responsive.md)
 > **대상**: 웹 (Next.js App Router) — `/recommend` 전 뷰포트, `/analysis` 선택 패널 일부
 > **작성자**: Claude

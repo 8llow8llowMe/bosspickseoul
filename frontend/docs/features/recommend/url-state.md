@@ -1,7 +1,7 @@
 # 상권 추천 — URL 상태 세부 명세서
 
 > **작성일**: 2026-08-30
-> **공통 명세**: 없음 — `recommend` 공통 명세 미작성([\_index](../_index.md) 참고). 현행 정본은 코드다.
+> **공통 명세**: [상권 추천 공통 명세](./recommend.md) (2026-09-10 사후 작성). 이 문서는 URL 상태에 한해 정본 역할을 한다.
 > **연관 명세**: [조건 선택 UX](./condition-selector.md) D8-1·D8-2, [UX 후속 3건](./ux-followups.md), [공유·화면 보관함](../share/share.md) D1-1, [지도 기반 분석 대상 탐색](../analysis/explorer.md)
 > **대상**: 웹 (Next.js App Router) — `/recommend`
 > **작성자**: Claude
