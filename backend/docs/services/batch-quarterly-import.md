@@ -59,7 +59,7 @@ java -jar $jar --job=spatial --run-id=spatial-legacy-20233-002 --source=LEGACY -
 
 기대: 영역 2,100건, 자치구 25 / 행정동 425 / 상권 1,650. 로그 `COMPLETED` 후 검증 SQL 「2) 공간 스냅샷」이 `READY`여야 한다.
 
-`LEGACY` 폴리곤은 20233 기준이다. 2024년 표준단위구역 GeoJSON이 있으면 `--source=GEOJSON`으로 **새 버전 이름**을 게시한다. 변환 절차는 후속 이슈 #278을 본다.
+`LEGACY` 폴리곤은 20233 기준이다. 서울시 영역 shapefile 3종을 `backend/scripts/spatial/seoul_area_shapefiles_to_geojson.py`로 변환해 `--source=GEOJSON --source-file=<파일> --spatial-version=<새 버전 이름>`으로 게시할 수 있다. 다운로드·변환·검증·대조 절차는 `batch-service.md` 「GEOJSON 파일 만들기」(이슈 #278). 게시 전에 현재 배포 shapefile(2023-10-20 파일)이 `legacy-20233`과 실제로 다른지 대조해야 한다.
 
 ## 4. 사실 데이터 — 한 분기씩
 

@@ -122,6 +122,7 @@ backend/
 **포함:**
 - `enums.HeatmapModeType` — 히트맵 모드 (단일 지표 / 복합 추천)
 - `enums.GradeLevel` — 등급 구간 (commercial/district 공용)
+- `enums.DatasetKey` — 분기 적재 데이터셋 15종의 이름 계약 (batch-service 가 게시하고 commercial-service 가 활성 release 를 찾는 키)
 
 **존재 이유**:
 - `commercial-service`와 `district-service`는 피어 관계라 서로 import 불가
