@@ -146,7 +146,7 @@ const TextArea = styled.textarea`
   outline: none;
 
   &:focus-visible {
-    border-color: var(--color-primary-600);
+    border-color: var(--color-primary-700);
     box-shadow: var(--shadow-focus-primary-strong);
   }
 

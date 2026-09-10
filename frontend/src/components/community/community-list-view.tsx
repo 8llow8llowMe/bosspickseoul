@@ -190,7 +190,7 @@ const SearchInput = styled.input`
 
   &:focus-visible {
     outline: none;
-    border-color: var(--color-primary-600);
+    border-color: var(--color-primary-700);
     box-shadow: var(--shadow-focus-primary-strong);
   }
 `
