@@ -1185,7 +1185,7 @@
       },
       "CommercialProfileKeyMetricsItem": {
         "type": "object",
-        "description": "후보 상권 프로필 핵심 지표 항목 DTO",
+        "description": "후보 상권 프로필 핵심 지표 항목 DTO — 해당 분기 데이터가 없는 지표는 null 로 내려간다",
         "properties": {
           "totalSalesAmount": {
             "type": "number",
@@ -1287,6 +1287,80 @@
           "keyMetrics": {
             "$ref": "#/components/schemas/CommercialProfileKeyMetricsItem",
             "description": "핵심 지표. Feign 응답 유실 시 null 가능"
+          },
+          "policyRecommendations": {
+            "type": "array",
+            "description": "이 상권의 자치구·업종으로 매칭된 지원 정책 상위 5건. 매칭이 없으면 빈 배열",
+            "items": {
+              "$ref": "#/components/schemas/PolicyItem"
+            }
+          }
+        }
+      },
+      "PolicyItem": {
+        "type": "object",
+        "description": "지원 정책 항목 DTO",
+        "properties": {
+          "policyId": {
+            "type": "string",
+            "description": "정책 아이디",
+            "example": 7345678901234568000
+          },
+          "title": {
+            "type": "string",
+            "description": "정책명",
+            "example": 2026
+          },
+          "organization": {
+            "type": "string",
+            "description": "지원 기관",
+            "example": "서울신용보증재단"
+          },
+          "supportType": {
+            "type": "string",
+            "description": "지원 유형 코드",
+            "example": "FUNDING"
+          },
+          "supportTypeName": {
+            "type": "string",
+            "description": "지원 유형 표시명",
+            "example": "자금"
+          },
+          "targetSummary": {
+            "type": "string",
+            "description": "지원 대상 요약",
+            "example": "서울시 소재 업력 1년 이상 소상공인"
+          },
+          "supportContent": {
+            "type": "string",
+            "description": "지원 내용",
+            "example": "업체당 최대 5천만원, 연 2.0% 고정금리"
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "지원 대상 자치구 코드. null 이면 서울 전역/전국",
+            "example": 11680
+          },
+          "serviceCategoryCode": {
+            "type": "string",
+            "description": "지원 대상 업종 대분류. null 이면 전업종",
+            "example": "CS1"
+          },
+          "applyStartAt": {
+            "type": "string",
+            "format": "date",
+            "description": "신청 시작일. null 이면 제한 없음",
+            "example": "2026-03-01"
+          },
+          "applyEndAt": {
+            "type": "string",
+            "format": "date",
+            "description": "신청 마감일. null 이면 상시 모집",
+            "example": "2026-12-31"
+          },
+          "detailUrl": {
+            "type": "string",
+            "description": "상세 안내 URL"
           }
         }
       },
