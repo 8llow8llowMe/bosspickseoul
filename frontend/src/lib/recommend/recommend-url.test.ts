@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { serializeMapCamera, type MapCamera } from '@/lib/analysis/map-camera'
+
 import {
   createRecommendHref,
+  createRecommendHrefFromCodes,
   createRecommendSearchParams,
   EMPTY_RECOMMEND_URL_STATE,
   parseRecommendUrlState,
@@ -14,6 +17,7 @@ import {
 const GANGNAM = { code: '11680', name: '강남구' }
 const YEOKSAM1 = '11680640'
 const HANSIK = { code: 'CS100001', name: '한식음식점' }
+const CAMERA: MapCamera = { lat: 37.50123, lng: 127.03456, level: 5 }
 
 const parse = (query: string) =>
   parseRecommendUrlState(new URLSearchParams(query))
@@ -25,14 +29,18 @@ const serializeState = (
       'draft' | 'view' | 'selectedCommercialCode' | 'resultSelectionSource'
     >
   > = {},
+  camera?: MapCamera | null,
 ) =>
-  createRecommendSearchParams({
-    draft: { district: null, administration: null, service: null },
-    view: 'criteria',
-    selectedCommercialCode: null,
-    resultSelectionSource: null,
-    ...overrides,
-  }).toString()
+  createRecommendSearchParams(
+    {
+      draft: { district: null, administration: null, service: null },
+      view: 'criteria',
+      selectedCommercialCode: null,
+      resultSelectionSource: null,
+      ...overrides,
+    },
+    camera,
+  ).toString()
 
 describe('parseRecommendUrlState', () => {
   // T-1
@@ -215,6 +223,8 @@ describe('씨앗 무회귀', () => {
     expect(createInitialRecommendationState(parse(''))).toEqual(
       createInitialRecommendationState(),
     )
+    // `c` 가 없으면 자동 맞춤을 잠글 이유가 없다 — 기존 동작 그대로다.
+    expect(createInitialRecommendationState(parse('')).cameraMode).toBe('auto')
   })
 
   it('씨앗은 조건만 채우고 화면 단계는 건드리지 않는다', () => {
@@ -229,5 +239,112 @@ describe('씨앗 무회귀', () => {
     // 제출은 후보 상권 목록이 있어야 한다 — 화면이 목록을 받은 뒤에 한다.
     expect(seeded.submitted).toBeNull()
     expect(seeded.view).toBe('criteria')
+  })
+})
+
+/*
+ * 카메라 `c` (#317, 명세 §2-2). 형식·가드는 `lib/analysis/map-camera.ts` 가 정본이라
+ * 여기서는 **추천 URL 이 그것을 어떻게 얹는가**만 본다.
+ */
+describe('카메라 c', () => {
+  const filled = {
+    draft: {
+      district: GANGNAM,
+      administration: { code: YEOKSAM1, name: '역삼1동' },
+      service: HANSIK,
+    },
+  }
+
+  // T-17 — 소수 5자리로 양자화하고 level 은 정수다.
+  it('c 가 유효하면 카메라를 복원한다', () => {
+    expect(parse('districtCode=11680&c=37.501234,127.034567,5').camera).toEqual(
+      { lat: 37.50123, lng: 127.03457, level: 5 },
+    )
+  })
+
+  /*
+   * T-17 — 카메라는 조건이 아니라 뷰 상태다. 조건을 전부 버리는 링크에서도
+   * 「지금 보이는 화면」은 살아 있어야 한다.
+   */
+  it('자치구가 무효여도 카메라는 산다', () => {
+    expect(parse('districtCode=99999&c=37.50123,127.03456,5')).toEqual({
+      ...EMPTY_RECOMMEND_URL_STATE,
+      camera: CAMERA,
+    })
+  })
+
+  // T-18 — 위경도가 뒤바뀐 값은 한국 좌표 가드가 걸러낸다.
+  it('c 가 무효면 카메라만 버린다', () => {
+    const invalid = ['37.5,127.03', '127.03456,37.50123,5', '']
+
+    invalid.forEach(raw => {
+      const state = parse(`districtCode=11680&c=${encodeURIComponent(raw)}`)
+
+      expect(state.camera).toBeNull()
+      expect(state.district).toEqual(GANGNAM)
+    })
+  })
+
+  // T-19 — 파라미터 순서는 조건 → 화면 상태 → 뷰 상태다.
+  it('c 를 맨 뒤에 싣는다', () => {
+    expect(
+      serializeState(
+        {
+          ...filled,
+          view: 'results',
+          selectedCommercialCode: '3110008',
+          resultSelectionSource: 'user',
+        },
+        CAMERA,
+      ),
+    ).toBe(
+      `districtCode=11680&administrationCode=${YEOKSAM1}&serviceCode=CS100001&view=results&commercialCode=3110008&c=${encodeURIComponent(
+        serializeMapCamera(CAMERA),
+      )}`,
+    )
+  })
+
+  // 뷰 상태라 결과 단계가 아니어도 붙는다 — 조건만 골라 둔 화면도 공유된다.
+  it('결과 단계가 아니어도 c 는 싣는다', () => {
+    const query = serializeState({ ...filled, view: 'criteria' }, CAMERA)
+
+    expect(query).not.toContain('view=results')
+    expect(
+      query.endsWith(`&c=${encodeURIComponent(serializeMapCamera(CAMERA))}`),
+    ).toBe(true)
+  })
+
+  // T-20 — `c` 없는 기존 링크와 출력이 완전히 같아야 한다(무회귀).
+  it('카메라가 없으면 c 를 싣지 않는다', () => {
+    expect(serializeState({ ...filled })).not.toContain('c=')
+    expect(serializeState({ ...filled }, null)).not.toContain('c=')
+    expect(
+      createRecommendHrefFromCodes({
+        districtCode: GANGNAM.code,
+        administrationCode: YEOKSAM1,
+        serviceCode: HANSIK.code,
+      }),
+    ).not.toContain('c=')
+  })
+
+  it('href 도 같은 시그니처로 카메라를 싣는다', () => {
+    expect(
+      createRecommendHref(
+        {
+          draft: { district: null, administration: null, service: null },
+          view: 'criteria',
+          selectedCommercialCode: null,
+          resultSelectionSource: null,
+        },
+        CAMERA,
+      ),
+    ).toBe(`/recommend?c=${encodeURIComponent(serializeMapCamera(CAMERA))}`)
+  })
+
+  // T-21
+  it('카메라를 실은 쿼리를 다시 파싱하면 같은 카메라다', () => {
+    expect(
+      parse(serializeState({ ...filled, view: 'results' }, CAMERA)).camera,
+    ).toEqual(CAMERA)
   })
 })

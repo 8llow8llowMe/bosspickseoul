@@ -1,5 +1,11 @@
 import { districts } from '@/data/districts'
 import { findSimulationCategoryByCode } from '@/data/simulation-catalog'
+import {
+  MAP_CAMERA_PARAM,
+  parseMapCamera,
+  serializeMapCamera,
+  type MapCamera,
+} from '@/lib/analysis/map-camera'
 import { resolveDistrictCodeFromAdministration } from '@/lib/map/geometry'
 
 import type {
@@ -23,6 +29,11 @@ export const RECOMMEND_URL_PARAMS = {
   service: 'serviceCode',
   commercial: 'commercialCode',
   view: 'view',
+  /**
+   * 지도 카메라. **키·형식·가드는 `lib/analysis/map-camera.ts` 가 정본이다** —
+   * 두 화면이 같은 값을 다른 형식으로 갖지 않게 그쪽 상수를 그대로 쓴다.
+   */
+  camera: MAP_CAMERA_PARAM,
 } as const
 
 /** `view` 가 가질 수 있는 유일한 값. `picker` 는 일시 UI 라 URL 에 넣지 않는다. */
@@ -36,6 +47,13 @@ export type RecommendUrlState = {
   isResultsView: boolean
   /** 사용자가 **직접** 고른 상권. 자동 선택된 1위는 여기 오지 않는다. */
   commercialCode: string | null
+  /**
+   * 지도 카메라. 조건이 아니라 **뷰 상태**라 누가 정했든 항상 나른다(§1-3).
+   *
+   * 조건 파싱과 **독립적**이다 — 자치구가 무효라 조건을 전부 버리는 링크에서도
+   * 「지금 보이는 화면」은 살려 둔다.
+   */
+  camera: MapCamera | null
 }
 
 export const EMPTY_RECOMMEND_URL_STATE: RecommendUrlState = {
@@ -44,6 +62,7 @@ export const EMPTY_RECOMMEND_URL_STATE: RecommendUrlState = {
   service: null,
   isResultsView: false,
   commercialCode: null,
+  camera: null,
 }
 
 /** 검색 파라미터를 읽는 최소 인터페이스. `URLSearchParams` 와 Next 의 것 모두 만족한다. */
@@ -90,6 +109,11 @@ const findService = (code: string | null): RecommendationOption | null => {
 export const parseRecommendUrlState = (
   params: ReadableSearchParams,
 ): RecommendUrlState => {
+  /*
+   * 카메라를 **먼저, 조건과 무관하게** 읽는다. 뷰 상태라 조건이 버려지는 링크에서도
+   * 살아남아야 한다(§4 표 마지막 행: 「카메라만 버린다」의 역도 성립한다).
+   */
+  const camera = parseMapCamera(params.get(RECOMMEND_URL_PARAMS.camera))
   const administrationCode = readCode(
     params,
     RECOMMEND_URL_PARAMS.administration,
@@ -102,7 +126,7 @@ export const parseRecommendUrlState = (
       : null)
   const district = findDistrict(districtCode)
 
-  if (!district) return EMPTY_RECOMMEND_URL_STATE
+  if (!district) return { ...EMPTY_RECOMMEND_URL_STATE, camera }
 
   // 다른 자치구의 행정동은 그 자치구 목록에 없다. 자치구는 살리고 행정동만 버린다.
   const administration =
@@ -126,6 +150,7 @@ export const parseRecommendUrlState = (
     commercialCode: isResultsView
       ? readCode(params, RECOMMEND_URL_PARAMS.commercial)
       : null,
+    camera,
   }
 }
 
@@ -141,6 +166,7 @@ export const createRecommendSearchParams = (
     RecommendationState,
     'draft' | 'view' | 'selectedCommercialCode' | 'resultSelectionSource'
   >,
+  camera?: MapCamera | null,
 ): URLSearchParams => {
   const params = new URLSearchParams()
   const { district, administration, service } = state.draft
@@ -151,12 +177,24 @@ export const createRecommendSearchParams = (
   }
   if (service) params.set(RECOMMEND_URL_PARAMS.service, service.code)
 
-  if (state.view !== 'results') return params
+  if (state.view === 'results') {
+    params.set(RECOMMEND_URL_PARAMS.view, RESULTS_VIEW)
 
-  params.set(RECOMMEND_URL_PARAMS.view, RESULTS_VIEW)
+    if (
+      state.resultSelectionSource === 'user' &&
+      state.selectedCommercialCode
+    ) {
+      params.set(RECOMMEND_URL_PARAMS.commercial, state.selectedCommercialCode)
+    }
+  }
 
-  if (state.resultSelectionSource === 'user' && state.selectedCommercialCode) {
-    params.set(RECOMMEND_URL_PARAMS.commercial, state.selectedCommercialCode)
+  /*
+   * 카메라는 **맨 뒤**다(§1-3). 결과 단계가 아니어도 붙는다 — 조건만 골라 둔 화면도
+   * 「지금 보이는 지도」를 그대로 공유해야 하기 때문에, `view` 분기로 조기 반환하지
+   * 않는다. 카메라가 없으면 아무것도 붙이지 않아 `c` 없는 기존 링크와 출력이 같다.
+   */
+  if (camera) {
+    params.set(RECOMMEND_URL_PARAMS.camera, serializeMapCamera(camera))
   }
 
   return params
@@ -165,8 +203,9 @@ export const createRecommendSearchParams = (
 /** 검색 파라미터가 없으면 `/recommend` 그대로 — 빈 `?` 를 남기지 않는다. */
 export const createRecommendHref = (
   state: Parameters<typeof createRecommendSearchParams>[0],
+  camera?: MapCamera | null,
 ): string => {
-  const query = createRecommendSearchParams(state).toString()
+  const query = createRecommendSearchParams(state, camera).toString()
 
   return query ? `/recommend?${query}` : '/recommend'
 }
@@ -177,6 +216,9 @@ export const createRecommendHref = (
  * `/analysis` 는 상권·업종까지 고르게 하지만 추천은 상권을 *찾아 주는* 쪽이라
  * 상권 코드는 싣지 않는다. 업종은 `findSimulationCategoryByCode` 가 모르는 코드면
  * `parseRecommendUrlState` 가 조용히 버리고 자치구·행정동만 살린다.
+ *
+ * **카메라(`c`)도 넘기지 않는다**(§1-3). 추천은 결과에 맞추는 쪽이고, 분석의 카메라는
+ * 상권 하나에 붙어 있어 추천 5건을 담지 못한다.
  */
 export const createRecommendHrefFromCodes = ({
   districtCode,

@@ -9,6 +9,7 @@ import type {
 import type { AreaBoundaryItem } from '@/types/recommend'
 
 import {
+  applyCameraMode,
   buildRecommendationMapItems,
   buildResultBoundaryBounds,
   collectResultCameraPoints,
@@ -539,5 +540,26 @@ describe('camera padding', () => {
       bottom: MIN_CAMERA_PADDING,
       left: MIN_CAMERA_PADDING,
     })
+  })
+})
+
+// T-25 — 링크가 들고 온 카메라는 복원 사슬의 자동 맞춤 전체를 잠근다(url-state §2-2).
+describe('applyCameraMode', () => {
+  const fit = {
+    kind: 'fit',
+    points: [{ lng: 127.0, lat: 37.5 }],
+  } as const
+
+  it('url 모드에서는 어떤 타깃도 keep 이 된다', () => {
+    expect(applyCameraMode(fit, 'url')).toEqual({ kind: 'keep' })
+    expect(applyCameraMode({ kind: 'reset' }, 'url')).toEqual({ kind: 'keep' })
+    expect(applyCameraMode({ kind: 'keep' }, 'url')).toEqual({ kind: 'keep' })
+  })
+
+  it('auto 모드에서는 타깃을 그대로 둔다', () => {
+    const reset = { kind: 'reset' } as const
+
+    expect(applyCameraMode(fit, 'auto')).toBe(fit)
+    expect(applyCameraMode(reset, 'auto')).toBe(reset)
   })
 })

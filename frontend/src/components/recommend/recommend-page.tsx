@@ -36,6 +36,7 @@ import {
   RECOMMENDATION_TOP_N,
   SEOUL_MAP_BOUNDS,
 } from '@/lib/api/recommend'
+import type { MapCamera } from '@/lib/analysis/map-camera'
 import {
   buildRecommendationMapItems,
   buildResultBoundaryBounds,
@@ -654,6 +655,15 @@ function RecommendPageBody() {
     urlSeed satisfies RecommendationSeed,
     createInitialRecommendationState,
   )
+  /**
+   * 지도 카메라의 **현재 값**. 리듀서가 아니라 ref 로 든다 — 팬 한 번마다 리듀서가
+   * 바뀌면 화면 전체가 리렌더된다(url-state §2-2).
+   *
+   * ⚠️ **씨앗을 초기값으로 쓴다.** 마운트 직후 거울이 상태만 보고 URL 을 다시 쓰면,
+   * 지도가 첫 `idle` 을 올리기 전에 `c` 를 지워 버린다 — 조건 없는 `/recommend?c=…`
+   * 는 거울 잠금이 없어 마운트 즉시 거울이 도니 특히 그렇다.
+   */
+  const cameraRef = useRef<MapCamera | null>(urlSeed.camera)
   const [viewportBounds, setViewportBounds] =
     useState<GeoBounds>(SEOUL_MAP_BOUNDS)
   const mapStage = getRecommendationStage(
@@ -972,6 +982,12 @@ function RecommendPageBody() {
   ])
 
   /**
+   * 지도 콜백이 읽는 최신 상태. 지도 `idle` 은 렌더 밖에서 오므로 ref 로 든다.
+   * 렌더 중에 대입하지 않고 아래 거울 이펙트가 갱신한다(`react-hooks/refs`).
+   */
+  const stateRef = useRef(state)
+
+  /**
    * `view=results` 로 들어온 링크는 후보 상권 목록이 와야 제출할 수 있다
    * (`submitted` 가 코드 목록을 요구한다). 목록이 도착하는 **첫 순간 한 번만** 제출한다.
    */
@@ -1006,6 +1022,8 @@ function RecommendPageBody() {
       commercialCodes: commercials.map(commercial =>
         String(commercial.commercialCode),
       ),
+      // 사용자가 누른 제출이 아니라 링크 복원이다 — 링크 카메라의 잠금을 풀지 않는다.
+      source: 'seed',
     })
   }, [
     commercials,
@@ -1049,24 +1067,53 @@ function RecommendPageBody() {
    *
    * **중복은 ref 가 아니라 실제 주소창과 비교해서 막는다.** ref 로 막으면 StrictMode 가
    * 이펙트를 두 번 부를 때 첫 호출이 ref 를 채우고 두 번째가 조기 반환한다.
+   *
+   * `stateRef` 는 거울 이펙트가 갱신하므로 만료된 `idle` 타이머가 한 렌더 낡은 상태로
+   * 먼저 쓸 수는 있다. 바로 뒤 이펙트가 다시 써서 자가 치유되는데, 이 함수에 「같으면
+   * 조기 반환」 외의 부작용(히스토리 push·분석 이벤트)을 붙이면 그 전제가 깨진다.
    */
-  useEffect(() => {
+  const writeUrlMirror = useCallback(() => {
     if (typeof window === 'undefined') return
     /*
      * 복원이 끝나기 전에는 쓰지 않는다. 마운트 직후 `state.view` 는 아직 `'criteria'`
      * 라서, 그대로 반영하면 **링크가 들고 온 `view=results`·`commercialCode` 를 주소창에서
      * 먼저 지워 버린다.** 그 사이 사용자가 주소를 복사하거나 새로고침하면 결과·선택이
      * 영구히 빠진 링크가 된다 — 공유받은 링크를 다시 공유하는 흔한 경로다.
+     *
+     * 카메라(`c`)도 같은 잠금을 따른다 — 복원 중에는 어떤 값도 쓰지 않는다.
      */
     if (!seededSubmitRef.current) return
 
-    const href = createRecommendHref(state)
+    const href = createRecommendHref(stateRef.current, cameraRef.current)
     const current = `${window.location.pathname}${window.location.search}`
 
     if (current === href) return
 
     window.history.replaceState(window.history.state, '', href)
-  }, [state])
+  }, [])
+
+  useEffect(() => {
+    // 콜백이 읽을 최신 상태를 여기서 갱신한다 — 렌더 중 ref 대입은 금지다.
+    stateRef.current = state
+    writeUrlMirror()
+  }, [state, writeUrlMirror])
+
+  /**
+   * 지도가 멈췄다(`idle`). 카메라 **값**은 상태가 아니라 ref 라서, 거울을 여기서
+   * 직접 한 번 더 돌려야 `c` 가 주소창에 실린다.
+   */
+  const handleCameraSettle = useCallback(
+    (camera: MapCamera) => {
+      cameraRef.current = camera
+      writeUrlMirror()
+    },
+    [writeUrlMirror],
+  )
+
+  /** 「선택 범위로 이동」 — 지도는 이미 맞췄고, 여기서는 자동 맞춤을 다시 허용한다. */
+  const handleCameraFollowRequested = useCallback(() => {
+    dispatch({ type: 'cameraFollowRequested' })
+  }, [])
 
   useEffect(() => {
     if (
@@ -1669,8 +1716,10 @@ function RecommendPageBody() {
         <MapSlot>
           <RecommendMap
             administrationAreas={administrationAreas}
+            cameraMode={state.cameraMode}
             commercialAreas={commercialAreas}
             districtAreas={districtAreas}
+            initialCamera={urlSeed.camera}
             isResultSelectionExplicit={state.resultSelectionSource === 'user'}
             // 경계가 도착하기 전에 중심점으로 한 번 맞추고 다시 맞추면 카메라가 두 번
             // 움직인다. 경계 질의가 끝날 때까지 카메라를 잡아 둔다.
@@ -1689,9 +1738,11 @@ function RecommendPageBody() {
             stage={mapStage}
             onAdministrationSelect={handleMapAdministrationSelect}
             onBackgroundClick={handleMapBackgroundClick}
+            onCameraSettle={handleCameraSettle}
             onCommercialPreviewChange={handleResultPreviewChange}
             onCommercialSelect={handleResultSelect}
             onDistrictSelect={handleMapDistrictSelect}
+            onRecenter={handleCameraFollowRequested}
             onViewportBoundsChange={setViewportBounds}
           />
         </MapSlot>
