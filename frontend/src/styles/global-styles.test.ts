@@ -187,9 +187,10 @@ describe('브랜드 강조색은 로고 전용이다', () => {
  * 규약을 어기게 되고, 화면에서는 요소마다 링 색이 달라지는 것으로만 드러난다.
  * 실제로 세 곳이 그렇게 어긋나 있었다(#265).
  *
- * 링 대신 **컨트롤 테두리를 바꾸는** 포커스 표현은 이 가드의 대상이 아니다 — 그쪽에는
- * 아직 600 을 쓰는 곳이 여럿 있고, 통일 여부는 #265 에서 따로 판단한다. 여기서 함께
- * 막으면 지금 통과할 수 없는 가드가 된다.
+ * 링 대신 **컨트롤 테두리를 바꾸는** 포커스 표현도 같은 규약이다. 처음에는 커뮤니티 폼
+ * 6곳이 600 을 쓰고 있어 링만 막았는데, 그 6곳을 700 으로 맞춘 뒤(#308) 테두리형도 함께
+ * 막는다 — `TextField` 가 포커스 테두리에 쓰는 색(`#0ea5e9` = primary-700)과 같아야
+ * 한 화면에서 칸마다 포커스 색이 달라지지 않는다.
  */
 describe('포커스 링은 primary-700 이다', () => {
   const projectRoot = path.resolve(
@@ -222,6 +223,22 @@ describe('포커스 링은 primary-700 이다', () => {
   it('아웃라인에 primary-600 을 쓰는 곳이 없다', () => {
     const offenders = collectSources(projectRoot)
       .filter(file => bannedRing.test(readFileSync(file, 'utf8')))
+      .map(file => path.relative(projectRoot, file))
+
+    expect(offenders).toEqual([])
+  })
+
+  /**
+   * `&:focus-visible { … border-color: var(--color-primary-600) }` 꼴. `:focus` ·
+   * `:focus-within` 도 같은 규약이다. hover 블록의 600 은 맞는 사용이므로 포커스 선택자로
+   * 시작하는 블록 안만 본다.
+   */
+  const bannedFocusBorder =
+    /&:focus(?:-visible|-within)?\s*\{[^}]*border(?:-color)?:[^;]*var\(--color-primary-600\)/
+
+  it('포커스 테두리에 primary-600 을 쓰는 곳이 없다', () => {
+    const offenders = collectSources(projectRoot)
+      .filter(file => bannedFocusBorder.test(readFileSync(file, 'utf8')))
       .map(file => path.relative(projectRoot, file))
 
     expect(offenders).toEqual([])

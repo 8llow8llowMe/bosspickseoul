@@ -101,8 +101,9 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 > `--color-blue-500`)이고, 링 대신 컨트롤 테두리를 바꾸는 방식이면 `--shadow-focus-primary`
 > 를 함께 얹는다.
 >
-> 아웃라인 링에 `primary-600` 을 쓰지 못하게 `global-styles.test.ts` 가 소스를 스캔해
-> 막는다. 테두리형 포커스에는 아직 `primary-600` 을 쓰는 곳이 남아 있다(#265).
+> 아웃라인 링과 테두리형 포커스(`&:focus-visible { border-color: … }`) 모두에 `primary-600`
+> 을 쓰지 못하게 `global-styles.test.ts` 가 소스를 스캔해 막는다. 테두리형에 남아 있던
+> 커뮤니티 폼 6곳은 #308 에서 700 으로 맞췄다.
 
 - **Blue Light** (`#e8f3ff`): `blue50`. Informational backgrounds, subtle blue-tinted surfaces.
 - **Pure White** (`#ffffff`): `background`, `layeredBackground`. Page background, card surfaces.
