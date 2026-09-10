@@ -5,8 +5,8 @@
 -- Prerequisite: `policy` table already exists (policy-seed.sql / commercial-service entity).
 -- After this script, re-run policy-seed.sql so BIZINFO remaps and SEED external_id values land.
 --
--- Quartz tables are in quartz-schema-mysql.sql. Spring Batch metadata, if missing,
--- is in spring-batch-schema-mysql.sql.
+-- Quartz tables (quartz-schema-mysql.sql) and Spring Batch metadata
+-- (spring-batch-schema-mysql.sql) belong on the BATCH_DB_URL schema (district).
 
 ALTER TABLE policy
     ADD COLUMN source VARCHAR(20) NULL COMMENT '수집 원천 (SEED/BIZINFO). 추천 API 에는 노출하지 않는다',

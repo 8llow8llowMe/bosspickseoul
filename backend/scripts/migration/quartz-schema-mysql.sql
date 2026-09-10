@@ -1,5 +1,7 @@
--- Quartz 2.3 JDBC JobStore (MySQL InnoDB). Apply to the commercial-service schema
--- used by batch-service `scheduler` profile. spring.quartz.jdbc.initialize-schema=never.
+-- Quartz 2.3 JDBC JobStore (MySQL InnoDB).
+-- Apply to the schema that BATCH_DB_URL points at (Jenkins batch-service-dev = district).
+-- policy rows live on commercial via COMMERCIAL_DB_URL; Quartz metadata does not.
+-- spring.quartz.jdbc.initialize-schema=never.
 -- Source: org/quartz/impl/jdbcjobstore/tables_mysql_innodb.sql (Quartz 2.3.2).
 
 SET FOREIGN_KEY_CHECKS = 0;

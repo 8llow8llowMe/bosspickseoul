@@ -59,7 +59,7 @@ public class PolicyCollectProcessor {
     /**
      * upsert 와 stale-mark 를 한 트랜잭션으로 묶는다. 원천 실패 시 여기까지 오지 않는다.
      */
-    @Transactional
+    @Transactional("policyTransactionManager")
     public void commit(PolicyCollectSnapshot snapshot) {
         long previous = policyCommandPort.countBySource(PolicySource.BIZINFO);
         policyCommandPort.upsertAll(PolicySource.BIZINFO, snapshot.rows(), snapshot.seenAt());
