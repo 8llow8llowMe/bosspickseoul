@@ -1,45 +1,38 @@
 package com.followfollowme.bosspickseoul.global.config;
 
+import com.followfollowme.bosspickseoul.global.properties.PolicyIngestionProperties;
 import jakarta.annotation.PreDestroy;
 import java.io.Closeable;
 import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.util.StringUtils;
 
 /**
  * policy 테이블은 commercial 스키마에 있다. 기본 {@code BATCH_DB_URL} 은 district 를 유지한다.
  */
 @Configuration
+@RequiredArgsConstructor
 public class PolicyCommercialDataSourceConfig {
 
+    private final PolicyIngestionProperties properties;
     private DataSource createdPolicyDataSource;
 
     @Bean(name = "policyDataSource", destroyMethod = "")
-    public DataSource policyDataSource(
-        DataSource dataSource,
-        @Value("${batch.policy.enabled:false}") boolean enabled,
-        @Value("${batch.policy-datasource.url:}") String url,
-        @Value("${batch.policy-datasource.username:}") String username,
-        @Value("${batch.policy-datasource.password:}") String password,
-        @Value("${batch.policy-datasource.driver-class-name:com.mysql.cj.jdbc.Driver}") String driverClassName
-    ) {
-        if (!enabled) {
+    public DataSource policyDataSource(DataSource dataSource) {
+        if (!properties.enabled()) {
             return dataSource;
         }
-        if (!StringUtils.hasText(url)) {
-            throw new IllegalStateException("COMMERCIAL_DB_URL is required when batch.policy.enabled=true");
-        }
+        PolicyIngestionProperties.Datasource datasource = properties.datasource();
         DataSource created = DataSourceBuilder.create()
-            .url(url)
-            .username(username)
-            .password(password)
-            .driverClassName(driverClassName)
+            .url(datasource.url())
+            .username(datasource.username())
+            .password(datasource.password())
+            .driverClassName(datasource.driverClassName())
             .build();
         this.createdPolicyDataSource = created;
         return created;
