@@ -19,8 +19,17 @@ import java.util.Locale;
 public enum Dataset {
     SALES_COMMERCIAL("VwsmTrdarSelngQq", AreaScope.COMMERCIAL, true, List.of("THSMON_SELNG_AMT")),
     STORE_COMMERCIAL("VwsmTrdarStorQq", AreaScope.COMMERCIAL, true, List.of("STOR_CO")),
-    FOOT_TRAFFIC_COMMERCIAL("VwsmTrdarFlpopQq", AreaScope.COMMERCIAL, false, List.of("TOT_FLPOP_CO")),
-    CHANGE_COMMERCIAL("VwsmTrdarIxQq", AreaScope.COMMERCIAL, false, List.of("TRDAR_CHNGE_IX")),
+    // commercial-service 매퍼가 필수로 읽는 컬럼(shared DatasetKey.readerRequiredFields)을 전부 요구한다.
+    // 여기서 걸러야 결손 행이 게시돼 조회가 한 분기 전체를 500 으로 만드는 일이 없다. DatasetTest 가 포함 관계를 고정한다.
+    FOOT_TRAFFIC_COMMERCIAL("VwsmTrdarFlpopQq", AreaScope.COMMERCIAL, false, List.of(
+        "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM",
+        "TOT_FLPOP_CO", "ML_FLPOP_CO", "FML_FLPOP_CO",
+        "AGRDE_10_FLPOP_CO", "AGRDE_20_FLPOP_CO", "AGRDE_30_FLPOP_CO", "AGRDE_40_FLPOP_CO", "AGRDE_50_FLPOP_CO", "AGRDE_60_ABOVE_FLPOP_CO",
+        "TMZON_00_06_FLPOP_CO", "TMZON_06_11_FLPOP_CO", "TMZON_11_14_FLPOP_CO", "TMZON_14_17_FLPOP_CO", "TMZON_17_21_FLPOP_CO",
+        "TMZON_21_24_FLPOP_CO",
+        "MON_FLPOP_CO", "TUES_FLPOP_CO", "WED_FLPOP_CO", "THUR_FLPOP_CO", "FRI_FLPOP_CO", "SAT_FLPOP_CO", "SUN_FLPOP_CO")),
+    CHANGE_COMMERCIAL("VwsmTrdarIxQq", AreaScope.COMMERCIAL, false, List.of(
+        "TRDAR_CHNGE_IX", "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM")),
     POPULATION_COMMERCIAL("VwsmTrdarRepopQq", AreaScope.COMMERCIAL, false, List.of("TOT_REPOP_CO")),
     FACILITY_COMMERCIAL("VwsmTrdarFcltyQq", AreaScope.COMMERCIAL, false, List.of("VIATR_FCLTY_CO")),
     CONSUMPTION_COMMERCIAL("VwsmTrdhlNcmCnsmpQq", AreaScope.COMMERCIAL, false, List.of("EXPNDTR_TOTAMT")),
