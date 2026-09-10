@@ -18,6 +18,7 @@
 - `simulation`
 - `analysisbookmark`
 - `policy`
+- `dataset` — 분기 적재 배치가 게시한 `dataset_fact` 릴리스를 읽는 조회 인프라 (아래 「데이터셋 릴리스 조회 경로」)
 
 ## 인증 방식
 
@@ -336,6 +337,25 @@
   도입하려면 ① 이벤트에 viewer 식별자 추가 ② 집계 시 `{prefix}:ranking:dedup:{TYPE}:{code}:{viewer}`
   SETNX(60초)로 중복 무시 순서로 확장한다. 식별자 확보가 web 계층 의존을 만들므로 설계 결정이 선행돼야 한다.
 
+## 데이터셋 릴리스 조회 경로 (dataset)
+
+batch-service 가 서울 Open API 15종을 `dataset_release` / `dataset_fact`(payload JSON) / `dataset_active_release`(슬롯별 활성 run 포인터) 에 게시한다(`batch-service.md`). 이 서비스는 레거시 팩트 테이블(20233 까지) 과 그 릴리스를 **분기마다** 골라 읽는다. 공개 API 계약과 프로세서는 바뀌지 않았다.
+
+- **라우팅 규칙** — 팩트 out-port 의 구현체(`*RepositoryAdapter`) 가 라우팅 어댑터다. 분기가 다음 셋을 모두 만족하면 `Dataset*Source`(run_id 접두 PK 조회), 아니면 `Legacy*Source`(기존 JPA) 로 간다: (1) `app.dataset.read-enabled=true`, (2) 분기 ≥ `app.dataset.read-from-period`(기본 `20241`), (3) 슬롯(dataset, period, `spatial-version`, `schema-version`) 에 활성 run 이 있음. 판단은 `dataset/adapter/out/persistence/DatasetReadRouter` 가 하고, 슬롯 → run_id 는 `DatasetReleaseResolver` 가 60초 TTL 로 캐시한다(부재도 캐시).
+- **릴리스가 있는데 행이 없으면 레거시로 떨어지지 않는다.** "없음" 이 맞는 답이다. 폴백하면 다른 폴리곤 기준의 값이 섞인다.
+- **혼합 분기** — 트렌드처럼 여러 분기를 한 번에 읽는 조회는 `DatasetReadRouter.split` 으로 레거시 분기·데이터셋 분기를 나눠 각각 조회한 뒤 합친다. 프로세서는 분기 코드로 맵을 만들므로 순서에 의존하지 않는다.
+- **payload 매핑** — `dataset_fact.payload` 키는 서울 API 컬럼 코드(`seoul/csv-header-aliases.csv` 정본), 값은 평문 십진수 문자열이다. 데이터셋별 `*FactMapper` 가 `FactPayload` 로 읽어 기존 도메인 모델을 만든다. 필수 키 부재·숫자 파싱 실패는 `DATASET_001`(500) 로 fail-closed, 정수 컬럼에 소수가 오면 HALF_UP. 상권 코드는 payload 가 아니라 키(`area_code`) 를 믿는다. JSON 함수 SQL(`JSON_EXTRACT`) 은 쓰지 않는다 — H2 슬라이스 테스트가 불가능하고 인덱스가 없다.
+- **엔티티** — `dataset_fact` / `dataset_active_release` 를 `@Immutable` + `@EmbeddedId` 로 미러링한다(coding-conventions §9-1 의 예외). DDL 은 배치 `quarterly-dataset-schema.sql` 이 소유하고, `DatasetSchemaFilterProvider` 가 Hibernate `ddl-auto` 에서 `dataset_` 접두 테이블을 제외한다. `read-enabled=true` 인데 테이블을 읽을 수 없으면 `DatasetReadStartupCheck` 가 기동을 멈춘다.
+- **설정** (`app.dataset.*`, 환경변수 `DATASET_*`): `read-enabled`(false), `spatial-version`(`legacy-20233`), `schema-version`(`seoul-v1`), `read-from-period`(`20241`), `resolver-cache-ttl`(60s). 새 폴리곤 기준으로 팩트를 재게시한 뒤 `spatial-version` 만 바꿔 전환한다. 배포 단위로 하나의 기준만 운영하므로 요청 파라미터가 아니다.
+- **전환된 데이터셋** (1단계):
+
+| 데이터셋 | 포트 | 소스 | 비고 |
+|---|---|---|---|
+| `CHANGE_COMMERCIAL` | `ChangeCommercialRepositoryPort` | `Legacy/DatasetChangeCommercialSource` | 레거시 `change_commercial` 이 비어 있어 첫 대상. 히트맵 위험도 배수 |
+| `FOOT_TRAFFIC_COMMERCIAL` | `FootTrafficCommercialRepositoryPort` | `Legacy/DatasetFootTrafficCommercialSource` | 단건 + `periodCodeIn`(트렌드) — 레거시·데이터셋 혼합 조회의 첫 경로 |
+
+- **남은 단계** — 2단계: `SALES/STORE_COMMERCIAL`(`store_commercial.service_type` 은 원천에 없는 파생 컬럼이라 `service_category` 조인 필요), `POPULATION`, `FACILITY`, `CONSUMPTION_COMMERCIAL`(소득 2컬럼 nullable + `availability` 메타데이터, additive), 트렌드 항목에 `spatialVersion` 노출. 3단계: 행정동·자치구 8종(QueryDSL 자기조인 증감률 → 어댑터 메모리 집계), 컨트롤러 기본 분기 `20233` 설정화.
+
 ## 에러코드 (대역 요약)
 
 컨텍스트별 ErrorCode enum 을 각각 유지한다. 상세 메시지는 각 enum 이 단일 기준점이다.
@@ -349,6 +369,7 @@
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 | `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102). 검증 대역은 `RANKING_101` (`RankingValidationMessage`) |
 | `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_006` | 업종/임대료/프랜차이즈/이력 미존재 404, 프랜차이즈 미선택·업종 불일치 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
+| `DatasetErrorCode` | `DATASET_001`~`DATASET_002` | 적재 payload 형식 오류 500 / 데이터셋 저장소 사용 불가 503. 검증 대역 없음(요청 입력이 없다) |
 | `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_006` | 미존재 404 / 중복 저장 409(dataBody 에 기존 항목 아이디) / payload·타입 검증 400 / 저장 상한 초과 400. 검증 대역은 `ANALYSIS_BOOKMARK_101`~`ANALYSIS_BOOKMARK_105` (`AnalysisBookmarkValidationMessage`) |
 
 ## Notes

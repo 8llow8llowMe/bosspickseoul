@@ -531,6 +531,21 @@ INDEX(status)
 
 ---
 
+### `commercial-service` — 분기 데이터셋 릴리스 조회 경로 (1단계)
+
+**상태**: 구현 완료, 기본 비활성(`app.dataset.read-enabled=false`). 2026-09-10.
+
+**내용**:
+- batch-service 가 게시한 `dataset_fact` / `dataset_active_release` 를 읽는 `dataset` 컨텍스트(읽기 전용 엔티티, 리졸버 캐시, 라우터, payload 헬퍼, `DATASET_001/002`)
+- `CHANGE_COMMERCIAL`, `FOOT_TRAFFIC_COMMERCIAL` out-port 구현체를 라우팅 어댑터로 전환 — 분기마다 레거시 테이블 또는 활성 release 를 읽는다. 공개 API 무변경
+
+**설계 결정**:
+- 기존 out-port 유지 + 데이터셋별 점진 전환. 소스 선택은 adapter/out 책임이고 프로세서는 모른다
+- 행 단위 조회 + JSON 매핑(`JSON_EXTRACT` 미사용), run_id 접두 PK 조회만 하므로 2차 인덱스 없음
+- `read-from-period`(기본 20241) 컷오프로 백필된 과거 분기가 조용히 바뀌는 것을 막는다
+
+**남은 것**: 2단계 `SALES/STORE/POPULATION/FACILITY/CONSUMPTION_COMMERCIAL`(소득 nullable + availability), 3단계 행정동·자치구 8종, 기본 분기 설정화. 상세는 `services/commercial-service.md` 「데이터셋 릴리스 조회 경로」.
+
 ## 미구현 / 보류 기능
 
 ---

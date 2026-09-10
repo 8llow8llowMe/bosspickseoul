@@ -179,9 +179,9 @@ backend/
 - 행정동/자치구: `/api/v1/administrations/{code}`, `/api/v1/districts/**`
 - 공유 링크: `POST/GET /api/v1/share-links`
 
-**컨텍스트**: administration, category, commercial, commercialsummary, district, sharelink (6개)
+**컨텍스트**: administration, analysisbookmark, category, commercial, commercialsummary, dataset, district, policy, ranking, sharelink, simulation (11개)
 
-**특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
+**특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel, DatasetKey), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
 
 ---
 
@@ -219,7 +219,10 @@ backend/
 **역할**: 대량 데이터 적재용 일회성/수동 실행 배치
 
 **처리:**
-- 영역 좌표(area_boundary) 대량 적재 (`AreaBoundaryImportJob`)
+- 영역 좌표(area_boundary) 대량 적재 (`AreaBoundaryImportJob`, `areaboundary` 컨텍스트)
+- 서울 Open API 15종 분기 적재 → `dataset_release`/`dataset_fact`/`dataset_active_release`, 공간 스냅샷(GEOJSON·LEGACY) 게시 (`dataingestion` 컨텍스트, `--job=facts|spatial`, `quarterly` 프로파일)
+
+**특수 의존**: `core:shared-commercial` (테스트 — `DatasetKey` 이름 계약 대조)
 
 ---
 

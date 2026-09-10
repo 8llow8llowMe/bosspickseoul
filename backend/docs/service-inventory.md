@@ -11,7 +11,9 @@
 - 책임: 상권 상세 분석, 자치구·행정동 분석, 상권 요약 조회, 분석 화면 공유 링크, 분석 보관함,
   창업 시뮬레이션, 분석 인기 순위, 지원 정책 추천
 - 컨텍스트: `commercial`, `district`, `administration`, `commercialsummary`, `category`,
-  `sharelink`, `analysisbookmark`, `simulation`, `ranking`, `policy`
+  `sharelink`, `analysisbookmark`, `simulation`, `ranking`, `policy`, `dataset`
+- `dataset`: batch-service 가 게시한 `dataset_fact` 릴리스를 읽는 조회 인프라. 팩트 out-port 구현체가 분기마다
+  레거시 테이블과 릴리스를 골라 읽는다(`app.dataset.read-enabled` 기본 false, 1단계는 상권 변화지표·유동인구).
 - `ranking`: 분석 조회 이벤트를 Kafka 로 발행/집계해 Redis Sorted Set 실시간 인기 순위를 제공한다.
   `RANKING_ENABLED=false`(기본)면 Kafka 빈이 등록되지 않아 브로커 없이도 정상 기동하며,
   파이프라인 장애는 인기 순위 API(RANKING_001 503)에만 영향을 준다.
@@ -38,8 +40,9 @@
 
 ## Batch Service
 
-- 책임: 영역 좌표 적재 등 일회성/수동 실행 배치
-- 특징: Spring Batch 기반, 실행 파라미터 중심 운영
+- 책임: 영역 좌표 적재(`areaboundary`), 서울 Open API 15종 분기 적재와 공간 스냅샷 게시(`dataingestion`,
+  `--job=facts|spatial`, `services/batch-service.md`)
+- 특징: Spring Batch 기반, 실행 파라미터 중심 운영. `dataset_*` 테이블의 DDL 소유자(`scripts/migration/quarterly-dataset-schema.sql`)
 
 ## AI Service
 
