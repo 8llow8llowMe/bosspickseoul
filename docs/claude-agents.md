@@ -63,6 +63,23 @@
 
 **아직 만들지 않았다.** FE 작업은 공용 역할(`explorer`·`implementer`·`reviewer`)을 쓰고, 프로세스는 `frontend/CLAUDE.md` 의 superpowers 흐름(명세 → 계획 → 구현 → 검증)을 따른다. FE 전용 역할(명세·API 계약·디자인·테스트 등)이 필요해지면 별도 이슈로 정한다.
 
+### 세션 모델과 하위 에이전트
+
+위 표는 **하위 에이전트**의 모델이다. 메인 실행자(사용자와 대화하는 세션)의 모델은 사용자가 고르며, 그에 따라 역할이 갈린다.
+
+| 세션 모델 | 메인 실행자가 직접 하는 것 | 하위 에이전트로 넘기는 것 |
+|-----------|----------------------------|---------------------------|
+| **Fable** | 작업 분류, 계획(plan), 설계·아키텍처 판단, 결과 통합, 최종 판단. `architect` 를 따로 부르지 않는다 — 같은 모델을 두 번 쓰는 셈이다 | 탐색(`explorer` Sonnet), 구현(`crud-implementer` Sonnet · `implementer`/`be-executor` Opus), 검토(`reviewer`·`be-*-reviewer` Opus), 버그 분석(`bug-investigator` Opus), 리팩토링(`refactorer` Opus) |
+| **Opus 이하** | 분류·계획·통합 | 위 표 그대로. 설계가 필요하면 `architect`(Fable) 를 부른다 |
+
+규칙은 셋이다.
+
+1. **하위 에이전트에 Fable 을 쓰지 않는다.** Fable 은 되돌리기 비싼 판단(설계·범위·트레이드오프)에 쓰는 모델이고, 그 판단은 메인이 맥락을 가장 많이 들고 있을 때 해야 한다. 하위 에이전트는 맥락을 잘라 받으므로 Fable 을 줘도 그만큼 나오지 않는다.
+2. **실행은 위임한다.** 세션이 Fable 이어도 diff 를 만드는 손과 diff 를 읽는 눈은 Opus/Sonnet 하위 에이전트다. 메인이 직접 구현해도 되는 것은 `dev-orchestrator` SIMPLE 의 「위임 비용이 더 큰 한 줄 변경」뿐이다.
+3. **모델을 낮추지 않는다.** 하위 에이전트 모델은 역할표가 정한다. 세션이 Fable 이라는 이유로 `reviewer` 를 Sonnet 으로 내리지 않고, 세션이 Sonnet 이라는 이유로 `implementer` 를 Sonnet 으로 내리지 않는다. 비용을 줄이려면 호출 횟수를 줄인다(형식적 탐색·검토 생략).
+
+호출 방법은 그대로다 — `Agent` 도구의 `subagent_type` 으로 역할을 고르면 `.claude/agents/*.md` 의 `model` 이 붙는다. `model` 을 호출 시점에 덮어쓰지 않는다.
+
 ### 모델 가용성
 
 `fable` 을 쓸 수 없는 계정에서는 `architect` 가 세션 기본 모델로 떨어지거나 호출이 거절될 수 있다. 아키텍처 작업을 시작하기 전에 `.claude/agents/architect.md` 의 `model` 을 팀이 합의한 대체 모델(`opus`)로 조정하거나, 제한을 메인 실행자에게 보고한다.

@@ -65,6 +65,7 @@
 | 백엔드 | `be-executor`, `be-hexagonal-reviewer`, `be-db-reviewer`, `be-security-reviewer` |
 
 - 모델 배정: 설계·아키텍처는 **Fable**, 어려운 구현·버그 분석·리팩토링·최종 검토는 **Opus**, 탐색·DTO·매핑 같은 저비용 반복은 **Sonnet**.
+- **세션 모델이 Fable 이면 계획은 메인이, 실행은 하위 에이전트가 한다.** 작업 분류·계획·설계 판단·결과 통합은 Fable 인 메인 실행자가 직접 하고(`architect` 를 따로 부르지 않는다), 리뷰·구현·탐색은 위 배정표대로 **Opus / Sonnet** 하위 에이전트에 위임한다. 하위 에이전트에 Fable 을 쓰지 않는다. 세션 모델이 Opus 이하면 기존 배정표를 그대로 따른다. 상세는 [docs/claude-agents.md](docs/claude-agents.md) 「세션 모델과 하위 에이전트」.
 - 검토 역할은 `tools` 로 읽기 전용을 강제한다. Write/Edit 를 부여하지 않는다.
 - **모든 작업을 병렬화하지 않는다.** 서로 독립적인 읽기 전용 조사·검토만 한 메시지 안에서 병렬 호출하고, 같은 파일을 고치는 쓰기 역할은 한 번에 하나만 실행한다.
 - 작업 분류와 라우팅은 `dev-orchestrator` 스킬을 쓴다.
