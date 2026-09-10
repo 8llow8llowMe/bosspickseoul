@@ -531,20 +531,20 @@ INDEX(status)
 
 ---
 
-### `commercial-service` — 분기 데이터셋 릴리스 조회 경로 (1단계)
+## 제거된 기능
 
-**상태**: 구현 완료, 기본 비활성(`app.dataset.read-enabled=false`). 2026-09-10.
+---
 
-**내용**:
-- batch-service 가 게시한 `dataset_fact` / `dataset_active_release` 를 읽는 `dataset` 컨텍스트(읽기 전용 엔티티, 리졸버 캐시, 라우터, payload 헬퍼, `DATASET_001/002`)
-- `CHANGE_COMMERCIAL`, `FOOT_TRAFFIC_COMMERCIAL` out-port 구현체를 라우팅 어댑터로 전환 — 분기마다 레거시 테이블 또는 활성 release 를 읽는다. 공개 API 무변경
+### `commercial-service` — 분기 데이터셋 릴리스 조회 경로 (제거됨)
 
-**설계 결정**:
-- 기존 out-port 유지 + 데이터셋별 점진 전환. 소스 선택은 adapter/out 책임이고 프로세서는 모른다
-- 행 단위 조회 + JSON 매핑(`JSON_EXTRACT` 미사용), run_id 접두 PK 조회만 하므로 2차 인덱스 없음
-- `read-from-period`(기본 20241) 컷오프로 백필된 과거 분기가 조용히 바뀌는 것을 막는다
+**상태**: ❌ 2026-09-10 제거. 1단계로 넣었던 `dataset` 컨텍스트(읽기 전용 엔티티·리졸버 캐시·라우터·payload 매퍼·`DATASET_001`)와 `CHANGE_COMMERCIAL`/`FOOT_TRAFFIC_COMMERCIAL` 라우팅 어댑터, `app.dataset.*` 설정을 걷어냈다. 팩트 out-port 구현체는 다시 기존 팩트 테이블만 읽는다. 공개 API 무변경.
 
-**남은 것**: 2단계 `SALES/STORE/POPULATION/FACILITY/CONSUMPTION_COMMERCIAL`(소득 nullable + availability), 3단계 행정동·자치구 8종, 기본 분기 설정화. 상세는 `services/commercial-service.md` 「데이터셋 릴리스 조회 경로」.
+**바뀐 방향**:
+- batch-service 는 2024년 1분기(`20241`) 이후 분기를 `dataset_fact` 에 **적재만** 한다. 2024년부터 원천의 공간 단위·컬럼이 달라져 원천 그대로 보관한다.
+- 후속: 기존 팩트 테이블(상권·자치구·행정동)에 필요한 컬럼을 추가하고 적재분을 **이관**한다. 클라이언트가 `20241` 이후를 요청하면 같은 테이블에서 변경된 기준의 값을 받는다. 조회 서비스에 분기별 소스 라우팅을 다시 두지 않는다.
+- 상세는 `services/commercial-service.md` 「분기 데이터셋 조회 방향」, 적재는 `services/batch-service.md`.
+
+---
 
 ## 미구현 / 보류 기능
 
