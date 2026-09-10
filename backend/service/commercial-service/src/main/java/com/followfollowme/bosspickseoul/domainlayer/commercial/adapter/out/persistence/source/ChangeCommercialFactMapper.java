@@ -3,6 +3,8 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.pers
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.ChangeCommercial;
 import com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence.entity.DatasetFactEntity;
 import com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence.support.FactPayload;
+import com.followfollowme.bosspickseoul.domainlayer.dataset.application.exception.DatasetErrorCode;
+import com.followfollowme.bosspickseoul.domainlayer.dataset.application.exception.DatasetException;
 
 /**
  * {@code CHANGE_COMMERCIAL}(서울 API {@code VwsmTrdarIxQq}) payload → {@link ChangeCommercial}.
@@ -26,13 +28,12 @@ final class ChangeCommercialFactMapper {
     private ChangeCommercialFactMapper() {
     }
 
-    /** {@code requestedPeriod} 는 payload 에 분기 코드가 없을 때의 폴백이다 (release 슬롯이 이미 그 분기다). */
-    static ChangeCommercial toDomain(DatasetFactEntity fact, String requestedPeriod) {
+    static ChangeCommercial toDomain(DatasetFactEntity fact, String slotPeriod) {
         FactPayload payload = new FactPayload(fact.getPayload());
-        String periodCode = payload.textOrNull(PERIOD);
+        requireSlotPeriod(payload, slotPeriod);
         return ChangeCommercial.builder()
             .id(0L)
-            .periodCode(periodCode == null ? requestedPeriod : periodCode)
+            .periodCode(slotPeriod)
             .commercialClassificationCode(payload.text(CLASSIFICATION_CODE))
             .commercialClassificationName(payload.text(CLASSIFICATION_NAME))
             .commercialCode(fact.getId().getAreaCode())
@@ -42,5 +43,17 @@ final class ChangeCommercialFactMapper {
             .averageOpenedMonths(payload.intOrNull(OPENED_MONTHS))
             .averageClosedMonths(payload.intOrNull(CLOSED_MONTHS))
             .build();
+    }
+
+    /**
+     * 분기의 정본은 라우터가 고른 release 슬롯이다(dataset_active_release → dataset_release 가 FK 로 강제한다). payload 의
+     * {@code STDR_YYQU_CD} 는 그 사실을 확인하는 용도로만 쓴다. 다르면 배치 검증을 통과했을 수 없는 행이므로 fail-closed 한다 —
+     * 트렌드가 분기 코드로 맵을 만들 때 중복 키 500 이나 조용한 결손으로 새지 않게.
+     */
+    private static void requireSlotPeriod(FactPayload payload, String slotPeriod) {
+        String payloadPeriod = payload.textOrNull(PERIOD);
+        if (payloadPeriod != null && !payloadPeriod.equals(slotPeriod)) {
+            throw new DatasetException(DatasetErrorCode.PAYLOAD_FIELD_INVALID);
+        }
     }
 }

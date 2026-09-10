@@ -17,6 +17,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DatasetFactId implements Serializable {
 
+    /** 업종 차원이 없는 데이터셋의 service_code (DDL {@code DEFAULT ''}). 스키마 규약이라 여기 한 곳에만 둔다. */
+    public static final String NO_SERVICE = "";
+
     @Column(length = 64, nullable = false)
     private String runId;
 

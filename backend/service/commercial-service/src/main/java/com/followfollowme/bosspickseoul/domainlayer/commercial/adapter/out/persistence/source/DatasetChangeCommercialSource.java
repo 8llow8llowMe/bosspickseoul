@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.source;
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.ChangeCommercial;
+import com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence.entity.DatasetFactId;
 import com.followfollowme.bosspickseoul.domainlayer.dataset.adapter.out.persistence.repository.DatasetFactRepository;
 import java.util.List;
 import java.util.Optional;
@@ -15,22 +16,20 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DatasetChangeCommercialSource {
 
-    static final String NO_SERVICE = "";
-
     private final DatasetFactRepository datasetFactRepository;
 
-    public Optional<ChangeCommercial> findByRunIdAndCommercialCode(String runId, String periodCode, String commercialCode) {
-        return datasetFactRepository.findByIdRunIdAndIdAreaCodeAndIdServiceCode(runId, commercialCode, NO_SERVICE)
-            .map(fact -> ChangeCommercialFactMapper.toDomain(fact, periodCode));
+    public Optional<ChangeCommercial> findByRunIdAndCommercialCode(String runId, String slotPeriod, String commercialCode) {
+        return datasetFactRepository.findByIdRunIdAndIdAreaCodeAndIdServiceCode(runId, commercialCode, DatasetFactId.NO_SERVICE)
+            .map(fact -> ChangeCommercialFactMapper.toDomain(fact, slotPeriod));
     }
 
-    public List<ChangeCommercial> findAllByRunIdAndCommercialCodeIn(String runId, String periodCode, List<String> commercialCodes) {
+    public List<ChangeCommercial> findAllByRunIdAndCommercialCodeIn(String runId, String slotPeriod, List<String> commercialCodes) {
         if (commercialCodes.isEmpty()) {
             return List.of();
         }
-        return datasetFactRepository.findAllByIdRunIdAndIdAreaCodeInAndIdServiceCode(runId, commercialCodes, NO_SERVICE)
+        return datasetFactRepository.findAllByIdRunIdAndIdAreaCodeInAndIdServiceCode(runId, commercialCodes, DatasetFactId.NO_SERVICE)
             .stream()
-            .map(fact -> ChangeCommercialFactMapper.toDomain(fact, periodCode))
+            .map(fact -> ChangeCommercialFactMapper.toDomain(fact, slotPeriod))
             .toList();
     }
 }

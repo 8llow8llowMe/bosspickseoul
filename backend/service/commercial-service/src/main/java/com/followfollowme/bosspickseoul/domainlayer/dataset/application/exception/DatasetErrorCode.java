@@ -8,8 +8,8 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum DatasetErrorCode {
 
-    PAYLOAD_FIELD_INVALID("DATASET_001", "적재된 분기 데이터의 형식이 올바르지 않습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
-    READ_PATH_UNAVAILABLE("DATASET_002", "분기 데이터 저장소를 사용할 수 없습니다.", HttpStatus.SERVICE_UNAVAILABLE);
+    // 요청 입력이 없는 컨텍스트라 검증 대역(1xx)이 없다. 저장소 장애는 레거시 경로와 같이 DataAccessException 으로 흘러 500 이다.
+    PAYLOAD_FIELD_INVALID("DATASET_001", "적재된 분기 데이터의 형식이 올바르지 않습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
     private final String message;

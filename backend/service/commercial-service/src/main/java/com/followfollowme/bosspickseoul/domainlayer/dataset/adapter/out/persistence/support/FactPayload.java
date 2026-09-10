@@ -32,21 +32,21 @@ public record FactPayload(Map<String, String> fields) {
     }
 
     public long longValue(String key) {
-        return decimal(key, text(key)).setScale(0, RoundingMode.HALF_UP).longValueExact();
+        return toLong(key, text(key));
     }
 
     public Long longOrNull(String key) {
         String value = textOrNull(key);
-        return value == null ? null : decimal(key, value).setScale(0, RoundingMode.HALF_UP).longValueExact();
+        return value == null ? null : toLong(key, value);
     }
 
     public int intValue(String key) {
-        return decimal(key, text(key)).setScale(0, RoundingMode.HALF_UP).intValueExact();
+        return toInt(key, text(key));
     }
 
     public Integer intOrNull(String key) {
         String value = textOrNull(key);
-        return value == null ? null : decimal(key, value).setScale(0, RoundingMode.HALF_UP).intValueExact();
+        return value == null ? null : toInt(key, value);
     }
 
     public double doubleValue(String key) {
@@ -58,10 +58,26 @@ public record FactPayload(Map<String, String> fields) {
         return value == null ? null : decimal(key, value).doubleValue();
     }
 
+    private long toLong(String key, String value) {
+        try {
+            return decimal(key, value).setScale(0, RoundingMode.HALF_UP).longValueExact();
+        } catch (ArithmeticException exception) {
+            throw invalid(key, "out-of-range");
+        }
+    }
+
+    private int toInt(String key, String value) {
+        try {
+            return decimal(key, value).setScale(0, RoundingMode.HALF_UP).intValueExact();
+        } catch (ArithmeticException exception) {
+            throw invalid(key, "out-of-range");
+        }
+    }
+
     private BigDecimal decimal(String key, String value) {
         try {
             return new BigDecimal(value.trim());
-        } catch (NumberFormatException | ArithmeticException exception) {
+        } catch (NumberFormatException exception) {
             throw invalid(key, "not-a-number");
         }
     }
