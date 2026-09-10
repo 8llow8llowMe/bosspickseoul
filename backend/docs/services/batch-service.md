@@ -6,7 +6,7 @@
 
 원본 보관 → chunk staging → 자연키/필수값/분기/공간 코드 검증 → 불변 release 게시 → 해당 데이터셋·분기·공간 버전 포인터 전환 순서다. 게시 트랜잭션은 분기 전체를 교체하며 이전 release를 삭제하지 않는다. 같은 runId 재시도는 staging부터 다시 읽고, 이미 게시된 runId는 변경하지 않는다.
 
-기존 `20233` 분석 테이블, `commercial_region_mapping`, `area_boundary`는 이 배치가 수정하지 않는다. 현재 서비스는 공간 버전 없는 조인과 같은 코드의 분기 간 증감률을 사용한다. 따라서 새 기준 데이터를 기존 테이블에 바로 게시하는 것은 과거 데이터 보존과 양립하지 않는다. 새 데이터는 `dataset_release`, `dataset_fact`, `dataset_active_release`, `dataset_spatial_*`에서 조회할 수 있게 보관한다. 서비스 노출 전에는 지도/지역/추세 조회를 공간 버전 기준으로 전환해야 한다. 원천의 재공표로 과거 분기도 새 공간 기준을 사용할 수 있으므로 연도만으로 기준을 추정하지 않는다.
+기존 `commercial_region_mapping`, `area_boundary`는 이 배치가 수정하지 않는다. 분석 팩트는 먼저 `dataset_fact`에 불변 릴리스로 보관한 뒤 `--job=project`가 기존 팩트 테이블 컬럼으로 이관한다. 이관 행에는 `spatial_version`이 있어 20233과 2024 표준단위구역을 같은 상권 코드로 섞지 않는다. 1단계는 `change_commercial`만 이관한다. 공개 API는 공간 버전을 받지 않고, 서비스 설정 `DATASET_SPATIAL_VERSION`이 읽을 기준을 고른다. 원천의 재공표로 과거 분기도 새 공간 기준을 사용할 수 있으므로 연도만으로 기준을 추정하지 않는다.
 
 ## 원천 변경 사실 (2026-09-07 확인)
 
@@ -152,7 +152,7 @@ SELECT l.area_code,
 ## 남은 작업
 
 - **2024년 표준단위구역 폴리곤이 배포됐는지 확인되지 않았다.** 변환 도구와 절차는 있다(「GEOJSON 파일 만들기」). 2026-09-09 기준 서울시 shapefile은 2023-10-20 파일이라 `LEGACY`(20233)와 같을 수 있고, 게시 전 대조가 필요하다. 새 버전이 생겨도 district-service 지도가 `dataset_spatial_area`를 읽도록 바꾸는 후속 작업이 있어야 화면에 반영된다.
-- commercial-service 가 `dataset_fact` / `dataset_active_release`를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다(`commercial-service.md` 「분기 데이터셋 조회 방향」). 이 서비스는 2024년 1분기 이후 분기를 적재만 하고, 기존 팩트 테이블에 컬럼을 추가한 뒤 적재분을 이관하는 작업이 후속이다. 이관 시 `CONSUMPTION_*` 의 `income_commercial` 소득 두 컬럼은 2024년 이후 원천에 없다(위 컬럼 차이).
+- commercial-service 가 `dataset_fact` 를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다. 이 서비스는 2024년 1분기 이후를 적재만 하고, `--job=project` 가 기존 팩트 테이블 컬럼으로 이관한다. 1단계는 `CHANGE_COMMERCIAL` → `change_commercial` + `spatial_version` 이다. 나머지 14종과 `CONSUMPTION_*` 소득 컬럼 부재는 후속이다.
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
 - Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.
 - `--expected-rows`는 분기 인자를 존중하는 서비스에서는 `list_total_count`로 자동 확정할 수 있다. 지금은 dry-run 한 번으로 값을 읽어 새 run-id로 다시 돌리는 절차를 유지한다.

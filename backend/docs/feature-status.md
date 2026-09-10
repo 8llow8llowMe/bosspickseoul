@@ -543,8 +543,9 @@ INDEX(status)
 
 **바뀐 방향**:
 - batch-service 는 2024년 1분기(`20241`) 이후 분기를 `dataset_fact` 에 **적재만** 한다. 2024년부터 원천의 공간 단위·컬럼이 달라져 원천 그대로 보관한다.
-- 후속: 기존 팩트 테이블(상권·자치구·행정동)에 필요한 컬럼을 추가하고 적재분을 **이관**한다. 클라이언트가 `20241` 이후를 요청하면 같은 테이블에서 변경된 기준의 값을 받는다. 조회 서비스에 분기별 소스 라우팅을 다시 두지 않는다.
-- 상세는 `services/commercial-service.md` 「분기 데이터셋 조회 방향」, 적재는 `services/batch-service.md`.
+- 1단계 이관: `--job=project` 가 `CHANGE_COMMERCIAL` 을 `change_commercial` 컬럼 + `spatial_version` 으로 옮긴다. 조회는 그 테이블만 읽고 JSON 릴리스를 다시 고르지 않는다.
+- 후속: 나머지 14종(상권·자치구·행정동)도 같은 방식으로 컬럼을 추가한 뒤 이관한다. 클라이언트가 `20241` 이후를 요청하면 같은 테이블에서 변경된 기준의 값을 받는다.
+- 상세는 `services/commercial-service.md` 「분기 데이터셋 조회 방향」, 적재·이관은 `services/batch-service.md`.
 
 ---
 

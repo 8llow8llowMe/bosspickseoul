@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ChangeCommercialRepository extends JpaRepository<ChangeCommercialEntity, Long> {
 
-    Optional<ChangeCommercialEntity> findByPeriodCodeAndCommercialCode(String periodCode, String commercialCode);
+    Optional<ChangeCommercialEntity> findByPeriodCodeAndCommercialCodeAndSpatialVersion(
+        String periodCode, String commercialCode, String spatialVersion);
 
-    List<ChangeCommercialEntity> findAllByPeriodCodeAndCommercialCodeIn(String periodCode, List<String> commercialCodes);
+    List<ChangeCommercialEntity> findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(
+        String periodCode, String spatialVersion, List<String> commercialCodes);
 }
