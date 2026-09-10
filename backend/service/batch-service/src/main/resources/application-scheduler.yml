@@ -1,0 +1,38 @@
+# Long-running Quartz scheduler. Does not System.exit (quarterly profile does).
+# Point BATCH_DB_URL at the commercial-service schema — that is where `policy` lives.
+# Apply scripts/migration/policy-ingest-columns-runbook.sql and quartz-schema-mysql.sql first.
+# Spring Batch metadata tables must already exist (spring-batch-schema-mysql.sql).
+#
+# Default jobs stay off: BATCH_POLICY_ENABLED=true 와 BIZINFO_CRTFC_KEY 가 있어야 트리거가 등록된다.
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${BATCH_DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  batch:
+    jdbc:
+      initialize-schema: never
+    job:
+      enabled: false
+  quartz:
+    auto-startup: true
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never
+    overwrite-existing-jobs: true
+    wait-for-jobs-to-complete-on-shutdown: true
+    properties:
+      org.quartz.scheduler.instanceId: AUTO
+      org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+      org.quartz.jobStore.tablePrefix: QRTZ_
+      org.quartz.jobStore.isClustered: true
+      org.quartz.threadPool.threadCount: 2
+
+batch:
+  policy:
+    enabled: ${BATCH_POLICY_ENABLED:false}
+
+snowflake:
+  datacenter-id: ${SNOWFLAKE_DATACENTER_ID:1}
+  worker-id: ${SNOWFLAKE_WORKER_ID:1}

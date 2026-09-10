@@ -1,0 +1,35 @@
+{
+  "jsonArray": {
+    "title": "기업마당 지원사업정보",
+    "item": [
+      {
+        "title": "착한임대인 장관 표창",
+        "link": "https://www.bizinfo.go.kr/web/lay1/bbs/S1T122C128/AS/74/view.do?pblancId=PBLN_000000000080236",
+        "seq": "PBLN_000000000080236",
+        "author": "중소벤처기업부",
+        "lcategory": "금융",
+        "reqstDt": "20220727 ~ 20220930",
+        "trgetNm": "소상공인",
+        "totCnt": 3,
+        "pblancNm": "착한임대인 장관 표창",
+        "pblancUrl": "https://www.bizinfo.go.kr/web/lay1/bbs/S1T122C128/AS/74/view.do?pblancId=PBLN_000000000080236",
+        "pblancId": "PBLN_000000000080236",
+        "jrsdInsttNm": "중소벤처기업부",
+        "bsnsSumryCn": "임대료를 인하한 임대인을 선정하는 사업입니다.",
+        "pldirSportRealmLclasCodeNm": "금융",
+        "reqstBeginEndDe": "20220727 ~ 20220930"
+      },
+      {
+        "title": "라이브커머스 지원",
+        "pblancId": "PBLN_000000000124551",
+        "jrsdInsttNm": "한국중소벤처기업유통원",
+        "pblancUrl": "https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000124551",
+        "reqstBeginEndDe": "2026-07-20 ~ ",
+        "trgetNm": "소상공인",
+        "bsnsSumryCn": "라이브커머스 전 과정 지원",
+        "lcategory": "내수",
+        "totCnt": 3
+      }
+    ]
+  }
+}

@@ -217,13 +217,14 @@ backend/
 
 ## service/batch-service
 
-**역할**: 대량 데이터 적재용 일회성/수동 실행 배치
+**역할**: 대량 데이터 적재용 일회성/수동 실행 배치와, `scheduler` 프로파일의 장기 Quartz Job
 
 **처리:**
 - 영역 좌표(area_boundary) 대량 적재 (`AreaBoundaryImportJob`, `areaboundary` 컨텍스트)
 - 서울 Open API 15종 분기 적재 → `dataset_release`/`dataset_fact`/`dataset_active_release`, 공간 스냅샷(GEOJSON·LEGACY) 게시 (`dataingestion` 컨텍스트, `--job=facts|spatial`, `quarterly` 프로파일)
+- 기업마당 정책 수집·만료 (`policyingestion` 컨텍스트, `scheduler` 프로파일, Quartz `policyCollectJob`/`policyPurgeJob`, 기본 비활성)
 
-**특수 의존**: `core:shared-commercial` (테스트 — `DatasetKey` 이름 계약 대조)
+**특수 의존**: `core:shared-commercial` (테스트 — `DatasetKey` 이름 계약 대조), `core:persistence-core` (Snowflake ID. JPA 자동설정은 제외)
 
 ---
 

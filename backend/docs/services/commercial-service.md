@@ -189,15 +189,15 @@
 정렬은 `자치구 전용 → 마감 임박순 → 상시 모집` 이고, 신청 기간이 지난 정책은 조회에서 빠진다.
 
 - 신규 테이블: `policy` (인덱스 `idx_policy_apply_end_at_district_code_service_category_code` —
-  종료 정책을 먼저 걸러내는 것이 선택도가 가장 높아 마감일을 선두에 둔다)
+  종료 정책을 먼저 걸러내는 것이 선택도가 가장 높아 마감일을 선두에 둔다.
+  수집용 `uk_policy_source_external_id`, `idx_policy_source_last_seen_at` 은 추천 조회가 쓰지 않는다)
 - 시드: `resources/db/policy-seed.sql` (14건). **2026-09-09 공고를 수동 대조한 스냅샷**이다.
-  안내 URL 은 공고·신청 상세를 가리킨다. 실시간 적재는 `feature-status.md` 의 "정책 추천 실 데이터 연동" 참고.
-- **적재 경로는 수동뿐이다.** 이 저장소에는 Flyway/Liquibase 가 없고, `Jenkinsfile-commercial-service`
-  에도 SQL 실행 단계가 없다. `application-prod.yml` 은 `ddl-auto: none` 이라 애플리케이션이 `policy`
-  테이블을 만들지도 않는다. 즉 **prod 에 정책이 보인다면 누군가 손으로 넣은 것**이고, 아무도 안
-  넣었다면 테이블 자체가 없어 프로필 조회가 실패한다. 배포 담당자가 실제 스키마를 확인해야 한다.
-  시드는 공고 스냅샷이라 마감일(예: 스마트상점 2026-09-30)이 지나면 추천에서 빠진다. 적재 전에
-  날짜를 확인하고, 공고가 바뀌면 SQL 을 다시 맞춘다.
+  안내 URL 은 공고·신청 상세를 가리킨다. 기업마당 두 건은 `BIZINFO` + `pblancId` 로 재매핑했다.
+  실시간 적재는 batch-service `scheduler` 프로파일의 Quartz Job (`feature-status.md` 「기업마당 정책 수집·만료」).
+- **공개 API 계약은 그대로**다. 조회는 계속 `apply_end_at IS NULL OR apply_end_at >= today` 만 본다.
+- prod 스키마: `ddl-auto: none`. 컬럼 추가는 `scripts/migration/policy-ingest-columns-runbook.sql` 을 사람이 적용한 뒤
+  시드를 다시 넣는다. `Jenkinsfile-commercial-service` 에는 SQL 실행 단계가 없다.
+  시드의 마감일(예: 스마트상점 2026-09-30)이 지나면 추천에서 빠진다.
 - 조회는 **QueryDSL** (`PolicyCustomRepositoryImpl`). 자치구·업종이 각각 있을 때만 조건을 붙이는
   동적 조회라 JPQL 로 쓰면 `(:param IS NULL OR ...)` 가 늘어난다 (coding-conventions §9-6).
   동적 조건 조립과 정렬은 `PolicyCustomRepositoryImplTest` 슬라이스 테스트가 실제 스키마에 질의해 확인한다.

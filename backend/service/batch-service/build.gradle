@@ -1,5 +1,6 @@
 dependencies {
     implementation project(":core:common-core")
+    implementation project(":core:persistence-core")
     // 데이터셋 이름 계약(DatasetKey)이 배치의 Dataset enum 과 1:1 인지 테스트로 고정한다
     testImplementation project(":core:shared-commercial")
 
@@ -7,6 +8,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-batch'
     // JDBC
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    // Quartz JDBC JobStore (scheduler 프로파일)
+    implementation 'org.springframework.boot:spring-boot-starter-quartz'
     // JSON
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     // MySQL JDBC

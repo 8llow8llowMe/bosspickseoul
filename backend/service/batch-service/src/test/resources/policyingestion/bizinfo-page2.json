@@ -1,0 +1,15 @@
+{
+  "jsonArray": {
+    "item": {
+      "pblancId": "PBLN_000000000120010",
+      "pblancNm": "식품안심업소 기술지원",
+      "jrsdInsttNm": "한국식품안전관리인증원",
+      "pblancUrl": "https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000120010",
+      "reqstBeginEndDe": "상시",
+      "trgetNm": "음식점",
+      "bsnsSumryCn": "현장 맞춤형 기술지원",
+      "lcategory": "기술",
+      "totCnt": 3
+    }
+  }
+}

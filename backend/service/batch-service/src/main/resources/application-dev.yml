@@ -36,6 +36,10 @@ batch:
     import:
       source-dir: ${BATCH_AREA_BOUNDARY_IMPORT_SOURCE_DIR}
 
+snowflake:
+  datacenter-id: ${SNOWFLAKE_DATACENTER_ID:1}
+  worker-id: ${SNOWFLAKE_WORKER_ID:1}
+
 eureka:
   client:
     serviceUrl:
