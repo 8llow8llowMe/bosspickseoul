@@ -60,7 +60,8 @@
 - `services/*.md`
   - 서비스별 책임과 구현 주의점
 - `services/batch-quarterly-import.md`
-  - 분기 적재 배치(`quarterly` CLI) 운영 사용법. DDL, dry-run → 실게시, 데이터셋·분기 반복, 검증 SQL
+  - 분기 적재 배치(`quarterly` CLI) 운영 사용법. DDL, dry-run → 실게시, 데이터셋 15종 × 분기 실행 순서
+  - 명령 생성기 `../scripts/batch/quarterly-import-plan.ps1`, 진행 현황 `../scripts/migration/quarterly-import-coverage.sql`
 
 ## 권장 읽기 순서
 

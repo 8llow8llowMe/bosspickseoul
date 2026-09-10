@@ -2,15 +2,24 @@
 
 `quarterly` 프로파일 JAR로 개발 DB에 공간 스냅샷과 사실 데이터를 넣는 운영 절차다. 설계·원천 계약은 [batch-service.md](batch-service.md)를 본다.
 
-2026-09-09 개발 DB 실측:
+2026-09-10 기준 개발 DB 진행 상황:
 
 | 단계 | 결과 |
 | --- | --- |
 | Spring Batch 메타 + `dataset_*` DDL | `bosspickseoul_commercial_dev`에 적용 |
-| `--job=spatial` LEGACY dry-run / 실게시 | `legacy-20233` `COMPLETED` |
-| `CHANGE_COMMERCIAL` `20241` dry-run | `DRY_RUN`, 1650/1650, rejected·duplicate·unmapped = 0 |
+| `--job=spatial` LEGACY 실게시 | `legacy-20233` `READY`, 영역 2,100 (25/425/1650) |
+| `CHANGE_COMMERCIAL` `20241`~`20254` | 8분기 실게시. 분기당 1,650행, 거부·중복·미매핑 0 |
+| 나머지 14종 | 미적재 |
 
 사실 데이터는 **데이터셋 × 분기 한 건이 실행 단위**다. 같은 명령을 분기만 바꿔 반복하면 된다. 한 번에 전 구간을 도는 스케줄러는 없다.
+
+세 파일이 한 묶음이다.
+
+| 파일 | 역할 |
+| --- | --- |
+| `scripts/batch/quarterly-import-plan.ps1` | 데이터셋·분기를 받아 실행 명령을 만든다. DB를 건드리지 않는다 |
+| `scripts/migration/quarterly-import-coverage.sql` | 15종 × 분기 중 남은 슬롯을 본다 |
+| `scripts/migration/quarterly-import-verify.sql` | 방금 돌린 run 의 건수를 본다 |
 
 ## 1. 선행 DDL (스키마당 1회)
 
@@ -65,76 +74,108 @@ java -jar $jar --job=spatial --run-id=spatial-legacy-20233-002 --source=LEGACY -
 
 통과 조건: dry-run `COMPLETED`이고 `dataset_release`에서 `expected_rows = input_count = accepted_count`, 거부·중복·미매핑 0. 그다음 **새 run-id**로 `--dry-run=false`.
 
-`--source-updated-at`은 ISO-8601이다. `<ISO-8601>` 자리표시 그대로 넣으면 파싱에서 실패한다. 분기 말 UTC를 쓴다.
+`--source-updated-at`은 ISO-8601 분기 말 UTC다. 1분기 `03-31`, 2분기 `06-30`, 3분기 `09-30`, 4분기 `12-31`이다. 예를 들어 `20242`는 `2024-06-30T00:00:00Z`다. 자리표시를 그대로 넣으면 파싱에서 실패한다. 생성기 스크립트가 이 값을 자동으로 채운다.
 
-| `period` | `--source-updated-at` |
-| --- | --- |
-| `20241` | `2024-03-31T00:00:00Z` |
-| `20242` | `2024-06-30T00:00:00Z` |
-| `20243` | `2024-09-30T00:00:00Z` |
-| `20244` | `2024-12-31T00:00:00Z` |
-| `20251` | `2025-03-31T00:00:00Z` |
-| `20252` | `2025-06-30T00:00:00Z` |
-| `20253` | `2025-09-30T00:00:00Z` |
-| `20254` | `2025-12-31T00:00:00Z` |
-| `20261` | `2026-03-31T00:00:00Z` |
-| `20262` | `2026-06-30T00:00:00Z` |
+대상 범위는 **`20211`~`20254`(20분기)**다. 원천은 2021년 1분기부터 주고, 2026-09-10 확인 기준 최신 분기는 `20254`다. `20261` 이후는 아직 없어 실패하는 것이 정상이며, 원천이 공개하면 같은 방식으로 이어 간다. 레거시 서비스 테이블(`20233`까지)은 이 배치가 건드리지 않는다.
 
-원천이 아직 안 준 분기는 실패하는 것이 정상이다. API가 주는 최신 분기까지만 돌린다. 2021년 1분기(`20211`)부터 받을 수 있다. 우선순위는 **20241 이후**다. 레거시 서비스 테이블(`20233`까지)은 이 배치가 건드리지 않는다.
+### 실행 명령 만들기
 
-### 검증된 첫 대상 (`CHANGE_COMMERCIAL` / `20241`)
-
-dry-run은 2026-09-09에 통과했다. 다음 명령이 실게시(아직 안 함)다.
+명령을 손으로 만들지 않는다. 생성기가 run-id 규칙, 분기 말 시각, `API`/`ARCHIVE` 선택을 채운다. 출력만 하고 DB나 JAR을 건드리지 않는다.
 
 ```powershell
-java -jar $jar --job=facts --run-id=change-commercial-20241-002 --dataset=CHANGE_COMMERCIAL --period=20241 --source=API --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=1650 --source-updated-at=2024-03-31T00:00:00Z --dry-run=false
+# 저장소 루트에서
+$plan = ".\backend\scripts\batch\quarterly-import-plan.ps1"
+
+# 계획만 본다 (15종 × 20분기)
+& $plan -SummaryOnly
+
+# 한 데이터셋 전 분기
+& $plan -Dataset CHANGE_DISTRICT
+
+# 한 분기 전 데이터셋을 파일로
+& $plan -Period 20241 | Set-Content plan-20241.txt
 ```
 
-같은 데이터셋의 다음 분기 예:
+출력에서 블록 하나를 골라 **위에서 아래로 한 줄씩** 돌린다. dry-run 로그가 `COMPLETED`가 아니면 그 아래 실게시 줄로 넘어가지 않는다.
+
+채워야 하는 자리는 두 개다. 둘 다 `<` 를 쓰지 않는다. PowerShell이 `<` 를 예약 연산자로 막아 붙여넣기 자체가 실패하기 때문이다.
+
+| 자리표시 | 넣을 값 |
+| --- | --- |
+| `REPLACE_WITH_PROBE_COUNT` | probe 실행이 알려주는 실제 행 수 (`accepted`) |
+| `REPLACE_WITH_RAW_LOCATION` | 그 데이터셋 첫 분기 run 의 `dataset_release.raw_location` |
+
+안 고치고 실행하면 숫자 파싱이나 경로에서 바로 실패한다. 조용히 잘못된 값이 들어가지는 않는다.
+
+### 검증된 대상 (`CHANGE_COMMERCIAL`)
+
+`20241`~`20254` 8분기가 실게시됐다. 분기당 1,650행이 모든 분기에서 같았으므로 이 데이터셋은 probe 없이 `--expected-rows=1650`을 쓴다.
 
 ```powershell
 java -jar $jar --job=facts --run-id=change-commercial-20242-001 --dataset=CHANGE_COMMERCIAL --period=20242 --source=API --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=1650 --source-updated-at=2024-06-30T00:00:00Z --dry-run=true
 ```
 
-`20242` 건수가 1650이 아니면 Job이 실패하고 `dataset_release.accepted_count`에 실제 값이 남는다. 그 값으로 **새 run-id**를 만들어 다시 돈다. 같은 run-id는 재사용하지 않는다.
+건수가 다르면 Job이 실패하고 `dataset_release.accepted_count`에 실제 값이 남는다. 그 값으로 **새 run-id**를 만들어 다시 돈다. 같은 run-id는 재사용하지 않는다.
 
-## 5. 데이터셋 순서와 `--expected-rows`
+## 5. 데이터셋 15종 실행 순서
+
+상권 7종 · 행정동 3종 · 자치구 5종이다. 한 종이라도 빠지면 그 화면만 레거시에 남는다. `run_order`는 생성기와 커버리지 SQL이 쓰는 순서이며, 행 수가 작고 안전한 것부터다.
 
 `--expected-rows`는 **그 분기 한 개의 행 수**다. 업종 차원이 있는 매출·점포는 상권 수(1,650)보다 훨씬 크다.
 
-| `Dataset` | 분기 인자 | 20241 참고 행 수 | 비고 |
-| --- | --- | --- | --- |
-| `CHANGE_COMMERCIAL` | O | **1650 (실측)** | 첫 적재 대상. 레거시 테이블이 비어 있음 |
-| `FOOT_TRAFFIC_COMMERCIAL` | O | 1,648~1,649 | 분기마다 1 차이 날 수 있음 |
-| `SALES_COMMERCIAL` | O | 21,910 | 업종 차원 |
-| `STORE_COMMERCIAL` | O | 77,025 | 업종 차원, API 호출 많음 |
-| `SALES_ADMINISTRATION` | O | 17,044 | |
-| `STORE_ADMINISTRATION` | O | 35,330 | |
-| `POPULATION_COMMERCIAL` | X | 분기 행만 | 첫 분기 `API`, 이후 `ARCHIVE` |
-| `FACILITY_COMMERCIAL` | X | 분기 행만 | 동일 |
-| `CONSUMPTION_COMMERCIAL` | X | 분기 행만 | 소비-상권배후지. 소득 컬럼 없음 |
-| `CONSUMPTION_ADMINISTRATION` | X | 분기 행만 | |
-| `SALES_DISTRICT` | X | 분기 행만 | 자치구 25개 규모 |
-| `STORE_DISTRICT` | X | 분기 행만 | |
-| `FOOT_TRAFFIC_DISTRICT` | X | 25 | 25구 × 분기 |
-| `CONSUMPTION_DISTRICT` | X | 25 | |
-| `CHANGE_DISTRICT` | X | 25 | 접미사 `Qq`지만 시계열 전체 반환 |
+| 순서 | `Dataset` | 스코프 | 분기 인자 | 분기당 행 수 | 비고 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `CHANGE_COMMERCIAL` | 상권 | O | **1,650 (실측)** | 적재 완료 (`20241`~`20254`) |
+| 2 | `CHANGE_DISTRICT` | 자치구 | X | 25 (추정) | `ARCHIVE` 흐름을 익히기 좋다 |
+| 3 | `FOOT_TRAFFIC_DISTRICT` | 자치구 | X | 25 (추정) | |
+| 4 | `CONSUMPTION_DISTRICT` | 자치구 | X | 25 (추정) | |
+| 5 | `FOOT_TRAFFIC_COMMERCIAL` | 상권 | O | probe | 분기마다 1,648~1,649로 흔들린다 |
+| 6 | `POPULATION_COMMERCIAL` | 상권 | X | probe | |
+| 7 | `FACILITY_COMMERCIAL` | 상권 | X | probe | |
+| 8 | `CONSUMPTION_COMMERCIAL` | 상권 | X | probe | 소비-상권배후지. 소득 컬럼 없음 |
+| 9 | `CONSUMPTION_ADMINISTRATION` | 행정동 | X | probe | |
+| 10 | `SALES_DISTRICT` | 자치구 | X | probe | 업종 차원 |
+| 11 | `STORE_DISTRICT` | 자치구 | X | probe | 업종 차원 |
+| 12 | `SALES_ADMINISTRATION` | 행정동 | O | probe (20241: 17,044) | |
+| 13 | `SALES_COMMERCIAL` | 상권 | O | probe (20241: 21,910) | |
+| 14 | `STORE_ADMINISTRATION` | 행정동 | O | probe (20241: 35,330) | |
+| 15 | `STORE_COMMERCIAL` | 상권 | O | probe (20241: 77,025) | 가장 크다. API 호출 많음 |
 
-분기 인자 **O**: `--source=API`를 분기마다 호출한다. 20241 참고 값을 `--expected-rows`로 넣고, 다르면 dry-run 실패 건수로 고친다.
+「분기당 행 수」의 뜻:
 
-분기 인자 **X**: `list_total_count`는 전 분기 합이라 `--expected-rows`로 쓰면 항상 실패한다. 첫 분기를 `API`로 받아 `dataset_release.raw_location`을 남기고, 나머지 분기는 `--source=ARCHIVE --source-file=<그 디렉터리>`로 재생한다. 서울 API는 인증키당 하루 1,000회다.
+- **실측** — 게시된 run 으로 확인했다. probe 없이 그 값을 쓴다.
+- **추정** — 자치구 25개 × 분기로 계산했다. 그 값으로 넣고 틀리면 dry-run 이 실제 건수를 알려준다.
+- **probe** — 분기마다 다르다. `--expected-rows=1`로 한 번 돌려 실패 메시지의 `accepted`를 읽고 그 값으로 다시 돈다. `20241` 괄호 값은 샘플 키 `list_total_count`이며 그 분기에만 쓴다.
+
+분기 인자 **O** (6종): `--source=API`를 분기마다 호출한다.
+
+분기 인자 **X** (9종): `list_total_count`가 전 분기 합이라 그대로 쓰면 항상 실패한다. 첫 분기를 `API`로 받아 `dataset_release.raw_location`을 남기고, 나머지 분기는 `--source=ARCHIVE --source-file=<그 디렉터리>`로 재생한다. 22분기를 매번 API로 받으면 약 4,300회지만 재생하면 약 200회다. 서울 API는 인증키당 하루 1,000회다.
 
 ```powershell
-java -jar $jar --job=facts --run-id=population-commercial-20241-001 --dataset=POPULATION_COMMERCIAL --period=20241 --source=API --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=<이 분기 행 수> --source-updated-at=2024-03-31T00:00:00Z --dry-run=true
+# 첫 분기만 API
+java -jar $jar --job=facts --run-id=population-commercial-20241-001 --dataset=POPULATION_COMMERCIAL --period=20241 --source=API --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=1 --source-updated-at=2024-03-31T00:00:00Z --dry-run=true
 
-java -jar $jar --job=facts --run-id=population-commercial-20242-001 --dataset=POPULATION_COMMERCIAL --period=20242 --source=ARCHIVE --source-file=<20241 raw_location> --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=<20242 행 수> --source-updated-at=2024-06-30T00:00:00Z --dry-run=true
+# 이후 분기는 위 run 의 raw_location 재생
+java -jar $jar --job=facts --run-id=population-commercial-20242-001 --dataset=POPULATION_COMMERCIAL --period=20242 --source=ARCHIVE --source-file=REPLACE_WITH_RAW_LOCATION --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=1 --source-updated-at=2024-06-30T00:00:00Z --dry-run=true
 ```
 
-권장 순서: 공간 게시 → `CHANGE_COMMERCIAL` 2024+ 분기 → 행 수가 작은 지표 → 매출·점포(호출 많음) → 분기 인자 무시 9종(`API` 1회 + `ARCHIVE`).
+첫 분기의 probe 가 원본 페이지를 이미 보관하므로, 그 run 의 `raw_location`을 이후 분기가 그대로 재생한다. probe 를 위해 API를 두 번 부르지 않는다.
+
+`raw_location`은 이렇게 읽는다.
+
+```sql
+SELECT run_id, raw_location FROM dataset_release
+ WHERE dataset = 'POPULATION_COMMERCIAL' AND period_code = '20241'
+ ORDER BY acquired_at DESC;
+```
 
 ## 6. 실행 후 확인
 
-Workbench에서 `quarterly-import-verify.sql` 「3) 최근 사실 적재」와 「4) 커버리지」를 본다.
+- 방금 돌린 run 의 건수: `quarterly-import-verify.sql` 「3) 최근 사실 적재」
+- 남은 슬롯: `quarterly-import-coverage.sql` 「1) 남은 대상」 — `TODO` 행이 다음에 돌릴 대상이다
+- 데이터셋별 진행률과 스코프 누락: 같은 파일 「2)」·「3)」
+
+주의할 점:
 
 - dry-run도 `dataset_release` / staging / rejected에 쓴다. `dataset_fact`와 `dataset_active_release`만 건너뛴다.
 - `--dry-run=false`가 끝나야 조회 포인터가 바뀐다. 서비스 API는 아직 레거시 테이블을 읽으므로 화면은 바로 바뀌지 않는다(#279).
