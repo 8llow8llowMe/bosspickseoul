@@ -5,6 +5,7 @@ import styled from 'styled-components'
 import CommunityCommentThread from '@/components/community/community-comment-thread'
 import CommunityFeedback from '@/components/community/community-feedback'
 import CommunityReportDialog from '@/components/community/community-report-dialog'
+import CommunityWriter from '@/components/community/community-writer'
 import {
   formatCommunityCount,
   formatCommunityDate,
@@ -176,11 +177,6 @@ const MetaRow = styled.div`
   color: var(--color-text-500);
   font-size: 13px;
   line-height: 1.6;
-`
-
-const Author = styled.span`
-  color: var(--color-text-700);
-  font-weight: 700;
 `
 
 const ArticleContent = styled.div`
@@ -527,7 +523,11 @@ export default function CommunityDetailView({
               <TargetBadge>{targetName}</TargetBadge>
               <ArticleTitle>{detail.title}</ArticleTitle>
               <MetaRow>
-                <Author>사장님</Author>
+                <CommunityWriter
+                  nickname={detail.writerNickname}
+                  profileImageUrl={detail.writerProfileImageUrl}
+                  size="md"
+                />
                 <time dateTime={detail.createdAt}>
                   {formatRelativeTime(detail.createdAt)} ·{' '}
                   {formatCommunityDate(detail.createdAt)}

@@ -131,7 +131,7 @@ const renderWithStyles = (
 }
 
 describe('CommunityDetailView', () => {
-  it('renders the complete article, comments, replies, related posts, and generic authors', () => {
+  it('renders the complete article, comments, replies, related posts, and writer nicknames', () => {
     const { markup } = renderWithStyles()
 
     expect(markup).toContain('data-community-article="true"')
@@ -143,9 +143,41 @@ describe('CommunityDetailView', () => {
     expect(markup).toContain(comments[0]!.content)
     expect(markup).toContain(comments[0]!.replies[0]!.content)
     expect(markup).toContain(relatedPosts[0]!.title)
-    expect(markup.match(/사장님/g)?.length).toBeGreaterThanOrEqual(4)
+    // 글·댓글·답글 작성자는 응답의 닉네임이다. 탈퇴 회원의 "탈퇴회원" 도 값이라 그대로 적는다.
+    expect(markup).toContain('역삼동 김사장')
+    expect(markup).toContain('연남동 소품샵')
+    expect(markup).toContain('탈퇴회원')
+    // 1 (글) + 3 (댓글 2 · 답글 1)
+    expect(markup.match(/data-community-writer="true"/g)).toHaveLength(4)
     expect(markup).not.toContain('프로필')
     expect(markup).not.toContain('닉네임')
+  })
+
+  /*
+   * `writerNickname` 이 null 인 경우는 회원 서비스 장애·미존재 회원 두 가지다(BE #271).
+   * 응답 자체는 성공이므로 글은 그대로 보이고 작성자만 대체 문구로 채운다.
+   */
+  it('falls back to a generic writer when the nickname is null', () => {
+    const { markup } = renderWithStyles({
+      detail: {
+        ...detail,
+        writerNickname: null,
+        writerProfileImageUrl: null,
+      },
+      comments: comments.map(comment => ({
+        ...comment,
+        writerNickname: null,
+        replies: comment.replies.map(reply => ({
+          ...reply,
+          writerNickname: null,
+        })),
+      })),
+    })
+
+    expect(markup).toContain(detail.title)
+    expect(markup).not.toContain('역삼동 김사장')
+    expect(markup).not.toContain('연남동 소품샵')
+    expect(markup.match(/>사장님</g)).toHaveLength(4)
   })
 
   it('renders like, reply, delete/report actions without any comment edit action and keeps unknown likes neutral', () => {

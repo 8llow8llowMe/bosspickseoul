@@ -13,6 +13,7 @@ import {
   communityMockLocations,
   createCommunityMockSource,
   MOCK_COMMUNITY_MEMBER_ID,
+  MOCK_COMMUNITY_WRITER_NICKNAME,
 } from './community-mock'
 
 const successHeader = {
@@ -112,6 +113,8 @@ describe('community mock source', () => {
       expect(detail).toEqual({
         postId: summary.postId,
         memberId: summary.memberId,
+        writerNickname: summary.writerNickname,
+        writerProfileImageUrl: summary.writerProfileImageUrl,
         targetType: summary.targetType,
         targetCode: summary.targetCode,
         targetName: summary.targetName,
@@ -333,6 +336,8 @@ describe('community mock source', () => {
             {
               postId: older.dataBody.postId,
               memberId: older.dataBody.memberId,
+              writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+              writerProfileImageUrl: null,
               targetType: older.dataBody.targetType,
               targetCode: older.dataBody.targetCode,
               targetName: older.dataBody.targetName,
@@ -546,6 +551,8 @@ describe('community mock source', () => {
     expect(created.dataBody).toEqual({
       postId: expect.any(String),
       memberId: MOCK_COMMUNITY_MEMBER_ID,
+      writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+      writerProfileImageUrl: null,
       targetType: {
         code: 'COMMERCIAL',
         name: '상권',
@@ -873,6 +880,8 @@ describe('community mock source', () => {
       commentId: expect.any(String),
       postId: '3',
       memberId: MOCK_COMMUNITY_MEMBER_ID,
+      writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+      writerProfileImageUrl: null,
       content: '첫 댓글입니다.',
       likeCount: 0,
       createdAt: expect.any(String),
@@ -890,6 +899,8 @@ describe('community mock source', () => {
       commentId: expect.any(String),
       postId: '3',
       memberId: MOCK_COMMUNITY_MEMBER_ID,
+      writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+      writerProfileImageUrl: null,
       parentCommentId: parent?.commentId,
       content: '첫 답글입니다.',
       likeCount: 0,

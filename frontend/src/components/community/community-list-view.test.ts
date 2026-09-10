@@ -192,7 +192,10 @@ describe('CommunityListView', () => {
     expect(markup).toContain('강남역 상권 테이크아웃 동선')
     expect(markup).toContain('첫 가게를 준비하며 배운 것들')
     expect(markup).toContain('점심 피크 시간의 대기열을 줄이기 위해')
-    expect(markup.match(/사장님/g)?.length).toBeGreaterThanOrEqual(2)
+    // 작성자는 응답의 닉네임을 그대로 적는다(BE #271). 픽스처 두 글의 작성자다.
+    expect(markup).toContain('강남역 커피로드')
+    expect(markup).toContain('역삼동 김사장')
+    expect(markup.match(/data-community-writer="true"/g)).toHaveLength(2)
     expect(markup).toContain('aria-label="좋아요 31"')
     expect(markup).toContain('aria-label="댓글 2"')
     expect(markup).not.toContain('이번 주 많이 본 게시글')

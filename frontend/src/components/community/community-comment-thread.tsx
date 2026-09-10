@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
+import CommunityWriter from '@/components/community/community-writer'
 import {
   formatCommunityCount,
   formatCommunityDate,
@@ -171,10 +172,11 @@ const CommentHeader = styled.div`
   flex-wrap: wrap;
 `
 
-const Author = styled.p`
-  color: var(--color-text-900);
+const CommentWriter = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 4px;
   font-size: 14px;
-  font-weight: 700;
 `
 
 const Meta = styled.p`
@@ -523,15 +525,18 @@ export default function CommunityCommentThread({
     return (
       <CommentCard $reply={reply} key={item.commentId}>
         <CommentHeader>
-          <div>
-            <Author>사장님</Author>
+          <CommentWriter>
+            <CommunityWriter
+              nickname={item.writerNickname}
+              profileImageUrl={item.writerProfileImageUrl}
+            />
             <Meta>
               <time dateTime={item.createdAt}>
                 {formatRelativeTime(item.createdAt)} ·{' '}
                 {formatCommunityDate(item.createdAt)}
               </time>
             </Meta>
-          </div>
+          </CommentWriter>
           <Actions aria-label={`댓글 ${item.commentId} 작업`}>
             <ActionButton
               type="button"

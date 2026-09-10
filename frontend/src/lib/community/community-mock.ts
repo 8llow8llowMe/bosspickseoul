@@ -24,6 +24,11 @@ import type {
 import type { AdministrationArea, CommercialArea } from '@/types/recommend'
 
 export const MOCK_COMMUNITY_MEMBER_ID = '9001'
+/**
+ * 목 사용자(9001)의 닉네임. 목으로 만든 글·댓글에도 실어 fixture 와 같은 모양으로
+ * 보이게 한다 — 실서버는 작성 직후 조회에도 닉네임을 실어 주기 때문이다(BE #271).
+ */
+export const MOCK_COMMUNITY_WRITER_NICKNAME = '역삼동 김사장'
 
 type DeepReadonly<T> = T extends (...args: never[]) => unknown
   ? T
@@ -69,6 +74,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '1',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
+    writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+    writerProfileImageUrl: null,
     targetType: null,
     targetCode: null,
     targetName: null,
@@ -83,6 +90,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '2',
     memberId: '8202',
+    writerNickname: '우산가게 박사장',
+    writerProfileImageUrl: null,
     targetType: null,
     targetCode: null,
     targetName: null,
@@ -97,6 +106,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '3',
     memberId: '8303',
+    writerNickname: '테헤란로 국밥집',
+    writerProfileImageUrl: null,
     targetType: targetMetadata.DISTRICT,
     targetCode: '11680',
     targetName: '강남구',
@@ -111,6 +122,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '4',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
+    writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+    writerProfileImageUrl: null,
     targetType: targetMetadata.DISTRICT,
     targetCode: '11440',
     targetName: '마포구',
@@ -125,6 +138,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '5',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
+    writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+    writerProfileImageUrl: null,
     targetType: targetMetadata.ADMINISTRATION,
     targetCode: '1168064000',
     targetName: '역삼1동',
@@ -139,6 +154,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '6',
     memberId: '8606',
+    writerNickname: '성수동 베이커리',
+    writerProfileImageUrl: null,
     targetType: targetMetadata.ADMINISTRATION,
     targetCode: '1120065000',
     targetName: '성수1가1동',
@@ -153,6 +170,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '7',
     memberId: '8707',
+    writerNickname: '강남역 커피로드',
+    writerProfileImageUrl: null,
     targetType: targetMetadata.COMMERCIAL,
     targetCode: '3110008',
     targetName: '강남역 상권',
@@ -167,6 +186,8 @@ const basePosts: CommunityPostSummary[] = [
   {
     postId: '8',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
+    writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+    writerProfileImageUrl: null,
     targetType: targetMetadata.COMMERCIAL,
     targetCode: '3120015',
     targetName: '성수역 상권',
@@ -211,6 +232,8 @@ const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
   images: [],
   postId: post.postId,
   memberId: post.memberId,
+  writerNickname: post.writerNickname,
+  writerProfileImageUrl: post.writerProfileImageUrl,
   targetType: post.targetType,
   targetCode: post.targetCode,
   targetName: post.targetName,
@@ -228,6 +251,8 @@ const baseComments: CommunityComment[] = [
     commentId: '101',
     postId: '1',
     memberId: '8101',
+    writerNickname: '연남동 소품샵',
+    writerProfileImageUrl: null,
     content: '관리 규약을 먼저 확인한다는 부분이 특히 도움 됐어요.',
     likeCount: 3,
     createdAt: '2026-07-27T08:35:00.000Z',
@@ -237,6 +262,8 @@ const baseComments: CommunityComment[] = [
         commentId: '102',
         postId: '1',
         memberId: MOCK_COMMUNITY_MEMBER_ID,
+        writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+        writerProfileImageUrl: null,
         parentCommentId: '101',
         content: '공사 가능 시간도 꼭 함께 확인해 보세요.',
         likeCount: 1,
@@ -249,6 +276,8 @@ const baseComments: CommunityComment[] = [
     commentId: '103',
     postId: '1',
     memberId: '8103',
+    writerNickname: '탈퇴회원',
+    writerProfileImageUrl: null,
     content: '체크리스트를 공유해 주셔서 감사합니다.',
     likeCount: 2,
     createdAt: '2026-07-27T08:42:00.000Z',
@@ -259,6 +288,8 @@ const baseComments: CommunityComment[] = [
     commentId: '201',
     postId: '2',
     memberId: MOCK_COMMUNITY_MEMBER_ID,
+    writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+    writerProfileImageUrl: null,
     content: '우산 보관 위치를 바꾸는 방법을 저도 시도해 볼게요.',
     likeCount: 4,
     createdAt: '2026-07-27T05:20:00.000Z',
@@ -269,6 +300,8 @@ const baseComments: CommunityComment[] = [
     commentId: '401',
     postId: '4',
     memberId: '8401',
+    writerNickname: '망원시장 반찬가게',
+    writerProfileImageUrl: null,
     content: '정산 기준 문서가 필요하면 예시를 공유할 수 있어요.',
     likeCount: 5,
     createdAt: '2026-07-27T03:20:00.000Z',
@@ -279,6 +312,8 @@ const baseComments: CommunityComment[] = [
     commentId: '501',
     postId: '5',
     memberId: '8501',
+    writerNickname: '선릉역 샐러드',
+    writerProfileImageUrl: null,
     content: '아침 메뉴는 몇 가지로 운영하셨나요?',
     likeCount: 6,
     createdAt: '2026-07-27T07:10:00.000Z',
@@ -288,6 +323,8 @@ const baseComments: CommunityComment[] = [
         commentId: '502',
         postId: '5',
         memberId: MOCK_COMMUNITY_MEMBER_ID,
+        writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+        writerProfileImageUrl: null,
         parentCommentId: '501',
         content: '음료 두 가지와 샌드위치 한 가지로 시작했습니다.',
         likeCount: 2,
@@ -300,6 +337,8 @@ const baseComments: CommunityComment[] = [
     commentId: '701',
     postId: '7',
     memberId: '8701',
+    writerNickname: '서초동 분식',
+    writerProfileImageUrl: null,
     content: '수령 동선을 분리한 위치가 궁금합니다.',
     likeCount: 8,
     createdAt: '2026-07-27T09:05:00.000Z',
@@ -309,6 +348,8 @@ const baseComments: CommunityComment[] = [
         commentId: '702',
         postId: '7',
         memberId: '8707',
+        writerNickname: '강남역 커피로드',
+        writerProfileImageUrl: null,
         parentCommentId: '701',
         content: '출입문 반대편 선반을 픽업 전용으로 사용했어요.',
         likeCount: 3,
@@ -321,6 +362,8 @@ const baseComments: CommunityComment[] = [
     commentId: '801',
     postId: '8',
     memberId: '8801',
+    writerNickname: '뚝섬 디저트랩',
+    writerProfileImageUrl: null,
     content: '디저트 브랜드도 참여할 수 있을까요?',
     likeCount: 1,
     createdAt: '2026-07-27T08:00:00.000Z',
@@ -749,6 +792,8 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       const detail: CommunityPostDetail = {
         postId,
         memberId: MOCK_COMMUNITY_MEMBER_ID,
+        writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+        writerProfileImageUrl: null,
         ...target,
         title: payload.title,
         content: payload.content,
@@ -777,6 +822,8 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       const summary: CommunityPostSummary = {
         postId,
         memberId: MOCK_COMMUNITY_MEMBER_ID,
+        writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+        writerProfileImageUrl: null,
         ...target,
         title: payload.title,
         previewContent: getPreviewContent(payload.content),
@@ -897,6 +944,8 @@ export const createCommunityMockSource = (): CommunityDataSource => {
           commentId,
           postId,
           memberId: MOCK_COMMUNITY_MEMBER_ID,
+          writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+          writerProfileImageUrl: null,
           parentCommentId: parent.commentId,
           content: payload.content,
           likeCount: 0,
@@ -908,6 +957,8 @@ export const createCommunityMockSource = (): CommunityDataSource => {
           commentId,
           postId,
           memberId: MOCK_COMMUNITY_MEMBER_ID,
+          writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
+          writerProfileImageUrl: null,
           content: payload.content,
           likeCount: 0,
           createdAt,
