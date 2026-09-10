@@ -147,3 +147,81 @@ export const splitPeerStoreRows = (
   charted: rows.filter(row => typeof row.value === 'number' && row.value > 0),
   absentLabels: rows.filter(row => row.value === 0).map(row => row.label),
 })
+
+/**
+ * `peerStores` → 업종별 **순변화**(개업률 − 폐업률, %p) 행. 「어느 업종이 늘고 주는가」에
+ * 답하는 그림이라 **늘어난 순**으로 세운다(양수 위, 음수 아래).
+ *
+ * 두 비율이 **모두** 숫자인 업종만 쓴다. 한쪽만 있으면 순변화를 말할 수 없다 — 개업률
+ * 7% 만 알고 폐업률을 모르면 늘었는지 줄었는지 알 수 없다.
+ *
+ * 점포 수를 `subLabel` 로 함께 싣는다(막대 끝에 「+12%p · 7개」). 비율만 보이면 크기를
+ * 오해한다 — dev 실측에서 점포 3곳인 업종의 폐업률 33% 는 **1곳**이다. 라벨에 넣지
+ * 않는 이유: 「변화 없는 업종」 문장이 라벨을 `·` 로 잇는데, 라벨 안에도 `·` 가 있으면
+ * 어디서 업종이 갈리는지 읽을 수 없다.
+ */
+export const toPeerStoreChangeRows = (
+  peerStores:
+    | ReadonlyArray<{
+        serviceName?: string | null
+        totalStoreCount?: number | null
+        openingRate?: number | null
+        closureRate?: number | null
+      }>
+    | null
+    | undefined,
+): AnalysisMetricRow[] =>
+  (peerStores ?? [])
+    .filter(
+      (
+        item,
+      ): item is {
+        serviceName: string
+        totalStoreCount?: number | null
+        openingRate: number
+        closureRate: number
+      } =>
+        typeof item?.serviceName === 'string' &&
+        item.serviceName.trim().length > 0 &&
+        typeof item.openingRate === 'number' &&
+        Number.isFinite(item.openingRate) &&
+        typeof item.closureRate === 'number' &&
+        Number.isFinite(item.closureRate),
+    )
+    .map(item => ({
+      label: item.serviceName,
+      value: item.openingRate - item.closureRate,
+      ...(typeof item.totalStoreCount === 'number' &&
+      Number.isFinite(item.totalStoreCount)
+        ? {
+            subLabel: `${new Intl.NumberFormat('ko-KR').format(item.totalStoreCount)}개`,
+          }
+        : {}),
+    }))
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+
+/**
+ * 순변화 0 은 「개업과 폐업이 같았다(대개 둘 다 0)」는 정보지만, 길이 0 인 막대는 값
+ * 라벨이 안 찍혀 「데이터 없음」으로 읽힌다(`splitPeerStoreRows` 와 같은 문제). 차트에서
+ * 빼고 문장으로 적는다.
+ */
+export const splitPeerStoreChangeRows = (
+  rows: readonly AnalysisMetricRow[],
+): { charted: AnalysisMetricRow[]; unchangedLabels: string[] } => ({
+  charted: rows.filter(row => typeof row.value === 'number' && row.value !== 0),
+  unchangedLabels: rows.filter(row => row.value === 0).map(row => row.label),
+})
+
+/**
+ * 순변화 값 라벨. **부호를 항상 적는다** — `+15%p` / `-33%p`. 부호가 없으면 막대 방향을
+ * 색으로만 읽어야 한다. 단위는 퍼센트 포인트(%p)다. 「15%」로 적으면 개업률 자체로
+ * 오해한다.
+ */
+export const formatSignedPercentPoint = (value: number): string => {
+  const rounded = Math.round(value * 10) / 10
+  const sign = rounded > 0 ? '+' : rounded < 0 ? '-' : ''
+
+  return `${sign}${new Intl.NumberFormat('ko-KR', {
+    maximumFractionDigits: 1,
+  }).format(Math.abs(rounded))}%p`
+}

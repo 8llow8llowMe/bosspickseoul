@@ -80,7 +80,10 @@ import {
   formatAnalysisValue,
   formatPeriodCode,
   normalizeAnalysisTab,
+  formatSignedPercentPoint,
+  splitPeerStoreChangeRows,
   splitPeerStoreRows,
+  toPeerStoreChangeRows,
   toPeerStoreRows,
 } from '@/lib/analysis/presentation'
 import {
@@ -1256,6 +1259,14 @@ export default function AnalysisResultView({
   */
   const { charted: peerStoreRows, absentLabels: absentServiceNames } =
     splitPeerStoreRows(toPeerStoreRows(stores?.peerStores))
+  /*
+    같은 배열의 개업률·폐업률로 「어느 업종이 늘고 주는가」를 그린다. 순변화 0 은
+    점포 수 0 과 같은 이유로 차트 밖 문장이다(길이 0 막대는 값 라벨이 안 찍힌다).
+  */
+  const {
+    charted: peerStoreChangeRows,
+    unchangedLabels: unchangedServiceNames,
+  } = splitPeerStoreChangeRows(toPeerStoreChangeRows(stores?.peerStores))
 
   const summaryCards: SummaryCard[] = [
     {
@@ -1939,6 +1950,45 @@ export default function AnalysisResultView({
                     {absentServiceNames.length > 0 ? (
                       <AbsentNote>
                         점포가 없는 업종: {absentServiceNames.join(' · ')}
+                      </AbsentNote>
+                    ) : null}
+                  </ChartBox>
+                </AnalysisResultSection>
+              </div>
+
+              {/*
+                「함께 있는 다른 업종」과 같은 폭으로 나란히 둔다(DESIGN.md 「Charts」).
+                순변화 = 개업률 − 폐업률(%p). 개업률만 보면 시장이 느는지 주는지 알 수
+                없고, 비율만 보면 크기를 오해하므로 라벨에 점포 수를 함께 적는다.
+              */}
+              <div>
+                <AnalysisResultSection
+                  title="늘고 주는 업종"
+                  description="선택한 업종을 뺀 나머지 업종의 개업률에서 폐업률을 뺀 값이에요. 위가 늘어난 업종, 아래가 줄어든 업종이에요."
+                  loading={storesQuery.isPending}
+                  error={resolveApiError(storesQuery)}
+                  empty={
+                    peerStoreChangeRows.length === 0 &&
+                    unchangedServiceNames.length === 0
+                  }
+                  onRetry={() => void storesQuery.refetch()}
+                >
+                  <ChartBox $maxWidth={460}>
+                    {peerStoreChangeRows.length > 0 ? (
+                      <HorizontalBarChart
+                        items={peerStoreChangeRows}
+                        unit="%p"
+                        diverging
+                        ariaLabel="같은 상권의 다른 업종별 개업률과 폐업률 차이"
+                        valueFormatter={formatSignedPercentPoint}
+                      />
+                    ) : null}
+                    {unchangedServiceNames.length > 0 ? (
+                      <AbsentNote>
+                        {peerStoreChangeRows.length > 0
+                          ? '변화 없는 업종: '
+                          : '이번 분기에 개업과 폐업이 같았어요: '}
+                        {unchangedServiceNames.join(' · ')}
                       </AbsentNote>
                     ) : null}
                   </ChartBox>
