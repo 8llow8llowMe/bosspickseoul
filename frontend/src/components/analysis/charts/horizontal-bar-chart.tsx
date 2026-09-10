@@ -38,6 +38,72 @@ const Empty = styled.p`
  */
 const CHART_MAX_WIDTH = 560
 
+/** 값 라벨 폭 추정(px). 한글은 11px, 숫자·기호는 6.5px 로 잡는다(11px 글꼴 기준). */
+const estimateLabelWidth = (label: string): number =>
+  [...label].reduce(
+    (width, char) => width + (/[가-힣]/.test(char) ? 11 : 6.5),
+    0,
+  )
+
+type ValueLabelContentProps = {
+  x?: number | string
+  y?: number | string
+  width?: number | string
+  height?: number | string
+  viewBox?: { x?: number; y?: number; width?: number; height?: number }
+  value?: string | number
+}
+
+/**
+ * 값 라벨을 **막대의 오른쪽 끝** 에 붙인다 — 음수 막대도 그렇다.
+ *
+ * recharts 의 `position="right"` 는 음수 막대에서는 라벨을 **막대 왼쪽 끝** 에 놓는다.
+ * 가로 막대의 왼쪽은 카테고리 축(업종·행정동 이름)이라, 「-33%p」 가 「호프-간이주점」
+ * 위에 겹쳐 찍힌다(실측). 음수 막대의 오른쪽 끝은 0 선이고 그 줄의 0 선 오른쪽은 늘
+ * 비어 있으므로(같은 줄에 양수 막대가 없다) 거기가 유일하게 안전한 자리다. 양수 막대는
+ * 기존과 같은 위치다.
+ */
+function ValueLabel({
+  x,
+  y,
+  width,
+  height,
+  viewBox,
+  value,
+}: ValueLabelContentProps) {
+  const box = {
+    x: typeof viewBox?.x === 'number' ? viewBox.x : Number(x),
+    y: typeof viewBox?.y === 'number' ? viewBox.y : Number(y),
+    width: typeof viewBox?.width === 'number' ? viewBox.width : Number(width),
+    height:
+      typeof viewBox?.height === 'number' ? viewBox.height : Number(height),
+  }
+
+  if (
+    value === undefined ||
+    value === '' ||
+    [box.x, box.y, box.width, box.height].some(n => !Number.isFinite(n))
+  ) {
+    return null
+  }
+
+  const right = Math.max(box.x, box.x + box.width)
+
+  return (
+    <text
+      x={right + 6}
+      y={box.y + box.height / 2}
+      dy={4}
+      textAnchor="start"
+      fill="var(--color-text-700)"
+      fontSize={11}
+      style={{ fontVariantNumeric: 'tabular-nums' }}
+    >
+      {value}
+    </text>
+  )
+}
+
 const Bounded = styled.div<{ $maxWidth: number }>`
   width: 100%;
   max-width: ${props => props.$maxWidth}px;
@@ -108,6 +174,15 @@ function CategoryTick({ hrefByLabel, x, y, payload }: CategoryTickProps) {
     </a>
   )
 }
+
+/*
+  recharts 의 `content` 는 자기 `LabelProps` 전체를 받는 함수를 요구한다. 그 타입은 밖으로
+  나오지 않아 여기서 좁힌 props 타입과 어긋나므로, 받은 것을 그대로 넘기는 얇은 래퍼로
+  경계를 맞춘다.
+*/
+const renderValueLabel = (props: unknown) => (
+  <ValueLabel {...(props as ValueLabelContentProps)} />
+)
 
 export type HorizontalBarChartProps = {
   items: readonly AnalysisMetricRow[]
@@ -191,6 +266,19 @@ export default function HorizontalBarChart({
           : formatLabel(item.value)
         : '',
   }))
+  /*
+    오른쪽 여백은 가장 긴 값 라벨에 맞춘다. 고정 52px 이면 「+15%p · 27개」 같은 보조
+    표기가 붙은 라벨이 끝에서 잘리거나 두 줄로 꺾인다(실측).
+  */
+  const marginRight = Math.max(
+    52,
+    Math.ceil(
+      chartData.reduce(
+        (max, row) => Math.max(max, estimateLabelWidth(row.valueLabel)),
+        0,
+      ),
+    ) + 12,
+  )
 
   return (
     <Bounded $maxWidth={maxWidth}>
@@ -204,7 +292,7 @@ export default function HorizontalBarChart({
         <ReBarChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 4, right: 52, bottom: 4, left: 8 }}
+          margin={{ top: 4, right: marginRight, bottom: 4, left: 8 }}
         >
           <XAxis type="number" domain={domain} hide />
           <YAxis
@@ -249,15 +337,7 @@ export default function HorizontalBarChart({
                 }
               />
             ))}
-            <LabelList
-              dataKey="valueLabel"
-              position="right"
-              style={{
-                fill: 'var(--color-text-700)',
-                fontSize: 11,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            />
+            <LabelList dataKey="valueLabel" content={renderValueLabel} />
           </Bar>
         </ReBarChart>
       </ResponsiveContainer>
