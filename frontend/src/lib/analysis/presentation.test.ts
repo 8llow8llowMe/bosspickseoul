@@ -9,8 +9,11 @@ import {
   hasPositiveRow,
   normalizeAnalysisTab,
   splitPeerStoreRows,
+  splitPeerStoreChangeRows,
+  formatSignedPercentPoint,
   toMetricRows,
   toPeerStoreRows,
+  toPeerStoreChangeRows,
 } from '@/lib/analysis/presentation'
 
 describe('analysis presentation', () => {
@@ -163,5 +166,114 @@ describe('splitPeerStoreRows', () => {
 
     expect(charted).toEqual([])
     expect(absentLabels).toEqual(['a'])
+  })
+})
+
+/* dev 실측(3110008 · CS100001 · 20233): 비율은 정수 퍼센트고 대부분 0 이다. */
+describe('toPeerStoreChangeRows', () => {
+  const sample = [
+    {
+      serviceName: '분식전문점',
+      totalStoreCount: 14,
+      openingRate: 7,
+      closureRate: 7,
+    },
+    {
+      serviceName: '호프-간이주점',
+      totalStoreCount: 3,
+      openingRate: 0,
+      closureRate: 33,
+    },
+    {
+      serviceName: '커피-음료',
+      totalStoreCount: 27,
+      openingRate: 15,
+      closureRate: 0,
+    },
+  ]
+
+  it('개업률에서 폐업률을 뺀 순변화를 늘어난 순으로 세운다', () => {
+    expect(toPeerStoreChangeRows(sample)).toEqual([
+      { label: '커피-음료', value: 15, subLabel: '27개' },
+      { label: '분식전문점', value: 0, subLabel: '14개' },
+      { label: '호프-간이주점', value: -33, subLabel: '3개' },
+    ])
+  })
+
+  /* 점포 3곳의 폐업률 33% 는 1곳이다 — 비율만 보이면 크기를 오해한다. */
+  it('점포 수를 subLabel 로 싣고, 모르면 싣지 않는다', () => {
+    expect(
+      toPeerStoreChangeRows([
+        {
+          serviceName: '제과점',
+          totalStoreCount: null,
+          openingRate: 5,
+          closureRate: 0,
+        },
+      ]),
+    ).toEqual([{ label: '제과점', value: 5 }])
+  })
+
+  /* 한쪽 비율만 알면 늘었는지 줄었는지 말할 수 없다. */
+  it('두 비율이 모두 있는 업종만 쓴다', () => {
+    expect(
+      toPeerStoreChangeRows([
+        {
+          serviceName: '일식음식점',
+          totalStoreCount: 5,
+          openingRate: 7,
+          closureRate: null,
+        },
+        {
+          serviceName: '양식음식점',
+          totalStoreCount: 5,
+          openingRate: null,
+          closureRate: 7,
+        },
+        {
+          serviceName: null,
+          totalStoreCount: 5,
+          openingRate: 7,
+          closureRate: 0,
+        },
+        {
+          serviceName: '제과점',
+          totalStoreCount: 4,
+          openingRate: 0,
+          closureRate: 0,
+        },
+      ]),
+    ).toEqual([{ label: '제과점', value: 0, subLabel: '4개' }])
+  })
+
+  it('없거나 빈 배열이면 빈 목록이다', () => {
+    expect(toPeerStoreChangeRows(null)).toEqual([])
+    expect(toPeerStoreChangeRows(undefined)).toEqual([])
+    expect(toPeerStoreChangeRows([])).toEqual([])
+  })
+})
+
+describe('splitPeerStoreChangeRows', () => {
+  it('순변화 0 은 차트에서 빼고 이름만 따로 모은다', () => {
+    const { charted, unchangedLabels } = splitPeerStoreChangeRows([
+      { label: '커피-음료', value: 15, subLabel: '27개' },
+      { label: '분식전문점', value: 0, subLabel: '14개' },
+      { label: '호프-간이주점', value: -33, subLabel: '3개' },
+    ])
+
+    expect(charted.map(row => row.label)).toEqual([
+      '커피-음료',
+      '호프-간이주점',
+    ])
+    expect(unchangedLabels).toEqual(['분식전문점'])
+  })
+})
+
+describe('formatSignedPercentPoint', () => {
+  it('부호와 %p 를 항상 적는다', () => {
+    expect(formatSignedPercentPoint(15)).toBe('+15%p')
+    expect(formatSignedPercentPoint(-33)).toBe('-33%p')
+    expect(formatSignedPercentPoint(0)).toBe('0%p')
+    expect(formatSignedPercentPoint(7.26)).toBe('+7.3%p')
   })
 })
