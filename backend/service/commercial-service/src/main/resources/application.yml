@@ -5,6 +5,13 @@ spring:
     import: optional:classpath:observability-common.yml
   profiles:
     active: local
+  jpa:
+    properties:
+      hibernate:
+        hbm2ddl:
+          # dataset_* 테이블은 batch-service 가 quarterly-dataset-schema.sql 로 만들고 소유한다.
+          # 이 서비스는 읽기용 엔티티로 미러링만 하므로 ddl-auto(update) 가 그 테이블을 만들지 않게 제외한다.
+          schema_filter_provider: com.followfollowme.bosspickseoul.global.config.DatasetSchemaFilterProvider
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -27,6 +34,18 @@ logging:
     com.netflix.discovery.shared.resolver.aws.ConfigClusterResolver: WARN
 
 app:
+  dataset:
+    # 분기 적재 배치가 게시한 dataset_fact 를 읽는 경로. false(기본)면 모든 조회가 레거시 팩트 테이블로 간다.
+    # true 여도 read-from-period 이전 분기와 활성 release 가 없는 분기는 레거시로 간다.
+    # 켜기 전에 대상 스키마에 quarterly-dataset-schema.sql 이 적용돼 있어야 한다 (없으면 기동 실패).
+    read-enabled: ${DATASET_READ_ENABLED:false}
+    # 활성 release 슬롯의 공간·스키마 버전. 새 폴리곤 기준으로 팩트를 재게시한 뒤 이 값만 바꿔 전환한다.
+    spatial-version: ${DATASET_SPATIAL_VERSION:legacy-20233}
+    schema-version: ${DATASET_SCHEMA_VERSION:seoul-v1}
+    # 이 분기(포함)부터만 데이터셋 경로를 쓴다. 백필된 과거 분기가 조용히 바뀌는 것을 막는다.
+    read-from-period: ${DATASET_READ_FROM_PERIOD:20241}
+    # 슬롯 -> run_id 캐시 유지 시간. 게시는 분기당 한 번이므로 stale 상한만 명확하면 된다.
+    resolver-cache-ttl: 60s
   share-link:
     # 공유 링크 유효 기간(일). 같은 화면을 다시 공유하면 이 기간만큼 만료가 연장된다.
     ttl-days: 90
