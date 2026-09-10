@@ -195,3 +195,20 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 `--expected-rows`는 **대상 분기 한 개의 행 수**다. 분기 인자를 존중하는 서비스(위 실호출 표의 O)는 `.../1/1/<period>` 한 번 호출한 `list_total_count`가 그 값이다. 분기 인자를 무시하는 서비스(X)는 `list_total_count`가 모든 분기의 합이므로 그대로 쓰면 게시가 항상 실패한다. 값을 모를 때는 `--dry-run=true`로 한 번 실행한다. 게시 단계 예외 메시지에 `expected=… input=… accepted=… rejected=… duplicate=… unmapped=…`가 찍히고, 검증 감사는 게시가 거부돼도 커밋되므로 `dataset_release.accepted_count`에서도 같은 값을 읽을 수 있다. 다만 `expected_rows`는 요청 지문에 포함되므로, 값을 고쳐 다시 실행할 때는 **새 `run-id`** 를 써야 한다.
 
 `--dry-run=false`는 새 run ID로 다시 실행해야 하며, 같은 분기의 이전 release는 삭제하지 않는다. `20233`은 기존 서비스 테이블에서 계속 읽고, 새 release는 공간 버전 인식 조회가 배포될 때까지 기존 API의 기본값으로 사용하지 않는다.
+
+## 기업마당 정책 수집 (`scheduler`)
+
+`quarterly` 와 달리 `scheduler` 프로파일은 프로세스를 종료하지 않는다. Quartz JDBC JobStore 가 commercial 스키마의 `QRTZ_*` 테이블을 쓴다.
+
+| Job | cron (Asia/Seoul) | 역할 |
+| --- | --- | --- |
+| `policyCollectJob` | `0 0 6 * * ?` | 기업마당 API upsert + 완전성 게이트를 통과하면 BIZINFO stale-mark |
+| `policyPurgeJob` | `0 30 6 * * ?` | `last_seen_at` 이 유예(기본 30일)를 넘긴 BIZINFO 행 DELETE |
+
+기본 `batch.policy.enabled=false`. 켜려면 `BATCH_POLICY_ENABLED=true` 와 `BIZINFO_CRTFC_KEY`(기업마당 발급키)가 필요하다. `BATCH_DB_URL` 은 commercial 스키마이며 `BATCH_ALLOWED_SCHEMAS` 에 있어야 한다. prod 스키마 이름은 allowlist 에 넣지 않는다.
+
+원천은 `https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do` 만 쓴다. 업종·자치구 코드는 1차에서 NULL. `SEED` 행은 stale-mark/purge 대상이 아니다.
+
+운영 절차(개발 서버에서 왜 기존 batch-service 만으로는 안 도는지, DDL, 별도 JAR, 매일 06:00/06:30 시나리오)는 [batch-policy-ingest.md](batch-policy-ingest.md)다.
+스키마 런북: `scripts/migration/policy-ingest-columns-runbook.sql`, `scripts/migration/quartz-schema-mysql.sql`, 확인 `policy-ingest-verify.sql`. Spring Batch 메타 테이블이 없으면 `spring-batch-schema-mysql.sql` 도 적용한다. `spring.quartz.jdbc.initialize-schema` 는 `never` 다.
+

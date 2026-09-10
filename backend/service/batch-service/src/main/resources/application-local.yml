@@ -20,6 +20,10 @@ batch:
     import:
       source-dir: ""
 
+snowflake:
+  datacenter-id: 1
+  worker-id: 1
+
 # log 관리
 logging:
   level:

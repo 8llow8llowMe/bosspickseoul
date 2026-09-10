@@ -5,7 +5,11 @@ import com.followfollowme.bosspickseoul.domainlayer.policy.domain.model.Policy;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(
+    componentModel = "spring",
+    unmappedTargetPolicy = ReportingPolicy.ERROR,
+    unmappedSourcePolicy = ReportingPolicy.IGNORE
+)
 public interface PolicyMapper {
 
     Policy toDomain(PolicyEntity entity);

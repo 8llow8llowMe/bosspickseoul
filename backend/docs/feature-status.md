@@ -505,7 +505,7 @@ INDEX(status)
 
 ### `commercial-service` — 지원 정책 추천
 
-**상태**: ✅ 완료 (도메인·API·시드) / ⏸ 실데이터 연동은 별도
+**상태**: ✅ 완료 (도메인·API·시드) / 수집 Job 은 batch-service (`scheduler`, 기본 비활성)
 
 **목적**: 상권의 자치구·업종에 맞는 소상공인 지원 정책을 추천.
 
@@ -527,7 +527,9 @@ INDEX(status)
 **ErrorCode**: `POLICY_001~002` (비즈니스) + `POLICY_101` (검증). 폴백/타입 불일치는 `COMMERCIAL_100` / `COMMERCIAL_102` 재사용.
 
 **시드**: `resources/db/policy-seed.sql` — 14건. **2026-09-09 공고·보도자료를 수동 대조한 스냅샷**이다.
-`detail_url` 은 기관 메인이 아니라 공고·신청 상세다. 실시간 수집은 아래 "정책 추천 실 데이터 연동"이 담당한다.
+`detail_url` 은 기관 메인이 아니라 공고·신청 상세다. `source`/`external_id`/`last_seen_at` 은 수집 Job 의 upsert 키다.
+식품안심업소·라이브커머스 두 건은 `BIZINFO` + 기업마당 `pblancId` 로 재매핑되어 첫 수집이 갱신한다.
+실시간 수집은 위 "기업마당 정책 수집·만료" Job 이 담당한다.
 
 ---
 
@@ -546,28 +548,47 @@ INDEX(status)
 
 **남은 것**: 2단계 `SALES/STORE/POPULATION/FACILITY/CONSUMPTION_COMMERCIAL`(소득 nullable + availability), 3단계 행정동·자치구 8종, 기본 분기 설정화. 상세는 `services/commercial-service.md` 「데이터셋 릴리스 조회 경로」.
 
+---
+
+### `batch-service` — 기업마당 정책 수집·만료 (Quartz)
+
+**상태**: ✅ 구현 완료. 기본 비활성(`batch.policy.enabled=false`). 2026-09-10. 이슈 #289.
+
+**목적**: 기업마당 지원사업 API 를 매일 수집해 `policy` 에 upsert 하고, 원천에서 사라진 공고는 조회에서 숨긴 뒤 유예 기간이 지나면 삭제한다. 공개 API 와 `PolicyItem` 은 바꾸지 않는다.
+
+**프로파일 / Job**:
+- `scheduler` 프로파일 — 장시간 기동. `quarterly` 처럼 `System.exit` 하지 않는다.
+- `policyCollectJob` cron `0 0 6 * * ?` Asia/Seoul, `policyPurgeJob` `0 30 6 * * ?`
+- Quartz JDBC JobStore (`QRTZ_*`), Spring Batch JobRepository 와 같은 commercial 스키마
+- `BATCH_DB_URL` 은 commercial 스키마여야 한다. `BatchTargetGuard` 가 기동 시 확인한다. prod 스키마 allowlist 는 넓히지 않는다.
+
+**원천 (1차)**: `GET https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do?crtfcKey=...&dataType=json`
+기업마당에서 발급한 `crtfcKey` (`BIZINFO_CRTFC_KEY`). data.go.kr 키가 아니다.
+HTML 스크래핑·K-Startup·자치구 수집은 범위 밖이다.
+
+**적재 규칙**:
+- upsert 키 `(source, external_id)`. 신규 id 는 persistence-core Snowflake
+- 업종 코드는 추정하지 않고 NULL (전업종 매칭). 자치구 코드도 1차에서 NULL
+- 수집 실패 또는 채택 건수 < 직전 BIZINFO 건수의 50% 이면 stale-mark 생략
+- stale-mark: `source=BIZINFO` 이고 이번 수집에서 `last_seen_at` 이 갱신되지 않은 행의 `apply_end_at` 을 어제 날짜로 둔다. `SEED` 는 건드리지 않는다
+- purge: `last_seen_at` 이 유예(기본 30일)를 넘긴 BIZINFO 행만 DELETE
+
+**스키마**: `policy.source`, `policy.external_id`, `policy.last_seen_at`, `uk_policy_source_external_id`.
+prod 는 `scripts/migration/policy-ingest-columns-runbook.sql` + `quartz-schema-mysql.sql` 을 사람이 적용한다.
+
+**핵심 파일**: `domainlayer/policyingestion/` (`PolicyCollectProcessor`, `BizinfoPolicySourceAdapter`, `PolicyJdbcAdapter`, Quartz Job). 운영은 `services/batch-policy-ingest.md`.
+
 ## 미구현 / 보류 기능
 
 ---
 
-### `commercial-service` — 정책 추천 실 데이터 연동
+### `commercial-service` — 정책 추천 추가 원천
 
-**상태**: ⏸ 보류 (도메인은 완료, **실데이터 수집만 남음**)
+**상태**: ⏸ 보류 (기업마당 1차는 완료)
 
-도메인·API·시드는 아래 "지원 정책 추천"으로 완료했다. 남은 것은 실제 정책 데이터 확보 하나다.
+K-Startup·자치구 홈페이지·HTML 스크래핑은 아직 없다. 기업마당에 없는 서울시·자치구 전용 공고는 시드(`SEED`)로 남고, 수집 Job 이 지우지 않는다.
 
-**남은 이유**:
-1. 실제 정책 데이터 스크래퍼 미구축 (서울시 소상공인지원센터, K-Startup 등 외부 API/크롤링 필요)
-2. 기관마다 응답 형식이 달라 정규화 매핑이 필요하다
-
-**재개 시 필요한 작업**:
-1. 공공 API 조사 및 키 발급 (서울열린데이터광장 / K-Startup 등)
-2. `batch-service` 에 적재 job 구현 — `AreaBoundaryImportJobConfig` + `Tasklet` 패턴을 그대로 따르면 된다
-3. 기관 응답을 `PolicySupportType` 5종과 `districtCode`/`serviceCategoryCode` 규칙으로 정규화
-4. 시드 데이터(`policy-seed.sql`)를 수집 job 결과로 교체. 지금 시드는 2026-09-09 수동 스냅샷이라 공고가 바뀌면 다시 맞춰야 한다.
-
-**스키마 변경은 필요 없을 전망**이다. `policy` 테이블은 기관 응답 형태에 종속되지 않게 설계했고,
-적재 job 이 정규화를 담당하면 도메인·API 는 그대로 쓸 수 있다.
+**공개 API 변경은 필요 없다.** 적재 Job 이 `PolicySupportType` 과 컬럼 길이로 정규화하면 도메인·조회는 그대로다.
 
 ---
 

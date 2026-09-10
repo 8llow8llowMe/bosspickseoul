@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.policy.adapter.out.persistence.entity;
 
+import com.followfollowme.bosspickseoul.domainlayer.policy.domain.enums.PolicySource;
 import com.followfollowme.bosspickseoul.domainlayer.policy.domain.enums.PolicySupportType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,7 +9,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,7 +30,13 @@ import org.hibernate.annotations.Comment;
     // 종료 정책을 먼저 걸러내는 것이 선택도가 가장 높기 때문이다.
     indexes = {
         @Index(name = "idx_policy_apply_end_at_district_code_service_category_code",
-            columnList = "applyEndAt,districtCode,serviceCategoryCode")
+            columnList = "applyEndAt,districtCode,serviceCategoryCode"),
+        @Index(name = "idx_policy_source_last_seen_at",
+            columnList = "source,lastSeenAt")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_policy_source_external_id",
+            columnNames = {"source", "externalId"})
     }
 )
 @Comment("소상공인 지원 정책")
@@ -77,4 +86,17 @@ public class PolicyEntity {
     @Column(nullable = false, length = 500)
     @Comment("상세 안내 URL")
     private String detailUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Comment("수집 원천 (SEED/BIZINFO). 추천 API 에는 노출하지 않는다")
+    private PolicySource source;
+
+    @Column(nullable = false, length = 64)
+    @Comment("원천 공고 식별자. SEED 는 seed-{id}, BIZINFO 는 pblancId")
+    private String externalId;
+
+    @Column(nullable = false)
+    @Comment("마지막 수집 시각. 원천에서 사라진 행의 유예·삭제 기준")
+    private LocalDateTime lastSeenAt;
 }
