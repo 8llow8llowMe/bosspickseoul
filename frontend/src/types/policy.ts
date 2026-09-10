@@ -8,9 +8,9 @@
  * 걸리지 않으므로 **백엔드가 필드를 바꾸면 조용히 어긋난다.**
  * 널 가능성은 BE `PolicyEntity` 의 `@Column(nullable = ...)` 로 확인했다.
  *
- * ⚠️ 현재 dev 데이터는 `policy-seed.sql` 의 **표본 14건**이고 실데이터가 아니다
- * (BE `docs/feature-status.md`: 정책 추천 실 데이터 연동 = 보류). 화면은 받은 것을
- * 그대로 보여 주므로, 표본이 적재된 환경에서는 표본이 그대로 노출된다.
+ * ⚠️ 현재 데이터는 `policy-seed.sql` 의 **2026-09-09 공고 스냅샷 14건**이다.
+ * 실시간 수집은 아직 없다(BE `docs/feature-status.md`: 정책 추천 실 데이터 연동 = 보류).
+ * 화면은 받은 `detailUrl` 을 그대로 연다.
  */
 
 /** BE `PolicySupportType` 5종. 표시명은 `supportTypeName` 으로 함께 내려온다. */
