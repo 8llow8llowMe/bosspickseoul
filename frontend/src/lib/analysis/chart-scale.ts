@@ -31,12 +31,27 @@ export const computeNiceYScale = (
     max += pad
   }
   const range = niceNum(max - min || 1, false)
-  const step = niceNum(range / Math.max(1, tickCount - 1), true)
-  const niceMin = Math.floor(min / step) * step
-  const niceMax = Math.ceil(max / step) * step
-  const ticks: number[] = []
-  for (let t = niceMin; t <= niceMax + step / 2; t += step) {
-    ticks.push(Math.round(t))
+  let step = niceNum(range / Math.max(1, tickCount - 1), true)
+  // 눈금은 데이터 정밀도보다 촘촘해지지 않는다.
+  // 값이 모두 정수면 step 을 최소 1로 유지해 눈금 중복을 막는다.
+  if (nums.every(v => Number.isInteger(v))) step = Math.max(step, 1)
+  const decimals = Math.min(20, Math.max(0, -Math.floor(Math.log10(step))))
+  const trimStepNoise = (v: number): number => Number(v.toFixed(decimals))
+  // 0.3 / 0.1 이 2.9999... 로 떨어지는 나눗셈 오차를 눈금 경계로 되돌린다.
+  const stepIndexOf = (v: number): number => {
+    const quotient = v / step
+    const nearest = Math.round(quotient)
+    return Math.abs(quotient - nearest) < 1e-9 ? nearest : quotient
   }
+  const niceMin = trimStepNoise(Math.floor(stepIndexOf(min)) * step)
+  const niceMax = trimStepNoise(Math.ceil(stepIndexOf(max)) * step)
+  const tickTotal = Math.max(1, Math.round((niceMax - niceMin) / step))
+  const ticks = Array.from(
+    new Set(
+      Array.from({ length: tickTotal + 1 }, (_, i) =>
+        trimStepNoise(niceMin + i * step),
+      ),
+    ),
+  ).sort((a, b) => a - b)
   return { domain: [niceMin, niceMax], ticks }
 }
