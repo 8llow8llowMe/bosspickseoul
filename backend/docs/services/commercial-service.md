@@ -189,14 +189,14 @@
 
 - 신규 테이블: `policy` (인덱스 `idx_policy_apply_end_at_district_code_service_category_code` —
   종료 정책을 먼저 걸러내는 것이 선택도가 가장 높아 마감일을 선두에 둔다)
-- 시드: `resources/db/policy-seed.sql` (14건). ⚠️ **실데이터가 아니라 계약 검증용 표본**이다.
-  실데이터 적재는 `feature-status.md` 의 "정책 추천 실 데이터 연동" 참고.
+- 시드: `resources/db/policy-seed.sql` (14건). **2026-09-09 공고를 수동 대조한 스냅샷**이다.
+  안내 URL 은 공고·신청 상세를 가리킨다. 실시간 적재는 `feature-status.md` 의 "정책 추천 실 데이터 연동" 참고.
 - **적재 경로는 수동뿐이다.** 이 저장소에는 Flyway/Liquibase 가 없고, `Jenkinsfile-commercial-service`
   에도 SQL 실행 단계가 없다. `application-prod.yml` 은 `ddl-auto: none` 이라 애플리케이션이 `policy`
-  테이블을 만들지도 않는다. 즉 **prod 에 표본 정책이 보인다면 누군가 손으로 넣은 것**이고, 아무도 안
+  테이블을 만들지도 않는다. 즉 **prod 에 정책이 보인다면 누군가 손으로 넣은 것**이고, 아무도 안
   넣었다면 테이블 자체가 없어 프로필 조회가 실패한다. 배포 담당자가 실제 스키마를 확인해야 한다.
-  표본이 사용자에게 그대로 노출되면("마포구청 / 간판 개선 최대 150만원") 실제 지원금으로 오해될 수
-  있으므로, 실데이터 연동 전까지 prod 에는 넣지 않는 것이 기본이다.
+  시드는 공고 스냅샷이라 마감일(예: 스마트상점 2026-09-30)이 지나면 추천에서 빠진다. 적재 전에
+  날짜를 확인하고, 공고가 바뀌면 SQL 을 다시 맞춘다.
 - 조회는 **QueryDSL** (`PolicyCustomRepositoryImpl`). 자치구·업종이 각각 있을 때만 조건을 붙이는
   동적 조회라 JPQL 로 쓰면 `(:param IS NULL OR ...)` 가 늘어난다 (coding-conventions §9-6).
   동적 조건 조립과 정렬은 `PolicyCustomRepositoryImplTest` 슬라이스 테스트가 실제 스키마에 질의해 확인한다.

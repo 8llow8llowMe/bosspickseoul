@@ -526,8 +526,8 @@ INDEX(status)
 
 **ErrorCode**: `POLICY_001~002` (비즈니스) + `POLICY_101` (검증). 폴백/타입 불일치는 `COMMERCIAL_100` / `COMMERCIAL_102` 재사용.
 
-**시드**: `resources/db/policy-seed.sql` — 14건. ⚠️ **실데이터가 아니라 도메인·API 계약 검증용 표본**이다.
-전지역/업종한정/자치구한정 세 갈래를 모두 포함해 매칭·정렬을 확인할 수 있게 구성했다.
+**시드**: `resources/db/policy-seed.sql` — 14건. **2026-09-09 공고·보도자료를 수동 대조한 스냅샷**이다.
+`detail_url` 은 기관 메인이 아니라 공고·신청 상세다. 실시간 수집은 아래 "정책 추천 실 데이터 연동"이 담당한다.
 
 ---
 
@@ -549,7 +549,7 @@ INDEX(status)
 1. 공공 API 조사 및 키 발급 (서울열린데이터광장 / K-Startup 등)
 2. `batch-service` 에 적재 job 구현 — `AreaBoundaryImportJobConfig` + `Tasklet` 패턴을 그대로 따르면 된다
 3. 기관 응답을 `PolicySupportType` 5종과 `districtCode`/`serviceCategoryCode` 규칙으로 정규화
-4. 시드 데이터(`policy-seed.sql`) 제거 또는 실데이터로 교체
+4. 시드 데이터(`policy-seed.sql`)를 수집 job 결과로 교체. 지금 시드는 2026-09-09 수동 스냅샷이라 공고가 바뀌면 다시 맞춰야 한다.
 
 **스키마 변경은 필요 없을 전망**이다. `policy` 테이블은 기관 응답 형태에 종속되지 않게 설계했고,
 적재 job 이 정규화를 담당하면 도메인·API 는 그대로 쓸 수 있다.
