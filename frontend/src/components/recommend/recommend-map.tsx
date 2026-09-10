@@ -7,7 +7,11 @@ import RecommendFeedback from '@/components/recommend/recommend-feedback'
 import { classifyStatus, isRetryable } from '@/lib/api/api-error'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
-import { SEOUL_DEFAULT_CAMERA } from '@/lib/analysis/map-camera'
+import {
+  createMapCamera,
+  SEOUL_DEFAULT_CAMERA,
+  type MapCamera,
+} from '@/lib/analysis/map-camera'
 import {
   resolveAreaPolygonState,
   resolveAreaPolygonStyle,
@@ -15,7 +19,9 @@ import {
 } from '@/lib/map/area-polygon-style'
 import { drawAreaLabelLayer } from '@/lib/map/draw-area-label-layer'
 import { drawAreaPolygonLayer } from '@/lib/map/draw-area-polygon-layer'
+import type { RecommendCameraMode } from '@/lib/recommend/recommend-state'
 import {
+  applyCameraMode,
   collectResultCameraPoints,
   getScoreFillOpacity,
   normalizeBoundary,
@@ -53,6 +59,17 @@ export type RecommendMapProps = {
   onCommercialPreviewChange?: (commercialCode: string | null) => void
   onBackgroundClick?: () => void
   onViewportBoundsChange?: (bounds: GeoBounds) => void
+  /**
+   * 링크가 들고 온 카메라. **마운트 때 한 번만** 읽어 지도를 만든다 — 그 뒤 URL 은
+   * 상태의 거울일 뿐이라 다시 읽으면 방금 우리가 쓴 값을 되읽는다(url-state §2-2).
+   */
+  initialCamera?: MapCamera | null
+  /** `'url'` 이면 자동 맞춤을 전부 잠근다. 기본은 기존 동작(`'auto'`). */
+  cameraMode?: RecommendCameraMode
+  /** 지도가 멈출 때(`idle`) 화면이 든 카메라. URL 거울이 이 값을 `c` 로 쓴다. */
+  onCameraSettle?: (camera: MapCamera) => void
+  /** 「선택 범위로 이동」을 눌렀다. 그 뒤로는 카메라가 선택·결과를 따라가도 된다. */
+  onRecenter?: () => void
 }
 
 type BackgroundClickGuard = {
@@ -535,8 +552,18 @@ export default function RecommendMap({
   onCommercialPreviewChange,
   onBackgroundClick,
   onViewportBoundsChange,
+  initialCamera = null,
+  cameraMode = 'auto',
+  onCameraSettle,
+  onRecenter,
 }: RecommendMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  /*
+   * 지도 생성 이펙트는 `[loadAttempt]` 라 마운트 뒤에도 다시 돌 수 있다(SDK 재시도).
+   * 그때 최신 prop 을 쓰면 사용자가 옮겨 둔 화면이 링크 카메라로 되감긴다 — 마운트
+   * 시점 값을 ref 로 잡아 둔다.
+   */
+  const initialCameraRef = useRef(initialCamera)
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const mapsRef = useRef<KakaoMapsNamespace | null>(null)
   const clearLayersRef = useRef<() => void>(() => undefined)
@@ -565,10 +592,17 @@ export default function RecommendMap({
     onCommercialSelect,
     onCommercialPreviewChange,
     onViewportBoundsChange,
+    onCameraSettle,
+    onRecenter,
   })
   const guardRef = useRef<BackgroundClickGuard | null>(null)
   const lastViewportBoundsKeyRef = useRef('')
+  /** 모드를 씌운 타깃. 이펙트·ResizeObserver 는 이것만 본다. */
   const cameraTargetRef = useRef<MapCameraTarget | null>(null)
+  /** 모드를 씌우기 **전**의 타깃. 「선택 범위로 이동」만 이것을 쓴다. */
+  const rawCameraTargetRef = useRef<MapCameraTarget | null>(null)
+  /** 마지막으로 실제 적용한 카메라 타깃의 키. 모드 전환 이펙트와 recenter 가 공유한다. */
+  const lastAppliedCameraKeyRef = useRef<string | null>(null)
   const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   )
@@ -586,6 +620,8 @@ export default function RecommendMap({
     onCommercialSelect,
     onCommercialPreviewChange,
     onViewportBoundsChange,
+    onCameraSettle,
+    onRecenter,
   }
   selectedCommercialCodeRef.current = selectedCommercialCode
   previewedCommercialCodeRef.current = previewedCommercialCode
@@ -621,11 +657,18 @@ export default function RecommendMap({
     administrationPoints: getAreaPoints(selectedAdministration),
     districtPoints: getAreaPoints(selectedDistrict),
   })
-  const cameraTargetKey = JSON.stringify(cameraTarget)
+  /*
+   * 모드를 **키를 만들기 전에** 씌운다. `'url'` 동안 키가 `keep` 하나로 고정되므로
+   * 복원 사슬이 데이터를 받아 타깃을 바꿔도 이펙트가 돌지 않고, 사용자 의도 액션으로
+   * 모드가 `'auto'` 가 되는 순간 키가 바뀌어 **한 번** 맞춰진다.
+   */
+  const effectiveCameraTarget = applyCameraMode(cameraTarget, cameraMode)
+  const cameraTargetKey = JSON.stringify(effectiveCameraTarget)
   const layerSemanticKey = createRecommendMapLayerSemanticKey(
     layerInputRef.current,
   )
-  cameraTargetRef.current = cameraTarget
+  cameraTargetRef.current = effectiveCameraTarget
+  rawCameraTargetRef.current = cameraTarget
 
   useEffect(() => {
     let cancelled = false
@@ -639,14 +682,13 @@ export default function RecommendMap({
         if (cancelled || !containerRef.current) return
 
         mapsRef.current = maps
+        // 링크가 카메라를 들고 왔으면 그 화면으로 연다. 없거나 무효면 서울 기본이다.
+        const startCamera = initialCameraRef.current ?? SEOUL_DEFAULT_CAMERA
         const map =
           mapRef.current ??
           new maps.Map(containerRef.current, {
-            center: new maps.LatLng(
-              SEOUL_DEFAULT_CAMERA.lat,
-              SEOUL_DEFAULT_CAMERA.lng,
-            ),
-            level: SEOUL_DEFAULT_CAMERA.level,
+            center: new maps.LatLng(startCamera.lat, startCamera.lng),
+            level: startCamera.level,
           })
         mapRef.current = map
         mapClickHandler = () => {
@@ -658,6 +700,16 @@ export default function RecommendMap({
           if (viewportTimer) clearTimeout(viewportTimer)
 
           viewportTimer = setTimeout(() => {
+            /*
+             * 카메라를 **bounds dedupe 보다 먼저** 올린다. 확대·축소나 같은 창
+             * 안에서의 미세 팬은 양자화된 bounds 키가 같아 아래에서 조기 반환되는데,
+             * 카메라는 그때도 바뀌므로 여기 걸리면 `c` 가 갱신되지 않는다.
+             */
+            const center = map.getCenter()
+            callbacksRef.current.onCameraSettle?.(
+              createMapCamera(center.getLat(), center.getLng(), map.getLevel()),
+            )
+
             const viewportBounds = readKakaoViewportBounds(map)
             if (!viewportBounds) return
 
@@ -1036,9 +1088,10 @@ export default function RecommendMap({
   useEffect(() => {
     const maps = mapsRef.current
     const map = mapRef.current
-    if (sdkStatus === 'ready' && maps && map) {
-      applyCameraTarget(maps, map, cameraTargetRef.current)
-    }
+    if (sdkStatus !== 'ready' || !maps || !map) return
+    if (lastAppliedCameraKeyRef.current === cameraTargetKey) return
+    applyCameraTarget(maps, map, cameraTargetRef.current)
+    lastAppliedCameraKeyRef.current = cameraTargetKey
   }, [cameraTargetKey, sdkStatus])
 
   useEffect(() => {
@@ -1050,10 +1103,22 @@ export default function RecommendMap({
     )
   }, [previewedCommercialCode, selectedCommercialCode])
 
+  /*
+   * 「선택 범위로 이동」은 **모드와 무관하게 즉시 맞춘다** — 사용자가 원한 것이다.
+   * 그래서 모드를 씌우지 않은 원래 타깃을 쓰고, 그 뒤로 자동 맞춤을 다시 허용하도록
+   * 화면에 알린다(url-state §2-2).
+   * 맞출 대상이 `keep` 이면(결과 로딩 중 등) 잠금도 풀지 않는다 — 아무 일도 안 일어난
+   * 버튼이 몇 초 뒤 결과 도착과 함께 화면을 옮기면 안 된다.
+   * 직접 적용한 타깃의 키를 기록해 모드 전환 이펙트가 같은 fit 을 되풀이하지 않게 한다.
+   */
   const recenter = () => {
     const maps = mapsRef.current
     const map = mapRef.current
-    if (maps && map) applyCameraTarget(maps, map, cameraTargetRef.current)
+    const target = rawCameraTargetRef.current
+    if (!target || target.kind === 'keep') return
+    if (maps && map) applyCameraTarget(maps, map, target)
+    lastAppliedCameraKeyRef.current = JSON.stringify(target)
+    callbacksRef.current.onRecenter?.()
   }
 
   return (

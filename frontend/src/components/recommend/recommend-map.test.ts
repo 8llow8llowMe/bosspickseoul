@@ -160,7 +160,37 @@ describe('RecommendMap server rendering', () => {
       'utf8',
     )
 
-    expect(source).not.toMatch(/getLevel\s*\(|zoom_changed/)
+    // 줌 이벤트는 구독하지 않는다 — 단계는 패널 선택이 정하고 지도는 따라갈 뿐이다.
+    expect(source).not.toMatch(/zoom_changed/)
+    /*
+     * level 은 `c` 에 실을 카메라를 만들 때 **한 번만** 읽는다(#317). 이 개수가 늘면
+     * 줌에서 단계·레이어를 유도하는 경로가 다시 생겼다는 뜻이다.
+     */
+    expect(source.match(/getLevel\s*\(/g)).toHaveLength(1)
+    expect(source).toMatch(
+      /createMapCamera\(\s*center\.getLat\(\),\s*center\.getLng\(\),\s*map\.getLevel\(\),?\s*\)/,
+    )
+  })
+
+  it('링크 카메라 잠금의 배선이 소스에 남아 있다', () => {
+    const source = readFileSync(
+      new URL('./recommend-map.tsx', import.meta.url),
+      'utf8',
+    )
+
+    // 모드는 키를 만들기 전에 씌워야 `'url'` 동안 키가 `keep` 하나로 고정된다.
+    expect(
+      source.indexOf('applyCameraMode(cameraTarget, cameraMode)'),
+    ).toBeLessThan(source.indexOf('JSON.stringify(effectiveCameraTarget)'))
+    expect(source).toContain('applyCameraMode(cameraTarget, cameraMode)')
+
+    // 「선택 범위로 이동」은 모드가 씌워지지 않은 원래 타깃을 써야 즉시 맞출 수 있다.
+    expect(source).toContain('rawCameraTargetRef.current')
+
+    // 카메라 emit 이 bounds dedupe 보다 앞서야 줌·미세 팬에서도 `c` 가 갱신된다.
+    expect(source.indexOf('onCameraSettle?.(')).toBeLessThan(
+      source.indexOf('readKakaoViewportBounds(map)'),
+    )
   })
 })
 

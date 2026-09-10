@@ -15,6 +15,8 @@ import {
   type MapPoint,
 } from '@/lib/map/geometry'
 
+import type { RecommendCameraMode } from './recommend-state'
+
 export {
   createBounds,
   createCenterFallbackBounds,
@@ -196,6 +198,19 @@ export type MapCameraTarget =
   | { kind: 'fit'; points: readonly MapPoint[] }
   | { kind: 'keep' }
   | { kind: 'reset' }
+
+/**
+ * 카메라 모드를 타깃에 씌운다(url-state §2-2, #317).
+ *
+ * 링크로 들어오면(`'url'`) 복원 사슬의 자동 맞춤이 **여러 번** 돈다 — 자치구 fit →
+ * 행정동 fit → 결과 중심점 fit → 경계 도착 후 재fit → 지목 상권 fit. 하나하나
+ * 골라 막을 수 없어 여기서 전부 `keep` 으로 눌러 둔다. 사용자 의도 액션이 모드를
+ * `'auto'` 로 풀면 그때 타깃이 다시 살아난다.
+ */
+export const applyCameraMode = (
+  target: MapCameraTarget,
+  mode: RecommendCameraMode,
+): MapCameraTarget => (mode === 'url' ? { kind: 'keep' } : target)
 
 export type RecommendCameraInput = {
   stage: RecommendMapStage

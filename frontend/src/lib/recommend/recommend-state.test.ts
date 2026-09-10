@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
+import type { MapCamera } from '@/lib/analysis/map-camera'
+
+import { applyCameraMode } from './recommend-map-model'
 import {
   createInitialRecommendationState,
   createStableCommercialCodes,
   formatRecommendationPeriod,
   recommendationReducer,
+  type RecommendationAction,
   type RecommendationState,
 } from './recommend-state'
+import { createRecommendHref, parseRecommendUrlState } from './recommend-url'
 
 const readyState = (): RecommendationState => ({
   ...createInitialRecommendationState(),
@@ -31,6 +36,8 @@ describe('createInitialRecommendationState', () => {
       selectedCommercialCode: null,
       resultSelectionSource: null,
       sheetSnap: 'expanded',
+      // 씨앗에 `c` 가 없으면 자동 맞춤이 그대로 돈다(url-state §2-2).
+      cameraMode: 'auto',
     })
   })
 })
@@ -116,6 +123,7 @@ describe('recommendationReducer', () => {
       selectedCommercialCode: null,
       resultSelectionSource: null,
       sheetSnap: 'expanded',
+      cameraMode: 'auto',
     })
   })
 
@@ -422,6 +430,7 @@ describe('recommendationReducer', () => {
       selectedCommercialCode: null,
       resultSelectionSource: null,
       sheetSnap: 'expanded',
+      cameraMode: 'auto',
     })
   })
 
@@ -633,5 +642,195 @@ describe('administrationRejected', () => {
         code: '11680999',
       }),
     ).toBe(empty)
+  })
+})
+
+/*
+ * 카메라 모드 (#317, url-state §2-2).
+ *
+ * 리듀서는 카메라 **값**을 들지 않는다 — 값의 정본은 지도 인스턴스고, 여기서는
+ * 「자동 맞춤이 지도를 움직여도 되는가」만 정한다.
+ */
+describe('cameraMode', () => {
+  const CAMERA: MapCamera = { lat: 37.50123, lng: 127.03456, level: 5 }
+  const seed = {
+    district: { code: '11680', name: '강남구' },
+    administration: { code: '11680640', name: '' },
+    service: { code: 'CS100001', name: '한식음식점' },
+  }
+  const urlSeeded = (): RecommendationState => ({
+    ...createInitialRecommendationState({ ...seed, camera: CAMERA }),
+    draft: readyState().draft,
+  })
+  const urlResults = () =>
+    recommendationReducer(urlSeeded(), {
+      type: 'submitted',
+      commercialCodes: ['3110008', '3110012'],
+      source: 'seed',
+    })
+
+  // T-22
+  it('씨앗의 c 가 모드를 정한다', () => {
+    expect(
+      createInitialRecommendationState({ ...seed, camera: CAMERA }).cameraMode,
+    ).toBe('url')
+    expect(
+      createInitialRecommendationState({ ...seed, camera: null }).cameraMode,
+    ).toBe('auto')
+    expect(createInitialRecommendationState(seed).cameraMode).toBe('auto')
+    expect(createInitialRecommendationState().cameraMode).toBe('auto')
+  })
+
+  /*
+   * T-23 — 복원 사슬은 데이터 액션으로만 굴러간다. 하나라도 모드를 풀면 자동
+   * 맞춤이 링크의 카메라를 덮어쓴다.
+   */
+  it('데이터·UI 액션과 씨앗 제출은 url 을 유지한다', () => {
+    const submitted = urlResults()
+
+    expect(submitted.cameraMode).toBe('url')
+    expect(submitted.view).toBe('results')
+
+    const requestKey = submitted.submitted?.requestKey ?? ''
+
+    expect(
+      recommendationReducer(submitted, {
+        type: 'resultsLoaded',
+        requestKey,
+        commercialCode: '3110008',
+      }).cameraMode,
+    ).toBe('url')
+    expect(
+      recommendationReducer(submitted, {
+        type: 'administrationNameResolved',
+        administration: { code: '11680101', name: '역삼1동(갱신)' },
+      }).cameraMode,
+    ).toBe('url')
+    expect(
+      recommendationReducer(submitted, {
+        type: 'administrationRejected',
+        code: '11680101',
+      }).cameraMode,
+    ).toBe('url')
+    expect(
+      recommendationReducer(submitted, {
+        type: 'pickerOpened',
+        step: 'service',
+      }).cameraMode,
+    ).toBe('url')
+    expect(
+      recommendationReducer(submitted, { type: 'pickerClosed' }).cameraMode,
+    ).toBe('url')
+    expect(
+      recommendationReducer(submitted, {
+        type: 'sheetSnapChanged',
+        snap: 'collapsed',
+      }).cameraMode,
+    ).toBe('url')
+  })
+
+  // T-24 — 사용자가 의도를 보이면 카메라는 다시 선택·결과를 따라간다.
+  it('사용자 의도 액션 7종이 auto 로 풀어 준다', () => {
+    const results = recommendationReducer(urlResults(), {
+      type: 'resultsLoaded',
+      requestKey: urlResults().submitted?.requestKey ?? '',
+      commercialCode: '3110008',
+    })
+    const actions: RecommendationAction[] = [
+      { type: 'districtSelected', district: { code: '11710', name: '송파구' } },
+      {
+        type: 'administrationSelected',
+        administration: { code: '11680650', name: '역삼2동' },
+      },
+      { type: 'serviceSelected', service: { code: 'CS100010', name: '커피' } },
+      { type: 'submitted', commercialCodes: ['3110008'] },
+      { type: 'resultSelected', commercialCode: '3110012' },
+      { type: 'editRequested' },
+      { type: 'cameraFollowRequested' },
+    ]
+
+    expect(actions).toHaveLength(7)
+    actions.forEach(action => {
+      expect(recommendationReducer(results, action).cameraMode).toBe('auto')
+    })
+
+    // `'auto'` → `'url'` 로 되돌아가는 전이는 없다.
+    const auto = { ...results, cameraMode: 'auto' as const }
+
+    actions.forEach(action => {
+      expect(recommendationReducer(auto, action).cameraMode).toBe('auto')
+    })
+  })
+
+  /*
+   * 무효한 액션이 상태를 그대로 돌려주는 분기에서는 모드도 바뀌지 않아야 한다 —
+   * 조건이 덜 찬 상태의 「추천받기」로 카메라 잠금이 풀리면, 링크 복원 중에
+   * 자동 맞춤이 되살아난다.
+   */
+  it('무효한 사용자 액션은 모드도 건드리지 않는다', () => {
+    const empty = createInitialRecommendationState({ ...seed, camera: CAMERA })
+    const emptyDraft = {
+      ...empty,
+      draft: { district: null, administration: null, service: null },
+    }
+
+    expect(
+      recommendationReducer(emptyDraft, {
+        type: 'submitted',
+        commercialCodes: ['3110008'],
+      }),
+    ).toBe(emptyDraft)
+    expect(
+      recommendationReducer(empty, {
+        type: 'resultSelected',
+        commercialCode: '3110008',
+      }),
+    ).toBe(empty)
+  })
+
+  it('이미 auto 면 cameraFollowRequested 는 상태를 새로 만들지 않는다', () => {
+    const auto = createInitialRecommendationState(seed)
+
+    expect(recommendationReducer(auto, { type: 'cameraFollowRequested' })).toBe(
+      auto,
+    )
+  })
+
+  /*
+   * T-26 — 링크 진입부터 새로고침까지 한 바퀴.
+   *
+   * 결과가 도착하기까지 자동 맞춤은 한 번도 돌지 않고(카메라는 `c` 그대로),
+   * 사용자가 지도를 움직이면 그 카메라가 `c` 에 실려 다음 진입의 씨앗이 된다.
+   */
+  it('c 링크로 들어와 결과를 받고 지도를 옮겨도 c 가 이긴다', () => {
+    const seeded = createInitialRecommendationState({ ...seed, camera: CAMERA })
+    const submitted = recommendationReducer(seeded, {
+      type: 'submitted',
+      commercialCodes: ['3110008', '3110012'],
+      source: 'seed',
+    })
+    const loaded = recommendationReducer(submitted, {
+      type: 'resultsLoaded',
+      requestKey: submitted.submitted?.requestKey ?? '',
+      commercialCode: '3110008',
+    })
+    const fit = {
+      kind: 'fit',
+      points: [{ lng: 127.04, lat: 37.51 }],
+    } as const
+
+    expect(applyCameraMode(fit, seeded.cameraMode)).toEqual({ kind: 'keep' })
+    expect(applyCameraMode(fit, submitted.cameraMode)).toEqual({ kind: 'keep' })
+    expect(applyCameraMode(fit, loaded.cameraMode)).toEqual({ kind: 'keep' })
+
+    // 사용자가 지도를 움직였다 — 모드는 그대로고 `c` 만 갱신된다.
+    const moved: MapCamera = { lat: 37.49, lng: 127.02, level: 4 }
+    const href = createRecommendHref(loaded, moved)
+    const restored = parseRecommendUrlState(
+      new URLSearchParams(href.split('?')[1]),
+    )
+
+    expect(restored.camera).toEqual(moved)
+    expect(createInitialRecommendationState(restored).cameraMode).toBe('url')
   })
 })

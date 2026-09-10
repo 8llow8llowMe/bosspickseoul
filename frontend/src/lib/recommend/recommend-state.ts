@@ -1,3 +1,5 @@
+import type { MapCamera } from '@/lib/analysis/map-camera'
+
 export type RecommendationOption = {
   readonly code: string
   readonly name: string
@@ -15,6 +17,14 @@ export type RecommendConditionStep = 'district' | 'administration' | 'service'
 export type RecommendationSheetSnap = 'expanded' | 'collapsed'
 
 /**
+ * 자동 맞춤이 지도를 움직여도 되는가(url-state §2-2, #317).
+ *
+ * - `'url'` — 링크가 들고 온 `c` 가 화면을 지배한다. 복원 사슬의 자동 맞춤을 전부 잠근다
+ * - `'auto'` — 카메라가 선택·결과를 따라간다(기존 동작)
+ */
+export type RecommendCameraMode = 'url' | 'auto'
+
+/**
  * URL 이 넘겨 주는 씨앗. 조건만 담는다 — 화면 단계(`view=results`)와 고른 상권은
  * 후보 목록·결과가 도착한 뒤에야 의미가 생겨서 화면이 따로 다룬다.
  */
@@ -22,6 +32,11 @@ export type RecommendationSeed = {
   district: RecommendationOption | null
   administration: RecommendationOption | null
   service: RecommendationOption | null
+  /**
+   * 링크가 들고 온 카메라. **값이 아니라 모드만** 상태로 옮긴다 — 값의 정본은 카카오
+   * 지도 인스턴스고, 팬 한 번마다 리듀서가 바뀌면 화면 전체가 리렌더된다(§2-2).
+   */
+  camera?: MapCamera | null
 }
 
 export type RecommendationCriteria = {
@@ -56,9 +71,22 @@ export type RecommendationState = {
    */
   resultSelectionSource: 'auto' | 'user' | null
   sheetSnap: RecommendationSheetSnap
+  /**
+   * 자동 맞춤이 지도를 움직여도 되는가(§2-2).
+   *
+   * 링크로 들어온 카메라와 결과 자동 맞춤은 서로를 덮어쓴다. 복원하는 동안 자동
+   * 맞춤은 **여러 번** 돌기 때문에(단계 fit → 결과 fit → 경계 재fit → 지목 상권 fit)
+   * 하나하나 골라 막을 수 없다. 그래서 모드로 가른다 — `'url'` 이면 `applyCameraMode`
+   * 가 모든 타깃을 `keep` 으로 바꾼다.
+   *
+   * **사용자 의도 액션**(조건 선택 · 사용자 제출 · 결과 선택 · 조건 수정 ·
+   * 「선택 범위로 이동」)에서만 `'auto'` 로 풀린다. 데이터·UI 액션과 씨앗 자동 제출
+   * (`submitted` 의 `source: 'seed'`)은 유지한다. `'auto'` → `'url'` 전이는 **없다**.
+   */
+  cameraMode: RecommendCameraMode
 }
 
-type RecommendationAction =
+export type RecommendationAction =
   | { type: 'districtSelected'; district: RecommendationOption }
   | {
       type: 'administrationSelected'
@@ -70,6 +98,12 @@ type RecommendationAction =
   | {
       type: 'submitted'
       commercialCodes: readonly (string | number)[]
+      /**
+       * 이 제출을 **누가 시켰는가**. 링크가 들고 온 조건을 후보 목록 도착과 함께
+       * 자동 제출한 것이면 `'seed'` 다 — 사용자 의도가 아니므로 카메라 모드를 풀지
+       * 않는다. 생략하면 사용자가 「상권 추천받기」를 누른 것으로 본다.
+       */
+      source?: 'seed' | 'user'
     }
   | {
       type: 'resultsLoaded'
@@ -94,6 +128,11 @@ type RecommendationAction =
   | { type: 'administrationRejected'; code: string }
   | { type: 'editRequested' }
   | { type: 'sheetSnapChanged'; snap: RecommendationSheetSnap }
+  /**
+   * 「선택 범위로 이동」 버튼. 지도는 모드와 무관하게 **즉시** 맞추고(사용자가 원한
+   * 것이다), 그 뒤로는 카메라가 선택·결과를 따라가도 된다는 뜻이라 `'auto'` 가 된다.
+   */
+  | { type: 'cameraFollowRequested' }
 
 export const createStableCommercialCodes = (
   codes: readonly (string | number)[],
@@ -141,6 +180,8 @@ export const createInitialRecommendationState = (
   selectedCommercialCode: null,
   resultSelectionSource: null,
   sheetSnap: 'expanded',
+  // 링크가 카메라를 들고 왔으면 그것이 화면을 지배한다 — 자동 맞춤을 잠근다(§2-2).
+  cameraMode: seed?.camera ? 'url' : 'auto',
 })
 
 export function recommendationReducer(
@@ -162,6 +203,8 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         resultSelectionSource: null,
         sheetSnap: 'expanded',
+        // 사용자 의도 액션 — 링크 카메라의 잠금을 푼다(§2-2).
+        cameraMode: 'auto',
       }
     case 'administrationSelected': {
       // 자치구·행정동은 지도에서 고를 수 있지만 **업종은 지도에 없다.** 지역이
@@ -181,6 +224,7 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         resultSelectionSource: null,
         sheetSnap: 'expanded',
+        cameraMode: 'auto',
       }
     }
     case 'serviceSelected':
@@ -196,6 +240,7 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         resultSelectionSource: null,
         sheetSnap: 'expanded',
+        cameraMode: 'auto',
       }
     case 'submitted': {
       const { district, administration, service } = state.draft
@@ -230,6 +275,11 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         resultSelectionSource: null,
         sheetSnap: 'expanded',
+        /*
+         * 씨앗 자동 제출(`'seed'`)은 링크를 복원하는 데이터 흐름일 뿐이라 카메라
+         * 잠금을 풀지 않는다. 사용자가 「상권 추천받기」를 누른 제출만 `'auto'` 다.
+         */
+        cameraMode: action.source === 'seed' ? state.cameraMode : 'auto',
       }
     }
     case 'resultsLoaded': {
@@ -325,6 +375,7 @@ export function recommendationReducer(
         selectedCommercialCode: action.commercialCode,
         resultSelectionSource: 'user',
         sheetSnap: 'collapsed',
+        cameraMode: 'auto',
       }
     case 'editRequested':
       return {
@@ -335,6 +386,7 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         resultSelectionSource: null,
         sheetSnap: 'expanded',
+        cameraMode: 'auto',
       }
     case 'pickerOpened':
       return {
@@ -356,6 +408,15 @@ export function recommendationReducer(
         ...state,
         sheetSnap: action.snap,
       }
+    /*
+     * 지도는 이 버튼을 모드와 무관하게 즉시 처리한다(`recommend-map.tsx` 의 `recenter`).
+     * 리듀서가 할 일은 그 뒤로 자동 맞춤을 다시 허용하는 것뿐이다. 이미 `'auto'` 면
+     * **새 객체를 만들지 않는다** — 버튼 한 번에 화면 전체가 리렌더될 이유가 없다.
+     */
+    case 'cameraFollowRequested':
+      return state.cameraMode === 'auto'
+        ? state
+        : { ...state, cameraMode: 'auto' }
   }
 }
 
