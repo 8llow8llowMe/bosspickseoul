@@ -19,8 +19,9 @@ import java.util.Locale;
 public enum Dataset {
     SALES_COMMERCIAL("VwsmTrdarSelngQq", AreaScope.COMMERCIAL, true, List.of("THSMON_SELNG_AMT")),
     STORE_COMMERCIAL("VwsmTrdarStorQq", AreaScope.COMMERCIAL, true, List.of("STOR_CO")),
-    // commercial-service 매퍼가 필수로 읽는 컬럼(shared DatasetKey.readerRequiredFields)을 전부 요구한다.
-    // 여기서 걸러야 결손 행이 게시돼 조회가 한 분기 전체를 500 으로 만드는 일이 없다. DatasetTest 가 포함 관계를 고정한다.
+    // 이관 대상 팩트 테이블이 NOT NULL 로 요구할 컬럼(shared DatasetKey.readerRequiredFields)을 게시 단계에서 전부 요구한다.
+    // 여기서 걸러야 결손 행이 게시돼 이관 때 그대로 넘어오는 일이 없다. 조회 측 매퍼는 2026-09-10 제거됐고,
+    // DatasetTest 가 DatasetKey 와의 포함 관계를 계속 고정한다.
     FOOT_TRAFFIC_COMMERCIAL("VwsmTrdarFlpopQq", AreaScope.COMMERCIAL, false, List.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM",
         "TOT_FLPOP_CO", "ML_FLPOP_CO", "FML_FLPOP_CO",
