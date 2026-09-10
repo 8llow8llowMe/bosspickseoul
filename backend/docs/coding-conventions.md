@@ -241,6 +241,8 @@ API 응답에서 enum 을 문자열로 내보낼 때는 `enum.name()` 을 사용
 
 - 필드 설명이 필요한 엔티티는 `@Comment` 를 사용합니다.
 - 단일 PK 를 우선하고, N:N 관계는 중간 테이블을 분리합니다.
+  - 예외: **다른 서비스(배치)가 DDL 을 소유하는 읽기 전용 테이블**은 그 DDL 을 그대로 미러링합니다 — `@Immutable` + `@EmbeddedId`,
+    인덱스 선언 없음, Hibernate 스키마 도구에서 제외(`SchemaFilterProvider`). 본보기: commercial-service `dataset/.../DatasetFactEntity`.
 - 삭제 전략과 복구 요구사항에 맞춰 명시적으로 선택합니다.
 - **JPA 연관관계 어노테이션 (`@ManyToOne` / `@OneToMany` / `@OneToOne` / `@ManyToMany` / `@JoinColumn` / `@JoinTable`) 은 사용하지 않습니다.** 서비스 간 / 서비스 내 모든 관계는 raw FK 컬럼만으로 표현하고, 객체 그래프 탐색이 필요하면 application 계층에서 별도 조회로 처리합니다. 이는 서비스 경계를 흐리지 않고 DB 결합도를 낮추기 위함입니다.
 
