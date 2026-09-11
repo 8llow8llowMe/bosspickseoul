@@ -38,6 +38,9 @@ echo "==> 서브셋"
   --no-hinting --drop-tables+=DSIG --name-IDs='*' \
   --output-file=public/fonts/PretendardVariable.subset.woff2
 
+echo "==> 내부 family 명 재작성 (OFL Reserved Font Name — D8-5)"
+"$VENV/bin/python" scripts/fonts/rename-family.py public/fonts/PretendardVariable.subset.woff2
+
 echo "==> 검증"
 "$VENV/bin/python" - <<'PY'
 from fontTools.ttLib import TTFont
