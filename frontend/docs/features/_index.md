@@ -222,17 +222,18 @@ Phase 8 기준으로 아래 운영 문서와 설정이 추가되었다.
 
 ### 환경변수 매핑
 
-| Legacy                                    | Target                                     |
-| ----------------------------------------- | ------------------------------------------ |
-| `VITE_REACT_API_URL`                      | `NEXT_PUBLIC_API_URL`                      |
-| `VITE_REACT_APP_KAKAOMAP_API_KEY`         | `NEXT_PUBLIC_KAKAOMAP_API_KEY`             |
-| `legacy hardcoded Kakao JS key`           | `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`         |
-| `VITE_REACT_WS_URL`                       | `NEXT_PUBLIC_WS_URL`                       |
-| `VITE_REACT_FIREBASE_API_KEY`             | `NEXT_PUBLIC_FIREBASE_API_KEY`             |
-| `VITE_REACT_FIREBASE_MESSAGING_SENDER_ID` | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` |
-| `VITE_REACT_FIREBASE_APP_ID`              | `NEXT_PUBLIC_FIREBASE_APP_ID`              |
-| `VITE_REACT_FIREBASE_MEASUREMENT_ID`      | `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      |
-| `legacy browser push key`                 | `NEXT_PUBLIC_FIREBASE_VAPID_KEY`           |
+| Legacy                                    | Target                                                                                   |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- | -------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_REACT_API_URL`                      | `NEXT_PUBLIC_API_URL`                                                                    |
+| `VITE_REACT_APP_KAKAOMAP_API_KEY`         | `NEXT_PUBLIC_KAKAOMAP_API_KEY`                                                           |
+| `legacy hardcoded Kakao JS key`           | `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`                                                       |
+| `VITE_REACT_WS_URL`                       | `NEXT_PUBLIC_WS_URL`                                                                     |
+| `VITE_REACT_FIREBASE_API_KEY`             | `NEXT_PUBLIC_FIREBASE_API_KEY`                                                           |
+| `VITE_REACT_FIREBASE_MESSAGING_SENDER_ID` | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`                                               |
+| `VITE_REACT_FIREBASE_APP_ID`              | `NEXT_PUBLIC_FIREBASE_APP_ID`                                                            |
+| `VITE_REACT_FIREBASE_MEASUREMENT_ID`      | `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`                                                    |
+| `legacy browser push key`                 | `NEXT_PUBLIC_FIREBASE_VAPID_KEY`                                                         |
+| layout                                    | (공통명세 없음 — `DESIGN.md`·`docs/engineering/` 이 정본, 신설은 pretendard-subset D8-1) | 전 라우트 공통 | 🟩 세부명세 3건 | [width-system-verification](./layout/width-system-verification.md)(폭 체계 실측) · **2026-09-11 감사 P0 세부명세**: [pretendard-subset](./layout/pretendard-subset.md)(폰트 3,049KB → 429KB 가변 1파일) · [contrast-tokens](./layout/contrast-tokens.md)(AA 미달 18종 → 0, `--color-blue-700` 등 토큰 신설 — DESIGN.md 문안 승인 필요) |
 
 ### 상태 업데이트 규칙 (레거시 라우트 매핑 기준)
 
