@@ -86,6 +86,19 @@ export const toHomeMetricRankings = (
  * 지표당 **10개**다 — 01단계가 Top10 을 그리므로(R4) 개수를 정상 상태와 맞춘다.
  * 변화율은 원시값을 소수점 1자리로 반올림한 것이다.
  */
+/**
+ * 홈이 노출하는 세 지표가 **동시에** 비었는지. `rankings` 가 `null` 이면(조회 실패)
+ * 역시 참이다.
+ *
+ * 한 지표만 비면 그 지표의 적재가 늦은 것일 수 있다. 셋이 한꺼번에 비는 것은 자치구
+ * 팩트 조회가 통째로 실패했다는 뜻이다. 홈은 어느 쪽이든 예시로 폴백하므로 **화면만
+ * 보면 구별되지 않는다** — 2026-09-11 dev 장애 때 홈만 정상처럼 보여 장애 인지가
+ * 늦었다(#371). 폴백은 유지하되 이 경우만 로그를 남긴다.
+ */
+export const isHomeRankingsAllEmpty = (
+  rankings: HomeMetricRanking[] | null,
+): boolean => !rankings || rankings.every(entry => entry.items.length === 0)
+
 export const HOME_METRIC_FALLBACK: HomeMetricRanking[] = [
   {
     metric: 'footTraffic',

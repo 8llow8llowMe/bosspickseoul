@@ -4,7 +4,9 @@ import {
   HOME_METRIC_FALLBACK,
   RANKING_METRIC_TOP_N,
   STORY_METRIC_TOP_N,
+  isHomeRankingsAllEmpty,
   toHomeMetricRankings,
+  type HomeMetricRanking,
 } from '@/lib/home/metric-rankings'
 import type { DistrictTopTenSummary } from '@/types/status'
 
@@ -186,5 +188,34 @@ describe('toHomeMetricRankings — 소비처별 topN(R4)', () => {
    */
   it('01단계와 랭킹 우측은 서로 다른 개수를 쓴다', () => {
     expect(STORY_METRIC_TOP_N).not.toBe(RANKING_METRIC_TOP_N)
+  })
+})
+
+/*
+ * 홈은 지표가 비면 예시로 폴백한다. 의도된 설계지만 **화면만 보면 정상과 구별되지
+ * 않는다** — 2026-09-11 dev 장애 때 홈만 정상처럼 보여 인지가 늦었다(#371).
+ * 세 지표가 동시에 빈 경우만 갈라내 로그 대상으로 삼는다.
+ */
+describe('isHomeRankingsAllEmpty', () => {
+  const withItemCount = (itemCounts: number[]): HomeMetricRanking[] =>
+    HOME_METRIC_FALLBACK.map((entry, index) => ({
+      ...entry,
+      items: entry.items.slice(0, itemCounts[index] ?? 0),
+    }))
+
+  it('조회가 실패해 rankings 가 null 이면 참이다', () => {
+    expect(isHomeRankingsAllEmpty(null)).toBe(true)
+  })
+
+  it('세 지표가 모두 비면 참이다', () => {
+    expect(isHomeRankingsAllEmpty(withItemCount([0, 0, 0]))).toBe(true)
+  })
+
+  it('한 지표라도 값이 있으면 거짓이다', () => {
+    expect(isHomeRankingsAllEmpty(withItemCount([0, 3, 0]))).toBe(false)
+  })
+
+  it('폴백 상수 자체는 비어 있지 않다 — 폴백이 빈 화면이 되면 안 된다', () => {
+    expect(isHomeRankingsAllEmpty(HOME_METRIC_FALLBACK)).toBe(false)
   })
 })

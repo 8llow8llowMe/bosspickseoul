@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
@@ -11,6 +11,7 @@ import {
   HOME_METRICS,
   HOME_METRIC_FALLBACK,
   STORY_METRIC_TOP_N,
+  isHomeRankingsAllEmpty,
   homeMetricLabel,
   toHomeMetricRankings,
   type HomeMetric,
@@ -51,6 +52,33 @@ export default function MetricRankingBoard() {
   */
   const isFallback = !activeFromApi || activeFromApi.items.length === 0
   const rankings = isFallback ? HOME_METRIC_FALLBACK : rankingsFromApi!
+
+  /*
+    세 지표가 **동시에** 폴백되면 단일 지표 결측이 아니라 데이터 공급 장애다. 폴백은
+    의도된 설계라 그대로 두지만(라벨이 붙는다), 화면만 보면 정상과 구별되지 않아
+    장애를 조용히 넘기게 된다 — 2026-09-11 dev 에서 홈만 정상처럼 보여 인지가
+    늦었다(#371). 그래서 로그를 남긴다.
+
+    한 번만 남긴다. 지표 토글은 같은 응답을 다시 그릴 뿐이라 매번 찍으면 콘솔이 막힌다.
+  */
+  const isAllFallback = isHomeRankingsAllEmpty(rankingsFromApi)
+  const settled = !query.isPending
+  const reportedRef = useRef(false)
+
+  useEffect(() => {
+    if (!settled || !isAllFallback) {
+      reportedRef.current = false
+      return
+    }
+
+    if (reportedRef.current) return
+    reportedRef.current = true
+
+    console.warn(
+      '[home] 자치구 TOP 10 세 지표가 모두 비어 예시로 폴백했습니다. 데이터 공급 장애를 의심하세요.',
+      { failed: query.isError, metrics: HOME_METRICS },
+    )
+  }, [isAllFallback, query.isError, settled])
 
   const active = rankings.find(entry => entry.metric === metric) ?? rankings[0]
 
