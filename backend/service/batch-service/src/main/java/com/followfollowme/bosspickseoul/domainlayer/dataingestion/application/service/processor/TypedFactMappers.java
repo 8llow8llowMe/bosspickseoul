@@ -13,7 +13,9 @@ public final class TypedFactMappers {
     private TypedFactMappers() {
     }
 
-    public static Object[] columns(Dataset dataset, FactRow fact, String periodCode, String spatialVersion) {
+    public static Object[] columns(
+        Dataset dataset, FactRow fact, String periodCode, String spatialVersion, ServiceTypeResolver serviceTypes
+    ) {
         Map<String, String> fields = fact.fields();
         TypedPayload.requirePeriod(fields, periodCode);
         TypedPayload.requireAll(fields, dataset.requiredMetrics());
@@ -23,16 +25,16 @@ public final class TypedFactMappers {
             case POPULATION_COMMERCIAL -> populationCommercial(fact, fields, periodCode, spatialVersion);
             case FACILITY_COMMERCIAL -> facilityCommercial(fact, fields, periodCode, spatialVersion);
             case CONSUMPTION_COMMERCIAL -> consumptionCommercial(fact, fields, periodCode, spatialVersion);
-            case STORE_COMMERCIAL -> storeCommercial(fact, fields, periodCode, spatialVersion);
-            case SALES_COMMERCIAL -> salesCommercial(fact, fields, periodCode, spatialVersion);
+            case STORE_COMMERCIAL -> storeCommercial(fact, fields, periodCode, spatialVersion, serviceTypes);
+            case SALES_COMMERCIAL -> salesCommercial(fact, fields, periodCode, spatialVersion, serviceTypes);
             case FOOT_TRAFFIC_DISTRICT -> footTrafficDistrict(fact, fields, periodCode, spatialVersion);
             case CONSUMPTION_DISTRICT -> consumptionDistrict(fact, fields, periodCode, spatialVersion);
             case CHANGE_DISTRICT -> changeDistrict(fact, fields, periodCode, spatialVersion);
-            case STORE_DISTRICT -> storeDistrict(fact, fields, periodCode, spatialVersion);
-            case SALES_DISTRICT -> salesDistrict(fact, fields, periodCode, spatialVersion);
+            case STORE_DISTRICT -> storeDistrict(fact, fields, periodCode, spatialVersion, serviceTypes);
+            case SALES_DISTRICT -> salesDistrict(fact, fields, periodCode, spatialVersion, serviceTypes);
             case CONSUMPTION_ADMINISTRATION -> consumptionAdministration(fact, fields, periodCode, spatialVersion);
-            case STORE_ADMINISTRATION -> storeAdministration(fact, fields, periodCode, spatialVersion);
-            case SALES_ADMINISTRATION -> salesAdministration(fact, fields, periodCode, spatialVersion);
+            case STORE_ADMINISTRATION -> storeAdministration(fact, fields, periodCode, spatialVersion, serviceTypes);
+            case SALES_ADMINISTRATION -> salesAdministration(fact, fields, periodCode, spatialVersion, serviceTypes);
         };
     }
 
@@ -152,19 +154,25 @@ public final class TypedFactMappers {
         });
     }
 
-    private static Object[] storeCommercial(FactRow fact, Map<String, String> fields, String period, String spatial) {
+    private static Object[] storeCommercial(
+        FactRow fact, Map<String, String> fields, String period, String spatial, ServiceTypeResolver serviceTypes
+    ) {
+        String serviceCode = serviceCode(fact, fields);
         return concat(commercialHead(fact, fields, period, spatial), new Object[] {
-            serviceCode(fact, fields),
+            serviceCode,
             TypedPayload.text(fields, "SVC_INDUTY_CD_NM"),
-            null
+            serviceTypes.resolve(serviceCode)
         }, storeMetrics(fields));
     }
 
-    private static Object[] salesCommercial(FactRow fact, Map<String, String> fields, String period, String spatial) {
+    private static Object[] salesCommercial(
+        FactRow fact, Map<String, String> fields, String period, String spatial, ServiceTypeResolver serviceTypes
+    ) {
+        String serviceCode = serviceCode(fact, fields);
         return concat(commercialHead(fact, fields, period, spatial), new Object[] {
-            serviceCode(fact, fields),
+            serviceCode,
             TypedPayload.text(fields, "SVC_INDUTY_CD_NM"),
-            null,
+            serviceTypes.resolve(serviceCode),
             TypedPayload.longValue(fields, "THSMON_SELNG_AMT"),
             TypedPayload.longValue(fields, "MON_SELNG_AMT"),
             TypedPayload.longValue(fields, "TUES_SELNG_AMT"),
@@ -240,17 +248,23 @@ public final class TypedFactMappers {
         };
     }
 
-    private static Object[] storeDistrict(FactRow fact, Map<String, String> fields, String period, String spatial) {
+    private static Object[] storeDistrict(
+        FactRow fact, Map<String, String> fields, String period, String spatial, ServiceTypeResolver serviceTypes
+    ) {
+        String serviceCode = serviceCode(fact, fields);
         return concat(new Object[] {
             period, spatial, fact.areaCode(), TypedPayload.text(fields, "SIGNGU_CD_NM"),
-            serviceCode(fact, fields), TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), null
+            serviceCode, TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), serviceTypes.resolve(serviceCode)
         }, storeScopeMetrics(fields));
     }
 
-    private static Object[] salesDistrict(FactRow fact, Map<String, String> fields, String period, String spatial) {
+    private static Object[] salesDistrict(
+        FactRow fact, Map<String, String> fields, String period, String spatial, ServiceTypeResolver serviceTypes
+    ) {
+        String serviceCode = serviceCode(fact, fields);
         return new Object[] {
             period, spatial, fact.areaCode(), TypedPayload.text(fields, "SIGNGU_CD_NM"),
-            serviceCode(fact, fields), TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), null,
+            serviceCode, TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), serviceTypes.resolve(serviceCode),
             TypedPayload.longValue(fields, "THSMON_SELNG_AMT"),
             TypedPayload.longValue(fields, "MON_SELNG_AMT"),
             TypedPayload.longValue(fields, "TUES_SELNG_AMT"),
@@ -283,17 +297,23 @@ public final class TypedFactMappers {
         };
     }
 
-    private static Object[] storeAdministration(FactRow fact, Map<String, String> fields, String period, String spatial) {
+    private static Object[] storeAdministration(
+        FactRow fact, Map<String, String> fields, String period, String spatial, ServiceTypeResolver serviceTypes
+    ) {
+        String serviceCode = serviceCode(fact, fields);
         return concat(new Object[] {
             period, spatial, fact.areaCode(), TypedPayload.text(fields, "ADSTRD_CD_NM"),
-            serviceCode(fact, fields), TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), null
+            serviceCode, TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), serviceTypes.resolve(serviceCode)
         }, storeScopeMetrics(fields));
     }
 
-    private static Object[] salesAdministration(FactRow fact, Map<String, String> fields, String period, String spatial) {
+    private static Object[] salesAdministration(
+        FactRow fact, Map<String, String> fields, String period, String spatial, ServiceTypeResolver serviceTypes
+    ) {
+        String serviceCode = serviceCode(fact, fields);
         return new Object[] {
             period, spatial, fact.areaCode(), TypedPayload.text(fields, "ADSTRD_CD_NM"),
-            serviceCode(fact, fields), TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), null,
+            serviceCode, TypedPayload.text(fields, "SVC_INDUTY_CD_NM"), serviceTypes.resolve(serviceCode),
             TypedPayload.longValue(fields, "THSMON_SELNG_AMT"),
             TypedPayload.longValue(fields, "MDWK_SELNG_AMT"),
             TypedPayload.longValue(fields, "WKEND_SELNG_AMT")
