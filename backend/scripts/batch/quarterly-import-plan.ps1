@@ -19,8 +19,13 @@
     Dataset names to emit. Defaults to all 15, ordered smallest/safest first.
 
 .PARAMETER Period
-    Quarter codes such as 20241. Defaults to 20211..20254 (20254 is the newest quarter the
-    source served as of 2026-09-10).
+    Quarter codes such as 20241. Defaults to 20211..20261 (20261 is the newest quarter
+    loaded into the development database as of 2026-09-11).
+
+.PARAMETER Job
+    Which CLI job to emit. 'facts' loads the Open API into dataset_fact. 'project' moves an
+    already published release into the legacy fact-table columns. Run facts first, then
+    project for the same dataset and quarter; nothing reaches the screens until project runs.
 
 .PARAMETER SpatialVersion
     Published spatial snapshot to validate area codes against. Must already be READY.
@@ -39,11 +44,17 @@
 .EXAMPLE
     .\quarterly-import-plan.ps1 -Period 20241,20242 | Set-Content plan.txt
     Two quarters of all 15 datasets, saved for review.
+
+.EXAMPLE
+    .\quarterly-import-plan.ps1 -Job project | Set-Content project.txt
+    Typed projection for every published dataset and quarter.
 #>
 [CmdletBinding()]
 param(
     [string[]] $Dataset,
     [string[]] $Period,
+    [ValidateSet('facts', 'project')]
+    [string]   $Job = 'facts',
     [string]   $SpatialVersion = 'legacy-20233',
     [string]   $SchemaVersion = 'seoul-v1',
     [int]      $Attempt = 1,
@@ -83,6 +94,7 @@ $allPeriods = @(
     '20231', '20232', '20233', '20234'
     '20241', '20242', '20243', '20244'
     '20251', '20252', '20253', '20254'
+    '20261'
 )
 
 function Resolve-Selection {
@@ -136,6 +148,20 @@ function Format-ImportCommand {
                 $DryRun.ToString().ToLowerInvariant()
 }
 
+function Format-ProjectionCommand {
+    param(
+        [string]$DatasetName,
+        [string]$PeriodCode,
+        [string]$RunId,
+        [bool]$DryRun
+    )
+
+    $command = 'java -jar $jar --job=project --run-id={0} --dataset={1} --period={2}' +
+               ' --spatial-version={3} --dry-run={4}'
+    $command -f $RunId, $DatasetName, $PeriodCode, $SpatialVersion,
+                $DryRun.ToString().ToLowerInvariant()
+}
+
 # @() is required at every call site: a function returning one item hands back a bare object,
 # and Set-StrictMode makes reading .Count on it throw.
 $selectedNames = @(Resolve-Selection -Requested $Dataset -Available ($catalog.Name) -Label 'dataset')
@@ -144,19 +170,37 @@ $selected = @($catalog | Where-Object { $selectedNames -contains $_.Name } | Sor
 
 ''
 '# Quarterly import plan'
-("# spatial-version={0}  schema-version={1}  datasets={2}  quarters={3}" -f
-    $SpatialVersion, $SchemaVersion, $selected.Count, $selectedPeriods.Count)
+if ($Job -eq 'project') {
+    # --job=project takes neither a source nor a schema-version, so printing them would mislead.
+    ("# job=project  spatial-version={0}  datasets={1}  quarters={2}" -f
+        $SpatialVersion, $selected.Count, $selectedPeriods.Count)
+}
+else {
+    ("# job=facts  spatial-version={0}  schema-version={1}  datasets={2}  quarters={3}" -f
+        $SpatialVersion, $SchemaVersion, $selected.Count, $selectedPeriods.Count)
+}
 '# Prerequisite: the spatial snapshot above is published (dataset_spatial_release.status = READY).'
 '# Run one dataset at a time. Never reuse a run-id after changing any parameter.'
 ''
 
+# PeriodArg / Source / RowsPerQuarter describe how a dataset is fetched from the Open API.
+# Projection reads an already published release, so those columns are omitted for -Job project.
+$summaryColumns = if ($Job -eq 'project') {
+    @(@{ n = 'Order'; e = { $_.Order } },
+      @{ n = 'Dataset'; e = { $_.Name } },
+      @{ n = 'Scope'; e = { $_.Scope } })
+}
+else {
+    @(@{ n = 'Order'; e = { $_.Order } },
+      @{ n = 'Dataset'; e = { $_.Name } },
+      @{ n = 'Scope'; e = { $_.Scope } },
+      @{ n = 'PeriodArg'; e = { if ($_.HonorsPeriod) { 'honoured' } else { 'ignored' } } },
+      @{ n = 'Source'; e = { if ($_.HonorsPeriod) { 'API' } else { 'API + ARCHIVE' } } },
+      @{ n = 'RowsPerQuarter'; e = { if ($null -ne $_.FixedRows) { $_.FixedRows } else { 'probe' } } })
+}
+
 $selected |
-    Select-Object @{ n = 'Order'; e = { $_.Order } },
-                  @{ n = 'Dataset'; e = { $_.Name } },
-                  @{ n = 'Scope'; e = { $_.Scope } },
-                  @{ n = 'PeriodArg'; e = { if ($_.HonorsPeriod) { 'honoured' } else { 'ignored' } } },
-                  @{ n = 'Source'; e = { if ($_.HonorsPeriod) { 'API' } else { 'API + ARCHIVE' } } },
-                  @{ n = 'RowsPerQuarter'; e = { if ($null -ne $_.FixedRows) { $_.FixedRows } else { 'probe' } } } |
+    Select-Object $summaryColumns |
     Format-Table -AutoSize |
     Out-String -Width 200 |
     ForEach-Object { $_.TrimEnd() -split "`r?`n" } |
@@ -165,6 +209,39 @@ $selected |
 if ($SummaryOnly) {
     ''
     '# -SummaryOnly was set, so no commands were emitted.'
+    return
+}
+
+if ($Job -eq 'project') {
+    ''
+    '# Typed projection. Each dataset and quarter must already be PUBLISHED by --job=facts;'
+    '# the job reads the active dataset_fact release and replaces the (period, spatial-version)'
+    '# rows of the legacy fact table. Re-running a slot is safe because it deletes first.'
+    '# Remaining slots: quarterly-import-coverage.sql section 5.'
+
+    foreach ($entry in $selected) {
+        ''
+        '# ' + ('=' * 96)
+        "# {0}  ({1})" -f $entry.Name, $entry.Scope
+        '# ' + ('=' * 96)
+
+        foreach ($periodCode in $selectedPeriods) {
+            # runId is the only identifying job parameter, so the publish run needs its own
+            # suffix. Reusing the dry-run id makes Spring Batch refuse the second execution.
+            $attemptNumber = $Attempt
+
+            ''
+            "# ---- {0} {1} ----" -f $entry.Name, $periodCode
+            Format-ProjectionCommand -DatasetName $entry.Name -PeriodCode $periodCode `
+                -RunId ('project-{0}' -f (Get-RunId $entry.Name $periodCode $attemptNumber)) -DryRun $true
+            $attemptNumber++
+            Format-ProjectionCommand -DatasetName $entry.Name -PeriodCode $periodCode `
+                -RunId ('project-{0}' -f (Get-RunId $entry.Name $periodCode $attemptNumber)) -DryRun $false
+        }
+    }
+
+    ''
+    '# Done. Confirm with quarterly-import-coverage.sql sections 5 and 6.'
     return
 }
 
@@ -231,4 +308,5 @@ foreach ($entry in $selected) {
 }
 
 ''
-'# Done. Confirm with backend/scripts/migration/quarterly-import-coverage.sql.'
+'# Done. Confirm with backend/scripts/migration/quarterly-import-coverage.sql,'
+'# then move the releases into the fact tables with -Job project.'
