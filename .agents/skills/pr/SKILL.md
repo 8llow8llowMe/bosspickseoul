@@ -19,7 +19,8 @@ BossPickSeoul Pull Request 본문과 제목을 한국어 템플릿으로 작성�
 3. 본문은 바로 복사 가능한 Markdown으로만 출력한다.
 4. 실제로 확인하지 않은 항목은 체크하지 않는다.
 5. 이슈 번호가 없으면 `Issue Number: #` 형태로 비워둔다.
-6. GitHub에 생성할 때도 **라벨을 붙이지 않는다.** `gh pr create`에 `--label`을 넣지 않는다. Cursor·Codex·Claude Code 모두 같다. 라벨은 사람이 이후에 단다.
+6. GitHub에 생성할 때도 **분류 라벨은 붙이지 않는다.** `gh pr create`에 `--label`을 넣지 않는다. Cursor·Codex·Claude Code 모두 같다. 분류 라벨은 사람이 이후에 단다.
+   - **예외 — 배포 라벨.** `frontend-web` 같은 배포 대상 라벨은 분류 꼬리표가 아니라 Jenkins 의 **배포 게이트**다. 없으면 머지해도 dev 에 배포되지 않고 CI 도 돌지 않는다(fail-closed). 이건 `frontend/CLAUDE.md` 「PR 생성 규약」대로 **PR 을 만들 때 붙인다.**
 
 ## Output Template
 
@@ -69,5 +70,5 @@ Issue Number: #
 - 작업 내용은 기능 단위로 묶고, 파일 나열식 changelog를 피한다.
 - 여러 이슈를 묶을 때는 `#25`, `#26`처럼 각 섹션 제목이나 연관 이슈에 표시한다.
 - 검증 내역에는 성공/실패 여부를 숨기지 않는다.
-- GitHub 라벨을 설정하지 않는다. `--label` / `labels`를 에이전트가 채우지 않는다.
+- GitHub 분류 라벨을 설정하지 않는다. `--label` / `labels`를 에이전트가 채우지 않는다. 단 배포 게이트 라벨(`frontend-web` 등)은 예외로 붙인다 — `frontend/CLAUDE.md` 「PR 생성 규약」.
 - 보안값, token, private key, DB password는 절대 포함하지 않는다.

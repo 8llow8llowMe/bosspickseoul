@@ -26,7 +26,7 @@ BossPickSeoul 프로젝트 스킬을 Claude Code, Codex, Cursor 에서 같은 �
 | 경계 점검 | `hexagonal-guard` |
 | 멀티 에이전트 | `backend-multi-agent` |
 | 개발 오케스트레이션 | `dev-orchestrator` |
-| 협업 문서 | `issue`, `pr`, `mr` — GitHub/GitLab **라벨은 붙이지 않는다.** Cursor·Codex·Claude Code 동일. 라벨은 사람이 단다 |
+| 협업 문서 | `issue`, `pr`, `mr` — GitHub/GitLab **분류 라벨은 붙이지 않는다.** Cursor·Codex·Claude Code 동일. 분류 라벨은 사람이 단다. 배포 게이트 라벨(`frontend-web` 등)만 예외로 PR 생성 시 붙인다 |
 | 세션 인계 | `context-handoff`, `context-resume` (호스트별 별도 판) |
 
 ## 변경 절차
