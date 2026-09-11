@@ -107,7 +107,9 @@ $plan = ".\backend\scripts\batch\quarterly-import-plan.ps1"
 | 자리표시 | 넣을 값 |
 | --- | --- |
 | `REPLACE_WITH_PROBE_COUNT` | probe 실행이 알려주는 실제 행 수 (`accepted`) |
-| `REPLACE_WITH_RAW_LOCATION` | 그 데이터셋 첫 분기 run 의 `dataset_release.raw_location` |
+| `REPLACE_WITH_RAW_LOCATION` | 재생할 run 의 `dataset_release.raw_location`. 어느 run 인지는 그 줄 바로 위 주석이 SQL 로 알려준다 |
+
+`-ReplayPublish` 를 주면 한 슬롯에서 API 를 한 번만 부른다. 처음 받은 run 이 원본 페이지를 보관하므로 뒤따르는 run 을 그 디렉터리 재생으로 찍는다. 행 수를 아는 데이터셋은 API 2회가 1회로, probe 가 붙는 데이터셋은 3회가 1회로 준다. 이미 `ARCHIVE` 인 줄은 바뀌지 않는다. 서울 API 가 인증키당 하루 1,000회라 `STORE_COMMERCIAL` 같은 큰 데이터셋에서 차이가 크다.
 
 안 고치고 실행하면 숫자 파싱이나 경로에서 바로 실패한다. 조용히 잘못된 값이 들어가지는 않는다.
 

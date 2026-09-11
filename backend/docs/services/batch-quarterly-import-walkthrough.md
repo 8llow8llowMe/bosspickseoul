@@ -270,13 +270,28 @@ java -jar $jar --job=project --run-id=project-foot-traffic-district-20234-002 --
 | `SALES_ADMINISTRATION` | 17,044 | 약 18 |
 | `FOOT_TRAFFIC_COMMERCIAL`·`CHANGE_COMMERCIAL` | 약 1,650 | 2 |
 
-생성기는 dry-run 과 게시를 둘 다 `--source=API` 로 찍는다. 즉 같은 데이터를 두 번 받는다. 큰 데이터셋은 **게시를 dry-run 의 원본 재생으로 바꾸면 호출이 절반**이 된다. `ARCHIVE` 는 데이터셋을 가리지 않는다.
+생성기는 기본적으로 dry-run 과 게시를 둘 다 `--source=API` 로 찍는다. 즉 같은 데이터를 두 번 받는다. probe 가 붙는 데이터셋은 세 번이다.
 
-```sql
-SELECT run_id, raw_location FROM dataset_release
- WHERE dataset = 'STORE_COMMERCIAL' AND period_code = '20234' ORDER BY acquired_at DESC;
+`-ReplayPublish` 를 주면 **슬롯에서 API 를 한 번만 부른다.** 처음 받은 run 이 원본 페이지를 보관하므로, 뒤따르는 run 을 그 디렉터리 재생으로 찍는다.
+
+```powershell
+& $plan -Dataset STORE_COMMERCIAL -ReplayPublish | Set-Content store-commercial.txt
 ```
 
-게시 줄의 `--source=API` 를 `--source=ARCHIVE --source-file=<그 경로>` 로 바꿔 돌린다.
+| 유형 | 옵션 없이 | `-ReplayPublish` |
+| --- | --- | --- |
+| A (행 수 고정) | API 2회 | API 1회 + 재생 1회 |
+| B (probe) | API 3회 | API 1회 + 재생 2회 |
+| C 의 2번째 분기 이후 | 이미 재생 | 그대로 (변화 없음) |
+
+위 표의 「분기당 호출」은 **한 번 받을 때**의 호출 수다. `STORE_COMMERCIAL` 은 probe 가 붙는 B 유형이라 옵션 없이는 한 분기에 78 × 3 = 약 **234회**를 쓰고, `-ReplayPublish` 를 주면 약 **78회**로 줄어든다. 하루 한도 1,000회 기준으로 4분기에서 12분기로 늘어난다.
+
+출력에 채울 자리가 하나 늘어난다. 재생 줄 바로 위에 어느 run 을 조회할지 적혀 있으므로 그대로 따라가면 된다.
+
+```
+#   SELECT raw_location FROM dataset_release WHERE run_id='store-commercial-20234-001';
+```
+
+그 값을 아래 줄들의 `REPLACE_WITH_RAW_LOCATION` 에 넣는다. 앞 run 이 `COMPLETED` 든 probe 처럼 일부러 실패했든, 원본은 보관된다.
 
 호출 한도에 걸리면 그날은 거기서 멈추고 다음 날 「0. 지금 어디까지 했는지 보기」부터 이어간다. 슬롯 단위로 끊어져 있어서 중간에 멈춰도 안전하다.

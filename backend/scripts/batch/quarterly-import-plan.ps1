@@ -27,6 +27,14 @@
     already published release into the legacy fact-table columns. Run facts first, then
     project for the same dataset and quarter; nothing reaches the screens until project runs.
 
+.PARAMETER ReplayPublish
+    Emit the runs that follow the first API fetch of a slot as ARCHIVE replays of it, instead of
+    fetching the same pages again. Every API run archives its pages and records raw_location, and
+    a dry-run archives them too, so the later runs of a slot can replay that directory. This halves
+    the API calls for a slot with a known row count and cuts them to a third for a probed slot,
+    which matters because the Open API allows 1,000 calls per key per day and STORE_COMMERCIAL
+    alone costs about 78 per quarter. Only affects -Job facts.
+
 .PARAMETER SpatialVersion
     Published spatial snapshot to validate area codes against. Must already be READY.
 
@@ -48,6 +56,10 @@
 .EXAMPLE
     .\quarterly-import-plan.ps1 -Job project | Set-Content project.txt
     Typed projection for every published dataset and quarter.
+
+.EXAMPLE
+    .\quarterly-import-plan.ps1 -Dataset STORE_COMMERCIAL -ReplayPublish
+    The largest dataset, fetching each quarter from the API once instead of three times.
 #>
 [CmdletBinding()]
 param(
@@ -58,6 +70,7 @@ param(
     [string]   $SpatialVersion = 'legacy-20233',
     [string]   $SchemaVersion = 'seoul-v1',
     [int]      $Attempt = 1,
+    [switch]   $ReplayPublish,
     [switch]   $SummaryOnly
 )
 
@@ -176,8 +189,9 @@ if ($Job -eq 'project') {
         $SpatialVersion, $selected.Count, $selectedPeriods.Count)
 }
 else {
-    ("# job=facts  spatial-version={0}  schema-version={1}  datasets={2}  quarters={3}" -f
-        $SpatialVersion, $SchemaVersion, $selected.Count, $selectedPeriods.Count)
+    ("# job=facts  spatial-version={0}  schema-version={1}  datasets={2}  quarters={3}  replay-publish={4}" -f
+        $SpatialVersion, $SchemaVersion, $selected.Count, $selectedPeriods.Count,
+        $ReplayPublish.ToString().ToLowerInvariant())
 }
 '# Prerequisite: the spatial snapshot above is published (dataset_spatial_release.status = READY).'
 '# Run one dataset at a time. Never reuse a run-id after changing any parameter.'
@@ -283,26 +297,56 @@ foreach ($entry in $selected) {
              " AND period_code='{1}' ORDER BY acquired_at DESC;") -f $entry.Name, $firstPeriod
         }
 
+        # -ReplayPublish rewrites the runs that follow this slot's first API fetch into replays of
+        # it. $fetchRunId is the run that paid for the pages; the operator reads its raw_location.
+        # A slot already sourced from ARCHIVE fetches nothing, so the switch changes nothing there.
+        $fetchRunId = $null
+        $dryRunSource = $source
+        $dryRunFile = $sourceFile
+        $publishSource = $source
+        $publishFile = $sourceFile
+
         if ($null -eq $knownRows) {
+            $probeRunId = Get-RunId $entry.Name $periodCode $attemptNumber
             '# Probe: expected-rows is unknown for this quarter, so this run fails on purpose and'
             '# reports expected/input/accepted/rejected/duplicate/unmapped. Use accepted as the real count.'
             Format-ImportCommand -DatasetName $entry.Name -PeriodCode $periodCode `
-                -RunId (Get-RunId $entry.Name $periodCode $attemptNumber) -Source $source -SourceFile $sourceFile `
+                -RunId $probeRunId -Source $source -SourceFile $sourceFile `
                 -ExpectedRows '1' -SourceUpdatedAt $sourceUpdatedAt -DryRun $true
             $attemptNumber++
             $expectedRows = 'REPLACE_WITH_PROBE_COUNT'
+
+            # The probe already fetched and archived the pages, so both later runs can replay it.
+            if ($ReplayPublish -and $source -eq 'API') {
+                $fetchRunId = $probeRunId
+                $dryRunSource = 'ARCHIVE'; $dryRunFile = 'REPLACE_WITH_RAW_LOCATION'
+                $publishSource = 'ARCHIVE'; $publishFile = 'REPLACE_WITH_RAW_LOCATION'
+            }
         }
         else {
             $expectedRows = [string]$knownRows
         }
 
+        $dryRunId = Get-RunId $entry.Name $periodCode $attemptNumber
+        if ($fetchRunId) {
+            "# Replace REPLACE_WITH_RAW_LOCATION below using the probe run:"
+            "#   SELECT raw_location FROM dataset_release WHERE run_id='{0}';" -f $fetchRunId
+        }
         '# Dry-run, then publish only if it logs COMPLETED.'
         Format-ImportCommand -DatasetName $entry.Name -PeriodCode $periodCode `
-            -RunId (Get-RunId $entry.Name $periodCode $attemptNumber) -Source $source -SourceFile $sourceFile `
+            -RunId $dryRunId -Source $dryRunSource -SourceFile $dryRunFile `
             -ExpectedRows $expectedRows -SourceUpdatedAt $sourceUpdatedAt -DryRun $true
         $attemptNumber++
+
+        # No probe ran, so the dry-run is what fetched. Publish replays it.
+        if ($ReplayPublish -and $publishSource -eq 'API') {
+            $fetchRunId = $dryRunId
+            $publishSource = 'ARCHIVE'; $publishFile = 'REPLACE_WITH_RAW_LOCATION'
+            "# Replace REPLACE_WITH_RAW_LOCATION below using the dry-run above:"
+            "#   SELECT raw_location FROM dataset_release WHERE run_id='{0}';" -f $dryRunId
+        }
         Format-ImportCommand -DatasetName $entry.Name -PeriodCode $periodCode `
-            -RunId (Get-RunId $entry.Name $periodCode $attemptNumber) -Source $source -SourceFile $sourceFile `
+            -RunId (Get-RunId $entry.Name $periodCode $attemptNumber) -Source $publishSource -SourceFile $publishFile `
             -ExpectedRows $expectedRows -SourceUpdatedAt $sourceUpdatedAt -DryRun $false
     }
 }
