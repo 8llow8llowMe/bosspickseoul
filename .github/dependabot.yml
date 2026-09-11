@@ -38,13 +38,6 @@ updates:
         update-types:
           - minor
           - patch
-    ignore:
-      # prettier 3.9 는 union 타입 포매팅을 바꿔 소스 42 개가 한꺼번에 재포맷된다.
-      # 의존성 PR 에 섞이면 리뷰가 불가능하고 진행 중인 브랜치와 전부 충돌하므로
-      # 별도 PR 로 올린다. 그때 이 항목을 지운다.
-      - dependency-name: prettier
-        versions:
-          - '>=3.9.0'
 
   - package-ecosystem: gradle
     directories:
