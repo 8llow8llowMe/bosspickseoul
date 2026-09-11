@@ -6,7 +6,6 @@ import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.out.persisten
 import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.out.persistence.repository.PolicyRepository;
 import com.followfollowme.bosspickseoul.domainlayer.policy.domain.enums.PolicySource;
 import com.followfollowme.bosspickseoul.domainlayer.policy.domain.enums.PolicySupportType;
-import com.followfollowme.bosspickseoul.persistence.config.QuerydslConfigurer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.Import;
 
 /**
  * 동적 조건 조립과 정렬을 실제 스키마에 질의해 확인한다.
@@ -24,7 +22,6 @@ import org.springframework.context.annotation.Import;
  * 빌드는 통과하고 결과만 조용히 틀린다. 그래서 슬라이스 테스트로 못 박는다.
  */
 @DataJpaTest
-@Import(QuerydslConfigurer.class)
 class PolicyCustomRepositoryImplTest {
 
     private static final LocalDate BASE_DATE = LocalDate.of(2026, 8, 26);
