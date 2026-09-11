@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persi
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.repository.ChangeCommercialRepository;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.mapper.ChangeCommercialMapper;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.ChangeCommercial;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +31,7 @@ class ChangeCommercialRepositoryAdapterTest {
     @BeforeEach
     void setUp() {
         adapter = new ChangeCommercialRepositoryAdapter(
-            changeCommercialRepository, changeCommercialMapper, "legacy-20233");
+            changeCommercialRepository, changeCommercialMapper, new DatasetSpatialVersion("legacy-20233"));
     }
 
     @Test

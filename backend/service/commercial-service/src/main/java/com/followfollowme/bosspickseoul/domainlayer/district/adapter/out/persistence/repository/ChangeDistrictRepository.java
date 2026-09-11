@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ChangeDistrictRepository extends JpaRepository<ChangeDistrictEntity, Long> {
 
-    Optional<ChangeDistrictEntity> findByPeriodCodeAndDistrictCode(String periodCode, String districtCode);
+    Optional<ChangeDistrictEntity> findByPeriodCodeAndDistrictCodeAndSpatialVersion(
+        String periodCode, String districtCode, String spatialVersion);
 }

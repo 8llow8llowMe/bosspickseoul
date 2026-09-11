@@ -341,8 +341,8 @@
 `dataset_fact` 를 이 서비스가 분기마다 골라 읽는 라우팅 조회 경로(`dataset` 컨텍스트, `Legacy/Dataset*Source`, `app.dataset.*`)는 **제거했다**. 팩트 out-port 구현체는 기존 팩트 테이블만 JPA 로 읽는다.
 
 - batch-service 는 2024년 1분기(`20241`) 이후 분기를 `dataset_fact` 에 **적재만** 한다(`batch-service.md`). 서울 Open API 가 2024년부터 공간 단위(표준단위구역)와 일부 컬럼을 바꿨으므로 원천 그대로 보관한다.
-- 1단계 이관: `--job=project` 가 `CHANGE_COMMERCIAL` 을 `change_commercial` 컬럼으로 옮긴다. 행에 `spatial_version` 이 있고, 조회는 `DATASET_SPATIAL_VERSION`(기본 `legacy-20233`)으로 그 기준만 읽는다. JSON 릴리스를 다시 고르지 않는다.
-- 후속: 나머지 상권·자치구·행정동 팩트 테이블에도 같은 컬럼을 추가한 뒤 이관한다. 클라이언트가 `20241` 이후를 요청하면 같은 테이블에서 변경된 기준의 값을 받는다.
+- `--job=project` 가 15종을 기존 팩트 테이블 컬럼으로 옮긴다. 행에 `spatial_version` 이 있고, 조회는 `DATASET_SPATIAL_VERSION`(기본 `legacy-20233`)으로 그 기준만 읽는다. JSON 릴리스를 다시 고르지 않는다. TOP-N QueryDSL 도 같은 설정을 필터한다.
+- 클라이언트가 `20241` 이후를 요청하면 같은 테이블에서 그 분기의 값을 받는다. 같은 상권/자치구/행정동 코드라도 공간 버전이 다르면 다른 행이다. `CONSUMPTION_COMMERCIAL` 소득 두 컬럼은 2024+ 원천에 없어 NULL 이고, 화면에는 0 으로 나간다.
 
 ## 에러코드 (대역 요약)
 

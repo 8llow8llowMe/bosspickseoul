@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface IncomeAdministrationRepository extends JpaRepository<IncomeAdministrationEntity, Long> {
 
-    Optional<IncomeAdministrationEntity> findByPeriodCodeAndAdministrationCode(String periodCode, String administrationCode);
+    Optional<IncomeAdministrationEntity> findByPeriodCodeAndAdministrationCodeAndSpatialVersion(
+        String periodCode, String administrationCode, String spatialVersion);
 }

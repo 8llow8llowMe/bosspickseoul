@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,7 +24,10 @@ import org.hibernate.annotations.Comment;
     name = "income_commercial",
     indexes = {
         @Index(name = "idx_income_commercial_period_code_commercial_code", columnList = "periodCode, commercialCode")
-    })
+    },
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_income_commercial_period_commercial_spatial",
+        columnNames = {"periodCode", "commercialCode", "spatialVersion"}))
 public class IncomeCommercialEntity {
 
     @Id
@@ -34,6 +38,10 @@ public class IncomeCommercialEntity {
     @Comment("기준 년분기 코드")
     @Column(length = 5, nullable = false)
     private String periodCode;
+
+    @Comment("공간 스냅샷 버전. 같은 상권 코드라도 20233 과 2024 표준단위구역을 구분한다")
+    @Column(length = 64, nullable = false)
+    private String spatialVersion;
 
     @Comment("상권 구분 코드")
     @Column(length = 1, nullable = false)
@@ -51,12 +59,10 @@ public class IncomeCommercialEntity {
     @Column(length = 80, nullable = false)
     private String commercialName;
 
-    @Comment("월 평균 소득 금액")
-    @Column(nullable = false)
+    @Comment("월 평균 소득 금액. 2024년 이후 원천에는 없다")
     private Long monthlyAverageIncomeAmount;
 
-    @Comment("소득 구간 코드")
-    @Column(nullable = false)
+    @Comment("소득 구간 코드. 2024년 이후 원천에는 없다")
     private Integer incomeBracketCode;
 
     @Comment("총 지출 금액")

@@ -3,8 +3,6 @@ package com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.s
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ChangeCommercialTypedRow;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.FactRow;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Dataset;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Map;
 
 /**
@@ -27,51 +25,19 @@ public final class ChangeCommercialTypedMapper {
 
     public static ChangeCommercialTypedRow map(FactRow fact, String periodCode, String spatialVersion) {
         Map<String, String> fields = fact.fields();
-        String payloadPeriod = textOrNull(fields, PERIOD);
-        if (payloadPeriod != null && !payloadPeriod.equals(periodCode)) {
-            throw new IllegalStateException("payload period " + payloadPeriod + " does not match slot " + periodCode);
-        }
-        for (String required : Dataset.CHANGE_COMMERCIAL.requiredMetrics()) {
-            if (textOrNull(fields, required) == null) {
-                throw new IllegalStateException("required field missing: " + required);
-            }
-        }
+        TypedPayload.requirePeriod(fields, periodCode);
+        TypedPayload.requireAll(fields, Dataset.CHANGE_COMMERCIAL.requiredMetrics());
         return new ChangeCommercialTypedRow(
             periodCode,
             spatialVersion,
             fact.areaCode(),
-            text(fields, CLASSIFICATION_CODE),
-            text(fields, CLASSIFICATION_NAME),
-            text(fields, COMMERCIAL_NAME),
-            textOrNull(fields, INDICATOR_CODE),
-            textOrNull(fields, INDICATOR_NAME),
-            intOrNull(fields, OPENED_MONTHS),
-            intOrNull(fields, CLOSED_MONTHS)
+            TypedPayload.text(fields, CLASSIFICATION_CODE),
+            TypedPayload.text(fields, CLASSIFICATION_NAME),
+            TypedPayload.text(fields, COMMERCIAL_NAME),
+            TypedPayload.textOrNull(fields, INDICATOR_CODE),
+            TypedPayload.textOrNull(fields, INDICATOR_NAME),
+            TypedPayload.intOrNull(fields, OPENED_MONTHS),
+            TypedPayload.intOrNull(fields, CLOSED_MONTHS)
         );
-    }
-
-    private static String text(Map<String, String> fields, String key) {
-        String value = textOrNull(fields, key);
-        if (value == null) {
-            throw new IllegalStateException("required field missing: " + key);
-        }
-        return value;
-    }
-
-    private static String textOrNull(Map<String, String> fields, String key) {
-        String value = fields.get(key);
-        return value == null || value.isBlank() ? null : value;
-    }
-
-    private static Integer intOrNull(Map<String, String> fields, String key) {
-        String value = textOrNull(fields, key);
-        if (value == null) {
-            return null;
-        }
-        try {
-            return new BigDecimal(value.trim()).setScale(0, RoundingMode.HALF_UP).intValueExact();
-        } catch (ArithmeticException | NumberFormatException exception) {
-            throw new IllegalStateException("numeric field invalid: " + key);
-        }
     }
 }

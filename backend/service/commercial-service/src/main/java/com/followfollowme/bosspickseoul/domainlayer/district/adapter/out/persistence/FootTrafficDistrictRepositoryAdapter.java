@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.DistrictAreaQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.FootTrafficDistrictTopTenQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.FootTrafficDistrict;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -19,16 +20,20 @@ public class FootTrafficDistrictRepositoryAdapter implements FootTrafficDistrict
 
     private final FootTrafficDistrictRepository footTrafficDistrictRepository;
     private final FootTrafficDistrictMapper footTrafficDistrictMapper;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public Optional<FootTrafficDistrict> findByPeriodCodeAndDistrictCode(String periodCode, String districtCode) {
-        return footTrafficDistrictRepository.findByPeriodCodeAndDistrictCode(periodCode, districtCode)
+        return footTrafficDistrictRepository
+            .findByPeriodCodeAndDistrictCodeAndSpatialVersion(periodCode, districtCode, datasetSpatialVersion.value())
             .map(footTrafficDistrictMapper::toDomainFromEntity);
     }
 
     @Override
     public List<FootTrafficDistrict> findByPeriodCodeInAndDistrictCodeOrderByPeriodCode(List<String> periodCodes, String districtCode) {
-        return footTrafficDistrictRepository.findByPeriodCodeInAndDistrictCodeOrderByPeriodCode(periodCodes, districtCode)
+        return footTrafficDistrictRepository
+            .findByPeriodCodeInAndDistrictCodeAndSpatialVersionOrderByPeriodCode(
+                periodCodes, districtCode, datasetSpatialVersion.value())
             .stream()
             .map(footTrafficDistrictMapper::toDomainFromEntity)
             .toList();

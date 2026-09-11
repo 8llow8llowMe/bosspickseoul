@@ -8,7 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FootTrafficDistrictRepository extends JpaRepository<FootTrafficDistrictEntity, Long>, FootTrafficDistrictCustomRepository {
 
-    Optional<FootTrafficDistrictEntity> findByPeriodCodeAndDistrictCode(String periodCode, String districtCode);
+    Optional<FootTrafficDistrictEntity> findByPeriodCodeAndDistrictCodeAndSpatialVersion(
+        String periodCode, String districtCode, String spatialVersion);
 
-    List<FootTrafficDistrictEntity> findByPeriodCodeInAndDistrictCodeOrderByPeriodCode(List<String> periodCodes, String districtCode);
+    List<FootTrafficDistrictEntity> findByPeriodCodeInAndDistrictCodeAndSpatialVersionOrderByPeriodCode(
+        List<String> periodCodes, String districtCode, String spatialVersion);
 }

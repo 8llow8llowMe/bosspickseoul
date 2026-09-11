@@ -9,6 +9,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class SalesDistrictCustomRepositoryImpl implements SalesDistrictCustomRep
     private static final double PERCENT_MULTIPLIER = 100.0;
 
     private final JPAQueryFactory queryFactory;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public List<SalesDistrictTopTenProjection> findTopTenBySales(String currentPeriodCode, String previousPeriodCode) {
@@ -39,7 +41,8 @@ public class SalesDistrictCustomRepositoryImpl implements SalesDistrictCustomRep
                 .from(previous)
                 .where(
                     previous.districtCode.eq(current.districtCode),
-                    previous.periodCode.eq(previousPeriodCode)
+                    previous.periodCode.eq(previousPeriodCode),
+                    previous.spatialVersion.eq(datasetSpatialVersion.value())
                 )
         );
 
@@ -60,7 +63,10 @@ public class SalesDistrictCustomRepositoryImpl implements SalesDistrictCustomRep
                 )
             )
             .from(current)
-            .where(current.periodCode.eq(currentPeriodCode))
+            .where(
+                current.periodCode.eq(currentPeriodCode),
+                current.spatialVersion.eq(datasetSpatialVersion.value())
+            )
             .groupBy(current.districtCode, current.districtName)
             .orderBy(currentSalesSum.desc())
             .limit(TOP_TEN_LIMIT)
@@ -82,6 +88,7 @@ public class SalesDistrictCustomRepositoryImpl implements SalesDistrictCustomRep
                 .where(
                     previous.districtCode.eq(districtCode),
                     previous.periodCode.eq(previousPeriodCode),
+                    previous.spatialVersion.eq(datasetSpatialVersion.value()),
                     previous.serviceType.isNotNull(),
                     previous.serviceCode.eq(current.serviceCode)
                 )
@@ -106,6 +113,7 @@ public class SalesDistrictCustomRepositoryImpl implements SalesDistrictCustomRep
             .where(
                 current.districtCode.eq(districtCode),
                 current.periodCode.eq(currentPeriodCode),
+                current.spatialVersion.eq(datasetSpatialVersion.value()),
                 current.serviceType.isNotNull()
             )
             .orderBy(current.monthlySalesAmount.desc())

@@ -17,7 +17,8 @@ class DatasetRowProcessorTest {
 
     @Test
     void acceptsIndustryRowAndPreservesColumnsAddedBySourceRevisions() {
-        Map<String, String> fields = row(Map.of("TRDAR_CD", "3110008", "SVC_INDUTY_CD", "CS100001",
+        Map<String, String> fields = complete(Dataset.SALES_COMMERCIAL, Map.of(
+            "TRDAR_CD", "3110008", "SVC_INDUTY_CD", "CS100001",
             "THSMON_SELNG_AMT", "1234567", "MDWK_SELNG_RT", "0.42", "NEW_QUARTER_AMT", "10"));
         RowValidation result = processor.process(request(Dataset.SALES_COMMERCIAL), new SourceRow(7, fields));
         assertThat(result.accepted()).isTrue();
@@ -37,10 +38,11 @@ class DatasetRowProcessorTest {
 
     @Test
     void readsTheAreaCodeFieldThatMatchesTheDatasetScope() {
-        Map<String, String> district = row(Map.of("SIGNGU_CD", "11680", "TOT_FLPOP_CO", "1"));
+        Map<String, String> district = complete(Dataset.FOOT_TRAFFIC_DISTRICT, Map.of("SIGNGU_CD", "11680", "TOT_FLPOP_CO", "1"));
         assertThat(processor.process(request(Dataset.FOOT_TRAFFIC_DISTRICT), new SourceRow(1, district)).fact().areaCode())
             .isEqualTo("11680");
-        Map<String, String> administration = row(Map.of("ADSTRD_CD", "11680101", "STOR_CO", "3", "SVC_INDUTY_CD", "CS100001"));
+        Map<String, String> administration = complete(Dataset.STORE_ADMINISTRATION, Map.of(
+            "ADSTRD_CD", "11680101", "STOR_CO", "3", "SVC_INDUTY_CD", "CS100001"));
         assertThat(processor.process(request(Dataset.STORE_ADMINISTRATION), new SourceRow(1, administration)).fact().areaCode())
             .isEqualTo("11680101");
         // A district row fed to a commercial dataset has no TRDAR_CD and must not be staged under the wrong key.
@@ -66,10 +68,12 @@ class DatasetRowProcessorTest {
 
     @Test
     void distinguishesAMissingRequiredMetricFromAMeasuredZero() {
-        Map<String, String> blank = row(Map.of("TRDAR_CD", "3110008", "SVC_INDUTY_CD", "CS100001", "THSMON_SELNG_AMT", ""));
+        Map<String, String> blank = complete(Dataset.SALES_COMMERCIAL, Map.of(
+            "TRDAR_CD", "3110008", "SVC_INDUTY_CD", "CS100001", "THSMON_SELNG_AMT", ""));
         assertThat(processor.process(request(Dataset.SALES_COMMERCIAL), new SourceRow(1, blank)).rejectionReason())
             .isEqualTo("REQUIRED_FIELD_MISSING:THSMON_SELNG_AMT");
-        Map<String, String> zero = row(Map.of("TRDAR_CD", "3110008", "SVC_INDUTY_CD", "CS100001", "THSMON_SELNG_AMT", "0"));
+        Map<String, String> zero = complete(Dataset.SALES_COMMERCIAL, Map.of(
+            "TRDAR_CD", "3110008", "SVC_INDUTY_CD", "CS100001", "THSMON_SELNG_AMT", "0"));
         RowValidation measured = processor.process(request(Dataset.SALES_COMMERCIAL), new SourceRow(1, zero));
         assertThat(measured.accepted()).isTrue();
         assertThat(measured.fact().fields()).containsEntry("THSMON_SELNG_AMT", "0");

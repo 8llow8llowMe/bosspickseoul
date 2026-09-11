@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FootTrafficCommercialRepository extends JpaRepository<FootTrafficCommercialEntity, Long> {
 
-    Optional<FootTrafficCommercialEntity> findByPeriodCodeAndCommercialCode(String periodCode, String commercialCode);
+    Optional<FootTrafficCommercialEntity> findByPeriodCodeAndCommercialCodeAndSpatialVersion(
+        String periodCode, String commercialCode, String spatialVersion);
 
-    List<FootTrafficCommercialEntity> findByCommercialCodeAndPeriodCodeIn(String commercialCode, List<String> periodCodes);
+    List<FootTrafficCommercialEntity> findByCommercialCodeAndSpatialVersionAndPeriodCodeIn(
+        String commercialCode, String spatialVersion, List<String> periodCodes);
 }

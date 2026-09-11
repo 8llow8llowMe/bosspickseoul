@@ -6,6 +6,7 @@ import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.p
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.StoreAdministrationRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreAdministrationClosedTopFiveQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreAdministrationOpenedTopFiveQueryResult;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -21,6 +22,7 @@ public class StoreAdministrationRepositoryAdapter implements StoreAdministration
     private static final double PERCENT_MULTIPLIER = 100.0;
 
     private final JPAQueryFactory queryFactory;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public List<StoreAdministrationOpenedTopFiveQueryResult> findTopFiveOpenedAdministrationsByDistrictCode(
@@ -49,6 +51,7 @@ public class StoreAdministrationRepositoryAdapter implements StoreAdministration
             .from(current)
             .where(
                 current.periodCode.eq(periodCode),
+                current.spatialVersion.eq(datasetSpatialVersion.value()),
                 current.administrationCode.startsWith(districtCode)
             )
             .groupBy(current.administrationCode, current.administrationName)
@@ -92,6 +95,7 @@ public class StoreAdministrationRepositoryAdapter implements StoreAdministration
             .from(current)
             .where(
                 current.periodCode.eq(periodCode),
+                current.spatialVersion.eq(datasetSpatialVersion.value()),
                 current.administrationCode.startsWith(districtCode)
             )
             .groupBy(current.administrationCode, current.administrationName)

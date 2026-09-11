@@ -533,6 +533,21 @@ INDEX(status)
 
 ---
 
+### `batch-service` / `commercial-service` — typed 팩트 이관 (15종)
+
+**상태**: ✅ 코드 완료. 운영은 게시한 분기마다 `--job=project` 가 필요하다. 이슈 #301.
+
+**목적**: `dataset_fact` JSON 은 원천 보관만 한다. 조회는 기존 팩트 테이블 컬럼 + `spatial_version` 이다. 클라이언트는 공간 버전을 보내지 않고, 배포 설정 `DATASET_SPATIAL_VERSION`(기본 `legacy-20233`)이 읽을 기준을 고른다.
+
+**핵심**:
+- `--job=project` 가 15종을 `(period_code, spatial_version)` 단위로 DELETE+INSERT 한다.
+- commercial-service 어댑터·QueryDSL TOP-N 은 같은 설정으로 필터한다. 공개 API·Port 시그니처는 그대로다.
+- `CONSUMPTION_COMMERCIAL` 소득 두 컬럼은 2024+ 원천 부재로 NULL, MapStruct 가 0 으로 읽는다. `service_type` 은 NULL.
+
+**DDL**: `scripts/migration/change-commercial-spatial-version.sql`, `scripts/migration/fact-tables-spatial-version.sql`
+
+---
+
 ## 제거된 기능
 
 ---
@@ -543,8 +558,8 @@ INDEX(status)
 
 **바뀐 방향**:
 - batch-service 는 2024년 1분기(`20241`) 이후 분기를 `dataset_fact` 에 **적재만** 한다. 2024년부터 원천의 공간 단위·컬럼이 달라져 원천 그대로 보관한다.
-- 1단계 이관: `--job=project` 가 `CHANGE_COMMERCIAL` 을 `change_commercial` 컬럼 + `spatial_version` 으로 옮긴다. 조회는 그 테이블만 읽고 JSON 릴리스를 다시 고르지 않는다.
-- 후속: 나머지 14종(상권·자치구·행정동)도 같은 방식으로 컬럼을 추가한 뒤 이관한다. 클라이언트가 `20241` 이후를 요청하면 같은 테이블에서 변경된 기준의 값을 받는다.
+- `--job=project` 가 15종을 기존 팩트 테이블 컬럼 + `spatial_version` 으로 옮긴다. 조회는 그 테이블만 읽고 JSON 릴리스를 다시 고르지 않는다. 읽을 기준은 배포 설정 `DATASET_SPATIAL_VERSION`(기본 `legacy-20233`)이다.
+- `CONSUMPTION_COMMERCIAL` 소득 두 컬럼은 2024+ 원천 부재로 NULL, 조회 시 0. `service_type` 은 원천에 없어 NULL.
 - 상세는 `services/commercial-service.md` 「분기 데이터셋 조회 방향」, 적재·이관은 `services/batch-service.md`.
 
 ---

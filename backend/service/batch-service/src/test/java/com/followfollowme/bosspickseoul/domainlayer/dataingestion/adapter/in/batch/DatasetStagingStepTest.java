@@ -54,6 +54,9 @@ class DatasetStagingStepTest {
     private Map<String, String> fields(String areaCode, String sales) {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("STDR_YYQU_CD", "20241");
+        for (String field : Dataset.SALES_COMMERCIAL.requiredMetrics()) {
+            fields.put(field, field.endsWith("_AMT") || field.endsWith("_CO") || field.endsWith("_RT") ? "1" : "A");
+        }
         fields.put("TRDAR_CD", areaCode);
         fields.put("SVC_INDUTY_CD", "CS100001");
         fields.put("THSMON_SELNG_AMT", sales);

@@ -8,8 +8,8 @@
 | --- | --- |
 | Spring Batch 메타 + `dataset_*` DDL | `bosspickseoul_commercial_dev`에 적용 |
 | `--job=spatial` LEGACY 실게시 | `legacy-20233` `READY`, 영역 2,100 (25/425/1650) |
-| `CHANGE_COMMERCIAL` `20241`~`20254` | 8분기 `dataset_fact` 실게시. typed 이관(`--job=project`)은 후속 |
-| 나머지 14종 | 미적재 |
+| `CHANGE_COMMERCIAL` `20241`~`20254` | 8분기 `dataset_fact` 실게시. typed 이관(`--job=project`)은 분기마다 별도 |
+| 나머지 14종 | `dataset_fact` 미적재. `--job=project` 코드는 15종 모두 받는다 |
 
 사실 데이터는 **데이터셋 × 분기 한 건이 실행 단위**다. 같은 명령을 분기만 바꿔 반복하면 된다. 한 번에 전 구간을 도는 스케줄러는 없다.
 
@@ -28,6 +28,7 @@
 1. `backend/scripts/migration/spring-batch-schema-mysql.sql` — `BATCH_*` (Spring Batch 5.2.2)
 2. `backend/scripts/migration/quarterly-dataset-schema.sql` — `dataset_*`
 3. `backend/scripts/migration/change-commercial-spatial-version.sql` — `change_commercial.spatial_version` (이관 Job 전)
+4. `backend/scripts/migration/fact-tables-spatial-version.sql` — 나머지 14개 팩트 테이블 `spatial_version` + `income_commercial` 소득 컬럼 NULL (이관 Job 전)
 
 PowerShell에서 `mysql ... < file.sql`은 `<`가 예약 연산자라 실패한다. DDL은 Workbench가 맞다.
 
@@ -179,7 +180,7 @@ SELECT run_id, raw_location FROM dataset_release
 주의할 점:
 
 - dry-run도 `dataset_release` / staging / rejected에 쓴다. `dataset_fact`와 `dataset_active_release`만 건너뛴다.
-- `--dry-run=false`가 끝나야 `dataset_active_release` 포인터가 바뀐다. 변화지표 화면은 아래 「8. typed 이관」이 끝나야 `change_commercial`을 본다. 유동인구는 기존 `foot_traffic_commercial` 테이블만 읽는다. JSON 조회 경로는 없다.
+- `--dry-run=false`가 끝나야 `dataset_active_release` 포인터가 바뀐다. 화면은 아래 「8. typed 이관」이 끝나야 해당 팩트 테이블을 본다. JSON 조회 경로는 없다.
 - Job이 `COMPLETED`가 아니면 다음 분기로 가지 않는다.
 
 ## 7. 실패와 재실행
@@ -191,14 +192,19 @@ SELECT run_id, raw_location FROM dataset_release
 
 ## 8. typed 이관 (`--job=project`)
 
-`dataset_fact`는 원천 보관이다. 상권 변화지표 조회는 `change_commercial` 컬럼을 읽는다. 선행으로 `change-commercial-spatial-version.sql`을 적용한다.
+`dataset_fact`는 원천 보관이다. 조회는 기존 팩트 테이블 컬럼만 읽는다. 선행으로 `change-commercial-spatial-version.sql`과 `fact-tables-spatial-version.sql`을 적용한다.
 
-이미 게시한 분기마다 한 번 돌린다. 같은 `(period_code, spatial_version)` 행을 지우고 다시 넣는다.
+이미 게시한 데이터셋×분기마다 한 번 돌린다. 같은 `(period_code, spatial_version)` 행을 지우고 다시 넣는다. 15종 모두 받는다.
 
 ```powershell
 java -jar $jar --job=project --run-id=project-change-commercial-20241-001 --dataset=CHANGE_COMMERCIAL --period=20241 --spatial-version=legacy-20233 --dry-run=true
 java -jar $jar --job=project --run-id=project-change-commercial-20241-002 --dataset=CHANGE_COMMERCIAL --period=20241 --spatial-version=legacy-20233 --dry-run=false
+
+java -jar $jar --job=project --run-id=project-foot-traffic-commercial-20241-001 --dataset=FOOT_TRAFFIC_COMMERCIAL --period=20241 --spatial-version=legacy-20233 --dry-run=true
+java -jar $jar --job=project --run-id=project-foot-traffic-commercial-20241-002 --dataset=FOOT_TRAFFIC_COMMERCIAL --period=20241 --spatial-version=legacy-20233 --dry-run=false
 ```
+
+나머지 데이터셋도 `--dataset`만 바꿔 같은 순서로 돈다. `SALES_*` / `STORE_*` / `POPULATION_COMMERCIAL` / `FACILITY_COMMERCIAL` / `CONSUMPTION_*` / `CHANGE_DISTRICT`.
 
 확인:
 
@@ -212,6 +218,13 @@ SELECT period_code, commercial_code, change_indicator_code, average_opened_month
   FROM change_commercial
  WHERE commercial_code = '3001491' AND spatial_version = 'legacy-20233'
  ORDER BY period_code;
+
+SELECT period_code, spatial_version, COUNT(*) AS rows
+  FROM foot_traffic_commercial
+ GROUP BY period_code, spatial_version
+ ORDER BY period_code;
 ```
 
-1단계 대상은 `CHANGE_COMMERCIAL`뿐이다. 다른 데이터셋은 Job이 거부한다. 유동인구·행정동·자치구 이관은 후속이다.
+`CONSUMPTION_COMMERCIAL`의 `monthly_average_income_amount` / `income_bracket_code`는 2024+ 원천에 없어 NULL이다. 값을 채우지 않는다. `service_type`도 NULL이다.
+
+컬럼 DDL만으로는 화면이 바뀌지 않는다. 게시한 분기마다 `--job=project`를 돌린 뒤 commercial-service를 배포한다.

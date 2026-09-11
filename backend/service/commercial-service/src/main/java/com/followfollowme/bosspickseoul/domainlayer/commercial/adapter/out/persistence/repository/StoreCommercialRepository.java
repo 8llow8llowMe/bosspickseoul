@@ -8,14 +8,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StoreCommercialRepository extends JpaRepository<StoreCommercialEntity, Long> {
 
-    Optional<StoreCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceCode(
-        String periodCode, String commercialCode, String serviceCode);
+    Optional<StoreCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceCodeAndSpatialVersion(
+        String periodCode, String commercialCode, String serviceCode, String spatialVersion);
 
-    List<StoreCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceType(
-        String periodCode, String commercialCode, ServiceType serviceType);
+    List<StoreCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceTypeAndSpatialVersion(
+        String periodCode, String commercialCode, ServiceType serviceType, String spatialVersion);
 
-    List<StoreCommercialEntity> findByCommercialCodeAndServiceCodeAndPeriodCodeIn(
-        String commercialCode, String serviceCode, List<String> periodCodes);
+    List<StoreCommercialEntity> findByCommercialCodeAndServiceCodeAndSpatialVersionAndPeriodCodeIn(
+        String commercialCode, String serviceCode, String spatialVersion, List<String> periodCodes);
 
-    List<StoreCommercialEntity> findAllByPeriodCodeAndCommercialCode(String periodCode, String commercialCode);
+    List<StoreCommercialEntity> findAllByPeriodCodeAndCommercialCodeAndSpatialVersion(
+        String periodCode, String commercialCode, String spatialVersion);
 }

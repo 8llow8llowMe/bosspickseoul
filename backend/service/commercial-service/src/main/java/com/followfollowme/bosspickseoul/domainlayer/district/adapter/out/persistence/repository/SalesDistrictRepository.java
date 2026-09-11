@@ -8,15 +8,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SalesDistrictRepository extends JpaRepository<SalesDistrictEntity, Long>, SalesDistrictCustomRepository {
 
-    Optional<SalesDistrictEntity> findByPeriodCodeAndDistrictCodeAndServiceCode(
+    Optional<SalesDistrictEntity> findByPeriodCodeAndDistrictCodeAndServiceCodeAndSpatialVersion(
         String periodCode,
         String districtCode,
-        String serviceCode
+        String serviceCode,
+        String spatialVersion
     );
 
-    List<SalesDistrictEntity> findAllByPeriodCodeInAndDistrictCodeAndServiceCode(
+    List<SalesDistrictEntity> findAllByPeriodCodeInAndDistrictCodeAndServiceCodeAndSpatialVersion(
         List<String> periodCodes,
         String districtCode,
-        String serviceCode
+        String serviceCode,
+        String spatialVersion
     );
 }

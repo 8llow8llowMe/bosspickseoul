@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictOpenedTopTenQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictServiceTopEightQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.StoreDistrict;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +22,13 @@ public class StoreDistrictRepositoryAdapter implements StoreDistrictRepositoryPo
 
     private final StoreDistrictRepository storeDistrictRepository;
     private final StoreDistrictMapper storeDistrictMapper;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public Optional<StoreDistrict> findByPeriodCodeAndDistrictCodeAndServiceCode(
         String periodCode, String districtCode, String serviceCode) {
-        return storeDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCode(
-                periodCode, districtCode, serviceCode)
+        return storeDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCodeAndSpatialVersion(
+                periodCode, districtCode, serviceCode, datasetSpatialVersion.value())
             .map(storeDistrictMapper::toDomainFromEntity);
     }
 

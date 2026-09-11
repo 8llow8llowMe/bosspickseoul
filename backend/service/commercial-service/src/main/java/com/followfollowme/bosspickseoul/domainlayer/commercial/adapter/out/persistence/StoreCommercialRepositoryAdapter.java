@@ -5,6 +5,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persi
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.mapper.StoreCommercialMapper;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.StoreCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.StoreCommercial;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,15 @@ public class StoreCommercialRepositoryAdapter implements StoreCommercialReposito
 
     private final StoreCommercialRepository storeCommercialRepository;
     private final StoreCommercialMapper storeCommercialMapper;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public Optional<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceCode(
         String periodCode, String commercialCode, String serviceCode
     ) {
-        return storeCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
+        return storeCommercialRepository
+            .findByPeriodCodeAndCommercialCodeAndServiceCodeAndSpatialVersion(
+                periodCode, commercialCode, serviceCode, datasetSpatialVersion.value())
             .map(storeCommercialMapper::toDomainFromEntity);
     }
 
@@ -29,7 +33,9 @@ public class StoreCommercialRepositoryAdapter implements StoreCommercialReposito
     public List<StoreCommercial> findByPeriodCodeAndCommercialCodeAndServiceType(
         String periodCode, String commercialCode, ServiceType serviceType
     ) {
-        return storeCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceType(periodCode, commercialCode, serviceType)
+        return storeCommercialRepository
+            .findByPeriodCodeAndCommercialCodeAndServiceTypeAndSpatialVersion(
+                periodCode, commercialCode, serviceType, datasetSpatialVersion.value())
             .stream()
             .map(storeCommercialMapper::toDomainFromEntity)
             .toList();
@@ -41,7 +47,9 @@ public class StoreCommercialRepositoryAdapter implements StoreCommercialReposito
         String serviceCode,
         List<String> periodCodes
     ) {
-        return storeCommercialRepository.findByCommercialCodeAndServiceCodeAndPeriodCodeIn(commercialCode, serviceCode, periodCodes)
+        return storeCommercialRepository
+            .findByCommercialCodeAndServiceCodeAndSpatialVersionAndPeriodCodeIn(
+                commercialCode, serviceCode, datasetSpatialVersion.value(), periodCodes)
             .stream()
             .map(storeCommercialMapper::toDomainFromEntity)
             .toList();
@@ -49,7 +57,8 @@ public class StoreCommercialRepositoryAdapter implements StoreCommercialReposito
 
     @Override
     public List<StoreCommercial> findAllByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
-        return storeCommercialRepository.findAllByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+        return storeCommercialRepository
+            .findAllByPeriodCodeAndCommercialCodeAndSpatialVersion(periodCode, commercialCode, datasetSpatialVersion.value())
             .stream()
             .map(storeCommercialMapper::toDomainFromEntity)
             .toList();

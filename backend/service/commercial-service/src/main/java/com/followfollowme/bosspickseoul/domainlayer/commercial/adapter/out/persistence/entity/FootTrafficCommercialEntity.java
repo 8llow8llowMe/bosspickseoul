@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,7 +24,10 @@ import org.hibernate.annotations.Comment;
     name = "foot_traffic_commercial",
     indexes = {
         @Index(name = "idx_foot_traffic_commercial_period_code_commercial_code", columnList = "periodCode, commercialCode")
-    })
+    },
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_ft_commercial_period_commercial_spatial",
+        columnNames = {"periodCode", "commercialCode", "spatialVersion"}))
 public class FootTrafficCommercialEntity {
 
     @Id
@@ -34,6 +38,10 @@ public class FootTrafficCommercialEntity {
     @Comment("기준 년분기 코드")
     @Column(length = 5, nullable = false)
     private String periodCode;
+
+    @Comment("공간 스냅샷 버전. 같은 상권 코드라도 20233 과 2024 표준단위구역을 구분한다")
+    @Column(length = 64, nullable = false)
+    private String spatialVersion;
 
     @Comment("상권 구분 코드")
     @Column(length = 1, nullable = false)

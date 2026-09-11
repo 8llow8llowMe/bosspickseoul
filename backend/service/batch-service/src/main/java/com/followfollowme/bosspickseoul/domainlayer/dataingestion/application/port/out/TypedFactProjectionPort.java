@@ -13,4 +13,6 @@ public interface TypedFactProjectionPort {
     List<FactRow> facts(String releaseRunId);
 
     int replaceChangeCommercial(ProjectionRequest request, List<ChangeCommercialTypedRow> rows);
+
+    int replaceTyped(ProjectionRequest request, List<Object[]> rows);
 }

@@ -19,6 +19,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.
 import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.SalesDistrictMapper;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.IncomeDistrict;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.SalesDistrict;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,7 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
     private final IncomeDistrictRepository incomeDistrictRepository;
     private final IncomeAdministrationRepository incomeAdministrationRepository;
     private final IncomeCommercialRepository incomeCommercialRepository;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     private final SalesDistrictMapper salesDistrictMapper;
     private final SalesCommercialMapper salesCommercialMapper;
@@ -41,38 +43,44 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
 
     @Override
     public Optional<SalesDistrict> findSalesDistrict(String periodCode, String districtCode, String serviceCode) {
-        return salesDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCode(periodCode, districtCode, serviceCode)
+        return salesDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCodeAndSpatialVersion(
+                periodCode, districtCode, serviceCode, datasetSpatialVersion.value())
             .map(salesDistrictMapper::toDomainFromEntity);
     }
 
     @Override
     public Optional<SalesAdministration> findSalesAdministration(String periodCode, String administrationCode, String serviceCode) {
         return salesAdministrationRepository
-            .findByPeriodCodeAndAdministrationCodeAndServiceCode(periodCode, administrationCode, serviceCode)
+            .findByPeriodCodeAndAdministrationCodeAndServiceCodeAndSpatialVersion(
+                periodCode, administrationCode, serviceCode, datasetSpatialVersion.value())
             .map(this::toSalesAdministrationDomain);
     }
 
     @Override
     public Optional<SalesCommercial> findSalesCommercial(String periodCode, String commercialCode, String serviceCode) {
-        return salesCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode)
+        return salesCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceCodeAndSpatialVersion(
+                periodCode, commercialCode, serviceCode, datasetSpatialVersion.value())
             .map(salesCommercialMapper::toDomainFromEntity);
     }
 
     @Override
     public Optional<IncomeDistrict> findIncomeDistrict(String periodCode, String districtCode) {
-        return incomeDistrictRepository.findByPeriodCodeAndDistrictCode(periodCode, districtCode)
+        return incomeDistrictRepository.findByPeriodCodeAndDistrictCodeAndSpatialVersion(
+                periodCode, districtCode, datasetSpatialVersion.value())
             .map(incomeDistrictMapper::toDomainFromEntity);
     }
 
     @Override
     public Optional<IncomeAdministration> findIncomeAdministration(String periodCode, String administrationCode) {
-        return incomeAdministrationRepository.findByPeriodCodeAndAdministrationCode(periodCode, administrationCode)
+        return incomeAdministrationRepository.findByPeriodCodeAndAdministrationCodeAndSpatialVersion(
+                periodCode, administrationCode, datasetSpatialVersion.value())
             .map(this::toIncomeAdministrationDomain);
     }
 
     @Override
     public Optional<IncomeCommercial> findIncomeCommercial(String periodCode, String commercialCode) {
-        return incomeCommercialRepository.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+        return incomeCommercialRepository.findByPeriodCodeAndCommercialCodeAndSpatialVersion(
+                periodCode, commercialCode, datasetSpatialVersion.value())
             .map(incomeCommercialMapper::toDomainFromEntity);
     }
 
