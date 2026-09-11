@@ -1,4 +1,4 @@
-# 홈 인터랙션·가독성 2차 개선(R1~R6) 실행 계획
+# 홈 인터랙션·가독성 2차 개선(R1\~R6) 실행 계획
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -26,9 +26,9 @@
 
 | 슬라이스 | 태스크   | 왜 이 경계인가                                                     |
 | -------- | -------- | ------------------------------------------------------------------ |
-| **1차**  | Task 1~5 | 서로 다른 파일, 저비용. Task 1(R3)만 스크롤·스티키 계산을 건드린다 |
+| **1차**  | Task 1\~5 | 서로 다른 파일, 저비용. Task 1(R3)만 스크롤·스티키 계산을 건드린다 |
 | **2차**  | Task 6   | 단독 컴포넌트 교체. 다른 태스크와 파일이 겹치지 않는다             |
-| **3차**  | Task 7~9 | R1. 가장 크고 스크롤 계산을 다시 건드린다                          |
+| **3차**  | Task 7\~9 | R1. 가장 크고 스크롤 계산을 다시 건드린다                          |
 
 **R3(Task 1)와 R1(Task 9)을 같은 슬라이스에 넣지 않는다.** 둘 다 `top`/`min-height`/pin 구간을 건드려서, 함께 바꾸면 회귀가 났을 때 원인을 분리할 수 없다(명세 D6).
 
@@ -415,7 +415,7 @@ git commit -m "[FE] fix: 인사이트 문장 유무로 랭킹 아래가 밀리�
 - Consumes: 없음
 - Produces: `HOME_METRIC_FALLBACK` 의 각 항목이 `items.length === 10` 을 만족한다. Task 4 가 01단계를 Top10 으로 올릴 때 정상/폴백 개수가 어긋나지 않게 하는 선행 조건이다
 
-**왜 (a) 확장인가(D8-1 결정).** 명세는 (a) 폴백 10개 확장과 (b) 5개 유지 중 (a) 를 권장했고, 실측으로 (a) 가 가능함이 확인됐다 — dev `GET /districts/top-ten` 은 이름 그대로 지표당 **10개**를 주고, 2026-09-04 재조회 결과가 파일에 박힌 2026-09-03 스냅샷과 값까지 동일했다(강남구 유동인구 145,280,452 등). 아래 6~10위 값은 그 응답에서 그대로 옮긴 것이다. **지어낸 숫자를 넣으면 안 된다** — 폴백은 API 장애 시 화면에 그대로 렌더되므로 자릿수가 틀린 숫자는 폴백이 없는 것보다 나쁘다(1차 구현에서 실제로 8배 어긋난 적이 있다).
+**왜 (a) 확장인가(D8-1 결정).** 명세는 (a) 폴백 10개 확장과 (b) 5개 유지 중 (a) 를 권장했고, 실측으로 (a) 가 가능함이 확인됐다 — dev `GET /districts/top-ten` 은 이름 그대로 지표당 **10개**를 주고, 2026-09-04 재조회 결과가 파일에 박힌 2026-09-03 스냅샷과 값까지 동일했다(강남구 유동인구 145,280,452 등). 아래 6\~10위 값은 그 응답에서 그대로 옮긴 것이다. **지어낸 숫자를 넣으면 안 된다** — 폴백은 API 장애 시 화면에 그대로 렌더되므로 자릿수가 틀린 숫자는 폴백이 없는 것보다 나쁘다(1차 구현에서 실제로 8배 어긋난 적이 있다).
 
 **변화율 표기 규약.** 기존 5개 항목은 원시 변화율을 소수점 1자리로 손반올림한 값이다(0.6509… → `0.7`). 아래 값도 같은 규약을 따른다. 강동구 유동인구는 원시 0.045 → `0` 이 되는데, `toChangeBadge` 가 `changeRate >= 0` 을 'up' 으로 보므로 실데이터가 왔을 때와 같은 방향 배지가 나온다(실동작과 어긋나지 않는다).
 
@@ -464,7 +464,7 @@ it('실측 스냅샷의 1위 값을 그대로 갖는다', () => {
 Run: `cd frontend && pnpm vitest run src/lib/home/metric-rankings.test.ts`
 Expected: FAIL — `expected length 10, received 5`(앞의 두 케이스). 마지막 케이스는 통과한다(1위는 이미 맞다).
 
-- [ ] **Step 3: 세 지표의 6~10위를 추가**
+- [ ] **Step 3: 세 지표의 6\~10위를 추가**
 
 `HOME_METRIC_FALLBACK` 의 `footTraffic.items` 배열 끝(5위 마포구 뒤)에 붙인다.
 
@@ -587,7 +587,7 @@ Expected: FAIL — `expected length 10, received 5`(앞의 두 케이스). 마�
       },
 ```
 
-> `sales`·`opened` 의 1~5위 값이 위 6~10위와 이어지는지(값이 단조 감소하는지) 확인하고 붙인다. 기존 5위 값보다 큰 6위를 붙이면 순위와 값이 어긋난다. 실측 기준 `sales` 5위는 용산구 1,360,529,337,238, `opened` 5위는 영등포구 709 다.
+> `sales`·`opened` 의 1\~5위 값이 위 6\~10위와 이어지는지(값이 단조 감소하는지) 확인하고 붙인다. 기존 5위 값보다 큰 6위를 붙이면 순위와 값이 어긋난다. 실측 기준 `sales` 5위는 용산구 1,360,529,337,238, `opened` 5위는 영등포구 709 다.
 
 - [ ] **Step 4: 주석의 개수 표현 갱신**
 
@@ -638,7 +638,7 @@ git commit -m "[FE] chore: 폴백 지표 데이터를 실측 10개로 확장"
 
 - [ ] **Step 1: 실패하는 테스트 작성 — 순수 함수**
 
-`metric-rankings.test.ts` 의 기존 시드(`summary`)는 지표당 항목이 1~2개뿐이라 자르기를 검증할 수 없다. 10개 이상을 가진 시드를 추가한다.
+`metric-rankings.test.ts` 의 기존 시드(`summary`)는 지표당 항목이 1\~2개뿐이라 자르기를 검증할 수 없다. 10개 이상을 가진 시드를 추가한다.
 
 ```ts
 /** 자르기를 검증하려면 topN 보다 많아야 한다 — 12개를 넣는다. */
@@ -1981,7 +1981,7 @@ base 는 **develop**, 라벨 **`frontend-web`**(배포 게이트), `--assignee s
 gh pr create --base develop --assignee seonghoho --label frontend-web --title "[FE] feat: 홈 인터랙션·가독성 2차 개선(R1~R6)" --body "..."
 ```
 
-PR 본문에는 ① 슬라이스별 무엇이 바뀌었는지 ② 사람 눈으로 확인한 항목(B1~B10)과 그 결과 ③ **자동 검증이 불가능해 사람 확인에 의존한 항목**(B4·B5·B6)을 명시한다. 검증하지 못한 것을 검증했다고 쓰지 않는다.
+PR 본문에는 ① 슬라이스별 무엇이 바뀌었는지 ② 사람 눈으로 확인한 항목(B1\~B10)과 그 결과 ③ **자동 검증이 불가능해 사람 확인에 의존한 항목**(B4·B5·B6)을 명시한다. 검증하지 못한 것을 검증했다고 쓰지 않는다.
 
 - [ ] **CI 확인 후 머지**
 
@@ -1995,7 +1995,7 @@ gh pr checks <번호> --watch --interval 20
 
 ## Self-Review
 
-**명세 커버리지.** D2 요구사항 1~15 대응: 1·2 → Task 1(+B1·B2) / 3·4 → Task 2 / 5·6 → Task 4 / 7·8·9 → Task 5 / 10 → Task 6 / 11·12 → Task 9 / 13 → Task 7+9 / 14 → Task 9 Step 5 의 `useScrollTrack` 게이트 / 15 → Global Constraints + Task 5·6 의 gradient 가드. D7 저장소 테스트 1~16 중 16(`scrollToMetric` 순수 계산)은 Task 8 의 `pinnedStepProgress` 테스트가 대신한다. D7 브라우저 B1~B10 은 Task 9 Step 9 표에 그대로 있다.
+**명세 커버리지.** D2 요구사항 1\~15 대응: 1·2 → Task 1(+B1·B2) / 3·4 → Task 2 / 5·6 → Task 4 / 7·8·9 → Task 5 / 10 → Task 6 / 11·12 → Task 9 / 13 → Task 7+9 / 14 → Task 9 Step 5 의 `useScrollTrack` 게이트 / 15 → Global Constraints + Task 5·6 의 gradient 가드. D7 저장소 테스트 1\~16 중 16(`scrollToMetric` 순수 계산)은 Task 8 의 `pinnedStepProgress` 테스트가 대신한다. D7 브라우저 B1\~B10 은 Task 9 Step 9 표에 그대로 있다.
 
 **명세와 다르게 정한 것(근거 포함).**
 

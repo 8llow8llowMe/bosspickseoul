@@ -22,4 +22,4 @@ BossPickSeoul FE 문서 인덱스. 작업 지도는 `../CLAUDE.md`.
 
 ## 명세 형식
 
-`../_DocumentTemplates` (공통 S0~S5 → 세부 D0~D8, 2계층. 플랫폼명세 미사용).
+`../_DocumentTemplates` (공통 S0\~S5 → 세부 D0\~D8, 2계층. 플랫폼명세 미사용).

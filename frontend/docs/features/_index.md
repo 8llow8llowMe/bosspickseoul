@@ -1,7 +1,7 @@
 # Feature 명세 인덱스
 
 > 이 디렉터리는 BossPickSeoul FE의 **설계 정본**이다. 각 Feature = 공통명세 1 + 세부명세 N.
-> 형식: `../../_DocumentTemplates` (공통 S0~~S5 / 세부 D0~~D8, 2계층).
+> 형식: `../../_DocumentTemplates` (공통 S0\~S5 / 세부 D0\~D8, 2계층).
 
 ## Feature 목록 & 이관 상태
 
