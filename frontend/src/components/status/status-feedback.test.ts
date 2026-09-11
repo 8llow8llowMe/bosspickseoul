@@ -116,3 +116,42 @@ describe('StatusDetail', () => {
     expect(markup).not.toContain('aria-live="assertive"')
   })
 })
+
+/*
+ * 200 인데 네 지표가 통째로 빈 응답은 오류 객체가 없다. 그래도 화면은 **장애**로
+ * 안내해야 하므로, 서버 문구 대신 낼 설명을 호출부가 넘길 수 있어야 한다(#371).
+ */
+describe('StatusFeedback 장애 안내', () => {
+  it('description 을 주면 서버 문구 대신 그것을 낸다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(StatusFeedback, {
+        state: 'error',
+        title: '자치구 데이터를 불러오지 못했어요',
+        description: '네 지표가 모두 비어 있습니다.',
+        error: null,
+        onRetry: () => undefined,
+      }),
+    )
+
+    expect(markup).toContain('자치구 데이터를 불러오지 못했어요')
+    expect(markup).toContain('네 지표가 모두 비어 있습니다.')
+    // 오류 종류를 모르는 실패와 같이 재시도는 열어 둔다.
+    expect(markup).toContain('다시 시도')
+  })
+
+  it('description 이 없으면 종전대로 서버 문구를 낸다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(StatusFeedback, {
+        state: 'error',
+        error: apiError(
+          503,
+          'COMMERCIAL_012',
+          '지역 정보 서비스와의 통신이 원활하지 않습니다.',
+        ),
+        onRetry: () => undefined,
+      }),
+    )
+
+    expect(markup).toContain('지역 정보 서비스와의 통신이 원활하지 않습니다.')
+  })
+})

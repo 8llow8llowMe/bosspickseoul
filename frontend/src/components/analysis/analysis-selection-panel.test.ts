@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import AnalysisSelectionPanel from '@/components/analysis/analysis-selection-panel'
 import { normalizeApiError } from '@/lib/api/api-error'
 import { createEmptyAnalysisSelection } from '@/lib/analysis/selection'
+import type { AnalysisStep } from '@/lib/analysis/selection'
 
 const apiError = (status: number, resultCode: string, resultMessage: string) =>
   normalizeApiError({
@@ -17,10 +18,13 @@ const apiError = (status: number, resultCode: string, resultMessage: string) =>
     },
   })
 
-const renderErrorPanel = (error: ReturnType<typeof apiError>) =>
+const renderErrorPanel = (
+  error: ReturnType<typeof apiError>,
+  activeStep: AnalysisStep = 'district',
+) =>
   renderToStaticMarkup(
     createElement(AnalysisSelectionPanel, {
-      activeStep: 'district',
+      activeStep,
       selection: createEmptyAnalysisSelection(),
       selectedNames: {},
       items: [],
@@ -156,16 +160,68 @@ describe('AnalysisSelectionPanel', () => {
   })
 
   it('404 목록 부재는 재시도 버튼 없이 서버 문구만 노출한다', () => {
+    // 2단계 이후는 상위 선택에 따라 목록이 없을 수 있다 — 정상적인 빈 상태다.
     const markup = renderErrorPanel(
       apiError(
         404,
         'REGION_003',
         '해당 행정동 코드를 찾을 수 없습니다. (11680640)',
       ),
+      'administration',
     )
 
     expect(markup).toContain('선택 가능한 항목이 없어요')
     expect(markup).toContain('해당 행정동 코드를 찾을 수 없습니다.')
+    expect(markup).not.toContain('다시 시도')
+  })
+
+  /*
+   * 1단계 자치구는 서울 25개 고정이라 **0건이 될 수 없는 목록**이다. 여기서 404 나
+   * 빈 배열이 오면 사용자의 선택 문제가 아니라 데이터 공급 장애다(#371).
+   */
+  it('1단계 404 는 빈 상태가 아니라 장애로 안내한다', () => {
+    const markup = renderErrorPanel(
+      apiError(404, 'DISTRICT_001', '자치구를 찾을 수 없습니다.'),
+      'district',
+    )
+
+    expect(markup).toContain('목록을 불러오지 못했어요')
+    expect(markup).toContain('서울 자치구 25개는 항상 있어야 하는 목록입니다.')
+    expect(markup).not.toContain('선택 가능한 항목이 없어요')
+  })
+})
+
+describe('AnalysisSelectionPanel 빈 목록', () => {
+  const renderEmptyPanel = (activeStep: AnalysisStep) =>
+    renderToStaticMarkup(
+      createElement(AnalysisSelectionPanel, {
+        activeStep,
+        selection: createEmptyAnalysisSelection(),
+        selectedNames: {},
+        items: [],
+        status: 'empty',
+        error: null,
+        onStepChange: () => undefined,
+        onSelect: () => undefined,
+        onPreviewChange: () => undefined,
+        onRetry: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    )
+
+  it('1단계가 비면 재시도 가능한 장애로 안내한다', () => {
+    const markup = renderEmptyPanel('district')
+
+    expect(markup).toContain('자치구 목록을 불러오지 못했어요')
+    expect(markup).toContain('서울 자치구 25개는 항상 있어야 하는 목록입니다.')
+    expect(markup).toContain('다시 시도')
+  })
+
+  it('2단계 이후가 비면 종전대로 빈 상태로 안내한다', () => {
+    const markup = renderEmptyPanel('administration')
+
+    expect(markup).toContain('선택 가능한 항목이 없어요')
+    expect(markup).toContain('이전 단계에서 다른 지역을 선택해 주세요.')
     expect(markup).not.toContain('다시 시도')
   })
 })

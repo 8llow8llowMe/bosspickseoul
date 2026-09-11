@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { normalizeStatusTopTen } from './status-adapter'
+import { isStatusTopTenAllEmpty, normalizeStatusTopTen } from './status-adapter'
 
 describe('normalizeStatusTopTen', () => {
   it('maps foot traffic items to ranked status items', () => {
@@ -131,5 +131,41 @@ describe('normalizeStatusTopTen', () => {
 
     expect(() => normalizeStatusTopTen(malformed)).not.toThrow()
     expect(normalizeStatusTopTen(malformed).footTraffic).toEqual([])
+  })
+})
+
+/*
+ * 200 + 네 배열 전부 빈 응답은 「데이터가 아직 없어요」가 아니라 데이터 공급 장애다.
+ * 2026-09-11 dev 에서 실제로 일어났고, 화면이 정상 빈 상태로 렌더돼 장애 인지가
+ * 늦었다(#371). 서울 자치구는 25개 고정이라 전 지표 동시 0건은 정상일 수 없다.
+ */
+describe('isStatusTopTenAllEmpty', () => {
+  const empty = normalizeStatusTopTen({
+    footTrafficTopTenItems: [],
+    salesTopTenItems: [],
+    openedStoreTopTenItems: [],
+    closedStoreTopTenItems: [],
+  })
+
+  it('네 지표가 모두 비면 장애로 본다', () => {
+    expect(isStatusTopTenAllEmpty(empty)).toBe(true)
+  })
+
+  it('한 지표라도 값이 있으면 장애가 아니다', () => {
+    const partial = normalizeStatusTopTen({
+      footTrafficTopTenItems: [],
+      salesTopTenItems: [],
+      openedStoreTopTenItems: [],
+      closedStoreTopTenItems: [
+        {
+          districtCode: '11680',
+          districtName: '강남구',
+          closedStoreCount: 12,
+          closureChangeRate: -3.1,
+        },
+      ],
+    })
+
+    expect(isStatusTopTenAllEmpty(partial)).toBe(false)
   })
 })

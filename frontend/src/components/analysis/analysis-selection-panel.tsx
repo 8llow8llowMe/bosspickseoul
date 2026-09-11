@@ -31,6 +31,10 @@ export type AnalysisCandidate = {
   description?: string | null
 }
 
+/** 1단계에서 목록이 비었을 때의 설명. 장애임이 드러나게 적는다. */
+const FIRST_STEP_OUTAGE_DESCRIPTION =
+  '서울 자치구 25개는 항상 있어야 하는 목록입니다. 잠시 후 다시 시도해 주세요.'
+
 export type AnalysisSelectionPanelProps = {
   activeStep: AnalysisStep
   selection: AnalysisSelection
@@ -280,6 +284,16 @@ function AnalysisSelectionPanel({
 }: AnalysisSelectionPanelProps) {
   const selectedCode = selectionCodeByStep(selection, activeStep)
   const isComplete = isCompleteAnalysisSelection(selection)
+  /*
+   * 1단계 자치구는 **서울 25개 고정 목록**이다. 0건이 나오면 사용자가 좁혀서 남는 게
+   * 없는 상황이 아니라 데이터 공급 장애다. 그런데 404 와 200+빈배열이 둘 다 「선택
+   * 가능한 항목이 없어요」로 나왔고, 설명 문구도 「이전 단계에서 다른 지역을 선택해
+   * 주세요」라 1단계에는 맞지 않았다 — 이전 단계가 없다(#371).
+   *
+   * 2단계 이후(행정동·상권·업종)는 상위 선택에 따라 0건이 정상이므로 종전 문구를 쓴다.
+   */
+  const isFixedFirstStep = activeStep === 'district'
+
   // 자치구·행정동은 짧은 이름 + 설명 없음 → compact 칩 격자.
   // 상권·업종은 분류/업종 설명이 있어 가독성 위해 행 리스트 유지.
   const isChipStep =
@@ -355,11 +369,15 @@ function AnalysisSelectionPanel({
         {status === 'error' ? (
           <EmptyState
             title={
-              error?.kind === 'not-found'
+              error?.kind === 'not-found' && !isFixedFirstStep
                 ? '선택 가능한 항목이 없어요'
                 : '목록을 불러오지 못했어요'
             }
-            description={error?.message ?? '잠시 후 다시 시도해 주세요.'}
+            description={
+              error?.kind === 'not-found' && isFixedFirstStep
+                ? FIRST_STEP_OUTAGE_DESCRIPTION
+                : (error?.message ?? '잠시 후 다시 시도해 주세요.')
+            }
             action={
               !error || isRetryable(error.kind) ? (
                 <Button
@@ -376,10 +394,27 @@ function AnalysisSelectionPanel({
         ) : null}
 
         {status === 'empty' ? (
-          <EmptyState
-            title="선택 가능한 항목이 없어요"
-            description="이전 단계에서 다른 지역을 선택해 주세요."
-          />
+          isFixedFirstStep ? (
+            <EmptyState
+              title="자치구 목록을 불러오지 못했어요"
+              description={FIRST_STEP_OUTAGE_DESCRIPTION}
+              action={
+                <Button
+                  size="medium"
+                  variant="secondary"
+                  leftIcon={<RotateCcw />}
+                  onClick={onRetry}
+                >
+                  다시 시도
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              title="선택 가능한 항목이 없어요"
+              description="이전 단계에서 다른 지역을 선택해 주세요."
+            />
+          )
         ) : null}
 
         {status === 'ready' ? (

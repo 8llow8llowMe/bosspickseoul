@@ -20,6 +20,11 @@ type ErrorFeedbackProps = {
   state: 'error'
   title?: string
   /**
+   * 서버 문구 대신 낼 설명. 응답이 200 인데 데이터가 통째로 빈 장애처럼 **오류
+   * 객체가 없는** 경우에 쓴다(#371). 넘기지 않으면 종전대로 `error.message` 를 낸다.
+   */
+  description?: string
+  /**
    * 정규화된 API 오류(`resolveApiError(query)`).
    * `kind === 'not-found'`면 데이터 부재이므로 재시도 버튼 없이 서버 문구만 노출한다.
    * null이면 종류를 모르는 실패로 보고 기존 UX(재시도 노출)를 유지한다.
@@ -130,7 +135,7 @@ export default function StatusFeedback(props: StatusFeedbackProps) {
             : '상권 현황을 불러오지 못했어요')}
       </Title>
       <Description>
-        {error?.message ?? '잠시 후 다시 시도해 주세요.'}
+        {props.description ?? error?.message ?? '잠시 후 다시 시도해 주세요.'}
       </Description>
       {!error || isRetryable(error.kind) ? (
         <Button

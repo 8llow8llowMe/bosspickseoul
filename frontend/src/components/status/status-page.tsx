@@ -7,7 +7,10 @@ import styled from 'styled-components'
 import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
-import { normalizeStatusTopTen } from '@/lib/status/status-adapter'
+import {
+  isStatusTopTenAllEmpty,
+  normalizeStatusTopTen,
+} from '@/lib/status/status-adapter'
 import {
   createStatusHref,
   createStatusQuery,
@@ -384,7 +387,15 @@ function StatusPageContent() {
     })
   }
 
-  if (!topTen) {
+  /*
+   * 네 지표가 동시에 비면 「데이터가 아직 없어요」가 아니라 **장애**다. 서울 자치구는
+   * 25개 고정이라 정상 운영에서 전 지표가 한꺼번에 0건이 될 수 없다. 200 + 빈 배열은
+   * `!topTen` 을 통과해 정상 페이지로 렌더되고, 탭마다 결측 문구만 떠서 장애인지가
+   * 늦어졌다(#371). 재시도 가능한 안내로 바꾼다.
+   */
+  const isSupplyOutage = topTen ? isStatusTopTenAllEmpty(topTen) : false
+
+  if (!topTen || isSupplyOutage) {
     const isLoading = topTenQuery.isPending || topTenQuery.isFetching
 
     return (
@@ -404,6 +415,14 @@ function StatusPageContent() {
             <StatusFeedback
               error={resolveApiError(topTenQuery)}
               state="error"
+              title={
+                isSupplyOutage ? '자치구 데이터를 불러오지 못했어요' : undefined
+              }
+              description={
+                isSupplyOutage
+                  ? '유동인구·매출·개업·폐업 네 지표가 모두 비어 있습니다. 일시적인 문제일 수 있으니 잠시 후 다시 시도해 주세요.'
+                  : undefined
+              }
               onRetry={() => void topTenQuery.refetch()}
             />
           )}
