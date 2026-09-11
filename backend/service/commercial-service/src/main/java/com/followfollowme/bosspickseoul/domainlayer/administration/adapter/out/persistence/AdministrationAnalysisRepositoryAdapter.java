@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.administration.application.p
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.IncomeAdministration;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.SalesAdministration;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.StoreAdministration;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +23,13 @@ public class AdministrationAnalysisRepositoryAdapter implements AdministrationAn
     private final SalesAdministrationRepository salesAdministrationRepository;
     private final StoreAdministrationRepository storeAdministrationRepository;
     private final IncomeAdministrationRepository incomeAdministrationRepository;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public List<SalesAdministration> findSales(String periodCode, String administrationCode) {
-        return salesAdministrationRepository.findAllByPeriodCodeAndAdministrationCode(periodCode, administrationCode)
+        return salesAdministrationRepository
+            .findAllByPeriodCodeAndAdministrationCodeAndSpatialVersion(
+                periodCode, administrationCode, datasetSpatialVersion.value())
             .stream()
             .map(this::toSalesAdministration)
             .toList();
@@ -33,7 +37,9 @@ public class AdministrationAnalysisRepositoryAdapter implements AdministrationAn
 
     @Override
     public List<StoreAdministration> findStores(String periodCode, String administrationCode) {
-        return storeAdministrationRepository.findAllByPeriodCodeAndAdministrationCode(periodCode, administrationCode)
+        return storeAdministrationRepository
+            .findAllByPeriodCodeAndAdministrationCodeAndSpatialVersion(
+                periodCode, administrationCode, datasetSpatialVersion.value())
             .stream()
             .map(this::toStoreAdministration)
             .toList();
@@ -41,7 +47,9 @@ public class AdministrationAnalysisRepositoryAdapter implements AdministrationAn
 
     @Override
     public Optional<IncomeAdministration> findIncome(String periodCode, String administrationCode) {
-        return incomeAdministrationRepository.findByPeriodCodeAndAdministrationCode(periodCode, administrationCode)
+        return incomeAdministrationRepository
+            .findByPeriodCodeAndAdministrationCodeAndSpatialVersion(
+                periodCode, administrationCode, datasetSpatialVersion.value())
             .map(this::toIncomeAdministration);
     }
 

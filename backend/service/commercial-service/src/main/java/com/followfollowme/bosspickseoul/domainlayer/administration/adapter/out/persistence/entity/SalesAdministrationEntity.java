@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,7 +28,10 @@ import org.hibernate.annotations.Comment;
     indexes = {
         // MySQL 식별자 길이 한계(64자) 때문에 administration을 admin으로 축약한다. (원래 이름 69자 → DDL 실패)
         @Index(name = "idx_sales_administration_period_code_admin_code_service_code", columnList = "periodCode, administrationCode, serviceCode")
-    })
+    },
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_sales_admin_period_admin_svc_spatial",
+        columnNames = {"periodCode", "administrationCode", "serviceCode", "spatialVersion"}))
 public class SalesAdministrationEntity {
 
     @Id
@@ -38,6 +42,10 @@ public class SalesAdministrationEntity {
     @Comment("기준 년분기 코드")
     @Column(length = 5, nullable = false)
     private String periodCode;
+
+    @Comment("공간 스냅샷 버전. 같은 행정동 코드라도 20233 과 2024 표준단위구역을 구분한다")
+    @Column(length = 64, nullable = false)
+    private String spatialVersion;
 
     @Comment("행정동 코드")
     @Column(length = 10, nullable = false)

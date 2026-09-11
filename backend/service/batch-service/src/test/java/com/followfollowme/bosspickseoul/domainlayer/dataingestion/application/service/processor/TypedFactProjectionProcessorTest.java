@@ -1,7 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -15,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.mo
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Dataset;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Quarter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,13 +63,17 @@ class TypedFactProjectionProcessorTest {
     }
 
     @Test
-    void otherDatasetsAreOutOfScope() {
+    void otherDatasetsAreProjectedThroughTypedReplace() {
         ProjectionRequest request = new ProjectionRequest(
-            "project-sales-20241-001", Dataset.SALES_COMMERCIAL, new Quarter("20241"),
-            "legacy-20233", "seoul-v1", true);
-        assertThatThrownBy(() -> processor.project(request))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("CHANGE_COMMERCIAL");
+            "project-foot-20241-001", Dataset.FOOT_TRAFFIC_COMMERCIAL, new Quarter("20241"),
+            "legacy-20233", "seoul-v1", false);
+        when(projections.activeRunId(request)).thenReturn(Optional.of("foot-20241-002"));
+        when(projections.facts("foot-20241-002")).thenReturn(List.of(footTrafficFact()));
+        when(projections.replaceTyped(eq(request), anyList())).thenReturn(1);
+
+        assertThat(processor.project(request).written()).isTrue();
+        verify(projections).replaceTyped(eq(request), anyList());
+        verify(projections, never()).replaceChangeCommercial(any(), anyList());
     }
 
     private static ProjectionRequest request(boolean dryRun) {
@@ -89,5 +93,20 @@ class TypedFactProjectionProcessorTest {
             "OPR_SALE_MT_AVRG", "108",
             "CLS_SALE_MT_AVRG", "52"
         ));
+    }
+
+    private static FactRow footTrafficFact() {
+        Map<String, String> fields = new HashMap<>();
+        fields.put("STDR_YYQU_CD", "20241");
+        fields.put("TRDAR_SE_CD", "A");
+        fields.put("TRDAR_SE_CD_NM", "골목상권");
+        fields.put("TRDAR_CD_NM", "배화여자대학교");
+        fields.put("TOT_FLPOP_CO", "100");
+        fields.put("ML_FLPOP_CO", "40");
+        fields.put("FML_FLPOP_CO", "60");
+        for (String key : Dataset.FOOT_TRAFFIC_COMMERCIAL.requiredMetrics()) {
+            fields.putIfAbsent(key, "1");
+        }
+        return new FactRow(1L, "3110008", "", fields);
     }
 }

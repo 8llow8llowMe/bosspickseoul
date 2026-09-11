@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 활성 {@code dataset_fact} 릴리스를 기존 팩트 테이블 컬럼으로 이관한다. 1단계는 {@link Dataset#CHANGE_COMMERCIAL} 만.
+ * 활성 {@code dataset_fact} 릴리스를 기존 팩트 테이블 컬럼으로 이관한다.
  */
 public class TypedFactProjectionProcessor {
 
@@ -25,10 +25,6 @@ public class TypedFactProjectionProcessor {
     }
 
     public ProjectionResult project(ProjectionRequest request) {
-        if (request.dataset() != Dataset.CHANGE_COMMERCIAL) {
-            throw new IllegalArgumentException(
-                "typed projection 1단계 대상은 CHANGE_COMMERCIAL 이다: " + request.dataset());
-        }
         String sourceRunId = projections.activeRunId(request).orElseThrow(() -> new IllegalStateException(
             "no PUBLISHED release for " + request.dataset() + " " + request.period().value()
                 + " " + request.spatialVersion()));
@@ -36,21 +32,47 @@ public class TypedFactProjectionProcessor {
         if (facts.isEmpty()) {
             throw new IllegalStateException("active release " + sourceRunId + " has no dataset_fact rows");
         }
+        int mapped = request.dataset() == Dataset.CHANGE_COMMERCIAL
+            ? mapChange(request, facts)
+            : mapTyped(request, facts);
+        if (request.dryRun()) {
+            log.info("typed projection dry-run dataset={} period={} spatialVersion={} sourceRunId={} rows={}",
+                request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped);
+            return new ProjectionResult(sourceRunId, mapped, false);
+        }
+        log.info("typed projection written dataset={} period={} spatialVersion={} sourceRunId={} rows={}",
+            request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped);
+        return new ProjectionResult(sourceRunId, mapped, true);
+    }
+
+    private int mapChange(ProjectionRequest request, List<FactRow> facts) {
         List<ChangeCommercialTypedRow> rows = new ArrayList<>(facts.size());
         for (FactRow fact : facts) {
             rows.add(ChangeCommercialTypedMapper.map(fact, request.period().value(), request.spatialVersion()));
         }
         if (request.dryRun()) {
-            log.info("typed projection dry-run dataset={} period={} spatialVersion={} sourceRunId={} rows={}",
-                request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, rows.size());
-            return new ProjectionResult(sourceRunId, rows.size(), false);
+            return rows.size();
         }
         int written = projections.replaceChangeCommercial(request, rows);
         if (written != rows.size()) {
             throw new IllegalStateException("projected " + written + " rows but mapped " + rows.size());
         }
-        log.info("typed projection written dataset={} period={} spatialVersion={} sourceRunId={} rows={}",
-            request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, written);
-        return new ProjectionResult(sourceRunId, written, true);
+        return written;
+    }
+
+    private int mapTyped(ProjectionRequest request, List<FactRow> facts) {
+        List<Object[]> rows = new ArrayList<>(facts.size());
+        for (FactRow fact : facts) {
+            rows.add(TypedFactMappers.columns(
+                request.dataset(), fact, request.period().value(), request.spatialVersion()));
+        }
+        if (request.dryRun()) {
+            return rows.size();
+        }
+        int written = projections.replaceTyped(request, rows);
+        if (written != rows.size()) {
+            throw new IllegalStateException("projected " + written + " rows but mapped " + rows.size());
+        }
+        return written;
     }
 }

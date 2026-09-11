@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface IncomeDistrictRepository extends JpaRepository<IncomeDistrictEntity, Long> {
 
-    Optional<IncomeDistrictEntity> findByPeriodCodeAndDistrictCode(String periodCode, String districtCode);
+    Optional<IncomeDistrictEntity> findByPeriodCodeAndDistrictCodeAndSpatialVersion(
+        String periodCode, String districtCode, String spatialVersion);
 }

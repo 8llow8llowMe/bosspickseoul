@@ -5,6 +5,7 @@ import static com.followfollowme.bosspickseoul.domainlayer.administration.adapte
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.entity.QSalesAdministrationEntity;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.SalesAdministrationRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.SalesAdministrationTopFiveQueryResult;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -22,6 +23,7 @@ public class SalesAdministrationRepositoryAdapter implements SalesAdministration
     private static final double PERCENT_MULTIPLIER = 100.0;
 
     private final JPAQueryFactory queryFactory;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public List<SalesAdministrationTopFiveQueryResult> findTopFiveByDistrictCode(
@@ -39,7 +41,8 @@ public class SalesAdministrationRepositoryAdapter implements SalesAdministration
                 .from(previous)
                 .where(
                     previous.administrationCode.eq(current.administrationCode),
-                    previous.periodCode.eq(previousPeriodCode)
+                    previous.periodCode.eq(previousPeriodCode),
+                    previous.spatialVersion.eq(datasetSpatialVersion.value())
                 )
         );
 
@@ -63,6 +66,7 @@ public class SalesAdministrationRepositoryAdapter implements SalesAdministration
             .from(current)
             .where(
                 current.periodCode.eq(currentPeriodCode),
+                current.spatialVersion.eq(datasetSpatialVersion.value()),
                 current.administrationCode.startsWith(districtCode)
             )
             .groupBy(current.administrationCode, current.administrationName)

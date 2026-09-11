@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persist
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.DistrictAreaProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.FootTrafficDistrictTopTenProjection;
 import com.querydsl.core.types.Projections;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ public class FootTrafficDistrictCustomRepositoryImpl implements FootTrafficDistr
     private static final int TOP_TEN_LIMIT = 10;
 
     private final JPAQueryFactory queryFactory;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public List<FootTrafficDistrictTopTenProjection> findTopTenByFootTraffic(String currentPeriodCode, String previousPeriodCode) {
@@ -40,7 +42,9 @@ public class FootTrafficDistrictCustomRepositoryImpl implements FootTrafficDistr
             .on(current.districtCode.eq(previous.districtCode))
             .where(
                 current.periodCode.eq(currentPeriodCode),
-                previous.periodCode.eq(previousPeriodCode)
+                current.spatialVersion.eq(datasetSpatialVersion.value()),
+                previous.periodCode.eq(previousPeriodCode),
+                previous.spatialVersion.eq(datasetSpatialVersion.value())
             )
             .orderBy(current.totalFootTraffic.desc())
             .limit(TOP_TEN_LIMIT)
@@ -60,7 +64,10 @@ public class FootTrafficDistrictCustomRepositoryImpl implements FootTrafficDistr
                 )
             )
             .from(footTraffic)
-            .where(footTraffic.periodCode.eq(periodCode))
+            .where(
+                footTraffic.periodCode.eq(periodCode),
+                footTraffic.spatialVersion.eq(datasetSpatialVersion.value())
+            )
             .groupBy(footTraffic.districtCode, footTraffic.districtName)
             .orderBy(footTraffic.districtName.asc())
             .fetch();

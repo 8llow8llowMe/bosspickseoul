@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persi
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.mapper.FootTrafficCommercialMapper;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.FootTrafficCommercial;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -15,16 +16,19 @@ public class FootTrafficCommercialRepositoryAdapter implements FootTrafficCommer
 
     private final FootTrafficCommercialRepository footTrafficCommercialRepository;
     private final FootTrafficCommercialMapper footTrafficCommercialMapper;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public Optional<FootTrafficCommercial> findByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
-        return footTrafficCommercialRepository.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
+        return footTrafficCommercialRepository
+            .findByPeriodCodeAndCommercialCodeAndSpatialVersion(periodCode, commercialCode, datasetSpatialVersion.value())
             .map(footTrafficCommercialMapper::toDomainFromEntity);
     }
 
     @Override
     public List<FootTrafficCommercial> findByCommercialCodeAndPeriodCodeIn(String commercialCode, List<String> periodCodes) {
-        return footTrafficCommercialRepository.findByCommercialCodeAndPeriodCodeIn(commercialCode, periodCodes)
+        return footTrafficCommercialRepository
+            .findByCommercialCodeAndSpatialVersionAndPeriodCodeIn(commercialCode, datasetSpatialVersion.value(), periodCodes)
             .stream()
             .map(footTrafficCommercialMapper::toDomainFromEntity)
             .toList();

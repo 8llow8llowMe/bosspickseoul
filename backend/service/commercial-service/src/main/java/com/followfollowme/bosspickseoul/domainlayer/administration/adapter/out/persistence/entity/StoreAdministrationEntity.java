@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +29,10 @@ import org.hibernate.annotations.Comment;
         @Index(name = "idx_store_administration_period_code", columnList = "periodCode"),
         @Index(name = "idx_store_administration_administration_code", columnList = "administrationCode"),
         @Index(name = "idx_store_administration_service_code", columnList = "serviceCode")
-    })
+    },
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_store_admin_period_admin_svc_spatial",
+        columnNames = {"periodCode", "administrationCode", "serviceCode", "spatialVersion"}))
 public class StoreAdministrationEntity {
 
     @Id
@@ -39,6 +43,10 @@ public class StoreAdministrationEntity {
     @Comment("기준 년분기 코드")
     @Column(length = 5, nullable = false)
     private String periodCode;
+
+    @Comment("공간 스냅샷 버전. 같은 행정동 코드라도 20233 과 2024 표준단위구역을 구분한다")
+    @Column(length = 64, nullable = false)
+    private String spatialVersion;
 
     @Comment("행정동 코드")
     @Column(length = 10, nullable = false)

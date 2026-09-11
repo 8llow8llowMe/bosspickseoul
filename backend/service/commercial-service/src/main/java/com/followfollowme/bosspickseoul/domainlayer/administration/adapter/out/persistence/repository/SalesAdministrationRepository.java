@@ -7,8 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SalesAdministrationRepository extends JpaRepository<SalesAdministrationEntity, Long> {
 
-    List<SalesAdministrationEntity> findAllByPeriodCodeAndAdministrationCode(String periodCode, String administrationCode);
+    List<SalesAdministrationEntity> findAllByPeriodCodeAndAdministrationCodeAndSpatialVersion(
+        String periodCode, String administrationCode, String spatialVersion);
 
-    Optional<SalesAdministrationEntity> findByPeriodCodeAndAdministrationCodeAndServiceCode(
-        String periodCode, String administrationCode, String serviceCode);
+    Optional<SalesAdministrationEntity> findByPeriodCodeAndAdministrationCodeAndServiceCodeAndSpatialVersion(
+        String periodCode, String administrationCode, String serviceCode, String spatialVersion);
 }

@@ -130,7 +130,7 @@ backend/
 - 두 서비스가 모두 의존할 수 있는 별도 공유 레이어로 분리
 
 **포함 기준**: **상권·지도 도메인**에 속하면서 복수 서비스에서 공유되는 enum / 값 객체 / 상수. 단일 서비스에서만 쓰면 해당 서비스의 `application/model/`로.
-- 예외: `DatasetKey` 는 현재 batch-service 만 참조하지만, 적재분을 기존 팩트 테이블로 이관하는 후속 작업이 조회 서비스와의 이름·필수 컬럼 계약으로 다시 쓰므로 이관 시점까지 여기 둔다.
+- 예외: `DatasetKey` 는 batch-service 적재·`--job=project` 의 이름·필수 컬럼 계약이다. commercial-service 조회 스택은 쓰지 않는다.
 
 ---
 

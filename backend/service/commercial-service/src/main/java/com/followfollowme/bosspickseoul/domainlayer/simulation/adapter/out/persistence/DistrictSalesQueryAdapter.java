@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persist
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.SalesDistrictRepository;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.application.port.out.DistrictSalesQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.application.port.out.query.DistrictServiceSalesQueryResult;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,12 +16,14 @@ import org.springframework.stereotype.Component;
 public class DistrictSalesQueryAdapter implements DistrictSalesQueryPort {
 
     private final SalesDistrictRepository salesDistrictRepository;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public Optional<DistrictServiceSalesQueryResult> findByPeriodCodeAndDistrictCodeAndServiceCode(
         String periodCode, String districtCode, String serviceCode
     ) {
-        return salesDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCode(periodCode, districtCode, serviceCode)
+        return salesDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCodeAndSpatialVersion(
+                periodCode, districtCode, serviceCode, datasetSpatialVersion.value())
             .map(this::toQueryResult);
     }
 
@@ -28,7 +31,8 @@ public class DistrictSalesQueryAdapter implements DistrictSalesQueryPort {
     public List<DistrictServiceSalesQueryResult> findAllByPeriodCodesAndDistrictCodeAndServiceCode(
         List<String> periodCodes, String districtCode, String serviceCode
     ) {
-        return salesDistrictRepository.findAllByPeriodCodeInAndDistrictCodeAndServiceCode(periodCodes, districtCode, serviceCode)
+        return salesDistrictRepository.findAllByPeriodCodeInAndDistrictCodeAndServiceCodeAndSpatialVersion(
+                periodCodes, districtCode, serviceCode, datasetSpatialVersion.value())
             .stream()
             .map(this::toQueryResult)
             .toList();

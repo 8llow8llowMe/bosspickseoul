@@ -10,6 +10,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
+import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
     private static final double PERCENT_MULTIPLIER = 100.0;
 
     private final JPAQueryFactory queryFactory;
+    private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
     public List<StoreDistrictOpenedTopTenProjection> findTopTenByOpenedStore(String currentPeriodCode, String previousPeriodCode) {
@@ -39,7 +41,8 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 .from(previous)
                 .where(
                     previous.districtCode.eq(current.districtCode),
-                    previous.periodCode.eq(previousPeriodCode)
+                    previous.periodCode.eq(previousPeriodCode),
+                    previous.spatialVersion.eq(datasetSpatialVersion.value())
                 )
         );
 
@@ -59,7 +62,10 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 )
             )
             .from(current)
-            .where(current.periodCode.eq(currentPeriodCode))
+            .where(
+                current.periodCode.eq(currentPeriodCode),
+                current.spatialVersion.eq(datasetSpatialVersion.value())
+            )
             .groupBy(current.districtCode, current.districtName)
             .orderBy(currentOpenedSum.desc())
             .limit(TOP_TEN_LIMIT)
@@ -80,7 +86,8 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 .from(previous)
                 .where(
                     previous.districtCode.eq(current.districtCode),
-                    previous.periodCode.eq(previousPeriodCode)
+                    previous.periodCode.eq(previousPeriodCode),
+                    previous.spatialVersion.eq(datasetSpatialVersion.value())
                 )
         );
 
@@ -100,7 +107,10 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 )
             )
             .from(current)
-            .where(current.periodCode.eq(currentPeriodCode))
+            .where(
+                current.periodCode.eq(currentPeriodCode),
+                current.spatialVersion.eq(datasetSpatialVersion.value())
+            )
             .groupBy(current.districtCode, current.districtName)
             .orderBy(currentClosedSum.desc())
             .limit(TOP_TEN_LIMIT)
@@ -124,6 +134,7 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
             .where(
                 store.periodCode.eq(periodCode),
                 store.districtCode.eq(districtCode),
+                store.spatialVersion.eq(datasetSpatialVersion.value()),
                 store.serviceType.isNotNull()
             )
             .groupBy(store.serviceCode, store.serviceName)

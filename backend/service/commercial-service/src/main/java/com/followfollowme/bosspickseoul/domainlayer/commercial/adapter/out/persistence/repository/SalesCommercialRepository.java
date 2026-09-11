@@ -12,12 +12,13 @@ public interface SalesCommercialRepository extends JpaRepository<SalesCommercial
             select distinct sc.serviceCode
             from SalesCommercialEntity sc
             where sc.commercialCode = :commercialCode
+              and sc.spatialVersion = :spatialVersion
         """)
-    List<String> findDistinctServiceCodesByCommercialCode(String commercialCode);
+    List<String> findDistinctServiceCodesByCommercialCode(String commercialCode, String spatialVersion);
 
-    Optional<SalesCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceCode(
-        String periodCode, String commercialCode, String serviceCode);
+    Optional<SalesCommercialEntity> findByPeriodCodeAndCommercialCodeAndServiceCodeAndSpatialVersion(
+        String periodCode, String commercialCode, String serviceCode, String spatialVersion);
 
-    List<SalesCommercialEntity> findByCommercialCodeAndServiceCodeAndPeriodCodeIn(
-        String commercialCode, String serviceCode, List<String> periodCodes);
+    List<SalesCommercialEntity> findByCommercialCodeAndServiceCodeAndSpatialVersionAndPeriodCodeIn(
+        String commercialCode, String serviceCode, String spatialVersion, List<String> periodCodes);
 }
