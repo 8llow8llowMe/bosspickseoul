@@ -608,11 +608,27 @@ export default function RecommendMap({
   )
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [hoveredAreaCode, setHoveredAreaCode] = useState<string | null>(null)
+  /*
+   * 아래 대입들은 **최신값 ref** 관용구다. 지도 이벤트 핸들러와 레이어 그리기는
+   * 이펙트 안에서 한 번 등록되고 오래 산다. 그 안에서 최신 prop 을 보려면 매 렌더
+   * 값을 ref 에 옮겨 두는 수밖에 없다 — 핸들러를 매번 다시 등록하면 카카오 SDK
+   * 오버레이를 통째로 다시 만들게 된다.
+   *
+   * `react-hooks/refs` 는 렌더 중 ref 쓰기를 막는다. 옳은 규칙이고, 이펙트로 옮기면
+   * 한 커밋 늦게 반영된다 — `layerInputRef` 는 같은 렌더가 만든 `layerSemanticKey`
+   * 로 도는 이펙트가 읽으므로 그 지연이 곧 어긋남이다. 그래서 여기서는 관용구를
+   * 유지하고 **줄 단위로** 끈다. 파일 전체를 열어 두던 예외를 걷은 것이라, 이 파일에
+   * 새로 들어오는 코드는 규칙을 그대로 받는다.
+   *
+   * 정식 해소는 `useEffectEvent` 이관이다 — 지도 실화면 검증 경로가 생긴 뒤에 한다.
+   */
   const hoveredAreaCodeRef = useRef<string | null>(null)
+  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
   hoveredAreaCodeRef.current = hoveredAreaCode
   // 현재 단계 레이어들의 호버 하이라이트 적용 함수. 레이어를 다시 그릴 때 교체된다.
   const stageHighlightsRef = useRef<Array<(hovered: string | null) => void>>([])
 
+  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
   callbacksRef.current = {
     onBackgroundClick,
     onDistrictSelect,
@@ -623,9 +639,12 @@ export default function RecommendMap({
     onCameraSettle,
     onRecenter,
   }
+  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
   selectedCommercialCodeRef.current = selectedCommercialCode
+  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
   previewedCommercialCodeRef.current = previewedCommercialCode
-  layerInputRef.current = {
+
+  const layerInput = {
     stage,
     districtAreas,
     administrationAreas,
@@ -635,6 +654,9 @@ export default function RecommendMap({
     selectedAdministrationCode,
     previewedCommercialCode,
   }
+
+  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
+  layerInputRef.current = layerInput
   guardRef.current ??= createBackgroundClickGuard()
 
   const selectedResult = resultAreas.find(
@@ -664,10 +686,10 @@ export default function RecommendMap({
    */
   const effectiveCameraTarget = applyCameraMode(cameraTarget, cameraMode)
   const cameraTargetKey = JSON.stringify(effectiveCameraTarget)
-  const layerSemanticKey = createRecommendMapLayerSemanticKey(
-    layerInputRef.current,
-  )
+  const layerSemanticKey = createRecommendMapLayerSemanticKey(layerInput)
+  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
   cameraTargetRef.current = effectiveCameraTarget
+  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
   rawCameraTargetRef.current = cameraTarget
 
   useEffect(() => {
@@ -676,7 +698,6 @@ export default function RecommendMap({
     let mapIdleHandler: (() => void) | null = null
     let viewportTimer: ReturnType<typeof setTimeout> | null = null
 
-    setSdkStatus('loading')
     loadKakaoMapSdk(env.kakaoJavascriptKey)
       .then(maps => {
         if (cancelled || !containerRef.current) return
@@ -1148,7 +1169,18 @@ export default function RecommendMap({
             actionLabel={IS_MAP_SDK_ERROR_RETRYABLE ? '다시 시도' : undefined}
             onAction={
               IS_MAP_SDK_ERROR_RETRYABLE
-                ? () => setLoadAttempt(attempt => attempt + 1)
+                ? () => {
+                    /*
+                     * 「불러오는 중」으로 되돌리는 일은 **이 클릭**이 한다. 예전에는
+                     * 로딩 이펙트 첫 줄에서 했는데, 이펙트 몸통의 setState 는 연쇄
+                     * 렌더를 만든다(`react-hooks/set-state-in-effect`). 첫 마운트에는
+                     * 초기값이 이미 `'loading'` 이라 그 호출이 하는 일도 없었다.
+                     * 이펙트가 다시 도는 경로는 이 버튼뿐이므로 여기가 제자리다.
+                     * 두 갱신은 같은 이벤트라 한 번의 렌더로 묶인다.
+                     */
+                    setSdkStatus('loading')
+                    setLoadAttempt(attempt => attempt + 1)
+                  }
                 : undefined
             }
           />
