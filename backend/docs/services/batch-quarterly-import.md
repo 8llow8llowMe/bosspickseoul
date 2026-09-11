@@ -2,6 +2,8 @@
 
 `quarterly` 프로파일 JAR로 개발 DB에 공간 스냅샷과 사실 데이터를 넣는 운영 절차다. 설계·원천 계약은 [batch-service.md](batch-service.md)를 본다.
 
+**처음 돌리면 [batch-quarterly-import-walkthrough.md](batch-quarterly-import-walkthrough.md) 를 먼저 본다.** 그쪽은 명령을 순서대로 따라가는 절차고, 이 문서는 그 절차가 왜 그렇게 생겼는지와 원천 계약을 다룬다.
+
 2026-09-10 기준 개발 DB 진행 상황:
 
 | 단계 | 결과 |
