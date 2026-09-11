@@ -7,6 +7,8 @@ brand: BossPickSeoul
 
 > **문서 정본 안내 (2026-07-15)**: 이 문서(`frontend/DESIGN.md`)는 BossPickSeoul(NowDoBoss) 프론트엔드 디자인 시스템의 **단일 정본(single source of truth)**이다. 기존에 `frontend/docs/`에 흩어져 있던 3개 문서 — `design-guide.md`(레거시 V1 토큰 가이드), `design-prompt.md`(NowDoBoss V2 화면 사양/디자이너 AI 프롬프트), `design-redesign-tasks.md`(개편 작업 큐) — 를 아래 부록 섹션([토큰](#토큰-legacy-v1-스냅샷--design-guidemd-흡수), [컴포넌트 규칙](#컴포넌트-규칙-design-guidemd-흡수--확장-컴포넌트), [디자인 생성 프롬프트/레퍼런스](#디자인-생성-프롬프트레퍼런스), [후속 디자인 과제](#후속-디자인-과제))로 통합했다. 원본 3개 파일은 삭제되지 않고 `frontend/docs/_archive/`로 이동되어 보관되며, 더 이상 갱신 대상이 아니다. 새 작업과 상충 판단은 항상 이 문서(`DESIGN.md`)를 기준으로 한다.
 
+> **2026-09-11 갱신**: 텍스트를 싣는 파란 채움·색 글자의 AA 대비 결정을 반영했다(blue700/blue800·red700/green700·`--color-text-caption-on-band`). 근거와 계산표는 [contrast-tokens](./docs/features/layout/contrast-tokens.md) D3~D5.
+
 ## 1. Visual Theme & Atmosphere
 
 Toss is Korea's fintech super-app that redefined what a financial interface could feel like -- calm, confident, and deceptively simple. The page opens on a clean white canvas (`#ffffff`) with deep charcoal headings (`#191f28`) and a signature blue (`#0ea5e9`) that functions as the universal interactive accent. This isn't the cold, institutional blue of legacy banking; it's a bright, optimistic cerulean that says "your money is in good hands, and we'll make it easy."
@@ -76,6 +78,11 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 - **Toss Blue** (`#0ea5e9`): `blue500`. Primary interactive color -- CTAs, links, active states, selection highlights. The workhorse of every tappable element.
 - **Blue Hover** (`#2272eb`): `blue600`. Hover/pressed state for blue500 elements.
+- **Blue Text** (`#1a5fcc`): `blue700`. 텍스트를 싣는 파란 채움(주 버튼·순위 배지)과,
+  밝은 배경 위의 파란 글자에 쓴다. blue500·blue600 은 흰 글자와 각각 2.77 / 4.49 로
+  AA(4.5:1)를 넘지 못한다. blue700 은 흰 글자와 **5.91:1**, blue50 위 글자로 **5.26:1**.
+- **Blue Text Hover** (`#1757bf`): `blue800`. blue700 채움의 hover/pressed 전용.
+  흰 글자와 6.66:1. **blue600 을 이 자리에 쓰지 않는다** — blue700 보다 밝아 역전된다.
 
 > #### ⚠️ `--color-primary-*` 별칭은 명암을 거꾸로 말한다
 >
@@ -119,7 +126,12 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 ### Semantic
 
 - **Error Red** (`#f04452`): `red500`. Error states, destructive actions, negative financial indicators.
+- **Error Red Text** (`#c8323f`): `red700`. 빨강을 **글자**로 쓸 때(변화율 배지, 오류 문구).
+  red500 은 흰 배경 위 3.71 로 AA 미달이다. red700 은 흰 배경 5.27 / grey50 5.04 / blue50 4.69.
 - **Success Green** (`#03b26c`): `green500`. Positive financial indicators, confirmations.
+- **Success Green Text** (`#0b7a52`): `green700`. 초록을 **글자**로 쓸 때.
+  green500 은 2.77 로 미달이다. green700 은 흰 배경 5.36 / grey50 5.13 / blue50 4.77.
+  면적 채움(차트 막대·스코어)은 3:1 기준이라 green500/red500 을 그대로 쓴다.
 - **Warning Orange** (`#fe9800`): `orange500`. Pending states, attention-needed indicators.
 - **Caution Yellow** (`#ffc342`): `yellow500`. Soft warnings, highlight moments.
 - **Info Teal** (`#18a5a5`): `teal500`. Informational accent, alternative categorization.
@@ -132,7 +144,9 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 - **Grey 200** (`#e5e8eb`): Default border color, dividers, input backgrounds.
 - **Grey 400** (`#b0b8c1`): Placeholder text, disabled icon fills.
 - **Grey 500** (`#8b95a1`): Disabled text, decorative dividers. **Not for caption text** — 3.04:1 on white fails the AA bar set below.
-- **Grey 600** (`#6b7684`): Caption text, secondary labels (4.62:1 on white). `--color-text-caption` points here.
+- **Grey 600** (`#6b7684`): Caption text, secondary labels. **흰 배경 위에서만** 4.62:1 로
+  통과한다. grey50(4.42) · grey100(4.19) · blue50(4.11) 밴드 위에서는 미달이므로
+  `--color-text-caption-on-band`(= grey700, 6.33~6.81)를 쓴다.
 - **Grey 600** (`#6b7684`): Body text, descriptions, metadata.
 - **Grey 700** (`#4e5968`): Emphasized body text, sub-headings.
 - **Grey 800** (`#333d4b`): Strong labels, navigation text.
@@ -180,13 +194,15 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 **Primary (Fill)**
 
-- Background: `#0ea5e9` (blue500)
+- Background: `#1a5fcc` (blue700) — 흰 글자 5.91:1
 - Text: `#ffffff`
+- Hover/Pressed: `#1757bf` (blue800) — 6.66:1
 
-> ⚠️ 알려진 격차: 이 조합은 2.77:1 로 아래 접근성 절의 AA(4.5:1) 를 넘지 못한다.
-> 흰 텍스트는 전 화면 primary 버튼의 규격이므로 **이 조합을 유지**하고, 해결은 개별
-> 버튼이 아니라 fill 색 자체를 어둡게 하는 디자인 시스템 차원의 결정으로 다룬다
-> (별도 슬라이스). 개별 화면이 텍스트 색을 바꿔 이탈하지 않는다.
+> 2026-09-11 결정: 이전 규격은 `#0ea5e9`(blue500) 채움 + 흰 글자 = **2.77:1** 로 AA 미달이었고,
+> 그 해결을 「디자인 시스템 차원의 결정」으로 예약해 두고 있었다. 이 슬라이스에서 **fill 색을
+> 어둡게 하는 쪽으로 결정했다.** blue500 은 인터랙티브 색(링크·포커스·선택 강조·테두리)으로
+> 그대로 남고, **텍스트를 싣는 채움에서만** blue700 으로 간다.
+> 개별 화면이 텍스트 색을 바꿔 이탈하지 않는 규칙은 그대로다.
 
 - Radius: `var(--button-border-radius)` (typically 8px-12px)
 - Font: 16px weight 600
@@ -201,7 +217,8 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 **Secondary (Weak)**
 
 - Background: `#e8f3ff` (blue50) or `#f2f4f6` (grey100)
-- Text: `#0ea5e9` (blue500) or `#191f28` (grey900)
+- Text: `#1a5fcc` (blue700) or `#191f28` (grey900)
+  — blue50 배경 위에서 blue500 은 2.47, blue600 은 4.00 으로 둘 다 미달이다.
 - Use: Less prominent CTAs, secondary actions
 
 **Dark**
@@ -372,7 +389,8 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 - Use tabular (fixed-width) numerals for financial data and transaction amounts
 - Use 700 weight for financial amounts and headings, 400 for body, 600 for emphasis
 - Keep border-radius between 8px-16px for most elements
-- Show positive changes in green (`#03b26c`), negative in red (`#f04452`)
+- Show positive changes in green, negative in red. 면적·아이콘은 `#03b26c` / `#f04452`,
+  **글자는 `#0b7a52` / `#c8323f`** (12~16px 텍스트는 AA 4.5:1 을 넘어야 한다)
 - Use blue50 (`#e8f3ff`) for subtle informational backgrounds
 
 ### Don't
@@ -384,6 +402,8 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 - Don't use warm accent colors (orange, pink) for primary actions -- blue is the sole interactive hue
 - Don't use border-radius > 16px except for pills/toggles
 - Don't add decorative elements to financial data displays -- clarity is the aesthetic
+- Don't put white text on blue500 (`#0ea5e9`) or blue600 (`#2272eb`) — 2.77 / 4.49 로 AA 미달이다.
+  텍스트를 싣는 파란 채움은 blue700 하나뿐이다
 
 ## 8. Responsive Behavior
 
