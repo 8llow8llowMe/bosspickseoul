@@ -64,3 +64,15 @@ gh pr create --base develop \
 
 base 는 **항상 `develop`** 이다. 스택 PR 로 중간 브랜치를 base 로 두면 머지가 develop 이 아니라
 그 브랜치로 들어간다.
+
+머지는 **rebase and merge** 로만 한다(루트 `CLAUDE.md` 「머지 방식」, 2026-09-11 결정). FE 는 그전까지
+merge commit 이었으므로 두 가지가 바뀐다.
+
+- 브랜치 커밋이 develop 에 그대로 올라간다. PR 을 올리기 전에 커밋을 `[FE] <type>: …` 형식으로 정리하고,
+  `wip`·중간 수정 커밋은 squash 한다. 리뷰 반영 커밋도 마찬가지다.
+- 스택 PR 은 아래 PR 이 머지되면 위 브랜치가 옛 커밋을 물고 있게 된다. `git rebase --onto origin/develop <옛 base 브랜치>`
+  로 갈아탄 뒤 `gh pr edit <번호> --base develop` 으로 base 를 바꾼다. 인계 문서에 「squash 가 아니라 merge commit」
+  이라고 적힌 예전 관행은 더 이상 따르지 않는다.
+
+배포 게이트는 영향이 없다. Jenkins 는 머지 커밋 메시지가 아니라 develop 머리 커밋 SHA 에 연결된 PR 의 라벨을
+GitHub API 로 읽으므로(`docs/runbook/deployment.md` §2), rebase 로 올라간 커밋에서도 `frontend-web` 라벨을 찾는다.
