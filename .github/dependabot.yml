@@ -1,0 +1,76 @@
+# Dependabot 설정.
+#
+# 왜 필요한가: 이 설정이 없으면 GitHub 은 보안 알림만 쌓고 갱신 PR 을 올리지 않는다.
+# 실제로 2026-09-11 시점 frontend/pnpm-lock.yaml 에 열린 알림이 94 건까지 밀려 있었다.
+#
+# 저장소 규약 연동:
+# - 머지는 rebase and merge 라 브랜치 커밋이 그대로 develop 에 올라간다. 그래서
+#   commit-message.prefix 로 `[FE] chore` / `[BE] chore` 형식을 맞춘다(루트 CLAUDE.md).
+# - 배포 라벨(`frontend-web` 등)은 일부러 붙이지 않는다. Jenkins 가 그 라벨로 배포
+#   대상을 찾으므로, 배포는 사람이 PR 을 확인한 뒤 라벨을 달아 결정한다.
+# - 알림 1 건당 PR 1 개가 되면 감당이 안 되므로 groups 로 묶는다.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: '[FE] chore'
+    groups:
+      # 보안 갱신은 한 PR 로 모아 빨리 넘긴다.
+      fe-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+      # 일상 갱신은 메이저를 빼고 묶는다. 메이저는 개별 PR 로 와야 검토가 된다.
+      fe-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # prettier 3.9 는 union 타입 포매팅을 바꿔 소스 42 개가 한꺼번에 재포맷된다.
+      # 의존성 PR 에 섞이면 리뷰가 불가능하고 진행 중인 브랜치와 전부 충돌하므로
+      # 별도 PR 로 올린다. 그때 이 항목을 지운다.
+      - dependency-name: prettier
+        versions:
+          - '>=3.9.0'
+
+  - package-ecosystem: gradle
+    directories:
+      - /backend
+      - /backend/core/*
+      - /backend/cloud/*
+      - /backend/service/*
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: '[BE] chore'
+    groups:
+      be-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+      be-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
