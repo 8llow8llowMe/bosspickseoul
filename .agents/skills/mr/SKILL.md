@@ -19,6 +19,7 @@ BossPickSeoul Merge Request 본문과 제목을 한국어 템플릿으로 작성
 3. 본문은 바로 복사 가능한 Markdown으로만 출력한다.
 4. 실제로 확인하지 않은 항목은 체크하지 않는다.
 5. 이슈 번호가 없으면 `Issue Number: #` 형태로 비워둔다.
+6. GitLab에 생성할 때도 **라벨을 붙이지 않는다.** `glab mr create`에 `--label`/`--labels`를 넣지 않는다. Cursor·Codex·Claude Code 모두 같다. 라벨은 사람이 이후에 단다.
 
 ## Output Template
 
@@ -68,4 +69,5 @@ Issue Number: #
 - 작업 내용은 기능 단위로 묶고, 파일 나열식 changelog를 피한다.
 - 여러 이슈를 묶을 때는 `#25`, `#26`처럼 각 섹션 제목이나 연관 이슈에 표시한다.
 - 검증 내역에는 성공/실패 여부를 숨기지 않는다.
+- GitLab 라벨을 설정하지 않는다. `--label` / `--labels`를 에이전트가 채우지 않는다.
 - 보안값, token, private key, DB password는 절대 포함하지 않는다.
