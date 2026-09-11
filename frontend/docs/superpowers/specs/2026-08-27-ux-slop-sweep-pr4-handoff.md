@@ -15,7 +15,7 @@
 | 목적                               | 파일                                                                            |
 | ---------------------------------- | ------------------------------------------------------------------------------- |
 | 작업 지도(정본 위치·프로세스·금지) | `frontend/CLAUDE.md`                                                            |
-| 스윕 설계 명세 + PR1~3 실행 결과   | `frontend/docs/superpowers/specs/2026-08-14-ux-slop-sweep-design.md` (§7·§8·§9) |
+| 스윕 설계 명세 + PR1\~3 실행 결과   | `frontend/docs/superpowers/specs/2026-08-14-ux-slop-sweep-design.md` (§7·§8·§9) |
 | 디자인 시스템 정본                 | `frontend/DESIGN.md`                                                            |
 | 횡단 규칙                          | `frontend/docs/engineering/`                                                    |
 
@@ -39,7 +39,7 @@ develop 직접 커밋 금지 — feature 브랜치 + PR.
 
 ## 2. PR4 착수 규칙 — **반드시 전수 재검증부터 한다**
 
-원 진단(§3)은 `2c6209c` 기준이고 develop 은 그 뒤로 한참 움직였다. PR1~3 에서 매번 같은 일이 벌어졌다.
+원 진단(§3)은 `2c6209c` 기준이고 develop 은 그 뒤로 한참 움직였다. PR1\~3 에서 매번 같은 일이 벌어졌다.
 
 - **PR2**: 진단 대상 7건 중 **5건이 이미 사라졌다.** 슬라이스 B 가 시뮬레이션 V1 을 통째로 교체했다.
 - **PR2**: 남은 「억/만원 → 정확한 원」은 **오진이었다.** 진단이 DESIGN.md §6.4 만 보고 S-SIM-2
@@ -67,14 +67,14 @@ develop 직접 커밋 금지 — feature 브랜치 + PR.
 
 - `src/components/recommend/recommend-condition-form.tsx:92-98` — `SubmitButton` 이
   `background: var(--color-primary-700)`(= `blue500` `#0ea5e9`) 위에 `color: var(--color-text-900)`(`#191f28`).
-- 정본: DESIGN.md `104`~`107` 행 「Primary (Fill) — Background `#0ea5e9` / **Text `#ffffff`**」,
+- 정본: DESIGN.md `104`\~`107` 행 「Primary (Fill) — Background `#0ea5e9` / **Text `#ffffff`**」,
   `285` 행 예시 「#0ea5e9 bg, white text」. 접근성 규칙은 `569` 행 「텍스트 대비는 WCAG AA 이상」.
 - 확인할 것: 실제 대비비를 재고, 흰 텍스트로 바꿨을 때 다른 primary 버튼과 규격이 같아지는지.
 
 ### ② 터치 타깃 < 36px
 
 정본: DESIGN.md `248` 행 「버튼: xlarge(56) / large(48) / medium(40) / **small(36)**」,
-`749`~`753` 행 「리스트 row 최소 52px, 모바일 헤더 액션 최소 40px, 주요 액션 48px+」.
+`749`\~`753` 행 「리스트 row 최소 52px, 모바일 헤더 액션 최소 40px, 주요 액션 48px+」.
 
 | 위치                                               | 현재 값                                |
 | -------------------------------------------------- | -------------------------------------- |
@@ -95,7 +95,7 @@ develop 직접 커밋 금지 — feature 브랜치 + PR.
 - 정본: DESIGN.md `355` 행 — 「`#f04452` 2px border on the input, error text below in red500 13px.
   One actionable sentence」.
 - **인프라는 이미 있다**: `src/components/ui/text-field.tsx` 가 `errorText` prop(`19`행)을 받아
-  `hasError`(`140`행) → `aria-invalid`(`151`행) + 하단 문구(`154`~`156`행)를 그린다.
+  `hasError`(`140`행) → `aria-invalid`(`151`행) + 하단 문구(`154`\~`156`행)를 그린다.
   즉 이 항목은 TextField 를 새로 만드는 게 아니라 **폼이 이미 있는 API 를 쓰게 하는 일**이다.
   2px 빨강 테두리가 `text-field.tsx` 에 실제로 들어 있는지는 확인이 필요하다.
 
@@ -115,7 +115,7 @@ develop 직접 커밋 금지 — feature 브랜치 + PR.
 | `src/components/status/status-top-ten.tsx:205` | 로컬                                                     |
 | `src/components/profile/profile-ui.tsx:113`    | 로컬                                                     |
 
-정본: DESIGN.md `351`~`352`, `761`~`762` 행이 빈 상태의 **내용**(왜 비었는지 한 단락 + 액션 1개,
+정본: DESIGN.md `351`\~`352`, `761`\~`762` 행이 빈 상태의 **내용**(왜 비었는지 한 단락 + 액션 1개,
 필터 결과 없음은 캡션 한 줄)을 정하지만 **대시 보더 자체를 금지하지는 않는다.**
 `603` 행은 「EmptyState — 라인 일러스트 + 한 줄 + CTA 1개」인데 `351` 행은 「Never an illustration」이라
 **정본끼리 어긋난다.** 고치기 전에 판단이 필요한 자리다(§2-2 참고).
@@ -189,7 +189,7 @@ pane 함정 때문이고, PR3 이전 커밋에서도 동일하게 재현되므�
 - 브랜치 `feature/fe/ux-slop-sweep-pr4`, base `develop`. PR 본문은 `/pr` 스킬 템플릿.
 - `pnpm exec vitest run` + `pnpm qa:verify` 통과. **미실행을 통과로 보고하지 않는다.**
 - dev 5173 에서 바꾼 화면을 `getComputedStyle` 로 확인. 검증 못 한 것은 **못 했다고 PR 에 적는다**(PR3 선례).
-- 회귀 grep — PR1~3 이 0 으로 만든 것들이 그대로인지:
+- 회귀 grep — PR1\~3 이 0 으로 만든 것들이 그대로인지:
 
 ```bash
 rg -n 'font-weight: (100|200|300|500|650|750|780|800|900)' src/          # 0
@@ -201,7 +201,7 @@ rg -n 'backdrop-filter' src/    # hero-window.tsx · hero-section.tsx 만(승인
 rg -n 'border-radius: (1[7-9]|[2-9][0-9])px' src/  # hero-window.tsx 2곳만(PR-Home)
 ```
 
-- 원 명세에 **§10 「PR4 실행 결과」** 를 §7~§9 와 같은 형식으로 남긴다.
+- 원 명세에 **§10 「PR4 실행 결과」** 를 §7\~§9 와 같은 형식으로 남긴다.
 
 ---
 

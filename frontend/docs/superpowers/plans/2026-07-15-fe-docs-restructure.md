@@ -12,7 +12,7 @@
 
 - 이 작업은 **문서·설계 체계 재편**이다. 기능 재구현·리디자인·코드 변경 없음.
 - 원문 문서는 **삭제 대신 `docs/_archive/`로 이동**(안전망). `git mv` 사용.
-- 명세 계층은 **2계층(공통 S0~S5 → 세부 D0~D8)**. 플랫폼명세(P) 미사용.
+- 명세 계층은 **2계층(공통 S0\~S5 → 세부 D0\~D8)**. 플랫폼명세(P) 미사용.
 - 명세 정본은 **한국어 `_DocumentTemplates` 형식**. superpowers는 만드는 과정.
 - 정본 위치는 단 하나: 설계=`docs/features/`, 디자인=`DESIGN.md`, 규칙=`docs/engineering/`, 운영=`docs/runbook/`.
 - 마이그레이션이므로 명세 `S0`에 **legacy 동작을 as-is로** 기록해 동작 동일성을 강제한다.
@@ -78,6 +78,7 @@ git commit -m "docs: scaffold feature-spec / runbook / archive directories"
 
 다음 구조로 작성한다:
 
+<!-- prettier-ignore -->
 ```markdown
 # Feature 명세 인덱스
 
@@ -302,6 +303,7 @@ git commit -m "docs: convert spec templates to 2-tier (drop platform layer)"
 
 다음 내용으로 작성한다(설계서 §7):
 
+<!-- prettier-ignore -->
 ```markdown
 # BossPickSeoul Frontend — 작업 지도 (Claude Code)
 
@@ -380,13 +382,14 @@ git commit -m "docs: add shallow frontend/CLAUDE.md, consolidate agent guides in
 
 **Interfaces:**
 
-- Consumes: 새 디렉터리 구조(Task 1~6 결과).
+- Consumes: 새 디렉터리 구조(Task 1\~6 결과).
 - Produces: docs 전체 진입 인덱스.
 
 - [ ] **Step 1: README 재작성**
 
 기존 마이그레이션 중심 인덱스를 다음 구조로 교체:
 
+<!-- prettier-ignore -->
 ```markdown
 # Frontend Docs
 
@@ -451,7 +454,7 @@ Run: `cd /Users/seonghoho/Documents/projects/nowdoboss && ls NowDoBoss/FrontEnd/
 `_template-공통명세.md` 형식으로 작성한다. 필수 채움:
 
 - `S0`: 요청 배경 = 리브랜딩+Next 이관 / as-is = legacy MainPage 동작(Step 1 조사 결과 요약) / to-be = 동작 보존한 App Router 이관 / 제외 범위 = 리디자인.
-- `S1`: home의 목적 1~3문장 + 처리 흐름 한 줄.
+- `S1`: home의 목적 1\~3문장 + 처리 흐름 한 줄.
 - `S2`: 공통 요구사항(예: 랜딩 섹션 렌더, 주요 CTA 라우팅, 반응형).
 - `S3`: 필수 기능 목록(섹션별). 세부명세가 필요하면 `[세부 명세](./<sub>.md)`로 링크(현재는 없으면 "미작성"으로 표기).
 - `S5`: 공통 TC 1개 이상(`TC-001`: 홈 진입 시 주요 섹션·CTA 렌더).
@@ -464,7 +467,7 @@ cd BossPickSeoul/frontend && rm docs/features/home/.gitkeep
 - [ ] **Step 3: 검증 — 템플릿 섹션 충족**
 
 Run: `cd BossPickSeoul/frontend && grep -E '^## S[0-5]' docs/features/home/home.md`
-Expected: `S0`~`S5` 섹션 헤더 존재(최소 S0,S1,S2,S3,S5).
+Expected: `S0`\~`S5` 섹션 헤더 존재(최소 S0,S1,S2,S3,S5).
 
 - [ ] **Step 4: \_index 상태 갱신**
 
@@ -487,7 +490,7 @@ git commit -m "docs(spec): add home feature common spec (pilot)"
 
 **Interfaces:**
 
-- Consumes: Task 1~8 전체 결과.
+- Consumes: Task 1\~8 전체 결과.
 - Produces: 성공 기준 충족 확인 + 세부명세 분할 기준 결정 기록.
 
 - [ ] **Step 1: 성공 기준 체크 (설계서 §10)**

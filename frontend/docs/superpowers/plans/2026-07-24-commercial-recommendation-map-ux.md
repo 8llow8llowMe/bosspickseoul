@@ -1906,7 +1906,7 @@ boundary가 없으면 `buildRecommendationMapItems`가 `commercials`의 중심�
 ```
 
 `Stage`는 사이트 헤더 아래에서 `min-height: calc(100dvh - 72px)`를 사용한다.
-데스크톱 패널은 absolute 16~24px inset과 370~400px 너비, 모바일 Stage는
+데스크톱 패널은 absolute 16\~24px inset과 370\~400px 너비, 모바일 Stage는
 footer 위에서 최소 560px 또는 가용 viewport 높이를 확보한다.
 
 모바일 결과 카드/마커 선택은 reducer의 `resultSelected`로 peek를 만든다.
@@ -2269,7 +2269,7 @@ pnpm dev
 다음 항목을 실제 브라우저에서 확인하고 결과를 작업 기록에 남긴다.
 
 1. `/recommend`가 로그인 없이 열린다.
-2. 패널이 370~400px 범위이고 지도 조작 UI와 겹치지 않는다.
+2. 패널이 370\~400px 범위이고 지도 조작 UI와 겹치지 않는다.
 3. 자치구 변경 시 행정동과 결과가 초기화되고 업종은 유지된다.
 4. 지도 이동·줌이 추천 query를 다시 실행하지 않는다.
 5. 조건 → 결과 전환 중 map center와 크기가 튀지 않는다.

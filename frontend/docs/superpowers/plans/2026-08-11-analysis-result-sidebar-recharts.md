@@ -588,7 +588,7 @@ git commit -m "feat(analysis): render BarChart with recharts and weekend emphasi
 **Interfaces:**
 
 - Consumes: `CHART_COLORS`, `ChartTooltipContent` (Task 1); `GenderSegment` (`@/lib/analysis/chart-data`).
-- Produces: default `DonutChart(props: DonutChartProps)`. export `toDonutSlices(segments: readonly GenderSegment[]): Array<{ label: string; value: number; percent: number }>` — percent는 0~100 반올림, 합이 0이면 percent 0.
+- Produces: default `DonutChart(props: DonutChartProps)`. export `toDonutSlices(segments: readonly GenderSegment[]): Array<{ label: string; value: number; percent: number }>` — percent는 0\~100 반올림, 합이 0이면 percent 0.
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 
@@ -989,7 +989,7 @@ Run:
 grep -rnE "chart-frame|use-chart-tooltip|useChartTooltip|ChartFrame" src
 ```
 
-Expected: Task 2~5 교체 후 `charts/` 내부에서 더 이상 import되지 않음. 만약 다른 곳(예: 다른 차트)에서 여전히 쓰면 그 파일은 남긴다.
+Expected: Task 2\~5 교체 후 `charts/` 내부에서 더 이상 import되지 않음. 만약 다른 곳(예: 다른 차트)에서 여전히 쓰면 그 파일은 남긴다.
 
 - [ ] **Step 2: 미참조 파일 삭제**
 
@@ -1306,7 +1306,7 @@ const ContentColumn = styled.div`
 
 - [ ] **Step 4: sticky 오프셋 정합 확인**
 
-`SidebarColumn`의 `top: 96px`와 `ReportSection`의 `scroll-margin-top: 112px`(데스크톱)가 상단 sticky 바 높이와 어긋나지 않는지 점검. 사이드바 상단이 헤더에 가리면 `top` 값을 헤더 실제 높이에 맞춰 조정(88~112 범위).
+`SidebarColumn`의 `top: 96px`와 `ReportSection`의 `scroll-margin-top: 112px`(데스크톱)가 상단 sticky 바 높이와 어긋나지 않는지 점검. 사이드바 상단이 헤더에 가리면 `top` 값을 헤더 실제 높이에 맞춰 조정(88\~112 범위).
 
 - [ ] **Step 5: 타입 + 린트 + 빌드**
 
@@ -1374,7 +1374,7 @@ git commit -m "docs(analysis): reflect sidebar layout and recharts in result spe
 
 ## Self-Review 체크 결과
 
-- **Spec coverage**: 설계 §2(레이아웃) → Task 7·8; §3(차트) → Task 1~5; §3.3(정리) → Task 6; supersede(§0) → Task 9. 성공 기준 1~6 모두 태스크로 커버.
+- **Spec coverage**: 설계 §2(레이아웃) → Task 7·8; §3(차트) → Task 1\~5; §3.3(정리) → Task 6; supersede(§0) → Task 9. 성공 기준 1\~6 모두 태스크로 커버.
 - **Placeholder scan**: 모든 코드 단계에 실제 코드/명령 포함. "적절히 처리" 류 문구 없음.
 - **Type consistency**: 차트 4종 공개 props 시그니처 유지, 헬퍼 이름(`hasLineData`/`resolveBarCells`/`toDonutSlices`/`toPyramidChartData`)·`AnalysisResultNavProps`·`CHART_COLORS` 일관.
 - **미해결 확인 항목**: (a) Recharts 툴팁의 남성 음수값 표기(Task 5 주석) — 리뷰에서 abs 보정 여부 결정. (b) `.claude/launch.json` dev 항목 유무 — Task 8 Step 6에서 없으면 추가.

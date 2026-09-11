@@ -14,7 +14,7 @@
 - 토큰(access/refresh)은 **브라우저 JS·localStorage·sessionStorage에 절대 저장하지 않는다.** Next 서버의 암호화 HttpOnly·Secure·SameSite=Lax 세션 쿠키에만 존재한다.
 - 백엔드 계약(코드 확인): `POST /api/v1/auth/login` `{email,password}` → `{dataHeader,{accessToken,memberId}}` + `Set-Cookie: refreshToken`(HttpOnly). `POST /api/v1/auth/logout`(Bearer). `POST /api/v1/auth/token/reissue`(refreshToken 쿠키) → `{accessToken}` + rotate. `POST /api/v1/members/signup` `{email,password,name,nickname}`. `GET /api/v1/members/me`(Bearer) → `{memberId,email,name,nickname,profileImageUrl,roleCode,roleDescription}`.
 - 응답 래퍼: `{ dataHeader: { success: boolean, resultCode: string|null, resultMessage: object|string|null }, dataBody: T }`. **성공 판별 = `dataHeader.success === true`.**
-- 비밀번호 규칙(백엔드와 동일): 공백 없이 영문자+숫자+특수문자 포함 8~20자. 이름/닉네임 각 필수·최대 10자. 이메일 형식 필수.
+- 비밀번호 규칙(백엔드와 동일): 공백 없이 영문자+숫자+특수문자 포함 8\~20자. 이름/닉네임 각 필수·최대 10자. 이메일 형식 필수.
 - 백엔드 API 계약 변경 금지. 임의 엔드포인트 생성 금지(소셜 로그인·이메일 인증은 명세 D8 미결로 구현 제외).
 - 커밋 컨벤션: `[FE] ...` (Co-Authored-By 없음). 브랜치 `feature/fe/auth`.
 - 검증: `pnpm qa:verify`(format:check+lint+typecheck+build) + `pnpm test`(신규).
@@ -1242,7 +1242,7 @@ git commit -m "[FE] feat(auth): single-step register screen"
 
 **Interfaces:**
 
-- Consumes: Task 1~11 전체.
+- Consumes: Task 1\~11 전체.
 
 - [ ] **Step 1: 정적 검증**
 
@@ -1278,7 +1278,7 @@ git commit -m "[FE] docs(auth): update feature index after BFF auth implementati
 
 - session-bff D4-1 로그인 봉인 → Task 5. D4-2 로그아웃 → Task 7. D4-3 프록시+재발급 → Task 6. D4-4 가드 → Task 8. D4-5 세션복원 → Task 9. D3 세션 암호화 → Task 3. D6 Set-Cookie 미전파 → Task 6(응답 Set-Cookie 제거)·Task 5(흡수). 응답 래퍼 → Task 2.
 - login.md → Task 10. register.md → Task 11. 비밀번호 규칙 일치 → Task 11 Step 1.
-- 공통 TC-001~007 → Task 12 런타임 검증 + 단위테스트(Task 3~6).
+- 공통 TC-001\~007 → Task 12 런타임 검증 + 단위테스트(Task 3\~6).
 - data-fetching-rules(BFF 표준) → Task 6·9(client baseURL, 토큰 서버보관).
   → 갭 없음. 미결(소셜/2단계/에러코드 카탈로그)은 명세 D8대로 구현 제외.
 

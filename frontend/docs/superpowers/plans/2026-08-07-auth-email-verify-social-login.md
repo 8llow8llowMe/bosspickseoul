@@ -787,7 +787,7 @@ git commit -m "[FE] docs: 인증 구현 실측 결과·상태 반영"
 
 ## Self-Review (작성자 점검 결과)
 
-- **Spec coverage**: register.md(D4-1~3, D5, D7) → Task 3·4 / social-login.md(D4-1~2, D6 provider 화이트리스트) → Task 5·6 / auth.md S2 #7(Response 래퍼 보존) → Task 2 / 카피·UX → Task 4·6 / 검증 → Task 7. 실시간 중복확인(register D8-3)은 백엔드 미지원으로 범위 외 유지.
+- **Spec coverage**: register.md(D4-1\~3, D5, D7) → Task 3·4 / social-login.md(D4-1\~2, D6 provider 화이트리스트) → Task 5·6 / auth.md S2 #7(Response 래퍼 보존) → Task 2 / 카피·UX → Task 4·6 / 검증 → Task 7. 실시간 중복확인(register D8-3)은 백엔드 미지원으로 범위 외 유지.
 - **Placeholder scan**: 모든 코드 스텝에 실제 코드 포함. "적절한 에러처리" 류 없음.
 - **Type consistency**: `RegisterState`/`RegisterStep`/`canSubmit`/`onEmailChanged` 시그니처가 Task 3 정의와 Task 4 사용에서 일치. 라우트 `GET(request, ctx)` 시그니처가 테스트와 일치.
 - **열린 항목**: 소셜 end-to-end는 백엔드 OAuth 설정 의존(비차단, Task 6에서 요청·리다이렉트까지 검증). 최종 signup 성공은 실 수신 이메일 필요(Task 4에서 사용자 확인 경로 명시).

@@ -3,7 +3,7 @@
 > **작성일**: 2026-08-26
 > **기준 커밋**: `origin/develop` `65db365` (최초 작성 시 `195fc1f` → 08-26 중 2커밋 추가됨, §8 참고)
 > **선행 조사**: `docs/superpowers/specs/2026-08-26-be-sync-fe-worklist.md`
-> **상태**: 진행 중 — §6 결정 6건 확정, `#0` 완료(`099863c`), `#1`~`#4` 착수
+> **상태**: 진행 중 — §6 결정 6건 확정, `#0` 완료(`099863c`), `#1`\~`#4` 착수
 
 [[_TOC_]]
 
@@ -11,7 +11,7 @@
 
 ## 0. 이 문서의 사용법
 
-- 작업 단위는 **`#0` ~ `#4`**, 각 단위는 **워크트리 1개 = 브랜치 1개 = PR 1개**다.
+- 작업 단위는 **`#0` \~ `#4`**, 각 단위는 **워크트리 1개 = 브랜치 1개 = PR 1개**다.
 - 하위 태스크는 **`#N-M`** 으로 번호를 매겼다. 커밋 메시지·PR 본문·에이전트 지시에 이 번호를 그대로 쓴다.
 - **§2 파일 소유권 표가 병렬 실행의 계약이다.** 자기 소유가 아닌 파일을 건드려야 하면 멈추고 조율한다.
 - 각 단위의 완료 조건은 예외 없이 `pnpm test` + `pnpm qa:verify` 통과다.
@@ -40,10 +40,10 @@
 ```
 
 - **`#0` 만 순차다.** 작고(파일 5개) 나머지 넷이 전부 의존하므로 **먼저 단독 PR로 올린다.**
-- `#0` 이 develop 에 머지되기 전에 병렬을 시작해야 하므로, `#1`~`#4` 는 `origin/develop` 이 아니라
+- `#0` 이 develop 에 머지되기 전에 병렬을 시작해야 하므로, `#1`\~`#4` 는 `origin/develop` 이 아니라
   **`#0` 브랜치 tip(`099863c`)에서 분기**했다(스택 PR). `#0` 이 develop 에 머지되면 각 브랜치를
   `git rebase origin/develop` 으로 정리한다. **PR 머지 순서는 `#0` 이 먼저다.**
-- 그 위에서 `#1`~`#4` 는 **완전 병렬**. 서로 파일이 겹치지 않는다.
+- 그 위에서 `#1`\~`#4` 는 **완전 병렬**. 서로 파일이 겹치지 않는다.
 - `#4` 는 규모가 커서 내부적으로 **명세(`#4-0`) → 구현** 2 PR로 쪼갠다.
 - `#0` 을 기다리기 싫으면 `#4-0`(명세)과 `#3-1`(payload 빌더 설계)은 `#0` 과 무관하므로 먼저 시작해도 된다.
 
@@ -99,7 +99,7 @@ cd <worktree>/frontend && pnpm install
 | #3   | `bosspick-bookmark`   | `feature/fe/analysis-bookmark-share` | 5177     |
 | #4   | `bosspick-simulation` | `feature/fe/simulation-v2`           | 5178     |
 
-`#1`~`#4` 는 `#0` tip 에서 분기했으므로 유틸을 이미 갖고 있다. `#0` 이 develop 에 머지되면 각각 `git rebase origin/develop`.
+`#1`\~`#4` 는 `#0` tip 에서 분기했으므로 유틸을 이미 갖고 있다. `#0` 이 develop 에 머지되면 각각 `git rebase origin/develop`.
 
 ---
 
@@ -124,7 +124,7 @@ cd <worktree>/frontend && pnpm install
 
 - `pnpm test` / `pnpm qa:verify` 통과
 - UI 변경 **없음** (순수 유틸 + 테스트 PR)
-- PR 본문에 `#1`~`#4` 에서 이 유틸을 어떻게 쓰는지 사용 예 1개 포함
+- PR 본문에 `#1`\~`#4` 에서 이 유틸을 어떻게 쓰는지 사용 예 1개 포함
 
 **실제 결과** (`099863c`, 108 files / 807 tests 통과, `qa:verify` 통과)
 
@@ -145,7 +145,7 @@ cd <worktree>/frontend && pnpm install
 
 ### `#1` 상권분석·구별현황 오류 UI 규약 적용
 
-> **규모** 소~중 · **의존** #0 · **소유** `components/analysis/{result-section,selection-panel}`, `components/status/**`
+> **규모** 소\~중 · **의존** #0 · **소유** `components/analysis/{result-section,selection-panel}`, `components/status/**`
 
 **배경**: 404(데이터 부재)에 "다시 시도"를 띄우면 사용자는 눌러도 같은 결과를 받는다. 백엔드가 이미 **"해당 분기의 매출 데이터가 없습니다. 다른 분기를 선택해 주세요."** 같은 행동 유도 문구를 내려주는데 FE가 이를 덮어쓰고 있다.
 
@@ -180,7 +180,7 @@ cd <worktree>/frontend && pnpm install
 | **#2-4** | 모바일 시트         | `recommend-mobile-sheet.tsx` 동일 반영                                                                                                                                                                        |
 | **#2-5** | null 점수 표기 정정 | `formatScore` 의 `'집계 중'`(`:228~231`)은 이제 **"지표 데이터 없음"** 을 뜻한다 → 문구 정정 + 해당 카드에 상태 배지                                                                                          |
 | **#2-6** | 오류 분기           | `recommend-map.tsx:916`, `recommend-page.tsx:1004`, `recommend-result-list.tsx:369` 의 재시도 UI에 `#0` 유틸 적용                                                                                             |
-| **#2-7** | topN 가드           | `RECOMMENDATION_TOP_N` 은 **5~30만 허용**(`COMMERCIAL_101`). 상수에 범위 주석, 조정 UI를 넣는다면 clamp                                                                                                       |
+| **#2-7** | topN 가드           | `RECOMMENDATION_TOP_N` 은 **5\~30만 허용**(`COMMERCIAL_101`). 상수에 범위 주석, 조정 UI를 넣는다면 clamp                                                                                                       |
 | **#2-8** | V1 잔재 정리        | `types/map.ts:47` 의 미사용 `blueOceanInfo` 제거 (사용처 grep 확인 후)                                                                                                                                        |
 | **#2-9** | 테스트              | 블루오션 렌더/미렌더, null 점수 표기, 404 재시도 버튼 미노출                                                                                                                                                  |
 
@@ -196,7 +196,7 @@ cd <worktree>/frontend && pnpm install
 
 ### `#3` 분석 보관함 + V2 공유 링크
 
-> **규모** 중~대 · **의존** #0 · **소유** `lib/share/**`, `lib/api/share.ts`, `types/bookmark.ts`, `components/profile/**`, `components/analysis/analysis-result-view.tsx`, `app/(shell)/share|profile/bookmarks/analysis`
+> **규모** 중\~대 · **의존** #0 · **소유** `lib/share/**`, `lib/api/share.ts`, `types/bookmark.ts`, `components/profile/**`, `components/analysis/analysis-result-view.tsx`, `app/(shell)/share|profile/bookmarks/analysis`
 
 **배경**: 백엔드에 분석 화면 보관함(`/api/v1/analysis-bookmarks`)이 신설됐다. 이건 **공유 링크(`/api/v1/share-links`)와 payload·shareType 계약이 완전히 동일**하고, FE는 **공유 링크 V2도 아직 미연동**이다(현재 "공유"는 `analysis-result-view.tsx:975~` 에서 현재 URL 복사만 한다). 두 기능은 payload 빌더를 공유하므로 한 슬라이스로 묶는다.
 
@@ -227,15 +227,15 @@ cd <worktree>/frontend && pnpm install
 
 ### `#4` 창업 비용 시뮬레이션 V2 (placeholder 해제)
 
-> **규모** 대 · **의존** #0, §6-1~§6-3 결정 · **소유** `types/simulation.ts`, `lib/api/simulation.ts`, `components/simulation/**`, `app/(shell)/simulation/**`, `app/(shell)/analysis/simulation/**`, 시뮬 북마크
+> **규모** 대 · **의존** #0, §6-1\~§6-3 결정 · **소유** `types/simulation.ts`, `lib/api/simulation.ts`, `components/simulation/**`, `app/(shell)/simulation/**`, `app/(shell)/analysis/simulation/**`, 시뮬 북마크
 
 **배경**: 백엔드에 시뮬레이션 도메인이 신설되어 `/api/v1/simulations/**` 가 살아 있다(dev 실호출 확인). FE는 현재 6개 라우트가 전부 `SimulationUnavailablePage` placeholder이고, `lib/api/simulation.ts` 는 **V1 경로**를 호출한다. 기존 명세 `docs/features/simulation/simulation.md` 는 "V2 계약 대기" 상태다.
 
-**PR 분리**: `#4-0` 명세 1 PR → `#4-1`~`#4-9` 구현 1~2 PR.
+**PR 분리**: `#4-0` 명세 1 PR → `#4-1`\~`#4-9` 구현 1\~2 PR.
 
 | #        | 태스크              | 내용                                                                                                                                                                                                                                                                                   |
 | -------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **#4-0** | 명세 갱신           | `docs/features/simulation/simulation.md` S0 as-is/to-be 를 V2 기준으로 재작성 + 세부명세(D0~D8) 신설. 근거: `backend/docs/simulation-frontend-guide.md`. `fe-spec-writer` 사용                                                                                                         |
+| **#4-0** | 명세 갱신           | `docs/features/simulation/simulation.md` S0 as-is/to-be 를 V2 기준으로 재작성 + 세부명세(D0\~D8) 신설. 근거: `backend/docs/simulation-frontend-guide.md`. `fe-spec-writer` 사용                                                                                                         |
 | **#4-1** | 타입 전면 교체      | `types/simulation.ts` V1→V2. 필드가 거의 다 바뀐다 (아래 매핑표)                                                                                                                                                                                                                       |
 | **#4-2** | API 클라이언트 교체 | `/simulations/store-sizes`, `/simulations/franchisees`, `/simulations/reports`, `/simulations/histories`. **동기 계산**이므로 폴링·SSE 없음                                                                                                                                            |
 | **#4-3** | 입력 마법사         | ① 프랜차이즈 여부 → ② 자치구(districtCode) → ③ **업종(serviceCode)** → ④ 매장 크기·층. **업종이 브랜드 검색보다 앞서야 한다**(검색이 `serviceCode` 필수)                                                                                                                               |
@@ -312,7 +312,7 @@ cd <worktree>/frontend && pnpm install
 | --------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
 | `6a87ff6` | 지원 정책 추천 도메인 구현 (`GET /api/v1/policies`)                                  | **없음** — 데이터가 비어 있어 §5 범위 밖                                              |
 | `65db365` | API 검증 규약 정리                                                                   | **`#4-9` 정정** — `SIMULATION_100`/`101` 삭제, 필드 검증 `SIMULATION_101~109` 로 재편 |
-| `65db365` | 커뮤니티 목록 3종·인기순위 `size` 를 1~50 으로 제한 (`COMMUNITY_119`, `RANKING_101`) | **없음** — FE 가 범위를 벗어난 `size` 를 보내는 곳이 없음을 grep 으로 확인            |
+| `65db365` | 커뮤니티 목록 3종·인기순위 `size` 를 1\~50 으로 제한 (`COMMUNITY_119`, `RANKING_101`) | **없음** — FE 가 범위를 벗어난 `size` 를 보내는 곳이 없음을 grep 으로 확인            |
 | `65db365` | 문서 갱신                                                                            | `backend/docs/simulation-frontend-guide.md` 의 에러표가 이미 새 코드로 갱신됨         |
 
 `#0` 은 이 이동의 영향을 받지 않는다(HTTP 상태 기반 분기라 에러코드 재편과 무관 — 규약이 의도한 바가 이것이다).
@@ -324,4 +324,4 @@ cd <worktree>/frontend && pnpm install
 | 일자       | 내용                                                                                                                  |
 | ---------- | --------------------------------------------------------------------------------------------------------------------- |
 | 2026-08-26 | 최초 작성 (develop `195fc1f` 기준)                                                                                    |
-| 2026-08-26 | §6 결정 6건 확정, `#0` 완료(`099863c`), `#1`~`#4` 착수. 기준선 `65db365` 로 이동(§8), 스택 브랜치 방식으로 §1·§3 갱신 |
+| 2026-08-26 | §6 결정 6건 확정, `#0` 완료(`099863c`), `#1`\~`#4` 착수. 기준선 `65db365` 로 이동(§8), 스택 브랜치 방식으로 §1·§3 갱신 |

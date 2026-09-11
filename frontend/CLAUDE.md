@@ -5,7 +5,7 @@ React/Vite → Next.js App Router 마이그레이션 작업 영역이며, **작�
 
 ## 정본 위치 (여기부터 읽는다)
 
-- **설계(무엇을 만드는가)**: `docs/features/` — Feature 기준 명세(공통 S0~S5 → 세부 D0~D8). 인덱스: `docs/features/_index.md`
+- **설계(무엇을 만드는가)**: `docs/features/` — Feature 기준 명세(공통 S0\~S5 → 세부 D0\~D8). 인덱스: `docs/features/_index.md`
 - **디자인**: `DESIGN.md` (단일 정본)
 - **횡단 기술 규칙**: `docs/engineering/` (routing / client-boundary / data-fetching / styling / code-style)
 - **실행·운영**: `docs/runbook/` (migration / qa / cutover / seo)

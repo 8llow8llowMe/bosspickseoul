@@ -96,7 +96,7 @@ Expected: FAIL — `getDistrictMetric` / `TOP_DISTRICT_CODES` 미정의.
 
 - [ ] **Step 3: 최소 구현**
 
-25개 자치구(11110~11740 서울 sig 코드) 각각에 대표 예시 라벨과 6~8포인트 트렌드를 채운다. 값은 "대표 예시"임을 라벨 문구로 드러내지 않아도 되지만, 실제 계약이 아닌 예시 수치다. 상위 3곳은 강남구(`11680`), 마포구(`11440`), 송파구(`11710`).
+25개 자치구(11110\~11740 서울 sig 코드) 각각에 대표 예시 라벨과 6\~8포인트 트렌드를 채운다. 값은 "대표 예시"임을 라벨 문구로 드러내지 않아도 되지만, 실제 계약이 아닌 예시 수치다. 상위 3곳은 강남구(`11680`), 마포구(`11440`), 송파구(`11710`).
 
 ```ts
 // src/data/district-metrics.ts
@@ -396,7 +396,7 @@ git commit -m "[FE] refactor(home): 히어로를 HeroSection 클라이언트 컴
 
 `seoul-districts-map.tsx`에 `useEffect`로 마운트 후 `mounted` 상태를 true로 전환(reveal.tsx 패턴). `DistrictPath`에 `$index`, `$appear`, `$isTop` transient prop을 받아:
 
-- 초기 `opacity: 0`, `mounted` 시 `opacity: 1`, `transition-delay: ${index * 24}ms`(마지막 구도 ~600ms 내 완료).
+- 초기 `opacity: 0`, `mounted` 시 `opacity: 1`, `transition-delay: ${index * 24}ms`(마지막 구도 \~600ms 내 완료).
 - `$isTop`이면 `@keyframes` pulse(예: `filter: drop-shadow`나 `fill` 밝기 2.4s 무한, 아주 낮은 진폭).
 - `@media (prefers-reduced-motion: reduce)`: `opacity: 1; animation: none; transition: none;`.
 
@@ -798,7 +798,7 @@ git commit -m "[FE] feat(home): 히어로 타이틀바 드래그(데스크톱) +
 **Interfaces:**
 
 - Consumes: `SeoulDistrictsMap`의 `onHoverChange`(Task 4)로 hover 코드를 hero-section이 받음.
-- Produces: hover 자치구가 있으면 카드 배경에 primary 색 5~8% 혼합. 모바일은 오버레이 해제·세로 정렬.
+- Produces: hover 자치구가 있으면 카드 배경에 primary 색 5\~8% 혼합. 모바일은 오버레이 해제·세로 정렬.
 
 - [ ] **Step 1: hover 코드 lift + 동적 틴트**
 

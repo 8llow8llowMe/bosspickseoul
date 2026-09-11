@@ -16,9 +16,9 @@
 
 **Spec:**
 
-- 정본 세부 명세: `frontend/docs/features/simulation/simulation-report.md` (D0~D8)
+- 정본 세부 명세: `frontend/docs/features/simulation/simulation-report.md` (D0\~D8)
 - 공통 명세: `frontend/docs/features/simulation/simulation.md`
-- 디자인 정본: `frontend/DESIGN.md` §5.3 S-SIM-1 ~ S-SIM-3
+- 디자인 정본: `frontend/DESIGN.md` §5.3 S-SIM-1 \~ S-SIM-3
 - 계약 정본: `backend/docs/simulation-frontend-guide.md` · Swagger `commercial-service/v3/api-docs`
 
 ---
@@ -2385,7 +2385,7 @@ git commit -m "[FE] feat: 시뮬레이션 이력 표시·재조회 변환을 만
 - 실패 시 버튼 아래 한 줄 문구(`resolveApiError().message`). `unauthorized` 면 로그인 링크로 되돌린다.
 - **삭제·공유 버튼을 만들지 않는다**(G13).
 
-- [ ] **Step 1: 테스트 → 구현 → 통과 → 커밋** (Task 1~4 와 같은 5스텝 사이클)
+- [ ] **Step 1: 테스트 → 구현 → 통과 → 커밋** (Task 1\~4 와 같은 5스텝 사이클)
 
 테스트는 세 상태의 문구를 고정한다:
 
@@ -2431,7 +2431,7 @@ it('삭제·공유 버튼을 그리지 않는다', () => {
 - **삭제 버튼 없음**(G13)
 - `unauthorized` → 로그인 유도. 이 라우트는 `profile-shell.tsx` 가 이미 인증을 요구하므로 중복 처리 불필요 — **`profile-shell.tsx` 의 기존 동작을 먼저 확인하고** 중복이면 넣지 않는다.
 
-- [ ] **Step 1~5**: 테스트 → 실패 확인 → 구현 → 통과 → 커밋
+- [ ] **Step 1\~5**: 테스트 → 실패 확인 → 구현 → 통과 → 커밋
 
 ### Task 9: B2 마감
 
@@ -2486,7 +2486,7 @@ it('삭제·공유 버튼을 그리지 않는다', () => {
 - `toMirrorCostRows` 의 비율은 **좌우 합이 아니라 두 값 중 큰 값** 기준이다. 합 기준이면 항목마다 축이 달라져 미러가 왜곡된다.
   `levy` 는 한쪽만 null 일 수 있다 — **양쪽 다 null 일 때만 행을 뺀다.** 한쪽만 있으면 없는 쪽을 `해당 없음` 으로 표기한다.
 
-- [ ] **Step 1~5**: 테스트 → 실패 확인 → 구현 → 통과 → 커밋
+- [ ] **Step 1\~5**: 테스트 → 실패 확인 → 구현 → 통과 → 커밋
 
 ### Task 11: 컴팩트 조건 편집기
 
@@ -2535,7 +2535,7 @@ it('삭제·공유 버튼을 그리지 않는다', () => {
   각 컬럼 하단에 `상세 리포트 보기` 링크(`buildSimulationReportHref`).
 - ≤767px 는 **세로 스택**.
 
-- [ ] **Step 1~5**: 테스트(승자 강조·중립 문구·부분 성공 금지) → 실패 확인 → 구현 → 통과 → 커밋
+- [ ] **Step 1\~5**: 테스트(승자 강조·중립 문구·부분 성공 금지) → 실패 확인 → 구현 → 통과 → 커밋
 
 ### Task 13: B3 마감
 
@@ -2562,10 +2562,10 @@ it('삭제·공유 버튼을 그리지 않는다', () => {
 | D2 #9 `levy` null vs 0                    | Task 2 `toCostBreakdown`, Task 4 테스트                               |
 | D2 #10 비교 전체 실패                     | Task 12                                                               |
 | D2 #11 저장만 인증                        | Task 7                                                                |
-| D2 #12 `size` 1~50                        | 기존 `isPositiveStoreSize` + 서버 검증 → `client` kind 로 표시        |
+| D2 #12 `size` 1\~50                        | 기존 `isPositiveStoreSize` + 서버 검증 → `client` kind 로 표시        |
 | D2 #13 집계 범위 라벨 + 억 축약           | Task 2, Task 3 Step 5, Task 4 테스트                                  |
 | D2 #14 `periodCode` 비노출                | Task 2 `describeSimulationPeriod`(표기 전용), Task 11                 |
-| D4-4 저장/이력                            | Task 6~8                                                              |
+| D4-4 저장/이력                            | Task 6\~8                                                              |
 | D6 반응형 (표 가로 스크롤·비교 세로 스택) | Task 3 Step 4, Task 12                                                |
 | TC-SIM-101                                | 기존 `conditions.test.ts` + Task 1                                    |
 | TC-SIM-102                                | Task 4 `결측 섹션은 숨기고…`                                          |
@@ -2578,11 +2578,11 @@ it('삭제·공유 버튼을 그리지 않는다', () => {
 **갭 (의도적으로 이 플랜 밖)**
 
 - D8-1 #3 죽은 레거시 컴포넌트 3종 + `*-v1-legacy` 삭제 → share Feature 가 `/share/[token]` 정리를 마친 뒤.
-  **B1~B3 에서 삭제하지 않는다** (지금 지우면 share 브랜치와 충돌).
+  **B1\~B3 에서 삭제하지 않는다** (지금 지우면 share 브랜치와 충돌).
 - D8-3 백엔드 후속(`HttpMessageNotReadableException` 핸들러) → FE 범위 밖. 피커로만 제출해 우회한다.
 
-**2. 플레이스홀더 스캔** — Task 7·8·10~12 의 스텝은 5스텝 사이클을 축약해 적었으나, **무엇을 테스트하고
-무엇을 만드는지와 그 판정 규칙**은 명시했다. 실행자는 Task 1~4 의 사이클 형식을 그대로 따른다.
+**2. 플레이스홀더 스캔** — Task 7·8·10\~12 의 스텝은 5스텝 사이클을 축약해 적었으나, **무엇을 테스트하고
+무엇을 만드는지와 그 판정 규칙**은 명시했다. 실행자는 Task 1\~4 의 사이클 형식을 그대로 따른다.
 
 **3. 타입 일관성** — `SimulationReportVariant` 는 Task 1 에서 정의하고 Task 5·10·12 가 같은 이름으로 쓴다.
 `simulationReportQueryKey` 는 Task 2 에서 정의하고 Task 5(입력 화면 시딩·리포트 조회)·Task 12(비교 시딩)가 쓴다.
