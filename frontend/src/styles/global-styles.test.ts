@@ -2,10 +2,116 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import GlobalStyles from './global-styles'
+
+/**
+ * 소스 트리를 훑어 `keep` 이 통과시킨 파일을 모은다.
+ *
+ * `readdirSync` 에 `withFileTypes` 를 줘서 **종류를 목록과 함께 받는다.** 예전에는
+ * 이름만 받고 항목마다 `statSync` 를 따로 불렀는데, 그 사이에 파일이 사라지면
+ * ENOENT 로 테스트가 터졌다. 확장자 필터보다 `statSync` 가 먼저라 **스캔 대상이
+ * 아닌 파일까지** 그 창에 걸렸다 — 임시 파일 하나만 지나가도 무관한 테스트가
+ * 빨개진다(#349). 목록과 종류를 한 번에 받으면 그 창 자체가 없다.
+ */
+const collectFiles = (
+  dir: string,
+  keep: (name: string) => boolean,
+): string[] => {
+  const out: string[] = []
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue
+
+    const full = path.join(dir, entry.name)
+
+    if (entry.isDirectory()) {
+      out.push(...collectFiles(full, keep))
+      continue
+    }
+
+    if (keep(entry.name)) out.push(full)
+  }
+
+  return out
+}
+
+/** 목록을 얻은 뒤 읽기 전에 파일이 사라져도 스캔을 이어 간다. 같은 이유다. */
+const readIfPresent = (file: string): string | null => {
+  try {
+    return readFileSync(file, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
+  }
+}
+
+/** 구현 소스만 본다 — 테스트 파일의 예시 코드는 규약 대상이 아니다. */
+const isSourceFile = (name: string): boolean =>
+  /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)
+
+/**
+ * 이 파일의 규약 테스트는 전부 소스 트리를 직접 훑는다. 그래서 **스캐너가 깨지면
+ * 무관한 규약이 한꺼번에 빨개진다** — 실제로 전체 스위트에서 간헐 실패로 나타났다(#349).
+ *
+ * 예전 스캐너는 `readdirSync` 로 이름만 받고 항목마다 `statSync` 를 따로 불렀다.
+ * 목록을 얻은 시점과 stat 하는 시점 사이에 파일이 사라지면 ENOENT 로 터진다.
+ * 끊어진 심볼릭 링크가 그 상황을 결정적으로 만든다 — `statSync` 는 링크를 따라가
+ * 던지고, `Dirent` 는 목록을 읽을 때 이미 종류를 알고 있어 던지지 않는다.
+ */
+describe('소스 스캐너는 사라진 파일에 걸려 넘어지지 않는다', () => {
+  const makeFixture = (): string => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'scan-toctou-'))
+
+    writeFileSync(path.join(dir, 'real.ts'), 'export const a = 1\n')
+    // 대상을 만들지 않는다 — 가리키는 곳이 없는 링크다
+    symlinkSync(path.join(dir, 'gone.ts'), path.join(dir, 'dangling.ts'))
+
+    return dir
+  }
+
+  it('끊어진 링크가 섞여 있어도 목록을 만든다', () => {
+    const dir = makeFixture()
+
+    try {
+      // 예전 방식이 왜 터졌는지 먼저 못박는다
+      expect(() => statSync(path.join(dir, 'dangling.ts'))).toThrow()
+
+      expect(() => collectFiles(dir, isSourceFile)).not.toThrow()
+      expect(
+        collectFiles(dir, isSourceFile)
+          .map(file => path.basename(file))
+          .sort(),
+      ).toEqual(['dangling.ts', 'real.ts'])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('읽을 수 없는 파일은 건너뛴다 — 던지지 않고 null 이다', () => {
+    const dir = makeFixture()
+
+    try {
+      expect(readIfPresent(path.join(dir, 'dangling.ts'))).toBeNull()
+      expect(readIfPresent(path.join(dir, 'real.ts'))).toBe(
+        'export const a = 1\n',
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
 
 /** styled-components 는 선언을 압축해 내보낸다 — 공백 차이로 깨지지 않게 지운다. */
 const squeeze = (css: string): string => css.replace(/\s+/g, '')
@@ -133,24 +239,8 @@ describe('브랜드 강조색은 로고 전용이다', () => {
   const scanned = ['src', 'app', 'public']
   const extensions = ['.ts', '.tsx', '.css', '.svg', '.md', '.js']
 
-  const collect = (dir: string): string[] => {
-    const out: string[] = []
-
-    for (const name of readdirSync(dir)) {
-      if (name === 'node_modules' || name.startsWith('.')) continue
-
-      const full = path.join(dir, name)
-
-      if (statSync(full).isDirectory()) {
-        out.push(...collect(full))
-        continue
-      }
-
-      if (extensions.some(ext => name.endsWith(ext))) out.push(full)
-    }
-
-    return out
-  }
+  const collect = (dir: string): string[] =>
+    collectFiles(dir, name => extensions.some(ext => name.endsWith(ext)))
 
   /**
    * hex 리터럴뿐 아니라 `--color-brand-accent`/`--color-brand-ghost`
@@ -171,7 +261,7 @@ describe('브랜드 강조색은 로고 전용이다', () => {
             prefix => file === prefix || file.startsWith(prefix + path.sep),
           ),
       )
-      .filter(file => bannedPattern.test(readFileSync(file, 'utf8')))
+      .filter(file => bannedPattern.test(readIfPresent(file) ?? ''))
       .map(file => path.relative(projectRoot, file))
 
     expect(offenders).toEqual([])
@@ -198,31 +288,15 @@ describe('포커스 링은 primary-700 이다', () => {
     '..',
   )
 
-  const collectSources = (dir: string): string[] => {
-    const out: string[] = []
-
-    for (const name of readdirSync(dir)) {
-      if (name === 'node_modules' || name.startsWith('.')) continue
-
-      const full = path.join(dir, name)
-
-      if (statSync(full).isDirectory()) {
-        out.push(...collectSources(full))
-        continue
-      }
-
-      if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full)
-    }
-
-    return out
-  }
+  const collectSources = (dir: string): string[] =>
+    collectFiles(dir, isSourceFile)
 
   /** `outline: 2px solid var(--color-primary-600)` 꼴. 굵기·표기 흔들림을 흡수한다. */
   const bannedRing = /outline:[^;{}]*var\(--color-primary-600\)/
 
   it('아웃라인에 primary-600 을 쓰는 곳이 없다', () => {
     const offenders = collectSources(projectRoot)
-      .filter(file => bannedRing.test(readFileSync(file, 'utf8')))
+      .filter(file => bannedRing.test(readIfPresent(file) ?? ''))
       .map(file => path.relative(projectRoot, file))
 
     expect(offenders).toEqual([])
@@ -238,7 +312,7 @@ describe('포커스 링은 primary-700 이다', () => {
 
   it('포커스 테두리에 primary-600 을 쓰는 곳이 없다', () => {
     const offenders = collectSources(projectRoot)
-      .filter(file => bannedFocusBorder.test(readFileSync(file, 'utf8')))
+      .filter(file => bannedFocusBorder.test(readIfPresent(file) ?? ''))
       .map(file => path.relative(projectRoot, file))
 
     expect(offenders).toEqual([])
@@ -268,24 +342,8 @@ describe('포커스가 hover 에 묻히지 않는다', () => {
     '..',
   )
 
-  const collectSources = (dir: string): string[] => {
-    const out: string[] = []
-
-    for (const name of readdirSync(dir)) {
-      if (name === 'node_modules' || name.startsWith('.')) continue
-
-      const full = path.join(dir, name)
-
-      if (statSync(full).isDirectory()) {
-        out.push(...collectSources(full))
-        continue
-      }
-
-      if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full)
-    }
-
-    return out
-  }
+  const collectSources = (dir: string): string[] =>
+    collectFiles(dir, isSourceFile)
 
   /**
    * 주석을 **지운 뒤** 스캔한다. 오프셋을 유지하려고 내용만 공백으로 바꾼다 —
@@ -308,7 +366,11 @@ describe('포커스가 hover 에 묻히지 않는다', () => {
     const offenders: string[] = []
 
     for (const file of collectSources(projectRoot)) {
-      const source = blankComments(readFileSync(file, 'utf8'))
+      const raw = readIfPresent(file)
+
+      if (raw === null) continue
+
+      const source = blankComments(raw)
 
       for (const match of source.matchAll(bundled)) {
         if (!/outline: *(none|0)/.test(match[2])) continue
