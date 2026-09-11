@@ -137,10 +137,7 @@ export const reduceCommunityLocationSyncState = (
 }
 
 export type CommunityLocationLevel =
-  | 'none'
-  | 'district'
-  | 'administration'
-  | 'commercial'
+  'none' | 'district' | 'administration' | 'commercial'
 
 export const resolveCommunityLocationValue = (
   level: CommunityLocationLevel,

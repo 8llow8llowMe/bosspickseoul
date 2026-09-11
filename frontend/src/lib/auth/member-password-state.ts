@@ -9,10 +9,7 @@ import type { MemberInfo } from '@/types/auth'
  * - `unknown`: 판정할 수 없음 — 폼을 주지 않는다
  */
 export type MemberPasswordMode =
-  | 'change'
-  | 'change-with-unlink'
-  | 'setup'
-  | 'unknown'
+  'change' | 'change-with-unlink' | 'setup' | 'unknown'
 
 /**
  * `GET /members/me` 의 `hasPassword`·`provider` 로 화면을 가른다.

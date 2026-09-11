@@ -16,11 +16,7 @@
 
 /** BE `PolicySupportType` 5종. 표시명은 `supportTypeName` 으로 함께 내려온다. */
 export type PolicySupportType =
-  | 'FUNDING'
-  | 'SUBSIDY'
-  | 'FACILITY'
-  | 'MARKETING'
-  | 'EDUCATION'
+  'FUNDING' | 'SUBSIDY' | 'FACILITY' | 'MARKETING' | 'EDUCATION'
 
 export type PolicyItem = {
   /** Snowflake 라 **문자열이다.** `Number(...)` 로 바꾸면 뒷자리가 날아간다. */

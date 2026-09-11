@@ -5,10 +5,7 @@ import type { ApiResponse } from '@/types/api'
  * `rightCode` 를 함께 받는다 — 나머지 셋은 코드 하나로 끝난다.
  */
 export type AiReportLevel =
-  | 'district'
-  | 'administration'
-  | 'commercial'
-  | 'comparison'
+  'district' | 'administration' | 'commercial' | 'comparison'
 
 export type Meta<C extends string = string> = {
   code: C
@@ -18,15 +15,9 @@ export type Meta<C extends string = string> = {
 
 export type AiReportSubmissionCode = 'CACHED' | 'ACCEPTED'
 export type AiReportJobStatusCode =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'COMPLETED'
-  | 'FAILED'
+  'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
 export type AiReportJobTypeCode =
-  | 'COMMERCIAL'
-  | 'COMMERCIAL_COMPARISON'
-  | 'DISTRICT'
-  | 'ADMINISTRATION'
+  'COMMERCIAL' | 'COMMERCIAL_COMPARISON' | 'DISTRICT' | 'ADMINISTRATION'
 
 export type CommercialAiReport = {
   summary: string | null

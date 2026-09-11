@@ -180,8 +180,7 @@ export default function AiReportBody({
   const foot = getResponseBody(footQuery.data) as CommercialFootTraffic | null
   const growth = selectSalesGrowth(getResponseBody(salesTrendQuery.data))
   const services = getResponseBody(servicesQuery.data) as
-    | CommercialServiceCategory[]
-    | null
+    CommercialServiceCategory[] | null
   const serviceName = services?.find(
     item => item.serviceCode === serviceCode,
   )?.serviceName

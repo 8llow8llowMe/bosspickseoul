@@ -81,9 +81,7 @@ type ExpectedApiResponse<T> = {
     resultCode: string | null
     // 검증 실패 응답은 `{ message, errors[] }` 객체다 (`src/types/api.ts` 참고).
     resultMessage:
-      | string
-      | { message?: string; errors?: ExpectedFieldError[] }
-      | null
+      string | { message?: string; errors?: ExpectedFieldError[] } | null
   }
   dataBody: T
 }

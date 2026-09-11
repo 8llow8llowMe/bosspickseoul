@@ -184,10 +184,7 @@ export const buildRecommendationMapItems = (
 }
 
 export type RecommendMapStage =
-  | 'district'
-  | 'administration'
-  | 'commercial'
-  | 'results'
+  'district' | 'administration' | 'commercial' | 'results'
 
 /**
  * 카메라를 어떻게 할지. **`keep` 과 `reset` 을 구분하는 것이 핵심**이다 —
