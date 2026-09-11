@@ -34,6 +34,14 @@
 
 형식: `[BE] feat: 자치구 상권변화지표 데이터셋을 추가한다`. 타입은 `feat` / `fix` / `chore` / `refactor` / `docs` / `test` (`.github/pull_request_template.md` 기준). 기능별로 커밋을 나누고, 브랜치는 `<type>/<영역>/<요약>` (예: `feature/fe/simulation-step-flow`, `chore/infra/agent-orchestration`).
 
+### 머지 방식 — rebase merge 로 통일 (2026-09-11 결정)
+
+- PR 은 **rebase and merge** 로만 머지한다. merge commit·squash 는 쓰지 않는다. 그전까지 FE 는 merge commit, BE/INFRA 는 rebase 로 갈려 있었다(최근 40건: merge commit 25 · rebase 15).
+- **브랜치의 커밋이 그대로 develop 에 올라간다.** 그래서 모든 커밋이 위 prefix 형식을 지켜야 하고, `wip`·`fix typo` 같은 커밋은 PR 전에 정리(squash/reword)한다. PR 제목 하나로 뭉개지지 않는다.
+- 머지 후 브랜치 커밋은 **새 SHA** 로 바뀐다. 스택 PR 은 아래 PR 이 머지되면 위 브랜치를 `git rebase --onto origin/develop <옛 base>` 로 갈아탄 뒤 base 를 `develop` 으로 바꾼다.
+- 배포 게이트(Jenkins)는 머지 커밋 메시지가 아니라 **커밋 SHA 에 연결된 PR 의 라벨**로 배포 대상을 찾으므로 rebase 머지와 호환된다. PR 라벨(`frontend-web` 등)은 여전히 필수다.
+- 저장소 설정에서 merge commit·squash 를 끄는 것은 소유자가 한다: `gh api -X PATCH repos/8llow8llowMe/bosspickseoul -f allow_merge_commit=false -f allow_squash_merge=false -f allow_rebase_merge=true`.
+
 ### 운영 원칙
 
 - 엔트리 문서는 얇게 유지하고, 세부 규칙은 각 워크스페이스 `docs/` 에 모은다.
