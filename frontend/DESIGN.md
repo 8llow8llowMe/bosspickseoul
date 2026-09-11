@@ -162,7 +162,7 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 ### Font Family
 
-- **Primary**: `Pretendard` (`next/font/local`, `src/lib/fonts.ts`). 400 / 500 / 600 / 700 네 무게를 싣는다. 폴백은 `'Toss Product Sans', 'Tossface', 'SF Pro KR', 'SF Pro Display', 'Apple SD Gothic Neo', 'Roboto', 'Noto Sans KR', 'Malgun Gothic', 'system-ui', 'sans-serif'`.
+- **Primary**: `Pretendard` (`next/font/local`, `src/lib/fonts.ts`). **KS X 1001 기반 서브셋 가변 1파일**(`PretendardVariable.subset.woff2`, 428.6KiB)로 400 / 500 / 600 / 700 네 무게를 모두 덮는다 — 무게마다 파일을 싣던 방식(전체 글리프 4파일 3,048KiB)을 대체했다. 생성 절차는 [pretendard-subset 명세](docs/features/layout/pretendard-subset.md). 폴백은 `'Toss Product Sans', 'Tossface', 'SF Pro KR', 'SF Pro Display', 'Apple SD Gothic Neo', 'Roboto', 'Noto Sans KR', 'Malgun Gothic', 'system-ui', 'sans-serif'`.
 - **Monospace**: `"SF Mono", SFMono-Regular, Menlo, Consolas, monospace`
 - **Emoji**: `Tossface` -- Toss's custom emoji font (3500+ emojis, open-source on GitHub)
 
