@@ -19,7 +19,8 @@ class PolicyIngestionPropertiesTest {
                 20,
                 30,
                 3
-            )
+            ),
+            null
         );
 
         assertThat(properties.datasource().hasUrl()).isFalse();
