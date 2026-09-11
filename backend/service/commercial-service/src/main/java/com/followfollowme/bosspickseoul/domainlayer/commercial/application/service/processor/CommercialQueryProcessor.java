@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor;
 
 import com.followfollowme.bosspickseoul.domainlayer.category.application.port.out.ServiceCategoryRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.category.domain.enums.ServiceType;
 import com.followfollowme.bosspickseoul.domainlayer.category.domain.model.ServiceCategory;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
@@ -99,13 +100,29 @@ public class CommercialQueryProcessor {
                 periodCode, commercialCode, serviceCode)
             .orElseThrow(() -> new CommercialException(CommercialErrorCode.STORE_NOT_FOUND));
 
-        List<CommercialPeerStoreInfo> peerStores = storeCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceType(
-                periodCode, commercialCode, targetStore.serviceType())
+        List<CommercialPeerStoreInfo> peerStores = findPeerStores(periodCode, commercialCode, serviceCode, targetStore.serviceType());
+
+        return CommercialStoreAnalysisInfo.of(targetStore, peerStores);
+    }
+
+    /**
+     * 동종업종 피어 조회. 프로필·히트맵·비교가 모두 이 경로를 다시 타므로 방어는 여기 한 곳에만 둔다.
+     *
+     * <p>{@code serviceType} 이 null 이면 조회 자체를 하지 않는다. Spring Data 파생 쿼리는 파라미터가 null 이면
+     * {@code = ?} 가 아니라 {@code IS NULL} 로 나가므로, {@code service_type} 이 null 로 적재된 행이 있으면
+     * 동종업종 필터가 통째로 풀려 그 상권·분기의 거의 모든 업종이 피어로 딸려온다. 빈 결과보다 나쁜 조용한 오답이다.
+     */
+    private List<CommercialPeerStoreInfo> findPeerStores(
+        String periodCode, String commercialCode, String serviceCode, ServiceType serviceType
+    ) {
+        if (serviceType == null) {
+            return List.of();
+        }
+
+        return storeCommercialRepositoryPort.findByPeriodCodeAndCommercialCodeAndServiceType(periodCode, commercialCode, serviceType)
             .stream()
             .filter(store -> !store.serviceCode().equals(serviceCode))
             .map(CommercialPeerStoreInfo::from)
             .toList();
-
-        return CommercialStoreAnalysisInfo.of(targetStore, peerStores);
     }
 }
