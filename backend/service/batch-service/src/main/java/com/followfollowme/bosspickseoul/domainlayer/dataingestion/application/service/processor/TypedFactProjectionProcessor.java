@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.mo
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.FactRow;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ProjectionRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ProjectionResult;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.ServiceCategoryLookupPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Dataset;
 import java.util.ArrayList;
@@ -19,9 +20,11 @@ public class TypedFactProjectionProcessor {
     private static final Logger log = LoggerFactory.getLogger(TypedFactProjectionProcessor.class);
 
     private final TypedFactProjectionPort projections;
+    private final ServiceCategoryLookupPort serviceCategories;
 
-    public TypedFactProjectionProcessor(TypedFactProjectionPort projections) {
+    public TypedFactProjectionProcessor(TypedFactProjectionPort projections, ServiceCategoryLookupPort serviceCategories) {
         this.projections = projections;
+        this.serviceCategories = serviceCategories;
     }
 
     public ProjectionResult project(ProjectionRequest request) {
@@ -32,17 +35,32 @@ public class TypedFactProjectionProcessor {
         if (facts.isEmpty()) {
             throw new IllegalStateException("active release " + sourceRunId + " has no dataset_fact rows");
         }
+        ServiceTypeResolver serviceTypes = serviceTypeResolver(request.dataset());
         int mapped = request.dataset() == Dataset.CHANGE_COMMERCIAL
             ? mapChange(request, facts)
-            : mapTyped(request, facts);
+            : mapTyped(request, facts, serviceTypes);
         if (request.dryRun()) {
-            log.info("typed projection dry-run dataset={} period={} spatialVersion={} sourceRunId={} rows={}",
-                request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped);
+            log.info("typed projection dry-run dataset={} period={} spatialVersion={} sourceRunId={} rows={}"
+                    + " serviceTypeUnresolvedRows={} serviceTypeUnresolvedCodes={} serviceTypeUnresolvedSample={}",
+                request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped,
+                serviceTypes.unresolvedRows(), serviceTypes.unresolvedCodeCount(), serviceTypes.unresolvedCodeSample());
             return new ProjectionResult(sourceRunId, mapped, false);
         }
-        log.info("typed projection written dataset={} period={} spatialVersion={} sourceRunId={} rows={}",
-            request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped);
+        log.info("typed projection written dataset={} period={} spatialVersion={} sourceRunId={} rows={}"
+                + " serviceTypeUnresolvedRows={} serviceTypeUnresolvedCodes={} serviceTypeUnresolvedSample={}",
+            request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped,
+            serviceTypes.unresolvedRows(), serviceTypes.unresolvedCodeCount(), serviceTypes.unresolvedCodeSample());
         return new ProjectionResult(sourceRunId, mapped, true);
+    }
+
+    /**
+     * 업종 컬럼이 있는 데이터셋만 {@code service_category} 를 읽는다. run 시작 시 1회 조회해 메모리에 들고 가고,
+     * 팩트 행마다 다시 조회하지 않는다.
+     */
+    private ServiceTypeResolver serviceTypeResolver(Dataset dataset) {
+        return dataset.industry()
+            ? new ServiceTypeResolver(serviceCategories.serviceTypesByServiceCode())
+            : ServiceTypeResolver.empty();
     }
 
     private int mapChange(ProjectionRequest request, List<FactRow> facts) {
@@ -60,11 +78,11 @@ public class TypedFactProjectionProcessor {
         return written;
     }
 
-    private int mapTyped(ProjectionRequest request, List<FactRow> facts) {
+    private int mapTyped(ProjectionRequest request, List<FactRow> facts, ServiceTypeResolver serviceTypes) {
         List<Object[]> rows = new ArrayList<>(facts.size());
         for (FactRow fact : facts) {
             rows.add(TypedFactMappers.columns(
-                request.dataset(), fact, request.period().value(), request.spatialVersion()));
+                request.dataset(), fact, request.period().value(), request.spatialVersion(), serviceTypes));
         }
         if (request.dryRun()) {
             return rows.size();

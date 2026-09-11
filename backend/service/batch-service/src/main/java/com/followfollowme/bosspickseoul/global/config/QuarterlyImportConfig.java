@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.global.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.*;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.ChangeCommercialProjectionJdbcAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.ServiceCategoryJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRowProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.SpatialImportProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.TypedFactProjectionProcessor;
@@ -40,8 +41,13 @@ public class QuarterlyImportConfig {
     @Bean public TypedFactProjectionPort typedFactProjectionPort(JdbcTemplate jdbc, ObjectMapper mapper) {
         return new ChangeCommercialProjectionJdbcAdapter(jdbc, mapper);
     }
-    @Bean public TypedFactProjectionProcessor typedFactProjectionProcessor(TypedFactProjectionPort projections) {
-        return new TypedFactProjectionProcessor(projections);
+    @Bean public ServiceCategoryLookupPort serviceCategoryLookupPort(JdbcTemplate jdbc) {
+        return new ServiceCategoryJdbcAdapter(jdbc);
+    }
+    @Bean public TypedFactProjectionProcessor typedFactProjectionProcessor(
+        TypedFactProjectionPort projections, ServiceCategoryLookupPort serviceCategories
+    ) {
+        return new TypedFactProjectionProcessor(projections, serviceCategories);
     }
 }
 
