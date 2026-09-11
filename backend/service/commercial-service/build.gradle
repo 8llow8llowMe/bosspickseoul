@@ -27,7 +27,7 @@ dependencies {
     // Config Client
     implementation 'org.springframework.cloud:spring-cloud-starter-config'
     // SpringDoc (swagger - openapi 3.0)
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
     // Map Struct
     implementation 'org.mapstruct:mapstruct:1.6.3'
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
