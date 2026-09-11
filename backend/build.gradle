@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.5'
+    id 'org.springframework.boot' version '3.5.16'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -95,7 +95,9 @@ subprojects.findAll {
 }.each { cloudProject ->
     cloudProject.apply plugin: 'io.spring.dependency-management'
 
-    cloudProject.ext.set('springCloudVersion', '2024.0.0')
+    // Spring Boot 3.5.x 와 짝은 Spring Cloud 2025.0.x (Northfields) 다.
+    // 2024.0.x 는 Boot 3.4.x 전용이므로 Boot 만 올리면 런타임에 어긋난다.
+    cloudProject.ext.set('springCloudVersion', '2025.0.3')
 
     cloudProject.dependencyManagement {
         imports {
