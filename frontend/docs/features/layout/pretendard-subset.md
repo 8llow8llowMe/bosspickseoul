@@ -181,7 +181,7 @@ end
 | -------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | 폰트 서브셋    | woff2 입출력, 가변 축 보존, OpenType 피처 선택 보존    | `fonttools 4.60.2` 의 `pyftsubset` + `brotli` (임시 venv, 저장소 의존성 아님)                    |
 | 문자 집합 산출 | KS X 1001 완성형 2,350자를 **표 하드코딩 없이** 얻는다 | Python 표준 코덱 `iso2022_kr` 의 인코딩 가능 여부로 판정(D4-1)                                   |
-| 폰트 로딩      | self-host, FOIT 회피, CSS 변수 노출                    | `next/font/local` (Next 16.2.1) — **현행 유지**                                                  |
+| 폰트 로딩      | self-host, FOIT 회피, CSS 변수 노출                    | `next/font/local` — **현행 유지**                                                                |
 | 원본 조달      | 재현 가능한 출처, 버전 고정                            | `https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/woff2/PretendardVariable.woff2` |
 
 `glyphhanger` 는 쓰지 않는다. 실제 렌더 결과에서 글자를 긁는 방식이라 **사용자 생성 콘텐츠·API 응답에 따라 결과가 흔들린다**. 우리는 「KS X 1001 전체」라는 고정 집합을 쓰므로 결정론적인 `pyftsubset` 이 맞다.
