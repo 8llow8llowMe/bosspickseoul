@@ -7,6 +7,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persist
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.StoreDistrictOpenedTopTenProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.StoreDistrictServiceTopEightProjection;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -46,10 +47,19 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 )
         );
 
-        NumberExpression<Double> openingChangeRate = currentOpeningRateAvg
-            .subtract(previousOpeningRateAvg)
-            .divide(previousOpeningRateAvg)
-            .multiply(PERCENT_MULTIPLIER);
+        // 이전 분기 행이 없으면 AVG 가 NULL 이고, 평균이 0 이면 0 으로 나누게 된다. 두 경우 모두
+        // 변화율을 0 으로 본다. 가드가 없으면 DB 마다 결과가 갈린다 — MySQL 은 NULL 을 돌려주지만
+        // H2 는 Division by zero 로 예외를 던져 슬라이스 테스트가 깨진다.
+        // 행정동 쪽(SalesAdministrationRepositoryAdapter)이 쓰는 것과 같은 형태다.
+        NumberExpression<Double> safePreviousOpeningRateAvg = previousOpeningRateAvg.coalesce(0.0);
+        NumberExpression<Double> openingChangeRate = new CaseBuilder()
+            .when(safePreviousOpeningRateAvg.eq(0.0)).then(0.0)
+            .otherwise(
+                currentOpeningRateAvg
+                    .subtract(safePreviousOpeningRateAvg)
+                    .divide(safePreviousOpeningRateAvg)
+                    .multiply(PERCENT_MULTIPLIER)
+            );
 
         return queryFactory
             .select(
@@ -91,10 +101,16 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
                 )
         );
 
-        NumberExpression<Double> closureChangeRate = currentClosureRateAvg
-            .subtract(previousClosureRateAvg)
-            .divide(previousClosureRateAvg)
-            .multiply(PERCENT_MULTIPLIER);
+        // 가드 이유는 findTopTenByOpenedStore 주석 참고.
+        NumberExpression<Double> safePreviousClosureRateAvg = previousClosureRateAvg.coalesce(0.0);
+        NumberExpression<Double> closureChangeRate = new CaseBuilder()
+            .when(safePreviousClosureRateAvg.eq(0.0)).then(0.0)
+            .otherwise(
+                currentClosureRateAvg
+                    .subtract(safePreviousClosureRateAvg)
+                    .divide(safePreviousClosureRateAvg)
+                    .multiply(PERCENT_MULTIPLIER)
+            );
 
         return queryFactory
             .select(
