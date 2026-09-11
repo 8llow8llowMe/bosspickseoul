@@ -26,8 +26,8 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
     // QueryDSL
-    implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.1'
-    annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.1:jpa'
+    implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.6'
+    annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.6:jpa'
 
     // MySQL JDBC
     runtimeOnly 'com.mysql:mysql-connector-j'
