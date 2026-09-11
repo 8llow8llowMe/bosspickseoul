@@ -5,6 +5,12 @@ coverage
 dist
 *.tsbuildinfo
 
+# Next 가 자동 생성한다. `next dev` 는 `.next/dev/types/`, `next build`/`next typegen` 은
+# `.next/types/` 를 가리키도록 서로 다르게 써서, 추적하면 모드를 바꿀 때마다 diff 가 잡힌다.
+# Next 문서도 "should not be tracked by version control" 이라고 못박는다.
+# 지워도 `next typegen`·`dev`·`build` 가 다시 만든다.
+next-env.d.ts
+
 # Playwright 실행 산출물 (e2e/baselines 는 추적한다)
 test-results
 playwright-report
