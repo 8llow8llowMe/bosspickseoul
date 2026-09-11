@@ -74,7 +74,8 @@ class BizinfoPolicySourceAdapterTest {
                 maxPages,
                 5,
                 1
-            )
+            ),
+            null
         );
     }
 }

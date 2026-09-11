@@ -13,17 +13,8 @@ public record PolicyIngestionProperties(
     Datasource datasource
 ) {
 
-    public PolicyIngestionProperties(
-        boolean enabled,
-        String collectCron,
-        String purgeCron,
-        double staleRatio,
-        int purgeGraceDays,
-        Bizinfo bizinfo
-    ) {
-        this(enabled, collectCron, purgeCron, staleRatio, purgeGraceDays, bizinfo, null);
-    }
-
+    // 생성자가 둘이면 Spring 이 바인딩 대상을 고르지 못하고 JavaBean 바인딩으로 떨어진다.
+    // record 에는 기본 생성자가 없어 그 순간 기동이 깨지므로 정규 생성자 하나만 둔다.
     public PolicyIngestionProperties {
         if (collectCron == null || collectCron.isBlank()) {
             collectCron = "0 0 6 * * ?";
