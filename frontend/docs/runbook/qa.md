@@ -42,7 +42,79 @@ pnpm qa:verify
 - TypeScript 오류가 없다.
 - Next production build가 성공한다.
 
-## 2. 수동 smoke test
+## 2. 브라우저 실측 회귀 (Playwright)
+
+`pnpm qa:verify` 는 **렌더 결과**를 보지 못한다. 색 대비·터치 타깃 크기·문서 높이·
+첫 화면에 무엇이 들어오는지는 실제 브라우저에서만 확인된다. 그 실측을 Playwright 로
+고정한다.
+
+### 1. 역할 분담
+
+| 도구       | 환경                                          | 무엇을 보는가                                                      |
+| ---------- | --------------------------------------------- | ------------------------------------------------------------------ |
+| vitest     | `environment: 'node'`, `renderToStaticMarkup` | 순수 로직, 마크업 문자열, 분기(에러 상태 격리 등). 브라우저가 없다 |
+| Playwright | chromium, 실제 뷰포트                         | 레이아웃 실측·WCAG 대비·터치 타깃·스크롤 예산·콘솔/네트워크        |
+
+로직과 문구는 **vitest 가 정본**이다. Playwright 로 옮기지 않는다 — 느리고, 서버가 필요하다.
+
+### 2. 실행
+
+```bash
+# 로컬: dev 서버(포트 5173)가 떠 있어야 한다. 없으면 playwright 가 `pnpm dev -p 5173` 로 띄운다.
+pnpm test:e2e
+
+# 실패를 눈으로 따라가고 싶을 때
+pnpm test:e2e:ui
+
+# 다른 오리진(프로덕션 빌드·스테이징)을 볼 때
+PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e
+```
+
+`pnpm qa:verify` 에는 **넣지 않는다.** 서버가 필요하고 CI 이미지에 브라우저가 없다.
+CI 에서 돌리려면 `pnpm exec playwright install --with-deps chromium` 과 프로덕션 서버
+기동(`pnpm build && pnpm start -p 5173`)을 파이프라인에 따로 넣는다.
+
+### 3. 대상과 결정론
+
+첫 슬라이스는 홈(`/`) 감사 지표다.
+
+| 파일                                | 무엇                                                 |
+| ----------------------------------- | ---------------------------------------------------- |
+| `e2e/home/measure.ts`               | 브라우저 안에서 지표를 재는 `page.evaluate` 헬퍼     |
+| `e2e/home/home-metrics.spec.ts`     | 래칫 + 불변식(가로 넘침·h1·링크 허용 목록·콘솔 오류) |
+| `e2e/home/hero.spec.ts`             | 히어로 호버 툴팁, 모바일 첫 화면 스크린샷            |
+| `e2e/fixtures/analysis-rankings.ts` | `/api/bff/analysis-rankings` 고정 응답               |
+| `e2e/baselines/home.<project>.json` | 프로젝트(desktop·mobile)별 기준선                    |
+
+- **랭킹만 고정한다.** 「지금 많이 본 지역」은 집계 결과에 따라 dual/솔로/섹션 제거로
+  갈리고 그 분기가 문서 높이를 통째로 바꾼다. `page.route` 로 3건을 고정한다.
+  응답 필드는 `src/types/status.ts` 의 `AnalysisRankingBody` 에 있는 것만 쓴다.
+- `districts/top-ten` 은 **실응답을 그대로 둔다**(실패 시 예시 데이터 폴백이 있다).
+  다만 이 API 가 죽으면 홈이 dual 에서 솔로로 바뀌어 `docHeightScreens` 가 크게 줄고
+  래칫은 통과한다 — 즉 실패가 아니라 **측정이 무의미해진다.** 기준선을 갱신할 때는
+  `stickyTracks` 에 세 트랙이 다 잡혔는지 첨부(`home-metrics`)에서 확인한다.
+- 측정은 **스크롤 0 지점**에서 한 번만 한다. 스크롤하면 `IntersectionObserver` 게이트가
+  풀려 BFF 호출 수가 달라지고 앵커 채움 상태가 바뀐다.
+
+### 4. 기준선 갱신 규칙
+
+기준선은 「나빠지지 않았는가」만 본다. 그래서 **나아진 값으로만 내린다.**
+
+- 값을 **올리는 갱신은 하지 않는다.** 지표가 나빠졌으면 기준선이 아니라 코드를 고친다.
+- P0/P1 명세(D0~D8)를 구현한 PR 에서 함께 내린다. 갱신 커밋에 실측 전/후 값을 적는다.
+- 갱신 방법:
+
+  ```bash
+  UPDATE_HOME_BASELINE=1 pnpm test:e2e e2e/home/home-metrics.spec.ts
+  ```
+
+  이 모드에서는 래칫 단언을 건너뛰고 현재 실측값을 기준선 파일에 다시 쓴다.
+  출력은 prettier 형식에 맞춰 나오므로 `pnpm format:check` 가 그대로 통과한다.
+
+- 목표값(`docs/features/home/home-ux-audit-2026-09-11.md` §5)에 닿으면 테스트가
+  `[target reached] …` 를 로그로 알린다. 자동으로 내리지는 않는다.
+
+## 3. 수동 smoke test
 
 > 원출처: `../_archive/qa-runbook.md`
 
@@ -151,7 +223,7 @@ pnpm qa:verify
 - Kakao SDK는 대상 route에서 share UI가 노출되지 않았고 key도 비어 있어 blocked.
 - mobile header brand link touch target은 `108x40`으로 확인했다.
 
-## 3. 완료 체크리스트
+## 4. 완료 체크리스트
 
 > 원출처: `../_archive/done-checklist.md`
 

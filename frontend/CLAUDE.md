@@ -39,6 +39,9 @@ React/Vite → Next.js App Router 마이그레이션 작업 영역이며, **작�
 완료 보고 전 실행: `pnpm qa:verify` (= `format:check && lint && typecheck && build`).
 미실행 명령을 통과했다고 보고하지 않는다.
 
+브라우저 실측 회귀는 `pnpm test:e2e` (Playwright) 로 **따로** 돌린다 — dev 서버가 떠 있어야 하고
+CI 이미지에 브라우저가 없어 `qa:verify` 에 넣지 않았다. 규칙은 `docs/runbook/qa.md` §2.
+
 ## PR 생성 규약
 
 PR 을 만들 때 **assignee 와 label 을 반드시 지정한다.**
