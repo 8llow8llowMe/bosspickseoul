@@ -85,15 +85,9 @@ export type Meta<C extends string = string> = {
 
 export type AiReportSubmissionCode = 'CACHED' | 'ACCEPTED'
 export type AiReportJobStatusCode =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'COMPLETED'
-  | 'FAILED'
+  'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
 export type AiReportJobTypeCode =
-  | 'COMMERCIAL'
-  | 'COMMERCIAL_COMPARISON'
-  | 'DISTRICT'
-  | 'ADMINISTRATION'
+  'COMMERCIAL' | 'COMMERCIAL_COMPARISON' | 'DISTRICT' | 'ADMINISTRATION'
 
 export type CommercialAiReport = {
   summary: string | null
@@ -504,11 +498,7 @@ import type {
 
 export type AiReportStage = { name: string; description: string }
 export type AiReportErrorKind =
-  | 'unauth'
-  | 'not-found'
-  | 'unavailable'
-  | 'timeout'
-  | 'generic'
+  'unauth' | 'not-found' | 'unavailable' | 'timeout' | 'generic'
 export type AiReportState =
   | { status: 'idle' }
   | {

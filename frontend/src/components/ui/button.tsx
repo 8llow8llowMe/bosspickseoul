@@ -4,11 +4,7 @@ import Link from 'next/link'
 import styled, { css, keyframes } from 'styled-components'
 
 export type ButtonVariant =
-  | 'primary'
-  | 'secondary'
-  | 'dark'
-  | 'danger'
-  | 'ghost'
+  'primary' | 'secondary' | 'dark' | 'danger' | 'ghost'
 
 export type ButtonSize = 'tiny' | 'medium' | 'large' | 'big'
 

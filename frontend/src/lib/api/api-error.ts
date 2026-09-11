@@ -17,11 +17,7 @@ import type {
  * - `client`: 그 외 4xx (검증 실패, 만료 등) → 원인별 안내
  */
 export type ApiErrorKind =
-  | 'network'
-  | 'server'
-  | 'not-found'
-  | 'unauthorized'
-  | 'client'
+  'network' | 'server' | 'not-found' | 'unauthorized' | 'client'
 
 export type NormalizedApiError = {
   kind: ApiErrorKind

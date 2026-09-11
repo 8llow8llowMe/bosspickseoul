@@ -1,13 +1,7 @@
 import styled, { css } from 'styled-components'
 
 export type BadgeTone =
-  | 'blue'
-  | 'grey'
-  | 'green'
-  | 'red'
-  | 'orange'
-  | 'teal'
-  | 'purple'
+  'blue' | 'grey' | 'green' | 'red' | 'orange' | 'teal' | 'purple'
 
 const toneStyles = {
   blue: css`

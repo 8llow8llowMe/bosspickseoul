@@ -9,9 +9,7 @@ import type {
 
 /** 어떤 대상이든 완료 시 채워지는 리포트 하나. */
 export type AnyAiReport =
-  | CommercialAiReport
-  | CommercialComparisonAiReport
-  | RegionAiReport
+  CommercialAiReport | CommercialComparisonAiReport | RegionAiReport
 
 export const AI_REPORT_POLL_INTERVAL_MS = 3000
 export const AI_REPORT_POLL_TIMEOUT_MS = 90000

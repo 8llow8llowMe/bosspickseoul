@@ -103,9 +103,7 @@ export const buildSalesTimeLine = (
   toLinePoints(
     createRows(
       sales?.amountByTimeSlotItem as
-        | Record<string, number | null>
-        | null
-        | undefined,
+        Record<string, number | null> | null | undefined,
       salesTimeDefinitions,
     ),
   )

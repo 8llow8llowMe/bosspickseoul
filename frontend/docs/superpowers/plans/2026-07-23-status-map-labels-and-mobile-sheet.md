@@ -723,9 +723,9 @@ const Sheet = styled.section<{
     var(--status-sheet-collapsed-height),
     calc(
       ${props =>
-          props.$snap === 'expanded'
-            ? 'var(--status-sheet-expanded-height)'
-            : 'var(--status-sheet-collapsed-height)'} -
+        props.$snap === 'expanded'
+          ? 'var(--status-sheet-expanded-height)'
+          : 'var(--status-sheet-collapsed-height)'} -
         ${props => props.$dragDeltaY}px
     ),
     var(--status-sheet-expanded-height)

@@ -29,9 +29,7 @@ type ErrorFeedbackProps = {
 }
 
 export type StatusFeedbackProps =
-  | LoadingFeedbackProps
-  | EmptyFeedbackProps
-  | ErrorFeedbackProps
+  LoadingFeedbackProps | EmptyFeedbackProps | ErrorFeedbackProps
 
 const FeedbackCard = styled.section`
   min-height: 240px;

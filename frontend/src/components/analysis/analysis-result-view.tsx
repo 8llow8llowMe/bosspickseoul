@@ -968,8 +968,7 @@ export default function AnalysisResultView({
   /* 응답이 필드를 안 주는 경우(구버전 배포)도 빈 목록으로 다룬다. */
   const policyRecommendations = profile?.policyRecommendations ?? []
   const services = getResponseBody(servicesQuery.data) as
-    | CommercialServiceCategory[]
-    | null
+    CommercialServiceCategory[] | null
   const serviceName =
     services?.find(item => item.serviceCode === serviceCode)?.serviceName ??
     serviceCode

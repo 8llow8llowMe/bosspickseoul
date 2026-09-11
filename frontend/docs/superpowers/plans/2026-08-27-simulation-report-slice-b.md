@@ -2562,10 +2562,10 @@ it('삭제·공유 버튼을 그리지 않는다', () => {
 | D2 #9 `levy` null vs 0                    | Task 2 `toCostBreakdown`, Task 4 테스트                               |
 | D2 #10 비교 전체 실패                     | Task 12                                                               |
 | D2 #11 저장만 인증                        | Task 7                                                                |
-| D2 #12 `size` 1\~50                        | 기존 `isPositiveStoreSize` + 서버 검증 → `client` kind 로 표시        |
+| D2 #12 `size` 1\~50                       | 기존 `isPositiveStoreSize` + 서버 검증 → `client` kind 로 표시        |
 | D2 #13 집계 범위 라벨 + 억 축약           | Task 2, Task 3 Step 5, Task 4 테스트                                  |
 | D2 #14 `periodCode` 비노출                | Task 2 `describeSimulationPeriod`(표기 전용), Task 11                 |
-| D4-4 저장/이력                            | Task 6\~8                                                              |
+| D4-4 저장/이력                            | Task 6\~8                                                             |
 | D6 반응형 (표 가로 스크롤·비교 세로 스택) | Task 3 Step 4, Task 12                                                |
 | TC-SIM-101                                | 기존 `conditions.test.ts` + Task 1                                    |
 | TC-SIM-102                                | Task 4 `결측 섹션은 숨기고…`                                          |

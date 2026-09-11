@@ -45,11 +45,7 @@ import type {
 
 export type AiReportStage = { name: string; description: string }
 export type AiReportErrorKind =
-  | 'unauth'
-  | 'not-found'
-  | 'unavailable'
-  | 'timeout'
-  | 'generic'
+  'unauth' | 'not-found' | 'unavailable' | 'timeout' | 'generic'
 export type AiReportState =
   | { status: 'idle' }
   | {

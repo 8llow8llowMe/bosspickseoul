@@ -54,8 +54,7 @@ import type {
 } from '@/types/community'
 
 type CommunityListResponse =
-  | CommunityPostListResponse
-  | CommunityLikedPostsResponse
+  CommunityPostListResponse | CommunityLikedPostsResponse
 
 const isCommunityListSuccess = (response: CommunityListResponse) =>
   isApiSuccess<CommunityPostListBody | CommunityLikedPostsBody>(response)

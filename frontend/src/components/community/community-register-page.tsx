@@ -212,10 +212,7 @@ export const getCommunityEditorViewer = ({
 }
 
 export type CommunityEditorAccess =
-  | 'waiting'
-  | 'redirect'
-  | 'allowed'
-  | 'forbidden'
+  'waiting' | 'redirect' | 'allowed' | 'forbidden'
 
 type CommunityEditorAccessOptions = {
   mockEnabled: boolean

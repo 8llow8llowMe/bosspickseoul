@@ -15,7 +15,7 @@
 | 목적                               | 파일                                                                            |
 | ---------------------------------- | ------------------------------------------------------------------------------- |
 | 작업 지도(정본 위치·프로세스·금지) | `frontend/CLAUDE.md`                                                            |
-| 스윕 설계 명세 + PR1\~3 실행 결과   | `frontend/docs/superpowers/specs/2026-08-14-ux-slop-sweep-design.md` (§7·§8·§9) |
+| 스윕 설계 명세 + PR1\~3 실행 결과  | `frontend/docs/superpowers/specs/2026-08-14-ux-slop-sweep-design.md` (§7·§8·§9) |
 | 디자인 시스템 정본                 | `frontend/DESIGN.md`                                                            |
 | 횡단 규칙                          | `frontend/docs/engineering/`                                                    |
 

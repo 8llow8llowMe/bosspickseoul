@@ -309,9 +309,7 @@ export const requestCommunityCommentAccess = ({
   onRequireLogin,
   onAuthenticated,
 }: RequestCommunityCommentAccessOptions):
-  | 'wait'
-  | 'login'
-  | 'authenticated' => {
+  'wait' | 'login' | 'authenticated' => {
   if (!authReady) {
     return 'wait'
   }

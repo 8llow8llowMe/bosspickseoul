@@ -213,11 +213,11 @@ AI 리포트가 지금은 **텍스트 서술만** 있고(사이드바 패널), �
   - Props: `{ selection: AnalysisSelection; variant: 'compact' | 'full' }`.
   - 데이터·AI를 **자체 소유**. react-query 키(`['analysis',...]`, `['ai-report','submit',...]`)가 dedupe하므로, 페이지·사이드바·모달이 동시에 없거나 동일 selection이어도 **중복 제출 없음**.
 - 세 표면이 **동일 본문** 재사용:
-  | 표면 | variant | 래퍼 |
-  | ---- | ------- | ---- |
-  | 전용 페이지 `/analysis/report` | `full` | `ai-report-page-view.tsx`(헤더+본문+푸터, Main 흰 배경) |
-  | 사이드바 패널 | `compact` | `ai-report-panel.tsx`(헤더[크게보기]+본문+푸터) |
-  | 크게보기 모달 | `full` | `ui/dialog.tsx` 재사용 + 본문 |
+  | 표면                           | variant   | 래퍼                                                    |
+  | ------------------------------ | --------- | ------------------------------------------------------- |
+  | 전용 페이지 `/analysis/report` | `full`    | `ai-report-page-view.tsx`(헤더+본문+푸터, Main 흰 배경) |
+  | 사이드바 패널                  | `compact` | `ai-report-panel.tsx`(헤더[크게보기]+본문+푸터)         |
+  | 크게보기 모달                  | `full`    | `ui/dialog.tsx` 재사용 + 본문                           |
 
 ### D9-4. variant 차이 (같은 데이터, 크기만)
 

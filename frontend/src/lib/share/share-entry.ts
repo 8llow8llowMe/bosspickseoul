@@ -9,11 +9,7 @@
 import { isRetryable, normalizeApiError } from '@/lib/api/api-error'
 
 export type ShareEntryFailureKind =
-  | 'expired'
-  | 'not-found'
-  | 'network'
-  | 'server'
-  | 'client'
+  'expired' | 'not-found' | 'network' | 'server' | 'client'
 
 export type ShareEntryFailure = {
   kind: ShareEntryFailureKind
