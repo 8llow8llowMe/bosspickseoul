@@ -51,3 +51,13 @@ gh pr create --base develop \
 ```
 
 기존 PR에 누락됐다면 `gh pr edit <번호> --add-assignee seonghoho --add-label frontend-web`을 사용한다. `frontend-web` 라벨은 Jenkins 배포 대상 지정이므로 누락하면 배포가 생략된다. 세부 동작과 `FORCE_DEPLOY` 복구 절차는 `docs/runbook/deployment.md`를 따른다.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

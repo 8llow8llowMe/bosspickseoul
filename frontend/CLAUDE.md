@@ -27,6 +27,20 @@ React/Vite → Next.js App Router 마이그레이션 작업 영역이며, **작�
 - Font: Pretendard (`next/font/local`) / 클라이언트 노출 env는 `NEXT_PUBLIC_*`
 - 브라우저 API·chart·Kakao Map·Firebase Messaging·WebSocket → client component 또는 `dynamic(...,{ssr:false})`
 
+### `AGENTS.md` 끝의 `nextjs-agent-rules` 블록은 Next 가 관리한다
+
+`AGENTS.md` 맨 아래 `<!-- BEGIN:nextjs-agent-rules -->` ~ `<!-- END:nextjs-agent-rules -->`
+는 **`next dev` 가 직접 써 넣는 블록**이다(Next 16.3 부터). AI 에이전트가 감지되고 그 블록이
+없거나 낡았으면 매 실행마다 다시 쓴다 — `node_modules/next/dist/server/lib/generate-agent-files.js`.
+
+**지우지 않는다.** 지워 봐야 다음 `pnpm dev` 에 되살아나고 작업 트리만 더러워진다. Next 가
+버전을 올리면 블록도 같이 갱신되는데, 그건 진짜 변경이니 그대로 커밋한다. 손으로 고쳐도
+다음 실행에 덮어써진다.
+
+정말 꺼야 하면 `next.config.ts` 에 `agentRules: false` 를 넣는다. 다만 그 블록은 "이 Next 는
+네가 아는 Next 가 아니다, `node_modules/next/dist/docs/` 를 먼저 읽어라"라는 내용이고 실제로
+유효한 경고라(이 저장소는 16.3.4 이고 `middleware` → `proxy` 같은 이관이 진행 중이다) 켜 둔다.
+
 ## 금지사항
 
 - API 문서 없이 임의 엔드포인트/스펙 작성 금지 → 작성자에게 문의
