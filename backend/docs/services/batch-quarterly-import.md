@@ -8,7 +8,7 @@
 | --- | --- |
 | Spring Batch 메타 + `dataset_*` DDL | `bosspickseoul_commercial_dev`에 적용 |
 | `--job=spatial` LEGACY 실게시 | `legacy-20233` `READY`, 영역 2,100 (25/425/1650) |
-| `CHANGE_COMMERCIAL` `20241`~`20254` | 8분기 `dataset_fact` 실게시. typed 이관(`--job=project`)은 분기마다 별도 |
+| `CHANGE_COMMERCIAL` `20241`~`20261` | `dataset_fact` 실게시. typed 이관(`--job=project`)은 분기마다 별도 |
 | 나머지 14종 | `dataset_fact` 미적재. `--job=project` 코드는 15종 모두 받는다 |
 
 사실 데이터는 **데이터셋 × 분기 한 건이 실행 단위**다. 같은 명령을 분기만 바꿔 반복하면 된다. 한 번에 전 구간을 도는 스케줄러는 없다.
@@ -78,7 +78,7 @@ java -jar $jar --job=spatial --run-id=spatial-legacy-20233-002 --source=LEGACY -
 
 `--source-updated-at`은 ISO-8601 분기 말 UTC다. 1분기 `03-31`, 2분기 `06-30`, 3분기 `09-30`, 4분기 `12-31`이다. 예를 들어 `20242`는 `2024-06-30T00:00:00Z`다. 자리표시를 그대로 넣으면 파싱에서 실패한다. 생성기 스크립트가 이 값을 자동으로 채운다.
 
-대상 범위는 **`20211`~`20254`(20분기)**다. 원천은 2021년 1분기부터 주고, 2026-09-10 확인 기준 최신 분기는 `20254`다. `20261` 이후는 아직 없어 실패하는 것이 정상이며, 원천이 공개하면 같은 방식으로 이어 간다. 레거시 서비스 테이블(`20233`까지)은 이 배치가 건드리지 않는다.
+대상 범위는 **`20211`~`20261`(21분기)**다. 원천은 2021년 1분기부터 주고, 2026-09-11 기준 최신 분기는 `20261`이다. 그 이후 분기는 아직 없어 실패하는 것이 정상이며, 원천이 공개하면 `quarterly-import-coverage.sql`의 `quarter_range`와 `quarterly-import-plan.ps1`의 `$allPeriods`에 분기를 추가해 이어 간다. 레거시 서비스 테이블(`20233`까지)은 이 배치가 건드리지 않는다.
 
 ### 실행 명령 만들기
 
@@ -111,7 +111,7 @@ $plan = ".\backend\scripts\batch\quarterly-import-plan.ps1"
 
 ### 검증된 대상 (`CHANGE_COMMERCIAL`)
 
-`20241`~`20254` 8분기가 `dataset_fact`에 실게시됐다. 분기당 1,650행이 모든 분기에서 같았으므로 이 데이터셋은 probe 없이 `--expected-rows=1650`을 쓴다. 화면 조회 정본은 아래 「8. typed 이관」을 한 뒤에 `change_commercial` 컬럼이다.
+`20241`~`20261` 분기가 `dataset_fact`에 실게시됐다. 실제 게시 현황은 `quarterly-import-coverage.sql`이 정본이다. 분기당 1,650행이 모든 분기에서 같았으므로 이 데이터셋은 probe 없이 `--expected-rows=1650`을 쓴다. 화면 조회 정본은 아래 「8. typed 이관」을 한 뒤에 `change_commercial` 컬럼이다.
 
 ```powershell
 java -jar $jar --job=facts --run-id=change-commercial-20242-001 --dataset=CHANGE_COMMERCIAL --period=20242 --source=API --spatial-version=legacy-20233 --schema-version=seoul-v1 --expected-rows=1650 --source-updated-at=2024-06-30T00:00:00Z --dry-run=true
@@ -127,7 +127,7 @@ java -jar $jar --job=facts --run-id=change-commercial-20242-001 --dataset=CHANGE
 
 | 순서 | `Dataset` | 스코프 | 분기 인자 | 분기당 행 수 | 비고 |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `CHANGE_COMMERCIAL` | 상권 | O | **1,650 (실측)** | 적재 완료 (`20241`~`20254`) |
+| 1 | `CHANGE_COMMERCIAL` | 상권 | O | **1,650 (실측)** | 적재 완료 (`20241`~`20261`) |
 | 2 | `CHANGE_DISTRICT` | 자치구 | X | 25 (추정) | `ARCHIVE` 흐름을 익히기 좋다 |
 | 3 | `FOOT_TRAFFIC_DISTRICT` | 자치구 | X | 25 (추정) | |
 | 4 | `CONSUMPTION_DISTRICT` | 자치구 | X | 25 (추정) | |
@@ -206,10 +206,19 @@ java -jar $jar --job=project --run-id=project-foot-traffic-commercial-20241-002 
 
 나머지 데이터셋도 `--dataset`만 바꿔 같은 순서로 돈다. `SALES_*` / `STORE_*` / `POPULATION_COMMERCIAL` / `FACILITY_COMMERCIAL` / `CONSUMPTION_*` / `CHANGE_DISTRICT`.
 
+15종 x 전 분기를 손으로 조합하지 않는다. 명령은 생성기가 만든다.
+
+```powershell
+.\quarterly-import-plan.ps1 -Job project | Set-Content project.txt
+.\quarterly-import-plan.ps1 -Job project -Dataset SALES_COMMERCIAL -Period 20261
+```
+
+`runId`가 유일한 식별 job 파라미터다. dry-run과 게시는 run-id를 다르게 쓴다(`-001` / `-002`). 같은 run-id로 두 번 돌리면 Spring Batch가 두 번째 실행을 거부한다.
+
 확인:
 
 ```sql
-SELECT period_code, spatial_version, COUNT(*) AS rows
+SELECT period_code, spatial_version, COUNT(*) AS rows_total
   FROM change_commercial
  GROUP BY period_code, spatial_version
  ORDER BY period_code;
@@ -219,12 +228,21 @@ SELECT period_code, commercial_code, change_indicator_code, average_opened_month
  WHERE commercial_code = '3001491' AND spatial_version = 'legacy-20233'
  ORDER BY period_code;
 
-SELECT period_code, spatial_version, COUNT(*) AS rows
+SELECT period_code, spatial_version, COUNT(*) AS rows_total
   FROM foot_traffic_commercial
  GROUP BY period_code, spatial_version
  ORDER BY period_code;
 ```
 
-`CONSUMPTION_COMMERCIAL`의 `monthly_average_income_amount` / `income_bracket_code`는 2024+ 원천에 없어 NULL이다. 값을 채우지 않는다. `service_type`도 NULL이다.
+남은 슬롯과 이관 여부는 `quarterly-import-coverage.sql` 「5) typed 이관 진행률」로 본다. 아무 행도 안 나오면 다 끝난 것이고, 뜨는 행이 남은 상태다.
+
+- `NOT_PROJECTED` — 적재만 되고 이관이 안 돌았다. 화면에 아직 안 나온다.
+- `ROW_COUNT_MISMATCH` — 팩트 테이블 행 수가 게시한 `accepted_count` 와 다르다. 레거시 행이 그대로 남아 있거나 이관이 중간에 끊긴 경우다. 그 슬롯을 다시 이관한다.
+
+행이 있다는 것만으로 이관 완료로 보면 안 된다. `fact-tables-spatial-version.sql` 의 DEFAULT 때문에 `20211`~`20233` 구간은 이관을 한 번도 안 돌려도 `legacy-20233` 행이 이미 있다. 그래서 5)는 건수를 대조한다.
+
+`service_type`은 원천 payload에 없는 파생 컬럼이라 이관이 `service_category`에서 `service_code`로 찾아 채운다. `service_category`에 없는 새 업종 코드는 NULL로 남고, 이관 로그가 미해석 건수와 코드 샘플을 남긴다. NULL이 남으면 자치구 업종 Top-N이 그만큼 비고 상권 동종업종 피어 조회에서 그 업종이 빠지므로, `quarterly-import-coverage.sql` 「6) service_type 미해석 점검」으로 확인하고 빠진 코드를 `service_category`에 넣은 뒤 그 슬롯을 다시 이관한다.
+
+`CONSUMPTION_COMMERCIAL`의 `monthly_average_income_amount` / `income_bracket_code`는 2024+ 원천에 없어 NULL이다. 값을 채우지 않는다.
 
 컬럼 DDL만으로는 화면이 바뀌지 않는다. 게시한 분기마다 `--job=project`를 돌린 뒤 commercial-service를 배포한다.
