@@ -71,7 +71,7 @@
 | `frontend/src/styles/global-styles.test.ts` | 브랜드 토큰과 로고 전용 규약 테스트 추가 |
 | `frontend/src/components/layout/site-header.tsx` | `Brand`(57행 정의, 502행 사용)의 텍스트를 락업으로 교체 |
 | `frontend/src/components/layout/site-footer.tsx` | `Title`(43행)을 락업으로 교체 |
-| `frontend/DESIGN.md` | 3행 프론트맷터, 40~41행 타사 컬러, 75행 서체 서술 정정 + 브랜드 자산 섹션 신설 |
+| `frontend/DESIGN.md` | 3행 프론트맷터, 40\~41행 타사 컬러, 75행 서체 서술 정정 + 브랜드 자산 섹션 신설 |
 
 ### 왜 이렇게 나눴나
 
@@ -1425,8 +1425,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## Task 6: 헤더·푸터에 락업을 반영한다
 
 **Files:**
-- Modify: `frontend/src/components/layout/site-header.tsx` (`Brand` 정의 57~66행, 사용 502~515행)
-- Modify: `frontend/src/components/layout/site-footer.tsx` (`Title` 25~31행, 사용 43행)
+- Modify: `frontend/src/components/layout/site-header.tsx` (`Brand` 정의 57\~66행, 사용 502\~515행)
+- Modify: `frontend/src/components/layout/site-footer.tsx` (`Title` 25\~31행, 사용 43행)
 
 **Interfaces:**
 - Consumes: Task 5의 `BrandLockup`
@@ -1486,7 +1486,7 @@ Expected: PASS — 이 테스트들은 Task 5 구현으로 이미 통과한다. 
 import BrandLockup from '@/components/brand/brand-lockup'
 ```
 
-`Brand` 정의(57~66행)를 아래로 교체한다. **폰트 속성을 뺀다** — 조판은 이제 락업이 책임진다:
+`Brand` 정의(57\~66행)를 아래로 교체한다. **폰트 속성을 뺀다** — 조판은 이제 락업이 책임진다:
 
 ```ts
 const Brand = styled(Link)`
@@ -1497,7 +1497,7 @@ const Brand = styled(Link)`
 `
 ```
 
-`Brand` 사용부(502~515행)의 텍스트 `BossPickSeoul` 을 락업으로 바꾼다:
+`Brand` 사용부(502\~515행)의 텍스트 `BossPickSeoul` 을 락업으로 바꾼다:
 
 ```tsx
         <Brand
@@ -1527,7 +1527,7 @@ import 블록에 추가한다:
 import BrandLockup from '@/components/brand/brand-lockup'
 ```
 
-`Title` styled 선언(25~31행)을 아래 래퍼로 **교체한다**. `Inner` 는 건드리지 않는다:
+`Title` styled 선언(25\~31행)을 아래 래퍼로 **교체한다**. `Inner` 는 건드리지 않는다:
 
 ```ts
 /**
@@ -1791,11 +1791,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## Task 8: DESIGN.md 를 브랜드 자산 정본으로 갱신한다
 
 **Files:**
-- Modify: `frontend/DESIGN.md` (3행 프론트맷터, 40~41행 타사 컬러, 75행 서체 스택 서술, 14·21·83~92행 서체 표)
+- Modify: `frontend/DESIGN.md` (3행 프론트맷터, 40\~41행 타사 컬러, 75행 서체 스택 서술, 14·21·83\~92행 서체 표)
 - Modify: `docs/superpowers/specs/2026-09-08-brand-logo-design.md` (명세와 다른 점 3개 반영)
 
 **Interfaces:**
-- Consumes: Task 1~7 전체
+- Consumes: Task 1\~7 전체
 - Produces: 없음(문서)
 
 - [ ] **Step 1: 프론트맷터를 고친다**
@@ -1810,7 +1810,7 @@ brand: BossPickSeoul
 
 - [ ] **Step 2: 타사 브랜드 컬러를 자체 값으로 교체한다**
 
-40~41행의 "Brand (Logo/Marketing Only)" 항목 두 줄을 아래로 바꾼다:
+40\~41행의 "Brand (Logo/Marketing Only)" 항목 두 줄을 아래로 바꾼다:
 
 ```markdown
 - **Brand Ink** (`#191f28`): `--color-brand-ink`. 심볼 본체와 워드마크. `grey900` 과 같은 값이다.
@@ -1833,7 +1833,7 @@ brand: BossPickSeoul
 **단, 이 저장소는 Toss Product Sans 를 싣지 않는다.** `public/fonts/` 에는 Pretendard 만 있고 Toss Product Sans 는 폴백 목록에 이름만 있다. 위 서술은 원본 시스템의 설계 의도를 기록한 것이고, **실제 렌더 서체는 Pretendard** 다.
 ```
 
-83~92행의 Hierarchy 표에서 Font 열의 `Toss Product Sans` 를 모두 `Pretendard` 로 바꾼다. 21행의 `- Toss Product Sans with ...` 항목도 `- Pretendard (Toss Product Sans 는 싣지 않는다 — 폴백 이름만 남아 있다)` 로 바꾼다.
+83\~92행의 Hierarchy 표에서 Font 열의 `Toss Product Sans` 를 모두 `Pretendard` 로 바꾼다. 21행의 `- Toss Product Sans with ...` 항목도 `- Pretendard (Toss Product Sans 는 싣지 않는다 — 폴백 이름만 남아 있다)` 로 바꾼다.
 
 - [ ] **Step 4: 브랜드 자산 섹션을 신설한다**
 
