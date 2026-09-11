@@ -339,7 +339,15 @@ private Long targetId;
 - 커서 페이징은 `limit(size + 1)` 로 한 건 더 가져와 `hasNext` 를 판정합니다.
   본보기: `CommunityPostCustomRepositoryImpl.executeSliceQuery`.
 - `JPAQueryFactory` 는 `persistence-core` 의 `QuerydslConfigurer` 를 서비스 BeansConfig 에서 `@Import` 해 얻습니다.
-  `@DataJpaTest` 슬라이스에는 이 빈이 없으므로 테스트에도 `@Import` 합니다.
+- **`@DataJpaTest` 에 필요한 빈은 테스트마다 `@Import` 하지 않고 서비스별 슬라이스 설정 한 곳에 모읍니다.**
+  슬라이스는 `@Component` 를 올리지 않는데, 커스텀 리포지터리 구현은 리포지터리 **프래그먼트**라 슬라이스에
+  자동으로 포함됩니다. 그래서 구현이 `@Component` 를 생성자로 받으면 **그 리포지터리와 무관한 테스트까지
+  전부** 컨텍스트 로딩 단계에서 죽습니다(#356: `DatasetSpatialVersion` 누락으로 정책·시뮬레이션 테스트 10건).
+  테스트마다 `@Import` 를 붙여 막으면 새 테스트를 추가할 때마다 같은 함정을 다시 밟습니다.
+  본보기: commercial-service 의 `global/config/DataJpaSliceTestConfig` 를
+  `src/test/resources/META-INF/spring/org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa.imports`
+  에 등록해 모든 `@DataJpaTest` 에 자동 적용합니다. 테스트 쪽에는 `@DataJpaTest` 외에 아무것도 붙이지 않습니다.
+  다른 서비스에서 같은 문제를 만나면 그 서비스에 같은 구조를 만듭니다.
 - **`@Param` 은 쓰지 않습니다.** Spring Boot 플러그인이 `-parameters` 를 켜 주므로 메서드 파라미터명이
   쿼리의 이름과 같으면 그대로 바인딩됩니다. 이름이 다를 때만 `@Param` 을 붙입니다.
 - **커스텀 구현은 컴파일로 검증되지 않습니다.** 조건을 빼먹거나 정렬 방향을 뒤집어도 빌드는 통과하고
