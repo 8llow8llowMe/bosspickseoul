@@ -5,6 +5,11 @@ coverage
 dist
 *.tsbuildinfo
 
+# Playwright 실행 산출물 (e2e/baselines 는 추적한다)
+test-results
+playwright-report
+blob-report
+
 # Jenkins 빌더가 배포 단계로 넘기려고 만드는 산출물 번들
 frontend-web-bundle.tar.gz
 

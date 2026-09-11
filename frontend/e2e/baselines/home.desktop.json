@@ -1,0 +1,21 @@
+{
+  "measuredAt": "2026-09-11",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "docHeightScreens": 11.73,
+  "stickyTrackShare": 0.767,
+  "h1Screen": 0.38,
+  "firstCtaScreen": 0.55,
+  "contrastCombinations": 42,
+  "contrastFailures": 18,
+  "smallTapTargets": 9,
+  "offScaleFontSizes": 5,
+  "offScaleFontSizeList": [11, 15, 17, 18, 32],
+  "sentenceEndings": {
+    "formal": 18,
+    "polite": 8
+  },
+  "bffRequests": 2
+}

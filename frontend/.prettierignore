@@ -4,3 +4,6 @@ tsconfig.json
 node_modules
 pnpm-lock.yaml
 public/fonts
+test-results
+playwright-report
+blob-report
