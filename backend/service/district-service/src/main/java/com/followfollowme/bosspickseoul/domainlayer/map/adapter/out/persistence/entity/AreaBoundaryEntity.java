@@ -25,13 +25,16 @@ import org.hibernate.annotations.Comment;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
     name = "area_boundary",
+    // bbox 조회는 areaType 등가 + bbox 범위 네 조건을 함께 건다. 선두가 열린 범위면 두 번째 컬럼이
+    // 정제에 쓰이지 못하고, areaType 이 인덱스에 없어 읽어 온 행마다 후필터가 붙는다.
+    // 등가 1개 + 범위 1개를 얻도록 areaType 을 선두로 올린 복합 인덱스로 바꾼다.
     indexes = {
         @Index(name = "uk_area_boundary_area_type_area_code",
             columnList = "areaType, areaCode", unique = true),
-        @Index(name = "idx_area_boundary_bbox_min_lng_bbox_max_lng",
-            columnList = "bboxMinLng, bboxMaxLng"),
-        @Index(name = "idx_area_boundary_bbox_min_lat_bbox_max_lat",
-            columnList = "bboxMinLat, bboxMaxLat")
+        @Index(name = "idx_area_boundary_area_type_bbox_min_lng_bbox_max_lng",
+            columnList = "areaType, bboxMinLng, bboxMaxLng"),
+        @Index(name = "idx_area_boundary_area_type_bbox_min_lat_bbox_max_lat",
+            columnList = "areaType, bboxMinLat, bboxMaxLat")
     }
 )
 public class AreaBoundaryEntity {

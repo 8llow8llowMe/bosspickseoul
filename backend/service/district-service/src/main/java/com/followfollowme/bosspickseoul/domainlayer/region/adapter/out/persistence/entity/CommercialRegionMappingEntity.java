@@ -23,7 +23,19 @@ import org.hibernate.annotations.Comment;
     name = "commercial_region_mapping",
     indexes = {
         @Index(name = "idx_commercial_region_mapping_district_code", columnList = "districtCode"),
-        @Index(name = "idx_commercial_region_mapping_administration_code", columnList = "administrationCode")
+        @Index(name = "idx_commercial_region_mapping_administration_code", columnList = "administrationCode"),
+        // 지역명 조회(GET /regions/code-lookup)와 상권 코드 단건 조회는 인덱스가 없어 풀스캔이었다.
+        // commercial_code 는 도메인상 유일하지만 실데이터 중복 여부를 확인하지 못했고, ddl-auto: update 환경에서
+        // 유니크 생성이 실패하면 기동이 막히므로 일반 인덱스로 둔다. 승격 SQL 은 마이그레이션 런북에 남긴다.
+        // 자치구 조회만 커버링으로 둔다. 실제 쿼리가 select distinct district_code, district_name where district_name = ?
+        // 라 2컬럼이면 인덱스만 읽고 끝나지만, 행정동/상권은 각각 4·6컬럼을 담아야 커버링이 되어 1,650행 테이블에 과하다.
+        @Index(
+            name = "idx_commercial_region_mapping_district_name_district_code",
+            columnList = "districtName, districtCode"
+        ),
+        @Index(name = "idx_commercial_region_mapping_administration_name", columnList = "administrationName"),
+        @Index(name = "idx_commercial_region_mapping_commercial_name", columnList = "commercialName"),
+        @Index(name = "idx_commercial_region_mapping_commercial_code", columnList = "commercialCode")
     })
 public class CommercialRegionMappingEntity {
 
