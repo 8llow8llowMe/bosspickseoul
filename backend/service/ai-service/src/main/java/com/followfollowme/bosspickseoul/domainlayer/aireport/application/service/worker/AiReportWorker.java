@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.processor.AiReportProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobParamKeys;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiReportSnapshot;
@@ -74,8 +75,12 @@ public class AiReportWorker {
                 running.jobId(), running.jobType(), running.memberId(),
                 domainException.getErrorCode().getCode(), domainException.getMessage(), domainException
             );
+            // errorCode enum 의 원본 메시지가 아니라 예외 메시지를 저장한다. AI_010 처럼 메시지에 %s 자리표시자가
+            // 있는 코드는 예외를 만들 때 이미 치환되므로, enum 원본을 쓰면 사용자가 "(%s)" 를 그대로 받는다.
+            // 자리표시자가 없는 코드는 AiReportException 이 생성자에서 super(errorCode.getMessage()) 를 호출하므로
+            // 두 값이 같다 — 다른 에러코드의 저장 동작은 바뀌지 않는다.
             terminalStateSaved = aiReportJobStorePort.saveIfStatus(running.failed(
-                domainException.getErrorCode().getCode(), domainException.getErrorCode().getMessage(), Instant.now()
+                domainException.getErrorCode().getCode(), domainException.getMessage(), Instant.now()
             ), AiReportJobStatus.RUNNING);
         } catch (Exception unexpected) {
             log.error(
@@ -114,7 +119,7 @@ public class AiReportWorker {
         return switch (running.jobType()) {
             case COMMERCIAL -> {
                 AiGenerationResult<CommercialAiReportSnapshot> result = aiReportProcessor.generateCommercialReport(
-                    params.get("commercialCode"), params.get("serviceCode"), params.get("periodCode")
+                    params.get(AiReportJobParamKeys.COMMERCIAL_CODE), params.get(AiReportJobParamKeys.SERVICE_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                 );
                 aiUsageCounterPort.record(running.memberId(), result.usage());
                 yield running.completedWithCommercialReport(result.draft(), Instant.now());
@@ -122,8 +127,8 @@ public class AiReportWorker {
             case COMMERCIAL_COMPARISON -> {
                 AiGenerationResult<CommercialComparisonAiReportSnapshot> result = aiReportProcessor.generateCommercialComparisonReport(
                     new CommercialComparisonAiQuery(
-                        params.get("leftCommercialCode"), params.get("rightCommercialCode"),
-                        params.get("serviceCode"), params.get("periodCode")
+                        params.get(AiReportJobParamKeys.LEFT_COMMERCIAL_CODE), params.get(AiReportJobParamKeys.RIGHT_COMMERCIAL_CODE),
+                        params.get(AiReportJobParamKeys.SERVICE_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                     )
                 );
                 aiUsageCounterPort.record(running.memberId(), result.usage());
@@ -131,14 +136,14 @@ public class AiReportWorker {
             }
             case DISTRICT -> {
                 AiGenerationResult<DistrictAiReportSnapshot> result = aiReportProcessor.generateDistrictReport(
-                    params.get("districtCode"), params.get("periodCode")
+                    params.get(AiReportJobParamKeys.DISTRICT_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                 );
                 aiUsageCounterPort.record(running.memberId(), result.usage());
                 yield running.completedWithDistrictReport(result.draft(), Instant.now());
             }
             case ADMINISTRATION -> {
                 AiGenerationResult<AdministrationAiReportSnapshot> result = aiReportProcessor.generateAdministrationReport(
-                    params.get("administrationCode"), params.get("periodCode")
+                    params.get(AiReportJobParamKeys.ADMINISTRATION_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                 );
                 aiUsageCounterPort.record(running.memberId(), result.usage());
                 yield running.completedWithAdministrationReport(result.draft(), Instant.now());

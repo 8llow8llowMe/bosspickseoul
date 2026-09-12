@@ -9,6 +9,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.C
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.DistrictAiSourceData;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt.AiReportPromptRules;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiUsageMeta;
@@ -16,6 +17,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.Commer
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiDraft;
 import com.followfollowme.bosspickseoul.global.properties.AiLlmProperties;
+import com.followfollowme.bosspickseoul.global.properties.AiLlmReasoningEffort;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -36,16 +38,8 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "ai.llm", name = "provider", havingValue = "OLLAMA", matchIfMissing = true)
 public class OllamaLlmClientAdapter implements AiLlmPort {
 
-    private static final String SYSTEM_PROMPT = """
-        당신은 서울시 상권 분석 서비스를 위한 AI 어시스턴트입니다.
-        제공된 데이터만 사용하세요.
-        근거 없는 내용을 추측하거나 지어내지 마세요.
-        창업 성공, 수익, 성장 가능성을 단정적으로 표현하지 마세요.
-        응답의 모든 서술형 문자열은 반드시 한국어로 작성하세요.
-        모든 서술형 문장은 "~입니다", "~합니다" 형태의 존댓말로 작성하세요.
-        "~이다", "~한다", "~있다" 같은 평서체는 사용하지 마세요.
-        JSON만 반환하세요.
-        """;
+    // 지시문은 provider 별로 달라지면 안 된다. 정본은 AiReportPromptRules 한 곳이다.
+    private static final String SYSTEM_PROMPT = AiReportPromptRules.COMMON_RULES;
 
     // 서킷브레이커 인스턴스명(application.yml resilience4j.circuitbreaker.instances 키와 일치).
     // provider(OLLAMA/OPENAI)와 무관하게 LLM 의존 하나로 취급한다.
@@ -98,15 +92,15 @@ public class OllamaLlmClientAdapter implements AiLlmPort {
     private OllamaChatOptions buildRequestOptions() {
         OllamaChatOptions.Builder builder = OllamaChatOptions.builder().format("json");
         // gpt-oss는 low/medium/high 추론 강도를 지원한다(기본 medium).
-        // 미지원 모델로 교체해도 기동이 깨지지 않도록 알 수 없는 값은 모델 기본값에 맡긴다.
-        String reasoningEffort = aiLlmProperties.reasoningEffort();
-        if (reasoningEffort != null) {
-            switch (reasoningEffort.toLowerCase(java.util.Locale.ROOT)) {
-                case "low" -> builder.thinkLow();
-                case "medium" -> builder.thinkMedium();
-                case "high" -> builder.thinkHigh();
-                default -> { }
-            }
+        // 값을 비워 두면(설정 미지정) 모델 기본값에 맡긴다 — 추론 강도를 모르는 모델로 교체해도 기동이 깨지지 않는다.
+        AiLlmReasoningEffort reasoningEffort = aiLlmProperties.reasoningEffort();
+        if (reasoningEffort == null) {
+            return builder.build();
+        }
+        switch (reasoningEffort) {
+            case LOW -> builder.thinkLow();
+            case MEDIUM -> builder.thinkMedium();
+            case HIGH -> builder.thinkHigh();
         }
         return builder.build();
     }

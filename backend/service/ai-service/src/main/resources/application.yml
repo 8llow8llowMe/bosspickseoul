@@ -15,6 +15,18 @@ ai:
     # 계정 단위 LLM 어뷰징 방어. 프로필별 override 가 없어도 동작하도록 공통 기본값을 둔다.
     usage-limit:
       daily-limit: ${AI_REPORT_USAGE_DAILY_LIMIT:30}
+    # 원천 데이터 fan-out 전용 풀(aiSourceFetchTaskExecutor). 리포트 워커 풀과 분리해야 교착이 없다.
+    # 기본값 16 = 동시 실행 잡 2건(워커 풀 크기) x 한 잡의 최대 조회 8건.
+    # 전부 Feign 응답 대기(블로킹 I/O)라 CPU 코어 수와 무관하게 잡아도 된다.
+    source-fetch:
+      core-pool-size: ${AI_SOURCE_FETCH_CORE_POOL_SIZE:16}
+      max-pool-size: ${AI_SOURCE_FETCH_MAX_POOL_SIZE:16}
+      queue-capacity: ${AI_SOURCE_FETCH_QUEUE_CAPACITY:64}
+      await-termination-seconds: ${AI_SOURCE_FETCH_AWAIT_TERMINATION_SECONDS:30}
+  llm:
+    # LLM connect timeout. read timeout(timeout-ms)과 달리 프로필별 튜닝 대상이 아니라 공통 기본값만 둔다.
+    # Ollama(AiLlmModelConfig)와 OpenAI 호환(OpenAiLlmClientAdapter) 양쪽이 이 값 하나를 쓴다.
+    connect-timeout-ms: ${AI_LLM_CONNECT_TIMEOUT_MS:3000}
 
 logging:
   level:

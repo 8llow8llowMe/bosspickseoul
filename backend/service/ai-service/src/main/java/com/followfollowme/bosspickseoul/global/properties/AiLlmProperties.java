@@ -8,12 +8,13 @@ public record AiLlmProperties(
     String baseUrl,
     String apiKey,
     String model,
+    // 커넥션 수립 타임아웃. Ollama(AiLlmModelConfig)와 OpenAI 호환(OpenAiLlmClientAdapter)이 같은 값을 쓴다.
+    long connectTimeoutMs,
     long timeoutMs,
     int maxTokens,
     double temperature,
-    // gpt-oss 계열 추론 강도(low/medium/high). 기본 medium은 추론에 생성 토큰의
-    // 대부분을 소모하므로(실측: 리포트 생성 37.7s -> 8.2s) low를 기본값으로 쓴다.
-    String reasoningEffort
+    // 추론 강도. OLLAMA provider 에서만 요청에 실린다 - 자세한 내용은 AiLlmReasoningEffort 참고.
+    AiLlmReasoningEffort reasoningEffort
 ) {
 
 }

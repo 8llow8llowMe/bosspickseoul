@@ -102,6 +102,32 @@ class AiReportWorkerTest {
         verify(usageCounter, never()).record(any(), any());
     }
 
+    /**
+     * AI_010 처럼 메시지에 {@code %s} 자리표시자가 있는 코드는 예외를 만들 때 이미 치환된다.
+     * enum 원본 메시지를 저장하면 사용자가 "(%s)" 를 그대로 받으므로 예외 메시지를 저장해야 한다.
+     */
+    @Test
+    void runJob_formattedAiException_savesSubstitutedMessageNotRawPlaceholder() {
+        String schemaClassName = "com.example.UnsupportedSchemaDefinition";
+        when(jobStore.findById("J1")).thenReturn(Optional.of(pendingJob()));
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.RUNNING), eq(AiReportJobStatus.PENDING)))
+            .thenReturn(true);
+        when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.RUNNING)))
+            .thenReturn(true);
+        when(processor.generateCommercialReport(any(), any(), any()))
+            .thenThrow(new AiReportException(AiReportErrorCode.LLM_SCHEMA_UNSUPPORTED, schemaClassName));
+
+        worker.runJob("J1", 7L, "H");
+
+        verify(jobStore).saveIfStatus(argThat(j ->
+            j.status() == AiReportJobStatus.FAILED
+                && AiReportErrorCode.LLM_SCHEMA_UNSUPPORTED.getCode().equals(j.errorCode())
+                && j.errorMessage() != null
+                && !j.errorMessage().contains("%s")
+                && j.errorMessage().contains(schemaClassName)
+        ), eq(AiReportJobStatus.RUNNING));
+    }
+
     @Test
     void runJob_unexpectedException_savesFailedWithSanitizedMessage() {
         AiReportJob pending = pendingJob();

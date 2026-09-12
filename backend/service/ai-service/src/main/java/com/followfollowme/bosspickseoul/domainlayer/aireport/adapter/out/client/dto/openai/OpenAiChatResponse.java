@@ -4,6 +4,6 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-public record OpenAiChatResponse(List<OpenAiChoice> choices) {
+public record OpenAiChatResponse(List<OpenAiChoice> choices, OpenAiUsage usage) {
 
 }

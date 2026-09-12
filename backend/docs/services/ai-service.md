@@ -148,16 +148,26 @@ ai:
       running-timeout-seconds: 300    # RUNNING 좀비 lazy 만료 기준
     usage-limit:
       daily-limit: 30                 # 계정 1개 일별 리포트 생성 상한 (AI_REPORT_USAGE_DAILY_LIMIT)
+    source-fetch:                     # 원천 데이터 fan-out 전용 풀 (aiSourceFetchTaskExecutor)
+      core-pool-size: 16
+      max-pool-size: 16
+      queue-capacity: 64
+      await-termination-seconds: 30
   llm:
     provider: OLLAMA
     base-url: http://localhost:11434
     api-key: ""                       # OpenAI 호환 provider 용, OLLAMA 는 빈 값 허용
     model: qwen2.5:7b-instruct
+    connect-timeout-ms: 3000          # LLM connect timeout (AI_LLM_CONNECT_TIMEOUT_MS), OLLAMA/OPENAI 공통
     timeout-ms: 30000                 # LLM read timeout (AI_LLM_TIMEOUT_MS)
     max-tokens: 1200
     temperature: 0.2
-    reasoning-effort: low             # reasoning 지원 모델용, 기본 low
+    reasoning-effort: low             # AiLlmReasoningEffort enum (LOW/MEDIUM/HIGH), 기본 low
 ```
+
+`reasoning-effort` 는 **`provider: OLLAMA` 일 때만** 요청에 실린다. OpenAI 호환 어댑터는 이 값을 읽지 않으므로
+`provider: OPENAI` 로 두면 설정이 조용히 무시된다 (OpenAI 호환 API 의 reasoning 파라미터는 모델·게이트웨이마다
+이름과 허용값이 달라 일괄 매핑이 불가능하다).
 
 LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbreaker.instances.llm` 이 적용되며, slow-call 판정 임계값은 read timeout(`AI_LLM_TIMEOUT_MS`, 기본 30000ms)과 동일 값으로 연동해 사실상 실패율 기준만 사용한다.
 
@@ -170,6 +180,16 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
     대기는 큐가 흡수하게 한다. 큐 포화 시 제출은 `AI_007 JOB_QUEUE_FULL`(503) 로 거절된다.
 - shutdown 시 30초 대기
 - 관측: Spring Boot 자동 계측으로 `executor_*{name="aiReportTaskExecutor"}` 노출 → Grafana `BossPickSeoul Executor / Thread Pool` 대시보드의 `name` 범례로 표시
+
+원천 데이터 조회 fan-out 은 **별도 풀**을 쓴다.
+
+- 빈 이름: `aiSourceFetchTaskExecutor`, threadNamePrefix=`ai-source-fetch-`, 설정은 `ai.report.source-fetch.*`
+- 워커 풀(`aiReportTaskExecutor`)을 재사용하면 안 된다. 리포트 생성이 그 풀의 스레드 위에서 돌면서 같은 풀에
+  조회 8건을 제출하고 `allOf(...).join()` 으로 기다리므로, core=max=2 인 풀에서는 자기 자신을 기다리는 교착이 된다.
+- `CompletableFuture.supplyAsync` 에 executor 를 생략해 `ForkJoinPool.commonPool()` 로 보내는 것도 금지다.
+  parallelism 이 (코어수 - 1) 인 JVM 전역 공유 풀이고 Spring 관리 밖이라 `executor_*` 메트릭에도 잡히지 않는다.
+- 기본 크기 16 = 동시 실행 잡 2건(워커 풀 크기) x 한 잡의 최대 조회 8건(상권 리포트). 전부 Feign 응답 대기라
+  CPU 코어 수와 무관하게 잡아도 된다.
 
 ## Public APIs
 

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiComparisonRecommendedSide;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiDraft;
@@ -116,7 +117,7 @@ public class AiStructuredResponseParser {
             || !containsHangul(draft.businessInsight())
             || invalidList(draft.recommendedReasons())
             || invalidList(draft.operationStrategy())
-            || !List.of("LEFT", "RIGHT", "BALANCED").contains(draft.recommendedSide())) {
+            || !AiComparisonRecommendedSide.isSupportedCode(draft.recommendedSide())) {
             throw new AiReportException(AiReportErrorCode.INVALID_LLM_RESPONSE);
         }
     }

@@ -24,7 +24,7 @@ class AiReportPresenterTest {
 
         assertThat(response.progressMessages())
             .isNotEmpty()
-            .isEqualTo(AiReportJobType.COMMERCIAL.getProgressMessages());
+            .isEqualTo(AiReportProgressMessages.of(AiReportJobType.COMMERCIAL));
     }
 
     @Test
