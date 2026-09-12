@@ -10,6 +10,10 @@ public record ComparisonMetricInfo(
     double rightValue,
     double diffValue,
     double diffRate,
+    String unit,
+    int displayPrecision,
+    String differenceUnit,
+    String description,
     CodeNameDescriptionMetadata winnerSide
 ) {
 

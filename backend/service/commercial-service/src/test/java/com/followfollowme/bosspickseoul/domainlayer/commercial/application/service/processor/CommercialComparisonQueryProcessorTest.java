@@ -61,6 +61,75 @@ class CommercialComparisonQueryProcessorTest {
         assertThat(result.highlights()).isEqualTo(result.comparisonHighlights());
     }
 
+    @Test
+    void comparisonProvidesDisplayMetadataForEveryMetricGroupWithoutChangingRawNumbers() {
+        stubCommercial("left", 100, 10, 3, 100, 500, 10);
+        stubCommercial("right", 0, 5, 4, 50, 250, 5);
+
+        CommercialComparisonInfo result = processor.compareCommercials(new CommercialComparisonQuery("left", "right", "service", "20261"));
+
+        assertThat(result.periodCode()).isEqualTo("20261");
+        assertThat(result.serviceCode()).isEqualTo("service");
+        assertThat(result.comparisonGuide().metricGroups()).extracting("code").containsExactly(
+            "salesMetrics", "footTrafficMetrics", "storeMetrics", "spendingMetrics", "residentPopulationMetrics", "facilityMetrics",
+            "salesTimeSlotMetrics", "salesAgeMetrics", "salesAgeGenderMetrics", "footTrafficTimeSlotMetrics", "footTrafficAgeMetrics",
+            "footTrafficAgeGenderMetrics");
+
+        ComparisonMetricInfo sales = result.salesMetrics().getFirst();
+        assertThat(sales.leftValue()).isEqualTo(100D);
+        assertThat(sales.rightValue()).isZero();
+        assertThat(sales.diffValue()).isEqualTo(100D);
+        assertThat(sales.diffRate()).isZero();
+        assertThat(sales.unit()).isEqualTo("원");
+        assertThat(sales.differenceUnit()).isEqualTo("원");
+
+        ComparisonMetricInfo openingRate = result.storeMetrics().get(2);
+        assertThat(openingRate.leftValue()).isEqualTo(10D);
+        assertThat(openingRate.rightValue()).isEqualTo(5D);
+        assertThat(openingRate.diffValue()).isEqualTo(5D);
+        assertThat(openingRate.diffRate()).isEqualTo(100D);
+        assertThat(openingRate.unit()).isEqualTo("%");
+        assertThat(openingRate.differenceUnit()).isEqualTo("%p");
+        assertThat(openingRate.displayPrecision()).isEqualTo(1);
+
+        assertThat(allMetricGroups(result)).hasSize(12)
+            .allSatisfy(group -> assertThat(group).isNotEmpty().allSatisfy(metric -> {
+                assertThat(metric.unit()).isIn("원", "명", "건", "개", "%");
+                assertThat(metric.differenceUnit()).isIn("원", "명", "건", "개", "%p");
+                assertThat(metric.description()).isNotBlank();
+            }));
+        assertThat(result.comparisonGuide().diffRateBasis()).contains("오른쪽 상권 값을 기준", "차이율을 계산할 수 없습니다");
+    }
+
+    @Test
+    void recommendedReasonsFormatLargeNumbersWithSeparatorsAndUnits() {
+        ComparisonMetricInfo metric = ComparisonMetricInfo.builder()
+            .label("총 매출액")
+            .leftValue(293_433_501D)
+            .rightValue(43_267_840D)
+            .unit("원")
+            .displayPrecision(0)
+            .winnerSide(ComparisonWinnerSide.LEFT.toMetadata())
+            .build();
+
+        List<String> reasons = CommercialComparisonQueryProcessor.buildRecommendedReasons(
+            LEFT, RIGHT, ComparisonWinnerSide.LEFT, List.of(metric));
+
+        assertThat(reasons).hasSize(1);
+        assertThat(reasons.getFirst())
+            .contains("293,433,501원", "43,267,840원")
+            .doesNotContain("E8", "E7");
+    }
+
+    private static List<List<ComparisonMetricInfo>> allMetricGroups(CommercialComparisonInfo result) {
+        return List.of(
+            result.salesMetrics(), result.footTrafficMetrics(), result.storeMetrics(), result.spendingMetrics(),
+            result.residentPopulationMetrics(), result.facilityMetrics(), result.salesTimeSlotMetrics(), result.salesAgeMetrics(),
+            result.salesAgeGenderMetrics(), result.footTrafficTimeSlotMetrics(), result.footTrafficAgeMetrics(),
+            result.footTrafficAgeGenderMetrics()
+        );
+    }
+
     private void stubCommercial(String code, long sales, double openingRate, double closureRate, long income, long population, long facilities) {
         when(queries.getSalesByPeriodCodeAndCommercialCodeAndServiceCode("20261", code, "service"))
             .thenReturn(CommercialSalesInfo.from(SalesCommercial.builder().commercialName(code).mondaySalesAmount(sales).build()));

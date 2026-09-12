@@ -13,6 +13,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dt
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialPeerStoreItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialHeatmapScoreItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.ComparisonMetricItem;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.ComparisonGuideItem;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.ComparisonMetricGroupGuideItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.RegionalIncomeSummaryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.RegionalSalesSummaryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeGenderPercentItem;
@@ -54,6 +56,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialBenchmarkInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonGuideInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonMetricGroupGuideInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialSchoolCountInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByAgeGenderPercentInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByAgeGroupInfo;
@@ -171,6 +175,9 @@ public class CommercialPresenter {
         return CommercialComparisonResponse.builder()
             .left(toCommercialComparisonTargetItem(info.left()))
             .right(toCommercialComparisonTargetItem(info.right()))
+            .periodCode(info.periodCode())
+            .serviceCode(info.serviceCode())
+            .comparisonGuide(toComparisonGuideItem(info.comparisonGuide()))
             .comparisonSummary(info.comparisonSummary())
             .recommendedSide(info.recommendedSide())
             .recommendedReasons(info.recommendedReasons())
@@ -569,7 +576,30 @@ public class CommercialPresenter {
             .rightValue(info.rightValue())
             .diffValue(info.diffValue())
             .diffRate(info.diffRate())
+            .unit(info.unit())
+            .displayPrecision(info.displayPrecision())
+            .differenceUnit(info.differenceUnit())
+            .description(info.description())
             .winnerSide(info.winnerSide())
+            .build();
+    }
+
+    private ComparisonGuideItem toComparisonGuideItem(ComparisonGuideInfo info) {
+        return ComparisonGuideItem.builder()
+            .periodBasis(info.periodBasis())
+            .serviceBasis(info.serviceBasis())
+            .differenceBasis(info.differenceBasis())
+            .diffRateBasis(info.diffRateBasis())
+            .recommendationDisclaimer(info.recommendationDisclaimer())
+            .metricGroups(info.metricGroups().stream().map(this::toComparisonMetricGroupGuideItem).toList())
+            .build();
+    }
+
+    private ComparisonMetricGroupGuideItem toComparisonMetricGroupGuideItem(ComparisonMetricGroupGuideInfo info) {
+        return ComparisonMetricGroupGuideItem.builder()
+            .code(info.code())
+            .name(info.name())
+            .description(info.description())
             .build();
     }
 

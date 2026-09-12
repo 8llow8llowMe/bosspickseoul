@@ -2,6 +2,8 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.application.serv
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonGuideInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonMetricGroupGuideInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByAgeGenderPercentInfo;
@@ -24,6 +26,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.CommercialRegionQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.query.CommercialAdministrationQueryResult;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -73,48 +76,68 @@ public class CommercialComparisonQueryProcessor {
 
         List<ComparisonMetricInfo> salesMetrics = List.of(
             toMetric("총 매출액",
-                totalSalesAmount(leftSales.amountByDayOfWeekInfo()), totalSalesAmount(rightSales.amountByDayOfWeekInfo())),
+                totalSalesAmount(leftSales.amountByDayOfWeekInfo()), totalSalesAmount(rightSales.amountByDayOfWeekInfo()),
+                MetricDisplayType.WON, "선택 분기의 요일별 매출액을 합산한 값입니다."),
             toMetric("매출 건수",
-                totalSalesCount(leftSales.countByDayOfWeekInfo()), totalSalesCount(rightSales.countByDayOfWeekInfo())),
+                totalSalesCount(leftSales.countByDayOfWeekInfo()), totalSalesCount(rightSales.countByDayOfWeekInfo()),
+                MetricDisplayType.COUNT, "선택 분기의 요일별 매출 건수를 합산한 값입니다."),
             toMetric("남성 매출 건수",
-                leftSales.countByGenderInfo().maleSalesCount(), rightSales.countByGenderInfo().maleSalesCount()),
+                leftSales.countByGenderInfo().maleSalesCount(), rightSales.countByGenderInfo().maleSalesCount(),
+                MetricDisplayType.COUNT, "선택 분기의 남성 고객 매출 건수입니다."),
             toMetric("여성 매출 건수",
-                leftSales.countByGenderInfo().femaleSalesCount(), rightSales.countByGenderInfo().femaleSalesCount())
+                leftSales.countByGenderInfo().femaleSalesCount(), rightSales.countByGenderInfo().femaleSalesCount(),
+                MetricDisplayType.COUNT, "선택 분기의 여성 고객 매출 건수입니다.")
         );
         List<ComparisonMetricInfo> footTrafficMetrics = List.of(
             toMetric("총 유동인구",
-                totalFootTraffic(leftFootTraffic.byDayOfWeekInfo()), totalFootTraffic(rightFootTraffic.byDayOfWeekInfo())),
+                totalFootTraffic(leftFootTraffic.byDayOfWeekInfo()), totalFootTraffic(rightFootTraffic.byDayOfWeekInfo()),
+                MetricDisplayType.PERSON, "선택 분기의 요일별 추정 유동인구를 합산한 값입니다."),
             toMetric("남성 유동인구 비중",
                 maleFootTrafficShare(leftFootTraffic.byAgeGenderPercentInfo()),
-                maleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo())),
+                maleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo()), MetricDisplayType.PERCENTAGE,
+                "선택 분기 유동인구의 남성 연령대별 비중을 합산한 값입니다."),
             toMetric("여성 유동인구 비중",
                 femaleFootTrafficShare(leftFootTraffic.byAgeGenderPercentInfo()),
-                femaleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo()))
+                femaleFootTrafficShare(rightFootTraffic.byAgeGenderPercentInfo()), MetricDisplayType.PERCENTAGE,
+                "선택 분기 유동인구의 여성 연령대별 비중을 합산한 값입니다.")
         );
         List<ComparisonMetricInfo> storeMetrics = List.of(
-            toMetric("총 점포 수", leftStore.totalStoreCount(), rightStore.totalStoreCount()),
-            toMetric("유사 업종 점포 수", leftStore.similarStoreCount(), rightStore.similarStoreCount()),
-            toMetric("개업률", leftStore.openingRate(), rightStore.openingRate()),
-            toMetric("폐업률", leftStore.closureRate(), rightStore.closureRate(), true),
-            toMetric("프랜차이즈 점포 수", leftStore.franchiseStoreCount(), rightStore.franchiseStoreCount())
+            toMetric("총 점포 수", leftStore.totalStoreCount(), rightStore.totalStoreCount(), MetricDisplayType.ITEM,
+                "선택 분기 상권 내 선택 업종의 총 점포 수입니다."),
+            toMetric("유사 업종 점포 수", leftStore.similarStoreCount(), rightStore.similarStoreCount(), MetricDisplayType.ITEM,
+                "선택 분기 선택 업종 조회 데이터의 유사 업종 점포 수입니다."),
+            toMetric("개업률", leftStore.openingRate(), rightStore.openingRate(), MetricDisplayType.PERCENTAGE,
+                "선택 분기 선택 업종의 개업률입니다."),
+            toMetric("폐업률", leftStore.closureRate(), rightStore.closureRate(), MetricDisplayType.PERCENTAGE,
+                "선택 분기 선택 업종의 폐업률이며 낮은 값이 우세합니다.", true),
+            toMetric("프랜차이즈 점포 수", leftStore.franchiseStoreCount(), rightStore.franchiseStoreCount(), MetricDisplayType.ITEM,
+                "선택 분기 상권 내 선택 업종의 프랜차이즈 점포 수입니다.")
         );
         List<ComparisonMetricInfo> spendingMetrics = List.of(
             toMetric("월 평균 소득",
                 leftIncome.averageIncomeInfo().monthlyAverageIncomeAmount(),
-                rightIncome.averageIncomeInfo().monthlyAverageIncomeAmount()),
+                rightIncome.averageIncomeInfo().monthlyAverageIncomeAmount(), MetricDisplayType.WON,
+                "선택 분기 상권의 추정 월 평균 소득 금액입니다."),
             toMetric("총 지출액",
-                totalExpenseAmount(leftIncome.expenseByCategoryInfo()), totalExpenseAmount(rightIncome.expenseByCategoryInfo()))
+                totalExpenseAmount(leftIncome.expenseByCategoryInfo()), totalExpenseAmount(rightIncome.expenseByCategoryInfo()),
+                MetricDisplayType.WON, "선택 분기 상권의 소비 지출 항목별 금액을 합산한 값입니다.")
         );
         List<ComparisonMetricInfo> residentPopulationMetrics = List.of(
             toMetric("총 거주인구",
-                leftPopulation.byAgeInfo().totalResidentPopulation(), rightPopulation.byAgeInfo().totalResidentPopulation()),
-            toMetric("남성 거주인구 비중", leftPopulation.malePercentage(), rightPopulation.malePercentage()),
-            toMetric("여성 거주인구 비중", leftPopulation.femalePercentage(), rightPopulation.femalePercentage())
+                leftPopulation.byAgeInfo().totalResidentPopulation(), rightPopulation.byAgeInfo().totalResidentPopulation(),
+                MetricDisplayType.PERSON, "선택 분기 상권의 추정 거주인구입니다."),
+            toMetric("남성 거주인구 비중", leftPopulation.malePercentage(), rightPopulation.malePercentage(),
+                MetricDisplayType.PERCENTAGE, "선택 분기 거주인구 중 남성 비중입니다."),
+            toMetric("여성 거주인구 비중", leftPopulation.femalePercentage(), rightPopulation.femalePercentage(),
+                MetricDisplayType.PERCENTAGE, "선택 분기 거주인구 중 여성 비중입니다.")
         );
         List<ComparisonMetricInfo> facilityMetrics = List.of(
-            toMetric("총 시설 수", leftFacility.totalFacilityCount(), rightFacility.totalFacilityCount()),
-            toMetric("학교 수", leftFacility.schoolCountInfo().totalSchoolCount(), rightFacility.schoolCountInfo().totalSchoolCount()),
-            toMetric("교통 시설 수", leftFacility.totalTransportationFacilityCount(), rightFacility.totalTransportationFacilityCount())
+            toMetric("총 시설 수", leftFacility.totalFacilityCount(), rightFacility.totalFacilityCount(), MetricDisplayType.ITEM,
+                "선택 분기 상권 내 집계 대상 시설의 총 개수입니다."),
+            toMetric("학교 수", leftFacility.schoolCountInfo().totalSchoolCount(), rightFacility.schoolCountInfo().totalSchoolCount(),
+                MetricDisplayType.ITEM, "선택 분기 상권 내 학교 시설 수입니다."),
+            toMetric("교통 시설 수", leftFacility.totalTransportationFacilityCount(), rightFacility.totalTransportationFacilityCount(),
+                MetricDisplayType.ITEM, "선택 분기 상권 내 버스 정류장과 지하철역 등 교통 시설 수입니다.")
         );
 
         List<ComparisonMetricInfo> decisionMetrics = buildDecisionMetrics(
@@ -125,6 +148,9 @@ public class CommercialComparisonQueryProcessor {
         return CommercialComparisonInfo.builder()
             .left(left)
             .right(right)
+            .periodCode(periodCode)
+            .serviceCode(serviceCode)
+            .comparisonGuide(buildComparisonGuide())
             .comparisonSummary(buildComparisonSummary(left, right, recommendedSide))
             .recommendedSide(recommendedSide.toMetadata())
             .recommendedReasons(buildRecommendedReasons(left, right, recommendedSide, decisionMetrics))
@@ -168,6 +194,34 @@ public class CommercialComparisonQueryProcessor {
 
     private CommercialAdministrationQueryResult fetchAdministration(String commercialCode) {
         return commercialRegionQueryPort.getCommercialAdministration(commercialCode);
+    }
+
+    private ComparisonGuideInfo buildComparisonGuide() {
+        return ComparisonGuideInfo.builder()
+            .periodBasis("모든 지표는 선택한 분기의 데이터를 기준으로 합니다.")
+            .serviceBasis("매출·점포 지표는 선택 업종 기준이며, 유동인구·소득·거주인구·시설은 상권 전체 기준입니다.")
+            .differenceBasis("차이는 왼쪽 상권 값에서 오른쪽 상권 값을 뺀 값입니다. 비율 차이는 %p로 표시합니다.")
+            .diffRateBasis("차이율은 오른쪽 상권 값을 기준으로 계산합니다. 오른쪽 값이 0이면 차이율을 계산할 수 없습니다.")
+            .recommendationDisclaimer("추천은 핵심 지표의 단순 우위 개수를 비교한 참고 결과이며 수익이나 창업 성과를 보장하지 않습니다. 원천 데이터에서 제공하지 않는 값도 0일 수 있습니다.")
+            .metricGroups(List.of(
+                groupGuide("salesMetrics", "매출", "선택 업종의 매출액과 매출 건수를 비교합니다."),
+                groupGuide("footTrafficMetrics", "유동인구", "상권 전체의 추정 유동인구와 성별 비중을 비교합니다."),
+                groupGuide("storeMetrics", "점포", "선택 업종 조회 데이터의 점포 수와 개·폐업 지표를 비교합니다."),
+                groupGuide("spendingMetrics", "소비력", "상권 전체의 추정 월 평균 소득과 소비 지출을 비교합니다."),
+                groupGuide("residentPopulationMetrics", "거주인구", "상권 전체의 추정 거주인구와 성별 비중을 비교합니다."),
+                groupGuide("facilityMetrics", "시설", "상권 내 집계 대상 생활·교육·교통 시설을 비교합니다."),
+                groupGuide("salesTimeSlotMetrics", "매출 시간대", "선택 업종의 시간대별 매출액을 비교합니다."),
+                groupGuide("salesAgeMetrics", "매출 연령대", "선택 업종의 연령대별 매출액을 비교합니다."),
+                groupGuide("salesAgeGenderMetrics", "매출 연령·성별", "선택 업종 매출의 연령·성별 비중을 비교합니다."),
+                groupGuide("footTrafficTimeSlotMetrics", "유동인구 시간대", "상권 전체의 시간대별 추정 유동인구를 비교합니다."),
+                groupGuide("footTrafficAgeMetrics", "유동인구 연령대", "상권 전체의 연령대별 추정 유동인구를 비교합니다."),
+                groupGuide("footTrafficAgeGenderMetrics", "유동인구 연령·성별", "상권 전체 유동인구의 연령·성별 비중을 비교합니다.")
+            ))
+            .build();
+    }
+
+    private ComparisonMetricGroupGuideInfo groupGuide(String code, String name, String description) {
+        return ComparisonMetricGroupGuideInfo.builder().code(code).name(name).description(description).build();
     }
 
     private String buildComparisonSummary(
@@ -239,9 +293,15 @@ public class CommercialComparisonQueryProcessor {
                 double winnerValue = recommendedSide == ComparisonWinnerSide.LEFT ? metric.leftValue() : metric.rightValue();
                 double opponentValue = recommendedSide == ComparisonWinnerSide.LEFT ? metric.rightValue() : metric.leftValue();
                 return "%s이(가) %s 지표에서 %s보다 우세합니다(%s: %s, %s: %s)."
-                    .formatted(winner, metric.label(), opponent, winner, winnerValue, opponent, opponentValue);
+                    .formatted(winner, metric.label(), opponent, winner, formatMetricValue(winnerValue, metric),
+                        opponent, formatMetricValue(opponentValue, metric));
             })
             .toList();
+    }
+
+    private static String formatMetricValue(double value, ComparisonMetricInfo metric) {
+        int precision = Math.max(metric.displayPrecision(), 0);
+        return String.format(Locale.KOREA, "%,." + precision + "f%s", value, metric.unit());
     }
 
     private List<String> buildCautionPoints(
@@ -296,24 +356,32 @@ public class CommercialComparisonQueryProcessor {
 
     private List<ComparisonMetricInfo> buildSalesTimeSlotMetrics(CommercialSalesByTimeSlotInfo left, CommercialSalesByTimeSlotInfo right) {
         return List.of(
-            toMetric("00-06", left.salesAmountTime00To06(), right.salesAmountTime00To06()),
-            toMetric("06-11", left.salesAmountTime06To11(), right.salesAmountTime06To11()),
-            toMetric("11-14", left.salesAmountTime11To14(), right.salesAmountTime11To14()),
-            toMetric("14-17", left.salesAmountTime14To17(), right.salesAmountTime14To17()),
-            toMetric("17-21", left.salesAmountTime17To21(), right.salesAmountTime17To21()),
-            toMetric("21-24", left.salesAmountTime21To24(), right.salesAmountTime21To24())
+            toMetric("00-06", left.salesAmountTime00To06(), right.salesAmountTime00To06(), MetricDisplayType.WON, salesTimeSlotDescription()),
+            toMetric("06-11", left.salesAmountTime06To11(), right.salesAmountTime06To11(), MetricDisplayType.WON, salesTimeSlotDescription()),
+            toMetric("11-14", left.salesAmountTime11To14(), right.salesAmountTime11To14(), MetricDisplayType.WON, salesTimeSlotDescription()),
+            toMetric("14-17", left.salesAmountTime14To17(), right.salesAmountTime14To17(), MetricDisplayType.WON, salesTimeSlotDescription()),
+            toMetric("17-21", left.salesAmountTime17To21(), right.salesAmountTime17To21(), MetricDisplayType.WON, salesTimeSlotDescription()),
+            toMetric("21-24", left.salesAmountTime21To24(), right.salesAmountTime21To24(), MetricDisplayType.WON, salesTimeSlotDescription())
         );
+    }
+
+    private String salesTimeSlotDescription() {
+        return "선택 분기 선택 업종의 해당 시간대 매출액입니다.";
     }
 
     private List<ComparisonMetricInfo> buildSalesAgeMetrics(CommercialSalesByAgeInfo left, CommercialSalesByAgeInfo right) {
         return List.of(
-            toMetric("10대 매출액", left.age10SalesAmount(), right.age10SalesAmount()),
-            toMetric("20대 매출액", left.age20SalesAmount(), right.age20SalesAmount()),
-            toMetric("30대 매출액", left.age30SalesAmount(), right.age30SalesAmount()),
-            toMetric("40대 매출액", left.age40SalesAmount(), right.age40SalesAmount()),
-            toMetric("50대 매출액", left.age50SalesAmount(), right.age50SalesAmount()),
-            toMetric("60대 이상 매출액", left.age60PlusSalesAmount(), right.age60PlusSalesAmount())
+            toMetric("10대 매출액", left.age10SalesAmount(), right.age10SalesAmount(), MetricDisplayType.WON, salesAgeDescription()),
+            toMetric("20대 매출액", left.age20SalesAmount(), right.age20SalesAmount(), MetricDisplayType.WON, salesAgeDescription()),
+            toMetric("30대 매출액", left.age30SalesAmount(), right.age30SalesAmount(), MetricDisplayType.WON, salesAgeDescription()),
+            toMetric("40대 매출액", left.age40SalesAmount(), right.age40SalesAmount(), MetricDisplayType.WON, salesAgeDescription()),
+            toMetric("50대 매출액", left.age50SalesAmount(), right.age50SalesAmount(), MetricDisplayType.WON, salesAgeDescription()),
+            toMetric("60대 이상 매출액", left.age60PlusSalesAmount(), right.age60PlusSalesAmount(), MetricDisplayType.WON, salesAgeDescription())
         );
+    }
+
+    private String salesAgeDescription() {
+        return "선택 분기 선택 업종의 해당 연령대 매출액입니다.";
     }
 
     private List<ComparisonMetricInfo> buildSalesAgeGenderMetrics(
@@ -321,45 +389,57 @@ public class CommercialComparisonQueryProcessor {
         CommercialSalesByAgeGenderPercentInfo right
     ) {
         return List.of(
-            toMetric("남성 10대 매출 비중", left.maleAge10Percent(), right.maleAge10Percent()),
-            toMetric("여성 10대 매출 비중", left.femaleAge10Percent(), right.femaleAge10Percent()),
-            toMetric("남성 20대 매출 비중", left.maleAge20Percent(), right.maleAge20Percent()),
-            toMetric("여성 20대 매출 비중", left.femaleAge20Percent(), right.femaleAge20Percent()),
-            toMetric("남성 30대 매출 비중", left.maleAge30Percent(), right.maleAge30Percent()),
-            toMetric("여성 30대 매출 비중", left.femaleAge30Percent(), right.femaleAge30Percent()),
-            toMetric("남성 40대 매출 비중", left.maleAge40Percent(), right.maleAge40Percent()),
-            toMetric("여성 40대 매출 비중", left.femaleAge40Percent(), right.femaleAge40Percent()),
-            toMetric("남성 50대 매출 비중", left.maleAge50Percent(), right.maleAge50Percent()),
-            toMetric("여성 50대 매출 비중", left.femaleAge50Percent(), right.femaleAge50Percent()),
-            toMetric("남성 60대 이상 매출 비중", left.maleAge60PlusPercent(), right.maleAge60PlusPercent()),
-            toMetric("여성 60대 이상 매출 비중", left.femaleAge60PlusPercent(), right.femaleAge60PlusPercent())
+            toMetric("남성 10대 매출 비중", left.maleAge10Percent(), right.maleAge10Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("여성 10대 매출 비중", left.femaleAge10Percent(), right.femaleAge10Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("남성 20대 매출 비중", left.maleAge20Percent(), right.maleAge20Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("여성 20대 매출 비중", left.femaleAge20Percent(), right.femaleAge20Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("남성 30대 매출 비중", left.maleAge30Percent(), right.maleAge30Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("여성 30대 매출 비중", left.femaleAge30Percent(), right.femaleAge30Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("남성 40대 매출 비중", left.maleAge40Percent(), right.maleAge40Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("여성 40대 매출 비중", left.femaleAge40Percent(), right.femaleAge40Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("남성 50대 매출 비중", left.maleAge50Percent(), right.maleAge50Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("여성 50대 매출 비중", left.femaleAge50Percent(), right.femaleAge50Percent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("남성 60대 이상 매출 비중", left.maleAge60PlusPercent(), right.maleAge60PlusPercent(), MetricDisplayType.PERCENTAGE, salesShareDescription()),
+            toMetric("여성 60대 이상 매출 비중", left.femaleAge60PlusPercent(), right.femaleAge60PlusPercent(), MetricDisplayType.PERCENTAGE, salesShareDescription())
         );
+    }
+
+    private String salesShareDescription() {
+        return "선택 분기 선택 업종 매출에서 해당 연령·성별이 차지하는 비중입니다.";
     }
 
     private List<ComparisonMetricInfo> buildFootTrafficTimeSlotMetrics(
         CommercialFootTrafficByTimeSlotInfo left, CommercialFootTrafficByTimeSlotInfo right
     ) {
         return List.of(
-            toMetric("00-06", left.footTrafficTime00To06(), right.footTrafficTime00To06()),
-            toMetric("06-11", left.footTrafficTime06To11(), right.footTrafficTime06To11()),
-            toMetric("11-14", left.footTrafficTime11To14(), right.footTrafficTime11To14()),
-            toMetric("14-17", left.footTrafficTime14To17(), right.footTrafficTime14To17()),
-            toMetric("17-21", left.footTrafficTime17To21(), right.footTrafficTime17To21()),
-            toMetric("21-24", left.footTrafficTime21To24(), right.footTrafficTime21To24())
+            toMetric("00-06", left.footTrafficTime00To06(), right.footTrafficTime00To06(), MetricDisplayType.PERSON, footTrafficTimeDescription()),
+            toMetric("06-11", left.footTrafficTime06To11(), right.footTrafficTime06To11(), MetricDisplayType.PERSON, footTrafficTimeDescription()),
+            toMetric("11-14", left.footTrafficTime11To14(), right.footTrafficTime11To14(), MetricDisplayType.PERSON, footTrafficTimeDescription()),
+            toMetric("14-17", left.footTrafficTime14To17(), right.footTrafficTime14To17(), MetricDisplayType.PERSON, footTrafficTimeDescription()),
+            toMetric("17-21", left.footTrafficTime17To21(), right.footTrafficTime17To21(), MetricDisplayType.PERSON, footTrafficTimeDescription()),
+            toMetric("21-24", left.footTrafficTime21To24(), right.footTrafficTime21To24(), MetricDisplayType.PERSON, footTrafficTimeDescription())
         );
+    }
+
+    private String footTrafficTimeDescription() {
+        return "선택 분기 상권 전체의 해당 시간대 추정 유동인구입니다.";
     }
 
     private List<ComparisonMetricInfo> buildFootTrafficAgeMetrics(
         CommercialFootTrafficByAgeGroupInfo left, CommercialFootTrafficByAgeGroupInfo right
     ) {
         return List.of(
-            toMetric("10대 유동인구", left.age10FootTraffic(), right.age10FootTraffic()),
-            toMetric("20대 유동인구", left.age20FootTraffic(), right.age20FootTraffic()),
-            toMetric("30대 유동인구", left.age30FootTraffic(), right.age30FootTraffic()),
-            toMetric("40대 유동인구", left.age40FootTraffic(), right.age40FootTraffic()),
-            toMetric("50대 유동인구", left.age50FootTraffic(), right.age50FootTraffic()),
-            toMetric("60대 이상 유동인구", left.age60PlusFootTraffic(), right.age60PlusFootTraffic())
+            toMetric("10대 유동인구", left.age10FootTraffic(), right.age10FootTraffic(), MetricDisplayType.PERSON, footTrafficAgeDescription()),
+            toMetric("20대 유동인구", left.age20FootTraffic(), right.age20FootTraffic(), MetricDisplayType.PERSON, footTrafficAgeDescription()),
+            toMetric("30대 유동인구", left.age30FootTraffic(), right.age30FootTraffic(), MetricDisplayType.PERSON, footTrafficAgeDescription()),
+            toMetric("40대 유동인구", left.age40FootTraffic(), right.age40FootTraffic(), MetricDisplayType.PERSON, footTrafficAgeDescription()),
+            toMetric("50대 유동인구", left.age50FootTraffic(), right.age50FootTraffic(), MetricDisplayType.PERSON, footTrafficAgeDescription()),
+            toMetric("60대 이상 유동인구", left.age60PlusFootTraffic(), right.age60PlusFootTraffic(), MetricDisplayType.PERSON, footTrafficAgeDescription())
         );
+    }
+
+    private String footTrafficAgeDescription() {
+        return "선택 분기 상권 전체의 해당 연령대 추정 유동인구입니다.";
     }
 
     private List<ComparisonMetricInfo> buildFootTrafficAgeGenderMetrics(
@@ -367,19 +447,23 @@ public class CommercialComparisonQueryProcessor {
         CommercialFootTrafficByAgeGenderPercentInfo right
     ) {
         return List.of(
-            toMetric("남성 10대 유동인구 비중", left.maleAge10Percent(), right.maleAge10Percent()),
-            toMetric("여성 10대 유동인구 비중", left.femaleAge10Percent(), right.femaleAge10Percent()),
-            toMetric("남성 20대 유동인구 비중", left.maleAge20Percent(), right.maleAge20Percent()),
-            toMetric("여성 20대 유동인구 비중", left.femaleAge20Percent(), right.femaleAge20Percent()),
-            toMetric("남성 30대 유동인구 비중", left.maleAge30Percent(), right.maleAge30Percent()),
-            toMetric("여성 30대 유동인구 비중", left.femaleAge30Percent(), right.femaleAge30Percent()),
-            toMetric("남성 40대 유동인구 비중", left.maleAge40Percent(), right.maleAge40Percent()),
-            toMetric("여성 40대 유동인구 비중", left.femaleAge40Percent(), right.femaleAge40Percent()),
-            toMetric("남성 50대 유동인구 비중", left.maleAge50Percent(), right.maleAge50Percent()),
-            toMetric("여성 50대 유동인구 비중", left.femaleAge50Percent(), right.femaleAge50Percent()),
-            toMetric("남성 60대 이상 유동인구 비중", left.maleAge60PlusPercent(), right.maleAge60PlusPercent()),
-            toMetric("여성 60대 이상 유동인구 비중", left.femaleAge60PlusPercent(), right.femaleAge60PlusPercent())
+            toMetric("남성 10대 유동인구 비중", left.maleAge10Percent(), right.maleAge10Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("여성 10대 유동인구 비중", left.femaleAge10Percent(), right.femaleAge10Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("남성 20대 유동인구 비중", left.maleAge20Percent(), right.maleAge20Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("여성 20대 유동인구 비중", left.femaleAge20Percent(), right.femaleAge20Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("남성 30대 유동인구 비중", left.maleAge30Percent(), right.maleAge30Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("여성 30대 유동인구 비중", left.femaleAge30Percent(), right.femaleAge30Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("남성 40대 유동인구 비중", left.maleAge40Percent(), right.maleAge40Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("여성 40대 유동인구 비중", left.femaleAge40Percent(), right.femaleAge40Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("남성 50대 유동인구 비중", left.maleAge50Percent(), right.maleAge50Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("여성 50대 유동인구 비중", left.femaleAge50Percent(), right.femaleAge50Percent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("남성 60대 이상 유동인구 비중", left.maleAge60PlusPercent(), right.maleAge60PlusPercent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription()),
+            toMetric("여성 60대 이상 유동인구 비중", left.femaleAge60PlusPercent(), right.femaleAge60PlusPercent(), MetricDisplayType.PERCENTAGE, footTrafficShareDescription())
         );
+    }
+
+    private String footTrafficShareDescription() {
+        return "선택 분기 상권 전체 유동인구에서 해당 연령·성별이 차지하는 비중입니다.";
     }
 
     private List<String> buildHighlights(
@@ -494,11 +578,15 @@ public class CommercialComparisonQueryProcessor {
             + info.femaleAge40Percent() + info.femaleAge50Percent() + info.femaleAge60PlusPercent();
     }
 
-    private ComparisonMetricInfo toMetric(String label, double leftValue, double rightValue) {
-        return toMetric(label, leftValue, rightValue, false);
+    private ComparisonMetricInfo toMetric(
+        String label, double leftValue, double rightValue, MetricDisplayType displayType, String description
+    ) {
+        return toMetric(label, leftValue, rightValue, displayType, description, false);
     }
 
-    private ComparisonMetricInfo toMetric(String label, double leftValue, double rightValue, boolean lowerIsBetter) {
+    private ComparisonMetricInfo toMetric(
+        String label, double leftValue, double rightValue, MetricDisplayType displayType, String description, boolean lowerIsBetter
+    ) {
         double diffValue = leftValue - rightValue;
         double diffRate = rightValue == 0D ? ZERO_DIFF_RATE : (diffValue / rightValue) * 100D;
 
@@ -508,6 +596,10 @@ public class CommercialComparisonQueryProcessor {
             .rightValue(rightValue)
             .diffValue(diffValue)
             .diffRate(diffRate)
+            .unit(displayType.unit())
+            .displayPrecision(displayType.displayPrecision())
+            .differenceUnit(displayType.differenceUnit())
+            .description(description)
             .winnerSide(resolveWinner(leftValue, rightValue, lowerIsBetter).toMetadata())
             .build();
     }
@@ -523,5 +615,35 @@ public class CommercialComparisonQueryProcessor {
     }
 
     private record SlotValue(String label, double value) {
+    }
+
+    private enum MetricDisplayType {
+        WON("원", 0, "원"),
+        PERSON("명", 0, "명"),
+        COUNT("건", 0, "건"),
+        ITEM("개", 0, "개"),
+        PERCENTAGE("%", 1, "%p");
+
+        private final String unit;
+        private final int displayPrecision;
+        private final String differenceUnit;
+
+        MetricDisplayType(String unit, int displayPrecision, String differenceUnit) {
+            this.unit = unit;
+            this.displayPrecision = displayPrecision;
+            this.differenceUnit = differenceUnit;
+        }
+
+        String unit() {
+            return unit;
+        }
+
+        int displayPrecision() {
+            return displayPrecision;
+        }
+
+        String differenceUnit() {
+            return differenceUnit;
+        }
     }
 }
