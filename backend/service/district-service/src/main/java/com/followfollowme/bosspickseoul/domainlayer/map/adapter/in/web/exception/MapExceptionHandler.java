@@ -12,6 +12,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+/**
+ * district-service 전역 폴백 advice.
+ *
+ * <p>domainlayer 전체를 범위로 잡아 컨텍스트별 advice 가 없는 곳의 검증 예외까지 받는다.
+ * region 컨텍스트는 RegionExceptionHandler 가 {@code @Order(0)} 으로 앞서므로 REGION_* 로 응답한다.
+ */
 @RestControllerAdvice(basePackages = "com.followfollowme.bosspickseoul.domainlayer")
 public class MapExceptionHandler {
 
