@@ -1,7 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.region.application.port.out;
 
-import com.followfollowme.bosspickseoul.domainlayer.region.application.info.DistrictAreaInfo;
-import com.followfollowme.bosspickseoul.domainlayer.region.application.info.RegionCodeLookupInfo;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.query.DistrictAreaQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.query.RegionCodeLookupQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.region.domain.model.CommercialRegionMapping;
 import java.util.List;
 import java.util.Optional;
@@ -12,15 +12,18 @@ public interface CommercialRegionMappingRepositoryPort {
 
     List<CommercialRegionMapping> findAllByAdministrationCode(String administrationCode);
 
-    Optional<RegionCodeLookupInfo> findDistinctByDistrictName(String districtName);
+    /**
+     * 같은 이름의 자치구가 여러 곳일 수 있으므로 다건으로 돌려준다. 단건 판정은 application 계층 책임이다.
+     */
+    List<RegionCodeLookupQueryResult> findDistinctByDistrictName(String districtName);
 
-    Optional<RegionCodeLookupInfo> findDistinctByAdministrationName(String administrationName);
+    List<RegionCodeLookupQueryResult> findDistinctByAdministrationName(String administrationName);
 
-    Optional<RegionCodeLookupInfo> findDistinctByCommercialName(String commercialName);
+    List<RegionCodeLookupQueryResult> findDistinctByCommercialName(String commercialName);
 
     Optional<CommercialRegionMapping> findFirstByAdministrationCode(String administrationCode);
 
     Optional<CommercialRegionMapping> findFirstByCommercialCode(String commercialCode);
 
-    Optional<DistrictAreaInfo> findFirstByDistrictCode(String districtCode);
+    Optional<DistrictAreaQueryResult> findFirstByDistrictCode(String districtCode);
 }
