@@ -38,6 +38,11 @@
 - 지도 영역 조회는 `map` 컨텍스트로 분리한다.
 - 상권/행정동/자치구 메타 책임이 `commercial-service`로 새지 않게 주의한다.
 - `commercial_region_mapping`은 상권 분석 지표가 아니라 상권-행정동-자치구 계층 및 중심 좌표 매핑의 원천이다. 따라서 `region` 컨텍스트에서 소유한다.
+- **뷰포트 영역 상한** — 한 번의 영역 조회가 읽어 오는 행 수에 타입별 상한이 있다(자치구 50 / 행정동 500 / 상권 250). 설정 키는 `app.map.viewport.max-district-areas`, `max-administration-areas`, `max-commercial-areas`(`MapViewportProperties`)이며 `application.yml` 에 기본값이 명시되어 있다. 상한 + 1 건을 읽어 넘치면 `MAP_010`(400) 으로 막으므로 폴리곤 JSON 을 전량 읽고 파싱한 뒤에 거절하지 않는다. 상권 상한이 가장 빡빡한 이유는 조회 결과가 그대로 commercial-service Feign GET 의 쿼리 파라미터가 되기 때문이다 — 상권 코드 1건당 약 24B 이고 수신 측 Tomcat 기본 `max-http-request-header-size` 가 8192B 라 약 341건에서 요청 라인이 한도를 넘는다.
+- **advice 우선순위** — `RegionExceptionHandler` 가 `@Order(0)` + `basePackages = "...domainlayer.region"` 로 좁게 걸리고, `MapExceptionHandler` 가 서비스 전역 폴백이다. 이 순서가 없으면 region 엔드포인트의 파라미터 형식 오류가 `MAP_103` 으로 새어 나간다.
+- **트랜잭션 경계** — map 은 Processor(`MapQueryProcessor`), region 은 Facade(`RegionWebFacade`)로 갈려 있다. map 만 commercial-service Feign 호출을 유스케이스 안에 포함해서다 — Facade 에 트랜잭션을 걸면 원격 응답을 기다리는 동안 DB 커넥션을 잡고 있게 된다. region 은 외부 I/O 가 없어 Facade 경계를 유지한다.
+- **알려진 드리프트** — `AreaBoundaryEntity` · `CommercialRegionMappingEntity` 의 `NOT NULL` 수치 컬럼이 `Double` 이다(coding-conventions §9-2 는 primitive). 기존 드리프트이며 이번 범위 밖이라 후속 이슈로 남긴다.
+- **동명 지역 다건** — `GET /code-lookup` 은 이름으로 코드를 찾는다. DISTINCT 는 선택된 컬럼 조합에만 걸려서 자치구가 다른 동명 행정동·동명 상권은 접히지 않고 다건으로 올라온다. 이 경우 `REGION_006`(400) 으로 응답하며, 프론트는 코드 기반 조회로 유도한다. 실데이터에 동명 항목이 실제로 존재하는지는 확인하지 못했다 — 확인 쿼리는 `backend/scripts/migration/district-service-index-runbook.sql` 에 있다.
 
 ## 지도 후보 탐색 API (1단계)
 
@@ -112,12 +117,16 @@
 | `MAP_007` | 500 | 영역 경계 좌표 변환 실패 |
 | `MAP_008` | 503 | commercial-service 통신 불가 (5xx·타임아웃·서킷 오픈만 해당) |
 | `MAP_009` | 404 | commercial-service 가 404 를 준 경우 (분기 데이터 부재 등) — `resultMessage` 에 하위 서비스 메시지를 그대로 전달 |
+| `MAP_010` | 400 | 뷰포트에 들어온 영역이 타입별 상한을 넘음 (지도 확대 유도) |
 | `MAP_100` | 400 | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
 | `MAP_101`~`MAP_102` | 400 | topN 필드별 검증 (`MapValidationMessage`) |
 | `MAP_103` | 400 | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
 | `REGION_001` | 400 | 행정동이 해당 자치구 소속이 아님 |
 | `REGION_002`~`REGION_004` | 404 | 자치구/행정동/상권 코드 미존재 |
 | `REGION_005` | 500 | 좌표 변환 실패 |
+| `REGION_006` | 400 | 같은 이름의 지역이 여러 곳 — 코드로 조회하도록 유도 |
+| `REGION_100` | 400 | 요청 값 검증 실패 폴백 (INVALID_REQUEST) — 현재 region 컨트롤러에 Bean Validation 제약이 없어 발생 경로 없음, 향후 대비 |
+| `REGION_110` | 400 | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) — 필드별 코드 자리(`REGION_101`~`REGION_109`)를 비워 두고 1xx 대역 마지막을 쓴다 |
 
 ## Notes
 

@@ -108,6 +108,8 @@ areas.forEach((area) => {
 | 중간 줌 | `/map/administrations` | 행정동 경계 표시, 동 단위 탐색 |
 | 높은 줌 | `/map/commercials` | 상권 polygon, 상권 클릭, 상세 패널 |
 
+넓은 줌에서 `/map/commercials`를 호출하면 뷰포트에 들어오는 상권 수가 상한(250건)을 넘어 `MAP_010`(400)이 내려간다. 이때는 재시도하지 말고 상위 영역 API(`/map/administrations`, `/map/districts`)로 내려가거나 지도를 확대하도록 유도한다. 자치구(50건)·행정동(500건)에도 같은 상한이 있다.
+
 지도 이동 이벤트마다 즉시 호출하지 말고 `debounce`를 적용한다.
 
 ```ts

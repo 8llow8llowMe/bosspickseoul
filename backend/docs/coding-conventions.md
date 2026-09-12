@@ -42,6 +42,7 @@
 - Entity <-> Domain 매핑은 MapStruct를 우선 사용합니다.
 - 외부 API나 내부 서비스 응답은 adapter에서 `QueryResult` 또는 domain/model로 변환합니다.
 - `Info -> Response` 변환은 Presenter 책임입니다.
+- `application/mapper` 가 `adapter/out/persistence` 의 `*Entity` 와 조회 투영(projection) 인터페이스를 import 하는 것은 허용된 예외입니다. 매핑의 한쪽 끝이 영속 타입이기 때문입니다. 그 대신 `Info` · `port/out` 계약은 영속 타입을 몰라야 합니다.
 
 ## 5. 네이밍 기준
 
