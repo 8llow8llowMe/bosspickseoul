@@ -2,10 +2,10 @@ package com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persiste
 
 import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.entity.CommercialRegionMappingEntity;
 import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.repository.CommercialRegionMappingRepository;
-import com.followfollowme.bosspickseoul.domainlayer.region.application.info.DistrictAreaInfo;
-import com.followfollowme.bosspickseoul.domainlayer.region.application.info.RegionCodeLookupInfo;
 import com.followfollowme.bosspickseoul.domainlayer.region.application.mapper.CommercialRegionMappingMapper;
 import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.CommercialRegionMappingRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.query.DistrictAreaQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.query.RegionCodeLookupQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.region.domain.model.CommercialRegionMapping;
 import java.util.List;
 import java.util.Optional;
@@ -32,21 +32,27 @@ public class CommercialRegionMappingRepositoryAdapter implements CommercialRegio
     }
 
     @Override
-    public Optional<RegionCodeLookupInfo> findDistinctByDistrictName(String districtName) {
+    public List<RegionCodeLookupQueryResult> findDistinctByDistrictName(String districtName) {
         return commercialRegionMappingRepository.findDistinctByDistrictName(districtName)
-            .map(RegionCodeLookupInfo::from);
+            .stream()
+            .map(commercialRegionMappingMapper::toQueryResultFromProjection)
+            .toList();
     }
 
     @Override
-    public Optional<RegionCodeLookupInfo> findDistinctByAdministrationName(String administrationName) {
+    public List<RegionCodeLookupQueryResult> findDistinctByAdministrationName(String administrationName) {
         return commercialRegionMappingRepository.findDistinctByAdministrationName(administrationName)
-            .map(RegionCodeLookupInfo::from);
+            .stream()
+            .map(commercialRegionMappingMapper::toQueryResultFromProjection)
+            .toList();
     }
 
     @Override
-    public Optional<RegionCodeLookupInfo> findDistinctByCommercialName(String commercialName) {
+    public List<RegionCodeLookupQueryResult> findDistinctByCommercialName(String commercialName) {
         return commercialRegionMappingRepository.findDistinctByCommercialName(commercialName)
-            .map(RegionCodeLookupInfo::from);
+            .stream()
+            .map(commercialRegionMappingMapper::toQueryResultFromProjection)
+            .toList();
     }
 
     @Override
@@ -58,22 +64,12 @@ public class CommercialRegionMappingRepositoryAdapter implements CommercialRegio
     @Override
     public Optional<CommercialRegionMapping> findFirstByCommercialCode(String commercialCode) {
         return commercialRegionMappingRepository.findFirstByCommercialCode(commercialCode)
-            .map(projection -> CommercialRegionMapping.builder()
-                .commercialCode(projection.getCommercialCode())
-                .commercialName(projection.getCommercialName())
-                .districtCode(projection.getDistrictCode())
-                .districtName(projection.getDistrictName())
-                .administrationCode(projection.getAdministrationCode())
-                .administrationName(projection.getAdministrationName())
-                .build());
+            .map(commercialRegionMappingMapper::toDomainFromProjection);
     }
 
     @Override
-    public Optional<DistrictAreaInfo> findFirstByDistrictCode(String districtCode) {
+    public Optional<DistrictAreaQueryResult> findFirstByDistrictCode(String districtCode) {
         return commercialRegionMappingRepository.findFirstByDistrictCode(districtCode)
-            .map(projection -> DistrictAreaInfo.builder()
-                .districtCode(projection.getDistrictCode())
-                .districtName(projection.getDistrictName())
-                .build());
+            .map(commercialRegionMappingMapper::toDistrictAreaQueryResultFromProjection);
     }
 }

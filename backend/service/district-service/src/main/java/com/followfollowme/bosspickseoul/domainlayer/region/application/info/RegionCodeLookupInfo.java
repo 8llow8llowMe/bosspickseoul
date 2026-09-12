@@ -1,8 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.region.application.info;
 
-import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.projection.AdministrationNameProjection;
-import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.projection.CommercialNameProjection;
-import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.projection.DistrictNameProjection;
+import com.followfollowme.bosspickseoul.domainlayer.region.application.port.out.query.RegionCodeLookupQueryResult;
 import lombok.Builder;
 
 @Builder
@@ -15,30 +13,14 @@ public record RegionCodeLookupInfo(
     String commercialName
 ) {
 
-    public static RegionCodeLookupInfo from(DistrictNameProjection projection) {
+    public static RegionCodeLookupInfo from(RegionCodeLookupQueryResult result) {
         return RegionCodeLookupInfo.builder()
-            .districtCode(projection.getDistrictCode())
-            .districtName(projection.getDistrictName())
-            .build();
-    }
-
-    public static RegionCodeLookupInfo from(AdministrationNameProjection projection) {
-        return RegionCodeLookupInfo.builder()
-            .districtCode(projection.getDistrictCode())
-            .districtName(projection.getDistrictName())
-            .administrationCode(projection.getAdministrationCode())
-            .administrationName(projection.getAdministrationName())
-            .build();
-    }
-
-    public static RegionCodeLookupInfo from(CommercialNameProjection projection) {
-        return RegionCodeLookupInfo.builder()
-            .districtCode(projection.getDistrictCode())
-            .districtName(projection.getDistrictName())
-            .administrationCode(projection.getAdministrationCode())
-            .administrationName(projection.getAdministrationName())
-            .commercialCode(projection.getCommercialCode())
-            .commercialName(projection.getCommercialName())
+            .districtCode(result.districtCode())
+            .districtName(result.districtName())
+            .administrationCode(result.administrationCode())
+            .administrationName(result.administrationName())
+            .commercialCode(result.commercialCode())
+            .commercialName(result.commercialName())
             .build();
     }
 }

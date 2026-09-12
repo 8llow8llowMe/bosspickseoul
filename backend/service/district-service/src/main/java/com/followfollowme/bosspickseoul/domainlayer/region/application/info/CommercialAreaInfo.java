@@ -1,8 +1,8 @@
 package com.followfollowme.bosspickseoul.domainlayer.region.application.info;
 
 import com.followfollowme.bosspickseoul.domainlayer.region.domain.model.CommercialRegionMapping;
+import com.followfollowme.bosspickseoul.domainlayer.region.domain.model.Wgs84Coordinate;
 import lombok.Builder;
-import org.locationtech.jts.geom.Point;
 
 @Builder
 public record CommercialAreaInfo(
@@ -14,14 +14,14 @@ public record CommercialAreaInfo(
     double centerLng
 ) {
 
-    public static CommercialAreaInfo from(CommercialRegionMapping area, Point center) {
+    public static CommercialAreaInfo from(CommercialRegionMapping area, Wgs84Coordinate center) {
         return CommercialAreaInfo.builder()
             .commercialCode(area.commercialCode())
             .commercialName(area.commercialName())
             .commercialClassificationCode(area.commercialClassificationCode())
             .commercialClassificationName(area.commercialClassificationName())
-            .centerLat(center.getX())
-            .centerLng(center.getY())
+            .centerLat(center.lat())
+            .centerLng(center.lng())
             .build();
     }
 }
