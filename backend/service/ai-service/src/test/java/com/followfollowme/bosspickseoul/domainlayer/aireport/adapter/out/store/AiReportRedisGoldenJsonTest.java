@@ -4,13 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AdministrationAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobType;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -196,14 +196,14 @@ class AiReportRedisGoldenJsonTest {
     @Test
     @DisplayName("상권 리포트 캐시 JSON 은 모든 컴포넌트로 복원된다")
     void commercialReportGoldenJson_restoresEveryComponent() throws Exception {
-        assertCommercialReport(objectMapper.readValue(COMMERCIAL_REPORT_GOLDEN_JSON, CommercialAiReportInfo.class));
+        assertCommercialReport(objectMapper.readValue(COMMERCIAL_REPORT_GOLDEN_JSON, CommercialAiReportSnapshot.class));
     }
 
     @Test
     @DisplayName("상권 비교 리포트 캐시 JSON 은 모든 컴포넌트로 복원된다")
     void commercialComparisonReportGoldenJson_restoresEveryComponent() throws Exception {
-        CommercialComparisonAiReportInfo report =
-            objectMapper.readValue(COMMERCIAL_COMPARISON_REPORT_GOLDEN_JSON, CommercialComparisonAiReportInfo.class);
+        CommercialComparisonAiReportSnapshot report =
+            objectMapper.readValue(COMMERCIAL_COMPARISON_REPORT_GOLDEN_JSON, CommercialComparisonAiReportSnapshot.class);
 
         assertThat(report.summary()).isEqualTo("두 상권 비교 요약");
         assertThat(report.recommendedSide()).isEqualTo("LEFT");
@@ -219,7 +219,7 @@ class AiReportRedisGoldenJsonTest {
     @Test
     @DisplayName("자치구 리포트 캐시 JSON 은 모든 컴포넌트로 복원된다")
     void districtReportGoldenJson_restoresEveryComponent() throws Exception {
-        DistrictAiReportInfo report = objectMapper.readValue(DISTRICT_REPORT_GOLDEN_JSON, DistrictAiReportInfo.class);
+        DistrictAiReportSnapshot report = objectMapper.readValue(DISTRICT_REPORT_GOLDEN_JSON, DistrictAiReportSnapshot.class);
 
         assertThat(report.summary()).isEqualTo("강남구 자치구 요약");
         assertThat(report.marketStatus()).isEqualTo("성장");
@@ -232,8 +232,8 @@ class AiReportRedisGoldenJsonTest {
     @Test
     @DisplayName("행정동 리포트 캐시 JSON 은 모든 컴포넌트로 복원된다")
     void administrationReportGoldenJson_restoresEveryComponent() throws Exception {
-        AdministrationAiReportInfo report =
-            objectMapper.readValue(ADMINISTRATION_REPORT_GOLDEN_JSON, AdministrationAiReportInfo.class);
+        AdministrationAiReportSnapshot report =
+            objectMapper.readValue(ADMINISTRATION_REPORT_GOLDEN_JSON, AdministrationAiReportSnapshot.class);
 
         assertThat(report.summary()).isEqualTo("역삼1동 행정동 요약");
         assertThat(report.marketStatus()).isEqualTo("정체");
@@ -253,7 +253,7 @@ class AiReportRedisGoldenJsonTest {
         assertThat(node.get("generatedAt").asText()).isEqualTo("2026-08-04T13:39:45");
     }
 
-    private void assertCommercialReport(CommercialAiReportInfo report) {
+    private void assertCommercialReport(CommercialAiReportSnapshot report) {
         assertThat(report.summary()).isEqualTo("역삼역 상권 요약");
         assertThat(report.strengths()).containsExactly("유동인구 풍부", "직장인 밀집");
         assertThat(report.risks()).containsExactly("임대료 높음");
@@ -268,7 +268,7 @@ class AiReportRedisGoldenJsonTest {
         assertThat(report.generatedAt()).isEqualTo(LocalDateTime.of(2026, 8, 4, 13, 39, 45));
     }
 
-    private CommercialAiReportInfo commercialReportFixture() throws Exception {
-        return objectMapper.readValue(COMMERCIAL_REPORT_GOLDEN_JSON, CommercialAiReportInfo.class);
+    private CommercialAiReportSnapshot commercialReportFixture() throws Exception {
+        return objectMapper.readValue(COMMERCIAL_REPORT_GOLDEN_JSON, CommercialAiReportSnapshot.class);
     }
 }

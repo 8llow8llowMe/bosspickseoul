@@ -1,9 +1,5 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model;
 
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AdministrationAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import java.time.Instant;
 import java.util.Map;
 import lombok.Builder;
@@ -21,10 +17,10 @@ public record AiReportJob(
     Instant createdAt,
     Instant startedAt,
     Instant completedAt,
-    CommercialAiReportInfo commercialReport,
-    CommercialComparisonAiReportInfo commercialComparisonReport,
-    DistrictAiReportInfo districtReport,
-    AdministrationAiReportInfo administrationReport
+    CommercialAiReportSnapshot commercialReport,
+    CommercialComparisonAiReportSnapshot commercialComparisonReport,
+    DistrictAiReportSnapshot districtReport,
+    AdministrationAiReportSnapshot administrationReport
 ) {
 
     public AiReportJob withStatus(AiReportJobStatus next, Instant now) {
@@ -35,19 +31,19 @@ public record AiReportJob(
             .build();
     }
 
-    public AiReportJob completedWithCommercialReport(CommercialAiReportInfo report, Instant now) {
+    public AiReportJob completedWithCommercialReport(CommercialAiReportSnapshot report, Instant now) {
         return completed(now).commercialReport(report).build();
     }
 
-    public AiReportJob completedWithCommercialComparisonReport(CommercialComparisonAiReportInfo report, Instant now) {
+    public AiReportJob completedWithCommercialComparisonReport(CommercialComparisonAiReportSnapshot report, Instant now) {
         return completed(now).commercialComparisonReport(report).build();
     }
 
-    public AiReportJob completedWithDistrictReport(DistrictAiReportInfo report, Instant now) {
+    public AiReportJob completedWithDistrictReport(DistrictAiReportSnapshot report, Instant now) {
         return completed(now).districtReport(report).build();
     }
 
-    public AiReportJob completedWithAdministrationReport(AdministrationAiReportInfo report, Instant now) {
+    public AiReportJob completedWithAdministrationReport(AdministrationAiReportSnapshot report, Instant now) {
         return completed(now).administrationReport(report).build();
     }
 

@@ -2,18 +2,18 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.application.servic
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AdministrationAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiUsageCounterPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.processor.AiReportProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -113,14 +113,14 @@ public class AiReportWorker {
         Map<String, String> params = running.requestParams();
         return switch (running.jobType()) {
             case COMMERCIAL -> {
-                AiGenerationResult<CommercialAiReportInfo> result = aiReportProcessor.generateCommercialReport(
+                AiGenerationResult<CommercialAiReportSnapshot> result = aiReportProcessor.generateCommercialReport(
                     params.get("commercialCode"), params.get("serviceCode"), params.get("periodCode")
                 );
                 aiUsageCounterPort.record(running.memberId(), result.usage());
                 yield running.completedWithCommercialReport(result.draft(), Instant.now());
             }
             case COMMERCIAL_COMPARISON -> {
-                AiGenerationResult<CommercialComparisonAiReportInfo> result = aiReportProcessor.generateCommercialComparisonReport(
+                AiGenerationResult<CommercialComparisonAiReportSnapshot> result = aiReportProcessor.generateCommercialComparisonReport(
                     new CommercialComparisonAiQuery(
                         params.get("leftCommercialCode"), params.get("rightCommercialCode"),
                         params.get("serviceCode"), params.get("periodCode")
@@ -130,14 +130,14 @@ public class AiReportWorker {
                 yield running.completedWithCommercialComparisonReport(result.draft(), Instant.now());
             }
             case DISTRICT -> {
-                AiGenerationResult<DistrictAiReportInfo> result = aiReportProcessor.generateDistrictReport(
+                AiGenerationResult<DistrictAiReportSnapshot> result = aiReportProcessor.generateDistrictReport(
                     params.get("districtCode"), params.get("periodCode")
                 );
                 aiUsageCounterPort.record(running.memberId(), result.usage());
                 yield running.completedWithDistrictReport(result.draft(), Instant.now());
             }
             case ADMINISTRATION -> {
-                AiGenerationResult<AdministrationAiReportInfo> result = aiReportProcessor.generateAdministrationReport(
+                AiGenerationResult<AdministrationAiReportSnapshot> result = aiReportProcessor.generateAdministrationReport(
                     params.get("administrationCode"), params.get("periodCode")
                 );
                 aiUsageCounterPort.record(running.memberId(), result.usage());
