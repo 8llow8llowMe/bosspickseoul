@@ -60,6 +60,7 @@ domainlayer/<context>
 - 유스케이스 진입점의 메인 오케스트레이터다.
 - 여러 Processor와 Presenter를 조합한다.
 - 읽기는 `@Transactional(readOnly = true)`, 쓰기는 `@Transactional`을 기본으로 검토한다.
+- 외부 I/O(Feign 등)를 포함하는 유스케이스는 트랜잭션을 Facade가 아니라 DB 조회 구간 Processor로 내린다. 상대 서비스 응답을 기다리는 동안 DB 커넥션을 점유하지 않기 위해서다.
 
 ### Processor
 
