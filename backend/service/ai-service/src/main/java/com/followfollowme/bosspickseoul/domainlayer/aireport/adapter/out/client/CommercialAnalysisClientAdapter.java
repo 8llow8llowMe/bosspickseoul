@@ -29,7 +29,10 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
 
     @Override
     public CommercialSalesQueryResult getCommercialSales(String commercialCode, String serviceCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialSales(commercialCode, serviceCode, periodCode));
+        return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
+            () -> commercialAnalysisClient.getCommercialSales(commercialCode, serviceCode, periodCode)
+        );
     }
 
     @Override
@@ -49,7 +52,10 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
 
     @Override
     public CommercialStoreAnalysisQueryResult getCommercialStore(String commercialCode, String serviceCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> commercialAnalysisClient.getCommercialStore(commercialCode, serviceCode, periodCode));
+        return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
+            () -> commercialAnalysisClient.getCommercialStore(commercialCode, serviceCode, periodCode)
+        );
     }
 
     @Override

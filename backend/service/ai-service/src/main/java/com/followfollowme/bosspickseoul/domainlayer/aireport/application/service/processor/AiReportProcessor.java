@@ -35,6 +35,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt.PromptFormatterSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiComparisonRecommendedSide;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiUsageMeta;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
@@ -48,13 +49,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import lombok.RequiredArgsConstructor;
+import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AiReportProcessor {
 
     private final CommercialAnalysisQueryPort commercialAnalysisQueryPort;
@@ -64,6 +65,29 @@ public class AiReportProcessor {
     private final AiLlmPort aiLlmPort;
     private final AiReportCachePort aiReportCachePort;
     private final AiLlmProperties aiLlmProperties;
+    private final Executor sourceFetchExecutor;
+
+    /**
+     * {@code @RequiredArgsConstructor} 대신 생성자를 직접 쓴다. Lombok 은 필드의 {@code @Qualifier} 를
+     * 생성자 파라미터로 복사하지 않아(lombok.config 의 copyableAnnotations 미설정) 빈 이름으로 고를 수 없다.
+     * Executor 빈이 여러 개(aiReportTaskExecutor / applicationTaskExecutor / aiSourceFetchTaskExecutor)라
+     * 지정이 빠지면 엉뚱한 풀에 묶여 교착이 난다.
+     */
+    public AiReportProcessor(
+        CommercialAnalysisQueryPort commercialAnalysisQueryPort, DistrictAnalysisQueryPort districtAnalysisQueryPort,
+        AdministrationAnalysisQueryPort administrationAnalysisQueryPort, RegionAnalysisQueryPort regionAnalysisQueryPort,
+        AiLlmPort aiLlmPort, AiReportCachePort aiReportCachePort, AiLlmProperties aiLlmProperties,
+        @Qualifier("aiSourceFetchTaskExecutor") Executor sourceFetchExecutor
+    ) {
+        this.commercialAnalysisQueryPort = commercialAnalysisQueryPort;
+        this.districtAnalysisQueryPort = districtAnalysisQueryPort;
+        this.administrationAnalysisQueryPort = administrationAnalysisQueryPort;
+        this.regionAnalysisQueryPort = regionAnalysisQueryPort;
+        this.aiLlmPort = aiLlmPort;
+        this.aiReportCachePort = aiReportCachePort;
+        this.aiLlmProperties = aiLlmProperties;
+        this.sourceFetchExecutor = sourceFetchExecutor;
+    }
 
     public AiGenerationResult<CommercialAiReportSnapshot> generateCommercialReport(
         String commercialCode, String serviceCode, String periodCode
@@ -79,27 +103,29 @@ public class AiReportProcessor {
         CommercialAdministrationQueryResult administrationInfo =
             regionAnalysisQueryPort.getCommercialAdministration(commercialCode);
 
-        // Stage 2: 나머지 8개 병렬 호출
+        // Stage 2: 나머지 8개 병렬 호출.
+        // executor 를 반드시 넘긴다. 생략하면 ForkJoinPool.commonPool() 로 가는데, parallelism 이 (코어수 - 1) 인
+        // JVM 전역 공유 풀이라 블로킹 HTTP 로 채우면 무관한 병렬 작업까지 막히고 executor_* 메트릭에도 안 잡힌다.
         var ftFuture = CompletableFuture.supplyAsync(
-            () -> commercialAnalysisQueryPort.getCommercialFootTraffic(commercialCode, periodCode));
+            () -> commercialAnalysisQueryPort.getCommercialFootTraffic(commercialCode, periodCode), sourceFetchExecutor);
         var salesFuture = CompletableFuture.supplyAsync(
-            () -> commercialAnalysisQueryPort.getCommercialSales(commercialCode, serviceCode, periodCode));
+            () -> commercialAnalysisQueryPort.getCommercialSales(commercialCode, serviceCode, periodCode), sourceFetchExecutor);
         var facilityFuture = CompletableFuture.supplyAsync(
-            () -> commercialAnalysisQueryPort.getCommercialFacility(commercialCode, periodCode));
+            () -> commercialAnalysisQueryPort.getCommercialFacility(commercialCode, periodCode), sourceFetchExecutor);
         var populationFuture = CompletableFuture.supplyAsync(
-            () -> commercialAnalysisQueryPort.getCommercialPopulation(commercialCode, periodCode));
+            () -> commercialAnalysisQueryPort.getCommercialPopulation(commercialCode, periodCode), sourceFetchExecutor);
         var incomeFuture = CompletableFuture.supplyAsync(
-            () -> commercialAnalysisQueryPort.getCommercialIncome(commercialCode, periodCode));
+            () -> commercialAnalysisQueryPort.getCommercialIncome(commercialCode, periodCode), sourceFetchExecutor);
         var storeFuture = CompletableFuture.supplyAsync(
-            () -> commercialAnalysisQueryPort.getCommercialStore(commercialCode, serviceCode, periodCode));
+            () -> commercialAnalysisQueryPort.getCommercialStore(commercialCode, serviceCode, periodCode), sourceFetchExecutor);
         var salesSummaryFuture = CompletableFuture.supplyAsync(
             () -> commercialAnalysisQueryPort.getCommercialSalesSummary(
                 administrationInfo.districtCode(), administrationInfo.administrationCode(),
-                commercialCode, serviceCode, periodCode));
+                commercialCode, serviceCode, periodCode), sourceFetchExecutor);
         var incomeSummaryFuture = CompletableFuture.supplyAsync(
             () -> commercialAnalysisQueryPort.getCommercialIncomeSummary(
                 administrationInfo.districtCode(), administrationInfo.administrationCode(),
-                commercialCode, periodCode));
+                commercialCode, periodCode), sourceFetchExecutor);
 
         try {
             CompletableFuture.allOf(
@@ -451,16 +477,19 @@ public class AiReportProcessor {
             .build();
     }
 
+    /**
+     * 원천 비교 결과의 코드값을 AI 리포트 계약값(LEFT/RIGHT/BALANCED)으로 옮긴다.
+     * 알 수 없는 코드는 그대로 흘려보낸다 — 상대 서비스가 값을 늘렸을 때 리포트 생성 자체가 막히는 것보다는
+     * 프롬프트에 원문을 싣고 LLM 응답 검증에서 걸리게 하는 편이 낫다.
+     */
     private String normalizeComparisonRecommendedSide(CommercialComparisonQueryResult comparison) {
         if (comparison.recommendedSide() == null || comparison.recommendedSide().code() == null) {
             return null;
         }
-        return switch (comparison.recommendedSide().code()) {
-            case "LEFT" -> "LEFT";
-            case "RIGHT" -> "RIGHT";
-            case "TIE" -> "BALANCED";
-            default -> comparison.recommendedSide().code();
-        };
+        String upstreamCode = comparison.recommendedSide().code();
+        return AiComparisonRecommendedSide.fromUpstreamCode(upstreamCode)
+            .map(Enum::name)
+            .orElse(upstreamCode);
     }
 
     private DistrictAiSourceData buildDistrictSourceData(

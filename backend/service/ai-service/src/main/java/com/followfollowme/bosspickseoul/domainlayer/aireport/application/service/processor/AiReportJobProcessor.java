@@ -17,6 +17,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.worker.AiReportWorker;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobParamKeys;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobType;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
@@ -180,29 +181,29 @@ public class AiReportJobProcessor {
                     effectiveJob.commercialReport() != null
                         ? effectiveJob.commercialReport()
                         : aiReportCachePort.getCommercialReport(
-                            params.get("commercialCode"), params.get("serviceCode"), params.get("periodCode")
+                            params.get(AiReportJobParamKeys.COMMERCIAL_CODE), params.get(AiReportJobParamKeys.SERVICE_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                         ).orElse(null)
                 ));
                 case COMMERCIAL_COMPARISON -> builder.commercialComparisonReport(toInfo(
                     effectiveJob.commercialComparisonReport() != null
                         ? effectiveJob.commercialComparisonReport()
                         : aiReportCachePort.getCommercialComparisonReport(
-                            params.get("leftCommercialCode"), params.get("rightCommercialCode"),
-                            params.get("serviceCode"), params.get("periodCode")
+                            params.get(AiReportJobParamKeys.LEFT_COMMERCIAL_CODE), params.get(AiReportJobParamKeys.RIGHT_COMMERCIAL_CODE),
+                            params.get(AiReportJobParamKeys.SERVICE_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                         ).orElse(null)
                 ));
                 case DISTRICT -> builder.districtReport(toInfo(
                     effectiveJob.districtReport() != null
                         ? effectiveJob.districtReport()
                         : aiReportCachePort.getDistrictReport(
-                            params.get("districtCode"), params.get("periodCode")
+                            params.get(AiReportJobParamKeys.DISTRICT_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                         ).orElse(null)
                 ));
                 case ADMINISTRATION -> builder.administrationReport(toInfo(
                     effectiveJob.administrationReport() != null
                         ? effectiveJob.administrationReport()
                         : aiReportCachePort.getAdministrationReport(
-                            params.get("administrationCode"), params.get("periodCode")
+                            params.get(AiReportJobParamKeys.ADMINISTRATION_CODE), params.get(AiReportJobParamKeys.PERIOD_CODE)
                         ).orElse(null)
                 ));
             }
@@ -257,32 +258,32 @@ public class AiReportJobProcessor {
 
     private Map<String, String> commercialParams(String commercialCode, String serviceCode, String periodCode) {
         Map<String, String> params = new LinkedHashMap<>();
-        params.put("commercialCode", commercialCode);
-        params.put("serviceCode", serviceCode);
-        params.put("periodCode", periodCode);
+        params.put(AiReportJobParamKeys.COMMERCIAL_CODE, commercialCode);
+        params.put(AiReportJobParamKeys.SERVICE_CODE, serviceCode);
+        params.put(AiReportJobParamKeys.PERIOD_CODE, periodCode);
         return params;
     }
 
     private Map<String, String> commercialComparisonParams(CommercialComparisonAiQuery query) {
         Map<String, String> params = new LinkedHashMap<>();
-        params.put("leftCommercialCode", query.leftCommercialCode());
-        params.put("rightCommercialCode", query.rightCommercialCode());
-        params.put("serviceCode", query.serviceCode());
-        params.put("periodCode", query.periodCode());
+        params.put(AiReportJobParamKeys.LEFT_COMMERCIAL_CODE, query.leftCommercialCode());
+        params.put(AiReportJobParamKeys.RIGHT_COMMERCIAL_CODE, query.rightCommercialCode());
+        params.put(AiReportJobParamKeys.SERVICE_CODE, query.serviceCode());
+        params.put(AiReportJobParamKeys.PERIOD_CODE, query.periodCode());
         return params;
     }
 
     private Map<String, String> districtParams(String districtCode, String periodCode) {
         Map<String, String> params = new LinkedHashMap<>();
-        params.put("districtCode", districtCode);
-        params.put("periodCode", periodCode);
+        params.put(AiReportJobParamKeys.DISTRICT_CODE, districtCode);
+        params.put(AiReportJobParamKeys.PERIOD_CODE, periodCode);
         return params;
     }
 
     private Map<String, String> administrationParams(String administrationCode, String periodCode) {
         Map<String, String> params = new LinkedHashMap<>();
-        params.put("administrationCode", administrationCode);
-        params.put("periodCode", periodCode);
+        params.put(AiReportJobParamKeys.ADMINISTRATION_CODE, administrationCode);
+        params.put(AiReportJobParamKeys.PERIOD_CODE, periodCode);
         return params;
     }
 

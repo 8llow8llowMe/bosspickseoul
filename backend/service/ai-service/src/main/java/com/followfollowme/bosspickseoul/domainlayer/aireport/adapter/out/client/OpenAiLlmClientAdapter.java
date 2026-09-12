@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiResponseFormat;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiObjectSchemaDefinition;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiStringSchemaDefinition;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.dto.openai.OpenAiUsage;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AdministrationAiSourceData;
@@ -19,6 +20,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.C
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.DistrictAiSourceData;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiLlmPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.parser.AiStructuredResponseParser;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt.AiReportPromptRules;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt.AiReportPromptTemplate;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiUsageMeta;
@@ -45,21 +47,12 @@ import reactor.netty.http.client.HttpClient;
 @ConditionalOnProperty(prefix = "ai.llm", name = "provider", havingValue = "OPENAI")
 public class OpenAiLlmClientAdapter implements AiLlmPort {
 
-    private static final String SYSTEM_PROMPT = """
-        당신은 서울시 상권 분석 서비스를 위한 AI 어시스턴트입니다.
-        제공된 데이터만 사용하세요.
-        근거 없는 내용을 추측하거나 지어내지 마세요.
-        창업 성공, 수익, 성장 가능성을 단정적으로 표현하지 마세요.
-        응답의 모든 서술형 문자열은 반드시 한국어로 작성하세요.
-        모든 서술형 문장은 "~입니다", "~합니다" 형태의 존댓말로 작성하세요.
-        "~이다", "~한다", "~있다" 같은 평서체는 사용하지 마세요.
-        JSON 이외의 추가 설명은 절대 포함하지 마세요.
-    """;
+    // 지시문은 provider 별로 달라지면 안 된다. 정본은 AiReportPromptRules 한 곳이다.
+    private static final String SYSTEM_PROMPT = AiReportPromptRules.COMMON_RULES;
 
     // 서킷브레이커 인스턴스명(application.yml resilience4j.circuitbreaker.instances 키와 일치).
     // provider(OLLAMA/OPENAI)와 무관하게 LLM 의존 하나로 취급한다.
     private static final String LLM_CIRCUIT = "llm";
-    private static final int CONNECT_TIMEOUT_MILLIS = 3000;
 
     private final WebClient webClient;
     private final OpenAiSchemaMapper schemaMapper;
@@ -72,8 +65,9 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
         WebClient.Builder webClientBuilder, OpenAiSchemaMapper schemaMapper, AiStructuredResponseParser parser, AiLlmProperties properties,
         AiReportPromptTemplate promptTemplate, CircuitBreakerRegistry circuitBreakerRegistry
     ) {
+        // connect/read 타임아웃 모두 ai.llm 프로퍼티 하나에서 온다 (Ollama 경로의 AiLlmModelConfig 와 같은 값).
         HttpClient httpClient = HttpClient.create()
-            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIMEOUT_MILLIS)
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.toIntExact(properties.connectTimeoutMs()))
             .responseTimeout(Duration.ofMillis(properties.timeoutMs()));
         this.webClient = webClientBuilder
             .baseUrl(properties.baseUrl())
@@ -164,8 +158,26 @@ public class OpenAiLlmClientAdapter implements AiLlmPort {
         return null;
     }
 
+    /**
+     * 응답의 usage 블록을 사용량 집계 값으로 옮긴다.
+     *
+     * <p><b>한계</b>: {@code AiUsageMeta} 의 토큰 필드가 primitive {@code int} 라 "제공되지 않음"을
+     * 0 과 구분해 담을 수 없다. 타입을 Wrapper 로 바꾸면 Redis 카운터 증분(null 처리)과 Ollama 어댑터까지
+     * 함께 흔들려 이 변경 범위를 넘는다. 대신 usage 가 비어 있으면 WARN 으로 남겨, 집계값 0 이
+     * "실제로 0" 인지 "게이트웨이가 usage 를 안 준 것" 인지 로그로 구분할 수 있게 한다.
+     */
     private AiUsageMeta extractUsage(OpenAiChatResponse response) {
-        return AiUsageMeta.empty(properties.model());
+        String modelName = properties.model();
+        OpenAiUsage usage = response == null ? null : response.usage();
+        if (usage == null || (usage.promptTokens() == null && usage.completionTokens() == null)) {
+            log.warn("LLM 응답에 usage 가 없어 사용량을 0으로 집계합니다. model={} baseUrl={}", modelName, properties.baseUrl());
+            return AiUsageMeta.empty(modelName);
+        }
+        return new AiUsageMeta(
+            modelName,
+            usage.promptTokens() == null ? 0 : usage.promptTokens(),
+            usage.completionTokens() == null ? 0 : usage.completionTokens()
+        );
     }
 
     private OpenAiChatRequest buildRequestBody(String userPrompt, OpenAiSchemaDefinition schemaDefinition) {

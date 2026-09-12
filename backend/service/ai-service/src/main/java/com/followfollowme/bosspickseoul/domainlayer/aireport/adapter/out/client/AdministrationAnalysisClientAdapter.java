@@ -16,6 +16,9 @@ public class AdministrationAnalysisClientAdapter implements AdministrationAnalys
 
     @Override
     public AdministrationDetailQueryResult getAdministrationDetail(String administrationCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> administrationAnalysisClient.getAdministrationDetail(administrationCode, periodCode));
+        return responseSupport.requestAndUnwrap(
+            InternalResponseSupport.COMMERCIAL_SERVICE,
+            () -> administrationAnalysisClient.getAdministrationDetail(administrationCode, periodCode)
+        );
     }
 }

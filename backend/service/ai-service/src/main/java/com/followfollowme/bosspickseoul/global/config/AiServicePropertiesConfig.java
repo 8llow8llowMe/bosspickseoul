@@ -6,6 +6,7 @@ import com.followfollowme.bosspickseoul.global.properties.AiLlmProperties;
 import com.followfollowme.bosspickseoul.global.properties.AiReportCacheProperties;
 import com.followfollowme.bosspickseoul.global.properties.AiReportJobProperties;
 import com.followfollowme.bosspickseoul.global.properties.AiReportUsageLimitProperties;
+import com.followfollowme.bosspickseoul.global.properties.AiSourceFetchProperties;
 import com.followfollowme.bosspickseoul.redis.config.RedisPropertiesConfig;
 import com.followfollowme.bosspickseoul.security.resourceserver.config.JwtResourceServerPropertiesConfig;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -23,6 +24,7 @@ import org.springframework.context.annotation.Import;
     AiReportCacheProperties.class,
     AiReportJobProperties.class,
     AiReportUsageLimitProperties.class,
+    AiSourceFetchProperties.class,
     AiLlmProperties.class
 })
 public class AiServicePropertiesConfig {

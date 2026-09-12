@@ -18,15 +18,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class AiLlmModelConfig {
 
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
-
     @Bean
     @ConditionalOnProperty(prefix = "ai.llm", name = "provider", havingValue = "OLLAMA", matchIfMissing = true)
     public OllamaApi ollamaApi(RestClient.Builder restClientBuilder, WebClient.Builder webClientBuilder, AiLlmProperties properties) {
         // OllamaChatModel.call()은 RestClient 경로를 탄다. 타임아웃을 명시하지 않으면
         // LLM이 멈췄을 때 리포트 워커 스레드가 무기한 점유되므로 ai.llm.timeout-ms를 적용한다.
         ClientHttpRequestFactorySettings requestFactorySettings = ClientHttpRequestFactorySettings.defaults()
-            .withConnectTimeout(CONNECT_TIMEOUT)
+            .withConnectTimeout(Duration.ofMillis(properties.connectTimeoutMs()))
             .withReadTimeout(Duration.ofMillis(properties.timeoutMs()));
         return OllamaApi.builder()
             .baseUrl(properties.baseUrl())

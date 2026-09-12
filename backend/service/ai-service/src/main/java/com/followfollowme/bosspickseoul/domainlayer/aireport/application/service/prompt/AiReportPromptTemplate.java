@@ -11,16 +11,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AiReportPromptTemplate {
 
-    private static final String COMMON_RULES = """
-        당신은 서울시 상권 분석 서비스를 위한 AI 분석가입니다.
-        제공된 데이터만 사용하세요.
-        근거 없는 사실을 지어내지 마세요.
-        창업 성공, 수익, 성장 가능성을 단정적으로 표현하지 마세요.
-        응답은 반드시 한국어로 작성하세요.
-        리포트 문장에서 지역(자치구/행정동/상권)과 업종을 언급할 때는 코드가 아닌 명칭을 사용하세요.
-        명칭이 제공되지 않은 항목은 코드를 쓰지 말고 "이 지역", "해당 업종" 같은 일반 표현을 사용하세요.
-        JSON 외의 문장이나 설명은 추가하지 마세요.
-        """;
+    // 지시문 정본은 AiReportPromptRules 한 곳이다. provider 별 어댑터도 같은 상수를 system 메시지로 쓴다.
+    private static final String COMMON_RULES = AiReportPromptRules.COMMON_RULES;
 
     private final CommercialPromptFormatter commercialPromptFormatter;
     private final CommercialComparisonPromptFormatter commercialComparisonPromptFormatter;

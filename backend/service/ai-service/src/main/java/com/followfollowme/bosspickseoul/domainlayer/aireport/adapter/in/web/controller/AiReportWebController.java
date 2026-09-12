@@ -1,11 +1,12 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.controller;
 
 import com.followfollowme.bosspickseoul.common.dto.Response;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.request.AiReportRequestDefaults;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.request.CommercialComparisonAiRequest;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response.AiReportJobStatusResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response.AiReportSubmissionResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.sse.AiReportJobSseStreamer;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.in.AiReportWebUseCase;
 import com.followfollowme.bosspickseoul.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,7 +52,8 @@ public class AiReportWebController {
         @AuthenticationPrincipal MemberLoginActive principal,
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+        @Parameter(description = "기준 분기 코드", example = AiReportRequestDefaults.PERIOD_CODE)
+        @RequestParam(defaultValue = AiReportRequestDefaults.PERIOD_CODE) String periodCode
     ) {
         return toSubmissionResponseEntity(aiReportWebUseCase.submitCommercialReport(
             principal.memberId(), commercialCode, serviceCode, periodCode
@@ -69,9 +71,11 @@ public class AiReportWebController {
     public ResponseEntity<Response<AiReportSubmissionResponse>> submitCommercialComparisonReport(
         @AuthenticationPrincipal MemberLoginActive principal,
         @ParameterObject
-        @Valid @ModelAttribute CommercialComparisonAiQuery query
+        @Valid @ModelAttribute CommercialComparisonAiRequest request
     ) {
-        return toSubmissionResponseEntity(aiReportWebUseCase.submitCommercialComparisonReport(principal.memberId(), query));
+        return toSubmissionResponseEntity(
+            aiReportWebUseCase.submitCommercialComparisonReport(principal.memberId(), request.toQuery())
+        );
     }
 
     @Operation(
@@ -85,7 +89,8 @@ public class AiReportWebController {
     public ResponseEntity<Response<AiReportSubmissionResponse>> submitDistrictReport(
         @AuthenticationPrincipal MemberLoginActive principal,
         @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+        @Parameter(description = "기준 분기 코드", example = AiReportRequestDefaults.PERIOD_CODE)
+        @RequestParam(defaultValue = AiReportRequestDefaults.PERIOD_CODE) String periodCode
     ) {
         return toSubmissionResponseEntity(aiReportWebUseCase.submitDistrictReport(principal.memberId(), districtCode, periodCode));
     }
@@ -101,7 +106,8 @@ public class AiReportWebController {
     public ResponseEntity<Response<AiReportSubmissionResponse>> submitAdministrationReport(
         @AuthenticationPrincipal MemberLoginActive principal,
         @Parameter(description = "행정동 코드", required = true, example = "11110515") @PathVariable String administrationCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+        @Parameter(description = "기준 분기 코드", example = AiReportRequestDefaults.PERIOD_CODE)
+        @RequestParam(defaultValue = AiReportRequestDefaults.PERIOD_CODE) String periodCode
     ) {
         return toSubmissionResponseEntity(aiReportWebUseCase.submitAdministrationReport(
             principal.memberId(), administrationCode, periodCode
