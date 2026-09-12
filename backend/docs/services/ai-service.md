@@ -97,9 +97,29 @@ GET /api/v1/ai-reports/jobs/{jobId}/stream (SSE)
 
 ### 결과 스냅샷 (캐시 의존성 제거)
 
-- 워커는 작업 완료 시 결과를 **`AiReportJob.commercialReport` 필드에 직접 임베드**해서 저장한다 (`completedWithCommercialReport`).
+- 워커는 작업 완료 시 결과를 **`AiReportJob` 의 리포트 필드에 직접 임베드**해서 저장한다 (`completedWithCommercialReport` 등 4종).
 - `getJobInfo` 가 COMPLETED 작업을 조회할 때는 job 스냅샷에서 직접 결과를 읽어 반환한다. 캐시 만료 / 별도 invalidation / Redis LRU evict 같은 외부 요인과 무관.
 - 임베드 결과가 없는 레거시 작업(필드 추가 이전 버전) 만 fallback 으로 cache 를 한 번 더 조회한다.
+
+#### Redis 에 실제로 직렬화되는 타입
+
+- 잡 entry(`{prefix}:ai:job:{jobId}`)와 리포트 캐시에 실리는 결과 타입은 `application/info/*Info` 가 아니라
+  **`domain/model` 의 스냅샷 4종**이다 — `CommercialAiReportSnapshot`, `CommercialComparisonAiReportSnapshot`,
+  `DistrictAiReportSnapshot`, `AdministrationAiReportSnapshot`. `AiReportJob` 의 임베드 필드와 `AiReportCachePort` 의
+  입출력 타입이 모두 이 4종이다.
+- 이렇게 분리한 이유: `Info` 는 application 의 유스케이스 반환 타입이라 프레젠테이션 요구에 따라 자주 바뀐다.
+  그 타입을 그대로 Redis 에 굳히면 **표시용 변경이 곧 저장 포맷 변경**이 된다. 스냅샷은 저장 포맷 전용이라
+  Info 를 바꿔도 운영 Redis 에 떠 있는 데이터가 흔들리지 않는다.
+
+#### 스냅샷 필드명은 저장 포맷 계약이다 (운영 불변식)
+
+- 서비스 ObjectMapper 는 `FAIL_ON_UNKNOWN_PROPERTIES` 가 꺼져 있다. **스냅샷 필드를 리네임하면 예외 없이
+  조용히 null 이 된다** — 배포 후 기존 잡/캐시를 읽는 사용자에게만 빈 리포트로 나타난다. 컴파일도 테스트도
+  기본적으로는 이 회귀를 잡지 못한다.
+- 그래서 `AiReportRedisGoldenJsonTest` 가 **과거에 기록된 JSON 문자열 리터럴**을 출발점으로 역직렬화 결과를
+  필드 단위로 고정한다. 이 리터럴은 코드로 생성하지 않는다.
+- **이 테스트가 실패하면 리터럴을 고쳐서 통과시키지 않는다.** 실패는 곧 "운영 Redis 에 떠 있는 잡/캐시가
+  깨지는 순간"이라는 신호다. 캐시 키 버전을 올리거나(구 데이터는 miss 로 흘려보낸다) 마이그레이션을 설계한다.
 
 ### 좀비 작업 lazy 만료
 
