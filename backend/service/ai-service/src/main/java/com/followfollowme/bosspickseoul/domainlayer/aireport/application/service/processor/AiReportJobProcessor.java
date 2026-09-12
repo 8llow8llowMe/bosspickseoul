@@ -122,7 +122,7 @@ public class AiReportJobProcessor {
         }
 
         try {
-            aiReportWorker.runJob(newJobId);
+            aiReportWorker.runJob(newJobId, memberId, requestHash);
         } catch (RuntimeException dispatchFailure) {
             // 대기열 포화(TaskRejectedException)는 "작업 실패"가 아니라 "지금은 받을 수 없음"이다.
             // 재시도하면 성공할 수 있는 상황이라 사용자 안내가 달라지도록 코드를 구분한다.

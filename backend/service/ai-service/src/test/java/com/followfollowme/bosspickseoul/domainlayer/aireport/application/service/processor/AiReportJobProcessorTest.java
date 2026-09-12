@@ -138,7 +138,7 @@ class AiReportJobProcessorTest {
 
         assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
         assertThat(usageCounter.consumeCallCount).isEqualTo(1);
-        verify(worker).runJob(result.jobId());
+        verify(worker).runJob(eq(result.jobId()), eq(7L), anyString());
     }
 
     @Test
@@ -182,7 +182,7 @@ class AiReportJobProcessorTest {
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
         assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.ACCEPTED);
-        verify(worker).runJob(result.jobId());
+        verify(worker).runJob(eq(result.jobId()), eq(7L), anyString());
     }
 
     private void assertUsageLimitRejected(org.assertj.core.api.ThrowableAssert.ThrowingCallable callable) {
@@ -211,7 +211,7 @@ class AiReportJobProcessorTest {
         ));
         verify(jobStore).reserveOrGetExistingJobId(eq(7L), anyString(), eq(result.jobId()));
         verify(jobStore, never()).deleteJob(anyString());
-        verify(worker).runJob(result.jobId());
+        verify(worker).runJob(eq(result.jobId()), eq(7L), anyString());
     }
 
     @Test
@@ -235,7 +235,7 @@ class AiReportJobProcessorTest {
         when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString())).thenAnswer(invocation -> invocation.getArgument(2));
         when(jobStore.saveIfStatus(argThat(job -> job.status() == AiReportJobStatus.FAILED), eq(AiReportJobStatus.PENDING)))
             .thenReturn(true);
-        doThrow(new RuntimeException("queue full")).when(worker).runJob(anyString());
+        doThrow(new RuntimeException("queue full")).when(worker).runJob(anyString(), any(), anyString());
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
@@ -254,7 +254,7 @@ class AiReportJobProcessorTest {
         when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString()))
             .thenAnswer(invocation -> invocation.getArgument(2));
         when(jobStore.saveIfStatus(any(), eq(AiReportJobStatus.PENDING))).thenReturn(true);
-        doThrow(new java.util.concurrent.RejectedExecutionException("queue full")).when(worker).runJob(anyString());
+        doThrow(new java.util.concurrent.RejectedExecutionException("queue full")).when(worker).runJob(anyString(), any(), anyString());
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
@@ -270,7 +270,7 @@ class AiReportJobProcessorTest {
     void submitCommercialReport_dispatchFailureRaceLost_doesNotReleaseOrPublish() {
         when(jobStore.reserveOrGetExistingJobId(eq(7L), anyString(), anyString()))
             .thenAnswer(invocation -> invocation.getArgument(2));
-        doThrow(new RuntimeException("dispatch failed")).when(worker).runJob(anyString());
+        doThrow(new RuntimeException("dispatch failed")).when(worker).runJob(anyString(), any(), anyString());
 
         assertThat(processor.submitCommercialReport(7L, "C", "S", "P").submissionStatus())
             .isEqualTo(AiReportSubmissionStatus.ACCEPTED);

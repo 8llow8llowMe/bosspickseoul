@@ -1,12 +1,14 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.worker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -67,7 +69,7 @@ class AiReportWorkerTest {
         when(processor.generateCommercialReport("C", "S", "P"))
             .thenReturn(new AiGenerationResult<>(report, usage));
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verify(jobStore).saveIfStatus(argThat(j ->
             j.status() == AiReportJobStatus.COMPLETED && j.commercialReport() == report
@@ -89,7 +91,7 @@ class AiReportWorkerTest {
         when(processor.generateCommercialReport(any(), any(), any()))
             .thenThrow(new AiReportException(AiReportErrorCode.LLM_UNAVAILABLE));
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verify(jobStore).saveIfStatus(argThat(j ->
             j.status() == AiReportJobStatus.FAILED
@@ -112,7 +114,7 @@ class AiReportWorkerTest {
         when(processor.generateCommercialReport(any(), any(), any()))
             .thenThrow(new RuntimeException(secretLeak));
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verify(jobStore).saveIfStatus(argThat(j ->
             j.status() == AiReportJobStatus.FAILED
@@ -124,13 +126,28 @@ class AiReportWorkerTest {
     }
 
     @Test
-    void runJob_jobMissing_returnsSilentlyWithoutSideEffects() {
+    void runJob_jobMissing_releasesIdempotencyKeyWithoutOtherSideEffects() {
         when(jobStore.findById("J1")).thenReturn(Optional.empty());
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verify(jobStore).findById("J1");
+        // 잡 본문을 못 읽는 경로(역직렬화 실패·TTL 소멸)에서 키를 풀지 않으면 죽은 jobId 가 24h 동안
+        // 예약을 붙들어 같은 요청이 계속 404 나는 jobId 를 받는다.
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
         verifyNoMoreInteractions(jobStore);
+        verifyNoInteractions(processor, usageCounter, jobEventPort);
+    }
+
+    @Test
+    void runJob_jobMissingAndReleaseFails_doesNotPropagate() {
+        when(jobStore.findById("J1")).thenReturn(Optional.empty());
+        doThrow(new AiReportException(AiReportErrorCode.JOB_STORE_UNAVAILABLE))
+            .when(jobStore).releaseIdempotencyKey(7L, "H", "J1");
+
+        assertThatCode(() -> worker.runJob("J1", 7L, "H")).doesNotThrowAnyException();
+
+        verify(jobStore).releaseIdempotencyKey(7L, "H", "J1");
         verifyNoInteractions(processor, usageCounter, jobEventPort);
     }
 
@@ -142,10 +159,12 @@ class AiReportWorkerTest {
             .status(AiReportJobStatus.COMPLETED).createdAt(Instant.now()).build();
         when(jobStore.findById("J1")).thenReturn(Optional.of(completed));
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verify(jobStore).findById("J1");
         verify(jobStore, never()).saveIfStatus(any(), any());
+        // 다른 워커가 소유한 정상 경로다. 여기서 키를 풀면 소유 워커가 진행 중인데 중복 요청이
+        // 새 잡을 만들어버린다. 해제는 소유 워커의 종결 처리에만 맡긴다.
         verify(jobStore, never()).releaseIdempotencyKey(any(), anyString(), anyString());
         verifyNoInteractions(processor, usageCounter);
     }
@@ -155,7 +174,7 @@ class AiReportWorkerTest {
         when(jobStore.findById("J1"))
             .thenThrow(new AiReportException(AiReportErrorCode.JOB_STORE_UNAVAILABLE));
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verify(jobStore, atLeastOnce()).findById("J1");
         verify(jobStore, never()).saveIfStatus(any(), any());
@@ -174,7 +193,7 @@ class AiReportWorkerTest {
         when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.COMPLETED), eq(AiReportJobStatus.RUNNING)))
             .thenReturn(false);
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
         verify(jobEventPort, times(1)).publishJobUpdated("J1");
@@ -182,11 +201,13 @@ class AiReportWorkerTest {
 
     @Test
     void runJob_pickupRaceLost_doesNotGenerateOrReleaseOwner() {
+        // saveIfStatus 미스텁 -> false. RUNNING 전이를 다른 워커에게 뺏긴 경로다.
         when(jobStore.findById("J1")).thenReturn(Optional.of(pendingJob()));
 
-        worker.runJob("J1");
+        worker.runJob("J1", 7L, "H");
 
         verifyNoInteractions(processor, usageCounter, jobEventPort);
+        // 승자 워커가 잡을 소유하고 있으므로 여기서 예약을 풀면 안 된다.
         verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
     }
 
@@ -199,7 +220,7 @@ class AiReportWorkerTest {
         when(jobStore.saveIfStatus(any(), eq(AiReportJobStatus.RUNNING)))
             .thenThrow(new AiReportException(AiReportErrorCode.JOB_STORE_UNAVAILABLE));
 
-        assertThatThrownBy(() -> worker.runJob("J1"))
+        assertThatThrownBy(() -> worker.runJob("J1", 7L, "H"))
             .isInstanceOf(AiReportException.class);
 
         verify(jobStore, never()).releaseIdempotencyKey(any(), any(), any());
