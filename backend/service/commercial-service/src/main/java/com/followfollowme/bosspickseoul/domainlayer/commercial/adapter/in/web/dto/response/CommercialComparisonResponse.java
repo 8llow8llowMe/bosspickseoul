@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.d
 
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialComparisonTargetItem;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.ComparisonGuideItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.ComparisonMetricItem;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
@@ -16,6 +17,15 @@ public record CommercialComparisonResponse(
 
     @Schema(description = "우측 상권 메타 정보")
     CommercialComparisonTargetItem right,
+
+    @Schema(description = "조회 기준 분기 코드", example = "20233")
+    String periodCode,
+
+    @Schema(description = "조회 기준 서비스 업종 코드")
+    String serviceCode,
+
+    @Schema(description = "비교 수치와 추천 결과 해석 안내")
+    ComparisonGuideItem comparisonGuide,
 
     @Schema(description = "비교 결과 전체 요약")
     String comparisonSummary,

@@ -20,6 +20,8 @@
   - 프론트엔드 협업용. 각 API가 어떤 화면에서 쓰이는지, 호출 순서, AI 비동기 폴링 가이드
 - `frontend-api-usage-guide.md`
   - 프론트엔드 구현용. 화면별 API 선택 기준, 호출 순서, lazy load/캐싱 전략
+- `commercial-comparison-frontend-guide.md`
+  - 전체 상권 비교 화면의 지표 단위, 집계 기준, 차이값·차이율 표시와 추가 응답 필드
 - `map-api-frontend-guide.md`
   - 지도 화면 구현용. viewport 기반 지도 API 호출법, 줌 레벨 전략, 상권 히트맵/추천/비교 응용 흐름
 - `ai-report-frontend-guide.md`

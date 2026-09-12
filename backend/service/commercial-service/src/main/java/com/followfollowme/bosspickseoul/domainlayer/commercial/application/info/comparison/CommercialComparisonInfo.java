@@ -8,6 +8,9 @@ import lombok.Builder;
 public record CommercialComparisonInfo(
     CommercialComparisonTargetInfo left,
     CommercialComparisonTargetInfo right,
+    String periodCode,
+    String serviceCode,
+    ComparisonGuideInfo comparisonGuide,
     String comparisonSummary,
     CodeNameDescriptionMetadata recommendedSide,
     List<String> recommendedReasons,
