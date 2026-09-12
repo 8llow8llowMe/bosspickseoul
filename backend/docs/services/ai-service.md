@@ -152,7 +152,76 @@ GET /api/v1/ai-reports/jobs/{jobId}/stream (SSE)
 | `{prefix}:ai:job:{jobId}` | String (JSON) | 24h | `AiReportJob` 직렬화 |
 | `{prefix}:ai:job:idempotency:{memberId}:{hash}` | String | 24h | jobId |
 | `{prefix}:ai:usage:{memberId}:{yyyy-MM-dd}` | Hash | 30d | promptTokens, completionTokens, count, submissions |
-| `{prefix}:ai:report:commercial:v2:...` | String (JSON) | 24h (`ai.report.cache.ttl-seconds`) | 결과 캐시 |
+| `{prefix}:ai:report:commercial:v2:{commercialCode}:{serviceCode}:{periodCode}` | String (JSON) | 24h (`ai.report.cache.ttl-seconds`) | 상권 리포트 캐시 |
+| `{prefix}:ai:report:commercial-comparison:v1:{leftCode}:{rightCode}:{serviceCode}:{periodCode}` | String (JSON) | 24h (동일) | 상권 비교 리포트 캐시 |
+| `{prefix}:ai:report:district:v1:{districtCode}:{periodCode}` | String (JSON) | 24h (동일) | 자치구 리포트 캐시 |
+| `{prefix}:ai:report:administration:v1:{administrationCode}:{periodCode}` | String (JSON) | 24h (동일) | 행정동 리포트 캐시 |
+
+### AI 리포트 캐시 무효화 런북
+
+#### 키 4종과 현재 버전
+
+| 종류 | 키 모양 | 현재 버전 | 마지막 변경 |
+|------|---------|-----------|-------------|
+| 상권 | `{prefix}:ai:report:commercial:{v}:{commercialCode}:{serviceCode}:{periodCode}` | `v2` | 2026-04-09 (`6922881a`) — 드래프트에 추천 업종·피해야 할 영업시간·타깃 연령/성별·운영 팁 5개 필드 추가 |
+| 상권 비교 | `{prefix}:ai:report:commercial-comparison:{v}:{left}:{right}:{serviceCode}:{periodCode}` | `v1` | 2026-04-17 (`0979c215`) — 도입 시점부터 버전 세그먼트 보유. 올린 적 없음 |
+| 자치구 | `{prefix}:ai:report:district:{v}:{districtCode}:{periodCode}` | `v1` | 2026-09-12 — 세그먼트 신규 부여 |
+| 행정동 | `{prefix}:ai:report:administration:{v}:{administrationCode}:{periodCode}` | `v1` | 2026-09-12 — 세그먼트 신규 부여 |
+
+- 버전 값의 단일 출처는 `adapter/out/cache/AiReportCacheKeyVersion` 이다. 포맷 문자열 안에 숫자를 다시 박지 않는다.
+- 상권의 `v1` 키 문자열은 이력에 없다 — 최초 키에는 세그먼트가 아예 없었고(`...:commercial:{commercialCode}:...`, 커밋 `9fd62c02`),
+  세그먼트를 끼우면서 곧바로 `v2` 를 붙였다. 즉 "세그먼트 없는 키" 가 사실상의 v1 이다.
+- 키 모양은 `RedisAiReportCacheAdapterKeyTest` 가 리터럴로 고정한다. 버전을 올리면 이 테스트가 깨지고, 깨진 테스트를 고치는 행위가
+  "무효화를 의도했다" 는 확인 절차가 된다.
+
+#### 버전을 올리면 무슨 일이 생기는가
+
+1. 배포 직후 **전 사용자가 동시에 캐시 미스**를 맞는다. 기존 키는 아무도 읽지 않는 미아가 되고, 새 키는 전부 비어 있다.
+2. 미스는 곧 LLM 호출이다. 워커 큐(스레드 2 / 큐 200)가 순식간에 차고, 포화되면 `AI_007` 로 제출이 거절된다.
+3. **계정당 일일 상한 30회가 캐시 워밍업에 소모된다.** 사용자는 "평소처럼 몇 번 눌렀는데 429" 를 보게 된다.
+4. 비용도 즉시 뛴다. 재생성 건수 = 그 시점의 활성 조회 조합 수다.
+
+이걸 모르고 올리면 안 된다. 버전 상수 변경은 "한 글자 수정" 이 아니라 **전체 캐시 폐기 + LLM 호출 폭증을 트리거하는 운영 행위**다.
+
+#### 언제 올리는가 / 올리지 않는가
+
+올린다 — **구버전 캐시가 새 코드에서 잘못 해석되거나 계약을 만족하지 못할 때**.
+
+- 스냅샷 레코드에 필드를 추가/리네임했고, 그 필드가 응답의 필수 요소일 때 (상권 `v2` 가 이 사례다).
+  `FAIL_ON_UNKNOWN_PROPERTIES` 가 꺼져 있어 구 데이터는 예외 없이 조용히 null 이 된다 — 그래서 버전으로 걸러야 한다.
+- 캐시 키 구성 요소(코드·기간 조합)의 의미가 바뀌어 같은 키가 다른 것을 가리키게 될 때.
+
+올리지 않는다 — **결과가 "덜 정확" 할 뿐 구조적으로 유효하고, TTL 24시간 안에 자연 교체될 때**.
+
+- 실례(2026-09-12, 커밋 `ec88849d` "모든 상권 AI 리포트가 총 상주인구를 0 으로 받던 결함"):
+  프롬프트에 들어가는 총 상주인구가 항상 0 이라 리포트 근거 한 줄이 틀린 상태로 캐시되어 있었다.
+  **올리지 않기로 판단했다.** 근거는 (1) 영향이 프롬프트 입력 한 항목이고 응답 스키마·필드 구조는 그대로라 구 캐시도 파싱된다,
+  (2) 캐시와 잡 스냅샷 TTL 이 둘 다 24시간이라 배포 후 하루면 전부 새 근거로 재생성된다,
+  (3) 반대로 버전을 올리면 그 하루를 벌자고 일일 상한 30회를 전 사용자에게서 캐시 워밍업으로 태우게 된다.
+  틀린 리포트 하루 < 전 사용자 상한 소진 — 이 저울이 판단 기준이다.
+
+#### 버전을 올리지 않고 일부만 지워야 할 때
+
+특정 상권/기간처럼 범위가 좁으면 버전 대신 해당 키만 지운다.
+
+```bash
+# 운영 중 KEYS 는 절대 쓰지 않는다 — 단일 스레드 Redis 를 전체 키스페이스 스캔 동안 블로킹한다.
+# SCAN 은 커서 기반이라 블로킹하지 않는다.
+redis-cli --scan --pattern 'bosspickseoul:ai:report:district:v1:11680:*' | xargs -r -n 100 redis-cli DEL
+```
+
+- `--pattern` 은 항상 **버전 세그먼트까지 포함**해서 좁힌다. `...:ai:report:*` 같은 광범위 패턴은 잡 스냅샷 캐시 fallback 까지 흔든다.
+- 삭제 대상이 많으면 `-n 100` 단위 배치를 유지해 한 번에 거대한 DEL 을 보내지 않는다.
+- 지운 키는 다음 조회에서 한 번씩 LLM 을 태운다. 범위를 좁힐수록 안전하다.
+
+#### 미아 키는 방치해도 된다
+
+버전을 올리면 구버전 키는 참조되지 않은 채 남지만 **TTL 24시간이 지나면 스스로 사라진다.** 별도 정리 작업이 필요 없고,
+메모리 압박이 걱정되는 상황이 아니라면 위의 SCAN + DEL 로 굳이 찾아 지우지 않는다.
+
+자치구·행정동에 `v1` 을 새로 부여한 2026-09-12 변경도 같은 원리로 일회성 미아를 만든다. 감당 가능하다고 본 근거는
+(1) TTL 24시간이라 하루면 소멸, (2) 자치구·행정동은 상권보다 호출량이 적어 미스 폭이 작다,
+(3) 이미 해당 코드를 건드린 시점이라 세그먼트를 끼우는 비용이 가장 쌌다 — 세 가지다.
 
 ### Properties
 

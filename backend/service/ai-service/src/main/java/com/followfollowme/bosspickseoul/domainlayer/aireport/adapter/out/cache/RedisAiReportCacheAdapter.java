@@ -19,6 +19,13 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+/**
+ * AI 리포트 결과 스냅샷의 Redis 캐시 어댑터.
+ *
+ * <p>키 4종은 모두 {@code {prefix}:ai:report:{kind}:{version}:{식별자...}} 모양이고, 버전 세그먼트 값은
+ * {@link AiReportCacheKeyVersion} 한 곳에만 존재한다. 버전을 올리면 배포 직후 전 사용자가 캐시 미스를 맞으므로
+ * 올릴지 말지는 {@code backend/docs/services/ai-service.md} 의 "AI 리포트 캐시 무효화 런북" 기준을 따른다.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -103,21 +110,23 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
     }
 
     private String buildCommercialKey(String commercialCode, String serviceCode, String periodCode) {
-        return "%s:ai:report:commercial:v2:%s:%s:%s".formatted(
-            redisProperties.normalizedKeyPrefix(), commercialCode, serviceCode, periodCode
+        return "%s:ai:report:commercial:%s:%s:%s:%s".formatted(
+            redisProperties.normalizedKeyPrefix(), AiReportCacheKeyVersion.COMMERCIAL, commercialCode, serviceCode, periodCode
         );
     }
 
     private String buildDistrictKey(String districtCode, String periodCode) {
-        return "%s:ai:report:district:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), districtCode, periodCode);
+        return "%s:ai:report:district:%s:%s:%s".formatted(
+            redisProperties.normalizedKeyPrefix(), AiReportCacheKeyVersion.DISTRICT, districtCode, periodCode
+        );
     }
 
     private String buildCommercialComparisonKey(
-
         String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
-        return "%s:ai:report:commercial-comparison:v1:%s:%s:%s:%s".formatted(
+        return "%s:ai:report:commercial-comparison:%s:%s:%s:%s:%s".formatted(
             redisProperties.normalizedKeyPrefix(),
+            AiReportCacheKeyVersion.COMMERCIAL_COMPARISON,
             leftCommercialCode,
             rightCommercialCode,
             serviceCode,
@@ -126,6 +135,8 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
     }
 
     private String buildAdministrationKey(String administrationCode, String periodCode) {
-        return "%s:ai:report:administration:%s:%s".formatted(redisProperties.normalizedKeyPrefix(), administrationCode, periodCode);
+        return "%s:ai:report:administration:%s:%s:%s".formatted(
+            redisProperties.normalizedKeyPrefix(), AiReportCacheKeyVersion.ADMINISTRATION, administrationCode, periodCode
+        );
     }
 }

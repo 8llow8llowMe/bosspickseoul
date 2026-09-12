@@ -121,7 +121,7 @@ class AiReportRedisGoldenJsonTest {
         }
         """;
 
-    // {prefix}:ai:report:district:{districtCode}:{periodCode}
+    // {prefix}:ai:report:district:v1:{districtCode}:{periodCode}
     private static final String DISTRICT_REPORT_GOLDEN_JSON = """
         {
           "summary": "강남구 자치구 요약",
@@ -133,7 +133,7 @@ class AiReportRedisGoldenJsonTest {
         }
         """;
 
-    // {prefix}:ai:report:administration:{administrationCode}:{periodCode}
+    // {prefix}:ai:report:administration:v1:{administrationCode}:{periodCode}
     private static final String ADMINISTRATION_REPORT_GOLDEN_JSON = """
         {
           "summary": "역삼1동 행정동 요약",
