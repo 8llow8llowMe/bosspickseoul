@@ -5,26 +5,21 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response.AiReportJobStatusResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response.AiReportSubmissionResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response.CommercialAiReportResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.exception.AiReportExceptionHandler;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.sse.AiReportJobSseStreamer;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportJobInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.in.AiReportWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobType;
@@ -51,9 +46,6 @@ class AiReportWebControllerTest {
     private AiReportWebUseCase aiReportWebUseCase;
 
     @Mock
-    private AiReportPresenter aiReportPresenter;
-
-    @Mock
     private AiReportJobSseStreamer aiReportJobSseStreamer;
 
     private MockMvc mockMvc;
@@ -62,7 +54,7 @@ class AiReportWebControllerTest {
 
     @BeforeEach
     void setUp() {
-        AiReportWebController controller = new AiReportWebController(aiReportWebUseCase, aiReportPresenter, aiReportJobSseStreamer);
+        AiReportWebController controller = new AiReportWebController(aiReportWebUseCase, aiReportJobSseStreamer);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new AiReportExceptionHandler())
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -84,16 +76,13 @@ class AiReportWebControllerTest {
 
     @Test
     void postCommercialReport_cached_returns200WithEmbeddedReport() throws Exception {
-        CommercialAiReportInfo info = mock(CommercialAiReportInfo.class);
-        AiReportSubmissionInfo submission = AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL, info);
         AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
             .submissionStatus(AiReportSubmissionStatus.CACHED.toMetadata())
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .commercialReport(mock(CommercialAiReportResponse.class))
             .build();
         when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
-            .thenReturn(submission);
-        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+            .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
                 .param("serviceCode", "S1"))
@@ -107,15 +96,13 @@ class AiReportWebControllerTest {
 
     @Test
     void postCommercialReport_accepted_returns202WithJobId() throws Exception {
-        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL, "job-uuid-1");
         AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
             .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .jobId("job-uuid-1")
             .build();
         when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
-            .thenReturn(submission);
-        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+            .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
                 .param("serviceCode", "S1"))
@@ -124,17 +111,35 @@ class AiReportWebControllerTest {
             .andExpect(jsonPath("$.dataBody.jobId").value("job-uuid-1"));
     }
 
+    /**
+     * 상태 분기는 정확히 2갈래다 — CACHED 만 200 이고 나머지는 전부 202 로 내려간다.
+     * 상태 코드가 String 이 된 뒤에도 "CACHED 가 아니면 202" 라는 폴백이 유지되는지 고정한다.
+     */
+    @Test
+    void postCommercialReport_nonCachedStatusCode_returns202() throws Exception {
+        AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
+            .submissionStatus(CodeNameDescriptionMetadata.of("SOMETHING_ELSE", "알 수 없음", "알 수 없는 제출 상태"))
+            .jobType(AiReportJobType.COMMERCIAL.toMetadata())
+            .jobId("job-uuid-9")
+            .build();
+        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
+            .thenReturn(responseBody);
+
+        mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
+                .param("serviceCode", "S1"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.dataBody.submissionStatus.code").value("SOMETHING_ELSE"));
+    }
+
     @Test
     void postDistrictReport_accepted_returns202WithJobId() throws Exception {
-        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.DISTRICT, "job-uuid-2");
         AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
             .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
             .jobType(AiReportJobType.DISTRICT.toMetadata())
             .jobId("job-uuid-2")
             .build();
         when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("11680"), eq("20233")))
-            .thenReturn(submission);
-        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+            .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/districts/{districtCode}", "11680"))
             .andExpect(status().isAccepted())
@@ -145,15 +150,13 @@ class AiReportWebControllerTest {
 
     @Test
     void postAdministrationReport_accepted_returns202WithJobId() throws Exception {
-        AiReportSubmissionInfo submission = AiReportSubmissionInfo.accepted(AiReportJobType.ADMINISTRATION, "job-uuid-3");
         AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
             .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
             .jobType(AiReportJobType.ADMINISTRATION.toMetadata())
             .jobId("job-uuid-3")
             .build();
         when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("11110515"), eq("20233")))
-            .thenReturn(submission);
-        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+            .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/administrations/{administrationCode}", "11110515"))
             .andExpect(status().isAccepted())
@@ -164,16 +167,13 @@ class AiReportWebControllerTest {
 
     @Test
     void postCommercialComparisonReport_accepted_returns202WithJobId() throws Exception {
-        AiReportSubmissionInfo submission =
-            AiReportSubmissionInfo.accepted(AiReportJobType.COMMERCIAL_COMPARISON, "job-uuid-4");
         AiReportSubmissionResponse responseBody = AiReportSubmissionResponse.builder()
             .submissionStatus(AiReportSubmissionStatus.ACCEPTED.toMetadata())
             .jobType(AiReportJobType.COMMERCIAL_COMPARISON.toMetadata())
             .jobId("job-uuid-4")
             .build();
         when(aiReportWebUseCase.submitCommercialComparisonReport(eq(MEMBER_ID), any()))
-            .thenReturn(submission);
-        when(aiReportPresenter.toSubmissionResponse(submission)).thenReturn(responseBody);
+            .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/comparisons")
                 .param("leftCommercialCode", "C1")
@@ -187,20 +187,13 @@ class AiReportWebControllerTest {
 
     @Test
     void getJobStatus_completed_returns200WithReport() throws Exception {
-        AiReportJobInfo info = AiReportJobInfo.builder()
-            .jobId("job-uuid-1")
-            .jobType(AiReportJobType.COMMERCIAL)
-            .status(AiReportJobStatus.COMPLETED)
-            .commercialReport(mock(CommercialAiReportInfo.class))
-            .build();
         AiReportJobStatusResponse responseBody = AiReportJobStatusResponse.builder()
             .jobId("job-uuid-1")
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .status(AiReportJobStatus.COMPLETED.toMetadata())
             .commercialReport(mock(CommercialAiReportResponse.class))
             .build();
-        when(aiReportWebUseCase.getJobInfo("job-uuid-1", MEMBER_ID)).thenReturn(info);
-        when(aiReportPresenter.toJobStatusResponse(info)).thenReturn(responseBody);
+        when(aiReportWebUseCase.getJobStatusResponse("job-uuid-1", MEMBER_ID)).thenReturn(responseBody);
 
         mockMvc.perform(get("/api/v1/ai-reports/jobs/{jobId}", "job-uuid-1"))
             .andExpect(status().isOk())
@@ -212,30 +205,23 @@ class AiReportWebControllerTest {
 
     @Test
     void getJobStatus_otherUserJob_returns404FromGlobalHandler() throws Exception {
-        when(aiReportWebUseCase.getJobInfo(eq("job-uuid-other"), eq(MEMBER_ID)))
+        when(aiReportWebUseCase.getJobStatusResponse(eq("job-uuid-other"), eq(MEMBER_ID)))
             .thenThrow(new AiReportException(AiReportErrorCode.JOB_NOT_FOUND));
 
         mockMvc.perform(get("/api/v1/ai-reports/jobs/{jobId}", "job-uuid-other"))
             .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.dataHeader.resultCode").value(AiReportErrorCode.JOB_NOT_FOUND.getCode()));
-
-        verify(aiReportPresenter, never()).toJobStatusResponse(any());
+            .andExpect(jsonPath("$.dataHeader.resultCode").value(AiReportErrorCode.JOB_NOT_FOUND.getCode()))
+            .andExpect(jsonPath("$.dataBody").doesNotExist());
     }
 
     @Test
     void getJobStatus_running_returns200WithoutReportPayload() throws Exception {
-        AiReportJobInfo info = AiReportJobInfo.builder()
-            .jobId("job-uuid-1")
-            .jobType(AiReportJobType.COMMERCIAL)
-            .status(AiReportJobStatus.RUNNING)
-            .build();
         AiReportJobStatusResponse responseBody = AiReportJobStatusResponse.builder()
             .jobId("job-uuid-1")
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .status(AiReportJobStatus.RUNNING.toMetadata())
             .build();
-        when(aiReportWebUseCase.getJobInfo(anyString(), anyLong())).thenReturn(info);
-        when(aiReportPresenter.toJobStatusResponse(info)).thenReturn(responseBody);
+        when(aiReportWebUseCase.getJobStatusResponse(anyString(), anyLong())).thenReturn(responseBody);
 
         mockMvc.perform(get("/api/v1/ai-reports/jobs/{jobId}", "job-uuid-1"))
             .andExpect(status().isOk())

@@ -3,7 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.sse
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportJobInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AiReportJobSubscription;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.in.AiReportWebUseCase;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.in.AiReportJobStreamUseCase;
 import com.followfollowme.bosspickseoul.global.properties.AiReportJobProperties;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
@@ -39,15 +39,15 @@ public class AiReportJobSseStreamer {
     // N 번에 한 번만 조회해 Redis 부하를 연결 수에 비례해 늘리지 않는다.
     private static final int STATUS_RECHECK_EVERY_N_HEARTBEATS = 3;
 
-    private final AiReportWebUseCase aiReportWebUseCase;
+    private final AiReportJobStreamUseCase aiReportJobStreamUseCase;
     private final AiReportPresenter aiReportPresenter;
     private final long emitterTimeoutMs;
     private final ScheduledExecutorService heartbeatScheduler;
 
     public AiReportJobSseStreamer(
-        AiReportWebUseCase aiReportWebUseCase, AiReportPresenter aiReportPresenter, AiReportJobProperties jobProperties
+        AiReportJobStreamUseCase aiReportJobStreamUseCase, AiReportPresenter aiReportPresenter, AiReportJobProperties jobProperties
     ) {
-        this.aiReportWebUseCase = aiReportWebUseCase;
+        this.aiReportJobStreamUseCase = aiReportJobStreamUseCase;
         this.aiReportPresenter = aiReportPresenter;
         // 잡이 살아있을 수 있는 최대 시간(대기 + 실행 타임아웃)보다 길게 잡을 이유가 없다.
         this.emitterTimeoutMs = TimeUnit.SECONDS.toMillis(
@@ -63,7 +63,7 @@ public class AiReportJobSseStreamer {
 
     public SseEmitter stream(String jobId, long memberId) {
         // 소유권 검증과 초기 스냅샷 확보. 실패(JOB_NOT_FOUND 등)는 SSE 시작 전이므로 일반 JSON 오류로 응답된다.
-        AiReportJobInfo initial = aiReportWebUseCase.getJobInfo(jobId, memberId);
+        AiReportJobInfo initial = aiReportJobStreamUseCase.getJobInfo(jobId, memberId);
 
         SseEmitter emitter = new SseEmitter(emitterTimeoutMs);
         if (initial.status().isTerminal()) {
@@ -104,7 +104,7 @@ public class AiReportJobSseStreamer {
 
         AtomicInteger heartbeatCount = new AtomicInteger();
         // 스냅샷 전송 전에 구독을 먼저 걸어 그 사이의 상태 전이를 놓치지 않는다.
-        subscriptionRef.set(aiReportWebUseCase.subscribeJobUpdates(
+        subscriptionRef.set(aiReportJobStreamUseCase.subscribeJobUpdates(
             jobId, memberId, info -> forward(emitter, info, cleanup, closeStream)
         ));
         heartbeatRef.set(heartbeatScheduler.scheduleAtFixedRate(
@@ -146,7 +146,7 @@ public class AiReportJobSseStreamer {
             if (heartbeatCount.incrementAndGet() % STATUS_RECHECK_EVERY_N_HEARTBEATS != 0) {
                 return;
             }
-            AiReportJobInfo current = aiReportWebUseCase.getJobInfo(jobId, memberId);
+            AiReportJobInfo current = aiReportJobStreamUseCase.getJobInfo(jobId, memberId);
             if (current.status().isTerminal()) {
                 forward(emitter, current, cleanup, closeStream);
             }

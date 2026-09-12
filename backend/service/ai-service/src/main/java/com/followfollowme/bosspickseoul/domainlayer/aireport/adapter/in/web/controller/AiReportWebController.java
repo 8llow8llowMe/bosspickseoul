@@ -3,9 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.con
 import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response.AiReportJobStatusResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response.AiReportSubmissionResponse;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.presenter.AiReportPresenter;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.sse.AiReportJobSseStreamer;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.in.AiReportWebUseCase;
@@ -39,7 +37,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class AiReportWebController {
 
     private final AiReportWebUseCase aiReportWebUseCase;
-    private final AiReportPresenter aiReportPresenter;
     private final AiReportJobSseStreamer aiReportJobSseStreamer;
 
     @Operation(
@@ -56,10 +53,9 @@ public class AiReportWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        AiReportSubmissionInfo info = aiReportWebUseCase.submitCommercialReport(
+        return toSubmissionResponseEntity(aiReportWebUseCase.submitCommercialReport(
             principal.memberId(), commercialCode, serviceCode, periodCode
-        );
-        return toSubmissionResponseEntity(info);
+        ));
     }
 
     @Operation(
@@ -75,8 +71,7 @@ public class AiReportWebController {
         @ParameterObject
         @Valid @ModelAttribute CommercialComparisonAiQuery query
     ) {
-        AiReportSubmissionInfo info = aiReportWebUseCase.submitCommercialComparisonReport(principal.memberId(), query);
-        return toSubmissionResponseEntity(info);
+        return toSubmissionResponseEntity(aiReportWebUseCase.submitCommercialComparisonReport(principal.memberId(), query));
     }
 
     @Operation(
@@ -92,8 +87,7 @@ public class AiReportWebController {
         @Parameter(description = "자치구 코드", required = true, example = "11680") @PathVariable String districtCode,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        AiReportSubmissionInfo info = aiReportWebUseCase.submitDistrictReport(principal.memberId(), districtCode, periodCode);
-        return toSubmissionResponseEntity(info);
+        return toSubmissionResponseEntity(aiReportWebUseCase.submitDistrictReport(principal.memberId(), districtCode, periodCode));
     }
 
     @Operation(
@@ -109,15 +103,17 @@ public class AiReportWebController {
         @Parameter(description = "행정동 코드", required = true, example = "11110515") @PathVariable String administrationCode,
         @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
     ) {
-        AiReportSubmissionInfo info = aiReportWebUseCase.submitAdministrationReport(
+        return toSubmissionResponseEntity(aiReportWebUseCase.submitAdministrationReport(
             principal.memberId(), administrationCode, periodCode
-        );
-        return toSubmissionResponseEntity(info);
+        ));
     }
 
-    private ResponseEntity<Response<AiReportSubmissionResponse>> toSubmissionResponseEntity(AiReportSubmissionInfo info) {
-        AiReportSubmissionResponse body = aiReportPresenter.toSubmissionResponse(info);
-        HttpStatus status = info.submissionStatus() == AiReportSubmissionStatus.CACHED
+    /**
+     * 캐시 hit(CACHED)만 200, 그 밖(신규 접수·멱등 재사용·디스패치 실패로 즉시 FAILED)은 모두 202 로 내린다.
+     * 상태 메타데이터의 code 는 String 이라 리터럴 대신 enum 상수명을 경유해 비교한다. 상수명이 바뀌면 여기도 같이 움직여야 한다.
+     */
+    private ResponseEntity<Response<AiReportSubmissionResponse>> toSubmissionResponseEntity(AiReportSubmissionResponse body) {
+        HttpStatus status = AiReportSubmissionStatus.CACHED.name().equals(body.submissionStatus().code())
             ? HttpStatus.OK
             : HttpStatus.ACCEPTED;
         return ResponseEntity.status(status).body(Response.success(body));
@@ -134,10 +130,7 @@ public class AiReportWebController {
         @AuthenticationPrincipal MemberLoginActive principal,
         @Parameter(description = "작업 식별자", required = true) @PathVariable String jobId
     ) {
-        AiReportJobStatusResponse response = aiReportPresenter.toJobStatusResponse(
-            aiReportWebUseCase.getJobInfo(jobId, principal.memberId())
-        );
-        return ResponseEntity.ok().body(Response.success(response));
+        return ResponseEntity.ok().body(Response.success(aiReportWebUseCase.getJobStatusResponse(jobId, principal.memberId())));
     }
 
     @Operation(
