@@ -5,26 +5,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAverageIncomeQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseByCategoryQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByAgeGenderPercentQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByAgeGroupQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByDayOfWeekQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByTimeSlotQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialResidentPopulationByAgeQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialResidentPopulationQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesByAgeGenderPercentQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesByAgeQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesByDayOfWeekQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesByTimeSlotQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesCountByDayOfWeekQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesCountByGenderQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesCountByTimeSlotQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSchoolCountQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialAverageIncomeClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialExpenseByCategoryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFacilityClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByAgeGenderPercentClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByAgeGroupClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByDayOfWeekClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByTimeSlotClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeAndExpenseClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationByAgeClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesByAgeGenderPercentClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesByAgeClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesByDayOfWeekClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesByTimeSlotClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesCountByDayOfWeekClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesCountByGenderClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesCountByTimeSlotClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSchoolCountClientResponse;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,14 +33,16 @@ import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
- * commercial-service 가 실제로 내려보내는 응답 JSON 과 {@code application/port/out/query} 의 QueryResult 사이의
- * 역직렬화 계약을 고정하는 골든 테스트.
+ * commercial-service 가 실제로 내려보내는 응답 JSON 과 {@code adapter/out/client/feign/dto/commercial} 의
+ * wire DTO 사이의 역직렬화 계약을 고정하는 골든 테스트.
  *
- * <p><b>왜 필요한가.</b> 이 QueryResult 5종(+중첩 15종)은 {@code CommercialAnalysisClient} 의 Feign 반환 타입으로
+ * <p><b>왜 필요한가.</b> 이 wire DTO 5종(+중첩 15종)은 {@code CommercialAnalysisClient} 의 Feign 반환 타입으로
  * 쓰이며, peer 응답을 그대로 역직렬화해 받는다. 최상위 타입에는 {@code @JsonProperty("...Item")} alias 가 붙어 있지만
  * 중첩 타입에는 alias 가 하나도 없고 <b>필드명이 우연히 peer 의 {@code *Item} DTO 와 같아서</b> 동작한다.
  * 이 계약을 참조하는 테스트가 없던 상태라, wire DTO 분리(이슈 #380) 과정에서 alias 를 잘못 옮기거나 필드를 빠뜨려도
- * 아무 테스트도 잡지 못했다. 그래서 리팩토링 <b>전에</b> 현재 계약을 못 박는다.
+ * 아무 테스트도 잡지 못했다. 그래서 리팩토링 <b>전에</b> 현재 계약을 못 박았고, 분리 후에는 역직렬화 대상 타입만
+ * wire DTO 로 바꿔 같은 JSON 리터럴로 계속 지킨다. wire → QueryResult 변환 누락은
+ * {@code CommercialAnalysisWireMapperTest} 가 따로 막는다.
  *
  * <p><b>리터럴은 코드로 생성하지 않는다.</b> 아래 JSON 은 commercial-service 의
  * {@code adapter/in/web/dto/response/Commercial*Response} 와 {@code adapter/in/web/dto/item/Commercial*Item} 의
@@ -266,15 +268,15 @@ class CommercialAnalysisWireGoldenJsonTest {
         """;
 
     @Test
-    @DisplayName("매출 응답 JSON 이 CommercialSalesQueryResult 와 중첩 7종의 모든 필드로 매핑된다")
+    @DisplayName("매출 응답 JSON 이 CommercialSalesClientResponse 와 중첩 7종의 모든 필드로 매핑된다")
     void salesGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialSalesQueryResult> response = objectMapper.readValue(SALES_GOLDEN_JSON, new TypeReference<>() {});
+        Response<CommercialSalesClientResponse> response = objectMapper.readValue(SALES_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialSalesQueryResult sales = response.dataBody();
+        CommercialSalesClientResponse sales = response.dataBody();
 
         // @JsonProperty("amountByTimeSlotItem") -> amountByTimeSlot
-        CommercialSalesByTimeSlotQueryResult amountByTimeSlot = sales.amountByTimeSlot();
+        CommercialSalesByTimeSlotClientResponse amountByTimeSlot = sales.amountByTimeSlot();
         assertThat(amountByTimeSlot).isNotNull();
         assertThat(amountByTimeSlot.salesAmountTime00To06()).isEqualTo(1101L);
         assertThat(amountByTimeSlot.salesAmountTime06To11()).isEqualTo(1102L);
@@ -284,7 +286,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(amountByTimeSlot.salesAmountTime21To24()).isEqualTo(1106L);
 
         // @JsonProperty("amountByDayOfWeekItem") -> amountByDayOfWeek
-        CommercialSalesByDayOfWeekQueryResult amountByDayOfWeek = sales.amountByDayOfWeek();
+        CommercialSalesByDayOfWeekClientResponse amountByDayOfWeek = sales.amountByDayOfWeek();
         assertThat(amountByDayOfWeek).isNotNull();
         assertThat(amountByDayOfWeek.mondaySalesAmount()).isEqualTo(1201L);
         assertThat(amountByDayOfWeek.tuesdaySalesAmount()).isEqualTo(1202L);
@@ -295,7 +297,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(amountByDayOfWeek.sundaySalesAmount()).isEqualTo(1207L);
 
         // @JsonProperty("amountByAgeItem") -> amountByAge
-        CommercialSalesByAgeQueryResult amountByAge = sales.amountByAge();
+        CommercialSalesByAgeClientResponse amountByAge = sales.amountByAge();
         assertThat(amountByAge).isNotNull();
         assertThat(amountByAge.age10SalesAmount()).isEqualTo(1301L);
         assertThat(amountByAge.age20SalesAmount()).isEqualTo(1302L);
@@ -305,7 +307,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(amountByAge.age60PlusSalesAmount()).isEqualTo(1306L);
 
         // @JsonProperty("amountByAgeGenderPercentItem") -> amountByAgeGenderPercent
-        CommercialSalesByAgeGenderPercentQueryResult amountByAgeGenderPercent = sales.amountByAgeGenderPercent();
+        CommercialSalesByAgeGenderPercentClientResponse amountByAgeGenderPercent = sales.amountByAgeGenderPercent();
         assertThat(amountByAgeGenderPercent).isNotNull();
         assertThat(amountByAgeGenderPercent.maleAge10Percent()).isEqualTo(1.1);
         assertThat(amountByAgeGenderPercent.femaleAge10Percent()).isEqualTo(2.2);
@@ -321,7 +323,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(amountByAgeGenderPercent.femaleAge60PlusPercent()).isEqualTo(12.5);
 
         // @JsonProperty("countByDayOfWeekItem") -> countByDayOfWeek
-        CommercialSalesCountByDayOfWeekQueryResult countByDayOfWeek = sales.countByDayOfWeek();
+        CommercialSalesCountByDayOfWeekClientResponse countByDayOfWeek = sales.countByDayOfWeek();
         assertThat(countByDayOfWeek).isNotNull();
         assertThat(countByDayOfWeek.mondaySalesCount()).isEqualTo(1501L);
         assertThat(countByDayOfWeek.tuesdaySalesCount()).isEqualTo(1502L);
@@ -332,7 +334,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(countByDayOfWeek.sundaySalesCount()).isEqualTo(1507L);
 
         // @JsonProperty("countByTimeSlotItem") -> countByTimeSlot
-        CommercialSalesCountByTimeSlotQueryResult countByTimeSlot = sales.countByTimeSlot();
+        CommercialSalesCountByTimeSlotClientResponse countByTimeSlot = sales.countByTimeSlot();
         assertThat(countByTimeSlot).isNotNull();
         assertThat(countByTimeSlot.salesCountTime00To06()).isEqualTo(1601L);
         assertThat(countByTimeSlot.salesCountTime06To11()).isEqualTo(1602L);
@@ -342,22 +344,22 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(countByTimeSlot.salesCountTime21To24()).isEqualTo(1606L);
 
         // @JsonProperty("countByGenderItem") -> countByGender
-        CommercialSalesCountByGenderQueryResult countByGender = sales.countByGender();
+        CommercialSalesCountByGenderClientResponse countByGender = sales.countByGender();
         assertThat(countByGender).isNotNull();
         assertThat(countByGender.maleSalesCount()).isEqualTo(1701L);
         assertThat(countByGender.femaleSalesCount()).isEqualTo(1702L);
     }
 
     @Test
-    @DisplayName("유동인구 응답 JSON 이 CommercialFootTrafficQueryResult 와 중첩 4종의 모든 필드로 매핑된다")
+    @DisplayName("유동인구 응답 JSON 이 CommercialFootTrafficClientResponse 와 중첩 4종의 모든 필드로 매핑된다")
     void footTrafficGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialFootTrafficQueryResult> response = objectMapper.readValue(FOOT_TRAFFIC_GOLDEN_JSON, new TypeReference<>() {});
+        Response<CommercialFootTrafficClientResponse> response = objectMapper.readValue(FOOT_TRAFFIC_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialFootTrafficQueryResult footTraffic = response.dataBody();
+        CommercialFootTrafficClientResponse footTraffic = response.dataBody();
 
         // @JsonProperty("byTimeSlotItem") -> byTimeSlot
-        CommercialFootTrafficByTimeSlotQueryResult byTimeSlot = footTraffic.byTimeSlot();
+        CommercialFootTrafficByTimeSlotClientResponse byTimeSlot = footTraffic.byTimeSlot();
         assertThat(byTimeSlot).isNotNull();
         assertThat(byTimeSlot.footTrafficTime00To06()).isEqualTo(2101L);
         assertThat(byTimeSlot.footTrafficTime06To11()).isEqualTo(2102L);
@@ -367,7 +369,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(byTimeSlot.footTrafficTime21To24()).isEqualTo(2106L);
 
         // @JsonProperty("byDayOfWeekItem") -> byDayOfWeek
-        CommercialFootTrafficByDayOfWeekQueryResult byDayOfWeek = footTraffic.byDayOfWeek();
+        CommercialFootTrafficByDayOfWeekClientResponse byDayOfWeek = footTraffic.byDayOfWeek();
         assertThat(byDayOfWeek).isNotNull();
         assertThat(byDayOfWeek.mondayFootTraffic()).isEqualTo(2201L);
         assertThat(byDayOfWeek.tuesdayFootTraffic()).isEqualTo(2202L);
@@ -378,7 +380,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(byDayOfWeek.sundayFootTraffic()).isEqualTo(2207L);
 
         // @JsonProperty("byAgeGroupItem") -> byAgeGroup
-        CommercialFootTrafficByAgeGroupQueryResult byAgeGroup = footTraffic.byAgeGroup();
+        CommercialFootTrafficByAgeGroupClientResponse byAgeGroup = footTraffic.byAgeGroup();
         assertThat(byAgeGroup).isNotNull();
         assertThat(byAgeGroup.age10FootTraffic()).isEqualTo(2301L);
         assertThat(byAgeGroup.age20FootTraffic()).isEqualTo(2302L);
@@ -388,7 +390,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(byAgeGroup.age60PlusFootTraffic()).isEqualTo(2306L);
 
         // @JsonProperty("byAgeGenderPercentItem") -> byAgeGenderPercent
-        CommercialFootTrafficByAgeGenderPercentQueryResult byAgeGenderPercent = footTraffic.byAgeGenderPercent();
+        CommercialFootTrafficByAgeGenderPercentClientResponse byAgeGenderPercent = footTraffic.byAgeGenderPercent();
         assertThat(byAgeGenderPercent).isNotNull();
         assertThat(byAgeGenderPercent.maleAge10Percent()).isEqualTo(21.125);
         assertThat(byAgeGenderPercent.femaleAge10Percent()).isEqualTo(22.25);
@@ -405,22 +407,22 @@ class CommercialAnalysisWireGoldenJsonTest {
     }
 
     @Test
-    @DisplayName("소득·지출 응답 JSON 이 CommercialIncomeAndExpenseQueryResult 와 중첩 2종의 모든 필드로 매핑된다")
+    @DisplayName("소득·지출 응답 JSON 이 CommercialIncomeAndExpenseClientResponse 와 중첩 2종의 모든 필드로 매핑된다")
     void incomeAndExpenseGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialIncomeAndExpenseQueryResult> response =
+        Response<CommercialIncomeAndExpenseClientResponse> response =
             objectMapper.readValue(INCOME_AND_EXPENSE_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialIncomeAndExpenseQueryResult incomeAndExpense = response.dataBody();
+        CommercialIncomeAndExpenseClientResponse incomeAndExpense = response.dataBody();
 
         // @JsonProperty("averageIncomeItem") -> averageIncome
-        CommercialAverageIncomeQueryResult averageIncome = incomeAndExpense.averageIncome();
+        CommercialAverageIncomeClientResponse averageIncome = incomeAndExpense.averageIncome();
         assertThat(averageIncome).isNotNull();
         assertThat(averageIncome.monthlyAverageIncomeAmount()).isEqualTo(3101L);
         assertThat(averageIncome.incomeBracketCode()).isEqualTo(7);
 
         // @JsonProperty("expenseByCategoryItem") -> expenseByCategory
-        CommercialExpenseByCategoryQueryResult expenseByCategory = incomeAndExpense.expenseByCategory();
+        CommercialExpenseByCategoryClientResponse expenseByCategory = incomeAndExpense.expenseByCategory();
         assertThat(expenseByCategory).isNotNull();
         assertThat(expenseByCategory.groceryExpenseAmount()).isEqualTo(3201L);
         assertThat(expenseByCategory.clothingExpenseAmount()).isEqualTo(3202L);
@@ -434,19 +436,19 @@ class CommercialAnalysisWireGoldenJsonTest {
     }
 
     @Test
-    @DisplayName("집객시설 응답 JSON 이 CommercialFacilityQueryResult 와 중첩 1종의 모든 필드로 매핑된다")
+    @DisplayName("집객시설 응답 JSON 이 CommercialFacilityClientResponse 와 중첩 1종의 모든 필드로 매핑된다")
     void facilityGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialFacilityQueryResult> response = objectMapper.readValue(FACILITY_GOLDEN_JSON, new TypeReference<>() {});
+        Response<CommercialFacilityClientResponse> response = objectMapper.readValue(FACILITY_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialFacilityQueryResult facility = response.dataBody();
+        CommercialFacilityClientResponse facility = response.dataBody();
 
         // 이 둘은 alias 없이 peer 필드명과 같아서 매핑된다.
         assertThat(facility.totalFacilityCount()).isEqualTo(4101L);
         assertThat(facility.totalTransportationFacilityCount()).isEqualTo(4301L);
 
         // @JsonProperty("schoolCountItem") -> schoolCount
-        CommercialSchoolCountQueryResult schoolCount = facility.schoolCount();
+        CommercialSchoolCountClientResponse schoolCount = facility.schoolCount();
         assertThat(schoolCount).isNotNull();
         assertThat(schoolCount.elementarySchoolCount()).isEqualTo(4201L);
         assertThat(schoolCount.middleSchoolCount()).isEqualTo(4202L);
@@ -458,14 +460,14 @@ class CommercialAnalysisWireGoldenJsonTest {
     @Test
     @DisplayName("상주인구 응답 JSON 이 중첩 1종의 모든 필드로 매핑되고, totalResidentPopulationCount 는 현재 0 으로 남는다")
     void residentPopulationGoldenJsonBindsNestedFieldsButLeavesTotalCountAtZero() throws Exception {
-        Response<CommercialResidentPopulationQueryResult> response =
+        Response<CommercialResidentPopulationClientResponse> response =
             objectMapper.readValue(RESIDENT_POPULATION_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialResidentPopulationQueryResult population = response.dataBody();
+        CommercialResidentPopulationClientResponse population = response.dataBody();
 
         // @JsonProperty("byAgeItem") -> byAge
-        CommercialResidentPopulationByAgeQueryResult byAge = population.byAge();
+        CommercialResidentPopulationByAgeClientResponse byAge = population.byAge();
         assertThat(byAge).isNotNull();
         assertThat(byAge.age10ResidentPopulation()).isEqualTo(5102L);
         assertThat(byAge.age20ResidentPopulation()).isEqualTo(5103L);
@@ -481,12 +483,12 @@ class CommercialAnalysisWireGoldenJsonTest {
         /*
          * 알려진 결함 (다음 단계에서 고친다).
          *
-         * CommercialResidentPopulationQueryResult.totalResidentPopulationCount 에 대응하는 필드가
+         * CommercialResidentPopulationClientResponse.totalResidentPopulationCount 에 대응하는 필드가
          * peer 의 CommercialResidentPopulationResponse 에 아예 없다(byAgeItem / malePercentage / femalePercentage 뿐).
          * record 컴포넌트가 primitive long 이라 매칭에 실패해도 예외 없이 조용히 0 이 된다.
          *
-         * 이 0 은 AiReportProcessor(.totalResidentPopulationCount(population.totalResidentPopulationCount()))
-         * -> CommercialAiSourceData -> CommercialPromptFormatter 를 거쳐 LLM 프롬프트로 들어간다.
+         * 이 0 은 CommercialAnalysisWireMapper -> CommercialResidentPopulationQueryResult
+         * -> AiReportProcessor -> CommercialAiSourceData -> CommercialPromptFormatter 를 거쳐 LLM 프롬프트로 들어간다.
          * 즉 지금 모든 상권 AI 리포트가 "총 상주인구 0"을 근거로 생성되고 있다.
          *
          * 지금은 현재 동작을 그대로 고정한다. 다음 커밋에서 위 byAge.totalResidentPopulation() 을 쓰도록 고치면
@@ -500,7 +502,7 @@ class CommercialAnalysisWireGoldenJsonTest {
     void topLevelJsonPropertyAliasIsLoadBearing() throws Exception {
         // peer 가 보내는 키는 "...Item" 이다. record 컴포넌트 이름(amountByTimeSlot / byAgeItem 없는 byAge 등)으로는
         // 바인딩되지 않고 @JsonIgnoreProperties(ignoreUnknown = true) 때문에 예외도 없이 null 이 된다.
-        // wire DTO 를 분리할 때 alias 를 빠뜨리면 정확히 이 모양으로 조용히 깨진다.
+        // wire DTO 에서 alias 를 빠뜨리면 정확히 이 모양으로 조용히 깨진다.
         String componentNamedJson = """
             {
               "amountByTimeSlot": { "salesAmountTime00To06": 9001 },
@@ -508,7 +510,7 @@ class CommercialAnalysisWireGoldenJsonTest {
             }
             """;
 
-        CommercialSalesQueryResult sales = objectMapper.readValue(componentNamedJson, CommercialSalesQueryResult.class);
+        CommercialSalesClientResponse sales = objectMapper.readValue(componentNamedJson, CommercialSalesClientResponse.class);
 
         assertThat(sales.amountByTimeSlot()).isNull();
         assertThat(sales.countByGender()).isNull();
@@ -517,7 +519,7 @@ class CommercialAnalysisWireGoldenJsonTest {
             { "totalFacilityCount": 9003, "schoolCount": { "totalSchoolCount": 9004 } }
             """;
 
-        CommercialFacilityQueryResult facility = objectMapper.readValue(facilityComponentNamedJson, CommercialFacilityQueryResult.class);
+        CommercialFacilityClientResponse facility = objectMapper.readValue(facilityComponentNamedJson, CommercialFacilityClientResponse.class);
 
         // alias 가 없는 totalFacilityCount 는 이름이 같아 바인딩되지만, alias 가 붙은 schoolCount 는 바인딩되지 않는다.
         assertThat(facility.totalFacilityCount()).isEqualTo(9003L);

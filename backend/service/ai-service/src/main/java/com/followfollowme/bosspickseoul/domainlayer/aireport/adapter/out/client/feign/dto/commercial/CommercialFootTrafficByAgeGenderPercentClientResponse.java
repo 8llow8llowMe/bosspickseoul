@@ -1,9 +1,9 @@
-package com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query;
+package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial;
 
-import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@Builder
-public record CommercialFootTrafficByAgeGenderPercentQueryResult(
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record CommercialFootTrafficByAgeGenderPercentClientResponse(
     double maleAge10Percent,
     double femaleAge10Percent,
     double maleAge20Percent,
@@ -19,4 +19,3 @@ public record CommercialFootTrafficByAgeGenderPercentQueryResult(
 ) {
 
 }
-

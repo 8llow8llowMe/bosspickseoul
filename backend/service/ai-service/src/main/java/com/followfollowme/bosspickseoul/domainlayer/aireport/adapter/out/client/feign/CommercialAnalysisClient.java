@@ -1,13 +1,13 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign;
 
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFacilityClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeAndExpenseClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialResidentPopulationQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialStoreAnalysisQueryResult;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -23,27 +23,27 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface CommercialAnalysisClient {
 
     @GetMapping("/{commercialCode}/foot-traffic")
-    Response<CommercialFootTrafficQueryResult> getCommercialFootTraffic(
+    Response<CommercialFootTrafficClientResponse> getCommercialFootTraffic(
         @PathVariable String commercialCode, @RequestParam String periodCode
     );
 
     @GetMapping("/{commercialCode}/services/{serviceCode}/sales")
-    Response<CommercialSalesQueryResult> getCommercialSales(
+    Response<CommercialSalesClientResponse> getCommercialSales(
         @PathVariable String commercialCode,
         @PathVariable String serviceCode,
         @RequestParam String periodCode
     );
 
     @GetMapping("/{commercialCode}/facilities")
-    Response<CommercialFacilityQueryResult> getCommercialFacility(@PathVariable String commercialCode, @RequestParam String periodCode);
+    Response<CommercialFacilityClientResponse> getCommercialFacility(@PathVariable String commercialCode, @RequestParam String periodCode);
 
     @GetMapping("/{commercialCode}/population")
-    Response<CommercialResidentPopulationQueryResult> getCommercialPopulation(
+    Response<CommercialResidentPopulationClientResponse> getCommercialPopulation(
         @PathVariable String commercialCode, @RequestParam String periodCode
     );
 
     @GetMapping("/{commercialCode}/income")
-    Response<CommercialIncomeAndExpenseQueryResult> getCommercialIncome(
+    Response<CommercialIncomeAndExpenseClientResponse> getCommercialIncome(
         @PathVariable String commercialCode, @RequestParam String periodCode
     );
 
