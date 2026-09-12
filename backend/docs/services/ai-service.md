@@ -22,7 +22,10 @@
 ## 주요 모듈
 
 - Controller: `AiReportWebController`
-- UseCase / Facade: `AiReportWebUseCase` / `AiReportWebFacade`
+- UseCase / Facade: `AiReportWebUseCase` / `AiReportWebFacade` — Controller 전용 인바운드 계약. Presenter 를 조합해 Response DTO 를 반환한다.
+- SSE 전용 UseCase / Facade: `AiReportJobStreamUseCase` / `AiReportJobStreamFacade` — `AiReportJobSseStreamer` 만 사용한다.
+  스트림 종결 판정이 `AiReportJobStatus#isTerminal()` 이라는 도메인 술어에 의존하므로 이 포트만 `Info` 를 그대로 반환하고,
+  Response 변환은 Streamer 가 전송 직전에 Presenter 로 수행한다.
 - Processor:
   - `AiReportProcessor` — cache + LLM 생성 파이프라인 (워커에서 호출)
   - `AiReportJobProcessor` — 비동기 작업 제출 / 상태 조회 / 멱등성 보장
