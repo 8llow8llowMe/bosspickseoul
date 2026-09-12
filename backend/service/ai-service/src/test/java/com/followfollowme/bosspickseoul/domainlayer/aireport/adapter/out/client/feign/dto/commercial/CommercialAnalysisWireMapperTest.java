@@ -26,7 +26,14 @@ import org.junit.jupiter.api.Test;
  * <p><b>어떻게 검사하나.</b> wire DTO 트리의 모든 말단 필드에 <b>서로 다른</b> 값을 채워 넣고 변환한 뒤,
  * 양쪽 트리를 {@code 경로 -> 값} 맵으로 펼쳐 비교한다. 값이 전부 다르므로 누락(0 으로 남음)뿐 아니라
  * 필드가 서로 뒤바뀐 경우도 잡힌다. 말단 필드 개수도 함께 못 박아, wire DTO 에 필드를 추가하고 변환을 빠뜨리면
- * 개수 단언에서 먼저 걸린다. 5종 합계는 골든 테스트가 단언하는 103개와 같다(46 + 31 + 11 + 7 + 8).
+ * 개수 단언에서 먼저 걸린다. 5종의 wire 말단 합계는 102개다(46 + 31 + 11 + 7 + 7).
+ *
+ * <p><b>1:1 이 아닌 필드가 하나 있다.</b> {@code CommercialResidentPopulationQueryResult.totalResidentPopulationCount}
+ * 는 wire 에 같은 이름의 짝이 없는 <b>파생</b> 필드로, {@code byAge.totalResidentPopulation} 에서 온다
+ * (peer 응답에 총 상주인구 최상위 키가 없다). 그래서 경로 맵을 그대로 비교하면 안 되고,
+ * {@code derivedQueryPathToWirePath} 로 "이 QueryResult 경로는 저 wire 경로에서 파생된다" 를 명시한 뒤
+ * 값이 실제로 그 원천과 같은지 따로 단언하고, 나머지 필드에만 1:1 비교를 적용한다.
+ * 파생 목록에 없는 필드가 QueryResult 에만 있으면 1:1 비교에서 걸린다.
  */
 class CommercialAnalysisWireMapperTest {
 
@@ -75,14 +82,42 @@ class CommercialAnalysisWireMapperTest {
     }
 
     @Test
-    @DisplayName("상주인구 wire DTO 의 말단 필드 8개가 모두 QueryResult 로 옮겨진다")
-    void residentPopulationMapsEveryLeafField() throws Exception {
+    @DisplayName("상주인구 wire DTO 의 말단 필드 7개가 모두 옮겨지고, totalResidentPopulationCount 는 byAge 에서 파생된다")
+    void residentPopulationMapsEveryLeafFieldAndDerivesTotalCount() throws Exception {
         assertEveryLeafCopied(
             CommercialResidentPopulationClientResponse.class,
             CommercialResidentPopulationQueryResult.class,
             wire -> CommercialAnalysisWireMapper.toQueryResult((CommercialResidentPopulationClientResponse) wire),
-            8
+            7,
+            Map.of("totalResidentPopulationCount", "byAge.totalResidentPopulation")
         );
+    }
+
+    @Test
+    @DisplayName("총 상주인구는 byAgeItem.totalResidentPopulation 값을 그대로 쓴다")
+    void totalResidentPopulationCountComesFromByAge() {
+        CommercialResidentPopulationClientResponse wire = new CommercialResidentPopulationClientResponse(
+            new CommercialResidentPopulationByAgeClientResponse(5101L, 5102L, 5103L, 5104L, 5105L, 5106L, 5107L)
+        );
+
+        CommercialResidentPopulationQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
+
+        // 예전에는 peer 에 없는 최상위 키를 읽으려다 항상 0 이 되어 "총 상주인구 0" 이 LLM 프롬프트로 들어갔다.
+        assertThat(queryResult.totalResidentPopulationCount()).isEqualTo(5101L);
+        assertThat(queryResult.byAge().totalResidentPopulation()).isEqualTo(5101L);
+    }
+
+    @Test
+    @DisplayName("peer 가 byAgeItem 을 생략하면 파생시킬 원천이 없으므로 총 상주인구는 0 이 된다")
+    void totalResidentPopulationCountIsZeroWhenByAgeIsMissing() {
+        CommercialResidentPopulationClientResponse wire = new CommercialResidentPopulationClientResponse(null);
+
+        CommercialResidentPopulationQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
+
+        // primitive long 이라 "모름" 을 표현할 수 없고 매퍼가 숫자를 지어내서도 안 된다. byAge 자체는 null 을 그대로 통과시켜
+        // 값이 없다는 사실이 AiReportProcessor 의 byAge() 역참조 지점에서 NPE 로 드러나게 둔다.
+        assertThat(queryResult.byAge()).isNull();
+        assertThat(queryResult.totalResidentPopulationCount()).isZero();
     }
 
     @Test
@@ -106,6 +141,18 @@ class CommercialAnalysisWireMapperTest {
     private static void assertEveryLeafCopied(
         Class<?> wireType, Class<?> queryType, Function<Object, Object> mapping, int expectedLeafCount
     ) throws Exception {
+        assertEveryLeafCopied(wireType, queryType, mapping, expectedLeafCount, Map.of());
+    }
+
+    /**
+     * @param expectedLeafCount wire DTO 트리의 말단 필드 개수
+     * @param derivedQueryPathToWirePath wire 에 같은 경로의 짝이 없는 QueryResult 필드 → 그 값을 파생시킨 wire 경로.
+     *                                   여기 적힌 필드는 원천과 값이 같은지 따로 단언한 뒤 1:1 비교에서 제외한다.
+     */
+    private static void assertEveryLeafCopied(
+        Class<?> wireType, Class<?> queryType, Function<Object, Object> mapping, int expectedLeafCount,
+        Map<String, String> derivedQueryPathToWirePath
+    ) throws Exception {
         AtomicLong sequence = new AtomicLong(1);
         Object wire = instantiateWithDistinctValues(wireType, sequence);
 
@@ -114,10 +161,19 @@ class CommercialAnalysisWireMapperTest {
         assertThat(queryResult).isInstanceOf(queryType);
 
         Map<String, Object> wireLeaves = flattenLeaves(wire, "");
-        Map<String, Object> queryLeaves = flattenLeaves(queryResult, "");
+        Map<String, Object> queryLeaves = new LinkedHashMap<>(flattenLeaves(queryResult, ""));
 
         assertThat(wireLeaves).hasSize(expectedLeafCount);
-        // 경로 이름과 값이 모두 같아야 한다. 빠뜨린 필드는 값 불일치(0 또는 0.0)로, 구조 변경은 키 불일치로 드러난다.
+
+        derivedQueryPathToWirePath.forEach((queryPath, wirePath) -> {
+            assertThat(wireLeaves).containsKey(wirePath);
+            // 값이 필드마다 전부 다르므로, 같다는 것은 곧 "지정한 원천에서 왔다" 는 뜻이다.
+            assertThat(queryLeaves).containsEntry(queryPath, wireLeaves.get(wirePath));
+            queryLeaves.remove(queryPath);
+        });
+
+        // 파생 필드를 뺀 나머지는 경로 이름과 값이 모두 같아야 한다. 빠뜨린 필드는 값 불일치(0 또는 0.0)로,
+        // 구조 변경이나 신고되지 않은 파생 필드는 키 불일치로 드러난다.
         assertThat(queryLeaves).isEqualTo(wireLeaves);
     }
 

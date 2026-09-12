@@ -124,6 +124,29 @@ ai:
 
 ---
 
+### `ai-service` — 상권 분석 wire DTO 분리 + "총 상주인구 0" 결함 수정
+
+**상태**: ✅ 완료
+
+**목적**: commercial-service 응답 DTO 를 application 계층에서 걷어내고, 그 과정에서 드러난 정확성 결함을 고친다.
+
+**핵심 파일** (모두 `domainlayer/aireport/` 하위):
+- `adapter/out/client/feign/dto/commercial/*ClientResponse.java` — peer 응답 모양만 표현하는 wire DTO
+- `adapter/out/client/feign/dto/commercial/CommercialAnalysisWireMapper.java` — wire → `QueryResult` 변환
+
+**수정한 결함**: wire DTO `CommercialResidentPopulationClientResponse` 가 peer 응답에 없는 `totalResidentPopulationCount`
+키를 들고 있었다. record 컴포넌트가 primitive `long` 이라 매칭 실패가 예외 없이 `0` 이 되어,
+`AiReportProcessor` → `CommercialAiSourceData` → `CommercialPromptFormatter` 를 거쳐 **모든 상권 AI 리포트가
+"총 거주인구: 0" 을 근거로 생성**되고 있었다. 총 상주인구는 peer 가 `byAgeItem.totalResidentPopulation` 으로
+제대로 내려주므로, wire 에서 그 컴포넌트를 제거하고 매퍼가 `byAge.totalResidentPopulation()` 에서 파생시킨다.
+`byAge` 가 없으면 파생 원천이 없으므로 `0` (primitive 라 "모름" 표현 불가, 매퍼가 값을 지어내지 않는다).
+
+**회귀 방지 테스트**: `CommercialAnalysisWireGoldenJsonTest`(peer JSON → wire) /
+`CommercialAnalysisWireMapperTest`(wire → QueryResult, 파생 필드 명시) /
+`CommercialResidentPopulationPromptChainTest`(값이 프롬프트 문장까지 도달).
+
+---
+
 ### `commercial-service` — 분석 화면 공유 링크
 
 **상태**: ✅ 완료

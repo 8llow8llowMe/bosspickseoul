@@ -25,9 +25,13 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
  * commercial-service 응답 wire DTO 를 out-port 반환 타입인 QueryResult 로 옮긴다.
  *
  * <p>peer 의 응답 필드명({@code ...Item})을 아는 지점은 wire DTO 뿐이고, application 계층은 QueryResult 만 본다.
- * 두 타입은 컴포넌트 이름·구조가 1:1 로 같고 값 변환이나 분기가 전혀 없는 순수 필드 복사다.
- * 필드를 하나라도 빠뜨리면 primitive 기본값 0 이 조용히 흘러가므로,
+ * 상주인구의 {@code totalResidentPopulationCount} 한 개를 뺀 나머지는 컴포넌트 이름·구조가 1:1 로 같고
+ * 값 변환이나 분기가 전혀 없는 순수 필드 복사다. 필드를 하나라도 빠뜨리면 primitive 기본값 0 이 조용히 흘러가므로,
  * {@code CommercialAnalysisWireMapperTest} 가 리플렉션으로 모든 말단 필드가 옮겨졌는지 검사한다.
+ *
+ * <p>유일한 파생 필드는 {@code CommercialResidentPopulationQueryResult.totalResidentPopulationCount} 다.
+ * peer 응답에 대응 키가 없고 총 상주인구는 {@code byAgeItem.totalResidentPopulation} 으로 내려오므로
+ * 여기서 그 값을 끌어와 채운다.
  *
  * <p>중첩 컴포넌트는 peer 가 생략할 수 있어 null 을 그대로 통과시킨다(기존 역직렬화 동작과 같다).
  */
@@ -88,11 +92,14 @@ public final class CommercialAnalysisWireMapper {
         if (wire == null) {
             return null;
         }
-        // totalResidentPopulationCount 는 peer 응답에 없는 키다. 현재 동작(항상 0)을 유지하려고 wire 값을 그대로 옮긴다.
-        // 상세는 CommercialResidentPopulationClientResponse 의 "알려진 결함" 주석 참고.
+        // totalResidentPopulationCount 는 peer 응답에 대응 키가 없는 파생 필드다. 총 상주인구는 byAgeItem 안에 있다.
+        // byAge 가 null 이면 파생시킬 원천이 없다. primitive long 이라 "모름" 을 표현할 수 없고, 매퍼가 숫자를
+        // 지어내서도 안 되므로 0 으로 둔다. 다른 중첩 블록과 마찬가지로 byAge 자체는 null 을 그대로 통과시키며,
+        // 이 경우 AiReportProcessor 가 population.byAge() 를 역참조하는 지점에서 0 이 아니라 NPE 로 드러난다.
+        CommercialResidentPopulationByAgeClientResponse byAge = wire.byAge();
         return CommercialResidentPopulationQueryResult.builder()
-            .byAge(toQueryResult(wire.byAge()))
-            .totalResidentPopulationCount(wire.totalResidentPopulationCount())
+            .byAge(toQueryResult(byAge))
+            .totalResidentPopulationCount(byAge == null ? 0L : byAge.totalResidentPopulation())
             .build();
     }
 
