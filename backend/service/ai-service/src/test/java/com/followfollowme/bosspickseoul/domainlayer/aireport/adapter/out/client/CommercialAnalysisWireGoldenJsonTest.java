@@ -458,8 +458,8 @@ class CommercialAnalysisWireGoldenJsonTest {
     }
 
     @Test
-    @DisplayName("상주인구 응답 JSON 이 중첩 1종의 모든 필드로 매핑되고, totalResidentPopulationCount 는 현재 0 으로 남는다")
-    void residentPopulationGoldenJsonBindsNestedFieldsButLeavesTotalCountAtZero() throws Exception {
+    @DisplayName("상주인구 응답 JSON 이 중첩 1종의 모든 필드로 매핑되고, 총 상주인구는 byAgeItem 안에서 온다")
+    void residentPopulationGoldenJsonBindsNestedFields() throws Exception {
         Response<CommercialResidentPopulationClientResponse> response =
             objectMapper.readValue(RESIDENT_POPULATION_GOLDEN_JSON, new TypeReference<>() {});
 
@@ -476,25 +476,19 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(byAge.age50ResidentPopulation()).isEqualTo(5106L);
         assertThat(byAge.age60PlusResidentPopulation()).isEqualTo(5107L);
 
-        // peer 는 총 상주인구를 byAgeItem.totalResidentPopulation 으로 제대로 내려준다.
-        // 아래 결함을 고칠 때 쓸 소스가 실제로 존재한다는 사실을 여기서 못 박아 둔다.
-        assertThat(byAge.totalResidentPopulation()).isEqualTo(5101L);
-
         /*
-         * 알려진 결함 (다음 단계에서 고친다).
+         * 총 상주인구가 들어오는 유일한 자리.
          *
-         * CommercialResidentPopulationClientResponse.totalResidentPopulationCount 에 대응하는 필드가
-         * peer 의 CommercialResidentPopulationResponse 에 아예 없다(byAgeItem / malePercentage / femalePercentage 뿐).
-         * record 컴포넌트가 primitive long 이라 매칭에 실패해도 예외 없이 조용히 0 이 된다.
+         * peer 의 CommercialResidentPopulationResponse 는 byAgeItem / malePercentage / femalePercentage 3개뿐이라
+         * 최상위에 totalResidentPopulationCount 같은 키가 없다. 예전 wire DTO 는 그 이름의 컴포넌트를 들고 있었고,
+         * primitive long 이라 매칭 실패가 예외 없이 0 이 되어 AiReportProcessor -> CommercialAiSourceData
+         * -> CommercialPromptFormatter 를 타고 "총 상주인구 0" 이 LLM 프롬프트로 들어갔다.
          *
-         * 이 0 은 CommercialAnalysisWireMapper -> CommercialResidentPopulationQueryResult
-         * -> AiReportProcessor -> CommercialAiSourceData -> CommercialPromptFormatter 를 거쳐 LLM 프롬프트로 들어간다.
-         * 즉 지금 모든 상권 AI 리포트가 "총 상주인구 0"을 근거로 생성되고 있다.
-         *
-         * 지금은 현재 동작을 그대로 고정한다. 다음 커밋에서 위 byAge.totalResidentPopulation() 을 쓰도록 고치면
-         * 이 assert 가 바뀌고, 그 변경이 의도된 것임이 diff 에서 드러난다.
+         * 지금은 wire 타입이 peer 모양 그대로(byAge 하나)이고, QueryResult 의 totalResidentPopulationCount 는
+         * CommercialAnalysisWireMapper 가 아래 값에서 파생시킨다. 파생 결과는 CommercialAnalysisWireMapperTest 가,
+         * 그 값이 프롬프트까지 도달하는지는 CommercialResidentPopulationPromptChainTest 가 단언한다.
          */
-        assertThat(population.totalResidentPopulationCount()).isZero();
+        assertThat(byAge.totalResidentPopulation()).isEqualTo(5101L);
     }
 
     @Test
