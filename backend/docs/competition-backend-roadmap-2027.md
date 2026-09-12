@@ -7,6 +7,36 @@
 > 범위: `backend/service`, `backend/core`, `backend/cloud`, 백엔드 문서 및 CI
 >
 > 목적: 이 문서를 다음 백엔드 개발의 우선순위 기준으로 사용한다.
+>
+> 진행 현황 갱신: 2026-09-12 (`d5b9e837` 기준). 아래 "0. 진행 현황" 절만 갱신했고, 5절 이하 백로그 본문은 작성 당시 진단 기록으로 남긴다.
+
+## 0. 진행 현황
+
+기준일 이후 develop 에 274 커밋이 쌓였다. 백로그 항목을 현재 코드와 대조한 결과는 다음과 같다.
+본문의 파일·라인 인용은 2026-09-06 시점 기준이므로 지금은 어긋날 수 있다.
+
+### P0 — 5건 모두 반영 완료
+
+| 항목 | 상태 | 근거 |
+| --- | --- | --- |
+| P0-1 AI job 원자 전이 | 완료 | `RedisAiReportJobStoreAdapter` 의 Lua 3종(`RESERVE_OR_GET_SCRIPT`, `SAVE_IF_STATUS_SCRIPT`, `RELEASE_IF_OWNER_SCRIPT`). `AiReportJobStorePort` 가 `reserveOrGetExistingJobId` / `saveIfStatus(job, expectedStatus)` / `releaseIdempotencyKey(.., expectedJobId)` 계약을 명시. `RedisAiReportJobStoreAdapterIntegrationTest` 존재 |
+| P0-2 Community 원자 갱신 | 완료 | `CommunityPostRepository` 의 조건부 UPDATE 7종(`updateContentIfActive`, `deleteIfActive`, `increment/decrementLikeCountIfActive`, `increment/decrementCommentCountIfActive`, `incrementViewCountIfActive`). `@Version` 대신 조건부 쿼리로 해결했다. `CommunityRepositoryMySqlConcurrencyTest`, `CommunityCommandProcessorAtomicUpdateTest` 존재 |
+| P0-3 Refresh token 원자 회전 | 완료 | `RedisJwtTokenStoreAdapter.ROTATE_REFRESH_TOKEN_SCRIPT` 와 `rotate(...)` → `RefreshTokenRotationResult{MISSING, TOKEN_MISMATCH, ROTATED}`. `RedisJwtTokenStoreAdapterIntegrationTest`, `JwtTokenProcessorTest` 존재 |
+| P0-4 추천 설명 일치 | 완료 | `CommercialComparisonQueryProcessor.buildRecommendedReasons` 가 승자 측이 실제로 이긴 metric 만 필터링한 뒤 양측 수치로 문장을 만든다. TIE 분기 별도 처리. `CommercialComparisonQueryProcessorTest` 존재 |
+| P0-5 시뮬레이션 업종 일치 | 완료 | `SimulationReportProcessor` 가 `command.serviceCode()` 와 `franchisee.serviceCode()` 불일치 시 `SimulationErrorCode.FRANCHISEE_SERVICE_MISMATCH` 로 거절. `SimulationReportProcessorTest` 존재 |
+
+P0 가 닫혔으므로 다음 우선순위는 P1(데이터 신뢰 기반·추천 정확성·AI 근거화)이다.
+
+### P2 — 재확인 결과
+
+| 항목 | 상태 | 비고 |
+| --- | --- | --- |
+| P2-2 OpenAI usage 집계 | **미해결** | `OpenAiLlmClientAdapter.extractUsage` 는 여전히 `AiUsageMeta.empty(...)` 를 반환하고 `OpenAiChatResponse` 는 `choices` 만 매핑한다. 단 Ollama 경로는 `OllamaLlmClientAdapter` 가 usage 를 매핑하고 `RedisAiUsageCounterAdapter` 가 집계하므로, 남은 공백은 OpenAI provider 한정이다 |
+| P2-3 Gateway blocking Redis | **미해결** | `AccessTokenBlacklistChecker` 는 `RedisTemplate`, `MemberRevocationChecker` 는 `StringRedisTemplate` 로 여전히 blocking 호출이다 |
+| P2-4 District/Batch 테스트·아키텍처 검증 | 부분 | 테스트 파일은 district 0 → 2, batch 0 → 18 로 늘었다. ArchUnit·checkstyle·SpotBugs 는 여전히 build 에 없다 |
+| P2-5 문서 계약 드리프트 | 부분 | `modules.md` 의 commercial context 목록은 10개 전부 반영됐다. 루트 `README.md:36` 은 아직 "창업 시뮬레이션과 실시간 채팅은 백엔드 구현 전"이라고 안내한다 |
+
+P1 항목은 이번 갱신에서 개별 대조하지 않았다.
 
 ## 1. 결론
 
@@ -512,6 +542,8 @@ API/feature 문서를 코드에서 생성·검증하거나 최소한 release che
 - JUnit XML 45개, 235개 테스트에서 failure/error/skipped는 0건이었다.
 - `backend/scripts/check-dto-convention.py`를 `service`, `core` 루트에 실행해 DTO 199개를 검사했고 위반은 0건이었다.
 - main/test Java 파일 수 조사: commercial 489/22, AI 149/8, auth 137/6, community 117/4, district 102/0, batch 16/0
+  - 2026-09-12 재집계: commercial 491/31, AI 149/10, auth 141/8, community 124/10, district 105/2, batch 93/18
+    (batch 는 분기 적재 15종 도입으로 main 16 → 93 으로 늘었다)
 - 애플리케이션 계층의 adapter import와 주요 동시성/계산 경로를 정적 검색 후 해당 파일을 직접 확인했다.
 
 ### 남은 한계

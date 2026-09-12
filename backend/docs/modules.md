@@ -179,7 +179,7 @@ backend/
 - 비교: 상권 A vs B, 비교 프리뷰
 - 후보 상권: 프리셋 기반 상위 N, 업종 기반 추천
 - 행정동/자치구: `/api/v1/administrations/{code}`, `/api/v1/districts/**`
-- 공유 링크: `POST/GET /api/v1/share-links`
+- 공유 링크: `POST /api/v1/share-links`(생성), `GET /api/v1/share-links/{shareCode}`(조회)
 
 **컨텍스트**: administration, analysisbookmark, category, commercial, commercialsummary, district, policy, ranking, sharelink, simulation (10개)
 
