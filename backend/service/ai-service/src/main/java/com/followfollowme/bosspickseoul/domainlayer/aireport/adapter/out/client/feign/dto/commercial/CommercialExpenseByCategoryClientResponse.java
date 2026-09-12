@@ -1,9 +1,9 @@
-package com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query;
+package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial;
 
-import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@Builder
-public record CommercialExpenseByCategoryQueryResult(
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record CommercialExpenseByCategoryClientResponse(
     long groceryExpenseAmount,
     long clothingExpenseAmount,
     long medicalExpenseAmount,
@@ -16,4 +16,3 @@ public record CommercialExpenseByCategoryQueryResult(
 ) {
 
 }
-
