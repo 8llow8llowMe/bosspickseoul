@@ -15,9 +15,13 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiUsageCounterPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.worker.AiReportWorker;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobType;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import com.followfollowme.bosspickseoul.global.properties.AiReportJobProperties;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -50,37 +54,37 @@ public class AiReportJobProcessor {
     public AiReportSubmissionInfo submitCommercialReport(
         long memberId, String commercialCode, String serviceCode, String periodCode
     ) {
-        Optional<CommercialAiReportInfo> cached =
+        Optional<CommercialAiReportSnapshot> cached =
             aiReportCachePort.getCommercialReport(commercialCode, serviceCode, periodCode);
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL, cached.get());
+            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL, toInfo(cached.get()));
         }
         return submitJob(memberId, AiReportJobType.COMMERCIAL, commercialParams(commercialCode, serviceCode, periodCode));
     }
 
     public AiReportSubmissionInfo submitCommercialComparisonReport(long memberId, CommercialComparisonAiQuery query) {
-        Optional<CommercialComparisonAiReportInfo> cached = aiReportCachePort.getCommercialComparisonReport(
+        Optional<CommercialComparisonAiReportSnapshot> cached = aiReportCachePort.getCommercialComparisonReport(
             query.leftCommercialCode(), query.rightCommercialCode(), query.serviceCode(), query.periodCode()
         );
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL_COMPARISON, cached.get());
+            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL_COMPARISON, toInfo(cached.get()));
         }
         return submitJob(memberId, AiReportJobType.COMMERCIAL_COMPARISON, commercialComparisonParams(query));
     }
 
     public AiReportSubmissionInfo submitDistrictReport(long memberId, String districtCode, String periodCode) {
-        Optional<DistrictAiReportInfo> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
+        Optional<DistrictAiReportSnapshot> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.DISTRICT, cached.get());
+            return AiReportSubmissionInfo.cached(AiReportJobType.DISTRICT, toInfo(cached.get()));
         }
         return submitJob(memberId, AiReportJobType.DISTRICT, districtParams(districtCode, periodCode));
     }
 
     public AiReportSubmissionInfo submitAdministrationReport(long memberId, String administrationCode, String periodCode) {
-        Optional<AdministrationAiReportInfo> cached =
+        Optional<AdministrationAiReportSnapshot> cached =
             aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.ADMINISTRATION, cached.get());
+            return AiReportSubmissionInfo.cached(AiReportJobType.ADMINISTRATION, toInfo(cached.get()));
         }
         return submitJob(memberId, AiReportJobType.ADMINISTRATION, administrationParams(administrationCode, periodCode));
     }
@@ -166,38 +170,41 @@ public class AiReportJobProcessor {
             .errorMessage(effectiveJob.errorMessage());
 
         // Prefer the job snapshot; cache fallback keeps older completed jobs readable.
+        // 두 갈래(잡 스냅샷 / 캐시 폴백) 모두 같은 toInfo() 를 타야 한다. 한쪽만 변환하면 스냅샷이 없는
+        // legacy 완료 잡에서 report 가 통째로 null 인 COMPLETED 가 나가고, SSE 스트리머는 그것을 종결로 보고
+        // 본문 없는 완료 이벤트를 쏜 뒤 스트림을 닫는다. 그래서 삼항식 전체를 toInfo() 로 감싸 누락 자체를 막는다.
         if (effectiveJob.status() == AiReportJobStatus.COMPLETED) {
             Map<String, String> params = effectiveJob.requestParams();
             switch (effectiveJob.jobType()) {
-                case COMMERCIAL -> builder.commercialReport(
+                case COMMERCIAL -> builder.commercialReport(toInfo(
                     effectiveJob.commercialReport() != null
                         ? effectiveJob.commercialReport()
                         : aiReportCachePort.getCommercialReport(
                             params.get("commercialCode"), params.get("serviceCode"), params.get("periodCode")
                         ).orElse(null)
-                );
-                case COMMERCIAL_COMPARISON -> builder.commercialComparisonReport(
+                ));
+                case COMMERCIAL_COMPARISON -> builder.commercialComparisonReport(toInfo(
                     effectiveJob.commercialComparisonReport() != null
                         ? effectiveJob.commercialComparisonReport()
                         : aiReportCachePort.getCommercialComparisonReport(
                             params.get("leftCommercialCode"), params.get("rightCommercialCode"),
                             params.get("serviceCode"), params.get("periodCode")
                         ).orElse(null)
-                );
-                case DISTRICT -> builder.districtReport(
+                ));
+                case DISTRICT -> builder.districtReport(toInfo(
                     effectiveJob.districtReport() != null
                         ? effectiveJob.districtReport()
                         : aiReportCachePort.getDistrictReport(
                             params.get("districtCode"), params.get("periodCode")
                         ).orElse(null)
-                );
-                case ADMINISTRATION -> builder.administrationReport(
+                ));
+                case ADMINISTRATION -> builder.administrationReport(toInfo(
                     effectiveJob.administrationReport() != null
                         ? effectiveJob.administrationReport()
                         : aiReportCachePort.getAdministrationReport(
                             params.get("administrationCode"), params.get("periodCode")
                         ).orElse(null)
-                );
+                ));
             }
         }
 
@@ -293,5 +300,55 @@ public class AiReportJobProcessor {
         } catch (NoSuchAlgorithmException exception) {
             throw new AiReportException(AiReportErrorCode.IDEMPOTENCY_KEY_GENERATION_FAILED, exception);
         }
+    }
+
+    /**
+     * 저장 표현(domain 스냅샷) -> application 표현(Info) 변환.
+     *
+     * <p>Info 를 포트/어댑터 경계 밖으로 내보내지 않기 위한 경계 변환이라 Processor 에 둔다
+     * (architecture-guide §4). 값이 없는 경우는 그대로 null 을 돌려주어 호출부의 삼항식을 그대로 감쌀 수 있게 한다.
+     */
+    private CommercialAiReportInfo toInfo(CommercialAiReportSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return new CommercialAiReportInfo(
+            snapshot.summary(), snapshot.strengths(), snapshot.risks(),
+            snapshot.recommendedBusinessCategories(), snapshot.recommendedCustomerSegments(),
+            snapshot.recommendedOperatingHours(), snapshot.avoidOperatingHours(),
+            snapshot.targetAgeGroups(), snapshot.targetGenders(), snapshot.operationTips(),
+            snapshot.businessInsight(), snapshot.generatedAt()
+        );
+    }
+
+    private CommercialComparisonAiReportInfo toInfo(CommercialComparisonAiReportSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return new CommercialComparisonAiReportInfo(
+            snapshot.summary(), snapshot.recommendedSide(), snapshot.recommendedReasons(),
+            snapshot.riskComparison(), snapshot.timeSlotInsight(), snapshot.customerSegmentInsight(),
+            snapshot.operationStrategy(), snapshot.businessInsight(), snapshot.generatedAt()
+        );
+    }
+
+    private DistrictAiReportInfo toInfo(DistrictAiReportSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return new DistrictAiReportInfo(
+            snapshot.summary(), snapshot.marketStatus(), snapshot.recommendedBusinessCategories(),
+            snapshot.cautionBusinessCategories(), snapshot.businessInsight(), snapshot.generatedAt()
+        );
+    }
+
+    private AdministrationAiReportInfo toInfo(AdministrationAiReportSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return new AdministrationAiReportInfo(
+            snapshot.summary(), snapshot.marketStatus(), snapshot.recommendedBusinessCategories(),
+            snapshot.cautionBusinessCategories(), snapshot.businessInsight(), snapshot.generatedAt()
+        );
     }
 }

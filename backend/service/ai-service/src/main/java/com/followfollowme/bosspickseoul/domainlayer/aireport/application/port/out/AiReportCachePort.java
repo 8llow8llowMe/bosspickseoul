@@ -1,18 +1,18 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out;
 
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AdministrationAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.DistrictAiReportInfo;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import java.util.Optional;
 
 public interface AiReportCachePort {
 
-    Optional<CommercialAiReportInfo> getCommercialReport(String commercialCode, String serviceCode, String periodCode);
+    Optional<CommercialAiReportSnapshot> getCommercialReport(String commercialCode, String serviceCode, String periodCode);
 
-    void saveCommercialReport(String commercialCode, String serviceCode, String periodCode, CommercialAiReportInfo reportInfo);
+    void saveCommercialReport(String commercialCode, String serviceCode, String periodCode, CommercialAiReportSnapshot reportSnapshot);
 
-    Optional<CommercialComparisonAiReportInfo> getCommercialComparisonReport(
+    Optional<CommercialComparisonAiReportSnapshot> getCommercialComparisonReport(
         String leftCommercialCode,
         String rightCommercialCode,
         String serviceCode,
@@ -24,14 +24,14 @@ public interface AiReportCachePort {
         String rightCommercialCode,
         String serviceCode,
         String periodCode,
-        CommercialComparisonAiReportInfo reportInfo
+        CommercialComparisonAiReportSnapshot reportSnapshot
     );
 
-    Optional<DistrictAiReportInfo> getDistrictReport(String districtCode, String periodCode);
+    Optional<DistrictAiReportSnapshot> getDistrictReport(String districtCode, String periodCode);
 
-    void saveDistrictReport(String districtCode, String periodCode, DistrictAiReportInfo reportInfo);
+    void saveDistrictReport(String districtCode, String periodCode, DistrictAiReportSnapshot reportSnapshot);
 
-    Optional<AdministrationAiReportInfo> getAdministrationReport(String administrationCode, String periodCode);
+    Optional<AdministrationAiReportSnapshot> getAdministrationReport(String administrationCode, String periodCode);
 
-    void saveAdministrationReport(String administrationCode, String periodCode, AdministrationAiReportInfo reportInfo);
+    void saveAdministrationReport(String administrationCode, String periodCode, AdministrationAiReportSnapshot reportSnapshot);
 }

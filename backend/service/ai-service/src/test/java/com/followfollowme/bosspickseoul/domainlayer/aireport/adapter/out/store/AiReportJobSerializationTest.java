@@ -3,10 +3,10 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.store;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobType;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,7 +21,7 @@ class AiReportJobSerializationTest {
 
     @Test
     void aiReportJob_withJavaTimeAndNestedReport_roundTripsAsJsonString() throws Exception {
-        CommercialAiReportInfo report = new CommercialAiReportInfo(
+        CommercialAiReportSnapshot report = new CommercialAiReportSnapshot(
             "요약", List.of("강점"), List.of("리스크"), List.of("추천업종"), List.of("고객층"),
             List.of("운영시간"), List.of("회피시간"), List.of("연령대"), List.of("성별"), List.of("팁"),
             "인사이트", LocalDateTime.of(2026, 8, 4, 13, 39, 45)

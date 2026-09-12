@@ -19,7 +19,6 @@ import static org.mockito.Mockito.when;
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobStorePort;
@@ -29,6 +28,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiRepo
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobType;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiUsageMeta;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -59,7 +59,7 @@ class AiReportWorkerTest {
     @Test
     void runJob_success_embedsReportAndRecordsUsageAndReleasesIdempotency() {
         AiReportJob pending = pendingJob();
-        CommercialAiReportInfo report = mock(CommercialAiReportInfo.class);
+        CommercialAiReportSnapshot report = mock(CommercialAiReportSnapshot.class);
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
         when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.RUNNING), eq(AiReportJobStatus.PENDING)))
             .thenReturn(true);
@@ -184,7 +184,7 @@ class AiReportWorkerTest {
     @Test
     void runJob_terminalTransitionLost_doesNotOverwriteOrPublishStaleTerminalState() {
         AiReportJob pending = pendingJob();
-        CommercialAiReportInfo report = mock(CommercialAiReportInfo.class);
+        CommercialAiReportSnapshot report = mock(CommercialAiReportSnapshot.class);
         when(jobStore.findById("J1")).thenReturn(Optional.of(pending));
         when(jobStore.saveIfStatus(argThat(j -> j != null && j.status() == AiReportJobStatus.RUNNING), eq(AiReportJobStatus.PENDING)))
             .thenReturn(true);

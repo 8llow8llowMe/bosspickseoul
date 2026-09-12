@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -20,6 +19,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.Ai
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportSubmissionInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AiReportSubmissionInfo.AiReportSubmissionStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AiReportJobSubscription;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportCachePort;
@@ -31,8 +31,11 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiUsag
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobStatus;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJobType;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import com.followfollowme.bosspickseoul.global.properties.AiReportJobProperties;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -116,13 +119,13 @@ class AiReportJobProcessorTest {
 
     @Test
     void submitCommercialReport_cacheHit_returnsCachedAndSkipsJobLifecycle() {
-        CommercialAiReportInfo info = mock(CommercialAiReportInfo.class);
-        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.of(info));
+        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.of(commercialSnapshot("캐시 요약")));
 
         AiReportSubmissionInfo result = processor.submitCommercialReport(7L, "C", "S", "P");
 
         assertThat(result.submissionStatus()).isEqualTo(AiReportSubmissionStatus.CACHED);
-        assertThat(result.commercialReport()).isSameAs(info);
+        // 캐시는 도메인 스냅샷을 돌려주고 Processor 가 Info 로 변환한다. 동일성이 아니라 내용으로 검증한다.
+        assertCommercialInfo(result.commercialReport(), "캐시 요약");
         assertThat(result.jobId()).isNull();
         verifyNoInteractions(jobStore, worker);
         // 캐시 hit 은 LLM 을 호출하지 않으므로 사용량 슬롯을 소비하지 않는다.
@@ -378,20 +381,20 @@ class AiReportJobProcessorTest {
 
     @Test
     void getJobInfo_completedWithEmbeddedReport_returnsItWithoutCacheLookup() {
-        CommercialAiReportInfo embedded = mock(CommercialAiReportInfo.class);
         AiReportJob done = AiReportJob.builder()
             .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
             .requestParams(commercialParams())
             .status(AiReportJobStatus.COMPLETED)
             .createdAt(Instant.now()).completedAt(Instant.now())
-            .commercialReport(embedded)
+            .commercialReport(commercialSnapshot("잡 스냅샷 요약"))
             .build();
         when(jobStore.findById("J1")).thenReturn(Optional.of(done));
 
         AiReportJobInfo info = processor.getJobInfo("J1", 7L);
 
         assertThat(info.status()).isEqualTo(AiReportJobStatus.COMPLETED);
-        assertThat(info.commercialReport()).isSameAs(embedded);
+        // 잡 스냅샷 분기도 Info 로 변환되어야 한다. 변환을 빠뜨리면 본문 없는 COMPLETED 가 나간다.
+        assertCommercialInfo(info.commercialReport(), "잡 스냅샷 요약");
         // 결과는 job 스냅샷에서 직접 — 캐시 만료/무효화에 영향 받지 않음
         verifyNoInteractions(cache);
         verify(jobStore, never()).save(any());
@@ -406,13 +409,83 @@ class AiReportJobProcessorTest {
             .status(AiReportJobStatus.COMPLETED)
             .createdAt(Instant.now()).completedAt(Instant.now())
             .build();
-        CommercialAiReportInfo cached = mock(CommercialAiReportInfo.class);
         when(jobStore.findById("J1")).thenReturn(Optional.of(done));
-        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.of(cached));
+        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.of(commercialSnapshot("캐시 폴백 요약")));
 
         AiReportJobInfo info = processor.getJobInfo("J1", 7L);
 
-        assertThat(info.commercialReport()).isSameAs(cached);
+        // 캐시 폴백 분기도 반드시 변환을 타야 한다. 이 분기만 빠뜨리면 스냅샷이 없는 legacy 완료 잡에서
+        // report 가 전부 null 인 COMPLETED 가 나가고, SSE 는 그것을 종결로 보고 본문 없이 스트림을 닫는다.
+        assertCommercialInfo(info.commercialReport(), "캐시 폴백 요약");
+    }
+
+    @Test
+    void getJobInfo_completedDistrictFallsBackToCache_convertsSnapshotToInfo() {
+        AiReportJob done = AiReportJob.builder()
+            .jobId("J1").memberId(7L).jobType(AiReportJobType.DISTRICT).requestHash("H")
+            .requestParams(Map.of("districtCode", "D", "periodCode", "P"))
+            .status(AiReportJobStatus.COMPLETED)
+            .createdAt(Instant.now()).completedAt(Instant.now())
+            .build();
+        DistrictAiReportSnapshot snapshot = new DistrictAiReportSnapshot(
+            "자치구 요약", "성장", List.of("커피전문점"), List.of("노래방"), "인사이트",
+            LocalDateTime.of(2026, 8, 4, 13, 39, 45)
+        );
+        when(jobStore.findById("J1")).thenReturn(Optional.of(done));
+        when(cache.getDistrictReport("D", "P")).thenReturn(Optional.of(snapshot));
+
+        AiReportJobInfo info = processor.getJobInfo("J1", 7L);
+
+        DistrictAiReportInfo report = info.districtReport();
+        assertThat(report).isNotNull();
+        assertThat(report.summary()).isEqualTo("자치구 요약");
+        assertThat(report.marketStatus()).isEqualTo("성장");
+        assertThat(report.recommendedBusinessCategories()).containsExactly("커피전문점");
+        assertThat(report.cautionBusinessCategories()).containsExactly("노래방");
+        assertThat(report.businessInsight()).isEqualTo("인사이트");
+        assertThat(report.generatedAt()).isEqualTo(LocalDateTime.of(2026, 8, 4, 13, 39, 45));
+    }
+
+    @Test
+    void getJobInfo_completedWithoutSnapshotAndCacheMiss_keepsReportNull() {
+        AiReportJob done = AiReportJob.builder()
+            .jobId("J1").memberId(7L).jobType(AiReportJobType.COMMERCIAL).requestHash("H")
+            .requestParams(commercialParams())
+            .status(AiReportJobStatus.COMPLETED)
+            .createdAt(Instant.now()).completedAt(Instant.now())
+            .build();
+        when(jobStore.findById("J1")).thenReturn(Optional.of(done));
+        when(cache.getCommercialReport("C", "S", "P")).thenReturn(Optional.empty());
+
+        AiReportJobInfo info = processor.getJobInfo("J1", 7L);
+
+        // 변환기는 null 을 그대로 통과시켜야 한다(NPE 로 조회 자체가 깨지면 안 된다).
+        assertThat(info.status()).isEqualTo(AiReportJobStatus.COMPLETED);
+        assertThat(info.commercialReport()).isNull();
+    }
+
+    private CommercialAiReportSnapshot commercialSnapshot(String summary) {
+        return new CommercialAiReportSnapshot(
+            summary, List.of("강점"), List.of("리스크"), List.of("추천업종"), List.of("고객층"),
+            List.of("운영시간"), List.of("회피시간"), List.of("연령대"), List.of("성별"), List.of("팁"),
+            "인사이트", LocalDateTime.of(2026, 8, 4, 13, 39, 45)
+        );
+    }
+
+    private void assertCommercialInfo(CommercialAiReportInfo report, String expectedSummary) {
+        assertThat(report).isNotNull();
+        assertThat(report.summary()).isEqualTo(expectedSummary);
+        assertThat(report.strengths()).containsExactly("강점");
+        assertThat(report.risks()).containsExactly("리스크");
+        assertThat(report.recommendedBusinessCategories()).containsExactly("추천업종");
+        assertThat(report.recommendedCustomerSegments()).containsExactly("고객층");
+        assertThat(report.recommendedOperatingHours()).containsExactly("운영시간");
+        assertThat(report.avoidOperatingHours()).containsExactly("회피시간");
+        assertThat(report.targetAgeGroups()).containsExactly("연령대");
+        assertThat(report.targetGenders()).containsExactly("성별");
+        assertThat(report.operationTips()).containsExactly("팁");
+        assertThat(report.businessInsight()).isEqualTo("인사이트");
+        assertThat(report.generatedAt()).isEqualTo(LocalDateTime.of(2026, 8, 4, 13, 39, 45));
     }
 
     private AiReportJob pendingJob(long memberId, Instant createdAt) {

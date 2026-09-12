@@ -1,10 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.processor;
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AdministrationAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AdministrationAiSourceData;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiSourceData;
@@ -38,10 +34,14 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt.PromptFormatterSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiDraft;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiUsageMeta;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiDraft;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiDraft;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiDraft;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import com.followfollowme.bosspickseoul.global.properties.AiLlmProperties;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -65,11 +65,11 @@ public class AiReportProcessor {
     private final AiReportCachePort aiReportCachePort;
     private final AiLlmProperties aiLlmProperties;
 
-    public AiGenerationResult<CommercialAiReportInfo> generateCommercialReport(
+    public AiGenerationResult<CommercialAiReportSnapshot> generateCommercialReport(
         String commercialCode, String serviceCode, String periodCode
     ) {
         long startTime = System.currentTimeMillis();
-        Optional<CommercialAiReportInfo> cached = aiReportCachePort.getCommercialReport(commercialCode, serviceCode, periodCode);
+        Optional<CommercialAiReportSnapshot> cached = aiReportCachePort.getCommercialReport(commercialCode, serviceCode, periodCode);
         if (cached.isPresent()) {
             logReport("commercial", commercialCode, periodCode, true, startTime);
             return new AiGenerationResult<>(cached.get(), AiUsageMeta.empty(aiLlmProperties.model()));
@@ -141,7 +141,7 @@ public class AiReportProcessor {
 
         AiGenerationResult<CommercialAiDraft> llmResult = aiLlmPort.generateCommercialReport(sourceData);
         CommercialAiDraft draft = llmResult.draft();
-        CommercialAiReportInfo reportInfo = new CommercialAiReportInfo(
+        CommercialAiReportSnapshot reportSnapshot = new CommercialAiReportSnapshot(
             draft.summary(),
             draft.strengths(),
             draft.risks(),
@@ -155,19 +155,19 @@ public class AiReportProcessor {
             draft.businessInsight(),
             LocalDateTime.now()
         );
-        aiReportCachePort.saveCommercialReport(commercialCode, serviceCode, periodCode, reportInfo);
+        aiReportCachePort.saveCommercialReport(commercialCode, serviceCode, periodCode, reportSnapshot);
         logReport("commercial", commercialCode, periodCode, false, startTime);
-        return new AiGenerationResult<>(reportInfo, llmResult.usage());
+        return new AiGenerationResult<>(reportSnapshot, llmResult.usage());
     }
 
-    public AiGenerationResult<CommercialComparisonAiReportInfo> generateCommercialComparisonReport(CommercialComparisonAiQuery query) {
+    public AiGenerationResult<CommercialComparisonAiReportSnapshot> generateCommercialComparisonReport(CommercialComparisonAiQuery query) {
         String leftCommercialCode = query.leftCommercialCode();
         String rightCommercialCode = query.rightCommercialCode();
         String serviceCode = query.serviceCode();
         String periodCode = query.periodCode();
 
         long startTime = System.currentTimeMillis();
-        Optional<CommercialComparisonAiReportInfo> cached = aiReportCachePort.getCommercialComparisonReport(
+        Optional<CommercialComparisonAiReportSnapshot> cached = aiReportCachePort.getCommercialComparisonReport(
             leftCommercialCode,
             rightCommercialCode,
             serviceCode,
@@ -187,7 +187,7 @@ public class AiReportProcessor {
         CommercialComparisonAiSourceData sourceData = buildCommercialComparisonSourceData(comparison, serviceCode, periodCode);
         AiGenerationResult<CommercialComparisonAiDraft> llmResult = aiLlmPort.generateCommercialComparisonReport(sourceData);
         CommercialComparisonAiDraft draft = llmResult.draft();
-        CommercialComparisonAiReportInfo reportInfo = new CommercialComparisonAiReportInfo(
+        CommercialComparisonAiReportSnapshot reportSnapshot = new CommercialComparisonAiReportSnapshot(
             draft.summary(),
             draft.recommendedSide(),
             draft.recommendedReasons(),
@@ -203,15 +203,15 @@ public class AiReportProcessor {
             rightCommercialCode,
             serviceCode,
             periodCode,
-            reportInfo
+            reportSnapshot
         );
         logReport("commercial-comparison", "%s:%s".formatted(leftCommercialCode, rightCommercialCode), periodCode, false, startTime);
-        return new AiGenerationResult<>(reportInfo, llmResult.usage());
+        return new AiGenerationResult<>(reportSnapshot, llmResult.usage());
     }
 
-    public AiGenerationResult<DistrictAiReportInfo> generateDistrictReport(String districtCode, String periodCode) {
+    public AiGenerationResult<DistrictAiReportSnapshot> generateDistrictReport(String districtCode, String periodCode) {
         long startTime = System.currentTimeMillis();
-        Optional<DistrictAiReportInfo> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
+        Optional<DistrictAiReportSnapshot> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
         if (cached.isPresent()) {
             logReport("district", districtCode, periodCode, true, startTime);
             return new AiGenerationResult<>(cached.get(), AiUsageMeta.empty(aiLlmProperties.model()));
@@ -225,7 +225,7 @@ public class AiReportProcessor {
         );
         AiGenerationResult<DistrictAiDraft> llmResult = aiLlmPort.generateDistrictReport(sourceData);
         DistrictAiDraft draft = llmResult.draft();
-        DistrictAiReportInfo reportInfo = new DistrictAiReportInfo(
+        DistrictAiReportSnapshot reportSnapshot = new DistrictAiReportSnapshot(
             draft.summary(),
             draft.marketStatus(),
             draft.recommendedBusinessCategories(),
@@ -233,14 +233,14 @@ public class AiReportProcessor {
             draft.businessInsight(),
             LocalDateTime.now()
         );
-        aiReportCachePort.saveDistrictReport(districtCode, periodCode, reportInfo);
+        aiReportCachePort.saveDistrictReport(districtCode, periodCode, reportSnapshot);
         logReport("district", districtCode, periodCode, false, startTime);
-        return new AiGenerationResult<>(reportInfo, llmResult.usage());
+        return new AiGenerationResult<>(reportSnapshot, llmResult.usage());
     }
 
-    public AiGenerationResult<AdministrationAiReportInfo> generateAdministrationReport(String administrationCode, String periodCode) {
+    public AiGenerationResult<AdministrationAiReportSnapshot> generateAdministrationReport(String administrationCode, String periodCode) {
         long startTime = System.currentTimeMillis();
-        Optional<AdministrationAiReportInfo> cached = aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
+        Optional<AdministrationAiReportSnapshot> cached = aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
         if (cached.isPresent()) {
             logReport("administration", administrationCode, periodCode, true, startTime);
             return new AiGenerationResult<>(cached.get(), AiUsageMeta.empty(aiLlmProperties.model()));
@@ -255,7 +255,7 @@ public class AiReportProcessor {
         );
         AiGenerationResult<AdministrationAiDraft> llmResult = aiLlmPort.generateAdministrationReport(sourceData);
         AdministrationAiDraft draft = llmResult.draft();
-        AdministrationAiReportInfo reportInfo = new AdministrationAiReportInfo(
+        AdministrationAiReportSnapshot reportSnapshot = new AdministrationAiReportSnapshot(
             draft.summary(),
             draft.marketStatus(),
             draft.recommendedBusinessCategories(),
@@ -263,9 +263,9 @@ public class AiReportProcessor {
             draft.businessInsight(),
             LocalDateTime.now()
         );
-        aiReportCachePort.saveAdministrationReport(administrationCode, periodCode, reportInfo);
+        aiReportCachePort.saveAdministrationReport(administrationCode, periodCode, reportSnapshot);
         logReport("administration", administrationCode, periodCode, false, startTime);
-        return new AiGenerationResult<>(reportInfo, llmResult.usage());
+        return new AiGenerationResult<>(reportSnapshot, llmResult.usage());
     }
 
     private void logReport(String reportType, String targetCode, String periodCode, boolean cacheHit, long startTime) {

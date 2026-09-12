@@ -4,11 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.AdministrationAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.CommercialComparisonAiReportInfo;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.info.DistrictAiReportInfo;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportCachePort;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.CommercialComparisonAiReportSnapshot;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import com.followfollowme.bosspickseoul.global.properties.AiReportCacheProperties;
 import com.followfollowme.bosspickseoul.redis.properties.RedisProperties;
 import java.util.Optional;
@@ -30,50 +30,50 @@ public class RedisAiReportCacheAdapter implements AiReportCachePort {
     private final ObjectMapper objectMapper;
 
     @Override
-    public Optional<CommercialAiReportInfo> getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
-        return getValue(buildCommercialKey(commercialCode, serviceCode, periodCode), CommercialAiReportInfo.class);
+    public Optional<CommercialAiReportSnapshot> getCommercialReport(String commercialCode, String serviceCode, String periodCode) {
+        return getValue(buildCommercialKey(commercialCode, serviceCode, periodCode), CommercialAiReportSnapshot.class);
     }
 
     @Override
-    public void saveCommercialReport(String commercialCode, String serviceCode, String periodCode, CommercialAiReportInfo reportInfo) {
-        saveValue(buildCommercialKey(commercialCode, serviceCode, periodCode), reportInfo);
+    public void saveCommercialReport(String commercialCode, String serviceCode, String periodCode, CommercialAiReportSnapshot reportSnapshot) {
+        saveValue(buildCommercialKey(commercialCode, serviceCode, periodCode), reportSnapshot);
     }
 
     @Override
-    public Optional<CommercialComparisonAiReportInfo> getCommercialComparisonReport(
+    public Optional<CommercialComparisonAiReportSnapshot> getCommercialComparisonReport(
         String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
     ) {
         return getValue(
             buildCommercialComparisonKey(leftCommercialCode, rightCommercialCode, serviceCode, periodCode),
-            CommercialComparisonAiReportInfo.class
+            CommercialComparisonAiReportSnapshot.class
         );
     }
 
     @Override
     public void saveCommercialComparisonReport(
-        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode, CommercialComparisonAiReportInfo reportInfo
+        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode, CommercialComparisonAiReportSnapshot reportSnapshot
     ) {
-        saveValue(buildCommercialComparisonKey(leftCommercialCode, rightCommercialCode, serviceCode, periodCode), reportInfo);
+        saveValue(buildCommercialComparisonKey(leftCommercialCode, rightCommercialCode, serviceCode, periodCode), reportSnapshot);
     }
 
     @Override
-    public Optional<DistrictAiReportInfo> getDistrictReport(String districtCode, String periodCode) {
-        return getValue(buildDistrictKey(districtCode, periodCode), DistrictAiReportInfo.class);
+    public Optional<DistrictAiReportSnapshot> getDistrictReport(String districtCode, String periodCode) {
+        return getValue(buildDistrictKey(districtCode, periodCode), DistrictAiReportSnapshot.class);
     }
 
     @Override
-    public void saveDistrictReport(String districtCode, String periodCode, DistrictAiReportInfo reportInfo) {
-        saveValue(buildDistrictKey(districtCode, periodCode), reportInfo);
+    public void saveDistrictReport(String districtCode, String periodCode, DistrictAiReportSnapshot reportSnapshot) {
+        saveValue(buildDistrictKey(districtCode, periodCode), reportSnapshot);
     }
 
     @Override
-    public Optional<AdministrationAiReportInfo> getAdministrationReport(String administrationCode, String periodCode) {
-        return getValue(buildAdministrationKey(administrationCode, periodCode), AdministrationAiReportInfo.class);
+    public Optional<AdministrationAiReportSnapshot> getAdministrationReport(String administrationCode, String periodCode) {
+        return getValue(buildAdministrationKey(administrationCode, periodCode), AdministrationAiReportSnapshot.class);
     }
 
     @Override
-    public void saveAdministrationReport(String administrationCode, String periodCode, AdministrationAiReportInfo reportInfo) {
-        saveValue(buildAdministrationKey(administrationCode, periodCode), reportInfo);
+    public void saveAdministrationReport(String administrationCode, String periodCode, AdministrationAiReportSnapshot reportSnapshot) {
+        saveValue(buildAdministrationKey(administrationCode, periodCode), reportSnapshot);
     }
 
     private <T> Optional<T> getValue(String key, Class<T> targetType) {
