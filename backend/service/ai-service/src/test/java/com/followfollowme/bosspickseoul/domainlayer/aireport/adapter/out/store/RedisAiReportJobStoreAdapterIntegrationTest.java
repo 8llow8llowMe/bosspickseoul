@@ -143,7 +143,7 @@ class RedisAiReportJobStoreAdapterIntegrationTest {
         AiUsageCounterPort usage = mock(AiUsageCounterPort.class);
         AiReportWorker worker = new AiReportWorker(uncertainStore, events, generator, usage);
 
-        assertThatThrownBy(() -> worker.runJob("job")).isInstanceOf(AiReportException.class);
+        assertThatThrownBy(() -> worker.runJob("job", 7L, "hash")).isInstanceOf(AiReportException.class);
         assertThat(store.findById("job").orElseThrow().status()).isEqualTo(AiReportJobStatus.FAILED);
         assertThat(store.reserveOrGetExistingJobId(7L, "hash", "replacement")).isEqualTo("job");
 
