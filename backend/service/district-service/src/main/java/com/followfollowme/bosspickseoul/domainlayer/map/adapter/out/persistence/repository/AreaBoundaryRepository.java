@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.map.adapter.out.persistence
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.out.persistence.entity.AreaBoundaryEntity;
 import com.followfollowme.bosspickseoul.domainlayer.map.domain.enums.AreaType;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -17,5 +18,5 @@ public interface AreaBoundaryRepository extends JpaRepository<AreaBoundaryEntity
           and a.bboxMaxLat >= :minLat
           and a.bboxMinLat <= :maxLat
         """)
-    List<AreaBoundaryEntity> findAllByAreaTypeAndBoundingBox(AreaType areaType, double minLng, double minLat, double maxLng, double maxLat);
+    List<AreaBoundaryEntity> findAllByAreaTypeAndBoundingBox(AreaType areaType, double minLng, double minLat, double maxLng, double maxLat, Pageable pageable);
 }

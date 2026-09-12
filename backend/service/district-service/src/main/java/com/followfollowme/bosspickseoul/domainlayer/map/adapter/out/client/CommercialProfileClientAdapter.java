@@ -24,9 +24,7 @@ public class CommercialProfileClientAdapter implements CommercialProfileQueryPor
     }
 
     @Override
-    public CommercialComparePreviewQueryResult getCommercialComparePreview(
-        String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode
-    ) {
+    public CommercialComparePreviewQueryResult getCommercialComparePreview(String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode) {
         return responseSupport.requestAndUnwrap(
             InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialProfileClient.getCommercialComparePreview(leftCommercialCode, rightCommercialCode, serviceCode, periodCode)
