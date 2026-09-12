@@ -36,4 +36,8 @@ dependencies {
     implementation('org.geotools:gt-epsg-hsql:33.2') {
         exclude group: 'javax.media', module: 'jai_core'
     }
+
+    // JPQL 의 bbox 겹침 부등호와 Pageable 상한은 컴파일로 검증되지 않는다.
+    // 실제 스키마에 질의해야 확인되므로 @DataJpaTest 슬라이스용 임베디드 DB 를 둔다.
+    testRuntimeOnly 'com.h2database:h2'
 }
