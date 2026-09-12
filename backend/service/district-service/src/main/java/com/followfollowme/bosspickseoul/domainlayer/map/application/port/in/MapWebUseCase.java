@@ -18,38 +18,18 @@ public interface MapWebUseCase {
     MapAreaCoordsResponse getDistrictAreaCoords(double lngSW, double latSW, double lngNE, double latNE);
 
     CommercialHeatmapResponse getCommercialHeatmap(
-        double lngSW,
-        double latSW,
-        double lngNE,
-        double latNE,
-        String serviceCode,
-        String periodCode,
-        CommercialHeatmapMetricType metricType,
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric,
-        boolean composite
+        double lngSW, double latSW, double lngNE, double latNE, String serviceCode, String periodCode,
+        CommercialHeatmapMetricType metricType, CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric, boolean composite
     );
 
     CandidatePresetsResponse getCandidatePresets();
 
     CandidateCommercialsResponse getCandidateCommercials(
-        double lngSW,
-        double latSW,
-        double lngNE,
-        double latNE,
-        String serviceCode,
-        String periodCode,
-        CandidatePresetType preset,
-        CommercialHeatmapMetricType priorityMetric,
-        Integer topN
+        double lngSW, double latSW, double lngNE, double latNE, String serviceCode, String periodCode,
+        CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric, Integer topN
     );
 
     CommercialProfileResponse getCommercialProfile(String commercialCode, String serviceCode, String periodCode);
 
-    CommercialComparePreviewResponse getCommercialComparePreview(
-        String leftCommercialCode,
-        String rightCommercialCode,
-        String serviceCode,
-        String periodCode
-    );
+    CommercialComparePreviewResponse getCommercialComparePreview(String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode);
 }

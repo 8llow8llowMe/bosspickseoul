@@ -41,4 +41,14 @@ public enum CandidatePresetType implements CodeNameDescribable {
     private final String displayName;
     private final String description;
     private final CommercialHeatmapMetricType defaultPriorityMetric;
+
+    /**
+     * 요청이 우선 지표를 지정하지 않았으면 프리셋 기본값으로 채운다.
+     *
+     * <p>히트맵과 후보 상권이 같은 폴백을 쓴다. 두 Processor 에 같은 코드를 두면 한쪽만 바뀌었을 때
+     * 같은 프리셋인데 화면마다 다른 우선 지표가 표시된다.
+     */
+    public CommercialHeatmapMetricType resolvePriorityMetric(CommercialHeatmapMetricType requested) {
+        return requested == null ? defaultPriorityMetric : requested;
+    }
 }

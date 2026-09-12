@@ -24,9 +24,7 @@ public class CommercialHeatmapClientAdapter implements CommercialHeatmapQueryPor
     }
 
     @Override
-    public CommercialHeatmapScoresQueryResult getCompositeHeatmapScores(
-        List<String> commercialCodes, String serviceCode, String preset, String priorityMetric, String periodCode
-    ) {
+    public CommercialHeatmapScoresQueryResult getCompositeHeatmapScores(List<String> commercialCodes, String serviceCode, String preset, String priorityMetric, String periodCode) {
         return responseSupport.requestAndUnwrap(
             InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialHeatmapClient.getCompositeHeatmapScores(commercialCodes, serviceCode, preset, priorityMetric, periodCode)

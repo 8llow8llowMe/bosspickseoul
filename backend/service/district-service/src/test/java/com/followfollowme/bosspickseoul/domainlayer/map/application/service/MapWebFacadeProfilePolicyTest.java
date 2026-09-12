@@ -6,11 +6,12 @@ import static org.mockito.Mockito.when;
 
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.response.CommercialProfileResponse;
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.presenter.MapPresenter;
-import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.CommercialCandidateQueryPort;
-import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.CommercialHeatmapQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.CommercialProfileQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.CommercialProfileQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.PolicyQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapCandidateQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapHeatmapQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapProfileQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapQueryProcessor;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -34,21 +35,26 @@ class MapWebFacadeProfilePolicyTest {
     private MapQueryProcessor mapQueryProcessor;
 
     @Mock
-    private CommercialHeatmapQueryPort commercialHeatmapQueryPort;
+    private MapHeatmapQueryProcessor mapHeatmapQueryProcessor;
 
     @Mock
-    private CommercialCandidateQueryPort commercialCandidateQueryPort;
+    private MapCandidateQueryProcessor mapCandidateQueryProcessor;
 
     @Mock
     private CommercialProfileQueryPort commercialProfileQueryPort;
 
+    /**
+     * 프로필 변환은 MapProfileQueryProcessor 가 맡으므로 그 Processor 만 실제 인스턴스로 넣는다.
+     * 여기서 Processor 까지 mock 으로 바꾸면 Facade → Processor → Presenter 경로가 통째로 빠져
+     * 이 테스트가 확인하려던 정책 통과 동작을 더 이상 검증하지 못한다.
+     */
     private MapWebFacade facade() {
         return new MapWebFacade(
             mapQueryProcessor,
-            new MapPresenter(),
-            commercialHeatmapQueryPort,
-            commercialCandidateQueryPort,
-            commercialProfileQueryPort
+            mapHeatmapQueryProcessor,
+            mapCandidateQueryProcessor,
+            new MapProfileQueryProcessor(commercialProfileQueryPort),
+            new MapPresenter()
         );
     }
 

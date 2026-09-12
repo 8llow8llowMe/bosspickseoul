@@ -5,12 +5,5 @@ import java.util.List;
 
 public interface CommercialCandidateQueryPort {
 
-    CandidateCommercialsQueryResult getTopCandidates(
-        List<String> commercialCodes,
-        String serviceCode,
-        String preset,
-        String priorityMetric,
-        Integer topN,
-        String periodCode
-    );
+    CandidateCommercialsQueryResult getTopCandidates(List<String> commercialCodes, String serviceCode, String preset, String priorityMetric, Integer topN, String periodCode);
 }

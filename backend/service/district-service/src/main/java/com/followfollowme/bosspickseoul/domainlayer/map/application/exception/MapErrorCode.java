@@ -18,6 +18,9 @@ public enum MapErrorCode {
     INTERNAL_SERVICE_UNAVAILABLE("MAP_008", "상권 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
     // 하위 서비스(commercial)의 404 는 장애가 아니라 "데이터 없음" — 하위 응답의 resultMessage 를 그대로 전달한다.
     UPSTREAM_DATA_NOT_FOUND("MAP_009", "요청한 상권 분석 데이터가 없습니다. 다른 분기를 선택해 주세요.", HttpStatus.NOT_FOUND),
+    // 뷰포트가 넓어 영역이 상한을 넘은 경우. 몇 건이 넘쳤는지는 메시지에 담지 않는다.
+    // MapException 에 varargs 생성자를 두면 기존 MapException(errorCode, String message) 와 모호해진다.
+    VIEWPORT_TOO_MANY_AREAS("MAP_010", "지도 범위에 포함된 영역이 너무 많습니다. 지도를 확대해 주세요.", HttpStatus.BAD_REQUEST),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(MAP_101~102)는 MapValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
