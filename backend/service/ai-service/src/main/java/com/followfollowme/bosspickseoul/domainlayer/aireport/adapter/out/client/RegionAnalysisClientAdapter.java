@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client;
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.RegionAnalysisClient;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.regional.RegionAnalysisWireMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
@@ -35,9 +36,17 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
         );
     }
 
+    /*
+     * 상권 소속 지역만 peer 응답을 wire DTO(adapter/out/client/feign/dto/regional)로 받아 QueryResult 로 옮긴다.
+     * peer 의 응답 필드명을 아는 지점은 wire DTO 뿐이고, out-port 계약은 QueryResult 로만 표현된다.
+     * 나머지 3개는 아직 wire 분리 전이라 QueryResult 를 Feign 반환 타입으로 그대로 쓴다(이슈 #387 범위 밖).
+     */
     @Override
     public CommercialAdministrationQueryResult getCommercialAdministration(String commercialCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getCommercialAdministration(commercialCode));
+        return RegionAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrap(
+            InternalResponseSupport.DISTRICT_SERVICE,
+            () -> regionAnalysisClient.getCommercialAdministration(commercialCode)
+        ));
     }
 
     @Override

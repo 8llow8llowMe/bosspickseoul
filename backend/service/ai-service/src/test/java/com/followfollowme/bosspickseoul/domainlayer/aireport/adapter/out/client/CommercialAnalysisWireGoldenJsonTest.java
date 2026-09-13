@@ -14,6 +14,8 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByTimeSlotClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeAndExpenseClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeSummaryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialPeerStoreClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationByAgeClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesByAgeGenderPercentClientResponse;
@@ -24,7 +26,11 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesCountByGenderClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesCountByTimeSlotClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesSummaryClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSchoolCountClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialStoreAnalysisClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.RegionalIncomeSummaryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.RegionalSalesSummaryClientResponse;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,6 +58,10 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
  * <p><b>실패하면 리터럴을 고쳐서 통과시키지 마라.</b> 이 테스트가 깨지는 순간이 곧 "peer 응답을 더 이상 못 읽는 순간"이다.
  * 필드가 조용히 {@code 0}/{@code null} 이 되어 LLM 프롬프트에 잘못된 근거가 들어간다. peer DTO 가 실제로 바뀐 것인지
  * 먼저 확인해야 한다.
+ *
+ * <p><b>alias 가 없는 3종도 함께 고정한다(이슈 #387).</b> 점포 분석 / 매출 요약 / 지출 요약의 wire DTO 에는
+ * {@code @JsonProperty} 가 하나도 없고 컴포넌트 이름이 peer 의 {@code *Response}/{@code *Item} 과 같아서 동작한다.
+ * alias 가 없을 뿐 위 5종의 중첩과 같은 종류의 결합이라, 이름이 어긋나면 마찬가지로 조용히 {@code null}/{@code 0} 이 된다.
  */
 class CommercialAnalysisWireGoldenJsonTest {
 
@@ -263,6 +273,98 @@ class CommercialAnalysisWireGoldenJsonTest {
             },
             "malePercentage": 48.25,
             "femalePercentage": 51.75
+          }
+        }
+        """;
+
+    /*
+     * GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/stores
+     *   -> Response<CommercialStoreAnalysisResponse>
+     *
+     * 필드명은 commercial-service 의 adapter/in/web/dto/response/CommercialStoreAnalysisResponse 와
+     * adapter/in/web/dto/item/CommercialPeerStoreItem 에서 유도했다. peerStores 는 배열이라 원소를 2개 넣는다.
+     * 원소가 하나면 리스트 전체가 통째로 날아가도, 첫 원소만 옮겨져도 구별되지 않는다.
+     */
+    private static final String STORE_ANALYSIS_GOLDEN_JSON = """
+        {
+          "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
+          "dataBody": {
+            "totalStoreCount": 6101,
+            "similarStoreCount": 6102,
+            "openingRate": 6.125,
+            "openedStoreCount": 6103,
+            "closureRate": 6.25,
+            "closedStoreCount": 6104,
+            "franchiseStoreCount": 6105,
+            "peerStores": [
+              {
+                "serviceCode": "CS100001",
+                "serviceName": "한식음식점",
+                "totalStoreCount": 6201,
+                "openingRate": 6.375,
+                "closureRate": 6.5
+              },
+              {
+                "serviceCode": "CS100002",
+                "serviceName": "중식음식점",
+                "totalStoreCount": 6202,
+                "openingRate": 6.625,
+                "closureRate": 6.75
+              }
+            ]
+          }
+        }
+        """;
+
+    /*
+     * GET /api/v1/commercials/{commercialCode}/summaries/sales -> Response<CommercialSalesSummaryResponse>
+     *
+     * 필드명은 commercial-service 의 adapter/in/web/dto/response/CommercialSalesSummaryResponse 와
+     * adapter/in/web/dto/item/RegionalSalesSummaryItem 에서 유도했다. 같은 모양의 블록이 3개(district /
+     * administration / commercial)라 블록끼리 뒤바뀌어도 걸리도록 블록마다 값을 전부 다르게 넣는다.
+     */
+    private static final String SALES_SUMMARY_GOLDEN_JSON = """
+        {
+          "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
+          "dataBody": {
+            "district": {
+              "code": "11110",
+              "name": "종로구",
+              "serviceCode": "CS100001",
+              "serviceName": "한식음식점",
+              "monthlySalesAmount": 7101
+            },
+            "administration": {
+              "code": "11110515",
+              "name": "사직동",
+              "serviceCode": "CS100002",
+              "serviceName": "중식음식점",
+              "monthlySalesAmount": 7102
+            },
+            "commercial": {
+              "code": "3110008",
+              "name": "경복궁역",
+              "serviceCode": "CS100003",
+              "serviceName": "일식음식점",
+              "monthlySalesAmount": 7103
+            }
+          }
+        }
+        """;
+
+    /*
+     * GET /api/v1/commercials/{commercialCode}/summaries/income -> Response<CommercialIncomeSummaryResponse>
+     *
+     * 필드명은 commercial-service 의 adapter/in/web/dto/response/CommercialIncomeSummaryResponse 와
+     * adapter/in/web/dto/item/RegionalIncomeSummaryItem 에서 유도했다.
+     */
+    private static final String INCOME_SUMMARY_GOLDEN_JSON = """
+        {
+          "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
+          "dataBody": {
+            "district": { "code": "11140", "name": "중구", "totalExpenseAmount": 8101 },
+            "administration": { "code": "11140550", "name": "명동", "totalExpenseAmount": 8102 },
+            "commercial": { "code": "3110009", "name": "명동역", "totalExpenseAmount": 8103 }
           }
         }
         """;
@@ -489,6 +591,99 @@ class CommercialAnalysisWireGoldenJsonTest {
          * 그 값이 프롬프트까지 도달하는지는 CommercialResidentPopulationPromptChainTest 가 단언한다.
          */
         assertThat(byAge.totalResidentPopulation()).isEqualTo(5101L);
+    }
+
+    @Test
+    @DisplayName("점포 분석 응답 JSON 이 CommercialStoreAnalysisClientResponse 와 peerStores 원소의 모든 필드로 매핑된다")
+    void storeAnalysisGoldenJsonBindsEveryField() throws Exception {
+        Response<CommercialStoreAnalysisClientResponse> response = objectMapper.readValue(STORE_ANALYSIS_GOLDEN_JSON, new TypeReference<>() {});
+
+        assertThat(response.dataHeader().success()).isTrue();
+        CommercialStoreAnalysisClientResponse store = response.dataBody();
+
+        assertThat(store.totalStoreCount()).isEqualTo(6101L);
+        assertThat(store.similarStoreCount()).isEqualTo(6102L);
+        assertThat(store.openingRate()).isEqualTo(6.125);
+        assertThat(store.openedStoreCount()).isEqualTo(6103L);
+        assertThat(store.closureRate()).isEqualTo(6.25);
+        assertThat(store.closedStoreCount()).isEqualTo(6104L);
+        assertThat(store.franchiseStoreCount()).isEqualTo(6105L);
+
+        assertThat(store.peerStores()).hasSize(2);
+
+        CommercialPeerStoreClientResponse firstPeer = store.peerStores().get(0);
+        assertThat(firstPeer.serviceCode()).isEqualTo("CS100001");
+        assertThat(firstPeer.serviceName()).isEqualTo("한식음식점");
+        assertThat(firstPeer.totalStoreCount()).isEqualTo(6201L);
+        assertThat(firstPeer.openingRate()).isEqualTo(6.375);
+        assertThat(firstPeer.closureRate()).isEqualTo(6.5);
+
+        CommercialPeerStoreClientResponse secondPeer = store.peerStores().get(1);
+        assertThat(secondPeer.serviceCode()).isEqualTo("CS100002");
+        assertThat(secondPeer.serviceName()).isEqualTo("중식음식점");
+        assertThat(secondPeer.totalStoreCount()).isEqualTo(6202L);
+        assertThat(secondPeer.openingRate()).isEqualTo(6.625);
+        assertThat(secondPeer.closureRate()).isEqualTo(6.75);
+    }
+
+    @Test
+    @DisplayName("매출 요약 응답 JSON 이 자치구/행정동/상권 블록 3종의 모든 필드로 매핑된다")
+    void salesSummaryGoldenJsonBindsEveryField() throws Exception {
+        Response<CommercialSalesSummaryClientResponse> response = objectMapper.readValue(SALES_SUMMARY_GOLDEN_JSON, new TypeReference<>() {});
+
+        assertThat(response.dataHeader().success()).isTrue();
+        CommercialSalesSummaryClientResponse salesSummary = response.dataBody();
+
+        RegionalSalesSummaryClientResponse district = salesSummary.district();
+        assertThat(district).isNotNull();
+        assertThat(district.code()).isEqualTo("11110");
+        assertThat(district.name()).isEqualTo("종로구");
+        assertThat(district.serviceCode()).isEqualTo("CS100001");
+        assertThat(district.serviceName()).isEqualTo("한식음식점");
+        assertThat(district.monthlySalesAmount()).isEqualTo(7101L);
+
+        RegionalSalesSummaryClientResponse administration = salesSummary.administration();
+        assertThat(administration).isNotNull();
+        assertThat(administration.code()).isEqualTo("11110515");
+        assertThat(administration.name()).isEqualTo("사직동");
+        assertThat(administration.serviceCode()).isEqualTo("CS100002");
+        assertThat(administration.serviceName()).isEqualTo("중식음식점");
+        assertThat(administration.monthlySalesAmount()).isEqualTo(7102L);
+
+        RegionalSalesSummaryClientResponse commercial = salesSummary.commercial();
+        assertThat(commercial).isNotNull();
+        assertThat(commercial.code()).isEqualTo("3110008");
+        assertThat(commercial.name()).isEqualTo("경복궁역");
+        assertThat(commercial.serviceCode()).isEqualTo("CS100003");
+        assertThat(commercial.serviceName()).isEqualTo("일식음식점");
+        assertThat(commercial.monthlySalesAmount()).isEqualTo(7103L);
+    }
+
+    @Test
+    @DisplayName("지출 요약 응답 JSON 이 자치구/행정동/상권 블록 3종의 모든 필드로 매핑된다")
+    void incomeSummaryGoldenJsonBindsEveryField() throws Exception {
+        Response<CommercialIncomeSummaryClientResponse> response = objectMapper.readValue(INCOME_SUMMARY_GOLDEN_JSON, new TypeReference<>() {});
+
+        assertThat(response.dataHeader().success()).isTrue();
+        CommercialIncomeSummaryClientResponse incomeSummary = response.dataBody();
+
+        RegionalIncomeSummaryClientResponse district = incomeSummary.district();
+        assertThat(district).isNotNull();
+        assertThat(district.code()).isEqualTo("11140");
+        assertThat(district.name()).isEqualTo("중구");
+        assertThat(district.totalExpenseAmount()).isEqualTo(8101L);
+
+        RegionalIncomeSummaryClientResponse administration = incomeSummary.administration();
+        assertThat(administration).isNotNull();
+        assertThat(administration.code()).isEqualTo("11140550");
+        assertThat(administration.name()).isEqualTo("명동");
+        assertThat(administration.totalExpenseAmount()).isEqualTo(8102L);
+
+        RegionalIncomeSummaryClientResponse commercial = incomeSummary.commercial();
+        assertThat(commercial).isNotNull();
+        assertThat(commercial.code()).isEqualTo("3110009");
+        assertThat(commercial.name()).isEqualTo("명동역");
+        assertThat(commercial.totalExpenseAmount()).isEqualTo(8103L);
     }
 
     @Test

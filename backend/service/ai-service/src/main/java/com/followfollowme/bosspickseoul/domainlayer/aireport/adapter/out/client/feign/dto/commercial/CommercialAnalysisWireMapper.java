@@ -9,6 +9,8 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByTimeSlotQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialPeerStoreQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialResidentPopulationByAgeQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialResidentPopulationQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesByAgeGenderPercentQueryResult;
@@ -19,7 +21,12 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesCountByGenderQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesCountByTimeSlotQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSchoolCountQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialStoreAnalysisQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.RegionalIncomeSummaryQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.RegionalSalesSummaryQueryResult;
+import java.util.List;
 
 /**
  * commercial-service 응답 wire DTO 를 out-port 반환 타입인 QueryResult 로 옮긴다.
@@ -34,6 +41,8 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
  * 여기서 그 값을 끌어와 채운다.
  *
  * <p>중첩 컴포넌트는 peer 가 생략할 수 있어 null 을 그대로 통과시킨다(기존 역직렬화 동작과 같다).
+ * 리스트도 마찬가지로 null 은 null 로 둔다. 빈 리스트로 바꾸면 "peer 가 값을 안 줬다" 와
+ * "peer 가 빈 목록을 줬다" 가 구별되지 않는다.
  */
 public final class CommercialAnalysisWireMapper {
 
@@ -100,6 +109,88 @@ public final class CommercialAnalysisWireMapper {
         return CommercialResidentPopulationQueryResult.builder()
             .byAge(toQueryResult(byAge))
             .totalResidentPopulationCount(byAge == null ? 0L : byAge.totalResidentPopulation())
+            .build();
+    }
+
+    public static CommercialStoreAnalysisQueryResult toQueryResult(CommercialStoreAnalysisClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialStoreAnalysisQueryResult.builder()
+            .totalStoreCount(wire.totalStoreCount())
+            .similarStoreCount(wire.similarStoreCount())
+            .openingRate(wire.openingRate())
+            .openedStoreCount(wire.openedStoreCount())
+            .closureRate(wire.closureRate())
+            .closedStoreCount(wire.closedStoreCount())
+            .franchiseStoreCount(wire.franchiseStoreCount())
+            .peerStores(toPeerStoreQueryResults(wire.peerStores()))
+            .build();
+    }
+
+    public static CommercialSalesSummaryQueryResult toQueryResult(CommercialSalesSummaryClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialSalesSummaryQueryResult.builder()
+            .district(toQueryResult(wire.district()))
+            .administration(toQueryResult(wire.administration()))
+            .commercial(toQueryResult(wire.commercial()))
+            .build();
+    }
+
+    public static CommercialIncomeSummaryQueryResult toQueryResult(CommercialIncomeSummaryClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialIncomeSummaryQueryResult.builder()
+            .district(toQueryResult(wire.district()))
+            .administration(toQueryResult(wire.administration()))
+            .commercial(toQueryResult(wire.commercial()))
+            .build();
+    }
+
+    private static List<CommercialPeerStoreQueryResult> toPeerStoreQueryResults(List<CommercialPeerStoreClientResponse> wires) {
+        if (wires == null) {
+            return null;
+        }
+        return wires.stream().map(CommercialAnalysisWireMapper::toQueryResult).toList();
+    }
+
+    private static CommercialPeerStoreQueryResult toQueryResult(CommercialPeerStoreClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialPeerStoreQueryResult.builder()
+            .serviceCode(wire.serviceCode())
+            .serviceName(wire.serviceName())
+            .totalStoreCount(wire.totalStoreCount())
+            .openingRate(wire.openingRate())
+            .closureRate(wire.closureRate())
+            .build();
+    }
+
+    private static RegionalSalesSummaryQueryResult toQueryResult(RegionalSalesSummaryClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return RegionalSalesSummaryQueryResult.builder()
+            .code(wire.code())
+            .name(wire.name())
+            .serviceCode(wire.serviceCode())
+            .serviceName(wire.serviceName())
+            .monthlySalesAmount(wire.monthlySalesAmount())
+            .build();
+    }
+
+    private static RegionalIncomeSummaryQueryResult toQueryResult(RegionalIncomeSummaryClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return RegionalIncomeSummaryQueryResult.builder()
+            .code(wire.code())
+            .name(wire.name())
+            .totalExpenseAmount(wire.totalExpenseAmount())
             .build();
     }
 

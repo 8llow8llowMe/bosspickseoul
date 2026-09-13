@@ -24,9 +24,10 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
     private final InternalResponseSupport responseSupport;
 
     /*
-     * 아래 5개는 peer 응답을 wire DTO(adapter/out/client/feign/dto/commercial)로 받아 QueryResult 로 옮긴다.
-     * peer 의 응답 필드명(...Item alias)을 아는 지점은 wire DTO 뿐이고, out-port 계약은 QueryResult 로만 표현된다.
-     * 나머지 메서드는 아직 wire 분리 전이라 QueryResult 를 Feign 반환 타입으로 그대로 쓴다(이슈 #380 범위 밖).
+     * 아래 8개는 peer 응답을 wire DTO(adapter/out/client/feign/dto/commercial)로 받아 QueryResult 로 옮긴다.
+     * peer 의 응답 필드명을 아는 지점은 wire DTO 뿐이고, out-port 계약은 QueryResult 로만 표현된다.
+     * getCommercialComparison 만 아직 wire 분리 전이라 QueryResult 를 Feign 반환 타입으로 그대로 쓴다
+     * (이슈 #380 / #387 범위 밖).
      */
 
     @Override
@@ -71,32 +72,32 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
 
     @Override
     public CommercialStoreAnalysisQueryResult getCommercialStore(String commercialCode, String serviceCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(
+        return CommercialAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrap(
             InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialAnalysisClient.getCommercialStore(commercialCode, serviceCode, periodCode)
-        );
+        ));
     }
 
     @Override
     public CommercialSalesSummaryQueryResult getCommercialSalesSummary(
         String districtCode, String administrationCode, String commercialCode, String serviceCode, String periodCode
     ) {
-        return responseSupport.requestAndUnwrap(
+        return CommercialAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrap(
             InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialAnalysisClient.getCommercialSalesSummary(
                 commercialCode, districtCode, administrationCode, serviceCode, periodCode
             )
-        );
+        ));
     }
 
     @Override
     public CommercialIncomeSummaryQueryResult getCommercialIncomeSummary(
         String districtCode, String administrationCode, String commercialCode, String periodCode
     ) {
-        return responseSupport.requestAndUnwrap(
+        return CommercialAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrap(
             InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialAnalysisClient.getCommercialIncomeSummary(commercialCode, districtCode, administrationCode, periodCode)
-        );
+        ));
     }
 
     @Override
