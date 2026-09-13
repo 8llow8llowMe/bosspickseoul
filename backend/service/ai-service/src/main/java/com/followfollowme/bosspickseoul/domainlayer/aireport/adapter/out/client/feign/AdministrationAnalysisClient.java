@@ -1,7 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign;
 
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationDetailQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationDetailClientResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface AdministrationAnalysisClient {
 
     @GetMapping("/{administrationCode}")
-    Response<AdministrationDetailQueryResult> getAdministrationDetail(
+    Response<AdministrationDetailClientResponse> getAdministrationDetail(
         @PathVariable String administrationCode,
         @RequestParam(name = "currentPeriodCode") String periodCode
     );
