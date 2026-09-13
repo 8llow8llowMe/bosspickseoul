@@ -124,15 +124,29 @@ ai:
 
 ---
 
-### `ai-service` — 상권 분석 wire DTO 분리 + "총 상주인구 0" 결함 수정
+### `ai-service` — peer 응답 wire DTO 분리 + "총 상주인구 0" 결함 수정
 
-**상태**: ✅ 완료
+**상태**: ✅ Jackson 결합 제거 완료 (`application/port/out/query` 의 `com.fasterxml.jackson` import **0건**).
+Feign 반환 타입은 `CommercialAnalysisClient.getCommercialComparison` 하나만 아직 `QueryResult` 를 겸한다.
 
-**목적**: commercial-service 응답 DTO 를 application 계층에서 걷어내고, 그 과정에서 드러난 정확성 결함을 고친다.
+**목적**: peer 응답 DTO 모양을 application 계층에서 걷어내고, 그 과정에서 드러난 정확성 결함을 고친다.
 
 **핵심 파일** (모두 `domainlayer/aireport/` 하위):
-- `adapter/out/client/feign/dto/commercial/*ClientResponse.java` — peer 응답 모양만 표현하는 wire DTO
+- `adapter/out/client/feign/dto/commercial/*ClientResponse.java` — commercial-service 응답 모양만 표현하는 wire DTO
 - `adapter/out/client/feign/dto/commercial/CommercialAnalysisWireMapper.java` — wire → `QueryResult` 변환
+- `adapter/out/client/feign/dto/district/*` — district-service 자치구 분석 응답의 wire DTO + 매퍼 (#388)
+- `adapter/out/client/feign/dto/administration/*` — district-service 행정동 분석 응답의 wire DTO + 매퍼 (#389)
+- `adapter/out/client/feign/dto/regional/*` — district-service 상권 소속 지역 응답의 wire DTO + 매퍼 (#387)
+
+**peer 별로 하위 패키지를 나눈다.** 어느 서비스의 이름 규칙에 묶인 타입인지가 패키지로 드러나야, peer 가
+리네임했을 때 고칠 자리를 바로 찾는다. 매퍼도 peer 별로 하나씩 둔다.
+
+`RegionAnalysisClientAdapter` 는 세 계열(administration / district / regional)의 조회를 한 곳에서 받으므로,
+계열별로 나눠 진행한 #387·#388·#389 가 모두 이 파일을 건드렸다. 세 PR 이 순서대로 rebase 충돌을 낸 지점이다.
+
+**남은 범위**: `CommercialAnalysisClient.getCommercialComparison` 만 `QueryResult` 가 Feign 반환 타입을 겸한다.
+`CommercialComparisonQueryResult` 에는 Jackson 어노테이션이 없어 필드명 결합은 아니지만,
+application 타입이 wire 에 노출되는 것은 그대로다.
 
 **수정한 결함**: wire DTO `CommercialResidentPopulationClientResponse` 가 peer 응답에 없는 `totalResidentPopulationCount`
 키를 들고 있었다. record 컴포넌트가 primitive `long` 이라 매칭 실패가 예외 없이 `0` 이 되어,
@@ -141,9 +155,18 @@ ai:
 제대로 내려주므로, wire 에서 그 컴포넌트를 제거하고 매퍼가 `byAge.totalResidentPopulation()` 에서 파생시킨다.
 `byAge` 가 없으면 파생 원천이 없으므로 `0` (primitive 라 "모름" 표현 불가, 매퍼가 값을 지어내지 않는다).
 
-**회귀 방지 테스트**: `CommercialAnalysisWireGoldenJsonTest`(peer JSON → wire) /
-`CommercialAnalysisWireMapperTest`(wire → QueryResult, 파생 필드 명시) /
-`CommercialResidentPopulationPromptChainTest`(값이 프롬프트 문장까지 도달).
+**회귀 방지 테스트**: peer JSON → wire 는 `Response` 봉투 포함 전문 리터럴로 고정하고
+(`CommercialAnalysisWireGoldenJsonTest` / `RegionAnalysisWireGoldenJsonTest` /
+`DistrictAnalysisWireGoldenJsonTest` / `AdministrationAnalysisWireGoldenJsonTest`),
+wire → `QueryResult` 는 전수 대조한다
+(`CommercialAnalysisWireMapperTest` / `RegionAnalysisWireMapperTest` /
+`DistrictAnalysisWireMapperTest` / `AdministrationAnalysisWireMapperTest`, 파생 필드는 명시).
+`CommercialResidentPopulationPromptChainTest` 가 값이 프롬프트 문장까지 도달하는지 확인한다.
+
+변환 전수 대조 방식은 `adapter/out/client/feign/dto/WireMapperLeafAssertions`(테스트 소스)에 모아 둔다. 말단
+필드마다 서로 다른 값을 채우고 양쪽을 `경로 → 값` 맵으로 펼쳐 비교하므로 누락·스왑·구조 변경이 모두 걸린다.
+리스트 컴포넌트는 원소를 2개 채운다. 1개면 리스트가 통째로 날아가도, 첫 원소만 옮겨져도 구별되지 않는다.
+**wire 분리를 이어갈 때 이 도구를 재사용하고, 매퍼마다 리플렉션 코드를 복사하지 않는다.**
 
 ---
 
