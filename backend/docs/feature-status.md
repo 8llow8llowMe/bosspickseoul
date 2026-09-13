@@ -124,15 +124,24 @@ ai:
 
 ---
 
-### `ai-service` — 상권 분석 wire DTO 분리 + "총 상주인구 0" 결함 수정
+### `ai-service` — peer 응답 wire DTO 분리 + "총 상주인구 0" 결함 수정
 
-**상태**: ✅ 완료
+**상태**: 🚧 진행 중 (`CommercialAnalysisClient` 9개 메서드 중 8개, `RegionAnalysisClient` 4개 중 1개가 wire DTO 사용.
+`application/port/out/query` 에 `com.fasterxml.jackson` import 24건 잔존)
 
-**목적**: commercial-service 응답 DTO 를 application 계층에서 걷어내고, 그 과정에서 드러난 정확성 결함을 고친다.
+**목적**: peer 응답 DTO 모양을 application 계층에서 걷어내고, 그 과정에서 드러난 정확성 결함을 고친다.
 
 **핵심 파일** (모두 `domainlayer/aireport/` 하위):
-- `adapter/out/client/feign/dto/commercial/*ClientResponse.java` — peer 응답 모양만 표현하는 wire DTO
+- `adapter/out/client/feign/dto/commercial/*ClientResponse.java` — commercial-service 응답 모양만 표현하는 wire DTO
 - `adapter/out/client/feign/dto/commercial/CommercialAnalysisWireMapper.java` — wire → `QueryResult` 변환
+- `adapter/out/client/feign/dto/regional/*ClientResponse.java` — district-service 상권 소속 지역 응답의 wire DTO
+- `adapter/out/client/feign/dto/regional/RegionAnalysisWireMapper.java` — 위의 wire → `QueryResult` 변환
+
+**peer 별로 하위 패키지를 나눈다.** 어느 서비스의 이름 규칙에 묶인 타입인지가 패키지로 드러나야, peer 가
+리네임했을 때 고칠 자리를 바로 찾는다. 매퍼도 peer 별로 하나씩 둔다.
+
+**남은 범위**: `RegionAnalysisClient` 의 행정동/상권목록/자치구 응답 3종은 아직 `QueryResult` 가 Feign 반환
+타입을 겸한다. `CommercialAnalysisClient.getCommercialComparison` 도 마찬가지다.
 
 **수정한 결함**: wire DTO `CommercialResidentPopulationClientResponse` 가 peer 응답에 없는 `totalResidentPopulationCount`
 키를 들고 있었다. record 컴포넌트가 primitive `long` 이라 매칭 실패가 예외 없이 `0` 이 되어,
@@ -141,9 +150,14 @@ ai:
 제대로 내려주므로, wire 에서 그 컴포넌트를 제거하고 매퍼가 `byAge.totalResidentPopulation()` 에서 파생시킨다.
 `byAge` 가 없으면 파생 원천이 없으므로 `0` (primitive 라 "모름" 표현 불가, 매퍼가 값을 지어내지 않는다).
 
-**회귀 방지 테스트**: `CommercialAnalysisWireGoldenJsonTest`(peer JSON → wire) /
-`CommercialAnalysisWireMapperTest`(wire → QueryResult, 파생 필드 명시) /
-`CommercialResidentPopulationPromptChainTest`(값이 프롬프트 문장까지 도달).
+**회귀 방지 테스트**: `CommercialAnalysisWireGoldenJsonTest` / `RegionAnalysisWireGoldenJsonTest`(peer JSON → wire,
+`Response` 봉투 포함 전문 리터럴) / `CommercialAnalysisWireMapperTest` / `RegionAnalysisWireMapperTest`
+(wire → QueryResult 전수 대조, 파생 필드 명시) / `CommercialResidentPopulationPromptChainTest`(값이 프롬프트 문장까지 도달).
+
+변환 전수 대조 방식은 `adapter/out/client/feign/dto/WireMapperLeafAssertions`(테스트 소스)에 모아 둔다. 말단
+필드마다 서로 다른 값을 채우고 양쪽을 `경로 → 값` 맵으로 펼쳐 비교하므로 누락·스왑·구조 변경이 모두 걸린다.
+리스트 컴포넌트는 원소를 2개 채운다. 1개면 리스트가 통째로 날아가도, 첫 원소만 옮겨져도 구별되지 않는다.
+**wire 분리를 이어갈 때 이 도구를 재사용하고, 매퍼마다 리플렉션 코드를 복사하지 않는다.**
 
 ---
 
