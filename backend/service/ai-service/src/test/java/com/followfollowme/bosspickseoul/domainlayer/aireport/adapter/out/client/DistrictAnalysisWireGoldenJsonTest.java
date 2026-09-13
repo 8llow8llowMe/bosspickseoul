@@ -5,16 +5,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictAgeGroupFootTrafficQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictAreaQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictChangeIndicatorQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictDayOfWeekFootTrafficQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictFootTrafficDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictGenderFootTrafficQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictSalesDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictStoreDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictTimeSlotFootTrafficQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictAgeGroupFootTrafficClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictAreaClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictChangeIndicatorClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictDayOfWeekFootTrafficClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictFootTrafficDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictGenderFootTrafficClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictSalesDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictStoreDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictTimeSlotFootTrafficClientResponse;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,8 +32,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
  * {@code 0}/{@code null} 이 된다. 이 계약을 참조하는 테스트가 저장소에 하나도 없어서, wire DTO 로 분리하는 과정에서
  * 필드를 빠뜨리거나 구조를 어긋나게 옮겨도 아무것도 잡지 못한다.
  *
- * <p>그래서 분리 <b>전에</b> 현재 계약을 못 박는다. 분리 후에는 역직렬화 대상 타입만 wire DTO 로 바꿔 같은 JSON
- * 리터럴로 계속 지킨다. wire → QueryResult 변환 누락은 {@code DistrictAnalysisWireMapperTest} 가 따로 막는다.
+ * <p>그래서 분리 <b>전에</b> 현재 계약을 못 박았고, 분리 후에는 역직렬화 대상만 wire DTO 로 바꿔
+ * 같은 JSON 리터럴로 계속 지킨다. wire → QueryResult 변환 누락은 {@code DistrictAnalysisWireMapperTest} 가 따로 막는다.
  *
  * <p><b>리터럴은 코드로 생성하지 않는다.</b> 아래 JSON 은 commercial-service 의
  * {@code domainlayer/district/adapter/in/web/dto/response/*Response} 와 {@code .../dto/item/District*Item},
@@ -216,11 +216,11 @@ class DistrictAnalysisWireGoldenJsonTest {
     @Test
     @DisplayName("자치구 상세 응답 JSON 이 최상위 4블록과 중첩 타입의 모든 필드로 매핑된다")
     void districtDetailGoldenJsonBindsEveryField() throws Exception {
-        Response<DistrictDetailQueryResult> response =
+        Response<DistrictDetailClientResponse> response =
             objectMapper.readValue(DISTRICT_DETAIL_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        DistrictDetailQueryResult detail = response.dataBody();
+        DistrictDetailClientResponse detail = response.dataBody();
         assertThat(detail).isNotNull();
 
         assertChangeIndicator(detail.changeIndicator());
@@ -230,13 +230,13 @@ class DistrictAnalysisWireGoldenJsonTest {
     }
 
     @Test
-    @DisplayName("자치구 지역 응답 JSON 이 DistrictAreaQueryResult 의 모든 필드로 매핑된다")
+    @DisplayName("자치구 지역 응답 JSON 이 DistrictAreaClientResponse 의 모든 필드로 매핑된다")
     void districtAreaGoldenJsonBindsEveryField() throws Exception {
-        Response<DistrictAreaQueryResult> response =
+        Response<DistrictAreaClientResponse> response =
             objectMapper.readValue(DISTRICT_AREA_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        DistrictAreaQueryResult area = response.dataBody();
+        DistrictAreaClientResponse area = response.dataBody();
         assertThat(area).isNotNull();
         assertThat(area.districtCode()).isEqualTo("DISTRICT_CODE_5101");
         assertThat(area.districtName()).isEqualTo("자치구이름5102");
@@ -259,10 +259,10 @@ class DistrictAnalysisWireGoldenJsonTest {
             }
             """;
 
-        Response<DistrictChangeIndicatorQueryResult> response =
+        Response<DistrictChangeIndicatorClientResponse> response =
             objectMapper.readValue(renamedJson, new TypeReference<>() {});
 
-        DistrictChangeIndicatorQueryResult changeIndicator = response.dataBody();
+        DistrictChangeIndicatorClientResponse changeIndicator = response.dataBody();
         assertThat(changeIndicator.changeIndicatorCode()).isNull();
         assertThat(changeIndicator.averageOpenedMonths()).isZero();
         // 이름이 그대로인 필드만 살아남는다. 절반이 비어도 예외는 나지 않는다.
@@ -270,7 +270,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(changeIndicator.averageClosedMonths()).isEqualTo(9104);
     }
 
-    private static void assertChangeIndicator(DistrictChangeIndicatorQueryResult changeIndicator) {
+    private static void assertChangeIndicator(DistrictChangeIndicatorClientResponse changeIndicator) {
         assertThat(changeIndicator).isNotNull();
         assertThat(changeIndicator.changeIndicatorCode()).isEqualTo("CHANGE_CODE_1101");
         assertThat(changeIndicator.changeIndicatorName()).isEqualTo("변화지표이름1102");
@@ -278,7 +278,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(changeIndicator.averageClosedMonths()).isEqualTo(1104);
     }
 
-    private static void assertFootTraffic(DistrictFootTrafficDetailQueryResult footTraffic) {
+    private static void assertFootTraffic(DistrictFootTrafficDetailClientResponse footTraffic) {
         assertThat(footTraffic).isNotNull();
 
         assertThat(footTraffic.periodTrend()).isNotNull();
@@ -292,7 +292,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(footTraffic.periodTotalFootTrafficList().get(1).periodCode()).isEqualTo("PERIOD_CODE_2203");
         assertThat(footTraffic.periodTotalFootTrafficList().get(1).totalFootTraffic()).isEqualTo(2204L);
 
-        DistrictTimeSlotFootTrafficQueryResult timeSlot = footTraffic.timeSlot();
+        DistrictTimeSlotFootTrafficClientResponse timeSlot = footTraffic.timeSlot();
         assertThat(timeSlot).isNotNull();
         assertThat(timeSlot.footTrafficTime00To06()).isEqualTo(2301L);
         assertThat(timeSlot.footTrafficTime06To11()).isEqualTo(2302L);
@@ -305,7 +305,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(timeSlot.dominantTimeSlotType().name()).isEqualTo("시간대이름2308");
         assertThat(timeSlot.dominantTimeSlotType().description()).isEqualTo("시간대설명2309");
 
-        DistrictGenderFootTrafficQueryResult gender = footTraffic.gender();
+        DistrictGenderFootTrafficClientResponse gender = footTraffic.gender();
         assertThat(gender).isNotNull();
         assertThat(gender.maleFootTraffic()).isEqualTo(2401L);
         assertThat(gender.femaleFootTraffic()).isEqualTo(2402L);
@@ -314,7 +314,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(gender.dominantGenderType().name()).isEqualTo("성별이름2404");
         assertThat(gender.dominantGenderType().description()).isEqualTo("성별설명2405");
 
-        DistrictAgeGroupFootTrafficQueryResult ageGroup = footTraffic.ageGroup();
+        DistrictAgeGroupFootTrafficClientResponse ageGroup = footTraffic.ageGroup();
         assertThat(ageGroup).isNotNull();
         assertThat(ageGroup.age10FootTraffic()).isEqualTo(2501L);
         assertThat(ageGroup.age20FootTraffic()).isEqualTo(2502L);
@@ -327,7 +327,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(ageGroup.dominantAgeGroupType().name()).isEqualTo("연령대이름2508");
         assertThat(ageGroup.dominantAgeGroupType().description()).isEqualTo("연령대설명2509");
 
-        DistrictDayOfWeekFootTrafficQueryResult dayOfWeek = footTraffic.dayOfWeek();
+        DistrictDayOfWeekFootTrafficClientResponse dayOfWeek = footTraffic.dayOfWeek();
         assertThat(dayOfWeek).isNotNull();
         assertThat(dayOfWeek.mondayFootTraffic()).isEqualTo(2601L);
         assertThat(dayOfWeek.tuesdayFootTraffic()).isEqualTo(2602L);
@@ -342,7 +342,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(dayOfWeek.dominantDayOfWeekType().description()).isEqualTo("요일설명2610");
     }
 
-    private static void assertStore(DistrictStoreDetailQueryResult store) {
+    private static void assertStore(DistrictStoreDetailClientResponse store) {
         assertThat(store).isNotNull();
 
         assertThat(store.topStoreServices()).hasSize(2);
@@ -374,7 +374,7 @@ class DistrictAnalysisWireGoldenJsonTest {
         assertThat(store.topClosedAdministrations().get(1).closureRate()).isEqualTo(33.08);
     }
 
-    private static void assertSales(DistrictSalesDetailQueryResult sales) {
+    private static void assertSales(DistrictSalesDetailClientResponse sales) {
         assertThat(sales).isNotNull();
 
         assertThat(sales.topSalesServices()).hasSize(2);
