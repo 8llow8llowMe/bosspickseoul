@@ -4,12 +4,12 @@ import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFacilityClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeAndExpenseClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeSummaryClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesSummaryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialStoreAnalysisClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesSummaryQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialStoreAnalysisQueryResult;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,14 +48,14 @@ public interface CommercialAnalysisClient {
     );
 
     @GetMapping("/{commercialCode}/services/{serviceCode}/stores")
-    Response<CommercialStoreAnalysisQueryResult> getCommercialStore(
+    Response<CommercialStoreAnalysisClientResponse> getCommercialStore(
         @PathVariable String commercialCode,
         @PathVariable String serviceCode,
         @RequestParam String periodCode
     );
 
     @GetMapping("/{commercialCode}/summaries/sales")
-    Response<CommercialSalesSummaryQueryResult> getCommercialSalesSummary(
+    Response<CommercialSalesSummaryClientResponse> getCommercialSalesSummary(
         @PathVariable String commercialCode,
         @RequestParam String districtCode,
         @RequestParam String administrationCode,
@@ -64,7 +64,7 @@ public interface CommercialAnalysisClient {
     );
 
     @GetMapping("/{commercialCode}/summaries/income")
-    Response<CommercialIncomeSummaryQueryResult> getCommercialIncomeSummary(
+    Response<CommercialIncomeSummaryClientResponse> getCommercialIncomeSummary(
         @PathVariable String commercialCode,
         @RequestParam String districtCode,
         @RequestParam String administrationCode,

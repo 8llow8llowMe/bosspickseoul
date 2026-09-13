@@ -4,7 +4,7 @@ import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationCommercialClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationDistrictClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictAreaClientResponse;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.regional.CommercialAdministrationClientResponse;
 import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,7 +26,7 @@ public interface RegionAnalysisClient {
     );
 
     @GetMapping("/api/v1/regions/commercials/{commercialCode}/administration")
-    Response<CommercialAdministrationQueryResult> getCommercialAdministration(@PathVariable String commercialCode);
+    Response<CommercialAdministrationClientResponse> getCommercialAdministration(@PathVariable String commercialCode);
 
     @GetMapping("/api/v1/regions/districts/{districtCode}")
     Response<DistrictAreaClientResponse> getDistrict(@PathVariable String districtCode);

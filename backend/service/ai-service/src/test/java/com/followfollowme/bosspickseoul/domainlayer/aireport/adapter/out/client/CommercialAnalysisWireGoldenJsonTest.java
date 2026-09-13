@@ -14,6 +14,8 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByTimeSlotClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeAndExpenseClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeSummaryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialPeerStoreClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationByAgeClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialResidentPopulationClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesByAgeGenderPercentClientResponse;
@@ -24,13 +26,11 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesCountByGenderClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesCountByTimeSlotClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSalesSummaryClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialSchoolCountClientResponse;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialPeerStoreQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesSummaryQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialStoreAnalysisQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.RegionalIncomeSummaryQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.RegionalSalesSummaryQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialStoreAnalysisClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.RegionalIncomeSummaryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.RegionalSalesSummaryClientResponse;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,11 +59,9 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
  * 필드가 조용히 {@code 0}/{@code null} 이 되어 LLM 프롬프트에 잘못된 근거가 들어간다. peer DTO 가 실제로 바뀐 것인지
  * 먼저 확인해야 한다.
  *
- * <p><b>아직 wire 로 분리되지 않은 3종도 여기서 함께 고정한다(이슈 #387).</b> 점포 분석 / 매출 요약 / 지출 요약은
- * {@code application/port/out/query} 의 QueryResult 가 {@code CommercialAnalysisClient} 의 Feign 반환 타입을
- * 겸하고 있어, 아래 3개 테스트는 QueryResult 타입으로 역직렬화를 단언한다. alias 가 하나도 없고
- * <b>컴포넌트 이름이 peer 의 {@code *Response}/{@code *Item} 과 같아서</b> 동작하는 상태라 위험은 위 5종의 중첩과 같다.
- * 다음 커밋에서 wire DTO 로 분리하면 역직렬화 대상 타입만 바꾸고 리터럴과 값 단언은 그대로 둔다.
+ * <p><b>alias 가 없는 3종도 함께 고정한다(이슈 #387).</b> 점포 분석 / 매출 요약 / 지출 요약의 wire DTO 에는
+ * {@code @JsonProperty} 가 하나도 없고 컴포넌트 이름이 peer 의 {@code *Response}/{@code *Item} 과 같아서 동작한다.
+ * alias 가 없을 뿐 위 5종의 중첩과 같은 종류의 결합이라, 이름이 어긋나면 마찬가지로 조용히 {@code null}/{@code 0} 이 된다.
  */
 class CommercialAnalysisWireGoldenJsonTest {
 
@@ -596,12 +594,12 @@ class CommercialAnalysisWireGoldenJsonTest {
     }
 
     @Test
-    @DisplayName("점포 분석 응답 JSON 이 CommercialStoreAnalysisQueryResult 와 peerStores 원소의 모든 필드로 매핑된다")
+    @DisplayName("점포 분석 응답 JSON 이 CommercialStoreAnalysisClientResponse 와 peerStores 원소의 모든 필드로 매핑된다")
     void storeAnalysisGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialStoreAnalysisQueryResult> response = objectMapper.readValue(STORE_ANALYSIS_GOLDEN_JSON, new TypeReference<>() {});
+        Response<CommercialStoreAnalysisClientResponse> response = objectMapper.readValue(STORE_ANALYSIS_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialStoreAnalysisQueryResult store = response.dataBody();
+        CommercialStoreAnalysisClientResponse store = response.dataBody();
 
         assertThat(store.totalStoreCount()).isEqualTo(6101L);
         assertThat(store.similarStoreCount()).isEqualTo(6102L);
@@ -613,14 +611,14 @@ class CommercialAnalysisWireGoldenJsonTest {
 
         assertThat(store.peerStores()).hasSize(2);
 
-        CommercialPeerStoreQueryResult firstPeer = store.peerStores().get(0);
+        CommercialPeerStoreClientResponse firstPeer = store.peerStores().get(0);
         assertThat(firstPeer.serviceCode()).isEqualTo("CS100001");
         assertThat(firstPeer.serviceName()).isEqualTo("한식음식점");
         assertThat(firstPeer.totalStoreCount()).isEqualTo(6201L);
         assertThat(firstPeer.openingRate()).isEqualTo(6.375);
         assertThat(firstPeer.closureRate()).isEqualTo(6.5);
 
-        CommercialPeerStoreQueryResult secondPeer = store.peerStores().get(1);
+        CommercialPeerStoreClientResponse secondPeer = store.peerStores().get(1);
         assertThat(secondPeer.serviceCode()).isEqualTo("CS100002");
         assertThat(secondPeer.serviceName()).isEqualTo("중식음식점");
         assertThat(secondPeer.totalStoreCount()).isEqualTo(6202L);
@@ -631,12 +629,12 @@ class CommercialAnalysisWireGoldenJsonTest {
     @Test
     @DisplayName("매출 요약 응답 JSON 이 자치구/행정동/상권 블록 3종의 모든 필드로 매핑된다")
     void salesSummaryGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialSalesSummaryQueryResult> response = objectMapper.readValue(SALES_SUMMARY_GOLDEN_JSON, new TypeReference<>() {});
+        Response<CommercialSalesSummaryClientResponse> response = objectMapper.readValue(SALES_SUMMARY_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialSalesSummaryQueryResult salesSummary = response.dataBody();
+        CommercialSalesSummaryClientResponse salesSummary = response.dataBody();
 
-        RegionalSalesSummaryQueryResult district = salesSummary.district();
+        RegionalSalesSummaryClientResponse district = salesSummary.district();
         assertThat(district).isNotNull();
         assertThat(district.code()).isEqualTo("11110");
         assertThat(district.name()).isEqualTo("종로구");
@@ -644,7 +642,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(district.serviceName()).isEqualTo("한식음식점");
         assertThat(district.monthlySalesAmount()).isEqualTo(7101L);
 
-        RegionalSalesSummaryQueryResult administration = salesSummary.administration();
+        RegionalSalesSummaryClientResponse administration = salesSummary.administration();
         assertThat(administration).isNotNull();
         assertThat(administration.code()).isEqualTo("11110515");
         assertThat(administration.name()).isEqualTo("사직동");
@@ -652,7 +650,7 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(administration.serviceName()).isEqualTo("중식음식점");
         assertThat(administration.monthlySalesAmount()).isEqualTo(7102L);
 
-        RegionalSalesSummaryQueryResult commercial = salesSummary.commercial();
+        RegionalSalesSummaryClientResponse commercial = salesSummary.commercial();
         assertThat(commercial).isNotNull();
         assertThat(commercial.code()).isEqualTo("3110008");
         assertThat(commercial.name()).isEqualTo("경복궁역");
@@ -664,24 +662,24 @@ class CommercialAnalysisWireGoldenJsonTest {
     @Test
     @DisplayName("지출 요약 응답 JSON 이 자치구/행정동/상권 블록 3종의 모든 필드로 매핑된다")
     void incomeSummaryGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialIncomeSummaryQueryResult> response = objectMapper.readValue(INCOME_SUMMARY_GOLDEN_JSON, new TypeReference<>() {});
+        Response<CommercialIncomeSummaryClientResponse> response = objectMapper.readValue(INCOME_SUMMARY_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialIncomeSummaryQueryResult incomeSummary = response.dataBody();
+        CommercialIncomeSummaryClientResponse incomeSummary = response.dataBody();
 
-        RegionalIncomeSummaryQueryResult district = incomeSummary.district();
+        RegionalIncomeSummaryClientResponse district = incomeSummary.district();
         assertThat(district).isNotNull();
         assertThat(district.code()).isEqualTo("11140");
         assertThat(district.name()).isEqualTo("중구");
         assertThat(district.totalExpenseAmount()).isEqualTo(8101L);
 
-        RegionalIncomeSummaryQueryResult administration = incomeSummary.administration();
+        RegionalIncomeSummaryClientResponse administration = incomeSummary.administration();
         assertThat(administration).isNotNull();
         assertThat(administration.code()).isEqualTo("11140550");
         assertThat(administration.name()).isEqualTo("명동");
         assertThat(administration.totalExpenseAmount()).isEqualTo(8102L);
 
-        RegionalIncomeSummaryQueryResult commercial = incomeSummary.commercial();
+        RegionalIncomeSummaryClientResponse commercial = incomeSummary.commercial();
         assertThat(commercial).isNotNull();
         assertThat(commercial.code()).isEqualTo("3110009");
         assertThat(commercial.name()).isEqualTo("명동역");
