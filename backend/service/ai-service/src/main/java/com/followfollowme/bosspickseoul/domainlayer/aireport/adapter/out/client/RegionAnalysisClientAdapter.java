@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client;
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.RegionAnalysisClient;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictAnalysisWireMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
@@ -42,7 +43,9 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
 
     @Override
     public DistrictAreaQueryResult getDistrict(String districtCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getDistrict(districtCode));
+        return DistrictAnalysisWireMapper.toQueryResult(
+            responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getDistrict(districtCode))
+        );
     }
 
     private String extractDistrictCode(String administrationCode) {
