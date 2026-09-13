@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.regional.CommercialAdministrationClientResponse;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,15 +14,15 @@ import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
- * district-service 가 실제로 내려보내는 상권 소속 지역 응답 JSON 과 {@code RegionAnalysisClient} 의 역직렬화 계약을
- * 고정하는 골든 테스트.
+ * district-service 가 실제로 내려보내는 상권 소속 지역 응답 JSON 과
+ * {@code adapter/out/client/feign/dto/regional} 의 wire DTO 사이의 역직렬화 계약을 고정하는 골든 테스트.
  *
- * <p><b>왜 필요한가.</b> {@code CommercialAdministrationQueryResult} 는 {@code application/port/out/query} 에
- * 있으면서 동시에 Feign 반환 타입을 겸하고 있다. {@code @JsonProperty} alias 는 하나도 없고
- * <b>컴포넌트 이름이 우연히 peer 의 {@code CommercialAdministrationAreaResponse} 와 같아서</b> 동작한다.
+ * <p><b>왜 필요한가.</b> {@code CommercialAdministrationClientResponse} 는 {@code RegionAnalysisClient} 의
+ * Feign 반환 타입으로 쓰이며 peer 응답을 그대로 역직렬화해 받는다. {@code @JsonProperty} alias 는 하나도 없고
+ * <b>컴포넌트 이름이 peer 의 {@code CommercialAdministrationAreaResponse} 와 같아서</b> 동작한다.
  * 이름이 어긋나면 {@code @JsonIgnoreProperties(ignoreUnknown = true)} 때문에 예외 없이 {@code null} 이 된다.
  * 이 계약을 참조하는 테스트가 없던 상태라, wire DTO 분리(이슈 #387)에서 필드를 빠뜨려도 아무 테스트도 잡지 못했다.
- * 그래서 리팩토링 <b>전에</b> 현재 계약을 못 박고, 분리 후에는 역직렬화 대상 타입만 wire DTO 로 바꿔
+ * 그래서 리팩토링 <b>전에</b> 현재 계약을 못 박았고, 분리 후에는 역직렬화 대상 타입만 wire DTO 로 바꿔
  * 같은 JSON 리터럴로 계속 지킨다. wire → QueryResult 변환 누락은 {@code RegionAnalysisWireMapperTest} 가 따로 막는다.
  *
  * <p><b>리터럴은 코드로 생성하지 않는다.</b> 아래 JSON 은 district-service 의
@@ -74,13 +74,13 @@ class RegionAnalysisWireGoldenJsonTest {
         """;
 
     @Test
-    @DisplayName("상권 소속 지역 응답 JSON 이 CommercialAdministrationQueryResult 의 모든 필드로 매핑된다")
+    @DisplayName("상권 소속 지역 응답 JSON 이 CommercialAdministrationClientResponse 의 모든 필드로 매핑된다")
     void commercialAdministrationGoldenJsonBindsEveryField() throws Exception {
-        Response<CommercialAdministrationQueryResult> response =
+        Response<CommercialAdministrationClientResponse> response =
             objectMapper.readValue(COMMERCIAL_ADMINISTRATION_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        CommercialAdministrationQueryResult administration = response.dataBody();
+        CommercialAdministrationClientResponse administration = response.dataBody();
 
         assertThat(administration.commercialCode()).isEqualTo("3110008");
         assertThat(administration.commercialName()).isEqualTo("경복궁역");

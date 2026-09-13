@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.RegionAnalysisClient;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationAnalysisWireMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictAnalysisWireMapper;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.regional.RegionAnalysisWireMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
@@ -24,13 +25,13 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
     private final InternalResponseSupport responseSupport;
 
     /*
-     * 이 어댑터는 세 계열의 region 조회를 한 곳에서 받는다. wire 분리가 계열별로 진행돼 메서드마다 상태가 다르다.
-     * 분리된 메서드는 peer 응답을 wire DTO(adapter/out/client/feign/dto/<계열>)로 받아 QueryResult 로 옮긴다.
+     * 이 어댑터는 세 계열의 region 조회를 한 곳에서 받는다. 네 메서드 모두 peer 응답을
+     * wire DTO(adapter/out/client/feign/dto/<계열>)로 받아 QueryResult 로 옮긴다.
      * peer 의 응답 필드명을 아는 지점은 wire DTO 뿐이고, out-port 계약은 QueryResult 로만 표현된다.
      *
      *   getAdministrationDistrict, getCommercialsByAdministration — dto/administration (#389)
      *   getDistrict                                               — dto/district (#388)
-     *   getCommercialAdministration                               — 아직 QueryResult 를 Feign 반환 타입으로 그대로 쓴다 (#387 소관)
+     *   getCommercialAdministration                               — dto/regional (#387)
      */
 
     @Override
@@ -52,7 +53,10 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
 
     @Override
     public CommercialAdministrationQueryResult getCommercialAdministration(String commercialCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getCommercialAdministration(commercialCode));
+        return RegionAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrap(
+            InternalResponseSupport.DISTRICT_SERVICE,
+            () -> regionAnalysisClient.getCommercialAdministration(commercialCode)
+        ));
     }
 
     @Override
