@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client;
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.RegionAnalysisClient;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationAnalysisWireMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
@@ -21,18 +22,27 @@ public class RegionAnalysisClientAdapter implements RegionAnalysisQueryPort {
     private final RegionAnalysisClient regionAnalysisClient;
     private final InternalResponseSupport responseSupport;
 
+    /*
+     * 아래 2개는 peer 응답을 wire DTO(adapter/out/client/feign/dto/administration)로 받아 QueryResult 로 옮긴다.
+     * peer 의 응답 필드명을 아는 지점은 wire DTO 뿐이고, out-port 계약은 QueryResult 로만 표현된다.
+     * 나머지 메서드는 아직 wire 분리 전이라 QueryResult 를 Feign 반환 타입으로 그대로 쓴다(이슈 #389 범위 밖, #387 소관).
+     */
+
     @Override
     public AdministrationDistrictQueryResult getAdministrationDistrict(String administrationCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.DISTRICT_SERVICE, () -> regionAnalysisClient.getAdministrationDistrict(administrationCode));
+        return AdministrationAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrap(
+            InternalResponseSupport.DISTRICT_SERVICE,
+            () -> regionAnalysisClient.getAdministrationDistrict(administrationCode)
+        ));
     }
 
     @Override
     public List<AdministrationCommercialQueryResult> getCommercialsByAdministration(String administrationCode) {
         String districtCode = extractDistrictCode(administrationCode);
-        return responseSupport.requestAndUnwrap(
+        return AdministrationAnalysisWireMapper.toCommercialQueryResults(responseSupport.requestAndUnwrap(
             InternalResponseSupport.DISTRICT_SERVICE,
             () -> regionAnalysisClient.getCommercialsByAdministration(districtCode, administrationCode)
-        );
+        ));
     }
 
     @Override

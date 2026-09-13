@@ -5,14 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationCommercialQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationDistrictQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationIncomeDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationSalesDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationSalesServiceTopQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationStoreDetailQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationStoreServiceTopQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationCommercialClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationDistrictClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationIncomeDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationSalesDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationSalesServiceTopClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationStoreDetailClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationStoreServiceTopClientResponse;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
@@ -22,15 +22,17 @@ import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
- * peer 가 실제로 내려보내는 응답 JSON 과 Administration 계열 8종 사이의 역직렬화 계약을 고정하는 골든 테스트.
+ * peer 가 실제로 내려보내는 응답 JSON 과 {@code adapter/out/client/feign/dto/administration} 의 wire DTO
+ * 사이의 역직렬화 계약을 고정하는 골든 테스트.
  *
- * <p><b>왜 필요한가.</b> 이 8종은 {@code AdministrationAnalysisClient}(commercial-service) 와
- * {@code RegionAnalysisClient}(district-service) 의 Feign 반환 타입 안에서 peer 응답을 그대로 역직렬화해 받는다.
- * {@code @JsonProperty} alias 는 하나도 없고 <b>필드명이 우연히 peer 의 응답 DTO 와 같아서</b> 동작한다.
- * 이 계약을 참조하는 테스트가 저장소에 없어서, peer 가 필드를 리네임하거나 wire DTO 분리(이슈 #389) 중에
- * 이름을 잘못 옮겨도 아무 테스트도 잡지 못한다. {@code @JsonIgnoreProperties(ignoreUnknown = true)} 때문에
- * 예외가 나지 않고 값이 조용히 {@code 0}/{@code null} 이 된다. 그래서 리팩토링 <b>전에</b> 현재 계약을 못 박는다.
- * 분리 후에는 역직렬화 대상 타입만 wire DTO 로 바꿔 같은 JSON 리터럴로 계속 지킨다.
+ * <p><b>왜 필요한가.</b> 이 wire DTO 8종은 {@code AdministrationAnalysisClient}(commercial-service) 와
+ * {@code RegionAnalysisClient}(district-service) 의 Feign 반환 타입으로 쓰이며, peer 응답을 그대로 역직렬화해 받는다.
+ * {@code @JsonProperty} alias 는 하나도 없고 <b>필드명이 peer 의 응답 DTO 와 같아서</b> 동작한다.
+ * 이 계약을 참조하는 테스트가 없던 상태라, wire DTO 분리(이슈 #389) 과정에서 필드명을 잘못 옮겨도 아무 테스트도
+ * 잡지 못했다. {@code @JsonIgnoreProperties(ignoreUnknown = true)} 때문에 예외가 나지 않고 값이 조용히
+ * {@code 0}/{@code null} 이 된다. 그래서 리팩토링 <b>전에</b> 현재 계약을 못 박았고, 분리 후에는 역직렬화 대상
+ * 타입만 wire DTO 로 바꿔 같은 JSON 리터럴로 계속 지킨다. wire → QueryResult 변환 누락은
+ * {@code AdministrationAnalysisWireMapperTest} 가 따로 막는다.
  *
  * <p><b>리터럴은 코드로 생성하지 않는다.</b> 아래 JSON 은 peer 소스의 필드명에서 손으로 유도한 것이다.
  * commercial-service 의 {@code administration/adapter/in/web/dto/{response,item}} 과
@@ -172,36 +174,36 @@ class AdministrationAnalysisWireGoldenJsonTest {
     @Test
     @DisplayName("행정동 상세 응답 JSON 이 상세·매출·점포·지출 5종의 모든 필드로 매핑된다")
     void detailGoldenJsonBindsEveryField() throws Exception {
-        Response<AdministrationDetailQueryResult> response =
+        Response<AdministrationDetailClientResponse> response =
             objectMapper.readValue(DETAIL_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        AdministrationDetailQueryResult detail = response.dataBody();
+        AdministrationDetailClientResponse detail = response.dataBody();
         assertThat(detail.administrationCode()).isEqualTo("11680101");
         assertThat(detail.administrationName()).isEqualTo("역삼1동");
 
-        AdministrationSalesDetailQueryResult sales = detail.sales();
+        AdministrationSalesDetailClientResponse sales = detail.sales();
         assertThat(sales).isNotNull();
         assertThat(sales.topSalesServices()).hasSize(2);
 
-        AdministrationSalesServiceTopQueryResult firstSalesService = sales.topSalesServices().get(0);
+        AdministrationSalesServiceTopClientResponse firstSalesService = sales.topSalesServices().get(0);
         assertThat(firstSalesService.serviceCode()).isEqualTo("CS100001");
         assertThat(firstSalesService.serviceName()).isEqualTo("한식음식점");
         assertThat(firstSalesService.monthlySalesAmount()).isEqualTo(1101L);
         assertThat(firstSalesService.salesChangeRate()).isEqualTo(1.1);
 
         // 목록 순서가 뒤집히지 않는지까지 확인한다. 상위 업종은 순위가 곧 의미다.
-        AdministrationSalesServiceTopQueryResult secondSalesService = sales.topSalesServices().get(1);
+        AdministrationSalesServiceTopClientResponse secondSalesService = sales.topSalesServices().get(1);
         assertThat(secondSalesService.serviceCode()).isEqualTo("CS100002");
         assertThat(secondSalesService.serviceName()).isEqualTo("커피-음료");
         assertThat(secondSalesService.monthlySalesAmount()).isEqualTo(1102L);
         assertThat(secondSalesService.salesChangeRate()).isEqualTo(2.2);
 
-        AdministrationStoreDetailQueryResult store = detail.store();
+        AdministrationStoreDetailClientResponse store = detail.store();
         assertThat(store).isNotNull();
         assertThat(store.topStoreServices()).hasSize(2);
 
-        AdministrationStoreServiceTopQueryResult firstStoreService = store.topStoreServices().get(0);
+        AdministrationStoreServiceTopClientResponse firstStoreService = store.topStoreServices().get(0);
         assertThat(firstStoreService.serviceCode()).isEqualTo("CS200001");
         assertThat(firstStoreService.serviceName()).isEqualTo("편의점");
         assertThat(firstStoreService.totalStoreCount()).isEqualTo(2101L);
@@ -212,7 +214,7 @@ class AdministrationAnalysisWireGoldenJsonTest {
         assertThat(firstStoreService.openingRate()).isEqualTo(3.3);
         assertThat(firstStoreService.closureRate()).isEqualTo(4.4);
 
-        AdministrationStoreServiceTopQueryResult secondStoreService = store.topStoreServices().get(1);
+        AdministrationStoreServiceTopClientResponse secondStoreService = store.topStoreServices().get(1);
         assertThat(secondStoreService.serviceCode()).isEqualTo("CS200002");
         assertThat(secondStoreService.serviceName()).isEqualTo("일반의류");
         assertThat(secondStoreService.totalStoreCount()).isEqualTo(2201L);
@@ -223,7 +225,7 @@ class AdministrationAnalysisWireGoldenJsonTest {
         assertThat(secondStoreService.openingRate()).isEqualTo(5.5);
         assertThat(secondStoreService.closureRate()).isEqualTo(6.6);
 
-        AdministrationIncomeDetailQueryResult income = detail.income();
+        AdministrationIncomeDetailClientResponse income = detail.income();
         assertThat(income).isNotNull();
         assertThat(income.totalExpenseAmount()).isEqualTo(3101L);
     }
@@ -231,11 +233,11 @@ class AdministrationAnalysisWireGoldenJsonTest {
     @Test
     @DisplayName("행정동 상위 지역 응답 JSON 이 자치구·행정동 코드와 이름 4개로 매핑된다")
     void administrationDistrictGoldenJsonBindsEveryField() throws Exception {
-        Response<AdministrationDistrictQueryResult> response =
+        Response<AdministrationDistrictClientResponse> response =
             objectMapper.readValue(ADMINISTRATION_DISTRICT_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        AdministrationDistrictQueryResult district = response.dataBody();
+        AdministrationDistrictClientResponse district = response.dataBody();
         assertThat(district.districtCode()).isEqualTo("11680");
         assertThat(district.districtName()).isEqualTo("강남구");
         assertThat(district.administrationCode()).isEqualTo("11680101");
@@ -245,11 +247,11 @@ class AdministrationAnalysisWireGoldenJsonTest {
     @Test
     @DisplayName("행정동 소속 상권 목록 응답 JSON 에서 코드·이름만 취하고 나머지 4개 필드는 버린다")
     void administrationCommercialsGoldenJsonBindsCodeAndNameOnly() throws Exception {
-        Response<List<AdministrationCommercialQueryResult>> response =
+        Response<List<AdministrationCommercialClientResponse>> response =
             objectMapper.readValue(ADMINISTRATION_COMMERCIALS_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
-        List<AdministrationCommercialQueryResult> commercials = response.dataBody();
+        List<AdministrationCommercialClientResponse> commercials = response.dataBody();
         assertThat(commercials).hasSize(2);
 
         assertThat(commercials.get(0).commercialCode()).isEqualTo("3110125");

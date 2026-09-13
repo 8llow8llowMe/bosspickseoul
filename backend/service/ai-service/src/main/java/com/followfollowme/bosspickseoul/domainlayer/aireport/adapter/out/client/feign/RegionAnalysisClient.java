@@ -1,8 +1,8 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign;
 
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationCommercialQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationDistrictQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationCommercialClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.administration.AdministrationDistrictClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictAreaQueryResult;
 import java.util.List;
@@ -17,10 +17,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface RegionAnalysisClient {
 
     @GetMapping("/api/v1/regions/administrations/{administrationCode}")
-    Response<AdministrationDistrictQueryResult> getAdministrationDistrict(@PathVariable String administrationCode);
+    Response<AdministrationDistrictClientResponse> getAdministrationDistrict(@PathVariable String administrationCode);
 
     @GetMapping("/api/v1/regions/districts/{districtCode}/administrations/{administrationCode}/commercials")
-    Response<List<AdministrationCommercialQueryResult>> getCommercialsByAdministration(
+    Response<List<AdministrationCommercialClientResponse>> getCommercialsByAdministration(
         @PathVariable String districtCode,
         @PathVariable String administrationCode
     );
