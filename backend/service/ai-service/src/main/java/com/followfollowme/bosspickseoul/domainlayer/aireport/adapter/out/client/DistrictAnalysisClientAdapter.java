@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client;
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.DistrictAnalysisClient;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district.DistrictAnalysisWireMapper;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.support.InternalResponseSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.DistrictAnalysisQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
@@ -16,6 +17,8 @@ public class DistrictAnalysisClientAdapter implements DistrictAnalysisQueryPort 
 
     @Override
     public DistrictDetailQueryResult getDistrictDetail(String districtCode, String periodCode) {
-        return responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> districtAnalysisClient.getDistrictDetail(districtCode, periodCode));
+        return DistrictAnalysisWireMapper.toQueryResult(
+            responseSupport.requestAndUnwrap(InternalResponseSupport.COMMERCIAL_SERVICE, () -> districtAnalysisClient.getDistrictDetail(districtCode, periodCode))
+        );
     }
 }

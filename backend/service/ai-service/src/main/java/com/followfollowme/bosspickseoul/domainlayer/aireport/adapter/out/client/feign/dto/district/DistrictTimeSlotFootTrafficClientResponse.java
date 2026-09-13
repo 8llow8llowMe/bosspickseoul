@@ -1,10 +1,10 @@
-package com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query;
+package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
-import lombok.Builder;
 
-@Builder
-public record DistrictTimeSlotFootTrafficQueryResult(
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record DistrictTimeSlotFootTrafficClientResponse(
     long footTrafficTime00To06,
     long footTrafficTime06To11,
     long footTrafficTime11To14,

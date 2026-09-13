@@ -1,10 +1,10 @@
-package com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query;
+package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.district;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
-import lombok.Builder;
 
-@Builder
-public record DistrictAgeGroupFootTrafficQueryResult(
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record DistrictAgeGroupFootTrafficClientResponse(
     long age10FootTraffic,
     long age20FootTraffic,
     long age30FootTraffic,
