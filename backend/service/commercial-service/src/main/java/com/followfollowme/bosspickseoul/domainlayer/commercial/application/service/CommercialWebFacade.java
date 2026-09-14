@@ -52,10 +52,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.servi
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.adapter.in.web.presenter.CommercialSummaryPresenter;
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.application.service.processor.CommercialSummaryQueryProcessor;
 import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
-import com.followfollowme.bosspickseoul.domainlayer.ranking.application.port.out.AnalysisViewEventPort;
+import com.followfollowme.bosspickseoul.domainlayer.ranking.application.service.processor.AnalysisViewPublishProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.domain.enums.AnalysisAreaType;
-import com.followfollowme.bosspickseoul.domainlayer.ranking.domain.model.AnalysisViewEvent;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -78,7 +76,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     private final CommercialTrendQueryProcessor commercialTrendQueryProcessor;
     private final CommercialPresenter commercialPresenter;
     private final PolicyQueryProcessor policyQueryProcessor;
-    private final AnalysisViewEventPort analysisViewEventPort;
+    private final AnalysisViewPublishProcessor analysisViewPublishProcessor;
     private final CommercialSummaryQueryProcessor commercialSummaryQueryProcessor;
     private final CommercialSummaryPresenter commercialSummaryPresenter;
 
@@ -95,8 +93,8 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         CommercialFootTrafficInfo info = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         // 상권 상세 진입의 대표 신호로 이 API 를 사용한다 (화면당 1회 호출).
         // 포트 계약상 절대 예외를 던지지 않아 본 조회 응답에는 영향이 없다.
-        analysisViewEventPort.publish(new AnalysisViewEvent(
-            AnalysisAreaType.COMMERCIAL, commercialCode, info.commercialName(), LocalDateTime.now()));
+        analysisViewPublishProcessor.publishView(
+            AnalysisAreaType.COMMERCIAL, commercialCode, info.commercialName());
         return commercialPresenter.toCommercialFootTrafficResponse(info);
     }
 
