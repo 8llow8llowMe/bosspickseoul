@@ -12,4 +12,7 @@ public interface FootTrafficCommercialRepository extends JpaRepository<FootTraff
 
     List<FootTrafficCommercialEntity> findByCommercialCodeAndSpatialVersionAndPeriodCodeIn(
         String commercialCode, String spatialVersion, List<String> periodCodes);
+
+    List<FootTrafficCommercialEntity> findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(
+        String periodCode, String spatialVersion, List<String> commercialCodes);
 }

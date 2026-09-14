@@ -10,4 +10,6 @@ public interface FootTrafficCommercialRepositoryPort {
 
     /** 요청한 분기 중 존재하는 것만 돌려준다. 순서는 보장하지 않으므로 호출자가 분기 코드로 다시 정렬·조립한다. */
     List<FootTrafficCommercial> findByCommercialCodeAndPeriodCodeIn(String commercialCode, List<String> periodCodes);
+
+    List<FootTrafficCommercial> findAllByPeriodCodeAndCommercialCodeIn(String periodCode, List<String> commercialCodes);
 }

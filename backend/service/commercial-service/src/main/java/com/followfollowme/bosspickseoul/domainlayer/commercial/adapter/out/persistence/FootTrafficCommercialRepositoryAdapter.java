@@ -33,4 +33,14 @@ public class FootTrafficCommercialRepositoryAdapter implements FootTrafficCommer
             .map(footTrafficCommercialMapper::toDomainFromEntity)
             .toList();
     }
+
+    @Override
+    public List<FootTrafficCommercial> findAllByPeriodCodeAndCommercialCodeIn(String periodCode, List<String> commercialCodes) {
+        return footTrafficCommercialRepository
+            .findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(
+                periodCode, datasetSpatialVersion.value(), commercialCodes)
+            .stream()
+            .map(footTrafficCommercialMapper::toDomainFromEntity)
+            .toList();
+    }
 }

@@ -21,4 +21,7 @@ public interface SalesCommercialRepository extends JpaRepository<SalesCommercial
 
     List<SalesCommercialEntity> findByCommercialCodeAndServiceCodeAndSpatialVersionAndPeriodCodeIn(
         String commercialCode, String serviceCode, String spatialVersion, List<String> periodCodes);
+
+    List<SalesCommercialEntity> findAllByPeriodCodeAndServiceCodeAndSpatialVersionAndCommercialCodeIn(
+        String periodCode, String serviceCode, String spatialVersion, List<String> commercialCodes);
 }

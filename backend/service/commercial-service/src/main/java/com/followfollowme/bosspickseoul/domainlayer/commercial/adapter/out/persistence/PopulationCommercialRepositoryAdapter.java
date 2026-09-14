@@ -5,6 +5,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.mappe
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.PopulationCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.PopulationCommercial;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -22,5 +23,15 @@ public class PopulationCommercialRepositoryAdapter implements PopulationCommerci
         return populationCommercialRepository
             .findByPeriodCodeAndCommercialCodeAndSpatialVersion(periodCode, commercialCode, datasetSpatialVersion.value())
             .map(populationCommercialMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public List<PopulationCommercial> findAllByPeriodCodeAndCommercialCodeIn(String periodCode, List<String> commercialCodes) {
+        return populationCommercialRepository
+            .findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(
+                periodCode, datasetSpatialVersion.value(), commercialCodes)
+            .stream()
+            .map(populationCommercialMapper::toDomainFromEntity)
+            .toList();
     }
 }
