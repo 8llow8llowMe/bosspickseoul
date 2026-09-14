@@ -5,7 +5,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreCountsInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.ChangeCommercial;
 
 public record CommercialHeatmapSource(
@@ -13,7 +13,7 @@ public record CommercialHeatmapSource(
     String commercialName,
     CommercialSalesInfo sales,
     CommercialFootTrafficInfo footTraffic,
-    CommercialStoreAnalysisInfo store,
+    CommercialStoreCountsInfo store,
     CommercialResidentPopulationInfo population,
     CommercialIncomeAndExpenseInfo income,
     CommercialFacilityInfo facility,

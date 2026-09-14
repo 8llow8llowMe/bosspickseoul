@@ -1,14 +1,19 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreCountsInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapSource;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.MetricRange;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.ChangeCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.enums.ChangeIndicatorCode;
@@ -86,42 +91,87 @@ public class CommercialHeatmapQueryProcessor {
         return result;
     }
 
+    /**
+     * 요청한 상권 전부의 원천 지표를 지표 종류당 조회 한 번씩으로 모은다.
+     *
+     * <p>예전에는 상권 코드를 루프로 돌며 상권마다 단건 조회 7회(매출 · 유동인구 · 점포 · 점포의
+     * 동종업종 피어 · 상주인구 · 소득 · 집객시설)를 던졌다. {@code commercialCodes} 에 개수 상한이
+     * 없으므로 지도 뷰포트가 넓으면 왕복이 그대로 곱해졌다. 지금은 상권 수와 무관하게 7회 고정이다
+     * (변화지표 1 + 원천 6). 피어 조회는 히트맵이 그 결과를 쓰지 않으므로 아예 빠졌다.
+     *
+     * <p>「데이터 없음」의 전달 방식이 바뀌었다. 단건 경로는 {@code CommercialException} 을 던졌고
+     * 여기서 잡아 제외했지만, 벌크는 맵에 키가 없는 것으로 알린다. 판정은
+     * {@link #buildSource} 한 곳에 모았고, 결과(점수 산정에서 제외하되 요청 전체는 성공)는 같다.
+     */
     private List<CommercialHeatmapSource> loadSources(
         String periodCode, String serviceCode, List<String> commercialCodes
     ) {
+        if (commercialCodes.isEmpty()) {
+            return List.of();
+        }
+
         Map<String, ChangeCommercial> changeByCode = changeCommercialRepositoryPort
             .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
             .stream()
-            .collect(Collectors.toMap(ChangeCommercial::commercialCode, change -> change));
+            .collect(Collectors.toMap(ChangeCommercial::commercialCode, change -> change, (first, ignored) -> first));
+
+        Map<String, CommercialSalesInfo> salesByCode = commercialQueryProcessor
+            .getSalesByPeriodCodeAndCommercialCodesAndServiceCode(periodCode, commercialCodes, serviceCode);
+        Map<String, CommercialFootTrafficInfo> footTrafficByCode = commercialQueryProcessor
+            .getFootTrafficByPeriodCodeAndCommercialCodes(periodCode, commercialCodes);
+        Map<String, CommercialStoreCountsInfo> storeByCode = commercialQueryProcessor
+            .getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(periodCode, commercialCodes, serviceCode);
+        Map<String, CommercialResidentPopulationInfo> populationByCode = commercialQueryProcessor
+            .getPopulationByPeriodCodeAndCommercialCodes(periodCode, commercialCodes);
+        Map<String, CommercialIncomeAndExpenseInfo> incomeByCode = commercialQueryProcessor
+            .getIncomeByPeriodCodeAndCommercialCodes(periodCode, commercialCodes);
+        Map<String, CommercialFacilityInfo> facilityByCode = commercialQueryProcessor
+            .getFacilityByPeriodCodeAndCommercialCodes(periodCode, commercialCodes);
 
         return commercialCodes.stream()
-            .map(code -> buildSource(periodCode, serviceCode, code, changeByCode.get(code)))
+            .map(code -> buildSource(
+                code,
+                salesByCode.get(code),
+                footTrafficByCode.get(code),
+                storeByCode.get(code),
+                populationByCode.get(code),
+                incomeByCode.get(code),
+                facilityByCode.get(code),
+                changeByCode.get(code)
+            ))
             .toList();
     }
 
+    /**
+     * 지표가 하나라도 없는 상권은 요청 전체를 실패시키지 않고 점수 산정 대상에서만 제외한다
+     * (예: 해당 업종 매출이 없는 상권).
+     */
     private CommercialHeatmapSource buildSource(
-        String periodCode, String serviceCode, String commercialCode, ChangeCommercial change
+        String commercialCode,
+        CommercialSalesInfo sales,
+        CommercialFootTrafficInfo footTraffic,
+        CommercialStoreCountsInfo store,
+        CommercialResidentPopulationInfo population,
+        CommercialIncomeAndExpenseInfo income,
+        CommercialFacilityInfo facility,
+        ChangeCommercial change
     ) {
-        try {
-            var sales = commercialQueryProcessor
-                .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
-            return new CommercialHeatmapSource(
-                commercialCode,
-                sales.commercialName(),
-                sales,
-                commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode),
-                commercialQueryProcessor
-                    .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode),
-                commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode),
-                commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode),
-                commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode),
-                change
-            );
-        } catch (CommercialException | IllegalArgumentException exception) {
-            // 일부 지표 데이터가 없는 상권(예: 해당 업종 매출 없음 COMMERCIAL_007)은
-            // 요청 전체를 실패시키지 않고 점수 산정 대상에서만 제외한다.
+        if (sales == null || footTraffic == null || store == null
+            || population == null || income == null || facility == null) {
             return CommercialHeatmapSource.empty(commercialCode);
         }
+
+        return new CommercialHeatmapSource(
+            commercialCode,
+            sales.commercialName(),
+            sales,
+            footTraffic,
+            store,
+            population,
+            income,
+            facility,
+            change
+        );
     }
 
     private Map<CommercialHeatmapMetricType, MetricRange> computeRanges(List<CommercialHeatmapSource> sources) {

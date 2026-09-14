@@ -13,6 +13,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.store.CommercialServiceCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialPeerStoreInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreAnalysisInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreCountsInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.FacilityCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.FootTrafficCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.IncomeCommercialRepositoryPort;
@@ -26,6 +27,9 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.Popu
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.SalesCommercial;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.StoreCommercial;
 import java.util.List;
+import java.util.Map;
+import java.util.function.BinaryOperator;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -103,6 +107,78 @@ public class CommercialQueryProcessor {
         List<CommercialPeerStoreInfo> peerStores = findPeerStores(periodCode, commercialCode, serviceCode, targetStore.serviceType());
 
         return CommercialStoreAnalysisInfo.of(targetStore, peerStores);
+    }
+
+    /**
+     * 여러 상권의 원천 지표를 분기당 조회 한 번으로 가져온다.
+     *
+     * <p>단건 메서드들을 상권 수만큼 반복하면 히트맵 한 번에 상권당 7회씩 왕복한다. 아래 벌크 메서드는
+     * 상권 수와 무관하게 각 1회다. 요청한 코드 중 데이터가 없는 상권은 맵에 키가 없으므로,
+     * 단건 경로가 예외로 알리던 「없음」을 호출부는 {@code null} 로 받는다.
+     *
+     * <p>같은 키가 둘 이상 오면 앞의 것을 쓴다. 정상 데이터에서는 생기지 않지만, 중복 적재가 있어도
+     * {@code toMap} 이 {@code IllegalStateException} 을 던져 요청 전체를 죽이는 일은 없어야 한다.
+     */
+    public Map<String, CommercialSalesInfo> getSalesByPeriodCodeAndCommercialCodesAndServiceCode(
+        String periodCode, List<String> commercialCodes, String serviceCode
+    ) {
+        return salesCommercialRepositoryPort
+            .findAllByPeriodCodeAndServiceCodeAndCommercialCodeIn(periodCode, serviceCode, commercialCodes)
+            .stream()
+            .collect(Collectors.toMap(SalesCommercial::commercialCode, CommercialSalesInfo::from, keepFirst()));
+    }
+
+    public Map<String, CommercialFootTrafficInfo> getFootTrafficByPeriodCodeAndCommercialCodes(
+        String periodCode, List<String> commercialCodes
+    ) {
+        return footTrafficCommercialRepositoryPort
+            .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
+            .stream()
+            .collect(Collectors.toMap(FootTrafficCommercial::commercialCode, CommercialFootTrafficInfo::from, keepFirst()));
+    }
+
+    /**
+     * 점포 집계 수치만 벌크로 가져온다. 동종업종 피어는 조회하지 않는다 —
+     * 그래서 반환 타입이 {@link CommercialStoreAnalysisInfo} 가 아니라 {@link CommercialStoreCountsInfo} 다.
+     */
+    public Map<String, CommercialStoreCountsInfo> getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(
+        String periodCode, List<String> commercialCodes, String serviceCode
+    ) {
+        return storeCommercialRepositoryPort
+            .findAllByPeriodCodeAndServiceCodeAndCommercialCodeIn(periodCode, serviceCode, commercialCodes)
+            .stream()
+            .collect(Collectors.toMap(StoreCommercial::commercialCode, CommercialStoreCountsInfo::from, keepFirst()));
+    }
+
+    public Map<String, CommercialResidentPopulationInfo> getPopulationByPeriodCodeAndCommercialCodes(
+        String periodCode, List<String> commercialCodes
+    ) {
+        return populationCommercialRepositoryPort
+            .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
+            .stream()
+            .collect(Collectors.toMap(PopulationCommercial::commercialCode, CommercialResidentPopulationInfo::from, keepFirst()));
+    }
+
+    public Map<String, CommercialIncomeAndExpenseInfo> getIncomeByPeriodCodeAndCommercialCodes(
+        String periodCode, List<String> commercialCodes
+    ) {
+        return incomeCommercialRepositoryPort
+            .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
+            .stream()
+            .collect(Collectors.toMap(IncomeCommercial::commercialCode, CommercialIncomeAndExpenseInfo::from, keepFirst()));
+    }
+
+    public Map<String, CommercialFacilityInfo> getFacilityByPeriodCodeAndCommercialCodes(
+        String periodCode, List<String> commercialCodes
+    ) {
+        return facilityCommercialRepositoryPort
+            .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
+            .stream()
+            .collect(Collectors.toMap(FacilityCommercial::commercialCode, CommercialFacilityInfo::from, keepFirst()));
+    }
+
+    private static <T> BinaryOperator<T> keepFirst() {
+        return (first, ignored) -> first;
     }
 
     /**
