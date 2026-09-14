@@ -19,4 +19,10 @@ public interface StoreCommercialRepositoryPort {
     );
 
     List<StoreCommercial> findAllByPeriodCodeAndCommercialCode(String periodCode, String commercialCode);
+
+    List<StoreCommercial> findAllByPeriodCodeAndServiceCodeAndCommercialCodeIn(
+        String periodCode,
+        String serviceCode,
+        List<String> commercialCodes
+    );
 }

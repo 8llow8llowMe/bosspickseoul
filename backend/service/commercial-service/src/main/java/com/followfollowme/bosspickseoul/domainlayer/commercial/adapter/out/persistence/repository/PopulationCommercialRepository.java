@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.repository;
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.entity.PopulationCommercialEntity;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -8,4 +9,7 @@ public interface PopulationCommercialRepository extends JpaRepository<Population
 
     Optional<PopulationCommercialEntity> findByPeriodCodeAndCommercialCodeAndSpatialVersion(
         String periodCode, String commercialCode, String spatialVersion);
+
+    List<PopulationCommercialEntity> findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(
+        String periodCode, String spatialVersion, List<String> commercialCodes);
 }

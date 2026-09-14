@@ -73,6 +73,15 @@ class CommercialTrendQueryProcessorTest {
             );
         }
 
+        @Override
+        public List<SalesCommercial> findAllByPeriodCodeAndServiceCodeAndCommercialCodeIn(
+            String periodCode,
+            String serviceCode,
+            List<String> commercialCodes
+        ) {
+            return List.of();
+        }
+
         private SalesCommercial sales(String periodCode, long monthlySalesAmount) {
             return SalesCommercial.builder()
                 .periodCode(periodCode)
@@ -93,6 +102,11 @@ class CommercialTrendQueryProcessorTest {
 
         @Override
         public List<FootTrafficCommercial> findByCommercialCodeAndPeriodCodeIn(String commercialCode, List<String> periodCodes) {
+            return List.of();
+        }
+
+        @Override
+        public List<FootTrafficCommercial> findAllByPeriodCodeAndCommercialCodeIn(String periodCode, List<String> commercialCodes) {
             return List.of();
         }
     }
@@ -128,6 +142,15 @@ class CommercialTrendQueryProcessorTest {
 
         @Override
         public List<StoreCommercial> findAllByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+            return List.of();
+        }
+
+        @Override
+        public List<StoreCommercial> findAllByPeriodCodeAndServiceCodeAndCommercialCodeIn(
+            String periodCode,
+            String serviceCode,
+            List<String> commercialCodes
+        ) {
             return List.of();
         }
     }

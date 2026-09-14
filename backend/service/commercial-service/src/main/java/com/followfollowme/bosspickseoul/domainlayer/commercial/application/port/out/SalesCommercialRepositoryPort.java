@@ -15,4 +15,10 @@ public interface SalesCommercialRepositoryPort {
         String serviceCode,
         List<String> periodCodes
     );
+
+    List<SalesCommercial> findAllByPeriodCodeAndServiceCodeAndCommercialCodeIn(
+        String periodCode,
+        String serviceCode,
+        List<String> commercialCodes
+    );
 }
