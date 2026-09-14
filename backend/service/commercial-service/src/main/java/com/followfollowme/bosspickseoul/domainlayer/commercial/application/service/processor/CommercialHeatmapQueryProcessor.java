@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.application.serv
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
@@ -13,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.enums.ChangeIndicatorCode;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.ChangeCommercial;
 import com.followfollowme.bosspickseoul.shared.enums.GradeLevel;
+import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -39,13 +41,36 @@ public class CommercialHeatmapQueryProcessor {
     private final CommercialQueryProcessor commercialQueryProcessor;
     private final ChangeCommercialRepositoryPort changeCommercialRepositoryPort;
 
-    public List<CommercialHeatmapScoreInfo> getHeatmapScores(
+    /**
+     * 단일 지표 히트맵 응답을 완성해서 돌려준다.
+     *
+     * <p>메타데이터와 요약 문구까지 여기서 만든다. 예전에는 점수 목록만 돌려주고 조립은 Facade 가
+     * 했는데, 복합 지표 경로({@code CommercialCandidateQueryProcessor.getCompositeHeatmapScores})는
+     * 같은 타입을 Processor 에서 완성해 돌려주고 있었다. 계층이 호출 경로에 따라 갈려 있어
+     * 맞춘 것이다.
+     *
+     * <p>다만 조립 지점의 <b>개수</b>는 아직 하나가 아니다. 이 메서드와
+     * {@code CommercialCandidateQueryProcessor} 의 두 곳, 합쳐서 세 곳이
+     * {@code CommercialHeatmapScoresResponseInfo} 를 만든다. 모두 Processor 계층이라 경계는
+     * 맞지만, 필드를 추가할 때는 여전히 세 곳을 함께 고쳐야 한다. 필드 집합을 한 곳에 고정하려면
+     * Info 에 단일 지표용 · 복합용 정적 팩토리를 두는 별도 정리가 필요하다.
+     */
+    public CommercialHeatmapScoresResponseInfo getHeatmapScores(
         String periodCode, String serviceCode, List<String> commercialCodes, CommercialHeatmapMetricType metricType
     ) {
-        return getAllMetricScores(periodCode, serviceCode, commercialCodes).stream()
+        List<CommercialHeatmapScoreInfo> scores = getAllMetricScores(periodCode, serviceCode, commercialCodes).stream()
             .map(entry -> entry.scoresByMetric().get(metricType))
             .filter(Objects::nonNull)
             .toList();
+
+        return CommercialHeatmapScoresResponseInfo.builder()
+            .mode(HeatmapModeType.SINGLE_METRIC.toMetadata())
+            .serviceCode(serviceCode)
+            .periodCode(periodCode)
+            .metricType(metricType.toScoreMetadata())
+            .summary("%s 기준으로 조회한 상권 히트맵 결과입니다.".formatted(metricType.getDisplayName()))
+            .scores(scores)
+            .build();
     }
 
     public List<CommercialAllMetricScoresInfo> getAllMetricScores(
