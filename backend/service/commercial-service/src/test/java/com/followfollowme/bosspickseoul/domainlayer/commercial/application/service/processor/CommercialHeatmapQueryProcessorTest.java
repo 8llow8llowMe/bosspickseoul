@@ -3,16 +3,19 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.application.serv
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.ChangeCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,10 +39,12 @@ class CommercialHeatmapQueryProcessorTest {
     void getAllMetricScores_sourceDataMissing_excludesCommercialInsteadOfFailingWholeRequest() {
         // 특정 상권×업종 조합의 매출 데이터가 없으면 도메인 예외(COMMERCIAL_007)가 발생하는데,
         // 이때 요청 전체가 404로 실패하지 않고 해당 상권만 점수 산정에서 제외되어야 한다. (회귀 방지)
+        // 벌크 조회가 빈 맵을 돌려주는 것이 곧 「그 상권의 데이터가 없다」는 신호다.
+        // 예전에는 단건 조회가 COMMERCIAL_007 예외를 던졌고 Processor 가 그것을 잡았다.
         when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
             .thenReturn(List.of());
-        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(anyString(), anyString(), anyString()))
-            .thenThrow(new CommercialException(CommercialErrorCode.SALES_NOT_FOUND));
+        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
+            .thenReturn(Map.of());
 
         List<CommercialAllMetricScoresInfo> scores =
             processor.getAllMetricScores("20233", "CS100001", List.of("C1", "C2"));
@@ -61,8 +66,6 @@ class CommercialHeatmapQueryProcessorTest {
         // 같은 타입을 따로 만든다 — 필드를 추가할 때는 양쪽을 함께 봐야 한다.
         when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
             .thenReturn(List.of());
-        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(anyString(), anyString(), anyString()))
-            .thenThrow(new CommercialException(CommercialErrorCode.SALES_NOT_FOUND));
 
         CommercialHeatmapScoresResponseInfo info = processor.getHeatmapScores(
             "20233", "CS100001", List.of("C1", "C2"), CommercialHeatmapMetricType.OPPORTUNITY_SCORE);
@@ -77,6 +80,46 @@ class CommercialHeatmapQueryProcessorTest {
         // 단일 지표 응답에는 복합 전용 필드가 붙지 않는다.
         assertThat(info.preset()).isNull();
         assertThat(info.priorityMetric()).isNull();
+    }
+
+    @Test
+    @DisplayName("원천 조회 횟수는 상권 수와 무관하게 고정이다")
+    void loadSources_queryCountDoesNotGrowWithCommercialCount() {
+        // #404. 예전에는 상권 코드마다 단건 조회 7회(매출·유동인구·점포·점포의 동종업종 피어·
+        // 상주인구·소득·집객시설)를 던져 코드 50개면 350회였다. 지금은 종류당 1회씩만 나간다.
+        // 이 테스트가 깨졌다면 loadSources 안에 다시 루프가 생긴 것이다.
+        List<String> fiftyCodes = IntStream.range(0, 50).mapToObj(index -> "C" + index).toList();
+        when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
+            .thenReturn(List.of());
+
+        processor.getAllMetricScores("20233", "CS100001", fiftyCodes);
+
+        verify(changeCommercialRepositoryPort, times(1)).findAllByPeriodCodeAndCommercialCodeIn(anyString(), any());
+        verify(commercialQueryProcessor, times(1))
+            .getSalesByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString());
+        verify(commercialQueryProcessor, times(1)).getFootTrafficByPeriodCodeAndCommercialCodes(anyString(), any());
+        verify(commercialQueryProcessor, times(1))
+            .getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString());
+        verify(commercialQueryProcessor, times(1)).getPopulationByPeriodCodeAndCommercialCodes(anyString(), any());
+        verify(commercialQueryProcessor, times(1)).getIncomeByPeriodCodeAndCommercialCodes(anyString(), any());
+        verify(commercialQueryProcessor, times(1)).getFacilityByPeriodCodeAndCommercialCodes(anyString(), any());
+
+        // 단건 경로는 한 번도 타지 않는다. 피어 조회를 품은 getStoreBy... 가 특히 중요하다.
+        verify(commercialQueryProcessor, never())
+            .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(anyString(), anyString(), anyString());
+        verify(commercialQueryProcessor, never())
+            .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("상권 코드가 비면 조회를 아예 하지 않는다")
+    void loadSources_emptyCommercialCodes_skipsQueries() {
+        List<CommercialAllMetricScoresInfo> scores = processor.getAllMetricScores("20233", "CS100001", List.of());
+
+        assertThat(scores).isEmpty();
+        verify(changeCommercialRepositoryPort, never()).findAllByPeriodCodeAndCommercialCodeIn(anyString(), any());
+        verify(commercialQueryProcessor, never())
+            .getSalesByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString());
     }
 
     @Test
