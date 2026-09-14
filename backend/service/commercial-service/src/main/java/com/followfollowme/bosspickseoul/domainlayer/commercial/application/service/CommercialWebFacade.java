@@ -22,7 +22,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
@@ -51,7 +50,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.servi
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialTrendQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.adapter.in.web.presenter.CommercialSummaryPresenter;
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.application.service.processor.CommercialSummaryQueryProcessor;
-import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.application.service.processor.AnalysisViewPublishProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.ranking.domain.enums.AnalysisAreaType;
 import java.util.List;
@@ -159,21 +157,13 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialHeatmapScoresResponse getHeatmapScores(
         String periodCode, String serviceCode, List<String> commercialCodes, CommercialHeatmapMetricType metricType
     ) {
-        List<CommercialHeatmapScoreInfo> infos = commercialHeatmapQueryProcessor.getHeatmapScores(
+        CommercialHeatmapScoresResponseInfo info = commercialHeatmapQueryProcessor.getHeatmapScores(
             periodCode,
             serviceCode,
             commercialCodes,
             metricType
         );
-        CommercialHeatmapScoresResponseInfo responseInfo = CommercialHeatmapScoresResponseInfo.builder()
-            .mode(HeatmapModeType.SINGLE_METRIC.toMetadata())
-            .serviceCode(serviceCode)
-            .periodCode(periodCode)
-            .metricType(metricType.toScoreMetadata())
-            .summary("%s 기준으로 조회한 상권 히트맵 결과입니다.".formatted(metricType.getDisplayName()))
-            .scores(infos)
-            .build();
-        return commercialPresenter.toCommercialHeatmapScoresResponse(responseInfo);
+        return commercialPresenter.toCommercialHeatmapScoresResponse(info);
     }
 
     @Override

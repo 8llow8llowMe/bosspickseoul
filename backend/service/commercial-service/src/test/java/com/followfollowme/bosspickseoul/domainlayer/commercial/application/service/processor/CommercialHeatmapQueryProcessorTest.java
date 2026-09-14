@@ -8,8 +8,10 @@ import static org.mockito.Mockito.when;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.ChangeCommercialRepositoryPort;
+import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,32 @@ class CommercialHeatmapQueryProcessorTest {
                 assertThat(score.grade()).isEqualTo("INSUFFICIENT");
             })
         );
+    }
+
+    @Test
+    @DisplayName("단일 지표 응답은 점수뿐 아니라 mode·metricType·summary 메타데이터까지 채워 돌려준다")
+    void getHeatmapScores_fillsResponseMetadata() {
+        // 이 조립은 원래 Facade 에 있었다. Processor 로 내리면서 필드가 빠지면 화면 메타데이터가
+        // 조용히 비므로 여기서 못 박는다. 복합 지표 경로는 CommercialCandidateQueryProcessor 가
+        // 같은 타입을 따로 만든다 — 필드를 추가할 때는 양쪽을 함께 봐야 한다.
+        when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
+            .thenReturn(List.of());
+        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(anyString(), anyString(), anyString()))
+            .thenThrow(new CommercialException(CommercialErrorCode.SALES_NOT_FOUND));
+
+        CommercialHeatmapScoresResponseInfo info = processor.getHeatmapScores(
+            "20233", "CS100001", List.of("C1", "C2"), CommercialHeatmapMetricType.OPPORTUNITY_SCORE);
+
+        assertThat(info.mode()).isNotNull();
+        assertThat(info.mode().code()).isEqualTo(HeatmapModeType.SINGLE_METRIC.name());
+        assertThat(info.periodCode()).isEqualTo("20233");
+        assertThat(info.serviceCode()).isEqualTo("CS100001");
+        assertThat(info.metricType()).isNotNull();
+        assertThat(info.summary()).contains(CommercialHeatmapMetricType.OPPORTUNITY_SCORE.getDisplayName());
+        assertThat(info.scores()).hasSize(2);
+        // 단일 지표 응답에는 복합 전용 필드가 붙지 않는다.
+        assertThat(info.preset()).isNull();
+        assertThat(info.priorityMetric()).isNull();
     }
 
     @Test
