@@ -18,26 +18,22 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
-@Component
 public class BizinfoPolicySourceAdapter implements PolicySourcePort {
 
     private final PolicyIngestionProperties properties;
-    private final HttpTransport transport;
     private final ObjectMapper mapper;
+    private final HttpClient client;
+    private final Duration timeout;
 
-    // 테스트용 3-인자 생성자가 있으면 Spring 은 대상을 고르지 못하고 기본 생성자를 찾다 기동이 깨진다.
-    @Autowired
     public BizinfoPolicySourceAdapter(PolicyIngestionProperties properties) {
-        this(properties, jdkTransport(properties), defaultMapper());
-    }
-
-    BizinfoPolicySourceAdapter(PolicyIngestionProperties properties, HttpTransport transport, ObjectMapper mapper) {
         this.properties = properties;
-        this.transport = transport;
-        this.mapper = mapper;
+        this.mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.timeout = Duration.ofSeconds(properties.bizinfo().timeoutSeconds());
+        this.client = HttpClient.newBuilder()
+            .connectTimeout(timeout)
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
     }
 
     @Override
@@ -85,14 +81,17 @@ public class BizinfoPolicySourceAdapter implements PolicySourcePort {
         IOException lastIo = null;
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
-                ApiResponse response = transport.get(uri);
-                if (response.status() >= 500 && attempt < attempts) {
+                HttpResponse<byte[]> response = client.send(
+                    HttpRequest.newBuilder(uri).timeout(timeout).GET().build(),
+                    HttpResponse.BodyHandlers.ofByteArray()
+                );
+                if (response.statusCode() >= 500 && attempt < attempts) {
                     continue;
                 }
-                if (response.status() < 200 || response.status() >= 300) {
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     throw new PolicyIngestionException(
                         PolicyIngestionErrorCode.SOURCE_FETCH_FAILED,
-                        "HTTP " + response.status()
+                        "HTTP " + response.statusCode()
                     );
                 }
                 return mapper.readTree(response.body());
@@ -109,7 +108,7 @@ public class BizinfoPolicySourceAdapter implements PolicySourcePort {
         throw new PolicyIngestionException(PolicyIngestionErrorCode.SOURCE_FETCH_FAILED, lastIo, "retry exhausted");
     }
 
-    URI pageUri(int pageIndex) {
+    private URI pageUri(int pageIndex) {
         PolicyIngestionProperties.Bizinfo bizinfo = properties.bizinfo();
         StringBuilder query = new StringBuilder();
         append(query, "crtfcKey", bizinfo.crtfcKey());
@@ -183,32 +182,5 @@ public class BizinfoPolicySourceAdapter implements PolicySourcePort {
             }
         }
         return "";
-    }
-
-    private static ObjectMapper defaultMapper() {
-        return new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    }
-
-    private static HttpTransport jdkTransport(PolicyIngestionProperties properties) {
-        Duration timeout = Duration.ofSeconds(properties.bizinfo().timeoutSeconds());
-        HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(timeout)
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
-        return uri -> {
-            HttpResponse<byte[]> response = client.send(
-                HttpRequest.newBuilder(uri).timeout(timeout).GET().build(),
-                HttpResponse.BodyHandlers.ofByteArray()
-            );
-            return new ApiResponse(response.statusCode(), response.body());
-        };
-    }
-
-    @FunctionalInterface
-    interface HttpTransport {
-        ApiResponse get(URI uri) throws IOException, InterruptedException;
-    }
-
-    record ApiResponse(int status, byte[] body) {
     }
 }
