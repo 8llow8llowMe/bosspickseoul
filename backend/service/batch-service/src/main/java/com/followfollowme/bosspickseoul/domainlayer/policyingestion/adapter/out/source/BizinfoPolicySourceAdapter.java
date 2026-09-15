@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -27,6 +28,8 @@ public class BizinfoPolicySourceAdapter implements PolicySourcePort {
     private final HttpTransport transport;
     private final ObjectMapper mapper;
 
+    // 테스트용 3-인자 생성자가 있으면 Spring 은 대상을 고르지 못하고 기본 생성자를 찾다 기동이 깨진다.
+    @Autowired
     public BizinfoPolicySourceAdapter(PolicyIngestionProperties properties) {
         this(properties, jdkTransport(properties), defaultMapper());
     }
