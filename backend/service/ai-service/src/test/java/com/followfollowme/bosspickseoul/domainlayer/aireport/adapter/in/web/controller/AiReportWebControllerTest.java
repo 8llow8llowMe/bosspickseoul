@@ -85,7 +85,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .commercialReport(mock(CommercialAiReportResponse.class))
             .build();
-        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
+        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20261")))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
@@ -105,7 +105,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .jobId("job-uuid-1")
             .build();
-        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
+        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20261")))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
@@ -126,7 +126,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .jobId("job-uuid-9")
             .build();
-        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20233")))
+        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20261")))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
@@ -142,7 +142,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.DISTRICT.toMetadata())
             .jobId("job-uuid-2")
             .build();
-        when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("11680"), eq("20233")))
+        when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("11680"), eq("20261")))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/districts/{districtCode}", "11680"))
@@ -159,7 +159,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.ADMINISTRATION.toMetadata())
             .jobId("job-uuid-3")
             .build();
-        when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("11110515"), eq("20233")))
+        when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("11110515"), eq("20261")))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/administrations/{administrationCode}", "11110515"))
@@ -250,8 +250,8 @@ class AiReportWebControllerTest {
                 .param("serviceCode", "S1"))
             .andExpect(status().isAccepted());
 
-        // "20233" 은 공개 API 계약값이라 상수 참조가 아니라 리터럴로 고정한다(상수까지 같이 바뀌어도 통과하면 안 된다).
-        assertThat(captureSubmittedComparisonQuery()).isEqualTo(new CommercialComparisonAiQuery("C1", "C2", "S1", "20233"));
+        // "20261" 은 공개 API 계약값이라 상수 참조가 아니라 리터럴로 고정한다(상수까지 같이 바뀌어도 통과하면 안 된다).
+        assertThat(captureSubmittedComparisonQuery()).isEqualTo(new CommercialComparisonAiQuery("C1", "C2", "S1", "20261"));
     }
 
     /** 명시값이 오면 보정이 끼어들지 않아야 한다. 기본값 테스트와 짝을 이뤄 보정 조건을 양방향으로 고정한다. */

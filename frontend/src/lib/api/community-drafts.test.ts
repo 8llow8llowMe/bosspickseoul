@@ -53,6 +53,6 @@ describe('createCommercialComparisonDraft', () => {
    * 사용자가 방금 읽은 숫자와 글이 어긋난다.
    */
   it('비교 화면과 같은 분기 상수를 쓴다', () => {
-    expect(RECOMMENDATION_PERIOD_CODE).toBe('20233')
+    expect(RECOMMENDATION_PERIOD_CODE).toBe('20261')
   })
 })

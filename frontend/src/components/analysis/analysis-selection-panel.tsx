@@ -14,7 +14,9 @@ import {
   canGroupByDescription,
   groupOptionsByDescription,
 } from '@/lib/option-filter'
+import { formatPeriodCode } from '@/lib/analysis/presentation'
 import {
+  ANALYSIS_PERIOD_CODE,
   ANALYSIS_STEPS,
   isCompleteAnalysisSelection,
   type AnalysisSelection,
@@ -437,7 +439,7 @@ function AnalysisSelectionPanel({
         </Button>
         <Helper>
           {isComplete
-            ? '2023년 3분기 기준으로 분석해요'
+            ? `${formatPeriodCode(ANALYSIS_PERIOD_CODE)} 기준으로 분석해요`
             : '상권과 업종을 선택해 주세요'}
         </Helper>
         {/*

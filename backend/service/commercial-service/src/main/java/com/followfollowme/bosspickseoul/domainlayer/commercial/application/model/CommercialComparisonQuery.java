@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.model;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialValidationMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -19,11 +20,12 @@ public record CommercialComparisonQuery(
     @NotBlank(message = CommercialValidationMessage.SERVICE_CODE_REQUIRED)
     String serviceCode,
 
-    @Schema(description = "기준 분기 코드", example = "20233", defaultValue = "20233")
+    @Schema(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE,
+        defaultValue = AnalysisPeriodDefaults.PERIOD_CODE)
     String periodCode
 ) {
 
     public CommercialComparisonQuery {
-        periodCode = (periodCode == null || periodCode.isBlank()) ? "20233" : periodCode;
+        periodCode = (periodCode == null || periodCode.isBlank()) ? AnalysisPeriodDefaults.PERIOD_CODE : periodCode;
     }
 }
