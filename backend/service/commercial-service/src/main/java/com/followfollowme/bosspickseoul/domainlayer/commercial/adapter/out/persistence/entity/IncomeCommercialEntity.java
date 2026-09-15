@@ -59,11 +59,8 @@ public class IncomeCommercialEntity {
     @Column(length = 80, nullable = false)
     private String commercialName;
 
-    @Comment("월 평균 소득 금액. 2024년 이후 원천에는 없다")
-    private Long monthlyAverageIncomeAmount;
-
-    @Comment("소득 구간 코드. 2024년 이후 원천에는 없다")
-    private Integer incomeBracketCode;
+    // 월 평균 소득(2020년 수급 중단)과 소득 구간 코드는 원천에서 사라져 매핑하지 않는다.
+    // income_commercial 의 두 컬럼은 과거 적재분 보존을 위해 DB 에만 남겨 둔다. (이슈 #413)
 
     @Comment("총 지출 금액")
     @Column(nullable = false)

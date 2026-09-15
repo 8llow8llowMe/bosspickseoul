@@ -11,7 +11,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialAverageIncomeInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
@@ -71,7 +71,6 @@ class CommercialProfileQueryProcessorTest {
         assertThat(profile.keyMetrics().totalFootTraffic()).isEqualTo(700D);
         assertThat(profile.keyMetrics().peakFootTrafficTimeSlot()).isEqualTo("17시~21시");
         assertThat(profile.keyMetrics().totalStoreCount()).isEqualTo(120L);
-        assertThat(profile.keyMetrics().monthlyAverageIncomeAmount()).isEqualTo(3_500_000L);
         // 상권명은 매출 Info 가 없으니 유동인구 Info 로 폴백
         assertThat(profile.commercialName()).isEqualTo("선정릉역 4번");
         assertThat(profile.districtName()).isEqualTo("강남구");
@@ -99,6 +98,30 @@ class CommercialProfileQueryProcessorTest {
         assertThat(profile.keyMetrics().totalSalesAmount()).isEqualTo(2_800D);
         assertThat(profile.keyMetrics().peakSalesTimeSlot()).isEqualTo("11시~14시");
         assertThat(profile.keyMetrics().dominantSalesAgeGroup()).isEqualTo("30대");
+        assertThat(profile.keyMetrics().totalResidentPopulation()).isEqualTo(5_000L);
+        assertThat(profile.keyMetrics().totalFacilityCount()).isEqualTo(42L);
+    }
+
+    @Test
+    void getProfile_incomeRowAbsent_keepsOtherMetricsInsteadOfFailing() {
+        // 이슈 #413: 2024년 이후 상권의 3분의 1 은 소득소비 행 자체가 없다 — 프로필이 통째로 죽으면 안 된다
+        givenAdministration();
+        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(PERIOD, COMMERCIAL, SERVICE))
+            .thenReturn(sales());
+        when(commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
+            .thenReturn(footTraffic());
+        when(commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(PERIOD, COMMERCIAL, SERVICE))
+            .thenReturn(store());
+        when(commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
+            .thenReturn(population());
+        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
+            .thenThrow(new CommercialException(CommercialErrorCode.INCOME_NOT_FOUND));
+        when(commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
+            .thenReturn(facility());
+
+        CommercialProfileInfo profile = processor.getProfile(PERIOD, COMMERCIAL, SERVICE);
+
+        assertThat(profile.keyMetrics().totalSalesAmount()).isEqualTo(2_800D);
         assertThat(profile.keyMetrics().totalResidentPopulation()).isEqualTo(5_000L);
         assertThat(profile.keyMetrics().totalFacilityCount()).isEqualTo(42L);
     }
@@ -199,8 +222,8 @@ class CommercialProfileQueryProcessorTest {
 
     private CommercialIncomeAndExpenseInfo income() {
         return CommercialIncomeAndExpenseInfo.builder()
-            .averageIncomeInfo(CommercialAverageIncomeInfo.builder()
-                .monthlyAverageIncomeAmount(3_500_000)
+            .expenseByCategoryInfo(CommercialExpenseByCategoryInfo.builder()
+                .groceryExpenseAmount(320_000)
                 .build())
             .build();
     }

@@ -165,7 +165,7 @@
 | GET | `/{commercialCode}/services/{serviceCode}/sales` | 업종별 매출 분석 | - |
 | GET | `/{commercialCode}/facilities` | 주변 시설 현황 | - |
 | GET | `/{commercialCode}/population` | 거주인구 분석 | - |
-| GET | `/{commercialCode}/income` | 소득·지출 분석 | - |
+| GET | `/{commercialCode}/income` | 소비 지출 분석 | - |
 | GET | `/{commercialCode}/services/{serviceCode}/stores` | 업종별 점포 분석 (개폐업률 등) | - |
 | GET | `/{commercialCode}/benchmarks` | 상권 벤치마크 비교 | - |
 
@@ -174,7 +174,7 @@
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
 | GET | `/sales` | 매출 요약 (자치구·행정동·상권 계층별) | - |
-| GET | `/income` | 소득 요약 | - |
+| GET | `/income` | 지출 요약 (자치구·행정동·상권 계층별) | - |
 
 ### 트렌드 (`/api/v1/commercials/{commercialCode}/trend`)
 
@@ -186,7 +186,9 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| GET | `/` | 상권 종합 프로필 (유동인구·매출·점포·소득 요약 + 종합 점수) | - |
+| GET | `/` | 상권 종합 프로필 (유동인구·매출·점포·거주인구 요약 + 종합 점수) | - |
+
+> 서울 열린데이터광장이 상권 단위 소득·소비 제공을 중단해(이슈 #413) 월 평균 소득·소득 구간 응답 항목은 제거됐습니다(`averageIncomeItem`, `keyMetrics.monthlyAverageIncomeAmount`). 지출은 원천이 값을 주지 않는 분기에 `expenseByCategoryItem` 이 `null` 로 내려갑니다 — 9개 항목 합계가 0 이면 "0원"이 아니라 "값 없음"으로 취급합니다. 지출 요약도 해당 지역 단위의 행이 없으면 그 단위만 `null` 이고 나머지는 정상 제공됩니다.
 
 > 프로필은 지표 단위로 **부분 강등**됩니다. 해당 분기에 특정 지표(예: 매출)가 없으면 `keyMetrics` 의 해당 필드들만 `null` 로 내려가고 나머지 지표는 정상 제공됩니다. 모든 지표가 없을 때만 `COMMERCIAL_013`(404) 을 응답합니다. `commercialName` 은 매출→유동인구 Info 순으로 폴백합니다.
 

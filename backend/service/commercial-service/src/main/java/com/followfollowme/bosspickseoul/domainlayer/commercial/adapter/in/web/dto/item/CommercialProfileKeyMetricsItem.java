@@ -28,9 +28,6 @@ public record CommercialProfileKeyMetricsItem(
     @Schema(description = "총 거주인구", nullable = true)
     Long totalResidentPopulation,
 
-    @Schema(description = "월 평균 소득", nullable = true)
-    Long monthlyAverageIncomeAmount,
-
     @Schema(description = "총 주요 시설 수", nullable = true)
     Long totalFacilityCount,
 

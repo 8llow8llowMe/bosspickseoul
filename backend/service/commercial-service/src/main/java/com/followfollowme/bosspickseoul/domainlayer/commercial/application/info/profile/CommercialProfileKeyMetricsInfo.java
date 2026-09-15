@@ -11,7 +11,6 @@ public record CommercialProfileKeyMetricsInfo(
     Double openingRate,
     Double closureRate,
     Long totalResidentPopulation,
-    Long monthlyAverageIncomeAmount,
     Long totalFacilityCount,
     String peakSalesTimeSlot,
     String peakFootTrafficTimeSlot,

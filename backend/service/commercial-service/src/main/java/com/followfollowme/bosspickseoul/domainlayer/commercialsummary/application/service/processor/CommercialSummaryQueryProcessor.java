@@ -59,6 +59,10 @@ public class CommercialSummaryQueryProcessor {
             .build();
     }
 
+    /**
+     * 2024년 이후 상권의 3분의 1 은 소득소비 행 자체가 없다. 예전에는 셋 중 하나만 없어도 요약 API 전체가
+     * 404 로 실패했으므로, 없는 지역 단위만 null 로 강등하고 나머지는 그대로 응답한다. (이슈 #413)
+     */
     public CommercialIncomeSummaryInfo getIncomeSummary(
 
         String periodCode, String districtCode, String administrationCode, String commercialCode
@@ -69,7 +73,7 @@ public class CommercialSummaryQueryProcessor {
                 .name(incomeDistrict.districtName())
                 .totalExpenseAmount(incomeDistrict.totalExpenseAmount())
                 .build())
-            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.INCOME_NOT_FOUND, "자치구"));
+            .orElse(null);
 
         RegionalIncomeSummaryInfo administrationSummary = commercialSummaryRepositoryPort
             .findIncomeAdministration(periodCode, administrationCode)
@@ -78,7 +82,7 @@ public class CommercialSummaryQueryProcessor {
                 .name(incomeAdministration.administrationName())
                 .totalExpenseAmount(incomeAdministration.totalExpenseAmount())
                 .build())
-            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.INCOME_NOT_FOUND, "행정동"));
+            .orElse(null);
 
         RegionalIncomeSummaryInfo commercialSummary = commercialSummaryRepositoryPort.findIncomeCommercial(periodCode, commercialCode)
             .map(incomeCommercial -> RegionalIncomeSummaryInfo.builder()
@@ -86,7 +90,7 @@ public class CommercialSummaryQueryProcessor {
                 .name(incomeCommercial.commercialName())
                 .totalExpenseAmount(incomeCommercial.totalExpenseAmount())
                 .build())
-            .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.INCOME_NOT_FOUND, "상권"));
+            .orElse(null);
 
         return CommercialIncomeSummaryInfo.builder()
             .district(districtSummary)

@@ -2,7 +2,6 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.p
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.BlueOceanCategoryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CandidateCommercialItem;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialAverageIncomeItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialComparisonTargetItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialExpenseByCategoryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByAgeGenderPercentItem;
@@ -64,7 +63,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialAverageIncomeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
@@ -133,7 +131,6 @@ public class CommercialPresenter {
 
     public CommercialIncomeAndExpenseResponse toCommercialIncomeResponse(CommercialIncomeAndExpenseInfo info) {
         return CommercialIncomeAndExpenseResponse.builder()
-            .averageIncomeItem(toCommercialAverageIncomeItem(info.averageIncomeInfo()))
             .expenseByCategoryItem(toCommercialExpenseByCategoryItem(info.expenseByCategoryInfo()))
             .build();
     }
@@ -282,7 +279,6 @@ public class CommercialPresenter {
             .openingRate(info.openingRate())
             .closureRate(info.closureRate())
             .totalResidentPopulation(info.totalResidentPopulation())
-            .monthlyAverageIncomeAmount(info.monthlyAverageIncomeAmount())
             .totalFacilityCount(info.totalFacilityCount())
             .peakSalesTimeSlot(info.peakSalesTimeSlot())
             .peakFootTrafficTimeSlot(info.peakFootTrafficTimeSlot())
@@ -505,14 +501,11 @@ public class CommercialPresenter {
     }
 
     // Income Item Mappers
-    private CommercialAverageIncomeItem toCommercialAverageIncomeItem(CommercialAverageIncomeInfo info) {
-        return CommercialAverageIncomeItem.builder()
-            .monthlyAverageIncomeAmount(info.monthlyAverageIncomeAmount())
-            .incomeBracketCode(info.incomeBracketCode())
-            .build();
-    }
-
+    /** 원천이 지출을 제공하지 않는 분기에는 Info 가 null 이다. 0 으로 채우지 않고 JSON null 로 내보낸다. */
     private CommercialExpenseByCategoryItem toCommercialExpenseByCategoryItem(CommercialExpenseByCategoryInfo info) {
+        if (info == null) {
+            return null;
+        }
         return CommercialExpenseByCategoryItem.builder()
             .groceryExpenseAmount(info.groceryExpenseAmount())
             .clothingExpenseAmount(info.clothingExpenseAmount())
@@ -546,7 +539,11 @@ public class CommercialPresenter {
             .build();
     }
 
+    /** 해당 분기에 지역 지출 행이 없으면 Info 가 null 이다. 지표만 비우고 응답 전체는 살린다. */
     private RegionalIncomeSummaryItem toRegionalIncomeSummaryItem(RegionalIncomeSummaryInfo info) {
+        if (info == null) {
+            return null;
+        }
         return RegionalIncomeSummaryItem.builder()
             .code(info.code())
             .name(info.name())
