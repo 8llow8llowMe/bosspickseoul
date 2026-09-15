@@ -47,7 +47,7 @@
 - **소비-상권배후지(`VwsmTrdhlNcmCnsmpQq`)에는 소득 컬럼이 없다.** 레거시 `income_commercial`의 `monthly_average_income_amount`(`MT_AVRG_INCOME_AMT`), `income_bracket_code`(`INCOME_SCTN_CD`)는 2024년 이후 원천에서 채울 수 없다. 조회 경로를 전환할 때 이 두 값은 null 또는 「제공 종료」로 다뤄야 한다.
 - 소비 세부 항목이 스코프마다 다르다. 상권배후지는 `LSR_EXPNDTR_TOTAMT`(여가)·`CLTUR_EXPNDTR_TOTAMT`(문화)가 나뉘고, 행정동·자치구(`NcmCnsmpW`)는 `LSR_CLTUR_EXPNDTR_TOTAMT`로 합산되며 `ETC_EXPNDTR_TOTAMT`·`FD_EXPNDTR_TOTAMT`가 추가된다. 레거시 `income_administration`/`income_district`는 총액만 가지므로 영향이 없고, `income_commercial`의 여가·문화 분리와는 일치한다.
 - 나머지 12종은 레거시 테이블이 쓰는 컬럼이 모두 있다. 그 위에 레거시가 버린 컬럼(시간대·연령대 매출, 남녀 연령대 상주인구, 집객시설 세부 등)이 payload JSON에 그대로 남는다.
-- 데이터셋 15종 중 2024년 이후 값이 음수인 컬럼은 관찰되지 않았다. `_RT`/`_AVRG` 음수 거부 규칙은 유지한다.
+- `_RT`/`_AVRG` 음수는 거부한다. 금액(`_AMT`/`_TOTAMT`)과 건수(`_CO`)는 원천 잔차 보정으로 음수가 올 수 있어 그대로 받는다. 실측: `CONSUMPTION_ADMINISTRATION` `20242` 용산2가동 `TRNSPORT_EXPNDTR_TOTAMT=-3186000`. `SALES_ADMINISTRATION` `20243` 서교동 `CS200024` `TMZON_06_11_SELNG_CO=-1`.
 
 ## 데이터셋 목록
 

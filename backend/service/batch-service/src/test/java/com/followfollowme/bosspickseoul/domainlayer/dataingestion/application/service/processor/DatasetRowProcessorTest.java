@@ -94,15 +94,39 @@ class DatasetRowProcessorTest {
 
     @Test
     void rejectsNegativeUnparsableAndOversizedMetrics() {
-        assertThat(metricRejection("-1")).isEqualTo("NUMERIC_VALUE_INVALID:TOT_FLPOP_CO");
+        assertThat(rateRejection("-0.1")).isEqualTo("NUMERIC_VALUE_INVALID:MDWK_SELNG_RT");
         assertThat(metricRejection("1,000")).isEqualTo("NUMERIC_VALUE_INVALID:TOT_FLPOP_CO");
         assertThat(metricRejection("1".repeat(31))).isEqualTo("NUMERIC_VALUE_INVALID:TOT_FLPOP_CO");
         assertThat(metricRejection("0.00000000001")).isEqualTo("NUMERIC_VALUE_INVALID:TOT_FLPOP_CO");
     }
 
+    @Test
+    void keepsSourceNegativeExpenditureTotals() {
+        Map<String, String> fields = complete(Dataset.CONSUMPTION_ADMINISTRATION, Map.of(
+            "ADSTRD_CD", "11170640", "EXPNDTR_TOTAMT", "530670000", "TRNSPORT_EXPNDTR_TOTAMT", "-3186000"));
+        RowValidation result = processor.process(request(Dataset.CONSUMPTION_ADMINISTRATION), new SourceRow(7694, fields));
+        assertThat(result.accepted()).isTrue();
+        assertThat(result.fact().fields()).containsEntry("TRNSPORT_EXPNDTR_TOTAMT", "-3186000");
+    }
+
+    @Test
+    void keepsSourceNegativeSalesCounts() {
+        Map<String, String> fields = complete(Dataset.SALES_ADMINISTRATION, Map.of(
+            "ADSTRD_CD", "11440655", "SVC_INDUTY_CD", "CS200024", "TMZON_06_11_SELNG_CO", "-1"));
+        RowValidation result = processor.process(request(Dataset.SALES_ADMINISTRATION), new SourceRow(8262, fields));
+        assertThat(result.accepted()).isTrue();
+        assertThat(result.fact().fields()).containsEntry("TMZON_06_11_SELNG_CO", "-1");
+    }
+
     private String metricRejection(String value) {
         Map<String, String> fields = complete(Dataset.FOOT_TRAFFIC_COMMERCIAL, Map.of("TRDAR_CD", "3110008", "TOT_FLPOP_CO", value));
         return processor.process(request(Dataset.FOOT_TRAFFIC_COMMERCIAL), new SourceRow(1, fields)).rejectionReason();
+    }
+
+    private String rateRejection(String value) {
+        Map<String, String> fields = complete(Dataset.SALES_COMMERCIAL, Map.of(
+            "TRDAR_CD", "3110008", "SVC_INDUTY_CD", "CS100001", "MDWK_SELNG_RT", value));
+        return processor.process(request(Dataset.SALES_COMMERCIAL), new SourceRow(1, fields)).rejectionReason();
     }
 
     /** 데이터셋이 요구하는 모든 컬럼을 채운 행. 지표는 "1", 이름·코드 텍스트는 "A" 다. 넘긴 값이 우선한다. */
