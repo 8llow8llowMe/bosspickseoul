@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialAverageIncomeClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialExpenseByCategoryClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFacilityClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByAgeGenderPercentClientResponse;
@@ -210,14 +209,11 @@ class CommercialAnalysisWireGoldenJsonTest {
         """;
 
     // GET /api/v1/commercials/{commercialCode}/income -> Response<CommercialIncomeAndExpenseResponse>
+    // 원천이 상권 단위 소득 제공을 중단해 peer 가 averageIncomeItem 을 더 이상 내려보내지 않는다. (이슈 #413)
     private static final String INCOME_AND_EXPENSE_GOLDEN_JSON = """
         {
           "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
           "dataBody": {
-            "averageIncomeItem": {
-              "monthlyAverageIncomeAmount": 3101,
-              "incomeBracketCode": 7
-            },
             "expenseByCategoryItem": {
               "groceryExpenseAmount": 3201,
               "clothingExpenseAmount": 3202,
@@ -509,19 +505,13 @@ class CommercialAnalysisWireGoldenJsonTest {
     }
 
     @Test
-    @DisplayName("소득·지출 응답 JSON 이 CommercialIncomeAndExpenseClientResponse 와 중첩 2종의 모든 필드로 매핑된다")
+    @DisplayName("지출 응답 JSON 이 CommercialIncomeAndExpenseClientResponse 와 중첩 1종의 모든 필드로 매핑된다")
     void incomeAndExpenseGoldenJsonBindsEveryField() throws Exception {
         Response<CommercialIncomeAndExpenseClientResponse> response =
             objectMapper.readValue(INCOME_AND_EXPENSE_GOLDEN_JSON, new TypeReference<>() {});
 
         assertThat(response.dataHeader().success()).isTrue();
         CommercialIncomeAndExpenseClientResponse incomeAndExpense = response.dataBody();
-
-        // @JsonProperty("averageIncomeItem") -> averageIncome
-        CommercialAverageIncomeClientResponse averageIncome = incomeAndExpense.averageIncome();
-        assertThat(averageIncome).isNotNull();
-        assertThat(averageIncome.monthlyAverageIncomeAmount()).isEqualTo(3101L);
-        assertThat(averageIncome.incomeBracketCode()).isEqualTo(7);
 
         // @JsonProperty("expenseByCategoryItem") -> expenseByCategory
         CommercialExpenseByCategoryClientResponse expenseByCategory = incomeAndExpense.expenseByCategory();
@@ -535,6 +525,24 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(expenseByCategory.cultureExpenseAmount()).isEqualTo(3207L);
         assertThat(expenseByCategory.educationExpenseAmount()).isEqualTo(3208L);
         assertThat(expenseByCategory.entertainmentExpenseAmount()).isEqualTo(3209L);
+    }
+
+    @Test
+    @DisplayName("peer 가 지출을 제공하지 않는 분기에는 expenseByCategoryItem 이 null 로 내려오고 그대로 바인딩된다")
+    void incomeAndExpenseGoldenJsonBindsNullExpense() throws Exception {
+        // 9개 항목 합계가 0 인 분기에 commercial-service 가 항목을 0 으로 채우지 않고 null 로 강등한다. (이슈 #413)
+        String nullExpenseJson = """
+            {
+              "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
+              "dataBody": { "expenseByCategoryItem": null }
+            }
+            """;
+
+        Response<CommercialIncomeAndExpenseClientResponse> response =
+            objectMapper.readValue(nullExpenseJson, new TypeReference<>() {});
+
+        assertThat(response.dataBody()).isNotNull();
+        assertThat(response.dataBody().expenseByCategory()).isNull();
     }
 
     @Test
@@ -684,6 +692,30 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(commercial.code()).isEqualTo("3110009");
         assertThat(commercial.name()).isEqualTo("명동역");
         assertThat(commercial.totalExpenseAmount()).isEqualTo(8103L);
+    }
+
+    @Test
+    @DisplayName("지출 요약은 지역 단위별로 null 이 올 수 있고 나머지 단위는 그대로 바인딩된다")
+    void incomeSummaryGoldenJsonBindsPartialNullRegions() throws Exception {
+        // 해당 분기에 그 지역 단위 지출 행이 없으면 commercial-service 가 그 단위만 null 로 내려보낸다. (이슈 #413)
+        String partialNullJson = """
+            {
+              "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
+              "dataBody": {
+                "district": { "code": "11140", "name": "중구", "totalExpenseAmount": 8101 },
+                "administration": null,
+                "commercial": null
+              }
+            }
+            """;
+
+        Response<CommercialIncomeSummaryClientResponse> response = objectMapper.readValue(partialNullJson, new TypeReference<>() {});
+
+        CommercialIncomeSummaryClientResponse incomeSummary = response.dataBody();
+        assertThat(incomeSummary.district()).isNotNull();
+        assertThat(incomeSummary.district().totalExpenseAmount()).isEqualTo(8101L);
+        assertThat(incomeSummary.administration()).isNull();
+        assertThat(incomeSummary.commercial()).isNull();
     }
 
     @Test

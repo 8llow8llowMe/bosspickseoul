@@ -1,6 +1,5 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial;
 
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAverageIncomeQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseByCategoryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByAgeGenderPercentQueryResult;
@@ -81,7 +80,6 @@ public final class CommercialAnalysisWireMapper {
             return null;
         }
         return CommercialIncomeAndExpenseQueryResult.builder()
-            .averageIncome(toQueryResult(wire.averageIncome()))
             .expenseByCategory(toQueryResult(wire.expenseByCategory()))
             .build();
     }
@@ -356,16 +354,6 @@ public final class CommercialAnalysisWireMapper {
             .femaleAge50Percent(wire.femaleAge50Percent())
             .maleAge60PlusPercent(wire.maleAge60PlusPercent())
             .femaleAge60PlusPercent(wire.femaleAge60PlusPercent())
-            .build();
-    }
-
-    private static CommercialAverageIncomeQueryResult toQueryResult(CommercialAverageIncomeClientResponse wire) {
-        if (wire == null) {
-            return null;
-        }
-        return CommercialAverageIncomeQueryResult.builder()
-            .monthlyAverageIncomeAmount(wire.monthlyAverageIncomeAmount())
-            .incomeBracketCode(wire.incomeBracketCode())
             .build();
     }
 

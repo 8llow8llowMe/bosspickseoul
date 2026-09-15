@@ -14,7 +14,7 @@ public class CommercialPromptFormatter {
         joiner.add(formatSalesSection(sourceData));
         joiner.add(formatFacilitySection(sourceData));
         joiner.add(formatPopulationSection(sourceData));
-        joiner.add(formatIncomeSection(sourceData));
+        joiner.add(formatExpenseSection(sourceData));
         joiner.add(formatStoreSection(sourceData));
         joiner.add(formatSummaryComparisonSection(sourceData));
         return joiner.toString();
@@ -85,15 +85,15 @@ public class CommercialPromptFormatter {
         );
     }
 
-    private String formatIncomeSection(CommercialAiSourceData sourceData) {
+    /**
+     * 원천이 상권 단위 월 평균 소득 제공을 중단해 소득 줄을 걷어내고 섹션 제목도 [지출] 로 좁힌다.
+     * 지출 자체도 값이 없는 분기가 있어, 그때는 0 원 대신 결측 표기가 그대로 들어간다. (이슈 #413)
+     */
+    private String formatExpenseSection(CommercialAiSourceData sourceData) {
         return """
-            [소득 및 지출]
-            - 월 평균 소득: %s
+            [지출]
             - 지출 비중이 가장 큰 항목: %s
-            """.formatted(
-            PromptFormatterSupport.formatNumber(sourceData.averageMonthlyIncomeAmount()),
-            sourceData.largestExpenseCategory()
-        );
+            """.formatted(sourceData.largestExpenseCategory());
     }
 
     private String formatStoreSection(CommercialAiSourceData sourceData) {

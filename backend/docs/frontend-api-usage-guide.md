@@ -157,11 +157,11 @@
 | 점포 차트 | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/stores` | 개업률, 폐업률, 유사 점포 |
 | 주변 시설 | `GET /api/v1/commercials/{commercialCode}/facilities` | 교통, 집객 시설, 생활 시설 |
 | 거주인구 | `GET /api/v1/commercials/{commercialCode}/population` | 연령/성별 거주인구 |
-| 소득/지출 | `GET /api/v1/commercials/{commercialCode}/income` | 소득 구간, 지출 카테고리 |
+| 지출 | `GET /api/v1/commercials/{commercialCode}/income` | 지출 카테고리 9종. 원천이 값을 주지 않는 분기에는 `expenseByCategoryItem` 이 `null` 이다 |
 | 추세 그래프 | `GET /api/v1/commercials/{commercialCode}/trend` | 매출/유동인구/점포 분기별 추이 |
 | 벤치마크 | `GET /api/v1/commercials/{commercialCode}/benchmarks` | 자치구/행정동 평균과 비교 |
 | 매출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/sales` | 상권/행정동/자치구 계층 비교 |
-| 소득 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/income` | 지출/소득 계층 비교 |
+| 지출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/income` | 지출 계층 비교. 행이 없는 지역 단위는 그 단위만 `null` 이다 |
 
 권장 흐름:
 

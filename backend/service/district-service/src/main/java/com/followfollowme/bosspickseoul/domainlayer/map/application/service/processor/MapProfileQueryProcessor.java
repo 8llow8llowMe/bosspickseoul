@@ -57,7 +57,6 @@ public class MapProfileQueryProcessor {
             .openingRate(keyMetricsResult.openingRate())
             .closureRate(keyMetricsResult.closureRate())
             .totalResidentPopulation(keyMetricsResult.totalResidentPopulation())
-            .monthlyAverageIncomeAmount(keyMetricsResult.monthlyAverageIncomeAmount())
             .totalFacilityCount(keyMetricsResult.totalFacilityCount())
             .build();
 
