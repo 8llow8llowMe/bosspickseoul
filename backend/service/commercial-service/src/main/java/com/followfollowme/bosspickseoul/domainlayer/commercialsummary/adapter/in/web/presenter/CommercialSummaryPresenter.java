@@ -39,7 +39,11 @@ public class CommercialSummaryPresenter {
             .build();
     }
 
+    /** 해당 분기에 지역 지출 행이 없으면 Info 가 null 이다. 지표만 비우고 응답 전체는 살린다. */
     private RegionalIncomeSummaryItem toRegionalIncomeSummaryItem(RegionalIncomeSummaryInfo info) {
+        if (info == null) {
+            return null;
+        }
         return RegionalIncomeSummaryItem.builder()
             .code(info.code())
             .name(info.name())

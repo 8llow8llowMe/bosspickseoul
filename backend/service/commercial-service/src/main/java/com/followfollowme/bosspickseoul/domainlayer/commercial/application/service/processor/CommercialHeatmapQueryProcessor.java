@@ -251,9 +251,12 @@ public class CommercialHeatmapQueryProcessor {
             + source.store().similarStoreCount() * 0.25;
     }
 
+    /**
+     * 원천이 상권 단위 월 평균 소득 제공을 중단해 소득 항(0.20)을 걷어내고 거주인구 계수를 1.00 으로 올린다.
+     * 소득이 이미 전 상권 0 이라 상대 순위는 그대로고, 점수 절대값만 정상 범위로 복원된다. (이슈 #413)
+     */
     private double computeResidentPopulation(CommercialHeatmapSource source) {
-        return source.population().byAgeInfo().totalResidentPopulation() * 0.80
-            + source.income().averageIncomeInfo().monthlyAverageIncomeAmount() * 0.20;
+        return source.population().byAgeInfo().totalResidentPopulation() * 1.00;
     }
 
     private double resolveRiskMultiplier(ChangeCommercial change) {
@@ -281,10 +284,9 @@ public class CommercialHeatmapQueryProcessor {
             + info.thursdayFootTraffic() + info.fridayFootTraffic() + info.saturdayFootTraffic() + info.sundayFootTraffic();
     }
 
+    /** 지출은 원천이 값을 주지 않는 분기에 null 이다. 기회도 점수에서는 0 으로 취급한다. */
     private double totalExpenseAmount(CommercialExpenseByCategoryInfo info) {
-        return info.groceryExpenseAmount() + info.clothingExpenseAmount() + info.medicalExpenseAmount()
-            + info.householdExpenseAmount() + info.transportationExpenseAmount() + info.leisureExpenseAmount()
-            + info.cultureExpenseAmount() + info.educationExpenseAmount() + info.entertainmentExpenseAmount();
+        return info == null ? 0D : info.totalExpenseAmount();
     }
 
     private Double normalize(Double rawScore, MetricRange range) {

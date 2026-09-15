@@ -52,6 +52,8 @@ public class CommercialProfileQueryProcessor {
             .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode));
         CommercialResidentPopulationInfo population = fetchQuietly(() -> commercialQueryProcessor
             .getPopulationByPeriodAndCommercialCode(periodCode, commercialCode));
+        // 소득 지표는 원천 중단으로 사라졌고 지출은 keyMetrics 에 없지만, 소득소비 행의 존재 여부는
+        // 「이 분기에 이 상권 데이터가 하나라도 있는가」 판정에 계속 쓴다. (이슈 #413)
         CommercialIncomeAndExpenseInfo income = fetchQuietly(() -> commercialQueryProcessor
             .getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode));
         CommercialFacilityInfo facility = fetchQuietly(() -> commercialQueryProcessor
@@ -69,7 +71,6 @@ public class CommercialProfileQueryProcessor {
             .openingRate(store == null ? null : store.openingRate())
             .closureRate(store == null ? null : store.closureRate())
             .totalResidentPopulation(population == null ? null : population.byAgeInfo().totalResidentPopulation())
-            .monthlyAverageIncomeAmount(income == null ? null : income.averageIncomeInfo().monthlyAverageIncomeAmount())
             .totalFacilityCount(facility == null ? null : facility.totalFacilityCount())
             .peakSalesTimeSlot(sales == null ? null : peakSalesTimeSlot(sales.amountByTimeSlotInfo()))
             .peakFootTrafficTimeSlot(footTraffic == null ? null : peakFootTrafficTimeSlot(footTraffic.byTimeSlotInfo()))

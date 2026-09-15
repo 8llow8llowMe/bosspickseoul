@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
@@ -43,7 +45,7 @@ class CommercialComparisonQueryProcessorTest {
         assertThat(result.recommendedSide().code()).isEqualTo("LEFT");
         assertThat(result.salesMetrics().getFirst().winnerSide().code()).isEqualTo("RIGHT");
         assertThat(result.recommendedReasons()).hasSize(3)
-            .noneMatch(reason -> reason.contains("총 매출액") || reason.contains("월 평균 소득"))
+            .noneMatch(reason -> reason.contains("총 매출액") || reason.contains("총 지출액"))
             .anyMatch(reason -> reason.contains("폐업률") && reason.contains("1") && reason.contains("5"));
         assertThat(result.businessFitSummary()).doesNotContain("매출 잠재력", "수요 안정성");
     }
@@ -130,7 +132,9 @@ class CommercialComparisonQueryProcessorTest {
         );
     }
 
-    private void stubCommercial(String code, long sales, double openingRate, double closureRate, long income, long population, long facilities) {
+    private void stubCommercial(
+        String code, long sales, double openingRate, double closureRate, long expense, long population, long facilities
+    ) {
         when(queries.getSalesByPeriodCodeAndCommercialCodeAndServiceCode("20261", code, "service"))
             .thenReturn(CommercialSalesInfo.from(SalesCommercial.builder().commercialName(code).mondaySalesAmount(sales).build()));
         when(queries.getFootTrafficByPeriodCodeAndCommercialCode("20261", code))
@@ -138,7 +142,7 @@ class CommercialComparisonQueryProcessorTest {
         when(queries.getStoreByPeriodCodeAndCommercialCodeAndServiceCode("20261", code, "service"))
             .thenReturn(CommercialStoreAnalysisInfo.builder().openingRate(openingRate).closureRate(closureRate).build());
         when(queries.getIncomeByPeriodCodeAndCommercialCode("20261", code))
-            .thenReturn(CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder().monthlyAverageIncomeAmount(income).build()));
+            .thenReturn(CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder().groceryExpenseAmount(expense).build()));
         when(queries.getPopulationByPeriodAndCommercialCode("20261", code))
             .thenReturn(CommercialResidentPopulationInfo.from(PopulationCommercial.builder().totalResidentPopulation(population).build()));
         when(queries.getFacilityByPeriodAndCommercialCode("20261", code))
@@ -147,12 +151,44 @@ class CommercialComparisonQueryProcessorTest {
     }
 
     @Test
+    void comparisonSurvivesWhenOneCommercialHasNoIncomeRow() {
+        // 이슈 #413: 한쪽 상권의 소득소비 행이 없으면 예전에는 비교 API 전체가 404 였다.
+        stubCommercial("left", 100, 10, 1, 500, 1000, 20);
+        stubCommercial("right", 200, 5, 5, 300, 500, 10);
+        when(queries.getIncomeByPeriodCodeAndCommercialCode("20261", "right"))
+            .thenThrow(new CommercialException(CommercialErrorCode.INCOME_NOT_FOUND));
+
+        CommercialComparisonInfo result = processor.compareCommercials(
+            new CommercialComparisonQuery("left", "right", "service", "20261"));
+
+        assertThat(result.spendingMetrics()).hasSize(1);
+        ComparisonMetricInfo spending = result.spendingMetrics().getFirst();
+        assertThat(spending.label()).isEqualTo("총 지출액");
+        assertThat(spending.leftValue()).isEqualTo(500D);
+        assertThat(spending.rightValue()).isZero();
+        assertThat(result.recommendedSide().code()).isEqualTo("LEFT");
+    }
+
+    @Test
+    void spendingMetricsDoNotDecideTheRecommendationWhileTheSourceIsBlank() {
+        // 소비 원천이 전 행 0 인 동안 소비 항은 항상 무승부라 승패 판정에서 뺐다(6 -> 5).
+        // 여기서는 소비만 오른쪽이 크고 나머지는 완전히 같은데도 TIE 여야 한다.
+        stubCommercial("left", 100, 5, 5, 0, 500, 10);
+        stubCommercial("right", 100, 5, 5, 900, 500, 10);
+
+        CommercialComparisonInfo result = processor.compareCommercials(
+            new CommercialComparisonQuery("left", "right", "service", "20261"));
+
+        assertThat(result.spendingMetrics().getFirst().winnerSide().code()).isEqualTo("RIGHT");
+        assertThat(result.recommendedSide().code()).isEqualTo("TIE");
+    }
+
+    @Test
     void recommendedReasonsOnlyDescribeMetricsWonByRecommendedSide() {
         List<ComparisonMetricInfo> decisionMetrics = List.of(
             metric("총 매출액", ComparisonWinnerSide.RIGHT),
             metric("개업률", ComparisonWinnerSide.LEFT),
             metric("폐업률", ComparisonWinnerSide.LEFT),
-            metric("월 평균 소득", ComparisonWinnerSide.RIGHT),
             metric("총 거주인구", ComparisonWinnerSide.LEFT),
             metric("총 시설 수", ComparisonWinnerSide.LEFT)
         );
@@ -163,7 +199,7 @@ class CommercialComparisonQueryProcessorTest {
         assertThat(reasons)
             .hasSize(3)
             .allMatch(reason -> reason.contains("왼쪽 상권"))
-            .noneMatch(reason -> reason.contains("총 매출액") || reason.contains("월 평균 소득"))
+            .noneMatch(reason -> reason.contains("총 매출액"))
             .anyMatch(reason -> reason.contains("개업률"))
             .anyMatch(reason -> reason.contains("폐업률"))
             .anyMatch(reason -> reason.contains("총 거주인구"));

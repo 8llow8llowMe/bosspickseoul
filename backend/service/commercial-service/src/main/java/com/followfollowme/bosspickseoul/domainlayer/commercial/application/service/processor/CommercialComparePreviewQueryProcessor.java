@@ -23,13 +23,13 @@ public class CommercialComparePreviewQueryProcessor {
     public CommercialComparePreviewInfo getPreview(CommercialComparisonQuery query) {
         CommercialComparisonInfo full = commercialComparisonQueryProcessor.compareCommercials(query);
 
-        List<ComparisonMetricInfo> headline = new ArrayList<>(6);
+        // 소비 지표는 원천이 전 행 0 을 주는 동안 headline 에서 뺀다. 소비가 복구되면 다시 넣는다. (이슈 #413)
+        List<ComparisonMetricInfo> headline = new ArrayList<>(5);
         addIfPresent(headline, full.salesMetrics(), 0);
         addIfPresent(headline, full.footTrafficMetrics(), 0);
         addIfPresent(headline, full.storeMetrics(), 0);
         addIfPresent(headline, full.storeMetrics(), 2);
         addIfPresent(headline, full.storeMetrics(), 3);
-        addIfPresent(headline, full.spendingMetrics(), 0);
 
         return CommercialComparePreviewInfo.builder()
             .left(full.left())

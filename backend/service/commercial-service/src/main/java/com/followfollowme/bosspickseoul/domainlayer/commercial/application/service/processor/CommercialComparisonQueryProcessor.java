@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonGuideInfo;
@@ -11,7 +12,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByAgeInfo;
@@ -57,10 +57,10 @@ public class CommercialComparisonQueryProcessor {
             .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, leftCommercialCode, serviceCode);
         CommercialStoreAnalysisInfo rightStore = commercialQueryProcessor
             .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, rightCommercialCode, serviceCode);
-        CommercialIncomeAndExpenseInfo leftIncome = commercialQueryProcessor
-            .getIncomeByPeriodCodeAndCommercialCode(periodCode, leftCommercialCode);
-        CommercialIncomeAndExpenseInfo rightIncome = commercialQueryProcessor
-            .getIncomeByPeriodCodeAndCommercialCode(periodCode, rightCommercialCode);
+        // 2024년 이후 상권의 3분의 1 은 소득소비 행 자체가 없다. 한쪽이 없다고 비교 전체를
+        // 404 로 떨어뜨리지 않고 소비 지표만 비운다. (이슈 #413)
+        CommercialIncomeAndExpenseInfo leftIncome = fetchIncomeQuietly(periodCode, leftCommercialCode);
+        CommercialIncomeAndExpenseInfo rightIncome = fetchIncomeQuietly(periodCode, rightCommercialCode);
         CommercialResidentPopulationInfo leftPopulation = commercialQueryProcessor
             .getPopulationByPeriodAndCommercialCode(periodCode, leftCommercialCode);
         CommercialResidentPopulationInfo rightPopulation = commercialQueryProcessor
@@ -114,12 +114,8 @@ public class CommercialComparisonQueryProcessor {
                 "선택 분기 상권 내 선택 업종의 프랜차이즈 점포 수입니다.")
         );
         List<ComparisonMetricInfo> spendingMetrics = List.of(
-            toMetric("월 평균 소득",
-                leftIncome.averageIncomeInfo().monthlyAverageIncomeAmount(),
-                rightIncome.averageIncomeInfo().monthlyAverageIncomeAmount(), MetricDisplayType.WON,
-                "선택 분기 상권의 추정 월 평균 소득 금액입니다."),
             toMetric("총 지출액",
-                totalExpenseAmount(leftIncome.expenseByCategoryInfo()), totalExpenseAmount(rightIncome.expenseByCategoryInfo()),
+                totalExpenseAmount(leftIncome), totalExpenseAmount(rightIncome),
                 MetricDisplayType.WON, "선택 분기 상권의 소비 지출 항목별 금액을 합산한 값입니다.")
         );
         List<ComparisonMetricInfo> residentPopulationMetrics = List.of(
@@ -141,7 +137,7 @@ public class CommercialComparisonQueryProcessor {
         );
 
         List<ComparisonMetricInfo> decisionMetrics = buildDecisionMetrics(
-            salesMetrics, storeMetrics, spendingMetrics, residentPopulationMetrics, facilityMetrics);
+            salesMetrics, storeMetrics, residentPopulationMetrics, facilityMetrics);
         ComparisonWinnerSide recommendedSide = resolveRecommendedSide(decisionMetrics);
         List<String> comparisonHighlights = buildHighlights(left, right, salesMetrics, storeMetrics, residentPopulationMetrics);
 
@@ -199,7 +195,7 @@ public class CommercialComparisonQueryProcessor {
     private ComparisonGuideInfo buildComparisonGuide() {
         return ComparisonGuideInfo.builder()
             .periodBasis("모든 지표는 선택한 분기의 데이터를 기준으로 합니다.")
-            .serviceBasis("매출·점포 지표는 선택 업종 기준이며, 유동인구·소득·거주인구·시설은 상권 전체 기준입니다.")
+            .serviceBasis("매출·점포 지표는 선택 업종 기준이며, 유동인구·소비·거주인구·시설은 상권 전체 기준입니다.")
             .differenceBasis("차이는 왼쪽 상권 값에서 오른쪽 상권 값을 뺀 값입니다. 비율 차이는 %p로 표시합니다.")
             .diffRateBasis("차이율은 오른쪽 상권 값을 기준으로 계산합니다. 오른쪽 값이 0이면 차이율을 계산할 수 없습니다.")
             .recommendationDisclaimer("추천은 핵심 지표의 단순 우위 개수를 비교한 참고 결과이며 수익이나 창업 성과를 보장하지 않습니다. 원천 데이터에서 제공하지 않는 값도 0일 수 있습니다.")
@@ -207,7 +203,7 @@ public class CommercialComparisonQueryProcessor {
                 groupGuide("salesMetrics", "매출", "선택 업종의 매출액과 매출 건수를 비교합니다."),
                 groupGuide("footTrafficMetrics", "유동인구", "상권 전체의 추정 유동인구와 성별 비중을 비교합니다."),
                 groupGuide("storeMetrics", "점포", "선택 업종 조회 데이터의 점포 수와 개·폐업 지표를 비교합니다."),
-                groupGuide("spendingMetrics", "소비력", "상권 전체의 추정 월 평균 소득과 소비 지출을 비교합니다."),
+                groupGuide("spendingMetrics", "소비력", "상권 전체의 추정 소비 지출을 비교합니다. 원천이 값을 제공하지 않는 분기에는 0 으로 표시됩니다."),
                 groupGuide("residentPopulationMetrics", "거주인구", "상권 전체의 추정 거주인구와 성별 비중을 비교합니다."),
                 groupGuide("facilityMetrics", "시설", "상권 내 집계 대상 생활·교육·교통 시설을 비교합니다."),
                 groupGuide("salesTimeSlotMetrics", "매출 시간대", "선택 업종의 시간대별 매출액을 비교합니다."),
@@ -236,19 +232,21 @@ public class CommercialComparisonQueryProcessor {
         };
     }
 
+    /**
+     * 승패 판정에서 소비 지표를 뺐다. 원천이 20241 분기부터 상권 단위 지출을 전 행 0 으로 주는 동안
+     * 이 항은 항상 무승부라 판정을 흐리기만 한다. 지표가 5개(홀수)가 되어 TIE 도 줄어든다.
+     * 행정동 원천으로 소비가 복구되면 spendingMetrics.get(0) 을 다시 넣으면 된다. (이슈 #413)
+     */
     private List<ComparisonMetricInfo> buildDecisionMetrics(
 
         List<ComparisonMetricInfo> salesMetrics, List<ComparisonMetricInfo> storeMetrics,
 
-        List<ComparisonMetricInfo> spendingMetrics, List<ComparisonMetricInfo> residentPopulationMetrics,
-
-        List<ComparisonMetricInfo> facilityMetrics
+        List<ComparisonMetricInfo> residentPopulationMetrics, List<ComparisonMetricInfo> facilityMetrics
     ) {
         return List.of(
             salesMetrics.get(0),
             storeMetrics.get(2),
             storeMetrics.get(3),
-            spendingMetrics.get(0),
             residentPopulationMetrics.get(0),
             facilityMetrics.get(0)
         );
@@ -280,7 +278,7 @@ public class CommercialComparisonQueryProcessor {
         if (recommendedSide == ComparisonWinnerSide.TIE) {
             return List.of(
                 "두 상권은 핵심 비교 지표의 우위 개수가 같습니다.",
-                "두 상권의 매출·개업률·폐업률·소득·거주인구·시설 지표를 함께 확인해야 합니다."
+                "두 상권의 매출·개업률·폐업률·거주인구·시설 지표를 함께 확인해야 합니다."
             );
         }
 
@@ -562,10 +560,21 @@ public class CommercialComparisonQueryProcessor {
             + info.fridayFootTraffic() + info.saturdayFootTraffic() + info.sundayFootTraffic();
     }
 
-    private double totalExpenseAmount(CommercialExpenseByCategoryInfo info) {
-        return info.groceryExpenseAmount() + info.clothingExpenseAmount() + info.medicalExpenseAmount()
-            + info.householdExpenseAmount() + info.transportationExpenseAmount() + info.leisureExpenseAmount()
-            + info.cultureExpenseAmount() + info.educationExpenseAmount() + info.entertainmentExpenseAmount();
+    /** 소득소비 행이 없거나 원천이 지출을 주지 않는 분기에는 0 으로 비교한다. */
+    private double totalExpenseAmount(CommercialIncomeAndExpenseInfo income) {
+        if (income == null || income.expenseByCategoryInfo() == null) {
+            return 0D;
+        }
+        return income.expenseByCategoryInfo().totalExpenseAmount();
+    }
+
+    /** 분기 종속 데이터 부재(404 계열 CommercialException)는 소비 지표 강등으로 흡수한다. 그 외 예외는 전파. */
+    private CommercialIncomeAndExpenseInfo fetchIncomeQuietly(String periodCode, String commercialCode) {
+        try {
+            return commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        } catch (CommercialException exception) {
+            return null;
+        }
     }
 
     private double maleFootTrafficShare(CommercialFootTrafficByAgeGenderPercentInfo info) {

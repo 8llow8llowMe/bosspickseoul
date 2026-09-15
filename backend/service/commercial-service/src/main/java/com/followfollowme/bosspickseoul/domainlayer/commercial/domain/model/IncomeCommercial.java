@@ -10,8 +10,6 @@ public record IncomeCommercial(
     String commercialClassificationName,
     String commercialCode,
     String commercialName,
-    long monthlyAverageIncomeAmount,
-    int incomeBracketCode,
     long totalExpenseAmount,
     long groceryExpenseAmount,
     long clothingExpenseAmount,
