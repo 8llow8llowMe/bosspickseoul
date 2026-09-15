@@ -4,9 +4,10 @@ import { ChevronDown } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
-  ANALYSIS_PERIOD_QUARTERS,
   ANALYSIS_PERIOD_YEARS,
+  analysisPeriodQuartersOf,
   buildAnalysisPeriod,
+  clampQuarterToYear,
   parseAnalysisPeriod,
 } from '@/lib/analysis/selection'
 
@@ -66,6 +67,7 @@ export default function AnalysisPeriodSelect({
   onChange,
 }: AnalysisPeriodSelectProps) {
   const { year, quarter } = parseAnalysisPeriod(value)
+  const quarters = analysisPeriodQuartersOf(year)
 
   return (
     <Row>
@@ -73,9 +75,15 @@ export default function AnalysisPeriodSelect({
         <Select
           aria-label="분석 연도"
           value={year}
-          onChange={event =>
-            onChange(buildAnalysisPeriod(Number(event.target.value), quarter))
-          }
+          onChange={event => {
+            const nextYear = Number(event.target.value)
+            onChange(
+              buildAnalysisPeriod(
+                nextYear,
+                clampQuarterToYear(nextYear, quarter),
+              ),
+            )
+          }}
         >
           {ANALYSIS_PERIOD_YEARS.map(option => (
             <option key={option} value={option}>
@@ -93,7 +101,7 @@ export default function AnalysisPeriodSelect({
             onChange(buildAnalysisPeriod(year, Number(event.target.value)))
           }
         >
-          {ANALYSIS_PERIOD_QUARTERS.map(option => (
+          {quarters.map(option => (
             <option key={option} value={option}>
               {option}분기
             </option>

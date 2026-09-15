@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { createMapCamera } from '@/lib/analysis/map-camera'
 import {
   ANALYSIS_PERIOD_CODE,
+  ANALYSIS_PERIOD_YEARS,
+  analysisPeriodQuartersOf,
   buildAnalysisPeriod,
+  clampQuarterToYear,
   parseAnalysisPeriod,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
@@ -33,6 +36,26 @@ describe('analysis period helpers', () => {
     expect(parseAnalysisPeriod('20214')).toEqual({ year: 2021, quarter: 4 })
     expect(buildAnalysisPeriod(2023, 3)).toBe('20233')
     expect(buildAnalysisPeriod(2021, 4)).toBe('20214')
+  })
+
+  it('연도 목록은 최신 분기의 연도까지만 연다', () => {
+    expect(ANALYSIS_PERIOD_YEARS).toEqual([2021, 2022, 2023, 2024, 2025, 2026])
+  })
+
+  it('최신 연도만 적재된 분기까지 자르고 지난 연도는 네 분기를 모두 연다', () => {
+    // 2026년은 1분기까지만 적재되어 있다. 2·3·4분기를 고를 수 있으면 빈 화면이 된다.
+    expect(analysisPeriodQuartersOf(2026)).toEqual([1])
+    expect(analysisPeriodQuartersOf(2025)).toEqual([1, 2, 3, 4])
+    expect(analysisPeriodQuartersOf(2021)).toEqual([1, 2, 3, 4])
+    // 적재 범위 밖에는 고를 분기가 없다.
+    expect(analysisPeriodQuartersOf(2027)).toEqual([])
+    expect(analysisPeriodQuartersOf(2020)).toEqual([])
+  })
+
+  it('연도를 옮길 때 없는 분기는 그 연도의 마지막 분기로 내린다', () => {
+    expect(clampQuarterToYear(2026, 4)).toBe(1)
+    expect(clampQuarterToYear(2026, 1)).toBe(1)
+    expect(clampQuarterToYear(2023, 4)).toBe(4)
   })
 })
 
@@ -139,6 +162,9 @@ describe('analysis selection', () => {
       ' ',
       '20271',
       '20191',
+      // 연도는 열려 있지만 아직 적재되지 않은 분기다.
+      '20262',
+      '20264',
     ]
 
     cases.forEach(periodCode => {

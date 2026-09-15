@@ -5,14 +5,17 @@ import {
 } from '@/lib/analysis/map-camera'
 import { resolveDistrictCodeFromAdministration } from '@/lib/map/geometry'
 
+/**
+ * 적재가 끝난 **최신 분기**. 기본값이면서 동시에 드롭다운 옵션의 **상한**이다.
+ * 다음 분기가 적재되면 이 상수만 올리면 연도 목록과 분기 목록이 같이 따라온다.
+ */
 export const ANALYSIS_PERIOD_CODE = '20261' as const
+
+/** 적재가 시작되는 연도. 이 아래 분기는 팩트 테이블에 없다. */
+export const ANALYSIS_PERIOD_FIRST_YEAR = 2021
 
 /** `YYYYQ` 기간 코드 형식. URL 에서 읽은 값이 이 형식이 아니면 기본값으로 폐기한다. */
 export const ANALYSIS_PERIOD_CODE_PATTERN = /^\d{4}[1-4]$/
-
-/** 기간 선택 드롭다운에서 제공하는 연도·분기 옵션. */
-export const ANALYSIS_PERIOD_YEARS = [2021, 2022, 2023, 2024, 2025, 2026] as const
-export const ANALYSIS_PERIOD_QUARTERS = [1, 2, 3, 4] as const
 
 /** `YYYYQ` 기간 코드(예: '20233' = 2023년 3분기)를 연/분기로 분해한다. */
 export const parseAnalysisPeriod = (
@@ -25,6 +28,39 @@ export const parseAnalysisPeriod = (
 /** 연/분기를 `YYYYQ` 기간 코드로 합친다. */
 export const buildAnalysisPeriod = (year: number, quarter: number): string =>
   `${year}${quarter}`
+
+const LATEST_PERIOD = parseAnalysisPeriod(ANALYSIS_PERIOD_CODE)
+
+/** 기간 선택 드롭다운에서 제공하는 연도 옵션. 최신 분기의 연도까지만 연다. */
+export const ANALYSIS_PERIOD_YEARS: readonly number[] = Array.from(
+  { length: LATEST_PERIOD.year - ANALYSIS_PERIOD_FIRST_YEAR + 1 },
+  (_, index) => ANALYSIS_PERIOD_FIRST_YEAR + index,
+)
+
+const ALL_QUARTERS = [1, 2, 3, 4] as const
+
+/**
+ * 그 연도에 **실제로 데이터가 있는** 분기 목록.
+ *
+ * 최신 연도는 적재된 분기까지만 연다 — 2026년은 1분기만 있으므로 2·3·4분기를 고르면
+ * 빈 화면이 된다. 지난 연도는 네 분기가 모두 차 있다. 다음 분기가 적재되면
+ * {@link ANALYSIS_PERIOD_CODE} 만 올리면 되고 이 함수는 손대지 않는다.
+ */
+export const analysisPeriodQuartersOf = (year: number): readonly number[] => {
+  if (year > LATEST_PERIOD.year || year < ANALYSIS_PERIOD_FIRST_YEAR) return []
+  if (year < LATEST_PERIOD.year) return ALL_QUARTERS
+  return ALL_QUARTERS.slice(0, LATEST_PERIOD.quarter)
+}
+
+/**
+ * 연도를 바꿀 때 쓸 분기. 고르고 있던 분기가 새 연도에 없으면 그 연도의 **마지막
+ * 분기**로 내린다 — 2023년 4분기를 보다가 2026년으로 옮기면 1분기가 된다.
+ */
+export const clampQuarterToYear = (year: number, quarter: number): number => {
+  const quarters = analysisPeriodQuartersOf(year)
+  if (quarters.length === 0) return quarter
+  return quarters.includes(quarter) ? quarter : quarters[quarters.length - 1]
+}
 
 export const ANALYSIS_STEPS = [
   'district',
@@ -72,18 +108,14 @@ const readCode = (params: SearchParamsReader, name: string): string | null => {
  * 형식만 보면 부족하다: 기간 선택은 `<select>` 라서 옵션에 없는 값을 주면 브라우저가
  * 조용히 첫 옵션을 그린다 — 그러면 헤더는 "2024년 1분기 기준", 드롭다운은 "2021년"을
  * 가리키는 어긋난 화면이 된다. 선택 가능한 값으로 좁혀 URL 과 UI 가 항상 일치하게 한다.
+ *
+ * 연도별로 열려 있는 분기가 다르므로({@link analysisPeriodQuartersOf}) 연도·분기를 따로
+ * 보면 `20264` 같은 미적재 조합이 통과한다. 두 축을 함께 본다.
  */
 export const isSupportedAnalysisPeriod = (value: string): boolean => {
   if (!ANALYSIS_PERIOD_CODE_PATTERN.test(value)) return false
   const { year, quarter } = parseAnalysisPeriod(value)
-  return (
-    ANALYSIS_PERIOD_YEARS.includes(
-      year as (typeof ANALYSIS_PERIOD_YEARS)[number],
-    ) &&
-    ANALYSIS_PERIOD_QUARTERS.includes(
-      quarter as (typeof ANALYSIS_PERIOD_QUARTERS)[number],
-    )
-  )
+  return analysisPeriodQuartersOf(year).includes(quarter)
 }
 
 /**
