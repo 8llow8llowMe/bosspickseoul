@@ -145,6 +145,10 @@ public class CommercialHeatmapQueryProcessor {
     /**
      * 지표가 하나라도 없는 상권은 요청 전체를 실패시키지 않고 점수 산정 대상에서만 제외한다
      * (예: 해당 업종 매출이 없는 상권).
+     *
+     * <p>소득소비({@code income})는 이 게이트에서 제외한다. 소득 지표가 걷히고 지출이 null 허용이 된 뒤로
+     * 소득소비 행 유무가 네 지표 중 어느 것도 좌우하지 않는데, 게이트에 남겨 두면 2024년 이후 소득소비 행이
+     * 없는 560개 상권이 네 지표 전부 INSUFFICIENT 로 빠져 지도에서 사라진다. (이슈 #413)
      */
     private CommercialHeatmapSource buildSource(
         String commercialCode,
@@ -157,7 +161,7 @@ public class CommercialHeatmapQueryProcessor {
         ChangeCommercial change
     ) {
         if (sales == null || footTraffic == null || store == null
-            || population == null || income == null || facility == null) {
+            || population == null || facility == null) {
             return CommercialHeatmapSource.empty(commercialCode);
         }
 
@@ -231,7 +235,7 @@ public class CommercialHeatmapQueryProcessor {
 
     private double computeOpportunity(CommercialHeatmapSource source) {
         return totalSalesAmount(source.sales().amountByDayOfWeekInfo()) * 0.35
-            + totalExpenseAmount(source.income().expenseByCategoryInfo()) * 0.20
+            + totalExpenseAmount(source.income()) * 0.20
             + totalFootTraffic(source.footTraffic().byDayOfWeekInfo()) * 0.20
             + source.store().openingRate() * 1000D * 0.15
             + source.population().byAgeInfo().totalResidentPopulation() * 0.10;
@@ -284,8 +288,12 @@ public class CommercialHeatmapQueryProcessor {
             + info.thursdayFootTraffic() + info.fridayFootTraffic() + info.saturdayFootTraffic() + info.sundayFootTraffic();
     }
 
-    /** 지출은 원천이 값을 주지 않는 분기에 null 이다. 기회도 점수에서는 0 으로 취급한다. */
-    private double totalExpenseAmount(CommercialExpenseByCategoryInfo info) {
+    /**
+     * 지출은 소득소비 행 자체가 없거나(상권 560곳) 원천이 값을 주지 않는 분기에 null 이다.
+     * 기회도 점수에서는 0 으로 취급한다 — 나머지 네 항목만으로도 순위가 나온다. (이슈 #413)
+     */
+    private double totalExpenseAmount(CommercialIncomeAndExpenseInfo income) {
+        CommercialExpenseByCategoryInfo info = income == null ? null : income.expenseByCategoryInfo();
         return info == null ? 0D : info.totalExpenseAmount();
     }
 

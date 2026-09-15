@@ -8,8 +8,19 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByTimeSlotInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreCountsInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.ChangeCommercialRepositoryPort;
 import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
@@ -148,5 +159,139 @@ class CommercialHeatmapQueryProcessorTest {
 
         assertThat(CommercialHeatmapQueryProcessor.buildSummaryLabel(
             CommercialHeatmapMetricType.RESIDENT_POPULATION_SCORE, null)).isEqualTo("거주 수요 데이터 부족");
+    }
+
+    @Test
+    @DisplayName("소득소비 행이 없는 상권도 히트맵에서 빠지지 않고 네 지표 모두 점수를 받는다")
+    void getAllMetricScores_missingIncomeRow_stillScoresCommercial() {
+        // 2024년 이후 1,650개 상권 중 560곳은 소득소비 행 자체가 없다. 소득 지표가 걷히고 지출이
+        // null 허용이 된 뒤로는 그 행의 유무가 어느 지표도 좌우하지 않는데, buildSource 게이트에
+        // income == null 이 남아 있어 그 560곳이 네 지표 전부 INSUFFICIENT 로 빠져 지도에서 사라졌다. (이슈 #413)
+        when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
+            .thenReturn(List.of());
+        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
+            .thenReturn(Map.of("C1", sales("상권1", 100L), "C2", sales("상권2", 200L)));
+        when(commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", footTraffic(50L), "C2", footTraffic(100L)));
+        when(commercialQueryProcessor.getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
+            .thenReturn(Map.of("C1", storeCounts(10L, 0.1D), "C2", storeCounts(20L, 0.2D)));
+        when(commercialQueryProcessor.getPopulationByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", population(1_000L), "C2", population(2_000L)));
+        // C2 만 소득소비 행이 없다. 벌크 조회는 맵에 키가 없는 것으로 「그 상권의 데이터가 없다」를 알린다.
+        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", income(10L)));
+        when(commercialQueryProcessor.getFacilityByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", facility(3L), "C2", facility(6L)));
+
+        List<CommercialAllMetricScoresInfo> scores =
+            processor.getAllMetricScores("20261", "CS100001", List.of("C1", "C2"));
+
+        assertThat(scores).hasSize(2);
+        assertThat(scores).allSatisfy(entry ->
+            assertThat(entry.scoresByMetric().values()).allSatisfy(score -> {
+                assertThat(score.score()).isNotNull();
+                assertThat(score.grade()).isNotEqualTo("INSUFFICIENT");
+            })
+        );
+        assertThat(scores).anySatisfy(entry -> assertThat(entry.commercialName()).isEqualTo("상권2"));
+    }
+
+    @Test
+    @DisplayName("소득소비 행이 아예 없어도 기회도는 지출을 0 으로 보고 나머지 항목으로 계산된다")
+    void getAllMetricScores_noIncomeRowAtAll_opportunityFallsBackToZeroExpense() {
+        when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
+            .thenReturn(List.of());
+        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
+            .thenReturn(Map.of("C1", sales("상권1", 100L)));
+        when(commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", footTraffic(50L)));
+        when(commercialQueryProcessor.getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
+            .thenReturn(Map.of("C1", storeCounts(10L, 0.1D)));
+        when(commercialQueryProcessor.getPopulationByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", population(1_000L)));
+        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of());
+        when(commercialQueryProcessor.getFacilityByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", facility(3L)));
+
+        CommercialHeatmapScoresResponseInfo info = processor.getHeatmapScores(
+            "20261", "CS100001", List.of("C1"), CommercialHeatmapMetricType.OPPORTUNITY_SCORE);
+
+        assertThat(info.scores()).hasSize(1);
+        // 상권이 하나뿐이라 정규화 구간이 무너져 기본값 50 이 된다. 중요한 것은 null(=INSUFFICIENT)이 아니라는 점이다.
+        assertThat(info.scores().get(0).score()).isEqualTo(50D);
+        assertThat(info.scores().get(0).grade()).isNotEqualTo("INSUFFICIENT");
+    }
+
+    private static CommercialSalesInfo sales(String commercialName, long dailySalesAmount) {
+        return CommercialSalesInfo.builder()
+            .commercialName(commercialName)
+            .amountByTimeSlotInfo(CommercialSalesByTimeSlotInfo.builder()
+                .salesAmountTime00To06(dailySalesAmount)
+                .salesAmountTime21To24(dailySalesAmount)
+                .build())
+            .amountByDayOfWeekInfo(CommercialSalesByDayOfWeekInfo.builder()
+                .mondaySalesAmount(dailySalesAmount)
+                .tuesdaySalesAmount(dailySalesAmount)
+                .wednesdaySalesAmount(dailySalesAmount)
+                .thursdaySalesAmount(dailySalesAmount)
+                .fridaySalesAmount(dailySalesAmount)
+                .saturdaySalesAmount(dailySalesAmount)
+                .sundaySalesAmount(dailySalesAmount)
+                .build())
+            .build();
+    }
+
+    private static CommercialFootTrafficInfo footTraffic(long dailyFootTraffic) {
+        return CommercialFootTrafficInfo.builder()
+            .byDayOfWeekInfo(CommercialFootTrafficByDayOfWeekInfo.builder()
+                .mondayFootTraffic(dailyFootTraffic)
+                .tuesdayFootTraffic(dailyFootTraffic)
+                .wednesdayFootTraffic(dailyFootTraffic)
+                .thursdayFootTraffic(dailyFootTraffic)
+                .fridayFootTraffic(dailyFootTraffic)
+                .saturdayFootTraffic(dailyFootTraffic)
+                .sundayFootTraffic(dailyFootTraffic)
+                .build())
+            .build();
+    }
+
+    private static CommercialStoreCountsInfo storeCounts(long totalStoreCount, double rate) {
+        return CommercialStoreCountsInfo.builder()
+            .totalStoreCount(totalStoreCount)
+            .similarStoreCount(totalStoreCount / 2)
+            .openingRate(rate)
+            .closureRate(rate / 2)
+            .build();
+    }
+
+    private static CommercialResidentPopulationInfo population(long totalResidentPopulation) {
+        return CommercialResidentPopulationInfo.builder()
+            .byAgeInfo(CommercialResidentPopulationByAgeInfo.builder()
+                .totalResidentPopulation(totalResidentPopulation)
+                .build())
+            .build();
+    }
+
+    private static CommercialIncomeAndExpenseInfo income(long expenseAmountPerCategory) {
+        return CommercialIncomeAndExpenseInfo.builder()
+            .expenseByCategoryInfo(CommercialExpenseByCategoryInfo.builder()
+                .groceryExpenseAmount(expenseAmountPerCategory)
+                .clothingExpenseAmount(expenseAmountPerCategory)
+                .medicalExpenseAmount(expenseAmountPerCategory)
+                .householdExpenseAmount(expenseAmountPerCategory)
+                .transportationExpenseAmount(expenseAmountPerCategory)
+                .leisureExpenseAmount(expenseAmountPerCategory)
+                .cultureExpenseAmount(expenseAmountPerCategory)
+                .educationExpenseAmount(expenseAmountPerCategory)
+                .entertainmentExpenseAmount(expenseAmountPerCategory)
+                .build())
+            .build();
+    }
+
+    private static CommercialFacilityInfo facility(long totalFacilityCount) {
+        return CommercialFacilityInfo.builder()
+            .totalFacilityCount(totalFacilityCount)
+            .build();
     }
 }

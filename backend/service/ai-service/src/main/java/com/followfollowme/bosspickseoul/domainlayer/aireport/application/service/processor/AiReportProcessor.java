@@ -20,6 +20,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationStoreServiceTopQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseByCategoryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
@@ -32,6 +33,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialStoreAnalysisQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.ComparisonMetricQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.DistrictDetailQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.RegionalIncomeSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt.PromptFormatterSupport;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiDraft;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
@@ -406,18 +408,7 @@ public class AiReportProcessor {
                 "50대", population.byAge().age50ResidentPopulation(),
                 "60대 이상", population.byAge().age60PlusResidentPopulation()
             )))
-            .averageMonthlyIncomeAmount(income.averageIncome().monthlyAverageIncomeAmount())
-            .largestExpenseCategory(PromptFormatterSupport.formatTopEntry(PromptFormatterSupport.orderedMap(
-                "식료품", income.expenseByCategory().groceryExpenseAmount(),
-                "의류", income.expenseByCategory().clothingExpenseAmount(),
-                "의료", income.expenseByCategory().medicalExpenseAmount(),
-                "생활용품", income.expenseByCategory().householdExpenseAmount(),
-                "교통", income.expenseByCategory().transportationExpenseAmount(),
-                "여가", income.expenseByCategory().leisureExpenseAmount(),
-                "문화", income.expenseByCategory().cultureExpenseAmount(),
-                "교육", income.expenseByCategory().educationExpenseAmount(),
-                "유흥", income.expenseByCategory().entertainmentExpenseAmount()
-            )))
+            .largestExpenseCategory(formatLargestExpenseCategory(income))
             .totalStoreCount(store.totalStoreCount())
             .similarStoreCount(store.similarStoreCount())
             .openedStoreCount(store.openedStoreCount())
@@ -429,10 +420,40 @@ public class AiReportProcessor {
             .districtSalesAmount(salesSummary.district().monthlySalesAmount())
             .administrationSalesAmount(salesSummary.administration().monthlySalesAmount())
             .commercialSalesAmount(salesSummary.commercial().monthlySalesAmount())
-            .districtExpenseAmount(incomeSummary.district().totalExpenseAmount())
-            .administrationExpenseAmount(incomeSummary.administration().totalExpenseAmount())
-            .commercialExpenseAmount(incomeSummary.commercial().totalExpenseAmount())
+            .districtExpenseAmount(totalExpenseAmountOrNull(incomeSummary == null ? null : incomeSummary.district()))
+            .administrationExpenseAmount(totalExpenseAmountOrNull(incomeSummary == null ? null : incomeSummary.administration()))
+            .commercialExpenseAmount(totalExpenseAmountOrNull(incomeSummary == null ? null : incomeSummary.commercial()))
             .build();
+    }
+
+    /**
+     * 원천이 값을 주지 않는 분기에는 지출 블록이 통째로 null 로 내려온다. 0 원을 실측치처럼 프롬프트에
+     * 써 넣지 않도록 포매터의 결측 표기를 그대로 쓴다. (이슈 #413)
+     */
+    private String formatLargestExpenseCategory(CommercialIncomeAndExpenseQueryResult income) {
+        CommercialExpenseByCategoryQueryResult expense = income == null ? null : income.expenseByCategory();
+        if (expense == null) {
+            return PromptFormatterSupport.NOT_AVAILABLE;
+        }
+        return PromptFormatterSupport.formatTopEntry(PromptFormatterSupport.orderedMap(
+            "식료품", expense.groceryExpenseAmount(),
+            "의류", expense.clothingExpenseAmount(),
+            "의료", expense.medicalExpenseAmount(),
+            "생활용품", expense.householdExpenseAmount(),
+            "교통", expense.transportationExpenseAmount(),
+            "여가", expense.leisureExpenseAmount(),
+            "문화", expense.cultureExpenseAmount(),
+            "교육", expense.educationExpenseAmount(),
+            "유흥", expense.entertainmentExpenseAmount()
+        ));
+    }
+
+    /**
+     * 요약은 해당 분기에 그 지역 단위 지출 행이 없으면 단위별로 null 이 내려온다.
+     * 단위 하나가 비어도 나머지 비교는 살려야 하므로 0 으로 채우지 않고 null 을 그대로 올린다. (이슈 #413)
+     */
+    private Long totalExpenseAmountOrNull(RegionalIncomeSummaryQueryResult regional) {
+        return regional == null ? null : regional.totalExpenseAmount();
     }
 
     private CommercialComparisonAiSourceData buildCommercialComparisonSourceData(

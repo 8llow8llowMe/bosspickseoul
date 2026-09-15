@@ -277,7 +277,6 @@
     "openingRate": 12.4,
     "closureRate": 8.1,
     "totalResidentPopulation": 28400,
-    "monthlyAverageIncomeAmount": 4800000,
     "totalFacilityCount": 156,
     "peakSalesTimeSlot": "17시~21시",
     "peakFootTrafficTimeSlot": "11시~14시",
@@ -304,7 +303,7 @@
 | GET | `/api/v1/commercials/{code}/services/{serviceCode}/stores` | 점포 탭 — 개폐업 현황 |
 | GET | `/api/v1/commercials/{code}/facilities` | 시설 탭 — 주변 학교·교통 |
 | GET | `/api/v1/commercials/{code}/population` | 거주인구 탭 |
-| GET | `/api/v1/commercials/{code}/income` | 소득·지출 탭 |
+| GET | `/api/v1/commercials/{code}/income` | 지출 탭 — 9개 항목별 지출액 (`expenseByCategoryItem` 이 `null` 이면 "데이터 미제공") |
 | GET | `/api/v1/commercials/{code}/trend` | 트렌드 탭 — 분기별 꺾은선 그래프 |
 | GET | `/api/v1/commercials/{code}/benchmarks` | 벤치마크 비교 탭 |
 
@@ -331,12 +330,12 @@
 
 ---
 
-### 상권 매출/소득 요약 (계층 비교)
+### 상권 매출/지출 요약 (계층 비교)
 
 | Method | Path | 화면 |
 |--------|------|------|
 | GET | `/api/v1/commercials/{code}/summaries/sales` | 상권 상세 내 "우리 상권 vs 행정동 vs 자치구" 비교 |
-| GET | `/api/v1/commercials/{code}/summaries/income` | 같은 화면의 소득 비교 |
+| GET | `/api/v1/commercials/{code}/summaries/income` | 같은 화면의 지출 비교 (행이 없는 지역 단위는 `null`) |
 
 ```
 ?periodCode=20233&districtCode=11680&administrationCode=1168010100&serviceCode=CS100001

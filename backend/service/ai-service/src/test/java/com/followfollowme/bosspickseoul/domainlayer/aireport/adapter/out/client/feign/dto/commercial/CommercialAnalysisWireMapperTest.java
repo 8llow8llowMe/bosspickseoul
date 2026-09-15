@@ -52,14 +52,27 @@ class CommercialAnalysisWireMapperTest {
     }
 
     @Test
-    @DisplayName("소득·지출 wire DTO 의 말단 필드 11개가 모두 QueryResult 로 옮겨진다")
+    @DisplayName("지출 wire DTO 의 말단 필드 9개가 모두 QueryResult 로 옮겨진다")
     void incomeAndExpenseMapsEveryLeafField() throws Exception {
+        // 원천이 상권 단위 소득 제공을 중단해 월 평균 소득·소득 구간 2개가 빠지고 지출 9개만 남았다. (이슈 #413)
         assertEveryLeafCopied(
             CommercialIncomeAndExpenseClientResponse.class,
             CommercialIncomeAndExpenseQueryResult.class,
             wire -> CommercialAnalysisWireMapper.toQueryResult((CommercialIncomeAndExpenseClientResponse) wire),
-            11
+            9
         );
+    }
+
+    @Test
+    @DisplayName("peer 가 지출 블록을 생략하면 null 이 그대로 전달된다")
+    void nullExpenseByCategoryStaysNull() {
+        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(null);
+
+        CommercialIncomeAndExpenseQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
+
+        // 0 으로 채우면 "원천이 값을 안 줬다" 와 "실제로 0원" 이 구별되지 않아 LLM 프롬프트에 0원이 실측치로 들어간다.
+        assertThat(queryResult).isNotNull();
+        assertThat(queryResult.expenseByCategory()).isNull();
     }
 
     @Test
@@ -179,5 +192,6 @@ class CommercialAnalysisWireMapperTest {
         assertThat(CommercialAnalysisWireMapper.toQueryResult((CommercialStoreAnalysisClientResponse) null)).isNull();
         assertThat(CommercialAnalysisWireMapper.toQueryResult((CommercialSalesSummaryClientResponse) null)).isNull();
         assertThat(CommercialAnalysisWireMapper.toQueryResult((CommercialIncomeSummaryClientResponse) null)).isNull();
+        assertThat(CommercialAnalysisWireMapper.toQueryResult((CommercialIncomeAndExpenseClientResponse) null)).isNull();
     }
 }

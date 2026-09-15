@@ -192,7 +192,6 @@ public class MapPresenter {
             .openingRate(info.openingRate())
             .closureRate(info.closureRate())
             .totalResidentPopulation(info.totalResidentPopulation())
-            .monthlyAverageIncomeAmount(info.monthlyAverageIncomeAmount())
             .totalFacilityCount(info.totalFacilityCount())
             .build();
     }
