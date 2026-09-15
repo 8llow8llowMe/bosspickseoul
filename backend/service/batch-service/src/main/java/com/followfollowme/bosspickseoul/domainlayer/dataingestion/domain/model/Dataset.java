@@ -2,6 +2,8 @@ package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * One Seoul commercial-analysis dataset. Each constant maps to exactly one legacy fact table
@@ -15,6 +17,8 @@ import java.util.Locale;
  *
  * <p>A blank service would mean no Open API contract is registered, so the dataset is CSV/ZIP only;
  * {@code ImportRequest} rejects an API run for it instead of guessing an endpoint.
+ *
+ * <p>One dataset is discontinued rather than merely reshaped: see {@link #LAST_PUBLISHABLE_QUARTER}.
  */
 public enum Dataset {
     SALES_COMMERCIAL("VwsmTrdarSelngQq", AreaScope.COMMERCIAL, true, List.of(
@@ -94,6 +98,16 @@ public enum Dataset {
     /** Categorical change indicator; validated against its code set instead of as a number. */
     public static final String CHANGE_INDICATOR_FIELD = "TRDAR_CHNGE_IX";
 
+    /**
+     * 원천이 끊겨 더 이상 게시할 수 없는 데이터셋의 마지막 유효 분기. 여기 없는 데이터셋은 상한이 없다.
+     *
+     * <p>{@code CONSUMPTION_COMMERCIAL} 은 2026-09-15 전수 실측에서 {@code 20241} 분기부터 모든 행의
+     * 모든 지출 항목이 0 으로 확인됐다. 데이터셋 공지(OA-21278)도 "행정동보다 작은 상권크기의 데이터의
+     * 제공이 어려워 더 이상 갱신되지 않습니다" 라고 밝힌다. 0 만 쌓는 슬롯을 만들지 않도록 여기서 막는다.
+     */
+    private static final Map<Dataset, Quarter> LAST_PUBLISHABLE_QUARTER =
+        Map.of(CONSUMPTION_COMMERCIAL, new Quarter("20234"));
+
     private final String service;
     private final AreaScope scope;
     private final boolean industry;
@@ -114,6 +128,9 @@ public enum Dataset {
     public List<String> requiredMetrics() { return requiredMetrics; }
 
     public boolean changeIndicator() { return requiredMetrics.contains(CHANGE_INDICATOR_FIELD); }
+
+    /** 이 분기까지만 게시할 수 있다. 비어 있으면 상한이 없다. */
+    public Optional<Quarter> lastPublishableQuarter() { return Optional.ofNullable(LAST_PUBLISHABLE_QUARTER.get(this)); }
 
     public static Dataset parse(String value) {
         return valueOf(value.toUpperCase(Locale.ROOT));

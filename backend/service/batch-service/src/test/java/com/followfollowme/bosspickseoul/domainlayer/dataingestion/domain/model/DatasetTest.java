@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
 import com.followfollowme.bosspickseoul.shared.enums.DatasetKey;
@@ -93,8 +94,27 @@ class DatasetTest {
         assertThat(Dataset.parse("CHANGE_DISTRICT")).isEqualTo(Dataset.CHANGE_DISTRICT);
     }
 
+    /**
+     * 소비-상권배후지는 {@code 20241} 분기부터 원천이 전 행 0 이다(2026-09-15 전수 실측, 23,980행).
+     * 0 만 쌓인 슬롯은 화면이 "0원"을 실제 값으로 그리게 만들므로 게시 요청 단계에서 막는다.
+     */
+    @Test
+    void discontinuedDatasetRejectsQuartersPastItsLastPublishableOne() {
+        assertThatThrownBy(() -> new ImportRequest("test-run", Dataset.CONSUMPTION_COMMERCIAL, new Quarter("20241"),
+            "standard-2024", "seoul-v1", ImportRequest.SourceType.API, null, "UTF-8", true, 1,
+            Instant.parse("2026-09-06T00:00:00Z")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("20234");
+
+        assertThat(request(Dataset.CONSUMPTION_COMMERCIAL, ImportRequest.SourceType.API, null).period().value())
+            .isEqualTo("20234");
+        assertThat(Dataset.SALES_COMMERCIAL.lastPublishableQuarter()).isEmpty();
+    }
+
+    /** 게시 상한이 있는 데이터셋은 그 분기로, 나머지는 2024년 이후 분기로 요청을 만든다. */
     private ImportRequest request(Dataset dataset, ImportRequest.SourceType source, java.nio.file.Path file) {
-        return new ImportRequest("test-run", dataset, new Quarter("20241"), "standard-2024", "seoul-v1",
+        Quarter period = dataset.lastPublishableQuarter().orElseGet(() -> new Quarter("20241"));
+        return new ImportRequest("test-run", dataset, period, "standard-2024", "seoul-v1",
             source, file, "UTF-8", true, 1, Instant.parse("2026-09-06T00:00:00Z"));
     }
 }
