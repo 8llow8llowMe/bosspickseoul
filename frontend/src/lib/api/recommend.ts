@@ -10,7 +10,7 @@ import type {
   RecommendationRequest,
 } from '@/types/recommend'
 
-export const RECOMMENDATION_PERIOD_CODE = '20233'
+export const RECOMMENDATION_PERIOD_CODE = '20261'
 /**
  * 백엔드가 허용하는 `topN` 범위. **5~30을 벗어나면 400(COMMERCIAL_101)** 이다.
  * (`GET /api/v1/commercials/recommendations/by-service`, topN: minimum 5 / maximum 30)

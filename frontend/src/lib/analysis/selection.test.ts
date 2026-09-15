@@ -29,7 +29,7 @@ const completeSelection: AnalysisSelection = {
 
 describe('analysis period helpers', () => {
   it('기간 코드를 연/분기로 분해하고 다시 합친다', () => {
-    expect(parseAnalysisPeriod('20233')).toEqual({ year: 2023, quarter: 3 })
+    expect(parseAnalysisPeriod('20261')).toEqual({ year: 2026, quarter: 1 })
     expect(parseAnalysisPeriod('20214')).toEqual({ year: 2021, quarter: 4 })
     expect(buildAnalysisPeriod(2023, 3)).toBe('20233')
     expect(buildAnalysisPeriod(2021, 4)).toBe('20214')
@@ -44,7 +44,7 @@ describe('analysis selection', () => {
         administrationCode: null,
         commercialCode: null,
         serviceCode: null,
-        periodCode: '20233',
+        periodCode: ANALYSIS_PERIOD_CODE,
       },
     )
     expect(
@@ -103,10 +103,10 @@ describe('analysis selection', () => {
       '/analysis?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001',
     )
     expect(createAnalysisResultHref(completeSelection, 'summary')).toBe(
-      '/analysis/result?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20233&tab=summary',
+      '/analysis/result?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20261&tab=summary',
     )
     expect(createAiReportHref(completeSelection)).toBe(
-      '/analysis/report?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20233',
+      '/analysis/report?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20261',
     )
   })
 
@@ -137,7 +137,7 @@ describe('analysis selection', () => {
       '20245',
       '',
       ' ',
-      '20241',
+      '20271',
       '20191',
     ]
 
@@ -213,7 +213,7 @@ describe('shouldAutoNavigateToAnalysis', () => {
         administrationCode: '11215530',
         commercialCode: '3110954',
         serviceCode: 'CS100010',
-        periodCode: '20233',
+        periodCode: ANALYSIS_PERIOD_CODE,
       }),
     ).toBe(true)
   })
@@ -224,7 +224,7 @@ describe('shouldAutoNavigateToAnalysis', () => {
         administrationCode: '11215530',
         commercialCode: null,
         serviceCode: 'CS100010',
-        periodCode: '20233',
+        periodCode: ANALYSIS_PERIOD_CODE,
       }),
     ).toBe(false)
   })

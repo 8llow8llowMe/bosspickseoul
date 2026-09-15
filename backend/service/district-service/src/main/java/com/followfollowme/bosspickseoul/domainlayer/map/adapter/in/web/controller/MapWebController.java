@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.controller;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.response.CandidateCommercialsResponse;
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.response.CandidatePresetsResponse;
@@ -84,7 +85,7 @@ public class MapWebController {
         @Parameter(description = "북동쪽 경도", required = true, example = "127.10") @RequestParam double lngNE,
         @Parameter(description = "북동쪽 위도", required = true, example = "37.70") @RequestParam double latNE,
         @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode,
+        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode,
         @Parameter(description = "지표 타입 (composite=false 일 때 필수)", example = "OPPORTUNITY_SCORE") @RequestParam(required = false) CommercialHeatmapMetricType metricType,
         @Parameter(description = "후보 프리셋 (composite=true 일 때 필수)", example = "BALANCED") @RequestParam(required = false) CandidatePresetType preset,
         @Parameter(description = "우선 지표 (composite=true 일 때 선택, 미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
@@ -120,7 +121,7 @@ public class MapWebController {
         @Min(value = 5, message = MapValidationMessage.TOP_N_TOO_SMALL)
         @Max(value = 30, message = MapValidationMessage.TOP_N_TOO_LARGE)
         Integer topN,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
     ) {
         CandidateCommercialsResponse response = mapWebUseCase.getCandidateCommercials(
             lngSW, latSW, lngNE, latNE, serviceCode, periodCode, preset, priorityMetric, topN
@@ -133,7 +134,7 @@ public class MapWebController {
     public ResponseEntity<Response<CommercialProfileResponse>> getCommercialProfile(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
     ) {
         CommercialProfileResponse response = mapWebUseCase.getCommercialProfile(commercialCode, serviceCode, periodCode);
         return ResponseEntity.ok().body(Response.success(response));
@@ -148,7 +149,7 @@ public class MapWebController {
         @Parameter(description = "좌측 상권 코드", required = true, example = "3110008") @RequestParam String leftCommercialCode,
         @Parameter(description = "우측 상권 코드", required = true, example = "3110012") @RequestParam String rightCommercialCode,
         @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = "20233") @RequestParam(defaultValue = "20233") String periodCode
+        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
     ) {
         CommercialComparePreviewResponse response = mapWebUseCase.getCommercialComparePreview(
             leftCommercialCode, rightCommercialCode, serviceCode, periodCode

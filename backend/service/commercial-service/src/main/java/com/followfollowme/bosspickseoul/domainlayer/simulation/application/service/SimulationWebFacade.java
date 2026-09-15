@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.simulation.application.service;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.request.SimulationHistorySaveRequest;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.request.SimulationReportRequest;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.response.SimulationFranchiseesResponse;
@@ -21,8 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class SimulationWebFacade implements SimulationWebUseCase {
-
-    private static final String DEFAULT_PERIOD_CODE = "20233";
 
     private final SimulationQueryProcessor simulationQueryProcessor;
     private final SimulationReportProcessor simulationReportProcessor;
@@ -52,7 +51,7 @@ public class SimulationWebFacade implements SimulationWebUseCase {
             .serviceCode(request.serviceCode())
             .storeSize(request.storeSize())
             .floorType(request.floorType())
-            .periodCode(request.periodCode() == null ? DEFAULT_PERIOD_CODE : request.periodCode())
+            .periodCode(request.periodCode() == null ? AnalysisPeriodDefaults.PERIOD_CODE : request.periodCode())
             .build();
         return simulationPresenter.toReportResponse(simulationReportProcessor.simulate(command));
     }

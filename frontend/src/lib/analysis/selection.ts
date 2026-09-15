@@ -5,13 +5,13 @@ import {
 } from '@/lib/analysis/map-camera'
 import { resolveDistrictCodeFromAdministration } from '@/lib/map/geometry'
 
-export const ANALYSIS_PERIOD_CODE = '20233' as const
+export const ANALYSIS_PERIOD_CODE = '20261' as const
 
 /** `YYYYQ` 기간 코드 형식. URL 에서 읽은 값이 이 형식이 아니면 기본값으로 폐기한다. */
 export const ANALYSIS_PERIOD_CODE_PATTERN = /^\d{4}[1-4]$/
 
 /** 기간 선택 드롭다운에서 제공하는 연도·분기 옵션. */
-export const ANALYSIS_PERIOD_YEARS = [2021, 2022, 2023] as const
+export const ANALYSIS_PERIOD_YEARS = [2021, 2022, 2023, 2024, 2025, 2026] as const
 export const ANALYSIS_PERIOD_QUARTERS = [1, 2, 3, 4] as const
 
 /** `YYYYQ` 기간 코드(예: '20233' = 2023년 3분기)를 연/분기로 분해한다. */
