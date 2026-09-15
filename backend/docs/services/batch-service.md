@@ -45,6 +45,9 @@
 ### 2024년 이후 컬럼 차이 (레거시 테이블 대비)
 
 - **소비-상권배후지(`VwsmTrdhlNcmCnsmpQq`)에는 소득 컬럼이 없다.** 레거시 `income_commercial`의 `monthly_average_income_amount`(`MT_AVRG_INCOME_AMT`), `income_bracket_code`(`INCOME_SCTN_CD`)는 2024년 이후 원천에서 채울 수 없다. 조회 경로를 전환할 때 이 두 값은 null 또는 「제공 종료」로 다뤄야 한다.
+- **소득뿐 아니라 소비 금액도 2024년 1분기부터 전부 0이다.** 2026-09-15 전수 실측(22분기 23,980행): `20211`~`20234`는 값이 있으나 **22개 분기 값이 전부 같고**(1,090개 상권 전수 대조, 분기 간 차이 0곳), `20241`~`20262`는 **모든 행의 모든 지출 항목이 0**이다. 즉 이 데이터셋에서 얻을 수 있는 실질 데이터는 스냅샷 하나뿐이다. 데이터셋 공지(OA-21278)도 "행정동보다 작은 상권크기의 데이터의 제공이 어려워 더 이상 갱신되지 않습니다"라고 밝히고 있다. **적재해도 0만 쌓이므로 `20234` 이후 분기를 새로 게시하지 않는다.**
+- 커버리지도 좁다. 배후지는 상권 1,090곳만 덮어 `dataset_spatial_area`의 1,650곳 중 560곳은 2024년 이후 행 자체가 없다. 조회 측은 이 결손을 404가 아니라 지표 강등으로 다뤄야 한다.
+- 반면 **행정동(`VwsmAdstrdNcmCnsmpW`)·자치구(`VwsmSignguNcmCnsmpW`) 소비는 정상이다.** 같은 실측에서 `20262`까지 값이 있고 분기별로 실제 변동한다(행정동 425/425, 자치구 25/25). 상권 소비를 되살린다면 이쪽을 `dataset_spatial_area.parent_code`로 끌어오는 경로가 유일한 선택지다.
 - 소비 세부 항목이 스코프마다 다르다. 상권배후지는 `LSR_EXPNDTR_TOTAMT`(여가)·`CLTUR_EXPNDTR_TOTAMT`(문화)가 나뉘고, 행정동·자치구(`NcmCnsmpW`)는 `LSR_CLTUR_EXPNDTR_TOTAMT`로 합산되며 `ETC_EXPNDTR_TOTAMT`·`FD_EXPNDTR_TOTAMT`가 추가된다. 레거시 `income_administration`/`income_district`는 총액만 가지므로 영향이 없고, `income_commercial`의 여가·문화 분리와는 일치한다.
 - 나머지 12종은 레거시 테이블이 쓰는 컬럼이 모두 있다. 그 위에 레거시가 버린 컬럼(시간대·연령대 매출, 남녀 연령대 상주인구, 집객시설 세부 등)이 payload JSON에 그대로 남는다.
 - `_RT`/`_AVRG` 음수는 거부한다. 금액(`_AMT`/`_TOTAMT`)과 건수(`_CO`)는 원천 잔차 보정으로 음수가 올 수 있어 그대로 받는다. 실측: `CONSUMPTION_ADMINISTRATION` `20242` 용산2가동 `TRNSPORT_EXPNDTR_TOTAMT=-3186000`. `SALES_ADMINISTRATION` `20243` 서교동 `CS200024` `TMZON_06_11_SELNG_CO=-1`.
@@ -152,7 +155,7 @@ SELECT l.area_code,
 ## 남은 작업
 
 - **2024년 표준단위구역 폴리곤이 배포됐는지 확인되지 않았다.** 변환 도구와 절차는 있다(「GEOJSON 파일 만들기」). 2026-09-09 기준 서울시 shapefile은 2023-10-20 파일이라 `LEGACY`(20233)와 같을 수 있고, 게시 전 대조가 필요하다. 새 버전이 생겨도 district-service 지도가 `dataset_spatial_area`를 읽도록 바꾸는 후속 작업이 있어야 화면에 반영된다.
-- commercial-service 가 `dataset_fact` 를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다. 이 서비스는 2024년 1분기 이후를 적재만 하고, `--job=project` 가 기존 팩트 테이블 15종 컬럼 + `spatial_version` 으로 이관한다. `CONSUMPTION_COMMERCIAL` 의 월평균소득·소득구간은 2024+ 원천에 없어 NULL 로 두고, 조회 도메인은 0 으로 읽는다. 값을 만들지 않는다. `service_type` 도 원천에 없어 NULL 이다.
+- commercial-service 가 `dataset_fact` 를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다. 이 서비스는 2024년 1분기 이후를 적재만 하고, `--job=project` 가 기존 팩트 테이블 15종 컬럼 + `spatial_version` 으로 이관한다. `CONSUMPTION_COMMERCIAL` 은 2026-09-15 확인으로 소득·소비 모두 원천이 끊긴 것이 확정됐다(위 「2024년 이후 컬럼 차이」). 월평균소득·소득구간은 조회 도메인에서 제거했고, 소비는 `20234` 이후 게시하지 않는다. 값을 만들지 않는다. `service_type` 도 원천에 없어 NULL 이다.
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
 - Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.
 - `--expected-rows`는 분기 인자를 존중하는 서비스에서는 `list_total_count`로 자동 확정할 수 있다. 지금은 dry-run 한 번으로 값을 읽어 새 run-id로 다시 돌리는 절차를 유지한다.

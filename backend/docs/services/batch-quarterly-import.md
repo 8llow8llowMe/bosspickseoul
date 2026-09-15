@@ -138,7 +138,7 @@ java -jar $jar --job=facts --run-id=change-commercial-20242-001 --dataset=CHANGE
 | 5 | `FOOT_TRAFFIC_COMMERCIAL` | 상권 | O | probe | 분기마다 1,648~1,649로 흔들린다 |
 | 6 | `POPULATION_COMMERCIAL` | 상권 | X | probe | |
 | 7 | `FACILITY_COMMERCIAL` | 상권 | X | probe | |
-| 8 | `CONSUMPTION_COMMERCIAL` | 상권 | X | probe | 소비-상권배후지. 소득 컬럼 없음 |
+| 8 | `CONSUMPTION_COMMERCIAL` | 상권 | X | — | **`20234` 까지만 게시. 이후 분기는 원천이 전부 0이라 적재하지 않는다** |
 | 9 | `CONSUMPTION_ADMINISTRATION` | 행정동 | X | probe | |
 | 10 | `SALES_DISTRICT` | 자치구 | X | probe | 업종 차원 |
 | 11 | `STORE_DISTRICT` | 자치구 | X | probe | 업종 차원 |
@@ -247,6 +247,8 @@ SELECT period_code, spatial_version, COUNT(*) AS rows_total
 
 `service_type`은 원천 payload에 없는 파생 컬럼이라 이관이 `service_category`에서 `service_code`로 찾아 채운다. `service_category`에 없는 새 업종 코드는 NULL로 남고, 이관 로그가 미해석 건수와 코드 샘플을 남긴다. NULL이 남으면 자치구 업종 Top-N이 그만큼 비고 상권 동종업종 피어 조회에서 그 업종이 빠지므로, `quarterly-import-coverage.sql` 「6) service_type 미해석 점검」으로 확인하고 빠진 코드를 `service_category`에 넣은 뒤 그 슬롯을 다시 이관한다.
 
-`CONSUMPTION_COMMERCIAL`의 `monthly_average_income_amount` / `income_bracket_code`는 2024+ 원천에 없어 NULL이다. 값을 채우지 않는다.
+`CONSUMPTION_COMMERCIAL`은 소득뿐 아니라 **소비까지 원천이 끊겼다.** 2026-09-15 전수 실측 기준 `20241` 분기부터 모든 행의 모든 지출 항목이 0이고, `20211`~`20234`도 22개 분기 값이 전부 같은 스냅샷 하나다(근거: [batch-service.md](batch-service.md) 「2024년 이후 컬럼 차이」). 그래서 **`20234` 이후 분기는 게시하지 않는다.** 이미 게시된 `20241`~`20261` 슬롯의 0 행은 화면에서 "0원"으로 보이므로 정리 대상이다.
+
+`monthly_average_income_amount` / `income_bracket_code`는 조회 도메인에서 제거했다. DB 컬럼은 남아 있지만 채우지 않고 읽지도 않는다.
 
 컬럼 DDL만으로는 화면이 바뀌지 않는다. 게시한 분기마다 `--job=project`를 돌린 뒤 commercial-service를 배포한다.
