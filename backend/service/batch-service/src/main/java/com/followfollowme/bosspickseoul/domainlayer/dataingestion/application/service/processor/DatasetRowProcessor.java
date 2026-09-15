@@ -29,7 +29,8 @@ public class DatasetRowProcessor {
             if (numeric(entry.getKey()) && entry.getValue() != null && !entry.getValue().isBlank()) {
                 try {
                     BigDecimal number = new BigDecimal(entry.getValue());
-                    if (number.signum() < 0 || number.precision() > 30 || number.scale() > 10) {
+                    if (number.precision() > 30 || number.scale() > 10
+                        || (number.signum() < 0 && forbidsNegative(entry.getKey()))) {
                         return reject(row, "NUMERIC_VALUE_INVALID:" + entry.getKey());
                     }
                 } catch (NumberFormatException ignored) {
@@ -43,6 +44,11 @@ public class DatasetRowProcessor {
     private boolean numeric(String field) {
         return field.endsWith("_AMT") || field.endsWith("_CO") || field.endsWith("_TOTAMT")
             || field.endsWith("_RT") || field.endsWith("_AVRG");
+    }
+
+    // 원천 금액·건수는 잔차 보정으로 음수가 올 수 있다. 비율·평균만 막는다.
+    private boolean forbidsNegative(String field) {
+        return field.endsWith("_RT") || field.endsWith("_AVRG");
     }
 
     private RowValidation reject(SourceRow row, String reason) { return new RowValidation(row, null, reason); }
