@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { createCommunityEditorPayload } from '@/components/community/community-register-page'
+import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import { communityMockSource } from '@/lib/community/community-mock'
 import { toAnalysisAttachment } from '@/lib/community/comparison-draft-url'
 import type { CommunityPostCreateRequest } from '@/types/community'
@@ -22,6 +23,18 @@ describe('분석 첨부 배선 (초안 → 저장 → 상세)', () => {
     serviceCode: 'CS100001',
     administrationCode: '1168064000',
   }
+
+  /*
+   * 목이 만드는 `좌:우:업종:분기` 는 마지막 칸이 기본 분기 상수다. 분기 코드를 여기
+   * 문자열로 박아 두면 분기가 적재될 때마다(20233 → 20261 …) 배선과 무관하게 깨진다.
+   * 이 테스트가 보는 것은 첨부가 살아서 가느냐지 어느 분기냐가 아니다.
+   */
+  const refCode = [
+    draftParams.leftCommercialCode,
+    draftParams.rightCommercialCode,
+    draftParams.serviceCode,
+    RECOMMENDATION_PERIOD_CODE,
+  ].join(':')
 
   it('초안이 준 첨부가 상세까지 살아서 간다', async () => {
     const draftResponse =
@@ -48,15 +61,13 @@ describe('분석 첨부 배선 (초안 → 저장 → 상세)', () => {
      * 백엔드가 400 COMMUNITY_015 로 거절한다.
      */
     expect(payload.analysisType).toBe('COMMERCIAL_COMPARISON')
-    expect(payload.analysisRefCode).toBe('3110008:3110012:CS100001:20233')
+    expect(payload.analysisRefCode).toBe(refCode)
 
     const created = await communityMockSource.createPost(payload)
 
     // 상세에서는 다시 메타데이터 객체다.
     expect(created.dataBody.analysisType?.code).toBe('COMMERCIAL_COMPARISON')
-    expect(created.dataBody.analysisRefCode).toBe(
-      '3110008:3110012:CS100001:20233',
-    )
+    expect(created.dataBody.analysisRefCode).toBe(refCode)
     expect(created.dataBody.analysisRefName).toBe('3110008 · 3110012 비교')
   })
 
