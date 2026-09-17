@@ -5,22 +5,21 @@ import lombok.Builder;
 
 @Builder
 public record CommercialIncomeAndExpenseInfo(
+    Long expenseCategorySum,
     CommercialExpenseByCategoryInfo expenseByCategoryInfo
 ) {
 
-    public static CommercialIncomeAndExpenseInfo from(IncomeCommercial incomeCommercial) {
-        return CommercialIncomeAndExpenseInfo.builder()
-            .expenseByCategoryInfo(expenseByCategoryOrNull(incomeCommercial))
-            .build();
-    }
-
     /**
-     * 서울 열린데이터광장이 20241 분기부터 상권 단위 지출을 전 행 0 으로 내려보낸다.
-     * 9개 항목 합계가 0 이면 "실제로 0원"이 아니라 "값 없음"이므로 null 로 강등해
-     * 화면에 0원이 실측치처럼 표시되지 않게 한다. (이슈 #413)
+     * 원천이 지출을 주지 않는 분기에는 두 필드를 함께 비운다. 판정은 도메인
+     * {@link IncomeCommercial#expenseUnavailable()} 한 곳에만 있고, 요약 경로도 같은 메서드를 쓴다. (이슈 #413)
      */
-    private static CommercialExpenseByCategoryInfo expenseByCategoryOrNull(IncomeCommercial incomeCommercial) {
-        CommercialExpenseByCategoryInfo expenseByCategory = CommercialExpenseByCategoryInfo.from(incomeCommercial);
-        return expenseByCategory.totalExpenseAmount() == 0L ? null : expenseByCategory;
+    public static CommercialIncomeAndExpenseInfo from(IncomeCommercial incomeCommercial) {
+        if (incomeCommercial.expenseUnavailable()) {
+            return CommercialIncomeAndExpenseInfo.builder().build();
+        }
+        return CommercialIncomeAndExpenseInfo.builder()
+            .expenseCategorySum(incomeCommercial.expenseCategorySum())
+            .expenseByCategoryInfo(CommercialExpenseByCategoryInfo.from(incomeCommercial))
+            .build();
     }
 }

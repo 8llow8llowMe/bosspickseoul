@@ -335,7 +335,7 @@
 | Method | Path | 화면 |
 |--------|------|------|
 | GET | `/api/v1/commercials/{code}/summaries/sales` | 상권 상세 내 "우리 상권 vs 행정동 vs 자치구" 비교 |
-| GET | `/api/v1/commercials/{code}/summaries/income` | 같은 화면의 지출 비교 (행이 없는 지역 단위는 `null`) |
+| GET | `/api/v1/commercials/{code}/summaries/income` | 같은 화면의 지출 비교 (행이 없는 지역 단위는 `null`. 상권 단위는 원천이 지출을 제공하지 않아도 `null`) |
 
 ```
 ?periodCode=20233&districtCode=11680&administrationCode=1168010100&serviceCode=CS100001

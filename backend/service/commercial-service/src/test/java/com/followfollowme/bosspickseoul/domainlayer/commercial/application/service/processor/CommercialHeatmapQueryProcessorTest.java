@@ -13,7 +13,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
@@ -23,6 +22,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreCountsInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.ChangeCommercialRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.IncomeCommercial;
 import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import java.util.List;
 import java.util.Map;
@@ -197,8 +197,39 @@ class CommercialHeatmapQueryProcessorTest {
     }
 
     @Test
-    @DisplayName("소득소비 행이 아예 없어도 기회도는 지출을 0 으로 보고 나머지 항목으로 계산된다")
-    void getAllMetricScores_noIncomeRowAtAll_opportunityFallsBackToZeroExpense() {
+    @DisplayName("지출이 있는 상권과 없는 상권이 섞인 분기에도 기회도 점수가 갈리지 않는다")
+    void getAllMetricScores_mixedIncomeCoverage_doesNotPenalizeCommercialsWithoutExpense() {
+        // 이슈 #413: 20234 는 1,650곳 중 1,089곳만 지출 값이 있고 레거시 분기에도 전 항목 0 인 상권이 35곳이다.
+        // 기회도에 지출 항을 남겨 두면 결측 상권만 그 항에서 영구히 0 점을 받고, 그 0 이 MetricRange.min 을
+        // 끌어내려 나머지 상권의 정규화 점수까지 위로 압축한다. 이 점수는 후보 추천으로도 흘러간다.
+        // 나머지 네 원천이 같은 두 상권은 소득소비 행 유무와 무관하게 같은 기회도를 받아야 한다.
+        when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
+            .thenReturn(List.of());
+        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
+            .thenReturn(Map.of("C1", sales("상권1", 100L), "C2", sales("상권2", 100L)));
+        when(commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", footTraffic(50L), "C2", footTraffic(50L)));
+        when(commercialQueryProcessor.getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
+            .thenReturn(Map.of("C1", storeCounts(10L, 0.1D), "C2", storeCounts(10L, 0.1D)));
+        when(commercialQueryProcessor.getPopulationByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", population(1_000L), "C2", population(1_000L)));
+        // C1 만 지출이 있다. C2 는 소득소비 행 자체가 없다.
+        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", income(1_000_000L)));
+        when(commercialQueryProcessor.getFacilityByPeriodCodeAndCommercialCodes(anyString(), any()))
+            .thenReturn(Map.of("C1", facility(3L), "C2", facility(3L)));
+
+        CommercialHeatmapScoresResponseInfo info = processor.getHeatmapScores(
+            "20234", "CS100001", List.of("C1", "C2"), CommercialHeatmapMetricType.OPPORTUNITY_SCORE);
+
+        assertThat(info.scores()).hasSize(2);
+        assertThat(info.scores()).extracting(score -> score.score()).containsExactly(50D, 50D);
+        assertThat(info.scores()).allSatisfy(score -> assertThat(score.grade()).isNotEqualTo("INSUFFICIENT"));
+    }
+
+    @Test
+    @DisplayName("소득소비 행이 아예 없어도 기회도는 나머지 네 항목으로 계산된다")
+    void getAllMetricScores_noIncomeRowAtAll_opportunityStillScores() {
         when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
             .thenReturn(List.of());
         when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString()))
@@ -274,19 +305,17 @@ class CommercialHeatmapQueryProcessorTest {
     }
 
     private static CommercialIncomeAndExpenseInfo income(long expenseAmountPerCategory) {
-        return CommercialIncomeAndExpenseInfo.builder()
-            .expenseByCategoryInfo(CommercialExpenseByCategoryInfo.builder()
-                .groceryExpenseAmount(expenseAmountPerCategory)
-                .clothingExpenseAmount(expenseAmountPerCategory)
-                .medicalExpenseAmount(expenseAmountPerCategory)
-                .householdExpenseAmount(expenseAmountPerCategory)
-                .transportationExpenseAmount(expenseAmountPerCategory)
-                .leisureExpenseAmount(expenseAmountPerCategory)
-                .cultureExpenseAmount(expenseAmountPerCategory)
-                .educationExpenseAmount(expenseAmountPerCategory)
-                .entertainmentExpenseAmount(expenseAmountPerCategory)
-                .build())
-            .build();
+        return CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder()
+            .groceryExpenseAmount(expenseAmountPerCategory)
+            .clothingExpenseAmount(expenseAmountPerCategory)
+            .medicalExpenseAmount(expenseAmountPerCategory)
+            .householdExpenseAmount(expenseAmountPerCategory)
+            .transportationExpenseAmount(expenseAmountPerCategory)
+            .leisureExpenseAmount(expenseAmountPerCategory)
+            .cultureExpenseAmount(expenseAmountPerCategory)
+            .educationExpenseAmount(expenseAmountPerCategory)
+            .entertainmentExpenseAmount(expenseAmountPerCategory)
+            .build());
     }
 
     private static CommercialFacilityInfo facility(long totalFacilityCount) {

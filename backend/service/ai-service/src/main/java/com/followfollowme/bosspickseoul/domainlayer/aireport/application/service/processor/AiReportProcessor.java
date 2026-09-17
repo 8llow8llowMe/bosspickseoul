@@ -486,7 +486,7 @@ public class AiReportProcessor {
             .salesMetricSummaries(toMetricSummaries(comparison.salesMetrics()))
             .footTrafficMetricSummaries(toMetricSummaries(comparison.footTrafficMetrics()))
             .storeMetricSummaries(toMetricSummaries(comparison.storeMetrics()))
-            .spendingMetricSummaries(toMetricSummaries(comparison.spendingMetrics()))
+            .spendingMetricSummaries(toSpendingMetricSummaries(comparison.spendingMetrics()))
             .residentPopulationMetricSummaries(toMetricSummaries(comparison.residentPopulationMetrics()))
             .facilityMetricSummaries(toMetricSummaries(comparison.facilityMetrics()))
             .salesTimeSlotMetricSummaries(toMetricSummaries(comparison.salesTimeSlotMetrics()))
@@ -581,7 +581,27 @@ public class AiReportProcessor {
             .build();
     }
 
-    private List<String> toMetricSummaries(List<ComparisonMetricQueryResult> metrics) {
+    /**
+     * 소비 비교 지표는 양쪽이 모두 0 이면 실측치가 아니라 결측이다. (이슈 #413)
+     *
+     * <p>peer 의 비교 응답은 FE 계약상 {@code spendingMetrics} 를 primitive {@code double} 로 내려주므로
+     * 결측이 {@code 0} 과 구별되지 않는다. 그 0 을 그대로 프롬프트에 실으면 LLM 이 "양 상권 모두 소비가
+     * 없다" 는 문장을 실측 근거처럼 만들어 낸다. 계약은 그대로 두고 여기서만 결측으로 표기한다.
+     *
+     * <p>소비가 행정동 원천으로 복구되면(이슈 #415) 값이 0 이 아니게 되므로 이 갈래는 저절로 꺼진다.
+     */
+    static List<String> toSpendingMetricSummaries(List<ComparisonMetricQueryResult> metrics) {
+        if (metrics != null && !metrics.isEmpty() && metrics.stream().allMatch(AiReportProcessor::isZeroOnBothSides)) {
+            return List.of("원천 미제공 — 서울 열린데이터광장이 상권 단위 소비 제공을 중단해 이 분기 값은 측정치가 아니다. 판단 근거로 쓰지 말 것.");
+        }
+        return toMetricSummaries(metrics);
+    }
+
+    private static boolean isZeroOnBothSides(ComparisonMetricQueryResult metric) {
+        return metric.leftValue() == 0D && metric.rightValue() == 0D;
+    }
+
+    private static List<String> toMetricSummaries(List<ComparisonMetricQueryResult> metrics) {
         if (metrics == null || metrics.isEmpty()) {
             return List.of("비교 지표 데이터가 충분하지 않습니다.");
         }
@@ -596,7 +616,7 @@ public class AiReportProcessor {
             .toList();
     }
 
-    private String formatMetricValue(double value) {
+    private static String formatMetricValue(double value) {
         long rounded = Math.round(value);
         if (Math.abs(value - rounded) < 0.000001d) {
             return PromptFormatterSupport.formatNumber(rounded);

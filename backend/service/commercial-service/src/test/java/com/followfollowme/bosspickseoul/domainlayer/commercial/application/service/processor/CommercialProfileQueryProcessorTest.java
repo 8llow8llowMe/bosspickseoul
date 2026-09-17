@@ -3,6 +3,8 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.application.serv
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
@@ -11,8 +13,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.profile.CommercialProfileInfo;
@@ -58,8 +58,6 @@ class CommercialProfileQueryProcessorTest {
             .thenReturn(store());
         when(commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
             .thenReturn(population());
-        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
-            .thenReturn(income());
         when(commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
             .thenReturn(facility());
 
@@ -87,8 +85,6 @@ class CommercialProfileQueryProcessorTest {
             .thenReturn(store());
         when(commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
             .thenReturn(population());
-        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
-            .thenReturn(income());
         when(commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
             .thenReturn(facility());
 
@@ -102,32 +98,12 @@ class CommercialProfileQueryProcessorTest {
         assertThat(profile.keyMetrics().totalFacilityCount()).isEqualTo(42L);
     }
 
+    /**
+     * 이슈 #413: 소득소비 행은 더 이상 keyMetrics 의 어느 필드도 채우지 않는다. 그 행 하나로 200 을 내면
+     * 전 항목이 null 인 빈 프로필이 나가므로, 존재 판정에서 빼고 조회 자체를 하지 않는다.
+     */
     @Test
-    void getProfile_incomeRowAbsent_keepsOtherMetricsInsteadOfFailing() {
-        // 이슈 #413: 2024년 이후 상권의 3분의 1 은 소득소비 행 자체가 없다 — 프로필이 통째로 죽으면 안 된다
-        givenAdministration();
-        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(PERIOD, COMMERCIAL, SERVICE))
-            .thenReturn(sales());
-        when(commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
-            .thenReturn(footTraffic());
-        when(commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(PERIOD, COMMERCIAL, SERVICE))
-            .thenReturn(store());
-        when(commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
-            .thenReturn(population());
-        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
-            .thenThrow(new CommercialException(CommercialErrorCode.INCOME_NOT_FOUND));
-        when(commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
-            .thenReturn(facility());
-
-        CommercialProfileInfo profile = processor.getProfile(PERIOD, COMMERCIAL, SERVICE);
-
-        assertThat(profile.keyMetrics().totalSalesAmount()).isEqualTo(2_800D);
-        assertThat(profile.keyMetrics().totalResidentPopulation()).isEqualTo(5_000L);
-        assertThat(profile.keyMetrics().totalFacilityCount()).isEqualTo(42L);
-    }
-
-    @Test
-    void getProfile_allMetricsAbsent_throwsProfileDataNotFound() {
+    void getProfile_onlyIncomeRowExists_throwsProfileDataNotFoundInsteadOfAnEmptyProfile() {
         givenAdministration();
         CommercialException notFound = new CommercialException(CommercialErrorCode.SALES_NOT_FOUND);
         when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(PERIOD, COMMERCIAL, SERVICE))
@@ -138,8 +114,6 @@ class CommercialProfileQueryProcessorTest {
             .thenThrow(notFound);
         when(commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
             .thenThrow(notFound);
-        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
-            .thenThrow(notFound);
         when(commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(PERIOD, COMMERCIAL))
             .thenThrow(notFound);
 
@@ -147,6 +121,21 @@ class CommercialProfileQueryProcessorTest {
             .isInstanceOf(CommercialException.class)
             .extracting(exception -> ((CommercialException) exception).getErrorCode())
             .isEqualTo(CommercialErrorCode.PROFILE_DATA_NOT_FOUND);
+
+        verify(commercialQueryProcessor, never()).getIncomeByPeriodCodeAndCommercialCode(anyString(), anyString());
+    }
+
+    /** 503(지역 서비스 통신 실패)까지 "데이터 없음"으로 흡수하면 장애가 정상 응답으로 보인다. */
+    @Test
+    void getProfile_nonNotFoundFailure_propagatesInsteadOfDegrading() {
+        givenAdministration();
+        when(commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(PERIOD, COMMERCIAL, SERVICE))
+            .thenThrow(new CommercialException(CommercialErrorCode.INTERNAL_SERVICE_UNAVAILABLE));
+
+        assertThatThrownBy(() -> processor.getProfile(PERIOD, COMMERCIAL, SERVICE))
+            .isInstanceOf(CommercialException.class)
+            .extracting(exception -> ((CommercialException) exception).getErrorCode())
+            .isEqualTo(CommercialErrorCode.INTERNAL_SERVICE_UNAVAILABLE);
     }
 
     @Test
@@ -216,14 +205,6 @@ class CommercialProfileQueryProcessorTest {
         return CommercialResidentPopulationInfo.builder()
             .byAgeInfo(CommercialResidentPopulationByAgeInfo.builder()
                 .totalResidentPopulation(5_000)
-                .build())
-            .build();
-    }
-
-    private CommercialIncomeAndExpenseInfo income() {
-        return CommercialIncomeAndExpenseInfo.builder()
-            .expenseByCategoryInfo(CommercialExpenseByCategoryInfo.builder()
-                .groceryExpenseAmount(320_000)
                 .build())
             .build();
     }

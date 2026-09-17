@@ -1,6 +1,5 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor;
 
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonGuideInfo;
@@ -115,7 +114,7 @@ public class CommercialComparisonQueryProcessor {
         );
         List<ComparisonMetricInfo> spendingMetrics = List.of(
             toMetric("총 지출액",
-                totalExpenseAmount(leftIncome), totalExpenseAmount(rightIncome),
+                expenseCategorySum(leftIncome), expenseCategorySum(rightIncome),
                 MetricDisplayType.WON, "선택 분기 상권의 소비 지출 항목별 금액을 합산한 값입니다.")
         );
         List<ComparisonMetricInfo> residentPopulationMetrics = List.of(
@@ -560,21 +559,22 @@ public class CommercialComparisonQueryProcessor {
             + info.fridayFootTraffic() + info.saturdayFootTraffic() + info.sundayFootTraffic();
     }
 
-    /** 소득소비 행이 없거나 원천이 지출을 주지 않는 분기에는 0 으로 비교한다. */
-    private double totalExpenseAmount(CommercialIncomeAndExpenseInfo income) {
-        if (income == null || income.expenseByCategoryInfo() == null) {
+    /**
+     * 소득소비 행이 없거나 원천이 지출을 주지 않는 분기에는 0 으로 비교한다. FE 계약이
+     * {@code spendingMetrics} 를 primitive 로 받고 있어 결측을 값으로 구별하지 못한다 — 프롬프트 쪽은
+     * ai-service 가 따로 걸러낸다. (이슈 #413)
+     */
+    private double expenseCategorySum(CommercialIncomeAndExpenseInfo income) {
+        if (income == null || income.expenseCategorySum() == null) {
             return 0D;
         }
-        return income.expenseByCategoryInfo().totalExpenseAmount();
+        return income.expenseCategorySum();
     }
 
-    /** 분기 종속 데이터 부재(404 계열 CommercialException)는 소비 지표 강등으로 흡수한다. 그 외 예외는 전파. */
+    /** 분기 종속 데이터 부재(404 CommercialException)만 소비 지표 강등으로 흡수한다. 503·400 은 전파한다. */
     private CommercialIncomeAndExpenseInfo fetchIncomeQuietly(String periodCode, String commercialCode) {
-        try {
-            return commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
-        } catch (CommercialException exception) {
-            return null;
-        }
+        return CommercialQueryProcessor.fetchOrNullWhenNotFound(
+            () -> commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode));
     }
 
     private double maleFootTrafficShare(CommercialFootTrafficByAgeGenderPercentInfo info) {

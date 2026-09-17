@@ -6,7 +6,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.profile.CommercialProfileInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.profile.CommercialProfileKeyMetricsInfo;
@@ -25,7 +24,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 상권 프로필 조회. 분기별 적재 상황에 따라 일부 지표(예: 매출)가 없을 수 있으므로
- * 지표 단위로 부분 강등(null)하고, 모든 지표가 없을 때만 404(COMMERCIAL_013)를 응답한다.
+ * 지표 단위로 부분 강등(null)하고, keyMetrics 를 채우는 원천이 모두 없을 때만 404(COMMERCIAL_013)를 응답한다.
  * 지역 매핑(상권 코드 검증)은 프로필의 골격이라 강등하지 않고 그대로 전파한다.
  */
 @Service
@@ -52,14 +51,13 @@ public class CommercialProfileQueryProcessor {
             .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode));
         CommercialResidentPopulationInfo population = fetchQuietly(() -> commercialQueryProcessor
             .getPopulationByPeriodAndCommercialCode(periodCode, commercialCode));
-        // 소득 지표는 원천 중단으로 사라졌고 지출은 keyMetrics 에 없지만, 소득소비 행의 존재 여부는
-        // 「이 분기에 이 상권 데이터가 하나라도 있는가」 판정에 계속 쓴다. (이슈 #413)
-        CommercialIncomeAndExpenseInfo income = fetchQuietly(() -> commercialQueryProcessor
-            .getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode));
         CommercialFacilityInfo facility = fetchQuietly(() -> commercialQueryProcessor
             .getFacilityByPeriodAndCommercialCode(periodCode, commercialCode));
 
-        if (Stream.of(sales, footTraffic, store, population, income, facility).allMatch(Objects::isNull)) {
+        // 존재 판정은 keyMetrics 를 채우는 원천만 본다. 소득소비 행은 소득 지표가 걷히고 지출이
+        // keyMetrics 에서 빠진 뒤로 어느 필드도 채우지 않으므로, 그 행 하나로 200 을 내면
+        // keyMetrics 전 항목이 null 인 빈 프로필이 나간다. (이슈 #413)
+        if (Stream.of(sales, footTraffic, store, population, facility).allMatch(Objects::isNull)) {
             throw new CommercialException(CommercialErrorCode.PROFILE_DATA_NOT_FOUND);
         }
 
@@ -90,13 +88,9 @@ public class CommercialProfileQueryProcessor {
             .build();
     }
 
-    /** 분기 종속 데이터 부재(404 계열 CommercialException)는 지표 강등으로 흡수한다. 그 외 예외는 전파. */
+    /** 분기 종속 데이터 부재(404 CommercialException)만 지표 강등으로 흡수한다. 503·400 은 전파한다. */
     private static <T> T fetchQuietly(Supplier<T> fetcher) {
-        try {
-            return fetcher.get();
-        } catch (CommercialException exception) {
-            return null;
-        }
+        return CommercialQueryProcessor.fetchOrNullWhenNotFound(fetcher);
     }
 
     /** 상권명은 지역 매핑 응답에 없어 지표 Info 에서 가져온다 — 성공한 Info 순서대로 폴백. */

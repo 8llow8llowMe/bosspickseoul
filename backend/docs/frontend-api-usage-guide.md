@@ -161,7 +161,7 @@
 | 추세 그래프 | `GET /api/v1/commercials/{commercialCode}/trend` | 매출/유동인구/점포 분기별 추이 |
 | 벤치마크 | `GET /api/v1/commercials/{commercialCode}/benchmarks` | 자치구/행정동 평균과 비교 |
 | 매출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/sales` | 상권/행정동/자치구 계층 비교 |
-| 지출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/income` | 지출 계층 비교. 행이 없는 지역 단위는 그 단위만 `null` 이다 |
+| 지출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/income` | 지출 계층 비교. 행이 없는 지역 단위는 그 단위만 `null` 이다. 상권 단위는 행이 있어도 원천이 지출을 제공하지 않으면 `null` 이며, 단건 `/income` 과 판정이 같다 |
 
 권장 흐름:
 

@@ -62,9 +62,17 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
         ));
     }
 
+    /**
+     * 소득소비만 404 를 결측(null)으로 흡수한다.
+     *
+     * <p>peer 의 {@code /commercials/{code}/income} 은 행이 없으면 404 를 주는 것이 의도된 계약이고,
+     * 2024년 이후 1,650개 상권 중 560곳이 그 상태다. 404 를 그대로 {@code SOURCE_DATA_UNAVAILABLE} 로
+     * 바꾸면 그 560개 상권에서 AI 리포트 생성이 통째로 실패한다. 프롬프트 조립은 이미 지출이 null 인 경우를
+     * 결측 표기로 처리하므로 여기서 null 로 내려주면 된다. 5xx·타임아웃·서킷 열림은 계속 전파된다. (이슈 #413)
+     */
     @Override
     public CommercialIncomeAndExpenseQueryResult getCommercialIncome(String commercialCode, String periodCode) {
-        return CommercialAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrap(
+        return CommercialAnalysisWireMapper.toQueryResult(responseSupport.requestAndUnwrapOrNullWhenNotFound(
             InternalResponseSupport.COMMERCIAL_SERVICE,
             () -> commercialAnalysisClient.getCommercialIncome(commercialCode, periodCode)
         ));

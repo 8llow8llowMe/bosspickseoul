@@ -15,6 +15,7 @@ class CommercialIncomeAndExpenseInfoTest {
         CommercialIncomeAndExpenseInfo info = CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder().build());
 
         assertThat(info.expenseByCategoryInfo()).isNull();
+        assertThat(info.expenseCategorySum()).isNull();
     }
 
     @Test
@@ -26,6 +27,18 @@ class CommercialIncomeAndExpenseInfoTest {
             .build());
 
         assertThat(info.expenseByCategoryInfo()).isNotNull();
-        assertThat(info.expenseByCategoryInfo().totalExpenseAmount()).isEqualTo(410_000L);
+        assertThat(info.expenseCategorySum()).isEqualTo(410_000L);
+    }
+
+    @Test
+    @DisplayName("합계 컬럼과 9항목 합이 갈리면 9항목 합이 정본이다")
+    void from_persistedTotalDisagreesWithCategories_followsTheCategorySum() {
+        // 이슈 #413: 화면·프롬프트가 쓰는 것이 항목별 금액이므로 "총액만 양수" 인 행을 값 있는 행으로 보지 않는다.
+        CommercialIncomeAndExpenseInfo info = CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder()
+            .totalExpenseAmount(999_999)
+            .build());
+
+        assertThat(info.expenseByCategoryInfo()).isNull();
+        assertThat(info.expenseCategorySum()).isNull();
     }
 }
