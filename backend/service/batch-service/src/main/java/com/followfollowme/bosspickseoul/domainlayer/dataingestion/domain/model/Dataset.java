@@ -18,7 +18,7 @@ import java.util.Optional;
  * <p>A blank service would mean no Open API contract is registered, so the dataset is CSV/ZIP only;
  * {@code ImportRequest} rejects an API run for it instead of guessing an endpoint.
  *
- * <p>One dataset is discontinued rather than merely reshaped: see {@link #LAST_PUBLISHABLE_QUARTER}.
+ * <p>One dataset is discontinued rather than merely reshaped: see {@link #DISCONTINUED_SOURCES}.
  */
 public enum Dataset {
     SALES_COMMERCIAL("VwsmTrdarSelngQq", AreaScope.COMMERCIAL, true, List.of(
@@ -99,14 +99,19 @@ public enum Dataset {
     public static final String CHANGE_INDICATOR_FIELD = "TRDAR_CHNGE_IX";
 
     /**
-     * 원천이 끊겨 더 이상 게시할 수 없는 데이터셋의 마지막 유효 분기. 여기 없는 데이터셋은 상한이 없다.
+     * 원천이 끊겨 더 이상 게시할 수 없는 데이터셋. 여기 없는 데이터셋은 상한이 없다.
      *
-     * <p>{@code CONSUMPTION_COMMERCIAL} 은 2026-09-15 전수 실측에서 {@code 20241} 분기부터 모든 행의
-     * 모든 지출 항목이 0 으로 확인됐다. 데이터셋 공지(OA-21278)도 "행정동보다 작은 상권크기의 데이터의
-     * 제공이 어려워 더 이상 갱신되지 않습니다" 라고 밝힌다. 0 만 쌓는 슬롯을 만들지 않도록 여기서 막는다.
+     * <p>중단 사유를 값에 함께 담는다. 사유는 데이터셋마다 다를 수 있으므로(컬럼 삭제 · 전 행 0 · 서비스 폐지)
+     * 예외 메시지가 한 가지 사유를 사실처럼 못 박으면 다음 데이터셋을 등록할 때 그 문장이 거짓말이 된다.
      */
-    private static final Map<Dataset, Quarter> LAST_PUBLISHABLE_QUARTER =
-        Map.of(CONSUMPTION_COMMERCIAL, new Quarter("20234"));
+    private static final Map<Dataset, DiscontinuedSource> DISCONTINUED_SOURCES = Map.of(
+        CONSUMPTION_COMMERCIAL, new DiscontinuedSource(new Quarter("20234"),
+            "2026-09-15 전수 실측에서 20241 분기부터 모든 행의 모든 지출 항목이 0 이었고, "
+                + "데이터셋 공지(OA-21278)도 상권 단위 제공 중단을 밝힌다"));
+
+    /** 중단된 원천의 마지막 게시 가능 분기와 그 사유. */
+    public record DiscontinuedSource(Quarter lastPublishableQuarter, String reason) {
+    }
 
     private final String service;
     private final AreaScope scope;
@@ -129,8 +134,27 @@ public enum Dataset {
 
     public boolean changeIndicator() { return requiredMetrics.contains(CHANGE_INDICATOR_FIELD); }
 
+    /** 원천이 끊긴 데이터셋이면 그 상한과 사유. 비어 있으면 상한이 없다. */
+    public Optional<DiscontinuedSource> discontinuedSource() { return Optional.ofNullable(DISCONTINUED_SOURCES.get(this)); }
+
     /** 이 분기까지만 게시할 수 있다. 비어 있으면 상한이 없다. */
-    public Optional<Quarter> lastPublishableQuarter() { return Optional.ofNullable(LAST_PUBLISHABLE_QUARTER.get(this)); }
+    public Optional<Quarter> lastPublishableQuarter() { return discontinuedSource().map(DiscontinuedSource::lastPublishableQuarter); }
+
+    /**
+     * 게시 상한을 넘는 분기면 거부한다.
+     *
+     * <p>규칙 본문이 여기 있으니 검사도 여기 둔다. 사실 적재({@code ImportRequest})만 막으면
+     * 이미 스테이징된 릴리스를 {@code --job=project}({@code ProjectionRequest})로 재투영해
+     * 0 행이 다시 팩트 테이블에 들어간다. 실제로 팩트 테이블에 INSERT 하는 것은 그쪽이다.
+     */
+    public void assertPublishable(Quarter period) {
+        DiscontinuedSource discontinued = DISCONTINUED_SOURCES.get(this);
+        if (discontinued == null || period.compareTo(discontinued.lastPublishableQuarter()) <= 0) {
+            return;
+        }
+        throw new IllegalArgumentException("Source discontinued after %s for %s: %s"
+            .formatted(discontinued.lastPublishableQuarter().value(), this, discontinued.reason()));
+    }
 
     public static Dataset parse(String value) {
         return valueOf(value.toUpperCase(Locale.ROOT));

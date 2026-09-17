@@ -249,6 +249,8 @@ SELECT period_code, spatial_version, COUNT(*) AS rows_total
 
 `CONSUMPTION_COMMERCIAL`은 소득뿐 아니라 **소비까지 원천이 끊겼다.** 2026-09-15 전수 실측 기준 `20241` 분기부터 모든 행의 모든 지출 항목이 0이고, `20211`~`20234`도 22개 분기 값이 전부 같은 스냅샷 하나다(근거: [batch-service.md](batch-service.md) 「2024년 이후 컬럼 차이」). 그래서 **`20234` 이후 분기는 게시하지 않는다.** 이미 게시된 `20241`~`20261` 슬롯의 0 행은 화면에서 "0원"으로 보이므로 정리 대상이다.
 
+게시 차단은 요청 객체 생성 시점에 걸린다. `--job=facts`(`ImportRequest`)와 `--job=project`(`ProjectionRequest`) **양쪽 모두** `20234` 이후 분기를 거부하고, `--dry-run=true` 도 똑같이 막힌다(요청을 만들지 못하므로 Job 이 시작되지 않는다). 실제로 `income_commercial` 에 INSERT 하는 것은 `--job=project` 쪽이라 이관만 뚫려 있으면 이미 스테이징된 릴리스를 재투영해 0 행이 다시 게시된다. 이미 게시된 0 행을 지우는 경로는 배치에 없다 — **수동 SQL 로 정리한다.**
+
 `monthly_average_income_amount` / `income_bracket_code`는 조회 도메인에서 제거했다. DB 컬럼은 남아 있지만 채우지 않고 읽지도 않는다.
 
 컬럼 DDL만으로는 화면이 바뀌지 않는다. 게시한 분기마다 `--job=project`를 돌린 뒤 commercial-service를 배포한다.

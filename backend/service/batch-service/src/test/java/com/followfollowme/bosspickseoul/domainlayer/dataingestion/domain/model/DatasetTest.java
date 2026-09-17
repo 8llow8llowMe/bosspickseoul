@@ -1,9 +1,11 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ProjectionRequest;
 import com.followfollowme.bosspickseoul.shared.enums.DatasetKey;
 import java.time.Instant;
 import java.util.Arrays;
@@ -106,9 +108,35 @@ class DatasetTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("20234");
 
-        assertThat(request(Dataset.CONSUMPTION_COMMERCIAL, ImportRequest.SourceType.API, null).period().value())
-            .isEqualTo("20234");
         assertThat(Dataset.SALES_COMMERCIAL.lastPublishableQuarter()).isEmpty();
+    }
+
+    /**
+     * {@code --job=project} 도 같은 상한을 받아야 한다. 팩트 테이블에 실제로 INSERT 하는 것은 이 Job 이라,
+     * 사실 적재만 막으면 이미 스테이징된 {@code 20241}+ 릴리스를 재투영해 0 행이 다시 게시된다.
+     */
+    @Test
+    void discontinuedDatasetRejectsTheSameQuartersOnTheProjectionJob() {
+        assertThatThrownBy(() -> new ProjectionRequest("test-run", Dataset.CONSUMPTION_COMMERCIAL, new Quarter("20241"),
+            "standard-2024", "seoul-v1", true))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("20234");
+
+        assertThatCode(() -> new ProjectionRequest("test-run", Dataset.SALES_COMMERCIAL, new Quarter("20241"),
+            "standard-2024", "seoul-v1", true))
+            .doesNotThrowAnyException();
+    }
+
+    /** 상한 분기 자체는 두 Job 모두 그대로 받는다 — 경계에서 한 칸 더 막지 않는다. */
+    @Test
+    void theLastPublishableQuarterItselfIsStillAcceptedByBothJobs() {
+        Quarter last = Dataset.CONSUMPTION_COMMERCIAL.lastPublishableQuarter().orElseThrow();
+
+        assertThatCode(() -> request(Dataset.CONSUMPTION_COMMERCIAL, ImportRequest.SourceType.API, null))
+            .doesNotThrowAnyException();
+        assertThatCode(() -> new ProjectionRequest("test-run", Dataset.CONSUMPTION_COMMERCIAL, last,
+            "standard-2024", "seoul-v1", true))
+            .doesNotThrowAnyException();
     }
 
     /** 게시 상한이 있는 데이터셋은 그 분기로, 나머지는 2024년 이후 분기로 요청을 만든다. */
