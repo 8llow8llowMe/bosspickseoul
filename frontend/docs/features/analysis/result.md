@@ -143,7 +143,7 @@ flowchart LR
 | `GET /api/v1/commercials/{commercialCode}/summaries/sales`               | 상권과 비교 기준의 매출 요약           | 요약 매출 카드                      | 최초      |
 | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/stores` | 점포 핵심 수치                         | 요약 점포 카드                      | 최초      |
 | `GET /api/v1/commercials/{commercialCode}/population`                    | 생활인구 핵심 수치                     | 요약 생활권 카드                    | 최초      |
-| `GET /api/v1/commercials/{commercialCode}/summaries/income`              | 소득·지출 비교 요약                    | 요약 생활권 카드                    | 최초      |
+| `GET /api/v1/commercials/{commercialCode}/summaries/income`              | 자치구·행정동·상권 총 지출액           | 생활권 「지역별 소비」              | 최초      |
 | `GET /api/v1/commercials/{commercialCode}/facilities`                    | 시설·교통 요약                         | 요약 입지 카드                      | 최초      |
 
 최초 요청은 병렬로 수행하되 profile을 제외한 실패는 전체 결과 진입을 막지 않는다. profile도 실패하면 URL의 코드와 재시도 UI를 유지하며 이름을 임의로 생성하지 않는다.
@@ -156,7 +156,7 @@ flowchart LR
 | `foot-traffic` 유동인구 | 시간·요일·연령 등 유동 특성              | `GET /api/v1/commercials/{commercialCode}/foot-traffic`                                       |
 | `sales` 매출            | 업종 매출 규모·구성                      | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/sales`                       |
 | `stores` 점포           | 점포 수와 개·폐업 관련 제공 지표         | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/stores`                      |
-| `living` 생활권         | 상주/생활인구, 소득·지출, 시설·교통      | population, income, facilities                                                                |
+| `living` 생활권         | 상주/생활인구, 소비, 시설·교통           | population, income, facilities                                                                |
 | `trend` 트렌드          | 최근 최대 4개 시점의 매출·유동·점포 변화 | `GET /api/v1/commercials/{commercialCode}/trend`를 `SALES`, `FOOT_TRAFFIC`, `STORE` 각각 호출 |
 | `benchmark` 비교        | 제공되는 동일 업종 기준 비교             | `GET /api/v1/commercials/{commercialCode}/benchmarks`                                         |
 
@@ -167,6 +167,11 @@ flowchart LR
 - 트렌드: 분기별 **라인 차트** + `trendDirection` 배지(↑↓→) + `changeRate`.
 - 유동인구: `byAgeGenderPercentItem` 기반 **연령×성별 인구 피라미드** 추가.
 - 거주: 전체 성비(`malePercentage`/`femalePercentage`) **성별 도넛**. 연령별 성별 데이터 부재로 피라미드는 두지 않는다.
+- 소비: **소득은 화면에 없다.** 서울 열린데이터광장이 상권 단위 월 평균 소득 제공을 끊었고(2020년 수급 중단, 2026-05-13 원천 컬럼 삭제) 백엔드가 `averageIncomeItem` 과 `keyMetrics.monthlyAverageIncomeAmount` 를 응답에서 걷어냈다. 남은 소비는 **두 섹션으로 가른다** — 상권 단위와 지역 단위의 원천 사정이 달라 한 섹션에 섞으면 「비었다」가 어느 쪽 이야기인지 읽을 수 없다. (#414)
+  - 「항목별 소비」(`/income` 의 `expenseByCategoryItem`, 9개 항목 가로 막대): 상권 단위 원천이 `20241` 분기부터 전 행 0 이라 백엔드가 9개 합이 0 이면 `null` 로 강등한다. 이때 9줄을 「데이터 없음」으로 늘어놓지 않고 **섹션 단위 빈 상태**(`AnalysisResultSection` 의 `empty` + `emptyDescription`)로 원천 중단 사실을 적는다.
+  - 「지역별 소비」(`/summaries/income` 의 자치구 → 행정동 → 상권 총 지출액): 세 단위가 **각각 독립적으로** null 이다. 자치구·행정동은 원천이 살아 있고 상권만 비는 것이 정상 상태이므로, **없는 단위도 줄을 지우지 않고** 값만 「데이터 없음」으로 둔다. 줄을 지우면 위에 남은 자치구 값이 상권 값처럼 읽힌다.
+  - 두 섹션 모두 제목 아래에 기준 분기(`formatPeriodCode`)를 적는다. 판정과 행 조립은 `src/lib/analysis/expense-presentation.ts` 가 정본이다.
+  - 요약 「생활권·시설」 첫 카드는 월평균 소득이 빠진 자리에 **상주인구**를 되돌린다. 값이 핵심 지표와 같은 수라 성별 구성(`femalePercentage`)을 맥락 줄로 붙여 같은 숫자를 두 번 적지 않는다. 남성 비중은 화면이 계산하지 않는다 — `100 - 여성` 은 반올림 응답과 어긋난다.
 - 매출: `countByGenderItem` 기반 **성별 매출건수 도넛** 추가.
 - 점포: `peerStores` 는 **선택한 업종을 뺀** 나머지 업종이다(백엔드가 뺀다). 「함께 있는 다른 업종」이 점포 수를 가로 막대로, 「늘고 주는 업종」이 **순변화(개업률 − 폐업률, %p)** 를 부호별 색 가로 막대로 그린다. 두 차트는 같은 폭으로 나란히 둔다. 막대 끝 값 옆에 점포 수를 함께 적는다(「+12%p · 7개」 — 비율만 보이면 점포 3곳의 폐업률 33% 가 1곳임을 모른다). 점포 수 0·순변화 0 은 길이 0 막대가 값 라벨을 못 찍어 「데이터 없음」으로 읽히므로 차트에서 빼고 한 줄 문장으로 적는다. 한쪽 비율만 있는 업종은 순변화를 말할 수 없어 그리지 않는다. (#306)
 - 보고서 하단: 같은 조건(자치구·행정동·업종)으로 `/recommend` 로 가는 텍스트 링크를 마지막 섹션 뒤에 둔다. 상권 코드는 넘기지 않는다(추천이 찾아 줄 값이다). 보고서는 네 코드가 다 있을 때만 열리므로(`isCompleteAnalysisSelection`) 링크도 항상 세 코드를 채워 나간다. 코드의 null 가지는 방어다. 상단에는 두지 않는다 — 읽기도 전에 나가라는 신호가 된다. 방향과 진입점 전체는 [recommend condition-selector](../recommend/condition-selector.md) D8-2 가 정본이다.
@@ -268,7 +273,7 @@ AND tab ∈ allowedTabs
 - 개발 환경에 실제 상권 분석 응답이 없으면 숫자·단위·빈 값 조합은 fixture 기반으로 검증한다.
 - 실데이터가 준비되면 최소 1개 상권에 대해 7개 탭, 3개 trend metric, benchmark의 실제 단위와 nullable 조합을 재검증한다.
 - facilities는 Swagger가 제공하는 학교 수와 교통 총계 범위를 넘는 세부 시설 정보를 만들지 않는다.
-- benchmark는 Swagger가 제공하는 매출·소득 요약과 highlights만 표현하며 임의 경쟁력 점수를 만들지 않는다.
+- benchmark는 Swagger가 제공하는 매출 요약과 highlights만 표현하며 임의 경쟁력 점수를 만들지 않는다.
 
 ---
 
