@@ -31,6 +31,7 @@
 2. `backend/scripts/migration/quarterly-dataset-schema.sql` — `dataset_*`
 3. `backend/scripts/migration/change-commercial-spatial-version.sql` — `change_commercial.spatial_version` (이관 Job 전)
 4. `backend/scripts/migration/fact-tables-spatial-version.sql` — 나머지 14개 팩트 테이블 `spatial_version` + `income_commercial` 소득 컬럼 NULL (이관 Job 전)
+5. `backend/scripts/migration/income-administration-expense-detail-columns.sql` — `income_administration` 소비 세부 10항목 (이슈 #415, 아래 「9. 행정동 소비 세부 항목 재이관」 전)
 
 PowerShell에서 `mysql ... < file.sql`은 `<`가 예약 연산자라 실패한다. DDL은 Workbench가 맞다.
 
@@ -139,7 +140,7 @@ java -jar $jar --job=facts --run-id=change-commercial-20242-001 --dataset=CHANGE
 | 6 | `POPULATION_COMMERCIAL` | 상권 | X | probe | |
 | 7 | `FACILITY_COMMERCIAL` | 상권 | X | probe | |
 | 8 | `CONSUMPTION_COMMERCIAL` | 상권 | X | — | **`20234` 까지만 게시. 이후 분기는 원천이 전부 0이라 적재하지 않는다** |
-| 9 | `CONSUMPTION_ADMINISTRATION` | 행정동 | X | probe | |
+| 9 | `CONSUMPTION_ADMINISTRATION` | 행정동 | X | probe | 총액 + 세부 10항목. 게시된 10개 분기는 **재이관만** 필요하다 (아래 「9. 행정동 소비 세부 항목 재이관」) |
 | 10 | `SALES_DISTRICT` | 자치구 | X | probe | 업종 차원 |
 | 11 | `STORE_DISTRICT` | 자치구 | X | probe | 업종 차원 |
 | 12 | `SALES_ADMINISTRATION` | 행정동 | O | probe (20241: 17,044) | |
@@ -254,3 +255,74 @@ SELECT period_code, spatial_version, COUNT(*) AS rows_total
 `monthly_average_income_amount` / `income_bracket_code`는 조회 도메인에서 제거했다. DB 컬럼은 남아 있지만 채우지 않고 읽지도 않는다.
 
 컬럼 DDL만으로는 화면이 바뀌지 않는다. 게시한 분기마다 `--job=project`를 돌린 뒤 commercial-service를 배포한다.
+
+## 9. 행정동 소비 세부 항목 재이관 (이슈 #415)
+
+`income_administration` 이 총액만 들고 있던 것을 세부 10항목까지 넓혔다. 상권 소비가 끊겨 행정동 소비가 대체 원천이 되므로 총액만으로는 항목별 화면을 채울 수 없다. 컬럼 구성과 이름을 정한 근거는 [batch-service.md](batch-service.md) 「2024년 이후 컬럼 차이」다.
+
+### API 재호출은 필요 없다 — 재적재가 아니라 재이관이다
+
+**이미 게시된 `dataset_fact` payload 에 세부 10항목이 전부 들어 있다.** 개발 DB 에서 `CONSUMPTION_ADMINISTRATION` `20261` 행정동 `11110515` 의 payload 키를 뽑아 확인했다(2026-09-17).
+
+```text
+EXPNDTR_TOTAMT, FDSTFFS_EXPNDTR_TOTAMT, CLTHS_FTWR_EXPNDTR_TOTAMT, LVSPL_EXPNDTR_TOTAMT,
+MCP_EXPNDTR_TOTAMT, TRNSPORT_EXPNDTR_TOTAMT, EDC_EXPNDTR_TOTAMT, PLESR_EXPNDTR_TOTAMT,
+LSR_CLTUR_EXPNDTR_TOTAMT, ETC_EXPNDTR_TOTAMT, FD_EXPNDTR_TOTAMT
+```
+
+`requiredMetrics` 가 총액만 요구하던 시점에 게시한 릴리스인데도 11개가 그대로 있다. `requiredMetrics` 는 **행 검증의 필수 항목**이지 payload 에 담을 항목의 목록이 아니며, staging 은 원천 행의 컬럼을 전부 보관하기 때문이다([batch-service.md](batch-service.md) 의 "레거시가 버린 컬럼이 payload JSON 에 그대로 남는다" 가 이 데이터셋에도 해당한다).
+
+**운영 지식으로 남길 것**: 요구 필드만 늘리는 변경은 `--source=API` / `--source=ARCHIVE` 재적재가 아니라 **`--job=project` 재이관으로 끝난다.** 서울 API 하루 1,000회 제한을 쓸 이유가 없다. 원천이 주는 컬럼 자체가 늘어난 경우에만 재적재가 필요하다.
+
+### 대상 분기
+
+`dataset_release` 에 게시된 10개 분기다.
+
+```text
+20234 20241 20242 20243 20244 20251 20252 20253 20254 20261
+```
+
+`20211`~`20233` 은 이 데이터셋으로 게시된 적이 없다. 그 구간은 상권 네이티브 소비(`income_commercial`)가 살아 있어 행정동 대체 원천이 필요 없으므로 이번 범위에서 적재하지 않는다. 필요해지면 그때 `--job=facts` 로 적재한다.
+
+### 실행
+
+선행으로 `scripts/migration/income-administration-expense-detail-columns.sql` 을 적용한다(1절 5번). 컬럼이 없으면 이관 INSERT 가 `Unknown column` 으로 실패한다.
+
+명령은 생성기가 만든다. 파라미터는 이번 변경으로 손볼 것이 없다.
+
+```powershell
+$plan = ".\backend\scripts\batch\quarterly-import-plan.ps1"
+& $plan -Job project -Dataset CONSUMPTION_ADMINISTRATION `
+        -Period 20234,20241,20242,20243,20244,20251,20252,20253,20254,20261 |
+    Set-Content project-consumption-administration.txt
+```
+
+출력은 분기마다 dry-run 한 줄과 실게시 한 줄이다. 위에서 아래로 한 줄씩 돌리고, dry-run 로그가 `COMPLETED` 가 아니면 그 아래 줄로 넘어가지 않는다.
+
+```powershell
+java -jar $jar --job=project --run-id=project-consumption-administration-20234-001 --dataset=CONSUMPTION_ADMINISTRATION --period=20234 --spatial-version=legacy-20233 --dry-run=true
+java -jar $jar --job=project --run-id=project-consumption-administration-20234-002 --dataset=CONSUMPTION_ADMINISTRATION --period=20234 --spatial-version=legacy-20233 --dry-run=false
+```
+
+**이 슬롯을 전에 한 번 이관했다면 `-001`/`-002` run-id 가 이미 쓰였다.** `runId` 가 유일한 식별 job 파라미터라 Spring Batch 가 두 번째 실행을 거부한다. 그때는 `-Attempt 3` 을 줘 `-003`/`-004` 로 만든다.
+
+이관은 같은 `(period_code, spatial_version)` 행을 지우고 다시 넣으므로 재실행이 안전하다.
+
+### 확인
+
+세부 컬럼은 재이관 전까지 NULL 이다. `quarterly-import-coverage.sql` 5)는 **건수만** 보므로 NULL 인 채로도 통과한다. 값이 들어왔는지는 마이그레이션 스크립트 끝의 확인 SQL 로 본다.
+
+```sql
+SELECT period_code,
+       COUNT(*)                              AS rows_total,
+       COUNT(grocery_expense_amount)         AS detail_filled,
+       COUNT(leisure_culture_expense_amount) AS leisure_culture_filled
+  FROM income_administration
+ WHERE spatial_version = 'legacy-20233'
+ GROUP BY period_code
+ ORDER BY period_code;
+```
+
+`rows_total = detail_filled` 인 분기가 재이관을 마친 분기다. 총액과 세부 10항목 합의 차이가 0인지도 같은 스크립트의 두 번째 SQL 로 확인한다 — 원천에서 차이가 0인 것을 2026-09-17 전수 호출로 확인했으므로, 여기서 어긋나면 매핑이 틀린 것이다.
+
+컬럼 DDL과 재이관만으로는 화면이 바뀌지 않는다. commercial-service 조회 도메인은 아직 총액만 읽는다(후속 단계).

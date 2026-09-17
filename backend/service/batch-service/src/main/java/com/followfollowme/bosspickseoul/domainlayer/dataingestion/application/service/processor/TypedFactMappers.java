@@ -290,10 +290,25 @@ public final class TypedFactMappers {
         };
     }
 
+    /**
+     * 행정동 소비는 총액 + 세부 10항목이다. 상권 소비와 달리 여가·문화가 하나(LSR_CLTUR)로 합쳐져 있고
+     * 기타(ETC)·음식(FD)이 더 있으므로 income_administration 의 컬럼 순서도 그 구성 그대로다.
+     * 원천에 없는 여가/문화 분해를 만들지 않는다(이슈 #415).
+     */
     private static Object[] consumptionAdministration(FactRow fact, Map<String, String> fields, String period, String spatial) {
         return new Object[] {
             period, spatial, fact.areaCode(), TypedPayload.text(fields, "ADSTRD_CD_NM"),
-            TypedPayload.longValue(fields, "EXPNDTR_TOTAMT")
+            TypedPayload.longValue(fields, "EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "FDSTFFS_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "CLTHS_FTWR_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "LVSPL_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "MCP_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "TRNSPORT_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "EDC_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "PLESR_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "LSR_CLTUR_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "ETC_EXPNDTR_TOTAMT"),
+            TypedPayload.longValue(fields, "FD_EXPNDTR_TOTAMT")
         };
     }
 
