@@ -29,10 +29,4 @@ public record CommercialExpenseByCategoryInfo(
             .entertainmentExpenseAmount(incomeCommercial.entertainmentExpenseAmount())
             .build();
     }
-
-    public long totalExpenseAmount() {
-        return groceryExpenseAmount + clothingExpenseAmount + medicalExpenseAmount
-            + householdExpenseAmount + transportationExpenseAmount + leisureExpenseAmount
-            + cultureExpenseAmount + educationExpenseAmount + entertainmentExpenseAmount;
-    }
 }

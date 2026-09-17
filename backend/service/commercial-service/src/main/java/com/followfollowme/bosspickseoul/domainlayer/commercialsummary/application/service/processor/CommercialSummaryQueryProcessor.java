@@ -62,6 +62,13 @@ public class CommercialSummaryQueryProcessor {
     /**
      * 2024년 이후 상권의 3분의 1 은 소득소비 행 자체가 없다. 예전에는 셋 중 하나만 없어도 요약 API 전체가
      * 404 로 실패했으므로, 없는 지역 단위만 null 로 강등하고 나머지는 그대로 응답한다. (이슈 #413)
+     *
+     * <p>상권 단위는 행이 있어도 지출이 미제공이면 함께 null 로 강등한다. 판정은 단건 {@code /income} 과
+     * 같은 {@link com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.IncomeCommercial#expenseUnavailable()}
+     * 을 쓴다. 판정이 한쪽에만 있으면 같은 상권·분기가 {@code /income} 에서는 "미제공", 요약에서는 "0원"이
+     * 되고, 그 0 이 ai-service 프롬프트의 "[지역 비교] - 상권 총지출" 로도 흘러간다.
+     *
+     * <p>자치구·행정동은 원천(행정동 단위)이 살아 있으므로 그대로 둔다. 거기서 0 은 실측치일 수 있다.
      */
     public CommercialIncomeSummaryInfo getIncomeSummary(
 
@@ -85,10 +92,11 @@ public class CommercialSummaryQueryProcessor {
             .orElse(null);
 
         RegionalIncomeSummaryInfo commercialSummary = commercialSummaryRepositoryPort.findIncomeCommercial(periodCode, commercialCode)
+            .filter(incomeCommercial -> !incomeCommercial.expenseUnavailable())
             .map(incomeCommercial -> RegionalIncomeSummaryInfo.builder()
                 .code(incomeCommercial.commercialCode())
                 .name(incomeCommercial.commercialName())
-                .totalExpenseAmount(incomeCommercial.totalExpenseAmount())
+                .totalExpenseAmount(incomeCommercial.expenseCategorySum())
                 .build())
             .orElse(null);
 

@@ -6,7 +6,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
@@ -160,14 +159,9 @@ public class CommercialHeatmapQueryProcessor {
         CommercialFacilityInfo facility,
         ChangeCommercial change
     ) {
-        if (sales == null || footTraffic == null || store == null
-            || population == null || facility == null) {
-            return CommercialHeatmapSource.empty(commercialCode);
-        }
-
-        return new CommercialHeatmapSource(
+        CommercialHeatmapSource source = new CommercialHeatmapSource(
             commercialCode,
-            sales.commercialName(),
+            sales == null ? commercialCode : sales.commercialName(),
             sales,
             footTraffic,
             store,
@@ -176,6 +170,9 @@ public class CommercialHeatmapQueryProcessor {
             facility,
             change
         );
+        // 필수 원천 목록은 CommercialHeatmapSource.hasAllMetrics() 하나만 들고 있다.
+        // 여기에 같은 null 조건을 다시 쓰면 지표를 늘릴 때 두 곳이 갈린다.
+        return source.hasAllMetrics() ? source : CommercialHeatmapSource.empty(commercialCode);
     }
 
     private Map<CommercialHeatmapMetricType, MetricRange> computeRanges(List<CommercialHeatmapSource> sources) {
@@ -233,12 +230,24 @@ public class CommercialHeatmapQueryProcessor {
         };
     }
 
+    /**
+     * 기회도에서 지출 항(0.20)을 걷어내고 남은 네 항의 가중치를 0.80 으로 나눠 재정규화했다
+     * (0.35/0.20/0.15/0.10 → 0.4375/0.25/0.1875/0.125). (이슈 #413)
+     *
+     * <p>지출을 0 으로 채워 두면 <b>지출이 있는 상권과 없는 상권이 섞인 분기</b>에서 결측 상권만
+     * 이 항에서 영구히 0 점을 받는다. 실측상 20234 는 1,650곳 중 1,089곳만 값이 있고 레거시 분기에도
+     * 지출이 전부 0 인 상권이 35곳 있다. 게다가 그 0 이 {@code MetricRange.min} 을 끌어내려
+     * 나머지 상권의 정규화 점수까지 위로 압축한다. 이 점수는 후보 추천
+     * ({@code CommercialCandidateQueryProcessor})으로도 흘러간다.
+     *
+     * <p><b>되돌리는 방법.</b> 소비가 행정동 원천으로 복구되면(이슈 #415) 지출 항을 다시 넣고
+     * 네 계수를 위 괄호 안 원래 값으로 돌리면 된다.
+     */
     private double computeOpportunity(CommercialHeatmapSource source) {
-        return totalSalesAmount(source.sales().amountByDayOfWeekInfo()) * 0.35
-            + totalExpenseAmount(source.income()) * 0.20
-            + totalFootTraffic(source.footTraffic().byDayOfWeekInfo()) * 0.20
-            + source.store().openingRate() * 1000D * 0.15
-            + source.population().byAgeInfo().totalResidentPopulation() * 0.10;
+        return totalSalesAmount(source.sales().amountByDayOfWeekInfo()) * 0.4375
+            + totalFootTraffic(source.footTraffic().byDayOfWeekInfo()) * 0.25
+            + source.store().openingRate() * 1000D * 0.1875
+            + source.population().byAgeInfo().totalResidentPopulation() * 0.125;
     }
 
     private double computeRisk(CommercialHeatmapSource source) {
@@ -257,7 +266,15 @@ public class CommercialHeatmapQueryProcessor {
 
     /**
      * 원천이 상권 단위 월 평균 소득 제공을 중단해 소득 항(0.20)을 걷어내고 거주인구 계수를 1.00 으로 올린다.
-     * 소득이 이미 전 상권 0 이라 상대 순위는 그대로고, 점수 절대값만 정상 범위로 복원된다. (이슈 #413)
+     * 이것은 항등 변환이 아니라 <b>지표 정의 변경</b>이다. (이슈 #413)
+     *
+     * <p>20233 이하 레거시 분기에는 {@code monthly_average_income_amount} 에 실값이 있었으므로, 그 분기의
+     * 「거주 수요」 히트맵은 순위·색·등급이 실제로 바뀐다. 프론트가 레거시 분기를 드롭다운에 열어 두므로
+     * 그 경로는 실제로 호출된다. 20241 이후에는 소득이 전 상권 0 이었으므로 결과가 같다.
+     *
+     * <p>계수를 1.00 으로 올린 것은 점수 절대값을 위한 것이 아니다. {@code normalize} 가 요청 안 원시값의
+     * min-max 정규화라 모든 값에 같은 양수를 곱하면 결과가 동일하고, 절대값은 응답에 드러나지 않는다.
+     * 단일 항 지표의 계수를 1 이 아닌 값으로 남겨 두면 읽는 쪽이 없는 항을 찾게 되므로 정리한 것이다.
      */
     private double computeResidentPopulation(CommercialHeatmapSource source) {
         return source.population().byAgeInfo().totalResidentPopulation() * 1.00;
@@ -286,15 +303,6 @@ public class CommercialHeatmapQueryProcessor {
     private double totalFootTraffic(CommercialFootTrafficByDayOfWeekInfo info) {
         return info.mondayFootTraffic() + info.tuesdayFootTraffic() + info.wednesdayFootTraffic()
             + info.thursdayFootTraffic() + info.fridayFootTraffic() + info.saturdayFootTraffic() + info.sundayFootTraffic();
-    }
-
-    /**
-     * 지출은 소득소비 행 자체가 없거나(상권 560곳) 원천이 값을 주지 않는 분기에 null 이다.
-     * 기회도 점수에서는 0 으로 취급한다 — 나머지 네 항목만으로도 순위가 나온다. (이슈 #413)
-     */
-    private double totalExpenseAmount(CommercialIncomeAndExpenseInfo income) {
-        CommercialExpenseByCategoryInfo info = income == null ? null : income.expenseByCategoryInfo();
-        return info == null ? 0D : info.totalExpenseAmount();
     }
 
     private Double normalize(Double rawScore, MetricRange range) {

@@ -355,7 +355,7 @@
 | `CommercialErrorCode` | `COMMERCIAL_002`~`COMMERCIAL_013` | 도메인 에러 (미존재 404, 통신 불가 503 등) + 검증 `COMMERCIAL_100`/`COMMERCIAL_102`. `COMMERCIAL_013` 은 프로필 전용 — 모든 지표가 부재할 때만 404, 일부 부재는 해당 지표 null 강등 |
 | `DistrictErrorCode` | `DISTRICT_001`~`DISTRICT_003` | 지표 미존재 404, 분기 코드 형식 400 |
 | `AdministrationErrorCode` | `ADMINISTRATION_001`~`ADMINISTRATION_003` | 행정동 지출/매출/점포 미존재 404 |
-| `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001`~`COMMERCIAL_SUMMARY_002` | 요약 매출/지출 미존재 404 |
+| `CommercialSummaryErrorCode` | `COMMERCIAL_SUMMARY_001` | 요약 매출 미존재 404. 지출 요약은 없는 지역 단위를 null 로 강등하므로 전용 코드가 없다 |
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 | `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102). 검증 대역은 `RANKING_101` (`RankingValidationMessage`) |
 | `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_006` | 업종/임대료/프랜차이즈/이력 미존재 404, 프랜차이즈 미선택·업종 불일치 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
