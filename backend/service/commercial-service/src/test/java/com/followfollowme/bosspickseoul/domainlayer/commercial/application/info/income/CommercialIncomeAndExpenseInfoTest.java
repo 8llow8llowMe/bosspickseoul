@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.application.info
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.enums.ExpenseScopeType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.IncomeCommercial;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,20 +15,29 @@ class CommercialIncomeAndExpenseInfoTest {
         // 이슈 #413: 서울 열린데이터광장이 20241 분기부터 상권 단위 지출을 전 행 0 으로 내려보낸다.
         CommercialIncomeAndExpenseInfo info = CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder().build());
 
-        assertThat(info.expenseByCategoryInfo()).isNull();
+        assertThat(info.expenseCategories()).isNull();
         assertThat(info.expenseCategorySum()).isNull();
+        // 이슈 #415: 값이 없어도 어느 원천이 왜 끊겼는지는 전한다.
+        assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.UNAVAILABLE);
     }
 
     @Test
-    @DisplayName("지출 항목이 하나라도 0이 아니면 실측치로 보고 그대로 채운다")
+    @DisplayName("지출 항목이 하나라도 0이 아니면 실측치로 보고 상권 스코프로 채운다")
     void from_anyExpenseAmountPresent_keepsExpense() {
         CommercialIncomeAndExpenseInfo info = CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder()
+            .periodCode("20233")
+            .commercialCode("3110008")
+            .commercialName("배화여자대학교")
             .groceryExpenseAmount(320_000)
             .cultureExpenseAmount(90_000)
             .build());
 
-        assertThat(info.expenseByCategoryInfo()).isNotNull();
+        assertThat(info.expenseCategories()).hasSize(9);
         assertThat(info.expenseCategorySum()).isEqualTo(410_000L);
+        assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.COMMERCIAL);
+        assertThat(info.provenance().scopeCode()).isEqualTo("3110008");
+        assertThat(info.provenance().effectivePeriodCode()).isEqualTo("20233");
+        assertThat(info.provenance().disclaimer()).isNull();
     }
 
     @Test
@@ -38,7 +48,16 @@ class CommercialIncomeAndExpenseInfoTest {
             .totalExpenseAmount(999_999)
             .build());
 
-        assertThat(info.expenseByCategoryInfo()).isNull();
+        assertThat(info.expenseCategories()).isNull();
         assertThat(info.expenseCategorySum()).isNull();
+    }
+
+    @Test
+    @DisplayName("네이티브 경로는 대체를 시도하지 않는다 - 히트맵·비교가 쓰는 경로이기 때문이다")
+    void from_neverProducesAdministrationProxyScope() {
+        // 이슈 #415: 대체값은 같은 행정동 상권이 전부 같은 값이라 점수·승패 판정에 들어가면 안 된다.
+        CommercialIncomeAndExpenseInfo info = CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder().build());
+
+        assertThat(info.provenance().scope()).isNotEqualTo(ExpenseScopeType.ADMINISTRATION_PROXY);
     }
 }

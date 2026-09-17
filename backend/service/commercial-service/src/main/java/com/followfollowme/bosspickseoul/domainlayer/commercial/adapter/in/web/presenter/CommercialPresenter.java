@@ -3,7 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.p
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.BlueOceanCategoryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CandidateCommercialItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialComparisonTargetItem;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialExpenseByCategoryItem;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialExpenseCategoryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByAgeGenderPercentItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByAgeGroupItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialFootTrafficByDayOfWeekItem;
@@ -63,7 +63,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseByCategoryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
@@ -88,6 +87,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dt
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response.CommercialTrendResponse;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.trend.CommercialTrendInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.trend.CommercialTrendItem;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.ExpenseCategoryAmount;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -97,6 +97,7 @@ import org.springframework.stereotype.Component;
 public class CommercialPresenter {
 
     private final PolicyPresenter policyPresenter;
+    private final CommercialExpenseProvenancePresenter commercialExpenseProvenancePresenter;
 
     public CommercialServiceCategoryResponse toCommercialServiceCategoryResponse(CommercialServiceCategoryInfo info) {
         return CommercialServiceCategoryResponse.builder()
@@ -131,7 +132,9 @@ public class CommercialPresenter {
 
     public CommercialIncomeAndExpenseResponse toCommercialIncomeResponse(CommercialIncomeAndExpenseInfo info) {
         return CommercialIncomeAndExpenseResponse.builder()
-            .expenseByCategoryItem(toCommercialExpenseByCategoryItem(info.expenseByCategoryInfo()))
+            .expenseCategories(toCommercialExpenseCategoryItems(info.expenseCategories()))
+            .totalExpenseAmount(info.expenseCategorySum())
+            .provenance(commercialExpenseProvenancePresenter.toCommercialExpenseProvenanceItem(info.provenance()))
             .build();
     }
 
@@ -337,6 +340,7 @@ public class CommercialPresenter {
             .district(toRegionalIncomeSummaryItem(info.district()))
             .administration(toRegionalIncomeSummaryItem(info.administration()))
             .commercial(toRegionalIncomeSummaryItem(info.commercial()))
+            .commercialProvenance(commercialExpenseProvenancePresenter.toCommercialExpenseProvenanceItem(info.commercialProvenance()))
             .build();
     }
 
@@ -501,22 +505,18 @@ public class CommercialPresenter {
     }
 
     // Income Item Mappers
-    /** 원천이 지출을 제공하지 않는 분기에는 Info 가 null 이다. 0 으로 채우지 않고 JSON null 로 내보낸다. */
-    private CommercialExpenseByCategoryItem toCommercialExpenseByCategoryItem(CommercialExpenseByCategoryInfo info) {
-        if (info == null) {
+    /** 상권 원천도 행정동 대체도 없는 분기에는 Info 가 null 이다. 0 으로 채우지 않고 JSON null 로 내보낸다. */
+    private List<CommercialExpenseCategoryItem> toCommercialExpenseCategoryItems(List<ExpenseCategoryAmount> categories) {
+        if (categories == null) {
             return null;
         }
-        return CommercialExpenseByCategoryItem.builder()
-            .groceryExpenseAmount(info.groceryExpenseAmount())
-            .clothingExpenseAmount(info.clothingExpenseAmount())
-            .medicalExpenseAmount(info.medicalExpenseAmount())
-            .householdExpenseAmount(info.householdExpenseAmount())
-            .transportationExpenseAmount(info.transportationExpenseAmount())
-            .leisureExpenseAmount(info.leisureExpenseAmount())
-            .cultureExpenseAmount(info.cultureExpenseAmount())
-            .educationExpenseAmount(info.educationExpenseAmount())
-            .entertainmentExpenseAmount(info.entertainmentExpenseAmount())
-            .build();
+        return categories.stream()
+            .map(category -> CommercialExpenseCategoryItem.builder()
+                .key(category.category().name())
+                .label(category.category().getLabel())
+                .amount(category.amount())
+                .build())
+            .toList();
     }
 
     private CommercialPeerStoreItem toCommercialPeerStoreItem(CommercialPeerStoreInfo info) {

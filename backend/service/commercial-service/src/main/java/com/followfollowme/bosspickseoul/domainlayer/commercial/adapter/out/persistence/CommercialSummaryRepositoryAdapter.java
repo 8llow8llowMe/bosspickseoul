@@ -1,9 +1,9 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence;
 
-import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.entity.IncomeAdministrationEntity;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.entity.SalesAdministrationEntity;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.IncomeAdministrationRepository;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.SalesAdministrationRepository;
+import com.followfollowme.bosspickseoul.domainlayer.administration.application.mapper.IncomeAdministrationMapper;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.IncomeAdministration;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.SalesAdministration;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.repository.IncomeCommercialRepository;
@@ -39,6 +39,7 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
     private final SalesDistrictMapper salesDistrictMapper;
     private final SalesCommercialMapper salesCommercialMapper;
     private final IncomeDistrictMapper incomeDistrictMapper;
+    private final IncomeAdministrationMapper incomeAdministrationMapper;
     private final IncomeCommercialMapper incomeCommercialMapper;
 
     @Override
@@ -74,7 +75,7 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
     public Optional<IncomeAdministration> findIncomeAdministration(String periodCode, String administrationCode) {
         return incomeAdministrationRepository.findByPeriodCodeAndAdministrationCodeAndSpatialVersion(
                 periodCode, administrationCode, datasetSpatialVersion.value())
-            .map(this::toIncomeAdministrationDomain);
+            .map(incomeAdministrationMapper::toDomainFromEntity);
     }
 
     @Override
@@ -96,16 +97,6 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
             .monthlySalesAmount(entity.getMonthlySalesAmount())
             .weekdaySalesAmount(entity.getWeekdaySalesAmount())
             .weekendSalesAmount(entity.getWeekendSalesAmount())
-            .build();
-    }
-
-    private IncomeAdministration toIncomeAdministrationDomain(IncomeAdministrationEntity entity) {
-        return IncomeAdministration.builder()
-            .id(entity.getId())
-            .periodCode(entity.getPeriodCode())
-            .administrationCode(entity.getAdministrationCode())
-            .administrationName(entity.getAdministrationName())
-            .totalExpenseAmount(entity.getTotalExpenseAmount())
             .build();
     }
 }

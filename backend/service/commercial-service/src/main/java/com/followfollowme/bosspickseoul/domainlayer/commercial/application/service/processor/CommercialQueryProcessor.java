@@ -108,6 +108,14 @@ public class CommercialQueryProcessor {
         return CommercialResidentPopulationInfo.from(populationCommercial);
     }
 
+    /**
+     * 상권 네이티브 소비 전용 경로. 행정동 대체 사다리를 타지 않는다. (이슈 #415)
+     *
+     * <p>이 메서드를 쓰는 곳은 비교와 후보 추천처럼 <b>상권끼리 우열을 가리는</b> 계산이다. 행정동 대체값은
+     * 같은 행정동 안의 상권이 전부 같은 값이라 그 판정에 넣으면 행정동 단위로 뭉친 가짜 차이를 만든다.
+     * 화면에 값을 보여 주는 {@code /commercials/{code}/income} 은
+     * {@link CommercialExpenseProvenanceProcessor} 의 사다리를 쓴다.
+     */
     public CommercialIncomeAndExpenseInfo getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         IncomeCommercial incomeCommercial = incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new CommercialException(CommercialErrorCode.INCOME_NOT_FOUND));
@@ -178,6 +186,10 @@ public class CommercialQueryProcessor {
             .collect(Collectors.toMap(PopulationCommercial::commercialCode, CommercialResidentPopulationInfo::from, keepFirst()));
     }
 
+    /**
+     * 히트맵 점수 원천용 벌크 조회. 단건과 마찬가지로 <b>네이티브만</b> 본다 — 행정동 대체값이 점수로
+     * 흘러가면 안 되기 때문이다. (이슈 #415)
+     */
     public Map<String, CommercialIncomeAndExpenseInfo> getIncomeByPeriodCodeAndCommercialCodes(
         String periodCode, List<String> commercialCodes
     ) {

@@ -233,8 +233,13 @@ public class CommercialComparisonQueryProcessor {
 
     /**
      * 승패 판정에서 소비 지표를 뺐다. 원천이 20241 분기부터 상권 단위 지출을 전 행 0 으로 주는 동안
-     * 이 항은 항상 무승부라 판정을 흐리기만 한다. 지표가 5개(홀수)가 되어 TIE 도 줄어든다.
-     * 행정동 원천으로 소비가 복구되면 spendingMetrics.get(0) 을 다시 넣으면 된다. (이슈 #413)
+     * 이 항은 항상 무승부라 판정을 흐리기만 한다. 지표가 5개(홀수)가 되어 TIE 도 줄어든다. (이슈 #413)
+     *
+     * <p><b>행정동 대체값(이슈 #415)이 붙어도 되돌리지 않는다.</b> 대체값은 소속 행정동 값이라 같은 행정동
+     * 안의 두 상권을 비교하면 항상 완전한 동점이고, 다른 행정동끼리면 상권이 아니라 <b>행정동을 비교한 결과</b>가
+     * 승패로 나간다. 어느 쪽이든 「이 상권이 더 유리하다」는 판정의 근거가 될 수 없다. 그래서 비교가 읽는
+     * 소비 경로도 대체를 태우지 않는 네이티브 전용
+     * ({@link CommercialQueryProcessor#getIncomeByPeriodCodeAndCommercialCode}) 그대로 둔다.
      */
     private List<ComparisonMetricInfo> buildDecisionMetrics(
 

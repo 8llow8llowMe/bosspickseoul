@@ -240,8 +240,11 @@ public class CommercialHeatmapQueryProcessor {
      * 나머지 상권의 정규화 점수까지 위로 압축한다. 이 점수는 후보 추천
      * ({@code CommercialCandidateQueryProcessor})으로도 흘러간다.
      *
-     * <p><b>되돌리는 방법.</b> 소비가 행정동 원천으로 복구되면(이슈 #415) 지출 항을 다시 넣고
-     * 네 계수를 위 괄호 안 원래 값으로 돌리면 된다.
+     * <p><b>되돌리지 않는다.</b> 이슈 #415 로 소비가 「복구」됐지만 그 값은 상권 원천이 아니라 소속 행정동의
+     * 대체값이다. 같은 행정동에 속한 상권이 전부 같은 금액을 받으므로 상권 간 변별력이 0 이고, 점수에 넣으면
+     * 행정동 단위로 뭉친 <b>가짜 차이</b>가 만들어진다. 서울 425개 행정동에 상권 1,650곳이 걸려 있어 평균
+     * 네 곳이 같은 값을 공유한다. 이 점수는 후보 추천({@code CommercialCandidateQueryProcessor})으로도 흘러가므로
+     * 추천 순위까지 행정동 단위로 계단이 진다. 상권 단위 지출 원천이 실제로 되살아나기 전에는 되돌리지 말 것.
      */
     private double computeOpportunity(CommercialHeatmapSource source) {
         return totalSalesAmount(source.sales().amountByDayOfWeekInfo()) * 0.4375

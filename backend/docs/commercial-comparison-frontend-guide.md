@@ -139,7 +139,8 @@ function formatMetric(value: number, unit: string, precision: number) {
 - 현재 수치 필드는 primitive 숫자이므로 API에서 `null` 대신 `0`이 올 수 있다.
 - `rightValue=0`이면 0으로 나눌 수 없어 `diffRate`가 호환용 sentinel `0`으로 내려간다. 이때 `leftValue` 또는 `diffValue`가 0이 아니면 `0% 차이`로 표시하지 말고 상대 차이율을 숨기거나 `비교 불가`로 표시한다.
 - 상권 단위 월 평균 소득·소득 구간은 원천이 제공을 중단해 응답에서 제거됐다(이슈 #413). 단건 `GET /commercials/{code}/income` 의 `averageIncomeItem` 과 프로필 `keyMetrics.monthlyAverageIncomeAmount` 는 더 이상 내려오지 않는다.
-- 소비 지출은 원천이 값을 주지 않는 분기가 있다. 단건 응답은 그때 `expenseByCategoryItem` 을 `null` 로 내리고, 요약은 행이 없는 지역 단위만 `null` 로 내린다. **`null` 은 "값 없음"이지 0원이 아니다** — 0원으로 그리지 말고 `데이터 미제공`으로 표시한다.
+- 소비 지출은 원천이 값을 주지 않는 분기가 있다. 단건 응답은 항목 배열 `expenseCategories` 와 `totalExpenseAmount` 를 `null` 로 내리고, 요약은 행이 없는 지역 단위만 `null` 로 내린다. **`null` 은 "값 없음"이지 0원이 아니다** — 0원으로 그리지 말고 `데이터 미제공`으로 표시한다.
+- 이슈 #415 로 단건 `/income` 과 `/summaries/income` 에 출처 메타가 붙었다. `provenance.scope.code` 가 `ADMINISTRATION_PROXY` 면 값이 소속 행정동의 대체값이므로 `disclaimer` 를 그대로 노출한다. **비교 화면의 「총 지출액」 은 대체값을 쓰지 않는다** — 같은 행정동 상권끼리는 항상 동점이 되어 승패 판정의 근거가 못 되기 때문이다.
 - 다만 비교 응답의 `spendingMetrics` 는 수치 필드가 primitive 라 결측을 `0` 으로 내린다. `0` 만 보고 실제 값이 없다고 단정하거나 실제 0이라고 단정하지 않는다. 화면에는 `recommendationDisclaimer`를 함께 노출한다.
 - 추천 판정의 근거 지표와 비교 프리뷰 `headlineMetrics` 는 소비 항목이 빠져 각각 5개다(`recommendedReasons` 도 그만큼 줄어든다). 개수나 인덱스를 고정하지 말고 받은 배열 그대로 렌더링한다.
 - `description`과 `comparisonGuide`는 표시 안내이며 숫자 자체를 대체하지 않는다. 계산·정렬이 필요하면 기존 원시 숫자 필드를 사용한다.

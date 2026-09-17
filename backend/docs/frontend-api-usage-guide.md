@@ -157,11 +157,11 @@
 | 점포 차트 | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/stores` | 개업률, 폐업률, 유사 점포 |
 | 주변 시설 | `GET /api/v1/commercials/{commercialCode}/facilities` | 교통, 집객 시설, 생활 시설 |
 | 거주인구 | `GET /api/v1/commercials/{commercialCode}/population` | 연령/성별 거주인구 |
-| 지출 | `GET /api/v1/commercials/{commercialCode}/income` | 지출 카테고리 9종. 원천이 값을 주지 않는 분기에는 `expenseByCategoryItem` 이 `null` 이다 |
+| 지출 | `GET /api/v1/commercials/{commercialCode}/income` | `expenseCategories[{key,label,amount}]` 배열 + `totalExpenseAmount` + `provenance`. 항목 수는 스코프에 따라 9개(상권) 또는 10개(행정동 대체)이고, 둘 다 없으면 배열이 `null` 이다 (이슈 #415) |
 | 추세 그래프 | `GET /api/v1/commercials/{commercialCode}/trend` | 매출/유동인구/점포 분기별 추이 |
 | 벤치마크 | `GET /api/v1/commercials/{commercialCode}/benchmarks` | 자치구/행정동 평균과 비교 |
 | 매출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/sales` | 상권/행정동/자치구 계층 비교 |
-| 지출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/income` | 지출 계층 비교. 행이 없는 지역 단위는 그 단위만 `null` 이다. 상권 단위는 행이 있어도 원천이 지출을 제공하지 않으면 `null` 이며, 단건 `/income` 과 판정이 같다 |
+| 지출 요약 | `GET /api/v1/commercials/{commercialCode}/summaries/income` | 지출 계층 비교. 행이 없는 지역 단위는 그 단위만 `null` 이다. 상권 leg 는 단건 `/income` 과 같은 사다리를 타 네이티브가 없으면 행정동 총액으로 대체하고, 출처는 최상위 `commercialProvenance` 가 알려 준다 |
 
 권장 흐름:
 

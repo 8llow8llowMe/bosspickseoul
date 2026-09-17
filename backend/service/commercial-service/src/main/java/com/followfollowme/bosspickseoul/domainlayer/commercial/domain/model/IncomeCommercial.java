@@ -1,5 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model;
 
+import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.enums.ExpenseCategoryType;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -50,5 +52,25 @@ public record IncomeCommercial(
      */
     public boolean expenseUnavailable() {
         return expenseCategorySum() == 0L;
+    }
+
+    /**
+     * 상권 네이티브 9항목을 화면에 그릴 순서대로 내보낸다. (이슈 #415)
+     *
+     * <p>행정동 대체 원천은 항목이 10개이고 여가·문화가 합쳐져 있어 구성이 다르다. 그래서 응답이 고정 필드가
+     * 아니라 <b>항목 배열</b>을 들고 내려가고, 순서는 원천마다 여기서 정한다.
+     */
+    public List<ExpenseCategoryAmount> expenseCategories() {
+        return List.of(
+            ExpenseCategoryAmount.of(ExpenseCategoryType.GROCERY, groceryExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.CLOTHING_FOOTWEAR, clothingExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.MEDICAL, medicalExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.HOUSEHOLD, householdExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.TRANSPORTATION, transportationExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.LEISURE, leisureExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.CULTURE, cultureExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.EDUCATION, educationExpenseAmount),
+            ExpenseCategoryAmount.of(ExpenseCategoryType.ENTERTAINMENT, entertainmentExpenseAmount)
+        );
     }
 }
