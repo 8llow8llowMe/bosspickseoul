@@ -44,6 +44,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.servi
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialCandidateQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparePreviewQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparisonQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialExpenseProvenanceProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialHeatmapQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialProfileQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
@@ -65,6 +66,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     private static final int PROFILE_POLICY_RECOMMENDATION_SIZE = 5;
 
     private final CommercialQueryProcessor commercialQueryProcessor;
+    private final CommercialExpenseProvenanceProcessor commercialExpenseProvenanceProcessor;
     private final CommercialComparisonQueryProcessor commercialComparisonQueryProcessor;
     private final CommercialBenchmarkQueryProcessor commercialBenchmarkQueryProcessor;
     private final CommercialHeatmapQueryProcessor commercialHeatmapQueryProcessor;
@@ -118,10 +120,15 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         return commercialPresenter.toCommercialPopulationResponse(info);
     }
 
+    /**
+     * 트랜잭션을 걸지 않는다. 네이티브 지출이 없는 분기에는 상권 -> 행정동 해석을 위해 지역 서비스를 Feign 으로
+     * 부르는데, 여기에 {@code @Transactional(readOnly = true)} 를 두면 DB 커넥션을 쥔 채 원격 응답을 기다린다.
+     * DB 구간은 Processor 안의 리포지터리 호출 단위로 각각 끝난다. (이슈 #415)
+     */
     @Override
-    @Transactional(readOnly = true)
     public CommercialIncomeAndExpenseResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
-        CommercialIncomeAndExpenseInfo info = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        CommercialIncomeAndExpenseInfo info = commercialExpenseProvenanceProcessor
+            .getExpenseByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toCommercialIncomeResponse(info);
     }
 

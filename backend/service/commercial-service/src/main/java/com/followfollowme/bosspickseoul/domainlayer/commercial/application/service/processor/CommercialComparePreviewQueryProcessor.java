@@ -23,7 +23,8 @@ public class CommercialComparePreviewQueryProcessor {
     public CommercialComparePreviewInfo getPreview(CommercialComparisonQuery query) {
         CommercialComparisonInfo full = commercialComparisonQueryProcessor.compareCommercials(query);
 
-        // 소비 지표는 원천이 전 행 0 을 주는 동안 headline 에서 뺀다. 소비가 복구되면 다시 넣는다. (이슈 #413)
+        // 소비 지표는 headline 에서 뺀다. 원천이 전 행 0 을 주고(이슈 #413), 행정동 대체값(이슈 #415)은
+        // 같은 행정동 상권이 전부 같은 값이라 한 줄짜리 요약에서 우열을 말할 수 없다. 되돌리지 말 것.
         List<ComparisonMetricInfo> headline = new ArrayList<>(5);
         addIfPresent(headline, full.salesMetrics(), 0);
         addIfPresent(headline, full.footTrafficMetrics(), 0);
