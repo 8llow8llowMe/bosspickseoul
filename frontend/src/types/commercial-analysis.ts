@@ -126,11 +126,19 @@ export type CommercialResidentPopulation = {
   femalePercentage?: NullableNumber
 }
 
+/**
+ * 상권 소비 (`GET /commercials/{commercialCode}/income`).
+ *
+ * ⚠️ **월 평균 소득(`averageIncomeItem`)은 더 이상 내려오지 않는다.** 서울 열린데이터광장이
+ * 2020년에 수급을 끊었고 2026-05-13 자로 원천 컬럼까지 삭제해, 백엔드가 응답에서 통째로
+ * 걷어냈다(#414).
+ *
+ * ⚠️ `expenseByCategoryItem` 은 **null 일 수 있다.** 상권 단위 원천이 `20241` 분기부터
+ * 전 행 0 이라, 백엔드는 9개 항목 합이 0 이면 0 으로 채워 보내는 대신 null 로 강등한다.
+ * 화면은 그때 9줄을 「데이터 없음」으로 늘어놓지 말고 섹션을 빈 상태로 둔다
+ * (`expense-presentation.ts`).
+ */
 export type CommercialIncomeAndExpense = {
-  averageIncomeItem?: {
-    monthlyAverageIncomeAmount?: NullableNumber
-    incomeBracketCode?: NullableNumber
-  } | null
   expenseByCategoryItem?: {
     groceryExpenseAmount?: NullableNumber
     clothingExpenseAmount?: NullableNumber
@@ -150,6 +158,12 @@ export type RegionalIncomeSummary = {
   totalExpenseAmount?: NullableNumber
 }
 
+/**
+ * 지역별 소비 요약 (`GET /commercials/{commercialCode}/summaries/income`).
+ *
+ * ⚠️ 세 단위는 **각각 독립적으로 null** 이다. 자치구·행정동은 원천이 살아 있어 보통 값이
+ * 있고, 상권만 비는 것이 지금의 정상 상태다(위 `CommercialIncomeAndExpense` 주석).
+ */
 export type CommercialIncomeSummary = {
   district?: RegionalIncomeSummary | null
   administration?: RegionalIncomeSummary | null

@@ -27,7 +27,6 @@ import {
   TrendingDown,
   TrendingUp,
   Users,
-  Wallet,
 } from 'lucide-react'
 
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
@@ -104,8 +103,13 @@ import {
   salesDayDefinitions,
   salesAgeDefinitions,
   populationAgeDefinitions,
-  expenseDefinitions,
 } from '@/lib/analysis/commercial-chart-selectors'
+import {
+  hasExpenseByCategory,
+  hasRegionalExpense,
+  toExpenseCategoryRows,
+  toRegionalExpenseRows,
+} from '@/lib/analysis/expense-presentation'
 import {
   MAP_CAMERA_PARAM,
   parseMapCamera,
@@ -580,27 +584,6 @@ const AbsentNote = styled.p`
   word-break: keep-all;
 `
 
-const MetricCard = styled.div`
-  display: grid;
-  gap: 6px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-muted);
-  padding: 18px 16px 16px;
-
-  span {
-    color: var(--color-text-caption);
-    font-size: 12px;
-  }
-
-  strong {
-    color: var(--color-text-900);
-    font-size: 21px;
-    font-weight: 700;
-    line-height: 30px;
-  }
-`
-
 const ComparisonGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -994,6 +977,12 @@ export default function AnalysisResultView({
   const income = getResponseBody(
     incomeQuery.data,
   ) as CommercialIncomeAndExpense | null
+  /*
+    소비는 상권 단위(항목별)와 지역 단위(총 지출액)를 따로 그린다 — 원천 사정이 달라
+    한쪽이 비어도 다른 쪽은 살아 있다. 판정과 행 조립은 `expense-presentation.ts` 가 한다.
+  */
+  const expenseCategoryRows = toExpenseCategoryRows(income)
+  const regionalExpenseRows = toRegionalExpenseRows(incomeSummary)
   const benchmark = getResponseBody(
     benchmarkQuery.data,
   ) as CommercialBenchmark | null
@@ -1298,6 +1287,22 @@ export default function AnalysisResultView({
     residentPopulation > 0
       ? totalFootTraffic / residentPopulation
       : null
+  /*
+    요약 「생활권·시설」 첫 카드의 맥락 줄. 상주인구는 핵심 지표와 같은 수라 값만으로는
+    두 번째 카드가 될 이유가 없다 — 성비를 붙여 「누가 사는가」를 말하게 한다.
+
+    여성 비중만 적고 남성은 계산하지 않는다. `malePercentage` 와 더해 100 이 안 되는
+    반올림 응답이 있어, 화면이 `100 - 여성` 을 지어내면 응답과 어긋난 수가 된다.
+  */
+  const femalePercentage = population?.femalePercentage
+  const residentFemaleShare = toShareRatio(femalePercentage, 100)
+  const residentGenderContext =
+    residentFemaleShare === undefined
+      ? null
+      : {
+          text: `여성 ${formatSharePercent(residentFemaleShare)}`,
+          ratio: residentFemaleShare,
+        }
 
   const totalStoreCount =
     profile?.keyMetrics?.totalStoreCount ?? stores?.totalStoreCount
@@ -1689,17 +1694,19 @@ export default function AnalysisResultView({
                   {renderCards([
                     {
                       /*
-                        「상주인구」는 핵심 지표와 **같은 값**이라 뺐다. 그 자리에 요약
-                        탭에 아예 없던 월평균 소득을 올린다 — 생활권을 말하는 수치이고
-                        (이 섹션의 주제다) 그동안 생활권 탭까지 들어가야 볼 수 있었다.
+                        이 자리에는 월평균 소득이 있었다. 서울 열린데이터광장이 상권 단위
+                        소득 제공을 끊어(2026-05-13 원천 컬럼 삭제) 응답에서 사라졌으므로
+                        「상주인구」를 되돌린다(#414).
+
+                        상주인구 값 자체는 핵심 지표와 **같은 수**라 그대로 두면 같은
+                        숫자를 두 번 적게 된다. 성별 구성을 맥락 줄로 붙여 이 섹션의
+                        주제인 「누가 사는가」를 한 겹 더 말하게 한다.
                       */
-                      label: '월평균 소득',
-                      value:
-                        profile?.keyMetrics?.monthlyAverageIncomeAmount ??
-                        income?.averageIncomeItem?.monthlyAverageIncomeAmount,
-                      unit: '원',
-                      icon: Wallet,
-                      context: null,
+                      label: '상주인구',
+                      value: residentPopulation,
+                      unit: '명',
+                      icon: Users,
+                      context: residentGenderContext,
                     },
                     {
                       label: '주요 시설',
@@ -2129,43 +2136,47 @@ export default function AnalysisResultView({
                   />
                 </ChartBox>
               </AnalysisResultSection>
+              {/*
+                전에는 「소득과 소비」 한 섹션이 월 평균 소득 카드와 항목별 소비 막대를
+                같이 그렸다. 소득은 원천이 사라져 걷어냈고(#414), 남은 소비는 상권 단위와
+                지역 단위의 데이터 사정이 달라 **두 섹션으로 가른다** — 상권 항목별은
+                20241 분기부터 원천이 전 행 0 이라 대개 비고, 자치구·행정동은 살아 있다.
+                한 섹션에 섞으면 「비었다」가 어느 쪽 이야기인지 읽을 수 없다.
+              */}
               <AnalysisResultSection
-                title="소득과 소비"
+                title="항목별 소비"
+                description={`${formatPeriodCode(periodCode)} 기준`}
                 loading={incomeQuery.isPending}
-                error={
-                  // incomeSummary 는 이 섹션에서 렌더하지 않고 `empty` 계산에만 쓰인다.
-                  // 그래서 던져진 실패(isError)만 오류로 보고, 본문 실패(200 + success:false)로는
-                  // 이미 받아 둔 소득 데이터를 가리지 않는다 — 변경 전 조건과 등가.
-                  resolveApiError(incomeQuery) ??
-                  resolveApiError({ error: incomeSummaryQuery.error })
-                }
-                empty={
-                  !hasObjectValues(income) && !hasObjectValues(incomeSummary)
-                }
-                onRetry={() => {
-                  void incomeQuery.refetch()
-                  void incomeSummaryQuery.refetch()
-                }}
+                error={resolveApiError(incomeQuery)}
+                empty={!hasExpenseByCategory(income)}
+                emptyDescription="서울 열린데이터광장이 2024년 1분기부터 상권 단위 항목별 소비 제공을 중단했어요. 이 상권의 소비 규모는 아래 「지역별 소비」의 자치구·행정동 값으로 가늠해 주세요."
+                onRetry={() => void incomeQuery.refetch()}
               >
-                <MetricCard>
-                  <span>월 평균 소득</span>
-                  <strong>
-                    {formatAnalysisValue(
-                      income?.averageIncomeItem?.monthlyAverageIncomeAmount,
-                      '원',
-                    )}
-                  </strong>
-                </MetricCard>
-                <AnalysisMetricList
-                  rows={createRows(
-                    income?.expenseByCategoryItem as Record<
-                      string,
-                      number | null | undefined
-                    >,
-                    expenseDefinitions,
-                  )}
-                  unit="원"
-                />
+                <AnalysisMetricList rows={expenseCategoryRows} unit="원" />
+              </AnalysisResultSection>
+              <AnalysisResultSection
+                title="지역별 소비"
+                description={`${formatPeriodCode(periodCode)} 기준 총 지출액`}
+                loading={incomeSummaryQuery.isPending}
+                error={resolveApiError(incomeSummaryQuery)}
+                empty={!hasRegionalExpense(regionalExpenseRows)}
+                emptyDescription="이 분기에는 자치구·행정동·상권 어느 단위에도 소비 데이터가 없어요."
+                onRetry={() => void incomeSummaryQuery.refetch()}
+              >
+                {/*
+                  값이 없는 단위도 **줄을 지우지 않는다.** 상권만 비는 것이 정상 상태라,
+                  줄을 지우면 위에 남은 자치구 값이 이 상권 값처럼 읽힌다.
+                */}
+                <ComparisonGrid>
+                  {regionalExpenseRows.map(row => (
+                    <ComparisonItem key={row.scope}>
+                      <span>{row.label}</span>
+                      <strong>
+                        {formatAnalysisValue(row.totalExpenseAmount, '원')}
+                      </strong>
+                    </ComparisonItem>
+                  ))}
+                </ComparisonGrid>
               </AnalysisResultSection>
               <FullSpanItem>
                 <AnalysisResultSection

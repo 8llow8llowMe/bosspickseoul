@@ -131,7 +131,10 @@ export type CommercialProfile = {
     openingRate?: number | null
     closureRate?: number | null
     totalResidentPopulation?: number | null
-    monthlyAverageIncomeAmount?: number | null
+    /**
+     * ⚠️ `monthlyAverageIncomeAmount` 는 더 이상 내려오지 않는다 — 서울 열린데이터광장이
+     * 상권 단위 월 평균 소득 제공을 끊어 백엔드가 `keyMetrics` 에서 걷어냈다(#414).
+     */
     totalFacilityCount?: number | null
   } | null
   /**
