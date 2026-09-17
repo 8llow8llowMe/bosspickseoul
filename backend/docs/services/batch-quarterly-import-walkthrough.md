@@ -33,12 +33,13 @@
 
 ## 1. 선행 DDL — 스키마당 한 번
 
-Workbench 에서 **`bosspickseoul_commercial_dev` 를 선택한 뒤** `backend/scripts/migration/` 의 네 파일을 순서대로 실행한다.
+Workbench 에서 **`bosspickseoul_commercial_dev` 를 선택한 뒤** `backend/scripts/migration/` 의 다섯 파일을 순서대로 실행한다.
 
 1. `spring-batch-schema-mysql.sql` — Spring Batch 메타 테이블
 2. `quarterly-dataset-schema.sql` — `dataset_*`
 3. `change-commercial-spatial-version.sql`
 4. `fact-tables-spatial-version.sql` — 나머지 14개 팩트 테이블
+5. `income-administration-expense-detail-columns.sql` — `income_administration` 소비 세부 10항목 (이슈 #415)
 
 이미 했는지 확인하는 법이다. 두 쿼리 모두 결과가 나와야 한다.
 

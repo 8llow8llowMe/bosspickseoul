@@ -68,8 +68,17 @@ public enum Dataset {
     STORE_ADMINISTRATION("VwsmAdstrdStorW", AreaScope.ADMINISTRATION, true, List.of(
         "ADSTRD_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "STOR_CO", "SIMILR_INDUTY_STOR_CO", "OPBIZ_RT", "OPBIZ_STOR_CO", "CLSBIZ_RT", "CLSBIZ_STOR_CO", "FRC_STOR_CO")),
+    // 상권 소비(CONSUMPTION_COMMERCIAL)가 20241 부터 전 행 0 이라 행정동 소비를 대체 원천으로 쓴다(이슈 #415).
+    // 그래서 총액뿐 아니라 세부 10항목을 게시 단계에서 전부 요구한다. 2026-09-17 Open API 전수 호출에서
+    // 425개 행정동 × 22분기(20211~20262) 모두 11개 금액 필드가 존재했고 누락은 0건이었다. 0 은 있어도(최대 3.1%, 유흥)
+    // 값이 빈 행은 없었으므로 필수로 두는 쪽이 결손 행을 게시 전에 잡는다.
+    // 항목 구성은 상권(9항목)과 다르다. 여가·문화가 LSR_CLTUR_EXPNDTR_TOTAMT 로 합쳐져 있고 기타·음식이 더 있다.
+    // 원천에 없는 분해를 만들지 않으므로 행정동 스키마 그대로 적재한다.
     CONSUMPTION_ADMINISTRATION("VwsmAdstrdNcmCnsmpW", AreaScope.ADMINISTRATION, false, List.of(
-        "ADSTRD_CD_NM", "EXPNDTR_TOTAMT")),
+        "ADSTRD_CD_NM", "EXPNDTR_TOTAMT",
+        "FDSTFFS_EXPNDTR_TOTAMT", "CLTHS_FTWR_EXPNDTR_TOTAMT", "LVSPL_EXPNDTR_TOTAMT", "MCP_EXPNDTR_TOTAMT",
+        "TRNSPORT_EXPNDTR_TOTAMT", "EDC_EXPNDTR_TOTAMT", "PLESR_EXPNDTR_TOTAMT", "LSR_CLTUR_EXPNDTR_TOTAMT",
+        "ETC_EXPNDTR_TOTAMT", "FD_EXPNDTR_TOTAMT")),
     SALES_DISTRICT("VwsmSignguSelngW", AreaScope.DISTRICT, true, List.of(
         "SIGNGU_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "THSMON_SELNG_AMT",

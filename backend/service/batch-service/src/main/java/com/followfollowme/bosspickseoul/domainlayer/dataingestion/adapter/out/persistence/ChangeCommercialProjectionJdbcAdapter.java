@@ -167,10 +167,15 @@ public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectio
               age50_sales_amount, age60_plus_sales_amount)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """);
+        // 행정동 소비 세부 10항목. 여가·문화는 원천이 합산본만 주므로 leisure_culture_expense_amount 한 컬럼이고,
+        // 상권(income_commercial)의 leisure_expense_amount / culture_expense_amount 와 정의가 달라 이름도 다르다.
         INSERT_SQL.put(Dataset.CONSUMPTION_ADMINISTRATION, """
             INSERT INTO income_administration (
-              period_code, spatial_version, administration_code, administration_name, total_expense_amount)
-            VALUES (?,?,?,?,?)
+              period_code, spatial_version, administration_code, administration_name, total_expense_amount,
+              grocery_expense_amount, clothing_expense_amount, household_expense_amount, medical_expense_amount,
+              transportation_expense_amount, education_expense_amount, entertainment_expense_amount,
+              leisure_culture_expense_amount, other_expense_amount, dining_expense_amount)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """);
         INSERT_SQL.put(Dataset.STORE_ADMINISTRATION, """
             INSERT INTO store_administration (
@@ -240,13 +245,21 @@ public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectio
     @Transactional
     public int replaceTyped(ProjectionRequest request, List<Object[]> rows) {
         String deleteSql = DELETE_SQL.get(request.dataset());
-        String insertSql = INSERT_SQL.get(request.dataset());
+        String insertSql = insertSql(request.dataset());
         if (deleteSql == null || insertSql == null) {
             throw new IllegalArgumentException("typed projection SQL missing for " + request.dataset());
         }
         jdbc.update(deleteSql, request.period().value(), request.spatialVersion());
         jdbc.batchUpdate(insertSql, rows, 500, this::bindTyped);
         return rows.size();
+    }
+
+    /**
+     * 데이터셋별 typed INSERT 문. 바인딩 자리 수와 {@code TypedFactMappers} 가 만드는 배열 길이가 어긋나면
+     * 개발 DB 실행에서야 드러나므로, 같은 패키지의 테스트가 이 문장으로 둘을 대조한다.
+     */
+    static String insertSql(Dataset dataset) {
+        return INSERT_SQL.get(dataset);
     }
 
     private void bindTyped(PreparedStatement statement, Object[] row) throws SQLException {

@@ -39,6 +39,27 @@ class DatasetTest {
         }
     }
 
+    /**
+     * 행정동 소비는 상권 소비가 끊긴 뒤의 대체 원천이라 총액만으로는 항목별 화면을 채울 수 없다(이슈 #415).
+     * 세부 10항목은 2026-09-17 Open API 전수 호출에서 425개 행정동 × 22분기 모두 존재했고 누락이 0건이라 필수로 둔다.
+     * 상권(9항목)과 구성이 다르다 — 여가·문화가 하나로 합쳐져 있고 기타·음식이 더 있다. 억지로 맞추지 않는다.
+     */
+    @Test
+    void administrationConsumptionRequiresTheTotalAndAllTenDetailItems() {
+        assertThat(Dataset.CONSUMPTION_ADMINISTRATION.requiredMetrics()).containsExactlyInAnyOrder(
+            "ADSTRD_CD_NM", "EXPNDTR_TOTAMT",
+            "FDSTFFS_EXPNDTR_TOTAMT", "CLTHS_FTWR_EXPNDTR_TOTAMT", "LVSPL_EXPNDTR_TOTAMT", "MCP_EXPNDTR_TOTAMT",
+            "TRNSPORT_EXPNDTR_TOTAMT", "EDC_EXPNDTR_TOTAMT", "PLESR_EXPNDTR_TOTAMT", "LSR_CLTUR_EXPNDTR_TOTAMT",
+            "ETC_EXPNDTR_TOTAMT", "FD_EXPNDTR_TOTAMT");
+
+        assertThat(Dataset.CONSUMPTION_ADMINISTRATION.requiredMetrics())
+            .as("행정동 원천에는 여가·문화를 나눈 컬럼이 없다")
+            .doesNotContain("LSR_EXPNDTR_TOTAMT", "CLTUR_EXPNDTR_TOTAMT");
+        assertThat(Dataset.CONSUMPTION_COMMERCIAL.requiredMetrics())
+            .as("상권 원천에는 합산 컬럼과 기타·음식이 없다")
+            .doesNotContain("LSR_CLTUR_EXPNDTR_TOTAMT", "ETC_EXPNDTR_TOTAMT", "FD_EXPNDTR_TOTAMT");
+    }
+
     @Test
     void theAreaCodeFieldFollowsTheScopeInsteadOfBeingRepeatedPerDataset() {
         for (Dataset dataset : Dataset.values()) {
