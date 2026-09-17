@@ -22,10 +22,7 @@ public record ImportRequest(String runId, Dataset dataset, Quarter period, Strin
         if ((sourceType == SourceType.API || sourceType == SourceType.ARCHIVE) && dataset.service().isBlank())
             throw new IllegalArgumentException("Dataset supports archival files only");
         if (charset == null || !java.nio.charset.Charset.isSupported(charset)) throw new IllegalArgumentException("Unsupported charset");
-        Quarter lastPublishable = dataset.lastPublishableQuarter().orElse(null);
-        if (lastPublishable != null && period.compareTo(lastPublishable) > 0)
-            throw new IllegalArgumentException(
-                "Source discontinued after " + lastPublishable.value() + " for " + dataset + "; later quarters are all zero");
+        dataset.assertPublishable(period);
         if (expectedRows < 1) throw new IllegalArgumentException("expectedRows must be a verified positive count for this dataset and quarter");
         if (sourceUpdatedAt == null) throw new IllegalArgumentException("sourceUpdatedAt required");
     }

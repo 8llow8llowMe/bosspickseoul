@@ -23,6 +23,9 @@ public record ProjectionRequest(
         if (dataset == null || period == null) {
             throw new IllegalArgumentException("dataset and period required");
         }
+        // 팩트 테이블에 실제로 INSERT 하는 것은 이 Job 이다. 사실 적재만 막으면 이미 스테이징된
+        // 중단 분기 릴리스를 재투영해 0 행이 다시 게시된다. 규칙 본문은 Dataset 이 갖는다.
+        dataset.assertPublishable(period);
         if (spatialVersion == null || !spatialVersion.matches("[a-zA-Z0-9_-]{1,64}")) {
             throw new IllegalArgumentException("Invalid spatialVersion");
         }
