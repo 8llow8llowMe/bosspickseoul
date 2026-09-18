@@ -65,10 +65,11 @@ public class CommercialAnalysisClientAdapter implements CommercialAnalysisQueryP
     /**
      * 소득소비만 404 를 결측(null)으로 흡수한다.
      *
-     * <p>peer 의 {@code /commercials/{code}/income} 은 행이 없으면 404 를 주는 것이 의도된 계약이고,
-     * 2024년 이후 1,650개 상권 중 560곳이 그 상태다. 404 를 그대로 {@code SOURCE_DATA_UNAVAILABLE} 로
-     * 바꾸면 그 560개 상권에서 AI 리포트 생성이 통째로 실패한다. 프롬프트 조립은 이미 지출이 null 인 경우를
-     * 결측 표기로 처리하므로 여기서 null 로 내려주면 된다. 5xx·타임아웃·서킷 열림은 계속 전파된다. (이슈 #413)
+     * <p>이 흡수는 이제 거의 타지 않는다. peer 가 소비 해상도 사다리(상권 네이티브 → 행정동 대체 → 제공 없음)를
+     * 넣으면서, 소비 행이 없던 560개 상권도 404 가 아니라 200 과 {@code scope=UNAVAILABLE} 을 받는다(이슈 #415).
+     * 그래도 분기를 남겨 둔다 — peer 가 다른 이유로 404 를 줄 수 있고, 지표 하나 때문에 리포트 생성이 통째로
+     * 실패하는 것보다 결측으로 계속 가는 편이 낫다. 프롬프트 조립은 지출과 출처가 모두 null 인 경우를 결측
+     * 표기로 처리한다. 5xx·타임아웃·서킷 열림은 계속 전파된다. (이슈 #413)
      */
     @Override
     public CommercialIncomeAndExpenseQueryResult getCommercialIncome(String commercialCode, String periodCode) {

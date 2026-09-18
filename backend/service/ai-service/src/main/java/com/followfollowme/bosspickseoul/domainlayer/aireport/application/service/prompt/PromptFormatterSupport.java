@@ -27,6 +27,11 @@ public final class PromptFormatterSupport {
         return value == null ? NOT_AVAILABLE : formatNumber(value.longValue());
     }
 
+    /** 원천이 값을 주지 않는 문자열 지표용. 빈 문자열도 결측으로 본다. (이슈 #415) */
+    public static String orNotAvailable(String value) {
+        return value == null || value.isBlank() ? NOT_AVAILABLE : value;
+    }
+
     public static String formatPercent(double value) {
         return "%.1f%%".formatted(value);
     }

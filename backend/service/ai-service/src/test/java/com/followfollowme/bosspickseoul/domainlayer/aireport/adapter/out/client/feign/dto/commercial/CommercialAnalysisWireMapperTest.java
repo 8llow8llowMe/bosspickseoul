@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client
 import static com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.WireMapperLeafAssertions.assertEveryLeafCopied;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseCategoryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
@@ -11,6 +12,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialSalesSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialStoreAnalysisQueryResult;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,27 +54,65 @@ class CommercialAnalysisWireMapperTest {
     }
 
     @Test
-    @DisplayName("지출 wire DTO 의 말단 필드 9개가 모두 QueryResult 로 옮겨진다")
+    @DisplayName("지출 wire DTO 의 말단 필드 17개가 모두 QueryResult 로 옮겨진다")
     void incomeAndExpenseMapsEveryLeafField() throws Exception {
-        // 원천이 상권 단위 소득 제공을 중단해 월 평균 소득·소득 구간 2개가 빠지고 지출 9개만 남았다. (이슈 #413)
+        /*
+         * 항목 배열(원소 2개 × key/label/amount = 6) + 총액 1 + 출처 10(scope 3 + 나머지 7) = 17.
+         * 원소 개수는 이 검사 도구가 정한 값이고, 실제 항목 수는 스코프마다 다르다(상권 9 / 행정동 대체 10).
+         * 여기서 검사하는 것은 "항목과 출처가 한 필드도 빠짐없이 QueryResult 로 건너간다" 뿐이다. (이슈 #415)
+         */
         assertEveryLeafCopied(
             CommercialIncomeAndExpenseClientResponse.class,
             CommercialIncomeAndExpenseQueryResult.class,
             wire -> CommercialAnalysisWireMapper.toQueryResult((CommercialIncomeAndExpenseClientResponse) wire),
-            9
+            17
         );
     }
 
     @Test
-    @DisplayName("peer 가 지출 블록을 생략하면 null 이 그대로 전달된다")
-    void nullExpenseByCategoryStaysNull() {
-        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(null);
+    @DisplayName("peer 가 소비를 제공하지 않으면 항목과 총액은 null 로 남고 출처만 건너간다")
+    void unavailableExpenseKeepsProvenanceAndNullsAmounts() {
+        CommercialExpenseProvenanceClientResponse provenance = new CommercialExpenseProvenanceClientResponse(
+            new CommercialExpenseScopeClientResponse("UNAVAILABLE", "제공 없음", "원천이 중단돼 이 분기에는 소비 지표를 제공하지 않습니다."),
+            null, null, "VwsmTrdhlNcmCnsmpQq", "서울시 상권분석서비스(소득소비-상권배후지)",
+            "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do", null, "이 분기는 대체할 행정동 소비도 없습니다."
+        );
+        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(null, null, provenance);
 
         CommercialIncomeAndExpenseQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
 
         // 0 으로 채우면 "원천이 값을 안 줬다" 와 "실제로 0원" 이 구별되지 않아 LLM 프롬프트에 0원이 실측치로 들어간다.
         assertThat(queryResult).isNotNull();
-        assertThat(queryResult.expenseByCategory()).isNull();
+        assertThat(queryResult.expenseCategories()).isNull();
+        assertThat(queryResult.totalExpenseAmount()).isNull();
+        // 값이 없어도 "왜 없는지" 는 남아야 프롬프트가 중단 사실을 싣는다.
+        assertThat(queryResult.provenance()).isNotNull();
+        assertThat(queryResult.provenance().scope().code()).isEqualTo("UNAVAILABLE");
+        assertThat(queryResult.provenance().disclaimer()).isEqualTo("이 분기는 대체할 행정동 소비도 없습니다.");
+    }
+
+    @Test
+    @DisplayName("항목 배열은 순서를 유지한 채 원소 수 그대로 옮겨진다")
+    void expenseCategoriesKeepOrderAndSize() {
+        // 행정동 대체 스코프에만 있는 항목(기타·음식)이 키 하드코딩으로 잘려 나가지 않는지 본다. (이슈 #415)
+        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(
+            List.of(
+                new CommercialExpenseCategoryClientResponse("GROCERY", "식료품", 3301L),
+                new CommercialExpenseCategoryClientResponse("OTHER", "기타", 3302L),
+                new CommercialExpenseCategoryClientResponse("DINING", "음식", 3303L)
+            ),
+            9906L, null
+        );
+
+        CommercialIncomeAndExpenseQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
+
+        assertThat(queryResult.expenseCategories()).extracting(CommercialExpenseCategoryQueryResult::key)
+            .containsExactly("GROCERY", "OTHER", "DINING");
+        assertThat(queryResult.expenseCategories()).extracting(CommercialExpenseCategoryQueryResult::label)
+            .containsExactly("식료품", "기타", "음식");
+        assertThat(queryResult.expenseCategories()).extracting(CommercialExpenseCategoryQueryResult::amount)
+            .containsExactly(3301L, 3302L, 3303L);
+        assertThat(queryResult.totalExpenseAmount()).isEqualTo(9906L);
     }
 
     @Test
@@ -123,13 +163,14 @@ class CommercialAnalysisWireMapperTest {
     }
 
     @Test
-    @DisplayName("지출 요약 wire DTO 의 말단 필드 9개가 모두 QueryResult 로 옮겨진다")
+    @DisplayName("지출 요약 wire DTO 의 말단 필드 19개가 모두 QueryResult 로 옮겨진다")
     void incomeSummaryMapsEveryLeafField() throws Exception {
+        // 지역 단위 3종 × 3 + 상권 leg 출처 10 = 19. 출처가 빠지면 상권 총액이 대체값인지 알 길이 없다. (이슈 #415)
         assertEveryLeafCopied(
             CommercialIncomeSummaryClientResponse.class,
             CommercialIncomeSummaryQueryResult.class,
             wire -> CommercialAnalysisWireMapper.toQueryResult((CommercialIncomeSummaryClientResponse) wire),
-            9
+            19
         );
     }
 
