@@ -590,7 +590,7 @@ INDEX(status)
 - commercial-service 어댑터·QueryDSL TOP-N 은 같은 설정으로 필터한다. 공개 API·Port 시그니처는 그대로다.
 - `CONSUMPTION_COMMERCIAL` 소득 두 컬럼은 2024+ 원천 부재로 NULL, MapStruct 가 0 으로 읽는다.
 - `service_type` 은 원천 payload 에 없는 파생 컬럼이라 이관이 `service_category` 에서 `service_code` 로 찾아 채운다(#355). 매핑에 없는 코드만 NULL 로 남고 이관 로그가 미해석 건수를 남긴다.
-- `CONSUMPTION_ADMINISTRATION` 은 총액만 옮기던 것을 **총액 + 세부 10항목**으로 넓혔다(#415 1단계). 상권 소비가 끊겨 행정동 소비가 대체 원천이 되기 때문이다. 게시된 payload 가 원천 컬럼을 이미 다 들고 있어 **재적재 없이 `--job=project` 재이관만으로 채워진다.** 항목 구성은 상권과 다르다(여가·문화 합산, 기타·음식 추가). commercial-service 조회 도메인은 #415 2단계에서 세부 항목을 읽어 상권 소비의 대체 출처로 쓴다(해상도 사다리 + `provenance`). ai-service 전달(3단계)과 화면(#416)은 아직이다.
+- `CONSUMPTION_ADMINISTRATION` 은 총액만 옮기던 것을 **총액 + 세부 10항목**으로 넓혔다(#415 1단계). 상권 소비가 끊겨 행정동 소비가 대체 원천이 되기 때문이다. 게시된 payload 가 원천 컬럼을 이미 다 들고 있어 **재적재 없이 `--job=project` 재이관만으로 채워진다.** 항목 구성은 상권과 다르다(여가·문화 합산, 기타·음식 추가). commercial-service 조회 도메인이 세부 항목을 읽어 상권 소비의 대체 출처로 쓰고(해상도 사다리 + `provenance`), ai-service 가 그 값과 출처·면책을 프롬프트에 함께 싣는다. 분석 화면 표시까지 #415 로 끝났다.
 
 **DDL**: `scripts/migration/change-commercial-spatial-version.sql`, `scripts/migration/fact-tables-spatial-version.sql`, `scripts/migration/income-administration-expense-detail-columns.sql`
 

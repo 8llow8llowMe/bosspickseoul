@@ -29,7 +29,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.Stor
 import java.util.List;
 import java.util.Map;
 import java.util.function.BinaryOperator;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,24 +44,6 @@ public class CommercialQueryProcessor {
     private final PopulationCommercialRepositoryPort populationCommercialRepositoryPort;
     private final IncomeCommercialRepositoryPort incomeCommercialRepositoryPort;
     private final StoreCommercialRepositoryPort storeCommercialRepositoryPort;
-
-    /**
-     * 분기 종속 데이터 부재(404 {@link CommercialException})만 null 로 흡수한다. 그 외 예외는 전파한다.
-     *
-     * <p>{@code catch (CommercialException)} 으로 통째로 잡으면 503(INTERNAL_SERVICE_UNAVAILABLE)과
-     * 400(요청 오류)까지 "데이터 없음"으로 뭉개져, 지역 서비스 장애가 지표 하나 빠진 정상 응답으로 보인다.
-     * 비교·프로필 두 Processor 가 같은 판정을 쓰도록 여기 한 곳에 둔다.
-     */
-    static <T> T fetchOrNullWhenNotFound(Supplier<T> fetcher) {
-        try {
-            return fetcher.get();
-        } catch (CommercialException exception) {
-            if (exception.isNotFound()) {
-                return null;
-            }
-            throw exception;
-        }
-    }
 
     public List<CommercialServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
         List<String> serviceCodes = salesCommercialRepositoryPort.findDistinctServiceCodesByCommercialCode(commercialCode);
@@ -184,19 +165,6 @@ public class CommercialQueryProcessor {
             .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
             .stream()
             .collect(Collectors.toMap(PopulationCommercial::commercialCode, CommercialResidentPopulationInfo::from, keepFirst()));
-    }
-
-    /**
-     * 히트맵 점수 원천용 벌크 조회. 단건과 마찬가지로 <b>네이티브만</b> 본다 — 행정동 대체값이 점수로
-     * 흘러가면 안 되기 때문이다. (이슈 #415)
-     */
-    public Map<String, CommercialIncomeAndExpenseInfo> getIncomeByPeriodCodeAndCommercialCodes(
-        String periodCode, List<String> commercialCodes
-    ) {
-        return incomeCommercialRepositoryPort
-            .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
-            .stream()
-            .collect(Collectors.toMap(IncomeCommercial::commercialCode, CommercialIncomeAndExpenseInfo::from, keepFirst()));
     }
 
     public Map<String, CommercialFacilityInfo> getFacilityByPeriodCodeAndCommercialCodes(

@@ -122,7 +122,7 @@ backend/
 **포함:**
 - `enums.HeatmapModeType` — 히트맵 모드 (단일 지표 / 복합 추천)
 - `enums.GradeLevel` — 등급 구간 (commercial/district 공용)
-- `enums.DatasetKey` — 분기 적재 데이터셋 15종의 이름 계약 (batch-service 가 `dataset_release`/`dataset_active_release` 에 게시하는 키. 조회 서비스의 참조는 2026-09-10 제거)
+- `enums.DatasetKey` — 분기 적재 데이터셋 15종의 **이름·Open API 서비스명·필수 컬럼 계약**. batch-service 가 `dataset_release`/`dataset_active_release` 에 게시하는 키이자 Open API 호출에 쓰는 서비스명이고, commercial-service 는 같은 `openApiService()` 를 소비 지표의 출처 식별자(`sourceId`)로 응답에 싣는다 (이슈 #415)
 
 **존재 이유**:
 - `commercial-service`와 `district-service`는 피어 관계라 서로 import 불가
@@ -130,7 +130,7 @@ backend/
 - 두 서비스가 모두 의존할 수 있는 별도 공유 레이어로 분리
 
 **포함 기준**: **상권·지도 도메인**에 속하면서 복수 서비스에서 공유되는 enum / 값 객체 / 상수. 단일 서비스에서만 쓰면 해당 서비스의 `application/model/`로.
-- 예외: `DatasetKey` 는 batch-service 적재·`--job=project` 의 이름·필수 컬럼 계약이다. commercial-service 조회 스택은 쓰지 않는다.
+- `DatasetKey` 는 batch-service 적재·`--job=project` 의 이름·필수 컬럼 계약이면서, 데이터셋 **식별자의 정본**이다. 같은 문자열을 서비스마다 복사하면 포털이 데이터셋을 재게시했을 때 배치만 고쳐도 배치는 돌아가고 조회 서비스는 죽은 ID 를 출처로 계속 인용한다. batch 의 `DatasetTest` 와 commercial 의 `ExpenseSourceDatasetTest` 가 두 축을 함께 고정한다.
 
 ---
 
@@ -183,7 +183,7 @@ backend/
 
 **컨텍스트**: administration, analysisbookmark, category, commercial, commercialsummary, district, policy, ranking, sharelink, simulation (10개)
 
-**특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
+**특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel, 소비 출처 식별자용 DatasetKey), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
 
 ---
 
@@ -226,7 +226,7 @@ backend/
 - 게시한 릴리스를 기존 팩트 테이블 컬럼으로 이관 (`--job=project`). 이때 commercial 소유 `service_category` 를 읽어 `service_type` 을 채운다
 - 기업마당 정책 수집·만료 (`policyingestion` 컨텍스트, `BATCH_POLICY_ENABLED`, Quartz `policyCollectJob`/`policyPurgeJob`, 기본 비활성). `policy` 는 `COMMERCIAL_DB_URL`, Quartz 는 `BATCH_DB_URL`
 
-**특수 의존**: `core:shared-commercial` (테스트 — `DatasetKey` 이름 계약 대조), `core:persistence-core` (Snowflake ID. JPA 자동설정은 제외)
+**특수 의존**: `core:shared-commercial` (`DatasetKey` — 데이터셋 이름·Open API 서비스명의 정본), `core:persistence-core` (Snowflake ID. JPA 자동설정은 제외)
 
 ---
 

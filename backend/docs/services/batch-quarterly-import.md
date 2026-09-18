@@ -325,4 +325,4 @@ SELECT period_code,
 
 `rows_total = detail_filled` 인 분기가 재이관을 마친 분기다. 총액과 세부 10항목 합의 차이가 0인지도 같은 스크립트의 두 번째 SQL 로 확인한다 — 원천에서 차이가 0인 것을 2026-09-17 전수 호출로 확인했으므로, 여기서 어긋나면 매핑이 틀린 것이다.
 
-컬럼 DDL과 재이관만으로는 화면이 바뀌지 않는다. commercial-service 조회 도메인은 아직 총액만 읽는다(후속 단계).
+컬럼 DDL과 재이관만으로는 화면이 바뀌지 않는다. commercial-service 조회 도메인은 이 컬럼들을 읽어 상권 소비의 대체 출처로 쓴다 — 상권 네이티브가 없으면 소속 행정동의 세부 10항목으로 대체하고 `provenance` 로 그 사실을 응답에 싣는다(`CommercialExpenseProvenanceProcessor`). 행정동 leg 의 총액도 세부가 있으면 항목합을 쓴다.

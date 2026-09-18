@@ -90,7 +90,7 @@ public class CommercialProfileQueryProcessor {
 
     /** 분기 종속 데이터 부재(404 CommercialException)만 지표 강등으로 흡수한다. 503·400 은 전파한다. */
     private static <T> T fetchQuietly(Supplier<T> fetcher) {
-        return CommercialQueryProcessor.fetchOrNullWhenNotFound(fetcher);
+        return CommercialQuietFetchSupport.fetchOrNullWhenNotFound(fetcher);
     }
 
     /** 상권명은 지역 매핑 응답에 없어 지표 Info 에서 가져온다 — 성공한 Info 순서대로 폴백. */
