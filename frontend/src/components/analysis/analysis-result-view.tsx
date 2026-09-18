@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
+import ExpenseProvenanceNote from '@/components/analysis/expense-provenance-note'
 import AnalysisSummaryCards, {
   type SummaryCard,
 } from '@/components/analysis/analysis-summary-cards'
@@ -41,6 +42,7 @@ import LineChart from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
 import AnalysisResultNav from '@/components/analysis/analysis-result-nav'
 import AnalysisPeriodSelect from '@/components/analysis/analysis-period-select'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
 import { TabButton, TabList } from '@/components/ui/tabs'
@@ -105,9 +107,12 @@ import {
   populationAgeDefinitions,
 } from '@/lib/analysis/commercial-chart-selectors'
 import {
+  EXPENSE_PROXY_BADGE_LABEL,
   hasExpenseByCategory,
   hasRegionalExpense,
   toExpenseCategoryRows,
+  toExpenseProvenanceView,
+  toRegionalExpenseProxyNote,
   toRegionalExpenseRows,
 } from '@/lib/analysis/expense-presentation'
 import {
@@ -602,6 +607,11 @@ const ComparisonItem = styled.div`
   padding: 14px;
 
   span {
+    /* 라벨 옆에 「대체」 배지가 붙을 수 있다. 좁으면 배지를 아래 줄로 흘린다. */
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
     color: var(--color-text-caption);
     font-size: 12px;
   }
@@ -980,9 +990,14 @@ export default function AnalysisResultView({
   /*
     소비는 상권 단위(항목별)와 지역 단위(총 지출액)를 따로 그린다 — 원천 사정이 달라
     한쪽이 비어도 다른 쪽은 살아 있다. 판정과 행 조립은 `expense-presentation.ts` 가 한다.
+
+    값이 상권 네이티브인지 행정동 대체인지도 거기서 가른다(#416). 대체일 때만 배지·면책·
+    출처를 드러내고, 네이티브면 아무것도 붙이지 않는다 — 늘 붙는 표시는 아무 말도 못 한다.
   */
   const expenseCategoryRows = toExpenseCategoryRows(income)
+  const expenseProvenance = toExpenseProvenanceView(income?.provenance)
   const regionalExpenseRows = toRegionalExpenseRows(incomeSummary)
+  const regionalExpenseProxyNote = toRegionalExpenseProxyNote(incomeSummary)
   const benchmark = getResponseBody(
     benchmarkQuery.data,
   ) as CommercialBenchmark | null
@@ -2139,24 +2154,66 @@ export default function AnalysisResultView({
               {/*
                 전에는 「소득과 소비」 한 섹션이 월 평균 소득 카드와 항목별 소비 막대를
                 같이 그렸다. 소득은 원천이 사라져 걷어냈고(#414), 남은 소비는 상권 단위와
-                지역 단위의 데이터 사정이 달라 **두 섹션으로 가른다** — 상권 항목별은
-                20241 분기부터 원천이 전 행 0 이라 대개 비고, 자치구·행정동은 살아 있다.
-                한 섹션에 섞으면 「비었다」가 어느 쪽 이야기인지 읽을 수 없다.
+                지역 단위의 데이터 사정이 달라 **두 섹션으로 가른다** — 한 섹션에 섞으면
+                「비었다」가 어느 쪽 이야기인지 읽을 수 없다.
+
+                상권 항목별은 20241 분기부터 원천이 전 행 0 이라 #414 때는 통째로 비었는데,
+                이제 백엔드가 그 자리를 **소속 행정동 소비로 대체**해 채워 준다(#416).
+                값이 생긴 대신 뜻이 달라졌으므로 대체 구간에서는 배지·면책·출처를 붙인다.
               */}
               <AnalysisResultSection
                 title="항목별 소비"
-                description={`${formatPeriodCode(periodCode)} 기준`}
+                /*
+                  기준 분기는 **값이 실제로 딛고 선 분기**를 적는다. 대체값은 선택한 분기와
+                  다른 분기에서 올 수 있어, 선택값을 그대로 쓰면 없는 사실을 말하게 된다.
+                */
+                description={`${formatPeriodCode(
+                  expenseProvenance.effectivePeriodCode ?? periodCode,
+                )} 기준`}
+                badge={
+                  expenseProvenance.badgeLabel ? (
+                    <Badge $tone="teal">{expenseProvenance.badgeLabel}</Badge>
+                  ) : null
+                }
+                footer={
+                  expenseProvenance.isProxy ? (
+                    <ExpenseProvenanceNote
+                      description={expenseProvenance.disclaimer}
+                      sourceLabel={expenseProvenance.sourceLabel}
+                      sourceUrl={expenseProvenance.sourceUrl}
+                    />
+                  ) : null
+                }
                 loading={incomeQuery.isPending}
                 error={resolveApiError(incomeQuery)}
                 empty={!hasExpenseByCategory(income)}
-                emptyDescription="서울 열린데이터광장이 2024년 1분기부터 상권 단위 항목별 소비 제공을 중단했어요. 이 상권의 소비 규모는 아래 「지역별 소비」의 자치구·행정동 값으로 가늠해 주세요."
+                /*
+                  빈 상태는 대체할 행정동 값조차 없을 때(`UNAVAILABLE`)뿐이다. 그때도 왜
+                  없는지는 서버가 면책 문장으로 알려 주므로 그것을 먼저 쓴다.
+                */
+                emptyDescription={
+                  expenseProvenance.disclaimer ??
+                  '서울 열린데이터광장이 2024년 1분기부터 상권 단위 항목별 소비 제공을 중단했어요. 이 상권의 소비 규모는 아래 「지역별 소비」의 자치구·행정동 값으로 가늠해 주세요.'
+                }
                 onRetry={() => void incomeQuery.refetch()}
               >
+                {/* 항목 수·구성이 스코프마다 다르다. 서버가 준 순서 그대로 그린다. */}
                 <AnalysisMetricList rows={expenseCategoryRows} unit="원" />
               </AnalysisResultSection>
               <AnalysisResultSection
                 title="지역별 소비"
                 description={`${formatPeriodCode(periodCode)} 기준 총 지출액`}
+                footer={
+                  regionalExpenseProxyNote ? (
+                    <ExpenseProvenanceNote
+                      description={regionalExpenseProxyNote}
+                      sourceLabel={
+                        incomeSummary?.commercialProvenance?.sourceLabel
+                      }
+                      sourceUrl={incomeSummary?.commercialProvenance?.sourceUrl}
+                    />
+                  ) : null
+                }
                 loading={incomeSummaryQuery.isPending}
                 error={resolveApiError(incomeSummaryQuery)}
                 empty={!hasRegionalExpense(regionalExpenseRows)}
@@ -2164,13 +2221,24 @@ export default function AnalysisResultView({
                 onRetry={() => void incomeSummaryQuery.refetch()}
               >
                 {/*
-                  값이 없는 단위도 **줄을 지우지 않는다.** 상권만 비는 것이 정상 상태라,
-                  줄을 지우면 위에 남은 자치구 값이 이 상권 값처럼 읽힌다.
+                  값이 없는 단위도 **줄을 지우지 않는다.** 줄을 지우면 위에 남은 자치구 값이
+                  이 상권 값처럼 읽힌다.
+
+                  대체 구간에서는 상권 줄과 행정동 줄이 **같은 숫자**가 된다. 데이터가 실제로
+                  그런 것이라 값을 감추거나 바꾸지 않고, 상권 줄에 배지를 달고 각주로 이유를
+                  적어 「두 줄이 우연히 같다」로 읽히지 않게 한다.
                 */}
                 <ComparisonGrid>
                   {regionalExpenseRows.map(row => (
                     <ComparisonItem key={row.scope}>
-                      <span>{row.label}</span>
+                      <span>
+                        {row.label}
+                        {row.isProxy ? (
+                          <Badge $tone="teal">
+                            {EXPENSE_PROXY_BADGE_LABEL}
+                          </Badge>
+                        ) : null}
+                      </span>
                       <strong>
                         {formatAnalysisValue(row.totalExpenseAmount, '원')}
                       </strong>
