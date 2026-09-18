@@ -10,6 +10,17 @@ import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 export type AnalysisResultSectionProps = {
   title: string
   description?: string
+  /**
+   * 제목 오른쪽 배지. 「이 섹션의 값이 평소와 다른 뜻」일 때만 붙인다
+   * (예: 상권 소비를 행정동 값으로 대체했다는 표시, #416).
+   * 항상 붙는 꼬리표로 쓰지 않는다 — 늘 있으면 아무 말도 하지 않는다.
+   */
+  badge?: ReactNode
+  /**
+   * 본문 아래 각주. 면책 문장·출처 링크처럼 **값에 딸린 단서**를 둔다.
+   * 불러오는 중과 오류일 때는 붙일 값 자체가 없으므로 그리지 않는다.
+   */
+  footer?: ReactNode
   loading: boolean
   /**
    * 정규화된 API 오류(`resolveApiError(query)`). 성공이면 null.
@@ -41,6 +52,11 @@ const Header = styled.header`
   gap: 5px;
 
   h2 {
+    /* 배지를 제목 오른쪽에 같은 줄로 두되, 좁은 화면에서는 아래로 흘린다. */
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     color: var(--color-text-900);
     font-size: 18px;
     font-weight: 700;
@@ -57,6 +73,21 @@ const Header = styled.header`
 const Loading = styled.div`
   display: grid;
   gap: 10px;
+`
+
+const Footer = styled.footer`
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--color-border-200);
+  padding-top: 12px;
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 19px;
+
+  a {
+    color: var(--color-primary-700);
+    text-decoration: underline;
+  }
 `
 
 /**
@@ -84,6 +115,8 @@ const describeNotFound = (message: string): string =>
 export default function AnalysisResultSection({
   title,
   description,
+  badge,
+  footer,
   loading,
   error,
   empty,
@@ -94,7 +127,10 @@ export default function AnalysisResultSection({
   return (
     <Section>
       <Header>
-        <h2>{title}</h2>
+        <h2>
+          {title}
+          {badge}
+        </h2>
         {description ? <p>{description}</p> : null}
       </Header>
 
@@ -136,6 +172,8 @@ export default function AnalysisResultSection({
       ) : (
         children
       )}
+
+      {footer && !loading && !error ? <Footer>{footer}</Footer> : null}
     </Section>
   )
 }

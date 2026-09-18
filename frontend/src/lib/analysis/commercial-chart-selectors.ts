@@ -63,17 +63,11 @@ export const populationAgeDefinitions = [
   ['50대', 'age50ResidentPopulation'],
   ['60대 이상', 'age60PlusResidentPopulation'],
 ] as const
-export const expenseDefinitions = [
-  ['식료품', 'groceryExpenseAmount'],
-  ['의류·신발', 'clothingExpenseAmount'],
-  ['의료', 'medicalExpenseAmount'],
-  ['생활용품', 'householdExpenseAmount'],
-  ['교통', 'transportationExpenseAmount'],
-  ['여가·오락', 'leisureExpenseAmount'],
-  ['문화·취미', 'cultureExpenseAmount'],
-  ['교육', 'educationExpenseAmount'],
-  ['유흥', 'entertainmentExpenseAmount'],
-] as const
+/*
+  소비 항목 정의는 여기 없다. 항목 수와 구성이 스코프마다 달라(상권 9개 / 행정동 대체
+  10개) 서버가 라벨까지 내려주므로, 프런트가 키 목록을 들고 있으면 곧 틀린다(#416).
+  조립은 `expense-presentation.ts` 가 배열 순서대로 한다.
+*/
 
 export const createRows = (
   source: Record<string, number | null | undefined> | null | undefined,
