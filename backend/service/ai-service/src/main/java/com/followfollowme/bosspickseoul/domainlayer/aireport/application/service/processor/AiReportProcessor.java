@@ -442,15 +442,15 @@ public class AiReportProcessor {
      * <p>항목 키를 여기서 나열하지 않는다. 구성이 스코프마다 달라(상권 9개 / 행정동 대체 10개) 고정 목록으로
      * 집계하면 대체 스코프에만 있는 항목이 최댓값 후보에서 빠진다. 라벨도 원천 서비스가 준 것을 그대로 쓴다.
      * (이슈 #415)
+     *
+     * <p><b>항목의 동일성은 {@code key} 로 본다.</b> 예전에는 라벨을 Map 키로 삼았는데, 원천이 문구가 같은
+     * 항목을 둘 내려보내거나 라벨이 비어 오면 뒤의 항목이 앞의 것을 덮어써 최댓값 후보에서 조용히 사라진다.
+     * 라벨은 프롬프트에 적을 <b>표시용</b>으로만 쓴다. 식 자체는
+     * {@link PromptFormatterSupport#formatTopExpenseCategory} 한 곳에 두어 프롬프트 사슬 테스트가 같은 코드를
+     * 부르게 한다 — 테스트가 식을 베껴 쓰면 베낀 쪽만 맞고 실제 프롬프트는 틀릴 수 있다.
      */
     private String formatLargestExpenseCategory(CommercialIncomeAndExpenseQueryResult income) {
-        List<CommercialExpenseCategoryQueryResult> categories = income == null ? null : income.expenseCategories();
-        if (categories == null || categories.isEmpty()) {
-            return PromptFormatterSupport.NOT_AVAILABLE;
-        }
-        Map<String, Long> amountByLabel = new LinkedHashMap<>();
-        categories.forEach(category -> amountByLabel.put(category.label(), category.amount()));
-        return PromptFormatterSupport.formatTopEntry(amountByLabel);
+        return PromptFormatterSupport.formatTopExpenseCategory(income == null ? null : income.expenseCategories());
     }
 
     /** 항목 순서가 곧 원천이 정한 표기 순서다. 이 서비스가 재정렬하지 않는다. (이슈 #415) */

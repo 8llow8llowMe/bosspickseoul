@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -8,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import com.followfollowme.bosspickseoul.domainlayer.administration.application.port.out.AdministrationIncomeRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.IncomeAdministration;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.CommercialRegionQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.IncomeCommercialRepositoryPort;
@@ -142,6 +145,86 @@ class CommercialExpenseProvenanceProcessorTest {
         assertThat(info.provenance().effectivePeriodCode()).isNull();
         assertThat(info.provenance().disclaimer()).contains("상권 단위 소비 제공을 중단");
         assertThat(info.provenance().source()).isEqualTo(ExpenseSourceDataset.COMMERCIAL_CONSUMPTION);
+    }
+
+    @Test
+    @DisplayName("(3) 起점 지역 서비스가 매핑을 404 로 답하면 대체 불가로 흡수한다")
+    void getExpense_regionMappingNotFound_isAbsorbedAsUnavailable() {
+        // 상권 코드가 지역 서비스에 없는 것은 장애가 아니라 데이터 부재다. 사다리 3단계로 보낸다.
+        when(incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
+            .thenReturn(Optional.empty());
+        when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL))
+            .thenThrow(new CommercialException(CommercialErrorCode.COMMERCIAL_NOT_FOUND));
+
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+
+        assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.UNAVAILABLE);
+        assertThat(info.hasValue()).isFalse();
+        verify(administrationIncomeRepositoryPort, never()).findIncomeByAdministrationCode(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("지역 서비스 장애(503)는 삼키지 않고 그대로 전파한다")
+    void getExpense_regionServiceUnavailable_propagates() {
+        // 20261 기준 상권 1,650곳이 전부 이 경로를 타므로, 장애를 "소비 데이터 없음" 으로 뭉개면
+        // 장애가 정상 응답으로 보이고 서킷도 열리지 않는다.
+        when(incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
+            .thenReturn(Optional.empty());
+        when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL))
+            .thenThrow(new CommercialException(CommercialErrorCode.INTERNAL_SERVICE_UNAVAILABLE));
+
+        assertThatThrownBy(() -> processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
+            .isInstanceOf(CommercialException.class)
+            .extracting(exception -> ((CommercialException) exception).getErrorCode())
+            .isEqualTo(CommercialErrorCode.INTERNAL_SERVICE_UNAVAILABLE);
+        verify(administrationIncomeRepositoryPort, never()).findIncomeByAdministrationCode(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("(3) 매핑은 있지만 행정동 코드가 비어 있으면 대체하지 않는다")
+    void getExpense_resolvedAdministrationCodeIsNull_isUnavailable() {
+        when(incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
+            .thenReturn(Optional.empty());
+        when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL))
+            .thenReturn(new CommercialAdministrationQueryResult("11110", "종로구", null, null));
+
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+
+        assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.UNAVAILABLE);
+        verify(administrationIncomeRepositoryPort, never()).findIncomeByAdministrationCode(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("미리 읽은 행정동 행은 서버 해석 결과와 코드가 같을 때만 재사용한다")
+    void resolve_preloadedAdministrationRow_isReusedOnlyWhenItIsTheResolvedOne() {
+        when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL)).thenReturn(administrationMapping());
+
+        CommercialIncomeAndExpenseInfo reused = processor.resolve(PERIOD, COMMERCIAL, null, administrationRow());
+
+        assertThat(reused.provenance().scopeCode()).isEqualTo(ADMINISTRATION);
+        verify(administrationIncomeRepositoryPort, never()).findIncomeByAdministrationCode(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("미리 읽은 행이 다른 행정동이면 버리고 해석된 행정동을 다시 읽는다")
+    void resolve_preloadedRowFromAnotherAdministration_isDiscarded() {
+        when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL)).thenReturn(administrationMapping());
+        when(administrationIncomeRepositoryPort.findIncomeByAdministrationCode(ADMINISTRATION, PERIOD))
+            .thenReturn(Optional.of(administrationRow()));
+        IncomeAdministration unrelated = IncomeAdministration.builder()
+            .periodCode(PERIOD).administrationCode("11680640").administrationName("역삼1동")
+            .totalExpenseAmount(9_999L)
+            .groceryExpenseAmount(9_000L).clothingExpenseAmount(100L).householdExpenseAmount(100L)
+            .medicalExpenseAmount(100L).transportationExpenseAmount(100L).educationExpenseAmount(100L)
+            .entertainmentExpenseAmount(100L).leisureCultureExpenseAmount(100L)
+            .otherExpenseAmount(100L).diningExpenseAmount(100L)
+            .build();
+
+        CommercialIncomeAndExpenseInfo info = processor.resolve(PERIOD, COMMERCIAL, null, unrelated);
+
+        assertThat(info.provenance().scopeCode()).isEqualTo(ADMINISTRATION);
+        assertThat(info.provenance().scopeName()).isEqualTo("청운효자동");
+        assertThat(info.expenseCategorySum()).isEqualTo(550L);
     }
 
     private static IncomeCommercial nativeRow() {

@@ -57,7 +57,9 @@ public record CommercialComparisonResponse(
     @Schema(description = "점포 비교")
     List<ComparisonMetricItem> storeMetrics,
 
-    @Schema(description = "소비력 비교")
+    @Schema(
+        description = "소비력 비교. 두 상권 중 한쪽이라도 상권 단위 소비 원천이 값을 주지 않는 분기에는 "
+            + "0 을 지어내지 않고 <b>빈 배열</b>로 내려간다. 행정동 대체값은 상권 간 변별력이 없어 비교에 넣지 않는다")
     List<ComparisonMetricItem> spendingMetrics,
 
     @Schema(description = "거주인구 비교")

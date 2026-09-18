@@ -13,6 +13,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.applicatio
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,11 @@ public class CommercialSummaryQueryProcessor {
     private final CommercialSummaryRepositoryPort commercialSummaryRepositoryPort;
     private final CommercialExpenseProvenanceProcessor commercialExpenseProvenanceProcessor;
 
+    /**
+     * 매출 요약은 세 지역 단위를 모두 DB 에서만 읽는다. 외부 호출이 섞이지 않으므로 세 조회를 한 트랜잭션으로
+     * 묶어도 커넥션을 원격 응답 대기에 쓰지 않는다. (architecture-guide §3)
+     */
+    @Transactional(readOnly = true)
     public CommercialSalesSummaryInfo getSalesSummary(
 
         String periodCode, String districtCode, String administrationCode, String commercialCode, String serviceCode
@@ -72,13 +78,23 @@ public class CommercialSummaryQueryProcessor {
      * 총액으로 대체하고, 그것도 없으면 null 이다. 대체하는 것은 <b>총액뿐</b>이고 자치구·행정동 leg 는 원천이
      * 살아 있으므로 건드리지 않는다. (이슈 #415)
      *
-     * <p>행정동 소비 행은 <b>행정동 leg 를 채우면서 이미 읽은 것을 재사용</b>한다. 대체 판정을 위해 다시
-     * 조회하면 요약 한 번에 같은 행을 두 번 읽는다. 사다리 판정 자체는
-     * {@link CommercialExpenseProvenanceProcessor#resolve} 한 곳에만 있어 {@code /income} 과 갈리지 않는다.
+     * <p><b>대체 원천이 되는 행정동은 요청 파라미터가 아니라 서버가 상권 코드로 해석한 것</b>이다. 판정은
+     * {@link CommercialExpenseProvenanceProcessor#resolve} 안에만 있다. 요청이 지목한 행정동을 그대로 믿으면
+     * 그 상권이 속하지 않은 동 코드가 왔을 때 무관한 동의 총액이 상권 값으로 들어가고, 면책 문장이 틀린 동
+     * 이름을 단정한다. 이미 읽은 행정동 행은 해석 결과와 코드가 같을 때만 재사용되므로, 정상 요청에서는 같은
+     * 행을 두 번 읽지 않는다.
+     *
+     * <p>행정동 leg 의 총액도 <b>세부 항목합</b>이다({@link IncomeAdministration#displayTotalExpenseAmount()}).
+     * 대체 구간에서 상권 leg 가 같은 행의 항목합을 쓰므로, 행정동 leg 만 합계 컬럼을 쓰면 "이 둘은 같은 값"
+     * 이라고 설명하는 두 줄에 다른 숫자가 그려진다.
      *
      * <p>상권 leg 의 {@code code}·{@code name} 은 대체를 쓰더라도 <b>상권의 것</b>을 유지한다. 행정동 코드로
      * 바꿔 버리면 자치구·행정동·상권 세 줄을 나란히 그리는 화면에서 같은 행정동이 두 번 나온다. 값을 실제로
-     * 어디서 가져왔는지는 {@code commercialProvenance} 가 알려 준다.
+     * 어디서 가져왔는지는 {@code commercialProvenance} 가 알려 준다. 상권 소비 행 자체가 없는 대체 구간에서는
+     * 이름을 가져올 곳이 없어 {@code name} 이 null 이다 — 소비 요약 응답 어디에도 상권명이 없기 때문이다.
+     *
+     * <p>트랜잭션을 걸지 않는다. 사다리 2단계가 지역 서비스를 Feign 으로 부르므로 여기에 경계를 두면 원격
+     * 응답을 기다리는 동안 DB 커넥션을 쥔다. (architecture-guide §3)
      */
     public CommercialIncomeSummaryInfo getIncomeSummary(
 
@@ -99,13 +115,13 @@ public class CommercialSummaryQueryProcessor {
             : RegionalIncomeSummaryInfo.builder()
                 .code(administrationRow.administrationCode())
                 .name(administrationRow.administrationName())
-                .totalExpenseAmount(administrationRow.totalExpenseAmount())
+                .totalExpenseAmount(administrationRow.displayTotalExpenseAmount())
                 .build();
 
         IncomeCommercial commercialRow = commercialSummaryRepositoryPort.findIncomeCommercial(periodCode, commercialCode)
             .orElse(null);
         CommercialIncomeAndExpenseInfo resolvedExpense = commercialExpenseProvenanceProcessor
-            .resolve(periodCode, administrationRow, commercialRow);
+            .resolve(periodCode, commercialCode, commercialRow, administrationRow);
 
         RegionalIncomeSummaryInfo commercialSummary = resolvedExpense.hasValue()
             ? RegionalIncomeSummaryInfo.builder()

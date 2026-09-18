@@ -9,13 +9,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 /**
- * 히트맵 벌크 조회 6종의 파생 쿼리가 실제 스키마에 대해 성립하는지 확인한다.
+ * 히트맵 벌크 조회 5종의 파생 쿼리가 실제 스키마에 대해 성립하는지 확인한다.
  *
  * <p>파생 쿼리는 메서드 <b>이름</b>이 계약이다. 프로퍼티명을 하나 틀리면 컴파일은 통과하고
  * 리포지터리 빈을 만드는 시점에 터진다 — 즉 단위 테스트로는 안 잡히고 서비스 기동이 죽는다.
- * 이 슬라이스는 여섯 리포지터리를 실제로 올리고 각 메서드를 한 번씩 실행해 그 경로를 막는다.
+ * 이 슬라이스는 다섯 리포지터리를 실제로 올리고 각 메서드를 한 번씩 실행해 그 경로를 막는다.
  *
- * <p><b>덮지 않는 것</b>: 필터 의미(어떤 행이 걸러지는지)는 여기서 보지 않는다. 여섯 엔티티 모두
+ * <p>소득소비 벌크 조회는 목록에 없다. 점수식에서 지출 항이 빠진 뒤 결과를 읽는 곳이 사라져 조회 자체를
+ * 없앴기 때문이다(이슈 #415). 소비를 점수에 되살리면 여기도 함께 되살린다.
+ *
+ * <p><b>덮지 않는 것</b>: 필터 의미(어떤 행이 걸러지는지)는 여기서 보지 않는다. 다섯 엔티티 모두
  * non-null 컬럼이 많아 픽스처가 본문보다 길어지고, {@code spatialVersion} · {@code periodCode} ·
  * {@code commercialCode} 조건은 같은 리포지터리의 기존 단건 메서드가 이미 같은 모양으로 쓰고 있다.
  * 점수 조립 쪽 동작은 {@code CommercialHeatmapQueryProcessorTest} 가 본다.
@@ -41,13 +44,10 @@ class CommercialBulkFinderQueryTest {
     private PopulationCommercialRepository populationCommercialRepository;
 
     @Autowired
-    private IncomeCommercialRepository incomeCommercialRepository;
-
-    @Autowired
     private FacilityCommercialRepository facilityCommercialRepository;
 
     @Test
-    @DisplayName("벌크 조회 6종이 실제 스키마에 질의된다")
+    @DisplayName("벌크 조회 5종이 실제 스키마에 질의된다")
     void bulkFindersRunAgainstRealSchema() {
         assertThat(salesCommercialRepository.findAllByPeriodCodeAndServiceCodeAndSpatialVersionAndCommercialCodeIn(
             PERIOD_CODE, SERVICE_CODE, SPATIAL_VERSION, COMMERCIAL_CODES)).isEmpty();
@@ -59,9 +59,6 @@ class CommercialBulkFinderQueryTest {
             PERIOD_CODE, SERVICE_CODE, SPATIAL_VERSION, COMMERCIAL_CODES)).isEmpty();
 
         assertThat(populationCommercialRepository.findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(
-            PERIOD_CODE, SPATIAL_VERSION, COMMERCIAL_CODES)).isEmpty();
-
-        assertThat(incomeCommercialRepository.findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(
             PERIOD_CODE, SPATIAL_VERSION, COMMERCIAL_CODES)).isEmpty();
 
         assertThat(facilityCommercialRepository.findAllByPeriodCodeAndSpatialVersionAndCommercialCodeIn(

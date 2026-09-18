@@ -17,9 +17,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.RegionalIncomeSummaryQueryResult;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -202,6 +200,67 @@ class CommercialExpensePromptChainTest {
         assertThat(prompt).contains("- 유의: " + PROXY_DISCLAIMER);
     }
 
+    @Test
+    @DisplayName("라벨이 같은 항목이 둘이어도 최댓값 후보에서 사라지지 않는다")
+    void categoriesWithTheSameLabelAreNotCollapsed() {
+        // 항목의 동일성은 key 다. 라벨을 Map 키로 삼으면 뒤의 항목이 앞의 것을 덮어써 최댓값이 조용히 바뀐다.
+        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(
+            List.of(
+                category("LEISURE", "여가·문화", 9_000L),
+                category("CULTURE", "여가·문화", 10L)
+            ),
+            9_010L,
+            new CommercialExpenseProvenanceClientResponse(
+                new CommercialExpenseScopeClientResponse("COMMERCIAL", "상권", "상권 단위 원천에서 직접 집계한 값입니다."),
+                "3110009", "명동역", "VwsmTrdhlNcmCnsmpQq", "서울시 상권분석서비스(소득소비-상권배후지)",
+                "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do", "20261", null
+            )
+        );
+
+        String prompt = formatter.format(sourceData(CommercialAnalysisWireMapper.toQueryResult(wire), null));
+
+        assertThat(prompt).contains("- 지출 비중이 가장 큰 항목: 여가·문화 (9,000)");
+    }
+
+    @Test
+    @DisplayName("같은 면책 문장이 [지출] 과 [지역 비교] 에 두 번 실리지 않는다")
+    void theSameDisclaimerIsNotRepeatedAcrossSections() {
+        // 반복된 경고는 LLM 이 리포트 본문에도 두 번 옮겨 적게 만든다. 20261 은 상권 1,650곳이 전부 이 경로다.
+        CommercialIncomeAndExpenseClientResponse income = new CommercialIncomeAndExpenseClientResponse(
+            null, null, unavailableProvenance()
+        );
+        CommercialIncomeSummaryClientResponse summary = new CommercialIncomeSummaryClientResponse(
+            new RegionalIncomeSummaryClientResponse("11110", "종로구", 8101L),
+            new RegionalIncomeSummaryClientResponse("11110515", "청운효자동", 8102L),
+            null,
+            unavailableProvenance()
+        );
+
+        String prompt = formatter.format(sourceData(
+            CommercialAnalysisWireMapper.toQueryResult(income), CommercialAnalysisWireMapper.toQueryResult(summary)));
+
+        assertThat(prompt).contains("- 유의: " + DISCONTINUED_DISCLAIMER);
+        assertThat(countOccurrences(prompt, DISCONTINUED_DISCLAIMER)).isEqualTo(1);
+    }
+
+    private static CommercialExpenseProvenanceClientResponse unavailableProvenance() {
+        return new CommercialExpenseProvenanceClientResponse(
+            new CommercialExpenseScopeClientResponse("UNAVAILABLE", "제공 없음", "원천이 중단돼 이 분기에는 소비 지표를 제공하지 않습니다."),
+            null, null, "VwsmTrdhlNcmCnsmpQq", "서울시 상권분석서비스(소득소비-상권배후지)",
+            "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do", null, DISCONTINUED_DISCLAIMER
+        );
+    }
+
+    private static int countOccurrences(String text, String token) {
+        int count = 0;
+        int index = text.indexOf(token);
+        while (index >= 0) {
+            count++;
+            index = text.indexOf(token, index + token.length());
+        }
+        return count;
+    }
+
     private CommercialExpenseCategoryClientResponse category(String key, String label, long amount) {
         return new CommercialExpenseCategoryClientResponse(key, label, amount);
     }
@@ -222,15 +281,9 @@ class CommercialExpensePromptChainTest {
             .build();
     }
 
-    /** {@code AiReportProcessor.formatLargestExpenseCategory} 와 같은 식이다. */
+    /** {@code AiReportProcessor.formatLargestExpenseCategory} 가 부르는 바로 그 코드다. 식을 베껴 쓰지 않는다. */
     private String largestExpenseCategory(CommercialIncomeAndExpenseQueryResult income) {
-        List<CommercialExpenseCategoryQueryResult> categories = income == null ? null : income.expenseCategories();
-        if (categories == null || categories.isEmpty()) {
-            return PromptFormatterSupport.NOT_AVAILABLE;
-        }
-        Map<String, Long> amountByLabel = new LinkedHashMap<>();
-        categories.forEach(category -> amountByLabel.put(category.label(), category.amount()));
-        return PromptFormatterSupport.formatTopEntry(amountByLabel);
+        return PromptFormatterSupport.formatTopExpenseCategory(income == null ? null : income.expenseCategories());
     }
 
     /** {@code AiReportProcessor.toExpenseCategories} 와 같은 식이다. */

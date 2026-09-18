@@ -112,11 +112,7 @@ public class CommercialComparisonQueryProcessor {
             toMetric("프랜차이즈 점포 수", leftStore.franchiseStoreCount(), rightStore.franchiseStoreCount(), MetricDisplayType.ITEM,
                 "선택 분기 상권 내 선택 업종의 프랜차이즈 점포 수입니다.")
         );
-        List<ComparisonMetricInfo> spendingMetrics = List.of(
-            toMetric("총 지출액",
-                expenseCategorySum(leftIncome), expenseCategorySum(rightIncome),
-                MetricDisplayType.WON, "선택 분기 상권의 소비 지출 항목별 금액을 합산한 값입니다.")
-        );
+        List<ComparisonMetricInfo> spendingMetrics = buildSpendingMetrics(leftIncome, rightIncome);
         List<ComparisonMetricInfo> residentPopulationMetrics = List.of(
             toMetric("총 거주인구",
                 leftPopulation.byAgeInfo().totalResidentPopulation(), rightPopulation.byAgeInfo().totalResidentPopulation(),
@@ -202,7 +198,8 @@ public class CommercialComparisonQueryProcessor {
                 groupGuide("salesMetrics", "매출", "선택 업종의 매출액과 매출 건수를 비교합니다."),
                 groupGuide("footTrafficMetrics", "유동인구", "상권 전체의 추정 유동인구와 성별 비중을 비교합니다."),
                 groupGuide("storeMetrics", "점포", "선택 업종 조회 데이터의 점포 수와 개·폐업 지표를 비교합니다."),
-                groupGuide("spendingMetrics", "소비력", "상권 전체의 추정 소비 지출을 비교합니다. 원천이 값을 제공하지 않는 분기에는 0 으로 표시됩니다."),
+                groupGuide("spendingMetrics", "소비력",
+                    "상권 전체의 추정 소비 지출을 비교합니다. 상권 단위 원천이 값을 주지 않는 분기에는 0 을 지어내지 않고 항목을 비웁니다."),
                 groupGuide("residentPopulationMetrics", "거주인구", "상권 전체의 추정 거주인구와 성별 비중을 비교합니다."),
                 groupGuide("facilityMetrics", "시설", "상권 내 집계 대상 생활·교육·교통 시설을 비교합니다."),
                 groupGuide("salesTimeSlotMetrics", "매출 시간대", "선택 업종의 시간대별 매출액을 비교합니다."),
@@ -565,20 +562,37 @@ public class CommercialComparisonQueryProcessor {
     }
 
     /**
-     * 소득소비 행이 없거나 원천이 지출을 주지 않는 분기에는 0 으로 비교한다. FE 계약이
-     * {@code spendingMetrics} 를 primitive 로 받고 있어 결측을 값으로 구별하지 못한다 — 프롬프트 쪽은
-     * ai-service 가 따로 걸러낸다. (이슈 #413)
+     * 네이티브 소비가 양쪽 다 있을 때만 소비력 묶음을 만든다. 한쪽이라도 없으면 <b>빈 리스트</b>다. (이슈 #415)
+     *
+     * <p>{@code ComparisonMetricInfo} 의 값이 primitive 라 결측을 0 으로밖에 담지 못하는데, 원소가 하나뿐인
+     * 이 묶음은 화면이 통째로 버리지 못해 표에 "총 지출액 0원 vs 0원" 이 그려진다. 같은 상권·분기를 분석
+     * 화면은 "행정동 기준(대체) ○○원" 으로 말하는데 비교 화면만 "0원" 이라고 말하는 셈이다. 이 브랜치의
+     * 전제가 「0 은 0원이 아니다」이므로 값을 지어내는 대신 묶음을 비워 화면이 섹션을 지우게 한다.
+     *
+     * <p>행정동 대체값을 여기에 넣지 않는 판단은 그대로다 — 같은 행정동 상권끼리는 완전한 동점이고 다른
+     * 행정동끼리면 상권이 아니라 행정동을 비교한 결과가 나온다.
      */
-    private double expenseCategorySum(CommercialIncomeAndExpenseInfo income) {
-        if (income == null || income.expenseCategorySum() == null) {
-            return 0D;
+    private List<ComparisonMetricInfo> buildSpendingMetrics(
+        CommercialIncomeAndExpenseInfo leftIncome, CommercialIncomeAndExpenseInfo rightIncome
+    ) {
+        Long leftSum = expenseCategorySumOrNull(leftIncome);
+        Long rightSum = expenseCategorySumOrNull(rightIncome);
+        if (leftSum == null || rightSum == null) {
+            return List.of();
         }
-        return income.expenseCategorySum();
+        return List.of(
+            toMetric("총 지출액", leftSum, rightSum, MetricDisplayType.WON,
+                "선택 분기 상권의 소비 지출 항목별 금액을 합산한 값입니다.")
+        );
+    }
+
+    private Long expenseCategorySumOrNull(CommercialIncomeAndExpenseInfo income) {
+        return income == null ? null : income.expenseCategorySum();
     }
 
     /** 분기 종속 데이터 부재(404 CommercialException)만 소비 지표 강등으로 흡수한다. 503·400 은 전파한다. */
     private CommercialIncomeAndExpenseInfo fetchIncomeQuietly(String periodCode, String commercialCode) {
-        return CommercialQueryProcessor.fetchOrNullWhenNotFound(
+        return CommercialQuietFetchSupport.fetchOrNullWhenNotFound(
             () -> commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode));
     }
 

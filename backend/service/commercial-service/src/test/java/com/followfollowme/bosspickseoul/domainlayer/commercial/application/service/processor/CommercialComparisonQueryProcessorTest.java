@@ -153,6 +153,8 @@ class CommercialComparisonQueryProcessorTest {
     @Test
     void comparisonSurvivesWhenOneCommercialHasNoIncomeRow() {
         // 이슈 #413: 한쪽 상권의 소득소비 행이 없으면 예전에는 비교 API 전체가 404 였다.
+        // 이슈 #415: 그때 소비력 묶음을 "500원 vs 0원" 으로 내리면 화면이 한쪽을 0원으로 그린다.
+        // 원소가 하나뿐이라 프론트가 묶음을 버리지도 못한다. 값을 지어내는 대신 묶음을 비운다.
         stubCommercial("left", 100, 10, 1, 500, 1000, 20);
         stubCommercial("right", 200, 5, 5, 300, 500, 10);
         when(queries.getIncomeByPeriodCodeAndCommercialCode("20261", "right"))
@@ -161,24 +163,36 @@ class CommercialComparisonQueryProcessorTest {
         CommercialComparisonInfo result = processor.compareCommercials(
             new CommercialComparisonQuery("left", "right", "service", "20261"));
 
-        assertThat(result.spendingMetrics()).hasSize(1);
-        ComparisonMetricInfo spending = result.spendingMetrics().getFirst();
-        assertThat(spending.label()).isEqualTo("총 지출액");
-        assertThat(spending.leftValue()).isEqualTo(500D);
-        assertThat(spending.rightValue()).isZero();
+        assertThat(result.spendingMetrics()).isEmpty();
         assertThat(result.recommendedSide().code()).isEqualTo("LEFT");
     }
 
     @Test
-    void spendingMetricsDoNotDecideTheRecommendationWhileTheSourceIsBlank() {
-        // 소비 원천이 전 행 0 인 동안 소비 항은 항상 무승부라 승패 판정에서 뺐다(6 -> 5).
-        // 여기서는 소비만 오른쪽이 크고 나머지는 완전히 같은데도 TIE 여야 한다.
+    void spendingMetricsAreEmptyWhenTheSourceGivesNoCommercialExpense() {
+        // 상권 단위 원천이 전 행 0 을 주는 분기에는 항목합이 0 이라 「실제로 0원」이 아니라 「값 없음」이다.
+        // 0 을 그대로 내려보내면 분석 화면은 "행정동 기준(대체) ○○원", 비교 화면은 "0원" 이라고 말하게 된다.
         stubCommercial("left", 100, 5, 5, 0, 500, 10);
         stubCommercial("right", 100, 5, 5, 900, 500, 10);
 
         CommercialComparisonInfo result = processor.compareCommercials(
             new CommercialComparisonQuery("left", "right", "service", "20261"));
 
+        assertThat(result.spendingMetrics()).isEmpty();
+        assertThat(result.recommendedSide().code()).isEqualTo("TIE");
+    }
+
+    @Test
+    void spendingMetricsDoNotDecideTheRecommendationWhileTheSourceIsBlank() {
+        // 소비 항은 승패 판정에서 빠져 있다(6 -> 5). 여기서는 소비만 오른쪽이 크고 나머지는 완전히
+        // 같은데도 TIE 여야 한다. 양쪽 모두 네이티브 소비가 있어 묶음 자체는 내려간다.
+        stubCommercial("left", 100, 5, 5, 100, 500, 10);
+        stubCommercial("right", 100, 5, 5, 900, 500, 10);
+
+        CommercialComparisonInfo result = processor.compareCommercials(
+            new CommercialComparisonQuery("left", "right", "service", "20261"));
+
+        assertThat(result.spendingMetrics()).hasSize(1);
+        assertThat(result.spendingMetrics().getFirst().label()).isEqualTo("총 지출액");
         assertThat(result.spendingMetrics().getFirst().winnerSide().code()).isEqualTo("RIGHT");
         assertThat(result.recommendedSide().code()).isEqualTo("TIE");
     }

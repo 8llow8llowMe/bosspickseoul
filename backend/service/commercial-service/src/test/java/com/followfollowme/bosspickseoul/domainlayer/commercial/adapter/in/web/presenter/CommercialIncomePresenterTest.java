@@ -103,4 +103,26 @@ class CommercialIncomePresenterTest {
         assertThat(json.path("commercial").isNull()).isTrue();
         assertThat(json.path("commercialProvenance").path("scope").path("code").asText()).isEqualTo("UNAVAILABLE");
     }
+
+    @Test
+    @DisplayName("상권 소비 행이 없는 대체 구간에서는 상권 leg 의 name 이 JSON null 로 내려간다")
+    void incomeSummaryResponseKeepsCommercialNameNullWhenOnlyTheProxyValueExists() {
+        // 2024년 이후 1,650곳 중 560곳은 income_commercial 행 자체가 없어 이름을 가져올 곳이 없다.
+        // 예외가 아니라 주요 경로이므로 응답 계약(@Schema nullable)과 함께 여기서 못 박는다. (이슈 #415)
+        JsonNode json = objectMapper.valueToTree(presenter.toCommercialIncomeSummaryResponse(
+            CommercialIncomeSummaryInfo.builder()
+                .district(RegionalIncomeSummaryInfo.builder().code("11110").name("종로구").totalExpenseAmount(9_000L).build())
+                .administration(RegionalIncomeSummaryInfo.builder()
+                    .code("11110515").name("청운효자동").totalExpenseAmount(550L).build())
+                .commercial(RegionalIncomeSummaryInfo.builder().code("3110008").name(null).totalExpenseAmount(550L).build())
+                .commercialProvenance(CommercialExpenseProvenanceInfo.ofAdministrationProxy("20261", "11110515", "청운효자동"))
+                .build()));
+
+        assertThat(json.path("commercial").path("code").asText()).isEqualTo("3110008");
+        assertThat(json.path("commercial").path("name").isNull()).isTrue();
+        // 값 자체는 살아 있고, 어디서 왔는지는 출처가 말한다. 이름만 비어 있는 것이 계약이다.
+        assertThat(json.path("commercial").path("totalExpenseAmount").asLong()).isEqualTo(550L);
+        assertThat(json.path("commercialProvenance").path("scope").path("code").asText()).isEqualTo("ADMINISTRATION_PROXY");
+        assertThat(json.path("commercialProvenance").path("scopeName").asText()).isEqualTo("청운효자동");
+    }
 }

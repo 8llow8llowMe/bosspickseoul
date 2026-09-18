@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
@@ -13,7 +14,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
@@ -22,7 +22,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialStoreCountsInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.ChangeCommercialRepositoryPort;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.IncomeCommercial;
 import com.followfollowme.bosspickseoul.shared.enums.HeatmapModeType;
 import java.util.List;
 import java.util.Map;
@@ -99,6 +98,9 @@ class CommercialHeatmapQueryProcessorTest {
         // #404. 예전에는 상권 코드마다 단건 조회 7회(매출·유동인구·점포·점포의 동종업종 피어·
         // 상주인구·소득·집객시설)를 던져 코드 50개면 350회였다. 지금은 종류당 1회씩만 나간다.
         // 이 테스트가 깨졌다면 loadSources 안에 다시 루프가 생긴 것이다.
+        //
+        // 마지막의 verifyNoMoreInteractions 가 「여기 열거한 것 외에는 아무것도 조회하지 않는다」를 고정한다.
+        // 소득소비 벌크 조회는 점수식에서 지출 항이 빠진 뒤 결과를 읽는 곳이 없는데도 매 요청 돌고 있었다. (이슈 #415)
         List<String> fiftyCodes = IntStream.range(0, 50).mapToObj(index -> "C" + index).toList();
         when(changeCommercialRepositoryPort.findAllByPeriodCodeAndCommercialCodeIn(anyString(), any()))
             .thenReturn(List.of());
@@ -112,7 +114,6 @@ class CommercialHeatmapQueryProcessorTest {
         verify(commercialQueryProcessor, times(1))
             .getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(anyString(), any(), anyString());
         verify(commercialQueryProcessor, times(1)).getPopulationByPeriodCodeAndCommercialCodes(anyString(), any());
-        verify(commercialQueryProcessor, times(1)).getIncomeByPeriodCodeAndCommercialCodes(anyString(), any());
         verify(commercialQueryProcessor, times(1)).getFacilityByPeriodCodeAndCommercialCodes(anyString(), any());
 
         // 단건 경로는 한 번도 타지 않는다. 피어 조회를 품은 getStoreBy... 가 특히 중요하다.
@@ -120,6 +121,7 @@ class CommercialHeatmapQueryProcessorTest {
             .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(anyString(), anyString(), anyString());
         verify(commercialQueryProcessor, never())
             .getStoreByPeriodCodeAndCommercialCodeAndServiceCode(anyString(), anyString(), anyString());
+        verifyNoMoreInteractions(commercialQueryProcessor);
     }
 
     @Test
@@ -177,9 +179,6 @@ class CommercialHeatmapQueryProcessorTest {
             .thenReturn(Map.of("C1", storeCounts(10L, 0.1D), "C2", storeCounts(20L, 0.2D)));
         when(commercialQueryProcessor.getPopulationByPeriodCodeAndCommercialCodes(anyString(), any()))
             .thenReturn(Map.of("C1", population(1_000L), "C2", population(2_000L)));
-        // C2 만 소득소비 행이 없다. 벌크 조회는 맵에 키가 없는 것으로 「그 상권의 데이터가 없다」를 알린다.
-        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCodes(anyString(), any()))
-            .thenReturn(Map.of("C1", income(10L)));
         when(commercialQueryProcessor.getFacilityByPeriodCodeAndCommercialCodes(anyString(), any()))
             .thenReturn(Map.of("C1", facility(3L), "C2", facility(6L)));
 
@@ -213,9 +212,6 @@ class CommercialHeatmapQueryProcessorTest {
             .thenReturn(Map.of("C1", storeCounts(10L, 0.1D), "C2", storeCounts(10L, 0.1D)));
         when(commercialQueryProcessor.getPopulationByPeriodCodeAndCommercialCodes(anyString(), any()))
             .thenReturn(Map.of("C1", population(1_000L), "C2", population(1_000L)));
-        // C1 만 지출이 있다. C2 는 소득소비 행 자체가 없다.
-        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCodes(anyString(), any()))
-            .thenReturn(Map.of("C1", income(1_000_000L)));
         when(commercialQueryProcessor.getFacilityByPeriodCodeAndCommercialCodes(anyString(), any()))
             .thenReturn(Map.of("C1", facility(3L), "C2", facility(3L)));
 
@@ -240,8 +236,6 @@ class CommercialHeatmapQueryProcessorTest {
             .thenReturn(Map.of("C1", storeCounts(10L, 0.1D)));
         when(commercialQueryProcessor.getPopulationByPeriodCodeAndCommercialCodes(anyString(), any()))
             .thenReturn(Map.of("C1", population(1_000L)));
-        when(commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCodes(anyString(), any()))
-            .thenReturn(Map.of());
         when(commercialQueryProcessor.getFacilityByPeriodCodeAndCommercialCodes(anyString(), any()))
             .thenReturn(Map.of("C1", facility(3L)));
 
@@ -302,20 +296,6 @@ class CommercialHeatmapQueryProcessorTest {
                 .totalResidentPopulation(totalResidentPopulation)
                 .build())
             .build();
-    }
-
-    private static CommercialIncomeAndExpenseInfo income(long expenseAmountPerCategory) {
-        return CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder()
-            .groceryExpenseAmount(expenseAmountPerCategory)
-            .clothingExpenseAmount(expenseAmountPerCategory)
-            .medicalExpenseAmount(expenseAmountPerCategory)
-            .householdExpenseAmount(expenseAmountPerCategory)
-            .transportationExpenseAmount(expenseAmountPerCategory)
-            .leisureExpenseAmount(expenseAmountPerCategory)
-            .cultureExpenseAmount(expenseAmountPerCategory)
-            .educationExpenseAmount(expenseAmountPerCategory)
-            .entertainmentExpenseAmount(expenseAmountPerCategory)
-            .build());
     }
 
     private static CommercialFacilityInfo facility(long totalFacilityCount) {

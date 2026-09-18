@@ -20,7 +20,7 @@ public class CommercialPromptFormatter {
         joiner.add(formatPopulationSection(sourceData));
         joiner.add(formatExpenseSection(sourceData));
         joiner.add(formatStoreSection(sourceData));
-        joiner.add(formatSummaryComparisonSection(sourceData));
+        joiner.add(formatSummaryComparisonSection(sourceData, disclaimerOf(sourceData.expenseProvenance())));
         return joiner.toString();
     }
 
@@ -106,7 +106,7 @@ public class CommercialPromptFormatter {
         lines.add("- 총 지출: %s".formatted(PromptFormatterSupport.formatNumber(sourceData.totalExpenseAmount())));
         lines.add("- 항목별 지출: %s".formatted(formatExpenseCategories(sourceData.expenseCategories())));
         lines.add("- 지출 비중이 가장 큰 항목: %s".formatted(sourceData.largestExpenseCategory()));
-        addDisclaimerLine(lines, provenance);
+        addDisclaimerLine(lines, provenance, null);
         return lines.toString();
     }
 
@@ -135,12 +135,22 @@ public class CommercialPromptFormatter {
         );
     }
 
-    /** 면책은 대체·중단일 때만 있다. 네이티브에서는 줄 자체를 만들지 않는다 — 없는 경고를 LLM 이 받아 적는다. */
-    private void addDisclaimerLine(StringJoiner lines, CommercialAiExpenseProvenance provenance) {
-        String disclaimer = provenance == null ? null : provenance.disclaimer();
-        if (disclaimer != null && !disclaimer.isBlank()) {
+    /**
+     * 면책은 대체·중단일 때만 있다. 네이티브에서는 줄 자체를 만들지 않는다 — 없는 경고를 LLM 이 받아 적는다.
+     *
+     * @param alreadyStated 앞 섹션이 이미 적은 면책 문장. 같으면 다시 적지 않는다
+     */
+    private void addDisclaimerLine(StringJoiner lines, CommercialAiExpenseProvenance provenance, String alreadyStated) {
+        String disclaimer = disclaimerOf(provenance);
+        if (disclaimer != null && !disclaimer.equals(alreadyStated)) {
             lines.add("- 유의: %s".formatted(disclaimer));
         }
+    }
+
+    /** 빈 문자열도 「면책 없음」으로 본다. 원천 서비스가 빈 값을 주더라도 빈 경고 줄을 만들지 않는다. */
+    private String disclaimerOf(CommercialAiExpenseProvenance provenance) {
+        String disclaimer = provenance == null ? null : provenance.disclaimer();
+        return disclaimer == null || disclaimer.isBlank() ? null : disclaimer;
     }
 
     private String formatStoreSection(CommercialAiSourceData sourceData) {
@@ -168,8 +178,12 @@ public class CommercialPromptFormatter {
      * 상권 총지출에만 출처를 붙인다. 자치구·행정동 leg 는 원천이 살아 있어 대체하지 않지만, 상권 leg 에는
      * 소속 행정동 총액이 들어올 수 있다. 그 사실을 빼면 LLM 이 행정동 값끼리 비교해 놓고 "상권이 행정동과
      * 같은 수준" 이라는 없는 결론을 만든다. (이슈 #415)
+     *
+     * <p>면책 문장은 {@code [지출]} 섹션이 <b>이미 적은 것과 같으면 싣지 않는다.</b> 두 섹션의 출처는 대개 같은
+     * 사다리 결과라 문장이 그대로 겹치는데, 한 프롬프트에 같은 경고가 두 번 들어가면 LLM 이 리포트 본문에도
+     * 두 번 옮겨 적는다. 두 leg 의 판정이 갈린 경우(한쪽만 대체)에만 두 번째 문장이 실제로 새 사실을 전한다.
      */
-    private String formatSummaryComparisonSection(CommercialAiSourceData sourceData) {
+    private String formatSummaryComparisonSection(CommercialAiSourceData sourceData, String alreadyStatedDisclaimer) {
         CommercialAiExpenseProvenance provenance = sourceData.commercialExpenseProvenance();
         StringJoiner lines = new StringJoiner("\n", "", "\n");
         lines.add("[지역 비교]");
@@ -180,7 +194,7 @@ public class CommercialPromptFormatter {
         lines.add("- 행정동 총지출: %s".formatted(PromptFormatterSupport.formatNumber(sourceData.administrationExpenseAmount())));
         lines.add("- 상권 총지출: %s".formatted(PromptFormatterSupport.formatNumber(sourceData.commercialExpenseAmount())));
         lines.add("- 상권 총지출 출처: %s".formatted(formatProvenance(provenance)));
-        addDisclaimerLine(lines, provenance);
+        addDisclaimerLine(lines, provenance, alreadyStatedDisclaimer);
         return lines.toString();
     }
 }
