@@ -107,7 +107,7 @@
 | `salesMetrics` | 선택 업종 매출액·매출 건수 |
 | `footTrafficMetrics` | 상권 전체 유동인구·성별 비중 |
 | `storeMetrics` | 선택 업종 조회 데이터의 점포·개폐업 지표 |
-| `spendingMetrics` | 상권 전체 소비 지출 — 「총 지출액」 1개 |
+| `spendingMetrics` | 상권 전체 소비 지출 — 「총 지출액」 1개. 두 상권 중 한쪽이라도 상권 단위 원천이 값을 주지 않으면 **빈 배열** |
 | `residentPopulationMetrics` | 상권 전체 거주인구·성별 비중 |
 | `facilityMetrics` | 상권 내 생활·교육·교통 시설 |
 | `salesTimeSlotMetrics` | 선택 업종 시간대별 매출액 |
@@ -139,8 +139,9 @@ function formatMetric(value: number, unit: string, precision: number) {
 - 현재 수치 필드는 primitive 숫자이므로 API에서 `null` 대신 `0`이 올 수 있다.
 - `rightValue=0`이면 0으로 나눌 수 없어 `diffRate`가 호환용 sentinel `0`으로 내려간다. 이때 `leftValue` 또는 `diffValue`가 0이 아니면 `0% 차이`로 표시하지 말고 상대 차이율을 숨기거나 `비교 불가`로 표시한다.
 - 상권 단위 월 평균 소득·소득 구간은 원천이 제공을 중단해 응답에서 제거됐다(이슈 #413). 단건 `GET /commercials/{code}/income` 의 `averageIncomeItem` 과 프로필 `keyMetrics.monthlyAverageIncomeAmount` 는 더 이상 내려오지 않는다.
-- 소비 지출은 원천이 값을 주지 않는 분기가 있다. 단건 응답은 그때 `expenseByCategoryItem` 을 `null` 로 내리고, 요약은 행이 없는 지역 단위만 `null` 로 내린다. **`null` 은 "값 없음"이지 0원이 아니다** — 0원으로 그리지 말고 `데이터 미제공`으로 표시한다.
-- 다만 비교 응답의 `spendingMetrics` 는 수치 필드가 primitive 라 결측을 `0` 으로 내린다. `0` 만 보고 실제 값이 없다고 단정하거나 실제 0이라고 단정하지 않는다. 화면에는 `recommendationDisclaimer`를 함께 노출한다.
+- 소비 지출은 원천이 값을 주지 않는 분기가 있다. 단건 응답은 항목 배열 `expenseCategories` 와 `totalExpenseAmount` 를 `null` 로 내리고, 요약은 행이 없는 지역 단위만 `null` 로 내린다. **`null` 은 "값 없음"이지 0원이 아니다** — 0원으로 그리지 말고 `데이터 미제공`으로 표시한다.
+- 이슈 #415 로 단건 `/income` 과 `/summaries/income` 에 출처 메타가 붙었다. `provenance.scope.code` 가 `ADMINISTRATION_PROXY` 면 값이 소속 행정동의 대체값이므로 `disclaimer` 를 그대로 노출한다. **비교 화면의 「총 지출액」 은 대체값을 쓰지 않는다** — 같은 행정동 상권끼리는 항상 동점이 되어 승패 판정의 근거가 못 되기 때문이다.
+- 비교 응답의 `spendingMetrics` 는 수치 필드가 primitive 라 결측을 담을 수 없다. 그래서 **한쪽이라도 상권 단위 소비가 없으면 묶음 전체를 빈 배열로 내린다** — 원소가 하나뿐이라 `0원 vs 0원` 이 그대로 표에 그려지고, 같은 상권·분기를 분석 화면은 「행정동 기준(대체) ○○원」 으로 말하는데 비교 화면만 「0원」 이라고 말하게 되기 때문이다. 화면은 빈 배열이면 소비력 섹션을 그리지 않는다.
 - 추천 판정의 근거 지표와 비교 프리뷰 `headlineMetrics` 는 소비 항목이 빠져 각각 5개다(`recommendedReasons` 도 그만큼 줄어든다). 개수나 인덱스를 고정하지 말고 받은 배열 그대로 렌더링한다.
 - `description`과 `comparisonGuide`는 표시 안내이며 숫자 자체를 대체하지 않는다. 계산·정렬이 필요하면 기존 원시 숫자 필드를 사용한다.
 - 서버가 순차 배포되는 동안 추가 필드가 없는 응답을 받을 수 있다. `unit`, `differenceUnit`, `description`, `comparisonGuide`가 없으면 기존 표시 방식을 유지하고,

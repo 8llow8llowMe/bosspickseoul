@@ -6,7 +6,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialAllMetricScoresInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoreInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByDayOfWeekInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesInfo;
@@ -95,8 +94,9 @@ public class CommercialHeatmapQueryProcessor {
      *
      * <p>예전에는 상권 코드를 루프로 돌며 상권마다 단건 조회 7회(매출 · 유동인구 · 점포 · 점포의
      * 동종업종 피어 · 상주인구 · 소득 · 집객시설)를 던졌다. {@code commercialCodes} 에 개수 상한이
-     * 없으므로 지도 뷰포트가 넓으면 왕복이 그대로 곱해졌다. 지금은 상권 수와 무관하게 7회 고정이다
-     * (변화지표 1 + 원천 6). 피어 조회는 히트맵이 그 결과를 쓰지 않으므로 아예 빠졌다.
+     * 없으므로 지도 뷰포트가 넓으면 왕복이 그대로 곱해졌다. 지금은 상권 수와 무관하게 6회 고정이다
+     * (변화지표 1 + 원천 5). 피어 조회는 히트맵이 그 결과를 쓰지 않으므로 아예 빠졌고, 소득소비도 점수식에서
+     * 빠진 뒤 읽는 곳이 없어졌으므로 조회 자체를 없앴다. (이슈 #415)
      *
      * <p>「데이터 없음」의 전달 방식이 바뀌었다. 단건 경로는 {@code CommercialException} 을 던졌고
      * 여기서 잡아 제외했지만, 벌크는 맵에 키가 없는 것으로 알린다. 판정은
@@ -122,8 +122,6 @@ public class CommercialHeatmapQueryProcessor {
             .getStoreCountsByPeriodCodeAndCommercialCodesAndServiceCode(periodCode, commercialCodes, serviceCode);
         Map<String, CommercialResidentPopulationInfo> populationByCode = commercialQueryProcessor
             .getPopulationByPeriodCodeAndCommercialCodes(periodCode, commercialCodes);
-        Map<String, CommercialIncomeAndExpenseInfo> incomeByCode = commercialQueryProcessor
-            .getIncomeByPeriodCodeAndCommercialCodes(periodCode, commercialCodes);
         Map<String, CommercialFacilityInfo> facilityByCode = commercialQueryProcessor
             .getFacilityByPeriodCodeAndCommercialCodes(periodCode, commercialCodes);
 
@@ -134,7 +132,6 @@ public class CommercialHeatmapQueryProcessor {
                 footTrafficByCode.get(code),
                 storeByCode.get(code),
                 populationByCode.get(code),
-                incomeByCode.get(code),
                 facilityByCode.get(code),
                 changeByCode.get(code)
             ))
@@ -145,7 +142,7 @@ public class CommercialHeatmapQueryProcessor {
      * 지표가 하나라도 없는 상권은 요청 전체를 실패시키지 않고 점수 산정 대상에서만 제외한다
      * (예: 해당 업종 매출이 없는 상권).
      *
-     * <p>소득소비({@code income})는 이 게이트에서 제외한다. 소득 지표가 걷히고 지출이 null 허용이 된 뒤로
+     * <p>소득소비는 이 게이트에도, 원천 목록에도 없다. 소득 지표가 걷히고 지출이 null 허용이 된 뒤로
      * 소득소비 행 유무가 네 지표 중 어느 것도 좌우하지 않는데, 게이트에 남겨 두면 2024년 이후 소득소비 행이
      * 없는 560개 상권이 네 지표 전부 INSUFFICIENT 로 빠져 지도에서 사라진다. (이슈 #413)
      */
@@ -155,7 +152,6 @@ public class CommercialHeatmapQueryProcessor {
         CommercialFootTrafficInfo footTraffic,
         CommercialStoreCountsInfo store,
         CommercialResidentPopulationInfo population,
-        CommercialIncomeAndExpenseInfo income,
         CommercialFacilityInfo facility,
         ChangeCommercial change
     ) {
@@ -166,7 +162,6 @@ public class CommercialHeatmapQueryProcessor {
             footTraffic,
             store,
             population,
-            income,
             facility,
             change
         );
@@ -240,8 +235,11 @@ public class CommercialHeatmapQueryProcessor {
      * 나머지 상권의 정규화 점수까지 위로 압축한다. 이 점수는 후보 추천
      * ({@code CommercialCandidateQueryProcessor})으로도 흘러간다.
      *
-     * <p><b>되돌리는 방법.</b> 소비가 행정동 원천으로 복구되면(이슈 #415) 지출 항을 다시 넣고
-     * 네 계수를 위 괄호 안 원래 값으로 돌리면 된다.
+     * <p><b>되돌리지 않는다.</b> 이슈 #415 로 소비가 「복구」됐지만 그 값은 상권 원천이 아니라 소속 행정동의
+     * 대체값이다. 같은 행정동에 속한 상권이 전부 같은 금액을 받으므로 상권 간 변별력이 0 이고, 점수에 넣으면
+     * 행정동 단위로 뭉친 <b>가짜 차이</b>가 만들어진다. 서울 425개 행정동에 상권 1,650곳이 걸려 있어 평균
+     * 네 곳이 같은 값을 공유한다. 이 점수는 후보 추천({@code CommercialCandidateQueryProcessor})으로도 흘러가므로
+     * 추천 순위까지 행정동 단위로 계단이 진다. 상권 단위 지출 원천이 실제로 되살아나기 전에는 되돌리지 말 것.
      */
     private double computeOpportunity(CommercialHeatmapSource source) {
         return totalSalesAmount(source.sales().amountByDayOfWeekInfo()) * 0.4375

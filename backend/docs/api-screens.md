@@ -303,7 +303,7 @@
 | GET | `/api/v1/commercials/{code}/services/{serviceCode}/stores` | 점포 탭 — 개폐업 현황 |
 | GET | `/api/v1/commercials/{code}/facilities` | 시설 탭 — 주변 학교·교통 |
 | GET | `/api/v1/commercials/{code}/population` | 거주인구 탭 |
-| GET | `/api/v1/commercials/{code}/income` | 지출 탭 — 9개 항목별 지출액 (`expenseByCategoryItem` 이 `null` 이면 "데이터 미제공") |
+| GET | `/api/v1/commercials/{code}/income` | 지출 탭 — `expenseCategories[{key,label,amount}]` 배열을 순서대로 렌더. `provenance.scope.code` 가 `ADMINISTRATION_PROXY` 면 「행정동 기준 (대체)」 배지 + `disclaimer` + 출처 링크, `UNAVAILABLE` 이면 "데이터 미제공" (이슈 #415) |
 | GET | `/api/v1/commercials/{code}/trend` | 트렌드 탭 — 분기별 꺾은선 그래프 |
 | GET | `/api/v1/commercials/{code}/benchmarks` | 벤치마크 비교 탭 |
 
@@ -335,7 +335,7 @@
 | Method | Path | 화면 |
 |--------|------|------|
 | GET | `/api/v1/commercials/{code}/summaries/sales` | 상권 상세 내 "우리 상권 vs 행정동 vs 자치구" 비교 |
-| GET | `/api/v1/commercials/{code}/summaries/income` | 같은 화면의 지출 비교 (행이 없는 지역 단위는 `null`. 상권 단위는 원천이 지출을 제공하지 않아도 `null`) |
+| GET | `/api/v1/commercials/{code}/summaries/income` | 같은 화면의 지출 비교 (행이 없는 지역 단위는 `null`. 상권 leg 는 네이티브가 없으면 행정동 총액으로 대체하고 출처는 `commercialProvenance`) |
 
 ```
 ?periodCode=20233&districtCode=11680&administrationCode=1168010100&serviceCode=CS100001

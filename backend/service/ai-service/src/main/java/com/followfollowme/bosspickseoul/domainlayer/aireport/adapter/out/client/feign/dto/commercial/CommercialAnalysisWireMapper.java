@@ -1,6 +1,8 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial;
 
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseByCategoryQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseCategoryQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseProvenanceQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseScopeQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByAgeGenderPercentQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByAgeGroupQueryResult;
@@ -80,7 +82,9 @@ public final class CommercialAnalysisWireMapper {
             return null;
         }
         return CommercialIncomeAndExpenseQueryResult.builder()
-            .expenseByCategory(toQueryResult(wire.expenseByCategory()))
+            .expenseCategories(toExpenseCategoryQueryResults(wire.expenseCategories()))
+            .totalExpenseAmount(wire.totalExpenseAmount())
+            .provenance(toQueryResult(wire.provenance()))
             .build();
     }
 
@@ -145,6 +149,7 @@ public final class CommercialAnalysisWireMapper {
             .district(toQueryResult(wire.district()))
             .administration(toQueryResult(wire.administration()))
             .commercial(toQueryResult(wire.commercial()))
+            .commercialProvenance(toQueryResult(wire.commercialProvenance()))
             .build();
     }
 
@@ -357,20 +362,54 @@ public final class CommercialAnalysisWireMapper {
             .build();
     }
 
-    private static CommercialExpenseByCategoryQueryResult toQueryResult(CommercialExpenseByCategoryClientResponse wire) {
+    /**
+     * 항목 배열은 원소 수와 키 구성이 스코프마다 다르다. 여기서 키를 골라 고정 필드에 담으면 행정동 대체
+     * 스코프에만 있는 기타·음식이 조용히 사라지므로, 순서를 유지한 채 그대로 옮긴다. (이슈 #415)
+     */
+    private static List<CommercialExpenseCategoryQueryResult> toExpenseCategoryQueryResults(
+        List<CommercialExpenseCategoryClientResponse> wires
+    ) {
+        if (wires == null) {
+            return null;
+        }
+        return wires.stream().map(CommercialAnalysisWireMapper::toQueryResult).toList();
+    }
+
+    private static CommercialExpenseCategoryQueryResult toQueryResult(CommercialExpenseCategoryClientResponse wire) {
         if (wire == null) {
             return null;
         }
-        return CommercialExpenseByCategoryQueryResult.builder()
-            .groceryExpenseAmount(wire.groceryExpenseAmount())
-            .clothingExpenseAmount(wire.clothingExpenseAmount())
-            .medicalExpenseAmount(wire.medicalExpenseAmount())
-            .householdExpenseAmount(wire.householdExpenseAmount())
-            .transportationExpenseAmount(wire.transportationExpenseAmount())
-            .leisureExpenseAmount(wire.leisureExpenseAmount())
-            .cultureExpenseAmount(wire.cultureExpenseAmount())
-            .educationExpenseAmount(wire.educationExpenseAmount())
-            .entertainmentExpenseAmount(wire.entertainmentExpenseAmount())
+        return CommercialExpenseCategoryQueryResult.builder()
+            .key(wire.key())
+            .label(wire.label())
+            .amount(wire.amount())
+            .build();
+    }
+
+    private static CommercialExpenseProvenanceQueryResult toQueryResult(CommercialExpenseProvenanceClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialExpenseProvenanceQueryResult.builder()
+            .scope(toQueryResult(wire.scope()))
+            .scopeCode(wire.scopeCode())
+            .scopeName(wire.scopeName())
+            .sourceId(wire.sourceId())
+            .sourceLabel(wire.sourceLabel())
+            .sourceUrl(wire.sourceUrl())
+            .effectivePeriodCode(wire.effectivePeriodCode())
+            .disclaimer(wire.disclaimer())
+            .build();
+    }
+
+    private static CommercialExpenseScopeQueryResult toQueryResult(CommercialExpenseScopeClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialExpenseScopeQueryResult.builder()
+            .code(wire.code())
+            .name(wire.name())
+            .description(wire.description())
             .build();
     }
 

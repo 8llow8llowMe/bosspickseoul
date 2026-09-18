@@ -105,7 +105,9 @@ public class CommercialWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "상권 소득·지출 조회", description = "상권의 소득과 지출 정보를 조회합니다.")
+    @Operation(summary = "상권 소비 지출 조회",
+        description = "상권의 소비 지출을 항목 배열로 조회합니다. 상권 단위 원천이 중단된 분기에는 소속 행정동 소비로 대체하며, "
+            + "어느 영역에서 가져온 값인지는 provenance 가 알려 줍니다. 대체할 값도 없으면 항목은 null 이고 provenance 가 중단 사실만 전합니다.")
     @GetMapping("/{commercialCode}/income")
     public ResponseEntity<Response<CommercialIncomeAndExpenseResponse>> getIncomeByPeriodCodeAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
@@ -262,7 +264,9 @@ public class CommercialWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "상권 지출 요약 비교 조회", description = "상권과 주변 지역의 지출 수준을 비교합니다.")
+    @Operation(summary = "상권 지출 요약 비교 조회",
+        description = "상권과 주변 지역의 지출 수준을 비교합니다. 상권 leg 는 단건 조회와 같은 사다리를 타 네이티브가 없으면 행정동 총액으로 "
+            + "대체하고 출처는 commercialProvenance 가 알려 줍니다. 자치구·행정동 leg 는 원천이 살아 있어 대체하지 않습니다.")
     @GetMapping("/{commercialCode}/summaries/income")
     public ResponseEntity<Response<CommercialIncomeSummaryResponse>> getIncomeSummary(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,

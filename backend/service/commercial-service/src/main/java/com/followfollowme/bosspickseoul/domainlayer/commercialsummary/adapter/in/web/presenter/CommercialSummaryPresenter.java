@@ -4,14 +4,19 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dt
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.RegionalSalesSummaryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response.CommercialIncomeSummaryResponse;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response.CommercialSalesSummaryResponse;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.presenter.CommercialExpenseProvenancePresenter;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialSalesSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.RegionalIncomeSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.RegionalSalesSummaryInfo;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class CommercialSummaryPresenter {
+
+    private final CommercialExpenseProvenancePresenter commercialExpenseProvenancePresenter;
 
     public CommercialSalesSummaryResponse toCommercialSalesSummaryResponse(CommercialSalesSummaryInfo info) {
         return CommercialSalesSummaryResponse.builder()
@@ -26,6 +31,7 @@ public class CommercialSummaryPresenter {
             .district(toRegionalIncomeSummaryItem(info.district()))
             .administration(toRegionalIncomeSummaryItem(info.administration()))
             .commercial(toRegionalIncomeSummaryItem(info.commercial()))
+            .commercialProvenance(commercialExpenseProvenancePresenter.toCommercialExpenseProvenanceItem(info.commercialProvenance()))
             .build();
     }
 

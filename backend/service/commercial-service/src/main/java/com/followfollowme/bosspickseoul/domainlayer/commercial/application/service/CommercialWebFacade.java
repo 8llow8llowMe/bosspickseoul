@@ -44,6 +44,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.servi
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialCandidateQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparePreviewQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparisonQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialExpenseProvenanceProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialHeatmapQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialProfileQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
@@ -57,6 +58,22 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 읽기 유스케이스는 {@code @Transactional(readOnly = true)} 를 Facade 에 거는 것이 기본이지만,
+ * <b>지역 서비스(Feign) 호출이 섞이는 여섯 경로는 예외</b>다 — {@code getIncomeByPeriodCodeAndCommercialCode},
+ * {@code getIncomeSummary}, {@code compareCommercials}, {@code getCommercialComparePreview},
+ * {@code getBenchmarks}, {@code getCommercialProfile} 이 상권 -> 행정동 해석을 위해 region 서비스를 부른다.
+ * 여기에 트랜잭션을 걸면 상대가 느려지는 구간(서킷 오픈 직전 타임아웃)만큼 DB 커넥션이 잡혀, 소비와 무관한
+ * 조회 API 까지 커넥션 고갈로 함께 죽는다. (architecture-guide §3, 이슈 #415)
+ *
+ * <p>트랜잭션을 <b>Processor 로 내리지 않고 떼기만 한 이유</b>는 두 가지다. 첫째, 이 경로들이 부르는 조회
+ * Processor 메서드는 대부분 리포지터리 호출 한 번이라 별도 경계를 만들어도 Spring Data 가 이미 여는 읽기
+ * 트랜잭션과 같다. 둘째, 이 경로들은 분기 결측을 부분 강등으로 흡수하려고 404 예외를 삼키는데
+ * ({@link com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialQuietFetchSupport}),
+ * 삼키는 지점 안쪽에 트랜잭션 경계를 만들면 참여 트랜잭션이 rollback-only 로 표시돼 예외를 삼켰는데도 상위
+ * 커밋이 {@code UnexpectedRollbackException} 으로 깨진다. 여러 조회를 실제로 한 단위로 묶는 곳
+ * ({@code CommercialSummaryQueryProcessor.getSalesSummary})에만 Processor 트랜잭션을 둔다.
+ */
 @Service
 @RequiredArgsConstructor
 public class CommercialWebFacade implements CommercialWebUseCase {
@@ -65,6 +82,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     private static final int PROFILE_POLICY_RECOMMENDATION_SIZE = 5;
 
     private final CommercialQueryProcessor commercialQueryProcessor;
+    private final CommercialExpenseProvenanceProcessor commercialExpenseProvenanceProcessor;
     private final CommercialComparisonQueryProcessor commercialComparisonQueryProcessor;
     private final CommercialBenchmarkQueryProcessor commercialBenchmarkQueryProcessor;
     private final CommercialHeatmapQueryProcessor commercialHeatmapQueryProcessor;
@@ -118,10 +136,11 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         return commercialPresenter.toCommercialPopulationResponse(info);
     }
 
+    /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
-    @Transactional(readOnly = true)
     public CommercialIncomeAndExpenseResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
-        CommercialIncomeAndExpenseInfo info = commercialQueryProcessor.getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        CommercialIncomeAndExpenseInfo info = commercialExpenseProvenanceProcessor
+            .getExpenseByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toCommercialIncomeResponse(info);
     }
 
@@ -138,15 +157,15 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         return commercialPresenter.toCommercialStoreAnalysisResponse(info);
     }
 
+    /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
-    @Transactional(readOnly = true)
     public CommercialComparisonResponse compareCommercials(CommercialComparisonQuery query) {
         CommercialComparisonInfo info = commercialComparisonQueryProcessor.compareCommercials(query);
         return commercialPresenter.toCommercialComparisonResponse(info);
     }
 
+    /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
-    @Transactional(readOnly = true)
     public CommercialBenchmarkResponse getBenchmarks(String periodCode, String commercialCode, String serviceCode) {
         CommercialBenchmarkInfo info = commercialBenchmarkQueryProcessor.getBenchmarks(periodCode, commercialCode, serviceCode);
         return commercialPresenter.toCommercialBenchmarkResponse(info);
@@ -193,8 +212,8 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         return commercialPresenter.toCommercialHeatmapScoresResponse(info);
     }
 
+    /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
-    @Transactional(readOnly = true)
     public CommercialProfileResponse getCommercialProfile(String periodCode, String commercialCode, String serviceCode) {
         CommercialProfileInfo info = commercialProfileQueryProcessor.getProfile(periodCode, commercialCode, serviceCode);
         // 프로필이 확정한 자치구로 정책을 찾는다. 요청에는 자치구가 없고 상권 코드만 오기 때문이다.
@@ -203,8 +222,11 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         return commercialPresenter.toCommercialProfileResponse(info, policyInfo);
     }
 
+    /**
+     * 비교 결과를 그대로 재사용하므로 {@code compareCommercials} 와 같은 Feign 경로를 탄다.
+     * 트랜잭션을 걸지 않는 사유는 클래스 javadoc 참고.
+     */
     @Override
-    @Transactional(readOnly = true)
     public CommercialComparePreviewResponse getCommercialComparePreview(CommercialComparisonQuery query) {
         CommercialComparePreviewInfo info = commercialComparePreviewQueryProcessor.getPreview(query);
         return commercialPresenter.toCommercialComparePreviewResponse(info);
@@ -225,8 +247,11 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         return commercialSummaryPresenter.toCommercialSalesSummaryResponse(info);
     }
 
+    /**
+     * 상권 leg 의 대체 원천을 정하려면 서버가 상권 -> 행정동을 해석해야 해서 Feign 이 섞인다.
+     * 트랜잭션을 걸지 않는 사유는 클래스 javadoc 참고. (이슈 #415)
+     */
     @Override
-    @Transactional(readOnly = true)
     public CommercialIncomeSummaryResponse getIncomeSummary(
         String periodCode, String districtCode, String administrationCode, String commercialCode
     ) {

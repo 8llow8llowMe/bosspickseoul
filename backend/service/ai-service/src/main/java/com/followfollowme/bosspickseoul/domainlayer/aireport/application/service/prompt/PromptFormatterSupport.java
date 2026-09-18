@@ -1,6 +1,8 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.prompt;
 
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseCategoryQueryResult;
 import java.text.NumberFormat;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -27,8 +29,35 @@ public final class PromptFormatterSupport {
         return value == null ? NOT_AVAILABLE : formatNumber(value.longValue());
     }
 
+    /** 원천이 값을 주지 않는 문자열 지표용. 빈 문자열도 결측으로 본다. (이슈 #415) */
+    public static String orNotAvailable(String value) {
+        return value == null || value.isBlank() ? NOT_AVAILABLE : value;
+    }
+
     public static String formatPercent(double value) {
         return "%.1f%%".formatted(value);
+    }
+
+    /**
+     * 지출 항목 중 금액이 가장 큰 것을 {@code "라벨 (금액)"} 으로 적는다. (이슈 #415)
+     *
+     * <p><b>항목의 동일성은 {@code key} 로 본다.</b> 라벨을 Map 키로 삼으면 원천이 문구가 같은 항목을 둘
+     * 내려보내거나 라벨이 비어 올 때 뒤의 항목이 앞의 것을 덮어써 최댓값 후보에서 조용히 사라진다.
+     * 라벨은 프롬프트에 적을 표시용으로만 쓴다.
+     *
+     * <p>항목 키를 여기서 나열하지 않는 이유는 구성이 스코프마다 다르기 때문이다(상권 9개 / 행정동 대체 10개).
+     * 고정 목록으로 집계하면 대체 스코프에만 있는 기타·음식이 후보에서 빠진다.
+     */
+    public static String formatTopExpenseCategory(List<CommercialExpenseCategoryQueryResult> categories) {
+        if (categories == null || categories.isEmpty()) {
+            return NOT_AVAILABLE;
+        }
+        Map<String, CommercialExpenseCategoryQueryResult> categoryByKey = new LinkedHashMap<>();
+        categories.forEach(category -> categoryByKey.put(category.key(), category));
+        return categoryByKey.values().stream()
+            .max(Comparator.comparingLong(CommercialExpenseCategoryQueryResult::amount))
+            .map(top -> "%s (%s)".formatted(orNotAvailable(top.label()), formatNumber(top.amount())))
+            .orElse(NOT_AVAILABLE);
     }
 
     public static String formatTopEntry(Map<String, Long> valueByLabel) {

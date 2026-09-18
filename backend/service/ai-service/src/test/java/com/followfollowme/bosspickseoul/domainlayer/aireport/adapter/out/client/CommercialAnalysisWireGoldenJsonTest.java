@@ -5,7 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.common.dto.Response;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialExpenseByCategoryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialExpenseCategoryClientResponse;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialExpenseProvenanceClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFacilityClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByAgeGenderPercentClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficByAgeGroupClientResponse;
@@ -30,6 +31,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialStoreAnalysisClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.RegionalIncomeSummaryClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.RegionalSalesSummaryClientResponse;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -208,22 +210,40 @@ class CommercialAnalysisWireGoldenJsonTest {
         }
         """;
 
-    // GET /api/v1/commercials/{commercialCode}/income -> Response<CommercialIncomeAndExpenseResponse>
-    // 원천이 상권 단위 소득 제공을 중단해 peer 가 averageIncomeItem 을 더 이상 내려보내지 않는다. (이슈 #413)
+    /*
+     * GET /api/v1/commercials/{commercialCode}/income -> Response<CommercialIncomeAndExpenseResponse>
+     *
+     * 원천이 상권 단위 소득 제공을 중단해 peer 가 averageIncomeItem 을 더 이상 내려보내지 않는다. (이슈 #413)
+     *
+     * 지출은 고정 필드 객체(expenseByCategoryItem)가 사라지고 항목 배열 + 총액 + 출처로 바뀌었다. 항목 수가
+     * 스코프마다 달라(상권 9개 / 행정동 대체 10개) 고정 필드로 표현할 수 없기 때문이다. 아래는 상권 네이티브
+     * 분기이고, 대체·제공 없음 분기는 각각 별도 테스트가 덮는다. (이슈 #415)
+     */
     private static final String INCOME_AND_EXPENSE_GOLDEN_JSON = """
         {
           "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
           "dataBody": {
-            "expenseByCategoryItem": {
-              "groceryExpenseAmount": 3201,
-              "clothingExpenseAmount": 3202,
-              "medicalExpenseAmount": 3203,
-              "householdExpenseAmount": 3204,
-              "transportationExpenseAmount": 3205,
-              "leisureExpenseAmount": 3206,
-              "cultureExpenseAmount": 3207,
-              "educationExpenseAmount": 3208,
-              "entertainmentExpenseAmount": 3209
+            "expenseCategories": [
+              { "key": "GROCERY", "label": "식료품", "amount": 3201 },
+              { "key": "CLOTHING_FOOTWEAR", "label": "의류·신발", "amount": 3202 },
+              { "key": "MEDICAL", "label": "의료", "amount": 3203 },
+              { "key": "HOUSEHOLD", "label": "생활용품", "amount": 3204 },
+              { "key": "TRANSPORTATION", "label": "교통", "amount": 3205 },
+              { "key": "LEISURE", "label": "여가", "amount": 3206 },
+              { "key": "CULTURE", "label": "문화", "amount": 3207 },
+              { "key": "EDUCATION", "label": "교육", "amount": 3208 },
+              { "key": "ENTERTAINMENT", "label": "유흥", "amount": 3209 }
+            ],
+            "totalExpenseAmount": 28845,
+            "provenance": {
+              "scope": { "code": "COMMERCIAL", "name": "상권", "description": "상권 단위 원천에서 직접 집계한 값입니다." },
+              "scopeCode": "3110009",
+              "scopeName": "명동역",
+              "sourceId": "VwsmTrdhlNcmCnsmpQq",
+              "sourceLabel": "서울시 상권분석서비스(소득소비-상권배후지)",
+              "sourceUrl": "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do",
+              "effectivePeriodCode": "20261",
+              "disclaimer": null
             }
           }
         }
@@ -353,6 +373,9 @@ class CommercialAnalysisWireGoldenJsonTest {
      *
      * 필드명은 commercial-service 의 adapter/in/web/dto/response/CommercialIncomeSummaryResponse 와
      * adapter/in/web/dto/item/RegionalIncomeSummaryItem 에서 유도했다.
+     *
+     * 상권 leg 에는 소속 행정동 총액이 들어올 수 있고 그 사실은 commercialProvenance 에만 있다. 아래 리터럴이
+     * 그 대체 분기다 — 자치구·행정동 leg 는 원천이 살아 있어 대체하지 않으므로 출처가 붙지 않는다. (이슈 #415)
      */
     private static final String INCOME_SUMMARY_GOLDEN_JSON = """
         {
@@ -360,7 +383,21 @@ class CommercialAnalysisWireGoldenJsonTest {
           "dataBody": {
             "district": { "code": "11140", "name": "중구", "totalExpenseAmount": 8101 },
             "administration": { "code": "11140550", "name": "명동", "totalExpenseAmount": 8102 },
-            "commercial": { "code": "3110009", "name": "명동역", "totalExpenseAmount": 8103 }
+            "commercial": { "code": "3110009", "name": "명동역", "totalExpenseAmount": 8103 },
+            "commercialProvenance": {
+              "scope": {
+                "code": "ADMINISTRATION_PROXY",
+                "name": "행정동 대체",
+                "description": "상권 단위 원천이 중단돼 소속 행정동 값으로 대체한 추정치입니다."
+              },
+              "scopeCode": "11140550",
+              "scopeName": "명동",
+              "sourceId": "VwsmAdstrdNcmCnsmpW",
+              "sourceLabel": "서울시 상권분석서비스(소득소비-행정동)",
+              "sourceUrl": "https://data.seoul.go.kr/dataList/OA-22166/S/1/datasetView.do",
+              "effectivePeriodCode": "20261",
+              "disclaimer": "2024년 1분기부터 서울 열린데이터광장이 상권 단위 소비 제공을 중단해, 소속 행정동(명동)의 추정 소비로 대체 표시합니다. 같은 행정동 안의 상권은 같은 값입니다."
+            }
           }
         }
         """;
@@ -505,7 +542,7 @@ class CommercialAnalysisWireGoldenJsonTest {
     }
 
     @Test
-    @DisplayName("지출 응답 JSON 이 CommercialIncomeAndExpenseClientResponse 와 중첩 1종의 모든 필드로 매핑된다")
+    @DisplayName("상권 네이티브 지출 응답 JSON 이 항목 9개와 총액·출처의 모든 필드로 매핑된다")
     void incomeAndExpenseGoldenJsonBindsEveryField() throws Exception {
         Response<CommercialIncomeAndExpenseClientResponse> response =
             objectMapper.readValue(INCOME_AND_EXPENSE_GOLDEN_JSON, new TypeReference<>() {});
@@ -513,36 +550,144 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(response.dataHeader().success()).isTrue();
         CommercialIncomeAndExpenseClientResponse incomeAndExpense = response.dataBody();
 
-        // @JsonProperty("expenseByCategoryItem") -> expenseByCategory
-        CommercialExpenseByCategoryClientResponse expenseByCategory = incomeAndExpense.expenseByCategory();
-        assertThat(expenseByCategory).isNotNull();
-        assertThat(expenseByCategory.groceryExpenseAmount()).isEqualTo(3201L);
-        assertThat(expenseByCategory.clothingExpenseAmount()).isEqualTo(3202L);
-        assertThat(expenseByCategory.medicalExpenseAmount()).isEqualTo(3203L);
-        assertThat(expenseByCategory.householdExpenseAmount()).isEqualTo(3204L);
-        assertThat(expenseByCategory.transportationExpenseAmount()).isEqualTo(3205L);
-        assertThat(expenseByCategory.leisureExpenseAmount()).isEqualTo(3206L);
-        assertThat(expenseByCategory.cultureExpenseAmount()).isEqualTo(3207L);
-        assertThat(expenseByCategory.educationExpenseAmount()).isEqualTo(3208L);
-        assertThat(expenseByCategory.entertainmentExpenseAmount()).isEqualTo(3209L);
+        // 항목 키를 하드코딩하지 않는다. 배열 순서가 곧 표기 순서이고, 라벨은 peer 가 준 것을 그대로 쓴다.
+        List<CommercialExpenseCategoryClientResponse> categories = incomeAndExpense.expenseCategories();
+        assertThat(categories).hasSize(9);
+        assertThat(categories).extracting(CommercialExpenseCategoryClientResponse::key)
+            .containsExactly(
+                "GROCERY", "CLOTHING_FOOTWEAR", "MEDICAL", "HOUSEHOLD", "TRANSPORTATION",
+                "LEISURE", "CULTURE", "EDUCATION", "ENTERTAINMENT"
+            );
+        assertThat(categories).extracting(CommercialExpenseCategoryClientResponse::label)
+            .containsExactly("식료품", "의류·신발", "의료", "생활용품", "교통", "여가", "문화", "교육", "유흥");
+        assertThat(categories).extracting(CommercialExpenseCategoryClientResponse::amount)
+            .containsExactly(3201L, 3202L, 3203L, 3204L, 3205L, 3206L, 3207L, 3208L, 3209L);
+
+        assertThat(incomeAndExpense.totalExpenseAmount()).isEqualTo(28845L);
+
+        CommercialExpenseProvenanceClientResponse provenance = incomeAndExpense.provenance();
+        assertThat(provenance).isNotNull();
+        assertThat(provenance.scope()).isNotNull();
+        assertThat(provenance.scope().code()).isEqualTo("COMMERCIAL");
+        assertThat(provenance.scope().name()).isEqualTo("상권");
+        assertThat(provenance.scope().description()).isEqualTo("상권 단위 원천에서 직접 집계한 값입니다.");
+        assertThat(provenance.scopeCode()).isEqualTo("3110009");
+        assertThat(provenance.scopeName()).isEqualTo("명동역");
+        assertThat(provenance.sourceId()).isEqualTo("VwsmTrdhlNcmCnsmpQq");
+        assertThat(provenance.sourceLabel()).isEqualTo("서울시 상권분석서비스(소득소비-상권배후지)");
+        assertThat(provenance.sourceUrl()).isEqualTo("https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do");
+        assertThat(provenance.effectivePeriodCode()).isEqualTo("20261");
+        // 네이티브는 대체가 아니므로 면책이 없다. 여기에 문장이 생기면 프롬프트가 없는 경고를 싣는다.
+        assertThat(provenance.disclaimer()).isNull();
     }
 
     @Test
-    @DisplayName("peer 가 지출을 제공하지 않는 분기에는 expenseByCategoryItem 이 null 로 내려오고 그대로 바인딩된다")
-    void incomeAndExpenseGoldenJsonBindsNullExpense() throws Exception {
-        // 9개 항목 합계가 0 인 분기에 commercial-service 가 항목을 0 으로 채우지 않고 null 로 강등한다. (이슈 #413)
-        String nullExpenseJson = """
+    @DisplayName("행정동 대체 지출 응답 JSON 은 항목이 10개이고 면책 문장이 함께 내려온다")
+    void incomeAndExpenseGoldenJsonBindsAdministrationProxyBranch() throws Exception {
+        /*
+         * 상권 단위 원천이 끊긴 자리를 소속 행정동 값으로 채우는 분기다. 항목 구성이 네이티브와 다르다 —
+         * 여가·문화가 LEISURE_CULTURE 하나로 합쳐지고 OTHER·DINING 이 더해져 10개가 된다.
+         * 항목 키를 고정 필드로 받으면 이 두 항목이 조용히 사라진다. (이슈 #415)
+         */
+        String proxyJson = """
             {
               "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
-              "dataBody": { "expenseByCategoryItem": null }
+              "dataBody": {
+                "expenseCategories": [
+                  { "key": "GROCERY", "label": "식료품", "amount": 3301 },
+                  { "key": "CLOTHING_FOOTWEAR", "label": "의류·신발", "amount": 3302 },
+                  { "key": "MEDICAL", "label": "의료", "amount": 3303 },
+                  { "key": "HOUSEHOLD", "label": "생활용품", "amount": 3304 },
+                  { "key": "TRANSPORTATION", "label": "교통", "amount": 3305 },
+                  { "key": "LEISURE_CULTURE", "label": "여가·문화", "amount": 3306 },
+                  { "key": "EDUCATION", "label": "교육", "amount": 3307 },
+                  { "key": "ENTERTAINMENT", "label": "유흥", "amount": 3308 },
+                  { "key": "OTHER", "label": "기타", "amount": 3309 },
+                  { "key": "DINING", "label": "음식", "amount": 3310 }
+                ],
+                "totalExpenseAmount": 33055,
+                "provenance": {
+                  "scope": {
+                    "code": "ADMINISTRATION_PROXY",
+                    "name": "행정동 대체",
+                    "description": "상권 단위 원천이 중단돼 소속 행정동 값으로 대체한 추정치입니다."
+                  },
+                  "scopeCode": "11110515",
+                  "scopeName": "청운효자동",
+                  "sourceId": "VwsmAdstrdNcmCnsmpW",
+                  "sourceLabel": "서울시 상권분석서비스(소득소비-행정동)",
+                  "sourceUrl": "https://data.seoul.go.kr/dataList/OA-22166/S/1/datasetView.do",
+                  "effectivePeriodCode": "20261",
+                  "disclaimer": "2024년 1분기부터 서울 열린데이터광장이 상권 단위 소비 제공을 중단해, 소속 행정동(청운효자동)의 추정 소비로 대체 표시합니다. 같은 행정동 안의 상권은 같은 값입니다."
+                }
+              }
+            }
+            """;
+
+        Response<CommercialIncomeAndExpenseClientResponse> response = objectMapper.readValue(proxyJson, new TypeReference<>() {});
+
+        CommercialIncomeAndExpenseClientResponse incomeAndExpense = response.dataBody();
+        assertThat(incomeAndExpense.expenseCategories()).hasSize(10);
+        assertThat(incomeAndExpense.expenseCategories()).extracting(CommercialExpenseCategoryClientResponse::key)
+            .contains("LEISURE_CULTURE", "OTHER", "DINING")
+            .doesNotContain("LEISURE", "CULTURE");
+        assertThat(incomeAndExpense.totalExpenseAmount()).isEqualTo(33055L);
+
+        CommercialExpenseProvenanceClientResponse provenance = incomeAndExpense.provenance();
+        assertThat(provenance.scope().code()).isEqualTo("ADMINISTRATION_PROXY");
+        assertThat(provenance.scopeCode()).isEqualTo("11110515");
+        assertThat(provenance.scopeName()).isEqualTo("청운효자동");
+        assertThat(provenance.sourceId()).isEqualTo("VwsmAdstrdNcmCnsmpW");
+        // 이 문장이 비면 LLM 이 행정동 추정치를 이 상권의 실측으로 읽는다.
+        assertThat(provenance.disclaimer()).contains("소속 행정동(청운효자동)의 추정 소비로 대체 표시합니다");
+    }
+
+    @Test
+    @DisplayName("소비를 제공하지 않는 분기에는 항목 배열과 총액이 null 이고 출처만 중단 사실을 전한다")
+    void incomeAndExpenseGoldenJsonBindsUnavailableBranch() throws Exception {
+        /*
+         * 이 분기는 예전에 404 였다. 이제 200 과 scope=UNAVAILABLE 로 내려온다(이슈 #415).
+         * 값은 0 으로 채우지 않고 null 로 두되, 출처는 비우지 않아 "왜 없는지" 가 프롬프트까지 간다.
+         */
+        String unavailableJson = """
+            {
+              "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
+              "dataBody": {
+                "expenseCategories": null,
+                "totalExpenseAmount": null,
+                "provenance": {
+                  "scope": {
+                    "code": "UNAVAILABLE",
+                    "name": "제공 없음",
+                    "description": "원천이 중단돼 이 분기에는 소비 지표를 제공하지 않습니다."
+                  },
+                  "scopeCode": null,
+                  "scopeName": null,
+                  "sourceId": "VwsmTrdhlNcmCnsmpQq",
+                  "sourceLabel": "서울시 상권분석서비스(소득소비-상권배후지)",
+                  "sourceUrl": "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do",
+                  "effectivePeriodCode": null,
+                  "disclaimer": "2024년 1분기부터 서울 열린데이터광장이 상권 단위 소비 제공을 중단했습니다. 이 분기는 대체할 행정동 소비도 없어 소비 지표를 제공하지 않습니다."
+                }
+              }
             }
             """;
 
         Response<CommercialIncomeAndExpenseClientResponse> response =
-            objectMapper.readValue(nullExpenseJson, new TypeReference<>() {});
+            objectMapper.readValue(unavailableJson, new TypeReference<>() {});
 
-        assertThat(response.dataBody()).isNotNull();
-        assertThat(response.dataBody().expenseByCategory()).isNull();
+        CommercialIncomeAndExpenseClientResponse incomeAndExpense = response.dataBody();
+        assertThat(incomeAndExpense.expenseCategories()).isNull();
+        // 0 이 되면 "실제로 0원" 과 구별되지 않아 LLM 프롬프트에 0원이 실측치로 들어간다.
+        assertThat(incomeAndExpense.totalExpenseAmount()).isNull();
+
+        CommercialExpenseProvenanceClientResponse provenance = incomeAndExpense.provenance();
+        assertThat(provenance).isNotNull();
+        assertThat(provenance.scope().code()).isEqualTo("UNAVAILABLE");
+        assertThat(provenance.scopeCode()).isNull();
+        assertThat(provenance.scopeName()).isNull();
+        assertThat(provenance.effectivePeriodCode()).isNull();
+        assertThat(provenance.disclaimer()).contains("대체할 행정동 소비도 없어");
     }
 
     @Test
@@ -692,19 +837,48 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(commercial.code()).isEqualTo("3110009");
         assertThat(commercial.name()).isEqualTo("명동역");
         assertThat(commercial.totalExpenseAmount()).isEqualTo(8103L);
+
+        // 상권 leg 총액이 사실은 행정동 값이라는 것은 이 블록에만 있다. 빠지면 프롬프트가 대체 사실을 모른다.
+        CommercialExpenseProvenanceClientResponse provenance = incomeSummary.commercialProvenance();
+        assertThat(provenance).isNotNull();
+        assertThat(provenance.scope().code()).isEqualTo("ADMINISTRATION_PROXY");
+        assertThat(provenance.scope().name()).isEqualTo("행정동 대체");
+        assertThat(provenance.scope().description()).isEqualTo("상권 단위 원천이 중단돼 소속 행정동 값으로 대체한 추정치입니다.");
+        assertThat(provenance.scopeCode()).isEqualTo("11140550");
+        assertThat(provenance.scopeName()).isEqualTo("명동");
+        assertThat(provenance.sourceId()).isEqualTo("VwsmAdstrdNcmCnsmpW");
+        assertThat(provenance.sourceLabel()).isEqualTo("서울시 상권분석서비스(소득소비-행정동)");
+        assertThat(provenance.sourceUrl()).isEqualTo("https://data.seoul.go.kr/dataList/OA-22166/S/1/datasetView.do");
+        assertThat(provenance.effectivePeriodCode()).isEqualTo("20261");
+        assertThat(provenance.disclaimer()).contains("소속 행정동(명동)의 추정 소비로 대체 표시합니다");
     }
 
     @Test
     @DisplayName("지출 요약은 지역 단위별로 null 이 올 수 있고 나머지 단위는 그대로 바인딩된다")
     void incomeSummaryGoldenJsonBindsPartialNullRegions() throws Exception {
         // 해당 분기에 그 지역 단위 지출 행이 없으면 commercial-service 가 그 단위만 null 로 내려보낸다. (이슈 #413)
+        // 상권 leg 가 비어도 출처는 남아 "대체할 행정동 값도 없다" 는 사실을 전한다. (이슈 #415)
         String partialNullJson = """
             {
               "dataHeader": { "success": true, "resultCode": null, "resultMessage": null },
               "dataBody": {
                 "district": { "code": "11140", "name": "중구", "totalExpenseAmount": 8101 },
                 "administration": null,
-                "commercial": null
+                "commercial": null,
+                "commercialProvenance": {
+                  "scope": {
+                    "code": "UNAVAILABLE",
+                    "name": "제공 없음",
+                    "description": "원천이 중단돼 이 분기에는 소비 지표를 제공하지 않습니다."
+                  },
+                  "scopeCode": null,
+                  "scopeName": null,
+                  "sourceId": "VwsmTrdhlNcmCnsmpQq",
+                  "sourceLabel": "서울시 상권분석서비스(소득소비-상권배후지)",
+                  "sourceUrl": "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do",
+                  "effectivePeriodCode": null,
+                  "disclaimer": "2024년 1분기부터 서울 열린데이터광장이 상권 단위 소비 제공을 중단했습니다. 이 분기는 대체할 행정동 소비도 없어 소비 지표를 제공하지 않습니다."
+                }
               }
             }
             """;
@@ -716,6 +890,8 @@ class CommercialAnalysisWireGoldenJsonTest {
         assertThat(incomeSummary.district().totalExpenseAmount()).isEqualTo(8101L);
         assertThat(incomeSummary.administration()).isNull();
         assertThat(incomeSummary.commercial()).isNull();
+        assertThat(incomeSummary.commercialProvenance()).isNotNull();
+        assertThat(incomeSummary.commercialProvenance().scope().code()).isEqualTo("UNAVAILABLE");
     }
 
     @Test

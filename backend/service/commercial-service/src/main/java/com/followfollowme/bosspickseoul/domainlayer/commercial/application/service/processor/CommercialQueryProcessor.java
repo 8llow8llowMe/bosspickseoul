@@ -29,7 +29,6 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.Stor
 import java.util.List;
 import java.util.Map;
 import java.util.function.BinaryOperator;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,24 +44,6 @@ public class CommercialQueryProcessor {
     private final PopulationCommercialRepositoryPort populationCommercialRepositoryPort;
     private final IncomeCommercialRepositoryPort incomeCommercialRepositoryPort;
     private final StoreCommercialRepositoryPort storeCommercialRepositoryPort;
-
-    /**
-     * 분기 종속 데이터 부재(404 {@link CommercialException})만 null 로 흡수한다. 그 외 예외는 전파한다.
-     *
-     * <p>{@code catch (CommercialException)} 으로 통째로 잡으면 503(INTERNAL_SERVICE_UNAVAILABLE)과
-     * 400(요청 오류)까지 "데이터 없음"으로 뭉개져, 지역 서비스 장애가 지표 하나 빠진 정상 응답으로 보인다.
-     * 비교·프로필 두 Processor 가 같은 판정을 쓰도록 여기 한 곳에 둔다.
-     */
-    static <T> T fetchOrNullWhenNotFound(Supplier<T> fetcher) {
-        try {
-            return fetcher.get();
-        } catch (CommercialException exception) {
-            if (exception.isNotFound()) {
-                return null;
-            }
-            throw exception;
-        }
-    }
 
     public List<CommercialServiceCategoryInfo> getServiceCategoriesByCommercialCode(String commercialCode) {
         List<String> serviceCodes = salesCommercialRepositoryPort.findDistinctServiceCodesByCommercialCode(commercialCode);
@@ -108,6 +89,14 @@ public class CommercialQueryProcessor {
         return CommercialResidentPopulationInfo.from(populationCommercial);
     }
 
+    /**
+     * 상권 네이티브 소비 전용 경로. 행정동 대체 사다리를 타지 않는다. (이슈 #415)
+     *
+     * <p>이 메서드를 쓰는 곳은 비교와 후보 추천처럼 <b>상권끼리 우열을 가리는</b> 계산이다. 행정동 대체값은
+     * 같은 행정동 안의 상권이 전부 같은 값이라 그 판정에 넣으면 행정동 단위로 뭉친 가짜 차이를 만든다.
+     * 화면에 값을 보여 주는 {@code /commercials/{code}/income} 은
+     * {@link CommercialExpenseProvenanceProcessor} 의 사다리를 쓴다.
+     */
     public CommercialIncomeAndExpenseInfo getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         IncomeCommercial incomeCommercial = incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElseThrow(() -> new CommercialException(CommercialErrorCode.INCOME_NOT_FOUND));
@@ -176,15 +165,6 @@ public class CommercialQueryProcessor {
             .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
             .stream()
             .collect(Collectors.toMap(PopulationCommercial::commercialCode, CommercialResidentPopulationInfo::from, keepFirst()));
-    }
-
-    public Map<String, CommercialIncomeAndExpenseInfo> getIncomeByPeriodCodeAndCommercialCodes(
-        String periodCode, List<String> commercialCodes
-    ) {
-        return incomeCommercialRepositoryPort
-            .findAllByPeriodCodeAndCommercialCodeIn(periodCode, commercialCodes)
-            .stream()
-            .collect(Collectors.toMap(IncomeCommercial::commercialCode, CommercialIncomeAndExpenseInfo::from, keepFirst()));
     }
 
     public Map<String, CommercialFacilityInfo> getFacilityByPeriodCodeAndCommercialCodes(

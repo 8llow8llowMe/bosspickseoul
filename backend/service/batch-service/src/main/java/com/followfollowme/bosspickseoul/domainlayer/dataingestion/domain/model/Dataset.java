@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 
+import com.followfollowme.bosspickseoul.shared.enums.DatasetKey;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -21,7 +22,7 @@ import java.util.Optional;
  * <p>One dataset is discontinued rather than merely reshaped: see {@link #DISCONTINUED_SOURCES}.
  */
 public enum Dataset {
-    SALES_COMMERCIAL("VwsmTrdarSelngQq", AreaScope.COMMERCIAL, true, List.of(
+    SALES_COMMERCIAL(DatasetKey.SALES_COMMERCIAL, AreaScope.COMMERCIAL, true, List.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "THSMON_SELNG_AMT",
         "MON_SELNG_AMT", "TUES_SELNG_AMT", "WED_SELNG_AMT", "THUR_SELNG_AMT", "FRI_SELNG_AMT", "SAT_SELNG_AMT", "SUN_SELNG_AMT",
@@ -34,43 +35,52 @@ public enum Dataset {
         "TMZON_00_06_SELNG_CO", "TMZON_06_11_SELNG_CO", "TMZON_11_14_SELNG_CO", "TMZON_14_17_SELNG_CO",
         "TMZON_17_21_SELNG_CO", "TMZON_21_24_SELNG_CO",
         "ML_SELNG_CO", "FML_SELNG_CO")),
-    STORE_COMMERCIAL("VwsmTrdarStorQq", AreaScope.COMMERCIAL, true, List.of(
+    STORE_COMMERCIAL(DatasetKey.STORE_COMMERCIAL, AreaScope.COMMERCIAL, true, List.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "STOR_CO", "SIMILR_INDUTY_STOR_CO", "OPBIZ_RT", "OPBIZ_STOR_CO", "CLSBIZ_RT", "CLSBIZ_STOR_CO", "FRC_STOR_CO")),
     // 이관 대상 팩트 테이블이 NOT NULL 로 요구할 컬럼(shared DatasetKey.readerRequiredFields)을 게시 단계에서 전부 요구한다.
     // 여기서 걸러야 결손 행이 게시돼 이관 때 그대로 넘어오는 일이 없다. 조회 측 매퍼는 2026-09-10 제거됐고,
     // DatasetTest 가 DatasetKey 와의 포함 관계를 계속 고정한다.
-    FOOT_TRAFFIC_COMMERCIAL("VwsmTrdarFlpopQq", AreaScope.COMMERCIAL, false, List.of(
+    FOOT_TRAFFIC_COMMERCIAL(DatasetKey.FOOT_TRAFFIC_COMMERCIAL, AreaScope.COMMERCIAL, false, List.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM",
         "TOT_FLPOP_CO", "ML_FLPOP_CO", "FML_FLPOP_CO",
         "AGRDE_10_FLPOP_CO", "AGRDE_20_FLPOP_CO", "AGRDE_30_FLPOP_CO", "AGRDE_40_FLPOP_CO", "AGRDE_50_FLPOP_CO", "AGRDE_60_ABOVE_FLPOP_CO",
         "TMZON_00_06_FLPOP_CO", "TMZON_06_11_FLPOP_CO", "TMZON_11_14_FLPOP_CO", "TMZON_14_17_FLPOP_CO", "TMZON_17_21_FLPOP_CO",
         "TMZON_21_24_FLPOP_CO",
         "MON_FLPOP_CO", "TUES_FLPOP_CO", "WED_FLPOP_CO", "THUR_FLPOP_CO", "FRI_FLPOP_CO", "SAT_FLPOP_CO", "SUN_FLPOP_CO")),
-    CHANGE_COMMERCIAL("VwsmTrdarIxQq", AreaScope.COMMERCIAL, false, List.of(
+    CHANGE_COMMERCIAL(DatasetKey.CHANGE_COMMERCIAL, AreaScope.COMMERCIAL, false, List.of(
         "TRDAR_CHNGE_IX", "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM")),
-    POPULATION_COMMERCIAL("VwsmTrdarRepopQq", AreaScope.COMMERCIAL, false, List.of(
+    POPULATION_COMMERCIAL(DatasetKey.POPULATION_COMMERCIAL, AreaScope.COMMERCIAL, false, List.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM",
         "TOT_REPOP_CO", "ML_REPOP_CO", "FML_REPOP_CO",
         "AGRDE_10_REPOP_CO", "AGRDE_20_REPOP_CO", "AGRDE_30_REPOP_CO", "AGRDE_40_REPOP_CO",
         "AGRDE_50_REPOP_CO", "AGRDE_60_ABOVE_REPOP_CO")),
-    FACILITY_COMMERCIAL("VwsmTrdarFcltyQq", AreaScope.COMMERCIAL, false, List.of(
+    FACILITY_COMMERCIAL(DatasetKey.FACILITY_COMMERCIAL, AreaScope.COMMERCIAL, false, List.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM",
         "VIATR_FCLTY_CO", "ELESCH_CO", "MSKUL_CO", "HGSCHL_CO", "UNIV_CO", "SUBWAY_STATN_CO", "BUS_STTN_CO")),
-    CONSUMPTION_COMMERCIAL("VwsmTrdhlNcmCnsmpQq", AreaScope.COMMERCIAL, false, List.of(
+    CONSUMPTION_COMMERCIAL(DatasetKey.CONSUMPTION_COMMERCIAL, AreaScope.COMMERCIAL, false, List.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM", "EXPNDTR_TOTAMT",
         "FDSTFFS_EXPNDTR_TOTAMT", "CLTHS_FTWR_EXPNDTR_TOTAMT", "MCP_EXPNDTR_TOTAMT", "LVSPL_EXPNDTR_TOTAMT",
         "TRNSPORT_EXPNDTR_TOTAMT", "LSR_EXPNDTR_TOTAMT", "CLTUR_EXPNDTR_TOTAMT", "EDC_EXPNDTR_TOTAMT",
         "PLESR_EXPNDTR_TOTAMT")),
-    SALES_ADMINISTRATION("VwsmAdstrdSelngW", AreaScope.ADMINISTRATION, true, List.of(
+    SALES_ADMINISTRATION(DatasetKey.SALES_ADMINISTRATION, AreaScope.ADMINISTRATION, true, List.of(
         "ADSTRD_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "THSMON_SELNG_AMT", "MDWK_SELNG_AMT", "WKEND_SELNG_AMT")),
-    STORE_ADMINISTRATION("VwsmAdstrdStorW", AreaScope.ADMINISTRATION, true, List.of(
+    STORE_ADMINISTRATION(DatasetKey.STORE_ADMINISTRATION, AreaScope.ADMINISTRATION, true, List.of(
         "ADSTRD_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "STOR_CO", "SIMILR_INDUTY_STOR_CO", "OPBIZ_RT", "OPBIZ_STOR_CO", "CLSBIZ_RT", "CLSBIZ_STOR_CO", "FRC_STOR_CO")),
-    CONSUMPTION_ADMINISTRATION("VwsmAdstrdNcmCnsmpW", AreaScope.ADMINISTRATION, false, List.of(
-        "ADSTRD_CD_NM", "EXPNDTR_TOTAMT")),
-    SALES_DISTRICT("VwsmSignguSelngW", AreaScope.DISTRICT, true, List.of(
+    // 상권 소비(CONSUMPTION_COMMERCIAL)가 20241 부터 전 행 0 이라 행정동 소비를 대체 원천으로 쓴다(이슈 #415).
+    // 그래서 총액뿐 아니라 세부 10항목을 게시 단계에서 전부 요구한다. 2026-09-17 Open API 전수 호출에서
+    // 425개 행정동 × 22분기(20211~20262) 모두 11개 금액 필드가 존재했고 누락은 0건이었다. 0 은 있어도(최대 3.1%, 유흥)
+    // 값이 빈 행은 없었으므로 필수로 두는 쪽이 결손 행을 게시 전에 잡는다.
+    // 항목 구성은 상권(9항목)과 다르다. 여가·문화가 LSR_CLTUR_EXPNDTR_TOTAMT 로 합쳐져 있고 기타·음식이 더 있다.
+    // 원천에 없는 분해를 만들지 않으므로 행정동 스키마 그대로 적재한다.
+    CONSUMPTION_ADMINISTRATION(DatasetKey.CONSUMPTION_ADMINISTRATION, AreaScope.ADMINISTRATION, false, List.of(
+        "ADSTRD_CD_NM", "EXPNDTR_TOTAMT",
+        "FDSTFFS_EXPNDTR_TOTAMT", "CLTHS_FTWR_EXPNDTR_TOTAMT", "LVSPL_EXPNDTR_TOTAMT", "MCP_EXPNDTR_TOTAMT",
+        "TRNSPORT_EXPNDTR_TOTAMT", "EDC_EXPNDTR_TOTAMT", "PLESR_EXPNDTR_TOTAMT", "LSR_CLTUR_EXPNDTR_TOTAMT",
+        "ETC_EXPNDTR_TOTAMT", "FD_EXPNDTR_TOTAMT")),
+    SALES_DISTRICT(DatasetKey.SALES_DISTRICT, AreaScope.DISTRICT, true, List.of(
         "SIGNGU_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "THSMON_SELNG_AMT",
         "MON_SELNG_AMT", "TUES_SELNG_AMT", "WED_SELNG_AMT", "THUR_SELNG_AMT", "FRI_SELNG_AMT", "SAT_SELNG_AMT", "SUN_SELNG_AMT",
@@ -79,10 +89,10 @@ public enum Dataset {
         "ML_SELNG_AMT", "FML_SELNG_AMT",
         "AGRDE_10_SELNG_AMT", "AGRDE_20_SELNG_AMT", "AGRDE_30_SELNG_AMT", "AGRDE_40_SELNG_AMT",
         "AGRDE_50_SELNG_AMT", "AGRDE_60_ABOVE_SELNG_AMT")),
-    STORE_DISTRICT("VwsmSignguStorW", AreaScope.DISTRICT, true, List.of(
+    STORE_DISTRICT(DatasetKey.STORE_DISTRICT, AreaScope.DISTRICT, true, List.of(
         "SIGNGU_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "STOR_CO", "SIMILR_INDUTY_STOR_CO", "OPBIZ_RT", "OPBIZ_STOR_CO", "CLSBIZ_RT", "CLSBIZ_STOR_CO", "FRC_STOR_CO")),
-    FOOT_TRAFFIC_DISTRICT("VwsmSignguFlpopW", AreaScope.DISTRICT, false, List.of(
+    FOOT_TRAFFIC_DISTRICT(DatasetKey.FOOT_TRAFFIC_DISTRICT, AreaScope.DISTRICT, false, List.of(
         "SIGNGU_CD_NM",
         "TOT_FLPOP_CO", "ML_FLPOP_CO", "FML_FLPOP_CO",
         "AGRDE_10_FLPOP_CO", "AGRDE_20_FLPOP_CO", "AGRDE_30_FLPOP_CO", "AGRDE_40_FLPOP_CO", "AGRDE_50_FLPOP_CO",
@@ -90,9 +100,9 @@ public enum Dataset {
         "TMZON_00_06_FLPOP_CO", "TMZON_06_11_FLPOP_CO", "TMZON_11_14_FLPOP_CO", "TMZON_14_17_FLPOP_CO",
         "TMZON_17_21_FLPOP_CO", "TMZON_21_24_FLPOP_CO",
         "MON_FLPOP_CO", "TUES_FLPOP_CO", "WED_FLPOP_CO", "THUR_FLPOP_CO", "FRI_FLPOP_CO", "SAT_FLPOP_CO", "SUN_FLPOP_CO")),
-    CONSUMPTION_DISTRICT("VwsmSignguNcmCnsmpW", AreaScope.DISTRICT, false, List.of(
+    CONSUMPTION_DISTRICT(DatasetKey.CONSUMPTION_DISTRICT, AreaScope.DISTRICT, false, List.of(
         "SIGNGU_CD_NM", "EXPNDTR_TOTAMT")),
-    CHANGE_DISTRICT("VwsmSignguIxQq", AreaScope.DISTRICT, false, List.of(
+    CHANGE_DISTRICT(DatasetKey.CHANGE_DISTRICT, AreaScope.DISTRICT, false, List.of(
         "SIGNGU_CD_NM", "TRDAR_CHNGE_IX", "TRDAR_CHNGE_IX_NM", "OPR_SALE_MT_AVRG", "CLS_SALE_MT_AVRG"));
 
     /** Categorical change indicator; validated against its code set instead of as a number. */
@@ -113,19 +123,27 @@ public enum Dataset {
     public record DiscontinuedSource(Quarter lastPublishableQuarter, String reason) {
     }
 
-    private final String service;
+    private final DatasetKey key;
     private final AreaScope scope;
     private final boolean industry;
     private final List<String> requiredMetrics;
 
-    Dataset(String service, AreaScope scope, boolean industry, List<String> requiredMetrics) {
-        this.service = service;
+    Dataset(DatasetKey key, AreaScope scope, boolean industry, List<String> requiredMetrics) {
+        this.key = key;
         this.scope = scope;
         this.industry = industry;
         this.requiredMetrics = requiredMetrics;
     }
 
-    public String service() { return service; }
+    /** 공유 모듈의 데이터셋 계약. 이름과 Open API 서비스명의 정본은 여기 하나다. */
+    public DatasetKey key() { return key; }
+
+    /**
+     * Open API 서비스명. 문자열을 여기 다시 적지 않고 {@link DatasetKey} 에서 읽는다 — 포털이 데이터셋을
+     * 재게시하면 배치만 고쳐도 배치는 돌아가는데, 같은 이름을 출처로 인용하는 commercial-service 는
+     * 죽은 ID 를 계속 내보내기 때문이다. (이슈 #415)
+     */
+    public String service() { return key.openApiService(); }
     public AreaScope scope() { return scope; }
     public String areaType() { return scope.name(); }
     public String areaField() { return scope.areaField(); }

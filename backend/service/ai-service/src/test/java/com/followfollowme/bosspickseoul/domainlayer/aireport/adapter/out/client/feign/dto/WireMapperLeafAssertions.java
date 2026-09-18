@@ -116,7 +116,8 @@ public final class WireMapperLeafAssertions {
 
     private static Object distinctValue(Class<?> componentType, AtomicLong sequence) {
         long next = sequence.getAndIncrement();
-        if (componentType == long.class) {
+        if (componentType == long.class || componentType == Long.class) {
+            // 결측을 표현해야 하는 금액은 Wrapper 로 내려온다. 여기서는 누락을 잡는 것이 목적이라 항상 값을 채운다.
             return next;
         }
         if (componentType == int.class) {

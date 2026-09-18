@@ -25,6 +25,11 @@ class DatasetTest {
     void coversEveryLegacyFactTableAndMatchesTheSharedDatasetKeyContract() {
         assertThat(Arrays.stream(Dataset.values()).map(Dataset::name))
             .containsExactlyInAnyOrderElementsOf(Arrays.stream(DatasetKey.values()).map(DatasetKey::name).toList());
+
+        // 짝을 손으로 적어 넣는 자리이므로 어긋날 수 있다. 어긋나면 Open API 서비스명이 통째로 바뀐다.
+        for (Dataset dataset : Dataset.values()) {
+            assertThat(dataset.key().name()).as("%s", dataset).isEqualTo(dataset.name());
+        }
     }
 
     /**
@@ -34,9 +39,30 @@ class DatasetTest {
     @Test
     void rowValidationRequiresEveryColumnTheReaderNeeds() {
         for (Dataset dataset : Dataset.values()) {
-            Set<String> readerFields = DatasetKey.valueOf(dataset.name()).readerRequiredFields();
+            Set<String> readerFields = dataset.key().readerRequiredFields();
             assertThat(dataset.requiredMetrics()).as("%s", dataset).containsAll(readerFields);
         }
+    }
+
+    /**
+     * 행정동 소비는 상권 소비가 끊긴 뒤의 대체 원천이라 총액만으로는 항목별 화면을 채울 수 없다(이슈 #415).
+     * 세부 10항목은 2026-09-17 Open API 전수 호출에서 425개 행정동 × 22분기 모두 존재했고 누락이 0건이라 필수로 둔다.
+     * 상권(9항목)과 구성이 다르다 — 여가·문화가 하나로 합쳐져 있고 기타·음식이 더 있다. 억지로 맞추지 않는다.
+     */
+    @Test
+    void administrationConsumptionRequiresTheTotalAndAllTenDetailItems() {
+        assertThat(Dataset.CONSUMPTION_ADMINISTRATION.requiredMetrics()).containsExactlyInAnyOrder(
+            "ADSTRD_CD_NM", "EXPNDTR_TOTAMT",
+            "FDSTFFS_EXPNDTR_TOTAMT", "CLTHS_FTWR_EXPNDTR_TOTAMT", "LVSPL_EXPNDTR_TOTAMT", "MCP_EXPNDTR_TOTAMT",
+            "TRNSPORT_EXPNDTR_TOTAMT", "EDC_EXPNDTR_TOTAMT", "PLESR_EXPNDTR_TOTAMT", "LSR_CLTUR_EXPNDTR_TOTAMT",
+            "ETC_EXPNDTR_TOTAMT", "FD_EXPNDTR_TOTAMT");
+
+        assertThat(Dataset.CONSUMPTION_ADMINISTRATION.requiredMetrics())
+            .as("행정동 원천에는 여가·문화를 나눈 컬럼이 없다")
+            .doesNotContain("LSR_EXPNDTR_TOTAMT", "CLTUR_EXPNDTR_TOTAMT");
+        assertThat(Dataset.CONSUMPTION_COMMERCIAL.requiredMetrics())
+            .as("상권 원천에는 합산 컬럼과 기타·음식이 없다")
+            .doesNotContain("LSR_CLTUR_EXPNDTR_TOTAMT", "ETC_EXPNDTR_TOTAMT", "FD_EXPNDTR_TOTAMT");
     }
 
     @Test
@@ -65,6 +91,10 @@ class DatasetTest {
      * Every service name below answered a live sample-key call on 2026-09-08, so the API path is open for
      * all fifteen datasets. Pinning the names keeps a typo from silently pointing a dataset at a
      * different Seoul view (the envelope key would then never match and the run fails late).
+     *
+     * <p>이름의 정본은 공유 모듈의 {@code DatasetKey.openApiService()} 다(이슈 #415). commercial-service 가
+     * 소비 지표의 출처({@code sourceId})로 같은 값을 인용하므로, 포털 재게시로 이름이 바뀌면 이 테스트와
+     * commercial-service 의 {@code ExpenseSourceDatasetTest} 가 함께 깨져 양쪽을 같이 고치게 만든다.
      */
     @Test
     void everyDatasetHasALiveVerifiedApiServiceSoApiRunsAreAcceptedForAll() {
