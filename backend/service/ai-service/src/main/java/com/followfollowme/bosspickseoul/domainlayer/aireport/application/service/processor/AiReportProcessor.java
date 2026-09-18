@@ -3,6 +3,8 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.application.servic
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportException;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AdministrationAiSourceData;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AiGenerationResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiExpenseCategory;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiExpenseProvenance;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiSourceData;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
@@ -20,7 +22,8 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationStoreServiceTopQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
-import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseByCategoryQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseCategoryQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseProvenanceQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
@@ -47,7 +50,9 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.Distri
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.DistrictAiReportSnapshot;
 import com.followfollowme.bosspickseoul.global.properties.AiLlmProperties;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -409,6 +414,9 @@ public class AiReportProcessor {
                 "60대 이상", population.byAge().age60PlusResidentPopulation()
             )))
             .largestExpenseCategory(formatLargestExpenseCategory(income))
+            .expenseCategories(toExpenseCategories(income))
+            .totalExpenseAmount(income == null ? null : income.totalExpenseAmount())
+            .expenseProvenance(toExpenseProvenance(income == null ? null : income.provenance()))
             .totalStoreCount(store.totalStoreCount())
             .similarStoreCount(store.similarStoreCount())
             .openedStoreCount(store.openedStoreCount())
@@ -423,29 +431,54 @@ public class AiReportProcessor {
             .districtExpenseAmount(totalExpenseAmountOrNull(incomeSummary == null ? null : incomeSummary.district()))
             .administrationExpenseAmount(totalExpenseAmountOrNull(incomeSummary == null ? null : incomeSummary.administration()))
             .commercialExpenseAmount(totalExpenseAmountOrNull(incomeSummary == null ? null : incomeSummary.commercial()))
+            .commercialExpenseProvenance(toExpenseProvenance(incomeSummary == null ? null : incomeSummary.commercialProvenance()))
             .build();
     }
 
     /**
-     * 원천이 값을 주지 않는 분기에는 지출 블록이 통째로 null 로 내려온다. 0 원을 실측치처럼 프롬프트에
+     * 원천이 값을 주지 않는 분기에는 항목 배열이 통째로 null 로 내려온다. 0 원을 실측치처럼 프롬프트에
      * 써 넣지 않도록 포매터의 결측 표기를 그대로 쓴다. (이슈 #413)
+     *
+     * <p>항목 키를 여기서 나열하지 않는다. 구성이 스코프마다 달라(상권 9개 / 행정동 대체 10개) 고정 목록으로
+     * 집계하면 대체 스코프에만 있는 항목이 최댓값 후보에서 빠진다. 라벨도 원천 서비스가 준 것을 그대로 쓴다.
+     * (이슈 #415)
      */
     private String formatLargestExpenseCategory(CommercialIncomeAndExpenseQueryResult income) {
-        CommercialExpenseByCategoryQueryResult expense = income == null ? null : income.expenseByCategory();
-        if (expense == null) {
+        List<CommercialExpenseCategoryQueryResult> categories = income == null ? null : income.expenseCategories();
+        if (categories == null || categories.isEmpty()) {
             return PromptFormatterSupport.NOT_AVAILABLE;
         }
-        return PromptFormatterSupport.formatTopEntry(PromptFormatterSupport.orderedMap(
-            "식료품", expense.groceryExpenseAmount(),
-            "의류", expense.clothingExpenseAmount(),
-            "의료", expense.medicalExpenseAmount(),
-            "생활용품", expense.householdExpenseAmount(),
-            "교통", expense.transportationExpenseAmount(),
-            "여가", expense.leisureExpenseAmount(),
-            "문화", expense.cultureExpenseAmount(),
-            "교육", expense.educationExpenseAmount(),
-            "유흥", expense.entertainmentExpenseAmount()
-        ));
+        Map<String, Long> amountByLabel = new LinkedHashMap<>();
+        categories.forEach(category -> amountByLabel.put(category.label(), category.amount()));
+        return PromptFormatterSupport.formatTopEntry(amountByLabel);
+    }
+
+    /** 항목 순서가 곧 원천이 정한 표기 순서다. 이 서비스가 재정렬하지 않는다. (이슈 #415) */
+    private List<CommercialAiExpenseCategory> toExpenseCategories(CommercialIncomeAndExpenseQueryResult income) {
+        List<CommercialExpenseCategoryQueryResult> categories = income == null ? null : income.expenseCategories();
+        if (categories == null) {
+            return null;
+        }
+        return categories.stream()
+            .map(category -> new CommercialAiExpenseCategory(category.label(), category.amount()))
+            .toList();
+    }
+
+    /**
+     * 출처는 값이 없을 때도 내려오지만, 소득소비 404 를 결측으로 흡수한 분기에는 응답 자체가 없어 null 이다.
+     * 그때 출처를 지어내지 않고 null 을 그대로 올려 프롬프트가 결측 표기를 쓰게 한다. (이슈 #415)
+     */
+    private CommercialAiExpenseProvenance toExpenseProvenance(CommercialExpenseProvenanceQueryResult provenance) {
+        if (provenance == null) {
+            return null;
+        }
+        return new CommercialAiExpenseProvenance(
+            provenance.scope() == null ? null : provenance.scope().name(),
+            provenance.scopeName(),
+            provenance.effectivePeriodCode(),
+            provenance.sourceLabel(),
+            provenance.disclaimer()
+        );
     }
 
     /**
