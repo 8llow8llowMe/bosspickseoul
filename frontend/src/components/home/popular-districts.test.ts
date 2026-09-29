@@ -578,3 +578,48 @@ describe('PopularDistricts — 최소 표본 (TC-HR-010 · ranking-minimum-sampl
     expect(styles).toContain('min-height:72px')
   })
 })
+
+/*
+ * ranking-minimum-sample D5-1 pending 표. 한쪽이 먼저 와도 나중에 뒤집힐 상태를 먼저
+ * 그리지 않는다 — 뒤집히는 순간 인사이트 슬롯·2단 배치가 끼어들어 아래 섹션을 민다.
+ */
+describe('PopularDistricts — pending 을 결론으로 단정하지 않는다', () => {
+  it('조회가 아직 안 왔으면 지표가 먼저 와도 스켈레톤이다', () => {
+    const html = render(undefined, createTopTen())
+
+    expect(html).toContain('aria-busy="true"')
+    expect(html).not.toContain('aria-label="지표 선택"')
+  })
+
+  it('조회 1곳(결론) + 지표 pending 이면 스켈레톤이다 (TC-RMS-014)', () => {
+    const html = render(createResponse(THREE_VIEWS.slice(0, 1)))
+
+    expect(html).toContain('aria-busy="true"')
+  })
+})
+
+describe('PopularDistricts — 참인 문장만 (TC-RMS-018)', () => {
+  it('랜드마크 이름이 상태 문구를 따른다', () => {
+    expect(
+      render(createResponse(THREE_VIEWS.slice(0, 2)), createTopTen()),
+    ).toContain('aria-label="자치구 지표 순위"')
+    expect(render(createResponse(THREE_VIEWS), createTopTen())).toContain(
+      'aria-label="지금 많이 본 지역"',
+    )
+    expect(render()).toContain('aria-label="자치구 지표 순위"')
+  })
+
+  it('어느 상태에도 합니다체가 없다', () => {
+    const states = [
+      render(),
+      render(createResponse(THREE_VIEWS), createTopTen()),
+      render(createResponse(THREE_VIEWS.slice(0, 2)), createTopTen()),
+      render(createResponse(THREE_VIEWS), createTopTen(false)),
+      render(createResponse(THREE_VIEWS), createPartialTopTen()),
+    ]
+
+    for (const html of states) {
+      expect(html.replace(/<[^>]+>/g, ' ')).not.toMatch(/습니다|입니다/)
+    }
+  })
+})

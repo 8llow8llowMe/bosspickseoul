@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   formatRankingWindow,
   formatViewCount,
+  hasEnoughViewSample,
+  MIN_VIEW_SAMPLE_SIZE,
   resolveDistrictName,
   toPopularDistricts,
   toPopularDistrictsView,
@@ -115,5 +117,30 @@ describe('toPopularDistrictsView', () => {
     } as AnalysisRankingBody
 
     expect(toPopularDistrictsView(body).items).toEqual([])
+  })
+})
+
+describe('hasEnoughViewSample — 최소 표본 (TC-RMS-005)', () => {
+  const viewOf = (count: number) =>
+    toPopularDistrictsView({
+      areaType: { code: 'DISTRICT', name: '자치구', description: '' },
+      windowHours: 24,
+      rankings: Array.from({ length: count }, (_, index) => ({
+        rank: index + 1,
+        areaCode: String(11110 + index * 30),
+        areaName: null,
+        viewCount: 100 - index,
+      })),
+    })
+
+  it('0·1·2곳은 부족하고 3·8곳은 충분하다', () => {
+    expect(MIN_VIEW_SAMPLE_SIZE).toBe(3)
+    expect([0, 1, 2, 3, 8].map(n => hasEnoughViewSample(viewOf(n)))).toEqual([
+      false,
+      false,
+      false,
+      true,
+      true,
+    ])
   })
 })
