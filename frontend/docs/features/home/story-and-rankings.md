@@ -253,6 +253,15 @@ CTA 가 행 높이(120px)만큼 늘어난다. `minmax(0,1fr) auto` 는 남는 �
 
 ### D4-3. 랭킹 섹션 — 듀얼 랭킹
 
+> **개정(2026-09-29, home.md 2.7).** 아래 그림과 D5-4-2 의 `min-height: 100dvh` 규칙은
+> 폐기됐다. 트랙이 아닐 때(폴백·솔로·스켈레톤) `Section` 은 **콘텐츠 높이 + 세로 여백**이다 —
+> 두 열 콘텐츠 약 500px 로 1080 화면을 채우면 위아래로 약 250px 씩 빈 띠가 생겼다. 그래서
+> `$dual` 은 이제 **스크롤 트랙을 쓸지**만 정한다(pending 을 「있을 것」으로 보는 판정은
+> 트랙 ↔ 섹션 전환의 깜빡임을 막는 데 그대로 쓰인다). 인사이트 문장은 두 열 **위**로
+> 옮겼다(`interaction-polish.md` D4-2 개정). 스켈레톤이 약 400px 로 줄어 최종 화면(약
+> 800px 또는 트랙)으로 바뀔 때 아래 벤토가 밀리는데, 이 섹션은 첫 화면에서 약 7 화면
+> 아래이고 두 쿼리는 그 전에 끝나므로 감수한다.
+
 ```
 ┌─ Section (min-height: 100dvh) ──────────────────────────┐
 │ eyebrow: 지금 많이 본 지역                                │
@@ -602,34 +611,34 @@ props drilling 을 만들지 않는다.
 이 저장소는 jsdom 없이 **node 환경 + `renderToStaticMarkup` 문자열 assertion** 으로 테스트한다.
 순수 함수는 직접 호출한다.
 
-| #   | 대상                   | 케이스                                        | 기대                                                           |
-| --- | ---------------------- | --------------------------------------------- | -------------------------------------------------------------- |
-| 1   | `buildRankingInsight`  | 지표 Top3 중 조회수 밖 항목 있음              | 규칙 A 문장 + 그 코드                                          |
-| 2   | `buildRankingInsight`  | 규칙 A 해당 없음, 조회수 Top3 중 지표 밖 있음 | 규칙 B 문장                                                    |
-| 3   | `buildRankingInsight`  | 양쪽 상위가 완전히 겹침                       | `null`                                                         |
-| 4   | `buildRankingInsight`  | 지표 목록 빈 배열                             | `null`                                                         |
-| 5   | `buildRankingInsight`  | A·B 둘 다 성립                                | **A 가 선택**된다                                              |
-| 6   | `toHomeMetricRankings` | `top-ten` 응답 정규화                         | 3종만. `closed` 키가 **없다**                                  |
-| 7   | `PopularDistricts`     | 조회수 성공 · 지표 실패                       | 좌측만 렌더, 인사이트 문자열 없음                              |
-| 8   | `PopularDistricts`     | 둘 다 실패                                    | 빈 문자열(섹션 제거)                                           |
-| 9   | `PopularDistricts`     | 지표 성공                                     | `changeRate` 부호 표기(`+`/`−`)가 마크업에 있다                |
-| 10  | `MetricRankingBoard`   | 기본 렌더                                     | 지도 마크업(`<svg` path)이 **없다**                            |
-| 11  | `story-steps`          | 상수 검증                                     | 01 의 `demo !== 'map'`, 02 title 에 `AI 리포트`                |
-| 12  | `RecommendPreview`     | 추천 실패                                     | 예시 5행 + `대표 예시 데이터` 라벨                             |
-| 13  | `RecommendPreview`     | 추천 성공                                     | `selectionReason` 문장이 마크업에 있다                         |
-| 14  | `FeatureBento`         | 렌더                                          | `AI 리포트` 문자열이 **없다**                                  |
-| 15  | `CostWaterfall`        | 렌더                                          | 5칸 + `만원` 단위 + 예시 라벨                                  |
-| 16  | `PopularDistricts`     | `top-ten` 200 · 선택된 지표만 빈 배열(D5-4-1) | 지표 토글 3개 유지 + `이 지표는 집계가 없습니다`               |
-| 17  | `PopularDistricts`     | 혼합 pending — 한쪽만 먼저 응답(D5-4-2)       | 두 케이스(조회수 먼저/지표 먼저) 모두 `min-height:100dvh` 유지 |
-| 18  | `MetricRankingBoard`   | `top-ten` 200 · 선택 지표만 빈 배열(D5-4-1)   | 예시 세트 전체로 폴백 + `대표 예시 데이터` 라벨                |
-| 19  | `FunnelCounter`        | 01 노드 렌더                                  | `districts.length` 값을 그대로 반영(`25` 하드코딩 아님)        |
-| 20  | `FunnelCounter`        | 03 실 응답 3건(스포츠 강습 실측 재현)         | `상권 12곳 중 추천 3곳`. `추천 5곳` 문자열은 **없다**          |
-| 21  | `FunnelCounter`        | 03 폴백(`view.isSample`)                      | 「상권 N 중」 없이 `추천 M곳` + `예시` 표기                    |
-| 22  | `FunnelCounter`        | 03 로딩 중(`recommend.isLoading`)             | `—`. `상권` 문자열은 **없다**                                  |
-| 23  | `FunnelCounter`        | 스티키 모드(`active` 지정)                    | `aria-current="step"` 이 **정확히 1개**                        |
-| 24  | `FunnelCounter`        | 스택 모드(`active` 미지정)                    | `aria-current` 가 **없다**                                     |
-| 25  | `useRecommendPreview`  | 선택(자치구·업종) 변경                        | 03 체인 쿼리 키가 달라진다(강남 캐시가 마포로 새지 않음)       |
-| 26  | `ProductStory`         | 스토리 도달 전(SSR = observer 미발화 상태)    | 03 노드가 `—` 로 남고 폴백·실데이터로 함부로 종결되지 않는다   |
+| #   | 대상                   | 케이스                                        | 기대                                                          |
+| --- | ---------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| 1   | `buildRankingInsight`  | 지표 Top3 중 조회수 밖 항목 있음              | 규칙 A 문장 + 그 코드                                         |
+| 2   | `buildRankingInsight`  | 규칙 A 해당 없음, 조회수 Top3 중 지표 밖 있음 | 규칙 B 문장                                                   |
+| 3   | `buildRankingInsight`  | 양쪽 상위가 완전히 겹침                       | `null`                                                        |
+| 4   | `buildRankingInsight`  | 지표 목록 빈 배열                             | `null`                                                        |
+| 5   | `buildRankingInsight`  | A·B 둘 다 성립                                | **A 가 선택**된다                                             |
+| 6   | `toHomeMetricRankings` | `top-ten` 응답 정규화                         | 3종만. `closed` 키가 **없다**                                 |
+| 7   | `PopularDistricts`     | 조회수 성공 · 지표 실패                       | 좌측만 렌더, 인사이트 문자열 없음                             |
+| 8   | `PopularDistricts`     | 둘 다 실패                                    | 빈 문자열(섹션 제거)                                          |
+| 9   | `PopularDistricts`     | 지표 성공                                     | `changeRate` 부호 표기(`+`/`−`)가 마크업에 있다               |
+| 10  | `MetricRankingBoard`   | 기본 렌더                                     | 지도 마크업(`<svg` path)이 **없다**                           |
+| 11  | `story-steps`          | 상수 검증                                     | 01 의 `demo !== 'map'`, 02 title 에 `AI 리포트`               |
+| 12  | `RecommendPreview`     | 추천 실패                                     | 예시 5행 + `대표 예시 데이터` 라벨                            |
+| 13  | `RecommendPreview`     | 추천 성공                                     | `selectionReason` 문장이 마크업에 있다                        |
+| 14  | `FeatureBento`         | 렌더                                          | `AI 리포트` 문자열이 **없다**                                 |
+| 15  | `CostWaterfall`        | 렌더                                          | 5칸 + `만원` 단위 + 예시 라벨                                 |
+| 16  | `PopularDistricts`     | `top-ten` 200 · 선택된 지표만 빈 배열(D5-4-1) | 지표 토글 3개 유지 + `이 지표는 집계가 없습니다`              |
+| 17  | `PopularDistricts`     | 혼합 pending — 한쪽만 먼저 응답(D5-4-2)       | 두 케이스 모두 스크롤 트랙(`calc(100dvh * 3)`) 유지(2.7 개정) |
+| 18  | `MetricRankingBoard`   | `top-ten` 200 · 선택 지표만 빈 배열(D5-4-1)   | 예시 세트 전체로 폴백 + `대표 예시 데이터` 라벨               |
+| 19  | `FunnelCounter`        | 01 노드 렌더                                  | `districts.length` 값을 그대로 반영(`25` 하드코딩 아님)       |
+| 20  | `FunnelCounter`        | 03 실 응답 3건(스포츠 강습 실측 재현)         | `상권 12곳 중 추천 3곳`. `추천 5곳` 문자열은 **없다**         |
+| 21  | `FunnelCounter`        | 03 폴백(`view.isSample`)                      | 「상권 N 중」 없이 `추천 M곳` + `예시` 표기                   |
+| 22  | `FunnelCounter`        | 03 로딩 중(`recommend.isLoading`)             | `—`. `상권` 문자열은 **없다**                                 |
+| 23  | `FunnelCounter`        | 스티키 모드(`active` 지정)                    | `aria-current="step"` 이 **정확히 1개**                       |
+| 24  | `FunnelCounter`        | 스택 모드(`active` 미지정)                    | `aria-current` 가 **없다**                                    |
+| 25  | `useRecommendPreview`  | 선택(자치구·업종) 변경                        | 03 체인 쿼리 키가 달라진다(강남 캐시가 마포로 새지 않음)      |
+| 26  | `ProductStory`         | 스토리 도달 전(SSR = observer 미발화 상태)    | 03 노드가 `—` 로 남고 폴백·실데이터로 함부로 종결되지 않는다  |
 
 **브라우저 실측 검증**(`pnpm qa:verify` 와 별개로 반드시 수행):
 
