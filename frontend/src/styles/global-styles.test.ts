@@ -164,6 +164,73 @@ describe('스크롤바 자리 예약 (페이지 간 가로 밀림 방지)', () =
   })
 })
 
+/*
+ * 스크롤바는 6px 이고 평소 투명하다. ScrollbarReveal 이 스크롤 중인 요소에
+ * `data-scrolling` 을 붙이는 동안만 막대가 색을 갖는다.
+ */
+describe('얇고 스크롤 중에만 보이는 스크롤바', () => {
+  const supportsGuard = '@supportsnotselector(::-webkit-scrollbar){'
+
+  /** `@supports not selector(::-webkit-scrollbar) { … }` 블록 하나를 중괄호 짝으로 잘라 낸다. */
+  const splitSupportsBlock = (
+    css: string,
+  ): { inside: string; outside: string } => {
+    const start = css.indexOf(supportsGuard)
+
+    if (start === -1) return { inside: '', outside: css }
+
+    let depth = 0
+    let end = start + supportsGuard.length - 1
+
+    for (; end < css.length; end += 1) {
+      if (css[end] === '{') depth += 1
+      if (css[end] === '}') depth -= 1
+      if (depth === 0) break
+    }
+
+    return {
+      inside: css.slice(start, end + 1),
+      outside: css.slice(0, start) + css.slice(end + 1),
+    }
+  }
+
+  it('의사요소로 두께를 6px 로 줄이고 막대는 평소 투명하다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain('::-webkit-scrollbar{width:6px;height:6px;}')
+    expect(css).toMatch(
+      /::-webkit-scrollbar-thumb\{background-color:transparent;/,
+    )
+  })
+
+  it('스크롤 중과 hover 에만 기존 grey 토큰으로 색을 준다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain(
+      '[data-scrolling]::-webkit-scrollbar-thumb{background-color:var(--color-grey-400);}',
+    )
+    expect(css).toContain(
+      '::-webkit-scrollbar-thumb:hover{background-color:var(--color-grey-500);}',
+    )
+  })
+
+  /*
+   * Chromium 은 scrollbar-width/scrollbar-color 가 걸린 요소에서 ::-webkit-scrollbar 를
+   * 통째로 무시해 6px 대신 thin 기본값(약 11px)을 그린다. 표준 속성은 의사요소를
+   * 모르는 엔진(Firefox)에만 가야 한다.
+   */
+  it('scrollbar-width: thin 은 @supports not selector(::-webkit-scrollbar) 안에만 있다', () => {
+    const { inside, outside } = splitSupportsBlock(squeeze(renderGlobalCss()))
+
+    expect(inside).toContain('scrollbar-width:thin;')
+    expect(inside).toContain(
+      '[data-scrolling]{scrollbar-color:var(--color-grey-400)transparent;}',
+    )
+    expect(outside).not.toContain('scrollbar-width')
+    expect(outside).not.toContain('scrollbar-color')
+  })
+})
+
 /**
  * DESIGN.md 「셸은 전 라우트 공통, 상한은 요소가 진다」.
  * 폭이 파일마다 박힌 리터럴 9종이던 것을 토큰으로 접었다. 리터럴로 되돌아가면
