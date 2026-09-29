@@ -2,8 +2,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
-import { ANCHOR_SENTENCES } from '@/components/home/anchor-statement'
 import HomePage from '@/components/home/home-page'
+import { STORY_STEPS } from '@/components/home/story-steps'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -28,35 +28,31 @@ const render = () =>
   )
 
 describe('HomePage', () => {
-  it('히어로 + 재설계된 4부(보드/앵커/스토리/벤토)를 렌더한다', () => {
-    const html = render()
-    const text = html.replace(/<[^>]+>/g, '')
+  it('히어로 + 판단 흐름 + 랭킹 + 벤토를 렌더한다 (TC-HR-008)', () => {
+    const text = render().replace(/<[^>]+>/g, '')
 
-    expect(text).toContain('창업 전에, 상권부터 확인하세요.') // 히어로 유지
-    expect(text).toContain('창업할 지역과 업종을 네 단계로 좁힙니다.') // ① 네 도구 보드
-    // 카피를 여기 베끼지 않는다 — 정본은 ANCHOR_SENTENCES 뿐이다(2026-09-08 에
-    // 앵커 문구가 바뀌면서 이 줄이 홀로 낡아 깨졌다).
-    expect(text).toContain(ANCHOR_SENTENCES[0]) // ② 앵커
-    expect(text).toContain('현황 확인') // ③ 스토리 스텝
-    expect(text).toContain('AI 리포트') // ④ 벤토
-    expect(html).toContain('대표 예시 데이터')
+    expect(text).toContain('창업 전에, 상권부터 확인하세요.') // 히어로
+    expect(text).toContain('이렇게 판단해요') // 판단 흐름
+    expect(text).toContain('AI 리포트') // 벤토
   })
 
-  /*
-   * 네 도구의 관계를 말하는 곳이 스토리(3.2 화면 뒤) 하나뿐이었다. 보드가 히어로 바로
-   * 뒤에 오므로, 홈 문서 순서에서 **보드가 스토리보다 먼저** 나와야 한다.
-   */
-  it('네 도구 보드가 판단 흐름보다 앞에 온다', () => {
+  /* 네 도구를 세 번 말하던 보드·앵커가 없다(home-restructure.md D2 #1). */
+  it('네 도구 보드와 앵커 문장을 렌더하지 않는다', () => {
     const html = render()
 
-    // 앵커 문장은 단어별 span 으로 쪼개져 문자열로 찾을 수 없다 — 스토리의 데모 라벨을
-    // 기준점으로 쓴다.
-    const board = html.indexOf('창업할 지역과 업종을 네 단계로 좁힙니다.')
-    const story = html.indexOf('대표 예시 데이터')
+    expect(html).not.toContain('창업할 지역과 업종을 네 단계로 좁힙니다.')
+    expect(html).not.toContain('aria-label="네 도구 요약"')
+    // 앵커 문장은 단어별 span 이다 — 앵커에만 있는 단어 조각으로 찾는다.
+    expect(html).not.toContain('>시뮬레이션은<')
+  })
 
-    expect(board).toBeGreaterThan(-1)
-    expect(story).toBeGreaterThan(-1)
-    expect(board).toBeLessThan(story)
+  it('판단 흐름이 벤토보다 앞에 온다', () => {
+    const html = render()
+
+    expect(html.indexOf('이렇게 판단해요')).toBeGreaterThan(-1)
+    expect(html.indexOf('이렇게 판단해요')).toBeLessThan(
+      html.indexOf('분석 이후의 판단까지'),
+    )
   })
 
   it('CTA 라우트를 렌더하고 레거시 브랜드/이미지가 없다', () => {
@@ -69,16 +65,17 @@ describe('HomePage', () => {
   })
 
   /*
-   * home.md S2 #10 — 홈 본문은 네 도구 모두로 나가는 길을 갖는다. 감사 당시
-   * `/recommend`·`/simulation` 은 본문 링크가 0개였다(이슈 #176). 이제 보드가 네 개를
-   * 모두 들고, 히어로가 `/recommend` 갈래를 하나 더 연다.
+   * TC-004(개정, home-restructure.md D7-3). 01 패널 CTA(/status) · 미니데모 경로
+   * (/analysis) · 히어로 추천 갈래(/recommend) 는 첫 렌더에 있다. /simulation 은 04 탭
+   * 패널에만 있다 — 활성 패널만 렌더하므로 데이터로 고정한다.
    */
-  it('본문이 네 도구로 모두 나간다 (TC-004)', () => {
+  it('첫 렌더가 세 도구로 나가고, 04 탭은 시뮬레이션으로 나간다 (TC-004)', () => {
     const html = render()
 
-    for (const href of ['/status', '/analysis', '/recommend', '/simulation']) {
+    for (const href of ['/status', '/analysis', '/recommend']) {
       expect(html).toContain(`href="${href}"`)
     }
+    expect(STORY_STEPS[3].cta?.href).toBe('/simulation')
   })
 
   /* 「어디가 좋을지 모르는 사람」의 갈래가 첫 화면에 있어야 한다(이슈 #176 잔여 ①). */
