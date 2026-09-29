@@ -86,6 +86,11 @@ describe('STORY_STEPS — 탭 데이터 (TC-HR-007)', () => {
     for (const step of STORY_STEPS) expect(step.icon).toBeTruthy()
   })
 
+  /* AI 리포트는 분석의 산출물이라 02 단계에 둔다(story-and-rankings — 벤토에서 옮겨 왔다). */
+  it('02 단계 제목이 AI 리포트를 명시한다', () => {
+    expect(STORY_STEPS[1].title).toBe('상권 분석 · AI 리포트')
+  })
+
   it('보드 전용이던 tool 필드가 없다', () => {
     for (const step of STORY_STEPS) expect('tool' in step).toBe(false)
   })
