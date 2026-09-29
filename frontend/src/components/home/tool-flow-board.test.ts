@@ -61,7 +61,13 @@ describe('ToolFlowBoard', () => {
   })
 
   /* 스크롤에 기대면 자동화에서 검증할 수 없다(interaction-polish D8-10). */
-  it('보드는 셸 폭을 쓴다', () => {
-    expect(renderStyles().replace(/\s+/g, '')).toContain('width:var(--w-shell)')
+  /*
+    홈 본문 공용 컬럼(--w-wide). 셸(상한 없음)이면 2560 에서 카드 한 장이 620px 로
+    늘어나 글이 왼쪽 한 줄에 몰리고, 스토리(1400)와 왼쪽 기준선이 어긋났다.
+  */
+  it('보드는 홈 공용 컬럼(--w-wide)을 쓴다', () => {
+    expect(renderStyles().replace(/\s+/g, '')).toContain(
+      'width:min(var(--w-wide),var(--w-shell))',
+    )
   })
 })
