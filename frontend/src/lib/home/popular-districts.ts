@@ -91,3 +91,15 @@ export const toPopularDistrictsView = (
   items: toPopularDistricts(body.rankings ?? []),
   windowLabel: formatRankingWindow(body.windowHours),
 })
+
+/**
+ * 좌측(조회수) 열과 인사이트 문장이 성립하는 최소 표본.
+ *
+ * 1~2곳짜리 「순위」는 비교 대상이 되지 못한다 — 사회적 증거는 표본이 작을수록
+ * 역효과다(dev 실측: 강남구 1회 1건, ranking-minimum-sample.md D0-1). 인사이트
+ * 가드와 같은 값을 쓴다 — 둘이 갈리면 좌측 열은 있는데 문장만 없거나 그 반대가 된다.
+ */
+export const MIN_VIEW_SAMPLE_SIZE = 3
+
+export const hasEnoughViewSample = (view: PopularDistrictsView): boolean =>
+  view.items.length >= MIN_VIEW_SAMPLE_SIZE

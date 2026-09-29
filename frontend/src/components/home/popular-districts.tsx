@@ -8,10 +8,10 @@ import { fetchAnalysisRankings } from '@/lib/api/analysis-ranking'
 import { retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
 import { useDistrictTopTen } from '@/hooks/use-district-top-ten'
-import { useStackedMode } from '@/hooks/use-stacked-mode'
 import {
   toPopularDistrictsView,
   formatViewCount,
+  hasEnoughViewSample,
 } from '@/lib/home/popular-districts'
 import {
   toHomeMetricRankings,
@@ -27,60 +27,23 @@ import {
 } from '@/lib/status/status-formatters'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
-import { HEADER_HEIGHT, HOME_COLUMN } from '@/components/home/layout-constants'
-import { activeStepFromPinnedProgress } from '@/components/home/scroll-fill'
-import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
-import { useScrollProgress } from '@/components/home/use-scroll-progress'
+import { HOME_COLUMN } from '@/components/home/layout-constants'
 
 const RANKING_SIZE = 8
 
 /*
-  트랙이 아닐 때(폴백·솔로)는 화면 높이를 붙잡지 않는다. 예전엔 두 열이면 100dvh 를
-  채우고 세로 가운데 정렬했는데, 콘텐츠가 약 500px 라 1080 화면에서 위아래로 약
-  250px 씩 빈 띠가 생겼다. 솔로(D5-4)는 원래부터 콘텐츠 높이였다.
+  화면 높이를 붙잡지 않는다. 300dvh 스크롤 트랙(R1)은 home-restructure.md 에서
+  철회했다 — 지표 전환은 토글 클릭 하나다. 세로 리듬은 판단 흐름·벤토와 같다.
 */
 const Section = styled.section`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 64px 0;
+  padding: 96px 0;
 
-  /* 900px 이하에서는 2단이 1단으로 접힌다. 두 목록을 한 화면에 넣으면 글자가 안 읽힌다. */
   @media (max-width: 900px) {
-    padding: 56px 0;
+    padding: 72px 0;
   }
 
   @media (max-width: 640px) {
-    padding: 48px 0;
-  }
-`
-
-/*
-  R1: 지표를 스크롤로 넘긴다. 트랙 높이는 스토리가 쓰는 공식(100dvh x 스텝 수)을
-  지표 개수에 그대로 적용한 값이다 — 300dvh 를 하드코딩하면 지표를 늘릴 때 어긋난다.
-
-  dual 이고 스택 모드가 아닐 때만 쓴다(D5-3). 좌측 열 없이 우측 지표 하나만 핀
-  고정하면 비교 맥락(「보는 곳」)이 없어 서사가 성립하지 않는다.
-*/
-const ScrollTrack = styled.section`
-  height: calc(100dvh * ${HOME_METRICS.length});
-`
-
-const ScrollSticky = styled.div`
-  position: sticky;
-  top: ${HEADER_HEIGHT};
-  min-height: calc(100dvh - ${HEADER_HEIGHT});
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 64px 0;
-
-  @media (max-width: 900px) {
     padding: 56px 0;
-  }
-
-  @media (max-width: 640px) {
-    padding: 48px 0;
   }
 `
 
@@ -116,6 +79,11 @@ const Eyebrow = styled.p`
 `
 
 const Title = styled.h2`
+  /*
+    상태(스켈레톤 → dual / 지표만 / 조회만)마다 문구가 바뀌어 줄 수가 달라질 수 있다.
+    2줄분을 예약해 교체가 아래 목록을 밀지 않게 한다(ranking-minimum-sample D4-2).
+  */
+  min-height: 72px;
   color: var(--color-text-900);
   font-size: 26px;
   font-weight: 700;
@@ -123,11 +91,13 @@ const Title = styled.h2`
   word-break: keep-all;
 
   @media (max-width: 640px) {
+    min-height: 60px;
     font-size: 22px;
     line-height: 30px;
   }
 
   @media (max-width: 480px) {
+    min-height: 56px;
     font-size: 20px;
     line-height: 28px;
   }
@@ -245,6 +215,29 @@ const SkeletonCard = styled.div`
   background: var(--color-surface);
 `
 
+/*
+  상태별 두 줄 문구(ranking-minimum-sample D4-2). 각 상태에서 **참인 문장**만 쓴다 —
+  좌측 열이 없는데 「많이 본」을 약속하지 않는다.
+*/
+const COPY = {
+  dual: {
+    eyebrow: '지금 많이 본 지역',
+    title: '다른 사람들이 보는 곳과, 숫자가 좋은 곳은 달라요.',
+  },
+  metricOnly: {
+    eyebrow: '자치구 지표 순위',
+    title: '유동인구·매출·개업 수로 자치구를 비교해요.',
+  },
+  viewOnly: {
+    eyebrow: '지금 많이 본 지역',
+    title: '지금은 이 자치구들을 많이 보고 있어요.',
+  },
+} as const
+
+/*
+  스켈레톤은 「지표만」 문구를 쓴다. 그 문장은 dual 에서도 참이라(dual 은 지표 열을
+  반드시 포함한다) 최종 상태가 무엇이 되든 거짓을 먼저 약속하지 않는다(D4-4).
+*/
 function RankingSkeleton() {
   return (
     <Section aria-busy="true" aria-label="지금 많이 본 자치구">
@@ -252,9 +245,9 @@ function RankingSkeleton() {
         <Header>
           <Eyebrow>
             <TrendingUp aria-hidden="true" />
-            지금 많이 본 지역
+            {COPY.metricOnly.eyebrow}
           </Eyebrow>
-          <Title>다른 사람들이 보는 곳과, 숫자가 좋은 곳은 다릅니다.</Title>
+          <Title>{COPY.metricOnly.title}</Title>
         </Header>
         <List aria-hidden="true">
           {Array.from({ length: RANKING_SIZE }, (_, index) => (
@@ -283,25 +276,21 @@ export default function PopularDistricts() {
 
   const metricQuery = useDistrictTopTen()
 
-  /* 스크롤 트랙이 아닐 때(폴백·솔로)의 지표 정본. 트랙 모드에서는 스크롤이 정본이다. */
-  const [pickedMetric, setPickedMetric] = useState<HomeMetric>('footTraffic')
-
-  /* 훅은 전부 조기 반환보다 앞에 있어야 한다 — 아래 dual 계산도 그래서 위로 올렸다. */
-  const {
-    ref: trackRef,
-    progress,
-    element: trackElement,
-    trackHeight,
-    viewportHeight,
-  } = useScrollProgress()
-  const stacked = useStackedMode()
+  /* 지표 정본. 토글이 바꾸고, 그 자리에서 우측 목록만 바뀐다. */
+  const [metric, setMetric] = useState<HomeMetric>('footTraffic')
 
   const rawView =
     rankingQuery.data && isApiSuccess(rankingQuery.data)
       ? toPopularDistrictsView(rankingQuery.data.dataBody)
       : null
-  // 집계가 아직 비었을 수도 있다(배포 직후). 빈 목록을 그리느니 그 쪽을 뺀다.
-  const view = rawView && rawView.items.length > 0 ? rawView : null
+  /*
+    빈 목록(배포 직후)과 표본 부족(1~2곳)은 같은 결과 — 좌측 열이 없다. 1~2곳짜리
+    「많이 본 순위」는 사회적 증거가 아니라 역효과다(ranking-minimum-sample.md).
+  */
+  const view =
+    rawView && rawView.items.length > 0 && hasEnoughViewSample(rawView)
+      ? rawView
+      : null
 
   const metricRankings =
     metricQuery.data && isApiSuccess(metricQuery.data)
@@ -318,37 +307,8 @@ export default function PopularDistricts() {
     metricRankings !== null &&
     metricRankings.some(entry => entry.items.length > 0)
 
-  /*
-    아직 안 온 것(isPending)과 죽은 것을 구별한다. pending 인 쪽은 결론이 안 났으니
-    "있을 것"으로 가정한다 — "지금 렌더된 열" 기준으로 판정하면 한쪽이 먼저 도착했을
-    때 나머지를 "없다"로 오판해 수축했다가 재팽창하는 깜빡임이 정상 로드마다 난다.
-  */
   const viewPending = rankingQuery.isPending
   const metricPending = metricQuery.isPending
-  const viewWillExist = viewPending || view !== null
-  const metricWillExist = metricPending || hasMetricData
-  const dual = viewWillExist && metricWillExist
-
-  /*
-    D5-3. 스크롤 트랙은 dual 이고 스택 모드가 아닐 때만 쓴다. 모바일(≤768px)·
-    reduced-motion 은 스토리와 **같은 판정**(useStackedMode)으로 폴백한다.
-  */
-  const useScrollTrack = dual && !stacked
-
-  /*
-    트랙 모드에서는 스크롤 진행도가 지표의 정본이다 — 로컬 state 를 정본으로 두면
-    클릭 직후에도 스크롤 리스너가 progress 를 재계산해 다음 스크롤 이벤트(휠 관성·
-    리사이즈)에서 상태가 스크롤 위치로 되돌아간다(클릭이 무시된 것처럼 보인다).
-    신규 스크롤 계산 함수는 만들지 않는다 — activeStepFromProgress 가 이미 임의의
-    스텝 수에 제네릭하다.
-  */
-  const scrollIndex = activeStepFromPinnedProgress(
-    progress,
-    HOME_METRICS.length,
-    trackHeight,
-    viewportHeight,
-  )
-  const metric = useScrollTrack ? HOME_METRICS[scrollIndex] : pickedMetric
 
   const activeMetric = hasMetricData
     ? (metricRankings!.find(entry => entry.metric === metric) ?? null)
@@ -423,21 +383,7 @@ export default function PopularDistricts() {
           options={HOME_METRICS}
           value={metric}
           getLabel={homeMetricLabel}
-          onChange={next => {
-            /*
-            트랙 모드에서 setState 만 하면 다음 스크롤 이벤트가 값을 되돌린다 —
-            스크롤 위치 자체를 그 지표 구간으로 옮겨 정본을 덮어쓴다(조건①).
-          */
-            if (useScrollTrack && trackElement) {
-              scrollToPinnedStep(
-                trackElement,
-                HOME_METRICS.indexOf(next),
-                HOME_METRICS.length,
-              )
-              return
-            }
-            setPickedMetric(next)
-          }}
+          onChange={setMetric}
           ariaLabel="지표 선택"
         />
       </ColumnHeader>
@@ -449,53 +395,48 @@ export default function PopularDistricts() {
           variant="card"
         />
       ) : (
-        <MetricEmptyNotice>이 지표는 집계가 없습니다.</MetricEmptyNotice>
+        <MetricEmptyNotice>이 지표는 아직 집계가 없어요.</MetricEmptyNotice>
       )}
     </Column>
   ) : null
 
-  const body = (
-    <Inner>
-      <Header>
-        <Eyebrow>
-          <TrendingUp aria-hidden="true" />
-          지금 많이 본 지역
-        </Eyebrow>
-        <Title>다른 사람들이 보는 곳과, 숫자가 좋은 곳은 다릅니다.</Title>
-      </Header>
-      {/*
+  const copy =
+    viewColumn && metricColumn
+      ? COPY.dual
+      : viewColumn
+        ? COPY.viewOnly
+        : COPY.metricOnly
+
+  return (
+    <Section aria-label="지금 많이 본 자치구">
+      <Inner>
+        <Header>
+          <Eyebrow>
+            <TrendingUp aria-hidden="true" />
+            {copy.eyebrow}
+          </Eyebrow>
+          <Title>{copy.title}</Title>
+        </Header>
+        {/*
         항상 마운트해 자리를 예약한다(R2). aria-live 는 지표를 넘겨 문장이
         바뀌거나 나타나거나 사라질 때 스크린리더가 그 변화를 읽게 한다.
         두 열이 다 있을 때만 둔다 — 인사이트는 두 순위의 차이를 말하는 문장이라
         솔로 분기에서는 영원히 비어 있을 자리가 된다.
       */}
-      {viewColumn && metricColumn ? (
-        <InsightSlot $visible={insight !== null} aria-live="polite">
-          {insight?.sentence ?? null}
-        </InsightSlot>
-      ) : null}
-      {viewColumn && metricColumn ? (
-        <Columns>
-          {viewColumn}
-          {metricColumn}
-        </Columns>
-      ) : (
-        (viewColumn ?? metricColumn)
-      )}
-    </Inner>
+        {viewColumn && metricColumn ? (
+          <InsightSlot $visible={insight !== null} aria-live="polite">
+            {insight?.sentence ?? null}
+          </InsightSlot>
+        ) : null}
+        {viewColumn && metricColumn ? (
+          <Columns>
+            {viewColumn}
+            {metricColumn}
+          </Columns>
+        ) : (
+          (viewColumn ?? metricColumn)
+        )}
+      </Inner>
+    </Section>
   )
-
-  /*
-    좌측(조회수) 열은 스크롤과 무관한 고정 콘텐츠고, 우측 지표만 스크롤 진행도로
-    바뀐다 — 그래서 본문 하나를 두 껍데기가 나눠 쓴다.
-  */
-  if (useScrollTrack) {
-    return (
-      <ScrollTrack ref={trackRef} aria-label="지금 많이 본 자치구">
-        <ScrollSticky>{body}</ScrollSticky>
-      </ScrollTrack>
-    )
-  }
-
-  return <Section aria-label="지금 많이 본 자치구">{body}</Section>
 }

@@ -1,5 +1,8 @@
 import type { HomeMetricRanking } from '@/lib/home/metric-rankings'
-import type { PopularDistrict } from '@/lib/home/popular-districts'
+import {
+  MIN_VIEW_SAMPLE_SIZE,
+  type PopularDistrict,
+} from '@/lib/home/popular-districts'
 
 export type RankingInsight = {
   /** 화면에 그대로 쓰는 문장. */
@@ -23,7 +26,9 @@ export const buildRankingInsight = (
   views: readonly PopularDistrict[],
   metric: HomeMetricRanking,
 ): RankingInsight | null => {
-  if (views.length === 0 || metric.items.length === 0) return null
+  // 1~2곳과의 비교는 정보가 아니다(최소 표본, ranking-minimum-sample.md D4-3).
+  if (views.length < MIN_VIEW_SAMPLE_SIZE || metric.items.length === 0)
+    return null
 
   const viewCodes = new Set(views.map(item => item.districtCode))
   const metricCodes = new Set(metric.items.map(item => item.districtCode))
@@ -35,7 +40,7 @@ export const buildRankingInsight = (
 
   if (unseen) {
     return {
-      sentence: `${metric.label} ${unseen.rank}위 ${unseen.districtName}는 지금 많이 본 ${views.length}곳에 들지 않았습니다.`,
+      sentence: `${metric.label} ${unseen.rank}위 ${unseen.districtName}는 지금 많이 본 ${views.length}곳에 들지 않았어요.`,
       highlightCode: unseen.districtCode,
     }
   }
@@ -47,7 +52,7 @@ export const buildRankingInsight = (
 
   if (outside) {
     return {
-      sentence: `조회수 ${outside.rank}위 ${outside.name}는 ${metric.label} Top ${metric.items.length} 밖입니다.`,
+      sentence: `조회수 ${outside.rank}위 ${outside.name}는 ${metric.label} Top ${metric.items.length} 밖이에요.`,
       highlightCode: outside.districtCode,
     }
   }
