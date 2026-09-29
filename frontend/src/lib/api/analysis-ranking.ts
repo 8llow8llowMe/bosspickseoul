@@ -19,10 +19,12 @@ import type { AnalysisRankingResponse } from '@/types/status'
  * 즉 막힌 것이 아니라 **정적 `href` 로는 안 되고 클릭 시 한 번 더 부르는 설계가 된다**
  * — 목록 N개를 미리 조회하면 N+1 이므로 눌린 항목만 조회한다.
  *
- * 지금 두 곳이 이 API 를 쓴다.
+ * 지금 세 곳이 이 API 를 쓴다.
  * - 홈 「지금 많이 본 지역」: 왕복이 필요 없는 `DISTRICT`
  * - `/analysis` 1단계 「지금 많이 본 상권」: `COMMERCIAL` + 눌린 항목 역조회
  *   (`components/analysis/popular-commercials-shortcut.tsx`, 인벤토리 B4)
+ * - `/recommend` 조건 뷰 「실시간 많이 본 상권」 띠: `COMMERCIAL`, 표시만(역조회 없음)
+ *   (`components/recommend/recommend-live-popular.tsx`)
  *
  * ⚠️ **`/status?district=` 는 목적지로 쓸 수 없다.** `normalizeStatusSelection` 이
  * 「현재 지표의 top-10」에 없는 코드를 버리고, 상세도 `selectedItem !== null` 로
