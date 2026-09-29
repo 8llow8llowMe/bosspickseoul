@@ -240,7 +240,7 @@ const COPY = {
 */
 function RankingSkeleton() {
   return (
-    <Section aria-busy="true" aria-label="지금 많이 본 자치구">
+    <Section aria-busy="true" aria-label={COPY.metricOnly.eyebrow}>
       <Inner>
         <Header>
           <Eyebrow>
@@ -320,13 +320,17 @@ export default function PopularDistricts() {
     view && activeMetric ? buildRankingInsight(view.items, activeMetric) : null
 
   /*
-    둘 다 아직 로딩 중이면 **기존 스켈레톤을 그대로 낸다** — 여기서 null 을 내면
-    로딩 동안 홈이 한 칸 꺼졌다가 나중에 아래 섹션을 밀어낸다(기존 코드가 스켈레톤을
-    둔 이유가 그것이다). 둘 다 결론이 났는데 쓸 수 있는 게 없을 때만 섹션을 뺀다.
+    스켈레톤으로 기다리는 두 경우(ranking-minimum-sample D5-1 pending 표):
+    ① 조회가 아직 안 왔다 — 지표가 먼저 와도 「지표만」을 먼저 그리지 않는다. 뒤이어
+       조회가 3곳 이상으로 오면 dual 로 바뀌며 인사이트 슬롯·2단 배치가 끼어들어
+       아래 벤토를 민다(지표 쿼리는 01 데모와 공유라 먼저 오는 경우가 흔하다).
+    ② 조회는 결론(좌측 없음)인데 지표가 아직 안 왔다.
+    여기서 null 을 내면 로딩 동안 홈이 한 칸 꺼졌다가 나중에 아래 섹션을 민다.
+    둘 다 결론이 났는데 쓸 수 있는 게 없을 때만 섹션을 뺀다.
   */
+  if (viewPending) return <RankingSkeleton />
   if (!view && !activeMetric) {
-    if (viewPending || metricPending) return <RankingSkeleton />
-    return null
+    return metricPending ? <RankingSkeleton /> : null
   }
 
   const viewRows: RankBarRow[] = (view?.items ?? []).map(item => ({
@@ -408,7 +412,8 @@ export default function PopularDistricts() {
         : COPY.metricOnly
 
   return (
-    <Section aria-label="지금 많이 본 자치구">
+    /* 랜드마크 이름도 상태에서 유도한다 — 좌측 열이 없는데 「많이 본」을 읽지 않게. */
+    <Section aria-label={copy.eyebrow}>
       <Inner>
         <Header>
           <Eyebrow>
