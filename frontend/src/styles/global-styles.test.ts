@@ -450,3 +450,49 @@ describe('포커스가 hover 에 묻히지 않는다', () => {
     expect(offenders).toEqual([])
   })
 })
+
+/**
+ * DESIGN.md 「`scrollbar-width`·`scrollbar-color` 와 `::-webkit-scrollbar` 를 같은 요소에
+ * 섞지 않는다」. Chromium 은 표준 속성이 걸린 요소에서 전역 `::-webkit-scrollbar` 규칙을
+ * 통째로 무시한다. 컴포넌트가 `scrollbar-width: thin` 을 직접 걸면 그 요소만 6px 대신
+ * 약 11px 기본색 막대가 **항상** 보인다 — 커뮤니티 목록 탭이 그랬다(#423).
+ *
+ * 컴포넌트에 허용되는 것은 스크롤바를 아예 숨기는 `scrollbar-width: none` 뿐이다.
+ * 표준 속성의 다른 값은 전역 스타일의 `@supports` 블록만 쓴다.
+ */
+describe('컴포넌트는 스크롤바 표준 속성으로 두께·색을 정하지 않는다', () => {
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+  )
+
+  const globalStyles = path.join(projectRoot, 'styles', 'global-styles.ts')
+
+  /** 주석 속 설명문이 선언으로 읽히지 않게 지운다. */
+  const stripComments = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '')
+
+  const declaration = /scrollbar-(width|color)\s*:\s*([^;}]+)/g
+
+  it('scrollbar-width 는 none 만, scrollbar-color 는 쓰지 않는다', () => {
+    const offenders: string[] = []
+
+    for (const file of collectFiles(projectRoot, isSourceFile)) {
+      if (file === globalStyles) continue
+
+      const raw = readIfPresent(file)
+
+      if (raw === null) continue
+
+      for (const [text, property, value] of stripComments(raw).matchAll(
+        declaration,
+      )) {
+        if (property === 'width' && value.trim() === 'none') continue
+
+        offenders.push(`${path.relative(projectRoot, file)}: ${text.trim()}`)
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+})
