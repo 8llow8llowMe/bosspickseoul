@@ -3,19 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import styled from 'styled-components'
+
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
 import BreakEvenChart from '@/components/home/break-even-chart'
-import { HEADER_HEIGHT, HOME_COLUMN } from '@/components/home/layout-constants'
+import { HOME_COLUMN } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
-import { activeStepFromPinnedProgress } from '@/components/home/scroll-fill'
-import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
-import {
-  STORY_STEPS,
-  type StoryDemo,
-  type StoryStep,
-} from '@/components/home/story-steps'
-import { useScrollProgress } from '@/components/home/use-scroll-progress'
+import StepTabs, {
+  STORY_PANEL_ID,
+  storyTabId,
+} from '@/components/home/step-tabs'
+import { STORY_STEPS, type StoryDemo } from '@/components/home/story-steps'
 import {
   DEFAULT_SELECTION,
   findDistrictOption,
@@ -27,35 +25,34 @@ import {
   useRecommendPreview,
   type RecommendPreviewState,
 } from '@/hooks/use-recommend-preview'
-import { useStackedMode } from '@/hooks/use-stacked-mode'
 
 /*
-  전폭 배경 밴드(이슈 #223).
+  판단 흐름 — 네 단계를 탭으로 바꿔 보는 섹션(home-restructure.md).
 
-  홈에서 스토리만 셸(1865@1920)도 읽기 컬럼(980)도 아닌 1400 이라 헤더보다 한쪽
-  233px(1920) · 553px(2560) 좁았다. 실측해 보니 **여는 쪽이 더 나빴다** — 셸 전폭으로
-  열면 데모 영역이 1423px 이 되어 01 의 가로 막대가 1300px 로 늘어나고, 이는 폭 체계
-  §6 이 스스로 정한 「가로 막대 → 560px 상한」을 어긴다. 데모에 상한을 걸어 봐도 2560
-  에서 카드 2105px 안에 데모 1000px 이라 좌우가 550px 씩 빈다.
-
-  그래서 폭 체계 §5 가 **중앙 그룹에 대해 이미 써 둔 처방**을 여기에 적용한다 —
-  「좁은 카드가 넓은 판 위에 놓인 것으로 읽혀 어긋남이 아니게 된다」. 폭은 --w-wide
-  1400 그대로 두고 배경만 전폭으로 깐다. 흰 Panel 카드가 밴드 위에서 떠올라 대비도
-  함께 얻는다.
-
-  ⚠️ 이 토큰은 **StepButton 의 hover 배경과 같았다.** 밴드를 깔면 hover 가 보이지
-  않게 되므로 그쪽을 --color-surface-muted 로 한 단계 내렸다(아래 StepButton).
-
-  스티키·스택 두 분기를 모두 감싸므로 모바일에도 같은 밴드가 깔린다.
+  예전엔 네 도구 보드 · 앵커 문장 · 스티키 스토리(400dvh)가 같은 네 단계를 세 번
+  말했다. 지금은 여기 한 번이고, 스크롤을 붙잡지 않는다. 전폭 배경 밴드(#223)는 유지한다.
 */
 const Container = styled.section`
   position: relative;
   background: var(--color-background-muted);
+  padding: 96px 0;
+
+  @media (max-width: 900px) {
+    padding: 72px 0;
+  }
+
+  @media (max-width: 640px) {
+    padding: 56px 0;
+  }
+`
+
+const Inner = styled.div`
+  ${HOME_COLUMN}
+  display: grid;
+  gap: 24px;
 `
 
 const Lead = styled.div`
-  width: 100%;
-  margin: 0;
   display: grid;
   gap: 10px;
 `
@@ -86,282 +83,92 @@ const LeadTitle = styled.h2`
   }
 `
 
-const Track = styled.div`
-  height: calc(100dvh * ${STORY_STEPS.length});
-
-  @media (max-width: 768px) {
-    height: auto;
-  }
-`
-
-const Sticky = styled.div`
-  position: sticky;
-  /* top 을 헤더 높이로 내려 pin 된 박스 상단 자체를 헤더 아래로 보낸다 — 내부
-     콘텐츠(아이브로·h2)가 헤더 밴드로 올라갈 하한이 없어진다(R3, 명세 D4-1). */
-  top: ${HEADER_HEIGHT};
-  /*
-    min 과 max 를 함께 준다. min 만 있으면 컨테이너가 콘텐츠 높이만큼 커져서 줄일
-    여유분이 생기지 않고, StoryRow 의 flex 축소가 발동하지 않는다 — 실측(1100x800)
-    으로 콘텐츠 762px 가 가용 띠 735px 를 27px 넘겼다. 상한을 두면 그 27px 이
-    부족분이 되어 StoryRow 가 그만큼 줄어든다.
-  */
-  min-height: calc(100dvh - ${HEADER_HEIGHT});
-  max-height: calc(100dvh - ${HEADER_HEIGHT});
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 32px;
-  /*
-    홈 본문 공용 컬럼(--w-wide 1400). 예전엔 스토리만 이 폭이라 앞뒤 섹션(셸)과
-    왼쪽 기준선이 어긋났다 — 지금은 보드·인기지역·벤토가 같은 컬럼을 쓴다.
-  */
-  ${HOME_COLUMN}
-  padding: 32px 0;
-`
-
 /*
-  데모 박스 높이를 고정해 스텝마다 지도/미니데모/막대차트로 바뀌어도 위쪽 리드
-  타이틀·스텝 목록이 흔들리지 않게 한다.
-
-  다만 `height: 600px` 고정은 낮은 뷰포트에서 스티키 콘텐츠를 화면 밖으로 밀어냈다
-  (실측 1440x900: 콘텐츠 877px vs 쓸 수 있는 띠 835px → 바닥 42px 이 잘렸다).
-  `flex: 0 1 600px` 은 **기본 600px 이되 줄어들 수는 있고 늘어나지는 않는다** —
-  늘어나게 두면 큰 화면에서 패널이 과하게 커져 데모가 헐렁해진다.
+  데스크톱 패널은 가장 큰 데모(02 미니데모 실측 519px) + 패딩 40 을 예약한다. 탭을
+  바꿔도 아래 랭킹 섹션이 밀리지 않는다(명세 D4-2). 데모가 커지면 이 값을 다시 잰다.
+  모바일은 예약하지 않는다 — 밀리는 것은 보고 있는 패널 아래다.
 */
-const StoryRow = styled.div`
+const Panel = styled.div`
   display: grid;
-  /*
-    5:7 로 나눈다. 예전 360px + 1fr 은 1400 컬럼에서 패널을 1000px 로 키워 01 가로
-    막대가 약 715px 가 됐다(폭 체계 §Charts 상한 560px 위반, 이름과 값이 멀어진다).
-    5:7 이면 패널 약 790px · 막대 약 500px 이고, 목록은 본문이 한두 줄로 접혀 낮은
-    뷰포트에서 오히려 덜 넘친다.
-
-    목록은 예전 폭 360px 를 하한으로 둔다. 5:7 만 쓰면 컬럼 864px 미만(뷰포트 약
-    944 미만)에서 목록이 예전보다 좁아져 800 에서 294px, 「AI 리포트」가 「리포/트」로
-    끊겼다. 하한이 걸리는 폭에서는 예전 배치(360 + 나머지)와 같다.
-  */
-  grid-template-columns: minmax(360px, 5fr) minmax(0, 7fr);
-  /*
-    행도 묶어야 한다. 행을 명시하지 않으면 암시적 행이 max-content 로 잡혀서,
-    컨테이너가 줄어도 행은 콘텐츠 크기를 유지하고 자식이 박스 밖으로 그려진다
-    (실측 1280x620: 컨테이너 393px 인데 행 534px). minmax 의 0 이 필수다 —
-    1fr 만 쓰면 최소 콘텐츠 크기가 하한이 되어 축소가 일어나지 않는다.
-  */
-  grid-template-rows: minmax(0, 1fr);
-  align-items: stretch;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: 40px;
-  flex: 0 1 600px;
-  min-height: 0;
-`
-
-const StepList = styled.ol`
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  /*
-    낮은 뷰포트에서 StoryRow 가 줄어들면 네 행(약 494px)이 그 안에 안 들어간다.
-    넘침 처리가 없으면 목록이 박스 밖으로 그려져 화면 아래로 삐져나간다
-    (실측 1280x620: 행 393px 안에 목록 534px). 밖으로 새는 대신 목록이 스크롤된다.
-    min-height: 0 이 없으면 그리드 자식의 최소 콘텐츠 크기가 하한이 되어 축소 자체가
-    일어나지 않는다.
-  */
-  min-height: 0;
-  overflow: auto;
-`
-
-const StepButton = styled.button<{ $active: boolean }>`
-  width: 100%;
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 12px;
-  padding: 14px 16px;
-  border: none;
+  min-height: 560px;
+  padding: 20px;
+  border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
-  background: ${p => (p.$active ? 'var(--color-primary-100)' : 'transparent')};
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--motion-standard) var(--ease-standard);
-
-  /*
-    비활성 hover 는 --color-surface-muted 다. 예전엔 --color-background-muted 였는데
-    그것이 Container 밴드와 **같은 색**이 되어(#223) hover 가 화면에서 사라졌다 —
-    한 단계 진한 쪽으로 내려 밴드 위에서도 보이게 한다.
-  */
-  &:hover {
-    background: ${p =>
-      p.$active ? 'var(--color-primary-100)' : 'var(--color-surface-muted)'};
-  }
+  background: var(--color-surface);
 
   &:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus-primary);
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
+  @media (max-width: 768px) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    min-height: 0;
+    padding: 16px;
   }
 `
 
-const StepNum = styled.span<{ $active: boolean }>`
-  font-size: 16px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: ${p =>
-    p.$active ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
+const Copy = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 4px;
 `
 
-const StepText = styled.span`
+const PanelTitle = styled.h3`
+  color: var(--color-text-900);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  word-break: keep-all;
+`
+
+const Body = styled.p`
+  color: var(--color-text-600);
+  font-size: 15px;
+  line-height: 24px;
+  word-break: keep-all;
+`
+
+const Outcome = styled.div`
   display: grid;
   gap: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-200);
 `
 
-const StepTitle = styled.h3<{ $active: boolean }>`
-  display: block;
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 24px;
-  color: ${p =>
-    p.$active ? 'var(--color-text-900)' : 'var(--color-text-700)'};
-`
-
-// 스텝 제목과 그 단계의 수치를 한 줄에 둔다 — 숫자가 그 숫자를 만든 단계 옆에
-// 붙어야 「왜 25인가」를 위쪽에서 따로 읽지 않는다.
-const StepTitleRow = styled.span`
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-`
-
-const StepValue = styled.span`
-  flex-shrink: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-900);
-  font-variant-numeric: tabular-nums;
-  word-break: keep-all;
-  text-align: right;
-`
-
-/*
-  값을 한정하는 주석(03 「예시」·04 「선택과 무관한 고정 예시」). 값 칸 안에 두면
-  칸이 좁아 두 줄로 접히고, 그 행만 6px 높아져 네 행의 높이가 어긋났다 — 값 아래
-  전체 폭으로 내려 한 줄에 들어가게 한다.
-
-  주석이 없는 행도 이 줄을 비워 예약한다. 예약하지 않으면 주석이 있는 행만 높아진다
-  (인사이트 슬롯과 같은 이유). 스텝 목록은 StoryRow 안이므로 스티키 전체 높이는
-  늘어나지 않는다.
-*/
-const StepNote = styled.span`
-  display: block;
-  min-height: 16px;
-  margin-top: 2px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 16px;
+const OutcomeLabel = styled.span`
   color: var(--color-text-caption);
-  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
 `
 
-const StepBody = styled.p`
-  display: block;
-  margin: 0;
+const OutcomeText = styled.span`
+  color: var(--color-text-700);
   font-size: 14px;
-  line-height: 21px;
-  color: var(--color-text-600);
+  font-weight: 600;
+  line-height: 22px;
+  word-break: keep-all;
+`
+
+const Note = styled.p`
+  color: var(--color-text-caption);
+  font-size: 13px;
+  line-height: 20px;
   word-break: keep-all;
 `
 
 /*
-  CTA 를 패널 **안** 바닥에 둔다. 예전엔 패널 밖 아래에 따로 떨어져 있어 「이 데모의
-  다음 행동」으로 읽히지 않았다. 스크롤은 데모 영역만 하고 CTA 줄은 고정이라, 낮은
-  뷰포트에서 데모가 줄어도 버튼이 패널 밖으로 밀려나지 않는다.
-
-  StoryRow 가 align-items: stretch 라 패널이 행 높이를 그대로 받는다 — height 를
-  따로 주지 않는다.
+  CTA 는 설명 묶음 바로 뒤에 둔다. 패널 바닥(margin-top: auto)에 붙이면 01 처럼 데모가
+  긴 단계에서 「손에 남는 것」과 버튼 사이가 300px 가까이 비어 끊겨 보였다.
 */
-const Panel = styled.div`
-  min-width: 0;
-  min-height: 320px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  padding: 20px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`
-
-/*
-  데모는 CTA 줄을 뺀 영역의 세로 가운데에 둔다. 위로 붙이면 03(도넛)·04(차트)처럼
-  짧은 데모와 바닥 CTA 사이가 150px 넘게 비었다.
-
-  justify-content: center 대신 자식의 margin-block: auto 로 가운데를 잡는다 —
-  justify-content: center 는 데모가 영역보다 커지면(낮은 뷰포트) **위쪽이 잘려
-  스크롤로도 닿지 않는다.** auto 마진은 넘치는 순간 0 이 되어 위에서부터 쌓인다.
-
-  스크롤 경계가 패딩 없는 이 영역이라 데모 가장자리의 포커스 링(바깥 2px)과 카드
-  그림자가 잘린다. 패널 패딩 안으로 8px 를 빌려(음수 마진 + 같은 패딩) 링과
-  그림자가 그려질 여유를 두고, 콘텐츠 위치는 그대로 둔다.
-*/
-const DemoArea = styled.div`
-  flex: 1;
-  min-height: 0;
-  margin: -8px;
-  padding: 8px;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-
-  > * {
-    margin-block: auto;
-  }
-`
-
-const PanelFooter = styled.div`
-  flex: none;
-`
-
-const Stack = styled.div`
-  width: min(760px, 100%);
-  margin: 0 auto;
-  padding: 0 20px;
-
-  @media (max-width: 480px) {
-    padding: 0 16px;
-  }
-`
-
-// 리드(섹션 표제)는 짧은 인트로로만 두고, 각 스텝만 한 화면(100dvh - 헤더)씩
-// 차지하게 해 "한 화면 = 한 스텝" 슬라이드로 스크롤되게 한다(단순 나열 개선).
-const StackLead = styled.div`
-  padding: 56px 0 8px;
-
-  @media (max-width: 480px) {
-    padding: 40px 0 8px;
-  }
-`
-
-const StackItem = styled.article`
-  min-height: calc(100dvh - ${HEADER_HEIGHT});
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-`
-
-const StackHead = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-`
-
-// CTA 규격은 `analysis-mini-demo` 의 것과 맞춘다 — 같은 스토리 안에서 버튼이 달라 보이면
-// 단계마다 다른 종류의 행동처럼 읽힌다.
 const Cta = styled(Link)`
+  margin-top: 8px;
   min-height: 48px;
   display: inline-flex;
   width: fit-content;
@@ -383,6 +190,20 @@ const Cta = styled(Link)`
   &:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus-primary);
+  }
+`
+
+/*
+  데모는 세로 가운데. justify-content: center 대신 자식 margin-block: auto — 넘칠 때
+  위쪽이 잘리지 않는다(PR #424 규칙 승계).
+*/
+const DemoArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  > * {
+    margin-block: auto;
   }
 `
 
@@ -408,238 +229,126 @@ function DemoPanel({
   return <BreakEvenChart />
 }
 
-function PanelCard({
-  step,
-  selection,
-  onSelectionChange,
-}: {
-  step: StoryStep
-  selection: DemoSelection
-  onSelectionChange: (selection: DemoSelection) => void
-}) {
-  const { demo, cta } = step
-  /*
-    각 데모가 자기 라벨을 스스로 판단해 붙인다 — BreakEvenChart 는 캡션에 항상,
-    MetricRankingBoard 와 RecommendPreview 는 폴백일 때만, AnalysisMiniDemo 는
-    자체 SampleBadge 로. 여기서 또 그리면 라벨이 두 번 찍힌다.
-  */
-  return (
-    <Panel>
-      <DemoArea>
-        <DemoPanel
-          demo={demo}
-          selection={selection}
-          onSelectionChange={onSelectionChange}
-        />
-      </DemoArea>
-      {/*
-        각 단계에서 그 도구로 나가는 길. 없으면 스토리가 「무엇을 해 주는지」만 말하고
-        끝나 막다른 길이 된다(이슈 #176). 미니데모 단계는 데모 안에 이미 CTA 가 있다.
-      */}
-      {cta ? (
-        <PanelFooter>
-          <Cta href={cta.href}>{cta.label}</Cta>
-        </PanelFooter>
-      ) : null}
-    </Panel>
-  )
-}
-
 /**
- * 각 단계가 「지금 몇 개로 좁혀졌는가」. 옛 `FunnelCounter` 의 네 노드 값을 그대로
- * 옮긴 것이다 — 모든 숫자는 화면에서 유도한다(하드코딩 금지).
+ * 탭에 싣는 수치. 모든 숫자는 화면에서 유도한다(하드코딩 금지).
+ * 04 는 POST 가 필요해 선택을 이어받지 않는다 — 「예시」라고만 적고 이유는 패널 note 가 말한다.
  */
 function stepFigure(
   index: number,
   selection: DemoSelection,
   recommend: RecommendPreviewState,
-): { value: string; note?: string } {
-  if (index === 0) return { value: `${districts.length}개 자치구` }
+): string {
+  if (index === 0) return `${districts.length}개 자치구`
 
   if (index === 1) {
     const district = findDistrictOption(selection.districtId)?.name ?? '—'
     const industry = findIndustryOption(selection.industryId)?.name ?? '—'
-    return { value: `${district} · ${industry}` }
+    return `${district} · ${industry}`
   }
 
   if (index === 2) {
-    if (recommend.isLoading) return { value: '—' }
+    if (recommend.isLoading) return '—'
     const picked = recommend.view.rows.length
-    if (recommend.view.isSample)
-      return { value: `추천 ${picked}곳`, note: '예시' }
-    return { value: `상권 ${recommend.commercialsCount}곳 중 추천 ${picked}곳` }
+    if (recommend.view.isSample) return `추천 ${picked}곳 · 예시`
+    return `상권 ${recommend.commercialsCount}곳 중 추천 ${picked}곳`
   }
 
-  /*
-    04는 POST /simulations/reports 가 필요해 앞 세 단계처럼 선택을 이어받을 수 없다
-    (랜딩 방문자마다 쓰기 요청을 보내지 않기로 한 결정) — 앞 단계는 선택을 따라
-    움직이는데 04만 고정이라는 사실을 감추지 않고 그대로 적는다.
-  */
-  return { value: '1개 예시', note: '선택과 무관한 고정 예시' }
-}
-
-function StoryLead() {
-  return (
-    <Lead>
-      <Eyebrow>이렇게 판단합니다</Eyebrow>
-      <LeadTitle>
-        자치구 25곳에서 시작해 가게 하나의 손익까지, 네 단계로 좁힙니다.
-      </LeadTitle>
-    </Lead>
-  )
+  return '예시'
 }
 
 export default function ProductStory() {
-  const {
-    ref: trackRef,
-    progress,
-    element: trackElement,
-    trackHeight,
-    viewportHeight,
-  } = useScrollProgress()
-  const active = activeStepFromPinnedProgress(
-    progress,
-    STORY_STEPS.length,
-    trackHeight,
-    viewportHeight,
-  )
-  const stacked = useStackedMode()
+  const [selected, setSelected] = useState(0)
 
-  /*
-    스티키/스택 두 렌더 분기 위에 둔다 — 02(미니데모)·03(추천 미리보기)·카운터가
-    같은 선택을 봐야 "네 단계로 좁힙니다"가 실제로 좁혀진다(D8-3). 분기 안에서
-    각자 useState를 두면 스텝을 넘나들 때 값이 서로 다른 걸 보게 된다.
-  */
+  /* 02(미니데모)·03(추천)·탭 수치가 같은 선택을 봐야 네 단계가 실제로 이어진다. */
   const [selection, setSelection] = useState<DemoSelection>(DEFAULT_SELECTION)
 
   /*
-    카운터는 스티키 모드에서 01단계와 함께 즉시 마운트되지만, 트랙은 히어로
-    아래(y≈835px)에서 시작해 **랜딩 첫 화면엔 보이지 않는다.** 마운트 == 화면에
-    보임이 아니다 — 여기서 곧장 useRecommendPreview를 부르면 방문자가 스크롤을
-    한 번도 안 해도 행정동·상권·추천 GET 3개가 나간다(최종 리뷰가 지켜온
-    "데스크톱 첫 페인트 = GET 2개"를 되돌리는 회귀).
-    그래서 스티키 모드는 카운터(정확히는 아래 counterAnchorRef)가 실제로
-    뷰포트에 들어온 뒤에만 연쇄를 켠다. 한 번 켜지면(storyInView=true) 다시
-    끄지 않는다 — 스크롤을 올렸다고 진행 중인 요청을 취소하면 안 된다.
-    스택 모드는 애초에 모든 스텝이 항상 함께 렌더되므로(기존 동작) 게이트가
-    필요 없다.
+    03 탭 수치를 위해 추천 연쇄를 섹션 수준에서 부른다. 곧장 켜면 스크롤을 안 해도
+    GET 3개가 나가 「첫 페인트 = GET 2개」가 깨진다.
+
+    섹션이 아니라 **탭 목록이 다 보일 때** 켠다. 판단 흐름이 히어로 바로 뒤라 1440x900
+    에서 섹션 윗단 65px 가 첫 화면에 걸리고, 섹션 기준이면 스크롤 없이 요청이 나갔다
+    (e2e bffRequests 2 → 5). 그 수치가 실제로 보이는 곳이 탭이다. 한 번 켜면 다시
+    끄지 않는다 — 스크롤을 올렸다고 진행 중인 요청을 취소하지 않는다.
   */
-  const [storyInView, setStoryInView] = useState(false)
-  const counterAnchorRef = useRef<HTMLDivElement | null>(null)
+  const [tabsVisible, setTabsVisible] = useState(false)
+  const tabsRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (storyInView) return
-    const el = counterAnchorRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          setStoryInView(true)
+    if (tabsVisible) return
+    const element = tabsRef.current
+    if (!element) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          setTabsVisible(true)
           observer.disconnect()
         }
-      })
-    })
-    observer.observe(el)
+      },
+      { threshold: 1 },
+    )
+    observer.observe(element)
     return () => observer.disconnect()
-  }, [storyInView])
+  }, [tabsVisible])
 
-  /*
-    RecommendPreview(03 패널)도 같은 훅을 같은 selection으로 부른다 — 캐시를
-    공유하므로 네트워크 요청은 1회다. 그 컴포넌트는 스티키 모드에서 active===2일
-    때만 마운트되므로(=사용자가 이미 그 스텝에 있으므로) 자기 호출은 게이트가
-    필요 없다. 여기 카운터용 호출만 storyInView로 늦춘다.
-  */
+  /* 03 패널의 RecommendPreview 도 같은 훅·같은 selection 이라 캐시를 공유한다(요청 1회). */
   const recommendState = useRecommendPreview(selection, {
-    enabled: stacked || storyInView,
+    enabled: tabsVisible,
   })
 
-  // 스텝 클릭 시 해당 스텝 구간의 중앙으로 스크롤한다.
-  // pin 구간 클램프 공식은 랭킹 섹션과 공유한다(scroll-to-pinned-step.ts).
-  const scrollToStep = (index: number) => {
-    if (!trackElement) return
-    scrollToPinnedStep(trackElement, index, STORY_STEPS.length)
-  }
-
-  if (stacked) {
-    return (
-      <Container>
-        <Stack>
-          <StackLead>
-            <StoryLead />
-          </StackLead>
-          {STORY_STEPS.map((item, index) => {
-            const figure = stepFigure(index, selection, recommendState)
-            return (
-              <StackItem key={item.step}>
-                <StackHead>
-                  <StepNum $active>{item.step}</StepNum>
-                  <StepTitle $active>{item.title}</StepTitle>
-                </StackHead>
-                <StepValue>{figure.value}</StepValue>
-                {figure.note ? <StepNote>{figure.note}</StepNote> : null}
-                <StepBody>{item.body}</StepBody>
-                <PanelCard
-                  step={item}
-                  selection={selection}
-                  onSelectionChange={setSelection}
-                />
-              </StackItem>
-            )
-          })}
-        </Stack>
-      </Container>
-    )
-  }
+  const step = STORY_STEPS[selected]
+  const figures = STORY_STEPS.map((_, index) =>
+    stepFigure(index, selection, recommendState),
+  )
 
   return (
-    <Container>
-      <Track ref={trackRef}>
-        <Sticky>
-          <StoryLead />
-          {/*
-            ref 는 03 연쇄를 언제 켤지 판정하는 IntersectionObserver 앵커다
-            (위 storyInView 주석). 카운터가 있던 자리를 대신한다 — 스토리 본문이
-            뷰포트에 들어온 시점을 재는 것이 원래 의도였다.
-          */}
-          <StoryRow ref={counterAnchorRef}>
-            <StepList>
-              {STORY_STEPS.map((item, index) => {
-                const isActive = index === active
-                const figure = stepFigure(index, selection, recommendState)
-                return (
-                  <li key={item.step}>
-                    <StepButton
-                      type="button"
-                      $active={isActive}
-                      aria-current={isActive ? 'true' : undefined}
-                      onClick={() => scrollToStep(index)}
-                    >
-                      <StepNum as="span" $active={isActive}>
-                        {item.step}
-                      </StepNum>
-                      <StepText>
-                        <StepTitleRow>
-                          <StepTitle as="span" $active={isActive}>
-                            {item.title}
-                          </StepTitle>
-                          <StepValue>{figure.value}</StepValue>
-                        </StepTitleRow>
-                        <StepNote>{figure.note ?? ''}</StepNote>
-                        <StepBody as="span">{item.body}</StepBody>
-                      </StepText>
-                    </StepButton>
-                  </li>
-                )
-              })}
-            </StepList>
-            <PanelCard
-              step={STORY_STEPS[active]}
+    <Container aria-label="판단 흐름">
+      <Inner>
+        <Lead>
+          <Eyebrow>이렇게 판단해요</Eyebrow>
+          <LeadTitle>
+            자치구 25곳에서 시작해 가게 하나의 손익까지, 네 단계로 좁혀요.
+          </LeadTitle>
+        </Lead>
+
+        <div ref={tabsRef}>
+          <StepTabs
+            steps={STORY_STEPS}
+            selected={selected}
+            figures={figures}
+            onSelect={setSelected}
+          />
+        </div>
+
+        {/*
+          활성 패널만 렌더한다 — 비활성 패널을 hidden 으로 두면 데모가 모두 마운트돼
+          요청이 늘어난다. 02 는 미니데모가 CTA 를 들고 있어 여기 CTA 가 없다.
+        */}
+        <Panel
+          role="tabpanel"
+          id={STORY_PANEL_ID}
+          aria-labelledby={storyTabId(step.step)}
+          tabIndex={0}
+        >
+          <Copy>
+            <PanelTitle>{step.title}</PanelTitle>
+            <Body>{step.body}</Body>
+            <Outcome>
+              <OutcomeLabel>손에 남는 것</OutcomeLabel>
+              <OutcomeText>{step.outcome}</OutcomeText>
+            </Outcome>
+            {step.note ? <Note>{step.note}</Note> : null}
+            {step.cta ? <Cta href={step.cta.href}>{step.cta.label}</Cta> : null}
+          </Copy>
+          <DemoArea>
+            <DemoPanel
+              demo={step.demo}
               selection={selection}
               onSelectionChange={setSelection}
             />
-          </StoryRow>
-        </Sticky>
-      </Track>
+          </DemoArea>
+        </Panel>
+      </Inner>
     </Container>
   )
 }
