@@ -291,6 +291,16 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 - **`html` 에 `scrollbar-gutter: stable`.** 스크롤이 생기는 페이지와 안 생기는 페이지를
   오갈 때 콘텐츠 전체가 스크롤바 폭(실측 15px)만큼 밀린다. 헤더 폭을 통일해도 이건
   남으므로 자리를 항상 예약한다.
+- **스크롤바는 6px 이고 스크롤하는 동안에만 보인다.** 막대는 평소 투명하고, 전역
+  `ScrollbarReveal`(`src/components/layout/scrollbar-reveal.tsx`)이 스크롤 중인 요소
+  (페이지 스크롤은 `body`)에 `data-scrolling` 을 붙이는 동안만 grey400 이 된다. 900ms 멈추면
+  뗀다. hover 는 JS 없이도 grey500 으로 보인다. 트랙 폭은 그대로라 나타나고 사라져도
+  레이아웃이 밀리지 않고, 위 예약 폭도 6px 로 따라 줄 뿐이다.
+- **`scrollbar-width`·`scrollbar-color` 와 `::-webkit-scrollbar` 를 같은 요소에 섞지 않는다.**
+  Chromium 은 표준 속성이 지정된 요소에서 의사요소를 통째로 무시해 6px 대신 thin
+  기본값(약 11px)을 그린다. 표준 속성은 `@supports not selector(::-webkit-scrollbar)`
+  안에서 Firefox 에만 건다. 스크롤바를 아예 숨기는 가로 스크롤 영역은 예외로
+  `scrollbar-width: none` + `::-webkit-scrollbar { display: none }` 을 함께 쓴다.
 - Segmented control for section switching
 
 ### Overlays
