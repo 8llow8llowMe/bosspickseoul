@@ -108,8 +108,11 @@ describe('ProductStory — 스크롤 고정이 없다 (TC-HR-004 · 005)', () =>
     expect(css).not.toContain('position:sticky')
   })
 
-  it('데스크톱 패널은 가장 큰 데모 높이를 예약한다', () => {
-    expect(renderStyles()).toContain('min-height:560px')
+  it('1100px 이상은 가장 큰 데모 높이를 예약하고, 그 아래는 풀어 준다', () => {
+    const css = renderStyles()
+
+    expect(css).toContain('min-height:564px')
+    expect(css).toMatch(/@media\(max-width:1099px\)\{\.\w+\{min-height:0;\}\}/)
   })
 
   it('768 이하에서 탭은 2x2 로 접힌다', () => {

@@ -84,15 +84,19 @@ const LeadTitle = styled.h2`
 `
 
 /*
-  데스크톱 패널은 가장 큰 데모(02 미니데모 실측 519px) + 패딩 40 을 예약한다. 탭을
-  바꿔도 아래 랭킹 섹션이 밀리지 않는다(명세 D4-2). 데모가 커지면 이 값을 다시 잰다.
-  모바일은 예약하지 않는다 — 밀리는 것은 보고 있는 패널 아래다.
+  넓은 화면(1100px 이상)은 가장 큰 데모(02 미니데모 실측 563px, 패널 테두리 포함)를
+  예약한다. 탭을 바꿔도 아래 랭킹 섹션이 밀리지 않는다(명세 D4-2).
+
+  1099px 이하는 예약하지 않는다. 데모 칸이 약 560px 보다 좁아지면 미니데모가 세로로
+  쌓여 706(1024) · 805px(780)까지 커지는데, 그만큼 예약하면 다른 탭에 200px 넘는
+  빈칸이 생긴다. 밀리는 것은 보고 있는 패널 아래다(모바일과 같은 판단).
+  데모가 커지면 이 값을 다시 잰다.
 */
 const Panel = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: 40px;
-  min-height: 560px;
+  min-height: 564px;
   padding: 20px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
@@ -103,10 +107,13 @@ const Panel = styled.div`
     box-shadow: var(--shadow-focus-primary);
   }
 
+  @media (max-width: 1099px) {
+    min-height: 0;
+  }
+
   @media (max-width: 768px) {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
-    min-height: 0;
     padding: 16px;
   }
 `
