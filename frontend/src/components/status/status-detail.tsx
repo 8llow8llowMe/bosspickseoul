@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode, Ref } from 'react'
-import { ArrowLeft, X } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import styled from 'styled-components'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
@@ -45,7 +45,6 @@ type StatusDetailProps = {
   onRetry: () => void
   onBack?: () => void
   backButtonRef?: Ref<HTMLButtonElement>
-  onClose?: () => void
   /** 'sheet'는 모바일 바텀시트용 컴팩트 헤더(작은 뒤로가기·제목)를 적용한다. */
   variant?: 'panel' | 'sheet'
 }
@@ -127,6 +126,9 @@ const getChangeTone = (
 const Root = styled.article`
   min-width: 0;
   overflow: hidden;
+  /* 차트 2열 전환을 뷰포트가 아니라 상세 자신의 폭으로 정한다(아래 ChartGrid).
+     데스크톱 상세가 좌측 열(340~480px)로 옮겨 가면서 뷰포트 기준이 맞지 않게 됐다. */
+  container-type: inline-size;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
@@ -245,33 +247,12 @@ const HeaderChange = styled.span<{ $tone: ChangeTone }>`
   font-variant-numeric: tabular-nums;
 `
 
-const CloseButton = styled.button`
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text-700);
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--color-primary-600);
-    color: var(--color-text-900);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-primary-700);
-    outline-offset: 2px;
-  }
-`
-
 const Body = styled.div`
   display: grid;
+  /* 암시적 auto 열은 자식의 min-content 로 벌어진다. StatGrid(auto-fit, 최소 200px)가
+     타일 둘을 나란히 요구해 좁은 좌측 열(340px)에서 상세가 오른쪽으로 잘렸다.
+     ReportSection 도 같은 이유로 열을 고정한다. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   padding: 20px;
 `
@@ -279,6 +260,7 @@ const Body = styled.div`
 // 드롭다운 대신 보고서 방식: 그룹 제목(유동인구/점포/매출) 아래에 데이터를 나열한다.
 const ReportSection = styled.section`
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 `
 
@@ -397,7 +379,7 @@ const StatValue = styled.strong`
   line-height: 26px;
 `
 
-// 넓은 상세 폭을 활용해 차트를 세로 나열이 아니라 2열 그리드로 배치한다.
+// 상세 폭이 넉넉하면(640px 이상) 차트를 세로 나열이 아니라 2열 그리드로 배치한다.
 const ChartGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
@@ -407,7 +389,7 @@ const ChartGrid = styled.div`
     min-width: 0;
   }
 
-  @media (min-width: 768px) {
+  @container (min-width: 640px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 `
@@ -855,11 +837,10 @@ function DetailHeader({
   selectedItem,
   onBack,
   backButtonRef,
-  onClose,
   variant = 'panel',
 }: Pick<
   StatusDetailProps,
-  'metric' | 'selectedItem' | 'onBack' | 'backButtonRef' | 'onClose' | 'variant'
+  'metric' | 'selectedItem' | 'onBack' | 'backButtonRef' | 'variant'
 >) {
   const compact = variant === 'sheet'
   return (
@@ -899,11 +880,6 @@ function DetailHeader({
           ) : null}
         </HeaderContent>
       </HeaderMain>
-      {onClose ? (
-        <CloseButton aria-label="상세 닫기" type="button" onClick={onClose}>
-          <X aria-hidden="true" size={20} strokeWidth={2} />
-        </CloseButton>
-      ) : null}
     </Header>
   )
 }
@@ -917,7 +893,6 @@ export default function StatusDetail({
   onRetry,
   onBack,
   backButtonRef,
-  onClose,
   variant = 'panel',
 }: StatusDetailProps) {
   return (
@@ -926,7 +901,6 @@ export default function StatusDetail({
         backButtonRef={backButtonRef}
         metric={metric}
         onBack={onBack}
-        onClose={onClose}
         selectedItem={selectedItem}
         variant={variant}
       />
