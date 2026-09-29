@@ -387,6 +387,8 @@ Connector {
 
 ### D4-6. R1 — 랭킹 섹션 300dvh + 스크롤 지표 전환 (채택, 조건부)
 
+> **철회(2026-09-29)** — [home-restructure](./home-restructure.md) 가 홈의 스크롤 트랙을 전부 걷어냈다. 지표 전환은 토글 클릭 하나다.
+
 `popular-districts.tsx` 를 `product-story.tsx` 의 Track+Sticky 패턴과 같은 모양으로
 개편한다. 단, **좌측(조회수) 열은 스크롤과 무관하게 고정 콘텐츠**이고, **우측(지표) 열의
 활성 지표만** 스크롤 진행도로 바뀐다.
