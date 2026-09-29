@@ -159,6 +159,51 @@ const GlobalStyles = createGlobalStyle`
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /*
+    기본 두께(15~17px) 대신 6px. 막대는 평소 투명하고 [data-scrolling] 인 동안만 색을
+    갖는다(ScrollbarReveal 이 붙이고 뗀다). 트랙 폭은 항상 유지하므로 나타나고 사라질 때
+    레이아웃이 흔들리지 않는다. 위 scrollbar-gutter 예약 폭도 6px 로 따라 줄어든다.
+  */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 999px;
+    transition: background-color 180ms ease-out;
+  }
+
+  /* JS 가 죽어도 마우스를 얹으면 보이도록 hover 는 항상 남긴다 */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-grey-500);
+  }
+
+  [data-scrolling]::-webkit-scrollbar-thumb {
+    background-color: var(--color-grey-400);
+  }
+
+  /*
+    표준 속성은 의사요소를 모르는 엔진(Firefox)에만 건다. Chromium 은 scrollbar-width ·
+    scrollbar-color 가 지정된 요소에서 ::-webkit-scrollbar 를 통째로 무시해 6px 대신
+    thin 기본값(약 11px)을 그린다. 그래서 이 블록을 @supports 밖으로 꺼내면 안 된다.
+  */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    [data-scrolling] {
+      scrollbar-color: var(--color-grey-400) transparent;
+    }
+  }
+
   body {
     background: var(--color-background);
     color: var(--color-text-900);
