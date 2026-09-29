@@ -29,8 +29,8 @@ export type RankBarListProps = {
    *
    * - `compact`(기본) — 한 줄에 순위·이름·막대·값을 나란히. 스토리 01 단계처럼 **좁은
    *   패널에 10행**을 넣어야 하는 자리를 위한 것이다.
-   * - `card` — 순위를 배지로 키우고 막대를 이름 아래 제 줄에 둔다. 「지금 많이 본 지역」
-   *   처럼 **한 섹션을 통째로 쓰는** 자리용.
+   * - `card` — 순위를 배지로 키우고 행을 52px 로 띄운 **카드 한 장 안의 목록**.
+   *   「지금 많이 본 지역」처럼 **한 섹션을 통째로 쓰는** 자리용.
    *
    * 기본값을 `compact` 로 둔 것은 의도다 — 기존 사용처(01 단계)의 모양이 바뀌지 않는다.
    */
@@ -49,9 +49,21 @@ const Row = styled.li`
   display: block;
 `
 
-/* 카드 변형은 행마다 테두리가 있어 compact 보다 간격을 넓게 준다. */
+/*
+  카드 변형은 **카드 한 장 안의 목록**이다. 예전엔 행마다 테두리를 둘러 카드가 8장
+  쌓였는데, 셸 폭에서 행 하나가 900px 가까이 늘어나 이름과 값이 800px 떨어졌다
+  (폭 체계 §5 「리스트 행」). 테두리는 목록이 한 번만 두르고 행 사이는 구분선으로 가른다.
+*/
 const CardList = styled(List)`
-  gap: 8px;
+  gap: 0;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  overflow: hidden;
+
+  > li + li {
+    border-top: 1px solid var(--color-border-200);
+  }
 `
 
 /*
@@ -93,31 +105,35 @@ const RowContent = styled.div<{ $highlighted: boolean }>`
 `
 
 /*
-  카드 변형. 한 줄에 다 넣는 대신 **두 줄**로 나눈다 — 위에 이름과 값, 아래에 막대.
-  막대가 제 줄을 가지면 폭을 다 쓰므로 1위와 8위의 차이가 눈에 훨씬 크게 들어온다
-  (compact 에서는 이름·값에 폭을 뺏겨 막대가 짧아진다).
+  카드 변형의 행. 데스크톱은 **한 줄**(배지 · 이름 · 막대 · 값)이다.
+
+  막대 칸은 360px 상한이다(폭 체계 §Charts 「미터 행 → 360px」). 예전엔 막대가 이름
+  아래 제 줄에서 행 전폭을 써 1920 에서 약 850px · 두께 8px 로 약 100:1 까지 갔다.
+  남는 폭은 이름 칸(1fr)이 가져가서 막대와 값은 오른쪽에 붙어 있고 눈으로 잇기 쉽다.
+
+  좁은 폭(≤640)에서는 막대가 이름을 밀어내지 않게 두 줄로 접는다 — 위에 이름과 값,
+  아래에 막대. 360 상한을 한 줄로 고집하면 335px 칸에서 이름 칸이 0 이 된다.
 */
 const cardGridStyles = css<{ $highlighted: boolean }>`
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  grid-template-areas:
-    'badge head'
-    'badge bar';
-  column-gap: 12px;
-  row-gap: 6px;
+  grid-template-columns: 28px minmax(64px, 1fr) minmax(0, 360px) auto;
+  grid-template-areas: 'badge name bar value';
+  gap: 12px;
   align-items: center;
   /* 터치 영역(DESIGN.md §8): 리스트 행 52px 이상. */
   min-height: 52px;
-  padding: 10px 12px;
-  border-radius: var(--radius-control);
+  padding: 10px 16px;
   background: ${p =>
-    p.$highlighted ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  border: 1px solid
-    ${p =>
-      p.$highlighted ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
+    p.$highlighted ? 'var(--color-primary-100)' : 'transparent'};
+  transition: background-color var(--motion-fast) var(--ease-standard);
+
+  @media (max-width: 640px) {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'badge name value'
+      'badge bar bar';
+    row-gap: 6px;
+  }
 `
 
 const CardRowLink = styled(Link)<{ $highlighted: boolean }>`
@@ -126,13 +142,16 @@ const CardRowLink = styled(Link)<{ $highlighted: boolean }>`
   text-decoration: none;
 
   &:hover {
-    border-color: var(--color-primary-600);
-    box-shadow: var(--shadow-level-1);
+    background: ${p =>
+      p.$highlighted
+        ? 'var(--color-primary-100)'
+        : 'var(--color-surface-muted)'};
   }
 
+  /* 목록이 overflow: hidden 이라 바깥 링은 잘린다 — 안쪽으로 그린다. */
   &:focus-visible {
     outline: none;
-    box-shadow: var(--shadow-focus-primary);
+    box-shadow: inset 0 0 0 2px var(--color-primary-700);
   }
 `
 
@@ -149,8 +168,8 @@ const RankBadge = styled.span<{ $top: boolean }>`
   grid-area: badge;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-control);
   background: ${p =>
     p.$top ? 'var(--color-primary-600)' : 'var(--color-surface-muted)'};
@@ -160,16 +179,9 @@ const RankBadge = styled.span<{ $top: boolean }>`
   font-variant-numeric: tabular-nums;
 `
 
-const CardHead = styled.span`
-  grid-area: head;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-`
-
 const CardName = styled.span`
+  grid-area: name;
+  min-width: 0;
   color: var(--color-text-900);
   font-size: 15px;
   font-weight: 700;
@@ -179,7 +191,8 @@ const CardName = styled.span`
 `
 
 const CardValue = styled.span`
-  flex: none;
+  grid-area: value;
+  justify-self: end;
   color: var(--color-text-700);
   font-size: 13px;
   font-weight: 600;
@@ -200,8 +213,15 @@ const CardFill = styled.span<{ $top: boolean }>`
   display: block;
   height: 100%;
   border-radius: var(--radius-pill);
+  /*
+    4위 아래는 회색이다. 예전 primary-100(#e8f3ff)은 트랙 회색 위에서 대비 약 1.05 로
+    거의 보이지 않아 4·5위 막대가 없는 것처럼 읽혔다. grey-500 은 트랙(grey-50) 대비 약 2.9 ·
+    흰 행 대비 약 3.0 이다(DESIGN.md 면적 채움 3:1). 시맨틱 토큰 중 이 회색으로
+    이어지는 것은 뜻이 다른 것뿐이라 팔레트 토큰을 직접 쓴다. 상위 3개만 브랜드색이라는
+    위계는 그대로다.
+  */
   background: ${p =>
-    p.$top ? 'var(--color-primary-600)' : 'var(--color-primary-100)'};
+    p.$top ? 'var(--color-primary-600)' : 'var(--color-grey-500)'};
   transition: width var(--motion-slow) var(--ease-standard);
 
   @media (prefers-reduced-motion: reduce) {
@@ -287,17 +307,15 @@ export default function RankBarList({
               <RankBadge $top={top} aria-hidden="true">
                 {row.rank}
               </RankBadge>
-              <CardHead>
-                <CardName>{row.name}</CardName>
-                <CardValue>
-                  {row.valueLabel}
-                  {row.changeLabel ? (
-                    <Change $direction={row.changeDirection ?? 'up'}>
-                      {row.changeLabel}
-                    </Change>
-                  ) : null}
-                </CardValue>
-              </CardHead>
+              <CardName>{row.name}</CardName>
+              <CardValue>
+                {row.valueLabel}
+                {row.changeLabel ? (
+                  <Change $direction={row.changeDirection ?? 'up'}>
+                    {row.changeLabel}
+                  </Change>
+                ) : null}
+              </CardValue>
               <CardTrack aria-hidden="true">
                 <CardFill $top={top} style={{ width: `${percent}%` }} />
               </CardTrack>

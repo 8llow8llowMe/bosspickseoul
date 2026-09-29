@@ -27,28 +27,19 @@ import {
 } from '@/lib/status/status-formatters'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
-import { HEADER_HEIGHT } from '@/components/home/layout-constants'
+import { HEADER_HEIGHT, HOME_COLUMN } from '@/components/home/layout-constants'
 import { activeStepFromPinnedProgress } from '@/components/home/scroll-fill'
 import { scrollToPinnedStep } from '@/components/home/scroll-to-pinned-step'
 import { useScrollProgress } from '@/components/home/use-scroll-progress'
-import { shellWidth } from '@/styles/layout'
 
 const RANKING_SIZE = 8
 
-const Section = styled.section<{ $dual?: boolean }>`
-  /*
-    D5-4: 한쪽 열만 살아 있으면 100dvh 를 해제한다 — 살아 있는 한 열(약 170px)만으로
-    900px 높이를 채우면 위아래가 텅 빈 여백이 된다("여백으로 채우지 않는다", D4-3).
-
-    $dual 은 "지금 두 열이 렌더되고 있는가"가 아니라 "두 열이 최종적으로 있을
-    것인가"다 — 아직 pending 인 쿼리는 "있을 것"으로 가정한다. 두 쿼리(조회수·
-    지표)는 서로 다른 네트워크 호출이라 응답 시각이 다르다. "지금 렌더된 열"
-    기준으로 계산하면, 한쪽이 먼저 도착했을 때 아직 안 온 나머지 쪽을 "없다"로
-    오판해 100dvh → auto 로 수축했다가, 나머지 쪽이 도착하면 다시 100dvh 로
-    팽창하는 깜빡임이 **열화 경로가 아니라 정상 로드마다** 발생했다. 결론이
-    난(pending 이 끝난) 뒤에도 없을 때만 진짜로 "없다"로 취급한다.
-  */
-  ${props => (props.$dual === false ? '' : 'min-height: 100dvh;')}
+/*
+  트랙이 아닐 때(폴백·솔로)는 화면 높이를 붙잡지 않는다. 예전엔 두 열이면 100dvh 를
+  채우고 세로 가운데 정렬했는데, 콘텐츠가 약 500px 라 1080 화면에서 위아래로 약
+  250px 씩 빈 띠가 생겼다. 솔로(D5-4)는 원래부터 콘텐츠 높이였다.
+*/
+const Section = styled.section`
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -56,7 +47,6 @@ const Section = styled.section<{ $dual?: boolean }>`
 
   /* 900px 이하에서는 2단이 1단으로 접힌다. 두 목록을 한 화면에 넣으면 글자가 안 읽힌다. */
   @media (max-width: 900px) {
-    min-height: auto;
     padding: 56px 0;
   }
 
@@ -95,7 +85,7 @@ const ScrollSticky = styled.div`
 `
 
 const Inner = styled.div`
-  ${shellWidth}
+  ${HOME_COLUMN}
 `
 
 const Header = styled.div`
@@ -159,6 +149,20 @@ const Column = styled.div`
   gap: 12px;
 `
 
+/*
+  두 열의 머리 줄. 예전엔 우측만 토글이 제목 **위**에 있어 좌측 제목과 우측 제목의
+  높이가 어긋났다 — 토글을 제목과 같은 줄 오른쪽으로 옮기고, 토글 높이(32px)를
+  양쪽 머리 줄의 최소 높이로 맞춘다.
+*/
+const ColumnHeader = styled.div`
+  min-height: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+`
+
 const ColumnHeading = styled.h3`
   display: flex;
   align-items: baseline;
@@ -184,31 +188,36 @@ const MetricEmptyNotice = styled.p`
   color: var(--color-text-caption);
 `
 
+/*
+  인사이트는 이 섹션의 결론이라 두 열 **위**에 둔다. 예전엔 두 열 아래 셸 전폭(1865)
+  점선 상자에 한 줄이 들어가 「무언가 들어갈 자리」처럼 읽혔다 — 점선을 버리고 글 폭
+  만큼만 칠한다(fit-content).
+
+  자리 예약(R2)은 유지한다. 지표를 넘길 때 문장이 나타나고 사라져도 아래 두 열이
+  밀리면 안 된다. 예약 높이 = 줄 수 x 22 + 패딩 28 + 테두리 2. 두 열 위라 컬럼 전폭을
+  쓰므로 데스크톱은 한 줄(52px)이면 된다 — 가장 긴 문장이 약 500px 다. 한 폭 안에서는
+  높이가 일정하므로 폭별 예약이어도 밀림이 없다. 640 이하에서만 두 줄(74px).
+*/
 const InsightSlot = styled.p<{ $visible: boolean }>`
-  margin-top: 20px;
-  /*
-    2줄(line-height 22px x 2) + 상하 패딩(14px x 2) + 테두리(1px x 2) = 74px (D5-5).
-    문장이 없을 때도 이 높이를 예약해야 지표를 넘길 때 아래 콘텐츠가 튀지 않는다.
-    "가장 좁은 열에서 2줄" 기준이며 모든 브레이크포인트에 같은 값을 쓴다 —
-    데스크톱에서 1줄로 끝나 일부가 비어도, 폭마다 다른 예약 높이를 계산하는 것보다
-    밀림이 아예 없는 편이 낫다.
-  */
-  min-height: 74px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 52px;
+  margin: 0 0 24px;
   padding: 14px 16px;
-  /*
-    테두리를 없애는 대신 transparent 로 둔다 — 2px 를 박스 모델에서 빼지 않아야
-    문장이 나타나는 순간 높이가 2px 튀는 것까지 막는다. 색이 투명이라 화면에는
-    "빈 상자"가 보이지 않는다.
-  */
-  border: 1px dashed
-    ${props => (props.$visible ? 'var(--color-primary-600)' : 'transparent')};
+  /* 테두리를 빼지 않고 투명으로 둔다 — 문장이 나타날 때 2px 가 튀지 않게. */
+  border: 1px solid transparent;
   border-radius: var(--radius-card);
   background: ${props =>
     props.$visible ? 'var(--color-primary-100)' : 'transparent'};
   font-size: 14px;
+  font-weight: 600;
   line-height: 22px;
-  color: var(--color-text-700);
+  color: var(--color-text-800);
   word-break: keep-all;
+
+  @media (max-width: 640px) {
+    min-height: 74px;
+  }
 `
 
 const List = styled.ol`
@@ -385,12 +394,14 @@ export default function PopularDistricts() {
 
   const viewColumn = view ? (
     <Column>
-      <ColumnHeading>
-        지금 많이 본 지역
-        {view.windowLabel ? (
-          <ColumnCaption>· {view.windowLabel}</ColumnCaption>
-        ) : null}
-      </ColumnHeading>
+      <ColumnHeader>
+        <ColumnHeading>
+          지금 많이 본 지역
+          {view.windowLabel ? (
+            <ColumnCaption>· {view.windowLabel}</ColumnCaption>
+          ) : null}
+        </ColumnHeading>
+      </ColumnHeader>
       <RankBarList
         rows={viewRows}
         ariaLabel="지금 많이 본 자치구 조회수 순위"
@@ -404,30 +415,32 @@ export default function PopularDistricts() {
   // 비었을 때는 토글이 아니라 그 자리에 짧은 안내만 낸다.
   const metricColumn = hasMetricData ? (
     <Column>
-      <MetricToggleGroup
-        options={HOME_METRICS}
-        value={metric}
-        getLabel={homeMetricLabel}
-        onChange={next => {
-          /*
+      <ColumnHeader>
+        <ColumnHeading>
+          {activeMetric?.label ?? homeMetricLabel(metric)} 상위 자치구
+        </ColumnHeading>
+        <MetricToggleGroup
+          options={HOME_METRICS}
+          value={metric}
+          getLabel={homeMetricLabel}
+          onChange={next => {
+            /*
             트랙 모드에서 setState 만 하면 다음 스크롤 이벤트가 값을 되돌린다 —
             스크롤 위치 자체를 그 지표 구간으로 옮겨 정본을 덮어쓴다(조건①).
           */
-          if (useScrollTrack && trackElement) {
-            scrollToPinnedStep(
-              trackElement,
-              HOME_METRICS.indexOf(next),
-              HOME_METRICS.length,
-            )
-            return
-          }
-          setPickedMetric(next)
-        }}
-        ariaLabel="지표 선택"
-      />
-      <ColumnHeading>
-        {activeMetric?.label ?? homeMetricLabel(metric)} 상위 자치구
-      </ColumnHeading>
+            if (useScrollTrack && trackElement) {
+              scrollToPinnedStep(
+                trackElement,
+                HOME_METRICS.indexOf(next),
+                HOME_METRICS.length,
+              )
+              return
+            }
+            setPickedMetric(next)
+          }}
+          ariaLabel="지표 선택"
+        />
+      </ColumnHeader>
       {activeMetric && activeMetric.items.length > 0 ? (
         <RankBarList
           rows={metricRows}
@@ -450,14 +463,6 @@ export default function PopularDistricts() {
         </Eyebrow>
         <Title>다른 사람들이 보는 곳과, 숫자가 좋은 곳은 다릅니다.</Title>
       </Header>
-      {viewColumn && metricColumn ? (
-        <Columns>
-          {viewColumn}
-          {metricColumn}
-        </Columns>
-      ) : (
-        (viewColumn ?? metricColumn)
-      )}
       {/*
         항상 마운트해 자리를 예약한다(R2). aria-live 는 지표를 넘겨 문장이
         바뀌거나 나타나거나 사라질 때 스크린리더가 그 변화를 읽게 한다.
@@ -469,6 +474,14 @@ export default function PopularDistricts() {
           {insight?.sentence ?? null}
         </InsightSlot>
       ) : null}
+      {viewColumn && metricColumn ? (
+        <Columns>
+          {viewColumn}
+          {metricColumn}
+        </Columns>
+      ) : (
+        (viewColumn ?? metricColumn)
+      )}
     </Inner>
   )
 
@@ -484,9 +497,5 @@ export default function PopularDistricts() {
     )
   }
 
-  return (
-    <Section aria-label="지금 많이 본 자치구" $dual={dual}>
-      {body}
-    </Section>
-  )
+  return <Section aria-label="지금 많이 본 자치구">{body}</Section>
 }
