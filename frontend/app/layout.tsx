@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import ScrollbarReveal from '@/components/layout/scrollbar-reveal'
 import AppProviders from '@/providers/app-providers'
 import StyledComponentsRegistry from '@/lib/styled-components-registry'
 import { pretendard } from '@/lib/fonts'
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body>
         <StyledComponentsRegistry>
           <GlobalStyles />
+          <ScrollbarReveal />
           <AppProviders>{children}</AppProviders>
         </StyledComponentsRegistry>
       </body>
