@@ -153,7 +153,7 @@ C -- yes --> D[좌측 열 렌더]
 C -- no --> E[좌측 열 없음]
 D --> F{지표 데이터 있음?}
 E --> F
-F -- 좌우 모두 있음 --> G[dual: 2단 + 인사이트 + 트랙]
+F -- 좌우 모두 있음 --> G[dual: 2단 + 인사이트]
 F -- 우측만 --> H[지표만: 1단]
 F -- 좌측만 --> I[조회만: 1단]
 F -- 모두 없음 --> J[섹션 제거]
@@ -184,14 +184,14 @@ F --> H[buildRankingInsight 입력]
 
 ### D3-3. 데이터 모델
 
-| 모델                   | 필드 / 심볼                                     | 타입                                      | 설명                                                                                                       |
-| ---------------------- | ----------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| (상수)                 | `MIN_VIEW_SAMPLE_SIZE`                          | `number` = `3`                            | 좌측 열·인사이트가 성립하는 최소 유효 항목 수. `src/lib/home/popular-districts.ts` 가 소유하고 export      |
-| (판정)                 | `hasEnoughViewSample(view)`                     | `(view: PopularDistrictsView) => boolean` | `view.items.length >= MIN_VIEW_SAMPLE_SIZE`. 순수 함수                                                     |
-| `PopularDistrictsView` | `items` / `windowLabel`                         | `PopularDistrict[]` / `string \| null`    | **변경 없음.** 표본 부족이어도 `items` 는 원본 그대로 유지한다                                             |
-| `PopularDistrict`      | `rank` `districtCode` `name` `viewCount` `href` | 현행                                      | 변경 없음                                                                                                  |
-| (컴포넌트 지역 상태)   | `view`                                          | `PopularDistrictsView \| null`            | `rawView && rawView.items.length > 0 && hasEnoughViewSample(rawView) ? rawView : null`                     |
-| (컴포넌트 지역 상태)   | `dual`                                          | `boolean`                                 | `viewWillExist && metricWillExist` — 계산식 자체는 현행 유지(D5-4-2). `view` 정의가 바뀌면서 결과가 바뀐다 |
+| 모델                   | 필드 / 심볼                                     | 타입                                      | 설명                                                                                                  |
+| ---------------------- | ----------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| (상수)                 | `MIN_VIEW_SAMPLE_SIZE`                          | `number` = `3`                            | 좌측 열·인사이트가 성립하는 최소 유효 항목 수. `src/lib/home/popular-districts.ts` 가 소유하고 export |
+| (판정)                 | `hasEnoughViewSample(view)`                     | `(view: PopularDistrictsView) => boolean` | `view.items.length >= MIN_VIEW_SAMPLE_SIZE`. 순수 함수                                                |
+| `PopularDistrictsView` | `items` / `windowLabel`                         | `PopularDistrict[]` / `string \| null`    | **변경 없음.** 표본 부족이어도 `items` 는 원본 그대로 유지한다                                        |
+| `PopularDistrict`      | `rank` `districtCode` `name` `viewCount` `href` | 현행                                      | 변경 없음                                                                                             |
+| (컴포넌트 지역 상태)   | `view`                                          | `PopularDistrictsView \| null`            | `rawView && rawView.items.length > 0 && hasEnoughViewSample(rawView) ? rawView : null`                |
+| (삭제)                 | `dual`                                          | —                                         | 트랙과 함께 삭제(home-restructure D4-4). pending 처리는 D5-1 표를 코드가 직접 따른다                  |
 
 ```ts
 // src/lib/home/popular-districts.ts (추가분)
@@ -366,6 +366,8 @@ G -- 없음 --> K[섹션 제거]
 
 **pending 축은 그대로다**(D5-4-2 승계). 표본 부족은 **결론이 난 뒤에만** 판정할 수 있으므로 계산식을 바꾸지 않아도 자동으로 맞는다.
 
+> **개정(2026-09-29).** `dual`·`viewWillExist` 는 트랙과 함께 지웠다. 아래 「결과」 열은 그대로 유효하고, 코드는 `viewPending → 스켈레톤`, `!view && 지표 pending → 스켈레톤` 두 줄로 이 표를 직접 따른다. 조회가 있고 지표만 pending 이면 조회 열만 그린다(표 밖 — 기존 동작).
+
 | 조회(`analysis-rankings`) | 지표(`top-ten`) | `viewWillExist` | `dual` | 결과                                            |
 | ------------------------- | --------------- | --------------- | ------ | ----------------------------------------------- |
 | pending                   | pending         | true            | true   | 스켈레톤(지표만 문구)                           |
@@ -405,14 +407,13 @@ n = rankings.filter(r => r.areaCode?.trim()).length
 
 view        = (응답 성공 && n >= 3) ? 뷰모델 : null
 hasMetric   = 지표 3종 중 하나라도 items.length > 0
-dual        = (조회 pending || view) && (지표 pending || hasMetric)
-
-if (!view && !hasMetric)            → pending 이면 스켈레톤, 아니면 섹션 제거
+if (조회 pending)                    → 스켈레톤(지표가 먼저 와도)
+if (!view && !hasMetric)            → 지표 pending 이면 스켈레톤, 아니면 섹션 제거
 if (view && hasMetric)              → dual   : 2단 + 인사이트 슬롯 + dual 문구
 if (!view && hasMetric)             → 지표만 : 1단 + 지표만 문구
 if (view && !hasMetric)             → 조회만 : 1단 + 조회만 문구
 
-insight = dual ? buildRankingInsight(view.items, activeMetric) : null
+insight = (view && hasMetric) ? buildRankingInsight(view.items, activeMetric) : null
 ```
 
 ---
