@@ -65,17 +65,29 @@ describe('HomePage', () => {
   })
 
   /*
-   * TC-004(개정, home-restructure.md D7-3). 01 패널 CTA(/status) · 미니데모 경로
-   * (/analysis) · 히어로 추천 갈래(/recommend) 는 첫 렌더에 있다. /simulation 은 04 탭
-   * 패널에만 있다 — 활성 패널만 렌더하므로 데이터로 고정한다.
+   * TC-004(개정, home-restructure.md D7-3) — 각 탭 패널이 자기 도구 CTA 를 갖는다.
+   * 활성 패널만 렌더하므로 01 패널 CTA(/status)만 첫 렌더에 있고, 나머지는 데이터로
+   * 고정한다. 02 는 CTA 가 없다 — 미니데모가 「이 조건으로 AI 리포트 받기」를 든다
+   * (analysis-mini-demo.test.ts). 첫 렌더의 /analysis·/recommend 는 히어로·벤토에서 온다.
    */
-  it('첫 렌더가 세 도구로 나가고, 04 탭은 시뮬레이션으로 나간다 (TC-004)', () => {
+  it('각 탭 패널이 자기 도구 CTA 를 갖는다 (TC-004)', () => {
     const html = render()
 
-    for (const href of ['/status', '/analysis', '/recommend']) {
+    expect(html).toContain('href="/status"')
+    expect(STORY_STEPS.map(step => step.cta?.href ?? null)).toEqual([
+      '/status',
+      null,
+      '/recommend',
+      '/simulation',
+    ])
+  })
+
+  it('첫 렌더가 히어로·벤토를 통해 분석·추천으로도 나간다', () => {
+    const html = render()
+
+    for (const href of ['/analysis', '/recommend']) {
       expect(html).toContain(`href="${href}"`)
     }
-    expect(STORY_STEPS[3].cta?.href).toBe('/simulation')
   })
 
   /* 「어디가 좋을지 모르는 사람」의 갈래가 첫 화면에 있어야 한다(이슈 #176 잔여 ①). */
