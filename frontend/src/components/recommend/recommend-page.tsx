@@ -23,6 +23,7 @@ import { districts } from '@/data/districts'
 import { simulationCatalog } from '@/data/simulation-catalog'
 import type { OptionGroup, OptionItem } from '@/components/ui/option-picker'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
+import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { addMemberBookmark, removeMemberBookmark } from '@/lib/api/user'
 import {
   fetchAdministrationMapAreas,
@@ -94,6 +95,7 @@ import type {
 
 import { RECOMMEND_CONDITION_LABELS } from './recommend-condition-bar'
 import RecommendFeedback from './recommend-feedback'
+import RecommendLivePopular from './recommend-live-popular'
 import RecommendMap from './recommend-map'
 import RecommendMobileSheet from './recommend-mobile-sheet'
 import RecommendPanel, { type RecommendPanelProps } from './recommend-panel'
@@ -584,6 +586,9 @@ const MapSlot = styled.div`
   }
 `
 
+/** `DesktopPanelSlot` 이 숨는 폭. 아래 CSS 의 `@media (max-width: 1023px)` 와 같아야 한다. */
+const DESKTOP_PANEL_HIDDEN_QUERY = '(max-width: 1023px)'
+
 const DesktopPanelSlot = styled.aside`
   position: absolute;
   z-index: 10;
@@ -592,10 +597,26 @@ const DesktopPanelSlot = styled.aside`
   left: 24px;
   width: min(390px, calc(100vw - 48px));
   min-height: 0;
+  /* 패널과 그 아래 「실시간 많이 본 상권」 띠를 세로로 쌓는다. 패널이 길어지면
+     패널만 줄어들고(내부 스크롤) 띠는 제 높이를 지킨다. */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
 
   > section {
     width: 100%;
+    min-height: 0;
     max-height: 100%;
+    flex: 0 1 auto;
+  }
+
+  > [data-testid='recommend-live-popular'] {
+    flex: none;
   }
 
   @media (max-width: 1023px) {
@@ -633,6 +654,9 @@ function RecommendPageBody() {
    * 다시 읽으면 방금 우리가 쓴 값을 되읽어 루프가 된다.
    */
   const [urlSeed] = useState(() => parseRecommendUrlState(searchParams))
+  /** `DesktopPanelSlot` 이 보이는 폭(≥1024)인지. 측정 전(null)은 넓다고 보지 않는다. */
+  const isDesktopViewport =
+    useNarrowViewport(DESKTOP_PANEL_HIDDEN_QUERY) === false
   const queryClient = useQueryClient()
   const hasHydrated = useAuthStore(auth => auth.hasHydrated)
   const isLoggedIn = useAuthStore(auth => auth.isLoggedIn)
@@ -1110,7 +1134,7 @@ function RecommendPageBody() {
     [writeUrlMirror],
   )
 
-  /** 「선택 범위로 이동」 — 지도는 이미 맞췄고, 여기서는 자동 맞춤을 다시 허용한다. */
+  /** 「선택한 지역으로 돌아가기」 — 지도는 이미 맞췄고, 여기서는 자동 맞춤을 다시 허용한다. */
   const handleCameraFollowRequested = useCallback(() => {
     dispatch({ type: 'cameraFollowRequested' })
   }, [])
@@ -1755,6 +1779,14 @@ function RecommendPageBody() {
             {...panelProps}
             resultHeadingRef={desktopResultHeadingRef}
           />
+          {/*
+           * 조건 카드는 짧아 아래가 빈다. 결과·선택 뷰는 패널이 높이를 다 쓰므로 조건 뷰에서만.
+           * 이 슬롯은 좁은 화면에서 CSS 로 숨을 뿐이라, 넓은 화면으로 확인된 뒤에만 마운트해
+           * 보이지 않는 띠가 1분마다 순위를 부르지 않게 한다.
+           */}
+          {state.view === 'criteria' && isDesktopViewport ? (
+            <RecommendLivePopular />
+          ) : null}
         </DesktopPanelSlot>
 
         <RecommendMobileSheet
