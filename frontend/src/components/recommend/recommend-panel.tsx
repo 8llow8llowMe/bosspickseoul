@@ -121,6 +121,9 @@ const contentEnter = keyframes`
   }
 `
 
+/** `CompareBar` 가 스크롤 영역의 아래 여백을 덮어야 해서 값을 공유한다. */
+const CONTENT_PADDING = 22
+
 const Content = styled.div`
   min-height: 0;
   display: grid;
@@ -128,7 +131,7 @@ const Content = styled.div`
   gap: 20px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 22px;
+  padding: ${CONTENT_PADDING}px;
   animation: ${contentEnter} var(--motion-standard) var(--ease-standard);
   -webkit-overflow-scrolling: touch;
 
@@ -237,12 +240,20 @@ const BasisNote = styled.p`
 
 const COMPARE_GAP_ID = 'recommend-compare-gap'
 
+/*
+ * sticky 는 스크롤 컨테이너의 padding 안쪽에 붙는다. `bottom: 0` 이면 바 아래로
+ * Content 의 아래 여백(22px)이 남아 그 틈으로 목록이 비쳐 보였다. 여백만큼 아래로
+ * 내려 붙이고(bottom·margin 음수) 그만큼 안쪽 여백으로 되돌려 바가 패널 바닥까지 덮게 한다.
+ * 좌우도 같은 이유로 여백까지 넓혀 목록이 바 옆으로 새지 않게 한다.
+ */
 const CompareBar = styled.div`
   position: sticky;
-  bottom: 0;
+  bottom: ${-CONTENT_PADDING}px;
   display: grid;
   gap: 8px;
-  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  margin: 0 ${-CONTENT_PADDING}px ${-CONTENT_PADDING}px;
+  padding: 12px ${CONTENT_PADDING}px
+    calc(max(12px, env(safe-area-inset-bottom)) + ${CONTENT_PADDING}px);
   background: var(--color-surface);
   border-top: 1px solid var(--color-border-200);
 `
