@@ -23,6 +23,31 @@ const polygonFeature = (code, rings) => ({
 const featureCollection = features => ({ type: 'FeatureCollection', features })
 
 describe('generate-status-map', () => {
+  it('exports the lng/lat extent it projected with, so points can share the same space', () => {
+    const geoJson = featureCollection([
+      polygonFeature('11110', [
+        closeRing([
+          [126.8, 37.4],
+          [127.2, 37.4],
+          [127.2, 37.7],
+          [126.8, 37.7],
+        ]),
+      ]),
+    ])
+    const map = buildStatusMapData(geoJson)
+
+    assert.deepEqual(map.geoBounds, {
+      minLng: 126.8,
+      maxLng: 127.2,
+      minLat: 37.4,
+      maxLat: 37.7,
+    })
+    assert.match(
+      generateStatusMapSource(geoJson),
+      /export const SEOUL_STATUS_GEO_BOUNDS = \{"minLng":126\.8,"maxLng":127\.2,"minLat":37\.4,"maxLat":37\.7\}/,
+    )
+  })
+
   it('uses a point inside a concave district instead of its outside bbox center', () => {
     const geoJson = featureCollection([
       polygonFeature('01001', [

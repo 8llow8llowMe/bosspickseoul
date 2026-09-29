@@ -6,6 +6,11 @@
 // prettier-ignore
 export const SEOUL_STATUS_VIEW_BOX = "0 0 800 620"
 
+// 투영에 쓴 경위도 범위(서울 전체의 외접 사각형). x = (lng - minLng) / (maxLng - minLng) * 폭,
+// y = (maxLat - lat) / (maxLat - minLat) * 높이.
+// prettier-ignore
+export const SEOUL_STATUS_GEO_BOUNDS = {"minLng":126.76448395819257,"maxLng":127.18379492506567,"minLat":37.42829747778836,"maxLat":37.70145527921411}
+
 // prettier-ignore
 export const SEOUL_STATUS_FEATURES = [
   {
