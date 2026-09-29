@@ -405,9 +405,47 @@ const createOverlappingTopTen = (): DistrictTopTenResponse => ({
   },
 })
 
+describe('PopularDistricts — 넓은 화면 배치', () => {
+  const dualElement = () =>
+    buildElement(
+      createResponse([
+        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+      ]),
+      createTopTen(),
+    )
+
+  /*
+   * 셸(상한 없음)이면 1920 에서 한 열이 920px, 막대가 850px 까지 늘어났다.
+   * 홈 본문 공용 컬럼(--w-wide)으로 잡아 스토리와 왼쪽 기준선도 맞춘다.
+   */
+  it('홈 공용 컬럼(--w-wide)을 쓴다', () => {
+    expect(renderStyles(dualElement()).replace(/\s+/g, '')).toContain(
+      'width:min(var(--w-wide),var(--w-shell))',
+    )
+  })
+
+  /* 인사이트는 이 섹션의 결론이다 — 두 열 아래가 아니라 위에서 먼저 읽힌다. */
+  it('인사이트 문장이 두 순위 목록보다 먼저 온다', () => {
+    const html = renderToStaticMarkup(dualElement())
+
+    expect(html.indexOf('들지 않았습니다')).toBeGreaterThan(-1)
+    expect(html.indexOf('들지 않았습니다')).toBeLessThan(
+      html.indexOf('aria-label="지금 많이 본 자치구 조회수 순위"'),
+    )
+  })
+
+  /* 점선 상자는 「무언가 들어갈 자리」로 읽혔다. 글 폭만큼만 칠한다. */
+  it('인사이트는 점선 없이 글 폭만큼만 칠한다', () => {
+    const styles = renderStyles(dualElement())
+
+    expect(styles).not.toContain('dashed')
+    expect(styles).toContain('width:fit-content')
+  })
+})
+
 describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
   /*
-   * 문장이 없을 때 슬롯을 언마운트하면 그 아래 콘텐츠가 74px 올라온다. 지표를
+   * 문장이 없을 때 슬롯을 언마운트하면 그 아래 두 열이 예약 높이만큼 올라온다. 지표를
    * 토글할 때마다 레이아웃이 튀는 원인이라, 색만 투명으로 두고 자리는 남긴다.
    */
   it('문장이 없어도 슬롯은 마운트돼 자리를 예약한다', () => {
@@ -418,15 +456,22 @@ describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
     expect(html).not.toContain('밖입니다')
   })
 
+  /*
+   * 슬롯 규칙 블록에 묶어서 본다. min-height 만 찾으면 다른 규칙에 걸려 공허하게
+   * 통과할 수 있다. 데스크톱 한 줄(52px), 640 이하 두 줄(74px)이다.
+   */
   it('문장이 없을 때도 예약 높이는 같다', () => {
     const styles = renderStyles(
       buildElement(createOverlappingRankings(), createOverlappingTopTen()),
-    )
+    ).replace(/\s+/g, '')
 
-    expect(styles).toContain('min-height:74px')
+    expect(styles).toContain('width:fit-content;max-width:100%;min-height:52px')
+    expect(styles).toMatch(
+      /@media\(max-width:640px\)\{\.\w+\{min-height:74px;\}\}/,
+    )
   })
 
-  it('문장이 있으면 같은 슬롯에 문장과 강조 테두리가 함께 온다', () => {
+  it('문장이 있으면 같은 슬롯에 문장과 강조 배경이 함께 온다', () => {
     const element = buildElement(
       createResponse([
         { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
@@ -436,9 +481,15 @@ describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
 
     expect(renderToStaticMarkup(element)).toContain('들지 않았습니다')
 
-    const styles = renderStyles(element)
-    expect(styles).toContain('min-height:74px')
-    expect(styles).toContain('var(--color-primary-100)')
+    /*
+     * 배경은 슬롯 규칙 안에서 본다. primary-100 은 토글 활성 버튼·강조 행도 내보내
+     * 문자열만 찾으면 슬롯 배경이 사라져도 통과한다.
+     */
+    const styles = renderStyles(element).replace(/\s+/g, '')
+    expect(styles).toContain('width:fit-content;max-width:100%;min-height:52px')
+    expect(styles).toContain(
+      'border:1pxsolidtransparent;border-radius:var(--radius-card);background:var(--color-primary-100)',
+    )
   })
 
   /*

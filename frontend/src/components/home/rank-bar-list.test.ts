@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
@@ -75,5 +76,41 @@ describe('RankBarList', () => {
     const html = render({ highlightKey: 'b' })
 
     expect(html).toContain('aria-current="true"')
+  })
+})
+
+const renderCardStyles = (): string => {
+  const sheet = new ServerStyleSheet()
+
+  try {
+    renderToStaticMarkup(
+      sheet.collectStyles(
+        createElement(RankBarList, {
+          rows,
+          ariaLabel: '순위',
+          variant: 'card',
+        }),
+      ),
+    )
+    return sheet.getStyleTags().replace(/\s+/g, '')
+  } finally {
+    sheet.seal()
+  }
+}
+
+describe('RankBarList — card 변형은 넓어져도 막대가 늘어나지 않는다', () => {
+  /*
+   * 예전 card 변형은 막대가 이름 아래 제 줄에서 행 전폭을 써 1920 에서 약 850px 까지
+   * 갔다. 폭 체계 §Charts 의 미터 행 상한(360px)을 막대 칸에 건다.
+   */
+  it('막대 칸에 360px 상한이 있다', () => {
+    expect(renderCardStyles()).toContain('minmax(0,360px)')
+  })
+
+  /* 행마다 테두리를 두르면 카드 8장이 쌓여 보인다 — 목록이 한 번만 두른다. */
+  it('행 사이는 구분선으로 가른다', () => {
+    expect(renderCardStyles()).toMatch(
+      />li\+li\{border-top:1pxsolidvar\(--color-border-200\);\}/,
+    )
   })
 })
