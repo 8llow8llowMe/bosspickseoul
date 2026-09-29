@@ -7,28 +7,28 @@ import {
   UserPlus,
 } from 'lucide-react'
 import styled from 'styled-components'
-import { shellWidth } from '@/styles/layout'
 
+import { HOME_COLUMN } from '@/components/home/layout-constants'
+
+/*
+  화면 높이(100dvh)를 붙잡지 않는다. 콘텐츠가 약 330px 인데 1080 화면을 채우려고
+  세로 가운데 정렬하면 위아래로 약 260px 씩 빈 띠가 생겼다(1920 실측). 보드와 같은
+  세로 리듬(96/72/56)을 쓴다.
+*/
 const Section = styled.section`
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 64px 0;
+  padding: 96px 0;
 
-  /* 태블릿 이하에서는 화면을 꽉 채우지 않고 콘텐츠 높이에 맞춰 여백 과다를 줄인다. */
-  @media (max-width: 768px) {
-    min-height: auto;
-    padding: 56px 0;
+  @media (max-width: 900px) {
+    padding: 72px 0;
   }
 
   @media (max-width: 640px) {
-    padding: 48px 0;
+    padding: 56px 0;
   }
 `
 
 const Inner = styled.div`
-  ${shellWidth}
+  ${HOME_COLUMN}
 `
 
 const Header = styled.div`

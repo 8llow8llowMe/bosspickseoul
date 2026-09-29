@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 import FeatureBento from '@/components/home/feature-bento'
 
@@ -37,5 +38,30 @@ describe('FeatureBento', () => {
 
       expect(html).toContain('분석 이후의 판단까지, 한 곳에서 이어집니다.')
     })
+  })
+})
+
+const renderStyles = (): string => {
+  const sheet = new ServerStyleSheet()
+
+  try {
+    renderToStaticMarkup(sheet.collectStyles(createElement(FeatureBento)))
+    return sheet.getStyleTags().replace(/\s+/g, '')
+  } finally {
+    sheet.seal()
+  }
+}
+
+describe('FeatureBento — 넓은 화면 배치', () => {
+  /*
+   * 콘텐츠 약 330px 로 1080 화면을 채우려고 세로 가운데 정렬하면 위아래로 약 260px
+   * 씩 빈 띠가 생겼다.
+   */
+  it('화면 높이를 붙잡지 않는다', () => {
+    expect(renderStyles()).not.toContain('100dvh')
+  })
+
+  it('홈 공용 컬럼(--w-wide)을 쓴다', () => {
+    expect(renderStyles()).toContain('width:min(var(--w-wide),var(--w-shell))')
   })
 })

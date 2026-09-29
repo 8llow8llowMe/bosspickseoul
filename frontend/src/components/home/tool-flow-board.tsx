@@ -9,8 +9,9 @@ import {
 } from 'lucide-react'
 import styled from 'styled-components'
 
+import { HOME_COLUMN } from '@/components/home/layout-constants'
+
 import { STORY_STEPS } from '@/components/home/story-steps'
-import { shellWidth } from '@/styles/layout'
 
 /**
  * 네 도구 요약 보드 — 「무엇을 · 어디로」.
@@ -41,7 +42,7 @@ const Section = styled.section`
 `
 
 const Inner = styled.div`
-  ${shellWidth}
+  ${HOME_COLUMN}
 `
 
 const Header = styled.div`
