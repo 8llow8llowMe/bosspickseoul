@@ -222,7 +222,6 @@ const TabList = styled.div`
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  scrollbar-width: thin;
 `
 
 const Tab = styled.button<{ $selected: boolean }>`
