@@ -5,6 +5,7 @@
 > **작성일**: 2026-09-03
 > **공통 명세**: [home 공통 명세](./home.md)
 > **선행 명세**: [below-hero-scrollytelling](./below-hero-scrollytelling.md) — 이 문서는 그 명세의 ②·③부를 **개정**한다(대체하지 않는다. 3부 구조와 앵커·스티키 트랙은 그대로 유지).
+> **철회 노트(2026-09-29)**: 스토리 스티키 트랙·랭킹 트랙은 [home-restructure](./home-restructure.md) 에서 걷어냈다. 스토리는 탭 4장 + 패널이다. 데모 4종·03 연쇄·쿼리 공유 규칙은 이 문서가 여전히 정본이다
 > **대상**: 웹 (Next.js App Router)
 > **작성자**: Claude Code
 > **상태**: 구현 완료
