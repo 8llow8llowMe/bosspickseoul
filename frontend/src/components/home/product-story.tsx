@@ -285,14 +285,24 @@ export default function ProductStory() {
     if (tabsVisible) return
     const element = tabsRef.current
     if (!element) return
+    /*
+      「다 보인다」는 ratio 1 이다. 다만 탭 목록이 뷰포트보다 크면(400% 확대 등) ratio 1 에
+      영영 닿지 않으므로, 그때는 들어오기만 하면 켠다. 그래서 문턱을 0 과 1 둘 다 건다.
+    */
     const observer = new IntersectionObserver(
       entries => {
-        if (entries.some(entry => entry.isIntersecting)) {
+        const visible = entries.some(entry => {
+          if (!entry.isIntersecting) return false
+          if (entry.intersectionRatio >= 1) return true
+          const rootHeight = entry.rootBounds?.height ?? window.innerHeight
+          return entry.boundingClientRect.height >= rootHeight
+        })
+        if (visible) {
           setTabsVisible(true)
           observer.disconnect()
         }
       },
-      { threshold: 1 },
+      { threshold: [0, 1] },
     )
     observer.observe(element)
     return () => observer.disconnect()

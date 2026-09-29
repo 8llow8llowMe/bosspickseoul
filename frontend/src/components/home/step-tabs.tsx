@@ -157,6 +157,8 @@ export default function StepTabs({
     뿐이라 수동 활성화(Enter 로 확정)를 둘 이유가 없다.
   */
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    // Alt/Cmd+← 는 브라우저 뒤로가기다 — 수정자 키가 붙으면 가로채지 않는다.
+    if (event.altKey || event.ctrlKey || event.metaKey) return
     const next = nextTabIndex(selected, event.key, steps.length)
     if (next === null) return
     event.preventDefault()
