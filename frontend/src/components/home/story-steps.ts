@@ -1,3 +1,11 @@
+import {
+  Calculator,
+  LineChart,
+  Map,
+  Target,
+  type LucideIcon,
+} from 'lucide-react'
+
 export type StoryDemo = 'metrics' | 'mini-demo' | 'recommend' | 'simulation'
 
 export type StoryStep = {
@@ -5,6 +13,17 @@ export type StoryStep = {
   title: string
   body: string
   demo: StoryDemo
+  /**
+   * 탭 아이콘. 네 탭이 글자만 다르면 한 덩어리로 읽힌다 — 아이콘이 각 탭에 눈이 멈출
+   * 자리를 만든다(예전 네 도구 보드의 STEP_ICONS 를 옮겼다). 장식이라 스크린리더에서는
+   * 숨긴다.
+   */
+  icon: LucideIcon
+  /**
+   * 패널에 덧붙이는 한 줄. 04 만 쓴다 — 앞 세 단계는 고른 조건을 따라 움직이는데
+   * 04 만 고정 예시라는 사실을 감추지 않는다(POST 가 필요해 랜딩에서 선택을 이어받지 않는다).
+   */
+  note?: string
   /**
    * 이 단계의 도구로 가는 CTA. **없으면 그 단계는 막다른 길이다.**
    *
@@ -43,8 +62,9 @@ export const STORY_STEPS: readonly StoryStep[] = [
   {
     step: '01',
     title: '현황 확인',
-    body: '서울 25개 자치구를 유동인구·매출·개업 수로 줄 세워 어디부터 볼지 정합니다.',
+    body: '서울 25개 자치구를 유동인구·매출·개업 수로 줄 세워 어디부터 볼지 정해요.',
     demo: 'metrics',
+    icon: Map,
     outcome: '자치구 25곳을 지표로 줄 세운 순위표',
     cta: { href: '/status', label: '구별 현황 보기' },
     tool: { href: '/status', label: '구별현황' },
@@ -52,8 +72,9 @@ export const STORY_STEPS: readonly StoryStep[] = [
   {
     step: '02',
     title: '상권 분석 · AI 리포트',
-    body: '지역과 업종을 고르면 매출 추이·경쟁 강도를 읽고, AI 가 판단 근거를 문장으로 정리합니다.',
+    body: '지역과 업종을 고르면 매출 추이·경쟁 강도를 읽고, AI 가 판단 근거를 문장으로 정리해 줘요.',
     demo: 'mini-demo',
+    icon: LineChart,
     outcome: '업종별 매출 추이와 AI 가 정리한 판단 근거',
     cta: null,
     tool: { href: '/analysis', label: '상권분석' },
@@ -61,8 +82,9 @@ export const STORY_STEPS: readonly StoryStep[] = [
   {
     step: '03',
     title: '후보 추천',
-    body: '조건에 맞는 상권을 점수순으로 추천받아 후보를 좁힙니다.',
+    body: '조건에 맞는 상권을 점수순으로 추천받아 후보를 좁혀요.',
     demo: 'recommend',
+    icon: Target,
     outcome: '조건에 맞는 상권만 남긴 후보 목록',
     cta: { href: '/recommend', label: '상권 추천받기' },
     tool: { href: '/recommend', label: '상권추천' },
@@ -70,8 +92,10 @@ export const STORY_STEPS: readonly StoryStep[] = [
   {
     step: '04',
     title: '창업 시뮬레이션',
-    body: '예상 비용과 매출을 시뮬레이션해 실행 가능성을 점검합니다.',
+    body: '예상 비용과 매출로 손익분기에 닿는 시점을 따져 봐요.',
     demo: 'simulation',
+    icon: Calculator,
+    note: '이 단계는 고른 조건과 상관없는 예시예요.',
     outcome: '예상 비용과 손익분기에 닿는 시점',
     cta: { href: '/simulation', label: '창업 시뮬레이션 해보기' },
     tool: { href: '/simulation', label: '시뮬레이션' },
