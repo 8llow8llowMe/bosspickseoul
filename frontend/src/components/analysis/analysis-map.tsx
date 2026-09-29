@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import styled from 'styled-components'
 
+import {
+  CurrentLocationControl,
+  currentLocationMarkerStyles,
+  MapControlStack,
+} from '@/components/map/map-controls'
 import { Button } from '@/components/ui/button'
 import { env } from '@/lib/env'
 import { loadKakaoMapSdk } from '@/lib/kakao-map'
@@ -90,6 +95,8 @@ const Root = styled.div`
   min-height: 320px;
   overflow: hidden;
   background: var(--color-surface-muted);
+
+  ${currentLocationMarkerStyles}
 `
 
 const Canvas = styled.div`
@@ -377,6 +384,16 @@ export default function AnalysisMap({
   return (
     <Root aria-label="분석 지역 지도">
       <Canvas ref={containerRef} data-kakao-map="true" />
+      <MapControlStack>
+        <CurrentLocationControl
+          getMap={() =>
+            mapsRef.current && mapRef.current
+              ? { maps: mapsRef.current, map: mapRef.current }
+              : null
+          }
+          ready={sdkStatus === 'ready'}
+        />
+      </MapControlStack>
       {sdkStatus === 'loading' ? (
         <Status role="status">
           <StatusContent>지도를 준비하고 있어요</StatusContent>

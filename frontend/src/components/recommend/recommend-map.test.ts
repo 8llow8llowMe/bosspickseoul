@@ -130,16 +130,21 @@ describe('RecommendMap server rendering', () => {
     expect(markup).toContain('aria-label="상권 추천 지도"')
     expect(markup).toContain('role="region"')
     expect(markup).toContain('data-recommend-map-container="true"')
-    expect(markup).toMatch(/<button[^>]*>선택 범위로 이동<\/button>/)
+    expect(markup).toContain('aria-label="선택한 지역으로 돌아가기"')
+    expect(markup).toContain('aria-label="내 위치로 이동"')
   })
 
-  it('disables recentering until the Kakao map is ready', () => {
+  it('disables recentering and locating until the Kakao map is ready', () => {
     const markup = renderToStaticMarkup(createElement(RecommendMap, baseProps))
     const recenterButton = markup.match(
-      /<button[^>]*>선택 범위로 이동<\/button>/,
+      /<button[^>]*aria-label="선택한 지역으로 돌아가기"[^>]*>/,
+    )?.[0]
+    const locateButton = markup.match(
+      /<button[^>]*aria-label="내 위치로 이동"[^>]*>/,
     )?.[0]
 
     expect(recenterButton).toContain('disabled=""')
+    expect(locateButton).toContain('disabled=""')
   })
 
   it('keeps the map landmark while the client SDK has not loaded', () => {
@@ -184,7 +189,7 @@ describe('RecommendMap server rendering', () => {
     ).toBeLessThan(source.indexOf('JSON.stringify(effectiveCameraTarget)'))
     expect(source).toContain('applyCameraMode(cameraTarget, cameraMode)')
 
-    // 「선택 범위로 이동」은 모드가 씌워지지 않은 원래 타깃을 써야 즉시 맞출 수 있다.
+    // 「선택한 지역으로 돌아가기」은 모드가 씌워지지 않은 원래 타깃을 써야 즉시 맞출 수 있다.
     expect(source).toContain('rawCameraTargetRef.current')
 
     // 카메라 emit 이 bounds dedupe 보다 앞서야 줌·미세 팬에서도 `c` 가 갱신된다.
@@ -228,8 +233,8 @@ describe('recommend rank marker contrast', () => {
     {
       state: 'selected',
       selector: "& .recommend-rank-marker[aria-pressed='true'] {",
-      expectedForeground: 'var(--color-text-900, #191f28)',
-      expectedBackground: 'var(--color-primary-700, #0ea5e9)',
+      expectedForeground: 'var(--color-surface, #fff)',
+      expectedBackground: 'var(--color-grey-900, #191f28)',
     },
   ])(
     'uses CSS tokens with at least 4.5:1 contrast when $state',

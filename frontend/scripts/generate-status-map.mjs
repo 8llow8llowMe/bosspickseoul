@@ -539,6 +539,13 @@ export function buildStatusMapData(geoJson) {
 
   return {
     viewBox: `0 0 ${width} ${height}`,
+    // 투영에 쓴 경위도 범위. 화면이 경위도 점(내 위치 등)을 같은 SVG 좌표로 옮길 때 쓴다.
+    geoBounds: {
+      minLng: bounds.minX,
+      maxLng: bounds.maxX,
+      minLat: bounds.minY,
+      maxLat: bounds.maxY,
+    },
     features: mapFeatures,
     paths: mapFeatures.map(feature => feature.path),
     centers: Object.fromEntries(
@@ -579,6 +586,11 @@ export function generateStatusMapSource(
     '',
     '// prettier-ignore',
     `export const SEOUL_STATUS_VIEW_BOX = ${JSON.stringify(map.viewBox)}`,
+    '',
+    '// 투영에 쓴 경위도 범위(서울 전체의 외접 사각형). x = (lng - minLng) / (maxLng - minLng) * 폭,',
+    '// y = (maxLat - lat) / (maxLat - minLat) * 높이.',
+    '// prettier-ignore',
+    `export const SEOUL_STATUS_GEO_BOUNDS = ${JSON.stringify(map.geoBounds)}`,
     '',
     '// prettier-ignore',
     'export const SEOUL_STATUS_FEATURES = [',

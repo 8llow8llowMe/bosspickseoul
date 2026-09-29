@@ -205,7 +205,9 @@ const MapNotice = styled.div`
   z-index: 8;
   top: 16px;
   left: 50%;
-  max-width: min(420px, calc(100% - 32px));
+  /* 가운데 정렬이라 좌우를 같이 줄인다. 우측 상단 지도 컨트롤(버튼 44 + 여백 12 + 틈 8)
+     몫을 양쪽에서 비워, 좁은 화면에서 안내문이 「내 위치」 버튼을 덮지 않게 한다. */
+  max-width: min(420px, calc(100% - 128px));
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
   background: rgba(255, 255, 255, 0.94);

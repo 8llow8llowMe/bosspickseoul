@@ -80,7 +80,7 @@ export type RecommendationState = {
    * 가 모든 타깃을 `keep` 으로 바꾼다.
    *
    * **사용자 의도 액션**(조건 선택 · 사용자 제출 · 결과 선택 · 조건 수정 ·
-   * 「선택 범위로 이동」)에서만 `'auto'` 로 풀린다. 데이터·UI 액션과 씨앗 자동 제출
+   * 「선택한 지역으로 돌아가기」)에서만 `'auto'` 로 풀린다. 데이터·UI 액션과 씨앗 자동 제출
    * (`submitted` 의 `source: 'seed'`)은 유지한다. `'auto'` → `'url'` 전이는 **없다**.
    */
   cameraMode: RecommendCameraMode
@@ -129,7 +129,7 @@ export type RecommendationAction =
   | { type: 'editRequested' }
   | { type: 'sheetSnapChanged'; snap: RecommendationSheetSnap }
   /**
-   * 「선택 범위로 이동」 버튼. 지도는 모드와 무관하게 **즉시** 맞추고(사용자가 원한
+   * 「선택한 지역으로 돌아가기」 버튼. 지도는 모드와 무관하게 **즉시** 맞추고(사용자가 원한
    * 것이다), 그 뒤로는 카메라가 선택·결과를 따라가도 된다는 뜻이라 `'auto'` 가 된다.
    */
   | { type: 'cameraFollowRequested' }

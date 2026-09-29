@@ -1,8 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Focus } from 'lucide-react'
 import styled from 'styled-components'
 
+import {
+  CurrentLocationControl,
+  currentLocationMarkerStyles,
+  MapControlIconButton,
+  MapControlStack,
+} from '@/components/map/map-controls'
 import RecommendFeedback from '@/components/recommend/recommend-feedback'
 import { classifyStatus, isRetryable } from '@/lib/api/api-error'
 import { env } from '@/lib/env'
@@ -36,6 +43,9 @@ import {
 } from '@/lib/recommend/recommend-map-model'
 import type { AreaBoundaryItem, GeoBounds } from '@/types/recommend'
 
+/** 선택 영역 되돌리기 버튼의 접근성 이름. 아이콘 버튼이라 이 문구가 곧 버튼의 뜻이다. */
+export const RECENTER_LABEL = '선택한 지역으로 돌아가기'
+
 export type RecommendMapProps = {
   stage: 'district' | 'administration' | 'commercial' | 'results'
   districtAreas: AreaBoundaryItem[]
@@ -68,7 +78,7 @@ export type RecommendMapProps = {
   cameraMode?: RecommendCameraMode
   /** 지도가 멈출 때(`idle`) 화면이 든 카메라. URL 거울이 이 값을 `c` 로 쓴다. */
   onCameraSettle?: (camera: MapCamera) => void
-  /** 「선택 범위로 이동」을 눌렀다. 그 뒤로는 카메라가 선택·결과를 따라가도 된다. */
+  /** 「선택한 지역으로 돌아가기」를 눌렀다. 그 뒤로는 카메라가 선택·결과를 따라가도 된다. */
   onRecenter?: () => void
 }
 
@@ -366,10 +376,16 @@ const MapRegion = styled.section`
       border-color var(--motion-fast, 120ms) var(--ease-standard, ease);
   }
 
+  /*
+   * 선택 마커는 파란 폴리곤 위에 앉는다. 예전의 하늘색 배경(primary-700) + 검정 글자는
+   * 폴리곤 채움과 색상이 겹쳐 눈에 띄지 않았다. 폴리곤과 색상이 아예 다른 먹색(grey-900 — brand 토큰은 로고 전용이다)으로
+   * 칠하고 흰 테두리로 떼어 내 어느 파랑 위에서도 도드라지게 한다.
+   */
   & .recommend-rank-marker[aria-pressed='true'] {
-    border-color: var(--color-primary-600, #2272eb);
-    background: var(--color-primary-700, #0ea5e9);
-    color: var(--color-text-900, #191f28);
+    border-color: var(--color-surface, #fff);
+    background: var(--color-grey-900, #191f28);
+    color: var(--color-surface, #fff);
+    box-shadow: var(--shadow-level-3);
   }
 
   & .recommend-rank-marker[data-previewed='true']:not([aria-pressed='true']) {
@@ -386,32 +402,13 @@ const MapRegion = styled.section`
       transition: none;
     }
   }
+
+  ${currentLocationMarkerStyles}
 `
 
 const MapCanvas = styled.div`
   width: 100%;
   min-height: 420px;
-`
-
-const RecenterButton = styled.button`
-  position: absolute;
-  z-index: 3;
-  top: 12px;
-  right: 12px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border-300);
-  border-radius: var(--radius-control);
-  background: rgb(255 255 255 / 96%);
-  color: var(--color-text-900);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-  }
 `
 
 const FeedbackLayer = styled.div`
@@ -599,7 +596,7 @@ export default function RecommendMap({
   const lastViewportBoundsKeyRef = useRef('')
   /** 모드를 씌운 타깃. 이펙트·ResizeObserver 는 이것만 본다. */
   const cameraTargetRef = useRef<MapCameraTarget | null>(null)
-  /** 모드를 씌우기 **전**의 타깃. 「선택 범위로 이동」만 이것을 쓴다. */
+  /** 모드를 씌우기 **전**의 타깃. 「선택한 지역으로 돌아가기」만 이것을 쓴다. */
   const rawCameraTargetRef = useRef<MapCameraTarget | null>(null)
   /** 마지막으로 실제 적용한 카메라 타깃의 키. 모드 전환 이펙트와 recenter 가 공유한다. */
   const lastAppliedCameraKeyRef = useRef<string | null>(null)
@@ -1124,8 +1121,14 @@ export default function RecommendMap({
     )
   }, [previewedCommercialCode, selectedCommercialCode])
 
+  /** 내 위치 버튼이 클릭 때 꺼내 쓰는 지도. 렌더 중에 ref 를 읽지 않으려고 함수로 넘긴다. */
+  const getMapHandle = () =>
+    mapsRef.current && mapRef.current
+      ? { maps: mapsRef.current, map: mapRef.current }
+      : null
+
   /*
-   * 「선택 범위로 이동」은 **모드와 무관하게 즉시 맞춘다** — 사용자가 원한 것이다.
+   * 「선택한 지역으로 돌아가기」는 **모드와 무관하게 즉시 맞춘다** — 사용자가 원한 것이다.
    * 그래서 모드를 씌우지 않은 원래 타깃을 쓰고, 그 뒤로 자동 맞춤을 다시 허용하도록
    * 화면에 알린다(url-state §2-2).
    * 맞출 대상이 `keep` 이면(결과 로딩 중 등) 잠금도 풀지 않는다 — 아무 일도 안 일어난
@@ -1149,13 +1152,23 @@ export default function RecommendMap({
         data-recommend-map-container="true"
         data-kakao-map="true"
       />
-      <RecenterButton
-        type="button"
-        disabled={sdkStatus !== 'ready'}
-        onClick={recenter}
-      >
-        선택 범위로 이동
-      </RecenterButton>
+      <MapControlStack>
+        {/*
+         * 링크 복원이나 직접 팬으로 카메라가 선택 영역을 떠났을 때 되돌리는 버튼이다.
+         * 예전 「선택 범위로 이동」 텍스트 버튼은 무엇의 범위인지 읽히지 않았다 — 내 위치와
+         * 같은 지도 컨트롤 묶음의 아이콘으로 옮기고 이름을 풀어 적는다.
+         */}
+        <MapControlIconButton
+          disabled={sdkStatus !== 'ready'}
+          icon={<Focus aria-hidden />}
+          label={RECENTER_LABEL}
+          onClick={recenter}
+        />
+        <CurrentLocationControl
+          getMap={getMapHandle}
+          ready={sdkStatus === 'ready'}
+        />
+      </MapControlStack>
       {sdkStatus === 'error' ? (
         <FeedbackLayer>
           <RecommendFeedback

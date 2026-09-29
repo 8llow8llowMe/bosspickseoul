@@ -93,12 +93,12 @@ describe('RecommendMap SDK 재시도', () => {
     expect(loadSdk).toHaveBeenCalledTimes(1)
   })
 
-  it('실패한 동안에는 「선택 범위로 이동」이 잠겨 있다', async () => {
+  it('실패한 동안에는 「선택한 지역으로 돌아가기」가 잠겨 있다', async () => {
     renderMap()
     await screen.findByText(ERROR_TITLE)
 
     const recenter = screen.getByRole('button', {
-      name: '선택 범위로 이동',
+      name: '선택한 지역으로 돌아가기',
     }) as HTMLButtonElement
 
     expect(recenter.disabled).toBe(true)
