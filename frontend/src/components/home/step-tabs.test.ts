@@ -86,6 +86,10 @@ describe('STORY_STEPS — 탭 데이터 (TC-HR-007)', () => {
     for (const step of STORY_STEPS) expect(step.icon).toBeTruthy()
   })
 
+  it('보드 전용이던 tool 필드가 없다', () => {
+    for (const step of STORY_STEPS) expect('tool' in step).toBe(false)
+  })
+
   it('본문은 해요체로 끝난다', () => {
     for (const step of STORY_STEPS) {
       expect(step.body).toMatch(/요\.$/)
