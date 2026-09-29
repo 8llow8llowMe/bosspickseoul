@@ -30,6 +30,16 @@ const createResponse = (
   },
 })
 
+/**
+ * 최소 표본(3곳)을 채운 조회 순위 — 좌측 열이 성립하는 가장 작은 입력
+ * (ranking-minimum-sample.md). 1~2곳이면 좌측 열이 빠진다.
+ */
+const THREE_VIEWS = [
+  { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
+  { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 1102 },
+  { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 950 },
+]
+
 const createTopTen = (success = true): DistrictTopTenResponse => ({
   dataHeader: {
     success,
@@ -140,7 +150,8 @@ describe('PopularDistricts', () => {
     const html = render()
 
     expect(html).toContain('aria-busy="true"')
-    expect(html).toContain('지금 많이 본 지역')
+    // 스켈레톤은 「지표만」 문구다 — 어느 최종 상태에서도 거짓이 되지 않는다.
+    expect(html).toContain('자치구 지표 순위')
     // 스켈레톤 단계에서 누를 수 있는 것이 있으면 안 된다.
     expect(html).not.toContain('href="/analysis?districtCode=')
   })
@@ -150,6 +161,7 @@ describe('PopularDistricts', () => {
       createResponse([
         { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
         { rank: 2, areaCode: '11740', areaName: '강동구', viewCount: 987 },
+        { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 500 },
       ]),
     )
 
@@ -168,6 +180,8 @@ describe('PopularDistricts', () => {
     const html = render(
       createResponse([
         { rank: 1, areaCode: '11680', areaName: null, viewCount: 10 },
+        { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 9 },
+        { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 8 },
       ]),
     )
 
@@ -182,6 +196,8 @@ describe('PopularDistricts', () => {
     const html = render(
       createResponse([
         { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 10 },
+        { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 9 },
+        { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 8 },
       ]),
     )
 
@@ -214,7 +230,11 @@ describe('PopularDistricts', () => {
   it('windowHours 가 이상하면 기간 문구 없이 나머지를 그린다', () => {
     const html = render(
       createResponse(
-        [{ rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 10 }],
+        [
+          { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 10 },
+          { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 9 },
+          { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 8 },
+        ],
         { windowHours: 0 },
       ),
     )
@@ -228,6 +248,7 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
   const rankings = createResponse([
     { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1284 },
     { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 1102 },
+    { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 950 },
   ])
 
   it('두 순위가 다 있으면 좌우를 모두 그리고 인사이트를 낸다', () => {
@@ -237,7 +258,7 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
     expect(html).toContain('유동인구')
     // 중구는 지표 1위인데 조회수 목록에 없다 → 규칙 A
     expect(html).toContain('중구')
-    expect(html).toContain('들지 않았습니다')
+    expect(html).toContain('들지 않았어요')
   })
 
   it('지표 쪽 변화율에는 부호를 붙인다', () => {
@@ -260,7 +281,7 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
 
     expect(html).toContain('강남구')
     expect(html).not.toContain('유동인구')
-    expect(html).not.toContain('들지 않았습니다')
+    expect(html).not.toContain('들지 않았어요')
   })
 
   it('조회수가 죽으면 우측만 그린다', () => {
@@ -294,6 +315,7 @@ describe('PopularDistricts — 리뷰 수정', () => {
   const rankings = createResponse([
     { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1284 },
     { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 1102 },
+    { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 950 },
   ])
 
   /*
@@ -308,45 +330,7 @@ describe('PopularDistricts — 리뷰 수정', () => {
     expect(html).toContain('유동인구')
     expect(html).toContain('매출')
     expect(html).toContain('개업')
-    expect(html).toContain('이 지표는 집계가 없습니다')
-  })
-
-  /*
-   * B. D5-4 는 한쪽 열만 살아 있으면 화면 높이를 붙잡지 말라고 못 박는다 — 그렇지
-   * 않으면 170px 남짓한 내용이 900px 한가운데 떠서 위아래가 텅 빈다.
-   *
-   * R1 이후 dual 의 표현이 `min-height:100dvh` 에서 300dvh 스크롤 트랙으로 바뀌었을
-   * 뿐, 「솔로는 여백으로 채우지 않는다」는 불변식은 그대로다.
-   */
-  it('두 열이 모두 있을 때만 화면 높이를 붙잡는다', () => {
-    const dualStyles = renderStyles(buildElement(rankings, createTopTen()))
-    expect(dualStyles).toContain('calc(100dvh * 3)')
-
-    const singleStyles = renderStyles(
-      buildElement(rankings, createTopTen(false)),
-    )
-    expect(singleStyles).not.toContain('calc(100dvh * 3)')
-    expect(singleStyles).not.toContain('min-height:100dvh')
-  })
-
-  /*
-   * B(재리뷰 추가). 두 쿼리는 서로 다른 네트워크 호출이라 응답 시각이 다르다.
-   * 한쪽만 먼저 도착했을 때 "지금 렌더된 열" 기준으로 100dvh 를 계산하면,
-   * 아직 안 온 나머지 쪽을 "없다"로 오판해 수축했다가
-   * 나머지가 도착하면 다시 팽창한다(스켈레톤 → 수축 → 재팽창).
-   * 이건 열화 경로가 아니라 **정상 로드마다** 일어난다. 아직 pending 인
-   * 쪽은 "최종적으로 있을 것"으로 가정해 트랙을 유지해야 한다.
-   */
-  it('혼합 pending — 한쪽만 먼저 응답해도 트랙을 유지한다', () => {
-    // 조회수만 먼저 도착, 지표(top-ten)는 아직 pending.
-    const viewOnlyStyles = renderStyles(buildElement(rankings, undefined))
-    expect(viewOnlyStyles).toContain('calc(100dvh * 3)')
-
-    // 지표만 먼저 도착, 조회수(analysis-rankings)는 아직 pending.
-    const metricOnlyStyles = renderStyles(
-      buildElement(undefined, createTopTen()),
-    )
-    expect(metricOnlyStyles).toContain('calc(100dvh * 3)')
+    expect(html).toContain('이 지표는 아직 집계가 없어요')
   })
 
   /*
@@ -407,12 +391,7 @@ const createOverlappingTopTen = (): DistrictTopTenResponse => ({
 
 describe('PopularDistricts — 넓은 화면 배치', () => {
   const dualElement = () =>
-    buildElement(
-      createResponse([
-        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
-      ]),
-      createTopTen(),
-    )
+    buildElement(createResponse(THREE_VIEWS), createTopTen())
 
   /*
    * 셸(상한 없음)이면 1920 에서 한 열이 920px, 막대가 850px 까지 늘어났다.
@@ -428,8 +407,8 @@ describe('PopularDistricts — 넓은 화면 배치', () => {
   it('인사이트 문장이 두 순위 목록보다 먼저 온다', () => {
     const html = renderToStaticMarkup(dualElement())
 
-    expect(html.indexOf('들지 않았습니다')).toBeGreaterThan(-1)
-    expect(html.indexOf('들지 않았습니다')).toBeLessThan(
+    expect(html.indexOf('들지 않았어요')).toBeGreaterThan(-1)
+    expect(html.indexOf('들지 않았어요')).toBeLessThan(
       html.indexOf('aria-label="지금 많이 본 자치구 조회수 순위"'),
     )
   })
@@ -452,8 +431,8 @@ describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
     const html = render(createOverlappingRankings(), createOverlappingTopTen())
 
     expect(html).toContain('aria-live="polite"')
-    expect(html).not.toContain('들지 않았습니다')
-    expect(html).not.toContain('밖입니다')
+    expect(html).not.toContain('들지 않았어요')
+    expect(html).not.toContain('밖이에요')
   })
 
   /*
@@ -472,14 +451,9 @@ describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
   })
 
   it('문장이 있으면 같은 슬롯에 문장과 강조 배경이 함께 온다', () => {
-    const element = buildElement(
-      createResponse([
-        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
-      ]),
-      createTopTen(),
-    )
+    const element = buildElement(createResponse(THREE_VIEWS), createTopTen())
 
-    expect(renderToStaticMarkup(element)).toContain('들지 않았습니다')
+    expect(renderToStaticMarkup(element)).toContain('들지 않았어요')
 
     /*
      * 배경은 슬롯 규칙 안에서 본다. primary-100 은 토글 활성 버튼·강조 행도 내보내
@@ -497,12 +471,7 @@ describe('PopularDistricts — 인사이트 자리 예약(R2)', () => {
    * 없으므로 그 분기에서 74px 를 비워 두면 D5-4 가 없앤 죽은 여백이 되살아난다.
    */
   it('한쪽 열만 있는 분기에서는 슬롯 자체를 두지 않는다', () => {
-    const html = render(
-      createResponse([
-        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
-      ]),
-      createTopTen(false),
-    )
+    const html = render(createResponse(THREE_VIEWS), createTopTen(false))
 
     expect(html).toContain('강남구')
     expect(html).not.toContain('aria-live="polite"')
@@ -531,81 +500,81 @@ describe('PopularDistricts — 랭킹 우측은 Top5 를 유지한다(R4)', () =
    * 그리고 규칙 B 의 「Top 5 밖」 문장을 지키기 위한 분리다.
    */
   it('같은 응답에서도 5행만 그린다', () => {
-    const html = render(
-      createResponse([
-        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
-      ]),
-      createWideTopTen(),
-    )
+    const html = render(createResponse(THREE_VIEWS), createWideTopTen())
 
     const metricSection = html.slice(html.indexOf('상위 자치구'))
     expect((metricSection.match(/<li/g) ?? []).length).toBe(5)
   })
 })
 
-const dualSeeds = () =>
-  [
-    createResponse([
-      { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
-    ]),
-    createTopTen(),
-  ] as const
-
-describe('PopularDistricts — 스크롤 지표 전환(R1)', () => {
-  /*
-   * 트랙 높이는 임의 값이 아니라 스토리가 쓰는 공식(100dvh x 스텝 수)을 지표 3종에
-   * 그대로 적용한 값이다. 지표를 늘리면 트랙도 같이 늘어나야 하므로
-   * HOME_METRICS.length 로 계산한다 — 300dvh 를 하드코딩하지 않는다.
-   */
-  it('두 열이 다 있으면 지표 수만큼의 스크롤 트랙을 준다', () => {
-    const styles = renderStyles(buildElement(...dualSeeds()))
-
-    expect(styles).toContain('calc(100dvh * 3)')
-  })
-
-  it('스티키는 헤더 높이만큼 내려가 있다', () => {
-    const styles = renderStyles(buildElement(...dualSeeds()))
-
-    expect(styles).toContain('top:65px')
-    expect(styles).toContain('calc(100dvh - 65px)')
-  })
-
-  /*
-   * 한쪽 열만 살아 있으면 비교 맥락("보는 곳")이 없어 300dvh 를 핀 고정할 이유가
-   * 없다. 기존 솔로 렌더(높이 auto)를 그대로 쓴다.
-   */
-  it('한쪽 열만 있으면 트랙을 만들지 않는다', () => {
+describe('PopularDistricts — 트랙 없음 (TC-HR-009)', () => {
+  it('두 열이어도 스크롤 트랙을 만들지 않는다', () => {
     const styles = renderStyles(
-      buildElement(
-        createResponse([
-          { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 1234 },
-        ]),
-        createTopTen(false),
-      ),
+      buildElement(createResponse(THREE_VIEWS), createTopTen()),
+    ).replace(/\s+/g, '')
+
+    expect(styles).not.toContain('calc(100dvh')
+    expect(styles).not.toContain('position:sticky')
+  })
+
+  it('지표 토글은 링크가 아닌 버튼이다 — 그 자리에서 목록만 바꾼다', () => {
+    const html = render(createResponse(THREE_VIEWS), createTopTen())
+
+    expect(html).toContain('aria-label="지표 선택"')
+    expect(html).toMatch(/<button[^>]*>유동인구<\/button>/)
+  })
+})
+
+describe('PopularDistricts — 최소 표본 (TC-HR-010 · ranking-minimum-sample D7)', () => {
+  const two = createResponse(THREE_VIEWS.slice(0, 2))
+
+  it('조회 2곳이면 좌측 열 없이 지표만 그린다', () => {
+    const html = render(two, createTopTen())
+
+    expect(html).not.toContain('href="/analysis?districtCode=11680"')
+    expect(html).toContain('유동인구')
+    expect(html).not.toContain('aria-live="polite"')
+  })
+
+  it('지표만 상태의 아이브로·제목', () => {
+    const html = render(two, createTopTen())
+
+    expect(html).toContain('자치구 지표 순위')
+    expect(html).toContain('유동인구·매출·개업 수로 자치구를 비교해요.')
+    expect(html).not.toContain('숫자가 좋은 곳은')
+  })
+
+  it('3곳이면 dual 문구와 인사이트 슬롯', () => {
+    const html = render(createResponse(THREE_VIEWS), createTopTen())
+
+    expect(html).toContain('다른 사람들이 보는 곳과, 숫자가 좋은 곳은 달라요.')
+    expect(html).toContain('aria-live="polite"')
+  })
+
+  it('조회만(지표 결손) 상태의 제목', () => {
+    const html = render(createResponse(THREE_VIEWS), createTopTen(false))
+
+    expect(html).toContain('지금은 이 자치구들을 많이 보고 있어요.')
+  })
+
+  it('조회 2곳 + 지표 결손이면 섹션을 뺀다', () => {
+    expect(render(two, createTopTen(false))).toBe('')
+  })
+
+  it('스켈레톤은 지표만 문구를 쓴다 — 어느 최종 상태에서도 거짓이 되지 않는다', () => {
+    const html = render()
+
+    expect(html).toContain('aria-busy="true"')
+    expect(html).toContain('자치구 지표 순위')
+    expect(html).toContain('유동인구·매출·개업 수로 자치구를 비교해요.')
+  })
+
+  it('제목은 2줄 높이를 예약한다', () => {
+    const styles = renderStyles(buildElement(two, createTopTen())).replace(
+      /\s+/g,
+      '',
     )
 
-    expect(styles).not.toContain('calc(100dvh * 3)')
-  })
-
-  /*
-   * SSR·첫 렌더는 스티키(스크롤) 모드다 — 서버 마크업에는 기본 지표(유동인구)가
-   * 온다. 지표가 스크롤로 바뀌는 것은 마운트 후 동작이라 이 층에서 검증할 수 없다
-   * (브라우저 사람 눈 확인 대상).
-   */
-  it('첫 렌더는 기본 지표와 토글을 함께 그린다', () => {
-    const html = render(...dualSeeds())
-
-    expect(html).toContain('유동인구')
-    expect(html).toContain('aria-label="지표 선택"')
-  })
-
-  /*
-   * 트랙 모드에서도 좌측 조회수 열은 스크롤과 무관한 고정 콘텐츠다 — 우측 지표만
-   * 바뀐다. 링크가 사라지면 랭킹의 진입점이 없어진다.
-   */
-  it('트랙 모드에서도 좌측 조회수 링크는 그대로다', () => {
-    const html = render(...dualSeeds())
-
-    expect(html).toContain('href="/analysis?districtCode=11680"')
+    expect(styles).toContain('min-height:72px')
   })
 })

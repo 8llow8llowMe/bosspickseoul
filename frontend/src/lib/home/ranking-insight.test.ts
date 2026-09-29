@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import { buildRankingInsight } from '@/lib/home/ranking-insight'
 import type { HomeMetricRanking } from '@/lib/home/metric-rankings'
-import type { PopularDistrict } from '@/lib/home/popular-districts'
+import {
+  MIN_VIEW_SAMPLE_SIZE,
+  type PopularDistrict,
+} from '@/lib/home/popular-districts'
 
 const view = (rank: number, code: string, name: string): PopularDistrict => ({
   rank,
@@ -28,7 +31,11 @@ const ranking = (
 
 describe('buildRankingInsight', () => {
   it('규칙 A — 지표 상위인데 조회수 목록에 없는 곳을 먼저 말한다', () => {
-    const views = [view(1, '11680', '강남구'), view(2, '11440', '마포구')]
+    const views = [
+      view(1, '11680', '강남구'),
+      view(2, '11440', '마포구'),
+      view(3, '11650', '서초구'),
+    ]
     const metric = ranking([
       [1, '11680', '강남구'],
       [2, '11140', '중구'], // 조회수 목록에 없다
@@ -39,7 +46,7 @@ describe('buildRankingInsight', () => {
 
     expect(result).not.toBeNull()
     expect(result?.sentence).toBe(
-      '매출 2위 중구는 지금 많이 본 2곳에 들지 않았습니다.',
+      '매출 2위 중구는 지금 많이 본 3곳에 들지 않았어요.',
     )
     expect(result?.highlightCode).toBe('11140')
   })
@@ -48,6 +55,7 @@ describe('buildRankingInsight', () => {
     const views = [
       view(1, '11680', '강남구'),
       view(2, '11200', '성동구'), // 지표 Top5 에 없다
+      view(3, '11440', '마포구'),
     ]
     const metric = ranking([
       [1, '11680', '강남구'],
@@ -63,7 +71,7 @@ describe('buildRankingInsight', () => {
     const metricAllSeen = ranking([
       [1, '11680', '강남구'],
       [2, '11200', '성동구'],
-      [3, '11680', '강남구'],
+      [3, '11440', '마포구'],
     ])
 
     expect(buildRankingInsight(views, metricAllSeen)).toBeNull()
@@ -85,13 +93,17 @@ describe('buildRankingInsight', () => {
 
     const result = buildRankingInsight(views, metric)
 
-    expect(result?.sentence).toBe('조회수 3위 성동구는 매출 Top 2 밖입니다.')
+    expect(result?.sentence).toBe('조회수 3위 성동구는 매출 Top 2 밖이에요.')
     expect(result?.highlightCode).toBe('11200')
   })
 
   it('규칙 A 와 B 가 둘 다 성립하면 A 를 고른다', () => {
     // A 가 「아무도 안 보는데 지표 상위」라 창업 후보를 찾는 사람에게 더 값지다.
-    const views = [view(1, '11200', '성동구'), view(2, '11680', '강남구')]
+    const views = [
+      view(1, '11200', '성동구'),
+      view(2, '11680', '강남구'),
+      view(3, '11440', '마포구'),
+    ]
     const metric = ranking([
       [1, '11140', '중구'], // A: 조회수 밖
       [2, '11680', '강남구'],
@@ -102,10 +114,15 @@ describe('buildRankingInsight', () => {
   })
 
   it('양쪽 상위가 완전히 겹치면 문장을 만들지 않는다', () => {
-    const views = [view(1, '11680', '강남구'), view(2, '11440', '마포구')]
+    const views = [
+      view(1, '11680', '강남구'),
+      view(2, '11440', '마포구'),
+      view(3, '11650', '서초구'),
+    ]
     const metric = ranking([
       [1, '11680', '강남구'],
       [2, '11440', '마포구'],
+      [3, '11650', '서초구'],
     ])
 
     expect(buildRankingInsight(views, metric)).toBeNull()
@@ -122,5 +139,36 @@ describe('buildRankingInsight', () => {
     expect(
       buildRankingInsight([], ranking([[1, '11680', '강남구']])),
     ).toBeNull()
+  })
+})
+
+/*
+ * ranking-minimum-sample.md D4-3. 1~2곳짜리 조회 목록과의 비교 문장은 정보가 아니라
+ * 공백의 고백이다(「…지금 많이 본 1곳에 들지 않았어요」).
+ */
+describe('buildRankingInsight — 최소 표본', () => {
+  const metric = ranking([[1, '11140', '중구']])
+
+  it('조회 항목이 3곳 미만이면 문장을 만들지 않는다', () => {
+    expect(MIN_VIEW_SAMPLE_SIZE).toBe(3)
+    expect(
+      buildRankingInsight(
+        [view(1, '11680', '강남구'), view(2, '11440', '마포구')],
+        metric,
+      ),
+    ).toBeNull()
+  })
+
+  it('3곳이면 문장을 만든다', () => {
+    expect(
+      buildRankingInsight(
+        [
+          view(1, '11680', '강남구'),
+          view(2, '11440', '마포구'),
+          view(3, '11110', '종로구'),
+        ],
+        metric,
+      )?.sentence,
+    ).toBe('매출 1위 중구는 지금 많이 본 3곳에 들지 않았어요.')
   })
 })
