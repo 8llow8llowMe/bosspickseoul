@@ -270,6 +270,42 @@ describe('ProductStory — 스토리 섹션이 전폭 배경 밴드를 갖는다
   })
 })
 
+describe('ProductStory — 패널 비율과 CTA 위치', () => {
+  /*
+   * 360px + 1fr 은 1400 컬럼에서 패널을 1000px 로 키워 01 가로 막대가 약 715px 가
+   * 됐다(폭 체계 §Charts 상한 560px 위반). 5:7 이면 패널 약 790px · 막대 약 500px.
+   */
+  /* 하한 360px 는 944 미만에서 목록이 예전보다 좁아지지 않게 한다. */
+  it('스텝 목록과 패널을 5:7 로 나누되 목록은 360px 아래로 줄지 않는다', () => {
+    expect(renderStoryStyles().replace(/\s+/g, '')).toContain(
+      'grid-template-columns:minmax(360px,5fr)minmax(0,7fr)',
+    )
+  })
+
+  /*
+   * justify-content: center 는 데모가 영역보다 커지면 위쪽이 잘려 스크롤로도 닿지
+   * 않는다. 가운데 정렬은 넘칠 때 0 이 되는 auto 마진으로 한다.
+   */
+  it('데모는 auto 마진으로 가운데에 둔다', () => {
+    const css = renderStoryStyles().replace(/\s+/g, '')
+
+    expect(css).toContain('margin-block:auto')
+    expect(css).not.toContain('justify-content:center;}')
+  })
+
+  /* CTA 가 패널 밖에 떨어져 있으면 「이 데모의 다음 행동」으로 읽히지 않는다. */
+  /*
+   * 예전 구조에서 CTA 는 패널이 닫힌 **바로 뒤** 형제였다(</div><a …>). 지금은 패널
+   * 안 바닥 줄(PanelFooter)의 첫 자식이다(<div …><a …>).
+   */
+  it('CTA 가 데모 패널 안 바닥 줄에 있다', () => {
+    const html = renderStory()
+
+    expect(html).toMatch(/<div class="[^"]*"><a [^>]*href="\/status"/)
+    expect(html).not.toMatch(/<\/div><a [^>]*href="\/status"/)
+  })
+})
+
 describe('ProductStory — 카운터를 스텝 목록으로 합쳤다', () => {
   it('01~04 열거를 두 번 하지 않는다', () => {
     const html = renderStory()

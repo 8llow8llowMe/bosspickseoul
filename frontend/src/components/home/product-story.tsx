@@ -5,7 +5,7 @@ import Link from 'next/link'
 import styled from 'styled-components'
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
 import BreakEvenChart from '@/components/home/break-even-chart'
-import { HEADER_HEIGHT } from '@/components/home/layout-constants'
+import { HEADER_HEIGHT, HOME_COLUMN } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview from '@/components/home/recommend-preview'
 import { activeStepFromPinnedProgress } from '@/components/home/scroll-fill'
@@ -28,7 +28,6 @@ import {
   type RecommendPreviewState,
 } from '@/hooks/use-recommend-preview'
 import { useStackedMode } from '@/hooks/use-stacked-mode'
-import { centeredColumn } from '@/styles/layout'
 
 /*
   전폭 배경 밴드(이슈 #223).
@@ -113,12 +112,10 @@ const Sticky = styled.div`
   justify-content: center;
   gap: 32px;
   /*
-    스토리만 중앙 컬럼이다. 스티키 스텝목록 + 패널 구조인데 패널을 flex: 0 1 600px
-    으로 늘어나지 않게 못박아 뒀다(R5 가로 스택 바가 짧아 늘리면 헐렁해진다).
-    셸 전폭으로 열면 그 결정 때문에 우측이 크게 빈다. 패널 확장 재설계는 04단계
-    패널 여백 문제와 한 덩어리라 따로 다룬다.
+    홈 본문 공용 컬럼(--w-wide 1400). 예전엔 스토리만 이 폭이라 앞뒤 섹션(셸)과
+    왼쪽 기준선이 어긋났다 — 지금은 보드·인기지역·벤토가 같은 컬럼을 쓴다.
   */
-  ${centeredColumn('var(--w-wide)')}
+  ${HOME_COLUMN}
   padding: 32px 0;
 `
 
@@ -133,7 +130,17 @@ const Sticky = styled.div`
 */
 const StoryRow = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  /*
+    5:7 로 나눈다. 예전 360px + 1fr 은 1400 컬럼에서 패널을 1000px 로 키워 01 가로
+    막대가 약 715px 가 됐다(폭 체계 §Charts 상한 560px 위반, 이름과 값이 멀어진다).
+    5:7 이면 패널 약 790px · 막대 약 500px 이고, 목록은 본문이 한두 줄로 접혀 낮은
+    뷰포트에서 오히려 덜 넘친다.
+
+    목록은 예전 폭 360px 를 하한으로 둔다. 5:7 만 쓰면 컬럼 864px 미만(뷰포트 약
+    944 미만)에서 목록이 예전보다 좁아져 800 에서 294px, 「AI 리포트」가 「리포/트」로
+    끊겼다. 하한이 걸리는 폭에서는 예전 배치(360 + 나머지)와 같다.
+  */
+  grid-template-columns: minmax(360px, 5fr) minmax(0, 7fr);
   /*
     행도 묶어야 한다. 행을 명시하지 않으면 암시적 행이 max-content 로 잡혀서,
     컨테이너가 줄어도 행은 콘텐츠 크기를 유지하고 자식이 박스 밖으로 그려진다
@@ -267,25 +274,55 @@ const StepBody = styled.p`
   word-break: keep-all;
 `
 
+/*
+  CTA 를 패널 **안** 바닥에 둔다. 예전엔 패널 밖 아래에 따로 떨어져 있어 「이 데모의
+  다음 행동」으로 읽히지 않았다. 스크롤은 데모 영역만 하고 CTA 줄은 고정이라, 낮은
+  뷰포트에서 데모가 줄어도 버튼이 패널 밖으로 밀려나지 않는다.
+
+  StoryRow 가 align-items: stretch 라 패널이 행 높이를 그대로 받는다 — height 를
+  따로 주지 않는다.
+*/
 const Panel = styled.div`
+  min-width: 0;
+  min-height: 320px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   padding: 20px;
-  height: 100%;
-  min-height: 320px;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 `
 
+/*
+  데모는 CTA 줄을 뺀 영역의 세로 가운데에 둔다. 위로 붙이면 03(도넛)·04(차트)처럼
+  짧은 데모와 바닥 CTA 사이가 150px 넘게 비었다.
+
+  justify-content: center 대신 자식의 margin-block: auto 로 가운데를 잡는다 —
+  justify-content: center 는 데모가 영역보다 커지면(낮은 뷰포트) **위쪽이 잘려
+  스크롤로도 닿지 않는다.** auto 마진은 넘치는 순간 0 이 되어 위에서부터 쌓인다.
+
+  스크롤 경계가 패딩 없는 이 영역이라 데모 가장자리의 포커스 링(바깥 2px)과 카드
+  그림자가 잘린다. 패널 패딩 안으로 8px 를 빌려(음수 마진 + 같은 패딩) 링과
+  그림자가 그려질 여유를 두고, 콘텐츠 위치는 그대로 둔다.
+*/
 const DemoArea = styled.div`
   flex: 1;
   min-height: 0;
+  margin: -8px;
+  padding: 8px;
+  overflow: auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+
+  > * {
+    margin-block: auto;
+  }
+`
+
+const PanelFooter = styled.div`
+  flex: none;
 `
 
 const Stack = styled.div`
@@ -349,25 +386,6 @@ const Cta = styled(Link)`
   }
 `
 
-const PanelWithCta = styled.div`
-  display: grid;
-  /* 행을 명시하지 않으면 부모(StoryRow, height:600px + align-items:stretch)가 준
-     남는 높이가 두 행에 분배되고, align-self 가 없는 CTA 가 행 높이만큼 늘어난다
-     (실측: min-height 48px 선언이 120px 로 렌더됐다). 남는 공간은 패널이 전부 갖는다.
-     minmax(0, 1fr) 의 0 은 필수다 — 1fr 만 쓰면 최소 콘텐츠 크기가 하한이 되어
-     좁은 폭에서 패널이 넘친다. */
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 16px;
-  min-width: 0;
-
-  /* justify-items: start 를 쓰면 안 된다 — 데모 패널까지 내용 폭으로 줄어든다
-     (실측: 343px 자리에서 121px 로 찌그러졌다). 폭을 좁히는 건 CTA 뿐이다.
-     CSS 주석 안에 백틱을 넣으면 styled 템플릿이 거기서 끊긴다. */
-  > a {
-    justify-self: start;
-  }
-`
-
 function DemoPanel({
   demo,
   selection,
@@ -406,22 +424,24 @@ function PanelCard({
     자체 SampleBadge 로. 여기서 또 그리면 라벨이 두 번 찍힌다.
   */
   return (
-    <PanelWithCta>
-      <Panel>
-        <DemoArea>
-          <DemoPanel
-            demo={demo}
-            selection={selection}
-            onSelectionChange={onSelectionChange}
-          />
-        </DemoArea>
-      </Panel>
+    <Panel>
+      <DemoArea>
+        <DemoPanel
+          demo={demo}
+          selection={selection}
+          onSelectionChange={onSelectionChange}
+        />
+      </DemoArea>
       {/*
         각 단계에서 그 도구로 나가는 길. 없으면 스토리가 「무엇을 해 주는지」만 말하고
         끝나 막다른 길이 된다(이슈 #176). 미니데모 단계는 데모 안에 이미 CTA 가 있다.
       */}
-      {cta ? <Cta href={cta.href}>{cta.label}</Cta> : null}
-    </PanelWithCta>
+      {cta ? (
+        <PanelFooter>
+          <Cta href={cta.href}>{cta.label}</Cta>
+        </PanelFooter>
+      ) : null}
+    </Panel>
   )
 }
 
