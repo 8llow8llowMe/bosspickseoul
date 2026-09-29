@@ -1,9 +1,16 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import styled from 'styled-components'
+import styled, { keyframes } from 'styled-components'
 import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
@@ -111,6 +118,26 @@ const MetricPanel = styled.section`
   flex-direction: column;
 `
 
+const detailEnter = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`
+
+/*
+ * 태블릿 이상은 좌측 열(순위 ↔ 상세) + 우측 지도 2단이다.
+ *
+ * 예전에는 자치구를 고르면 **지도 자리**가 상세로 바뀌었다. 방금 누른 폴리곤이 통째로
+ * 사라져 어디를 골랐는지 맥락을 잃고, 다른 구로 옮기려면 닫고 다시 골라야 했다. 이제
+ * 상세가 **순위 목록 자리를 덮고** 지도는 그대로 남아 선택 구를 강조한다 — 모바일 시트
+ * (Top10 → 상세)·상권추천 좌측 패널과 같은 관용구다. 상세는 차트가 있어 목록(280px)보다
+ * 넓어야 하므로 선택 중에는 좌측 열을 넓힌다.
+ */
 const DesktopGrid = styled.div`
   --status-side-track: 280px;
 
@@ -120,6 +147,10 @@ const DesktopGrid = styled.div`
   grid-template-columns: var(--status-side-track) minmax(0, 1fr);
   align-items: stretch;
   gap: 20px;
+
+  &[data-has-selection='true'] {
+    --status-side-track: clamp(340px, 40%, 480px);
+  }
 
   /* 태블릿(768~1023): 간격만 줄이고 리스트 폭(280)은 유지해 값이 잘리지 않게 한다. */
   @media (max-width: 1023px) {
@@ -132,18 +163,16 @@ const DesktopGrid = styled.div`
   }
 `
 
-// 우측 영역은 단일 열에서 지도↔상세를 토글한다: 선택이 없으면 지도, 자치구를
-// 선택하면 같은 자리에 상세 카드를 전체 폭으로 보여준다(리스트는 좌측 고정).
-const DesktopContent = styled.div`
+// 좌측 열은 한 칸에서 순위↔상세를 토글한다. 우측 지도는 선택과 무관하게 항상 보인다.
+const DesktopSide = styled.div`
   min-width: 0;
   min-height: 0;
   height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  align-items: stretch;
 
-  &[data-has-selection='true'] [data-status-map-panel] {
+  &[data-has-selection='true'] [data-status-top-ten-panel] {
     display: none;
   }
 
@@ -156,8 +185,13 @@ const DesktopDetailSlot = styled.div`
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  animation: ${detailEnter} var(--motion-standard) var(--ease-standard);
 
-  /* 상세는 전체 폭을 쓰고, 남는 높이 안에서 내부 스크롤(스크롤바 숨김). */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+
+  /* 상세는 열 폭을 다 쓰고, 남는 높이 안에서 내부 스크롤(스크롤바 숨김). */
   & > article {
     width: 100%;
     min-width: 0;
@@ -265,6 +299,10 @@ function StatusPageContent() {
     snap: 'expanded',
   })
 
+  const desktopSideRef = useRef<HTMLDivElement>(null)
+  const desktopBackButtonRef = useRef<HTMLButtonElement>(null)
+  const previousSelectionRef = useRef<string | null | undefined>(undefined)
+
   const topTenQuery = useQuery({
     queryKey: ['status', 'topTen'],
     queryFn: fetchStatusTopTen,
@@ -337,6 +375,50 @@ function StatusPageContent() {
       },
     )
   }, [metric, pathname, rawSearchParams, router, selectedDistrictCode, topTen])
+
+  /*
+   * 데스크톱에서는 순위 목록과 상세가 한 자리를 번갈아 쓴다. 목록 버튼으로 상세를 열면
+   * 그 버튼이 display:none 이 되며 포커스가 body 로 떨어지고, 뒤로가기로 닫으면 상세의
+   * 뒤로가기 버튼이 사라지며 또 떨어진다. **포커스를 잃은 경우에만** 짝이 되는 자리로
+   * 옮긴다 — 지도 폴리곤을 눌러 연 경우처럼 포커스가 살아 있으면 건드리지 않는다.
+   * 모바일(시트)은 자체 전환 로직이 있어 데스크톱 열이 보일 때만 동작한다.
+   */
+  useLayoutEffect(() => {
+    // 데이터 전 렌더는 「선택 없음」이 아니라 「아직 모름」이다. 여기서 기록하면 링크로
+    // 들어온 선택이 도착하는 순간을 사용자 전환으로 오인해 페이지 진입 때 포커스를 뺏는다.
+    if (!topTen) return
+    const previous = previousSelectionRef.current
+    previousSelectionRef.current = selectedItem?.districtCode ?? null
+    if (previous === undefined || previous === previousSelectionRef.current) {
+      return
+    }
+
+    const side = desktopSideRef.current
+    if (!side || side.offsetParent === null) return
+
+    // 막 숨겨진 목록 버튼은 브라우저가 blur 하기 전까지 activeElement 로 남아 있다.
+    const active = document.activeElement
+    const hasLostFocus =
+      !active ||
+      active === document.body ||
+      (active instanceof HTMLElement &&
+        side.contains(active) &&
+        active.offsetParent === null)
+    if (!hasLostFocus) return
+
+    if (selectedItem) {
+      desktopBackButtonRef.current?.focus({ preventScroll: true })
+      return
+    }
+
+    if (previous) {
+      side
+        .querySelector<HTMLButtonElement>(
+          `[data-status-top-ten-panel] [data-district-code="${previous}"]`,
+        )
+        ?.focus({ preventScroll: true })
+    }
+  }, [selectedItem, topTen])
 
   const pushStatusQuery = (
     nextMetric: typeof metric,
@@ -457,43 +539,47 @@ function StatusPageContent() {
           id={METRIC_PANEL_ID}
           role="tabpanel"
         >
-          <DesktopGrid>
-            <DesktopPanel>
-              <StatusTopTen
-                items={currentItems}
-                metric={metric}
-                selectedDistrictCode={selectedDistrictCode}
-                onSelect={handleDistrictSelect}
-              />
-            </DesktopPanel>
-
-            <DesktopContent data-has-selection={selectedItem !== null}>
-              <DesktopDetailSlot
-                data-has-selection={selectedItem !== null}
-                data-status-detail-slot
-              >
-                {selectedItem ? (
-                  <StatusDetail
-                    detail={detail}
-                    error={detailError}
-                    isLoading={isDetailLoading}
-                    metric={metric}
-                    selectedItem={selectedItem}
-                    onClose={handleClearDistrict}
-                    onRetry={() => void detailQuery.refetch()}
-                  />
-                ) : null}
-              </DesktopDetailSlot>
-
-              <MapPanel data-status-map-panel>
-                <StatusMap
+          <DesktopGrid data-has-selection={selectedItem !== null}>
+            <DesktopSide
+              ref={desktopSideRef}
+              data-has-selection={selectedItem !== null}
+            >
+              <DesktopPanel data-status-top-ten-panel>
+                <StatusTopTen
                   items={currentItems}
                   metric={metric}
                   selectedDistrictCode={selectedDistrictCode}
                   onSelect={handleDistrictSelect}
                 />
-              </MapPanel>
-            </DesktopContent>
+              </DesktopPanel>
+
+              <DesktopDetailSlot
+                key={selectedItem?.districtCode ?? 'none'}
+                data-status-detail-slot
+              >
+                {selectedItem ? (
+                  <StatusDetail
+                    backButtonRef={desktopBackButtonRef}
+                    detail={detail}
+                    error={detailError}
+                    isLoading={isDetailLoading}
+                    metric={metric}
+                    selectedItem={selectedItem}
+                    onBack={handleClearDistrict}
+                    onRetry={() => void detailQuery.refetch()}
+                  />
+                ) : null}
+              </DesktopDetailSlot>
+            </DesktopSide>
+
+            <MapPanel data-status-map-panel>
+              <StatusMap
+                items={currentItems}
+                metric={metric}
+                selectedDistrictCode={selectedDistrictCode}
+                onSelect={handleDistrictSelect}
+              />
+            </MapPanel>
           </DesktopGrid>
 
           <MobileStage aria-label="서울 자치구 현황 지도와 상세 정보">

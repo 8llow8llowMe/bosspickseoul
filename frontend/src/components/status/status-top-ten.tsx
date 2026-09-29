@@ -252,6 +252,7 @@ export default function StatusTopTen({
                 <RankingButton
                   $selected={isSelected}
                   aria-pressed={isSelected}
+                  data-district-code={item.districtCode}
                   type="button"
                   onClick={() => onSelect(item.districtCode)}
                 >
