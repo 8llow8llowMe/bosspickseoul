@@ -358,6 +358,17 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 실측 기록은 [width-system-verification](./docs/features/layout/width-system-verification.md).
 
+**홈(랜딩) 본문은 중앙 그룹이다 — `--w-wide`(1400).** 헤더는 셸 그대로 두고,
+히어로를 뺀 본문 섹션(네 도구 보드 · 스토리 · 지금 많이 본 지역 · 벤토)이 모두
+`HOME_COLUMN`(`src/components/home/layout-constants.ts`)을 쓴다. 홈 섹션은 짧은 카드·목록·
+막대로 되어 있어 넓어져도 좋아지는 요소가 없다. 셸로 열어 두었을 때 1920 에서 보드
+카드 한 장이 458px(2560 에서 620px)로 늘어 글이 왼쪽에 몰렸고, 인기지역 막대는 850px 가
+됐으며, 스토리만 1400 이라 왼쪽 기준선이 20 → 253 → 20 으로 튀었다. 섹션끼리 기준선을
+하나로 맞추는 것이 헤더와 맞추는 것보다 중요하다 — 스크롤하는 동안 눈에 들어오는 것은
+섹션 사이의 어긋남이다. 헤더(로고 x=20)와의 차이는 남는다. 전폭 배경 밴드가 이 차이를
+「넓은 판 위의 컬럼」으로 흡수하는 곳은 스토리뿐이고, 나머지 세 섹션은 흰 페이지 위에
+그대로 놓인다(2026-09-29).
+
 ### Whitespace Philosophy
 
 - **Breathing room for money**: Financial numbers get extra surrounding space. A balance at 30px with 32px margins communicates security through spaciousness.
