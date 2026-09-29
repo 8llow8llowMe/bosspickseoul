@@ -9,7 +9,7 @@
 > **동시 진행 명세**: [contrast-tokens](../layout/contrast-tokens.md)(감사 C — 앵커 미채움 색 결정을 D8-7 에서 이 문서에 위임했다. D4-2 가 그 결정을 내린다) · [mobile-hero-first-screen](./mobile-hero-first-screen.md)(감사 A) · [ranking-minimum-sample](./ranking-minimum-sample.md)(감사 E) · [pretendard-subset](../layout/pretendard-subset.md)(감사 B)
 > **대상**: 웹 (Next.js App Router)
 > **작성자**: Claude Code
-> **상태**: 초안 (미구현)
+> **상태**: **대체됨** — [home-restructure](./home-restructure.md)(2026-09-29)가 트랙을 줄이는 대신 없애기로 해 이 문서는 구현하지 않는다. 실측·산식 근거는 기록으로 남긴다
 
 홈은 문서 높이 **11.7 화면**, 그중 **77%** 가 스크롤 구동 sticky 트랙이다. 히어로 다음 세 섹션
 (앵커 200dvh · 스토리 400dvh · 랭킹 300dvh)이 연속으로 스크롤을 붙잡아 가입 CTA 가 **11.3 화면**
