@@ -12,6 +12,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled, { keyframes } from 'styled-components'
+import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
@@ -29,6 +30,7 @@ import {
   resolveStatusSheetSnap,
   type StatusSheetState,
 } from '@/lib/status/status-state'
+import { statusQueryKeys } from '@/lib/status/status-query'
 import { districts } from '@/data/districts'
 import {
   createStatusHighlightStore,
@@ -399,9 +401,11 @@ function StatusPageContent() {
   const desktopBackButtonRef = useRef<HTMLButtonElement>(null)
   const previousSelectionRef = useRef<string | null | undefined>(undefined)
 
+  const periodCode = ANALYSIS_PERIOD_CODE
+
   const topTenQuery = useQuery({
-    queryKey: ['status', 'topTen'],
-    queryFn: fetchStatusTopTen,
+    queryKey: statusQueryKeys.topTen(periodCode),
+    queryFn: () => fetchStatusTopTen(periodCode),
     // 404(데이터 부재)·4xx는 재시도해도 결과가 같다. 5xx/통신 실패만 재시도한다.
     retry: retryUnlessClientError(3),
   })
@@ -426,13 +430,13 @@ function StatusPageContent() {
   const sheetSnap = resolveStatusSheetSnap(sheetState, selectedDistrictCode)
 
   const detailQuery = useQuery({
-    queryKey: ['status', 'detail', selectedDistrictCode],
+    queryKey: statusQueryKeys.detail(periodCode, selectedDistrictCode),
     queryFn: () => {
       if (!selectedDistrictCode) {
         throw new Error('선택한 자치구가 없습니다.')
       }
 
-      return fetchStatusDetail(selectedDistrictCode)
+      return fetchStatusDetail(selectedDistrictCode, periodCode)
     },
     enabled: selectedDistrictCode !== null,
     retry: retryUnlessClientError(3),
