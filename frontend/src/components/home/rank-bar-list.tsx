@@ -27,8 +27,8 @@ export type RankBarListProps = {
   /**
    * 행의 밀도.
    *
-   * - `compact`(기본) — 한 줄에 순위·이름·막대·값을 나란히. 스토리 01 단계처럼 **좁은
-   *   패널에 10행**을 넣어야 하는 자리를 위한 것이다.
+   * - `compact`(기본) — 한 줄에 순위·이름·막대·값을 나란히. 판단 흐름 01 단계(5행) 전용이다.
+   *   1~3위만 막대를 채색해, 같은 파랑 막대가 줄무늬처럼 읽히지 않게 한다.
    * - `card` — 순위를 배지로 키우고 행을 52px 로 띄운 **카드 한 장 안의 목록**.
    *   「지금 많이 본 지역」처럼 **한 섹션을 통째로 쓰는** 자리용.
    *
@@ -78,18 +78,33 @@ const CardList = styled(List)`
  * 아예 못 누르는 상태였다. 링크 자신이 그리드 컨테이너가 되는 지금 구조는
  * 이 문제가 없다.
  */
-const rowGridStyles = css<{ $highlighted: boolean }>`
+/*
+ * 막대 칸은 360px 상한이다(DESIGN.md §Charts 「미터 행」 — 두께 14px 와 짝). 예전엔
+ * `1fr` 이라 데모 칸 폭을 그대로 먹었다. 남는 폭은 이름 칸이 가져간다 — 막대와 값이
+ * 오른쪽에 붙어 눈으로 잇기 쉽다(card 변형과 같은 판단).
+ *
+ * 1~3위 행은 흰 배경을 깐다. 틀(DemoFrame) 배경이 회색이라 상위 행이 한 덩어리로 뜬다.
+ */
+const rowGridStyles = css<{ $highlighted: boolean; $top: boolean }>`
   display: grid;
-  grid-template-columns: 18px minmax(64px, auto) minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: 24px minmax(72px, 1fr) minmax(0, 360px) auto;
+  gap: 12px;
   align-items: center;
-  padding: 6px 8px;
+  padding: 12px;
   border-radius: var(--radius-control);
-  background: ${p =>
-    p.$highlighted ? 'var(--color-primary-100)' : 'transparent'};
+  background: ${p => {
+    if (p.$highlighted) return 'var(--color-primary-100)'
+    return p.$top ? 'var(--color-surface)' : 'transparent'
+  }};
+
+  @media (max-width: 480px) {
+    grid-template-columns: 20px minmax(56px, 1fr) minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 8px;
+  }
 `
 
-const RowLink = styled(Link)<{ $highlighted: boolean }>`
+const RowLink = styled(Link)<{ $highlighted: boolean; $top: boolean }>`
   ${rowGridStyles}
   color: inherit;
   text-decoration: none;
@@ -100,7 +115,7 @@ const RowLink = styled(Link)<{ $highlighted: boolean }>`
   }
 `
 
-const RowContent = styled.div<{ $highlighted: boolean }>`
+const RowContent = styled.div<{ $highlighted: boolean; $top: boolean }>`
   ${rowGridStyles}
 `
 
@@ -229,15 +244,16 @@ const CardFill = styled.span<{ $top: boolean }>`
   }
 `
 
-const Rank = styled.span`
-  font-size: 12px;
-  font-weight: 600;
+const Rank = styled.span<{ $top: boolean }>`
+  font-size: 14px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-caption);
+  color: ${p =>
+    p.$top ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
 `
 
 const Name = styled.span`
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text-900);
   white-space: nowrap;
@@ -251,11 +267,12 @@ const Track = styled.span`
   overflow: hidden;
 `
 
-const Fill = styled.span`
+const Fill = styled.span<{ $top: boolean }>`
   display: block;
   height: 100%;
   border-radius: var(--radius-control);
-  background: var(--color-primary-600);
+  background: ${p =>
+    p.$top ? 'var(--color-primary-600)' : 'var(--color-grey-300)'};
   transition: width var(--motion-slow) var(--ease-standard);
 
   @media (prefers-reduced-motion: reduce) {
@@ -264,10 +281,12 @@ const Fill = styled.span`
 `
 
 const Value = styled.span`
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-600);
+  color: var(--color-text-900);
   white-space: nowrap;
+  text-align: right;
 `
 
 const Change = styled.span<{ $direction: 'up' | 'down' }>`
@@ -352,12 +371,15 @@ export default function RankBarList({
     <List aria-label={ariaLabel}>
       {rows.map(row => {
         const percent = barPercent(row.value, max)
+        const top = row.rank <= TOP_RANK_LIMIT
         const body = (
           <>
-            <Rank aria-hidden="true">{row.rank}</Rank>
+            <Rank $top={top} aria-hidden="true">
+              {row.rank}
+            </Rank>
             <Name>{row.name}</Name>
             <Track aria-hidden="true">
-              <Fill style={{ width: `${percent}%` }} />
+              <Fill $top={top} style={{ width: `${percent}%` }} />
             </Track>
             <Value>
               {row.valueLabel}
@@ -379,6 +401,7 @@ export default function RankBarList({
                 href={row.href}
                 aria-label={row.ariaLabel}
                 $highlighted={highlighted}
+                $top={top}
                 aria-current={highlighted ? 'true' : undefined}
               >
                 {body}
@@ -386,6 +409,7 @@ export default function RankBarList({
             ) : (
               <RowContent
                 $highlighted={highlighted}
+                $top={top}
                 aria-current={highlighted ? 'true' : undefined}
               >
                 {body}

@@ -96,7 +96,7 @@ describe('MetricRankingBoard', () => {
   it('200 이어도 선택된 지표가 비면 예시로 폴백하고 라벨을 낸다', () => {
     const html = render(emptyActiveMetricSeed)
 
-    expect(html).toContain('대표 예시 데이터')
+    expect(html).toContain('예시 데이터')
     // HOME_METRIC_FALLBACK 의 유동인구 1위는 강남구다.
     expect(html).toContain('강남구')
   })
@@ -143,24 +143,24 @@ const wideSeed: DistrictTopTenResponse = {
   },
 }
 
-describe('MetricRankingBoard — 01단계는 Top10 이다(R4)', () => {
-  /*
-   * 패널 가용 높이 536px 에 10행(384px)이 152px 여유로 들어간다는 실측 근거로 올린
-   * 값이다 — 5로 되돌아가면 그 판단이 조용히 사라진다.
-   */
-  it('10행을 그린다', () => {
+describe('MetricRankingBoard — 01단계는 Top5 다(story-panel-redesign D4-5)', () => {
+  /* 10행은 같은 막대가 줄무늬처럼 읽혔다. 6위 아래는 꼬리 문구가 구별 현황으로 보낸다. */
+  it('5행을 그리고, 나머지는 구별 현황으로 보낸다', () => {
     const html = render(wideSeed)
 
-    expect((html.match(/<li/g) ?? []).length).toBe(10)
+    expect((html.match(/<li/g) ?? []).length).toBe(5)
+    expect(html).toContain('6위부터는 구별 현황에서 볼 수 있어요')
   })
 
-  /*
-   * 폴백도 10개다 — API 장애 때 행 수가 10에서 5로 줄면 같은 화면이 두 모양이 된다.
-   */
-  it('폴백으로 떨어져도 행 수는 같다', () => {
+  /* 폴백은 10개를 갖지만 잘라 쓴다 — API 장애 때 행 수가 바뀌면 같은 화면이 두 모양이 된다. */
+  it('폴백으로 떨어져도 행 수는 같고 예시 배지를 단다', () => {
     const html = render()
 
-    expect((html.match(/<li/g) ?? []).length).toBe(10)
-    expect(html).toContain('대표 예시 데이터')
+    expect((html.match(/<li/g) ?? []).length).toBe(5)
+    expect(html).toContain('예시 데이터')
+  })
+
+  it('공통 틀(DemoFrame)의 머리줄에 제목을 싣는다', () => {
+    expect(render(wideSeed)).toContain('자치구 순위')
   })
 })

@@ -114,3 +114,39 @@ describe('RankBarList — card 변형은 넓어져도 막대가 늘어나지 않
     )
   })
 })
+
+describe('RankBarList — compact 변형(01 단계, TC-SP-010)', () => {
+  const fiveRows: RankBarRow[] = [1, 2, 3, 4, 5].map(rank => ({
+    key: String(rank),
+    rank,
+    name: `${rank}번구`,
+    value: 100 - rank,
+    valueLabel: `${100 - rank}`,
+  }))
+
+  const renderCompact = () => {
+    const sheet = new ServerStyleSheet()
+    try {
+      const html = renderToStaticMarkup(
+        sheet.collectStyles(
+          createElement(RankBarList, { rows: fiveRows, ariaLabel: '순위' }),
+        ),
+      )
+      return { html, css: sheet.getStyleTags().replace(/\s+/g, '') }
+    } finally {
+      sheet.seal()
+    }
+  }
+
+  /* 같은 파랑 막대 다섯 개는 줄무늬로 읽힌다 — 1~3위만 채색한다. */
+  it('1~3위와 4위부터의 막대 색이 다르다', () => {
+    const { css } = renderCompact()
+
+    expect(css).toContain('background:var(--color-primary-600)')
+    expect(css).toContain('background:var(--color-grey-300)')
+  })
+
+  it('막대 칸에 360px 상한이 있다(DESIGN.md 미터 행)', () => {
+    expect(renderCompact().css).toContain('minmax(0,360px)')
+  })
+})
