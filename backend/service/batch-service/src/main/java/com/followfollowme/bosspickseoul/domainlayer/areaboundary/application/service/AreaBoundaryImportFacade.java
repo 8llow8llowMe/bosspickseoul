@@ -13,7 +13,8 @@ public class AreaBoundaryImportFacade implements AreaBoundaryImportUseCase {
     private final AreaBoundaryImportProcessor areaBoundaryImportProcessor;
 
     @Override
-    @Transactional
+    // 영역 좌표는 기본 DataSource(district). 무자격 @Transactional 은 commercial 매니저로 간다.
+    @Transactional("districtTransactionManager")
     public void importAreaBoundary() {
         areaBoundaryImportProcessor.importAreaBoundary();
     }

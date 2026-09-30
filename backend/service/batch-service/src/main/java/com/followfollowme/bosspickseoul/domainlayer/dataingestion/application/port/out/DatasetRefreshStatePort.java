@@ -11,4 +11,7 @@ public interface DatasetRefreshStatePort {
     Map<Dataset, DatasetRefreshState> findAll();
 
     void save(DatasetRefreshState state);
+
+    /** 상태 테이블이 있는지. 앱이 만들지 않는 테이블이라 기동 가드가 켜기 전에 본다. */
+    boolean tableExists();
 }

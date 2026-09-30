@@ -47,6 +47,10 @@ batch:
       username: ${DB_USERNAME:}
       password: ${DB_PASSWORD:}
       driver-class-name: com.mysql.cj.jdbc.Driver
+      # 두 번째 풀. Quartz 스레드 2개 안에서 Job 이 순차로 돌아 커넥션을 많이 쓰지 않는다. 메트릭은 hikaricp_*{pool="batch-commercial"}.
+      maximum-pool-size: 4
+      minimum-idle: 1
+      pool-name: batch-commercial
   # 서울 열린데이터광장 Open API 와 원천 보관 위치. quarterly CLI 와 상시 컨테이너의 자동 최신화가 같이 쓴다.
   # API 키가 비어 있어도 기동에는 영향이 없다. API 세션을 열 때만 검사한다(자동 최신화는 가드가 기동 시 검사).
   dataset-source:

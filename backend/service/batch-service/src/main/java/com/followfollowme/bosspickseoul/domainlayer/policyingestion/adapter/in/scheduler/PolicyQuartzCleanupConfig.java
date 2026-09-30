@@ -5,8 +5,10 @@ import java.util.List;
 import org.quartz.Scheduler;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.quartz.QuartzTransactionManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
 /** 정책 수집이 꺼져 있으면 예전에 저장된 수집·만료 Job 과 트리거를 기동 시 지운다. */
 @Configuration
@@ -14,8 +16,9 @@ import org.springframework.context.annotation.Configuration;
 public class PolicyQuartzCleanupConfig {
 
     @Bean
-    public StaleQuartzJobRemover policyStaleQuartzJobRemover(ObjectProvider<Scheduler> scheduler) {
-        return new StaleQuartzJobRemover(scheduler, "policy",
+    public StaleQuartzJobRemover policyStaleQuartzJobRemover(ObjectProvider<Scheduler> scheduler,
+                                                             @QuartzTransactionManager ObjectProvider<PlatformTransactionManager> transactionManager) {
+        return new StaleQuartzJobRemover(scheduler, transactionManager, "policy",
             List.of(PolicyQuartzScheduleConfig.COLLECT_JOB_NAME, PolicyQuartzScheduleConfig.PURGE_JOB_NAME));
     }
 }

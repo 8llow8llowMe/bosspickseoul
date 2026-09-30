@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 꺼진 스케줄이 DB 에 남긴 Quartz Job 을 기동 시 지운다.
@@ -18,21 +20,29 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
  *
  * <p>{@link SmartInitializingSingleton} 이라 {@code SchedulerFactoryBean} 이 Job 을 등록한 뒤, 스케줄러가 시작하기(SmartLifecycle)
  * 전에 돈다. 지우지 못해도 기동을 막지 않는다. 막는 쪽은 각 {@code *QuartzJob} 이 실행 첫 줄에서 플래그를 다시 보는 가드다(fail-closed).
+ *
+ * <p>Quartz 가 쓰는 트랜잭션 매니저({@code @QuartzTransactionManager} = {@code districtTransactionManager})로 감싼다. 스프링의
+ * {@code LocalDataSourceJobStore} 는 호출자 트랜잭션에 참여하므로, 트랜잭션 없이 부르면 {@code QRTZ_LOCKS ... FOR UPDATE} 가
+ * 문장 단위로 바로 풀리고 트리거·Job 삭제가 따로 커밋된다.
  */
 public final class StaleQuartzJobRemover implements SmartInitializingSingleton {
 
     private static final Logger log = LoggerFactory.getLogger(StaleQuartzJobRemover.class);
 
     private final ObjectProvider<Scheduler> scheduler;
+    private final ObjectProvider<PlatformTransactionManager> transactionManager;
     private final String feature;
     private final List<JobKey> jobKeys;
 
     /**
-     * @param feature  로그 접두에 쓰는 기능 이름(예: {@code dataset-refresh})
-     * @param jobNames 각 {@code *QuartzScheduleConfig} 의 JobDetail 이름. 그룹은 Quartz 기본 그룹이다
+     * @param transactionManager {@code @QuartzTransactionManager} 로 받은 것. 없으면(테스트) 트랜잭션 없이 부른다
+     * @param feature            로그 접두에 쓰는 기능 이름(예: {@code dataset-refresh})
+     * @param jobNames           각 {@code *QuartzScheduleConfig} 의 JobDetail 이름. 그룹은 Quartz 기본 그룹이다
      */
-    public StaleQuartzJobRemover(ObjectProvider<Scheduler> scheduler, String feature, List<String> jobNames) {
+    public StaleQuartzJobRemover(ObjectProvider<Scheduler> scheduler, ObjectProvider<PlatformTransactionManager> transactionManager,
+                                 String feature, List<String> jobNames) {
         this.scheduler = scheduler;
+        this.transactionManager = transactionManager;
         this.feature = feature;
         this.jobKeys = jobNames.stream().map(JobKey::jobKey).toList();
     }
@@ -43,9 +53,10 @@ public final class StaleQuartzJobRemover implements SmartInitializingSingleton {
         if (target == null) {
             return;
         }
+        PlatformTransactionManager manager = transactionManager.getIfAvailable();
         for (JobKey jobKey : jobKeys) {
             try {
-                if (target.deleteJob(jobKey)) {
+                if (delete(target, manager, jobKey)) {
                     log.info("[{}] disabled, stored quartz job removed job={}", feature, jobKey.getName());
                 }
             } catch (SchedulerException | RuntimeException exception) {
@@ -54,5 +65,25 @@ public final class StaleQuartzJobRemover implements SmartInitializingSingleton {
                     exception.getClass().getSimpleName());
             }
         }
+    }
+
+    private static boolean delete(Scheduler target, PlatformTransactionManager manager, JobKey jobKey) throws SchedulerException {
+        if (manager == null) {
+            return target.deleteJob(jobKey);
+        }
+        SchedulerException[] failure = new SchedulerException[1];
+        Boolean deleted = new TransactionTemplate(manager).execute(status -> {
+            try {
+                return target.deleteJob(jobKey);
+            } catch (SchedulerException exception) {
+                status.setRollbackOnly();
+                failure[0] = exception;
+                return false;
+            }
+        });
+        if (failure[0] != null) {
+            throw failure[0];
+        }
+        return Boolean.TRUE.equals(deleted);
     }
 }

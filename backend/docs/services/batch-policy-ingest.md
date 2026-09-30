@@ -8,7 +8,14 @@
 
 접속 정보 키는 `batch.commercial.datasource.*` 다(이슈 #445 에서 정책 전용 `batch.policy.datasource.*` 를 공용으로 옮겼다). env 이름은 그대로다. 정책 코드가 쓰는 `policyJdbcTemplate` / `policyTransactionManager` 는 `commercialJdbcTemplate` / `commercialTransactionManager` 의 별칭이라 정책 동작은 같다.
 
-영역 좌표(`areaBoundaryImportJob`)는 상시 인스턴스에서 띄우는 경로가 없다. 컨텍스트의 JdbcTemplate 이 `commercialJdbcTemplate` 하나뿐이라, commercial Job 이 켜진 인스턴스에서 그 Job 을 띄우면 district 가 아니라 commercial 로 간다.
+두 풀의 트랜잭션 매니저·JdbcTemplate (`global/config`):
+
+| 빈 | DataSource | 누가 쓰나 |
+| --- | --- | --- |
+| `commercialJdbcTemplate` / `commercialTransactionManager` (별칭 `policy*`) | 두 번째 풀 `batch-commercial` (commercial) | 정책·분기 적재·스테이징 정리. 무자격 주입의 기본 후보 |
+| `districtJdbcTemplate` / `districtTransactionManager` | 기본 DataSource (district) | Spring Batch `BATCH_*`(`@BatchTransactionManager`), Quartz `QRTZ_*`(`@QuartzTransactionManager`), 영역 좌표. `defaultCandidate=false` 라 이름·한정자로만 받는다 |
+
+기본 DataSource 쪽 매니저가 따로 없으면 Boot 가 JobRepository·Quartz 에 commercial 매니저를 준다. 그러면 `BATCH_*` 쓰기가 트랜잭션 없이 문장마다 커밋되고 `QRTZ_LOCKS ... FOR UPDATE` 가 바로 풀린다(이슈 #445 리뷰에서 고쳤다). 영역 좌표(`areaBoundaryImportJob`)는 `districtJdbcTemplate` 에 묶여 있어 commercial Job 이 켜진 인스턴스에서도 district 로 간다(상시 인스턴스에서 띄우는 경로는 여전히 없다).
 
 Vault 에 `COMMERCIAL_DB_URL` 은 이미 있다. `BATCH_DB_URL` 과 전역 `SPRING_PROFILES_ACTIVE` 는 바꾸지 않는다.
 
@@ -95,11 +102,11 @@ DDL 을 넣은 뒤 batch-service 만 재배포한다. `scheduler` 프로파일�
 
 기동 직후 로그에서 확인할 것:
 
-- `Commercial jobs must use COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 예외가 없다 (`CommercialTargetGuardRunner`)
+- `Commercial jobs must use COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 예외가 없다. 정책 수집의 기동 가드는 policyingestion 이 아니라 `global/config/CommercialDataSourceGuardRunner` 다(자동 최신화·스테이징 정리와 공유). 기본 DataSource URL(`spring.datasource.url` = `BATCH_DB_URL`)과 같은지를 두 번째 풀 조건과 같은 키로 비교한다
 - Quartz 가 `policyCollectTrigger` / `policyPurgeTrigger` 를 등록했다
 - 프로세스가 종료하지 않는다 (`quarterly` 만 `System.exit`)
 
-`COMMERCIAL_DB_URL` 에 `prod` 가 들어가거나 allowlist 와 다르거나 `BATCH_DB_URL` 과 같으면 기동이 거부된다. 예외 메시지에 JDBC URL 은 실리지 않는다.
+`COMMERCIAL_DB_URL` 에 `prod` 가 들어가거나 allowlist 와 다르거나 `BATCH_DB_URL`(`spring.datasource.url`) 과 같으면 기동이 거부된다. 예외 메시지에 JDBC URL 은 실리지 않는다.
 
 ### 첫 수집을 06:00 전에 보고 싶을 때
 

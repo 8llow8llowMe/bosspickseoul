@@ -125,6 +125,7 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 - `batch_dataset_refresh_slots_total{dataset,result}` — 판단 수. `result` 가 `FAILED` / `IMPLAUSIBLE` / `PUBLISHED_NOT_PROJECTED` / `SPATIAL_NOT_READY` 인 증가를 알람 후보로 본다
 - `batch_dataset_refresh_api_calls_total` — 서울 Open API 호출 수. 키당 하루 1,000회 한도라 하루 증가분이 600 을 넘지 않아야 한다
 - `batch_dataset_refresh_service_type_unresolved_rows_total{dataset}` — 업종 분류를 못 찾은 이관 행. 게시는 계속되지만 업종 Top-N 이 빈다
+- `hikaricp_connections_active{pool="batch-commercial"}` / `hikaricp_connections_pending{pool="batch-commercial"}` — commercial 두 번째 풀(상한 4). 기본 풀(district)은 Boot 가 따로 붙인다. pending 이 계속 0 보다 크면 상한을 본다
 - 로그는 `[dataset-refresh]` 접두(Loki `|= "[dataset-refresh]"`). 운영 절차는 `services/batch-service.md` 「분기 적재 자동 최신화」
 
 ## 빠른 점검

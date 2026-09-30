@@ -6,12 +6,17 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 
+/**
+ * 스텝 트랜잭션 매니저는 policy 행을 쓰는 commercial 쪽({@code policyTransactionManager})이다. JobRepository 는 기본 DataSource(district)의
+ * {@code districtTransactionManager} 를 Boot 가 따로 준다. 기동 가드는 {@code global/config/CommercialDataSourceGuardRunner} 다.
+ */
 @Configuration
 public class PolicyCollectJobConfig {
 
@@ -28,7 +33,7 @@ public class PolicyCollectJobConfig {
     @Bean
     public Step policyCollectStep(
         JobRepository jobRepository,
-        PlatformTransactionManager transactionManager,
+        @Qualifier("policyTransactionManager") PlatformTransactionManager transactionManager,
         PolicyCollectTasklet policyCollectTasklet
     ) {
         // 원천 HTTP 를 스텝 트랜잭션 밖에서 친다. persist 는 Processor.commit 의 @Transactional 이 연다.

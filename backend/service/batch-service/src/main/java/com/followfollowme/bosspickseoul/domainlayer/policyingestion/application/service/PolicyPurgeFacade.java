@@ -13,7 +13,7 @@ public class PolicyPurgeFacade implements PolicyPurgeUseCase {
     private final PolicyPurgeProcessor policyPurgeProcessor;
 
     @Override
-    @Transactional
+    @Transactional("policyTransactionManager")
     public void purgeExpired() {
         policyPurgeProcessor.purgeExpired();
     }
