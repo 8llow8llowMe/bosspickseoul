@@ -29,7 +29,35 @@ type StatusMapProps = {
   onSelect: (districtCode: string) => void
   onBackgroundClick?: () => void
   backgroundAction?: 'expand' | 'collapse'
+  /**
+   * 목록 ↔ 지도 hover 연동(`status-highlight-store`). 주면 hover 상태를 바깥이 쥐고, 목록
+   * 행을 가리켜도 지도가 강조·툴팁을 띄운다. 없으면 지도 혼자 hover 를 관리한다.
+   */
+  highlightedDistrictCode?: string | null
+  onHighlightEnter?: (districtCode: string) => void
+  onHighlightLeave?: (districtCode: string) => void
 }
+
+/*
+ * 단계 색. Top10 을 순위 두 칸씩 다섯 단계로 칠한다(값이 아니라 순위 — Top10 응답에는 10개 구
+ * 값만 있어 25개 구를 값으로 나눌 수 없고, 10개 안에서 값으로 나누면 1위만 진하고 나머지가
+ * 비슷해지기 쉽다). 새 토큰 없이 primary-600 을 흰 바탕에 섞는다. 가장 옅은 단계(11%)와 순위
+ * 밖 회색(grey100)은 명도 대비가 1.05:1 뿐이라 **색조로만** 갈린다 — 순위 점이 같은 정보를
+ * 함께 주므로 색만으로 전달하지 않는다.
+ */
+export const STATUS_MAP_RANK_STEPS = [
+  { step: 1, ranks: '1–2위', mixPercent: 60 },
+  { step: 2, ranks: '3–4위', mixPercent: 46 },
+  { step: 3, ranks: '5–6위', mixPercent: 33 },
+  { step: 4, ranks: '7–8위', mixPercent: 21 },
+  { step: 5, ranks: '9–10위', mixPercent: 11 },
+] as const
+
+export const getStatusMapRankStep = (rank: number | null): number | null =>
+  rank !== null && rank >= 1 && rank <= 10 ? Math.ceil(rank / 2) : null
+
+const rankStepFill = (mixPercent: number) =>
+  `color-mix(in srgb, var(--color-primary-600) ${mixPercent}%, var(--color-surface))`
 
 const STATUS_MAP_VIEW_BOX_SIZE = {
   width: 800,
@@ -88,30 +116,34 @@ const DistrictPath = styled.path`
   vector-effect: non-scaling-stroke;
   cursor: pointer;
   pointer-events: visiblePainted;
-  transition: fill var(--motion-fast) var(--ease-standard);
+  transition:
+    fill var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard);
 
-  /* 포커스 표시는 아래 FocusedDistrictOutline(점선)이 맡고, CSS 로도 한 겹 둔다 —
-     상태가 어긋나도 포커스를 받은 구가 보이지 않는 일은 없어야 한다(WCAG 2.4.7). */
+  ${STATUS_MAP_RANK_STEPS.map(
+    ({ step, mixPercent }) => `
+      &[data-rank-step='${step}'] {
+        fill: ${rankStepFill(mixPercent)};
+      }
+    `,
+  ).join('')}
+
+  /* 선택 중에는 나머지 구를 낮춰 선택 구에 눈이 가게 한다. */
+  svg[data-has-selection='true'] &:not([aria-pressed='true']) {
+    opacity: 0.5;
+  }
+
+  /* hover 는 채움을 바꾸지 않는다 — 단계 색 위에서 채움이 바뀌면 순위를 오독한다. 강조는
+     위에 겹쳐 그리는 테두리(ActiveDistrictOutline)가 맡는다.
+     포커스 표시는 점선(FocusedDistrictOutline)이 맡고 CSS 로도 한 겹 둔다 — 상태가
+     어긋나도 포커스를 받은 구가 보이지 않는 일은 없어야 한다(WCAG 2.4.7). */
   &:focus {
     outline: none;
   }
 
   &:focus-visible {
-    fill: color-mix(
-      in srgb,
-      var(--color-blue-500) 14%,
-      var(--color-surface-muted)
-    );
-  }
-
-  @media (hover: hover) {
-    &:hover {
-      fill: color-mix(
-        in srgb,
-        var(--color-primary-600) 14%,
-        var(--color-surface-muted)
-      );
-    }
+    stroke: var(--color-blue-500);
+    stroke-width: 3px;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -130,7 +162,7 @@ const ActiveDistrictOutline = styled.path`
 
 const SelectedDistrictPath = styled.path`
   fill: var(--color-primary-600);
-  fill-opacity: 0.5;
+  fill-opacity: 0.45;
   stroke: var(--color-primary-600);
   stroke-width: 3px;
   vector-effect: non-scaling-stroke;
@@ -192,6 +224,8 @@ const RankDot = styled.span`
   font-variant-numeric: tabular-nums;
   line-height: 1;
   text-shadow: none;
+  /* 단계 색 위에서도 점이 묻히지 않게 흰 테를 두른다. */
+  box-shadow: 0 0 0 1.5px var(--color-surface);
 `
 
 /*
@@ -214,9 +248,14 @@ const MapLabel = styled.span<{ $x: number; $y: number; $selected: boolean }>`
     0 1px 2px var(--color-surface);
   white-space: nowrap;
   transform: translate(-50%, -50%);
+  transition: opacity var(--motion-fast) var(--ease-standard);
 
   &[data-ranked='true'] {
     color: var(--color-text-900);
+  }
+
+  [data-has-selection='true'] > &:not([data-selected='true']) {
+    opacity: 0.6;
   }
 
   &[data-wide-mode='hidden'] {
@@ -314,6 +353,53 @@ const TooltipMetric = styled.span`
   line-height: 16px;
 `
 
+// 범례는 서울 윤곽 밖이 가장 넓게 비는 왼쪽 위에 둔다(은평·강서 위쪽).
+const Legend = styled.div`
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text-600);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+`
+
+/* 좁은 지도(모바일·태블릿)에서는 「순위 밖」 칸을 뺀다. 그대로 두면 범례 오른쪽 끝이
+   도봉구 라벨 자리까지 닿아, 도봉구가 순위에 들면 순위 점을 가린다(360·375px 실측). 회색은
+   뜻이 자명하고 툴팁이 「상위 10위 밖」을 말해 준다. */
+const LegendOutside = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  @container (max-width: ${STATUS_MAP_LABEL_BREAKPOINT_PX}px) {
+    display: none;
+  }
+`
+
+const LegendScale = styled.span`
+  display: inline-flex;
+  gap: 2px;
+`
+
+const LegendSwatch = styled.span<{ $fill: string }>`
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-compact);
+  background: ${props => props.$fill};
+`
+
 const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
   action === 'expand'
     ? '지도를 눌러 구별 현황 바텀시트 펼치기'
@@ -338,10 +424,17 @@ export default function StatusMap({
   onSelect,
   onBackgroundClick,
   backgroundAction,
+  highlightedDistrictCode,
+  onHighlightEnter,
+  onHighlightLeave,
 }: StatusMapProps) {
   // hover 와 키보드 포커스는 따로 둔다. 한 상태를 나눠 쓰면 Tab 으로 고른 구 위를 마우스가
   // 스치고 떠날 때 포커스 표시까지 지워진다.
-  const [hoveredCode, setHoveredCode] = useState<string | null>(null)
+  const [localHoveredCode, setLocalHoveredCode] = useState<string | null>(null)
+  const isHighlightControlled = onHighlightEnter !== undefined
+  const hoveredCode = isHighlightControlled
+    ? (highlightedDistrictCode ?? null)
+    : localHoveredCode
   const [focusedCode, setFocusedCode] = useState<string | null>(null)
   const labels = createStatusMapLabels(items, SEOUL_STATUS_FEATURES, districts)
   const labelsByDistrictCode = new Map(
@@ -410,9 +503,25 @@ export default function StatusMap({
             onClick={onBackgroundClick}
           />
         ) : null}
+        {items.length > 0 ? (
+          <Legend aria-hidden="true" data-status-map-legend>
+            <span>1위</span>
+            <LegendScale>
+              {STATUS_MAP_RANK_STEPS.map(({ step, mixPercent }) => (
+                <LegendSwatch key={step} $fill={rankStepFill(mixPercent)} />
+              ))}
+            </LegendScale>
+            <span>10위</span>
+            <LegendOutside>
+              <LegendSwatch $fill="var(--color-surface-muted)" />
+              <span>순위 밖</span>
+            </LegendOutside>
+          </Legend>
+        ) : null}
         <MapViewport data-status-map-label-viewport="800x620">
           <SeoulSilhouette
             aria-label={`서울 자치구 지도, ${STATUS_METRIC_LABELS[metric]} 기준`}
+            data-has-selection={selectedDistrictCode !== null}
             data-status-map-shape-layer="800x620"
             preserveAspectRatio="xMidYMid meet"
             role="group"
@@ -432,6 +541,7 @@ export default function StatusMap({
                   )}`}
                   aria-pressed={feature.districtCode === selectedDistrictCode}
                   d={feature.path}
+                  data-rank-step={getStatusMapRankStep(label.rank) ?? undefined}
                   data-status-district-path={feature.districtCode}
                   role="button"
                   tabIndex={0}
@@ -445,11 +555,20 @@ export default function StatusMap({
                   }
                   onPointerEnter={event => {
                     if (event.pointerType === 'touch') return
-                    setHoveredCode(feature.districtCode)
+                    if (isHighlightControlled) {
+                      onHighlightEnter(feature.districtCode)
+                    } else {
+                      setLocalHoveredCode(feature.districtCode)
+                    }
                   }}
-                  onPointerLeave={() =>
-                    setHoveredCode(clearIfCurrent(feature.districtCode))
-                  }
+                  onPointerLeave={() => {
+                    // 렌더 시점 값이 아니라 지금 값과 비교해 지운다(store·업데이터).
+                    if (isHighlightControlled) {
+                      onHighlightLeave?.(feature.districtCode)
+                    } else {
+                      setLocalHoveredCode(clearIfCurrent(feature.districtCode))
+                    }
+                  }}
                 />
               )
             })}
@@ -473,6 +592,7 @@ export default function StatusMap({
           </SeoulSilhouette>
           <MapLabelLayer
             aria-hidden="true"
+            data-has-selection={selectedDistrictCode !== null}
             data-status-map-label-layer="800x620"
           >
             {labels.map(label => (
@@ -483,6 +603,7 @@ export default function StatusMap({
                 $y={label.y}
                 data-narrow-mode={narrowModes.get(label.districtCode)}
                 data-ranked={label.rank !== null}
+                data-selected={label.districtCode === selectedDistrictCode}
                 data-status-district-label={label.districtCode}
                 data-wide-mode={wideModes.get(label.districtCode)}
               >

@@ -21,35 +21,50 @@ const METRIC_TABS: ReadonlyArray<{
   { value: 'closed', label: '폐업' },
 ]
 
+/*
+ * 세그먼트 컨트롤(DESIGN.md 「Segmented control for section switching」). 예전엔 페이지 폭
+ * 카드 왼쪽에 칩 4개가 몰려 있었고 선택은 옅은 테두리뿐이었다. 네 칸이 같은 폭으로 줄을
+ * 채우고, 선택 칸이 흰 바탕으로 떠올라 지금 무엇을 보는지가 먼저 보인다.
+ */
 const TabList = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
 `
 
-// 지표 선택은 콘텐츠(지도/리스트)에 폭을 양보하도록 컴팩트한 칩으로 둔다.
 const TabButton = styled.button<{ $selected: boolean }>`
+  min-width: 0;
   min-height: 36px;
-  padding: 0 13px;
-  border: 1px solid
-    ${props =>
-      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-card);
+  padding: 0 8px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
   background: ${props =>
-    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+    props.$selected ? 'var(--color-surface)' : 'transparent'};
+  box-shadow: ${props => (props.$selected ? 'var(--shadow-level-1)' : 'none')};
   color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
-  font-size: 13px;
+    props.$selected ? 'var(--color-text-900)' : 'var(--color-text-700)'};
+  font-size: 14px;
   font-weight: ${props => (props.$selected ? 700 : 600)};
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    border-color: var(--color-primary-600);
-    color: var(--color-primary-700);
+    color: var(--color-text-900);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `
 

@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
-import StatusMap from './status-map'
+import StatusMap, { getStatusMapRankStep } from './status-map'
 import type { StatusRankedItem } from '@/types/status'
 
 const items: StatusRankedItem[] = [
@@ -84,8 +84,8 @@ describe('StatusMap', () => {
       expect(path).toContain('tabindex="0"')
     }
     // 라벨은 폴리곤과 같은 이름을 한 번 더 읽지 않도록 접근성 트리에서 뺀다.
-    expect(markup).toContain(
-      'aria-hidden="true" data-status-map-label-layer="800x620"',
+    expect(markup).toMatch(
+      /aria-hidden="true"[^>]*data-status-map-label-layer="800x620"/,
     )
     expect(markup).not.toContain('<button aria-pressed')
   })
@@ -113,6 +113,54 @@ describe('StatusMap', () => {
     const markup = renderMap({ selectedDistrictCode: '11650' })
 
     expect(markup).toContain('data-selected-district-code="11650"')
+  })
+
+  it('Top10 폴리곤을 순위 두 칸씩 다섯 단계로 칠하고 순위 밖은 단계가 없다', () => {
+    const markup = renderMap()
+
+    expect(markup).toMatch(
+      /data-rank-step="1"[^>]*data-status-district-path="11680"/,
+    )
+    expect(markup).toMatch(
+      /data-rank-step="1"[^>]*data-status-district-path="11110"/,
+    )
+    expect(markup).not.toMatch(
+      /data-rank-step="[0-9]"[^>]*data-status-district-path="11650"/,
+    )
+  })
+
+  it.each([
+    [1, 1],
+    [2, 1],
+    [3, 2],
+    [10, 5],
+    [11, null],
+    [null, null],
+  ])('순위 %s 는 단계 %s', (rank, step) => {
+    expect(getStatusMapRankStep(rank)).toBe(step)
+  })
+
+  it('순위 데이터가 있을 때만 범례를 그린다', () => {
+    expect(renderMap()).toContain('data-status-map-legend')
+    expect(renderMap({ items: [] })).not.toContain('data-status-map-legend')
+  })
+
+  it('선택하면 나머지 구를 낮추도록 지도에 선택 여부를 적는다', () => {
+    expect(renderMap({ selectedDistrictCode: '11680' })).toContain(
+      'data-has-selection="true"',
+    )
+    expect(renderMap()).not.toContain('data-has-selection="true"')
+  })
+
+  it('바깥이 강조를 쥐면 목록에서 가리킨 구에 툴팁을 띄운다', () => {
+    const markup = renderMap({
+      highlightedDistrictCode: '11680',
+      onHighlightEnter: vi.fn(),
+      onHighlightLeave: vi.fn(),
+    })
+
+    expect(markup).toContain('data-status-map-tooltip="11680"')
+    expect(markup).toContain('유동인구 1위 · 100명 · +10%')
   })
 
   it('hover 전에는 툴팁을 그리지 않는다', () => {
