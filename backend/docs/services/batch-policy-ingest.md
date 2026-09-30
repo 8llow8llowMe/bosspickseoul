@@ -91,7 +91,7 @@ Vault `kv/bosspickseoul/backend/dev/env` 에 **patch** 로 아래만 추가·변
 | `BATCH_DB_URL` | district 유지 | 변경하지 않는다 |
 | `SPRING_PROFILES_ACTIVE` | `dev` 유지 | 전역 값이다. `dev,scheduler` 로 바꾸지 않는다 |
 
-DDL 을 넣은 뒤 batch-service 만 재배포한다. `scheduler` 프로파일은 필수가 아니다. `BATCH_POLICY_ENABLED=true` 이면 `dev` 프로파일에서도 Quartz 가 켜진다.
+DDL 을 넣은 뒤 batch-service 만 재배포한다. `scheduler` 프로파일은 필수가 아니다. `dev` / `prod` 프로파일은 Quartz JDBC JobStore 를 늘 켜 두고(`application-dev.yml`), `BATCH_POLICY_ENABLED=true` 가 수집·만료 트리거를 등록한다. `local` 과 `quarterly` 는 메모리 스토어에 자동 시작 off 라 트리거가 돌지 않는다(로컬에서 돌려 보려면 `local,scheduler`).
 
 기동 직후 로그에서 확인할 것:
 
@@ -136,4 +136,11 @@ commercial-service 를 재시작할 필요는 없다. 조회는 DB 를 직접 �
 
 ## 6. 끄기
 
-Vault 에서 `BATCH_POLICY_ENABLED=false` 로 두고 batch-service 를 다시 띄운다. Quartz 트리거가 등록되지 않는다. `policy` 에 이미 들어간 행은 그대로 두고, 추천 API 는 마감 필터만 적용한다.
+Vault 에서 `BATCH_POLICY_ENABLED=false` 로 두고 batch-service 를 다시 띄운다. `policy` 에 이미 들어간 행은 그대로 두고, 추천 API 는 마감 필터만 적용한다.
+
+JDBC JobStore 는 트리거를 `QRTZ_*`(district) 에 남기고, 앱은 등록(추가·덮어쓰기)만 한다. 플래그를 꺼도 예전 트리거는 DB 에 그대로라 두 겹으로 막는다.
+
+1. 기동 시 `PolicyQuartzCleanupConfig` 가 `policyCollectQuartzJob` / `policyPurgeQuartzJob` 을 지운다(딸린 트리거도 같이). 로그 `[policy] disabled, stored quartz job removed job=...`
+2. 지우지 못했거나 다른 인스턴스가 먼저 발화해도 `PolicyCollectQuartzJob` / `PolicyPurgeQuartzJob` 이 첫 줄에서 플래그를 보고 Job 을 띄우지 않는다. 로그 `[policy] disabled, stale trigger ignored ...`
+
+확인은 district 에서 `policy-ingest-verify-district.sql` 3) 블록이다. 끈 뒤에는 `policy*QuartzJob` 행이 없어야 한다.

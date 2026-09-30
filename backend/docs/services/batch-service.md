@@ -214,7 +214,7 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 
 ## 기업마당 정책 수집
 
-상시 `batch-service` 가 district(`BATCH_DB_URL`) 와 commercial(`COMMERCIAL_DB_URL`) 을 같이 본다. 새 스케줄러 서비스는 없다. `BATCH_POLICY_ENABLED=true` 이면 `policyCollectTrigger` / `policyPurgeTrigger` 가 등록되고, `quarterly` 처럼 `System.exit` 하지 않는다. (Quartz JDBC JobStore 자체는 `application.yml` 의 on-property 문서가 조건으로 읽히지 않아 항상 켜진다. 아래 「분기 적재 자동 최신화」 알려진 한계.)
+상시 `batch-service` 가 district(`BATCH_DB_URL`) 와 commercial(`COMMERCIAL_DB_URL`) 을 같이 본다. 새 스케줄러 서비스는 없다. `BATCH_POLICY_ENABLED=true` 이면 `policyCollectTrigger` / `policyPurgeTrigger` 가 등록되고, `quarterly` 처럼 `System.exit` 하지 않는다. Quartz JDBC JobStore 는 `dev` / `prod` 프로파일에만 있고(`application-dev.yml` / `application-prod.yml`), `local` · `quarterly` 는 메모리 스토어에 자동 시작 off 다. 끄는 절차는 아래 「분기 적재 자동 최신화」 되돌리기와 같다.
 
 | 대상 | DataSource |
 | --- | --- |
@@ -315,7 +315,10 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다
 5. **관찰(1주)** — 다음날 05:00 이후 로그 `[dataset-refresh] run finished ... results={...}` 와 `slot dataset=... result=...`, `SELECT * FROM dataset_refresh_state`. `WOULD_PUBLISH` 가 뜬 데이터셋은 `dataset_release` 에 `auto-...-dry` 가 `DRY_RUN` 으로 남는다. 첫 주에 위 「데이터 없음」 실호출을 확인한다
 6. **게시 전환** — 결과가 기대대로면 Vault 에 `BATCH_DATASET_REFRESH_PUBLISH=true` patch 후 재배포. 다음 05:00 run 부터 `PUBLISHED` 가 나오고 coverage.sql 1)·5) 에서 해당 슬롯이 빠진다
-7. **되돌리기** — `BATCH_DATASET_REFRESH_ENABLED=false` 후 재배포. 이미 게시된 릴리스는 그대로다(수동 게시와 같다)
+7. **되돌리기** — Vault 에 `BATCH_DATASET_REFRESH_ENABLED=false` patch 후 재배포. 이미 게시된 릴리스는 그대로다(수동 게시와 같다). JDBC JobStore 는 트리거를 `QRTZ_*` 에 남기므로 두 겹으로 막는다
+   - 기동 시 `DatasetRefreshQuartzCleanupConfig` 가 `datasetRefreshQuartzJob`(과 `datasetRefreshTrigger`)을 지운다. 로그 `[dataset-refresh] disabled, stored quartz job removed job=datasetRefreshQuartzJob`
+   - 지우지 못했어도 `DatasetRefreshQuartzJob` 이 첫 줄에서 플래그를 보고 아무것도 하지 않는다. 로그 `[dataset-refresh] disabled, stale trigger ignored ...`
+   - 확인: district 에서 `policy-ingest-verify-district.sql` 3) 블록에 `datasetRefreshQuartzJob` 행이 없어야 한다. 스테이징 정리(`BATCH_STAGING_PURGE_ENABLED`)와 정책 수집도 같은 방식이다
 
 첫 run 을 05:00 전에 보고 싶으면 `BATCH_DATASET_REFRESH_CRON=0 0/15 * * * ?` 를 잠시 넣었다가 비운다(정책 수집과 같은 방법).
 
@@ -342,6 +345,6 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 ### 알려진 한계
 
 - **메모리** — typed 이관(`--job=project`)은 한 슬롯의 `dataset_fact` 를 통째로 읽는다. `STORE_COMMERCIAL`(분기당 약 7.7만 행) 이관은 512m 컨테이너(heap 약 358MB)에서 여유가 크지 않다. publish=true 전환 뒤 첫 run 의 JVM heap 을 본다. 부족하면 그 데이터셋만 수동 `batch-service-job`(1g)으로 이관한다
-- **Quartz 활성 조건** — `application.yml` 의 `spring.config.activate.on-property` 는 Spring Boot 3.5 가 지원하지 않는 키라 그 문서가 항상 적용된다. 즉 Quartz 는 모든 프로파일에서 JDBC JobStore 로 뜬다(트리거 등록은 각 `*QuartzScheduleConfig` 조건이 가른다). 자동 최신화는 이 동작에 기대며 `DatasetRefreshPropertiesTest` 가 고정한다
+- **Quartz JobStore 는 프로파일로만 갈린다** — `dev` / `prod` 는 JDBC 클러스터 JobStore 에 자동 시작, `local` / `quarterly` 는 메모리 스토어에 자동 시작 off 다(`QuartzJobStoreProfileTest`). 예전 `application.yml` 의 `spring.config.activate.on-property` 문서는 Spring Boot 3.5 가 지원하지 않는 키라 모든 프로파일에 적용됐고, 그래서 quarterly CLI 도 commercial 의 `QRTZ_*` 에 붙어 JDBC 로 떴다. 지금은 CLI 가 저장된 트리거를 발화하지 않는다. 로컬에서 스케줄을 돌려 보려면 `local,scheduler` 로 띄운다
 - **Spring Batch 메타 트랜잭션** — 컨텍스트의 트랜잭션 매니저는 `commercialTransactionManager` 하나뿐이라 두 번째 풀이 열린 상시 인스턴스에서 `BATCH_*`(district) 쓰기는 그 트랜잭션에 묶이지 않고 문장 단위로 커밋된다. 정책 수집 때부터 같은 구조다. 자동 최신화는 run-id 가 매번 새로워 재시작 경로를 쓰지 않는다
 - **원천 보관 용량** — 무시하는 9종은 원천이 바뀐 날마다 전 기간을 `batch-raw` 에 새로 받는다(데이터셋당 수 MB). 볼륨 정리는 아직 없다

@@ -19,10 +19,13 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(prefix = "batch.dataset-refresh", name = "enabled", havingValue = "true")
 public class DatasetRefreshQuartzScheduleConfig {
 
+    /** JobDetail 이름. 꺼졌을 때 {@link DatasetRefreshQuartzCleanupConfig} 가 같은 이름으로 지운다. */
+    public static final String JOB_NAME = "datasetRefreshQuartzJob";
+
     @Bean
     public JobDetail datasetRefreshJobDetail() {
         return JobBuilder.newJob(DatasetRefreshQuartzJob.class)
-            .withIdentity("datasetRefreshQuartzJob")
+            .withIdentity(JOB_NAME)
             .storeDurably()
             .requestRecovery()
             .build();
