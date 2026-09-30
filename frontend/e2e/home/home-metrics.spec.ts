@@ -110,6 +110,20 @@ const ALLOWED_PATHS = [
   '/register',
 ]
 
+/**
+ * 홈이 밖으로 보내도 되는 곳 — 데이터 출처 카드의 공식 원문(data-sources.md D4-4).
+ * 위 목록의 목적은 「보호 라우트로 보내지 않는다」라 외부는 공식 데이터 도메인만 연다.
+ */
+const ALLOWED_EXTERNAL_HOSTS = ['data.seoul.go.kr', 'www.data.go.kr']
+
+const isAllowedLink = (href: string): boolean => {
+  if (/^https?:\/\//.test(href)) {
+    return ALLOWED_EXTERNAL_HOSTS.includes(new URL(href).host)
+  }
+  const [pathname] = href.split('?')
+  return ALLOWED_PATHS.includes(pathname)
+}
+
 test.describe('홈 감사 지표', () => {
   test('기준선보다 나빠지지 않는다', async ({ page }, testInfo) => {
     const session = await openHome(page)
@@ -244,10 +258,7 @@ test.describe('홈 감사 지표', () => {
     expect(metrics.horizontalOverflow, '가로 스크롤이 생겼습니다.').toBe(false)
     expect(metrics.h1Count, 'h1 은 정확히 1개여야 합니다.').toBe(1)
 
-    const disallowed = metrics.linkHrefs.filter(href => {
-      const [pathname] = href.split('?')
-      return !ALLOWED_PATHS.includes(pathname)
-    })
+    const disallowed = metrics.linkHrefs.filter(href => !isAllowedLink(href))
     expect(
       disallowed,
       `허용 목록 밖 링크가 있습니다: ${disallowed.join(', ')}`,

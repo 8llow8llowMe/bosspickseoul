@@ -4,18 +4,18 @@
     "width": 375,
     "height": 812
   },
-  "docHeightScreens": 5.66,
+  "docHeightScreens": 6.65,
   "stickyTrackShare": 0,
   "h1Screen": 1.24,
   "firstCtaScreen": 1.53,
-  "contrastCombinations": 40,
+  "contrastCombinations": 46,
   "contrastFailures": 11,
   "smallTapTargets": 6,
   "offScaleFontSizes": 3,
   "offScaleFontSizeList": [15, 18, 21],
   "sentenceEndings": {
     "formal": 6,
-    "polite": 8
+    "polite": 13
   },
   "bffRequests": 2
 }
