@@ -1,4 +1,9 @@
-import type { StatusMetric } from '@/types/status'
+import type { DistrictRecord } from '@/data/districts'
+import type {
+  StatusMetric,
+  StatusRankedItem,
+  StatusSelectedDistrict,
+} from '@/types/status'
 
 const STATUS_METRICS: readonly StatusMetric[] = [
   'footTraffic',
@@ -123,11 +128,41 @@ export const parseStatusMetric = (value: unknown): StatusMetric =>
     ? (value as StatusMetric)
     : 'footTraffic'
 
+/**
+ * `?district=` 가 **서울 자치구 코드**면 그대로, 아니면 null 로 정규화한다.
+ *
+ * 예전에는 현재 지표 Top10 에 든 구만 남겼다. 그래서 순위 밖 15개 구는 지도에서 눌러도
+ * 반응이 없었고, 지표 탭을 바꾸면 보던 구가 새 Top10 에 없다는 이유로 선택이 풀렸다.
+ * 상세(`GET /districts/{code}`)는 구 단위라 지표와 무관하다 — 선택도 지표와 떼어 둔다.
+ */
 export const normalizeStatusSelection = (
   districtCode: string | null | undefined,
-  topTenCodes: readonly string[],
+  districtCodes: readonly string[],
 ): string | null =>
-  districtCode && topTenCodes.includes(districtCode) ? districtCode : null
+  districtCode && districtCodes.includes(districtCode) ? districtCode : null
+
+/**
+ * 선택한 구를 상세가 그릴 모양으로 만든다. 현재 지표 Top10 에 있으면 순위 항목을
+ * 붙이고, 없으면 `rankedItem: null` 이다(상세 머리가 「상위 10위 밖」으로 적는다).
+ * 이름은 순위 항목보다 정적 표를 먼저 쓴다 — 순위 밖 구에는 순위 항목이 없다.
+ */
+export const resolveStatusSelectedDistrict = (
+  districtCode: string | null,
+  items: readonly StatusRankedItem[],
+  districtRecords: ReadonlyArray<Pick<DistrictRecord, 'gooCode' | 'gooName'>>,
+): StatusSelectedDistrict | null => {
+  if (!districtCode) return null
+
+  const rankedItem =
+    items.find(item => item.districtCode === districtCode) ?? null
+  const districtName =
+    districtRecords.find(record => String(record.gooCode) === districtCode)
+      ?.gooName ?? rankedItem?.districtName
+
+  if (!districtName) return null
+
+  return { districtCode, districtName, rankedItem }
+}
 
 export const createStatusQuery = (
   currentQuery: URLSearchParams,

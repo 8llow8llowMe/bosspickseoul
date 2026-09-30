@@ -29,8 +29,6 @@ const items: StatusRankedItem[] = [
 
 /**
  * DESIGN.md §Touch target: 버튼 최소 36px, 모바일 헤더 액션 최소 40px.
- * 시각 크기를 키우면 지도 배지가 겹치므로 좁은 캔버스에서는 ::after 로
- * 히트 영역만 넓힌다 — 그 장치가 사라지면 조용히 28px 짜리 표적이 된다.
  */
 describe('상태 화면 터치 타깃 (DESIGN.md §Touch target)', () => {
   it('지표 탭은 최소 36px 이다', () => {
@@ -45,7 +43,9 @@ describe('상태 화면 터치 타깃 (DESIGN.md §Touch target)', () => {
     expect(styles).not.toContain('min-height:34px;')
   })
 
-  it('지도 순위 배지는 기본 36px 이다', () => {
+  it('지도는 라벨이 아니라 폴리곤이 표적이라 라벨은 포인터를 가로채지 않는다', () => {
+    // 예전엔 순위 배지가 유일한 버튼이라 36px 을 억지로 맞췄다. 이제 구 영역 전체가
+    // 표적이고, 라벨은 폴리곤 위에 얹힌 글자일 뿐이다 — 누르면 아래 폴리곤이 받는다.
     const styles = renderStyles(
       createElement(StatusMap, {
         items,
@@ -55,22 +55,7 @@ describe('상태 화면 터치 타깃 (DESIGN.md §Touch target)', () => {
       }),
     )
 
-    expect(styles).toContain('min-width:38px;min-height:36px;')
-  })
-
-  it('좁은 캔버스에서는 배지를 키우지 않고 ::after 로 36px 히트 영역을 준다', () => {
-    const styles = renderStyles(
-      createElement(StatusMap, {
-        items,
-        metric: 'footTraffic',
-        selectedDistrictCode: null,
-        onSelect: () => undefined,
-      }),
-    )
-
-    // 시각 크기는 겹침 완화를 위해 그대로 둔다.
-    expect(styles).toContain('min-width:32px;min-height:28px;')
-    // 히트 영역만 정본 최소치까지 넓힌다.
-    expect(styles).toContain('width:36px;height:36px;')
+    expect(styles).toContain('pointer-events:visiblePainted;')
+    expect(styles).not.toContain('min-width:38px;min-height:36px;')
   })
 })

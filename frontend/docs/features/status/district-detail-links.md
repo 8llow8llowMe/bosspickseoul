@@ -200,7 +200,9 @@ createAnalysisExplorerHref({
 
 ### D6-1. `/status?district=` 를 목적지로 쓰지 않는다
 
-`normalizeStatusSelection` 이 「현재 지표의 top-10」에 없는 자치구 코드를 버리고, 상세도 `selectedItem !== null` 로 게이트돼 있다. 행정동은 아예 화면이 없다. **목적지는 언제나 `/analysis` 다**(이슈 #200 에서 확인한 것과 같은 제약이며, `docs/features/_index.md` share 항목의 `DISTRICT_ANALYSIS` 미지원 사유와 같은 뿌리다).
+여기 링크는 **업종·행정동 단위**다. `/status` 는 자치구 단위 화면이라 받을 자리가 없고, 행정동은 아예 화면이 없다. **목적지는 언제나 `/analysis` 다.**
+
+> 작성 당시(이슈 #200)에는 이유가 하나 더 있었다 — `normalizeStatusSelection` 이 「현재 지표의 top-10」 밖 자치구 코드를 버려서 `/status?district=` 자체가 믿을 수 없는 목적지였다. 이 제약은 [status.md](./status.md) 1.2(2026-09-30)에서 없어졌다. 지금은 25개 구 코드가 모두 유효하다.
 
 ### D6-2. SVG 안의 링크는 브라우저에서 실측해야 한다
 

@@ -1,15 +1,23 @@
 'use client'
 
-import { css } from 'styled-components'
-import styled from 'styled-components'
+import { useState, type FocusEvent, type KeyboardEvent } from 'react'
+import styled, { css } from 'styled-components'
 import { districts } from '@/data/districts'
 import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
 import {
+  formatStatusChange,
+  formatStatusValue,
+  STATUS_METRIC_LABELS,
+} from '@/lib/status/status-formatters'
+import {
   createStatusMapLabels,
   findSelectedStatusMapFeature,
+  resolveStatusMapLabelModes,
+  STATUS_MAP_LABEL_BREAKPOINT_PX,
+  STATUS_MAP_LABEL_TIERS,
   type StatusMapLabel,
 } from '@/lib/status/status-map-model'
 import type { StatusMetric, StatusRankedItem } from '@/types/status'
@@ -23,12 +31,10 @@ type StatusMapProps = {
   backgroundAction?: 'expand' | 'collapse'
 }
 
-const METRIC_LABELS: Record<StatusMetric, string> = {
-  footTraffic: '유동인구',
-  sales: '매출',
-  opened: '개업',
-  closed: '폐업',
-}
+const STATUS_MAP_VIEW_BOX_SIZE = {
+  width: 800,
+  height: 620,
+} as const
 
 const Figure = styled.figure`
   min-width: 0;
@@ -46,6 +52,8 @@ const MapCanvas = styled.div`
   background: var(--color-surface);
 `
 
+// 라벨 크기는 캔버스가 아니라 **실제 지도 폭**으로 정한다(`container-type`). 캔버스가
+// 넓어도 높이에 막혀 지도가 좁게 그려질 수 있어서다. narrow/wide 판정 모델과 짝이다.
 const MapViewport = styled.div`
   position: absolute;
   top: 50%;
@@ -53,6 +61,7 @@ const MapViewport = styled.div`
   z-index: 1;
   width: min(100cqw, 129.032258cqh);
   height: min(100cqh, 77.5cqw);
+  container-type: size;
   pointer-events: none;
   transform: translate(-50%, -50%);
 `
@@ -63,14 +72,60 @@ const SeoulSilhouette = styled.svg`
   z-index: 1;
   width: 100%;
   height: 100%;
+  overflow: visible;
   pointer-events: none;
 `
 
+/*
+ * 폴리곤이 곧 선택 버튼이다. 예전엔 폴리곤이 aria-hidden 이고 버튼은 순위 라벨뿐이라
+ * 순위 밖 15개 구는 눌러도 반응이 없었다 — 네이버 지도처럼 영역을 누르면 고른다.
+ * 25개 구가 모두 Tab 으로 닿는다(홈 지도 `seoul-districts-map` 과 같은 방식).
+ */
 const DistrictPath = styled.path`
   fill: var(--color-surface-muted);
   stroke: var(--color-border-300);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  pointer-events: visiblePainted;
+  transition: fill var(--motion-fast) var(--ease-standard);
+
+  /* 포커스 표시는 아래 FocusedDistrictOutline(점선)이 맡고, CSS 로도 한 겹 둔다 —
+     상태가 어긋나도 포커스를 받은 구가 보이지 않는 일은 없어야 한다(WCAG 2.4.7). */
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    fill: color-mix(
+      in srgb,
+      var(--color-blue-500) 14%,
+      var(--color-surface-muted)
+    );
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      fill: color-mix(
+        in srgb,
+        var(--color-primary-600) 14%,
+        var(--color-surface-muted)
+      );
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`
+
+// 인접 폴리곤이 경계선을 덮지 않도록 강조선은 맨 위에 한 번 더 그린다.
+const ActiveDistrictOutline = styled.path`
+  fill: none;
+  stroke: var(--color-primary-600);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 `
 
 const SelectedDistrictPath = styled.path`
@@ -79,14 +134,16 @@ const SelectedDistrictPath = styled.path`
   stroke: var(--color-primary-600);
   stroke-width: 3px;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
 `
 
-const LabelLeaderLine = styled.path`
+const FocusedDistrictOutline = styled.path`
   fill: none;
-  stroke: var(--color-border-300);
-  stroke-dasharray: 3 3;
-  stroke-width: 1px;
+  stroke: var(--color-blue-500);
+  stroke-width: 3px;
+  stroke-dasharray: 6 3;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
 `
 
 const MapBackgroundButton = styled.button`
@@ -111,141 +168,150 @@ const MapLabelLayer = styled.div`
   pointer-events: none;
 `
 
-const labelPosition = css<{
-  $x: number
-  $y: number
-}>`
+const atViewBoxPoint = css<{ $x: number; $y: number }>`
   position: absolute;
-  top: ${props => (props.$y / 620) * 100}%;
-  left: ${props => (props.$x / 800) * 100}%;
-  transform: translate(-50%, -50%);
+  top: ${props => (props.$y / STATUS_MAP_VIEW_BOX_SIZE.height) * 100}%;
+  left: ${props => (props.$x / STATUS_MAP_VIEW_BOX_SIZE.width) * 100}%;
 `
 
-const DistrictLabel = styled.div<{
-  $x: number
-  $y: number
-}>`
-  ${labelPosition}
-  z-index: 2;
-  pointer-events: none;
+const LabelName = styled.span``
+
+const RankDot = styled.span`
+  min-width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-600);
+  color: var(--color-surface);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow: none;
+`
+
+/*
+ * 라벨은 **폴리곤 중심에 고정**하고 움직이지 않는다(`resolveStatusMapLabelModes`).
+ * 겹칠 때는 옮기는 대신 줄인다 — 이름을 빼고 순위 점만 남기거나(badge), 순위 없는
+ * 이름을 숨긴다(hidden). 모드는 지도 폭 등급마다 따로 정해 두고 @container 로 고른다.
+ */
+const MapLabel = styled.span<{ $x: number; $y: number; $selected: boolean }>`
+  ${atViewBoxPoint}
+  z-index: ${props => (props.$selected ? 2 : 1)};
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   color: var(--color-text-700);
   font-size: 11px;
   font-weight: 700;
-  line-height: 1.2;
-  text-align: center;
+  line-height: 1.25;
   text-shadow:
     0 0 2px var(--color-surface),
     0 1px 2px var(--color-surface);
   white-space: nowrap;
+  transform: translate(-50%, -50%);
 
-  /* 좁은 지도 캔버스(모바일·태블릿)에서 비Top10 구 이름이 겹치지 않게 축소한다. */
-  @container (max-width: 460px) {
+  &[data-ranked='true'] {
+    color: var(--color-text-900);
+  }
+
+  &[data-wide-mode='hidden'] {
+    display: none;
+  }
+
+  &[data-wide-mode='badge'] > ${LabelName} {
+    display: none;
+  }
+
+  &[data-wide-mode='stacked'] {
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  @container (max-width: ${STATUS_MAP_LABEL_BREAKPOINT_PX}px) {
     font-size: 9.5px;
-  }
-`
 
-// 1~3위 배지는 success green(--color-green-500)으로 강조한다(1위 가장 진하고
-// 3위로 갈수록 연하게). green은 DESIGN.md에서 'HIGH 등급/긍정 지표'의 semantic
-// 색이라 상위 순위와 의미가 맞고, 선택(primary blue)과 색상이 겹치지 않는다.
-const RANK_ACCENT = 'var(--color-green-500)'
-const TOP_RANK_FILL: Record<number, string> = {
-  1: `color-mix(in srgb, ${RANK_ACCENT} 24%, var(--color-surface))`,
-  2: `color-mix(in srgb, ${RANK_ACCENT} 15%, var(--color-surface))`,
-  3: `color-mix(in srgb, ${RANK_ACCENT} 8%, var(--color-surface))`,
-}
+    & > ${RankDot} {
+      min-width: 13px;
+      height: 13px;
+      padding: 0 2px;
+      font-size: 9px;
+    }
 
-const RankedDistrictLabel = styled.button<{
-  $selected: boolean
-  $rank: number | null
-  $x: number
-  $y: number
-}>`
-  ${labelPosition}
-  z-index: ${props => (props.$selected ? 4 : 3)};
-  min-width: 38px;
-  min-height: 36px;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  padding: 4px 6px;
-  border: ${props => (props.$selected ? '3px' : '1px')} solid
-    ${props => {
-      if (props.$selected) return 'var(--color-primary-600)'
-      if (props.$rank && props.$rank <= 3)
-        return `color-mix(in srgb, ${RANK_ACCENT} 55%, var(--color-border-300))`
-      return 'var(--color-border-300)'
-    }};
-  border-radius: var(--radius-control);
-  background: ${props => {
-    if (props.$selected) return 'var(--color-primary-100)'
-    if (props.$rank && TOP_RANK_FILL[props.$rank])
-      return TOP_RANK_FILL[props.$rank]
-    return 'var(--color-surface)'
-  }};
-  color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-900)'};
-  box-shadow: var(--shadow-level-1);
-  cursor: pointer;
-  pointer-events: auto;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+    &[data-wide-mode] {
+      display: inline-flex;
+      flex-direction: row;
+      gap: 3px;
+    }
 
-  &:hover {
-    border-color: var(--color-primary-600);
-    background: var(--color-primary-100);
-    color: var(--color-primary-700);
-  }
+    &[data-wide-mode] > ${LabelName} {
+      display: inline;
+    }
 
-  &:focus-visible {
-    outline: 2px solid var(--color-blue-500);
-    outline-offset: 2px;
-  }
+    &[data-narrow-mode='hidden'] {
+      display: none;
+    }
 
-  /* 좁은 지도 캔버스에서 순위 배지 크기를 줄여 겹침을 완화한다.
-     배지를 시각적으로 키우면 겹침이 되살아나므로, 크기는 그대로 두고
-     ::after 로 히트 영역만 DESIGN.md 751행의 최소 36px 까지 넓힌다.
-     ::after 는 레이아웃을 차지하지 않아 이웃 배지를 밀어내지 않는다. */
-  @container (max-width: 460px) {
-    min-width: 32px;
-    min-height: 28px;
-    padding: 3px 4px;
+    &[data-narrow-mode='badge'] > ${LabelName} {
+      display: none;
+    }
 
-    &::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 36px;
-      height: 36px;
-      transform: translate(-50%, -50%);
+    &[data-narrow-mode='stacked'] {
+      flex-direction: column;
+      gap: 1px;
     }
   }
 `
 
-const RankDistrictName = styled.span`
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.1;
-  white-space: nowrap;
+// 지도 위아래 끝에 붙은 구는 툴팁이 캔버스 밖으로 잘리므로 아래로 뒤집는다.
+const TOOLTIP_FLIP_BELOW_Y = 140
+const TOOLTIP_EDGE_X = 140
 
-  @container (max-width: 460px) {
-    font-size: 9px;
-  }
+// DESIGN.md 「Background Float」: 떠 있는 요소는 흰 바탕. 홈 지도 툴팁과 같은 모양이다.
+const DistrictTooltip = styled.span<{
+  $x: number
+  $y: number
+  $below: boolean
+  $align: 'start' | 'center' | 'end'
+}>`
+  ${atViewBoxPoint}
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-level-2);
+  white-space: nowrap;
+  transform: translate(
+    ${props =>
+      props.$align === 'start'
+        ? '-16px'
+        : props.$align === 'end'
+          ? 'calc(-100% + 16px)'
+          : '-50%'},
+    ${props => (props.$below ? '14px' : 'calc(-100% - 14px)')}
+  );
 `
 
-const RankNumber = styled.span`
+const TooltipTitle = styled.strong`
+  color: var(--color-text-900);
   font-size: 13px;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
+  line-height: 18px;
+`
 
-  @container (max-width: 460px) {
-    font-size: 12px;
-  }
+const TooltipMetric = styled.span`
+  color: var(--color-text-700);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
 `
 
 const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
@@ -253,272 +319,16 @@ const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
     ? '지도를 눌러 구별 현황 바텀시트 펼치기'
     : '지도를 더 보기 위해 구별 현황 바텀시트 최소화'
 
-const STATUS_MAP_VIEW_BOX_SIZE = {
-  width: 800,
-  height: 620,
-} as const
+const describeDistrict = (
+  metric: StatusMetric,
+  label: StatusMapLabel,
+  item: StatusRankedItem | undefined,
+): string => {
+  const metricLabel = STATUS_METRIC_LABELS[metric]
 
-// 최소 지원 375px 뷰포트에서 좌우 여백을 제외한 지도 내부 폭입니다.
-const MINIMUM_SUPPORTED_MOBILE_VIEWPORT_WIDTH_PX = 375
-const MINIMUM_SUPPORTED_MOBILE_HORIZONTAL_GUTTER_PX = 16
-const MINIMUM_SUPPORTED_MOBILE_INNER_MAP_WIDTH_PX =
-  MINIMUM_SUPPORTED_MOBILE_VIEWPORT_WIDTH_PX -
-  2 * MINIMUM_SUPPORTED_MOBILE_HORIZONTAL_GUTTER_PX
-const SELECTED_FOUR_CHARACTER_RANK_LABEL_SIZE_PX = {
-  width: 52.58,
-  height: 39,
-} as const
-const RANK_LABEL_FOCUS_OUTLINE_WIDTH_PX = 2
-const RANK_LABEL_FOCUS_OUTLINE_OFFSET_PX = 2
-const RANK_LABEL_FOCUS_OUTSET_PX =
-  RANK_LABEL_FOCUS_OUTLINE_WIDTH_PX + RANK_LABEL_FOCUS_OUTLINE_OFFSET_PX
+  if (!item || label.rank === null) return `${metricLabel} 상위 10위 밖`
 
-const TOP_TEN_LABEL_COLLISION_FOOTPRINT = {
-  width: Math.ceil(
-    ((SELECTED_FOUR_CHARACTER_RANK_LABEL_SIZE_PX.width +
-      2 * RANK_LABEL_FOCUS_OUTSET_PX) /
-      MINIMUM_SUPPORTED_MOBILE_INNER_MAP_WIDTH_PX) *
-      STATUS_MAP_VIEW_BOX_SIZE.width,
-  ),
-  height: Math.ceil(
-    ((SELECTED_FOUR_CHARACTER_RANK_LABEL_SIZE_PX.height +
-      2 * RANK_LABEL_FOCUS_OUTSET_PX) /
-      MINIMUM_SUPPORTED_MOBILE_INNER_MAP_WIDTH_PX) *
-      STATUS_MAP_VIEW_BOX_SIZE.width,
-  ),
-} as const
-
-const TOP_TEN_LABEL_SAFE_BOUNDS = {
-  minX: TOP_TEN_LABEL_COLLISION_FOOTPRINT.width / 2,
-  maxX:
-    STATUS_MAP_VIEW_BOX_SIZE.width -
-    TOP_TEN_LABEL_COLLISION_FOOTPRINT.width / 2,
-  minY: TOP_TEN_LABEL_COLLISION_FOOTPRINT.height / 2,
-  maxY:
-    STATUS_MAP_VIEW_BOX_SIZE.height -
-    TOP_TEN_LABEL_COLLISION_FOOTPRINT.height / 2,
-} as const
-
-const TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS = 4
-const TOP_TEN_LABEL_CANDIDATE_GRID_SIZE =
-  TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS * 2 + 1
-// 실제 지도는 현재 Top10만 전역 탐색합니다.
-const TOP_TEN_LABEL_EXACT_SEARCH_MAX_LABELS = 10
-// 렌더 경로에서 탐색 시간을 고정하기 위한 결정적 backtracking 상한입니다.
-const TOP_TEN_LABEL_EXACT_SEARCH_NODE_BUDGET = 25_000
-
-const TOP_TEN_LABEL_CANDIDATE_OFFSETS = Array.from(
-  {
-    length:
-      TOP_TEN_LABEL_CANDIDATE_GRID_SIZE * TOP_TEN_LABEL_CANDIDATE_GRID_SIZE,
-  },
-  (_, index) => {
-    const gridX =
-      (index % TOP_TEN_LABEL_CANDIDATE_GRID_SIZE) -
-      TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS
-    const gridY =
-      Math.floor(index / TOP_TEN_LABEL_CANDIDATE_GRID_SIZE) -
-      TOP_TEN_LABEL_CANDIDATE_GRID_RADIUS
-
-    return {
-      x: gridX * TOP_TEN_LABEL_COLLISION_FOOTPRINT.width,
-      y: gridY * TOP_TEN_LABEL_COLLISION_FOOTPRINT.height,
-    }
-  },
-).sort((first, second) => {
-  const firstDistance = first.x ** 2 + first.y ** 2
-  const secondDistance = second.x ** 2 + second.y ** 2
-
-  return (
-    firstDistance - secondDistance || first.y - second.y || first.x - second.x
-  )
-})
-
-export type PositionedStatusMapTopTenLabel = {
-  districtCode: string
-  rank: number
-  originalX: number
-  originalY: number
-  displayX: number
-  displayY: number
-}
-
-type TopTenLabelCandidate = Pick<
-  PositionedStatusMapTopTenLabel,
-  'displayX' | 'displayY'
->
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max)
-
-const hasTopTenLabelCollision = (
-  candidate: TopTenLabelCandidate,
-  positionedLabels: readonly PositionedStatusMapTopTenLabel[],
-) =>
-  positionedLabels.some(
-    label =>
-      Math.abs(candidate.displayX - label.displayX) <
-        TOP_TEN_LABEL_COLLISION_FOOTPRINT.width &&
-      Math.abs(candidate.displayY - label.displayY) <
-        TOP_TEN_LABEL_COLLISION_FOOTPRINT.height,
-  )
-
-const createTopTenLabelCandidates = (
-  label: Pick<StatusMapLabel, 'x' | 'y'>,
-): TopTenLabelCandidate[] => {
-  const candidateKeys = new Set<string>()
-
-  return TOP_TEN_LABEL_CANDIDATE_OFFSETS.flatMap(offset => {
-    const candidate = {
-      displayX: clamp(
-        label.x + offset.x,
-        TOP_TEN_LABEL_SAFE_BOUNDS.minX,
-        TOP_TEN_LABEL_SAFE_BOUNDS.maxX,
-      ),
-      displayY: clamp(
-        label.y + offset.y,
-        TOP_TEN_LABEL_SAFE_BOUNDS.minY,
-        TOP_TEN_LABEL_SAFE_BOUNDS.maxY,
-      ),
-    }
-    const candidateKey = `${candidate.displayX}:${candidate.displayY}`
-
-    if (candidateKeys.has(candidateKey)) return []
-
-    candidateKeys.add(candidateKey)
-    return [candidate]
-  })
-}
-
-const toPositionedTopTenLabel = (
-  label: StatusMapLabel & { rank: number },
-  candidate: TopTenLabelCandidate,
-): PositionedStatusMapTopTenLabel => ({
-  districtCode: label.districtCode,
-  rank: label.rank,
-  originalX: label.x,
-  originalY: label.y,
-  ...candidate,
-})
-
-const countTopTenLabelCollisions = (
-  candidate: TopTenLabelCandidate,
-  positionedLabels: readonly PositionedStatusMapTopTenLabel[],
-) =>
-  positionedLabels.filter(label => hasTopTenLabelCollision(candidate, [label]))
-    .length
-
-const findBestEffortTopTenLabelPositions = (
-  rankedLabels: readonly (StatusMapLabel & { rank: number })[],
-  candidatesByLabel: readonly TopTenLabelCandidate[][],
-) => {
-  const positionedLabels: PositionedStatusMapTopTenLabel[] = []
-
-  for (const [index, label] of rankedLabels.entries()) {
-    const candidates = candidatesByLabel[index]
-    const bestCandidate = candidates.reduce((best, candidate) =>
-      countTopTenLabelCollisions(candidate, positionedLabels) <
-      countTopTenLabelCollisions(best, positionedLabels)
-        ? candidate
-        : best,
-    )
-
-    positionedLabels.push(toPositionedTopTenLabel(label, bestCandidate))
-  }
-
-  return positionedLabels
-}
-
-const findExactTopTenLabelPositions = (
-  rankedLabels: readonly (StatusMapLabel & { rank: number })[],
-  candidatesByLabel: readonly TopTenLabelCandidate[][],
-): PositionedStatusMapTopTenLabel[] | null => {
-  if (rankedLabels.length > TOP_TEN_LABEL_EXACT_SEARCH_MAX_LABELS) {
-    return null
-  }
-
-  const assignedLabels = Array<PositionedStatusMapTopTenLabel | undefined>(
-    rankedLabels.length,
-  )
-  let visitedNodeCount = 0
-
-  const search = (remainingIndexes: readonly number[]): boolean => {
-    if (remainingIndexes.length === 0) return true
-    if (visitedNodeCount >= TOP_TEN_LABEL_EXACT_SEARCH_NODE_BUDGET) return false
-
-    const positionedLabels = assignedLabels.filter(
-      (label): label is PositionedStatusMapTopTenLabel => label !== undefined,
-    )
-    const nextLabel = remainingIndexes
-      .map(index => ({
-        index,
-        candidates: candidatesByLabel[index].filter(
-          candidate => !hasTopTenLabelCollision(candidate, positionedLabels),
-        ),
-      }))
-      .sort(
-        (first, second) =>
-          first.candidates.length - second.candidates.length ||
-          rankedLabels[first.index].rank - rankedLabels[second.index].rank ||
-          rankedLabels[first.index].districtCode.localeCompare(
-            rankedLabels[second.index].districtCode,
-          ),
-      )[0]
-
-    if (nextLabel.candidates.length === 0) return false
-
-    const nextRemainingIndexes = remainingIndexes.filter(
-      index => index !== nextLabel.index,
-    )
-
-    for (const candidate of nextLabel.candidates) {
-      if (visitedNodeCount >= TOP_TEN_LABEL_EXACT_SEARCH_NODE_BUDGET) {
-        return false
-      }
-
-      visitedNodeCount += 1
-      assignedLabels[nextLabel.index] = toPositionedTopTenLabel(
-        rankedLabels[nextLabel.index],
-        candidate,
-      )
-
-      if (search(nextRemainingIndexes)) return true
-
-      assignedLabels[nextLabel.index] = undefined
-    }
-
-    return false
-  }
-
-  const found = search(rankedLabels.map((_, index) => index))
-
-  return found
-    ? assignedLabels.filter(
-        (label): label is PositionedStatusMapTopTenLabel => label !== undefined,
-      )
-    : null
-}
-
-export function layoutStatusMapTopTenLabels(
-  labels: readonly StatusMapLabel[],
-): PositionedStatusMapTopTenLabel[] {
-  const rankedLabels = labels
-    .filter(
-      (label): label is StatusMapLabel & { rank: number } =>
-        label.isTopTen && label.rank !== null,
-    )
-    .sort(
-      (first, second) =>
-        first.rank - second.rank ||
-        first.districtCode.localeCompare(second.districtCode),
-    )
-  const candidatesByLabel = rankedLabels.map(createTopTenLabelCandidates)
-
-  // 완전 해를 찾지 못해도 충돌 수가 가장 적은 결정적 배치를 반환합니다.
-  return (
-    findExactTopTenLabelPositions(rankedLabels, candidatesByLabel) ??
-    findBestEffortTopTenLabelPositions(rankedLabels, candidatesByLabel)
-  )
+  return `${metricLabel} ${label.rank}위 · ${formatStatusValue(metric, item.value)} · ${formatStatusChange(item.changeRate)}`
 }
 
 export default function StatusMap({
@@ -529,15 +339,66 @@ export default function StatusMap({
   onBackgroundClick,
   backgroundAction,
 }: StatusMapProps) {
+  // hover 와 키보드 포커스는 따로 둔다. 한 상태를 나눠 쓰면 Tab 으로 고른 구 위를 마우스가
+  // 스치고 떠날 때 포커스 표시까지 지워진다.
+  const [hoveredCode, setHoveredCode] = useState<string | null>(null)
+  const [focusedCode, setFocusedCode] = useState<string | null>(null)
   const labels = createStatusMapLabels(items, SEOUL_STATUS_FEATURES, districts)
-  const topTenLabelPositions = layoutStatusMapTopTenLabels(labels)
-  const topTenLabelPositionsByDistrictCode = new Map(
-    topTenLabelPositions.map(position => [position.districtCode, position]),
+  const labelsByDistrictCode = new Map(
+    labels.map(label => [label.districtCode, label]),
+  )
+  const itemsByDistrictCode = new Map(
+    items.map(item => [item.districtCode, item]),
+  )
+  const wideModes = resolveStatusMapLabelModes(
+    labels,
+    STATUS_MAP_LABEL_TIERS.wide,
+  )
+  const narrowModes = resolveStatusMapLabelModes(
+    labels,
+    STATUS_MAP_LABEL_TIERS.narrow,
   )
   const selectedFeature = findSelectedStatusMapFeature(
     SEOUL_STATUS_FEATURES,
     selectedDistrictCode,
   )
+  const hoveredFeature = findSelectedStatusMapFeature(
+    SEOUL_STATUS_FEATURES,
+    hoveredCode,
+  )
+  const focusedFeature = findSelectedStatusMapFeature(
+    SEOUL_STATUS_FEATURES,
+    focusedCode,
+  )
+  // 툴팁은 하나만 띄운다. 마우스가 가리키는 곳이 지금 보는 곳이라 hover 가 먼저다.
+  const tooltipCode = hoveredCode ?? focusedCode
+  const tooltipLabel = tooltipCode
+    ? labelsByDistrictCode.get(tooltipCode)
+    : undefined
+
+  const clearIfCurrent = (districtCode: string) => (current: string | null) =>
+    current === districtCode ? null : current
+
+  const handleKeyDown = (
+    event: KeyboardEvent<SVGPathElement>,
+    districtCode: string,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onSelect(districtCode)
+    }
+  }
+
+  // 마우스로 눌러도 path 에 포커스가 간다. 툴팁은 키보드 포커스(:focus-visible)에만 띄워
+  // 터치 탭 뒤에 툴팁이 남아 지도를 가리지 않게 한다.
+  const handleFocus = (
+    event: FocusEvent<SVGPathElement>,
+    districtCode: string,
+  ) => {
+    if (event.currentTarget.matches(':focus-visible')) {
+      setFocusedCode(districtCode)
+    }
+  }
 
   return (
     <Figure>
@@ -551,76 +412,111 @@ export default function StatusMap({
         ) : null}
         <MapViewport data-status-map-label-viewport="800x620">
           <SeoulSilhouette
-            aria-hidden="true"
+            aria-label={`서울 자치구 지도, ${STATUS_METRIC_LABELS[metric]} 기준`}
             data-status-map-shape-layer="800x620"
             preserveAspectRatio="xMidYMid meet"
+            role="group"
             viewBox={SEOUL_STATUS_VIEW_BOX}
           >
-            {SEOUL_STATUS_FEATURES.map(feature => (
-              <DistrictPath
-                key={feature.districtCode}
-                d={feature.path}
-                data-status-district-path={feature.districtCode}
-              />
-            ))}
+            {SEOUL_STATUS_FEATURES.map(feature => {
+              const label = labelsByDistrictCode.get(feature.districtCode)
+              if (!label) return null
+
+              return (
+                <DistrictPath
+                  key={feature.districtCode}
+                  aria-label={`${label.districtName}, ${describeDistrict(
+                    metric,
+                    label,
+                    itemsByDistrictCode.get(feature.districtCode),
+                  )}`}
+                  aria-pressed={feature.districtCode === selectedDistrictCode}
+                  d={feature.path}
+                  data-status-district-path={feature.districtCode}
+                  role="button"
+                  tabIndex={0}
+                  onBlur={() =>
+                    setFocusedCode(clearIfCurrent(feature.districtCode))
+                  }
+                  onClick={() => onSelect(feature.districtCode)}
+                  onFocus={event => handleFocus(event, feature.districtCode)}
+                  onKeyDown={event =>
+                    handleKeyDown(event, feature.districtCode)
+                  }
+                  onPointerEnter={event => {
+                    if (event.pointerType === 'touch') return
+                    setHoveredCode(feature.districtCode)
+                  }}
+                  onPointerLeave={() =>
+                    setHoveredCode(clearIfCurrent(feature.districtCode))
+                  }
+                />
+              )
+            })}
             {selectedFeature ? (
               <SelectedDistrictPath
                 d={selectedFeature.path}
                 data-selected-district-code={selectedFeature.districtCode}
               />
             ) : null}
-            {topTenLabelPositions.map(position =>
-              position.originalX === position.displayX &&
-              position.originalY === position.displayY ? null : (
-                <LabelLeaderLine
-                  key={position.districtCode}
-                  d={`M ${position.originalX} ${position.originalY} L ${position.displayX} ${position.displayY}`}
-                  data-status-label-leader={position.districtCode}
-                />
-              ),
-            )}
+            {/* hover 강조는 선택 구에 겹치지 않는다. 키보드 포커스는 선택 구 위에도 점선으로 보인다. */}
+            {hoveredFeature &&
+            hoveredFeature.districtCode !== selectedDistrictCode ? (
+              <ActiveDistrictOutline d={hoveredFeature.path} />
+            ) : null}
+            {focusedFeature ? (
+              <FocusedDistrictOutline
+                d={focusedFeature.path}
+                data-status-map-focus={focusedFeature.districtCode}
+              />
+            ) : null}
           </SeoulSilhouette>
-          <MapLabelLayer data-status-map-label-layer="800x620">
-            {labels.map(label => {
-              const isSelected = label.districtCode === selectedDistrictCode
-              const topTenLabelPosition =
-                topTenLabelPositionsByDistrictCode.get(label.districtCode)
-              const displayX = topTenLabelPosition?.displayX ?? label.x
-              const displayY = topTenLabelPosition?.displayY ?? label.y
-
-              if (!label.isTopTen || label.rank === null) {
-                return (
-                  <DistrictLabel
-                    key={label.districtCode}
-                    $x={displayX}
-                    $y={displayY}
-                    data-status-district-label={label.districtCode}
-                  >
-                    {label.districtName}
-                  </DistrictLabel>
-                )
-              }
-
-              return (
-                <RankedDistrictLabel
-                  key={label.districtCode}
-                  $selected={isSelected}
-                  $rank={label.rank}
-                  $x={displayX}
-                  $y={displayY}
-                  aria-label={`${label.rank}위 ${label.districtName}, ${METRIC_LABELS[metric]} 기준`}
-                  aria-pressed={isSelected}
-                  data-status-district-label={label.districtCode}
-                  type="button"
-                  onClick={() => onSelect(label.districtCode)}
-                >
-                  <RankDistrictName>{label.districtName}</RankDistrictName>
-                  <RankNumber data-status-rank={label.rank}>
-                    {label.rank}
-                  </RankNumber>
-                </RankedDistrictLabel>
-              )
-            })}
+          <MapLabelLayer
+            aria-hidden="true"
+            data-status-map-label-layer="800x620"
+          >
+            {labels.map(label => (
+              <MapLabel
+                key={label.districtCode}
+                $selected={label.districtCode === selectedDistrictCode}
+                $x={label.x}
+                $y={label.y}
+                data-narrow-mode={narrowModes.get(label.districtCode)}
+                data-ranked={label.rank !== null}
+                data-status-district-label={label.districtCode}
+                data-wide-mode={wideModes.get(label.districtCode)}
+              >
+                {label.rank !== null ? (
+                  <RankDot data-status-rank={label.rank}>{label.rank}</RankDot>
+                ) : null}
+                <LabelName>{label.districtName}</LabelName>
+              </MapLabel>
+            ))}
+            {tooltipLabel ? (
+              <DistrictTooltip
+                $align={
+                  tooltipLabel.x < TOOLTIP_EDGE_X
+                    ? 'start'
+                    : tooltipLabel.x >
+                        STATUS_MAP_VIEW_BOX_SIZE.width - TOOLTIP_EDGE_X
+                      ? 'end'
+                      : 'center'
+                }
+                $below={tooltipLabel.y < TOOLTIP_FLIP_BELOW_Y}
+                $x={tooltipLabel.x}
+                $y={tooltipLabel.y}
+                data-status-map-tooltip={tooltipLabel.districtCode}
+              >
+                <TooltipTitle>{tooltipLabel.districtName}</TooltipTitle>
+                <TooltipMetric>
+                  {describeDistrict(
+                    metric,
+                    tooltipLabel,
+                    itemsByDistrictCode.get(tooltipLabel.districtCode),
+                  )}
+                </TooltipMetric>
+              </DistrictTooltip>
+            ) : null}
           </MapLabelLayer>
         </MapViewport>
       </MapCanvas>

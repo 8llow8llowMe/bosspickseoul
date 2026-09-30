@@ -1,9 +1,10 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { StatGrid } from './status-detail'
+import type { StatusSelectedDistrict } from '@/types/status'
+import StatusDetail, { StatGrid } from './status-detail'
 
 const squeeze = (css: string): string => css.replace(/\s+/g, '')
 
@@ -29,5 +30,54 @@ describe('/status 상세카드 지표 그리드', () => {
 
     expect(css).toContain('repeat(auto-fit,minmax(200px,1fr))')
     expect(css).toContain('max-width:var(--w-wide)')
+  })
+})
+
+describe('/status 상세 머리', () => {
+  const renderHeader = (
+    selectedDistrict: StatusSelectedDistrict,
+    metric: 'sales' | 'opened' = 'sales',
+  ) =>
+    renderToStaticMarkup(
+      createElement(StatusDetail, {
+        metric,
+        selectedDistrict,
+        detail: null,
+        isLoading: true,
+        error: null,
+        onRetry: vi.fn(),
+      }),
+    )
+
+  it('순위 안의 구는 값·변화율과 「지표 N위」를 함께 적는다', () => {
+    const markup = renderHeader({
+      districtCode: '11680',
+      districtName: '강남구',
+      rankedItem: {
+        rank: 1,
+        districtCode: '11680',
+        districtName: '강남구',
+        value: 3_134_652_050_000,
+        changeRate: -4.3,
+      },
+    })
+
+    expect(markup).toContain('강남구 상세')
+    expect(markup).toContain('3조 1,347억원')
+    expect(markup).toContain('-4.3%')
+    expect(markup).toContain('매출 1위')
+  })
+
+  it('순위 밖 구는 값 없이 「지표 상위 10위 밖」만 적는다', () => {
+    // Top10 응답만으로는 순위 밖 구의 지표 값을 알 수 없다 — 새 호출을 만들지 않는다.
+    const markup = renderHeader(
+      { districtCode: '11650', districtName: '서초구', rankedItem: null },
+      'opened',
+    )
+
+    expect(markup).toContain('서초구 상세')
+    expect(markup).toContain('개업 상위 10위 밖')
+    expect(markup).not.toContain('%')
+    expect(markup).not.toContain('데이터 없음')
   })
 })

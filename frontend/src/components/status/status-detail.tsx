@@ -25,16 +25,18 @@ import {
   formatSinoUnit,
   formatStatusChange,
   formatStatusValue,
+  STATUS_METRIC_LABELS,
 } from '@/lib/status/status-formatters'
 import type {
   DistrictDetail,
   StatusMetric,
-  StatusRankedItem,
+  StatusSelectedDistrict,
 } from '@/types/status'
 
 type StatusDetailProps = {
   metric: StatusMetric
-  selectedItem: StatusRankedItem | null
+  /** 순위 밖 구도 올 수 있다 — 그때 `rankedItem` 이 null 이다. */
+  selectedDistrict: StatusSelectedDistrict | null
   detail: DistrictDetail | null
   isLoading: boolean
   /**
@@ -205,12 +207,13 @@ const Title = styled.h2<{ $compact?: boolean }>`
   line-height: ${props => (props.$compact ? '22px' : '30px')};
 `
 
-// 값(00명)과 변화(감소 -x%)를 한 줄에 가로로 붙여 컴팩트하게 보여준다.
+// 값(00명)과 변화(감소 -x%)를 한 줄에 가로로 붙인다. 좁으면 **칩을 통째로** 다음 줄로
+// 보낸다 — 예전엔 nowrap 이라 값이 「…5205만 / 원」으로 쪼개지고 칩이 「감 / 소」로 세워졌다.
 const HeaderMetric = styled.div`
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
+  gap: 4px 10px;
 `
 
 const HeaderValue = styled.strong`
@@ -218,6 +221,15 @@ const HeaderValue = styled.strong`
   font-size: 20px;
   font-variant-numeric: tabular-nums;
   line-height: 28px;
+  white-space: nowrap;
+`
+
+// 머리 숫자가 무슨 지표의 몇 위인지 적는다. 순위 밖 구는 이 줄만 남는다.
+const HeaderRank = styled.p`
+  color: var(--color-text-600);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
 `
 
 const changeToneColor = (tone: ChangeTone): string => {
@@ -245,6 +257,7 @@ const HeaderChange = styled.span<{ $tone: ChangeTone }>`
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 `
 
 const Body = styled.div`
@@ -834,15 +847,17 @@ function SalesSection({
 
 function DetailHeader({
   metric,
-  selectedItem,
+  selectedDistrict,
   onBack,
   backButtonRef,
   variant = 'panel',
 }: Pick<
   StatusDetailProps,
-  'metric' | 'selectedItem' | 'onBack' | 'backButtonRef' | 'variant'
+  'metric' | 'selectedDistrict' | 'onBack' | 'backButtonRef' | 'variant'
 >) {
   const compact = variant === 'sheet'
+  const rankedItem = selectedDistrict?.rankedItem ?? null
+  const metricLabel = STATUS_METRIC_LABELS[metric]
   return (
     <Header $compact={compact}>
       <HeaderMain>
@@ -863,20 +878,29 @@ function DetailHeader({
         ) : null}
         <HeaderContent>
           <Title $compact={compact}>
-            {selectedItem ? `${selectedItem.districtName} 상세` : '자치구 상세'}
+            {selectedDistrict
+              ? `${selectedDistrict.districtName} 상세`
+              : '자치구 상세'}
           </Title>
-          {selectedItem ? (
+          {rankedItem ? (
             <HeaderMetric>
               <HeaderValue>
-                {formatStatusValue(metric, selectedItem.value)}
+                {formatStatusValue(metric, rankedItem.value)}
               </HeaderValue>
               <HeaderChange
-                $tone={getChangeTone(metric, selectedItem.changeRate)}
+                $tone={getChangeTone(metric, rankedItem.changeRate)}
               >
-                <span>{getChangeCue(metric, selectedItem.changeRate)}</span>
-                <span>{formatStatusChange(selectedItem.changeRate)}</span>
+                <span>{getChangeCue(metric, rankedItem.changeRate)}</span>
+                <span>{formatStatusChange(rankedItem.changeRate)}</span>
               </HeaderChange>
             </HeaderMetric>
+          ) : null}
+          {selectedDistrict ? (
+            <HeaderRank data-status-detail-rank>
+              {rankedItem
+                ? `${metricLabel} ${rankedItem.rank}위`
+                : `${metricLabel} 상위 10위 밖`}
+            </HeaderRank>
           ) : null}
         </HeaderContent>
       </HeaderMain>
@@ -886,7 +910,7 @@ function DetailHeader({
 
 export default function StatusDetail({
   metric,
-  selectedItem,
+  selectedDistrict,
   detail,
   isLoading,
   error,
@@ -901,7 +925,7 @@ export default function StatusDetail({
         backButtonRef={backButtonRef}
         metric={metric}
         onBack={onBack}
-        selectedItem={selectedItem}
+        selectedDistrict={selectedDistrict}
         variant={variant}
       />
       {isLoading ? (
@@ -938,11 +962,11 @@ export default function StatusDetail({
           <FootTrafficSection detail={detail} />
           <StoreSection
             detail={detail}
-            districtCode={selectedItem?.districtCode ?? null}
+            districtCode={selectedDistrict?.districtCode ?? null}
           />
           <SalesSection
             detail={detail}
-            districtCode={selectedItem?.districtCode ?? null}
+            districtCode={selectedDistrict?.districtCode ?? null}
           />
         </Body>
       ) : (

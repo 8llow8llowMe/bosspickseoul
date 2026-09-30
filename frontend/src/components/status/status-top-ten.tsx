@@ -6,6 +6,7 @@ import styled from 'styled-components'
 import {
   formatStatusChange,
   formatStatusValue,
+  STATUS_METRIC_LABELS,
 } from '@/lib/status/status-formatters'
 import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
@@ -17,13 +18,6 @@ type StatusTopTenProps = {
 }
 
 type ChangeTone = 'danger' | 'neutral' | 'success' | 'warning'
-
-const METRIC_LABELS: Record<StatusMetric, string> = {
-  footTraffic: '유동인구',
-  sales: '매출',
-  opened: '개업',
-  closed: '폐업',
-}
 
 const getChangeTone = (
   metric: StatusMetric,
@@ -236,7 +230,7 @@ export default function StatusTopTen({
 
   return (
     <Section aria-labelledby={headingId}>
-      <Heading id={headingId}>{METRIC_LABELS[metric]} TOP 10</Heading>
+      <Heading id={headingId}>{STATUS_METRIC_LABELS[metric]} TOP 10</Heading>
       {topTenItems.length > 0 ? (
         <RankingList>
           {topTenItems.map(item => {

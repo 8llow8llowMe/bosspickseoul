@@ -12,7 +12,9 @@ import {
   normalizeStatusSelection,
   parseStatusMetric,
   resolveSheetSnapFromDrag,
+  resolveStatusSelectedDistrict,
 } from './status-state'
+import type { StatusRankedItem } from '@/types/status'
 
 describe('createStatusHref', () => {
   const query = new URLSearchParams('metric=sales&district=11680')
@@ -89,16 +91,57 @@ describe('parseStatusMetric', () => {
 })
 
 describe('normalizeStatusSelection', () => {
-  const topTenCodes = ['11680', '11740']
+  const districtCodes = ['11680', '11740', '11110']
 
-  it('keeps a selected district code included in the current top ten', () => {
-    expect(normalizeStatusSelection('11680', topTenCodes)).toBe('11680')
+  it('keeps any Seoul district code, not only the current top ten', () => {
+    expect(normalizeStatusSelection('11110', districtCodes)).toBe('11110')
   })
 
-  it.each(['11110', null, undefined])(
-    'returns null when the selected district code is unavailable: %s',
+  it.each(['99999', '', null, undefined])(
+    'returns null when the selected district code is not a Seoul district: %s',
     districtCode => {
-      expect(normalizeStatusSelection(districtCode, topTenCodes)).toBeNull()
+      expect(normalizeStatusSelection(districtCode, districtCodes)).toBeNull()
+    },
+  )
+})
+
+describe('resolveStatusSelectedDistrict', () => {
+  const records = [
+    { gooCode: 11680, gooName: '강남구' },
+    { gooCode: 11650, gooName: '서초구' },
+  ]
+  const items: StatusRankedItem[] = [
+    {
+      rank: 1,
+      districtCode: '11680',
+      districtName: '강남구',
+      value: 100,
+      changeRate: 2.5,
+    },
+  ]
+
+  it('attaches the ranked item when the district is in the current top ten', () => {
+    expect(resolveStatusSelectedDistrict('11680', items, records)).toEqual({
+      districtCode: '11680',
+      districtName: '강남구',
+      rankedItem: items[0],
+    })
+  })
+
+  it('selects a district outside the top ten with a null ranked item', () => {
+    expect(resolveStatusSelectedDistrict('11650', items, records)).toEqual({
+      districtCode: '11650',
+      districtName: '서초구',
+      rankedItem: null,
+    })
+  })
+
+  it.each([null, '99999'])(
+    'returns null without a resolvable district: %s',
+    districtCode => {
+      expect(
+        resolveStatusSelectedDistrict(districtCode, items, records),
+      ).toBeNull()
     },
   )
 })

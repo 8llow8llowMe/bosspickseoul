@@ -24,8 +24,11 @@ import {
   getNextSheetSnap,
   normalizeStatusSelection,
   parseStatusMetric,
+  resolveStatusSelectedDistrict,
   type StatusSheetState,
 } from '@/lib/status/status-state'
+import { districts } from '@/data/districts'
+import { SEOUL_STATUS_FEATURES } from '@/data/seoul-status-map'
 import StatusDetail from './status-detail'
 import StatusFeedback from './status-feedback'
 import StatusMap from './status-map'
@@ -36,6 +39,10 @@ import { shellWidth } from '@/styles/layout'
 
 const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
+// 선택할 수 있는 구 = 지도에 그려진 25개 구. 현재 지표 Top10 과 무관하다.
+const SELECTABLE_DISTRICT_CODES = SEOUL_STATUS_FEATURES.map(
+  feature => feature.districtCode,
+)
 // 구별현황은 한 화면(100dvh - 헤더 65px)에 들어오도록 세로 flex로 구성하고,
 // 지도/리스트가 남는 높이를 채우며 긴 패널은 내부 스크롤로 처리한다.
 const Page = styled.main`
@@ -135,24 +142,21 @@ const detailEnter = keyframes`
  * 예전에는 자치구를 고르면 **지도 자리**가 상세로 바뀌었다. 방금 누른 폴리곤이 통째로
  * 사라져 어디를 골랐는지 맥락을 잃고, 다른 구로 옮기려면 닫고 다시 골라야 했다. 이제
  * 상세가 **순위 목록 자리를 덮고** 지도는 그대로 남아 선택 구를 강조한다 — 모바일 시트
- * (Top10 → 상세)·상권추천 좌측 패널과 같은 관용구다. 상세는 차트가 있어 목록(280px)보다
- * 넓어야 하므로 선택 중에는 좌측 열을 넓힌다.
+ * (Top10 → 상세)·상권추천 좌측 패널과 같은 관용구다.
+ *
+ * 좌측 열 폭은 목록일 때와 상세일 때 **같다.** 예전엔 선택하면 280px → 최대 480px 로
+ * 넓어져 지도가 통째로 다시 배치됐고, 방금 누른 구를 눈으로 다시 찾아야 했다. 상세의
+ * 차트가 들어갈 만큼(340px 이상)을 목록에도 준다 — 목록 행은 넓어져도 해가 없다.
  */
 const DesktopGrid = styled.div`
-  --status-side-track: 280px;
-
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--status-side-track) minmax(0, 1fr);
+  grid-template-columns: clamp(340px, 32%, 440px) minmax(0, 1fr);
   align-items: stretch;
   gap: 20px;
 
-  &[data-has-selection='true'] {
-    --status-side-track: clamp(340px, 40%, 480px);
-  }
-
-  /* 태블릿(768~1023): 간격만 줄이고 리스트 폭(280)은 유지해 값이 잘리지 않게 한다. */
+  /* 태블릿(768~1023): 간격만 줄인다. 좌측 열은 하한 340px 을 그대로 쓴다. */
   @media (max-width: 1023px) {
     gap: 16px;
   }
@@ -278,11 +282,6 @@ const MobileMapLayer = styled.div`
     max-height: 100%;
     aspect-ratio: 800 / 620;
   }
-
-  /* 모바일 스테이지에서는 캡션을 숨겨(순위 배지로 충분) 지도 몫을 넓힌다. */
-  > figure > figcaption {
-    display: none;
-  }
 `
 
 function StatusPageContent() {
@@ -300,6 +299,7 @@ function StatusPageContent() {
   })
 
   const desktopSideRef = useRef<HTMLDivElement>(null)
+  const desktopMapPanelRef = useRef<HTMLElement>(null)
   const desktopBackButtonRef = useRef<HTMLButtonElement>(null)
   const previousSelectionRef = useRef<string | null | undefined>(undefined)
 
@@ -320,14 +320,13 @@ function StatusPageContent() {
 
   const currentItems = topTen?.[metric] ?? []
   const selectedDistrictCode = topTen
-    ? normalizeStatusSelection(
-        requestedDistrictCode,
-        currentItems.map(item => item.districtCode),
-      )
+    ? normalizeStatusSelection(requestedDistrictCode, SELECTABLE_DISTRICT_CODES)
     : null
-  const selectedItem =
-    currentItems.find(item => item.districtCode === selectedDistrictCode) ??
-    null
+  const selectedDistrict = resolveStatusSelectedDistrict(
+    selectedDistrictCode,
+    currentItems,
+    districts,
+  )
   const sheetSnap =
     sheetState.districtCode === selectedDistrictCode
       ? sheetState.snap
@@ -388,7 +387,7 @@ function StatusPageContent() {
     // 들어온 선택이 도착하는 순간을 사용자 전환으로 오인해 페이지 진입 때 포커스를 뺏는다.
     if (!topTen) return
     const previous = previousSelectionRef.current
-    previousSelectionRef.current = selectedItem?.districtCode ?? null
+    previousSelectionRef.current = selectedDistrict?.districtCode ?? null
     if (previous === undefined || previous === previousSelectionRef.current) {
       return
     }
@@ -406,19 +405,26 @@ function StatusPageContent() {
         active.offsetParent === null)
     if (!hasLostFocus) return
 
-    if (selectedItem) {
+    if (selectedDistrict) {
       desktopBackButtonRef.current?.focus({ preventScroll: true })
       return
     }
 
+    // 순위 밖 구(지도에서 고른 구, 또는 지표를 바꿔 목록에서 빠진 구)는 목록 행이 없다.
+    // 그때는 그 구의 지도 폴리곤으로 돌려준다.
     if (previous) {
-      side
-        .querySelector<HTMLButtonElement>(
-          `[data-status-top-ten-panel] [data-district-code="${previous}"]`,
-        )
-        ?.focus({ preventScroll: true })
+      const listRow = side.querySelector<HTMLButtonElement>(
+        `[data-status-top-ten-panel] [data-district-code="${previous}"]`,
+      )
+      const mapPolygon = desktopMapPanelRef.current?.querySelector<SVGElement>(
+        `[data-status-district-path="${previous}"]`,
+      )
+
+      const returnTarget = listRow ?? mapPolygon
+
+      returnTarget?.focus({ preventScroll: true })
     }
-  }, [selectedItem, topTen])
+  }, [selectedDistrict, topTen])
 
   const pushStatusQuery = (
     nextMetric: typeof metric,
@@ -435,13 +441,14 @@ function StatusPageContent() {
     })
   }
 
+  // 지표를 바꿔도 보던 구는 그대로 둔다. 상세는 구 단위라 지표와 무관하고, 머리의
+  // 숫자·순위만 새 지표로 바뀐다(새 Top10 밖이면 「상위 10위 밖」). 시트 높이도 유지한다.
   const handleMetricChange = (nextMetric: typeof metric) => {
     if (nextMetric === metric) {
       return
     }
 
-    setSheetState({ districtCode: null, snap: 'expanded' })
-    pushStatusQuery(nextMetric, null)
+    pushStatusQuery(nextMetric, selectedDistrictCode)
   }
 
   const handleDistrictSelect = (districtCode: string) => {
@@ -539,10 +546,10 @@ function StatusPageContent() {
           id={METRIC_PANEL_ID}
           role="tabpanel"
         >
-          <DesktopGrid data-has-selection={selectedItem !== null}>
+          <DesktopGrid>
             <DesktopSide
               ref={desktopSideRef}
-              data-has-selection={selectedItem !== null}
+              data-has-selection={selectedDistrict !== null}
             >
               <DesktopPanel data-status-top-ten-panel>
                 <StatusTopTen
@@ -554,17 +561,17 @@ function StatusPageContent() {
               </DesktopPanel>
 
               <DesktopDetailSlot
-                key={selectedItem?.districtCode ?? 'none'}
+                key={selectedDistrict?.districtCode ?? 'none'}
                 data-status-detail-slot
               >
-                {selectedItem ? (
+                {selectedDistrict ? (
                   <StatusDetail
                     backButtonRef={desktopBackButtonRef}
                     detail={detail}
                     error={detailError}
                     isLoading={isDetailLoading}
                     metric={metric}
-                    selectedItem={selectedItem}
+                    selectedDistrict={selectedDistrict}
                     onBack={handleClearDistrict}
                     onRetry={() => void detailQuery.refetch()}
                   />
@@ -572,7 +579,7 @@ function StatusPageContent() {
               </DesktopDetailSlot>
             </DesktopSide>
 
-            <MapPanel data-status-map-panel>
+            <MapPanel ref={desktopMapPanelRef} data-status-map-panel>
               <StatusMap
                 items={currentItems}
                 metric={metric}
@@ -601,7 +608,7 @@ function StatusPageContent() {
               isDetailLoading={isDetailLoading}
               items={currentItems}
               metric={metric}
-              selectedItem={selectedItem}
+              selectedDistrict={selectedDistrict}
               snap={sheetSnap}
               onBackToTopTen={handleClearDistrict}
               onRetryDetail={() => void detailQuery.refetch()}

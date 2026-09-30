@@ -25,6 +25,7 @@ import type {
   DistrictDetail,
   StatusMetric,
   StatusRankedItem,
+  StatusSelectedDistrict,
 } from '@/types/status'
 import StatusDetail from './status-detail'
 import StatusTopTen from './status-top-ten'
@@ -32,7 +33,7 @@ import StatusTopTen from './status-top-ten'
 type StatusMobileSheetProps = {
   metric: StatusMetric
   items: StatusRankedItem[]
-  selectedItem: StatusRankedItem | null
+  selectedDistrict: StatusSelectedDistrict | null
   detail: DistrictDetail | null
   isDetailLoading: boolean
   detailError: NormalizedApiError | null
@@ -152,7 +153,7 @@ const SheetBody = styled.div<{ $isExpanded: boolean }>`
 export default function StatusMobileSheet({
   metric,
   items,
-  selectedItem,
+  selectedDistrict,
   detail,
   isDetailLoading,
   detailError,
@@ -178,7 +179,7 @@ export default function StatusMobileSheet({
   const handleRef = useRef<HTMLButtonElement>(null)
   const backButtonRef = useRef<HTMLButtonElement>(null)
   const previousDetailStateRef = useRef<boolean | null>(null)
-  const isShowingDetail = selectedItem !== null
+  const isShowingDetail = selectedDistrict !== null
 
   useLayoutEffect(() => {
     const previousDetailState = previousDetailStateRef.current
@@ -201,6 +202,28 @@ export default function StatusMobileSheet({
 
     previousDetailStateRef.current = isShowingDetail
   }, [isShowingDetail])
+
+  /*
+   * 상세 → 다른 구 상세로 곧장 옮기면 위 전환(목록 ↔ 상세)이 일어나지 않아 스크롤이
+   * 이전 구의 깊이에 남는다. 25개 폴리곤이 모두 눌리게 된 뒤로 흔한 경로라, 구가
+   * 바뀌면 본문을 맨 위로 되돌려 새 구의 머리부터 보이게 한다. 포커스는 건드리지 않는다.
+   */
+  const selectedDistrictCode = selectedDistrict?.districtCode ?? null
+  const previousDistrictCodeRef = useRef(selectedDistrictCode)
+
+  useLayoutEffect(() => {
+    const previousDistrictCode = previousDistrictCodeRef.current
+    previousDistrictCodeRef.current = selectedDistrictCode
+
+    if (
+      previousDistrictCode !== null &&
+      selectedDistrictCode !== null &&
+      previousDistrictCode !== selectedDistrictCode &&
+      sheetBodyRef.current
+    ) {
+      sheetBodyRef.current.scrollTop = 0
+    }
+  }, [selectedDistrictCode])
 
   useEffect(() => {
     const pointerId = pointerIdRef.current
@@ -380,19 +403,19 @@ export default function StatusMobileSheet({
         $isExpanded={snap === 'expanded'}
         aria-hidden={snap === 'collapsed'}
         aria-label={
-          selectedItem ? '선택 지역 상세' : '구별 상권 상위 10개 목록'
+          selectedDistrict ? '선택 지역 상세' : '구별 상권 상위 10개 목록'
         }
         inert={snap === 'collapsed' || undefined}
         role="region"
       >
-        {selectedItem ? (
+        {selectedDistrict ? (
           <StatusDetail
             backButtonRef={backButtonRef}
             detail={detail}
             error={detailError}
             isLoading={isDetailLoading}
             metric={metric}
-            selectedItem={selectedItem}
+            selectedDistrict={selectedDistrict}
             variant="sheet"
             onBack={onBackToTopTen}
             onRetry={onRetryDetail}
