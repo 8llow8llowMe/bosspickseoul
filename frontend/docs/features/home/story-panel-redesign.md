@@ -8,7 +8,7 @@
 > **입력 문서**: 2026-09-30 판단 흐름 화면 검토(스크린샷 4장) · 시안 A(「큰 숫자 + 데모」, 같은 날 사용자 선택)
 > **대상**: 웹 (Next.js App Router)
 > **작성자**: Claude Code
-> **상태**: 구현 중
+> **상태**: 구현 완료(2026-09-30)
 
 이 문서는 [home 공통 명세](./home.md) S3 #3(판단 흐름)의 **패널과 데모 표현**을 구현 수준으로 상세화한 세부 명세입니다.
 
@@ -74,7 +74,7 @@
 | 5   | 큰 숫자가 말한 값을 데모가 **또** 강조하지 않는다(02 `+5.3%` 중복 · 04 헤드라인 중복 제거)                         | D4-7, D4-9 |
 | 6   | 차트는 공용 `LineChart`·`DonutChart` 를 쓰지 않고 홈 전용 `StoryLineChart` 를 쓴다. 곡선 보간을 쓰지 않는다        | D4-6       |
 | 7   | 가로 막대는 DESIGN.md §Charts 미터 행 규칙(상한 360px · 두께 14px)을 따른다                                        | D4-5       |
-| 8   | 1100px 이상에서 탭을 바꿔도 아래 섹션이 밀리지 않는다(높이 예약값은 구현 후 실측으로 정한다)                       | D4-2       |
+| 8   | 1100px 이상에서 탭을 바꿔도 아래 섹션이 밀리지 않는다(높이 예약 570px — D7-3 실측)                                 | D4-2       |
 
 ---
 
@@ -131,9 +131,11 @@ type StoryLineChartProps = {
   highlight?: { index: number; label: string; tone: 'value' | 'callout' }
   /** x 라벨을 몇 개마다 하나씩 보일지(기본 1) */
   xLabelStep?: number
+  /** 눈금 개수 목표(computeNiceYScale tickCount, 기본 4). 02 는 3 */
+  tickCount?: number
 }
 export function storyLineGeometry(values, domain): { x: number; y: number }[] // 0~100 %
-export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(인덱스 단위)
+// split 의 경계는 clipPath 두 장(0 위 · 0 아래)으로 자른다 — 교차점을 따로 계산하지 않는다(D5-2)
 ```
 
 ### D3-4. 사용 라이브러리 / 기술
@@ -163,10 +165,11 @@ export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(
 
 - 2열 `minmax(0, 4fr) minmax(0, 8fr)` · gap 48px · padding 32px. 왼쪽 묶음은 **세로 가운데**(`align-self: center`).
 - ≤1099px: gap 32px · padding 24px. ≤768px: 1열(설명 위, 데모 아래) · padding 16px.
-- **높이 예약(≥1100px)**: 네 데모의 실측 최댓값 + 패딩으로 정한다(구현 후 D7 에서 재어 적는다). ≤1099px 은 예약하지 않는다(home-restructure D4-2 의 이유 승계).
-- 왼쪽 묶음 순서: 단계명 `h3`(14px/600 `--color-primary-700`) → 큰 숫자 → 캡션 → 설명(16px/24 `--color-text-700`) → 손에 남는 것(✓ 아이콘 + 15px/600 `--color-text-900`) → note → CTA.
+- **높이 예약(≥1100px)**: `min-height: 570px` — 실측 최댓값(1100px 에서 02 칩이 두 줄로 접힐 때 570, 1280 이상 538 · D7-3). ≤1099px 은 예약하지 않는다(home-restructure D4-2 의 이유 승계).
+- **데모 틀은 칸 높이를 채운다**(`flex: 1`). 가운데 정렬로 두면 틀 높이가 탭마다 384~504px 로 달라 탭을 넘길 때 틀이 출렁였다 — D4-4 「같은 틀」이 화면에서 깨진다.
+- 왼쪽 묶음 순서: 단계명 `h3`(14px/600 `--color-text-600` — primary-700 `#0ea5e9` 은 흰 바탕 2.77:1 이라 글자에 쓰지 않는다) → 큰 숫자 → 캡션 → 설명(16px/24 `--color-text-700`) → 손에 남는 것(✓ 아이콘 + 15px/600 `--color-text-900`) → note → CTA.
   - 「손에 남는 것」 라벨 글자는 화면에서 없앤다 — 체크 아이콘이 「이걸 얻는다」를 말한다. 스크린리더용으로 visually-hidden 「손에 남는 것:」 을 둔다.
-- CTA: 기존 규격(48px · `--color-primary-700` · hover `-600`) + 오른쪽 `ArrowRight` 16px.
+- CTA: 기존 규격(48px · 15px/600 · `--color-primary-700` · hover `-600`) + 오른쪽 `ArrowRight` 16px.
 
 | 단계 | CTA 라벨                   | href          |
 | ---- | -------------------------- | ------------- |
@@ -177,7 +180,9 @@ export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(
 
 ### D4-3. 큰 숫자 (`stepHighlight`)
 
-48px/700 · `tabular-nums` · letter-spacing -0.02em. 단위는 24px/700 로 붙인다. 캡션은 15px/500 `--color-text-600` 이고 **자간을 물려받지 않는다**(시안에서 뭉개졌다). ≤768px 은 40px/단위 20px.
+DESIGN.md §3 **Number Display 30px/700** · `tabular-nums`. 단위는 20px/700 로 붙인다. 캡션은 15px/500 `--color-text-600`. 03 의 `→` 는 `--color-text-caption`·500 으로 흐리게 한다(숫자 둘이 주인공).
+
+> 시안은 48px 였다. e2e `offScaleFontSizes` 가 DESIGN.md 스케일(12·13·14·16·20·22·26·30)만 인정해 48·40·24 가 기준선을 넘었다 — 기준선을 올리지 않고 스케일 안 최댓값(30)으로 맞췄다. 더 키우려면 DESIGN.md Number Display(30px+)를 e2e 스케일에 반영하는 결정이 먼저다(D8 #3).
 
 | 단계 | 조건                                | value              | unit   | caption                               |
 | ---- | ----------------------------------- | ------------------ | ------ | ------------------------------------- |
@@ -194,34 +199,36 @@ export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(
 
 ### D4-4. 공통 틀 (`DemoFrame`)
 
+- `leading`(제목 대신 머리줄 왼쪽에 두는 조작부 — 02 칩 · 04 요약) · `title` · `subtitle` · `aside` · `footer` 자리.
 - 배경 `--color-background-muted` · `1px --color-border-200` · `--radius-card` · padding 24px(≤768 16px) · 세로 flex.
-- 머리줄: 왼쪽에 제목(16px/700) + 보조(13px `--color-text-600`), 오른쪽에 `aside`(칩·배지·퍼널). 좁으면 줄바꿈.
-- 꼬리(`footer`): 13px `--color-text-600`, `margin-top: auto` — 본문이 짧아도 틀 바닥에 붙는다.
-- 「예시 데이터」 배지(`SampleBadge`): 12px/600 `--color-text-600` · 배경 `--color-surface-muted` · `--radius-compact`. 흩어져 있던 「대표 예시 데이터」 캡션을 이 배지로 모은다.
+- 머리줄: 왼쪽에 제목(16px/700) + 보조(13px `--color-text-700`), 오른쪽에 `aside`(칩·배지·퍼널). 좁으면 줄바꿈.
+- 꼬리(`footer`): 13px `--color-text-700`, `margin-top: auto` — 본문이 짧아도 틀 바닥에 붙는다.
+- 「예시 데이터」 배지(`SampleBadge`): 12px/600 `--color-text-700` · 배경 `--color-surface-muted` · `--radius-compact`. 흩어져 있던 「대표 예시 데이터」 캡션을 이 배지로 모은다.
 
 ### D4-5. 01 현황 — `MetricRankingBoard`
 
 - 머리줄: 제목 「자치구 순위」 · 보조 「상위 5곳 · 전월 대비」 · aside `MetricToggleGroup`.
 - `STORY_METRIC_TOP_N` 10 → **5**. 꼬리 「6위부터는 구별 현황에서 볼 수 있어요」. 폴백이면 보조 옆에 「예시 데이터」 배지.
-- `RankBarList` `compact` 변형(01 전용)을 바꾼다: 행 padding 12px · 막대 칸 상한 360px · 두께 14px(DESIGN.md 미터 행) · **1~3위만 `--color-primary-600`, 4위부터 `--color-grey-300`** · 1~3위 순위 숫자 `--color-primary-700` · 1~3위 행 배경 `--color-surface`. 값 13px/600 `--color-text-900`, 변화율은 값 옆 그대로.
+- `RankBarList` `compact` 변형(01 전용)을 바꾼다: 행 padding 12px · 막대 칸 상한 360px · 두께 14px(DESIGN.md 미터 행) · **1~3위만 `--color-primary-600`, 4위부터 `--color-grey-300`** · 1~3위 순위 숫자 `--color-text-900`·700 · 행 배경은 모두 `--color-surface`(틀 회색 위에서 변화율·순위 글자가 AA 미달이었다). 값 칸 150px 고정·오른쪽 정렬(`auto` 면 행마다 막대 끝이 어긋난다), 13px/600 `--color-text-900`, 변화율은 값 옆 그대로.
+- ≤480px: 두 줄(순위·이름·값 / 막대 전폭). 한 줄이면 375px 에서 막대가 30px 남짓으로 눌린다.
 - `card` 변형(랭킹 섹션)은 바꾸지 않는다.
 
 ### D4-6. 홈 전용 꺾은선 (`StoryLineChart`)
 
 - **SVG 는 선·면·격자만** 그린다: `viewBox="0 0 100 100"` · `preserveAspectRatio="none"` · 선은 `vector-effect: non-scaling-stroke`(2.5px).
 - **글자와 점은 HTML** 로 겹친다(%, `position: absolute`) — SVG 를 늘려도 글자가 찌그러지지 않고, 서버 렌더에서도 폭을 몰라도 된다.
-- y 눈금: `computeNiceYScale(values, 4)` 의 `ticks`·`domain`. 격자는 점선, 0 이 눈금에 있으면 0 선은 실선 `--color-grey-300`.
+- y 눈금: `computeNiceYScale(values, tickCount)` 의 `ticks`·`domain`(기본 4, 02 는 3 → 80·90·100). 축 글자는 `--color-text-700`(틀 배경 위 caption 은 4.42:1). 격자는 점선, 0 이 눈금에 있으면 0 선은 실선 `--color-grey-300`.
 - 보간: 직선(polyline). 곡선을 쓰지 않는다 — 없는 굴곡을 만든다.
 - `fill='area'`: 선 아래 `--color-primary-600` 불투명도 0.08.
-- `fill='split'`: 0 과 선 사이를 0 아래는 `--color-negative`, 위는 `--color-positive` 불투명도 0.12 로 칠한다. 경계는 선이 0 을 지나는 실제 x(`zeroCrossing`, 선형 보간).
-- `highlight`: 그 점에 10px 점(흰 테두리 2px) + 옆 라벨. `tone='value'` 는 선 색 글자(02 마지막 점 값), `tone='callout'` 은 어두운 말풍선 + 세로 점선(04 「{n}개월째 손익분기」).
+- `fill='split'`: 0 과 선 사이를 0 아래는 `--color-negative`, 위는 `--color-positive` 불투명도 0.12 로 칠한다. 경계는 clipPath 두 장(0 위 · 0 아래)으로 같은 면을 잘라 칠한다(D5-2).
+- `highlight`: 그 점에 10px 점(흰 테두리 2px) + 옆 라벨. `tone='value'` 는 `--color-text-900` 글자(02 마지막 점 값 — 선 색 primary-600 은 틀 위 4.2:1), `tone='callout'` 은 어두운 말풍선 + 세로 점선(04 「{n}개월째 손익분기」). 말풍선은 점이 오른쪽 절반이면 왼쪽에 붙인다 — 폭을 모르는 % 좌표라 좁은 화면에서 틀 밖으로 나갔다.
 - 툴팁은 두지 않는다 — 고정 툴팁이 고장처럼 보였고, 한 점 라벨로 충분하다.
 - 접근성: 바깥 `role="img"` + `aria-label`. 안쪽 글자·점은 `aria-hidden`.
 
 ### D4-7. 02 분석 — `AnalysisMiniDemo`
 
-- 머리줄: aside 에 「예시 데이터」 배지. 본문 맨 위에 **칩 한 줄**: 지역 radiogroup · 세로 구분선 · 업종 radiogroup. 선택 칩은 `--color-text-900` 채움 + 흰 글자, 나머지는 흰 배경 + 테두리. 키보드(roving) 동작은 그대로다.
-- 차트: 「매출 추이 · 최근 6개월」 라벨 + `StoryLineChart`(`fill='area'`, 마지막 점 강조, 높이 180px).
+- 머리줄: aside 에 「예시 데이터」 배지. 본문 맨 위에 **칩 한 줄**: 지역 radiogroup · 세로 구분선 · 업종 radiogroup. 칩 모양은 01 지표 칩(`MetricToggleGroup`)과 같다 — 선택은 `--color-primary-100` 배경 + `--color-primary-600` 테두리, 나머지는 흰 배경 + 테두리(36px). 두 데모가 같은 조작 문법을 써야 한 제품처럼 보인다. 키보드(roving) 동작은 그대로다.
+- 차트: 「매출 추이 · 최근 6개월」 라벨 + `StoryLineChart`(`fill='area'`, 마지막 점 강조, `tickCount=3`, 높이 160px).
 - 지표 3칸(유동인구 · 경쟁 강도 · 폐업률) — **매출 증감은 뺀다**(큰 숫자가 말한다). 칸은 흰 배경 카드, `repeat(3, 1fr)`, ≤480 1열. 경쟁 강도 배지는 글자 폭만 차지한다.
 - AI 요약: 흰 박스 — `Sparkles` + 「AI 리포트 요약 · 예시」(굵게) + 문장. 「예시」 표기는 유지한다(하드코딩 문자열이 AI 출력인 척하지 않게 — 기존 주석의 이유).
 - CTA 는 없다(D4-2 로 옮겼다). `aria-live="polite"` 는 결과 묶음에 그대로 둔다.
@@ -229,14 +236,14 @@ export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(
 ### D4-8. 03 추천 — `RecommendPreview`
 
 - 머리줄: 제목 「추천 후보 {n}곳」 · 보조 = 기존 시드 라벨(`{자치구} {행정동} · {업종}`) · aside 퍼널 「상권 {m}곳 → 추천 {n}곳」(총계를 알 때만).
-- 본문: 후보 카드 목록 — 순위 배지(1위 `--color-primary-700` 채움, 나머지 `--color-surface-muted`) · 이름 · 점수 막대(상한 160px · 두께 8px — 이름 옆 보조 표시라 짧다 · 1위만 `--color-primary-600`) · `scoreLabel`. 막대 길이는 `score / 100`(점수는 0~100 — `metric-polarity` 의 clamp 범위).
+- 본문: 후보 카드 목록 — 순위 배지(1위 `--color-primary-600` 채움 — primary-700 위 흰 글자는 2.77:1, 나머지 `--color-surface-muted`) · 이름 · 점수 막대(상한 160px · 두께 8px — 이름 옆 보조 표시라 짧다 · 1위만 `--color-primary-600`) · `scoreLabel`. 막대 길이는 `score / 100`(점수는 0~100 — `metric-polarity` 의 clamp 범위).
 - 꼬리: `view.reason`(있으면). 예시 폴백이면 「예시 데이터」 배지를 머리줄에.
 - 도넛(`DonutChart`)과 문장 「상권 9곳 중 5곳을 골랐습니다」를 없앤다 — 큰 숫자와 퍼널이 같은 말을 한다. `toNarrowingSegments` 는 퍼널 표시 판정에 계속 쓴다.
 
 ### D4-9. 04 시뮬레이션 — `BreakEvenChart`
 
 - 머리줄: 요약 `dl`(초기 투자 · 월 매출 · 월 순이익) · aside 「예시 데이터」 배지.
-- 본문: 「누적 손익」 라벨 + `StoryLineChart`(`fill='split'`, highlight = 손익분기 달, `xLabelStep=2`, 높이 240px). y 라벨은 억·만 단위(D5-1) — 요약의 금액 표기와 맞춘다.
+- 본문: 「누적 손익」 라벨 + `StoryLineChart`(`fill='split'`, highlight = 손익분기 달, `xLabelStep=2`, 높이 300px — 틀이 칸을 채우므로 헤드라인이 빠진 자리를 차트가 쓴다). y 라벨은 억·만 단위(D5-1) — 요약 금액(「1억 2,000만원」)과 표기를 맞춘다. 요약 `dl` 은 `leading` 자리에 둔다.
 - 헤드라인 「8개월째에 투자금을 회수합니다.」와 캡션 「대표 예시 데이터」를 없앤다(큰 숫자 · 배지가 대신한다).
 
 ---
@@ -255,9 +262,9 @@ export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(
 
 절댓값 ≥ 10000 이면 억 단위(소수 한 자리, `.0` 은 뗀다), 아니면 만 단위 천 단위 쉼표. 양수에 `+` 를 붙인다(손익이라 부호가 뜻을 갖는다).
 
-### D5-2. 0 교차점 (`zeroCrossing`)
+### D5-2. 0 기준 분할 (`fill='split'`)
 
-선분 `(i, v_i) → (i+1, v_{i+1})` 중 부호가 바뀌는 첫 구간에서 `i + (-v_i)/(v_{i+1} - v_i)` 를 x(인덱스 단위)로 쓴다. 없으면 `null` — 그때 `split` 은 전부 한쪽 색이다.
+선과 0 선 사이의 면(`0,zeroY → 선 → 100,zeroY`) 하나를 그리고, 같은 면을 clipPath 두 장으로 잘라 0 위는 양수색, 0 아래는 음수색으로 칠한다. 교차점을 따로 계산하지 않으므로 선이 0 을 여러 번 지나도 맞다. 도메인에 0 이 없으면 면의 바닥은 칸 바닥이다.
 
 ---
 
@@ -274,18 +281,18 @@ export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(
 
 ### D7-1. 저장소 테스트 (vitest, `renderToStaticMarkup`)
 
-| ID        | 대상                                 | 조건                       | 기대                                                                                                  |
-| --------- | ------------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| TC-SP-001 | `StepTabs`                           | 기본 렌더                  | 탭 4개에 아이콘 svg·수치가 없다 · 각 탭 `aria-label` 이 단계명 전체 · `shortTitle` 이 렌더된다        |
-| TC-SP-002 | `stepHighlight`                      | D4-3 표의 각 행            | 표의 value·unit·caption                                                                               |
-| TC-SP-003 | `ProductStory`                       | 기본 렌더(01)              | 큰 숫자 `25` · 「서울 자치구 전체」 · `/status` CTA · 「손에 남는 것」 이 visually-hidden 으로만 있다 |
-| TC-SP-004 | `STORY_STEPS`                        | —                          | 네 단계 모두 `cta` 가 있다(02 = `/analysis`) · `icon` 필드 없음 · `shortTitle` 있음                   |
-| TC-SP-005 | `AnalysisMiniDemo`                   | 렌더                       | CTA 링크가 **없다** · 「매출 증감」 없음 · 「AI 리포트 요약 · 예시」 있음 · radiogroup 2개 유지       |
-| TC-SP-006 | `storyLineGeometry` · `zeroCrossing` | 값·도메인 경계 · 교차 없음 | % 좌표 · 교차 x · `null`                                                                              |
-| TC-SP-007 | `formatManwonTick`                   | D5-1 표                    | 표의 출력                                                                                             |
-| TC-SP-008 | `BreakEvenChart`                     | 렌더                       | 「손익분기」 라벨 · 「예시 데이터」 배지 · 헤드라인 문장 없음 · recharts 마크업 없음                  |
-| TC-SP-009 | `RecommendPreview`                   | 폴백 · 실데이터            | 후보 5행 · 점수 라벨 · 도넛 없음 · 총계를 알 때만 퍼널                                                |
-| TC-SP-010 | `RankBarList` compact                | 5행                        | 1~3위와 4위의 막대 색이 다르다 · 막대 칸 상한 360px                                                   |
+| ID        | 대상                                   | 조건                   | 기대                                                                                                  |
+| --------- | -------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| TC-SP-001 | `StepTabs`                             | 기본 렌더              | 탭 4개에 아이콘 svg·수치가 없다 · 각 탭 `aria-label` 이 「번호 단계명」 · `shortTitle` 이 렌더된다    |
+| TC-SP-002 | `stepHighlight`                        | D4-3 표의 각 행        | 표의 value·unit·caption                                                                               |
+| TC-SP-003 | `ProductStory`                         | 기본 렌더(01)          | 큰 숫자 `25` · 「서울 자치구 전체」 · `/status` CTA · 「손에 남는 것」 이 visually-hidden 으로만 있다 |
+| TC-SP-004 | `STORY_STEPS`                          | —                      | 네 단계 모두 `cta` 가 있다(02 = `/analysis`) · `icon` 필드 없음 · `shortTitle` 있음                   |
+| TC-SP-005 | `AnalysisMiniDemo`                     | 렌더                   | CTA 링크가 **없다** · 「매출 증감」 없음 · 「AI 리포트 요약 · 예시」 있음 · radiogroup 2개 유지       |
+| TC-SP-006 | `storyLineGeometry` · `StoryLineChart` | 값·도메인 경계 · split | % 좌표 · 도메인 밖 자르기 · clipPath 2장 · 직선 보간                                                  |
+| TC-SP-007 | `formatManwonTick`                     | D5-1 표                | 표의 출력                                                                                             |
+| TC-SP-008 | `BreakEvenChart`                       | 렌더                   | 「손익분기」 라벨 · 「예시 데이터」 배지 · 헤드라인 문장 없음 · recharts 마크업 없음                  |
+| TC-SP-009 | `RecommendPreview`                     | 폴백 · 실데이터        | 후보 5행 · 점수 라벨 · 도넛 없음 · 총계를 알 때만 퍼널                                                |
+| TC-SP-010 | `RankBarList` compact                  | 5행                    | 1~3위와 4위의 막대 색이 다르다 · 막대 칸 상한 360px                                                   |
 
 ### D7-2. 브라우저 실측
 
@@ -299,17 +306,30 @@ export function zeroCrossing(values): number | null // 선이 0 을 지나는 x(
 
 ---
 
+### D7-3. 실측 결과 (2026-09-30)
+
+| 항목                             | 결과                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 패널 자연 높이(≥1100, 예약 없이) | 1100: 01 471 · **02 570** · 03 506 · 04 450 / 1280·1440·1920: 01 471 · 02 538 · 03 506 · 04 450 → 예약 570 |
+| TC-SP-103                        | 1440 · 네 탭 모두 패널 570px · 다음 섹션 `top` 1929 로 같다. 1100 · 1280 · 1920 도 네 탭 570               |
+| TC-SP-104                        | 375 · 768 · 1440 가로 넘침 없음(`scrollWidth - innerWidth` = -6, 스크롤바)                                 |
+| TC-SP-105                        | 탭 → · End 로 선택·포커스 이동, 02 지역 칩 → 로 「마포구」 선택 · 큰 숫자 `+4.5%` 로 따라 바뀜             |
+| TC-SP-101 (e2e)                  | 6 passed · AA 미달 조합 12 → **11** · 문서 3.69 → 3.63 화면(desktop) · 5.69 → 5.66(mobile) · BFF 2 유지    |
+| 구현 중 발견                     | AA 미달이 한때 21 로 늘었다(회색 밴드 위 grey600 · 흰 바탕 #0ea5e9 글자) → 새 토큰 없이 text-700·검정으로  |
+
 ## D8. 미결 사항
 
 | #   | 항목                                                                                    | 담당 | 기한 |
 | --- | --------------------------------------------------------------------------------------- | ---- | ---- |
 | 1   | 03 후보별 기회도·위험도 태그 — 추천 응답에 행별 값이 있는지 확인 후 붙인다(지금은 없음) | FE   | 후속 |
 | 2   | 01 에 지도(코로플레스)를 쓰는 안 — 히어로가 이미 지도라 이번엔 막대를 유지했다          | 기획 | 후속 |
+| 3   | 큰 숫자 48px(시안) — e2e 스케일에 Number Display(30px+)를 넣을지 결정이 필요하다(D4-3)  | 기획 | 후속 |
 
 ---
 
 ## 변경 이력
 
-| 버전 | 날짜       | 변경 내용                                                                          | 작성자      |
-| ---- | ---------- | ---------------------------------------------------------------------------------- | ----------- |
-| 1.0  | 2026-09-30 | 최초 작성 — 시안 A: 밑줄 탭 · 큰 숫자 패널 · DemoFrame · 홈 전용 꺾은선 · 데모 4종 | Claude Code |
+| 버전 | 날짜       | 변경 내용                                                                                                                                                                        | 작성자      |
+| ---- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.0  | 2026-09-30 | 최초 작성 — 시안 A: 밑줄 탭 · 큰 숫자 패널 · DemoFrame · 홈 전용 꺾은선 · 데모 4종                                                                                               | Claude Code |
+| 1.1  | 2026-09-30 | 구현 반영 — 틀이 칸을 채움 · 예약 570px · 04 차트 300px · 02 칩을 01 모양으로 · split 은 clipPath · 모바일 두 줄 순위 · 말풍선 뒤집기 · AA/스케일 맞춤(큰 숫자 30px) · 실측 D7-3 | Claude Code |
