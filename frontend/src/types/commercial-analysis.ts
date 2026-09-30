@@ -134,9 +134,7 @@ export type CommercialResidentPopulation = {
  * - `UNAVAILABLE` — 대체할 행정동 값도 없다. 이때만 섹션을 빈 상태로 둔다.
  */
 export type CommercialExpenseScopeCode =
-  | 'COMMERCIAL'
-  | 'ADMINISTRATION_PROXY'
-  | 'UNAVAILABLE'
+  'COMMERCIAL' | 'ADMINISTRATION_PROXY' | 'UNAVAILABLE'
 
 /**
  * 소비 지표의 출처 메타. 값이 없을 때도 중단 사실을 전하므로 백엔드가 **항상** 채운다.
