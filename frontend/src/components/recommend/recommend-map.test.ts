@@ -193,7 +193,7 @@ describe('RecommendMap server rendering', () => {
     expect(source).toContain('rawCameraTargetRef.current')
 
     // 카메라 emit 이 bounds dedupe 보다 앞서야 줌·미세 팬에서도 `c` 가 갱신된다.
-    expect(source.indexOf('onCameraSettle?.(')).toBeLessThan(
+    expect(source.indexOf('emitCameraSettle(')).toBeLessThan(
       source.indexOf('readKakaoViewportBounds(map)'),
     )
   })

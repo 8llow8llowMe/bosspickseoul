@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { Focus } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -582,16 +582,6 @@ export default function RecommendMap({
     selectedAdministrationCode,
     previewedCommercialCode,
   })
-  const callbacksRef = useRef({
-    onBackgroundClick,
-    onDistrictSelect,
-    onAdministrationSelect,
-    onCommercialSelect,
-    onCommercialPreviewChange,
-    onViewportBoundsChange,
-    onCameraSettle,
-    onRecenter,
-  })
   const guardRef = useRef<BackgroundClickGuard | null>(null)
   const lastViewportBoundsKeyRef = useRef('')
   /** 모드를 씌운 타깃. 이펙트·ResizeObserver 는 이것만 본다. */
@@ -625,17 +615,31 @@ export default function RecommendMap({
   // 현재 단계 레이어들의 호버 하이라이트 적용 함수. 레이어를 다시 그릴 때 교체된다.
   const stageHighlightsRef = useRef<Array<(hovered: string | null) => void>>([])
 
-  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
-  callbacksRef.current = {
-    onBackgroundClick,
-    onDistrictSelect,
-    onAdministrationSelect,
-    onCommercialSelect,
-    onCommercialPreviewChange,
-    onViewportBoundsChange,
-    onCameraSettle,
-    onRecenter,
-  }
+  /*
+   * 지도·오버레이 핸들러가 부르는 부모 콜백. 핸들러는 이펙트에서 한 번 붙고 오래
+   * 살지만, 이펙트 이벤트는 부를 때마다 **최신 prop** 을 본다 — 콜백이 바뀌어도
+   * 핸들러를 다시 붙이지(오버레이를 다시 만들지) 않아도 된다. SDK·DOM 에는 이것을
+   * 직접 넘기지 않고, 이펙트 안에서 만든 래퍼가 부른다.
+   */
+  const emitBackgroundClick = useEffectEvent(() => onBackgroundClick?.())
+  const selectDistrict = useEffectEvent((code: string) =>
+    onDistrictSelect(code),
+  )
+  const selectAdministration = useEffectEvent((code: string) =>
+    onAdministrationSelect(code),
+  )
+  const selectCommercial = useEffectEvent((code: string) =>
+    onCommercialSelect(code),
+  )
+  const changeCommercialPreview = useEffectEvent((code: string | null) =>
+    onCommercialPreviewChange?.(code),
+  )
+  const emitViewportBounds = useEffectEvent((bounds: GeoBounds) =>
+    onViewportBoundsChange?.(bounds),
+  )
+  const emitCameraSettle = useEffectEvent((camera: MapCamera) =>
+    onCameraSettle?.(camera),
+  )
   // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
   selectedCommercialCodeRef.current = selectedCommercialCode
   // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
@@ -711,7 +715,7 @@ export default function RecommendMap({
         mapRef.current = map
         mapClickHandler = () => {
           if (!guardRef.current?.isSuppressed()) {
-            callbacksRef.current.onBackgroundClick?.()
+            emitBackgroundClick()
           }
         }
         mapIdleHandler = () => {
@@ -724,7 +728,7 @@ export default function RecommendMap({
              * 카메라는 그때도 바뀌므로 여기 걸리면 `c` 가 갱신되지 않는다.
              */
             const center = map.getCenter()
-            callbacksRef.current.onCameraSettle?.(
+            emitCameraSettle(
               createMapCamera(center.getLat(), center.getLng(), map.getLevel()),
             )
 
@@ -735,7 +739,7 @@ export default function RecommendMap({
             if (viewportBoundsKey === lastViewportBoundsKeyRef.current) return
 
             lastViewportBoundsKeyRef.current = viewportBoundsKey
-            callbacksRef.current.onViewportBoundsChange?.(viewportBounds)
+            emitViewportBounds(viewportBounds)
           }, VIEWPORT_BOUNDS_DEBOUNCE_MS)
         }
         maps.event.addListener(map, 'click', mapClickHandler)
@@ -936,7 +940,7 @@ export default function RecommendMap({
       drawSelectableAreas(
         layerInput.districtAreas,
         layerInput.selectedDistrictCode,
-        code => callbacksRef.current.onDistrictSelect(code),
+        code => selectDistrict(code),
       )
     }
 
@@ -949,7 +953,7 @@ export default function RecommendMap({
       drawSelectableAreas(
         layerInput.administrationAreas,
         layerInput.selectedAdministrationCode,
-        code => callbacksRef.current.onAdministrationSelect(code),
+        code => selectAdministration(code),
       )
     }
 
@@ -962,7 +966,7 @@ export default function RecommendMap({
       drawSelectableAreas(
         layerInput.commercialAreas,
         selectedCommercialCodeRef.current,
-        code => callbacksRef.current.onCommercialSelect(code),
+        code => selectCommercial(code),
       )
     }
 
@@ -993,13 +997,10 @@ export default function RecommendMap({
           strokeWeight: defaultStyle.strokeWeight,
           fillColor: defaultStyle.fillColor,
           fillOpacity: defaultStyle.fillOpacity,
-          onClick: () =>
-            callbacksRef.current.onCommercialSelect(area.commercialCode),
+          onClick: () => selectCommercial(area.commercialCode),
           // 순위 마커에만 있던 preview 를 폴리곤 본체에도 연다(단계 폴리곤과 동일).
           onHoverChange: hovered =>
-            callbacksRef.current.onCommercialPreviewChange?.(
-              hovered ? area.commercialCode : null,
-            ),
+            changeCommercialPreview(hovered ? area.commercialCode : null),
         })
         const entry: ResultLayerVisualEntry = {
           item: area,
@@ -1024,14 +1025,12 @@ export default function RecommendMap({
           suppressBackground()
           selectCommercialFromRankMarker(
             area.commercialCode,
-            callbacksRef.current.onCommercialSelect,
-            callbacksRef.current.onCommercialPreviewChange,
+            code => selectCommercial(code),
+            code => changeCommercialPreview(code),
           )
         }
-        const preview = () =>
-          callbacksRef.current.onCommercialPreviewChange?.(area.commercialCode)
-        const clearPreview = () =>
-          callbacksRef.current.onCommercialPreviewChange?.(null)
+        const preview = () => changeCommercialPreview(area.commercialCode)
+        const clearPreview = () => changeCommercialPreview(null)
 
         marker.addEventListener('click', select)
         marker.addEventListener('focus', preview)
@@ -1142,7 +1141,7 @@ export default function RecommendMap({
     if (!target || target.kind === 'keep') return
     if (maps && map) applyCameraTarget(maps, map, target)
     lastAppliedCameraKeyRef.current = JSON.stringify(target)
-    callbacksRef.current.onRecenter?.()
+    onRecenter?.()
   }
 
   return (
