@@ -31,41 +31,59 @@ export function nextTabIndex(
 }
 
 /*
-  4열, 768 이하 2x2. 한 줄 가로 스크롤은 쓰지 않는다 — 숨는 탭이 생겨 네 단계가
-  한눈에 보이지 않는다(예전 보드가 하던 일을 탭이 이어받는다).
+  한 줄 밑줄 탭(story-panel-redesign.md D4-1). 예전 카드형 탭은 높이 약 120px 에 번호·
+  아이콘·이름·수치를 실었는데, 이름과 수치가 바로 아래 패널과 겹쳐 새 정보가 없었다.
+  수치는 패널 왼쪽의 큰 숫자가 맡는다.
+
+  768 이하는 4열 균등 + 짧은 이름 두 줄이다. 한 줄 가로 스크롤은 쓰지 않는다 — 숨는
+  탭이 생겨 네 단계가 한눈에 보이지 않는다.
 */
 const List = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border-200);
 
   @media (max-width: 768px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
   }
 `
 
 const Tab = styled.button<{ $active: boolean }>`
-  display: grid;
-  align-content: start;
-  gap: 6px;
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   /* 터치 영역(DESIGN.md §8): 리스트 행 52px 이상. */
   min-height: 52px;
-  padding: 16px;
-  border: 1px solid
-    ${p => (p.$active ? 'var(--color-primary-600)' : 'var(--color-border-200)')};
-  border-radius: var(--radius-card);
-  background: ${p =>
-    p.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  text-align: left;
+  padding: 14px 16px;
+  border: none;
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+  background: transparent;
+  color: ${p =>
+    p.$active ? 'var(--color-text-900)' : 'var(--color-text-caption)'};
   cursor: pointer;
   transition:
-    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard);
 
+  /* 목록 아래 1px 선 위에 겹쳐 그린다 — 활성 탭만 선이 굵어진 것처럼 보인다. */
+  &::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    bottom: -1px;
+    left: 12px;
+    height: 2px;
+    border-radius: 2px;
+    background: ${p => (p.$active ? 'var(--color-text-900)' : 'transparent')};
+  }
+
   &:hover {
-    border-color: ${p =>
-      p.$active ? 'var(--color-primary-600)' : 'var(--color-border-300)'};
+    color: ${p =>
+      p.$active ? 'var(--color-text-900)' : 'var(--color-text-700)'};
+    background: var(--color-surface-muted);
   }
 
   &:focus-visible {
@@ -74,7 +92,15 @@ const Tab = styled.button<{ $active: boolean }>`
   }
 
   @media (max-width: 768px) {
-    padding: 12px;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 4px 12px;
+
+    &::after {
+      right: 8px;
+      left: 8px;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -82,74 +108,45 @@ const Tab = styled.button<{ $active: boolean }>`
   }
 `
 
-const Head = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`
-
-const IconBadge = styled.span<{ $active: boolean }>`
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-control);
-  background: ${p =>
-    p.$active ? 'var(--color-surface)' : 'var(--color-primary-100)'};
-  color: var(--color-primary-700);
-
-  svg {
-    width: 16px;
-    height: 16px;
-    stroke: currentColor;
-  }
-`
-
 const Num = styled.span<{ $active: boolean }>`
   color: ${p =>
     p.$active ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 20px;
   font-variant-numeric: tabular-nums;
 `
 
 const Title = styled.span`
-  color: var(--color-text-900);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   line-height: 24px;
-  word-break: keep-all;
+  white-space: nowrap;
 
   @media (max-width: 768px) {
-    font-size: 14px;
-    line-height: 20px;
+    display: none;
   }
 `
 
-const Figure = styled.span`
-  color: var(--color-text-700);
-  font-size: 13px;
+const ShortTitle = styled.span`
+  display: none;
+  font-size: 14px;
   font-weight: 600;
   line-height: 20px;
-  font-variant-numeric: tabular-nums;
-  word-break: keep-all;
+  white-space: nowrap;
+
+  @media (max-width: 768px) {
+    display: inline;
+  }
 `
 
 type StepTabsProps = {
   steps: readonly StoryStep[]
   selected: number
-  /** 탭마다 싣는 수치. `steps` 와 같은 순서·길이. */
-  figures: readonly string[]
   onSelect: (index: number) => void
 }
 
-export default function StepTabs({
-  steps,
-  selected,
-  figures,
-  onSelect,
-}: StepTabsProps) {
+export default function StepTabs({ steps, selected, onSelect }: StepTabsProps) {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   /*
@@ -170,7 +167,6 @@ export default function StepTabs({
     <List role="tablist" aria-label="판단 흐름 네 단계">
       {steps.map((step, index) => {
         const active = index === selected
-        const Icon = step.icon
         return (
           <Tab
             key={step.step}
@@ -180,6 +176,7 @@ export default function StepTabs({
             type="button"
             role="tab"
             id={storyTabId(step.step)}
+            aria-label={`${step.step} ${step.title}`}
             aria-selected={active}
             aria-controls={STORY_PANEL_ID}
             tabIndex={active ? 0 : -1}
@@ -187,14 +184,9 @@ export default function StepTabs({
             onClick={() => onSelect(index)}
             onKeyDown={handleKeyDown}
           >
-            <Head>
-              <IconBadge $active={active} aria-hidden="true">
-                <Icon />
-              </IconBadge>
-              <Num $active={active}>{step.step}</Num>
-            </Head>
+            <Num $active={active}>{step.step}</Num>
             <Title>{step.title}</Title>
-            <Figure>{figures[index]}</Figure>
+            <ShortTitle>{step.shortTitle}</ShortTitle>
           </Tab>
         )
       })}

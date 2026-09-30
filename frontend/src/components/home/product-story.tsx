@@ -2,13 +2,20 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { ArrowRight, Check } from 'lucide-react'
 import styled from 'styled-components'
 
 import AnalysisMiniDemo from '@/components/home/analysis-mini-demo'
-import BreakEvenChart from '@/components/home/break-even-chart'
+import BreakEvenChart, {
+  BREAK_EVEN_MONTHS,
+  buildCumulativeProfit,
+  findBreakEvenMonth,
+} from '@/components/home/break-even-chart'
 import { HOME_COLUMN } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
-import RecommendPreview from '@/components/home/recommend-preview'
+import RecommendPreview, {
+  toNarrowingSegments,
+} from '@/components/home/recommend-preview'
 import StepTabs, {
   STORY_PANEL_ID,
   storyTabId,
@@ -18,6 +25,7 @@ import {
   DEFAULT_SELECTION,
   findDistrictOption,
   findIndustryOption,
+  getDemoSample,
   type DemoSelection,
 } from '@/data/home-demo'
 import { districts } from '@/data/districts'
@@ -83,21 +91,25 @@ const LeadTitle = styled.h2`
   }
 `
 
-/*
-  넓은 화면(1100px 이상)은 가장 큰 데모(02 미니데모 실측 563px, 패널 테두리 포함)를
-  예약한다. 탭을 바꿔도 아래 랭킹 섹션이 밀리지 않는다(명세 D4-2).
+/** 1100px 이상 패널 높이 예약(px). 실측값 — D7 TC-SP-103 에서 다시 잰다. */
+const PANEL_MIN_HEIGHT = 564
 
-  1099px 이하는 예약하지 않는다. 데모 칸이 약 560px 보다 좁아지면 미니데모가 세로로
-  쌓여 706(1024) · 805px(780)까지 커지는데, 그만큼 예약하면 다른 탭에 200px 넘는
-  빈칸이 생긴다. 밀리는 것은 보고 있는 패널 아래다(모바일과 같은 판단).
-  데모가 커지면 이 값을 다시 잰다.
+/*
+  2열 4:8 — 왼쪽은 큰 숫자 한 개와 짧은 설명, 오른쪽은 데모(story-panel-redesign.md D4-2).
+  예전 5:7 은 왼쪽 글이 위쪽 200px 남짓만 차지해 칸의 60% 넘게 비었다. 글을 세로
+  가운데 두고 칸을 줄여 데모에 폭을 준다.
+
+  넓은 화면(1100px 이상)은 가장 큰 데모 높이를 예약한다 — 탭을 바꿔도 아래 랭킹 섹션이
+  밀리지 않는다. 1099px 이하는 예약하지 않는다: 데모가 좁은 칸에서 세로로 쌓여 커지는데,
+  그만큼 예약하면 다른 탭에 큰 빈칸이 생긴다(home-restructure.md D4-2 의 판단 승계).
+  데모가 바뀌면 이 값을 다시 잰다.
 */
 const Panel = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  gap: 40px;
-  min-height: 564px;
-  padding: 20px;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  gap: 48px;
+  min-height: ${PANEL_MIN_HEIGHT}px;
+  padding: 32px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
@@ -109,11 +121,13 @@ const Panel = styled.div`
 
   @media (max-width: 1099px) {
     min-height: 0;
+    gap: 32px;
+    padding: 24px;
   }
 
   @media (max-width: 768px) {
     grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
+    gap: 24px;
     padding: 16px;
   }
 `
@@ -121,74 +135,128 @@ const Panel = styled.div`
 const Copy = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-self: center;
   min-width: 0;
-  padding: 8px 4px;
+  padding: 8px 8px 8px 0;
+
+  @media (max-width: 768px) {
+    padding: 4px;
+  }
 `
 
-const PanelTitle = styled.h3`
-  color: var(--color-text-900);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 28px;
-  word-break: keep-all;
-`
-
-const Body = styled.p`
-  color: var(--color-text-600);
-  font-size: 15px;
-  line-height: 24px;
-  word-break: keep-all;
-`
-
-const Outcome = styled.div`
-  display: grid;
-  gap: 2px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border-200);
-`
-
-const OutcomeLabel = styled.span`
-  color: var(--color-text-caption);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-`
-
-const OutcomeText = styled.span`
-  color: var(--color-text-700);
+/* 단계명. 탭이 이미 크게 말하므로 작게 — 패널의 제목(h3) 구조만 지킨다. */
+const StepLabel = styled.h3`
+  color: var(--color-primary-700);
   font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
+  word-break: keep-all;
+`
+
+const Highlight = styled.p`
+  margin-top: 12px;
+  color: var(--color-text-900);
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 56px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+
+  @media (max-width: 768px) {
+    font-size: 40px;
+    line-height: 48px;
+  }
+`
+
+const HighlightUnit = styled.span`
+  margin-left: 2px;
+  font-size: 24px;
+  line-height: 1;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
+`
+
+/* 자간을 물려받지 않게 큰 숫자 밖에 둔다 — 시안에서 캡션이 뭉개졌다. */
+const HighlightCaption = styled.p`
+  margin-top: 4px;
+  color: var(--color-text-600);
+  font-size: 15px;
+  font-weight: 500;
   line-height: 22px;
   word-break: keep-all;
 `
 
+const Body = styled.p`
+  margin-top: 20px;
+  color: var(--color-text-700);
+  font-size: 16px;
+  line-height: 24px;
+  word-break: keep-all;
+`
+
+const Outcome = styled.p`
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--color-text-900);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  word-break: keep-all;
+
+  svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    color: var(--color-primary-700);
+  }
+`
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+`
+
 const Note = styled.p`
+  margin-top: 8px;
   color: var(--color-text-caption);
   font-size: 13px;
   line-height: 20px;
   word-break: keep-all;
 `
 
-/*
-  CTA 는 설명 묶음 바로 뒤에 둔다. 패널 바닥(margin-top: auto)에 붙이면 01 처럼 데모가
-  긴 단계에서 「손에 남는 것」과 버튼 사이가 300px 가까이 비어 끊겨 보였다.
-*/
 const Cta = styled(Link)`
-  margin-top: 8px;
+  margin-top: 28px;
   min-height: 48px;
   display: inline-flex;
   width: fit-content;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 18px;
+  gap: 6px;
+  padding: 0 20px;
   border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: #ffffff;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   transition: background-color var(--motion-fast) var(--ease-standard);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
 
   &:hover {
     background: var(--color-primary-600);
@@ -197,6 +265,10 @@ const Cta = styled(Link)`
   &:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus-primary);
+  }
+
+  @media (max-width: 768px) {
+    margin-top: 20px;
   }
 `
 
@@ -236,31 +308,76 @@ function DemoPanel({
   return <BreakEvenChart />
 }
 
+export type StepHighlight = { value: string; unit: string; caption: string }
+
 /**
- * 탭에 싣는 수치. 모든 숫자는 화면에서 유도한다(하드코딩 금지).
- * 04 는 POST 가 필요해 선택을 이어받지 않는다 — 「예시」라고만 적고 이유는 패널 note 가 말한다.
+ * 패널 왼쪽의 큰 숫자(story-panel-redesign.md D4-3). **모든 값은 화면에서 유도한다** —
+ * 여기 고정 문자열로 박으면 데모와 어긋난다(D5-6 에서 시안의 `25→8→3→1` 을 폐기한 이유).
  */
-function stepFigure(
+export function stepHighlight(
   index: number,
   selection: DemoSelection,
   recommend: RecommendPreviewState,
-): string {
-  if (index === 0) return `${districts.length}개 자치구`
+): StepHighlight {
+  if (index === 0) {
+    return {
+      value: String(districts.length),
+      unit: '곳',
+      caption: '서울 자치구 전체',
+    }
+  }
 
   if (index === 1) {
-    const district = findDistrictOption(selection.districtId)?.name ?? '—'
-    const industry = findIndustryOption(selection.industryId)?.name ?? '—'
-    return `${district} · ${industry}`
+    const { salesChangePct } = getDemoSample(
+      selection.districtId,
+      selection.industryId,
+    )
+    const district = findDistrictOption(selection.districtId)?.name ?? ''
+    const industry = findIndustryOption(selection.industryId)?.name ?? ''
+    return {
+      value: `${salesChangePct >= 0 ? '+' : ''}${salesChangePct}`,
+      unit: '%',
+      caption: `${district} ${industry} · 최근 6개월 매출`,
+    }
   }
 
   if (index === 2) {
-    if (recommend.isLoading) return '—'
+    if (recommend.isLoading) {
+      return {
+        value: '—',
+        unit: '',
+        caption: '조건에 맞는 상권을 찾고 있어요',
+      }
+    }
     const picked = recommend.view.rows.length
-    if (recommend.view.isSample) return `추천 ${picked}곳 · 예시`
-    return `상권 ${recommend.commercialsCount}곳 중 추천 ${picked}곳`
+    if (recommend.view.isSample) {
+      return { value: String(picked), unit: '곳', caption: '추천 후보 · 예시' }
+    }
+    // 총계가 추천 수보다 작으면 비율을 믿을 수 없다 — 03 데모의 퍼널과 같은 판정이다.
+    if (toNarrowingSegments(recommend.commercialsCount, picked)) {
+      return {
+        value: `${recommend.commercialsCount} → ${picked}`,
+        unit: '곳',
+        caption: `상권 ${recommend.commercialsCount}곳 중 조건에 맞는 곳`,
+      }
+    }
+    return { value: String(picked), unit: '곳', caption: '조건에 맞는 상권' }
   }
 
-  return '예시'
+  // 04 는 POST 가 필요해 선택을 이어받지 않는다 — 「예시」라고 적고 이유는 패널 note 가 말한다.
+  const breakEven = findBreakEvenMonth(buildCumulativeProfit())
+  if (breakEven === null) {
+    return {
+      value: `${BREAK_EVEN_MONTHS}+`,
+      unit: '개월',
+      caption: '이 기간 안에는 회수하지 못해요 · 예시',
+    }
+  }
+  return {
+    value: String(breakEven),
+    unit: '개월',
+    caption: '투자금을 회수하는 시점 · 예시',
+  }
 }
 
 export default function ProductStory() {
@@ -314,9 +431,7 @@ export default function ProductStory() {
   })
 
   const step = STORY_STEPS[selected]
-  const figures = STORY_STEPS.map((_, index) =>
-    stepFigure(index, selection, recommendState),
-  )
+  const highlight = stepHighlight(selected, selection, recommendState)
 
   return (
     <Container aria-label="판단 흐름">
@@ -332,14 +447,13 @@ export default function ProductStory() {
           <StepTabs
             steps={STORY_STEPS}
             selected={selected}
-            figures={figures}
             onSelect={setSelected}
           />
         </div>
 
         {/*
           활성 패널만 렌더한다 — 비활성 패널을 hidden 으로 두면 데모가 모두 마운트돼
-          요청이 늘어난다. 02 는 미니데모가 CTA 를 들고 있어 여기 CTA 가 없다.
+          요청이 늘어난다. CTA 는 네 단계 모두 같은 자리(왼쪽 묶음 끝)에 있다.
         */}
         <Panel
           role="tabpanel"
@@ -348,14 +462,30 @@ export default function ProductStory() {
           tabIndex={0}
         >
           <Copy>
-            <PanelTitle>{step.title}</PanelTitle>
+            <StepLabel>
+              {step.step} {step.title}
+            </StepLabel>
+            <Highlight>
+              {highlight.value}
+              {highlight.unit ? (
+                <HighlightUnit>{highlight.unit}</HighlightUnit>
+              ) : null}
+            </Highlight>
+            <HighlightCaption>{highlight.caption}</HighlightCaption>
             <Body>{step.body}</Body>
+            {/* 라벨 글자 대신 체크가 「이걸 얻는다」를 말한다. 보조기기에는 라벨을 읽힌다. */}
             <Outcome>
-              <OutcomeLabel>손에 남는 것</OutcomeLabel>
-              <OutcomeText>{step.outcome}</OutcomeText>
+              <Check aria-hidden="true" />
+              <span>
+                <VisuallyHidden>손에 남는 것: </VisuallyHidden>
+                {step.outcome}
+              </span>
             </Outcome>
             {step.note ? <Note>{step.note}</Note> : null}
-            {step.cta ? <Cta href={step.cta.href}>{step.cta.label}</Cta> : null}
+            <Cta href={step.cta.href}>
+              {step.cta.label}
+              <ArrowRight aria-hidden="true" />
+            </Cta>
           </Copy>
           <DemoArea>
             <DemoPanel

@@ -43,7 +43,6 @@ describe('StepTabs — 마크업', () => {
       createElement(StepTabs, {
         steps: STORY_STEPS,
         selected,
-        figures: ['25개 자치구', '강남구 · 카페', '—', '예시'],
         onSelect: () => undefined,
       }),
     )
@@ -73,17 +72,43 @@ describe('StepTabs — 마크업', () => {
     ).toHaveLength(4)
   })
 
-  it('탭에 단계 수치를 싣는다', () => {
+  /*
+   * story-panel-redesign D4-1: 탭은 번호와 이름만 싣는다. 수치는 패널 왼쪽의 큰 숫자가
+   * 맡는다 — 탭과 패널이 같은 수치를 두 번 말하던 것을 없앴다.
+   */
+  it('탭에 아이콘·수치를 싣지 않는다 (TC-SP-001)', () => {
     const html = render()
 
-    expect(html).toContain('25개 자치구')
-    expect(html).toContain('예시')
+    expect(html).not.toContain('<svg')
+    expect(html).not.toContain('개 자치구')
+  })
+
+  it('탭 이름은 번호와 단계명 전체이고, 좁은 화면용 짧은 이름도 그린다 (TC-SP-001)', () => {
+    const html = render()
+
+    for (const step of STORY_STEPS) {
+      expect(html).toContain(`aria-label="${step.step} ${step.title}"`)
+      expect(html).toContain(`>${step.shortTitle}</span>`)
+    }
   })
 })
 
-describe('STORY_STEPS — 탭 데이터 (TC-HR-007)', () => {
-  it('네 단계 모두 아이콘이 있다', () => {
-    for (const step of STORY_STEPS) expect(step.icon).toBeTruthy()
+describe('STORY_STEPS — 탭 데이터 (TC-HR-007 · TC-SP-004)', () => {
+  it('아이콘 필드가 없고 짧은 이름이 있다', () => {
+    for (const step of STORY_STEPS) {
+      expect('icon' in step).toBe(false)
+      expect(step.shortTitle.length).toBeGreaterThan(0)
+    }
+  })
+
+  /* 02 도 CTA 를 갖는다 — 미니데모 안에 있던 버튼을 패널 왼쪽으로 옮겼다(D4-2). */
+  it('네 단계 모두 자기 도구로 가는 CTA 를 갖는다', () => {
+    expect(STORY_STEPS.map(step => step.cta.href)).toEqual([
+      '/status',
+      '/analysis',
+      '/recommend',
+      '/simulation',
+    ])
   })
 
   /* AI 리포트는 분석의 산출물이라 02 단계에 둔다(story-and-rankings — 벤토에서 옮겨 왔다). */

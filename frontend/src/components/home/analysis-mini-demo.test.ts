@@ -35,10 +35,11 @@ describe('AnalysisMiniDemo — AI 리포트 표기', () => {
     expect(window).toContain('예시')
   })
 
-  it('CTA 가 AI 리포트로 이어진다고 말한다', () => {
-    const html = render()
-
-    expect(html).toContain('AI 리포트 받기')
-    expect(html).toContain('href="/analysis"')
+  /*
+   * story-panel-redesign D4-2: CTA 는 패널 왼쪽이 든다. 데모 안에 또 두면 02 만 버튼이
+   * 다른 자리에 있고, 패널과 합쳐 버튼이 둘이 된다.
+   */
+  it('데모 안에 CTA 링크를 두지 않는다 (TC-SP-005)', () => {
+    expect(render()).not.toContain('href=')
   })
 })

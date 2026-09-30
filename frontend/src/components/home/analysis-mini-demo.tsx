@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, type KeyboardEvent } from 'react'
-import Link from 'next/link'
 import styled from 'styled-components'
 import {
   DISTRICTS,
@@ -280,31 +279,6 @@ const Insight = styled.p`
   word-break: keep-all;
 `
 
-const Cta = styled(Link)`
-  min-height: 48px;
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 18px;
-  border-radius: var(--radius-control);
-  background: var(--color-primary-700);
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 600;
-  transition: background-color var(--motion-fast) var(--ease-standard);
-
-  &:hover {
-    background: var(--color-primary-600);
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary);
-  }
-`
-
 export type AnalysisMiniDemoProps = {
   /** `ProductStory` 가 소유한 선택 — 03단계·카운터와 같은 값을 본다(D8-3). */
   selection: DemoSelection
@@ -438,8 +412,6 @@ export default function AnalysisMiniDemo({
         */}
         <InsightLabel>AI 리포트 요약 · 예시</InsightLabel>
         <Insight>{sample.insight}</Insight>
-
-        <Cta href="/analysis">이 조건으로 AI 리포트 받기</Cta>
       </ResultCard>
     </Wrapper>
   )
