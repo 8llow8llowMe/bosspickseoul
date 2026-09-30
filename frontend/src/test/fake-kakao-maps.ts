@@ -16,6 +16,10 @@
  *   loadKakaoMapSdk: vi.fn(() => Promise.resolve(sdk.current!.maps)),
  * }))
  * beforeEach(() => { sdk.current = createFakeKakaoMaps() })
+ *
+ * // SDK 가 붙는 렌더는 async act 안에서 받는다. `waitFor` 로 DOM 만 기다리면
+ * // 그 커밋의 이펙트(레이어 그리기)가 아직 안 돈 채로 단언하는 경합이 생긴다.
+ * const view = await act(async () => render(createElement(RecommendMap, props)))
  * ```
  *
  * 한계: 실제 렌더링·타일·투영이 없다. `setBounds` 는 기록만 하고 중심·레벨을 바꾸지
