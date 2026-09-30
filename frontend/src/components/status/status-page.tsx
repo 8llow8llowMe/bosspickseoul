@@ -747,6 +747,7 @@ function StatusPageContent() {
                     detail={detail}
                     error={detailError}
                     isLoading={isDetailLoading}
+                    isRankPending={isPeriodPending}
                     metric={metric}
                     periodCode={periodCode}
                     selectedDistrict={selectedDistrict}
