@@ -47,6 +47,7 @@ const renderDetail = (error: ReturnType<typeof apiError>) =>
   renderToStaticMarkup(
     createElement(StatusDetail, {
       metric: 'footTraffic',
+      periodCode: '20261',
       selectedDistrict,
       detail: null,
       isLoading: false,

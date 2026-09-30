@@ -35,6 +35,7 @@ const renderSheet = (
       styleSheet.collectStyles(
         createElement(StatusMobileSheet, {
           metric: 'footTraffic',
+          periodCode: '20261',
           items: [],
           selectedDistrict: selectedDistrictOverride,
           detail: null,

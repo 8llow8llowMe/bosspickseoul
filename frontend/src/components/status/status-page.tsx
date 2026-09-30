@@ -12,7 +12,6 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled, { keyframes } from 'styled-components'
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
@@ -26,6 +25,7 @@ import {
   getToggledSheetSnap,
   normalizeStatusSelection,
   parseStatusMetric,
+  parseStatusPeriod,
   resolveStatusSelectedDistrict,
   resolveStatusSheetSnap,
   type StatusSheetState,
@@ -43,6 +43,7 @@ import StatusFeedback from './status-feedback'
 import StatusMap from './status-map'
 import StatusMetricTabs from './status-metric-tabs'
 import StatusMobileSheet, { statusSheetHeightVars } from './status-mobile-sheet'
+import StatusPeriodSelect from './status-period-select'
 import StatusTopTen from './status-top-ten'
 import { shellWidth } from '@/styles/layout'
 
@@ -133,6 +134,40 @@ const SideHead = styled.header`
     border: 0;
     border-radius: 0;
     background: transparent;
+  }
+`
+
+/*
+ * 제목 줄 = 제목 + 기준 분기 select(status.md 1.6). 모바일은 제목이 시각적으로 숨으므로
+ * select 만 남아 지표 전환 바로 위에 온다.
+ */
+const TitleRow = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+
+  @media (max-width: 1023px) {
+    justify-content: flex-start;
+  }
+`
+
+/*
+ * 분기를 바꾸는 동안 목록·지도는 직전 분기 응답을 자리 표시로 들고 있다(placeholderData).
+ * 새 응답이 올 때까지 흐리게 두어 옛 값임을 알린다 — 화면을 로딩으로 통째로 바꾸면
+ * select 가 사라져 포커스를 잃는다(status.md 1.6).
+ */
+const periodPendingStyles = `
+  transition: opacity var(--motion-fast) var(--ease-standard);
+
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `
 
@@ -238,6 +273,7 @@ const TopTenPanel = styled.section`
   padding: 12px 10px 12px;
   overflow-y: auto;
   scrollbar-width: none;
+  ${periodPendingStyles}
 
   &::-webkit-scrollbar {
     display: none;
@@ -256,6 +292,7 @@ const MapPanel = styled.section`
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
+  ${periodPendingStyles}
 
   > figure {
     min-height: 0;
@@ -317,7 +354,13 @@ const MobileMapLayer = styled.div`
   display: grid;
   /* 시트에 가리지 않는 자리 안에서 지도를 가운데 둔다. */
   align-content: center;
-  transition: bottom var(--motion-standard) var(--ease-standard);
+  transition:
+    bottom var(--motion-standard) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard);
+
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
@@ -386,6 +429,8 @@ function StatusPageContent() {
   const searchParams = useSearchParams()
   const rawSearchParams = searchParams.toString()
   const metric = parseStatusMetric(searchParams.get('metric'))
+  // 기준 분기. 화면 전체(Top10·상세, 후속 전체 순위)가 이 한 값을 나눠 쓴다(status.md 1.6).
+  const periodCode = parseStatusPeriod(searchParams.get('periodCode'))
   const requestedDistrictCode = searchParams.get('district')
   // 시트는 기본 '펼침'으로 하단을 Top10 리스트가 채우고, 지도는 시트 위에 남는 자리에
   // 맞춰 가운데 놓인다(지도 몫 MINIMUM_MAP_HEIGHT 보장).
@@ -401,14 +446,16 @@ function StatusPageContent() {
   const desktopBackButtonRef = useRef<HTMLButtonElement>(null)
   const previousSelectionRef = useRef<string | null | undefined>(undefined)
 
-  const periodCode = ANALYSIS_PERIOD_CODE
-
   const topTenQuery = useQuery({
     queryKey: statusQueryKeys.topTen(periodCode),
     queryFn: () => fetchStatusTopTen(periodCode),
     // 404(데이터 부재)·4xx는 재시도해도 결과가 같다. 5xx/통신 실패만 재시도한다.
     retry: retryUnlessClientError(3),
+    // 분기를 바꾸면 키가 바뀌어 데이터가 빈다. 그대로 두면 페이지가 로딩 화면으로 바뀌며
+    // 분기 select 가 사라진다 — 새 응답이 올 때까지 직전 분기 응답을 자리 표시로 둔다.
+    placeholderData: previousData => previousData,
   })
+  const isPeriodPending = topTenQuery.isPlaceholderData
 
   const topTen = useMemo(() => {
     if (!topTenQuery.data || !isApiSuccess(topTenQuery.data)) {
@@ -458,6 +505,7 @@ function StatusPageContent() {
       currentQuery,
       metric,
       districtCode,
+      periodCode,
     )
 
     if (normalizedQuery.toString() === rawSearchParams) {
@@ -470,7 +518,15 @@ function StatusPageContent() {
         scroll: false,
       },
     )
-  }, [metric, pathname, rawSearchParams, router, selectedDistrictCode, topTen])
+  }, [
+    metric,
+    pathname,
+    periodCode,
+    rawSearchParams,
+    router,
+    selectedDistrictCode,
+    topTen,
+  ])
 
   /*
    * 데스크톱에서는 순위 목록과 상세가 한 자리를 번갈아 쓴다. 목록 버튼으로 상세를 열면
@@ -526,11 +582,13 @@ function StatusPageContent() {
   const pushStatusQuery = (
     nextMetric: typeof metric,
     districtCode: string | null,
+    nextPeriodCode: string = periodCode,
   ) => {
     const nextQuery = createStatusQuery(
       new URLSearchParams(rawSearchParams),
       nextMetric,
       districtCode,
+      nextPeriodCode,
     )
 
     router.push(createStatusHref(pathname, nextQuery, window.location.hash), {
@@ -547,6 +605,25 @@ function StatusPageContent() {
 
     pushStatusQuery(nextMetric, selectedDistrictCode)
   }
+
+  // 분기를 바꿔도 지표·보던 구·시트 단계는 그대로다. 상세는 같은 구의 새 분기로 다시 부른다.
+  // 지표·구 선택과 같이 `push` 다 — 뒤로가기가 직전 분기로 돌아간다(status.md 1.6).
+  const handlePeriodChange = (nextPeriodCode: string) => {
+    if (nextPeriodCode === periodCode) {
+      return
+    }
+
+    // 목록이 아직 없으면(오류 화면) 구 선택은 URL 에 있던 값을 그대로 넘긴다.
+    pushStatusQuery(
+      metric,
+      topTen ? selectedDistrictCode : requestedDistrictCode,
+      nextPeriodCode,
+    )
+  }
+
+  const periodSelect = (
+    <StatusPeriodSelect value={periodCode} onChange={handlePeriodChange} />
+  )
 
   const handleDistrictSelect = (districtCode: string) => {
     // 접혀 있으면 펼치고, 그 밖에는 지금 단계를 유지한다(전체 펼침에서 고르면 그대로).
@@ -594,7 +671,11 @@ function StatusPageContent() {
     return (
       <Page data-hide-footer="true">
         <PageInner>
-          <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
+          {/* 고른 분기가 실패해도 다른 분기로 옮길 길을 남긴다(status.md 1.6). */}
+          <TitleRow>
+            <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
+            {periodSelect}
+          </TitleRow>
           {isLoading ? (
             <StatusFeedback state="loading" />
           ) : (
@@ -622,7 +703,10 @@ function StatusPageContent() {
       <PageInner>
         <Layout>
           <SideHead>
-            <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
+            <TitleRow>
+              <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
+              {periodSelect}
+            </TitleRow>
             <StatusMetricTabs
               idBase={METRIC_TAB_ID_BASE}
               panelId={METRIC_PANEL_ID}
@@ -640,7 +724,10 @@ function StatusPageContent() {
               ref={desktopSideRef}
               data-has-selection={selectedDistrict !== null}
             >
-              <TopTenPanel data-status-top-ten-panel>
+              <TopTenPanel
+                aria-busy={isPeriodPending || undefined}
+                data-status-top-ten-panel
+              >
                 <HighlightedTopTen
                   highlightStore={highlightStore}
                   items={currentItems}
@@ -661,6 +748,7 @@ function StatusPageContent() {
                     error={detailError}
                     isLoading={isDetailLoading}
                     metric={metric}
+                    periodCode={periodCode}
                     selectedDistrict={selectedDistrict}
                     onBack={handleClearDistrict}
                     onRetry={() => void detailQuery.refetch()}
@@ -669,7 +757,11 @@ function StatusPageContent() {
               </DesktopDetailSlot>
             </DesktopSide>
 
-            <MapPanel ref={desktopMapPanelRef} data-status-map-panel>
+            <MapPanel
+              ref={desktopMapPanelRef}
+              aria-busy={isPeriodPending || undefined}
+              data-status-map-panel
+            >
               <HighlightedMap
                 highlightStore={highlightStore}
                 items={currentItems}
@@ -686,6 +778,7 @@ function StatusPageContent() {
               {/* 전체 펼침에서 지도는 높이 0 이다. 보이지 않는 폴리곤 25개가 Tab 순서에
                   남지 않게 통째로 뺀다. */}
               <MobileMapLayer
+                aria-busy={isPeriodPending || undefined}
                 aria-hidden={sheetSnap === 'full' || undefined}
                 inert={sheetSnap === 'full' || undefined}
               >
@@ -704,8 +797,10 @@ function StatusPageContent() {
                 detail={detail}
                 detailError={detailError}
                 isDetailLoading={isDetailLoading}
+                isPeriodPending={isPeriodPending}
                 items={currentItems}
                 metric={metric}
+                periodCode={periodCode}
                 selectedDistrict={selectedDistrict}
                 snap={sheetSnap}
                 onBackToTopTen={handleClearDistrict}

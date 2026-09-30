@@ -13,10 +13,12 @@ import {
   getToggledSheetSnap,
   normalizeStatusSelection,
   parseStatusMetric,
+  parseStatusPeriod,
   resolveSheetSnapFromDrag,
   resolveStatusSelectedDistrict,
   resolveStatusSheetSnap,
 } from './status-state'
+import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import type { StatusRankedItem } from '@/types/status'
 
 describe('createStatusHref', () => {
@@ -158,13 +160,23 @@ describe('resolveStatusSelectedDistrict', () => {
 describe('createStatusQuery', () => {
   it('always includes the metric', () => {
     expect(
-      createStatusQuery(new URLSearchParams(), 'sales', null).toString(),
+      createStatusQuery(
+        new URLSearchParams(),
+        'sales',
+        null,
+        ANALYSIS_PERIOD_CODE,
+      ).toString(),
     ).toBe('metric=sales')
   })
 
   it('includes the district only when it is selected', () => {
     expect(
-      createStatusQuery(new URLSearchParams(), 'opened', '11680').toString(),
+      createStatusQuery(
+        new URLSearchParams(),
+        'opened',
+        '11680',
+        ANALYSIS_PERIOD_CODE,
+      ).toString(),
     ).toBe('metric=opened&district=11680')
   })
 
@@ -174,6 +186,7 @@ describe('createStatusQuery', () => {
         new URLSearchParams('from=campaign&metric=closed&district=11110'),
         'sales',
         '11680',
+        ANALYSIS_PERIOD_CODE,
       ).toString(),
     ).toBe('from=campaign&metric=sales&district=11680')
   })
@@ -184,9 +197,52 @@ describe('createStatusQuery', () => {
         new URLSearchParams('metric=sales&district=11680&from=campaign'),
         'sales',
         null,
+        ANALYSIS_PERIOD_CODE,
       ).toString(),
     ).toBe('metric=sales&from=campaign')
   })
+
+  it('writes a non-default period and keeps the district', () => {
+    expect(
+      createStatusQuery(
+        new URLSearchParams('metric=sales&district=11680'),
+        'sales',
+        '11680',
+        '20233',
+      ).toString(),
+    ).toBe('metric=sales&district=11680&periodCode=20233')
+  })
+
+  // `/status` 는 「최신 분기 현황」이다. 기본 분기는 URL 에 적지 않는다(status.md 1.6).
+  it('drops the period param when it is the default period', () => {
+    expect(
+      createStatusQuery(
+        new URLSearchParams('metric=sales&periodCode=20233'),
+        'sales',
+        null,
+        ANALYSIS_PERIOD_CODE,
+      ).toString(),
+    ).toBe('metric=sales')
+  })
+})
+
+describe('parseStatusPeriod', () => {
+  it('falls back to the latest period when the param is missing', () => {
+    expect(parseStatusPeriod(null)).toBe(ANALYSIS_PERIOD_CODE)
+    expect(parseStatusPeriod('')).toBe(ANALYSIS_PERIOD_CODE)
+  })
+
+  it('keeps a supported period', () => {
+    expect(parseStatusPeriod('20233')).toBe('20233')
+    expect(parseStatusPeriod(ANALYSIS_PERIOD_CODE)).toBe(ANALYSIS_PERIOD_CODE)
+  })
+
+  it.each(['20264', '20204', '2023', 'abc', '202331'])(
+    'falls back to the latest period for an unsupported value %s',
+    value => {
+      expect(parseStatusPeriod(value)).toBe(ANALYSIS_PERIOD_CODE)
+    },
+  )
 })
 
 describe('getNextSheetSnap', () => {

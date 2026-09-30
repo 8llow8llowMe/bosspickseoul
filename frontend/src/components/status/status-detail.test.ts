@@ -37,10 +37,12 @@ describe('/status 상세 머리', () => {
   const renderHeader = (
     selectedDistrict: StatusSelectedDistrict,
     metric: 'sales' | 'opened' = 'sales',
+    periodCode = '20261',
   ) =>
     renderToStaticMarkup(
       createElement(StatusDetail, {
         metric,
+        periodCode,
         selectedDistrict,
         detail: null,
         isLoading: true,
@@ -80,6 +82,35 @@ describe('/status 상세 머리', () => {
     expect(markup).not.toContain('%')
     expect(markup).not.toContain('데이터 없음')
   })
+
+  // 과거 분기를 고르면 상세가 어느 분기 값인지 머리에서 드러나야 한다(status.md 1.6).
+  it('순위 줄 뒤에 기준 분기를 적는다', () => {
+    const ranked = renderHeader(
+      {
+        districtCode: '11680',
+        districtName: '강남구',
+        rankedItem: {
+          rank: 2,
+          districtCode: '11680',
+          districtName: '강남구',
+          value: 100,
+          changeRate: 1,
+        },
+      },
+      'sales',
+      '20233',
+    )
+    const outside = renderHeader(
+      { districtCode: '11650', districtName: '서초구', rankedItem: null },
+      'opened',
+      '20261',
+    )
+
+    expect(ranked).toContain('매출 2위')
+    expect(ranked).toContain('2023년 3분기 기준')
+    expect(outside).toContain('개업 상위 10위 밖')
+    expect(outside).toContain('2026년 1분기 기준')
+  })
 })
 
 describe('/status 상세 바로가기와 분석 CTA', () => {
@@ -92,6 +123,7 @@ describe('/status 상세 바로가기와 분석 CTA', () => {
     renderToStaticMarkup(
       createElement(StatusDetail, {
         metric: 'sales',
+        periodCode: '20261',
         selectedDistrict,
         detail: null,
         isLoading: false,
