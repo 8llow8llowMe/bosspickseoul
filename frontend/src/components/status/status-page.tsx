@@ -111,6 +111,30 @@ const Layout = styled.div`
       'stage';
     row-gap: 12px;
   }
+
+  /*
+   * 로딩·오류 화면도 **같은 트리**(Layout > SideHead > TitleRow)를 쓴다. 화면마다 트리가
+   * 다르면 평소 ↔ 오류 전환 때 분기 select 가 다시 마운트돼 포커스가 body 로 떨어진다
+   * (status.md 1.6). 배치만 한 열(머리 + 안내)로 바꾼다.
+   */
+  &[data-feedback='true'] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      'head'
+      'feedback';
+    align-content: start;
+    row-gap: 14px;
+
+    @media (max-width: 1023px) {
+      row-gap: 12px;
+    }
+  }
+`
+
+const FeedbackSlot = styled.div`
+  grid-area: feedback;
+  min-width: 0;
 `
 
 // 목록·상세·지도·시트를 한 tabpanel 로 묶되 grid 배치에는 끼지 않게 한다.
@@ -130,6 +154,14 @@ const SideHead = styled.header`
   background: var(--color-surface);
 
   @media (max-width: 1023px) {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* 로딩·오류 화면에서는 카드가 아니라 제목 줄만 남는다(예전 화면과 같은 모양). */
+  &[data-feedback='true'] {
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -665,154 +697,153 @@ function StatusPageContent() {
    */
   const isSupplyOutage = topTen ? isStatusTopTenAllEmpty(topTen) : false
 
-  if (!topTen || isSupplyOutage) {
-    const isLoading = topTenQuery.isPending || topTenQuery.isFetching
-
-    return (
-      <Page data-hide-footer="true">
-        <PageInner>
-          {/* 고른 분기가 실패해도 다른 분기로 옮길 길을 남긴다(status.md 1.6). */}
-          <TitleRow>
-            <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
-            {periodSelect}
-          </TitleRow>
-          {isLoading ? (
-            <StatusFeedback state="loading" />
-          ) : (
-            <StatusFeedback
-              error={resolveApiError(topTenQuery)}
-              state="error"
-              title={
-                isSupplyOutage ? '자치구 데이터를 불러오지 못했어요' : undefined
-              }
-              description={
-                isSupplyOutage
-                  ? '유동인구·매출·개업·폐업 네 지표가 모두 비어 있습니다. 일시적인 문제일 수 있으니 잠시 후 다시 시도해 주세요.'
-                  : undefined
-              }
-              onRetry={() => void topTenQuery.refetch()}
-            />
-          )}
-        </PageInner>
-      </Page>
-    )
-  }
+  const isFeedback = !topTen || isSupplyOutage
+  const isFeedbackLoading =
+    isFeedback && (topTenQuery.isPending || topTenQuery.isFetching)
 
   return (
     <Page data-hide-footer="true">
       <PageInner>
-        <Layout>
-          <SideHead>
+        <Layout data-feedback={isFeedback || undefined}>
+          <SideHead data-feedback={isFeedback || undefined}>
+            {/* 고른 분기가 실패해도 다른 분기로 옮길 길을 남긴다. 트리 위치가 늘 같아
+                평소 ↔ 오류 전환에도 select 가 다시 마운트되지 않는다(status.md 1.6). */}
             <TitleRow>
               <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
               {periodSelect}
             </TitleRow>
-            <StatusMetricTabs
-              idBase={METRIC_TAB_ID_BASE}
-              panelId={METRIC_PANEL_ID}
-              value={metric}
-              onChange={handleMetricChange}
-            />
+            {isFeedback ? null : (
+              <StatusMetricTabs
+                idBase={METRIC_TAB_ID_BASE}
+                panelId={METRIC_PANEL_ID}
+                value={metric}
+                onChange={handleMetricChange}
+              />
+            )}
           </SideHead>
 
-          <MetricPanel
-            aria-labelledby={`${METRIC_TAB_ID_BASE}-${metric}`}
-            id={METRIC_PANEL_ID}
-            role="tabpanel"
-          >
-            <DesktopSide
-              ref={desktopSideRef}
-              data-has-selection={selectedDistrict !== null}
+          {isFeedback ? (
+            <FeedbackSlot>
+              {isFeedbackLoading ? (
+                <StatusFeedback state="loading" />
+              ) : (
+                <StatusFeedback
+                  error={resolveApiError(topTenQuery)}
+                  state="error"
+                  title={
+                    isSupplyOutage
+                      ? '자치구 데이터를 불러오지 못했어요'
+                      : undefined
+                  }
+                  description={
+                    isSupplyOutage
+                      ? '유동인구·매출·개업·폐업 네 지표가 모두 비어 있습니다. 일시적인 문제일 수 있으니 잠시 후 다시 시도해 주세요.'
+                      : undefined
+                  }
+                  onRetry={() => void topTenQuery.refetch()}
+                />
+              )}
+            </FeedbackSlot>
+          ) : (
+            <MetricPanel
+              aria-labelledby={`${METRIC_TAB_ID_BASE}-${metric}`}
+              id={METRIC_PANEL_ID}
+              role="tabpanel"
             >
-              <TopTenPanel
-                aria-busy={isPeriodPending || undefined}
-                data-status-top-ten-panel
+              <DesktopSide
+                ref={desktopSideRef}
+                data-has-selection={selectedDistrict !== null}
               >
-                <HighlightedTopTen
+                <TopTenPanel
+                  aria-busy={isPeriodPending || undefined}
+                  data-status-top-ten-panel
+                >
+                  <HighlightedTopTen
+                    highlightStore={highlightStore}
+                    items={currentItems}
+                    metric={metric}
+                    selectedDistrictCode={selectedDistrictCode}
+                    onSelect={handleDistrictSelect}
+                  />
+                </TopTenPanel>
+
+                <DesktopDetailSlot
+                  key={selectedDistrict?.districtCode ?? 'none'}
+                  data-status-detail-slot
+                >
+                  {selectedDistrict ? (
+                    <StatusDetail
+                      backButtonRef={desktopBackButtonRef}
+                      detail={detail}
+                      error={detailError}
+                      isLoading={isDetailLoading}
+                      isRankPending={isPeriodPending}
+                      metric={metric}
+                      periodCode={periodCode}
+                      selectedDistrict={selectedDistrict}
+                      onBack={handleClearDistrict}
+                      onRetry={() => void detailQuery.refetch()}
+                    />
+                  ) : null}
+                </DesktopDetailSlot>
+              </DesktopSide>
+
+              <MapPanel
+                ref={desktopMapPanelRef}
+                aria-busy={isPeriodPending || undefined}
+                data-status-map-panel
+              >
+                <HighlightedMap
                   highlightStore={highlightStore}
                   items={currentItems}
                   metric={metric}
                   selectedDistrictCode={selectedDistrictCode}
                   onSelect={handleDistrictSelect}
                 />
-              </TopTenPanel>
+              </MapPanel>
 
-              <DesktopDetailSlot
-                key={selectedDistrict?.districtCode ?? 'none'}
-                data-status-detail-slot
+              <MobileStage
+                aria-label="서울 자치구 현황 지도와 상세 정보"
+                data-sheet-snap={sheetSnap}
               >
-                {selectedDistrict ? (
-                  <StatusDetail
-                    backButtonRef={desktopBackButtonRef}
-                    detail={detail}
-                    error={detailError}
-                    isLoading={isDetailLoading}
-                    isRankPending={isPeriodPending}
-                    metric={metric}
-                    periodCode={periodCode}
-                    selectedDistrict={selectedDistrict}
-                    onBack={handleClearDistrict}
-                    onRetry={() => void detailQuery.refetch()}
-                  />
-                ) : null}
-              </DesktopDetailSlot>
-            </DesktopSide>
-
-            <MapPanel
-              ref={desktopMapPanelRef}
-              aria-busy={isPeriodPending || undefined}
-              data-status-map-panel
-            >
-              <HighlightedMap
-                highlightStore={highlightStore}
-                items={currentItems}
-                metric={metric}
-                selectedDistrictCode={selectedDistrictCode}
-                onSelect={handleDistrictSelect}
-              />
-            </MapPanel>
-
-            <MobileStage
-              aria-label="서울 자치구 현황 지도와 상세 정보"
-              data-sheet-snap={sheetSnap}
-            >
-              {/* 전체 펼침에서 지도는 높이 0 이다. 보이지 않는 폴리곤 25개가 Tab 순서에
+                {/* 전체 펼침에서 지도는 높이 0 이다. 보이지 않는 폴리곤 25개가 Tab 순서에
                   남지 않게 통째로 뺀다. */}
-              <MobileMapLayer
-                aria-busy={isPeriodPending || undefined}
-                aria-hidden={sheetSnap === 'full' || undefined}
-                inert={sheetSnap === 'full' || undefined}
-              >
-                <StatusMap
+                <MobileMapLayer
+                  aria-busy={isPeriodPending || undefined}
+                  aria-hidden={sheetSnap === 'full' || undefined}
+                  inert={sheetSnap === 'full' || undefined}
+                >
+                  <StatusMap
+                    items={currentItems}
+                    metric={metric}
+                    selectedDistrictCode={selectedDistrictCode}
+                    backgroundAction={
+                      sheetSnap === 'collapsed' ? 'expand' : 'collapse'
+                    }
+                    onBackgroundClick={handleMapBackgroundClick}
+                    onSelect={handleDistrictSelect}
+                  />
+                </MobileMapLayer>
+                <StatusMobileSheet
+                  detail={detail}
+                  detailError={detailError}
+                  isDetailLoading={isDetailLoading}
+                  isPeriodPending={isPeriodPending}
                   items={currentItems}
                   metric={metric}
-                  selectedDistrictCode={selectedDistrictCode}
-                  backgroundAction={
-                    sheetSnap === 'collapsed' ? 'expand' : 'collapse'
-                  }
-                  onBackgroundClick={handleMapBackgroundClick}
+                  periodCode={periodCode}
+                  selectedDistrict={selectedDistrict}
+                  snap={sheetSnap}
+                  onBackToTopTen={handleClearDistrict}
+                  onRetryDetail={() => void detailQuery.refetch()}
                   onSelect={handleDistrictSelect}
+                  onSnapChange={snap =>
+                    setSheetState({ districtCode: selectedDistrictCode, snap })
+                  }
                 />
-              </MobileMapLayer>
-              <StatusMobileSheet
-                detail={detail}
-                detailError={detailError}
-                isDetailLoading={isDetailLoading}
-                isPeriodPending={isPeriodPending}
-                items={currentItems}
-                metric={metric}
-                periodCode={periodCode}
-                selectedDistrict={selectedDistrict}
-                snap={sheetSnap}
-                onBackToTopTen={handleClearDistrict}
-                onRetryDetail={() => void detailQuery.refetch()}
-                onSelect={handleDistrictSelect}
-                onSnapChange={snap =>
-                  setSheetState({ districtCode: selectedDistrictCode, snap })
-                }
-              />
-            </MobileStage>
-          </MetricPanel>
+              </MobileStage>
+            </MetricPanel>
+          )}
         </Layout>
       </PageInner>
     </Page>
