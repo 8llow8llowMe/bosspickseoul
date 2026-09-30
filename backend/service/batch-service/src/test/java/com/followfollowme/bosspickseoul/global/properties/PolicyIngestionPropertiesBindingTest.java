@@ -32,25 +32,25 @@ class PolicyIngestionPropertiesBindingTest {
                 assertThat(properties.enabled()).isFalse();
                 assertThat(properties.collectCron()).isEqualTo("0 0 6 * * ?");
                 assertThat(properties.bizinfo()).isNotNull();
-                assertThat(properties.datasource()).isNotNull();
-                assertThat(properties.datasource().hasUrl()).isFalse();
+                CommercialDataSourceProperties datasource = context.getBean(CommercialDataSourceProperties.class);
+                assertThat(datasource.hasUrl()).isFalse();
+                assertThat(datasource.driverClassName()).isEqualTo("com.mysql.cj.jdbc.Driver");
             });
     }
 
     @Test
-    @DisplayName("datasource 하위 속성까지 바인딩된다")
-    void bindsDatasource() {
+    @DisplayName("commercial datasource 는 정책 하위가 아니라 공용 경로에서 바인딩된다")
+    void bindsCommercialDatasource() {
         runner.withPropertyValues(
                 "batch.policy.enabled=true",
                 "batch.policy.stale-ratio=0.5",
                 "batch.policy.purge-grace-days=7",
-                "batch.policy.datasource.url=jdbc:mysql://localhost:3306/commercial",
-                "batch.policy.datasource.username=user",
-                "batch.policy.datasource.password=secret")
+                "batch.commercial.datasource.url=jdbc:mysql://localhost:3306/commercial",
+                "batch.commercial.datasource.username=user",
+                "batch.commercial.datasource.password=secret")
             .run(context -> {
                 assertThat(context).hasNotFailed();
-                PolicyIngestionProperties.Datasource datasource =
-                    context.getBean(PolicyIngestionProperties.class).datasource();
+                CommercialDataSourceProperties datasource = context.getBean(CommercialDataSourceProperties.class);
                 assertThat(datasource.url()).isEqualTo("jdbc:mysql://localhost:3306/commercial");
                 assertThat(datasource.username()).isEqualTo("user");
                 assertThat(datasource.driverClassName()).isEqualTo("com.mysql.cj.jdbc.Driver");
@@ -58,7 +58,7 @@ class PolicyIngestionPropertiesBindingTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @EnableConfigurationProperties(PolicyIngestionProperties.class)
+    @EnableConfigurationProperties({PolicyIngestionProperties.class, CommercialDataSourceProperties.class})
     static class EnableTargetProperties {
     }
 }

@@ -1,49 +1,28 @@
 package com.followfollowme.bosspickseoul.global.properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
+/**
+ * 접속 정보는 {@link CommercialDataSourceProperties} 로 옮겼다. "켜져 있으면 URL 필수" 검증은
+ * {@code CommercialDataSourceConfigTest} 가 고정한다.
+ */
 class PolicyIngestionPropertiesTest {
 
     @Test
-    void defaultsDatasourceWhenOmitted() {
-        PolicyIngestionProperties properties = new PolicyIngestionProperties(
-            false, "0 0 6 * * ?", "0 30 6 * * ?", 0.5, 30,
-            new PolicyIngestionProperties.Bizinfo(
-                "https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do",
-                "key",
-                "소상공인",
-                100,
-                20,
-                30,
-                3
-            ),
-            null
-        );
+    void defaultsBlankCronAndBizinfo() {
+        PolicyIngestionProperties properties = new PolicyIngestionProperties(false, " ", null, 0.5, 30, null);
 
-        assertThat(properties.datasource().hasUrl()).isFalse();
-        assertThat(properties.datasource().driverClassName()).isEqualTo("com.mysql.cj.jdbc.Driver");
+        assertThat(properties.collectCron()).isEqualTo("0 0 6 * * ?");
+        assertThat(properties.purgeCron()).isEqualTo("0 30 6 * * ?");
+        assertThat(properties.bizinfo()).isNotNull();
     }
 
     @Test
-    void failsWhenEnabledWithoutCommercialUrl() {
-        assertThatThrownBy(() -> new PolicyIngestionProperties(
-            true, "0 0 6 * * ?", "0 30 6 * * ?", 0.5, 30,
-            new PolicyIngestionProperties.Bizinfo(
-                "https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do",
-                "key",
-                "소상공인",
-                100,
-                20,
-                30,
-                3
-            ),
-            new PolicyIngestionProperties.Datasource("", "user", "secret", "com.mysql.cj.jdbc.Driver")
-        ))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("COMMERCIAL_DB_URL")
-            .hasMessageNotContaining("secret");
+    void enablingPolicyNoLongerRequiresItsOwnDatasource() {
+        PolicyIngestionProperties properties = new PolicyIngestionProperties(true, null, null, 0.5, 30, null);
+
+        assertThat(properties.enabled()).isTrue();
     }
 }

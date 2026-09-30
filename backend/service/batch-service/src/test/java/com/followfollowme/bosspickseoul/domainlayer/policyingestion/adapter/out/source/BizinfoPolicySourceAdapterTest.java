@@ -89,8 +89,7 @@ class BizinfoPolicySourceAdapterTest {
     private static PolicyIngestionProperties properties(String baseUrl, String key, int pageSize, int maxPages) {
         return new PolicyIngestionProperties(
             false, "0 0 6 * * ?", "0 30 6 * * ?", 0.5, 30,
-            new PolicyIngestionProperties.Bizinfo(baseUrl, key, "소상공인", pageSize, maxPages, 5, 1),
-            null
+            new PolicyIngestionProperties.Bizinfo(baseUrl, key, "소상공인", pageSize, maxPages, 5, 1)
         );
     }
 
