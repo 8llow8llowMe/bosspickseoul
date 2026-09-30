@@ -12,7 +12,12 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.po
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
 import javax.sql.DataSource;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.CommercialTargetGuardRunner;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.DatasetStagingPurgeJobConfig;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.DatasetStagingPurgeTasklet;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.DatasetRefreshQuartzScheduleConfig;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.DatasetStagingPurgeQuartzScheduleConfig;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.DatasetStagingPurgeFacade;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetStagingPurgeProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.batch.SpringBatchImportExecutionAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.metrics.MicrometerDatasetRefreshMetricsAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.in.DatasetRefreshUseCase;
@@ -79,6 +84,17 @@ class AlwaysOnDatasetImportWiringTest {
     }
 
     @Test
+    @DisplayName("스테이징 정리가 켜지면 주간 트리거와 정리 Job 이 조립된다")
+    void assemblesTheStagingPurgeWhenEnabled() {
+        refreshRunner().withPropertyValues("batch.staging-purge.enabled=true").run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBeansOfType(Job.class)).containsKey("datasetStagingPurgeJob");
+            assertThat(context.getBeansOfType(Trigger.class)).containsOnlyKeys("datasetStagingPurgeTrigger");
+            assertThat(context.getBean("commercialJdbcTemplate", JdbcTemplate.class).getDataSource()).isNotSameAs(primary);
+        });
+    }
+
+    @Test
     @DisplayName("자동 최신화가 꺼져 있으면 트리거를 등록하지 않는다")
     void registersNoTriggerWhenRefreshIsDisabled() {
         refreshRunner().run(context -> {
@@ -92,7 +108,9 @@ class AlwaysOnDatasetImportWiringTest {
             .withBean(JobLauncher.class, () -> mock(JobLauncher.class))
             .withUserConfiguration(DatasetRefreshPropertiesConfig.class, PolicyIngestionPropertiesConfig.class,
                 DatasetRefreshQuartzScheduleConfig.class, DatasetRefreshFacade.class, DatasetRefreshProcessor.class,
-                SpringBatchImportExecutionAdapter.class, MicrometerDatasetRefreshMetricsAdapter.class, CommercialTargetGuardRunner.class)
+                SpringBatchImportExecutionAdapter.class, MicrometerDatasetRefreshMetricsAdapter.class, CommercialTargetGuardRunner.class,
+                DatasetStagingPurgeQuartzScheduleConfig.class, DatasetStagingPurgeJobConfig.class, DatasetStagingPurgeTasklet.class,
+                DatasetStagingPurgeFacade.class, DatasetStagingPurgeProcessor.class)
             .withPropertyValues("batch.policy.stale-ratio=0.5", "batch.policy.purge-grace-days=30");
     }
 

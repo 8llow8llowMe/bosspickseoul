@@ -25,6 +25,9 @@ x-batch-service-environment: &batch_service_environment
   # 수집 페이지 보관 위치. batch-service-dev 는 batch-service-job 과 같은 batch-raw 볼륨을 여기 붙인다.
   BATCH_RAW_DIRECTORY: /app/data/raw
   BATCH_LEGACY_SPATIAL_SCHEMA: ${BATCH_LEGACY_SPATIAL_SCHEMA:-}
+  # 분기 적재 스테이징 정리(주간, 기본 off). CRON 이 비면 일요일 04:00 KST.
+  BATCH_STAGING_PURGE_ENABLED: ${BATCH_STAGING_PURGE_ENABLED:-false}
+  BATCH_STAGING_PURGE_CRON: ${BATCH_STAGING_PURGE_CRON:-}
 
 x-logging: &default-logging
   driver: "json-file"
