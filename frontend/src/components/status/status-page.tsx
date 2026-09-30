@@ -22,10 +22,11 @@ import {
 import {
   createStatusHref,
   createStatusQuery,
-  getNextSheetSnap,
+  getToggledSheetSnap,
   normalizeStatusSelection,
   parseStatusMetric,
   resolveStatusSelectedDistrict,
+  resolveStatusSheetSnap,
   type StatusSheetState,
 } from '@/lib/status/status-state'
 import { districts } from '@/data/districts'
@@ -39,7 +40,7 @@ import StatusDetail from './status-detail'
 import StatusFeedback from './status-feedback'
 import StatusMap from './status-map'
 import StatusMetricTabs from './status-metric-tabs'
-import StatusMobileSheet from './status-mobile-sheet'
+import StatusMobileSheet, { statusSheetHeightVars } from './status-mobile-sheet'
 import StatusTopTen from './status-top-ten'
 import { shellWidth } from '@/styles/layout'
 
@@ -59,11 +60,8 @@ const Page = styled.main`
   display: flex;
   flex-direction: column;
 
+  /* 1024px 미만은 지도 + 시트 무대가 화면 아래까지 붙는다(status.md 1.4). */
   @media (max-width: 1023px) {
-    padding: 16px 0 20px;
-  }
-
-  @media (max-width: 767px) {
     padding: 12px 0 0;
   }
 `
@@ -104,10 +102,6 @@ const Layout = styled.div`
   column-gap: 20px;
 
   @media (max-width: 1023px) {
-    column-gap: 16px;
-  }
-
-  @media (max-width: 767px) {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       'head'
@@ -132,7 +126,7 @@ const SideHead = styled.header`
   border-radius: var(--radius-card) var(--radius-card) 0 0;
   background: var(--color-surface);
 
-  @media (max-width: 767px) {
+  @media (max-width: 1023px) {
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -147,7 +141,7 @@ const PageTitle = styled.h1`
   line-height: 26px;
 
   /* 모바일은 지표 전환이 맨 위다. 제목은 스크린리더·검색엔진용으로 남긴다. */
-  @media (max-width: 767px) {
+  @media (max-width: 1023px) {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -170,7 +164,7 @@ const detailEnter = keyframes`
 `
 
 /*
- * 태블릿 이상은 좌측 열(순위 ↔ 상세) + 우측 지도 2단이다.
+ * 1024px 이상은 좌측 열(순위 ↔ 상세) + 우측 지도 2단이다(그 아래는 지도 + 시트 무대).
  *
  * 예전에는 자치구를 고르면 **지도 자리**가 상세로 바뀌었다. 방금 누른 폴리곤이 통째로
  * 사라져 어디를 골랐는지 맥락을 잃고, 다른 구로 옮기려면 닫고 다시 골라야 했다. 이제
@@ -203,7 +197,7 @@ const DesktopSide = styled.div`
     display: none;
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 1023px) {
     display: none;
   }
 `
@@ -272,25 +266,42 @@ const MapPanel = styled.section`
     aspect-ratio: auto;
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 1023px) {
     display: none;
   }
 `
 
+/*
+ * 1024px 미만(모바일·태블릿 세로)은 지도 + 바텀시트 무대다. 예전엔 768px 부터 2단이라 태블릿
+ * 세로에서 좌측 열 340px 을 빼고 남은 약 340px 에 지도가 작게 떴다(status.md 1.4).
+ *
+ * 지도 층의 아래 끝은 **현재 시트 높이**를 따라간다. 지도는 남은 자리에 비율대로 맞춰
+ * 가운데 놓이므로 시트가 지도 아래쪽(강남·서초·송파)을 덮지 않고, 시트를 접으면 지도가
+ * 커진다. 높이 식은 시트와 같은 정의(`statusSheetHeightVars`)다.
+ */
 const MobileStage = styled.section`
   display: none;
 
-  /* 모바일(<768)에서만 지도+바텀시트 스테이지를 사용한다. 태블릿 이상은
-     Layout 의 2단(좌측 열 + 지도)으로 처리한다. */
-  @media (max-width: 767px) {
+  @media (max-width: 1023px) {
+    ${statusSheetHeightVars}
+    --status-stage-sheet-height: var(--status-sheet-expanded-height);
+
+    &[data-sheet-snap='collapsed'] {
+      --status-stage-sheet-height: var(--status-sheet-collapsed-height);
+    }
+
+    &[data-sheet-snap='full'] {
+      --status-stage-sheet-height: var(--status-sheet-full-height);
+    }
+
     grid-area: stage;
     position: relative;
     /* 남는 세로 공간을 지도+시트가 모두 채워 하단 빈 공간을 없앤다. */
     min-height: 0;
-    width: calc(100% + 32px);
+    width: calc(100% + var(--shell-gutter) * 2);
     display: block;
     overflow: hidden;
-    margin-left: -16px;
+    margin-left: calc(var(--shell-gutter) * -1);
     border-top: 1px solid var(--color-border-200);
     background: var(--color-surface-muted);
   }
@@ -298,13 +309,17 @@ const MobileStage = styled.section`
 
 const MobileMapLayer = styled.div`
   position: absolute;
-  inset: 0;
+  inset: 0 0 var(--status-stage-sheet-height);
   min-height: 0;
   padding: 12px;
   display: grid;
-  /* 지도를 스테이지 상단(탭 바로 아래)에 붙여, 빈 공간이 지도 위가 아니라
-     시트가 올라오는 하단 쪽에 모이게 한다. */
-  align-content: start;
+  /* 시트에 가리지 않는 자리 안에서 지도를 가운데 둔다. */
+  align-content: center;
+  transition: bottom var(--motion-standard) var(--ease-standard);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 
   > figure {
     min-height: 0;
@@ -370,8 +385,8 @@ function StatusPageContent() {
   const rawSearchParams = searchParams.toString()
   const metric = parseStatusMetric(searchParams.get('metric'))
   const requestedDistrictCode = searchParams.get('district')
-  // 지도는 상단 정렬로 항상 보이고, 시트는 기본 '펼침'으로 하단을 Top10 리스트가
-  // 채우게 한다(빈 공간 제거). 지도 몫(MINIMUM_MAP_HEIGHT)이 확보돼 가리지 않는다.
+  // 시트는 기본 '펼침'으로 하단을 Top10 리스트가 채우고, 지도는 시트 위에 남는 자리에
+  // 맞춰 가운데 놓인다(지도 몫 MINIMUM_MAP_HEIGHT 보장).
   const [sheetState, setSheetState] = useState<StatusSheetState>({
     districtCode: null,
     snap: 'expanded',
@@ -408,10 +423,7 @@ function StatusPageContent() {
     currentItems,
     districts,
   )
-  const sheetSnap =
-    sheetState.districtCode === selectedDistrictCode
-      ? sheetState.snap
-      : 'expanded'
+  const sheetSnap = resolveStatusSheetSnap(sheetState, selectedDistrictCode)
 
   const detailQuery = useQuery({
     queryKey: ['status', 'detail', selectedDistrictCode],
@@ -533,7 +545,11 @@ function StatusPageContent() {
   }
 
   const handleDistrictSelect = (districtCode: string) => {
-    setSheetState({ districtCode, snap: 'expanded' })
+    // 접혀 있으면 펼치고, 그 밖에는 지금 단계를 유지한다(전체 펼침에서 고르면 그대로).
+    setSheetState({
+      districtCode,
+      snap: sheetSnap === 'collapsed' ? 'expanded' : sheetSnap,
+    })
     // 누른 행은 상세에 가려져 pointerleave 가 오지 않는다. 남은 강조가 상세 옆 지도에
     // 툴팁을 띄워 두지 않게 지운다.
     highlightStore.clear()
@@ -546,17 +562,17 @@ function StatusPageContent() {
   }
 
   const handleClearDistrict = () => {
-    setSheetState({ districtCode: null, snap: 'expanded' })
+    setSheetState({
+      districtCode: null,
+      snap: sheetSnap === 'collapsed' ? 'expanded' : sheetSnap,
+    })
     pushStatusQuery(metric, null)
   }
 
   const handleMapBackgroundClick = () => {
     setSheetState({
       districtCode: selectedDistrictCode,
-      snap: getNextSheetSnap(
-        sheetSnap,
-        sheetSnap === 'collapsed' ? 'expand' : 'collapse',
-      ),
+      snap: getToggledSheetSnap(sheetSnap),
     })
   }
 
@@ -659,8 +675,16 @@ function StatusPageContent() {
               />
             </MapPanel>
 
-            <MobileStage aria-label="서울 자치구 현황 지도와 상세 정보">
-              <MobileMapLayer>
+            <MobileStage
+              aria-label="서울 자치구 현황 지도와 상세 정보"
+              data-sheet-snap={sheetSnap}
+            >
+              {/* 전체 펼침에서 지도는 높이 0 이다. 보이지 않는 폴리곤 25개가 Tab 순서에
+                  남지 않게 통째로 뺀다. */}
+              <MobileMapLayer
+                aria-hidden={sheetSnap === 'full' || undefined}
+                inert={sheetSnap === 'full' || undefined}
+              >
                 <StatusMap
                   items={currentItems}
                   metric={metric}

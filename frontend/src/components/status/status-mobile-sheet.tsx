@@ -6,18 +6,21 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 import type { NormalizedApiError } from '@/lib/api/api-error'
 import {
   applyStatusSheetContentTransition,
-  getStatusSheetHeightBounds,
   getNextSheetSnap,
+  getStatusSheetHeightBounds,
+  getToggledSheetSnap,
   resolveSheetSnapFromDrag,
   STATUS_SHEET_COLLAPSED_HEIGHT,
   STATUS_SHEET_EXPANDED_RATIO,
+  STATUS_SHEET_FULL_TOP_GAP,
   STATUS_SHEET_MINIMUM_MAP_HEIGHT,
   type StatusSheetSnap,
 } from '@/lib/status/status-state'
@@ -51,11 +54,11 @@ type DragVisualState = {
   startSnap: StatusSheetSnap
 }
 
-const Sheet = styled.section<{
-  $dragDeltaY: number
-  $isDragging: boolean
-  $snap: StatusSheetSnap
-}>`
+/**
+ * 시트 세 단계의 높이 식(`getStatusSheetHeightBounds` 의 CSS 판). `%` 는 쓰는 자리의 기준
+ * 상자(무대)를 따르므로, 시트와 무대(지도 층의 아래 끝)가 이 한 정의를 나눠 쓴다.
+ */
+export const statusSheetHeightVars = css`
   --status-sheet-collapsed-height: ${STATUS_SHEET_COLLAPSED_HEIGHT}px;
   --status-sheet-expanded-height: max(
     ${STATUS_SHEET_COLLAPSED_HEIGHT}px,
@@ -64,6 +67,24 @@ const Sheet = styled.section<{
       calc(100% - ${STATUS_SHEET_MINIMUM_MAP_HEIGHT}px)
     )
   );
+  --status-sheet-full-height: max(
+    var(--status-sheet-expanded-height),
+    calc(100% - ${STATUS_SHEET_FULL_TOP_GAP}px)
+  );
+`
+
+export const STATUS_SHEET_HEIGHT_VAR: Record<StatusSheetSnap, string> = {
+  collapsed: 'var(--status-sheet-collapsed-height)',
+  expanded: 'var(--status-sheet-expanded-height)',
+  full: 'var(--status-sheet-full-height)',
+}
+
+const Sheet = styled.section<{
+  $dragDeltaY: number
+  $isDragging: boolean
+  $snap: StatusSheetSnap
+}>`
+  ${statusSheetHeightVars}
 
   position: absolute;
   z-index: 10;
@@ -72,14 +93,8 @@ const Sheet = styled.section<{
   left: 0;
   height: ${props => `clamp(
     var(--status-sheet-collapsed-height),
-    calc(
-      ${
-        props.$snap === 'expanded'
-          ? 'var(--status-sheet-expanded-height)'
-          : 'var(--status-sheet-collapsed-height)'
-      } - ${props.$dragDeltaY}px
-    ),
-    var(--status-sheet-expanded-height)
+    calc(${STATUS_SHEET_HEIGHT_VAR[props.$snap]} - ${props.$dragDeltaY}px),
+    var(--status-sheet-full-height)
   )`};
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -316,8 +331,7 @@ export default function StatusMobileSheet({
     const nextSnap = resolveSheetSnapFromDrag(
       startSnap,
       event.clientY - startY,
-      bounds.collapsedHeight,
-      bounds.expandedHeight,
+      bounds,
     )
     suppressPointerClickRef.current = didDragRef.current
     clearPointerState()
@@ -361,9 +375,20 @@ export default function StatusMobileSheet({
     }
 
     suppressPointerClickRef.current = false
-    onSnapChange(
-      getNextSheetSnap(snap, snap === 'collapsed' ? 'expand' : 'collapse'),
+    onSnapChange(getToggledSheetSnap(snap))
+  }
+
+  // 끌기의 대안(WCAG 2.5.7). 전체 단계는 끌어서만 가는 곳이라 키보드·스위치 사용자는
+  // 손잡이에서 ↑/↓ 로 한 단계씩 움직인다.
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+
+    event.preventDefault()
+    const nextSnap = getNextSheetSnap(
+      snap,
+      event.key === 'ArrowUp' ? 'expand' : 'collapse',
     )
+    if (nextSnap !== snap) onSnapChange(nextSnap)
   }
 
   const isDraggingCurrentSnap =
@@ -380,7 +405,8 @@ export default function StatusMobileSheet({
       <HandleButton
         ref={handleRef}
         aria-controls={bodyId}
-        aria-expanded={snap === 'expanded'}
+        aria-expanded={snap !== 'collapsed'}
+        aria-keyshortcuts="ArrowUp ArrowDown"
         aria-label={
           snap === 'collapsed'
             ? '구별 현황 바텀시트 펼치기'
@@ -388,6 +414,7 @@ export default function StatusMobileSheet({
         }
         type="button"
         onClick={handleToggle}
+        onKeyDown={handleKeyDown}
         onLostPointerCapture={handleLostPointerCapture}
         onPointerCancel={handlePointerCancel}
         onPointerDown={handlePointerDown}
@@ -400,7 +427,7 @@ export default function StatusMobileSheet({
       <SheetBody
         ref={sheetBodyRef}
         id={bodyId}
-        $isExpanded={snap === 'expanded'}
+        $isExpanded={snap !== 'collapsed'}
         aria-hidden={snap === 'collapsed'}
         aria-label={
           selectedDistrict ? '선택 지역 상세' : '구별 상권 상위 10개 목록'

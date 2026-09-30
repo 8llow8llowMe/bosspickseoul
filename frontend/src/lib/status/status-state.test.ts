@@ -5,14 +5,17 @@ import {
   createStatusHref,
   STATUS_SHEET_COLLAPSED_HEIGHT,
   STATUS_SHEET_EXPANDED_RATIO,
+  STATUS_SHEET_FULL_TOP_GAP,
   STATUS_SHEET_MINIMUM_MAP_HEIGHT,
   createStatusQuery,
   getStatusSheetHeightBounds,
   getNextSheetSnap,
+  getToggledSheetSnap,
   normalizeStatusSelection,
   parseStatusMetric,
   resolveSheetSnapFromDrag,
   resolveStatusSelectedDistrict,
+  resolveStatusSheetSnap,
 } from './status-state'
 import type { StatusRankedItem } from '@/types/status'
 
@@ -50,7 +53,7 @@ describe('getStatusSheetHeightBounds', () => {
     [523.28, 523.28 - STATUS_SHEET_MINIMUM_MAP_HEIGHT],
     [360, 360 - STATUS_SHEET_MINIMUM_MAP_HEIGHT],
   ])(
-    'returns the two snap heights for a %spx viewport',
+    'returns the snap heights for a %spx viewport',
     (height, expectedExpanded) => {
       const bounds = getStatusSheetHeightBounds(height)
 
@@ -59,6 +62,11 @@ describe('getStatusSheetHeightBounds', () => {
       // 비율 상한을 넘지 않는지도 함께 확인한다.
       expect(bounds.expandedHeight).toBeLessThanOrEqual(
         height * STATUS_SHEET_EXPANDED_RATIO,
+      )
+      // 전체 펼침은 무대 위 끝만 조금 남긴다.
+      expect(bounds.fullHeight).toBeCloseTo(
+        height - STATUS_SHEET_FULL_TOP_GAP,
+        5,
       )
     },
   )
@@ -69,6 +77,7 @@ describe('getStatusSheetHeightBounds', () => {
       expect(getStatusSheetHeightBounds(height)).toEqual({
         collapsedHeight: 52,
         expandedHeight: 52,
+        fullHeight: 52,
       })
     },
   )
@@ -183,7 +192,9 @@ describe('createStatusQuery', () => {
 describe('getNextSheetSnap', () => {
   it.each([
     ['collapsed', 'expand', 'expanded'],
-    ['expanded', 'expand', 'expanded'],
+    ['expanded', 'expand', 'full'],
+    ['full', 'expand', 'full'],
+    ['full', 'collapse', 'expanded'],
     ['expanded', 'collapse', 'collapsed'],
     ['collapsed', 'collapse', 'collapsed'],
   ] as const)('returns %s + %s as %s', (currentSnap, action, expectedSnap) => {
@@ -191,64 +202,91 @@ describe('getNextSheetSnap', () => {
   })
 })
 
+describe('getToggledSheetSnap', () => {
+  // 탭은 접혀 있으면 펼치고 그 밖에는 한 단계 접는다. full 은 끌어서만 간다.
+  it.each([
+    ['collapsed', 'expanded'],
+    ['expanded', 'collapsed'],
+    ['full', 'expanded'],
+  ] as const)('toggles %s to %s', (currentSnap, expectedSnap) => {
+    expect(getToggledSheetSnap(currentSnap)).toBe(expectedSnap)
+  })
+})
+
 describe('resolveSheetSnapFromDrag', () => {
-  describe('52px collapsed and 343.28px expanded bounds', () => {
-    const collapsedHeight = 52
-    const expandedHeight = 343.28
-    const midpointDelta = (expandedHeight - collapsedHeight) / 2
+  describe('52 / 343.28 / 661px bounds', () => {
+    const bounds = {
+      collapsedHeight: 52,
+      expandedHeight: 343.28,
+      fullHeight: 661,
+    }
+    const lowerMidpoint = (bounds.expandedHeight - bounds.collapsedHeight) / 2
+    const upperMidpoint = (bounds.fullHeight - bounds.expandedHeight) / 2
 
     it.each([
-      ['collapsed', 'midpoint - 1', -(midpointDelta - 1), 'collapsed'],
-      ['collapsed', 'midpoint exact', -midpointDelta, 'expanded'],
-      ['collapsed', 'midpoint + 1', -(midpointDelta + 1), 'expanded'],
-      ['expanded', 'midpoint + 1', midpointDelta - 1, 'expanded'],
-      ['expanded', 'midpoint exact', midpointDelta, 'expanded'],
-      ['expanded', 'midpoint - 1', midpointDelta + 1, 'collapsed'],
+      ['collapsed', 'lower midpoint - 1', -(lowerMidpoint - 1), 'collapsed'],
+      ['collapsed', 'lower midpoint exact', -lowerMidpoint, 'expanded'],
+      ['collapsed', 'lower midpoint + 1', -(lowerMidpoint + 1), 'expanded'],
+      ['expanded', 'lower midpoint + 1', lowerMidpoint - 1, 'expanded'],
+      ['expanded', 'lower midpoint exact', lowerMidpoint, 'expanded'],
+      ['expanded', 'lower midpoint - 1', lowerMidpoint + 1, 'collapsed'],
+      ['expanded', 'upper midpoint - 1', -(upperMidpoint - 1), 'expanded'],
+      ['expanded', 'upper midpoint exact', -upperMidpoint, 'full'],
+      ['full', 'upper midpoint + 1', upperMidpoint + 1, 'expanded'],
+      ['full', 'all the way down', 1_000, 'collapsed'],
+      ['collapsed', 'all the way up', -1_000, 'full'],
     ] as const)(
       'resolves %s at %s',
       (startSnap, _boundary, deltaY, expectedSnap) => {
-        expect(
-          resolveSheetSnapFromDrag(
-            startSnap,
-            deltaY,
-            collapsedHeight,
-            expandedHeight,
-          ),
-        ).toBe(expectedSnap)
+        expect(resolveSheetSnapFromDrag(startSnap, deltaY, bounds)).toBe(
+          expectedSnap,
+        )
       },
     )
   })
 
   it.each([
-    ['collapsed', 1_000, 'collapsed'],
-    ['expanded', -1_000, 'expanded'],
+    ['collapsed', 0, 0, 700],
+    ['collapsed', 400, 300, 700],
+    ['expanded', Number.NaN, 500, 700],
+    ['expanded', 52, 52, 52],
   ] as const)(
-    'clamps a drag beyond the available height from %s',
-    (startSnap, deltaY, expectedSnap) => {
-      expect(resolveSheetSnapFromDrag(startSnap, deltaY, 52, 343.28)).toBe(
-        expectedSnap,
-      )
-    },
-  )
-
-  it.each([
-    ['collapsed', 0, 0],
-    ['expanded', 300, 300],
-    ['collapsed', 400, 300],
-    ['expanded', Number.NaN, 500],
-  ] as const)(
-    'keeps %s when the height bounds are invalid: %s, %s',
-    (startSnap, collapsedHeight, expandedHeight) => {
+    'keeps %s when the height bounds are invalid: %s, %s, %s',
+    (startSnap, collapsedHeight, expandedHeight, fullHeight) => {
       expect(
-        resolveSheetSnapFromDrag(
-          startSnap,
-          100,
+        resolveSheetSnapFromDrag(startSnap, 100, {
           collapsedHeight,
           expandedHeight,
-        ),
+          fullHeight,
+        }),
       ).toBe(startSnap)
     },
   )
+
+  it('still reaches full on a short stage where expanded equals collapsed', () => {
+    // 가로로 눕힌 폰(무대 약 257px): 펼침 = 접힘 = 52px. 전체 단계가 유일한 출구다.
+    expect(
+      resolveSheetSnapFromDrag('collapsed', -1_000, {
+        collapsedHeight: 52,
+        expandedHeight: 52,
+        fullHeight: 245,
+      }),
+    ).toBe('full')
+  })
+})
+
+describe('resolveStatusSheetSnap', () => {
+  it.each([
+    [{ districtCode: '11680', snap: 'full' }, '11680', 'full'],
+    // 고른 구로 URL 이 따라오기 전 한 번의 렌더 — 전체 단계에서 펼침으로 떨어지지 않는다.
+    [{ districtCode: '11680', snap: 'full' }, null, 'full'],
+    [{ districtCode: null, snap: 'full' }, '11680', 'full'],
+    // 접힌 채 링크·뒤로가기로 다른 구가 열리면 펼친다.
+    [{ districtCode: null, snap: 'collapsed' }, '11680', 'expanded'],
+    [{ districtCode: '11680', snap: 'collapsed' }, '11680', 'collapsed'],
+  ] as const)('%o with %s → %s', (state, code, expected) => {
+    expect(resolveStatusSheetSnap(state, code)).toBe(expected)
+  })
 })
 
 describe('applyStatusSheetContentTransition', () => {
