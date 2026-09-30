@@ -570,16 +570,6 @@ export default function RecommendMap({
     activeStroke: '#2272eb',
     fill: '#2272eb',
   })
-  const layerInputRef = useRef<RecommendMapLayerStructuralInput>({
-    stage,
-    districtAreas,
-    administrationAreas,
-    commercialAreas,
-    resultAreas,
-    selectedDistrictCode,
-    selectedAdministrationCode,
-    previewedCommercialCode,
-  })
   const guardRef = useRef<BackgroundClickGuard | null>(null)
   const lastViewportBoundsKeyRef = useRef('')
   /** 마지막으로 실제 적용한 카메라 타깃의 키. 모드 전환 이펙트와 recenter 가 공유한다. */
@@ -654,9 +644,12 @@ export default function RecommendMap({
     selectedAdministrationCode,
     previewedCommercialCode,
   }
-
-  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
-  layerInputRef.current = layerInput
+  /*
+   * 레이어 이펙트는 `layerSemanticKey` 가 바뀔 때만 돌고, 그릴 값은 이것으로 읽는다.
+   * 이펙트 이벤트는 커밋 도중(이펙트보다 먼저) 새 렌더의 함수로 바뀌므로, 키를 만든
+   * **그 렌더의** 입력을 돌려준다 — 키와 값이 한 커밋 어긋나지 않는다.
+   */
+  const readLayerInput = useEffectEvent(() => layerInput)
   guardRef.current ??= createBackgroundClickGuard()
 
   const selectedResult = resultAreas.find(
@@ -795,7 +788,7 @@ export default function RecommendMap({
     const maps = mapsRef.current
     const map = mapRef.current
     if (sdkStatus !== 'ready' || !maps || !map) return
-    const layerInput = layerInputRef.current
+    const layerInput = readLayerInput()
 
     const polygons: KakaoMapPolygon[] = []
     const overlays: KakaoMapCustomOverlay[] = []
