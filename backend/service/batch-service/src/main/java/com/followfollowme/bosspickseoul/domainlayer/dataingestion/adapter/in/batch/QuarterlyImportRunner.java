@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Profile("quarterly")
 public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerator {
+    private static final String ENV_PREFIX = "batch.quarterly.";
     private final Environment environment;
     private final JobLauncher launcher;
     private final Job factJob;
@@ -79,9 +80,16 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
         return value;
     }
 
+    /**
+     * CLI options win. Without one, falls back to {@code batch.quarterly.<name>} so a one-shot container can pass
+     * {@code BATCH_QUARTERLY_RUN_ID} etc. through relaxed binding. A blank env value counts as unset.
+     */
     private String optional(ApplicationArguments args, String name, String fallback) {
         var values = args.getOptionValues(name);
-        if (values == null) return fallback;
+        if (values == null) {
+            String env = environment.getProperty(ENV_PREFIX + name);
+            return env == null || env.isBlank() ? fallback : env;
+        }
         if (values.size() != 1) throw new IllegalArgumentException("Option must occur once: " + name);
         return values.getFirst();
     }
