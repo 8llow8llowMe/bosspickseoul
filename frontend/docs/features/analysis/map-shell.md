@@ -441,6 +441,17 @@ shouldMountMap = !(resultOpen && narrow)
 | lat/lng 순서 혼동              | `c` 는 위도 우선, 프로젝트 `GeoBounds`·`MapPoint` 는 경도 우선이다. 좌표 범위 가드(D5)가 뒤바뀜을 걸러내지만, 함수 시그니처에 `MapCamera` 타입을 강제해 실수 자체를 줄인다                                                                                                                                                |
 | 모바일 재마운트 깜빡임         | 결과 레이어를 닫는 순간 지도가 다시 마운트되며 "지도를 준비하고 있어요" 상태가 짧게 보인다. 폴리곤은 5분 캐시로 즉시 오지만 SDK 초기화 프레임은 남는다. 허용한다 — 대안(지도 유지)의 메모리 비용이 더 크다                                                                                                                |
 | 삭제 파일의 테스트             | `analysis-result-page.test.ts`, `analysis-result-modal.test.ts`(기본 export 검증 부분)를 함께 정리한다. `analysis-result-modal.portal.test.ts` 와 `ai-report-panel.test.ts` 는 `AnalysisResultModalSurface` 를 계속 검증하므로 **남긴다**                                                                                 |
+| 지도 이펙트 검증 경로 (#375)   | jsdom + 가짜 카카오 SDK 하네스로 검증한다. [아래 소단락](#지도-이펙트-검증-경로-375) 참조                                                                                                                                                                                                                                 |
+
+### 지도 이펙트 검증 경로 (#375)
+
+브라우저 페인에서는 카카오 SDK 가 뜨지 않는다(D8 #5). 그래서 지도 이펙트는 **jsdom + 가짜 SDK** 로 검증한다.
+
+- **하네스**: `src/test/fake-kakao-maps.ts` 의 `createFakeKakaoMaps`·`stubResizeObserver`. 쓰는 예는 `src/components/recommend/recommend-map.effects.test.ts` 다.
+- **동작 방식**: 가짜 SDK 는 그리지 않고 **기록한다** — 폴리곤·오버레이 생성, 리스너 붙임/뗌, `setCenter`/`setLevel`/`setBounds` 호출. SDK 이벤트는 `trigger(target, 'idle' | 'click' | …)` 로 직접 낸다.
+- **덮는 것**: 단계 전환 시 레이어 재생성, 호버 하이라이트, 선택/미리보기, 카메라 이동·되돌리기·ResizeObserver, idle 300ms 디바운스, 「콜백이 바뀌어도 핸들러·오버레이를 다시 만들지 않는다」, 「오래 사는 핸들러가 최신 prop 을 본다」.
+- **주의**: SDK 로드 `.then` 의 setState 는 **async `act` 안에서** 받아야 그 커밋의 이펙트까지 비워진다. `waitFor` 로 DOM 만 기다리면 레이어가 빈 채로 단언하는 경합이 생긴다(실측).
+- **한계**: 실제 타일·투영·픽셀 좌표가 없고, `setBounds` 는 중심·레벨을 바꾸지 않는다. 실제 카카오의 이벤트 전파(폴리곤 클릭이 지도 클릭으로 새는지), 터치·핀치 제스처, 레이아웃 패딩 실측은 여전히 실기기에서 본다.
 
 ---
 
@@ -523,5 +534,6 @@ TC ID 접두사 `TC-MS`. 순수 함수(`map-camera.ts`, `selection.ts`) 중심�
 | ---- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | 1.0  | 2026-08-26 | 지도 셸(`(map-shell)` 라우트 그룹, `@modal` 제거) + URL 카메라 `c=lat,lng,level` 명세 최초 작성                                                                                                | Claude |
 | 1.1  | 2026-08-26 | 구현 반영: `createCameraBounds` 상수를 `SEOUL_MAP_BOUNDS` @ level 8 앵커 기반으로 재유도(D8-5), 카카오 level 범위 SDK 소스 실측 확정(D8-6), `periodCode` URL 승격을 이번 슬라이스로 편입(D8-4) | Claude |
+| 1.2  | 2026-09-30 | D6 에 지도 이펙트 검증 경로(jsdom + 가짜 카카오 SDK 하네스) 추가(#375)                                                                                                                         | Claude |
 
 > 세부 변경 이력은 Azure DevOps Wiki 페이지의 **Revisions** 탭에서 확인합니다.
