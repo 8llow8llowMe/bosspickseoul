@@ -609,9 +609,8 @@ export default function RecommendMap({
    *
    * 정식 해소는 `useEffectEvent` 이관이다 — 지도 실화면 검증 경로가 생긴 뒤에 한다.
    */
-  const hoveredAreaCodeRef = useRef<string | null>(null)
-  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
-  hoveredAreaCodeRef.current = hoveredAreaCode
+  /** 레이어를 새로 그릴 때 지금 호버 중인 영역을 첫 칠에 반영한다. */
+  const readHoveredAreaCode = useEffectEvent(() => hoveredAreaCode)
   // 현재 단계 레이어들의 호버 하이라이트 적용 함수. 레이어를 다시 그릴 때 교체된다.
   const stageHighlightsRef = useRef<Array<(hovered: string | null) => void>>([])
 
@@ -912,7 +911,7 @@ export default function RecommendMap({
         maps,
         areas,
         selectedCode,
-        hoveredCode: hoveredAreaCodeRef.current,
+        hoveredCode: readHoveredAreaCode(),
         onSelect,
         onHoverChange: setHoveredAreaCode,
         tokens: areaPolygonTokens,
@@ -922,7 +921,7 @@ export default function RecommendMap({
         maps,
         areas,
         selectedCode,
-        previewedCode: hoveredAreaCodeRef.current,
+        previewedCode: readHoveredAreaCode(),
         onSelect,
         onPreviewChange: setHoveredAreaCode,
         onBeforeSelect: suppressBackground,
