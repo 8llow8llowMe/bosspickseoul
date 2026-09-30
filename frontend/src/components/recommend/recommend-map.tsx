@@ -570,8 +570,6 @@ export default function RecommendMap({
     activeStroke: '#2272eb',
     fill: '#2272eb',
   })
-  const selectedCommercialCodeRef = useRef(selectedCommercialCode)
-  const previewedCommercialCodeRef = useRef(previewedCommercialCode)
   const layerInputRef = useRef<RecommendMapLayerStructuralInput>({
     stage,
     districtAreas,
@@ -639,10 +637,16 @@ export default function RecommendMap({
   const emitCameraSettle = useEffectEvent((camera: MapCamera) =>
     onCameraSettle?.(camera),
   )
-  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
-  selectedCommercialCodeRef.current = selectedCommercialCode
-  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
-  previewedCommercialCodeRef.current = previewedCommercialCode
+  /*
+   * 레이어를 새로 그릴 때 지금의 상권 선택·미리보기를 첫 칠에 반영한다. 결과 단계의
+   * 의미 키에는 둘 다 없어서, 선택이 바뀐 뒤 다른 이유로 다시 그려도 최신값이어야 한다.
+   */
+  const readSelectedCommercialCode = useEffectEvent(
+    () => selectedCommercialCode,
+  )
+  const readPreviewedCommercialCode = useEffectEvent(
+    () => previewedCommercialCode,
+  )
 
   const layerInput = {
     stage,
@@ -964,7 +968,7 @@ export default function RecommendMap({
       )
       drawSelectableAreas(
         layerInput.commercialAreas,
-        selectedCommercialCodeRef.current,
+        readSelectedCommercialCode(),
         code => selectCommercial(code),
       )
     }
@@ -1062,8 +1066,8 @@ export default function RecommendMap({
       resultLayerTokensRef.current = areaPolygonTokens
       updateResultLayerPreviewVisuals(
         resultLayerEntries,
-        selectedCommercialCodeRef.current,
-        previewedCommercialCodeRef.current,
+        readSelectedCommercialCode(),
+        readPreviewedCommercialCode(),
         areaPolygonTokens,
       )
     } else {
