@@ -1,24 +1,25 @@
 // src/components/home/break-even-chart.test.ts
 import { describe, expect, it } from 'vitest'
-import {
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+
+import BreakEvenChart, {
   BREAK_EVEN_CHART_HEIGHT,
   buildCumulativeProfit,
   findBreakEvenMonth,
+  formatManwonTick,
 } from '@/components/home/break-even-chart'
 
 /*
- * 이슈 #223. 04단계만 데모 영역 494px 중 296px(60%)만 차서 다른 단계(92 · 85 · 68%)
- * 보다 헐렁했다. 원인은 차트 플롯이 200px 이라는 것 하나였다.
+ * 이슈 #223 에서 200 → 260 으로 올렸다. story-panel-redesign D4-9 에서 헤드라인·캡션을
+ * 머리줄로 옮기며 240 으로 낮췄다 — 02 미니데모가 가장 큰 데모로 남아야 패널 높이 예약이
+ * 한 값으로 유지된다.
  */
-describe('BreakEvenChart — 플롯 높이(#223)', () => {
-  it('차트가 260px 이다', () => {
-    expect(BREAK_EVEN_CHART_HEIGHT).toBe(260)
+describe('BreakEvenChart — 플롯 높이', () => {
+  it('차트가 240px 이다', () => {
+    expect(BREAK_EVEN_CHART_HEIGHT).toBe(240)
   })
 
-  /*
-   * 상한을 함께 잠근다. 낮은 뷰포트(1280×620)에서 패널이 내부 스크롤로 열화하는데,
-   * 이 값을 키울수록 그 구간이 넓어진다 — 실측 없이 올리지 않도록 막는다.
-   */
   it('낮은 뷰포트 여유를 넘기지 않는다', () => {
     expect(BREAK_EVEN_CHART_HEIGHT).toBeLessThanOrEqual(280)
   })
@@ -60,5 +61,47 @@ describe('BreakEvenChart — 누적 손익 계열', () => {
   it('기간 안에 넘지 못하면 null 을 낸다', () => {
     // 1개월치만 그리면 초기 투자를 회수하지 못한다.
     expect(findBreakEvenMonth(buildCumulativeProfit(1))).toBeNull()
+  })
+})
+
+describe('formatManwonTick — 금액 눈금 (TC-SP-007)', () => {
+  it.each([
+    [0, '0'],
+    [6000, '+6,000만'],
+    [-6000, '-6,000만'],
+    [-12000, '-1.2억'],
+    [10000, '+1억'],
+  ])('%d → %s', (input, output) => {
+    expect(formatManwonTick(input)).toBe(output)
+  })
+})
+
+describe('BreakEvenChart — 렌더 (TC-SP-008)', () => {
+  const html = () => renderToStaticMarkup(createElement(BreakEvenChart))
+
+  /* 헤드라인 대신 차트가 그 지점을 직접 가리킨다 — 문구와 선이 같은 계열에서 나온다. */
+  it('손익분기 달을 차트 위 라벨로 가리킨다', () => {
+    const month = findBreakEvenMonth(buildCumulativeProfit())
+
+    expect(html()).toContain(`${month}개월째 손익분기`)
+  })
+
+  it('헤드라인 문장과 흩어진 캡션 대신 예시 배지를 단다', () => {
+    const markup = html()
+
+    expect(markup).not.toContain('투자금을 회수합니다')
+    expect(markup).not.toContain('대표 예시 데이터')
+    expect(markup).toContain('예시 데이터')
+  })
+
+  it('요약 금액을 억·만으로 적는다', () => {
+    expect(html()).toContain('1억 2,000만원')
+  })
+
+  it('홈 전용 꺾은선이다 — recharts 마크업이 없다', () => {
+    const markup = html()
+
+    expect(markup).toContain('<polyline')
+    expect(markup).not.toContain('recharts')
   })
 })

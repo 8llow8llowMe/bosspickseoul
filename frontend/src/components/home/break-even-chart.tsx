@@ -2,7 +2,8 @@
 
 import styled from 'styled-components'
 
-import LineChart from '@/components/analysis/charts/line-chart'
+import DemoFrame, { SampleBadge } from '@/components/home/demo-frame'
+import StoryLineChart from '@/components/home/story-line-chart'
 
 /**
  * 스토리 04 단계 데모 — **언제 본전을 뽑는가.**
@@ -40,17 +41,13 @@ const INITIAL_INVESTMENT = 12000
 export const BREAK_EVEN_MONTHS = 12
 
 /**
- * 손익 곡선의 플롯 높이(px). 200 → **260**(이슈 #223).
+ * 손익 곡선의 플롯 높이(px). 260 → **240**(story-panel-redesign.md D4-9).
  *
- * `DemoArea` 가 494px 인데 200px 짜리 차트를 가운데 두면 04단계만 **60%** 만 찼다
- * (01 92 · 02 85 · 03 68). 260 으로 올리면 **72%** 가 되어 03 과 나란해진다.
- *
- * 더 올리지 않는 이유: 낮은 뷰포트에서 `StoryRow` 가 줄어들면 패널이 내부 스크롤로
- * 열화한다. 실측으로 1920·1440·1100×800 은 넘침 0 이고, **1280×620 에서만 패널이
- * 15px 스크롤**한다 — 거기는 이미 스텝 목록이 101px 스크롤하는 구간이라(D9-3) 기존
- * 열화 규약과 같은 처리다. 이 값을 더 키우면 그 구간이 넓어진다.
+ * 헤드라인 문장(28px)과 캡션을 없애고 머리줄로 옮겨 세로 여유가 생겼지만, 02 미니데모가
+ * 가장 큰 데모라 패널 높이 예약은 그쪽이 정한다. 04 는 그 높이 안에서 가운데 온다 —
+ * 더 키우면 04 가 가장 큰 데모가 되어 예약값을 다시 재야 한다.
  */
-export const BREAK_EVEN_CHART_HEIGHT = 260
+export const BREAK_EVEN_CHART_HEIGHT = 240
 
 /**
  * 누적 손익. `-초기투자 + 월순이익 × n`.
@@ -80,29 +77,25 @@ export const findBreakEvenMonth = (
   return index === -1 ? null : index
 }
 
-const Wrap = styled.div`
-  display: grid;
-  gap: 10px;
-`
-
-const Headline = styled.p`
-  margin: 0;
-  color: var(--color-text-900);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 28px;
-  word-break: keep-all;
-
-  strong {
-    color: var(--color-primary-700);
-    font-variant-numeric: tabular-nums;
+/**
+ * y 눈금(만원 단위)을 억·만으로 적는다(D5-1). 요약의 「1억 2,000만원」 표기와 맞춘다.
+ * 손익이라 부호가 뜻을 갖는다 — 양수에 `+` 를 붙인다.
+ */
+export const formatManwonTick = (value: number): string => {
+  if (value === 0) return '0'
+  const sign = value > 0 ? '+' : '-'
+  const abs = Math.abs(value)
+  if (abs >= 10000) {
+    const eok = Math.round((abs / 10000) * 10) / 10
+    return `${sign}${String(eok).replace(/\.0$/, '')}억`
   }
-`
+  return `${sign}${new Intl.NumberFormat('ko-KR').format(abs)}만`
+}
 
 const Summary = styled.dl`
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
+  gap: 6px 20px;
   margin: 0;
 `
 
@@ -113,71 +106,98 @@ const SummaryItem = styled.div`
 `
 
 const SummaryLabel = styled.dt`
-  color: var(--color-text-caption);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
 `
 
 const SummaryValue = styled.dd`
   margin: 0;
-  color: var(--color-text-700);
-  font-size: 13px;
+  color: var(--color-text-900);
+  font-size: 14px;
   font-weight: 700;
   line-height: 20px;
   font-variant-numeric: tabular-nums;
 `
 
-const Caption = styled.p`
-  margin: 0;
-  color: var(--color-text-caption);
-  font-size: 12px;
-  line-height: 18px;
+const ChartBlock = styled.div`
+  display: grid;
+  gap: 8px;
 `
 
-const formatManwon = (value: number): string =>
-  `${new Intl.NumberFormat('ko-KR').format(Math.round(value))}만원`
+const ChartLabel = styled.span`
+  color: var(--color-text-600);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+`
 
+/** 1억 2,000만원 · 4,200만원 — 억 단위가 있으면 억과 만을 나눠 적는다. */
+const formatManwon = (value: number): string => {
+  const rounded = Math.round(value)
+  const eok = Math.floor(rounded / 10000)
+  const man = rounded % 10000
+  const format = new Intl.NumberFormat('ko-KR').format
+  if (eok === 0) return `${format(man)}만원`
+  return man === 0 ? `${eok}억원` : `${eok}억 ${format(man)}만원`
+}
+
+/*
+  헤드라인(「N개월째에 투자금을 회수합니다」)을 두지 않는다 — 패널 왼쪽 큰 숫자가 같은
+  말을 한다. 대신 차트가 그 지점을 **직접 가리킨다**(손익분기 마커). 예전엔 문구만
+  8개월이라 하고 선 위에는 표시가 없었다.
+*/
 export default function BreakEvenChart() {
   const points = buildCumulativeProfit()
   const breakEven = findBreakEvenMonth(points)
 
   return (
-    <Wrap>
-      <Headline>
-        {breakEven === null ? (
-          <>{BREAK_EVEN_MONTHS}개월 안에는 투자금을 회수하지 못합니다.</>
-        ) : (
-          <>
-            <strong>{breakEven}개월</strong>째에 투자금을 회수합니다.
-          </>
-        )}
-      </Headline>
-
-      <Summary>
-        <SummaryItem>
-          <SummaryLabel>초기 투자</SummaryLabel>
-          <SummaryValue>{formatManwon(INITIAL_INVESTMENT)}</SummaryValue>
-        </SummaryItem>
-        <SummaryItem>
-          <SummaryLabel>월 매출</SummaryLabel>
-          <SummaryValue>{formatManwon(MONTHLY_REVENUE)}</SummaryValue>
-        </SummaryItem>
-        <SummaryItem>
-          <SummaryLabel>월 순이익</SummaryLabel>
-          <SummaryValue>{formatManwon(MONTHLY_NET)}</SummaryValue>
-        </SummaryItem>
-      </Summary>
-
-      <LineChart
-        points={points}
-        unit="만원"
-        direction={null}
-        height={BREAK_EVEN_CHART_HEIGHT}
-        ariaLabel={`개업 후 ${BREAK_EVEN_MONTHS}개월 누적 손익`}
-      />
-
-      <Caption>대표 예시 데이터</Caption>
-    </Wrap>
+    <DemoFrame
+      leading={
+        <Summary>
+          <SummaryItem>
+            <SummaryLabel>초기 투자</SummaryLabel>
+            <SummaryValue>{formatManwon(INITIAL_INVESTMENT)}</SummaryValue>
+          </SummaryItem>
+          <SummaryItem>
+            <SummaryLabel>월 매출</SummaryLabel>
+            <SummaryValue>{formatManwon(MONTHLY_REVENUE)}</SummaryValue>
+          </SummaryItem>
+          <SummaryItem>
+            <SummaryLabel>월 순이익</SummaryLabel>
+            <SummaryValue>{formatManwon(MONTHLY_NET)}</SummaryValue>
+          </SummaryItem>
+        </Summary>
+      }
+      aside={<SampleBadge>예시 데이터</SampleBadge>}
+    >
+      <ChartBlock>
+        <ChartLabel>누적 손익</ChartLabel>
+        <StoryLineChart
+          points={points.map(point => ({
+            label: point.periodLabel,
+            value: point.value,
+          }))}
+          height={BREAK_EVEN_CHART_HEIGHT}
+          fill="split"
+          formatTick={formatManwonTick}
+          xLabelStep={2}
+          highlight={
+            breakEven === null
+              ? undefined
+              : {
+                  index: breakEven,
+                  label: `${breakEven}개월째 손익분기`,
+                  tone: 'callout',
+                }
+          }
+          ariaLabel={
+            breakEven === null
+              ? `개업 후 ${BREAK_EVEN_MONTHS}개월 누적 손익 — 이 기간 안에는 회수하지 못한다`
+              : `개업 후 ${BREAK_EVEN_MONTHS}개월 누적 손익 — ${breakEven}개월째에 손익분기를 넘는다`
+          }
+        />
+      </ChartBlock>
+    </DemoFrame>
   )
 }
