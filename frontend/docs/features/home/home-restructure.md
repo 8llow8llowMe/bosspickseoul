@@ -10,7 +10,7 @@
 > **입력 문서**: 2026-09-29 홈 랜딩 검토(P1) · [home-ux-audit-2026-09-11](./home-ux-audit-2026-09-11.md) §3 P0-D · 감사 I(「네 단계」 메시지 3회 중복)
 > **대상**: 웹 (Next.js App Router)
 > **작성자**: Claude Code
-> **상태**: 구현 완료(2026-09-29) · 탭 모양(D4-1)·패널 비율과 높이 예약(D4-2)·탭 수치(D5-2)는 [story-panel-redesign](./story-panel-redesign.md) 이 대체한다(2026-09-30)
+> **상태**: 구현 완료(2026-09-29) · 탭 모양(D4-1)·패널 비율과 높이 예약(D4-2)·탭 수치(D5-2)는 [story-panel-redesign](./story-panel-redesign.md) 이 대체한다(2026-09-30) · D2 #2(스크롤 진행도 금지)는 판단 흐름에 한해 [story-scroll-pin](./story-scroll-pin.md) 이 철회한다(2026-09-30, 사용자 결정)
 
 이 문서는 [home 공통 명세](./home.md)의 **히어로 아래 섹션 구성**을 구현 수준으로 상세화한 세부 명세입니다.
 
