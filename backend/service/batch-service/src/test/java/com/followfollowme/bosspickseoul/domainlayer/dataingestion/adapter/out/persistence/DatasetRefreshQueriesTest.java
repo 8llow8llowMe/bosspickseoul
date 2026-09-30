@@ -133,6 +133,18 @@ class DatasetRefreshQueriesTest {
         assertThat(state.consecutiveFailures()).isEqualTo(1);
     }
 
+    /** 기동 가드가 켜기 전에 본다. commercialJdbcTemplate 으로 나가므로 DATABASE() 가 commercial 스키마다. */
+    @Test
+    void tableExistsLooksUpTheStateTableInTheCurrentSchema() {
+        when(jdbc.queryForObject(DatasetRefreshStateJdbcAdapter.TABLE_EXISTS_SQL, Long.class)).thenReturn(1L, 0L);
+        DatasetRefreshStateJdbcAdapter adapter = new DatasetRefreshStateJdbcAdapter(jdbc);
+
+        assertThat(adapter.tableExists()).isTrue();
+        assertThat(adapter.tableExists()).isFalse();
+        assertThat(DatasetRefreshStateJdbcAdapter.TABLE_EXISTS_SQL)
+            .contains("information_schema.tables").contains("table_schema = DATABASE()").contains("table_name = 'dataset_refresh_state'");
+    }
+
     @Test
     void stateTransitionsKeepTheLastFailureButResetTheStreakOnSuccess() {
         DatasetRefreshState failed = DatasetRefreshState.initial(Dataset.CHANGE_DISTRICT)

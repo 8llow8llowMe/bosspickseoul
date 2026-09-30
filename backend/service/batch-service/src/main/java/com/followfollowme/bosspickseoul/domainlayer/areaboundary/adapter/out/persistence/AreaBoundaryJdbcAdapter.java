@@ -5,13 +5,12 @@ import com.followfollowme.bosspickseoul.domainlayer.areaboundary.domain.model.Ar
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class AreaBoundaryJdbcAdapter implements AreaBoundaryBulkPort {
 
     private static final int BATCH_SIZE = 1000;
@@ -41,6 +40,11 @@ public class AreaBoundaryJdbcAdapter implements AreaBoundaryBulkPort {
         """;
 
     private final JdbcTemplate jdbcTemplate;
+
+    /** 기본 DataSource(district). 한정자가 없으면 commercial 두 번째 풀의 JdbcTemplate 이 들어온다. */
+    public AreaBoundaryJdbcAdapter(@Qualifier("districtJdbcTemplate") JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @Override
     public void upsertAll(List<AreaBoundary> areaBoundaries) {

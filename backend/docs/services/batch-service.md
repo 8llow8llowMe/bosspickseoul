@@ -252,13 +252,19 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 
 ### DataSource
 
-| 대상 | DataSource |
-| --- | --- |
-| Spring Batch `BATCH_*`, Quartz `QRTZ_*` | 기본 DataSource `BATCH_DB_URL` (district) |
-| `dataset_*` 적재·이관, `dataset_refresh_state`, 스테이징 정리 | `commercialJdbcTemplate` = `COMMERCIAL_DB_URL` (commercial) |
-| `policy` | 같은 `commercialJdbcTemplate` (`policyJdbcTemplate` 은 별칭) |
+| 대상 | DataSource | 빈 |
+| --- | --- | --- |
+| Spring Batch `BATCH_*`, Quartz `QRTZ_*` | 기본 DataSource `BATCH_DB_URL` (district) | `districtTransactionManager` (`@BatchTransactionManager` · `@QuartzTransactionManager`) |
+| 영역 좌표 `area_boundary` | 기본 DataSource (district) | `districtJdbcTemplate` / `districtTransactionManager` |
+| `dataset_*` 적재·이관, `dataset_refresh_state`, 스테이징 정리 | `COMMERCIAL_DB_URL` (commercial, 풀 `batch-commercial`) | `commercialJdbcTemplate` / `commercialTransactionManager` |
+| `policy` | 같은 풀 | 같은 빈 (`policyJdbcTemplate` / `policyTransactionManager` 는 별칭) |
 
-`CommercialDataSourceConfig` 는 정책·자동 최신화·스테이징 정리 중 하나라도 켜지고, `COMMERCIAL_DB_URL` 이 비어 있지 않고, 기본 DataSource URL 과 다를 때만 두 번째 풀을 연다. quarterly CLI 는 `COMMERCIAL_DB_URL` 을 받지 않으므로 기본 DataSource(= commercial)를 그대로 쓴다. `CommercialTargetGuardRunner` 가 기동 직후 commercial URL 이 `BATCH_DB_URL` 과 다른지, `BATCH_ALLOWED_SCHEMAS` 에 있는지, 이름에 `prod` 가 없는지 검사하고, 자동 최신화가 켜졌으면 `SEOUL_OPEN_DATA_API_KEY` 와 공간·스키마 버전 형식까지 본다. 걸리면 기동이 멈춘다(fail-closed). prod 는 이 가드로 막힌다.
+`district*` 두 빈은 `defaultCandidate = false` 라 무자격 주입의 기본 후보는 commercial 빈이다. 기본 DataSource 에 쓰는 코드는 이름을 적는다(`DistrictDataSourceConfig`). 두 번째 풀이 없을 때(플래그 off · quarterly CLI)는 두 매니저가 같은 DataSource 를 감싸 서로의 트랜잭션에 참여한다. 두 번째 풀은 `batch.commercial.datasource.{maximum-pool-size: 4, minimum-idle: 1, pool-name: batch-commercial}` 이고 Hikari 메트릭이 `hikaricp_*{pool="batch-commercial"}` 로 나간다.
+
+`CommercialDataSourceConfig` 는 정책·자동 최신화·스테이징 정리 중 하나라도 켜지고, `COMMERCIAL_DB_URL` 이 비어 있지 않고, 기본 DataSource URL 과 다를 때만 두 번째 풀을 연다. quarterly CLI 는 `COMMERCIAL_DB_URL` 을 받지 않으므로 기본 DataSource(= commercial)를 그대로 쓴다. 기동 가드는 둘이다. 걸리면 기동이 멈춘다(fail-closed). prod 는 첫 가드로 막힌다.
+
+- `global/config/CommercialDataSourceGuardRunner` — commercial Job 이 하나라도 켜지면 commercial URL 이 기본 DataSource URL(`spring.datasource.url`, 두 번째 풀 조건과 같은 키)과 다른지, `BATCH_ALLOWED_SCHEMAS` 에 있는지, 이름에 `prod` 가 없는지. 정책 수집의 가드도 이것이다
+- `dataingestion/adapter/in/scheduler/DatasetRefreshGuardRunner` — 자동 최신화가 켜졌을 때 `SEOUL_OPEN_DATA_API_KEY`, 공간·스키마 버전 형식, commercial 에 `dataset_refresh_state` 가 있는지(`information_schema.tables`)
 
 ### 판단 순서 (데이터셋 1종, `DatasetRefreshProcessor`)
 
@@ -312,7 +318,7 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 1. **DDL** — Workbench 에서 `bosspickseoul_commercial_dev` 를 고르고 `dataset-refresh-state-schema.sql` 실행. `quarterly-dataset-schema.sql` 은 이미 적용돼 있어야 한다. district 의 `BATCH_*` / `QRTZ_*` 는 정책 수집 때 만든 것을 그대로 쓴다. 확인은 `quarterly-import-verify.sql` 1) 블록
 2. **Vault** — `kv/bosspickseoul/backend/dev/env` 에 **patch** 로 `BATCH_DATASET_REFRESH_ENABLED=true`, `SEOUL_OPEN_DATA_API_KEY=<키>` 를 넣는다. `BATCH_DATASET_REFRESH_PUBLISH` 는 넣지 않거나 `false`. `COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 는 정책 수집 값 그대로. `put` 은 나머지 키를 지운다
 3. **재배포** — Jenkins `batch-service-dev` 만. compose 가 `batch-raw` 볼륨을 새로 붙인다. 메모리 상한 `BATCH_SERVICE_MEM_LIMIT_DEV` 는 바꾸지 않는다(512m)
-4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다
+4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`, `dataset_refresh_state is missing`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다. `/actuator/prometheus` 에 `hikaricp_connections{pool="batch-commercial"}` 가 보인다
 5. **관찰(1주)** — 다음날 05:00 이후 로그 `[dataset-refresh] run finished ... results={...}` 와 `slot dataset=... result=...`, `SELECT * FROM dataset_refresh_state`. `WOULD_PUBLISH` 가 뜬 데이터셋은 `dataset_release` 에 `auto-...-dry` 가 `DRY_RUN` 으로 남는다. 첫 주에 위 「데이터 없음」 실호출을 확인한다
 6. **게시 전환** — 결과가 기대대로면 Vault 에 `BATCH_DATASET_REFRESH_PUBLISH=true` patch 후 재배포. 다음 05:00 run 부터 `PUBLISHED` 가 나오고 coverage.sql 1)·5) 에서 해당 슬롯이 빠진다
 7. **되돌리기** — Vault 에 `BATCH_DATASET_REFRESH_ENABLED=false` patch 후 재배포. 이미 게시된 릴리스는 그대로다(수동 게시와 같다). JDBC JobStore 는 트리거를 `QRTZ_*` 에 남기므로 두 겹으로 막는다
@@ -346,5 +352,5 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 
 - **메모리** — typed 이관(`--job=project`)은 한 슬롯의 `dataset_fact` 를 통째로 읽는다. `STORE_COMMERCIAL`(분기당 약 7.7만 행) 이관은 512m 컨테이너(heap 약 358MB)에서 여유가 크지 않다. publish=true 전환 뒤 첫 run 의 JVM heap 을 본다. 부족하면 그 데이터셋만 수동 `batch-service-job`(1g)으로 이관한다
 - **Quartz JobStore 는 프로파일로만 갈린다** — `dev` / `prod` 는 JDBC 클러스터 JobStore 에 자동 시작, `local` / `quarterly` 는 메모리 스토어에 자동 시작 off 다(`QuartzJobStoreProfileTest`). 예전 `application.yml` 의 `spring.config.activate.on-property` 문서는 Spring Boot 3.5 가 지원하지 않는 키라 모든 프로파일에 적용됐고, 그래서 quarterly CLI 도 commercial 의 `QRTZ_*` 에 붙어 JDBC 로 떴다. 지금은 CLI 가 저장된 트리거를 발화하지 않는다. 로컬에서 스케줄을 돌려 보려면 `local,scheduler` 로 띄운다
-- **Spring Batch 메타 트랜잭션** — 컨텍스트의 트랜잭션 매니저는 `commercialTransactionManager` 하나뿐이라 두 번째 풀이 열린 상시 인스턴스에서 `BATCH_*`(district) 쓰기는 그 트랜잭션에 묶이지 않고 문장 단위로 커밋된다. 정책 수집 때부터 같은 구조다. 자동 최신화는 run-id 가 매번 새로워 재시작 경로를 쓰지 않는다
+- **두 스키마 사이 원자성은 없다** — 스텝 트랜잭션(commercial)과 `BATCH_*` 메타(district, `districtTransactionManager`)는 따로 커밋된다(XA 없음). 메타 쓰기 자체는 이제 트랜잭션 안에서 돈다(예전에는 commercial 매니저가 붙어 문장마다 커밋됐다). 자동 최신화는 run-id 가 매번 새로워 재시작 경로를 쓰지 않는다
 - **원천 보관 용량** — 무시하는 9종은 원천이 바뀐 날마다 전 기간을 `batch-raw` 에 새로 받는다(데이터셋당 수 MB). 볼륨 정리는 아직 없다

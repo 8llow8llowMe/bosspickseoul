@@ -41,6 +41,10 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
           last_failure_reason=VALUES(last_failure_reason),consecutive_failures=VALUES(consecutive_failures)
         """;
 
+    static final String TABLE_EXISTS_SQL = """
+        SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'dataset_refresh_state'
+        """;
+
     private final JdbcTemplate jdbc;
 
     public DatasetRefreshStateJdbcAdapter(JdbcTemplate jdbc) {
@@ -77,6 +81,12 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
             timestamp(state.lastFailureAt()),
             state.lastFailureReason(),
             state.consecutiveFailures());
+    }
+
+    @Override
+    public boolean tableExists() {
+        Long tables = jdbc.queryForObject(TABLE_EXISTS_SQL, Long.class);
+        return tables != null && tables > 0;
     }
 
     private static DatasetRefreshState map(Dataset dataset, ResultSet rs) throws SQLException {
