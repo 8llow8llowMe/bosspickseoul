@@ -181,7 +181,7 @@ describe('RecommendPreview', () => {
     const html = render()
 
     expect(html).toContain('역삼역')
-    expect(html).not.toContain('대표 예시 데이터')
+    expect(html).not.toContain('예시 데이터')
   })
 
   it('행정동을 찾지 못해 더 기다릴 게 없으면 예시 라벨을 바로 낸다', () => {
@@ -190,7 +190,7 @@ describe('RecommendPreview', () => {
     })
 
     expect(html).toContain('역삼역')
-    expect(html).toContain('대표 예시 데이터')
+    expect(html).toContain('예시 데이터')
   })
 
   it('실 응답이 오면 추천 이유 문장을 그리고 예시 라벨을 뺀다', () => {
@@ -201,7 +201,7 @@ describe('RecommendPreview', () => {
     })
 
     expect(html).toContain('기회도 높음을 우선 반영했습니다')
-    expect(html).not.toContain('대표 예시 데이터')
+    expect(html).not.toContain('예시 데이터')
   })
 
   it('선택(자치구)이 바뀌면 다른 캐시를 본다 — 강남구 캐시가 다른 지역에 새지 않는다', () => {
@@ -227,5 +227,35 @@ describe('RecommendPreview', () => {
 
     expect(html).not.toContain('논현2동')
     expect(html).toContain('마포구 · 음식점')
+  })
+
+  /* story-panel-redesign D4-8: 결과물(후보 목록)이 주인공이다. 도넛은 뺐다. */
+  it('후보를 점수와 함께 목록으로 싣고 도넛을 그리지 않는다 (TC-SP-009)', () => {
+    const html = render(DEFAULT_SELECTION, {
+      administrations: createFailedAdministrations(),
+    })
+
+    expect(html.match(/<li/g)).toHaveLength(5)
+    expect(html).toContain('92.0점')
+    expect(html).not.toContain('recharts')
+    expect(html).not.toContain('골랐습니다')
+  })
+
+  it('총계를 모르는 예시 폴백에서는 퍼널을 그리지 않는다 (TC-SP-009)', () => {
+    const html = render(DEFAULT_SELECTION, {
+      administrations: createFailedAdministrations(),
+    })
+
+    expect(html).not.toContain('aria-label="에서"')
+  })
+
+  it('실 응답에서 총계를 알면 퍼널로 좁혀진 폭을 말한다 (TC-SP-009)', () => {
+    const html = render(DEFAULT_SELECTION, {
+      administrations: createAdministrations(),
+      commercials: createCommercials(),
+      recommendations: createRecommendations(),
+    })
+
+    expect(html).toContain('aria-label="에서"')
   })
 })
