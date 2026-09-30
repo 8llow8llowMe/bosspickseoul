@@ -1,16 +1,22 @@
 'use client'
 
-import { useEffect, useId, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import styled, { css, keyframes } from 'styled-components'
 import { districts } from '@/data/districts'
-import { getDistrictMetric, TOP_DISTRICT_CODES } from '@/data/district-metrics'
+import { TOP_DISTRICT_CODES } from '@/data/district-metrics'
 import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
-import { tooltipAreaChart } from '@/components/home/tooltip-chart'
+import { toDistrictRhythm } from '@/components/home/district-rhythm'
+import DistrictTooltip, {
+  TOOLTIP_WIDTH,
+  districtTooltipHeight,
+  type DistrictTooltipState,
+} from '@/components/home/district-tooltip'
 import { clampTooltipPosition } from '@/components/home/tooltip-geometry'
+import { useDistrictDetail } from '@/hooks/use-district-detail'
 
 const districtNameByCode = new Map(
   districts.map(district => [String(district.gooCode), district.gooName]),
@@ -22,11 +28,13 @@ const VIEW_BOX_SIZE = {
   height: viewBoxNumbers[viewBoxNumbers.length - 1],
 }
 
-const TOOLTIP_SIZE = { width: 188, height: 116 }
 const TOOLTIP_PADDING = 12
-const CHART_WIDTH = 152
-const CHART_HEIGHT = 40
-const CHART_OFFSET = { x: 18, y: 62 }
+
+/**
+ * hover 가 이만큼 머문 구만 상세를 받는다 — 지도를 가로지를 때 지나간 구마다 요청하지 않는다
+ * (full-screen-sections-and-live-tooltip.md D4-4). 이미 받은 구는 기다리지 않고 캐시로 뜬다.
+ */
+const DETAIL_HOVER_DELAY_MS = 120
 
 const Wrapper = styled.div`
   position: relative;
@@ -117,47 +125,6 @@ const TooltipGroup = styled.g`
   pointer-events: none;
 `
 
-const TooltipBackground = styled.rect`
-  fill: var(--color-surface);
-  stroke: var(--color-border-200);
-  stroke-width: 1px;
-`
-
-const TooltipTitle = styled.text`
-  fill: var(--color-text-900);
-  font-size: 14px;
-  font-weight: 700;
-`
-
-const TooltipMetric = styled.text`
-  fill: var(--color-text-700);
-  font-size: 12px;
-  font-weight: 600;
-`
-
-const TooltipAreaPath = styled.path`
-  stroke: none;
-`
-
-const TooltipLinePath = styled.path`
-  fill: none;
-  stroke: var(--color-primary-700);
-  stroke-width: 2px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-`
-
-const TooltipEndDot = styled.circle`
-  fill: var(--color-primary-700);
-  stroke: var(--color-surface);
-  stroke-width: 1.5px;
-`
-
-const TooltipBaseline = styled.line`
-  stroke: var(--color-border-200);
-  stroke-width: 1px;
-`
-
 type SeoulDistrictsMapProps = {
   onHoverChange?: (districtCode: string | null) => void
 }
@@ -166,9 +133,8 @@ export default function SeoulDistrictsMap({
   onHoverChange,
 }: SeoulDistrictsMapProps = {}) {
   const router = useRouter()
-  const gradientId = useId()
-  const shadowId = useId()
   const [hoveredCode, setHoveredCode] = useState<string | null>(null)
+  const [settledCode, setSettledCode] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -182,19 +148,36 @@ export default function SeoulDistrictsMap({
   const hoveredName = hoveredFeature
     ? districtNameByCode.get(hoveredFeature.districtCode)
     : undefined
-  const hoveredMetric = hoveredFeature
-    ? getDistrictMetric(hoveredFeature.districtCode)
-    : undefined
+
+  useEffect(() => {
+    if (hoveredCode === null) return
+    const timer = window.setTimeout(
+      () => setSettledCode(hoveredCode),
+      DETAIL_HOVER_DELAY_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [hoveredCode])
+
+  const detail = useDistrictDetail(
+    hoveredCode,
+    hoveredCode !== null && settledCode === hoveredCode,
+  )
+  const rhythm = useMemo(
+    () => (detail.data ? toDistrictRhythm(detail.data) : null),
+    [detail.data],
+  )
+  const tooltipState: DistrictTooltipState = rhythm
+    ? { status: 'ready', rhythm }
+    : detail.isError
+      ? { status: 'error' }
+      : { status: 'loading' }
   const tooltipPosition = hoveredFeature
     ? clampTooltipPosition(
         hoveredFeature.center,
-        TOOLTIP_SIZE,
+        { width: TOOLTIP_WIDTH, height: districtTooltipHeight(tooltipState) },
         VIEW_BOX_SIZE,
         TOOLTIP_PADDING,
       )
-    : null
-  const tooltipChart = hoveredMetric
-    ? tooltipAreaChart(hoveredMetric.trend, CHART_WIDTH, CHART_HEIGHT)
     : null
 
   const goToAnalysis = (districtCode: string) => {
@@ -256,82 +239,14 @@ export default function SeoulDistrictsMap({
             />
           )
         })}
-        {hoveredFeature && hoveredMetric && tooltipPosition && tooltipChart ? (
+        {hoveredFeature && tooltipPosition ? (
           <TooltipGroup>
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor="var(--color-primary-700)"
-                  stopOpacity={0.35}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="var(--color-primary-700)"
-                  stopOpacity={0}
-                />
-              </linearGradient>
-              <filter
-                id={shadowId}
-                x="-20%"
-                y="-20%"
-                width="140%"
-                height="150%"
-              >
-                <feDropShadow
-                  dx="0"
-                  dy="2"
-                  stdDeviation="4"
-                  floodColor="#020913"
-                  floodOpacity={0.16}
-                />
-              </filter>
-            </defs>
-            <TooltipBackground
+            <DistrictTooltip
               x={tooltipPosition.x}
               y={tooltipPosition.y}
-              width={TOOLTIP_SIZE.width}
-              height={TOOLTIP_SIZE.height}
-              rx={10}
-              filter={`url(#${shadowId})`}
+              name={hoveredName ?? '자치구'}
+              state={tooltipState}
             />
-            <TooltipTitle x={tooltipPosition.x + 12} y={tooltipPosition.y + 20}>
-              {hoveredName ?? '자치구'}
-            </TooltipTitle>
-            <TooltipMetric
-              x={tooltipPosition.x + 12}
-              y={tooltipPosition.y + 40}
-            >
-              {hoveredMetric.salesLabel}
-            </TooltipMetric>
-            <TooltipMetric
-              x={tooltipPosition.x + 12}
-              y={tooltipPosition.y + 56}
-            >
-              {hoveredMetric.footTrafficLabel}
-            </TooltipMetric>
-            <g
-              transform={`translate(${tooltipPosition.x + CHART_OFFSET.x}, ${
-                tooltipPosition.y + CHART_OFFSET.y
-              })`}
-            >
-              <TooltipBaseline
-                x1={0}
-                y1={CHART_HEIGHT}
-                x2={CHART_WIDTH}
-                y2={CHART_HEIGHT}
-              />
-              <TooltipAreaPath
-                d={tooltipChart.areaPath}
-                fill={`url(#${gradientId})`}
-              />
-              <TooltipLinePath d={tooltipChart.linePath} />
-              <TooltipEndDot
-                cx={tooltipChart.lastPoint.x}
-                cy={tooltipChart.lastPoint.y}
-                r={3}
-              />
-            </g>
           </TooltipGroup>
         ) : null}
       </MapSvg>
