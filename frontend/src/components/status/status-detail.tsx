@@ -46,6 +46,8 @@ import type {
 
 type StatusDetailProps = {
   metric: StatusMetric
+  /** 이 상세를 불러온 기준 분기(YYYYQ). 머리의 순위 줄 뒤에 「… 기준」으로 적는다. */
+  periodCode: string
   /** 순위 밖 구도 올 수 있다 — 그때 `rankedItem` 이 null 이다. */
   selectedDistrict: StatusSelectedDistrict | null
   detail: DistrictDetail | null
@@ -1081,13 +1083,19 @@ function useDetailSections(enabled: boolean) {
 
 function DetailHeader({
   metric,
+  periodCode,
   selectedDistrict,
   onBack,
   backButtonRef,
   variant = 'panel',
 }: Pick<
   StatusDetailProps,
-  'metric' | 'selectedDistrict' | 'onBack' | 'backButtonRef' | 'variant'
+  | 'metric'
+  | 'periodCode'
+  | 'selectedDistrict'
+  | 'onBack'
+  | 'backButtonRef'
+  | 'variant'
 >) {
   const compact = variant === 'sheet'
   const rankedItem = selectedDistrict?.rankedItem ?? null
@@ -1134,6 +1142,10 @@ function DetailHeader({
               {rankedItem
                 ? `${metricLabel} ${rankedItem.rank}위`
                 : `${metricLabel} 상위 10위 밖`}
+              {/* 과거 분기를 고르면 어느 분기 값인지 머리에서 드러나야 한다(status.md 1.6). */}
+              <span data-status-detail-period>
+                {` · ${formatPeriodCode(periodCode)} 기준`}
+              </span>
             </HeaderRank>
           ) : null}
         </HeaderContent>
@@ -1144,6 +1156,7 @@ function DetailHeader({
 
 export default function StatusDetail({
   metric,
+  periodCode,
   selectedDistrict,
   detail,
   isLoading,
@@ -1162,6 +1175,7 @@ export default function StatusDetail({
     <DetailHeader
       backButtonRef={backButtonRef}
       metric={metric}
+      periodCode={periodCode}
       onBack={onBack}
       selectedDistrict={selectedDistrict}
       variant={variant}

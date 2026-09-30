@@ -35,6 +35,12 @@ import StatusTopTen from './status-top-ten'
 
 type StatusMobileSheetProps = {
   metric: StatusMetric
+  periodCode: string
+  /**
+   * 분기를 바꾸는 중이라 목록이 직전 분기 응답을 자리 표시로 들고 있다(status.md 1.6).
+   * 목록일 때만 흐리게 둔다 — 상세는 자기 스켈레톤이 있다.
+   */
+  isPeriodPending?: boolean
   items: StatusRankedItem[]
   selectedDistrict: StatusSelectedDistrict | null
   detail: DistrictDetail | null
@@ -151,9 +157,18 @@ const SheetBody = styled.div<{ $isExpanded: boolean }>`
   padding: 0 16px calc(20px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  transition: opacity var(--motion-fast) var(--ease-standard);
 
   &::-webkit-scrollbar {
     display: none;
+  }
+
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 
   ${props =>
@@ -167,6 +182,8 @@ const SheetBody = styled.div<{ $isExpanded: boolean }>`
 
 export default function StatusMobileSheet({
   metric,
+  periodCode,
+  isPeriodPending = false,
   items,
   selectedDistrict,
   detail,
@@ -428,6 +445,7 @@ export default function StatusMobileSheet({
         ref={sheetBodyRef}
         id={bodyId}
         $isExpanded={snap !== 'collapsed'}
+        aria-busy={(isPeriodPending && !selectedDistrict) || undefined}
         aria-hidden={snap === 'collapsed'}
         aria-label={
           selectedDistrict ? '선택 지역 상세' : '구별 상권 상위 10개 목록'
@@ -442,6 +460,7 @@ export default function StatusMobileSheet({
             error={detailError}
             isLoading={isDetailLoading}
             metric={metric}
+            periodCode={periodCode}
             selectedDistrict={selectedDistrict}
             variant="sheet"
             onBack={onBackToTopTen}

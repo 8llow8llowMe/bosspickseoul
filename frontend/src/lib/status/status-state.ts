@@ -1,4 +1,8 @@
 import type { DistrictRecord } from '@/data/districts'
+import {
+  ANALYSIS_PERIOD_CODE,
+  isSupportedAnalysisPeriod,
+} from '@/lib/analysis/selection'
 import type {
   StatusMetric,
   StatusRankedItem,
@@ -195,6 +199,19 @@ export const parseStatusMetric = (value: unknown): StatusMetric =>
     : 'footTraffic'
 
 /**
+ * `?periodCode=` 를 기준 분기로 읽는다. 선택지(`isSupportedAnalysisPeriod`)에 없는 값은
+ * **최신 분기로 조용히 폴백**한다 — select 에 없는 값을 주면 브라우저가 첫 옵션을 그려
+ * 화면과 요청이 어긋나고, 손편집·낡은 링크의 코드로 백엔드를 때릴 이유도 없다(status.md 1.6).
+ */
+export const parseStatusPeriod = (value: string | null | undefined): string => {
+  const trimmed = value?.trim()
+
+  return trimmed && isSupportedAnalysisPeriod(trimmed)
+    ? trimmed
+    : ANALYSIS_PERIOD_CODE
+}
+
+/**
  * `?district=` 가 **서울 자치구 코드**면 그대로, 아니면 null 로 정규화한다.
  *
  * 예전에는 현재 지표 Top10 에 든 구만 남겼다. 그래서 순위 밖 15개 구는 지도에서 눌러도
@@ -234,6 +251,7 @@ export const createStatusQuery = (
   currentQuery: URLSearchParams,
   metric: StatusMetric,
   districtCode: string | null,
+  periodCode: string,
 ): URLSearchParams => {
   const query = new URLSearchParams(currentQuery)
 
@@ -243,6 +261,13 @@ export const createStatusQuery = (
     query.set('district', districtCode)
   } else {
     query.delete('district')
+  }
+
+  // `/status` 는 「최신 분기 현황」이다. 기본 분기는 적지 않고 고른 과거 분기만 남긴다.
+  if (periodCode === ANALYSIS_PERIOD_CODE) {
+    query.delete('periodCode')
+  } else {
+    query.set('periodCode', periodCode)
   }
 
   return query
