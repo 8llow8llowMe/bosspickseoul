@@ -32,8 +32,15 @@ export type HomeMetricRanking = {
   items: StatusRankedItem[]
 }
 
-/** 01단계(스토리) 전용. 패널 가용 높이 536px 에 10행(384px)이 152px 여유로 들어간다. */
-export const STORY_METRIC_TOP_N = 10
+/**
+ * 01단계(판단 흐름) 전용. 10 → 5(story-panel-redesign.md D4-5): 10행은 같은 파랑 막대가
+ * 줄무늬처럼 읽혔고, 6위 아래는 「어디부터 볼지」 정하는 데 쓰이지 않는다. 나머지는
+ * 꼬리 문구가 구별 현황으로 보낸다.
+ *
+ * 랭킹 우측(`RANKING_METRIC_TOP_N`)과 값이 같아졌지만 **상수는 합치지 않는다** — 두
+ * 소비처가 한 값을 공유하면 한쪽을 바꿀 때 다른 쪽이 조용히 따라 바뀐다(R4 가 갈라 둔 이유).
+ */
+export const STORY_METRIC_TOP_N = 5
 
 /**
  * 랭킹 섹션 우측 전용. 기존 `HOME_TOP_N` 을 용도가 드러나게 개명한 것이다.

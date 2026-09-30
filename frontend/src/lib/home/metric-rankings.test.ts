@@ -167,10 +167,9 @@ const wideSummary: DistrictTopTenSummary = {
 
 describe('toHomeMetricRankings — 소비처별 topN(R4)', () => {
   it('topN=10 이면 10개로 자른다', () => {
-    const result = toHomeMetricRankings(wideSummary, STORY_METRIC_TOP_N)
+    const result = toHomeMetricRankings(wideSummary, 10)
     const footTraffic = result.find(entry => entry.metric === 'footTraffic')
 
-    expect(STORY_METRIC_TOP_N).toBe(10)
     expect(footTraffic?.items).toHaveLength(10)
   })
 
@@ -184,10 +183,12 @@ describe('toHomeMetricRankings — 소비처별 topN(R4)', () => {
 
   /*
    * 규칙 B 문장이 "Top {metric.items.length} 밖" 을 읽는다 — 랭킹 우측이 10이 되면
-   * 문장이 약해지고 발동 확률도 급감한다. 두 값이 갈려 있다는 사실 자체를 고정한다.
+   * 문장이 약해지고 발동 확률도 급감한다. 01단계는 story-panel-redesign D4-5 에서 5로
+   * 줄였다. 값이 같아졌어도 상수는 둘이다 — 각각의 값을 따로 잠근다.
    */
-  it('01단계와 랭킹 우측은 서로 다른 개수를 쓴다', () => {
-    expect(STORY_METRIC_TOP_N).not.toBe(RANKING_METRIC_TOP_N)
+  it('01단계와 랭킹 우측은 각자의 개수를 쓴다', () => {
+    expect(STORY_METRIC_TOP_N).toBe(5)
+    expect(RANKING_METRIC_TOP_N).toBe(5)
   })
 })
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 
+import DemoFrame, { SampleBadge } from '@/components/home/demo-frame'
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import { useDistrictTopTen } from '@/hooks/use-district-top-ten'
@@ -21,14 +22,11 @@ import {
   toChangeBadge,
 } from '@/lib/status/status-formatters'
 
-const ToggleWrap = styled.div`
-  margin-bottom: 12px;
-`
-
-const Sample = styled.p`
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--color-text-caption);
+const Subtitle = styled.span`
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 `
 
 export default function MetricRankingBoard() {
@@ -82,18 +80,31 @@ export default function MetricRankingBoard() {
 
   const active = rankings.find(entry => entry.metric === metric) ?? rankings[0]
 
-  const rows: RankBarRow[] = active.items.map(item => ({
-    key: item.districtCode,
-    rank: item.rank,
-    name: item.districtName,
-    value: item.value,
-    valueLabel: formatStatusValue(active.metric, item.value),
-    ...toChangeBadge(item.changeRate),
-  }))
+  /*
+    폴백은 10개를 갖는다(랭킹 섹션과 공유하는 정본). 01 은 5행이라 여기서 자른다 —
+    API 장애 때 행 수가 바뀌면 같은 화면이 두 모양이 된다.
+  */
+  const rows: RankBarRow[] = active.items
+    .slice(0, STORY_METRIC_TOP_N)
+    .map(item => ({
+      key: item.districtCode,
+      rank: item.rank,
+      name: item.districtName,
+      value: item.value,
+      valueLabel: formatStatusValue(active.metric, item.value),
+      ...toChangeBadge(item.changeRate),
+    }))
 
   return (
-    <div>
-      <ToggleWrap>
+    <DemoFrame
+      title="자치구 순위"
+      subtitle={
+        <Subtitle>
+          상위 {rows.length}곳 · 전월 대비
+          {isFallback ? <SampleBadge>예시 데이터</SampleBadge> : null}
+        </Subtitle>
+      }
+      aside={
         <MetricToggleGroup
           options={HOME_METRICS}
           value={active.metric}
@@ -101,12 +112,13 @@ export default function MetricRankingBoard() {
           onChange={setMetric}
           ariaLabel="지표 선택"
         />
-      </ToggleWrap>
+      }
+      footer={`${rows.length + 1}위부터는 구별 현황에서 볼 수 있어요`}
+    >
       <RankBarList
         rows={rows}
         ariaLabel={`자치구 ${active.label} 상위 ${rows.length}곳`}
       />
-      {isFallback ? <Sample>대표 예시 데이터</Sample> : null}
-    </div>
+    </DemoFrame>
   )
 }
