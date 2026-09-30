@@ -2,7 +2,7 @@
 
 ## 구현 범위와 호환성 결정
 
-`quarterly` 프로파일의 `commercialAnalysisImportJob`은 데이터셋·분기 한 건을 실행 단위로 삼는다. 스케줄러는 데이터셋별 제공 여부를 확인해 같은 Job을 반복 실행한다. CSV/ZIP 백필과 서울 Open API 수집을 동일한 검증·게시 경로로 처리한다.
+`commercialAnalysisImportJob`은 데이터셋·분기 한 건을 실행 단위로 삼는다. 수동 CLI(`quarterly` 프로파일)와 상시 인스턴스의 자동 최신화(아래 「분기 적재 자동 최신화」)가 같은 Job을 띄운다. 자동 최신화는 데이터셋별 제공 여부를 탐지해 마지막 게시 분기 다음 분기만 실행한다. CSV/ZIP 백필과 서울 Open API 수집을 동일한 검증·게시 경로로 처리한다.
 
 원본 보관 → chunk staging → 자연키/필수값/분기/공간 코드 검증 → 불변 release 게시 → 해당 데이터셋·분기·공간 버전 포인터 전환 순서다. 게시 트랜잭션은 분기 전체를 교체하며 이전 release를 삭제하지 않는다. 같은 runId 재시도는 staging부터 다시 읽고, 이미 게시된 runId는 변경하지 않는다.
 
@@ -158,7 +158,7 @@ SELECT l.area_code,
   원격 페이지 커서와 대상 분기 채택 건수를 분리해 스트리밍 필터링한다.
 - Application: 분기 형식, 데이터셋 계약, 누락과 0 구분, 원천 스키마 변경 실패, 공간 버전 연결 검증.
 - Persistence Adapter: staging chunk 저장, 중복과 공간 코드 검증, 게시 트랜잭션, 게시 동시성 및 불변 이력 검증.
-- 실행 구성: 기본 dryRun, 명시 DB URL와 schema allowlist, Job 종료 코드, 외부 스케줄러 실행 안내.
+- 실행 구성: 기본 dryRun, 명시 DB URL와 schema allowlist, Job 종료 코드. 자동 최신화는 상시 인스턴스의 Quartz 가 띄운다.
 
 행 검증은 fail-closed다. 거부 행이 한 건이라도 있으면 게시하지 않고 Job이 실패한다. 2024년 이후 원천이 컬럼이나 코드 체계를 또 바꾸면 조용히 잘못된 값이 들어가는 대신 `dataset_rejected_row`에 근거를 남기고 멈춘다.
 
@@ -214,12 +214,14 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 
 ## 기업마당 정책 수집
 
-상시 `batch-service` 가 district(`BATCH_DB_URL`) 와 commercial(`COMMERCIAL_DB_URL`) 을 같이 본다. 새 스케줄러 서비스는 없다. `BATCH_POLICY_ENABLED=true` 이면 `dev` 프로파일에서도 Quartz 가 켜지고, `quarterly` 처럼 `System.exit` 하지 않는다.
+상시 `batch-service` 가 district(`BATCH_DB_URL`) 와 commercial(`COMMERCIAL_DB_URL`) 을 같이 본다. 새 스케줄러 서비스는 없다. `BATCH_POLICY_ENABLED=true` 이면 `policyCollectTrigger` / `policyPurgeTrigger` 가 등록되고, `quarterly` 처럼 `System.exit` 하지 않는다. (Quartz JDBC JobStore 자체는 `application.yml` 의 on-property 문서가 조건으로 읽히지 않아 항상 켜진다. 아래 「분기 적재 자동 최신화」 알려진 한계.)
 
 | 대상 | DataSource |
 | --- | --- |
-| Quartz `QRTZ_*`, Spring Batch 메타, 영역 좌표 | `BATCH_DB_URL` (district) |
-| `policy` upsert / stale-mark / purge | `COMMERCIAL_DB_URL` (commercial) |
+| Quartz `QRTZ_*`, Spring Batch 메타 | `BATCH_DB_URL` (district) |
+| `policy` upsert / stale-mark / purge | `COMMERCIAL_DB_URL` (commercial, `policyJdbcTemplate` = `commercialJdbcTemplate` 별칭) |
+
+접속 정보는 `batch.commercial.datasource.*`(env 는 그대로 `COMMERCIAL_DB_URL` / `DB_USERNAME` / `DB_PASSWORD`)로 옮겼다. 예전 `batch.policy.datasource.*` 는 없다.
 
 | Job | cron (Asia/Seoul) | 역할 |
 | --- | --- | --- |
@@ -233,3 +235,113 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 운영 절차(Vault 키, DDL 을 어느 스키마에 넣는지, 매일 06:00/06:30 시나리오)는 [batch-policy-ingest.md](batch-policy-ingest.md)다.
 스키마 런북: commercial 은 `scripts/migration/policy-ingest-columns-runbook.sql` + 시드, district 는 `quartz-schema-mysql.sql`. 확인은 `policy-ingest-verify.sql` / `policy-ingest-verify-district.sql`. `spring.quartz.jdbc.initialize-schema` 는 `never` 다.
 
+## 분기 적재 자동 최신화 (이슈 #445)
+
+상시 `batch-service`(dev)가 매일 05:00 KST 에 서울 Open API 를 탐지해 **마지막 게시 분기 다음 분기부터 원천 최신 분기까지**만 적재한다. 비어 있는 과거 분기(백필)는 계속 수동 CLI(`quarterly-import-plan.ps1`, [batch-quarterly-import.md](batch-quarterly-import.md))가 맡는다. 새 서비스·새 JAR 는 없다. 수동 CLI 와 **같은 Job**(`commercialAnalysisImportJob`, `typedFactProjectionJob`)을 같은 인자로 띄우므로 검증·게시 규칙(행 수 일치, 거부·중복·미매핑 0, 공간 READY, 더 새로운 원천 우선)은 한 곳에만 있다.
+
+### 한 줄 요약
+
+| 질문 | 답 |
+| --- | --- |
+| 켜는 스위치 | `BATCH_DATASET_REFRESH_ENABLED=true` (기본 false). 켜야 Quartz 트리거가 등록된다 |
+| 실제로 게시하나 | `BATCH_DATASET_REFRESH_PUBLISH=true` 일 때만. 기본 false 는 탐지·수집·dry-run 까지 |
+| 언제 도나 | 매일 05:00 KST (`0 0 5 * * ?`). misfire 는 버린다 — 낮에 재기동하면 다음날 05:00 |
+| 한 run 에 몇 분기 | 데이터셋당 최대 1분기(`max-quarters-per-run`). 상시 컨테이너 메모리 512m 을 지키려는 값이다 |
+| API 한도 | run 당 600회(`max-api-calls-per-run`). 키당 하루 1,000회라 수동 CLI 몫을 남긴다 |
+| 화면 기본 분기 | 바꾸지 않는다(`AnalysisPeriodDefaults`, FE `selection.ts` 는 별도 이슈) |
+
+### DataSource
+
+| 대상 | DataSource |
+| --- | --- |
+| Spring Batch `BATCH_*`, Quartz `QRTZ_*` | 기본 DataSource `BATCH_DB_URL` (district) |
+| `dataset_*` 적재·이관, `dataset_refresh_state`, 스테이징 정리 | `commercialJdbcTemplate` = `COMMERCIAL_DB_URL` (commercial) |
+| `policy` | 같은 `commercialJdbcTemplate` (`policyJdbcTemplate` 은 별칭) |
+
+`CommercialDataSourceConfig` 는 정책·자동 최신화·스테이징 정리 중 하나라도 켜지고, `COMMERCIAL_DB_URL` 이 비어 있지 않고, 기본 DataSource URL 과 다를 때만 두 번째 풀을 연다. quarterly CLI 는 `COMMERCIAL_DB_URL` 을 받지 않으므로 기본 DataSource(= commercial)를 그대로 쓴다. `CommercialTargetGuardRunner` 가 기동 직후 commercial URL 이 `BATCH_DB_URL` 과 다른지, `BATCH_ALLOWED_SCHEMAS` 에 있는지, 이름에 `prod` 가 없는지 검사하고, 자동 최신화가 켜졌으면 `SEOUL_OPEN_DATA_API_KEY` 와 공간·스키마 버전 형식까지 본다. 걸리면 기동이 멈춘다(fail-closed). prod 는 이 가드로 막힌다.
+
+### 판단 순서 (데이터셋 1종, `DatasetRefreshProcessor`)
+
+데이터셋은 ps1 `Order` / coverage.sql `run_order` 순서로 돈다(`Dataset.inRunOrder()`).
+
+0. 공간 스냅샷(`spatial-version`, 기본 `legacy-20233`)이 READY 가 아니면 run 전체를 멈춘다 — `SPATIAL_NOT_READY`
+1. 게시돼 있는데 typed 행 수가 `accepted_count` 와 다른 슬롯(coverage.sql 5절 판정)을 먼저 이관한다 — `PROJECTED` / publish=false 면 dry-run 이관 `WOULD_PROJECT`
+2. 게시 분기가 없으면 건너뛴다 — `NO_BASELINE` (첫 분기는 수동 CLI)
+3. 후보 = 마지막 게시 분기 다음. 원천이 끊긴 데이터셋(`CONSUMPTION_COMMERCIAL`, 20234 까지)은 API 를 부르지 않는다 — `DISCONTINUED`
+4. 최근 실패 후 7일(`failure-cooldown-days`) 안이면 — `COOLDOWN`
+5. 탐지: `/1/1/<후보>` 한 번. 분기 인자를 존중하는 6종은 행이 없으면 `NOT_PUBLISHED_YET`. 무시하는 9종은 전 기간 합계가 지난번과 같고 새로 볼 분기가 없으면 `UNCHANGED`
+6. 받을 페이지 수(`ceil(total/1000)`)가 남은 예산보다 크면 — `BUDGET`
+7. 수집: 전 페이지를 `page-<start>.json` 으로 보관하고 분기별로 센다(`acquire`). 무시하는 9종은 마지막 게시 분기보다 늦은 분기를 오름차순으로 상한까지 고른다
+8. 분기마다: 고정 행 수(CHANGE_COMMERCIAL 1650, 자치구 3종 25)와 다르거나 직전 분기 게시 행 수 대비 20%(`tolerance`)를 넘게 바뀌면 `IMPLAUSIBLE` 로 멈춘다. 통과하면 보관본을 ARCHIVE 로 재생해 dry-run → publish=false 면 `WOULD_PUBLISH`. publish=true 면 실게시 → typed 이관 → `PUBLISHED`. 이관만 실패하면 `PUBLISHED_NOT_PROJECTED` 이고 다음 run 의 1단계가 다시 이관한다
+9. `dataset_refresh_state` 를 갱신한다. 원천 합계는 성공했을 때만 기억한다(실패한 합계를 기억하면 쿨다운 뒤에도 UNCHANGED 로 영영 건너뛴다)
+
+`source_updated_at` 은 분기 말일 00:00 UTC(`Quarter.endInstant()`)로 ps1 `Get-SourceUpdatedAt` 와 같다. run-id 는 `auto-<dataset>-<분기>-<yyyyMMddHHmm KST>-{fetch|dry|pub}`, 이관은 `auto-project-<dataset>-<분기>-<시각>` 이다. 수동 규칙(`<dataset>-<분기>-<attempt>`)과 `auto-` 접두로 겹치지 않고 64자를 넘지 않는다(`DatasetRefreshProcessorTest` 가 15종 전부 확인).
+
+`service_type` 미해석(`service_category` 에 없는 업종 코드)은 게시를 막지 않는다. WARN 로그 `[dataset-refresh] service_type unresolved ...` 와 메트릭으로 드러내고, 원인은 coverage.sql 6절로 본다.
+
+### "데이터 없음" 응답 — 실호출 확인 필요
+
+저장소 문서에 아직 없는 분기를 요청했을 때의 실호출 기록이 없다. 서울 열린데이터광장 공통 코드로 알려진 `RESULT.CODE = INFO-200`("해당하는 데이터가 없습니다")을 **최상위 또는 서비스 키 아래** 어디에 오든 "행 없음"으로 받고, 그 밖의 비-`INFO-000` 은 계속 예외로 둔다(`SeoulDatasetSourceAdapter.NO_DATA`, fixture 는 `SeoulDatasetSourceProbeAcquireTest`). 사실 적재 세션은 `INFO-200` 도 계속 오류로 본다. publish=false 롤아웃 첫 주에 아래를 한 번 실호출해 모양을 확인하고, 다르면 두 곳을 함께 고친다.
+
+```text
+GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없는 분기>
+```
+
+모양이 다르면 첫 run 에서 그 데이터셋이 `FAILED` 로 남고 7일 쿨다운에 들어간다. 게시로 이어지지는 않는다.
+
+### 설정
+
+| env | 기본 | 의미 |
+| --- | --- | --- |
+| `BATCH_DATASET_REFRESH_ENABLED` | `false` | 트리거 등록 |
+| `BATCH_DATASET_REFRESH_PUBLISH` | `false` | 실게시 여부 |
+| `BATCH_DATASET_REFRESH_CRON` | 빈 값 → `0 0 5 * * ?` | Asia/Seoul |
+| `BATCH_DATASET_REFRESH_SPATIAL_VERSION` | 빈 값 → `legacy-20233` | 게시·판단 기준 공간 버전 |
+| `SEOUL_OPEN_DATA_API_KEY` | (없음) | 켜면 필수. 채팅·커밋에 넣지 않는다 |
+| `BATCH_RAW_DIRECTORY` | `/app/data/raw` | compose 고정. `batch-raw` 볼륨(수동 `batch-service-job` 과 공유) |
+| `BATCH_ALLOWED_SCHEMAS` | 정책과 공유 | `bosspickseoul_commercial_dev` |
+
+`max-api-calls-per-run` 600, `max-quarters-per-run` 1, `tolerance` 0.2, `failure-cooldown-days` 7 은 `application.yml` 값이다.
+
+### 상태 테이블
+
+`dataset_refresh_state`(commercial). DDL 은 `backend/scripts/migration/dataset-refresh-state-schema.sql` 이고 앱이 만들지 않는다. "원천을 또 받을지" 판단용 캐시라 행을 지워도 다음 run 이 한 번 더 받을 뿐 게시는 깨지지 않는다. 게시 여부의 정본은 `dataset_release` / `dataset_active_release` 다.
+
+### 개발서버 롤아웃
+
+1. **DDL** — Workbench 에서 `bosspickseoul_commercial_dev` 를 고르고 `dataset-refresh-state-schema.sql` 실행. `quarterly-dataset-schema.sql` 은 이미 적용돼 있어야 한다. district 의 `BATCH_*` / `QRTZ_*` 는 정책 수집 때 만든 것을 그대로 쓴다. 확인은 `quarterly-import-verify.sql` 1) 블록
+2. **Vault** — `kv/bosspickseoul/backend/dev/env` 에 **patch** 로 `BATCH_DATASET_REFRESH_ENABLED=true`, `SEOUL_OPEN_DATA_API_KEY=<키>` 를 넣는다. `BATCH_DATASET_REFRESH_PUBLISH` 는 넣지 않거나 `false`. `COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 는 정책 수집 값 그대로. `put` 은 나머지 키를 지운다
+3. **재배포** — Jenkins `batch-service-dev` 만. compose 가 `batch-raw` 볼륨을 새로 붙인다. 메모리 상한 `BATCH_SERVICE_MEM_LIMIT_DEV` 는 바꾸지 않는다(512m)
+4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다
+5. **관찰(1주)** — 다음날 05:00 이후 로그 `[dataset-refresh] run finished ... results={...}` 와 `slot dataset=... result=...`, `SELECT * FROM dataset_refresh_state`. `WOULD_PUBLISH` 가 뜬 데이터셋은 `dataset_release` 에 `auto-...-dry` 가 `DRY_RUN` 으로 남는다. 첫 주에 위 「데이터 없음」 실호출을 확인한다
+6. **게시 전환** — 결과가 기대대로면 Vault 에 `BATCH_DATASET_REFRESH_PUBLISH=true` patch 후 재배포. 다음 05:00 run 부터 `PUBLISHED` 가 나오고 coverage.sql 1)·5) 에서 해당 슬롯이 빠진다
+7. **되돌리기** — `BATCH_DATASET_REFRESH_ENABLED=false` 후 재배포. 이미 게시된 릴리스는 그대로다(수동 게시와 같다)
+
+첫 run 을 05:00 전에 보고 싶으면 `BATCH_DATASET_REFRESH_CRON=0 0/15 * * * ?` 를 잠시 넣었다가 비운다(정책 수집과 같은 방법).
+
+### 메트릭·로그
+
+로그 접두 `[dataset-refresh]`. Prometheus(`/actuator/prometheus`):
+
+- `batch_dataset_refresh_api_calls_total` — 쓴 API 호출 수
+- `batch_dataset_refresh_slots_total{dataset,result}` — 판단 수. `result` 는 `DatasetRefreshResult` 이름
+- `batch_dataset_refresh_service_type_unresolved_rows_total{dataset}` — 업종 미해석 이관 행
+- `batch_dataset_refresh_last_run_epoch` — 마지막 run 이 끝난 시각(초). 26시간 넘게 그대로면 트리거·기동을 의심한다
+
+### 스테이징 정리 (기본 off)
+
+`BATCH_STAGING_PURGE_ENABLED=true` 이면 일요일 04:00 KST(`BATCH_STAGING_PURGE_CRON`)에 `datasetStagingPurgeJob` 이 돈다. `dataset_staging` / `dataset_rejected_row` 만 5,000행 청크로 지운다.
+
+| 대상 | 보존 |
+| --- | --- |
+| `DRY_RUN` / `FAILED` run 의 스테이징·거부 행 | 7일(`unpublished-retention-days`). 거부 행은 실패 원인을 읽는 곳이라 바로 지우지 않는다 |
+| 교체된 `PUBLISHED` run 의 스테이징 | 게시 후 30일(`published-retention-days`) |
+
+`dataset_active_release` 가 가리키는 run 은 어떤 문장도 지우지 않고, `dataset_release` · `dataset_fact` 는 건드리지 않는다. 자동 최신화는 매일 `auto-...-dry` 스테이징을 남기므로 publish=false 로 오래 돌릴 때 켜는 것을 권한다.
+
+### 알려진 한계
+
+- **메모리** — typed 이관(`--job=project`)은 한 슬롯의 `dataset_fact` 를 통째로 읽는다. `STORE_COMMERCIAL`(분기당 약 7.7만 행) 이관은 512m 컨테이너(heap 약 358MB)에서 여유가 크지 않다. publish=true 전환 뒤 첫 run 의 JVM heap 을 본다. 부족하면 그 데이터셋만 수동 `batch-service-job`(1g)으로 이관한다
+- **Quartz 활성 조건** — `application.yml` 의 `spring.config.activate.on-property` 는 Spring Boot 3.5 가 지원하지 않는 키라 그 문서가 항상 적용된다. 즉 Quartz 는 모든 프로파일에서 JDBC JobStore 로 뜬다(트리거 등록은 각 `*QuartzScheduleConfig` 조건이 가른다). 자동 최신화는 이 동작에 기대며 `DatasetRefreshPropertiesTest` 가 고정한다
+- **Spring Batch 메타 트랜잭션** — 컨텍스트의 트랜잭션 매니저는 `commercialTransactionManager` 하나뿐이라 두 번째 풀이 열린 상시 인스턴스에서 `BATCH_*`(district) 쓰기는 그 트랜잭션에 묶이지 않고 문장 단위로 커밋된다. 정책 수집 때부터 같은 구조다. 자동 최신화는 run-id 가 매번 새로워 재시작 경로를 쓰지 않는다
+- **원천 보관 용량** — 무시하는 9종은 원천이 바뀐 날마다 전 기간을 `batch-raw` 에 새로 받는다(데이터셋당 수 MB). 볼륨 정리는 아직 없다

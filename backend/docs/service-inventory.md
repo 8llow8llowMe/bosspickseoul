@@ -40,8 +40,10 @@
 
 - 책임: 영역 좌표 적재(`areaboundary`), 서울 Open API 15종 분기 적재와 공간 스냅샷 게시(`dataingestion`,
   `--job=facts|spatial`, `services/batch-service.md`), 기업마당 정책 수집·만료(`policyingestion`,
-  `BATCH_POLICY_ENABLED`, 기본 비활성). `policy` 는 `COMMERCIAL_DB_URL`, Quartz 는 `BATCH_DB_URL`
-- 특징: Spring Batch 기반. `quarterly` 는 실행 후 종료, 상시 인스턴스는 Quartz 로 정책 Job 을 돌릴 수 있다.
+  `BATCH_POLICY_ENABLED`, 기본 비활성), 분기 적재 자동 최신화(`dataingestion`, `BATCH_DATASET_REFRESH_ENABLED`,
+  매일 05:00, 기본 비활성·publish=false 로 시작)와 스테이징 정리(`BATCH_STAGING_PURGE_ENABLED`, 기본 비활성).
+  `policy`·`dataset_*` 는 `COMMERCIAL_DB_URL`, Quartz·Spring Batch 메타는 `BATCH_DB_URL`
+- 특징: Spring Batch 기반. `quarterly` 는 실행 후 종료, 상시 인스턴스는 Quartz 로 정책·자동 최신화 Job 을 돌린다.
   `dataset_*` 테이블과 `policy` 수집 컬럼의 DDL 런북은 `scripts/migration/`
 
 ## AI Service

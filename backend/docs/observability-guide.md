@@ -119,6 +119,14 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 - 권장 알람: `max_over_time(resilience4j_circuitbreaker_state{state="open"}[1m]) == 1` 이 2분 이상 지속되면 통지.
   서킷은 10초 뒤 half-open 으로 자동 복구를 시도하므로, 짧은 순단까지 알리면 소음이 됩니다.
 
+### 분기 적재 자동 최신화 지표 (batch-service, 이슈 #445)
+
+- `batch_dataset_refresh_last_run_epoch` — 마지막 run 이 끝난 시각(초). `time() - batch_dataset_refresh_last_run_epoch > 26*3600` 이면 05:00 run 이 돌지 않은 것이다(트리거 미등록·기동 실패·클러스터 락)
+- `batch_dataset_refresh_slots_total{dataset,result}` — 판단 수. `result` 가 `FAILED` / `IMPLAUSIBLE` / `PUBLISHED_NOT_PROJECTED` / `SPATIAL_NOT_READY` 인 증가를 알람 후보로 본다
+- `batch_dataset_refresh_api_calls_total` — 서울 Open API 호출 수. 키당 하루 1,000회 한도라 하루 증가분이 600 을 넘지 않아야 한다
+- `batch_dataset_refresh_service_type_unresolved_rows_total{dataset}` — 업종 분류를 못 찾은 이관 행. 게시는 계속되지만 업종 Top-N 이 빈다
+- 로그는 `[dataset-refresh]` 접두(Loki `|= "[dataset-refresh]"`). 운영 절차는 `services/batch-service.md` 「분기 적재 자동 최신화」
+
 ## 빠른 점검
 
 서비스에서 직접 확인:

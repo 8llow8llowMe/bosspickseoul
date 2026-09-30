@@ -642,6 +642,20 @@ prod 는 commercial 에 `policy-ingest-columns-runbook.sql`, district 에 `quart
 
 **핵심 파일**: `domainlayer/policyingestion/` (`PolicyCollectProcessor`, `BizinfoPolicySourceAdapter`, `PolicyJdbcAdapter`, Quartz Job). 운영은 `services/batch-policy-ingest.md`.
 
+---
+
+### `batch-service` — 분기 적재 자동 최신화 (Quartz)
+
+**상태**: ✅ 구현 완료. 기본 비활성(`batch.dataset-refresh.enabled=false`, `publish=false`). 2026-09-30. 이슈 #445.
+
+- 상시 batch-service 가 매일 05:00 KST 에 서울 Open API 를 탐지해 마지막 게시 분기 다음 분기부터 원천 최신까지 적재한다. 백필은 수동 CLI.
+- 수동 CLI 와 같은 `commercialAnalysisImportJob` / `typedFactProjectionJob` 을 ARCHIVE 재생으로 띄운다. 행 수는 고정값(1650·25) 또는 직전 분기 대비 ±20% 로 먼저 거른다.
+- 롤아웃은 publish=false(탐지·수집·dry-run)로 시작하고 Vault 에서 true 로 올린다. 데이터셋당 run 1분기, API 600회/run.
+- `dataset_refresh_state`(commercial) 런북 `scripts/migration/dataset-refresh-state-schema.sql`. 주간 스테이징 정리 `datasetStagingPurgeJob` 은 기본 off.
+- 남은 확인: "데이터 없음" 응답(`INFO-200`) 모양을 실호출로 확인해야 한다.
+
+**핵심 파일**: `domainlayer/dataingestion/` (`DatasetRefreshFacade`, `DatasetRefreshProcessor`, `SpringBatchImportExecutionAdapter`, `SeoulDatasetSourceAdapter.probe/acquire`). 운영은 `services/batch-service.md` 「분기 적재 자동 최신화」.
+
 ## 미구현 / 보류 기능
 
 ---
