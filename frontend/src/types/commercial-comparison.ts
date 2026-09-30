@@ -25,9 +25,13 @@ export type CommercialComparisonTarget = {
 }
 
 /**
- * 지표 한 줄. `diffValue` 는 **좌 - 우** 이고 `diffRate` 는 %다.
+ * 지표 한 줄. `diffValue` 는 **좌 - 우** 이고 `diffRate` 는 %다(이미 ×100 된 값).
  *
  * `winnerSide` 는 백엔드의 판단이다. 표에서는 읽지 않는다(위 주석).
+ *
+ * 표시 메타 4종(BE #381)은 **선택**이다. 순차 배포 중 구버전 응답에는 없고, 없으면
+ * 그 필드만 기존 표시로 물러난다(`docs/features/recommend/compare.md` D5-1). 한글
+ * `label` 에서 단위를 추측하지 않는다.
  */
 export type ComparisonMetric = {
   label: string
@@ -35,7 +39,32 @@ export type ComparisonMetric = {
   rightValue: number | null
   diffValue: number | null
   diffRate: number | null
+  /** 좌·우 값 단위: `원`·`명`·`건`·`개`·`%`. */
+  unit?: string | null
+  /** 화면 표시 소수 자릿수(0 또는 1). */
+  displayPrecision?: number | null
+  /** 차이 단위: 비율 지표는 `%p`, 나머지는 `unit` 과 같다. */
+  differenceUnit?: string | null
+  /** 지표의 집계·해석 기준. 지표명 옆 도움말로 쓴다. */
+  description?: string | null
   winnerSide: CodeNameDescriptionMetadata
+}
+
+/** 묶음 안내. `code` 는 지표 배열 필드명(`salesMetrics` 등)과 같다. */
+export type ComparisonMetricGroupGuide = {
+  code: string
+  name: string | null
+  description: string | null
+}
+
+/** 비교 수치·추천 해석 안내(BE #381). 문장은 **그대로 표시**하는 한국어다. */
+export type ComparisonGuide = {
+  periodBasis: string | null
+  serviceBasis: string | null
+  differenceBasis: string | null
+  diffRateBasis: string | null
+  recommendationDisclaimer: string | null
+  metricGroups: ComparisonMetricGroupGuide[] | null
 }
 
 /**
@@ -81,6 +110,11 @@ export const COMPARISON_METRIC_GROUP_LABELS: Record<
 export type CommercialComparisonBody = {
   left: CommercialComparisonTarget | null
   right: CommercialComparisonTarget | null
+  /** 실제 조회에 쓴 분기 코드. 구버전 응답에는 없다. */
+  periodCode?: string | null
+  /** 실제 조회에 쓴 서비스 업종 코드. 구버전 응답에는 없다. */
+  serviceCode?: string | null
+  comparisonGuide?: ComparisonGuide | null
   /** 아래 넷은 백엔드의 판단이다 — 리포트 영역 전용. */
   comparisonSummary: string | null
   recommendedSide: CodeNameDescriptionMetadata
