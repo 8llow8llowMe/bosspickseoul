@@ -579,20 +579,6 @@ export default function RecommendMap({
   )
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [hoveredAreaCode, setHoveredAreaCode] = useState<string | null>(null)
-  /*
-   * 아래 대입들은 **최신값 ref** 관용구다. 지도 이벤트 핸들러와 레이어 그리기는
-   * 이펙트 안에서 한 번 등록되고 오래 산다. 그 안에서 최신 prop 을 보려면 매 렌더
-   * 값을 ref 에 옮겨 두는 수밖에 없다 — 핸들러를 매번 다시 등록하면 카카오 SDK
-   * 오버레이를 통째로 다시 만들게 된다.
-   *
-   * `react-hooks/refs` 는 렌더 중 ref 쓰기를 막는다. 옳은 규칙이고, 이펙트로 옮기면
-   * 한 커밋 늦게 반영된다 — `layerInputRef` 는 같은 렌더가 만든 `layerSemanticKey`
-   * 로 도는 이펙트가 읽으므로 그 지연이 곧 어긋남이다. 그래서 여기서는 관용구를
-   * 유지하고 **줄 단위로** 끈다. 파일 전체를 열어 두던 예외를 걷은 것이라, 이 파일에
-   * 새로 들어오는 코드는 규칙을 그대로 받는다.
-   *
-   * 정식 해소는 `useEffectEvent` 이관이다 — 지도 실화면 검증 경로가 생긴 뒤에 한다.
-   */
   /** 레이어를 새로 그릴 때 지금 호버 중인 영역을 첫 칠에 반영한다. */
   const readHoveredAreaCode = useEffectEvent(() => hoveredAreaCode)
   // 현재 단계 레이어들의 호버 하이라이트 적용 함수. 레이어를 다시 그릴 때 교체된다.
