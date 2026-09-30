@@ -143,7 +143,12 @@ const TextArea = styled.textarea`
   font: inherit;
   font-size: 14px;
   line-height: 1.65;
-  outline: none;
+  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms). */
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
 
   &:focus-visible {
     border-color: var(--color-primary-700);

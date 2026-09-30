@@ -102,7 +102,6 @@ export const TextInput = styled.input`
      포커스·에러에서 칸이 흔들리지 않게 한다(DESIGN.md §Inputs & Forms). */
   border: 2px solid transparent;
   border-radius: var(--radius-field);
-  outline: none;
   background: var(--color-surface-muted);
   color: var(--color-text-900);
   transition:
@@ -112,6 +111,14 @@ export const TextInput = styled.input`
 
   &::placeholder {
     color: var(--color-placeholder);
+  }
+
+  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms).
+     기본값의 outline: none 은 전역 규칙과 특이도가 같아 순서에 밀린다. */
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
   }
 
   &:focus {
