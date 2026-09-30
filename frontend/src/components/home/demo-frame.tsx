@@ -85,6 +85,8 @@ export const SampleBadge = styled.span`
 `
 
 export type DemoFrameProps = {
+  /** 제목 대신 머리줄 왼쪽에 둘 조작부(02 의 지역·업종 칩). 제목과 함께 쓰지 않는다. */
+  leading?: ReactNode
   title?: ReactNode
   subtitle?: ReactNode
   aside?: ReactNode
@@ -93,26 +95,31 @@ export type DemoFrameProps = {
 }
 
 export default function DemoFrame({
+  leading,
   title,
   subtitle,
   aside,
   footer,
   children,
 }: DemoFrameProps) {
-  const hasHead = Boolean(title || subtitle || aside)
+  const hasHead = Boolean(leading || title || subtitle || aside)
+
+  let lead: ReactNode = <span />
+  if (leading) lead = leading
+  else if (title || subtitle) {
+    lead = (
+      <Heading>
+        {title ? <Title>{title}</Title> : null}
+        {subtitle ? <Subtitle>{subtitle}</Subtitle> : null}
+      </Heading>
+    )
+  }
 
   return (
     <Frame>
       {hasHead ? (
         <Head>
-          {title || subtitle ? (
-            <Heading>
-              {title ? <Title>{title}</Title> : null}
-              {subtitle ? <Subtitle>{subtitle}</Subtitle> : null}
-            </Heading>
-          ) : (
-            <span />
-          )}
+          {lead}
           {aside ? <Aside>{aside}</Aside> : null}
         </Head>
       ) : null}

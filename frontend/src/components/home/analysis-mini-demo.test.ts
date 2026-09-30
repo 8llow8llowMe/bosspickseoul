@@ -42,4 +42,26 @@ describe('AnalysisMiniDemo — AI 리포트 표기', () => {
   it('데모 안에 CTA 링크를 두지 않는다 (TC-SP-005)', () => {
     expect(render()).not.toContain('href=')
   })
+
+  /* 매출 증감은 패널 왼쪽 큰 숫자가 말한다 — 데모가 또 말하지 않는다(TC-SP-005). */
+  it('매출 증감을 다시 싣지 않는다', () => {
+    const html = render()
+
+    expect(html).not.toContain('매출 증감')
+    expect(html).not.toContain('+5.3%')
+  })
+
+  it('지역·업종 선택은 radiogroup 두 개로 남는다', () => {
+    const html = render()
+
+    expect(html.match(/role="radiogroup"/g)).toHaveLength(2)
+    expect(html.match(/role="radio"/g)).toHaveLength(8)
+  })
+
+  it('홈 전용 꺾은선으로 그린다 — 공용 recharts 차트가 아니다', () => {
+    const html = render()
+
+    expect(html).toContain('<polyline')
+    expect(html).not.toContain('recharts')
+  })
 })

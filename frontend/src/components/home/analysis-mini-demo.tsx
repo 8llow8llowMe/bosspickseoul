@@ -1,7 +1,11 @@
 'use client'
 
 import { useRef, type KeyboardEvent } from 'react'
+import { Sparkles } from 'lucide-react'
 import styled from 'styled-components'
+
+import DemoFrame, { SampleBadge } from '@/components/home/demo-frame'
+import StoryLineChart from '@/components/home/story-line-chart'
 import {
   DISTRICTS,
   INDUSTRIES,
@@ -9,7 +13,6 @@ import {
   type CompetitionLevel,
   type DemoSelection,
 } from '@/data/home-demo'
-import LineChart from '@/components/analysis/charts/line-chart'
 
 const competitionLabel: Record<CompetitionLevel, string> = {
   low: '낮음',
@@ -64,60 +67,48 @@ function useRovingRadioGroup(
   return { refs, handleKeyDown }
 }
 
-const Wrapper = styled.div`
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
-  align-items: start;
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const SelectorColumn = styled.div`
-  display: grid;
-  gap: 20px;
-`
-
-const SelectorGroup = styled.div`
-  display: grid;
-  gap: 8px;
-  align-content: start;
-`
-
-const SelectorLabel = styled.span`
-  color: var(--color-text-caption);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
-`
-
-const OptionList = styled.div`
+/*
+  지역·업종 선택은 머리줄 한 줄의 칩이다(story-panel-redesign.md D4-7). 예전엔 왼쪽
+  200px 세로 버튼 목록이라 데모 폭의 3분의 1 을 선택지가 먹었고, 차트는 카드 안의 카드
+  안의 회색 박스에 들어가 있었다. 칩 모양은 01 지표 칩(`MetricToggleGroup`)과 같다 —
+  두 데모가 같은 조작 문법을 써야 한 제품처럼 보인다.
+*/
+const Chips = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+`
 
-  @media (max-width: 640px) {
-    flex-direction: row;
-    flex-wrap: wrap;
+const ChipGroup = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`
+
+const Divider = styled.span`
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--color-border-200);
+
+  @media (max-width: 480px) {
+    display: none;
   }
 `
 
-const Option = styled.button<{ $active: boolean }>`
-  min-height: 40px;
+const Chip = styled.button<{ $active: boolean }>`
+  min-height: 36px;
   padding: 0 14px;
   border: 1px solid
-    ${props =>
-      props.$active ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-control);
-  background: ${props =>
-    props.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
-  font-size: 14px;
-  font-weight: 600;
-  text-align: left;
+    ${p => (p.$active ? 'var(--color-primary-600)' : 'var(--color-border-200)')};
+  border-radius: var(--radius-pill);
+  background: ${p =>
+    p.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  color: ${p =>
+    p.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+  font-size: 13px;
+  font-weight: ${p => (p.$active ? 700 : 600)};
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -125,7 +116,7 @@ const Option = styled.button<{ $active: boolean }>`
     color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    border-color: var(--color-primary-700);
+    border-color: var(--color-primary-600);
     color: var(--color-primary-700);
   }
 
@@ -133,154 +124,117 @@ const Option = styled.button<{ $active: boolean }>`
     outline: none;
     box-shadow: var(--shadow-focus-primary);
   }
-`
 
-/*
-  스토리 02 단계의 데모다. **패널 높이(데모 영역 494px)에 맞춰 접는다.**
-
-  이전에는 이 카드가 587px 이라 패널 안에서 세로 스크롤이 생겼다 — 스토리는 스크롤로
-  단계를 넘기는 구간이라, 그 안에서 또 스크롤되는 영역은 휠이 어느 쪽을 움직일지
-  모호해진다(단계가 안 넘어가거나 카드가 안 내려간다). 여백·차트 높이를 줄여
-  **한 화면에 담기게** 한다.
-
-  줄인 곳: gap 18 → 12 · padding 24 → 20 · 차트 150 → 128. 셋을 조금씩 나눠 줄인 이유는
-  한 곳만 크게 줄이면 그 요소만 눈에 띄게 답답해지기 때문이다.
-*/
-const ResultCard = styled.div`
-  display: grid;
-  gap: 12px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-2);
-  padding: 20px;
-  transition: background-color var(--motion-fast) var(--ease-standard);
-
-  @media (max-width: 640px) {
-    padding: 20px;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `
 
-const ResultHeader = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  justify-content: space-between;
-`
-
-const ResultTitle = styled.h3`
-  color: var(--color-text-900);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 26px;
-`
-
-const SampleBadge = styled.span`
-  color: var(--color-text-caption);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-`
-
-const ChartCard = styled.div`
+const Result = styled.div`
   display: grid;
-  gap: 8px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
-  padding: 16px;
+  gap: 16px;
 `
 
-const ChartHeader = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
+const ChartBlock = styled.div`
+  display: grid;
   gap: 8px;
 `
 
 const ChartLabel = styled.span`
-  color: var(--color-text-caption);
+  color: var(--color-text-600);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
 `
 
-const ChartChange = styled.span<{ $positive: boolean }>`
-  color: ${props =>
-    props.$positive ? 'var(--color-success)' : 'var(--color-danger)'};
-  font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  transition: color var(--motion-fast) var(--ease-standard);
-`
-
 /*
-  지표 4개. `repeat(2, 1fr)` 고정이면 **패널이 아무리 넓어도 2행**이라 데스크톱에서
-  한 행치(약 58px)를 그냥 버렸다 — 02 패널이 넘치던 높이의 대부분이 이것이다.
-  `auto-fit` 으로 바꿔 폭이 되면 4열 1행, 좁으면 2열로 접힌다.
+  지표 3칸. 매출 증감은 뺐다 — 패널 왼쪽의 큰 숫자가 같은 값을 말한다. 예전엔 차트
+  머리와 지표 칸에 한 번씩, 두 번 나왔다.
 */
-const MetricGrid = styled.div`
+const MetricGrid = styled.dl`
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
 
-  @media (max-width: 420px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 480px) {
+    grid-template-columns: minmax(0, 1fr);
   }
 `
 
 const MetricBlock = styled.div`
   display: grid;
-  gap: 6px;
+  align-content: start;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
 `
 
-const MetricLabel = styled.span`
-  color: var(--color-text-caption);
-  font-size: 13px;
+const MetricLabel = styled.dt`
+  color: var(--color-text-600);
+  font-size: 12px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 18px;
 `
 
-const MetricValue = styled.span`
+const MetricValue = styled.dd`
+  margin: 0;
   color: var(--color-text-900);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 24px;
+  font-variant-numeric: tabular-nums;
 `
 
 const CompetitionBadge = styled.span<{ $level: CompetitionLevel }>`
   display: inline-flex;
-  align-items: center;
   width: fit-content;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
+  padding: 0 8px;
+  border-radius: var(--radius-compact);
   background: var(--color-surface-muted);
   color: ${props => {
     if (props.$level === 'low') return 'var(--color-success)'
     if (props.$level === 'high') return 'var(--color-danger)'
     return 'var(--color-text-700)'
   }};
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-`
-
-const InsightLabel = styled.span`
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-caption);
+  line-height: 24px;
 `
 
 const Insight = styled.p`
-  color: var(--color-text-600);
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-700);
   font-size: 14px;
   line-height: 22px;
   word-break: keep-all;
+
+  svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    color: var(--color-primary-700);
+  }
+
+  strong {
+    color: var(--color-text-900);
+    font-weight: 700;
+  }
 `
 
+/** 02 차트 플롯 높이(px). 패널 높이 예약(product-story)이 이 값에 묶여 있다. */
+export const MINI_DEMO_CHART_HEIGHT = 160
+
 export type AnalysisMiniDemoProps = {
-  /** `ProductStory` 가 소유한 선택 — 03단계·카운터와 같은 값을 본다(D8-3). */
+  /** `ProductStory` 가 소유한 선택 — 03단계·큰 숫자와 같은 값을 본다(D8-3). */
   selection: DemoSelection
   onSelectionChange: (selection: DemoSelection) => void
 }
@@ -294,8 +248,7 @@ export default function AnalysisMiniDemo({
     DISTRICTS.find(district => district.id === sel.districtId)?.name ?? ''
   const industryName =
     INDUSTRIES.find(industry => industry.id === sel.industryId)?.name ?? ''
-  const isPositive = sample.salesChangePct >= 0
-  const changeLabel = `${isPositive ? '+' : ''}${sample.salesChangePct}%`
+  const lastIndex = sample.salesTrend.length - 1
 
   const districtGroup = useRovingRadioGroup(DISTRICTS, sel.districtId, id =>
     onSelectionChange({ ...sel, districtId: id }),
@@ -304,115 +257,110 @@ export default function AnalysisMiniDemo({
     onSelectionChange({ ...sel, industryId: id }),
   )
 
+  const chips = (
+    <Chips>
+      <ChipGroup
+        role="radiogroup"
+        aria-label="지역 선택"
+        onKeyDown={districtGroup.handleKeyDown}
+      >
+        {DISTRICTS.map((district, index) => (
+          <Chip
+            key={district.id}
+            ref={el => {
+              districtGroup.refs.current[index] = el
+            }}
+            type="button"
+            role="radio"
+            aria-checked={sel.districtId === district.id}
+            tabIndex={sel.districtId === district.id ? 0 : -1}
+            $active={sel.districtId === district.id}
+            onClick={() =>
+              onSelectionChange({ ...sel, districtId: district.id })
+            }
+          >
+            {district.name}
+          </Chip>
+        ))}
+      </ChipGroup>
+      <Divider aria-hidden="true" />
+      <ChipGroup
+        role="radiogroup"
+        aria-label="업종 선택"
+        onKeyDown={industryGroup.handleKeyDown}
+      >
+        {INDUSTRIES.map((industry, index) => (
+          <Chip
+            key={industry.id}
+            ref={el => {
+              industryGroup.refs.current[index] = el
+            }}
+            type="button"
+            role="radio"
+            aria-checked={sel.industryId === industry.id}
+            tabIndex={sel.industryId === industry.id ? 0 : -1}
+            $active={sel.industryId === industry.id}
+            onClick={() =>
+              onSelectionChange({ ...sel, industryId: industry.id })
+            }
+          >
+            {industry.name}
+          </Chip>
+        ))}
+      </ChipGroup>
+    </Chips>
+  )
+
   return (
-    <Wrapper>
-      <SelectorColumn>
-        <SelectorGroup role="radiogroup" aria-label="지역 선택">
-          <SelectorLabel>지역</SelectorLabel>
-          <OptionList onKeyDown={districtGroup.handleKeyDown}>
-            {DISTRICTS.map((district, index) => (
-              <Option
-                key={district.id}
-                ref={el => {
-                  districtGroup.refs.current[index] = el
-                }}
-                type="button"
-                role="radio"
-                aria-checked={sel.districtId === district.id}
-                tabIndex={sel.districtId === district.id ? 0 : -1}
-                $active={sel.districtId === district.id}
-                onClick={() =>
-                  onSelectionChange({ ...sel, districtId: district.id })
-                }
-              >
-                {district.name}
-              </Option>
-            ))}
-          </OptionList>
-        </SelectorGroup>
-
-        <SelectorGroup role="radiogroup" aria-label="업종 선택">
-          <SelectorLabel>업종</SelectorLabel>
-          <OptionList onKeyDown={industryGroup.handleKeyDown}>
-            {INDUSTRIES.map((industry, index) => (
-              <Option
-                key={industry.id}
-                ref={el => {
-                  industryGroup.refs.current[index] = el
-                }}
-                type="button"
-                role="radio"
-                aria-checked={sel.industryId === industry.id}
-                tabIndex={sel.industryId === industry.id ? 0 : -1}
-                $active={sel.industryId === industry.id}
-                onClick={() =>
-                  onSelectionChange({ ...sel, industryId: industry.id })
-                }
-              >
-                {industry.name}
-              </Option>
-            ))}
-          </OptionList>
-        </SelectorGroup>
-      </SelectorColumn>
-
-      <ResultCard aria-live="polite">
-        <ResultHeader>
-          <ResultTitle>
-            {districtName} · {industryName}
-          </ResultTitle>
-          <SampleBadge>대표 예시 데이터</SampleBadge>
-        </ResultHeader>
-
-        <ChartCard>
-          <ChartHeader>
-            <ChartLabel>매출 추이 (최근 6개월)</ChartLabel>
-            <ChartChange $positive={isPositive}>{changeLabel}</ChartChange>
-          </ChartHeader>
-          <LineChart
+    <DemoFrame leading={chips} aside={<SampleBadge>예시 데이터</SampleBadge>}>
+      <Result aria-live="polite">
+        <ChartBlock>
+          <ChartLabel>매출 추이 · 최근 6개월</ChartLabel>
+          <StoryLineChart
             points={sample.salesTrend.map((value, index) => ({
-              periodLabel: TREND_LABELS[index] ?? '',
+              label: TREND_LABELS[index] ?? '',
               value,
-              changeRate: null,
             }))}
-            unit=""
-            direction={null}
-            height={128}
-            ariaLabel={`${districtName} ${industryName} 매출 추이`}
+            height={MINI_DEMO_CHART_HEIGHT}
+            tickCount={3}
+            fill="area"
+            highlight={{
+              index: lastIndex,
+              label: String(sample.salesTrend[lastIndex]),
+              tone: 'value',
+            }}
+            ariaLabel={`${districtName} ${industryName} 최근 6개월 매출 추이`}
           />
-        </ChartCard>
-
+        </ChartBlock>
         <MetricGrid>
           <MetricBlock>
             <MetricLabel>유동인구</MetricLabel>
             <MetricValue>{sample.footTraffic}</MetricValue>
           </MetricBlock>
-
           <MetricBlock>
             <MetricLabel>경쟁 강도</MetricLabel>
-            <CompetitionBadge $level={sample.competition}>
-              {competitionLabel[sample.competition]}
-            </CompetitionBadge>
+            <MetricValue>
+              <CompetitionBadge $level={sample.competition}>
+                {competitionLabel[sample.competition]}
+              </CompetitionBadge>
+            </MetricValue>
           </MetricBlock>
-
           <MetricBlock>
             <MetricLabel>폐업률</MetricLabel>
             <MetricValue>{sample.closureRate}</MetricValue>
           </MetricBlock>
-
-          <MetricBlock>
-            <MetricLabel>매출 증감%</MetricLabel>
-            <ChartChange $positive={isPositive}>{changeLabel}</ChartChange>
-          </MetricBlock>
         </MetricGrid>
-
         {/*
           「예시」를 라벨 안에 넣는 것이 요점이다. 이 문장은 home-demo.ts 의 하드코딩
           문자열이라, 「AI 리포트 요약」이라고만 쓰면 하드코딩이 AI 출력인 척하게 된다.
         */}
-        <InsightLabel>AI 리포트 요약 · 예시</InsightLabel>
-        <Insight>{sample.insight}</Insight>
-      </ResultCard>
-    </Wrapper>
+        <Insight>
+          <Sparkles aria-hidden="true" />
+          <span>
+            <strong>AI 리포트 요약 · 예시</strong> {sample.insight}
+          </span>
+        </Insight>
+      </Result>
+    </DemoFrame>
   )
 }
