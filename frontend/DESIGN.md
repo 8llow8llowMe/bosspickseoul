@@ -274,6 +274,16 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
   `1px` inset ring instead of a border, so it does not read twice as heavy as before.
 - Outlined fields (white background — search bars, community forms) keep their `1px` border;
   the double-treatment problem does not apply to them.
+- **Focus is one line.** A field that signals focus by changing its border (border →
+  `--color-primary-700`, plus `--shadow-focus-primary(-strong)` glow) must switch the global
+  `:focus-visible` ring off **inside its focus selector** — `&, &:focus, &:focus-visible { outline: none; }`.
+  Otherwise the global ring (`2px`, `outline-offset: 2px`) draws a second blue line outside the
+  border with a white gap between them. A class-level `outline: none` is not enough: it has the
+  same specificity as the global `:focus-visible` rule and loses on source order. This is a
+  choice between two signals, not a removal — the border still turns blue. Fields with no focus
+  rule of their own must get this border treatment rather than rely on the ring, because a
+  grey border plus an offset blue ring reads as two lines too. `global-styles.test.ts` scans
+  styled `input`/`textarea`/`select` for the border-without-ring-off pattern.
 - **Radius: 12px** (`--radius-field`). 8px reads square on a 48px-tall field. Buttons, chips
   and tabs stay on `--radius-control` (8px) — 126 call sites share that token, so form
   fields got their own.
