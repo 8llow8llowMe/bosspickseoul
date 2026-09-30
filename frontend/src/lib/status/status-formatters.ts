@@ -175,8 +175,9 @@ export const getStatusChangeTone = (
   return isGood ? 'positive' : 'negative'
 }
 
+/** 증감 **글자** 색. 글자는 AA 4.5:1 을 넘어야 해서 -text 토큰이다(green700·red700). */
 export const STATUS_CHANGE_TONE_COLOR: Record<StatusChangeTone, string> = {
-  positive: 'var(--color-positive)',
-  negative: 'var(--color-negative)',
+  positive: 'var(--color-positive-text)',
+  negative: 'var(--color-negative-text)',
   neutral: 'var(--color-text-600)',
 }

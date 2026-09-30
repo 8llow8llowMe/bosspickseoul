@@ -145,6 +145,19 @@ describe('디자인 토큰 대비 (DESIGN.md §Accessibility)', () => {
     )
   })
 
+  // contrast-tokens.md TC-CT-001 · D3-3 의 증감 글자 부분. 면적 토큰(positive/negative)은
+  // 3:1 기준이라 그대로 두고, 글자는 -text 토큰(green700·red700, 흰 바탕 5.36 / 5.27:1)이다.
+  it('증감 글자 토큰은 green700·red700 을 가리키고 면적 토큰은 그대로다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain('--color-green-700:#0b7a52;')
+    expect(css).toContain('--color-red-700:#c8323f;')
+    expect(css).toContain('--color-positive-text:var(--color-green-700);')
+    expect(css).toContain('--color-negative-text:var(--color-red-700);')
+    expect(css).toContain('--color-positive:var(--color-green-500);')
+    expect(css).toContain('--color-negative:var(--color-red-500);')
+  })
+
   it('grey500 자체는 팔레트에 남아 있다 — 비활성·장식용이다', () => {
     const css = renderGlobalCss()
 

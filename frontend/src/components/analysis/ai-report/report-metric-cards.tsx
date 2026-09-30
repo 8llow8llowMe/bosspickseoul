@@ -33,9 +33,10 @@ const Card = styled.div<{ $variant: 'full' | 'compact' }>`
   }
 `
 
+// 값은 글자다(17·19px). grey100 카드 위 green500·red500 은 2.5 / 3.4:1 이라 -text 토큰을 쓴다.
 const toneColor = (tone?: MetricTone) => {
-  if (tone === 'positive') return 'var(--color-positive)'
-  if (tone === 'negative') return 'var(--color-negative)'
+  if (tone === 'positive') return 'var(--color-positive-text)'
+  if (tone === 'negative') return 'var(--color-negative-text)'
   return 'var(--color-text-900)'
 }
 

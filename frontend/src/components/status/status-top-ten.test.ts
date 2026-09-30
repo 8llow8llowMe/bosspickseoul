@@ -55,10 +55,10 @@ describe('StatusTopTen', () => {
   })
 
   it.each([
-    ['footTraffic', 2.5, 'var(--color-positive)'],
-    ['sales', -4.3, 'var(--color-negative)'],
-    ['closed', 26.1, 'var(--color-negative)'],
-    ['closed', -3, 'var(--color-positive)'],
+    ['footTraffic', 2.5, 'var(--color-positive-text)'],
+    ['sales', -4.3, 'var(--color-negative-text)'],
+    ['closed', 26.1, 'var(--color-negative-text)'],
+    ['closed', -3, 'var(--color-positive-text)'],
   ] as const)('%s %s 의 증감 글자는 %s', (metric, rate, color) => {
     const { styles } = render(metric, rate)
 

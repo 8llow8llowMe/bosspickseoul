@@ -314,12 +314,16 @@ const Value = styled.span`
   text-align: right;
 `
 
+// 증감 글자는 -text 토큰(green700·red700)이다. green500·red500 글자는 흰 바탕 2.77 / 3.71:1
+// 로 AA 미달이었다. 13px 은 가독성 때문(contrast-tokens.md D4-5) — 색만으로도 AA 를 넘는다.
 const Change = styled.span<{ $direction: 'up' | 'down' }>`
   margin-left: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: ${p =>
-    p.$direction === 'up' ? 'var(--color-positive)' : 'var(--color-negative)'};
+    p.$direction === 'up'
+      ? 'var(--color-positive-text)'
+      : 'var(--color-negative-text)'};
 `
 
 /** 1위 대비 비율. 최대값이 0 이하면 나눗셈을 하지 않는다(NaN 방지). */
