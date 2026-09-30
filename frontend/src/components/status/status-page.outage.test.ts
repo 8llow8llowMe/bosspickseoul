@@ -91,9 +91,10 @@ describe('StatusPage 데이터 공급 장애', () => {
 
     renderPage()
 
+    // 머리의 제목은 로딩 중에도 뜬다. 평소 화면의 증거는 목록 제목이다(데스크톱·시트 둘).
     expect(
-      await screen.findByText('자치구별 상권 흐름을 비교해 보세요'),
-    ).toBeTruthy()
+      (await screen.findAllByText('유동인구 상위 10개 구')).length,
+    ).toBeGreaterThan(0)
     expect(screen.queryByText(OUTAGE_TITLE)).toBeNull()
   })
 })

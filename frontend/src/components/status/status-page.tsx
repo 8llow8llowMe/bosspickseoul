@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  type ComponentProps,
   Suspense,
   useEffect,
   useLayoutEffect,
@@ -28,6 +29,11 @@ import {
   type StatusSheetState,
 } from '@/lib/status/status-state'
 import { districts } from '@/data/districts'
+import {
+  createStatusHighlightStore,
+  useStatusHighlight,
+  type StatusHighlightStore,
+} from '@/lib/status/status-highlight-store'
 import { SEOUL_STATUS_FEATURES } from '@/data/seoul-status-map'
 import StatusDetail from './status-detail'
 import StatusFeedback from './status-feedback'
@@ -39,6 +45,7 @@ import { shellWidth } from '@/styles/layout'
 
 const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
+const STATUS_PAGE_TITLE = '구별 상권 현황'
 // 선택할 수 있는 구 = 지도에 그려진 25개 구. 현재 지표 Top10 과 무관하다.
 const SELECTABLE_DISTRICT_CODES = SEOUL_STATUS_FEATURES.map(
   feature => feature.districtCode,
@@ -74,55 +81,81 @@ const PageInner = styled.div`
   }
 `
 
-const Hero = styled.header`
+/*
+ * 좌측 패널이 조종석, 지도가 주인공이다(status.md 1.3 「화면 골격」).
+ *
+ * 예전엔 머리말(eyebrow·h1·설명문, 세로 약 130px)과 페이지 폭 전체의 지표 칩 카드가 지도·
+ * 목록 위를 차지했다. 이제 h1 과 지표 전환은 좌측 열의 **고정 머리**(`head`)이고, 그 아래
+ * 한 칸(`side`)을 목록 ↔ 상세가 번갈아 쓴다. 상세를 보는 중에도 지표를 바꿀 수 있어야
+ * 「선택은 지표와 무관하다」가 의미가 있다.
+ *
+ * tablist 는 DOM 에 하나만 둔다(탭 id 가 겹치지 않게). 모바일은 같은 머리를 grid 영역으로
+ * 맨 위에 올리고 지도 + 시트(`stage`)가 아래를 채운다.
+ */
+const Layout = styled.div`
+  height: 100%;
+  min-height: 0;
   display: grid;
-  gap: 4px;
-`
-
-const Eyebrow = styled.p`
-  color: var(--color-text-600);
-  font-size: 13px;
-  font-weight: 700;
-`
-
-const HeroTitle = styled.h1`
-  color: var(--color-text-900);
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.2;
-  word-break: keep-all;
-
-  @media (max-width: 640px) {
-    font-size: 20px;
-  }
-`
-
-// 설명은 세로 공간을 아끼기 위해 데스크톱에서만 노출한다(태블릿·모바일 숨김).
-const HeroDescription = styled.p`
-  max-width: 680px;
-  color: var(--color-text-600);
-  font-size: 14px;
-  line-height: 21px;
-  word-break: keep-all;
+  grid-template-columns: clamp(340px, 32%, 440px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'head map'
+    'side map';
+  column-gap: 20px;
 
   @media (max-width: 1023px) {
-    display: none;
+    column-gap: 16px;
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'head'
+      'stage';
+    row-gap: 12px;
   }
 `
 
-const TabsSurface = styled.div`
-  padding: 6px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
+// 목록·상세·지도·시트를 한 tabpanel 로 묶되 grid 배치에는 끼지 않게 한다.
+const MetricPanel = styled.div`
+  display: contents;
 `
 
-const MetricPanel = styled.section`
+// 좌측 카드의 윗부분. 아래 `DesktopSide` 와 이어져 카드 하나로 보인다.
+const SideHead = styled.header`
+  grid-area: head;
   min-width: 0;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--color-surface);
+
+  @media (max-width: 767px) {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+`
+
+const PageTitle = styled.h1`
+  color: var(--color-text-900);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 26px;
+
+  /* 모바일은 지표 전환이 맨 위다. 제목은 스크린리더·검색엔진용으로 남긴다. */
+  @media (max-width: 767px) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 `
 
 const detailEnter = keyframes`
@@ -144,35 +177,21 @@ const detailEnter = keyframes`
  * 상세가 **순위 목록 자리를 덮고** 지도는 그대로 남아 선택 구를 강조한다 — 모바일 시트
  * (Top10 → 상세)·상권추천 좌측 패널과 같은 관용구다.
  *
- * 좌측 열 폭은 목록일 때와 상세일 때 **같다.** 예전엔 선택하면 280px → 최대 480px 로
- * 넓어져 지도가 통째로 다시 배치됐고, 방금 누른 구를 눈으로 다시 찾아야 했다. 상세의
- * 차트가 들어갈 만큼(340px 이상)을 목록에도 준다 — 목록 행은 넓어져도 해가 없다.
+ * 좌측 열 폭은 목록일 때와 상세일 때 **같다**(`Layout`). 예전엔 선택하면 280px → 최대
+ * 480px 로 넓어져 지도가 통째로 다시 배치됐고, 방금 누른 구를 눈으로 다시 찾아야 했다.
  */
-const DesktopGrid = styled.div`
-  height: 100%;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: clamp(340px, 32%, 440px) minmax(0, 1fr);
-  align-items: stretch;
-  gap: 20px;
-
-  /* 태블릿(768~1023): 간격만 줄인다. 좌측 열은 하한 340px 을 그대로 쓴다. */
-  @media (max-width: 1023px) {
-    gap: 16px;
-  }
-
-  /* 모바일(<768)에서만 바텀시트(MobileStage)로 전환한다. */
-  @media (max-width: 767px) {
-    display: none;
-  }
-`
-
 // 좌측 열은 한 칸에서 순위↔상세를 토글한다. 우측 지도는 선택과 무관하게 항상 보인다.
 const DesktopSide = styled.div`
+  grid-area: side;
   min-width: 0;
   min-height: 0;
   height: 100%;
   display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border-200);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  background: var(--color-surface);
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
 
@@ -181,6 +200,10 @@ const DesktopSide = styled.div`
   }
 
   &:not([data-has-selection='true']) [data-status-detail-slot] {
+    display: none;
+  }
+
+  @media (max-width: 767px) {
     display: none;
   }
 `
@@ -195,11 +218,15 @@ const DesktopDetailSlot = styled.div`
     animation: none;
   }
 
-  /* 상세는 열 폭을 다 쓰고, 남는 높이 안에서 내부 스크롤(스크롤바 숨김). */
+  /* 상세는 열 폭을 다 쓰고, 남는 높이 안에서 내부 스크롤(스크롤바 숨김). 좌측 카드
+     안에 들어가므로 상세 자신의 테두리·그림자는 지운다(카드 안의 카드가 되지 않게). */
   & > article {
     width: 100%;
     min-width: 0;
     max-height: 100%;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     overflow-y: auto;
     scrollbar-width: none;
 
@@ -209,14 +236,10 @@ const DesktopDetailSlot = styled.div`
   }
 `
 
-const DesktopPanel = styled.section`
+const TopTenPanel = styled.section`
   min-width: 0;
   min-height: 0;
-  padding: 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-1);
+  padding: 12px 10px 12px;
   overflow-y: auto;
   scrollbar-width: none;
 
@@ -226,7 +249,14 @@ const DesktopPanel = styled.section`
 `
 
 // 지도 패널은 스크롤 없이 남는 높이를 지도로 채운다(폴리곤만 배치).
-const MapPanel = styled(DesktopPanel)`
+const MapPanel = styled.section`
+  grid-area: map;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
@@ -241,17 +271,21 @@ const MapPanel = styled(DesktopPanel)`
     height: 100%;
     aspect-ratio: auto;
   }
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 `
 
 const MobileStage = styled.section`
   display: none;
 
   /* 모바일(<768)에서만 지도+바텀시트 스테이지를 사용한다. 태블릿 이상은
-     DesktopGrid의 2단(리스트+지도/상세)로 처리한다. */
+     Layout 의 2단(좌측 열 + 지도)으로 처리한다. */
   @media (max-width: 767px) {
+    grid-area: stage;
     position: relative;
     /* 남는 세로 공간을 지도+시트가 모두 채워 하단 빈 공간을 없앤다. */
-    flex: 1;
     min-height: 0;
     width: calc(100% + 32px);
     display: block;
@@ -284,6 +318,51 @@ const MobileMapLayer = styled.div`
   }
 `
 
+type HighlightedProps = {
+  highlightStore: StatusHighlightStore
+}
+
+// 목록·지도만 hover store 를 구독한다. 페이지가 구독하면 hover 마다 상세 차트까지 다시 그린다.
+function HighlightedTopTen({
+  highlightStore,
+  ...props
+}: HighlightedProps &
+  Omit<
+    ComponentProps<typeof StatusTopTen>,
+    'highlightedDistrictCode' | 'onHighlightEnter' | 'onHighlightLeave'
+  >) {
+  const highlightedDistrictCode = useStatusHighlight(highlightStore)
+
+  return (
+    <StatusTopTen
+      {...props}
+      highlightedDistrictCode={highlightedDistrictCode}
+      onHighlightEnter={highlightStore.enter}
+      onHighlightLeave={highlightStore.leave}
+    />
+  )
+}
+
+function HighlightedMap({
+  highlightStore,
+  ...props
+}: HighlightedProps &
+  Omit<
+    ComponentProps<typeof StatusMap>,
+    'highlightedDistrictCode' | 'onHighlightEnter' | 'onHighlightLeave'
+  >) {
+  const highlightedDistrictCode = useStatusHighlight(highlightStore)
+
+  return (
+    <StatusMap
+      {...props}
+      highlightedDistrictCode={highlightedDistrictCode}
+      onHighlightEnter={highlightStore.enter}
+      onHighlightLeave={highlightStore.leave}
+    />
+  )
+}
+
 function StatusPageContent() {
   const router = useRouter()
   const pathname = usePathname()
@@ -300,6 +379,8 @@ function StatusPageContent() {
 
   const desktopSideRef = useRef<HTMLDivElement>(null)
   const desktopMapPanelRef = useRef<HTMLElement>(null)
+  // 목록 ↔ 지도 hover 연동. 페이지는 구독하지 않는다 — 데스크톱 목록·지도만 다시 그린다.
+  const [highlightStore] = useState(createStatusHighlightStore)
   const desktopBackButtonRef = useRef<HTMLButtonElement>(null)
   const previousSelectionRef = useRef<string | null | undefined>(undefined)
 
@@ -453,6 +534,9 @@ function StatusPageContent() {
 
   const handleDistrictSelect = (districtCode: string) => {
     setSheetState({ districtCode, snap: 'expanded' })
+    // 누른 행은 상세에 가려져 pointerleave 가 오지 않는다. 남은 강조가 상세 옆 지도에
+    // 툴팁을 띄워 두지 않게 지운다.
+    highlightStore.clear()
 
     if (districtCode === selectedDistrictCode) {
       return
@@ -490,14 +574,7 @@ function StatusPageContent() {
     return (
       <Page data-hide-footer="true">
         <PageInner>
-          <Hero>
-            <Eyebrow>서울 구별 상권</Eyebrow>
-            <HeroTitle>자치구별 상권 흐름을 비교해 보세요</HeroTitle>
-            <HeroDescription>
-              유동인구, 매출, 개업, 폐업 지표의 상위 자치구와 상세 현황을
-              한곳에서 확인할 수 있습니다.
-            </HeroDescription>
-          </Hero>
+          <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
           {isLoading ? (
             <StatusFeedback state="loading" />
           ) : (
@@ -523,42 +600,35 @@ function StatusPageContent() {
   return (
     <Page data-hide-footer="true">
       <PageInner>
-        <Hero>
-          <Eyebrow>서울 구별 상권</Eyebrow>
-          <HeroTitle>자치구별 상권 흐름을 비교해 보세요</HeroTitle>
-          <HeroDescription>
-            유동인구, 매출, 개업, 폐업 지표의 상위 자치구와 상세 현황을 한곳에서
-            확인할 수 있습니다.
-          </HeroDescription>
-        </Hero>
+        <Layout>
+          <SideHead>
+            <PageTitle>{STATUS_PAGE_TITLE}</PageTitle>
+            <StatusMetricTabs
+              idBase={METRIC_TAB_ID_BASE}
+              panelId={METRIC_PANEL_ID}
+              value={metric}
+              onChange={handleMetricChange}
+            />
+          </SideHead>
 
-        <TabsSurface>
-          <StatusMetricTabs
-            idBase={METRIC_TAB_ID_BASE}
-            panelId={METRIC_PANEL_ID}
-            value={metric}
-            onChange={handleMetricChange}
-          />
-        </TabsSurface>
-
-        <MetricPanel
-          aria-labelledby={`${METRIC_TAB_ID_BASE}-${metric}`}
-          id={METRIC_PANEL_ID}
-          role="tabpanel"
-        >
-          <DesktopGrid>
+          <MetricPanel
+            aria-labelledby={`${METRIC_TAB_ID_BASE}-${metric}`}
+            id={METRIC_PANEL_ID}
+            role="tabpanel"
+          >
             <DesktopSide
               ref={desktopSideRef}
               data-has-selection={selectedDistrict !== null}
             >
-              <DesktopPanel data-status-top-ten-panel>
-                <StatusTopTen
+              <TopTenPanel data-status-top-ten-panel>
+                <HighlightedTopTen
+                  highlightStore={highlightStore}
                   items={currentItems}
                   metric={metric}
                   selectedDistrictCode={selectedDistrictCode}
                   onSelect={handleDistrictSelect}
                 />
-              </DesktopPanel>
+              </TopTenPanel>
 
               <DesktopDetailSlot
                 key={selectedDistrict?.districtCode ?? 'none'}
@@ -580,45 +650,46 @@ function StatusPageContent() {
             </DesktopSide>
 
             <MapPanel ref={desktopMapPanelRef} data-status-map-panel>
-              <StatusMap
+              <HighlightedMap
+                highlightStore={highlightStore}
                 items={currentItems}
                 metric={metric}
                 selectedDistrictCode={selectedDistrictCode}
                 onSelect={handleDistrictSelect}
               />
             </MapPanel>
-          </DesktopGrid>
 
-          <MobileStage aria-label="서울 자치구 현황 지도와 상세 정보">
-            <MobileMapLayer>
-              <StatusMap
+            <MobileStage aria-label="서울 자치구 현황 지도와 상세 정보">
+              <MobileMapLayer>
+                <StatusMap
+                  items={currentItems}
+                  metric={metric}
+                  selectedDistrictCode={selectedDistrictCode}
+                  backgroundAction={
+                    sheetSnap === 'collapsed' ? 'expand' : 'collapse'
+                  }
+                  onBackgroundClick={handleMapBackgroundClick}
+                  onSelect={handleDistrictSelect}
+                />
+              </MobileMapLayer>
+              <StatusMobileSheet
+                detail={detail}
+                detailError={detailError}
+                isDetailLoading={isDetailLoading}
                 items={currentItems}
                 metric={metric}
-                selectedDistrictCode={selectedDistrictCode}
-                backgroundAction={
-                  sheetSnap === 'collapsed' ? 'expand' : 'collapse'
-                }
-                onBackgroundClick={handleMapBackgroundClick}
+                selectedDistrict={selectedDistrict}
+                snap={sheetSnap}
+                onBackToTopTen={handleClearDistrict}
+                onRetryDetail={() => void detailQuery.refetch()}
                 onSelect={handleDistrictSelect}
+                onSnapChange={snap =>
+                  setSheetState({ districtCode: selectedDistrictCode, snap })
+                }
               />
-            </MobileMapLayer>
-            <StatusMobileSheet
-              detail={detail}
-              detailError={detailError}
-              isDetailLoading={isDetailLoading}
-              items={currentItems}
-              metric={metric}
-              selectedDistrict={selectedDistrict}
-              snap={sheetSnap}
-              onBackToTopTen={handleClearDistrict}
-              onRetryDetail={() => void detailQuery.refetch()}
-              onSelect={handleDistrictSelect}
-              onSnapChange={snap =>
-                setSheetState({ districtCode: selectedDistrictCode, snap })
-              }
-            />
-          </MobileStage>
-        </MetricPanel>
+            </MobileStage>
+          </MetricPanel>
+        </Layout>
       </PageInner>
     </Page>
   )
