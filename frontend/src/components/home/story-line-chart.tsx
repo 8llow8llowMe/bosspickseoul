@@ -81,11 +81,15 @@ const YAxis = styled.div`
   min-width: 40px;
 `
 
+/*
+  축 글자는 text-700 이다. 데모 틀 배경(grey50) 위에서 caption(grey600)은 4.42:1 로
+  AA 에 못 미친다. 값 라벨도 같은 이유로 선 색(primary-600, 4.2:1) 대신 text-900 이다.
+*/
 const YTick = styled.span`
   position: absolute;
   right: 0;
   transform: translateY(-50%);
-  color: var(--color-text-caption);
+  color: var(--color-text-700);
   font-size: 12px;
   line-height: 16px;
   font-variant-numeric: tabular-nums;
@@ -117,7 +121,7 @@ const Dot = styled.span`
 const ValueLabel = styled.span`
   position: absolute;
   transform: translate(10px, -50%);
-  color: var(--color-primary-600);
+  color: var(--color-text-900);
   font-size: 13px;
   font-weight: 700;
   line-height: 18px;
@@ -125,6 +129,10 @@ const ValueLabel = styled.span`
   white-space: nowrap;
 `
 
+/*
+  말풍선은 점이 오른쪽 절반이면 왼쪽에 붙인다. 폭을 모르는 채(%)로 그리므로, 좁은 화면에서
+  오른쪽에 두면 틀 밖으로 삐져나갔다(375px 실측, 04 의 8개월 = 67%).
+*/
 const Callout = styled.span<{ $flip: boolean }>`
   position: absolute;
   top: 0;
@@ -150,8 +158,7 @@ const XTick = styled.span<{ $strong: boolean }>`
   position: absolute;
   top: 8px;
   transform: translateX(-50%);
-  color: ${p =>
-    p.$strong ? 'var(--color-text-900)' : 'var(--color-text-caption)'};
+  color: ${p => (p.$strong ? 'var(--color-text-900)' : 'var(--color-text-700)')};
   font-size: 12px;
   font-weight: ${p => (p.$strong ? 600 : 400)};
   line-height: 16px;
@@ -292,7 +299,7 @@ export default function StoryLineChart({
                 {highlight.label}
               </ValueLabel>
             ) : (
-              <Callout $flip={target.x > 70} style={{ left: `${target.x}%` }}>
+              <Callout $flip={target.x > 50} style={{ left: `${target.x}%` }}>
                 {highlight.label}
               </Callout>
             )}

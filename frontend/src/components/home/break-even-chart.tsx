@@ -41,13 +41,13 @@ const INITIAL_INVESTMENT = 12000
 export const BREAK_EVEN_MONTHS = 12
 
 /**
- * 손익 곡선의 플롯 높이(px). 260 → **240**(story-panel-redesign.md D4-9).
+ * 손익 곡선의 플롯 높이(px). 260 → **300**(story-panel-redesign.md D4-9).
  *
- * 헤드라인 문장(28px)과 캡션을 없애고 머리줄로 옮겨 세로 여유가 생겼지만, 02 미니데모가
- * 가장 큰 데모라 패널 높이 예약은 그쪽이 정한다. 04 는 그 높이 안에서 가운데 온다 —
- * 더 키우면 04 가 가장 큰 데모가 되어 예약값을 다시 재야 한다.
+ * 데모 틀이 패널 높이를 채우게 바뀌어(네 탭의 틀 크기를 같게), 헤드라인·캡션을 머리줄로
+ * 옮긴 만큼 차트가 칸을 채운다. 실측 04 틀 444px 로 02(472)보다 작다 — 02 가 가장 큰
+ * 데모로 남아야 패널 높이 예약(product-story)이 한 값으로 유지된다.
  */
-export const BREAK_EVEN_CHART_HEIGHT = 240
+export const BREAK_EVEN_CHART_HEIGHT = 300
 
 /**
  * 누적 손익. `-초기투자 + 월순이익 × n`.
@@ -106,7 +106,7 @@ const SummaryItem = styled.div`
 `
 
 const SummaryLabel = styled.dt`
-  color: var(--color-text-600);
+  color: var(--color-text-700);
   font-size: 13px;
   line-height: 20px;
 `
@@ -126,7 +126,7 @@ const ChartBlock = styled.div`
 `
 
 const ChartLabel = styled.span`
-  color: var(--color-text-600);
+  color: var(--color-text-700);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
