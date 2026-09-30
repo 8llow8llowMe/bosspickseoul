@@ -22,7 +22,10 @@ test.describe('홈 히어로', () => {
 
     const tooltip = page.locator('main svg text')
     await expect(tooltip.filter({ hasText: '강남구' }).first()).toBeVisible()
-    await expect(tooltip.filter({ hasText: '월 매출' }).first()).toBeVisible()
+    // 툴팁은 hover 한 구의 실데이터(GET /districts/{code})다 — 응답이 오면 하루 리듬이 그려진다
+    // (full-screen-sections-and-live-tooltip.md D4-5). 예전의 정적 「월 매출」 예시는 없다.
+    await expect(tooltip.filter({ hasText: '시간대별' }).first()).toBeVisible()
+    await expect(tooltip.filter({ hasText: '월 매출' })).toHaveCount(0)
   })
 
   test('모바일 — 첫 화면 스크린샷과 h1', async ({ page }, testInfo) => {
