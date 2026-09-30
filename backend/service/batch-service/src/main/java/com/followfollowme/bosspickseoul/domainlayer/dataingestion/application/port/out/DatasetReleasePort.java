@@ -17,7 +17,4 @@ public interface DatasetReleasePort {
      * 슬롯마다 따로 조회하지 않도록 한 번에 돌려준다.
      */
     List<PublishedSlot> publishedSlots(Dataset dataset, String spatialVersion, String schemaVersion);
-
-    /** 공간 스냅샷이 READY 인지. 아니면 모든 행이 unmapped 로 거부된다. */
-    boolean spatialReady(String spatialVersion);
 }

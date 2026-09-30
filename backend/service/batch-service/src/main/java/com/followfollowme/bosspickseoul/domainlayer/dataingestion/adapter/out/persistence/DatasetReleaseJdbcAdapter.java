@@ -150,20 +150,12 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
             dataset.name(), spatialVersion, schemaVersion);
     }
 
-    @Override
-    public boolean spatialReady(String spatialVersion) {
-        Long ready = jdbc.queryForObject(SPATIAL_READY_SQL, Long.class, spatialVersion);
-        return ready != null && ready > 0;
-    }
-
     static final String PUBLISHED_SLOTS_SQL = """
         SELECT a.period_code, a.run_id, r.accepted_count FROM dataset_active_release a
         JOIN dataset_release r ON r.run_id=a.run_id
         WHERE a.dataset=? AND a.spatial_version=? AND a.schema_version=? AND r.status='PUBLISHED'
         ORDER BY a.period_code
         """;
-
-    static final String SPATIAL_READY_SQL = "SELECT COUNT(*) FROM dataset_spatial_release WHERE spatial_version=? AND status='READY'";
 
     private ValidationResult counts(ImportRequest request) {
         long accepted = count("SELECT COUNT(*) FROM dataset_staging WHERE run_id=?", request.runId());

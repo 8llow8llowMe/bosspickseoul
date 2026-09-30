@@ -22,7 +22,6 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.mo
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SourceAcquisition;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetImportExecutionPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshMetricsPort;
-import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshStatePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
@@ -54,7 +53,6 @@ class DatasetRefreshProcessorTest {
     private final TypedFactProjectionPort projections = mock(TypedFactProjectionPort.class);
     private final DatasetSourcePort source = mock(DatasetSourcePort.class);
     private final DatasetImportExecutionPort executions = mock(DatasetImportExecutionPort.class);
-    private final DatasetRefreshStatePort states = mock(DatasetRefreshStatePort.class);
     private final DatasetRefreshMetricsPort metrics = mock(DatasetRefreshMetricsPort.class);
 
     private DatasetRefreshProcessor processor(boolean publish) {
@@ -63,7 +61,7 @@ class DatasetRefreshProcessorTest {
 
     private DatasetRefreshProcessor processor(boolean publish, int maxQuarters) {
         DatasetRefreshProperties properties = new DatasetRefreshProperties(true, null, publish, SPATIAL, "seoul-v1", 600, maxQuarters, 0.2, 7);
-        return new DatasetRefreshProcessor(releases, projections, source, executions, states, metrics, properties);
+        return new DatasetRefreshProcessor(releases, projections, source, executions, metrics, properties);
     }
 
     private void published(Dataset dataset, PublishedSlot... slots) {
@@ -396,17 +394,5 @@ class DatasetRefreshProcessorTest {
         });
         assertThat(DatasetRefreshProcessor.runId("", Dataset.CONSUMPTION_ADMINISTRATION, Q20262, FIRED, "-fetch"))
             .isEqualTo("auto-consumption-administration-20262-202609300500-fetch");
-    }
-
-    @Test
-    void stateIsSavedOnlyWhenItChanged() {
-        DatasetRefreshProcessor processor = processor(true);
-        DatasetRefreshState state = DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL);
-
-        processor.saveIfChanged(state, state);
-        verify(states, never()).save(any());
-
-        processor.saveIfChanged(state, state.probedWithoutRows(FIRED));
-        verify(states).save(state.probedWithoutRows(FIRED));
     }
 }

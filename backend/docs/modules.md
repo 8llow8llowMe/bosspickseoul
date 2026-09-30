@@ -227,6 +227,9 @@ backend/
 - 기업마당 정책 수집·만료 (`policyingestion` 컨텍스트, `BATCH_POLICY_ENABLED`, Quartz `policyCollectJob`/`policyPurgeJob`, 기본 비활성). `policy` 는 `COMMERCIAL_DB_URL`, Quartz 는 `BATCH_DB_URL`
 - 분기 적재 자동 최신화 (`dataingestion` 컨텍스트, `BATCH_DATASET_REFRESH_ENABLED`, Quartz `datasetRefreshTrigger` 매일 05:00, 기본 비활성). 수동 CLI 와 같은 Job 을 상시 인스턴스에서 띄운다. 주간 스테이징 정리 `datasetStagingPurgeJob` (`BATCH_STAGING_PURGE_ENABLED`, 기본 비활성)
 - commercial 접속은 `CommercialDataSourceConfig`(`commercialJdbcTemplate`/`commercialTransactionManager`, `policy*` 는 별칭) 한 곳에서 연다
+- 기본 DataSource(상시=district) 쪽 `BATCH_*`·`QRTZ_*`·영역 좌표는 `DistrictDataSourceConfig`(`districtTransactionManager` = `@BatchTransactionManager`·`@QuartzTransactionManager`, `districtJdbcTemplate`, 둘 다 `defaultCandidate = false`)로 이름을 적어 받는다
+
+**처리 흐름(자동 최신화)**: `DatasetRefreshQuartzJob` → `DatasetRefreshFacade`(요약 로그) → `DatasetRefreshRunProcessor`(순서·예산·상태·메트릭) → `DatasetRefreshProcessor`(데이터셋 1종 판단) → Port. Quartz Job 을 Batch Job 으로 감싸지 않는다
 
 **특수 의존**: `core:shared-commercial` (`DatasetKey` — 데이터셋 이름·Open API 서비스명의 정본), `core:persistence-core` (Snowflake ID. JPA 자동설정은 제외)
 

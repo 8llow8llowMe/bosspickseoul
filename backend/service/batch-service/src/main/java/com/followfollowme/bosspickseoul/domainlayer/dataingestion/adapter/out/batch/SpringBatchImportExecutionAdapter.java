@@ -1,7 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.batch;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.ImportJobParameters;
-import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.TypedFactProjectionJobConfig;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.ProjectionJobParameters;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportExecution;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ProjectionRequest;
@@ -44,7 +44,7 @@ public class SpringBatchImportExecutionAdapter implements DatasetImportExecution
 
     @Override
     public ImportExecution runProjection(ProjectionRequest request) {
-        return run(projectJob, TypedFactProjectionJobConfig.write(request));
+        return run(projectJob, ProjectionJobParameters.write(request));
     }
 
     private ImportExecution run(Job job, JobParameters parameters) {
@@ -63,7 +63,7 @@ public class SpringBatchImportExecutionAdapter implements DatasetImportExecution
         }
         int unresolved = 0;
         for (StepExecution step : execution.getStepExecutions()) {
-            unresolved += step.getExecutionContext().getInt(TypedFactProjectionJobConfig.SERVICE_TYPE_UNRESOLVED_ROWS, 0);
+            unresolved += step.getExecutionContext().getInt(ProjectionJobParameters.SERVICE_TYPE_UNRESOLVED_ROWS, 0);
         }
         return ImportExecution.completed(unresolved);
     }

@@ -11,7 +11,6 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.mo
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SourceAcquisition;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetImportExecutionPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshMetricsPort;
-import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshStatePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
@@ -36,7 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * 데이터셋 1종의 자동 최신화 판단과 실행. 범위는 "마지막 게시 분기 다음 ~ 원천 최신" 뿐이고, 비어 있는 과거 분기(백필)는
+ * 데이터셋 1종의 자동 최신화 판단과 실행. run 조립(순서·예산·상태 저장·메트릭)은 {@link DatasetRefreshRunProcessor} 가 한다. 범위는 "마지막 게시 분기 다음 ~ 원천 최신" 뿐이고, 비어 있는 과거 분기(백필)는
  * 수동 CLI({@code quarterly-import-plan.ps1})가 맡는다.
  *
  * <p>검증·게시 규칙(행 수 일치, 거부·중복·미매핑 0, 공간 READY, 더 새로운 원천 우선)은 기존 Job 안에 있다. 여기는 무엇을 언제
@@ -58,25 +57,8 @@ public class DatasetRefreshProcessor {
     private final TypedFactProjectionPort projections;
     private final DatasetSourcePort source;
     private final DatasetImportExecutionPort executions;
-    private final DatasetRefreshStatePort states;
     private final DatasetRefreshMetricsPort metrics;
     private final DatasetRefreshProperties properties;
-
-    public boolean spatialReady() {
-        return releases.spatialReady(properties.spatialVersion());
-    }
-
-    /** run 시작 시 한 번에 읽는다. 행이 없는 데이터셋은 초기 상태로 본다. */
-    public Map<Dataset, DatasetRefreshState> loadStates() {
-        return states.findAll();
-    }
-
-    /** 바뀐 상태만 쓴다. 판단 없이 건너뛴 데이터셋마다 행을 갱신하지 않는다. */
-    public void saveIfChanged(DatasetRefreshState before, DatasetRefreshState after) {
-        if (!after.equals(before)) {
-            states.save(after);
-        }
-    }
 
     /**
      * @param remainingApiCalls 이번 run 에서 이 데이터셋이 쓸 수 있는 API 호출 수

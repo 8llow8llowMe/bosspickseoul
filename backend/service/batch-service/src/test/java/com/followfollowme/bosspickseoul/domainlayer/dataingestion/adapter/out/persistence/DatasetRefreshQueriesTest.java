@@ -47,15 +47,6 @@ class DatasetRefreshQueriesTest {
     }
 
     @Test
-    void spatialReadyRequiresAReadySnapshot() {
-        when(jdbc.queryForObject(DatasetReleaseJdbcAdapter.SPATIAL_READY_SQL, Long.class, "legacy-20233")).thenReturn(1L);
-        DatasetReleaseJdbcAdapter adapter = new DatasetReleaseJdbcAdapter(jdbc, new ObjectMapper());
-
-        assertThat(adapter.spatialReady("legacy-20233")).isTrue();
-        assertThat(adapter.spatialReady("unknown")).isFalse();
-    }
-
-    @Test
     void everyDatasetHasATypedTableAndTheCountGroupsByQuarterForOneSpatialVersion() {
         for (Dataset dataset : Dataset.values()) {
             String table = ChangeCommercialProjectionJdbcAdapter.typedTable(dataset);
