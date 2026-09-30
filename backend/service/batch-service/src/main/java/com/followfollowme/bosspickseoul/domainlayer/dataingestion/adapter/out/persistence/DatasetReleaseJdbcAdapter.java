@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.*;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetReleasePort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Dataset;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Quarter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -140,6 +142,28 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
             WHERE run_id=? AND request_fingerprint=? AND status='RUNNING'
             """, truncated(reason), request.runId(), fingerprint(request));
     }
+
+    @Override
+    public List<PublishedSlot> publishedSlots(Dataset dataset, String spatialVersion, String schemaVersion) {
+        return jdbc.query(PUBLISHED_SLOTS_SQL,
+            (rs, rowNum) -> new PublishedSlot(new Quarter(rs.getString("period_code")), rs.getString("run_id"), rs.getLong("accepted_count")),
+            dataset.name(), spatialVersion, schemaVersion);
+    }
+
+    @Override
+    public boolean spatialReady(String spatialVersion) {
+        Long ready = jdbc.queryForObject(SPATIAL_READY_SQL, Long.class, spatialVersion);
+        return ready != null && ready > 0;
+    }
+
+    static final String PUBLISHED_SLOTS_SQL = """
+        SELECT a.period_code, a.run_id, r.accepted_count FROM dataset_active_release a
+        JOIN dataset_release r ON r.run_id=a.run_id
+        WHERE a.dataset=? AND a.spatial_version=? AND a.schema_version=? AND r.status='PUBLISHED'
+        ORDER BY a.period_code
+        """;
+
+    static final String SPATIAL_READY_SQL = "SELECT COUNT(*) FROM dataset_spatial_release WHERE spatial_version=? AND status='READY'";
 
     private ValidationResult counts(ImportRequest request) {
         long accepted = count("SELECT COUNT(*) FROM dataset_staging WHERE run_id=?", request.runId());
