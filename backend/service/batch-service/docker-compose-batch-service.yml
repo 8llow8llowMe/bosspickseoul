@@ -15,6 +15,16 @@ x-batch-service-environment: &batch_service_environment
   BATCH_ALLOWED_SCHEMAS: ${BATCH_ALLOWED_SCHEMAS:-}
   BATCH_POLICY_COLLECT_CRON: ${BATCH_POLICY_COLLECT_CRON:-}
   BATCH_POLICY_PURGE_CRON: ${BATCH_POLICY_PURGE_CRON:-}
+  # 분기 적재 자동 최신화(이슈 #445). 기본 off. 켜도 PUBLISH=false 면 탐지·수집·dry-run 까지만 한다.
+  # CRON / SPATIAL_VERSION 이 비면 application.yml 기본값(05:00 KST, legacy-20233)을 쓴다.
+  BATCH_DATASET_REFRESH_ENABLED: ${BATCH_DATASET_REFRESH_ENABLED:-false}
+  BATCH_DATASET_REFRESH_PUBLISH: ${BATCH_DATASET_REFRESH_PUBLISH:-false}
+  BATCH_DATASET_REFRESH_CRON: ${BATCH_DATASET_REFRESH_CRON:-}
+  BATCH_DATASET_REFRESH_SPATIAL_VERSION: ${BATCH_DATASET_REFRESH_SPATIAL_VERSION:-}
+  SEOUL_OPEN_DATA_API_KEY: ${SEOUL_OPEN_DATA_API_KEY:-}
+  # 수집 페이지 보관 위치. batch-service-dev 는 batch-service-job 과 같은 batch-raw 볼륨을 여기 붙인다.
+  BATCH_RAW_DIRECTORY: /app/data/raw
+  BATCH_LEGACY_SPATIAL_SCHEMA: ${BATCH_LEGACY_SPATIAL_SCHEMA:-}
 
 x-logging: &default-logging
   driver: "json-file"
@@ -40,6 +50,10 @@ services:
       - "${BATCH_SERVICE_PORT_DEV}:${BATCH_SERVICE_PORT}" # host:container
     environment:
       <<: *batch_service_environment
+    # 자동 최신화가 받은 원천 페이지(dataset_release.raw_location)를 수동 CLI(batch-service-job)와 같은 볼륨에 둔다.
+    # 재배포(rsync --delete)와 컨테이너 교체에도 남아야 ARCHIVE 재생과 사후 점검이 된다.
+    volumes:
+      - batch-raw:/app/data/raw
     # 컨테이너 메모리 상한. JVM heap은 Dockerfile의 MaxRAMPercentage가 이 값을 기준으로 산정한다.
     deploy:
       resources:

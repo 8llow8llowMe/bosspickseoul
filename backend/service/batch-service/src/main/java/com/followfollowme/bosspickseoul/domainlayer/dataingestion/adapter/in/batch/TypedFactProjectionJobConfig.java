@@ -20,6 +20,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration
 public class TypedFactProjectionJobConfig {
 
+    /** 스텝 실행 컨텍스트 키. 자동 최신화가 Job 을 띄운 뒤 이 값으로 업종 미해석 경고를 낸다. */
+    public static final String SERVICE_TYPE_UNRESOLVED_ROWS = "serviceTypeUnresolvedRows";
+
     @Bean
     public Job typedFactProjectionJob(JobRepository repository, @Qualifier("commercialTransactionManager") PlatformTransactionManager transactionManager,
                                       TypedFactProjectionProcessor processor) {
@@ -30,6 +33,7 @@ public class TypedFactProjectionJobConfig {
             execution.putString("sourceRunId", result.sourceRunId());
             execution.putInt("projectedRows", result.rowCount());
             execution.putString("written", Boolean.toString(result.written()));
+            execution.putInt(SERVICE_TYPE_UNRESOLVED_ROWS, result.serviceTypeUnresolvedRows());
             return RepeatStatus.FINISHED;
         }, transactionManager).build();
         return new JobBuilder("typedFactProjectionJob", repository).start(step).build();

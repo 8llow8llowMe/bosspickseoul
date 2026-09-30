@@ -11,7 +11,16 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.po
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
 import javax.sql.DataSource;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.CommercialTargetGuardRunner;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.DatasetRefreshQuartzScheduleConfig;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.batch.SpringBatchImportExecutionAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.metrics.MicrometerDatasetRefreshMetricsAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.in.DatasetRefreshUseCase;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.DatasetRefreshFacade;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRefreshProcessor;
 import org.junit.jupiter.api.DisplayName;
+import org.quartz.Trigger;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.repository.JobRepository;
@@ -57,6 +66,34 @@ class AlwaysOnDatasetImportWiringTest {
             Object releaseJdbc = ReflectionTestUtils.getField(context.getBean(DatasetReleasePort.class), "jdbc");
             assertThat(releaseJdbc).isSameAs(commercial);
         });
+    }
+
+    @Test
+    @DisplayName("자동 최신화가 켜지면 유스케이스·Job 실행 어댑터·트리거까지 한 컨텍스트에서 조립된다")
+    void assemblesTheRefreshSchedulerWhenEnabled() {
+        refreshRunner().withPropertyValues("batch.dataset-refresh.enabled=true").run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(DatasetRefreshUseCase.class).hasSingleBean(CommercialTargetGuardRunner.class);
+            assertThat(context.getBean("datasetRefreshTrigger", Trigger.class).getKey().getName()).isEqualTo("datasetRefreshTrigger");
+        });
+    }
+
+    @Test
+    @DisplayName("자동 최신화가 꺼져 있으면 트리거를 등록하지 않는다")
+    void registersNoTriggerWhenRefreshIsDisabled() {
+        refreshRunner().run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).doesNotHaveBean(Trigger.class);
+        });
+    }
+
+    private ApplicationContextRunner refreshRunner() {
+        return runner
+            .withBean(JobLauncher.class, () -> mock(JobLauncher.class))
+            .withUserConfiguration(DatasetRefreshPropertiesConfig.class, PolicyIngestionPropertiesConfig.class,
+                DatasetRefreshQuartzScheduleConfig.class, DatasetRefreshFacade.class, DatasetRefreshProcessor.class,
+                SpringBatchImportExecutionAdapter.class, MicrometerDatasetRefreshMetricsAdapter.class, CommercialTargetGuardRunner.class)
+            .withPropertyValues("batch.policy.stale-ratio=0.5", "batch.policy.purge-grace-days=30");
     }
 
     @Test

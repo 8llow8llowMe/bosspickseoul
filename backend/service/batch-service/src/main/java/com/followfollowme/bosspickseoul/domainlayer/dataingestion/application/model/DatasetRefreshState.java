@@ -47,6 +47,12 @@ public record DatasetRefreshState(
             lastFailureAt, lastFailureReason, consecutiveFailures);
     }
 
+    /** 원천에 그 분기 행이 없었다. 탐지 시각만 남기고 합계는 건드리지 않는다. */
+    public DatasetRefreshState probedWithoutRows(Instant at) {
+        return new DatasetRefreshState(dataset, at, lastSourceTotal, newestSourcePeriod, lastFetchRunId, lastFetchRawLocation,
+            lastFailureAt, lastFailureReason, consecutiveFailures);
+    }
+
     public DatasetRefreshState fetched(String runId, String rawLocation, Quarter newestPeriod) {
         return new DatasetRefreshState(dataset, lastProbeAt, lastSourceTotal, newestPeriod, runId, rawLocation,
             lastFailureAt, lastFailureReason, consecutiveFailures);

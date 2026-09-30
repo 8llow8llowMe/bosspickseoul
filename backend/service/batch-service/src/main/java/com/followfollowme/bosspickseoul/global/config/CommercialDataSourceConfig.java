@@ -38,7 +38,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 public class CommercialDataSourceConfig {
 
     /** 이 중 하나라도 켜지면 commercial 스키마를 따로 연다. */
-    static final List<String> COMMERCIAL_JOB_FLAGS = List.of(
+    public static final List<String> COMMERCIAL_JOB_FLAGS = List.of(
         "batch.policy.enabled",
         "batch.dataset-refresh.enabled",
         "batch.staging-purge.enabled");
