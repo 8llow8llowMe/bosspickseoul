@@ -44,13 +44,13 @@ public class TypedFactProjectionProcessor {
                     + " serviceTypeUnresolvedRows={} serviceTypeUnresolvedCodes={} serviceTypeUnresolvedSample={}",
                 request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped,
                 serviceTypes.unresolvedRows(), serviceTypes.unresolvedCodeCount(), serviceTypes.unresolvedCodeSample());
-            return new ProjectionResult(sourceRunId, mapped, false);
+            return new ProjectionResult(sourceRunId, mapped, false, serviceTypes.unresolvedRows());
         }
         log.info("typed projection written dataset={} period={} spatialVersion={} sourceRunId={} rows={}"
                 + " serviceTypeUnresolvedRows={} serviceTypeUnresolvedCodes={} serviceTypeUnresolvedSample={}",
             request.dataset(), request.period().value(), request.spatialVersion(), sourceRunId, mapped,
             serviceTypes.unresolvedRows(), serviceTypes.unresolvedCodeCount(), serviceTypes.unresolvedCodeSample());
-        return new ProjectionResult(sourceRunId, mapped, true);
+        return new ProjectionResult(sourceRunId, mapped, true, serviceTypes.unresolvedRows());
     }
 
     /**

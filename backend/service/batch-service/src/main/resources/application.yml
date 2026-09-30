@@ -58,11 +58,29 @@ batch:
     # area_boundary / commercial_region_mapping 이 있는 스키마. district-service 소유라
     # 팩트를 쓰는 commercial 스키마와 다르다. --source=LEGACY 를 쓸 때만 필요하다.
     legacy-spatial-schema: ${BATCH_LEGACY_SPATIAL_SCHEMA:}
+  # 분기 적재 자동 최신화(이슈 #445). 켜면 매일 원천을 탐지해 "마지막 게시 분기 다음" 분기만 적재한다. 백필은 수동 CLI 다.
+  # publish=false 면 탐지·수집·dry-run 까지만 한다. 롤아웃은 false 로 시작해 Vault 에서 true 로 올린다.
+  dataset-refresh:
+    enabled: ${BATCH_DATASET_REFRESH_ENABLED:false}
+    cron: ${BATCH_DATASET_REFRESH_CRON:0 0 5 * * ?}
+    publish: ${BATCH_DATASET_REFRESH_PUBLISH:false}
+    spatial-version: ${BATCH_DATASET_REFRESH_SPATIAL_VERSION:legacy-20233}
+    schema-version: seoul-v1
+    # 키당 하루 1,000회. 수동 CLI 가 같은 키를 쓰므로 여유를 남긴다.
+    max-api-calls-per-run: 600
+    # 데이터셋 1종이 한 run 에서 게시할 최대 분기 수. 상시 컨테이너 메모리 상한(512m)을 지키려고 1 로 둔다.
+    max-quarters-per-run: 1
+    tolerance: 0.2
+    failure-cooldown-days: 7
 
 ---
-# BATCH_POLICY_ENABLED=true 이면 기존 batch-service(dev)에서도 Quartz JDBC 를 켠다.
-# JobStore 는 기본 DataSource(BATCH_DB_URL, district) 의 QRTZ_* 를 쓴다.
-# policy 행은 COMMERCIAL_DB_URL 로 나간다.
+# Quartz JDBC JobStore. JobStore 는 기본 DataSource(BATCH_DB_URL, district) 의 QRTZ_* 를 쓴다.
+# policy / 분기 적재 행은 COMMERCIAL_DB_URL 로 나간다.
+#
+# 주의: spring.config.activate 는 on-profile / on-cloud-platform 만 지원한다(Spring Boot 3.5). 아래 on-property 는
+# 무시되어 이 문서는 모든 프로파일에서 항상 적용된다. 그래서 정책 수집·자동 최신화·스테이징 정리가 어느 것이 켜져도
+# Quartz 는 JDBC 로 뜨고, 트리거 등록은 각 *QuartzScheduleConfig 의 @ConditionalOnProperty 가 가른다.
+# 조건부로 바꾸려면 세 플래그를 모두 봐야 한다(DatasetRefreshPropertiesTest 가 자동 최신화 쪽을 고정한다).
 spring:
   config:
     activate:
