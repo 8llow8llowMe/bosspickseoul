@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createDistrictAdministrationHref,
+  createDistrictHref,
   createDistrictServiceHref,
   formatChangeSuffix,
   formatRateSuffix,
@@ -22,14 +23,27 @@ describe('createDistrictAdministrationHref', () => {
   })
 
   /*
-   * `/status?district=` 로 보내면 안 된다. `normalizeStatusSelection` 이 지표별
-   * top-10 밖 코드를 버리고 행정동은 화면 자체가 없다.
+   * `/status?district=` 로 보내면 안 된다. 행정동 단위 링크인데 `/status` 는 자치구 단위
+   * 화면이라 받을 자리가 없다(행정동은 화면 자체가 없다).
    */
   it('목적지는 /analysis 다 — /status 로 보내지 않는다', () => {
     const href = createDistrictAdministrationHref('11680', '11680580')
     expect(href?.startsWith('/analysis')).toBe(true)
     expect(href).not.toContain('/status')
   })
+})
+
+describe('createDistrictHref', () => {
+  it('자치구만 채운 상권분석 링크를 만든다 — 상세 CTA 용', () => {
+    expect(createDistrictHref('11680')).toBe('/analysis?districtCode=11680')
+  })
+
+  it.each([null, undefined, '', '   '])(
+    '코드가 없으면 링크를 만들지 않는다: %s',
+    districtCode => {
+      expect(createDistrictHref(districtCode)).toBeUndefined()
+    },
+  )
 })
 
 describe('createDistrictServiceHref', () => {

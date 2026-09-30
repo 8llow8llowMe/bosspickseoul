@@ -25,6 +25,22 @@ const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
 /**
+ * 자치구 → 상권분석. 상세 맨 아래 「{구} 상권 분석하기」 CTA 가 쓴다. 자치구만 채우므로
+ * 활성 단계는 **행정동**이 된다. 코드가 없으면 링크를 만들지 않는다.
+ */
+export const createDistrictHref = (
+  districtCode: string | null | undefined,
+): string | undefined => {
+  const district = trimmed(districtCode)
+  if (!district) return undefined
+
+  return createAnalysisExplorerHref({
+    ...createEmptyAnalysisSelection(),
+    districtCode: district,
+  })
+}
+
+/**
  * 행정동 → 상권분석. 자치구·행정동이 채워지므로 활성 단계는 **상권**이 된다.
  * 둘 중 하나라도 없으면 링크를 만들지 않는다(누를 데 없는 링크를 만들지 않는다).
  */
