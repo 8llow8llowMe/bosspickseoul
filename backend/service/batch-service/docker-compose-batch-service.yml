@@ -78,7 +78,58 @@ services:
     networks:
       - 8llow8llowme-net
 
+  # 분기 적재 1회 실행용. `--profile job` 을 줄 때만 뜨므로 Jenkins 의 `up ... batch-service-dev` 는 이 서비스를 띄우지 않는다.
+  # 배포된 이미지를 그대로 쓰고(build 없음), `docker compose run --rm` 과 충돌하지 않게 container_name 을 두지 않는다.
+  # 절차: backend/docs/services/batch-quarterly-import.md 「10. 개발서버에서 실행」
+  batch-service-job:
+    image: bosspickseoul-batch-service:latest
+    # 이미지는 Jenkins 배포가 이 호스트에서 빌드한다. 없으면 레지스트리로 가지 말고 바로 실패한다.
+    pull_policy: never
+    profiles: ["job"]
+    labels:
+      observability.project: bosspickseoul
+      observability.group: service
+      observability.service: batch-service
+      observability.env: dev
+      observability.application: batch-service-job
+      observability.deployment: bosspickseoul-batch-service-job
+    # BATCH_QUARTERLY_* 잡 파라미터와 BATCH_ALLOWED_SCHEMAS 는 여기 선언하지 않는다. 선언하지 않은 키는
+    # .env.runtime(Vault)에 있어도 컨테이너로 가지 않으므로, 실행마다 `docker compose run -e ...` 로만 들어온다.
+    # 허용 스키마를 빼먹으면 BatchTargetGuard 가 거부한다(fail-closed). 상시 컨테이너의 정책 수집용 값을 물려받지 않는다.
+    environment:
+      TIME_ZONE: ${TIME_ZONE}
+      SPRING_PROFILES_ACTIVE: quarterly
+      # 분기 적재 대상은 commercial 스키마다. 상시 컨테이너의 BATCH_DB_URL(district)을 쓰지 않는다.
+      # 다른 스키마로 돌릴 때는 `run -e BATCH_DB_URL=...` 로 덮어쓴다.
+      BATCH_DB_URL: ${COMMERCIAL_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SEOUL_OPEN_DATA_API_KEY: ${SEOUL_OPEN_DATA_API_KEY:-}
+      BATCH_RAW_DIRECTORY: /app/data/raw
+      BATCH_LEGACY_SPATIAL_SCHEMA: ${BATCH_LEGACY_SPATIAL_SCHEMA:-}
+    # Jenkins 배포가 서비스 디렉터리를 `rsync --delete` 하므로 bind mount 대신 named volume 을 쓴다.
+    # batch-raw 는 ARCHIVE 재생이 읽는 dataset_release.raw_location 을 보존하고, batch-input 은 CSV/GeoJSON 입력을 둔다.
+    volumes:
+      - batch-raw:/app/data/raw
+      - batch-input:/app/data/input
+    deploy:
+      resources:
+        limits:
+          memory: ${BATCH_SERVICE_MEM_LIMIT_JOB:-1g}
+    restart: "no"
+    logging:
+      <<: *default-logging
+    networks:
+      - 8llow8llowme-net
+
 networks:
   8llow8llowme-net:
     name: 8llow8llowme-net
     external: true
+
+# compose 프로젝트명(-p)이 바뀌어도 같은 볼륨을 보도록 이름을 고정한다.
+volumes:
+  batch-raw:
+    name: bosspickseoul-batch-service-raw
+  batch-input:
+    name: bosspickseoul-batch-service-input
