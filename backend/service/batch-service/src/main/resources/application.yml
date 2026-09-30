@@ -72,6 +72,13 @@ batch:
     max-quarters-per-run: 1
     tolerance: 0.2
     failure-cooldown-days: 7
+  # 분기 적재 스테이징 정리(주간, 기본 off). dataset_staging / dataset_rejected_row 만 지우고, 활성 릴리스가 가리키는 run 은 제외한다.
+  staging-purge:
+    enabled: ${BATCH_STAGING_PURGE_ENABLED:false}
+    cron: ${BATCH_STAGING_PURGE_CRON:0 0 4 ? * SUN}
+    published-retention-days: 30
+    unpublished-retention-days: 7
+    chunk-size: 5000
 
 ---
 # Quartz JDBC JobStore. JobStore 는 기본 DataSource(BATCH_DB_URL, district) 의 QRTZ_* 를 쓴다.

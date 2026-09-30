@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.ChangeCommercialProjectionJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetRefreshStateJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetReleaseJdbcAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetStagingPurgeJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.ServiceCategoryJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.source.SeoulDatasetSourceAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.LegacySpatialJdbcSourceAdapter;
@@ -12,6 +13,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.sp
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SpatialSourceRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshStatePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetReleasePort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetStagingPurgePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.ServiceCategoryLookupPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialReleasePort;
@@ -59,6 +61,11 @@ public class QuarterlyImportConfig {
     @Bean
     public DatasetRefreshStatePort datasetRefreshStatePort(@Qualifier("commercialJdbcTemplate") JdbcTemplate jdbc) {
         return new DatasetRefreshStateJdbcAdapter(jdbc);
+    }
+
+    @Bean
+    public DatasetStagingPurgePort datasetStagingPurgePort(@Qualifier("commercialJdbcTemplate") JdbcTemplate jdbc) {
+        return new DatasetStagingPurgeJdbcAdapter(jdbc);
     }
 
     @Bean
