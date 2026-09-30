@@ -55,16 +55,23 @@ const BlockTitle = styled.h3`
 
 const List = styled.ul`
   display: grid;
-  gap: 4px;
+  gap: 8px;
   padding-left: 18px;
   list-style: disc;
 `
 
+/*
+ * 추천 이유는 `293,433,501원` 같은 숫자가 든 긴 문장이다(백엔드가 단위까지 만든다 —
+ * 재파싱하지 않는다). 자릿수가 맞게 `tabular-nums`, 좁은 화면에서 괄호 속 긴 토큰이
+ * 넘치지 않게 `overflow-wrap: anywhere`.
+ */
 const Item = styled.li`
   color: var(--color-text-700);
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
   line-height: 22px;
   word-break: keep-all;
+  overflow-wrap: anywhere;
 `
 
 const Caveat = styled.p`
@@ -137,12 +144,18 @@ export default function RecommendComparisonVerdict({
       {/*
         판단의 출처와 한계를 밝힌다. 아래 지표 표가 중립인 이유이기도 하다 —
         두 영역이 다르게 말하는 것이 아니라, 판단에는 근거가 필요하다는 뜻이다.
+        백엔드 면책 문구(`recommendationDisclaimer`)가 있으면 그 문장을 그대로 쓴다.
+        추천 방식·원천 0 값의 한계를 아는 쪽은 백엔드다. 없으면(구버전) 기존 문구.
       */}
-      <Caveat>
-        {leftName && rightName
-          ? `${leftName}·${rightName}의 분기 데이터로 계산한 결과예요. `
-          : ''}
-        업종과 창업 계획에 따라 다르게 읽힐 수 있어요.
+      <Caveat role="note">
+        {verdict.disclaimer ?? (
+          <>
+            {leftName && rightName
+              ? `${leftName}·${rightName}의 분기 데이터로 계산한 결과예요. `
+              : ''}
+            업종과 창업 계획에 따라 다르게 읽힐 수 있어요.
+          </>
+        )}
       </Caveat>
     </Root>
   )
