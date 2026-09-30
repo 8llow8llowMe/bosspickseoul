@@ -11,7 +11,11 @@ import BreakEvenChart, {
   buildCumulativeProfit,
   findBreakEvenMonth,
 } from '@/components/home/break-even-chart'
-import { HEADER_HEIGHT, HOME_COLUMN } from '@/components/home/layout-constants'
+import {
+  HEADER_HEIGHT,
+  HOME_COLUMN,
+  HOME_FULL_SCREEN_SECTION,
+} from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview, {
   toNarrowingSegments,
@@ -46,6 +50,7 @@ import {
   말했다. 지금은 여기 한 번이고, 스크롤을 붙잡지 않는다. 전폭 배경 밴드(#223)는 유지한다.
 */
 const Container = styled.section`
+  ${HOME_FULL_SCREEN_SECTION}
   position: relative;
   background: var(--color-background-muted);
   padding: 96px 0;
@@ -65,9 +70,18 @@ const Inner = styled.div`
   gap: 24px;
 `
 
+/*
+  머리말은 고정 칸(PinSticky) 안에 있다 — 01~04 를 넘기는 동안 무엇의 단계인지 보여야 한다
+  (full-screen-sections-and-live-tooltip.md D4-2). 고정 모드에서는 제목을 한 줄로 펴고 간격을
+  줄여 높이를 62px 로 묶는다. 그 값이 STORY_PIN_QUERY 최소 높이(800)의 근거다.
+*/
 const Lead = styled.div`
   display: grid;
   gap: 10px;
+
+  @media ${STORY_PIN_QUERY} {
+    gap: 6px;
+  }
 `
 
 const Eyebrow = styled.p`
@@ -93,6 +107,10 @@ const LeadTitle = styled.h2`
   @media (max-width: 480px) {
     font-size: 21px;
     line-height: 30px;
+  }
+
+  @media ${STORY_PIN_QUERY} {
+    max-width: none;
   }
 `
 
@@ -125,6 +143,7 @@ const PinSticky = styled.div`
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 16px;
   }
 `
 
@@ -493,15 +512,15 @@ export default function ProductStory() {
   return (
     <Container aria-label="판단 흐름">
       <Inner>
-        <Lead>
-          <Eyebrow>이렇게 판단해요</Eyebrow>
-          <LeadTitle>
-            자치구 25곳에서 시작해 가게 하나의 손익까지, 네 단계로 좁혀요.
-          </LeadTitle>
-        </Lead>
-
         <PinTrack ref={attachTrack}>
           <PinSticky>
+            <Lead>
+              <Eyebrow>이렇게 판단해요</Eyebrow>
+              <LeadTitle>
+                자치구 25곳에서 시작해 가게 하나의 손익까지, 네 단계로 좁혀요.
+              </LeadTitle>
+            </Lead>
+
             <div ref={tabsRef}>
               <StepTabs
                 steps={STORY_STEPS}

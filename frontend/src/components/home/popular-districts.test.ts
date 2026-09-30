@@ -513,7 +513,11 @@ describe('PopularDistricts — 트랙 없음 (TC-HR-009)', () => {
       buildElement(createResponse(THREE_VIEWS), createTopTen()),
     ).replace(/\s+/g, '')
 
-    expect(styles).not.toContain('calc(100dvh')
+    // 섹션 최소 높이(한 화면, D4-1)는 트랙이 아니다 — 그것만 빼고 dvh 가 없어야 한다.
+    expect(styles).toContain('min-height:calc(100dvh-65px)')
+    expect(styles.replaceAll('min-height:calc(100dvh-65px)', '')).not.toContain(
+      'dvh',
+    )
     expect(styles).not.toContain('position:sticky')
   })
 

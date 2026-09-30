@@ -1,3 +1,4 @@
+import { css } from 'styled-components'
 import { centeredColumn } from '@/styles/layout'
 
 /**
@@ -13,6 +14,20 @@ import { centeredColumn } from '@/styles/layout'
  * 선언보다 아래에 const 로 두면 템플릿이 즉시 평가되며 TDZ 에 걸려 모듈이 죽는다.
  */
 export const HEADER_HEIGHT = '65px'
+
+/**
+ * 홈 본문 섹션은 최소 한 화면을 차지한다(full-screen-sections-and-live-tooltip.md D4-1).
+ *
+ * `100dvh` 가 아니라 헤더를 뺀 값이다 — 헤더가 sticky 라 섹션 윗단이 헤더 밑에 붙었을 때
+ * 보이는 칸이 이만큼이다. 내용이 짧으면 세로 가운데에 선다. 위의 HEADER_HEIGHT 보다
+ * 아래에 둬야 한다(템플릿이 즉시 평가된다).
+ */
+export const HOME_FULL_SCREEN_SECTION = css`
+  min-height: calc(100dvh - ${HEADER_HEIGHT});
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+`
 
 /**
  * 홈 본문 섹션의 콘텐츠 컬럼 — `--w-wide`(1400) 중앙 그룹.
