@@ -11,17 +11,17 @@ import BreakEvenChart, {
 } from '@/components/home/break-even-chart'
 
 /*
- * 이슈 #223 에서 200 → 260 으로 올렸다. story-panel-redesign D4-9 에서 헤드라인·캡션을
- * 머리줄로 옮기며 240 으로 낮췄다 — 02 미니데모가 가장 큰 데모로 남아야 패널 높이 예약이
- * 한 값으로 유지된다.
+ * 이슈 #223 에서 200 → 260, story-panel-redesign D4-9 에서 300. 헤드라인·캡션을 머리줄로
+ * 옮기고 틀이 칸을 채우게 되어 차트가 그 자리를 쓴다. 상한은 02 미니데모보다 커지지 않게
+ * 잡는다 — 04 가 가장 큰 데모가 되면 패널 높이 예약을 다시 재야 한다.
  */
 describe('BreakEvenChart — 플롯 높이', () => {
-  it('차트가 240px 이다', () => {
-    expect(BREAK_EVEN_CHART_HEIGHT).toBe(240)
+  it('차트가 300px 이다', () => {
+    expect(BREAK_EVEN_CHART_HEIGHT).toBe(300)
   })
 
-  it('낮은 뷰포트 여유를 넘기지 않는다', () => {
-    expect(BREAK_EVEN_CHART_HEIGHT).toBeLessThanOrEqual(280)
+  it('02 미니데모보다 큰 데모가 되지 않는다', () => {
+    expect(BREAK_EVEN_CHART_HEIGHT).toBeLessThanOrEqual(320)
   })
 })
 

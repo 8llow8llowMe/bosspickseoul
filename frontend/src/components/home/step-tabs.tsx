@@ -61,8 +61,12 @@ const Tab = styled.button<{ $active: boolean }>`
   border: none;
   border-radius: var(--radius-control) var(--radius-control) 0 0;
   background: transparent;
+  /*
+    비활성은 text-700 이다. 탭이 판단 흐름의 회색 밴드(grey50) 위에 바로 놓여, caption
+    (grey600)은 4.42:1 로 AA 에 못 미쳤다(e2e 대비 지표). 활성은 굵기·밑줄로 가른다.
+  */
   color: ${p =>
-    p.$active ? 'var(--color-text-900)' : 'var(--color-text-caption)'};
+    p.$active ? 'var(--color-text-900)' : 'var(--color-text-700)'};
   cursor: pointer;
   transition:
     color var(--motion-fast) var(--ease-standard),
@@ -81,8 +85,7 @@ const Tab = styled.button<{ $active: boolean }>`
   }
 
   &:hover {
-    color: ${p =>
-      p.$active ? 'var(--color-text-900)' : 'var(--color-text-700)'};
+    color: var(--color-text-900);
     background: var(--color-surface-muted);
   }
 
@@ -108,18 +111,18 @@ const Tab = styled.button<{ $active: boolean }>`
   }
 `
 
-const Num = styled.span<{ $active: boolean }>`
-  color: ${p =>
-    p.$active ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
+/* 번호에 primary-700(#0ea5e9)을 쓰지 않는다 — 회색 밴드 위 2.65:1 이다. */
+const Num = styled.span`
+  color: inherit;
   font-size: 13px;
   font-weight: 700;
   line-height: 20px;
   font-variant-numeric: tabular-nums;
 `
 
-const Title = styled.span`
-  font-size: 17px;
-  font-weight: 600;
+const Title = styled.span<{ $active: boolean }>`
+  font-size: 16px;
+  font-weight: ${p => (p.$active ? 700 : 600)};
   line-height: 24px;
   white-space: nowrap;
 
@@ -128,10 +131,10 @@ const Title = styled.span`
   }
 `
 
-const ShortTitle = styled.span`
+const ShortTitle = styled.span<{ $active: boolean }>`
   display: none;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: ${p => (p.$active ? 700 : 600)};
   line-height: 20px;
   white-space: nowrap;
 
@@ -184,9 +187,9 @@ export default function StepTabs({ steps, selected, onSelect }: StepTabsProps) {
             onClick={() => onSelect(index)}
             onKeyDown={handleKeyDown}
           >
-            <Num $active={active}>{step.step}</Num>
-            <Title>{step.title}</Title>
-            <ShortTitle>{step.shortTitle}</ShortTitle>
+            <Num>{step.step}</Num>
+            <Title $active={active}>{step.title}</Title>
+            <ShortTitle $active={active}>{step.shortTitle}</ShortTitle>
           </Tab>
         )
       })}

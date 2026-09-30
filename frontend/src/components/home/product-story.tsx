@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Check } from 'lucide-react'
 import styled from 'styled-components'
@@ -91,8 +91,11 @@ const LeadTitle = styled.h2`
   }
 `
 
-/** 1100px 이상 패널 높이 예약(px). 실측값 — D7 TC-SP-103 에서 다시 잰다. */
-const PANEL_MIN_HEIGHT = 564
+/**
+ * 1100px 이상 패널 높이 예약(px). 실측(2026-09-30) 최댓값 — 1100px 에서 02 칩이 두 줄로
+ * 접힐 때 570, 1280 이상은 538. 데모가 바뀌면 story-panel-redesign D7 TC-SP-103 으로 다시 잰다.
+ */
+const PANEL_MIN_HEIGHT = 570
 
 /*
   2열 4:8 — 왼쪽은 큰 숫자 한 개와 짧은 설명, 오른쪽은 데모(story-panel-redesign.md D4-2).
@@ -144,39 +147,42 @@ const Copy = styled.div`
   }
 `
 
-/* 단계명. 탭이 이미 크게 말하므로 작게 — 패널의 제목(h3) 구조만 지킨다. */
+/*
+  단계명. 탭이 이미 크게 말하므로 작게 — 패널의 제목(h3) 구조만 지킨다.
+  primary-700(#0ea5e9)은 흰 바탕 2.77:1 이라 글자에 쓰지 않는다.
+*/
 const StepLabel = styled.h3`
-  color: var(--color-primary-700);
+  color: var(--color-text-600);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
   word-break: keep-all;
 `
 
+/*
+  큰 숫자는 DESIGN.md §3 Number Display(30px · 700 · tabular)다. 시안은 48px 이었지만 스케일
+  (12·13·14·16·20·22·26·30) 밖이라 e2e `offScaleFontSizes` 가 늘었다 — 스케일 안에서 가장
+  큰 값을 쓰고, 둘레의 글자를 16px 이하로 두어 대비를 만든다.
+*/
 const Highlight = styled.p`
   margin-top: 12px;
   color: var(--color-text-900);
-  font-size: 48px;
+  font-size: 30px;
   font-weight: 700;
-  line-height: 56px;
-  letter-spacing: -0.02em;
+  line-height: 40px;
   font-variant-numeric: tabular-nums;
   word-break: keep-all;
-
-  @media (max-width: 768px) {
-    font-size: 40px;
-    line-height: 48px;
-  }
 `
 
 const HighlightUnit = styled.span`
   margin-left: 2px;
-  font-size: 24px;
-  line-height: 1;
+  font-size: 20px;
+`
 
-  @media (max-width: 768px) {
-    font-size: 20px;
-  }
+const HighlightArrow = styled.span`
+  margin: 0 8px;
+  color: var(--color-text-caption);
+  font-weight: 500;
 `
 
 /* 자간을 물려받지 않게 큰 숫자 밖에 둔다 — 시안에서 캡션이 뭉개졌다. */
@@ -249,7 +255,7 @@ const Cta = styled(Link)`
   border-radius: var(--radius-control);
   background: var(--color-primary-700);
   color: #ffffff;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   transition: background-color var(--motion-fast) var(--ease-standard);
 
@@ -273,8 +279,9 @@ const Cta = styled(Link)`
 `
 
 /*
-  데모는 세로 가운데. justify-content: center 대신 자식 margin-block: auto — 넘칠 때
-  위쪽이 잘리지 않는다(PR #424 규칙 승계).
+  데모 틀은 칸 높이를 채운다. 가운데 정렬로 두면 틀 높이가 탭마다 달라(384~504px)
+  탭을 넘길 때 틀이 출렁였다 — 「네 데모가 같은 틀」이라는 D4-4 가 화면에서 깨진다.
+  틀 안의 꼬리는 바닥에 붙는다(DemoFrame).
 */
 const DemoArea = styled.div`
   display: flex;
@@ -282,7 +289,7 @@ const DemoArea = styled.div`
   min-width: 0;
 
   > * {
-    margin-block: auto;
+    flex: 1 1 auto;
   }
 `
 
@@ -466,7 +473,13 @@ export default function ProductStory() {
               {step.step} {step.title}
             </StepLabel>
             <Highlight>
-              {highlight.value}
+              {/* 03 의 「9 → 5」 화살표는 숫자가 아니다 — 흐리게 해 두 숫자가 주인공이 되게 한다. */}
+              {highlight.value.split(' → ').map((part, index) => (
+                <Fragment key={part + index}>
+                  {index > 0 ? <HighlightArrow>→</HighlightArrow> : null}
+                  {part}
+                </Fragment>
+              ))}
               {highlight.unit ? (
                 <HighlightUnit>{highlight.unit}</HighlightUnit>
               ) : null}

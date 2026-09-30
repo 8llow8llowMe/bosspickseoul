@@ -24,7 +24,7 @@ const Funnel = styled.p`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-text-600);
+  color: var(--color-text-700);
   font-size: 13px;
   line-height: 20px;
   white-space: nowrap;
@@ -33,10 +33,6 @@ const Funnel = styled.p`
     color: var(--color-text-900);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-  }
-
-  strong:last-of-type {
-    color: var(--color-primary-700);
   }
 
   svg {
@@ -76,8 +72,9 @@ const Rank = styled.span<{ $first: boolean }>`
   width: 28px;
   height: 28px;
   border-radius: var(--radius-control);
+  /* 1위 배지는 primary-600 — primary-700(#0ea5e9) 위 흰 글자는 2.77:1 이다. */
   background: ${p =>
-    p.$first ? 'var(--color-primary-700)' : 'var(--color-surface-muted)'};
+    p.$first ? 'var(--color-primary-600)' : 'var(--color-surface-muted)'};
   color: ${p => (p.$first ? '#ffffff' : 'var(--color-text-700)')};
   font-size: 13px;
   font-weight: 700;

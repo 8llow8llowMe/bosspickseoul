@@ -47,8 +47,12 @@ const Title = styled.h4`
   word-break: keep-all;
 `
 
+/*
+  틀 안의 보조 글자는 text-700 이다. 틀 배경(grey50) 위에서 text-600(grey600)은 4.42:1 로
+  AA 에 못 미친다(e2e 대비 지표). 아래 꼬리·배지도 같은 이유다.
+*/
 const Subtitle = styled.p`
-  color: var(--color-text-600);
+  color: var(--color-text-700);
   font-size: 13px;
   line-height: 20px;
   word-break: keep-all;
@@ -64,7 +68,7 @@ const Aside = styled.div`
 /* 본문이 짧아도 꼬리는 틀 바닥에 붙는다 — 탭마다 꼬리 위치가 흔들리지 않는다. */
 const Footer = styled.div`
   margin-top: auto;
-  color: var(--color-text-600);
+  color: var(--color-text-700);
   font-size: 13px;
   line-height: 20px;
   word-break: keep-all;
@@ -77,7 +81,7 @@ export const SampleBadge = styled.span`
   padding: 2px 8px;
   border-radius: var(--radius-compact);
   background: var(--color-surface-muted);
-  color: var(--color-text-600);
+  color: var(--color-text-700);
   font-size: 12px;
   font-weight: 600;
   line-height: 20px;

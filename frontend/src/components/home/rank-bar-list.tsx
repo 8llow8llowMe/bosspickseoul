@@ -83,24 +83,50 @@ const CardList = styled(List)`
  * `1fr` 이라 데모 칸 폭을 그대로 먹었다. 남는 폭은 이름 칸이 가져간다 — 막대와 값이
  * 오른쪽에 붙어 눈으로 잇기 쉽다(card 변형과 같은 판단).
  *
- * 1~3위 행은 흰 배경을 깐다. 틀(DemoFrame) 배경이 회색이라 상위 행이 한 덩어리로 뜬다.
+ * 값 칸은 고정폭(150px, 오른쪽 정렬)이다. `auto` 면 행마다 값 길이가 달라 막대 끝이
+ * 어긋났다(1억 4539만명 vs 1억 1920만명 — 행이 각자 그리드라 칸 폭을 공유하지 않는다).
+ *
+ * 행은 모두 흰 배경이다. 틀(DemoFrame) 배경이 회색이라 투명하게 두면 변화율·순위 글자가
+ * 회색 위에서 AA 에 못 미친다(e2e 대비 지표). 1~3위는 막대 색과 순위 굵기로 가른다.
  */
 const rowGridStyles = css<{ $highlighted: boolean; $top: boolean }>`
   display: grid;
-  grid-template-columns: 24px minmax(72px, 1fr) minmax(0, 360px) auto;
+  grid-template-columns: 24px minmax(72px, 1fr) minmax(0, 360px) 150px;
   gap: 12px;
   align-items: center;
   padding: 12px;
   border-radius: var(--radius-control);
-  background: ${p => {
-    if (p.$highlighted) return 'var(--color-primary-100)'
-    return p.$top ? 'var(--color-surface)' : 'transparent'
-  }};
+  background: ${p =>
+    p.$highlighted ? 'var(--color-primary-100)' : 'var(--color-surface)'};
 
+  /*
+    좁은 폭은 두 줄로 접는다 — 위에 순위·이름·값, 아래에 막대 전폭. 한 줄을 고집하면
+    375px 에서 막대가 30px 남짓으로 눌려 보이지 않았다(card 변형과 같은 판단).
+    자식 순서는 순위 · 이름 · 막대 · 값이다.
+  */
   @media (max-width: 480px) {
-    grid-template-columns: 20px minmax(56px, 1fr) minmax(0, 1fr) auto;
-    gap: 8px;
-    padding: 10px 8px;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'rank name value'
+      '. bar bar';
+    gap: 6px 8px;
+    padding: 10px;
+
+    > :nth-child(1) {
+      grid-area: rank;
+    }
+
+    > :nth-child(2) {
+      grid-area: name;
+    }
+
+    > :nth-child(3) {
+      grid-area: bar;
+    }
+
+    > :nth-child(4) {
+      grid-area: value;
+    }
   }
 `
 
@@ -248,8 +274,7 @@ const Rank = styled.span<{ $top: boolean }>`
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: ${p =>
-    p.$top ? 'var(--color-primary-700)' : 'var(--color-text-caption)'};
+  color: ${p => (p.$top ? 'var(--color-text-900)' : 'var(--color-text-caption)')};
 `
 
 const Name = styled.span`

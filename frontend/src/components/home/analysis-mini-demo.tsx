@@ -141,7 +141,7 @@ const ChartBlock = styled.div`
 `
 
 const ChartLabel = styled.span`
-  color: var(--color-text-600);
+  color: var(--color-text-700);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
@@ -199,7 +199,7 @@ const CompetitionBadge = styled.span<{ $level: CompetitionLevel }>`
     if (props.$level === 'high') return 'var(--color-danger)'
     return 'var(--color-text-700)'
   }};
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 24px;
 `
