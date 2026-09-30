@@ -8,7 +8,24 @@ describe('formatStatusValue', () => {
   })
 
   it('formats sales with eok and man-won units', () => {
-    expect(formatStatusValue('sales', 15_847_230_000)).toBe('158억 4723만원')
+    expect(formatStatusValue('sales', 15_847_230_000)).toBe('158억 4,723만원')
+  })
+
+  it('lifts sales of one jo or more to jo and eok, dropping man', () => {
+    // 예전 표기는 "31346억 5205만원" 이었다 — 억이 다섯 자리라 크기가 들어오지 않았다.
+    expect(formatStatusValue('sales', 3_134_652_050_000)).toBe('3조 1,347억원')
+    expect(formatStatusValue('sales', 1_000_000_000_000)).toBe('1조원')
+  })
+
+  it('formats foot traffic over one eok with a thousands separator', () => {
+    expect(formatStatusValue('footTraffic', 145_392_456)).toBe('1억 4,539만명')
+  })
+
+  it.each([
+    [99_995_000, '1억원'],
+    [999_999_990_000, '1조원'],
+  ])('carries a rounded value %s up to the next unit', (value, expected) => {
+    expect(formatStatusValue('sales', value)).toBe(expected)
   })
 
   it.each(['opened', 'closed'] as const)(
@@ -42,7 +59,7 @@ describe('formatStatusValue', () => {
   )
 
   it.each([
-    [50_000_000, '5000만원'],
+    [50_000_000, '5,000만원'],
     // 1만 미만은 만 단위 없이 그대로 표기한다 (formatSinoUnit 의 TEN_THOUSAND 분기)
     [0, '0원'],
   ])('omits the zero-eok unit for sales value %s', (value, expected) => {

@@ -5,6 +5,13 @@ const koreanChangeFormatter = new Intl.NumberFormat('ko-KR', {
   maximumFractionDigits: 1,
 })
 
+export const STATUS_METRIC_LABELS: Record<StatusMetric, string> = {
+  footTraffic: '유동인구',
+  sales: '매출',
+  opened: '개업',
+  closed: '폐업',
+}
+
 const EMPTY_STATUS_VALUE = '데이터 없음'
 const TEN_THOUSAND = 10_000
 
@@ -14,10 +21,16 @@ const isFiniteNumber = (value: number | null | undefined): value is number =>
 const isValidTotal = (value: number | null | undefined): value is number =>
   isFiniteNumber(value) && value >= 0 && Number.isInteger(value)
 
+const EOK = TEN_THOUSAND * TEN_THOUSAND
+
 /**
- * 큰 수를 "N억 M만{단위}" 형태로 표기한다. 만 단위에서 반올림하며,
+ * 큰 수를 **가장 큰 두 자리 단위 + 쉼표**로 표기한다. 둘째 단위에서 반올림한다.
+ * 예) 145,283,456 → "1억 4,528만명", 3,134,652,050,000 → "3조 1,347억원"
+ *
+ * 예전에는 억 아래를 모두 만으로 적어 "31346억 5205만원"처럼 다섯 자리 억이 나왔다.
+ * 자릿수를 세어야 크기가 들어와 조 단위를 올리고, 셋째 단위(만)는 버린다 — 순위
+ * 목록에서 비교하는 건 앞 두 자리다. 시뮬레이션의 `formatLargeWon` 과 같은 쉼표 규칙이다.
  * 1만 미만은 반올림 없이 그대로 표기한다(작은 개수 등).
- * 예) 145,283,456 → "1억 4528만명", 132,423,450,000 → "1324억 2345만원"
  */
 export const formatSinoUnit = (
   value: number | null | undefined,
@@ -31,16 +44,33 @@ export const formatSinoUnit = (
     return `${koreanNumberFormatter.format(Math.round(value))}${suffix}`
   }
 
+  // 반올림한 값으로 자리를 정한다. 9999만 5천은 "10,000만"이 아니라 "1억"이다.
   const totalMan = Math.round(value / TEN_THOUSAND)
-  const eok = Math.floor(totalMan / TEN_THOUSAND)
-  const man = totalMan % TEN_THOUSAND
 
-  if (eok > 0) {
-    const base = man > 0 ? `${eok}억 ${man}만` : `${eok}억`
-    return `${base}${suffix}`
+  if (totalMan < TEN_THOUSAND) {
+    return `${koreanNumberFormatter.format(totalMan)}만${suffix}`
   }
 
-  return `${man}만${suffix}`
+  const totalEok = Math.round(value / EOK)
+  const [major, minor, majorLabel, minorLabel] =
+    totalEok < TEN_THOUSAND
+      ? [
+          Math.floor(totalMan / TEN_THOUSAND),
+          totalMan % TEN_THOUSAND,
+          '억',
+          '만',
+        ]
+      : [
+          Math.floor(totalEok / TEN_THOUSAND),
+          totalEok % TEN_THOUSAND,
+          '조',
+          '억',
+        ]
+  const majorText = `${koreanNumberFormatter.format(major)}${majorLabel}`
+
+  return minor > 0
+    ? `${majorText} ${koreanNumberFormatter.format(minor)}${minorLabel}${suffix}`
+    : `${majorText}${suffix}`
 }
 
 /**
