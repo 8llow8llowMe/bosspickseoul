@@ -37,7 +37,7 @@ const MONTHLY_NET = MONTHLY_REVENUE - MONTHLY_COST
  */
 const INITIAL_INVESTMENT = 12000
 
-const MONTHS = 12
+export const BREAK_EVEN_MONTHS = 12
 
 /**
  * 손익 곡선의 플롯 높이(px). 200 → **260**(이슈 #223).
@@ -59,7 +59,7 @@ export const BREAK_EVEN_CHART_HEIGHT = 260
  * 그림 안에 있다. 1개월부터 그리면 시작점이 이미 한 달 벌어들인 뒤라 투자액이 사라진다.
  */
 export const buildCumulativeProfit = (
-  months = MONTHS,
+  months = BREAK_EVEN_MONTHS,
 ): { periodLabel: string; value: number; changeRate: null }[] =>
   Array.from({ length: months + 1 }, (_, month) => ({
     periodLabel: `${month}개월`,
@@ -146,7 +146,7 @@ export default function BreakEvenChart() {
     <Wrap>
       <Headline>
         {breakEven === null ? (
-          <>{MONTHS}개월 안에는 투자금을 회수하지 못합니다.</>
+          <>{BREAK_EVEN_MONTHS}개월 안에는 투자금을 회수하지 못합니다.</>
         ) : (
           <>
             <strong>{breakEven}개월</strong>째에 투자금을 회수합니다.
@@ -174,7 +174,7 @@ export default function BreakEvenChart() {
         unit="만원"
         direction={null}
         height={BREAK_EVEN_CHART_HEIGHT}
-        ariaLabel={`개업 후 ${MONTHS}개월 누적 손익`}
+        ariaLabel={`개업 후 ${BREAK_EVEN_MONTHS}개월 누적 손익`}
       />
 
       <Caption>대표 예시 데이터</Caption>

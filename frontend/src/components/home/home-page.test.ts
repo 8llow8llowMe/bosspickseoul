@@ -67,16 +67,16 @@ describe('HomePage', () => {
   /*
    * TC-004(개정, home-restructure.md D7-3) — 각 탭 패널이 자기 도구 CTA 를 갖는다.
    * 활성 패널만 렌더하므로 01 패널 CTA(/status)만 첫 렌더에 있고, 나머지는 데이터로
-   * 고정한다. 02 는 CTA 가 없다 — 미니데모가 「이 조건으로 AI 리포트 받기」를 든다
-   * (analysis-mini-demo.test.ts). 첫 렌더의 /analysis·/recommend 는 히어로·벤토에서 온다.
+   * 고정한다. 02 CTA 도 패널 왼쪽에 있다(story-panel-redesign D4-2 — 미니데모에서 옮겼다).
+   * 첫 렌더의 /analysis·/recommend 는 히어로·벤토에서 온다.
    */
   it('각 탭 패널이 자기 도구 CTA 를 갖는다 (TC-004)', () => {
     const html = render()
 
     expect(html).toContain('href="/status"')
-    expect(STORY_STEPS.map(step => step.cta?.href ?? null)).toEqual([
+    expect(STORY_STEPS.map(step => step.cta.href)).toEqual([
       '/status',
-      null,
+      '/analysis',
       '/recommend',
       '/simulation',
     ])
