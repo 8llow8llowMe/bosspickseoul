@@ -4,8 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import RecommendComparePage from '@/components/recommend/compare/recommend-compare-page'
+import { findSimulationCategoryByCode } from '@/data/simulation-catalog'
 import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import { recommendComparisonKey } from '@/lib/recommend/recommend-query-keys'
+import { formatRecommendationPeriod } from '@/lib/recommend/recommend-state'
 import type { CommercialComparisonBody } from '@/types/commercial-comparison'
 
 const searchParamsBox = vi.hoisted(() => ({ current: new URLSearchParams() }))
@@ -334,5 +336,103 @@ describe('RecommendComparePage', () => {
     const markup = render(`${BASE}&commercialCodes=3110008,3110012`)
 
     expect(markup).not.toContain('draftSource=comparison')
+  })
+  /*
+   * BE #381 의 조회 조건·기준 안내. 요청은 URL 값 그대로 보내고(요청 키가 바뀌지 않게),
+   * 화면에 적는 분기·업종은 응답의 「실제 조회값」을 먼저 쓴다.
+   */
+  it('응답의 periodCode·serviceCode 로 부제 분기와 제목 업종을 적는다', () => {
+    const markup = render(
+      `${BASE}&commercialCodes=3110008,3110012`,
+      body({
+        periodCode: '20241',
+        serviceCode: 'CS100001',
+        salesMetrics: [
+          {
+            label: '월 매출',
+            leftValue: 1,
+            rightValue: 2,
+            diffValue: -1,
+            diffRate: -50,
+            winnerSide: null,
+          },
+        ],
+      }),
+    )
+
+    expect(markup).toContain('2024년 1분기 기준')
+    const serviceName = findSimulationCategoryByCode('CS100001')?.item.name
+    expect(serviceName).toBeTruthy()
+    expect(markup).toContain(`${serviceName} 상권 비교`)
+  })
+
+  it('비교 기준 문장은 표 위에, 면책 문구는 비교 리포트 안에 적는다', () => {
+    const markup = render(
+      `${BASE}&commercialCodes=3110008,3110012`,
+      body({
+        comparisonGuide: {
+          periodBasis: '모든 지표는 선택한 분기의 데이터를 기준으로 합니다.',
+          serviceBasis:
+            '매출·점포 지표는 선택 업종 기준이며, 유동인구·소비·거주인구·시설은 상권 전체 기준입니다.',
+          differenceBasis: null,
+          diffRateBasis: null,
+          recommendationDisclaimer:
+            '추천은 핵심 지표의 단순 우위 개수를 비교한 참고 결과이며 수익이나 창업 성과를 보장하지 않습니다.',
+          metricGroups: [],
+        },
+        recommendedSide: {
+          code: 'LEFT',
+          name: '좌측 상권 우세',
+          description: '',
+        },
+        recommendedReasons: ['유동인구가 꾸준해요'],
+        salesMetrics: [
+          {
+            label: '총 매출액',
+            leftValue: 43267840,
+            rightValue: 293433501,
+            diffValue: -250165661,
+            diffRate: -85.25,
+            unit: '원',
+            displayPrecision: 0,
+            differenceUnit: '원',
+            description: '선택 분기의 요일별 매출액을 합산한 값입니다.',
+            winnerSide: null,
+          },
+        ],
+      }),
+    )
+
+    expect(markup).toContain('aria-label="비교 기준"')
+    expect(markup).toContain(
+      '매출·점포 지표는 선택 업종 기준이며, 유동인구·소비·거주인구·시설은 상권 전체 기준입니다.',
+    )
+    const report = markup.slice(markup.indexOf('aria-label="비교 리포트"'))
+    expect(report).toContain('수익이나 창업 성과를 보장하지 않습니다.')
+    expect(markup).toContain('293,433,501원')
+  })
+
+  it('구버전 응답이면 기준 목록 없이 고정 분기로 적는다', () => {
+    const markup = render(
+      `${BASE}&commercialCodes=3110008,3110012`,
+      body({
+        salesMetrics: [
+          {
+            label: '월 매출',
+            leftValue: 1000,
+            rightValue: 600,
+            diffValue: 400,
+            diffRate: 66.7,
+            winnerSide: null,
+          },
+        ],
+      }),
+    )
+
+    expect(markup).not.toContain('비교 기준')
+    expect(markup).toContain(
+      formatRecommendationPeriod(RECOMMENDATION_PERIOD_CODE),
+    )
+    expect(markup).toContain('+400')
   })
 })

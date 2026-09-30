@@ -21,6 +21,7 @@ import {
 } from '@/lib/recommend/compare-url'
 import { createComparisonDraftHref } from '@/lib/community/comparison-draft-url'
 import {
+  toComparisonBases,
   toComparisonGroups,
   toComparisonVerdict,
 } from '@/lib/recommend/comparison-presentation'
@@ -157,18 +158,27 @@ export default function RecommendComparePage() {
 
   const groups = useMemo(() => toComparisonGroups(body), [body])
   const verdict = useMemo(() => toComparisonVerdict(body), [body])
+  const bases = useMemo(() => toComparisonBases(body), [body])
 
   const error = resolveApiError(comparisonQuery)
 
-  const serviceName = state.serviceCode
-    ? (findSimulationCategoryByCode(state.serviceCode)?.item.name ?? null)
+  /*
+   * 화면에 적는 업종·분기는 응답의 **실제 조회값**(`serviceCode`·`periodCode`)을
+   * 먼저 쓴다. 구버전 응답에는 없어 URL·고정값으로 물러난다. 요청 키와 초안 링크는
+   * 계속 URL 값을 쓴다 — 요청을 바꾸지 않는다(명세 compare D4-8).
+   */
+  const displayServiceCode = body?.serviceCode || state.serviceCode
+  const serviceName = displayServiceCode
+    ? (findSimulationCategoryByCode(displayServiceCode)?.item.name ?? null)
     : null
   /*
    * 자치구·행정동 **이름**은 비교 응답의 좌측 메타에 들어 있다. 아직 못 받았으면
    * 코드를 날것으로 보여 주는 대신 기간만 적는다.
    */
   // `formatRecommendationPeriod` 가 「… 기준」까지 만든다. 여기서 또 붙이지 않는다.
-  const periodLabel = formatRecommendationPeriod(RECOMMENDATION_PERIOD_CODE)
+  const periodLabel = formatRecommendationPeriod(
+    body?.periodCode || RECOMMENDATION_PERIOD_CODE,
+  )
   const subtitle = body?.left
     ? `${body.left.districtName} ${body.left.administrationName} · ${periodLabel}`
     : periodLabel
@@ -296,6 +306,7 @@ export default function RecommendComparePage() {
 
       {groups.length > 0 ? (
         <RecommendCompareTable
+          bases={bases}
           groups={groups}
           leftName={body?.left?.commercialName ?? '좌측 상권'}
           rightName={body?.right?.commercialName ?? '우측 상권'}
