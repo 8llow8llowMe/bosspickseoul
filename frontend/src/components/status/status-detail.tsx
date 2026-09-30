@@ -48,6 +48,12 @@ type StatusDetailProps = {
   metric: StatusMetric
   /** 이 상세를 불러온 기준 분기(YYYYQ). 머리의 순위 줄 뒤에 「… 기준」으로 적는다. */
   periodCode: string
+  /**
+   * 분기를 바꾸는 중이라 머리의 값·증감·순위(`rankedItem`)가 **직전 분기** Top10 에서 왔다.
+   * 새 응답이 올 때까지 그 줄을 `aria-busy` 로 흐리게 둔다(status.md 1.6). 순위 항목을 null
+   * 로 만들지 않는 이유: 그러면 「상위 10위 밖」으로 잘못 읽히고 머리 높이가 흔들린다.
+   */
+  isRankPending?: boolean
   /** 순위 밖 구도 올 수 있다 — 그때 `rankedItem` 이 null 이다. */
   selectedDistrict: StatusSelectedDistrict | null
   detail: DistrictDetail | null
@@ -207,11 +213,25 @@ const Title = styled.h2<{ $compact?: boolean }>`
 
 // 값(00명)과 변화(감소 -x%)를 한 줄에 가로로 붙인다. 좁으면 **칩을 통째로** 다음 줄로
 // 보낸다 — 예전엔 nowrap 이라 값이 「…5205만 / 원」으로 쪼개지고 칩이 「감 / 소」로 세워졌다.
+// 분기 전환 중 옛 분기 값을 흐리게 둔다(목록·지도와 같은 표시, status.md 1.6).
+const rankPendingStyles = `
+  transition: opacity var(--motion-fast) var(--ease-standard);
+
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`
+
 const HeaderMetric = styled.div`
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 10px;
+  ${rankPendingStyles}
 `
 
 const HeaderValue = styled.strong`
@@ -228,6 +248,7 @@ const HeaderRank = styled.p`
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;
+  ${rankPendingStyles}
 `
 
 // 어느 쪽이 좋고 나쁜지는 목록과 같은 규칙(`getStatusChangeTone`, 폐업 반전)을 따른다.
@@ -1084,6 +1105,7 @@ function useDetailSections(enabled: boolean) {
 function DetailHeader({
   metric,
   periodCode,
+  isRankPending = false,
   selectedDistrict,
   onBack,
   backButtonRef,
@@ -1092,6 +1114,7 @@ function DetailHeader({
   StatusDetailProps,
   | 'metric'
   | 'periodCode'
+  | 'isRankPending'
   | 'selectedDistrict'
   | 'onBack'
   | 'backButtonRef'
@@ -1125,7 +1148,10 @@ function DetailHeader({
               : '자치구 상세'}
           </Title>
           {rankedItem ? (
-            <HeaderMetric>
+            <HeaderMetric
+              aria-busy={isRankPending || undefined}
+              data-status-detail-metric
+            >
               <HeaderValue>
                 {formatStatusValue(metric, rankedItem.value)}
               </HeaderValue>
@@ -1138,7 +1164,10 @@ function DetailHeader({
             </HeaderMetric>
           ) : null}
           {selectedDistrict ? (
-            <HeaderRank data-status-detail-rank>
+            <HeaderRank
+              aria-busy={isRankPending || undefined}
+              data-status-detail-rank
+            >
               {rankedItem
                 ? `${metricLabel} ${rankedItem.rank}위`
                 : `${metricLabel} 상위 10위 밖`}
@@ -1157,6 +1186,7 @@ function DetailHeader({
 export default function StatusDetail({
   metric,
   periodCode,
+  isRankPending = false,
   selectedDistrict,
   detail,
   isLoading,
@@ -1174,6 +1204,7 @@ export default function StatusDetail({
   const header = (
     <DetailHeader
       backButtonRef={backButtonRef}
+      isRankPending={isRankPending}
       metric={metric}
       periodCode={periodCode}
       onBack={onBack}

@@ -38,7 +38,7 @@ type StatusMobileSheetProps = {
   periodCode: string
   /**
    * 분기를 바꾸는 중이라 목록이 직전 분기 응답을 자리 표시로 들고 있다(status.md 1.6).
-   * 목록일 때만 흐리게 둔다 — 상세는 자기 스켈레톤이 있다.
+   * 목록은 본문째 흐리게 두고, 상세는 머리의 값·순위만 흐린다(본문은 자기 스켈레톤이 있다).
    */
   isPeriodPending?: boolean
   items: StatusRankedItem[]
@@ -460,6 +460,7 @@ export default function StatusMobileSheet({
             error={detailError}
             isLoading={isDetailLoading}
             metric={metric}
+            isRankPending={isPeriodPending}
             periodCode={periodCode}
             selectedDistrict={selectedDistrict}
             variant="sheet"
