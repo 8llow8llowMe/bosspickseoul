@@ -30,7 +30,7 @@
 
 | #   | 요구사항                                                                                                                                             | 상세 참조 |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1   | 고정 모드는 `(min-width: 1100px) and (min-height: 760px) and (prefers-reduced-motion: no-preference)` 에서만 켠다. 그 밖은 탭 클릭 모드(현재 동작)다 | D4-1      |
+| 1   | 고정 모드는 `(min-width: 1100px) and (min-height: 800px) and (prefers-reduced-motion: no-preference)` 에서만 켠다. 그 밖은 탭 클릭 모드(현재 동작)다 | D4-1      |
 | 2   | 고정 모드의 레이아웃(트랙 높이·sticky)은 **CSS 미디어 쿼리로만** 정한다 — JS 판정이 늦어도 첫 로드에 페이지 높이가 튀지 않는다                       | D4-1      |
 | 3   | 고정 모드에서 선택 단계는 스크롤 위치에서 유도한다. 한 단계당 스크롤 60dvh, 네 단계가 같은 몫을 갖는다                                               | D4-2      |
 | 4   | 고정 모드에서 탭 클릭·←/→·Home/End 는 그 단계 몫의 **가운데**로 스크롤한다(동작 줄이기가 아니면 smooth). 스크롤 위치와 선택이 어긋나지 않는다        | D4-3      |
@@ -55,7 +55,7 @@ product-story.tsx
 ```ts
 export const STORY_STEP_SCROLL_DVH = 60
 export const STORY_PIN_QUERY =
-  '(min-width: 1100px) and (min-height: 760px) and (prefers-reduced-motion: no-preference)'
+  '(min-width: 1100px) and (min-height: 800px) and (prefers-reduced-motion: no-preference)'
 
 /** pin 구간 안에서 스크롤한 거리 → 단계. 구간 밖은 양 끝 단계로 자른다. */
 export function pinnedStepIndex(
