@@ -1,82 +1,134 @@
 'use client'
 
+import { ArrowRight } from 'lucide-react'
 import styled from 'styled-components'
 
-import DonutChart from '@/components/analysis/charts/donut-chart'
+import DemoFrame, { SampleBadge } from '@/components/home/demo-frame'
+import { barPercent } from '@/components/home/rank-bar-list'
 import { findDistrictOption, findIndustryOption } from '@/data/home-demo'
 import type { DemoSelection } from '@/data/home-demo'
 import { useRecommendPreview } from '@/hooks/use-recommend-preview'
 
 /**
- * 스토리 03 단계 데모 — **후보가 좁혀지는 것**을 보여 준다.
+ * 판단 흐름 03 단계 데모 — **후보가 좁혀진 결과**를 보여 준다.
  *
- * 전에는 01 단계와 **같은 `RankBarList`** 를 썼다. 그래서 홈에 똑같이 생긴 순위 막대가
- * 세 번(01 · 03 · 「지금 많이 본 지역」) 나왔고, 단계가 넘어가도 화면이 바뀐 것처럼
- * 보이지 않았다.
+ * 예전엔 도넛(「상권 9곳 중 5곳」)이 주인공이었다. 두 조각이 비슷한 파랑이라 구분되지
+ * 않았고, 정작 이 단계의 결과물인 후보 5곳은 작은 칩으로 밀려 있었다. 좁혀진 폭은 패널
+ * 왼쪽 큰 숫자(`9 → 5곳`)와 머리줄 퍼널이 말하므로, 여기는 **후보 목록**을 주인공으로
+ * 둔다(story-panel-redesign.md D4-8).
  *
- * 이 단계가 실제로 하는 일은 **줄 세우기가 아니라 걸러내기**다(상권 N 곳 중 조건에 맞는
- * M 곳). 그래서 비율을 보여 주는 도넛이 맞다 — 순위 막대는 걸러진 결과의 순서만 말하고
- * "몇 개에서 몇 개로 줄었는지"는 말하지 못한다.
+ * 01 과 같은 순위 막대를 쓰지 않는다 — 홈에 같은 모양이 세 번 나오던 문제(story-and-
+ * rankings)를 되살리지 않도록, 행을 카드로 띄우고 막대는 점수 옆 짧은 보조 표시로 둔다.
  */
-const SeedLabel = styled.p`
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-caption);
-`
-
-const Narrowing = styled.p`
-  margin: 0 0 4px;
-  color: var(--color-text-900);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 28px;
+const Funnel = styled.p`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
 
   strong {
-    color: var(--color-primary-700);
+    color: var(--color-text-900);
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
+  }
+
+  strong:last-of-type {
+    color: var(--color-primary-700);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
   }
 `
 
-const Picked = styled.ul`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0 0;
+const Candidates = styled.ol`
+  display: grid;
+  gap: 8px;
+  margin: 0;
   padding: 0;
   list-style: none;
 `
 
-const PickedItem = styled.li`
-  display: inline-flex;
+const Candidate = styled.li`
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 160px) 64px;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-muted);
-  color: var(--color-text-700);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
+  gap: 14px;
+  min-height: 52px;
+  padding: 10px 16px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+
+  @media (max-width: 480px) {
+    grid-template-columns: 28px minmax(0, 1fr) 56px;
+    gap: 10px;
+  }
 `
 
-const PickedRank = styled.span`
-  color: var(--color-primary-700);
+const Rank = styled.span<{ $first: boolean }>`
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  background: ${p =>
+    p.$first ? 'var(--color-primary-700)' : 'var(--color-surface-muted)'};
+  color: ${p => (p.$first ? '#ffffff' : 'var(--color-text-700)')};
+  font-size: 13px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 `
 
-const Reason = styled.p`
-  margin-top: 10px;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--color-text-700);
-  word-break: keep-all;
+const Name = styled.span`
+  overflow: hidden;
+  color: var(--color-text-900);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `
 
-const Sample = styled.p`
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--color-text-caption);
+/* 이름 옆 보조 표시라 짧고 얇다(160px · 8px). 좁은 화면에서는 뺀다 — 점수 숫자가 남는다. */
+const ScoreTrack = styled.span`
+  display: block;
+  height: 8px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+
+  @media (max-width: 480px) {
+    display: none;
+  }
+`
+
+const ScoreFill = styled.span<{ $first: boolean }>`
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-control);
+  background: ${p =>
+    p.$first ? 'var(--color-primary-600)' : 'var(--color-grey-300)'};
+`
+
+const Score = styled.span`
+  color: var(--color-text-900);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+`
+
+const Aside = styled.span`
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 `
 
 export type RecommendPreviewProps = {
@@ -107,7 +159,6 @@ export const toNarrowingSegments = (
 export default function RecommendPreview({ selection }: RecommendPreviewProps) {
   const { administrationName, isLoading, commercialsCount, view } =
     useRecommendPreview(selection)
-
   const districtName = findDistrictOption(selection.districtId)?.name ?? ''
   const industryName = findIndustryOption(selection.industryId)?.name ?? ''
 
@@ -121,41 +172,47 @@ export default function RecommendPreview({ selection }: RecommendPreviewProps) {
 
   const picked = view.rows.length
   const narrowing = toNarrowingSegments(commercialsCount, picked)
+  const showSample = view.isSample && !isLoading
 
   return (
-    <div>
-      <SeedLabel>{label}</SeedLabel>
-
-      {narrowing ? (
-        <>
-          <Narrowing>
-            상권 <strong>{narrowing.total}곳</strong> 중{' '}
-            <strong>{picked}곳</strong>을 골랐습니다.
-          </Narrowing>
-          <DonutChart
-            segments={narrowing.segments}
-            unit="곳"
-            ariaLabel={`상권 ${narrowing.total}곳 중 조건에 맞는 ${picked}곳`}
-          />
-        </>
-      ) : (
-        // 총계를 모르면 비율을 그리지 않고 고른 결과만 말한다.
-        <Narrowing>
-          조건에 맞는 상권 <strong>{picked}곳</strong>을 골랐습니다.
-        </Narrowing>
-      )}
-
-      <Picked>
-        {view.rows.map(row => (
-          <PickedItem key={row.key}>
-            <PickedRank>{row.rank}</PickedRank>
-            {row.name}
-          </PickedItem>
+    <DemoFrame
+      title={`추천 후보 ${picked}곳`}
+      subtitle={label}
+      aside={
+        narrowing || showSample ? (
+          <Aside>
+            {/* 총계를 모르면 비율을 말하지 않는다 — 고른 결과만 보여 준다. */}
+            {narrowing ? (
+              <Funnel>
+                상권 <strong>{narrowing.total}곳</strong>
+                <ArrowRight role="img" aria-label="에서" />
+                추천 <strong>{picked}곳</strong>
+              </Funnel>
+            ) : null}
+            {showSample ? <SampleBadge>예시 데이터</SampleBadge> : null}
+          </Aside>
+        ) : null
+      }
+      footer={view.reason}
+    >
+      <Candidates aria-label={`추천 후보 ${picked}곳`}>
+        {view.rows.map((row, index) => (
+          <Candidate key={row.key}>
+            <Rank $first={index === 0} aria-hidden="true">
+              {row.rank}
+            </Rank>
+            <Name>{row.name}</Name>
+            {/* 점수는 0~100 이다(metric-polarity 의 clamp 범위). 1위 대비가 아니라 절대 길이. */}
+            <ScoreTrack aria-hidden="true">
+              <ScoreFill
+                $first={index === 0}
+                style={{ width: `${barPercent(row.score, 100)}%` }}
+              />
+            </ScoreTrack>
+            <Score>{row.scoreLabel}</Score>
+          </Candidate>
         ))}
-      </Picked>
-
-      {view.reason ? <Reason>{view.reason}</Reason> : null}
-      {view.isSample && !isLoading ? <Sample>대표 예시 데이터</Sample> : null}
-    </div>
+      </Candidates>
+    </DemoFrame>
   )
 }
