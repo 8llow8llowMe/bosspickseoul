@@ -4,6 +4,7 @@
 -- 선행 DDL (최초 1회, 같은 스키마):
 --   1) spring-batch-schema-mysql.sql
 --   2) quarterly-dataset-schema.sql
+--   3) dataset-refresh-state-schema.sql (분기 적재 자동 최신화를 켤 때만, 이슈 #445)
 -- 운영 절차: backend/docs/services/batch-quarterly-import.md
 
 -- ---------------------------------------------------------------------------
@@ -21,7 +22,8 @@ SELECT table_name
         'dataset_staging',
         'dataset_rejected_row',
         'dataset_fact',
-        'dataset_active_release'
+        'dataset_active_release',
+        'dataset_refresh_state'
        )
  ORDER BY table_name;
 

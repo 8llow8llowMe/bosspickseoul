@@ -218,13 +218,15 @@ backend/
 
 ## service/batch-service
 
-**역할**: 대량 데이터 적재용 일회성/수동 실행 배치와, 상시 인스턴스의 정책 수집 Quartz Job
+**역할**: 대량 데이터 적재용 일회성/수동 실행 배치와, 상시 인스턴스의 정책 수집·분기 적재 자동 최신화 Quartz Job
 
 **처리:**
 - 영역 좌표(area_boundary) 대량 적재 (`AreaBoundaryImportJob`, `areaboundary` 컨텍스트)
 - 서울 Open API 15종 분기 적재 → `dataset_release`/`dataset_fact`/`dataset_active_release`, 공간 스냅샷(GEOJSON·LEGACY) 게시 (`dataingestion` 컨텍스트, `--job=facts|spatial`, `quarterly` 프로파일)
 - 게시한 릴리스를 기존 팩트 테이블 컬럼으로 이관 (`--job=project`). 이때 commercial 소유 `service_category` 를 읽어 `service_type` 을 채운다
 - 기업마당 정책 수집·만료 (`policyingestion` 컨텍스트, `BATCH_POLICY_ENABLED`, Quartz `policyCollectJob`/`policyPurgeJob`, 기본 비활성). `policy` 는 `COMMERCIAL_DB_URL`, Quartz 는 `BATCH_DB_URL`
+- 분기 적재 자동 최신화 (`dataingestion` 컨텍스트, `BATCH_DATASET_REFRESH_ENABLED`, Quartz `datasetRefreshTrigger` 매일 05:00, 기본 비활성). 수동 CLI 와 같은 Job 을 상시 인스턴스에서 띄운다. 주간 스테이징 정리 `datasetStagingPurgeJob` (`BATCH_STAGING_PURGE_ENABLED`, 기본 비활성)
+- commercial 접속은 `CommercialDataSourceConfig`(`commercialJdbcTemplate`/`commercialTransactionManager`, `policy*` 는 별칭) 한 곳에서 연다
 
 **특수 의존**: `core:shared-commercial` (`DatasetKey` — 데이터셋 이름·Open API 서비스명의 정본), `core:persistence-core` (Snowflake ID. JPA 자동설정은 제외)
 

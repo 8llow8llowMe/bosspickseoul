@@ -3,8 +3,12 @@
 개발 서버의 상시 `batch-service` 는 `BATCH_DB_URL` 로 **district** 를 본다. `policy` 테이블은 **commercial** 에 있다.
 새 `scheduler-service` 를 만들지 않는다. 같은 프로세스가 `COMMERCIAL_DB_URL` 을 두 번째 DataSource 로 붙인다.
 
-- 분기 적재·영역 좌표·Quartz/`BATCH_*` 메타 → `BATCH_DB_URL` (district)
-- 정책 upsert/stale-mark/purge → `COMMERCIAL_DB_URL` (commercial)
+- Quartz `QRTZ_*` / Spring Batch `BATCH_*` 메타 → `BATCH_DB_URL` (district)
+- 정책 upsert/stale-mark/purge, 분기 적재 자동 최신화·스테이징 정리 → `COMMERCIAL_DB_URL` (commercial)
+
+접속 정보 키는 `batch.commercial.datasource.*` 다(이슈 #445 에서 정책 전용 `batch.policy.datasource.*` 를 공용으로 옮겼다). env 이름은 그대로다. 정책 코드가 쓰는 `policyJdbcTemplate` / `policyTransactionManager` 는 `commercialJdbcTemplate` / `commercialTransactionManager` 의 별칭이라 정책 동작은 같다.
+
+영역 좌표(`areaBoundaryImportJob`)는 상시 인스턴스에서 띄우는 경로가 없다. 컨텍스트의 JdbcTemplate 이 `commercialJdbcTemplate` 하나뿐이라, commercial Job 이 켜진 인스턴스에서 그 Job 을 띄우면 district 가 아니라 commercial 로 간다.
 
 Vault 에 `COMMERCIAL_DB_URL` 은 이미 있다. `BATCH_DB_URL` 과 전역 `SPRING_PROFILES_ACTIVE` 는 바꾸지 않는다.
 
@@ -91,7 +95,7 @@ DDL 을 넣은 뒤 batch-service 만 재배포한다. `scheduler` 프로파일�
 
 기동 직후 로그에서 확인할 것:
 
-- `Policy ingest must use COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 예외가 없다
+- `Commercial jobs must use COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 예외가 없다 (`CommercialTargetGuardRunner`)
 - Quartz 가 `policyCollectTrigger` / `policyPurgeTrigger` 를 등록했다
 - 프로세스가 종료하지 않는다 (`quarterly` 만 `System.exit`)
 
