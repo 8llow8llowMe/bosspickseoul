@@ -62,6 +62,12 @@ export type RecommendMapProps = {
   isResultSelectionExplicit?: boolean
   /** 추천 결과를 받아 오는 중이면 카메라를 건드리지 않는다. */
   isResultsLoading?: boolean
+  /**
+   * 선택한 행정동·자치구의 폴리곤이 없을 때 카메라가 대신 담을 **소속 중심점**. 폴리곤은
+   * 뷰포트 질의라 자기 단계에서만 오므로, 이것이 없으면 서울 기본으로 튕긴다(#442).
+   */
+  administrationMemberPoints?: readonly MapPoint[] | null
+  districtMemberPoints?: readonly MapPoint[] | null
   previewedCommercialCode?: string | null
   onDistrictSelect: (districtCode: string) => void
   onAdministrationSelect: (administrationCode: string) => void
@@ -542,6 +548,8 @@ export default function RecommendMap({
   selectedCommercialCode,
   isResultSelectionExplicit = false,
   isResultsLoading = false,
+  administrationMemberPoints,
+  districtMemberPoints,
   previewedCommercialCode = null,
   onDistrictSelect,
   onAdministrationSelect,
@@ -657,6 +665,8 @@ export default function RecommendMap({
     resultPoints: collectResultCameraPoints(resultAreas),
     administrationPoints: getAreaPoints(selectedAdministration),
     districtPoints: getAreaPoints(selectedDistrict),
+    administrationMemberPoints,
+    districtMemberPoints,
   })
   /*
    * 모드를 **키를 만들기 전에** 씌운다. `'url'` 동안 키가 `keep` 하나로 고정되므로
