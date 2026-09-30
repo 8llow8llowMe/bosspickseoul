@@ -19,15 +19,16 @@ export default function HomePage() {
       */}
       <ProductStory />
       {/*
-        판단 흐름 바로 뒤에 그 숫자들의 출처를 둔다 — 카드가 단계 번호(01~04)를 달고 있어
-        「방금 본 네 단계의 근거」로 읽힌다(data-sources.md).
-      */}
-      <DataSources />
-      {/*
-        스토리(무엇을 해 주는가) 다음, 벤토 CTA(가입) 앞에 라이브 근거를 둔다.
+        스토리(무엇을 해 주는가) 다음에 라이브 근거를 둔다.
         실패하거나 집계가 비면 이 섹션은 스스로 빠지므로 순서에 구멍이 나지 않는다.
       */}
       <PopularDistricts />
+      {/*
+        숫자들의 출처는 벤토 CTA(가입) 바로 앞이다 — 섹션이 한 화면씩이 되면서 판단 흐름 바로
+        뒤에 두면 라이브 근거와 CTA 가 한 화면 더 밀렸다. CTA 가 마지막 장면으로 남고, 근거가
+        그 직전에 망설임을 던다(full-screen-sections-and-live-tooltip.md D4-3).
+      */}
+      <DataSources />
       <FeatureBento />
     </Page>
   )
