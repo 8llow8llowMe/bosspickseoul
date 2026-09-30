@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import com.followfollowme.bosspickseoul.global.properties.PolicyIngestionProperties;
+import com.followfollowme.bosspickseoul.global.properties.CommercialDataSourceProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -44,19 +44,7 @@ class PolicySchedulerGuardRunnerTest {
             .hasMessageNotContaining(COMMERCIAL);
     }
 
-    private static PolicyIngestionProperties enabledProperties(String url) {
-        return new PolicyIngestionProperties(
-            true, "0 0 6 * * ?", "0 30 6 * * ?", 0.5, 30,
-            new PolicyIngestionProperties.Bizinfo(
-                "https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do",
-                "key",
-                "소상공인",
-                100,
-                20,
-                30,
-                3
-            ),
-            new PolicyIngestionProperties.Datasource(url, "user", "secret", "com.mysql.cj.jdbc.Driver")
-        );
+    private static CommercialDataSourceProperties enabledProperties(String url) {
+        return new CommercialDataSourceProperties(url, "user", "secret", "com.mysql.cj.jdbc.Driver");
     }
 }

@@ -34,6 +34,9 @@ batch:
       max-pages: 20
       timeout-seconds: 30
       max-attempts: 3
+  # commercial 스키마. 정책 수집·분기 적재 자동 최신화·스테이징 정리 중 하나라도 켜지면 두 번째 풀로 연다.
+  # 모두 꺼져 있으면 기본 DataSource 를 그대로 쓴다(quarterly CLI 는 COMMERCIAL_DB_URL 을 받지 않는다).
+  commercial:
     datasource:
       url: ${COMMERCIAL_DB_URL:}
       username: ${DB_USERNAME:}

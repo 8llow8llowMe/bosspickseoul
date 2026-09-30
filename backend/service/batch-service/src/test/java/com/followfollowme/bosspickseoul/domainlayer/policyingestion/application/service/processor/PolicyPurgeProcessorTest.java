@@ -46,8 +46,7 @@ class PolicyPurgeProcessorTest {
                 20,
                 30,
                 3
-            ),
-            null
+            )
         );
     }
 }
