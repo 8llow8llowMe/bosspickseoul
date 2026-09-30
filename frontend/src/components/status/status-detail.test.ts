@@ -1,9 +1,9 @@
-import { createElement } from 'react'
+import { createElement, type ComponentProps } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { StatusSelectedDistrict } from '@/types/status'
+import type { DistrictDetail, StatusSelectedDistrict } from '@/types/status'
 import StatusDetail, { StatGrid } from './status-detail'
 
 const squeeze = (css: string): string => css.replace(/\s+/g, '')
@@ -79,5 +79,50 @@ describe('/status 상세 머리', () => {
     expect(markup).toContain('개업 상위 10위 밖')
     expect(markup).not.toContain('%')
     expect(markup).not.toContain('데이터 없음')
+  })
+})
+
+describe('/status 상세 바로가기와 분석 CTA', () => {
+  const selectedDistrict: StatusSelectedDistrict = {
+    districtCode: '11650',
+    districtName: '서초구',
+    rankedItem: null,
+  }
+  const render = (props: Partial<ComponentProps<typeof StatusDetail>> = {}) =>
+    renderToStaticMarkup(
+      createElement(StatusDetail, {
+        metric: 'sales',
+        selectedDistrict,
+        detail: null,
+        isLoading: false,
+        error: null,
+        onRetry: vi.fn(),
+        ...props,
+      }),
+    )
+
+  it('자치구 상권분석으로 가는 CTA 를 붙인다 — 로딩 중에도 출구는 보인다', () => {
+    const markup = render({ isLoading: true })
+
+    expect(markup).toContain('href="/analysis?districtCode=11650"')
+    expect(markup).toContain('서초구 상권 분석하기')
+  })
+
+  it('상세가 없으면 바로가기 칩을 그리지 않는다', () => {
+    expect(render({ isLoading: true })).not.toContain('data-status-detail-chip')
+    expect(render()).not.toContain('data-status-detail-chip')
+  })
+
+  it('상세가 있으면 네 묶음 바로가기와 그 앵커를 그린다', () => {
+    const markup = render({ detail: {} as DistrictDetail })
+
+    for (const key of ['flow', 'footTraffic', 'store', 'sales']) {
+      expect(markup).toContain(`data-status-detail-chip="${key}"`)
+      expect(markup).toContain(`data-status-detail-section="${key}"`)
+    }
+    // 처음엔 첫 묶음이 켜져 있다.
+    expect(markup).toMatch(
+      /aria-current="location"[^>]*data-status-detail-chip="flow"/,
+    )
   })
 })

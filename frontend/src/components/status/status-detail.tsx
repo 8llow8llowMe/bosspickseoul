@@ -1,13 +1,22 @@
 'use client'
 
-import type { ReactNode, Ref } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import styled from 'styled-components'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
+import { ButtonLink } from '@/components/ui/button'
 import {
   createDistrictAdministrationHref,
+  createDistrictHref,
   createDistrictServiceHref,
   formatChangeSuffix,
   formatRateSuffix,
@@ -113,7 +122,9 @@ const toChartRows = <T,>(
 
 const Root = styled.article`
   min-width: 0;
-  overflow: hidden;
+  /* hidden 이 아니라 clip 이다. hidden 은 스크롤 컨테이너가 돼, 시트 안에서 머리·바로가기
+     칩·CTA 의 sticky 가 바깥 스크롤(시트 본문)이 아니라 이 상자에 묶여 붙지 않는다. */
+  overflow: clip;
   /* 차트 2열 전환을 뷰포트가 아니라 상세 자신의 폭으로 정한다(아래 ChartGrid).
      데스크톱 상세가 좌측 열(340~480px)로 옮겨 가면서 뷰포트 기준이 맞지 않게 됐다. */
   container-type: inline-size;
@@ -254,6 +265,78 @@ const Body = styled.div`
   grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   padding: 20px;
+`
+
+/*
+ * 머리와 바로가기 칩은 함께 위에 붙고, 분석 CTA 는 아래에 붙는다(status.md 1.4). 붙는 기준은
+ * 가장 가까운 스크롤 상자다 — 데스크톱은 상세 자신, 시트는 시트 본문.
+ */
+const StickyTop = styled.div`
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface);
+`
+
+const SectionNav = styled.nav<{ $compact?: boolean }>`
+  display: flex;
+  gap: 6px;
+  padding: ${props => (props.$compact ? '8px 16px' : '10px 20px')};
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border-200);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`
+
+const SectionChip = styled.button<{ $active: boolean }>`
+  min-height: 32px;
+  flex: none;
+  padding: 0 12px;
+  border: 1px solid
+    ${props =>
+      props.$active ? 'var(--color-text-900)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-pill);
+  background: ${props =>
+    props.$active ? 'var(--color-text-900)' : 'var(--color-surface)'};
+  color: ${props =>
+    props.$active ? 'var(--color-surface)' : 'var(--color-text-700)'};
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 2px;
+  }
+`
+
+// 칩이 포커스를 옮겨 받는 자리다(tabIndex -1). 칩을 누른 결과라 링을 그리지 않는다.
+const SectionAnchor = styled.div`
+  min-width: 0;
+
+  &:focus {
+    outline: none;
+  }
+`
+
+const CtaBar = styled.div<{ $compact?: boolean }>`
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  padding: ${props => (props.$compact ? '12px 16px' : '12px 20px 16px')};
+  border-top: 1px solid var(--color-border-200);
+  background: var(--color-surface);
+
+  /* 한 화면의 주 행동이라 열 폭을 다 쓴다(ButtonLink 는 기본이 inline-flex). */
+  & > a {
+    width: 100%;
+    justify-content: center;
+  }
 `
 
 // 드롭다운 대신 보고서 방식: 그룹 제목(유동인구/점포/매출) 아래에 데이터를 나열한다.
@@ -831,6 +914,166 @@ function SalesSection({
   )
 }
 
+const DETAIL_SECTIONS = [
+  { key: 'flow', label: '상권 흐름' },
+  { key: 'footTraffic', label: '유동인구' },
+  { key: 'store', label: '점포' },
+  { key: 'sales', label: '매출' },
+] as const
+
+type DetailSectionKey = (typeof DETAIL_SECTIONS)[number]['key']
+
+// 칩이 가리킬 묶음을 고를 때, 붙어 있는 머리 아래로 이만큼 들어온 묶음까지 「지금 보는 것」이다.
+const SECTION_ACTIVE_SLACK_PX = 16
+// 칩을 눌러 부드럽게 스크롤하는 동안에는 지나가는 묶음 칩이 차례로 켜지지 않게 잠근다.
+// `scrollend` 가 없는 브라우저를 위해 이 시간 뒤에는 잠금을 푼다.
+const SECTION_SCROLL_LOCK_MS = 800
+
+/*
+ * 가장 가까운 스크롤 상자. `hidden` 도 스크롤 상자다 — 시트가 접혀 있으면 시트 본문이
+ * `hidden` 이 되는데, 그때 로딩이 끝나도 같은 상자를 잡아야 펼친 뒤 스크롤 추적이 된다.
+ * 상세 자신의 `clip` 은 스크롤 상자가 아니라 건너뛴다(데스크톱은 상세가 `auto` 라 먼저 잡힌다).
+ */
+const findScrollParent = (element: HTMLElement | null): HTMLElement | null => {
+  let current = element
+
+  while (current) {
+    const { overflowY } = window.getComputedStyle(current)
+    if (
+      overflowY === 'auto' ||
+      overflowY === 'scroll' ||
+      overflowY === 'hidden'
+    )
+      return current
+    current = current.parentElement
+  }
+
+  return null
+}
+
+/**
+ * 상세 바로가기 칩. 누르면 그 묶음으로 스크롤하고 포커스도 옮기며, 스크롤하면 지금 보는
+ * 묶음 칩이 켜진다. 스크롤 상자는 렌더 자리마다 다르다(데스크톱 = 상세, 시트 = 시트
+ * 본문) — 가장 가까운 스크롤 조상을 찾아 거기에 붙는다.
+ *
+ * 붙어 있는 머리·칩과 아래 CTA 가 포커스를 가리지 않게(WCAG 2.4.11) 스크롤 상자의
+ * `scroll-padding` 을 그 높이로 맞춘다. 스크롤 상자는 이 컴포넌트 밖(시트 본문)일 수 있어
+ * 떠날 때 되돌린다.
+ */
+function useDetailSections(enabled: boolean) {
+  const rootRef = useRef<HTMLElement>(null)
+  const stickyRef = useRef<HTMLDivElement>(null)
+  const ctaRef = useRef<HTMLDivElement>(null)
+  const lockedKeyRef = useRef<DetailSectionKey | null>(null)
+  const [activeKey, setActiveKey] = useState<DetailSectionKey>('flow')
+
+  const getSectionTops = useCallback(() => {
+    const root = rootRef.current
+    const scroller = findScrollParent(root)
+    if (!root || !scroller) return null
+
+    const scrollerTop = scroller.getBoundingClientRect().top
+    const stickyHeight = stickyRef.current?.offsetHeight ?? 0
+    const sections = DETAIL_SECTIONS.map(({ key }) =>
+      root.querySelector<HTMLElement>(`[data-status-detail-section="${key}"]`),
+    )
+    const tops = sections.map(section =>
+      section
+        ? section.getBoundingClientRect().top - scrollerTop - stickyHeight
+        : null,
+    )
+
+    return { scroller, sections, tops }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) return
+    const measured = getSectionTops()
+    if (!measured) return
+    const { scroller } = measured
+    const previousPaddingTop = scroller.style.scrollPaddingTop
+    const previousPaddingBottom = scroller.style.scrollPaddingBottom
+    let unlockTimer: number | undefined
+
+    const syncScrollPadding = () => {
+      scroller.style.scrollPaddingTop = `${stickyRef.current?.offsetHeight ?? 0}px`
+      scroller.style.scrollPaddingBottom = `${ctaRef.current?.offsetHeight ?? 0}px`
+    }
+
+    const update = () => {
+      if (lockedKeyRef.current) return
+      const current = getSectionTops()
+      if (!current) return
+      const atBottom =
+        scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
+      // 맨 아래에 닿으면 짧은 마지막 묶음이 위까지 올라오지 못해도 켠다.
+      const index = atBottom
+        ? DETAIL_SECTIONS.length - 1
+        : current.tops.reduce<number>(
+            (active, top, i) =>
+              top !== null && top <= SECTION_ACTIVE_SLACK_PX ? i : active,
+            0,
+          )
+
+      setActiveKey(DETAIL_SECTIONS[index].key)
+    }
+
+    const unlock = () => {
+      lockedKeyRef.current = null
+    }
+
+    const handleScroll = () => {
+      if (lockedKeyRef.current) {
+        window.clearTimeout(unlockTimer)
+        unlockTimer = window.setTimeout(unlock, SECTION_SCROLL_LOCK_MS)
+        return
+      }
+      update()
+    }
+
+    syncScrollPadding()
+    update()
+    const resizeObserver = new ResizeObserver(syncScrollPadding)
+    if (stickyRef.current) resizeObserver.observe(stickyRef.current)
+    if (ctaRef.current) resizeObserver.observe(ctaRef.current)
+    scroller.addEventListener('scroll', handleScroll, { passive: true })
+    scroller.addEventListener('scrollend', unlock)
+
+    return () => {
+      window.clearTimeout(unlockTimer)
+      resizeObserver.disconnect()
+      scroller.removeEventListener('scroll', handleScroll)
+      scroller.removeEventListener('scrollend', unlock)
+      scroller.style.scrollPaddingTop = previousPaddingTop
+      scroller.style.scrollPaddingBottom = previousPaddingBottom
+    }
+  }, [enabled, getSectionTops])
+
+  const scrollToSection = (key: DetailSectionKey) => {
+    const measured = getSectionTops()
+    if (!measured) return
+    const index = DETAIL_SECTIONS.findIndex(section => section.key === key)
+    const top = measured.tops[index]
+    const section = measured.sections[index]
+    if (top === null || !section) return
+
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+    lockedKeyRef.current = reduceMotion ? null : key
+    measured.scroller.scrollBy({
+      top,
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    })
+    // 스크롤만 옮기면 키보드 사용자의 다음 Tab 이 칩 바로 뒤(위쪽 묶음의 링크)로 가서 화면이
+    // 되돌아간다. 묶음으로 포커스를 옮긴다 — 스크롤은 위에서 이미 했다.
+    section.focus({ preventScroll: true })
+    setActiveKey(key)
+  }
+
+  return { rootRef, stickyRef, ctaRef, activeKey, scrollToSection }
+}
+
 function DetailHeader({
   metric,
   selectedDistrict,
@@ -905,15 +1148,47 @@ export default function StatusDetail({
   backButtonRef,
   variant = 'panel',
 }: StatusDetailProps) {
+  const compact = variant === 'sheet'
+  const hasSections = !isLoading && error === null && detail !== null
+  const { rootRef, stickyRef, ctaRef, activeKey, scrollToSection } =
+    useDetailSections(hasSections)
+  const analysisHref = createDistrictHref(selectedDistrict?.districtCode)
+  const header = (
+    <DetailHeader
+      backButtonRef={backButtonRef}
+      metric={metric}
+      onBack={onBack}
+      selectedDistrict={selectedDistrict}
+      variant={variant}
+    />
+  )
+
   return (
-    <Root aria-busy={isLoading || undefined}>
-      <DetailHeader
-        backButtonRef={backButtonRef}
-        metric={metric}
-        onBack={onBack}
-        selectedDistrict={selectedDistrict}
-        variant={variant}
-      />
+    <Root ref={rootRef} aria-busy={isLoading || undefined}>
+      {/* 시트는 높이가 모자라다(펼침 약 380px). 머리까지 붙이면 칩·CTA 와 함께 본문이 90px
+          남짓만 남아, 시트에서는 머리는 스크롤로 넘기고 바로가기 칩만 붙인다. */}
+      {compact ? header : null}
+      <StickyTop ref={stickyRef}>
+        {compact ? null : header}
+        {hasSections ? (
+          <SectionNav $compact={compact} aria-label="상세 바로가기">
+            {DETAIL_SECTIONS.map(section => (
+              <SectionChip
+                key={section.key}
+                $active={activeKey === section.key}
+                aria-current={
+                  activeKey === section.key ? 'location' : undefined
+                }
+                data-status-detail-chip={section.key}
+                type="button"
+                onClick={() => scrollToSection(section.key)}
+              >
+                {section.label}
+              </SectionChip>
+            ))}
+          </SectionNav>
+        ) : null}
+      </StickyTop>
       {isLoading ? (
         <LoadingBody aria-live="polite">
           <VisuallyHidden>
@@ -944,16 +1219,44 @@ export default function StatusDetail({
         </ErrorBody>
       ) : detail ? (
         <Body>
-          <ChangeIndicatorSection detail={detail} />
-          <FootTrafficSection detail={detail} />
-          <StoreSection
-            detail={detail}
-            districtCode={selectedDistrict?.districtCode ?? null}
-          />
-          <SalesSection
-            detail={detail}
-            districtCode={selectedDistrict?.districtCode ?? null}
-          />
+          <SectionAnchor
+            aria-label="상권 흐름"
+            data-status-detail-section="flow"
+            role="region"
+            tabIndex={-1}
+          >
+            <ChangeIndicatorSection detail={detail} />
+          </SectionAnchor>
+          <SectionAnchor
+            aria-label="유동인구"
+            data-status-detail-section="footTraffic"
+            role="region"
+            tabIndex={-1}
+          >
+            <FootTrafficSection detail={detail} />
+          </SectionAnchor>
+          <SectionAnchor
+            aria-label="점포"
+            data-status-detail-section="store"
+            role="region"
+            tabIndex={-1}
+          >
+            <StoreSection
+              detail={detail}
+              districtCode={selectedDistrict?.districtCode ?? null}
+            />
+          </SectionAnchor>
+          <SectionAnchor
+            aria-label="매출"
+            data-status-detail-section="sales"
+            role="region"
+            tabIndex={-1}
+          >
+            <SalesSection
+              detail={detail}
+              districtCode={selectedDistrict?.districtCode ?? null}
+            />
+          </SectionAnchor>
         </Body>
       ) : (
         <Body>
@@ -962,6 +1265,19 @@ export default function StatusDetail({
           </EmptyMessage>
         </Body>
       )}
+      {/* 이 화면의 목적은 「좁혀서 넘기기」다. 상세가 비거나 실패해도 출구는 늘 보인다. */}
+      {selectedDistrict && analysisHref ? (
+        <CtaBar ref={ctaRef} $compact={compact}>
+          <ButtonLink
+            data-status-detail-cta
+            href={analysisHref}
+            rightIcon={<ArrowRight size={18} strokeWidth={2} />}
+            size="large"
+          >
+            {selectedDistrict.districtName} 상권 분석하기
+          </ButtonLink>
+        </CtaBar>
+      ) : null}
     </Root>
   )
 }
