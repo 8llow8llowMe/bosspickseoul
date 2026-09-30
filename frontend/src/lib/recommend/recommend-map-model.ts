@@ -219,6 +219,15 @@ export type RecommendCameraInput = {
   resultPoints: readonly MapPoint[]
   administrationPoints: readonly MapPoint[] | null
   districtPoints: readonly MapPoint[] | null
+  /**
+   * 선택한 행정동에 속한 **상권 중심점 전부**. 폴리곤(`administrationPoints`)이 없을 때의
+   * 폴백이다. 폴리곤은 뷰포트 질의라 자기 단계에서만 받지만, 이 목록은 행정동이 선택돼
+   * 있으면 늘 받는다(ux-followups B-5, #442). **`null` 은 「선택은 있는데 목록이 오는 중」**이다
+   * — 그때는 아래 단계로 내려가지 않고 카메라를 둔다. 빈 배열은 「담을 것이 없다」다.
+   */
+  administrationMemberPoints?: readonly MapPoint[] | null
+  /** 선택한 자치구에 속한 **행정동 중심점 전부**. `districtPoints` 가 없을 때의 폴백. `null` 뜻은 위와 같다. */
+  districtMemberPoints?: readonly MapPoint[] | null
 }
 
 /**
@@ -236,6 +245,15 @@ export const collectResultCameraPoints = (
   })
 
 /**
+ * 목록 항목들의 중심점. 선택한 지역의 폴리곤이 없을 때 그 지역을 담는 폴백이다
+ * (행정동 → 소속 상권, 자치구 → 소속 행정동. ux-followups B-5, #442).
+ */
+export const collectMemberCenterPoints = (
+  items: readonly { centerLat: number; centerLng: number }[],
+): MapPoint[] =>
+  items.map(({ centerLat, centerLng }) => ({ lat: centerLat, lng: centerLng }))
+
+/**
  * 결과 단계에서는 **제출 시점이 아니라 결과를 받은 뒤** 카메라를 정한다.
  * 결과가 0건인데 행정동으로 확대되면 사용자는 아무것도 없는 화면으로 끌려간다.
  */
@@ -246,6 +264,8 @@ export const resolveRecommendCameraTarget = ({
   resultPoints,
   administrationPoints,
   districtPoints,
+  administrationMemberPoints = [],
+  districtMemberPoints = [],
 }: RecommendCameraInput): MapCameraTarget => {
   if (stage === 'results') {
     if (selectedResultPoints && selectedResultPoints.length > 0) {
@@ -259,12 +279,29 @@ export const resolveRecommendCameraTarget = ({
       : { kind: 'keep' }
   }
 
-  if (administrationPoints && administrationPoints.length > 0) {
-    return { kind: 'fit', points: administrationPoints }
-  }
+  /*
+   * 선택한 지역을 폴리곤 → 소속 중심점 순으로 담는다. 예전에는 폴리곤만 봐서, 링크로
+   * 결과에 바로 들어와 「조건 수정」을 누르면(폴리곤을 한 번도 받은 적이 없다) 선택이
+   * 그대로인데도 `reset` 으로 서울 전체에 튕겼다(#442). `reset` 은 맞출 좌표가 하나도 없을 때만이다.
+   *
+   * 소속 목록이 오는 중(`null`)이면 **그 자리에서 `keep`** 이다. 건너뛰면 새로 고른 행정동의
+   * 상권 목록이 오는 수백 ms 동안 자치구로 한 번 빠졌다가 다시 들어온다 — 결과 로딩 중의
+   * `keep` 과 같은 이유다.
+   */
+  const ladder: Array<{
+    points: readonly MapPoint[] | null
+    /** 소속 목록 단계만 `null` 이 「오는 중」이다. 폴리곤의 `null` 은 그냥 없음이다. */
+    pendingWhenNull: boolean
+  }> = [
+    { points: administrationPoints, pendingWhenNull: false },
+    { points: administrationMemberPoints, pendingWhenNull: true },
+    { points: districtPoints, pendingWhenNull: false },
+    { points: districtMemberPoints, pendingWhenNull: true },
+  ]
 
-  if (districtPoints && districtPoints.length > 0) {
-    return { kind: 'fit', points: districtPoints }
+  for (const { points, pendingWhenNull } of ladder) {
+    if (points === null && pendingWhenNull) return { kind: 'keep' }
+    if (points && points.length > 0) return { kind: 'fit', points }
   }
 
   return { kind: 'reset' }

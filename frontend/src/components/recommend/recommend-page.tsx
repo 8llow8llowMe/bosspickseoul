@@ -41,6 +41,7 @@ import type { MapCamera } from '@/lib/analysis/map-camera'
 import {
   buildRecommendationMapItems,
   buildResultBoundaryBounds,
+  collectMemberCenterPoints,
   filterAreasByCodes,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
@@ -812,6 +813,28 @@ function RecommendPageBody() {
   const commercialCodes = useMemo(
     () => commercials.map(commercial => String(commercial.commercialCode)),
     [commercials],
+  )
+  /*
+   * 선택한 지역의 폴리곤이 없을 때 카메라가 대신 담을 소속 중심점(#442). 목록은 선택만
+   * 있으면 늘 받으므로, 링크로 결과에 바로 들어와 「조건 수정」을 눌러도 서울로 튕기지 않는다.
+   */
+  // `null` 은 「선택은 있는데 목록이 오는 중」— 카메라가 한 단계 아래로 빠지지 않고 기다린다.
+  // 꺼진 쿼리도 데이터가 없으면 pending 이라, 선택이 있을 때만 로딩으로 본다.
+  const isCommercialListLoading =
+    state.draft.administration !== null && commercialsQuery.isPending
+  const isAdministrationListLoading =
+    state.draft.district !== null && administrationsQuery.isPending
+  const administrationMemberPoints = useMemo(
+    () =>
+      isCommercialListLoading ? null : collectMemberCenterPoints(commercials),
+    [commercials, isCommercialListLoading],
+  )
+  const districtMemberPoints = useMemo(
+    () =>
+      isAdministrationListLoading
+        ? null
+        : collectMemberCenterPoints(administrations),
+    [administrations, isAdministrationListLoading],
   )
   const commercialMapQuery = useQuery({
     queryKey: [
@@ -1740,9 +1763,11 @@ function RecommendPageBody() {
         <MapSlot>
           <RecommendMap
             administrationAreas={administrationAreas}
+            administrationMemberPoints={administrationMemberPoints}
             cameraMode={state.cameraMode}
             commercialAreas={commercialAreas}
             districtAreas={districtAreas}
+            districtMemberPoints={districtMemberPoints}
             initialCamera={urlSeed.camera}
             isResultSelectionExplicit={state.resultSelectionSource === 'user'}
             // 경계가 도착하기 전에 중심점으로 한 번 맞추고 다시 맞추면 카메라가 두 번

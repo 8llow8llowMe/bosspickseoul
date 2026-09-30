@@ -448,6 +448,111 @@ describe('recommend camera target', () => {
     ).toEqual({ kind: 'reset' })
   })
 
+  /*
+   * T-B5 (#442) — 폴리곤은 뷰포트 질의라 자기 단계에서만 받는다. 링크로 결과에 바로 들어와
+   * 「조건 수정」을 누르면 행정동·자치구 폴리곤이 둘 다 없다. 그때 서울로 튕기지 않고
+   * 목록이 준 중심점으로 선택한 지역을 담는다.
+   */
+  it('fits the member centers of the selected area when its polygon is missing', () => {
+    const commercialCenters = [
+      { lng: 127.03, lat: 37.5 },
+      { lng: 127.04, lat: 37.49 },
+    ]
+    const administrationCenters = [
+      { lng: 127.02, lat: 37.51 },
+      { lng: 127.06, lat: 37.48 },
+    ]
+    const noPolygons = {
+      ...base,
+      stage: 'commercial' as const,
+      administrationPoints: null,
+      districtPoints: null,
+      administrationMemberPoints: commercialCenters,
+      districtMemberPoints: administrationCenters,
+    }
+
+    expect(resolveRecommendCameraTarget(noPolygons)).toEqual({
+      kind: 'fit',
+      points: commercialCenters,
+    })
+    // 행정동 목록이 아직 없으면 자치구 쪽으로 물러난다
+    expect(
+      resolveRecommendCameraTarget({
+        ...noPolygons,
+        administrationMemberPoints: [],
+      }),
+    ).toEqual({ kind: 'fit', points: administrationCenters })
+  })
+
+  it('prefers the polygon over member centers when both exist', () => {
+    expect(
+      resolveRecommendCameraTarget({
+        ...base,
+        stage: 'commercial',
+        administrationMemberPoints: [{ lng: 127.03, lat: 37.5 }],
+      }),
+    ).toEqual({ kind: 'fit', points: administrationPoints })
+    expect(
+      resolveRecommendCameraTarget({
+        ...base,
+        stage: 'administration',
+        administrationPoints: null,
+        districtMemberPoints: [{ lng: 127.03, lat: 37.5 }],
+      }),
+    ).toEqual({ kind: 'fit', points: districtPoints })
+  })
+
+  /*
+   * 새로 고른 행정동의 상권 목록이 오는 중이면 자치구로 빠지지 않는다. 빠지면 수백 ms 뒤
+   * 목록이 도착해 다시 들어오며 카메라가 두 번 움직인다.
+   */
+  it('keeps the camera while the member list of the selection is loading', () => {
+    const noPolygons = {
+      ...base,
+      stage: 'commercial' as const,
+      administrationPoints: null,
+      districtPoints: null,
+      districtMemberPoints: [{ lng: 127.02, lat: 37.51 }],
+    }
+
+    expect(
+      resolveRecommendCameraTarget({
+        ...noPolygons,
+        administrationMemberPoints: null,
+      }),
+    ).toEqual({ kind: 'keep' })
+    // 폴리곤이 이미 있으면 목록 로딩과 상관없이 폴리곤이다
+    expect(
+      resolveRecommendCameraTarget({
+        ...noPolygons,
+        administrationPoints,
+        administrationMemberPoints: null,
+      }),
+    ).toEqual({ kind: 'fit', points: administrationPoints })
+    expect(
+      resolveRecommendCameraTarget({
+        ...noPolygons,
+        stage: 'administration',
+        administrationMemberPoints: [],
+        districtMemberPoints: null,
+      }),
+    ).toEqual({ kind: 'keep' })
+  })
+
+  // T-B6 — `reset` 은 맞출 좌표가 하나도 없을 때만이다
+  it('resets only when nothing is selected at all', () => {
+    expect(
+      resolveRecommendCameraTarget({
+        ...base,
+        stage: 'district',
+        administrationPoints: null,
+        districtPoints: null,
+        administrationMemberPoints: [],
+        districtMemberPoints: [],
+      }),
+    ).toEqual({ kind: 'reset' })
+  })
+
   it('uses the boundary when a result has one and the center otherwise', () => {
     expect(
       collectResultCameraPoints([
