@@ -54,11 +54,17 @@ const renderStyles = (): string => {
 
 describe('FeatureBento — 넓은 화면 배치', () => {
   /*
-   * 콘텐츠 약 330px 로 1080 화면을 채우려고 세로 가운데 정렬하면 위아래로 약 260px
-   * 씩 빈 띠가 생겼다.
+   * 예전엔 「화면 높이를 붙잡지 않는다」였다(330px 콘텐츠를 1080 화면에 가운데 두면 위아래
+   * 260px 씩 비었다). 2026-09-30 사용자 결정으로 홈 섹션은 최소 한 화면이다
+   * (full-screen-sections-and-live-tooltip.md D4-1). 다만 **최소 높이**만이다 — dvh 로 높이를
+   * 고정하거나 트랙을 만들지 않는다.
    */
-  it('화면 높이를 붙잡지 않는다', () => {
-    expect(renderStyles()).not.toContain('100dvh')
+  it('최소 한 화면(100dvh - 헤더)이고, 그 밖에서는 dvh 를 쓰지 않는다', () => {
+    const css = renderStyles()
+    expect(css).toContain('min-height:calc(100dvh-65px)')
+    expect(css.replaceAll('min-height:calc(100dvh-65px)', '')).not.toContain(
+      'dvh',
+    )
   })
 
   it('홈 공용 컬럼(--w-wide)을 쓴다', () => {

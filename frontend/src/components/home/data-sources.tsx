@@ -10,7 +10,10 @@ import {
 } from 'lucide-react'
 import styled from 'styled-components'
 
-import { HOME_COLUMN } from '@/components/home/layout-constants'
+import {
+  HOME_COLUMN,
+  HOME_FULL_SCREEN_SECTION,
+} from '@/components/home/layout-constants'
 import { districts } from '@/data/districts'
 import { formatPeriodCode } from '@/lib/analysis/presentation'
 import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
@@ -98,18 +101,20 @@ export const DATA_SOURCES: readonly Source[] = [
 ]
 
 /*
-  아래 여백은 두지 않는다 — 다음 섹션(지금 많이 본 지역)의 위 여백 96px 가 간격을 맡는다.
-  둘 다 두면 190px 남짓 빈 띠가 생겨 e2e 문서 높이가 그만큼 늘었다.
+  섹션은 한 화면(HOME_FULL_SCREEN_SECTION)이고 내용이 가운데에 선다. 예전엔 바로 뒤 섹션과
+  붙이려 아래 여백을 뺐지만, 이제 섹션 사이 간격은 한 화면 높이가 만든다 — 위아래 여백은
+  내용이 한 화면보다 길 때(좁은 폭) 가장자리에 붙지 않게 하는 몫이다.
 */
 const Section = styled.section`
-  padding: 72px 0 0;
+  ${HOME_FULL_SCREEN_SECTION}
+  padding: 96px 0;
 
   @media (max-width: 900px) {
-    padding: 56px 0 0;
+    padding: 72px 0;
   }
 
   @media (max-width: 640px) {
-    padding: 40px 0 0;
+    padding: 56px 0;
   }
 `
 

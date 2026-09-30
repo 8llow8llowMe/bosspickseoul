@@ -13,10 +13,12 @@ export const STORY_STEP_SCROLL_DVH = 60
  * 고정 모드 조건. CSS 미디어 쿼리와 JS matchMedia 가 **같은 문자열**을 쓴다 — 둘이 갈리면
  * 트랙은 늘었는데 선택은 클릭 모드로 남는(또는 그 반대) 상태가 된다.
  *
- * 높이 760px: 헤더(65) + 탭(52) + 간격(24) + 패널(570) 이 한 화면에 들어와야 고정이 성립한다.
+ * 높이 800px: 헤더(65) + 머리말(62) + 간격(16) + 탭(52) + 간격(16) + 패널(570) = 781 이 한 화면에
+ * 들어와야 고정이 성립한다. 머리말이 고정 칸에 들어오면서 760 → 800 으로 올렸다
+ * (full-screen-sections-and-live-tooltip.md D4-2).
  */
 export const STORY_PIN_QUERY =
-  '(min-width: 1100px) and (min-height: 760px) and (prefers-reduced-motion: no-preference)'
+  '(min-width: 1100px) and (min-height: 800px) and (prefers-reduced-motion: no-preference)'
 
 /**
  * pin 구간 안에서 스크롤한 거리 → 단계. 트랙에 닿기 전(음수)은 첫 단계, 지난 뒤는 마지막

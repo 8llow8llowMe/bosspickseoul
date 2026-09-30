@@ -8,7 +8,10 @@ import {
 } from 'lucide-react'
 import styled from 'styled-components'
 
-import { HOME_COLUMN } from '@/components/home/layout-constants'
+import {
+  HOME_COLUMN,
+  HOME_FULL_SCREEN_SECTION,
+} from '@/components/home/layout-constants'
 
 /*
   화면 높이(100dvh)를 붙잡지 않는다. 콘텐츠가 약 330px 인데 1080 화면을 채우려고
@@ -16,6 +19,7 @@ import { HOME_COLUMN } from '@/components/home/layout-constants'
   세로 리듬(96/72/56)을 쓴다.
 */
 const Section = styled.section`
+  ${HOME_FULL_SCREEN_SECTION}
   padding: 96px 0;
 
   @media (max-width: 900px) {

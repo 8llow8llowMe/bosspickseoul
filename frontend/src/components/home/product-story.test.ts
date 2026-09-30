@@ -136,7 +136,10 @@ describe('ProductStory — 스크롤 고정이 없다 (TC-HR-004 · 005)', () =>
       css,
     )
     expect(outside).not.toContain('position:sticky')
-    expect(outside).not.toContain('dvh')
+    // 섹션 최소 높이(한 화면, full-screen-sections-and-live-tooltip.md D4-1)만 예외다.
+    expect(
+      outside.replaceAll('min-height:calc(100dvh-65px)', ''),
+    ).not.toContain('dvh')
   })
 
   it('1100px 이상은 가장 큰 데모 높이를 예약하고, 그 아래는 풀어 준다', () => {

@@ -27,7 +27,10 @@ import {
 } from '@/lib/status/status-formatters'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
-import { HOME_COLUMN } from '@/components/home/layout-constants'
+import {
+  HOME_COLUMN,
+  HOME_FULL_SCREEN_SECTION,
+} from '@/components/home/layout-constants'
 
 const RANKING_SIZE = 8
 
@@ -36,6 +39,7 @@ const RANKING_SIZE = 8
   철회했다 — 지표 전환은 토글 클릭 하나다. 세로 리듬은 판단 흐름·벤토와 같다.
 */
 const Section = styled.section`
+  ${HOME_FULL_SCREEN_SECTION}
   padding: 96px 0;
 
   @media (max-width: 900px) {
