@@ -142,13 +142,20 @@ export const TextInput = styled.input`
   /* 채움형 — 평상시 테두리 없음(DESIGN.md §Inputs & Forms). */
   border: 2px solid transparent;
   border-radius: var(--radius-field);
-  outline: none;
   background: var(--color-surface-muted);
   color: var(--color-text-900);
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard);
+
+  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms).
+     기본값의 outline: none 은 전역 규칙과 특이도가 같아 순서에 밀린다. */
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
 
   &:focus {
     border-color: var(--color-primary-700);

@@ -65,6 +65,18 @@ const Input = styled.input`
   border-radius: var(--radius-field);
   background: white;
   color: var(--color-text-900);
+
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+
+  /* 포커스는 테두리 한 줄로 말한다(DESIGN.md §Inputs & Forms — 커뮤니티 폼과 같은 규격). */
+  &:focus-visible {
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary-strong);
+  }
 `
 
 const TextArea = styled.textarea`
@@ -77,6 +89,18 @@ const TextArea = styled.textarea`
   background: white;
   color: var(--color-text-900);
   line-height: 1.7;
+
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+
+  /* 포커스는 테두리 한 줄로 말한다(DESIGN.md §Inputs & Forms — 커뮤니티 폼과 같은 규격). */
+  &:focus-visible {
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary-strong);
+  }
 `
 
 const Select = styled.select`
@@ -87,6 +111,18 @@ const Select = styled.select`
   border-radius: var(--radius-field);
   background: white;
   color: var(--color-text-900);
+
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+
+  /* 포커스는 테두리 한 줄로 말한다(DESIGN.md §Inputs & Forms — 커뮤니티 폼과 같은 규격). */
+  &:focus-visible {
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary-strong);
+  }
 `
 
 const Helper = styled.p`

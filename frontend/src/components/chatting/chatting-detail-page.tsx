@@ -235,6 +235,18 @@ const ComposerInput = styled.textarea`
   background: white;
   color: var(--color-text-900);
   line-height: 1.8;
+
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+
+  /* 포커스는 테두리 한 줄로 말한다(DESIGN.md §Inputs & Forms — 커뮤니티 폼과 같은 규격). */
+  &:focus-visible {
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary-strong);
+  }
 `
 
 const ComposerFooter = styled.div`

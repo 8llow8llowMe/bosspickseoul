@@ -123,7 +123,12 @@ const Input = styled.input`
   background: var(--color-surface);
   color: var(--color-text-900);
   font: inherit;
-  outline: none;
+  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms). */
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
 
   &:focus-visible {
     border-color: var(--color-primary-700);
@@ -142,7 +147,12 @@ const TextArea = styled.textarea`
   color: var(--color-text-900);
   font: inherit;
   line-height: 1.75;
-  outline: none;
+  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms). */
+  &,
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
 
   &:focus-visible {
     border-color: var(--color-primary-700);

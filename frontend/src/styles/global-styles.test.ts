@@ -571,3 +571,62 @@ describe('컴포넌트는 스크롤바 표준 속성으로 두께·색을 정하
     expect(offenders).toEqual([])
   })
 })
+
+/**
+ * DESIGN.md §Inputs & Forms 「Focus is one line」.
+ *
+ * 입력칸이 포커스를 **테두리로** 말하면(테두리 → primary-700 + 후광) 전역 `:focus-visible`
+ * 링(2px, offset 2px)을 포커스 선택자 안에서 꺼야 한다. 그러지 않으면 테두리 바깥에 흰 틈을
+ * 두고 파란 선이 한 줄 더 생긴다 — 로그인 이메일 칸·커뮤니티 폼 등 6곳이 그랬다.
+ *
+ * 클래스 기본값의 `outline: none` 으로는 안 된다. 전역 `:focus-visible` 과 특이도가 같아
+ * 소스 순서에 밀린다(실제로 커뮤니티 폼은 기본값에 `outline: none` 을 두고도 링이 떴다).
+ * 그래서 **포커스 선택자가 붙은 블록**에서 끄는지를 본다.
+ */
+describe('테두리로 포커스를 말하는 입력칸은 전역 링을 끈다', () => {
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+  )
+
+  const blankComments = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, match =>
+      match.replace(/[^\n]/g, ' '),
+    )
+
+  /** `styled.input` · `styled.textarea` · `styled.select` 템플릿 본문. */
+  const fieldTemplate =
+    /styled\.(?:input|textarea|select)(?:<[^>`]*>)?(?:\.attrs\([^)`]*\))?`([^`]*)`/g
+
+  /** 포커스 선택자가 붙은 중첩 없는 블록. */
+  const focusBlock = /([^{};]*&:focus(?:-visible)?[^{};]*)\{([^{}]*)\}/g
+
+  it('포커스에 테두리를 바꾸면 포커스 선택자 안에서 outline 을 끈다', () => {
+    const offenders: string[] = []
+
+    for (const file of collectFiles(projectRoot, isSourceFile)) {
+      const raw = readIfPresent(file)
+
+      if (raw === null) continue
+
+      const source = blankComments(raw)
+
+      for (const template of source.matchAll(fieldTemplate)) {
+        const blocks = [...template[1].matchAll(focusBlock)]
+        const changesBorder = blocks.some(block =>
+          /border(?:-color)?\s*:/.test(block[2]),
+        )
+        const turnsRingOff = blocks.some(block =>
+          /outline\s*:\s*(?:none|0)\b/.test(block[2]),
+        )
+
+        if (!changesBorder || turnsRingOff) continue
+
+        const line = source.slice(0, template.index).split('\n').length
+        offenders.push(`${path.relative(projectRoot, file)}:${line}`)
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+})
