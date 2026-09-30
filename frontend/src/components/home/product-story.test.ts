@@ -10,6 +10,7 @@ import {
 } from '@/components/home/break-even-chart'
 import ProductStory, { stepHighlight } from '@/components/home/product-story'
 import { STORY_PANEL_ID, storyTabId } from '@/components/home/step-tabs'
+import { STORY_PIN_QUERY } from '@/components/home/story-scroll'
 import { STORY_STEPS } from '@/components/home/story-steps'
 import { districts } from '@/data/districts'
 import { DEFAULT_SELECTION, getDemoSample } from '@/data/home-demo'
@@ -115,11 +116,27 @@ describe('ProductStory — 활성 패널만 그린다 (TC-HR-003)', () => {
 })
 
 describe('ProductStory — 스크롤 고정이 없다 (TC-HR-004 · 005)', () => {
-  it('100dvh 도 sticky 도 쓰지 않는다', () => {
+  /*
+   * story-scroll-pin: 넓고 높은 화면에서만 고정한다. 고정·트랙 높이는 STORY_PIN_QUERY
+   * 미디어 쿼리 **안에만** 있어야 한다 — 밖에 새면 모바일·낮은 화면에 스크롤 고정이 생긴다.
+   */
+  it('sticky 와 dvh 트랙은 고정 모드 미디어 쿼리 안에만 있다 (TC-SP2-003)', () => {
     const css = renderStyles()
+    const query = STORY_PIN_QUERY.replace(/\s+/g, '')
+    const blocks = [...css.matchAll(/@media([^{]+)\{\.[\w-]+\{([^}]*)\}\}/g)]
+    const pinned = blocks.filter(([, media]) => media === query)
 
-    expect(css).not.toContain('100dvh')
-    expect(css).not.toContain('position:sticky')
+    expect(pinned.some(([, , body]) => body.includes('position:sticky'))).toBe(
+      true,
+    )
+    expect(pinned.some(([, , body]) => body.includes('dvh'))).toBe(true)
+
+    const outside = blocks.reduce(
+      (rest, [whole]) => rest.replace(whole, ''),
+      css,
+    )
+    expect(outside).not.toContain('position:sticky')
+    expect(outside).not.toContain('dvh')
   })
 
   it('1100px 이상은 가장 큰 데모 높이를 예약하고, 그 아래는 풀어 준다', () => {

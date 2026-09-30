@@ -11,7 +11,7 @@ import BreakEvenChart, {
   buildCumulativeProfit,
   findBreakEvenMonth,
 } from '@/components/home/break-even-chart'
-import { HOME_COLUMN } from '@/components/home/layout-constants'
+import { HEADER_HEIGHT, HOME_COLUMN } from '@/components/home/layout-constants'
 import MetricRankingBoard from '@/components/home/metric-ranking-board'
 import RecommendPreview, {
   toNarrowingSegments,
@@ -20,7 +20,12 @@ import StepTabs, {
   STORY_PANEL_ID,
   storyTabId,
 } from '@/components/home/step-tabs'
+import {
+  STORY_PIN_QUERY,
+  STORY_STEP_SCROLL_DVH,
+} from '@/components/home/story-scroll'
 import { STORY_STEPS, type StoryDemo } from '@/components/home/story-steps'
+import { useStoryPin } from '@/components/home/use-story-pin'
 import {
   DEFAULT_SELECTION,
   findDistrictOption,
@@ -88,6 +93,38 @@ const LeadTitle = styled.h2`
   @media (max-width: 480px) {
     font-size: 21px;
     line-height: 30px;
+  }
+`
+
+/*
+  넓고 높은 화면에서 탭+패널을 화면에 고정하고, 스크롤한 만큼 01 → 04 로 넘긴다
+  (story-scroll-pin.md). 레이아웃은 **CSS 미디어 쿼리로만** 정한다 — JS 가 모드를 판정하기
+  전(서버 렌더·첫 페인트)에도 트랙 높이가 맞아 페이지 높이가 튀지 않는다. JS(useStoryPin)는
+  같은 쿼리 문자열로 선택만 스크롤에 맞춘다.
+
+  트랙 = 고정 칸 높이(100dvh - 헤더) + 단계당 60dvh × 4. 앞의 몫은 sticky 가 붙어 있는 칸
+  자체이고, 뒤의 몫이 스크롤로 단계를 넘기는 구간(pinSpan)이다.
+*/
+const PinTrack = styled.div`
+  @media ${STORY_PIN_QUERY} {
+    height: calc(
+      100dvh - ${HEADER_HEIGHT} +
+        ${STORY_STEP_SCROLL_DVH * STORY_STEPS.length}dvh
+    );
+  }
+`
+
+const PinSticky = styled.div`
+  display: grid;
+  gap: 24px;
+
+  @media ${STORY_PIN_QUERY} {
+    position: sticky;
+    top: ${HEADER_HEIGHT};
+    height: calc(100dvh - ${HEADER_HEIGHT});
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 `
 
@@ -390,6 +427,19 @@ export function stepHighlight(
 export default function ProductStory() {
   const [selected, setSelected] = useState(0)
 
+  /*
+    고정 모드에서는 스크롤 위치가 선택의 정본이다. 탭 클릭·키보드는 state 를 바로 바꾸지
+    않고 그 단계 몫으로 스크롤한다 — 선택이 스크롤 결과로 따라와 둘이 어긋나지 않는다.
+  */
+  const { pinned, attachTrack, scrollToStep } = useStoryPin(
+    STORY_STEPS.length,
+    setSelected,
+  )
+  const handleSelect = (index: number) => {
+    if (pinned) scrollToStep(index)
+    else setSelected(index)
+  }
+
   /* 02(미니데모)·03(추천)·탭 수치가 같은 선택을 봐야 네 단계가 실제로 이어진다. */
   const [selection, setSelection] = useState<DemoSelection>(DEFAULT_SELECTION)
 
@@ -450,64 +500,68 @@ export default function ProductStory() {
           </LeadTitle>
         </Lead>
 
-        <div ref={tabsRef}>
-          <StepTabs
-            steps={STORY_STEPS}
-            selected={selected}
-            onSelect={setSelected}
-          />
-        </div>
+        <PinTrack ref={attachTrack}>
+          <PinSticky>
+            <div ref={tabsRef}>
+              <StepTabs
+                steps={STORY_STEPS}
+                selected={selected}
+                onSelect={handleSelect}
+              />
+            </div>
 
-        {/*
+            {/*
           활성 패널만 렌더한다 — 비활성 패널을 hidden 으로 두면 데모가 모두 마운트돼
           요청이 늘어난다. CTA 는 네 단계 모두 같은 자리(왼쪽 묶음 끝)에 있다.
         */}
-        <Panel
-          role="tabpanel"
-          id={STORY_PANEL_ID}
-          aria-labelledby={storyTabId(step.step)}
-          tabIndex={0}
-        >
-          <Copy>
-            <StepLabel>
-              {step.step} {step.title}
-            </StepLabel>
-            <Highlight>
-              {/* 03 의 「9 → 5」 화살표는 숫자가 아니다 — 흐리게 해 두 숫자가 주인공이 되게 한다. */}
-              {highlight.value.split(' → ').map((part, index) => (
-                <Fragment key={part + index}>
-                  {index > 0 ? <HighlightArrow>→</HighlightArrow> : null}
-                  {part}
-                </Fragment>
-              ))}
-              {highlight.unit ? (
-                <HighlightUnit>{highlight.unit}</HighlightUnit>
-              ) : null}
-            </Highlight>
-            <HighlightCaption>{highlight.caption}</HighlightCaption>
-            <Body>{step.body}</Body>
-            {/* 라벨 글자 대신 체크가 「이걸 얻는다」를 말한다. 보조기기에는 라벨을 읽힌다. */}
-            <Outcome>
-              <Check aria-hidden="true" />
-              <span>
-                <VisuallyHidden>손에 남는 것: </VisuallyHidden>
-                {step.outcome}
-              </span>
-            </Outcome>
-            {step.note ? <Note>{step.note}</Note> : null}
-            <Cta href={step.cta.href}>
-              {step.cta.label}
-              <ArrowRight aria-hidden="true" />
-            </Cta>
-          </Copy>
-          <DemoArea>
-            <DemoPanel
-              demo={step.demo}
-              selection={selection}
-              onSelectionChange={setSelection}
-            />
-          </DemoArea>
-        </Panel>
+            <Panel
+              role="tabpanel"
+              id={STORY_PANEL_ID}
+              aria-labelledby={storyTabId(step.step)}
+              tabIndex={0}
+            >
+              <Copy>
+                <StepLabel>
+                  {step.step} {step.title}
+                </StepLabel>
+                <Highlight>
+                  {/* 03 의 「9 → 5」 화살표는 숫자가 아니다 — 흐리게 해 두 숫자가 주인공이 되게 한다. */}
+                  {highlight.value.split(' → ').map((part, index) => (
+                    <Fragment key={part + index}>
+                      {index > 0 ? <HighlightArrow>→</HighlightArrow> : null}
+                      {part}
+                    </Fragment>
+                  ))}
+                  {highlight.unit ? (
+                    <HighlightUnit>{highlight.unit}</HighlightUnit>
+                  ) : null}
+                </Highlight>
+                <HighlightCaption>{highlight.caption}</HighlightCaption>
+                <Body>{step.body}</Body>
+                {/* 라벨 글자 대신 체크가 「이걸 얻는다」를 말한다. 보조기기에는 라벨을 읽힌다. */}
+                <Outcome>
+                  <Check aria-hidden="true" />
+                  <span>
+                    <VisuallyHidden>손에 남는 것: </VisuallyHidden>
+                    {step.outcome}
+                  </span>
+                </Outcome>
+                {step.note ? <Note>{step.note}</Note> : null}
+                <Cta href={step.cta.href}>
+                  {step.cta.label}
+                  <ArrowRight aria-hidden="true" />
+                </Cta>
+              </Copy>
+              <DemoArea>
+                <DemoPanel
+                  demo={step.demo}
+                  selection={selection}
+                  onSelectionChange={setSelection}
+                />
+              </DemoArea>
+            </Panel>
+          </PinSticky>
+        </PinTrack>
       </Inner>
     </Container>
   )
