@@ -11,17 +11,21 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.transaction.PlatformTransactionManager;
 
+/**
+ * 사실 적재 Job. quarterly CLI 와 상시 컨테이너의 자동 최신화가 같은 Job 을 띄운다.
+ * 스텝 트랜잭션은 팩트를 쓰는 commercial 스키마 쪽이다. JobRepository 는 기본 DataSource 를 그대로 쓴다.
+ */
 @Configuration
-@Profile("quarterly")
 public class CommercialAnalysisImportJobConfig {
     private static final String[] RECEIPT_KEYS = {"sourceChecksum", "rawLocation", "sourceInputRows"};
 
     @Bean
-    public Job commercialAnalysisImportJob(JobRepository repository, PlatformTransactionManager transactionManager,
+    public Job commercialAnalysisImportJob(JobRepository repository, @Qualifier("commercialTransactionManager") PlatformTransactionManager transactionManager,
                                           DatasetReleasePort releases, DatasetItemReader datasetItemReader,
                                           DatasetStagingStep datasetStagingStep) {
         Step prepare = new StepBuilder("datasetPrepare", repository).allowStartIfComplete(true)

@@ -12,17 +12,16 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-@Profile("quarterly")
 public class TypedFactProjectionJobConfig {
 
     @Bean
-    public Job typedFactProjectionJob(JobRepository repository, PlatformTransactionManager transactionManager,
+    public Job typedFactProjectionJob(JobRepository repository, @Qualifier("commercialTransactionManager") PlatformTransactionManager transactionManager,
                                       TypedFactProjectionProcessor processor) {
         var step = new StepBuilder("typedFactProject", repository).tasklet((contribution, context) -> {
             ProjectionRequest request = read(contribution.getStepExecution().getJobParameters());
@@ -36,7 +35,7 @@ public class TypedFactProjectionJobConfig {
         return new JobBuilder("typedFactProjectionJob", repository).start(step).build();
     }
 
-    static JobParameters write(ProjectionRequest request) {
+    public static JobParameters write(ProjectionRequest request) {
         return new JobParametersBuilder()
             .addString("runId", request.runId(), true)
             .addString("dataset", request.dataset().name(), false)

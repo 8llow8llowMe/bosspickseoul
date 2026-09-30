@@ -14,6 +14,8 @@ logging:
   level:
     # Eureka 클라이언트가 주기적으로 Eureka 서버 엔드포인트를 확인할 때 출력하는 반복 로그를 줄이기 위한 설정
     com.netflix.discovery.shared.resolver.aws.ConfigClusterResolver: WARN
+    # 서울 Open API URL 경로에 API 키가 들어간다. JDK HttpClient 가 요청 URI 를 남기지 않게 한다.
+    java.net.http: WARN
 
 snowflake:
   datacenter-id: 1
@@ -42,6 +44,20 @@ batch:
       username: ${DB_USERNAME:}
       password: ${DB_PASSWORD:}
       driver-class-name: com.mysql.cj.jdbc.Driver
+  # 서울 열린데이터광장 Open API 와 원천 보관 위치. quarterly CLI 와 상시 컨테이너의 자동 최신화가 같이 쓴다.
+  # API 키가 비어 있어도 기동에는 영향이 없다. API 세션을 열 때만 검사한다(자동 최신화는 가드가 기동 시 검사).
+  dataset-source:
+    api-key: ${SEOUL_OPEN_DATA_API_KEY:}
+    base-url: http://openapi.seoul.go.kr:8088
+    raw-directory: ${BATCH_RAW_DIRECTORY:./data/raw}
+    timeout-seconds: 30
+    max-attempts: 3
+    # CSV 한글 헤더 -> 컬럼 코드 표는 classpath seoul/csv-header-aliases.csv 에 있다.
+    # 배포 파일이 헤더를 다르게 적을 때만 여기서 한 줄씩 덧붙인다. 예: "[개업_비율]": OPBIZ_RT
+    header-aliases: {}
+    # area_boundary / commercial_region_mapping 이 있는 스키마. district-service 소유라
+    # 팩트를 쓰는 commercial 스키마와 다르다. --source=LEGACY 를 쓸 때만 필요하다.
+    legacy-spatial-schema: ${BATCH_LEGACY_SPATIAL_SCHEMA:}
 
 ---
 # BATCH_POLICY_ENABLED=true 이면 기존 batch-service(dev)에서도 Quartz JDBC 를 켠다.
