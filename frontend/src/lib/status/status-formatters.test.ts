@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatStatusChange, formatStatusValue } from './status-formatters'
+import {
+  formatStatusChange,
+  formatStatusValue,
+  getStatusChangeTone,
+} from './status-formatters'
 
 describe('formatStatusValue', () => {
   it('formats foot traffic by rounding to ten-thousands', () => {
@@ -86,5 +90,20 @@ describe('formatStatusChange', () => {
     [8, '+8%'],
   ])('handles change value %s as %s', (value, expected) => {
     expect(formatStatusChange(value)).toBe(expected)
+  })
+})
+
+describe('getStatusChangeTone', () => {
+  it.each([
+    ['footTraffic', 2.5, 'positive'],
+    ['sales', -4.3, 'negative'],
+    ['opened', 1, 'positive'],
+    // 폐업은 뒤집는다 — 폐업이 늘면 나쁘다.
+    ['closed', 3, 'negative'],
+    ['closed', -3, 'positive'],
+    ['sales', 0, 'neutral'],
+    ['sales', Number.NaN, 'neutral'],
+  ] as const)('%s %s → %s', (metric, rate, tone) => {
+    expect(getStatusChangeTone(metric, rate)).toBe(tone)
   })
 })
