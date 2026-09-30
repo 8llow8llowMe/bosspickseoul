@@ -20,6 +20,11 @@ spring:
   sql:
     init:
       mode: never
+  # 1회 실행 CLI 는 스케줄을 돌리지 않는다. 메모리 스토어로 두어 commercial 의 QRTZ_* 에 붙지 않게 한다.
+  # (JDBC 로 뜨면 그 스키마에 저장된 트리거를 발화하거나, 테이블이 없어 ClusterManager ERROR 를 남긴다.)
+  quartz:
+    auto-startup: false
+    job-store-type: memory
 
 eureka:
   client:

@@ -16,10 +16,13 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(prefix = "batch.staging-purge", name = "enabled", havingValue = "true")
 public class DatasetStagingPurgeQuartzScheduleConfig {
 
+    /** JobDetail 이름. 꺼졌을 때 {@link DatasetStagingPurgeQuartzCleanupConfig} 가 같은 이름으로 지운다. */
+    public static final String JOB_NAME = "datasetStagingPurgeQuartzJob";
+
     @Bean
     public JobDetail datasetStagingPurgeJobDetail() {
         return JobBuilder.newJob(DatasetStagingPurgeQuartzJob.class)
-            .withIdentity("datasetStagingPurgeQuartzJob")
+            .withIdentity(JOB_NAME)
             .storeDurably()
             .requestRecovery()
             .build();

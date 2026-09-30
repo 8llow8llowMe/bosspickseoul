@@ -5,6 +5,9 @@ spring:
     import: optional:classpath:observability-common.yml
   profiles:
     active: local
+  # 기본은 메모리 스토어이고 자동 시작하지 않는다(local, quarterly CLI). Quartz JDBC JobStore(QRTZ_*)는 상시 컨테이너 프로파일
+  # application-dev.yml / application-prod.yml 과 선택 프로파일 application-scheduler.yml 에만 있다.
+  # 트리거 등록은 각 *QuartzScheduleConfig 의 플래그가 가르고, 꺼진 스케줄이 DB 에 남긴 Job 은 *QuartzCleanupConfig 가 기동 시 지운다.
   quartz:
     auto-startup: false
     job-store-type: memory
@@ -79,29 +82,3 @@ batch:
     published-retention-days: 30
     unpublished-retention-days: 7
     chunk-size: 5000
-
----
-# Quartz JDBC JobStore. JobStore 는 기본 DataSource(BATCH_DB_URL, district) 의 QRTZ_* 를 쓴다.
-# policy / 분기 적재 행은 COMMERCIAL_DB_URL 로 나간다.
-#
-# 주의: spring.config.activate 는 on-profile / on-cloud-platform 만 지원한다(Spring Boot 3.5). 아래 on-property 는
-# 무시되어 이 문서는 모든 프로파일에서 항상 적용된다. 그래서 정책 수집·자동 최신화·스테이징 정리가 어느 것이 켜져도
-# Quartz 는 JDBC 로 뜨고, 트리거 등록은 각 *QuartzScheduleConfig 의 @ConditionalOnProperty 가 가른다.
-# 조건부로 바꾸려면 세 플래그를 모두 봐야 한다(DatasetRefreshPropertiesTest 가 자동 최신화 쪽을 고정한다).
-spring:
-  config:
-    activate:
-      on-property: batch.policy.enabled
-  quartz:
-    auto-startup: true
-    job-store-type: jdbc
-    jdbc:
-      initialize-schema: never
-    overwrite-existing-jobs: true
-    wait-for-jobs-to-complete-on-shutdown: true
-    properties:
-      org.quartz.scheduler.instanceId: AUTO
-      org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
-      org.quartz.jobStore.tablePrefix: QRTZ_
-      org.quartz.jobStore.isClustered: true
-      org.quartz.threadPool.threadCount: 2

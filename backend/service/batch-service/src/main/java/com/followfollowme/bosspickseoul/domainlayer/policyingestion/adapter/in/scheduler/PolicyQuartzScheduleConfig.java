@@ -15,10 +15,14 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(prefix = "batch.policy", name = "enabled", havingValue = "true")
 public class PolicyQuartzScheduleConfig {
 
+    /** JobDetail 이름. 꺼졌을 때 {@link PolicyQuartzCleanupConfig} 가 같은 이름으로 지운다. */
+    public static final String COLLECT_JOB_NAME = "policyCollectQuartzJob";
+    public static final String PURGE_JOB_NAME = "policyPurgeQuartzJob";
+
     @Bean
     public JobDetail policyCollectJobDetail() {
         return JobBuilder.newJob(PolicyCollectQuartzJob.class)
-            .withIdentity("policyCollectQuartzJob")
+            .withIdentity(COLLECT_JOB_NAME)
             .storeDurably()
             .requestRecovery()
             .build();
@@ -38,7 +42,7 @@ public class PolicyQuartzScheduleConfig {
     @Bean
     public JobDetail policyPurgeJobDetail() {
         return JobBuilder.newJob(PolicyPurgeQuartzJob.class)
-            .withIdentity("policyPurgeQuartzJob")
+            .withIdentity(PURGE_JOB_NAME)
             .storeDurably()
             .requestRecovery()
             .build();

@@ -30,6 +30,22 @@ spring:
       initialize-schema: always
     job:
       enabled: false
+  # Quartz JDBC JobStore. 기본 DataSource(BATCH_DB_URL, district) 의 QRTZ_* 를 쓴다(앱이 만들지 않는다: initialize-schema never).
+  # 정책 수집·분기 적재 자동 최신화·스테이징 정리의 트리거 등록은 각 *QuartzScheduleConfig 의 플래그가 가른다.
+  # 플래그를 끄면 *QuartzCleanupConfig 가 기동 시 저장된 Job 을 지우고, 남은 트리거가 발화해도 *QuartzJob 이 무시한다.
+  quartz:
+    auto-startup: true
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never
+    overwrite-existing-jobs: true
+    wait-for-jobs-to-complete-on-shutdown: true
+    properties:
+      org.quartz.scheduler.instanceId: AUTO
+      org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+      org.quartz.jobStore.tablePrefix: QRTZ_
+      org.quartz.jobStore.isClustered: true
+      org.quartz.threadPool.threadCount: 2
 
 batch:
   area-boundary:
