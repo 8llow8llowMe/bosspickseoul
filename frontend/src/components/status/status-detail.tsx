@@ -25,7 +25,10 @@ import {
   formatSinoUnit,
   formatStatusChange,
   formatStatusValue,
+  getStatusChangeTone,
+  STATUS_CHANGE_TONE_COLOR,
   STATUS_METRIC_LABELS,
+  type StatusChangeTone,
 } from '@/lib/status/status-formatters'
 import type {
   DistrictDetail,
@@ -50,8 +53,6 @@ type StatusDetailProps = {
   /** 'sheet'는 모바일 바텀시트용 컴팩트 헤더(작은 뒤로가기·제목)를 적용한다. */
   variant?: 'panel' | 'sheet'
 }
-
-type ChangeTone = 'danger' | 'neutral' | 'success' | 'warning'
 
 const TIME_SLOT_LABELS = [
   ['00~06시', 'footTrafficTime00To06'],
@@ -109,21 +110,6 @@ const toChartRows = <T,>(
       value: typeof value === 'number' && Number.isFinite(value) ? value : null,
     }
   })
-
-const getChangeTone = (
-  metric: StatusMetric,
-  changeRate: number,
-): ChangeTone => {
-  if (!Number.isFinite(changeRate) || changeRate === 0) {
-    return 'neutral'
-  }
-
-  if (metric === 'closed') {
-    return changeRate > 0 ? 'danger' : 'success'
-  }
-
-  return changeRate > 0 ? 'success' : 'warning'
-}
 
 const Root = styled.article`
   min-width: 0;
@@ -232,14 +218,14 @@ const HeaderRank = styled.p`
   line-height: 18px;
 `
 
-const changeToneColor = (tone: ChangeTone): string => {
-  if (tone === 'danger') return 'var(--color-danger)'
-  if (tone === 'success') return 'var(--color-success)'
-  if (tone === 'warning') return 'var(--color-warning)'
-  return 'var(--color-border-300)'
-}
+// 색은 목록과 같은 규칙(`getStatusChangeTone`, 폐업 반전)을 따른다. 변동 없음은
+// 칩 틴트가 흰 바탕에 묻히지 않게 회색 테두리 색을 쓴다.
+const changeToneColor = (tone: StatusChangeTone): string =>
+  tone === 'neutral'
+    ? 'var(--color-border-300)'
+    : STATUS_CHANGE_TONE_COLOR[tone]
 
-const HeaderChange = styled.span<{ $tone: ChangeTone }>`
+const HeaderChange = styled.span<{ $tone: StatusChangeTone }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -888,7 +874,7 @@ function DetailHeader({
                 {formatStatusValue(metric, rankedItem.value)}
               </HeaderValue>
               <HeaderChange
-                $tone={getChangeTone(metric, rankedItem.changeRate)}
+                $tone={getStatusChangeTone(metric, rankedItem.changeRate)}
               >
                 <span>{getChangeCue(metric, rankedItem.changeRate)}</span>
                 <span>{formatStatusChange(rankedItem.changeRate)}</span>

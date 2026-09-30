@@ -153,3 +153,30 @@ export const toChangeBadge = (
     changeDirection: changeRate >= 0 ? 'up' : 'down',
   }
 }
+
+/**
+ * 증감이 **좋은 쪽인지 나쁜 쪽인지**. 색은 방향이 아니라 이 판단을 따른다.
+ *
+ * 폐업만 뒤집는다 — 폐업 증가는 나쁘다. 예전 목록은 감소를 주황(warning)으로, 1~3위 배지를
+ * 증가와 같은 초록으로 칠해 색이 뜻을 잃었다. 이제 초록=좋음, 빨강=나쁨, 회색=변동 없음 하나다
+ * (DESIGN.md 「positive green, negative red」). 목록·상세 머리가 이 함수를 쓴다(지도 툴팁은 색 없는 평문).
+ */
+export type StatusChangeTone = 'positive' | 'negative' | 'neutral'
+
+export const getStatusChangeTone = (
+  metric: StatusMetric,
+  changeRate: number | null | undefined,
+): StatusChangeTone => {
+  if (!isFiniteNumber(changeRate) || changeRate === 0) return 'neutral'
+
+  const isRising = changeRate > 0
+  const isGood = metric === 'closed' ? !isRising : isRising
+
+  return isGood ? 'positive' : 'negative'
+}
+
+export const STATUS_CHANGE_TONE_COLOR: Record<StatusChangeTone, string> = {
+  positive: 'var(--color-positive)',
+  negative: 'var(--color-negative)',
+  neutral: 'var(--color-text-600)',
+}
