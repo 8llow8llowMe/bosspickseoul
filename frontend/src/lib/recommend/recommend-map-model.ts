@@ -187,6 +187,21 @@ export type RecommendMapStage =
   'district' | 'administration' | 'commercial' | 'results'
 
 /**
+ * 상권 뷰포트 질의(`/map/commercials`)를 보내도 되는가(recommend S3-2).
+ *
+ * 백엔드는 뷰포트 안 상권이 250개를 넘으면 `MAP_010`(400)으로 거절한다. `viewportBounds` 의
+ * 초기값은 서울 전체라, 링크로 들어오면 첫 렌더에서 씨앗 행정동 때문에 `commercial` 단계가 되고
+ * 씨앗 자동 제출이 `results` 로 넘기기 전에 **그 범위로 한 번 나가 400** 이었다. 지도가 실제
+ * 범위를 알리기 전에는 보내지 않는다. 자치구·행정동 질의는 서울 전체로도 상한 안이라 두지 않는다.
+ */
+export const isCommercialMapQueryEnabled = (
+  mapStage: RecommendMapStage,
+  commercialCodeCount: number,
+  hasReportedViewport: boolean,
+): boolean =>
+  mapStage === 'commercial' && commercialCodeCount > 0 && hasReportedViewport
+
+/**
  * 카메라를 어떻게 할지. **`keep` 과 `reset` 을 구분하는 것이 핵심**이다 —
  * 예전에는 「맞출 대상 없음」을 `null` 하나로 표현해서, 결과가 0건일 때 서울 기본
  * 카메라로 튕겨 나갔다. 사용자는 자기가 보던 화면을 잃는다.
