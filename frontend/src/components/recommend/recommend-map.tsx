@@ -582,10 +582,6 @@ export default function RecommendMap({
   })
   const guardRef = useRef<BackgroundClickGuard | null>(null)
   const lastViewportBoundsKeyRef = useRef('')
-  /** 모드를 씌운 타깃. 이펙트·ResizeObserver 는 이것만 본다. */
-  const cameraTargetRef = useRef<MapCameraTarget | null>(null)
-  /** 모드를 씌우기 **전**의 타깃. 「선택한 지역으로 돌아가기」만 이것을 쓴다. */
-  const rawCameraTargetRef = useRef<MapCameraTarget | null>(null)
   /** 마지막으로 실제 적용한 카메라 타깃의 키. 모드 전환 이펙트와 recenter 가 공유한다. */
   const lastAppliedCameraKeyRef = useRef<string | null>(null)
   const [sdkStatus, setSdkStatus] = useState<'loading' | 'ready' | 'error'>(
@@ -691,10 +687,11 @@ export default function RecommendMap({
   const effectiveCameraTarget = applyCameraMode(cameraTarget, cameraMode)
   const cameraTargetKey = JSON.stringify(effectiveCameraTarget)
   const layerSemanticKey = createRecommendMapLayerSemanticKey(layerInput)
-  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
-  cameraTargetRef.current = effectiveCameraTarget
-  // eslint-disable-next-line react-hooks/refs -- 최신값 ref 관용구. 사유는 위 주석
-  rawCameraTargetRef.current = cameraTarget
+  /**
+   * 모드를 씌운 타깃. 카메라 이펙트·ResizeObserver 는 이것만 본다. 모드를 씌우기
+   * **전**의 타깃(`cameraTarget`)은 「선택한 지역으로 돌아가기」만 쓴다.
+   */
+  const readCameraTarget = useEffectEvent(() => effectiveCameraTarget)
 
   useEffect(() => {
     let cancelled = false
@@ -785,7 +782,7 @@ export default function RecommendMap({
       map.relayout()
       // 맞출 대상이 없을 때는 건드리지 않는다 — 사용자가 옮겨 둔 화면을
       // 창 크기 변화만으로 기본 카메라로 되돌리면 안 된다.
-      applyCameraTarget(maps, map, cameraTargetRef.current)
+      applyCameraTarget(maps, map, readCameraTarget())
     })
     if (containerRef.current) observer.observe(containerRef.current)
 
@@ -1110,7 +1107,7 @@ export default function RecommendMap({
     const map = mapRef.current
     if (sdkStatus !== 'ready' || !maps || !map) return
     if (lastAppliedCameraKeyRef.current === cameraTargetKey) return
-    applyCameraTarget(maps, map, cameraTargetRef.current)
+    applyCameraTarget(maps, map, readCameraTarget())
     lastAppliedCameraKeyRef.current = cameraTargetKey
   }, [cameraTargetKey, sdkStatus])
 
@@ -1131,8 +1128,8 @@ export default function RecommendMap({
 
   /*
    * 「선택한 지역으로 돌아가기」는 **모드와 무관하게 즉시 맞춘다** — 사용자가 원한 것이다.
-   * 그래서 모드를 씌우지 않은 원래 타깃을 쓰고, 그 뒤로 자동 맞춤을 다시 허용하도록
-   * 화면에 알린다(url-state §2-2).
+   * 그래서 모드를 씌우지 않은 원래 타깃(`cameraTarget`)을 쓰고, 그 뒤로 자동 맞춤을
+   * 다시 허용하도록 화면에 알린다(url-state §2-2).
    * 맞출 대상이 `keep` 이면(결과 로딩 중 등) 잠금도 풀지 않는다 — 아무 일도 안 일어난
    * 버튼이 몇 초 뒤 결과 도착과 함께 화면을 옮기면 안 된다.
    * 직접 적용한 타깃의 키를 기록해 모드 전환 이펙트가 같은 fit 을 되풀이하지 않게 한다.
@@ -1140,10 +1137,9 @@ export default function RecommendMap({
   const recenter = () => {
     const maps = mapsRef.current
     const map = mapRef.current
-    const target = rawCameraTargetRef.current
-    if (!target || target.kind === 'keep') return
-    if (maps && map) applyCameraTarget(maps, map, target)
-    lastAppliedCameraKeyRef.current = JSON.stringify(target)
+    if (cameraTarget.kind === 'keep') return
+    if (maps && map) applyCameraTarget(maps, map, cameraTarget)
+    lastAppliedCameraKeyRef.current = JSON.stringify(cameraTarget)
     onRecenter?.()
   }
 

@@ -190,7 +190,8 @@ describe('RecommendMap server rendering', () => {
     expect(source).toContain('applyCameraMode(cameraTarget, cameraMode)')
 
     // 「선택한 지역으로 돌아가기」은 모드가 씌워지지 않은 원래 타깃을 써야 즉시 맞출 수 있다.
-    expect(source).toContain('rawCameraTargetRef.current')
+    // 동작은 recommend-map.effects.test.ts 의 링크 카메라 모드 테스트가 본다.
+    expect(source).toContain('applyCameraTarget(maps, map, cameraTarget)')
 
     // 카메라 emit 이 bounds dedupe 보다 앞서야 줌·미세 팬에서도 `c` 가 갱신된다.
     expect(source.indexOf('emitCameraSettle(')).toBeLessThan(
