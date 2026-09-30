@@ -88,9 +88,9 @@ export type StatusMapLabelTier = {
 }
 
 // 지도 뷰포트 폭 460px 이하가 narrow 다(`status-map.tsx` 의 @container 와 짝).
-// narrow 의 하한은 모바일(375px 화면 − 좌우 16px = 343px)이 아니라 **태블릿 768px** 이
-// 더 좁다: 768 − 여백 40 − 좌측 열 340 − 간격 16 − 패널 안쪽 34 ≈ 338px, 스크롤바가
-// 보이는 환경이면 약 323px. 여유를 두고 320px 로 판정한다.
+// narrow 의 하한: 가장 좁은 지도는 375px 폰의 시트 무대(375 − 지도 층 안쪽 24 = 351px)이고,
+// 지도가 시트 위 자리에 맞춰 줄면 그보다 좁아질 수 있다. 여유를 두고 320px 로 판정한다.
+// (1.4 전에는 태블릿 2단의 좌측 열 옆 지도, 약 323px 가 가장 좁았다.)
 export const STATUS_MAP_LABEL_BREAKPOINT_PX = 460
 export const STATUS_MAP_LABEL_TIERS = {
   narrow: { mapWidthPx: 320, fontSizePx: 9.5, rankDotPx: 13 },

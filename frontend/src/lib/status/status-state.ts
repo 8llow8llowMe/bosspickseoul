@@ -12,7 +12,10 @@ const STATUS_METRICS: readonly StatusMetric[] = [
   'closed',
 ]
 
-export type StatusSheetSnap = 'collapsed' | 'expanded'
+/**
+ * 시트 3단(status.md 1.4). `full` 은 상세를 길게 읽는 단계라 끌어 올려서만 간다.
+ */
+export type StatusSheetSnap = 'collapsed' | 'expanded' | 'full'
 
 export type StatusSheetState = {
   districtCode: string | null
@@ -29,8 +32,17 @@ type StatusSheetBodyTarget = StatusSheetFocusTarget & {
 
 export const STATUS_SHEET_COLLAPSED_HEIGHT = 52
 export const STATUS_SHEET_EXPANDED_RATIO = 0.6
-// 지도를 상단 정렬로 두므로, 펼친 시트가 지도를 가리지 않도록 지도 몫을 크게 잡는다.
+// 펼친 시트 위에 지도가 남을 최소 몫. 지도는 이 자리에 맞춰 줄어든다(status.md 1.4).
+// 무대가 이보다 작으면(가로로 눕힌 폰 등) 펼침이 접힘과 같아지고 전체 단계만 남는다.
 export const STATUS_SHEET_MINIMUM_MAP_HEIGHT = 290
+// 전체 펼침에서도 무대 위 끝을 조금 남겨 시트가 화면 전체를 덮은 것처럼 보이지 않게 한다.
+export const STATUS_SHEET_FULL_TOP_GAP = 12
+
+export type StatusSheetHeightBounds = {
+  collapsedHeight: number
+  expandedHeight: number
+  fullHeight: number
+}
 
 export const createStatusHref = (
   pathname: string,
@@ -45,36 +57,60 @@ export const createStatusHref = (
 
 export const getStatusSheetHeightBounds = (
   statusViewportHeight: number,
-): { collapsedHeight: number; expandedHeight: number } => {
+): StatusSheetHeightBounds => {
   if (!Number.isFinite(statusViewportHeight) || statusViewportHeight <= 0) {
     return {
       collapsedHeight: STATUS_SHEET_COLLAPSED_HEIGHT,
       expandedHeight: STATUS_SHEET_COLLAPSED_HEIGHT,
+      fullHeight: STATUS_SHEET_COLLAPSED_HEIGHT,
     }
   }
 
+  const expandedHeight = Math.max(
+    STATUS_SHEET_COLLAPSED_HEIGHT,
+    Math.min(
+      statusViewportHeight * STATUS_SHEET_EXPANDED_RATIO,
+      statusViewportHeight - STATUS_SHEET_MINIMUM_MAP_HEIGHT,
+    ),
+  )
+
   return {
     collapsedHeight: STATUS_SHEET_COLLAPSED_HEIGHT,
-    expandedHeight: Math.max(
-      STATUS_SHEET_COLLAPSED_HEIGHT,
-      Math.min(
-        statusViewportHeight * STATUS_SHEET_EXPANDED_RATIO,
-        statusViewportHeight - STATUS_SHEET_MINIMUM_MAP_HEIGHT,
-      ),
+    expandedHeight,
+    fullHeight: Math.max(
+      expandedHeight,
+      statusViewportHeight - STATUS_SHEET_FULL_TOP_GAP,
     ),
   }
 }
 
+const STATUS_SHEET_SNAP_ORDER: readonly StatusSheetSnap[] = [
+  'collapsed',
+  'expanded',
+  'full',
+]
+
+/** 한 단계 펼치거나 접는다. 끝 단계에서는 그대로다. */
 export const getNextSheetSnap = (
   current: StatusSheetSnap,
   action: 'expand' | 'collapse',
 ): StatusSheetSnap => {
-  if (action === 'expand') {
-    return current === 'collapsed' ? 'expanded' : current
-  }
+  const index = STATUS_SHEET_SNAP_ORDER.indexOf(current)
+  const nextIndex = action === 'expand' ? index + 1 : index - 1
 
-  return current === 'expanded' ? 'collapsed' : current
+  return STATUS_SHEET_SNAP_ORDER[
+    Math.min(STATUS_SHEET_SNAP_ORDER.length - 1, Math.max(0, nextIndex))
+  ]
 }
+
+/**
+ * 손잡이·지도 배경 탭. 접혀 있으면 펼치고, 그 밖에는 한 단계 접는다. `full` 은 끌어서만
+ * 간다 — 탭 한 번에 지도가 통째로 가려지면 놀란다.
+ */
+export const getToggledSheetSnap = (
+  current: StatusSheetSnap,
+): StatusSheetSnap =>
+  current === 'collapsed' ? 'expanded' : getNextSheetSnap(current, 'collapse')
 
 export const applyStatusSheetContentTransition = ({
   body,
@@ -96,32 +132,62 @@ export const applyStatusSheetContentTransition = ({
   focusTarget?.focus({ preventScroll: true })
 }
 
+/**
+ * 끌어 놓은 높이에서 **가장 가까운 단계**로 붙인다. 같은 거리면 높은 단계다(예전 2단의
+ * 「중간점이면 펼침」과 같은 규칙).
+ */
 export const resolveSheetSnapFromDrag = (
   startSnap: StatusSheetSnap,
   deltaY: number,
-  collapsedHeight: number,
-  expandedHeight: number,
+  bounds: StatusSheetHeightBounds,
 ): StatusSheetSnap => {
+  const { collapsedHeight, expandedHeight, fullHeight } = bounds
+
   if (
     !Number.isFinite(deltaY) ||
     !Number.isFinite(collapsedHeight) ||
     !Number.isFinite(expandedHeight) ||
+    !Number.isFinite(fullHeight) ||
     collapsedHeight <= 0 ||
-    expandedHeight <= collapsedHeight
+    expandedHeight < collapsedHeight ||
+    fullHeight <= collapsedHeight
   ) {
     return startSnap
   }
 
-  const startHeight =
-    startSnap === 'expanded' ? expandedHeight : collapsedHeight
+  const heights: Record<StatusSheetSnap, number> = {
+    collapsed: collapsedHeight,
+    expanded: expandedHeight,
+    full: Math.max(fullHeight, expandedHeight),
+  }
   const draggedHeight = Math.min(
-    expandedHeight,
-    Math.max(collapsedHeight, startHeight - deltaY),
+    heights.full,
+    Math.max(collapsedHeight, heights[startSnap] - deltaY),
   )
-  const midpoint = (collapsedHeight + expandedHeight) / 2
 
-  return draggedHeight >= midpoint ? 'expanded' : 'collapsed'
+  return [...STATUS_SHEET_SNAP_ORDER]
+    .reverse()
+    .reduce((best, snap) =>
+      Math.abs(heights[snap] - draggedHeight) <
+      Math.abs(heights[best] - draggedHeight)
+        ? snap
+        : best,
+    )
 }
+
+/**
+ * 지금 그릴 시트 단계. 시트 상태는 「어느 구를 볼 때의 단계」로 기록한다 — 링크·뒤로가기로
+ * 다른 구가 열리면 기록이 그 구와 맞지 않는다. 그때 **접혀 있었으면 펼치고, 아니면 기록한 단계를
+ * 그대로 쓴다.** 예전엔 무조건 펼침으로 떨어뜨려, 전체 단계에서 구를 고르면 URL 이 따라오기
+ * 전 한 번의 렌더 동안 시트가 펼침으로 내려갔다 다시 올라왔다.
+ */
+export const resolveStatusSheetSnap = (
+  state: StatusSheetState,
+  selectedDistrictCode: string | null,
+): StatusSheetSnap =>
+  state.districtCode === selectedDistrictCode || state.snap !== 'collapsed'
+    ? state.snap
+    : 'expanded'
 
 export const parseStatusMetric = (value: unknown): StatusMetric =>
   typeof value === 'string' && STATUS_METRICS.includes(value as StatusMetric)

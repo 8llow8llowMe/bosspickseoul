@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   STATUS_SHEET_COLLAPSED_HEIGHT,
   STATUS_SHEET_EXPANDED_RATIO,
+  STATUS_SHEET_FULL_TOP_GAP,
   STATUS_SHEET_MINIMUM_MAP_HEIGHT,
 } from '@/lib/status/status-state'
 import type { StatusSelectedDistrict } from '@/types/status'
@@ -24,7 +25,7 @@ const selectedDistrict: StatusSelectedDistrict = {
 }
 
 const renderSheet = (
-  snap: 'collapsed' | 'expanded',
+  snap: 'collapsed' | 'expanded' | 'full',
   selectedDistrictOverride: StatusSelectedDistrict | null = null,
 ) => {
   const styleSheet = new ServerStyleSheet()
@@ -155,5 +156,15 @@ describe('StatusMobileSheet', () => {
       `min(${STATUS_SHEET_EXPANDED_RATIO * 100}%,calc(100%-${STATUS_SHEET_MINIMUM_MAP_HEIGHT}px))`,
     )
     expect(styles).toContain('calc(var(--status-sheet-collapsed-height) - 1px)')
+  })
+
+  it('전체 펼침(full)도 본문을 열고 시트 높이를 전체 단계 식으로 잡는다', () => {
+    const { markup, styles } = renderSheet('full')
+    const compact = styles.replace(/\s/g, '')
+
+    expect(markup).toContain('aria-expanded="true"')
+    expect(markup).not.toContain('inert')
+    expect(compact).toContain(`calc(100%-${STATUS_SHEET_FULL_TOP_GAP}px)`)
+    expect(compact).toContain('calc(var(--status-sheet-full-height)-0px)')
   })
 })
