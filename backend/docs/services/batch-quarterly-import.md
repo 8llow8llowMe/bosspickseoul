@@ -41,7 +41,9 @@ PowerShell에서 `mysql ... < file.sql`은 `<`가 예약 연산자라 실패한�
 
 ## 2. JAR과 환경변수
 
-비밀번호·API 키는 저장소에 적지 않는다. 로컬 터미널에서만 넣는다.
+비밀번호·API 키는 저장소에 적지 않는다. 로컬에서 돌릴 때는 터미널에서만 넣는다. 개발서버 Docker 호스트에서 돌릴 때는 Vault 가 만든 `.env.runtime` 을 쓴다 — 아래 「10. 개발서버에서 실행」.
+
+이 절과 3~9절의 `java -jar $jar ...` 는 로컬 JAR 기준이다. 개발서버에서는 같은 옵션을 `docker compose run ... batch-service-job` 뒤에 그대로 붙인다.
 
 ```powershell
 cd <repo>\backend
@@ -59,7 +61,7 @@ $jar = (Get-ChildItem service\batch-service\build\libs\*.jar | Where-Object Name
 
 - 서울 키는 **열린데이터광장**(data.seoul.go.kr) 키다. 공공데이터포털 키와 호환되지 않는다.
 - `--job=spatial`은 API 키를 쓰지 않는다. `--source=API` 사실 적재만 쓴다.
-- 기본 원본 보관 경로는 `backend/data/raw`다. 커밋하지 않는다.
+- 기본 원본 보관 경로는 `backend/data/raw`다. 커밋하지 않는다. 개발서버 컨테이너는 named volume 의 `/app/data/raw` 다(10절).
 - `BATCH_DB_URL`에 `prod`가 들어가면 `BatchTargetGuard`가 거부한다.
 
 ## 3. 공간 스냅샷 (사실 적재보다 먼저)
@@ -326,3 +328,114 @@ SELECT period_code,
 `rows_total = detail_filled` 인 분기가 재이관을 마친 분기다. 총액과 세부 10항목 합의 차이가 0인지도 같은 스크립트의 두 번째 SQL 로 확인한다 — 원천에서 차이가 0인 것을 2026-09-17 전수 호출로 확인했으므로, 여기서 어긋나면 매핑이 틀린 것이다.
 
 컬럼 DDL과 재이관만으로는 화면이 바뀌지 않는다. commercial-service 조회 도메인은 이 컬럼들을 읽어 상권 소비의 대체 출처로 쓴다 — 상권 네이티브가 없으면 소속 행정동의 세부 10항목으로 대체하고 `provenance` 로 그 사실을 응답에 싣는다(`CommercialExpenseProvenanceProcessor`). 행정동 leg 의 총액도 세부가 있으면 항목합을 쓴다.
+
+## 10. 개발서버에서 실행 (이슈 #440)
+
+로컬 JAR 대신 개발서버 Docker 호스트에서 **1회 실행하고 끝나는 컨테이너**로 돌린다. 서비스는 `docker-compose-batch-service.yml` 의 `batch-service-job` 이다. 옵션과 절차(dry-run → 새 run-id 로 실게시)는 3~9절과 같고, 실행 수단만 다르다.
+
+### 선행 조건
+
+- Jenkins 로 `batch-service` 를 **dev 배포한 적이 있어야 한다.** 배포가 `bosspickseoul-batch-service:latest` 이미지를 빌드하고, 서비스 디렉터리에 `.env.runtime`(Vault 렌더링, 권한 600)과 compose 파일을 둔다. `batch-service-job` 은 그 이미지를 그대로 쓰고 빌드하지 않는다. 코드를 바꿨으면 먼저 배포한다.
+- 1절 DDL 이 대상 스키마에 적용돼 있어야 한다.
+- `batch-service-job` 은 `profiles: ["job"]` 이라 Jenkins 의 `up -d --build --remove-orphans batch-service-dev` 에는 뜨지 않는다. 정의된 서비스이므로 `--remove-orphans` 가 지우지도 않는다.
+
+서버 디렉터리는 Jenkins 배포 경로 규칙(`Jenkinsfile.backend-common.groovy` 의 `SERVICE_DIR`)을 따른다.
+
+```bash
+cd ~/<DEPLOY_BASE_PARENT>/<PROJECT_SLUG>/<DEPLOY_APP_DIR>/service/batch-service
+ls .env.runtime docker-compose-batch-service.yml
+```
+
+### 실행 명령
+
+compose 프로젝트명은 Jenkins 와 같은 `bosspickseoul-batch-service` 를 쓴다. 잡 파라미터는 **환경변수(`-e BATCH_QUARTERLY_*`)** 와 **CLI 인수** 중 편한 쪽으로 넘긴다. 둘 다 주면 CLI 가 이긴다.
+
+```bash
+# 환경변수로 넘기기
+docker compose -p bosspickseoul-batch-service --env-file .env.runtime -f docker-compose-batch-service.yml --profile job \
+  run --rm \
+  -e BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev \
+  -e BATCH_QUARTERLY_JOB=project \
+  -e BATCH_QUARTERLY_RUN_ID=project-consumption-administration-20234-001 \
+  -e BATCH_QUARTERLY_DATASET=CONSUMPTION_ADMINISTRATION \
+  -e BATCH_QUARTERLY_PERIOD=20234 \
+  -e BATCH_QUARTERLY_SPATIAL_VERSION=legacy-20233 \
+  -e BATCH_QUARTERLY_DRY_RUN=true \
+  batch-service-job
+echo $?
+
+# 같은 실행을 CLI 인수로 넘기기 — 3~9절 명령의 `java -jar $jar` 뒤 옵션을 그대로 붙인다
+docker compose -p bosspickseoul-batch-service --env-file .env.runtime -f docker-compose-batch-service.yml --profile job \
+  run --rm -e BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev \
+  batch-service-job --job=project --run-id=project-consumption-administration-20234-001 \
+  --dataset=CONSUMPTION_ADMINISTRATION --period=20234 --spatial-version=legacy-20233 --dry-run=true
+echo $?
+```
+
+- `SPRING_PROFILES_ACTIVE` 는 compose 가 `quarterly` 로 고정한다. 상시 컨테이너용 `.env.runtime` 의 값을 쓰지 않는다.
+- `BATCH_QUARTERLY_DRY_RUN` 을 빼거나 빈 값으로 주면 기본값 `true` 다. 실게시는 `false` 를 명시해야 한다. 빈 환경변수는 미설정으로 본다.
+- 같은 옵션을 CLI 로 두 번 주면 거부한다(`Option must occur once`).
+- `BATCH_QUARTERLY_*` 와 `BATCH_ALLOWED_SCHEMAS` 는 compose 가 선언하지 않는다. 선언하지 않은 키는 Vault(`.env.runtime`)에 있어도 컨테이너로 가지 않으므로 **실행마다 `-e` 나 CLI 로만** 들어온다.
+- `-e` 는 compose 파일의 `${...}` 치환에 끼지 않는다. 컨테이너 환경변수를 직접 넣거나 덮어쓸 뿐이다. 그래서 `-e` 에는 컨테이너가 읽는 이름(`BATCH_ALLOWED_SCHEMAS`, `BATCH_DB_URL`)을 그대로 쓴다.
+- prod 호스트에서는 돌리지 않는다. 같은 compose 파일이 배포되지만 `BatchTargetGuard` 가 `prod` 스키마를 거부하고, 관측 라벨도 `dev` 로 고정돼 있다.
+- 로컬 JAR(2절)도 같은 env 경로를 탄다. PowerShell 세션에 `BATCH_QUARTERLY_*` 가 남아 있으면 그 값이 잡 파라미터가 된다 — 특히 `BATCH_QUARTERLY_DRY_RUN=false` 가 남으면 `--dry-run` 을 뺀 실행이 실게시가 된다. 로컬에서는 이 변수를 쓰지 말고, 썼다면 `Remove-Item Env:BATCH_QUARTERLY_*` 로 지운다.
+
+### 변수
+
+잡 파라미터:
+
+| 환경변수 | CLI 옵션 | 기본값 |
+| --- | --- | --- |
+| `BATCH_QUARTERLY_JOB` | `--job` | `facts` (`facts` / `spatial` / `project`) |
+| `BATCH_QUARTERLY_RUN_ID` | `--run-id` | 필수 |
+| `BATCH_QUARTERLY_DRY_RUN` | `--dry-run` | `true` |
+| `BATCH_QUARTERLY_DATASET` | `--dataset` | facts·project 필수 |
+| `BATCH_QUARTERLY_PERIOD` | `--period` | facts·project 필수 |
+| `BATCH_QUARTERLY_SPATIAL_VERSION` | `--spatial-version` | 필수 |
+| `BATCH_QUARTERLY_SCHEMA_VERSION` | `--schema-version` | `seoul-v1` |
+| `BATCH_QUARTERLY_SOURCE` | `--source` | facts 필수, spatial 은 `GEOJSON` |
+| `BATCH_QUARTERLY_SOURCE_FILE` | `--source-file` | 없음 |
+| `BATCH_QUARTERLY_SOURCE_UPDATED_AT` | `--source-updated-at` | facts 필수 |
+| `BATCH_QUARTERLY_EXPECTED_ROWS` | `--expected-rows` | facts 필수 |
+| `BATCH_QUARTERLY_CHARSET` | `--charset` | `UTF-8` |
+
+환경변수는 Spring relaxed binding 으로 `batch.quarterly.<옵션>` 에 붙는다(`QuarterlyImportRunner`).
+
+대상·원천:
+
+| 변수 | 넣는 곳 | 설명 |
+| --- | --- | --- |
+| `BATCH_DB_URL` | compose 가 `COMMERCIAL_DB_URL` 로 채움 | 대상 DB. 다른 스키마면 `-e BATCH_DB_URL=...` 로 덮어쓴다. 상시 컨테이너의 `BATCH_DB_URL`(district)은 쓰지 않는다 |
+| `BATCH_ALLOWED_SCHEMAS` | 실행마다 `-e` | 비면 `BatchTargetGuard` 가 거부한다. 상시 컨테이너의 값(정책 수집용)을 물려받지 않는다 |
+| `SEOUL_OPEN_DATA_API_KEY` | Vault | `--source=API` 사실 적재만 쓴다. 열린데이터광장 키 |
+| `BATCH_LEGACY_SPATIAL_SCHEMA` | Vault (선택) | `--job=spatial --source=LEGACY` 만 쓴다. 개발은 `bosspickseoul_district_dev` |
+| `BATCH_SERVICE_MEM_LIMIT_JOB` | Vault (선택) | 컨테이너 메모리 상한. 기본 `1g` |
+
+Vault(`kv/<PROJECT_SLUG>/backend/dev/env`)에 키를 추가했으면 **batch-service 를 다시 배포해야** `.env.runtime` 에 반영된다. 값은 이 문서에 적지 않는다.
+
+볼륨:
+
+| 컨테이너 경로 | 볼륨 | 용도 |
+| --- | --- | --- |
+| `/app/data/raw` | `bosspickseoul-batch-service-raw` | `BATCH_RAW_DIRECTORY`. `--source=API` 가 받은 원본 페이지. `dataset_release.raw_location` 이 이 경로를 가리킨다 |
+| `/app/data/input` | `bosspickseoul-batch-service-input` | `--source=CSV` / `--source=GEOJSON` 입력 파일 |
+
+서비스 디렉터리 아래 bind mount 를 쓰지 않는 이유: Jenkins 배포가 서비스 디렉터리를 `rsync --delete` 로 덮어써서 그 안의 파일이 배포마다 지워진다. `raw_location` 이 가리키는 원본이 사라지면 5절의 `ARCHIVE` 재생이 실패한다.
+
+- `raw_location` 은 **그 원본을 받은 환경에서만** 재생된다. 로컬 JAR 로 받은 run 의 `raw_location`(로컬 경로)은 컨테이너에서 읽을 수 없고, 그 반대도 같다. 한 데이터셋의 첫 분기 API 와 나머지 분기 ARCHIVE 를 같은 환경에서 돈다.
+- 볼륨을 `docker volume rm` 하면 원본이 사라진다. 지우기 전에 `ARCHIVE` 재생이 남았는지 확인한다.
+
+입력 파일은 서비스 디렉터리 밖(예: `~/batch-input`)에 두고 볼륨으로 옮긴다.
+
+```bash
+docker run --rm -v bosspickseoul-batch-service-input:/in -v ~/batch-input:/src:ro busybox cp /src/areas.geojson /in/
+docker run --rm -v bosspickseoul-batch-service-input:/in busybox ls -l /in
+```
+
+이후 `--source-file=/app/data/input/areas.geojson` 으로 넘긴다. 한 번만 쓸 파일이면 `run --rm -v ~/batch-input/areas.geojson:/app/data/input/areas.geojson:ro ...` 로 바로 붙여도 된다.
+
+### 종료 코드와 로그
+
+- `docker compose run` 은 컨테이너 종료 코드를 그대로 돌려준다. Job 이 `COMPLETED` 면 `0`, 그 외(실패·검증 거부·가드 거부)는 `1` 이다. `echo $?` 가 `0` 이 아니면 다음 줄(실게시)로 넘어가지 않는다.
+- 로그는 터미널로만 나온다. `--rm` 이라 끝나면 컨테이너와 `docker logs` 가 함께 사라진다. 남기려면 `... batch-service-job 2>&1 | tee run-<run-id>.log` 로 받고, 종료 코드는 `echo ${PIPESTATUS[0]}` 로 본다.
+- 건수 확인은 6절 SQL 로 한다. 컨테이너 안에서 할 일은 없다.
