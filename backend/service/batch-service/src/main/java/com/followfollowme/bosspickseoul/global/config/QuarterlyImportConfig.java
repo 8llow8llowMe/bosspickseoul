@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.ChangeCommercialProjectionJdbcAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetRefreshStateJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetReleaseJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.ServiceCategoryJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.source.SeoulDatasetSourceAdapter;
@@ -9,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.sp
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.SpatialGeoJsonSourceAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.SpatialReleaseJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SpatialSourceRequest;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshStatePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.ServiceCategoryLookupPort;
@@ -51,6 +53,12 @@ public class QuarterlyImportConfig {
     @Bean
     public DatasetReleasePort datasetReleasePort(@Qualifier("commercialJdbcTemplate") JdbcTemplate jdbc) {
         return new DatasetReleaseJdbcAdapter(jdbc, datasetObjectMapper);
+    }
+
+    /** 자동 최신화 상태. 기동 시 DB 를 건드리지 않으므로 테이블이 없는 환경에서도 빈은 뜬다. */
+    @Bean
+    public DatasetRefreshStatePort datasetRefreshStatePort(@Qualifier("commercialJdbcTemplate") JdbcTemplate jdbc) {
+        return new DatasetRefreshStateJdbcAdapter(jdbc);
     }
 
     @Bean

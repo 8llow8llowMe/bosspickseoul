@@ -7,23 +7,44 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.mo
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ProjectionRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Dataset;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Quarter;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.transaction.annotation.Transactional;
 
 public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectionPort {
 
     private static final TypeReference<Map<String, String>> PAYLOAD = new TypeReference<>() {};
 
+    /** 데이터셋별 이관 대상 팩트 테이블. DELETE/INSERT 문과 {@code quarterly-import-coverage.sql} 5절이 같은 이름을 쓴다. */
+    private static final Map<Dataset, String> TYPED_TABLE = new EnumMap<>(Dataset.class);
     private static final Map<Dataset, String> DELETE_SQL = new EnumMap<>(Dataset.class);
     private static final Map<Dataset, String> INSERT_SQL = new EnumMap<>(Dataset.class);
 
     static {
+        TYPED_TABLE.put(Dataset.CHANGE_COMMERCIAL, "change_commercial");
+        TYPED_TABLE.put(Dataset.FOOT_TRAFFIC_COMMERCIAL, "foot_traffic_commercial");
+        TYPED_TABLE.put(Dataset.POPULATION_COMMERCIAL, "population_commercial");
+        TYPED_TABLE.put(Dataset.FACILITY_COMMERCIAL, "facility_commercial");
+        TYPED_TABLE.put(Dataset.CONSUMPTION_COMMERCIAL, "income_commercial");
+        TYPED_TABLE.put(Dataset.STORE_COMMERCIAL, "store_commercial");
+        TYPED_TABLE.put(Dataset.SALES_COMMERCIAL, "sales_commercial");
+        TYPED_TABLE.put(Dataset.FOOT_TRAFFIC_DISTRICT, "foot_traffic_district");
+        TYPED_TABLE.put(Dataset.CONSUMPTION_DISTRICT, "income_district");
+        TYPED_TABLE.put(Dataset.CHANGE_DISTRICT, "change_district");
+        TYPED_TABLE.put(Dataset.STORE_DISTRICT, "store_district");
+        TYPED_TABLE.put(Dataset.SALES_DISTRICT, "sales_district");
+        TYPED_TABLE.put(Dataset.CONSUMPTION_ADMINISTRATION, "income_administration");
+        TYPED_TABLE.put(Dataset.STORE_ADMINISTRATION, "store_administration");
+        TYPED_TABLE.put(Dataset.SALES_ADMINISTRATION, "sales_administration");
+
         DELETE_SQL.put(Dataset.FOOT_TRAFFIC_COMMERCIAL,
             "DELETE FROM foot_traffic_commercial WHERE period_code=? AND spatial_version=?");
         DELETE_SQL.put(Dataset.POPULATION_COMMERCIAL,
@@ -252,6 +273,29 @@ public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectio
         jdbc.update(deleteSql, request.period().value(), request.spatialVersion());
         jdbc.batchUpdate(insertSql, rows, 500, this::bindTyped);
         return rows.size();
+    }
+
+    @Override
+    public Map<Quarter, Long> typedRowCounts(Dataset dataset, String spatialVersion) {
+        Map<Quarter, Long> counts = new TreeMap<>();
+        jdbc.query(typedRowCountSql(dataset),
+            (RowCallbackHandler) rs -> counts.put(new Quarter(rs.getString("period_code")), rs.getLong("typed_rows")),
+            spatialVersion);
+        return counts;
+    }
+
+    /** 테이블 이름은 위 고정 표에서만 온다. 요청 값이 SQL 에 들어가지 않는다. */
+    static String typedRowCountSql(Dataset dataset) {
+        String table = TYPED_TABLE.get(dataset);
+        if (table == null) {
+            throw new IllegalArgumentException("typed table missing for " + dataset);
+        }
+        return "SELECT period_code, COUNT(*) AS typed_rows FROM " + table + " WHERE spatial_version=? GROUP BY period_code";
+    }
+
+    /** 같은 패키지 테스트가 coverage.sql 5절의 테이블 이름과 대조한다. */
+    static String typedTable(Dataset dataset) {
+        return TYPED_TABLE.get(dataset);
     }
 
     /**
