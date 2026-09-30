@@ -45,6 +45,17 @@ export type StatusRankedItem = {
   changeRate: number
 }
 
+/**
+ * 화면에서 고른 자치구. 순위 밖 구도 고를 수 있어 `rankedItem` 은 null 일 수 있다
+ * (`resolveStatusSelectedDistrict`).
+ */
+export type StatusSelectedDistrict = {
+  districtCode: string
+  districtName: string
+  /** 현재 지표 Top10 안이면 그 순위 항목, 밖이면 null. */
+  rankedItem: StatusRankedItem | null
+}
+
 export type StatusTopTenByMetric = Record<StatusMetric, StatusRankedItem[]>
 
 /**

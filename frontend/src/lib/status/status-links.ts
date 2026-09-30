@@ -10,9 +10,10 @@ import {
  * `GET /districts/{districtCode}` 응답에 이미 들어 있는데 화면이 쓰지 않던 필드다.
  * 명세: `docs/features/status/district-detail-links.md`
  *
- * ⚠️ 목적지는 언제나 `/analysis` 다. `/status?district=` 는 쓸 수 없다 —
- * `normalizeStatusSelection` 이 「현재 지표의 top-10」 밖 코드를 버리고 상세도
- * `selectedItem !== null` 로 게이트돼 있으며, 행정동은 아예 화면이 없다.
+ * ⚠️ 목적지는 언제나 `/analysis` 다. 여기서 만드는 링크는 **업종·행정동 단위**인데
+ * `/status` 는 자치구 단위 화면이라 받을 자리가 없다(행정동은 아예 화면이 없다).
+ * `/status?district=` 자체는 2026-09-30 부터 25개 구 모두 유효하다(status.md 1.2) —
+ * 예전엔 「현재 지표 Top10」 밖 코드를 버려서 그것도 목적지로 쓸 수 없었다.
  */
 
 const trimmed = (value: string | null | undefined): string | null => {

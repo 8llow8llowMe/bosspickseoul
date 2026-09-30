@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
 import { normalizeApiError } from '@/lib/api/api-error'
-import type { StatusRankedItem } from '@/types/status'
+import type { StatusSelectedDistrict } from '@/types/status'
 import StatusDetail from './status-detail'
 import StatusFeedback from './status-feedback'
 
@@ -22,12 +22,16 @@ const apiError = (status: number, resultCode: string, resultMessage: string) =>
     },
   })
 
-const selectedItem: StatusRankedItem = {
-  rank: 1,
+const selectedDistrict: StatusSelectedDistrict = {
   districtCode: '11650',
   districtName: '서초구',
-  value: 123456,
-  changeRate: 4.2,
+  rankedItem: {
+    rank: 1,
+    districtCode: '11650',
+    districtName: '서초구',
+    value: 123456,
+    changeRate: 4.2,
+  },
 }
 
 const renderFeedback = (error: ReturnType<typeof apiError>) =>
@@ -43,7 +47,7 @@ const renderDetail = (error: ReturnType<typeof apiError>) =>
   renderToStaticMarkup(
     createElement(StatusDetail, {
       metric: 'footTraffic',
-      selectedItem,
+      selectedDistrict,
       detail: null,
       isLoading: false,
       error,

@@ -26,10 +26,10 @@ import type { AnalysisRankingResponse } from '@/types/status'
  * - `/recommend` 조건 뷰 「실시간 많이 본 상권」 띠: `COMMERCIAL`, 표시만(역조회 없음)
  *   (`components/recommend/recommend-live-popular.tsx`)
  *
- * ⚠️ **`/status?district=` 는 목적지로 쓸 수 없다.** `normalizeStatusSelection` 이
- * 「현재 지표의 top-10」에 없는 코드를 버리고, 상세도 `selectedItem !== null` 로
- * 게이트돼 있다. 조회수 상위 자치구가 그 top-10 밖이면 눌러도 아무것도 안 열린다.
- * 그래서 홈 섹션은 `/analysis?districtCode=` 로 보낸다(25개 자치구 모두 유효).
+ * 홈 섹션은 `/analysis?districtCode=` 로 보낸다(25개 자치구 모두 유효). 이 결정을 할
+ * 때는 `/status?district=` 가 「현재 지표 Top10」 밖 코드를 버려서 목적지로 쓸 수
+ * 없었다. 2026-09-30 부터는 25개 구 모두 유효하다(status.md 1.2) — 목적지를 바꿀지는
+ * 별도 판단이다. 「많이 본 지역」을 눌러 기대하는 건 분석이라 지금은 그대로 둔다.
  */
 export const fetchAnalysisRankings = async (
   areaType: 'COMMERCIAL' | 'DISTRICT' | 'ADMINISTRATION',

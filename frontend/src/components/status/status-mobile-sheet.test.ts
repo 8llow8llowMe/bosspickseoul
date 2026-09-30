@@ -8,20 +8,24 @@ import {
   STATUS_SHEET_EXPANDED_RATIO,
   STATUS_SHEET_MINIMUM_MAP_HEIGHT,
 } from '@/lib/status/status-state'
-import type { StatusRankedItem } from '@/types/status'
+import type { StatusSelectedDistrict } from '@/types/status'
 import StatusMobileSheet from './status-mobile-sheet'
 
-const selectedItem: StatusRankedItem = {
-  rank: 1,
+const selectedDistrict: StatusSelectedDistrict = {
   districtCode: '11650',
   districtName: '서초구',
-  value: 123456,
-  changeRate: 4.2,
+  rankedItem: {
+    rank: 1,
+    districtCode: '11650',
+    districtName: '서초구',
+    value: 123456,
+    changeRate: 4.2,
+  },
 }
 
 const renderSheet = (
   snap: 'collapsed' | 'expanded',
-  selectedItemOverride: StatusRankedItem | null = null,
+  selectedDistrictOverride: StatusSelectedDistrict | null = null,
 ) => {
   const styleSheet = new ServerStyleSheet()
 
@@ -31,7 +35,7 @@ const renderSheet = (
         createElement(StatusMobileSheet, {
           metric: 'footTraffic',
           items: [],
-          selectedItem: selectedItemOverride,
+          selectedDistrict: selectedDistrictOverride,
           detail: null,
           isDetailLoading: false,
           detailError: null,
@@ -122,14 +126,14 @@ describe('StatusMobileSheet', () => {
   })
 
   it('상세 콘텐츠를 축소하지 않고 본문 스크롤 높이에 포함한다', () => {
-    const expanded = renderSheet('expanded', selectedItem)
+    const expanded = renderSheet('expanded', selectedDistrict)
     const expandedBodyStyles = getBodyStyles(expanded.markup, expanded.styles)
 
     expect(expandedBodyStyles).toContain('grid-auto-rows:max-content')
   })
 
   it('상세 헤더에 아이콘 뒤로가기 버튼을 표시한다', () => {
-    const { markup } = renderSheet('expanded', selectedItem)
+    const { markup } = renderSheet('expanded', selectedDistrict)
 
     expect(markup).toContain('aria-label="상위 10개로 돌아가기"')
     expect(markup).toMatch(
