@@ -194,8 +194,23 @@ describe('RecommendMap server rendering', () => {
     expect(source).toContain('applyCameraTarget(maps, map, cameraTarget)')
 
     // 카메라 emit 이 bounds dedupe 보다 앞서야 줌·미세 팬에서도 `c` 가 갱신된다.
-    expect(source.indexOf('emitCameraSettle(')).toBeLessThan(
-      source.indexOf('readKakaoViewportBounds(map)'),
+    // dedupe 는 `reportViewportBounds` 안에 있고, idle 핸들러는 카메라를 올린 **뒤에** 그것을 부른다.
+    const idleHandler = source.slice(source.indexOf('mapIdleHandler = () =>'))
+    expect(idleHandler.indexOf('emitCameraSettle(')).toBeGreaterThan(-1)
+    expect(idleHandler.indexOf('emitCameraSettle(')).toBeLessThan(
+      idleHandler.indexOf('reportViewportBounds()'),
+    )
+    const reporter = source.slice(
+      source.indexOf('const reportViewportBounds = () =>'),
+      source.indexOf('mapIdleHandler = () =>'),
+    )
+    expect(reporter).toContain('lastViewportBoundsKeyRef.current')
+    // 생성 직후의 첫 보고는 **범위만** 알린다 — `c` 는 카메라가 움직여야 붙는다(url-state §2-2).
+    expect(reporter).not.toContain('emitCameraSettle(')
+    // 카카오는 생성 직후 idle 을 올리지 않는다. 이 예약이 빠지면 링크 카메라로 들어와 카메라가
+    // 안 움직일 때 상권 질의가 범위를 영영 기다린다(recommend S3-2).
+    expect(source.replace(/\s+/g, ' ')).toContain(
+      'viewportTimer = setTimeout( reportViewportBounds, VIEWPORT_BOUNDS_DEBOUNCE_MS, )',
     )
   })
 })

@@ -43,6 +43,7 @@ import {
   buildResultBoundaryBounds,
   collectMemberCenterPoints,
   filterAreasByCodes,
+  isCommercialMapQueryEnabled,
 } from '@/lib/recommend/recommend-map-model'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { COMPARE_MAX_COMMERCIALS } from '@/lib/recommend/compare-url'
@@ -689,8 +690,13 @@ function RecommendPageBody() {
    * 는 거울 잠금이 없어 마운트 즉시 거울이 도니 특히 그렇다.
    */
   const cameraRef = useRef<MapCamera | null>(urlSeed.camera)
-  const [viewportBounds, setViewportBounds] =
-    useState<GeoBounds>(SEOUL_MAP_BOUNDS)
+  /**
+   * 지도가 알린 화면 범위. **`null` 은 「아직 모른다」**다 — 지도가 첫 `idle` 을 올리기 전이다.
+   * 자치구·행정동 질의는 그동안 서울 전체로 보내도 되지만, 상권 질의는 기다린다(S3-2).
+   */
+  const [reportedViewportBounds, setViewportBounds] =
+    useState<GeoBounds | null>(null)
+  const viewportBounds = reportedViewportBounds ?? SEOUL_MAP_BOUNDS
   const mapStage = getRecommendationStage(
     state.view,
     state.draft.district,
@@ -836,6 +842,20 @@ function RecommendPageBody() {
         : collectMemberCenterPoints(administrations),
     [administrations, isAdministrationListLoading],
   )
+  const hasReportedViewport = reportedViewportBounds !== null
+  const commercialCodeCount = commercialCodes.length
+  // 가져온 함수를 컴포넌트 본문에서 memo 없이 부르면(옵션 안이든 밖의 const 든) React Compiler 가
+  // 이 컴포넌트의 수동 메모이제이션을 보존하지 못해 컴파일을 건너뛴다
+  // (react-hooks/preserve-manual-memoization, 다른 콜백 8곳). `useMemo` 로 감싸 피한다.
+  const isCommercialMapEnabled = useMemo(
+    () =>
+      isCommercialMapQueryEnabled(
+        mapStage,
+        commercialCodeCount,
+        hasReportedViewport,
+      ),
+    [commercialCodeCount, hasReportedViewport, mapStage],
+  )
   const commercialMapQuery = useQuery({
     queryKey: [
       'recommend',
@@ -845,7 +865,7 @@ function RecommendPageBody() {
       viewportBounds,
     ],
     queryFn: () => fetchCommercialMapAreas(viewportBounds),
-    enabled: mapStage === 'commercial' && commercialCodes.length > 0,
+    enabled: isCommercialMapEnabled,
     placeholderData: previousData => previousData,
   })
   const commercialAreas = useMemo(

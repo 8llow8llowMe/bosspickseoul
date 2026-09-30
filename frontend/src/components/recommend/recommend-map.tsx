@@ -707,6 +707,16 @@ export default function RecommendMap({
             emitBackgroundClick()
           }
         }
+        const reportViewportBounds = () => {
+          const viewportBounds = readKakaoViewportBounds(map)
+          if (!viewportBounds) return
+
+          const viewportBoundsKey = JSON.stringify(viewportBounds)
+          if (viewportBoundsKey === lastViewportBoundsKeyRef.current) return
+
+          lastViewportBoundsKeyRef.current = viewportBoundsKey
+          emitViewportBounds(viewportBounds)
+        }
         mapIdleHandler = () => {
           if (viewportTimer) clearTimeout(viewportTimer)
 
@@ -720,19 +730,22 @@ export default function RecommendMap({
             emitCameraSettle(
               createMapCamera(center.getLat(), center.getLng(), map.getLevel()),
             )
-
-            const viewportBounds = readKakaoViewportBounds(map)
-            if (!viewportBounds) return
-
-            const viewportBoundsKey = JSON.stringify(viewportBounds)
-            if (viewportBoundsKey === lastViewportBoundsKeyRef.current) return
-
-            lastViewportBoundsKeyRef.current = viewportBoundsKey
-            emitViewportBounds(viewportBounds)
+            reportViewportBounds()
           }, VIEWPORT_BOUNDS_DEBOUNCE_MS)
         }
         maps.event.addListener(map, 'click', mapClickHandler)
         maps.event.addListener(map, 'idle', mapIdleHandler)
+        /*
+         * 카카오 지도는 생성 직후 `idle` 을 올리지 않는다. 링크 카메라(`'url'`)로 들어와 카메라가
+         * 한 번도 움직이지 않으면 화면이 범위를 영영 모르고, 상권 질의는 범위를 알 때까지 기다리므로
+         * 폴리곤이 뜨지 않는다(recommend S3-2). 그래서 **범위만** 한 번 알린다. 카메라(`c`)는 올리지
+         * 않는다 — 「`c` 는 카메라가 한 번 움직여야 붙는다」(url-state §2-2)를 지킨다. 그 사이 `idle` 이
+         * 오면 그 타이머가 이것을 대신한다.
+         */
+        viewportTimer = setTimeout(
+          reportViewportBounds,
+          VIEWPORT_BOUNDS_DEBOUNCE_MS,
+        )
         setSdkStatus('ready')
       })
       .catch(() => {

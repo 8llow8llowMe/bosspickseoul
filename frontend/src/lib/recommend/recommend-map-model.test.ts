@@ -20,6 +20,7 @@ import {
   normalizeBoundary,
   normalizeViewportBounds,
   resolveCameraPadding,
+  isCommercialMapQueryEnabled,
   resolveRecommendCameraTarget,
   MIN_CAMERA_PADDING,
   RESULT_BOUNDARY_PAD_DEGREES,
@@ -666,5 +667,18 @@ describe('applyCameraMode', () => {
 
     expect(applyCameraMode(fit, 'auto')).toBe(fit)
     expect(applyCameraMode(reset, 'auto')).toBe(reset)
+  })
+})
+
+/*
+ * 링크로 들어오면 첫 렌더에서 씨앗 행정동 때문에 `commercial` 단계가 되고, 지도가 범위를
+ * 알리기 전의 서울 전체 bbox 로 상권 질의가 나가 `MAP_010`(400) 을 받았다(recommend S3-2).
+ */
+describe('commercial viewport query gate', () => {
+  it('waits for the first real viewport before querying commercial areas', () => {
+    expect(isCommercialMapQueryEnabled('commercial', 12, true)).toBe(true)
+    expect(isCommercialMapQueryEnabled('commercial', 12, false)).toBe(false)
+    expect(isCommercialMapQueryEnabled('commercial', 0, true)).toBe(false)
+    expect(isCommercialMapQueryEnabled('results', 12, true)).toBe(false)
   })
 })
