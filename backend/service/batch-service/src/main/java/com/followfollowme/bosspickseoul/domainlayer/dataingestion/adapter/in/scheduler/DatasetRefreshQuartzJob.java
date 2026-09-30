@@ -14,6 +14,9 @@ import org.springframework.scheduling.quartz.QuartzJobBean;
  * 데이터셋 단위 실패는 유스케이스가 결과로 흡수한다. 여기까지 올라온 예외만 Quartz 실패로 남긴다.
  *
  * <p>플래그가 꺼져 있으면 아무것도 하지 않는다. JDBC JobStore 에 예전 트리거가 남아 있을 수 있어서다(fail-closed).
+ *
+ * <p>정책 수집·스테이징 정리와 달리 Spring Batch Job 으로 감싸지 않는다. 유스케이스가 분기 적재 Job 을 데이터셋마다 직접 띄우므로
+ * 오케스트레이션 run 자체는 {@code BATCH_JOB_EXECUTION} 을 남기지 않는다(run 기록은 로그·메트릭·{@code dataset_refresh_state}).
  */
 @DisallowConcurrentExecution
 public class DatasetRefreshQuartzJob extends QuartzJobBean {

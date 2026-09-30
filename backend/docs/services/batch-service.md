@@ -268,7 +268,7 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 
 ### 판단 순서 (데이터셋 1종, `DatasetRefreshProcessor`)
 
-데이터셋은 ps1 `Order` / coverage.sql `run_order` 순서로 돈다(`Dataset.inRunOrder()`).
+데이터셋은 ps1 `Order` / coverage.sql `run_order` 순서로 돈다(`Dataset.inRunOrder()`). 0 단계와 순회·예산·상태 저장·메트릭은 `DatasetRefreshRunProcessor` 가, 1~9 단계는 `DatasetRefreshProcessor` 가 한다.
 
 0. 공간 스냅샷(`spatial-version`, 기본 `legacy-20233`)이 READY 가 아니면 run 전체를 멈춘다 — `SPATIAL_NOT_READY`
 1. 게시돼 있는데 typed 행 수가 `accepted_count` 와 다른 슬롯(coverage.sql 5절 판정)을 먼저 이관한다 — `PROJECTED` / publish=false 면 dry-run 이관 `WOULD_PROJECT`
@@ -284,6 +284,20 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 `source_updated_at` 은 분기 말일 00:00 UTC(`Quarter.endInstant()`)로 ps1 `Get-SourceUpdatedAt` 와 같다. run-id 는 `auto-<dataset>-<분기>-<yyyyMMddHHmm KST>-{fetch|dry|pub}`, 이관은 `auto-project-<dataset>-<분기>-<시각>` 이다. 수동 규칙(`<dataset>-<분기>-<attempt>`)과 `auto-` 접두로 겹치지 않고 64자를 넘지 않는다(`DatasetRefreshProcessorTest` 가 15종 전부 확인).
 
 `service_type` 미해석(`service_category` 에 없는 업종 코드)은 게시를 막지 않는다. WARN 로그 `[dataset-refresh] service_type unresolved ...` 와 메트릭으로 드러내고, 원인은 coverage.sql 6절로 본다.
+
+### 코드 구조와 빈 조립
+
+```text
+DatasetRefreshQuartzJob (adapter/in/scheduler, 플래그 가드)
+  → DatasetRefreshUseCase = DatasetRefreshFacade      run 호출 + 요약 로그만. 트랜잭션 없음
+    → DatasetRefreshRunProcessor                      공간 READY(SpatialReleasePort.isReady), 상태 일괄 조회·저장, 순서, run 전체 API 예산, 메트릭
+      → DatasetRefreshProcessor                       데이터셋 1종 판단(위 1~9)
+        → DatasetSourcePort / DatasetReleasePort / TypedFactProjectionPort / DatasetImportExecutionPort
+```
+
+- Quartz Job 을 Spring Batch Job 으로 감싸지 않는다. 유스케이스가 분기 적재 Job(`commercialAnalysisImportJob`, `typedFactProjectionJob`)을 데이터셋마다 직접 띄우므로 오케스트레이션 run 자체는 `BATCH_JOB_EXECUTION` 을 남기지 않는다. run 기록은 로그 `[dataset-refresh] run finished`, 메트릭 `batch_dataset_refresh_*`, `dataset_refresh_state` 에 있다. 정책 수집·스테이징 정리는 Quartz Job 이 Batch Job 하나를 띄우는 구조라 다르다
+- Job 파라미터 직렬화는 `adapter/in/batch` 의 `ImportJobParameters` / `ProjectionJobParameters` 한 곳이다. 수동 CLI(`QuarterlyImportRunner`)와 `SpringBatchImportExecutionAdapter` 가 같은 클래스를 쓴다
+- **빈 조립 규칙(dataingestion)** — JDBC·원천·공간 포트 어댑터와 CLI 시절부터 있던 Processor 3종(`DatasetRowProcessor`, `SpatialImportProcessor`, `TypedFactProjectionProcessor`)은 `QuarterlyImportConfig` 의 `@Bean` 으로 조립한다. 어댑터마다 `commercialJdbcTemplate` 한정자와 공유 `ObjectMapper` 인스턴스(빈으로 올리면 Boot 기본 ObjectMapper 가 물러난다)를 한 곳에서 고르기 위해서다. 자동 최신화·스테이징 정리에서 추가한 Facade·Processor·Tasklet·Job 실행 어댑터·메트릭 어댑터·가드는 policyingestion 과 같이 스테레오타입(`@Service` / `@Component`)으로 둔다. 이들은 빈만 주입받고, 이름이 필요한 의존(Job, 트랜잭션 매니저)은 생성자 `@Qualifier` 로 고정한다. 새 JDBC 어댑터는 `QuarterlyImportConfig` 에, 새 application 계층 클래스는 스테레오타입으로 추가한다
 
 ### "데이터 없음" 응답 — 실호출 확인 필요
 

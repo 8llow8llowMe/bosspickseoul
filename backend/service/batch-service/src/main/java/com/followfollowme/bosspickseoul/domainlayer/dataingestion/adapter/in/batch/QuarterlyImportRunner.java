@@ -57,7 +57,7 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
             parameters = CommercialRegionImportJobConfig.writeRequest(runId, request, dryRun);
         } else if ("project".equals(jobName)) {
             job = projectJob;
-            parameters = TypedFactProjectionJobConfig.write(new ProjectionRequest(
+            parameters = ProjectionJobParameters.write(new ProjectionRequest(
                 runId, Dataset.parse(required(args, "dataset")), new Quarter(required(args, "period")),
                 required(args, "spatial-version"), optional(args, "schema-version", "seoul-v1"), dryRun));
         } else {

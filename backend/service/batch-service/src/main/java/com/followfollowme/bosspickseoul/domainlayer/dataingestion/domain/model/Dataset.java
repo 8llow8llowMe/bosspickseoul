@@ -127,7 +127,7 @@ public enum Dataset {
      *
      * <p>2026-09-08 실호출로 확인한 값이고, {@code scripts/batch/quarterly-import-plan.ps1} 의 {@code HonorsPeriod} 와
      * {@code quarterly-import-coverage.sql} 의 {@code period_arg} 가 같은 목록을 따로 적는다. 셋이 어긋나지 않게
-     * {@code DatasetTest} 가 두 파일을 읽어 대조한다.
+     * {@code DatasetCatalogConsistencyTest} 가 두 파일을 읽어 대조한다.
      */
     private static final Set<Dataset> QUARTER_ARGUMENT_HONOURED = EnumSet.of(
         CHANGE_COMMERCIAL, FOOT_TRAFFIC_COMMERCIAL, SALES_ADMINISTRATION, SALES_COMMERCIAL, STORE_ADMINISTRATION, STORE_COMMERCIAL);

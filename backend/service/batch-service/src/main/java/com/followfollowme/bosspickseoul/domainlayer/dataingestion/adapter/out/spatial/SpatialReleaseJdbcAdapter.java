@@ -9,6 +9,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 public class SpatialReleaseJdbcAdapter implements SpatialReleasePort {
+    static final String READY_SQL = "SELECT COUNT(*) FROM dataset_spatial_release WHERE spatial_version=? AND status='READY'";
+
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transaction;
 
@@ -52,5 +54,11 @@ public class SpatialReleaseJdbcAdapter implements SpatialReleasePort {
                 snapshot.spatialVersion());
             return true;
         }));
+    }
+
+    @Override
+    public boolean isReady(String spatialVersion) {
+        Long ready = jdbc.queryForObject(READY_SQL, Long.class, spatialVersion);
+        return ready != null && ready > 0;
     }
 }

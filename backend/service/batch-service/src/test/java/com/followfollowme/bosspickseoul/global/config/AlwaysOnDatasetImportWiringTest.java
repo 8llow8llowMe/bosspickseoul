@@ -24,6 +24,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.po
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.DatasetRefreshFacade;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.DatasetStagingPurgeFacade;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRefreshProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRefreshRunProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetStagingPurgeProcessor;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -194,7 +195,7 @@ class AlwaysOnDatasetImportWiringTest {
         return runner
             .withBean(JobLauncher.class, () -> mock(JobLauncher.class))
             .withUserConfiguration(DatasetRefreshPropertiesConfig.class, BatchClockConfig.class,
-                DatasetRefreshQuartzScheduleConfig.class, DatasetRefreshFacade.class, DatasetRefreshProcessor.class,
+                DatasetRefreshQuartzScheduleConfig.class, DatasetRefreshFacade.class, DatasetRefreshRunProcessor.class, DatasetRefreshProcessor.class,
                 SpringBatchImportExecutionAdapter.class, MicrometerDatasetRefreshMetricsAdapter.class,
                 CommercialDataSourceGuardRunner.class, DatasetRefreshGuardRunner.class,
                 DatasetStagingPurgeQuartzScheduleConfig.class, DatasetStagingPurgeJobConfig.class, DatasetStagingPurgeTasklet.class,
