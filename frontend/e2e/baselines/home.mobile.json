@@ -1,15 +1,15 @@
 {
-  "measuredAt": "2026-09-29",
+  "measuredAt": "2026-09-30",
   "viewport": {
     "width": 375,
     "height": 812
   },
-  "docHeightScreens": 5.69,
+  "docHeightScreens": 5.66,
   "stickyTrackShare": 0,
   "h1Screen": 1.24,
   "firstCtaScreen": 1.53,
-  "contrastCombinations": 36,
-  "contrastFailures": 12,
+  "contrastCombinations": 40,
+  "contrastFailures": 11,
   "smallTapTargets": 6,
   "offScaleFontSizes": 3,
   "offScaleFontSizeList": [15, 18, 21],
