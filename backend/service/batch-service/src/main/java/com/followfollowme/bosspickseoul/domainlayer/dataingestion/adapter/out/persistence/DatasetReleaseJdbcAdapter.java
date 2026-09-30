@@ -12,13 +12,12 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Every writer must use the shared Spring Batch repository with runId as its sole identifying parameter. */
-@Component
-@Profile("quarterly")
+/**
+ * Every writer must use the shared Spring Batch repository with runId as its sole identifying parameter.
+ * Assembled in {@code QuarterlyImportConfig} on {@code commercialJdbcTemplate}; transactions name the matching manager.
+ */
 public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
@@ -29,7 +28,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public void begin(ImportRequest request) {
         String fingerprint = fingerprint(request);
         jdbc.update("""
@@ -59,7 +58,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public void stage(ImportRequest request, List<FactRow> rows) {
         requireRunning(request);
         jdbc.batchUpdate("""
@@ -75,7 +74,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public void reject(ImportRequest request, SourceRow row, String reason) {
         requireRunning(request);
         jdbc.update("""
@@ -84,7 +83,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public ValidationResult validate(ImportRequest request, SourceReceipt receipt) {
         requireRunning(request);
         ValidationResult result = counts(request);
@@ -93,7 +92,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public void complete(ImportRequest request, SourceReceipt receipt, ValidationResult result) {
         requireRunning(request);
         // Recount under the same release lock used by stage/reject; stale reports cannot publish.
@@ -134,7 +133,7 @@ public class DatasetReleaseJdbcAdapter implements DatasetReleasePort {
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public void fail(ImportRequest request, String reason) {
         jdbc.update("""
             UPDATE dataset_release SET status='FAILED',failure_reason=?

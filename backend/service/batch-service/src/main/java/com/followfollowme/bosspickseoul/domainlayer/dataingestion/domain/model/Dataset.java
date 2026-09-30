@@ -1,10 +1,13 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model;
 
 import com.followfollowme.bosspickseoul.shared.enums.DatasetKey;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.Set;
 
 /**
  * One Seoul commercial-analysis dataset. Each constant maps to exactly one legacy fact table
@@ -119,6 +122,35 @@ public enum Dataset {
             "2026-09-15 전수 실측에서 20241 분기부터 모든 행의 모든 지출 항목이 0 이었고, "
                 + "데이터셋 공지(OA-21278)도 상권 단위 제공 중단을 밝힌다"));
 
+    /**
+     * Open API 가 분기 경로 인자를 존중하는 데이터셋. 여기 없는 9종은 인자를 무시하고 2021 년 이후 전 기간을 돌려준다.
+     *
+     * <p>2026-09-08 실호출로 확인한 값이고, {@code scripts/batch/quarterly-import-plan.ps1} 의 {@code HonorsPeriod} 와
+     * {@code quarterly-import-coverage.sql} 의 {@code period_arg} 가 같은 목록을 따로 적는다. 셋이 어긋나지 않게
+     * {@code DatasetTest} 가 두 파일을 읽어 대조한다.
+     */
+    private static final Set<Dataset> QUARTER_ARGUMENT_HONOURED = EnumSet.of(
+        CHANGE_COMMERCIAL, FOOT_TRAFFIC_COMMERCIAL, SALES_ADMINISTRATION, SALES_COMMERCIAL, STORE_ADMINISTRATION, STORE_COMMERCIAL);
+
+    /**
+     * 분기마다 행 수가 같은 데이터셋. CHANGE_COMMERCIAL 1650 은 게시 run 으로 확인했고, 자치구 3종은 25개 구 × 1행이다.
+     * 업종이 붙는 자치구 데이터셋(SALES/STORE_DISTRICT)은 업종 수가 분기마다 달라 여기 없다. ps1 {@code FixedRows} 와 같다.
+     */
+    private static final Map<Dataset, Long> FIXED_ROWS_PER_QUARTER = Map.of(
+        CHANGE_COMMERCIAL, 1650L,
+        CHANGE_DISTRICT, 25L,
+        FOOT_TRAFFIC_DISTRICT, 25L,
+        CONSUMPTION_DISTRICT, 25L);
+
+    /**
+     * 적재 순서. 작고 고정 행 수인 데이터셋을 먼저 돌려 원천·공간 이상을 싸게 발견하고, 가장 큰 STORE_COMMERCIAL 을 마지막에 둔다.
+     * ps1 {@code Order} 와 coverage.sql {@code run_order} 와 같다.
+     */
+    private static final List<Dataset> RUN_ORDER = List.of(
+        CHANGE_COMMERCIAL, CHANGE_DISTRICT, FOOT_TRAFFIC_DISTRICT, CONSUMPTION_DISTRICT, FOOT_TRAFFIC_COMMERCIAL,
+        POPULATION_COMMERCIAL, FACILITY_COMMERCIAL, CONSUMPTION_COMMERCIAL, CONSUMPTION_ADMINISTRATION, SALES_DISTRICT,
+        STORE_DISTRICT, SALES_ADMINISTRATION, SALES_COMMERCIAL, STORE_ADMINISTRATION, STORE_COMMERCIAL);
+
     /** 중단된 원천의 마지막 게시 가능 분기와 그 사유. */
     public record DiscontinuedSource(Quarter lastPublishableQuarter, String reason) {
     }
@@ -151,6 +183,21 @@ public enum Dataset {
     public List<String> requiredMetrics() { return requiredMetrics; }
 
     public boolean changeIndicator() { return requiredMetrics.contains(CHANGE_INDICATOR_FIELD); }
+
+    /** Open API 가 분기 경로 인자를 존중하면 true. false 면 어떤 분기를 요청해도 전 기간이 온다. */
+    public boolean quarterArgumentHonoured() { return QUARTER_ARGUMENT_HONOURED.contains(this); }
+
+    /** 분기마다 고정인 행 수. 비어 있으면 분기마다 달라 직전 분기 대비 허용 오차로 판단한다. */
+    public OptionalLong fixedRowsPerQuarter() {
+        Long rows = FIXED_ROWS_PER_QUARTER.get(this);
+        return rows == null ? OptionalLong.empty() : OptionalLong.of(rows);
+    }
+
+    /** 1부터 시작하는 적재 순서. */
+    public int runOrder() { return RUN_ORDER.indexOf(this) + 1; }
+
+    /** 적재 순서대로 정렬한 전 데이터셋. */
+    public static List<Dataset> inRunOrder() { return RUN_ORDER; }
 
     /** 원천이 끊긴 데이터셋이면 그 상한과 사유. 비어 있으면 상한이 없다. */
     public Optional<DiscontinuedSource> discontinuedSource() { return Optional.ofNullable(DISCONTINUED_SOURCES.get(this)); }

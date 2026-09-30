@@ -11,14 +11,15 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.*;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-@Profile("quarterly")
 public class CommercialRegionImportJobConfig {
     @Bean
-    public Job commercialRegionImportJob(JobRepository repository, PlatformTransactionManager transactionManager, SpatialImportProcessor processor) {
+    public Job commercialRegionImportJob(JobRepository repository, @Qualifier("commercialTransactionManager") PlatformTransactionManager transactionManager,
+                                         SpatialImportProcessor processor) {
         var step = new StepBuilder("spatialSnapshotImport", repository).tasklet((contribution, context) -> {
             var parameters = contribution.getStepExecution().getJobParameters();
             var result = processor.importSnapshot(readRequest(parameters), ImportJobParameters.strictBoolean(parameters.getString("dryRun")));

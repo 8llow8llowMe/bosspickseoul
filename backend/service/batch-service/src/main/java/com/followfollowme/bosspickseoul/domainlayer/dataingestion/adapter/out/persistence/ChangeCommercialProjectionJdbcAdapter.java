@@ -226,7 +226,7 @@ public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectio
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public int replaceChangeCommercial(ProjectionRequest request, List<ChangeCommercialTypedRow> rows) {
         jdbc.update("DELETE FROM change_commercial WHERE period_code=? AND spatial_version=?",
             request.period().value(), request.spatialVersion());
@@ -242,7 +242,7 @@ public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectio
     }
 
     @Override
-    @Transactional
+    @Transactional("commercialTransactionManager")
     public int replaceTyped(ProjectionRequest request, List<Object[]> rows) {
         String deleteSql = DELETE_SQL.get(request.dataset());
         String insertSql = insertSql(request.dataset());
