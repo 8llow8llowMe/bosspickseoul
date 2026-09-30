@@ -30,9 +30,18 @@ const fetchStatusTopTen = vi.hoisted(() =>
   }),
 )
 
+// 상세는 로딩에 머물게 둔다 — 머리(구 이름·순위 줄)는 로딩 중에도 그려진다.
+const fetchStatusDetail = vi.hoisted(() =>
+  vi.fn((districtCode: string, periodCode?: string) => {
+    void districtCode
+    void periodCode
+    return new Promise(() => undefined)
+  }),
+)
+
 vi.mock('@/lib/api/status', () => ({
   fetchStatusTopTen,
-  fetchStatusDetail: vi.fn(() => new Promise(() => undefined)),
+  fetchStatusDetail,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -60,6 +69,23 @@ const okResponse = () =>
       closedStoreTopTenItems: [],
     } as unknown as DistrictTopTenSummary,
   } as unknown as DistrictTopTenResponse)
+
+// 404(데이터 부재)는 재시도하지 않아 바로 오류 화면이 뜬다.
+const NOT_FOUND_MESSAGE = '해당 분기의 자치구 데이터가 없습니다.'
+const notFoundResponse = () =>
+  Promise.reject({
+    response: {
+      status: 404,
+      data: {
+        dataHeader: {
+          success: false,
+          resultCode: 'NOT_FOUND',
+          resultMessage: NOT_FOUND_MESSAGE,
+        },
+        dataBody: null,
+      },
+    },
+  })
 
 const renderPage = (search: string) => {
   state.search = search
@@ -89,6 +115,7 @@ beforeEach(() => {
   state.push.mockReset()
   state.replace.mockReset()
   fetchStatusTopTen.mockClear()
+  fetchStatusDetail.mockClear()
 })
 
 afterEach(cleanup)
@@ -168,30 +195,82 @@ describe('StatusPage 기준 분기', () => {
   })
 
   it('그 분기 호출이 실패해도 분기 select 가 남는다', async () => {
-    // 404(데이터 부재)는 재시도하지 않아 바로 오류 화면이 뜬다.
-    state.fetch = () =>
-      Promise.reject({
-        response: {
-          status: 404,
-          data: {
-            dataHeader: {
-              success: false,
-              resultCode: 'NOT_FOUND',
-              resultMessage: '해당 분기의 자치구 데이터가 없습니다.',
-            },
-            dataBody: null,
-          },
-        },
-      })
+    state.fetch = notFoundResponse
 
     renderPage('metric=footTraffic&periodCode=20241')
 
-    expect(
-      await screen.findByText('해당 분기의 자치구 데이터가 없습니다.'),
-    ).toBeTruthy()
+    expect(await screen.findByText(NOT_FOUND_MESSAGE)).toBeTruthy()
     const { year, quarter } = await periodSelects()
 
     expect(year.value).toBe('2024')
     expect(quarter.value).toBe('1')
+  })
+
+  it('상세도 URL 의 분기로 부른다', async () => {
+    renderPage('metric=footTraffic&district=11680&periodCode=20233')
+
+    await screen.findAllByText('강남구 상세')
+
+    expect(fetchStatusDetail).toHaveBeenCalledWith('11680', '20233')
+  })
+
+  /*
+   * 전환 중 Top10 은 직전 분기 응답이다. 상세 머리의 값·증감·순위도 그 응답에서 오므로
+   * 새 분기 이름(「… 기준」) 옆에 옛 값이 그대로 보이면 안 된다 — 데스크톱·시트 둘 다.
+   */
+  it('분기를 바꾸는 동안 상세 머리의 값·순위를 aria-busy 로 둔다', async () => {
+    const { navigate } = renderPage('metric=footTraffic&district=11680')
+
+    await screen.findAllByText('강남구 상세')
+    expect(
+      document.querySelectorAll('[data-status-detail-rank][aria-busy="true"]'),
+    ).toHaveLength(0)
+
+    state.fetch = () => new Promise(() => undefined)
+    navigate('metric=footTraffic&district=11680&periodCode=20233')
+
+    expect(
+      document.querySelectorAll('[data-status-detail-rank][aria-busy="true"]'),
+    ).toHaveLength(2)
+    expect(
+      document.querySelectorAll(
+        '[data-status-detail-metric][aria-busy="true"]',
+      ),
+    ).toHaveLength(2)
+    // 선택 구 자체는 풀지 않는다 — 순위 항목을 null 로 만들지 않고 표시만 가린다.
+    expect(screen.getAllByText('유동인구 1위', { exact: false })).toHaveLength(
+      2,
+    )
+  })
+
+  it('평소 화면에서 오류 화면으로 바뀌어도 분기 select 의 포커스가 남는다', async () => {
+    const { navigate } = renderPage('metric=footTraffic')
+
+    await screen.findAllByText('유동인구 상위 10개 구')
+    const { year } = await periodSelects()
+    year.focus()
+
+    state.fetch = notFoundResponse
+    navigate('metric=footTraffic&periodCode=20241')
+
+    expect(await screen.findByText(NOT_FOUND_MESSAGE)).toBeTruthy()
+    expect(screen.getByLabelText('기준 연도')).toBe(year)
+    expect(document.activeElement).toBe(year)
+  })
+
+  it('오류 화면에서 평소 화면으로 돌아와도 분기 select 의 포커스가 남는다', async () => {
+    state.fetch = notFoundResponse
+    const { navigate } = renderPage('metric=footTraffic&periodCode=20241')
+
+    expect(await screen.findByText(NOT_FOUND_MESSAGE)).toBeTruthy()
+    const { year } = await periodSelects()
+    year.focus()
+
+    state.fetch = okResponse
+    navigate('metric=footTraffic&periodCode=20233')
+
+    await screen.findAllByText('유동인구 상위 10개 구')
+    expect(screen.getByLabelText('기준 연도')).toBe(year)
+    expect(document.activeElement).toBe(year)
   })
 })
