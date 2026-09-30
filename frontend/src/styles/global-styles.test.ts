@@ -436,11 +436,73 @@ describe('포커스가 hover 에 묻히지 않는다', () => {
     )
 
   /**
-   * 선택자에 hover 와 focus-visible 이 함께 있는 블록. 선택자에는 `;` 가 없으므로
-   * 그것을 경계로 써서 앞 선언까지 삼키지 않게 한다.
+   * 선택자에 hover 와 focus-visible 이 함께 있고 본문에 중첩 블록이 없는 `{…}` 를 찾는다.
+   * 선택자는 직전 `{` `}` `;` 바로 뒤부터 `{` 까지다 — 선택자에는 `;` 가 없으므로 그것을
+   * 경계로 써서 앞 선언까지 삼키지 않게 한다. `index` 는 선택자 첫 글자의 위치다.
+   *
+   * **정규식으로 쓰지 않는다.** 예전에는
+   * `/([^{};]*hover[^{};]*focus-visible[^{};]*|…)\{([^{}]*)\}/g` 였는데, `[^{};]*` 가
+   * 시작 위치마다 같은 구간을 끝까지 다시 훑어 **경계 없는 구간 길이의 제곱**으로 느려졌다.
+   * `src/` 334개 파일에 약 0.9초가 들었고(`seoul-status-map.ts` 의 4,261자 구간 하나가
+   * 185ms), 병렬 워커와 외부 부하가 겹치면 기본 5초 제한을 넘겨 시간 초과로 빨개졌다(#349).
+   * 경계 문자를 한 번씩만 지나가면 파일 길이에 비례한다.
    */
-  const bundled =
-    /([^{};]*hover[^{};]*focus-visible[^{};]*|[^{};]*focus-visible[^{};]*hover[^{};]*)\{([^{}]*)\}/g
+  const findBundledFocusBlocks = (
+    source: string,
+  ): Array<{ index: number; body: string }> => {
+    const boundaries = [...source.matchAll(/[{};]/g)].map(match => ({
+      char: match[0],
+      at: match.index,
+    }))
+    const blocks: Array<{ index: number; body: string }> = []
+
+    for (let k = 0; k < boundaries.length; k += 1) {
+      if (boundaries[k].char !== '{') continue
+
+      const open = boundaries[k].at
+      const selectorStart = k === 0 ? 0 : boundaries[k - 1].at + 1
+      const selector = source.slice(selectorStart, open)
+
+      if (!selector.includes('hover') || !selector.includes('focus-visible')) {
+        continue
+      }
+
+      // 본문의 `;` 는 건너뛰고 다음 중괄호를 본다. 닫는 괄호가 아니면 중첩 블록이다.
+      let next = k + 1
+      while (next < boundaries.length && boundaries[next].char === ';') {
+        next += 1
+      }
+      if (next === boundaries.length || boundaries[next].char !== '}') continue
+
+      blocks.push({
+        // 앞 줄의 경계 바로 뒤가 아니라 선택자 첫 글자를 가리켜야 보고 줄 번호가 맞는다
+        index: selectorStart + selector.length - selector.trimStart().length,
+        body: source.slice(open + 1, boundaries[next].at),
+      })
+    }
+
+    return blocks
+  }
+
+  it('묶인 블록을 선택자 순서와 상관없이 찾고, 중첩·분리된 블록은 건너뛴다', () => {
+    const source = [
+      'a { color: red; }',
+      '&:hover, &:focus-visible { outline: none; color: red; }',
+      '&:focus-visible:not(:disabled), &:hover { outline: 0 }',
+      '&:hover { outline: none } &:focus-visible { outline: none }',
+      '&:hover, &:focus-visible { & span { outline: none } }',
+    ].join('\n')
+
+    expect(
+      findBundledFocusBlocks(source).map(({ index, body }) => ({
+        line: source.slice(0, index).split('\n').length,
+        body: body.trim(),
+      })),
+    ).toEqual([
+      { line: 2, body: 'outline: none; color: red;' },
+      { line: 3, body: 'outline: 0' },
+    ])
+  })
 
   it('hover 와 묶인 포커스 블록이 outline 을 지우지 않는다', () => {
     const offenders: string[] = []
@@ -452,10 +514,10 @@ describe('포커스가 hover 에 묻히지 않는다', () => {
 
       const source = blankComments(raw)
 
-      for (const match of source.matchAll(bundled)) {
-        if (!/outline: *(none|0)/.test(match[2])) continue
+      for (const { index, body } of findBundledFocusBlocks(source)) {
+        if (!/outline: *(none|0)/.test(body)) continue
 
-        const line = source.slice(0, match.index).split('\n').length
+        const line = source.slice(0, index).split('\n').length
         offenders.push(`${path.relative(projectRoot, file)}:${line}`)
       }
     }
