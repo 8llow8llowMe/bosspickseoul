@@ -55,6 +55,16 @@ describe('HomePage', () => {
     )
   })
 
+  /* 판단 흐름 바로 뒤에 그 숫자들의 출처를 둔다(data-sources.md, TC-DS-006). */
+  it('데이터 출처가 판단 흐름과 벤토 사이에 온다', () => {
+    const html = render()
+    const story = html.indexOf('이렇게 판단해요')
+    const sources = html.indexOf('판단 근거는 모두 공공데이터에서 가져와요.')
+
+    expect(sources).toBeGreaterThan(story)
+    expect(sources).toBeLessThan(html.indexOf('분석 이후의 판단까지'))
+  })
+
   it('CTA 라우트를 렌더하고 레거시 브랜드/이미지가 없다', () => {
     const html = render()
     for (const href of ['/register', '/analysis']) {
