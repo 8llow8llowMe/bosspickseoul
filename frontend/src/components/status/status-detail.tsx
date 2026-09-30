@@ -35,7 +35,6 @@ import {
   formatStatusChange,
   formatStatusValue,
   getStatusChangeTone,
-  STATUS_CHANGE_TONE_COLOR,
   STATUS_METRIC_LABELS,
   type StatusChangeTone,
 } from '@/lib/status/status-formatters'
@@ -229,12 +228,18 @@ const HeaderRank = styled.p`
   line-height: 18px;
 `
 
-// 색은 목록과 같은 규칙(`getStatusChangeTone`, 폐업 반전)을 따른다. 변동 없음은
-// 칩 틴트가 흰 바탕에 묻히지 않게 회색 테두리 색을 쓴다.
+// 어느 쪽이 좋고 나쁜지는 목록과 같은 규칙(`getStatusChangeTone`, 폐업 반전)을 따른다.
+const CHANGE_TONE_AREA_COLOR: Record<StatusChangeTone, string> = {
+  positive: 'var(--color-positive)',
+  negative: 'var(--color-negative)',
+  neutral: 'var(--color-border-300)',
+}
+
+// 칩의 색은 **면적**(틴트·테두리)에만 쓴다 — 글자는 text-800 이다. 그래서 글자용 -text 토큰이
+// 아니라 면적 토큰이다(contrast-tokens.md D3-3). 변동 없음은 틴트가 흰 바탕에 묻히지 않게
+// 회색 테두리 색을 쓴다.
 const changeToneColor = (tone: StatusChangeTone): string =>
-  tone === 'neutral'
-    ? 'var(--color-border-300)'
-    : STATUS_CHANGE_TONE_COLOR[tone]
+  CHANGE_TONE_AREA_COLOR[tone]
 
 const HeaderChange = styled.span<{ $tone: StatusChangeTone }>`
   display: inline-flex;

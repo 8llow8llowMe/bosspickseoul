@@ -32,7 +32,9 @@ const GlobalStyles = createGlobalStyle`
     --color-grey-800: #333d4b;
     --color-grey-900: #191f28;
     --color-red-500: #f04452;
+    --color-red-700: #c8323f; /* red500 과 색상각 같음. 글자용 — 흰 바탕 5.27:1 */
     --color-green-500: #03b26c;
+    --color-green-700: #0b7a52; /* green500 의 진한 단계. 글자용 — 흰 바탕 5.36:1 */
     --color-orange-500: #fe9800;
     --color-yellow-500: #ffc342;
     --color-teal-500: #18a5a5;
@@ -52,8 +54,15 @@ const GlobalStyles = createGlobalStyle`
     --color-primary-600: var(--color-blue-600);
     --color-primary-100: var(--color-blue-50);
     --color-chart-female: #f2698f; /* 여성 계열: primary(blue)와 명도·색상 대비 확보 */
-    --color-positive: var(--color-green-500); /* 상승 */
-    --color-negative: var(--color-red-500); /* 하락 */
+    --color-positive: var(--color-green-500); /* 상승 — 면적(막대·점)용 */
+    --color-negative: var(--color-red-500); /* 하락 — 면적(막대·점)용 */
+    /*
+     * 증감 **글자**. green500·red500 을 글자에 쓰면 흰 바탕 2.77 / 3.71:1 로 AA(4.5)에
+     * 못 미친다. 면적은 3:1 기준이라 위 두 토큰을 그대로 두고 글자만 -text 로 간다
+     * (docs/features/layout/contrast-tokens.md D3-3 · D4-5, DESIGN.md §2 Semantic).
+     */
+    --color-positive-text: var(--color-green-700);
+    --color-negative-text: var(--color-red-700);
     --color-text-900: #191f28;
     --color-text-800: var(--color-grey-800);
     --color-text-700: var(--color-grey-700);

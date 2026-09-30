@@ -127,9 +127,11 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 - **Error Red** (`#f04452`): `red500`. Error states, destructive actions, negative financial indicators.
 - **Error Red Text** (`#c8323f`): `red700`. 빨강을 **글자**로 쓸 때(변화율 배지, 오류 문구).
+  토큰은 `--color-red-700`, 증감 글자는 시맨틱 `--color-negative-text`.
   red500 은 흰 배경 위 3.71 로 AA 미달이다. red700 은 흰 배경 5.27 / grey50 5.04 / blue50 4.69.
 - **Success Green** (`#03b26c`): `green500`. Positive financial indicators, confirmations.
 - **Success Green Text** (`#0b7a52`): `green700`. 초록을 **글자**로 쓸 때.
+  토큰은 `--color-green-700`, 증감 글자는 시맨틱 `--color-positive-text`.
   green500 은 2.77 로 미달이다. green700 은 흰 배경 5.36 / grey50 5.13 / blue50 4.77.
   면적 채움(차트 막대·스코어)은 3:1 기준이라 green500/red500 을 그대로 쓴다.
 - **Warning Orange** (`#fe9800`): `orange500`. Pending states, attention-needed indicators.

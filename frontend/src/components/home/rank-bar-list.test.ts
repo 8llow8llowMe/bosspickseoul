@@ -150,3 +150,35 @@ describe('RankBarList — compact 변형(01 단계, TC-SP-010)', () => {
     expect(renderCompact().css).toContain('minmax(0,360px)')
   })
 })
+
+/*
+ * contrast-tokens.md TC-CT-006. 증감 글자가 면적용 green500·red500 으로 돌아가면 흰 바탕
+ * 2.77 / 3.71:1 로 AA(4.5) 아래로 떨어진다.
+ */
+describe('RankBarList — 증감 글자 대비', () => {
+  it('증감은 글자용 -text 토큰과 13px 로 그린다', () => {
+    const sheet = new ServerStyleSheet()
+
+    try {
+      renderToStaticMarkup(
+        sheet.collectStyles(
+          createElement(RankBarList, {
+            rows: [
+              { ...rows[0], changeLabel: '+2.5%', changeDirection: 'up' },
+              { ...rows[1], changeLabel: '-1.2%', changeDirection: 'down' },
+            ],
+            ariaLabel: '순위',
+          }),
+        ),
+      )
+      const css = sheet.getStyleTags().replace(/\s+/g, '')
+
+      expect(css).toContain('color:var(--color-positive-text);')
+      expect(css).toContain('color:var(--color-negative-text);')
+      expect(css).not.toContain('color:var(--color-positive);')
+      expect(css).not.toContain('color:var(--color-negative);')
+    } finally {
+      sheet.seal()
+    }
+  })
+})
