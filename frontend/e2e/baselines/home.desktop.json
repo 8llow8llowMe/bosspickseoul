@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-30",
+  "measuredAt": "2026-10-01",
   "viewport": {
     "width": 1440,
     "height": 900
@@ -9,7 +9,7 @@
   "h1Screen": 0.38,
   "firstCtaScreen": 0.55,
   "contrastCombinations": 44,
-  "contrastFailures": 8,
+  "contrastFailures": 6,
   "smallTapTargets": 9,
   "offScaleFontSizes": 2,
   "offScaleFontSizeList": [15, 18],
