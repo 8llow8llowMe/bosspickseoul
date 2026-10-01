@@ -2,12 +2,34 @@
 
 import styled from 'styled-components'
 
-import DonutChart from '@/components/analysis/charts/donut-chart'
+import DonutChart, {
+  toDonutSlices,
+} from '@/components/analysis/charts/donut-chart'
 import { formatLargeWon } from '@/lib/format'
-import { toCostBreakdown } from '@/lib/simulation/report-presentation'
+import {
+  describeCostRounding,
+  toCostBreakdown,
+  type CostBreakdownRow,
+} from '@/lib/simulation/report-presentation'
 import type { SimulationReport } from '@/types/simulation'
 
 export type SimulationCostBreakdownProps = { report: SimulationReport }
+
+/**
+ * 항목별 색. **순서가 아니라 항목에 묶는다** — 개인 창업은 가맹 부담금이 빠져 조각이
+ * 3개가 되는데, 순서로 칠하면 같은 항목이 리포트마다 다른 색이 된다.
+ *
+ * 공용 도넛의 기본 2색(primary·blue500)을 번갈아 쓰면 1·3번째, 2·4번째 조각이 같은 색이
+ * 돼 구성을 읽을 수 없었다(2026-10-01 실측). 네 색은 색조가 서로 다르고, 흰 바탕에서
+ * 그래픽 대비 3:1 을 넘는다(teal500 3.02 · primary600 4.49 · purple500 5.45 · grey700 7.11).
+ * blue500(2.77)·orange500(2.16)은 3:1 에 못 미쳐 쓰지 않는다.
+ */
+export const COST_COLORS: Record<CostBreakdownRow['key'], string> = {
+  rentPrice: 'var(--color-teal-500)',
+  deposit: 'var(--color-primary-600)',
+  interior: 'var(--color-purple-500)',
+  levy: 'var(--color-grey-700)',
+}
 
 const Root = styled.section`
   display: grid;
@@ -29,14 +51,19 @@ const Root = styled.section`
   }
 `
 
+/*
+  도넛 칸은 240px 로 둔다. 도넛 높이가 180px 고정이라 400px 칸은 좌우가 비고, 그만큼
+  행 쪽이 좁아져 비중·설명을 붙일 자리가 없었다.
+*/
 const Layout = styled.div`
   display: grid;
-  grid-template-columns: 400px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 
   @media (max-width: 767px) {
     grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
 `
 
@@ -52,21 +79,86 @@ const Rows = styled.dl`
     padding: 10px 0;
   }
 
-  > div:last-child {
-    border-bottom: none;
-  }
-
   dt {
-    color: var(--color-text-600);
-    font-size: 14px;
-    line-height: 22px;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: baseline;
   }
 
   dd {
+    flex: 0 0 auto;
+    display: grid;
+    justify-items: end;
+    text-align: right;
+  }
+`
+
+/* 색 점은 범례 역할이다. 도넛 자체 범례는 끄고 이 행이 그 자리를 맡는다. */
+const Swatch = styled.i<{ $color: string }>`
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: ${props => props.$color};
+`
+
+const Label = styled.span`
+  color: var(--color-text-700);
+  font-size: 14px;
+  line-height: 22px;
+  word-break: keep-all;
+`
+
+const Hint = styled.span`
+  grid-column: 2;
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: keep-all;
+`
+
+const Amount = styled.strong`
+  color: var(--color-text-900);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+`
+
+const Share = styled.span`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+`
+
+/*
+  합계 행. 총액은 화면 맨 위 헤드라인에도 있지만, 항목 바로 아래에 있어야 「이 넷을
+  더하면 저 값」이라는 관계가 보인다. 행 목록과는 마지막 항목 행의 아랫줄로 갈린다.
+
+  `&&` 로 명시도를 올린다. Rows 의 `> div`·`dt` 규칙과 명시도가 같으면 주입 순서에 따라
+  결과가 갈리는데, 특히 dt 가 색 점 칸(10px) 격자를 물려받으면 「합계」 글자가 그 칸에 갇힌다.
+*/
+const TotalRow = styled.div`
+  && {
+    border-bottom: none;
+    padding-top: 12px;
+  }
+
+  && dt {
+    display: block;
     color: var(--color-text-900);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
-    line-height: 24px;
+    line-height: 22px;
+  }
+
+  && dd {
+    color: var(--color-text-900);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 26px;
     font-variant-numeric: tabular-nums;
   }
 `
@@ -79,13 +171,19 @@ const Footnote = styled.p`
 `
 
 /**
- * 비용 구성. 보증금이 "월 임대료 10개월분"이라는 사실을 각주로 밝힌다 —
- * V1 이 이 값을 "월 최소 목표 매출"로 잘못 표기했던 자리다.
+ * 비용 구성. 항목 행(색 점 · 라벨 · 설명 · 금액 · 비중) 아래에 **합계 행**을 둬서 사용자가
+ * 총액을 직접 검산할 수 있게 한다. 보증금이 「월 임대료 10개월분」이라는 사실은 행 설명에
+ * 둔다 — V1 이 이 값을 「월 최소 목표 매출」로 잘못 표기했던 자리다.
  */
 export default function SimulationCostBreakdown({
   report,
 }: SimulationCostBreakdownProps) {
   const rows = toCostBreakdown(report)
+  // 비중은 도넛과 같은 함수로 낸다. 따로 계산하면 반올림이 달라 도넛 툴팁과 행이 1% 어긋난다.
+  const slices = toDonutSlices(
+    rows.map(row => ({ label: row.label, value: row.amount })),
+  )
+  const roundingNote = describeCostRounding(report)
 
   return (
     <Root aria-label="비용 구성">
@@ -94,23 +192,44 @@ export default function SimulationCostBreakdown({
       <Layout>
         <DonutChart
           segments={rows.map(row => ({ label: row.label, value: row.amount }))}
+          colors={rows.map(row => COST_COLORS[row.key])}
+          legend={false}
           ariaLabel="비용 구성 비율"
           valueFormatter={formatLargeWon}
         />
 
+        {/*
+          라벨·설명, 금액·비중 사이의 {' '} 는 낭독용이다. 붙여 쓰면 「첫 달 임대료이후 매달…」
+          「326만원1%」로 이어 읽힌다. 두 칸 모두 grid 라 공백만 있는 텍스트는 배치에 끼지 않는다.
+        */}
         <Rows>
-          {rows.map(row => (
+          {rows.map((row, index) => (
             <div key={row.key}>
-              <dt>{row.label}</dt>
-              <dd>{formatLargeWon(row.amount)}</dd>
+              <dt>
+                <Swatch $color={COST_COLORS[row.key]} aria-hidden="true" />
+                <Label>{row.label}</Label>
+                {row.hint ? (
+                  <>
+                    {' '}
+                    <Hint>{row.hint}</Hint>
+                  </>
+                ) : null}
+              </dt>
+              <dd>
+                <Amount>{formatLargeWon(row.amount)}</Amount>{' '}
+                <Share>{slices[index]?.percent ?? 0}%</Share>
+              </dd>
             </div>
           ))}
+          <TotalRow>
+            <dt>합계 · 예상 총 창업 비용</dt>
+            <dd>{formatLargeWon(report.totalPrice)}</dd>
+          </TotalRow>
         </Rows>
       </Layout>
 
       <Footnote>
-        보증금은 월 임대료의 10개월분으로 계산했어요. 권리금은 총 창업 비용에
-        포함되지 않아요.
+        {`${roundingNote} 권리금은 총 창업 비용에 포함되지 않아요.`}
       </Footnote>
     </Root>
   )

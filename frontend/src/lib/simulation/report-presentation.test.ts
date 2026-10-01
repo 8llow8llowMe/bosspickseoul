@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   describeAgeSalesScope,
+  describeCostRounding,
   describeSeasonMonths,
   describeSimulationPeriod,
   formatSalesAmountCompact,
@@ -49,10 +50,25 @@ describe('toCostBreakdown', () => {
       'interior',
     ])
     expect(rows.map(row => row.label)).toEqual([
-      '월 임대료',
+      '첫 달 임대료',
       '보증금',
       '인테리어',
     ])
+  })
+
+  /*
+    총액에는 월 임대료가 한 달 치만 들어간다(BE SimulationReportProcessor). 「월 임대료」로
+    적으면 매달 나가는 돈이 일회성 총액에 섞인 것처럼 읽힌다.
+  */
+  it('임대료는 「첫 달」로 적고 매달 나간다는 사실과 보증금 산식을 설명으로 붙인다', () => {
+    const rows = toCostBreakdown(report())
+
+    expect(rows.find(row => row.key === 'rentPrice')?.hint).toBe(
+      '이후 매달 같은 금액이 나가요',
+    )
+    expect(rows.find(row => row.key === 'deposit')?.hint).toBe(
+      '월 임대료 10개월분',
+    )
   })
 
   it('levy 가 0 이면 항목을 남긴다 — 0 은 "부담금 0원"이지 결측이 아니다', () => {
@@ -88,6 +104,42 @@ describe('toCostBreakdown', () => {
       label: '가맹 부담금',
       amount: 1_200,
     })
+  })
+})
+
+describe('describeCostRounding', () => {
+  const BASE = '금액은 만원 미만을 버려 표시해요.'
+  const GAP = (manwon: number) =>
+    `${BASE} 그래서 항목을 더하면 합계와 ${manwon}만원 차이가 나요.`
+
+  const withTotal = (totalPrice: number, levy: number | null = 1_200) =>
+    report({
+      totalPrice,
+      costDetail: { rentPrice: 300, deposit: 3_000, interior: 5_000, levy },
+    })
+
+  /*
+    합이 맞아도 버림 안내는 남긴다. 보증금 설명(월 임대료 10개월분)을 보고 만원 값끼리
+    곱하면 어긋날 수 있어서다(326만원 × 10 = 3,260 인데 화면은 3,265만원 — dev 실측).
+  */
+  it('항목 합과 총액이 같아도 버림 사실은 밝힌다', () => {
+    expect(describeCostRounding(withTotal(9_500))).toBe(BASE)
+  })
+
+  it('만원 미만 버림으로 생기는 합계 차이면 몇 만원인지 덧붙인다', () => {
+    expect(describeCostRounding(withTotal(9_502))).toBe(GAP(2))
+  })
+
+  /*
+    항목 n개를 각각 버리면 합은 총액보다 최대 n-1만원 작다. 그보다 크거나 합이 총액보다
+    크면 버림으로 설명되지 않으므로, 차이를 버림 탓으로 돌리지 않는다.
+  */
+  it('버림으로 설명되지 않는 차이는 버림 탓으로 돌리지 않는다', () => {
+    expect(describeCostRounding(withTotal(9_504))).toBe(BASE)
+    expect(describeCostRounding(withTotal(9_499))).toBe(BASE)
+    // 비프랜차이즈는 항목이 3개라 상한이 2만원이다.
+    expect(describeCostRounding(withTotal(8_303, null))).toBe(BASE)
+    expect(describeCostRounding(withTotal(8_302, null))).toBe(GAP(2))
   })
 })
 
