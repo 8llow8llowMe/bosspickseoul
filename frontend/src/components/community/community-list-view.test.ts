@@ -23,6 +23,7 @@ import {
   createCommunityListActionHref,
   createCommunityListQueryKey,
   createCommunityListRequest,
+  getCommunityBoardResponseName,
   getCommunityBoardTargetName,
   getCommunityLikedAccess,
   getCommunityListRenderState,
@@ -777,6 +778,11 @@ describe('community list container helpers', () => {
       '강남역 상권',
     )
     expect(getCommunityBoardTargetName([], targetState)).toBe('3110008')
+    // 제목용은 응답 이름만 쓴다 — 응답 전에 `3110008 이야기` 가 뜨지 않게.
+    expect(getCommunityBoardResponseName([listResponse], targetState)).toBe(
+      '강남역 상권',
+    )
+    expect(getCommunityBoardResponseName([], targetState)).toBeUndefined()
     expect(
       getCommunityBoardTargetName([likedResponse], {
         ...baseState,

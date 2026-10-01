@@ -384,7 +384,11 @@ export const createCommunityListQueryKey = (
     : listKey
 }
 
-export const getCommunityBoardTargetName = (
+/**
+ * 응답의 `board.targetName` 만 돌려준다. 목록 제목(`{이름} 이야기`)이 쓴다 — 응답 전·실패·
+ * null 일 때 코드(`11200 이야기`)를 제목에 띄우지 않으려고 대체값을 두지 않는다.
+ */
+export const getCommunityBoardResponseName = (
   responses: CommunityListResponse[],
   state: CommunityListState,
 ) => {
@@ -402,8 +406,17 @@ export const getCommunityBoardTargetName = (
     }
   }
 
-  return state.targetCode
+  return undefined
 }
+
+/** 칩 라벨용. 이름을 아직 모르면 코드로 내려앉는다(칩은 비워 둘 수 없다). */
+export const getCommunityBoardTargetName = (
+  responses: CommunityListResponse[],
+  state: CommunityListState,
+) =>
+  state.view === 'liked'
+    ? undefined
+    : (getCommunityBoardResponseName(responses, state) ?? state.targetCode)
 
 export const createCommunityAdjacentState = (
   posts: CommunityPostSummary[],
@@ -692,7 +705,9 @@ export default function CommunityListPage() {
           targetName: boardTargetName,
         }
       : {}
-  const targetTitle = hasTarget ? (boardTargetName ?? null) : null
+  const targetTitle = hasTarget
+    ? (getCommunityBoardResponseName(responses, state) ?? null)
+    : null
   const allPostsHref = hasTarget
     ? createCommunityListActionHref(pathname, state, {
         type: 'location',
