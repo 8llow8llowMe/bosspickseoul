@@ -58,3 +58,18 @@ export const toGenderSegments = (
   if (f !== null) segments.push({ label: '여성', value: Math.max(0, f) })
   return segments
 }
+
+/**
+ * 조각 비중(%, 정수 반올림). 도넛 툴팁과 그 옆 행 목록이 **같은 함수**로 비중을 내야 1% 어긋나지 않는다.
+ * 합이 0 이면 모두 0 이다.
+ */
+export const toDonutSlices = (
+  segments: readonly GenderSegment[],
+): Array<{ label: string; value: number; percent: number }> => {
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0)
+  return segments.map(segment => ({
+    label: segment.label,
+    value: segment.value,
+    percent: total > 0 ? Math.round((segment.value / total) * 100) : 0,
+  }))
+}
