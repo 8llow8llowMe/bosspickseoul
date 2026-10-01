@@ -19,7 +19,10 @@ import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -129,6 +132,42 @@ class DatasetRefreshQueriesTest {
         assertThat(state.newestSourcePeriod()).isEqualTo(new Quarter("20262"));
         assertThat(state.consecutiveFailures()).isEqualTo(1);
         assertThat(state.lastReprojectDryRunPeriod()).isEqualTo(new Quarter("20241"));
+    }
+
+    /**
+     * 런북 DDL 과 어댑터 문장이 같은 컬럼을 본다. 컬럼을 한쪽에만 더하면 개발 DB 에서 첫 run 이 "Unknown column" 으로
+     * 데이터셋마다 실패하고서야 드러난다. {@code updated_at} 은 DB 가 채우므로 문장에 없다.
+     */
+    @Test
+    void stateStatementsCoverExactlyTheColumnsOfTheRunbookDdl() throws Exception {
+        String ddl = Files.readString(Path.of("..", "..", "scripts", "migration", "dataset-refresh-state-schema.sql"), StandardCharsets.UTF_8);
+        Matcher table = Pattern.compile("CREATE TABLE IF NOT EXISTS dataset_refresh_state \\((.*?)\\) ENGINE", Pattern.DOTALL).matcher(ddl);
+        assertThat(table.find()).isTrue();
+        List<String> ddlColumns = new ArrayList<>();
+        Matcher column = Pattern.compile("^\\s*([a-z_]+)\\s+[A-Z]", Pattern.MULTILINE).matcher(table.group(1));
+        while (column.find()) {
+            ddlColumns.add(column.group(1));
+        }
+        assertThat(ddlColumns).contains("dataset", "last_reproject_dry_run_period", "updated_at");
+        ddlColumns.remove("updated_at");
+
+        String upsert = DatasetRefreshStateJdbcAdapter.UPSERT_SQL;
+        List<String> insertColumns = columns(upsert.substring(upsert.indexOf('(') + 1, upsert.indexOf(')')));
+        List<String> selectColumns = columns(DatasetRefreshStateJdbcAdapter.FIND_ALL_SQL.replaceAll("(?s)^\\s*SELECT|FROM.*$", ""));
+        List<String> updatedColumns = new ArrayList<>();
+        Matcher assignment = Pattern.compile("([a-z_]+)=VALUES\\(\\1\\)").matcher(upsert);
+        while (assignment.find()) {
+            updatedColumns.add(assignment.group(1));
+        }
+
+        assertThat(insertColumns).containsExactlyElementsOf(ddlColumns);
+        assertThat(selectColumns).containsExactlyElementsOf(ddlColumns);
+        assertThat(updatedColumns).as("PK 를 뺀 모든 컬럼을 덮어쓴다").containsExactlyElementsOf(ddlColumns.subList(1, ddlColumns.size()));
+        assertThat(upsert.chars().filter(ch -> ch == '?').count()).isEqualTo(ddlColumns.size());
+    }
+
+    private static List<String> columns(String list) {
+        return Arrays.stream(list.split(",")).map(String::trim).filter(name -> !name.isEmpty()).toList();
     }
 
     /** 기동 가드가 켜기 전에 본다. commercialJdbcTemplate 으로 나가므로 DATABASE() 가 commercial 스키마다. */

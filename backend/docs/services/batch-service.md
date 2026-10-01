@@ -335,11 +335,11 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 
 ### 개발서버 롤아웃
 
-1. **DDL** — Workbench 에서 `bosspickseoul_commercial_dev` 를 고르고 `dataset-refresh-state-schema.sql` 실행. `quarterly-dataset-schema.sql` 은 이미 적용돼 있어야 한다. district 의 `BATCH_*` / `QRTZ_*` 는 정책 수집 때 만든 것을 그대로 쓴다. 확인은 `quarterly-import-verify.sql` 1) 블록
+1. **DDL** — Workbench 에서 `bosspickseoul_commercial_dev` 를 고르고 `dataset-refresh-state-schema.sql` 실행(`last_reproject_dry_run_period` 포함. 예전 DDL 로 이미 만들었으면 런북 주석의 `ALTER TABLE` 한 줄). `quarterly-dataset-schema.sql` 은 이미 적용돼 있어야 한다. district 의 `BATCH_*` / `QRTZ_*` 는 정책 수집 때 만든 것을 그대로 쓴다. 확인은 `quarterly-import-verify.sql` 1) 블록. 테이블이 없으면 4단계에서 `DatasetRefreshGuardRunner` 가 기동을 멈춘다
 2. **Vault** — `kv/bosspickseoul/backend/dev/env` 에 **patch** 로 `BATCH_DATASET_REFRESH_ENABLED=true`, `SEOUL_OPEN_DATA_API_KEY=<키>` 를 넣는다. `BATCH_DATASET_REFRESH_PUBLISH` 는 넣지 않거나 `false`. `COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 는 정책 수집 값 그대로. `put` 은 나머지 키를 지운다
 3. **재배포** — Jenkins `batch-service-dev` 만. compose 가 `batch-raw` 볼륨을 새로 붙인다. 메모리 상한 `BATCH_SERVICE_MEM_LIMIT_DEV` 는 바꾸지 않는다(512m)
 4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`, `dataset_refresh_state is missing`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다. `/actuator/prometheus` 에 `hikaricp_connections{pool="batch-commercial"}` 가 보인다
-5. **관찰(1주)** — 다음날 05:00 이후 로그 `[dataset-refresh] run finished ... results={...}` 와 `slot dataset=... result=...`, `SELECT * FROM dataset_refresh_state`. `WOULD_PUBLISH` 가 뜬 데이터셋은 `dataset_release` 에 `auto-...-dry` 가 `DRY_RUN` 으로 남는다. 첫 주에 위 「데이터 없음」 실호출을 확인한다
+5. **관찰(1주)** — 다음날 05:00 이후 로그 `[dataset-refresh] run finished ... results={...}` 와 `slot dataset=... result=...`, `SELECT * FROM dataset_refresh_state`(`quarterly-import-verify.sql` 6) 블록). `WOULD_PUBLISH` 가 뜬 데이터셋은 `dataset_release` 에 `auto-...-dry` 가 `DRY_RUN` 으로 남는다. **첫 run 의 JVM heap 을 본다** — `WOULD_PROJECT`(dry-run 재이관)도 실이관과 같은 양을 읽으므로 메모리 위험은 publish=false 첫 run 부터다(아래 알려진 한계). `[dataset-refresh] run aborted` 가 있으면 OOM 등으로 끊긴 것이다. 첫 주에 위 「데이터 없음」 실호출을 확인한다
 6. **게시 전환** — 결과가 기대대로면 Vault 에 `BATCH_DATASET_REFRESH_PUBLISH=true` patch 후 재배포. 다음 05:00 run 부터 `PUBLISHED` 가 나오고 coverage.sql 1)·5) 에서 해당 슬롯이 빠진다
 7. **되돌리기** — Vault 에 `BATCH_DATASET_REFRESH_ENABLED=false` patch 후 재배포. 이미 게시된 릴리스는 그대로다(수동 게시와 같다). JDBC JobStore 는 트리거를 `QRTZ_*` 에 남기므로 두 겹으로 막는다
    - 기동 시 `DatasetRefreshQuartzCleanupConfig` 가 `datasetRefreshQuartzJob`(과 `datasetRefreshTrigger`)을 지운다. 로그 `[dataset-refresh] disabled, stored quartz job removed job=datasetRefreshQuartzJob`
@@ -348,6 +348,8 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 
 첫 run 을 05:00 전에 보고 싶으면 `BATCH_DATASET_REFRESH_CRON=0 0/15 * * * ?` 를 잠시 넣었다가 비운다(정책 수집과 같은 방법).
 
+스테이징 정리를 켤 때(`BATCH_STAGING_PURGE_ENABLED=true`)는 먼저 아래 「스테이징 정리」의 `EXPLAIN` 두 문장을 commercial 에서 확인하고, 켠 뒤 첫 일요일 04:00 run 의 `[staging-purge] finished ...` 로그와 `quarterly-import-verify.sql` 7) 블록을 본다. 되돌리기는 같은 방식으로 `BATCH_STAGING_PURGE_ENABLED=false` 후 재배포다(저장된 `datasetStagingPurgeQuartzJob` 을 기동 시 지운다).
+
 ### 메트릭·로그
 
 로그 접두 `[dataset-refresh]`. Prometheus(`/actuator/prometheus`):
@@ -355,7 +357,8 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 - `batch_dataset_refresh_api_calls_total` — 쓴 API 호출 수
 - `batch_dataset_refresh_slots_total{dataset,result}` — 판단 수. `result` 는 `DatasetRefreshResult` 이름
 - `batch_dataset_refresh_service_type_unresolved_rows_total{dataset}` — 업종 미해석 이관 행
-- `batch_dataset_refresh_last_run_epoch` — 마지막 run 이 끝난 시각(초). 26시간 넘게 그대로면 트리거·기동을 의심한다
+- `batch_dataset_refresh_last_run_epoch` — 마지막 run 이 끝난 시각(초). 켜진 인스턴스에만 등록한다. 첫 run 전 0 이 바로 울리지 않게 알람식에 `and batch_dataset_refresh_last_run_epoch > 0` 을 붙인다(observability-guide.md). 26시간 넘게 그대로면 트리거·기동을 의심한다
+- `hikaricp_connections_*{pool="batch-commercial"}` — commercial 두 번째 풀(상한 4)
 
 ### 스테이징 정리 (기본 off)
 
@@ -394,3 +397,4 @@ EXPLAIN DELETE FROM dataset_staging WHERE run_id = '<후보 run_id>'
 - **Quartz JobStore 는 프로파일로만 갈린다** — `dev` / `prod` 는 JDBC 클러스터 JobStore 에 자동 시작, `local` / `quarterly` 는 메모리 스토어에 자동 시작 off 다(`QuartzJobStoreProfileTest`). 예전 `application.yml` 의 `spring.config.activate.on-property` 문서는 Spring Boot 3.5 가 지원하지 않는 키라 모든 프로파일에 적용됐고, 그래서 quarterly CLI 도 commercial 의 `QRTZ_*` 에 붙어 JDBC 로 떴다. 지금은 CLI 가 저장된 트리거를 발화하지 않는다. 로컬에서 스케줄을 돌려 보려면 `local,scheduler` 로 띄운다
 - **두 스키마 사이 원자성은 없다** — 스텝 트랜잭션(commercial)과 `BATCH_*` 메타(district, `districtTransactionManager`)는 따로 커밋된다(XA 없음). 메타 쓰기 자체는 이제 트랜잭션 안에서 돈다(예전에는 commercial 매니저가 붙어 문장마다 커밋됐다). 자동 최신화는 run-id 가 매번 새로워 재시작 경로를 쓰지 않는다
 - **원천 보관 용량** — 무시하는 9종은 원천이 바뀐 날마다 전 기간을 `batch-raw` 에 새로 받는다(데이터셋당 수 MB). 볼륨 정리는 아직 없다
+- **활성 릴리스 스테이징은 영구 보존** — 스테이징 정리는 활성 포인터가 가리키는 run 을 지우지 않으므로 게시 슬롯마다 `dataset_staging` 이 `dataset_fact` 와 같은 행 수로 남는다. 15종 합계 분기당 약 16만 행(STORE_COMMERCIAL 7.7만, STORE_ADMINISTRATION 3.5만, SALES_COMMERCIAL 2.2만, SALES_ADMINISTRATION 1.7만 등)이고 payload 를 행당 약 1KB 로 보면 분기당 약 160MB, 21분기(20211~20261)가 활성이면 약 3~4GB 가 `dataset_fact` 와 중복으로 남는다(추정. 실측은 commercial 의 `information_schema.tables` `data_length` + `index_length`). 줄이려면 활성 run 의 스테이징을 지우는 별도 결정이 필요하다(게시가 끝난 run 의 스테이징을 다시 읽는 코드는 없다. 이관은 `dataset_fact` 를 읽는다)

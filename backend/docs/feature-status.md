@@ -650,11 +650,12 @@ prod 는 commercial 에 `policy-ingest-columns-runbook.sql`, district 에 `quart
 
 - 상시 batch-service 가 매일 05:00 KST 에 서울 Open API 를 탐지해 마지막 게시 분기 다음 분기부터 원천 최신까지 적재한다. 백필은 수동 CLI.
 - 수동 CLI 와 같은 `commercialAnalysisImportJob` / `typedFactProjectionJob` 을 ARCHIVE 재생으로 띄운다. 행 수는 고정값(1650·25) 또는 직전 분기 대비 ±20% 로 먼저 거른다.
-- 롤아웃은 publish=false(탐지·수집·dry-run)로 시작하고 Vault 에서 true 로 올린다. 데이터셋당 run 1분기, API 600회/run.
-- `dataset_refresh_state`(commercial) 런북 `scripts/migration/dataset-refresh-state-schema.sql`. 주간 스테이징 정리 `datasetStagingPurgeJob` 은 기본 off.
+- 롤아웃은 publish=false(탐지·수집·dry-run)로 시작하고 Vault 에서 true 로 올린다. 데이터셋당 run 1분기(재이관 포함), API 600회/run(재시도 포함 실측).
+- 리뷰 반영(2026-10-01): 끈 스케줄은 기동 시 저장된 Quartz Job 을 지우고 QuartzJob 이 플래그를 다시 본다. `BATCH_*`·`QRTZ_*`·영역 좌표는 `districtTransactionManager`/`districtJdbcTemplate`. 재이관은 `20234` 이후만, 쿨다운을 따른다. 스테이징 정리는 run 단위 PK 범위 삭제와 버려진 run 정리.
+- `dataset_refresh_state`(commercial) 런북 `scripts/migration/dataset-refresh-state-schema.sql`(`last_reproject_dry_run_period` 포함). 주간 스테이징 정리 `datasetStagingPurgeJob` 은 기본 off.
 - 남은 확인: "데이터 없음" 응답(`INFO-200`) 모양을 실호출로 확인해야 한다.
 
-**핵심 파일**: `domainlayer/dataingestion/` (`DatasetRefreshFacade`, `DatasetRefreshProcessor`, `SpringBatchImportExecutionAdapter`, `SeoulDatasetSourceAdapter.probe/acquire`). 운영은 `services/batch-service.md` 「분기 적재 자동 최신화」.
+**핵심 파일**: `domainlayer/dataingestion/` (`DatasetRefreshFacade`, `DatasetRefreshRunProcessor`, `DatasetRefreshProcessor`, `SpringBatchImportExecutionAdapter`, `SeoulDatasetSourceAdapter.probe/acquire`, `DatasetStagingBulkJdbcAdapter`), `global/config/` (`DistrictDataSourceConfig`, `CommercialDataSourceGuardRunner`, `StaleQuartzJobRemover`). 운영은 `services/batch-service.md` 「분기 적재 자동 최신화」.
 
 ## 미구현 / 보류 기능
 
