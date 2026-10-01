@@ -1280,12 +1280,17 @@ idle → submitting → ┬── cached (200)        → completed
   - 더보기 메뉴: 신고 / 작성자만 수정·삭제. `<480` 바텀시트, `≥480` 팝오버
   - 댓글 섹션: depth 1 트리. 부모 댓글 → 대댓글 입력 inline 펼침. 댓글: 닉네임, 시간, 본문, 좋아요(❤ + 카운트), 더보기
 - **호출**: `GET /community/posts/{id}` (조회수+1), `GET /community/posts/{id}/comments`, `POST .../likes`, `POST .../comments`, `POST /community/reports`.
-- **신고 모달**: Confirm + 사유 TextField + 제출.
+- **신고 모달**: 사유 라디오 5개(스팸·홍보 · 욕설·비방 · 개인정보 노출 · 거짓 정보 · 기타) + 자세한 내용(선택, 기타만 필수) + 제출. 보내는 값은 `[사유] 상세` 문자열 하나(3단계).
 
-**S-COM-3. `/community/register` (작성·수정 겸용)**
+**S-COM-3. `/community/register` (작성·수정 겸용)** (개편 3단계, 2026-10-01 — 동작 정본은 community.md §S4 「개편 3단계」)
 
-- **목적**: 글쓰기 또는 수정 (`?id=` 시 수정, `?from=compare&left=&right=` 시 비교 초안 자동 채움)
-- **레이아웃**: 대상 선택 dropdown(전체/자치구/행정동/상권) + 제목 TextField + 본문 textarea(plain + 줄바꿈) + Button(`저장`, primary).
+- **목적**: 쓰고 싶은 말부터 쓰고, 쓴 글을 잃지 않는다. `?postId=` 면 수정, `?from=compare…` 면 비교 초안, `?targetType=&targetCode=&targetName=` 면 지역 프리필
+- **레이아웃**: 지역 칩(→ 지역 선택 시트) → 제목(테두리 없는 20/600, 밑줄 포커스) → 본문(자동 높이, 최소 8줄) → 사진 줄(72, 첫 장 `대표`, `+` 타일). 본문이 비면 작성 도움 칩 3개
+  - `<480`: 사이트 헤더 아래 sticky 편집 바 `[✕] 새 글 [등록]`
+  - `≥480`: 제목 한 줄 + 하단 sticky 액션 바 `[취소] [등록하기]`(safe-area). `≥1080` 은 오른쪽 작성 팁 카드
+  - 폼 열 `--w-form`, 팁까지 `--w-wide` 안
+- **검증**: 등록 버튼은 pending 때만 비활성. 누르면 첫 빈 필수값(지역 → 제목 → 본문)으로 포커스 + 그 아래 한 줄 안내
+- **임시 저장**: 제목·본문·지역만 `localStorage`(사진 제외). 재진입 시 폼 전에 `이어 쓰기 / 새로 쓰기`. 비교 초안이면 끈다
 - **비교 초안**: 진입 시 `POST /community/posts/drafts/commercial-comparisons` 호출 → 제목·본문 자동 입력 → 사용자 수정 → `POST /community/posts`.
 
 #### 5.5 (shell) Chatting
