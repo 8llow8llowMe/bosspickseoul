@@ -86,7 +86,12 @@ SELECT dataset, period_code, status, COUNT(*) AS run_count,
 
 -- ---------------------------------------------------------------------------
 -- 6) 자동 최신화 run (이슈 #445). run_id 가 auto- 로 시작한다. 수동 run-id 와 겹치지 않는다.
---    WOULD_PUBLISH 는 DRY_RUN 으로, 실게시는 PUBLISHED 로, 이관은 Spring Batch(BATCH_*)에만 남는다.
+--    WOULD_PUBLISH 는 DRY_RUN 으로, 실게시는 PUBLISHED 로 남는다. 이관(typedFactProjectionJob)은 dataset_release 를 쓰지 않고
+--    Spring Batch 메타에만 남는다. 상시 컨테이너의 메타는 commercial 이 아니라 district 의 BATCH_* 에 있다(이 스키마에서는 안 보인다).
+--      district 에서: SELECT i.JOB_INSTANCE_ID, e.STATUS, e.START_TIME, e.END_TIME, p.PARAMETER_VALUE AS run_id
+--                       FROM BATCH_JOB_INSTANCE i JOIN BATCH_JOB_EXECUTION e ON e.JOB_INSTANCE_ID = i.JOB_INSTANCE_ID
+--                       JOIN BATCH_JOB_EXECUTION_PARAMS p ON p.JOB_EXECUTION_ID = e.JOB_EXECUTION_ID AND p.PARAMETER_NAME = 'runId'
+--                      WHERE p.PARAMETER_VALUE LIKE 'auto-project-%' ORDER BY e.START_TIME DESC LIMIT 30;
 --    raw_location 은 batch-raw 볼륨 경로라 batch-service-job 에서 같은 경로로 ARCHIVE 재생할 수 있다.
 -- ---------------------------------------------------------------------------
 SELECT run_id, dataset, period_code, status, expected_rows, accepted_count,
@@ -104,7 +109,8 @@ SELECT run_id, dataset, period_code, status, expected_rows, accepted_count,
 -- ---------------------------------------------------------------------------
 -- 7) 오래된 NEW / RUNNING. 적재 Job 은 길어야 수십 분이다. 하루를 넘겨 남아 있으면 프로세스가 죽은 run 이다.
 --    스테이징 정리를 켜 두면 batch.staging-purge.abandoned-after-days(기본 2일) 지난 것을 FAILED 로 표시한 뒤 지운다.
---    활성 포인터가 가리키는 run 은 표시하지도 지우지도 않는다.
+--    활성 포인터가 가리키는 run 은 표시하지도 지우지도 않는다. 스테이징·거부 행이 하나도 없는 run 은 정리 후보가 아니다(표시도 안 한다).
+--    버려진 run 은 BATCH_JOB_EXECUTION 이 STARTED 로 남아 같은 run-id 로 다시 띄울 수 없다. 그 슬롯은 새 attempt run-id 로 재실행한다.
 -- ---------------------------------------------------------------------------
 SELECT r.run_id, r.dataset, r.period_code, r.status, r.acquired_at,
        TIMESTAMPDIFF(HOUR, r.acquired_at, CURRENT_TIMESTAMP(6)) AS hours_since_start,

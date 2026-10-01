@@ -23,9 +23,9 @@ public class DatasetStagingPurgeFacade implements DatasetStagingPurgeUseCase {
     @Override
     public StagingPurgeResult purge() {
         StagingPurgeResult result = processor.purge();
-        log.info("[staging-purge] finished candidateRuns={} abandonedRuns={} skippedRuns={} unpublishedStagingRows={}"
+        log.info("[staging-purge] finished candidateRuns={} abandonedRuns={} skippedRuns={} lockConflictRuns={} unpublishedStagingRows={}"
                 + " unpublishedRejectedRows={} supersededStagingRows={}", result.candidateRuns(), result.abandonedRuns(), result.skippedRuns(),
-            result.unpublishedStagingRows(), result.unpublishedRejectedRows(), result.supersededStagingRows());
+            result.lockConflictRuns(), result.unpublishedStagingRows(), result.unpublishedRejectedRows(), result.supersededStagingRows());
         return result;
     }
 }

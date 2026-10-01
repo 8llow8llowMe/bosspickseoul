@@ -32,19 +32,20 @@ class DatasetStagingPurgeProcessorTest {
     private final DatasetStagingPurgeProcessor processor = new DatasetStagingPurgeProcessor(staging,
         new DatasetStagingPurgeProperties(true, null, 30, 7, 5000, 2), Clock.fixed(NOW, ZoneOffset.UTC));
 
+    /** 삭제 문장이 보존 기간을 다시 확인하도록, 그 run 을 고른 기준 시각을 함께 넘긴다. */
     @Test
     void cutoffsComeFromTheRetentionDaysAndEachKindDeletesItsTables() {
         StagingPurgeCandidate dry = new StagingPurgeCandidate("dry", Kind.UNPUBLISHED);
         StagingPurgeCandidate old = new StagingPurgeCandidate("old", Kind.SUPERSEDED);
         when(staging.findPurgeCandidates(UNPUBLISHED_BEFORE, PUBLISHED_BEFORE, ABANDONED_BEFORE)).thenReturn(List.of(dry, old));
-        when(staging.deleteStaging(dry, 5000)).thenReturn(10L);
-        when(staging.deleteRejectedRows(dry, 5000)).thenReturn(2L);
-        when(staging.deleteStaging(old, 5000)).thenReturn(3L);
+        when(staging.deleteStaging(dry, UNPUBLISHED_BEFORE, 5000)).thenReturn(10L);
+        when(staging.deleteRejectedRows(dry, UNPUBLISHED_BEFORE, 5000)).thenReturn(2L);
+        when(staging.deleteStaging(old, PUBLISHED_BEFORE, 5000)).thenReturn(3L);
 
         StagingPurgeResult result = processor.purge();
 
-        assertThat(result).isEqualTo(new StagingPurgeResult(2, 0, 0, 10, 2, 3));
-        verify(staging, never()).deleteRejectedRows(old, 5000);
+        assertThat(result).isEqualTo(new StagingPurgeResult(2, 0, 0, 0, 10, 2, 3));
+        verify(staging, never()).deleteRejectedRows(old, PUBLISHED_BEFORE, 5000);
         verify(staging, never()).markAbandoned(any(), any(), any());
     }
 
@@ -56,18 +57,34 @@ class DatasetStagingPurgeProcessorTest {
         when(staging.findPurgeCandidates(UNPUBLISHED_BEFORE, PUBLISHED_BEFORE, ABANDONED_BEFORE)).thenReturn(List.of(stuck, revived));
         when(staging.markAbandoned("stuck", ABANDONED_BEFORE, DatasetStagingPurgeProcessor.ABANDONED_REASON)).thenReturn(true);
         when(staging.markAbandoned("revived", ABANDONED_BEFORE, DatasetStagingPurgeProcessor.ABANDONED_REASON)).thenReturn(false);
-        when(staging.deleteStaging(stuck, 5000)).thenReturn(7L);
-        when(staging.deleteRejectedRows(stuck, 5000)).thenReturn(1L);
+        when(staging.deleteStaging(stuck, ABANDONED_BEFORE, 5000)).thenReturn(7L);
+        when(staging.deleteRejectedRows(stuck, ABANDONED_BEFORE, 5000)).thenReturn(1L);
 
         StagingPurgeResult result = processor.purge();
 
         InOrder order = inOrder(staging);
         order.verify(staging).markAbandoned("stuck", ABANDONED_BEFORE, DatasetStagingPurgeProcessor.ABANDONED_REASON);
-        order.verify(staging).deleteStaging(stuck, 5000);
-        order.verify(staging).deleteRejectedRows(stuck, 5000);
-        verify(staging, never()).deleteStaging(revived, 5000);
-        verify(staging, never()).deleteRejectedRows(revived, 5000);
-        assertThat(result).isEqualTo(new StagingPurgeResult(2, 1, 1, 7, 1, 0));
+        order.verify(staging).deleteStaging(stuck, ABANDONED_BEFORE, 5000);
+        order.verify(staging).deleteRejectedRows(stuck, ABANDONED_BEFORE, 5000);
+        verify(staging, never()).deleteStaging(revived, ABANDONED_BEFORE, 5000);
+        verify(staging, never()).deleteRejectedRows(revived, ABANDONED_BEFORE, 5000);
+        assertThat(result).isEqualTo(new StagingPurgeResult(2, 1, 1, 0, 7, 1, 0));
+    }
+
+    /** 락 대기 초과·데드락에 걸린 run 은 건너뛰고 다음 run 을 계속 정리한다. 남은 행은 다음 주에 다시 고른다. */
+    @Test
+    void lockConflictSkipsOnlyThatRun() {
+        StagingPurgeCandidate busy = new StagingPurgeCandidate("busy", Kind.UNPUBLISHED);
+        StagingPurgeCandidate next = new StagingPurgeCandidate("next", Kind.UNPUBLISHED);
+        when(staging.findPurgeCandidates(UNPUBLISHED_BEFORE, PUBLISHED_BEFORE, ABANDONED_BEFORE)).thenReturn(List.of(busy, next));
+        when(staging.deleteStaging(busy, UNPUBLISHED_BEFORE, 5000)).thenThrow(new DatasetStagingBulkPort.LockConflict("busy", null));
+        when(staging.deleteStaging(next, UNPUBLISHED_BEFORE, 5000)).thenReturn(4L);
+        when(staging.deleteRejectedRows(next, UNPUBLISHED_BEFORE, 5000)).thenReturn(1L);
+
+        StagingPurgeResult result = processor.purge();
+
+        assertThat(result).isEqualTo(new StagingPurgeResult(2, 0, 0, 1, 4, 1, 0));
+        verify(staging, never()).deleteRejectedRows(busy, UNPUBLISHED_BEFORE, 5000);
     }
 
     @Test

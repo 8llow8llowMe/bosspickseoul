@@ -11,7 +11,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param maximumPoolSize 두 번째 풀 상한. 상시 Job 은 Quartz 스레드 2개 안에서 순차로 돌아 커넥션을 많이 쓰지 않는다.
  *                        DB 서버의 연결 수를 다른 서비스와 나눠 쓰므로 작게 둔다
- * @param minimumIdle     평소 유지할 유휴 커넥션 수. 하루 몇 번 도는 Job 이라 1 이면 된다
+ * @param minimumIdle     평소 유지할 유휴 커넥션 수. 비우면 1(하루 몇 번 도는 Job 이라 1 이면 된다). 0 은 유휴 커넥션을 두지 않는다
  * @param poolName        Hikari 풀 이름. 로그와 {@code hikaricp_*{pool=...}} 메트릭에서 기본 풀과 구분한다
  */
 @ConfigurationProperties(prefix = "batch.commercial.datasource")
@@ -21,7 +21,7 @@ public record CommercialDataSourceProperties(
     String password,
     String driverClassName,
     int maximumPoolSize,
-    int minimumIdle,
+    Integer minimumIdle,
     String poolName
 ) {
 
@@ -46,6 +46,10 @@ public record CommercialDataSourceProperties(
         if (maximumPoolSize == 0) {
             maximumPoolSize = DEFAULT_MAXIMUM_POOL_SIZE;
         }
+        // 0 은 "유휴 커넥션을 두지 않는다" 는 유효한 값이라, 비어 있을 때만 기본값 1 을 쓴다.
+        if (minimumIdle == null) {
+            minimumIdle = DEFAULT_MINIMUM_IDLE;
+        }
         if (poolName == null || poolName.isBlank()) {
             poolName = DEFAULT_POOL_NAME;
         }
@@ -59,7 +63,7 @@ public record CommercialDataSourceProperties(
 
     /** 접속 정보만 받는 팩토리(테스트용). 풀 설정은 기본값(4 / 1 / batch-commercial)이다. */
     public static CommercialDataSourceProperties of(String url, String username, String password, String driverClassName) {
-        return new CommercialDataSourceProperties(url, username, password, driverClassName, 0, DEFAULT_MINIMUM_IDLE, null);
+        return new CommercialDataSourceProperties(url, username, password, driverClassName, 0, null, null);
     }
 
     public boolean hasUrl() {

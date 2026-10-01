@@ -90,6 +90,8 @@ class CommercialDataSourceConfigTest {
         assertThat(defaults.maximumPoolSize()).isEqualTo(4);
         assertThat(defaults.minimumIdle()).isEqualTo(1);
         assertThat(defaults.poolName()).isEqualTo("batch-commercial");
+        assertThat(new CommercialDataSourceProperties(COMMERCIAL, "u", "p", null, 0, null, null).minimumIdle()).as("비우면 1").isEqualTo(1);
+        assertThat(new CommercialDataSourceProperties(COMMERCIAL, "u", "p", null, 0, 0, null).minimumIdle()).as("0 은 유효한 값").isZero();
         assertThatThrownBy(() -> new CommercialDataSourceProperties(COMMERCIAL, "u", "p", null, 21, 1, null))
             .hasMessageContaining("maximum-pool-size");
         assertThatThrownBy(() -> new CommercialDataSourceProperties(COMMERCIAL, "u", "p", null, 2, 3, null))

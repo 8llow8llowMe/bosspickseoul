@@ -374,16 +374,36 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 
 예전 `DELETE ... WHERE run_id IN (SELECT ...) LIMIT ?` 는 LIMIT 때문에 semijoin 으로 바뀌지 못해 청크마다 `dataset_staging` 전체를 PK 순으로 훑고 훑은 레코드마다 next-key 락을 걸었다(05:00 적재의 스테이징 INSERT 와 충돌).
 
-**켜기 전 확인** — commercial 에서 아래 두 문장의 `EXPLAIN` 을 본다. 첫 문장은 `dataset_release` 전체(run 수만큼, 작다)와 `dataset_active_release` 의 FK 인덱스 조회, 두 번째는 `dataset_staging` 의 `PRIMARY` `range`(key_len 이 run_id 길이)여야 한다. `ALL` 이나 `index`(전체 인덱스 스캔)가 나오면 켜지 않는다.
+**켜기 전 확인** — commercial 에서 아래를 차례로 본다.
+
+1. 후보 SELECT 의 `EXPLAIN`. `r`(`dataset_release`)은 상태 인덱스가 없어 `ALL` 이다(행 수 = run 수라 작다. 괜찮다). `a`(`dataset_active_release`)는 FK 인덱스 `ref`, `s`·`x`(`dataset_staging`·`dataset_rejected_row` EXISTS)는 `DEPENDENT SUBQUERY` 에 `PRIMARY` `ref`(key_len 258 = `run_id` VARCHAR(64) utf8mb4)여야 한다. **`a`·`s`·`x` 가 `ALL` 이나 `index` 면 켜지 않는다**
+2. 1 의 실제 결과에서 `DRY_RUN` / `FAILED` 인 run_id 하나를 골라 DELETE 의 `EXPLAIN`. `dataset_staging` 이 `range`, key `PRIMARY`, key_len 258 이어야 하고, 서브쿼리 `r` 은 `SUBQUERY`(`DEPENDENT` 아님)·`const`, `a` 는 `SUBQUERY`·`ref` 여야 한다. **`dataset_staging` 이 `ALL`·`index` 이거나 서브쿼리가 `DEPENDENT` 면 켜지 않는다**
+3. 같은 run_id 로 락 범위를 본다. `BEGIN` 뒤 DELETE 를 실제로 실행하고 `performance_schema.data_locks` 를 본 뒤 **반드시 `ROLLBACK`** 한다. `dataset_staging` `PRIMARY` 의 X 락이 그 run 의 행 수(최대 5000)와 경계 하나뿐이고, `dataset_release`·`dataset_active_release` 는 그 run 한 점의 S 락이어야 한다. 다른 run 의 행까지 잠기면 켜지 않는다
 
 ```sql
+-- 1)
 EXPLAIN SELECT r.run_id, r.status FROM dataset_release r LEFT JOIN dataset_active_release a ON a.run_id = r.run_id
  WHERE a.run_id IS NULL AND ((r.status IN ('DRY_RUN','FAILED') AND r.acquired_at < NOW() - INTERVAL 7 DAY)
-    OR (r.status = 'PUBLISHED' AND r.published_at < NOW() - INTERVAL 30 DAY) OR (r.status IN ('NEW','RUNNING') AND r.acquired_at < NOW() - INTERVAL 2 DAY));
-EXPLAIN DELETE FROM dataset_staging WHERE run_id = '<후보 run_id>'
-   AND EXISTS (SELECT 1 FROM dataset_release r WHERE r.run_id = '<후보 run_id>' AND r.status IN ('DRY_RUN','FAILED'))
-   AND NOT EXISTS (SELECT 1 FROM dataset_active_release a WHERE a.run_id = '<후보 run_id>') LIMIT 5000;
+    OR (r.status = 'PUBLISHED' AND r.published_at < NOW() - INTERVAL 30 DAY) OR (r.status IN ('NEW','RUNNING') AND r.acquired_at < NOW() - INTERVAL 2 DAY))
+   AND (EXISTS (SELECT 1 FROM dataset_staging s WHERE s.run_id = r.run_id) OR EXISTS (SELECT 1 FROM dataset_rejected_row x WHERE x.run_id = r.run_id));
+-- 2) <run_id> 는 1) 결과의 DRY_RUN/FAILED run
+EXPLAIN DELETE FROM dataset_staging WHERE run_id = '<run_id>'
+   AND EXISTS (SELECT 1 FROM dataset_release r WHERE r.run_id = '<run_id>' AND r.status IN ('DRY_RUN','FAILED') AND r.acquired_at < NOW() - INTERVAL 7 DAY)
+   AND NOT EXISTS (SELECT 1 FROM dataset_active_release a WHERE a.run_id = '<run_id>') LIMIT 5000;
+-- 3) 실제로 지우고 되돌린다. ROLLBACK 을 빼먹지 않는다
+BEGIN;
+DELETE FROM dataset_staging WHERE run_id = '<run_id>'
+   AND EXISTS (SELECT 1 FROM dataset_release r WHERE r.run_id = '<run_id>' AND r.status IN ('DRY_RUN','FAILED') AND r.acquired_at < NOW() - INTERVAL 7 DAY)
+   AND NOT EXISTS (SELECT 1 FROM dataset_active_release a WHERE a.run_id = '<run_id>') LIMIT 5000;
+SELECT object_name, index_name, lock_type, lock_mode, lock_status, COUNT(*) AS locks
+  FROM performance_schema.data_locks WHERE object_schema = DATABASE()
+ GROUP BY object_name, index_name, lock_type, lock_mode, lock_status;
+ROLLBACK;
 ```
+
+삭제 문장은 run 을 고른 보존 기간 조건(미게시·버려진 run 은 `acquired_at`, 교체된 게시 run 은 `published_at`)도 다시 확인한다. 후보를 고른 뒤 같은 run-id 로 수동 재시도가 돌아 막 FAILED / DRY_RUN 으로 끝났으면 `acquired_at` 이 새로 찍혀 그 run 의 새 거부 행을 지우지 않는다. 이미 비운 run(스테이징·거부 행 없음)은 후보에 다시 뽑히지 않는다. 한 run 이 락 대기 초과·데드락에 걸리면 그 run 만 건너뛰고 다음 run 으로 간다(WARN `[staging-purge] lock conflict, run skipped`, 요약 `lockConflictRuns`). 다음 주 run 이 다시 고른다.
+
+버려진 run(NEW / RUNNING) 은 Spring Batch 쪽 `BATCH_JOB_EXECUTION` 이 `STARTED` 로 남아 같은 run-id 로는 다시 띄울 수 없다(JobRepository 가 "already running" 으로 막는다). 정리가 FAILED 로 표시한 뒤에도 같으므로, 그 슬롯을 다시 돌리려면 **새 attempt run-id** 를 쓴다. 자동 최신화의 run-id 는 시각이 들어가 매번 새로워 해당 없다.
 
 결과 확인은 `quarterly-import-verify.sql` 6)(자동 run)·7)(오래된 NEW/RUNNING) 블록과 로그 `[staging-purge] finished candidateRuns=... abandonedRuns=... skippedRuns=...` 다.
 
