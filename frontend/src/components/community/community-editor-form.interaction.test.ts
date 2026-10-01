@@ -343,3 +343,102 @@ describe('임시 저장 연결', () => {
     expect(window.localStorage.getItem('community-draft:new')).toBeNull()
   })
 })
+
+const filled = {
+  title: '제목',
+  content: '본문',
+  location: district,
+  images: [],
+}
+
+describe('등록 — 막아야 할 때', () => {
+  it('등록이 성공해 이동하는 중(submitted)이면 두 버튼이 꺼지고 제출도 무시한다', () => {
+    const { props } = renderForm({ initialValue: filled, submitted: true })
+
+    expect(button('등록하기').disabled).toBe(true)
+    expect(button('등록').disabled).toBe(true)
+
+    fireEvent.submit(document.querySelector('form')!)
+
+    expect(props.onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('사진을 올리는 중에 누르면 등록하지 않고 기다려 달라고 말한다 — 끝나면 안내가 걷힌다', async () => {
+    let finish: (images: never[]) => void = () => {}
+    const { props } = renderForm({
+      initialValue: filled,
+      onUploadImages: vi.fn(
+        () =>
+          new Promise<never[]>(resolve => {
+            finish = resolve
+          }),
+      ),
+    })
+    const fileInput =
+      document.querySelector<HTMLInputElement>('input[type="file"]')!
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['x'], 'a.png', { type: 'image/png' })],
+      },
+    })
+    expect(
+      document.querySelector('[data-community-photo-uploading]'),
+    ).not.toBeNull()
+
+    fireEvent.click(button('등록하기'))
+
+    expect(props.onSubmit).not.toHaveBeenCalled()
+    // 비활성이 아니라 누르면 이유를 말한다(3단계 원칙).
+    expect(button('등록하기').disabled).toBe(false)
+    expect(alerts()).toContain(
+      '사진을 올리는 중이에요. 끝나면 다시 눌러 주세요.',
+    )
+
+    await act(async () => {
+      finish([])
+    })
+
+    expect(alerts()).not.toContain(
+      '사진을 올리는 중이에요. 끝나면 다시 눌러 주세요.',
+    )
+    fireEvent.click(button('등록하기'))
+    expect(props.onSubmit).toHaveBeenCalledOnce()
+  })
+})
+
+describe('제목 칸의 Enter', () => {
+  it('제출하지 않고 본문으로 포커스를 옮긴다', () => {
+    const { props } = renderForm({ initialValue: filled })
+    titleInput().focus()
+
+    const notPrevented = fireEvent.keyDown(titleInput(), {
+      key: 'Enter',
+      keyCode: 13,
+    })
+
+    expect(notPrevented).toBe(false)
+    expect(document.activeElement).toBe(contentInput())
+    expect(props.onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('한글 조합 중 Enter 는 건드리지 않는다(isComposing · keyCode 229)', () => {
+    renderForm({ initialValue: filled })
+    titleInput().focus()
+
+    expect(
+      fireEvent.keyDown(titleInput(), { key: 'Enter', isComposing: true }),
+    ).toBe(true)
+    expect(document.activeElement).toBe(titleInput())
+
+    expect(
+      fireEvent.keyDown(titleInput(), { key: 'Enter', keyCode: 229 }),
+    ).toBe(true)
+    expect(document.activeElement).toBe(titleInput())
+
+    // 조합 키를 낀 Enter 도 건드리지 않는다.
+    expect(
+      fireEvent.keyDown(titleInput(), { key: 'Enter', shiftKey: true }),
+    ).toBe(true)
+    expect(document.activeElement).toBe(titleInput())
+  })
+})

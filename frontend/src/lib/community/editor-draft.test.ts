@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   applyCommunityStoredDraft,
+  clearCommunityStoredDrafts,
   createCommunityStoredDraft,
   getCommunityDraftStorageKey,
   isCommunityEditorDirty,
@@ -42,14 +43,53 @@ const district = {
   targetName: '성동구',
 }
 
-describe('getCommunityDraftStorageKey', () => {
-  it('새 글과 수정은 키를 나눈다', () => {
-    expect(getCommunityDraftStorageKey('create', null)).toBe(
-      'community-draft:new',
+describe('getCommunityDraftStorageKey — 회원마다 따로 둔다', () => {
+  it('새 글과 수정은 키를 나누고, 키에 회원 id 가 들어간다', () => {
+    expect(getCommunityDraftStorageKey('create', null, '7')).toBe(
+      'community-draft:7:new',
     )
-    expect(getCommunityDraftStorageKey('edit', '42')).toBe(
-      'community-draft:edit:42',
+    expect(getCommunityDraftStorageKey('edit', '42', '7')).toBe(
+      'community-draft:7:edit:42',
     )
+  })
+
+  it('계정이 다르면 키가 다르다 — 공용 기기에서 다른 계정의 저장본을 읽지 않는다', () => {
+    expect(getCommunityDraftStorageKey('create', null, '7')).not.toBe(
+      getCommunityDraftStorageKey('create', null, '8'),
+    )
+  })
+
+  it('회원 id 가 없으면 키도 없다 — 저장도 복원도 하지 않는다', () => {
+    expect(getCommunityDraftStorageKey('create', null, null)).toBeNull()
+    expect(getCommunityDraftStorageKey('edit', '42', '')).toBeNull()
+  })
+})
+
+describe('clearCommunityStoredDrafts — 로그아웃 시 저장본을 모두 지운다', () => {
+  it('`community-draft:` 로 시작하는 키만 지운다(옛 키 포함)', () => {
+    const storage = createMemoryStorage()
+    storage.setItem('community-draft:7:new', '{}')
+    storage.setItem('community-draft:8:edit:42', '{}')
+    storage.setItem('community-draft:new', '{}')
+    storage.setItem('community-recent-regions', '[]')
+    storage.setItem('other', 'x')
+
+    clearCommunityStoredDrafts(() => storage)
+
+    expect(storage.getItem('community-draft:7:new')).toBeNull()
+    expect(storage.getItem('community-draft:8:edit:42')).toBeNull()
+    expect(storage.getItem('community-draft:new')).toBeNull()
+    expect(storage.getItem('community-recent-regions')).toBe('[]')
+    expect(storage.getItem('other')).toBe('x')
+  })
+
+  it('storage 가 막혀도 던지지 않는다', () => {
+    expect(() =>
+      clearCommunityStoredDrafts(() => {
+        throw new Error('SecurityError')
+      }),
+    ).not.toThrow()
+    expect(() => clearCommunityStoredDrafts(() => null)).not.toThrow()
   })
 })
 

@@ -7,6 +7,7 @@ import {
   useState,
   type ChangeEvent,
   type FormEvent,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react'
 import { Loader2, Plus, X } from 'lucide-react'
@@ -50,6 +51,34 @@ export const COMMUNITY_EDITOR_LEAVE_CONFIRM =
 /** 비교 초안으로 들어온 글은 임시 저장하지 않는다 — 그 말을 하면 거짓이 된다. */
 export const COMMUNITY_EDITOR_LEAVE_CONFIRM_UNSAVED =
   '작성 중인 글이 저장되지 않아요. 나갈까요?'
+/**
+ * 사진 업로드 중 등록 — 막되 비활성 대신 누르면 말한다(§S4 「등록 버튼」 원칙). 그대로 보내면 올리던
+ * 사진이 `imageKeys` 에 빠진 채 글이 저장된다.
+ */
+export const COMMUNITY_EDITOR_UPLOADING_NOTICE =
+  '사진을 올리는 중이에요. 끝나면 다시 눌러 주세요.'
+
+/**
+ * 제목 칸의 Enter 를 본문으로 넘길까. 한 줄 입력의 Enter 는 폼을 제출하는데, 제목만 쓰고 Enter 로
+ * 글이 올라가면 안 된다. **한글 조합 중 Enter(`isComposing` · keyCode 229)는 건드리지 않는다** —
+ * 조합을 확정하는 키라 가로채면 마지막 글자가 깨지거나 두 번 들어간다.
+ */
+export const shouldMoveFromTitleOnEnter = (event: {
+  key: string
+  keyCode?: number
+  isComposing?: boolean
+  shiftKey?: boolean
+  altKey?: boolean
+  ctrlKey?: boolean
+  metaKey?: boolean
+}) =>
+  event.key === 'Enter' &&
+  !event.isComposing &&
+  event.keyCode !== 229 &&
+  !event.shiftKey &&
+  !event.altKey &&
+  !event.ctrlKey &&
+  !event.metaKey
 
 export type CommunityEditorFormProps = {
   mode: CommunityEditorMode
@@ -64,8 +93,10 @@ export type CommunityEditorFormProps = {
   errorMessage: string | null
   /** 임시 저장 키. `null` 이면 저장하지 않는다(비교 초안 진입). */
   draftStorageKey?: string | null
-  /** 등록·수정이 성공해 이동하는 중. 임시 저장과 이탈 확인을 멈춘다. */
+  /** 등록·수정이 성공해 이동하는 중. 등록 버튼·임시 저장·이탈 확인을 멈춘다(중복 글 방지). */
   submitted?: boolean
+  /** 「이어 쓰기」로 시작했다 — 이 키에 저장본이 이미 있다(원래 값으로 되돌리면 지운다). */
+  restoredFromDraft?: boolean
   /** 머리 아래 안내(비교 초안 실패 Notice). */
   notice?: ReactNode
   onCancel: () => void
@@ -590,6 +621,7 @@ export default function CommunityEditorForm({
   errorMessage,
   draftStorageKey = null,
   submitted = false,
+  restoredFromDraft = false,
   notice,
   onCancel,
   onSubmit,
@@ -611,6 +643,8 @@ export default function CommunityEditorForm({
   )
   const [imageMessage, setImageMessage] = useState<string | null>(null)
   const [uploadingCount, setUploadingCount] = useState(0)
+  /* 업로드 중 등록을 눌렀다. 업로드가 끝나면(uploadingCount 0) 안내도 걷힌다. */
+  const [uploadWaitAsked, setUploadWaitAsked] = useState(false)
   const [fieldError, setFieldError] = useState<{
     field: CommunityEditorField
     message: string
@@ -622,6 +656,8 @@ export default function CommunityEditorForm({
   const pendingCaretRef = useRef<number | null>(null)
 
   const uploading = uploadingCount > 0
+  /* 저장 요청 중이거나 이미 성공해 이동하는 중 — 다시 보내면 같은 글이 또 생긴다. */
+  const submitLocked = pending || submitted
   const current: CommunityEditorValue = { title, content, location, images }
   const dirty = isCommunityEditorDirty(pristineValue ?? initialValue, current)
 
@@ -629,7 +665,9 @@ export default function CommunityEditorForm({
     storageKey: draftStorageKey,
     value: { title, content, location },
     dirty,
-    paused: pending || submitted,
+    pending,
+    submitted,
+    startedFromStored: restoredFromDraft,
   })
   useBeforeUnloadGuard(dirty && !submitted)
 
@@ -698,6 +736,7 @@ export default function CommunityEditorForm({
       )
     } finally {
       setUploadingCount(0)
+      setUploadWaitAsked(false)
     }
   }
 
@@ -745,7 +784,12 @@ export default function CommunityEditorForm({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (pending) {
+    if (submitLocked) {
+      return
+    }
+
+    if (uploading) {
+      setUploadWaitAsked(true)
       return
     }
 
@@ -772,6 +816,25 @@ export default function CommunityEditorForm({
 
     setFieldError(null)
     onSubmit(result.value)
+  }
+
+  const handleTitleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (
+      !shouldMoveFromTitleOnEnter({
+        key: event.key,
+        keyCode: event.keyCode,
+        isComposing: event.nativeEvent.isComposing,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+      })
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    contentRef.current?.focus()
   }
 
   const heading = getCommunityEditorHeading(mode)
@@ -810,7 +873,7 @@ export default function CommunityEditorForm({
             <X aria-hidden="true" size={24} />
           </IconButton>
           <BarTitle>{heading}</BarTitle>
-          <BarSubmit disabled={pending} type="submit">
+          <BarSubmit disabled={submitLocked} type="submit">
             {pending ? '저장 중' : mode === 'edit' ? '수정' : '등록'}
           </BarSubmit>
         </MobileBar>
@@ -860,6 +923,7 @@ export default function CommunityEditorForm({
               setTitle(event.target.value)
               clearFieldError('title')
             }}
+            onKeyDown={handleTitleKeyDown}
             placeholder="제목을 입력해 주세요"
             value={title}
           />
@@ -1011,6 +1075,9 @@ export default function CommunityEditorForm({
 
           <Caption>{POST_IMAGE_RULE_TEXT}</Caption>
           {imageMessage ? <Message role="alert">{imageMessage}</Message> : null}
+          {uploadWaitAsked && uploading ? (
+            <Message role="alert">{COMMUNITY_EDITOR_UPLOADING_NOTICE}</Message>
+          ) : null}
         </Field>
 
         <ActionBar>
@@ -1021,7 +1088,7 @@ export default function CommunityEditorForm({
           >
             취소
           </SecondaryButton>
-          <PrimaryButton disabled={pending} type="submit">
+          <PrimaryButton disabled={submitLocked} type="submit">
             {pending ? '저장 중' : mode === 'edit' ? '수정하기' : '등록하기'}
           </PrimaryButton>
         </ActionBar>

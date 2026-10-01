@@ -30,6 +30,23 @@ describe('useBeforeUnloadGuard — 새로고침·탭 닫기 확인(CM-035)', () 
     expect(fireBeforeUnload().defaultPrevented).toBe(false)
   })
 
+  it('returnValue 를 참 값으로 채운다 — 빈 문자열이면 오래된 브라우저가 확인을 띄우지 않는다', () => {
+    renderHook(() => useBeforeUnloadGuard(true))
+    const event = new Event('beforeunload', { cancelable: true })
+    let assigned: unknown = undefined
+    Object.defineProperty(event, 'returnValue', {
+      configurable: true,
+      get: () => assigned,
+      set: value => {
+        assigned = value
+      },
+    })
+
+    window.dispatchEvent(event)
+
+    expect(assigned).toBe(true)
+  })
+
   it('언마운트하면 리스너를 떼어 낸다', () => {
     const remove = vi.spyOn(window, 'removeEventListener')
     const { unmount } = renderHook(() => useBeforeUnloadGuard(true))

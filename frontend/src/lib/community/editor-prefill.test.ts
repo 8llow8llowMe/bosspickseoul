@@ -68,6 +68,87 @@ describe('parseCommunityEditorPrefill — 목록·상세에서 넘어온 지역(
   })
 })
 
+describe('parseCommunityEditorPrefill — 주소는 누구나 고친다', () => {
+  it('코드는 숫자 4~12자리만 받는다', () => {
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=COMMERCIAL&targetCode=31100%3Cb%3E'),
+      ),
+    ).toBeNull()
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=COMMERCIAL&targetCode=311'),
+      ),
+    ).toBeNull()
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=COMMERCIAL&targetCode=1234567890123'),
+      ),
+    ).toBeNull()
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=ADMINISTRATION&targetCode=-1168064'),
+      ),
+    ).toBeNull()
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=COMMERCIAL&targetCode=3110008001'),
+      ),
+    ).toEqual({ targetType: 'COMMERCIAL', targetCode: '3110008001' })
+  })
+
+  it('이름이 40자를 넘으면 이름만 버리고 코드로 내려앉는다', () => {
+    const long = '가'.repeat(41)
+    expect(
+      parseCommunityEditorPrefill(
+        params(
+          `targetType=ADMINISTRATION&targetCode=11680640&targetName=${long}`,
+        ),
+      ),
+    ).toEqual({ targetType: 'ADMINISTRATION', targetCode: '11680640' })
+    expect(
+      parseCommunityEditorPrefill(
+        params(
+          `targetType=ADMINISTRATION&targetCode=11680640&targetName=${'가'.repeat(40)}`,
+        ),
+      ),
+    ).toEqual({
+      targetType: 'ADMINISTRATION',
+      targetCode: '11680640',
+      targetName: '가'.repeat(40),
+    })
+  })
+
+  it('자치구는 코드로 이름을 다시 찾는다 — 쿼리 이름은 믿지 않는다', () => {
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=DISTRICT&targetCode=11200&targetName=강남구'),
+      ),
+    ).toEqual({
+      targetType: 'DISTRICT',
+      targetCode: '11200',
+      targetName: '성동구',
+    })
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=DISTRICT&targetCode=11680'),
+      ),
+    ).toEqual({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
+      targetName: '강남구',
+    })
+  })
+
+  it('없는 자치구 코드면 프리필 전체를 버린다', () => {
+    expect(
+      parseCommunityEditorPrefill(
+        params('targetType=DISTRICT&targetCode=99999&targetName=성동구'),
+      ),
+    ).toBeNull()
+  })
+})
+
 describe('resolveCommunityCreateLocation — 비교 초안이 이긴다', () => {
   const prefill = {
     targetType: 'DISTRICT' as const,
