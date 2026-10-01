@@ -249,6 +249,12 @@ A가 만료된 뒤 같은 요청 B가 생성됐는데 늦게 끝난 A가 B의 �
 - 운영 DB의 실제 최신 분기는 이번 코드 감사로 확인하지 않았다. 따라서 "운영 데이터가 2023년 3분기뿐"이라고 단정할 수는 없지만, 기본값이 데이터 상태를 자동 반영하지 않는 것은 확실하다.
 - batch는 `AreaBoundaryImportJob` 한 종류이고, 분석 데이터는 migration SQL과 수동 runbook 중심이다.
 
+**#464 반영 (2026-10-01)**
+
+- 구현 방향 3 완료. 기본 분기는 적재된 typed 팩트 테이블 15종(현재 `DATASET_SPATIAL_VERSION`)에서 원천 중단 상한이 없는 14종이 함께 가진 분기 중 최신이다. `GET /api/v1/commercials/periods` 로 공개하고, commercial·district(지도)·ai 의 `periodCode` 생략 요청이 같은 값으로 해석된다. 위 "기본값 고정" 상태는 해소됐다(`AnalysisPeriodDefaults` 는 Swagger 예시 전용).
+- 완료 조건 중 "API 응답이 실제 사용한 분기" 는 상권·자치구·행정동 분석 응답(`periodCode`·`currentPeriodCode`)과 AI 제출 응답에 반영했다. 소비 두 응답은 #415 머지 뒤 후속이다.
+- 남은 것: 데이터셋 버전·최종 갱신일. `/periods` 의 `datasets[].publishedAt`·`schemaVersion` 은 키만 두고 `null` 이며, `dataset_release` 미러(게시 시각·스키마 버전)는 별도 이슈다.
+
 **구현 방향**
 
 1. `dataset_release`에 source name/URL/license, base period, acquired/published time, checksum, input/accepted/rejected row count, validation result를 저장한다.

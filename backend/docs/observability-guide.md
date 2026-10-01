@@ -129,6 +129,22 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 - `hikaricp_connections_active{pool="batch-commercial"}` / `hikaricp_connections_pending{pool="batch-commercial"}` — commercial 두 번째 풀(상한 4). 기본 풀(district)은 Boot 가 따로 붙인다. pending 이 계속 0 보다 크면 상한을 본다
 - 로그는 `[dataset-refresh]` 접두(Loki `|= "[dataset-refresh]"`). 운영 절차는 `services/batch-service.md` 「분기 적재 자동 최신화」
 
+### 분석 기준 분기 로그 (commercial-service · ai-service, 이슈 #464)
+
+로그는 `[analysis-period]` 접두(Loki `|= "[analysis-period]"`). 예외 메시지 대신 예외 유형·코드만 남긴다(접속 정보 노출 방지). 계산 규칙은 `services/commercial-service.md` 「분석 기준 분기」.
+
+| 서비스 | 레벨 | 로그 | 의미 |
+| --- | --- | --- | --- |
+| commercial | INFO | `default changed from=… to=… spatialVersion=… lagging=[…]` | 기본 분기가 바뀌었다(기동 직후 첫 계산은 `from=null`). `lagging` 은 가장 앞선 핵심 데이터셋보다 뒤처진 데이터셋 |
+| commercial | WARN | `default lags newest core dataset default=… newest=… quarters=… lagging=[…]` | 기본 분기가 가장 앞선 핵심 데이터셋보다 2분기 이상 뒤처진다. `lagging` 데이터셋의 적재·이관(`--job=project`)을 본다 |
+| commercial | WARN | `no common period across core datasets` | 핵심 데이터셋 공통 분기가 없다. 분기를 생략한 요청이 `ANALYSIS_PERIOD_001`(503) |
+| commercial | WARN | `catalog refresh failed, serving stale resolvedAt=… error=…` | 재계산 DB 오류. 마지막 성공값으로 응답 중이고 TTL(5분) 뒤 다시 시도한다 |
+| commercial | WARN | `catalog load failed, no catalog to serve` / `warm-up failed` | 한 번도 계산하지 못했다. 분기를 생략한 요청이 503 |
+| ai | WARN | `default period refresh failed, serving stale periodCode=… error=…` | commercial `/periods` 호출 실패. 마지막 성공값으로 제출 중 |
+| ai | WARN | `default period unavailable, no value to serve error=…` | 받은 적이 없다. 분기를 생략한 제출이 `AI_013`(503) |
+
+알람 후보: `no common period` 와 `no catalog to serve` 는 1건이라도 사용자 영향이 있다. `serving stale` 이 TTL 주기로 계속 찍히면 DB 또는 commercial-service 장애가 이어지는 것이다.
+
 ## 빠른 점검
 
 서비스에서 직접 확인:
