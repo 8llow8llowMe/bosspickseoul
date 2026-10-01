@@ -78,7 +78,10 @@ export default function SimulationReportView({
         <SimulationKeyMoneyCard keyMoney={report.keyMoney} />
 
         {report.similarFranchisees.length > 0 ? (
-          <SimulationSimilarFranchisees items={report.similarFranchisees} />
+          <SimulationSimilarFranchisees
+            items={report.similarFranchisees}
+            selectedFranchiseeId={report.condition.franchiseeId}
+          />
         ) : null}
 
         {hasGenderAgeAnalysis(report.genderAgeAnalysis) ? (
