@@ -22,7 +22,8 @@ import java.util.Set;
  * <p>A blank service would mean no Open API contract is registered, so the dataset is CSV/ZIP only;
  * {@code ImportRequest} rejects an API run for it instead of guessing an endpoint.
  *
- * <p>One dataset is discontinued rather than merely reshaped: see {@link #DISCONTINUED_SOURCES}.
+ * <p>One dataset is discontinued rather than merely reshaped: see {@link #DISCONTINUED_REASONS}. Its ceiling quarter lives on
+ * {@link DatasetKey#lastPublishablePeriodCode()} so commercial-service can read the same value.
  */
 public enum Dataset {
     SALES_COMMERCIAL(DatasetKey.SALES_COMMERCIAL, AreaScope.COMMERCIAL, true, List.of(
@@ -112,15 +113,26 @@ public enum Dataset {
     public static final String CHANGE_INDICATOR_FIELD = "TRDAR_CHNGE_IX";
 
     /**
-     * 원천이 끊겨 더 이상 게시할 수 없는 데이터셋. 여기 없는 데이터셋은 상한이 없다.
+     * 원천이 끊겨 더 이상 게시할 수 없는 데이터셋의 중단 사유. 여기 없는 데이터셋은 상한이 없다.
      *
-     * <p>중단 사유를 값에 함께 담는다. 사유는 데이터셋마다 다를 수 있으므로(컬럼 삭제 · 전 행 0 · 서비스 폐지)
-     * 예외 메시지가 한 가지 사유를 사실처럼 못 박으면 다음 데이터셋을 등록할 때 그 문장이 거짓말이 된다.
+     * <p>상한 분기 자체는 공유 {@link DatasetKey#lastPublishablePeriodCode()} 가 정본이다(이슈 #464). commercial-service 가
+     * 같은 값으로 끊긴 원천을 분석 기본 분기 계산에서 빼므로 여기 다시 적지 않는다. 사유는 데이터셋마다 다를 수 있으므로
+     * (컬럼 삭제 · 전 행 0 · 서비스 폐지) 예외 메시지가 한 가지 사유를 사실처럼 못 박으면 다음 데이터셋을 등록할 때 그 문장이
+     * 거짓말이 된다. 상한과 사유가 짝을 이루지 않으면 클래스 초기화에서 실패한다.
      */
-    private static final Map<Dataset, DiscontinuedSource> DISCONTINUED_SOURCES = Map.of(
-        CONSUMPTION_COMMERCIAL, new DiscontinuedSource(new Quarter("20234"),
-            "2026-09-15 전수 실측에서 20241 분기부터 모든 행의 모든 지출 항목이 0 이었고, "
-                + "데이터셋 공지(OA-21278)도 상권 단위 제공 중단을 밝힌다"));
+    private static final Map<Dataset, String> DISCONTINUED_REASONS = Map.of(
+        CONSUMPTION_COMMERCIAL,
+        "2026-09-15 전수 실측에서 20241 분기부터 모든 행의 모든 지출 항목이 0 이었고, "
+            + "데이터셋 공지(OA-21278)도 상권 단위 제공 중단을 밝힌다");
+
+    static {
+        for (Dataset dataset : values()) {
+            boolean ceiling = dataset.key.lastPublishablePeriodCode() != null;
+            if (ceiling != DISCONTINUED_REASONS.containsKey(dataset)) {
+                throw new IllegalStateException("Discontinued ceiling and reason must be declared together for " + dataset);
+            }
+        }
+    }
 
     /**
      * Open API 가 분기 경로 인자를 존중하는 데이터셋. 여기 없는 9종은 인자를 무시하고 2021 년 이후 전 기간을 돌려준다.
@@ -199,8 +211,14 @@ public enum Dataset {
     /** 적재 순서대로 정렬한 전 데이터셋. */
     public static List<Dataset> inRunOrder() { return RUN_ORDER; }
 
-    /** 원천이 끊긴 데이터셋이면 그 상한과 사유. 비어 있으면 상한이 없다. */
-    public Optional<DiscontinuedSource> discontinuedSource() { return Optional.ofNullable(DISCONTINUED_SOURCES.get(this)); }
+    /** 원천이 끊긴 데이터셋이면 그 상한({@link DatasetKey} 정본)과 사유. 비어 있으면 상한이 없다. */
+    public Optional<DiscontinuedSource> discontinuedSource() {
+        String ceiling = key.lastPublishablePeriodCode();
+        if (ceiling == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new DiscontinuedSource(new Quarter(ceiling), DISCONTINUED_REASONS.get(this)));
+    }
 
     /** 이 분기까지만 게시할 수 있다. 비어 있으면 상한이 없다. */
     public Optional<Quarter> lastPublishableQuarter() { return discontinuedSource().map(DiscontinuedSource::lastPublishableQuarter); }
@@ -213,7 +231,7 @@ public enum Dataset {
      * 0 행이 다시 팩트 테이블에 들어간다. 실제로 팩트 테이블에 INSERT 하는 것은 그쪽이다.
      */
     public void assertPublishable(Quarter period) {
-        DiscontinuedSource discontinued = DISCONTINUED_SOURCES.get(this);
+        DiscontinuedSource discontinued = discontinuedSource().orElse(null);
         if (discontinued == null || period.compareTo(discontinued.lastPublishableQuarter()) <= 0) {
             return;
         }

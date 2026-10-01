@@ -48,11 +48,12 @@ public enum DatasetKey {
     FACILITY_COMMERCIAL("VwsmTrdarFcltyQq", Set.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM",
         "VIATR_FCLTY_CO", "ELESCH_CO", "MSKUL_CO", "HGSCHL_CO", "UNIV_CO", "SUBWAY_STATN_CO", "BUS_STTN_CO")),
+    // 20241 부터 원천이 전 행 0 이라 20234 가 마지막 게시 가능 분기다. 중단 사유는 batch Dataset 이 보유한다.
     CONSUMPTION_COMMERCIAL("VwsmTrdhlNcmCnsmpQq", Set.of(
         "TRDAR_SE_CD", "TRDAR_SE_CD_NM", "TRDAR_CD_NM", "EXPNDTR_TOTAMT",
         "FDSTFFS_EXPNDTR_TOTAMT", "CLTHS_FTWR_EXPNDTR_TOTAMT", "MCP_EXPNDTR_TOTAMT", "LVSPL_EXPNDTR_TOTAMT",
         "TRNSPORT_EXPNDTR_TOTAMT", "LSR_EXPNDTR_TOTAMT", "CLTUR_EXPNDTR_TOTAMT", "EDC_EXPNDTR_TOTAMT",
-        "PLESR_EXPNDTR_TOTAMT")),
+        "PLESR_EXPNDTR_TOTAMT"), "20234"),
     SALES_ADMINISTRATION("VwsmAdstrdSelngW", Set.of(
         "ADSTRD_CD_NM", "SVC_INDUTY_CD", "SVC_INDUTY_CD_NM",
         "THSMON_SELNG_AMT", "MDWK_SELNG_AMT", "WKEND_SELNG_AMT")),
@@ -92,10 +93,16 @@ public enum DatasetKey {
 
     private final String openApiService;
     private final Set<String> readerRequiredFields;
+    private final String lastPublishablePeriodCode;
 
     DatasetKey(String openApiService, Set<String> readerRequiredFields) {
+        this(openApiService, readerRequiredFields, null);
+    }
+
+    DatasetKey(String openApiService, Set<String> readerRequiredFields, String lastPublishablePeriodCode) {
         this.openApiService = openApiService;
         this.readerRequiredFields = readerRequiredFields;
+        this.lastPublishablePeriodCode = lastPublishablePeriodCode;
     }
 
     /**
@@ -113,5 +120,16 @@ public enum DatasetKey {
     /** 이관 대상 팩트 테이블이 payload 에서 필수로 읽는 컬럼 코드. 배치의 행 검증은 이 집합을 포함해야 한다. */
     public Set<String> readerRequiredFields() {
         return readerRequiredFields;
+    }
+
+    /**
+     * 원천이 끊긴 데이터셋의 마지막 게시 가능 분기({@code YYYYQ}). {@code null} 이면 상한이 없다.
+     *
+     * <p>batch-service 는 이 분기를 넘는 적재·재투영을 거부하고, commercial-service 는 상한이 있는 데이터셋을
+     * 분석 기본 분기 계산(적재 분기 교집합)에서 뺀다(이슈 #464) — 끊긴 원천을 넣으면 기본 분기가 그 상한에 묶인다.
+     * 두 서비스가 같은 값을 따로 적으면 한쪽만 고쳐지므로 여기 하나만 둔다. 중단 사유는 배치 쪽 {@code Dataset} 이 보유한다.
+     */
+    public String lastPublishablePeriodCode() {
+        return lastPublishablePeriodCode;
     }
 }
