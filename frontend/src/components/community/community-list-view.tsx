@@ -18,6 +18,7 @@ import { useLoadMoreSentinel } from '@/hooks/use-load-more-sentinel'
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { useWriteFabCollapsed } from '@/hooks/use-write-fab-collapsed'
 import { formatCommunityCount, formatRelativeTime } from '@/lib/community'
+import { communityOutlinedField } from '@/lib/community/field-styles'
 import { getCommunityFeedFooter } from '@/lib/community/list-feed'
 import type { CommunityListView as CommunityListViewMode } from '@/lib/community/community-state'
 import { COMMUNITY_HEADER_HIDDEN_SELECTOR } from '@/lib/community/hidden-header'
@@ -335,17 +336,8 @@ const SearchInput = styled.input<{ $hasValue: boolean }>`
     appearance: none;
   }
 
-  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms). */
-  &,
-  &:focus,
-  &:focus-visible {
-    outline: none;
-  }
-
-  &:focus-visible {
-    border-color: var(--color-primary-700);
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
+  /* 포커스·오류·크기 — 커뮤니티 입력칸 공통 조각(안쪽 한 줄, 글로우 없음, resize none). */
+  ${communityOutlinedField}
 `
 
 const SearchClearButton = styled.button`
