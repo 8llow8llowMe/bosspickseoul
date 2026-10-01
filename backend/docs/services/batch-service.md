@@ -359,12 +359,32 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 
 ### 스테이징 정리 (기본 off)
 
-`BATCH_STAGING_PURGE_ENABLED=true` 이면 일요일 04:00 KST(`BATCH_STAGING_PURGE_CRON`)에 `datasetStagingPurgeJob` 이 돈다. `dataset_staging` / `dataset_rejected_row` 만 5,000행 청크로 지운다.
+`BATCH_STAGING_PURGE_ENABLED=true` 이면 일요일 04:00 KST(`BATCH_STAGING_PURGE_CRON`)에 `datasetStagingPurgeJob` 이 돈다. `dataset_staging` / `dataset_rejected_row` 만 **run 단위**로 5,000행 청크씩 지운다.
+
+1. 후보 run 을 잠금 없는 SELECT 한 번으로 고른다(`dataset_release` LEFT JOIN `dataset_active_release` ... `a.run_id IS NULL`)
+2. run 마다 `DELETE FROM dataset_staging WHERE run_id = ? AND <아직 대상 상태> AND <활성 아님> LIMIT ?` 를 짧은 청크가 나올 때까지 반복한다. PK `(run_id, source_row_number)` 선두 범위만 읽고 잠근다. `dataset_rejected_row` 도 PK 가 같은 모양이다
+3. NEW / RUNNING 인 채 `abandoned-after-days`(기본 2일) 지난 run 은 먼저 `status='FAILED'`, `failure_reason='abandoned: ...'` 로 표시하고 지운다. 표시가 안 되면(그 사이 끝났거나 재시작) 손대지 않는다(로그 `skippedRuns`)
+
+예전 `DELETE ... WHERE run_id IN (SELECT ...) LIMIT ?` 는 LIMIT 때문에 semijoin 으로 바뀌지 못해 청크마다 `dataset_staging` 전체를 PK 순으로 훑고 훑은 레코드마다 next-key 락을 걸었다(05:00 적재의 스테이징 INSERT 와 충돌).
+
+**켜기 전 확인** — commercial 에서 아래 두 문장의 `EXPLAIN` 을 본다. 첫 문장은 `dataset_release` 전체(run 수만큼, 작다)와 `dataset_active_release` 의 FK 인덱스 조회, 두 번째는 `dataset_staging` 의 `PRIMARY` `range`(key_len 이 run_id 길이)여야 한다. `ALL` 이나 `index`(전체 인덱스 스캔)가 나오면 켜지 않는다.
+
+```sql
+EXPLAIN SELECT r.run_id, r.status FROM dataset_release r LEFT JOIN dataset_active_release a ON a.run_id = r.run_id
+ WHERE a.run_id IS NULL AND ((r.status IN ('DRY_RUN','FAILED') AND r.acquired_at < NOW() - INTERVAL 7 DAY)
+    OR (r.status = 'PUBLISHED' AND r.published_at < NOW() - INTERVAL 30 DAY) OR (r.status IN ('NEW','RUNNING') AND r.acquired_at < NOW() - INTERVAL 2 DAY));
+EXPLAIN DELETE FROM dataset_staging WHERE run_id = '<후보 run_id>'
+   AND EXISTS (SELECT 1 FROM dataset_release r WHERE r.run_id = '<후보 run_id>' AND r.status IN ('DRY_RUN','FAILED'))
+   AND NOT EXISTS (SELECT 1 FROM dataset_active_release a WHERE a.run_id = '<후보 run_id>') LIMIT 5000;
+```
+
+결과 확인은 `quarterly-import-verify.sql` 6)(자동 run)·7)(오래된 NEW/RUNNING) 블록과 로그 `[staging-purge] finished candidateRuns=... abandonedRuns=... skippedRuns=...` 다.
 
 | 대상 | 보존 |
 | --- | --- |
 | `DRY_RUN` / `FAILED` run 의 스테이징·거부 행 | 7일(`unpublished-retention-days`). 거부 행은 실패 원인을 읽는 곳이라 바로 지우지 않는다 |
 | 교체된 `PUBLISHED` run 의 스테이징 | 게시 후 30일(`published-retention-days`) |
+| NEW / RUNNING 인 채 버려진 run 의 스테이징·거부 행 | 시작 후 2일(`abandoned-after-days`). FAILED 로 표시한 뒤 지운다 |
 
 `dataset_active_release` 가 가리키는 run 은 어떤 문장도 지우지 않고, `dataset_release` · `dataset_fact` 는 건드리지 않는다. 자동 최신화는 새 분기를 dry-run 할 때마다(원천에 새 분기가 나와 `WOULD_PUBLISH` 가 될 때, 데이터셋당 분기에 몇 번) `auto-...-dry` 스테이징을 남긴다. 매일 쌓이는 것은 아니지만 publish=false 로 오래 돌릴 때 켜는 것을 권한다.
 

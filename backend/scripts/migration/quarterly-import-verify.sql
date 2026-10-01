@@ -83,3 +83,35 @@ SELECT dataset, period_code, status, COUNT(*) AS run_count,
 -- SELECT COUNT(*) AS fact_rows
 --   FROM dataset_fact
 --  WHERE run_id = 'change-commercial-20241-002';
+
+-- ---------------------------------------------------------------------------
+-- 6) 자동 최신화 run (이슈 #445). run_id 가 auto- 로 시작한다. 수동 run-id 와 겹치지 않는다.
+--    WOULD_PUBLISH 는 DRY_RUN 으로, 실게시는 PUBLISHED 로, 이관은 Spring Batch(BATCH_*)에만 남는다.
+--    raw_location 은 batch-raw 볼륨 경로라 batch-service-job 에서 같은 경로로 ARCHIVE 재생할 수 있다.
+-- ---------------------------------------------------------------------------
+SELECT run_id, dataset, period_code, status, expected_rows, accepted_count,
+       rejected_count, duplicate_count, unmapped_count, failure_reason, acquired_at, published_at, raw_location
+  FROM dataset_release
+ WHERE run_id LIKE 'auto-%'
+ ORDER BY acquired_at DESC
+ LIMIT 50;
+
+-- 데이터셋별 자동 최신화 상태. consecutive_failures > 0 이면 failure-cooldown-days 동안 건너뛴다.
+-- SELECT dataset, last_probe_at, last_source_total, newest_source_period, consecutive_failures,
+--        last_failure_at, last_failure_reason, last_fetch_raw_location, last_reproject_dry_run_period
+--   FROM dataset_refresh_state ORDER BY dataset;
+
+-- ---------------------------------------------------------------------------
+-- 7) 오래된 NEW / RUNNING. 적재 Job 은 길어야 수십 분이다. 하루를 넘겨 남아 있으면 프로세스가 죽은 run 이다.
+--    스테이징 정리를 켜 두면 batch.staging-purge.abandoned-after-days(기본 2일) 지난 것을 FAILED 로 표시한 뒤 지운다.
+--    활성 포인터가 가리키는 run 은 표시하지도 지우지도 않는다.
+-- ---------------------------------------------------------------------------
+SELECT r.run_id, r.dataset, r.period_code, r.status, r.acquired_at,
+       TIMESTAMPDIFF(HOUR, r.acquired_at, CURRENT_TIMESTAMP(6)) AS hours_since_start,
+       (SELECT COUNT(*) FROM dataset_staging s WHERE s.run_id = r.run_id) AS staging_rows,
+       (a.run_id IS NOT NULL) AS is_active
+  FROM dataset_release r
+  LEFT JOIN dataset_active_release a ON a.run_id = r.run_id
+ WHERE r.status IN ('NEW', 'RUNNING')
+   AND r.acquired_at < CURRENT_TIMESTAMP(6) - INTERVAL 1 DAY
+ ORDER BY r.acquired_at;

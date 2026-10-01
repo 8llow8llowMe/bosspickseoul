@@ -79,6 +79,6 @@ class DatasetQuartzJobGuardTest {
     }
 
     private static DatasetStagingPurgeProperties purge(boolean enabled) {
-        return new DatasetStagingPurgeProperties(enabled, null, 30, 7, 5000);
+        return new DatasetStagingPurgeProperties(enabled, null, 30, 7, 5000, 2);
     }
 }
