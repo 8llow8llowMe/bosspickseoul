@@ -4,8 +4,11 @@ import { ArrowRight, Calculator } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Button, ButtonLink } from '@/components/ui/button'
+import {
+  SimulationBottomBarAmount,
+  SimulationBottomBarFrame,
+} from '@/components/simulation/simulation-bottom-bar'
 import { formatLargeWon } from '@/lib/format'
-import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationSummaryBarProps = {
   /** 계산이 끝났으면 만원 단위 총비용. 아직이면 null. */
@@ -22,51 +25,12 @@ export type SimulationSummaryBarProps = {
   onViewResult: () => void
 }
 
-/* 모바일·태블릿 전용. 데스크탑은 오른쪽 sticky 결과 패널이 같은 역할을 한다. */
-const Root = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 20;
+/* 틀(위치·바탕·데스크톱 숨김)은 리포트 바와 같이 쓴다. 여기서는 안쪽 한 줄 배치만 정한다. */
+const Root = styled(SimulationBottomBarFrame)`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-top: 1px solid var(--color-border-200);
-  background: var(--color-surface);
-  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
-  box-shadow: var(--shadow-level-3);
-
-  @media ${SIMULATION_MEDIA.desktop} {
-    display: none;
-  }
-`
-
-const Copy = styled.div`
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-
-  span {
-    overflow: hidden;
-    color: var(--color-text-caption);
-    font-size: 12px;
-    line-height: 18px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  strong {
-    overflow: hidden;
-    color: var(--color-text-900);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 26px;
-    font-variant-numeric: tabular-nums;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 `
 
 /*
@@ -132,12 +96,13 @@ export default function SimulationSummaryBar({
   const calculated = totalPrice !== null
 
   return (
-    <Root aria-label="시뮬레이션 요약">
+    // 역할 없는 div 의 aria-label 은 낭독기가 무시한다(ARIA 1.2). 바 전체를 이름 있는 영역으로 둔다.
+    <Root role="region" aria-label="시뮬레이션 요약">
       {calculated ? (
-        <Copy>
+        <SimulationBottomBarAmount>
           <span>예상 총 창업 비용</span>
           <strong>{formatLargeWon(totalPrice)}</strong>
-        </Copy>
+        </SimulationBottomBarAmount>
       ) : (
         <Pending>
           {gap ? (
