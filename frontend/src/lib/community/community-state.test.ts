@@ -241,6 +241,38 @@ describe('community state', () => {
     ).toBeUndefined()
   })
 
+  it('커서가 직전 쪽에서 전진하지 않으면 다음 쪽을 끝낸다(무한 요청 방지)', () => {
+    const slice = postsResponse.dataBody.posts
+
+    // 최신·좋아요한 글: 마지막 글 id 가 직전 커서와 같으면 같은 쪽을 또 받는다.
+    expect(
+      getCommunityNextPageParam(slice, 'latest', {
+        lastPostId: '7',
+        lastLikeCount: 0,
+      }),
+    ).toBeUndefined()
+    expect(
+      getCommunityNextPageParam(slice, 'latest', {
+        lastPostId: '9',
+        lastLikeCount: 0,
+      }),
+    ).toEqual({ lastPostId: '7', lastLikeCount: 0 })
+
+    // 인기: 커서는 (lastPostId, lastLikeCount) 쌍이다(CM-004). 쌍이 같을 때만 멈춘다.
+    expect(
+      getCommunityNextPageParam(slice, 'popular', {
+        lastPostId: '7',
+        lastLikeCount: 13,
+      }),
+    ).toBeUndefined()
+    expect(
+      getCommunityNextPageParam(slice, 'popular', {
+        lastPostId: '7',
+        lastLikeCount: 14,
+      }),
+    ).toEqual({ lastPostId: '7', lastLikeCount: 13 })
+  })
+
   it('namespaced query keys를 안정적으로 만든다', () => {
     const state = parseCommunityListState(new URLSearchParams('view=latest'))
     expect(communityKeys.list(state)).toEqual(['community', 'list', state])

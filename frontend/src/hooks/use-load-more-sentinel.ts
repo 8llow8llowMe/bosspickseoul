@@ -9,7 +9,8 @@ import {
 
 type UseLoadMoreSentinelOptions = {
   hasNextPage: boolean
-  isFetchingNextPage: boolean
+  /** 쿼리가 무엇이든 받는 중(React Query `isFetching`). 다음 쪽만이 아니다 — `shouldAutoLoadNextPage`. */
+  isFetching: boolean
   hasLoadMoreError: boolean
   onLoadMore: () => void
   rootMargin?: string
@@ -25,12 +26,15 @@ type UseLoadMoreSentinelOptions = {
  *   매번 와서 중복 호출이 생긴다.
  * - 다음 쪽을 다 받았는데 감시 요소가 그대로 화면 안이면 교차 이벤트가 다시 오지 않는다.
  *   「부를 수 있음」 으로 돌아오는 순간 마지막 교차 상태를 보고 이어 부른다.
+ * - 「받는 중」 은 다음 쪽만이 아니라 백그라운드 refetch 도 포함한다(`isFetching`). refetch 중 교차해
+ *   부른 다음 쪽은 진행 중 요청에 흡수되는데, 그동안 `isFetchingNextPage` 는 false 라 그것만 보면
+ *   「부를 수 있음」 이 바뀌지 않아 이어 부르기가 영영 돌지 않는다.
  * - 같은 순간 두 번 불릴 수는 있다(교차 알림과 렌더 사이). 호출부는 `fetchNextPage({ cancelRefetch: false })`
  *   로 진행 중 요청을 겹치지 않게 한다.
  */
 export const useLoadMoreSentinel = ({
   hasNextPage,
-  isFetchingNextPage,
+  isFetching,
   hasLoadMoreError,
   onLoadMore,
   rootMargin = COMMUNITY_LIST_AUTOLOAD_ROOT_MARGIN,
@@ -38,7 +42,7 @@ export const useLoadMoreSentinel = ({
   const [node, setNode] = useState<Element | null>(null)
   const latestRef = useRef({
     hasNextPage,
-    isFetchingNextPage,
+    isFetching,
     hasLoadMoreError,
     onLoadMore,
   })
@@ -48,7 +52,7 @@ export const useLoadMoreSentinel = ({
   useEffect(() => {
     latestRef.current = {
       hasNextPage,
-      isFetchingNextPage,
+      isFetching,
       hasLoadMoreError,
       onLoadMore,
     }
@@ -78,7 +82,7 @@ export const useLoadMoreSentinel = ({
           shouldAutoLoadNextPage({
             isIntersecting: entry.isIntersecting,
             hasNextPage: latest.hasNextPage,
-            isFetchingNextPage: latest.isFetchingNextPage,
+            isFetching: latest.isFetching,
             hasLoadMoreError: latest.hasLoadMoreError,
           })
         ) {
@@ -96,7 +100,7 @@ export const useLoadMoreSentinel = ({
     }
   }, [node, rootMargin])
 
-  const canLoad = hasNextPage && !isFetchingNextPage && !hasLoadMoreError
+  const canLoad = hasNextPage && !isFetching && !hasLoadMoreError
 
   useEffect(() => {
     if (canLoad && intersectingRef.current) {

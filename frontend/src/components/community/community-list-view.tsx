@@ -51,6 +51,11 @@ export type CommunityListViewProps = {
   writeHref: string
   hasNextPage: boolean
   isFetchingNextPage: boolean
+  /**
+   * 목록 쿼리가 무엇이든 받는 중이다(다음 쪽 + 백그라운드 refetch). 자동 다음 쪽만 이 값을 본다 —
+   * refetch 중 부른 다음 쪽은 그 요청에 흡수돼 사라지므로 끝난 뒤 이어 부른다(CM-029).
+   */
+  isFetching: boolean
   onSearchValueChange: (value: string) => void
   onSearchSubmit: () => void
   /** 지우기 버튼. 입력값을 비우고, 검색이 걸려 있으면 검색도 푼다. */
@@ -629,6 +634,7 @@ export default function CommunityListView({
   writeHref,
   hasNextPage,
   isFetchingNextPage,
+  isFetching,
   onSearchValueChange,
   onSearchSubmit,
   onSearchClear,
@@ -648,7 +654,7 @@ export default function CommunityListView({
   })
   const sentinelRef = useLoadMoreSentinel({
     hasNextPage,
-    isFetchingNextPage,
+    isFetching,
     hasLoadMoreError,
     onLoadMore,
   })
@@ -758,11 +764,10 @@ export default function CommunityListView({
       {/*
         피드 전체를 live region 으로 두지 않는다 — 자동 다음 쪽마다 붙은 글을 통째로 읽게 된다.
         알림은 스켈레톤(role=status)·실패(role=alert)·끝(role=status)이 각자 맡는다.
+        aria-busy 도 걸지 않는다 — busy 인 조상 아래의 status 알림은 busy 가 풀릴 때까지 미뤄질 수
+        있는데, 풀리는 순간 스켈레톤은 이미 사라져 「불러오는 중」 이 끝내 읽히지 않는다.
       */}
-      <Feed
-        aria-busy={status === 'loading' || isFetchingNextPage}
-        aria-label="커뮤니티 피드"
-      >
+      <Feed aria-label="커뮤니티 피드">
         {status === 'loading' ? (
           <CommunityListSkeleton variant="initial" />
         ) : status === 'error' ? (

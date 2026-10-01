@@ -525,7 +525,7 @@ export default function CommunityListPage() {
 
       return validateCommunityListResponse(response)
     },
-    getNextPageParam: lastPage => {
+    getNextPageParam: (lastPage, _allPages, lastPageParam) => {
       if (!isCommunityListSuccess(lastPage)) {
         return undefined
       }
@@ -533,6 +533,7 @@ export default function CommunityListPage() {
       return getCommunityNextPageParam(
         getCommunityPageSlice(lastPage, state.view),
         state.view,
+        lastPageParam,
       )
     },
   })
@@ -655,7 +656,6 @@ export default function CommunityListPage() {
         saveCommunityListScroll(window.sessionStorage, {
           contextKey,
           postId: post.postId,
-          scrollY: window.scrollY,
           rowOffset: event.currentTarget.getBoundingClientRect().top,
           savedAt: Date.now(),
         })
@@ -764,6 +764,7 @@ export default function CommunityListPage() {
       errorMessage={errorMessage}
       hasNextPage={Boolean(listQuery.hasNextPage)}
       isFetchingNextPage={listQuery.isFetchingNextPage}
+      isFetching={listQuery.isFetching}
       keyword={state.keyword}
       loadMoreErrorMessage={loadMoreErrorMessage}
       locationPicker={
