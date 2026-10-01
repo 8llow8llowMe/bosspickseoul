@@ -10,6 +10,7 @@ import {
   getNextCommunityMenuIndex,
   isCommunityPostEdited,
   shareCommunityPost,
+  shareCommunityPostOnce,
 } from './post-detail'
 
 describe('isCommunityPostEdited', () => {
@@ -226,6 +227,22 @@ describe('shareCommunityPost', () => {
     expect(writeText).not.toHaveBeenCalled()
   })
 
+  it('공유가 이미 진행 중이라 거절되면(InvalidStateError) 취소로 보고 복사하지 않는다', async () => {
+    const writeText = vi.fn(async () => undefined)
+    const invalidState = new Error('An earlier share has not yet completed.')
+    invalidState.name = 'InvalidStateError'
+
+    await expect(
+      shareCommunityPost(payload, {
+        share: vi.fn(async () => {
+          throw invalidState
+        }),
+        clipboard: { writeText },
+      }),
+    ).resolves.toBe('cancelled')
+    expect(writeText).not.toHaveBeenCalled()
+  })
+
   it('share 가 다른 이유로 실패하면 클립보드로 넘어간다', async () => {
     const writeText = vi.fn(async () => undefined)
 
@@ -274,5 +291,49 @@ describe('shareCommunityPost', () => {
     })
     expect(COMMUNITY_SHARE_TOAST.cancelled).toBeNull()
     expect(COMMUNITY_SHARE_TOAST.shared).toBeNull()
+  })
+})
+
+describe('shareCommunityPostOnce', () => {
+  const payload = {
+    title: '성수역 팝업',
+    url: 'https://bosspick.test/community/7',
+  }
+
+  it('공유 시트가 떠 있는 동안 두 번째 호출은 share 를 다시 부르지 않고 null 이다', async () => {
+    let finish: () => void = () => {}
+    const share = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve
+        }),
+    )
+    const inFlight = { current: false }
+
+    const first = shareCommunityPostOnce(inFlight, payload, { share })
+    const second = shareCommunityPostOnce(inFlight, payload, { share })
+
+    await expect(second).resolves.toBeNull()
+    expect(share).toHaveBeenCalledTimes(1)
+    expect(inFlight.current).toBe(true)
+
+    finish()
+    await expect(first).resolves.toBe('shared')
+    expect(inFlight.current).toBe(false)
+  })
+
+  it('끝나면(실패해도) 다음 호출을 다시 받는다', async () => {
+    const inFlight = { current: false }
+
+    await expect(shareCommunityPostOnce(inFlight, payload, {})).resolves.toBe(
+      'failed',
+    )
+    expect(inFlight.current).toBe(false)
+
+    const share = vi.fn(async () => undefined)
+    await expect(
+      shareCommunityPostOnce(inFlight, payload, { share }),
+    ).resolves.toBe('shared')
+    expect(share).toHaveBeenCalledTimes(1)
   })
 })

@@ -666,6 +666,7 @@ export default function CommunityCommentThread({
         <GuestComposerButton
           type="button"
           aria-label="로그인하고 댓글 작성"
+          data-community-comment-entry="true"
           onClick={() => {
             requestCommunityCommentAccess({
               authReady,
@@ -684,6 +685,7 @@ export default function CommunityCommentThread({
         <Composer onSubmit={event => void handleRootSubmit(event)}>
           <TextArea
             aria-label="댓글 내용"
+            data-community-comment-entry="true"
             maxLength={MAX_COMMENT_LENGTH}
             disabled={!authReady || pendingComposer !== null}
             placeholder="운영 경험이나 질문을 댓글로 남겨 주세요."
