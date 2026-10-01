@@ -280,6 +280,45 @@ describe('SimulationBuilderPage — 열림 단계 배선', () => {
     브랜드는 프랜차이즈일 때만 있는 독립 섹션이다(Q4). 업종을 고르면 업종 단계가 끝나고
     브랜드 단계가 열리며, 브랜드를 고르면 매장 조건으로 넘어간다.
   */
+  /*
+    브랜드 기본 목록은 인기순이 아니라 찾는 브랜드가 안 보일 수 있다. 그때 이 화면에서
+    막히지 않게 「개인 창업 기준으로 계산하기」가 창업 형태를 바꾸고 다음 단계로 넘긴다.
+  */
+  it('찾는 브랜드가 없으면 개인 창업 기준으로 바꿔 다음 단계로 넘어간다', async () => {
+    renderPage()
+    fireEvent.click(chip('프랜차이즈'))
+    fireEvent.click(chip('강남구'))
+    fireEvent.click(chip('한식음식점'))
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: '개인 창업 기준으로 계산하기',
+      }),
+    )
+
+    expect(document.querySelector('#simulation-section-brand')).toBeNull()
+    expect(header('franchise').textContent).toContain('개인 창업')
+    expect(isExpanded('store')).toBe(true)
+  })
+
+  it('브랜드 조회가 실패해도 개인 창업 기준으로 빠져나갈 수 있다', async () => {
+    vi.mocked(api.fetchSimulationFranchisees).mockResolvedValue(
+      failure('COMMERCIAL_100', '요청 값을 확인해 주세요.') as never,
+    )
+    renderPage()
+    fireEvent.click(chip('프랜차이즈'))
+    fireEvent.click(chip('강남구'))
+    fireEvent.click(chip('한식음식점'))
+
+    await screen.findByText('요청 값을 확인해 주세요.')
+    fireEvent.click(
+      screen.getByRole('button', { name: '개인 창업 기준으로 계산하기' }),
+    )
+
+    expect(document.querySelector('#simulation-section-brand')).toBeNull()
+    expect(isExpanded('store')).toBe(true)
+  })
+
   it('프랜차이즈는 업종 → 브랜드 → 매장 조건 순서로 넘어간다', async () => {
     renderPage()
     fireEvent.click(chip('프랜차이즈'))
@@ -289,6 +328,10 @@ describe('SimulationBuilderPage — 열림 단계 배선', () => {
     expect(isExpanded('service')).toBe(false)
     expect(isExpanded('brand')).toBe(true)
     expect(document.activeElement).toBe(header('brand'))
+    // 첫 조회가 몇 초 걸릴 수 있어(dev 실측 5.8초) 스켈레톤만이 아니라 문구를 보인다.
+    expect(screen.getByRole('status').textContent).toBe(
+      '브랜드를 불러오는 중이에요',
+    )
 
     const brand = await screen.findByRole('button', { name: /테스트브랜드/ })
     fireEvent.click(brand)

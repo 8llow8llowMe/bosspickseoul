@@ -524,6 +524,11 @@ export default function SimulationBuilderPage({
                     selectedFranchiseeId={state.franchiseeId}
                     onSelect={selectThenAdvance(conditions.setBrand)}
                     showHeading={false}
+                    /* 찾는 브랜드가 없을 때의 출구. 개인 창업으로 바꾸면 브랜드 섹션이
+                       사라지고 비어 있는 다음 단계가 열린다. */
+                    onSkipBrand={selectThenAdvance<void>(() =>
+                      conditions.setFranchisee(false),
+                    )}
                   />
                 ) : null}
               </SimulationConditionSectionCard>
