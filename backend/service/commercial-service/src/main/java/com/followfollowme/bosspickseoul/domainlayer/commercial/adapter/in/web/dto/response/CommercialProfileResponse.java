@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialProfileKeyMetricsItem;
 import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.in.web.dto.item.PolicyItem;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -10,7 +11,7 @@ import lombok.Builder;
 @Schema(description = "후보 상권 프로필 응답 DTO")
 public record CommercialProfileResponse(
 
-    @Schema(description = "기준 분기 코드", example = "20233")
+    @Schema(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE)
     String periodCode,
 
     @Schema(description = "업종 코드", example = "CS100001")

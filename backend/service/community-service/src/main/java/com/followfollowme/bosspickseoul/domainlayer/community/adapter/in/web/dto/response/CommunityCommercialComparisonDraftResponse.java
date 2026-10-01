@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -26,13 +27,13 @@ public record CommunityCommercialComparisonDraftResponse(
     @Schema(description = "분석 첨부 유형 메타데이터")
     CodeNameDescriptionMetadata analysisType,
 
-    @Schema(description = "분석 참조 코드", example = "3110008:3110012:CS100001:20233")
+    @Schema(description = "분석 참조 코드", example = "3110008:3110012:CS100001:" + AnalysisPeriodDefaults.PERIOD_CODE)
     String analysisRefCode,
 
     @Schema(description = "분석 참조 이름")
     String analysisRefName,
 
-    @Schema(description = "분석 스냅샷 키", example = "comparison-3110008-3110012-20233")
+    @Schema(description = "분석 스냅샷 키", example = "comparison-3110008-3110012-" + AnalysisPeriodDefaults.PERIOD_CODE)
     String analysisSnapshotKey
 ) {
 }

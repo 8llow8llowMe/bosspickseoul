@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.sharelink.adapter.in.web.dto.response;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -14,7 +15,7 @@ public record ShareLinkResolveResponse(
     CodeNameDescriptionMetadata shareType,
 
     @Schema(description = "화면 진입 상태 payload (생성 시 저장한 JSON 객체 그대로)",
-        example = "{\"commercialCode\": \"3110008\", \"serviceCode\": \"CS100001\", \"periodCode\": \"20233\"}")
+        example = "{\"commercialCode\": \"3110008\", \"serviceCode\": \"CS100001\", \"periodCode\": \"" + AnalysisPeriodDefaults.PERIOD_CODE + "\"}")
     JsonNode payload,
 
     @Schema(description = "공유 링크 생성 시각", example = "2026-08-07T12:34:56")
