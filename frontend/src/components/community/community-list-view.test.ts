@@ -191,8 +191,14 @@ describe('CommunityListView', () => {
     expect(markup).toContain('aria-pressed="true"')
     expect(markup).not.toContain('role="tablist"')
     expect(markup).not.toContain('role="tab"')
-    expect(markup).toContain('aria-label="커뮤니티 피드"')
-    expect(markup).toContain('aria-live="polite"')
+    // 피드 전체를 live region 으로 두지 않는다 — 자동 다음 쪽(2단계)마다 붙은 글 20건을 통째로
+    // 읽게 된다. 알림은 로딩(role=status)·실패(role=alert)·끝(role=status)이 각자 맡는다.
+    const feedTag = markup.match(
+      /<section[^>]*aria-label="커뮤니티 피드"[^>]*>/,
+    )
+    expect(feedTag?.[0]).toBeDefined()
+    expect(feedTag?.[0]).not.toContain('aria-live')
+    expect(feedTag?.[0]).toContain('aria-busy="false"')
     // 피드 머리의 h2 제목과 「N개 불러옴」 은 제목이 h1 으로 올라가며 뺐다.
     expect(markup).not.toContain('개 불러옴')
   })
@@ -348,16 +354,76 @@ describe('CommunityListView', () => {
     expect(styles).not.toContain('border-radius:999px')
   })
 
-  it('renders loading and retryable error feedback', () => {
-    const loading = renderWithStyles({ status: 'loading', posts: [] }).markup
+  it('keeps the mobile write action named 글쓰기 and styles its collapsed 56px circle', () => {
+    const { markup, styles } = renderWithStyles()
+    const fab = markup.match(/<a[^>]*data-mobile-write-action="true"[^>]*>/)
+
+    // 접혀 글자가 사라져도 이름이 남는다. 펼친 상태의 보이는 글자와 같다(label in name).
+    expect(fab?.[0]).toContain('aria-label="글쓰기"')
+    // 첫 렌더(SSR·hydration 전)는 펼친 상태다.
+    expect(fab?.[0]).toContain('data-collapsed="false"')
+    expect(markup).toMatch(
+      /data-mobile-write-action="true"[\s\S]*?<span[^>]*>글쓰기<\/span><\/a>/,
+    )
+    // 접힌 모양은 속성 선택자라 정적 CSS 에 늘 실린다.
+    const collapsedRule = styles.match(
+      /\[data-collapsed=["']?true["']?\][^{]*\{[^}]*\}/,
+    )
+    expect(collapsedRule?.[0]).toContain('padding:0')
+    expect(collapsedRule?.[0]).toContain('gap:0')
+    // 원형은 펼친 상태에도 걸린 min-width·min-height 56 이 지킨다 — 접힌 규칙에만 두면
+    // 펼칠 때 폭이 56 → 아이콘 폭으로 한 번 꺼졌다가 자란다.
+    expect(styles).toContain('min-width:56px')
+    expect(styles).toContain('min-height:56px')
+    // 모양 전환은 모션 토큰을 쓰고 reduced motion 이면 끈다.
+    expect(styles).toContain('var(--motion-standard)')
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\{[^@]*transition:none/,
+    )
+  })
+
+  it('tags each row link with its post id for scroll restoration', () => {
+    const { markup } = renderWithStyles()
+
+    expect(markup).toMatch(
+      new RegExp(`<a[^>]*data-community-post-id="${posts[0]!.postId}"`),
+    )
+    expect(markup).toMatch(
+      new RegExp(`<a[^>]*data-community-post-id="${posts[1]!.postId}"`),
+    )
+  })
+
+  it('renders five row skeletons as the first-load state, not the generic feedback card', () => {
+    const { markup, styles } = renderWithStyles({
+      status: 'loading',
+      posts: [],
+      hasNextPage: false,
+    })
+
+    expect(markup).toMatch(
+      /<div[^>]*aria-busy="true"[^>]*data-community-list-skeleton="initial"[^>]*role="status"/,
+    )
+    expect(markup.match(/data-community-row-skeleton="true"/g)).toHaveLength(5)
+    // 막대는 장식이다. 스크린리더는 문장 하나만 읽는다.
+    expect(markup).toMatch(
+      /data-community-row-skeleton="true"[^>]*aria-hidden="true"|aria-hidden="true"[^>]*data-community-row-skeleton="true"/,
+    )
+    expect(markup).toContain('게시글을 불러오는 중이에요')
+    expect(markup).not.toContain('data-load-more-sentinel')
+    expect(markup).not.toContain('여기까지 다 봤어요')
+    // 반짝임은 reduced motion 이면 멈춘다.
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\{[^@]*animation:none/,
+    )
+  })
+
+  it('renders retryable error feedback', () => {
     const error = renderWithStyles({
       status: 'error',
       posts: [],
       errorMessage: '네트워크 연결을 확인해 주세요.',
     }).markup
 
-    expect(loading).toContain('aria-busy="true"')
-    expect(loading).toContain('게시글을 불러오는 중이에요')
     expect(error).toContain('role="alert"')
     expect(error).toContain('네트워크 연결을 확인해 주세요.')
     expect(error).toContain('>다시 시도</button>')
@@ -378,33 +444,89 @@ describe('CommunityListView', () => {
     expect(markup).toContain(`>${actionLabel}</button>`)
   })
 
-  it('renders an enabled load-more button and its accessible pending state', () => {
-    const ready = renderWithStyles().markup
-    const pending = renderWithStyles({ isFetchingNextPage: true }).markup
+  it('watches the end of the list with a hidden sentinel instead of a load-more button', () => {
+    const { markup } = renderWithStyles()
+    const listEnd = markup.indexOf('</ul>')
 
-    expect(ready).toContain('>게시글 더 보기</button>')
-    expect(ready).not.toContain('aria-busy="true"')
-    expect(pending).toContain('aria-busy="true"')
-    expect(pending).toContain('disabled=""')
-    expect(pending).toContain('게시글을 더 불러오는 중')
+    // 「게시글 더 보기」 버튼은 없앴다(2단계, CM-029).
+    expect(markup).not.toContain('게시글 더 보기')
+    expect(markup).not.toMatch(/<button[^>]*>[^<]*더 보기[^<]*<\/button>/)
+    expect(markup).toMatch(
+      /<div[^>]*aria-hidden="true"[^>]*data-load-more-sentinel="true"/,
+    )
+    // 감시 요소는 글 목록 뒤에 있다.
+    expect(markup.indexOf('data-load-more-sentinel')).toBeGreaterThan(listEnd)
+    expect(markup).not.toContain('data-community-list-skeleton')
+    expect(markup).not.toContain('여기까지 다 봤어요')
   })
 
-  it('keeps ready posts visible and renders an inline load-more retry', () => {
+  it('replaces the sentinel with two row skeletons while the next page loads', () => {
+    const { markup } = renderWithStyles({ isFetchingNextPage: true })
+
+    // 이미 받은 글은 그대로 둔다.
+    expect(markup).toContain('강남역 상권 테이크아웃 동선')
+    expect(markup).toMatch(
+      /<div[^>]*aria-busy="true"[^>]*data-community-list-skeleton="more"[^>]*role="status"/,
+    )
+    expect(markup.match(/data-community-row-skeleton="true"/g)).toHaveLength(2)
+    expect(markup).toContain('게시글을 불러오는 중이에요')
+    expect(markup).not.toContain('data-load-more-sentinel')
+    expect(markup).toMatch(
+      /<section[^>]*aria-busy="true"[^>]*aria-label="커뮤니티 피드"/,
+    )
+  })
+
+  it('keeps ready posts visible and renders an inline 다시 불러오기 in place of the sentinel', () => {
     const { markup } = renderWithStyles({
       loadMoreErrorMessage: '다음 게시글을 불러오지 못했어요.',
     })
 
     expect(markup).toContain('강남역 상권 테이크아웃 동선')
     expect(markup).toContain('data-load-more-error="true"')
+    expect(markup).toContain('role="alert"')
     expect(markup).toContain('다음 게시글을 불러오지 못했어요.')
-    expect(markup).toContain('>더 보기 다시 시도</button>')
+    expect(markup).toMatch(
+      /<button[^>]*type="button"[^>]*>다시 불러오기<\/button>/,
+    )
+    // 실패한 채로 감시 요소가 보이면 자동으로 또 부른다 — 사용자가 누를 때까지 내린다.
+    expect(markup).not.toContain('data-load-more-sentinel')
     expect(markup).not.toContain('게시글 더 보기')
   })
 
-  it('omits load-more when there is no next page', () => {
-    const { markup } = renderWithStyles({ hasNextPage: false })
+  it('keeps the retry in place while the retry is in flight', () => {
+    const { markup } = renderWithStyles({
+      loadMoreErrorMessage: '다음 게시글을 불러오지 못했어요.',
+      isFetchingNextPage: true,
+    })
 
+    expect(markup).toContain('>다시 불러오기</button>')
+    expect(markup).not.toContain('data-community-list-skeleton')
+  })
+
+  it('marks the end of the feed with a write link once the last page is loaded', () => {
+    const { markup } = renderWithStyles({ hasNextPage: false })
+    const end = markup.slice(markup.indexOf('data-community-list-end'))
+
+    expect(markup).toMatch(
+      /<div[^>]*data-community-list-end="true"[^>]*role="status"/,
+    )
+    expect(end).toContain('여기까지 다 봤어요')
+    expect(end).toMatch(
+      /<a[^>]*href="\/community\/register\?mock=1"[^>]*>글쓰기<\/a>/,
+    )
+    expect(markup).not.toContain('data-load-more-sentinel')
     expect(markup).not.toContain('게시글 더 보기')
+  })
+
+  it('does not mark the end of an empty feed', () => {
+    const { markup } = renderWithStyles({
+      status: 'empty',
+      posts: [],
+      hasNextPage: false,
+    })
+
+    expect(markup).not.toContain('여기까지 다 봤어요')
+    expect(markup).not.toContain('data-load-more-sentinel')
   })
 })
 
