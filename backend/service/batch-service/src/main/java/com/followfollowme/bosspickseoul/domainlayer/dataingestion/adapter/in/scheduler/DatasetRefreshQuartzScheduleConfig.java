@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * {@code BATCH_DATASET_REFRESH_ENABLED=true} 일 때만 트리거를 등록한다. misfire 는 버린다. 낮에 재기동해도 그날 05:00 을 다시
- * 돌리지 않고 다음날 05:00 을 기다린다(정책 수집과 같은 규칙).
+ * 돌리지 않고 다음날 05:00 을 기다린다. 도중에 죽은 run 도 복구 재실행하지 않는다(requestRecovery 없음, Job 의 isRecovering 가드).
  */
 @Configuration
 @ConditionalOnProperty(prefix = "batch.dataset-refresh", name = "enabled", havingValue = "true")
@@ -27,7 +27,8 @@ public class DatasetRefreshQuartzScheduleConfig {
         return JobBuilder.newJob(DatasetRefreshQuartzJob.class)
             .withIdentity(JOB_NAME)
             .storeDurably()
-            .requestRecovery()
+            // requestRecovery 를 걸지 않는다. 컨테이너가 이관 도중 OOM-kill 되면 복구 재실행이 기동 직후 같은 이관에서 다시 죽어
+            // 재시작 루프와 API 쿼터 소진이 된다. 다음 05:00 을 기다린다(misfire 를 버리는 것과 같은 규칙).
             .build();
     }
 

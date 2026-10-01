@@ -164,6 +164,18 @@ class DatasetRefreshQueriesTest {
         assertThat(selectColumns).containsExactlyElementsOf(ddlColumns);
         assertThat(updatedColumns).as("PK 를 뺀 모든 컬럼을 덮어쓴다").containsExactlyElementsOf(ddlColumns.subList(1, ddlColumns.size()));
         assertThat(upsert.chars().filter(ch -> ch == '?').count()).isEqualTo(ddlColumns.size());
+        assertThat(DatasetRefreshStateJdbcAdapter.REQUIRED_COLUMNS).as("기동 가드가 보는 컬럼").containsExactlyElementsOf(ddlColumns);
+    }
+
+    @Test
+    void missingColumnsComparesTheCurrentSchemaWithTheRequiredColumns() {
+        when(jdbc.queryForList(DatasetRefreshStateJdbcAdapter.COLUMNS_SQL, String.class)).thenReturn(List.of(
+            "DATASET", "last_probe_at", "last_source_total", "newest_source_period", "last_fetch_run_id", "last_fetch_raw_location",
+            "last_failure_at", "last_failure_reason", "consecutive_failures", "updated_at"));
+
+        assertThat(new DatasetRefreshStateJdbcAdapter(jdbc).missingColumns()).containsExactly("last_reproject_dry_run_period");
+        assertThat(DatasetRefreshStateJdbcAdapter.COLUMNS_SQL)
+            .contains("information_schema.columns").contains("table_schema = DATABASE()").contains("table_name = 'dataset_refresh_state'");
     }
 
     private static List<String> columns(String list) {

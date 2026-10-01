@@ -37,6 +37,10 @@ public class DatasetStagingPurgeQuartzJob extends QuartzJobBean {
             log.warn("[staging-purge] disabled, stale trigger ignored firedAt={}", context.getFireTime());
             return;
         }
+        if (context.isRecovering()) {
+            log.warn("[staging-purge] recovering execution skipped firedAt={}", context.getFireTime());
+            return;
+        }
         try {
             JobExecution execution = jobLauncher.run(datasetStagingPurgeJob,
                 new JobParametersBuilder().addLong("firedAt", context.getFireTime().getTime()).toJobParameters());

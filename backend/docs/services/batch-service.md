@@ -264,7 +264,7 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 `CommercialDataSourceConfig` 는 정책·자동 최신화·스테이징 정리 중 하나라도 켜지고, `COMMERCIAL_DB_URL` 이 비어 있지 않고, 기본 DataSource URL 과 다를 때만 두 번째 풀을 연다. quarterly CLI 는 `COMMERCIAL_DB_URL` 을 받지 않으므로 기본 DataSource(= commercial)를 그대로 쓴다. 기동 가드는 둘이다. 걸리면 기동이 멈춘다(fail-closed). prod 는 첫 가드로 막힌다.
 
 - `global/config/CommercialDataSourceGuardRunner` — commercial Job 이 하나라도 켜지면 commercial URL 이 기본 DataSource URL(`spring.datasource.url`, 두 번째 풀 조건과 같은 키)과 다른지, `BATCH_ALLOWED_SCHEMAS` 에 있는지, 이름에 `prod` 가 없는지. 정책 수집의 가드도 이것이다
-- `dataingestion/adapter/in/scheduler/DatasetRefreshGuardRunner` — 자동 최신화가 켜졌을 때 `SEOUL_OPEN_DATA_API_KEY`, 공간·스키마 버전 형식, commercial 에 `dataset_refresh_state` 가 있는지(`information_schema.tables`)
+- `dataingestion/adapter/in/scheduler/DatasetRefreshGuardRunner` — 자동 최신화가 켜졌을 때 `SEOUL_OPEN_DATA_API_KEY`, 공간·스키마 버전 형식, commercial 에 `dataset_refresh_state` 가 있는지(`information_schema.tables`)와 어댑터가 쓰는 컬럼이 모두 있는지(`information_schema.columns`, 예: `last_reproject_dry_run_period`). 빠졌으면 런북 상단의 ALTER 를 가리키며 멈춘다
 
 ### 판단 순서 (데이터셋 1종, `DatasetRefreshProcessor`)
 
@@ -281,7 +281,9 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 8. 분기마다: 고정 행 수(CHANGE_COMMERCIAL 1650, 자치구 3종 25)와 다르거나 직전 분기 게시 행 수 대비 20%(`tolerance`)를 넘게 바뀌면 `IMPLAUSIBLE` 로 멈춘다(직전 기준이 0 이하여도 같다). 통과하면 보관본을 ARCHIVE 로 재생해 dry-run → publish=false 면 `WOULD_PUBLISH`. publish=true 면 실게시 → typed 이관 → `PUBLISHED`. 이관만 실패하면 `PUBLISHED_NOT_PROJECTED` 이고, 게시는 됐으므로 쿨다운을 걸지 않아 다음 run 의 3단계가 바로 다시 이관한다
 9. `dataset_refresh_state` 를 갱신한다. 원천 합계·최신 분기는 성공했을 때만 기억한다(실패한 합계를 기억하면 쿨다운 뒤에도 UNCHANGED 로 영영 건너뛴다)
 
-데이터셋 하나에서 난 예외·`Error` 는 그 데이터셋의 `FAILED` 로 흡수하고 다음 데이터셋으로 간다. `OutOfMemoryError`·`StackOverflowError` 같은 JVM 오류(`VirtualMachineError`)는 삼키지 않는다. 그래도 그때까지의 판단 메트릭·쓴 API 수·`batch_dataset_refresh_last_run_epoch` 는 `finally` 에서 남기고 `[dataset-refresh] run aborted` 를 ERROR 로 찍는다.
+데이터셋 하나에서 난 예외·`Error` 는 그 데이터셋의 `FAILED` 로 흡수하고 다음 데이터셋으로 간다. `OutOfMemoryError`·`StackOverflowError` 같은 JVM 오류(`VirtualMachineError`)는 삼키지 않는다. 그때까지의 판단 메트릭·쓴 API 수는 `finally` 에서 남기되, 마지막 정상 run 시각 `batch_dataset_refresh_last_run_epoch` 는 갱신하지 않고 `batch_dataset_refresh_runs_total{outcome="aborted"}` 로 센다. 로그는 `[dataset-refresh] run aborted`(ERROR). 공간·상태 테이블 조회·저장 실패도 같다.
+
+도중에 죽은 run 은 복구 재실행하지 않는다. JobDetail 에 `requestRecovery` 를 걸지 않고, 예전 JobDetail 이 남아 Quartz 가 복구로 띄워도 `DatasetRefreshQuartzJob` 이 `isRecovering()` 이면 건너뛴다(WARN `recovering execution skipped`). 컨테이너가 이관 도중 OOM-kill 되면 기동 직후 같은 이관에서 다시 죽는 재시작 루프와 API 쿼터 소진을 막는다. 다음 05:00 run 이 이어서 판단한다. 스테이징 정리도 같다. 정책 수집·만료 Job 은 예전처럼 복구 재실행한다(이번 범위 밖).
 
 `source_updated_at` 은 분기 말일 00:00 UTC(`Quarter.endInstant()`)로 ps1 `Get-SourceUpdatedAt` 와 같다. run-id 는 `auto-<dataset>-<분기>-<yyyyMMddHHmm KST>-{fetch|dry|pub}`, 이관은 `auto-project-<dataset>-<분기>-<시각>` 이다. 수동 규칙(`<dataset>-<분기>-<attempt>`)과 `auto-` 접두로 겹치지 않고 64자를 넘지 않는다(`DatasetRefreshProcessorTest` 가 15종 전부 확인).
 
@@ -339,7 +341,7 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 1. **DDL** — Workbench 에서 `bosspickseoul_commercial_dev` 를 고르고 `dataset-refresh-state-schema.sql` 실행(`last_reproject_dry_run_period` 포함. 예전 DDL 로 이미 만들었으면 런북 주석의 `ALTER TABLE` 한 줄). `quarterly-dataset-schema.sql` 은 이미 적용돼 있어야 한다. district 의 `BATCH_*` / `QRTZ_*` 는 정책 수집 때 만든 것을 그대로 쓴다. 확인은 `quarterly-import-verify.sql` 1) 블록. 테이블이 없으면 4단계에서 `DatasetRefreshGuardRunner` 가 기동을 멈춘다
 2. **Vault** — `kv/bosspickseoul/backend/dev/env` 에 **patch** 로 `BATCH_DATASET_REFRESH_ENABLED=true`, `SEOUL_OPEN_DATA_API_KEY=<키>` 를 넣는다. `BATCH_DATASET_REFRESH_PUBLISH` 는 넣지 않거나 `false`. `COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 는 정책 수집 값 그대로. `put` 은 나머지 키를 지운다
 3. **재배포** — Jenkins `batch-service-dev` 만. compose 가 `batch-raw` 볼륨을 새로 붙인다. 메모리 상한 `BATCH_SERVICE_MEM_LIMIT_DEV` 는 바꾸지 않는다(512m)
-4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`, `dataset_refresh_state is missing`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다. `/actuator/prometheus` 에 `hikaricp_connections{pool="batch-commercial"}` 가 보인다
+4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`, `dataset_refresh_state is missing`, `dataset_refresh_state is missing columns`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다. `/actuator/prometheus` 에 `hikaricp_connections{pool="batch-commercial"}` 가 보인다
 5. **관찰(1주)** — 다음날 05:00 이후 로그 `[dataset-refresh] run finished ... results={...}` 와 `slot dataset=... result=...`, `SELECT * FROM dataset_refresh_state`(`quarterly-import-verify.sql` 6) 블록). `WOULD_PUBLISH` 가 뜬 데이터셋은 `dataset_release` 에 `auto-...-dry` 가 `DRY_RUN` 으로 남는다. **첫 run 의 JVM heap 을 본다** — `WOULD_PROJECT`(dry-run 재이관)도 실이관과 같은 양을 읽으므로 메모리 위험은 publish=false 첫 run 부터다(아래 알려진 한계). `[dataset-refresh] run aborted` 가 있으면 OOM 등으로 끊긴 것이다. 첫 주에 위 「데이터 없음」 실호출을 확인한다
 6. **게시 전환** — 결과가 기대대로면 Vault 에 `BATCH_DATASET_REFRESH_PUBLISH=true` patch 후 재배포. 다음 05:00 run 부터 `PUBLISHED` 가 나오고 coverage.sql 1)·5) 에서 해당 슬롯이 빠진다
 7. **되돌리기** — Vault 에 `BATCH_DATASET_REFRESH_ENABLED=false` patch 후 재배포. 이미 게시된 릴리스는 그대로다(수동 게시와 같다). JDBC JobStore 는 트리거를 `QRTZ_*` 에 남기므로 두 겹으로 막는다
@@ -358,7 +360,8 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 - `batch_dataset_refresh_api_calls_total` — 쓴 API 호출 수
 - `batch_dataset_refresh_slots_total{dataset,result}` — 판단 수. `result` 는 `DatasetRefreshResult` 이름
 - `batch_dataset_refresh_service_type_unresolved_rows_total{dataset}` — 업종 미해석 이관 행
-- `batch_dataset_refresh_last_run_epoch` — 마지막 run 이 끝난 시각(초). 켜진 인스턴스에만 등록한다. 첫 run 전 0 이 바로 울리지 않게 알람식에 `and batch_dataset_refresh_last_run_epoch > 0` 을 붙인다(observability-guide.md). 26시간 넘게 그대로면 트리거·기동을 의심한다
+- `batch_dataset_refresh_runs_total{outcome="finished|aborted"}` — run 결과. aborted 가 늘면 run 이 끊긴 것이다(observability-guide.md 알람식)
+- `batch_dataset_refresh_last_run_epoch` — 마지막으로 끝까지 돈 run 이 끝난 시각(초). 끊긴 run 은 갱신하지 않는다. 켜진 인스턴스에만 등록한다. 첫 run 전 0 이 바로 울리지 않게 알람식에 `and batch_dataset_refresh_last_run_epoch > 0` 을 붙인다(observability-guide.md). 26시간 넘게 그대로면 트리거·기동을 의심한다
 - `hikaricp_connections_*{pool="batch-commercial"}` — commercial 두 번째 풀(상한 4)
 
 ### 스테이징 정리 (기본 off)

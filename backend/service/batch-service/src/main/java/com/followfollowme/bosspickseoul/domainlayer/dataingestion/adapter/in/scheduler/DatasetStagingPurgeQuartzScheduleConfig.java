@@ -24,7 +24,7 @@ public class DatasetStagingPurgeQuartzScheduleConfig {
         return JobBuilder.newJob(DatasetStagingPurgeQuartzJob.class)
             .withIdentity(JOB_NAME)
             .storeDurably()
-            .requestRecovery()
+            // requestRecovery 를 걸지 않는다. 무거운 DELETE 를 기동 직후 다시 돌릴 이유가 없다. 다음 주를 기다린다.
             .build();
     }
 

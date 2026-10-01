@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshStatePort;
 import com.followfollowme.bosspickseoul.global.properties.DatasetRefreshProperties;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSourceProperties;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /** 자동 최신화 전용 기동 가드. commercial 대상 검사는 CommercialDataSourceGuardRunner 가 먼저 한다. */
@@ -47,6 +48,18 @@ class DatasetRefreshGuardRunnerTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("dataset_refresh_state")
             .hasMessageContaining("dataset-refresh-state-schema.sql");
+    }
+
+    /** 예전 DDL 로 만든 테이블에는 새 컬럼이 없다. 첫 run 이 데이터셋마다 "Unknown column" 으로 실패하기 전에 기동을 멈춘다. */
+    @Test
+    void refusesToStartWhenTheStateTableLacksColumns() {
+        when(states.tableExists()).thenReturn(true);
+        when(states.missingColumns()).thenReturn(List.of("last_reproject_dry_run_period"));
+
+        assertThatThrownBy(() -> runner(refresh(true, "legacy-20233"), "key123").run(null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("last_reproject_dry_run_period")
+            .hasMessageContaining("ALTER TABLE");
     }
 
     private static DatasetRefreshProperties refresh(boolean enabled, String spatialVersion) {

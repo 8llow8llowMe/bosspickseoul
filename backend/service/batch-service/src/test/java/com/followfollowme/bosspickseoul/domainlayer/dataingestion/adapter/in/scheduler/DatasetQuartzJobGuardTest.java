@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -66,6 +67,25 @@ class DatasetQuartzJobGuardTest {
         new DatasetStagingPurgeQuartzJob(launcher, job, purge(true)).executeInternal(context);
 
         verify(launcher).run(any(Job.class), any(JobParameters.class));
+    }
+
+    /**
+     * 컨테이너가 이관 도중 OOM-kill 되면 Quartz 는 requestRecovery Job 을 기동 직후 다시 띄운다. 같은 이관에서 다시 죽는 재시작 루프와
+     * API 쿼터 소진을 막으려고 JobDetail 에 복구 요청을 걸지 않고, 예전 JobDetail 이 남아 복구로 돌아도 Job 이 건너뛴다.
+     */
+    @Test
+    void recoveringExecutionsAreSkippedAndJobDetailsDoNotRequestRecovery() throws Exception {
+        DatasetRefreshUseCase useCase = mock(DatasetRefreshUseCase.class);
+        JobLauncher launcher = mock(JobLauncher.class);
+        JobExecutionContext recovering = context();
+        when(recovering.isRecovering()).thenReturn(true);
+
+        new DatasetRefreshQuartzJob(useCase, refresh(true)).executeInternal(recovering);
+        new DatasetStagingPurgeQuartzJob(launcher, mock(Job.class), purge(true)).executeInternal(recovering);
+
+        verifyNoInteractions(useCase, launcher);
+        assertThat(new DatasetRefreshQuartzScheduleConfig().datasetRefreshJobDetail().requestsRecovery()).isFalse();
+        assertThat(new DatasetStagingPurgeQuartzScheduleConfig().datasetStagingPurgeJobDetail().requestsRecovery()).isFalse();
     }
 
     private static JobExecutionContext context() {
