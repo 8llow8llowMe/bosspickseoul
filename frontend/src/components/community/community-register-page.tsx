@@ -504,6 +504,25 @@ export const startCommunityEditorUnauthorizedRecovery = (
 const getEditorErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback
 
+/** 로그인 확인 대기 문구 — 라우트 대기 화면과 첫 렌더(`access === 'waiting'`)가 같은 말을 쓴다. */
+export const COMMUNITY_REGISTER_WAITING_TITLE = '로그인 상태를 확인하고 있어요'
+
+/*
+  글쓰기 라우트의 Suspense 대기 화면(community.md §S4 「다듬기」). `useSearchParams` 때문에 정적 HTML 은
+  이 화면이다. hydration 뒤 첫 렌더가 로그인 확인 대기라 **같은 상자·같은 말**을 그린다 — 비어 있다가
+  카드가 들어오며 푸터가 튀지 않고, 문구도 바뀌지 않는다.
+*/
+export function CommunityRegisterFallback() {
+  return (
+    <Page>
+      <CommunityFeedback
+        kind="loading"
+        title={COMMUNITY_REGISTER_WAITING_TITLE}
+      />
+    </Page>
+  )
+}
+
 export default function CommunityRegisterPage() {
   const router = useRouter()
   const pathname = usePathname()
@@ -766,7 +785,7 @@ export default function CommunityRegisterPage() {
           kind="loading"
           title={
             access === 'waiting'
-              ? '로그인 상태를 확인하고 있어요'
+              ? COMMUNITY_REGISTER_WAITING_TITLE
               : '로그인 화면으로 이동하고 있어요'
           }
         />

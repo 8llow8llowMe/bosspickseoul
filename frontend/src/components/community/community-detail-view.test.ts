@@ -1492,3 +1492,46 @@ describe('community-image-lightbox.tsx 소스 — 규칙', () => {
     expect(source).toContain("from '@/lib/community/photo-viewer'")
   })
 })
+
+describe('CommunityDetailView — 다듬기(community.md §S4 「다듬기」)', () => {
+  it('레일 제목은 한 줄 말줄임이고 전체 이름은 title 이 든다', () => {
+    const longName = '서울특별시 성동구 성수동 카페거리 골목상권'
+    const { markup, styles } = renderWithStyles({
+      detail: { ...districtDetail, targetName: longName },
+    })
+
+    const titleTag =
+      markup.match(/<h2[^>]*id="community-region-rail-title"[^>]*>/)?.[0] ?? ''
+    expect(titleTag).toContain(`title="${longName} 최신 글"`)
+    expect(markup).toMatch(
+      new RegExp(
+        `id="community-region-rail-title"[^>]*>${longName} 최신 글</h2>`,
+      ),
+    )
+    const className = titleTag
+      .match(/class="([^"]*)"/)?.[1]
+      ?.split(' ')
+      .at(-1)
+    const rule =
+      styles.match(new RegExp(`\\.${className}\\{([^}]*)\\}`))?.[1] ?? ''
+    expect(rule).toContain('overflow:hidden;')
+    expect(rule).toContain('text-overflow:ellipsis;')
+    expect(rule).toContain('white-space:nowrap;')
+    expect(rule).not.toContain('overflow-wrap:anywhere')
+  })
+
+  it('본문 사진은 min(560px, 70vh) 안에 비율대로 담고(contain) 남는 자리는 grey50 이다', () => {
+    const { styles } = renderWithStyles({
+      detail: { ...detail, images: imagesOf(2) },
+    })
+    const imgRule =
+      styles.match(/\{[^}]*\}/g)?.find(rule => rule.includes('object-fit')) ??
+      ''
+
+    expect(imgRule).toContain('max-height:min(560px, 70vh);')
+    expect(imgRule).toContain('object-fit:contain;')
+    expect(imgRule).toContain('background:var(--color-background-muted);')
+    expect(imgRule).toContain('border-radius:var(--radius-card);')
+    expect(imgRule).not.toContain('object-fit:cover')
+  })
+})

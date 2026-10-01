@@ -6,12 +6,13 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type DragEvent,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { Loader2, Plus, X } from 'lucide-react'
-import styled, { keyframes } from 'styled-components'
+import { Circle, CircleCheck, ImagePlus, Loader2, Plus, X } from 'lucide-react'
+import styled, { css, keyframes } from 'styled-components'
 import CommunityRegionSheet, {
   type CommunityRegionSheetHandle,
 } from '@/components/community/community-region-sheet'
@@ -20,17 +21,25 @@ import { useCommunityDraftAutosave } from '@/hooks/use-community-draft-autosave'
 import type { CommunityLocationValue } from '@/lib/community/community-location'
 import {
   COMMUNITY_CONTENT_MAX_LENGTH,
+  COMMUNITY_EDITOR_READY_MESSAGE,
   COMMUNITY_TITLE_MAX_LENGTH,
   COMMUNITY_WRITING_PROMPTS,
+  getCommunityEditorChecklist,
   getCommunityWritingPromptCaret,
   isCommunityCountNearLimit,
+  isCommunityEditorChecklistReady,
   resolveCommunityEditorSubmission,
   shouldShowCommunityWritingPrompts,
+  type CommunityEditorCheckId,
   type CommunityEditorField,
   type CommunityEditorMode,
   type CommunityEditorValue,
 } from '@/lib/community/editor-compose'
 import { isCommunityEditorDirty } from '@/lib/community/editor-draft'
+import {
+  communityOutlinedField,
+  communityUnderlineField,
+} from '@/lib/community/field-styles'
 import {
   MAX_POST_IMAGES,
   POST_IMAGE_RULE_TEXT,
@@ -109,12 +118,13 @@ export type CommunityEditorFormProps = {
 }
 
 const MOBILE = '@media (max-width: 479px)'
+const TABLET_UP = '@media (min-width: 480px)'
 const DESKTOP_WIDE = '@media (min-width: 1080px)'
 
 /* 사이트 헤더(site-header.tsx)는 sticky top:0, 높이 64 다 — 편집 바를 그 아래에 붙인다. */
 const SITE_HEADER_HEIGHT = 64
 
-/* 폼 열은 `--w-form` 상한, ≥1080 은 오른쪽에 작성 팁 280. 전체는 페이지가 `--w-wide` 로 묶는다. */
+/* 폼 열은 `--w-form` 상한, ≥1080 은 오른쪽에 작성 체크 280. 전체는 페이지가 `--w-wide` 로 묶는다. */
 const Shell = styled.div`
   display: grid;
   grid-template-columns: minmax(0, var(--w-form));
@@ -293,7 +303,7 @@ const Caption = styled.p`
 
 /*
   제목 — 테두리 없는 큰 입력(20/600). 아래 한 줄이 칸을 나누고, 포커스·오류 때 그 한 줄만
-  색이 바뀐다(DESIGN.md §4 「Focus is one line」). 2px 로 보이게 box-shadow 를 덧대 자리 이동은 없다.
+  색이 바뀐다(DESIGN.md §4 「Focus is one line」). 2px 로 보이게 안쪽 1px 를 덧대 자리 이동은 없다.
 */
 const TitleInput = styled.input`
   width: 100%;
@@ -313,21 +323,7 @@ const TitleInput = styled.input`
     color: var(--color-placeholder);
   }
 
-  &,
-  &:focus,
-  &:focus-visible {
-    outline: none;
-  }
-
-  &:focus-visible {
-    border-bottom-color: var(--color-primary-700);
-    box-shadow: 0 1px 0 var(--color-primary-700);
-  }
-
-  &[aria-invalid='true'] {
-    border-bottom-color: var(--color-danger);
-    box-shadow: 0 1px 0 var(--color-danger);
-  }
+  ${communityUnderlineField}
 `
 
 /*
@@ -343,7 +339,6 @@ const ContentTextArea = styled.textarea`
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-field);
   overflow: hidden;
-  resize: none;
   field-sizing: content;
   background: var(--color-surface);
   color: var(--color-text-900);
@@ -355,19 +350,8 @@ const ContentTextArea = styled.textarea`
     color: var(--color-placeholder);
   }
 
-  &,
-  &:focus,
-  &:focus-visible {
-    outline: none;
-  }
-
-  &:focus-visible {
-    border-color: var(--color-primary-700);
-  }
-
-  &[aria-invalid='true'] {
-    border-color: var(--color-danger);
-  }
+  /* 포커스·오류·크기 — 커뮤니티 입력칸 공통 조각(안쪽 한 줄, 글로우 없음, resize none). */
+  ${communityOutlinedField}
 `
 
 const PromptGroup = styled.div`
@@ -411,7 +395,101 @@ const HiddenFileInput = styled.input`
   border: 0;
 `
 
-/* 썸네일 가로 줄(72). 넘치면 가로로 민다 — 위아래 4px 는 포커스 링이 잘리지 않을 자리다. */
+/*
+  사진 칸 머리의 `n / 5`. `≥480` 은 드롭존이 같은 수를 들고 있어 두 번 적지 않는다.
+*/
+const PhotoCount = styled(Counter)`
+  ${TABLET_UP} {
+    display: none;
+  }
+`
+
+/*
+  사진 드롭존(`≥480`, community.md §S4 「다듬기」). `+` 타일 대신 넓은 점선 영역이다 — 눌러서 고르고,
+  끌어다 놓아도 된다. 버튼이라 키보드로 누를 수 있고 포커스는 전역 링 그대로다. 안쪽 글자·아이콘은
+  포인터를 받지 않는다 — 자식 사이를 지날 때 dragleave 가 나 강조가 깜빡이지 않게.
+  가득 찼거나 올리는 중이면 aria-disabled 다(비활성으로 두지 않아 작성 체크가 포커스를 옮길 수 있다).
+*/
+const Dropzone = styled.button`
+  display: none;
+
+  ${TABLET_UP} {
+    width: 100%;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 24px 16px;
+    border: 1px dashed var(--color-border-300);
+    border-radius: var(--radius-field);
+    background: var(--color-surface);
+    color: var(--color-text-700);
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      background-color var(--motion-fast) var(--ease-standard),
+      border-color var(--motion-fast) var(--ease-standard);
+  }
+
+  > * {
+    pointer-events: none;
+  }
+
+  svg {
+    color: var(--color-text-caption);
+  }
+
+  &:hover {
+    background: var(--color-background-muted);
+  }
+
+  &[data-drag-active='true'] {
+    border-color: var(--color-primary-700);
+    background: var(--color-primary-100);
+
+    svg {
+      color: var(--color-text-primary-on-light);
+    }
+  }
+
+  &[aria-disabled='true'],
+  &:disabled {
+    background: var(--color-background-muted);
+    cursor: not-allowed;
+  }
+
+  &:disabled {
+    opacity: var(--button-disabled-opacity-color);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`
+
+const DropzoneTitle = styled.span`
+  color: var(--color-text-900);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: keep-all;
+`
+
+const DropzoneMeta = styled.span`
+  color: var(--color-text-caption);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+`
+
+const DropzoneCount = styled(DropzoneMeta)`
+  font-variant-numeric: tabular-nums;
+`
+
+/*
+  썸네일 가로 줄(72). 넘치면 가로로 민다 — 위아래 4px 는 포커스 링이 잘리지 않을 자리다.
+  `≥480` 은 드롭존 아래에 올린 사진만 둔다 — 아직 한 장도 없으면 빈 줄을 그리지 않는다.
+*/
 const PhotoRow = styled.ul`
   display: flex;
   gap: 8px;
@@ -419,6 +497,26 @@ const PhotoRow = styled.ul`
   padding: 4px;
   overflow-x: auto;
   list-style: none;
+
+  ${TABLET_UP} {
+    &[data-empty='true'] {
+      display: none;
+    }
+  }
+`
+
+/* `<480` 의 `+` 타일 자리. `≥480` 은 드롭존이 맡는다. */
+const AddPhotoItem = styled.li`
+  ${TABLET_UP} {
+    display: none;
+  }
+`
+
+/* 규칙 한 줄. `≥480` 은 드롭존 안에 같은 줄이 있다. */
+const PhotoRuleCaption = styled(Caption)`
+  ${TABLET_UP} {
+    display: none;
+  }
 `
 
 const PHOTO_SIZE = 72
@@ -565,15 +663,18 @@ const ActionBar = styled.div`
   }
 `
 
-/* 작성 팁 — ≥1080 에서만. 그 아래 폭은 display:none 이라 스크린리더에도 읽히지 않는다. */
-const Tips = styled.aside`
+/*
+  작성 체크 — ≥1080 에서만(community.md §S4 「다듬기」). 그 아래 폭은 display:none 이라 스크린리더에도
+  읽히지 않는다. 사이트 헤더(64) 아래 24 에 붙는다.
+*/
+const Checklist = styled.aside`
   display: none;
 
   ${DESKTOP_WIDE} {
     position: sticky;
     top: ${SITE_HEADER_HEIGHT + 24}px;
     display: grid;
-    gap: 12px;
+    gap: 16px;
     padding: 20px;
     border: 1px solid var(--color-border-200);
     border-radius: var(--radius-card);
@@ -585,28 +686,133 @@ const Tips = styled.aside`
     font-size: 16px;
     font-weight: 700;
   }
+`
+
+const CheckItems = styled.ul`
+  display: grid;
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+`
+
+/*
+  한 칸 = 그 입력칸으로 가는 버튼(44). 켜짐은 색만이 아니라 **모양**(빈 원 ↔ 체크 원)과 숨긴 글자
+  (`완료` · `남음`)로도 말한다. 빈 원은 caption(grey600, 흰 바탕 4.62)이라 꺼져 있어도 보인다.
+*/
+const checkRow = css`
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-700);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+
+  svg {
+    flex: 0 0 auto;
+    color: var(--color-text-caption);
+  }
+
+  &[data-done='true'] {
+    color: var(--color-text-900);
+
+    svg {
+      color: var(--color-text-primary-on-light);
+    }
+  }
+`
+
+const CheckButton = styled.button`
+  ${checkRow}
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-background-muted);
+  }
+`
+
+/* 수정 모드의 지역 — 바꿀 수 없어 갈 칸이 없다. 버튼이 아니라 글자다. */
+const CheckStatic = styled.div`
+  ${checkRow}
+`
+
+const CheckOptional = styled.span`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  font-weight: 400;
+`
+
+const CheckSummary = styled.p<{ $ready: boolean }>`
+  color: ${props =>
+    props.$ready
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-caption)'};
+  font-size: 14px;
+  font-weight: ${props => (props.$ready ? 700 : 400)};
+  line-height: 1.5;
+`
+
+const TipBlock = styled.div`
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-200);
+
+  h3 {
+    color: var(--color-text-900);
+    font-size: 14px;
+    font-weight: 700;
+  }
 
   ul {
     display: grid;
-    gap: 8px;
+    gap: 4px;
     margin: 0;
-    padding-left: 20px;
+    padding: 0;
   }
 
   li {
     color: var(--color-text-700);
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 13px;
+    line-height: 1.5;
     word-break: keep-all;
   }
 `
 
-/** 작성 팁 — 좋은 글 예시 3줄(community.md §S4 「작성 팁」). 친구에게 말하듯. */
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+`
+
+/** 작성 팁 — 작성 체크 아래 짧은 3줄(community.md §S4 「다듬기」). 친구에게 말하듯. */
 export const COMMUNITY_EDITOR_TIPS = [
-  '어느 동네, 어떤 가게인지 먼저 적어 주세요. 「성수동에서 카페 3년째예요」처럼요.',
-  '숫자가 있으면 더 잘 통해요. 월세나 하루 손님 수 같은 거요.',
-  '궁금한 건 하나로 좁혀 주세요. 답이 더 빨리 달려요.',
+  '어느 동네, 어떤 가게인지 먼저 적어 주세요.',
+  '월세·손님 수처럼 숫자가 있으면 더 잘 통해요.',
+  '궁금한 건 하나로 좁혀 주세요.',
 ] as const
+
+/** 드롭존이 가득 찼을 때 — 비활성 대신 무엇을 하면 되는지 말한다. */
+export const COMMUNITY_EDITOR_DROPZONE_FULL = `사진은 ${MAX_POST_IMAGES}장까지예요. 빼고 나서 다시 추가해 주세요.`
+export const COMMUNITY_EDITOR_DROPZONE_LABEL =
+  '사진을 끌어다 놓거나 눌러서 추가해 주세요'
+
+/** 끌고 온 것이 파일인가. 글자·링크를 끌 때는 드롭존이 반응하지 않는다. */
+const isFileDrag = (event: DragEvent<HTMLElement>) =>
+  Array.from(event.dataTransfer?.types ?? []).includes('Files')
 
 /** 머리 한 줄 — 편집 바(`<480`)와 페이지 제목(`≥480`)이 같은 말을 쓴다. */
 export const getCommunityEditorHeading = (mode: CommunityEditorMode) =>
@@ -653,7 +859,10 @@ export default function CommunityEditorForm({
   const titleRef = useRef<HTMLInputElement>(null)
   const contentRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropzoneRef = useRef<HTMLButtonElement>(null)
   const pendingCaretRef = useRef<number | null>(null)
+  /* 파일을 끌어 드롭존 위에 올려 둔 동안 — 점선을 파랗게 칠한다. */
+  const [dragActive, setDragActive] = useState(false)
 
   const uploading = uploadingCount > 0
   /* 저장 요청 중이거나 이미 성공해 이동하는 중 — 다시 보내면 같은 글이 또 생긴다. */
@@ -707,10 +916,11 @@ export default function CommunityEditorForm({
     setFieldError(error => (error?.field === field ? null : error))
   }
 
-  const handleFilesPicked = async (event: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(event.target.files ?? [])
-    // 같은 파일을 다시 골랐을 때도 onChange 가 나도록 값을 비운다.
-    event.target.value = ''
+  /*
+   * 고르든(파일 창) 끌어다 놓든(드롭존) 같은 길이다 — 장수·형식·용량 규칙(`selectPostImages`)과
+   * 업로드·안내가 하나라서 두 입구가 다르게 굴지 않는다.
+   */
+  const addFiles = async (picked: File[]) => {
     if (picked.length === 0) return
 
     const { accepted, error } = selectPostImages(picked, images.length)
@@ -738,6 +948,46 @@ export default function CommunityEditorForm({
       setUploadingCount(0)
       setUploadWaitAsked(false)
     }
+  }
+
+  const handleFilesPicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(event.target.files ?? [])
+    // 같은 파일을 다시 골랐을 때도 onChange 가 나도록 값을 비운다.
+    event.target.value = ''
+    return addFiles(picked)
+  }
+
+  /*
+   * 드롭존. dragover 를 막아야 drop 이 난다 — 막지 않으면 브라우저가 파일을 열어 쓰던 글을 떠난다.
+   * 올리는 중·저장 중에는 받지 않는다(dropEffect none). 가득 찼을 때 놓으면 규칙 함수가 「이미 5장」
+   * 안내를 낸다 — 조용히 무시하지 않는다.
+   */
+  const dropBlocked = pending || uploading
+
+  const handleDragEnter = (event: DragEvent<HTMLButtonElement>) => {
+    if (!isFileDrag(event)) return
+    event.preventDefault()
+    if (!dropBlocked) setDragActive(true)
+  }
+
+  const handleDragOver = (event: DragEvent<HTMLButtonElement>) => {
+    if (!isFileDrag(event)) return
+    event.preventDefault()
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = dropBlocked ? 'none' : 'copy'
+    }
+  }
+
+  const handleDragLeave = () => {
+    setDragActive(false)
+  }
+
+  const handleDrop = (event: DragEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    setDragActive(false)
+    if (dropBlocked) return
+
+    void addFiles(Array.from(event.dataTransfer?.files ?? []))
   }
 
   /*
@@ -850,6 +1100,25 @@ export default function CommunityEditorForm({
     COMMUNITY_CONTENT_MAX_LENGTH,
   )
   const canAddPhoto = images.length < MAX_POST_IMAGES && !uploading
+  const photosFull = images.length >= MAX_POST_IMAGES
+  const checklist = getCommunityEditorChecklist(current)
+  const checklistReady = isCommunityEditorChecklistReady(checklist)
+  const requiredLeft = checklist.filter(
+    item => item.required && !item.done,
+  ).length
+
+  /* 작성 체크 한 칸을 누르면 그 칸으로 간다. 지역은 칩에 포커스만 두고 시트는 열지 않는다. */
+  const focusCheckItem = (checkId: CommunityEditorCheckId) => {
+    if (checkId === 'location') {
+      regionRef.current?.focus()
+    } else if (checkId === 'title') {
+      titleRef.current?.focus()
+    } else if (checkId === 'content') {
+      contentRef.current?.focus()
+    } else {
+      dropzoneRef.current?.focus()
+    }
+  }
   const titleError = errorFor('title')
   const contentError = errorFor('content')
   const locationError = errorFor('location')
@@ -1005,9 +1274,9 @@ export default function CommunityEditorForm({
         <Field>
           <MetaRow>
             <SectionLabel>사진</SectionLabel>
-            <Counter $near={false}>
+            <PhotoCount $near={false}>
               {images.length} / {MAX_POST_IMAGES}
-            </Counter>
+            </PhotoCount>
           </MetaRow>
 
           <HiddenFileInput
@@ -1020,7 +1289,45 @@ export default function CommunityEditorForm({
             type="file"
           />
 
-          <PhotoRow aria-label="첨부한 사진" data-community-photo-row="true">
+          <Dropzone
+            ref={dropzoneRef}
+            aria-describedby={`${id}-dropzone-rule ${id}-dropzone-count`}
+            aria-disabled={photosFull || uploading ? true : undefined}
+            aria-labelledby={`${id}-dropzone-title`}
+            data-community-photo-dropzone="true"
+            data-drag-active={dragActive ? 'true' : undefined}
+            disabled={pending}
+            onClick={() => {
+              if (!canAddPhoto) return
+              fileInputRef.current?.click()
+            }}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            type="button"
+          >
+            <ImagePlus aria-hidden="true" size={24} />
+            <DropzoneTitle id={`${id}-dropzone-title`}>
+              {photosFull
+                ? COMMUNITY_EDITOR_DROPZONE_FULL
+                : COMMUNITY_EDITOR_DROPZONE_LABEL}
+            </DropzoneTitle>
+            <DropzoneMeta id={`${id}-dropzone-rule`}>
+              {POST_IMAGE_RULE_TEXT}
+            </DropzoneMeta>
+            <DropzoneCount id={`${id}-dropzone-count`}>
+              {images.length} / {MAX_POST_IMAGES}
+            </DropzoneCount>
+          </Dropzone>
+
+          <PhotoRow
+            aria-label="첨부한 사진"
+            data-community-photo-row="true"
+            data-empty={
+              images.length === 0 && uploadingCount === 0 ? 'true' : undefined
+            }
+          >
             {images.map((image, index) => (
               <PhotoTile key={image.imageKey}>
                 {/*
@@ -1059,7 +1366,7 @@ export default function CommunityEditorForm({
               </UploadingTile>
             ))}
             {canAddPhoto ? (
-              <li>
+              <AddPhotoItem>
                 <AddPhotoButton
                   aria-label="사진 추가"
                   data-community-photo-add="true"
@@ -1069,11 +1376,11 @@ export default function CommunityEditorForm({
                 >
                   <Plus aria-hidden="true" size={24} />
                 </AddPhotoButton>
-              </li>
+              </AddPhotoItem>
             ) : null}
           </PhotoRow>
 
-          <Caption>{POST_IMAGE_RULE_TEXT}</Caption>
+          <PhotoRuleCaption>{POST_IMAGE_RULE_TEXT}</PhotoRuleCaption>
           {imageMessage ? <Message role="alert">{imageMessage}</Message> : null}
           {uploadWaitAsked && uploading ? (
             <Message role="alert">{COMMUNITY_EDITOR_UPLOADING_NOTICE}</Message>
@@ -1094,14 +1401,69 @@ export default function CommunityEditorForm({
         </ActionBar>
       </Form>
 
-      <Tips aria-labelledby={`${id}-tips`}>
-        <h2 id={`${id}-tips`}>이렇게 쓰면 답이 잘 달려요</h2>
-        <ul>
-          {COMMUNITY_EDITOR_TIPS.map(tip => (
-            <li key={tip}>{tip}</li>
-          ))}
-        </ul>
-      </Tips>
+      <Checklist
+        aria-labelledby={`${id}-checklist`}
+        data-community-editor-checklist="true"
+      >
+        <h2 id={`${id}-checklist`}>작성 체크</h2>
+        <CheckItems>
+          {checklist.map(item => {
+            const content = (
+              <>
+                {item.done ? (
+                  <CircleCheck aria-hidden="true" size={20} />
+                ) : (
+                  <Circle aria-hidden="true" size={20} />
+                )}
+                <span>{item.label}</span>
+                {item.required ? null : <CheckOptional>선택</CheckOptional>}
+                <VisuallyHidden>
+                  {item.done ? ', 완료' : ', 남음'}
+                </VisuallyHidden>
+              </>
+            )
+            const done = item.done ? 'true' : 'false'
+
+            return (
+              <li key={item.id}>
+                {item.id === 'location' && mode === 'edit' ? (
+                  <CheckStatic data-check-id={item.id} data-done={done}>
+                    {content}
+                  </CheckStatic>
+                ) : (
+                  <CheckButton
+                    data-check-id={item.id}
+                    data-done={done}
+                    onClick={() => {
+                      focusCheckItem(item.id)
+                    }}
+                    type="button"
+                  >
+                    {content}
+                  </CheckButton>
+                )}
+              </li>
+            )
+          })}
+        </CheckItems>
+        <CheckSummary
+          $ready={checklistReady}
+          data-community-editor-ready={checklistReady ? 'true' : 'false'}
+          role="status"
+        >
+          {checklistReady
+            ? COMMUNITY_EDITOR_READY_MESSAGE
+            : `필수 ${requiredLeft}개가 남았어요`}
+        </CheckSummary>
+        <TipBlock>
+          <h3>이렇게 쓰면 답이 잘 달려요</h3>
+          <ul>
+            {COMMUNITY_EDITOR_TIPS.map(tip => (
+              <li key={tip}>{tip}</li>
+            ))}
+          </ul>
+        </TipBlock>
+      </Checklist>
     </Shell>
   )
 }

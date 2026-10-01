@@ -5,8 +5,10 @@ import {
   COMMUNITY_LOCATION_REQUIRED_MESSAGE,
   COMMUNITY_TITLE_MAX_LENGTH,
   COMMUNITY_WRITING_PROMPTS,
+  getCommunityEditorChecklist,
   getCommunityWritingPromptCaret,
   isCommunityCountNearLimit,
+  isCommunityEditorChecklistReady,
   resolveCommunityEditorSubmission,
   shouldShowCommunityWritingPrompts,
 } from './editor-compose'
@@ -124,5 +126,100 @@ describe('작성 도움 칩(CM-033)', () => {
   it('커서는 첫 줄 끝이다', () => {
     expect(getCommunityWritingPromptCaret('상황: \n궁금한 점: ')).toBe(4)
     expect(getCommunityWritingPromptCaret('한 줄')).toBe(3)
+  })
+})
+
+describe('작성 체크(community.md §S4 「다듬기」)', () => {
+  const empty = { title: '', content: '', location: {}, images: [] }
+  const image = {
+    imageKey: 'community/posts/1/a.png',
+    imageUrl: 'https://minio.test/a.png',
+    sortOrder: 0,
+  }
+  const doneOf = (value: Parameters<typeof getCommunityEditorChecklist>[0]) =>
+    Object.fromEntries(
+      getCommunityEditorChecklist(value).map(item => [item.id, item.done]),
+    )
+
+  it('지역 · 제목 · 본문(필수) · 사진(선택) 순서다', () => {
+    expect(
+      getCommunityEditorChecklist(empty).map(item => [
+        item.id,
+        item.label,
+        item.required,
+      ]),
+    ).toEqual([
+      ['location', '지역', true],
+      ['title', '제목', true],
+      ['content', '본문', true],
+      ['images', '사진', false],
+    ])
+  })
+
+  it('빈 글은 아무것도 켜지지 않는다', () => {
+    expect(doneOf(empty)).toEqual({
+      location: false,
+      title: false,
+      content: false,
+      images: false,
+    })
+  })
+
+  it('지역은 종류와 코드가 둘 다 있어야 켜진다 — 이름만으로는 안 된다', () => {
+    expect(
+      doneOf({ ...empty, location: { targetName: '성동구' } }).location,
+    ).toBe(false)
+    expect(
+      doneOf({
+        ...empty,
+        location: { targetType: 'DISTRICT', targetCode: '  ' },
+      }).location,
+    ).toBe(false)
+    expect(doneOf({ ...empty, location: district }).location).toBe(true)
+  })
+
+  it('제목·본문은 공백만이면 꺼져 있다', () => {
+    expect(doneOf({ ...empty, title: '   ', content: '\n\t ' })).toMatchObject({
+      title: false,
+      content: false,
+    })
+    expect(
+      doneOf({ ...empty, title: ' 제목 ', content: ' 본문 ' }),
+    ).toMatchObject({
+      title: true,
+      content: true,
+    })
+  })
+
+  it('사진은 한 장 이상이면 켜진다', () => {
+    expect(doneOf({ ...empty, images: [image] }).images).toBe(true)
+  })
+
+  it('필수 셋이 다 차야 준비됐다 — 사진은 없어도 된다', () => {
+    const filled = {
+      title: '제목',
+      content: '본문',
+      location: district,
+      images: [],
+    }
+
+    expect(
+      isCommunityEditorChecklistReady(getCommunityEditorChecklist(filled)),
+    ).toBe(true)
+    expect(
+      isCommunityEditorChecklistReady(
+        getCommunityEditorChecklist({ ...filled, content: ' ' }),
+      ),
+    ).toBe(false)
+    expect(
+      isCommunityEditorChecklistReady(
+        getCommunityEditorChecklist({ ...filled, location: {} }),
+      ),
+    ).toBe(false)
+    expect(
+      isCommunityEditorChecklistReady(
+        getCommunityEditorChecklist({ ...filled, title: '' }),
+      ),
+    ).toBe(false)
   })
 })

@@ -112,3 +112,58 @@ export const getCommunityWritingPromptCaret = (template: string) => {
   const lineEnd = template.indexOf('\n')
   return lineEnd < 0 ? template.length : lineEnd
 }
+
+/** 작성 체크 한 칸(community.md §S4 「다듬기」 작성 체크). 지역 → 제목 → 본문 → 사진, 화면 순서다. */
+export type CommunityEditorCheckId = CommunityEditorField | 'images'
+
+export type CommunityEditorCheckItem = {
+  id: CommunityEditorCheckId
+  label: string
+  /** 사진만 선택이다 — 화면은 `선택` 을 붙여 적는다. */
+  required: boolean
+  done: boolean
+}
+
+/**
+ * 작성 체크(`≥1080` 오른쪽 카드). 채워졌는지는 **등록 검증과 같은 잣대**로 본다 — 지역은 대상(종류 +
+ * 코드)이 있어야, 제목·본문은 앞뒤 공백을 지우고 비어 있지 않아야, 사진은 한 장 이상이어야 켜진다.
+ * 길이 한도는 입력칸의 `maxLength` 가 막으므로 여기서 다시 세지 않는다.
+ */
+export const getCommunityEditorChecklist = (
+  value: Pick<
+    CommunityEditorValue,
+    'title' | 'content' | 'location' | 'images'
+  >,
+): CommunityEditorCheckItem[] => [
+  {
+    id: 'location',
+    label: '지역',
+    required: true,
+    done: hasCommunityLocationTarget(value.location),
+  },
+  {
+    id: 'title',
+    label: '제목',
+    required: true,
+    done: value.title.trim().length > 0,
+  },
+  {
+    id: 'content',
+    label: '본문',
+    required: true,
+    done: value.content.trim().length > 0,
+  },
+  {
+    id: 'images',
+    label: '사진',
+    required: false,
+    done: value.images.length > 0,
+  },
+]
+
+/** 필수 칸(지역 · 제목 · 본문)이 다 찼다 — 카드가 `등록할 준비가 됐어요` 라고 말한다. */
+export const isCommunityEditorChecklistReady = (
+  items: CommunityEditorCheckItem[],
+) => items.every(item => !item.required || item.done)
+
+export const COMMUNITY_EDITOR_READY_MESSAGE = '등록할 준비가 됐어요'

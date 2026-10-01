@@ -274,6 +274,11 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
   `1px` inset ring instead of a border, so it does not read twice as heavy as before.
 - Outlined fields (white background — search bars, community forms) keep their `1px` border;
   the double-treatment problem does not apply to them.
+  Community outlined fields signal focus **inside** the box: border → `--color-primary-700` plus an
+  `inset 0 0 0 1px` of the same color (2px total, no outer glow), error the same with `--color-danger`,
+  and `resize: none`. One shared fragment holds this (`src/lib/community/field-styles.ts`); the title
+  underline uses `inset 0 -1px 0`. The outer glow spilled over neighbours in narrow toolbars, sheets and
+  dialogs (community.md §S4 「다듬기」, 2026-10-01).
 - **Focus is one line.** A field that signals focus by changing its border (border →
   `--color-primary-700`, plus `--shadow-focus-primary(-strong)` glow) must switch the global
   `:focus-visible` ring off **inside its focus selector** — `&, &:focus, &:focus-visible { outline: none; }`.
