@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.adapter.in.
 import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkDuplicateException;
 import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkException;
+import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.exception.AnalysisPeriodException;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.exception.CommercialException;
 import com.followfollowme.bosspickseoul.domainlayer.commercialsummary.application.exception.CommercialSummaryException;
@@ -91,6 +92,14 @@ public class CommercialExceptionHandler {
 
     @ExceptionHandler(AnalysisBookmarkException.class)
     public ResponseEntity<Response<Void>> handleAnalysisBookmarkException(AnalysisBookmarkException exception) {
+        return ResponseEntity
+            .status(exception.getErrorCode().getHttpStatus())
+            .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));
+    }
+
+    /** 분기를 생략한 요청에서 기본 분기를 정할 수 없을 때 503. 분석 조회 컨텍스트 전부가 같은 해석 지점을 쓰므로 여기서 한 번만 변환한다. */
+    @ExceptionHandler(AnalysisPeriodException.class)
+    public ResponseEntity<Response<Void>> handleAnalysisPeriodException(AnalysisPeriodException exception) {
         return ResponseEntity
             .status(exception.getErrorCode().getHttpStatus())
             .body(Response.fail(exception.getErrorCode().getCode(), exception.getMessage()));

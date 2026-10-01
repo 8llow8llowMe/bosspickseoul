@@ -11,7 +11,9 @@
 - 책임: 상권 상세 분석, 자치구·행정동 분석, 상권 요약 조회, 분석 화면 공유 링크, 분석 보관함,
   창업 시뮬레이션, 분석 인기 순위, 지원 정책 추천
 - 컨텍스트: `commercial`, `district`, `administration`, `commercialsummary`, `category`,
-  `sharelink`, `analysisbookmark`, `simulation`, `ranking`, `policy`
+  `sharelink`, `analysisbookmark`, `simulation`, `ranking`, `policy`, `analysisperiod`
+- `analysisperiod`: 적재된 팩트 테이블 기준 기본 분기와 선택 가능 분기 목록(`GET /api/v1/commercials/periods`)을 정하고,
+  분석 API 가 분기를 생략하면 같은 값으로 해석한다(이슈 #464). 인스턴스 메모리 캐시, DB 장애 시 마지막 성공값.
 - `ranking`: 분석 조회 이벤트를 Kafka 로 발행/집계해 Redis Sorted Set 실시간 인기 순위를 제공한다.
   `RANKING_ENABLED=false`(기본)면 Kafka 빈이 등록되지 않아 브로커 없이도 정상 기동하며,
   파이프라인 장애는 인기 순위 API(RANKING_001 503)에만 영향을 준다.

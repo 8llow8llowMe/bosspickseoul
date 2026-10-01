@@ -131,6 +131,7 @@ backend/
 
 **포함 기준**: **상권·지도 도메인**에 속하면서 복수 서비스에서 공유되는 enum / 값 객체 / 상수. 단일 서비스에서만 쓰면 해당 서비스의 `application/model/`로.
 - `DatasetKey` 는 batch-service 적재·`--job=project` 의 이름·필수 컬럼 계약이면서, 데이터셋 **식별자의 정본**이다. 같은 문자열을 서비스마다 복사하면 포털이 데이터셋을 재게시했을 때 배치만 고쳐도 배치는 돌아가고 조회 서비스는 죽은 ID 를 출처로 계속 인용한다. batch 의 `DatasetTest` 와 commercial 의 `ExpenseSourceDatasetTest` 가 두 축을 함께 고정한다.
+- `DatasetKey.lastPublishablePeriodCode()` 는 원천이 끊긴 데이터셋의 마지막 게시 가능 분기다(지금은 상권 소비 `20234` 하나). batch `Dataset` 은 이 값으로 적재·재투영을 막고 중단 사유만 따로 들며, commercial-service 의 `analysisperiod` 는 같은 값으로 그 데이터셋을 기본 분기 계산에서 뺀다 (이슈 #464).
 
 ---
 
@@ -181,7 +182,7 @@ backend/
 - 행정동/자치구: `/api/v1/administrations/{code}`, `/api/v1/districts/**`
 - 공유 링크: `POST /api/v1/share-links`(생성), `GET /api/v1/share-links/{shareCode}`(조회)
 
-**컨텍스트**: administration, analysisbookmark, category, commercial, commercialsummary, district, policy, ranking, sharelink, simulation (10개)
+**컨텍스트**: administration, analysisbookmark, analysisperiod, category, commercial, commercialsummary, district, policy, ranking, sharelink, simulation (11개)
 
 **특수 의존**: `core:shared-commercial` (HeatmapModeType, GradeLevel, 소비 출처 식별자용 DatasetKey), `core:security-core` (sharelink 선택적 인증), openfeign + resilience4j (district-service 호출)
 

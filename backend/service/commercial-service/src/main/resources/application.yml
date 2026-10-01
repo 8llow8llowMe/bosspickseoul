@@ -50,6 +50,10 @@ app:
     # 복제 계수는 브로커 수를 넘을 수 없다. 3노드 클러스터는 3, 단일 브로커 로컬은 1 로 둔다.
     topic-partitions: ${RANKING_TOPIC_PARTITIONS:3}
     topic-replicas: ${RANKING_TOPIC_REPLICAS:1}
+  analysis-period:
+    # 분석 기준 분기 카탈로그(GET /api/v1/commercials/periods, periodCode 생략 시 기본 분기) 재계산 주기.
+    # 인스턴스 메모리 캐시다. 분기 적재는 하루 한 번이라 이 시간만큼 새 분기가 늦게 보여도 된다.
+    cache-ttl: 5m
 
 # 내부 서비스 Feign 호출 서킷브레이커. 인스턴스명은 -dev/-prod 접미사와 무관한 논리 서비스명이다.
 # 4xx(FeignClientException)는 호출한 쪽의 요청 문제이므로 상대 서비스 장애로 집계하지 않는다.

@@ -18,6 +18,7 @@
 - `simulation`
 - `analysisbookmark`
 - `policy`
+- `analysisperiod`
 
 ## 인증 방식
 
@@ -37,6 +38,7 @@
 - `AdministrationWebController` (`/api/v1/administrations`)
 - `ShareLinkWebController` (`/api/v1/share-links`)
 - `PolicyWebController` (`/api/v1/policies`)
+- `AnalysisPeriodWebController` (`GET /api/v1/commercials/periods`)
 - `CommercialWebUseCase -> CommercialWebFacade`
 - `DistrictWebUseCase -> DistrictWebFacade`
 
@@ -390,6 +392,19 @@
 - `--job=project` 가 15종을 기존 팩트 테이블 컬럼으로 옮긴다. 행에 `spatial_version` 이 있고, 조회는 `DATASET_SPATIAL_VERSION`(기본 `legacy-20233`)으로 그 기준만 읽는다. JSON 릴리스를 다시 고르지 않는다. TOP-N QueryDSL 도 같은 설정을 필터한다.
 - 클라이언트가 `20241` 이후를 요청하면 같은 테이블에서 그 분기의 값을 받는다. 같은 상권/자치구/행정동 코드라도 공간 버전이 다르면 다른 행이다. `CONSUMPTION_COMMERCIAL` 소득 두 컬럼은 2024+ 원천에 없어 NULL 이고, 화면에는 0 으로 나간다.
 
+## 분석 기준 분기 (analysisperiod, 이슈 #464)
+
+`GET /api/v1/commercials/periods` 와 분석 API 의 기본 분기를 한 곳(`AnalysisPeriodCatalogProcessor`)에서 정한다.
+
+- **정본은 팩트 테이블이다.** typed 팩트 테이블 15종에서 `spatial_version = DATASET_SPATIAL_VERSION` 인 행의 `DISTINCT period_code` 를 읽는다(리포지터리마다 정적 JPQL `findDistinctPeriodCodesBySpatialVersion` 한 줄, 어댑터 `AnalysisDatasetPeriodQueryAdapter` 가 `DatasetKey` 로 묶는다). `dataset_active_release` 는 이관 전 분기를 담을 수 있어 정본으로 쓰지 않는다. 레거시 20211~20233 도 같은 테이블이라 그대로 포함된다.
+- **기본 분기 = 핵심 데이터셋 교집합의 최대.** 핵심 데이터셋은 `DatasetKey.lastPublishablePeriodCode()` 가 `null` 인 14종이다. 원천이 끊긴 상권 소비(20234 까지)를 넣으면 기본 분기가 20234 에 묶이므로 뺀다. 교집합이 비면 기본 분기는 `null` 이다. 한 데이터셋이라도 빈 분기를 기본으로 잡으면 그 화면이 「해당 분기 데이터 없음」 404 가 되므로 교집합이어야 한다.
+- **화면별 기본 분기는 두지 않는다.** 공유 링크·북마크·커뮤니티 초안·AI 리포트가 한 분기 코드를 여러 화면에 재사용한다.
+- **캐시는 인스턴스 메모리**(`app.analysis-period.cache-ttl`, 기본 5분). 만료되면 요청 하나만 다시 계산하고(잠금 `tryLock`) 나머지는 기다리지 않고 직전 값을 받는다. 기동 직후 `AnalysisPeriodCatalogWarmUpListener` 가 한 번 채운다. Redis 는 쓰지 않는다 — 카탈로그 조회가 Redis 장애에 묶이지 않게 한다.
+- **장애 시.** 재계산이 DB 오류(`DataAccessException`·`TransactionException`)면 마지막 성공값을 계속 쓰고 다음 재시도를 TTL 뒤로 미룬다(`[analysis-period] catalog refresh failed, serving stale`). 한 번도 계산하지 못했으면 분기를 생략한 요청은 `ANALYSIS_PERIOD_001`(503) 이다. 예시 상수로 떨어지는 폴백은 두지 않는다 — 적재되지 않은 분기를 기본으로 내보내 화면 전체가 「데이터 없음」이 되기 때문이다.
+- **트랜잭션.** 재계산 질의는 어댑터가 `REQUIRES_NEW`(readOnly) 로 따로 연다. 분석 조회 Facade 의 readOnly 트랜잭션 안에서 갱신이 실패하면 Hibernate 가 그 트랜잭션을 rollback-only 로 표시해, stale 로 응답해도 커밋에서 `UnexpectedRollbackException` 이 나기 때문이다. `/periods` Facade 는 트랜잭션을 걸지 않는다.
+- **관측 로그.** 기본 분기가 바뀌면 INFO `[analysis-period] default changed from=… to=… lagging=[…]`, 기본 분기가 가장 앞선 핵심 데이터셋보다 2분기 이상 뒤처지면 WARN. 예외 메시지 대신 예외 유형만 남긴다(접속 정보 노출 방지).
+- **이번 범위 밖.** 게시 시각·스키마 버전(`dataset_release` 미러)은 후속 이슈다. 응답 `datasets[].publishedAt`·`schemaVersion` 은 키만 두고 `null` 이다.
+
 ## 에러코드 (대역 요약)
 
 컨텍스트별 ErrorCode enum 을 각각 유지한다. 상세 메시지는 각 enum 이 단일 기준점이다.
@@ -403,6 +418,7 @@
 | `ShareLinkErrorCode` | `SHARE_LINK_001`~`SHARE_LINK_006` | 미존재 404 / 만료 410 / payload 검증 400 / 코드 생성 실패 500. 검증 대역은 `SHARE_LINK_101`~`SHARE_LINK_102` (`ShareLinkValidationMessage`) |
 | `RankingErrorCode` | `RANKING_001`~`RANKING_002` | 저장소 연결 불가 503 / 조회 개수 400 (영역 타입 오류는 공통 COMMERCIAL_102). 검증 대역은 `RANKING_101` (`RankingValidationMessage`) |
 | `SimulationErrorCode` | `SIMULATION_001`~`SIMULATION_006` | 업종/임대료/프랜차이즈/이력 미존재 404, 프랜차이즈 미선택·업종 불일치 400. 검증 대역은 `SIMULATION_101`~`SIMULATION_109` (`SimulationValidationMessage`) |
+| `AnalysisPeriodErrorCode` | `ANALYSIS_PERIOD_001` | 분기를 생략한 요청에서 기본 분기를 정할 수 없음 503 (콜드 스타트 DB 장애, 핵심 데이터셋 공통 분기 없음). 분기를 명시한 요청은 받지 않는다 |
 | `AnalysisBookmarkErrorCode` | `ANALYSIS_BOOKMARK_001`~`ANALYSIS_BOOKMARK_006` | 미존재 404 / 중복 저장 409(dataBody 에 기존 항목 아이디) / payload·타입 검증 400 / 저장 상한 초과 400. 검증 대역은 `ANALYSIS_BOOKMARK_101`~`ANALYSIS_BOOKMARK_105` (`AnalysisBookmarkValidationMessage`) |
 
 ## Notes
