@@ -273,8 +273,8 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 0. 공간 스냅샷(`spatial-version`, 기본 `legacy-20233`)이 READY 가 아니면 run 전체를 멈춘다 — `SPATIAL_NOT_READY`
 1. 게시 분기가 없으면 건너뛴다 — `NO_BASELINE` (첫 분기는 수동 CLI)
 2. 최근 실패 후 7일(`failure-cooldown-days`) 안이면 재이관까지 포함해 아무것도 하지 않는다 — `COOLDOWN`. 매일 실패하는 무거운 이관을 매일 다시 돌리지 않는다
-3. 재이관: 게시돼 있는데 typed 행 수가 `accepted_count` 와 다른 슬롯(coverage.sql 5절 판정)을 새 분기보다 먼저 이관한다 — `PROJECTED` / publish=false 면 dry-run 이관 `WOULD_PROJECT`. `reproject-from`(기본 `20234`) 이전 슬롯은 보지 않는다(20211~20233 은 레거시 행이 이관 없이 이미 있다). publish=false 의 dry-run 재이관은 (데이터셋, 분기)마다 한 번이다(`last_reproject_dry_run_period` 보다 늦은 슬롯만). 성공하면 연속 실패를 끊고, 실패하면 `FAILED` 로 쿨다운에 들어간다
-4. 후보 = 마지막 게시 분기 다음. 원천이 끊긴 데이터셋(`CONSUMPTION_COMMERCIAL`, 20234 까지)은 API 를 부르지 않는다 — `DISCONTINUED`. 재이관이 데이터셋당 분기 상한(`max-quarters-per-run`)을 다 썼으면 — `BUDGET`
+3. 재이관: 게시돼 있는데 typed 행 수가 `accepted_count` 와 다른 슬롯(coverage.sql 5절 판정)을 새 분기보다 먼저 이관한다 — `PROJECTED` / publish=false 면 dry-run 이관 `WOULD_PROJECT`. `automation-from`(기본 `20234`) 이전 슬롯은 보지 않는다(20211~20233 은 레거시 행이 이관 없이 이미 있다). publish=false 의 dry-run 재이관은 (데이터셋, 분기)마다 한 번이다(`last_reproject_dry_run_period` 보다 늦은 슬롯만). 성공하면 연속 실패를 끊고, 실패하면 `FAILED` 로 쿨다운에 들어간다
+4. 후보 = 마지막 게시 분기 다음. 후보가 `automation-from`(기본 `20234`) 앞이면 API 를 부르지 않고 건너뛴다 — `BELOW_AUTOMATION_FLOOR` (마지막 게시가 20232 이하인 데이터셋. 다음 분기가 레거시라 자동 게시가 `legacy-20233` 행을 덮는다. 수동 백필 대상). 원천이 끊긴 데이터셋(`CONSUMPTION_COMMERCIAL`, 20234 까지)은 API 를 부르지 않는다 — `DISCONTINUED`. 재이관이 데이터셋당 분기 상한(`max-quarters-per-run`)을 다 썼으면 — `BUDGET`
 5. 탐지: `/1/1/<후보>` 한 번(재시도도 예산에서 뺀다). 분기 인자를 존중하는 6종은 행이 없으면 `NOT_PUBLISHED_YET`. 무시하는 9종은 전 기간 합계가 지난번과 같고 새로 볼 분기가 없으면 `UNCHANGED`
 6. 받을 페이지 수(`ceil(total/1000)`)가 남은 예산보다 크면 — `BUDGET`
 7. 수집: 전 페이지를 `page-<start>.json` 으로 보관하고 분기별로 센다(`acquire`). 페이지마다(재시도 포함) run 예산(`ApiCallBudget`)을 쓰고, 탐지 뒤 합계가 늘어 예산을 넘기면 받다 만 페이지를 버리고 `BUDGET`(실패·쿨다운 아님). 보관본 위치는 게시 판단 전에 `last_fetch_run_id` / `last_fetch_raw_location` 에 남긴다. 무시하는 9종은 마지막 게시 분기보다 늦은 분기를 오름차순으로, 재이관과 합쳐 분기 상한까지 고른다
@@ -326,7 +326,7 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 | `BATCH_RAW_DIRECTORY` | `/app/data/raw` | compose 고정. `batch-raw` 볼륨(수동 `batch-service-job` 과 공유) |
 | `BATCH_ALLOWED_SCHEMAS` | 정책과 공유 | `bosspickseoul_commercial_dev` |
 
-`max-api-calls-per-run` 600(재시도 포함 실제 시도 수), `max-quarters-per-run` 1(재이관·새 분기 합계), `tolerance` 0.2, `failure-cooldown-days` 7(재이관 포함), `reproject-from` `20234` 는 `application.yml` 값이다.
+`max-api-calls-per-run` 600(재시도 포함 실제 시도 수), `max-quarters-per-run` 1(재이관·새 분기 합계), `tolerance` 0.2, `failure-cooldown-days` 7(재이관 포함), `automation-from` `20234`(재이관·새 분기 게시 하한) 는 `application.yml` 값이다.
 
 ### 상태 테이블
 
@@ -338,7 +338,7 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 
 ### 개발서버 롤아웃
 
-1. **DDL** — Workbench 에서 `bosspickseoul_commercial_dev` 를 고르고 `dataset-refresh-state-schema.sql` 실행(`last_reproject_dry_run_period` 포함. 예전 DDL 로 이미 만들었으면 런북 주석의 `ALTER TABLE` 한 줄). `quarterly-dataset-schema.sql` 은 이미 적용돼 있어야 한다. district 의 `BATCH_*` / `QRTZ_*` 는 정책 수집 때 만든 것을 그대로 쓴다. 확인은 `quarterly-import-verify.sql` 1) 블록. 테이블이 없으면 4단계에서 `DatasetRefreshGuardRunner` 가 기동을 멈춘다
+1. **DDL·대상 확인** — **모든 데이터셋의 마지막 게시 분기가 20233 이상인지** 본다(`quarterly-import-coverage.sql` 1) 의 DONE, 또는 `SELECT dataset, MAX(period_code) FROM dataset_active_release WHERE spatial_version='legacy-20233' AND schema_version='seoul-v1' GROUP BY dataset`). 20232 이하인 데이터셋은 자동화 대상 밖이다(`BELOW_AUTOMATION_FLOOR` 로 건너뛴다). 수동 CLI 로 20233 까지 백필하면 다음 run 부터 대상이 된다. 그다음 Workbench 에서 `bosspickseoul_commercial_dev` 를 고르고 `dataset-refresh-state-schema.sql` 실행(`last_reproject_dry_run_period` 포함. 예전 DDL 로 이미 만들었으면 런북 주석의 `ALTER TABLE` 한 줄). `quarterly-dataset-schema.sql` 은 이미 적용돼 있어야 한다. district 의 `BATCH_*` / `QRTZ_*` 는 정책 수집 때 만든 것을 그대로 쓴다. 확인은 `quarterly-import-verify.sql` 1) 블록. 테이블이 없으면 4단계에서 `DatasetRefreshGuardRunner` 가 기동을 멈춘다
 2. **Vault** — `kv/bosspickseoul/backend/dev/env` 에 **patch** 로 `BATCH_DATASET_REFRESH_ENABLED=true`, `SEOUL_OPEN_DATA_API_KEY=<키>` 를 넣는다. `BATCH_DATASET_REFRESH_PUBLISH` 는 넣지 않거나 `false`. `COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 는 정책 수집 값 그대로. `put` 은 나머지 키를 지운다
 3. **재배포** — Jenkins `batch-service-dev` 만. compose 가 `batch-raw` 볼륨을 새로 붙인다. 메모리 상한 `BATCH_SERVICE_MEM_LIMIT_DEV` 는 바꾸지 않는다(512m)
 4. **기동 확인** — 가드 예외(`COMMERCIAL_DB_URL`, `BATCH_ALLOWED_SCHEMAS`, `SEOUL_OPEN_DATA_API_KEY`, `dataset_refresh_state is missing`, `dataset_refresh_state is missing columns`)가 없고 Quartz 가 `datasetRefreshTrigger` 를 등록했다. `/actuator/prometheus` 에 `hikaricp_connections{pool="batch-commercial"}` 가 보인다

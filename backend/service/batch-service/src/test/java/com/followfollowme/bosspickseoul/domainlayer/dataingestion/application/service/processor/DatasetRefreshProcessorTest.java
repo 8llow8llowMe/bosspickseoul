@@ -432,7 +432,7 @@ class DatasetRefreshProcessorTest {
 
     /** 20211~20233 은 legacy-20233 레거시 행이 이관 없이 이미 있다. 건수가 어긋나도 자동으로 덮어쓰지 않는다. */
     @Test
-    void slotsBeforeReprojectFromAreNeverReprojected() {
+    void slotsBeforeTheAutomationFloorAreNeverReprojected() {
         published(Dataset.SALES_COMMERCIAL, Map.of(Q20261, 20000L), slot(Q20231, 18000), slot(Q20261, 20000));
         probe(Dataset.SALES_COMMERCIAL, Q20262, null);
 
@@ -443,14 +443,35 @@ class DatasetRefreshProcessorTest {
         verify(projections).typedRowCounts(Dataset.SALES_COMMERCIAL, SPATIAL, new Quarter("20234"));
     }
 
+    /**
+     * 새 분기 게시도 하한(automation-from, 기본 20234)을 지킨다. 마지막 게시가 20232 이하면 다음 분기가 레거시 분기라 publish=true 에서
+     * 자동으로 게시·이관하면 legacy-20233 레거시 행을 덮는다. API 를 부르지 않고 수동 백필로 넘긴다.
+     */
     @Test
-    void noEligibleSlotSkipsTheTypedCountQuery() {
+    void candidateBeforeTheAutomationFloorIsLeftToTheManualBackfill() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20231, 18000));
-        probe(Dataset.SALES_COMMERCIAL, new Quarter("20232"), null);
 
-        refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
 
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.BELOW_AUTOMATION_FLOOR);
+        assertThat(outcome.slots().getFirst().period()).isEqualTo(new Quarter("20232"));
+        assertThat(outcome.slots().getFirst().detail()).contains("automation-from=20234");
+        assertThat(outcome.apiCalls()).isZero();
+        assertThat(outcome.state()).isEqualTo(initial(Dataset.SALES_COMMERCIAL));
         verify(projections, never()).typedRowCounts(any(), any(), any());
+        verifyNoInteractions(source, executions);
+    }
+
+    /** 마지막 게시가 20233 이면 후보 20234 부터는 자동 최신화 대상이다. */
+    @Test
+    void lastLegacyQuarterPublishedMakesTheNextQuarterEligible() {
+        published(Dataset.SALES_COMMERCIAL, slot(new Quarter("20233"), 18000));
+        probe(Dataset.SALES_COMMERCIAL, new Quarter("20234"), null);
+
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.NOT_PUBLISHED_YET);
+        assertThat(outcome.apiCalls()).isEqualTo(1);
     }
 
     /** 재이관도 쿨다운을 따른다. 매일 실패하는 무거운 이관을 매일 다시 돌리지 않는다. */

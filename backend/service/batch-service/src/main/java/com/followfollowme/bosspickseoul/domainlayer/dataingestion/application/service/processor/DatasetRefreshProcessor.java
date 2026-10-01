@@ -121,6 +121,12 @@ public class DatasetRefreshProcessor {
                 return;
             }
             focus = candidate;
+            // 새 분기 게시도 하한을 지킨다. 마지막 게시가 20232 이하면 다음 분기가 레거시(20233 이하)라 자동으로 게시·이관하면 그 행을 덮는다.
+            if (candidate.compareTo(automationFloor()) < 0) {
+                skip(candidate, DatasetRefreshResult.BELOW_AUTOMATION_FLOOR,
+                    "candidate before automation-from=" + properties.automationFrom() + "; backfill with the manual CLI");
+                return;
+            }
             Optional<Quarter> lastPublishable = dataset.lastPublishableQuarter();
             if (lastPublishable.isPresent() && candidate.compareTo(lastPublishable.get()) > 0) {
                 skip(candidate, DatasetRefreshResult.DISCONTINUED, "source discontinued after " + lastPublishable.get().value());
@@ -197,6 +203,10 @@ public class DatasetRefreshProcessor {
                 && state.lastFailureAt().plus(Duration.ofDays(properties.failureCooldownDays())).isAfter(firedAt);
         }
 
+        private Quarter automationFloor() {
+            return new Quarter(properties.automationFrom());
+        }
+
         private int quartersLeft() {
             return properties.maxQuartersPerRun() - quartersHandled;
         }
@@ -206,7 +216,7 @@ public class DatasetRefreshProcessor {
          * 이관 실패로 화면에 안 나오는 분기를 새 분기보다 먼저 복구한다. 메모리 때문에 새 분기와 합쳐 run 당 분기 상한을 지킨다.
          *
          * <ul>
-         *   <li>{@code reproject-from}(기본 20234) 이전 슬롯은 보지 않는다. 20211~20233 은 레거시 행이 이관 없이 이미 있어 건수가
+         *   <li>{@code automation-from}(기본 20234) 이전 슬롯은 보지 않는다. 20211~20233 은 레거시 행이 이관 없이 이미 있어 건수가
          *       어긋나도 덮어쓰면 안 된다</li>
          *   <li>publish=false 면 dry-run 이관이다. 같은 슬롯을 매일 다시 dry-run 하지 않도록 마지막으로 dry-run 한 분기보다 늦은 슬롯만 본다</li>
          *   <li>성공하면 연속 실패를 끊는다({@code succeeded()})</li>
@@ -215,7 +225,7 @@ public class DatasetRefreshProcessor {
          * @return false 면 이관이 실패해 이 데이터셋을 여기서 멈췄다
          */
         private boolean reprojectMismatchedSlots(List<PublishedSlot> published) {
-            Quarter from = new Quarter(properties.reprojectFrom());
+            Quarter from = automationFloor();
             Optional<Quarter> lastPublishable = dataset.lastPublishableQuarter();
             boolean dryRun = !properties.publish();
             Quarter dryRunDone = state.lastReprojectDryRunPeriod();

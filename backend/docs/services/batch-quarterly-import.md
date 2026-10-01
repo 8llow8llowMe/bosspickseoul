@@ -15,7 +15,7 @@
 
 사실 데이터는 **데이터셋 × 분기 한 건이 실행 단위**다. 같은 명령을 분기만 바꿔 반복하면 된다. 한 번에 전 구간을 도는 스케줄러는 없다.
 
-**자동 최신화와의 경계 (이슈 #445).** 상시 batch-service 가 켜져 있으면(`BATCH_DATASET_REFRESH_ENABLED=true`) 매일 05:00 에 **마지막 게시 분기 다음 분기부터 원천 최신까지**만 같은 Job 으로 적재한다. 그보다 앞의 빈 분기(백필), 첫 분기(`NO_BASELINE`), 공간 버전 교체 재게시, `IMPLAUSIBLE` 로 멈춘 분기는 이 문서의 수동 절차가 맡는다. 자동 run-id 는 `auto-` 로 시작하므로 수동 run-id(`<dataset>-<분기>-<attempt>`)와 겹치지 않는다. 같은 슬롯을 수동으로 먼저 게시하면 자동 쪽은 다음 분기로 넘어간다. 자동 쪽이 `IMPLAUSIBLE`·dry-run 실패로 멈춘 분기는 commercial `dataset_refresh_state` 의 `last_fetch_raw_location`(이미 받은 보관본)을 `--source=ARCHIVE --source-file=...` 로 재생하면 API 를 다시 쓰지 않는다(보관본은 `batch-raw` 볼륨이라 `batch-service-job` 에서 같은 경로로 읽힌다). 자동 재이관은 `20234` 이후 슬롯만 보므로 20211~20233 레거시 분기의 이관은 계속 수동이다. 절차·판단 순서는 [batch-service.md](batch-service.md) 「분기 적재 자동 최신화」.
+**자동 최신화와의 경계 (이슈 #445).** 상시 batch-service 가 켜져 있으면(`BATCH_DATASET_REFRESH_ENABLED=true`) 매일 05:00 에 **마지막 게시 분기 다음 분기부터 원천 최신까지**만 같은 Job 으로 적재한다. 그보다 앞의 빈 분기(백필), 첫 분기(`NO_BASELINE`), 공간 버전 교체 재게시, `IMPLAUSIBLE` 로 멈춘 분기는 이 문서의 수동 절차가 맡는다. 자동 run-id 는 `auto-` 로 시작하므로 수동 run-id(`<dataset>-<분기>-<attempt>`)와 겹치지 않는다. 같은 슬롯을 수동으로 먼저 게시하면 자동 쪽은 다음 분기로 넘어간다. 자동 쪽이 `IMPLAUSIBLE`·dry-run 실패로 멈춘 분기는 commercial `dataset_refresh_state` 의 `last_fetch_raw_location`(이미 받은 보관본)을 `--source=ARCHIVE --source-file=...` 로 재생하면 API 를 다시 쓰지 않는다(보관본은 `batch-raw` 볼륨이라 `batch-service-job` 에서 같은 경로로 읽힌다). 자동 최신화는 `automation-from`(기본 `20234`) 이후 분기만 게시·재이관하므로 20211~20233 레거시 분기의 게시·이관은 계속 수동이다. 마지막 게시가 20232 이하인 데이터셋은 자동 쪽이 `BELOW_AUTOMATION_FLOOR` 로 건너뛰니 먼저 수동으로 20233 까지 채운다. 절차·판단 순서는 [batch-service.md](batch-service.md) 「분기 적재 자동 최신화」.
 
 세 파일이 한 묶음이다.
 

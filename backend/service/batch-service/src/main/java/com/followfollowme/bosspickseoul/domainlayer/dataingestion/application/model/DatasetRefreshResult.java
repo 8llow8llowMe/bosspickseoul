@@ -8,6 +8,8 @@ public enum DatasetRefreshResult {
     NO_BASELINE,
     /** 원천이 끊긴 데이터셋이라 다음 분기를 게시할 수 없다. API 를 부르지 않는다. */
     DISCONTINUED,
+    /** 후보 분기가 {@code automation-from}(기본 20234) 앞이다. 레거시 분기를 덮지 않도록 API 를 부르지 않는다. 수동 백필 대상이다. */
+    BELOW_AUTOMATION_FLOOR,
     /** 최근 실패 후 쿨다운 중이다. */
     COOLDOWN,
     /** 이번 run 의 API 호출 예산이 모자라거나, 데이터셋당 분기 상한({@code max-quarters-per-run})을 재이관이 다 썼다. 실패가 아니다. */
