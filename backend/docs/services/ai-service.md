@@ -40,12 +40,20 @@
 - Presenter: `AiReportPresenter`
 - SSE: `AiReportJobSseStreamer` (adapter/in/web/sse) — 잡 상태 변경을 SSE 로 푸시
 
+## 분석 기준 분기 해석 (이슈 #464)
+
+- 제출 API 4종의 `periodCode` 는 선택이다. 컨트롤러·`CommercialComparisonAiRequest` 는 상수로 채우지 않고 null 그대로 넘긴다(`AiReportRequestDefaults` 는 삭제했고 Swagger 예시는 `AnalysisPeriodDefaults` 를 쓴다).
+- `AiReportJobProcessor.submit*` 가 **진입 첫 줄에서** 해석한다. 생략·빈 값이면 `AnalysisPeriodQueryPort.defaultPeriodCode()`, 명시값은 그대로다. 해석된 값으로 캐시 키·멱등 해시·작업 파라미터를 만들므로 "생략"과 "기본 분기 명시" 제출이 같은 캐시·같은 jobId 를 쓰고, 워커가 저장된 파라미터로 재구성한 조건도 같다. 해석 실패는 사용량 차감 전에 난다.
+- `AnalysisPeriodClientAdapter` 가 commercial-service `GET /api/v1/commercials/periods`(`CommercialAnalysisClient#getAnalysisPeriods`)를 다른 원천 조회와 같은 `InternalResponseSupport`(서킷 `commercial-service`) 로 부르고 `defaultPeriodCode` 만 꺼낸다. 인스턴스 메모리에 `ai.report.analysis-period.cache-ttl`(기본 5분) 동안 두고, 갱신이 실패하면 마지막 성공값을 쓰며 다음 시도를 TTL 뒤로 미룬다(`[analysis-period] default period refresh failed, serving stale`). 한 번도 받지 못했거나 commercial-service 가 `defaultPeriodCode: null` 을 주면 `AI_013`(503). wire 계약은 `AnalysisPeriodsWireGoldenJsonTest`.
+- 제출 응답(`AiReportSubmissionResponse`)에 해석된 `periodCode` 를 싣는다. 리포트 본문 스냅샷(Redis 캐시 JSON)에는 넣지 않았다 — 기존 캐시 JSON 의 역직렬화 호환을 따로 확인해야 해서 이번 범위에서 뺐다.
+
 ## 비동기 작업 모델
 
 ### 흐름
 
 ```
 POST /api/v1/ai-reports/commercials/{commercialCode}
+  ├─ periodCode 생략·빈 값 → 적재 기준 기본 분기로 해석 (받지 못하고 마지막 성공값도 없으면 503 AI_013)
   ├─ 캐시 hit  → 200 OK + CommercialAiReportResponse (submissionStatus=CACHED, 사용량 제한 대상 아님)
   ├─ cache miss + 일별 사용량 상한 초과 → 429 (AI_012), 잡 생성 안 함
   ├─ 동일 사용자가 같은 요청을 in-flight 보유 → 202 + 기존 jobId
@@ -244,6 +252,7 @@ LLM 호출에는 별도 서킷브레이커 인스턴스 `resilience4j.circuitbre
 | `AI_010` | 500 | 지원하지 않는 LLM 응답 스키마 정의 (LLM_SCHEMA_UNSUPPORTED) |
 | `AI_011` | 500 | AI 리포트 요청 식별자(멱등성 키) 생성 실패 (IDEMPOTENCY_KEY_GENERATION_FAILED) |
 | `AI_012` | 429 | 일별 사용량 상한 초과 (USAGE_LIMIT_EXCEEDED) — 신규 잡 제출만 거절, 캐시 hit 은 영향 없음 |
+| `AI_013` | 503 | 분기를 생략한 제출에서 기본 분기를 받지 못함 (DEFAULT_PERIOD_UNAVAILABLE) — commercial-service `/periods` 장애·공통 분기 없음이고 마지막 성공값도 없을 때. 분기를 명시한 제출은 영향 없음 |
 | `AI_100` | 400 | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
 | `AI_101` | 400 | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
 

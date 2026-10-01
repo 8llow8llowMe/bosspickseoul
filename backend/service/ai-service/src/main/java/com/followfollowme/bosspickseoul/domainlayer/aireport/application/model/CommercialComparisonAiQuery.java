@@ -7,7 +7,8 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.application.model;
  * {@code adapter/in/web/dto/request/CommercialComparisonAiRequest} 가 맡고, 이 타입은 그 결과로 만들어진
  * 확정 조건만 표현한다(architecture-guide §2).
  *
- * <p>기본값 보정도 하지 않는다. 값을 채우는 지점이 web 한 곳이어야 잡 파라미터로 저장된 조건과
+ * <p>기본값 보정도 하지 않는다. 생략된 분기는 {@code AiReportJobProcessor} 가 제출 진입에서 적재 기준 기본 분기로 해석해
+ * {@link #withPeriodCode(String)} 로 바꿔 끼운다(이슈 #464). 해석 지점이 한 곳이어야 잡 파라미터로 저장된 조건과
  * 워커가 재구성한 조건이 항상 같다.
  */
 public record CommercialComparisonAiQuery(
@@ -17,4 +18,7 @@ public record CommercialComparisonAiQuery(
     String periodCode
 ) {
 
+    public CommercialComparisonAiQuery withPeriodCode(String resolvedPeriodCode) {
+        return new CommercialComparisonAiQuery(leftCommercialCode, rightCommercialCode, serviceCode, resolvedPeriodCode);
+    }
 }

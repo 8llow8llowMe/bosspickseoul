@@ -75,6 +75,7 @@ public class AiReportPresenter {
             .submissionStatus(info.submissionStatus().toMetadata())
             .jobType(info.jobType().toMetadata())
             .jobId(info.jobId())
+            .periodCode(info.periodCode())
             .commercialReport(info.commercialReport() == null ? null : toCommercialResponse(info.commercialReport()))
             .commercialComparisonReport(
                 info.commercialComparisonReport() == null ? null : toCommercialComparisonResponse(info.commercialComparisonReport())

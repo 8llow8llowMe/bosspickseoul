@@ -76,6 +76,8 @@ if (dataBody.submissionStatus.code === "CACHED") {
 }
 ```
 
+- `periodCode` 는 선택이다(이슈 #464). 생략하면 서버가 적재 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`)로 해석하고,
+  제출 응답의 `periodCode` 로 실제로 쓴 분기를 알려 준다. 리포트 라벨·공유 payload 에는 이 값을 쓴다. 기본 분기를 정할 수 없으면 `AI_013`(503).
 - 같은 사용자가 같은 조건으로 중복 제출해도 서버가 멱등성을 보장한다.
   in-flight 작업이 있으면 **기존 jobId를 그대로 반환**하므로 프론트에서 별도 중복 방지 로직은 필수가 아니다.
 - 리포트 종류별 응답 필드: `commercialReport`, `commercialComparisonReport`, `districtReport`, `administrationReport`
@@ -204,6 +206,7 @@ if (job.status.code === "PENDING" || job.status.code === "RUNNING") {
 | `AI_005` | 작업 없음 / 타인 작업 (404) | jobId 폐기 후 재제출 유도 |
 | `AI_002` | LLM 일시 사용 불가 (503) | "잠시 후 다시 시도" + 재시도 버튼 |
 | `AI_009` | 작업 타임아웃 | 재시도 버튼 |
+| `AI_013` | 분기를 생략한 제출에서 기본 분기를 정할 수 없음 (503) | "잠시 후 다시 시도" + 재시도 버튼, 또는 분기를 명시해 재제출 |
 | 그 외 `AI_xxx` | 생성 실패 | `errorMessage` 노출 + 재시도 버튼 |
 
 ## Checklist

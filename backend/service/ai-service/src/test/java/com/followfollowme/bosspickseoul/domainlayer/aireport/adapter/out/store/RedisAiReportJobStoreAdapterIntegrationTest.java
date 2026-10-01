@@ -15,6 +15,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.excepti
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportCachePort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiUsageCounterPort;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AnalysisPeriodQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.processor.AiReportJobProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.processor.AiReportProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.worker.AiReportWorker;
@@ -148,7 +149,7 @@ class RedisAiReportJobStoreAdapterIntegrationTest {
         assertThat(store.reserveOrGetExistingJobId(7L, "hash", "replacement")).isEqualTo("job");
 
         AiReportJobProcessor processor = new AiReportJobProcessor(store, mock(AiReportCachePort.class), events,
-            worker, usage, new AiReportJobProperties(60, 60, 30, 300));
+            worker, usage, new AiReportJobProperties(60, 60, 30, 300), mock(AnalysisPeriodQueryPort.class));
         assertThat(processor.getJobInfo("job", 7L).status()).isEqualTo(AiReportJobStatus.FAILED);
         store.save(pending("replacement"));
         assertThat(store.reserveOrGetExistingJobId(7L, "hash", "replacement")).isEqualTo("replacement");

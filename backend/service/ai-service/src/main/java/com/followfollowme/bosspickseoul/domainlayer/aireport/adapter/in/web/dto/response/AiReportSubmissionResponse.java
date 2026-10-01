@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.response;
 
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
@@ -18,6 +19,10 @@ public record AiReportSubmissionResponse(
 
     @Schema(description = "작업 식별자 (ACCEPTED 일 때만 채워짐)", example = "8a64f9c0-...")
     String jobId,
+
+    @Schema(description = "제출에 실제로 쓴 기준 분기. periodCode 를 생략하면 적재 기준 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+        example = AnalysisPeriodDefaults.PERIOD_CODE)
+    String periodCode,
 
     @Schema(description = "캐시된 상권 리포트 (CACHED 이고 jobType=COMMERCIAL 일 때 채워짐)")
     CommercialAiReportResponse commercialReport,
