@@ -7,6 +7,8 @@ import lombok.Builder;
 
 @Builder
 public record CommercialTrendInfo(
+    // 추이의 기준(가장 최근) 분기. 요청이 분기를 생략하면 서버가 정한 기본 분기다(이슈 #464).
+    String periodCode,
     String commercialCode,
     String serviceCode,
     CommercialTrendMetricType metricType,

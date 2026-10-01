@@ -38,6 +38,7 @@ public class CommercialBenchmarkQueryProcessor {
             .commercialName();
 
         return CommercialBenchmarkInfo.builder()
+            .periodCode(periodCode)
             .commercialCode(commercialCode)
             .commercialName(commercialName)
             .districtCode(region.districtCode())

@@ -45,12 +45,15 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.info.fo
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictTopTenSummaryInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesAdministrationDetailInfo;
 
 @Component
 public class DistrictPresenter {
 
     public DistrictTopTenSummaryResponse toDistrictTopTenSummaryResponse(DistrictTopTenSummaryInfo info) {
         return DistrictTopTenSummaryResponse.builder()
+            .currentPeriodCode(info.currentPeriodCode())
+            .previousPeriodCode(info.previousPeriodCode())
             .footTrafficTopTenItems(toFootTrafficTopTenItems(info.footTrafficTopTenInfos()))
             .salesTopTenItems(toSalesTopTenItems(info.salesTopTenInfos()))
             .openedStoreTopTenItems(toOpenedStoreTopTenItems(info.openedStoreTopTenInfos()))
@@ -60,6 +63,8 @@ public class DistrictPresenter {
 
     public DistrictDetailResponse toDistrictDetailResponse(DistrictDetailInfo info) {
         return DistrictDetailResponse.builder()
+            .currentPeriodCode(info.currentPeriodCode())
+            .previousPeriodCode(info.previousPeriodCode())
             .changeIndicator(toChangeIndicatorDistrictResponse(info.changeIndicator()))
             .footTraffic(toFootTrafficDistrictDetailResponse(info.footTraffic()))
             .store(toDistrictStoreDetailResponse(info.store()))
@@ -69,6 +74,7 @@ public class DistrictPresenter {
 
     public ChangeIndicatorDistrictResponse toChangeIndicatorDistrictResponse(DistrictChangeIndicatorInfo info) {
         return ChangeIndicatorDistrictResponse.builder()
+            .currentPeriodCode(info.currentPeriodCode())
             .changeIndicatorCode(info.changeIndicatorCode())
             .changeIndicatorName(info.changeIndicatorName())
             .averageOpenedMonths(info.averageOpenedMonths())
@@ -78,6 +84,8 @@ public class DistrictPresenter {
 
     public FootTrafficDistrictDetailResponse toFootTrafficDistrictDetailResponse(DistrictFootTrafficDetailInfo info) {
         return FootTrafficDistrictDetailResponse.builder()
+            .currentPeriodCode(info.currentPeriodCode())
+            .previousPeriodCode(info.previousPeriodCode())
             .periodTrend(info.periodTrend())
             .periodTotalFootTrafficList(toDistrictPeriodFootTrafficItems(info.periodTotalFootTrafficList()))
             .timeSlot(toDistrictTimeSlotFootTrafficItem(info.timeSlot()))
@@ -89,6 +97,7 @@ public class DistrictPresenter {
 
     public DistrictStoreDetailResponse toDistrictStoreDetailResponse(DistrictStoreDetailInfo info) {
         return DistrictStoreDetailResponse.builder()
+            .currentPeriodCode(info.currentPeriodCode())
             .topStoreServices(toDistrictStoreServiceTopItems(info.topStoreServices()))
             .topOpenedAdministrations(toDistrictOpenedStoreAdministrationTopItems(info.topOpenedAdministrations()))
             .topClosedAdministrations(toDistrictClosedStoreAdministrationTopItems(info.topClosedAdministrations()))
@@ -97,16 +106,18 @@ public class DistrictPresenter {
 
     public DistrictSalesDetailResponse toDistrictSalesDetailResponse(DistrictSalesDetailInfo info) {
         return DistrictSalesDetailResponse.builder()
+            .currentPeriodCode(info.currentPeriodCode())
+            .previousPeriodCode(info.previousPeriodCode())
             .topSalesServices(toDistrictSalesServiceTopItems(info.topSalesServices()))
             .topSalesAdministrations(toDistrictSalesAdministrationTopItems(info.topSalesAdministrations()))
             .build();
     }
 
-    public DistrictSalesAdministrationDetailResponse toDistrictSalesAdministrationDetailResponse(
-        List<DistrictSalesAdministrationTopInfo> infos
-    ) {
+    public DistrictSalesAdministrationDetailResponse toDistrictSalesAdministrationDetailResponse(DistrictSalesAdministrationDetailInfo info) {
         return DistrictSalesAdministrationDetailResponse.builder()
-            .topSalesAdministrations(toDistrictSalesAdministrationTopItems(infos))
+            .currentPeriodCode(info.currentPeriodCode())
+            .previousPeriodCode(info.previousPeriodCode())
+            .topSalesAdministrations(toDistrictSalesAdministrationTopItems(info.topSalesAdministrations()))
             .build();
     }
 

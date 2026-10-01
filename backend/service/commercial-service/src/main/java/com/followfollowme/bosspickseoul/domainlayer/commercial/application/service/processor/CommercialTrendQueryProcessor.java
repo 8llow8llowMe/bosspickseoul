@@ -47,6 +47,7 @@ public class CommercialTrendQueryProcessor {
         };
 
         return CommercialTrendInfo.builder()
+            .periodCode(latestPeriodCode)
             .commercialCode(commercialCode)
             .serviceCode(serviceCode)
             .metricType(metricType)

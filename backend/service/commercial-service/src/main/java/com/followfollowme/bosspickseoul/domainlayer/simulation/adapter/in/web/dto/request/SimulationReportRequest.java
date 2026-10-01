@@ -38,7 +38,7 @@ public record SimulationReportRequest(
     @NotNull(message = SimulationValidationMessage.FLOOR_TYPE_REQUIRED)
     SimulationFloorType floorType,
 
-    @Schema(description = "기준 분기 코드 (미지정 시 " + AnalysisPeriodDefaults.PERIOD_CODE + ")", example = AnalysisPeriodDefaults.PERIOD_CODE, nullable = true)
+    @Schema(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE, nullable = true)
     @Pattern(regexp = "^\\d{4}[1-4]$", message = SimulationValidationMessage.PERIOD_CODE_PATTERN)
     String periodCode
 ) {

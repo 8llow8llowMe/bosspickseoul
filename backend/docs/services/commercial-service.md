@@ -146,14 +146,14 @@
 ## 트렌드 분석 (신규)
 
 - `GET /api/v1/commercials/{commercialCode}/trend`
-- 파라미터: `serviceCode` (필수), `metricType` (SALES|FOOT_TRAFFIC|STORE), `periodCode` (기본 20261), `periodCount` (1~8, 기본 4)
+- 파라미터: `serviceCode` (필수), `metricType` (SALES|FOOT_TRAFFIC|STORE), `periodCode` (선택, 생략 시 적재 기준 최신 공통 분기), `periodCount` (1~8, 기본 4)
 - `CommercialTrendQueryProcessor` — 분기 코드 역산 → DB 조회 → `PeriodTrendType` 방향 판정
 - 응답: `trendDirection` (INCREASE/DECREASE/STAGNANT), `periods[]` (periodCode, value, changeRate)
 
 ## 업종별 상권 자동 추천 (신규)
 
 - `GET /api/v1/commercials/recommendations/by-service`
-- 파라미터: `serviceCode` (필수), `commercialCodes` (필수), `periodCode` (기본 20261), `topN` (기본 5)
+- 파라미터: `serviceCode` (필수), `commercialCodes` (필수), `periodCode` (선택, 생략 시 적재 기준 최신 공통 분기), `topN` (기본 5)
 - `CommercialCandidateQueryProcessor.resolvePresetFromServiceCode()` — CS1* → AGGRESSIVE_OPPORTUNITY, CS2* → STABLE_LOW_RISK, 기타 → BALANCED
 - 기존 `getTopCandidates()` 파이프라인 재사용, 응답 shape 동일 (`CandidateCommercialsResponse`)
 - 지표 데이터가 없는 상권은 요청 실패가 아니라 점수 산정 제외 대상이다
@@ -403,6 +403,8 @@
 - **장애 시.** 재계산이 DB 오류(`DataAccessException`·`TransactionException`)면 마지막 성공값을 계속 쓰고 다음 재시도를 TTL 뒤로 미룬다(`[analysis-period] catalog refresh failed, serving stale`). 한 번도 계산하지 못했으면 분기를 생략한 요청은 `ANALYSIS_PERIOD_001`(503) 이다. 예시 상수로 떨어지는 폴백은 두지 않는다 — 적재되지 않은 분기를 기본으로 내보내 화면 전체가 「데이터 없음」이 되기 때문이다.
 - **트랜잭션.** 재계산 질의는 어댑터가 `REQUIRES_NEW`(readOnly) 로 따로 연다. 분석 조회 Facade 의 readOnly 트랜잭션 안에서 갱신이 실패하면 Hibernate 가 그 트랜잭션을 rollback-only 로 표시해, stale 로 응답해도 커밋에서 `UnexpectedRollbackException` 이 나기 때문이다. `/periods` Facade 는 트랜잭션을 걸지 않는다.
 - **관측 로그.** 기본 분기가 바뀌면 INFO `[analysis-period] default changed from=… to=… lagging=[…]`, 기본 분기가 가장 앞선 핵심 데이터셋보다 2분기 이상 뒤처지면 WARN. 예외 메시지 대신 예외 유형만 남긴다(접속 정보 노출 방지).
+- **적용 지점.** `CommercialWebFacade`(17 경로)·`DistrictWebFacade`(8, `currentPeriodCode`)·`AdministrationWebFacade`·`SimulationWebFacade.simulate` 가 첫 줄에서 `resolve` 한다. 컨트롤러는 `@RequestParam(required = false)` 로 받아 그대로 넘기고, `CommercialComparisonQuery` 는 생략값을 상수로 채우지 않는다(Facade 가 `withPeriodCode` 로 바꿔 끼운다). 비교 분기는 Processor 가 해석된 현재 분기 기준으로 `PeriodCodeCalculator.resolvePreviousPeriodCode` 로 정한다. `AnalysisPeriodDefaults` 는 Swagger 예시·설명 전용이다.
+- **응답의 실제 분기.** 상권 단건 응답 9종은 최상위 `periodCode`, 자치구·행정동 응답은 `currentPeriodCode`(·`previousPeriodCode`) 를 싣는다. Info 가 도메인 행·Processor 가 실제로 조회한 값을 담고 Presenter 가 옮긴다. 소비 두 응답은 #415 머지 뒤 후속, 자치구 목록은 배열 응답이라 제외했다.
 - **이번 범위 밖.** 게시 시각·스키마 버전(`dataset_release` 미러)은 후속 이슈다. 응답 `datasets[].publishedAt`·`schemaVersion` 은 키만 두고 `null` 이다.
 
 ## 에러코드 (대역 요약)

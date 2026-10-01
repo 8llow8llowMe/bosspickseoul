@@ -65,7 +65,7 @@ public class CommercialWebController {
     @GetMapping("/{commercialCode}/foot-traffic")
     public ResponseEntity<Response<CommercialFootTrafficResponse>> getFootTrafficByPeriodCodeAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialFootTrafficResponse response = commercialWebUseCase
             .getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
@@ -77,7 +77,7 @@ public class CommercialWebController {
     public ResponseEntity<Response<CommercialSalesResponse>> getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @PathVariable String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialSalesResponse response = commercialWebUseCase
             .getSalesByPeriodCodeAndCommercialCodeAndServiceCode(periodCode, commercialCode, serviceCode);
@@ -88,7 +88,7 @@ public class CommercialWebController {
     @GetMapping("/{commercialCode}/facilities")
     public ResponseEntity<Response<CommercialFacilityResponse>> getFacilityByPeriodAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialFacilityResponse response = commercialWebUseCase.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         return ResponseEntity.ok().body(Response.success(response));
@@ -98,7 +98,7 @@ public class CommercialWebController {
     @GetMapping("/{commercialCode}/population")
     public ResponseEntity<Response<CommercialResidentPopulationResponse>> getPopulationByPeriodAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialResidentPopulationResponse response = commercialWebUseCase
             .getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
@@ -111,7 +111,7 @@ public class CommercialWebController {
     @GetMapping("/{commercialCode}/income")
     public ResponseEntity<Response<CommercialIncomeAndExpenseResponse>> getIncomeByPeriodCodeAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialIncomeAndExpenseResponse response = commercialWebUseCase
             .getIncomeByPeriodCodeAndCommercialCode(periodCode, commercialCode);
@@ -123,7 +123,7 @@ public class CommercialWebController {
     public ResponseEntity<Response<CommercialStoreAnalysisResponse>> getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @PathVariable String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialStoreAnalysisResponse response = commercialWebUseCase.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
             periodCode,
@@ -148,7 +148,7 @@ public class CommercialWebController {
     public ResponseEntity<Response<CommercialBenchmarkResponse>> getBenchmarks(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialBenchmarkResponse response = commercialWebUseCase.getBenchmarks(periodCode, commercialCode, serviceCode);
         return ResponseEntity.ok().body(Response.success(response));
@@ -161,7 +161,7 @@ public class CommercialWebController {
         @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "히트맵 지표 타입", required = true, example = "OPPORTUNITY_SCORE") @RequestParam CommercialHeatmapMetricType metricType,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialHeatmapScoresResponse response = commercialWebUseCase
             .getHeatmapScores(periodCode, serviceCode, commercialCodes, metricType);
@@ -178,7 +178,7 @@ public class CommercialWebController {
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
         @Parameter(description = "상위 N (기본 10, 5~30)", example = "10") @RequestParam(defaultValue = "10") @Min(value = 5, message = CommercialValidationMessage.TOP_N_INVALID)
         @Max(value = 30, message = CommercialValidationMessage.TOP_N_INVALID) int topN,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CandidateCommercialsResponse response = commercialWebUseCase.getTopCandidates(
             periodCode, serviceCode, commercialCodes, preset, priorityMetric, topN
@@ -194,7 +194,7 @@ public class CommercialWebController {
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "후보 탐색 프리셋", required = true, example = "BALANCED") @RequestParam CandidatePresetType preset,
         @Parameter(description = "우선 지표 (미지정 시 프리셋 기본값)") @RequestParam(required = false) CommercialHeatmapMetricType priorityMetric,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialHeatmapScoresResponse response = commercialWebUseCase.getCompositeHeatmapScores(
             periodCode,
@@ -214,7 +214,7 @@ public class CommercialWebController {
     public ResponseEntity<Response<CommercialProfileResponse>> getCommercialProfile(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialProfileResponse response = commercialWebUseCase.getCommercialProfile(periodCode, commercialCode, serviceCode);
         return ResponseEntity.ok().body(Response.success(response));
@@ -238,7 +238,7 @@ public class CommercialWebController {
         @Parameter(description = "자치구 코드", required = true, example = "11110") @RequestParam String districtCode,
         @Parameter(description = "행정동 코드", required = true, example = "11110515") @RequestParam String administrationCode,
         @Parameter(description = "서비스 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialSalesSummaryResponse response = commercialWebUseCase.getSalesSummary(
             periodCode,
@@ -256,7 +256,7 @@ public class CommercialWebController {
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "조회 지표 타입", required = true, example = "SALES") @RequestParam CommercialTrendMetricType metricType,
-        @Parameter(description = "기준 분기 코드 (최신 분기)", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode,
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode,
         @Parameter(description = "조회 분기 수 (1~8, 기본 4)") @RequestParam(defaultValue = "4") int periodCount
     ) {
         CommercialTrendResponse response = commercialWebUseCase.getTrend(
@@ -272,7 +272,7 @@ public class CommercialWebController {
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
         @Parameter(description = "자치구 코드", required = true, example = "11110") @RequestParam String districtCode,
         @Parameter(description = "행정동 코드", required = true, example = "11110515") @RequestParam String administrationCode,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode
     ) {
         CommercialIncomeSummaryResponse response = commercialWebUseCase.getIncomeSummary(
             periodCode,
@@ -292,7 +292,7 @@ public class CommercialWebController {
     public ResponseEntity<Response<CandidateCommercialsResponse>> getRecommendationsByService(
         @Parameter(description = "서비스 업종 코드", required = true, example = "CS100001") @RequestParam String serviceCode,
         @Parameter(description = "상권 코드 목록", required = true) @RequestParam List<String> commercialCodes,
-        @Parameter(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String periodCode,
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(required = false) String periodCode,
         @Parameter(description = "상위 N (기본 5, 5~30)", example = "5") @RequestParam(defaultValue = "5") @Min(value = 5, message = CommercialValidationMessage.TOP_N_INVALID)
         @Max(value = 30, message = CommercialValidationMessage.TOP_N_INVALID) int topN
     ) {

@@ -64,6 +64,7 @@ public class CommercialSummaryQueryProcessor {
             .orElseThrow(() -> new CommercialSummaryException(CommercialSummaryErrorCode.SALES_NOT_FOUND, "상권"));
 
         return CommercialSalesSummaryInfo.builder()
+            .periodCode(periodCode)
             .district(districtSummary)
             .administration(administrationSummary)
             .commercial(commercialSummary)

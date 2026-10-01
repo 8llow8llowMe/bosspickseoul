@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeGenderPercentItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesCountByDayOfWeekItem;
@@ -13,6 +14,9 @@ import lombok.Builder;
 @Builder
 @Schema(description = "상권&업종의 매출 정보 조회 응답")
 public record CommercialSalesResponse(
+
+    @Schema(description = "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)", example = AnalysisPeriodDefaults.PERIOD_CODE)
+    String periodCode,
 
     @Schema(description = "시간대별 매출액")
     CommercialSalesByTimeSlotItem amountByTimeSlotItem,

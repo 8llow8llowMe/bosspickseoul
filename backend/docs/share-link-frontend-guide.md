@@ -70,6 +70,10 @@ Content-Type: application/json
 - 같은 화면 상태를 다시 공유하면 새 코드가 아니라 **기존 코드가 재사용**되고 만료만 연장된다
   (key 순서가 달라도 같은 상태로 인식). 공유 버튼 연타에 안전하다.
 - 유효 기간은 기본 90일이며 응답의 `expiresAt`으로 확인한다.
+- **payload 의 `periodCode` 에는 항상 해석된 분기를 넣는다**(이슈 #464). 분석 API 는 분기를 생략하면 적재 기준 최신 공통 분기로
+  해석하므로, 생략한 채 공유하면 새 분기가 적재될 때마다 같은 링크가 다른 분기를 보여 준다. 화면이 받은 응답의 `periodCode`
+  (자치구·행정동은 `currentPeriodCode`) 또는 `GET /api/v1/commercials/periods` 의 `defaultPeriodCode` 를 그대로 쓴다.
+  서버는 payload 를 불투명 JSON 으로 저장만 하므로 이 규칙을 대신 지켜 주지 않는다. 분석 보관함·커뮤니티 초안도 같다.
 
 ## 공유 링크 해석 (`/s/{shareCode}` 라우트)
 

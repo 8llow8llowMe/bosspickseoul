@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.application.service;
 
+import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.service.processor.AnalysisPeriodCatalogProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response.CandidateCommercialsResponse;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response.CommercialBenchmarkResponse;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response.CommercialComparePreviewResponse;
@@ -73,6 +74,10 @@ import org.springframework.transaction.annotation.Transactional;
  * 삼키는 지점 안쪽에 트랜잭션 경계를 만들면 참여 트랜잭션이 rollback-only 로 표시돼 예외를 삼켰는데도 상위
  * 커밋이 {@code UnexpectedRollbackException} 으로 깨진다. 여러 조회를 실제로 한 단위로 묶는 곳
  * ({@code CommercialSummaryQueryProcessor.getSalesSummary})에만 Processor 트랜잭션을 둔다.
+ *
+ * <p>분기 종속 유스케이스는 <b>첫 줄에서</b> {@code periodCode} 를 {@link AnalysisPeriodCatalogProcessor#resolve(String)} 로 해석한다
+ * (이슈 #464). 생략·빈 값이면 적재된 팩트 테이블 기준 최신 공통 분기이고, 정할 수 없으면 503 이다. 카탈로그는 인스턴스 메모리
+ * 캐시라 readOnly 트랜잭션 안에서 불러도 짧고, 재계산이 필요하면 어댑터가 별도 트랜잭션을 연다.
  */
 @Service
 @RequiredArgsConstructor
@@ -95,6 +100,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     private final AnalysisViewPublishProcessor analysisViewPublishProcessor;
     private final CommercialSummaryQueryProcessor commercialSummaryQueryProcessor;
     private final CommercialSummaryPresenter commercialSummaryPresenter;
+    private final AnalysisPeriodCatalogProcessor analysisPeriodCatalogProcessor;
 
     @Override
     @Transactional(readOnly = true)
@@ -106,6 +112,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialFootTrafficResponse getFootTrafficByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialFootTrafficInfo info = commercialQueryProcessor.getFootTrafficByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         // 상권 상세 진입의 대표 신호로 이 API 를 사용한다 (화면당 1회 호출).
         // 포트 계약상 절대 예외를 던지지 않아 본 조회 응답에는 영향이 없다.
@@ -117,6 +124,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialSalesResponse getSalesByPeriodCodeAndCommercialCodeAndServiceCode(String periodCode, String commercialCode, String serviceCode) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialSalesInfo info = commercialQueryProcessor.getSalesByPeriodCodeAndCommercialCodeAndServiceCode(
             periodCode, commercialCode, serviceCode);
         return commercialPresenter.toCommercialSalesResponse(info);
@@ -125,6 +133,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialFacilityResponse getFacilityByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialFacilityInfo info = commercialQueryProcessor.getFacilityByPeriodAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toCommercialFacilityResponse(info);
     }
@@ -132,6 +141,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommercialResidentPopulationResponse getPopulationByPeriodAndCommercialCode(String periodCode, String commercialCode) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialResidentPopulationInfo info = commercialQueryProcessor.getPopulationByPeriodAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toCommercialPopulationResponse(info);
     }
@@ -139,6 +149,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
     public CommercialIncomeAndExpenseResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialIncomeAndExpenseInfo info = commercialExpenseProvenanceProcessor
             .getExpenseByPeriodCodeAndCommercialCode(periodCode, commercialCode);
         return commercialPresenter.toCommercialIncomeResponse(info);
@@ -149,6 +160,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialStoreAnalysisResponse getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
         String periodCode, String commercialCode, String serviceCode
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialStoreAnalysisInfo info = commercialQueryProcessor.getStoreByPeriodCodeAndCommercialCodeAndServiceCode(
             periodCode,
             commercialCode,
@@ -160,6 +172,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
     public CommercialComparisonResponse compareCommercials(CommercialComparisonQuery query) {
+        query = query.withPeriodCode(analysisPeriodCatalogProcessor.resolve(query.periodCode()));
         CommercialComparisonInfo info = commercialComparisonQueryProcessor.compareCommercials(query);
         return commercialPresenter.toCommercialComparisonResponse(info);
     }
@@ -167,6 +180,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
     public CommercialBenchmarkResponse getBenchmarks(String periodCode, String commercialCode, String serviceCode) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialBenchmarkInfo info = commercialBenchmarkQueryProcessor.getBenchmarks(periodCode, commercialCode, serviceCode);
         return commercialPresenter.toCommercialBenchmarkResponse(info);
     }
@@ -176,6 +190,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialHeatmapScoresResponse getHeatmapScores(
         String periodCode, String serviceCode, List<String> commercialCodes, CommercialHeatmapMetricType metricType
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialHeatmapScoresResponseInfo info = commercialHeatmapQueryProcessor.getHeatmapScores(
             periodCode,
             serviceCode,
@@ -191,6 +206,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
         String periodCode, String serviceCode, List<String> commercialCodes, CandidatePresetType preset,
         CommercialHeatmapMetricType priorityMetric, int topN
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CandidateCommercialsResponseInfo info = commercialCandidateQueryProcessor.getTopCandidates(
             periodCode, serviceCode, commercialCodes, preset, priorityMetric, topN
         );
@@ -202,6 +218,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialHeatmapScoresResponse getCompositeHeatmapScores(
         String periodCode, String serviceCode, List<String> commercialCodes, CandidatePresetType preset, CommercialHeatmapMetricType priorityMetric
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialHeatmapScoresResponseInfo info = commercialCandidateQueryProcessor.getCompositeHeatmapScores(
             periodCode,
             serviceCode,
@@ -215,6 +232,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     /** 지역 서비스 Feign 이 섞이는 유스케이스라 트랜잭션을 걸지 않는다. 사유는 클래스 javadoc 참고. */
     @Override
     public CommercialProfileResponse getCommercialProfile(String periodCode, String commercialCode, String serviceCode) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialProfileInfo info = commercialProfileQueryProcessor.getProfile(periodCode, commercialCode, serviceCode);
         // 프로필이 확정한 자치구로 정책을 찾는다. 요청에는 자치구가 없고 상권 코드만 오기 때문이다.
         PolicyRecommendationInfo policyInfo = policyQueryProcessor.getRecommendations(
@@ -228,6 +246,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
      */
     @Override
     public CommercialComparePreviewResponse getCommercialComparePreview(CommercialComparisonQuery query) {
+        query = query.withPeriodCode(analysisPeriodCatalogProcessor.resolve(query.periodCode()));
         CommercialComparePreviewInfo info = commercialComparePreviewQueryProcessor.getPreview(query);
         return commercialPresenter.toCommercialComparePreviewResponse(info);
     }
@@ -237,6 +256,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialSalesSummaryResponse getSalesSummary(
         String periodCode, String districtCode, String administrationCode, String commercialCode, String serviceCode
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialSalesSummaryInfo info = commercialSummaryQueryProcessor.getSalesSummary(
             periodCode,
             districtCode,
@@ -255,6 +275,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialIncomeSummaryResponse getIncomeSummary(
         String periodCode, String districtCode, String administrationCode, String commercialCode
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialIncomeSummaryInfo info = commercialSummaryQueryProcessor.getIncomeSummary(
             periodCode,
             districtCode,
@@ -269,6 +290,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CommercialTrendResponse getTrend(
         String periodCode, String commercialCode, String serviceCode, CommercialTrendMetricType metricType, int periodCount
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CommercialTrendInfo info = commercialTrendQueryProcessor.getTrend(
             commercialCode, serviceCode, metricType, periodCode, periodCount);
         return commercialPresenter.toCommercialTrendResponse(info);
@@ -279,6 +301,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     public CandidateCommercialsResponse getRecommendationsByService(
         String periodCode, String serviceCode, List<String> commercialCodes, int topN
     ) {
+        periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
         CandidateCommercialsResponseInfo info = commercialCandidateQueryProcessor.getTopCandidatesByService(
             periodCode, serviceCode, commercialCodes, topN);
         return commercialPresenter.toCandidateCommercialsResponse(info);

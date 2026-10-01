@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialTrendItemDto;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialTrendMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.enums.PeriodTrendType;
@@ -10,6 +11,9 @@ import lombok.Builder;
 @Builder
 @Schema(description = "상권 트렌드 분석 응답 DTO")
 public record CommercialTrendResponse(
+
+    @Schema(description = "추이의 기준(최신) 분기. periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)", example = AnalysisPeriodDefaults.PERIOD_CODE)
+    String periodCode,
 
     @Schema(description = "상권 코드", example = "3110008")
     String commercialCode,

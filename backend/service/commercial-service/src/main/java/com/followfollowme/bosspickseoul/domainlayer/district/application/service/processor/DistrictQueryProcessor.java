@@ -13,6 +13,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.info.fo
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictMetricValueInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictPeriodFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictTimeSlotFootTrafficInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesAdministrationDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesAdministrationTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesServiceTopInfo;
@@ -86,6 +87,8 @@ public class DistrictQueryProcessor {
 
         // 3. Summary Info 조립
         return DistrictTopTenSummaryInfo.builder()
+            .currentPeriodCode(currentPeriodCode)
+            .previousPeriodCode(resolvedPreviousPeriodCode)
             .footTrafficTopTenInfos(footTrafficTopTenInfos)
             .salesTopTenInfos(salesTopTenInfos)
             .openedStoreTopTenInfos(openedStoreTopTenInfos)
@@ -103,6 +106,8 @@ public class DistrictQueryProcessor {
 
         // 2. Detail Info 조립
         return DistrictDetailInfo.builder()
+            .currentPeriodCode(currentPeriodCode)
+            .previousPeriodCode(footTrafficInfo.previousPeriodCode())
             .districtName(changeInfo.districtName())
             .changeIndicator(changeInfo)
             .footTraffic(footTrafficInfo)
@@ -116,6 +121,7 @@ public class DistrictQueryProcessor {
         // 2. Info 변환
         return changeDistrictRepositoryPort.findByPeriodCodeAndDistrictCode(currentPeriodCode, districtCode)
             .map(change -> DistrictChangeIndicatorInfo.builder()
+                .currentPeriodCode(currentPeriodCode)
                 .districtName(change.districtName())
                 .changeIndicatorCode(change.changeIndicatorCode())
                 .changeIndicatorName(change.changeIndicatorName())
@@ -203,6 +209,8 @@ public class DistrictQueryProcessor {
 
         // 6. 유동인구 Detail Info 조립
         return DistrictFootTrafficDetailInfo.builder()
+            .currentPeriodCode(currentPeriodCode)
+            .previousPeriodCode(resolvedPreviousPeriodCode)
             .periodTrend(resolveTrend(previousTotal, currentTotal).toMetadata())
             .periodTotalFootTrafficList(periodTotalFootTrafficList)
             .timeSlot(timeSlotInfo)
@@ -216,6 +224,7 @@ public class DistrictQueryProcessor {
         // 1. 점포 상세 조회
         // 2. Store Info 조립
         return DistrictStoreDetailInfo.builder()
+            .currentPeriodCode(currentPeriodCode)
             .topStoreServices(
                 storeDistrictRepositoryPort.findTopEightByTotalStore(currentPeriodCode, districtCode)
                     .stream()
@@ -244,6 +253,8 @@ public class DistrictQueryProcessor {
 
         // 2. 업종/행정동 Top5 조회
         return DistrictSalesDetailInfo.builder()
+            .currentPeriodCode(currentPeriodCode)
+            .previousPeriodCode(resolvedPreviousPeriodCode)
             .topSalesServices(
                 salesDistrictRepositoryPort.findTopFiveServiceBySales(districtCode, currentPeriodCode, resolvedPreviousPeriodCode)
                     .stream()
@@ -257,7 +268,7 @@ public class DistrictQueryProcessor {
             .build();
     }
 
-    public List<DistrictSalesAdministrationTopInfo> getDistrictSalesAdministrationTopFiveDetail(
+    public DistrictSalesAdministrationDetailInfo getDistrictSalesAdministrationTopFiveDetail(
 
         String districtCode, String currentPeriodCode, String previousPeriodCode
     ) {
@@ -266,13 +277,18 @@ public class DistrictQueryProcessor {
             periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
 
         // 2. 행정동 매출 Top5 조회
-        return salesAdministrationRepositoryPort.findTopFiveByDistrictCode(
+        List<DistrictSalesAdministrationTopInfo> topSalesAdministrations = salesAdministrationRepositoryPort.findTopFiveByDistrictCode(
                 districtCode,
                 currentPeriodCode,
                 resolvedPreviousPeriodCode
             ).stream()
             .map(DistrictSalesAdministrationTopInfo::from)
             .toList();
+        return DistrictSalesAdministrationDetailInfo.builder()
+            .currentPeriodCode(currentPeriodCode)
+            .previousPeriodCode(resolvedPreviousPeriodCode)
+            .topSalesAdministrations(topSalesAdministrations)
+            .build();
     }
 
     public List<DistrictAreaInfo> getAllDistricts(String currentPeriodCode) {

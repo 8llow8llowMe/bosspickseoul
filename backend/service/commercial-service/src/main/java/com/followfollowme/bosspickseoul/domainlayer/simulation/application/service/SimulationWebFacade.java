@@ -1,6 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.simulation.application.service;
 
-import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
+import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.service.processor.AnalysisPeriodCatalogProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.request.SimulationHistorySaveRequest;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.request.SimulationReportRequest;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.response.SimulationFranchiseesResponse;
@@ -27,6 +27,7 @@ public class SimulationWebFacade implements SimulationWebUseCase {
     private final SimulationReportProcessor simulationReportProcessor;
     private final SimulationHistoryProcessor simulationHistoryProcessor;
     private final SimulationPresenter simulationPresenter;
+    private final AnalysisPeriodCatalogProcessor analysisPeriodCatalogProcessor;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,7 +52,8 @@ public class SimulationWebFacade implements SimulationWebUseCase {
             .serviceCode(request.serviceCode())
             .storeSize(request.storeSize())
             .floorType(request.floorType())
-            .periodCode(request.periodCode() == null ? AnalysisPeriodDefaults.PERIOD_CODE : request.periodCode())
+            // 생략된 분기는 적재 기준 기본 분기로 해석한다(이슈 #464). 상수로 채우지 않는다.
+            .periodCode(analysisPeriodCatalogProcessor.resolve(request.periodCode()))
             .build();
         return simulationPresenter.toReportResponse(simulationReportProcessor.simulate(command));
     }

@@ -20,12 +20,12 @@ public record CommercialComparisonQuery(
     @NotBlank(message = CommercialValidationMessage.SERVICE_CODE_REQUIRED)
     String serviceCode,
 
-    @Schema(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE,
-        defaultValue = AnalysisPeriodDefaults.PERIOD_CODE)
+    @Schema(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE, nullable = true)
     String periodCode
 ) {
 
-    public CommercialComparisonQuery {
-        periodCode = (periodCode == null || periodCode.isBlank()) ? AnalysisPeriodDefaults.PERIOD_CODE : periodCode;
+    /** 생략된 분기를 Facade 가 적재 기준 기본 분기로 해석한 뒤 바꿔 끼운다(이슈 #464). 여기서 상수로 채우지 않는다. */
+    public CommercialComparisonQuery withPeriodCode(String resolvedPeriodCode) {
+        return new CommercialComparisonQuery(leftCommercialCode, rightCommercialCode, serviceCode, resolvedPeriodCode);
     }
 }
