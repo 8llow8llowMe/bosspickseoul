@@ -156,7 +156,7 @@
 
 **`GET /heatmap` — 단일 지표 히트맵**
 ```
-?periodCode=20233&serviceCode=CS100001
+?periodCode=20261&serviceCode=CS100001
 &commercialCodes=3110008,3110015,...  (지도 뷰포트 내 상권 코드 목록)
 &metricType=OPPORTUNITY_SCORE
 ```
@@ -166,7 +166,7 @@
 
 **`GET /heatmap-composite` — 복합 히트맵**
 ```
-?periodCode=20233&serviceCode=CS100001&commercialCodes=...
+?periodCode=20261&serviceCode=CS100001&commercialCodes=...
 &preset=YOUTH_STARTUP&priorityMetric=OPPORTUNITY_SCORE
 ```
 
@@ -204,7 +204,7 @@
 
 **`GET /candidates` — 프리셋 기반 상위 N개**
 ```
-?periodCode=20233&serviceCode=CS100001&commercialCodes=...
+?periodCode=20261&serviceCode=CS100001&commercialCodes=...
 &preset=YOUTH_STARTUP&topN=10
 ```
 
@@ -243,7 +243,7 @@
 
 **`GET /recommendations/by-service` — 업종 코드 자동 프리셋**
 ```
-?periodCode=20233&serviceCode=CS100001&commercialCodes=...&topN=5
+?periodCode=20261&serviceCode=CS100001&commercialCodes=...&topN=5
 ```
 - 업종 코드로 프리셋 자동 결정: CS1* → 공격형, CS2* → 안정형, 그 외 → 균형형
 - 사용자가 프리셋을 선택하지 않아도 "이 업종엔 이런 상권이 좋아요" 자동 추천
@@ -257,13 +257,13 @@
 | GET | `/api/v1/commercials/{commercialCode}/profile` | 지도에서 상권 클릭 시 오른쪽 패널 |
 
 ```
-?periodCode=20233&serviceCode=CS100001
+?periodCode=20261&serviceCode=CS100001
 ```
 
 응답 예시:
 ```json
 {
-  "periodCode": "20233",
+  "periodCode": "20261",
   "serviceCode": "CS100001",
   "commercialCode": "3110008",
   "commercialName": "강남역 상권",
@@ -286,7 +286,7 @@
 ```
 
 **프론트 활용:**
-- `"2023년 3분기 기준"` → `periodCode` 파싱: `20233` → `2023년 3분기`
+- `"2026년 1분기 기준"` → `periodCode` 파싱: `20261` → `2026년 1분기`
 - `peakSalesTimeSlot` → **"저녁 장사가 강한 상권"** 배지
 - `dominantSalesAgeGroup` → **"30대 주요 상권"** 태그
 - `openingRate` > `closureRate` → **"활성화 상권"** 표시
@@ -309,7 +309,7 @@
 
 **`GET /trend` — 분기별 트렌드**
 ```
-?serviceCode=CS100001&metricType=SALES&periodCode=20233&periodCount=4
+?serviceCode=CS100001&metricType=SALES&periodCode=20261&periodCount=4
 ```
 - `metricType`: `SALES` / `FOOT_TRAFFIC` / `STORE`
 - `periodCount`: 1~8 (기본 4분기)
@@ -338,7 +338,7 @@
 | GET | `/api/v1/commercials/{code}/summaries/income` | 같은 화면의 지출 비교 (행이 없는 지역 단위는 `null`. 상권 leg 는 네이티브가 없으면 행정동 총액으로 대체하고 출처는 `commercialProvenance`) |
 
 ```
-?periodCode=20233&districtCode=11680&administrationCode=1168010100&serviceCode=CS100001
+?periodCode=20261&districtCode=11680&administrationCode=1168010100&serviceCode=CS100001
 ```
 - 3개 계층(상권·행정동·자치구)의 매출을 한 번에 비교하는 개요 화면용
 
@@ -354,7 +354,7 @@
 **`GET /compare`**
 ```
 ?leftCommercialCode=3110008&rightCommercialCode=3110015
-&serviceCode=CS100001&periodCode=20233
+&serviceCode=CS100001&periodCode=20261
 ```
 - 좌/우 상권 코드 2개를 query param으로 — 비교 API에서 path param보다 query param이 관례
 - 응답: 지표별 좌우 값 + 차이값 + 승자 측 + AI 추천 요약
@@ -521,7 +521,7 @@ POST /api/v1/community/posts/drafts/commercial-comparisons
   "leftCommercialCode": "3110008",
   "rightCommercialCode": "3110015",
   "serviceCode": "CS100001",
-  "periodCode": "20233"
+  "periodCode": "20261"
 }
 ```
 - 비교 분석 완료 후 "커뮤니티에 공유하기" 버튼 클릭 시 사용
@@ -631,7 +631,7 @@ AI 리포트 4종 전부 **비동기 제출 + SSE/폴링** 패턴을 사용한�
 
 **`POST /ai-reports/commercials/{commercialCode}`** — 제출
 ```
-?serviceCode=CS100001&periodCode=20233
+?serviceCode=CS100001&periodCode=20261
 ```
 
 응답 분기:

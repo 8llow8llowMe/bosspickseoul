@@ -61,10 +61,10 @@
 ```json
 { "franchisee": true, "franchiseeId": 101,
   "districtCode": "11740", "serviceCode": "CS100001",
-  "storeSize": 66, "floorType": "FIRST_FLOOR", "periodCode": "20233" }
+  "storeSize": 66, "floorType": "FIRST_FLOOR", "periodCode": "20261" }
 ```
 
-- `franchisee=false`면 `franchiseeId` 생략. `periodCode`는 생략 시 20233 (성별·연령/성수기 분석 기준 분기).
+- `franchisee=false`면 `franchiseeId` 생략. `periodCode`는 생략 시 20261 (성별·연령/성수기 분석 기준 분기).
 - `floorType`: `FIRST_FLOOR` / `OTHER` enum 문자열.
 
 응답 구조와 화면 매핑:

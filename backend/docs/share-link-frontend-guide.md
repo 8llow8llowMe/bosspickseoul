@@ -46,7 +46,7 @@ Content-Type: application/json
   "payload": {
     "commercialCode": "3110008",
     "serviceCode": "CS100001",
-    "periodCode": "20233"
+    "periodCode": "20261"
   }
 }
 ```
@@ -86,7 +86,7 @@ GET /api/v1/share-links/a1B2c3D4
   "dataHeader": { "resultCode": "SUCCESS" },
   "dataBody": {
     "shareType": { "code": "COMMERCIAL_ANALYSIS", "name": "상권 분석", "description": "상권 상세 분석 화면" },
-    "payload": { "commercialCode": "3110008", "serviceCode": "CS100001", "periodCode": "20233" },
+    "payload": { "commercialCode": "3110008", "serviceCode": "CS100001", "periodCode": "20261" },
     "createdAt": "2026-08-07T12:34:56",
     "expiresAt": "2026-11-05T12:34:56"
   }

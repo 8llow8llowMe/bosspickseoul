@@ -144,14 +144,14 @@
 ## 트렌드 분석 (신규)
 
 - `GET /api/v1/commercials/{commercialCode}/trend`
-- 파라미터: `serviceCode` (필수), `metricType` (SALES|FOOT_TRAFFIC|STORE), `periodCode` (기본 20233), `periodCount` (1~8, 기본 4)
+- 파라미터: `serviceCode` (필수), `metricType` (SALES|FOOT_TRAFFIC|STORE), `periodCode` (기본 20261), `periodCount` (1~8, 기본 4)
 - `CommercialTrendQueryProcessor` — 분기 코드 역산 → DB 조회 → `PeriodTrendType` 방향 판정
 - 응답: `trendDirection` (INCREASE/DECREASE/STAGNANT), `periods[]` (periodCode, value, changeRate)
 
 ## 업종별 상권 자동 추천 (신규)
 
 - `GET /api/v1/commercials/recommendations/by-service`
-- 파라미터: `serviceCode` (필수), `commercialCodes` (필수), `periodCode` (기본 20233), `topN` (기본 5)
+- 파라미터: `serviceCode` (필수), `commercialCodes` (필수), `periodCode` (기본 20261), `topN` (기본 5)
 - `CommercialCandidateQueryProcessor.resolvePresetFromServiceCode()` — CS1* → AGGRESSIVE_OPPORTUNITY, CS2* → STABLE_LOW_RISK, 기타 → BALANCED
 - 기존 `getTopCandidates()` 파이프라인 재사용, 응답 shape 동일 (`CandidateCommercialsResponse`)
 - 지표 데이터가 없는 상권은 요청 실패가 아니라 점수 산정 제외 대상이다

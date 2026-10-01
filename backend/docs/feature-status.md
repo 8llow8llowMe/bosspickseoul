@@ -235,7 +235,7 @@ wire → `QueryResult` 는 전수 대조한다
 |----------|------|------|
 | `serviceCode` | ✅ | 업종 코드 |
 | `metricType` | ✅ | `SALES` / `FOOT_TRAFFIC` / `STORE` |
-| `periodCode` | 기본 `20233` | 기준 최신 분기 코드 |
+| `periodCode` | 기본 `20261`(`AnalysisPeriodDefaults.PERIOD_CODE`) | 기준 최신 분기 코드 |
 | `periodCount` | 기본 `4`, 최대 `8` | 조회 분기 수 |
 
 **응답 필드**: `commercialCode`, `serviceCode`, `metricType`, `trendDirection` (INCREASE/DECREASE/STAGNANT), `periods[]` (periodCode, value, changeRate)
@@ -262,7 +262,7 @@ wire → `QueryResult` 는 전수 대조한다
 |----------|------|------|
 | `serviceCode` | ✅ | 업종 코드 (프리셋 자동 선택에 사용) |
 | `commercialCodes` | ✅ | 상권 코드 목록 |
-| `periodCode` | 기본 `20233` | 기준 분기 코드 |
+| `periodCode` | 기본 `20261`(`AnalysisPeriodDefaults.PERIOD_CODE`) | 기준 분기 코드 |
 | `topN` | 기본 `5`, 범위 `5~30` | 추천 상위 N |
 
 **serviceCode → 프리셋 매핑** (`CommercialCandidateQueryProcessor.resolvePresetFromServiceCode`):
