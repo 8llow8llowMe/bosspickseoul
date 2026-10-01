@@ -55,6 +55,17 @@ const comments = structuredClone(
     comment => comment.postId === detail.postId,
   ),
 ) as CommunityComment[]
+/* 픽스처 첫 글은 대상이 없다. 레일(이 지역 최신 글)은 대상이 있는 글에만 있다. */
+const districtDetail: CommunityPostDetail = {
+  ...detail,
+  targetType: {
+    code: 'DISTRICT',
+    name: '자치구',
+    description: '자치구 게시판',
+  },
+  targetCode: '11680',
+  targetName: '강남구',
+}
 const relatedPosts = structuredClone(
   communityMockFixtures.posts.slice(1, 4),
 ) as CommunityPostSummary[]
@@ -136,13 +147,13 @@ const renderWithStyles = (
 
 describe('CommunityDetailView', () => {
   it('renders the complete article, comments, replies, related posts, and writer nicknames', () => {
-    const { markup } = renderWithStyles()
+    const { markup } = renderWithStyles({ detail: districtDetail })
 
     expect(markup).toContain('data-community-article="true"')
     expect(markup).toContain('data-community-region-sidebar="true"')
     expect(markup).toContain(detail.title)
     expect(markup).toContain(detail.content)
-    expect(markup).toContain('서울 전체')
+    expect(markup).toContain('강남구 최신 글')
     expect(markup).toContain(`조회 ${detail.viewCount}`)
     expect(markup).toContain(comments[0]!.content)
     expect(markup).toContain(comments[0]!.replies[0]!.content)
@@ -255,7 +266,7 @@ describe('CommunityDetailView', () => {
   })
 
   it('centers the read column and the 300px rail together at 1080 and makes the rail sticky only there', () => {
-    const { styles } = renderWithStyles()
+    const { styles } = renderWithStyles({ detail: districtDetail })
 
     expect(styles).toMatch(/display:grid/)
     expect(styles).toContain('justify-content:center')
@@ -357,6 +368,40 @@ describe('CommunityDetailView', () => {
     expect(markup).not.toContain('textarea aria-label="답글 내용"')
   })
 
+  /*
+    반응 바의 「댓글」은 이 data 속성으로 입력 자리를 찾는다. aria-label 문구에 묶으면 문구를
+    다듬는 순간 버튼이 조용히 아무것도 안 하게 된다.
+  */
+  it('marks the comment entry — the root textarea for members, the login CTA for guests', () => {
+    const member = renderWithStyles().markup
+    const guest = renderWithStyles({
+      mockEnabled: false,
+      viewer: { authenticated: false, memberId: null },
+    }).markup
+
+    expect(member).toMatch(
+      /<textarea[^>]*aria-label="댓글 내용"[^>]*data-community-comment-entry="true"/,
+    )
+    expect(member.match(/data-community-comment-entry=/g)).toHaveLength(1)
+    expect(guest).toMatch(
+      /<button[^>]*aria-label="로그인하고 댓글 작성"[^>]*data-community-comment-entry="true"/,
+    )
+    expect(guest.match(/data-community-comment-entry=/g)).toHaveLength(1)
+  })
+
+  it('uses only 16·18·24 icons (DESIGN.md Icon Sizing Scale)', () => {
+    const { markup } = renderWithStyles({
+      detail: districtDetail,
+      editHref: '/community/register?postId=1',
+    })
+    const sizes = Array.from(markup.matchAll(/<svg[^>]*\swidth="(\d+)"/g)).map(
+      match => Number(match[1]),
+    )
+
+    expect(sizes.length).toBeGreaterThan(0)
+    expect(sizes.filter(size => ![16, 18, 24].includes(size))).toEqual([])
+  })
+
   it('keeps the article visible when comments fail and isolates related failures to the sidebar', () => {
     const commentsError = renderWithStyles({
       commentsStatus: 'error',
@@ -364,6 +409,7 @@ describe('CommunityDetailView', () => {
       commentsErrorMessage: '댓글 요청이 실패했어요.',
     }).markup
     const relatedError = renderWithStyles({
+      detail: districtDetail,
       relatedStatus: 'error',
       relatedPosts: [],
       relatedErrorMessage: '관련 글 요청이 실패했어요.',
@@ -383,17 +429,6 @@ describe('CommunityDetailView — 머리·메타·지역 (개편 1단계)', () =
   afterEach(() => {
     vi.useRealTimers()
   })
-
-  const districtDetail: CommunityPostDetail = {
-    ...detail,
-    targetType: {
-      code: 'DISTRICT',
-      name: '자치구',
-      description: '자치구 게시판',
-    },
-    targetCode: '11680',
-    targetName: '강남구',
-  }
 
   it('writes the date once — relative time in the text, absolute date only in the time title (CM-023)', () => {
     vi.useFakeTimers()
@@ -483,7 +518,35 @@ describe('CommunityDetailView — 머리·메타·지역 (개편 1단계)', () =
     expect(markup).toContain('data-community-region-chip="label"')
     expect(markup).not.toContain('data-community-region-chip="link"')
     expect(markup).not.toContain('href="/community/list?targetType')
-    expect(markup).toContain('서울 전체 최신 글')
+  })
+
+  /*
+    대상이 없는 글은 관련 글을 조회하지 않는다(relatedParams=null → relatedStatus 'empty').
+    그 'empty' 는 「비었다」가 아니라 「묻지 않았다」라, 레일을 그리면 근거 없이 「서울 전체의 다음
+    이야기를 남겨 보세요」를 말하게 된다(community.md §S4 「이 지역 글」).
+  */
+  it('draws no rail for a post without a target and keeps the read column alone and centered at 1080', () => {
+    const { markup, styles } = renderWithStyles({
+      relatedStatus: 'empty',
+      relatedPosts: [],
+    })
+
+    expect(markup).not.toContain('data-community-region-sidebar')
+    expect(markup).not.toContain('최신 글')
+    expect(markup).not.toContain('다음 이야기를 남겨 보세요')
+    expect(markup).not.toContain('href="/community/register')
+    expect(markup).toContain('data-community-layout="single"')
+    // 빈 300 칸을 남기지 않는다 — 2열 트랙 자체가 없다.
+    expect(styles).not.toMatch(/var\(--w-read\)\)\s+300px/)
+    expect(styles).toContain('justify-content:center')
+  })
+
+  it('keeps the rail and the two-track grid when the post has a target', () => {
+    const { markup, styles } = renderWithStyles({ detail: districtDetail })
+
+    expect(markup).toContain('data-community-layout="with-rail"')
+    expect(markup).toContain('data-community-region-sidebar="true"')
+    expect(styles).toMatch(/var\(--w-read\)\)\s+300px/)
   })
 
   it('turns an empty rail into a write prompt for that region', () => {
@@ -565,6 +628,18 @@ describe('CommunityMoreMenuActions (CM-022)', () => {
     expect(markup).toContain('aria-label="게시글 신고"')
     expect(markup).not.toContain('role="menuitem"')
   })
+
+  it('draws 18px icons in both the popover and the sheet rows', () => {
+    for (const variant of ['popover', 'sheet'] as const) {
+      const markup = renderActions({
+        variant,
+        editHref: '/community/register?postId=1',
+      })
+      const sizes = Array.from(markup.matchAll(/<svg[^>]*\swidth="(\d+)"/g))
+
+      expect(sizes.map(match => match[1])).toEqual(['18', '18'])
+    }
+  })
 })
 
 describe('community detail sources — 1단계 규칙', () => {
@@ -591,6 +666,32 @@ describe('community detail sources — 1단계 규칙', () => {
       )
     },
   )
+
+  /*
+    전역 :focus-visible 링(2px blue500)을 끄고 4px 16% 글로우만 남기면 흰 바탕 대비가 ~1.17:1 이라
+    포커스가 보이지 않는다. 테두리가 파랗게 바뀌는 입력칸(DESIGN.md §4 「Focus is one line」)이
+    아니면 링을 끄지 않는다 — 이 두 파일에는 그런 입력칸이 없다.
+  */
+  it.each(sources)(
+    '$path 는 포커스 블록에서 전역 링을 끄지 않는다',
+    ({ source }) => {
+      const focusBlocks = Array.from(
+        source.matchAll(/:focus-visible[^{]*\{([^}]*)\}/g),
+      ).map(match => match[1])
+
+      expect(focusBlocks.length).toBeGreaterThan(0)
+      expect(
+        focusBlocks.filter(body => /outline\s*:\s*(none|0)\b/.test(body ?? '')),
+      ).toEqual([])
+    },
+  )
+
+  it('댓글로 이동은 aria-label 이 아니라 data 속성으로 입력 자리를 찾는다', () => {
+    expect(sources[0]!.source).toContain('[data-community-comment-entry]')
+    expect(sources[0]!.source).not.toMatch(
+      /querySelector[^(]*\([^)]*aria-label/,
+    )
+  })
 
   it('상세 본문은 파란 글자 토큰을 실제로 쓴다', () => {
     expect(sources[0]!.source).toContain('var(--color-text-primary-on-light)')

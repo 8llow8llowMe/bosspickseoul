@@ -6,9 +6,16 @@ import { useEffect, useState } from 'react'
 export const NARROW_VIEWPORT_QUERY = '(max-width: 1024px)'
 
 /**
- * SSR 안전한 `matchMedia` 래퍼. **모바일 지도 언마운트 판정에만** 쓴다.
+ * SSR 안전한 `matchMedia` 래퍼. CSS 로는 못 하고 **렌더 분기 자체를 폭으로 갈라야 할 때만** 쓴다.
+ * 기본 쿼리는 `NARROW_VIEWPORT_QUERY`(≤1024)이고, 호출부가 자기 구간 쿼리를 넘길 수 있다.
  *
- * `null` = 아직 측정 전(SSR·hydration 완료 전)이다. `false` 로 시작하지 않는 이유:
+ * 지금 사용처:
+ * - 분석 지도 셸(`analysis-map-shell.tsx`) — 좁은 폭 + 결과 열림이면 카카오 지도를 언마운트(기본 쿼리)
+ * - 추천 페이지(`recommend-page.tsx`) — 데스크톱 패널 슬롯이 보이는 폭(≥1024)인지
+ * - 커뮤니티 더보기(`community-more-menu.tsx`) — `<480` 바텀시트 / `≥480` 팝오버. 시트는 body
+ *   포털이라 CSS 로 숨길 수 없다
+ *
+ * `null` = 아직 측정 전(SSR·hydration 완료 전)이다. `false` 로 시작하지 않는 이유(분석 지도 셸):
  * 결과 레이어가 열린 상태로 하드 로드되면 첫 페인트에서 지도를 잠깐 마운트했다가
  * 곧바로 언마운트하게 되는데(모바일), 카카오 지도 인스턴스 생성은 모바일에서 가장
  * 비싼 작업이다. "모른다"를 별도 상태로 두면 호출부가

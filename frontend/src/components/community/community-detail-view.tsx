@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -31,7 +32,7 @@ import {
   getCommunityRailRegionName,
   getCommunityRegionName,
   isCommunityPostEdited,
-  shareCommunityPost,
+  shareCommunityPostOnce,
 } from '@/lib/community/post-detail'
 import { sortPostImages } from '@/lib/community/post-images'
 import type {
@@ -100,6 +101,12 @@ export type CommunityDetailViewProps = {
   커뮤니티 구간(DESIGN.md §8 피드형 화면 메모): <480 모바일 · 480–1079 태블릿(--w-read 1단) ·
   ≥1080 데스크톱(본문 --w-read + 레일 300). 레거시 640·768 은 쓰지 않는다.
 */
+/*
+  포커스는 전역 :focus-visible 링(global-styles.ts — 2px blue500, offset 2px) 하나로 보인다.
+  여기 버튼·링크는 테두리가 파랗게 바뀌는 입력칸이 아니라 링을 끄지 않는다 — 링을 끄고
+  --shadow-focus-primary-strong(4px 16%) 글로우만 남기면 흰 바탕 대비가 ~1.17:1 이라 안 보인다.
+  글로우를 링과 겹쳐 두지도 않는다 — DESIGN.md §4 「Focus is one line」.
+*/
 const MOBILE = '@media (max-width: 479px)'
 const TABLET_UP = '@media (min-width: 480px)'
 const DESKTOP = '@media (min-width: 1080px)'
@@ -125,17 +132,23 @@ const Page = styled.main`
   레일 사이가 ≈370px 비었다. 이제 트랙 자체가 --w-read 상한이고 묶음을 가운데로 모은다(CM-020).
   1080 미만은 --w-read 1단이고 레일은 DOM 순서대로 댓글·인접 글 뒤에 온다.
 */
-const Layout = styled.div`
+const Layout = styled.div<{ $withRail?: boolean }>`
   display: grid;
   grid-template-columns: minmax(0, var(--w-read));
   justify-content: center;
   gap: 32px;
 
-  ${DESKTOP} {
-    grid-template-columns: minmax(0, var(--w-read)) 300px;
-    column-gap: 24px;
-    align-items: start;
-  }
+  /* 레일이 없는 글(대상 없음)은 ≥1080 에서도 본문 1열 가운데다 — 빈 300 칸을 남기지 않는다. */
+  ${props =>
+    props.$withRail
+      ? css`
+          ${DESKTOP} {
+            grid-template-columns: minmax(0, var(--w-read)) 300px;
+            column-gap: 24px;
+            align-items: start;
+          }
+        `
+      : null}
 `
 
 const MainColumn = styled.div`
@@ -172,11 +185,6 @@ const BackLink = styled(Link)`
 
   &:hover {
     background: var(--color-background-muted);
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
   }
 `
 
@@ -226,11 +234,6 @@ const RegionChipLink = styled(Link)`
   ${regionChipBase}
   background: var(--color-primary-100);
   color: var(--color-text-primary-on-light);
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 /* 대상이 없는 글. 「서울 전체」로 갈 곳은 목록 첫 화면이라 ← 목록 과 겹친다 — 링크 없는 라벨이다. */
@@ -357,11 +360,6 @@ const ReactionButton = styled.button<{ $active?: boolean }>`
     background: var(--color-background-muted);
   }
 
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
-
   &:disabled {
     cursor: not-allowed;
     opacity: var(--button-disabled-opacity-color);
@@ -445,10 +443,9 @@ const RelatedLink = styled(Link)`
   border-top: 1px solid var(--color-border-200);
   color: var(--color-text-800);
 
+  /* 전역 링(2px blue500)이 위 테두리 선과 직각으로 만나지 않게 모서리만 둥글린다. */
   &:focus-visible {
-    outline: none;
     border-radius: var(--radius-control);
-    box-shadow: var(--shadow-focus-primary-strong);
   }
 `
 
@@ -489,11 +486,6 @@ const RailButton = styled.button`
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 /* 빈 레일의 글쓰기 — 보조 CTA 라 blue50 바탕 + blue700 글자(DESIGN.md §4 Secondary). */
@@ -508,11 +500,6 @@ const RailWriteLink = styled(Link)`
   color: var(--color-text-primary-on-light);
   font-size: 14px;
   font-weight: 700;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 const AdjacentNavigation = styled.nav`
@@ -537,11 +524,6 @@ const AdjacentLink = styled(Link)<{ $next?: boolean }>`
   background: var(--color-surface);
   color: var(--color-text-800);
   text-align: ${props => (props.$next ? 'right' : 'left')};
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 const AdjacentLabel = styled.span`
@@ -592,12 +574,20 @@ function CommunityPostReactions({
   onToggleLike,
 }: CommunityPostReactionsProps) {
   const { showToast } = useToast()
+  // 공유 시트가 떠 있는 동안의 두 번째 누름은 버린다(InvalidStateError·토스트 겹침 방지).
+  const shareInFlightRef = useRef(false)
 
   const handleShare = async () => {
-    const result = await shareCommunityPost(
+    const result = await shareCommunityPostOnce(
+      shareInFlightRef,
       { title, url: createCommunityShareUrl(window.location.href) },
       navigator,
     )
+
+    if (!result) {
+      return
+    }
+
     const toast = COMMUNITY_SHARE_TOAST[result]
 
     if (toast) {
@@ -629,15 +619,14 @@ function CommunityPostReactions({
         type="button"
         aria-label="댓글로 이동"
         onClick={() => {
-          // 로그인한 사람은 입력칸, 비로그인은 그 자리의 「로그인하고 댓글 남기기」로 간다.
-          const target =
-            document.querySelector<HTMLElement>(
-              'textarea[aria-label="댓글 내용"]',
-            ) ??
-            document.querySelector<HTMLElement>(
-              'button[aria-label="로그인하고 댓글 작성"]',
-            )
-          target?.focus()
+          /*
+            로그인한 사람은 입력칸, 비로그인은 그 자리의 「로그인하고 댓글 남기기」로 간다.
+            둘 다 댓글 스레드가 `data-community-comment-entry` 로 표시한다 — 문구(aria-label)에
+            묶으면 문구를 다듬는 순간 이 버튼이 조용히 아무것도 안 한다.
+          */
+          document
+            .querySelector<HTMLElement>('[data-community-comment-entry]')
+            ?.focus()
         }}
       >
         <MessageCircle aria-hidden="true" size={18} />
@@ -699,7 +688,7 @@ export default function CommunityDetailView({
 }: CommunityDetailViewProps) {
   const backLink = (
     <BackLink href={listHref}>
-      <ArrowLeft aria-hidden="true" size={20} />
+      <ArrowLeft aria-hidden="true" size={18} />
       <span>목록</span>
     </BackLink>
   )
@@ -744,9 +733,13 @@ export default function CommunityDetailView({
     detail.analysisType?.name?.trim() || detail.analysisType?.code?.trim() || ''
   const regionHref = createCommunityRegionListHref(detail, mockEnabled)
   const regionName = regionHref ? getCommunityRegionName(detail) : '서울 전체'
-  const railRegionName = regionHref
-    ? getCommunityRailRegionName(detail)
-    : '서울 전체'
+  /*
+    대상이 없는 글은 관련 글을 조회하지 않는다(createCommunityRelatedParams → null). 그때 relatedStatus
+    'empty' 는 「비었다」가 아니라 「묻지 않았다」라 레일 자체를 그리지 않는다(community.md §S4).
+    지역 칩 링크와 같은 판정(대상 종류·코드가 둘 다 유효)을 쓴다.
+  */
+  const showRail = regionHref !== null
+  const railRegionName = getCommunityRailRegionName(detail)
   const edited = isCommunityPostEdited(detail.createdAt, detail.updatedAt)
   /* 글쓰기는 보호 경로라 비로그인이면 미들웨어·작성 화면이 로그인으로 보낸다(돌아올 자리 보존). */
   const writeHref = mockEnabled
@@ -768,7 +761,10 @@ export default function CommunityDetailView({
 
   return (
     <Page>
-      <Layout>
+      <Layout
+        $withRail={showRail}
+        data-community-layout={showRail ? 'with-rail' : 'single'}
+      >
         <MainColumn>
           <HeadRow>
             {backLink}
@@ -961,54 +957,56 @@ export default function CommunityDetailView({
           ) : null}
         </MainColumn>
 
-        <Rail
-          aria-labelledby="community-region-rail-title"
-          data-community-region-sidebar="true"
-        >
-          <RailTitle id="community-region-rail-title">
-            {railRegionName} 최신 글
-          </RailTitle>
-          {relatedStatus === 'loading' ? (
-            <RailMessage role="status">
-              관련 글을 불러오는 중이에요.
-            </RailMessage>
-          ) : relatedStatus === 'error' ? (
-            <>
-              <RailMessage role="alert">
-                {relatedErrorMessage ?? '관련 글을 불러오지 못했어요.'}
+        {showRail ? (
+          <Rail
+            aria-labelledby="community-region-rail-title"
+            data-community-region-sidebar="true"
+          >
+            <RailTitle id="community-region-rail-title">
+              {railRegionName} 최신 글
+            </RailTitle>
+            {relatedStatus === 'loading' ? (
+              <RailMessage role="status">
+                관련 글을 불러오는 중이에요.
               </RailMessage>
-              <RailButton type="button" onClick={onRetryRelated}>
-                다시 시도
-              </RailButton>
-            </>
-          ) : relatedStatus === 'ready' && relatedPosts.length > 0 ? (
-            <RelatedList>
-              {relatedPosts.map(post => (
-                <li key={post.postId}>
-                  <RelatedLink
-                    href={createDetailPostHref(
-                      post.postId,
-                      contextKey,
-                      mockEnabled,
-                    )}
-                  >
-                    <RelatedTitle>{post.title}</RelatedTitle>
-                    <RelatedExcerpt>
-                      {getCommunityExcerpt(post.previewContent, 46)}
-                    </RelatedExcerpt>
-                  </RelatedLink>
-                </li>
-              ))}
-            </RelatedList>
-          ) : (
-            <>
-              <RailMessage>
-                {railRegionName}의 다음 이야기를 남겨 보세요
-              </RailMessage>
-              <RailWriteLink href={writeHref}>글쓰기</RailWriteLink>
-            </>
-          )}
-        </Rail>
+            ) : relatedStatus === 'error' ? (
+              <>
+                <RailMessage role="alert">
+                  {relatedErrorMessage ?? '관련 글을 불러오지 못했어요.'}
+                </RailMessage>
+                <RailButton type="button" onClick={onRetryRelated}>
+                  다시 시도
+                </RailButton>
+              </>
+            ) : relatedStatus === 'ready' && relatedPosts.length > 0 ? (
+              <RelatedList>
+                {relatedPosts.map(post => (
+                  <li key={post.postId}>
+                    <RelatedLink
+                      href={createDetailPostHref(
+                        post.postId,
+                        contextKey,
+                        mockEnabled,
+                      )}
+                    >
+                      <RelatedTitle>{post.title}</RelatedTitle>
+                      <RelatedExcerpt>
+                        {getCommunityExcerpt(post.previewContent, 46)}
+                      </RelatedExcerpt>
+                    </RelatedLink>
+                  </li>
+                ))}
+              </RelatedList>
+            ) : (
+              <>
+                <RailMessage>
+                  {railRegionName}의 다음 이야기를 남겨 보세요
+                </RailMessage>
+                <RailWriteLink href={writeHref}>글쓰기</RailWriteLink>
+              </>
+            )}
+          </Rail>
+        ) : null}
       </Layout>
 
       <CommunityReportDialog

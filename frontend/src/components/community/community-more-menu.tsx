@@ -56,9 +56,13 @@ const itemBase = css`
     background: var(--color-background-muted);
   }
 
+  /*
+    항목은 팝오버(overflow: hidden)·시트 목록(overflow-y: auto) 끝까지 꽉 차서, 전역 링
+    (offset 2px, 바깥쪽)은 가장자리에서 잘린다. 같은 2px primary-700 링을 안쪽으로 그린다.
+  */
   &:focus-visible {
-    outline: none;
-    box-shadow: inset var(--shadow-focus-primary-strong);
+    outline: 2px solid var(--color-primary-700);
+    outline-offset: -2px;
   }
 
   &:disabled {
@@ -114,7 +118,8 @@ export function CommunityMoreMenuActions({
   onReport,
 }: CommunityMoreMenuActionsProps) {
   const role = variant === 'popover' ? 'menuitem' : undefined
-  const iconSize = variant === 'sheet' ? 20 : 18
+  // 버튼 안 아이콘은 18 이다(DESIGN.md Icon Sizing Scale). 시트 행이 더 커도 아이콘은 같다.
+  const iconSize = 18
   const actions = getCommunityPostMenuActions(Boolean(editHref))
 
   return (
@@ -201,10 +206,7 @@ const Trigger = styled.button`
     background: var(--color-background-muted);
   }
 
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
+  /* 포커스는 전역 :focus-visible 링(2px blue500) 그대로다 — 링을 끄고 글로우만 남기면 안 보인다. */
 
   &:disabled {
     cursor: not-allowed;
@@ -266,6 +268,7 @@ export default function CommunityMoreMenu({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
+  const confirmFrameRef = useRef<number | null>(null)
   const sheetMode = narrow === true
   const popoverOpen = open && !sheetMode
 
@@ -297,13 +300,28 @@ export default function CommunityMoreMenu({
   /*
     삭제 확인(window.confirm)은 동기라 같은 핸들러에서 부르면 시트가 그려진 채로 확인 창이 뜬다.
     닫힌 화면이 한 번 그려진 뒤(두 프레임 뒤)에 띄운다. confirm 은 overflow 를 건드리지 않는다.
+    두 프레임 사이에 메뉴가 사라지면(다른 글로 이동 등) 지금 프레임 id 를 들고 있다가 취소한다 —
+    떠난 화면에서 삭제 확인이 뜨면 안 된다.
   */
+  const cancelConfirmFrame = () => {
+    if (confirmFrameRef.current !== null) {
+      cancelAnimationFrame(confirmFrameRef.current)
+      confirmFrameRef.current = null
+    }
+  }
+
   const closeThenConfirm = (action: () => void) => {
     close(!sheetMode)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(action)
+    cancelConfirmFrame()
+    confirmFrameRef.current = requestAnimationFrame(() => {
+      confirmFrameRef.current = requestAnimationFrame(() => {
+        confirmFrameRef.current = null
+        action()
+      })
     })
   }
+
+  useEffect(() => cancelConfirmFrame, [])
 
   // 팝오버를 열면 첫 항목으로 포커스.
   useEffect(() => {
@@ -346,7 +364,17 @@ export default function CommunityMoreMenu({
     return () => document.removeEventListener('pointerdown', handlePointerDown)
   }, [popoverOpen])
 
-  const handlePopoverKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+  /*
+    Esc·Tab 은 트리거와 팝오버를 감싼 Root 에서 받는다. 항목이 전부 비활성이면(인증 준비 전의
+    남의 글 — 신고 하나) 포커스가 팝오버로 못 들어가 트리거에 남는데, 팝오버에서만 받으면
+    Esc 로 닫을 길이 없다. 시트일 때는 건드리지 않는다 — 시트가 자기 Esc·Tab 을 처리하고,
+    포털이라도 React 이벤트는 여기까지 올라온다.
+  */
+  const handleRootKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!popoverOpen) {
+      return
+    }
+
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
@@ -357,9 +385,10 @@ export default function CommunityMoreMenu({
     if (event.key === 'Tab') {
       // 메뉴는 Tab 정지점이 아니다 — 닫고 자연스러운 다음 칸으로 보낸다.
       setOpen(false)
-      return
     }
+  }
 
+  const handlePopoverKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     const items = getItems()
     const current = items.indexOf(document.activeElement as HTMLElement)
     const next = getNextCommunityMenuIndex(items.length, current, event.key)
@@ -392,7 +421,7 @@ export default function CommunityMoreMenu({
   }
 
   return (
-    <Root ref={rootRef}>
+    <Root ref={rootRef} onKeyDown={handleRootKeyDown}>
       <Trigger
         ref={triggerRef}
         aria-label="게시글 더보기"
@@ -411,7 +440,7 @@ export default function CommunityMoreMenu({
           }
         }}
       >
-        <Ellipsis aria-hidden="true" size={20} />
+        <Ellipsis aria-hidden="true" size={18} />
       </Trigger>
 
       {popoverOpen ? (

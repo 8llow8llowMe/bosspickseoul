@@ -155,16 +155,26 @@ export type CommunityShareNavigator = {
 
 export type CommunityShareResult = 'shared' | 'copied' | 'cancelled' | 'failed'
 
-const isAbortError = (error: unknown) =>
+/*
+  조용히 넘기는 share 실패.
+  - AbortError: 사용자가 공유 시트를 닫았다.
+  - InvalidStateError: 앞선 공유 시트가 아직 떠 있다(명세상 「이전 share 가 끝나지 않음」).
+    이건 실패가 아니라 이미 진행 중이라는 뜻이라, 여기서 클립보드로 넘어가면 시트가 뜬 채로
+    「링크를 복사했어요」 토스트가 겹친다.
+*/
+const SILENT_SHARE_ERRORS = new Set(['AbortError', 'InvalidStateError'])
+
+const isSilentShareError = (error: unknown) =>
   typeof error === 'object' &&
   error !== null &&
   'name' in error &&
-  (error as { name: unknown }).name === 'AbortError'
+  SILENT_SHARE_ERRORS.has(String((error as { name: unknown }).name))
 
 /**
  * 공유 분기(community.md §S4 공유).
  *
- * 1. `navigator.share` 가 있으면 그것. 사용자가 닫으면(AbortError) 아무것도 하지 않는다.
+ * 1. `navigator.share` 가 있으면 그것. 사용자가 닫거나(AbortError) 앞선 공유가 아직 진행 중이면
+ *    (InvalidStateError) 아무것도 하지 않는다.
  * 2. share 가 없거나 다른 이유로 실패하면(권한·제스처 만료 등) 주소를 클립보드에 복사.
  * 3. 복사도 안 되면 failed.
  */
@@ -177,7 +187,7 @@ export const shareCommunityPost = async (
       await nav.share(payload)
       return 'shared'
     } catch (error) {
-      if (isAbortError(error)) {
+      if (isSilentShareError(error)) {
         return 'cancelled'
       }
     }
@@ -194,6 +204,29 @@ export const shareCommunityPost = async (
     return 'copied'
   } catch {
     return 'failed'
+  }
+}
+
+/**
+ * 진행 중 가드를 씌운 공유. `inFlight` 는 컴포넌트의 ref 다(렌더를 다시 일으키지 않아도 된다).
+ * 공유 시트가 떠 있는 동안 버튼을 또 누르면 share 를 다시 부르지 않고 null 을 돌려준다 —
+ * 호출부는 토스트를 띄우지 않는다.
+ */
+export const shareCommunityPostOnce = async (
+  inFlight: { current: boolean },
+  payload: CommunitySharePayload,
+  nav: CommunityShareNavigator | undefined,
+): Promise<CommunityShareResult | null> => {
+  if (inFlight.current) {
+    return null
+  }
+
+  inFlight.current = true
+
+  try {
+    return await shareCommunityPost(payload, nav)
+  } finally {
+    inFlight.current = false
   }
 }
 
