@@ -613,7 +613,7 @@ INDEX(status)
 
 ### `batch-service` — 국민연금 자치구 평균소득 적재 (#415 2차)
 
-**상태**: ✅ 배치 코드 완료, commercial-service 조회 반영 완료(`/income` 의 `districtAverageIncome`). 개발 DB DDL 적용·첫 적재, ai-service 프롬프트 반영, 화면 표시(FE 후속 이슈)가 남았다. **commercial-service 배포 전에 DDL 을 먼저 적용한다** — 테이블이 없으면 `/income` 이 실패한다.
+**상태**: ✅ 배치 코드 완료, commercial-service 조회 반영 완료(`/income` 의 `districtAverageIncome`), ai-service 프롬프트 반영 완료(`[소득]` 섹션). 개발 DB DDL 적용·첫 적재, 화면 표시(FE 후속 이슈)가 남았다. **commercial-service 배포 전에 DDL 을 먼저 적용한다** — 테이블이 없으면 `/income` 이 실패한다.
 
 **목적**: 상권 소득(월평균소득)이 2024년 이후 원천에서 끊겼다. 자치구 단위 대체값으로 국민연금공단 「자격 시군구 신고 평균소득월액」(공공데이터포털 3046077)을 `pension_income_district` 에 둔다. 지역가입자 신고 소득의 구 평균이라 상권·주민 전체 소득이 아니다.
 
@@ -622,6 +622,7 @@ INDEX(status)
 - fail-closed: 헤더 순서, 형식, `서울특별시` 접두 + 공간 스냅샷 자치구 이름 정확 일치, 기준년월마다 25구, 서울 행 합계 = `--expected-rows`. 위반을 모두 모아 한 예외로 알린다.
 - 실게시는 기준일 단위 교체(한 트랜잭션). 원본은 `<run-id>-*/source.csv` 로 보관하고 행마다 checksum·run-id 를 남긴다.
 - commercial-service 는 상권 → 소속 자치구의 **요청 분기 말일 이하 최신 기준일** 값을 `/income` 에 `districtAverageIncome { amount, provenance }` 로 싣는다. 값이 없으면 `amount` 만 `null`(`UNAVAILABLE`). 소비 대체와 지역 서비스 조회 하나를 나눠 써 Feign 은 요청당 1회다. 비교·히트맵·후보 추천·벤치마크·점수에는 넣지 않는다. 테이블은 런북 소유라 `ddl-auto` 스키마 필터로 제외한다. 상세: `services/commercial-service.md` 「자치구 평균 소득(대체)」.
+- ai-service 는 상권 리포트 프롬프트의 `[지출]` 다음 `[소득]` 섹션에 `자치구 평균 소득(대체)` 금액과 값을 가져온 자치구·기준일·원천, 면책 「유의」 줄을 싣는다. 값이 없거나 이전 commercial-service 응답(필드 없음)이면 `N/A` 다(0 을 쓰지 않는다). 상세: `services/ai-service.md`.
 
 **DDL**: `scripts/migration/pension-income-district-table.sql`. 절차: `services/batch-quarterly-import.md` 「11. 국민연금 자치구 평균소득 적재」.
 
