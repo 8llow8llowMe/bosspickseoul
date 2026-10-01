@@ -41,15 +41,19 @@ public class CommercialExpenseProvenanceProcessor {
     private final CommercialRegionQueryPort commercialRegionQueryPort;
 
     /**
-     * {@code GET /commercials/{code}/income} 이 쓰는 경로. 행이 없어도 404 를 던지지 않고 중단 사실을 담은
-     * 출처 메타를 돌려준다 — 화면이 「데이터 없음」 줄을 지우지 않고 사유를 보여 줘야 하기 때문이다.
+     * {@code GET /commercials/{code}/income} 이 쓰는 경로. 자치구 평균 소득(대체)도 같은 상권 -> 지역 해석을 쓰므로
+     * {@link CommercialIncomeQueryProcessor} 가 만든 조회 하나를 받아 지역 서비스를 한 요청에 한 번만 부른다. (이슈 #415)
+     *
+     * @param regionLookup {@code commercialCode} 로 만든 상권 -> 지역 해석. 네이티브가 있으면 건드리지 않는다
      */
-    public CommercialIncomeAndExpenseInfo getExpenseByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
+    CommercialIncomeAndExpenseInfo getExpenseByPeriodCodeAndCommercialCode(
+        String periodCode, String commercialCode, CommercialRegionLookup regionLookup
+    ) {
         IncomeCommercial commercialRow = incomeCommercialRepositoryPort
             .findByPeriodCodeAndCommercialCode(periodCode, commercialCode)
             .orElse(null);
 
-        return resolve(periodCode, commercialCode, commercialRow, null);
+        return resolve(periodCode, commercialRow, null, regionLookup);
     }
 
     /**
@@ -66,11 +70,21 @@ public class CommercialExpenseProvenanceProcessor {
     public CommercialIncomeAndExpenseInfo resolve(
         String periodCode, String commercialCode, IncomeCommercial commercialRow, IncomeAdministration preloadedAdministrationRow
     ) {
+        return resolve(periodCode, commercialRow, preloadedAdministrationRow, CommercialRegionLookup.of(commercialRegionQueryPort, commercialCode));
+    }
+
+    /**
+     * 판정 본체. 상권 -> 행정동 해석을 호출부가 넘긴 {@link CommercialRegionLookup} 에서 읽는다 — 같은 요청의 다른 판정이 이미
+     * 해석했으면 지역 서비스를 다시 부르지 않는다. 조회는 지연이라 네이티브가 있으면 아예 부르지 않는다.
+     */
+    private CommercialIncomeAndExpenseInfo resolve(
+        String periodCode, IncomeCommercial commercialRow, IncomeAdministration preloadedAdministrationRow, CommercialRegionLookup regionLookup
+    ) {
         if (commercialRow != null && !commercialRow.expenseUnavailable()) {
             return CommercialIncomeAndExpenseInfo.from(commercialRow);
         }
 
-        IncomeAdministration administrationRow = findAdministrationIncome(periodCode, commercialCode, preloadedAdministrationRow);
+        IncomeAdministration administrationRow = findAdministrationIncome(periodCode, preloadedAdministrationRow, regionLookup);
         if (administrationRow != null && !administrationRow.expenseDetailUnavailable()) {
             return CommercialIncomeAndExpenseInfo.ofAdministrationProxy(administrationRow);
         }
@@ -82,16 +96,16 @@ public class CommercialExpenseProvenanceProcessor {
      * 자치구·행정동을 돌려주는 지역 서비스 계약이 프로필 조회에 이미 있어 새 포트를 만들지 않는다.
      *
      * <p>매핑이 없는 상권(404)은 「대체 불가」로 흡수해 사다리 3단계로 보낸다. 503·400 은 그대로 전파한다 —
-     * 지역 서비스 장애를 「소비 데이터 없음」으로 뭉개면 장애가 정상 응답으로 보인다. (이슈 #413 판정 재사용)
+     * 지역 서비스 장애를 「소비 데이터 없음」으로 뭉개면 장애가 정상 응답으로 보인다. (이슈 #413 판정 재사용,
+     * {@link CommercialRegionLookup} 이 {@link CommercialQuietFetchSupport} 로 같은 판정을 한다)
      *
      * <p>호출부가 읽어 둔 행이 <b>해석 결과와 같은 행정동</b>이면 그대로 쓴다. 요약은 행정동 leg 를 채우며 같은
      * 행을 이미 읽으므로, 정상 요청에서는 요약 한 번에 같은 행을 두 번 읽지 않는다.
      */
     private IncomeAdministration findAdministrationIncome(
-        String periodCode, String commercialCode, IncomeAdministration preloadedAdministrationRow
+        String periodCode, IncomeAdministration preloadedAdministrationRow, CommercialRegionLookup regionLookup
     ) {
-        CommercialAdministrationQueryResult administration = CommercialQuietFetchSupport.fetchOrNullWhenNotFound(
-            () -> commercialRegionQueryPort.getCommercialAdministration(commercialCode));
+        CommercialAdministrationQueryResult administration = regionLookup.administration();
 
         if (administration == null || administration.administrationCode() == null) {
             return null;

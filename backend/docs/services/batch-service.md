@@ -168,7 +168,7 @@ SELECT l.area_code,
 
 - **2024년 표준단위구역 폴리곤이 배포됐는지 확인되지 않았다.** 변환 도구와 절차는 있다(「GEOJSON 파일 만들기」). 2026-09-09 기준 서울시 shapefile은 2023-10-20 파일이라 `LEGACY`(20233)와 같을 수 있고, 게시 전 대조가 필요하다. 새 버전이 생겨도 district-service 지도가 `dataset_spatial_area`를 읽도록 바꾸는 후속 작업이 있어야 화면에 반영된다.
 - commercial-service 가 `dataset_fact` 를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다. 이 서비스는 2024년 1분기 이후를 적재만 하고, `--job=project` 가 기존 팩트 테이블 15종 컬럼 + `spatial_version` 으로 이관한다. `CONSUMPTION_COMMERCIAL` 은 2026-09-15 확인으로 소득·소비 모두 원천이 끊긴 것이 확정됐다(위 「2024년 이후 컬럼 차이」). 월평균소득·소득구간은 조회 도메인에서 제거했고, 소비는 `20234` 이후 게시하지 않는다. 값을 만들지 않는다. `service_type` 도 원천에 없어 NULL 이다.
-- 이슈 #415 2차 배치(국민연금 자치구 평균소득 `--job=pension-income`, 아래 「국민연금 자치구 평균소득 적재」)는 적재까지다. 개발 DB 에 DDL 적용과 첫 적재가 남아 있다.
+- 이슈 #415 2차 배치(국민연금 자치구 평균소득 `--job=pension-income`, 아래 「국민연금 자치구 평균소득 적재」)는 적재까지다. 개발 DB 에 DDL 적용과 첫 적재가 남아 있다. commercial-service 가 `/income` 의 `districtAverageIncome` 으로 이 테이블을 읽으므로 **commercial-service 배포 전에 DDL 을 먼저 적용한다**(테이블이 없으면 `/income` 이 실패한다. 행 0 이면 `UNAVAILABLE` 로 정상 응답).
 - 이슈 #415 1단계(배치)는 행정동 소비 세부 10항목 적재까지다. 배치가 `income_administration` 을 채워도 **commercial-service 조회 도메인은 아직 총액만 읽는다.** 행정동 소비를 상권 화면의 대체 원천으로 쓰는 것(부모 행정동 값 끌어오기, 출처 표기)은 후속 단계다.
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
 - Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.

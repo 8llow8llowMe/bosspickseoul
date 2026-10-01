@@ -64,6 +64,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficByTimeSlotInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationByAgeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.sales.CommercialSalesByAgeGenderPercentInfo;
@@ -98,6 +99,7 @@ public class CommercialPresenter {
 
     private final PolicyPresenter policyPresenter;
     private final CommercialExpenseProvenancePresenter commercialExpenseProvenancePresenter;
+    private final CommercialIncomeProvenancePresenter commercialIncomeProvenancePresenter;
 
     public CommercialServiceCategoryResponse toCommercialServiceCategoryResponse(CommercialServiceCategoryInfo info) {
         return CommercialServiceCategoryResponse.builder()
@@ -132,11 +134,13 @@ public class CommercialPresenter {
             .build();
     }
 
-    public CommercialIncomeAndExpenseResponse toCommercialIncomeResponse(CommercialIncomeAndExpenseInfo info) {
+    public CommercialIncomeAndExpenseResponse toCommercialIncomeResponse(CommercialIncomeAndExpenseResponseInfo info) {
+        CommercialIncomeAndExpenseInfo expense = info.expense();
         return CommercialIncomeAndExpenseResponse.builder()
-            .expenseCategories(toCommercialExpenseCategoryItems(info.expenseCategories()))
-            .totalExpenseAmount(info.expenseCategorySum())
-            .provenance(commercialExpenseProvenancePresenter.toCommercialExpenseProvenanceItem(info.provenance()))
+            .expenseCategories(toCommercialExpenseCategoryItems(expense.expenseCategories()))
+            .totalExpenseAmount(expense.expenseCategorySum())
+            .provenance(commercialExpenseProvenancePresenter.toCommercialExpenseProvenanceItem(expense.provenance()))
+            .districtAverageIncome(commercialIncomeProvenancePresenter.toCommercialDistrictAverageIncomeItem(info.districtAverageIncome()))
             .build();
     }
 

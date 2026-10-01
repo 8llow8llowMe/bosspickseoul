@@ -25,7 +25,8 @@ class CommercialComparisonPresenterSerializationTest {
     );
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final CommercialPresenter presenter = new CommercialPresenter(mock(PolicyPresenter.class), new CommercialExpenseProvenancePresenter());
+    private final CommercialPresenter presenter = new CommercialPresenter(
+        mock(PolicyPresenter.class), new CommercialExpenseProvenancePresenter(), new CommercialIncomeProvenancePresenter());
 
     @Test
     void fullComparisonJsonIncludesGuideAndMetricMetadataForEveryGroup() {

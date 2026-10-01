@@ -225,6 +225,26 @@
 >
 > 대체값은 **점수에 넣지 않습니다.** 같은 행정동에 속한 상권이 전부 같은 값을 받아 상권 간 변별력이 없으므로, 히트맵 기회도·비교 승패 판정·후보 추천은 네이티브 전용 경로를 그대로 씁니다. 비교 응답의 `spendingMetrics` 는 두 상권 중 한쪽이라도 상권 단위 소비가 없으면 `0` 을 지어내지 않고 **빈 배열**로 내려갑니다.
 
+> **자치구 평균 소득(대체) 계약 (이슈 #415).** `GET /{commercialCode}/income` 응답에 `districtAverageIncome: { amount, provenance }` 가 **추가**됐습니다. 소비 세 필드(`expenseCategories`·`totalExpenseAmount`·`provenance`)는 그대로입니다. 값은 상권이 속한 자치구의 국민연금 지역가입자(사업장 가입자가 아닌 18~60세 국내 거주자) **신고 기준소득월액 평균**(원/월, 공공데이터포털 3046077)이고, **요청 분기 말일 이하에서 가장 최근 기준일**의 것을 씁니다. 원천은 매년 12월 기준 연 1회 스냅샷이라 `20211` → `2020-12-31`, `20244` → `2024-12-31`, 다음 파일이 적재되기 전까지 `20261` → `2024-12-31` 입니다.
+>
+> 필드는 **항상 존재**합니다. 쓸 수 있는 자료가 없으면(그 이전 기준일 없음, 분기 형식 오류, 상권의 자치구 매핑 없음) `amount` 만 `null` 이고 `provenance.scope.code = UNAVAILABLE` 이 사유를 전합니다. `provenance` 는 `scope`(CodeNameDescriptionMetadata, `DISTRICT_PROXY` / `UNAVAILABLE`), `scopeCode`·`scopeName`(값을 가져온 자치구, `UNAVAILABLE` 이면 `null`), `sourceId`(`data.go.kr:3046077`)·`sourceLabel`·`sourceUrl`, `referenceDate`(ISO 날짜, `UNAVAILABLE` 이면 `null`), `disclaimer`(두 스코프 모두 채워짐)입니다. 기준일은 `provenance.referenceDate` 한 곳에만 있고 최상위에는 두지 않습니다 — 소비 출처의 `effectivePeriodCode` 와 같은 자리입니다. 예전 상권 단위 소득 항목 이름(`averageIncomeItem`)은 다시 쓰지 않습니다.
+>
+> ```json
+> "districtAverageIncome": {
+>   "amount": 1555244,
+>   "provenance": {
+>     "scope": { "code": "DISTRICT_PROXY", "name": "자치구 대체", "description": "상권 단위 소득 원천이 없어 소속 자치구의 국민연금 지역가입자 신고 평균소득월액으로 대체한 참고값입니다." },
+>     "scopeCode": "11110", "scopeName": "종로구",
+>     "sourceId": "data.go.kr:3046077", "sourceLabel": "국민연금공단 자격 시군구 신고 평균소득월액",
+>     "sourceUrl": "https://www.data.go.kr/data/3046077/fileData.do",
+>     "referenceDate": "2024-12-31",
+>     "disclaimer": "국민연금 지역가입자(사업장 가입자가 아닌 18~60세 국내 거주자)가 신고한 기준소득월액의 종로구 평균입니다(기준일 2024-12-31). 이 상권이나 주민 전체의 소득이 아니며, 같은 자치구 안의 상권은 모두 같은 값입니다."
+>   }
+> }
+> ```
+>
+> 이 값은 **비교·히트맵·후보 추천·벤치마크·점수에 쓰지 않습니다.** 같은 자치구의 상권이 모두 같은 값이라 상권 간 변별력이 없고, 연 스냅샷이라 분기 비교 축과 맞지 않습니다. 상권의 자치구는 소비 대체와 같은 지역 서비스 응답 하나로 해석해 한 요청에 지역 서비스를 한 번만 부르며, 지역 서비스 장애(`COMMERCIAL_012`, 503)는 「소득 없음」으로 바꾸지 않고 그대로 전파합니다. `/summaries/income` 은 바뀌지 않았습니다.
+
 > 프로필은 지표 단위로 **부분 강등**됩니다. 해당 분기에 특정 지표(예: 매출)가 없으면 `keyMetrics` 의 해당 필드들만 `null` 로 내려가고 나머지 지표는 정상 제공됩니다. `keyMetrics` 를 채우는 원천(매출·유동인구·점포·거주인구·집객시설)이 모두 없을 때만 `COMMERCIAL_013`(404) 을 응답합니다. 소득소비 행은 소득 지표가 걷힌 뒤로 `keyMetrics` 의 어느 필드도 채우지 않으므로 존재 판정에서 제외됩니다 — 그 행 하나로 200 을 내면 전 항목이 `null` 인 빈 프로필이 나가기 때문입니다. `commercialName` 은 매출→유동인구 Info 순으로 폴백합니다.
 
 ### 비교 (`/api/v1/commercials/compare`, `/compare-preview`)
