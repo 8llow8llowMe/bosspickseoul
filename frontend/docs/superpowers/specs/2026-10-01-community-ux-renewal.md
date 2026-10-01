@@ -1,7 +1,7 @@
 # 커뮤니티 UI/UX 개편 제안서
 
 > **작성일**: 2026-10-01
-> **상태**: 확정 — 2026-10-01 Q1~Q5 를 제안대로 결정(§9). 1단계 구현 중
+> **상태**: 확정 — 2026-10-01 Q1~Q5 를 제안대로 결정(§9). 1단계 구현 완료(2026-10-01, 브랜치 `feature/fe/community-ux-renewal`)
 > **정본**: 확정된 동작은 [community.md](../../features/community/community.md) §S4 「화면 구성」과 DESIGN.md §5.4 로 옮겼다. 이 문서는 근거·전체 로드맵 기록이다
 > **대상 화면**: `/community/list` · `/community/[communityId]` · `/community/register` · 신고 다이얼로그
 > **근거**: 로컬 dev `?mock=1` 실측 캡처(1440 · 820 · 390) + `src/components/community/*` 코드 리딩
