@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import com.followfollowme.bosspickseoul.global.config.DataJpaSliceTestConfig;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * 자치구 변화율 계산이 이전 분기 데이터가 없을 때도 터지지 않는지 못 박는다.
@@ -35,6 +37,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
  * {@code CaseBuilder} 로 이미 막고 있다. 자치구 쪽에만 그 가드가 빠져 있었다.
  */
 @DataJpaTest
+@ActiveProfiles(DataJpaSliceTestConfig.PROFILE)
 class DistrictChangeRateNullGuardTest {
 
     private static final String SPATIAL_VERSION = DatasetSpatialVersion.DEFAULT;
