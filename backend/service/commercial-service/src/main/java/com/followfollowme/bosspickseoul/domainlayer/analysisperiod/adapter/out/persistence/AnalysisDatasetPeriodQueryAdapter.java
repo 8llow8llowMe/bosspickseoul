@@ -77,6 +77,8 @@ public class AnalysisDatasetPeriodQueryAdapter implements AnalysisDatasetPeriodQ
     /**
      * 15개 질의를 한 읽기 전용 트랜잭션(커넥션 하나)으로 묶고 전체에 {@value #QUERY_TIMEOUT_SECONDS}초 상한을 둔다. 호출자는 스케줄러뿐이라
      * 바깥 트랜잭션이 없다. 상한을 넘기거나 커넥션을 얻지 못하면 예외가 그대로 나가고(포트 실패 계약) 캐시는 마지막 성공값을 유지한다.
+     * 큰 테이블 4종(점포·매출의 상권·행정동)은 {@code (period_code, spatial_version)} 인덱스로 loose index scan 을 탄다
+     * (런북 {@code scripts/migration/analysis-period-index.sql}, 배포 전 적용).
      *
      * <p>데이터셋마다 테이블이 달라 한 질의로 묶을 수 없어 15번 질의한다. 원천 단위가 테이블이라 N+1 이 아니다.
      */
