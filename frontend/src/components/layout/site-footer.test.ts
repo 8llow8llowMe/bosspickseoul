@@ -21,20 +21,25 @@ const renderFooter = () => {
 }
 
 describe('SiteFooter', () => {
-  it('data-hide-footer main 이후의 footer를 중간 modal 유무와 관계없이 숨긴다', () => {
+  /*
+    main 은 셸 본문 칸 안에 있고 푸터는 그 칸의 형제다(site-shell.tsx). 예전처럼 `main ~ footer` 로
+    겨누면 아무 화면에서도 걸리지 않아 지도·구별현황·추천 화면 아래에 푸터가 다시 생긴다.
+  */
+  it('data-hide-footer main 을 품은 셸 본문 칸 뒤의 footer를 중간 modal 유무와 관계없이 숨긴다', () => {
     const { styles } = renderFooter()
 
     expect(styles).toMatch(
-      /main\[data-hide-footer=['"]true['"]\]~[^}]+display:none/,
+      /\[data-site-shell-body\]:has\(main\[data-hide-footer=['"]true['"]\]\)~[^}]+display:none/,
     )
+    expect(styles).not.toMatch(/(^|[},])main\[data-hide-footer=['"]true['"]\]~/)
   })
 
-  it('status main 바로 뒤에 있는 footer만 모바일에서 숨긴다', () => {
+  it('data-hide-mobile-footer main 을 품은 본문 칸 바로 뒤의 footer만 모바일에서 숨긴다', () => {
     const { styles } = renderFooter()
 
     expect(styles).toMatch(/@media \(max-width:\s*1023px\)/)
     expect(styles).toMatch(
-      /main\[data-hide-mobile-footer=['"]true['"]\]\+[^}]+display:none/,
+      /\[data-site-shell-body\]:has\(main\[data-hide-mobile-footer=['"]true['"]\]\)\+[^}]+display:none/,
     )
   })
 
