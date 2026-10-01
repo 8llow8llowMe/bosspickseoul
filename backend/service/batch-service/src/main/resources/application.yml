@@ -78,7 +78,10 @@ batch:
     # 데이터셋 1종이 한 run 에서 게시할 최대 분기 수. 상시 컨테이너 메모리 상한(512m)을 지키려고 1 로 둔다.
     max-quarters-per-run: 1
     tolerance: 0.2
+    # 실패 후 재시도까지 기다리는 날 수. 재이관(typed 행 수가 게시 건수와 다른 슬롯 복구)도 이 쿨다운을 따른다.
     failure-cooldown-days: 7
+    # 자동 재이관을 볼 첫 분기. 20211~20233 은 legacy-20233 레거시 행이 이관 없이 이미 있어 자동으로 덮어쓰지 않는다.
+    reproject-from: "20234"
   # 분기 적재 스테이징 정리(주간, 기본 off). dataset_staging / dataset_rejected_row 만 지우고, 활성 릴리스가 가리키는 run 은 제외한다.
   staging-purge:
     enabled: ${BATCH_STAGING_PURGE_ENABLED:false}

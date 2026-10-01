@@ -10,7 +10,7 @@ public enum DatasetRefreshResult {
     DISCONTINUED,
     /** 최근 실패 후 쿨다운 중이다. */
     COOLDOWN,
-    /** 이번 run 의 API 예산이 모자라다. */
+    /** 이번 run 의 API 호출 예산이 모자라거나, 데이터셋당 분기 상한({@code max-quarters-per-run})을 재이관이 다 썼다. 실패가 아니다. */
     BUDGET,
     /** 원천에 다음 분기가 아직 없다. */
     NOT_PUBLISHED_YET,
@@ -22,7 +22,7 @@ public enum DatasetRefreshResult {
     WOULD_PUBLISH,
     /** 사실 적재와 typed 이관까지 끝났다. */
     PUBLISHED,
-    /** 사실은 게시했지만 typed 이관이 실패했다. 다음 run 이 이관만 다시 한다. */
+    /** 사실은 게시했지만 typed 이관이 실패했다. 쿨다운 없이 다음 run 의 재이관이 이관만 다시 한다. */
     PUBLISHED_NOT_PROJECTED,
     /** 게시돼 있는데 typed 행 수가 맞지 않던 슬롯을 이관했다. */
     PROJECTED,

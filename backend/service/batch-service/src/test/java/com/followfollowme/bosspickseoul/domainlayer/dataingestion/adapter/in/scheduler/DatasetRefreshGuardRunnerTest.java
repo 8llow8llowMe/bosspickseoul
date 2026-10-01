@@ -50,7 +50,7 @@ class DatasetRefreshGuardRunnerTest {
     }
 
     private static DatasetRefreshProperties refresh(boolean enabled, String spatialVersion) {
-        return new DatasetRefreshProperties(enabled, null, false, spatialVersion, "seoul-v1", 600, 1, 0.2, 7);
+        return new DatasetRefreshProperties(enabled, null, false, spatialVersion, "seoul-v1", 600, 1, 0.2, 7, null);
     }
 
     private DatasetRefreshGuardRunner runner(DatasetRefreshProperties refresh, String apiKey) {

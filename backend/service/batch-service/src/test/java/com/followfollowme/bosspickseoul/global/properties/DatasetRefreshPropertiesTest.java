@@ -25,6 +25,7 @@ class DatasetRefreshPropertiesTest {
             assertThat(properties.maxQuartersPerRun()).isEqualTo(1);
             assertThat(properties.maxApiCallsPerRun()).isEqualTo(600);
             assertThat(properties.spatialVersion()).isEqualTo("legacy-20233");
+            assertThat(properties.reprojectFrom()).as("레거시 20211~20233 은 자동 재이관하지 않는다").isEqualTo("20234");
         });
     }
 
@@ -40,8 +41,14 @@ class DatasetRefreshPropertiesTest {
 
     @Test
     void rejectsABudgetAboveTheDailyApiLimit() {
-        assertThatThrownBy(() -> new DatasetRefreshProperties(true, null, false, null, null, 1001, 1, 0.2, 7))
+        assertThatThrownBy(() -> new DatasetRefreshProperties(true, null, false, null, null, 1001, 1, 0.2, 7, null))
             .hasMessageContaining("max-api-calls-per-run");
+    }
+
+    @Test
+    void rejectsAMalformedReprojectFromQuarter() {
+        assertThatThrownBy(() -> new DatasetRefreshProperties(true, null, false, null, null, 600, 1, 0.2, 7, "2023"))
+            .hasMessageContaining("reproject-from");
     }
 
     /** application.yml 의 실제 값. 사용자 결정(05:00, publish=false, 분기 1)이 기본값으로 남아 있는지 본다. */
@@ -55,6 +62,7 @@ class DatasetRefreshPropertiesTest {
         assertThat(environment.getProperty("batch.dataset-refresh.publish")).isEqualTo("false");
         assertThat(environment.getProperty("batch.dataset-refresh.cron")).isEqualTo("0 0 5 * * ?");
         assertThat(environment.getProperty("batch.dataset-refresh.max-quarters-per-run")).isEqualTo("1");
+        assertThat(environment.getProperty("batch.dataset-refresh.reproject-from")).isEqualTo("20234");
         assertThat(environment.getProperty("batch.dataset-source.raw-directory")).isEqualTo("./data/raw");
     }
 

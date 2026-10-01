@@ -52,7 +52,8 @@ class DatasetRefreshQueriesTest {
             String table = ChangeCommercialProjectionJdbcAdapter.typedTable(dataset);
             assertThat(table).as("%s", dataset).isNotBlank();
             assertThat(ChangeCommercialProjectionJdbcAdapter.typedRowCountSql(dataset))
-                .isEqualTo("SELECT period_code, COUNT(*) AS typed_rows FROM " + table + " WHERE spatial_version=? GROUP BY period_code");
+                .isEqualTo("SELECT period_code, COUNT(*) AS typed_rows FROM " + table
+                    + " WHERE period_code >= ? AND spatial_version = ? GROUP BY period_code");
         }
     }
 
@@ -80,21 +81,25 @@ class DatasetRefreshQueriesTest {
         }).when(jdbc).query(anyString(), any(RowCallbackHandler.class), any(Object[].class));
 
         Map<Quarter, Long> counts = new ChangeCommercialProjectionJdbcAdapter(jdbc, new ObjectMapper())
-            .typedRowCounts(Dataset.CHANGE_COMMERCIAL, "legacy-20233");
+            .typedRowCounts(Dataset.CHANGE_COMMERCIAL, "legacy-20233", new Quarter("20234"));
 
         assertThat(counts).containsExactly(Map.entry(new Quarter("20261"), 1650L));
+        // 첫 바인딩이 분기 하한이다(유니크 인덱스 선두 컬럼 범위). 레거시 20211~20233 은 세지 않는다.
+        verify(jdbc).query(eq(ChangeCommercialProjectionJdbcAdapter.typedRowCountSql(Dataset.CHANGE_COMMERCIAL)), any(RowCallbackHandler.class),
+            eq("20234"), eq("legacy-20233"));
     }
 
     @Test
     void stateUpsertBindsEveryColumnInOrder() {
         DatasetRefreshState state = new DatasetRefreshState(Dataset.CHANGE_DISTRICT, Instant.parse("2026-09-30T20:00:00Z"), 550L,
-            new Quarter("20262"), "auto-fetch", "/app/data/raw/auto-fetch-1", Instant.parse("2026-09-29T20:00:00Z"), "IMPLAUSIBLE", 2);
+            new Quarter("20262"), "auto-fetch", "/app/data/raw/auto-fetch-1", Instant.parse("2026-09-29T20:00:00Z"), "IMPLAUSIBLE", 2,
+            new Quarter("20241"));
 
         new DatasetRefreshStateJdbcAdapter(jdbc).save(state);
 
         verify(jdbc).update(DatasetRefreshStateJdbcAdapter.UPSERT_SQL,
             "CHANGE_DISTRICT", Timestamp.from(Instant.parse("2026-09-30T20:00:00Z")), 550L, "20262", "auto-fetch",
-            "/app/data/raw/auto-fetch-1", Timestamp.from(Instant.parse("2026-09-29T20:00:00Z")), "IMPLAUSIBLE", 2);
+            "/app/data/raw/auto-fetch-1", Timestamp.from(Instant.parse("2026-09-29T20:00:00Z")), "IMPLAUSIBLE", 2, "20241");
         assertThat(DatasetRefreshStateJdbcAdapter.UPSERT_SQL).contains("ON DUPLICATE KEY UPDATE").contains("consecutive_failures=VALUES(consecutive_failures)");
     }
 
@@ -106,6 +111,7 @@ class DatasetRefreshQueriesTest {
         when(known.wasNull()).thenReturn(true);
         when(known.getString("newest_source_period")).thenReturn("20262");
         when(known.getInt("consecutive_failures")).thenReturn(1);
+        when(known.getString("last_reproject_dry_run_period")).thenReturn("20241");
         ResultSet unknown = mock(ResultSet.class);
         when(unknown.getString("dataset")).thenReturn("RETIRED_DATASET");
         doAnswer(invocation -> {
@@ -122,6 +128,7 @@ class DatasetRefreshQueriesTest {
         assertThat(state.lastSourceTotal()).isNull();
         assertThat(state.newestSourcePeriod()).isEqualTo(new Quarter("20262"));
         assertThat(state.consecutiveFailures()).isEqualTo(1);
+        assertThat(state.lastReprojectDryRunPeriod()).isEqualTo(new Quarter("20241"));
     }
 
     /** 기동 가드가 켜기 전에 본다. commercialJdbcTemplate 으로 나가므로 DATABASE() 가 commercial 스키마다. */

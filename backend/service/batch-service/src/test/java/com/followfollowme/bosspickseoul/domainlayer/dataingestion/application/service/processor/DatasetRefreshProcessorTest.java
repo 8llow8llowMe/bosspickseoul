@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ApiCallBudget;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.DatasetRefreshOutcome;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.DatasetRefreshResult;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.DatasetRefreshSlot;
@@ -40,11 +42,14 @@ import org.mockito.ArgumentCaptor;
 
 /**
  * 데이터셋 1종 판단 행렬. 포트는 모두 모의 객체이고, 실제 검증·게시는 Job 쪽 테스트가 이미 고정한다.
+ * 원천 모의 객체는 실제 어댑터처럼 시도마다 {@link ApiCallBudget} 을 쓴다.
  */
 class DatasetRefreshProcessorTest {
 
     private static final String SPATIAL = "legacy-20233";
+    private static final String RAW = "/app/data/raw/auto-fetch-1";
     private static final Instant FIRED = Instant.parse("2026-09-29T20:00:00Z"); // 2026-09-30 05:00 KST
+    private static final Quarter Q20231 = new Quarter("20231");
     private static final Quarter Q20261 = new Quarter("20261");
     private static final Quarter Q20262 = new Quarter("20262");
     private static final Quarter Q20263 = new Quarter("20263");
@@ -60,25 +65,52 @@ class DatasetRefreshProcessorTest {
     }
 
     private DatasetRefreshProcessor processor(boolean publish, int maxQuarters) {
-        DatasetRefreshProperties properties = new DatasetRefreshProperties(true, null, publish, SPATIAL, "seoul-v1", 600, maxQuarters, 0.2, 7);
+        DatasetRefreshProperties properties = new DatasetRefreshProperties(true, null, publish, SPATIAL, "seoul-v1", 600, maxQuarters, 0.2, 7, null);
         return new DatasetRefreshProcessor(releases, projections, source, executions, metrics, properties);
     }
 
+    private static DatasetRefreshOutcome refresh(DatasetRefreshProcessor processor, Dataset dataset, DatasetRefreshState state) {
+        return processor.refresh(dataset, state, ApiCallBudget.of(600), FIRED);
+    }
+
+    private static DatasetRefreshState initial(Dataset dataset) {
+        return DatasetRefreshState.initial(dataset);
+    }
+
+    /** 게시 슬롯과, 그 슬롯이 모두 이관돼 있는(typed == accepted) 상태. */
     private void published(Dataset dataset, PublishedSlot... slots) {
-        when(releases.publishedSlots(dataset, SPATIAL, "seoul-v1")).thenReturn(List.of(slots));
         Map<Quarter, Long> typed = new TreeMap<>();
         for (PublishedSlot slot : slots) {
             typed.put(slot.period(), slot.acceptedCount());
         }
-        when(projections.typedRowCounts(dataset, SPATIAL)).thenReturn(typed);
+        published(dataset, typed, slots);
+    }
+
+    private void published(Dataset dataset, Map<Quarter, Long> typed, PublishedSlot... slots) {
+        when(releases.publishedSlots(dataset, SPATIAL, "seoul-v1")).thenReturn(List.of(slots));
+        when(projections.typedRowCounts(eq(dataset), eq(SPATIAL), any())).thenReturn(typed);
     }
 
     private static PublishedSlot slot(Quarter quarter, long accepted) {
         return new PublishedSlot(quarter, "run-" + quarter.value(), accepted);
     }
 
-    private static SourceAcquisition acquisition(Map<Quarter, Long> rows, int calls) {
-        return new SourceAcquisition("/app/data/raw/auto-fetch-1", new TreeMap<>(rows), calls, rows.values().stream().mapToLong(Long::longValue).sum());
+    /** 실제 어댑터처럼 한 번 쓰고 결과를 준다. {@code total} 이 null 이면 그 분기 데이터가 없다. */
+    private void probe(Dataset dataset, Quarter quarter, Long total) {
+        when(source.probe(eq(dataset), eq(quarter), any())).thenAnswer(invocation -> {
+            ((ApiCallBudget) invocation.getArgument(2)).spend();
+            return Optional.ofNullable(total);
+        });
+    }
+
+    private void acquire(Dataset dataset, Quarter quarter, Map<Quarter, Long> rows, int calls) {
+        when(source.acquire(eq(dataset), eq(quarter), anyString(), any())).thenAnswer(invocation -> {
+            ApiCallBudget budget = invocation.getArgument(3);
+            for (int call = 0; call < calls; call++) {
+                budget.spend();
+            }
+            return new SourceAcquisition(RAW, new TreeMap<>(rows), rows.values().stream().mapToLong(Long::longValue).sum());
+        });
     }
 
     private void jobsSucceed() {
@@ -94,7 +126,7 @@ class DatasetRefreshProcessorTest {
     void noPublishedQuarterIsLeftToTheManualCliAndCostsNoApiCall() {
         published(Dataset.SALES_COMMERCIAL);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.NO_BASELINE);
         assertThat(outcome.apiCalls()).isZero();
@@ -105,8 +137,7 @@ class DatasetRefreshProcessorTest {
     void discontinuedDatasetStopsWithoutCallingTheApi() {
         published(Dataset.CONSUMPTION_COMMERCIAL, slot(new Quarter("20234"), 1650));
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.CONSUMPTION_COMMERCIAL,
-            DatasetRefreshState.initial(Dataset.CONSUMPTION_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.CONSUMPTION_COMMERCIAL, initial(Dataset.CONSUMPTION_COMMERCIAL));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.DISCONTINUED);
         verifyNoInteractions(source, executions);
@@ -115,15 +146,14 @@ class DatasetRefreshProcessorTest {
     @Test
     void recentFailureCoolsDownButAnExpiredOneRetries() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 21910));
-        DatasetRefreshState failedYesterday = DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(1)), "x");
+        DatasetRefreshState failedYesterday = initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(1)), "x");
 
-        assertThat(results(processor(true).refresh(Dataset.SALES_COMMERCIAL, failedYesterday, 600, FIRED)))
-            .containsExactly(DatasetRefreshResult.COOLDOWN);
+        assertThat(results(refresh(processor(true), Dataset.SALES_COMMERCIAL, failedYesterday))).containsExactly(DatasetRefreshResult.COOLDOWN);
         verifyNoInteractions(source);
 
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.empty());
-        DatasetRefreshState failedLongAgo = DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(8)), "x");
-        assertThat(results(processor(true).refresh(Dataset.SALES_COMMERCIAL, failedLongAgo, 600, FIRED)))
+        probe(Dataset.SALES_COMMERCIAL, Q20262, null);
+        DatasetRefreshState failedLongAgo = initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(8)), "x");
+        assertThat(results(refresh(processor(true), Dataset.SALES_COMMERCIAL, failedLongAgo)))
             .containsExactly(DatasetRefreshResult.NOT_PUBLISHED_YET);
     }
 
@@ -131,7 +161,7 @@ class DatasetRefreshProcessorTest {
     void exhaustedBudgetSkipsBeforeProbing() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 21910));
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 0, FIRED);
+        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL), ApiCallBudget.of(0), FIRED);
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.BUDGET);
         verifyNoInteractions(source);
@@ -140,41 +170,41 @@ class DatasetRefreshProcessorTest {
     @Test
     void honouredDatasetWithNoRowsForTheNextQuarterIsNotPublishedYet() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 21910));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.empty());
+        probe(Dataset.SALES_COMMERCIAL, Q20262, null);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.NOT_PUBLISHED_YET);
         assertThat(outcome.apiCalls()).isEqualTo(1);
         assertThat(outcome.state().lastProbeAt()).isEqualTo(FIRED);
-        verify(source, never()).acquire(any(), any(), anyString());
+        verify(source, never()).acquire(any(), any(), anyString(), any());
     }
 
     @Test
     void ignoredDatasetWithAnUnchangedTotalIsNotDownloadedAgain() {
         published(Dataset.CHANGE_DISTRICT, slot(Q20262, 25));
-        when(source.probe(Dataset.CHANGE_DISTRICT, Q20263)).thenReturn(Optional.of(550L));
-        DatasetRefreshState state = DatasetRefreshState.initial(Dataset.CHANGE_DISTRICT).probed(FIRED.minus(Duration.ofDays(1)), 550)
+        probe(Dataset.CHANGE_DISTRICT, Q20263, 550L);
+        DatasetRefreshState state = initial(Dataset.CHANGE_DISTRICT).probed(FIRED.minus(Duration.ofDays(1)), 550)
             .fetched("auto-old", "/raw/old", Q20262);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.CHANGE_DISTRICT, state, 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.CHANGE_DISTRICT, state);
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.UNCHANGED);
         assertThat(outcome.apiCalls()).isEqualTo(1);
-        verify(source, never()).acquire(any(), any(), anyString());
+        verify(source, never()).acquire(any(), any(), anyString(), any());
     }
 
     /** 합계가 같아도 지난번에 본 최신 분기가 아직 게시되지 않았으면(분기 상한·게시 전환 직후) 다시 받는다. */
     @Test
     void ignoredDatasetWithPendingQuartersIsDownloadedAgainWhenPublishing() {
         published(Dataset.CHANGE_DISTRICT, slot(Q20261, 25));
-        when(source.probe(Dataset.CHANGE_DISTRICT, Q20262)).thenReturn(Optional.of(550L));
-        when(source.acquire(eq(Dataset.CHANGE_DISTRICT), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20261, 25L, Q20262, 25L), 1));
+        probe(Dataset.CHANGE_DISTRICT, Q20262, 550L);
+        acquire(Dataset.CHANGE_DISTRICT, Q20262, Map.of(Q20261, 25L, Q20262, 25L), 1);
         jobsSucceed();
-        DatasetRefreshState state = DatasetRefreshState.initial(Dataset.CHANGE_DISTRICT).probed(FIRED.minus(Duration.ofDays(1)), 550)
+        DatasetRefreshState state = initial(Dataset.CHANGE_DISTRICT).probed(FIRED.minus(Duration.ofDays(1)), 550)
             .fetched("auto-old", "/raw/old", Q20262);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.CHANGE_DISTRICT, state, 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.CHANGE_DISTRICT, state);
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.PUBLISHED);
     }
@@ -183,13 +213,13 @@ class DatasetRefreshProcessorTest {
     @Test
     void honouredDatasetIsNotSkippedJustBecauseTheTotalMatchesAnotherQuarter() {
         published(Dataset.CHANGE_COMMERCIAL, slot(Q20261, 1650));
-        when(source.probe(Dataset.CHANGE_COMMERCIAL, Q20262)).thenReturn(Optional.of(1650L));
-        when(source.acquire(eq(Dataset.CHANGE_COMMERCIAL), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20262, 1650L), 2));
+        probe(Dataset.CHANGE_COMMERCIAL, Q20262, 1650L);
+        acquire(Dataset.CHANGE_COMMERCIAL, Q20262, Map.of(Q20262, 1650L), 2);
         jobsSucceed();
-        DatasetRefreshState state = DatasetRefreshState.initial(Dataset.CHANGE_COMMERCIAL).probed(FIRED.minus(Duration.ofDays(90)), 1650)
+        DatasetRefreshState state = initial(Dataset.CHANGE_COMMERCIAL).probed(FIRED.minus(Duration.ofDays(90)), 1650)
             .fetched("auto-old", "/raw/old", Q20261);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.CHANGE_COMMERCIAL, state, 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.CHANGE_COMMERCIAL, state);
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.PUBLISHED);
         assertThat(outcome.apiCalls()).isEqualTo(3);
@@ -198,33 +228,54 @@ class DatasetRefreshProcessorTest {
     @Test
     void honouredDatasetAlreadyDryRunForTheSameCandidateIsUnchangedWhilePublishIsOff() {
         published(Dataset.CHANGE_COMMERCIAL, slot(Q20261, 1650));
-        when(source.probe(Dataset.CHANGE_COMMERCIAL, Q20262)).thenReturn(Optional.of(1650L));
-        DatasetRefreshState state = DatasetRefreshState.initial(Dataset.CHANGE_COMMERCIAL).probed(FIRED.minus(Duration.ofDays(1)), 1650)
+        probe(Dataset.CHANGE_COMMERCIAL, Q20262, 1650L);
+        DatasetRefreshState state = initial(Dataset.CHANGE_COMMERCIAL).probed(FIRED.minus(Duration.ofDays(1)), 1650)
             .fetched("auto-old", "/raw/old", Q20262);
 
-        assertThat(results(processor(false).refresh(Dataset.CHANGE_COMMERCIAL, state, 600, FIRED)))
-            .containsExactly(DatasetRefreshResult.UNCHANGED);
+        assertThat(results(refresh(processor(false), Dataset.CHANGE_COMMERCIAL, state))).containsExactly(DatasetRefreshResult.UNCHANGED);
     }
 
     @Test
     void downloadThatWouldExceedTheBudgetIsSkipped() {
         published(Dataset.STORE_COMMERCIAL, slot(Q20261, 77025));
-        when(source.probe(Dataset.STORE_COMMERCIAL, Q20262)).thenReturn(Optional.of(77100L));
+        probe(Dataset.STORE_COMMERCIAL, Q20262, 77100L);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.STORE_COMMERCIAL, DatasetRefreshState.initial(Dataset.STORE_COMMERCIAL), 50, FIRED);
+        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.STORE_COMMERCIAL, initial(Dataset.STORE_COMMERCIAL), ApiCallBudget.of(50), FIRED);
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.BUDGET);
         assertThat(outcome.apiCalls()).isEqualTo(1);
-        verify(source, never()).acquire(any(), any(), anyString());
+        verify(source, never()).acquire(any(), any(), anyString(), any());
+    }
+
+    /** 탐지 뒤 합계가 늘어 수집이 예산을 넘기려 하면 어댑터가 멈춘다. 원천 오류가 아니라 실패·쿨다운으로 세지 않는다. */
+    @Test
+    void budgetExhaustedDuringAcquisitionIsABudgetSkipWithExactCallCount() {
+        published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        when(source.acquire(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), anyString(), any())).thenAnswer(invocation -> {
+            ApiCallBudget budget = invocation.getArgument(3);
+            while (true) {
+                budget.spend();
+            }
+        });
+
+        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL), ApiCallBudget.of(30), FIRED);
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.BUDGET);
+        assertThat(outcome.slots().getFirst().period()).isEqualTo(Q20262);
+        assertThat(outcome.apiCalls()).isEqualTo(30);
+        assertThat(outcome.state().consecutiveFailures()).isZero();
+        assertThat(outcome.state().lastSourceTotal()).as("받다 만 합계는 기억하지 않는다").isNull();
+        verifyNoInteractions(executions);
     }
 
     @Test
     void acquisitionWithoutANewerQuarterRemembersTheTotalForTomorrow() {
         published(Dataset.CHANGE_DISTRICT, slot(Q20262, 25));
-        when(source.probe(Dataset.CHANGE_DISTRICT, Q20263)).thenReturn(Optional.of(550L));
-        when(source.acquire(eq(Dataset.CHANGE_DISTRICT), eq(Q20263), anyString())).thenReturn(acquisition(Map.of(Q20261, 25L, Q20262, 25L), 1));
+        probe(Dataset.CHANGE_DISTRICT, Q20263, 550L);
+        acquire(Dataset.CHANGE_DISTRICT, Q20263, Map.of(Q20261, 25L, Q20262, 25L), 1);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.CHANGE_DISTRICT, DatasetRefreshState.initial(Dataset.CHANGE_DISTRICT), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.CHANGE_DISTRICT, initial(Dataset.CHANGE_DISTRICT));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.NOT_PUBLISHED_YET);
         assertThat(outcome.state().lastSourceTotal()).isEqualTo(550L);
@@ -232,27 +283,31 @@ class DatasetRefreshProcessorTest {
         verifyNoInteractions(executions);
     }
 
+    /** IMPLAUSIBLE 이어도 보관본 위치를 남긴다. 운영자가 원인을 보고 이 경로를 수동 ARCHIVE 로 재생한다. */
     @Test
-    void fixedRowCountMismatchIsImplausibleAndPublishesNothing() {
+    void fixedRowCountMismatchIsImplausibleButKeepsTheArchiveForManualReplay() {
         published(Dataset.CHANGE_COMMERCIAL, slot(Q20261, 1650));
-        when(source.probe(Dataset.CHANGE_COMMERCIAL, Q20262)).thenReturn(Optional.of(1649L));
-        when(source.acquire(eq(Dataset.CHANGE_COMMERCIAL), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20262, 1649L), 2));
+        probe(Dataset.CHANGE_COMMERCIAL, Q20262, 1649L);
+        acquire(Dataset.CHANGE_COMMERCIAL, Q20262, Map.of(Q20262, 1649L), 2);
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.CHANGE_COMMERCIAL, DatasetRefreshState.initial(Dataset.CHANGE_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.CHANGE_COMMERCIAL, initial(Dataset.CHANGE_COMMERCIAL));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.IMPLAUSIBLE);
         assertThat(outcome.state().consecutiveFailures()).isEqualTo(1);
         assertThat(outcome.state().lastSourceTotal()).as("실패한 합계는 기억하지 않는다").isNull();
+        assertThat(outcome.state().newestSourcePeriod()).as("실패한 수집으로 최신 분기를 바꾸지 않는다").isNull();
+        assertThat(outcome.state().lastFetchRunId()).isEqualTo("auto-change-commercial-20262-202609300500-fetch");
+        assertThat(outcome.state().lastFetchRawLocation()).isEqualTo(RAW);
         verifyNoInteractions(executions);
     }
 
     @Test
     void rowCountOutsideTheToleranceOfThePreviousQuarterIsImplausible() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.of(24001L));
-        when(source.acquire(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20262, 24001L), 25));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 24001L);
+        acquire(Dataset.SALES_COMMERCIAL, Q20262, Map.of(Q20262, 24001L), 25);
 
-        assertThat(results(processor(true).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED)))
+        assertThat(results(refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL))))
             .containsExactly(DatasetRefreshResult.IMPLAUSIBLE);
         verifyNoInteractions(executions);
     }
@@ -260,11 +315,11 @@ class DatasetRefreshProcessorTest {
     @Test
     void publishOffStopsAfterADryRunReplayedFromTheArchive() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.of(21000L));
-        when(source.acquire(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20262, 21000L), 22));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        acquire(Dataset.SALES_COMMERCIAL, Q20262, Map.of(Q20262, 21000L), 22);
         jobsSucceed();
 
-        DatasetRefreshOutcome outcome = processor(false).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(false), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.WOULD_PUBLISH);
         assertThat(outcome.apiCalls()).isEqualTo(23);
@@ -285,12 +340,12 @@ class DatasetRefreshProcessorTest {
     @Test
     void publishOnRunsDryRunThenPublishThenProjection() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.of(21000L));
-        when(source.acquire(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20262, 21000L), 22));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        acquire(Dataset.SALES_COMMERCIAL, Q20262, Map.of(Q20262, 21000L), 22);
         jobsSucceed();
-        DatasetRefreshState previouslyFailed = DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(30)), "old");
+        DatasetRefreshState previouslyFailed = initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(30)), "old");
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, previouslyFailed, 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, previouslyFailed);
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.PUBLISHED);
         ArgumentCaptor<ImportRequest> facts = ArgumentCaptor.forClass(ImportRequest.class);
@@ -305,80 +360,190 @@ class DatasetRefreshProcessorTest {
     }
 
     @Test
-    void failedDryRunNeverPublishes() {
+    void failedDryRunNeverPublishesButKeepsTheArchive() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.of(21000L));
-        when(source.acquire(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20262, 21000L), 22));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        acquire(Dataset.SALES_COMMERCIAL, Q20262, Map.of(Q20262, 21000L), 22);
         when(executions.runFacts(any())).thenReturn(ImportExecution.failed("FAILED", "Dataset validation failed: expected=21000 input=21000 accepted=20990"));
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.FAILED);
         verify(executions, times(1)).runFacts(any());
         verify(executions, never()).runProjection(any());
         assertThat(outcome.state().lastFailureReason()).contains("accepted=20990");
+        assertThat(outcome.state().lastFetchRawLocation()).isEqualTo(RAW);
     }
 
+    /** 게시는 됐고 이관만 남았다. 쿨다운을 걸지 않아 다음 run 의 재이관이 바로 복구한다. */
     @Test
-    void projectionFailureAfterPublishingIsReportedSeparately() {
+    void projectionFailureAfterPublishingIsReportedSeparatelyWithoutCooldown() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.of(21000L));
-        when(source.acquire(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), anyString())).thenReturn(acquisition(Map.of(Q20262, 21000L), 22));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        acquire(Dataset.SALES_COMMERCIAL, Q20262, Map.of(Q20262, 21000L), 22);
         when(executions.runFacts(any())).thenReturn(ImportExecution.completed(0));
         when(executions.runProjection(any())).thenReturn(ImportExecution.failed("FAILED", "boom"));
+        DatasetRefreshState failedBefore = initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(30)), "old");
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, failedBefore);
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.PUBLISHED_NOT_PROJECTED);
-        assertThat(outcome.state().consecutiveFailures()).isEqualTo(1);
+        assertThat(outcome.state().consecutiveFailures()).isZero();
+        assertThat(outcome.state().lastFailureAt()).isEqualTo(FIRED);
+        assertThat(outcome.state().lastFailureReason()).contains("projection 20262").contains("boom");
     }
 
     @Test
     void ignoredDatasetPublishesOnlyUpToTheQuarterLimitInAscendingOrder() {
         published(Dataset.POPULATION_COMMERCIAL, slot(Q20261, 1650));
-        when(source.probe(Dataset.POPULATION_COMMERCIAL, Q20262)).thenReturn(Optional.of(4950L));
-        when(source.acquire(eq(Dataset.POPULATION_COMMERCIAL), eq(Q20262), anyString()))
-            .thenReturn(acquisition(Map.of(Q20261, 1650L, Q20262, 1650L, Q20263, 1650L), 5));
+        probe(Dataset.POPULATION_COMMERCIAL, Q20262, 4950L);
+        acquire(Dataset.POPULATION_COMMERCIAL, Q20262, Map.of(Q20261, 1650L, Q20262, 1650L, Q20263, 1650L), 5);
         jobsSucceed();
 
-        DatasetRefreshOutcome oneAtATime = processor(true, 1).refresh(Dataset.POPULATION_COMMERCIAL,
-            DatasetRefreshState.initial(Dataset.POPULATION_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome oneAtATime = refresh(processor(true, 1), Dataset.POPULATION_COMMERCIAL, initial(Dataset.POPULATION_COMMERCIAL));
         assertThat(oneAtATime.slots()).extracting(DatasetRefreshSlot::period).containsExactly(Q20262);
 
-        DatasetRefreshOutcome two = processor(true, 2).refresh(Dataset.POPULATION_COMMERCIAL,
-            DatasetRefreshState.initial(Dataset.POPULATION_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome two = refresh(processor(true, 2), Dataset.POPULATION_COMMERCIAL, initial(Dataset.POPULATION_COMMERCIAL));
         assertThat(two.slots()).extracting(DatasetRefreshSlot::period).containsExactly(Q20262, Q20263);
         assertThat(two.slots()).extracting(DatasetRefreshSlot::result).containsOnly(DatasetRefreshResult.PUBLISHED);
     }
 
+    /** 재이관과 새 분기는 합쳐 max-quarters-per-run 을 넘지 않는다(상시 컨테이너 메모리). */
     @Test
-    void publishedSlotWithMismatchedTypedRowsIsProjectedFirst() {
-        when(releases.publishedSlots(Dataset.SALES_COMMERCIAL, SPATIAL, "seoul-v1")).thenReturn(List.of(slot(Q20261, 20000)));
-        when(projections.typedRowCounts(Dataset.SALES_COMMERCIAL, SPATIAL)).thenReturn(Map.of());
+    void reprojectionAndNewQuartersShareTheQuarterLimit() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(), slot(Q20261, 20000));
         when(executions.runProjection(any())).thenReturn(ImportExecution.completed(3));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenReturn(Optional.empty());
 
-        DatasetRefreshOutcome outcome = processor(false).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(false), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
 
-        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.WOULD_PROJECT, DatasetRefreshResult.NOT_PUBLISHED_YET);
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.WOULD_PROJECT, DatasetRefreshResult.BUDGET);
+        assertThat(outcome.slots().get(1).detail()).contains("max-quarters-per-run=1");
         ArgumentCaptor<ProjectionRequest> projection = ArgumentCaptor.forClass(ProjectionRequest.class);
         verify(executions).runProjection(projection.capture());
         assertThat(projection.getValue().dryRun()).isTrue();
         assertThat(projection.getValue().period()).isEqualTo(Q20261);
         verify(metrics).serviceTypeUnresolved(Dataset.SALES_COMMERCIAL, 3);
+        verifyNoInteractions(source);
+
+        probe(Dataset.SALES_COMMERCIAL, Q20262, null);
+        DatasetRefreshOutcome withRoom = refresh(processor(false, 2), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+        assertThat(results(withRoom)).containsExactly(DatasetRefreshResult.WOULD_PROJECT, DatasetRefreshResult.NOT_PUBLISHED_YET);
+    }
+
+    /** 20211~20233 은 legacy-20233 레거시 행이 이관 없이 이미 있다. 건수가 어긋나도 자동으로 덮어쓰지 않는다. */
+    @Test
+    void slotsBeforeReprojectFromAreNeverReprojected() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(Q20261, 20000L), slot(Q20231, 18000), slot(Q20261, 20000));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, null);
+
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.NOT_PUBLISHED_YET);
+        verify(executions, never()).runProjection(any());
+        verify(projections).typedRowCounts(Dataset.SALES_COMMERCIAL, SPATIAL, new Quarter("20234"));
+    }
+
+    @Test
+    void noEligibleSlotSkipsTheTypedCountQuery() {
+        published(Dataset.SALES_COMMERCIAL, slot(Q20231, 18000));
+        probe(Dataset.SALES_COMMERCIAL, new Quarter("20232"), null);
+
+        refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+
+        verify(projections, never()).typedRowCounts(any(), any(), any());
+    }
+
+    /** 재이관도 쿨다운을 따른다. 매일 실패하는 무거운 이관을 매일 다시 돌리지 않는다. */
+    @Test
+    void reprojectionWaitsForTheCooldown() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(), slot(Q20261, 20000));
+        DatasetRefreshState failedYesterday = initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(1)), "x");
+
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, failedYesterday);
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.COOLDOWN);
+        verifyNoInteractions(executions, source);
+    }
+
+    @Test
+    void successfulReprojectionClearsTheFailureStreak() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(), slot(Q20261, 20000));
+        when(executions.runProjection(any())).thenReturn(ImportExecution.completed(0));
+        DatasetRefreshState failedLongAgo = initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(8)), "old");
+
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, failedLongAgo);
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.PROJECTED, DatasetRefreshResult.BUDGET);
+        assertThat(outcome.state().consecutiveFailures()).isZero();
+        assertThat(outcome.state().lastFailureReason()).as("원인은 운영자가 읽도록 남긴다").isEqualTo("old");
+    }
+
+    /** publish=false 로 오래 돌려도 같은 슬롯을 매일 dry-run 이관하지 않는다. 다음 어긋난 슬롯으로 넘어간다. */
+    @Test
+    void publishOffDryRunsEachMismatchedSlotOnlyOnce() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(), slot(Q20261, 20000), slot(Q20262, 20500));
+        when(executions.runProjection(any())).thenReturn(ImportExecution.completed(0));
+        DatasetRefreshProcessor processor = processor(false);
+
+        DatasetRefreshOutcome first = refresh(processor, Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+        DatasetRefreshOutcome second = refresh(processor, Dataset.SALES_COMMERCIAL, first.state());
+        probe(Dataset.SALES_COMMERCIAL, Q20263, null);
+        DatasetRefreshOutcome third = refresh(processor, Dataset.SALES_COMMERCIAL, second.state());
+
+        assertThat(first.slots().getFirst().period()).isEqualTo(Q20261);
+        assertThat(first.state().lastReprojectDryRunPeriod()).isEqualTo(Q20261);
+        assertThat(second.slots().getFirst().period()).isEqualTo(Q20262);
+        assertThat(second.state().lastReprojectDryRunPeriod()).isEqualTo(Q20262);
+        assertThat(results(third)).containsExactly(DatasetRefreshResult.NOT_PUBLISHED_YET);
+        verify(executions, times(2)).runProjection(any());
+    }
+
+    @Test
+    void publishOnReprojectsEvenSlotsAlreadyDryRun() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(), slot(Q20261, 20000));
+        when(executions.runProjection(any())).thenReturn(ImportExecution.completed(0));
+        DatasetRefreshState dryRunDone = initial(Dataset.SALES_COMMERCIAL).reprojectDryRun(Q20261);
+
+        assertThat(results(refresh(processor(true), Dataset.SALES_COMMERCIAL, dryRunDone)))
+            .containsExactly(DatasetRefreshResult.PROJECTED, DatasetRefreshResult.BUDGET);
     }
 
     @Test
     void sourceErrorIsRecordedAsAFailureInsteadOfEscaping() {
         published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
-        when(source.probe(Dataset.SALES_COMMERCIAL, Q20262)).thenThrow(new IllegalStateException("Seoul API unavailable after bounded retries"));
+        when(source.probe(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), any())).thenAnswer(invocation -> {
+            ((ApiCallBudget) invocation.getArgument(2)).spend();
+            throw new IllegalStateException("Seoul API unavailable after bounded retries");
+        });
 
-        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, DatasetRefreshState.initial(Dataset.SALES_COMMERCIAL), 600, FIRED);
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
 
         assertThat(results(outcome)).containsExactly(DatasetRefreshResult.FAILED);
+        assertThat(outcome.slots().getFirst().period()).isEqualTo(Q20262);
         assertThat(outcome.apiCalls()).isEqualTo(1);
         assertThat(outcome.state().consecutiveFailures()).isEqualTo(1);
         assertThat(outcome.state().lastFailureReason()).contains("Seoul API unavailable");
+    }
+
+    /** JVM 오류가 아닌 Error(링크 오류 등)도 데이터셋 하나의 실패로 흡수해 뒤 데이터셋을 막지 않는다. */
+    @Test
+    void nonFatalErrorIsAbsorbedAsAFailure() {
+        published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
+        when(source.probe(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), any())).thenThrow(new NoClassDefFoundError("x/Y"));
+
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.FAILED);
+        assertThat(outcome.state().lastFailureReason()).contains("NoClassDefFoundError");
+    }
+
+    @Test
+    void outOfMemoryErrorIsNeverSwallowed() {
+        published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
+        when(source.probe(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), any())).thenThrow(new OutOfMemoryError("Java heap space"));
+
+        assertThatThrownBy(() -> refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL)))
+            .isInstanceOf(OutOfMemoryError.class);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor;
 
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ApiCallBudget;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.DatasetRefreshOutcome;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.DatasetRefreshResult;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.DatasetRefreshSlot;
@@ -35,7 +36,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * 데이터셋 1종의 자동 최신화 판단과 실행. run 조립(순서·예산·상태 저장·메트릭)은 {@link DatasetRefreshRunProcessor} 가 한다. 범위는 "마지막 게시 분기 다음 ~ 원천 최신" 뿐이고, 비어 있는 과거 분기(백필)는
+ * 데이터셋 1종의 자동 최신화 판단과 실행. run 조립(순서·예산·상태 저장·메트릭)은 {@link DatasetRefreshRunProcessor} 가 한다.
+ * 범위는 "마지막 게시 분기 다음 ~ 원천 최신" 과 그 사이 이관이 어긋난 슬롯의 재이관뿐이고, 비어 있는 과거 분기(백필)는
  * 수동 CLI({@code quarterly-import-plan.ps1})가 맡는다.
  *
  * <p>검증·게시 규칙(행 수 일치, 거부·중복·미매핑 0, 공간 READY, 더 새로운 원천 우선)은 기존 Job 안에 있다. 여기는 무엇을 언제
@@ -61,31 +63,41 @@ public class DatasetRefreshProcessor {
     private final DatasetRefreshProperties properties;
 
     /**
-     * @param remainingApiCalls 이번 run 에서 이 데이터셋이 쓸 수 있는 API 호출 수
+     * @param budget run 전체가 나눠 쓰는 API 예산. 원천 어댑터가 시도마다 쓰므로 예외로 끝나도 {@link DatasetRefreshOutcome#apiCalls()} 가 정확하다
      */
-    public DatasetRefreshOutcome refresh(Dataset dataset, DatasetRefreshState state, int remainingApiCalls, Instant firedAt) {
-        Run run = new Run(dataset, state, remainingApiCalls, firedAt);
+    public DatasetRefreshOutcome refresh(Dataset dataset, DatasetRefreshState state, ApiCallBudget budget, Instant firedAt) {
+        int usedBefore = budget.used();
+        Run run = new Run(dataset, state, budget, firedAt);
         try {
             run.execute();
-        } catch (RuntimeException exception) {
-            // 포트 어댑터는 API 키·JDBC URL 을 예외에 싣지 않는다. 그래도 길이는 상태 컬럼에 맞춰 자른다.
+        } catch (ApiCallBudget.Exhausted exhausted) {
+            // 탐지 뒤 원천 합계가 늘었거나 재시도가 예산을 먹었다. 원천 오류가 아니라 실패로 세지 않는다. 받다 만 페이지는 쓰지 않는다.
+            run.skip(run.focus, DatasetRefreshResult.BUDGET, "API call budget exhausted mid-request; partial pages discarded");
+        } catch (VirtualMachineError fatal) {
+            // OutOfMemoryError·StackOverflowError 는 JVM 상태를 믿을 수 없어 삼키지 않는다. run 요약·메트릭은 RunProcessor 의 finally 가 남긴다.
+            throw fatal;
+        } catch (RuntimeException | Error exception) {
+            // 데이터셋 하나의 오류가 뒤 데이터셋을 매일 막지 않게 결과로 흡수한다. 포트 어댑터는 API 키·JDBC URL 을 예외에 싣지 않는다.
             String reason = exception.getClass().getSimpleName() + ": " + exception.getMessage();
             log.warn("[dataset-refresh] dataset failed dataset={} reason={}", dataset, reason);
-            run.fail(null, reason);
+            run.fail(run.focus, reason);
         }
-        return new DatasetRefreshOutcome(dataset, run.slots, run.apiCalls, run.state);
+        return new DatasetRefreshOutcome(dataset, run.slots, budget.used() - usedBefore, run.state);
     }
 
     /** 1회 판단의 가변 상태. 스레드 간에 공유하지 않는다. */
     private final class Run {
         private final Dataset dataset;
-        private final int budget;
+        private final ApiCallBudget budget;
         private final Instant firedAt;
         private final List<DatasetRefreshSlot> slots = new ArrayList<>();
         private DatasetRefreshState state;
-        private int apiCalls;
+        /** 지금 다루는 분기. 예외로 끝났을 때 슬롯에 붙인다. */
+        private Quarter focus;
+        /** 재이관과 새 분기 적재를 합친 이번 run 의 분기 수. {@code max-quarters-per-run} 을 넘지 않는다. */
+        private int quartersHandled;
 
-        Run(Dataset dataset, DatasetRefreshState state, int budget, Instant firedAt) {
+        Run(Dataset dataset, DatasetRefreshState state, ApiCallBudget budget, Instant firedAt) {
             this.dataset = dataset;
             this.state = state;
             this.budget = budget;
@@ -94,28 +106,35 @@ public class DatasetRefreshProcessor {
 
         void execute() {
             List<PublishedSlot> published = releases.publishedSlots(dataset, properties.spatialVersion(), properties.schemaVersion());
-            reprojectMismatchedSlots(published);
             if (published.isEmpty()) {
                 skip(null, DatasetRefreshResult.NO_BASELINE, "no published quarter; backfill the first one with the manual CLI");
                 return;
             }
             Quarter latest = published.getLast().period();
             Quarter candidate = latest.next();
+            // 재이관도 쿨다운을 따른다. 매일 실패하는 이관을 쿨다운 없이 다시 돌리면 512m 컨테이너에서 무거운 Job 이 매일 실패한다.
+            if (inCooldown()) {
+                skip(candidate, DatasetRefreshResult.COOLDOWN, "consecutiveFailures=" + state.consecutiveFailures());
+                return;
+            }
+            if (!reprojectMismatchedSlots(published)) {
+                return;
+            }
+            focus = candidate;
             Optional<Quarter> lastPublishable = dataset.lastPublishableQuarter();
             if (lastPublishable.isPresent() && candidate.compareTo(lastPublishable.get()) > 0) {
                 skip(candidate, DatasetRefreshResult.DISCONTINUED, "source discontinued after " + lastPublishable.get().value());
                 return;
             }
-            if (inCooldown()) {
-                skip(candidate, DatasetRefreshResult.COOLDOWN, "consecutiveFailures=" + state.consecutiveFailures());
+            if (quartersLeft() < 1) {
+                skip(candidate, DatasetRefreshResult.BUDGET, "max-quarters-per-run=" + properties.maxQuartersPerRun() + " used by reprojection");
                 return;
             }
-            if (budget - apiCalls < 1) {
+            if (budget.remaining() < 1) {
                 skip(candidate, DatasetRefreshResult.BUDGET, "no API calls left for probe");
                 return;
             }
-            apiCalls++;
-            Optional<Long> probed = source.probe(dataset, candidate);
+            Optional<Long> probed = source.probe(dataset, candidate, budget);
             if (probed.isEmpty()) {
                 state = state.probedWithoutRows(firedAt);
                 skip(candidate, DatasetRefreshResult.NOT_PUBLISHED_YET, "source has no rows for " + candidate.value());
@@ -128,19 +147,18 @@ public class DatasetRefreshProcessor {
                 return;
             }
             long pages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
-            if (pages > budget - apiCalls) {
-                skip(candidate, DatasetRefreshResult.BUDGET, "needs " + pages + " calls, " + (budget - apiCalls) + " left");
+            if (pages > budget.remaining()) {
+                skip(candidate, DatasetRefreshResult.BUDGET, "needs " + pages + " calls, " + budget.remaining() + " left");
                 return;
             }
             String fetchRunId = runId("", candidate, "-fetch");
-            // 수집이 중간에 실패해도 예산을 넉넉히 잡아 둔다. 성공하면 실제 호출 수로 바로잡는다.
-            apiCalls += (int) pages;
-            SourceAcquisition acquisition = source.acquire(dataset, candidate, fetchRunId);
-            apiCalls += acquisition.apiCalls() - (int) pages;
+            SourceAcquisition acquisition = source.acquire(dataset, candidate, fetchRunId, budget);
+            // 게시 판단이 실패해도 보관본 위치는 남긴다. 운영자가 이 경로로 수동 ARCHIVE 재생을 한다.
+            state = state.fetchRecorded(fetchRunId, acquisition.rawLocation());
             List<Quarter> quarters = acquisition.rowsByQuarter().keySet().stream()
                 .filter(quarter -> quarter.compareTo(latest) > 0)
                 .filter(quarter -> lastPublishable.isEmpty() || quarter.compareTo(lastPublishable.get()) <= 0)
-                .limit(properties.maxQuartersPerRun())
+                .limit(quartersLeft())
                 .toList();
             Quarter newest = acquisition.rowsByQuarter().isEmpty() ? state.newestSourcePeriod() : acquisition.rowsByQuarter().lastKey();
             if (quarters.isEmpty()) {
@@ -179,33 +197,56 @@ public class DatasetRefreshProcessor {
                 && state.lastFailureAt().plus(Duration.ofDays(properties.failureCooldownDays())).isAfter(firedAt);
         }
 
+        private int quartersLeft() {
+            return properties.maxQuartersPerRun() - quartersHandled;
+        }
+
         /**
          * 이미 게시됐는데 typed 행 수가 게시 건수와 다른 슬롯을 먼저 이관한다({@code quarterly-import-coverage.sql} 5절 판정).
-         * 이관 실패로 화면에 안 나오는 분기를 새 분기보다 먼저 복구한다. 메모리 때문에 run 당 분기 상한을 같이 적용한다.
+         * 이관 실패로 화면에 안 나오는 분기를 새 분기보다 먼저 복구한다. 메모리 때문에 새 분기와 합쳐 run 당 분기 상한을 지킨다.
+         *
+         * <ul>
+         *   <li>{@code reproject-from}(기본 20234) 이전 슬롯은 보지 않는다. 20211~20233 은 레거시 행이 이관 없이 이미 있어 건수가
+         *       어긋나도 덮어쓰면 안 된다</li>
+         *   <li>publish=false 면 dry-run 이관이다. 같은 슬롯을 매일 다시 dry-run 하지 않도록 마지막으로 dry-run 한 분기보다 늦은 슬롯만 본다</li>
+         *   <li>성공하면 연속 실패를 끊는다({@code succeeded()})</li>
+         * </ul>
+         *
+         * @return false 면 이관이 실패해 이 데이터셋을 여기서 멈췄다
          */
-        private void reprojectMismatchedSlots(List<PublishedSlot> published) {
-            if (published.isEmpty()) {
-                return;
-            }
-            Map<Quarter, Long> typed = projections.typedRowCounts(dataset, properties.spatialVersion());
+        private boolean reprojectMismatchedSlots(List<PublishedSlot> published) {
+            Quarter from = new Quarter(properties.reprojectFrom());
             Optional<Quarter> lastPublishable = dataset.lastPublishableQuarter();
-            List<PublishedSlot> mismatched = published.stream()
+            boolean dryRun = !properties.publish();
+            Quarter dryRunDone = state.lastReprojectDryRunPeriod();
+            List<PublishedSlot> eligible = published.stream()
+                .filter(slot -> slot.period().compareTo(from) >= 0)
                 .filter(slot -> lastPublishable.isEmpty() || slot.period().compareTo(lastPublishable.get()) <= 0)
+                .filter(slot -> !dryRun || dryRunDone == null || slot.period().compareTo(dryRunDone) > 0)
+                .toList();
+            if (eligible.isEmpty()) {
+                return true;
+            }
+            Map<Quarter, Long> typed = projections.typedRowCounts(dataset, properties.spatialVersion(), from);
+            List<PublishedSlot> mismatched = eligible.stream()
                 .filter(slot -> typed.getOrDefault(slot.period(), 0L) != slot.acceptedCount())
-                .limit(properties.maxQuartersPerRun())
+                .limit(quartersLeft())
                 .toList();
             for (PublishedSlot slot : mismatched) {
-                boolean dryRun = !properties.publish();
+                focus = slot.period();
+                quartersHandled++;
                 ImportExecution execution = executions.runProjection(new ProjectionRequest(projectRunId(slot.period()), dataset,
                     slot.period(), properties.spatialVersion(), properties.schemaVersion(), dryRun));
                 if (!execution.completed()) {
                     fail(slot.period(), "projection " + execution.status() + ": " + execution.failure());
-                    return;
+                    return false;
                 }
                 warnUnresolvedServiceTypes(slot.period(), execution);
                 record(slot.period(), dryRun ? DatasetRefreshResult.WOULD_PROJECT : DatasetRefreshResult.PROJECTED,
                     "typed=" + typed.getOrDefault(slot.period(), 0L) + " accepted=" + slot.acceptedCount());
+                state = dryRun ? state.reprojectDryRun(slot.period()).succeeded() : state.succeeded();
             }
+            return true;
         }
 
         /** @return 모든 분기가 실패 없이 끝났으면 true */
@@ -215,6 +256,8 @@ public class DatasetRefreshProcessor {
             long latestAccepted = published.getLast().acceptedCount();
             Path raw = Path.of(acquisition.rawLocation());
             for (Quarter quarter : quarters) {
+                focus = quarter;
+                quartersHandled++;
                 long expected = acquisition.rowsByQuarter().get(quarter);
                 Optional<String> implausible = implausible(expected, baselines.getOrDefault(quarter.previous(), latestAccepted));
                 if (implausible.isPresent()) {
@@ -241,7 +284,8 @@ public class DatasetRefreshProcessor {
                     properties.spatialVersion(), properties.schemaVersion(), false));
                 if (!project.completed()) {
                     record(quarter, DatasetRefreshResult.PUBLISHED_NOT_PROJECTED, project.status() + ": " + project.failure());
-                    state = state.failed(firedAt, "projection " + quarter.value() + " " + project.status() + ": " + project.failure());
+                    // 게시는 됐다. 쿨다운 없이 다음 run 의 재이관이 이관만 다시 한다.
+                    state = state.projectionPending(firedAt, "projection " + quarter.value() + " " + project.status() + ": " + project.failure());
                     return false;
                 }
                 warnUnresolvedServiceTypes(quarter, project);
