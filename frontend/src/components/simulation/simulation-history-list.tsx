@@ -134,23 +134,30 @@ export default function SimulationHistoryList({
    * 그 보정이 도착하기 전 한 프레임에도 길은 열려 있어야 한다.
    */
   if (histories.length === 0) {
-    const empty = (
-      <EmptyState
-        title="아직 저장한 결과가 없어요"
-        description="창업 조건을 계산하고 결과를 저장하면 여기에 모여요."
-        action={
-          <ButtonLink href="/simulation" rightIcon={<ArrowRight />}>
-            시뮬레이션 하러 가기
-          </ButtonLink>
-        }
-      />
-    )
+    if (page <= 0) {
+      return (
+        <EmptyState
+          title="아직 저장한 결과가 없어요"
+          description="창업 조건을 계산하고 결과를 저장하면 여기에 모여요."
+          action={
+            <ButtonLink href="/simulation" rightIcon={<ArrowRight />}>
+              시뮬레이션 하러 가기
+            </ButtonLink>
+          }
+        />
+      )
+    }
 
-    if (page <= 0) return empty
-
+    /*
+      뒷페이지가 빈 것은 「저장한 결과가 없다」가 아니다(X3) — 앞 페이지에는 남아 있다. 전에는 첫
+      페이지와 같은 문구라 다 지워진 줄 알았다. 이 페이지만 비었다고 말하고 돌아갈 길을 준다.
+    */
     return (
       <Root>
-        {empty}
+        <EmptyState
+          title="이 페이지에는 결과가 없어요"
+          description="앞 페이지에서 나머지 저장 결과를 볼 수 있어요."
+        />
         <Pager aria-label="저장 목록 페이지">
           <Button
             size="medium"
@@ -197,9 +204,11 @@ export default function SimulationHistoryList({
                 >
                   {replayable ? '리포트 보기' : '브랜드 다시 고르기'}
                 </ButtonLink>
+                {/* 삭제는 ghost 로 낮춘다(X3). 「리포트 보기」와 같은 무게면 둘 중 무엇이 주 행동인지
+                    읽히지 않고, 되돌릴 수 없는 쪽을 잘못 누르기 쉽다. */}
                 <Button
                   size="medium"
-                  variant="secondary"
+                  variant="ghost"
                   aria-label={`${condition} 저장 기록 삭제`}
                   isLoading={deletingHistoryIds.includes(history.historyId)}
                   onClick={() => onDelete(history.historyId)}

@@ -123,6 +123,8 @@ describe('ProfileSimulationBookmarksPage — 뒷페이지가 비는 경로', () 
       expect(screen.getAllByLabelText(/저장 기록 삭제$/)).toHaveLength(10),
     )
     expect(screen.queryByText('아직 저장한 결과가 없어요')).toBeNull()
+    // 빈 뒷페이지 문구로 바뀌었으니 그쪽도 본다 — 빈 2페이지에 갇히면 이 문구가 남는다.
+    expect(screen.queryByText('이 페이지에는 결과가 없어요')).toBeNull()
   })
 
   it('두 카드를 잇달아 눌러 페이지가 통째로 비어도 목록으로 돌아온다', async () => {
@@ -152,5 +154,7 @@ describe('ProfileSimulationBookmarksPage — 뒷페이지가 비는 경로', () 
       expect(screen.getAllByLabelText(/저장 기록 삭제$/)).toHaveLength(10),
     )
     expect(screen.queryByText('아직 저장한 결과가 없어요')).toBeNull()
+    // 빈 뒷페이지 문구로 바뀌었으니 그쪽도 본다 — 빈 2페이지에 갇히면 이 문구가 남는다.
+    expect(screen.queryByText('이 페이지에는 결과가 없어요')).toBeNull()
   })
 })

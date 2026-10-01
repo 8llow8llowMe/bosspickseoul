@@ -82,7 +82,9 @@ describe('SimulationHistoryList', () => {
     // 페이저까지 감추면 앞 페이지에 항목이 남아 있는데도 막다른 길이 된다.
     const html = render({ histories: [], page: 1, totalPages: 2 })
 
-    expect(html).toContain('아직 저장한 결과가 없어요')
+    // 「아직 저장한 결과가 없어요」가 아니다 — 앞 페이지에는 남아 있다(X3).
+    expect(html).toContain('이 페이지에는 결과가 없어요')
+    expect(html).not.toContain('아직 저장한 결과가 없어요')
     expect(html).toContain('이전 페이지')
     expect(
       (html.match(/<button[^>]*>/g) ?? []).find(tag =>
