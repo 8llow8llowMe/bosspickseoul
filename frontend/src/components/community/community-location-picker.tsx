@@ -182,6 +182,59 @@ const mockCommercialsByAdministration: Readonly<
   Record<string, readonly CommercialArea[]>
 > = communityMockLocations.commercialsByAdministration
 
+/**
+ * 행정동·상권 목록의 query key 와 로더. 목록 필터의 지역 선택 시트(`community-region-sheet.tsx`)와
+ * 이 선택기가 **같은 key·같은 로더**를 써서 캐시를 나눠 쓴다 — 목 분기도 여기 한 곳에만 둔다.
+ */
+export const communityLocationQueryKeys = {
+  administrations: (mockEnabled: boolean, districtCode: string | undefined) =>
+    [
+      'community-locations',
+      'administrations',
+      mockEnabled,
+      districtCode,
+    ] as const,
+  commercials: (
+    mockEnabled: boolean,
+    districtCode: string | undefined,
+    administrationCode: string | undefined,
+  ) =>
+    [
+      'community-locations',
+      'commercials',
+      mockEnabled,
+      districtCode,
+      administrationCode,
+    ] as const,
+}
+
+export const loadCommunityAdministrations = async (
+  mockEnabled: boolean,
+  districtCode: string,
+): Promise<AdministrationAreasResponse> => {
+  if (mockEnabled) {
+    return successResponse<AdministrationArea[]>([
+      ...(mockAdministrationsByDistrict[districtCode] ?? []),
+    ])
+  }
+
+  return fetchAdministrations(districtCode)
+}
+
+export const loadCommunityCommercials = async (
+  mockEnabled: boolean,
+  districtCode: string,
+  administrationCode: string,
+): Promise<CommercialAreasResponse> => {
+  if (mockEnabled) {
+    return successResponse<CommercialArea[]>([
+      ...(mockCommercialsByAdministration[administrationCode] ?? []),
+    ])
+  }
+
+  return fetchCommercials(districtCode, administrationCode)
+}
+
 const Container = styled.section`
   display: grid;
   gap: 14px;
@@ -420,41 +473,22 @@ export default function CommunityLocationPicker({
   const administrationCode = selections.administration?.code
 
   const administrationsQuery = useQuery<AdministrationAreasResponse>({
-    queryKey: [
-      'community-locations',
-      'administrations',
+    queryKey: communityLocationQueryKeys.administrations(
       mockEnabled,
       districtCode,
-    ],
-    queryFn: () => {
-      if (mockEnabled) {
-        return successResponse<AdministrationArea[]>([
-          ...(mockAdministrationsByDistrict[districtCode!] ?? []),
-        ])
-      }
-
-      return fetchAdministrations(districtCode!)
-    },
+    ),
+    queryFn: () => loadCommunityAdministrations(mockEnabled, districtCode!),
     enabled: Boolean(districtCode) && !disabled,
   })
 
   const commercialsQuery = useQuery<CommercialAreasResponse>({
-    queryKey: [
-      'community-locations',
-      'commercials',
+    queryKey: communityLocationQueryKeys.commercials(
       mockEnabled,
       districtCode,
       administrationCode,
-    ],
-    queryFn: () => {
-      if (mockEnabled) {
-        return successResponse<CommercialArea[]>([
-          ...(mockCommercialsByAdministration[administrationCode!] ?? []),
-        ])
-      }
-
-      return fetchCommercials(districtCode!, administrationCode!)
-    },
+    ),
+    queryFn: () =>
+      loadCommunityCommercials(mockEnabled, districtCode!, administrationCode!),
     enabled: Boolean(districtCode) && Boolean(administrationCode) && !disabled,
   })
 
