@@ -18,6 +18,12 @@ export type SimulationErrorNoticeProps = {
   onRetry?: () => void
   /** 조건 재선택 — 되돌릴 섹션을 받아 그 조건 섹션으로 데려간다. */
   onReselect?: (section: SimulationConditionSection) => void
+  /**
+   * 조건이 둘인 화면(비교)에서 **어느 쪽**이 문제인지. 주면 「조건 B를 확인해 주세요」를
+   * 덧붙이고 버튼 이름에 쪽을 붙인다(「조건 A·B」는 모음으로 끝나 「를」이다). 되돌릴 섹션을 모르는 비재시도 오류(404 등)에도 `onEdit`
+   * 버튼을 둬서 막다른 화면을 만들지 않는다(C5).
+   */
+  scope?: { label: string; onEdit: () => void }
 }
 
 const TITLE_BY_KIND: Record<NormalizedApiError['kind'], string> = {
@@ -109,6 +115,7 @@ export default function SimulationErrorNotice({
   error,
   onRetry,
   onReselect,
+  scope,
 }: SimulationErrorNoticeProps) {
   const retryable = isRetryable(error.kind)
   const fieldSection = error.fieldErrors
@@ -124,6 +131,7 @@ export default function SimulationErrorNotice({
         <Title>{TITLE_BY_KIND[error.kind]}</Title>
       </Head>
       <Message>{error.message}</Message>
+      {scope ? <Message>{`${scope.label}를 확인해 주세요.`}</Message> : null}
 
       {error.fieldErrors.length > 0 ? (
         <FieldList>
@@ -154,7 +162,18 @@ export default function SimulationErrorNotice({
             leftIcon={<SlidersHorizontal />}
             onClick={() => onReselect(recoverySection)}
           >
+            {scope ? `${scope.label} ` : ''}
             {SIMULATION_CONDITION_SECTION_LABELS[recoverySection]} 다시 선택
+          </Button>
+        ) : null}
+        {!retryable && !recoverySection && scope ? (
+          <Button
+            size="medium"
+            variant="secondary"
+            leftIcon={<SlidersHorizontal />}
+            onClick={scope.onEdit}
+          >
+            {`${scope.label} 고치기`}
           </Button>
         ) : null}
       </Actions>
