@@ -442,11 +442,17 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 ### Breakpoints
 
-| Name             | Width     | Key Changes                                             |
-| ---------------- | --------- | ------------------------------------------------------- |
-| Mobile (Primary) | <480px    | Full design fidelity, 375px baseline                    |
-| Tablet           | 480-768px | Expanded cards, optional side margins                   |
-| Desktop (Web)    | >768px    | Centered column, max-width ~480px for mobile-web parity |
+| Name             | Width     | Key Changes                                              |
+| ---------------- | --------- | -------------------------------------------------------- |
+| Mobile (Primary) | <480px    | Full design fidelity, 375px baseline                     |
+| Tablet           | 480-768px | Expanded cards, optional side margins                    |
+| Desktop (Web)    | >768px    | Centered column, max-width ~480px for mobile-web parity  |
+| Desktop wide     | ≥1080px   | 피드형 화면(커뮤니티)만 — 본문 열 + 레일. 아래 메모 참고 |
+
+> **피드형 화면의 구간 (2026-10-01).** 커뮤니티는 `<480` 모바일 · `480–1079` 태블릿(`--w-read` 1단) ·
+> `≥1080` 데스크톱(본문 `--w-read` + 레일 300, 최종 3단 240·720·300 = 1308 은 `--w-wide` 안)으로 나눈다.
+> 1080 은 본문 720 + 레일 300 + 간격이 셸 안에 들어가는 첫 폭이다. 레거시 640·760·768 은 쓰지 않는다.
+> 근거: [커뮤니티 개편 제안서](./docs/superpowers/specs/2026-10-01-community-ux-renewal.md) §3.
 
 > **예외 — 시뮬레이션 화면**: 2단 작업 화면이라 이 표 대신 `≤767 / 768–1023 / ≥1024` 3단계를 쓴다(2026-10-01). 규칙은 [S-SIM-1](#53-shell-simulation--share) 「반응형은 3단계다」.
 
@@ -1239,24 +1245,28 @@ idle → submitting → ┬── cached (200)        → completed
 
 #### 5.4 (shell) Community
 
-**S-COM-1. `/community/list`**
+**S-COM-1. `/community/list`** (개편 1단계, 2026-10-01 — 동작 정본은 `docs/features/community/community.md` §S4 「화면 구성」)
 
-- **목적**: 피드(전체/카테고리/상권별) + 검색
-- **레이아웃**:
-  - 상단 sticky 헤더: 검색 인풋(돋보기 아이콘) + 필터 chip row(`전체` `자치구별` `행정동별` `상권별`) + 정렬 토글(`최신` `인기`).
-  - 본문: 카드 리스트(카드: 작성자 아바타 + 닉네임 + 시간, 제목 16/600, 본문 2줄 14/400 grey600, 좋아요·댓글·조회수 카운트 13/400 grey500, 대상 chip).
-  - FAB(우하단): `글쓰기` (auth-required → 미로그인 시 인증 모달).
-- **무한 스크롤**: `lastPostId` 커서.
-- **호출**: `GET /api/v1/community/posts`, 검색 시 `GET /community/posts/search`.
-- **상태**: loading → 카드 5칸 skeleton. empty(검색결과없음) → `조건에 맞는 글이 없어요`. empty(첫방문) → `아직 글이 없어요. 첫 글을 남겨보세요.` + 글쓰기 CTA.
+- **목적**: 지역에 붙은 글 피드 + 검색. 모바일 첫 화면에 글 행 3건 이상
+- **레이아웃** (모든 폭 `--w-read` 1단):
+  - 제목 한 줄: `사장님 이야기` / 대상 선택 시 `{지역} 이야기`. 소개 카드 없음. `≥480` 우측 `글쓰기`(primary)
+  - sticky 툴바: 검색 인풋(돋보기 아이콘, 지우기 버튼) + 지역 칩(→ 지역 선택 시트)
+  - 밑줄 탭 `최신` `인기` + 오른쪽 끝 `좋아요한 글` 토글
+  - 글 행(카드 아님, 구분선): `지역 · 시간`(13/400) → 제목 16/600 → 본문 2줄 14/400 grey600 → 작성자 · 좋아요 · 댓글(13/400). 썸네일 72(`<480`)/96, radius 8. 인기 상위 3건 순위 숫자
+  - FAB(`<480` 우하단): `글쓰기`
+- **지역 선택 시트**: 단계 진입 리스트(자치구 → 행정동 → 상권), 각 단계 첫 행 `○○ 전체`, 경로 브레드크럼, 현재 단계 검색. `<480` 바텀시트 / `≥480` 다이얼로그
+- **다음 쪽**: `lastPostId` 커서. 1단계는 「더 보기」 버튼, 2단계에 자동 무한 스크롤
+- **상태**: loading → 행 skeleton. empty 는 이유별 한 줄 + 행동 하나
 
 **S-COM-2. `/community/[communityId]`**
 
 - **목적**: 게시글 상세 + 댓글 + 좋아요 + 신고
-- **레이아웃**:
-  - 본문: 작성자 정보 + 제목(Heading Large 22) + 본문 + 첨부 chip(상권/자치구).
-  - 액션 바: 좋아요(♥ + 카운트) / 공유 / 더보기(메뉴: 신고 / 작성자만 수정·삭제).
-  - 댓글 섹션: depth 1 트리. 부모 댓글 클릭 → 대댓글 입력 inline 펼침. 댓글: 닉네임, 시간, 본문, 좋아요(❤ + 카운트), 더보기.
+- **레이아웃**: `≥1080` 본문(`--w-read`) + 레일 300 을 **가운데 묶음**으로, 그 아래 1단
+  - 머리 줄: `← 목록` · 더보기(⋯)
+  - 본문(카드 없이 흰 바탕): 지역 칩(링크) + 제목(22 / `≥480` 26, 700) + 작성자 · `상대 시간 · 조회 N(· 수정됨)` + 본문 + 이미지
+  - 반응 바: 좋아요(♥ + 카운트) / 댓글 / 공유 — 아이콘 + 라벨, 높이 40
+  - 더보기 메뉴: 신고 / 작성자만 수정·삭제. `<480` 바텀시트, `≥480` 팝오버
+  - 댓글 섹션: depth 1 트리. 부모 댓글 → 대댓글 입력 inline 펼침. 댓글: 닉네임, 시간, 본문, 좋아요(❤ + 카운트), 더보기
 - **호출**: `GET /community/posts/{id}` (조회수+1), `GET /community/posts/{id}/comments`, `POST .../likes`, `POST .../comments`, `POST /community/reports`.
 - **신고 모달**: Confirm + 사유 TextField + 제출.
 
