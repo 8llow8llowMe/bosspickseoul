@@ -535,12 +535,18 @@ describe('CommunityDetailView — 머리·메타·지역 (개편 1단계)', () =
     그 'empty' 는 「비었다」가 아니라 「묻지 않았다」라, 레일을 그리면 근거 없이 「서울 전체의 다음
     이야기를 남겨 보세요」를 말하게 된다(community.md §S4 「이 지역 글」).
   */
+  /*
+    4단계부터 인접 글도 레일에 오른다(「상세 레일 보강」) — 「레일 없음」은 대상도 인접 글도 없을 때다.
+    대상 없음 + 인접 글은 아래 「상세 레일 보강」 묶음이 본다.
+  */
   it('draws no rail for a post without a target and keeps the read column alone and centered at 1080', () => {
     const { markup, styles } = renderWithStyles({
       relatedStatus: 'empty',
       relatedPosts: [],
+      adjacent: null,
     })
 
+    expect(markup).not.toContain('data-community-rail=')
     expect(markup).not.toContain('data-community-region-sidebar')
     expect(markup).not.toContain('최신 글')
     expect(markup).not.toContain('다음 이야기를 남겨 보세요')
@@ -981,7 +987,11 @@ describe('community detail helpers', () => {
     expect(invalidateSpy).toHaveBeenNthCalledWith(1, {
       queryKey: ['community', 'list'],
     })
+    // 목록 레일의 인기 글 ♡ 수도 같은 요약이라 함께 무효화한다(4단계).
     expect(invalidateSpy).toHaveBeenNthCalledWith(2, {
+      queryKey: ['community', 'popular'],
+    })
+    expect(invalidateSpy).toHaveBeenNthCalledWith(3, {
       queryKey: relatedKey,
       exact: true,
     })
@@ -1224,5 +1234,239 @@ describe('CommunityDetailView — 첨부 이미지', () => {
     )
     expect(markup).toContain('첨부 이미지 1')
     expect(markup).toContain('첨부 이미지 2')
+  })
+})
+
+/*
+  styled-components 클래스는 해시라, 「이 요소에 걸린 규칙」을 보려면 마크업에서 그 요소의 클래스를
+  꺼내 스타일 태그에서 찾는다. `attr` 는 요소를 고르는 data 속성 조각이다.
+*/
+const getElementClasses = (markup: string, attr: string) => {
+  const tag = markup.match(new RegExp(`<[a-z]+[^>]*${attr}[^>]*>`))?.[0]
+  if (!tag) {
+    throw new Error(`요소가 없다: ${attr}`)
+  }
+  return tag.match(/class="([^"]+)"/)?.[1]?.split(/\s+/) ?? []
+}
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** 요소의 클래스 중 하나라도 `media`(없으면 기본) 안에서 `declaration` 을 갖는가. */
+const hasRule = (
+  styles: string,
+  classes: string[],
+  declaration: RegExp,
+  media?: RegExp,
+) =>
+  classes.some(name => {
+    const rule = `\\.${escapeRegExp(name)}\\{([^}]*)\\}`
+    const pattern = media
+      ? new RegExp(`${media.source}\\{${rule}`, 'g')
+      : new RegExp(`(?<!\\{)${rule}`, 'g')
+
+    return Array.from(styles.matchAll(pattern)).some(match =>
+      declaration.test(match[1] ?? ''),
+    )
+  })
+
+const DESKTOP_MEDIA = /@media \(min-width:\s*1080px\)/
+const MOBILE_MEDIA = /@media \(max-width:\s*479px\)/
+
+const imagesOf = (count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    imageKey: `photo-${index}.png`,
+    imageUrl: `https://minio.test/photo-${index}.png`,
+    sortOrder: index,
+  }))
+
+describe('CommunityDetailView — 사진 보기 (개편 4단계)', () => {
+  it('본문 사진마다 크게 보기 버튼으로 감싸고 alt·lazy 는 그대로 둔다', () => {
+    const { markup } = renderWithStyles({
+      detail: { ...detail, images: imagesOf(3) },
+    })
+
+    for (const position of [1, 2, 3]) {
+      expect(markup).toMatch(
+        new RegExp(
+          `<button[^>]*type="button"[^>]*aria-label="첨부 이미지 ${position} 크게 보기"`,
+        ),
+      )
+    }
+    expect(markup).toMatch(
+      /<img[^>]*src="https:\/\/minio\.test\/photo-1\.png"[^>]*alt="첨부 이미지 2"[^>]*loading="lazy"/,
+    )
+    // 닫힌 라이트박스는 그리지 않는다.
+    expect(markup).not.toContain('사진 크게 보기')
+  })
+
+  it('사진 2장 이상이면 <480 에서 가로 scroll-snap 줄(한 장 100%·간격 8)이 되고 ≥480 은 세로 나열이다 (CM-042)', () => {
+    const { markup, styles } = renderWithStyles({
+      detail: { ...detail, images: imagesOf(3) },
+    })
+    const strip = getElementClasses(markup, 'data-community-photo-strip="true"')
+
+    expect(hasRule(styles, strip, /display:grid/)).toBe(true)
+    expect(hasRule(styles, strip, /grid-auto-flow/)).toBe(false)
+    for (const declaration of [
+      /grid-auto-flow:column/,
+      /grid-auto-columns:100%/,
+      /gap:8px/,
+      /overflow-x:auto/,
+      /scroll-snap-type:x mandatory/,
+    ]) {
+      expect(hasRule(styles, strip, declaration, MOBILE_MEDIA)).toBe(true)
+    }
+    expect(styles).toMatch(/scroll-snap-align:start/)
+  })
+
+  it('점은 사진 수만큼, 스크린리더에는 n / 전체 로 알리고 ≥480 에서는 통째로 숨는다', () => {
+    const { markup, styles } = renderWithStyles({
+      detail: { ...detail, images: imagesOf(3) },
+    })
+
+    expect(markup.match(/data-community-photo-dot="true"/g)).toHaveLength(3)
+    expect(markup).toMatch(
+      /<[a-z]+[^>]*aria-hidden="true"[^>]*>(<span[^>]*data-community-photo-dot="true"[^>]*><\/span>){3}/,
+    )
+    expect(markup).toMatch(/data-community-photo-position="true"[^>]*>1 \/ 3</)
+    const indicator = getElementClasses(
+      markup,
+      'data-community-photo-indicator="true"',
+    )
+    expect(hasRule(styles, indicator, /display:none/)).toBe(true)
+    expect(hasRule(styles, indicator, /display:flex/, MOBILE_MEDIA)).toBe(true)
+  })
+
+  it('사진이 한 장이면 줄도 점도 없이 세로 그대로다', () => {
+    const { markup } = renderWithStyles({
+      detail: { ...detail, images: imagesOf(1) },
+    })
+
+    expect(markup).toContain('aria-label="첨부 이미지 1 크게 보기"')
+    expect(markup).not.toContain('data-community-photo-strip')
+    expect(markup).not.toContain('data-community-photo-dot')
+    expect(markup).not.toContain('data-community-photo-indicator')
+  })
+})
+
+describe('CommunityDetailView — 상세 레일 보강 (개편 4단계)', () => {
+  it('≥1080 레일 맨 위에 이전 글 · 다음 글을 두고 지역 최신 글은 그 아래다', () => {
+    const { markup } = renderWithStyles({ detail: districtDetail })
+    const expectedFrom = encodeURIComponent(contextKey)
+    const railStart = markup.indexOf('data-community-rail="true"')
+    const railAdjacent = markup.indexOf('data-community-rail-adjacent="true"')
+    const region = markup.indexOf('data-community-region-sidebar="true"')
+
+    expect(railStart).toBeGreaterThan(-1)
+    expect(railStart).toBeLessThan(railAdjacent)
+    expect(railAdjacent).toBeLessThan(region)
+
+    const railMarkup = markup.slice(railAdjacent, region)
+    expect(railMarkup).toContain('이전 글')
+    expect(railMarkup).toContain('이전 운영 이야기')
+    expect(railMarkup).toContain('다음 글')
+    expect(railMarkup).toContain('다음 운영 이야기')
+    expect(railMarkup).toContain(
+      `href="/community/8?from=${expectedFrom}&amp;mock=1"`,
+    )
+    expect(railMarkup).toContain(
+      `href="/community/2?from=${expectedFrom}&amp;mock=1"`,
+    )
+  })
+
+  it('레일 인접 글은 ≥1080 에서만, 본문 아래 인접 글 묶음은 ≥1080 에서 display:none 이다', () => {
+    const { markup, styles } = renderWithStyles({ detail: districtDetail })
+    const body = getElementClasses(
+      markup,
+      'data-community-adjacent-navigation="true"',
+    )
+    const rail = getElementClasses(
+      markup,
+      'data-community-rail-adjacent="true"',
+    )
+
+    expect(hasRule(styles, body, /display:none/, DESKTOP_MEDIA)).toBe(true)
+    expect(hasRule(styles, body, /display:none/)).toBe(false)
+    expect(hasRule(styles, rail, /display:none/)).toBe(true)
+    expect(hasRule(styles, rail, /display:block/, DESKTOP_MEDIA)).toBe(true)
+    // sticky 는 레일 묶음 전체에 건다 — 인접 글과 지역 글이 따로 붙지 않게.
+    const column = getElementClasses(markup, 'data-community-rail="true"')
+    expect(hasRule(styles, column, /position:sticky/, DESKTOP_MEDIA)).toBe(true)
+  })
+
+  it('대상 없는 글도 인접 글이 있으면 레일(인접 글만)을 그리고, <1080 에서는 레일 칸째 숨긴다', () => {
+    const { markup, styles } = renderWithStyles({
+      relatedStatus: 'empty',
+      relatedPosts: [],
+    })
+
+    expect(markup).toContain('data-community-layout="with-rail"')
+    expect(markup).toContain('data-community-rail-adjacent="true"')
+    // 지역 묶음은 대상이 있을 때만이다(1단계 리뷰 규칙).
+    expect(markup).not.toContain('data-community-region-sidebar')
+    expect(markup).not.toContain('최신 글')
+    expect(markup).not.toContain('다음 이야기를 남겨 보세요')
+    expect(styles).toMatch(/var\(--w-read\)\)\s+300px/)
+
+    const column = getElementClasses(markup, 'data-community-rail="true"')
+    expect(hasRule(styles, column, /display:none/)).toBe(true)
+    expect(hasRule(styles, column, /display:grid/, DESKTOP_MEDIA)).toBe(true)
+  })
+
+  it('대상이 있으면 레일 칸은 <1080 에서도 보인다(지역 글이 댓글 뒤에 온다)', () => {
+    const { markup, styles } = renderWithStyles({ detail: districtDetail })
+    const column = getElementClasses(markup, 'data-community-rail="true"')
+
+    expect(hasRule(styles, column, /display:none/)).toBe(false)
+  })
+
+  it('인접 글이 있어도 이전·다음이 둘 다 비면 레일에 올리지 않는다', () => {
+    const { markup } = renderWithStyles({
+      relatedStatus: 'empty',
+      relatedPosts: [],
+      adjacent: {
+        currentPostId: detail.postId,
+        contextKey,
+        previous: null,
+        next: null,
+      },
+    })
+
+    expect(markup).not.toContain('data-community-rail-adjacent')
+    expect(markup).toContain('data-community-layout="single"')
+  })
+})
+
+describe('community-image-lightbox.tsx 소스 — 규칙', () => {
+  const source = readFileSync(
+    new URL('./community-image-lightbox.tsx', import.meta.url),
+    'utf8',
+  )
+
+  it('레거시 분기·글로우·링 끄기·새 색 리터럴을 쓰지 않는다', () => {
+    expect(source).not.toMatch(/(max|min)-width:\s*(640|760|768)px/)
+    expect(source).not.toMatch(/--shadow-focus-primary/)
+    expect(source).not.toMatch(
+      /:focus-visible[^{]*\{[^}]*outline\s*:\s*(none|0)\b/,
+    )
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/)
+    expect(source).toContain('var(--color-overlay)')
+  })
+
+  it('시트·다이얼로그 층(1000) 이상이고 줄인 모션에서는 전환을 끈다', () => {
+    const zIndex = Number(source.match(/z-index:\s*(\d+)/)?.[1])
+    expect(zIndex).toBeGreaterThanOrEqual(1000)
+    expect(zIndex).toBeLessThan(1200)
+    expect(
+      source.match(
+        /@media \(prefers-reduced-motion: reduce\)\s*\{\s*animation: none;/g,
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('포커스 가두기는 시트·신고와 같은 dialog-focus 를 쓴다', () => {
+    expect(source).toContain("from '@/lib/community/dialog-focus'")
+    expect(source).toContain("from '@/lib/community/photo-viewer'")
   })
 })
