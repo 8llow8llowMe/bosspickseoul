@@ -633,8 +633,22 @@ export default function SimulationBuilderPage({
                   serviceCode={state.serviceCode}
                   storeSize={state.storeSize}
                   floorType={state.floorType}
-                  onStoreSizeChange={selectThenAdvance(conditions.setStoreSize)}
-                  onFloorTypeChange={selectThenAdvance(conditions.setFloorType)}
+                  /*
+                    매장 조건은 selectThenAdvance 로 감싸지 않는다 — 직접 입력은 한 글자마다
+                    onStoreSizeChange 를 부르므로, 진행하면 `66` 이 `6` 에서 접힌다.
+
+                    비우지 않는 것만으로는 모자라다. 자동 진행으로 열린 단계는 openedByUser 가
+                    이미 null 이라, 층이 골라져 있으면 첫 글자로 값이 차는 순간 resolveOpenSection
+                    이 「완료」로 보고 접는다. 그래서 값을 바꾸는 동안은 이 단계를 사용자가 연
+                    단계로 붙잡고, 진행 시점(칩 선택·Enter·blur)은 컴포넌트가 onAdvance 로 알린다.
+                    프리셋 칩은 같은 핸들러 안에서 onAdvance 까지 부르므로 붙잡자마자 풀린다.
+                  */
+                  onStoreSizeChange={storeSize => {
+                    setOpenedByUser('store')
+                    conditions.setStoreSize(storeSize)
+                  }}
+                  onFloorTypeChange={conditions.setFloorType}
+                  onAdvance={() => setOpenedByUser(null)}
                 />
               ) : null}
             </SimulationConditionSectionCard>
