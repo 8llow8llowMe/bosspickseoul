@@ -220,4 +220,14 @@ export const communityKeys = {
     mock: boolean,
   ) => ['community', 'related', targetType, targetCode, mock] as const,
   liked: (mock: boolean) => ['community', 'liked', mock] as const,
+  /**
+   * 목록 우 레일 인기 글(community.md §S4 「목록 3단」). 목록 키(`['community','list',…]`)와 따로 둔다 —
+   * 목록 401 복구가 exact 키로 취소·제거할 때 섞이지 않게. 글 작성·삭제는 `communityKeys.all` 무효화로
+   * 함께 갱신된다.
+   */
+  popular: (
+    targetType: CommunityTargetType | null,
+    targetCode: string | null,
+    mock: boolean,
+  ) => ['community', 'popular', targetType, targetCode, mock] as const,
 }

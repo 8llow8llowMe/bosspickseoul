@@ -533,6 +533,111 @@ describe('CommunityListView', () => {
   })
 })
 
+/*
+  개편 4단계 「넓은 화면」(community.md §S4 「목록 3단」, CM-037·038). 골격은 CSS 그리드 영역으로
+  잡고, 레일·내비는 목록 페이지가 폭을 판정해 넘길 때만 그린다.
+*/
+describe('CommunityListView — 넓은 화면 골격', () => {
+  /** markup 에서 data 속성으로 요소의 styled-components 클래스를 찾아 그 클래스의 규칙만 모은다. */
+  const classRules = (markup: string, styles: string, attribute: string) => {
+    const tag = markup.match(new RegExp(`<[a-z]+[^>]*${attribute}[^>]*>`))?.[0]
+    const classes = tag?.match(/class="([^"]+)"/)?.[1].split(/\s+/) ?? []
+    // 마지막 클래스가 그 컴포넌트 고유 규칙이다(앞쪽은 styled 식별자).
+    const className = classes.at(-1)
+
+    return className
+      ? [
+          ...styles.matchAll(
+            new RegExp(`[^{}]*\\.${className}[^{]*\\{[^}]*\\}`, 'g'),
+          ),
+        ]
+          .map(match => match[0])
+          .join('\n')
+      : ''
+  }
+
+  const rail = createElement('div', { 'data-rail-slot': true }, '레일')
+  const nav = createElement('div', { 'data-nav-slot': true }, '내비')
+
+  it('keeps one --w-read column under 1080, feed + rail 300 at 1080, nav 240 · feed · rail 300 at 1360', () => {
+    const { styles } = renderWithStyles({ rail, nav })
+    const compact = styles.replace(/\s+/g, ' ')
+
+    expect(compact).toContain('grid-template-columns:minmax(0, var(--w-read));')
+    expect(compact).toContain("grid-template-areas:'feed';")
+    expect(compact).toMatch(
+      /@media \(min-width: ?1080px\)\{\.[\w-]+\{grid-template-columns:minmax\(0, var\(--w-read\)\) 300px;grid-template-areas:'feed rail';\}\}/,
+    )
+    expect(compact).toMatch(
+      /@media \(min-width: ?1360px\)\{\.[\w-]+\{grid-template-columns:240px minmax\(0, var\(--w-read\)\) 300px;grid-template-areas:'nav feed rail';\}\}/,
+    )
+    // 묶음을 가운데로 모은다(상세 1단계 골격과 같다) — 피드와 레일 사이가 벌어지지 않는다.
+    expect(compact).toContain('justify-content:center')
+    expect(compact).toContain('column-gap:24px')
+    // 상한 없는 auto-fit 은 쓰지 않는다(DESIGN.md §5).
+    expect(compact).not.toContain('auto-fit')
+    expect(compact).not.toContain('auto-fill')
+    // 레거시 구간을 쓰지 않는다.
+    expect(compact).not.toMatch(/(min|max)-width: ?(640|760|768)px/)
+  })
+
+  it('renders the rail and nav slots only when given, in nav · feed · rail order', () => {
+    const one = renderWithStyles().markup
+    const two = renderWithStyles({ rail }).markup
+    const three = renderWithStyles({ rail, nav }).markup
+
+    expect(one).toContain('data-community-list-layout="one"')
+    expect(one).not.toContain('data-rail-slot')
+    expect(one).not.toContain('data-nav-slot')
+    expect(two).toContain('data-community-list-layout="two"')
+    expect(two).toContain('data-rail-slot')
+    expect(two).not.toContain('data-nav-slot')
+    expect(three).toContain('data-community-list-layout="three"')
+    expect(three.indexOf('data-nav-slot')).toBeLessThan(
+      three.indexOf('aria-label="커뮤니티 피드"'),
+    )
+    expect(three.indexOf('aria-label="커뮤니티 피드"')).toBeLessThan(
+      three.indexOf('data-rail-slot'),
+    )
+  })
+
+  it('hides the tab row at 1360 only when the left nav replaces it', () => {
+    const withNav = renderWithStyles({ rail, nav })
+    const withoutNav = renderWithStyles({ rail })
+    const navRules = classRules(
+      withNav.markup,
+      withNav.styles,
+      'data-community-tab-row',
+    )
+    const plainRules = classRules(
+      withoutNav.markup,
+      withoutNav.styles,
+      'data-community-tab-row',
+    )
+
+    expect(withNav.markup).toContain('data-community-tab-row="true"')
+    expect(withNav.styles).toMatch(
+      /@media \(min-width: ?1360px\)\{\.[\w-]+\{display:none;\}\}/,
+    )
+    expect(navRules).not.toBe('')
+    expect(plainRules).not.toBe('')
+    expect(plainRules).not.toContain('display:none')
+    // 1080–1359 에서는 탭 줄이 피드 위에 그대로다.
+    expect(withoutNav.markup).toContain('>최신</button>')
+  })
+
+  it('docks the toolbar at the top while the list hides the site header under 480', () => {
+    const { styles } = renderWithStyles()
+
+    expect(styles).toMatch(
+      /@media \(max-width: ?479px\)\{html\[data-community-header-hidden='true'\]:not\(:has\(\[data-site-header\]\[data-menu-open='true'\],\s*\[data-site-header\]:focus-within\)\) \.[\w-]+\{top:0;\}\}/,
+    )
+    expect(styles).toContain(
+      'transition:top var(--motion-standard) var(--ease-standard)',
+    )
+  })
+})
+
 describe('community list container helpers', () => {
   const baseState: CommunityListState = {
     view: 'latest',

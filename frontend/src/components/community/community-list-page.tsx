@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   useInfiniteQuery,
+  useQuery,
   useQueryClient,
   type QueryClient,
   type QueryKey,
@@ -16,8 +17,14 @@ import CommunityListView, {
 } from '@/components/community/community-list-view'
 import type { CommunityLocationValue } from '@/lib/community/community-location'
 import { createCommunityListWriteHref } from '@/lib/community/editor-prefill'
+import CommunityListNav, {
+  type CommunityListNavItem,
+} from '@/components/community/community-list-nav'
+import CommunityListRail from '@/components/community/community-list-rail'
 import CommunityRegionSheet from '@/components/community/community-region-sheet'
 import { useCommunityListScrollRestore } from '@/hooks/use-community-list-scroll-restore'
+import { useCommunityRecentRegions } from '@/hooks/use-community-recent-regions'
+import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import {
   saveAdjacentPosts,
@@ -42,7 +49,18 @@ import {
   type CommunityListView as CommunityListViewMode,
   type CommunityViewer,
 } from '@/lib/community/community-state'
+import {
+  COMMUNITY_LIST_NAV_QUERY,
+  COMMUNITY_LIST_RAIL_QUERY,
+  createCommunityPopularParams,
+  getCommunityPopularRailPosts,
+  getCommunityRailAnalysisLink,
+  getCommunityRailAskTitle,
+  getCommunityRailPopularTitle,
+  getCommunityRailTarget,
+} from '@/lib/community/list-rail'
 import { saveCommunityListScroll } from '@/lib/community/list-scroll'
+import type { CommunityRecentRegion } from '@/lib/community/recent-regions'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
   CommunityId,
@@ -450,6 +468,70 @@ const dedupeCommunityPosts = (
   })
 }
 
+/** 인기 글 응답 검증. 실패 봉투는 오류로 던져 레일이 조용히 묶음을 숨기게 한다. */
+export const validateCommunityPopularResponse = (
+  response: CommunityPostListResponse,
+) => {
+  if (!isApiSuccess<CommunityPostListBody>(response)) {
+    throw new CommunityListQueryError(getApiMessage(response))
+  }
+
+  return response
+}
+
+/**
+ * 좌 내비 항목(community.md §S4 「목록 3단」). 주소는 탭·지역 칩과 **같은 액션 함수**로 만든다 —
+ * URL 계약과 CM-005(좋아요한 글은 필터를 함께 푼다)가 한 곳에서만 정해진다.
+ */
+export const createCommunityListNavItems = (
+  pathname: string,
+  state: CommunityListState,
+  recentRegions: CommunityRecentRegion[],
+) => {
+  const target = getCommunityRailTarget(state)
+  const views: CommunityListNavItem[] = (
+    [
+      { value: 'latest', label: '최신' },
+      { value: 'popular', label: '인기' },
+    ] as const
+  ).map(item => ({
+    key: item.value,
+    label: item.label,
+    href: createCommunityListActionHref(pathname, state, {
+      type: 'view',
+      view: item.value,
+    }),
+    current: state.view === item.value,
+  }))
+
+  return {
+    views,
+    liked: {
+      key: 'liked',
+      label: '좋아요한 글',
+      href: createCommunityListActionHref(pathname, state, {
+        type: 'view',
+        view: 'liked',
+      }),
+      current: state.view === 'liked',
+    },
+    recentRegions: recentRegions.map(region => ({
+      key: `${region.targetType}:${region.targetCode}`,
+      label: region.targetName,
+      href: createCommunityListActionHref(pathname, state, {
+        type: 'location',
+        value: {
+          targetType: region.targetType,
+          targetCode: region.targetCode,
+        },
+      }),
+      current:
+        target?.targetType === region.targetType &&
+        target.targetCode === region.targetCode,
+    })),
+  }
+}
+
 export default function CommunityListPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -637,6 +719,46 @@ export default function CommunityListPage() {
   const posts = dedupeCommunityPosts(responses, state)
   const contextKey = createCommunityContextKey(state)
   const boardTargetName = getCommunityBoardTargetName(responses, state)
+  const boardResponseName = getCommunityBoardResponseName(responses, state)
+
+  /*
+    넓은 화면(community.md §S4 「목록 3단」). 폭은 matchMedia 로 판정한다 — 레일을 CSS 로만 숨기면
+    인기 글 쿼리가 모바일에서도 나간다. SSR·폭 판정 전은 null 이라 그리지도 부르지도 않는다.
+  */
+  const showRail = useNarrowViewport(COMMUNITY_LIST_RAIL_QUERY) === true
+  const showNav = useNarrowViewport(COMMUNITY_LIST_NAV_QUERY) === true
+  const railTarget = getCommunityRailTarget(state)
+  const popularParams = createCommunityPopularParams(state)
+  /*
+    인기 글은 목록과 다른 키다(communityKeys.popular). 목록 401 복구가 exact 키로 취소·제거하는 것과
+    섞이지 않는다. 글 작성·삭제는 communityKeys.all 무효화로 함께 갱신되고, 상세의 좋아요·댓글
+    (['community','list'] 무효화)로는 갱신되지 않아 staleTime(5분) 동안 ♡ 수가 늦을 수 있다.
+    재시도는 목록과 같은 규칙(401 은 재시도하지 않음)이고, 실패하면 묶음을 조용히 숨긴다.
+  */
+  const popularQuery = useQuery({
+    queryKey: communityKeys.popular(
+      railTarget?.targetType ?? null,
+      railTarget?.targetCode ?? null,
+      state.mock,
+    ),
+    enabled: showRail,
+    retry: shouldRetryCommunityListQuery,
+    queryFn: async () =>
+      validateCommunityPopularResponse(await source.getPosts(popularParams)),
+  })
+  const popularBoardName =
+    popularQuery.data && railTarget
+      ? (popularQuery.data.dataBody.board?.targetName ?? null)
+      : null
+  const railBoardName = railTarget
+    ? (boardResponseName ?? popularBoardName)
+    : null
+  // 지역 게시판을 열고 이름을 알게 된 뒤에만 기록한다(CM-040). 이름 대신 코드를 싣지 않는다.
+  const recentRegions = useCommunityRecentRegions(
+    railTarget && boardResponseName
+      ? { ...railTarget, targetName: boardResponseName }
+      : null,
+  )
 
   const viewPosts: CommunityListViewPost[] = posts.map(post => ({
     ...post,
@@ -691,7 +813,7 @@ export default function CommunityListPage() {
   // 글쓰기는 보던 대상으로 지역 칩을 채워 연다(CM-031).
   const writeHref = createCommunityListWriteHref({
     state,
-    boardTargetName: getCommunityBoardResponseName(responses, state),
+    boardTargetName: boardResponseName,
     guest: hasHydrated && !viewer.authenticated,
   })
   const locationValue: CommunityLocationValue =
@@ -702,15 +824,23 @@ export default function CommunityListPage() {
           targetName: boardTargetName,
         }
       : {}
-  const targetTitle = hasTarget
-    ? (getCommunityBoardResponseName(responses, state) ?? null)
-    : null
+  const targetTitle = hasTarget ? (boardResponseName ?? null) : null
   const allPostsHref = hasTarget
     ? createCommunityListActionHref(pathname, state, {
         type: 'location',
         value: {},
       })
     : null
+
+  // 레일 글은 보던 목록의 맥락으로 연다 — 상세의 「← 목록」 이 이 목록으로 돌아온다(mock 보존).
+  const popularPosts = getCommunityPopularRailPosts(popularQuery.data).map(
+    post => ({
+      postId: post.postId,
+      title: post.title,
+      likeCount: post.likeCount,
+      href: createCommunityPostHref(post.postId, contextKey, state.mock),
+    }),
+  )
 
   const replaceAction = (action: CommunityListUrlAction) => {
     router.replace(createCommunityListActionHref(pathname, state, action), {
@@ -795,6 +925,30 @@ export default function CommunityListPage() {
       }}
       onViewChange={handleViewChange}
       posts={viewPosts}
+      nav={
+        showNav ? (
+          <CommunityListNav
+            {...createCommunityListNavItems(pathname, state, recentRegions)}
+          />
+        ) : null
+      }
+      rail={
+        showRail ? (
+          <CommunityListRail
+            analysis={getCommunityRailAnalysisLink(state, railBoardName)}
+            askTitle={getCommunityRailAskTitle(railBoardName)}
+            popular={
+              popularPosts.length > 0
+                ? {
+                    title: getCommunityRailPopularTitle(railBoardName),
+                    posts: popularPosts,
+                  }
+                : null
+            }
+            writeHref={writeHref}
+          />
+        ) : null
+      }
       searchValue={searchValue}
       status={status}
       view={state.view}

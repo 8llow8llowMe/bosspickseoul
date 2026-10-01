@@ -321,6 +321,10 @@ export const refreshCommunityDetailSummaryCaches = ({
     queryClient.invalidateQueries({
       queryKey: ['community', 'list'],
     }),
+    // 목록 레일의 인기 글(♡ 수)도 같은 요약을 보여 준다 — 목록 키와 따로 둔 키라 함께 무효화한다.
+    queryClient.invalidateQueries({
+      queryKey: ['community', 'popular'],
+    }),
     queryClient.invalidateQueries({
       queryKey: relatedQueryKey,
       exact: true,
