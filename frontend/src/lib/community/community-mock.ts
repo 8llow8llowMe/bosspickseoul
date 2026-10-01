@@ -97,6 +97,15 @@ const fixtureImageKeysByPostId: Readonly<Record<CommunityId, string[]>> = {
     'community/8606/2026/07/mock-post6-b.png',
   ],
   8: ['community/9001/2026/07/mock-post8-a.png'],
+  /*
+   * 사진 3장 — 라이트박스 넘기기(`3 / 3`)와 모바일 사진 줄 점 3개(CM-041·042)를 볼 수 있는
+   * 유일한 글이다. 2장으로는 「처음·끝」만 있어 가운데 장이 없다.
+   */
+  9: [
+    'community/8909/2026/07/mock-post9-a.png',
+    'community/8909/2026/07/mock-post9-b.png',
+    'community/8909/2026/07/mock-post9-c.png',
+  ],
 }
 
 const fixtureThumbnailUrl = (postId: CommunityId): string | null => {
@@ -233,6 +242,27 @@ const basePosts: CommunityPostSummary[] = [
     createdAt: '2026-07-27T07:45:00.000Z',
     thumbnailUrl: fixtureThumbnailUrl('8'),
   },
+  /*
+   * 사진 3장 + 답글 5개 댓글(CM-026·041·042). 대상 없는 글이라 지역 피드를 흔들지 않는다.
+   * 가장 늦게 쓴 글이라 postId·작성 시각 모두 가장 크다(실제 id 처럼 시간 순) — 최신순 맨 앞,
+   * 인기순은 좋아요가 가장 적어 맨 끝이다.
+   */
+  {
+    postId: '9',
+    memberId: '8909',
+    writerNickname: '망원동 꽃집',
+    writerProfileImageUrl: null,
+    targetType: null,
+    targetCode: null,
+    targetName: null,
+    title: '가게 앞 화단을 바꾼 전후 사진',
+    previewContent:
+      '입구 화단을 계절 꽃으로 바꾼 뒤 지나가던 손님이 들어오는 일이 늘었습니다.',
+    likeCount: 1,
+    commentCount: 6,
+    createdAt: '2026-07-27T10:00:00.000Z',
+    thumbnailUrl: fixtureThumbnailUrl('9'),
+  },
 ]
 
 const contentByPostId: Record<CommunityId, string> = {
@@ -244,6 +274,7 @@ const contentByPostId: Record<CommunityId, string> = {
   6: '퇴근 시간 이후 유동 인구와 조용한 골목 매장의 운영 경험을 공유합니다. 평일과 주말의 체류 시간이 꽤 다르게 나타났습니다.',
   7: '점심 피크 시간의 대기열을 줄이기 위해 픽업 위치를 바꾼 경험을 공유합니다. 주문과 수령 동선을 분리한 뒤 고객 문의도 줄었습니다.',
   8: '여름 시즌에 함께 작은 팝업을 열 식음료 브랜드 사장님을 찾고 있습니다. 공간과 운영 시간을 유연하게 협의하고 싶습니다.',
+  9: '입구 화단을 계절 꽃으로 바꾼 뒤 지나가던 손님이 들어오는 일이 늘었습니다. 바꾸기 전, 공사 중, 바꾼 뒤를 차례로 올립니다.',
 }
 
 const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
@@ -387,6 +418,80 @@ const baseComments: CommunityComment[] = [
     createdAt: '2026-07-27T08:00:00.000Z',
     updatedAt: '2026-07-27T08:00:00.000Z',
     replies: [],
+  },
+  /* 답글 5개 — 접힘 기준(4개 이상)을 넘겨 3개만 보이고 `답글 2개 더 보기` 가 뜬다(CM-026). */
+  {
+    commentId: '901',
+    postId: '9',
+    memberId: '8910',
+    writerNickname: '망원시장 반찬가게',
+    writerProfileImageUrl: null,
+    content: '화단 바꾸는 데 비용은 어느 정도 드셨나요?',
+    likeCount: 2,
+    createdAt: '2026-07-27T10:10:00.000Z',
+    updatedAt: '2026-07-27T10:10:00.000Z',
+    replies: [
+      {
+        commentId: '902',
+        postId: '9',
+        parentCommentId: '901',
+        memberId: '9001',
+        writerNickname: '역삼동 김사장',
+        writerProfileImageUrl: null,
+        content: '사진만 봐도 입구가 환해졌네요.',
+        likeCount: 0,
+        createdAt: '2026-07-27T10:12:00.000Z',
+        updatedAt: '2026-07-27T10:12:00.000Z',
+      },
+      {
+        commentId: '903',
+        postId: '9',
+        parentCommentId: '901',
+        memberId: '8911',
+        writerNickname: '합정 카페 주인',
+        writerProfileImageUrl: null,
+        content: '화단 관리는 매일 하시나요?',
+        likeCount: 0,
+        createdAt: '2026-07-27T10:15:00.000Z',
+        updatedAt: '2026-07-27T10:15:00.000Z',
+      },
+      {
+        commentId: '904',
+        postId: '9',
+        parentCommentId: '901',
+        memberId: '8909',
+        writerNickname: '망원동 꽃집',
+        writerProfileImageUrl: null,
+        content: '물은 이틀에 한 번, 꽃은 계절마다 바꿉니다.',
+        likeCount: 0,
+        createdAt: '2026-07-27T10:18:00.000Z',
+        updatedAt: '2026-07-27T10:18:00.000Z',
+      },
+      {
+        commentId: '905',
+        postId: '9',
+        parentCommentId: '901',
+        memberId: '8912',
+        writerNickname: '연남동 빵집',
+        writerProfileImageUrl: null,
+        content: '저희도 따라 해 보고 싶어요.',
+        likeCount: 0,
+        createdAt: '2026-07-27T10:21:00.000Z',
+        updatedAt: '2026-07-27T10:21:00.000Z',
+      },
+      {
+        commentId: '906',
+        postId: '9',
+        parentCommentId: '901',
+        memberId: '8913',
+        writerNickname: '성산동 문구점',
+        writerProfileImageUrl: null,
+        content: '공사 기간은 얼마나 걸렸나요?',
+        likeCount: 0,
+        createdAt: '2026-07-27T10:24:00.000Z',
+        updatedAt: '2026-07-27T10:24:00.000Z',
+      },
+    ],
   },
 ]
 

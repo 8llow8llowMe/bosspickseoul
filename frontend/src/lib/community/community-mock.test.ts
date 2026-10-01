@@ -58,7 +58,7 @@ const fixtureDetail = (postId: string) => {
 const fixturePosts = (postIds: CommunityId[]) => postIds.map(fixturePost)
 
 describe('community mock source', () => {
-  it('Swagger 요약·상세 fixture를 2/2/2/2 대상 분포와 작성자 혼합으로 제공한다', () => {
+  it('Swagger 요약·상세 fixture를 3/2/2/2 대상 분포와 작성자 혼합으로 제공한다', () => {
     type DistributionKey = CommunityTargetType | 'SEOUL'
     const isTargetType = (
       value: string | undefined,
@@ -84,7 +84,8 @@ describe('community mock source', () => {
     )
 
     expect(distribution).toEqual({
-      SEOUL: 2,
+      // 서울 전체 셋째 글(9)은 사진 3장 · 답글 5개 댓글을 싣는 e2e 용 글이다(CM-026·041·042).
+      SEOUL: 3,
       DISTRICT: 2,
       ADMINISTRATION: 2,
       COMMERCIAL: 2,
@@ -101,12 +102,12 @@ describe('community mock source', () => {
     ).toBe(true)
     expect(
       new Set(communityMockFixtures.posts.map(post => post.createdAt)).size,
-    ).toBe(8)
+    ).toBe(9)
     expect(
       new Set(communityMockFixtures.posts.map(post => post.likeCount)).size,
-    ).toBe(8)
+    ).toBe(9)
 
-    expect(communityMockFixtures.details).toHaveLength(8)
+    expect(communityMockFixtures.details).toHaveLength(9)
     communityMockFixtures.details.forEach(detail => {
       const summary = fixturePost(detail.postId)
 
@@ -238,7 +239,7 @@ describe('community mock source', () => {
       dataBody: {
         board: null,
         posts: {
-          contents: fixturePosts(['8', '7', '6', '5', '4', '3', '2', '1']),
+          contents: fixturePosts(['9', '8', '7', '6', '5', '4', '3', '2', '1']),
           hasNext: false,
         },
       },
@@ -255,6 +256,7 @@ describe('community mock source', () => {
     )
 
     expect(latest.dataBody.posts.contents.map(post => post.postId)).toEqual([
+      '9',
       '8',
       '7',
       '6',
@@ -273,6 +275,7 @@ describe('community mock source', () => {
       '8',
       '4',
       '1',
+      '9',
     ])
   })
 
