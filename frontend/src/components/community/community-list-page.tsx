@@ -35,6 +35,7 @@ import {
   getCommunityNextPageParam,
   getCommunityPageSlice,
   parseCommunityListState,
+  serializeCommunityListState,
   type CommunityListState,
   type CommunityListView as CommunityListViewMode,
   type CommunityViewer,
@@ -168,26 +169,8 @@ const INITIAL_CURSOR = {
   lastLikeCount: 0,
 }
 
-export const serializeCommunityListState = (state: CommunityListState) => {
-  const params = new URLSearchParams()
-
-  if (state.view !== 'latest') {
-    params.set('view', state.view)
-  }
-
-  if (state.keyword) {
-    params.set('keyword', state.keyword)
-  } else if (state.targetType && state.targetCode) {
-    params.set('targetType', state.targetType)
-    params.set('targetCode', state.targetCode)
-  }
-
-  if (state.mock) {
-    params.set('mock', '1')
-  }
-
-  return params
-}
+/* 상세의 지역 칩도 같은 주소를 만들어야 해서 lib 로 옮겼다. 기존 import 를 위해 다시 내보낸다. */
+export { serializeCommunityListState }
 
 const createCommunityListHref = (
   pathname: string,

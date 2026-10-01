@@ -91,6 +91,32 @@ export const parseCommunityListState = (
   }
 }
 
+/**
+ * 목록 상태 → 쿼리. `parseCommunityListState` 의 짝이다. 목록 화면과 상세의 지역 칩이
+ * 같은 주소를 만들어야 해서 여기 둔다 — 한쪽만 규칙(검색이 대상보다 우선, mock 보존)을
+ * 바꾸면 칩이 다른 목록으로 보낸다.
+ */
+export const serializeCommunityListState = (state: CommunityListState) => {
+  const params = new URLSearchParams()
+
+  if (state.view !== 'latest') {
+    params.set('view', state.view)
+  }
+
+  if (state.keyword) {
+    params.set('keyword', state.keyword)
+  } else if (state.targetType && state.targetCode) {
+    params.set('targetType', state.targetType)
+    params.set('targetCode', state.targetCode)
+  }
+
+  if (state.mock) {
+    params.set('mock', '1')
+  }
+
+  return params
+}
+
 export const getCommunityLoginHref = (currentHref: string) =>
   `/login?redirect=${encodeURIComponent(currentHref)}`
 
