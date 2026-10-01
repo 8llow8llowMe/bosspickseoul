@@ -546,6 +546,116 @@ class DatasetRefreshProcessorTest {
             .isInstanceOf(OutOfMemoryError.class);
     }
 
+    /** 분기 인자를 무시하는 9종은 publish=false 면 지난번 최신 분기가 게시본보다 늦어도 합계가 같으면 다시 받지 않는다(이미 dry-run 했다). */
+    @Test
+    void ignoredDatasetWithAnUnchangedTotalIsUnchangedWhilePublishIsOffEvenIfNewerQuartersArePending() {
+        published(Dataset.CHANGE_DISTRICT, slot(Q20261, 25));
+        probe(Dataset.CHANGE_DISTRICT, Q20262, 550L);
+        DatasetRefreshState seenNewer = initial(Dataset.CHANGE_DISTRICT).probed(FIRED.minus(Duration.ofDays(1)), 550)
+            .fetched("auto-old", "/raw/old", Q20263);
+
+        DatasetRefreshOutcome outcome = refresh(processor(false), Dataset.CHANGE_DISTRICT, seenNewer);
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.UNCHANGED);
+        verify(source, never()).acquire(any(), any(), anyString(), any());
+    }
+
+    @Test
+    void reprojectionWithPublishOnIsARealProjection() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(Q20261, 19000L), slot(Q20261, 20000));
+        when(executions.runProjection(any())).thenReturn(ImportExecution.completed(0));
+
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.PROJECTED, DatasetRefreshResult.BUDGET);
+        assertThat(outcome.slots().getFirst().detail()).isEqualTo("typed=19000 accepted=20000");
+        ArgumentCaptor<ProjectionRequest> projection = ArgumentCaptor.forClass(ProjectionRequest.class);
+        verify(executions).runProjection(projection.capture());
+        assertThat(projection.getValue().dryRun()).isFalse();
+        assertThat(projection.getValue().period()).isEqualTo(Q20261);
+        assertThat(projection.getValue().runId()).isEqualTo("auto-project-sales-commercial-20261-202609300500");
+        assertThat(outcome.state().lastReprojectDryRunPeriod()).as("실이관은 dry-run 표시를 남기지 않는다").isNull();
+    }
+
+    /** 재이관이 실패하면 쿨다운에 들어가 다음 날은 이관하지 않고, 쿨다운이 끝나면 다시 이관한다. */
+    @Test
+    void failedReprojectionCoolsDownBeforeItIsRetried() {
+        published(Dataset.SALES_COMMERCIAL, Map.of(), slot(Q20261, 20000));
+        when(executions.runProjection(any())).thenReturn(ImportExecution.failed("FAILED", "Java heap space"), ImportExecution.completed(0));
+        DatasetRefreshProcessor processor = processor(true);
+
+        DatasetRefreshOutcome day1 = refresh(processor, Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+        DatasetRefreshOutcome day2 = processor.refresh(Dataset.SALES_COMMERCIAL, day1.state(), ApiCallBudget.of(600), FIRED.plus(Duration.ofDays(1)));
+        DatasetRefreshOutcome day8 = processor.refresh(Dataset.SALES_COMMERCIAL, day2.state(), ApiCallBudget.of(600), FIRED.plus(Duration.ofDays(8)));
+
+        assertThat(results(day1)).containsExactly(DatasetRefreshResult.FAILED);
+        assertThat(day1.state().consecutiveFailures()).isEqualTo(1);
+        assertThat(results(day2)).containsExactly(DatasetRefreshResult.COOLDOWN);
+        assertThat(results(day8)).containsExactly(DatasetRefreshResult.PROJECTED, DatasetRefreshResult.BUDGET);
+        assertThat(day8.state().consecutiveFailures()).isZero();
+        verify(executions, times(2)).runProjection(any());
+        verifyNoInteractions(source);
+    }
+
+    /** 게시 뒤 이관만 실패한 분기는 다음 날 재이관이 바로 복구하고, 그 데이터셋은 연속 실패 없이 정상으로 돌아온다. */
+    @Test
+    void publishedButNotProjectedQuarterIsRecoveredTheNextDay() {
+        published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        acquire(Dataset.SALES_COMMERCIAL, Q20262, Map.of(Q20262, 21000L), 22);
+        when(executions.runFacts(any())).thenReturn(ImportExecution.completed(0));
+        when(executions.runProjection(any())).thenReturn(ImportExecution.failed("FAILED", "boom"), ImportExecution.completed(0));
+        DatasetRefreshProcessor processor = processor(true);
+        DatasetRefreshState failedBefore = initial(Dataset.SALES_COMMERCIAL).failed(FIRED.minus(Duration.ofDays(20)), "old");
+
+        DatasetRefreshOutcome day1 = refresh(processor, Dataset.SALES_COMMERCIAL, failedBefore);
+        // 다음 날: 20262 가 게시돼 있고 typed 행이 없다(이관 실패).
+        published(Dataset.SALES_COMMERCIAL, Map.of(Q20261, 20000L), slot(Q20261, 20000), slot(Q20262, 21000));
+        DatasetRefreshOutcome day2 = processor.refresh(Dataset.SALES_COMMERCIAL, day1.state(), ApiCallBudget.of(600), FIRED.plus(Duration.ofDays(1)));
+
+        assertThat(results(day1)).containsExactly(DatasetRefreshResult.PUBLISHED_NOT_PROJECTED);
+        assertThat(results(day2)).containsExactly(DatasetRefreshResult.PROJECTED, DatasetRefreshResult.BUDGET);
+        assertThat(day2.slots().getFirst().period()).isEqualTo(Q20262);
+        assertThat(day2.state().consecutiveFailures()).isZero();
+    }
+
+    /** 수집이 몇 페이지 받다가 원천 오류로 끝나도 그때까지 쓴 호출이 예산에 남는다. 다음 데이터셋이 그만큼 덜 쓴다. */
+    @Test
+    void acquisitionFailingMidwayStillChargesTheCallsItMade() {
+        published(Dataset.SALES_COMMERCIAL, slot(Q20261, 20000));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        when(source.acquire(eq(Dataset.SALES_COMMERCIAL), eq(Q20262), anyString(), any())).thenAnswer(invocation -> {
+            ApiCallBudget budget = invocation.getArgument(3);
+            for (int call = 0; call < 5; call++) {
+                budget.spend();
+            }
+            throw new IllegalArgumentException("API row count changed during pagination");
+        });
+        ApiCallBudget budget = ApiCallBudget.of(600);
+
+        DatasetRefreshOutcome outcome = processor(true).refresh(Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL), budget, FIRED);
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.FAILED);
+        assertThat(outcome.apiCalls()).isEqualTo(6);
+        assertThat(budget.remaining()).isEqualTo(594);
+        assertThat(outcome.state().consecutiveFailures()).isEqualTo(1);
+        verifyNoInteractions(executions);
+    }
+
+    /** 고정 행 수가 없는 데이터셋은 직전 분기 게시 행 수로 판단한다. 그 기준이 0 이하면 비교할 수 없어 게시하지 않는다. */
+    @Test
+    void nonPositiveBaselineIsImplausible() {
+        published(Dataset.SALES_COMMERCIAL, slot(Q20261, 0));
+        probe(Dataset.SALES_COMMERCIAL, Q20262, 21000L);
+        acquire(Dataset.SALES_COMMERCIAL, Q20262, Map.of(Q20262, 21000L), 22);
+
+        DatasetRefreshOutcome outcome = refresh(processor(true), Dataset.SALES_COMMERCIAL, initial(Dataset.SALES_COMMERCIAL));
+
+        assertThat(results(outcome)).containsExactly(DatasetRefreshResult.IMPLAUSIBLE);
+        assertThat(outcome.slots().getFirst().detail()).isEqualTo("expected=21000 baseline=0");
+        verifyNoInteractions(executions);
+    }
+
     @Test
     void generatedRunIdsFitTheBatchIdentifierRuleForEveryDataset() {
         List<String> runIds = new ArrayList<>();
