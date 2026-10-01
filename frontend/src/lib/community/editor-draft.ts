@@ -36,13 +36,26 @@ export type CommunityStorageGetter = () => Storage | null | undefined
 export const getBrowserLocalStorage: CommunityStorageGetter = () =>
   typeof window === 'undefined' ? null : window.localStorage
 
+/** 모든 저장본 키의 머리. 로그아웃이 이 머리로 한꺼번에 지운다(`clearCommunityStoredDrafts`). */
+export const COMMUNITY_DRAFT_KEY_PREFIX = 'community-draft:'
+
+/**
+ * 저장본 키. **회원 id 를 넣는다** — 공용 기기에서 다음 계정이 앞 사람의 쓰던 글을 「이어 쓰기」로
+ * 보면 안 된다. 회원 id 를 모르면(로그인 판정 전·비로그인) `null` 이라 저장도 복원도 하지 않는다.
+ * 목 모드는 목 회원 id(`MOCK_COMMUNITY_MEMBER_ID`)를 넘긴다.
+ */
 export const getCommunityDraftStorageKey = (
   mode: CommunityEditorMode,
   postId: CommunityId | null,
-) =>
-  mode === 'edit' && postId
-    ? `community-draft:edit:${postId}`
-    : 'community-draft:new'
+  memberId: string | null,
+): string | null => {
+  if (!memberId) {
+    return null
+  }
+
+  const scope = `${COMMUNITY_DRAFT_KEY_PREFIX}${memberId}:`
+  return mode === 'edit' && postId ? `${scope}edit:${postId}` : `${scope}new`
+}
 
 /** 폼 값을 통째로 받아도 된다 — 사진(`images`)은 여기서 버린다. */
 export const createCommunityStoredDraft = (
@@ -156,6 +169,35 @@ export const removeCommunityStoredDraft = (
     getStorage()?.removeItem(key)
   } catch {
     // 지우지 못해도 다음 진입에서 「이어 쓰기」를 한 번 더 묻는 것뿐이다.
+  }
+}
+
+/**
+ * 로그아웃 — 모든 회원의 저장본을 지운다(옛 `community-draft:new` 형식 포함). 키 목록을 먼저
+ * 모은 뒤 지운다: 도는 중에 지우면 `storage.key(i)` 의 순번이 밀린다.
+ */
+export const clearCommunityStoredDrafts = (
+  getStorage: CommunityStorageGetter,
+) => {
+  try {
+    const storage = getStorage()
+    if (!storage) {
+      return
+    }
+
+    const keys: string[] = []
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index)
+      if (key?.startsWith(COMMUNITY_DRAFT_KEY_PREFIX)) {
+        keys.push(key)
+      }
+    }
+
+    keys.forEach(key => {
+      storage.removeItem(key)
+    })
+  } catch {
+    // 지우지 못해도 로그아웃은 막지 않는다. 키에 회원 id 가 있어 다른 계정에는 보이지 않는다.
   }
 }
 

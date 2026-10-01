@@ -528,14 +528,6 @@ export default function CommunityRegisterPage() {
       ? readComparisonDraftRequest(searchParams)
       : ({ kind: 'none' } as const)
   const draftParams = draftRequest.kind === 'ready' ? draftRequest.params : null
-  /*
-   * 비교 초안으로 들어오면(성공·실패 모두) 임시 저장을 묻지도 쓰지도 않는다. 초안이 이기고,
-   * 초안 글을 `community-draft:new` 에 쓰면 사용자가 따로 쓰던 저장본을 덮는다.
-   */
-  const storageKey =
-    draftRequest.kind === 'none'
-      ? getCommunityDraftStorageKey(mode, postId)
-      : null
   const prefill =
     mode === 'create' ? parseCommunityEditorPrefill(searchParams) : null
   const rawSearchParams = searchParams.toString()
@@ -548,6 +540,15 @@ export default function CommunityRegisterPage() {
     isLoggedIn,
     memberId,
   })
+  /*
+   * 비교 초안으로 들어오면(성공·실패 모두) 임시 저장을 묻지도 쓰지도 않는다. 초안이 이기고,
+   * 초안 글을 새 글 키에 쓰면 사용자가 따로 쓰던 저장본을 덮는다. 키에는 회원 id 가 들어간다 —
+   * 공용 기기에서 다른 계정의 저장본을 보지 않게(로그인 판정 전·비로그인이면 키가 없다).
+   */
+  const storageKey =
+    draftRequest.kind === 'none'
+      ? getCommunityDraftStorageKey(mode, postId, viewer.memberId)
+      : null
   const baseAccess = getCommunityEditorAccess({
     mockEnabled,
     hasHydrated,
@@ -916,6 +917,7 @@ export default function CommunityRegisterPage() {
         mockEnabled={mockEnabled}
         pending={submitMutation.isPending}
         submitted={submitted}
+        restoredFromDraft={restore?.kind === 'resume'}
         draftStorageKey={storageKey}
         errorMessage={mutationError}
         notice={

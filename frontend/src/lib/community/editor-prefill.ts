@@ -1,3 +1,4 @@
+import { districts } from '@/data/districts'
 import type { CommunityMetadata } from '@/types/community'
 
 import {
@@ -10,12 +11,21 @@ import {
   type CommunityListState,
 } from './community-state'
 
+/** 코드는 숫자만. 행정동 8자리·상권 7자리·자치구 5자리가 섞여 있어 길이는 느슨하게 둔다. */
+const PREFILL_CODE_PATTERN = /^\d{4,12}$/
+/** 표시용 이름의 상한. 넘으면 이름만 버리고 칩이 코드로 내려앉는다. */
+export const COMMUNITY_PREFILL_NAME_MAX_LENGTH = 40
+
 /**
  * 글쓰기 지역 프리필(docs/features/community/community.md §S4 「글쓰기 · 수정」 지역 프리필, CM-031).
  *
  * 목록(보던 대상)·상세(글의 대상)가 `?targetType=&targetCode=&targetName=` 로 글쓰기를 연다.
  * 주소는 누구나 고칠 수 있으므로 **형식이 틀린 값은 버린다** — 깨진 칩으로 시작하느니 빈 칩이
- * 낫다. 이름은 표시용이라 없어도 되고(칩이 코드로 내려앉는다), 저장 요청에는 종류·코드만 간다.
+ * 낫다. 코드는 숫자 4~12자리, 이름은 1~40자(넘으면 이름만 버린다). 저장 요청에는 종류·코드만 간다.
+ *
+ * **자치구는 이름을 쿼리에서 받지 않는다.** 25개가 FE 에 있으니(`@/data/districts`) 코드로 다시
+ * 찾는다 — `targetCode=11200&targetName=강남구` 같은 어긋난 링크가 칩에 거짓 이름을 박지 않게.
+ * 없는 구 코드면 프리필 전체를 버린다.
  */
 export const parseCommunityEditorPrefill = (
   params: URLSearchParams,
@@ -23,13 +33,22 @@ export const parseCommunityEditorPrefill = (
   const targetType = parseCommunityTargetType(params.get('targetType'))
   const targetCode = params.get('targetCode')?.trim()
 
-  if (!targetType || !targetCode) {
+  if (!targetType || !targetCode || !PREFILL_CODE_PATTERN.test(targetCode)) {
     return null
+  }
+
+  if (targetType === 'DISTRICT') {
+    const district = districts.find(
+      record => String(record.gooCode) === targetCode,
+    )
+    return district
+      ? { targetType, targetCode, targetName: district.gooName }
+      : null
   }
 
   const targetName = params.get('targetName')?.trim()
 
-  return targetName
+  return targetName && targetName.length <= COMMUNITY_PREFILL_NAME_MAX_LENGTH
     ? { targetType, targetCode, targetName }
     : { targetType, targetCode }
 }

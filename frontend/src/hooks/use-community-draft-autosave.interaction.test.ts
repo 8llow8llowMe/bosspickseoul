@@ -7,10 +7,11 @@ import type { CommunityStorageGetter } from '@/lib/community/editor-draft'
 
 /*
   임시 저장(community.md §S4 「잃지 않게」)을 실제 타이머로 잠근다. 멈춘 뒤 1초, 키, 사진 제외,
-  멈춤(pending·등록 성공) 중엔 쓰지 않음, 언마운트·새로고침 직전 밀어 쓰기.
+  저장 중(pending)엔 잡힌 저장을 곧바로 밀어 쓰고 등록 성공(submitted)이면 버림, 이어 쓰기 뒤 되돌리면
+  지움, 언마운트·새로고침 직전 밀어 쓰기.
 */
 
-const KEY = 'community-draft:new'
+const KEY = 'community-draft:9001:new'
 const district = {
   targetType: 'DISTRICT' as const,
   targetCode: '11200',
@@ -23,7 +24,8 @@ const baseProps = (overrides: Partial<Props> = {}): Props => ({
   storageKey: KEY,
   value: { title: '제목', content: '', location: district },
   dirty: true,
-  paused: false,
+  pending: false,
+  submitted: false,
   getStorage: () => window.localStorage,
   ...overrides,
 })
@@ -103,7 +105,7 @@ describe('useCommunityDraftAutosave', () => {
     ])
   })
 
-  it('키가 없거나(비교 초안) 멈춤(pending·등록 성공)이면 쓰지 않는다', () => {
+  it('키가 없거나(비교 초안·회원 id 없음) 등록 성공 뒤면 쓰지 않는다', () => {
     const { rerender } = renderHook(props => useCommunityDraftAutosave(props), {
       initialProps: baseProps({ storageKey: null }),
     })
@@ -113,14 +115,14 @@ describe('useCommunityDraftAutosave', () => {
     })
     expect(window.localStorage.length).toBe(0)
 
-    rerender(baseProps({ paused: true }))
+    rerender(baseProps({ submitted: true }))
     act(() => {
       vi.advanceTimersByTime(2000)
     })
     expect(stored()).toBeNull()
   })
 
-  it('멈춤이 걸리면 이미 잡힌 저장도 버린다 — 등록 성공 뒤 저장본이 되살아나지 않는다', () => {
+  it('등록 성공(submitted)이 걸리면 이미 잡힌 저장도 버린다 — 저장본이 되살아나지 않는다', () => {
     const { rerender, unmount } = renderHook(
       props => useCommunityDraftAutosave(props),
       { initialProps: baseProps() },
@@ -129,11 +131,75 @@ describe('useCommunityDraftAutosave', () => {
     act(() => {
       vi.advanceTimersByTime(500)
     })
-    rerender(baseProps({ paused: true }))
+    rerender(baseProps({ pending: true, submitted: true }))
     act(() => {
       vi.advanceTimersByTime(2000)
     })
     unmount()
+
+    expect(stored()).toBeNull()
+  })
+
+  it('저장 중(pending)이 되면 잡힌 저장을 버리지 않고 그 자리에서 밀어 쓴다', () => {
+    const { rerender } = renderHook(props => useCommunityDraftAutosave(props), {
+      initialProps: baseProps(),
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    rerender(baseProps({ pending: true }))
+
+    // 1초를 기다리지 않는다 — 401 로 로그인에 보내지며 언마운트돼도 남아 있어야 한다.
+    expect(stored()?.title).toBe('제목')
+  })
+
+  it('저장 중(pending)에 언마운트돼도(401 → 로그인 이동) 1초 안에 친 글이 남는다', () => {
+    const { rerender, unmount } = renderHook(
+      props => useCommunityDraftAutosave(props),
+      { initialProps: baseProps() },
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    rerender(baseProps({ pending: true }))
+    unmount()
+
+    expect(stored()?.title).toBe('제목')
+  })
+
+  it('이어 쓰기로 시작해 원래 값으로 되돌리면 저장본을 지운다', () => {
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        title: '쓰던 제목',
+        content: '',
+        location: {},
+        savedAt: 1,
+      }),
+    )
+    const { rerender } = renderHook(props => useCommunityDraftAutosave(props), {
+      initialProps: baseProps({
+        startedFromStored: true,
+        value: { title: '쓰던 제목', content: '', location: {} },
+      }),
+    })
+
+    // 1초가 차기 전에 되돌린다 — 이 훅은 아직 한 번도 쓰지 않았다.
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    rerender(
+      baseProps({
+        startedFromStored: true,
+        dirty: false,
+        value: { title: '', content: '', location: {} },
+      }),
+    )
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
 
     expect(stored()).toBeNull()
   })
