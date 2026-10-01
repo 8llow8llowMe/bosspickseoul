@@ -583,6 +583,8 @@ export default function SimulationComparePage({
           ) : shownError ? (
             /* 오류는 하나만. 부분 성공은 그리지 않되, 어느 쪽 조건을 고쳐야 하는지는 밝힌다(C5). */
             <SimulationErrorNotice
+              // h1(조건 비교) 바로 아래 결과 자리라 h2. 편집기 제목(조건 A·B)과 같은 수준이다.
+              headingLevel={2}
               error={shownError}
               onRetry={() => {
                 void query.refetch()

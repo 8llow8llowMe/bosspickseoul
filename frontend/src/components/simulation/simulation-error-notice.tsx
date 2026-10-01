@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import {
   SIMULATION_CONDITION_SECTION_LABELS,
+  describeSimulationField,
   resolveSimulationFieldSection,
   resolveSimulationRecoverySection,
   type SimulationConditionSection,
@@ -24,6 +25,11 @@ export type SimulationErrorNoticeProps = {
    * 버튼을 둬서 막다른 화면을 만들지 않는다(C5).
    */
   scope?: { label: string; onEdit: () => void }
+  /**
+   * 제목 수준(X4). 기본은 h3 — 입력 화면에서는 결과 패널 h2 안에 놓인다. 리포트·비교처럼 h1 바로
+   * 아래에 놓이면 h2 를 넘긴다(h1 → h3 로 건너뛰면 제목으로 훑는 낭독기 사용자가 계층을 잃는다).
+   */
+  headingLevel?: 2 | 3
 }
 
 const TITLE_BY_KIND: Record<NormalizedApiError['kind'], string> = {
@@ -59,7 +65,7 @@ const Head = styled.div`
   }
 `
 
-const Title = styled.h3`
+const Title = styled.p`
   color: var(--color-text-900);
   font-size: 16px;
   font-weight: 700;
@@ -116,6 +122,7 @@ export default function SimulationErrorNotice({
   onRetry,
   onReselect,
   scope,
+  headingLevel = 3,
 }: SimulationErrorNoticeProps) {
   const retryable = isRetryable(error.kind)
   const fieldSection = error.fieldErrors
@@ -128,19 +135,24 @@ export default function SimulationErrorNotice({
     <Root role="alert">
       <Head>
         <AlertCircle aria-hidden="true" />
-        <Title>{TITLE_BY_KIND[error.kind]}</Title>
+        <Title as={headingLevel === 2 ? 'h2' : 'h3'}>
+          {TITLE_BY_KIND[error.kind]}
+        </Title>
       </Head>
       <Message>{error.message}</Message>
       {scope ? <Message>{`${scope.label}를 확인해 주세요.`}</Message> : null}
 
       {error.fieldErrors.length > 0 ? (
         <FieldList>
-          {error.fieldErrors.map(item => (
-            <li key={`${item.field}-${item.message}`}>
-              <strong>{item.field}</strong>
-              {item.message}
-            </li>
-          ))}
+          {error.fieldErrors.map(item => {
+            const fieldLabel = describeSimulationField(item.field)
+            return (
+              <li key={`${item.field}-${item.message}`}>
+                {fieldLabel ? <strong>{fieldLabel}</strong> : null}
+                {item.message}
+              </li>
+            )
+          })}
         </FieldList>
       ) : null}
 

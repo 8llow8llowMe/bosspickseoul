@@ -162,3 +162,48 @@ describe('SimulationErrorNotice — 비교 쪽 표시 (C5)', () => {
     expect(markup).not.toContain('확인해 주세요')
   })
 })
+
+describe('SimulationErrorNotice — 필드 이름·제목 수준 (X1·X4)', () => {
+  const validation = (field: string) =>
+    error({
+      kind: 'client',
+      status: 400,
+      code: 'SIMULATION_104',
+      message: '요청 값을 확인해 주세요.',
+      fieldErrors: [
+        {
+          code: 'SIMULATION_104',
+          field,
+          // BE SimulationValidationMessage 의 실제 문구다(한국어).
+          message: '매장 면적(㎡)은 1 이상이어야 합니다.',
+        },
+      ],
+    })
+
+  it('필드 머리에 API 필드명 대신 한국어 이름을 쓴다', () => {
+    const markup = render({ error: validation('storeSize') })
+
+    expect(markup).toContain('<strong>매장 면적</strong>')
+    expect(markup).not.toContain('<strong>storeSize</strong>')
+  })
+
+  it('모르는 필드는 머리를 빼고 메시지만 둔다 — 영문 키를 노출하지 않는다', () => {
+    const markup = render({ error: validation('somethingNew') })
+
+    expect(markup).not.toContain('somethingNew')
+    expect(markup).toContain('매장 면적(㎡)은 1 이상이어야 합니다.')
+  })
+
+  it('제목은 기본 h3, 페이지 h1 바로 아래면 h2 로 둘 수 있다', () => {
+    const base = render({ error: error() })
+    const top = renderToStaticMarkup(
+      createElement(SimulationErrorNotice, {
+        error: error(),
+        headingLevel: 2,
+      }),
+    )
+
+    expect(base).toMatch(/<h3[^>]*>잠시 문제가 생겼어요<\/h3>/)
+    expect(top).toMatch(/<h2[^>]*>잠시 문제가 생겼어요<\/h2>/)
+  })
+})

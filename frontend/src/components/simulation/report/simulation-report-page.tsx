@@ -262,6 +262,8 @@ export default function SimulationReportPage({
         ) : error ? (
           <Narrow>
             <SimulationErrorNotice
+              // h1(리포트) 바로 아래라 h2 — h3 로 두면 h1 → h3 로 건너뛴다(X4).
+              headingLevel={2}
               error={error}
               onRetry={() => {
                 void query.refetch()
