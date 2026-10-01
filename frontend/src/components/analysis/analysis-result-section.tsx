@@ -92,7 +92,7 @@ const Footer = styled.footer`
 
 /**
  * 404(데이터 부재)일 때 다음 행동을 기간 드롭다운으로 유도한다.
- * 이 컴포넌트는 분석 결과 뷰 전용이고, 각 그룹 헤딩 줄에 연/분기 선택이 항상 함께 있다.
+ * 이 컴포넌트는 분석 결과 뷰 전용이고, 연/분기 선택은 결과 화면 sticky 헤더에 하나 있다.
  *
  * 단, 힌트는 **분기를 바꾸면 결과가 달라질 수 있는 404** 에만 의미가 있다.
  * 백엔드 규약(`backend/docs/api-reference.md` "오류 처리 규약")상 분기 종속 404 메시지는
@@ -105,7 +105,7 @@ const Footer = styled.footer`
  * 관리할 필요 없이 HTTP 상태만으로 UI 를 분기한다"이므로 문구 기반이 규약에 맞다.
  */
 const PERIOD_DEPENDENT_MESSAGE = /^해당 분기/
-const PERIOD_HINT = '위 기간 선택에서 다른 연도·분기를 골라 보세요.'
+const PERIOD_HINT = '헤더의 기간 선택에서 다른 연도·분기를 골라 보세요.'
 
 const describeNotFound = (message: string): string =>
   PERIOD_DEPENDENT_MESSAGE.test(message) && !message.includes('다른 분기')
