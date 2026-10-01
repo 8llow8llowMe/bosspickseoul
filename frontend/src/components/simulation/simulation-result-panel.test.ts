@@ -9,6 +9,7 @@ import type { NormalizedApiError } from '@/lib/api/api-error'
 import {
   createEmptySimulationConditionState,
   describeSimulationConditionGap,
+  describeSimulationProgress,
   type SimulationConditionState,
 } from '@/lib/simulation/conditions'
 import type { SimulationReport } from '@/types/simulation'
@@ -54,6 +55,7 @@ const render = (overrides: Partial<SimulationResultPanelProps> = {}) => {
     createElement(SimulationResultPanel, {
       state,
       gap: describeSimulationConditionGap(state),
+      progress: describeSimulationProgress(state),
       report: null,
       reportHref: null,
       error: null,
@@ -76,8 +78,49 @@ describe('SimulationResultPanel', () => {
     expect(markup).toContain('업종')
     expect(markup).toContain('매장 조건')
     expect(markup).toContain('선택 전')
+    expect(markup).toContain('0/4 완료 · ')
+    // 「0/4」는 낭독기가 날짜·분수로 읽을 수 있어 낭독용 문장을 따로 둔다.
+    expect(markup).toContain('4단계 중 0단계 완료.')
     expect(markup).toContain('프랜차이즈 창업인지 먼저 선택해 주세요')
     expect(markup).toContain('계산하기')
+    // 창업 형태를 고르기 전에는 브랜드 행이 없다 — 프랜차이즈를 골라야 생긴다.
+    expect(markup).not.toContain('>브랜드<')
+  })
+
+  /*
+    브랜드는 프랜차이즈일 때만 있는 섹션이다(Q4). 체크리스트·진행도 분모가 함께 늘어야
+    「몇 개 남았는지」가 맞는다.
+  */
+  it('프랜차이즈면 브랜드 행이 생기고 진행도 분모가 5가 된다', () => {
+    const state = completeState({ franchisee: true })
+    const markup = render({ state })
+
+    expect(markup).toContain('>브랜드<')
+    expect(markup).toContain('4/5 완료 · ')
+    expect(markup).toContain('5단계 중 4단계 완료.')
+    expect(markup).toContain('창업할 브랜드를 선택해 주세요')
+  })
+
+  /*
+    개인 창업에 「가맹 부담금」을 적으면 자기와 상관없는 비용이 더해지는 것처럼 읽힌다.
+  */
+  it('계산 범위 안내는 창업 형태에 맞춰 가맹 부담금을 넣고 뺀다', () => {
+    expect(render({ state: completeState() })).toContain(
+      '임대료·보증금·인테리어를 합한 초기 비용을 계산해요.',
+    )
+    expect(render({ state: completeState() })).not.toContain('가맹 부담금')
+    expect(
+      render({
+        state: completeState({
+          franchisee: true,
+          franchiseeId: 7,
+          brandName: '테스트브랜드',
+        }),
+      }),
+    ).toContain(
+      '임대료·보증금·인테리어·가맹 부담금을 합한 초기 비용을 계산해요.',
+    )
+    expect(render()).toContain('프랜차이즈면 가맹 부담금까지')
   })
 
   it('고른 조건은 값 그대로 체크리스트에 반영된다', () => {

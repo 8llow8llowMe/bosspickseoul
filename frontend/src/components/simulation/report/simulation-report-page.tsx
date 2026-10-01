@@ -109,7 +109,7 @@ export default function SimulationReportPage({
     retry: retryUnlessClientError(),
   })
 
-  // 고른 조건을 실어 보낸다. 이게 없으면 리포트를 빠져나오는 순간 조건 4개가 초기화된다.
+  // 고른 조건을 실어 보낸다. 이게 없으면 리포트를 빠져나오는 순간 고른 조건이 전부 초기화된다.
   const builderHref = simulationBuilderHref(variant, conditionState)
 
   /**

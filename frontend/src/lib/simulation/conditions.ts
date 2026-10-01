@@ -8,11 +8,11 @@
  * ## 왜 "단계"가 아니라 "섹션"인가
  *
  * 초판은 4단계 마법사였다. 그런데 조건 사이의 **의존성은 업종 → 브랜드 하나뿐**이다.
- * 나머지 셋(창업 형태·자치구·매장 조건)은 순서가 무관해서 단계로 쪼갤 값이 없었고,
- * 대신 "3단계에서 1단계로 되돌아가기"라는 비용만 남았다. 그래서 단일 화면 4섹션으로 바꿨고
+ * 나머지(창업 형태·자치구·매장 조건)는 순서가 무관해서 단계로 쪼갤 값이 없었고,
+ * 대신 "3단계에서 1단계로 되돌아가기"라는 비용만 남았다. 그래서 단일 화면 섹션으로 바꿨고
  * 이 모듈에서도 단계 전이(`getActiveStep`/`canOpenStep`/`getAdjacentStep`)를 걷어냈다.
  *
- * 계약상 강제되는 순서 하나는 화면에서 지킨다: **업종을 고르기 전에는 브랜드 검색을 비활성화**한다.
+ * 계약상 강제되는 순서 하나는 화면에서 지킨다: **업종을 고르기 전에는 브랜드 섹션이 잠긴다.**
  * `GET /simulations/franchisees`가 `serviceCode`를 필수로 받기 때문에 업종 없이 검색하면 400이다.
  * 업종을 바꾸면 선택된 브랜드도 초기화된다.
  */
@@ -34,16 +34,21 @@ import type {
  * ------------------------------------------------------------------ */
 
 /**
- * 조건 4섹션. 브랜드 검색은 독립 섹션이 아니라 **업종 섹션 안**에 있다.
+ * 조건 섹션 전체. **브랜드는 프랜차이즈일 때만 있는 섹션**이다 — 실제로 화면에 놓이는
+ * 섹션은 `listSimulationConditionSections(state)` 로 얻는다(개인 창업 4개, 프랜차이즈 5개).
+ *
+ * 전에는 브랜드가 업종 섹션 안에 있어 단계 수가 늘 4개였다. 그러면 프랜차이즈는 6번을
+ * 고르는데 화면은 「조건 4개」라고 말해, 끝이 어디인지 보이지 않았다(2026-10-01 결정 Q4).
  *
  * 순서는 화면에 놓이는 순서일 뿐 잠금 순서가 아니다 — 어느 섹션이든 언제든 고칠 수 있다.
  * 순서 배열이 여전히 필요한 이유는 두 가지다: (1) 남은 조건을 화면 순서대로 안내하려면,
- * (2) 완료 판정을 한 곳에서 순회하려면.
+ * (2) 완료 판정을 한 곳에서 순회하려면. 브랜드가 업종 **뒤**에 오는 것은 계약 순서다.
  */
 export const SIMULATION_CONDITION_SECTIONS = [
   'franchise',
   'district',
   'service',
+  'brand',
   'store',
 ] as const
 
@@ -57,6 +62,7 @@ export const SIMULATION_CONDITION_SECTION_LABELS: Record<
   franchise: '창업 형태',
   district: '자치구',
   service: '업종',
+  brand: '브랜드',
   store: '매장 조건',
 }
 
@@ -89,6 +95,35 @@ export const resolveSimulationSectionFromDomId = (
 /* ------------------------------------------------------------------ *
  * 상태
  * ------------------------------------------------------------------ */
+
+/** 이 상태에서 화면에 놓이는가. 브랜드만 조건부다 — 프랜차이즈를 골랐을 때만 있다. */
+export const isSimulationSectionApplicable = (
+  state: SimulationConditionState,
+  section: SimulationConditionSection,
+): boolean => section !== 'brand' || state.franchisee === true
+
+/**
+ * 잠긴 섹션인가 — 펼칠 수 없다. 브랜드·매장 조건은 업종별 값이라 업종 코드가 유효해야 열린다
+ * (`franchisees`·`store-sizes` 모두 serviceCode 필수). 화면의 `locked` 와 `resolveOpenSection` 이
+ * 이 하나를 같이 써야 「잠겼는데 펼쳐진」 섹션이 생기지 않는다.
+ */
+export const isSimulationSectionLocked = (
+  state: SimulationConditionState,
+  section: SimulationConditionSection,
+): boolean =>
+  (section === 'brand' || section === 'store') &&
+  !isSimulationServiceCode(state.serviceCode)
+
+/**
+ * 지금 화면에 놓이는 섹션들, 화면 순서대로. 번호·진행도(n/N)·남은 조건 안내가 모두 이것을 쓴다.
+ * 창업 형태를 고르기 전에는 브랜드가 없다 — 고른 뒤 프랜차이즈면 하나 늘어난다.
+ */
+export const listSimulationConditionSections = (
+  state: SimulationConditionState,
+): readonly SimulationConditionSection[] =>
+  SIMULATION_CONDITION_SECTIONS.filter(section =>
+    isSimulationSectionApplicable(state, section),
+  )
 
 export type SimulationConditionState = {
   /** 아직 고르지 않았으면 null. `false`(비프랜차이즈)와 구분해야 하므로 boolean|null이다. */
@@ -133,7 +168,11 @@ export const createSimulationConditionState = (
   if (initial.franchisee === true || initial.franchisee === false) {
     state.franchisee = initial.franchisee
   }
-  if (state.franchisee === true) {
+  // 브랜드는 업종별 목록이다 — 업종 없이 온 브랜드는 근거가 없어 버린다(selectService 와 같은 규칙).
+  if (
+    state.franchisee === true &&
+    isSimulationServiceCode(initial.serviceCode)
+  ) {
     if (isFranchiseeId(initial.franchiseeId)) {
       state.franchiseeId = initial.franchiseeId
     }
@@ -283,10 +322,15 @@ export const isSimulationSectionComplete = (
 ): boolean => {
   if (section === 'franchise') return state.franchisee !== null
   if (section === 'district') return state.districtCode !== null
-  if (section === 'service') {
-    // 프랜차이즈 창업이면 브랜드까지 골라야 업종 섹션이 끝난다 (요청에 franchiseeId 필수).
-    if (!isSimulationServiceCode(state.serviceCode)) return false
-    return state.franchisee === true ? state.franchiseeId !== null : true
+  if (section === 'service') return isSimulationServiceCode(state.serviceCode)
+  if (section === 'brand') {
+    // 프랜차이즈가 아니면 이 섹션이 없다 — 채울 것이 없으니 완료로 친다.
+    // 프랜차이즈면 브랜드까지 골라야 요청을 만들 수 있다(요청에 franchiseeId 필수).
+    // 업종 없이 남은 브랜드는 근거가 없으므로 완료로 세지 않는다.
+    if (state.franchisee !== true) return true
+    return (
+      isSimulationServiceCode(state.serviceCode) && state.franchiseeId !== null
+    )
   }
   return isPositiveStoreSize(state.storeSize) && state.floorType !== null
 }
@@ -295,9 +339,25 @@ export const isSimulationSectionComplete = (
 export const listMissingSimulationSections = (
   state: SimulationConditionState,
 ): readonly SimulationConditionSection[] =>
-  SIMULATION_CONDITION_SECTIONS.filter(
+  listSimulationConditionSections(state).filter(
     section => !isSimulationSectionComplete(state, section),
   )
+
+/**
+ * 진행도 `{ done, total }`. total 은 지금 화면에 놓인 섹션 수라 창업 형태에 따라 4 또는 5다.
+ * 하단 요약 바·결과 패널이 「3/5」로 남은 양을 보여 준다.
+ */
+export const describeSimulationProgress = (
+  state: SimulationConditionState,
+): { done: number; total: number } => {
+  const sections = listSimulationConditionSections(state)
+  return {
+    done: sections.filter(section =>
+      isSimulationSectionComplete(state, section),
+    ).length,
+    total: sections.length,
+  }
+}
 
 export const isSimulationConditionsComplete = (
   state: SimulationConditionState,
@@ -324,10 +384,10 @@ export const describeSimulationSectionValue = (
   }
 
   if (section === 'service') {
-    const serviceName = describeSimulationServiceName(state.serviceCode)
-    if (!serviceName) return null
-    return state.brandName ? `${serviceName} · ${state.brandName}` : serviceName
+    return describeSimulationServiceName(state.serviceCode)
   }
+
+  if (section === 'brand') return state.brandName
 
   const parts: string[] = []
   if (isPositiveStoreSize(state.storeSize)) parts.push(`${state.storeSize}㎡`)
@@ -344,12 +404,8 @@ export const describeSimulationConditionGap = (
   if (!section) return null
   if (section === 'franchise') return '프랜차이즈 창업인지 먼저 선택해 주세요'
   if (section === 'district') return '창업할 자치구를 선택해 주세요'
-  if (section === 'service') {
-    return state.franchisee === true &&
-      isSimulationServiceCode(state.serviceCode)
-      ? '창업할 브랜드를 선택해 주세요'
-      : '창업할 업종을 선택해 주세요'
-  }
+  if (section === 'service') return '창업할 업종을 선택해 주세요'
+  if (section === 'brand') return '창업할 브랜드를 선택해 주세요'
   return '매장 크기와 층 구분을 선택해 주세요'
 }
 
@@ -419,7 +475,8 @@ export const resolveSimulationRecoverySection = (
 ): SimulationConditionSection | null => {
   if (code === 'SIMULATION_001') return 'service'
   if (code === 'SIMULATION_002') return 'district'
-  if (code === 'SIMULATION_003' || code === 'SIMULATION_004') return 'service'
+  // 존재하지 않는 franchiseeId(003) · 프랜차이즈인데 franchiseeId 누락(004) — 둘 다 브랜드를 다시 고른다.
+  if (code === 'SIMULATION_003' || code === 'SIMULATION_004') return 'brand'
   return null
 }
 
@@ -429,7 +486,8 @@ export const resolveSimulationFieldSection = (
 ): SimulationConditionSection | null => {
   if (field === 'franchisee') return 'franchise'
   if (field === 'districtCode') return 'district'
-  if (field === 'serviceCode' || field === 'franchiseeId') return 'service'
+  if (field === 'serviceCode') return 'service'
+  if (field === 'franchiseeId') return 'brand'
   if (field === 'storeSize' || field === 'floorType') return 'store'
   return null
 }

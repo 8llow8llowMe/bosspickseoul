@@ -276,19 +276,79 @@ describe('SimulationBuilderPage — 열림 단계 배선', () => {
     expect(header('store').getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('브랜드를 고르면 업종 단계가 끝나고 매장 조건으로 넘어간다', async () => {
+  /*
+    브랜드는 프랜차이즈일 때만 있는 독립 섹션이다(Q4). 업종을 고르면 업종 단계가 끝나고
+    브랜드 단계가 열리며, 브랜드를 고르면 매장 조건으로 넘어간다.
+  */
+  it('프랜차이즈는 업종 → 브랜드 → 매장 조건 순서로 넘어간다', async () => {
     renderPage()
     fireEvent.click(chip('프랜차이즈'))
     fireEvent.click(chip('강남구'))
     fireEvent.click(chip('한식음식점'))
 
-    // 브랜드를 고르기 전에는 업종 단계가 끝나지 않는다(요청에 franchiseeId 필수).
-    expect(isExpanded('service')).toBe(true)
+    expect(isExpanded('service')).toBe(false)
+    expect(isExpanded('brand')).toBe(true)
+    expect(document.activeElement).toBe(header('brand'))
 
     const brand = await screen.findByRole('button', { name: /테스트브랜드/ })
     fireEvent.click(brand)
 
+    expect(isExpanded('brand')).toBe(false)
+    expect(header('brand').textContent).toContain('테스트브랜드')
     expect(isExpanded('store')).toBe(true)
+  })
+
+  it('번호는 실제로 놓인 섹션 순서다 — 프랜차이즈면 매장 조건이 5번이다', () => {
+    renderPage()
+
+    // 창업 형태 전에는 브랜드 섹션이 없다.
+    expect(document.querySelector('#simulation-section-brand')).toBeNull()
+
+    fireEvent.click(chip('프랜차이즈'))
+
+    expect(document.querySelector('#simulation-section-brand')).not.toBeNull()
+    expect(
+      document.querySelector('#simulation-section-store h2')?.textContent,
+    ).toMatch(/^5매장 조건/)
+  })
+
+  /*
+    `franchisees` 는 serviceCode 없이 부르면 400 이다. 업종 전 브랜드 섹션은 펼칠 수 없는
+    잠긴 줄이어야 하고(버튼이 아니다), 그 자리에서 순서를 알려 준다.
+  */
+  it('업종을 고르기 전 브랜드 섹션은 잠겨 있다', () => {
+    renderPage()
+    fireEvent.click(chip('프랜차이즈'))
+
+    const brandSection = document.querySelector('#simulation-section-brand')
+    expect(brandSection?.querySelector('button[aria-expanded]')).toBeNull()
+    expect(brandSection?.textContent).toContain('업종을 고르면 열려요')
+    expect(api.fetchSimulationFranchisees).not.toHaveBeenCalled()
+  })
+
+  it('개인 창업으로 바꾸면 브랜드 섹션이 사라지고 고른 브랜드도 버린다', async () => {
+    renderPage()
+    fireEvent.click(chip('프랜차이즈'))
+    fireEvent.click(chip('강남구'))
+    fireEvent.click(chip('한식음식점'))
+    fireEvent.click(await screen.findByRole('button', { name: /테스트브랜드/ }))
+
+    fireEvent.click(header('franchise'))
+    fireEvent.click(chip('개인 창업'))
+
+    expect(document.querySelector('#simulation-section-brand')).toBeNull()
+    expect(
+      document.querySelector('#simulation-section-store h2')?.textContent,
+    ).toMatch(/^4매장 조건/)
+
+    // 다시 프랜차이즈로 돌아오면 비어 있는 브랜드가 곧바로 열리고, 앞에서 고른 브랜드는
+    // 되살아나지 않는다(선택 표시가 없다).
+    fireEvent.click(header('franchise'))
+    fireEvent.click(chip('프랜차이즈'))
+
+    expect(isExpanded('brand')).toBe(true)
+    const again = await screen.findByRole('button', { name: /테스트브랜드/ })
+    expect(again.getAttribute('aria-pressed')).toBe('false')
   })
 })
 
@@ -441,6 +501,13 @@ describe('SimulationBuilderPage — 해시로 들어오는 경로', () => {
   })
 
   it('모르는 해시는 무시하고 첫 미완료 단계를 연다', () => {
+    window.location.hash = '#simulation-section-period'
+    renderPage()
+
+    expect(isExpanded('franchise')).toBe(true)
+  })
+
+  it('화면에 없는 단계(창업 형태 전의 브랜드)를 지목한 해시는 무시한다', () => {
     window.location.hash = '#simulation-section-brand'
     renderPage()
 

@@ -8,10 +8,10 @@ import SimulationResultPreview from '@/components/simulation/simulation-result-p
 import { Button } from '@/components/ui/button'
 import type { NormalizedApiError } from '@/lib/api/api-error'
 import {
-  SIMULATION_CONDITION_SECTIONS,
   SIMULATION_CONDITION_SECTION_LABELS,
   describeSimulationSectionValue,
   isSimulationSectionComplete,
+  listSimulationConditionSections,
   type SimulationConditionSection,
   type SimulationConditionState,
 } from '@/lib/simulation/conditions'
@@ -22,6 +22,8 @@ export type SimulationResultPanelProps = {
   state: SimulationConditionState
   /** 완료되지 않았을 때 "무엇이 남았는지" 한 줄. 완료면 null. */
   gap: string | null
+  /** 진행도. total 은 지금 화면에 놓인 섹션 수(개인 4 · 프랜차이즈 5). */
+  progress: { done: number; total: number }
   report: SimulationReport | null
   /** 상세 리포트 경로. `report`가 있어도 조건이 URL로 못 옮겨지면 null일 수 있다. */
   reportHref: string | null
@@ -111,6 +113,22 @@ const RowValue = styled.span<{ $complete: boolean }>`
   word-break: keep-all;
 `
 
+/*
+  「3/5」는 화면에서는 짧고 분명하지만 낭독기가 날짜(3월 5일)나 분수로 읽을 수 있다.
+  보이는 숫자는 aria-hidden 으로 두고 낭독용 문장을 따로 준다.
+*/
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+`
+
 const Cta = styled.div`
   display: grid;
   gap: 8px;
@@ -129,9 +147,24 @@ const Helper = styled.p`
 `
 
 /**
- * 결과 패널 — 데스크탑에서는 오른쪽 컬럼에 sticky로 붙고, 모바일에서는 입력 아래에 온다.
+ * 무엇을 더해 계산하는지 한 줄. 개인 창업에 「가맹 부담금」을 적으면 자기와 상관없는 비용이
+ * 들어가는 것처럼 읽힌다. 창업 형태를 고르기 전에는 둘 다 걸치는 문구를 쓴다.
+ */
+const describeCostScope = (franchisee: boolean | null): string => {
+  if (franchisee === true) {
+    return '임대료·보증금·인테리어·가맹 부담금을 합한 초기 비용을 계산해요.'
+  }
+  if (franchisee === false) {
+    return '임대료·보증금·인테리어를 합한 초기 비용을 계산해요.'
+  }
+  return '임대료·보증금·인테리어(프랜차이즈면 가맹 부담금까지)를 합한 초기 비용을 계산해요.'
+}
+
+/**
+ * 결과 패널 — 데스크탑에서는 오른쪽 컬럼에 sticky로 붙는다. 1023px 이하에서는 계산 전에는
+ * 숨고(하단 고정 바가 맡는다) 결과·오류가 생기면 입력 아래에 나온다.
  *
- * **계산 전에도 비워 두지 않는다.** 계산 전에는 "무엇을 계산하는지"와 조건 4개의 현재 값·남은 값을
+ * **계산 전에도 비워 두지 않는다.** 계산 전에는 "무엇을 계산하는지"와 놓인 조건(개인 4 · 프랜차이즈 5)의 현재 값·남은 값을
  * 보여준다. 그래야 넓은 화면에서 오른쪽 절반이 항상 의미를 갖고, 사용자가 입력 섹션을
  * 거슬러 올라가지 않고도 자기가 무엇을 골랐는지 확인할 수 있다.
  *
@@ -141,6 +174,7 @@ const Helper = styled.p`
 export default function SimulationResultPanel({
   state,
   gap,
+  progress,
   report,
   reportHref,
   error,
@@ -163,14 +197,13 @@ export default function SimulationResultPanel({
     <Root aria-label="시뮬레이션 계산 준비">
       <Intro>
         <h2>예상 총 창업 비용</h2>
-        <p>
-          조건 4개를 고르면 임대료·보증금·인테리어·가맹 부담금을 합한 초기
-          비용을 계산해요.
-        </p>
+        <p>{describeCostScope(state.franchisee)}</p>
       </Intro>
 
-      <Checklist aria-label="선택한 조건">
-        {SIMULATION_CONDITION_SECTIONS.map(section => {
+      <Checklist
+        aria-label={`선택한 조건, ${progress.total}단계 중 ${progress.done}단계 완료`}
+      >
+        {listSimulationConditionSections(state).map(section => {
           const complete = isSimulationSectionComplete(state, section)
           const value = describeSimulationSectionValue(state, section)
           return (
@@ -203,7 +236,17 @@ export default function SimulationResultPanel({
           >
             계산하기
           </Button>
-          <Helper>{gap ?? '지금 조건으로 계산할 수 있어요'}</Helper>
+          <Helper>
+            {gap ? (
+              <>
+                <span aria-hidden="true">{`${progress.done}/${progress.total} 완료 · `}</span>
+                <VisuallyHidden>{`${progress.total}단계 중 ${progress.done}단계 완료.`}</VisuallyHidden>
+                {gap}
+              </>
+            ) : (
+              '지금 조건으로 계산할 수 있어요'
+            )}
+          </Helper>
         </Cta>
       )}
     </Root>

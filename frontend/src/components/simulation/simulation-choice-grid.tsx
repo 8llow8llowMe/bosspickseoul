@@ -15,15 +15,29 @@ export type SimulationChoiceGridProps = {
   choices: readonly SimulationChoice[]
   selectedCode: string | null
   onSelect: (code: string) => void
-  /** 칩 최소 너비. 자치구·업종은 좁게(96px), 프랜차이즈 여부처럼 적은 선택지는 넓게 준다. */
+  /** 칩 최소 너비. 자치구·업종처럼 선택지가 많은 격자에 쓴다(auto-fill). */
   minColumnWidth?: number
+  /**
+   * 열 수 고정. 선택지가 몇 개뿐이면 최소 폭 auto-fill 대신 이것을 쓴다 — auto-fill 은
+   * 넓은 칸에서 빈 트랙을 남겨 칩이 왼쪽으로 쏠린다. 주면 minColumnWidth 는 무시한다.
+   */
+  columns?: number
+  /** 격자 폭 상한(px). 열 수를 고정한 격자가 넓은 칸을 가로지르지 않게 한다. */
+  maxWidth?: number
 }
 
-const Grid = styled.ul<{ $minColumnWidth: number }>`
+const Grid = styled.ul<{
+  $minColumnWidth: number
+  $columns: number | null
+  $maxWidth: number | null
+}>`
   display: grid;
   grid-template-columns: ${props =>
-    `repeat(auto-fill, minmax(${props.$minColumnWidth}px, 1fr))`};
+    props.$columns
+      ? `repeat(${props.$columns}, minmax(0, 1fr))`
+      : `repeat(auto-fill, minmax(${props.$minColumnWidth}px, 1fr))`};
   gap: 8px;
+  max-width: ${props => (props.$maxWidth ? `${props.$maxWidth}px` : 'none')};
 `
 
 const Chip = styled.button<{ $selected: boolean }>`
@@ -109,9 +123,16 @@ export default function SimulationChoiceGrid({
   selectedCode,
   onSelect,
   minColumnWidth = 96,
+  columns,
+  maxWidth,
 }: SimulationChoiceGridProps) {
   return (
-    <Grid aria-label={label} $minColumnWidth={minColumnWidth}>
+    <Grid
+      aria-label={label}
+      $minColumnWidth={minColumnWidth}
+      $columns={columns ?? null}
+      $maxWidth={maxWidth ?? null}
+    >
       {choices.map(choice => {
         const selected = choice.code === selectedCode
         return (

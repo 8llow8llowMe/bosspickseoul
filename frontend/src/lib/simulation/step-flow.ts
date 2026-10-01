@@ -1,20 +1,24 @@
 import {
-  SIMULATION_CONDITION_SECTIONS,
+  isSimulationSectionApplicable,
+  isSimulationSectionLocked,
   isSimulationSectionComplete,
+  listSimulationConditionSections,
   type SimulationConditionSection,
   type SimulationConditionState,
 } from '@/lib/simulation/conditions'
 
 /*
-  잠긴 단계(업종 전 매장 조건)를 따로 걸러내지 않는다. store 에 닿으려면 service 가
-  완료여야 하고, service 의 완료 조건이 serviceCode 를 요구하므로 그 시점엔 이미
-  잠금이 풀려 있다. 이 정확성은 SIMULATION_CONDITION_SECTIONS 에서 service 가
-  store 보다 앞선다는 데 기댄다 — 아래 테스트가 그 순서를 지킨다.
+  잠긴 단계(업종 전 브랜드·매장 조건)를 따로 걸러내지 않는다. 브랜드·매장 조건에 닿으려면
+  service 가 완료여야 하고, service 의 완료 조건이 serviceCode 를 요구하므로 그 시점엔 이미
+  잠금이 풀려 있다. 이 정확성은 SIMULATION_CONDITION_SECTIONS 에서 service 가 brand·store
+  보다 앞선다는 데 기댄다 — 아래 테스트가 그 순서를 지킨다.
+
+  화면에 없는 섹션(개인 창업의 브랜드)은 순회에서 빠진다(listSimulationConditionSections).
 */
 const firstIncomplete = (
   state: SimulationConditionState,
 ): SimulationConditionSection | null =>
-  SIMULATION_CONDITION_SECTIONS.find(
+  listSimulationConditionSections(state).find(
     section => !isSimulationSectionComplete(state, section),
   ) ?? null
 
@@ -28,13 +32,24 @@ const firstIncomplete = (
  * gap 을 사용자 의사보다 앞세우면 안 된다. 그러면 뒤가 비어 있는 동안 앞 단계의
  * 「변경」이 눌러도 아무 일이 없는 죽은 컨트롤이 된다.
  *
+ * 다만 연 단계가 **화면에 없거나 잠겼으면** 그 값은 무시한다. 화면 조작으로는 이 상태가
+ * 되지 않고(창업 형태를 고르면 연 값이 비워진다), URL 해시가 지목할 때 생긴다 — 개인 창업
+ * 링크의 `#simulation-section-brand`, 업종 없는 링크의 `#…-brand`·`#…-store`. 따르면 펼친
+ * 단계가 하나도 없거나, 잠긴 줄이 펼쳐진 채 정작 열어야 할 업종은 접힌 화면이 된다.
+ *
  * @param opened 사용자가 직접 펼친 단계. 없으면 null.
  */
 export const resolveOpenSection = (
   state: SimulationConditionState,
   opened: SimulationConditionSection | null,
 ): SimulationConditionSection | null => {
-  if (opened !== null) return opened
+  if (
+    opened !== null &&
+    isSimulationSectionApplicable(state, opened) &&
+    !isSimulationSectionLocked(state, opened)
+  ) {
+    return opened
+  }
 
   return firstIncomplete(state)
 }
