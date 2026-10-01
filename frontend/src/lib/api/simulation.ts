@@ -237,18 +237,61 @@ export const createSimulationReport = async (
 }
 
 /**
+ * 비교 계산이 실패한 쪽. `both` 면 두 요청이 다 실패했다.
+ *
+ * 화면은 여전히 **오류를 하나만** 띄운다(부분 성공 금지). 다만 어느 쪽 조건을 고쳐야 하는지는
+ * 밝힌다 — 404 처럼 다시 시도해도 같은 오류에서는 그 정보가 없으면 사용자가 막힌다(C5).
+ */
+export type SimulationPairSide = 'left' | 'right' | 'both'
+
+export class SimulationPairError extends Error {
+  constructor(
+    readonly side: SimulationPairSide,
+    /** 원래 오류(axios 오류 등). `resolveApiError` 는 이것을 분류한다. */
+    readonly cause: unknown,
+  ) {
+    super('simulation pair request failed')
+    this.name = 'SimulationPairError'
+  }
+}
+
+/**
+ * 오류 분류·재시도 판정에 넘길 **원래 오류**. 래퍼째 넘기면 `normalizeApiError` 가 axios 응답을 못 찾아
+ * `client` 로 분류하고, 5xx·네트워크 오류의 자동 재시도가 꺼진다.
+ */
+export const unwrapSimulationPairError = (error: unknown): unknown =>
+  error instanceof SimulationPairError ? error.cause : error
+
+/**
  * 비교 화면용 — V2에 비교 API가 없어 리포트를 **2회 병렬 호출**한다.
- * 한쪽만 실패해도 비교가 성립하지 않으므로 `Promise.all`로 함께 실패시킨다.
+ *
+ * 둘 다 끝날 때까지 기다린다(`allSettled`) — 먼저 실패한 쪽에서 끊으면 다른 쪽도 실패했는지
+ * 알 수 없다. 그래도 **한쪽이라도 실패하면 전체를 실패로 던진다**(부분 성공을 화면에 내지 않는다).
  */
 export const createSimulationReportPair = async (
   pair: SimulationComparisonRequestPair,
 ) => {
-  const [left, right] = await Promise.all([
+  const [left, right] = await Promise.allSettled([
     createSimulationReport(pair[0]),
     createSimulationReport(pair[1]),
   ])
 
-  return [left, right] as const
+  if (left.status === 'rejected' || right.status === 'rejected') {
+    const side: SimulationPairSide =
+      left.status === 'rejected' && right.status === 'rejected'
+        ? 'both'
+        : left.status === 'rejected'
+          ? 'left'
+          : 'right'
+    throw new SimulationPairError(
+      side,
+      left.status === 'rejected'
+        ? left.reason
+        : (right as PromiseRejectedResult).reason,
+    )
+  }
+
+  return [left.value, right.value] as const
 }
 
 /** `POST /simulations/histories` — 결과 저장. **인증 필수.** 서버가 명칭을 되채워 저장본을 돌려준다. */

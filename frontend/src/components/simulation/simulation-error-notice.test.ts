@@ -113,3 +113,52 @@ describe('SimulationErrorNotice', () => {
     expect(markup).not.toContain('다시 시도')
   })
 })
+
+/*
+ * C5 — 비교 화면은 조건이 둘이다. 어느 쪽이 문제인지 밝히고, 되돌릴 섹션을 모르는 비재시도 오류에도
+ * 그 쪽 편집기로 가는 버튼을 둔다 — 404 에 버튼이 하나도 없으면 사용자가 막힌다.
+ */
+describe('SimulationErrorNotice — 비교 쪽 표시 (C5)', () => {
+  const scope = { label: '조건 B', onEdit: () => {} }
+
+  it('어느 쪽을 확인할지 밝히고 섹션 버튼 이름에 쪽을 붙인다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(SimulationErrorNotice, {
+        error: error({
+          kind: 'not-found',
+          status: 404,
+          code: 'SIMULATION_003',
+          message: '존재하지 않는 프랜차이즈입니다.',
+        }),
+        onReselect: () => {},
+        scope,
+      }),
+    )
+
+    expect(markup).toContain('조건 B를 확인해 주세요.')
+    expect(markup).toMatch(
+      /조건 B <!-- -->브랜드 다시 선택|조건 B 브랜드 다시 선택/,
+    )
+  })
+
+  it('되돌릴 섹션을 모르는 404 에도 그 쪽을 고치러 가는 버튼이 있다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(SimulationErrorNotice, {
+        error: error({ kind: 'not-found', status: 404, code: null }),
+        scope,
+      }),
+    )
+
+    expect(markup).toContain('조건 B 고치기')
+    expect(markup).not.toContain('다시 시도')
+  })
+
+  it('쪽을 모르면(단일 화면) 그대로다', () => {
+    const markup = render({
+      error: error({ kind: 'not-found', status: 404, code: null }),
+    })
+
+    expect(markup).not.toContain('고치기')
+    expect(markup).not.toContain('확인해 주세요')
+  })
+})

@@ -11,7 +11,10 @@ import {
   fetchSimulationHistories,
   fetchSimulationStoreSizes,
   saveSimulationHistory,
+  SimulationPairError,
+  unwrapSimulationPairError,
 } from './simulation'
+import { retryUnlessClientError } from './api-error'
 
 const ok = <T>(dataBody: T) => ({
   dataHeader: { success: true, resultCode: null, resultMessage: null },
@@ -362,5 +365,85 @@ describe('simulation API endpoints', () => {
     for (const path of paths) {
       expect(String(path).startsWith('/simulations/')).toBe(true)
     }
+  })
+})
+
+/*
+ * C5 — 비교는 오류를 하나만 띄우지만, 어느 쪽 조건을 고쳐야 하는지는 밝힌다. 그러려면 실패한 쪽을
+ * 알아야 한다. 부분 성공은 여전히 던진다.
+ */
+describe('createSimulationReportPair — 실패한 쪽 (C5)', () => {
+  const left = {
+    franchisee: false as const,
+    districtCode: '11740',
+    serviceCode: 'CS100001',
+    storeSize: 66,
+    floorType: 'FIRST_FLOOR' as const,
+  }
+  const right = { ...left, districtCode: '11680' }
+  const notFound = Object.assign(new Error('404'), { isAxiosError: true })
+
+  it('한쪽만 실패해도 전체를 던지고, 그 쪽을 밝힌다', async () => {
+    vi.spyOn(apiClient, 'post')
+      .mockResolvedValueOnce({ data: ok({}) })
+      .mockRejectedValueOnce(notFound)
+
+    const error = await createSimulationReportPair([left, right]).catch(
+      (reason: unknown) => reason,
+    )
+
+    expect(error).toBeInstanceOf(SimulationPairError)
+    expect((error as SimulationPairError).side).toBe('right')
+    expect((error as SimulationPairError).cause).toBe(notFound)
+  })
+
+  it('왼쪽만 실패하면 left 다', async () => {
+    vi.spyOn(apiClient, 'post')
+      .mockRejectedValueOnce(notFound)
+      .mockResolvedValueOnce({ data: ok({}) })
+
+    const error = await createSimulationReportPair([left, right]).catch(
+      (reason: unknown) => reason,
+    )
+
+    expect((error as SimulationPairError).side).toBe('left')
+  })
+
+  it('둘 다 실패하면 both 다', async () => {
+    vi.spyOn(apiClient, 'post')
+      .mockRejectedValueOnce(notFound)
+      .mockRejectedValueOnce(notFound)
+
+    const error = await createSimulationReportPair([left, right]).catch(
+      (reason: unknown) => reason,
+    )
+
+    expect((error as SimulationPairError).side).toBe('both')
+  })
+})
+
+/*
+ * 래퍼째 재시도 판정에 넘기면 axios 응답을 못 찾아 client 로 분류돼 5xx 자동 재시도가 꺼졌다
+ * (PR 10 리뷰에서 실측). 판정은 원래 오류로 한다.
+ */
+describe('unwrapSimulationPairError', () => {
+  const serverError = Object.assign(new Error('500'), {
+    isAxiosError: true,
+    response: { status: 500, data: undefined },
+  })
+
+  it('래퍼면 원래 오류를, 아니면 그대로 준다', () => {
+    expect(
+      unwrapSimulationPairError(new SimulationPairError('right', serverError)),
+    ).toBe(serverError)
+    expect(unwrapSimulationPairError(serverError)).toBe(serverError)
+  })
+
+  it('벗긴 오류로 판정하면 5xx 는 다시 시도한다', () => {
+    const wrapped = new SimulationPairError('right', serverError)
+
+    expect(
+      retryUnlessClientError()(0, unwrapSimulationPairError(wrapped)),
+    ).toBe(true)
   })
 })
