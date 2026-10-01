@@ -309,7 +309,7 @@ const Cta = styled(Link)`
   gap: 6px;
   padding: 0 20px;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: #ffffff;
   font-size: 15px;
   font-weight: 600;
@@ -321,7 +321,7 @@ const Cta = styled(Link)`
   }
 
   &:hover {
-    background: var(--color-primary-600);
+    background: var(--color-fill-primary-text-hover);
   }
 
   &:focus-visible {

@@ -172,6 +172,211 @@ describe('디자인 토큰 대비 (DESIGN.md §Accessibility)', () => {
 
     expect(squeeze(css)).toContain('--color-grey-500:#8b95a1;')
   })
+
+  // contrast-tokens.md TC-CT-001~003 · D3-3 의 파란 채움 부분. hover 는 blue800 이다 —
+  // blue600 을 hover 로 쓰면 blue700 보다 밝아져 hover 에서 흰 글자가 4.49 로 다시 떨어진다(D4-4).
+  // primary-700/600 별칭은 포커스 링·테두리·지도가 쓰므로 값이 그대로여야 한다.
+  it('글자를 얹는 파란 채움 토큰은 blue700·blue800 이고 primary 별칭은 그대로다', () => {
+    const css = squeeze(renderGlobalCss())
+
+    expect(css).toContain('--color-blue-700:#1a5fcc;')
+    expect(css).toContain('--color-blue-800:#1757bf;')
+    expect(css).toContain('--color-fill-primary-text:var(--color-blue-700);')
+    expect(css).toContain(
+      '--color-fill-primary-text-hover:var(--color-blue-800);',
+    )
+    expect(css).toContain('--color-primary-700:var(--color-blue-500);')
+    expect(css).toContain('--color-primary-600:var(--color-blue-600);')
+  })
+})
+
+/*
+ * contrast-tokens.md TC-CT-005 · DESIGN.md §7 「Don't put white text on blue500 / blue600」.
+ * 파란 채움 위 흰 글자는 blue500 2.77 · blue600 4.49 로 AA(4.5) 미달이다. 글자를 얹는
+ * 채움은 `--color-fill-primary-text` 하나뿐이다. 글자 없는 면(막대·점·폴리곤)은
+ * primary-700/600 을 그대로 쓰므로, **같은 styled 템플릿 안에 흰 글자가 있을 때만** 막는다.
+ */
+describe('흰 글자를 얹는 파란 채움은 fill-primary-text 다', () => {
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+  )
+
+  /** 템플릿 안 `url(https://…)` 의 `//` 는 주석이 아니다 — 지우면 닫는 백틱까지 사라진다. */
+  const blankComments = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\/|(?<!:)\/\/[^\n]*/g, match =>
+      match.replace(/[^\n]/g, ' '),
+    )
+
+  /**
+   * 최상위 템플릿 리터럴을 **중첩까지 포함해** 통째로 꺼낸다. 백틱을 순서대로 짝지으면
+   * `${p => p.$on && css`…`}` 조각의 본문이 두 템플릿 사이 틈으로 떨어져 스캔에서 빠진다.
+   * `${` 를 만나면 중괄호 깊이를 세고, 그 안의 백틱은 안쪽 템플릿으로 본다.
+   */
+  const extractTemplates = (source: string) => {
+    const found: { index: number; body: string }[] = []
+    const stack: (
+      { kind: 'template'; start: number } | { kind: 'expr'; depth: number }
+    )[] = []
+
+    for (let i = 0; i < source.length; i += 1) {
+      const ch = source[i]
+      const top = stack.at(-1)
+
+      if (top?.kind === 'template') {
+        if (ch === '\\') i += 1
+        else if (ch === '$' && source[i + 1] === '{') {
+          stack.push({ kind: 'expr', depth: 0 })
+          i += 1
+        } else if (ch === '`') {
+          stack.pop()
+          if (stack.length === 0) {
+            found.push({
+              index: top.start,
+              body: source.slice(top.start + 1, i),
+            })
+          }
+        }
+        continue
+      }
+
+      if (ch === '`') stack.push({ kind: 'template', start: i })
+      else if (top?.kind === 'expr' && ch === '{') top.depth += 1
+      else if (top?.kind === 'expr' && ch === '}') {
+        if (top.depth === 0) stack.pop()
+        else top.depth -= 1
+      }
+    }
+
+    return found
+  }
+
+  /** color-mix 틴트는 채움이 아니다 — 괄호 짝을 맞춰 호출째 지운다. */
+  const stripColorMix = (body: string): string => {
+    let out = body
+    let start = out.indexOf('color-mix(')
+
+    while (start !== -1) {
+      let depth = 0
+      let end = start + 'color-mix'.length
+
+      for (; end < out.length; end += 1) {
+        if (out[end] === '(') depth += 1
+        else if (out[end] === ')' && --depth === 0) break
+      }
+
+      out = out.slice(0, start) + out.slice(end + 1)
+      start = out.indexOf('color-mix(')
+    }
+
+    return out
+  }
+
+  /** 삼항으로 고른 값도 잡는다 — 선언 끝(`;`)까지 본다. 대체값(`var(--x, #2272eb)`)·hex 도 같다. */
+  const blueFill =
+    /background(?:-color)?\s*:[^;]*(?:var\(--color-(?:primary-700|primary-600|blue-500|blue-600)(?:\s*,[^)]*)?\)|#(?:0ea5e9|2272eb)\b)/i
+
+  /** 글자색과 아이콘 채움(`fill`)의 흰색. 반투명 흰색도 흰 글자다. */
+  const whiteText =
+    /(?<![-\w])(?:color|fill)\s*:[^;]*(?:#fff(?:fff)?\b|\bwhite\b|var\(--color-surface\)|rgba?\(\s*255\s*,\s*255\s*,\s*255\b)/i
+
+  const findOffenders = (files: { name: string; source: string }[]) =>
+    files.flatMap(({ name, source }) =>
+      extractTemplates(blankComments(source))
+        .filter(({ body }) => {
+          const css = stripColorMix(body)
+          return blueFill.test(css) && whiteText.test(css)
+        })
+        .map(
+          ({ index }) => `${name}:${source.slice(0, index).split('\n').length}`,
+        ),
+    )
+
+  it('판정 — 흰 글자와 함께인 채움만 걸고, 글자 없는 막대·틴트는 건너뛴다', () => {
+    const offenders = findOffenders([
+      {
+        name: 'cta.tsx',
+        source:
+          'const A = styled.a`\n  background: var(--color-primary-700);\n  color: #ffffff;\n`',
+      },
+      {
+        name: 'badge.tsx',
+        source:
+          "const B = styled.span`\n  background: ${p =>\n    p.$top ? 'var(--color-primary-600)' : 'var(--color-grey-100)'};\n  color: ${p => (p.$top ? 'white' : 'var(--color-text-600)')};\n`",
+      },
+      {
+        name: 'bar.tsx',
+        source:
+          'const C = styled.span`\n  background: var(--color-primary-600);\n`',
+      },
+      {
+        name: 'tint.tsx',
+        source:
+          'const D = styled.div`\n  background: color-mix(in srgb, var(--color-primary-700) 7%, white);\n  color: var(--color-surface-muted);\n`',
+      },
+      {
+        name: 'fill.tsx',
+        source:
+          'const E = styled.a`\n  background: var(--color-fill-primary-text);\n  color: #ffffff;\n`',
+      },
+      {
+        name: 'nested.tsx',
+        source:
+          'const F = styled.a`\n  color: white;\n  ${p => p.$on && css`\n    background: var(--color-primary-600);\n  `}\n`',
+      },
+      {
+        name: 'fallback.tsx',
+        source:
+          'const G = styled.span`\n  background: var(--color-primary-600, #2272eb);\n  color: rgba(255, 255, 255, 0.84);\n`',
+      },
+      {
+        name: 'url.tsx',
+        source:
+          'const H = styled.div`\n  background: url(https://x.test/a.png);\n`\nconst I = styled.a`\n  background: #0ea5e9;\n  color: #fff;\n`',
+      },
+      {
+        name: 'mixed.tsx',
+        source:
+          "const J = styled.div`\n  background: ${p =>\n    p.$a ? 'color-mix(in srgb, var(--color-primary-700) 7%, white)' : 'var(--color-primary-600)'};\n  color: #fff;\n`",
+      },
+    ])
+
+    expect(offenders).toEqual([
+      'cta.tsx:1',
+      'badge.tsx:1',
+      'nested.tsx:1',
+      'fallback.tsx:1',
+      'url.tsx:4',
+      'mixed.tsx:1',
+    ])
+  })
+
+  it('소스 어디에도 흰 글자 + primary-700/600 채움 조합이 없다', () => {
+    const files = collectFiles(projectRoot, isSourceFile).flatMap(file => {
+      const source = readIfPresent(file)
+
+      return source === null
+        ? []
+        : [{ name: path.relative(projectRoot, file), source }]
+    })
+
+    expect(findOffenders(files)).toEqual([])
+  })
+
+  it('공용 Button 의 primary 는 채움 토큰을 쓰고 hover 는 -hover 다', () => {
+    const source = readIfPresent(
+      path.join(projectRoot, 'components/ui/button.tsx'),
+    )
+    const primary = squeeze(source ?? '').match(/primary:css`([^`]*)`/)?.[1]
+
+    expect(primary).toBeDefined()
+    expect(primary).toContain(
+      'border-color:var(--color-fill-primary-text);background:var(--color-fill-primary-text);color:#ffffff;',
+    )
+    expect(primary).toContain(
+      '&:hover:not(:disabled){border-color:var(--color-fill-primary-text-hover);background:var(--color-fill-primary-text-hover);}',
+    )
+  })
 })
 
 /*

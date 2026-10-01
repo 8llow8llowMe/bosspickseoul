@@ -101,19 +101,23 @@ const ActionLink = styled(Link)<{ $primary?: boolean }>`
   padding: 0 18px;
   border: 1px solid
     ${props =>
-      props.$primary ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+      props.$primary
+        ? 'var(--color-fill-primary-text)'
+        : 'var(--color-border-200)'};
   border-radius: var(--radius-control);
   background: ${props =>
-    props.$primary ? 'var(--color-primary-700)' : 'var(--color-surface)'};
+    props.$primary ? 'var(--color-fill-primary-text)' : 'var(--color-surface)'};
   color: ${props =>
     props.$primary ? 'var(--color-surface)' : 'var(--color-text-700)'};
   font-size: 15px;
   font-weight: 600;
 
   &:hover {
-    border-color: var(--color-primary-600);
+    border-color: ${props => (props.$primary ? 'var(--color-fill-primary-text-hover)' : 'var(--color-primary-600)')};
     background: ${props =>
-      props.$primary ? 'var(--color-primary-600)' : 'var(--color-primary-100)'};
+      props.$primary
+        ? 'var(--color-fill-primary-text-hover)'
+        : 'var(--color-primary-100)'};
   }
 
   &:focus-visible {

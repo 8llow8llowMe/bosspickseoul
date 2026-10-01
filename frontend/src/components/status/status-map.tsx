@@ -217,7 +217,7 @@ const RankDot = styled.span`
   flex: 0 0 auto;
   padding: 0 3px;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-600);
+  background: var(--color-fill-primary-text);
   color: var(--color-surface);
   font-size: 10px;
   font-weight: 700;

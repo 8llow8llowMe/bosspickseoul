@@ -213,7 +213,7 @@ const RankBadge = styled.span<{ $top: boolean }>`
   height: 28px;
   border-radius: var(--radius-control);
   background: ${p =>
-    p.$top ? 'var(--color-primary-600)' : 'var(--color-surface-muted)'};
+    p.$top ? 'var(--color-fill-primary-text)' : 'var(--color-surface-muted)'};
   color: ${p => (p.$top ? 'white' : 'var(--color-text-600)')};
   font-size: 13px;
   font-weight: 700;

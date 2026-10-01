@@ -48,9 +48,9 @@ const ActionButton = styled.button`
   min-height: 48px;
   margin-top: 4px;
   padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
+  border: 1px solid var(--color-fill-primary-text);
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: var(--color-surface);
   font: inherit;
   font-size: 14px;

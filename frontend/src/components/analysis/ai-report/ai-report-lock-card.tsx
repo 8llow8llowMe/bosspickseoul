@@ -51,14 +51,14 @@ const Cta = styled(Link)`
   justify-content: center;
   padding: 10px 16px;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   transition: background-color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    background: var(--color-primary-600);
+    background: var(--color-fill-primary-text-hover);
   }
 `
 

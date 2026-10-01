@@ -189,7 +189,7 @@ const MessageBubble = styled.article<{ $isMe: boolean }>`
   gap: 8px;
   padding: 14px 16px;
   border-radius: var(--radius-card);
-  background: ${props => (props.$isMe ? 'var(--color-primary-700)' : 'white')};
+  background: ${props => (props.$isMe ? 'var(--color-fill-primary-text)' : 'white')};
   color: ${props => (props.$isMe ? 'white' : 'var(--color-text-700)')};
   box-shadow: var(--shadow-level-1);
 
@@ -212,8 +212,9 @@ const MessageContent = styled.p`
 `
 
 const MessageMeta = styled.p<{ $isMe: boolean }>`
+  /* 내 말풍선(fill-primary-text) 위 흰 0.7 은 3.74:1 로 AA 미달이다 — Sender 와 같은 0.84(4.65:1). */
   color: ${props =>
-    props.$isMe ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-500)'};
+    props.$isMe ? 'rgba(255, 255, 255, 0.84)' : 'var(--color-text-500)'};
   font-size: 12px;
 `
 
@@ -266,9 +267,9 @@ const Helper = styled.p`
 const PrimaryButton = styled.button`
   min-height: 46px;
   padding: 0 18px;
-  border: 1px solid var(--color-primary-700);
+  border: 1px solid var(--color-fill-primary-text);
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: white;
   font-size: 14px;
   font-weight: 700;

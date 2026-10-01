@@ -70,8 +70,8 @@ const LoginLink = styled(Link)`
   align-items: center;
   padding: 0 14px;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
-  color: var(--color-on-primary);
+  background: var(--color-fill-primary-text);
+  color: #ffffff;
   font-size: 13px;
   font-weight: 700;
 `

@@ -42,13 +42,13 @@ const sizeStyles = {
 
 const variantStyles = {
   primary: css`
-    border-color: var(--color-primary-700);
-    background: var(--color-primary-700);
+    border-color: var(--color-fill-primary-text);
+    background: var(--color-fill-primary-text);
     color: #ffffff;
 
     &:hover:not(:disabled) {
-      border-color: var(--color-primary-600);
-      background: var(--color-primary-600);
+      border-color: var(--color-fill-primary-text-hover);
+      background: var(--color-fill-primary-text-hover);
     }
   `,
   secondary: css`

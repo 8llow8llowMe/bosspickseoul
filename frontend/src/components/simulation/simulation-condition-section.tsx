@@ -79,7 +79,7 @@ const Index = styled.span<{ $done: boolean }>`
   height: 22px;
   border-radius: var(--radius-pill);
   background: ${props =>
-    props.$done ? 'var(--color-primary-600)' : 'var(--color-grey-100)'};
+    props.$done ? 'var(--color-fill-primary-text)' : 'var(--color-grey-100)'};
   /* 번호 칩 바탕이 grey100 이라 grey600 은 4.19 로 미달이다 — 밴드 캡션 토큰. */
   color: ${props =>
     props.$done ? '#ffffff' : 'var(--color-text-caption-on-band)'};

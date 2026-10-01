@@ -72,9 +72,9 @@ const Rank = styled.span<{ $first: boolean }>`
   width: 28px;
   height: 28px;
   border-radius: var(--radius-control);
-  /* 1위 배지는 primary-600 — primary-700(#0ea5e9) 위 흰 글자는 2.77:1 이다. */
+  /* 1위 배지는 글자를 얹는 채움이다 — primary-700·600 위 흰 글자는 2.77 / 4.49:1 로 AA 미달이다. */
   background: ${p =>
-    p.$first ? 'var(--color-primary-600)' : 'var(--color-surface-muted)'};
+    p.$first ? 'var(--color-fill-primary-text)' : 'var(--color-surface-muted)'};
   color: ${p => (p.$first ? '#ffffff' : 'var(--color-text-700)')};
   font-size: 13px;
   font-weight: 700;

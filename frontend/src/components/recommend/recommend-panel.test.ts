@@ -872,14 +872,14 @@ describe('RecommendPanel', () => {
     )
 
     expect(criteriaStyles).toContain(
-      'border:1px solid var(--color-primary-700)',
+      'border:1px solid var(--color-fill-primary-text)',
     )
     // 주 CTA 는 흰 텍스트다 — DESIGN.md §Primary (Fill) 정본이고, 저장소의 나머지
-    // primary 버튼 14곳이 전부 흰 텍스트다. 이 버튼만 charcoal 이면 규격이 갈린다.
-    // (blue500 + white = 2.77:1 로 AA 미달인 건 fill 색 자체의 문제라 디자인 시스템
-    //  차원에서 따로 다룬다 — DESIGN.md §Primary (Fill) 의 '알려진 격차' 주석.)
+    // primary 버튼이 전부 흰 텍스트다. 이 버튼만 charcoal 이면 규격이 갈린다.
+    // 채움은 글자를 얹는 파란 채움 토큰(blue700, 흰 글자 5.91:1)이다 — primary-700
+    // (blue500) 위 흰 글자는 2.77:1 로 AA 미달이다(contrast-tokens.md D4-1).
     expect(criteriaStyles).toContain(
-      'background:var(--color-primary-700);color:#ffffff',
+      'background:var(--color-fill-primary-text);color:#ffffff',
     )
     expect(resultStyles).toContain('border:1px solid var(--color-primary-600)')
     expect(resultStyles).toContain(

@@ -251,10 +251,12 @@ const Button = styled.button<{ $primary?: boolean }>`
   padding: 0 20px;
   border: 1px solid
     ${props =>
-      props.$primary ? 'var(--color-primary-700)' : 'var(--color-border-300)'};
+      props.$primary
+        ? 'var(--color-fill-primary-text)'
+        : 'var(--color-border-300)'};
   border-radius: var(--radius-control);
   background: ${props =>
-    props.$primary ? 'var(--color-primary-700)' : 'var(--color-surface)'};
+    props.$primary ? 'var(--color-fill-primary-text)' : 'var(--color-surface)'};
   color: ${props =>
     props.$primary ? 'var(--color-surface)' : 'var(--color-text-700)'};
   font: inherit;

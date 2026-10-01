@@ -136,10 +136,12 @@ const ActionLink = styled(Link)<{ $primary?: boolean }>`
   padding: 0 14px;
   border: 1px solid
     ${props =>
-      props.$primary ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+      props.$primary
+        ? 'var(--color-fill-primary-text)'
+        : 'var(--color-border-200)'};
   border-radius: var(--radius-control);
   background: ${props =>
-    props.$primary ? 'var(--color-primary-700)' : 'var(--color-surface)'};
+    props.$primary ? 'var(--color-fill-primary-text)' : 'var(--color-surface)'};
   color: ${props => (props.$primary ? 'white' : 'var(--color-text-700)')};
   font-size: 14px;
   font-weight: 600;
@@ -150,9 +152,13 @@ const ActionLink = styled(Link)<{ $primary?: boolean }>`
 
   &:hover {
     border-color: ${props =>
-      props.$primary ? 'var(--color-primary-600)' : 'var(--color-primary-100)'};
+      props.$primary
+        ? 'var(--color-fill-primary-text-hover)'
+        : 'var(--color-primary-100)'};
     background: ${props =>
-      props.$primary ? 'var(--color-primary-600)' : 'var(--color-primary-100)'};
+      props.$primary
+        ? 'var(--color-fill-primary-text-hover)'
+        : 'var(--color-primary-100)'};
     color: ${props => (props.$primary ? 'white' : 'var(--color-primary-700)')};
   }
 
