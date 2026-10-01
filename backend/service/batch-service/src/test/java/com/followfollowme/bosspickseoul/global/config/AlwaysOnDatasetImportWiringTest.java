@@ -26,6 +26,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.se
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRefreshProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRefreshRunProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetStagingPurgeProcessor;
+import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.util.Properties;
@@ -64,7 +65,7 @@ class AlwaysOnDatasetImportWiringTest {
 
     private final DataSource primary = mock(DataSource.class);
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+    private final ApplicationContextRunner runner = IsolatedEnvironment.contextRunner()
         .withBean(DataSource.class, () -> primary)
         .withBean(JobRepository.class, () -> mock(JobRepository.class))
         .withBean(StepScope.class)
@@ -121,7 +122,7 @@ class AlwaysOnDatasetImportWiringTest {
     @DisplayName("Spring Batch JobRepository 는 기본 DataSource 의 트랜잭션 매니저를 쓴다(commercial 이 아니다)")
     void jobRepositoryUsesTheTransactionManagerOfThePrimaryDataSource() throws Exception {
         DataSource mysql = mysqlLikeDataSource();
-        new ApplicationContextRunner()
+        IsolatedEnvironment.contextRunner()
             .withBean(DataSource.class, () -> mysql)
             .withUserConfiguration(CommercialDataSourceConfig.class, DistrictDataSourceConfig.class)
             .withConfiguration(AutoConfigurations.of(BatchAutoConfiguration.class))
@@ -142,7 +143,7 @@ class AlwaysOnDatasetImportWiringTest {
     @Test
     @DisplayName("Quartz JDBC JobStore 는 기본 DataSource 와 그 트랜잭션 매니저를 쓴다(QRTZ_LOCKS 락이 트랜잭션에 묶인다)")
     void quartzUsesThePrimaryDataSourceAndItsTransactionManager() {
-        new ApplicationContextRunner()
+        IsolatedEnvironment.contextRunner()
             .withBean(DataSource.class, () -> primary)
             // Boot 의 SchedulerFactoryBean 은 JDBC JobStore 를 열려고 DB 에 붙는다. 대신 비어 있는 것을 두고 Boot 의 customizer 만 검사한다.
             .withBean("quartzScheduler", SchedulerFactoryBean.class, AlwaysOnDatasetImportWiringTest::idleScheduler)

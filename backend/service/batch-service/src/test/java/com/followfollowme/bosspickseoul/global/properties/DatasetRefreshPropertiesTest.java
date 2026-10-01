@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.global.properties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -12,7 +13,7 @@ import org.springframework.core.env.StandardEnvironment;
 
 class DatasetRefreshPropertiesTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(EnableTargetProperties.class);
+    private final ApplicationContextRunner runner = IsolatedEnvironment.contextRunner().withUserConfiguration(EnableTargetProperties.class);
 
     @Test
     void bindsTheRolloutDefaults() {
@@ -54,7 +55,7 @@ class DatasetRefreshPropertiesTest {
     /** application.yml 의 실제 값. 사용자 결정(05:00, publish=false, 분기 1)이 기본값으로 남아 있는지 본다. */
     @Test
     void applicationYamlKeepsTheAgreedDefaults() {
-        StandardEnvironment environment = new StandardEnvironment();
+        StandardEnvironment environment = IsolatedEnvironment.create();
         environment.setActiveProfiles("quarterly");
         ConfigDataEnvironmentPostProcessor.applyTo(environment);
 

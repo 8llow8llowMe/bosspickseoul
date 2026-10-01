@@ -14,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.sch
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.DatasetStagingPurgeQuartzScheduleConfig;
 import com.followfollowme.bosspickseoul.domainlayer.policyingestion.adapter.in.scheduler.PolicyQuartzCleanupConfig;
 import com.followfollowme.bosspickseoul.domainlayer.policyingestion.adapter.in.scheduler.PolicyQuartzScheduleConfig;
+import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -34,13 +35,15 @@ class StaleQuartzJobRemoverTest {
 
     private final Scheduler scheduler = mock(Scheduler.class);
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+    private final ApplicationContextRunner runner = IsolatedEnvironment.contextRunner()
         .withBean(Scheduler.class, () -> scheduler)
         .withUserConfiguration(DatasetRefreshPropertiesConfig.class, PolicyIngestionPropertiesConfig.class,
             DatasetRefreshQuartzScheduleConfig.class, DatasetRefreshQuartzCleanupConfig.class,
             DatasetStagingPurgeQuartzScheduleConfig.class, DatasetStagingPurgeQuartzCleanupConfig.class,
             PolicyQuartzScheduleConfig.class, PolicyQuartzCleanupConfig.class)
-        .withPropertyValues("batch.policy.stale-ratio=0.5", "batch.policy.purge-grace-days=30");
+        // 빌드 환경(Jenkins withEnv)의 플래그가 섞이지 않게 기본 상태를 적어 둔다. 켜는 테스트는 아래에서 덮어쓴다.
+        .withPropertyValues("batch.policy.stale-ratio=0.5", "batch.policy.purge-grace-days=30",
+            "batch.policy.enabled=false", "batch.dataset-refresh.enabled=false", "batch.staging-purge.enabled=false");
 
     @Test
     void everyDisabledScheduleRemovesItsStoredJobAtStartup() {
