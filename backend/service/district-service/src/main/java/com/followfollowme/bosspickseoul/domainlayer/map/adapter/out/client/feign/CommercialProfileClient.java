@@ -18,7 +18,8 @@ public interface CommercialProfileClient {
     Response<CommercialProfileQueryResult> getCommercialProfile(
         @PathVariable("commercialCode") String commercialCode,
         @RequestParam String serviceCode,
-        @RequestParam String periodCode
+        // null 이면 Feign 이 쿼리에서 뺀다. commercial-service 가 적재 기준 기본 분기로 해석한다(이슈 #464).
+        @RequestParam(required = false) String periodCode
     );
 
     @GetMapping("/api/v1/commercials/compare-preview")
@@ -26,6 +27,7 @@ public interface CommercialProfileClient {
         @RequestParam String leftCommercialCode,
         @RequestParam String rightCommercialCode,
         @RequestParam String serviceCode,
-        @RequestParam String periodCode
+        // null 이면 Feign 이 쿼리에서 뺀다. commercial-service 가 적재 기준 기본 분기로 해석한다(이슈 #464).
+        @RequestParam(required = false) String periodCode
     );
 }

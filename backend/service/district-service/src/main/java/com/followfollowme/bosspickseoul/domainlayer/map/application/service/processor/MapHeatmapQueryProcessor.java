@@ -89,7 +89,8 @@ public class MapHeatmapQueryProcessor {
                 ? (composite ? HeatmapModeType.COMPOSITE.toMetadata() : HeatmapModeType.SINGLE_METRIC.toMetadata())
                 : scoreResponse.mode())
             .serviceCode(serviceCode)
-            .periodCode(periodCode)
+            // 상류가 실제로 조회한 분기를 우선한다. 요청이 분기를 생략하면 상류가 적재 기준 기본 분기로 해석한다(이슈 #464).
+            .periodCode(scoreResponse == null || scoreResponse.periodCode() == null ? periodCode : scoreResponse.periodCode())
             .metricType(scoreResponse == null
                 ? (metricType == null ? null : metricType.toScoreMetadata())
                 : scoreResponse.metricType())

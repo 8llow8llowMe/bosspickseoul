@@ -80,6 +80,7 @@
 - 대상: commercial-service 의 `/api/v1/commercials/**` 분석 조회 17종(비교·비교 프리뷰 포함), `/api/v1/districts/**` 8종(`currentPeriodCode`), `/api/v1/administrations/{code}`(`currentPeriodCode`), `POST /api/v1/simulations/reports` 의 `periodCode`.
 - 비교 분기(`previousPeriodCode`)를 생략하면 **해석된** 현재 분기의 직전 분기입니다.
 - 응답은 실제로 조회한 분기를 최상위에 싣습니다: 상권 유동인구·매출·시설·거주인구·점포·벤치마크·비교 프리뷰·매출 요약·트렌드는 `periodCode`(트렌드는 추이의 기준 분기), 자치구 Top10·상세·유동인구·매출·행정동 매출 상위와 행정동 상세는 `currentPeriodCode`·`previousPeriodCode`, 자치구 변화지표·점포는 `currentPeriodCode`. 프로필·비교·히트맵·후보 응답은 원래 `periodCode` 가 있습니다. 소비(`/income`, `/summaries/income`)와 자치구 목록(`GET /api/v1/districts`, 배열 응답)은 아직 싣지 않습니다.
+- district-service 지도 API 4종(`/api/v1/map/commercials/heatmap`·`candidates`·`{code}/profile`·`compare-preview`)도 `periodCode` 가 선택이고, 생략하면 쿼리에서 빼고 보내 commercial-service 가 해석합니다. 응답 `periodCode` 는 상류가 실제로 조회한 값입니다(빈 뷰포트 후보처럼 상류를 거치지 않은 응답은 생략 요청이면 `null`). 프로필·비교 프리뷰 응답에 `periodCode` 가 추가됐습니다.
 - 기본 분기를 정할 수 없으면(콜드 스타트 DB 장애, 핵심 데이터셋 공통 분기 없음) 분기를 생략한 요청만 `ANALYSIS_PERIOD_001`(503) 입니다. 분기를 명시한 요청은 영향이 없습니다.
 - **공유 링크·북마크·커뮤니티 초안·AI 리포트에는 해석된 분기를 저장하세요.** 생략한 채 저장하면 데이터가 적재될 때마다 같은 링크가 다른 분기를 보여 줍니다. 응답의 `periodCode`(또는 `/periods` 의 `defaultPeriodCode`)를 그대로 쓰면 됩니다.
 

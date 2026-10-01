@@ -134,6 +134,7 @@ public class MapPresenter {
 
     public CommercialProfileResponse toCommercialProfileResponse(CommercialProfileAreaInfo info) {
         return CommercialProfileResponse.builder()
+            .periodCode(info.periodCode())
             .commercialCode(info.commercialCode())
             .commercialName(info.commercialName())
             .districtCode(info.districtCode())
@@ -172,6 +173,7 @@ public class MapPresenter {
 
     public CommercialComparePreviewResponse toCommercialComparePreviewResponse(CommercialComparePreviewInfo info) {
         return CommercialComparePreviewResponse.builder()
+            .periodCode(info.periodCode())
             .left(toComparePreviewTargetItem(info.left()))
             .right(toComparePreviewTargetItem(info.right()))
             .recommendedSide(info.recommendedSide())

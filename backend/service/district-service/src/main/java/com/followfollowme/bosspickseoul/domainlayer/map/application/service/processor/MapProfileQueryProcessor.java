@@ -32,18 +32,19 @@ public class MapProfileQueryProcessor {
     public CommercialProfileAreaInfo getCommercialProfile(String commercialCode, String serviceCode, String periodCode) {
         CommercialProfileQueryResult result = commercialProfileQueryPort
             .getCommercialProfile(commercialCode, serviceCode, periodCode);
-        return toCommercialProfileAreaInfo(result);
+        return toCommercialProfileAreaInfo(result, periodCode);
     }
 
     public CommercialComparePreviewInfo getCommercialComparePreview(String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode) {
         CommercialComparePreviewQueryResult result = commercialProfileQueryPort
             .getCommercialComparePreview(leftCommercialCode, rightCommercialCode, serviceCode, periodCode);
-        return toCommercialComparePreviewInfo(result);
+        return toCommercialComparePreviewInfo(result, periodCode);
     }
 
-    private CommercialProfileAreaInfo toCommercialProfileAreaInfo(CommercialProfileQueryResult result) {
+    private CommercialProfileAreaInfo toCommercialProfileAreaInfo(CommercialProfileQueryResult result, String requestedPeriodCode) {
         if (result == null) {
             return CommercialProfileAreaInfo.builder()
+                .periodCode(requestedPeriodCode)
                 .boundaryCoords(List.of())
                 .policyRecommendations(List.of())
                 .build();
@@ -61,6 +62,7 @@ public class MapProfileQueryProcessor {
             .build();
 
         return CommercialProfileAreaInfo.builder()
+            .periodCode(upstreamFirst(result.periodCode(), requestedPeriodCode))
             .commercialCode(result.commercialCode())
             .commercialName(result.commercialName())
             .districtCode(result.districtCode())
@@ -75,9 +77,10 @@ public class MapProfileQueryProcessor {
             .build();
     }
 
-    private CommercialComparePreviewInfo toCommercialComparePreviewInfo(CommercialComparePreviewQueryResult result) {
+    private CommercialComparePreviewInfo toCommercialComparePreviewInfo(CommercialComparePreviewQueryResult result, String requestedPeriodCode) {
         if (result == null) {
             return CommercialComparePreviewInfo.builder()
+                .periodCode(requestedPeriodCode)
                 .headlineMetrics(List.of())
                 .build();
         }
@@ -88,12 +91,21 @@ public class MapProfileQueryProcessor {
                 .toList();
 
         return CommercialComparePreviewInfo.builder()
+            .periodCode(upstreamFirst(result.periodCode(), requestedPeriodCode))
             .left(toComparePreviewTargetInfo(result.left()))
             .right(toComparePreviewTargetInfo(result.right()))
             .recommendedSide(result.recommendedSide())
             .headlineMetrics(metrics)
             .insightOneLiner(result.insightOneLiner())
             .build();
+    }
+
+    /**
+     * 상류가 실제로 조회한 분기를 우선한다. 요청이 분기를 생략하면 상류가 적재 기준 기본 분기로 해석하므로 요청값(null)을
+     * 그대로 내보내면 화면이 어느 분기를 봤는지 모른다. 상류가 분기를 싣지 않은 옛 응답이면 요청값으로 둔다.
+     */
+    private static String upstreamFirst(String upstreamPeriodCode, String requestedPeriodCode) {
+        return upstreamPeriodCode == null ? requestedPeriodCode : upstreamPeriodCode;
     }
 
     private ComparePreviewTargetInfo toComparePreviewTargetInfo(ComparePreviewTargetQueryResult target) {

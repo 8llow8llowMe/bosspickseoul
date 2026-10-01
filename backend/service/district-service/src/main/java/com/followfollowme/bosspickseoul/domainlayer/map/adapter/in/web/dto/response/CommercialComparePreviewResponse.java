@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.item.ComparePreviewMetricItem;
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.dto.item.ComparePreviewTargetItem;
@@ -10,6 +11,9 @@ import lombok.Builder;
 @Builder
 @Schema(description = "상권 비교 프리뷰 응답 DTO")
 public record CommercialComparePreviewResponse(
+
+    @Schema(description = "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 commercial-service 가 정한 기본 분기", example = AnalysisPeriodDefaults.PERIOD_CODE)
+    String periodCode,
 
     @Schema(description = "좌측 상권 요약")
     ComparePreviewTargetItem left,
