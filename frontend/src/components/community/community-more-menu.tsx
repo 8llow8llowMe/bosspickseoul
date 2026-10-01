@@ -16,6 +16,7 @@ import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import {
   getCommunityPostMenuActions,
   getNextCommunityMenuIndex,
+  type CommunityPostMenuAction,
 } from '@/lib/community/post-detail'
 
 /*
@@ -26,8 +27,23 @@ export const COMMUNITY_MOBILE_QUERY = '(max-width: 479px)'
 
 type MenuVariant = 'popover' | 'sheet'
 
+/** 메뉴가 다루는 대상. 트리거·항목·시트 제목의 이름이 대상을 따라간다(`게시글 더보기` · `댓글 더보기`). */
+export type CommunityMoreMenuTarget = 'post' | 'comment'
+
+const TARGET_NAME: Record<CommunityMoreMenuTarget, string> = {
+  post: '게시글',
+  comment: '댓글',
+}
+
 export type CommunityMoreMenuActionsProps = {
   variant: MenuVariant
+  /** 기본은 게시글이다 — 기존 글 더보기 호출부는 넘기지 않는다. */
+  target?: CommunityMoreMenuTarget
+  /**
+   * 보일 항목. 생략하면 글 규칙(CM-022 — `editHref` 가 있으면 수정·삭제, 없으면 신고)이다.
+   * 댓글은 `getCommunityCommentMenuActions` 로 넘긴다(삭제 또는 신고).
+   */
+  actions?: readonly CommunityPostMenuAction[]
   editHref: string | null
   authReady: boolean
   deletePending: boolean
@@ -110,6 +126,8 @@ const ItemLink = styled(Link)<{ $variant: MenuVariant }>`
  */
 export function CommunityMoreMenuActions({
   variant,
+  target = 'post',
+  actions: actionsOverride,
   editHref,
   authReady,
   deletePending,
@@ -120,7 +138,9 @@ export function CommunityMoreMenuActions({
   const role = variant === 'popover' ? 'menuitem' : undefined
   // 버튼 안 아이콘은 18 이다(DESIGN.md Icon Sizing Scale). 시트 행이 더 커도 아이콘은 같다.
   const iconSize = 18
-  const actions = getCommunityPostMenuActions(Boolean(editHref))
+  const name = TARGET_NAME[target]
+  const actions =
+    actionsOverride ?? getCommunityPostMenuActions(Boolean(editHref))
 
   return (
     <>
@@ -147,7 +167,7 @@ export function CommunityMoreMenuActions({
               key={action}
               $danger
               $variant={variant}
-              aria-label="게시글 삭제"
+              aria-label={`${name} 삭제`}
               data-community-menu-item="true"
               data-danger="true"
               disabled={!authReady || deletePending}
@@ -166,7 +186,7 @@ export function CommunityMoreMenuActions({
             <ItemButton
               key={action}
               $variant={variant}
-              aria-label="게시글 신고"
+              aria-label={`${name} 신고`}
               data-community-menu-item="true"
               disabled={!authReady}
               role={role}
@@ -241,6 +261,8 @@ const SheetList = styled.div`
 const MENU_ITEM_SELECTOR = '[data-community-menu-item="true"]:not([disabled])'
 
 export type CommunityMoreMenuProps = {
+  target?: CommunityMoreMenuTarget
+  actions?: readonly CommunityPostMenuAction[]
   editHref: string | null
   authReady: boolean
   deletePending: boolean
@@ -249,13 +271,17 @@ export type CommunityMoreMenuProps = {
 }
 
 /**
- * 게시글 더보기(⋯). `<480` 바텀시트(CommunitySheet), `≥480` 버튼 아래 팝오버.
+ * 게시글·댓글 더보기(⋯). `<480` 바텀시트(CommunitySheet), `≥480` 버튼 아래 팝오버.
+ * 댓글 행도 같은 메뉴를 쓴다(community.md §S4 2단계 「신고·삭제」) — `target="comment"` 와
+ * `actions` 만 바꾸고 키보드 규약·시트→신고 잠금 순서·삭제 확인 프레임 취소는 그대로다.
  *
  * 폭 판정을 CSS 가 아니라 `matchMedia` 로 하는 이유: 시트는 body 포털이라 CSS 로 숨길 수 없고,
  * 두 형태를 다 그려 두면 포커스 가두기가 숨은 쪽까지 잡는다. 서버 렌더에서는 닫혀 있어
  * 하이드레이션 차이가 없다(열 때는 이미 측정이 끝나 있다).
  */
 export default function CommunityMoreMenu({
+  target = 'post',
+  actions,
   editHref,
   authReady,
   deletePending,
@@ -271,6 +297,7 @@ export default function CommunityMoreMenu({
   const confirmFrameRef = useRef<number | null>(null)
   const sheetMode = narrow === true
   const popoverOpen = open && !sheetMode
+  const name = TARGET_NAME[target]
 
   const getItems = () =>
     Array.from(
@@ -412,6 +439,8 @@ export default function CommunityMoreMenu({
   }
 
   const actionProps = {
+    target,
+    actions,
     editHref,
     authReady,
     deletePending,
@@ -424,7 +453,7 @@ export default function CommunityMoreMenu({
     <Root ref={rootRef} onKeyDown={handleRootKeyDown}>
       <Trigger
         ref={triggerRef}
-        aria-label="게시글 더보기"
+        aria-label={`${name} 더보기`}
         aria-haspopup={sheetMode ? 'dialog' : 'menu'}
         aria-expanded={open}
         aria-controls={popoverOpen ? `${id}-menu` : undefined}
@@ -446,7 +475,7 @@ export default function CommunityMoreMenu({
       {popoverOpen ? (
         <Popover
           ref={popoverRef}
-          aria-label="게시글 더보기"
+          aria-label={`${name} 더보기`}
           id={`${id}-menu`}
           role="menu"
           onBlur={handlePopoverBlur}
@@ -459,10 +488,10 @@ export default function CommunityMoreMenu({
       <CommunitySheet
         open={open && sheetMode}
         returnFocusRef={triggerRef}
-        title="게시글 더보기"
+        title={`${name} 더보기`}
         onClose={() => setOpen(false)}
       >
-        <SheetList aria-label="게시글 관리" role="group">
+        <SheetList aria-label={`${name} 관리`} role="group">
           <CommunityMoreMenuActions variant="sheet" {...actionProps} />
         </SheetList>
       </CommunitySheet>
