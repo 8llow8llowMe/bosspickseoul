@@ -36,6 +36,7 @@ describe('SimulationResultPreview', () => {
       createElement(SimulationResultPreview, {
         report: report(),
         reportHref: '/simulation/report',
+        compareHref: '/simulation/compare?a.franchisee=false',
       }),
     )
 
@@ -49,6 +50,7 @@ describe('SimulationResultPreview', () => {
       createElement(SimulationResultPreview, {
         report: report(),
         reportHref: '/simulation/report',
+        compareHref: '/simulation/compare?a.franchisee=false',
       }),
     )
 
@@ -60,6 +62,7 @@ describe('SimulationResultPreview', () => {
       createElement(SimulationResultPreview, {
         report: report(),
         reportHref: '/simulation/report',
+        compareHref: '/simulation/compare?a.franchisee=false',
       }),
     )
 
@@ -82,6 +85,7 @@ describe('SimulationResultPreview', () => {
           },
         }),
         reportHref: '/simulation/report',
+        compareHref: '/simulation/compare?a.franchisee=false',
       }),
     )
 
@@ -94,15 +98,85 @@ describe('SimulationResultPreview', () => {
       createElement(SimulationResultPreview, {
         report: report(),
         reportHref: '/simulation/report?franchisee=false',
+        compareHref: '/simulation/compare?a.franchisee=false',
       }),
     )
 
     expect(markup).toContain('상세 리포트 보기')
     expect(markup).toContain('/simulation/report?franchisee=false')
-    // 상세 수치는 리포트 화면 몫이다 — 미리보기에서 같은 값을 다르게 표기하지 않는다.
+    // 권리금은 리포트 화면 몫이다 — 총액에 들지 않는 값을 요약 카드에 섞지 않는다.
     expect(markup).not.toContain('4,200')
-    expect(markup).not.toContain('5,000')
-    expect(markup).not.toContain('3,000')
+  })
+
+  it('이 조건을 A 에 채운 비교 화면으로 가는 링크를 준다 (B12)', () => {
+    const markup = renderToStaticMarkup(
+      createElement(SimulationResultPreview, {
+        report: report(),
+        reportHref: '/simulation/report',
+        compareHref: '/simulation/compare?a.franchisee=false',
+      }),
+    )
+
+    expect(markup).toContain('다른 조건과 비교')
+    expect(markup).toContain('href="/simulation/compare?a.franchisee=false"')
+  })
+})
+
+/*
+ * B8 — 계산 직후 사용자가 보는 것은 이 카드다. 총액만 두면 무엇이 이만큼인지 알려고 화면을
+ * 옮겨야 했다. 행·비중은 리포트 비용 구성과 같은 함수에서 나와야 두 화면이 어긋나지 않는다.
+ */
+describe('비용 구성 행 (B8)', () => {
+  const render = (overrides: Partial<SimulationReport> = {}) =>
+    renderToStaticMarkup(
+      createElement(SimulationResultPreview, {
+        report: report(overrides),
+        reportHref: '/simulation/report',
+        compareHref: '/simulation/compare',
+      }),
+    )
+
+  it('항목마다 리포트와 같은 라벨·금액·비중을 보여준다', () => {
+    const markup = render()
+
+    // 300 / 3,000 / 5,000 → 합 8,300. 비중은 도넛과 같은 반올림(4 · 36 · 60).
+    expect(markup).toContain('첫 달 임대료')
+    expect(markup).toContain('300만원')
+    expect(markup).toContain('4%')
+    expect(markup).toContain('보증금')
+    expect(markup).toContain('3,000만원')
+    expect(markup).toContain('36%')
+    expect(markup).toContain('인테리어')
+    expect(markup).toContain('5,000만원')
+    expect(markup).toContain('60%')
+  })
+
+  it('개인 창업은 가맹 부담금 행이 없고, 프랜차이즈는 0원이어도 남긴다', () => {
+    expect(render()).not.toContain('가맹 부담금')
+
+    const franchise = render({
+      costDetail: { rentPrice: 300, deposit: 3_000, interior: 5_000, levy: 0 },
+    })
+    // 0 은 formatLargeWon 이 「0원」으로 적는다. 행 안에서 라벨·금액·비중을 함께 본다 —
+    // 「0만원」 같은 부분 문자열은 「300만원」에도 걸려 아무것도 검증하지 못한다.
+    expect(franchise).toMatch(
+      /가맹 부담금<\/dt><dd><strong[^>]*>0원<\/strong> <span[^>]*>0%/,
+    )
+  })
+
+  it('버림 안내를 항상 둔다 — 항목 합이 총액과 어긋날 수 있다', () => {
+    // 항목 합 8,300 · 총액 8,302 → 차이 2만원(항목 3개면 최대 2만원까지 버림으로 설명된다).
+    const markup = render({ totalPrice: 8_302 })
+
+    expect(markup).toContain('금액은 만원 미만을 버려 표시해요.')
+    expect(markup).toContain('항목을 더하면 합계와 2만원 차이가 나요.')
+  })
+
+  it('행 설명·합계 행은 리포트에만 둔다 — 카드의 헤드라인이 합계다', () => {
+    const markup = render()
+
+    expect(markup).not.toContain('이후 매달 같은 금액이 나가요')
+    expect(markup).not.toContain('합계 · 예상 총 창업 비용')
   })
 })
 
@@ -117,6 +191,7 @@ describe('결과 제목 (과업 흐름 감사 J3-3)', () => {
       createElement(SimulationResultPreview, {
         report: report(),
         reportHref: '/simulation/report',
+        compareHref: '/simulation/compare?a.franchisee=false',
       }),
     )
 

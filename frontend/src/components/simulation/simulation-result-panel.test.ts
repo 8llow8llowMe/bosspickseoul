@@ -58,6 +58,7 @@ const render = (overrides: Partial<SimulationResultPanelProps> = {}) => {
       progress: describeSimulationProgress(state),
       report: null,
       reportHref: null,
+      compareHref: null,
       error: null,
       isPending: false,
       onCalculate: () => {},
@@ -138,6 +139,7 @@ describe('SimulationResultPanel', () => {
       state: completeState(),
       report: report(),
       reportHref: '/simulation/report?franchisee=false',
+      compareHref: '/simulation/compare?a.franchisee=false',
     })
 
     expect(markup).toContain('2억 3,450만원')
