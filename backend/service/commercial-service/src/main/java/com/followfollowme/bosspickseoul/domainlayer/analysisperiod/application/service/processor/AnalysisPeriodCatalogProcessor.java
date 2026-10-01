@@ -4,30 +4,27 @@ import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.e
 import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.exception.AnalysisPeriodException;
 import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.model.AnalysisPeriodCatalog;
 import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.port.out.AnalysisDatasetPeriodQueryPort;
-import com.followfollowme.bosspickseoul.global.properties.AnalysisPeriodProperties;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.NestedExceptionUtils;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.TransactionException;
 
 /**
  * 분석 기준 분기의 유일한 해석 지점(이슈 #464). 다른 컨텍스트의 Facade 는 {@link #resolve(String)} 만 부른다.
  *
- * <p>카탈로그는 인스턴스 메모리에 TTL 동안 둔다. 만료되면 요청 하나만 다시 계산하고 나머지는 기다리지 않고 직전 값을 받는다.
- * 재계산이 DB 오류로 실패하면 마지막 성공 카탈로그를 계속 쓰고 다음 재시도를 TTL 뒤로 미룬다 — 장애 중인 DB 를 요청마다
- * 두드리지 않기 위해서다. 한 번도 계산하지 못했으면(콜드 스타트 장애) 분기를 생략한 요청은 503 이다. 예시 상수로 조용히
- * 떨어지면 적재되지 않은 분기를 기본으로 내보내 화면 전체가 "데이터 없음"이 되므로 폴백 값을 두지 않는다.
+ * <p><b>요청 경로는 DB 를 치지 않는다.</b> {@link #resolve(String)}·{@link #catalog()} 는 인스턴스 메모리의 마지막 성공 카탈로그만
+ * 읽는다. 재계산은 {@link #refresh()} 하나이고 스케줄러({@code AnalysisPeriodCatalogRefreshScheduler})만 부른다. 요청이 재계산을
+ * 기다리면 분석 Facade 의 readOnly 트랜잭션이 쥔 커넥션을 놓지 않은 채 줄을 서고, 재계산은 커넥션을 하나 더 요구해 풀이
+ * 고갈된다(동시 10건이면 Hikari 기본 10개가 30초 정지 뒤 전부 실패).
+ *
+ * <p>카탈로그가 아직 없거나(기동 직후 첫 갱신 전, 첫 갱신 실패) 기본 분기가 없으면 분기를 생략한 요청은 기다리지 않고 바로 503 이다.
+ * 예시 상수로 조용히 떨어지면 적재되지 않은 분기를 기본으로 내보내 화면 전체가 "데이터 없음"이 되므로 폴백 값을 두지 않는다.
+ * 갱신이 실패하면 이 Processor 는 아무것도 바꾸지 않으므로 마지막 성공값이 그대로 남는다.
  */
 @Slf4j
 @Component
@@ -39,134 +36,117 @@ public class AnalysisPeriodCatalogProcessor {
 
     private final AnalysisDatasetPeriodQueryPort analysisDatasetPeriodQueryPort;
     private final DatasetSpatialVersion datasetSpatialVersion;
-    private final Duration cacheTtl;
     private final Clock clock;
 
-    private final AtomicReference<CachedCatalog> cache = new AtomicReference<>();
-    private final ReentrantLock refreshLock = new ReentrantLock();
-    /** 콜드 스타트 계산 실패 횟수. 줄 서 있던 요청이 앞 요청의 실패를 같이 받고 DB 를 다시 두드리지 않게 한다. */
-    private final AtomicLong coldStartFailures = new AtomicLong();
+    private final AtomicReference<AnalysisPeriodCatalog> current = new AtomicReference<>();
+    /** 마지막으로 WARN 을 남긴 이상 상태. 같은 상태가 갱신마다 반복되면 다시 찍지 않고, 바뀌거나 풀렸다 재발하면 찍는다. */
+    private final AtomicReference<String> lastWarnedAnomaly = new AtomicReference<>();
 
     public AnalysisPeriodCatalogProcessor(
-        AnalysisDatasetPeriodQueryPort analysisDatasetPeriodQueryPort, DatasetSpatialVersion datasetSpatialVersion,
-        AnalysisPeriodProperties analysisPeriodProperties, Clock clock
+        AnalysisDatasetPeriodQueryPort analysisDatasetPeriodQueryPort, DatasetSpatialVersion datasetSpatialVersion, Clock clock
     ) {
         this.analysisDatasetPeriodQueryPort = analysisDatasetPeriodQueryPort;
         this.datasetSpatialVersion = datasetSpatialVersion;
-        this.cacheTtl = analysisPeriodProperties.cacheTtl();
         this.clock = clock;
     }
 
-    /** 현재 카탈로그. 만료됐으면 재계산을 시도하고, 계산할 수 없으면 마지막 성공값을 돌려준다. */
+    /**
+     * 마지막 성공 카탈로그. 캐시만 읽는다.
+     *
+     * @throws AnalysisPeriodException 아직 한 번도 계산하지 못했을 때(503)
+     */
     public AnalysisPeriodCatalog catalog() {
-        CachedCatalog cached = cache.get();
-        if (cached == null) {
-            return loadOnColdStart();
+        AnalysisPeriodCatalog catalog = current.get();
+        if (catalog == null) {
+            throw new AnalysisPeriodException(AnalysisPeriodErrorCode.DEFAULT_PERIOD_UNAVAILABLE);
         }
-        if (!cached.refreshDue(clock.instant()) || !refreshLock.tryLock()) {
-            return cached.catalog();
-        }
-        try {
-            CachedCatalog current = cache.get();
-            if (!current.refreshDue(clock.instant())) {
-                return current.catalog();
-            }
-            return refresh(current);
-        } finally {
-            refreshLock.unlock();
-        }
+        return catalog;
+    }
+
+    /** 마지막 성공 카탈로그의 계산 시각. 갱신 실패 로그가 "얼마나 오래된 값을 내고 있는지" 남기는 데 쓴다. */
+    public Optional<OffsetDateTime> lastResolvedAt() {
+        return Optional.ofNullable(current.get()).map(AnalysisPeriodCatalog::resolvedAt);
     }
 
     /**
-     * 요청 분기를 해석한다. 값이 있으면 그대로 쓰고(형식 검증은 각 조회 경로가 한다), 비었으면 카탈로그의 기본 분기를 쓴다.
+     * 요청 분기를 해석한다. 값이 있으면 그대로 쓰고(형식 검증은 각 조회 경로가 한다), 비었으면 캐시된 기본 분기를 쓴다. DB 를 치지 않는다.
      *
-     * @throws AnalysisPeriodException 기본 분기를 정할 수 없을 때(503)
+     * @throws AnalysisPeriodException 기본 분기를 정할 수 없을 때(503) — 카탈로그 없음, 핵심 데이터셋 공통 분기 없음
      */
     public String resolve(String requestedPeriodCode) {
         if (requestedPeriodCode != null && !requestedPeriodCode.isBlank()) {
             return requestedPeriodCode;
         }
-        String defaultPeriodCode = catalog().defaultPeriodCode();
-        if (defaultPeriodCode == null) {
+        AnalysisPeriodCatalog catalog = current.get();
+        if (catalog == null || catalog.defaultPeriodCode() == null) {
             throw new AnalysisPeriodException(AnalysisPeriodErrorCode.DEFAULT_PERIOD_UNAVAILABLE);
         }
-        return defaultPeriodCode;
+        return catalog.defaultPeriodCode();
     }
 
-    private AnalysisPeriodCatalog loadOnColdStart() {
-        long failuresBeforeWaiting = coldStartFailures.get();
-        refreshLock.lock();
-        try {
-            CachedCatalog current = cache.get();
-            if (current != null) {
-                return current.catalog();
-            }
-            if (coldStartFailures.get() != failuresBeforeWaiting) {
-                throw new AnalysisPeriodException(AnalysisPeriodErrorCode.DEFAULT_PERIOD_UNAVAILABLE);
-            }
-            return refresh(null);
-        } finally {
-            refreshLock.unlock();
-        }
-    }
-
-    /** {@link #refreshLock} 을 잡은 상태에서만 부른다. */
-    private AnalysisPeriodCatalog refresh(CachedCatalog previous) {
+    /**
+     * 카탈로그를 다시 계산해 바꿔 끼운다. 스케줄러 전용이다.
+     *
+     * <p>포트가 던지는 예외(포트 Javadoc 의 실패 계약)는 그대로 올려 보낸다. 이때 캐시는 바뀌지 않아 마지막 성공값이 유지되고,
+     * 호출한 스케줄러가 잡아 WARN 을 남긴다. 그래서 이 Processor 는 어댑터의 트랜잭션·예외 유형을 알 필요가 없다.
+     */
+    public AnalysisPeriodCatalog refresh() {
         String spatialVersion = datasetSpatialVersion.value();
-        try {
-            AnalysisPeriodCatalog catalog = AnalysisPeriodCatalog.of(spatialVersion,
-                analysisDatasetPeriodQueryPort.findPeriodCodesByDataset(spatialVersion), OffsetDateTime.now(clock));
-            logChanges(previous == null ? null : previous.catalog(), catalog);
-            cache.set(new CachedCatalog(catalog, clock.instant().plus(cacheTtl)));
-            return catalog;
-        } catch (DataAccessException | TransactionException exception) {
-            // 예외 메시지에는 접속 정보가 섞일 수 있어 유형만 남긴다.
-            String error = NestedExceptionUtils.getMostSpecificCause(exception).getClass().getSimpleName();
-            if (previous == null) {
-                coldStartFailures.incrementAndGet();
-                log.warn("[analysis-period] catalog load failed, no catalog to serve spatialVersion={} error={}", spatialVersion, error);
-                throw new AnalysisPeriodException(AnalysisPeriodErrorCode.DEFAULT_PERIOD_UNAVAILABLE);
-            }
-            cache.set(new CachedCatalog(previous.catalog(), clock.instant().plus(cacheTtl)));
-            log.warn("[analysis-period] catalog refresh failed, serving stale resolvedAt={} spatialVersion={} error={}",
-                previous.catalog().resolvedAt(), spatialVersion, error);
-            return previous.catalog();
+        AnalysisPeriodCatalog catalog = AnalysisPeriodCatalog.of(spatialVersion,
+            analysisDatasetPeriodQueryPort.findPeriodCodesByDataset(spatialVersion), OffsetDateTime.now(clock));
+        AnalysisPeriodCatalog previous = current.getAndSet(catalog);
+        logDefaultChange(previous, catalog);
+        logAnomaly(catalog);
+        return catalog;
+    }
+
+    private void logDefaultChange(AnalysisPeriodCatalog previous, AnalysisPeriodCatalog catalog) {
+        String from = previous == null ? null : previous.defaultPeriodCode();
+        String to = catalog.defaultPeriodCode();
+        if (previous == null || !Objects.equals(from, to)) {
+            log.info("[analysis-period] default changed from={} to={} spatialVersion={} lagging={}",
+                from, to, catalog.spatialVersion(), catalog.laggingDatasets());
         }
     }
 
-    private void logChanges(AnalysisPeriodCatalog previous, AnalysisPeriodCatalog current) {
-        String from = previous == null ? null : previous.defaultPeriodCode();
-        String to = current.defaultPeriodCode();
-        if (Objects.equals(from, to)) {
+    /**
+     * 공통 분기 없음·기본 분기 정체는 기본 분기가 바뀌지 않는 채로 이어지는 상태라 갱신마다 평가한다. 같은 상태(뒤처진 데이터셋 집합과
+     * 지연 분기 수)가 반복되면 다시 찍지 않는다. 상태가 풀리면 기록을 지워 재발할 때 다시 찍는다.
+     */
+    private void logAnomaly(AnalysisPeriodCatalog catalog) {
+        String defaultPeriodCode = catalog.defaultPeriodCode();
+        if (defaultPeriodCode == null) {
+            warnOnce("no-common:" + catalog.laggingDatasets(), () -> log.warn(
+                "[analysis-period] no common period across core datasets spatialVersion={} lagging={}",
+                catalog.spatialVersion(), catalog.laggingDatasets()));
             return;
         }
-        log.info("[analysis-period] default changed from={} to={} spatialVersion={} lagging={}",
-            from, to, current.spatialVersion(), current.laggingDatasets());
-        if (to == null) {
-            log.warn("[analysis-period] no common period across core datasets spatialVersion={} lagging={}",
-                current.spatialVersion(), current.laggingDatasets());
+        String newest = catalog.newestCorePeriodCode();
+        int lag = quarterLag(newest, defaultPeriodCode);
+        if (lag < LAGGING_WARN_QUARTERS) {
+            lastWarnedAnomaly.set(null);
             return;
         }
-        String newest = current.newestCorePeriodCode();
-        if (!PERIOD_CODE.matcher(to).matches() || !PERIOD_CODE.matcher(newest).matches()) {
-            return;
+        warnOnce("lag:" + lag + ":" + catalog.laggingDatasets(), () -> log.warn(
+            "[analysis-period] default lags newest core dataset default={} newest={} quarters={} lagging={}",
+            defaultPeriodCode, newest, lag, catalog.laggingDatasets()));
+    }
+
+    private void warnOnce(String anomaly, Runnable warning) {
+        if (!anomaly.equals(lastWarnedAnomaly.getAndSet(anomaly))) {
+            warning.run();
         }
-        int lag = quarterIndex(newest) - quarterIndex(to);
-        if (lag >= LAGGING_WARN_QUARTERS) {
-            log.warn("[analysis-period] default lags newest core dataset default={} newest={} quarters={} lagging={}",
-                to, newest, lag, current.laggingDatasets());
+    }
+
+    /** 두 분기 사이의 분기 수. 형식이 어긋난 코드(원천 오염)면 0 으로 보고 판정하지 않는다. */
+    private static int quarterLag(String newest, String defaultPeriodCode) {
+        if (newest == null || !PERIOD_CODE.matcher(newest).matches() || !PERIOD_CODE.matcher(defaultPeriodCode).matches()) {
+            return 0;
         }
+        return quarterIndex(newest) - quarterIndex(defaultPeriodCode);
     }
 
     private static int quarterIndex(String periodCode) {
         return Integer.parseInt(periodCode.substring(0, 4)) * 4 + (periodCode.charAt(4) - '1');
-    }
-
-    /** 계산한 카탈로그와 다음 재계산 시각. 재계산이 실패하면 카탈로그는 그대로 두고 시각만 미룬다. */
-    private record CachedCatalog(AnalysisPeriodCatalog catalog, Instant refreshAfter) {
-
-        boolean refreshDue(Instant now) {
-            return !now.isBefore(refreshAfter);
-        }
     }
 }

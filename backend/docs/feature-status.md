@@ -588,7 +588,7 @@ INDEX(status)
 **동작**:
 - 기본 분기 = 원천 중단 상한(`DatasetKey.lastPublishablePeriodCode()`)이 없는 데이터셋 14종 모두에 적재된 분기 중 최신. 정본은 typed 팩트 테이블의 `DISTINCT period_code`(`spatial_version` 필터)
 - 분석 API 의 `periodCode`(자치구·행정동 `currentPeriodCode`)는 선택 파라미터가 됐다. 생략하면 위 기본 분기로 해석하고, 응답 최상위에 실제 조회한 분기를 싣는다
-- 인스턴스 메모리 캐시 5분, 만료 뒤 한 요청만 재계산. DB 장애 중에는 마지막 성공값, 한 번도 계산하지 못했으면 생략 요청만 `ANALYSIS_PERIOD_001` 503
+- 스케줄러가 기동 직후·5분마다 재계산해 인스턴스 메모리에 둔다. 요청은 캐시만 읽는다. DB 장애 중에는 마지막 성공값, 한 번도 계산하지 못했으면 생략 요청만 `ANALYSIS_PERIOD_001` 503
 
 **핵심 파일**: `analysisperiod/application/service/processor/AnalysisPeriodCatalogProcessor.java`, `analysisperiod/application/model/AnalysisPeriodCatalog.java`, `analysisperiod/adapter/out/persistence/AnalysisDatasetPeriodQueryAdapter.java`
 

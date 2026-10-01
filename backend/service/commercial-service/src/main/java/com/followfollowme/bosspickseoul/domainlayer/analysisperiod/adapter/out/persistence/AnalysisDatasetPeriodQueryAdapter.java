@@ -25,7 +25,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Function;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -34,6 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 public class AnalysisDatasetPeriodQueryAdapter implements AnalysisDatasetPeriodQueryPort {
+
+    /** 15개 질의 전체의 상한(초). 인덱스가 있으면 수십 ms 다. 넘기면 이번 갱신만 실패하고 다음 주기에 다시 시도한다. */
+    static final int QUERY_TIMEOUT_SECONDS = 10;
 
     private final Map<DatasetKey, Function<String, List<String>>> periodQueries;
 
@@ -73,14 +75,13 @@ public class AnalysisDatasetPeriodQueryAdapter implements AnalysisDatasetPeriodQ
     }
 
     /**
-     * 호출한 유스케이스의 트랜잭션과 분리한다(REQUIRES_NEW). 갱신 질의가 실패하면 Hibernate 가 그 트랜잭션을
-     * rollback-only 로 표시하는데, 바깥 조회 트랜잭션에 섞여 있으면 마지막 성공값(stale)으로 응답해도 커밋에서
-     * {@code UnexpectedRollbackException} 이 난다. 갱신은 TTL 마다 한 요청만 하므로 커넥션을 하나 더 쓰는 비용은 작다.
+     * 15개 질의를 한 읽기 전용 트랜잭션(커넥션 하나)으로 묶고 전체에 {@value #QUERY_TIMEOUT_SECONDS}초 상한을 둔다. 호출자는 스케줄러뿐이라
+     * 바깥 트랜잭션이 없다. 상한을 넘기거나 커넥션을 얻지 못하면 예외가 그대로 나가고(포트 실패 계약) 캐시는 마지막 성공값을 유지한다.
      *
      * <p>데이터셋마다 테이블이 달라 한 질의로 묶을 수 없어 15번 질의한다. 원천 단위가 테이블이라 N+1 이 아니다.
      */
     @Override
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    @Transactional(readOnly = true, timeout = QUERY_TIMEOUT_SECONDS)
     public Map<DatasetKey, SortedSet<String>> findPeriodCodesByDataset(String spatialVersion) {
         Map<DatasetKey, SortedSet<String>> periodCodes = new EnumMap<>(DatasetKey.class);
         periodQueries.forEach((dataset, query) -> periodCodes.put(dataset, new TreeSet<>(query.apply(spatialVersion))));
