@@ -1,4 +1,4 @@
-import type { CommunityLocationValue } from '@/components/community/community-location-picker'
+import type { CommunityLocationValue } from '@/lib/community/community-location'
 import { districts } from '@/data/districts'
 
 /**
