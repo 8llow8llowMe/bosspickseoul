@@ -119,3 +119,22 @@ describe('computeNiceYScale', () => {
     },
   )
 })
+
+describe('computeNiceYScale — includeZero', () => {
+  it('막대용 includeZero 는 몰린 값에서도 0 을 기준선으로 둔다', () => {
+    const scale = computeNiceYScale([222000, 237000], 5, { includeZero: true })
+    expect(scale.domain[0]).toBe(0)
+    expect(scale.domain[1]).toBeGreaterThanOrEqual(237000)
+    expect(scale.ticks[0]).toBe(0)
+  })
+
+  it('음수만 있으면 0 을 위쪽 끝으로 둔다', () => {
+    const scale = computeNiceYScale([-300, -120], 5, { includeZero: true })
+    expect(scale.domain[1]).toBe(0)
+    expect(scale.domain[0]).toBeLessThanOrEqual(-300)
+  })
+
+  it('옵션이 없으면 기존처럼 0 이 아닌 기준선을 허용한다', () => {
+    expect(computeNiceYScale([222000, 237000]).domain[0]).toBeGreaterThan(0)
+  })
+})

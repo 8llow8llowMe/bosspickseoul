@@ -11,6 +11,7 @@ import {
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import styled from 'styled-components'
 import BarChart from '@/components/analysis/charts/bar-chart'
+import { genderColorsFor } from '@/components/analysis/charts/chart-theme'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
 import { ButtonLink } from '@/components/ui/button'
@@ -772,6 +773,7 @@ function FootTrafficSection({ detail }: { detail: DistrictDetail }) {
           <DonutChart
             ariaLabel="성별 유동인구 비율"
             segments={genderSegments}
+            colors={genderColorsFor(genderSegments)}
             unit="명"
             valueFormatter={formatPeople}
           />

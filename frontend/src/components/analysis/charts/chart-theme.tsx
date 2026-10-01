@@ -13,7 +13,131 @@ export const CHART_COLORS = {
   border: 'var(--color-border-200)',
   positive: 'var(--color-positive)',
   negative: 'var(--color-negative)',
+  /**
+   * 성별 계열. 남성·여성을 primary·blue500 두 파랑으로 칠하면 명도·색상이 가까워 범례 없이는
+   * 구분되지 않았다. 여성은 이미 정의돼 있던 `--color-chart-female` 을 쓴다.
+   */
+  male: 'var(--color-primary-600)',
+  female: 'var(--color-chart-female)',
 } as const
+
+/**
+ * 성별 조각 색을 **라벨로** 고른다. `toGenderSegments` 는 null 인 쪽을 빼므로 순서로 색을
+ * 매기면 여성만 남은 도넛이 남성 색으로 칠해진다.
+ */
+export const genderColorsFor = (
+  segments: readonly { label: string }[],
+): string[] =>
+  segments.map(segment =>
+    segment.label === '여성' ? CHART_COLORS.female : CHART_COLORS.male,
+  )
+
+/**
+ * Y 축 눈금 위에 붙이는 단위 표기. 눈금은 `8000만` 처럼 크기 단위만 갖고, 무엇을 센 값인지
+ * (원·명·개)는 툴팁을 열어야 보였다. 막대·꺾은선 왼쪽 위에 한 번만 적는다.
+ */
+export const AxisUnitCaption = styled.p`
+  height: 16px;
+  margin: 0 0 4px;
+  color: var(--color-text-caption);
+  font-size: 11px;
+  line-height: 16px;
+`
+
+/** {@link AxisUnitCaption} 이 차지하는 높이(16 + 아래 여백 4). 스켈레톤을 실제 차트에 맞출 때 쓴다. */
+export const AXIS_UNIT_CAPTION_HEIGHT = 20
+
+export const formatAxisUnitCaption = (unit: string): string | null =>
+  unit && unit !== '%' ? `(${unit})` : null
+
+type CategoryTickProps = {
+  x?: number
+  y?: number
+  payload?: { value?: string | number }
+  /** recharts 가 넘기는 축 폭과 그려지는 눈금 수. 눈금 하나가 쓸 수 있는 폭을 낸다. */
+  width?: number
+  visibleTicksCount?: number
+  fontSize?: number
+}
+
+/** 한글은 1em, 그 밖(숫자·기호)은 약 0.62em 으로 어림한 글자 폭. */
+const estimateTextWidth = (text: string, fontSize: number): number =>
+  [...text].reduce(
+    (sum, char) =>
+      sum + (/[\u3131-\uD79D]/.test(char) ? fontSize : fontSize * 0.62),
+    0,
+  )
+
+/**
+ * 눈금 라벨이 칸 폭을 넘으면 두 줄로 접는다. 공백이 있으면 공백에서(「2025년」/「2분기」),
+ * 없으면 물결표 뒤에서(「11~」/「14시」) 자른다. 접을 곳이 없으면 그대로 둔다.
+ */
+export const splitCategoryLabel = (
+  label: string,
+  maxWidth: number,
+  fontSize = 12,
+): string[] => {
+  if (estimateTextWidth(label, fontSize) <= maxWidth) return [label]
+  const space = label.indexOf(' ')
+  if (space > 0) return [label.slice(0, space), label.slice(space + 1)]
+  const tilde = label.indexOf('~')
+  if (tilde > 0 && tilde < label.length - 1)
+    return [label.slice(0, tilde + 1), label.slice(tilde + 1)]
+  return [label]
+}
+
+/** 접힐 수 있는 라벨인가 — 공백이나 물결표가 있으면 두 줄이 될 수 있다. */
+const isFoldable = (label: string): boolean => /[ ~]/.test(label)
+
+/**
+ * 칸이 좁을 때만 두 줄로 접는 X 축 눈금. recharts 의 자동 생략에 맡기면 「2025년 4분기」·
+ * 「17~21시」 같은 라벨이 빠져 어느 점이 어느 분기·시간대인지 읽을 수 없었고, 생략을 끄면
+ * 375px 에서 「00~06시06~11시」처럼 붙어 버렸다. `interval={0}` 으로 전부 그리고 칸 폭에
+ * 맞춰 접는다.
+ */
+export function CategoryTick({
+  x = 0,
+  y = 0,
+  payload,
+  width,
+  visibleTicksCount,
+  fontSize = 12,
+}: CategoryTickProps) {
+  const label = String(payload?.value ?? '')
+  // 이웃 라벨과 붙지 않게 칸 폭에서 4px 를 뺀다.
+  const band =
+    width && visibleTicksCount ? width / visibleTicksCount - 4 : Infinity
+  const lines = splitCategoryLabel(label, band, fontSize)
+  const lineHeight = fontSize + 2
+  return (
+    <text
+      x={x}
+      y={y}
+      fill={CHART_COLORS.axis}
+      fontSize={fontSize}
+      textAnchor="middle"
+    >
+      {lines.map((line, index) => (
+        <tspan
+          key={`${line}-${index}`}
+          x={x}
+          dy={index === 0 ? fontSize : lineHeight}
+        >
+          {line}
+        </tspan>
+      ))}
+    </text>
+  )
+}
+
+/**
+ * {@link CategoryTick} 가 차지할 X 축 높이. 접힐 수 있는 라벨이 있으면 두 줄 높이를 잡아
+ * 라벨이 잘리지 않게 한다(실제로 접힐지는 렌더 폭이 정한다).
+ */
+export const categoryAxisHeight = (
+  labels: readonly string[],
+  fontSize = 12,
+): number => fontSize + 8 + (labels.some(isFoldable) ? fontSize + 2 : 0)
 
 export const formatChartValue = (
   value: number | null | undefined,
