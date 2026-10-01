@@ -14,9 +14,8 @@ import CommunityListView, {
   type CommunityListStatus,
   type CommunityListViewPost,
 } from '@/components/community/community-list-view'
-import CommunityLocationPicker, {
-  type CommunityLocationValue,
-} from '@/components/community/community-location-picker'
+import type { CommunityLocationValue } from '@/components/community/community-location-picker'
+import CommunityRegionSheet from '@/components/community/community-region-sheet'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import {
   saveAdjacentPosts,
@@ -681,11 +680,25 @@ export default function CommunityListPage() {
     : hasHydrated && !viewer.authenticated
       ? getCommunityLoginHref('/community/register')
       : '/community/register'
-  const locationValue: CommunityLocationValue = {
-    targetType: state.targetType,
-    targetCode: state.targetCode,
-    targetName: boardTargetName,
-  }
+  const hasTarget = Boolean(state.targetType && state.targetCode)
+  // 검색은 서울 전체에서 하고(S4 계약) 좋아요한 글은 필터를 함께 푼다(CM-005).
+  // 그 둘에서는 칩을 끄고, 칩이 「서울 전체」로 지금 범위를 말한다.
+  const locationDisabled = Boolean(state.keyword) || state.view === 'liked'
+  const locationValue: CommunityLocationValue =
+    hasTarget && !locationDisabled
+      ? {
+          targetType: state.targetType,
+          targetCode: state.targetCode,
+          targetName: boardTargetName,
+        }
+      : {}
+  const targetTitle = hasTarget ? (boardTargetName ?? null) : null
+  const allPostsHref = hasTarget
+    ? createCommunityListActionHref(pathname, state, {
+        type: 'location',
+        value: {},
+      })
+    : null
 
   const replaceAction = (action: CommunityListUrlAction) => {
     router.replace(createCommunityListActionHref(pathname, state, action), {
@@ -695,6 +708,14 @@ export default function CommunityListPage() {
 
   const handleSearchSubmit = () => {
     replaceAction({ type: 'search', keyword: searchValue })
+  }
+
+  const handleSearchClear = () => {
+    setSearchDraft({ scope: state.keyword, value: '' })
+
+    if (state.keyword) {
+      replaceAction({ type: 'search', keyword: '' })
+    }
   }
 
   const handleViewChange = (nextView: CommunityListViewMode) => {
@@ -727,6 +748,8 @@ export default function CommunityListPage() {
 
   return (
     <CommunityListView
+      allPostsHref={allPostsHref}
+      boardTargetName={targetTitle}
       emptyCause={emptyCause}
       errorMessage={errorMessage}
       hasNextPage={Boolean(listQuery.hasNextPage)}
@@ -734,8 +757,8 @@ export default function CommunityListPage() {
       keyword={state.keyword}
       loadMoreErrorMessage={loadMoreErrorMessage}
       locationPicker={
-        <CommunityLocationPicker
-          disabled={Boolean(state.keyword) || state.view === 'liked'}
+        <CommunityRegionSheet
+          disabled={locationDisabled}
           mockEnabled={state.mock}
           onChange={handleLocationChange}
           value={locationValue}
@@ -751,6 +774,7 @@ export default function CommunityListPage() {
       onRetryLoadMore={() => {
         void listQuery.fetchNextPage({ cancelRefetch: false })
       }}
+      onSearchClear={handleSearchClear}
       onSearchSubmit={handleSearchSubmit}
       onSearchValueChange={value => {
         setSearchDraft({ scope: state.keyword, value })
@@ -758,7 +782,6 @@ export default function CommunityListPage() {
       onViewChange={handleViewChange}
       posts={viewPosts}
       searchValue={searchValue}
-      searchWholeRegionNotice={Boolean(state.keyword)}
       status={status}
       view={state.view}
       writeHref={writeHref}

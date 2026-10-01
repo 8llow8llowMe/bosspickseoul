@@ -70,6 +70,40 @@ const targetMetadata: Record<
   },
 }
 
+/**
+ * 목 이미지의 표시용 URL. 실제 파일이 없으므로 **네트워크를 타지 않는 data URI** 를 쓴다
+ * — 깨진 이미지 아이콘을 보여 주면 목 데이터가 고장 난 것처럼 읽힌다.
+ */
+const mockImageUrl = (imageKey: string): string =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="#e5e7eb"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif" font-size="14" fill="#6b7280">mock ${imageKey.slice(-8)}</text></svg>`,
+  )}`
+
+const toMockImages = (imageKeys: string[]): CommunityPostImage[] =>
+  imageKeys.map((imageKey, index) => ({
+    imageKey,
+    imageUrl: mockImageUrl(imageKey),
+    sortOrder: index,
+  }))
+
+/**
+ * 기본 fixture 중 첨부가 있는 글. 목록 썸네일 분기(`thumbnailUrl` 있음/없음)를 dev 에서
+ * 함께 보려고 일부에만 둔다. 썸네일은 백엔드처럼 상세 첫 장이다.
+ */
+const fixtureImageKeysByPostId: Readonly<Record<CommunityId, string[]>> = {
+  5: ['community/9001/2026/07/mock-post5-a.png'],
+  6: [
+    'community/8606/2026/07/mock-post6-a.png',
+    'community/8606/2026/07/mock-post6-b.png',
+  ],
+  8: ['community/9001/2026/07/mock-post8-a.png'],
+}
+
+const fixtureThumbnailUrl = (postId: CommunityId): string | null => {
+  const firstKey = fixtureImageKeysByPostId[postId]?.[0]
+  return firstKey ? mockImageUrl(firstKey) : null
+}
+
 const basePosts: CommunityPostSummary[] = [
   {
     postId: '1',
@@ -149,7 +183,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 12,
     commentCount: 2,
     createdAt: '2026-07-27T07:00:00.000Z',
-    thumbnailUrl: null,
+    thumbnailUrl: fixtureThumbnailUrl('5'),
   },
   {
     postId: '6',
@@ -165,7 +199,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 20,
     commentCount: 0,
     createdAt: '2026-07-27T04:00:00.000Z',
-    thumbnailUrl: null,
+    thumbnailUrl: fixtureThumbnailUrl('6'),
   },
   {
     postId: '7',
@@ -197,7 +231,7 @@ const basePosts: CommunityPostSummary[] = [
     likeCount: 9,
     commentCount: 1,
     createdAt: '2026-07-27T07:45:00.000Z',
-    thumbnailUrl: null,
+    thumbnailUrl: fixtureThumbnailUrl('8'),
   },
 ]
 
@@ -212,24 +246,8 @@ const contentByPostId: Record<CommunityId, string> = {
   8: '여름 시즌에 함께 작은 팝업을 열 식음료 브랜드 사장님을 찾고 있습니다. 공간과 운영 시간을 유연하게 협의하고 싶습니다.',
 }
 
-/**
- * 목 이미지의 표시용 URL. 실제 파일이 없으므로 **네트워크를 타지 않는 data URI** 를 쓴다
- * — 깨진 이미지 아이콘을 보여 주면 목 데이터가 고장 난 것처럼 읽힌다.
- */
-const mockImageUrl = (imageKey: string): string =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="#e5e7eb"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif" font-size="14" fill="#6b7280">mock ${imageKey.slice(-8)}</text></svg>`,
-  )}`
-
-const toMockImages = (imageKeys: string[]): CommunityPostImage[] =>
-  imageKeys.map((imageKey, index) => ({
-    imageKey,
-    imageUrl: mockImageUrl(imageKey),
-    sortOrder: index,
-  }))
-
 const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
-  images: [],
+  images: toMockImages(fixtureImageKeysByPostId[post.postId] ?? []),
   postId: post.postId,
   memberId: post.memberId,
   writerNickname: post.writerNickname,

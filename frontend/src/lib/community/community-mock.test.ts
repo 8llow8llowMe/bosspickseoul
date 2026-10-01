@@ -125,11 +125,26 @@ describe('community mock source', () => {
         viewCount: expect.any(Number),
         createdAt: summary.createdAt,
         updatedAt: expect.any(String),
-        // 기본 fixture 에는 첨부가 없다. 첨부는 createPost/updatePost 로만 생긴다.
-        images: [],
+        images: expect.any(Array),
       })
+      // 목록 썸네일은 상세 첫 장이다 — 백엔드와 같은 관계를 fixture 도 지킨다.
+      expect(detail.images[0]?.imageUrl ?? null).toBe(summary.thumbnailUrl)
       expect(detail.content.length).toBeGreaterThan(0)
       expect('previewContent' in detail).toBe(false)
+    })
+  })
+
+  it('목록 썸네일 분기를 dev 에서 볼 수 있게 일부 글에만 네트워크를 타지 않는 첨부가 있다', () => {
+    const withThumbnail = communityMockFixtures.posts.filter(
+      post => post.thumbnailUrl,
+    )
+
+    expect(withThumbnail.length).toBeGreaterThanOrEqual(2)
+    expect(withThumbnail.length).toBeLessThan(
+      communityMockFixtures.posts.length,
+    )
+    withThumbnail.forEach(post => {
+      expect(post.thumbnailUrl).toMatch(/^data:image\/svg\+xml/)
     })
   })
 

@@ -115,6 +115,7 @@ const failedListResponse: CommunityPostListResponse = {
 const handlers = {
   onSearchValueChange: vi.fn(),
   onSearchSubmit: vi.fn(),
+  onSearchClear: vi.fn(),
   onViewChange: vi.fn(),
   onEmptyAction: vi.fn(),
   onRetry: vi.fn(),
@@ -131,7 +132,8 @@ const baseProps: ComponentProps<typeof CommunityListView> = {
   view: 'latest',
   keyword: '',
   searchValue: '',
-  searchWholeRegionNotice: false,
+  boardTargetName: null,
+  allPostsHref: null,
   locationPicker: createElement(
     'div',
     { 'data-location-picker': true },
@@ -165,13 +167,20 @@ const renderWithStyles = (
 }
 
 describe('CommunityListView', () => {
-  it('renders the feed hero, search form, location slot, and latest/popular/liked tabs', () => {
+  it('renders a one-line title, an icon search form, the location slot, and underline tabs with a separate liked toggle', () => {
     const { markup } = renderWithStyles()
 
-    expect(markup).toContain('사장님들의 운영 이야기가 모이는 곳')
+    // 소개 카드(Hero)는 없앴다 — 제목 한 줄과 보조 한 줄이 그 자리다.
+    expect(markup).not.toContain('사장님들의 운영 이야기가 모이는 곳')
+    expect(markup).toMatch(/<h1[^>]*>사장님 이야기<\/h1>/)
+    expect(markup).toContain('운영 경험과 동네 소식을 나눠요')
     expect(markup).toContain('<form')
+    expect(markup).toContain('role="search"')
     expect(markup).toContain('name="keyword"')
-    expect(markup).toContain('>검색</button>')
+    expect(markup).toContain('enterKeyHint="search"')
+    // 「검색」 제출 버튼은 없다 — Enter 로 제출한다.
+    expect(markup).not.toContain('>검색</button>')
+    expect(markup).not.toContain('type="submit"')
     expect(markup).toContain('>최신</button>')
     expect(markup).toContain('>인기</button>')
     expect(markup).toContain('>좋아요한 글</button>')
@@ -181,7 +190,67 @@ describe('CommunityListView', () => {
     expect(markup).toContain('aria-pressed="true"')
     expect(markup).not.toContain('role="tablist"')
     expect(markup).not.toContain('role="tab"')
+    expect(markup).toContain('aria-label="커뮤니티 피드"')
     expect(markup).toContain('aria-live="polite"')
+    // 피드 머리의 h2 제목과 「N개 불러옴」 은 제목이 h1 으로 올라가며 뺐다.
+    expect(markup).not.toContain('개 불러옴')
+  })
+
+  it('keeps the liked toggle outside the latest/popular group and unselects both tabs in liked view', () => {
+    const { markup } = renderWithStyles({ view: 'liked' })
+    const group = markup.slice(
+      markup.indexOf('aria-label="게시글 보기"'),
+      markup.indexOf('</div>', markup.indexOf('aria-label="게시글 보기"')),
+    )
+
+    expect(group).toContain('>최신</button>')
+    expect(group).toContain('>인기</button>')
+    expect(group).not.toContain('좋아요한 글')
+    expect(group).not.toContain('aria-pressed="true"')
+    expect(markup).toMatch(
+      /<button[^>]*aria-pressed="true"[^>]*data-liked-toggle="true"[^>]*>[\s\S]*?좋아요한 글<\/button>/,
+    )
+  })
+
+  it('titles a target board by its name and links back to all posts', () => {
+    const { markup } = renderWithStyles({
+      boardTargetName: '성수1가1동',
+      allPostsHref: '/community/list?mock=1',
+    })
+
+    expect(markup).toMatch(/<h1[^>]*>성수1가1동 이야기<\/h1>/)
+    expect(markup).toMatch(
+      /<a[^>]*href="\/community\/list\?mock=1"[^>]*>전체 글 보기<\/a>/,
+    )
+    expect(markup).not.toContain('운영 경험과 동네 소식을 나눠요')
+  })
+
+  it('titles a search by its keyword', () => {
+    const { markup } = renderWithStyles({
+      keyword: '점심',
+      searchValue: '점심',
+    })
+
+    expect(markup).toMatch(/<h1[^>]*>「점심」 검색 결과<\/h1>/)
+    expect(markup).not.toContain('전체 글 보기')
+  })
+
+  it('renders the search clear button only while the input has a value', () => {
+    const empty = renderWithStyles().markup
+    const filled = renderWithStyles({ searchValue: '점심' }).markup
+
+    expect(empty).not.toContain('aria-label="검색어 지우기"')
+    expect(filled).toMatch(
+      /<button[^>]*aria-label="검색어 지우기"[^>]*type="button"/,
+    )
+  })
+
+  it('keeps the toolbar sticky under the site header on a solid surface', () => {
+    const { styles } = renderWithStyles()
+
+    expect(styles).toContain('position:sticky')
+    expect(styles).toContain('top:64px')
+    expect(styles).toContain('background:var(--color-surface)')
   })
 
   it('renders one-column feed rows with a target or Seoul tag and only owner-friendly metadata', () => {
@@ -206,6 +275,53 @@ describe('CommunityListView', () => {
     expect(markup).not.toContain('readCount')
   })
 
+  it('renders the row region as a text label, not a nested link', () => {
+    const { markup } = renderWithStyles()
+    const rows = markup.match(/<li>[\s\S]*?<\/li>/g) ?? []
+
+    expect(rows).toHaveLength(2)
+    rows.forEach(row => {
+      expect(row.match(/<a /g)).toHaveLength(1)
+      expect(row).toMatch(/<span[^>]*data-post-region="true"[^>]*>/)
+    })
+    expect(markup).toMatch(/data-post-region="true"[^>]*>강남역 상권</)
+  })
+
+  it('renders a lazy decorative thumbnail only for posts with a thumbnailUrl', () => {
+    const withThumbnail = renderWithStyles({
+      posts: [{ ...posts[0], thumbnailUrl: '/images/sample.png' }, posts[1]],
+    })
+
+    expect(withThumbnail.markup.match(/<img /g)).toHaveLength(1)
+    expect(withThumbnail.markup).toMatch(
+      /<img[^>]*alt=""[^>]*loading="lazy"[^>]*src="\/images\/sample.png"/,
+    )
+    expect(withThumbnail.styles).toContain('object-fit:cover')
+    expect(withThumbnail.styles).toContain('width:72px')
+    expect(withThumbnail.styles).toMatch(
+      /@media \(min-width:\s*480px\)\{[^}]*width:96px/,
+    )
+  })
+
+  it('ranks only the top three rows in the popular view', () => {
+    const popularPosts = fixturePosts.slice(0, 4).map(post => ({
+      ...post,
+      href: createCommunityPostHref(post.postId, contextKey, true),
+    }))
+    const popular = renderWithStyles({
+      view: 'popular',
+      posts: popularPosts,
+    }).markup
+    const latest = renderWithStyles({ posts: popularPosts }).markup
+
+    expect(popular).toContain('data-post-rank="1"')
+    expect(popular).toContain('data-post-rank="2"')
+    expect(popular).toContain('data-post-rank="3"')
+    expect(popular).not.toContain('data-post-rank="4"')
+    expect(popular).toContain('인기 1위')
+    expect(latest).not.toContain('data-post-rank')
+  })
+
   it('renders encoded context and mock mode in target post links', () => {
     const { markup } = renderWithStyles()
     const expectedHref = posts[0].href.replaceAll('&', '&amp;')
@@ -221,22 +337,14 @@ describe('CommunityListView', () => {
     expect(markup).toContain('href="/community/register?mock=1"')
     expect(markup).toContain('data-desktop-write-action="true"')
     expect(markup).toContain('data-mobile-write-action="true"')
-    expect(styles).toMatch(/@media \(max-width:\s*640px\)/)
+    expect(styles).toMatch(/@media \(max-width:\s*479px\)/)
+    // 커뮤니티는 레거시 640·760·768 을 쓰지 않는다(community.md §S4).
+    expect(styles).not.toMatch(/(max|min)-width:\s*(640|760|768)px/)
     expect(styles).toContain('position:fixed')
     expect(styles).toMatch(/min-height:(44|48|50|52|56)px/)
     expect(styles).toContain('padding-bottom')
     expect(styles).toContain('var(--radius-pill)')
     expect(styles).not.toContain('border-radius:999px')
-  })
-
-  it('renders whole-region guidance while searching', () => {
-    const { markup } = renderWithStyles({
-      keyword: '점심',
-      searchValue: '점심',
-      searchWholeRegionNotice: true,
-    })
-
-    expect(markup).toContain('검색은 서울 전체 게시글에서 진행됩니다.')
   })
 
   it('renders loading and retryable error feedback', () => {
