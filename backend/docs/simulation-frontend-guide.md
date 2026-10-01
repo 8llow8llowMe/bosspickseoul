@@ -64,7 +64,7 @@
   "storeSize": 66, "floorType": "FIRST_FLOOR", "periodCode": "20261" }
 ```
 
-- `franchisee=false`면 `franchiseeId` 생략. `periodCode`는 생략 시 20261 (성별·연령/성수기 분석 기준 분기).
+- `franchisee=false`면 `franchiseeId` 생략. `periodCode`는 생략 시 적재 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`, 성별·연령/성수기 분석 기준 분기). 기본 분기를 정할 수 없으면 `ANALYSIS_PERIOD_001` 503.
 - `floorType`: `FIRST_FLOOR` / `OTHER` enum 문자열.
 
 응답 구조와 화면 매핑:

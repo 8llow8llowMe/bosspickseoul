@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictAgeGroupFootTrafficItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictDayOfWeekFootTrafficItem;
@@ -13,6 +14,12 @@ import lombok.Builder;
 @Builder
 @Schema(description = "자치구 유동인구 상세 응답 DTO")
 public record FootTrafficDistrictDetailResponse(
+
+    @Schema(description = "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기", example = AnalysisPeriodDefaults.PERIOD_CODE)
+    String currentPeriodCode,
+
+    @Schema(description = "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기", example = "20254")
+    String previousPeriodCode,
 
     @Schema(description = "직전 분기 대비 추이 메타데이터 (PeriodTrendType: INCREASE/DECREASE/STAGNANT)",
         example = "{\"code\": \"INCREASE\", \"name\": \"증가\", \"description\": \"증가\"}")

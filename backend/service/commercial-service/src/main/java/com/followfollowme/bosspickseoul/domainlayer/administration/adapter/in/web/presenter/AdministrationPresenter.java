@@ -22,6 +22,8 @@ public class AdministrationPresenter {
         return AdministrationDetailResponse.builder()
             .administrationCode(info.administrationCode())
             .administrationName(info.administrationName())
+            .currentPeriodCode(info.currentPeriodCode())
+            .previousPeriodCode(info.previousPeriodCode())
             .sales(toAdministrationSalesDetailResponse(info.sales()))
             .store(toAdministrationStoreDetailResponse(info.store()))
             .income(toAdministrationIncomeDetailResponse(info.income()))

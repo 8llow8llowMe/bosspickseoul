@@ -115,6 +115,7 @@ public class CommercialPresenter {
 
     public CommercialFootTrafficResponse toCommercialFootTrafficResponse(CommercialFootTrafficInfo info) {
         return CommercialFootTrafficResponse.builder()
+            .periodCode(info.periodCode())
             .byTimeSlotItem(toCommercialFootTrafficByTimeSlotItem(info.byTimeSlotInfo()))
             .byDayOfWeekItem(toCommercialFootTrafficByDayOfWeekItem(info.byDayOfWeekInfo()))
             .byAgeGroupItem(toCommercialFootTrafficByAgeGroupItem(info.byAgeGroupInfo()))
@@ -124,6 +125,7 @@ public class CommercialPresenter {
 
     public CommercialResidentPopulationResponse toCommercialPopulationResponse(CommercialResidentPopulationInfo info) {
         return CommercialResidentPopulationResponse.builder()
+            .periodCode(info.periodCode())
             .byAgeItem(toCommercialResidentPopulationByAgeItem(info.byAgeInfo()))
             .malePercentage(info.malePercentage())
             .femalePercentage(info.femalePercentage())
@@ -140,6 +142,7 @@ public class CommercialPresenter {
 
     public CommercialSalesResponse toCommercialSalesResponse(CommercialSalesInfo info) {
         return CommercialSalesResponse.builder()
+            .periodCode(info.periodCode())
             .amountByTimeSlotItem(toCommercialSalesByTimeSlotItem(info.amountByTimeSlotInfo()))
             .amountByDayOfWeekItem(toCommercialSalesByDayOfWeekItem(info.amountByDayOfWeekInfo()))
             .amountByAgeItem(toCommercialSalesByAgeItem(info.amountByAgeInfo()))
@@ -152,6 +155,7 @@ public class CommercialPresenter {
 
     public CommercialFacilityResponse toCommercialFacilityResponse(CommercialFacilityInfo info) {
         return CommercialFacilityResponse.builder()
+            .periodCode(info.periodCode())
             .totalFacilityCount(info.totalFacilityCount())
             .schoolCountItem(toCommercialSchoolCountItem(info.schoolCountInfo()))
             .totalTransportationFacilityCount(info.totalTransportationFacilityCount())
@@ -160,6 +164,7 @@ public class CommercialPresenter {
 
     public CommercialStoreAnalysisResponse toCommercialStoreAnalysisResponse(CommercialStoreAnalysisInfo info) {
         return CommercialStoreAnalysisResponse.builder()
+            .periodCode(info.periodCode())
             .totalStoreCount(info.totalStoreCount())
             .similarStoreCount(info.similarStoreCount())
             .openingRate(info.openingRate())
@@ -204,6 +209,7 @@ public class CommercialPresenter {
 
     public CommercialBenchmarkResponse toCommercialBenchmarkResponse(CommercialBenchmarkInfo info) {
         return CommercialBenchmarkResponse.builder()
+            .periodCode(info.periodCode())
             .commercialCode(info.commercialCode())
             .commercialName(info.commercialName())
             .districtCode(info.districtCode())
@@ -265,6 +271,7 @@ public class CommercialPresenter {
 
     public CommercialComparePreviewResponse toCommercialComparePreviewResponse(CommercialComparePreviewInfo info) {
         return CommercialComparePreviewResponse.builder()
+            .periodCode(info.periodCode())
             .left(toCommercialComparisonTargetItem(info.left()))
             .right(toCommercialComparisonTargetItem(info.right()))
             .recommendedSide(info.recommendedSide())
@@ -329,6 +336,7 @@ public class CommercialPresenter {
 
     public CommercialSalesSummaryResponse toCommercialSalesSummaryResponse(CommercialSalesSummaryInfo info) {
         return CommercialSalesSummaryResponse.builder()
+            .periodCode(info.periodCode())
             .district(toRegionalSalesSummaryItem(info.district()))
             .administration(toRegionalSalesSummaryItem(info.administration()))
             .commercial(toRegionalSalesSummaryItem(info.commercial()))
@@ -619,6 +627,7 @@ public class CommercialPresenter {
             .map(this::toCommercialTrendItemDto)
             .toList();
         return CommercialTrendResponse.builder()
+            .periodCode(info.periodCode())
             .commercialCode(info.commercialCode())
             .serviceCode(info.serviceCode())
             .metricType(info.metricType())

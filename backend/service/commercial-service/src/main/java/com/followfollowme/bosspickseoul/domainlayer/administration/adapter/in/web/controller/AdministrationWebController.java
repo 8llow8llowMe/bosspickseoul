@@ -27,7 +27,8 @@ public class AdministrationWebController {
     @GetMapping("/{administrationCode}")
     public ResponseEntity<Response<AdministrationDetailResponse>> getAdministrationDetail(
         @Parameter(description = "행정동 코드", required = true, example = "11110515") @PathVariable String administrationCode,
-        @Parameter(description = "현재 기준 분기 코드 (YYYYQ)", example = AnalysisPeriodDefaults.PERIOD_CODE) @RequestParam(defaultValue = AnalysisPeriodDefaults.PERIOD_CODE) String currentPeriodCode,
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE)
+        @RequestParam(required = false) String currentPeriodCode,
         @Parameter(description = "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.", example = "20232") @RequestParam(required = false) String previousPeriodCode
     ) {
         AdministrationDetailResponse response = administrationWebUseCase.getAdministrationDetail(

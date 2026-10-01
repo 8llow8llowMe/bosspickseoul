@@ -49,6 +49,8 @@ public class AdministrationQueryProcessor {
         return AdministrationDetailInfo.builder()
             .administrationCode(administrationCode)
             .administrationName(administrationName)
+            .currentPeriodCode(currentPeriodCode)
+            .previousPeriodCode(resolvedPreviousPeriodCode)
             .sales(AdministrationSalesDetailInfo.builder()
                 .topSalesServices(toAdministrationSalesServiceTopInfos(currentSales, previousSales))
                 .build())

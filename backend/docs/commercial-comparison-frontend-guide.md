@@ -17,7 +17,7 @@
 
 | 필드 | 의미 |
 | --- | --- |
-| `periodCode` | 실제 조회에 사용한 분기 코드 |
+| `periodCode` | 실제 조회에 사용한 분기 코드. 요청에서 생략하면 적재 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`)로 채워진다(이슈 #464) |
 | `serviceCode` | 실제 조회에 사용한 서비스 업종 코드 |
 | `comparisonGuide.periodBasis` | 기간 기준 안내 |
 | `comparisonGuide.serviceBasis` | 선택 업종 지표와 상권 전체 지표의 범위 안내 |

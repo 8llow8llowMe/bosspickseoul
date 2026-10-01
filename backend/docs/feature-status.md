@@ -235,10 +235,10 @@ wire → `QueryResult` 는 전수 대조한다
 |----------|------|------|
 | `serviceCode` | ✅ | 업종 코드 |
 | `metricType` | ✅ | `SALES` / `FOOT_TRAFFIC` / `STORE` |
-| `periodCode` | 기본 `20261`(`AnalysisPeriodDefaults.PERIOD_CODE`) | 기준 최신 분기 코드 |
+| `periodCode` | 선택, 생략 시 적재 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`) | 기준 최신 분기 코드 |
 | `periodCount` | 기본 `4`, 최대 `8` | 조회 분기 수 |
 
-**응답 필드**: `commercialCode`, `serviceCode`, `metricType`, `trendDirection` (INCREASE/DECREASE/STAGNANT), `periods[]` (periodCode, value, changeRate)
+**응답 필드**: `periodCode`(추이의 기준 분기, 이슈 #464), `commercialCode`, `serviceCode`, `metricType`, `trendDirection` (INCREASE/DECREASE/STAGNANT), `periods[]` (periodCode, value, changeRate)
 
 **핵심 파일**:
 - `application/service/processor/CommercialTrendQueryProcessor.java` — 분기 코드 역산 + DB 조회 + 방향 판정
@@ -262,7 +262,7 @@ wire → `QueryResult` 는 전수 대조한다
 |----------|------|------|
 | `serviceCode` | ✅ | 업종 코드 (프리셋 자동 선택에 사용) |
 | `commercialCodes` | ✅ | 상권 코드 목록 |
-| `periodCode` | 기본 `20261`(`AnalysisPeriodDefaults.PERIOD_CODE`) | 기준 분기 코드 |
+| `periodCode` | 선택, 생략 시 적재 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`) | 기준 분기 코드 |
 | `topN` | 기본 `5`, 범위 `5~30` | 추천 상위 N |
 
 **serviceCode → 프리셋 매핑** (`CommercialCandidateQueryProcessor.resolvePresetFromServiceCode`):
@@ -579,6 +579,21 @@ INDEX(status)
 
 ---
 
+### `commercial-service` — 적재 데이터 기준 분석 기본 분기 (이슈 #464)
+
+**상태**: ✅ 완료 (게시 시각·스키마 버전 노출은 후속 이슈)
+
+**엔드포인트**: `GET /api/v1/commercials/periods` — `defaultPeriodCode`, `availablePeriodCodes`(최신순), `firstPeriodCode`, `spatialVersion`, `resolvedAt`, `datasets[]`
+
+**동작**:
+- 기본 분기 = 원천 중단 상한(`DatasetKey.lastPublishablePeriodCode()`)이 없는 데이터셋 14종 모두에 적재된 분기 중 최신. 정본은 typed 팩트 테이블의 `DISTINCT period_code`(`spatial_version` 필터)
+- 분석 API 의 `periodCode`(자치구·행정동 `currentPeriodCode`)는 선택 파라미터가 됐다. 생략하면 위 기본 분기로 해석하고, 응답 최상위에 실제 조회한 분기를 싣는다
+- 인스턴스 메모리 캐시 5분, 만료 뒤 한 요청만 재계산. DB 장애 중에는 마지막 성공값, 한 번도 계산하지 못했으면 생략 요청만 `ANALYSIS_PERIOD_001` 503
+
+**핵심 파일**: `analysisperiod/application/service/processor/AnalysisPeriodCatalogProcessor.java`, `analysisperiod/application/model/AnalysisPeriodCatalog.java`, `analysisperiod/adapter/out/persistence/AnalysisDatasetPeriodQueryAdapter.java`
+
+---
+
 ### `batch-service` / `commercial-service` — typed 팩트 이관 (15종)
 
 **상태**: ✅ 코드 완료. 운영은 게시한 분기마다 `--job=project` 가 필요하다. 이슈 #301, 후속 #355.
@@ -677,6 +692,7 @@ K-Startup·자치구 홈페이지·HTML 스크래핑은 아직 없다. 기업마
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
+| GET | `/periods` | 적재 데이터 기준 기본 분기·가용 분기 카탈로그 | 불필요 |
 | GET | `/{code}/trend` | 상권 분기별 트렌드 분석 | 불필요 |
 | GET | `/recommendations/by-service` | 업종 기반 상권 자동 추천 | 불필요 |
 | POST | `/api/v1/share-links` | 분석 화면 공유 링크 생성 | 선택 |

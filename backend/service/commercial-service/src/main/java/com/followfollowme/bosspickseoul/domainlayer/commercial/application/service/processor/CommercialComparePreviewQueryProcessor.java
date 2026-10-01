@@ -33,6 +33,7 @@ public class CommercialComparePreviewQueryProcessor {
         addIfPresent(headline, full.storeMetrics(), 3);
 
         return CommercialComparePreviewInfo.builder()
+            .periodCode(full.periodCode())
             .left(full.left())
             .right(full.right())
             .recommendedSide(full.recommendedSide())

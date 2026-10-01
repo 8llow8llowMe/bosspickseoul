@@ -20,6 +20,7 @@ public class CommercialSummaryPresenter {
 
     public CommercialSalesSummaryResponse toCommercialSalesSummaryResponse(CommercialSalesSummaryInfo info) {
         return CommercialSalesSummaryResponse.builder()
+            .periodCode(info.periodCode())
             .district(toRegionalSalesSummaryItem(info.district()))
             .administration(toRegionalSalesSummaryItem(info.administration()))
             .commercial(toRegionalSalesSummaryItem(info.commercial()))
