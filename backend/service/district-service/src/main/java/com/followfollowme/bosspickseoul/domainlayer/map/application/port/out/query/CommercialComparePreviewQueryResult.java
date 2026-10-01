@@ -8,7 +8,8 @@ public record CommercialComparePreviewQueryResult(
     ComparePreviewTargetQueryResult right,
     CodeNameDescriptionMetadata recommendedSide,
     List<ComparePreviewMetricQueryResult> headlineMetrics,
-    String insightOneLiner
+    String insightOneLiner,
+    String periodCode
 ) {
 
 }

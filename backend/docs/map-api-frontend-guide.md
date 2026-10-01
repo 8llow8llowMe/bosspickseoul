@@ -131,6 +131,14 @@ const handleMapIdle = debounce(async () => {
 }, 250);
 ```
 
+## 분기 파라미터 (`periodCode`, 이슈 #464)
+
+히트맵·후보·프로필·비교 프리뷰의 `periodCode` 는 **선택**이다. 생략하면 commercial-service 가 적재된 데이터 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`)로 조회한다. 아래 예시의 `periodCode=20261` 은 명시한 경우다.
+
+- 응답의 `periodCode` 는 실제로 조회한 분기다. 화면 라벨("2026년 1분기 기준")과 공유 링크·보관함 payload 에는 이 값을 쓴다.
+- 예외: 뷰포트에 상권이 없어 후보를 비워 내리는 경우와 상류 장애로 히트맵 점수가 비는 경우는 상류를 거치지 않아 생략 요청이면 `periodCode: null` 이다. 이때는 직전 응답이나 `/periods` 의 `defaultPeriodCode` 로 라벨을 그린다.
+- 기본 분기를 정할 수 없으면 commercial-service 가 503 을 주고 지도는 `MAP_008`(503) 로 내려준다.
+
 ## Heatmap API
 
 ```http
@@ -242,6 +250,7 @@ GET /api/v1/map/commercials/{commercialCode}/profile?serviceCode=CS100001&period
 
 응답 활용:
 
+- `periodCode`: 실제로 조회한 분기 (이슈 #464). 요청에서 생략하면 commercial-service 가 정한 기본 분기
 - `commercialCode`, `commercialName`: 패널 제목
 - `districtName`, `administrationName`: 지역 breadcrumb
 - `keyMetrics`: 주요 지표 카드
@@ -263,6 +272,7 @@ GET /api/v1/map/commercials/compare-preview?leftCommercialCode=3110008&rightComm
 
 응답 활용:
 
+- `periodCode`: 실제로 비교한 분기 (이슈 #464)
 - `left`, `right`: 비교 대상 상권 요약
 - `recommendedSide`: 추천 우위 상권 표시
 - `headlineMetrics`: 핵심 비교 지표

@@ -10,7 +10,8 @@ public record CommercialProfileQueryResult(
     String administrationCode,
     String administrationName,
     CommercialProfileKeyMetricsQueryResult keyMetrics,
-    List<PolicyQueryResult> policyRecommendations
+    List<PolicyQueryResult> policyRecommendations,
+    String periodCode
 ) {
 
 }

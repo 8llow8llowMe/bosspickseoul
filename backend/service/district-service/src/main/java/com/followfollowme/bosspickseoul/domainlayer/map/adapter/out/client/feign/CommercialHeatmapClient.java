@@ -18,7 +18,8 @@ public interface CommercialHeatmapClient {
         @RequestParam List<String> commercialCodes,
         @RequestParam String serviceCode,
         @RequestParam String metricType,
-        @RequestParam String periodCode
+        // null 이면 Feign 이 쿼리에서 뺀다. commercial-service 가 적재 기준 기본 분기로 해석한다(이슈 #464).
+        @RequestParam(required = false) String periodCode
     );
 
     @GetMapping("/api/v1/commercials/heatmap-composite")
@@ -27,6 +28,7 @@ public interface CommercialHeatmapClient {
         @RequestParam String serviceCode,
         @RequestParam String preset,
         @RequestParam(required = false) String priorityMetric,
-        @RequestParam String periodCode
+        // null 이면 Feign 이 쿼리에서 뺀다. commercial-service 가 적재 기준 기본 분기로 해석한다(이슈 #464).
+        @RequestParam(required = false) String periodCode
     );
 }

@@ -20,6 +20,7 @@ public interface CommercialCandidateClient {
         @RequestParam String preset,
         @RequestParam(required = false) String priorityMetric,
         @RequestParam(required = false) Integer topN,
-        @RequestParam String periodCode
+        // null 이면 Feign 이 쿼리에서 뺀다. commercial-service 가 적재 기준 기본 분기로 해석한다(이슈 #464).
+        @RequestParam(required = false) String periodCode
     );
 }

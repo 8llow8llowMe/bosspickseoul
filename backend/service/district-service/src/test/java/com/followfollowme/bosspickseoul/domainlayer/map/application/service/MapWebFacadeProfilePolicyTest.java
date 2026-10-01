@@ -107,7 +107,7 @@ class MapWebFacadeProfilePolicyTest {
 
     private static CommercialProfileQueryResult profileWith(List<PolicyQueryResult> policies) {
         return new CommercialProfileQueryResult(
-            "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", null, policies
+            "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", null, policies, "20261"
         );
     }
 

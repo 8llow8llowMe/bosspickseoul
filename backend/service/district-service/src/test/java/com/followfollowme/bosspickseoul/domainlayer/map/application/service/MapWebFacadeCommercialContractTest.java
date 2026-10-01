@@ -2,6 +2,8 @@ package com.followfollowme.bosspickseoul.domainlayer.map.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
@@ -66,7 +68,7 @@ class MapWebFacadeCommercialContractTest {
         );
         when(commercialProfileQueryPort.getCommercialProfile(anyString(), anyString(), anyString()))
             .thenReturn(new CommercialProfileQueryResult(
-                "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", keyMetrics, List.of()
+                "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", keyMetrics, List.of(), "20261"
             ));
 
         CommercialProfileResponse response = facade().getCommercialProfile("3110008", "CS100001", "20261");
@@ -97,7 +99,8 @@ class MapWebFacadeCommercialContractTest {
                 target("3110009", "명동역"),
                 CodeNameDescriptionMetadata.of("LEFT", "좌측", "좌측 상권이 우세합니다."),
                 headlineMetrics,
-                "역삼역이 매출 기준 32% 우위입니다."
+                "역삼역이 매출 기준 32% 우위입니다.",
+                "20261"
             ));
 
         CommercialComparePreviewResponse response =
@@ -115,12 +118,49 @@ class MapWebFacadeCommercialContractTest {
     void nullKeyMetricsStaysNull() {
         when(commercialProfileQueryPort.getCommercialProfile(anyString(), anyString(), anyString()))
             .thenReturn(new CommercialProfileQueryResult(
-                "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", null, List.of()
+                "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", null, List.of(), "20261"
             ));
 
         CommercialProfileResponse response = facade().getCommercialProfile("3110008", "CS100001", "20261");
 
         assertThat(response.keyMetrics()).isNull();
+    }
+
+    @Test
+    @DisplayName("분기를 생략하면 상류가 실제로 조회한 분기를 프로필 응답에 싣는다")
+    void omittedPeriodTakesTheUpstreamPeriod() {
+        when(commercialProfileQueryPort.getCommercialProfile(eq("3110008"), eq("CS100001"), isNull()))
+            .thenReturn(new CommercialProfileQueryResult(
+                "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", null, List.of(), "20261"
+            ));
+
+        CommercialProfileResponse response = facade().getCommercialProfile("3110008", "CS100001", null);
+
+        assertThat(response.periodCode()).isEqualTo("20261");
+    }
+
+    @Test
+    @DisplayName("분기를 생략하면 상류가 실제로 비교한 분기를 비교 프리뷰 응답에 싣는다")
+    void omittedPeriodTakesTheUpstreamPeriodForComparePreview() {
+        when(commercialProfileQueryPort.getCommercialComparePreview(eq("3110008"), eq("3110009"), eq("CS100001"), isNull()))
+            .thenReturn(new CommercialComparePreviewQueryResult(
+                target("3110008", "역삼역"), target("3110009", "명동역"), null, List.of(), "요약", "20261"
+            ));
+
+        CommercialComparePreviewResponse response = facade().getCommercialComparePreview("3110008", "3110009", "CS100001", null);
+
+        assertThat(response.periodCode()).isEqualTo("20261");
+    }
+
+    @Test
+    @DisplayName("상류가 분기를 싣지 않은 옛 응답이면 요청 분기를 그대로 쓴다")
+    void legacyUpstreamWithoutPeriodKeepsTheRequestedPeriod() {
+        when(commercialProfileQueryPort.getCommercialProfile(anyString(), anyString(), anyString()))
+            .thenReturn(new CommercialProfileQueryResult(
+                "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", null, List.of(), null
+            ));
+
+        assertThat(facade().getCommercialProfile("3110008", "CS100001", "20233").periodCode()).isEqualTo("20233");
     }
 
     private static ComparePreviewMetricQueryResult metric(String label) {
