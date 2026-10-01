@@ -194,8 +194,8 @@ const Breadcrumb = styled.nav`
 `
 
 const CrumbButton = styled.button`
-  min-height: 32px;
-  padding: 0 4px;
+  min-height: 40px;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
