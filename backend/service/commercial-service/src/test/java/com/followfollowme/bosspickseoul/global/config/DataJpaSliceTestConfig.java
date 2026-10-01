@@ -21,8 +21,17 @@ import org.springframework.context.annotation.Import;
  *
  * <p>{@link DatasetSpatialVersion} 은 {@code @Bean} 으로 새로 만들지 않고 원본 클래스를 그대로
  * import 한다. 생성자의 {@code @Value} 기본값을 그대로 타므로 운영과 같은 값으로 해석된다.
+ *
+ * <p><b>프로필 격리.</b> 슬라이스는 앱 클래스의 {@code @EnableFeignClients} 까지 올린다. 그래서 env 에
+ * {@code SPRING_PROFILES_ACTIVE=dev} 만 있고 {@code DISTRICT_SERVICE_APP_NAME} 이 없으면 {@code application-dev.yml} 의
+ * {@code ${DISTRICT_SERVICE_APP_NAME}} 이 풀리지 않아 Feign 클라이언트 등록에서 컨텍스트가 죽는다(Jenkins 는 Vault env 를 다 넣어
+ * 우연히 통과한다). 각 {@code @DataJpaTest} 는 {@code @ActiveProfiles(DataJpaSliceTestConfig.PROFILE)} 로 env 프로필을 가려
+ * {@code application.yml} 기본값만으로 뜬다. 이 프로필 이름의 설정 파일은 두지 않는다.
  */
 @TestConfiguration(proxyBeanMethods = false)
 @Import({QuerydslConfigurer.class, DatasetSpatialVersion.class})
 public class DataJpaSliceTestConfig {
+
+    /** env 의 {@code SPRING_PROFILES_ACTIVE} 를 가리는 슬라이스 전용 프로필. 같은 이름의 {@code application-*.yml} 은 없다. */
+    public static final String PROFILE = "slice-test";
 }

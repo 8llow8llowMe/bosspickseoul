@@ -6,12 +6,14 @@ import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persisten
 import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.projection.AdministrationNameProjection;
 import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.projection.CommercialNameProjection;
 import com.followfollowme.bosspickseoul.domainlayer.region.adapter.out.persistence.projection.DistrictNameProjection;
+import com.followfollowme.bosspickseoul.support.SliceTestProfile;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * 지역명 조회의 DISTINCT 적용 범위를 실제 스키마에 질의해 고정한다.
@@ -26,6 +28,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
  * 실제 SQL 이 어떤 컬럼을 SELECT 하는지에 달려 있어서다. 그래서 여기서 실제 스키마에 질의해 고정한다.
  */
 @DataJpaTest
+@ActiveProfiles(SliceTestProfile.NAME)
 class CommercialRegionMappingRepositoryTest {
 
     @Autowired

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.out.persistence.entity.SimulationHistoryEntity;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.domain.enums.SimulationFloorType;
+import com.followfollowme.bosspickseoul.global.config.DataJpaSliceTestConfig;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * 이력 목록 정렬을 실제 스키마에 질의해 확인한다.
@@ -23,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
  * 같은 조건을 연달아 저장하기 쉬워 실제로 겹친다. id 2차 정렬이 그 경계를 고정한다.
  */
 @DataJpaTest
+@ActiveProfiles(DataJpaSliceTestConfig.PROFILE)
 class SimulationHistoryRepositoryTest {
 
     private static final long MEMBER_ID = 7L;

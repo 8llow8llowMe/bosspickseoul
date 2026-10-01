@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.followfollowme.bosspickseoul.domainlayer.map.adapter.out.persistence.entity.AreaBoundaryEntity;
 import com.followfollowme.bosspickseoul.domainlayer.map.domain.enums.AreaType;
+import com.followfollowme.bosspickseoul.support.SliceTestProfile;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * 뷰포트 bbox 겹침 판정을 실제 스키마에 질의해 고정한다.
@@ -25,6 +27,7 @@ import org.springframework.data.domain.Pageable;
  * (MAP_010)의 근거이므로 실제로 SQL 에 걸리지 않으면 상한 자체가 무의미해진다.
  */
 @DataJpaTest
+@ActiveProfiles(SliceTestProfile.NAME)
 class AreaBoundaryRepositoryTest {
 
     // 뷰포트: 경도 127.0~127.1, 위도 37.5~37.6
