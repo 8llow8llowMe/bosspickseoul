@@ -1,6 +1,7 @@
 # Optional standalone profile. Jenkins 의 상시 batch-service 는 이 프로파일 없이
 # BATCH_POLICY_ENABLED=true 만으로도 수집이 켜진다(application-dev.yml 의 Quartz JDBC).
 # 로컬에서 스케줄을 실제로 돌려 보려면 local,scheduler 로 띄운다(local 만으로는 메모리 스토어·자동 시작 off).
+# BATCH_DB_URL 은 로컬 DB 다. dev district 를 가리키면 안 된다. dev,scheduler 로도 쓰지 않는다(스케줄러 이름이 바뀐다).
 # BATCH_DB_URL 은 district 를 유지한다. policy 는 COMMERCIAL_DB_URL.
 # Quartz/Spring Batch 메타는 district 의 QRTZ_* / BATCH_* 를 쓴다.
 spring:
@@ -15,6 +16,9 @@ spring:
     job:
       enabled: false
   quartz:
+    # 상시 컨테이너(quartzScheduler)와 다른 이름. 실수로 dev district 를 가리켜도 dev 클러스터에 끼거나 dev 의 Job 을 지우지 않게 한다.
+    # 그래도 로컬 DB 의 QRTZ_* 에만 붙인다(batch-policy-ingest.md 「하지 말아야 할 것」).
+    scheduler-name: ${BATCH_QUARTZ_SCHEDULER_NAME:bosspickseoul-batch-local}
     auto-startup: true
     job-store-type: jdbc
     jdbc:

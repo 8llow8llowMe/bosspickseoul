@@ -100,6 +100,8 @@ Vault `kv/bosspickseoul/backend/dev/env` 에 **patch** 로 아래만 추가·변
 
 DDL 을 넣은 뒤 batch-service 만 재배포한다. `scheduler` 프로파일은 필수가 아니다. `dev` / `prod` 프로파일은 Quartz JDBC JobStore 를 늘 켜 두고(`application-dev.yml`), `BATCH_POLICY_ENABLED=true` 가 수집·만료 트리거를 등록한다. `local` 과 `quarterly` 는 메모리 스토어에 자동 시작 off 라 트리거가 돌지 않는다(로컬에서 돌려 보려면 `local,scheduler`).
 
+**`local,scheduler` 는 로컬 DB 의 `QRTZ_*` 에만 붙인다.** dev district 를 가리키면 안 된다. Quartz 는 `QRTZ_*.SCHED_NAME`(= `spring.quartz.scheduler-name`) 이 같은 인스턴스끼리 클러스터가 되고, 꺼진 스케줄 정리(`StaleQuartzJobRemover`)는 그 이름의 Job 을 지운다. 로컬 플래그가 꺼진 채 dev district 에 같은 이름으로 붙으면 dev 의 정책·자동 최신화·스테이징 정리 Job 이 지워지고 다음 재배포까지 조용히 멈춘다. 그래서 상시 컨테이너(dev/prod)는 기존 이름 `quartzScheduler` 를 그대로 쓰고, `scheduler` 프로파일은 기본 `bosspickseoul-batch-local`(`BATCH_QUARTZ_SCHEDULER_NAME` 로 바꿀 수 있다)을 쓴다. 이름이 달라도 로컬 DB 에만 붙이는 것이 규칙이다(다른 이름은 실수에 대한 보조 방어다). `dev,scheduler` 조합도 쓰지 않는다 — 상시 컨테이너의 스케줄러 이름이 바뀌어 저장된 트리거와 끊긴다.
+
 기동 직후 로그에서 확인할 것:
 
 - `Commercial jobs must use COMMERCIAL_DB_URL` / `BATCH_ALLOWED_SCHEMAS` 예외가 없다. 정책 수집의 기동 가드는 policyingestion 이 아니라 `global/config/CommercialDataSourceGuardRunner` 다(자동 최신화·스테이징 정리와 공유). 기본 DataSource URL(`spring.datasource.url` = `BATCH_DB_URL`)과 같은지를 두 번째 풀 조건과 같은 키로 비교한다
@@ -127,6 +129,7 @@ BATCH_POLICY_PURGE_CRON=0 5/10 * * * ?
 - **키 없이 `BATCH_POLICY_ENABLED=true`** — 06:00 Job 이 `POLICY_INGEST_002` 로 실패한다. stale-mark 는 하지 않는다.
 - **prod 스키마를 allowlist 에 넣기** — Guard 가 `prod` 가 이름에 있으면 거부한다.
 - **QRTZ_* 를 commercial 에만 만들고 district 에는 안 만들기** — 상시 인스턴스의 Quartz 는 district 를 본다.
+- **`local,scheduler` 를 dev district 에 붙이기** — 같은 `QRTZ_*` 의 dev Job 을 지우거나 dev 클러스터에 낀다. 로컬 DB 에만 붙인다.
 
 ## 5. 화면에서 보이는 것
 

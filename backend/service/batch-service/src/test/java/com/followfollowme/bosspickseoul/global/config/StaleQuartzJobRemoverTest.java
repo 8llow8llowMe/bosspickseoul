@@ -22,6 +22,7 @@ import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerMetaData;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -44,6 +45,40 @@ class StaleQuartzJobRemoverTest {
         // 빌드 환경(Jenkins withEnv)의 플래그가 섞이지 않게 기본 상태를 적어 둔다. 켜는 테스트는 아래에서 덮어쓴다.
         .withPropertyValues("batch.policy.stale-ratio=0.5", "batch.policy.purge-grace-days=30",
             "batch.policy.enabled=false", "batch.dataset-refresh.enabled=false", "batch.staging-purge.enabled=false");
+
+    StaleQuartzJobRemoverTest() throws Exception {
+        SchedulerMetaData persistent = metaData(true);
+        when(scheduler.getMetaData()).thenReturn(persistent);
+    }
+
+    private static SchedulerMetaData metaData(boolean persistent) {
+        SchedulerMetaData metaData = mock(SchedulerMetaData.class);
+        when(metaData.isJobStoreSupportsPersistence()).thenReturn(persistent);
+        when(metaData.getSchedulerName()).thenReturn("quartzScheduler");
+        return metaData;
+    }
+
+    /** 메모리 스토어(local·quarterly)는 저장된 Job 이 없다. 지우지도 트랜잭션을 열지도 않는다. */
+    @Test
+    void memoryJobStoreIsLeftAloneWithoutATransaction() throws Exception {
+        SchedulerMetaData memory = metaData(false);
+        when(scheduler.getMetaData()).thenReturn(memory);
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+
+        new StaleQuartzJobRemover(provider(scheduler), provider(manager), "dataset-refresh", List.of("datasetRefreshQuartzJob"))
+            .afterSingletonsInstantiated();
+
+        verify(scheduler, never()).deleteJob(any());
+        verify(manager, never()).getTransaction(any());
+    }
+
+    @Test
+    void unreadableMetadataSkipsRemovalWithoutStoppingStartup() throws Exception {
+        when(scheduler.getMetaData()).thenThrow(new SchedulerException("not initialized"));
+
+        runner.run(context -> assertThat(context).hasNotFailed());
+        verify(scheduler, never()).deleteJob(any());
+    }
 
     @Test
     void everyDisabledScheduleRemovesItsStoredJobAtStartup() {

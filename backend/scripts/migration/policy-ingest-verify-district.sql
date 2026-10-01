@@ -20,7 +20,7 @@ WHERE table_schema = DATABASE()
 -- 3) 저장된 Quartz Job·트리거. 정책 수집·분기 적재 자동 최신화·스테이징 정리가 공유한다.
 --    켜진 기능만 보여야 한다. 끈 기능의 Job 이 남아 있으면 재기동 로그의
 --    "[<기능>] disabled, stored quartz job removed" / "... not removed" 를 본다(남아 있어도 Job 이 플래그를 보고 무시한다).
-SELECT j.JOB_NAME, t.TRIGGER_NAME, t.TRIGGER_STATE,
+SELECT j.SCHED_NAME, j.JOB_NAME, t.TRIGGER_NAME, t.TRIGGER_STATE,
        FROM_UNIXTIME(t.NEXT_FIRE_TIME / 1000) AS next_fire_at,
        FROM_UNIXTIME(t.PREV_FIRE_TIME / 1000) AS prev_fire_at,
        c.CRON_EXPRESSION, c.TIME_ZONE_ID
@@ -29,7 +29,10 @@ SELECT j.JOB_NAME, t.TRIGGER_NAME, t.TRIGGER_STATE,
          ON t.SCHED_NAME = j.SCHED_NAME AND t.JOB_NAME = j.JOB_NAME AND t.JOB_GROUP = j.JOB_GROUP
   LEFT JOIN QRTZ_CRON_TRIGGERS c
          ON c.SCHED_NAME = t.SCHED_NAME AND c.TRIGGER_NAME = t.TRIGGER_NAME AND c.TRIGGER_GROUP = t.TRIGGER_GROUP
- ORDER BY j.JOB_NAME;
+ ORDER BY j.SCHED_NAME, j.JOB_NAME;
+-- SCHED_NAME 은 상시 컨테이너가 quartzScheduler 다(application-dev.yml spring.quartz.scheduler-name). 다른 이름이 보이면
+-- 로컬(local,scheduler)이나 다른 프로세스가 이 district 에 붙은 것이다. 클러스터 인스턴스는 QRTZ_SCHEDULER_STATE 에서 본다.
+--   SELECT SCHED_NAME, INSTANCE_NAME, FROM_UNIXTIME(LAST_CHECKIN_TIME / 1000) AS last_checkin, CHECKIN_INTERVAL FROM QRTZ_SCHEDULER_STATE;
 -- 기대(예: 정책만 켬): policyCollectQuartzJob / policyPurgeQuartzJob 두 행.
 --      datasetRefreshQuartzJob 은 BATCH_DATASET_REFRESH_ENABLED=true, datasetStagingPurgeQuartzJob 은 BATCH_STAGING_PURGE_ENABLED=true 일 때만.
 
