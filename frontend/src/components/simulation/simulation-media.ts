@@ -11,6 +11,10 @@
  * 2단 작업 화면에는 맞지 않는다. 시뮬레이션만 이 3단계를 쓰는 예외다(2026-10-01 결정 Q1,
  * DESIGN.md S-SIM). 전에는 400·520·640·767·1023·1279 여섯 값이 파일마다 따로 쓰였다.
  *
+ * 상한 쪽은 `.98` 로 끝낸다. `max-width: 1023px` 와 `min-width: 1024px` 사이에는 소수 폭(확대 배율에서
+ * innerWidth 1023.5 같은 값)이 비어, 그 폭에서는 두 단계가 다 꺼지거나 — 한 화면에 두 벌을 두고 CSS 로
+ * 고르는 곳(리포트 저장 버튼·하단 바)에서는 — 두 벌이 다 보인다.
+ *
  * 리터럴 `@media (max-width: …)` 를 쓰지 않고 이 상수를 끼운다 —
  * `simulation-media.test.ts` 가 simulation 소스에 리터럴이 다시 생기면 깨진다.
  *
@@ -19,9 +23,16 @@
  */
 export const SIMULATION_MEDIA = {
   /** ≤ 767px */
-  mobile: '(max-width: 767px)',
+  mobile: '(max-width: 767.98px)',
   /** ≤ 1023px — 모바일 + 태블릿. 하단 고정 바가 보이는 구간 */
-  belowDesktop: '(max-width: 1023px)',
+  belowDesktop: '(max-width: 1023.98px)',
   /** ≥ 1024px */
   desktop: '(min-width: 1024px)',
+  /**
+   * ≥ 1024px 이면서 세로가 충분할 때 — sticky 요약 열을 거는 조건.
+   * sticky 요소가 「뷰포트 − 상단 96px」보다 길면 아래쪽(저장·비교)이 화면 밖에 붙은 채 고정된다.
+   * 데스크톱은 하단 바도 없으니 그 버튼에 닿을 길이 리포트 끝까지 스크롤하는 것뿐이다.
+   * 리포트 요약 열 실측 496px(저장 결과 한 줄이 붙으면 약 524) + 96 → 680 에 여유를 둔다.
+   */
+  desktopTall: '(min-width: 1024px) and (min-height: 680px)',
 } as const
