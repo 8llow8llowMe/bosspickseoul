@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.in.web.dto.request;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.exception.AiReportValidationMessage;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -20,19 +21,11 @@ public record CommercialComparisonAiRequest(
     @NotBlank(message = AiReportValidationMessage.SERVICE_CODE_REQUIRED)
     String serviceCode,
 
-    @Schema(description = "기준 분기 코드", example = AiReportRequestDefaults.PERIOD_CODE,
-        defaultValue = AiReportRequestDefaults.PERIOD_CODE)
+    @Schema(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE, nullable = true)
     String periodCode
 ) {
 
-    /**
-     * 기본값 보정은 web 계층에서만 한다. application 의 query 는 이미 확정된 값만 들고 다녀야
-     * 워커가 저장된 잡 파라미터로 재구성할 때 같은 조건이 재현된다.
-     */
-    public CommercialComparisonAiRequest {
-        periodCode = (periodCode == null || periodCode.isBlank()) ? AiReportRequestDefaults.PERIOD_CODE : periodCode;
-    }
-
+    /** 생략된 분기는 그대로(null) 넘긴다. {@code AiReportJobProcessor} 가 적재 기준 기본 분기로 해석한다(이슈 #464). */
     public CommercialComparisonAiQuery toQuery() {
         return new CommercialComparisonAiQuery(leftCommercialCode, rightCommercialCode, serviceCode, periodCode);
     }

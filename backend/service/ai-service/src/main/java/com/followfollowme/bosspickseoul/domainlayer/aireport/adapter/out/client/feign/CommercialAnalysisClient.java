@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign;
 
 import com.followfollowme.bosspickseoul.common.dto.Response;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.AnalysisPeriodsClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFacilityClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialFootTrafficClientResponse;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial.CommercialIncomeAndExpenseClientResponse;
@@ -21,6 +22,10 @@ import org.springframework.web.bind.annotation.RequestParam;
     path = "/api/v1/commercials"
 )
 public interface CommercialAnalysisClient {
+
+    /** 적재 데이터 기준 분석 분기 카탈로그(이슈 #464). 분기를 생략한 제출의 기본 분기를 여기서 받는다. */
+    @GetMapping("/periods")
+    Response<AnalysisPeriodsClientResponse> getAnalysisPeriods();
 
     @GetMapping("/{commercialCode}/foot-traffic")
     Response<CommercialFootTrafficClientResponse> getCommercialFootTraffic(

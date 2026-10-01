@@ -70,7 +70,10 @@ class AiReportJobProcessorTest {
     void setUp() {
         props = new AiReportJobProperties(86_400L, 2_592_000L, 30L, 300L);
         usageCounter = new StubAiUsageCounterPort();
-        processor = new AiReportJobProcessor(jobStore, cache, jobEventPort, worker, usageCounter, props);
+        // 이 테스트의 제출은 모두 분기를 명시한다. 기본 분기 해석은 AiReportJobProcessorPeriodResolutionTest 가 본다.
+        processor = new AiReportJobProcessor(jobStore, cache, jobEventPort, worker, usageCounter, props, () -> {
+            throw new AssertionError("explicit periodCode must not be resolved");
+        });
     }
 
     /**

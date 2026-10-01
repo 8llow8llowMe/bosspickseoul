@@ -21,6 +21,9 @@ public enum AiReportErrorCode {
     IDEMPOTENCY_KEY_GENERATION_FAILED("AI_011", "AI 리포트 요청 식별자 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     USAGE_LIMIT_EXCEEDED("AI_012", "오늘 사용할 수 있는 AI 리포트 생성 횟수를 모두 사용했습니다. 내일 다시 시도해 주세요.",
         HttpStatus.TOO_MANY_REQUESTS),
+    // 분기를 생략한 제출에서 commercial-service 의 적재 기준 기본 분기를 받지 못했고 마지막 성공값도 없을 때(이슈 #464).
+    // 분기를 명시한 제출은 이 오류를 받지 않는다.
+    DEFAULT_PERIOD_UNAVAILABLE("AI_013", "분석 기준 분기를 아직 정할 수 없습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 요청 검증(Bean Validation) 전용 코드 — 1xx 대역.
     INVALID_REQUEST("AI_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),

@@ -14,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobEventPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiReportJobStorePort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AiUsageCounterPort;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.AnalysisPeriodQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.service.worker.AiReportWorker;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AdministrationAiReportSnapshot;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.domain.model.AiReportJob;
@@ -51,43 +52,61 @@ public class AiReportJobProcessor {
     private final AiReportWorker aiReportWorker;
     private final AiUsageCounterPort aiUsageCounterPort;
     private final AiReportJobProperties aiReportJobProperties;
+    private final AnalysisPeriodQueryPort analysisPeriodQueryPort;
 
+    /*
+     * 제출 진입마다 분기를 먼저 해석한다(이슈 #464). 생략·빈 값이면 commercial-service 의 적재 기준 기본 분기다.
+     * 해석된 값으로 캐시 키·멱등 해시·작업 파라미터를 만들어야 같은 리포트가 "생략"과 "명시"로 갈려 캐시를 두 번 채우지 않고,
+     * 워커가 저장된 파라미터로 재구성한 조건과 제출 조건이 같다. 해석 실패(503)는 사용량 차감 전에 난다.
+     */
     public AiReportSubmissionInfo submitCommercialReport(
         long memberId, String commercialCode, String serviceCode, String periodCode
     ) {
+        String resolvedPeriodCode = resolvePeriodCode(periodCode);
         Optional<CommercialAiReportSnapshot> cached =
-            aiReportCachePort.getCommercialReport(commercialCode, serviceCode, periodCode);
+            aiReportCachePort.getCommercialReport(commercialCode, serviceCode, resolvedPeriodCode);
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL, toInfo(cached.get()));
+            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL, resolvedPeriodCode, toInfo(cached.get()));
         }
-        return submitJob(memberId, AiReportJobType.COMMERCIAL, commercialParams(commercialCode, serviceCode, periodCode));
+        return submitJob(memberId, AiReportJobType.COMMERCIAL, commercialParams(commercialCode, serviceCode, resolvedPeriodCode));
     }
 
     public AiReportSubmissionInfo submitCommercialComparisonReport(long memberId, CommercialComparisonAiQuery query) {
+        CommercialComparisonAiQuery resolvedQuery = query.withPeriodCode(resolvePeriodCode(query.periodCode()));
         Optional<CommercialComparisonAiReportSnapshot> cached = aiReportCachePort.getCommercialComparisonReport(
-            query.leftCommercialCode(), query.rightCommercialCode(), query.serviceCode(), query.periodCode()
+            resolvedQuery.leftCommercialCode(), resolvedQuery.rightCommercialCode(), resolvedQuery.serviceCode(), resolvedQuery.periodCode()
         );
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL_COMPARISON, toInfo(cached.get()));
+            return AiReportSubmissionInfo.cached(AiReportJobType.COMMERCIAL_COMPARISON, resolvedQuery.periodCode(), toInfo(cached.get()));
         }
-        return submitJob(memberId, AiReportJobType.COMMERCIAL_COMPARISON, commercialComparisonParams(query));
+        return submitJob(memberId, AiReportJobType.COMMERCIAL_COMPARISON, commercialComparisonParams(resolvedQuery));
     }
 
     public AiReportSubmissionInfo submitDistrictReport(long memberId, String districtCode, String periodCode) {
-        Optional<DistrictAiReportSnapshot> cached = aiReportCachePort.getDistrictReport(districtCode, periodCode);
+        String resolvedPeriodCode = resolvePeriodCode(periodCode);
+        Optional<DistrictAiReportSnapshot> cached = aiReportCachePort.getDistrictReport(districtCode, resolvedPeriodCode);
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.DISTRICT, toInfo(cached.get()));
+            return AiReportSubmissionInfo.cached(AiReportJobType.DISTRICT, resolvedPeriodCode, toInfo(cached.get()));
         }
-        return submitJob(memberId, AiReportJobType.DISTRICT, districtParams(districtCode, periodCode));
+        return submitJob(memberId, AiReportJobType.DISTRICT, districtParams(districtCode, resolvedPeriodCode));
     }
 
     public AiReportSubmissionInfo submitAdministrationReport(long memberId, String administrationCode, String periodCode) {
+        String resolvedPeriodCode = resolvePeriodCode(periodCode);
         Optional<AdministrationAiReportSnapshot> cached =
-            aiReportCachePort.getAdministrationReport(administrationCode, periodCode);
+            aiReportCachePort.getAdministrationReport(administrationCode, resolvedPeriodCode);
         if (cached.isPresent()) {
-            return AiReportSubmissionInfo.cached(AiReportJobType.ADMINISTRATION, toInfo(cached.get()));
+            return AiReportSubmissionInfo.cached(AiReportJobType.ADMINISTRATION, resolvedPeriodCode, toInfo(cached.get()));
         }
-        return submitJob(memberId, AiReportJobType.ADMINISTRATION, administrationParams(administrationCode, periodCode));
+        return submitJob(memberId, AiReportJobType.ADMINISTRATION, administrationParams(administrationCode, resolvedPeriodCode));
+    }
+
+    /** 요청 분기가 있으면 그대로, 생략·빈 값이면 적재 기준 기본 분기. 형식 검증은 원천 조회(commercial-service)가 한다. */
+    private String resolvePeriodCode(String requestedPeriodCode) {
+        if (requestedPeriodCode != null && !requestedPeriodCode.isBlank()) {
+            return requestedPeriodCode;
+        }
+        return analysisPeriodQueryPort.defaultPeriodCode();
     }
 
     /**
@@ -123,7 +142,7 @@ public class AiReportJobProcessor {
         if (!newJobId.equals(ownerJobId)) {
             // Another request won the reservation race, so remove this unused job entry.
             aiReportJobStorePort.deleteJob(newJobId);
-            return AiReportSubmissionInfo.accepted(jobType, ownerJobId);
+            return AiReportSubmissionInfo.accepted(jobType, params.get(AiReportJobParamKeys.PERIOD_CODE), ownerJobId);
         }
 
         try {
@@ -145,7 +164,7 @@ public class AiReportJobProcessor {
             }
         }
 
-        return AiReportSubmissionInfo.accepted(jobType, newJobId);
+        return AiReportSubmissionInfo.accepted(jobType, params.get(AiReportJobParamKeys.PERIOD_CODE), newJobId);
     }
 
     public AiReportJobInfo getJobInfo(String jobId, long memberId) {

@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.global.config;
 
 import com.followfollowme.bosspickseoul.common.config.JasyptPropertiesConfig;
 import com.followfollowme.bosspickseoul.common.config.SwaggerPropertiesConfig;
+import com.followfollowme.bosspickseoul.global.properties.AiAnalysisPeriodProperties;
 import com.followfollowme.bosspickseoul.global.properties.AiLlmProperties;
 import com.followfollowme.bosspickseoul.global.properties.AiReportCacheProperties;
 import com.followfollowme.bosspickseoul.global.properties.AiReportJobProperties;
@@ -25,7 +26,8 @@ import org.springframework.context.annotation.Import;
     AiReportJobProperties.class,
     AiReportUsageLimitProperties.class,
     AiSourceFetchProperties.class,
-    AiLlmProperties.class
+    AiLlmProperties.class,
+    AiAnalysisPeriodProperties.class
 })
 public class AiServicePropertiesConfig {
 

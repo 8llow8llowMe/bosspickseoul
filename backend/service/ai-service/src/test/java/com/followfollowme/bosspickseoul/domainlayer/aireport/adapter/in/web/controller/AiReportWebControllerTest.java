@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -85,7 +86,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .commercialReport(mock(CommercialAiReportResponse.class))
             .build();
-        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20261")))
+        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), isNull()))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
@@ -105,7 +106,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .jobId("job-uuid-1")
             .build();
-        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20261")))
+        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), isNull()))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
@@ -126,7 +127,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.COMMERCIAL.toMetadata())
             .jobId("job-uuid-9")
             .build();
-        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), eq("20261")))
+        when(aiReportWebUseCase.submitCommercialReport(eq(MEMBER_ID), eq("C1"), eq("S1"), isNull()))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/{commercialCode}", "C1")
@@ -142,7 +143,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.DISTRICT.toMetadata())
             .jobId("job-uuid-2")
             .build();
-        when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("11680"), eq("20261")))
+        when(aiReportWebUseCase.submitDistrictReport(eq(MEMBER_ID), eq("11680"), isNull()))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/districts/{districtCode}", "11680"))
@@ -159,7 +160,7 @@ class AiReportWebControllerTest {
             .jobType(AiReportJobType.ADMINISTRATION.toMetadata())
             .jobId("job-uuid-3")
             .build();
-        when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("11110515"), eq("20261")))
+        when(aiReportWebUseCase.submitAdministrationReport(eq(MEMBER_ID), eq("11110515"), isNull()))
             .thenReturn(responseBody);
 
         mockMvc.perform(post("/api/v1/ai-reports/administrations/{administrationCode}", "11110515"))
@@ -235,13 +236,12 @@ class AiReportWebControllerTest {
     }
 
     /**
-     * periodCode 기본값 보정은 web DTO({@code CommercialComparisonAiRequest})의 compact 생성자에만 남아 있다.
-     * 보정이 사라져도 상태 코드와 응답 본문은 그대로라, 넘어간 query 를 캡처하지 않으면 회귀가 전혀 드러나지 않는다.
-     * 이 값은 requestParams -> requestHash -> 멱등 키 -> 캐시 키로 흘러가므로, 운영에서는 캐시 영구 miss 와
-     * 요청마다 갈라지는 멱등 키라는 형태로만 뒤늦게 드러난다.
+     * periodCode 를 생략하면 web 계층은 상수로 채우지 않고 null 그대로 넘긴다(이슈 #464). 적재 기준 기본 분기로의 해석은
+     * {@code AiReportJobProcessor} 한 곳에서 하고, 그 값이 requestParams -> requestHash -> 멱등 키 -> 캐시 키로 흘러간다
+     * ({@code AiReportJobProcessorPeriodResolutionTest}). 여기서 상수가 다시 끼어들면 적재되지 않은 분기로 리포트를 만든다.
      */
     @Test
-    void postCommercialComparisonReport_withoutPeriodCode_appliesDefaultPeriodCode() throws Exception {
+    void postCommercialComparisonReport_withoutPeriodCode_passesNullForServerSideResolution() throws Exception {
         when(aiReportWebUseCase.submitCommercialComparisonReport(eq(MEMBER_ID), any())).thenReturn(acceptedComparisonResponse());
 
         mockMvc.perform(post("/api/v1/ai-reports/commercials/comparisons")
@@ -250,11 +250,10 @@ class AiReportWebControllerTest {
                 .param("serviceCode", "S1"))
             .andExpect(status().isAccepted());
 
-        // "20261" 은 공개 API 계약값이라 상수 참조가 아니라 리터럴로 고정한다(상수까지 같이 바뀌어도 통과하면 안 된다).
-        assertThat(captureSubmittedComparisonQuery()).isEqualTo(new CommercialComparisonAiQuery("C1", "C2", "S1", "20261"));
+        assertThat(captureSubmittedComparisonQuery()).isEqualTo(new CommercialComparisonAiQuery("C1", "C2", "S1", null));
     }
 
-    /** 명시값이 오면 보정이 끼어들지 않아야 한다. 기본값 테스트와 짝을 이뤄 보정 조건을 양방향으로 고정한다. */
+    /** 명시값은 그대로 넘긴다. 생략 테스트와 짝을 이뤄 양방향으로 고정한다. */
     @Test
     void postCommercialComparisonReport_withPeriodCode_preservesGivenPeriodCode() throws Exception {
         when(aiReportWebUseCase.submitCommercialComparisonReport(eq(MEMBER_ID), any())).thenReturn(acceptedComparisonResponse());
