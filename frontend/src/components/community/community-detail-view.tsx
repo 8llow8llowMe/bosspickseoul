@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import styled, { css } from 'styled-components'
 import CommunityCommentThread from '@/components/community/community-comment-thread'
 import CommunityDetailBottomBar from '@/components/community/community-detail-bottom-bar'
 import CommunityFeedback from '@/components/community/community-feedback'
+import CommunityImageLightbox from '@/components/community/community-image-lightbox'
 import CommunityMoreMenu from '@/components/community/community-more-menu'
 import CommunityReportDialog from '@/components/community/community-report-dialog'
 import CommunityWriter from '@/components/community/community-writer'
@@ -40,12 +41,18 @@ import {
   isCommunityPostEdited,
   shareCommunityPostOnce,
 } from '@/lib/community/post-detail'
+import {
+  PHOTO_STRIP_GAP,
+  formatPhotoPosition,
+  getPhotoStripIndex,
+} from '@/lib/community/photo-viewer'
 import { sortPostImages } from '@/lib/community/post-images'
 import type {
   CommunityId,
   CommunityComment,
   CommunityCommentLikeBody,
   CommunityPostDetail,
+  CommunityPostImage,
   CommunityPostSummary,
   CommunityReportCreateRequest,
 } from '@/types/community'
@@ -314,7 +321,19 @@ const AnalysisName = styled.strong`
   word-break: keep-all;
 `
 
-const ArticleImages = styled.ul`
+const PhotoGallery = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+`
+
+/*
+  사진 보기(community.md §S4 4단계). `≥480` 은 세로 나열 그대로, `<480` 이고 2장 이상이면 가로
+  scroll-snap 줄이다(한 장 = 줄 폭 100%, 간격은 지금 장 계산과 같은 PHOTO_STRIP_GAP). 줄은 본문 열 안에서만
+  가로로 넘친다 — 페이지에는 가로 스크롤이 생기지 않는다.
+*/
+const ArticleImages = styled.ul<{ $strip: boolean }>`
+  min-width: 0;
   display: grid;
   gap: 12px;
   margin: 0;
@@ -329,6 +348,85 @@ const ArticleImages = styled.ul`
     border: 1px solid var(--color-border-200);
     border-radius: var(--radius-card);
   }
+
+  ${props =>
+    props.$strip
+      ? css`
+          ${MOBILE} {
+            grid-auto-flow: column;
+            grid-auto-columns: 100%;
+            gap: ${PHOTO_STRIP_GAP}px;
+            align-items: center;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+
+            &::-webkit-scrollbar {
+              display: none;
+            }
+
+            > li {
+              scroll-snap-align: start;
+              scroll-snap-stop: always;
+            }
+
+            /* 줄은 가로로 넘쳐 잘리므로(overflow) 바깥 링이 잘린다 — 이 줄에서만 링을 안쪽으로 그린다. */
+            button:focus-visible {
+              outline-offset: -2px;
+            }
+          }
+        `
+      : null}
+`
+
+/* 사진을 감싼 크게 보기 버튼. 모양은 사진이 낸다 — 버튼은 바탕·테두리 없이 모서리만 맞춘다. */
+const PhotoButton = styled.button`
+  width: 100%;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  cursor: zoom-in;
+`
+
+/* 지금 장 표시. 줄이 있는 `<480` 에서만 보인다 — 그 위 폭에서는 점·글자 모두 접근성 트리에서도 빠진다. */
+const PhotoIndicator = styled.div`
+  display: none;
+
+  ${MOBILE} {
+    display: flex;
+    justify-content: center;
+  }
+`
+
+const PhotoDots = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+`
+
+const PhotoDot = styled.span`
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-300);
+  transition: background-color var(--motion-fast) var(--ease-standard);
+
+  &[data-active='true'] {
+    background: var(--color-text-700);
+  }
+`
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 `
 
 const ReactionBar = styled.div`
@@ -410,18 +508,72 @@ const InlineMessage = styled.p<{ $error?: boolean }>`
   line-height: 1.6;
 `
 
-const Rail = styled.aside`
+/*
+  레일 칸. sticky 는 칸 전체에 건다 — 인접 글 카드와 지역 글 카드가 따로 붙으면 스크롤 중에 겹친다.
+  대상 없는 글(인접 글만)은 `<1080` 에서 칸째 숨긴다. 그 폭의 인접 글은 본문 아래 묶음이 맡고,
+  빈 칸이 남으면 Layout 의 행 간격(32)만큼 아래가 빈다.
+*/
+const RailColumn = styled.div<{ $adjacentOnly: boolean }>`
   min-width: 0;
-  display: grid;
-  gap: 12px;
-  padding: 20px;
+  display: ${props => (props.$adjacentOnly ? 'none' : 'grid')};
+  gap: 16px;
+
+  ${DESKTOP} {
+    display: grid;
+    position: sticky;
+    top: ${RAIL_STICKY_TOP}px;
+  }
+`
+
+const railCard = css`
+  min-width: 0;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
+`
+
+const Rail = styled.aside`
+  ${railCard}
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+`
+
+/*
+  레일의 이전 글 · 다음 글(`≥1080` 만). 그 아래 폭에서는 본문 아래 인접 글 묶음이 같은 링크를 들고 있다 —
+  display:none 이라 둘이 함께 접근성 트리에 오르지 않는다.
+*/
+const RailAdjacent = styled.nav`
+  ${railCard}
+  display: none;
+  padding: 4px 20px;
 
   ${DESKTOP} {
-    position: sticky;
-    top: ${RAIL_STICKY_TOP}px;
+    display: block;
+  }
+`
+
+const RailAdjacentList = styled.ul`
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  > li + li {
+    border-top: 1px solid var(--color-border-200);
+  }
+`
+
+const RailAdjacentLink = styled(Link)`
+  min-height: 52px;
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  padding: 12px 0;
+  color: var(--color-text-800);
+
+  &:focus-visible {
+    border-radius: var(--radius-control);
   }
 `
 
@@ -515,6 +667,11 @@ const AdjacentNavigation = styled.nav`
 
   ${MOBILE} {
     grid-template-columns: 1fr;
+  }
+
+  /* ≥1080 은 레일 맨 위가 이전 글 · 다음 글을 맡는다(4단계 「상세 레일 보강」). */
+  ${DESKTOP} {
+    display: none;
   }
 `
 
@@ -657,6 +814,128 @@ const goToCommentEntry = () => {
   focusCommunityCommentEntry(document)
 }
 
+/**
+ * 본문 사진(community.md §S4 4단계 「사진 보기」, CM-041·042). 사진마다 크게 보기 버튼으로 감싸
+ * 누르면 라이트박스를 연다. `<480` 이고 2장 이상이면 가로 줄 + 지금 장 점이다(CSS 가 폭을 가른다).
+ */
+function CommunityPostImages({ images }: { images: CommunityPostImage[] }) {
+  const sorted = sortPostImages(images)
+  const count = sorted.length
+  const strip = count > 1
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [stripIndex, setStripIndex] = useState(0)
+  const [stripElement, setStripElement] = useState<HTMLUListElement | null>(
+    null,
+  )
+  /* 닫으면 누른 사진 버튼으로 돌아간다 — 라이트박스 안에서 장을 넘겨도 돌아갈 곳은 누른 사진이다. */
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null)
+
+  /*
+    지금 장은 scroll 이벤트를 프레임당 한 번만 재서 정한다(rAF 스로틀). 한 장이 줄 폭 100% 라
+    줄의 clientWidth 가 곧 한 장 폭이다. `≥480` 은 가로로 넘치지 않아 늘 첫 장이지만 점이 숨어 있다.
+  */
+  useEffect(() => {
+    if (!stripElement) {
+      return
+    }
+
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      setStripIndex(
+        getPhotoStripIndex(
+          stripElement.scrollLeft,
+          stripElement.clientWidth,
+          PHOTO_STRIP_GAP,
+          count,
+        ),
+      )
+    }
+    const handleScroll = () => {
+      if (frame === 0) {
+        frame = requestAnimationFrame(measure)
+      }
+    }
+
+    stripElement.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      stripElement.removeEventListener('scroll', handleScroll)
+      if (frame !== 0) {
+        cancelAnimationFrame(frame)
+      }
+    }
+  }, [stripElement, count])
+
+  const openLightbox = (
+    event: MouseEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    returnFocusRef.current = event.currentTarget
+    setLightboxIndex(index)
+  }
+
+  return (
+    <PhotoGallery>
+      <ArticleImages
+        ref={strip ? setStripElement : undefined}
+        $strip={strip}
+        data-community-photo-strip={strip ? 'true' : undefined}
+      >
+        {sorted.map((image, index) => (
+          <li key={image.imageKey}>
+            <PhotoButton
+              type="button"
+              aria-label={`첨부 이미지 ${index + 1} 크게 보기`}
+              onClick={event => openLightbox(event, index)}
+            >
+              {/*
+                MinIO 공개 URL 이라 `next/image` 최적화 대상이 아니다 — 원격
+                호스트를 `next.config` 에 등록하지 않으면 런타임에 실패한다.
+                `loading="lazy"` 로 목록 아래 이미지는 늦게 받는다.
+              */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={image.imageUrl}
+                alt={`첨부 이미지 ${index + 1}`}
+                loading="lazy"
+              />
+            </PhotoButton>
+          </li>
+        ))}
+      </ArticleImages>
+      {strip ? (
+        <PhotoIndicator data-community-photo-indicator="true">
+          <PhotoDots aria-hidden="true">
+            {sorted.map((image, index) => (
+              <PhotoDot
+                key={image.imageKey}
+                data-active={index === stripIndex ? 'true' : 'false'}
+                data-community-photo-dot="true"
+              />
+            ))}
+          </PhotoDots>
+          {/*
+            넘길 때마다 읽으면 시끄러워 live 로 두지 않는다 — 줄로 옮겨 오면 지금 장을 읽는다.
+            장마다의 이름은 각 사진 버튼(`첨부 이미지 n 크게 보기`)이 따로 갖고 있다.
+          */}
+          <VisuallyHidden data-community-photo-position="true">
+            {formatPhotoPosition(stripIndex, count)}
+          </VisuallyHidden>
+        </PhotoIndicator>
+      ) : null}
+      <CommunityImageLightbox
+        open={lightboxIndex !== null}
+        images={sorted.map(image => image.imageUrl)}
+        index={lightboxIndex ?? 0}
+        onIndexChange={setLightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        returnFocusRef={returnFocusRef}
+      />
+    </PhotoGallery>
+  )
+}
+
 export default function CommunityDetailView({
   status,
   detail,
@@ -753,10 +1032,15 @@ export default function CommunityDetailView({
   const regionName = regionHref ? getCommunityRegionName(detail) : '서울 전체'
   /*
     대상이 없는 글은 관련 글을 조회하지 않는다(createCommunityRelatedParams → null). 그때 relatedStatus
-    'empty' 는 「비었다」가 아니라 「묻지 않았다」라 레일 자체를 그리지 않는다(community.md §S4).
+    'empty' 는 「비었다」가 아니라 「묻지 않았다」라 지역 묶음을 그리지 않는다(community.md §S4).
     지역 칩 링크와 같은 판정(대상 종류·코드가 둘 다 유효)을 쓴다.
+    레일 자체는 지역 묶음 또는 인접 글이 있으면 그린다(4단계 「상세 레일 보강」) — 대상 없는 글도
+    목록에서 들어왔으면 ≥1080 레일 맨 위에 이전 글 · 다음 글이 온다.
   */
-  const showRail = regionHref !== null
+  const showRegionRail = regionHref !== null
+  const railAdjacent =
+    adjacent && (adjacent.previous || adjacent.next) ? adjacent : null
+  const showRail = showRegionRail || railAdjacent !== null
   const railRegionName = getCommunityRailRegionName(detail)
   const edited = isCommunityPostEdited(detail.createdAt, detail.updatedAt)
   /*
@@ -874,23 +1158,7 @@ export default function CommunityDetailView({
             <ArticleContent>{detail.content}</ArticleContent>
 
             {detail.images.length > 0 ? (
-              <ArticleImages>
-                {sortPostImages(detail.images).map((image, index) => (
-                  <li key={image.imageKey}>
-                    {/*
-                      MinIO 공개 URL 이라 `next/image` 최적화 대상이 아니다 — 원격
-                      호스트를 `next.config` 에 등록하지 않으면 런타임에 실패한다.
-                      `loading="lazy"` 로 목록 아래 이미지는 늦게 받는다.
-                    */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={image.imageUrl}
-                      alt={`첨부 이미지 ${index + 1}`}
-                      loading="lazy"
-                    />
-                  </li>
-                ))}
-              </ArticleImages>
+              <CommunityPostImages images={detail.images} />
             ) : null}
 
             {postMutationError ? (
@@ -983,54 +1251,100 @@ export default function CommunityDetailView({
         </MainColumn>
 
         {showRail ? (
-          <Rail
-            aria-labelledby="community-region-rail-title"
-            data-community-region-sidebar="true"
+          <RailColumn
+            $adjacentOnly={!showRegionRail}
+            data-community-rail="true"
           >
-            <RailTitle id="community-region-rail-title">
-              {railRegionName} 최신 글
-            </RailTitle>
-            {relatedStatus === 'loading' ? (
-              <RailMessage role="status">
-                관련 글을 불러오는 중이에요.
-              </RailMessage>
-            ) : relatedStatus === 'error' ? (
-              <>
-                <RailMessage role="alert">
-                  {relatedErrorMessage ?? '관련 글을 불러오지 못했어요.'}
-                </RailMessage>
-                <RailButton type="button" onClick={onRetryRelated}>
-                  다시 시도
-                </RailButton>
-              </>
-            ) : relatedStatus === 'ready' && relatedPosts.length > 0 ? (
-              <RelatedList>
-                {relatedPosts.map(post => (
-                  <li key={post.postId}>
-                    <RelatedLink
-                      href={createDetailPostHref(
-                        post.postId,
-                        contextKey,
-                        mockEnabled,
-                      )}
-                    >
-                      <RelatedTitle>{post.title}</RelatedTitle>
-                      <RelatedExcerpt>
-                        {getCommunityExcerpt(post.previewContent, 46)}
-                      </RelatedExcerpt>
-                    </RelatedLink>
-                  </li>
-                ))}
-              </RelatedList>
-            ) : (
-              <>
-                <RailMessage>
-                  {railRegionName}의 다음 이야기를 남겨 보세요
-                </RailMessage>
-                <RailWriteLink href={writeHref}>글쓰기</RailWriteLink>
-              </>
-            )}
-          </Rail>
+            {railAdjacent ? (
+              <RailAdjacent
+                aria-label="이전 및 다음 게시글"
+                data-community-rail-adjacent="true"
+              >
+                <RailAdjacentList>
+                  {railAdjacent.previous ? (
+                    <li>
+                      <RailAdjacentLink
+                        href={createDetailPostHref(
+                          railAdjacent.previous.postId,
+                          railAdjacent.contextKey,
+                          mockEnabled,
+                        )}
+                      >
+                        <AdjacentLabel>이전 글</AdjacentLabel>
+                        <RelatedTitle>
+                          {railAdjacent.previous.title}
+                        </RelatedTitle>
+                      </RailAdjacentLink>
+                    </li>
+                  ) : null}
+                  {railAdjacent.next ? (
+                    <li>
+                      <RailAdjacentLink
+                        href={createDetailPostHref(
+                          railAdjacent.next.postId,
+                          railAdjacent.contextKey,
+                          mockEnabled,
+                        )}
+                      >
+                        <AdjacentLabel>다음 글</AdjacentLabel>
+                        <RelatedTitle>{railAdjacent.next.title}</RelatedTitle>
+                      </RailAdjacentLink>
+                    </li>
+                  ) : null}
+                </RailAdjacentList>
+              </RailAdjacent>
+            ) : null}
+            {showRegionRail ? (
+              <Rail
+                aria-labelledby="community-region-rail-title"
+                data-community-region-sidebar="true"
+              >
+                <RailTitle id="community-region-rail-title">
+                  {railRegionName} 최신 글
+                </RailTitle>
+                {relatedStatus === 'loading' ? (
+                  <RailMessage role="status">
+                    관련 글을 불러오는 중이에요.
+                  </RailMessage>
+                ) : relatedStatus === 'error' ? (
+                  <>
+                    <RailMessage role="alert">
+                      {relatedErrorMessage ?? '관련 글을 불러오지 못했어요.'}
+                    </RailMessage>
+                    <RailButton type="button" onClick={onRetryRelated}>
+                      다시 시도
+                    </RailButton>
+                  </>
+                ) : relatedStatus === 'ready' && relatedPosts.length > 0 ? (
+                  <RelatedList>
+                    {relatedPosts.map(post => (
+                      <li key={post.postId}>
+                        <RelatedLink
+                          href={createDetailPostHref(
+                            post.postId,
+                            contextKey,
+                            mockEnabled,
+                          )}
+                        >
+                          <RelatedTitle>{post.title}</RelatedTitle>
+                          <RelatedExcerpt>
+                            {getCommunityExcerpt(post.previewContent, 46)}
+                          </RelatedExcerpt>
+                        </RelatedLink>
+                      </li>
+                    ))}
+                  </RelatedList>
+                ) : (
+                  <>
+                    <RailMessage>
+                      {railRegionName}의 다음 이야기를 남겨 보세요
+                    </RailMessage>
+                    <RailWriteLink href={writeHref}>글쓰기</RailWriteLink>
+                  </>
+                )}
+              </Rail>
+            ) : null}
+          </RailColumn>
         ) : null}
       </Layout>
 
