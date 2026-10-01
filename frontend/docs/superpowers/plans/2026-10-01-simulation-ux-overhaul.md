@@ -311,6 +311,15 @@ e2e(`pnpm test:e2e`)에 시뮬레이션 시나리오를 추가한다. 375와 144
 > - C6: 컨테이너는 계획의 `centeredColumn(--w-wide)` 대신 셸 + 본문 묶음 `--w-wide` 상한(왼쪽 정렬) — 입력·리포트와 같은 방식이다.
 > - 실측(dev 백엔드): 375 비교 후 높이 1,524px(목표 ≤1,800 · 전 약 3,245), 결과 시작 341px. 1440 트랙 360px. 조건을 고치면 opacity .45 + 안내, `다시 비교하기` 후 제목 포커스·URL 갱신(brandName 유지). 없는 브랜드(999999)를 B 에 두면 `조건 B를 확인해 주세요.` + `조건 B 브랜드 다시 선택` → B 편집기 브랜드 `변경` 으로 포커스.
 > - 리뷰 반영(블록 1건): 쌍 오류를 `SimulationPairError` 로 감싸자 React Query 재시도 판정이 래퍼를 `client` 로 읽어 **5xx·네트워크 자동 재시도가 꺼졌다** — `unwrapSimulationPairError` 로 벗겨 판정한다. 그 밖에 480–767 에서 A·B 막대가 반대쪽에 붙던 것(row-reverse 의 정렬), 「조건 고치기」 뒤 포커스 유실, 다시 비교 후 결과가 화면 위로 지나간 경우의 스크롤, brandName 만 다를 때 눌러도 반응 없는 `비교하기`(같은 계산 판정을 href 대신 요청 쌍으로), 봉투 실패의 쪽 판정 기준을 고쳤다. 판정은 `isSameSimulationComparePair` · `resolveSimulationPairFailedSide` 순수 함수로 빼 테스트했다.
+>
+> **PR 11 진행 기록** — X1 · X3 · X4 · B11. 계획과 달라진 점:
+>
+> - X1: BE 검증 문구(`SimulationValidationMessage`)는 이미 한국어였고, 영문은 목록 머리(`<strong>storeSize</strong>`)뿐이었다. 섹션 이름이 아니라 **필드 이름**(`매장 면적`)으로 바꿨다 — 매장 조건 섹션에는 면적·층 두 칸이 있다.
+> - X3: 뒷페이지 빈 문구·삭제 ghost 는 넣었고 **되돌리기 토스트는 넣지 않았다.** 지운 뒤 다시 저장하면 프랜차이즈 기록은 `franchiseeId` 가 없어 되살릴 수 없고, 지연 삭제는 같은 화면의 분석 보관함 삭제와 규칙이 갈린다.
+> - B11: **실제 마우스로는 재현되지 않았다**(gstack click → `:focus-visible` false, outline none). 키보드 Enter 로 고르면 새 헤더에 링이 그려진다(의도대로). 코드는 바꾸지 않고 DESIGN 에 근거를 남겼다(Chromium 실측, Safari 미확인).
+> - 성공 기준 「axe 위반 0건」은 **못 맞췄다.** 입력·리포트·비교(1440·375) axe(wcag2a/aa) 결과 남은 위반은 `color-contrast` 하나뿐이고, 전부 전역 토큰 `--color-primary-700` 이 blue500(#0ea5e9)에 묶여 있어서다 — primary 버튼 흰 글자 2.77, blue50 위 secondary·배지 2.46, 사이트 헤더 내비·회원가입 포함. DESIGN 2026-09-11 결정(blue700/800)의 미구현분으로, 이 계획 밖 작업(공용 Button/Badge 토큰)이다. 이 계획이 만든 위반(PR 9 의 선택 카드 위 grey600 캡션 4.11 — 접힌 줄 `합계`와 펼친 항목 이름)은 고쳤다. 펼친 항목 이름은 닫힌 `<details>` 라 axe 가 못 보고 리뷰에서 계산으로 찾았다.
+>
+> **계획 마감(2026-10-01)** — PR 1~11 을 모두 올렸다. 남은 것: 전역 primary 토큰 대비(위), 입력 화면 결과 패널의 짧은 창 sticky(PR 8 기록), `franchiseeId` 타입 드리프트(PR 9 기록), Q2(터치 영역 공용 변경)·Q5(브랜드 기본 정렬, BE 문의).
 
 ---
 
