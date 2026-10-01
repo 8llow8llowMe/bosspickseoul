@@ -21,6 +21,7 @@ const GlobalStyles = createGlobalStyle`
     --color-blue-50: #e8f3ff;
     --color-blue-500: #0ea5e9;
     --color-blue-600: #2272eb;
+    --color-blue-700: #1a5fcc; /* blue600 과 색상각 같음. 글자용 — 흰 바탕 5.91:1 */
     --color-grey-50: #f9fafb;
     --color-grey-100: #f2f4f6;
     --color-grey-200: #e5e8eb;
@@ -63,6 +64,12 @@ const GlobalStyles = createGlobalStyle`
      */
     --color-positive-text: var(--color-green-700);
     --color-negative-text: var(--color-red-700);
+    /*
+     * 밝은 바탕(흰색·blue50·grey50·grey100) 위의 **파란 글자**. primary-700(= blue500)은
+     * 흰 바탕 2.77:1 이라 글자에 못 쓴다. 포커스 링·테두리는 primary-700 그대로 두고
+     * 글자만 이 토큰으로 간다(contrast-tokens.md D3-3, DESIGN.md §2 Blue Text).
+     */
+    --color-text-primary-on-light: var(--color-blue-700);
     --color-text-900: #191f28;
     --color-text-800: var(--color-grey-800);
     --color-text-700: var(--color-grey-700);
