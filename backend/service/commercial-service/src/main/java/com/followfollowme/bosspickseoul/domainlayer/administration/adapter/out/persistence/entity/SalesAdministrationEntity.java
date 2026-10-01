@@ -27,7 +27,10 @@ import org.hibernate.annotations.Comment;
     name = "sales_administration",
     indexes = {
         // MySQL 식별자 길이 한계(64자) 때문에 administration을 admin으로 축약한다. (원래 이름 69자 → DDL 실패)
-        @Index(name = "idx_sales_administration_period_code_admin_code_service_code", columnList = "periodCode, administrationCode, serviceCode")
+        @Index(name = "idx_sales_administration_period_code_admin_code_service_code", columnList = "periodCode, administrationCode, serviceCode"),
+        // 분석 기준 분기 카탈로그(analysisperiod)의 SELECT DISTINCT period_code ... WHERE spatial_version = ? 가 loose index scan
+        // (Using index for group-by)을 타게 한다. 기존 키는 period_code 와 spatial_version 사이에 다른 컬럼이 있어 전체를 읽는다(#464).
+        @Index(name = "idx_sales_administration_period_code_spatial_version", columnList = "periodCode, spatialVersion")
     },
     uniqueConstraints = @UniqueConstraint(
         name = "uk_sales_admin_period_admin_svc_spatial",
