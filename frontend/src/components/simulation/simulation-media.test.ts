@@ -34,10 +34,12 @@ const LITERAL_MEDIA = /@media(?!\s*\$\{)|matchMedia\(\s*['"`]/
 
 describe('SIMULATION_MEDIA', () => {
   it('세 단계가 767 / 1023 / 1024 경계로 겹치지도 비지도 않는다', () => {
+    // 상한을 .98 로 끝내야 1023 과 1024 사이 소수 폭(확대 배율)이 어느 단계에도 안 드는 틈이 없다.
     expect(SIMULATION_MEDIA).toEqual({
-      mobile: '(max-width: 767px)',
-      belowDesktop: '(max-width: 1023px)',
+      mobile: '(max-width: 767.98px)',
+      belowDesktop: '(max-width: 1023.98px)',
       desktop: '(min-width: 1024px)',
+      desktopTall: '(min-width: 1024px) and (min-height: 680px)',
     })
   })
 
