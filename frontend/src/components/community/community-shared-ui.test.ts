@@ -320,4 +320,12 @@ describe('community shared UI style contracts', () => {
     expect(styles).not.toMatch(/(?:color|background):white/)
     expect(styles).not.toContain('rgba(')
   })
+
+  it('피드백 카드는 커뮤니티 모바일 분기(479)를 쓰고 레거시 640·760·768 을 쓰지 않는다', () => {
+    const { styles } = renderWithStyles(CommunityFeedback, { kind: 'empty' })
+
+    expect(styles).toMatch(/@media \(max-width:\s*479px\)/)
+    // 커뮤니티는 레거시 640·760·768 을 쓰지 않는다(community.md §S4).
+    expect(styles).not.toMatch(/(max|min)-width:\s*(640|760|768)px/)
+  })
 })
