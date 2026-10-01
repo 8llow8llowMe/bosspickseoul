@@ -927,7 +927,7 @@ stroke 굵기나 파랑 계열을 직접 정하지 않는다.
   /simulation/compare
   /community/list            커뮤니티 피드 + 검색
   /community/[communityId]   게시글 상세 + 댓글
-  /community/register        글쓰기/수정 (?id= / ?from=compare)
+  /community/register        글쓰기/수정 (?postId= / ?draftSource=comparison)
   /chatting/list             채팅방 리스트
   /chatting/[roomId]         채팅방 상세
   /share/[token]             공유 토큰 리포트 (비로그인 가능)
@@ -1280,7 +1280,7 @@ idle → submitting → ┬── cached (200)        → completed
 
 **S-COM-3. `/community/register` (작성·수정 겸용)** (개편 3단계, 2026-10-01 — 동작 정본은 community.md §S4 「개편 3단계」)
 
-- **목적**: 쓰고 싶은 말부터 쓰고, 쓴 글을 잃지 않는다. `?postId=` 면 수정, `?from=compare…` 면 비교 초안, `?targetType=&targetCode=&targetName=` 면 지역 프리필
+- **목적**: 쓰고 싶은 말부터 쓰고, 쓴 글을 잃지 않는다. `?postId=` 면 수정, `?draftSource=comparison…` 면 비교 초안, `?targetType=&targetCode=&targetName=` 면 지역 프리필
 - **레이아웃**: 지역 칩(→ 지역 선택 시트) → 제목(테두리 없는 20/600, 밑줄 포커스) → 본문(자동 높이, 최소 8줄) → 사진 줄(72, 첫 장 `대표`, `+` 타일). 본문이 비면 작성 도움 칩 3개
   - `<480`: 사이트 헤더 아래 sticky 편집 바 `[✕] 새 글 [등록]`
   - `≥480`: 제목 한 줄 + 하단 sticky 액션 바 `[취소] [등록하기]`(safe-area). `≥1080` 은 오른쪽 작성 팁 카드
@@ -1427,7 +1427,7 @@ idle → submitting → ┬── cached (200)        → completed
 **J3. 비교 분석 → 커뮤니티 글쓰기**
 
 1. `/analysis/result` AI 결과 → `커뮤니티에 공유` 버튼
-2. `/community/register?from=compare&left=...&right=...` 진입
+2. `/community/register?draftSource=comparison&leftCommercialCode=...&rightCommercialCode=...&serviceCode=...&administrationCode=...` 진입
 3. 백엔드 초안 자동 채움 → 사용자 수정 → `POST /community/posts` → `/community/[id]`
 
 **J4. 신고**
