@@ -7,18 +7,20 @@ import { CHART_COLORS } from '@/components/analysis/charts/chart-theme'
 import { Badge } from '@/components/ui/badge'
 import { ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
-import { formatStoreSize } from '@/lib/simulation/conditions'
 import {
+  describeCompareConditionLine,
+  describeMirrorRowGap,
   describeSimulationCostGap,
   formatMirrorAmount,
   SIMULATION_COMPARE_NEUTRAL_NOTICE,
   SIMULATION_COMPARE_SIDE_LABELS,
+  SIMULATION_COMPARE_SIDE_MARKS,
   toMirrorCostRows,
 } from '@/lib/simulation/compare-presentation'
 import { buildSimulationReportHref } from '@/lib/simulation/report-route'
 import type { SimulationReportVariant } from '@/lib/simulation/report-route'
 import { buildSimulationReportRequest } from '@/lib/api/simulation'
-import type { SimulationCondition, SimulationReport } from '@/types/simulation'
+import type { SimulationReport } from '@/types/simulation'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationCompareColumnsProps = {
@@ -26,6 +28,9 @@ export type SimulationCompareColumnsProps = {
   right: SimulationReport
   variant?: SimulationReportVariant
 }
+
+/** 결과 제목 id. 비교에 성공하면 화면이 여기로 스크롤하고 포커스를 옮긴다(C3). */
+export const SIMULATION_COMPARE_RESULT_HEADING_ID = 'simulation-compare-result'
 
 const Root = styled.section`
   display: grid;
@@ -40,11 +45,22 @@ const Root = styled.section`
     padding: 20px;
   }
 
+  /* 프로그램으로 포커스를 받는 제목이라 tabIndex -1. sticky 사이트 헤더(65px) 아래로 스크롤한다. */
   h2 {
+    scroll-margin-top: 96px;
     color: var(--color-text-900);
     font-size: 17px;
     font-weight: 700;
     line-height: 26px;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary-700);
+      outline-offset: 2px;
+    }
   }
 `
 
@@ -129,11 +145,17 @@ const Notice = styled.p`
   }
 `
 
-const Rows = styled.dl`
+/* 범례 + 항목 행. 범례(ul)는 dl 안에 둘 수 없어 묶음을 따로 둔다. */
+const Breakdown = styled.div`
   display: grid;
   gap: 12px;
   border-top: 1px solid var(--color-border-200);
   padding-top: 16px;
+`
+
+const Rows = styled.dl`
+  display: grid;
+  gap: 12px;
 `
 
 const Row = styled.div`
@@ -141,11 +163,67 @@ const Row = styled.div`
   gap: 6px;
 `
 
+/*
+  항목 이름 + 행별 차액(C7). 차액은 이름 **바로 옆**에 붙인다 — 양 끝으로 벌리면 1440 에서 둘이
+  1,300px 떨어져 같은 줄로 읽히지 않았다.
+*/
 const RowLabel = styled.dt`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 2px 12px;
   color: var(--color-text-600);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
+
+  span {
+    color: var(--color-text-900);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+`
+
+/* 범례. 막대 색과 A·B 표식을 묶어 둔다 — 색만으로는 두 계열을 가를 수 없다(C4). */
+const Legend = styled.ul`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-700);
+    font-size: 13px;
+    line-height: 20px;
+  }
+`
+
+const LegendSwatch = styled.i<{ $side: 'left' | 'right' }>`
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: ${props =>
+    props.$side === 'left'
+      ? CHART_COLORS.seriesPrimary
+      : CHART_COLORS.seriesSecondary};
+`
+
+/* 막대 앞 A·B 표식. 색이 아니라 글자라 색을 가르지 못해도 읽힌다. */
+const Mark = styled.span`
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-700);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 `
 
 /**
@@ -178,19 +256,35 @@ const Half = styled.div<{ $side: 'left' | 'right' }>`
   min-width: 0;
   display: flex;
   align-items: center;
+  /* 트랙에 상한이 생겨 칸이 남는다. 두 트랙이 가운데에서 만나도록 왼쪽은 오른쪽 끝, 오른쪽은
+     왼쪽 끝에 붙이고, 금액·표식은 트랙 바깥에 바로 붙인다. */
+  justify-content: ${props =>
+    props.$side === 'left' ? 'flex-end' : 'flex-start'};
   gap: 8px;
 
+  /*
+    세로로 쌓이면 두 줄 모두 오른쪽 끝에 붙인다. row-reverse 에서는 flex-start 가 오른쪽 끝이다 —
+    둘 다 flex-end 로 두면 트랙 상한(360) 때문에 남는 칸이 생기는 480~767 폭에서 A 는 오른쪽,
+    B 는 왼쪽에 붙어 같은 항목의 두 막대가 엇갈렸다.
+  */
   @media ${SIMULATION_MEDIA.mobile} {
     flex-direction: ${props =>
       props.$side === 'right' ? 'row-reverse' : 'row'};
-    justify-content: flex-end;
+    justify-content: ${props =>
+      props.$side === 'right' ? 'flex-start' : 'flex-end'};
   }
 `
 
+/*
+  미터 트랙은 360px · 14px 에서 멈춘다(DESIGN §미터 행, C6). 상한이 없으면 1440 에서 약 59:1 이 돼
+  양쪽 끝의 금액과 막대를 눈으로 잇기 어려웠다. 360:14 ≈ 26:1 이지만 두 막대가 가운데에서
+  마주 보는 미러라 한쪽 길이만 읽는다.
+*/
 const Track = styled.div`
   flex: 1 1 auto;
   min-width: 0;
-  height: 10px;
+  max-width: 360px;
+  height: 14px;
   border-radius: 999px;
   background: var(--color-surface-muted);
   overflow: hidden;
@@ -233,18 +327,6 @@ const Links = styled.div`
     grid-template-columns: minmax(0, 1fr);
   }
 `
-
-/** 조건 한 줄. 리포트 헤드라인의 조건 표를 좁은 컬럼용으로 눌러 담은 것이다. */
-const describeConditionLine = (condition: SimulationCondition): string => {
-  const parts = [
-    condition.districtName,
-    condition.serviceName,
-    formatStoreSize(condition.storeSize),
-    condition.floorType.name,
-  ]
-  if (condition.brandName) parts.splice(2, 0, condition.brandName)
-  return parts.join(' · ')
-}
 
 /**
  * 응답의 조건을 다시 요청 본문으로 옮긴다 — `상세 리포트 보기` 링크를 만들기 위해서다.
@@ -289,7 +371,9 @@ export default function SimulationCompareColumns({
 
   return (
     <Root aria-label="조건 비교 결과">
-      <h2>예상 총 창업 비용 비교</h2>
+      <h2 id={SIMULATION_COMPARE_RESULT_HEADING_ID} tabIndex={-1}>
+        예상 총 창업 비용 비교
+      </h2>
 
       <Heads>
         <Head $lower={gap.winner === 'left'}>
@@ -300,7 +384,9 @@ export default function SimulationCompareColumns({
             ) : null}
           </Side>
           <Total>{formatLargeWon(left.totalPrice)}</Total>
-          <ConditionLine>{describeConditionLine(left.condition)}</ConditionLine>
+          <ConditionLine>
+            {describeCompareConditionLine(left.condition)}
+          </ConditionLine>
         </Head>
 
         <Head $lower={gap.winner === 'right'}>
@@ -312,7 +398,7 @@ export default function SimulationCompareColumns({
           </Side>
           <Total>{formatLargeWon(right.totalPrice)}</Total>
           <ConditionLine>
-            {describeConditionLine(right.condition)}
+            {describeCompareConditionLine(right.condition)}
           </ConditionLine>
         </Head>
       </Heads>
@@ -324,27 +410,52 @@ export default function SimulationCompareColumns({
         <span>{SIMULATION_COMPARE_NEUTRAL_NOTICE}</span>
       </Notice>
 
-      <Rows>
-        {rows.map(row => (
-          <Row key={row.key}>
-            <RowLabel>{row.label}</RowLabel>
-            <Mirror>
-              <Half $side="left">
-                <Amount>{formatMirrorAmount(row.leftAmount)}</Amount>
-                <Track>
-                  <Fill $ratio={row.leftRatio} $side="left" />
-                </Track>
-              </Half>
-              <Half $side="right">
-                <Track>
-                  <Fill $ratio={row.rightRatio} $side="right" />
-                </Track>
-                <Amount>{formatMirrorAmount(row.rightAmount)}</Amount>
-              </Half>
-            </Mirror>
-          </Row>
-        ))}
-      </Rows>
+      <Breakdown>
+        <Legend aria-label="막대 범례">
+          <li>
+            <LegendSwatch $side="left" aria-hidden="true" />
+            {`${SIMULATION_COMPARE_SIDE_MARKS.left} · ${SIMULATION_COMPARE_SIDE_LABELS.left}`}
+          </li>
+          <li>
+            <LegendSwatch $side="right" aria-hidden="true" />
+            {`${SIMULATION_COMPARE_SIDE_MARKS.right} · ${SIMULATION_COMPARE_SIDE_LABELS.right}`}
+          </li>
+        </Legend>
+        <Rows>
+          {rows.map(row => {
+            const rowGap = describeMirrorRowGap(row)
+            return (
+              <Row key={row.key}>
+                <RowLabel>
+                  {row.label}
+                  {rowGap ? (
+                    <>
+                      {' '}
+                      <span>{rowGap}</span>
+                    </>
+                  ) : null}
+                </RowLabel>
+                <Mirror>
+                  <Half $side="left">
+                    <Mark>{SIMULATION_COMPARE_SIDE_MARKS.left}</Mark>
+                    <Amount>{formatMirrorAmount(row.leftAmount)}</Amount>
+                    <Track>
+                      <Fill $ratio={row.leftRatio} $side="left" />
+                    </Track>
+                  </Half>
+                  <Half $side="right">
+                    <Track>
+                      <Fill $ratio={row.rightRatio} $side="right" />
+                    </Track>
+                    <Amount>{formatMirrorAmount(row.rightAmount)}</Amount>
+                    <Mark>{SIMULATION_COMPARE_SIDE_MARKS.right}</Mark>
+                  </Half>
+                </Mirror>
+              </Row>
+            )
+          })}
+        </Rows>
+      </Breakdown>
 
       <Links>
         <ButtonLink

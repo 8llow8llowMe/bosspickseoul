@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  describeCompareConditionLine,
+  describeMirrorRowGap,
   describeSimulationCostGap,
   formatMirrorAmount,
   SIMULATION_COMPARE_NEUTRAL_NOTICE,
@@ -202,5 +204,58 @@ describe('formatMirrorAmount', () => {
     expect(formatMirrorAmount(null)).toBe('해당 없음')
     expect(formatMirrorAmount(0)).toBe('0원')
     expect(formatMirrorAmount(23_450)).toBe('2억 3,450만원')
+  })
+})
+
+/* C7 — 행마다 차액이 없으면 「어느 항목에서 얼마나 갈렸나」를 두 숫자를 빼서 알아내야 했다. */
+describe('describeMirrorRowGap (C7)', () => {
+  const rowOf = (key: string) => {
+    const rows = toMirrorCostRows(
+      report({
+        costDetail: {
+          rentPrice: 300,
+          deposit: 3_000,
+          interior: 5_000,
+          levy: 0,
+        },
+      }),
+      report({
+        costDetail: {
+          rentPrice: 450,
+          deposit: 3_000,
+          interior: 3_871,
+          levy: null,
+        },
+      }),
+    )
+    const row = rows.find(item => item.key === key)
+    if (!row) throw new Error(`row ${key} missing`)
+    return row
+  }
+
+  it('적은 쪽과 차액을 말한다', () => {
+    expect(describeMirrorRowGap(rowOf('rentPrice'))).toBe('A가 150만원 적어요')
+    expect(describeMirrorRowGap(rowOf('interior'))).toBe('B가 1,129만원 적어요')
+  })
+
+  it('같으면 같다고 한다', () => {
+    expect(describeMirrorRowGap(rowOf('deposit'))).toBe('같아요')
+  })
+
+  it('한쪽이 해당 없음이면 차액을 말하지 않는다 — 없는 비용과 0원은 다르다', () => {
+    expect(describeMirrorRowGap(rowOf('levy'))).toBeNull()
+  })
+})
+
+describe('describeCompareConditionLine', () => {
+  it('브랜드가 있으면 업종 뒤에 넣고 면적은 ㎡·평으로 쓴다', () => {
+    expect(
+      describeCompareConditionLine({
+        ...report().condition,
+        franchisee: true,
+        franchiseeId: 9,
+        brandName: '맛나감자탕',
+      }),
+    ).toBe('강동구 · 한식음식점 · 맛나감자탕 · 66㎡ (약 20평) · 1층')
   })
 })

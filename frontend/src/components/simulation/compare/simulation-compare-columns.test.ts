@@ -171,3 +171,50 @@ describe('SimulationCompareColumns', () => {
     expect(markup).toContain('1층')
   })
 })
+
+describe('SimulationCompareColumns — 읽는 단서 (C3·C4·C7)', () => {
+  const markup = () =>
+    render(
+      report({
+        costDetail: {
+          rentPrice: 300,
+          deposit: 3_000,
+          interior: 5_000,
+          levy: null,
+        },
+      }),
+      report({
+        costDetail: {
+          rentPrice: 450,
+          deposit: 3_000,
+          interior: 3_871,
+          levy: null,
+        },
+      }),
+    )
+
+  it('막대마다 A·B 글자 표식을 붙이고 범례를 둔다 — 색만으로 가르지 않는다', () => {
+    const html = markup()
+
+    expect(html).toContain('aria-label="막대 범례"')
+    expect(html).toContain('A · 조건 A')
+    expect(html).toContain('B · 조건 B')
+    // 행 3개 × 좌우 1개씩.
+    expect(html.match(/>A<\/span>/g)).toHaveLength(3)
+    expect(html.match(/>B<\/span>/g)).toHaveLength(3)
+  })
+
+  it('행마다 차액을 적는다', () => {
+    const html = markup()
+
+    expect(html).toContain('A가 150만원 적어요')
+    expect(html).toContain('같아요')
+    expect(html).toContain('B가 1,129만원 적어요')
+  })
+
+  it('결과 제목은 프로그램으로 포커스를 받을 수 있다 — 비교 뒤 결과로 데려간다', () => {
+    expect(markup()).toMatch(
+      /<h2 id="simulation-compare-result" tabindex="-1">예상 총 창업 비용 비교<\/h2>/,
+    )
+  })
+})
