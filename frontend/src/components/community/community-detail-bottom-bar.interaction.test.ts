@@ -251,6 +251,42 @@ describe('하단 고정 바 — 보이기(CM-027)', () => {
     expect(getBar()).not.toBeNull()
   })
 
+  it('댓글이 도착해 입력칸이 새로 생겨도 첫 관찰 결과 전까지 떠 있던 바를 그대로 둔다(깜빡임·slide-up 반복 없음)', () => {
+    stubMatchMedia(true)
+    const { props, rerender } = renderView({
+      commentsStatus: 'loading',
+      comments: [],
+    })
+
+    report(REACTIONS, false)
+    const bar = getBar()
+    const spacer = document.body.querySelector(
+      '[data-community-bottom-bar-spacer]',
+    )
+    expect(bar).not.toBeNull()
+    expect(spacer).not.toBeNull()
+
+    rerender(
+      createElement(CommunityDetailView, {
+        ...props,
+        commentsStatus: 'ready',
+        comments,
+      }),
+    )
+
+    // 입력칸은 관찰을 시작했지만 아직 결과가 없다 — 같은 노드가 남아 있어야 다시 미끄러져 올라오지 않는다.
+    expect(getBar()).toBe(bar)
+    expect(
+      document.body.querySelector('[data-community-bottom-bar-spacer]'),
+    ).toBe(spacer)
+
+    report(COMPOSER, false)
+    expect(getBar()).toBe(bar)
+
+    report(COMPOSER, true)
+    expect(getBar()).toBeNull()
+  })
+
   it('떠나면 관찰을 끊는다', () => {
     stubMatchMedia(true)
     const { unmount } = renderView()

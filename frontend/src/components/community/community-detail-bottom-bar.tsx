@@ -146,7 +146,7 @@ export default function CommunityDetailBottomBar({
   onShare,
 }: CommunityDetailBottomBarProps) {
   const narrow = useNarrowViewport(COMMUNITY_MOBILE_QUERY)
-  /* 요소별 마지막 관찰 결과. 요소가 바뀌면(로그인 CTA ↔ 입력칸 등) 옛 결과는 쓰지 않는다. */
+  /* 요소별 마지막 관찰 결과. 요소가 바뀌면(로그인 CTA ↔ 입력칸 등) 옛 요소의 결과는 버린다. */
   const [intersections, setIntersections] = useState<
     ReadonlyMap<Element, boolean>
   >(() => new Map())
@@ -183,14 +183,29 @@ export default function CommunityDetailBottomBar({
     return () => observer.disconnect()
   }, [narrow, reactionsElement, composerElement])
 
+  /*
+    입력칸 자리의 마지막으로 정해진 값. 입력칸 요소가 바뀌면(댓글 도착으로 null → 입력칸, 로그인 CTA ↔
+    입력칸) 새 요소의 첫 관찰 결과가 오기 전까지 이 값을 그대로 쓴다. 「모름」 으로 두면 떠 있던 바가
+    한 프레임 사라졌다 다시 slide-up 하고, 문서 끝 여백도 같이 출렁인다.
+    렌더 중 갱신은 「이전 렌더 값 저장」 패턴이다 — 이펙트로 미루면 그 한 프레임이 그대로 보인다.
+  */
+  const [heldComposerVisible, setHeldComposerVisible] = useState<
+    boolean | null
+  >(null)
+  const composerKnown = composerElement
+    ? intersections.get(composerElement)
+    : false
+
+  if (composerKnown !== undefined && composerKnown !== heldComposerVisible) {
+    setHeldComposerVisible(composerKnown)
+  }
+
   const visible = shouldShowCommunityBottomBar({
     narrow,
     reactionVisible: reactionsElement
       ? (intersections.get(reactionsElement) ?? null)
       : null,
-    composerVisible: composerElement
-      ? (intersections.get(composerElement) ?? null)
-      : false,
+    composerVisible: composerKnown ?? heldComposerVisible,
   })
 
   if (!visible) {
