@@ -139,7 +139,7 @@ describe('SimulationCompareColumns', () => {
       }),
     )
 
-    expect(markup).toContain('월 임대료')
+    expect(markup).toContain('첫 달 임대료')
     expect(markup).toContain('300만원')
     expect(markup).toContain('600만원')
   })
