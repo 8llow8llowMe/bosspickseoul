@@ -82,10 +82,12 @@ batch:
     failure-cooldown-days: 7
     # 자동 재이관을 볼 첫 분기. 20211~20233 은 legacy-20233 레거시 행이 이관 없이 이미 있어 자동으로 덮어쓰지 않는다.
     reproject-from: "20234"
-  # 분기 적재 스테이징 정리(주간, 기본 off). dataset_staging / dataset_rejected_row 만 지우고, 활성 릴리스가 가리키는 run 은 제외한다.
+  # 분기 적재 스테이징 정리(주간, 기본 off). dataset_staging / dataset_rejected_row 만 run 단위로 지우고, 활성 릴리스가 가리키는 run 은 제외한다.
   staging-purge:
     enabled: ${BATCH_STAGING_PURGE_ENABLED:false}
     cron: ${BATCH_STAGING_PURGE_CRON:0 0 4 ? * SUN}
     published-retention-days: 30
     unpublished-retention-days: 7
     chunk-size: 5000
+    # NEW / RUNNING 인 채 이만큼 지난 run 은 버려진 것으로 보고 FAILED 로 표시한 뒤 스테이징을 지운다.
+    abandoned-after-days: 2
