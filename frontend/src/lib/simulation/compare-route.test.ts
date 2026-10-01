@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildSimulationCompareHref,
+  isSameSimulationComparePair,
   parseSimulationCompareConditionPair,
   parseSimulationComparePair,
+  resolveSimulationPairFailedSide,
 } from '@/lib/simulation/compare-route'
 import type { SimulationReportRequest } from '@/types/simulation'
 
@@ -166,5 +168,79 @@ describe('parseSimulationCompareConditionPair', () => {
 
     expect(pair.left.districtCode).toBeNull()
     expect(pair.right.districtCode).toBeNull()
+  })
+})
+
+/*
+ * C1 — 비교 편집기는 고른 브랜드를 「브랜드 · 변경」 한 줄로 접는다. 그 줄에 이름을 쓰려면 URL 이
+ * 표시용 brandName 을 들고 있어야 한다(id 만으로는 이름을 모른다).
+ */
+describe('buildSimulationCompareHref — 표시용 브랜드명 (C1)', () => {
+  it('프랜차이즈 쪽에만 brandName 을 접두사와 함께 싣는다', () => {
+    const params = readBack(
+      buildSimulationCompareHref(
+        { left: franchise, right: personal },
+        'standalone',
+        { left: '  맛나감자탕 ', right: '무시됨' },
+      ),
+    )
+
+    expect(params.get('a.brandName')).toBe('맛나감자탕')
+    // 개인 창업 쪽은 브랜드가 없다 — 이름이 와도 싣지 않는다.
+    expect(params.get('b.brandName')).toBeNull()
+  })
+
+  it('편집기 초기값으로 이름이 되돌아오고, 조회 요청에는 섞이지 않는다', () => {
+    const params = readBack(
+      buildSimulationCompareHref(
+        { left: franchise, right: personal },
+        'standalone',
+        { left: '맛나감자탕' },
+      ),
+    )
+
+    expect(parseSimulationCompareConditionPair(params).left.brandName).toBe(
+      '맛나감자탕',
+    )
+    expect(parseSimulationComparePair(params).left).toEqual(franchise)
+  })
+})
+
+/*
+ * C2 — 결과 무효화와 「같은 계산 다시」 판정이 이 함수 하나에 걸린다. href 로 견주면 표시용
+ * brandName 만 달라도 다른 조건이 된다.
+ */
+describe('isSameSimulationComparePair', () => {
+  it('좌우가 모두 같아야 같다', () => {
+    expect(
+      isSameSimulationComparePair(
+        { left: personal, right: franchise },
+        { left: { ...personal }, right: { ...franchise } },
+      ),
+    ).toBe(true)
+    expect(
+      isSameSimulationComparePair(
+        { left: personal, right: franchise },
+        { left: personal, right: { ...franchise, storeSize: 41 } },
+      ),
+    ).toBe(false)
+  })
+
+  it('한쪽이 미완성(null)이면 같지 않다', () => {
+    expect(
+      isSameSimulationComparePair(
+        { left: personal, right: null },
+        { left: personal, right: null },
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('resolveSimulationPairFailedSide', () => {
+  it('실패 여부 둘을 쪽으로 바꾼다', () => {
+    expect(resolveSimulationPairFailedSide(true, false)).toBe('left')
+    expect(resolveSimulationPairFailedSide(false, true)).toBe('right')
+    expect(resolveSimulationPairFailedSide(true, true)).toBe('both')
+    expect(resolveSimulationPairFailedSide(false, false)).toBeNull()
   })
 })
