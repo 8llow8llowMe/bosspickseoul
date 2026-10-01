@@ -11,8 +11,13 @@ import Link from 'next/link'
 import { Heart, MessageCircle, Pencil, Search, X } from 'lucide-react'
 import styled from 'styled-components'
 import CommunityFeedback from '@/components/community/community-feedback'
+import CommunityListSkeleton from '@/components/community/community-list-skeleton'
 import CommunityWriter from '@/components/community/community-writer'
+import { useLoadMoreSentinel } from '@/hooks/use-load-more-sentinel'
+import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
+import { useWriteFabCollapsed } from '@/hooks/use-write-fab-collapsed'
 import { formatCommunityCount, formatRelativeTime } from '@/lib/community'
+import { getCommunityFeedFooter } from '@/lib/community/list-feed'
 import type { CommunityListView as CommunityListViewMode } from '@/lib/community/community-state'
 import {
   getCommunityListHeading,
@@ -53,6 +58,7 @@ export type CommunityListViewProps = {
   onViewChange: (view: CommunityListViewMode) => void
   onEmptyAction: () => void
   onRetry: () => void
+  /** 목록 끝 감시 요소가 보이면 자동으로 부른다(CM-029). 버튼은 없다. */
   onLoadMore: () => void
   onRetryLoadMore: () => void
 }
@@ -61,11 +67,15 @@ export type CommunityListViewProps = {
   커뮤니티 구간(DESIGN.md §8 피드형 화면 메모): <480 모바일 · ≥480 태블릿 이상.
   목록은 1단계에서 모든 폭이 --w-read 1단이라 1080 분기는 없다(3단 레일은 4단계).
 */
-const MOBILE = '@media (max-width: 479px)'
+const MOBILE_QUERY = '(max-width: 479px)'
+const MOBILE = `@media ${MOBILE_QUERY}`
 const TABLET_UP = '@media (min-width: 480px)'
 
-/* FAB 와 그 아래 여백. Page 하단 여백이 이 둘 + 16 을 넘어야 마지막 행을 가리지 않는다. */
-const FAB_HEIGHT = 52
+/*
+  FAB 와 그 아래 여백. Page 하단 여백이 이 둘 + 16 을 넘어야 마지막 행을 가리지 않는다.
+  접힌 원형이 56 이라(community.md §S4 FAB) 펼친 알약도 56 으로 맞춘다 — 접을 때 높이가 튀지 않는다.
+*/
+const FAB_HEIGHT = 56
 const FAB_OFFSET = 20
 
 /*
@@ -153,6 +163,12 @@ const DesktopWriteLink = styled(WriteLink)`
   }
 `
 
+/*
+  접기(community.md §S4 FAB): 아래로 내리면 글자를 접어 아이콘만 남은 56 원형, 위로 올리면 편다.
+  폭(auto ↔ 56)은 전환되지 않으므로 좌우 여백·간격·글자 폭을 줄여 자연스럽게 좁힌다 —
+  내용 폭이 56 아래로 내려가면 min-width 가 원형을 지킨다. 접힌 모양은 속성 선택자라
+  hydration 전 정적 CSS 에도 실린다.
+*/
 const MobileWriteLink = styled(WriteLink)`
   display: none;
 
@@ -162,9 +178,40 @@ const MobileWriteLink = styled(WriteLink)`
     right: 16px;
     bottom: calc(${FAB_OFFSET}px + env(safe-area-inset-bottom));
     display: inline-flex;
+    min-width: ${FAB_HEIGHT}px;
     min-height: ${FAB_HEIGHT}px;
     border-radius: var(--radius-pill);
     box-shadow: var(--shadow-level-3);
+    transition:
+      padding var(--motion-standard) var(--ease-standard),
+      gap var(--motion-standard) var(--ease-standard);
+
+    &[data-collapsed='true'] {
+      padding: 0;
+      gap: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+`
+
+const FabLabel = styled.span`
+  max-width: 4em;
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    max-width var(--motion-standard) var(--ease-standard),
+    opacity var(--motion-standard) var(--ease-standard);
+
+  [data-collapsed='true'] > & {
+    max-width: 0;
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `
 
@@ -474,22 +521,32 @@ const Thumbnail = styled.span`
   }
 `
 
-const LoadMoreButton = styled.button`
-  width: 100%;
-  min-height: 48px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text-700);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+/* 목록 끝 감시 요소. 보이지 않는 1px 줄이고 IntersectionObserver 가 여유 400px 앞에서 잡는다. */
+const Sentinel = styled.div`
+  height: 1px;
+`
 
-  &:disabled {
-    cursor: wait;
-    opacity: var(--button-disabled-opacity-color);
-  }
+const FeedEnd = styled.div`
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 24px 0;
+  color: var(--color-text-600);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+`
+
+const FeedEndWriteLink = styled(Link)`
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  color: var(--color-text-primary-on-light);
+  font-size: 14px;
+  font-weight: 600;
 `
 
 const LoadMoreError = styled.div`
@@ -582,6 +639,22 @@ export default function CommunityListView({
   onRetryLoadMore,
 }: CommunityListViewProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const hasLoadMoreError = Boolean(loadMoreErrorMessage)
+  const footer = getCommunityFeedFooter({
+    postsLength: posts.length,
+    hasNextPage,
+    isFetchingNextPage,
+    hasLoadMoreError,
+  })
+  const sentinelRef = useLoadMoreSentinel({
+    hasNextPage,
+    isFetchingNextPage,
+    hasLoadMoreError,
+    onLoadMore,
+  })
+  // `<480` 에서만 스크롤을 듣는다. 폭을 모르는 동안(null)은 펼친 채 둔다.
+  const isMobile = useNarrowViewport(MOBILE_QUERY) === true
+  const fabCollapsed = useWriteFabCollapsed(isMobile)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -682,12 +755,16 @@ export default function CommunityListView({
         </LikedToggle>
       </TabRow>
 
-      <Feed aria-label="커뮤니티 피드" aria-live="polite">
+      {/*
+        피드 전체를 live region 으로 두지 않는다 — 자동 다음 쪽마다 붙은 글을 통째로 읽게 된다.
+        알림은 스켈레톤(role=status)·실패(role=alert)·끝(role=status)이 각자 맡는다.
+      */}
+      <Feed
+        aria-busy={status === 'loading' || isFetchingNextPage}
+        aria-label="커뮤니티 피드"
+      >
         {status === 'loading' ? (
-          <CommunityFeedback
-            description="게시글을 불러오는 중이에요"
-            kind="loading"
-          />
+          <CommunityListSkeleton variant="initial" />
         ) : status === 'error' ? (
           <CommunityFeedback
             actionLabel="다시 시도"
@@ -711,7 +788,11 @@ export default function CommunityListView({
 
                 return (
                   <li key={post.postId}>
-                    <PostLink href={post.href} onClick={post.onNavigate}>
+                    <PostLink
+                      data-community-post-id={post.postId}
+                      href={post.href}
+                      onClick={post.onNavigate}
+                    >
                       {rank ? (
                         <Rank data-post-rank={rank}>
                           <span aria-hidden="true">{rank}</span>
@@ -763,32 +844,39 @@ export default function CommunityListView({
               })}
             </PostList>
 
-            {loadMoreErrorMessage ? (
+            {footer === 'load-more-error' ? (
               <LoadMoreError data-load-more-error="true" role="alert">
                 <span>{loadMoreErrorMessage}</span>
                 <LoadMoreRetryButton onClick={onRetryLoadMore} type="button">
-                  더 보기 다시 시도
+                  다시 불러오기
                 </LoadMoreRetryButton>
               </LoadMoreError>
-            ) : hasNextPage ? (
-              <LoadMoreButton
-                aria-busy={isFetchingNextPage}
-                disabled={isFetchingNextPage}
-                onClick={onLoadMore}
-                type="button"
-              >
-                {isFetchingNextPage
-                  ? '게시글을 더 불러오는 중'
-                  : '게시글 더 보기'}
-              </LoadMoreButton>
+            ) : footer === 'loading-more' ? (
+              <CommunityListSkeleton variant="more" />
+            ) : footer === 'sentinel' ? (
+              <Sentinel
+                aria-hidden="true"
+                data-load-more-sentinel="true"
+                ref={sentinelRef}
+              />
+            ) : footer === 'end' ? (
+              <FeedEnd data-community-list-end="true" role="status">
+                <span>여기까지 다 봤어요</span>
+                <FeedEndWriteLink href={writeHref}>글쓰기</FeedEndWriteLink>
+              </FeedEnd>
             ) : null}
           </>
         )}
       </Feed>
 
-      <MobileWriteLink data-mobile-write-action="true" href={writeHref}>
+      <MobileWriteLink
+        aria-label="글쓰기"
+        data-collapsed={fabCollapsed ? 'true' : 'false'}
+        data-mobile-write-action="true"
+        href={writeHref}
+      >
         <Pencil aria-hidden="true" size={18} />
-        글쓰기
+        <FabLabel>글쓰기</FabLabel>
       </MobileWriteLink>
     </Page>
   )

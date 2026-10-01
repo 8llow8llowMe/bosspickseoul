@@ -16,6 +16,7 @@ import CommunityListView, {
 } from '@/components/community/community-list-view'
 import type { CommunityLocationValue } from '@/components/community/community-location-picker'
 import CommunityRegionSheet from '@/components/community/community-region-sheet'
+import { useCommunityListScrollRestore } from '@/hooks/use-community-list-scroll-restore'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import {
   saveAdjacentPosts,
@@ -40,6 +41,7 @@ import {
   type CommunityListView as CommunityListViewMode,
   type CommunityViewer,
 } from '@/lib/community/community-state'
+import { saveCommunityListScroll } from '@/lib/community/list-scroll'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
   CommunityId,
@@ -637,7 +639,7 @@ export default function CommunityListPage() {
   const viewPosts: CommunityListViewPost[] = posts.map(post => ({
     ...post,
     href: createCommunityPostHref(post.postId, contextKey, state.mock),
-    onNavigate: () => {
+    onNavigate: event => {
       try {
         const adjacent = createCommunityAdjacentState(
           posts,
@@ -648,6 +650,15 @@ export default function CommunityListPage() {
         if (adjacent) {
           saveAdjacentPosts(window.sessionStorage, adjacent)
         }
+
+        // 뒤로 돌아오면 이 행을 같은 화면 높이에 다시 둔다(CM-030).
+        saveCommunityListScroll(window.sessionStorage, {
+          contextKey,
+          postId: post.postId,
+          scrollY: window.scrollY,
+          rowOffset: event.currentTarget.getBoundingClientRect().top,
+          savedAt: Date.now(),
+        })
       } catch {
         // Storage availability must never prevent the native link navigation.
       }
@@ -671,6 +682,7 @@ export default function CommunityListPage() {
       : state.view === 'liked'
         ? 'liked'
         : 'general'
+  useCommunityListScrollRestore({ contextKey, status })
   const writeHref = state.mock
     ? '/community/register?mock=1'
     : hasHydrated && !viewer.authenticated
@@ -764,7 +776,8 @@ export default function CommunityListPage() {
       }
       onEmptyAction={handleEmptyAction}
       onLoadMore={() => {
-        void listQuery.fetchNextPage()
+        // 감시 요소가 같은 순간 두 번 알려도 진행 중 요청을 취소·재시작하지 않는다.
+        void listQuery.fetchNextPage({ cancelRefetch: false })
       }}
       onRetry={() => {
         void listQuery.refetch()
