@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import java.util.Map;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
@@ -32,6 +33,19 @@ class QuartzJobStoreProfileTest {
         assertThat(environment.getProperty("spring.quartz.auto-startup")).isEqualTo("true");
         assertThat(environment.getProperty("spring.quartz.jdbc.initialize-schema")).isEqualTo("never");
         assertThat(environment.getProperty("spring.quartz.properties.org.quartz.jobStore.isClustered")).isEqualTo("true");
+        // QRTZ_*.SCHED_NAME. 이름을 정하기 전에도 SchedulerFactoryBean 빈 이름(quartzScheduler)이 쓰였다. 저장된 dev 행과 맞춘다.
+        assertThat(environment.getProperty("spring.quartz.scheduler-name")).isEqualTo("quartzScheduler");
+    }
+
+    /** 로컬 스케줄 확인용 프로파일은 상시 컨테이너와 다른 스케줄러 이름을 쓴다. dev district 를 잘못 가리켜도 dev 의 Job 을 지우지 않는다. */
+    @Test
+    void localSchedulerProfileUsesItsOwnSchedulerName() {
+        StandardEnvironment environment = environment(new String[] {"local", "scheduler"}, Map.of());
+
+        assertThat(environment.getProperty("spring.quartz.job-store-type")).isEqualTo("jdbc");
+        assertThat(environment.getProperty("spring.quartz.scheduler-name")).isEqualTo("bosspickseoul-batch-local");
+        assertThat(environment(new String[] {"local", "scheduler"}, Map.of("BATCH_QUARTZ_SCHEDULER_NAME", "my-laptop"))
+            .getProperty("spring.quartz.scheduler-name")).isEqualTo("my-laptop");
     }
 
     @ParameterizedTest
@@ -46,10 +60,14 @@ class QuartzJobStoreProfileTest {
     }
 
     private static StandardEnvironment environment(String profile, Map<String, Object> properties) {
+        return environment(new String[] {profile}, properties);
+    }
+
+    private static StandardEnvironment environment(String[] profiles, Map<String, Object> properties) {
         StandardEnvironment environment = IsolatedEnvironment.create();
         // System properties 는 JVM 전역이라 다른 테스트로 샌다. 이 환경에만 붙인다.
         environment.getPropertySources().addFirst(new MapPropertySource("test", properties));
-        environment.setActiveProfiles(profile);
+        environment.setActiveProfiles(profiles);
         ConfigDataEnvironmentPostProcessor.applyTo(environment);
         return environment;
     }
