@@ -80,6 +80,20 @@ PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e
 CI 에서 돌리려면 `pnpm exec playwright install --with-deps chromium` 과 프로덕션 서버
 기동(`pnpm build && pnpm start -p 5173`)을 파이프라인에 따로 넣는다.
 
+**지금 CI 에서 돌지 않는다(2026-10-01 결정).** 커뮤니티 슈트는 프로덕션 빌드에서도 돈다(로컬 3회 연속
+29/29). 다만 Jenkins 프론트 빌드는 x86_64 에이전트에서 도커 이미지 없이 돌아, 에이전트에 Chromium 과
+시스템 의존성을 먼저 깔아야 한다. 그 결정과 연결은 #477 이 맡는다. 그때까지 커뮤니티 화면을 바꾼 PR 은
+아래 둘 중 하나를 로컬에서 돌리고 PR 본문 「검증 내역」에 적는다.
+
+```bash
+# dev 서버(5173)
+pnpm test:e2e e2e/community
+
+# 프로덕션 빌드 — dev 서버를 먼저 끈다(빌드가 .next 를 다시 쓴다)
+pnpm build && pnpm start -p 5173
+PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e e2e/community
+```
+
 ### 3. 대상과 결정론
 
 첫 슬라이스는 홈(`/`) 감사 지표다.
@@ -102,23 +116,41 @@ CI 에서 돌리려면 `pnpm exec playwright install --with-deps chromium` 과 �
 - 측정은 **스크롤 0 지점**에서 한 번만 한다. 스크롤하면 `IntersectionObserver` 게이트가
   풀려 BFF 호출 수가 달라지고 앵커 채움 상태가 바뀐다.
 
-두 번째 슬라이스는 커뮤니티다. dev 백엔드에 글이 없어(BE #190) **`?mock=1` 목 모드**로 연다 —
-dev 서버에서만 켜지므로 프로덕션 빌드(`pnpm start`)에서는 돌지 않는다. 기준선 없이 이진 단언만 둔다.
+두 번째 슬라이스는 커뮤니티다. 기준선 없이 이진 단언만 둔다. 화면은 **실데이터 경로 그대로** 열고,
+브라우저가 내보내는 BFF 호출만 `page.route` 로 고정 응답을 준다(#469). 그래서 dev 서버와 프로덕션
+빌드에서 같은 슈트가 돈다. 예전의 `?mock=1` 목 모드는 `NODE_ENV !== 'production'` 에서만 켜져
+프로덕션 빌드에서 돌지 않았다.
 
-| 파일                                 | 무엇(잠그는 TC, `docs/features/community/community.md` S5)                                     |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `e2e/community/measure.ts`           | 목 모드 진입·콘솔/BFF 기록·스크롤(rAF 두 프레임 대기) 헬퍼                                     |
-| `e2e/community/invariants.spec.ts`   | 목록·상세·글쓰기 가로 넘침·그려진 h1 하나·콘솔 오류 0(CM-014), 모바일 첫 화면 글 행 ≥3(CM-015) |
-| `e2e/community/list.spec.ts`         | 폭별 골격 3단·2단·1단(CM-037·038), 숨는 헤더(CM-043), 뒤로 가기 스크롤 복원(CM-030)            |
-| `e2e/community/region-sheet.spec.ts` | 지역 시트 Esc 는 URL 그대로·칩 포커스(CM-016), `강남구 전체` 확정(CM-017)                      |
-| `e2e/community/detail.spec.ts`       | 본문·레일 간격 ≤24(CM-020), 모바일 하단 바·입력칸 포커스(CM-027·028), 라이트박스(CM-041)       |
-| `e2e/community/register.spec.ts`     | 새로고침을 건넌 임시 저장 `이어 쓰기`(CM-034)                                                  |
+- 응답은 **목 데이터 소스(`createCommunityMockSource`)가 만든다.** fixture 를 두 벌 두지 않는다.
+  목 소스가 이미 실제 응답 타입(`CommunityDataSource`)을 지킨다. 테스트마다 새 소스라 좋아요·댓글
+  상태가 테스트끼리 새지 않는다. 지역 시트의 행정동·상권 목록도 목과 같은 값을 준다.
+- 로그인: 미들웨어는 세션 쿠키가 **있는지만** 본다. 그래서 아무 값이나 담은 쿠키를 둔다(서버는
+  복호화하지 못해 세션 없음으로 읽는다). 화면의 로그인 상태는 `GET /api/auth/me` 를 가로채 목 회원(9001)으로 준다.
+- **가로채지 못한 `/api/bff/*` 호출은 501 로 막고, 테스트 뒤 자동 fixture 가 실패시킨다.** 고정 응답을
+  만들다 난 예외(없는 글·권한 없음·fixture 버그)도 `errors` 에 남겨 같이 실패시킨다 — 실패를 일부러
+  일으키는 테스트는 확인한 뒤 비운다. 라우트는 context 에 걸어 새 탭도 같은 응답을 받는다. CI 에는
+  백엔드가 없다. 새 호출이 조용히 실패하면 화면이 빈 상태로 그려지고, 테스트는 엉뚱한 단언에서 깨진다.
+- 커뮤니티 spec 은 `@playwright/test` 가 아니라 `./test` 에서 `test`·`expect` 를 가져온다.
+  고정 응답이 그 `test` 의 자동 fixture 다.
+
+| 파일                                 | 무엇(잠그는 TC, `docs/features/community/community.md` S5)                                                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/fixtures/community.ts`          | 커뮤니티·지역 BFF 와 `/api/auth/me` 고정 응답(목 데이터 소스 재사용), 가로채지 못한 호출 기록                                                                               |
+| `e2e/community/test.ts`              | 위 고정 응답을 자동으로 까는 `test`, 끝나면 가로채지 못한 호출 0 을 단언                                                                                                    |
+| `e2e/community/measure.ts`           | 목록·상세 진입·콘솔/BFF 기록·스크롤(rAF 두 프레임 대기) 헬퍼                                                                                                                |
+| `e2e/community/invariants.spec.ts`   | 목록·상세·글쓰기 가로 넘침·그려진 h1 하나·콘솔 오류 0(CM-014), 모바일 첫 화면 글 행 ≥3(CM-015)                                                                              |
+| `e2e/community/list.spec.ts`         | 폭별 골격 3단·2단·1단(CM-037·038), 숨는 헤더(CM-043), 뒤로 가기 스크롤 복원(CM-030)                                                                                         |
+| `e2e/community/region-sheet.spec.ts` | 지역 시트 Esc 는 URL 그대로·칩 포커스(CM-016), `강남구 전체` 확정(CM-017)                                                                                                   |
+| `e2e/community/detail.spec.ts`       | 본문·레일 간격 ≤24(CM-020), 모바일 하단 바 두 갈래·입력칸 포커스(CM-027·028), 답글 접기(CM-026), 라이트박스 2장·3장 `→`·스와이프(CM-041), 모바일 사진 줄 점·지금 장(CM-042) |
+| `e2e/community/register.spec.ts`     | 새로고침을 건넌 임시 저장 `이어 쓰기`(CM-034)                                                                                                                               |
 
 - **e2e 는 matchMedia 판정·그리드 배치·IntersectionObserver·포커스 이동·실제 history 이동처럼 렌더
   결과가 있어야 아는 것만** 본다. 문구·URL 조립·저장 키·분기·CSS 문자열(브레이크포인트 479 등)은
   vitest(`src/components/community/*.test.ts`, `src/lib/community/*.test.ts`, jsdom 인터랙션)가 정본이다.
 - 스크롤 복원(CM-030)은 `history.scrollRestoration = 'manual'` 로 **브라우저 기본 복원을 끄고** 잰다.
   목 데이터는 상세가 목록보다 길어 기본 복원이 우연히 맞는 자리에 떨어지고, 그러면 앱 복원이 깨져도 통과한다.
+- 사진 3장 · 답글 5개 댓글은 목 글 9 하나에만 있다(CM-026·041·042). 대상 없는 글이라 지역 피드를
+  흔들지 않는다. 가장 늦게 쓴 글이라 최신순 맨 앞에 온다.
 
 ### 4. 기준선 갱신 규칙
 
