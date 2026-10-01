@@ -5,7 +5,10 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.pe
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetRefreshStateJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetReleaseJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DatasetStagingBulkJdbcAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.DistrictCodeLookupJdbcAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.PensionIncomeDistrictJdbcAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.persistence.ServiceCategoryJdbcAdapter;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.source.PensionIncomeCsvSourceAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.source.SeoulDatasetSourceAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.LegacySpatialJdbcSourceAdapter;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.spatial.SpatialGeoJsonSourceAdapter;
@@ -15,6 +18,9 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.po
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetStagingBulkPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetSourcePort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DistrictCodeLookupPort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.PensionIncomeDistrictBulkPort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.PensionIncomeSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.ServiceCategoryLookupPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.SpatialSourcePort;
@@ -99,6 +105,22 @@ public class QuarterlyImportConfig {
     @Bean
     public ServiceCategoryLookupPort serviceCategoryLookupPort(@Qualifier("commercialJdbcTemplate") JdbcTemplate jdbc) {
         return new ServiceCategoryJdbcAdapter(jdbc);
+    }
+
+    /** 국민연금 자치구 평균소득 원본 보관 위치는 분기 적재 원본과 같은 {@code batch.dataset-source.raw-directory} 다(이슈 #415). */
+    @Bean
+    public PensionIncomeSourcePort pensionIncomeSourcePort(DatasetSourceProperties properties) {
+        return new PensionIncomeCsvSourceAdapter(properties.getRawDirectory());
+    }
+
+    @Bean
+    public DistrictCodeLookupPort districtCodeLookupPort(@Qualifier("commercialJdbcTemplate") JdbcTemplate jdbc) {
+        return new DistrictCodeLookupJdbcAdapter(jdbc);
+    }
+
+    @Bean
+    public PensionIncomeDistrictBulkPort pensionIncomeDistrictBulkPort(@Qualifier("commercialJdbcTemplate") JdbcTemplate jdbc) {
+        return new PensionIncomeDistrictJdbcAdapter(jdbc);
     }
 
     @Bean

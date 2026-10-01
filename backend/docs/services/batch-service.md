@@ -168,6 +168,7 @@ SELECT l.area_code,
 
 - **2024년 표준단위구역 폴리곤이 배포됐는지 확인되지 않았다.** 변환 도구와 절차는 있다(「GEOJSON 파일 만들기」). 2026-09-09 기준 서울시 shapefile은 2023-10-20 파일이라 `LEGACY`(20233)와 같을 수 있고, 게시 전 대조가 필요하다. 새 버전이 생겨도 district-service 지도가 `dataset_spatial_area`를 읽도록 바꾸는 후속 작업이 있어야 화면에 반영된다.
 - commercial-service 가 `dataset_fact` 를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다. 이 서비스는 2024년 1분기 이후를 적재만 하고, `--job=project` 가 기존 팩트 테이블 15종 컬럼 + `spatial_version` 으로 이관한다. `CONSUMPTION_COMMERCIAL` 은 2026-09-15 확인으로 소득·소비 모두 원천이 끊긴 것이 확정됐다(위 「2024년 이후 컬럼 차이」). 월평균소득·소득구간은 조회 도메인에서 제거했고, 소비는 `20234` 이후 게시하지 않는다. 값을 만들지 않는다. `service_type` 도 원천에 없어 NULL 이다.
+- 이슈 #415 2차 배치(국민연금 자치구 평균소득 `--job=pension-income`, 아래 「국민연금 자치구 평균소득 적재」)는 적재까지다. 개발 DB 에 DDL 적용과 첫 적재가 남아 있다.
 - 이슈 #415 1단계(배치)는 행정동 소비 세부 10항목 적재까지다. 배치가 `income_administration` 을 채워도 **commercial-service 조회 도메인은 아직 총액만 읽는다.** 행정동 소비를 상권 화면의 대체 원천으로 쓰는 것(부모 행정동 값 끌어오기, 출처 표기)은 후속 단계다.
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
 - Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.
@@ -211,6 +212,53 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 `--expected-rows`는 **대상 분기 한 개의 행 수**다. 분기 인자를 존중하는 서비스(위 실호출 표의 O)는 `.../1/1/<period>` 한 번 호출한 `list_total_count`가 그 값이다. 분기 인자를 무시하는 서비스(X)는 `list_total_count`가 모든 분기의 합이므로 그대로 쓰면 게시가 항상 실패한다. 값을 모를 때는 `--dry-run=true`로 한 번 실행한다. 게시 단계 예외 메시지에 `expected=… input=… accepted=… rejected=… duplicate=… unmapped=…`가 찍히고, 검증 감사는 게시가 거부돼도 커밋되므로 `dataset_release.accepted_count`에서도 같은 값을 읽을 수 있다. 다만 `expected_rows`는 요청 지문에 포함되므로, 값을 고쳐 다시 실행할 때는 **새 `run-id`** 를 써야 한다.
 
 `--dry-run=false`는 새 run ID로 다시 실행해야 하며, 같은 분기의 이전 release는 삭제하지 않는다. `20233`은 기존 서비스 테이블에서 계속 읽고, 새 release는 공간 버전 인식 조회가 배포될 때까지 기존 API의 기본값으로 사용하지 않는다.
+
+## 국민연금 자치구 평균소득 적재 (이슈 #415)
+
+상권 소득(`income_commercial` 의 월평균소득)은 2024년 이후 원천에서 끊겼다(위 「2024년 이후 컬럼 차이」). 그 자리의 **자치구 단위 대체값**으로 국민연금공단 「자격 시군구 신고 평균소득월액」(공공데이터포털 파일데이터 [3046077](https://www.data.go.kr/data/3046077/fileData.do))을 commercial 스키마의 `pension_income_district` 에 적재한다. 지역가입자(사업장 가입자가 아닌 18~60세 국내 거주자)의 신고 기준소득월액 시군구 평균이다. 이 상권이나 주민 전체의 소득이 아니고, 같은 자치구 안의 상권은 모두 같은 값이다.
+
+**분기 적재가 아니다. 자동 최신화 대상도 아니다.** 원천은 매년 12월 기준 연 1회 스냅샷이라 운영자가 1년에 한 번 파일을 내려받아 `--job=pension-income` 으로 적재한다. 그래서 `Dataset` / 공유 `DatasetKey`(분기 Open API 15종) / `quarterly-import-plan.ps1` / `quarterly-import-coverage.sql` / 자동 최신화에 넣지 않는다. 식별자·헤더 계약은 공유 모듈의 `FileDatasetKey.NPS_DISTRICT_AVERAGE_INCOME`(`sourceId = data.go.kr:3046077`)이고 commercial-service 가 같은 값을 출처로 인용한다. 운영 명령은 [batch-quarterly-import.md](batch-quarterly-import.md) 「11. 국민연금 자치구 평균소득 적재」.
+
+### 원천 사실 (2026-10-01, 2024-12-31 기준 파일)
+
+- CP949(MS949), BOM 없음, CRLF. 헤더는 정확히 `기준년월,시군구,평균소득월액`
+- 1,150행 = 기준년월 5개(`2020-12`~`2024-12`, 매년 12월) × 시군구 230. 서울은 25구 × 5 = 125행
+- 시군구는 시도와 붙은 이름뿐이다(`서울특별시종로구`). 코드가 없다. **부산·대구·인천·대전·울산에도 `중구` 가 있어** 구 이름만으로 서울을 고를 수 없다 → `서울특별시` 접두로만 고른다
+- 금액은 정수(원)이고 0·빈값이 없다. 2024-12 서울은 1,363,143(관악) ~ 1,799,199(강남)
+- 작성 시점 2025-01-31
+- **다운로드 경로** — 포털 페이지의 내부 3단계 요청(`selectFileDataDownload` → `check-limit`(`needCaptcha`) → `fileDownload`)을 재현하면 파일이 받아진다. 그러나 캡차 제한이 걸린 포털 내부 경로라 운영 수집에 쓰지 않는다. 공공데이터포털 자동변환 Open API(odcloud)는 이 데이터셋에 대해 확인하지 못했다. 그래서 원천은 `PensionIncomeSourcePort` 뒤에 두고 지금은 파일 어댑터만 있다. API 가 확인되면 같은 포트를 구현하는 어댑터만 추가한다
+
+### 검증 (fail-closed, `PensionIncomeImportProcessor`)
+
+1. 헤더가 `FileDatasetKey` 헤더와 순서까지 같지 않으면 행을 보지 않고 멈춘다
+2. 공간 스냅샷(`--spatial-version`)이 READY 이고 자치구가 25개여야 한다(`DistrictCodeLookupJdbcAdapter`, 사실 적재의 unmapped 검증과 같은 READY 조인)
+3. 행마다 필드 3개, 기준년월 `20\d{2}-(0[1-9]|1[0-2])`, 금액 13자리 이하 양의 정수. 타 시도 행도 검사한다(형식이 깨진 행은 파일 전체를 의심할 근거다)
+4. `서울특별시` 로 시작하는 행만 채택한다. 접두를 떼고 공백을 지운 이름이 공간 스냅샷 자치구 이름(`area_name`)과 정확히 같아야 한다. 타 시도 행은 무시하고 개수만 센다
+5. 기준년월마다 서울 정확히 25행, (기준년월, 구) 중복 0, 25구 모두 등장
+6. 서울 행 합계 = `--expected-rows`
+
+위반은 하나라도 있으면 쓰지 않는다. **위반을 전부 모아 한 예외로** 알린다 — 종류별 건수와 앞쪽 행 번호 20개, 대조 실패 이름 목록, 기준년월별 누락·중복 구. 거부 행 테이블은 두지 않는다(연 1회 1,150행 파일이라 행 번호로 보관본을 열어 보면 된다). 문자셋을 잘못 주면(`--charset` 기본은 UTF-8, 포털 원본은 MS949) 디코더가 대체 문자로 바꾸지 않고 읽기 단계에서 멈춘다.
+
+### 쓰기
+
+- 원본은 분기 적재 CSV 와 같이 `batch.dataset-source.raw-directory` 아래 `<run-id>-*/source.csv` 로 복사하면서 SHA-256 을 계산하고 보관본을 읽는다. 같은 run-id 재시도도 새 디렉터리다
+- dry-run(기본)은 쓰지 않고 로그 `[pension-income] dry-run referenceDates=[...] rows=125 ignoredNonSeoul=1025 runId=... checksum=...` 만 남긴다
+- 실게시는 파일에 든 **기준일 단위 교체**다. `DELETE ... WHERE reference_date IN (...)` + INSERT 를 한 트랜잭션(`commercialTransactionManager`)으로 한다. 파일에 없는 기준일은 건드리지 않는다. 기준일은 기준년월의 말일(`2024-12` → `2024-12-31`)
+- 행마다 `run_id` · `source_checksum` · `source_updated_at` 을 남긴다. `spatial_version` 은 두지 않는다(자치구 25 코드는 공간 버전과 무관하다)
+- DDL 은 `scripts/migration/pension-income-district-table.sql`(유니크 `(district_code, reference_date)`, 끝에 확인 SQL)이고 앱이 만들지 않는다
+
+```text
+QuarterlyImportRunner --job=pension-income (quarterly 프로파일)
+  → pensionIncomeImportJob (PensionIncomeImportJobConfig, tasklet 1개, commercialTransactionManager)
+    → PensionIncomeImportProcessor                  검증·변환 정본 (@Component)
+      → PensionIncomeSourcePort      = PensionIncomeCsvSourceAdapter       원본 보관·SHA-256·엄격 디코딩
+      → DistrictCodeLookupPort       = DistrictCodeLookupJdbcAdapter       READY 스냅샷 자치구 이름 → 코드
+      → PensionIncomeDistrictBulkPort = PensionIncomeDistrictJdbcAdapter   기준일 단위 교체
+```
+
+포트 어댑터 3개는 「빈 조립 규칙」대로 `QuarterlyImportConfig` 의 `@Bean`(`commercialJdbcTemplate`)이고, Processor 는 새 application 계층 클래스라 스테레오타입이다. Job 파라미터 직렬화는 `PensionIncomeJobParameters`(runId 만 식별 파라미터)다.
+
+조회 쪽(상권 → 자치구 → 요청 분기 말일 이하 최신 기준일)과 화면 표기는 commercial-service 후속 작업이다. 비교·히트맵·추천·점수 경로에는 이 값을 넣지 않는다 — 같은 구 상권은 전부 같은 값이라 변별력이 없고, 연 스냅샷이라 분기 비교 축과 맞지 않는다.
 
 ## 기업마당 정책 수집
 

@@ -91,7 +91,16 @@ periodCode + commercialCode
 1. **국민연금공단_자격 시군구 신고 평균소득월액** — `data.go.kr/data/3046077`. CSV, 무료, 이용허락 제한 없음. 전국 1,150행, 시간범위 2024-12-31, 갱신 연 1회.
 2. 국세청 국세통계포털 — `3-2-1-2 종합소득세 주요항목 신고 현황Ⅱ(시·군·구)` 등. 통계표 형식이라 자동화가 더 어렵다. 2순위.
 
-**기계적 다운로드는 막혀 있다.** 국민연금 CSV 링크를 실제로 호출해 보면 404 또는 빈 응답이 온다. 연 1회 수동으로 내려받아 기존 `--source=CSV` 경로로 적재하는 운영 절차가 필요하다.
+**다운로드 경로 (2026-10-01 실측으로 정정).** CSV 링크(`contentUrl`)를 바로 호출하면 빈 응답이 오지만, 포털 페이지의 내부 3단계 요청(`selectFileDataDownload` → `check-limit`(`needCaptcha`) → `fileDownload`)을 재현하면 파일이 받아진다. 다만 캡차 제한이 걸린 포털 내부 경로라 운영 수집에 쓰지 않는다. 공공데이터포털 자동변환 Open API(odcloud)는 이 데이터셋에 대해 확인하지 못했다. 그래서 **연 1회 브라우저로 수동 다운로드 → 전용 Job 으로 적재**하고, 원천은 포트 경계(`PensionIncomeSourcePort`) 뒤에 둬 API 가 확인되면 어댑터만 추가한다. 기존 분기 `--source=CSV` 경로는 쓰지 않는다 — 데이터셋·분기 단위 게시(`dataset_release`)와 공간 코드 검증이 이 원천(연 스냅샷, 이름만 있는 시군구)과 맞지 않는다.
+
+확정 설계(배치, 이슈 #415 2차):
+
+- 원천 실측(2024-12-31 기준 파일): CP949, BOM 없음, CRLF, 헤더 `기준년월,시군구,평균소득월액`, 1,150행 = 기준년월 5개(`2020-12`~`2024-12`) × 시군구 230. 시군구는 시도와 붙은 이름(`서울특별시종로구`)뿐이고 타 시도에도 `중구` 가 있어 `서울특별시` 접두로만 서울을 고른다. 서울 125행
+- 계약: 공유 모듈 `FileDatasetKey.NPS_DISTRICT_AVERAGE_INCOME`(`sourceId = data.go.kr:3046077`, 헤더 3개). 분기 Open API 15종의 `DatasetKey` 와 분리한다(`Dataset` 과 이름 전수 일치가 고정돼 있다)
+- 적재: batch `--job=pension-income`(`pensionIncomeImportJob`) → commercial `pension_income_district`(`reference_date` = 기준년월 말일, `district_code`, `district_name`, `source_region_name`, `average_monthly_income_amount`, `source_updated_at`, `source_checksum`, `run_id`). 유니크 `(district_code, reference_date)`, `spatial_version` 없음. 기준일 단위 교체, 한 트랜잭션
+- 검증은 fail-closed 이고 위반을 모두 모아 한 예외로 알린다: 헤더 순서 일치, 필드 3개·형식, 공간 스냅샷 자치구 이름과 정확히 일치, 기준년월마다 25구 정확히 한 번, 서울 행 합계 = `--expected-rows`. 문자셋 오지정은 디코딩 단계에서 멈춘다
+- 조회: 요청 분기 말일 이하 최신 기준일(20211 → 2020-12-31, 20261 → 2024-12-31), 없으면 UNAVAILABLE. 비교·히트맵·추천·점수 경로에는 넣지 않는다(같은 구 상권은 전부 같은 값)
+- 운영 절차: `backend/docs/services/batch-quarterly-import.md` 「11. 국민연금 자치구 평균소득 적재」
 
 **지역가입자**(사업장 가입자가 아닌 자) 신고 소득의 구 평균이다. 주민 전체 소득도 상권 소득도 아니므로 라벨을 「월평균 소득」이 아니라 「자치구 평균 소득 (대체)」로 쓰고, 기준 시점과 모집단을 면책 문구에 넣는다. 분기 UI 와 갱신 주기가 어긋나므로 `effectivePeriodCode` 대신 기준 일자를 표기한다.
 

@@ -9,6 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.PensionIncomeImportRequest;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,9 @@ class QuarterlyImportRunnerTest {
 
     @Mock
     private Job projectJob;
+
+    @Mock
+    private Job pensionIncomeJob;
 
     private StandardEnvironment environment;
 
@@ -132,26 +138,84 @@ class QuarterlyImportRunnerTest {
         verifyNoInteractions(launcher);
     }
 
+    /** 국민연금 자치구 평균소득(이슈 #415). 운영 명령 그대로 넘기면 파일·문자셋·서울 행 수가 Job 파라미터로 간다. dry-run 이 기본이다. */
+    @Test
+    void pensionIncomeJobCarriesTheFileCharsetAndSeoulRowCountAndDefaultsToDryRun() throws Exception {
+        JobParameters parameters = run(pensionIncomeJob, "--job=pension-income", "--run-id=pension-income-20241231-001",
+            "--source-file=/app/data/input/pension.csv", "--charset=MS949", "--spatial-version=legacy-20233",
+            "--expected-rows=125", "--source-updated-at=2025-01-31T00:00:00Z");
+
+        assertThat(parameters.getString("runId")).isEqualTo("pension-income-20241231-001");
+        assertThat(parameters.getString("sourceFile")).isEqualTo(Path.of("/app/data/input/pension.csv").toString());
+        assertThat(parameters.getString("charset")).isEqualTo("MS949");
+        assertThat(parameters.getString("spatialVersion")).isEqualTo("legacy-20233");
+        assertThat(parameters.getLong("expectedRows")).isEqualTo(125L);
+        assertThat(parameters.getString("sourceUpdatedAt")).isEqualTo("2025-01-31T00:00:00Z");
+        assertThat(parameters.getString("dryRun")).isEqualTo("true");
+        // runId 만 식별 파라미터다. 같은 runId 로 실게시를 다시 띄우면 JobRepository 가 막는다.
+        assertThat(parameters.getParameters()).allSatisfy((name, parameter) -> assertThat(parameter.isIdentifying()).isEqualTo("runId".equals(name)));
+        assertThat(PensionIncomeJobParameters.read(parameters)).isEqualTo(new PensionIncomeImportRequest("pension-income-20241231-001",
+            Path.of("/app/data/input/pension.csv"), "MS949", "legacy-20233", 125, Instant.parse("2025-01-31T00:00:00Z"), true));
+    }
+
+    @Test
+    void pensionIncomeJobReadsTheOneShotContainerEnvironmentAndDefaultsTheCharsetToUtf8() throws Exception {
+        withEnv(Map.of(
+            "BATCH_QUARTERLY_JOB", "pension-income",
+            "BATCH_QUARTERLY_RUN_ID", "pension-income-20241231-002",
+            "BATCH_QUARTERLY_SOURCE_FILE", "/app/data/input/pension.csv",
+            "BATCH_QUARTERLY_SPATIAL_VERSION", "legacy-20233",
+            "BATCH_QUARTERLY_EXPECTED_ROWS", "125",
+            "BATCH_QUARTERLY_SOURCE_UPDATED_AT", "2025-01-31T00:00:00Z",
+            "BATCH_QUARTERLY_DRY_RUN", "false"));
+
+        JobParameters parameters = run(pensionIncomeJob);
+
+        assertThat(parameters.getString("charset")).isEqualTo("UTF-8");
+        assertThat(parameters.getString("dryRun")).isEqualTo("false");
+    }
+
+    @Test
+    void pensionIncomeJobRequiresTheSeoulRowCount() {
+        assertThatThrownBy(() -> runner().run(new DefaultApplicationArguments("--job=pension-income", "--run-id=pension-income-001",
+            "--source-file=pension.csv", "--spatial-version=legacy-20233", "--source-updated-at=2025-01-31T00:00:00Z")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Required option: expected-rows");
+        verifyNoInteractions(launcher);
+    }
+
+    @Test
+    void unknownJobNamesEveryJobTheRunnerAccepts() {
+        assertThatThrownBy(() -> runner().run(new DefaultApplicationArguments("--job=pension", "--run-id=x")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("job must be facts, spatial, project or pension-income");
+        verifyNoInteractions(launcher);
+    }
+
     private void withEnv(Map<String, Object> variables) {
         environment.getPropertySources().addLast(
             new SystemEnvironmentPropertySource(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, variables));
     }
 
     private JobParameters runProject(String... args) throws Exception {
+        return run(projectJob, args);
+    }
+
+    private JobParameters run(Job job, String... args) throws Exception {
         JobExecution execution = mock(JobExecution.class);
         when(execution.getStatus()).thenReturn(BatchStatus.COMPLETED);
-        when(launcher.run(eq(projectJob), any(JobParameters.class))).thenReturn(execution);
+        when(launcher.run(eq(job), any(JobParameters.class))).thenReturn(execution);
         QuarterlyImportRunner runner = runner();
 
         runner.run(new DefaultApplicationArguments(args));
 
         ArgumentCaptor<JobParameters> captor = ArgumentCaptor.forClass(JobParameters.class);
-        verify(launcher).run(eq(projectJob), captor.capture());
+        verify(launcher).run(eq(job), captor.capture());
         assertThat(runner.getExitCode()).isZero();
         return captor.getValue();
     }
 
     private QuarterlyImportRunner runner() {
-        return new QuarterlyImportRunner(environment, launcher, factJob, spatialJob, projectJob);
+        return new QuarterlyImportRunner(environment, launcher, factJob, spatialJob, projectJob, pensionIncomeJob);
     }
 }

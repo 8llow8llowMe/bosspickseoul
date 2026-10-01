@@ -11,6 +11,7 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.bat
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.CommercialRegionImportJobConfig;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.DatasetStagingPurgeJobConfig;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.DatasetStagingPurgeTasklet;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.PensionIncomeImportJobConfig;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch.TypedFactProjectionJobConfig;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.DatasetRefreshGuardRunner;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.scheduler.DatasetRefreshQuartzScheduleConfig;
@@ -20,12 +21,16 @@ import com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.out.me
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.in.DatasetRefreshUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetReleasePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetSourcePort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DistrictCodeLookupPort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.PensionIncomeDistrictBulkPort;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.PensionIncomeSourcePort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.TypedFactProjectionPort;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.DatasetRefreshFacade;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.DatasetStagingPurgeFacade;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRefreshProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetRefreshRunProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.DatasetStagingPurgeProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.service.processor.PensionIncomeImportProcessor;
 import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -70,7 +75,8 @@ class AlwaysOnDatasetImportWiringTest {
         .withBean(JobRepository.class, () -> mock(JobRepository.class))
         .withBean(StepScope.class)
         .withUserConfiguration(CommercialDataSourceConfig.class, DistrictDataSourceConfig.class, QuarterlyImportConfig.class,
-            CommercialAnalysisImportJobConfig.class, CommercialRegionImportJobConfig.class, TypedFactProjectionJobConfig.class)
+            CommercialAnalysisImportJobConfig.class, CommercialRegionImportJobConfig.class, TypedFactProjectionJobConfig.class,
+            PensionIncomeImportJobConfig.class, PensionIncomeImportProcessor.class)
         .withPropertyValues(
             "spring.datasource.url=" + DISTRICT,
             "batch.commercial.datasource.url=" + COMMERCIAL);
@@ -81,13 +87,17 @@ class AlwaysOnDatasetImportWiringTest {
         runner.withPropertyValues("batch.dataset-refresh.enabled=true").run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context.getBeansOfType(Job.class)).containsKeys(
-                "commercialAnalysisImportJob", "commercialRegionImportJob", "typedFactProjectionJob");
-            assertThat(context).hasSingleBean(DatasetSourcePort.class).hasSingleBean(TypedFactProjectionPort.class);
+                "commercialAnalysisImportJob", "commercialRegionImportJob", "typedFactProjectionJob", "pensionIncomeImportJob");
+            assertThat(context).hasSingleBean(DatasetSourcePort.class).hasSingleBean(TypedFactProjectionPort.class)
+                .hasSingleBean(PensionIncomeSourcePort.class);
 
             JdbcTemplate commercial = context.getBean("commercialJdbcTemplate", JdbcTemplate.class);
             assertThat(commercial.getDataSource()).isNotSameAs(primary);
             Object releaseJdbc = ReflectionTestUtils.getField(context.getBean(DatasetReleasePort.class), "jdbc");
             assertThat(releaseJdbc).isSameAs(commercial);
+            // 국민연금 자치구 평균소득(이슈 #415)도 commercial 스키마에 쓰고 그 스키마의 공간 스냅샷으로 코드를 붙인다.
+            assertThat(ReflectionTestUtils.getField(context.getBean(PensionIncomeDistrictBulkPort.class), "jdbc")).isSameAs(commercial);
+            assertThat(ReflectionTestUtils.getField(context.getBean(DistrictCodeLookupPort.class), "jdbc")).isSameAs(commercial);
         });
     }
 
