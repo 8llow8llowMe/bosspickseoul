@@ -18,11 +18,7 @@ import styled, { css } from 'styled-components'
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
 import {
   Banknote,
-  Building2,
-  Bus,
   Footprints,
-  GraduationCap,
-  Landmark,
   Store,
   TrendingDown,
   TrendingUp,
@@ -34,7 +30,9 @@ import ExpenseProvenanceNote from '@/components/analysis/expense-provenance-note
 import AnalysisSummaryCards, {
   type SummaryCard,
 } from '@/components/analysis/analysis-summary-cards'
-import SalesComparisonBars from '@/components/analysis/sales-comparison-bars'
+import AnalysisSummaryInsights, {
+  type SummaryInsight,
+} from '@/components/analysis/analysis-summary-insights'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import { genderColorsFor } from '@/components/analysis/charts/chart-theme'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
@@ -117,6 +115,7 @@ import {
   describeSalesAgePeak,
   describeSalesDayPeak,
   describeSalesTimeShare,
+  describeStoreCompetition,
 } from '@/lib/analysis/chart-insights'
 import {
   EXPENSE_PROXY_BADGE_LABEL,
@@ -595,6 +594,12 @@ const ChartBox = styled.div<{ $maxWidth: number }>`
   margin: 0 auto;
 `
 
+/** 핵심 지표 카드 안에서 숫자 카드 아래 인사이트 줄을 쌓는다. */
+const SummaryStack = styled.div`
+  display: grid;
+  gap: 14px;
+`
+
 /** 한 카드 안에서 차트 아래 보조 막대(성비)를 쌓는다. */
 const ChartStack = styled.div`
   display: grid;
@@ -1019,7 +1024,8 @@ export default function AnalysisResultView({
   const facilitiesQuery = useQuery({
     queryKey: ['analysis', 'facilities', commercialCode, periodCode],
     queryFn: () => fetchCommercialFacilities(commercialCode, periodCode),
-    enabled,
+    /* 요약 「생활권·시설」 카드를 걷어낸 뒤(#482) 시설은 생활권 탭만 쓴다. */
+    enabled: enabled && activated.has('living'),
     retry: retryUnlessClientError(1),
   })
   const footTrafficQuery = useQuery({
@@ -1032,7 +1038,12 @@ export default function AnalysisResultView({
     queryKey: ['analysis', 'sales', commercialCode, serviceCode, periodCode],
     queryFn: () =>
       fetchCommercialSales(commercialCode, serviceCode, periodCode),
-    enabled: enabled && activated.has('sales'),
+    /*
+      매출만은 탭을 기다리지 않는다 — 요약 인사이트(피크 시간 · 주 고객층)가 이 응답에서
+      나온다(#482). 요약은 「결론 화면」이라 첫 화면에서 답해야 하고, 매출 탭이 켜질 때까지
+      그 두 줄이 비어 있으면 요약이 결론을 말하지 못한다.
+    */
+    enabled,
     retry: retryUnlessClientError(1),
   })
   const incomeQuery = useQuery({
@@ -1505,8 +1516,8 @@ export default function AnalysisResultView({
       ? totalFootTraffic / residentPopulation
       : null
   /*
-    요약 「생활권·시설」 첫 카드의 맥락 줄. 상주인구는 핵심 지표와 같은 수라 값만으로는
-    두 번째 카드가 될 이유가 없다 — 성비를 붙여 「누가 사는가」를 말하게 한다.
+    핵심 지표 「상주인구」 카드의 맥락 줄 — 성비를 붙여 「누가 사는가」를 말하게 한다.
+    요약 「생활권·시설」 카드에 있던 것을 그 카드를 걷어내며(#482) 옮겼다.
 
     여성 비중만 적고 남성은 계산하지 않는다. `malePercentage` 와 더해 100 이 안 되는
     반올림 응답이 있어, 화면이 `100 - 여성` 을 지어내면 응답과 어긋난 수가 된다.
@@ -1525,18 +1536,14 @@ export default function AnalysisResultView({
     profile?.keyMetrics?.totalStoreCount ?? stores?.totalStoreCount
   const openedStoreCount = stores?.openedStoreCount
   const closedStoreCount = stores?.closedStoreCount
+  /*
+    프랜차이즈 비중. 요약 「점포 현황」 카드를 걷어내며(#482) 점포 탭 「점포 분석」의 「총 점포」
+    맥락 줄로 옮겼다. 분모는 그 카드와 같은 선택 업종 점포 수다.
+  */
   const franchiseShare = toShareRatio(
     stores?.franchiseStoreCount,
     totalStoreCount,
   )
-  /*
-    개업에서 폐업을 뺀 순증. 「개업률 7%」만으로는 시장이 느는지 주는지 알 수 없다 —
-    폐업이 더 많으면 7% 여도 줄어드는 상권이다.
-  */
-  const netStoreChange =
-    typeof openedStoreCount === 'number' && typeof closedStoreCount === 'number'
-      ? openedStoreCount - closedStoreCount
-      : null
 
   /*
     `peerStores` 는 **선택한 업종을 뺀** 나머지 업종이다(커피-음료로 조회하면 커피-음료가
@@ -1583,35 +1590,84 @@ export default function AnalysisResultView({
     },
     {
       /*
-        맥락을 「유사 업종 N개」에서 순증으로 바꿨다 — 유사 업종 수는 아래 점포 현황이
-        제 카드로 보여 주므로, 여기서 또 적으면 같은 말을 두 번 하게 된다.
+        맥락 줄을 두지 않는다. 전에는 개·폐업 순증을 붙였는데, 그 건수는 **유사 업종 점포**가
+        분모다(20개 중 1개 = 개업률 5%). 선택 업종 점포 수 옆에 두면 주어가 엇갈리고, 바로
+        아래 인사이트 「경쟁」 줄이 같은 건수를 유사 업종 기준으로 다시 말한다(#482).
       */
       label: '점포 수',
       value: totalStoreCount,
       unit: '개',
       icon: Store,
-      context:
-        netStoreChange === null
-          ? null
-          : {
-              /*
-                0 을 「이번 분기 0개」로 적으면 **0개 무엇인지** 알 수 없다. 순증이
-                없다는 뜻이므로 그렇게 적는다.
-              */
-              text:
-                netStoreChange === 0
-                  ? '이번 분기 늘지도 줄지도 않았어요'
-                  : `이번 분기 ${netStoreChange > 0 ? '+' : ''}${netStoreChange}개`,
-            },
+      context: null,
     },
     {
       label: '상주인구',
       value: residentPopulation,
       unit: '명',
       icon: Users,
-      context: null,
+      context: residentGenderContext,
     },
   ]
+
+  /*
+    요약 인사이트 세 줄. 문장은 아래 차트 카드와 같은 함수로 만든다 — 같은 데이터에서 요약과
+    탭이 다른 말을 하면 안 된다. 매출이 아직 안 왔으면 두 줄은 자리만 잡는다.
+  */
+  const salesInsightLoading = salesQuery.isPending
+  const summaryInsights: SummaryInsight[] = [
+    {
+      key: 'peak-time',
+      label: '피크 시간',
+      sentence: toDescription(describeSalesTimeShare(salesTimeRows)) ?? null,
+      loading: salesInsightLoading,
+      tab: 'sales',
+      tabLabel: '매출',
+    },
+    {
+      key: 'customer',
+      label: '주 고객층',
+      sentence:
+        toDescription(
+          describeSalesAgePeak(salesAgeRows),
+          describeGenderShare(
+            sales?.countByGenderItem?.maleSalesCount,
+            sales?.countByGenderItem?.femaleSalesCount,
+            '결제 건수는',
+          ),
+        ) ?? null,
+      loading: salesInsightLoading,
+      tab: 'sales',
+      tabLabel: '매출',
+    },
+    {
+      key: 'competition',
+      label: '경쟁',
+      sentence:
+        toDescription(
+          describeStoreCompetition(
+            stores?.similarStoreCount ?? profile?.keyMetrics?.similarStoreCount,
+            openedStoreCount,
+            closedStoreCount,
+          ),
+        ) ?? null,
+      loading: storesQuery.isPending,
+      tab: 'stores',
+      tabLabel: '점포',
+    },
+  ]
+
+  /*
+    「핵심 지표」 설명 자리의 결론 문장. 「주요 수치를 먼저 확인하세요」는 아무것도 말하지
+    않았다. 비중을 계산할 수 없으면 설명을 비운다(지어내지 않는다).
+  */
+  /* 업종 이름을 아직 못 받았으면 코드(「CS100010」)를 문장에 넣지 않고 설명을 비운다. */
+  const resolvedServiceName =
+    services?.find(item => item.serviceCode === serviceCode)?.serviceName ??
+    salesSummary?.commercial?.serviceName
+  const coreMetricsDescription =
+    salesShare === undefined || !administrationName || !resolvedServiceName
+      ? undefined
+      : `${profile?.commercialName ?? '이 상권'}의 ${resolvedServiceName} 매출은 ${administrationName} 전체의 ${formatSharePercent(salesShare)}를 차지해요.`
 
   /*
     보고서 하단 추천 링크(condition-selector D8-2 보조 동선).
@@ -1781,174 +1837,30 @@ export default function AnalysisResultView({
             ref={registerSection('summary')}
           >
             {renderGroupHeading('요약')}
+            {/*
+              요약은 「결론 화면」이다(#482): 핵심 지표 4개 + 인사이트 세 줄 + 지원 정책.
+              「점포 현황」·「생활권·시설」 카드는 점포 탭 「점포 분석」·생활권 탭 「주요 시설과
+              교통」과 같은 수를 반복해서 걷어냈다. 「지역별 월 매출 비교」도 지역 평균 대비 탭과
+              같은 세 값(자치구 · 행정동 · 상권 총액)이라 뺐다 — 이 상권의 비중은 핵심 지표
+              설명 문장과 「월 매출」 카드가 말한다.
+            */}
             <DashboardGrid>
               <FullSpanItem>
                 <AnalysisResultSection
                   title="핵심 지표"
-                  description="선택한 상권과 업종의 주요 수치를 먼저 확인하세요."
+                  description={coreMetricsDescription}
                   loading={profileQuery.isPending}
                   error={resolveApiError(profileQuery)}
                   empty={!profile?.keyMetrics && !salesSummary && !stores}
                   onRetry={() => void profileQuery.refetch()}
                 >
-                  {renderCards(summaryCards)}
-                </AnalysisResultSection>
-              </FullSpanItem>
-
-              {/*
-                DESIGN.md 「Charts」: 「가로 막대는 카드 하나를 가로지르게(full) 두지
-                않는다.」 세로 막대·꺾은선·도넛은 넓을수록 좋아지지만 가로 막대는
-                나빠진다 — 일반 그리드 칸에 두어 옆 카드와 같은 폭을 쓴다.
-              */}
-              <div>
-                <AnalysisResultSection
-                  title="지역별 월 매출 비교"
-                  loading={salesSummaryQuery.isPending}
-                  error={resolveApiError(salesSummaryQuery)}
-                  empty={!hasObjectValues(salesSummary)}
-                  onRetry={() => void salesSummaryQuery.refetch()}
-                >
-                  <SalesComparisonBars
-                    items={[
-                      salesSummary?.district,
-                      salesSummary?.administration,
-                      salesSummary?.commercial,
-                    ].map((item, index) => ({
-                      label: item?.name ?? ['자치구', '행정동', '상권'][index],
-                      value: item?.monthlySalesAmount,
-                      strong: index === 2,
-                    }))}
-                  />
-                </AnalysisResultSection>
-              </div>
-
-              <FullSpanItem>
-                <AnalysisResultSection
-                  title="점포 현황"
-                  loading={storesQuery.isPending}
-                  error={resolveApiError(storesQuery)}
-                  empty={!hasObjectValues(stores)}
-                  onRetry={() => void storesQuery.refetch()}
-                >
-                  {renderCards([
-                    {
-                      /*
-                        「총 점포」는 핵심 지표의 「점포 수」와 **같은 값**이라 뺐다.
-                        그 자리에 맥락으로만 적혀 있던 유사 업종 수를 제 카드로 올린다 —
-                        경쟁 강도를 재는 수치라 곁다리로 둘 것이 아니다.
-                      */
-                      label: '유사 업종 점포',
-                      value: stores?.similarStoreCount,
-                      unit: '개',
-                      icon: Store,
-                      context:
-                        typeof totalStoreCount === 'number'
-                          ? {
-                              text: `선택 업종 ${new Intl.NumberFormat('ko-KR').format(totalStoreCount)}개`,
-                            }
-                          : null,
-                    },
-                    {
-                      /*
-                        비율만 있으면 「7%」가 몇 개인지 알 수 없다 — 점포가 13곳뿐인
-                        상권에서 7% 는 1개다. 건수를 함께 적어야 크기가 잡힌다.
-                      */
-                      label: '개업률',
-                      value: stores?.openingRate,
-                      unit: '%',
-                      icon: TrendingUp,
-                      context:
-                        typeof openedStoreCount === 'number'
-                          ? {
-                              text: `이번 분기 ${openedStoreCount}개 문 열었어요`,
-                            }
-                          : null,
-                    },
-                    {
-                      label: '폐업률',
-                      value: stores?.closureRate,
-                      unit: '%',
-                      icon: TrendingDown,
-                      context:
-                        typeof closedStoreCount === 'number'
-                          ? {
-                              text: `이번 분기 ${closedStoreCount}개 문 닫았어요`,
-                            }
-                          : null,
-                    },
-                    {
-                      label: '프랜차이즈',
-                      value: stores?.franchiseStoreCount,
-                      unit: '개',
-                      icon: Building2,
-                      context:
-                        franchiseShare === undefined
-                          ? null
-                          : {
-                              text: `점포 수의 ${formatSharePercent(franchiseShare)}`,
-                              ratio: franchiseShare,
-                            },
-                    },
-                  ])}
-                </AnalysisResultSection>
-              </FullSpanItem>
-              <FullSpanItem>
-                <AnalysisResultSection
-                  title="생활권·시설"
-                  loading={
-                    populationQuery.isPending || facilitiesQuery.isPending
-                  }
-                  error={
-                    resolveApiError(populationQuery) ??
-                    resolveApiError(facilitiesQuery)
-                  }
-                  empty={
-                    !hasObjectValues(population) && !hasObjectValues(facilities)
-                  }
-                  onRetry={() => {
-                    void populationQuery.refetch()
-                    void facilitiesQuery.refetch()
-                  }}
-                >
-                  {renderCards([
-                    {
-                      /*
-                        이 자리에는 월평균 소득이 있었다. 서울 열린데이터광장이 상권 단위
-                        소득 제공을 끊어(2026-05-13 원천 컬럼 삭제) 응답에서 사라졌으므로
-                        「상주인구」를 되돌린다(#414).
-
-                        상주인구 값 자체는 핵심 지표와 **같은 수**라 그대로 두면 같은
-                        숫자를 두 번 적게 된다. 성별 구성을 맥락 줄로 붙여 이 섹션의
-                        주제인 「누가 사는가」를 한 겹 더 말하게 한다.
-                      */
-                      label: '상주인구',
-                      value: residentPopulation,
-                      unit: '명',
-                      icon: Users,
-                      context: residentGenderContext,
-                    },
-                    {
-                      label: '주요 시설',
-                      value: facilities?.totalFacilityCount,
-                      unit: '개',
-                      icon: Landmark,
-                      context: null,
-                    },
-                    {
-                      label: '학교',
-                      value: facilities?.schoolCountItem?.totalSchoolCount,
-                      unit: '개',
-                      icon: GraduationCap,
-                      context: null,
-                    },
-                    {
-                      label: '대중교통',
-                      value: facilities?.totalTransportationFacilityCount,
-                      unit: '개',
-                      icon: Bus,
-                      context: null,
-                    },
-                  ])}
+                  <SummaryStack>
+                    {renderCards(summaryCards)}
+                    <AnalysisSummaryInsights
+                      items={summaryInsights}
+                      onSelect={handleTabClick}
+                    />
+                  </SummaryStack>
                 </AnalysisResultSection>
               </FullSpanItem>
 
@@ -1959,6 +1871,7 @@ export default function AnalysisResultView({
 
                 여덟 번째 탭을 만들지 않은 이유: 최대 5건이고, 정책 데이터가 없는
                 환경에서는 탭 자체가 빈 화면이 된다. 요약의 실행 가능한 마무리로 둔다.
+                처음에는 2건만 보이고 나머지는 펼친다 — 5건을 다 펼치면 핵심 지표보다 길다.
               */}
               <FullSpanItem>
                 <AnalysisResultSection
@@ -1974,6 +1887,7 @@ export default function AnalysisResultView({
                     policies={policyRecommendations}
                     districtCode={profile?.districtCode ?? null}
                     districtName={profile?.districtName ?? null}
+                    initialVisibleCount={2}
                   />
                 </AnalysisResultSection>
               </FullSpanItem>
@@ -2169,7 +2083,16 @@ export default function AnalysisResultView({
                       value: stores?.totalStoreCount,
                       unit: '개',
                       icon: Store,
-                      context: null,
+                      context:
+                        typeof stores?.franchiseStoreCount === 'number'
+                          ? {
+                              text:
+                                franchiseShare === undefined
+                                  ? `프랜차이즈 ${new Intl.NumberFormat('ko-KR').format(stores.franchiseStoreCount)}개`
+                                  : `프랜차이즈 ${new Intl.NumberFormat('ko-KR').format(stores.franchiseStoreCount)}개 · ${formatSharePercent(franchiseShare)}`,
+                              ratio: franchiseShare,
+                            }
+                          : null,
                     },
                     {
                       label: '유사 업종 점포',
@@ -2179,18 +2102,29 @@ export default function AnalysisResultView({
                       context: null,
                     },
                     {
+                      /* 건수만 있으면 상권 크기를 모르고, 비율만 있으면 몇 곳인지 모른다 — 둘 다 적는다. */
                       label: '개업 점포',
                       value: stores?.openedStoreCount,
                       unit: '개',
                       icon: TrendingUp,
-                      context: null,
+                      context:
+                        typeof stores?.openingRate === 'number'
+                          ? {
+                              text: `개업률 ${formatAnalysisValue(stores.openingRate, '%')}`,
+                            }
+                          : null,
                     },
                     {
                       label: '폐업 점포',
                       value: stores?.closedStoreCount,
                       unit: '개',
                       icon: TrendingDown,
-                      context: null,
+                      context:
+                        typeof stores?.closureRate === 'number'
+                          ? {
+                              text: `폐업률 ${formatAnalysisValue(stores.closureRate, '%')}`,
+                            }
+                          : null,
                     },
                   ])}
                 </AnalysisResultSection>

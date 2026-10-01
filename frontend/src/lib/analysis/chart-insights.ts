@@ -229,3 +229,31 @@ export const describeLatestChange = (
     sentence: `${subject} 직전 분기보다 ${formatPercent(rate)} ${verb}`,
   }
 }
+
+/**
+ * 요약 인사이트 「경쟁」 줄 — 「유사 업종 점포가 20개 있어요. 이 분기에 1개가 문을 열고 1개가
+ * 문을 닫았어요」.
+ *
+ * 개·폐업 건수는 **유사 업종 점포 수가 분모**다(실측: 20개 중 1개 = 개업률 5%). 그래서 두 문장의
+ * 주어를 유사 업종 점포로 맞춘다. 점포 수가 없으면 경쟁을 말할 수 없어 null 이다. 개·폐업
+ * 건수가 하나라도 비면 둘째 문장만 뺀다 — 한쪽만 적으면 순증을 거꾸로 읽을 수 있다.
+ */
+export const describeStoreCompetition = (
+  similarStoreCount: number | null | undefined,
+  openedStoreCount: number | null | undefined,
+  closedStoreCount: number | null | undefined,
+): string | null => {
+  if (typeof similarStoreCount !== 'number' || similarStoreCount < 0)
+    return null
+  const count = new Intl.NumberFormat('ko-KR').format(similarStoreCount)
+  if (similarStoreCount === 0) return '이 상권에는 유사 업종 점포가 없어요'
+  const head = `유사 업종 점포가 ${count}개 있어요`
+  if (
+    typeof openedStoreCount !== 'number' ||
+    typeof closedStoreCount !== 'number'
+  )
+    return head
+  if (openedStoreCount === 0 && closedStoreCount === 0)
+    return `${head}. 이 분기에 문을 연 점포도 닫은 점포도 없어요`
+  return `${head}. 이 분기에 ${openedStoreCount}개가 문을 열고 ${closedStoreCount}개가 문을 닫았어요`
+}

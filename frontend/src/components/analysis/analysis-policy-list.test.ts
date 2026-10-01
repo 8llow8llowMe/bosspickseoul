@@ -89,3 +89,45 @@ describe('AnalysisPolicyList', () => {
     expect(render([])).toBe('')
   })
 })
+
+describe('AnalysisPolicyList · 접기', () => {
+  const five = Array.from({ length: 5 }, (_, index) =>
+    policy({
+      policyId: `900000000000000001${index}`,
+      title: `정책 ${index + 1}`,
+    }),
+  )
+  const renderCollapsed = (policies: PolicyItem[]) =>
+    renderToStaticMarkup(
+      createElement(AnalysisPolicyList, {
+        policies,
+        districtCode: '11680',
+        districtName: '강남구',
+        initialVisibleCount: 2,
+      }),
+    )
+
+  it('처음 2건만 그리고 나머지는 「N개 모두 보기」로 펼친다', () => {
+    const markup = renderCollapsed(five)
+
+    expect(markup).toContain('정책 1')
+    expect(markup).toContain('정책 2')
+    expect(markup).not.toContain('정책 3')
+    expect(markup).toContain('지원 정책 5개 모두 보기')
+    expect(markup).toContain('aria-expanded="false"')
+  })
+
+  it('보여 줄 수 이하면 펼치기 버튼을 두지 않는다', () => {
+    const markup = renderCollapsed(five.slice(0, 2))
+
+    expect(markup).toContain('정책 2')
+    expect(markup).not.toContain('모두 보기')
+  })
+
+  it('보여 줄 수를 넘기지 않으면 전부 그린다', () => {
+    const markup = render(five)
+
+    expect(markup).toContain('정책 5')
+    expect(markup).not.toContain('모두 보기')
+  })
+})

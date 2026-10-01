@@ -137,3 +137,33 @@ describe('AnalysisResultView · 받을 수 있는 지원', () => {
     expect(markup).toContain('이 조건에서 안내할 지원 정책이 없어요.')
   })
 })
+
+describe('AnalysisResultView · 요약 구성 (#482)', () => {
+  it('요약에는 핵심 지표와 지원만 두고 다른 탭과 겹치는 카드는 두지 않는다', () => {
+    const markup = render([policy()])
+    const summary = markup.slice(
+      markup.indexOf('id="report-summary"'),
+      markup.indexOf('id="report-foot-traffic"'),
+    )
+
+    expect(summary).toContain('핵심 지표')
+    expect(summary).not.toContain('점포 현황')
+    expect(summary).not.toContain('생활권·시설')
+    expect(summary).not.toContain('지역별 월 매출 비교')
+    expect(summary).not.toContain(
+      '선택한 상권과 업종의 주요 수치를 먼저 확인하세요.',
+    )
+  })
+
+  it('지원 정책은 2건만 보이고 나머지는 펼친다', () => {
+    const markup = render([
+      policy({ policyId: '1', title: '정책 하나' }),
+      policy({ policyId: '2', title: '정책 둘' }),
+      policy({ policyId: '3', title: '정책 셋' }),
+    ])
+
+    expect(markup).toContain('정책 둘')
+    expect(markup).not.toContain('정책 셋')
+    expect(markup).toContain('지원 정책 3개 모두 보기')
+  })
+})
