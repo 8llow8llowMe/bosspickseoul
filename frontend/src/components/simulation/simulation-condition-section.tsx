@@ -80,7 +80,9 @@ const Index = styled.span<{ $done: boolean }>`
   border-radius: var(--radius-pill);
   background: ${props =>
     props.$done ? 'var(--color-primary-600)' : 'var(--color-grey-100)'};
-  color: ${props => (props.$done ? '#ffffff' : 'var(--color-text-caption)')};
+  /* 번호 칩 바탕이 grey100 이라 grey600 은 4.19 로 미달이다 — 밴드 캡션 토큰. */
+  color: ${props =>
+    props.$done ? '#ffffff' : 'var(--color-text-caption-on-band)'};
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -98,14 +100,25 @@ const Title = styled.span`
   font-weight: 700;
 `
 
-/** 접힌 상태 전용 요약. 펼쳤을 때 설명은 Panel 안 Description 블록으로 나간다. */
-const Value = styled.span`
+/**
+ * 접힌 상태 전용 요약. 펼쳤을 때 설명은 Panel 안 Description 블록으로 나간다.
+ * 잠긴 단계는 카드 바탕이 grey50 이라 grey600(4.42)이 미달이므로 밴드 캡션 토큰을 쓴다.
+ */
+const Value = styled.span<{ $onBand: boolean }>`
   flex: 1 1 auto;
   overflow: hidden;
-  color: var(--color-text-600);
+  color: ${props =>
+    props.$onBand
+      ? 'var(--color-text-caption-on-band)'
+      : 'var(--color-text-600)'};
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  /* 헤더 hover 바탕도 grey50 이라 같은 이유로 밴드 캡션 토큰으로 올린다. */
+  ${Head}:is(button):hover & {
+    color: var(--color-text-caption-on-band);
+  }
 `
 
 const Meta = styled.span`
@@ -113,6 +126,10 @@ const Meta = styled.span`
   margin-left: auto;
   color: var(--color-text-caption);
   font-size: 12px;
+
+  ${Head}:is(button):hover & {
+    color: var(--color-text-caption-on-band);
+  }
 `
 
 const Edit = styled.span`
@@ -174,7 +191,7 @@ export default function SimulationConditionSectionCard({
       </Index>
       <Title>{title}</Title>
       {!expanded ? (
-        <Value>
+        <Value $onBand={locked}>
           {summary ?? (locked ? '업종을 고르면 열려요' : '선택 전')}
         </Value>
       ) : null}

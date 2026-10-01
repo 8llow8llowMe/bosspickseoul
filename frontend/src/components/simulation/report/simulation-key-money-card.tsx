@@ -52,8 +52,9 @@ const Metrics = styled.dl`
     padding: 12px;
   }
 
+  /* 타일 바탕이 grey100 이라 grey600 은 4.19 로 AA 미달이다 — 밴드 캡션 토큰을 쓴다. */
   dt {
-    color: var(--color-text-600);
+    color: var(--color-text-caption-on-band);
     font-size: 12px;
     line-height: 18px;
   }

@@ -107,8 +107,9 @@ const Submit = styled.div`
   }
 `
 
+/* 카드 밖 페이지 바탕(grey50) 위라 grey600 은 4.42 로 미달이다 — 밴드 캡션 토큰. */
 const SubmitHint = styled.p`
-  color: var(--color-text-caption);
+  color: var(--color-text-caption-on-band);
   font-size: 13px;
   line-height: 20px;
   text-align: center;
