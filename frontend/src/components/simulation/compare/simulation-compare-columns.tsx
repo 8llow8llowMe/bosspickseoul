@@ -71,11 +71,12 @@ const Head = styled.div<{ $lower: boolean }>`
   padding: 16px;
 `
 
+/* 헤드 바탕이 grey100·blue50 이라 grey600 은 4.19·4.11 로 미달이다 — 밴드 캡션 토큰. */
 const Side = styled.p`
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text-caption);
+  color: var(--color-text-caption-on-band);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
