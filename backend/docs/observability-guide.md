@@ -121,7 +121,8 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 
 ### 분기 적재 자동 최신화 지표 (batch-service, 이슈 #445)
 
-- `batch_dataset_refresh_last_run_epoch` — 마지막 run 이 끝난 시각(초). 자동 최신화가 켜진 인스턴스에만 있다(꺼진 dev·prod 인스턴스는 시리즈가 없다). 켠 뒤 첫 run 전에는 0 이라 알람식은 `(time() - batch_dataset_refresh_last_run_epoch > 26*3600) and batch_dataset_refresh_last_run_epoch > 0` 로 둔다. 울리면 05:00 run 이 돌지 않은 것이다(트리거 미등록·기동 실패·클러스터 락). 켠 다음 날 첫 run 은 이 알람이 잡지 못하므로 롤아웃 5단계에서 로그로 직접 본다. run 이 JVM 오류로 끊겨도(`[dataset-refresh] run aborted`) 값은 갱신된다
+- `batch_dataset_refresh_last_run_epoch` — 마지막 run 이 끝난 시각(초). 자동 최신화가 켜진 인스턴스에만 있다(꺼진 dev·prod 인스턴스는 시리즈가 없다). 켠 뒤 첫 run 전에는 0 이라 알람식은 `(time() - batch_dataset_refresh_last_run_epoch > 26*3600) and batch_dataset_refresh_last_run_epoch > 0` 로 둔다. 울리면 05:00 run 이 끝까지 돌지 않은 것이다(트리거 미등록·기동 실패·클러스터 락·run 중단). 켠 다음 날 첫 run 은 이 알람이 잡지 못하므로 롤아웃 5단계에서 로그로 직접 본다. 끊긴 run(`[dataset-refresh] run aborted`)은 이 값을 갱신하지 않는다
+- `batch_dataset_refresh_runs_total{outcome="finished|aborted"}` — run 결과. 켜진 인스턴스에만 있다. 알람식 `increase(batch_dataset_refresh_runs_total{outcome="aborted"}[1d]) > 0` — JVM 오류(OOM)·공간·상태 테이블 조회·저장 실패로 run 이 끊겼다. 로그 `[dataset-refresh] run aborted` 와 그 직전 `slot` 로그로 어느 데이터셋에서 끊겼는지 본다
 - `batch_dataset_refresh_slots_total{dataset,result}` — 판단 수. `result` 가 `FAILED` / `IMPLAUSIBLE` / `PUBLISHED_NOT_PROJECTED` / `SPATIAL_NOT_READY` 인 증가를 알람 후보로 본다
 - `batch_dataset_refresh_api_calls_total` — 서울 Open API 호출 수. 키당 하루 1,000회 한도라 하루 증가분이 600 을 넘지 않아야 한다
 - `batch_dataset_refresh_service_type_unresolved_rows_total{dataset}` — 업종 분류를 못 찾은 이관 행. 게시는 계속되지만 업종 Top-N 이 빈다

@@ -13,5 +13,9 @@ public interface DatasetRefreshMetricsPort {
 
     void serviceTypeUnresolved(Dataset dataset, long rows);
 
+    /** run 이 끝까지 돌았다. 마지막 정상 run 시각을 갱신하고 {@code outcome=finished} 로 센다. */
     void runFinished(Instant finishedAt);
+
+    /** run 이 예외로 끊겼다(JVM 오류, 공간·상태 테이블 조회·저장 실패). 마지막 정상 run 시각은 그대로 두고 {@code outcome=aborted} 로 센다. */
+    void runAborted();
 }

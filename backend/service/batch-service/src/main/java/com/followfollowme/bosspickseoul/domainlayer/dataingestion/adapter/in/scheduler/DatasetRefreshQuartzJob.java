@@ -37,6 +37,11 @@ public class DatasetRefreshQuartzJob extends QuartzJobBean {
             log.warn("[dataset-refresh] disabled, stale trigger ignored firedAt={}", context.getFireTime());
             return;
         }
+        if (context.isRecovering()) {
+            // 예전 JobDetail(requestRecovery=true)이 남아 있으면 Quartz 가 죽은 run 을 기동 직후 다시 띄운다. 다음 05:00 을 기다린다.
+            log.warn("[dataset-refresh] recovering execution skipped firedAt={}", context.getFireTime());
+            return;
+        }
         try {
             datasetRefreshUseCase.refresh(context.getFireTime().toInstant());
         } catch (RuntimeException exception) {

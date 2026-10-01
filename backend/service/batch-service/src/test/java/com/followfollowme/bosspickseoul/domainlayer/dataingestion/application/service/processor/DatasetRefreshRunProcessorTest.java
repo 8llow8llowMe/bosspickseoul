@@ -113,11 +113,11 @@ class DatasetRefreshRunProcessorTest {
     }
 
     /**
-     * JVM 오류(OutOfMemoryError)는 삼키지 않는다. 그래도 그때까지의 판단·쓴 예산·마지막 run 시각은 남겨, 매일 같은 데이터셋에서
-     * 끊기는 것이 메트릭에 보이게 한다.
+     * JVM 오류(OutOfMemoryError)는 삼키지 않는다. 그때까지의 판단·쓴 예산은 남기되 마지막 정상 run 시각은 그대로 두고 aborted 로 센다.
+     * 끊긴 run 을 정상 종료로 기록하면 매일 같은 데이터셋에서 끊겨도 "run 이 돌지 않았다" 알람이 울리지 않는다.
      */
     @Test
-    void fatalErrorStillReportsWhatWasDecidedSoFar() {
+    void fatalErrorIsCountedAsAbortedWithoutTouchingTheLastRunTime() {
         when(spatialReleases.isReady("legacy-20233")).thenReturn(true);
         when(states.findAll()).thenReturn(Map.of());
         Dataset first = Dataset.inRunOrder().getFirst();
@@ -135,17 +135,40 @@ class DatasetRefreshRunProcessorTest {
 
         verify(metrics).slot(first, DatasetRefreshResult.UNCHANGED);
         verify(metrics).apiCalls(1);
-        verify(metrics).runFinished(FINISHED);
+        verify(metrics).runAborted();
+        verify(metrics, never()).runFinished(any());
     }
 
     @Test
-    void stateTableFailureStillMarksTheRunAsFinished() {
+    void stateTableFailureIsCountedAsAbortedWithoutTouchingTheLastRunTime() {
         when(spatialReleases.isReady("legacy-20233")).thenReturn(true);
         when(states.findAll()).thenThrow(new IllegalStateException("Table 'dataset_refresh_state' doesn't exist"));
 
         assertThatThrownBy(() -> processor.refreshAll(FIRED)).isInstanceOf(IllegalStateException.class);
 
         verify(metrics).apiCalls(0);
+        verify(metrics).runAborted();
+        verify(metrics, never()).runFinished(any());
+    }
+
+    @Test
+    void spatialLookupFailureIsCountedAsAborted() {
+        when(spatialReleases.isReady("legacy-20233")).thenThrow(new IllegalStateException("Communications link failure"));
+
+        assertThatThrownBy(() -> processor.refreshAll(FIRED)).isInstanceOf(IllegalStateException.class);
+
+        verify(metrics).runAborted();
+        verify(metrics, never()).runFinished(any());
+        verify(datasets, never()).refresh(any(), any(), any(), any());
+    }
+
+    @Test
+    void finishedRunIsNeverCountedAsAborted() {
+        when(spatialReleases.isReady("legacy-20233")).thenReturn(false);
+
+        processor.refreshAll(FIRED);
+
         verify(metrics).runFinished(FINISHED);
+        verify(metrics, never()).runAborted();
     }
 }

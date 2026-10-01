@@ -69,10 +69,14 @@ public class DatasetRefreshRunProcessor {
             finished = true;
             return new DatasetRefreshSummary(firedAt, properties.publish(), budget.used(), slots);
         } finally {
-            // 데이터셋 오류는 DatasetRefreshProcessor 가 결과로 흡수한다. 여기까지 오는 것은 JVM 오류(OutOfMemoryError 등)와 상태 테이블
-            // 조회·저장 실패뿐이다. 그래도 그때까지의 판단·쓴 예산·마지막 run 시각은 남겨 매일 같은 곳에서 끊기는 것을 보이게 한다.
+            // 데이터셋 오류는 DatasetRefreshProcessor 가 결과로 흡수한다. 여기까지 오는 것은 JVM 오류(OutOfMemoryError 등)와 공간·상태
+            // 테이블 조회·저장 실패뿐이다. 그때까지의 판단과 쓴 예산은 남기되, 마지막 정상 run 시각(last_run_epoch)은 갱신하지 않고
+            // aborted 로 센다. 끊긴 run 을 정상 종료로 기록하면 "run 이 돌지 않았다" 알람이 매일 같은 곳에서 끊기는 것을 가린다.
             report(slots, budget.used());
-            if (!finished) {
+            if (finished) {
+                metrics.runFinished(clock.instant());
+            } else {
+                metrics.runAborted();
                 log.error("[dataset-refresh] run aborted firedAt={} apiCalls={} decidedSlots={}", firedAt, budget.used(), slots.size());
             }
         }
@@ -93,6 +97,5 @@ public class DatasetRefreshRunProcessor {
             metrics.slot(slot.dataset(), slot.result());
         }
         metrics.apiCalls(apiCalls);
-        metrics.runFinished(clock.instant());
     }
 }

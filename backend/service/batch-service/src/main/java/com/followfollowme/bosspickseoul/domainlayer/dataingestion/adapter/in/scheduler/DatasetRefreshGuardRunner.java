@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.sc
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.port.out.DatasetRefreshStatePort;
 import com.followfollowme.bosspickseoul.global.properties.DatasetRefreshProperties;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSourceProperties;
+import java.util.List;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.Ordered;
@@ -16,7 +17,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>서울 Open API 키가 있다(값은 싣지 않는다)</li>
  *   <li>공간 버전이 run-id 와 같은 식별자 규칙을 지키고, 스키마 버전이 {@code seoul-v1} 이다</li>
- *   <li>commercial 스키마에 {@code dataset_refresh_state} 가 있다. 없으면 첫 run 이 데이터셋마다 실패하고 쿨다운에 들어간다</li>
+ *   <li>commercial 스키마에 {@code dataset_refresh_state} 가 있고, 어댑터가 쓰는 컬럼이 모두 있다. 없으면 첫 run 이 상태 조회에서 끊기거나
+ *       데이터셋마다 "Unknown column" 으로 실패한다. 예전 DDL 로 만든 테이블이면 런북 상단의 ALTER 를 가리킨다</li>
  * </ul>
  */
 @Component
@@ -52,6 +54,11 @@ public class DatasetRefreshGuardRunner implements ApplicationRunner {
         }
         if (!states.tableExists()) {
             throw new IllegalStateException("dataset_refresh_state is missing in the commercial schema; apply dataset-refresh-state-schema.sql");
+        }
+        List<String> missing = states.missingColumns();
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException("dataset_refresh_state is missing columns " + missing
+                + "; apply the ALTER TABLE in the header of dataset-refresh-state-schema.sql");
         }
     }
 }

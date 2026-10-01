@@ -28,6 +28,21 @@ class MicrometerDatasetRefreshMetricsAdapterTest {
         adapter(false);
 
         assertThat(registry.find("batch.dataset.refresh.last.run.epoch").gauge()).isNull();
+        assertThat(registry.find("batch.dataset.refresh.runs").counters()).isEmpty();
+    }
+
+    /** 끊긴 run 은 마지막 정상 run 시각을 바꾸지 않고 aborted 로만 센다. 알람: increase(...{outcome="aborted"}[1d]) > 0. */
+    @Test
+    void abortedRunsAreCountedSeparatelyFromFinishedRuns() {
+        MicrometerDatasetRefreshMetricsAdapter adapter = adapter(true);
+
+        adapter.runFinished(Instant.ofEpochSecond(1_790_000_000L));
+        adapter.runAborted();
+        adapter.runAborted();
+
+        assertThat(registry.get("batch.dataset.refresh.runs").tag("outcome", "finished").counter().count()).isEqualTo(1d);
+        assertThat(registry.get("batch.dataset.refresh.runs").tag("outcome", "aborted").counter().count()).isEqualTo(2d);
+        assertThat(registry.get("batch.dataset.refresh.last.run.epoch").gauge().value()).isEqualTo(1_790_000_000d);
     }
 
     @Test

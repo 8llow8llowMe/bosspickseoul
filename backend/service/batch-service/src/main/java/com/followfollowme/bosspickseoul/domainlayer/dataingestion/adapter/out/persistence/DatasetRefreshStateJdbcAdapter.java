@@ -9,7 +9,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.EnumMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,6 +49,15 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
     static final String TABLE_EXISTS_SQL = """
         SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'dataset_refresh_state'
         """;
+
+    static final String COLUMNS_SQL = """
+        SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'dataset_refresh_state'
+        """;
+
+    /** {@link #FIND_ALL_SQL} · {@link #UPSERT_SQL} 이 쓰는 컬럼. 런북 DDL 과 같은지는 테스트가 대조한다. */
+    static final List<String> REQUIRED_COLUMNS = List.of("dataset", "last_probe_at", "last_source_total", "newest_source_period",
+        "last_fetch_run_id", "last_fetch_raw_location", "last_failure_at", "last_failure_reason", "consecutive_failures",
+        "last_reproject_dry_run_period");
 
     private final JdbcTemplate jdbc;
 
@@ -89,6 +102,14 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
     public boolean tableExists() {
         Long tables = jdbc.queryForObject(TABLE_EXISTS_SQL, Long.class);
         return tables != null && tables > 0;
+    }
+
+    @Override
+    public List<String> missingColumns() {
+        Set<String> present = jdbc.queryForList(COLUMNS_SQL, String.class).stream()
+            .map(name -> name.toLowerCase(Locale.ROOT))
+            .collect(Collectors.toSet());
+        return REQUIRED_COLUMNS.stream().filter(column -> !present.contains(column)).toList();
     }
 
     private static DatasetRefreshState map(Dataset dataset, ResultSet rs) throws SQLException {
