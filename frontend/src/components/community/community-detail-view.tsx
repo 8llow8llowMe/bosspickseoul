@@ -28,6 +28,10 @@ import { focusCommunityCommentEntry } from '@/lib/community/comment-thread'
 import { createCommunityPostHref } from '@/lib/community/community-state'
 import type { CommunityViewer } from '@/lib/community/community-state'
 import {
+  createCommunityWriteHref,
+  toCommunityLocationValue,
+} from '@/lib/community/editor-prefill'
+import {
   COMMUNITY_SHARE_TOAST,
   createCommunityRegionListHref,
   createCommunityShareUrl,
@@ -755,10 +759,14 @@ export default function CommunityDetailView({
   const showRail = regionHref !== null
   const railRegionName = getCommunityRailRegionName(detail)
   const edited = isCommunityPostEdited(detail.createdAt, detail.updatedAt)
-  /* 글쓰기는 보호 경로라 비로그인이면 미들웨어·작성 화면이 로그인으로 보낸다(돌아올 자리 보존). */
-  const writeHref = mockEnabled
-    ? '/community/register?mock=1'
-    : '/community/register'
+  /*
+    글쓰기는 보호 경로라 비로그인이면 미들웨어·작성 화면이 로그인으로 보낸다(돌아올 자리 보존).
+    이 글의 대상으로 지역 칩을 채워 연다(CM-031) — 레일이 「{지역}의 다음 이야기」를 권하는 자리다.
+  */
+  const writeHref = createCommunityWriteHref(
+    toCommunityLocationValue(detail),
+    mockEnabled,
+  )
 
   const requireAuth = (action: () => void) => {
     if (!authReady) {

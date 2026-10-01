@@ -14,7 +14,8 @@ import CommunityListView, {
   type CommunityListStatus,
   type CommunityListViewPost,
 } from '@/components/community/community-list-view'
-import type { CommunityLocationValue } from '@/components/community/community-location-picker'
+import type { CommunityLocationValue } from '@/lib/community/community-location'
+import { createCommunityListWriteHref } from '@/lib/community/editor-prefill'
 import CommunityRegionSheet from '@/components/community/community-region-sheet'
 import { useCommunityListScrollRestore } from '@/hooks/use-community-list-scroll-restore'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
@@ -683,15 +684,16 @@ export default function CommunityListPage() {
         ? 'liked'
         : 'general'
   useCommunityListScrollRestore({ contextKey, status })
-  const writeHref = state.mock
-    ? '/community/register?mock=1'
-    : hasHydrated && !viewer.authenticated
-      ? getCommunityLoginHref('/community/register')
-      : '/community/register'
   const hasTarget = Boolean(state.targetType && state.targetCode)
   // 검색은 서울 전체에서 하고(S4 계약) 좋아요한 글은 필터를 함께 푼다(CM-005).
   // 그 둘에서는 칩을 끄고, 칩이 「서울 전체」로 지금 범위를 말한다.
   const locationDisabled = Boolean(state.keyword) || state.view === 'liked'
+  // 글쓰기는 보던 대상으로 지역 칩을 채워 연다(CM-031).
+  const writeHref = createCommunityListWriteHref({
+    state,
+    boardTargetName: getCommunityBoardResponseName(responses, state),
+    guest: hasHydrated && !viewer.authenticated,
+  })
   const locationValue: CommunityLocationValue =
     hasTarget && !locationDisabled
       ? {

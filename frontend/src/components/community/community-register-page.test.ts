@@ -102,11 +102,17 @@ beforeEach(() => {
 })
 
 describe('CommunityRegisterPage · 상권 비교 초안', () => {
-  it('초안 파라미터가 없으면 초안을 부르지 않고 빈 폼을 준다', () => {
+  /*
+   * 초안 없이 들어오면 임시 저장본을 먼저 확인한다 — 저장본 확인은 브라우저에서만 되므로
+   * 서버 렌더는 폼을 띄우지 않고 기다린다(폼은 마운트 시점 값만 읽는다). 빈 폼이 뜨는 것은
+   * community-register-page.interaction.test.ts 가 본다.
+   */
+  it('초안 파라미터가 없으면 초안을 부르지 않고, 저장본을 확인하기 전엔 폼을 띄우지 않는다', () => {
     const markup = render('')
 
     expect(draftCalls.current).toEqual([])
-    expect(markup).toContain('새 게시글')
+    expect(markup).toContain('작성하던 글을 확인하고 있어요')
+    expect(markup).not.toContain('data-community-editor-form')
     expect(markup).not.toContain('비교 내용을 불러오지 못했어요')
   })
 
@@ -120,6 +126,23 @@ describe('CommunityRegisterPage · 상권 비교 초안', () => {
     expect(markup).toContain('선정릉역 4번 vs 역삼역 4번')
     expect(markup).toContain('두 상권의 매출과 유동인구를 비교했습니다.')
     expect(markup).toContain('역삼1동')
+    // 초안 진입은 저장본을 묻지 않는다 — 확인 단계 없이 곧바로 폼이다.
+    expect(markup).toContain('data-community-editor-form="true"')
+    expect(markup).not.toContain('작성하던 글')
+  })
+
+  it('목록에서 넘어온 지역이 있어도 비교 초안의 행정동이 이긴다', () => {
+    const markup = render(
+      `${DRAFT_SEARCH}&targetType=DISTRICT&targetCode=11200&targetName=성동구`,
+      {
+        title: '제목',
+        content: '본문',
+        targetName: '역삼1동',
+      },
+    )
+
+    expect(markup).toContain('역삼1동')
+    expect(markup).not.toContain('성동구')
   })
 
   it('초안 파라미터가 깨졌으면 부르지 않고 안내만 한다', () => {
@@ -127,6 +150,8 @@ describe('CommunityRegisterPage · 상권 비교 초안', () => {
 
     expect(draftCalls.current).toEqual([])
     expect(markup).toContain('비교 내용을 불러오지 못했어요')
+    // 안내가 떠도 글쓰기는 막지 않는다.
+    expect(markup).toContain('data-community-editor-form="true"')
   })
 })
 
