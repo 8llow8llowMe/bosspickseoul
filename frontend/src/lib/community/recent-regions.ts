@@ -10,6 +10,10 @@ import type { CommunityTargetType } from '@/types/community'
 
   저장소는 브라우저 설정·사생활 모드에 따라 읽기·쓰기 모두 던질 수 있다. 보조 기능이라 실패는
   조용히 빈 목록으로 내려앉는다.
+
+  기록은 회원이 아니라 **브라우저 단위**다(비로그인 열람도 남긴다). 다만 로그아웃하면 지운다 —
+  글쓰기 임시 저장본(3단계 「잃지 않게」)과 같은 이유로, 공용 기기의 다음 사람에게 앞 사람이 본
+  동네를 보여 주지 않는다(`clearCommunityRecentRegions`, 사이트 헤더 로그아웃).
 */
 
 export const COMMUNITY_RECENT_REGIONS_KEY = 'community-recent-regions'
@@ -106,4 +110,18 @@ export const saveCommunityRecentRegion = (
   }
 
   return next
+}
+
+/**
+ * 로그아웃 때 최근 본 지역을 지운다. 저장소를 꺼내는 것부터 던질 수 있어(사생활 모드 등) 꺼내는
+ * 함수를 받아 try 안에서 부른다. 실패는 삼킨다 — 로그아웃을 막지 않는다.
+ */
+export const clearCommunityRecentRegions = (
+  getStorage: () => Pick<Storage, 'removeItem'> | null | undefined,
+) => {
+  try {
+    getStorage()?.removeItem(COMMUNITY_RECENT_REGIONS_KEY)
+  } catch {
+    // 지우지 못해도 로그아웃은 이어 간다.
+  }
 }

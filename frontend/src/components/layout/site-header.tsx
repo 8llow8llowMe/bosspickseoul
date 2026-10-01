@@ -23,6 +23,7 @@ import {
   COMMUNITY_HEADER_HIDDEN_SELECTOR,
   SITE_HEADER_MENU_OPEN_ATTRIBUTE,
 } from '@/lib/community/hidden-header'
+import { clearCommunityRecentRegions } from '@/lib/community/recent-regions'
 import { clearMemberInfoQuery } from '@/lib/member-info-query'
 import { clearMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
@@ -441,6 +442,8 @@ export default function SiteHeader() {
       // 글쓰기 임시 저장본은 브라우저에 남는다 — 공용 기기의 다음 사람에게 넘기지 않는다.
       // storage 실패는 함수 안에서 삼킨다(try/catch).
       clearCommunityStoredDrafts(getBrowserLocalStorage)
+      // 최근 본 지역(좌 내비)도 같은 이유로 지운다. 비로그인 열람 기록은 브라우저 단위로 둔다.
+      clearCommunityRecentRegions(getBrowserLocalStorage)
       clearSession()
       setIsDropdownOpen(false)
       setIsMobileOpen(false)

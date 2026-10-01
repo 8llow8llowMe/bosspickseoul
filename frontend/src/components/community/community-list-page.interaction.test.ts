@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from 'react'
-import { cleanup, render, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -269,10 +269,13 @@ describe('CommunityListPage — 좌 내비', () => {
     })
 
     const nav = container.querySelector('[data-community-list-nav]')!
-    const current = [...nav.querySelectorAll('a[aria-current="page"]')].map(
-      link => link.textContent,
-    )
-    expect(current).toEqual(['최신', '강남구'])
+    const currentOf = (value: string) =>
+      [...nav.querySelectorAll(`a[aria-current="${value}"]`)].map(
+        link => link.textContent,
+      )
+    // 「현재 페이지」는 연 지역 게시판 하나다. 보기는 그 안의 지금 상태다.
+    expect(currentOf('page')).toEqual(['강남구'])
+    expect(currentOf('true')).toEqual(['최신'])
     expect(
       nav.querySelector('a[href*="targetCode=11440"]')?.getAttribute('href'),
     ).toBe('/community/list?targetType=DISTRICT&targetCode=11440&mock=1')
@@ -296,5 +299,139 @@ describe('CommunityListPage — 좌 내비', () => {
       ).not.toBeNull()
     })
     expect(container.querySelector('[data-community-list-nav]')).toBeNull()
+  })
+})
+
+/*
+  레일 인기 글 → 상세 → 뒤로(CM-030). 레일 링크는 피드 행이 아니라 누른 행이 없다 — 화면 안 첫 피드
+  행을 기준으로 자리를 남겨야 돌아왔을 때 보던 화면에 선다. jsdom 은 배치를 계산하지 않으니 행
+  위치는 문서 기준 top(행 높이 100) 을 정해 getBoundingClientRect 로 흉내 낸다.
+*/
+describe('CommunityListPage — 레일 인기 글에서 뒤로', () => {
+  const ROW_HEIGHT = 100
+  const rowDocumentTop = (index: number) => 200 + index * ROW_HEIGHT
+
+  const stubRowBoxes = () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      function (this: HTMLElement) {
+        const rows = [...document.querySelectorAll('[data-community-post-id]')]
+        const index = rows.indexOf(this)
+        const top =
+          index < 0 ? 0 : rowDocumentTop(index) - (window.scrollY ?? 0)
+        return {
+          top,
+          bottom: index < 0 ? 0 : top + ROW_HEIGHT,
+          left: 0,
+          right: 0,
+          width: 0,
+          height: index < 0 ? 0 : ROW_HEIGHT,
+          x: 0,
+          y: top,
+          toJSON: () => ({}),
+        } as DOMRect
+      },
+    )
+  }
+
+  const setScrollY = (value: number) => {
+    Object.defineProperty(window, 'scrollY', { configurable: true, value })
+  }
+
+  const waitForRailAndRows = async (container: HTMLElement) => {
+    await waitFor(() => {
+      expect(
+        container.querySelector(
+          '[data-community-list-rail] a[data-popular-post-id]',
+        ),
+      ).not.toBeNull()
+    })
+  }
+
+  afterEach(() => {
+    setScrollY(0)
+    window.sessionStorage.clear()
+  })
+
+  it('saves the first on-screen feed row and restores it after popstate', async () => {
+    stubRowBoxes()
+    const { container } = renderPage(1200, 'mock=1')
+    await waitForRailAndRows(container)
+    await waitFor(() => {
+      expect(
+        container.querySelectorAll('[data-community-post-id]').length,
+      ).toBeGreaterThanOrEqual(5)
+    })
+
+    // 행 0~2 는 화면 위로 지나갔고 행 3 이 위쪽 50 이 잘린 채 화면 맨 위에 걸려 있다.
+    setScrollY(550)
+    const rows = [...container.querySelectorAll('[data-community-post-id]')]
+    const anchorId = rows[3]!.getAttribute('data-community-post-id')
+    const railLink = container.querySelector<HTMLAnchorElement>(
+      '[data-community-list-rail] a[data-popular-post-id]',
+    )!
+    // jsdom 은 링크 이동을 구현하지 않는다 — 기본 동작만 막고 onClick 저장은 그대로 돈다.
+    railLink.addEventListener('click', event => event.preventDefault())
+    fireEvent.click(railLink)
+
+    expect(
+      JSON.parse(window.sessionStorage.getItem('community-list-scroll')!),
+    ).toMatchObject({ postId: anchorId, rowOffset: -50 })
+
+    // 상세로 갔다가(목록 언마운트) 브라우저 뒤로.
+    cleanup()
+    setScrollY(0)
+    const scrollTo = vi.fn()
+    vi.stubGlobal('scrollTo', scrollTo)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    const again = renderPage(1200, 'mock=1')
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalledWith({ top: 550, behavior: 'instant' })
+    })
+    expect(
+      again.container
+        .querySelectorAll('[data-community-post-id]')[3]
+        ?.getAttribute('data-community-post-id'),
+    ).toBe(anchorId)
+    expect(window.sessionStorage.getItem('community-list-scroll')).toBeNull()
+    vi.unstubAllGlobals()
+  })
+
+  it('drops an old snapshot when there is no feed row on screen', async () => {
+    getPosts.mockImplementation(async (params: CommunityListParams) => {
+      const response = await realGetPosts(params)
+
+      if (params.size === 5) {
+        return response
+      }
+
+      return {
+        ...response,
+        dataBody: {
+          ...response.dataBody,
+          posts: { contents: [], hasNext: false },
+        },
+      }
+    })
+    window.sessionStorage.setItem(
+      'community-list-scroll',
+      JSON.stringify({
+        contextKey: 'old',
+        postId: '1',
+        rowOffset: 10,
+        savedAt: Date.now(),
+      }),
+    )
+    const { container } = renderPage(1200, 'mock=1')
+    await waitForRailAndRows(container)
+    expect(container.querySelector('[data-community-post-id]')).toBeNull()
+
+    const railLink = container.querySelector<HTMLAnchorElement>(
+      '[data-community-list-rail] a[data-popular-post-id]',
+    )!
+    railLink.addEventListener('click', event => event.preventDefault())
+    fireEvent.click(railLink)
+
+    expect(window.sessionStorage.getItem('community-list-scroll')).toBeNull()
   })
 })

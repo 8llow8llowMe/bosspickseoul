@@ -512,6 +512,11 @@ const InlineMessage = styled.p<{ $error?: boolean }>`
   레일 칸. sticky 는 칸 전체에 건다 — 인접 글 카드와 지역 글 카드가 따로 붙으면 스크롤 중에 겹친다.
   대상 없는 글(인접 글만)은 `<1080` 에서 칸째 숨긴다. 그 폭의 인접 글은 본문 아래 묶음이 맡고,
   빈 칸이 남으면 Layout 의 행 간격(32)만큼 아래가 빈다.
+
+  sticky 칸이 화면보다 길면(낮은 화면 · 인접 글 + 지역 글 5건) 아래가 잘려 끝까지 닿을 수 없다 —
+  `≥1080` 에서만 칸 높이를 화면(sticky top 88 · 아래 24)에 묶고 칸 안에서 스크롤한다. 칸 끝에서
+  페이지가 이어 굴러가지 않게 overscroll 을 막는다. 스크롤 칸은 안쪽을 자르지만 포커스 링(2px +
+  offset 2px)은 잘리지 않는다 — 링크·버튼은 모두 카드 안쪽 여백(인접 글 4·20, 지역 글 20) 안에 있다.
 */
 const RailColumn = styled.div<{ $adjacentOnly: boolean }>`
   min-width: 0;
@@ -522,6 +527,9 @@ const RailColumn = styled.div<{ $adjacentOnly: boolean }>`
     display: grid;
     position: sticky;
     top: ${RAIL_STICKY_TOP}px;
+    max-height: calc(100dvh - ${RAIL_STICKY_TOP}px - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 `
 

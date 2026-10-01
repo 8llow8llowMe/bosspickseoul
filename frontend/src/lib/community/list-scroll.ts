@@ -120,6 +120,25 @@ export const getCommunityListScrollTop = (
     ? null
     : Math.max(0, rowDocumentTop - snapshot.rowOffset)
 
+/** 피드 행 하나의 화면 기준 위치(`getBoundingClientRect()` 의 top·bottom). */
+export type CommunityListRowBox = {
+  postId: CommunityId
+  top: number
+  bottom: number
+}
+
+/**
+ * 피드 행이 아닌 링크(우 레일 인기 글)로 상세에 갈 때 자리를 맡길 기준 행 — 화면 안의 첫 피드 행.
+ * 위쪽이 헤더 밑으로 잘린 행도 고른다. 돌아올 때 그 행을 같은 화면 높이(음수 offset 포함)에 두므로
+ * 보던 화면이 그대로 돌아온다. 화면 안에 피드 행이 없으면(목록이 비었거나 실패) `null` 이다 —
+ * 그때 부르는 쪽은 옛 자리를 지운다(다른 글을 누른 옛 자리로 돌아가면 엉뚱한 곳에 떨어진다).
+ */
+export const findCommunityListAnchorRow = (
+  rows: CommunityListRowBox[],
+  viewportHeight: number,
+): CommunityListRowBox | null =>
+  rows.find(row => row.bottom > 0 && row.top < viewportHeight) ?? null
+
 export type CommunityListScrollStep = 'wait' | 'restore' | 'discard'
 
 /** 첫 쪽을 기다리고, 글이 그려지면 복원하고, 비었거나 실패면 돌아갈 자리가 없으니 버린다. */

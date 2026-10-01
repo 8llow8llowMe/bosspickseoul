@@ -1395,6 +1395,28 @@ describe('CommunityDetailView — 상세 레일 보강 (개편 4단계)', () => 
     expect(hasRule(styles, column, /position:sticky/, DESKTOP_MEDIA)).toBe(true)
   })
 
+  it('낮은 화면에서도 sticky 레일 끝까지 닿도록 ≥1080 에서만 레일 칸 높이를 화면에 묶고 안에서 스크롤한다', () => {
+    const { markup, styles } = renderWithStyles({ detail: districtDetail })
+    const column = getElementClasses(markup, 'data-community-rail="true"')
+
+    // 헤더 64 + 위 24(sticky top 88) + 아래 여백 24 를 뺀 높이.
+    expect(
+      hasRule(
+        styles,
+        column,
+        /max-height:calc\(100dvh - 88px - 24px\)/,
+        DESKTOP_MEDIA,
+      ),
+    ).toBe(true)
+    expect(hasRule(styles, column, /overflow-y:auto/, DESKTOP_MEDIA)).toBe(true)
+    expect(
+      hasRule(styles, column, /overscroll-behavior:contain/, DESKTOP_MEDIA),
+    ).toBe(true)
+    // <1080 은 레일 내용이 댓글 뒤로 흐른다 — 높이를 묶지 않는다.
+    expect(hasRule(styles, column, /max-height/)).toBe(false)
+    expect(hasRule(styles, column, /overflow-y/)).toBe(false)
+  })
+
   it('대상 없는 글도 인접 글이 있으면 레일(인접 글만)을 그리고, <1080 에서는 레일 칸째 숨긴다', () => {
     const { markup, styles } = renderWithStyles({
       relatedStatus: 'empty',

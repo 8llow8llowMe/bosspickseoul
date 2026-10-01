@@ -104,6 +104,18 @@ describe('SiteHeader — 목록 숨는 헤더 연결', () => {
     expect(hiddenHeader()).not.toBeNull()
   })
 
+  /*
+    포커스 예외는 키보드 포커스(:focus-visible)만이다. Android 는 탭한 버튼(메뉴 닫기 등)에 포커스가
+    남아 :focus-within 이면 숨는 헤더가 사실상 꺼진다. jsdom 은 :focus-visible 을 :focus 처럼 매칭해
+    탭·키보드를 가르지 못하므로 선택자 문자열로 잠근다.
+  */
+  it('only keeps the header for keyboard focus (:focus-visible), not any focus inside', () => {
+    expect(COMMUNITY_HEADER_HIDDEN_SELECTOR).toContain(
+      ":has([data-site-header][data-menu-open='true'], [data-site-header] :focus-visible)",
+    )
+    expect(COMMUNITY_HEADER_HIDDEN_SELECTOR).not.toContain(':focus-within')
+  })
+
   it('comes back while keyboard focus is inside the header', () => {
     const { getByRole } = renderHeader('/community/list')
     document.documentElement.setAttribute(

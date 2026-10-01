@@ -20,6 +20,8 @@ export type CommunityPopularRailPost = {
   title: string
   likeCount: number
   href: string
+  /** 누를 때 뒤로 돌아올 목록 자리를 남긴다(CM-030). 피드 행의 `onNavigate` 와 같은 자리다. */
+  onNavigate?: () => void
 }
 
 export type CommunityListRailProps = {
@@ -188,6 +190,7 @@ export default function CommunityListRail({
                 <PopularLink
                   data-popular-post-id={post.postId}
                   href={post.href}
+                  onClick={post.onNavigate}
                 >
                   <PopularRank>
                     <span aria-hidden="true">{index + 1}</span>

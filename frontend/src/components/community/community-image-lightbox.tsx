@@ -3,6 +3,7 @@
 import {
   useEffect,
   useRef,
+  useSyncExternalStore,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react'
@@ -16,6 +17,7 @@ import {
 import {
   formatPhotoPosition,
   getPhotoSwipeStep,
+  shouldHandlePhotoSwipe,
   stepPhotoIndex,
 } from '@/lib/community/photo-viewer'
 
@@ -122,15 +124,17 @@ const CloseButton = styled.button`
 /*
   사진은 비율을 지킨 채(contain) 남은 칸을 채운다. 세로 이동과 핀치 확대는 브라우저에 맡기고
   가로 이동만 포인터 이벤트로 받는다(touch-action) — 가로 팬을 브라우저가 가져가면 pointercancel 로
-  스와이프가 끊긴다. `≥480` 은 좌우 64 를 비워 이전/다음 버튼이 사진을 덮지 않게 한다.
+  스와이프가 끊긴다. 핀치로 확대한 동안(`$zoomed`)은 `auto` 로 돌려 확대한 사진을 가로로도 둘러볼 수
+  있게 한다 — 그동안 스와이프로 넘기지 않는다. `≥480` 은 좌우 64 를 비워 이전/다음 버튼이 사진을 덮지
+  않게 한다.
 */
-const Stage = styled.div`
+const Stage = styled.div<{ $zoomed: boolean }>`
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 0 16px;
-  touch-action: pan-y pinch-zoom;
+  touch-action: ${props => (props.$zoomed ? 'auto' : 'pan-y pinch-zoom')};
   user-select: none;
 
   ${TABLET_UP} {
@@ -171,6 +175,33 @@ const NavButton = styled.button<{ $side: 'previous' | 'next' }>`
   }
 `
 
+/*
+  핀치 확대 배율. visualViewport 는 배율이 바뀌면 resize 를 낸다. 없는 브라우저는 늘 「확대 안 함」 —
+  지금처럼 스와이프로 넘긴다. 서버 렌더도 확대 안 함이다.
+*/
+const readVisualViewportScale = () =>
+  typeof window === 'undefined' ? undefined : window.visualViewport?.scale
+
+const subscribeVisualViewport = (onChange: () => void) => {
+  const viewport =
+    typeof window === 'undefined' ? null : (window.visualViewport ?? null)
+
+  if (!viewport) {
+    return () => {}
+  }
+
+  viewport.addEventListener('resize', onChange)
+
+  return () => {
+    viewport.removeEventListener('resize', onChange)
+  }
+}
+
+const getZoomedSnapshot = () =>
+  !shouldHandlePhotoSwipe(readVisualViewportScale())
+
+const getZoomedServerSnapshot = () => false
+
 /**
  * 상세 본문 사진의 전체 화면 보기(community.md §S4 4단계 「사진 보기」, CM-041).
  *
@@ -199,6 +230,11 @@ function CommunityImageLightboxContent({
   const closeRef = useRef<HTMLButtonElement>(null)
   const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(
     null,
+  )
+  const zoomed = useSyncExternalStore(
+    subscribeVisualViewport,
+    getZoomedSnapshot,
+    getZoomedServerSnapshot,
   )
   const count = images.length
   const current = Math.min(Math.max(index, 0), count - 1)
@@ -296,7 +332,11 @@ function CommunityImageLightboxContent({
   }
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary) {
+    if (
+      !event.isPrimary ||
+      !shouldHandlePhotoSwipe(readVisualViewportScale())
+    ) {
+      pointerStartRef.current = null
       return
     }
 
@@ -311,7 +351,13 @@ function CommunityImageLightboxContent({
     const start = pointerStartRef.current
     pointerStartRef.current = null
 
-    if (!start || start.id !== event.pointerId || !hasMany) {
+    // 배율은 떼는 순간 다시 본다 — 1배에서 누른 손가락에 둘째 손가락이 붙어 핀치로 확대했을 수 있다.
+    if (
+      !start ||
+      start.id !== event.pointerId ||
+      !hasMany ||
+      !shouldHandlePhotoSwipe(readVisualViewportScale())
+    ) {
       return
     }
 
@@ -352,6 +398,8 @@ function CommunityImageLightboxContent({
         </CloseButton>
       </TopBar>
       <Stage
+        $zoomed={zoomed}
+        data-zoomed={zoomed ? 'true' : 'false'}
         onPointerCancel={handlePointerCancel}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}

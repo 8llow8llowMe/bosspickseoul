@@ -4,6 +4,7 @@ import {
   COMMUNITY_RECENT_REGIONS_KEY,
   COMMUNITY_RECENT_REGIONS_LIMIT,
   addCommunityRecentRegion,
+  clearCommunityRecentRegions,
   parseCommunityRecentRegions,
   readCommunityRecentRegions,
   saveCommunityRecentRegion,
@@ -145,5 +146,39 @@ describe('read/saveCommunityRecentRegion', () => {
     expect(readCommunityRecentRegions(throwing)).toEqual([])
     // 쓰기에 실패해도 이번 화면에서는 방금 본 지역을 보여 준다.
     expect(saveCommunityRecentRegion(throwing, seongdong)).toEqual([seongdong])
+  })
+})
+
+describe('clearCommunityRecentRegions — 로그아웃', () => {
+  it('removes only the recent regions key', () => {
+    const values = new Map([
+      [COMMUNITY_RECENT_REGIONS_KEY, JSON.stringify([seongdong])],
+      ['keep-me', '1'],
+    ])
+
+    clearCommunityRecentRegions(() => ({
+      removeItem: (key: string) => {
+        values.delete(key)
+      },
+    }))
+
+    expect(values.has(COMMUNITY_RECENT_REGIONS_KEY)).toBe(false)
+    expect(values.get('keep-me')).toBe('1')
+  })
+
+  it('never throws when storage is missing or blocked', () => {
+    expect(() => clearCommunityRecentRegions(() => null)).not.toThrow()
+    expect(() =>
+      clearCommunityRecentRegions(() => {
+        throw new Error('SecurityError')
+      }),
+    ).not.toThrow()
+    expect(() =>
+      clearCommunityRecentRegions(() => ({
+        removeItem: () => {
+          throw new Error('SecurityError')
+        },
+      })),
+    ).not.toThrow()
   })
 })

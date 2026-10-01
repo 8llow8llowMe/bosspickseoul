@@ -5,11 +5,13 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SiteHeader from '@/components/layout/site-header'
+import { COMMUNITY_RECENT_REGIONS_KEY } from '@/lib/community/recent-regions'
 import { useAuthStore } from '@/stores/auth-store'
 
 /*
   로그아웃이 회원 범위 브라우저 상태를 치우는지 실제 DOM 에서 잠근다. 글쓰기 임시 저장본
-  (community.md §S4 「잃지 않게」)은 공용 기기에서 다음 계정에 남으면 안 된다.
+  (community.md §S4 「잃지 않게」)과 좌 내비 최근 본 지역(4단계 「목록 3단」)은 공용 기기에서
+  다음 사람에게 남으면 안 된다.
 */
 
 const routerBox = vi.hoisted(() => ({
@@ -56,7 +58,41 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+const renderAndLogout = async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  render(
+    createElement(QueryClientProvider, { client }, createElement(SiteHeader)),
+  )
+
+  fireEvent.click(document.querySelector('[aria-haspopup="menu"]')!)
+  const logout = Array.from(
+    document.querySelectorAll('[role="menuitem"]'),
+  ).find(item => item.textContent?.includes('로그아웃'))!
+  fireEvent.click(logout)
+
+  await waitFor(() => {
+    expect(routerBox.push).toHaveBeenCalledWith('/')
+  })
+}
+
 describe('로그아웃', () => {
+  it('최근 본 지역(`community-recent-regions`)도 지운다', async () => {
+    window.localStorage.setItem(
+      COMMUNITY_RECENT_REGIONS_KEY,
+      JSON.stringify([
+        { targetType: 'DISTRICT', targetCode: '11680', targetName: '강남구' },
+      ]),
+    )
+    window.localStorage.setItem('keep-me', '1')
+
+    await renderAndLogout()
+
+    expect(window.localStorage.getItem(COMMUNITY_RECENT_REGIONS_KEY)).toBeNull()
+    expect(window.localStorage.getItem('keep-me')).toBe('1')
+  })
+
   it('글쓰기 임시 저장본(`community-draft:`)을 모두 지우고 다른 값은 둔다', async () => {
     window.localStorage.setItem('community-draft:7:new', '{"title":"a"}')
     window.localStorage.setItem('community-draft:7:edit:42', '{"title":"b"}')
