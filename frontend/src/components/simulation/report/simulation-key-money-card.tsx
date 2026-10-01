@@ -5,6 +5,7 @@ import styled from 'styled-components'
 import { Badge } from '@/components/ui/badge'
 import { formatLargeWon } from '@/lib/format'
 import type { SimulationKeyMoney } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationKeyMoneyCardProps = { keyMoney: SimulationKeyMoney }
 
@@ -16,7 +17,7 @@ const Root = styled.section`
   background: var(--color-surface);
   padding: 24px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 `
@@ -39,7 +40,7 @@ const Metrics = styled.dl`
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 520px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     grid-template-columns: minmax(0, 1fr);
   }
 

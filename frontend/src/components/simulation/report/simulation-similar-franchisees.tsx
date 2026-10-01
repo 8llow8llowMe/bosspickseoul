@@ -4,6 +4,7 @@ import styled from 'styled-components'
 
 import { formatLargeWon } from '@/lib/format'
 import type { SimulationSimilarFranchisee } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationSimilarFranchiseesProps = {
   items: readonly SimulationSimilarFranchisee[]
@@ -17,7 +18,7 @@ const Root = styled.section`
   background: var(--color-surface);
   padding: 24px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 

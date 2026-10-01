@@ -24,7 +24,9 @@ export type SimulationConditionCompactEditorProps = {
   conditions: SimulationConditionsController
 }
 
+/* 필드 격자가 화면 폭이 아니라 **편집기 자신의 폭**에 반응하도록 컨테이너로 둔다(아래 Grid). */
 const Root = styled.div`
+  container-type: inline-size;
   display: grid;
   gap: 12px;
 `
@@ -34,9 +36,18 @@ const Grid = styled.div`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 
-  /* 컬럼이 한 벌만 남는 세로 스택에서도 2열을 유지한다 — 항목이 5개뿐이라
-     1열로 펴면 카드가 세로로만 길어진다. 진짜 좁아질 때만 접는다. */
-  @media (max-width: 400px) {
+  /*
+    컬럼이 한 벌만 남는 세로 스택에서도 2열을 유지한다 — 항목이 5개뿐이라
+    1열로 펴면 카드가 세로로만 길어진다. 진짜 좁아질 때만 접는다.
+
+    그래서 화면 폭 단계(SIMULATION_MEDIA)가 아니라 컨테이너 쿼리를 쓴다. 편집기는
+    768px 이상에서 둘이 나란히, 그 아래에서 한 줄로 쌓이므로 화면 폭과 자기 폭이 따로
+    논다 — 화면 767px 이하로 접으면 쌓여서 넓어진 편집기까지 1열이 된다.
+
+    기준 300px 은 실측 격자 폭 사이에 둔다: 375 폰 295px → 1열, 768 태블릿(둘이 나란히)
+    311px · 400 폰 320px → 2열(한 칸 약 150px). 311 로 두면 768 이 경계에 걸려 접힌다.
+  */
+  @container (max-width: 300px) {
     grid-template-columns: minmax(0, 1fr);
   }
 `

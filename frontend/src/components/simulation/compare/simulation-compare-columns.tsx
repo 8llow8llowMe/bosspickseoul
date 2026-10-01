@@ -18,6 +18,7 @@ import { buildSimulationReportHref } from '@/lib/simulation/report-route'
 import type { SimulationReportVariant } from '@/lib/simulation/report-route'
 import { buildSimulationReportRequest } from '@/lib/api/simulation'
 import type { SimulationCondition, SimulationReport } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationCompareColumnsProps = {
   left: SimulationReport
@@ -34,7 +35,7 @@ const Root = styled.section`
   padding: 24px;
   box-shadow: var(--shadow-level-2);
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 
@@ -52,7 +53,7 @@ const Heads = styled.div`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     grid-template-columns: minmax(0, 1fr);
   }
 `
@@ -155,7 +156,7 @@ const Mirror = styled.dd`
   align-items: center;
   gap: 8px;
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
   }
@@ -177,7 +178,7 @@ const Half = styled.div<{ $side: 'left' | 'right' }>`
   align-items: center;
   gap: 8px;
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     flex-direction: ${props =>
       props.$side === 'right' ? 'row-reverse' : 'row'};
     justify-content: flex-end;
@@ -207,7 +208,7 @@ const Fill = styled.div<{ $ratio: number; $side: 'left' | 'right' }>`
       ? CHART_COLORS.seriesPrimary
       : CHART_COLORS.seriesSecondary};
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     margin-left: 0;
   }
 `
@@ -226,7 +227,7 @@ const Links = styled.div`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     grid-template-columns: minmax(0, 1fr);
   }
 `

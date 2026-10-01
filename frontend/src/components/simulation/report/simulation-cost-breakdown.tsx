@@ -12,6 +12,7 @@ import {
   type CostBreakdownRow,
 } from '@/lib/simulation/report-presentation'
 import type { SimulationReport } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationCostBreakdownProps = { report: SimulationReport }
 
@@ -39,7 +40,7 @@ const Root = styled.section`
   background: var(--color-surface);
   padding: 24px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 
@@ -61,7 +62,7 @@ const Layout = styled.div`
   align-items: center;
   gap: 24px;
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }

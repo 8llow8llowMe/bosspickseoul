@@ -7,6 +7,7 @@ import styled from 'styled-components'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { SimulationAnalysisContext } from '@/lib/simulation/analysis-context'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationAnalysisContextCardProps = {
   context: SimulationAnalysisContext
@@ -30,7 +31,7 @@ const Root = styled.aside`
   background: var(--color-surface);
   padding: 12px 16px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 12px;
   }
 `

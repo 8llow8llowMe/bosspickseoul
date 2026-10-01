@@ -32,6 +32,7 @@ import {
 import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditions'
 import type { SimulationReport } from '@/types/simulation'
 import { shellWidth } from '@/styles/layout'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationComparePageProps = { variant?: SimulationReportVariant }
 
@@ -40,7 +41,7 @@ const Page = styled.main`
   padding: 32px 0 64px;
   background: var(--color-background-muted);
 
-  @media (max-width: 1023px) {
+  @media ${SIMULATION_MEDIA.belowDesktop} {
     padding: 24px 0 48px;
   }
 `
@@ -49,10 +50,6 @@ const Container = styled.div`
   ${shellWidth}
   display: grid;
   gap: 16px;
-
-  @media (max-width: 640px) {
-    width: calc(100% - 32px);
-  }
 `
 
 const Head = styled.header`
@@ -76,7 +73,7 @@ const Editors = styled.div`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     grid-template-columns: minmax(0, 1fr);
   }
 `

@@ -11,6 +11,7 @@ import type {
   SimulationCondition,
   SimulationSeasonAnalysis,
 } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationSeasonCardProps = {
   condition: SimulationCondition
@@ -25,7 +26,7 @@ const Root = styled.section`
   background: var(--color-surface);
   padding: 24px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 
