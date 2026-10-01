@@ -9,16 +9,18 @@ import {
 } from 'react'
 import Link from 'next/link'
 import { Heart, MessageCircle, Pencil, Search, X } from 'lucide-react'
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 import CommunityFeedback from '@/components/community/community-feedback'
 import CommunityListSkeleton from '@/components/community/community-list-skeleton'
 import CommunityWriter from '@/components/community/community-writer'
+import { useCommunityHeaderHidden } from '@/hooks/use-community-header-hidden'
 import { useLoadMoreSentinel } from '@/hooks/use-load-more-sentinel'
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { useWriteFabCollapsed } from '@/hooks/use-write-fab-collapsed'
 import { formatCommunityCount, formatRelativeTime } from '@/lib/community'
 import { getCommunityFeedFooter } from '@/lib/community/list-feed'
 import type { CommunityListView as CommunityListViewMode } from '@/lib/community/community-state'
+import { COMMUNITY_HEADER_HIDDEN_SELECTOR } from '@/lib/community/hidden-header'
 import {
   getCommunityListHeading,
   getCommunityPostRank,
@@ -66,15 +68,25 @@ export type CommunityListViewProps = {
   /** 목록 끝 감시 요소가 보이면 자동으로 부른다(CM-029). 버튼은 없다. */
   onLoadMore: () => void
   onRetryLoadMore: () => void
+  /**
+   * 우 레일(`≥1080`). 목록 페이지가 matchMedia 로 폭을 판정해 그때만 넘긴다 — CSS 로 숨기면 인기 글
+   * 쿼리가 모바일에서도 나간다(community.md §S4 「목록 3단」).
+   */
+  rail?: ReactNode
+  /** 좌 내비(`≥1360`). 있으면 1360 이상에서 탭 줄을 숨긴다 — 같은 조작을 두 곳에 두지 않는다. */
+  nav?: ReactNode
 }
 
 /*
-  커뮤니티 구간(DESIGN.md §8 피드형 화면 메모): <480 모바일 · ≥480 태블릿 이상.
-  목록은 1단계에서 모든 폭이 --w-read 1단이라 1080 분기는 없다(3단 레일은 4단계).
+  커뮤니티 구간(DESIGN.md §8 피드형 화면 메모): <480 모바일 · 480–1079 태블릿(--w-read 1단) ·
+  1080–1359 피드 + 우 레일 300 · ≥1360 좌 내비 240 · 피드 · 우 레일 300(합계 1308, --w-wide 안).
+  레거시 640·760·768 은 쓰지 않는다.
 */
 const MOBILE_QUERY = '(max-width: 479px)'
 const MOBILE = `@media ${MOBILE_QUERY}`
 const TABLET_UP = '@media (min-width: 480px)'
+const RAIL_UP = '@media (min-width: 1080px)'
+const NAV_UP = '@media (min-width: 1360px)'
 
 /*
   FAB 와 그 아래 여백. Page 하단 여백이 이 둘 + 16 을 넘어야 마지막 행을 가리지 않는다.
@@ -89,11 +101,31 @@ const FAB_OFFSET = 20
 */
 const SITE_HEADER_HEIGHT = 64
 
+/*
+  골격은 그리드 영역이다. 트랙은 레일·내비가 아직 렌더되지 않았어도(SSR·폭 판정 전) 미리 잡혀 있어
+  hydration 뒤 레일이 들어와도 피드가 옆으로 밀리지 않는다. 피드 트랙은 --w-read 상한이고 묶음을
+  가운데로 모은다 — 상세 1단계 골격처럼 본문과 레일 사이가 벌어지지 않는다(CM-020).
+  1080 에서 셸(1040)이 묶음(1044)보다 4 좁은 만큼은 minmax(0, …) 인 피드 트랙이 줄어 받는다.
+*/
 const Page = styled.main`
-  ${centeredColumn('var(--w-read)')}
+  ${centeredColumn('var(--w-wide)')}
   padding: 32px 0 64px;
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, var(--w-read));
+  grid-template-areas: 'feed';
+  justify-content: center;
+  align-items: start;
+  column-gap: 24px;
+
+  ${RAIL_UP} {
+    grid-template-columns: minmax(0, var(--w-read)) 300px;
+    grid-template-areas: 'feed rail';
+  }
+
+  ${NAV_UP} {
+    grid-template-columns: 240px minmax(0, var(--w-read)) 300px;
+    grid-template-areas: 'nav feed rail';
+  }
 
   ${MOBILE} {
     padding-top: 24px;
@@ -101,6 +133,26 @@ const Page = styled.main`
       ${FAB_HEIGHT}px + ${FAB_OFFSET}px + 16px + env(safe-area-inset-bottom)
     );
   }
+`
+
+const FeedColumn = styled.div`
+  grid-area: feed;
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+`
+
+const NavArea = styled.div`
+  grid-area: nav;
+  min-width: 0;
+  /* sticky 내비가 피드 높이만큼 내려오도록 칸을 늘려 둔다. 내비 자체가 sticky 다. */
+  align-self: stretch;
+`
+
+const RailArea = styled.div`
+  grid-area: rail;
+  min-width: 0;
+  align-self: stretch;
 `
 
 const HeadingRow = styled.div`
@@ -230,6 +282,21 @@ const Toolbar = styled.div`
   padding: 12px 0;
   /* 스크롤하면 글 행이 툴바 밑으로 지나간다 — 비치지 않게 바탕을 칠한다. */
   background: var(--color-surface);
+  transition: top var(--motion-standard) var(--ease-standard);
+
+  /*
+    숨는 헤더(community.md §S4 「숨는 헤더」, CM-043). 헤더가 위로 숨는 것과 같은 선택자라
+    헤더가 남아 있으면(메뉴 열림·헤더 안 포커스) 툴바도 64 에 남는다.
+  */
+  ${MOBILE} {
+    ${COMMUNITY_HEADER_HIDDEN_SELECTOR} & {
+      top: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `
 
 const SearchForm = styled.form`
@@ -298,12 +365,25 @@ const SearchClearButton = styled.button`
   transform: translateY(-50%);
 `
 
-const TabRow = styled.div`
+const TabRow = styled.div<{ $replacedByNav: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--color-border-200);
+
+  /*
+    ≥1360 은 좌 내비가 같은 조작을 맡는다(CM-037). 내비가 실제로 그려졌을 때만 숨긴다 — 폭 판정 전
+    (SSR) 에 탭까지 숨기면 잠깐 조작이 하나도 없다. display:none 이라 접근성 트리에서도 빠진다.
+  */
+  ${props =>
+    props.$replacedByNav
+      ? css`
+          ${NAV_UP} {
+            display: none;
+          }
+        `
+      : null}
 `
 
 const TabGroup = styled.div`
@@ -643,6 +723,8 @@ export default function CommunityListView({
   onRetry,
   onLoadMore,
   onRetryLoadMore,
+  rail,
+  nav,
 }: CommunityListViewProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const hasLoadMoreError = Boolean(loadMoreErrorMessage)
@@ -661,6 +743,8 @@ export default function CommunityListView({
   // `<480` 에서만 스크롤을 듣는다. 폭을 모르는 동안(null)은 펼친 채 둔다.
   const isMobile = useNarrowViewport(MOBILE_QUERY) === true
   const fabCollapsed = useWriteFabCollapsed(isMobile)
+  // 숨는 헤더는 FAB 접힘과 같은 판정이다 — 스크롤을 한 번만 듣고 둘이 같은 값을 쓴다(CM-043).
+  useCommunityHeaderHidden(fabCollapsed)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -682,197 +766,205 @@ export default function CommunityListView({
   const likedSelected = view === 'liked'
 
   return (
-    <Page>
-      <HeadingRow>
-        <HeadingCopy>
-          <Title>{heading.title}</Title>
-          {allPostsHref && !keyword ? (
-            <AllPostsLink href={allPostsHref} replace scroll={false}>
-              전체 글 보기
-            </AllPostsLink>
-          ) : heading.description ? (
-            <Subtitle>{heading.description}</Subtitle>
-          ) : null}
-        </HeadingCopy>
-        <DesktopWriteLink data-desktop-write-action="true" href={writeHref}>
-          <Pencil aria-hidden="true" size={16} />
-          글쓰기
-        </DesktopWriteLink>
-      </HeadingRow>
+    <Page data-community-list-layout={nav ? 'three' : rail ? 'two' : 'one'}>
+      {nav ? <NavArea>{nav}</NavArea> : null}
+      <FeedColumn>
+        <HeadingRow>
+          <HeadingCopy>
+            <Title>{heading.title}</Title>
+            {allPostsHref && !keyword ? (
+              <AllPostsLink href={allPostsHref} replace scroll={false}>
+                전체 글 보기
+              </AllPostsLink>
+            ) : heading.description ? (
+              <Subtitle>{heading.description}</Subtitle>
+            ) : null}
+          </HeadingCopy>
+          <DesktopWriteLink data-desktop-write-action="true" href={writeHref}>
+            <Pencil aria-hidden="true" size={16} />
+            글쓰기
+          </DesktopWriteLink>
+        </HeadingRow>
 
-      <Toolbar aria-label="커뮤니티 탐색" role="region">
-        <SearchForm role="search" onSubmit={handleSubmit}>
-          <SearchIcon aria-hidden="true" size={18} />
-          <SearchInput
-            ref={searchInputRef}
-            $hasValue={Boolean(searchValue)}
-            aria-label="게시글 검색어"
-            enterKeyHint="search"
-            name="keyword"
-            onChange={handleSearchChange}
-            placeholder="제목·내용 검색"
-            type="search"
-            value={searchValue}
-          />
-          {searchValue ? (
-            <SearchClearButton
-              aria-label="검색어 지우기"
-              onClick={handleSearchClear}
-              type="button"
-            >
-              <X aria-hidden="true" size={18} />
-            </SearchClearButton>
-          ) : null}
-        </SearchForm>
-        {locationPicker}
-      </Toolbar>
+        <Toolbar aria-label="커뮤니티 탐색" role="region">
+          <SearchForm role="search" onSubmit={handleSubmit}>
+            <SearchIcon aria-hidden="true" size={18} />
+            <SearchInput
+              ref={searchInputRef}
+              $hasValue={Boolean(searchValue)}
+              aria-label="게시글 검색어"
+              enterKeyHint="search"
+              name="keyword"
+              onChange={handleSearchChange}
+              placeholder="제목·내용 검색"
+              type="search"
+              value={searchValue}
+            />
+            {searchValue ? (
+              <SearchClearButton
+                aria-label="검색어 지우기"
+                onClick={handleSearchClear}
+                type="button"
+              >
+                <X aria-hidden="true" size={18} />
+              </SearchClearButton>
+            ) : null}
+          </SearchForm>
+          {locationPicker}
+        </Toolbar>
 
-      <TabRow>
-        <TabGroup aria-label="게시글 보기" role="group">
-          {tabs.map(tab => (
-            <Tab
-              aria-pressed={view === tab.value}
-              $selected={view === tab.value}
-              key={tab.value}
-              onClick={() => {
-                onViewChange(tab.value)
-              }}
-              type="button"
-            >
-              {tab.label}
-            </Tab>
-          ))}
-        </TabGroup>
-        <LikedToggle
-          aria-pressed={likedSelected}
-          $selected={likedSelected}
-          data-liked-toggle="true"
-          onClick={() => {
-            onViewChange(likedSelected ? 'latest' : 'liked')
-          }}
-          type="button"
-        >
-          <Heart
-            aria-hidden="true"
-            fill={likedSelected ? 'currentColor' : 'none'}
-            size={16}
-          />
-          좋아요한 글
-        </LikedToggle>
-      </TabRow>
+        <TabRow $replacedByNav={Boolean(nav)} data-community-tab-row="true">
+          <TabGroup aria-label="게시글 보기" role="group">
+            {tabs.map(tab => (
+              <Tab
+                aria-pressed={view === tab.value}
+                $selected={view === tab.value}
+                key={tab.value}
+                onClick={() => {
+                  onViewChange(tab.value)
+                }}
+                type="button"
+              >
+                {tab.label}
+              </Tab>
+            ))}
+          </TabGroup>
+          <LikedToggle
+            aria-pressed={likedSelected}
+            $selected={likedSelected}
+            data-liked-toggle="true"
+            onClick={() => {
+              onViewChange(likedSelected ? 'latest' : 'liked')
+            }}
+            type="button"
+          >
+            <Heart
+              aria-hidden="true"
+              fill={likedSelected ? 'currentColor' : 'none'}
+              size={16}
+            />
+            좋아요한 글
+          </LikedToggle>
+        </TabRow>
 
-      {/*
+        {/*
         피드 전체를 live region 으로 두지 않는다 — 자동 다음 쪽마다 붙은 글을 통째로 읽게 된다.
         알림은 스켈레톤(role=status)·실패(role=alert)·끝(role=status)이 각자 맡는다.
         aria-busy 도 걸지 않는다 — busy 인 조상 아래의 status 알림은 busy 가 풀릴 때까지 미뤄질 수
         있는데, 풀리는 순간 스켈레톤은 이미 사라져 「불러오는 중」 이 끝내 읽히지 않는다.
       */}
-      <Feed aria-label="커뮤니티 피드">
-        {status === 'loading' ? (
-          <CommunityListSkeleton variant="initial" />
-        ) : status === 'error' ? (
-          <CommunityFeedback
-            actionLabel="다시 시도"
-            description={errorMessage ?? '잠시 후 다시 시도해 주세요.'}
-            kind="error"
-            onAction={onRetry}
-          />
-        ) : status === 'empty' ? (
-          <CommunityFeedback
-            actionLabel={selectedEmptyCopy.actionLabel}
-            description={selectedEmptyCopy.description}
-            kind="empty"
-            onAction={onEmptyAction}
-            title={selectedEmptyCopy.title}
-          />
-        ) : (
-          <>
-            <PostList>
-              {posts.map((post, index) => {
-                const rank = getCommunityPostRank(view, index)
+        <Feed aria-label="커뮤니티 피드">
+          {status === 'loading' ? (
+            <CommunityListSkeleton variant="initial" />
+          ) : status === 'error' ? (
+            <CommunityFeedback
+              actionLabel="다시 시도"
+              description={errorMessage ?? '잠시 후 다시 시도해 주세요.'}
+              kind="error"
+              onAction={onRetry}
+            />
+          ) : status === 'empty' ? (
+            <CommunityFeedback
+              actionLabel={selectedEmptyCopy.actionLabel}
+              description={selectedEmptyCopy.description}
+              kind="empty"
+              onAction={onEmptyAction}
+              title={selectedEmptyCopy.title}
+            />
+          ) : (
+            <>
+              <PostList>
+                {posts.map((post, index) => {
+                  const rank = getCommunityPostRank(view, index)
 
-                return (
-                  <li key={post.postId}>
-                    <PostLink
-                      data-community-post-id={post.postId}
-                      href={post.href}
-                      onClick={post.onNavigate}
-                    >
-                      {rank ? (
-                        <Rank data-post-rank={rank}>
-                          <span aria-hidden="true">{rank}</span>
-                          <VisuallyHidden>{`인기 ${rank}위`}</VisuallyHidden>
-                        </Rank>
-                      ) : null}
-                      <RowText>
-                        <RowMeta>
-                          <RegionLabel data-post-region="true">
-                            {post.targetName ?? '서울 전체'}
-                          </RegionLabel>
-                          <MetaDivider aria-hidden="true" />
-                          <time dateTime={post.createdAt}>
-                            {formatRelativeTime(post.createdAt)}
-                          </time>
-                        </RowMeta>
-                        <PostTitle>{post.title}</PostTitle>
-                        <Preview>{post.previewContent}</Preview>
-                        <RowFooter>
-                          <CommunityWriter
-                            nickname={post.writerNickname}
-                            profileImageUrl={post.writerProfileImageUrl}
-                          />
-                          <MetaDivider aria-hidden="true" />
-                          <Reaction aria-label={`좋아요 ${post.likeCount}`}>
-                            <Heart aria-hidden="true" size={14} />
-                            {formatCommunityCount(post.likeCount)}
-                          </Reaction>
-                          <Reaction aria-label={`댓글 ${post.commentCount}`}>
-                            <MessageCircle aria-hidden="true" size={14} />
-                            {formatCommunityCount(post.commentCount)}
-                          </Reaction>
-                        </RowFooter>
-                      </RowText>
-                      {post.thumbnailUrl ? (
-                        <Thumbnail>
-                          {/*
+                  return (
+                    <li key={post.postId}>
+                      <PostLink
+                        data-community-post-id={post.postId}
+                        href={post.href}
+                        onClick={post.onNavigate}
+                      >
+                        {rank ? (
+                          <Rank data-post-rank={rank}>
+                            <span aria-hidden="true">{rank}</span>
+                            <VisuallyHidden>{`인기 ${rank}위`}</VisuallyHidden>
+                          </Rank>
+                        ) : null}
+                        <RowText>
+                          <RowMeta>
+                            <RegionLabel data-post-region="true">
+                              {post.targetName ?? '서울 전체'}
+                            </RegionLabel>
+                            <MetaDivider aria-hidden="true" />
+                            <time dateTime={post.createdAt}>
+                              {formatRelativeTime(post.createdAt)}
+                            </time>
+                          </RowMeta>
+                          <PostTitle>{post.title}</PostTitle>
+                          <Preview>{post.previewContent}</Preview>
+                          <RowFooter>
+                            <CommunityWriter
+                              nickname={post.writerNickname}
+                              profileImageUrl={post.writerProfileImageUrl}
+                            />
+                            <MetaDivider aria-hidden="true" />
+                            <Reaction aria-label={`좋아요 ${post.likeCount}`}>
+                              <Heart aria-hidden="true" size={14} />
+                              {formatCommunityCount(post.likeCount)}
+                            </Reaction>
+                            <Reaction aria-label={`댓글 ${post.commentCount}`}>
+                              <MessageCircle aria-hidden="true" size={14} />
+                              {formatCommunityCount(post.commentCount)}
+                            </Reaction>
+                          </RowFooter>
+                        </RowText>
+                        {post.thumbnailUrl ? (
+                          <Thumbnail>
+                            {/*
                             상세 첨부 이미지와 같은 이유로 next/image 를 쓰지 않는다 — MinIO
                             주소는 원격 호스트 등록 대상이 아니다. 제목이 이미 링크 이름이라
                             썸네일은 장식(alt="")이다.
                           */}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img alt="" loading="lazy" src={post.thumbnailUrl} />
-                        </Thumbnail>
-                      ) : null}
-                    </PostLink>
-                  </li>
-                )
-              })}
-            </PostList>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              alt=""
+                              loading="lazy"
+                              src={post.thumbnailUrl}
+                            />
+                          </Thumbnail>
+                        ) : null}
+                      </PostLink>
+                    </li>
+                  )
+                })}
+              </PostList>
 
-            {footer === 'load-more-error' ? (
-              <LoadMoreError data-load-more-error="true" role="alert">
-                <span>{loadMoreErrorMessage}</span>
-                <LoadMoreRetryButton onClick={onRetryLoadMore} type="button">
-                  다시 불러오기
-                </LoadMoreRetryButton>
-              </LoadMoreError>
-            ) : footer === 'loading-more' ? (
-              <CommunityListSkeleton variant="more" />
-            ) : footer === 'sentinel' ? (
-              <Sentinel
-                aria-hidden="true"
-                data-load-more-sentinel="true"
-                ref={sentinelRef}
-              />
-            ) : footer === 'end' ? (
-              <FeedEnd data-community-list-end="true" role="status">
-                <span>여기까지 다 봤어요</span>
-                <FeedEndWriteLink href={writeHref}>글쓰기</FeedEndWriteLink>
-              </FeedEnd>
-            ) : null}
-          </>
-        )}
-      </Feed>
+              {footer === 'load-more-error' ? (
+                <LoadMoreError data-load-more-error="true" role="alert">
+                  <span>{loadMoreErrorMessage}</span>
+                  <LoadMoreRetryButton onClick={onRetryLoadMore} type="button">
+                    다시 불러오기
+                  </LoadMoreRetryButton>
+                </LoadMoreError>
+              ) : footer === 'loading-more' ? (
+                <CommunityListSkeleton variant="more" />
+              ) : footer === 'sentinel' ? (
+                <Sentinel
+                  aria-hidden="true"
+                  data-load-more-sentinel="true"
+                  ref={sentinelRef}
+                />
+              ) : footer === 'end' ? (
+                <FeedEnd data-community-list-end="true" role="status">
+                  <span>여기까지 다 봤어요</span>
+                  <FeedEndWriteLink href={writeHref}>글쓰기</FeedEndWriteLink>
+                </FeedEnd>
+              ) : null}
+            </>
+          )}
+        </Feed>
+      </FeedColumn>
+      {rail ? <RailArea>{rail}</RailArea> : null}
 
       <MobileWriteLink
         aria-label="글쓰기"

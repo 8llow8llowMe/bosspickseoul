@@ -298,6 +298,28 @@ describe('community state', () => {
     expect(communityKeys.liked(true)).toEqual(['community', 'liked', true])
   })
 
+  it('목록 우 레일 인기 글 키는 목록 키와 섞이지 않고 대상·목 모드로 갈린다', () => {
+    expect(communityKeys.popular('DISTRICT', '11200', false)).toEqual([
+      'community',
+      'popular',
+      'DISTRICT',
+      '11200',
+      false,
+    ])
+    expect(communityKeys.popular(null, null, true)).toEqual([
+      'community',
+      'popular',
+      null,
+      null,
+      true,
+    ])
+    // 목록 쪽 prefix(['community', 'list']) 무효화·취소에 걸리지 않는다.
+    expect(communityKeys.popular(null, null, false).slice(0, 2)).not.toEqual([
+      'community',
+      'list',
+    ])
+  })
+
   it('대상명이 없으면 서울 창업 커뮤니티 메타데이터를 만든다', () => {
     expect(buildCommunityMetadataDescription('강남구', '  테스트 본문  ')).toBe(
       '강남구 커뮤니티 게시글 · 테스트 본문',
