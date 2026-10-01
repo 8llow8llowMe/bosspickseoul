@@ -38,7 +38,7 @@ type UseCommunityListScrollRestoreOptions = {
  *
  * - 브라우저 뒤로/앞으로(popstate 직후 마운트)일 때만 복원한다. 헤더 링크 같은 새 진입은 맨 위에서
  *   시작하고 자리는 **지우지 않는다** — 뒤로 두 번 눌러 원래 목록 기록으로 돌아가면 그 목록이 쓴다.
- *   뒤로 가기 여부는 마운트 때 정한다(첫 쪽 응답이 늦어도 그대로).
+ *   뒤로 가기 여부는 마운트 다음 프레임에 정한다(첫 쪽 응답이 늦어도 그대로).
  * - 이 마운트에서 **처음 한 번만** 본다. 첫 쪽을 기다렸다가(loading) 글이 그려지면 복원하고,
  *   비었거나 실패면 자리를 버린다. 누른 행이 다시 그려지지 않았으면(캐시가 버려짐) 복원하지 않고
  *   자리만 버린다. 그 뒤 보기·검색을 바꿔도 다시 끌어오지 않는다.
@@ -50,15 +50,31 @@ export const useCommunityListScrollRestore = ({
   status,
 }: UseCommunityListScrollRestoreOptions) => {
   const settledRef = useRef(false)
-  /** 이 마운트가 popstate 직후였는가. 첫 이펙트에서 정한다(null = 아직 모름). */
+  /** 이 마운트가 popstate 직후였는가. 마운트 다음 프레임에 정한다(null = 아직 모름). */
   const traversalRef = useRef<boolean | null>(null)
 
-  // 아래 복원 이펙트보다 먼저 선언해 같은 커밋에서 먼저 정한다.
+  /*
+    뒤로 가기 여부는 마운트 **다음 프레임**에 정한다. Next App Router 는 popstate 리스너를 앱이 뜰 때
+    먼저 걸고, 쿼리 캐시가 있으면 그 리스너 안에서 목록을 동기로 다시 그려 이 이펙트까지 끝낸다. 목록의
+    popstate 구독은 그보다 늦게 걸려 같은 이벤트에서 나중에 불리므로, 마운트 순간에 물으면 아직
+    「popstate 없음」이다(e2e CM-030 실측). 한 프레임 뒤면 그 이벤트 처리가 다 끝나 있다. 첫 쪽
+    응답이 늦어도 판정은 이 프레임에서 굳는다. 아래 복원 이펙트보다 먼저 선언해 프레임도 먼저 돈다.
+  */
   useEffect(() => {
     communityHistoryTraversal.start(window)
 
-    if (traversalRef.current === null) {
-      traversalRef.current = communityHistoryTraversal.wasRecent()
+    if (traversalRef.current !== null) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      if (traversalRef.current === null) {
+        traversalRef.current = communityHistoryTraversal.wasRecent()
+      }
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frame)
     }
   }, [])
 
@@ -67,7 +83,7 @@ export const useCommunityListScrollRestore = ({
       return
     }
 
-    if (!traversalRef.current) {
+    if (traversalRef.current === false) {
       settledRef.current = true
       return
     }
@@ -79,7 +95,16 @@ export const useCommunityListScrollRestore = ({
     }
 
     const frame = window.requestAnimationFrame(() => {
+      // 판정 프레임이 먼저 돈다. 그 프레임이 취소됐으면(StrictMode 정리) 여기서 정한다.
+      if (traversalRef.current === null) {
+        traversalRef.current = communityHistoryTraversal.wasRecent()
+      }
+
       settledRef.current = true
+
+      if (!traversalRef.current) {
+        return
+      }
 
       let storage: Storage
 

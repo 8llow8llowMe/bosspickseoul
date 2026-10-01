@@ -64,6 +64,16 @@ const renderRestore = (
     { initialProps, reactStrictMode },
   )
 
+/*
+  Next App Router 의 popstate 리스너 자리. 라우터는 앱이 뜰 때 리스너를 걸어 목록의 구독보다 **먼저**
+  불린다. 쿼리 캐시가 있으면 그 리스너 안에서 목록이 동기로 다시 그려지고 마운트 이펙트까지 끝난다
+  (e2e CM-030 에서 실측). 이 파일의 다른 구독보다 먼저 걸리도록 모듈 최상단에서 건다.
+*/
+let renderInsideRouterPopstate: (() => void) | null = null
+window.addEventListener('popstate', () => {
+  renderInsideRouterPopstate?.()
+})
+
 let scrollTo: ReturnType<typeof vi.fn>
 
 beforeAll(() => {
@@ -105,6 +115,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  renderInsideRouterPopstate = null
   cleanup()
   document.body.innerHTML = ''
   vi.unstubAllGlobals()
@@ -130,6 +141,20 @@ describe('useCommunityListScrollRestore', () => {
     expect(scrollTo).toHaveBeenCalledTimes(1)
     expect(scrollTo).toHaveBeenCalledWith({ top: 1760, behavior: 'instant' })
     expect(window.sessionStorage.length).toBe(0)
+  })
+
+  it('restores when the router re-renders the list inside its own popstate listener', () => {
+    saveCommunityListScroll(window.sessionStorage, snapshot)
+    addRow('42', 2000)
+    renderInsideRouterPopstate = () => {
+      renderRestore({ contextKey: 'ctx-latest', status: 'ready' })
+    }
+
+    // 목록 마운트(이펙트 포함)가 popstate 를 기억하는 구독보다 먼저 끝난다.
+    traverseHistory()
+    flushFrames()
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 1760, behavior: 'instant' })
   })
 
   it('stays at the top and drops the snapshot when the row is not rendered (cache collected)', () => {
@@ -175,8 +200,10 @@ describe('useCommunityListScrollRestore', () => {
       contextKey: 'ctx-latest',
       status: 'loading',
     })
+    // 마운트 다음 프레임에 뒤로 가기 여부가 굳는다.
+    flushFrames()
 
-    // 첫 쪽 응답이 1초 넘게 걸렸다 — 뒤로 가기로 들어온 사실은 마운트 때 정해진다.
+    // 첫 쪽 응답이 1초 넘게 걸렸다 — 뒤로 가기로 들어온 사실은 그 프레임에서 이미 정해졌다.
     vi.setSystemTime(Date.now() + 5000)
     rerender({ contextKey: 'ctx-latest', status: 'ready' })
     flushFrames()
@@ -212,8 +239,9 @@ describe('useCommunityListScrollRestore', () => {
       { reactStrictMode: true },
     )
 
-    // 이펙트 → 정리(첫 프레임 취소) → 이펙트. 두 번째 프레임이 복원해야 한다.
-    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(2)
+    // 이펙트 → 정리(첫 프레임 취소) → 이펙트. 판정·복원 이펙트가 각각 두 번 프레임을 잡고,
+    // 살아남은 두 번째 프레임들이 복원해야 한다.
+    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(4)
     flushFrames()
 
     expect(scrollTo).toHaveBeenCalledTimes(1)
