@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
 import CommunityCommentThread from '@/components/community/community-comment-thread'
+import CommunityDetailBottomBar from '@/components/community/community-detail-bottom-bar'
 import CommunityFeedback from '@/components/community/community-feedback'
 import CommunityMoreMenu from '@/components/community/community-more-menu'
 import CommunityReportDialog from '@/components/community/community-report-dialog'
@@ -23,6 +24,7 @@ import {
   getCommunityExcerpt,
 } from '@/lib/community'
 import type { AdjacentPostState } from '@/lib/community/adjacent-posts'
+import { focusCommunityCommentEntry } from '@/lib/community/comment-thread'
 import { createCommunityPostHref } from '@/lib/community/community-state'
 import type { CommunityViewer } from '@/lib/community/community-state'
 import {
@@ -551,52 +553,36 @@ const createDetailPostHref = (
 }
 
 type CommunityPostReactionsProps = {
-  title: string
   likeCount: number
   commentCount: number
   liked: boolean
   likePending: boolean
   authReady: boolean
+  /** 모바일 하단 고정 바가 「반응 바가 화면 안인가」를 이 요소로 판정한다. */
+  barRef: (element: HTMLDivElement | null) => void
   onToggleLike: () => void
+  onComment: () => void
+  onShare: () => void
 }
 
 /**
  * 반응 바 — 좋아요 · 댓글 · 공유. 공유는 로그인 없이 된다.
- * 토스트 훅을 쓰므로 뷰 본체(로딩·오류에서 일찍 반환한다)와 나눠 둔다.
+ * 핸들러는 뷰가 만든다 — 모바일 하단 고정 바가 같은 핸들러를 써야 해서(community.md §S4 2단계)
+ * 이 컴포넌트 안에 공유 진행 중 가드를 두면 두 바가 서로를 모른다.
  */
 function CommunityPostReactions({
-  title,
   likeCount,
   commentCount,
   liked,
   likePending,
   authReady,
+  barRef,
   onToggleLike,
+  onComment,
+  onShare,
 }: CommunityPostReactionsProps) {
-  const { showToast } = useToast()
-  // 공유 시트가 떠 있는 동안의 두 번째 누름은 버린다(InvalidStateError·토스트 겹침 방지).
-  const shareInFlightRef = useRef(false)
-
-  const handleShare = async () => {
-    const result = await shareCommunityPostOnce(
-      shareInFlightRef,
-      { title, url: createCommunityShareUrl(window.location.href) },
-      navigator,
-    )
-
-    if (!result) {
-      return
-    }
-
-    const toast = COMMUNITY_SHARE_TOAST[result]
-
-    if (toast) {
-      showToast({ ...toast, dedupeKey: 'community-post-share' })
-    }
-  }
-
   return (
-    <ReactionBar aria-label="게시글 반응" role="group">
+    <ReactionBar ref={barRef} aria-label="게시글 반응" role="group">
       <ReactionButton
         $active={liked}
         type="button"
@@ -618,33 +604,53 @@ function CommunityPostReactions({
       <ReactionButton
         type="button"
         aria-label="댓글로 이동"
-        onClick={() => {
-          /*
-            로그인한 사람은 입력칸, 비로그인은 그 자리의 「로그인하고 댓글 남기기」로 간다.
-            둘 다 댓글 스레드가 `data-community-comment-entry` 로 표시한다 — 문구(aria-label)에
-            묶으면 문구를 다듬는 순간 이 버튼이 조용히 아무것도 안 한다.
-          */
-          document
-            .querySelector<HTMLElement>('[data-community-comment-entry]')
-            ?.focus()
-        }}
+        onClick={onComment}
       >
         <MessageCircle aria-hidden="true" size={18} />
         <span>댓글</span>
         <ReactionCount>{formatCommunityCount(commentCount)}</ReactionCount>
       </ReactionButton>
-      <ReactionButton
-        type="button"
-        aria-label="게시글 공유"
-        onClick={() => {
-          void handleShare()
-        }}
-      >
+      <ReactionButton type="button" aria-label="게시글 공유" onClick={onShare}>
         <Share aria-hidden="true" size={18} />
         <span>공유</span>
       </ReactionButton>
     </ReactionBar>
   )
+}
+
+/**
+ * 공유 핸들러. 진행 중 가드(ref)가 하나라 반응 바와 하단 고정 바 어느 쪽을 눌러도 공유 시트가
+ * 떠 있는 동안의 두 번째 누름은 버린다(InvalidStateError·토스트 겹침 방지).
+ */
+const useCommunityPostShare = () => {
+  const { showToast } = useToast()
+  const shareInFlightRef = useRef(false)
+
+  return async (title: string) => {
+    const result = await shareCommunityPostOnce(
+      shareInFlightRef,
+      { title, url: createCommunityShareUrl(window.location.href) },
+      navigator,
+    )
+
+    if (!result) {
+      return
+    }
+
+    const toast = COMMUNITY_SHARE_TOAST[result]
+
+    if (toast) {
+      showToast({ ...toast, dedupeKey: 'community-post-share' })
+    }
+  }
+}
+
+/*
+  댓글 진입. 로그인한 사람은 입력칸, 비로그인은 그 자리의 「로그인하고 댓글 남기기」로 간다.
+  둘 다 댓글 스레드가 `data-community-comment-entry` 로 표시한다(focusCommunityCommentEntry).
+*/
+const goToCommentEntry = () => {
+  focusCommunityCommentEntry(document)
 }
 
 export default function CommunityDetailView({
@@ -686,6 +692,14 @@ export default function CommunityDetailView({
   onCloseReport,
   onSubmitReport,
 }: CommunityDetailViewProps) {
+  /* 훅은 로딩·오류의 이른 반환보다 앞에 둔다. */
+  const sharePost = useCommunityPostShare()
+  const [reactionsElement, setReactionsElement] =
+    useState<HTMLDivElement | null>(null)
+  const [composerElement, setComposerElement] = useState<HTMLDivElement | null>(
+    null,
+  )
+
   const backLink = (
     <BackLink href={listHref}>
       <ArrowLeft aria-hidden="true" size={18} />
@@ -757,6 +771,17 @@ export default function CommunityDetailView({
     }
 
     action()
+  }
+
+  /* 반응 바와 하단 고정 바가 같이 쓴다 — 인증 게이트를 한 곳에서 건다. */
+  const handleToggleLike = () => {
+    requireAuth(() => {
+      void onTogglePostLike()
+    })
+  }
+
+  const handleShare = () => {
+    void sharePost(detail.title)
   }
 
   return (
@@ -870,17 +895,15 @@ export default function CommunityDetailView({
             ) : null}
 
             <CommunityPostReactions
-              title={detail.title}
               likeCount={detail.likeCount}
               commentCount={detail.commentCount}
               liked={postLiked === true}
               likePending={postLikePending}
               authReady={authReady}
-              onToggleLike={() => {
-                requireAuth(() => {
-                  void onTogglePostLike()
-                })
-              }}
+              barRef={setReactionsElement}
+              onToggleLike={handleToggleLike}
+              onComment={goToCommentEntry}
+              onShare={handleShare}
             />
           </Article>
 
@@ -899,26 +922,20 @@ export default function CommunityDetailView({
               onAction={onRetryComments}
             />
           ) : (
-            <>
-              <CommunityCommentThread
-                comments={comments}
-                viewer={viewer}
-                authReady={authReady}
-                errorMessage={commentMutationError}
-                onRequireLogin={onRequireLogin}
-                onCreateComment={onCreateComment}
-                onDeleteComment={onDeleteComment}
-                onToggleCommentLike={onToggleCommentLike}
-                onReport={onOpenReport}
-              />
-              {commentsStatus === 'empty' || comments.length === 0 ? (
-                <CommunityFeedback
-                  kind="empty"
-                  title="아직 댓글이 없어요"
-                  description="첫 댓글로 운영 경험이나 질문을 남겨 보세요."
-                />
-              ) : null}
-            </>
+            /* 빈 상태는 스레드 안 한 줄이다 — 별도 카드를 띄우지 않는다(community.md §S4 2단계). */
+            <CommunityCommentThread
+              comments={comments}
+              postWriterId={detail.memberId}
+              viewer={viewer}
+              authReady={authReady}
+              errorMessage={commentMutationError}
+              composerRef={setComposerElement}
+              onRequireLogin={onRequireLogin}
+              onCreateComment={onCreateComment}
+              onDeleteComment={onDeleteComment}
+              onToggleCommentLike={onToggleCommentLike}
+              onReport={onOpenReport}
+            />
           )}
 
           {adjacent ? (
@@ -1008,6 +1025,19 @@ export default function CommunityDetailView({
           </Rail>
         ) : null}
       </Layout>
+
+      <CommunityDetailBottomBar
+        likeCount={detail.likeCount}
+        liked={postLiked === true}
+        likePending={postLikePending}
+        authReady={authReady}
+        reactionsElement={reactionsElement}
+        /* 댓글 로딩·오류면 스레드가 없어 콜백 ref 가 null 로 돌아온다 — 반응 바만으로 판정한다. */
+        composerElement={composerElement}
+        onToggleLike={handleToggleLike}
+        onComment={goToCommentEntry}
+        onShare={handleShare}
+      />
 
       <CommunityReportDialog
         open={Boolean(reportTarget)}
