@@ -53,6 +53,14 @@ export type DonutChartProps = {
   unit?: string
   /** 값 포맷터. 지정하면 단위 기반 기본 포맷 대신 이 함수로 값을 표기한다. */
   valueFormatter?: (value: number) => string
+  /**
+   * 조각 색. `segments` 와 같은 순서로 하나씩 준다. 없으면 두 색을 번갈아 쓴다 —
+   * 기본값은 성별(2조각)을 위한 것이라, **3조각 이상이면 반드시 넘긴다.** 넘기지 않으면
+   * 1·3번째와 2·4번째 조각이 같은 색이 돼 구분할 수 없다.
+   */
+  colors?: readonly string[]
+  /** 아래 범례를 그릴지. 호출부가 색 점이 붙은 행 목록을 따로 두면 끈다(같은 정보 두 번). */
+  legend?: boolean
 }
 
 type DonutSlice = { label: string; value: number; percent: number }
@@ -108,10 +116,15 @@ export default function DonutChart({
   ariaLabel,
   unit = '',
   valueFormatter,
+  colors,
+  legend = true,
 }: DonutChartProps) {
   const slices = toDonutSlices(segments)
   const hasData = slices.some(slice => slice.value > 0)
   if (!hasData) return <Empty>데이터 없음</Empty>
+
+  const colorAt = (index: number) =>
+    colors?.[index] ?? SLICE_COLORS[index % SLICE_COLORS.length]
 
   return (
     <div role="img" aria-label={ariaLabel}>
@@ -139,24 +152,21 @@ export default function DonutChart({
             isAnimationActive={false}
           >
             {slices.map((slice, index) => (
-              <Cell
-                key={slice.label}
-                fill={SLICE_COLORS[index % SLICE_COLORS.length]}
-              />
+              <Cell key={slice.label} fill={colorAt(index)} />
             ))}
           </Pie>
         </RePieChart>
       </ResponsiveContainer>
-      <Legend>
-        {slices.map((slice, index) => (
-          <li key={slice.label}>
-            <i
-              style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }}
-            />
-            {slice.label} {slice.percent}%
-          </li>
-        ))}
-      </Legend>
+      {legend ? (
+        <Legend>
+          {slices.map((slice, index) => (
+            <li key={slice.label}>
+              <i style={{ background: colorAt(index) }} />
+              {slice.label} {slice.percent}%
+            </li>
+          ))}
+        </Legend>
+      ) : null}
     </div>
   )
 }
