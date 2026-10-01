@@ -13,7 +13,7 @@ import {
   Share2,
   X,
 } from 'lucide-react'
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
 import {
@@ -434,6 +434,10 @@ const MobileTabList = styled(TabList)`
  * jumped to via tab click or deep-linked URL.
  */
 const ReportSection = styled.section`
+  /* 카드 그리드(DashboardGrid)가 열 수를 이 폭으로 정한다. 뷰포트가 달라도 사이드바 때문에
+     콘텐츠 폭이 같을 수 있어서(1024px 뷰포트 → 990 · 1280px 뷰포트 → 990) 뷰포트로는
+     정할 수 없다. */
+  container: analysis-report / inline-size;
   display: grid;
   gap: 16px;
   /* 데스크톱: sticky 헤더(≈63px) 아래로 자연스럽게 안착. */
@@ -514,7 +518,20 @@ const GroupHeading = styled.h2`
   line-height: 26px;
 `
 
-const DashboardGrid = styled.div`
+/**
+ * 열 수는 **콘텐츠 폭**(`analysis-report` 컨테이너)으로 정한다 — 1열 <640 · 2열 · 3열 ≥1080.
+ *
+ * 예전에는 뷰포트 1280px 에서 3열이었는데, 그 폭은 사이드바를 빼면 콘텐츠가 990px 라
+ * 칸이 317px 로 좁았다. 1080 은 칸이 약 347px 가 되는 첫 폭이다(1440px 뷰포트 → 1150 · 칸 370).
+ *
+ * `$maxColumns={2}` 는 3열에서도 2열로 둔다. 가로 막대 두 장이 나란히 서는 그룹(점포)은
+ * 3열이면 셋째 칸이 빈다.
+ */
+/** 카드 그리드가 3열이 되는 콘텐츠 폭. `PairSpanItem` 과 반드시 같은 값을 쓴다 — 어긋나면 그
+ * 사이 구간에서 2열 그리드에 보통 칸이 되어 셋째 카드가 다시 혼자 남는다. */
+const REPORT_THREE_COLUMN_MIN = 1080
+
+const DashboardGrid = styled.div<{ $maxColumns?: 2 }>`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
@@ -528,11 +545,16 @@ const DashboardGrid = styled.div`
     min-width: 0;
   }
 
-  @media (min-width: 1280px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  ${props =>
+    props.$maxColumns === 2
+      ? ''
+      : css`
+          @container analysis-report (min-width: ${REPORT_THREE_COLUMN_MIN}px) {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        `}
 
-  @media (max-width: 680px) {
+  @container analysis-report (max-width: 639px) {
     grid-template-columns: 1fr;
   }
 `
@@ -541,6 +563,21 @@ const DashboardGrid = styled.div`
 const FullSpanItem = styled.div`
   min-width: 0;
   grid-column: 1 / -1;
+`
+
+/**
+ * 카드 3장 그룹에서 **2열일 때만** 한 줄을 다 쓰는 칸. 3열이면 보통 칸이다.
+ *
+ * 2열에서 3장을 그대로 두면 마지막 카드가 혼자 남고 옆 칸이 빈다. 넓어질수록 좋아지는
+ * 카드(세로 막대 · 비교 타일)를 고른다 — 가로 막대·피라미드는 고르지 않는다(DESIGN.md 「Charts」).
+ */
+const PairSpanItem = styled.div`
+  min-width: 0;
+  grid-column: 1 / -1;
+
+  @container analysis-report (min-width: ${REPORT_THREE_COLUMN_MIN}px) {
+    grid-column: auto;
+  }
 `
 
 /**
@@ -631,12 +668,23 @@ const AbsentNote = styled.p`
   word-break: keep-all;
 `
 
+/**
+ * 비교 타일 3개(자치구 · 행정동 · 상권)의 배치는 **카드 폭**으로 정한다(`comparison` 컨테이너).
+ *
+ * 3열 그리드의 370px 카드에서 타일이 약 100px 가 되어 「행정동 기준 (대체)」 배지가 타일 밖으로
+ * 나가고 「82억 8095만원」이 「82억 8095만 / 원」으로 꺾였다. 좁은 카드에서는 타일을 세로로 쌓고
+ * 한 타일 안에서 라벨을 왼쪽, 값을 오른쪽에 둔다.
+ */
+const ComparisonFrame = styled.div`
+  container: comparison / inline-size;
+`
+
 const ComparisonGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 
-  @media (max-width: 680px) {
+  @container comparison (max-width: 519px) {
     grid-template-columns: 1fr;
   }
 `
@@ -654,6 +702,7 @@ const ComparisonItem = styled.div`
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
+    min-width: 0;
     color: var(--color-text-caption);
     font-size: 12px;
   }
@@ -661,6 +710,19 @@ const ComparisonItem = styled.div`
   strong {
     color: var(--color-text-900);
     font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    /* 「82억 8095만원」은 띄어쓰기에서만 꺾는다 — 「만 / 원」처럼 단위가 떨어지지 않게. */
+    word-break: keep-all;
+  }
+
+  @container comparison (max-width: 519px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+
+    strong {
+      white-space: nowrap;
+    }
   }
 `
 
@@ -687,6 +749,18 @@ const HighlightList = styled.ul`
     content: '';
   }
 `
+
+/**
+ * 차트 카드의 불러오는 중 본문 높이(px). 2026-10-02 실측한 본문 높이다.
+ * 세로 막대 = 그래프 240 + 축 단위 20 · 피라미드 = 그래프 260 + 범례 · 막대+성비 = 막대 260 + 간격 20 + 성비 막대.
+ * 가로 막대는 행 수에 따라 172~330 이라 그 사이 값을 쓴다.
+ */
+const CHART_LOADING_HEIGHT = {
+  bar: 260,
+  pyramid: 284,
+  barWithShare: 348,
+  horizontalBar: 260,
+} as const
 
 const hasObjectValues = (value: object | null | undefined) =>
   Boolean(
@@ -1912,28 +1986,37 @@ export default function AnalysisResultView({
           >
             {renderGroupHeading('유동인구')}
             <DashboardGrid>
-              <AnalysisResultSection
-                title="시간대별 유동인구"
-                description={toDescription(describeFootTimePeak(footTimeRows))}
-                loading={footTrafficQuery.isPending}
-                error={resolveApiError(footTrafficQuery)}
-                empty={!numericRows(footTimeRows)}
-                onRetry={() => void footTrafficQuery.refetch()}
-                footer={numericRows(footTimeRows) ? TIME_BAND_NOTE : undefined}
-              >
-                <ChartBox $maxWidth={560}>
-                  <BarChart
-                    items={footTimeRows}
-                    unit="명"
-                    ariaLabel="시간대별 유동인구 막대 차트"
-                    highlightMax
-                  />
-                </ChartBox>
-              </AnalysisResultSection>
+              {/* 2열에서는 시간대 막대가 한 줄을 쓰고 요일 · 연령 카드가 그 아래 나란히 선다. */}
+              <PairSpanItem>
+                <AnalysisResultSection
+                  title="시간대별 유동인구"
+                  description={toDescription(
+                    describeFootTimePeak(footTimeRows),
+                  )}
+                  loadingHeight={CHART_LOADING_HEIGHT.bar}
+                  loading={footTrafficQuery.isPending}
+                  error={resolveApiError(footTrafficQuery)}
+                  empty={!numericRows(footTimeRows)}
+                  onRetry={() => void footTrafficQuery.refetch()}
+                  footer={
+                    numericRows(footTimeRows) ? TIME_BAND_NOTE : undefined
+                  }
+                >
+                  <ChartBox $maxWidth={560}>
+                    <BarChart
+                      items={footTimeRows}
+                      unit="명"
+                      ariaLabel="시간대별 유동인구 막대 차트"
+                      highlightMax
+                    />
+                  </ChartBox>
+                </AnalysisResultSection>
+              </PairSpanItem>
 
               <AnalysisResultSection
                 title="요일별 유동인구"
                 description={toDescription(describeFootDayPattern(footDayRows))}
+                loadingHeight={CHART_LOADING_HEIGHT.bar}
                 loading={footTrafficQuery.isPending}
                 error={resolveApiError(footTrafficQuery)}
                 empty={!numericRows(footDayRows)}
@@ -1954,6 +2037,7 @@ export default function AnalysisResultView({
                 description={toDescription(
                   describeFootAgeGenderPeak(footPyramidRows),
                 )}
+                loadingHeight={CHART_LOADING_HEIGHT.pyramid}
                 loading={footTrafficQuery.isPending}
                 error={resolveApiError(footTrafficQuery)}
                 empty={footPyramidRows.every(
@@ -1974,30 +2058,37 @@ export default function AnalysisResultView({
           >
             {renderGroupHeading('매출')}
             <DashboardGrid>
-              <AnalysisResultSection
-                title="시간대별 매출"
-                description={toDescription(
-                  describeSalesTimeShare(salesTimeRows),
-                )}
-                loading={salesQuery.isPending}
-                error={resolveApiError(salesQuery)}
-                empty={!numericRows(salesTimeRows)}
-                onRetry={() => void salesQuery.refetch()}
-                footer={numericRows(salesTimeRows) ? TIME_BAND_NOTE : undefined}
-              >
-                <ChartBox $maxWidth={560}>
-                  <BarChart
-                    items={salesTimeRows}
-                    unit="원"
-                    ariaLabel="시간대별 매출 막대 차트"
-                    highlightMax
-                  />
-                </ChartBox>
-              </AnalysisResultSection>
+              {/* 유동인구 그룹과 같은 배치다 — 2열에서는 시간대 막대가 한 줄을 쓴다. */}
+              <PairSpanItem>
+                <AnalysisResultSection
+                  title="시간대별 매출"
+                  description={toDescription(
+                    describeSalesTimeShare(salesTimeRows),
+                  )}
+                  loadingHeight={CHART_LOADING_HEIGHT.bar}
+                  loading={salesQuery.isPending}
+                  error={resolveApiError(salesQuery)}
+                  empty={!numericRows(salesTimeRows)}
+                  onRetry={() => void salesQuery.refetch()}
+                  footer={
+                    numericRows(salesTimeRows) ? TIME_BAND_NOTE : undefined
+                  }
+                >
+                  <ChartBox $maxWidth={560}>
+                    <BarChart
+                      items={salesTimeRows}
+                      unit="원"
+                      ariaLabel="시간대별 매출 막대 차트"
+                      highlightMax
+                    />
+                  </ChartBox>
+                </AnalysisResultSection>
+              </PairSpanItem>
 
               <AnalysisResultSection
                 title="요일별 매출"
                 description={toDescription(describeSalesDayPeak(salesDayRows))}
+                loadingHeight={CHART_LOADING_HEIGHT.bar}
                 loading={salesQuery.isPending}
                 error={resolveApiError(salesQuery)}
                 empty={!numericRows(salesDayRows)}
@@ -2027,6 +2118,7 @@ export default function AnalysisResultView({
                     '결제 건수는',
                   ),
                 )}
+                loadingHeight={CHART_LOADING_HEIGHT.barWithShare}
                 loading={salesQuery.isPending}
                 error={resolveApiError(salesQuery)}
                 empty={
@@ -2060,7 +2152,8 @@ export default function AnalysisResultView({
             ref={registerSection('stores')}
           >
             {renderGroupHeading('점포')}
-            <DashboardGrid>
+            {/* 가로 막대 두 장이 나란히 서는 그룹이라 3열이면 셋째 칸이 빈다 — 2열로 묶는다. */}
+            <DashboardGrid $maxColumns={2}>
               <FullSpanItem>
                 <AnalysisResultSection
                   title="점포 분석"
@@ -2111,6 +2204,7 @@ export default function AnalysisResultView({
                 <AnalysisResultSection
                   title="함께 있는 다른 업종"
                   description="선택한 업종을 뺀 나머지 업종의 점포 수입니다."
+                  loadingHeight={CHART_LOADING_HEIGHT.horizontalBar}
                   loading={storesQuery.isPending}
                   error={resolveApiError(storesQuery)}
                   empty={peerStoreRows.length === 0}
@@ -2147,6 +2241,7 @@ export default function AnalysisResultView({
                 <AnalysisResultSection
                   title="늘고 주는 업종"
                   description="선택한 업종을 뺀 나머지 업종의 개업률에서 폐업률을 뺀 값이에요. 위가 늘어난 업종, 아래가 줄어든 업종이에요."
+                  loadingHeight={CHART_LOADING_HEIGHT.horizontalBar}
                   loading={storesQuery.isPending}
                   error={resolveApiError(storesQuery)}
                   empty={
@@ -2195,6 +2290,7 @@ export default function AnalysisResultView({
                     '상주인구는',
                   ),
                 )}
+                loadingHeight={CHART_LOADING_HEIGHT.barWithShare}
                 loading={populationQuery.isPending}
                 error={resolveApiError(populationQuery)}
                 empty={
@@ -2269,27 +2365,31 @@ export default function AnalysisResultView({
                 {/* 항목 수·구성이 스코프마다 다르다. 서버가 준 순서 그대로 그린다. */}
                 <AnalysisMetricList rows={expenseCategoryRows} unit="원" />
               </AnalysisResultSection>
-              <AnalysisResultSection
-                title="지역별 소비"
-                description={`${formatPeriodCode(periodCode)} 기준 총 지출액`}
-                footer={
-                  regionalExpenseProxyNote ? (
-                    <ExpenseProvenanceNote
-                      description={regionalExpenseProxyNote}
-                      sourceLabel={
-                        incomeSummary?.commercialProvenance?.sourceLabel
-                      }
-                      sourceUrl={incomeSummary?.commercialProvenance?.sourceUrl}
-                    />
-                  ) : null
-                }
-                loading={incomeSummaryQuery.isPending}
-                error={resolveApiError(incomeSummaryQuery)}
-                empty={!hasRegionalExpense(regionalExpenseRows)}
-                emptyDescription="이 분기에는 자치구·행정동·상권 어느 단위에도 소비 데이터가 없어요."
-                onRetry={() => void incomeSummaryQuery.refetch()}
-              >
-                {/*
+              {/* 2열에서는 한 줄을 써서 세 타일이 나란히 선다. 3열이면 보통 칸이다. */}
+              <PairSpanItem>
+                <AnalysisResultSection
+                  title="지역별 소비"
+                  description={`${formatPeriodCode(periodCode)} 기준 총 지출액`}
+                  footer={
+                    regionalExpenseProxyNote ? (
+                      <ExpenseProvenanceNote
+                        description={regionalExpenseProxyNote}
+                        sourceLabel={
+                          incomeSummary?.commercialProvenance?.sourceLabel
+                        }
+                        sourceUrl={
+                          incomeSummary?.commercialProvenance?.sourceUrl
+                        }
+                      />
+                    ) : null
+                  }
+                  loading={incomeSummaryQuery.isPending}
+                  error={resolveApiError(incomeSummaryQuery)}
+                  empty={!hasRegionalExpense(regionalExpenseRows)}
+                  emptyDescription="이 분기에는 자치구·행정동·상권 어느 단위에도 소비 데이터가 없어요."
+                  onRetry={() => void incomeSummaryQuery.refetch()}
+                >
+                  {/*
                   값이 없는 단위도 **줄을 지우지 않는다.** 줄을 지우면 위에 남은 자치구 값이
                   이 상권 값처럼 읽힌다.
 
@@ -2297,24 +2397,27 @@ export default function AnalysisResultView({
                   그런 것이라 값을 감추거나 바꾸지 않고, 상권 줄에 배지를 달고 각주로 이유를
                   적어 「두 줄이 우연히 같다」로 읽히지 않게 한다.
                 */}
-                <ComparisonGrid>
-                  {regionalExpenseRows.map(row => (
-                    <ComparisonItem key={row.scope}>
-                      <span>
-                        {row.label}
-                        {row.isProxy ? (
-                          <Badge $tone="teal">
-                            {EXPENSE_PROXY_BADGE_LABEL}
-                          </Badge>
-                        ) : null}
-                      </span>
-                      <strong>
-                        {formatAnalysisValue(row.totalExpenseAmount, '원')}
-                      </strong>
-                    </ComparisonItem>
-                  ))}
-                </ComparisonGrid>
-              </AnalysisResultSection>
+                  <ComparisonFrame>
+                    <ComparisonGrid>
+                      {regionalExpenseRows.map(row => (
+                        <ComparisonItem key={row.scope}>
+                          <span>
+                            {row.label}
+                            {row.isProxy ? (
+                              <Badge $tone="teal">
+                                {EXPENSE_PROXY_BADGE_LABEL}
+                              </Badge>
+                            ) : null}
+                          </span>
+                          <strong>
+                            {formatAnalysisValue(row.totalExpenseAmount, '원')}
+                          </strong>
+                        </ComparisonItem>
+                      ))}
+                    </ComparisonGrid>
+                  </ComparisonFrame>
+                </AnalysisResultSection>
+              </PairSpanItem>
               <FullSpanItem>
                 <AnalysisResultSection
                   title="주요 시설과 교통"
@@ -2410,22 +2513,27 @@ export default function AnalysisResultView({
                       description="제공된 지역별 매출과 소비 수치를 확인해 주세요."
                     />
                   )}
-                  <ComparisonGrid>
-                    {[
-                      benchmark?.salesSummary?.district,
-                      benchmark?.salesSummary?.administration,
-                      benchmark?.salesSummary?.commercial,
-                    ].map((item, index) => (
-                      <ComparisonItem key={item?.code ?? index}>
-                        <span>
-                          {item?.name ?? ['자치구', '행정동', '상권'][index]}
-                        </span>
-                        <strong>
-                          {formatAnalysisValue(item?.monthlySalesAmount, '원')}
-                        </strong>
-                      </ComparisonItem>
-                    ))}
-                  </ComparisonGrid>
+                  <ComparisonFrame>
+                    <ComparisonGrid>
+                      {[
+                        benchmark?.salesSummary?.district,
+                        benchmark?.salesSummary?.administration,
+                        benchmark?.salesSummary?.commercial,
+                      ].map((item, index) => (
+                        <ComparisonItem key={item?.code ?? index}>
+                          <span>
+                            {item?.name ?? ['자치구', '행정동', '상권'][index]}
+                          </span>
+                          <strong>
+                            {formatAnalysisValue(
+                              item?.monthlySalesAmount,
+                              '원',
+                            )}
+                          </strong>
+                        </ComparisonItem>
+                      ))}
+                    </ComparisonGrid>
+                  </ComparisonFrame>
                 </AnalysisResultSection>
               </FullSpanItem>
             </DashboardGrid>

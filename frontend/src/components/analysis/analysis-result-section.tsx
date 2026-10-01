@@ -21,6 +21,12 @@ export type AnalysisResultSectionProps = {
    * 불러오는 중과 오류일 때는 붙일 값 자체가 없으므로 그리지 않는다.
    */
   footer?: ReactNode
+  /**
+   * 불러오는 중 본문 자리 높이(px). 기본 96 은 카드·목록 섹션 기준이다.
+   * 차트 카드는 그려질 본문 높이를 넘겨 로딩이 끝날 때 아래 카드가 밀리지 않게 한다 —
+   * 96px 자리에 260px 차트가 들어오면 그 차이만큼 화면이 한 번에 내려간다.
+   */
+  loadingHeight?: number
   loading: boolean
   /**
    * 정규화된 API 오류(`resolveApiError(query)`). 성공이면 null.
@@ -117,6 +123,7 @@ export default function AnalysisResultSection({
   description,
   badge,
   footer,
+  loadingHeight = 96,
   loading,
   error,
   empty,
@@ -137,7 +144,7 @@ export default function AnalysisResultSection({
       {loading ? (
         <Loading role="status" aria-label={`${title} 불러오는 중`}>
           <Skeleton $height="18px" $width="42%" />
-          <Skeleton $height="96px" />
+          <Skeleton $height={`${loadingHeight}px`} />
         </Loading>
       ) : error ? (
         <EmptyState
