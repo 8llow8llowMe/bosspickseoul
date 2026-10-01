@@ -2,16 +2,22 @@ import styled from 'styled-components'
 import BrandLockup from '@/components/brand/brand-lockup'
 import { shellWidth } from '@/styles/layout'
 
+/*
+  푸터를 숨기는 화면은 main 에 `data-hide-footer` 를 단다(지도 · 구별현황 · 추천처럼 한 화면을 꽉 쓰는 화면).
+  main 은 셸 본문 칸(`[data-site-shell-body]`) 안에 있고 푸터는 그 칸의 형제라(site-shell.tsx) 본문 칸이
+  그 main 을 품었는지를 `:has()` 로 본다. 본문 칸과 푸터 사이에 다른 형제(모달 포털 등)가 끼어도 숨도록 `~` 다.
+  `:has()` 를 모르는 브라우저는 푸터가 보일 뿐 화면이 깨지지는 않는다.
+*/
 const Footer = styled.footer`
   border-top: 1px solid var(--color-border-200);
   background: var(--color-background);
 
-  main[data-hide-footer='true'] ~ & {
+  [data-site-shell-body]:has(main[data-hide-footer='true']) ~ & {
     display: none;
   }
 
   @media (max-width: 1023px) {
-    main[data-hide-mobile-footer='true'] + & {
+    [data-site-shell-body]:has(main[data-hide-mobile-footer='true']) + & {
       display: none;
     }
   }

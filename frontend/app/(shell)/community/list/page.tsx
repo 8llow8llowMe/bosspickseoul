@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
+import CommunityListFallback from '@/components/community/community-list-fallback'
 import CommunityListPage from '@/components/community/community-list-page'
 import { createPageMetadata } from '@/lib/metadata'
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = createPageMetadata({
 
 export default function Page() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<CommunityListFallback />}>
       <CommunityListPage />
     </Suspense>
   )
