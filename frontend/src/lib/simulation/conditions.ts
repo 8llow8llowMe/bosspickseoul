@@ -549,6 +549,27 @@ export const resolveSimulationFieldSection = (
   return null
 }
 
+/**
+ * 요청 필드 → 사람이 읽는 이름(X1). 오류 목록 머리에 `storeSize` 같은 API 필드명이 그대로 보였다.
+ *
+ * 섹션 이름(`매장 조건`)이 아니라 **필드** 이름이다 — 매장 조건 섹션에는 면적·층 두 필드가 있어,
+ * 섹션 이름으로는 어느 칸이 틀렸는지 모른다. 모르는 필드는 null — 지어내지 않고 머리를 뺀다
+ * (메시지 자체는 BE 가 한국어로 준다, `SimulationValidationMessage`).
+ */
+const SIMULATION_FIELD_LABELS: Record<string, string> = {
+  franchisee: '창업 형태',
+  districtCode: '자치구',
+  serviceCode: '업종',
+  franchiseeId: '브랜드',
+  storeSize: '매장 면적',
+  floorType: '층 구분',
+  periodCode: '기준 분기',
+}
+
+export const describeSimulationField = (
+  field: string | null | undefined,
+): string | null => (field ? (SIMULATION_FIELD_LABELS[field] ?? null) : null)
+
 /** 조건 요약 한 줄. 결과 카드와 분석 컨텍스트 카드가 같은 문구를 쓰게 한다. */
 export const describeSimulationServiceName = (
   serviceCode: string | null | undefined,
