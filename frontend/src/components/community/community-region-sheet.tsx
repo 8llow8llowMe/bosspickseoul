@@ -1,6 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type Ref,
+} from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Check,
@@ -19,7 +27,7 @@ import {
   loadCommunityCommercials,
   readCommunityLocationOptions,
   type CommunityLocationValue,
-} from '@/components/community/community-location-picker'
+} from '@/lib/community/community-location'
 import { districts } from '@/data/districts'
 import {
   filterRegionSheetOptions,
@@ -33,6 +41,14 @@ import {
 } from '@/lib/community/region-sheet'
 import type { AdministrationArea, CommercialArea } from '@/types/recommend'
 
+/** 글쓰기 칩이 비어 있을 때 적는 말(community.md §S4 「글쓰기 · 수정」 순서). */
+export const COMMUNITY_COMPOSE_REGION_PLACEHOLDER = '어느 지역 이야기인가요?'
+
+/** 바깥에서 시트를 여는 손잡이. 지역 없이 등록하면 폼이 칩으로 포커스를 옮기고 시트를 연다(CM-032). */
+export type CommunityRegionSheetHandle = {
+  focusAndOpen: () => void
+}
+
 export type CommunityRegionSheetProps = {
   value: CommunityLocationValue
   mockEnabled: boolean
@@ -40,19 +56,41 @@ export type CommunityRegionSheetProps = {
   disabled?: boolean
   /** 고른 순간에 한 번만 부른다. 시트를 닫기만 하면 부르지 않는다. */
   onChange: (value: CommunityLocationValue) => void
+  /**
+   * `filter`(기본) — 목록 툴바. 비면 `서울 전체`, 해제(✕) 버튼이 있다.
+   * `compose` — 글쓰기. 비면 `어느 지역 이야기인가요?`. 대상이 필수라 `서울 전체` 확정 행과
+   * 해제 버튼이 없다 — 지역을 바꾸려면 시트에서 다시 고른다.
+   */
+  variant?: 'filter' | 'compose'
+  /** compose 전용 — 수정 모드. 지역을 바꿀 수 없어 칩 대신 읽기 전용 표시를 그린다. */
+  readOnly?: boolean
+  /** compose 전용 — 지역 없이 등록을 눌렀다. 칩 테두리를 경고색으로. */
+  invalid?: boolean
+  /** compose 전용 — 칩 아래 안내 문구의 id. */
+  describedBy?: string
+  ref?: Ref<CommunityRegionSheetHandle>
 }
 
 const MOBILE = '@media (max-width: 479px)'
 
-const ChipGroup = styled.div<{ $active: boolean; $disabled: boolean }>`
+const ChipGroup = styled.div<{
+  $active: boolean
+  $disabled: boolean
+  $invalid?: boolean
+}>`
   min-width: 0;
+  max-width: 100%;
   flex: 0 0 auto; /* 검색칸이 줄어들고 칩은 라벨 상한(ChipLabel)까지 자리를 지킨다 */
   display: inline-flex;
   align-items: stretch;
   overflow: hidden;
   border: 1px solid
     ${props =>
-      props.$active ? 'var(--color-primary-700)' : 'var(--color-border-200)'};
+      props.$invalid
+        ? 'var(--color-danger)'
+        : props.$active
+          ? 'var(--color-primary-700)'
+          : 'var(--color-border-200)'};
   border-radius: var(--radius-control);
   background: ${props =>
     props.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
@@ -93,15 +131,43 @@ const Chip = styled.button<{ $active: boolean }>`
   }
 `
 
-const ChipLabel = styled.span`
+const ChipLabel = styled.span<{ $compose?: boolean }>`
   min-width: 0;
-  max-width: 200px;
+  max-width: ${props => (props.$compose ? '100%' : '200px')};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 
   ${MOBILE} {
-    max-width: 96px;
+    /* 목록 툴바는 검색칸과 한 줄을 나눈다. 글쓰기 칩은 한 줄을 혼자 쓴다. */
+    max-width: ${props => (props.$compose ? '100%' : '96px')};
+  }
+`
+
+/* 수정 모드 — 바꿀 수 없으니 누를 것처럼 보이지 않게 버튼이 아닌 표시로 둔다. */
+const ReadOnlyChip = styled.p`
+  min-width: 0;
+  max-width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  color: var(--color-text-700);
+  font-size: 14px;
+  font-weight: 600;
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 `
 
@@ -307,6 +373,8 @@ type CommunityRegionSheetPanelProps = {
   value: CommunityLocationValue
   mockEnabled: boolean
   onCommit: (value: CommunityLocationValue) => void
+  /** 글쓰기 — 최상위 `서울 전체`(대상 없음) 확정 행을 뺀다. 글은 대상이 필수다. */
+  hideRootAllRow?: boolean
 }
 
 /**
@@ -317,12 +385,14 @@ export function CommunityRegionSheetPanel({
   value,
   mockEnabled,
   onCommit,
+  hideRootAllRow = false,
 }: CommunityRegionSheetPanelProps) {
   const [step, setStep] = useState<RegionSheetStep>(() =>
     getRegionSheetInitialStep(value),
   )
   const [query, setQuery] = useState('')
   const allRowRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
   const movedRef = useRef(false)
 
   const districtCode = step.level === 'root' ? undefined : step.district.code
@@ -356,7 +426,10 @@ export function CommunityRegionSheetPanel({
     }
 
     movedRef.current = false
-    allRowRef.current?.focus()
+    // 최상위 확정 행을 뺀 글쓰기 시트는 첫 자치구 행으로 간다.
+    const target =
+      allRowRef.current ?? listRef.current?.querySelector<HTMLElement>('button')
+    target?.focus()
   }, [step])
 
   const listQuery =
@@ -399,6 +472,7 @@ export function CommunityRegionSheetPanel({
 
   const noun = levelNoun[step.level]
   const allRow = getRegionSheetAllRow(step)
+  const showAllRow = !(hideRootAllRow && step.level === 'root')
   const allRowSelected = isRegionSheetValueSelected(value, allRow.value)
   const filtered = filterRegionSheetOptions(options ?? [], query)
 
@@ -455,22 +529,24 @@ export function CommunityRegionSheetPanel({
         </Breadcrumb>
       </PanelTop>
 
-      <OptionList>
-        <li>
-          <Row
-            ref={allRowRef}
-            $selected={allRowSelected}
-            data-region-commit="true"
-            data-region-selected={allRowSelected ? 'true' : undefined}
-            onClick={() => {
-              onCommit(allRow.value)
-            }}
-            type="button"
-          >
-            <span>{allRow.label}</span>
-            {allRowSelected ? <Check aria-hidden="true" size={18} /> : null}
-          </Row>
-        </li>
+      <OptionList ref={listRef}>
+        {showAllRow ? (
+          <li>
+            <Row
+              ref={allRowRef}
+              $selected={allRowSelected}
+              data-region-commit="true"
+              data-region-selected={allRowSelected ? 'true' : undefined}
+              onClick={() => {
+                onCommit(allRow.value)
+              }}
+              type="button"
+            >
+              <span>{allRow.label}</span>
+              {allRowSelected ? <Check aria-hidden="true" size={18} /> : null}
+            </Row>
+          </li>
+        ) : null}
 
         {listState === 'loading' ? (
           <StatusRow aria-busy="true" role="status">
@@ -541,9 +617,12 @@ export function CommunityRegionSheetPanel({
 }
 
 /**
- * 목록 툴바의 지역 칩 + 해제 버튼 + 지역 선택 시트(docs/features/community/community.md §S4).
+ * 지역 칩 + 지역 선택 시트(docs/features/community/community.md §S4).
  *
- * 3단 select(`CommunityLocationPicker`)를 목록에서만 대체한다 — 글쓰기는 3단계에서 옮긴다.
+ * - `filter` — 목록 툴바. 칩 옆에 해제 버튼. 3단 select 를 대체했다.
+ * - `compose` — 글쓰기(개편 3단계). 해제 버튼도 `서울 전체` 확정 행도 없다 — 글은 대상이
+ *   필수라(CM-008) 「대상 없음」으로 돌아갈 길을 열어 두면 등록에서 다시 막힌다.
+ *
  * **고른 순간에만 `onChange` 를 부른다.** 예전 선택기는 select 를 바꿀 때마다 목록을 다시 불렀다.
  */
 export default function CommunityRegionSheet({
@@ -551,20 +630,62 @@ export default function CommunityRegionSheet({
   mockEnabled,
   disabled = false,
   onChange,
+  variant = 'filter',
+  readOnly = false,
+  invalid = false,
+  describedBy,
+  ref,
 }: CommunityRegionSheetProps) {
   const [open, setOpen] = useState(false)
   const chipRef = useRef<HTMLButtonElement>(null)
+  const compose = variant === 'compose'
   const hasTarget = Boolean(value.targetType && value.targetCode)
   const active = hasTarget && !disabled
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusAndOpen: () => {
+        if (disabled || readOnly) {
+          return
+        }
+
+        // 먼저 칩에 포커스를 둔다 — 시트를 닫으면 포커스가 칩으로 돌아온다(returnFocusRef).
+        chipRef.current?.focus()
+        setOpen(true)
+      },
+    }),
+    [disabled, readOnly],
+  )
+
+  if (compose && readOnly) {
+    return (
+      <ReadOnlyChip>
+        <MapPin aria-hidden="true" size={16} />
+        <span>{getCommunityLocationDisplayName(value)}</span>
+      </ReadOnlyChip>
+    )
+  }
+
+  const label =
+    compose && !hasTarget
+      ? COMMUNITY_COMPOSE_REGION_PLACEHOLDER
+      : getCommunityLocationDisplayName(value)
+
   return (
     <>
-      <ChipGroup $active={active} $disabled={disabled}>
+      <ChipGroup
+        $active={active}
+        $disabled={disabled}
+        $invalid={compose && invalid}
+      >
         <Chip
           ref={chipRef}
           $active={active}
+          aria-describedby={describedBy}
           aria-expanded={open}
           aria-haspopup="dialog"
+          data-region-chip={variant}
           disabled={disabled}
           onClick={() => {
             setOpen(true)
@@ -572,10 +693,10 @@ export default function CommunityRegionSheet({
           type="button"
         >
           <MapPin aria-hidden="true" size={16} />
-          <ChipLabel>{getCommunityLocationDisplayName(value)}</ChipLabel>
+          <ChipLabel $compose={compose}>{label}</ChipLabel>
           <ChevronDown aria-hidden="true" size={16} />
         </Chip>
-        {active ? (
+        {active && !compose ? (
           <ChipClearButton
             aria-label="지역 필터 해제"
             onClick={() => {
@@ -599,6 +720,7 @@ export default function CommunityRegionSheet({
         title="지역 선택"
       >
         <CommunityRegionSheetPanel
+          hideRootAllRow={compose}
           mockEnabled={mockEnabled}
           onCommit={nextValue => {
             setOpen(false)

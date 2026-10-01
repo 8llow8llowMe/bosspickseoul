@@ -9,7 +9,7 @@ import CommunitySheet from './community-sheet'
 import CommunityRegionSheet, {
   CommunityRegionSheetPanel,
 } from './community-region-sheet'
-import { communityLocationQueryKeys } from './community-location-picker'
+import { communityLocationQueryKeys } from '@/lib/community/community-location'
 
 const renderWithStyles = (element: ReactElement) => {
   const sheet = new ServerStyleSheet()
