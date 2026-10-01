@@ -146,13 +146,13 @@ GET /api/v1/map/commercials/heatmap
 단일 지표 모드:
 
 ```http
-GET /api/v1/map/commercials/heatmap?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37.7&serviceCode=CS100001&periodCode=20233&metricType=OPPORTUNITY_SCORE&composite=false
+GET /api/v1/map/commercials/heatmap?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37.7&serviceCode=CS100001&periodCode=20261&metricType=OPPORTUNITY_SCORE&composite=false
 ```
 
 복합 프리셋 모드:
 
 ```http
-GET /api/v1/map/commercials/heatmap?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37.7&serviceCode=CS100001&periodCode=20233&preset=BALANCED&priorityMetric=OPPORTUNITY_SCORE&composite=true
+GET /api/v1/map/commercials/heatmap?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37.7&serviceCode=CS100001&periodCode=20261&preset=BALANCED&priorityMetric=OPPORTUNITY_SCORE&composite=true
 ```
 
 `priorityMetric` 은 선택 파라미터다. 생략하면 프리셋별 기본 우선 지표가 적용된다.
@@ -210,7 +210,7 @@ GET /api/v1/map/commercials/candidates
 요청 예시:
 
 ```http
-GET /api/v1/map/commercials/candidates?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37.7&serviceCode=CS100001&periodCode=20233&preset=BALANCED&priorityMetric=OPPORTUNITY_SCORE&topN=10
+GET /api/v1/map/commercials/candidates?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE=37.7&serviceCode=CS100001&periodCode=20261&preset=BALANCED&priorityMetric=OPPORTUNITY_SCORE&topN=10
 ```
 
 응답의 주요 필드:
@@ -231,7 +231,7 @@ GET /api/v1/map/commercials/candidates?lngSW=126.9&latSW=37.45&lngNE=127.1&latNE
 ## Commercial Profile
 
 ```http
-GET /api/v1/map/commercials/{commercialCode}/profile?serviceCode=CS100001&periodCode=20233
+GET /api/v1/map/commercials/{commercialCode}/profile?serviceCode=CS100001&periodCode=20261
 ```
 
 추천 화면:
@@ -252,7 +252,7 @@ GET /api/v1/map/commercials/{commercialCode}/profile?serviceCode=CS100001&period
 ## Compare Preview
 
 ```http
-GET /api/v1/map/commercials/compare-preview?leftCommercialCode=3110008&rightCommercialCode=3110015&serviceCode=CS100001&periodCode=20233
+GET /api/v1/map/commercials/compare-preview?leftCommercialCode=3110008&rightCommercialCode=3110015&serviceCode=CS100001&periodCode=20261
 ```
 
 추천 화면:

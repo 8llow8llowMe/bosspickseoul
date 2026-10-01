@@ -43,7 +43,7 @@
 
 ```json
 {
-  "periodCode": "20233",
+  "periodCode": "20261",
   "serviceCode": "CS100001",
   "comparisonGuide": {
     "periodBasis": "모든 지표는 선택한 분기의 데이터를 기준으로 합니다.",
