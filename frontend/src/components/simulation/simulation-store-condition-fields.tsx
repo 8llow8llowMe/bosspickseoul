@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, type FocusEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
 
@@ -25,8 +25,14 @@ export type SimulationStoreConditionFieldsProps = {
   serviceCode: string
   storeSize: number | null
   floorType: SimulationFloorType | null
+  /** 값만 바꾼다. 다음 단계로 넘기지 않는다 — 직접 입력은 한 글자마다 이 콜백을 부른다. */
   onStoreSizeChange: (storeSize: number | null) => void
   onFloorTypeChange: (floorType: SimulationFloorType) => void
+  /**
+   * 사용자가 이 단계 입력을 한 번 끝냈다 — 프리셋·층 칩 선택, 직접 입력의 Enter·blur.
+   * 호출부는 이때 다음 미완료 단계로 넘긴다(명세 D4-1-1 규칙 3).
+   */
+  onAdvance: () => void
 }
 
 const PRESET_LABELS = [
@@ -134,11 +140,41 @@ export default function SimulationStoreConditionFields({
   floorType,
   onStoreSizeChange,
   onFloorTypeChange,
+  onAdvance,
 }: SimulationStoreConditionFieldsProps) {
   // 직접 입력의 "쓰는 중" 원문. null이면 프리셋/상위 상태(storeSize)를 그대로 따라간다.
   // 상태를 effect로 되맞추지 않고 파생값으로 두어 프리셋 클릭이 즉시 입력칸에 반영되게 한다.
   const [draft, setDraft] = useState<string | null>(null)
   const sizeInput = draft ?? (storeSize === null ? '' : String(storeSize))
+
+  /*
+    직접 입력은 **타이핑하는 동안 진행하지 않는다.** 한 글자마다 진행시키면 층을 먼저 고른
+    사람이 `66` 을 치려다 `6` 에서 섹션이 접혀 6㎡ 로 확정된다(2026-10-01 실측). 그래서
+    Enter 와 blur 에서만 진행하되, 포커스가 이 영역 **안**(프리셋·층 칩)으로 옮겨 가는
+    blur 는 무시한다 — 그 칩은 눌리는 순간 스스로 진행한다.
+
+    relatedTarget 만으로는 모자라다. Safari 는 버튼을 클릭해도 포커스를 주지 않아
+    relatedTarget 이 null 로 오므로, 칩 클릭 직전의 blur 가 「영역 밖으로 나감」으로 읽혀
+    섹션이 먼저 접히고 클릭이 허공에 떨어진다. pointerdown 이 blur 보다 먼저 온다는 점을
+    써서 「영역 안을 누르는 중」을 표시해 둔다.
+
+    표시는 click 에서 지운다 — click 은 마우스든 터치든 blur 뒤에 온다. pointerup 에서 지우면
+    안 된다. 터치는 pointerup 이 끝난 뒤 호환 mousedown 에서야 포커스가 옮겨 가므로(blur 가
+    pointerup 뒤) iOS 에서 표시가 이미 지워져 있다. click 이 오지 않는 스크롤(pointercancel)과
+    입력칸 재진입에서도 지워, 표시가 남아 다음 blur 를 삼키지 않게 한다.
+  */
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const pressingInside = useRef(false)
+
+  const releasePress = () => {
+    pressingInside.current = false
+  }
+
+  const advanceOnLeave = (event: FocusEvent<HTMLInputElement>) => {
+    if (pressingInside.current) return
+    if (rootRef.current?.contains(event.relatedTarget)) return
+    onAdvance()
+  }
 
   const query = useQuery({
     queryKey: ['simulation', 'store-sizes', serviceCode],
@@ -165,7 +201,14 @@ export default function SimulationStoreConditionFields({
   })
 
   return (
-    <Root>
+    <Root
+      ref={rootRef}
+      onPointerDownCapture={() => {
+        pressingInside.current = true
+      }}
+      onClickCapture={releasePress}
+      onPointerCancelCapture={releasePress}
+    >
       <Block>
         <Heading>
           <h3>매장 크기</h3>
@@ -202,6 +245,7 @@ export default function SimulationStoreConditionFields({
               onSelect={code => {
                 setDraft(null)
                 onStoreSizeChange(Number(code))
+                onAdvance()
               }}
               minColumnWidth={120}
             />
@@ -232,6 +276,18 @@ export default function SimulationStoreConditionFields({
                 setDraft(next)
                 onStoreSizeChange(parseStoreSizeInput(next))
               }}
+              onFocus={releasePress}
+              onBlur={advanceOnLeave}
+              onKeyDown={event => {
+                if (event.key !== 'Enter') return
+                /*
+                  기본 동작을 막는다. 진행하면 섹션이 접히고 포커스가 헤더 버튼으로 옮겨
+                  가는데, 막지 않으면 뒤따르는 keypress 가 그 버튼을 눌러 섹션이 다시 열린다
+                  (Chrome 실측). keydown 을 막으면 keypress 가 나가지 않는다.
+                */
+                event.preventDefault()
+                onAdvance()
+              }}
             />
           </SizeFieldRow>
         </Controls>
@@ -250,7 +306,10 @@ export default function SimulationStoreConditionFields({
               name: item.name,
             }))}
             selectedCode={floorType}
-            onSelect={code => onFloorTypeChange(code as SimulationFloorType)}
+            onSelect={code => {
+              onFloorTypeChange(code as SimulationFloorType)
+              onAdvance()
+            }}
             minColumnWidth={120}
           />
         </FloorControls>

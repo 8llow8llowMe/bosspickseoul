@@ -292,6 +292,141 @@ describe('SimulationBuilderPage — 열림 단계 배선', () => {
   })
 })
 
+describe('SimulationBuilderPage — 면적 직접 입력의 진행 시점', () => {
+  /*
+    직접 입력은 한 글자마다 onChange 를 부른다. 그때마다 진행시키면 층을 먼저 고른
+    사람이 `66` 을 치려다 `6` 에서 섹션이 접혀 6㎡ 로 확정됐다(2026-10-01 실측).
+    진행은 Enter·blur 에서만 한다(명세 D4-1-1 규칙 3).
+  */
+  const sizeInput = () => screen.getByLabelText('면적 직접 입력 (제곱미터)')
+
+  const typeSize = (value: string) =>
+    fireEvent.change(sizeInput(), { target: { value } })
+
+  it('층을 먼저 고른 뒤 면적을 입력해도 입력하는 동안에는 접히지 않는다', () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    typeSize('6')
+    expect(isExpanded('store')).toBe(true)
+
+    typeSize('66')
+    expect(isExpanded('store')).toBe(true)
+
+    fireEvent.blur(sizeInput())
+
+    expect(isExpanded('store')).toBe(false)
+    expect(header('store').textContent).toContain('66㎡')
+  })
+
+  it('「변경」으로 다시 연 매장 조건에서 면적을 고쳐도 첫 글자에 접히지 않는다', () => {
+    renderPage()
+    fillThroughService()
+    typeSize('66')
+    fireEvent.click(chip('1층'))
+    expect(isExpanded('store')).toBe(false)
+
+    fireEvent.click(header('store'))
+    typeSize('1')
+    typeSize('12')
+
+    expect(isExpanded('store')).toBe(true)
+  })
+
+  it('Enter 로 입력을 끝내면 접고 매장 조건 헤더로 포커스를 돌려준다', () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    sizeInput().focus()
+    typeSize('66')
+    /*
+      fireEvent 는 preventDefault 가 불렸으면 false 를 돌려준다. 막지 않으면 접힌 뒤 포커스를
+      받은 헤더 버튼에 뒤따르는 keypress 가 떨어져 섹션이 다시 열린다(Chrome 실측) — jsdom 은
+      keypress 를 합성하지 않으므로 그 재열림 대신 「막았는가」를 단언한다.
+    */
+    expect(fireEvent.keyDown(sizeInput(), { key: 'Enter' })).toBe(false)
+
+    expect(isExpanded('store')).toBe(false)
+    expect(document.activeElement).toBe(header('store'))
+  })
+
+  it('층이 비어 있으면 blur 해도 매장 조건이 열린 채로 남는다', () => {
+    renderPage()
+    fillThroughService()
+
+    typeSize('66')
+    fireEvent.blur(sizeInput())
+
+    expect(isExpanded('store')).toBe(true)
+  })
+
+  /*
+    포커스가 같은 영역의 칩으로 옮겨 가는 blur 에서 접으면, 사용자가 누르려던 칩이
+    클릭 전에 사라진다. 칩은 눌리는 순간 스스로 진행하므로 blur 는 넘긴다.
+  */
+  it('같은 영역의 칩으로 포커스가 옮겨 가는 blur 로는 접히지 않는다', () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    typeSize('66')
+    fireEvent.blur(sizeInput(), { relatedTarget: chip('1층 외') })
+    expect(isExpanded('store')).toBe(true)
+
+    fireEvent.click(chip('1층 외'))
+
+    expect(isExpanded('store')).toBe(false)
+    expect(header('store').textContent).toContain('1층 외')
+  })
+
+  /*
+    Safari 는 버튼을 클릭해도 포커스를 주지 않아 blur 의 relatedTarget 이 null 이다.
+    pointerdown 이 blur 보다 먼저 온다는 점으로 「영역 안을 누르는 중」을 가려낸다.
+  */
+  it('relatedTarget 없이 영역 안을 눌러도(Safari) 클릭 전에 접히지 않는다', () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    fireEvent.focus(sizeInput())
+    typeSize('66')
+    fireEvent.pointerDown(chip('1층 외'))
+    fireEvent.blur(sizeInput())
+    expect(isExpanded('store')).toBe(true)
+
+    fireEvent.click(chip('1층 외'))
+
+    expect(header('store').textContent).toContain('66㎡ · 1층 외')
+  })
+
+  /*
+    「누르는 중」 표시가 남으면 다음 blur 를 삼켜 섹션이 붙잡힌 채 열려 있다. 칩이 아닌
+    곳(제목 글자)을 눌러 진행이 일어나지 않는 경로로 표시가 지워지는지 본다.
+  */
+  it.each([
+    ['click', (node: Element) => fireEvent.click(node)],
+    ['스크롤(pointercancel)', (node: Element) => fireEvent.pointerCancel(node)],
+  ])('영역 안 누르기가 %s 로 끝나면 다음 blur 에서 접힌다', (_, release) => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    const floorHeading = screen.getByRole('heading', { name: '층 구분' })
+    fireEvent.focus(sizeInput())
+    typeSize('66')
+    fireEvent.pointerDown(floorHeading)
+    fireEvent.blur(sizeInput())
+    expect(isExpanded('store')).toBe(true)
+
+    release(floorHeading)
+    fireEvent.blur(sizeInput())
+
+    expect(isExpanded('store')).toBe(false)
+  })
+})
+
 describe('SimulationBuilderPage — 해시로 들어오는 경로', () => {
   /*
     리포트 화면의 「다시 선택」은 `#simulation-section-<section>` 을 달고 빌더로
