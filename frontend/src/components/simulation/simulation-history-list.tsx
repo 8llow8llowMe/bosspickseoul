@@ -18,6 +18,7 @@ import {
   isSimulationHistoryReplayable,
 } from '@/lib/simulation/history-presentation'
 import type { SimulationHistoryItem } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationHistoryListProps = {
   histories: readonly SimulationHistoryItem[]
@@ -48,7 +49,7 @@ const Card = styled.li`
   background: var(--color-surface);
   padding: 16px 20px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 16px;
   }
 `

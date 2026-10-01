@@ -8,6 +8,7 @@ import { ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
 import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationResultPreviewProps = {
   report: SimulationReport
@@ -47,7 +48,7 @@ const Headline = styled.p`
   font-variant-numeric: tabular-nums;
   word-break: keep-all;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     font-size: 26px;
     line-height: 36px;
   }

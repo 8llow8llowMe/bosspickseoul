@@ -5,6 +5,7 @@ import styled from 'styled-components'
 
 import { Button, ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationSummaryBarProps = {
   /** 계산이 끝났으면 만원 단위 총비용. 아직이면 null. */
@@ -35,7 +36,7 @@ const Root = styled.div`
   padding: 12px 16px max(12px, env(safe-area-inset-bottom));
   box-shadow: var(--shadow-level-3);
 
-  @media (min-width: 1024px) {
+  @media ${SIMULATION_MEDIA.desktop} {
     display: none;
   }
 `

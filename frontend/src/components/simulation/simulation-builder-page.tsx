@@ -44,6 +44,7 @@ import {
 import { resolveOpenSection } from '@/lib/simulation/step-flow'
 import type { SimulationReportRequest } from '@/types/simulation'
 import { shellWidth } from '@/styles/layout'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationBuilderPageProps = {
   /** `analysis`면 상단에 분석 컨텍스트 카드를 얹는다. 그 외 동작은 완전히 같다. */
@@ -61,7 +62,7 @@ const Page = styled.main`
   background: var(--color-background-muted);
 
   /* 모바일·태블릿은 하단 고정 요약 바에 가리지 않게 여백을 더 준다. */
-  @media (max-width: 1023px) {
+  @media ${SIMULATION_MEDIA.belowDesktop} {
     padding: 24px 0 96px;
   }
 `
@@ -70,10 +71,6 @@ const Container = styled.div`
   ${shellWidth}
   display: grid;
   gap: 16px;
-
-  @media (max-width: 640px) {
-    width: calc(100% - 32px);
-  }
 `
 
 /* 3층 문구(eyebrow+H1+설명)를 한 줄로 눌렀다. 매 화면 같은 문구가 상단을 다 먹지 않게. */
@@ -108,15 +105,11 @@ const Head = styled.header`
  */
 const Layout = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   align-items: start;
   gap: 20px;
 
-  @media (max-width: 1279px) {
-    grid-template-columns: minmax(0, 1fr) 340px;
-  }
-
-  @media (max-width: 1023px) {
+  @media ${SIMULATION_MEDIA.belowDesktop} {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
@@ -134,7 +127,7 @@ const ResultColumn = styled.div`
   display: grid;
   gap: 16px;
 
-  @media (min-width: 1024px) {
+  @media ${SIMULATION_MEDIA.desktop} {
     position: sticky;
     top: 96px;
   }
@@ -413,7 +406,7 @@ export default function SimulationBuilderPage({
   const { data: mutationData, error: mutationError } = reportMutation
   useEffect(() => {
     if (!mutationData && !mutationError) return
-    if (!window.matchMedia('(max-width: 1023px)').matches) return
+    if (!window.matchMedia(SIMULATION_MEDIA.belowDesktop).matches) return
     resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [mutationData, mutationError])
 

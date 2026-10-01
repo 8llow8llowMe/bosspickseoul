@@ -16,6 +16,7 @@ import {
   type SimulationConditionState,
 } from '@/lib/simulation/conditions'
 import type { SimulationReport } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationResultPanelProps = {
   state: SimulationConditionState
@@ -40,7 +41,7 @@ const Root = styled.section`
   padding: 24px;
   box-shadow: var(--shadow-level-2);
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 `

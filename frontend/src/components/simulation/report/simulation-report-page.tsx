@@ -28,6 +28,7 @@ import {
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
 import { centeredColumn } from '@/styles/layout'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationReportPageProps = { variant?: SimulationReportVariant }
 
@@ -36,7 +37,7 @@ const Page = styled.main`
   padding: 32px 0 64px;
   background: var(--color-background-muted);
 
-  @media (max-width: 1023px) {
+  @media ${SIMULATION_MEDIA.belowDesktop} {
     padding: 24px 0 48px;
   }
 `
@@ -46,10 +47,6 @@ const Container = styled.div`
   ${centeredColumn('var(--w-read)')}
   display: grid;
   gap: 16px;
-
-  @media (max-width: 640px) {
-    width: calc(100% - 32px);
-  }
 `
 
 const Head = styled.header`

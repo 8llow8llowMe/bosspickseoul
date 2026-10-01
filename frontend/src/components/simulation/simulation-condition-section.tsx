@@ -4,6 +4,8 @@ import type { ReactNode, Ref } from 'react'
 import { Check } from 'lucide-react'
 import styled from 'styled-components'
 
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
+
 export type SimulationConditionSectionCardProps = {
   /** 앵커 id. 오류 배너의 "다시 선택" CTA가 이 id로 스크롤한다. */
   id: string
@@ -64,7 +66,7 @@ const Head = styled.header`
     outline-offset: -2px;
   }
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 12px 16px;
   }
 `
@@ -139,7 +141,7 @@ const Panel = styled.div`
   gap: 12px;
   padding: 0 20px 20px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 0 16px 16px;
   }
 `

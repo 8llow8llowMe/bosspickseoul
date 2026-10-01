@@ -15,6 +15,7 @@ import type {
   SimulationCondition,
   SimulationGenderAgeAnalysis,
 } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationCustomerInsightProps = {
   condition: SimulationCondition
@@ -29,7 +30,7 @@ const Root = styled.section`
   background: var(--color-surface);
   padding: 24px;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 `
@@ -59,7 +60,7 @@ const Layout = styled.div`
   align-items: center;
   gap: 20px;
 
-  @media (max-width: 767px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     grid-template-columns: minmax(0, 1fr);
   }
 `

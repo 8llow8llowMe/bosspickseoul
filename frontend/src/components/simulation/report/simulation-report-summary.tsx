@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatLargeWon } from '@/lib/format'
 import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationReportSummaryProps = {
   report: SimulationReport
@@ -24,7 +25,7 @@ const Root = styled.section`
   padding: 24px;
   box-shadow: var(--shadow-level-2);
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     padding: 20px;
   }
 `
@@ -44,7 +45,7 @@ const Headline = styled.p`
   font-variant-numeric: tabular-nums;
   word-break: keep-all;
 
-  @media (max-width: 640px) {
+  @media ${SIMULATION_MEDIA.mobile} {
     font-size: 26px;
     line-height: 36px;
   }
