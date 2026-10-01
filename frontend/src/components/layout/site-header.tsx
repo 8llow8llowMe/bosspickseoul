@@ -362,9 +362,11 @@ const navigationItems = [
   // 독립 진입점(/simulation)만 노출한다. /analysis/simulation 은 상권분석 하위
   // 흐름이라 isPathActive 가 '/analysis' 를 활성으로 잡는 게 의도된 동작이다.
   { href: '/simulation', label: '시뮬레이션' },
-  // 상권분석 + AI 리포트 방향 강조를 위해 커뮤니티·채팅은 헤더에서 임시 숨김.
-  // 라우트/페이지는 유지되므로 재노출 시 아래 두 줄의 주석만 해제하면 됨.
-  // { href: '/community/list', label: '커뮤니티' },
+  // 커뮤니티는 개편 1단계와 함께 2026-10-01 재노출했다 — 숨긴 채로는 개편 효과를 잴 수 없다
+  // (docs/features/community/community.md §S4 「전역 내비」).
+  { href: '/community/list', label: '커뮤니티' },
+  // 채팅은 상권분석 + AI 리포트 방향 강조를 위해 계속 임시 숨김. 라우트/페이지는 유지되므로
+  // 재노출 시 아래 줄의 주석만 해제하면 된다.
   // { href: '/chatting/list', label: '채팅' },
 ] as const
 
