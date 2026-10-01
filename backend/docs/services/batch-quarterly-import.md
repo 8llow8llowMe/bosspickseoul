@@ -34,6 +34,7 @@
 3. `backend/scripts/migration/change-commercial-spatial-version.sql` — `change_commercial.spatial_version` (이관 Job 전)
 4. `backend/scripts/migration/fact-tables-spatial-version.sql` — 나머지 14개 팩트 테이블 `spatial_version` + `income_commercial` 소득 컬럼 NULL (이관 Job 전)
 5. `backend/scripts/migration/income-administration-expense-detail-columns.sql` — `income_administration` 소비 세부 10항목 (이슈 #415, 아래 「9. 행정동 소비 세부 항목 재이관」 전)
+6. `backend/scripts/migration/pension-income-district-table.sql` — `pension_income_district` 국민연금 자치구 평균소득 (이슈 #415 2차, 아래 「11. 국민연금 자치구 평균소득 적재」 전)
 
 PowerShell에서 `mysql ... < file.sql`은 `<`가 예약 연산자라 실패한다. DDL은 Workbench가 맞다.
 
@@ -45,7 +46,7 @@ PowerShell에서 `mysql ... < file.sql`은 `<`가 예약 연산자라 실패한�
 
 비밀번호·API 키는 저장소에 적지 않는다. 로컬에서 돌릴 때는 터미널에서만 넣는다. 개발서버 Docker 호스트에서 돌릴 때는 Vault 가 만든 `.env.runtime` 을 쓴다 — 아래 「10. 개발서버에서 실행」.
 
-이 절과 3~9절의 `java -jar $jar ...` 는 로컬 JAR 기준이다. 개발서버에서는 같은 옵션을 `docker compose run ... batch-service-job` 뒤에 그대로 붙인다.
+이 절과 3~9·11절의 `java -jar $jar ...` 는 로컬 JAR 기준이다. 개발서버에서는 같은 옵션을 `docker compose run ... batch-service-job` 뒤에 그대로 붙인다.
 
 ```powershell
 cd <repo>\backend
@@ -333,7 +334,7 @@ SELECT period_code,
 
 ## 10. 개발서버에서 실행 (이슈 #440)
 
-로컬 JAR 대신 개발서버 Docker 호스트에서 **1회 실행하고 끝나는 컨테이너**로 돌린다. 서비스는 `docker-compose-batch-service.yml` 의 `batch-service-job` 이다. 옵션과 절차(dry-run → 새 run-id 로 실게시)는 3~9절과 같고, 실행 수단만 다르다.
+로컬 JAR 대신 개발서버 Docker 호스트에서 **1회 실행하고 끝나는 컨테이너**로 돌린다. 서비스는 `docker-compose-batch-service.yml` 의 `batch-service-job` 이다. 옵션과 절차(dry-run → 새 run-id 로 실게시)는 3~9·11절과 같고, 실행 수단만 다르다.
 
 ### 선행 조건
 
@@ -366,7 +367,7 @@ docker compose -p bosspickseoul-batch-service --env-file .env.runtime -f docker-
   batch-service-job
 echo $?
 
-# 같은 실행을 CLI 인수로 넘기기 — 3~9절 명령의 `java -jar $jar` 뒤 옵션을 그대로 붙인다
+# 같은 실행을 CLI 인수로 넘기기 — 3~9·11절 명령의 `java -jar $jar` 뒤 옵션을 그대로 붙인다
 docker compose -p bosspickseoul-batch-service --env-file .env.runtime -f docker-compose-batch-service.yml --profile job \
   run --rm -e BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev \
   batch-service-job --job=project --run-id=project-consumption-administration-20234-001 \
@@ -388,7 +389,7 @@ echo $?
 
 | 환경변수 | CLI 옵션 | 기본값 |
 | --- | --- | --- |
-| `BATCH_QUARTERLY_JOB` | `--job` | `facts` (`facts` / `spatial` / `project`) |
+| `BATCH_QUARTERLY_JOB` | `--job` | `facts` (`facts` / `spatial` / `project` / `pension-income`) |
 | `BATCH_QUARTERLY_RUN_ID` | `--run-id` | 필수 |
 | `BATCH_QUARTERLY_DRY_RUN` | `--dry-run` | `true` |
 | `BATCH_QUARTERLY_DATASET` | `--dataset` | facts·project 필수 |
@@ -396,10 +397,10 @@ echo $?
 | `BATCH_QUARTERLY_SPATIAL_VERSION` | `--spatial-version` | 필수 |
 | `BATCH_QUARTERLY_SCHEMA_VERSION` | `--schema-version` | `seoul-v1` |
 | `BATCH_QUARTERLY_SOURCE` | `--source` | facts 필수, spatial 은 `GEOJSON` |
-| `BATCH_QUARTERLY_SOURCE_FILE` | `--source-file` | 없음 |
-| `BATCH_QUARTERLY_SOURCE_UPDATED_AT` | `--source-updated-at` | facts 필수 |
-| `BATCH_QUARTERLY_EXPECTED_ROWS` | `--expected-rows` | facts 필수 |
-| `BATCH_QUARTERLY_CHARSET` | `--charset` | `UTF-8` |
+| `BATCH_QUARTERLY_SOURCE_FILE` | `--source-file` | 없음 (pension-income 필수) |
+| `BATCH_QUARTERLY_SOURCE_UPDATED_AT` | `--source-updated-at` | facts·pension-income 필수 |
+| `BATCH_QUARTERLY_EXPECTED_ROWS` | `--expected-rows` | facts·pension-income 필수 |
+| `BATCH_QUARTERLY_CHARSET` | `--charset` | `UTF-8` (pension-income 은 `MS949` 를 명시) |
 
 환경변수는 Spring relaxed binding 으로 `batch.quarterly.<옵션>` 에 붙는다(`QuarterlyImportRunner`).
 
@@ -441,3 +442,65 @@ docker run --rm -v bosspickseoul-batch-service-input:/in busybox ls -l /in
 - `docker compose run` 은 컨테이너 종료 코드를 그대로 돌려준다. Job 이 `COMPLETED` 면 `0`, 그 외(실패·검증 거부·가드 거부)는 `1` 이다. `echo $?` 가 `0` 이 아니면 다음 줄(실게시)로 넘어가지 않는다.
 - 로그는 터미널로만 나온다. `--rm` 이라 끝나면 컨테이너와 `docker logs` 가 함께 사라진다. 남기려면 `... batch-service-job 2>&1 | tee run-<run-id>.log` 로 받고, 종료 코드는 `echo ${PIPESTATUS[0]}` 로 본다.
 - 건수 확인은 6절 SQL 로 한다. 컨테이너 안에서 할 일은 없다.
+
+## 11. 국민연금 자치구 평균소득 적재 (이슈 #415)
+
+상권 소득이 끊긴 자리의 자치구 단위 대체값을 `pension_income_district` 에 넣는다. 원천 사실·검증 규칙·쓰기 방식은 [batch-service.md](batch-service.md) 「국민연금 자치구 평균소득 적재」다. **연 1회 수동 작업이다.** 자동 최신화·`quarterly-import-plan.ps1`·`quarterly-import-coverage.sql` 은 이 적재를 모른다.
+
+### 선행
+
+- 1절 6번 `pension-income-district-table.sql` 을 commercial 스키마에 적용한다
+- `--spatial-version` 으로 줄 공간 스냅샷(`legacy-20233`)이 `READY` 여야 한다(3절). 자치구 이름 → 코드를 여기서 읽는다
+
+### 파일 받기
+
+공공데이터포털 [국민연금공단_자격 시군구 신고 평균소득월액](https://www.data.go.kr/data/3046077/fileData.do) 에서 브라우저로 CSV 를 내려받는다. 매년 12월 기준으로 연 1회 갱신된다. 포털의 내부 다운로드 요청은 캡차 제한이 걸린 경로라 스크립트로 받지 않는다.
+
+- **파일을 열어 다시 저장하지 않는다.** 원본은 MS949 다. 엑셀로 저장하면 문자셋·따옴표가 바뀌어 checksum 이 달라지고, UTF-8 로 바뀌면 `--charset` 도 달라진다
+- `--source-updated-at` 은 포털 메타의 작성 시점이다. 2024-12-31 기준 파일은 `2025-01-31T00:00:00Z`
+- `--expected-rows` 는 **서울 행 수** = 25 × 파일 안 기준년월 수다. 2024-12-31 기준 파일은 기준년월 5개(`2020-12`~`2024-12`)라 `125`. 전국 행 수(1,150)가 아니다
+
+개발서버에서는 10절의 입력 볼륨으로 옮긴다.
+
+```bash
+docker run --rm -v bosspickseoul-batch-service-input:/in -v ~/batch-input:/src:ro busybox cp /src/pension_20241231.csv /in/
+```
+
+### 실행
+
+dry-run 으로 확인한 뒤 **새 run-id** 로 실게시한다(같은 run-id 는 Spring Batch 가 다시 띄우지 않는다). run-id 는 `pension-income-<파일 기준일>-<attempt>` 로 쓴다.
+
+```powershell
+java -jar $jar --job=pension-income --run-id=pension-income-20241231-001 --source-file=<파일> --charset=MS949 --spatial-version=legacy-20233 --expected-rows=125 --source-updated-at=2025-01-31T00:00:00Z --dry-run=true
+java -jar $jar --job=pension-income --run-id=pension-income-20241231-002 --source-file=<파일> --charset=MS949 --spatial-version=legacy-20233 --expected-rows=125 --source-updated-at=2025-01-31T00:00:00Z --dry-run=false
+```
+
+```bash
+docker compose -p bosspickseoul-batch-service --env-file .env.runtime -f docker-compose-batch-service.yml --profile job \
+  run --rm -e BATCH_ALLOWED_SCHEMAS=bosspickseoul_commercial_dev \
+  batch-service-job --job=pension-income --run-id=pension-income-20241231-001 \
+  --source-file=/app/data/input/pension_20241231.csv --charset=MS949 --spatial-version=legacy-20233 \
+  --expected-rows=125 --source-updated-at=2025-01-31T00:00:00Z --dry-run=true
+echo $?
+```
+
+dry-run 이 통과하면 로그에 아래 한 줄이 남는다. 기준일 5개, 서울 125행, 타 시도 1,025행이어야 한다.
+
+```text
+[pension-income] dry-run referenceDates=[2020-12-31, 2021-12-31, 2022-12-31, 2023-12-31, 2024-12-31] rows=125 ignoredNonSeoul=1025 runId=pension-income-20241231-001 checksum=...
+```
+
+실패하면 예외 메시지에 위반이 모두 나온다. 예: `Pension income header mismatch: expected=[기준년월, 시군구, 평균소득월액] actual=[...]`, `Pension income CSV is not valid UTF-8; check --charset ...`(문자셋), `Pension income validation failed: unmapped Seoul region names=[...]; referenceMonth=2024-12 seoulRows=24 expected=25; ...`. 행 번호는 헤더를 뺀 1부터이고, 원본은 `BATCH_RAW_DIRECTORY` 아래 `<run-id>-*/source.csv` 에 있다. 검사를 느슨하게 하지 말고 원인(파일·문자셋·공간 버전)을 고친 뒤 새 run-id 로 다시 돈다.
+
+실게시는 파일에 든 기준일의 행을 지우고 다시 넣으므로 같은 파일을 다시 게시해도 안전하다. 다음 해 파일(예: 2025-12-31 기준)에 이전 기준일이 다시 들어 있으면 그 기준일도 새 파일 값으로 바뀐다. 파일에 없는 기준일은 남는다.
+
+### 확인
+
+`pension-income-district-table.sql` 끝의 확인 SQL 을 돌린다. 기준일마다 `districts = 25`, `checksums = 1` 이어야 하고, 공간 스냅샷과 코드가 어긋난 행은 0 이어야 한다.
+
+```sql
+SELECT reference_date, COUNT(*) AS districts, COUNT(DISTINCT source_checksum) AS checksums, MIN(run_id) AS run_id
+  FROM pension_income_district GROUP BY reference_date ORDER BY reference_date;
+```
+
+적재만으로는 화면이 바뀌지 않는다. commercial-service 조회 반영은 후속 작업이다.

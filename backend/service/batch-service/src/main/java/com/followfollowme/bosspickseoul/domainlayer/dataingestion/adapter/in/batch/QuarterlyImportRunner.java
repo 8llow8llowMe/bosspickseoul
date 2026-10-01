@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.dataingestion.adapter.in.batch;
 
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.PensionIncomeImportRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ProjectionRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SpatialSourceRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.*;
@@ -24,17 +25,20 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
     private final Job factJob;
     private final Job spatialJob;
     private final Job projectJob;
+    private final Job pensionIncomeJob;
     private int exitCode = 1;
 
     public QuarterlyImportRunner(Environment environment, JobLauncher launcher,
                                  @Qualifier("commercialAnalysisImportJob") Job factJob,
                                  @Qualifier("commercialRegionImportJob") Job spatialJob,
-                                 @Qualifier("typedFactProjectionJob") Job projectJob) {
+                                 @Qualifier("typedFactProjectionJob") Job projectJob,
+                                 @Qualifier("pensionIncomeImportJob") Job pensionIncomeJob) {
         this.environment = environment;
         this.launcher = launcher;
         this.factJob = factJob;
         this.spatialJob = spatialJob;
         this.projectJob = projectJob;
+        this.pensionIncomeJob = pensionIncomeJob;
     }
 
     @Override
@@ -60,8 +64,14 @@ public class QuarterlyImportRunner implements ApplicationRunner, ExitCodeGenerat
             parameters = ProjectionJobParameters.write(new ProjectionRequest(
                 runId, Dataset.parse(required(args, "dataset")), new Quarter(required(args, "period")),
                 required(args, "spatial-version"), optional(args, "schema-version", "seoul-v1"), dryRun));
+        } else if ("pension-income".equals(jobName)) {
+            // 국민연금 자치구 평균소득(이슈 #415). 포털 원본은 MS949 라 운영 명령은 --charset=MS949 를 적는다. 기본값은 다른 job 과 같은 UTF-8.
+            job = pensionIncomeJob;
+            parameters = PensionIncomeJobParameters.write(new PensionIncomeImportRequest(runId, Path.of(required(args, "source-file")),
+                optional(args, "charset", "UTF-8"), required(args, "spatial-version"), Long.parseLong(required(args, "expected-rows")),
+                Instant.parse(required(args, "source-updated-at")), dryRun));
         } else {
-            if (!"facts".equals(jobName)) throw new IllegalArgumentException("job must be facts, spatial or project");
+            if (!"facts".equals(jobName)) throw new IllegalArgumentException("job must be facts, spatial, project or pension-income");
             String file = optional(args, "source-file", "");
             ImportRequest request = new ImportRequest(runId, Dataset.parse(required(args, "dataset")), new Quarter(required(args, "period")),
                 required(args, "spatial-version"), optional(args, "schema-version", "seoul-v1"),
