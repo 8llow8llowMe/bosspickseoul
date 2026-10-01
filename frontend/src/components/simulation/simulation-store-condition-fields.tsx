@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type FocusEvent } from 'react'
+import { useId, useRef, useState, type FocusEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
 
@@ -13,8 +13,11 @@ import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { fetchSimulationStoreSizes } from '@/lib/api/simulation'
 import { getResponseBody } from '@/lib/api/response'
 import {
-  parseStoreSizeInput,
+  MIN_PYEONG_INPUT,
+  formatStoreSizeInput,
+  parseStoreSizeInputIn,
   squareMeterToPyeong,
+  type StoreSizeUnit,
 } from '@/lib/simulation/conditions'
 import type {
   SimulationFloorType,
@@ -33,6 +36,12 @@ export type SimulationStoreConditionFieldsProps = {
    * 호출부는 이때 다음 미완료 단계로 넘긴다(명세 D4-1-1 규칙 3).
    */
   onAdvance: () => void
+  /**
+   * 직접 입력 단위. 호출부가 들고 있는다 — 이 컴포넌트는 섹션이 접히면 언마운트되므로,
+   * 안에 두면 평으로 넣은 사람이 「변경」으로 다시 열 때 ㎡ 로 돌아가 있었다.
+   */
+  unit: StoreSizeUnit
+  onUnitChange: (unit: StoreSizeUnit) => void
 }
 
 const PRESET_LABELS = [
@@ -89,9 +98,68 @@ const Controls = styled.div`
   gap: 12px;
 `
 
+/*
+  직접 입력 한 덩어리 — 라벨 줄(라벨 + 단위 전환) 아래 입력칸.
+
+  단위 전환을 입력칸 안 오른쪽(rightSlot)에 두지 않는다. TextField 의 slot 은 장식 규약상
+  aria-hidden 이라 버튼을 둘 수 없다. TextField 는 통째로 <label> 이라 그 안에도 넣지 못하므로
+  라벨을 바깥에 같은 모양으로 그리고 htmlFor 로 입력칸과 잇는다.
+*/
 const SizeFieldRow = styled.div`
-  max-width: 220px;
+  max-width: 260px;
+  display: grid;
+  gap: 8px;
 `
+
+const SizeFieldHead = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  /* TextField 의 FieldLabel 과 같은 모양이다. */
+  label {
+    color: var(--color-text-700);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 20px;
+  }
+`
+
+/* ㎡ | 평 두 칸 세그먼트. 하나만 고르는 전환이라 선택 칸을 채워 구분한다. */
+const UnitToggle = styled.div`
+  display: inline-flex;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+`
+
+const UnitButton = styled.button<{ $active: boolean }>`
+  min-width: 44px;
+  min-height: 36px;
+  border: 0;
+  background: ${props =>
+    props.$active ? 'var(--color-text-900)' : 'var(--color-surface)'};
+  color: ${props => (props.$active ? '#ffffff' : 'var(--color-text-700)')};
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline-offset: -2px;
+  }
+`
+
+/* spoken 은 입력칸 이름, toggle 은 버튼 이름이다(받침에 따라 「로」/「으로」가 갈린다). */
+const UNIT_LABELS: Record<
+  StoreSizeUnit,
+  { mark: string; spoken: string; toggle: string }
+> = {
+  squareMeter: { mark: '㎡', spoken: '제곱미터', toggle: '제곱미터로 입력' },
+  pyeong: { mark: '평', spoken: '평', toggle: '평으로 입력' },
+}
 
 const FloorControls = styled.div`
   max-width: 340px;
@@ -141,11 +209,15 @@ export default function SimulationStoreConditionFields({
   onStoreSizeChange,
   onFloorTypeChange,
   onAdvance,
+  unit,
+  onUnitChange,
 }: SimulationStoreConditionFieldsProps) {
   // 직접 입력의 "쓰는 중" 원문. null이면 프리셋/상위 상태(storeSize)를 그대로 따라간다.
   // 상태를 effect로 되맞추지 않고 파생값으로 두어 프리셋 클릭이 즉시 입력칸에 반영되게 한다.
   const [draft, setDraft] = useState<string | null>(null)
-  const sizeInput = draft ?? (storeSize === null ? '' : String(storeSize))
+  const sizeInput =
+    draft ?? (storeSize === null ? '' : formatStoreSizeInput(storeSize, unit))
+  const inputId = useId()
 
   /*
     직접 입력은 **타이핑하는 동안 진행하지 않는다.** 한 글자마다 진행시키면 층을 먼저 고른
@@ -185,8 +257,15 @@ export default function SimulationStoreConditionFields({
   const sizes = getResponseBody(query.data)
   const error = resolveApiError(query)
   const hasInput = sizeInput.trim().length > 0
-  const parsedInput = parseStoreSizeInput(sizeInput)
+  const parsedInput = parseStoreSizeInputIn(sizeInput, unit)
   const inputError = hasInput && parsedInput === null
+  // 다른 단위로 환산한 값을 helper 로 보여 준다 — 평으로 넣으면 계산에 쓰일 ㎡ 를 밝힌다.
+  const conversionText =
+    parsedInput === null
+      ? '숫자만 입력해 주세요'
+      : unit === 'squareMeter'
+        ? `약 ${squareMeterToPyeong(parsedInput)}평`
+        : `${parsedInput}㎡로 계산해요`
 
   const presetChoices = PRESET_LABELS.flatMap(preset => {
     const item = readPreset(sizes, preset.key)
@@ -195,7 +274,9 @@ export default function SimulationStoreConditionFields({
       {
         code: String(item.squareMeter),
         name: preset.name,
-        hint: `${item.squareMeter}㎡ · ${item.pyeong}평`,
+        /* ㎡ 와 평을 두 줄로 나눈다. 375 에서 한 칸이 약 98px 라 「36㎡ · 10평」이 가운뎃점에서
+           끊겼다(2026-10-01 실측). 끊을 자리를 정해 두면 모든 폭에서 같은 모양이다. */
+        hint: `${item.squareMeter}㎡\n${squareMeterToPyeong(item.squareMeter)}평`,
       },
     ]
   })
@@ -247,34 +328,68 @@ export default function SimulationStoreConditionFields({
                 onStoreSizeChange(Number(code))
                 onAdvance()
               }}
-              minColumnWidth={120}
+              /* 셋을 한 줄에 고정한다. 최소 폭 auto-fill 로 두면 375 에서 2+1 로 떨어져
+                 「대형」이 홀로 남았다(2026-10-01 실측). */
+              columns={3}
             />
           ) : null}
 
           <SizeFieldRow>
+            <SizeFieldHead>
+              <label htmlFor={inputId}>면적 직접 입력</label>
+              <UnitToggle role="group" aria-label="면적 단위">
+                {(['squareMeter', 'pyeong'] as const).map(option => (
+                  <UnitButton
+                    key={option}
+                    type="button"
+                    $active={unit === option}
+                    aria-pressed={unit === option}
+                    aria-label={UNIT_LABELS[option].toggle}
+                    onClick={() => {
+                      if (option === unit) return
+                      onUnitChange(option)
+                      /*
+                        상태·요청은 언제나 ㎡ 정수이고 평은 입력·표기에서만 쓴다.
+                        값이 있으면 draft 를 비워 입력칸이 그 값을 새 단위로 다시 보여 준다 —
+                        손대지 않으면 값은 바뀌지 않는다(66㎡ → 「20」평으로 보여도 66 그대로).
+                        값이 없으면(입력 중이거나 잘못된 글자) 친 글자를 지우지 않고 새 단위로
+                        다시 읽는다 — 지우면 「18.」까지 친 글자가 사라진다.
+                      */
+                      if (storeSize !== null) {
+                        setDraft(null)
+                      } else if (draft) {
+                        onStoreSizeChange(parseStoreSizeInputIn(draft, option))
+                      }
+                    }}
+                  >
+                    {UNIT_LABELS[option].mark}
+                  </UnitButton>
+                ))}
+              </UnitToggle>
+            </SizeFieldHead>
             <SizeField
+              id={inputId}
               fullWidth
               emphasized
-              inputMode="numeric"
-              label="면적 직접 입력"
-              // 칸 안 단위(㎡)는 TextField의 slot 규약상 aria-hidden이라 접근성 이름에 단위를
+              inputMode={unit === 'pyeong' ? 'decimal' : 'numeric'}
+              // 칸 안 단위는 TextField의 slot 규약상 aria-hidden이라 접근성 이름에 단위를
               // 직접 실어 준다. 보이는 라벨 문구가 이 이름에 포함되므로 Label-in-Name도 지킨다.
-              aria-label="면적 직접 입력 (제곱미터)"
-              placeholder="예: 66"
+              aria-label={`면적 직접 입력 (${UNIT_LABELS[unit].spoken})`}
+              placeholder={unit === 'pyeong' ? '예: 20' : '예: 66'}
               value={sizeInput}
-              rightSlot={<Unit>㎡</Unit>}
+              rightSlot={<Unit>{UNIT_LABELS[unit].mark}</Unit>}
               errorText={
-                inputError ? '1 이상의 숫자를 입력해 주세요' : undefined
+                inputError
+                  ? unit === 'pyeong'
+                    ? `${MIN_PYEONG_INPUT}평 이상의 숫자를 입력해 주세요`
+                    : '1 이상의 숫자를 입력해 주세요'
+                  : undefined
               }
-              helperText={
-                parsedInput === null
-                  ? '프리셋과 다른 면적이면 여기에 숫자로 입력해 주세요'
-                  : `약 ${squareMeterToPyeong(parsedInput)}평`
-              }
+              helperText={conversionText}
               onChange={event => {
                 const next = event.target.value
                 setDraft(next)
-                onStoreSizeChange(parseStoreSizeInput(next))
+                onStoreSizeChange(parseStoreSizeInputIn(next, unit))
               }}
               onFocus={releasePress}
               onBlur={advanceOnLeave}
@@ -310,7 +425,7 @@ export default function SimulationStoreConditionFields({
               onFloorTypeChange(code as SimulationFloorType)
               onAdvance()
             }}
-            minColumnWidth={120}
+            columns={2}
           />
         </FloorControls>
       </Block>

@@ -6,6 +6,7 @@ import styled from 'styled-components'
 
 import { Badge } from '@/components/ui/badge'
 import { formatLargeWon } from '@/lib/format'
+import { formatStoreSize } from '@/lib/simulation/conditions'
 import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
@@ -157,7 +158,7 @@ export default function SimulationReportSummary({
         ) : null}
         <div>
           <dt>매장 크기</dt>
-          <dd>{condition.storeSize.toLocaleString()}㎡</dd>
+          <dd>{formatStoreSize(condition.storeSize)}</dd>
         </div>
         <div>
           <dt>층 구분</dt>

@@ -37,6 +37,7 @@ import {
   resolveSimulationSectionFromDomId,
   simulationSectionDomId,
   type SimulationConditionSection,
+  type StoreSizeUnit,
 } from '@/lib/simulation/conditions'
 import { simulationReportQueryKey } from '@/lib/simulation/report-query'
 import {
@@ -218,6 +219,9 @@ export default function SimulationBuilderPage({
     같은 규칙이 저절로 지켜진다.
   */
   const [districtQuery, setDistrictQuery] = useState('')
+  // 면적 직접 입력 단위(㎡·평). 매장 조건 섹션이 접혀도 남아야 해서 여기 둔다.
+  const [storeSizeUnit, setStoreSizeUnit] =
+    useState<StoreSizeUnit>('squareMeter')
 
   // 렌더 중 key 비교로 즉시 리셋하는 React 권장 패턴("Adjusting state when a prop
   // changes")을 사용해 effect 기반 setState의 cascading render를 피한다.
@@ -576,6 +580,8 @@ export default function SimulationBuilderPage({
                   }}
                   onFloorTypeChange={conditions.setFloorType}
                   onAdvance={() => setOpenedByUser(null)}
+                  unit={storeSizeUnit}
+                  onUnitChange={setStoreSizeUnit}
                 />
               ) : null}
             </SimulationConditionSectionCard>

@@ -501,7 +501,7 @@ describe('SimulationBuilderPage — 면적 직접 입력의 진행 시점', () =
 
     fireEvent.click(chip('1층 외'))
 
-    expect(header('store').textContent).toContain('66㎡ · 1층 외')
+    expect(header('store').textContent).toContain('66㎡ (약 20평) · 1층 외')
   })
 
   /*
@@ -527,6 +527,114 @@ describe('SimulationBuilderPage — 면적 직접 입력의 진행 시점', () =
     fireEvent.blur(sizeInput())
 
     expect(isExpanded('store')).toBe(false)
+  })
+})
+
+describe('SimulationBuilderPage — 면적 단위', () => {
+  const unitButton = (name: string) => screen.getByRole('button', { name })
+
+  /*
+    평으로 넣어도 상태·요청은 ㎡ 정수다. 헤더 요약이 「66㎡ (약 20평)」으로 계산 근거(㎡)를
+    밝힌다 — 평만 보여 주면 서버에 무엇이 갔는지 알 수 없다.
+  */
+  it('평으로 입력하면 ㎡ 로 바꿔 계산 조건에 넣는다', () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    fireEvent.click(unitButton('평으로 입력'))
+    const input = screen.getByLabelText('면적 직접 입력 (평)')
+    fireEvent.change(input, { target: { value: '20' } })
+
+    expect(screen.getByText('66㎡로 계산해요')).toBeTruthy()
+
+    fireEvent.blur(input)
+
+    expect(isExpanded('store')).toBe(false)
+    expect(header('store').textContent).toContain('66㎡ (약 20평) · 1층')
+  })
+
+  it('고른 단위는 매장 조건을 접었다 다시 열어도 남는다', () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    fireEvent.click(unitButton('평으로 입력'))
+    fireEvent.keyDown(screen.getByLabelText('면적 직접 입력 (평)'), {
+      key: 'Enter',
+    })
+    fireEvent.change(screen.getByLabelText('면적 직접 입력 (평)'), {
+      target: { value: '20' },
+    })
+    fireEvent.keyDown(screen.getByLabelText('면적 직접 입력 (평)'), {
+      key: 'Enter',
+    })
+    expect(isExpanded('store')).toBe(false)
+
+    fireEvent.click(header('store'))
+
+    expect(unitButton('평으로 입력').getAttribute('aria-pressed')).toBe('true')
+    expect(
+      (screen.getByLabelText('면적 직접 입력 (평)') as HTMLInputElement).value,
+    ).toBe('20')
+  })
+
+  /*
+    토글은 입력칸과 같은 영역 안에 있다. 입력 중에 토글을 누르면 그 blur 를 진행으로 치지
+    않아야 한다(PR 1 의 「영역 안을 누르는 중」 규칙). jsdom 의 click 은 blur 를 일으키지
+    않으므로 pointerdown → blur → click 순서를 직접 낸다.
+  */
+  it('입력하다 단위를 바꿔도 매장 조건이 접히지 않는다', () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    const input = screen.getByLabelText('면적 직접 입력 (제곱미터)')
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '66' } })
+    fireEvent.pointerDown(unitButton('평으로 입력'))
+    fireEvent.blur(input)
+    fireEvent.click(unitButton('평으로 입력'))
+
+    expect(isExpanded('store')).toBe(true)
+    expect(
+      (screen.getByLabelText('면적 직접 입력 (평)') as HTMLInputElement).value,
+    ).toBe('20')
+  })
+
+  it('값이 되기 전의 글자는 단위를 바꿔도 지우지 않는다', () => {
+    renderPage()
+    fillThroughService()
+
+    fireEvent.click(unitButton('평으로 입력'))
+    fireEvent.change(screen.getByLabelText('면적 직접 입력 (평)'), {
+      target: { value: '18.' },
+    })
+    fireEvent.click(unitButton('제곱미터로 입력'))
+
+    expect(
+      (screen.getByLabelText('면적 직접 입력 (제곱미터)') as HTMLInputElement)
+        .value,
+    ).toBe('18.')
+  })
+
+  it('단위를 바꾸면 이미 넣은 값을 새 단위로 다시 보여 준다', () => {
+    renderPage()
+    fillThroughService()
+
+    fireEvent.change(screen.getByLabelText('면적 직접 입력 (제곱미터)'), {
+      target: { value: '66' },
+    })
+    expect(screen.getByText('약 20평')).toBeTruthy()
+
+    fireEvent.click(unitButton('평으로 입력'))
+
+    expect(
+      (screen.getByLabelText('면적 직접 입력 (평)') as HTMLInputElement).value,
+    ).toBe('20')
+    expect(unitButton('평으로 입력').getAttribute('aria-pressed')).toBe('true')
+    // 단위만 바꿨으므로 매장 조건은 열린 채다(층이 비어 있기도 하다).
+    expect(isExpanded('store')).toBe(true)
   })
 })
 
