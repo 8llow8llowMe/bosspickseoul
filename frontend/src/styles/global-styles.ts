@@ -21,7 +21,8 @@ const GlobalStyles = createGlobalStyle`
     --color-blue-50: #e8f3ff;
     --color-blue-500: #0ea5e9;
     --color-blue-600: #2272eb;
-    --color-blue-700: #1a5fcc; /* blue600 과 색상각 같음. 글자용 — 흰 바탕 5.91:1 */
+    --color-blue-700: #1a5fcc; /* blue600 과 색상각 같음. 글자·글자를 얹는 채움용 — 흰 바탕 5.91:1 */
+    --color-blue-800: #1757bf; /* blue700 채움의 hover/pressed 전용 — 흰 글자 6.66:1 */
     --color-grey-50: #f9fafb;
     --color-grey-100: #f2f4f6;
     --color-grey-200: #e5e8eb;
@@ -70,6 +71,15 @@ const GlobalStyles = createGlobalStyle`
      * 글자만 이 토큰으로 간다(contrast-tokens.md D3-3, DESIGN.md §2 Blue Text).
      */
     --color-text-primary-on-light: var(--color-blue-700);
+    /*
+     * **글자를 얹는** 파란 채움(주 버튼·헤더 CTA·순위 배지·말풍선). primary-700(= blue500)·
+     * primary-600(= blue600) 위 흰 글자는 2.77 / 4.49:1 로 AA 미달이다. hover 는 반드시
+     * -hover 를 쓴다 — primary-600 은 blue700 보다 밝아 hover 가 거꾸로 밝아진다.
+     * 글자 없는 면(막대·점·폴리곤)과 포커스 링·테두리는 primary-700/600 그대로다
+     * (contrast-tokens.md D3-3 · D4-1 · D4-4, DESIGN.md §4 Primary Fill).
+     */
+    --color-fill-primary-text: var(--color-blue-700);
+    --color-fill-primary-text-hover: var(--color-blue-800);
     --color-text-900: #191f28;
     --color-text-800: var(--color-grey-800);
     --color-text-700: var(--color-grey-700);
@@ -345,8 +355,8 @@ const GlobalStyles = createGlobalStyle`
 
   [data-kakao-map] .area-map-label[data-selected='true'],
   [data-kakao-map] .area-map-label:hover {
-    border-color: var(--color-primary-600);
-    background: var(--color-primary-700);
+    border-color: var(--color-fill-primary-text);
+    background: var(--color-fill-primary-text);
     color: #fff;
     outline: none;
   }
@@ -357,8 +367,8 @@ const GlobalStyles = createGlobalStyle`
     되살린다 — 지도 위 임의의 배경에 놓이므로 글로우보다 링이 확실하다.
   */
   [data-kakao-map] .area-map-label:focus-visible {
-    border-color: var(--color-primary-600);
-    background: var(--color-primary-700);
+    border-color: var(--color-fill-primary-text);
+    background: var(--color-fill-primary-text);
     color: #fff;
     outline: 2px solid var(--color-primary-700);
     outline-offset: 2px;

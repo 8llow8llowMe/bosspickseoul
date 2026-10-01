@@ -175,7 +175,7 @@ export const PrimaryButton = styled.button`
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: white;
   font-size: 15px;
   font-weight: 600;

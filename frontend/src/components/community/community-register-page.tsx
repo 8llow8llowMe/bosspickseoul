@@ -131,7 +131,9 @@ const RestoreButton = styled.button<{ $primary?: boolean }>`
   border: 0;
   border-radius: var(--radius-control);
   background: ${props =>
-    props.$primary ? 'var(--color-primary-700)' : 'var(--color-grey-100)'};
+    props.$primary
+      ? 'var(--color-fill-primary-text)'
+      : 'var(--color-grey-100)'};
   color: ${props =>
     props.$primary ? 'var(--color-surface)' : 'var(--color-text-900)'};
   font: inherit;

@@ -63,9 +63,9 @@ const RetryButton = styled.button`
 const SubmitButton = styled.button`
   width: 100%;
   min-height: 52px;
-  border: 1px solid var(--color-primary-700);
+  border: 1px solid var(--color-fill-primary-text);
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: #ffffff;
   font-size: 15px;
   font-weight: 700;

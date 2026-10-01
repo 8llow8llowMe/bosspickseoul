@@ -201,7 +201,7 @@ const PrimaryButton = styled.button`
   padding: 0 20px;
   border: 0;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: var(--color-surface);
   font: inherit;
   font-size: 16px;

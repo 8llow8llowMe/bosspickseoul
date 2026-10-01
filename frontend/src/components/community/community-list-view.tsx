@@ -207,9 +207,9 @@ const WriteLink = styled(Link)`
   justify-content: center;
   gap: 8px;
   padding: 0 20px;
-  border: 1px solid var(--color-primary-700);
+  border: 1px solid var(--color-fill-primary-text);
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: var(--color-surface);
   font-size: 14px;
   font-weight: 700;

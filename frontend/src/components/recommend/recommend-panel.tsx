@@ -270,7 +270,7 @@ const CompareCta = styled(Link)`
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: #ffffff;
   font-size: 15px;
   font-weight: 700;
@@ -289,7 +289,7 @@ const CompareCtaDisabled = styled.button`
   justify-content: center;
   border: 0;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: #ffffff;
   font-size: 15px;
   font-weight: 700;

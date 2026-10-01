@@ -191,13 +191,13 @@ const PrimaryLink = styled(Link)`
   gap: 8px;
   padding: 0 18px;
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: #ffffff;
   font-size: 15px;
   font-weight: 600;
 
   &:hover {
-    background: var(--color-primary-600);
+    background: var(--color-fill-primary-text-hover);
   }
 
   svg {

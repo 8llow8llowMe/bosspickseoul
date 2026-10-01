@@ -37,9 +37,9 @@ const PrimaryButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-primary-700);
+  border: 1px solid var(--color-fill-primary-text);
   border-radius: var(--radius-control);
-  background: var(--color-primary-700);
+  background: var(--color-fill-primary-text);
   color: white;
   font-size: 14px;
   font-weight: 700;

@@ -148,10 +148,14 @@ const PrimaryButton = styled.button<{ $disabled?: boolean }>`
   padding: 0 18px;
   border: 1px solid
     ${props =>
-      props.$disabled ? 'var(--color-border-200)' : 'var(--color-primary-700)'};
+      props.$disabled
+        ? 'var(--color-border-200)'
+        : 'var(--color-fill-primary-text)'};
   border-radius: var(--radius-control);
   background: ${props =>
-    props.$disabled ? 'var(--color-border-200)' : 'var(--color-primary-700)'};
+    props.$disabled
+      ? 'var(--color-border-200)'
+      : 'var(--color-fill-primary-text)'};
   color: white;
   font-size: 14px;
   font-weight: 700;
