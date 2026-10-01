@@ -107,7 +107,7 @@ describe('SimulationResultPanel', () => {
   */
   it('계산 범위 안내는 창업 형태에 맞춰 가맹 부담금을 넣고 뺀다', () => {
     expect(render({ state: completeState() })).toContain(
-      '임대료·보증금·인테리어를 합한 초기 비용을 계산해요.',
+      '임대료·임대 보증금·인테리어를 더해 총 창업 비용을 계산해요.',
     )
     expect(render({ state: completeState() })).not.toContain('가맹 부담금')
     expect(
@@ -119,7 +119,7 @@ describe('SimulationResultPanel', () => {
         }),
       }),
     ).toContain(
-      '임대료·보증금·인테리어·가맹 부담금을 합한 초기 비용을 계산해요.',
+      '임대료·임대 보증금·인테리어·가맹 부담금을 더해 총 창업 비용을 계산해요.',
     )
     expect(render()).toContain('프랜차이즈면 가맹 부담금까지')
   })
@@ -143,7 +143,7 @@ describe('SimulationResultPanel', () => {
     })
 
     expect(markup).toContain('2억 3,450만원')
-    expect(markup).toContain('2024년 기준 데이터로 계산된 결과입니다.')
+    expect(markup).toContain('2024년 자료로 계산한 결과예요.')
     // 결과가 있는 동안에는 계산 CTA·체크리스트를 겹쳐 보여주지 않는다.
     expect(markup).not.toContain('계산하기')
     expect(markup).not.toContain('선택 전')

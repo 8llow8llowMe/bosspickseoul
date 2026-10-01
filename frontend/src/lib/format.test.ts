@@ -17,8 +17,8 @@ describe('formatLargeWon', () => {
 
   it('억 자리가 딱 떨어지면 만원 자리를 붙이지 않는다', () => {
     // `1억 0만원` 은 사람이 쓰지 않는 표기다.
-    expect(formatLargeWon(10_000)).toBe('1억')
-    expect(formatLargeWon(20_000)).toBe('2억')
+    expect(formatLargeWon(10_000)).toBe('1억원')
+    expect(formatLargeWon(20_000)).toBe('2억원')
   })
 
   it('0 은 0만원이 아니라 0원이다', () => {

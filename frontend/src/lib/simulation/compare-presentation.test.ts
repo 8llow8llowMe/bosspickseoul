@@ -78,7 +78,7 @@ describe('describeSimulationCostGap', () => {
 
   it('중립 문구는 비용만 비교했다는 사실을 밝힌다', () => {
     expect(SIMULATION_COMPARE_NEUTRAL_NOTICE).toBe(
-      '초기 비용만 비교한 결과예요. 매출·수익 지표는 계산하지 않아요.',
+      '창업 비용만 비교한 결과예요. 매출·수익 지표는 계산하지 않아요.',
     )
   })
 })

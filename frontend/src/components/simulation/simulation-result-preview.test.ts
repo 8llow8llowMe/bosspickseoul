@@ -54,7 +54,7 @@ describe('SimulationResultPreview', () => {
       }),
     )
 
-    expect(markup).toContain('2024년 기준 데이터로 계산된 결과입니다.')
+    expect(markup).toContain('2024년 자료로 계산한 결과예요.')
   })
 
   it('조건 요약에 응답의 floorType 이름을 쓴다', () => {

@@ -28,7 +28,7 @@ export type SimulationCostGap = {
  * 이 리포트에는 매출·수익 지표가 없으므로 그 판단의 근거가 애초에 없다.
  */
 export const SIMULATION_COMPARE_NEUTRAL_NOTICE =
-  '초기 비용만 비교한 결과예요. 매출·수익 지표는 계산하지 않아요.'
+  '창업 비용만 비교한 결과예요. 매출·수익 지표는 계산하지 않아요.'
 
 /** 비교 컬럼의 사람이 읽는 이름. 좌우가 뒤바뀌어 보이지 않게 한 곳에서 만든다. */
 export const SIMULATION_COMPARE_SIDE_LABELS = {
@@ -52,7 +52,7 @@ export const describeSimulationCostGap = (
     return {
       winner: 'tie',
       difference: 0,
-      message: '두 조건의 예상 초기 비용이 같아요.',
+      message: '두 조건의 예상 총 창업 비용이 같아요.',
     }
   }
 

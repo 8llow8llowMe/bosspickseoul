@@ -51,7 +51,7 @@ describe('toCostBreakdown', () => {
     ])
     expect(rows.map(row => row.label)).toEqual([
       '첫 달 임대료',
-      '보증금',
+      '임대 보증금',
       '인테리어',
     ])
   })
@@ -156,10 +156,19 @@ describe('describeSimulationPeriod', () => {
 })
 
 describe('formatSalesAmountCompact', () => {
-  it('만원 입력을 억 단위로 축약한다', () => {
-    // 2,733,782만원 = 273억원. 축에 그대로 얹으면 읽히지 않는다.
-    expect(formatSalesAmountCompact(2_733_782)).toBe('273억원')
+  it('만원 입력을 억 단위 소수 한 자리로 축약한다', () => {
+    // 2,733,782만원 = 273.4억원. 축에 그대로 얹으면 읽히지 않는다.
+    expect(formatSalesAmountCompact(2_733_782)).toBe('273.4억원')
     expect(formatSalesAmountCompact(10_000)).toBe('1억원')
+  })
+
+  it('억 아래 자리를 버리지 않고 반올림한다 (R10)', () => {
+    // 버리면 1억 9,600만원이 「1억원」이 돼 거의 절반을 잃었다.
+    expect(formatSalesAmountCompact(19_600)).toBe('2억원')
+    expect(formatSalesAmountCompact(19_400)).toBe('1.9억원')
+    // 딱 떨어지면 .0 을 붙이지 않는다. 천 단위 쉼표는 유지한다.
+    expect(formatSalesAmountCompact(30_000)).toBe('3억원')
+    expect(formatSalesAmountCompact(12_345_000)).toBe('1,234.5억원')
   })
 
   it('1억 미만은 만원으로 둔다', () => {

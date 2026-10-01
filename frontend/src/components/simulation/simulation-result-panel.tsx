@@ -154,12 +154,12 @@ const Helper = styled.p`
  */
 const describeCostScope = (franchisee: boolean | null): string => {
   if (franchisee === true) {
-    return '임대료·보증금·인테리어·가맹 부담금을 합한 초기 비용을 계산해요.'
+    return '임대료·임대 보증금·인테리어·가맹 부담금을 더해 총 창업 비용을 계산해요.'
   }
   if (franchisee === false) {
-    return '임대료·보증금·인테리어를 합한 초기 비용을 계산해요.'
+    return '임대료·임대 보증금·인테리어를 더해 총 창업 비용을 계산해요.'
   }
-  return '임대료·보증금·인테리어(프랜차이즈면 가맹 부담금까지)를 합한 초기 비용을 계산해요.'
+  return '임대료·임대 보증금·인테리어(프랜차이즈면 가맹 부담금까지)를 더해 총 창업 비용을 계산해요.'
 }
 
 /**
