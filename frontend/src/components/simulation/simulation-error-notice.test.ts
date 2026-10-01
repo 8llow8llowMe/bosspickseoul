@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import SimulationErrorNotice from '@/components/simulation/simulation-error-notice'
 import type { NormalizedApiError } from '@/lib/api/api-error'
+import type { SimulationConditionSection } from '@/lib/simulation/conditions'
 
 const error = (
   overrides: Partial<NormalizedApiError> = {},
@@ -19,7 +20,7 @@ const error = (
 const render = (props: {
   error: NormalizedApiError
   onRetry?: () => void
-  onReselect?: (step: 'franchise' | 'district' | 'service' | 'store') => void
+  onReselect?: (step: SimulationConditionSection) => void
 }) => renderToStaticMarkup(createElement(SimulationErrorNotice, props))
 
 describe('SimulationErrorNotice', () => {
@@ -56,7 +57,7 @@ describe('SimulationErrorNotice', () => {
     expect(markup).toContain('자치구 다시 선택')
   })
 
-  it('사라진 브랜드(404)는 업종 단계로 돌려보낸다', () => {
+  it('사라진 브랜드(404)는 브랜드 단계로 돌려보낸다', () => {
     const markup = render({
       error: error({
         kind: 'not-found',
@@ -67,7 +68,8 @@ describe('SimulationErrorNotice', () => {
       onReselect: () => {},
     })
 
-    expect(markup).toContain('업종 다시 선택')
+    expect(markup).toContain('브랜드 다시 선택')
+    expect(markup).not.toContain('업종 다시 선택')
     expect(markup).not.toContain('다시 시도')
   })
 

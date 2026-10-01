@@ -138,7 +138,7 @@ export const parseSimulationConditionState = (
  *
  * null 을 오류로 취급하지 않는다 — 화면은 "조건이 없어요 + 조건 고르러 가기"를 보여준다.
  * 손상된 링크에 대고 400 을 받아오는 것보다 낫다.
- * (프랜차이즈인데 브랜드가 없으면 여기서 걸린다 — `isSimulationSectionComplete('service')`.)
+ * (프랜차이즈인데 브랜드가 없으면 여기서 걸린다 — `isSimulationSectionComplete('brand')`.)
  */
 export const parseSimulationReportRequest = (
   params: SearchParamsReader,

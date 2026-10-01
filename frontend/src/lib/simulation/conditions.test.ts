@@ -6,11 +6,14 @@ import {
   createEmptySimulationConditionState,
   createSimulationConditionState,
   describeSimulationConditionGap,
+  describeSimulationProgress,
   describeSimulationSectionValue,
   isSameSimulationReportRequest,
   isSimulationConditionsComplete,
   isSimulationSectionComplete,
+  isSimulationSectionLocked,
   listMissingSimulationSections,
+  listSimulationConditionSections,
   parseStoreSizeInput,
   resolveSimulationFieldSection,
   resolveSimulationSectionFromDomId,
@@ -70,18 +73,102 @@ describe('섹션 완료 판정', () => {
     expect(listMissingSimulationSections(state)).not.toContain('franchise')
   })
 
-  it('프랜차이즈 창업은 브랜드까지 골라야 업종 섹션이 끝난다', () => {
+  /*
+    브랜드는 업종 섹션 안이 아니라 독립 섹션이다(Q4). 업종은 업종만으로 끝나고, 프랜차이즈면
+    브랜드 섹션이 따로 남는다 — 그래야 「몇 개 남았는지」가 실제 선택 수와 맞는다.
+  */
+  it('프랜차이즈 창업은 업종 뒤에 브랜드 섹션이 따로 남는다', () => {
     let state = selectFranchisee(createEmptySimulationConditionState(), true)
     state = selectDistrict(state, '11740')
     state = selectService(state, 'CS100001')
 
-    expect(isSimulationSectionComplete(state, 'service')).toBe(false)
+    expect(isSimulationSectionComplete(state, 'service')).toBe(true)
+    expect(isSimulationSectionComplete(state, 'brand')).toBe(false)
+    expect(listMissingSimulationSections(state)).toEqual(['brand', 'store'])
     expect(describeSimulationConditionGap(state)).toBe(
       '창업할 브랜드를 선택해 주세요',
     )
 
     state = selectBrand(state, { franchiseeId: 101, brandName: '테스트브랜드' })
-    expect(isSimulationSectionComplete(state, 'service')).toBe(true)
+    expect(isSimulationSectionComplete(state, 'brand')).toBe(true)
+    expect(listMissingSimulationSections(state)).toEqual(['store'])
+  })
+
+  /*
+    브랜드는 업종별 목록이다. 업종 없이 브랜드만 남은 상태(손상된 링크)를 완료로 세면
+    잠긴 브랜드 줄에 체크가 붙고 진행도가 실제보다 앞선다.
+  */
+  it('업종 없이 남은 브랜드는 완료로 세지 않고, 링크로 들어와도 버린다', () => {
+    const orphan: SimulationConditionState = {
+      ...createEmptySimulationConditionState(),
+      franchisee: true,
+      franchiseeId: 5,
+      brandName: 'X',
+    }
+    expect(isSimulationSectionComplete(orphan, 'brand')).toBe(false)
+
+    const restored = createSimulationConditionState({
+      franchisee: true,
+      franchiseeId: 5,
+      brandName: 'X',
+    })
+    expect(restored.franchiseeId).toBeNull()
+    expect(restored.brandName).toBeNull()
+  })
+
+  it('브랜드·매장 조건은 업종 코드가 유효해야 열린다', () => {
+    const noService = selectFranchisee(
+      createEmptySimulationConditionState(),
+      true,
+    )
+
+    expect(isSimulationSectionLocked(noService, 'brand')).toBe(true)
+    expect(isSimulationSectionLocked(noService, 'store')).toBe(true)
+    expect(isSimulationSectionLocked(noService, 'service')).toBe(false)
+
+    const withService = selectService(noService, 'CS100001')
+    expect(isSimulationSectionLocked(withService, 'brand')).toBe(false)
+    expect(isSimulationSectionLocked(withService, 'store')).toBe(false)
+  })
+
+  it('브랜드 섹션은 프랜차이즈를 골랐을 때만 화면에 있다', () => {
+    const empty = createEmptySimulationConditionState()
+
+    expect(listSimulationConditionSections(empty)).toEqual([
+      'franchise',
+      'district',
+      'service',
+      'store',
+    ])
+    expect(
+      listSimulationConditionSections(selectFranchisee(empty, false)),
+    ).not.toContain('brand')
+    expect(
+      listSimulationConditionSections(selectFranchisee(empty, true)),
+    ).toEqual(['franchise', 'district', 'service', 'brand', 'store'])
+  })
+
+  it('진행도의 분모는 지금 화면에 놓인 섹션 수다 — 개인 4 · 프랜차이즈 5', () => {
+    const empty = createEmptySimulationConditionState()
+
+    expect(describeSimulationProgress(empty)).toEqual({ done: 0, total: 4 })
+    expect(describeSimulationProgress(selectFranchisee(empty, false))).toEqual({
+      done: 1,
+      total: 4,
+    })
+    expect(describeSimulationProgress(selectFranchisee(empty, true))).toEqual({
+      done: 1,
+      total: 5,
+    })
+    expect(describeSimulationProgress(completeState())).toEqual({
+      done: 4,
+      total: 4,
+    })
+    expect(
+      describeSimulationProgress(
+        completeState({ franchisee: true, franchiseeId: 7, brandName: 'A' }),
+      ),
+    ).toEqual({ done: 5, total: 5 })
   })
 
   it('개인 창업은 업종만 고르면 업종 섹션이 끝난다', () => {
@@ -150,8 +237,9 @@ describe('섹션 값 요약', () => {
       '프랜차이즈',
     )
     expect(describeSimulationSectionValue(state, 'district')).toBe('강동구')
-    expect(describeSimulationSectionValue(state, 'service')).toBe(
-      '치킨전문점 · 아이러브피자&치킨',
+    expect(describeSimulationSectionValue(state, 'service')).toBe('치킨전문점')
+    expect(describeSimulationSectionValue(state, 'brand')).toBe(
+      '아이러브피자&치킨',
     )
     expect(describeSimulationSectionValue(state, 'store')).toBe('66㎡ · 1층')
     expect(
@@ -196,7 +284,7 @@ describe('섹션 앵커', () => {
     )
   })
 
-  it('네 섹션 모두 왕복한다 — 섹션이 늘면 여기서 걸린다', () => {
+  it('모든 섹션이 왕복한다 — 브랜드 섹션의 앵커도 되돌아온다', () => {
     for (const section of SIMULATION_CONDITION_SECTIONS) {
       expect(
         resolveSimulationSectionFromDomId(
@@ -207,9 +295,9 @@ describe('섹션 앵커', () => {
   })
 
   it('모르는 id 는 null 이다 — 없는 섹션을 펼치려 들지 않는다', () => {
-    expect(resolveSimulationSectionFromDomId('#simulation-section-brand')).toBe(
-      null,
-    )
+    expect(
+      resolveSimulationSectionFromDomId('#simulation-section-period'),
+    ).toBe(null)
     expect(resolveSimulationSectionFromDomId('#report-cost')).toBe(null)
     // 접두사만 맞는 값도 통과시키지 않는다.
     expect(resolveSimulationSectionFromDomId('#simulation-section-')).toBe(null)
@@ -354,9 +442,10 @@ describe('초기값 복원', () => {
 })
 
 describe('오류 → 되돌릴 조건', () => {
-  it('임대료 없는 자치구는 자치구로, 사라진 브랜드는 업종으로 보낸다', () => {
+  it('임대료 없는 자치구는 자치구로, 사라진·빠진 브랜드는 브랜드로 보낸다', () => {
     expect(resolveSimulationRecoverySection('SIMULATION_002')).toBe('district')
-    expect(resolveSimulationRecoverySection('SIMULATION_003')).toBe('service')
+    expect(resolveSimulationRecoverySection('SIMULATION_003')).toBe('brand')
+    expect(resolveSimulationRecoverySection('SIMULATION_004')).toBe('brand')
     expect(resolveSimulationRecoverySection('SIMULATION_001')).toBe('service')
   })
 
@@ -368,7 +457,8 @@ describe('오류 → 되돌릴 조건', () => {
   it('필드 오류를 섹션으로 옮긴다', () => {
     expect(resolveSimulationFieldSection('storeSize')).toBe('store')
     expect(resolveSimulationFieldSection('districtCode')).toBe('district')
-    expect(resolveSimulationFieldSection('franchiseeId')).toBe('service')
+    expect(resolveSimulationFieldSection('serviceCode')).toBe('service')
+    expect(resolveSimulationFieldSection('franchiseeId')).toBe('brand')
     expect(resolveSimulationFieldSection('unknown')).toBeNull()
   })
 })

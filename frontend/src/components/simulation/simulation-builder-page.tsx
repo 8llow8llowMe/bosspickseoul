@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Lock, Search } from 'lucide-react'
 import styled from 'styled-components'
 
 import SimulationAnalysisContextCard from '@/components/simulation/simulation-analysis-context-card'
@@ -14,7 +13,6 @@ import SimulationConditionSectionCard from '@/components/simulation/simulation-c
 import SimulationResultPanel from '@/components/simulation/simulation-result-panel'
 import SimulationStoreConditionFields from '@/components/simulation/simulation-store-condition-fields'
 import SimulationSummaryBar from '@/components/simulation/simulation-summary-bar'
-import { TextField } from '@/components/ui/text-field'
 import {
   SIMULATION_SERVICE_TYPES,
   isSimulationServiceCode,
@@ -30,7 +28,10 @@ import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditi
 import {
   SIMULATION_CONDITION_SECTION_LABELS,
   SIMULATION_DISTRICT_OPTIONS,
+  describeSimulationProgress,
   describeSimulationSectionValue,
+  isSimulationSectionLocked,
+  listSimulationConditionSections,
   isSameSimulationReportRequest,
   resolveSimulationSectionFromDomId,
   simulationSectionDomId,
@@ -51,9 +52,10 @@ export type SimulationBuilderPageProps = {
   variant?: 'standalone' | 'analysis'
 }
 
+/* 힌트는 「무엇이 달라지는가」를 적는다 — 처음 쓰는 사람은 이 선택이 비용에 무엇을 더하는지 모른다. */
 const FRANCHISE_CHOICES = [
-  { code: 'true', name: '프랜차이즈', hint: '브랜드 가맹 창업' },
-  { code: 'false', name: '개인 창업', hint: '독립 매장' },
+  { code: 'true', name: '프랜차이즈', hint: '본사 가맹비가 함께 들어가요' },
+  { code: 'false', name: '개인 창업', hint: '브랜드 없이 직접 차려요' },
 ] as const
 
 const Page = styled.main`
@@ -122,21 +124,27 @@ const Form = styled.div`
   gap: 16px;
 `
 
-/* top: 96px는 sticky 사이트 헤더(65px) 아래 여백까지 확보한 값이다 — 분석 결과 화면과 같은 값. */
-const ResultColumn = styled.div`
+/*
+  top: 96px는 sticky 사이트 헤더(65px) 아래 여백까지 확보한 값이다 — 분석 결과 화면과 같은 값.
+
+  1023px 이하에서는 **계산 전 패널을 숨긴다.** 그 구간은 하단 고정 바가 남은 조건과
+  「계산하기」를 맡는데, 패널까지 두면 같은 버튼이 두 개 보이고 체크리스트가 위 아코디언
+  헤더를 그대로 반복한다(2026-10-01 실측). 결과·오류가 생기면 다시 보인다 — 오류의
+  「다시 선택」 CTA 는 패널에만 있다. CSS 로 숨기므로 SSR 과 하이드레이션 결과가 같다.
+*/
+const ResultColumn = styled.div<{ $hideOnNarrow: boolean }>`
   min-width: 0;
   display: grid;
   gap: 16px;
+
+  @media ${SIMULATION_MEDIA.belowDesktop} {
+    display: ${props => (props.$hideOnNarrow ? 'none' : 'grid')};
+  }
 
   @media ${SIMULATION_MEDIA.desktop} {
     position: sticky;
     top: 96px;
   }
-`
-
-const ServiceBlock = styled.div`
-  display: grid;
-  gap: 24px;
 `
 
 const EmptyText = styled.p`
@@ -146,63 +154,6 @@ const EmptyText = styled.p`
   text-align: center;
 `
 
-/* 업종을 고른 뒤 칩 30개 대신 보여주는 한 줄. 브랜드 검색에 자리를 내준다. */
-const PickedRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--color-primary-600);
-  border-radius: var(--radius-control);
-  background: var(--color-primary-100);
-  color: var(--color-primary-700);
-  font-size: 14px;
-  font-weight: 600;
-
-  button {
-    border: 0;
-    background: transparent;
-    color: var(--color-primary-700);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-`
-
-const LockedBlock = styled.div`
-  display: grid;
-  gap: 12px;
-
-  h3 {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--color-text-800);
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 24px;
-  }
-
-  /* h3 로 한정한다 — 그냥 svg 로 두면 아래 비활성 TextField 의 검색 아이콘까지
-     16px 로 줄어들어, 같은 화면 위쪽의 업종 검색(18px)과 다르게 보인다. */
-  h3 svg {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    color: var(--color-text-caption);
-    stroke: currentColor;
-  }
-
-  p {
-    color: var(--color-text-600);
-    font-size: 13px;
-    line-height: 20px;
-    word-break: keep-all;
-  }
-`
-
 /**
  * 창업 시뮬레이션 조건 입력 + 동기 계산 — **단일 화면 2단**.
  *
@@ -210,7 +161,10 @@ const LockedBlock = styled.div`
  *
  * 마법사(4단계)를 걷어낸 이유: 조건 사이의 의존성이 **업종 → 브랜드 하나뿐**이라 단계로 쪼갤
  * 값이 없었고, 대신 "뒤 단계에서 앞 단계로 되돌아가기"라는 비용만 남았다. 그 하나뿐인 순서는
- * **업종을 고르기 전 브랜드 검색을 비활성화**해서 지킨다(`franchisees`가 `serviceCode` 필수).
+ * **업종을 고르기 전 브랜드 섹션을 잠가서** 지킨다(`franchisees`가 `serviceCode` 필수).
+ *
+ * 섹션은 창업 형태에 따라 4개(개인) 또는 5개(프랜차이즈 — 브랜드가 독립 섹션)다. 번호와
+ * 진행도(n/N)는 `listSimulationConditionSections` 가 정한 실제 섹션 수를 쓴다.
  *
  * 계산은 `POST /simulations/reports` **한 번**으로 끝난다 — 폴링·SSE가 없으므로 로딩 표시도 한 번이다.
  * 계산 결과는 캐시할 서버 상태가 아니라 사용자의 조건에 대한 응답이므로 `useMutation`을 쓰고,
@@ -380,7 +334,7 @@ export default function SimulationBuilderPage({
 
   /*
     오류가 지목한 조건 섹션으로 데려간다. 앞 오류를 내리고, 그 섹션을 펼치고 나서 이동한다.
-    계산은 조건 4개가 다 차야 가능하므로 오류 배너가 뜨는 시점엔 항상 전부 접혀 있다 —
+    계산은 조건이 다 차야 가능하므로 오류 배너가 뜨는 시점엔 항상 전부 접혀 있다 —
     펼치지 않고 스크롤만 하면 접힌 한 줄만 보이고 칩은 한 번 더 눌러야 나온다.
 
     스크롤은 setOpenedByUser 직후가 아니라 rAF 안에서 한다. state 업데이트는 비동기라
@@ -424,12 +378,18 @@ export default function SimulationBuilderPage({
     })
   }, [context, conditions])
 
+  const sections = listSimulationConditionSections(state)
+  // 화면 번호는 지금 놓인 섹션 중 몇 번째인가다. 프랜차이즈면 매장 조건이 5번이 된다.
+  const sectionIndex = (section: SimulationConditionSection) =>
+    sections.indexOf(section) + 1
+  const progress = describeSimulationProgress(state)
+
   return (
     <Page>
       <Container>
         <Head>
           <h1>창업 시뮬레이션</h1>
-          <p>조건 4개를 고르면 예상 창업 비용을 계산해 드려요</p>
+          <p>차례대로 고르면 예상 창업 비용을 바로 계산해 드려요</p>
         </Head>
 
         {context ? (
@@ -444,7 +404,7 @@ export default function SimulationBuilderPage({
           <Form>
             <SimulationConditionSectionCard
               id={simulationSectionDomId('franchise')}
-              index={1}
+              index={sectionIndex('franchise')}
               title={SIMULATION_CONDITION_SECTION_LABELS.franchise}
               description="프랜차이즈면 브랜드 가맹 부담금까지 반영해요."
               complete={conditions.isSectionComplete('franchise')}
@@ -468,13 +428,16 @@ export default function SimulationBuilderPage({
                 onSelect={selectThenAdvance<string>(code =>
                   conditions.setFranchisee(code === 'true'),
                 )}
-                minColumnWidth={200}
+                /* 선택지가 둘뿐이라 열 수를 고정한다. 최소 폭 auto-fill 로 두면 넓은 칸에서
+                   빈 트랙이 남아 카드가 왼쪽으로 쏠렸다(768·1440 실측). */
+                columns={2}
+                maxWidth={520}
               />
             </SimulationConditionSectionCard>
 
             <SimulationConditionSectionCard
               id={simulationSectionDomId('district')}
-              index={2}
+              index={sectionIndex('district')}
               title={SIMULATION_CONDITION_SECTION_LABELS.district}
               description="자치구별 임대료 기준으로 계산해요."
               meta={`서울 ${SIMULATION_DISTRICT_OPTIONS.length}개 구`}
@@ -512,9 +475,13 @@ export default function SimulationBuilderPage({
 
             <SimulationConditionSectionCard
               id={simulationSectionDomId('service')}
-              index={3}
+              index={sectionIndex('service')}
               title={SIMULATION_CONDITION_SECTION_LABELS.service}
-              description="업종을 고르면 매장 크기 기준과 브랜드 검색이 열려요."
+              description={
+                state.franchisee === true
+                  ? '업종을 고르면 그 업종의 브랜드와 매장 크기 기준이 열려요.'
+                  : '업종을 고르면 매장 크기 기준이 열려요.'
+              }
               meta={`지원 업종 ${SIMULATION_SERVICE_TYPES.length}종`}
               complete={conditions.isSectionComplete('service')}
               expanded={openSection === 'service'}
@@ -526,90 +493,70 @@ export default function SimulationBuilderPage({
                 headerRefs.current.set('service', node)
               }}
             >
-              <ServiceBlock>
-                {state.serviceCode &&
-                state.franchisee === true &&
-                !serviceQuery ? (
-                  <PickedRow>
-                    <span>
-                      {describeSimulationSectionValue(state, 'service')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => conditions.setService('')}
-                    >
-                      업종 변경
-                    </button>
-                  </PickedRow>
-                ) : (
-                  <>
-                    <SimulationChoiceSearch
-                      label="업종 이름으로 찾기"
-                      value={serviceQuery}
-                      shown={serviceChoices.length}
-                      total={SIMULATION_SERVICE_TYPES.length}
-                      onChange={setServiceQuery}
-                    />
-                    {serviceChoices.length === 0 ? (
-                      <EmptyText>{`'${serviceQuery.trim()}'와 맞는 업종이 없어요.`}</EmptyText>
-                    ) : (
-                      <SimulationChoiceGrid
-                        label="업종"
-                        choices={serviceChoices}
-                        selectedCode={state.serviceCode}
-                        onSelect={selectThenAdvance(conditions.setService)}
-                        minColumnWidth={132}
-                      />
-                    )}
-                  </>
-                )}
-
-                {/* 브랜드 검색은 serviceCode가 확정된 뒤에만 연다 — 없이 호출하면 400이다.
-                    감추지 않고 **비활성 상태로 보여주는** 이유: 단계 인디케이터가 없어졌으니
-                    "업종이 먼저"라는 순서를 이 자리에서 드러내야 한다. */}
-                {state.franchisee === true ? (
-                  state.serviceCode ? (
-                    // key로 업종별 검색 상태(검색어·누적 페이지)를 갈아끼운다.
-                    <SimulationBrandSearch
-                      key={state.serviceCode}
-                      serviceCode={state.serviceCode}
-                      selectedFranchiseeId={state.franchiseeId}
-                      onSelect={selectThenAdvance(conditions.setBrand)}
-                    />
-                  ) : (
-                    <LockedBlock>
-                      <h3>
-                        <Lock aria-hidden="true" />
-                        브랜드 선택
-                      </h3>
-                      <p>
-                        업종을 먼저 고르면 그 업종의 브랜드를 검색할 수 있어요.
-                      </p>
-                      <TextField
-                        fullWidth
-                        emphasized
-                        disabled
-                        readOnly
-                        label="브랜드 검색"
-                        placeholder="업종을 먼저 선택해 주세요"
-                        value=""
-                        leftSlot={<Search aria-hidden="true" />}
-                      />
-                    </LockedBlock>
-                  )
-                ) : null}
-              </ServiceBlock>
+              <SimulationChoiceSearch
+                label="업종 이름으로 찾기"
+                value={serviceQuery}
+                shown={serviceChoices.length}
+                total={SIMULATION_SERVICE_TYPES.length}
+                onChange={setServiceQuery}
+              />
+              {serviceChoices.length === 0 ? (
+                <EmptyText>{`'${serviceQuery.trim()}'와 맞는 업종이 없어요.`}</EmptyText>
+              ) : (
+                <SimulationChoiceGrid
+                  label="업종"
+                  choices={serviceChoices}
+                  selectedCode={state.serviceCode}
+                  onSelect={selectThenAdvance(conditions.setService)}
+                  minColumnWidth={132}
+                />
+              )}
             </SimulationConditionSectionCard>
+
+            {/*
+              브랜드는 프랜차이즈일 때만 있는 독립 섹션이다(Q4). 업종 전에는 잠긴다 —
+              `franchisees` 는 serviceCode 없이 부르면 400 이다. 잠긴 헤더가 「업종을 고르면
+              열려요」로 순서를 드러내므로, 예전처럼 비활성 검색칸을 따로 그리지 않는다.
+            */}
+            {state.franchisee === true ? (
+              <SimulationConditionSectionCard
+                id={simulationSectionDomId('brand')}
+                index={sectionIndex('brand')}
+                title={SIMULATION_CONDITION_SECTION_LABELS.brand}
+                description="브랜드명을 입력하면 부분 일치로 찾아요. 고른 브랜드의 가맹 부담금이 계산에 들어가요."
+                complete={conditions.isSectionComplete('brand')}
+                expanded={openSection === 'brand'}
+                summary={describeSimulationSectionValue(state, 'brand')}
+                locked={isSimulationSectionLocked(state, 'brand')}
+                onToggle={() =>
+                  setOpenedByUser(openSection === 'brand' ? null : 'brand')
+                }
+                headerRef={node => {
+                  headerRefs.current.set('brand', node)
+                }}
+              >
+                {isSimulationServiceCode(state.serviceCode) ? (
+                  // key로 업종별 검색 상태(검색어·누적 페이지)를 갈아끼운다.
+                  <SimulationBrandSearch
+                    key={state.serviceCode}
+                    serviceCode={state.serviceCode}
+                    selectedFranchiseeId={state.franchiseeId}
+                    onSelect={selectThenAdvance(conditions.setBrand)}
+                    showHeading={false}
+                  />
+                ) : null}
+              </SimulationConditionSectionCard>
+            ) : null}
 
             <SimulationConditionSectionCard
               id={simulationSectionDomId('store')}
-              index={4}
+              index={sectionIndex('store')}
               title={SIMULATION_CONDITION_SECTION_LABELS.store}
               description="매장 크기와 층 구분에 따라 임대료·인테리어 기준이 달라져요."
               complete={conditions.isSectionComplete('store')}
               expanded={openSection === 'store'}
               summary={describeSimulationSectionValue(state, 'store')}
-              locked={!isSimulationServiceCode(state.serviceCode)}
+              locked={isSimulationSectionLocked(state, 'store')}
               onToggle={() =>
                 setOpenedByUser(openSection === 'store' ? null : 'store')
               }
@@ -618,10 +565,10 @@ export default function SimulationBuilderPage({
               }}
             >
               {/* store 가 펼쳐지려면 openSection 이 'store' 여야 하고, resolveOpenSection 은
-                  순회 순서(service → store)상 service 가 완료(=isSimulationServiceCode 를
+                  순회 순서(service → brand → store)상 service 가 완료(=isSimulationServiceCode 를
                   통과)일 때만 store 를 연다 — 여기 도달하면 항상 참이다. 그래도 truthy 검사가
-                  아니라 같은 술어로 다시 확인한다 — `locked` prop 과 다른 판정을 쓰면 「업종
-                  변경」이 만드는 빈 문자열(`''`) 앞에서 둘이 갈라진다. */}
+                  아니라 `locked` prop 과 같은 술어로 다시 확인한다 — 둘이 다른 판정을 쓰면
+                  빈 문자열(`''`) 같은 값 앞에서 갈라진다. */}
               {isSimulationServiceCode(state.serviceCode) ? (
                 <SimulationStoreConditionFields
                   serviceCode={state.serviceCode}
@@ -648,10 +595,14 @@ export default function SimulationBuilderPage({
             </SimulationConditionSectionCard>
           </Form>
 
-          <ResultColumn ref={resultRef}>
+          <ResultColumn
+            ref={resultRef}
+            $hideOnNarrow={!currentReport && !currentError}
+          >
             <SimulationResultPanel
               state={state}
               gap={conditions.gap}
+              progress={progress}
               report={currentReport}
               reportHref={reportHref}
               error={currentError}
@@ -667,6 +618,7 @@ export default function SimulationBuilderPage({
         totalPrice={currentReport?.totalPrice ?? null}
         reportHref={reportHref}
         gap={conditions.gap}
+        progress={progress}
         isPending={reportMutation.isPending}
         onCalculate={calculate}
         onViewResult={scrollToResult}

@@ -84,9 +84,60 @@ describe('resolveOpenSection', () => {
     않는 이유는 순회 순서가 service 를 먼저 잡기 때문이다. 이 순서가 깨지면 잠긴
     단계가 펼쳐지므로 여기서 못박는다.
   */
-  it('업종이 매장 조건보다 앞에 온다 — 잠금이 순서로 보장된다', () => {
+  it('업종이 브랜드·매장 조건보다 앞에 온다 — 잠금이 순서로 보장된다', () => {
     const order = SIMULATION_CONDITION_SECTIONS
 
+    expect(order.indexOf('service')).toBeLessThan(order.indexOf('brand'))
     expect(order.indexOf('service')).toBeLessThan(order.indexOf('store'))
+  })
+
+  it('프랜차이즈면 업종 다음에 브랜드를 연다', () => {
+    expect(
+      resolveOpenSection(
+        state({
+          franchisee: true,
+          districtCode: '11680',
+          serviceCode: 'CS100001',
+        }),
+        null,
+      ),
+    ).toBe('brand')
+  })
+
+  it('개인 창업이면 업종 다음에 곧바로 매장 조건을 연다', () => {
+    expect(
+      resolveOpenSection(
+        state({
+          franchisee: false,
+          districtCode: '11680',
+          serviceCode: 'CS100001',
+        }),
+        null,
+      ),
+    ).toBe('store')
+  })
+
+  /*
+    브랜드를 펼친 채 창업 형태를 개인 창업으로 바꾸면 브랜드 섹션이 화면에서 사라진다.
+    그 값을 그대로 따르면 펼친 단계가 하나도 없는 화면이 된다.
+  */
+  /*
+    `/simulation?franchisee=true#simulation-section-brand` 처럼 업종 없는 링크가 잠긴 단계를
+    지목하면, 따르는 순간 잠긴 줄이 펼쳐지고 정작 열어야 할 업종은 접힌다.
+  */
+  it('사용자가 연 단계가 잠겨 있으면 그 값을 무시한다', () => {
+    const noService = state({ franchisee: true, districtCode: '11680' })
+
+    expect(resolveOpenSection(noService, 'brand')).toBe('service')
+    expect(resolveOpenSection(noService, 'store')).toBe('service')
+  })
+
+  it('사용자가 연 단계가 화면에 없으면 그 값을 무시한다', () => {
+    expect(
+      resolveOpenSection(
+        state({ franchisee: false, districtCode: '11680' }),
+        'brand',
+      ),
+    ).toBe('service')
   })
 })

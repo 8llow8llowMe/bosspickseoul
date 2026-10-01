@@ -26,6 +26,11 @@ export type SimulationBrandSearchProps = {
   serviceCode: string
   selectedFranchiseeId: number | null
   onSelect: (brand: { franchiseeId: number; brandName: string }) => void
+  /**
+   * 「브랜드 선택」 제목·설명을 그릴지. 입력 화면은 브랜드가 독립 섹션이라 섹션 카드가 제목을
+   * 갖고 있어 끈다(같은 제목 두 번). 비교 편집기처럼 다른 필드 사이에 놓일 때는 켠다.
+   */
+  showHeading?: boolean
 }
 
 const KEYWORD_DEBOUNCE_MS = 300
@@ -142,6 +147,7 @@ export default function SimulationBrandSearch({
   serviceCode,
   selectedFranchiseeId,
   onSelect,
+  showHeading = true,
 }: SimulationBrandSearchProps) {
   const [keywordInput, setKeywordInput] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -180,13 +186,15 @@ export default function SimulationBrandSearch({
 
   return (
     <Root>
-      <Heading>
-        <h3>브랜드 선택</h3>
-        <p>
-          브랜드명을 입력하면 부분 일치로 찾아요. 선택한 브랜드의 가맹 부담금이
-          계산에 반영돼요.
-        </p>
-      </Heading>
+      {showHeading ? (
+        <Heading>
+          <h3>브랜드 선택</h3>
+          <p>
+            브랜드명을 입력하면 부분 일치로 찾아요. 선택한 브랜드의 가맹
+            부담금이 계산에 반영돼요.
+          </p>
+        </Heading>
+      ) : null}
 
       <TextField
         fullWidth
