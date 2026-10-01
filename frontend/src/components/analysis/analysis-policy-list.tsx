@@ -1,6 +1,10 @@
 'use client'
 
+import { useId, useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import styled from 'styled-components'
+
+import { Button } from '@/components/ui/button'
 
 import {
   formatPolicyApplyPeriod,
@@ -13,7 +17,19 @@ export type AnalysisPolicyListProps = {
   /** 지금 보고 있는 상권의 자치구. 정책의 적용 범위를 이 기준으로 말한다. */
   districtCode: string | null
   districtName: string | null
+  /**
+   * 처음에 보여 줄 정책 수. 나머지는 「N개 모두 보기」로 펼친다. 넘기지 않으면 다 보인다.
+   *
+   * 결과 요약은 2 를 넘긴다 — 정책 5건을 다 펼치면 데스크톱에서 약 1,180px 를 써서 요약의
+   * 핵심 지표보다 길었다.
+   */
+  initialVisibleCount?: number
 }
+
+const Root = styled.div`
+  display: grid;
+  gap: 12px;
+`
 
 const List = styled.ul`
   display: grid;
@@ -83,6 +99,10 @@ const Meta = styled.span`
   line-height: 18px;
 `
 
+const ToggleButton = styled(Button)`
+  justify-self: start;
+`
+
 const DetailLink = styled.a`
   justify-self: start;
   min-height: 44px;
@@ -109,50 +129,77 @@ export default function AnalysisPolicyList({
   policies,
   districtCode,
   districtName,
+  initialVisibleCount,
 }: AnalysisPolicyListProps) {
+  const listId = useId()
+  const [expanded, setExpanded] = useState(false)
+
   if (policies.length === 0) {
     return null
   }
 
+  const collapsible =
+    initialVisibleCount !== undefined && policies.length > initialVisibleCount
+  const shown =
+    collapsible && !expanded ? policies.slice(0, initialVisibleCount) : policies
+
   return (
-    <List>
-      {policies.map(policy => {
-        const scope = resolvePolicyScope(policy, { districtCode, districtName })
+    <Root>
+      <List id={listId}>
+        {shown.map(policy => {
+          const scope = resolvePolicyScope(policy, {
+            districtCode,
+            districtName,
+          })
 
-        return (
-          <Item key={policy.policyId}>
-            <TitleRow>
-              <Title>{policy.title}</Title>
-              <TypeBadge>{policy.supportTypeName}</TypeBadge>
-            </TitleRow>
+          return (
+            <Item key={policy.policyId}>
+              <TitleRow>
+                <Title>{policy.title}</Title>
+                <TypeBadge>{policy.supportTypeName}</TypeBadge>
+              </TitleRow>
 
-            <Support>{policy.supportContent}</Support>
-            <Target>{policy.targetSummary}</Target>
+              <Support>{policy.supportContent}</Support>
+              <Target>{policy.targetSummary}</Target>
 
-            <MetaRow>
-              <Meta>{policy.organization}</Meta>
-              <Meta aria-hidden="true">·</Meta>
-              <Meta>{scope.region}</Meta>
-              <Meta aria-hidden="true">·</Meta>
-              <Meta>{scope.service}</Meta>
-              <Meta aria-hidden="true">·</Meta>
-              <Meta>{formatPolicyApplyPeriod(policy)}</Meta>
-            </MetaRow>
+              <MetaRow>
+                <Meta>{policy.organization}</Meta>
+                <Meta aria-hidden="true">·</Meta>
+                <Meta>{scope.region}</Meta>
+                <Meta aria-hidden="true">·</Meta>
+                <Meta>{scope.service}</Meta>
+                <Meta aria-hidden="true">·</Meta>
+                <Meta>{formatPolicyApplyPeriod(policy)}</Meta>
+              </MetaRow>
 
-            {/*
+              {/*
               외부 기관 페이지다. `rel` 을 빼면 열린 탭이 `window.opener` 로
               이 앱을 만질 수 있다.
             */}
-            <DetailLink
-              href={policy.detailUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {policy.organization} 안내 보기
-            </DetailLink>
-          </Item>
-        )
-      })}
-    </List>
+              <DetailLink
+                href={policy.detailUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {policy.organization} 안내 보기
+              </DetailLink>
+            </Item>
+          )
+        })}
+      </List>
+      {collapsible ? (
+        <ToggleButton
+          type="button"
+          size="medium"
+          variant="secondary"
+          aria-expanded={expanded}
+          aria-controls={listId}
+          rightIcon={expanded ? <ChevronUp /> : <ChevronDown />}
+          onClick={() => setExpanded(value => !value)}
+        >
+          {expanded ? '접기' : `지원 정책 ${policies.length}개 모두 보기`}
+        </ToggleButton>
+      ) : null}
+    </Root>
   )
 }
