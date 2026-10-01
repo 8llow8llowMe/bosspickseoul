@@ -2,6 +2,7 @@
 
 import styled from 'styled-components'
 
+import { genderColorsFor } from '@/components/analysis/charts/chart-theme'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
 import {
@@ -104,6 +105,7 @@ export default function SimulationCustomerInsight({
           <SubTitle>성별 매출 비중</SubTitle>
           <DonutChart
             segments={toGenderSalesSegments(analysis)}
+            colors={genderColorsFor(toGenderSalesSegments(analysis))}
             ariaLabel="성별 매출 비중"
             unit="%"
           />

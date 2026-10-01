@@ -3,6 +3,7 @@
 import styled from 'styled-components'
 
 import BarChart from '@/components/analysis/charts/bar-chart'
+import { AXIS_UNIT_CAPTION_HEIGHT } from '@/components/analysis/charts/chart-theme'
 import LineChart, { hasLineData } from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -69,6 +70,7 @@ export default function ReportChartSection({
   variant?: 'full' | 'compact'
 }) {
   const CHART_HEIGHT = variant === 'compact' ? 160 : 200
+  // 매출(원)·유동인구(명) 차트는 축 단위 표기가 위에 붙는다. 피라미드(%)는 붙지 않는다.
   const salesTimePoints = buildSalesTimeLine(sales)
   const footDayBars = buildFootDayBars(foot)
   const footPyramidRows = buildFootAgeGenderPyramid(foot)
@@ -91,7 +93,10 @@ export default function ReportChartSection({
       <Card aria-busy={salesTimeSlot === 'loading'}>
         <CardTitle>언제 파나 · 시간대별 매출</CardTitle>
         {salesTimeSlot === 'loading' ? (
-          <Skeleton $height={`${CHART_HEIGHT}px`} aria-hidden />
+          <Skeleton
+            $height={`${CHART_HEIGHT + AXIS_UNIT_CAPTION_HEIGHT}px`}
+            aria-hidden
+          />
         ) : salesTimeSlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
@@ -107,7 +112,10 @@ export default function ReportChartSection({
       <Card aria-busy={footDaySlot === 'loading'}>
         <CardTitle>언제 붐비나 · 요일별 유동인구</CardTitle>
         {footDaySlot === 'loading' ? (
-          <Skeleton $height={`${CHART_HEIGHT}px`} aria-hidden />
+          <Skeleton
+            $height={`${CHART_HEIGHT + AXIS_UNIT_CAPTION_HEIGHT}px`}
+            aria-hidden
+          />
         ) : footDaySlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
@@ -115,7 +123,7 @@ export default function ReportChartSection({
             items={footDayBars}
             unit="명"
             ariaLabel="요일별 유동인구 막대 차트"
-            emphasisLabels={['토', '일']}
+            highlightMax
             height={CHART_HEIGHT}
           />
         )}

@@ -36,6 +36,7 @@ import AnalysisSummaryCards, {
 } from '@/components/analysis/analysis-summary-cards'
 import SalesComparisonBars from '@/components/analysis/sales-comparison-bars'
 import BarChart from '@/components/analysis/charts/bar-chart'
+import { genderColorsFor } from '@/components/analysis/charts/chart-theme'
 import DonutChart from '@/components/analysis/charts/donut-chart'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
 import LineChart from '@/components/analysis/charts/line-chart'
@@ -1004,6 +1005,8 @@ export default function AnalysisResultView({
   const trends: Array<{
     metric: CommercialTrendMetric
     label: string
+    /** 직전 분기 대비 문장의 주어(조사 포함) — `LineChart.changeSubject`. */
+    subject: string
     unit: string
     query: typeof salesTrendQuery
     data: CommercialTrend | null
@@ -1011,6 +1014,7 @@ export default function AnalysisResultView({
     {
       metric: 'SALES',
       label: '매출 변화',
+      subject: '매출이',
       unit: '원',
       query: salesTrendQuery,
       data: getResponseBody(salesTrendQuery.data),
@@ -1018,6 +1022,7 @@ export default function AnalysisResultView({
     {
       metric: 'FOOT_TRAFFIC',
       label: '유동인구 변화',
+      subject: '유동인구가',
       unit: '명',
       query: footTrendQuery,
       data: getResponseBody(footTrendQuery.data),
@@ -1025,6 +1030,7 @@ export default function AnalysisResultView({
     {
       metric: 'STORE',
       label: '점포 변화',
+      subject: '점포 수가',
       unit: '개',
       query: storeTrendQuery,
       data: getResponseBody(storeTrendQuery.data),
@@ -1838,7 +1844,7 @@ export default function AnalysisResultView({
                     )}
                     unit="명"
                     ariaLabel="요일별 유동인구 막대 차트"
-                    emphasisLabels={['토', '일']}
+                    highlightMax
                   />
                 </ChartBox>
               </AnalysisResultSection>
@@ -1924,7 +1930,7 @@ export default function AnalysisResultView({
                     )}
                     unit="원"
                     ariaLabel="요일별 매출 막대 차트"
-                    emphasisLabels={['토', '일']}
+                    highlightMax
                   />
                 </ChartBox>
               </AnalysisResultSection>
@@ -1951,6 +1957,7 @@ export default function AnalysisResultView({
                     )}
                     unit="원"
                     ariaLabel="연령별 매출 막대 차트"
+                    highlightMax
                   />
                 </ChartBox>
               </AnalysisResultSection>
@@ -1970,6 +1977,12 @@ export default function AnalysisResultView({
                     segments={toGenderSegments(
                       sales?.countByGenderItem?.maleSalesCount,
                       sales?.countByGenderItem?.femaleSalesCount,
+                    )}
+                    colors={genderColorsFor(
+                      toGenderSegments(
+                        sales?.countByGenderItem?.maleSalesCount,
+                        sales?.countByGenderItem?.femaleSalesCount,
+                      ),
                     )}
                     ariaLabel="성별 매출 건수 도넛"
                     unit="건"
@@ -2127,6 +2140,7 @@ export default function AnalysisResultView({
                     )}
                     unit="명"
                     ariaLabel="연령별 상주인구 막대 차트"
+                    highlightMax
                   />
                 </ChartBox>
               </AnalysisResultSection>
@@ -2145,6 +2159,12 @@ export default function AnalysisResultView({
                     segments={toGenderSegments(
                       population?.malePercentage,
                       population?.femalePercentage,
+                    )}
+                    colors={genderColorsFor(
+                      toGenderSegments(
+                        population?.malePercentage,
+                        population?.femalePercentage,
+                      ),
                     )}
                     ariaLabel="성별 상주인구 도넛"
                     unit="%"
@@ -2291,7 +2311,7 @@ export default function AnalysisResultView({
           >
             {renderGroupHeading('트렌드')}
             <DashboardGrid>
-              {trends.map(({ metric, label, unit, query, data }) => (
+              {trends.map(({ metric, label, subject, unit, query, data }) => (
                 <AnalysisResultSection
                   key={metric}
                   title={label}
@@ -2305,6 +2325,8 @@ export default function AnalysisResultView({
                       points={toTrendPoints(data)}
                       unit={unit}
                       direction={data?.trendDirection ?? null}
+                      changeSubject={subject}
+                      ariaLabel={`${label} 분기별 추이`}
                     />
                   </ChartBox>
                 </AnalysisResultSection>

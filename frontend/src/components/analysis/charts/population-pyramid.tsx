@@ -126,14 +126,14 @@ export default function PopulationPyramid({
           <Bar
             dataKey="maleValue"
             name="남성"
-            fill={CHART_COLORS.seriesPrimary}
+            fill={CHART_COLORS.male}
             radius={[0, 4, 4, 0]}
             isAnimationActive={false}
           />
           <Bar
             dataKey="femaleValue"
             name="여성"
-            fill={CHART_COLORS.seriesSecondary}
+            fill={CHART_COLORS.female}
             radius={[0, 4, 4, 0]}
             isAnimationActive={false}
           />
@@ -141,10 +141,10 @@ export default function PopulationPyramid({
       </ResponsiveContainer>
       <Legend>
         <li>
-          <i style={{ background: CHART_COLORS.seriesPrimary }} /> 남성
+          <i style={{ background: CHART_COLORS.male }} /> 남성
         </li>
         <li>
-          <i style={{ background: CHART_COLORS.seriesSecondary }} /> 여성
+          <i style={{ background: CHART_COLORS.female }} /> 여성
         </li>
       </Legend>
     </div>

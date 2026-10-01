@@ -14,9 +14,21 @@ const niceNum = (range: number, round: boolean): number => {
 
 export type NiceYScale = { domain: [number, number]; ticks: number[] }
 
+export type NiceYScaleOptions = {
+  /**
+   * 도메인이 반드시 0 을 포함하게 한다. **막대 차트는 켠다.**
+   *
+   * ⚠️ 막대는 길이로 값을 읽는다. 기준선이 0 이 아니면 길이 비가 값 비와 달라진다 —
+   * 요일별 유동인구가 22만에서 시작해 토요일(23.7만) 막대가 화요일(22.2만)보다 **약 8배**
+   * 길게 그려졌는데, 실제 차이는 7% 였다. 꺾은선은 위치로 읽으므로 끄고 둔다.
+   */
+  includeZero?: boolean
+}
+
 export const computeNiceYScale = (
   values: readonly (number | null | undefined)[],
   tickCount = 5,
+  options: NiceYScaleOptions = {},
 ): NiceYScale => {
   const nums = values.filter(
     (v): v is number => typeof v === 'number' && Number.isFinite(v),
@@ -24,6 +36,10 @@ export const computeNiceYScale = (
   if (nums.length === 0) return { domain: [0, 1], ticks: [0, 1] }
   let min = Math.min(...nums)
   let max = Math.max(...nums)
+  if (options.includeZero) {
+    min = Math.min(0, min)
+    max = Math.max(0, max)
+  }
   if (min === max) {
     if (min === 0) return { domain: [0, 1], ticks: [0, 1] }
     const pad = Math.abs(min) * 0.1

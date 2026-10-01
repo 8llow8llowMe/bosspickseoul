@@ -4,6 +4,7 @@ import {
   CHART_COLORS,
   createAxisTickFormatter,
   formatChartValue,
+  splitCategoryLabel,
 } from '@/components/analysis/charts/chart-theme'
 import { computeNiceYScale } from '@/lib/analysis/chart-scale'
 
@@ -233,5 +234,23 @@ describe('createAxisTickFormatter 라벨 유일성 불변식', () => {
     }
 
     expect(collisions).toEqual([])
+  })
+})
+
+describe('splitCategoryLabel', () => {
+  it('칸 폭에 들어가면 한 줄 그대로 둔다', () => {
+    expect(splitCategoryLabel('11~14시', 200)).toEqual(['11~14시'])
+  })
+
+  it('넘치면 공백에서 두 줄로 접는다', () => {
+    expect(splitCategoryLabel('2025년 2분기', 40)).toEqual(['2025년', '2분기'])
+  })
+
+  it('공백이 없으면 물결표 뒤에서 접는다', () => {
+    expect(splitCategoryLabel('00~06시', 30)).toEqual(['00~', '06시'])
+  })
+
+  it('접을 곳이 없으면 그대로 둔다', () => {
+    expect(splitCategoryLabel('월요일', 10)).toEqual(['월요일'])
   })
 })
