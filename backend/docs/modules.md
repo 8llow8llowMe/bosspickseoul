@@ -124,6 +124,7 @@ backend/
 - `enums.HeatmapModeType` — 히트맵 모드 (단일 지표 / 복합 추천)
 - `enums.GradeLevel` — 등급 구간 (commercial/district 공용)
 - `enums.DatasetKey` — 분기 적재 데이터셋 15종의 **이름·Open API 서비스명·필수 컬럼 계약**. batch-service 가 `dataset_release`/`dataset_active_release` 에 게시하는 키이자 Open API 호출에 쓰는 서비스명이고, commercial-service 는 같은 `openApiService()` 를 소비 지표의 출처 식별자(`sourceId`)로 응답에 싣는다 (이슈 #415)
+- `enums.FileDatasetKey` — 파일로 받아 적재하는 외부 원천의 **식별자(`sourceId`)·헤더 계약**. 지금은 국민연금 자치구 평균소득(`data.go.kr:3046077`) 하나다. 분기 Open API 가 아니라 연 1회 수동 파일이라 `DatasetKey`(batch `Dataset` 과 이름 전수 일치)와 나눴다. batch 의 `FileDatasetKeyTest` 가 고정한다 (이슈 #415)
 
 **존재 이유**:
 - `commercial-service`와 `district-service`는 피어 관계라 서로 import 불가
