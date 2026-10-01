@@ -5,6 +5,7 @@ import {
   COMMUNITY_LIST_SCROLL_TTL_MS,
   clearCommunityListScroll,
   createHistoryTraversalTracker,
+  findCommunityListAnchorRow,
   getCommunityListScrollStep,
   getCommunityListScrollTop,
   readCommunityListScroll,
@@ -204,5 +205,35 @@ describe('createHistoryTraversalTracker', () => {
     tracker.start(target)
 
     expect(subscriptions()).toBe(1)
+  })
+})
+
+describe('findCommunityListAnchorRow — 레일 링크로 떠날 때의 기준 행', () => {
+  const rows = [
+    { postId: '1', top: -350, bottom: -250 },
+    { postId: '2', top: -250, bottom: -150 },
+    { postId: '3', top: -50, bottom: 50 },
+    { postId: '4', top: 50, bottom: 150 },
+  ]
+
+  it('picks the first feed row that is on screen, even when it is cut off at the top', () => {
+    expect(findCommunityListAnchorRow(rows, 800)).toEqual(rows[2])
+  })
+
+  it('skips a row whose bottom edge sits exactly at the top of the screen', () => {
+    expect(
+      findCommunityListAnchorRow(
+        [{ postId: '1', top: -100, bottom: 0 }, ...rows.slice(3)],
+        800,
+      ),
+    ).toEqual(rows[3])
+  })
+
+  it('returns null when no row is on screen or there are no rows', () => {
+    expect(findCommunityListAnchorRow(rows.slice(0, 2), 800)).toBeNull()
+    expect(
+      findCommunityListAnchorRow([{ postId: '9', top: 800, bottom: 900 }], 800),
+    ).toBeNull()
+    expect(findCommunityListAnchorRow([], 800)).toBeNull()
   })
 })

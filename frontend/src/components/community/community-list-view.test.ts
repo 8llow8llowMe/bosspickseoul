@@ -630,7 +630,7 @@ describe('CommunityListView — 넓은 화면 골격', () => {
     const { styles } = renderWithStyles()
 
     expect(styles).toMatch(
-      /@media \(max-width: ?479px\)\{html\[data-community-header-hidden='true'\]:not\(:has\(\[data-site-header\]\[data-menu-open='true'\],\s*\[data-site-header\]:focus-within\)\) \.[\w-]+\{top:0;\}\}/,
+      /@media \(max-width: ?479px\)\{html\[data-community-header-hidden='true'\]:not\(:has\(\[data-site-header\]\[data-menu-open='true'\],\s*\[data-site-header\] :focus-visible\)\) \.[\w-]+\{top:0;\}\}/,
     )
     expect(styles).toContain(
       'transition:top var(--motion-standard) var(--ease-standard)',
@@ -846,6 +846,7 @@ describe('community list container helpers', () => {
     })
     const cancelSpy = vi.spyOn(queryClient, 'cancelQueries')
     const removeSpy = vi.spyOn(queryClient, 'removeQueries')
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
     const clearSession = vi.fn()
     const refetch = vi.fn(async () => {})
 
@@ -874,6 +875,13 @@ describe('community list container helpers', () => {
     )
     expect(clearSession.mock.invocationCallOrder[0]).toBeLessThan(
       refetch.mock.invocationCallOrder[0]!,
+    )
+    // 같은 401 로 실패해 비어 있던 레일 인기 글도 익명으로 다시 받는다(목록과 따로 둔 키).
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['community', 'popular'],
+    })
+    expect(refetch.mock.invocationCallOrder[0]).toBeLessThan(
+      invalidateSpy.mock.invocationCallOrder[0]!,
     )
   })
 

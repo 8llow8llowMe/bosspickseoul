@@ -100,7 +100,7 @@ describe('SiteHeader — 목록 숨는 헤더 규칙', () => {
   it('translateY 규칙은 <480 미디어와 목록 속성 선택자 안에만 있다', () => {
     const css = renderStyles('/analysis')
     const rule = css.match(
-      /@media \(max-width:\s*479px\)\{html\[data-community-header-hidden='true'\]:not\(:has\(\[data-site-header\]\[data-menu-open='true'\],\s*\[data-site-header\]:focus-within\)\) \.[\w-]+\{transform:translateY\(-100%\);\}\}/,
+      /@media \(max-width:\s*479px\)\{html\[data-community-header-hidden='true'\]:not\(:has\(\[data-site-header\]\[data-menu-open='true'\],\s*\[data-site-header\] :focus-visible\)\) \.[\w-]+\{transform:translateY\(-100%\);\}\}/,
     )
 
     expect(rule).not.toBeNull()

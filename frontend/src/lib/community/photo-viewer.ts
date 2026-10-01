@@ -30,6 +30,14 @@ export const getPhotoSwipeStep = (
   return deltaX < 0 ? 1 : -1
 }
 
+/**
+ * 라이트박스 스와이프를 이 화면이 맡을지. 핀치로 확대한 동안(`visualViewport.scale > 1`)에는 가로로
+ * 끄는 손가락이 「확대한 사진 둘러보기」라 사진을 넘기지 않는다. 배율을 모르면(visualViewport 가 없는
+ * 브라우저) 확대 여부를 알 수 없으니 지금처럼 넘긴다.
+ */
+export const shouldHandlePhotoSwipe = (scale: number | null | undefined) =>
+  typeof scale !== 'number' || !Number.isFinite(scale) || scale <= 1
+
 /** 이전/다음 이동. 끝에서 순환하지 않고 그 자리에 머문다(처음·끝을 알 수 있게). */
 export const stepPhotoIndex = (index: number, step: number, count: number) => {
   if (count <= 1) {

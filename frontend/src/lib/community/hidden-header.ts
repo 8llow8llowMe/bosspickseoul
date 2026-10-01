@@ -10,7 +10,9 @@
 
   헤더가 돌아와야 하는 때는 선택자의 `:not(:has(...))` 가 맡는다.
   - 모바일 메뉴 패널이 열려 있음(`data-menu-open`) — 패널이 헤더와 함께 화면 밖으로 사라진다
-  - 헤더 안에 포커스가 있음 — 키보드로 들어간 사용자가 화면 밖 버튼을 누르게 된다
+  - 헤더 안에 **키보드 포커스**(`:focus-visible`)가 있음 — 키보드로 들어간 사용자가 화면 밖 버튼을
+    누르게 된다. `:focus-within` 으로 넓히지 않는다 — Android 는 탭한 버튼(메뉴 닫기 등)에 포커스가
+    남아 있어 그 뒤로 헤더가 숨지 않는다(숨는 헤더가 사실상 꺼진다). 탭은 :focus-visible 이 아니다.
   `:has()` 를 모르는 브라우저는 규칙 전체를 버린다 — 헤더가 숨지 않을 뿐 툴바도 64 에 남아 어긋나지 않는다.
 */
 
@@ -19,4 +21,4 @@ export const COMMUNITY_HEADER_HIDDEN_ATTRIBUTE = 'data-community-header-hidden'
 /** 사이트 헤더가 모바일 메뉴 패널이 열린 동안 `<header>` 에 다는 속성. */
 export const SITE_HEADER_MENU_OPEN_ATTRIBUTE = 'data-menu-open'
 
-export const COMMUNITY_HEADER_HIDDEN_SELECTOR = `html[${COMMUNITY_HEADER_HIDDEN_ATTRIBUTE}='true']:not(:has([data-site-header][${SITE_HEADER_MENU_OPEN_ATTRIBUTE}='true'], [data-site-header]:focus-within))`
+export const COMMUNITY_HEADER_HIDDEN_SELECTOR = `html[${COMMUNITY_HEADER_HIDDEN_ATTRIBUTE}='true']:not(:has([data-site-header][${SITE_HEADER_MENU_OPEN_ATTRIBUTE}='true'], [data-site-header] :focus-visible))`

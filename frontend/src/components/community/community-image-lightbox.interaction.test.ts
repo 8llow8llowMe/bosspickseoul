@@ -405,6 +405,102 @@ describe('라이트박스 — 껍데기', () => {
   })
 })
 
+/*
+  핀치 확대 중(`visualViewport.scale > 1`)에는 가로로 끄는 손가락이 「확대한 사진 둘러보기」다.
+  jsdom 에는 visualViewport 가 없다 — scale 을 들고 resize 를 내는 EventTarget 으로 흉내 낸다.
+*/
+class StubVisualViewport extends EventTarget {
+  scale = 1
+}
+
+describe('라이트박스 — 핀치 확대 중', () => {
+  let viewport: StubVisualViewport
+
+  beforeEach(() => {
+    viewport = new StubVisualViewport()
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: viewport,
+    })
+  })
+
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'visualViewport')
+  })
+
+  const zoomTo = (scale: number) => {
+    act(() => {
+      viewport.scale = scale
+      viewport.dispatchEvent(new Event('resize'))
+    })
+  }
+
+  const getStage = () => getShownImage()!.parentElement!
+
+  /* styled-components 가 문서에 넣은 규칙에서 지금 Stage 클래스의 touch-action 을 읽는다. */
+  const stageTouchAction = () => {
+    const classes = [...getStage().classList]
+    const rules = [...document.styleSheets].flatMap(sheet => [
+      ...sheet.cssRules,
+    ]) as CSSStyleRule[]
+    const declarations = rules
+      .filter(rule => classes.some(name => rule.selectorText === `.${name}`))
+      .map(rule => rule.style.getPropertyValue('touch-action'))
+      .filter(Boolean)
+
+    return declarations.at(-1) ?? null
+  }
+
+  const swipeLeft = () => {
+    fireEvent.pointerDown(getStage(), { clientX: 200, clientY: 300 })
+    fireEvent.pointerUp(getStage(), { clientX: 120, clientY: 300 })
+  }
+
+  it('확대한 동안에는 스와이프로 넘기지 않고 가로 이동을 브라우저에 넘긴다', async () => {
+    await openHarness(['a.png', 'b.png', 'c.png'])
+
+    expect(getStage().getAttribute('data-zoomed')).toBe('false')
+    expect(stageTouchAction()).toBe('pan-y pinch-zoom')
+    zoomTo(2)
+    expect(getStage().getAttribute('data-zoomed')).toBe('true')
+    expect(stageTouchAction()).toBe('auto')
+    swipeLeft()
+    expect(getCounter()?.textContent).toBe('1 / 3')
+
+    // 원래 배율로 돌아오면 다시 넘긴다.
+    zoomTo(1)
+    expect(getStage().getAttribute('data-zoomed')).toBe('false')
+    swipeLeft()
+    expect(getCounter()?.textContent).toBe('2 / 3')
+  })
+
+  it('누를 때는 1배였어도 떼는 순간 확대돼 있으면 넘기지 않는다(두 손가락 핀치)', async () => {
+    await openHarness(['a.png', 'b.png', 'c.png'])
+
+    fireEvent.pointerDown(getStage(), { clientX: 200, clientY: 300 })
+    viewport.scale = 1.8
+    fireEvent.pointerUp(getStage(), { clientX: 120, clientY: 300 })
+
+    expect(getCounter()?.textContent).toBe('1 / 3')
+  })
+
+  it('이미 확대된 채 열어도 처음부터 확대 상태다', async () => {
+    viewport.scale = 3
+    await openHarness(['a.png', 'b.png'])
+
+    expect(getStage().getAttribute('data-zoomed')).toBe('true')
+  })
+
+  it('닫으면 visualViewport 구독을 푼다', async () => {
+    const remove = vi.spyOn(viewport, 'removeEventListener')
+    await openHarness(['a.png', 'b.png'])
+
+    press('Escape')
+
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function))
+  })
+})
+
 describe('모바일 사진 줄 — 지금 장 (CM-042)', () => {
   const getStrip = () => {
     const strip = document.body.querySelector<HTMLUListElement>(

@@ -22,7 +22,10 @@ import CommunityListNav, {
 } from '@/components/community/community-list-nav'
 import CommunityListRail from '@/components/community/community-list-rail'
 import CommunityRegionSheet from '@/components/community/community-region-sheet'
-import { useCommunityListScrollRestore } from '@/hooks/use-community-list-scroll-restore'
+import {
+  COMMUNITY_POST_ROW_ATTRIBUTE,
+  useCommunityListScrollRestore,
+} from '@/hooks/use-community-list-scroll-restore'
 import { useCommunityRecentRegions } from '@/hooks/use-community-recent-regions'
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
@@ -59,7 +62,11 @@ import {
   getCommunityRailPopularTitle,
   getCommunityRailTarget,
 } from '@/lib/community/list-rail'
-import { saveCommunityListScroll } from '@/lib/community/list-scroll'
+import {
+  clearCommunityListScroll,
+  findCommunityListAnchorRow,
+  saveCommunityListScroll,
+} from '@/lib/community/list-scroll'
 import type { CommunityRecentRegion } from '@/lib/community/recent-regions'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
@@ -142,6 +149,11 @@ export const recoverCommunityPublicListUnauthorized = async ({
   await queryClient.cancelQueries({ queryKey, exact: true })
   clearSession()
   await refetch()
+  /*
+    레일 인기 글은 목록과 따로 둔 키라 위 refetch 에 들지 않는다. 같은 만료 세션의 401 로 실패해
+    숨어 있었을 테니(401 은 재시도하지 않는다) 익명으로 다시 받게 무효화한다 — 활성 쿼리만 다시 부른다.
+  */
+  await queryClient.invalidateQueries({ queryKey: ['community', 'popular'] })
 }
 
 type CommunityPublicListRecoveryRef = {
@@ -532,6 +544,47 @@ export const createCommunityListNavItems = (
   }
 }
 
+/*
+  레일 인기 글로 상세에 갈 때도 뒤로 돌아올 자리를 남긴다(CM-030). 누른 링크는 피드 행이 아니라
+  화면 안 첫 피드 행을 기준으로 삼는다(`findCommunityListAnchorRow`). 피드 행이 화면에 없으면(목록이
+  비었거나 실패) 옛 자리를 지운다 — 남겨 두면 예전에 누른 글 자리로 돌아가 엉뚱한 곳에 떨어진다.
+  클릭 때만 부른다(렌더 중 DOM·시계를 읽지 않게 컴포넌트 밖에 둔다).
+*/
+const saveCommunityListScrollFromViewport = (contextKey: string) => {
+  try {
+    const storage = window.sessionStorage
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        `[${COMMUNITY_POST_ROW_ATTRIBUTE}]`,
+      ),
+    ].flatMap(row => {
+      const postId = row.getAttribute(COMMUNITY_POST_ROW_ATTRIBUTE)
+
+      if (!postId) {
+        return []
+      }
+
+      const box = row.getBoundingClientRect()
+      return [{ postId, top: box.top, bottom: box.bottom }]
+    })
+    const anchor = findCommunityListAnchorRow(rows, window.innerHeight)
+
+    if (!anchor) {
+      clearCommunityListScroll(storage)
+      return
+    }
+
+    saveCommunityListScroll(storage, {
+      contextKey,
+      postId: anchor.postId,
+      rowOffset: anchor.top,
+      savedAt: Date.now(),
+    })
+  } catch {
+    // Storage availability must never prevent the native link navigation.
+  }
+}
+
 export default function CommunityListPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -731,9 +784,10 @@ export default function CommunityListPage() {
   const popularParams = createCommunityPopularParams(state)
   /*
     인기 글은 목록과 다른 키다(communityKeys.popular). 목록 401 복구가 exact 키로 취소·제거하는 것과
-    섞이지 않는다. 글 작성·삭제는 communityKeys.all 무효화로 함께 갱신되고, 상세의 좋아요·댓글
-    (['community','list'] 무효화)로는 갱신되지 않아 staleTime(5분) 동안 ♡ 수가 늦을 수 있다.
-    재시도는 목록과 같은 규칙(401 은 재시도하지 않음)이고, 실패하면 묶음을 조용히 숨긴다.
+    섞이지 않고, 복구가 끝나면 따로 무효화한다(recoverCommunityPublicListUnauthorized). 글 작성·삭제는
+    communityKeys.all 무효화로 함께 갱신되고, 상세 좋아요·댓글은 refreshCommunityDetailSummaryCaches 가
+    목록 키와 함께 무효화한다. 재시도는 목록과 같은 규칙(401 은 재시도하지 않음)이고, 실패하면 묶음을
+    조용히 숨긴다.
   */
   const popularQuery = useQuery({
     queryKey: communityKeys.popular(
@@ -839,6 +893,9 @@ export default function CommunityListPage() {
       title: post.title,
       likeCount: post.likeCount,
       href: createCommunityPostHref(post.postId, contextKey, state.mock),
+      onNavigate: () => {
+        saveCommunityListScrollFromViewport(contextKey)
+      },
     }),
   )
 

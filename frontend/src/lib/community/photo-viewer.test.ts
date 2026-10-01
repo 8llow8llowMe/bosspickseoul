@@ -6,6 +6,7 @@ import {
   formatPhotoPosition,
   getPhotoStripIndex,
   getPhotoSwipeStep,
+  shouldHandlePhotoSwipe,
   stepPhotoIndex,
 } from './photo-viewer'
 
@@ -85,5 +86,19 @@ describe('formatPhotoPosition', () => {
   it('사람이 읽는 1부터 센다', () => {
     expect(formatPhotoPosition(1, 3)).toBe('2 / 3')
     expect(formatPhotoPosition(0, 1)).toBe('1 / 1')
+  })
+})
+
+describe('shouldHandlePhotoSwipe — 핀치 확대 중에는 넘기지 않는다', () => {
+  it('handles swipes at 1x or when the zoom level is unknown (no visualViewport)', () => {
+    expect(shouldHandlePhotoSwipe(1)).toBe(true)
+    expect(shouldHandlePhotoSwipe(undefined)).toBe(true)
+    expect(shouldHandlePhotoSwipe(null)).toBe(true)
+    expect(shouldHandlePhotoSwipe(Number.NaN)).toBe(true)
+  })
+
+  it('leaves the gesture to the browser while pinch-zoomed in', () => {
+    expect(shouldHandlePhotoSwipe(1.01)).toBe(false)
+    expect(shouldHandlePhotoSwipe(2.5)).toBe(false)
   })
 })

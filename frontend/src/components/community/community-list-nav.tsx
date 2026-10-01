@@ -10,8 +10,13 @@ import { COMMUNITY_LIST_SIDE_STICKY_TOP } from '@/components/community/community
   탭 줄은 숨긴다 — 같은 조작이 두 곳에 있으면 어느 쪽이 지금 상태인지 헷갈린다.
 
   항목은 모두 목록 주소 링크다(URL 계약 그대로 — 주소는 목록 페이지가 같은 액션 함수로 만든다).
-  지금 상태는 `aria-current="page"` 하나로 말한다. 탭 줄의 aria-pressed 와 섞지 않는다 — 링크는
-  「누르는 토글」이 아니라 「가는 곳」이다.
+  지금 상태는 `aria-current` 로 말한다. 탭 줄의 aria-pressed 와 섞지 않는다 — 링크는 「누르는 토글」이
+  아니라 「가는 곳」이다.
+
+  주소 하나가 보기와 지역을 함께 정해 「최신」과 「강남구」가 동시에 지금 항목이다. 둘 다 `page` 면
+  화면 낭독기가 「현재 페이지」를 두 번 읽는다 — `page` 는 연 지역 게시판(최근 본 지역 항목) 하나에만
+  두고, 보기·내 활동은 그 페이지 안의 지금 상태라 `true` 다. 지역을 고르지 않았으면(서울 전체) `page`
+  항목이 없다 — 내비에 「서울 전체」 항목이 없어 가리킬 곳이 없다. 두 값은 같은 강조로 보인다.
 */
 
 export type CommunityListNavItem = {
@@ -84,7 +89,7 @@ const NavLink = styled(Link)`
     background: var(--color-background-muted);
   }
 
-  &[aria-current='page'] {
+  &[aria-current] {
     background: var(--color-primary-100);
     color: var(--color-text-primary-on-light);
     font-weight: 700;
@@ -105,12 +110,15 @@ const NavLabel = styled.span`
 const NavItemLink = ({
   item,
   icon,
+  currentToken = 'true',
 }: {
   item: CommunityListNavItem
   icon?: React.ReactNode
+  /** 지금 항목일 때의 `aria-current` 값. 지역 게시판 항목만 `page` 다(위 설명). */
+  currentToken?: 'page' | 'true'
 }) => (
   <NavLink
-    aria-current={item.current ? 'page' : undefined}
+    aria-current={item.current ? currentToken : undefined}
     href={item.href}
     replace
     scroll={false}
@@ -163,6 +171,7 @@ export default function CommunityListNav({
             {recentRegions.map(item => (
               <li key={item.key}>
                 <NavItemLink
+                  currentToken="page"
                   icon={<MapPin aria-hidden="true" size={16} />}
                   item={item}
                 />
