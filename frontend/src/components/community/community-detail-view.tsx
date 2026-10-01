@@ -340,13 +340,21 @@ const ArticleImages = styled.ul<{ $strip: boolean }>`
   padding: 0;
   list-style: none;
 
+  /*
+    사진 높이 상한(community.md §S4 「다듬기」). 세로로 긴 사진이 화면을 다 덮지 않게 min(560px, 70vh)
+    안에 비율 그대로 담는다(contain — 잘라내지 않는다). 남는 좌우는 grey50 바탕이다. 원본 크기는
+    라이트박스가 맡는다. 가로 줄(<480)도 같은 상한이다.
+  */
   img {
     width: 100%;
     max-width: var(--w-read);
     height: auto;
+    max-height: min(560px, 70vh);
     display: block;
     border: 1px solid var(--color-border-200);
     border-radius: var(--radius-card);
+    background: var(--color-background-muted);
+    object-fit: contain;
   }
 
   ${props =>
@@ -585,12 +593,19 @@ const RailAdjacentLink = styled(Link)`
   }
 `
 
+/*
+  레일 제목은 한 줄이다(community.md §S4 「다듬기」). 긴 상권 이름은 말줄임하고 전체 이름은 title 이 든다 —
+  두 줄로 접히면 레일 카드 머리 높이가 글마다 달라진다.
+*/
 const RailTitle = styled.h2`
+  min-width: 0;
+  overflow: hidden;
   color: var(--color-text-900);
   font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `
 
 const RelatedList = styled.ul`
@@ -1307,8 +1322,11 @@ export default function CommunityDetailView({
                 aria-labelledby="community-region-rail-title"
                 data-community-region-sidebar="true"
               >
-                <RailTitle id="community-region-rail-title">
-                  {railRegionName} 최신 글
+                <RailTitle
+                  id="community-region-rail-title"
+                  title={`${railRegionName} 최신 글`}
+                >
+                  {`${railRegionName} 최신 글`}
                 </RailTitle>
                 {relatedStatus === 'loading' ? (
                   <RailMessage role="status">

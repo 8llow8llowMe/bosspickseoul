@@ -206,3 +206,34 @@ describe('CommunityListNav', () => {
     expect(markup).toContain('>좋아요한 글<')
   })
 })
+
+describe('CommunityListRail — 다듬기(community.md §S4 「다듬기」)', () => {
+  it('인기 글 · 물어보기 카드 제목은 한 줄 말줄임이고 전체는 title 이 든다', () => {
+    const popularTitle = '서울특별시 성동구 성수동 카페거리 골목상권 인기 글'
+    const askTitle =
+      '서울특별시 성동구 성수동 카페거리 골목상권에 대해 물어보세요'
+    const { markup, styles } = render(
+      createElement(CommunityListRail, {
+        ...railProps,
+        popular: { ...railProps.popular!, title: popularTitle },
+        askTitle,
+      }),
+    )
+
+    expect(markup).toMatch(
+      new RegExp(`<h2[^>]*title="${popularTitle}"[^>]*>${popularTitle}</h2>`),
+    )
+    expect(markup).toMatch(
+      new RegExp(`<h2[^>]*title="${askTitle}"[^>]*>${askTitle}</h2>`),
+    )
+    const className = markup
+      .match(/<h2[^>]*class="([^"]*)"/)?.[1]
+      ?.split(' ')
+      .at(-1)
+    const rule =
+      styles.match(new RegExp(`\\.${className}\\{([^}]*)\\}`))?.[1] ?? ''
+    expect(rule).toContain('text-overflow:ellipsis;')
+    expect(rule).toContain('white-space:nowrap;')
+    expect(rule).toContain('overflow:hidden;')
+  })
+})

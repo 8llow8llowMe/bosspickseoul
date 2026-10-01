@@ -442,3 +442,217 @@ describe('제목 칸의 Enter', () => {
     expect(document.activeElement).toBe(titleInput())
   })
 })
+
+/*
+  작성 체크(community.md §S4 「다듬기」, ≥1080). 카드는 CSS 로만 숨으므로 jsdom 에서는 늘 있다.
+  켜짐은 폼 상태에서 나오고(판정 규칙은 editor-compose.test.ts), 누르면 그 칸으로 포커스가 간다.
+*/
+describe('작성 체크', () => {
+  const checkButton = (id: string) =>
+    document.querySelector<HTMLButtonElement>(
+      `[data-community-editor-checklist] [data-check-id="${id}"]`,
+    )!
+  const summary = () => document.querySelector('[data-community-editor-ready]')!
+
+  it('제목 · 본문을 누르면 그 칸으로 포커스가 간다', () => {
+    renderForm()
+
+    fireEvent.click(checkButton('title'))
+    expect(document.activeElement).toBe(titleInput())
+
+    fireEvent.click(checkButton('content'))
+    expect(document.activeElement).toBe(contentInput())
+  })
+
+  it('지역을 누르면 칩에 포커스만 두고 시트는 열지 않는다', () => {
+    renderForm()
+
+    fireEvent.click(checkButton('location'))
+
+    expect(document.activeElement).toBe(chip())
+    expect(dialog()).toBeNull()
+  })
+
+  it('사진을 누르면 드롭존으로 포커스가 간다', () => {
+    renderForm()
+
+    fireEvent.click(checkButton('images'))
+
+    expect(document.activeElement).toBe(
+      document.querySelector('[data-community-photo-dropzone]'),
+    )
+  })
+
+  it('입력하면 체크가 켜지고 숨긴 글자가 `남음` → `완료` 로 바뀐다 — 공백만은 켜지 않는다', () => {
+    renderForm()
+
+    expect(checkButton('title').dataset.done).toBe('false')
+    expect(checkButton('title').textContent).toContain('남음')
+
+    fireEvent.change(titleInput(), { target: { value: '   ' } })
+    expect(checkButton('title').dataset.done).toBe('false')
+
+    fireEvent.change(titleInput(), { target: { value: '월세 질문' } })
+    expect(checkButton('title').dataset.done).toBe('true')
+    expect(checkButton('title').textContent).toContain('완료')
+    expect(
+      checkButton('title').querySelector('.lucide-circle-check'),
+    ).not.toBeNull()
+    expect(summary().textContent).toBe('필수 2개가 남았어요')
+  })
+
+  it('필수 셋이 다 차면 `등록할 준비가 됐어요` — 사진은 없어도 된다', () => {
+    renderForm({ initialValue: filled })
+
+    expect(summary().textContent).toBe('등록할 준비가 됐어요')
+    expect(summary().getAttribute('role')).toBe('status')
+    expect(checkButton('images').dataset.done).toBe('false')
+    expect(checkButton('images').textContent).toContain('선택')
+  })
+
+  it('수정 모드의 지역은 바꿀 수 없어 버튼이 아니다', () => {
+    renderForm({ mode: 'edit', initialValue: filled })
+
+    const location = document.querySelector(
+      '[data-community-editor-checklist] [data-check-id="location"]',
+    )!
+    expect(location.tagName).toBe('DIV')
+    expect(location.getAttribute('data-done')).toBe('true')
+  })
+})
+
+/*
+  사진 드롭존(community.md §S4 「다듬기」, ≥480). 놓은 파일은 고른 파일과 같은 길(selectPostImages →
+  onUploadImages)을 탄다.
+*/
+describe('사진 드롭존', () => {
+  const dropzone = () =>
+    document.querySelector<HTMLButtonElement>(
+      '[data-community-photo-dropzone]',
+    )!
+  const png = (name = 'a.png') => new File(['x'], name, { type: 'image/png' })
+  const transfer = (files: File[]) => ({
+    dataTransfer: { files, types: ['Files'], dropEffect: 'none' },
+  })
+
+  it('파일을 끌어 올리면 강조하고, 떠나면 걷는다 — 글자를 끌 때는 반응하지 않는다', () => {
+    renderForm()
+
+    fireEvent.dragEnter(dropzone(), {
+      dataTransfer: { files: [], types: ['text/plain'] },
+    })
+    expect(dropzone().dataset.dragActive).toBeUndefined()
+
+    fireEvent.dragEnter(dropzone(), transfer([png()]))
+    expect(dropzone().dataset.dragActive).toBe('true')
+
+    // dragover 를 막아야 drop 이 난다 — 막지 않으면 브라우저가 파일을 열어 글을 떠난다.
+    expect(fireEvent.dragOver(dropzone(), transfer([png()]))).toBe(false)
+
+    fireEvent.dragLeave(dropzone())
+    expect(dropzone().dataset.dragActive).toBeUndefined()
+  })
+
+  it('이미지를 놓으면 업로드하고 썸네일 줄에 붙는다', async () => {
+    const onUploadImages = vi.fn(async (files: File[]) =>
+      files.map((file, index) => ({
+        imageKey: `community/posts/new/${file.name}`,
+        imageUrl: `https://minio.test/${file.name}`,
+        sortOrder: index,
+      })),
+    )
+    renderForm({ onUploadImages })
+
+    fireEvent.dragEnter(dropzone(), transfer([png()]))
+    await act(async () => {
+      fireEvent.drop(dropzone(), transfer([png('a.png'), png('b.png')]))
+    })
+
+    expect(onUploadImages).toHaveBeenCalledOnce()
+    expect(onUploadImages.mock.calls[0]![0].map(file => file.name)).toEqual([
+      'a.png',
+      'b.png',
+    ])
+    expect(dropzone().dataset.dragActive).toBeUndefined()
+    expect(
+      document.querySelector('img[src="https://minio.test/b.png"]'),
+    ).not.toBeNull()
+    expect(dropzone().textContent).toContain('2 / 5')
+  })
+
+  it('이미지가 아닌 파일은 올리지 않고 기존 안내를 낸다', async () => {
+    const { props } = renderForm()
+
+    await act(async () => {
+      fireEvent.drop(
+        dropzone(),
+        transfer([new File(['x'], 'memo.txt', { type: 'text/plain' })]),
+      )
+    })
+
+    expect(props.onUploadImages).not.toHaveBeenCalled()
+    expect(alerts().join('\n')).toContain('memo.txt')
+  })
+
+  it('5장이 차면 드롭존은 aria-disabled 로 안내하고, 놓으면 「이미 5장」 이라고 말한다', async () => {
+    const images = Array.from({ length: 5 }, (_, index) => ({
+      imageKey: `community/posts/1/${index}.png`,
+      imageUrl: `https://minio.test/${index}.png`,
+      sortOrder: index,
+    }))
+    const { props } = renderForm({
+      initialValue: { ...filled, images },
+    })
+
+    expect(dropzone().getAttribute('aria-disabled')).toBe('true')
+    expect(dropzone().disabled).toBe(false)
+    expect(dropzone().textContent).toContain('사진은 5장까지예요')
+
+    await act(async () => {
+      fireEvent.drop(dropzone(), transfer([png()]))
+    })
+
+    expect(props.onUploadImages).not.toHaveBeenCalled()
+    expect(alerts()).toContain(
+      '이미 5장을 첨부했어요. 지운 뒤에 다시 올려 주세요.',
+    )
+  })
+
+  it('누르면 파일 창을 연다', () => {
+    renderForm()
+    const fileInput =
+      document.querySelector<HTMLInputElement>('input[type="file"]')!
+    const click = vi.spyOn(fileInput, 'click')
+
+    fireEvent.click(dropzone())
+
+    expect(click).toHaveBeenCalledOnce()
+  })
+
+  it('올리는 중에는 놓아도 받지 않는다', async () => {
+    let finish: (images: never[]) => void = () => {}
+    const onUploadImages = vi.fn(
+      () =>
+        new Promise<never[]>(resolve => {
+          finish = resolve
+        }),
+    )
+    renderForm({ onUploadImages })
+
+    await act(async () => {
+      fireEvent.drop(dropzone(), transfer([png('a.png')]))
+    })
+    expect(dropzone().getAttribute('aria-disabled')).toBe('true')
+
+    fireEvent.dragEnter(dropzone(), transfer([png('b.png')]))
+    expect(dropzone().dataset.dragActive).toBeUndefined()
+    await act(async () => {
+      fireEvent.drop(dropzone(), transfer([png('b.png')]))
+    })
+
+    expect(onUploadImages).toHaveBeenCalledOnce()
+    await act(async () => {
+      finish([])
+    })
+  })
+})

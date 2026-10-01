@@ -660,3 +660,133 @@ describe('community editor helpers', () => {
     expect(recoveryRef.current).toBeNull()
   })
 })
+
+describe('CommunityEditorForm — 다듬기(community.md §S4 「다듬기」)', () => {
+  /* 이 클래스가 붙은 규칙 블록들을 이어 붙인다(미디어 쿼리 안의 것도). */
+  const rulesOf = (styles: string, className: string) =>
+    [
+      ...styles.matchAll(
+        new RegExp(`\\.${className}(?:[^{,]*)\\{([^}]*)\\}`, 'g'),
+      ),
+    ]
+      .map(match => match[0])
+      .join('\n')
+  const classOfAttr = (markup: string, attribute: string) =>
+    markup
+      .match(
+        new RegExp(`<[a-z]+(?=[^>]*${attribute})[^>]*class="([^"]*)"`),
+      )?.[1]
+      ?.split(' ')
+      .at(-1) ?? ''
+
+  it('작성 체크 카드는 지역 · 제목 · 본문 · 사진(선택) 순서이고, 팁은 그 아래 짧게 남는다', () => {
+    const { markup } = renderWithQuery(baseProps)
+    const card = markup.slice(markup.indexOf('data-community-editor-checklist'))
+
+    expect(card).toContain('>작성 체크</h2>')
+    const order = ['location', 'title', 'content', 'images'].map(id =>
+      card.indexOf(`data-check-id="${id}"`),
+    )
+    expect(order.every(index => index >= 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    expect(card).toContain('>선택</span>')
+    expect(card.match(/, 남음/g)).toHaveLength(4)
+    expect(card).toContain('필수 3개가 남았어요')
+    expect(card.indexOf('이렇게 쓰면 답이 잘 달려요')).toBeGreaterThan(
+      card.indexOf('필수 3개가 남았어요'),
+    )
+    expect(card.match(/<li>[^<]/g)).toHaveLength(3)
+  })
+
+  it('작성 체크는 ≥1080 에서만 보이고 헤더(64) + 24 에 sticky 다', () => {
+    const { markup, styles } = renderWithQuery(baseProps)
+    const rules = rulesOf(
+      styles,
+      classOfAttr(markup, 'data-community-editor-checklist'),
+    )
+
+    expect(rules).toMatch(/display:none/)
+    expect(styles).toMatch(
+      /@media \(min-width:\s*1080px\)\{\.[\w-]+\{position:sticky;top:88px;display:grid;/,
+    )
+  })
+
+  it('≥480 은 드롭존(문구 · 규칙 한 줄 · n / 5), <480 은 + 타일 — 둘은 CSS 로 갈린다', () => {
+    const { markup, styles } = renderWithQuery(baseProps)
+    const dropzone = classOfAttr(markup, 'data-community-photo-dropzone')
+
+    expect(markup).toMatch(
+      /<button[^>]*data-community-photo-dropzone="true"[^>]*type="button"/,
+    )
+    expect(markup).toContain('사진을 끌어다 놓거나 눌러서 추가해 주세요')
+    const dropzoneMarkup = markup.slice(
+      markup.indexOf('data-community-photo-dropzone'),
+      markup.indexOf('data-community-photo-row'),
+    )
+    expect(dropzoneMarkup).toContain(POST_IMAGE_RULE_TEXT)
+    expect(dropzoneMarkup).toContain('0 / 5')
+    // 이름은 큰 문구, 규칙·장수는 설명이다.
+    expect(markup).toMatch(/aria-labelledby="[^"]*-dropzone-title"/)
+    expect(markup).toMatch(
+      /aria-describedby="[^"]*-dropzone-rule [^"]*-dropzone-count"/,
+    )
+
+    expect(styles).toMatch(new RegExp(`\\.${dropzone}\\{display:none;`))
+    expect(styles).toMatch(
+      new RegExp(
+        `@media \\(min-width:\\s*480px\\)\\{\\.${dropzone}\\{[^}]*border:1px dashed var\\(--color-border-300\\)`,
+      ),
+    )
+    // 드롭존이 썸네일 줄보다 위다.
+    expect(markup.indexOf('data-community-photo-dropzone')).toBeLessThan(
+      markup.indexOf('data-community-photo-row'),
+    )
+    // 사진이 없으면 ≥480 에서 빈 썸네일 줄을 그리지 않는다.
+    expect(markup).toMatch(
+      /data-community-photo-row="true"[^>]*data-empty="true"/,
+    )
+  })
+
+  it('드래그 강조는 primary-700 점선 + primary-100 바탕, 안쪽은 포인터를 받지 않는다', () => {
+    const { markup, styles } = renderWithQuery(baseProps)
+    const dropzone = classOfAttr(markup, 'data-community-photo-dropzone')
+
+    expect(styles).toMatch(
+      new RegExp(
+        `\\.${dropzone}\\[data-drag-active='true'\\]\\{border-color:var\\(--color-primary-700\\);background:var\\(--color-primary-100\\);`,
+      ),
+    )
+    expect(styles).toMatch(
+      new RegExp(`\\.${dropzone}\\s*>\\s*\\*\\{pointer-events:none;\\}`),
+    )
+  })
+
+  it('5장이면 드롭존은 비활성 대신 aria-disabled 로 무엇을 하면 되는지 말한다', () => {
+    const { markup } = renderWithQuery({
+      ...baseProps,
+      initialValue: { ...baseProps.initialValue, images: imagesOf(5) },
+    })
+    const dropzoneTag =
+      markup.match(/<button[^>]*data-community-photo-dropzone[^>]*>/)?.[0] ?? ''
+
+    expect(dropzoneTag).toContain('aria-disabled="true"')
+    expect(dropzoneTag).not.toContain('disabled=""')
+    expect(markup).toContain(
+      '사진은 5장까지예요. 빼고 나서 다시 추가해 주세요.',
+    )
+    expect(markup).not.toContain('사진을 끌어다 놓거나 눌러서 추가해 주세요')
+  })
+
+  it('제목·본문은 커뮤니티 입력칸 조각(안쪽 한 줄 · 글로우 없음 · resize none)을 쓴다', () => {
+    const { styles } = renderWithQuery(baseProps)
+
+    expect(styles).toContain(
+      'box-shadow:inset 0 -1px 0 var(--color-primary-700)',
+    )
+    expect(styles).toContain(
+      'box-shadow:inset 0 0 0 1px var(--color-primary-700)',
+    )
+    expect(styles).not.toMatch(/box-shadow:0 1px 0/)
+    expect(styles).not.toMatch(/resize:(vertical|both)/)
+  })
+})

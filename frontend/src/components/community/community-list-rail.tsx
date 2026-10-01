@@ -50,13 +50,16 @@ const Card = styled.section`
   background: var(--color-surface);
 `
 
+/* 카드 제목은 한 줄 — 긴 지역 이름은 말줄임하고 전체는 title 이 든다(상세 레일 제목과 같은 규칙). */
 const CardTitle = styled.h2`
+  min-width: 0;
+  overflow: hidden;
   color: var(--color-text-900);
   font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
-  overflow-wrap: anywhere;
-  word-break: keep-all;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `
 
 const PopularList = styled.ol`
@@ -181,7 +184,7 @@ export default function CommunityListRail({
     <Rail aria-label="커뮤니티 둘러보기" data-community-list-rail="true">
       {popular && popularPosts.length > 0 ? (
         <Card aria-labelledby="community-list-rail-popular">
-          <CardTitle id="community-list-rail-popular">
+          <CardTitle id="community-list-rail-popular" title={popular.title}>
             {popular.title}
           </CardTitle>
           <PopularList>
@@ -212,7 +215,9 @@ export default function CommunityListRail({
       ) : null}
 
       <Card aria-labelledby="community-list-rail-ask">
-        <CardTitle id="community-list-rail-ask">{askTitle}</CardTitle>
+        <CardTitle id="community-list-rail-ask" title={askTitle}>
+          {askTitle}
+        </CardTitle>
         <AskWriteLink href={writeHref}>글쓰기</AskWriteLink>
       </Card>
 

@@ -86,4 +86,36 @@ test.describe('커뮤니티 불변식', () => {
 
     expect(fullyVisibleRows).toBeGreaterThanOrEqual(3)
   })
+
+  /*
+    셸 푸터 위치(community.md §S4 「다듬기」). 검색어로 결과를 0 으로 만들면 본문이 짧다 — 셸이 최소 한 화면
+    높이의 세로 묶음이라 푸터 아래 끝이 화면 바닥에 붙어야 한다(예전에는 화면 가운데로 올라왔다).
+  */
+  test('빈 목록에서도 푸터는 화면 바닥에 붙는다', async ({ page }) => {
+    await page.goto(
+      mockPath(
+        '/community/list?keyword=%EC%97%86%EB%8A%94%EA%B2%80%EC%83%89%EC%96%B4zz',
+      ),
+      { waitUntil: 'domcontentloaded' },
+    )
+    await expect(page.getByText('검색 결과가 없어요')).toBeVisible()
+
+    const layout = await page.evaluate(() => {
+      const footer = document.querySelector('footer')
+      return {
+        footerBottom: footer
+          ? footer.getBoundingClientRect().bottom + window.scrollY
+          : null,
+        documentHeight: document.documentElement.scrollHeight,
+        innerHeight: window.innerHeight,
+      }
+    })
+
+    expect(layout.footerBottom).not.toBeNull()
+    // 내용이 짧으니 문서는 한 화면이고, 푸터 아래 끝이 그 바닥이다.
+    expect(layout.documentHeight).toBe(layout.innerHeight)
+    expect(
+      Math.abs(layout.footerBottom! - layout.innerHeight),
+    ).toBeLessThanOrEqual(1)
+  })
 })
