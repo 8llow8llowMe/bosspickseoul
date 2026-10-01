@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.request;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.exception.CommunityValidationMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -27,7 +28,7 @@ public record CommunityCommercialComparisonDraftRequest(
     @NotBlank(message = CommunityValidationMessage.SERVICE_CODE_REQUIRED)
     String serviceCode,
 
-    @Schema(description = "기준 분기 코드", example = "20233")
+    @Schema(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE)
     @NotBlank(message = CommunityValidationMessage.PERIOD_CODE_REQUIRED)
     String periodCode
 ) {

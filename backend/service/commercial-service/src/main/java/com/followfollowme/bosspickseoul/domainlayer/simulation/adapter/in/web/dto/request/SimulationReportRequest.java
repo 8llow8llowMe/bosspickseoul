@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.request;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.application.exception.SimulationValidationMessage;
 import com.followfollowme.bosspickseoul.domainlayer.simulation.domain.enums.SimulationFloorType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,7 +38,7 @@ public record SimulationReportRequest(
     @NotNull(message = SimulationValidationMessage.FLOOR_TYPE_REQUIRED)
     SimulationFloorType floorType,
 
-    @Schema(description = "기준 분기 코드 (미지정 시 20233)", example = "20233", nullable = true)
+    @Schema(description = "기준 분기 코드 (미지정 시 " + AnalysisPeriodDefaults.PERIOD_CODE + ")", example = AnalysisPeriodDefaults.PERIOD_CODE, nullable = true)
     @Pattern(regexp = "^\\d{4}[1-4]$", message = SimulationValidationMessage.PERIOD_CODE_PATTERN)
     String periodCode
 ) {

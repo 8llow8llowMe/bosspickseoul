@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.simulation.adapter.in.web.dto.item;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -36,7 +37,7 @@ public record SimulationConditionItem(
         example = "{\"code\":\"FIRST_FLOOR\",\"name\":\"1층\",\"description\":\"1층 매장 기준 임대료를 적용합니다.\"}")
     CodeNameDescriptionMetadata floorType,
 
-    @Schema(description = "기준 분기 코드", example = "20233")
+    @Schema(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE)
     String periodCode
 ) {
 

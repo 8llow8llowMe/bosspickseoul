@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.common.dto.metadata.ScoreMetricMetadata;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialHeatmapScoreItem;
@@ -17,7 +18,7 @@ public record CommercialHeatmapScoresResponse(
     @Schema(description = "서비스 코드", example = "CS100001")
     String serviceCode,
 
-    @Schema(description = "기준 분기 코드", example = "20233")
+    @Schema(description = "기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE)
     String periodCode,
 
     @Schema(description = "단일 지표 메타데이터", nullable = true)

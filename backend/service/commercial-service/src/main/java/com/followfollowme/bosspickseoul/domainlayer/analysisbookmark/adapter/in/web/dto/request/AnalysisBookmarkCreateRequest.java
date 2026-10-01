@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.adapter.in.web.dto.request;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.domainlayer.analysisbookmark.application.exception.AnalysisBookmarkValidationMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -18,7 +19,7 @@ public record AnalysisBookmarkCreateRequest(
     String shareType,
 
     @Schema(description = "화면 진입 상태 payload (공유 링크와 동일한 JSON 객체)",
-        example = "{\"commercialCode\": \"3110008\", \"serviceCode\": \"CS100001\", \"periodCode\": \"20233\"}")
+        example = "{\"commercialCode\": \"3110008\", \"serviceCode\": \"CS100001\", \"periodCode\": \"" + AnalysisPeriodDefaults.PERIOD_CODE + "\"}")
     @NotNull(message = AnalysisBookmarkValidationMessage.PAYLOAD_REQUIRED)
     JsonNode payload,
 

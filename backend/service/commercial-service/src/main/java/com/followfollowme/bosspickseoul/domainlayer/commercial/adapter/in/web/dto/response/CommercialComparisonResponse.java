@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialComparisonTargetItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.ComparisonGuideItem;
@@ -18,7 +19,7 @@ public record CommercialComparisonResponse(
     @Schema(description = "우측 상권 메타 정보")
     CommercialComparisonTargetItem right,
 
-    @Schema(description = "조회 기준 분기 코드", example = "20233")
+    @Schema(description = "조회 기준 분기 코드", example = AnalysisPeriodDefaults.PERIOD_CODE)
     String periodCode,
 
     @Schema(description = "조회 기준 서비스 업종 코드")
