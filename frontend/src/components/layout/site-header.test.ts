@@ -92,6 +92,33 @@ describe('SiteHeader — 헤더 폭은 모든 화면에서 같다', () => {
   })
 })
 
+/*
+  목록 숨는 헤더(community.md §S4 「숨는 헤더」, CM-043). 헤더를 위로 올리는 규칙은 <480 이고
+  목록이 켜는 <html> 속성 아래에만 있어야 한다 — 다른 화면 헤더는 늘 그대로다.
+*/
+describe('SiteHeader — 목록 숨는 헤더 규칙', () => {
+  it('translateY 규칙은 <480 미디어와 목록 속성 선택자 안에만 있다', () => {
+    const css = renderStyles('/analysis')
+    const rule = css.match(
+      /@media \(max-width:\s*479px\)\{html\[data-community-header-hidden='true'\]:not\(:has\(\[data-site-header\]\[data-menu-open='true'\],\s*\[data-site-header\]:focus-within\)\) \.[\w-]+\{transform:translateY\(-100%\);\}\}/,
+    )
+
+    expect(rule).not.toBeNull()
+    // 속성 없는 transform 선언은 없다 — 다른 화면 헤더는 움직이지 않는다.
+    expect(css.match(/transform:translateY\(-100%\)/g)).toHaveLength(1)
+  })
+
+  it('라우트가 달라도 헤더 CSS 가 같다 — 숨김은 경로가 아니라 목록이 켠 속성이 정한다', () => {
+    expect(renderStyles('/community/list')).toBe(renderStyles('/analysis'))
+  })
+
+  it('움직임 줄이기에서는 전환 없이 바뀐다', () => {
+    expect(renderStyles('/')).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\{\.[\w-]+\{transition:none;\}\}/,
+    )
+  })
+})
+
 describe('SiteHeader — 전역 내비', () => {
   const renderMarkup = (pathname: string): string => {
     pathnameBox.current = pathname

@@ -19,6 +19,10 @@ import {
   clearCommunityStoredDrafts,
   getBrowserLocalStorage,
 } from '@/lib/community/editor-draft'
+import {
+  COMMUNITY_HEADER_HIDDEN_SELECTOR,
+  SITE_HEADER_MENU_OPEN_ATTRIBUTE,
+} from '@/lib/community/hidden-header'
 import { clearMemberInfoQuery } from '@/lib/member-info-query'
 import { clearMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
@@ -37,7 +41,23 @@ const Header = styled.header<{ $isScrolled: boolean }>`
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-standard) var(--ease-standard);
+
+  /*
+    커뮤니티 목록 숨는 헤더(community.md §S4 「숨는 헤더」). 목록이 <html> 에 켠 속성을 읽기만
+    한다 — 헤더는 그 속성을 쓰지 않으므로 다른 화면에서는 이 규칙이 걸리지 않는다. 메뉴 패널이
+    열렸거나 헤더 안에 포커스가 있으면 선택자가 빠진다(lib/community/hidden-header.ts).
+  */
+  @media (max-width: 479px) {
+    ${COMMUNITY_HEADER_HIDDEN_SELECTOR} & {
+      transform: translateY(-100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `
 
 /*
@@ -503,7 +523,11 @@ export default function SiteHeader() {
   const avatarLabel = memberInfo?.nickname?.slice(0, 1) ?? 'N'
 
   return (
-    <Header $isScrolled={isScrolled} data-site-header>
+    <Header
+      $isScrolled={isScrolled}
+      data-site-header
+      {...(isMobileOpen ? { [SITE_HEADER_MENU_OPEN_ATTRIBUTE]: 'true' } : {})}
+    >
       <Inner ref={innerRef}>
         <Brand
           href="/"
