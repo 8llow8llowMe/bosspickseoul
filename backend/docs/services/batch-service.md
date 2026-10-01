@@ -248,7 +248,7 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 | 언제 도나 | 매일 05:00 KST (`0 0 5 * * ?`). misfire 는 버린다 — 낮에 재기동하면 다음날 05:00 |
 | 한 run 에 몇 분기 | 데이터셋당 최대 1분기(`max-quarters-per-run`). 상시 컨테이너 메모리 512m 을 지키려는 값이다 |
 | API 한도 | run 당 600회(`max-api-calls-per-run`). 키당 하루 1,000회라 수동 CLI 몫을 남긴다 |
-| 화면 기본 분기 | 바꾸지 않는다(`AnalysisPeriodDefaults`, FE `selection.ts` 는 별도 이슈) |
+| 화면 기본 분기 | 이 Job 은 건드리지 않는다. 게시·이관이 끝나면 commercial-service 가 팩트 테이블로 기본 분기를 다시 계산한다(이슈 #464, 인스턴스 캐시 최대 5분, `GET /api/v1/commercials/periods`). `AnalysisPeriodDefaults` 는 Swagger 예시 전용이 됐고, FE `selection.ts` 상수 제거는 FE 후속 |
 
 ### DataSource
 
@@ -274,7 +274,7 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 1. 게시 분기가 없으면 건너뛴다 — `NO_BASELINE` (첫 분기는 수동 CLI)
 2. 최근 실패 후 7일(`failure-cooldown-days`) 안이면 재이관까지 포함해 아무것도 하지 않는다 — `COOLDOWN`. 매일 실패하는 무거운 이관을 매일 다시 돌리지 않는다
 3. 재이관: 게시돼 있는데 typed 행 수가 `accepted_count` 와 다른 슬롯(coverage.sql 5절 판정)을 새 분기보다 먼저 이관한다 — `PROJECTED` / publish=false 면 dry-run 이관 `WOULD_PROJECT`. `automation-from`(기본 `20234`) 이전 슬롯은 보지 않는다(20211~20233 은 레거시 행이 이관 없이 이미 있다). publish=false 의 dry-run 재이관은 (데이터셋, 분기)마다 한 번이다(`last_reproject_dry_run_period` 보다 늦은 슬롯만). 성공하면 연속 실패를 끊고, 실패하면 `FAILED` 로 쿨다운에 들어간다
-4. 후보 = 마지막 게시 분기 다음. 후보가 `automation-from`(기본 `20234`) 앞이면 API 를 부르지 않고 건너뛴다 — `BELOW_AUTOMATION_FLOOR` (마지막 게시가 20232 이하인 데이터셋. 다음 분기가 레거시라 자동 게시가 `legacy-20233` 행을 덮는다. 수동 백필 대상). 원천이 끊긴 데이터셋(`CONSUMPTION_COMMERCIAL`, 20234 까지)은 API 를 부르지 않는다 — `DISCONTINUED`. 재이관이 데이터셋당 분기 상한(`max-quarters-per-run`)을 다 썼으면 — `BUDGET`
+4. 후보 = 마지막 게시 분기 다음. 후보가 `automation-from`(기본 `20234`) 앞이면 API 를 부르지 않고 건너뛴다 — `BELOW_AUTOMATION_FLOOR` (마지막 게시가 20232 이하인 데이터셋. 다음 분기가 레거시라 자동 게시가 `legacy-20233` 행을 덮는다. 수동 백필 대상). 원천이 끊긴 데이터셋(`CONSUMPTION_COMMERCIAL`, 20234 까지 — 상한은 공유 `DatasetKey.lastPublishablePeriodCode()`, 사유는 `Dataset` 이 보유)은 API 를 부르지 않는다 — `DISCONTINUED`. 재이관이 데이터셋당 분기 상한(`max-quarters-per-run`)을 다 썼으면 — `BUDGET`
 5. 탐지: `/1/1/<후보>` 한 번(재시도도 예산에서 뺀다). 분기 인자를 존중하는 6종은 행이 없으면 `NOT_PUBLISHED_YET`. 무시하는 9종은 전 기간 합계가 지난번과 같고 새로 볼 분기가 없으면 `UNCHANGED`
 6. 받을 페이지 수(`ceil(total/1000)`)가 남은 예산보다 크면 — `BUDGET`
 7. 수집: 전 페이지를 `page-<start>.json` 으로 보관하고 분기별로 센다(`acquire`). 페이지마다(재시도 포함) run 예산(`ApiCallBudget`)을 쓰고, 탐지 뒤 합계가 늘어 예산을 넘기면 받다 만 페이지를 버리고 `BUDGET`(실패·쿨다운 아님). 보관본 위치는 게시 판단 전에 `last_fetch_run_id` / `last_fetch_raw_location` 에 남긴다. 무시하는 9종은 마지막 게시 분기보다 늦은 분기를 오름차순으로, 재이관과 합쳐 분기 상한까지 고른다
