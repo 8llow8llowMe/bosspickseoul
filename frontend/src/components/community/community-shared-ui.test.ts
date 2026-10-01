@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
@@ -5,15 +6,9 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import CommunityFeedback from './community-feedback'
 import {
-  COMMUNITY_LOCATION_RETRY_MIN_HEIGHT,
-  createCommunityLocationSyncState,
   getCommunityLocationDisplayName,
   readCommunityLocationOptions,
-  reduceCommunityLocationSyncState,
-  resolveCommunityLocationValue,
-  serializeCommunityLocationIdentity,
-  type CommunityLocationSelections,
-} from './community-location-picker'
+} from '@/lib/community/community-location'
 import CommunityReportDialog, {
   getDialogFocusTargetIndex,
   validateCommunityReportReason,
@@ -88,206 +83,22 @@ describe('CommunityFeedback', () => {
   })
 })
 
-describe('resolveCommunityLocationValue', () => {
-  const selections: CommunityLocationSelections = {
-    district: { code: '11680', name: '강남구' },
-    administration: { code: '1168064000', name: '역삼1동' },
-    commercial: { code: '3110008', name: '강남역 상권' },
-  }
-
-  it('resolves Seoul to no target', () => {
-    expect(resolveCommunityLocationValue('none', selections)).toEqual({})
-  })
-
-  it('resolves a district and drops its descendants', () => {
-    expect(resolveCommunityLocationValue('district', selections)).toEqual({
-      targetType: 'DISTRICT',
-      targetCode: '11680',
-      targetName: '강남구',
-    })
-  })
-
-  it('resolves an administration and ignores the selected commercial', () => {
-    expect(resolveCommunityLocationValue('administration', selections)).toEqual(
-      {
-        targetType: 'ADMINISTRATION',
-        targetCode: '1168064000',
-        targetName: '역삼1동',
-      },
-    )
-  })
-
-  it('resolves a commercial', () => {
-    expect(resolveCommunityLocationValue('commercial', selections)).toEqual({
-      targetType: 'COMMERCIAL',
-      targetCode: '3110008',
-      targetName: '강남역 상권',
-    })
-  })
-
-  it('returns no target when the requested selection is missing', () => {
+describe('getCommunityLocationDisplayName', () => {
+  it('prefers the name, then the code, then 서울 전체', () => {
     expect(
-      resolveCommunityLocationValue('commercial', {
-        district: selections.district,
-        administration: selections.administration,
+      getCommunityLocationDisplayName({
+        targetType: 'DISTRICT',
+        targetCode: '11680',
+        targetName: '강남구',
       }),
-    ).toEqual({})
-  })
-})
-
-describe('community location controlled state', () => {
-  const districtValue = {
-    targetType: 'DISTRICT' as const,
-    targetCode: '11680',
-    targetName: '강남구',
-  }
-  const administrationValue = {
-    targetType: 'ADMINISTRATION' as const,
-    targetCode: '1168064000',
-    targetName: '역삼1동',
-  }
-  const commercialValue = {
-    targetType: 'COMMERCIAL' as const,
-    targetCode: '3110008',
-    targetName: '강남역 상권',
-  }
-  const districtSelections: CommunityLocationSelections = {
-    district: { code: '11680', name: '강남구' },
-  }
-  const administrationSelections: CommunityLocationSelections = {
-    ...districtSelections,
-    administration: { code: '1168064000', name: '역삼1동' },
-  }
-  const commercialSelections: CommunityLocationSelections = {
-    ...administrationSelections,
-    commercial: { code: '3110008', name: '강남역 상권' },
-  }
-
-  it('stays editing through district, administration, and commercial echoes', () => {
-    let state = createCommunityLocationSyncState({})
-
-    expect(state.isChanging).toBe(true)
-
-    const steps = [
-      [districtValue, districtSelections],
-      [administrationValue, administrationSelections],
-      [commercialValue, commercialSelections],
-    ] as const
-
-    for (const [value, selections] of steps) {
-      state = reduceCommunityLocationSyncState(state, {
-        type: 'draft',
-        selections,
-      })
-      const emittedValueKey = serializeCommunityLocationIdentity(value)
-      state = reduceCommunityLocationSyncState(state, {
-        type: 'external',
-        valueKey: emittedValueKey,
-        isEmpty: false,
-        lastEmittedValueKey: emittedValueKey,
-      })
-
-      expect(state.isChanging).toBe(true)
-      expect(state.selections).toEqual(selections)
-    }
-  })
-
-  it('collapses for an external replacement and reopens with a cleared draft', () => {
-    let state = createCommunityLocationSyncState(districtValue)
-
-    expect(state.isChanging).toBe(false)
-
-    state = reduceCommunityLocationSyncState(state, {
-      type: 'external',
-      valueKey: serializeCommunityLocationIdentity({
-        targetType: 'COMMERCIAL',
-        targetCode: '3999999',
-        targetName: '외부 상권',
-      }),
-      isEmpty: false,
-      lastEmittedValueKey: null,
-    })
-
-    expect(state).toMatchObject({
-      isChanging: false,
-      selections: {},
-    })
-
-    state = reduceCommunityLocationSyncState(state, {
-      type: 'external',
-      valueKey: serializeCommunityLocationIdentity({}),
-      isEmpty: true,
-      lastEmittedValueKey: null,
-    })
-
-    expect(state).toMatchObject({
-      isChanging: true,
-      selections: {},
-    })
-  })
-
-  it('does not mistake a different external value for an echo', () => {
-    const state = reduceCommunityLocationSyncState(
-      createCommunityLocationSyncState({}),
-      {
-        type: 'external',
-        valueKey: serializeCommunityLocationIdentity({
-          targetType: 'COMMERCIAL',
-          targetCode: '3999999',
-          targetName: '외부 상권',
-        }),
-        isEmpty: false,
-        lastEmittedValueKey: serializeCommunityLocationIdentity(districtValue),
-      },
-    )
-
-    expect(state.isChanging).toBe(false)
-    expect(state.selections).toEqual({})
-  })
-
-  it('preserves the draft when a parent echo omits the emitted target name', () => {
-    let state = createCommunityLocationSyncState({})
-    state = reduceCommunityLocationSyncState(state, {
-      type: 'draft',
-      selections: districtSelections,
-    })
-    const emittedIdentityKey = serializeCommunityLocationIdentity(districtValue)
-
-    state = reduceCommunityLocationSyncState(state, {
-      type: 'external',
-      valueKey: serializeCommunityLocationIdentity({
+    ).toBe('강남구')
+    expect(
+      getCommunityLocationDisplayName({
         targetType: 'DISTRICT',
         targetCode: '11680',
       }),
-      isEmpty: false,
-      lastEmittedValueKey: emittedIdentityKey,
-    })
-
-    expect(state.isChanging).toBe(true)
-    expect(state.selections).toEqual(districtSelections)
-  })
-
-  it('updates display copy without resetting a same-identity draft', () => {
-    let state = createCommunityLocationSyncState(districtValue)
-    state = reduceCommunityLocationSyncState(state, {
-      type: 'start-change',
-    })
-    const renamedValue = {
-      ...districtValue,
-      targetName: '새 강남구 표시명',
-    }
-
-    const nextState = reduceCommunityLocationSyncState(state, {
-      type: 'external',
-      valueKey: serializeCommunityLocationIdentity(renamedValue),
-      isEmpty: false,
-      lastEmittedValueKey: null,
-    })
-
-    expect(nextState).toBe(state)
-    expect(getCommunityLocationDisplayName(renamedValue)).toBe(
-      '새 강남구 표시명',
-    )
+    ).toBe('11680')
+    expect(getCommunityLocationDisplayName({})).toBe('서울 전체')
   })
 })
 
@@ -373,6 +184,79 @@ describe('CommunityReportDialog', () => {
     expect(markup).toContain('댓글 신고')
     expect(markup).toContain('disabled=""')
     expect(markup).toContain('신고 중')
+    // 사유 라디오·상세 입력을 fieldset 하나로 묶어 함께 잠근다.
+    expect(markup).toMatch(/<fieldset[^>]*disabled=""/)
+  })
+
+  it('groups five reason radios under a 신고 사유 legend (community.md §S4 신고 다이얼로그)', () => {
+    const markup = render(CommunityReportDialog, baseProps)
+
+    expect(markup).toMatch(/<fieldset[^>]*>\s*<legend[^>]*>신고 사유<\/legend>/)
+    const legendId = /<legend[^>]*id="([^"]+)"/.exec(markup)?.[1]
+    expect(legendId).toBeTruthy()
+    expect(markup).toMatch(
+      new RegExp(
+        `<fieldset(?=[^>]*role="radiogroup")(?=[^>]*aria-labelledby="${legendId}")`,
+      ),
+    )
+    const radios = Array.from(markup.matchAll(/<input[^>]*type="radio"[^>]*>/g))
+    expect(radios).toHaveLength(5)
+    const names = new Set(
+      radios.map(([tag]) => /name="([^"]+)"/.exec(tag)?.[1] ?? ''),
+    )
+    expect(names.size).toBe(1)
+    expect(Array.from(names)[0]).not.toBe('')
+    expect(radios.some(([tag]) => tag.includes('checked'))).toBe(false)
+    for (const label of [
+      '스팸·홍보',
+      '욕설·비방',
+      '개인정보 노출',
+      '거짓 정보',
+      '기타',
+    ]) {
+      expect(markup).toContain(`value="${label}"`)
+      expect(markup).toContain(`>${label}</span>`)
+    }
+  })
+
+  it('labels the detail field as optional until 기타 is chosen', () => {
+    const markup = render(CommunityReportDialog, baseProps)
+
+    expect(markup).toMatch(/<label[^>]*>자세한 내용\(선택\)<\/label>/)
+    expect(markup).not.toMatch(/<textarea[^>]*aria-required/)
+  })
+})
+
+describe('CommunityReportDialog source contracts', () => {
+  const source = readFileSync(
+    new URL('./community-report-dialog.tsx', import.meta.url),
+    'utf8',
+  )
+
+  it('레거시 640·760·768 분기 대신 479/480 을 쓴다', () => {
+    expect(source).not.toMatch(/(max|min)-width:\s*(640|760|768)px/)
+    expect(source).toContain('@media (max-width: 479px)')
+  })
+
+  /* 입력칸(styled.textarea)만 테두리형 포커스로 전역 링을 끈다(DESIGN.md §4 「Focus is one line」). */
+  it('입력칸이 아닌 포커스 블록은 전역 링을 끄지 않고 글로우도 쓰지 않는다', () => {
+    const withoutFields = source.replace(
+      /styled\.textarea(?:<[^>`]*>)?`[^`]*`/g,
+      '',
+    )
+    expect(withoutFields).not.toBe(source)
+    const focusBlocks = Array.from(
+      withoutFields.matchAll(/:focus-visible[^{]*\{([^}]*)\}/g),
+    ).map(match => match[1] ?? '')
+
+    expect(
+      focusBlocks.filter(body => /outline\s*:\s*(none|0)\b/.test(body)),
+    ).toEqual([])
+    expect(withoutFields).not.toContain('--shadow-focus-primary')
+  })
+
+  it('파란 글자에 primary-700 대신 text-primary-on-light 를 쓴다', () => {
+    expect(source).not.toMatch(/(?<![-\w])color:\s*var\(--color-primary-700\)/)
   })
 })
 
@@ -415,10 +299,6 @@ describe('validateCommunityReportReason', () => {
 })
 
 describe('community shared UI style contracts', () => {
-  it('keeps location retry controls at least 48px tall', () => {
-    expect(COMMUNITY_LOCATION_RETRY_MIN_HEIGHT).toBe('48px')
-  })
-
   it('server-renders theme surface and overlay tokens without literal colors', () => {
     const feedback = renderWithStyles(CommunityFeedback, {
       kind: 'error',
