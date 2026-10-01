@@ -11,6 +11,7 @@ import SimulationChoiceGrid from '@/components/simulation/simulation-choice-grid
 import SimulationChoiceSearch from '@/components/simulation/simulation-choice-search'
 import SimulationConditionSectionCard from '@/components/simulation/simulation-condition-section'
 import SimulationResultPanel from '@/components/simulation/simulation-result-panel'
+import SimulationSavedResultsLink from '@/components/simulation/simulation-saved-results-link'
 import SimulationServicePicker from '@/components/simulation/simulation-service-picker'
 import SimulationStoreConditionFields from '@/components/simulation/simulation-store-condition-fields'
 import SimulationSummaryBar from '@/components/simulation/simulation-summary-bar'
@@ -39,6 +40,7 @@ import {
   type SimulationConditionSection,
   type StoreSizeUnit,
 } from '@/lib/simulation/conditions'
+import { buildSimulationCompareHref } from '@/lib/simulation/compare-route'
 import { simulationReportQueryKey } from '@/lib/simulation/report-query'
 import {
   buildSimulationReportHref,
@@ -71,14 +73,33 @@ const Page = styled.main`
   }
 `
 
+/* 2단 트랙. Layout 과 본문 묶음 상한이 같은 값을 써야 헤더·컨텍스트 카드 오른쪽 끝이 결과 패널과 맞는다. */
+const RESULT_COLUMN_WIDTH = '360px'
+const COLUMN_GAP = '20px'
+
+/*
+  셸은 그대로 두고(DESIGN §5), 그 안의 본문 묶음(헤더·분석 컨텍스트 카드·2단)을 2단 트랙 합에서
+  멈춘다. 조건 열만 멈추면 grid 자식인 헤더와 컨텍스트 카드는 셸 끝까지 늘어 「저장한 결과」가
+  결과 패널보다 620px(1920) 오른쪽 빈자리에 떴다. 왼쪽 정렬이라 사이트 헤더와 왼쪽 기준선은 같다.
+*/
 const Container = styled.div`
   ${shellWidth}
   display: grid;
   gap: 16px;
+
+  > * {
+    max-width: calc(var(--w-form) + ${COLUMN_GAP} + ${RESULT_COLUMN_WIDTH});
+  }
 `
 
 /* 3층 문구(eyebrow+H1+설명)를 한 줄로 눌렀다. 매 화면 같은 문구가 상단을 다 먹지 않게. */
+/*
+  min-height 40px 는 「저장한 결과」(medium 버튼 40px) 자리다. 링크는 세션 복원 뒤에야 그려지는데,
+  h1 줄(32px)만 잡아 두면 그때 헤더가 8px 커지며 조건 섹션 전체가 밀린다. 링크가 다음 줄로
+  감기는 좁은 폭에서는 이 값으로 막지 못한다 — 그 폭은 세션 복원이 첫 조작보다 먼저 끝난다.
+*/
 const Head = styled.header`
+  min-height: 40px;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -107,12 +128,17 @@ const Head = styled.header`
  * 단일 화면이라 세로로 쌓을 이유가 없다 — 오른쪽 컬럼이 sticky로 붙어 있으면 조건을 고치는
  * 동안에도 남은 조건과 금액이 항상 보인다. 1023px 이하에서는 1단으로 접고 하단 요약 바가
  * 그 역할을 대신한다.
+ *
+ * 조건 열은 `--w-form`(880)에서 멈춘다. 셸에는 상한이 없어(DESIGN §5) 1fr 그대로면 1440 에서
+ * 1,020px, 1920 에서 1,500px 까지 늘었고, 계산 뒤 접힌 헤더 줄의 값과 오른쪽 답이 그만큼
+ * 멀어졌다. 결과 열은 조건 열 바로 옆에 붙이고 남는 폭은 오른쪽 끝에 둔다 — 결과를 셸 오른쪽
+ * 끝에 붙이면 둘 사이가 다시 벌어진다.
  */
 const Layout = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, var(--w-form)) ${RESULT_COLUMN_WIDTH};
   align-items: start;
-  gap: 20px;
+  gap: ${COLUMN_GAP};
 
   @media ${SIMULATION_MEDIA.belowDesktop} {
     grid-template-columns: minmax(0, 1fr);
@@ -318,6 +344,14 @@ export default function SimulationBuilderPage({
           conditions.state.brandName,
         )
       : null
+  // 리포트 화면의 「비교에 추가」와 같은 링크다 — 이 조건을 A 에, B 는 빈 편집기로.
+  const compareHref =
+    currentReport && reportMutation.variables
+      ? buildSimulationCompareHref(
+          { left: reportMutation.variables, right: null },
+          variant,
+        )
+      : null
 
   const resultRef = useRef<HTMLDivElement | null>(null)
 
@@ -389,6 +423,7 @@ export default function SimulationBuilderPage({
         <Head>
           <h1>창업 시뮬레이션</h1>
           <p>차례대로 고르면 예상 창업 비용을 바로 계산해 드려요</p>
+          <SimulationSavedResultsLink />
         </Head>
 
         {context ? (
@@ -597,6 +632,7 @@ export default function SimulationBuilderPage({
               progress={progress}
               report={currentReport}
               reportHref={reportHref}
+              compareHref={compareHref}
               error={currentError}
               isPending={reportMutation.isPending}
               onCalculate={calculate}

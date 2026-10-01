@@ -1,12 +1,18 @@
 'use client'
 
-import { ArrowRight, Info } from 'lucide-react'
+import { ArrowRight, Info, Scale } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Badge } from '@/components/ui/badge'
 import { ButtonLink } from '@/components/ui/button'
+import { toDonutSlices } from '@/lib/analysis/chart-data'
 import { formatLargeWon } from '@/lib/format'
 import { formatStoreSize } from '@/lib/simulation/conditions'
+import {
+  COST_COLORS,
+  describeCostRounding,
+  toCostBreakdown,
+} from '@/lib/simulation/report-presentation'
 import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
@@ -15,6 +21,8 @@ export type SimulationResultPreviewProps = {
   report: SimulationReport
   /** 상세 리포트 경로. 호출부가 variant 를 알고 있으므로 여기서 만들지 않는다. */
   reportHref: string
+  /** 이 조건을 A 에 채운 비교 경로. 같은 이유로 호출부가 만든다. */
+  compareHref: string
 }
 
 /* 카드 테두리·그림자는 감싸는 결과 패널이 갖는다 — 카드 안에 카드를 겹치지 않는다. */
@@ -98,6 +106,88 @@ const Conditions = styled.dl`
   }
 `
 
+/*
+  비용 구성 행. 리포트 비용 구성(`simulation-cost-breakdown.tsx`)의 축약판이다 — 행 설명·도넛·
+  합계 행은 뺐다. 합계는 바로 위 헤드라인이 맡는다. 360px 열이라 라벨과 금액을 한 줄에 둔다.
+*/
+const Breakdown = styled.div`
+  display: grid;
+  gap: 6px;
+`
+
+const CostRows = styled.dl`
+  display: grid;
+
+  > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+  }
+
+  dt {
+    min-width: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--color-text-700);
+    font-size: 13px;
+    line-height: 20px;
+    word-break: keep-all;
+  }
+
+  dd {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+`
+
+/* 색 점은 리포트 도넛과 같은 항목 색이다 — 카드에서 본 색이 리포트에서도 같은 항목을 가리킨다. */
+const Swatch = styled.i<{ $color: string }>`
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+  background: ${props => props.$color};
+`
+
+const CostAmount = styled.strong`
+  color: var(--color-text-900);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 22px;
+`
+
+/* 「100%」가 와도 줄이 흔들리지 않게 폭을 고정한다. */
+const CostShare = styled.span`
+  min-width: 3.5em;
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+`
+
+const Footnote = styled.p`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: keep-all;
+`
+
+/* ButtonLink 는 내용 폭으로 줄어든다. 패널의 「계산하기」와 같은 자리·같은 폭으로 둔다. */
+const Actions = styled.div`
+  display: grid;
+  gap: 8px;
+
+  > a {
+    width: 100%;
+  }
+`
+
 const Notice = styled.p`
   display: flex;
   align-items: flex-start;
@@ -121,20 +211,29 @@ const Notice = styled.p`
 `
 
 /**
- * 계산 결과 **최소 렌더**.
+ * 계산 결과 **요약 카드**.
  *
- * 이 미리보기는 총 창업 비용·조건 요약·기준 연도까지만 보여주고, 상세 리포트로 가는
- * CTA 를 준다. 비용 구성·권리금·유사 프랜차이즈·성별연령·성수기는 리포트 화면
- * (`/simulation/report`)의 몫이라 여기서 미리 그리지 않는다 — 두 곳에서 같은 값을
- * 다르게 표기하는 사고를 막기 위해서다.
+ * 총 창업 비용 · 비용 구성 행 · 조건 요약 · 기준 연도까지 보여주고, 다음 행동 두 개
+ * (`상세 리포트 보기` · `다른 조건과 비교`)를 준다. 계산 직후 사용자가 보는 것은 리포트가
+ * 아니라 이 카드라, 총액만 두면 「무엇이 이만큼인가」를 알려고 화면을 옮겨야 했다(B8).
+ *
+ * 비용 구성은 리포트와 **같은 함수**로 그린다 — 행은 `toCostBreakdown`, 비중은 도넛과 같은
+ * `toDonutSlices`, 색은 `COST_COLORS`. 두 곳이 같은 값을 다르게 반올림하면 어느 쪽이 맞는지
+ * 사용자가 알 수 없다. 셋 다 `lib` 에서 가져온다 — 도넛·리포트 컴포넌트 모듈을 import 하면
+ * recharts 가 입력 화면 첫 로드에 딸려 온다. 권리금·유사 프랜차이즈·성별연령·성수기는 여전히 리포트 몫이다.
  *
  * 금액 단위는 **만원**이다. `formatLargeWon`이 만원 단위 입력을 "N억 M만원"으로 바꾼다.
  */
 export default function SimulationResultPreview({
   report,
   reportHref,
+  compareHref,
 }: SimulationResultPreviewProps) {
   const { condition } = report
+  const costRows = toCostBreakdown(report)
+  const slices = toDonutSlices(
+    costRows.map(row => ({ label: row.label, value: row.amount })),
+  )
 
   return (
     <Root>
@@ -147,6 +246,25 @@ export default function SimulationResultPreview({
           </Badge>
         </Tags>
       </Head>
+
+      {/* 금액·비중 사이 {' '} 는 낭독용이다. 붙이면 「300만원3%」로 이어 읽힌다. */}
+      <Breakdown>
+        <CostRows>
+          {costRows.map((row, index) => (
+            <div key={row.key}>
+              <dt>
+                <Swatch $color={COST_COLORS[row.key]} aria-hidden="true" />
+                {row.label}
+              </dt>
+              <dd>
+                <CostAmount>{formatLargeWon(row.amount)}</CostAmount>{' '}
+                <CostShare>{slices[index]?.percent ?? 0}%</CostShare>
+              </dd>
+            </div>
+          ))}
+        </CostRows>
+        <Footnote>{describeCostRounding(report)}</Footnote>
+      </Breakdown>
 
       <Conditions>
         <div>
@@ -178,9 +296,20 @@ export default function SimulationResultPreview({
         <span>{formatDataBaseYearNotice(report.dataBaseYear)}</span>
       </Notice>
 
-      <ButtonLink href={reportHref} size="large" rightIcon={<ArrowRight />}>
-        상세 리포트 보기
-      </ButtonLink>
+      <Actions>
+        <ButtonLink href={reportHref} size="large" rightIcon={<ArrowRight />}>
+          상세 리포트 보기
+        </ButtonLink>
+        {/* 이 조건을 A 에 채운 비교 화면을 연다. B 는 빈 편집기로 열린다. */}
+        <ButtonLink
+          href={compareHref}
+          size="large"
+          variant="secondary"
+          leftIcon={<Scale />}
+        >
+          다른 조건과 비교
+        </ButtonLink>
+      </Actions>
     </Root>
   )
 }
