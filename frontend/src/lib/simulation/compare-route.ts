@@ -19,9 +19,11 @@ import {
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
 import {
+  isSameSimulationReportRequest,
   toSimulationReportRequest,
   type SimulationConditionState,
 } from '@/lib/simulation/conditions'
+import type { SimulationPairSide } from '@/lib/api/simulation'
 import type { SimulationReportRequest } from '@/types/simulation'
 
 type SearchParamsReader = { get(name: string): string | null }
@@ -54,21 +56,30 @@ const COMPARE_PATH: Record<SimulationReportVariant, string> = {
 export const buildSimulationCompareHref = (
   pair: SimulationCompareRequestPair,
   variant: SimulationReportVariant = 'standalone',
+  /**
+   * 브랜드명 — **표시 전용으로만 덧실린다**(리포트 경로의 `brandName` 과 같은 규칙). 요청 파싱도
+   * 캐시 키도 보지 않는다. 없으면 비교 편집기는 고른 브랜드를 `id` 로만 알아 접힌 줄에 이름을
+   * 쓸 수 없다(C1).
+   */
+  brandNames: { left?: string | null; right?: string | null } = {},
 ): string => {
   const params = new URLSearchParams()
 
   const append = (
     request: SimulationReportRequest | null,
     prefix: string,
+    brandName: string | null | undefined,
   ): void => {
     if (!request) return
     toSimulationReportSearchParams(request, prefix).forEach((value, key) => {
       params.set(key, value)
     })
+    const trimmed = brandName?.trim()
+    if (request.franchisee && trimmed) params.set(`${prefix}brandName`, trimmed)
   }
 
-  append(pair.left, SIMULATION_COMPARE_PREFIX.left)
-  append(pair.right, SIMULATION_COMPARE_PREFIX.right)
+  append(pair.left, SIMULATION_COMPARE_PREFIX.left, brandNames.left)
+  append(pair.right, SIMULATION_COMPARE_PREFIX.right, brandNames.right)
 
   const query = params.toString()
   return query ? `${COMPARE_PATH[variant]}?${query}` : COMPARE_PATH[variant]
@@ -105,4 +116,30 @@ export const parseSimulationComparePair = (
     left: toSimulationReportRequest(pair.left),
     right: toSimulationReportRequest(pair.right),
   }
+}
+
+/**
+ * 두 요청 쌍이 **같은 계산**인가. 좌우 모두 같아야 한다. 표시용 `brandName` 은 보지 않는다
+ * (`isSameSimulationReportRequest` 가 요청 필드만 본다) — 이름만 달라도 결과는 같다.
+ *
+ * 비교 화면은 이것으로 ① 결과가 지금 편집기 조건의 결과인지(무효화, C2) ② `비교하기` 가 새 계산인지
+ * 같은 계산의 재시도인지를 가른다. href 문자열로 견주면 brandName 만 달라도 「다른 조건」이 돼,
+ * 캐시를 집어 아무 일도 일어나지 않는 버튼이 된다.
+ */
+export const isSameSimulationComparePair = (
+  a: SimulationCompareRequestPair,
+  b: SimulationCompareRequestPair,
+): boolean =>
+  isSameSimulationReportRequest(a.left, b.left) &&
+  isSameSimulationReportRequest(a.right, b.right)
+
+/** 좌우 실패 여부 → 실패한 쪽. 둘 다 아니면 null. */
+export const resolveSimulationPairFailedSide = (
+  leftFailed: boolean,
+  rightFailed: boolean,
+): SimulationPairSide | null => {
+  if (leftFailed && rightFailed) return 'both'
+  if (leftFailed) return 'left'
+  if (rightFailed) return 'right'
+  return null
 }

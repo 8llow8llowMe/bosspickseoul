@@ -280,6 +280,7 @@ export default function SimulationReportPage({
             compareHref={buildSimulationCompareHref(
               { left: request, right: null },
               variant,
+              { left: conditionState.brandName },
             )}
           />
         ) : null}

@@ -350,6 +350,7 @@ export default function SimulationBuilderPage({
       ? buildSimulationCompareHref(
           { left: reportMutation.variables, right: null },
           variant,
+          { left: conditions.state.brandName },
         )
       : null
 
