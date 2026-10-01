@@ -31,6 +31,12 @@ export type SimulationBrandSearchProps = {
    * 갖고 있어 끈다(같은 제목 두 번). 비교 편집기처럼 다른 필드 사이에 놓일 때는 켠다.
    */
   showHeading?: boolean
+  /**
+   * 찾는 브랜드가 없을 때의 출구 — 「개인 창업 기준으로 계산하기」. 넘기지 않으면 그리지
+   * 않는다(비교 편집기는 창업 형태 필드가 바로 옆에 있다). 브랜드 목록의 기본 순서는 서버가
+   * 정하고 인기순이 아니라서, 못 찾은 사람이 이 화면에서 막히지 않게 한다.
+   */
+  onSkipBrand?: () => void
 }
 
 const KEYWORD_DEBOUNCE_MS = 300
@@ -123,6 +129,25 @@ const BrandButton = styled.button<{ $selected: boolean }>`
 const LoadingList = styled.div`
   display: grid;
   gap: 8px;
+
+  p {
+    color: var(--color-text-600);
+    font-size: 13px;
+    line-height: 20px;
+  }
+`
+
+/* 목록 아래 출구 한 줄. 주 동작(브랜드 고르기)과 겨루지 않게 텍스트 버튼으로 둔다. */
+const SkipRow = styled.p`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 20px;
+  word-break: keep-all;
 `
 
 const MoreRow = styled.div`
@@ -148,6 +173,7 @@ export default function SimulationBrandSearch({
   selectedFranchiseeId,
   onSelect,
   showHeading = true,
+  onSkipBrand,
 }: SimulationBrandSearchProps) {
   const [keywordInput, setKeywordInput] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -200,14 +226,16 @@ export default function SimulationBrandSearch({
         fullWidth
         emphasized
         label="브랜드 검색"
-        placeholder="브랜드명을 입력해 주세요"
+        placeholder="브랜드명 일부만 입력해도 찾아요"
         value={keywordInput}
         leftSlot={<Search aria-hidden="true" />}
         onChange={event => setKeywordInput(event.target.value)}
       />
 
       {query.isPending ? (
-        <LoadingList role="status" aria-label="브랜드 목록 불러오는 중">
+        /* 첫 조회가 몇 초 걸릴 수 있어(dev 실측 5.8초) 스켈레톤만 두지 않고 문구를 보인다. */
+        <LoadingList role="status">
+          <p>브랜드를 불러오는 중이에요</p>
           {Array.from({ length: 4 }, (_, index) => (
             <Skeleton key={index} $height="52px" />
           ))}
@@ -224,7 +252,14 @@ export default function SimulationBrandSearch({
       {!query.isPending && !error && items.length === 0 ? (
         <EmptyState
           title="검색 결과가 없어요"
-          description="브랜드명을 다르게 입력하거나, 개인 창업으로 다시 계산해 보세요."
+          description="브랜드명을 다르게 입력하거나, 개인 창업 기준으로 계산해 보세요."
+          action={
+            onSkipBrand ? (
+              <Button size="large" variant="secondary" onClick={onSkipBrand}>
+                개인 창업 기준으로 계산하기
+              </Button>
+            ) : undefined
+          }
         />
       ) : null}
 
@@ -265,6 +300,17 @@ export default function SimulationBrandSearch({
             더 보기
           </Button>
         </MoreRow>
+      ) : null}
+
+      {/* 결과가 있을 때와 조회 오류일 때 둘 다 출구를 둔다 — 오류 화면이 막다른 길이 되지 않게.
+          결과가 없을 때는 EmptyState 의 버튼이 같은 일을 한다. */}
+      {onSkipBrand && !query.isPending && (items.length > 0 || error) ? (
+        <SkipRow>
+          찾는 브랜드가 없나요?
+          <Button size="medium" variant="ghost" onClick={onSkipBrand}>
+            개인 창업 기준으로 계산하기
+          </Button>
+        </SkipRow>
       ) : null}
     </Root>
   )
