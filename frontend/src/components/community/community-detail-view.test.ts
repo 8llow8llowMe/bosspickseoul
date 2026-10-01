@@ -559,6 +559,7 @@ describe('CommunityDetailView — 머리·메타·지역 (개편 1단계)', () =
     expect(styles).toMatch(/var\(--w-read\)\)\s+300px/)
   })
 
+  /* CM-031 — 레일의 글쓰기는 이 글의 대상으로 지역 칩을 채워 연다(mock 은 끝에 보존). */
   it('turns an empty rail into a write prompt for that region', () => {
     const mock = renderWithStyles({
       detail: districtDetail,
@@ -573,10 +574,14 @@ describe('CommunityDetailView — 머리·메타·지역 (개편 1단계)', () =
     }).markup
 
     expect(mock).toContain('강남구의 다음 이야기를 남겨 보세요')
-    expect(mock).toContain('href="/community/register?mock=1"')
+    expect(mock).toContain(
+      'href="/community/register?targetType=DISTRICT&amp;targetCode=11680&amp;targetName=%EA%B0%95%EB%82%A8%EA%B5%AC&amp;mock=1"',
+    )
     expect(mock).toContain('>글쓰기</a>')
     expect(mock).not.toContain('같은 지역의 다른 게시글이 아직 없어요')
-    expect(real).toContain('href="/community/register"')
+    expect(real).toContain(
+      'href="/community/register?targetType=DISTRICT&amp;targetCode=11680&amp;targetName=%EA%B0%95%EB%82%A8%EA%B5%AC"',
+    )
   })
 })
 

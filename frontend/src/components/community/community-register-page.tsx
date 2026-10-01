@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   useMutation,
@@ -34,9 +34,21 @@ import {
   getCommunityLoginHref,
   isCommunityMockEnabled,
   parseCommunityPostId,
-  parseCommunityTargetType,
   type CommunityViewer,
 } from '@/lib/community/community-state'
+import {
+  applyCommunityStoredDraft,
+  getBrowserLocalStorage,
+  getCommunityDraftStorageKey,
+  readCommunityStoredDraft,
+  removeCommunityStoredDraft,
+  type CommunityStoredDraft,
+} from '@/lib/community/editor-draft'
+import {
+  parseCommunityEditorPrefill,
+  resolveCommunityCreateLocation,
+  toCommunityLocationValue,
+} from '@/lib/community/editor-prefill'
 import { sortPostImages, toImageKeys } from '@/lib/community/post-images'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
@@ -49,49 +61,87 @@ import type {
 } from '@/types/community'
 import { centeredColumn } from '@/styles/layout'
 
+const MOBILE = '@media (max-width: 479px)'
+
+/* 불러오는 중·오류·복원 카드 — 폼과 같은 `--w-form` 중앙 컬럼. */
 const Page = styled.main`
-  /* 등록은 폼이다 — 필드가 넓어지면 읽기·입력이 모두 나빠진다. 중앙 컬럼. */
   ${centeredColumn('var(--w-form)')}
   padding: 40px 0 72px;
   display: grid;
   gap: 24px;
 
-  @media (max-width: 640px) {
+  ${MOBILE} {
     padding: 24px 0 48px;
   }
 `
 
-const Header = styled.header`
-  display: grid;
-  gap: 10px;
-`
+/*
+  폼 — 폼 열(`--w-form`) + ≥1080 작성 팁(280)이 `--w-wide` 안에 놓인다. `<480` 은 편집 바가
+  사이트 헤더에 바로 붙도록 위 여백이 없다. 아래는 고정 액션 바(≥480)가 끝에 닿게 둔다.
+*/
+const EditorPage = styled.main`
+  ${centeredColumn('var(--w-wide)')}
+  padding: 32px 0 32px;
 
-const Eyebrow = styled.p`
-  color: var(--color-primary-700);
-  font-size: 13px;
-  font-weight: 700;
-`
-
-const Title = styled.h1`
-  color: var(--color-text-900);
-  font-size: 32px;
-  line-height: 1.3;
-  word-break: keep-all;
-
-  @media (max-width: 640px) {
-    font-size: 25px;
+  ${MOBILE} {
+    padding: 0 0 calc(48px + env(safe-area-inset-bottom, 0px));
   }
 `
 
-const Description = styled.p`
-  color: var(--color-text-600);
-  font-size: 15px;
-  line-height: 1.7;
-  word-break: keep-all;
+const RestoreCard = styled.section`
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+
+  h1 {
+    color: var(--color-text-900);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  p {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text-600);
+    font-size: 14px;
+    line-height: 1.6;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`
+
+const RestoreActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  ${MOBILE} {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+`
+
+const RestoreButton = styled.button<{ $primary?: boolean }>`
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$primary ? 'var(--color-primary-700)' : 'var(--color-grey-100)'};
+  color: ${props =>
+    props.$primary ? 'var(--color-surface)' : 'var(--color-text-900)'};
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
 `
 
 const Notice = styled.p`
-  padding: 12px 14px;
+  padding: 12px 16px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-field);
   background: var(--color-surface);
@@ -247,10 +297,63 @@ export const getCommunityEditorAccess = ({
   return 'allowed'
 }
 
+export type CommunityDraftRestoreKind = 'fresh' | 'resume'
+
+/**
+ * 폼 key. 백그라운드 refetch 로는 바뀌지 않는다(바뀌면 친 글자가 날아간다). 복원 선택은 폼을
+ * 띄우기 **전에** 끝나므로 key 에 실어도 재마운트가 일어나지 않는다 — 실어 두는 이유는 같은 자리에서
+ * 선택이 달라지면(새로 쓰기 ↔ 이어 쓰기) 이전 폼 상태가 이어지지 않게 하려는 것이다.
+ */
 export const getCommunityEditorFormKey = (
   mode: CommunityEditorMode,
   postId: CommunityId | null,
-) => (mode === 'edit' && postId ? `edit-${postId}` : 'create')
+  restore: CommunityDraftRestoreKind | null = null,
+) => {
+  const base = mode === 'edit' && postId ? `edit-${postId}` : 'create'
+  return restore ? `${base}:${restore}` : base
+}
+
+/** 복원 카드에 보일 한 줄 — 제목, 없으면 본문 첫 줄. 어떤 글이었는지 알아야 고를 수 있다. */
+export const getCommunityStoredDraftPreview = (draft: CommunityStoredDraft) =>
+  draft.title.trim() ||
+  draft.content
+    .split('\n')
+    .map(line => line.trim())
+    .find(Boolean) ||
+  ''
+
+type CommunityDraftRestorePromptProps = {
+  draft: CommunityStoredDraft
+  onFresh: () => void
+  onResume: () => void
+}
+
+/**
+ * 복원 게이트(CM-034). 폼은 마운트 시점 값만 읽으므로(`initialValue`) 폼을 띄우기 **전에**
+ * 고르게 한다 — 뒤늦게 덮어쓰면 그 사이 친 글자가 사라진다.
+ */
+export function CommunityDraftRestorePrompt({
+  draft,
+  onFresh,
+  onResume,
+}: CommunityDraftRestorePromptProps) {
+  const preview = getCommunityStoredDraftPreview(draft)
+
+  return (
+    <RestoreCard aria-labelledby="community-draft-restore-title">
+      <h1 id="community-draft-restore-title">작성하던 글이 있어요</h1>
+      {preview ? <p>{preview}</p> : null}
+      <RestoreActions>
+        <RestoreButton onClick={onFresh} type="button">
+          새로 쓰기
+        </RestoreButton>
+        <RestoreButton $primary onClick={onResume} type="button">
+          이어 쓰기
+        </RestoreButton>
+      </RestoreActions>
+    </RestoreCard>
+  )
+}
 
 /**
  * @param attachment 초안에서 온 분석 첨부. **작성에만 싣는다.**
@@ -425,6 +528,16 @@ export default function CommunityRegisterPage() {
       ? readComparisonDraftRequest(searchParams)
       : ({ kind: 'none' } as const)
   const draftParams = draftRequest.kind === 'ready' ? draftRequest.params : null
+  /*
+   * 비교 초안으로 들어오면(성공·실패 모두) 임시 저장을 묻지도 쓰지도 않는다. 초안이 이기고,
+   * 초안 글을 `community-draft:new` 에 쓰면 사용자가 따로 쓰던 저장본을 덮는다.
+   */
+  const storageKey =
+    draftRequest.kind === 'none'
+      ? getCommunityDraftStorageKey(mode, postId)
+      : null
+  const prefill =
+    mode === 'create' ? parseCommunityEditorPrefill(searchParams) : null
   const rawSearchParams = searchParams.toString()
   const currentHref = rawSearchParams
     ? `${pathname}?${rawSearchParams}`
@@ -450,6 +563,42 @@ export default function CommunityRegisterPage() {
     mode === 'edit' && postId ? [editQueryKey] : []
   const unauthorizedRecoveryRef = useRef<Promise<void> | null>(null)
   const [mutationError, setMutationError] = useState<string | null>(null)
+  /* 등록·수정 성공 — 이동이 끝날 때까지 임시 저장·이탈 확인을 멈춘다. */
+  const [submitted, setSubmitted] = useState(false)
+  /*
+   * 저장본은 한 번만 읽고 묶어 둔다. 폼이 뜬 뒤 임시 저장이 쓰는 값을 다시 읽으면 쓰던 중에
+   * 복원 카드가 튀어나온다. 렌더 중에 storage 를 읽지 않는다(서버 렌더와 어긋난다).
+   */
+  const [storedCheck, setStoredCheck] = useState<{
+    key: string
+    draft: CommunityStoredDraft | null
+  } | null>(null)
+  const [restoreChoice, setRestoreChoice] = useState<{
+    key: string
+    kind: CommunityDraftRestoreKind
+    draft: CommunityStoredDraft | null
+  } | null>(null)
+
+  // 그리기 전에 읽는다 — 앱 안 이동으로 들어올 때 「확인 중」이 한 프레임 비치지 않게.
+  useLayoutEffect(() => {
+    if (!storageKey) {
+      return
+    }
+
+    const check = (key: string) => {
+      setStoredCheck({
+        key,
+        draft: readCommunityStoredDraft(getBrowserLocalStorage, key),
+      })
+    }
+
+    check(storageKey)
+  }, [storageKey])
+
+  const storedDraft =
+    storageKey && storedCheck?.key === storageKey ? storedCheck.draft : null
+  const storedChecked = !storageKey || storedCheck?.key === storageKey
+  const restore = restoreChoice?.key === storageKey ? restoreChoice : null
   const detailQuery = useQuery({
     queryKey: editQueryKey,
     queryFn: async () =>
@@ -553,6 +702,15 @@ export default function CommunityRegisterPage() {
       return validateCommunityEditorDetailResponse(response)
     },
     onSuccess: async response => {
+      /*
+       * 성공 표시를 **먼저** 켠다. 이 콜백이 끝날 때까지 mutation 은 pending 이라 임시 저장
+       * 타이머가 잡힐 틈이 없고, pending 이 풀리는 렌더에는 이미 submitted 가 켜져 있다
+       * (useCommunityDraftAutosave). 그다음 저장본을 지운다(CM-035).
+       */
+      setSubmitted(true)
+      if (storageKey) {
+        removeCommunityStoredDraft(getBrowserLocalStorage, storageKey)
+      }
       await queryClient.invalidateQueries({ queryKey: communityKeys.all })
       router.replace(
         createCommunityEditorDetailHref(response.dataBody.postId, mockEnabled),
@@ -691,62 +849,80 @@ export default function CommunityRegisterPage() {
     )
   }
 
-  const initialValue: CommunityEditorValue =
+  if (!storedChecked) {
+    return (
+      <Page>
+        <CommunityFeedback
+          kind="loading"
+          title="작성하던 글을 확인하고 있어요"
+        />
+      </Page>
+    )
+  }
+
+  const baseValue: CommunityEditorValue =
     mode === 'edit' && detail
       ? {
           title: detail.title,
           content: detail.content,
           // 기존 첨부를 그대로 들고 시작한다 — 안 그러면 저장 순간 전부 삭제된다.
           images: sortPostImages(detail.images),
-          location: {
-            targetType: parseCommunityTargetType(
-              detail.targetType?.code ?? null,
-            ),
-            targetCode: detail.targetCode ?? undefined,
-            targetName: detail.targetName ?? undefined,
-          },
+          location: toCommunityLocationValue(detail),
         }
       : {
           title: draft?.title ?? '',
           content: draft?.content ?? '',
           images: [],
-          location: draft
-            ? {
-                targetType: parseCommunityTargetType(
-                  draft.targetType?.code ?? null,
-                ),
-                targetCode: draft.targetCode ?? undefined,
-                targetName: draft.targetName ?? undefined,
-              }
-            : {},
+          // 비교 초안의 행정동 > 목록·상세에서 넘어온 지역 > 빈 칩.
+          location: resolveCommunityCreateLocation(
+            draft ? toCommunityLocationValue(draft) : null,
+            prefill,
+          ),
         }
 
+  if (storageKey && storedDraft && !restore) {
+    return (
+      <Page>
+        <CommunityDraftRestorePrompt
+          draft={storedDraft}
+          onFresh={() => {
+            removeCommunityStoredDraft(getBrowserLocalStorage, storageKey)
+            setRestoreChoice({ key: storageKey, kind: 'fresh', draft: null })
+          }}
+          onResume={() => {
+            setRestoreChoice({
+              key: storageKey,
+              kind: 'resume',
+              draft: storedDraft,
+            })
+          }}
+        />
+      </Page>
+    )
+  }
+
+  const initialValue =
+    restore?.kind === 'resume' && restore.draft
+      ? applyCommunityStoredDraft(mode, baseValue, restore.draft)
+      : baseValue
+
   return (
-    <Page>
-      <Header>
-        <Eyebrow>{mode === 'edit' ? '게시글 수정' : '새 게시글'}</Eyebrow>
-        <Title>
-          {mode === 'edit'
-            ? '경험과 정보를 최신 내용으로 다듬어 주세요.'
-            : '사장님들과 나누고 싶은 이야기를 들려주세요.'}
-        </Title>
-        <Description>
-          지역 선택은 필수이며, 구체적인 경험과 상황을 함께 적으면 더 좋은
-          답변을 받을 수 있어요.
-        </Description>
-      </Header>
-
-      {draftView.kind === 'failed' ? (
-        <Notice role="status">{COMPARISON_DRAFT_ERROR_NOTICE}</Notice>
-      ) : null}
-
+    <EditorPage>
       <CommunityEditorForm
-        key={getCommunityEditorFormKey(mode, postId)}
+        key={getCommunityEditorFormKey(mode, postId, restore?.kind ?? null)}
         mode={mode}
         initialValue={initialValue}
+        pristineValue={baseValue}
         mockEnabled={mockEnabled}
         pending={submitMutation.isPending}
+        submitted={submitted}
+        draftStorageKey={storageKey}
         errorMessage={mutationError}
+        notice={
+          draftView.kind === 'failed' ? (
+            <Notice role="status">{COMPARISON_DRAFT_ERROR_NOTICE}</Notice>
+          ) : null
+        }
         onUploadImages={async files => {
           /*
            * 업로드는 게시글 저장과 **별개 단계**다. 여기서는 키만 받고, 그 키가
@@ -762,6 +938,6 @@ export default function CommunityRegisterPage() {
         onCancel={handleCancel}
         onSubmit={value => submitMutation.mutate(value)}
       />
-    </Page>
+    </EditorPage>
   )
 }

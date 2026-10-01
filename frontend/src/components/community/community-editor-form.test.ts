@@ -1,10 +1,12 @@
 import { createElement, type ComponentProps } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CommunityPostDetailResponse } from '@/types/community'
 import { communityKeys } from '@/lib/community/community-state'
+import { POST_IMAGE_RULE_TEXT } from '@/lib/community/post-images'
 
 import CommunityEditorForm, {
   resolveCommunityEditorSubmission,
@@ -29,14 +31,22 @@ const renderWithQuery = (props: ComponentProps<typeof CommunityEditorForm>) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
+  const sheet = new ServerStyleSheet()
 
-  return renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
-      createElement(CommunityEditorForm, props),
-    ),
-  )
+  try {
+    const markup = renderToStaticMarkup(
+      sheet.collectStyles(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(CommunityEditorForm, props),
+        ),
+      ),
+    )
+    return { markup, styles: sheet.getStyleTags() }
+  } finally {
+    sheet.seal()
+  }
 }
 
 const baseProps: ComponentProps<typeof CommunityEditorForm> = {
@@ -50,49 +60,179 @@ const baseProps: ComponentProps<typeof CommunityEditorForm> = {
   onSubmit: vi.fn(),
 }
 
-describe('CommunityEditorForm', () => {
-  it('renders required location, title/content limits, and counts', () => {
-    const markup = renderWithQuery(baseProps)
+const imagesOf = (count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    imageKey: `community/posts/1/2026/09/${index}.png`,
+    imageUrl: `https://minio.test/${index}.png`,
+    sortOrder: index,
+  }))
 
-    expect(markup).toContain('지역·상권 (필수)')
-    expect(markup).toContain('게시글을 작성하려면 지역을 선택해 주세요.')
+/* 버튼 하나의 여는 태그 — 속성 순서와 상관없이 그 버튼의 disabled 를 본다. */
+const openingTagOf = (markup: string, text: string) =>
+  markup.match(
+    new RegExp(`<button[^>]*>(?:(?!</button>)[\\s\\S])*?${text}`),
+  )?.[0] ?? ''
+
+describe('CommunityEditorForm — 머리와 순서(개편 3단계)', () => {
+  it('안내 세 줄 대신 제목 한 줄, <480 편집 바 [✕] 새 글 [등록] 과 ≥480 액션 바 [취소] [등록하기]', () => {
+    const { markup } = renderWithQuery(baseProps)
+
+    expect(markup).not.toContain('사장님들과 나누고 싶은 이야기')
+    expect(markup).not.toContain('지역·상권 (필수)')
+    expect(markup.match(/<h1[^>]*>새 글<\/h1>/g)).toHaveLength(2)
+    expect(markup).toContain('data-community-editor-bar="true"')
+    expect(markup).toMatch(/<button[^>]*aria-label="닫기"[^>]*type="button"/)
+    expect(markup).toMatch(/<button[^>]*type="submit"[^>]*>등록<\/button>/)
+    expect(markup).toMatch(/<button[^>]*type="submit"[^>]*>등록하기<\/button>/)
+    expect(markup).toMatch(/<button[^>]*type="button"[^>]*>취소<\/button>/)
+  })
+
+  it('지역 칩 → 제목 → 본문 → 사진 순서이고, 빈 칩은 「어느 지역 이야기인가요?」다', () => {
+    const { markup } = renderWithQuery(baseProps)
+    const order = [
+      'data-region-chip="compose"',
+      'placeholder="제목을 입력해 주세요"',
+      '<textarea',
+      'data-community-photo-row="true"',
+    ].map(token => markup.indexOf(token))
+
+    expect(order.every(index => index >= 0)).toBe(true)
+    expect([...order].sort((left, right) => left - right)).toEqual(order)
+    expect(markup).toContain('어느 지역 이야기인가요?')
+    // 글쓰기 칩에는 해제 버튼이 없다 — 대상이 필수다.
+    expect(markup).not.toContain('지역 필터 해제')
+  })
+
+  it('제목·본문 한도와 글자 수를 적는다', () => {
+    const { markup } = renderWithQuery(baseProps)
+
     expect(markup).toContain('maxLength="120"')
     expect(markup).toContain('maxLength="5000"')
     expect(markup).toContain('0 / 120')
     expect(markup).toContain('0 / 5,000')
+    expect(markup).toMatch(/<label[^>]*>제목<\/label>/)
+    expect(markup).toMatch(/<label[^>]*>내용<\/label>/)
   })
 
-  /*
-   * 이 자리는 「이미지 첨부 · 준비 중」 비활성 버튼이었다. A4 에서 실제로 붙었으므로
-   * 막아야 할 것을 다시 적는다: 자리표시자 문구가 남지 않을 것, 버튼이 실제로 열려
-   * 있을 것, 그리고 허용 형식·장수를 화면이 말할 것.
-   */
-  it('첨부 자리가 더 이상 자리표시자가 아니다', () => {
-    const markup = renderWithQuery(baseProps)
-
-    expect(markup).not.toContain('준비 중')
-    expect(markup).toContain('이미지 첨부')
-    expect(markup).toContain('0 / 5')
-    expect(markup).toContain('image/jpeg,image/png,image/gif,image/webp')
-    // 첨부 버튼이 비활성이 아니다(0장이므로 아직 올릴 수 있다).
-    expect(markup).not.toMatch(/<button[^>]*disabled[^>]*>이미지 첨부/)
-  })
-
-  it('5장을 다 채우면 첨부 버튼을 닫는다', () => {
-    const markup = renderWithQuery({
+  it('목록·상세에서 넘어온 지역이 칩에 채워져 있다(CM-031)', () => {
+    const { markup } = renderWithQuery({
       ...baseProps,
       initialValue: {
         ...baseProps.initialValue,
-        images: Array.from({ length: 5 }, (_, index) => ({
-          imageKey: `community/posts/1/2026/09/${index}.png`,
-          imageUrl: `https://minio.test/${index}.png`,
-          sortOrder: index,
-        })),
+        location: {
+          targetType: 'DISTRICT',
+          targetCode: '11200',
+          targetName: '성동구',
+        },
       },
     })
 
+    expect(markup).toContain('성동구')
+    expect(markup).not.toContain('어느 지역 이야기인가요?')
+  })
+
+  it('등록 버튼은 필수값이 비어도 비활성이 아니다 — 누르면 무엇이 비었는지 알려 준다', () => {
+    const { markup } = renderWithQuery(baseProps)
+
+    expect(openingTagOf(markup, '등록하기')).not.toContain('disabled')
+    expect(openingTagOf(markup, '등록</button>')).not.toContain('disabled')
+  })
+})
+
+describe('CommunityEditorForm — 작성 도움 칩·글자 수', () => {
+  it('본문이 비었을 때만 도움 칩 셋을 본문 위에 둔다(CM-033)', () => {
+    const empty = renderWithQuery(baseProps).markup
+    const filled = renderWithQuery({
+      ...baseProps,
+      initialValue: { ...baseProps.initialValue, content: '이미 쓴 글' },
+    }).markup
+
+    expect(empty).toMatch(
+      /role="group"[^>]*aria-label="작성 도움"|aria-label="작성 도움"[^>]*role="group"/,
+    )
+    for (const label of ['질문해요', '경험 나눠요', '같이 해요']) {
+      expect(empty).toContain(`>${label}</button>`)
+      expect(filled).not.toContain(`>${label}</button>`)
+    }
+    expect(empty.indexOf('질문해요')).toBeLessThan(empty.indexOf('<textarea'))
+  })
+
+  it('본문 글자 수는 한도 90% 를 넘으면 --color-negative-text 다', () => {
+    const near = renderWithQuery({
+      ...baseProps,
+      initialValue: { ...baseProps.initialValue, content: '가'.repeat(4501) },
+    })
+    const below = renderWithQuery({
+      ...baseProps,
+      initialValue: { ...baseProps.initialValue, content: '가'.repeat(4500) },
+    })
+
+    expect(near.markup).toContain('4,501 / 5,000')
+    expect(near.markup).toMatch(/data-near-limit="true"[^>]*>4,501/)
+    expect(near.styles).toContain('color:var(--color-negative-text)')
+    expect(below.markup).not.toContain('data-near-limit="true"')
+  })
+})
+
+describe('CommunityEditorForm — 사진 줄', () => {
+  /*
+   * 이 자리는 「이미지 첨부 · 준비 중」 비활성 버튼이었다. 막아야 할 것: 자리표시자 문구가
+   * 남지 않을 것, 올릴 입구가 열려 있을 것, 허용 형식·장수를 화면이 말할 것.
+   */
+  it('첨부 자리는 자리표시자가 아니다 — 0장이면 + 타일 하나와 규칙 문구', () => {
+    const { markup } = renderWithQuery(baseProps)
+
+    expect(markup).not.toContain('준비 중')
+    expect(markup).toContain('0 / 5')
+    expect(markup).toContain('image/jpeg,image/png,image/gif,image/webp')
+    expect(markup).toContain(POST_IMAGE_RULE_TEXT)
+    expect(markup).toMatch(/<button[^>]*aria-label="사진 추가"/)
+    expect(markup).not.toMatch(/aria-label="사진 추가"[^>]*disabled/)
+    expect(markup).not.toContain('대표')
+  })
+
+  it('첫 장에만 대표 배지, 장마다 빼기 버튼, 5장 미만이면 끝에 + 타일', () => {
+    const { markup } = renderWithQuery({
+      ...baseProps,
+      initialValue: { ...baseProps.initialValue, images: imagesOf(2) },
+    })
+
+    expect(markup.match(/data-community-cover-badge="true"/g)).toHaveLength(1)
+    expect(markup.indexOf('>대표<')).toBeGreaterThan(
+      markup.indexOf('src="https://minio.test/0.png"'),
+    )
+    expect(markup.indexOf('>대표<')).toBeLessThan(
+      markup.indexOf('src="https://minio.test/1.png"'),
+    )
+    expect(markup).toContain('aria-label="첨부 이미지 1 빼기"')
+    expect(markup).toContain('aria-label="첨부 이미지 2 빼기"')
+    expect(markup).toContain('2 / 5')
+    expect(markup.lastIndexOf('사진 추가')).toBeGreaterThan(
+      markup.indexOf('src="https://minio.test/1.png"'),
+    )
+  })
+
+  it('5장을 다 채우면 + 타일이 사라지고 파일 입력도 닫힌다', () => {
+    const { markup } = renderWithQuery({
+      ...baseProps,
+      initialValue: { ...baseProps.initialValue, images: imagesOf(5) },
+    })
+
     expect(markup).toContain('5 / 5')
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*>이미지 첨부/)
+    expect(markup).not.toContain('사진 추가')
+    expect(markup).toMatch(
+      /<input[^>]*type="file"[^>]*disabled=""|<input[^>]*disabled=""[^>]*type="file"/,
+    )
+  })
+
+  it('빼기 버튼은 44 터치 영역이다', () => {
+    const { styles } = renderWithQuery({
+      ...baseProps,
+      initialValue: { ...baseProps.initialValue, images: imagesOf(1) },
+    })
+
+    expect(styles).toMatch(/width:44px;height:44px/)
+    expect(styles).toContain('width:72px;height:72px')
   })
 
   /**
@@ -101,7 +241,7 @@ describe('CommunityEditorForm', () => {
    * 「남길 목록」으로 읽고 여기 없는 것을 파일까지 지우기 때문이다.
    */
   it('수정 모드는 기존 첨부를 미리 보여 준다', () => {
-    const markup = renderWithQuery({
+    const { markup } = renderWithQuery({
       ...baseProps,
       mode: 'edit',
       initialValue: {
@@ -120,9 +260,11 @@ describe('CommunityEditorForm', () => {
     expect(markup).toContain('1 / 5')
     expect(markup).toContain('첨부 이미지 1 빼기')
   })
+})
 
-  it('shows the existing target read-only in edit mode', () => {
-    const markup = renderWithQuery({
+describe('CommunityEditorForm — 수정 모드·저장 중·스타일', () => {
+  it('수정 모드는 「글 수정」 이고 지역은 읽기 전용이다(시트를 여는 칩이 없다)', () => {
+    const { markup } = renderWithQuery({
       ...baseProps,
       mode: 'edit',
       initialValue: {
@@ -140,10 +282,13 @@ describe('CommunityEditorForm', () => {
 
     expect(markup).toContain('강남역 상권')
     expect(markup).toContain('지역은 수정할 수 없어요')
+    expect(markup).not.toContain('aria-haspopup="dialog"')
+    expect(markup.match(/<h1[^>]*>글 수정<\/h1>/g)).toHaveLength(2)
+    expect(markup).toMatch(/type="submit"[^>]*>수정하기<\/button>/)
   })
 
   it('disables every submission path while pending and keeps draft input with the mutation error', () => {
-    const markup = renderWithQuery({
+    const { markup } = renderWithQuery({
       ...baseProps,
       initialValue: {
         title: '저장 전 제목',
@@ -159,12 +304,37 @@ describe('CommunityEditorForm', () => {
     expect(markup).toContain('저장하지 못했어요.')
     expect(markup).toContain('value="저장 전 제목"')
     expect(markup).toContain('저장 전 본문')
-    expect(markup).toContain('저장 중')
+    expect(markup.match(/type="submit"[^>]*>저장 중<\/button>/g)).toHaveLength(
+      2,
+    )
+    expect(markup.match(/disabled=""[^>]*type="submit"/g)).toHaveLength(2)
+  })
+
+  it('머리 아래 안내(비교 초안 실패)를 그대로 싣는다', () => {
+    const { markup } = renderWithQuery({
+      ...baseProps,
+      notice: createElement('p', { role: 'status' }, '초안 안내'),
+    })
+
+    expect(markup).toContain('<p role="status">초안 안내</p>')
+  })
+
+  it('레거시 폭·글로우 포커스·primary-700 글자를 쓰지 않고, 작성 팁은 ≥1080 에서만 보인다', () => {
+    const { markup, styles } = renderWithQuery(baseProps)
+
+    expect(styles).not.toMatch(/(max|min)-width:\s*(640|760|768)px/)
+    expect(styles).not.toContain('--shadow-focus-primary')
+    expect(styles).not.toMatch(/[^-]color:var\(--color-primary-700\)/)
+    expect(styles).toContain('var(--w-form)')
+    expect(styles).toMatch(/@media \(min-width:\s*1080px\)/)
+    expect(styles).toContain('env(safe-area-inset-bottom, 0px)')
+    expect(styles).toContain('field-sizing:content')
+    expect(markup).toContain('이렇게 쓰면 답이 잘 달려요')
   })
 })
 
 describe('community editor helpers', () => {
-  it('trims valid input and rejects missing create fields', () => {
+  it('trims valid input and points at the first missing field (지역 → 제목 → 본문)', () => {
     expect(
       resolveCommunityEditorSubmission('create', '  제목  ', '  본문  ', {
         targetType: 'DISTRICT',
@@ -173,6 +343,7 @@ describe('community editor helpers', () => {
       }),
     ).toEqual({
       error: null,
+      field: null,
       value: {
         title: '제목',
         content: '본문',
@@ -184,22 +355,24 @@ describe('community editor helpers', () => {
         images: [],
       },
     })
+    // CM-008 — 지역 없이는 저장되지 않는다. 제목·본문이 비어 있어도 지역을 먼저 짚는다.
     expect(
-      resolveCommunityEditorSubmission('create', '  ', '본문', {}).error,
-    ).toBe('제목을 입력해 주세요.')
-    expect(
-      resolveCommunityEditorSubmission('create', '제목', '  ', {}).error,
-    ).toBe('내용을 입력해 주세요.')
+      resolveCommunityEditorSubmission('create', '  ', '본문', {}),
+    ).toEqual({ error: '지역을 골라 주세요.', field: 'location', value: null })
     expect(
       resolveCommunityEditorSubmission('create', '제목', '본문', {}),
-    ).toEqual({
-      error: '지역을 선택해 주세요.',
-      value: null,
-    })
+    ).toEqual({ error: '지역을 골라 주세요.', field: 'location', value: null })
+    expect(
+      resolveCommunityEditorSubmission('edit', '  ', '본문', {}).error,
+    ).toBe('제목을 입력해 주세요.')
+    expect(
+      resolveCommunityEditorSubmission('edit', '제목', '  ', {}).error,
+    ).toBe('내용을 입력해 주세요.')
     expect(
       resolveCommunityEditorSubmission('edit', '제목', '본문', {}),
     ).toEqual({
       error: null,
+      field: null,
       value: {
         title: '제목',
         content: '본문',
