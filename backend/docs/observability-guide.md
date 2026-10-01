@@ -136,14 +136,14 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 | 서비스 | 레벨 | 로그 | 의미 |
 | --- | --- | --- | --- |
 | commercial | INFO | `default changed from=… to=… spatialVersion=… lagging=[…]` | 기본 분기가 바뀌었다(기동 직후 첫 계산은 `from=null`). `lagging` 은 가장 앞선 핵심 데이터셋보다 뒤처진 데이터셋 |
-| commercial | WARN | `default lags newest core dataset default=… newest=… quarters=… lagging=[…]` | 기본 분기가 가장 앞선 핵심 데이터셋보다 2분기 이상 뒤처진다. `lagging` 데이터셋의 적재·이관(`--job=project`)을 본다 |
-| commercial | WARN | `no common period across core datasets` | 핵심 데이터셋 공통 분기가 없다. 분기를 생략한 요청이 `ANALYSIS_PERIOD_001`(503) |
-| commercial | WARN | `catalog refresh failed, serving stale resolvedAt=… error=…` | 재계산 DB 오류. 마지막 성공값으로 응답 중이고 TTL(5분) 뒤 다시 시도한다 |
-| commercial | WARN | `catalog load failed, no catalog to serve` / `warm-up failed` | 한 번도 계산하지 못했다. 분기를 생략한 요청이 503 |
+| commercial | WARN | `default lags newest core dataset default=… newest=… quarters=… lagging=[…]` | 기본 분기가 가장 앞선 핵심 데이터셋보다 2분기 이상 뒤처진다. 갱신마다 평가하고 같은 상태(집합·분기 수)는 한 번만 찍는다. `lagging` 데이터셋의 적재·이관(`--job=project`)을 본다 |
+| commercial | WARN | `no common period across core datasets` | 핵심 데이터셋 공통 분기가 없다. 분기를 생략한 요청이 `ANALYSIS_PERIOD_001`(503). 같은 상태는 한 번만 찍는다 |
+| commercial | WARN | `catalog refresh failed, serving stale resolvedAt=… error=…` | 스케줄러 갱신 실패(DB 오류·10초 질의 상한 초과). 마지막 성공값으로 응답 중이고 다음 주기(5분)에 다시 시도한다 |
+| commercial | WARN | `catalog refresh failed, no catalog to serve error=…` | 한 번도 계산하지 못했다(기동 직후 첫 갱신 실패 등). 분기를 생략한 요청이 503 이고 다음 갱신이 성공하면 회복한다 |
 | ai | WARN | `default period refresh failed, serving stale periodCode=… error=…` | commercial `/periods` 호출 실패. 마지막 성공값으로 제출 중 |
 | ai | WARN | `default period unavailable, no value to serve error=…` | 받은 적이 없다. 분기를 생략한 제출이 `AI_013`(503) |
 
-알람 후보: `no common period` 와 `no catalog to serve` 는 1건이라도 사용자 영향이 있다. `serving stale` 이 TTL 주기로 계속 찍히면 DB 또는 commercial-service 장애가 이어지는 것이다.
+알람 후보: `no common period` 와 `no catalog to serve` 는 1건이라도 사용자 영향이 있다. commercial 의 `serving stale` 이 5분 주기로 계속 찍히면 DB 장애가, ai 의 `serving stale` 이 이어지면 commercial-service 장애가 이어지는 것이다.
 
 ## 빠른 점검
 

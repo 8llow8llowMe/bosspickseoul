@@ -77,7 +77,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>분기 종속 유스케이스는 <b>첫 줄에서</b> {@code periodCode} 를 {@link AnalysisPeriodCatalogProcessor#resolve(String)} 로 해석한다
  * (이슈 #464). 생략·빈 값이면 적재된 팩트 테이블 기준 최신 공통 분기이고, 정할 수 없으면 503 이다. 카탈로그는 인스턴스 메모리
- * 캐시라 readOnly 트랜잭션 안에서 불러도 짧고, 재계산이 필요하면 어댑터가 별도 트랜잭션을 연다.
+ * 캐시만 읽고 DB 를 치지 않으므로 readOnly 트랜잭션 안에서 불러도 커넥션을 더 쓰지 않는다(재계산은 스케줄러가 따로 한다).
  */
 @Service
 @RequiredArgsConstructor

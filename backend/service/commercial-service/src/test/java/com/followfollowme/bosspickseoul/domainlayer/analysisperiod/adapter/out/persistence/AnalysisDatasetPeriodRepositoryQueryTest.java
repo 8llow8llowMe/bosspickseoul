@@ -58,10 +58,18 @@ class AnalysisDatasetPeriodRepositoryQueryTest {
     @Test
     @DisplayName("어댑터가 15개 팩트 테이블 질의를 실제 스키마에 실행하고 데이터셋 15종을 모두 키로 돌려준다")
     void adapterRunsAllFifteenQueriesAgainstTheRealSchema() {
+        persist("20261", SNAPSHOT, "11110");
+        persist("20233", SNAPSHOT, "11110");
+
         Map<DatasetKey, SortedSet<String>> periods = analysisDatasetPeriodQueryAdapter.findPeriodCodesByDataset(SNAPSHOT);
 
         assertThat(periods).containsOnlyKeys(DatasetKey.values());
-        assertThat(periods.values()).allSatisfy(periodCodes -> assertThat(periodCodes).isEmpty());
+        assertThat(periods.get(DatasetKey.CHANGE_DISTRICT)).containsExactly("20233", "20261");
+        assertThat(periods).allSatisfy((dataset, periodCodes) -> {
+            if (dataset != DatasetKey.CHANGE_DISTRICT) {
+                assertThat(periodCodes).as("%s", dataset).isEmpty();
+            }
+        });
     }
 
     private void persist(String periodCode, String spatialVersion, String districtCode) {
