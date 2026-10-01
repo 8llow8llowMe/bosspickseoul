@@ -101,11 +101,6 @@ const CloseButton = styled.button`
   background: transparent;
   color: var(--color-text-700);
   cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 /* 머리는 고정하고 내용만 스크롤한다. 끝에 닿아도 뒤 페이지로 스크롤이 넘어가지 않게 막는다. */

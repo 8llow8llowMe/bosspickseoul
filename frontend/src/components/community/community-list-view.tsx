@@ -127,9 +127,7 @@ const AllPostsLink = styled(Link)`
   font-weight: 600;
 
   &:focus-visible {
-    outline: none;
     border-radius: var(--radius-control);
-    box-shadow: var(--shadow-focus-primary-strong);
   }
 `
 
@@ -147,11 +145,6 @@ const WriteLink = styled(Link)`
   color: var(--color-surface);
   font-size: 14px;
   font-weight: 700;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 const DesktopWriteLink = styled(WriteLink)`
@@ -251,11 +244,6 @@ const SearchClearButton = styled.button`
   color: var(--color-text-600);
   cursor: pointer;
   transform: translateY(-50%);
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 const TabRow = styled.div`
@@ -289,9 +277,7 @@ const Tab = styled.button<{ $selected: boolean }>`
   cursor: pointer;
 
   &:focus-visible {
-    outline: none;
     border-radius: var(--radius-control) var(--radius-control) 0 0;
-    box-shadow: var(--shadow-focus-primary-strong);
   }
 `
 
@@ -313,11 +299,6 @@ const LikedToggle = styled.button<{ $selected: boolean }>`
   font-size: 14px;
   font-weight: ${props => (props.$selected ? 700 : 600)};
   cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 const Feed = styled.section`
@@ -352,9 +333,9 @@ const PostLink = styled(Link)`
   }
 
   &:focus-visible {
-    outline: none;
+    outline: 2px solid var(--color-primary-700);
+    outline-offset: -2px;
     border-radius: var(--radius-control);
-    box-shadow: inset var(--shadow-focus-primary-strong);
   }
 
   ${MOBILE} {
@@ -505,11 +486,6 @@ const LoadMoreButton = styled.button`
   font-weight: 700;
   cursor: pointer;
 
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
-
   &:disabled {
     cursor: wait;
     opacity: var(--button-disabled-opacity-color);
@@ -547,11 +523,6 @@ const LoadMoreRetryButton = styled.button`
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 /* 「보기」는 최신·인기 둘이다. 좋아요한 글은 「내 활동」이라 탭 줄 오른쪽 끝 토글로 뺐다. */

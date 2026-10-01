@@ -83,8 +83,9 @@ const Chip = styled.button<{ $active: boolean }>`
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: inset var(--shadow-focus-primary-strong);
+    outline: 2px solid var(--color-primary-700);
+
+    outline-offset: -2px;
   }
 
   &:disabled {
@@ -117,8 +118,9 @@ const ChipClearButton = styled.button`
   cursor: pointer;
 
   &:focus-visible {
-    outline: none;
-    box-shadow: inset var(--shadow-focus-primary-strong);
+    outline: 2px solid var(--color-primary-700);
+
+    outline-offset: -2px;
   }
 `
 
@@ -204,11 +206,6 @@ const CrumbButton = styled.button`
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 const CrumbCurrent = styled.span`
@@ -258,8 +255,9 @@ const Row = styled.button<{ $selected?: boolean }>`
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: inset var(--shadow-focus-primary-strong);
+    outline: 2px solid var(--color-primary-700);
+
+    outline-offset: -2px;
   }
 `
 
@@ -288,11 +286,6 @@ const RetryButton = styled.button`
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 /* 단계마다 목록이 무엇인지(조사까지). 안내 문구가 단계를 말해야 지금 어디인지 안다. */
