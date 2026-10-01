@@ -330,7 +330,7 @@ export type HomeSession = {
 }
 
 /** dev 서버·React 개발 도구가 늘 남기는 잡음. 회귀 신호가 아니다. */
-const CONSOLE_NOISE = [
+export const CONSOLE_NOISE = [
   'Download the React DevTools',
   'react-devtools',
   '[Fast Refresh]',

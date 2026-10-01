@@ -102,6 +102,24 @@ CI 에서 돌리려면 `pnpm exec playwright install --with-deps chromium` 과 �
 - 측정은 **스크롤 0 지점**에서 한 번만 한다. 스크롤하면 `IntersectionObserver` 게이트가
   풀려 BFF 호출 수가 달라지고 앵커 채움 상태가 바뀐다.
 
+두 번째 슬라이스는 커뮤니티다. dev 백엔드에 글이 없어(BE #190) **`?mock=1` 목 모드**로 연다 —
+dev 서버에서만 켜지므로 프로덕션 빌드(`pnpm start`)에서는 돌지 않는다. 기준선 없이 이진 단언만 둔다.
+
+| 파일                                 | 무엇(잠그는 TC, `docs/features/community/community.md` S5)                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `e2e/community/measure.ts`           | 목 모드 진입·콘솔/BFF 기록·스크롤(rAF 두 프레임 대기) 헬퍼                                     |
+| `e2e/community/invariants.spec.ts`   | 목록·상세·글쓰기 가로 넘침·그려진 h1 하나·콘솔 오류 0(CM-014), 모바일 첫 화면 글 행 ≥3(CM-015) |
+| `e2e/community/list.spec.ts`         | 폭별 골격 3단·2단·1단(CM-037·038), 숨는 헤더(CM-043), 뒤로 가기 스크롤 복원(CM-030)            |
+| `e2e/community/region-sheet.spec.ts` | 지역 시트 Esc 는 URL 그대로·칩 포커스(CM-016), `강남구 전체` 확정(CM-017)                      |
+| `e2e/community/detail.spec.ts`       | 본문·레일 간격 ≤24(CM-020), 모바일 하단 바·입력칸 포커스(CM-027·028), 라이트박스(CM-041)       |
+| `e2e/community/register.spec.ts`     | 새로고침을 건넌 임시 저장 `이어 쓰기`(CM-034)                                                  |
+
+- **e2e 는 matchMedia 판정·그리드 배치·IntersectionObserver·포커스 이동·실제 history 이동처럼 렌더
+  결과가 있어야 아는 것만** 본다. 문구·URL 조립·저장 키·분기·CSS 문자열(브레이크포인트 479 등)은
+  vitest(`src/components/community/*.test.ts`, `src/lib/community/*.test.ts`, jsdom 인터랙션)가 정본이다.
+- 스크롤 복원(CM-030)은 `history.scrollRestoration = 'manual'` 로 **브라우저 기본 복원을 끄고** 잰다.
+  목 데이터는 상세가 목록보다 길어 기본 복원이 우연히 맞는 자리에 떨어지고, 그러면 앱 복원이 깨져도 통과한다.
+
 ### 4. 기준선 갱신 규칙
 
 기준선은 「나빠지지 않았는가」만 본다. 그래서 **나아진 값으로만 내린다.**
