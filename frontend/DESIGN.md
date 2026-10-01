@@ -83,6 +83,9 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
   AA(4.5:1)를 넘지 못한다. blue700 은 흰 글자와 **5.91:1**, blue50 위 글자로 **5.26:1**.
 - **Blue Text Hover** (`#1757bf`): `blue800`. blue700 채움의 hover/pressed 전용.
   흰 글자와 6.66:1. **blue600 을 이 자리에 쓰지 않는다** — blue700 보다 밝아 역전된다.
+  토큰은 프리미티브 `--color-blue-700`·`--color-blue-800`, 시맨틱은 쓰임새로 나눈다 —
+  글자를 얹는 채움 `--color-fill-primary-text`(hover `--color-fill-primary-text-hover`),
+  밝은 배경 위 파란 글자 `--color-text-primary-on-light`. 지금은 같은 값이지만 따로 움직일 수 있게 이름을 나눴다.
 
 > #### ⚠️ `--color-primary-*` 별칭은 명암을 거꾸로 말한다
 >
@@ -97,10 +100,10 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 >
 > 역할은 위 두 줄이 이미 정한 그대로다. 별칭으로 옮겨 적으면:
 >
-> | 별칭                  | 값                | 역할                                                          |
-> | --------------------- | ----------------- | ------------------------------------------------------------- |
-> | `--color-primary-700` | blue500 `#0ea5e9` | 기본 인터랙티브 — 채움·링크·활성·선택 강조, **그리고 포커스** |
-> | `--color-primary-600` | blue600 `#2272eb` | **hover/pressed 전용**                                        |
+> | 별칭                  | 값                | 역할                                                                                                                    |
+> | --------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------- |
+> | `--color-primary-700` | blue500 `#0ea5e9` | 기본 인터랙티브 — 글자 없는 채움·링크·활성·선택 강조, **그리고 포커스**. 글자를 얹는 채움은 `--color-fill-primary-text` |
+> | `--color-primary-600` | blue600 `#2272eb` | **hover/pressed 전용**                                                                                                  |
 >
 > 그래서 `&:hover { border-color: var(--color-primary-600) }` 는 맞고,
 > `&:focus-visible { outline: 2px solid var(--color-primary-600) }` 는 틀렸다 — 포커스는
@@ -1346,7 +1349,7 @@ idle → submitting → ┬── cached (200)        → completed
 
 - **레이아웃**:
   - 헤더: 룸 이름 + 인원 + `←` 뒤로.
-  - 메시지 영역: 시간순. **내 메시지만 blue interactive surface(`blue50` 또는 `blue500` 본문은 white) 허용**, 상대 메시지는 white 또는 grey100 surface.
+  - 메시지 영역: 시간순. **내 메시지만 blue interactive surface(`blue50`, 또는 `--color-fill-primary-text`(blue700) 채움에 white 본문) 허용** — blue500 채움 위 흰 글자는 2.77:1 이다(§7), 상대 메시지는 white 또는 grey100 surface.
   - 입력바: 48px height, 좌측 `+`(첨부), 중앙 TextField, 우측 send 아이콘 버튼(blue500).
 - **연결 상태 표시**: 상단 sticky 알림 — `연결 중…` (yellow) / `연결이 끊겼어요. 다시 시도 중…` (red).
 
