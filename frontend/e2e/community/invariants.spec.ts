@@ -1,9 +1,5 @@
-import { expect, test } from '@playwright/test'
-import {
-  mockPath,
-  readLayoutInvariants,
-  watchCommunitySession,
-} from './measure'
+import { expect, test } from './test'
+import { readLayoutInvariants, watchCommunitySession } from './measure'
 
 /**
  * 커뮤니티 세 화면 불변식(CM-014) — 가로 넘침 없음 · 그려진 h1 하나 · 콘솔 오류 0.
@@ -40,7 +36,7 @@ test.describe('커뮤니티 불변식', () => {
     }) => {
       const session = watchCommunitySession(page)
 
-      await page.goto(mockPath(screen.path), { waitUntil: 'domcontentloaded' })
+      await page.goto(screen.path, { waitUntil: 'domcontentloaded' })
       await expect(page.locator(screen.ready).first()).toBeVisible()
       if (screen.desktopReady && test.info().project.name === 'desktop') {
         await expect(page.locator(screen.desktopReady)).toBeVisible()
@@ -68,7 +64,7 @@ test.describe('커뮤니티 불변식', () => {
       '첫 화면 글 수는 모바일(375×812)에서만 잰다.',
     )
 
-    await page.goto(mockPath('/community/list'), {
+    await page.goto('/community/list', {
       waitUntil: 'domcontentloaded',
     })
     await expect(page.locator('[data-community-post-id]').first()).toBeVisible()
@@ -93,9 +89,7 @@ test.describe('커뮤니티 불변식', () => {
   */
   test('빈 목록에서도 푸터는 화면 바닥에 붙는다', async ({ page }) => {
     await page.goto(
-      mockPath(
-        '/community/list?keyword=%EC%97%86%EB%8A%94%EA%B2%80%EC%83%89%EC%96%B4zz',
-      ),
+      '/community/list?keyword=%EC%97%86%EB%8A%94%EA%B2%80%EC%83%89%EC%96%B4zz',
       { waitUntil: 'domcontentloaded' },
     )
     await expect(page.getByText('검색 결과가 없어요')).toBeVisible()

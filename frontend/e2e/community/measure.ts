@@ -4,8 +4,9 @@ import { CONSOLE_NOISE } from '../home/measure'
 /**
  * 커뮤니티 화면 실측 헬퍼.
  *
- * 커뮤니티는 dev 백엔드에 글이 없어(BE #190) **`?mock=1` 목 모드**로 연다(dev 서버에서만 켜진다 —
- * `isCommunityMockEnabled`). 목 데이터는 `src/lib/community/community-mock.ts` 다.
+ * 화면은 **실데이터 경로 그대로** 열고, BFF 호출만 고정 응답으로 바꾼다(`./test` 의 자동 fixture →
+ * `e2e/fixtures/community.ts`). 응답은 목 데이터 소스(`src/lib/community/community-mock.ts`)가 만든다.
+ * 예전에는 `?mock=1` 목 모드로 열었는데, 목 모드는 dev 서버에서만 켜져 프로덕션 빌드에서 돌지 않았다(#469).
  * 무엇을 여기서 재고 무엇을 vitest 가 보는지는 `docs/runbook/qa.md` 「브라우저 실측 회귀」.
  */
 
@@ -38,13 +39,9 @@ export const watchCommunitySession = (page: Page): CommunitySession => {
   return session
 }
 
-/** 목 모드 주소. 이미 쿼리가 있으면 `&mock=1` 을 붙인다. */
-export const mockPath = (path: string) =>
-  `${path}${path.includes('?') ? '&' : '?'}mock=1`
-
 /** 목록을 열고 첫 글 행이 그려질 때까지 기다린다. */
 export const openCommunityList = async (page: Page, query = '') => {
-  await page.goto(mockPath(`/community/list${query}`), {
+  await page.goto(`/community/list${query}`, {
     waitUntil: 'domcontentloaded',
   })
   await expect(page.locator('[data-community-post-id]').first()).toBeVisible()
@@ -52,7 +49,7 @@ export const openCommunityList = async (page: Page, query = '') => {
 
 /** 상세를 열고 본문이 그려질 때까지 기다린다. */
 export const openCommunityDetail = async (page: Page, postId: string) => {
-  await page.goto(mockPath(`/community/${postId}`), {
+  await page.goto(`/community/${postId}`, {
     waitUntil: 'domcontentloaded',
   })
   await expect(page.locator('[data-community-article]')).toBeVisible()

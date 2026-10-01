@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import {
   openCommunityList,
   rectOf,
@@ -77,7 +77,7 @@ test.describe('커뮤니티 목록 골격', () => {
     await expect(page.locator(RAIL)).toHaveCount(0)
     await expect(page.locator(NAV)).toHaveCount(0)
     await expect(page.locator(TAB_ROW)).toBeVisible()
-    // 목 모드는 네트워크를 타지 않지만, 실데이터 경로라면 인기 글은 `sortType=POPULAR` 목록 호출이다.
+    // 인기 글은 `sortType=POPULAR` 목록 호출이다 — 모바일 1단은 레일이 없으니 부르지 않는다.
     expect(
       session.bffRequests.filter(request =>
         request.includes('sortType=POPULAR'),
