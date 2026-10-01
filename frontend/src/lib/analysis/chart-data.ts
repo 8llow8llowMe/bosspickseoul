@@ -73,3 +73,31 @@ export const toDonutSlices = (
     percent: total > 0 ? Math.round((segment.value / total) * 100) : 0,
   }))
 }
+
+/**
+ * 조각별 정수 비율(%). 합이 늘 100 이 되도록 **최대 나머지 방식**으로 남는 1%p 를 나눈다.
+ *
+ * ⚠️ 성비 막대(`ShareBar`)와 성비 문장(`describeGenderShare`)이 **이 함수 하나**를 쓴다.
+ * 둘이 반올림을 따로 하면 48.5/51.5 에서 막대는 49/51, 문장은 「여성이 52%」가 되어 한 카드
+ * 안에서 숫자가 갈렸다. 음수 값은 0 으로 본다.
+ */
+export const toShares = (values: readonly number[]): number[] => {
+  const safe = values.map(value =>
+    Number.isFinite(value) ? Math.max(0, value) : 0,
+  )
+  const total = safe.reduce((sum, value) => sum + value, 0)
+  if (total <= 0) return safe.map(() => 0)
+  const exact = safe.map(value => (value / total) * 100)
+  const floors = exact.map(Math.floor)
+  let remaining = 100 - floors.reduce((sum, share) => sum + share, 0)
+  // 나머지가 큰 조각부터 1%p 씩. 동률이면 앞 조각이 먼저 받는다.
+  const order = exact
+    .map((share, index) => ({ index, remainder: share - floors[index] }))
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index)
+  for (const { index } of order) {
+    if (remaining <= 0) break
+    floors[index] += 1
+    remaining -= 1
+  }
+  return floors
+}

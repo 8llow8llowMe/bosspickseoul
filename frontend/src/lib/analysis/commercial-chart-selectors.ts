@@ -2,11 +2,7 @@ import {
   toMetricRows,
   type AnalysisMetricRow,
 } from '@/lib/analysis/presentation'
-import {
-  toPyramidRows,
-  type PyramidRow,
-  type TrendPoint,
-} from '@/lib/analysis/chart-data'
+import { toPyramidRows, type PyramidRow } from '@/lib/analysis/chart-data'
 import type {
   CommercialFootTraffic,
   CommercialSales,
@@ -81,25 +77,17 @@ export const createRows = (
     ])[],
   )
 
-/** 시간대별 항목(라벨+값)을 LineChart 분기 추세 포인트 형태로 재사용한다. */
-export const toLinePoints = (
-  rows: readonly AnalysisMetricRow[],
-): TrendPoint[] =>
-  rows.map(row => ({
-    periodLabel: row.label,
-    value: row.value,
-    changeRate: null,
-  }))
-
-export const buildSalesTimeLine = (
+/*
+  시간대별 매출은 막대로 그린다(BarChart). 예전에는 6개 구간을 꺾은선으로 이어 구간 사이에도
+  값이 있는 것처럼 보였다 — 구간은 이산이고 길이도 3~6시간으로 다르다.
+*/
+export const buildSalesTimeBars = (
   sales: CommercialSales | null,
-): TrendPoint[] =>
-  toLinePoints(
-    createRows(
-      sales?.amountByTimeSlotItem as
-        Record<string, number | null> | null | undefined,
-      salesTimeDefinitions,
-    ),
+): AnalysisMetricRow[] =>
+  createRows(
+    sales?.amountByTimeSlotItem as
+      Record<string, number | null> | null | undefined,
+    salesTimeDefinitions,
   )
 
 export const buildFootDayBars = (

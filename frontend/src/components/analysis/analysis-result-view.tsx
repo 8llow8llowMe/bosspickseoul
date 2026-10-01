@@ -37,10 +37,12 @@ import AnalysisSummaryCards, {
 import SalesComparisonBars from '@/components/analysis/sales-comparison-bars'
 import BarChart from '@/components/analysis/charts/bar-chart'
 import { genderColorsFor } from '@/components/analysis/charts/chart-theme'
-import DonutChart from '@/components/analysis/charts/donut-chart'
 import HorizontalBarChart from '@/components/analysis/charts/horizontal-bar-chart'
-import LineChart from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
+import ShareBar from '@/components/analysis/charts/share-bar'
+import AnalysisTrendSummary, {
+  resolveTrendSectionState,
+} from '@/components/analysis/analysis-trend-summary'
 import AnalysisResultNav from '@/components/analysis/analysis-result-nav'
 import AnalysisPeriodSelect from '@/components/analysis/analysis-period-select'
 import { Badge } from '@/components/ui/badge'
@@ -99,7 +101,6 @@ import {
 } from '@/lib/analysis/presentation'
 import {
   createRows,
-  toLinePoints,
   footTimeDefinitions,
   footDayDefinitions,
   salesTimeDefinitions,
@@ -107,6 +108,16 @@ import {
   salesAgeDefinitions,
   populationAgeDefinitions,
 } from '@/lib/analysis/commercial-chart-selectors'
+import {
+  describeFootAgeGenderPeak,
+  describeFootDayPattern,
+  describeFootTimePeak,
+  describeGenderShare,
+  describePopulationAgePeak,
+  describeSalesAgePeak,
+  describeSalesDayPeak,
+  describeSalesTimeShare,
+} from '@/lib/analysis/chart-insights'
 import {
   EXPENSE_PROXY_BADGE_LABEL,
   hasExpenseByCategory,
@@ -547,6 +558,12 @@ const ChartBox = styled.div<{ $maxWidth: number }>`
   margin: 0 auto;
 `
 
+/** 한 카드 안에서 차트 아래 보조 막대(성비)를 쌓는다. */
+const ChartStack = styled.div`
+  display: grid;
+  gap: 20px;
+`
+
 const ContextHero = styled.section`
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -707,6 +724,45 @@ const toShareRatio = (
 /** 비율을 사람이 읽는 한 줄로. 0.043 → '4.3%'. */
 const formatSharePercent = (ratio: number): string =>
   `${new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 }).format(ratio * 100)}%`
+
+/**
+ * 결론 문장들을 카드 설명 한 줄로 잇는다. 다른 카드 설명처럼 문장마다 마침표를 붙이고,
+ * 데이터가 모자라 문장이 없으면 설명을 비운다.
+ */
+const toDescription = (
+  ...sentences: Array<string | null>
+): string | undefined => {
+  const kept = sentences.filter((sentence): sentence is string => !!sentence)
+  return kept.length
+    ? kept.map(sentence => `${sentence}.`).join(' ')
+    : undefined
+}
+
+/** 숫자 값이 하나라도 있는 행 목록인가 — 섹션 빈 상태 판정. */
+const numericRows = (rows: readonly { value: number | null }[]): boolean =>
+  rows.some(row => typeof row.value === 'number')
+
+/**
+ * 성별 조각에 라벨로 고른 색을 붙여 `ShareBar` 에 넘긴다. 한쪽 값만 오면 막대가 「여성 100%」가
+ * 되므로 두 값이 다 있을 때만 넘기고, 아니면 빈 배열(「데이터 없음」)이다.
+ */
+const withGenderColors = (
+  segments: readonly { label: string; value: number }[],
+) => {
+  if (segments.length < 2) return []
+  const colors = genderColorsFor(segments)
+  return segments.map((segment, index) => ({
+    ...segment,
+    color: colors[index],
+  }))
+}
+
+/*
+  시간대 구간은 길이가 다르다(00~06시 6시간, 11~14시 3시간). 막대는 구간 합계라 긴 구간이
+  부풀어 보일 수 있어 각주로 알린다. 시간당 환산은 원천이 구간 합계인지 확정한 뒤 정한다.
+*/
+const TIME_BAND_NOTE =
+  '시간대 구간의 길이가 3~6시간으로 서로 달라요. 막대는 구간마다 합한 값이에요.'
 
 export default function AnalysisResultView({
   onClose,
@@ -1026,10 +1082,43 @@ export default function AnalysisResultView({
   const benchmark = getResponseBody(
     benchmarkQuery.data,
   ) as CommercialBenchmark | null
+  const footTimeRows = createRows(
+    footTraffic?.byTimeSlotItem as Record<string, number | null> | null,
+    footTimeDefinitions,
+  )
+  const footDayRows = createRows(
+    footTraffic?.byDayOfWeekItem as Record<string, number | null> | null,
+    footDayDefinitions,
+  )
+  const footPyramidRows = toPyramidRows(footTraffic?.byAgeGenderPercentItem)
+  const salesTimeRows = createRows(
+    sales?.amountByTimeSlotItem as Record<string, number | null> | null,
+    salesTimeDefinitions,
+  )
+  const salesDayRows = createRows(
+    sales?.amountByDayOfWeekItem as Record<string, number | null> | null,
+    salesDayDefinitions,
+  )
+  const salesAgeRows = createRows(
+    sales?.amountByAgeItem as Record<string, number | null> | null,
+    salesAgeDefinitions,
+  )
+  const salesGenderSegments = toGenderSegments(
+    sales?.countByGenderItem?.maleSalesCount,
+    sales?.countByGenderItem?.femaleSalesCount,
+  )
+  const populationAgeRows = createRows(
+    population?.byAgeItem as Record<string, number | null | undefined> | null,
+    populationAgeDefinitions,
+  )
+  const populationGenderSegments = toGenderSegments(
+    population?.malePercentage,
+    population?.femalePercentage,
+  )
   const trends: Array<{
     metric: CommercialTrendMetric
     label: string
-    /** 직전 분기 대비 문장의 주어(조사 포함) — `LineChart.changeSubject`. */
+    /** 직전 분기 대비 문장의 주어(조사 포함) — `describeLatestChange`. */
     subject: string
     unit: string
     query: typeof salesTrendQuery
@@ -1037,7 +1126,7 @@ export default function AnalysisResultView({
   }> = [
     {
       metric: 'SALES',
-      label: '매출 변화',
+      label: '매출',
       subject: '매출이',
       unit: '원',
       query: salesTrendQuery,
@@ -1045,7 +1134,7 @@ export default function AnalysisResultView({
     },
     {
       metric: 'FOOT_TRAFFIC',
-      label: '유동인구 변화',
+      label: '유동인구',
       subject: '유동인구가',
       unit: '명',
       query: footTrendQuery,
@@ -1053,13 +1142,22 @@ export default function AnalysisResultView({
     },
     {
       metric: 'STORE',
-      label: '점포 변화',
+      label: '점포 수',
       subject: '점포 수가',
       unit: '개',
       query: storeTrendQuery,
       data: getResponseBody(storeTrendQuery.data),
     },
   ]
+  const trendSectionState = resolveTrendSectionState(
+    trends.map(({ query, data }) => ({
+      pending: query.isPending,
+      error: resolveApiError(query),
+      hasData: toTrendPoints(data).some(
+        point => typeof point.value === 'number',
+      ),
+    })),
+  )
 
   const bookmark = bookmarksQuery.bookmarks.find(
     item => item.targetCode === commercialCode,
@@ -1816,58 +1914,34 @@ export default function AnalysisResultView({
             <DashboardGrid>
               <AnalysisResultSection
                 title="시간대별 유동인구"
+                description={toDescription(describeFootTimePeak(footTimeRows))}
                 loading={footTrafficQuery.isPending}
                 error={resolveApiError(footTrafficQuery)}
-                empty={
-                  !hasObjectValues(
-                    footTraffic?.byTimeSlotItem as Record<
-                      string,
-                      number | null
-                    > | null,
-                  )
-                }
+                empty={!numericRows(footTimeRows)}
                 onRetry={() => void footTrafficQuery.refetch()}
+                footer={numericRows(footTimeRows) ? TIME_BAND_NOTE : undefined}
               >
                 <ChartBox $maxWidth={560}>
-                  <LineChart
-                    points={toLinePoints(
-                      createRows(
-                        footTraffic?.byTimeSlotItem as Record<
-                          string,
-                          number | null
-                        >,
-                        footTimeDefinitions,
-                      ),
-                    )}
+                  <BarChart
+                    items={footTimeRows}
                     unit="명"
-                    ariaLabel="시간대별 유동인구 추이"
+                    ariaLabel="시간대별 유동인구 막대 차트"
+                    highlightMax
                   />
                 </ChartBox>
               </AnalysisResultSection>
 
               <AnalysisResultSection
                 title="요일별 유동인구"
+                description={toDescription(describeFootDayPattern(footDayRows))}
                 loading={footTrafficQuery.isPending}
                 error={resolveApiError(footTrafficQuery)}
-                empty={
-                  !hasObjectValues(
-                    footTraffic?.byDayOfWeekItem as Record<
-                      string,
-                      number | null
-                    > | null,
-                  )
-                }
+                empty={!numericRows(footDayRows)}
                 onRetry={() => void footTrafficQuery.refetch()}
               >
                 <ChartBox $maxWidth={460}>
                   <BarChart
-                    items={createRows(
-                      footTraffic?.byDayOfWeekItem as Record<
-                        string,
-                        number | null
-                      >,
-                      footDayDefinitions,
-                    )}
+                    items={footDayRows}
                     unit="명"
                     ariaLabel="요일별 유동인구 막대 차트"
                     highlightMax
@@ -1877,18 +1951,18 @@ export default function AnalysisResultView({
 
               <AnalysisResultSection
                 title="연령·성별 유동인구"
+                description={toDescription(
+                  describeFootAgeGenderPeak(footPyramidRows),
+                )}
                 loading={footTrafficQuery.isPending}
                 error={resolveApiError(footTrafficQuery)}
-                empty={toPyramidRows(footTraffic?.byAgeGenderPercentItem).every(
+                empty={footPyramidRows.every(
                   row => row.male === null && row.female === null,
                 )}
                 onRetry={() => void footTrafficQuery.refetch()}
               >
                 <ChartBox $maxWidth={460}>
-                  <PopulationPyramid
-                    rows={toPyramidRows(footTraffic?.byAgeGenderPercentItem)}
-                    unit="%"
-                  />
+                  <PopulationPyramid rows={footPyramidRows} unit="%" />
                 </ChartBox>
               </AnalysisResultSection>
             </DashboardGrid>
@@ -1902,58 +1976,36 @@ export default function AnalysisResultView({
             <DashboardGrid>
               <AnalysisResultSection
                 title="시간대별 매출"
+                description={toDescription(
+                  describeSalesTimeShare(salesTimeRows),
+                )}
                 loading={salesQuery.isPending}
                 error={resolveApiError(salesQuery)}
-                empty={
-                  !hasObjectValues(
-                    sales?.amountByTimeSlotItem as Record<
-                      string,
-                      number | null
-                    > | null,
-                  )
-                }
+                empty={!numericRows(salesTimeRows)}
                 onRetry={() => void salesQuery.refetch()}
+                footer={numericRows(salesTimeRows) ? TIME_BAND_NOTE : undefined}
               >
                 <ChartBox $maxWidth={560}>
-                  <LineChart
-                    points={toLinePoints(
-                      createRows(
-                        sales?.amountByTimeSlotItem as Record<
-                          string,
-                          number | null
-                        >,
-                        salesTimeDefinitions,
-                      ),
-                    )}
+                  <BarChart
+                    items={salesTimeRows}
                     unit="원"
-                    ariaLabel="시간대별 매출 추이"
+                    ariaLabel="시간대별 매출 막대 차트"
+                    highlightMax
                   />
                 </ChartBox>
               </AnalysisResultSection>
 
               <AnalysisResultSection
                 title="요일별 매출"
+                description={toDescription(describeSalesDayPeak(salesDayRows))}
                 loading={salesQuery.isPending}
                 error={resolveApiError(salesQuery)}
-                empty={
-                  !hasObjectValues(
-                    sales?.amountByDayOfWeekItem as Record<
-                      string,
-                      number | null
-                    > | null,
-                  )
-                }
+                empty={!numericRows(salesDayRows)}
                 onRetry={() => void salesQuery.refetch()}
               >
                 <ChartBox $maxWidth={460}>
                   <BarChart
-                    items={createRows(
-                      sales?.amountByDayOfWeekItem as Record<
-                        string,
-                        number | null
-                      >,
-                      salesDayDefinitions,
-                    )}
+                    items={salesDayRows}
                     unit="원"
                     ariaLabel="요일별 매출 막대 차트"
                     highlightMax
@@ -1961,59 +2013,44 @@ export default function AnalysisResultView({
                 </ChartBox>
               </AnalysisResultSection>
 
+              {/*
+                「성별 매출 건수」 도넛은 카드 하나를 쓰면서 숫자 두 개만 보여 줬다. 연령별 매출
+                아래 성비 막대 한 줄로 붙인다(ShareBar).
+              */}
               <AnalysisResultSection
-                title="연령별 매출"
+                title="연령·성별 매출"
+                description={toDescription(
+                  describeSalesAgePeak(salesAgeRows),
+                  describeGenderShare(
+                    sales?.countByGenderItem?.maleSalesCount,
+                    sales?.countByGenderItem?.femaleSalesCount,
+                    '결제 건수는',
+                  ),
+                )}
                 loading={salesQuery.isPending}
                 error={resolveApiError(salesQuery)}
                 empty={
-                  !hasObjectValues(
-                    sales?.amountByAgeItem as Record<
-                      string,
-                      number | null
-                    > | null,
-                  )
+                  !numericRows(salesAgeRows) &&
+                  salesGenderSegments.every(segment => segment.value <= 0)
                 }
                 onRetry={() => void salesQuery.refetch()}
               >
-                <ChartBox $maxWidth={460}>
-                  <BarChart
-                    items={createRows(
-                      sales?.amountByAgeItem as Record<string, number | null>,
-                      salesAgeDefinitions,
-                    )}
-                    unit="원"
-                    ariaLabel="연령별 매출 막대 차트"
-                    highlightMax
-                  />
-                </ChartBox>
-              </AnalysisResultSection>
-
-              <AnalysisResultSection
-                title="성별 매출 건수"
-                loading={salesQuery.isPending}
-                error={resolveApiError(salesQuery)}
-                empty={toGenderSegments(
-                  sales?.countByGenderItem?.maleSalesCount,
-                  sales?.countByGenderItem?.femaleSalesCount,
-                ).every(segment => segment.value <= 0)}
-                onRetry={() => void salesQuery.refetch()}
-              >
-                <ChartBox $maxWidth={200}>
-                  <DonutChart
-                    segments={toGenderSegments(
-                      sales?.countByGenderItem?.maleSalesCount,
-                      sales?.countByGenderItem?.femaleSalesCount,
-                    )}
-                    colors={genderColorsFor(
-                      toGenderSegments(
-                        sales?.countByGenderItem?.maleSalesCount,
-                        sales?.countByGenderItem?.femaleSalesCount,
-                      ),
-                    )}
-                    ariaLabel="성별 매출 건수 도넛"
+                <ChartStack>
+                  <ChartBox $maxWidth={460}>
+                    <BarChart
+                      items={salesAgeRows}
+                      unit="원"
+                      ariaLabel="연령별 매출 막대 차트"
+                      highlightMax
+                    />
+                  </ChartBox>
+                  <ShareBar
+                    title="성별 결제 건수"
+                    segments={withGenderColors(salesGenderSegments)}
                     unit="건"
+                    ariaLabel="성별 결제 건수 비율"
                   />
-                </ChartBox>
+                </ChartStack>
               </AnalysisResultSection>
             </DashboardGrid>
           </ReportSection>
@@ -2149,53 +2186,39 @@ export default function AnalysisResultView({
             {renderGroupHeading('생활권')}
             <DashboardGrid>
               <AnalysisResultSection
-                title="연령별 상주인구"
+                title="연령·성별 상주인구"
+                description={toDescription(
+                  describePopulationAgePeak(populationAgeRows),
+                  describeGenderShare(
+                    population?.malePercentage,
+                    population?.femalePercentage,
+                    '상주인구는',
+                  ),
+                )}
                 loading={populationQuery.isPending}
                 error={resolveApiError(populationQuery)}
-                empty={!hasObjectValues(population?.byAgeItem)}
+                empty={
+                  !numericRows(populationAgeRows) &&
+                  populationGenderSegments.every(segment => segment.value <= 0)
+                }
                 onRetry={() => void populationQuery.refetch()}
               >
-                <ChartBox $maxWidth={460}>
-                  <BarChart
-                    items={createRows(
-                      population?.byAgeItem as Record<
-                        string,
-                        number | null | undefined
-                      >,
-                      populationAgeDefinitions,
-                    )}
-                    unit="명"
-                    ariaLabel="연령별 상주인구 막대 차트"
-                    highlightMax
-                  />
-                </ChartBox>
-              </AnalysisResultSection>
-              <AnalysisResultSection
-                title="성별 상주인구"
-                loading={populationQuery.isPending}
-                error={resolveApiError(populationQuery)}
-                empty={toGenderSegments(
-                  population?.malePercentage,
-                  population?.femalePercentage,
-                ).every(segment => segment.value <= 0)}
-                onRetry={() => void populationQuery.refetch()}
-              >
-                <ChartBox $maxWidth={200}>
-                  <DonutChart
-                    segments={toGenderSegments(
-                      population?.malePercentage,
-                      population?.femalePercentage,
-                    )}
-                    colors={genderColorsFor(
-                      toGenderSegments(
-                        population?.malePercentage,
-                        population?.femalePercentage,
-                      ),
-                    )}
-                    ariaLabel="성별 상주인구 도넛"
+                <ChartStack>
+                  <ChartBox $maxWidth={460}>
+                    <BarChart
+                      items={populationAgeRows}
+                      unit="명"
+                      ariaLabel="연령별 상주인구 막대 차트"
+                      highlightMax
+                    />
+                  </ChartBox>
+                  <ShareBar
+                    title="성별 상주인구"
+                    segments={withGenderColors(populationGenderSegments)}
                     unit="%"
+                    ariaLabel="성별 상주인구 비율"
                   />
-                </ChartBox>
+                </ChartStack>
               </AnalysisResultSection>
               {/*
                 전에는 「소득과 소비」 한 섹션이 월 평균 소득 카드와 항목별 소비 막대를
@@ -2336,28 +2359,28 @@ export default function AnalysisResultView({
             ref={registerSection('trend')}
           >
             {renderGroupHeading('트렌드')}
-            <DashboardGrid>
-              {trends.map(({ metric, label, subject, unit, query, data }) => (
-                <AnalysisResultSection
-                  key={metric}
-                  title={label}
-                  loading={query.isPending}
-                  error={resolveApiError(query)}
-                  empty={!data?.periods?.length}
-                  onRetry={() => void query.refetch()}
-                >
-                  <ChartBox $maxWidth={560}>
-                    <LineChart
-                      points={toTrendPoints(data)}
-                      unit={unit}
-                      direction={data?.trendDirection ?? null}
-                      changeSubject={subject}
-                      ariaLabel={`${label} 분기별 추이`}
-                    />
-                  </ChartBox>
-                </AnalysisResultSection>
-              ))}
-            </DashboardGrid>
+            <AnalysisResultSection
+              title="분기별 변화"
+              description="최근 분기의 매출·유동인구·점포 수를 직전 분기와 비교했어요."
+              {...trendSectionState}
+              onRetry={() =>
+                trends.forEach(({ query }) => void query.refetch())
+              }
+            >
+              <AnalysisTrendSummary
+                items={trends.map(
+                  ({ metric, label, subject, unit, query, data }) => ({
+                    key: metric,
+                    label,
+                    subject,
+                    unit,
+                    points: toTrendPoints(data),
+                    error: resolveApiError(query),
+                    onRetry: () => void query.refetch(),
+                  }),
+                )}
+              />
+            </AnalysisResultSection>
           </ReportSection>
 
           <ReportSection
