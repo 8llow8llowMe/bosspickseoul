@@ -1,11 +1,20 @@
 'use client'
 
 import Link from 'next/link'
-import styled from 'styled-components'
+import {
+  ArrowLeft,
+  ChevronRight,
+  Heart,
+  MessageCircle,
+  Share,
+} from 'lucide-react'
+import styled, { css } from 'styled-components'
 import CommunityCommentThread from '@/components/community/community-comment-thread'
 import CommunityFeedback from '@/components/community/community-feedback'
+import CommunityMoreMenu from '@/components/community/community-more-menu'
 import CommunityReportDialog from '@/components/community/community-report-dialog'
 import CommunityWriter from '@/components/community/community-writer'
+import { useToast } from '@/components/ui/toast'
 import {
   formatCommunityCount,
   formatCommunityDate,
@@ -15,6 +24,15 @@ import {
 import type { AdjacentPostState } from '@/lib/community/adjacent-posts'
 import { createCommunityPostHref } from '@/lib/community/community-state'
 import type { CommunityViewer } from '@/lib/community/community-state'
+import {
+  COMMUNITY_SHARE_TOAST,
+  createCommunityRegionListHref,
+  createCommunityShareUrl,
+  getCommunityRailRegionName,
+  getCommunityRegionName,
+  isCommunityPostEdited,
+  shareCommunityPost,
+} from '@/lib/community/post-detail'
 import { sortPostImages } from '@/lib/community/post-images'
 import type {
   CommunityId,
@@ -78,25 +96,83 @@ export type CommunityDetailViewProps = {
   onSubmitReport: (reason: string) => void
 }
 
+/*
+  커뮤니티 구간(DESIGN.md §8 피드형 화면 메모): <480 모바일 · 480–1079 태블릿(--w-read 1단) ·
+  ≥1080 데스크톱(본문 --w-read + 레일 300). 레거시 640·768 은 쓰지 않는다.
+*/
+const MOBILE = '@media (max-width: 479px)'
+const TABLET_UP = '@media (min-width: 480px)'
+const DESKTOP = '@media (min-width: 1080px)'
+
+/*
+  사이트 헤더(site-header.tsx)는 sticky top:0 · 높이 64 다. 레일은 그 아래 24 를 띄워 붙는다
+  (목록 툴바는 top:64 로 헤더에 바로 붙지만, 레일은 카드라 헤더 테두리에 닿으면 끼어 보인다).
+*/
+const SITE_HEADER_HEIGHT = 64
+const RAIL_STICKY_TOP = SITE_HEADER_HEIGHT + 24
+
 const Page = styled.main`
   ${shellWidth}
-  padding: 28px 0 72px;
+  padding: 16px 0 64px;
 
-  @media (max-width: 640px) {
-    padding-top: 20px;
+  ${MOBILE} {
+    padding-top: 8px;
   }
 `
 
+/*
+  D1 버그 고침. 예전에는 `minmax(0, 1fr) 300px` 에 본문 열만 720 상한이라, 1440 폭에서 본문과
+  레일 사이가 ≈370px 비었다. 이제 트랙 자체가 --w-read 상한이고 묶음을 가운데로 모은다(CM-020).
+  1080 미만은 --w-read 1단이고 레일은 DOM 순서대로 댓글·인접 글 뒤에 온다.
+*/
+const Layout = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, var(--w-read));
+  justify-content: center;
+  gap: 32px;
+
+  ${DESKTOP} {
+    grid-template-columns: minmax(0, var(--w-read)) 300px;
+    column-gap: 24px;
+    align-items: start;
+  }
+`
+
+const MainColumn = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 24px;
+`
+
+const HeadRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  /* 버튼 안쪽 여백만큼 바깥으로 빼서 아이콘이 본문 글자 열과 같은 선에 선다. */
+  margin: 0 -8px;
+`
+
+/* 머리 줄의 「← 목록」. 화면 내비게이션이라 파란 링크가 아니라 중립 글자로 둔다 — 오른쪽 ⋯ 와 같은 톤. */
 const BackLink = styled(Link)`
   min-height: 44px;
   width: fit-content;
   display: inline-flex;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 0 4px;
-  color: var(--color-primary-700);
-  font-size: 14px;
-  font-weight: 700;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
+  color: var(--color-text-800);
+  font-size: 16px;
+  font-weight: 600;
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  &:hover {
+    background: var(--color-background-muted);
+  }
 
   &:focus-visible {
     outline: none;
@@ -104,84 +180,95 @@ const BackLink = styled(Link)`
   }
 `
 
-const Layout = styled.div`
-  display: grid;
-  gap: 20px;
-
-  @media (min-width: 768px) {
-    grid-template-columns: minmax(0, 1fr) 300px;
-    align-items: start;
-  }
-`
-
-/*
-  본문 열에는 읽기 폭을 건다. 셸이 전폭이라 2560 에서 이 열이 2200px 까지 가는데
-  그 폭의 산문은 눈이 줄을 놓친다. 사이드바(300px)는 그대로 우측에 붙는다.
-*/
-const MainColumn = styled.div`
-  min-width: 0;
-  max-width: var(--w-read);
-  display: grid;
-  gap: 20px;
-`
-
+/* 본문은 카드에서 꺼내 흰 바탕에 바로 둔다 — 읽기 화면에서 테두리는 소음이다(제안서 §4.2 A). */
 const Article = styled.article`
+  min-width: 0;
   display: grid;
   gap: 24px;
-  padding: 28px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-level-1);
 
-  @media (max-width: 640px) {
+  ${MOBILE} {
     gap: 20px;
-    padding: 20px 18px;
   }
 `
 
 const ArticleHeader = styled.header`
+  min-width: 0;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 `
 
-const TargetBadge = styled.span`
-  min-height: 30px;
+const regionChipBase = css`
+  min-height: 36px;
+  max-width: 100%;
   width: fit-content;
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   padding: 0 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  font-weight: 600;
+
+  > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  svg {
+    flex: 0 0 auto;
+  }
+`
+
+/* 지역 칩 — 그 지역 목록으로 가는 링크. 목록의 활성 칩과 같은 blue50 바탕 + blue700 글자(5.26:1). */
+const RegionChipLink = styled(Link)`
+  ${regionChipBase}
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--color-text-primary-on-light);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-primary-strong);
+  }
+`
+
+/* 대상이 없는 글. 「서울 전체」로 갈 곳은 목록 첫 화면이라 ← 목록 과 겹친다 — 링크 없는 라벨이다. */
+const RegionChipLabel = styled.span`
+  ${regionChipBase}
+  background: var(--color-surface-muted);
+  color: var(--color-text-700);
 `
 
 const ArticleTitle = styled.h1`
   color: var(--color-text-900);
-  font-size: 34px;
-  line-height: 1.28;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.35;
   overflow-wrap: anywhere;
+  word-break: keep-all;
 
-  @media (max-width: 640px) {
-    font-size: 24px;
+  ${TABLET_UP} {
+    font-size: 26px;
   }
 `
 
-const MetaRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px 14px;
-  flex-wrap: wrap;
-  color: var(--color-text-500);
+const Byline = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+`
+
+const MetaLine = styled.p`
+  color: var(--color-text-caption);
   font-size: 13px;
-  line-height: 1.6;
+  font-weight: 400;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 `
 
 const ArticleContent = styled.div`
-  min-height: 160px;
-  padding: 8px 0;
   color: var(--color-text-800);
   font-size: 16px;
   line-height: 1.9;
@@ -198,14 +285,15 @@ const AnalysisNote = styled.aside`
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 8px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
 `
 
 const AnalysisLabel = styled.span`
-  color: var(--color-text-caption);
+  /* grey100 바탕 위라 grey600 캡션은 4.19 로 미달이다 — grey700(DESIGN.md §2 caption-on-band 값). */
+  color: var(--color-text-700);
   font-size: 12px;
   font-weight: 600;
 `
@@ -220,13 +308,13 @@ const AnalysisName = styled.strong`
 const ArticleImages = styled.ul`
   display: grid;
   gap: 12px;
-  margin: 0 0 8px;
+  margin: 0;
   padding: 0;
   list-style: none;
 
   img {
     width: 100%;
-    max-width: 640px;
+    max-width: var(--w-read);
     height: auto;
     display: block;
     border: 1px solid var(--color-border-200);
@@ -234,35 +322,40 @@ const ArticleImages = styled.ul`
   }
 `
 
-const ArticleFooter = styled.footer`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-border-200);
-`
-
-const Actions = styled.div`
+const ReactionBar = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 `
 
-const ActionButton = styled.button<{ $danger?: boolean }>`
-  min-height: 44px;
-  padding: 0 14px;
+const ReactionButton = styled.button<{ $active?: boolean }>`
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
   background: var(--color-surface);
+  /* 좋아요한 상태도 파란 글자 — 상호작용의 활성 색은 파랑 하나다(DESIGN.md §7). */
   color: ${props =>
-    props.$danger ? 'var(--color-danger)' : 'var(--color-text-700)'};
+    props.$active
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-700)'};
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  &:hover {
+    background: var(--color-background-muted);
+  }
 
   &:focus-visible {
     outline: none;
@@ -273,86 +366,129 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
     cursor: not-allowed;
     opacity: var(--button-disabled-opacity-color);
   }
+
+  /* 처리 중에는 흐리게 하지 않는다 — 누를 때마다 버튼이 깜박이면 실패처럼 보인다. */
+  &:disabled[aria-busy='true'] {
+    cursor: progress;
+    opacity: 1;
+  }
 `
 
-const EditLink = styled(Link)`
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 14px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 700;
+const ReactionCount = styled.span`
+  font-variant-numeric: tabular-nums;
+`
 
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
+/*
+  본문과 댓글 사이 회색 띠(grey50 8px). <480 에서는 셸 거터만큼 바깥으로 빼 화면 끝까지 닿는다 —
+  그 폭에서 본문 열 = 셸이라 정확히 화면 폭이고 가로 스크롤이 생기지 않는다. 그 이상은 열 폭이다.
+*/
+const SectionBand = styled.div`
+  height: 8px;
+  background: var(--color-background-muted);
+
+  ${MOBILE} {
+    margin: 0 calc(var(--shell-gutter) * -1);
   }
 `
 
 const InlineMessage = styled.p<{ $error?: boolean }>`
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-radius: var(--radius-control);
   background: ${props =>
     props.$error
       ? 'color-mix(in srgb, var(--color-danger) 8%, var(--color-surface))'
       : 'var(--color-primary-100)'};
   color: ${props =>
-    props.$error ? 'var(--color-danger)' : 'var(--color-primary-700)'};
+    props.$error
+      ? 'var(--color-negative-text)'
+      : 'var(--color-text-primary-on-light)'};
   font-size: 13px;
   line-height: 1.6;
 `
 
-const Sidebar = styled.aside`
+const Rail = styled.aside`
+  min-width: 0;
   display: grid;
-  gap: 16px;
+  gap: 12px;
   padding: 20px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
-  box-shadow: var(--shadow-level-1);
 
-  @media (min-width: 768px) {
+  ${DESKTOP} {
     position: sticky;
-    top: 88px;
+    top: ${RAIL_STICKY_TOP}px;
   }
 `
 
-const SidebarSection = styled.section`
-  display: grid;
-  gap: 10px;
-`
-
-const SidebarTitle = styled.h2`
+const RailTitle = styled.h2`
   color: var(--color-text-900);
   font-size: 16px;
+  font-weight: 700;
   line-height: 1.45;
-`
-
-const SidebarBody = styled.p`
-  color: var(--color-text-500);
-  font-size: 13px;
-  line-height: 1.6;
+  overflow-wrap: anywhere;
 `
 
 const RelatedList = styled.ul`
   display: grid;
-  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 `
 
 const RelatedLink = styled(Link)`
-  min-height: 44px;
+  min-height: 52px;
   display: grid;
   gap: 4px;
   align-content: center;
-  padding: 10px 0;
+  padding: 12px 0;
   border-top: 1px solid var(--color-border-200);
   color: var(--color-text-800);
+
+  &:focus-visible {
+    outline: none;
+    border-radius: var(--radius-control);
+    box-shadow: var(--shadow-focus-primary-strong);
+  }
+`
+
+const RelatedTitle = styled.span`
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+`
+
+const RelatedExcerpt = styled.span`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+`
+
+const RailMessage = styled.p`
+  color: var(--color-text-600);
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: keep-all;
+`
+
+const RailButton = styled.button`
+  min-height: 44px;
+  width: fit-content;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-700);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 
   &:focus-visible {
     outline: none;
@@ -360,25 +496,23 @@ const RelatedLink = styled(Link)`
   }
 `
 
-const RelatedTitle = styled.span`
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.5;
-`
-
-const RelatedExcerpt = styled.span`
-  color: var(--color-text-500);
-  font-size: 12px;
-  line-height: 1.5;
-`
-
-const SidebarFeedback = styled.div`
-  padding: 14px;
+/* 빈 레일의 글쓰기 — 보조 CTA 라 blue50 바탕 + blue700 글자(DESIGN.md §4 Secondary). */
+const RailWriteLink = styled(Link)`
+  min-height: 44px;
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 16px;
   border-radius: var(--radius-control);
-  background: var(--color-surface-muted);
-  color: var(--color-text-600);
-  font-size: 13px;
-  line-height: 1.6;
+  background: var(--color-primary-100);
+  color: var(--color-text-primary-on-light);
+  font-size: 14px;
+  font-weight: 700;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-primary-strong);
+  }
 `
 
 const AdjacentNavigation = styled.nav`
@@ -386,7 +520,7 @@ const AdjacentNavigation = styled.nav`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 640px) {
+  ${MOBILE} {
     grid-template-columns: 1fr;
   }
 `
@@ -397,7 +531,7 @@ const AdjacentLink = styled(Link)<{ $next?: boolean }>`
   gap: 4px;
   align-content: center;
   justify-items: ${props => (props.$next ? 'end' : 'start')};
-  padding: 14px 16px;
+  padding: 12px 16px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
@@ -411,7 +545,7 @@ const AdjacentLink = styled(Link)<{ $next?: boolean }>`
 `
 
 const AdjacentLabel = styled.span`
-  color: var(--color-text-500);
+  color: var(--color-text-caption);
   font-size: 12px;
 `
 
@@ -419,6 +553,7 @@ const AdjacentTitle = styled.span`
   font-size: 14px;
   font-weight: 700;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 `
 
 const createDetailPostHref = (
@@ -431,6 +566,96 @@ const createDetailPostHref = (
   }
 
   return mockEnabled ? `/community/${postId}?mock=1` : `/community/${postId}`
+}
+
+type CommunityPostReactionsProps = {
+  title: string
+  likeCount: number
+  commentCount: number
+  liked: boolean
+  likePending: boolean
+  authReady: boolean
+  onToggleLike: () => void
+}
+
+/**
+ * 반응 바 — 좋아요 · 댓글 · 공유. 공유는 로그인 없이 된다.
+ * 토스트 훅을 쓰므로 뷰 본체(로딩·오류에서 일찍 반환한다)와 나눠 둔다.
+ */
+function CommunityPostReactions({
+  title,
+  likeCount,
+  commentCount,
+  liked,
+  likePending,
+  authReady,
+  onToggleLike,
+}: CommunityPostReactionsProps) {
+  const { showToast } = useToast()
+
+  const handleShare = async () => {
+    const result = await shareCommunityPost(
+      { title, url: createCommunityShareUrl(window.location.href) },
+      navigator,
+    )
+    const toast = COMMUNITY_SHARE_TOAST[result]
+
+    if (toast) {
+      showToast({ ...toast, dedupeKey: 'community-post-share' })
+    }
+  }
+
+  return (
+    <ReactionBar aria-label="게시글 반응" role="group">
+      <ReactionButton
+        $active={liked}
+        type="button"
+        aria-label={`게시글 좋아요 ${formatCommunityCount(likeCount)}`}
+        aria-pressed={liked}
+        aria-busy={likePending || undefined}
+        data-liked={liked ? 'true' : 'false'}
+        disabled={!authReady || likePending}
+        onClick={onToggleLike}
+      >
+        <Heart
+          aria-hidden="true"
+          fill={liked ? 'currentColor' : 'none'}
+          size={18}
+        />
+        <span>좋아요</span>
+        <ReactionCount>{formatCommunityCount(likeCount)}</ReactionCount>
+      </ReactionButton>
+      <ReactionButton
+        type="button"
+        aria-label="댓글로 이동"
+        onClick={() => {
+          // 로그인한 사람은 입력칸, 비로그인은 그 자리의 「로그인하고 댓글 남기기」로 간다.
+          const target =
+            document.querySelector<HTMLElement>(
+              'textarea[aria-label="댓글 내용"]',
+            ) ??
+            document.querySelector<HTMLElement>(
+              'button[aria-label="로그인하고 댓글 작성"]',
+            )
+          target?.focus()
+        }}
+      >
+        <MessageCircle aria-hidden="true" size={18} />
+        <span>댓글</span>
+        <ReactionCount>{formatCommunityCount(commentCount)}</ReactionCount>
+      </ReactionButton>
+      <ReactionButton
+        type="button"
+        aria-label="게시글 공유"
+        onClick={() => {
+          void handleShare()
+        }}
+      >
+        <Share aria-hidden="true" size={18} />
+        <span>공유</span>
+      </ReactionButton>
+    </ReactionBar>
+  )
 }
 
 export default function CommunityDetailView({
@@ -472,10 +697,25 @@ export default function CommunityDetailView({
   onCloseReport,
   onSubmitReport,
 }: CommunityDetailViewProps) {
+  const backLink = (
+    <BackLink href={listHref}>
+      <ArrowLeft aria-hidden="true" size={20} />
+      <span>목록</span>
+    </BackLink>
+  )
+
   if (status === 'loading') {
     return (
       <Page>
-        <CommunityFeedback kind="loading" title="게시글을 불러오는 중이에요" />
+        <Layout>
+          <MainColumn>
+            <HeadRow>{backLink}</HeadRow>
+            <CommunityFeedback
+              kind="loading"
+              title="게시글을 불러오는 중이에요"
+            />
+          </MainColumn>
+        </Layout>
       </Page>
     )
   }
@@ -483,13 +723,17 @@ export default function CommunityDetailView({
   if (status === 'error' || !detail) {
     return (
       <Page>
-        <BackLink href={listHref}>← 목록으로</BackLink>
-        <CommunityFeedback
-          kind="error"
-          title="게시글을 불러오지 못했어요."
-          description={errorMessage ?? undefined}
-          onAction={onRetryDetail}
-        />
+        <Layout>
+          <MainColumn>
+            <HeadRow>{backLink}</HeadRow>
+            <CommunityFeedback
+              kind="error"
+              title="게시글을 불러오지 못했어요."
+              description={errorMessage ?? undefined}
+              onAction={onRetryDetail}
+            />
+          </MainColumn>
+        </Layout>
       </Page>
     )
   }
@@ -498,7 +742,16 @@ export default function CommunityDetailView({
   /* 첨부는 비교 초안으로 쓴 글에만 있다. `analysisType` 이 없으면 첨부 자체가 없다. */
   const analysisTypeName =
     detail.analysisType?.name?.trim() || detail.analysisType?.code?.trim() || ''
-  const targetName = detail.targetName?.trim() || '서울 전체'
+  const regionHref = createCommunityRegionListHref(detail, mockEnabled)
+  const regionName = regionHref ? getCommunityRegionName(detail) : '서울 전체'
+  const railRegionName = regionHref
+    ? getCommunityRailRegionName(detail)
+    : '서울 전체'
+  const edited = isCommunityPostEdited(detail.createdAt, detail.updatedAt)
+  /* 글쓰기는 보호 경로라 비로그인이면 미들웨어·작성 화면이 로그인으로 보낸다(돌아올 자리 보존). */
+  const writeHref = mockEnabled
+    ? '/community/register?mock=1'
+    : '/community/register'
 
   const requireAuth = (action: () => void) => {
     if (!authReady) {
@@ -515,26 +768,63 @@ export default function CommunityDetailView({
 
   return (
     <Page>
-      <BackLink href={listHref}>← 목록으로</BackLink>
       <Layout>
         <MainColumn>
+          <HeadRow>
+            {backLink}
+            <CommunityMoreMenu
+              editHref={editHref}
+              authReady={authReady}
+              deletePending={postDeletePending}
+              onDelete={onDeletePost}
+              onReport={() => {
+                requireAuth(() => {
+                  onOpenReport({
+                    targetKind: 'POST',
+                    targetId: detail.postId,
+                  })
+                })
+              }}
+            />
+          </HeadRow>
+
           <Article data-community-article="true">
             <ArticleHeader>
-              <TargetBadge>{targetName}</TargetBadge>
+              {regionHref ? (
+                <RegionChipLink
+                  href={regionHref}
+                  data-community-region-chip="link"
+                >
+                  <span>{regionName}</span>
+                  <ChevronRight aria-hidden="true" size={16} />
+                </RegionChipLink>
+              ) : (
+                <RegionChipLabel data-community-region-chip="label">
+                  <span>{regionName}</span>
+                </RegionChipLabel>
+              )}
               <ArticleTitle>{detail.title}</ArticleTitle>
-              <MetaRow>
+              <Byline>
                 <CommunityWriter
                   nickname={detail.writerNickname}
                   profileImageUrl={detail.writerProfileImageUrl}
                   size="md"
                 />
-                <time dateTime={detail.createdAt}>
-                  {formatRelativeTime(detail.createdAt)} ·{' '}
-                  {formatCommunityDate(detail.createdAt)}
-                </time>
-                <span>조회 {formatCommunityCount(detail.viewCount)}</span>
-                <span>댓글 {formatCommunityCount(detail.commentCount)}</span>
-              </MetaRow>
+                {/*
+                  날짜는 한 번만 적는다(CM-023). 절대 날짜는 `<time>` 의 title 로 — 마우스를 올리면
+                  보이고, 화면에는 상대 시간 하나만 남는다. 댓글 수는 반응 바에 있어 여기서 뺐다.
+                */}
+                <MetaLine>
+                  <time
+                    dateTime={detail.createdAt}
+                    title={formatCommunityDate(detail.createdAt)}
+                  >
+                    {formatRelativeTime(detail.createdAt)}
+                  </time>
+                  {` · 조회 ${formatCommunityCount(detail.viewCount)}`}
+                  {edited ? ' · 수정됨' : null}
+                </MetaLine>
+              </Byline>
             </ArticleHeader>
 
             {/*
@@ -583,68 +873,22 @@ export default function CommunityDetailView({
               <InlineMessage role="status">{reportStatusMessage}</InlineMessage>
             ) : null}
 
-            <ArticleFooter>
-              <Actions aria-label="게시글 반응">
-                <ActionButton
-                  type="button"
-                  aria-label={`게시글 좋아요 ${formatCommunityCount(detail.likeCount)}`}
-                  aria-pressed={postLiked ?? false}
-                  disabled={!authReady || postLikePending}
-                  onClick={() => {
-                    requireAuth(() => {
-                      void onTogglePostLike()
-                    })
-                  }}
-                >
-                  {postLikePending
-                    ? '처리 중'
-                    : `좋아요 ${formatCommunityCount(detail.likeCount)}`}
-                </ActionButton>
-                <ActionButton
-                  type="button"
-                  aria-label="댓글로 이동"
-                  onClick={() => {
-                    document
-                      .querySelector<HTMLTextAreaElement>(
-                        'textarea[aria-label="댓글 내용"]',
-                      )
-                      ?.focus()
-                  }}
-                >
-                  댓글 {formatCommunityCount(detail.commentCount)}
-                </ActionButton>
-                <ActionButton
-                  type="button"
-                  aria-label="게시글 신고"
-                  disabled={!authReady}
-                  onClick={() => {
-                    requireAuth(() => {
-                      onOpenReport({
-                        targetKind: 'POST',
-                        targetId: detail.postId,
-                      })
-                    })
-                  }}
-                >
-                  신고
-                </ActionButton>
-              </Actions>
-              {editHref ? (
-                <Actions aria-label="내 게시글 관리">
-                  <EditLink href={editHref}>수정</EditLink>
-                  <ActionButton
-                    $danger
-                    type="button"
-                    aria-label="게시글 삭제"
-                    disabled={!authReady || postDeletePending}
-                    onClick={onDeletePost}
-                  >
-                    {postDeletePending ? '삭제 중' : '삭제'}
-                  </ActionButton>
-                </Actions>
-              ) : null}
-            </ArticleFooter>
+            <CommunityPostReactions
+              title={detail.title}
+              likeCount={detail.likeCount}
+              commentCount={detail.commentCount}
+              liked={postLiked === true}
+              likePending={postLikePending}
+              authReady={authReady}
+              onToggleLike={() => {
+                requireAuth(() => {
+                  void onTogglePostLike()
+                })
+              }}
+            />
           </Article>
+
+          <SectionBand aria-hidden="true" data-community-section-band="true" />
 
           {commentsStatus === 'loading' ? (
             <CommunityFeedback
@@ -717,58 +961,54 @@ export default function CommunityDetailView({
           ) : null}
         </MainColumn>
 
-        <Sidebar data-community-region-sidebar="true">
-          <SidebarSection>
-            <SidebarTitle>현재 지역</SidebarTitle>
-            <TargetBadge>{targetName}</TargetBadge>
-            <SidebarBody>
-              {detail.targetType
-                ? `${detail.targetType.name} 게시판의 최신 이야기를 함께 확인해 보세요.`
-                : '서울 전체 사장님들과 나누는 이야기입니다.'}
-            </SidebarBody>
-          </SidebarSection>
-
-          <SidebarSection>
-            <SidebarTitle>같은 지역의 최신 글</SidebarTitle>
-            {relatedStatus === 'loading' ? (
-              <SidebarFeedback role="status">
-                관련 글을 불러오는 중이에요.
-              </SidebarFeedback>
-            ) : relatedStatus === 'error' ? (
-              <>
-                <SidebarFeedback role="alert">
-                  {relatedErrorMessage ?? '관련 글을 불러오지 못했어요.'}
-                </SidebarFeedback>
-                <ActionButton type="button" onClick={onRetryRelated}>
-                  다시 시도
-                </ActionButton>
-              </>
-            ) : relatedStatus === 'ready' && relatedPosts.length > 0 ? (
-              <RelatedList>
-                {relatedPosts.map(post => (
-                  <li key={post.postId}>
-                    <RelatedLink
-                      href={createDetailPostHref(
-                        post.postId,
-                        contextKey,
-                        mockEnabled,
-                      )}
-                    >
-                      <RelatedTitle>{post.title}</RelatedTitle>
-                      <RelatedExcerpt>
-                        {getCommunityExcerpt(post.previewContent, 46)}
-                      </RelatedExcerpt>
-                    </RelatedLink>
-                  </li>
-                ))}
-              </RelatedList>
-            ) : (
-              <SidebarFeedback role="status">
-                같은 지역의 다른 게시글이 아직 없어요.
-              </SidebarFeedback>
-            )}
-          </SidebarSection>
-        </Sidebar>
+        <Rail
+          aria-labelledby="community-region-rail-title"
+          data-community-region-sidebar="true"
+        >
+          <RailTitle id="community-region-rail-title">
+            {railRegionName} 최신 글
+          </RailTitle>
+          {relatedStatus === 'loading' ? (
+            <RailMessage role="status">
+              관련 글을 불러오는 중이에요.
+            </RailMessage>
+          ) : relatedStatus === 'error' ? (
+            <>
+              <RailMessage role="alert">
+                {relatedErrorMessage ?? '관련 글을 불러오지 못했어요.'}
+              </RailMessage>
+              <RailButton type="button" onClick={onRetryRelated}>
+                다시 시도
+              </RailButton>
+            </>
+          ) : relatedStatus === 'ready' && relatedPosts.length > 0 ? (
+            <RelatedList>
+              {relatedPosts.map(post => (
+                <li key={post.postId}>
+                  <RelatedLink
+                    href={createDetailPostHref(
+                      post.postId,
+                      contextKey,
+                      mockEnabled,
+                    )}
+                  >
+                    <RelatedTitle>{post.title}</RelatedTitle>
+                    <RelatedExcerpt>
+                      {getCommunityExcerpt(post.previewContent, 46)}
+                    </RelatedExcerpt>
+                  </RelatedLink>
+                </li>
+              ))}
+            </RelatedList>
+          ) : (
+            <>
+              <RailMessage>
+                {railRegionName}의 다음 이야기를 남겨 보세요
+              </RailMessage>
+              <RailWriteLink href={writeHref}>글쓰기</RailWriteLink>
+            </>
+          )}
+        </Rail>
       </Layout>
 
       <CommunityReportDialog
