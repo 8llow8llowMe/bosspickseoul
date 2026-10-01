@@ -33,7 +33,7 @@ const Overlay = styled.div`
   background: var(--color-overlay);
   padding: clamp(24px, 3vw, 32px);
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: block;
     padding: 0;
     background: var(--color-surface-muted);
@@ -53,7 +53,7 @@ const Surface = styled.section`
     outline: none;
   }
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     width: 100%;
     height: 100dvh;
     border: 0;

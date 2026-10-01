@@ -256,46 +256,66 @@ const HeaderInner = styled.div`
   }
 `
 
+/**
+ * 헤더 한 줄: [상권명][위치 메타][기간 선택][닫기].
+ *
+ * 기간 선택은 **여기 하나만** 둔다. 예전에는 7개 그룹 머리마다 같은 select 가 있었는데
+ * 모두 URL 의 periodCode 하나를 바꿨다 — 일곱 개로 보이면 사용자는 그룹마다 따로 바뀐다고
+ * 읽는다. sticky 헤더에 두면 어느 그룹을 읽든 지금 보는 분기가 보인다.
+ *
+ * 모바일(≤640px)은 두 줄이다: [상권명][닫기] / [위치 메타][기간 선택].
+ */
 const HeaderTop = styled.div`
-  display: flex;
+  display: grid;
+  /* 메타 칸 최소 96px — 상권명이 길면 이름이 먼저 말줄임되고 위치 메타는 남는다. */
+  grid-template-columns: minmax(0, max-content) minmax(96px, 1fr) auto auto;
+  grid-template-areas: 'name meta period close';
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 4px;
   padding-bottom: 8px;
-`
-
-const HeaderCopy = styled.div`
-  min-width: 0;
-  flex: 1;
-`
-
-/** 상권명과 위치·기준 메타를 한 줄에 붙여 헤더 높이를 줄인다. 모바일에서는 wrap. */
-const HeaderNameRow = styled.div`
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
 
   h1 {
+    grid-area: name;
     overflow: hidden;
-    max-width: 100%;
     color: var(--color-text-900);
     font-size: 20px;
     font-weight: 700;
     line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
 
-    @media (max-width: 640px) {
+  @media (max-width: 640px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name close'
+      'meta period';
+
+    h1 {
       font-size: 16px;
     }
   }
+`
 
-  span {
-    color: var(--color-text-600);
-    font-size: 13px;
-    line-height: 18px;
-  }
+const HeaderMeta = styled.span`
+  grid-area: meta;
+  overflow: hidden;
+  color: var(--color-text-600);
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`
+
+const HeaderPeriod = styled.div`
+  grid-area: period;
+  justify-self: end;
+`
+
+const HeaderClose = styled.div`
+  grid-area: close;
+  justify-self: end;
 `
 
 const IconButton = styled.button`
@@ -347,7 +367,12 @@ const Content = styled.div`
   }
 `
 
-/** 데스크톱: [사이드바][콘텐츠] 2컬럼. 모바일(≤840px)은 단일 컬럼. */
+/**
+ * 데스크톱: [사이드바][콘텐츠] 2컬럼. ≤1024px 는 단일 컬럼 + 상단 가로 탭.
+ *
+ * 1024 는 지도 셸(`useNarrowViewport`)과 같은 분기다. 840 이던 때는 841~1024px 태블릿이
+ * 사이드바를 단 데스크톱 모달을 받아 콘텐츠 열이 600px 안팎으로 좁았다.
+ */
 const ResultLayout = styled.div`
   ${shellWidth}
   display: grid;
@@ -355,7 +380,7 @@ const ResultLayout = styled.div`
   gap: 28px;
   padding: 20px 0 56px;
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     grid-template-columns: 1fr;
     width: min(100% - 28px, 1320px);
     gap: 0;
@@ -370,7 +395,7 @@ const SidebarColumn = styled.aside`
   align-self: start;
   height: fit-content;
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: none;
   }
 `
@@ -386,7 +411,7 @@ const ContentColumn = styled.div`
 const MobileTabList = styled(TabList)`
   display: none;
 
-  @media (max-width: 840px) {
+  @media (max-width: 1024px) {
     display: flex;
   }
 `
@@ -403,9 +428,14 @@ const ReportSection = styled.section`
   /* 데스크톱: sticky 헤더(≈63px) 아래로 자연스럽게 안착. */
   scroll-margin-top: 76px;
 
-  /* 모바일(≤840px): 헤더에 가로 탭 바가 포함돼 더 높다(≈102px). */
-  @media (max-width: 840px) {
+  /* ≤1024px: 헤더에 가로 탭 바가 포함돼 더 높다(≈102px). */
+  @media (max-width: 1024px) {
     scroll-margin-top: 116px;
+  }
+
+  /* ≤640px: 헤더가 두 줄(상권명 / 메타·기간)이 되고 탭 바가 붙는다. */
+  @media (max-width: 640px) {
+    scroll-margin-top: 148px;
   }
 `
 
@@ -462,21 +492,15 @@ const RecommendHandoffLink = styled(Link)`
   }
 `
 
-/** 각 탭 그룹 좌상단에 표시하는 헤딩(요약/유동인구/매출 등). */
+/**
+ * 각 탭 그룹 좌상단에 표시하는 헤딩(요약/유동인구/매출 등). 기간 선택은 헤더로 옮겼다
+ * (`HeaderTop` 참고).
+ */
 const GroupHeading = styled.h2`
   color: var(--color-text-900);
   font-size: 18px;
   font-weight: 700;
   line-height: 26px;
-`
-
-/** 그룹 헤딩 줄: 왼쪽 제목 + 오른쪽 기간(연/분기) 선택. */
-const GroupHeadingRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
 `
 
 const DashboardGrid = styled.div`
@@ -1439,10 +1463,7 @@ export default function AnalysisResultView({
   })
 
   const renderGroupHeading = (label: string) => (
-    <GroupHeadingRow>
-      <GroupHeading>{label}</GroupHeading>
-      <AnalysisPeriodSelect value={periodCode} onChange={handlePeriodChange} />
-    </GroupHeadingRow>
+    <GroupHeading>{label}</GroupHeading>
   )
 
   return (
@@ -1450,36 +1471,41 @@ export default function AnalysisResultView({
       <StickyHeader>
         <HeaderInner>
           <HeaderTop>
-            <HeaderCopy>
-              <HeaderNameRow>
-                <h1>
-                  {profileQuery.isPending
-                    ? '상권 정보를 불러오는 중'
-                    : (profile?.commercialName ?? `상권 ${commercialCode}`)}
-                </h1>
-                <span>
-                  {profile
-                    ? `${profile.districtName} · ${profile.administrationName} · ${formatPeriodCode(
-                        periodCode,
-                      )} 기준`
-                    : `${formatPeriodCode(periodCode)} 기준`}
-                </span>
-              </HeaderNameRow>
-            </HeaderCopy>
+            <h1>
+              {profileQuery.isPending
+                ? '상권 정보를 불러오는 중'
+                : (profile?.commercialName ?? `상권 ${commercialCode}`)}
+            </h1>
+            {/* 분기는 바로 옆 기간 선택이 보여 주므로 메타에서 뺀다. */}
+            <HeaderMeta>
+              {profile
+                ? `${profile.districtName} · ${profile.administrationName}`
+                : null}
+            </HeaderMeta>
+            <HeaderPeriod>
+              <AnalysisPeriodSelect
+                value={periodCode}
+                onChange={handlePeriodChange}
+              />
+            </HeaderPeriod>
             {/* 닫으면 실제로 뒤에 지도가 있으므로 모든 경로에서 "닫기"가 정직한
                 표현이다. 하드 로드 전용 분기(ArrowLeft + '조건 다시 선택')는 독립
                 결과 페이지 개념과 함께 폐기됐다(map-shell.md D4-5). */}
-            <IconButton
-              type="button"
-              aria-label="상권 분석 결과 닫기"
-              onClick={
-                onClose ??
-                (() =>
-                  router.replace(createAnalysisExplorerHref(selection, camera)))
-              }
-            >
-              <X />
-            </IconButton>
+            <HeaderClose>
+              <IconButton
+                type="button"
+                aria-label="상권 분석 결과 닫기"
+                onClick={
+                  onClose ??
+                  (() =>
+                    router.replace(
+                      createAnalysisExplorerHref(selection, camera),
+                    ))
+                }
+              >
+                <X />
+              </IconButton>
+            </HeaderClose>
           </HeaderTop>
           <MobileTabList aria-label="분석 결과 항목" role="tablist">
             {ANALYSIS_TABS.map(tab => (
