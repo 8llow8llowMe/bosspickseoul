@@ -46,7 +46,7 @@ describe('SimulationHistoryList', () => {
   it('조건 요약과 기준 연도를 함께 보여준다', () => {
     const html = render()
 
-    expect(html).toContain('강동구 · 한식음식점 · 66㎡ · 1층')
+    expect(html).toContain('강동구 · 한식음식점 · 66㎡ (약 20평) · 1층')
     expect(html).toContain('2024년 기준')
   })
 
@@ -114,7 +114,9 @@ describe('SimulationHistoryList', () => {
     const html = render()
 
     expect(html).toContain('삭제')
-    expect(html).toContain('강동구 · 한식음식점 · 66㎡ · 1층 저장 기록 삭제')
+    expect(html).toContain(
+      '강동구 · 한식음식점 · 66㎡ (약 20평) · 1층 저장 기록 삭제',
+    )
   })
 
   it('삭제 중인 항목의 버튼만 잠근다', () => {

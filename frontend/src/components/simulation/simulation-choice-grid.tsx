@@ -88,11 +88,13 @@ const Chip = styled.button<{ $selected: boolean }>`
   }
 `
 
+/* 줄바꿈(\n)을 그대로 살린다 — 호출부가 끊을 자리를 정할 수 있게(매장 크기 프리셋의 ㎡ / 평). */
 const Hint = styled.span`
   color: var(--color-text-caption);
   font-size: 12px;
   font-weight: 600;
   line-height: 18px;
+  white-space: pre-line;
 `
 
 const Mark = styled.span`

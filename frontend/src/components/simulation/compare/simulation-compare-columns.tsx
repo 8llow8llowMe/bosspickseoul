@@ -7,6 +7,7 @@ import { CHART_COLORS } from '@/components/analysis/charts/chart-theme'
 import { Badge } from '@/components/ui/badge'
 import { ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
+import { formatStoreSize } from '@/lib/simulation/conditions'
 import {
   describeSimulationCostGap,
   formatMirrorAmount,
@@ -238,7 +239,7 @@ const describeConditionLine = (condition: SimulationCondition): string => {
   const parts = [
     condition.districtName,
     condition.serviceName,
-    `${condition.storeSize.toLocaleString()}㎡`,
+    formatStoreSize(condition.storeSize),
     condition.floorType.name,
   ]
   if (condition.brandName) parts.splice(2, 0, condition.brandName)

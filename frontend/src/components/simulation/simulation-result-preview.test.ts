@@ -65,7 +65,7 @@ describe('SimulationResultPreview', () => {
 
     expect(markup).toContain('강동구')
     expect(markup).toContain('한식음식점')
-    expect(markup).toContain('66㎡')
+    expect(markup).toContain('66㎡ (약 20평)')
     expect(markup).toContain('1층')
     expect(markup).toContain('개인 창업')
   })

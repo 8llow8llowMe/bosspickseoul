@@ -229,9 +229,18 @@ export const describeSimulationFloorType = (
  * 매장 크기 입력
  * ------------------------------------------------------------------ */
 
-/** ㎡ → 평. 1평 = 3.3058㎡. 표기용이라 소수 첫째 자리에서 반올림한다. */
-export const squareMeterToPyeong = (squareMeter: number): number =>
-  Math.round((squareMeter / 3.3058) * 10) / 10
+/**
+ * ㎡ → 평(표기용). 1평 = 3.3058㎡. **정수로 반올림한다** — 0.5평 미만만 소수 한 자리(0이 되지 않게).
+ *
+ * 소수 한 자리로 보이면 같은 화면에서 숫자가 어긋났다. ㎡ 가 정수라 정수 평을 넣어도
+ * 되돌리면 소수가 붙고(30평 → 99㎡ → 「약 29.9평」, 1~100평 중 67개), 서버 프리셋 평
+ * (65㎡ → 19평)과 헤더(19.7평)가 갈렸다(2026-10-01 리뷰). 「약」을 붙이는 표기라 정수로 충분하다.
+ * 프리셋 힌트도 서버 `pyeong` 대신 이 함수를 써서 한 화면의 평 규칙을 하나로 둔다.
+ */
+export const squareMeterToPyeong = (squareMeter: number): number => {
+  const pyeong = squareMeter / 3.3058
+  return pyeong >= 0.5 ? Math.round(pyeong) : Math.round(pyeong * 10) / 10
+}
 
 export const isPositiveStoreSize = (
   value: number | null | undefined,
@@ -251,6 +260,52 @@ export const parseStoreSizeInput = (raw: string): number | null => {
   const value = Math.floor(Number(trimmed))
   return isPositiveStoreSize(value) ? value : null
 }
+
+/**
+ * 면적 직접 입력의 단위. 요청·상태는 언제나 ㎡ 정수다 — 평은 **입력과 표기에서만** 쓴다.
+ * 국내 창업자는 매장을 평으로 생각하는데 입력칸이 ㎡만 받아, 머릿속에서 3.3 을 곱해야 했다.
+ */
+export type StoreSizeUnit = 'squareMeter' | 'pyeong'
+
+/** 평 → ㎡ 정수. 요청 본문이 정수 ㎡라 반올림한다(20평 → 66㎡). */
+export const pyeongToSquareMeter = (pyeong: number): number =>
+  Math.round(pyeong * 3.3058)
+
+/** 평 입력의 하한. 이보다 작으면 ㎡ 정수로 바꿀 때 0 이 되거나 의미 없는 크기다. */
+export const MIN_PYEONG_INPUT = 0.5
+
+/**
+ * 단위를 알고 있는 직접 입력 → ㎡ 정수. 평은 소수(18.5평)를 받아 ㎡ 로 바꾼다.
+ * ㎡ 입력 규칙은 `parseStoreSizeInput` 그대로다(소수점 버림).
+ */
+export const parseStoreSizeInputIn = (
+  raw: string,
+  unit: StoreSizeUnit,
+): number | null => {
+  if (unit === 'squareMeter') return parseStoreSizeInput(raw)
+  const trimmed = raw.trim()
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null
+  const pyeong = Number(trimmed)
+  if (pyeong < MIN_PYEONG_INPUT) return null
+  const squareMeter = pyeongToSquareMeter(pyeong)
+  return isPositiveStoreSize(squareMeter) ? squareMeter : null
+}
+
+/** ㎡ 값을 그 단위의 입력칸 문자열로. 단위를 바꾸면 입력칸이 이 값으로 다시 채워진다. */
+export const formatStoreSizeInput = (
+  squareMeter: number,
+  unit: StoreSizeUnit,
+): string =>
+  unit === 'squareMeter'
+    ? String(squareMeter)
+    : String(squareMeterToPyeong(squareMeter))
+
+/**
+ * 면적 표기 한 줄 — `61㎡ (약 18.5평)`. 입력 화면 헤더·결과 미리보기·리포트·비교·이력이
+ * 모두 이 문구를 쓴다. 정본은 ㎡(계산 근거)이고 평은 「약」으로 붙인다.
+ */
+export const formatStoreSize = (squareMeter: number): string =>
+  `${squareMeter.toLocaleString()}㎡ (약 ${squareMeterToPyeong(squareMeter).toLocaleString()}평)`
 
 /* ------------------------------------------------------------------ *
  * 선택 전이 — 뒤 조건을 무효화하는 것이 핵심이다
@@ -390,7 +445,9 @@ export const describeSimulationSectionValue = (
   if (section === 'brand') return state.brandName
 
   const parts: string[] = []
-  if (isPositiveStoreSize(state.storeSize)) parts.push(`${state.storeSize}㎡`)
+  if (isPositiveStoreSize(state.storeSize)) {
+    parts.push(formatStoreSize(state.storeSize))
+  }
   const floorName = describeSimulationFloorType(state.floorType)
   if (floorName) parts.push(floorName)
   return parts.length > 0 ? parts.join(' · ') : null

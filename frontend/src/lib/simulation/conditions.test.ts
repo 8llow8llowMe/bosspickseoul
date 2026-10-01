@@ -14,7 +14,12 @@ import {
   isSimulationSectionLocked,
   listMissingSimulationSections,
   listSimulationConditionSections,
+  MIN_PYEONG_INPUT,
+  formatStoreSize,
+  formatStoreSizeInput,
   parseStoreSizeInput,
+  parseStoreSizeInputIn,
+  pyeongToSquareMeter,
   resolveSimulationFieldSection,
   resolveSimulationSectionFromDomId,
   resolveSimulationRecoverySection,
@@ -241,7 +246,9 @@ describe('섹션 값 요약', () => {
     expect(describeSimulationSectionValue(state, 'brand')).toBe(
       '아이러브피자&치킨',
     )
-    expect(describeSimulationSectionValue(state, 'store')).toBe('66㎡ · 1층')
+    expect(describeSimulationSectionValue(state, 'store')).toBe(
+      '66㎡ (약 20평) · 1층',
+    )
     expect(
       describeSimulationSectionValue(
         createEmptySimulationConditionState(),
@@ -253,7 +260,9 @@ describe('섹션 값 요약', () => {
   it('매장 조건은 절반만 골라도 그만큼 보여준다', () => {
     const state = completeState({ floorType: null })
 
-    expect(describeSimulationSectionValue(state, 'store')).toBe('66㎡')
+    expect(describeSimulationSectionValue(state, 'store')).toBe(
+      '66㎡ (약 20평)',
+    )
     expect(
       describeSimulationSectionValue(
         completeState({ storeSize: null }),
@@ -328,9 +337,54 @@ describe('매장 크기 입력', () => {
     expect(selectStoreSize(completeState(), 33).storeSize).toBe(33)
   })
 
-  it('㎡를 평으로 환산한다', () => {
+  /*
+    표기용 평은 정수로 반올림한다. 소수 한 자리로 두면 정수 평을 넣어도 ㎡ 정수로 바뀐 뒤
+    「약 29.9평」처럼 돌아오고(30평 → 99㎡), 서버 프리셋 평과 헤더가 한 화면에서 갈렸다.
+  */
+  it('㎡를 평으로 환산한다 — 정수 반올림, 0.5평 미만만 소수 한 자리', () => {
     expect(squareMeterToPyeong(66)).toBe(20)
-    expect(squareMeterToPyeong(36)).toBe(10.9)
+    expect(squareMeterToPyeong(36)).toBe(11)
+    expect(squareMeterToPyeong(65)).toBe(20)
+    expect(squareMeterToPyeong(1)).toBe(0.3)
+  })
+
+  it('정수 평을 넣으면 ㎡ 를 거쳐도 같은 평으로 돌아온다', () => {
+    for (let pyeong = 1; pyeong <= 100; pyeong += 1) {
+      expect(squareMeterToPyeong(pyeongToSquareMeter(pyeong))).toBe(pyeong)
+    }
+  })
+  /*
+    국내 창업자는 매장을 평으로 생각한다. 평 입력은 소수(18.5평)를 받아 요청이 쓰는 정수 ㎡ 로
+    반올림해 바꾼다 — 상태·요청은 언제나 ㎡ 다.
+  */
+  it('평 입력을 정수 ㎡ 로 바꾼다', () => {
+    expect(pyeongToSquareMeter(20)).toBe(66)
+    expect(parseStoreSizeInputIn('20', 'pyeong')).toBe(66)
+    expect(parseStoreSizeInputIn(' 18.5 ', 'pyeong')).toBe(61)
+    expect(parseStoreSizeInputIn('0', 'pyeong')).toBeNull()
+    expect(parseStoreSizeInputIn('0.1', 'pyeong')).toBeNull()
+    // 하한(MIN_PYEONG_INPUT)은 오류 문구와 같은 값이다 — 문구가 말한 대로 받는다.
+    expect(parseStoreSizeInputIn('0.4', 'pyeong')).toBeNull()
+    expect(parseStoreSizeInputIn(String(MIN_PYEONG_INPUT), 'pyeong')).toBe(2)
+    expect(parseStoreSizeInputIn('스무 평', 'pyeong')).toBeNull()
+    expect(parseStoreSizeInputIn('', 'pyeong')).toBeNull()
+  })
+
+  it('㎡ 입력은 기존 규칙(소수점 버림) 그대로다', () => {
+    expect(parseStoreSizeInputIn('66', 'squareMeter')).toBe(66)
+    expect(parseStoreSizeInputIn('36.7', 'squareMeter')).toBe(36)
+  })
+
+  it('단위를 바꾸면 같은 ㎡ 값을 그 단위로 입력칸에 다시 쓴다', () => {
+    expect(formatStoreSizeInput(66, 'squareMeter')).toBe('66')
+    expect(formatStoreSizeInput(66, 'pyeong')).toBe('20')
+    expect(formatStoreSizeInput(61, 'pyeong')).toBe('18')
+  })
+
+  it('면적 표기는 ㎡ 를 정본으로 두고 평을 「약」으로 붙인다', () => {
+    expect(formatStoreSize(66)).toBe('66㎡ (약 20평)')
+    expect(formatStoreSize(61)).toBe('61㎡ (약 18평)')
+    expect(formatStoreSize(1_200)).toBe('1,200㎡ (약 363평)')
   })
 })
 

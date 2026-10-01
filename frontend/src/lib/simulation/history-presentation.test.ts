@@ -30,7 +30,7 @@ const item = (
 describe('describeSimulationHistoryCondition', () => {
   it('조건을 한 줄로 요약한다', () => {
     expect(describeSimulationHistoryCondition(item())).toBe(
-      '강동구 · 한식음식점 · 66㎡ · 1층',
+      '강동구 · 한식음식점 · 66㎡ (약 20평) · 1층',
     )
   })
 
@@ -39,7 +39,7 @@ describe('describeSimulationHistoryCondition', () => {
       describeSimulationHistoryCondition(
         item({ franchisee: true, brandName: '테스트브랜드' }),
       ),
-    ).toBe('강동구 · 한식음식점 · 테스트브랜드 · 66㎡ · 1층')
+    ).toBe('강동구 · 한식음식점 · 테스트브랜드 · 66㎡ (약 20평) · 1층')
   })
 })
 

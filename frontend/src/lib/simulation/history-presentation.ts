@@ -15,7 +15,10 @@ import {
   buildSimulationReportHref,
   simulationBuilderHref,
 } from '@/lib/simulation/report-route'
-import { createSimulationConditionState } from '@/lib/simulation/conditions'
+import {
+  createSimulationConditionState,
+  formatStoreSize,
+} from '@/lib/simulation/conditions'
 import type {
   SimulationHistoryItem,
   SimulationReportRequest,
@@ -26,7 +29,7 @@ export const describeSimulationHistoryCondition = (
 ): string => {
   const parts = [item.districtName, item.serviceName]
   if (item.brandName) parts.push(item.brandName)
-  parts.push(`${item.storeSize.toLocaleString()}㎡`, item.floorType.name)
+  parts.push(formatStoreSize(item.storeSize), item.floorType.name)
   return parts.join(' · ')
 }
 
