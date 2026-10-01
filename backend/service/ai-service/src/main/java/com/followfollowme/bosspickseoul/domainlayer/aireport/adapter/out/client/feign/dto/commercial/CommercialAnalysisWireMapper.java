@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.aireport.adapter.out.client.feign.dto.commercial;
 
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialDistrictAverageIncomeQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseCategoryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseProvenanceQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseScopeQueryResult;
@@ -10,6 +11,8 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficByTimeSlotQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeProvenanceQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeScopeQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialPeerStoreQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialResidentPopulationByAgeQueryResult;
@@ -85,6 +88,7 @@ public final class CommercialAnalysisWireMapper {
             .expenseCategories(toExpenseCategoryQueryResults(wire.expenseCategories()))
             .totalExpenseAmount(wire.totalExpenseAmount())
             .provenance(toQueryResult(wire.provenance()))
+            .districtAverageIncome(toQueryResult(wire.districtAverageIncome()))
             .build();
     }
 
@@ -407,6 +411,47 @@ public final class CommercialAnalysisWireMapper {
             return null;
         }
         return CommercialExpenseScopeQueryResult.builder()
+            .code(wire.code())
+            .name(wire.name())
+            .description(wire.description())
+            .build();
+    }
+
+    /**
+     * 이 필드를 모르는 이전 peer 응답이면 블록째 null 이다. 빈 블록이나 0 원을 지어내지 않고 null 을 그대로 올려
+     * 프롬프트가 결측 표기를 쓰게 한다. (이슈 #415)
+     */
+    private static CommercialDistrictAverageIncomeQueryResult toQueryResult(CommercialDistrictAverageIncomeClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialDistrictAverageIncomeQueryResult.builder()
+            .amount(wire.amount())
+            .provenance(toQueryResult(wire.provenance()))
+            .build();
+    }
+
+    private static CommercialIncomeProvenanceQueryResult toQueryResult(CommercialIncomeProvenanceClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialIncomeProvenanceQueryResult.builder()
+            .scope(toQueryResult(wire.scope()))
+            .scopeCode(wire.scopeCode())
+            .scopeName(wire.scopeName())
+            .sourceId(wire.sourceId())
+            .sourceLabel(wire.sourceLabel())
+            .sourceUrl(wire.sourceUrl())
+            .referenceDate(wire.referenceDate())
+            .disclaimer(wire.disclaimer())
+            .build();
+    }
+
+    private static CommercialIncomeScopeQueryResult toQueryResult(CommercialIncomeScopeClientResponse wire) {
+        if (wire == null) {
+            return null;
+        }
+        return CommercialIncomeScopeQueryResult.builder()
             .code(wire.code())
             .name(wire.name())
             .description(wire.description())

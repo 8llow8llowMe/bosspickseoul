@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.aireport.application.servic
 
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiExpenseCategory;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiExpenseProvenance;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiIncomeProvenance;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiSourceData;
 import java.util.List;
 import java.util.StringJoiner;
@@ -19,6 +20,7 @@ public class CommercialPromptFormatter {
         joiner.add(formatFacilitySection(sourceData));
         joiner.add(formatPopulationSection(sourceData));
         joiner.add(formatExpenseSection(sourceData));
+        joiner.add(formatIncomeSection(sourceData));
         joiner.add(formatStoreSection(sourceData));
         joiner.add(formatSummaryComparisonSection(sourceData, disclaimerOf(sourceData.expenseProvenance())));
         return joiner.toString();
@@ -92,6 +94,7 @@ public class CommercialPromptFormatter {
     /**
      * 원천이 상권 단위 월 평균 소득 제공을 중단해 소득 줄을 걷어내고 섹션 제목도 [지출] 로 좁힌다.
      * 지출 자체도 값이 없는 분기가 있어, 그때는 0 원 대신 결측 표기가 그대로 들어간다. (이슈 #413)
+     * 소득은 자치구 대체값으로 바로 다음 [소득] 섹션에 따로 싣는다. (이슈 #415)
      *
      * <p>금액만 적으면 LLM 이 대체값을 이 상권의 실측으로 읽는다. 값이 상권 것인지 소속 행정동을 빌려온
      * 것인지를 출처 줄로 밝히고, 원천 서비스가 만든 면책 문장이 있으면 그대로 「유의」 줄에 싣는다.
@@ -106,8 +109,43 @@ public class CommercialPromptFormatter {
         lines.add("- 총 지출: %s".formatted(PromptFormatterSupport.formatNumber(sourceData.totalExpenseAmount())));
         lines.add("- 항목별 지출: %s".formatted(formatExpenseCategories(sourceData.expenseCategories())));
         lines.add("- 지출 비중이 가장 큰 항목: %s".formatted(sourceData.largestExpenseCategory()));
-        addDisclaimerLine(lines, provenance, null);
+        addDisclaimerLine(lines, disclaimerOf(provenance), null);
         return lines.toString();
+    }
+
+    /**
+     * 상권 단위 소득 원천이 끊긴 자리에 소속 자치구의 국민연금 지역가입자 신고 평균소득월액을 참고값으로 싣는다.
+     * 이 값은 상권이나 주민 전체의 소득이 아니고 같은 자치구 안의 상권은 모두 같은 값이라, 금액만 적으면 LLM 이 상권 소득으로
+     * 단정하거나 상권 간 차이의 근거로 쓴다. 그래서 줄 이름에 「(대체)」를 박고, 값을 가져온 자치구·기준일·원천을 같은 줄에,
+     * 원천 서비스가 만든 면책 문장을 「유의」 줄에 싣는다. (이슈 #415)
+     *
+     * <p>소득 면책은 소비 면책과 문장이 달라 섹션 간 중복 제거 대상이 아니다. 중복 제거는 같은 사다리 결과를 두 번 적는
+     * {@code [지출]}·{@code [지역 비교]} 사이에만 건다.
+     */
+    private String formatIncomeSection(CommercialAiSourceData sourceData) {
+        CommercialAiIncomeProvenance provenance = sourceData.districtAverageIncomeProvenance();
+        StringJoiner lines = new StringJoiner("\n", "", "\n");
+        lines.add("[소득]");
+        lines.add("- 자치구 평균 소득(대체): %s".formatted(formatDistrictAverageIncome(sourceData.districtAverageIncomeAmount(), provenance)));
+        addDisclaimerLine(lines, disclaimerOf(provenance), null);
+        return lines.toString();
+    }
+
+    /**
+     * 값이 없으면(자료 없는 분기, 이 필드를 모르는 이전 원천 서비스, 소득소비 404 흡수) 0 원이 아니라 결측 표기만 적는다.
+     * 출처 괄호도 붙이지 않는다 — 값이 없는데 「값을 가져온 영역」을 적으면 LLM 이 그 영역에 값이 있다고 읽는다. 자료가 없는
+     * 이유는 면책 문장이 있으면 「유의」 줄이 전한다.
+     */
+    private String formatDistrictAverageIncome(Long amount, CommercialAiIncomeProvenance provenance) {
+        if (amount == null) {
+            return PromptFormatterSupport.NOT_AVAILABLE;
+        }
+        return "%s원/월 (값을 가져온 영역: %s, 기준일: %s, 원천: %s)".formatted(
+            PromptFormatterSupport.formatNumber(amount),
+            PromptFormatterSupport.orNotAvailable(provenance == null ? null : provenance.areaName()),
+            PromptFormatterSupport.orNotAvailable(provenance == null ? null : provenance.referenceDate()),
+            PromptFormatterSupport.orNotAvailable(provenance == null ? null : provenance.sourceLabel())
+        );
     }
 
     /** 항목 키를 아는 책임이 이 서비스에 없으므로 배열을 순서대로 적고 라벨은 서버가 준 것을 그대로 쓴다. */
@@ -138,10 +176,10 @@ public class CommercialPromptFormatter {
     /**
      * 면책은 대체·중단일 때만 있다. 네이티브에서는 줄 자체를 만들지 않는다 — 없는 경고를 LLM 이 받아 적는다.
      *
+     * @param disclaimer    {@link #disclaimerOf} 로 정규화한 면책 문장. null 이면 줄을 만들지 않는다
      * @param alreadyStated 앞 섹션이 이미 적은 면책 문장. 같으면 다시 적지 않는다
      */
-    private void addDisclaimerLine(StringJoiner lines, CommercialAiExpenseProvenance provenance, String alreadyStated) {
-        String disclaimer = disclaimerOf(provenance);
+    private void addDisclaimerLine(StringJoiner lines, String disclaimer, String alreadyStated) {
         if (disclaimer != null && !disclaimer.equals(alreadyStated)) {
             lines.add("- 유의: %s".formatted(disclaimer));
         }
@@ -149,7 +187,14 @@ public class CommercialPromptFormatter {
 
     /** 빈 문자열도 「면책 없음」으로 본다. 원천 서비스가 빈 값을 주더라도 빈 경고 줄을 만들지 않는다. */
     private String disclaimerOf(CommercialAiExpenseProvenance provenance) {
-        String disclaimer = provenance == null ? null : provenance.disclaimer();
+        return blankToNull(provenance == null ? null : provenance.disclaimer());
+    }
+
+    private String disclaimerOf(CommercialAiIncomeProvenance provenance) {
+        return blankToNull(provenance == null ? null : provenance.disclaimer());
+    }
+
+    private String blankToNull(String disclaimer) {
         return disclaimer == null || disclaimer.isBlank() ? null : disclaimer;
     }
 
@@ -194,7 +239,7 @@ public class CommercialPromptFormatter {
         lines.add("- 행정동 총지출: %s".formatted(PromptFormatterSupport.formatNumber(sourceData.administrationExpenseAmount())));
         lines.add("- 상권 총지출: %s".formatted(PromptFormatterSupport.formatNumber(sourceData.commercialExpenseAmount())));
         lines.add("- 상권 총지출 출처: %s".formatted(formatProvenance(provenance)));
-        addDisclaimerLine(lines, provenance, alreadyStatedDisclaimer);
+        addDisclaimerLine(lines, disclaimerOf(provenance), alreadyStatedDisclaimer);
         return lines.toString();
     }
 }

@@ -54,18 +54,21 @@ class CommercialAnalysisWireMapperTest {
     }
 
     @Test
-    @DisplayName("지출 wire DTO 의 말단 필드 17개가 모두 QueryResult 로 옮겨진다")
+    @DisplayName("지출·소득 wire DTO 의 말단 필드 28개가 모두 QueryResult 로 옮겨진다")
     void incomeAndExpenseMapsEveryLeafField() throws Exception {
         /*
          * 항목 배열(원소 2개 × key/label/amount = 6) + 총액 1 + 출처 10(scope 3 + 나머지 7) = 17.
          * 원소 개수는 이 검사 도구가 정한 값이고, 실제 항목 수는 스코프마다 다르다(상권 9 / 행정동 대체 10).
          * 여기서 검사하는 것은 "항목과 출처가 한 필드도 빠짐없이 QueryResult 로 건너간다" 뿐이다. (이슈 #415)
+         *
+         * 자치구 평균 소득(대체) 11 = 금액 1 + 소득 출처 10(scope 3 + 나머지 7). 17 + 11 = 28.
+         * 소득 출처의 기준일은 소비의 기준 분기와 단위가 달라 따로 든다. (이슈 #415)
          */
         assertEveryLeafCopied(
             CommercialIncomeAndExpenseClientResponse.class,
             CommercialIncomeAndExpenseQueryResult.class,
             wire -> CommercialAnalysisWireMapper.toQueryResult((CommercialIncomeAndExpenseClientResponse) wire),
-            17
+            28
         );
     }
 
@@ -77,7 +80,7 @@ class CommercialAnalysisWireMapperTest {
             null, null, "VwsmTrdhlNcmCnsmpQq", "서울시 상권분석서비스(소득소비-상권배후지)",
             "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do", null, "이 분기는 대체할 행정동 소비도 없습니다."
         );
-        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(null, null, provenance);
+        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(null, null, provenance, null);
 
         CommercialIncomeAndExpenseQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
 
@@ -92,6 +95,44 @@ class CommercialAnalysisWireMapperTest {
     }
 
     @Test
+    @DisplayName("자치구 평균 소득 자료가 없으면 금액은 null 로 남고 사유를 담은 출처만 건너간다")
+    void unavailableDistrictIncomeKeepsProvenanceAndNullsAmount() {
+        CommercialDistrictAverageIncomeClientResponse districtAverageIncome = new CommercialDistrictAverageIncomeClientResponse(
+            null,
+            new CommercialIncomeProvenanceClientResponse(
+                new CommercialIncomeScopeClientResponse("UNAVAILABLE", "제공 없음", "이 분기에 쓸 수 있는 자치구 평균 소득 자료가 없어 소득 지표를 제공하지 않습니다."),
+                null, null, "data.go.kr:3046077", "국민연금공단 자격 시군구 신고 평균소득월액",
+                "https://www.data.go.kr/data/3046077/fileData.do", null, "이 분기에 쓸 수 있는 자치구 평균 소득 자료가 없어 소득 지표를 제공하지 않습니다."
+            )
+        );
+        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(null, null, null, districtAverageIncome);
+
+        CommercialIncomeAndExpenseQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
+
+        // 0 으로 채우면 "자료가 없다" 와 "소득이 0원" 이 구별되지 않아 LLM 프롬프트에 0원이 실측치로 들어간다.
+        assertThat(queryResult.districtAverageIncome()).isNotNull();
+        assertThat(queryResult.districtAverageIncome().amount()).isNull();
+        assertThat(queryResult.districtAverageIncome().provenance().scope().code()).isEqualTo("UNAVAILABLE");
+        assertThat(queryResult.districtAverageIncome().provenance().referenceDate()).isNull();
+        assertThat(queryResult.districtAverageIncome().provenance().disclaimer())
+            .isEqualTo("이 분기에 쓸 수 있는 자치구 평균 소득 자료가 없어 소득 지표를 제공하지 않습니다.");
+    }
+
+    @Test
+    @DisplayName("자치구 평균 소득을 모르는 이전 peer 응답이면 소득 블록은 null 로 남는다")
+    void legacyResponseWithoutDistrictIncomeStaysNull() {
+        // 이 서비스가 commercial-service 보다 먼저 배포된 구간이다. 빈 블록이나 0 원을 지어내지 않는다. (이슈 #415)
+        CommercialIncomeAndExpenseClientResponse wire = new CommercialIncomeAndExpenseClientResponse(
+            List.of(new CommercialExpenseCategoryClientResponse("GROCERY", "식료품", 3301L)), 3301L, null, null
+        );
+
+        CommercialIncomeAndExpenseQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);
+
+        assertThat(queryResult.districtAverageIncome()).isNull();
+        assertThat(queryResult.totalExpenseAmount()).isEqualTo(3301L);
+    }
+
+    @Test
     @DisplayName("항목 배열은 순서를 유지한 채 원소 수 그대로 옮겨진다")
     void expenseCategoriesKeepOrderAndSize() {
         // 행정동 대체 스코프에만 있는 항목(기타·음식)이 키 하드코딩으로 잘려 나가지 않는지 본다. (이슈 #415)
@@ -101,7 +142,7 @@ class CommercialAnalysisWireMapperTest {
                 new CommercialExpenseCategoryClientResponse("OTHER", "기타", 3302L),
                 new CommercialExpenseCategoryClientResponse("DINING", "음식", 3303L)
             ),
-            9906L, null
+            9906L, null, null
         );
 
         CommercialIncomeAndExpenseQueryResult queryResult = CommercialAnalysisWireMapper.toQueryResult(wire);

@@ -68,7 +68,8 @@ class CommercialExpensePromptChainTest {
                 new CommercialExpenseScopeClientResponse("COMMERCIAL", "상권", "상권 단위 원천에서 직접 집계한 값입니다."),
                 "3110009", "명동역", "VwsmTrdhlNcmCnsmpQq", "서울시 상권분석서비스(소득소비-상권배후지)",
                 "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do", "20261", null
-            )
+            ),
+            null
         );
 
         String prompt = formatter.format(sourceData(CommercialAnalysisWireMapper.toQueryResult(wire), null));
@@ -108,7 +109,8 @@ class CommercialExpensePromptChainTest {
                 ),
                 "11110515", "청운효자동", "VwsmAdstrdNcmCnsmpW", "서울시 상권분석서비스(소득소비-행정동)",
                 "https://data.seoul.go.kr/dataList/OA-22166/S/1/datasetView.do", "20261", PROXY_DISCLAIMER
-            )
+            ),
+            null
         );
 
         String prompt = formatter.format(sourceData(CommercialAnalysisWireMapper.toQueryResult(wire), null));
@@ -132,7 +134,8 @@ class CommercialExpensePromptChainTest {
                 new CommercialExpenseScopeClientResponse("UNAVAILABLE", "제공 없음", "원천이 중단돼 이 분기에는 소비 지표를 제공하지 않습니다."),
                 null, null, "VwsmTrdhlNcmCnsmpQq", "서울시 상권분석서비스(소득소비-상권배후지)",
                 "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do", null, DISCONTINUED_DISCLAIMER
-            )
+            ),
+            null
         );
 
         String prompt = formatter.format(sourceData(CommercialAnalysisWireMapper.toQueryResult(wire), null));
@@ -214,7 +217,8 @@ class CommercialExpensePromptChainTest {
                 new CommercialExpenseScopeClientResponse("COMMERCIAL", "상권", "상권 단위 원천에서 직접 집계한 값입니다."),
                 "3110009", "명동역", "VwsmTrdhlNcmCnsmpQq", "서울시 상권분석서비스(소득소비-상권배후지)",
                 "https://data.seoul.go.kr/dataList/OA-21278/S/1/datasetView.do", "20261", null
-            )
+            ),
+            null
         );
 
         String prompt = formatter.format(sourceData(CommercialAnalysisWireMapper.toQueryResult(wire), null));
@@ -227,7 +231,7 @@ class CommercialExpensePromptChainTest {
     void theSameDisclaimerIsNotRepeatedAcrossSections() {
         // 반복된 경고는 LLM 이 리포트 본문에도 두 번 옮겨 적게 만든다. 20261 은 상권 1,650곳이 전부 이 경로다.
         CommercialIncomeAndExpenseClientResponse income = new CommercialIncomeAndExpenseClientResponse(
-            null, null, unavailableProvenance()
+            null, null, unavailableProvenance(), null
         );
         CommercialIncomeSummaryClientResponse summary = new CommercialIncomeSummaryClientResponse(
             new RegionalIncomeSummaryClientResponse("11110", "종로구", 8101L),

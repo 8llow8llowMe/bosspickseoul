@@ -5,6 +5,7 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.A
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.AiGenerationResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiExpenseCategory;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiExpenseProvenance;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiIncomeProvenance;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialAiSourceData;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiQuery;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.model.CommercialComparisonAiSourceData;
@@ -22,11 +23,13 @@ import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.AdministrationStoreServiceTopQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialAdministrationQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialComparisonQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialDistrictAverageIncomeQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseCategoryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialExpenseProvenanceQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFacilityQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialFootTrafficQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeAndExpenseQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeProvenanceQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialIncomeSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialPeerStoreQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.aireport.application.port.out.query.CommercialResidentPopulationQueryResult;
@@ -327,6 +330,7 @@ public class AiReportProcessor {
         CommercialIncomeSummaryQueryResult incomeSummary
     ) {
         CommercialSalesByAgeGenderPercentQueryResult salesPercent = sales.amountByAgeGenderPercent();
+        CommercialDistrictAverageIncomeQueryResult districtAverageIncome = districtAverageIncomeOf(income);
 
         return CommercialAiSourceData.builder()
             .commercialCode(commercialCode)
@@ -417,6 +421,8 @@ public class AiReportProcessor {
             .expenseCategories(toExpenseCategories(income))
             .totalExpenseAmount(income == null ? null : income.totalExpenseAmount())
             .expenseProvenance(toExpenseProvenance(income == null ? null : income.provenance()))
+            .districtAverageIncomeAmount(districtAverageIncome == null ? null : districtAverageIncome.amount())
+            .districtAverageIncomeProvenance(toIncomeProvenance(districtAverageIncome == null ? null : districtAverageIncome.provenance()))
             .totalStoreCount(store.totalStoreCount())
             .similarStoreCount(store.similarStoreCount())
             .openedStoreCount(store.openedStoreCount())
@@ -476,6 +482,31 @@ public class AiReportProcessor {
             provenance.scope() == null ? null : provenance.scope().name(),
             provenance.scopeName(),
             provenance.effectivePeriodCode(),
+            provenance.sourceLabel(),
+            provenance.disclaimer()
+        );
+    }
+
+    /**
+     * 자치구 평균 소득(대체)은 소비와 같은 응답에 실려 온다. 소득소비 404 를 결측으로 흡수한 분기에는 응답이 없고,
+     * 이 필드를 모르는 이전 commercial-service 는 블록 자체를 내려보내지 않는다. 두 경우 모두 금액을 0 으로 지어내지 않고
+     * null 을 올려 프롬프트가 결측 표기를 쓰게 한다. (이슈 #415)
+     */
+    private CommercialDistrictAverageIncomeQueryResult districtAverageIncomeOf(CommercialIncomeAndExpenseQueryResult income) {
+        return income == null ? null : income.districtAverageIncome();
+    }
+
+    /**
+     * 소득 출처는 소비 출처와 따로 옮긴다. 기준 단위가 달라(분기 코드 대 기준일) 한 타입으로 합치면 어느 한쪽 필드가 늘
+     * 비게 된다. 출처가 없으면 지어내지 않고 null 을 그대로 올린다. (이슈 #415)
+     */
+    private CommercialAiIncomeProvenance toIncomeProvenance(CommercialIncomeProvenanceQueryResult provenance) {
+        if (provenance == null) {
+            return null;
+        }
+        return new CommercialAiIncomeProvenance(
+            provenance.scopeName(),
+            provenance.referenceDate(),
             provenance.sourceLabel(),
             provenance.disclaimer()
         );
