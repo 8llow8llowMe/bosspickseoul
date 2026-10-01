@@ -1,43 +1,35 @@
 'use client'
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
 import { BookmarkCheck, BookmarkPlus, LogIn } from 'lucide-react'
 import styled from 'styled-components'
 
+import { SIMULATION_SAVED_RESULTS_HREF } from '@/components/simulation/simulation-saved-results-link'
 import { Button, ButtonLink } from '@/components/ui/button'
-import { resolveApiError } from '@/lib/api/api-error'
-import {
-  buildSimulationHistorySaveRequest,
-  saveSimulationHistory,
-} from '@/lib/api/simulation'
-import { isApiSuccess } from '@/lib/api/response'
-import { SIMULATION_HISTORY_QUERY_SCOPE } from '@/lib/simulation/history-query'
-import { useAuthStore } from '@/stores/auth-store'
-import type { SimulationReportRequest } from '@/types/simulation'
+import type { SimulationSaveState } from '@/lib/simulation/use-simulation-save'
 
 export type SimulationSaveButtonProps = {
-  request: SimulationReportRequest
-  /** 리포트의 `totalPrice` (만원). 저장 계약이 계산된 총비용을 함께 받는다. */
-  totalPrice: number
+  state: SimulationSaveState
   /** 지금 보고 있는 URL. 로그인 후 여기로 되돌아온다. */
   currentHref: string
+  /** 요약 열은 large(48px), 하단 고정 바는 medium(40px) — 바의 다른 버튼과 같은 높이다. */
+  size: 'medium' | 'large'
+  /**
+   * 하단 고정 바용. 로그인 유도의 아이콘을 뺀다 — 375 바에서 「저장하려면 로그인」 아이콘까지 두면
+   * 왼쪽 총액 칸이 121px 로 줄어 「12억 3,456만원」(127px)이 말줄임된다. 금액이 잘리는 것이 더 나쁘다.
+   */
+  compact?: boolean
 }
 
-const Root = styled.div`
-  display: grid;
-  gap: 8px;
-  justify-items: start;
-`
-
-const Notice = styled.p`
-  color: var(--color-danger);
-  font-size: 13px;
-  line-height: 20px;
-  word-break: keep-all;
-`
+export type SimulationSaveFeedbackProps = {
+  state: SimulationSaveState
+  /** 글자가 있을 때만 버튼 쪽으로 띄울 방향. 요약 열은 버튼 아래(top), 하단 바는 버튼 위(bottom)다. */
+  offset: 'top' | 'bottom'
+}
 
 /**
- * 리포트 저장 CTA.
+ * 리포트 저장 CTA. **표시만 한다** — 상태는 `useSimulationSave` 가 페이지 한 곳에서 들고 있다
+ * (요약 열과 하단 바에 두 벌이 있어도 저장은 한 번이어야 한다).
  *
  * 저장만 인증이 필요하다 — 계산은 비로그인도 된다. 그래서 이 버튼 하나가 로그인 유도를
  * 맡고, 화면의 나머지는 로그인 여부를 모른다.
@@ -54,65 +46,107 @@ const Notice = styled.p`
  * 공유는 `ShareTargetType`에 시뮬레이션 상수가 없어 아직 만들 수 없다.
  */
 export default function SimulationSaveButton({
-  request,
-  totalPrice,
+  state,
   currentHref,
+  size,
+  compact = false,
 }: SimulationSaveButtonProps) {
-  const hasHydrated = useAuthStore(state => state.hasHydrated)
-  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
-  const queryClient = useQueryClient()
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      saveSimulationHistory(
-        buildSimulationHistorySaveRequest(request, totalPrice),
-      ),
-    onSuccess: response => {
-      if (!isApiSuccess(response)) return
-      // 목록 화면이 열려 있으면 방금 저장한 항목이 바로 보여야 한다.
-      void queryClient.invalidateQueries({
-        queryKey: [SIMULATION_HISTORY_QUERY_SCOPE],
-      })
-    },
-  })
-
-  const error = resolveApiError({ error: mutation.error, data: mutation.data })
-  const saved = mutation.isSuccess && !error
-
-  // 세션이 만료된 채로 저장을 눌렀을 때도 로그인으로 데려간다.
-  if (hasHydrated && (!isLoggedIn || error?.kind === 'unauthorized')) {
+  if (state.needsLogin) {
     return (
-      <Root>
-        <ButtonLink
-          size="medium"
-          variant="secondary"
-          href={`/login?redirect=${encodeURIComponent(currentHref)}`}
-          leftIcon={<LogIn />}
-        >
-          저장하려면 로그인
-        </ButtonLink>
-        {error?.kind === 'unauthorized' ? (
-          <Notice role="alert">
-            로그인이 풀렸어요. 다시 로그인하면 저장할 수 있어요.
-          </Notice>
-        ) : null}
-      </Root>
+      // 비로그인에게도 이것이 주 행동이다 — secondary 로 두면 옆의 「다른 조건과 비교」와 무게가 같아진다(R2).
+      <ButtonLink
+        size={size}
+        variant="primary"
+        href={`/login?redirect=${encodeURIComponent(currentHref)}`}
+        leftIcon={compact ? undefined : <LogIn />}
+      >
+        저장하려면 로그인
+      </ButtonLink>
     )
   }
 
   return (
-    <Root>
-      <Button
-        size="medium"
-        variant={saved ? 'secondary' : 'primary'}
-        disabled={saved || !hasHydrated}
-        isLoading={mutation.isPending}
-        leftIcon={saved ? <BookmarkCheck /> : <BookmarkPlus />}
-        onClick={() => mutation.mutate()}
-      >
-        {saved ? '저장됨' : '결과 저장'}
-      </Button>
-      {error ? <Notice role="alert">{error.message}</Notice> : null}
-    </Root>
+    <Button
+      size={size}
+      variant={state.saved ? 'secondary' : 'primary'}
+      disabled={state.saved || !state.hasHydrated}
+      isLoading={state.isPending}
+      loadingLabel="저장 중"
+      leftIcon={state.saved ? <BookmarkCheck /> : <BookmarkPlus />}
+      onClick={state.save}
+    >
+      {state.saved ? '저장됨' : '결과 저장'}
+    </Button>
+  )
+}
+
+/*
+  성공과 오류는 함께 오지 않는다(저장되면 오류가 없다). 버튼과의 간격은 **글자가 있을 때만** 이 묶음이
+  margin 으로 준다. 감싸는 쪽이 grid gap 으로 띄우면 높이 0 인 빈 묶음 앞에도 gap 이 생겨 버튼 아래
+  8px 이 늘 남는다.
+*/
+const Feedback = styled.div<{ $offset: 'top' | 'bottom' }>`
+  display: grid;
+
+  > p:not(:empty) {
+    ${props =>
+      props.$offset === 'top' ? 'margin-top: 8px;' : 'margin-bottom: 8px;'}
+  }
+`
+
+/* 상태 영역은 비어 있어도 늘 둔다. 낭독기는 이미 있는 live region 의 **내용 변화**를 읽는다 —
+   저장하는 순간 영역째 새로 붙이면 읽지 않고 넘어가는 낭독기가 있다. 그래서 비었을 때도
+   display:none 으로 숨기지 않는다(접근성 트리에서 빠진다). 빈 p 는 높이가 0 이다. */
+const Status = styled.p`
+  color: var(--color-text-700);
+  font-size: 13px;
+  line-height: 20px;
+  word-break: keep-all;
+
+  a {
+    color: var(--color-primary-700);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+`
+
+const Alert = styled.p`
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 20px;
+  word-break: keep-all;
+`
+
+/**
+ * 저장 결과 한 줄. 라벨이 `저장됨` 으로 바뀌는 것만으로는 저장이 됐는지, 어디서 다시 보는지를
+ * 알 수 없었다(R12). 성공하면 `role="status"` 로 알리고 저장 목록으로 가는 링크를 준다.
+ *
+ * 버튼과 따로 둔 이유: 하단 고정 바에서는 이 줄이 버튼 옆이 아니라 바 위쪽 한 줄을 차지한다.
+ */
+export function SimulationSaveFeedback({
+  state,
+  offset,
+}: SimulationSaveFeedbackProps) {
+  const sessionExpired = state.error?.kind === 'unauthorized'
+
+  return (
+    <Feedback $offset={offset}>
+      <Status role="status">
+        {state.saved ? (
+          <>
+            저장했어요 ·{' '}
+            <Link href={SIMULATION_SAVED_RESULTS_HREF}>저장 목록 보기</Link>
+          </>
+        ) : null}
+      </Status>
+      {state.error ? (
+        <Alert role="alert">
+          {sessionExpired
+            ? '로그인이 풀렸어요. 다시 로그인하면 저장할 수 있어요.'
+            : state.error.message}
+        </Alert>
+      ) : null}
+    </Feedback>
   )
 }

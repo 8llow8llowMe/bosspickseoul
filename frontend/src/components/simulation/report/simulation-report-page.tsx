@@ -7,8 +7,11 @@ import { ArrowLeft, Scale } from 'lucide-react'
 import styled from 'styled-components'
 
 import SimulationErrorNotice from '@/components/simulation/simulation-error-notice'
+import SimulationReportBar from '@/components/simulation/report/simulation-report-bar'
 import SimulationReportView from '@/components/simulation/report/simulation-report-view'
-import SimulationSaveButton from '@/components/simulation/report/simulation-save-button'
+import SimulationSaveButton, {
+  SimulationSaveFeedback,
+} from '@/components/simulation/report/simulation-save-button'
 import { ButtonLink } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,31 +25,108 @@ import {
   type SimulationConditionSection,
 } from '@/lib/simulation/conditions'
 import { simulationReportQueryKey } from '@/lib/simulation/report-query'
+import { useSimulationSave } from '@/lib/simulation/use-simulation-save'
 import {
   parseSimulationConditionState,
   simulationBuilderHref,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
-import { centeredColumn } from '@/styles/layout'
+import { shellWidth } from '@/styles/layout'
+import type {
+  SimulationReport,
+  SimulationReportRequest,
+} from '@/types/simulation'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationReportPageProps = { variant?: SimulationReportVariant }
+
+type SimulationReportReadyProps = {
+  report: SimulationReport
+  request: SimulationReportRequest
+  currentHref: string
+  compareHref: string
+}
 
 const Page = styled.main`
   min-height: calc(100vh - 160px);
   padding: 32px 0 64px;
   background: var(--color-background-muted);
 
+  /*
+    ≤1023 은 하단 고정 바에 가리지 않게 여백을 둔다. 바는 71px(저장 결과 한 줄이 붙으면 99px, 두 줄
+    오류면 약 119px)이고, iPhone 처럼 하단 safe-area 가 있으면 그만큼(최대 34px) 더 커진다.
+  */
   @media ${SIMULATION_MEDIA.belowDesktop} {
-    padding: 24px 0 48px;
+    padding: 24px 0 calc(120px + env(safe-area-inset-bottom));
   }
 `
 
+/*
+  셸 안에서 2단 트랙 합(340 + 20 + 880)에서 멈춘다 — 입력 화면과 같은 방식이다(DESIGN §5: 셸에는
+  상한이 없고 상한은 요소가 진다). 전에는 읽기 칸(720) 한 줄 가운데 정렬이라 1440 에서 좌우가
+  비었다. 이제 왼쪽 기준선이 사이트 헤더·입력 화면과 같다.
+*/
 const Container = styled.div`
-  /* 리포트는 읽기 화면이다 — 800 리터럴을 읽기 토큰(720)에 맞춘다. */
-  ${centeredColumn('var(--w-read)')}
+  ${shellWidth}
   display: grid;
   gap: 16px;
+
+  > * {
+    max-width: calc(340px + 20px + var(--w-form));
+  }
+`
+
+/*
+  리포트가 아닌 상태(조건 없음 · 오류)는 읽기 칸(`--w-read` 720)에 둔다. 2단 묶음 상한(1,240)을 그대로
+  받으면 오류 문장이 1,240px 한 줄로 늘어난다. 왼쪽 정렬이라 위 h1 과 기준선이 같다.
+*/
+const Narrow = styled.div`
+  width: 100%;
+  max-width: var(--w-read);
+`
+
+/*
+  로딩 스켈레톤은 그려질 리포트와 같은 2단으로 둔다. 한 단으로 그렸다가 2단으로 바뀌면 레이아웃이 튄다.
+  트랙은 SimulationReportView 의 Layout 과 같다.
+*/
+const Loading = styled.div`
+  display: grid;
+  grid-template-columns: 340px minmax(0, var(--w-form));
+  align-items: start;
+  gap: 20px;
+
+  > div {
+    display: grid;
+    gap: 16px;
+  }
+
+  @media ${SIMULATION_MEDIA.belowDesktop} {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+`
+
+/* 저장·비교 버튼. 둘 다 large·full width 로 세로로 쌓는다(R2). */
+const ActionButtons = styled.div`
+  display: grid;
+  gap: 8px;
+
+  > button,
+  > a {
+    width: 100%;
+  }
+`
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 `
 
 const Head = styled.header`
@@ -63,11 +143,6 @@ const Head = styled.header`
     line-height: 32px;
     word-break: keep-all;
   }
-`
-
-const Loading = styled.div`
-  display: grid;
-  gap: 16px;
 `
 
 /**
@@ -130,15 +205,17 @@ export default function SimulationReportPage({
     return (
       <Page>
         <Container>
-          <EmptyState
-            title="계산할 조건이 없어요"
-            description="창업 조건을 고르면 예상 비용과 상세 리포트를 보여드릴게요."
-            action={
-              <ButtonLink href={builderHref} leftIcon={<ArrowLeft />}>
-                조건 고르러 가기
-              </ButtonLink>
-            }
-          />
+          <Narrow>
+            <EmptyState
+              title="계산할 조건이 없어요"
+              description="창업 조건을 고르면 예상 비용과 상세 리포트를 보여드릴게요."
+              action={
+                <ButtonLink href={builderHref} leftIcon={<ArrowLeft />}>
+                  조건 고르러 가기
+                </ButtonLink>
+              }
+            />
+          </Narrow>
         </Container>
       </Page>
     )
@@ -146,6 +223,8 @@ export default function SimulationReportPage({
 
   const error = resolveApiError({ error: query.error, data: query.data })
   const report = error ? null : getResponseBody(query.data)
+  const isLoading = !report && (query.isPending || query.isFetching)
+  const currentHref = `${pathname}?${searchParams}`
 
   return (
     <Page>
@@ -161,48 +240,100 @@ export default function SimulationReportPage({
           </ButtonLink>
         </Head>
 
+        {/*
+          로딩 알림은 늘 있는 status 영역 하나의 **글자만** 바꾼다(R12). 스켈레톤만으로는 낭독기가 아무것도
+          읽지 않고, 로딩 묶음에 role 을 달면 영역과 내용이 함께 붙어 읽지 않는 낭독기가 있다.
+        */}
+        <VisuallyHidden role="status">
+          {isLoading ? '리포트를 계산하고 있어요' : ''}
+        </VisuallyHidden>
+
         {/* v5 에서 오류 후 refetch 는 status='error' 그대로 두고 fetchStatus 만 바뀐다 — isPending 만 보면 재시도가 화면에 드러나지 않는다. 이미 그릴 리포트가 있으면 조용한 background refetch 로 화면을 덮지 않는다. */}
-        {!report && (query.isPending || query.isFetching) ? (
-          <Loading aria-label="리포트 계산 중" role="status">
-            <Skeleton $height="220px" />
-            <Skeleton $height="280px" />
-            <Skeleton $height="180px" />
+        {isLoading ? (
+          <Loading aria-hidden="true">
+            <div>
+              <Skeleton $height="480px" />
+            </div>
+            <div>
+              <Skeleton $height="280px" />
+              <Skeleton $height="180px" />
+            </div>
           </Loading>
         ) : error ? (
-          <SimulationErrorNotice
-            error={error}
-            onRetry={() => {
-              void query.refetch()
-            }}
-            onReselect={reselectSection}
-          />
+          <Narrow>
+            <SimulationErrorNotice
+              error={error}
+              onRetry={() => {
+                void query.refetch()
+              }}
+              onReselect={reselectSection}
+            />
+          </Narrow>
         ) : report ? (
-          <SimulationReportView
+          // 조건(URL)이 바뀌면 저장 상태를 새로 시작한다. 캐시에 다음 리포트가 있으면 로딩 분기를 건너뛰어
+          // 이 컴포넌트가 그대로 남고, 앞 리포트의 「저장됨」이 다음 리포트에 붙는다.
+          <SimulationReportReady
+            key={currentHref}
             report={report}
-            actions={
-              <>
-                <SimulationSaveButton
-                  request={request}
-                  totalPrice={report.totalPrice}
-                  currentHref={`${pathname}?${searchParams}`}
-                />
-                {/* 이 조건을 왼쪽에 채운 비교 화면을 연다. 오른쪽은 비어 있는 채로
-                    편집기가 열린다 — 한쪽만 있는 URL 은 오류가 아니다. */}
-                <ButtonLink
-                  variant="secondary"
-                  href={buildSimulationCompareHref(
-                    { left: request, right: null },
-                    variant,
-                  )}
-                  leftIcon={<Scale />}
-                >
-                  비교에 추가
-                </ButtonLink>
-              </>
-            }
+            request={request}
+            currentHref={currentHref}
+            compareHref={buildSimulationCompareHref(
+              { left: request, right: null },
+              variant,
+            )}
           />
         ) : null}
       </Container>
     </Page>
+  )
+}
+
+/**
+ * 리포트가 그려진 상태. 저장 상태(`useSimulationSave`)를 **여기 한 곳**에서 들고 요약 열과 하단 바에
+ * 같이 내려준다 — 두 벌의 버튼이 따로 저장 상태를 가지면 한쪽에서 저장해도 다른 쪽은 `결과 저장`
+ * 그대로다. 훅은 리포트·요청이 있어야 부를 수 있어 페이지의 조기 반환 뒤가 아니라 이 컴포넌트에 둔다.
+ */
+export function SimulationReportReady({
+  report,
+  request,
+  currentHref,
+  compareHref,
+}: SimulationReportReadyProps) {
+  const save = useSimulationSave(request, report.totalPrice)
+
+  return (
+    <>
+      <SimulationReportView
+        report={report}
+        actions={
+          <>
+            <ActionButtons>
+              <SimulationSaveButton
+                state={save}
+                currentHref={currentHref}
+                size="large"
+              />
+              {/* 이 조건을 왼쪽에 채운 비교 화면을 연다. 오른쪽은 비어 있는 채로
+                편집기가 열린다 — 한쪽만 있는 URL 은 오류가 아니다. */}
+              <ButtonLink
+                size="large"
+                variant="secondary"
+                href={compareHref}
+                leftIcon={<Scale />}
+              >
+                다른 조건과 비교
+              </ButtonLink>
+            </ActionButtons>
+            <SimulationSaveFeedback state={save} offset="top" />
+          </>
+        }
+      />
+      <SimulationReportBar
+        totalPrice={report.totalPrice}
+        save={save}
+        currentHref={currentHref}
+        compareHref={compareHref}
+      />
+    </>
   )
 }

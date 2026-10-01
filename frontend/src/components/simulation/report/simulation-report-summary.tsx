@@ -13,7 +13,7 @@ import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationReportSummaryProps = {
   report: SimulationReport
-  /** 저장·비교 CTA. B1 에서는 넘기지 않는다(B2·B3 이 채운다). */
+  /** 저장·비교 CTA. ≥1024 에서만 보인다 — ≤1023 은 하단 고정 바가 맡는다. */
   actions?: ReactNode
 }
 
@@ -106,14 +106,15 @@ const Notice = styled.p`
   }
 `
 
-const Actions = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/*
+  저장·비교 슬롯. 버튼 배치(같은 크기·세로 쌓기, R2)는 슬롯을 채우는 페이지가 정한다.
 
-  button,
-  a {
-    flex: 1 1 160px;
+  ≤1023 에서는 숨긴다 — 하단 고정 바가 같은 버튼을 갖는다. 두 벌의 저장 상태는 하나다
+  (`useSimulationSave`). CSS 로 숨기므로 SSR 과 결과가 같다.
+*/
+const Actions = styled.div`
+  @media ${SIMULATION_MEDIA.belowDesktop} {
+    display: none;
   }
 `
 
