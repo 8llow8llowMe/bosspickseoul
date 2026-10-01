@@ -45,6 +45,7 @@ import {
 } from './community-comment-thread'
 import CommunityDetailView from './community-detail-view'
 import { CommunityMoreMenuActions } from './community-more-menu'
+import { getCommunityCommentMenuActions } from '@/lib/community/comment-thread'
 
 // 픽스처는 deepFreeze 로 readonly 다. 목 내부(`createState`)와 같은 방식으로 캐스팅한다.
 const detail = structuredClone(
@@ -207,9 +208,13 @@ describe('CommunityDetailView', () => {
     expect(markup).toContain('aria-label="댓글로 이동"')
     expect(markup).toContain('aria-label="게시글 공유"')
     expect(markup).toContain('>공유</span>')
-    expect(markup).toContain('답글 쓰기')
-    expect(markup).toContain('댓글 삭제')
-    expect(markup).toContain('댓글 신고')
+    // 2단계: 답글은 「답글 달기」, 삭제·신고는 댓글 행마다 닫힌 더보기(⋯) 안이다(항목은 아래 CommunityMoreMenuActions).
+    expect(markup.match(/>답글 달기</g)).toHaveLength(comments.length)
+    expect(markup.match(/aria-label="댓글 더보기"/g)).toHaveLength(
+      comments.reduce((count, item) => count + 1 + item.replies.length, 0),
+    )
+    expect(markup).not.toContain('aria-label="댓글 삭제"')
+    expect(markup).not.toContain('aria-label="댓글 신고"')
     expect(markup).not.toContain('댓글 수정')
     // 수정·삭제·신고는 더보기(⋯) 안으로 들어갔다 — 닫힌 채로는 그리지 않는다.
     expect(markup).not.toContain('aria-label="게시글 삭제"')
@@ -351,8 +356,12 @@ describe('CommunityDetailView', () => {
     )
     // 공유는 로그인이 필요 없어 인증 준비 전에도 누를 수 있다.
     expect(markup).not.toMatch(/aria-label="게시글 공유"[^>]*disabled=""/)
-    expect(markup).toContain('type="submit" disabled=""')
-    expect(markup).toContain('>댓글 등록</button>')
+    // 입력칸은 접힌 한 줄이고(등록 버튼은 펼칠 때 나온다) 인증 준비 전에는 잠겨 있다.
+    expect(markup).toMatch(
+      /<textarea[^>]*aria-label="댓글 내용"[^>]*disabled=""/,
+    )
+    expect(markup).toMatch(/aria-label="댓글 좋아요 [^"]*"[^>]*disabled=""/)
+    expect(markup).not.toContain('로그인하고 댓글 남기기')
   })
 
   it('renders a read-only login CTA instead of editable comment fields for real guests', () => {
@@ -362,8 +371,9 @@ describe('CommunityDetailView', () => {
       viewer: { authenticated: false, memberId: null },
     })
 
-    expect(markup).toContain('로그인하고 댓글 남기기')
-    expect(markup).toContain('aria-label="로그인하고 댓글 작성"')
+    // 접근 가능한 이름은 보이는 글자 그대로다(WCAG 2.5.3 — 예전 aria-label 「…작성」은 글자와 달랐다).
+    expect(markup).toMatch(/<button[^>]*>로그인하고 댓글 남기기<\/button>/)
+    expect(markup).not.toContain('aria-label="로그인하고 댓글')
     expect(markup).not.toContain('textarea aria-label="댓글 내용"')
     expect(markup).not.toContain('textarea aria-label="답글 내용"')
   })
@@ -384,7 +394,7 @@ describe('CommunityDetailView', () => {
     )
     expect(member.match(/data-community-comment-entry=/g)).toHaveLength(1)
     expect(guest).toMatch(
-      /<button[^>]*aria-label="로그인하고 댓글 작성"[^>]*data-community-comment-entry="true"/,
+      /<button[^>]*data-community-comment-entry="true"[^>]*>로그인하고 댓글 남기기<\/button>/,
     )
     expect(guest.match(/data-community-comment-entry=/g)).toHaveLength(1)
   })
@@ -570,6 +580,82 @@ describe('CommunityDetailView — 머리·메타·지역 (개편 1단계)', () =
   })
 })
 
+describe('CommunityDetailView — 댓글 영역 (개편 2단계)', () => {
+  it('댓글이 없으면 별도 카드 없이 스레드 안 한 줄만 적는다', () => {
+    const { markup } = renderWithStyles({
+      commentsStatus: 'empty',
+      comments: [],
+    })
+
+    expect(markup).toContain('아직 댓글이 없어요. 첫 댓글을 남겨 보세요.')
+    expect(markup.match(/아직 댓글이 없어요/g)).toHaveLength(1)
+    expect(markup).not.toContain('첫 댓글로 운영 경험이나 질문을 남겨 보세요.')
+    expect(markup).toContain('data-community-comment-entry="true"')
+  })
+
+  it('글 작성자 memberId 를 스레드에 넘겨 그 사람의 댓글에 글쓴이 배지를 붙인다(CM-025)', () => {
+    const { markup } = renderWithStyles()
+    const writerReplies = comments
+      .flatMap(item => [item, ...item.replies])
+      .filter(item => item.memberId === detail.memberId)
+
+    expect(writerReplies.length).toBeGreaterThan(0)
+    expect(markup.match(/data-community-post-writer="true"/g)).toHaveLength(
+      writerReplies.length,
+    )
+  })
+
+  it('목록이 입력칸보다 앞이다(CM-024)', () => {
+    const { markup } = renderWithStyles()
+
+    expect(markup.indexOf(comments.at(-1)!.content)).toBeLessThan(
+      markup.indexOf('data-community-comment-entry'),
+    )
+  })
+
+  it('하단 고정 바는 서버 렌더에 없다(폭을 재기 전에는 그리지 않는다)', () => {
+    const { markup } = renderWithStyles()
+
+    expect(markup).not.toContain('data-community-bottom-bar')
+    expect(markup).not.toContain('댓글을 남겨 보세요</button>')
+  })
+})
+
+describe('CommunityMoreMenuActions — 댓글', () => {
+  const renderCommentActions = (owner: boolean) =>
+    renderToStaticMarkup(
+      createElement(CommunityMoreMenuActions, {
+        variant: 'popover',
+        target: 'comment',
+        actions: getCommunityCommentMenuActions(owner),
+        editHref: null,
+        authReady: true,
+        deletePending: false,
+        onEdit: vi.fn(),
+        onDelete: vi.fn(),
+        onReport: vi.fn(),
+      }),
+    )
+
+  it('내 댓글은 삭제만 — 이름이 댓글을 가리킨다', () => {
+    const markup = renderCommentActions(true)
+
+    expect(markup).toContain('aria-label="댓글 삭제"')
+    expect(markup).toContain('data-danger="true"')
+    expect(markup).not.toContain('신고')
+    expect(markup).not.toContain('수정')
+    expect(markup).not.toContain('게시글')
+  })
+
+  it('남의 댓글은 신고만', () => {
+    const markup = renderCommentActions(false)
+
+    expect(markup).toContain('aria-label="댓글 신고"')
+    expect(markup).not.toContain('삭제')
+    expect(markup).not.toContain('게시글')
+  })
+})
+
 describe('CommunityMoreMenuActions (CM-022)', () => {
   const renderActions = (
     overrides: Partial<ComponentProps<typeof CommunityMoreMenuActions>> = {},
@@ -686,15 +772,47 @@ describe('community detail sources — 1단계 규칙', () => {
     },
   )
 
+  /*
+    반응 바의 「댓글」과 하단 고정 바의 「댓글을 남겨 보세요」는 같은 진입 함수를 쓴다. 선택자는 그 함수
+    (lib/community/comment-thread.ts)가 data 속성으로 들고 있다 — 동작은 하단 바 상호작용 테스트가 본다.
+  */
   it('댓글로 이동은 aria-label 이 아니라 data 속성으로 입력 자리를 찾는다', () => {
-    expect(sources[0]!.source).toContain('[data-community-comment-entry]')
-    expect(sources[0]!.source).not.toMatch(
-      /querySelector[^(]*\([^)]*aria-label/,
+    const lib = readFileSync(
+      new URL('../../lib/community/comment-thread.ts', import.meta.url),
+      'utf8',
     )
+
+    expect(sources[0]!.source).toContain('focusCommunityCommentEntry(document)')
+    expect(lib).toContain("'[data-community-comment-entry]'")
+    for (const source of [sources[0]!.source, lib]) {
+      expect(source).not.toMatch(/querySelector[^(]*\([^)]*aria-label/)
+    }
   })
 
   it('상세 본문은 파란 글자 토큰을 실제로 쓴다', () => {
     expect(sources[0]!.source).toContain('var(--color-text-primary-on-light)')
+  })
+})
+
+describe('community-detail-bottom-bar.tsx 소스 — 규칙', () => {
+  const source = readFileSync(
+    new URL('./community-detail-bottom-bar.tsx', import.meta.url),
+    'utf8',
+  )
+
+  it('레거시 분기·primary-700 글자·링 끄기를 쓰지 않는다', () => {
+    expect(source).not.toMatch(/(max|min)-width:\s*(640|760|768)px/)
+    expect(source).not.toMatch(/(?<![-\w])color:\s*var\(--color-primary-700\)/)
+    expect(source).not.toMatch(/outline\s*:\s*(none|0)\b/)
+    expect(source).toContain('var(--color-text-primary-on-light)')
+  })
+
+  it('높이 56 + safe-area, 줄인 모션에서는 slide-up 을 끈다', () => {
+    expect(source).toContain('calc(56px + env(safe-area-inset-bottom, 0px))')
+    expect(source).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*animation: none;/,
+    )
+    expect(source).toContain('var(--motion-standard) var(--ease-enter)')
   })
 })
 
