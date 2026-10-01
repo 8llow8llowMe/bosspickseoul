@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.global.properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -17,7 +18,7 @@ import org.springframework.context.annotation.Configuration;
  */
 class PolicyIngestionPropertiesBindingTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+    private final ApplicationContextRunner runner = IsolatedEnvironment.contextRunner()
         .withUserConfiguration(EnableTargetProperties.class);
 
     @Test

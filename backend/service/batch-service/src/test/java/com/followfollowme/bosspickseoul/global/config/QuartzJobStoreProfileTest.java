@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.global.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import java.util.Map;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -17,7 +18,8 @@ import org.springframework.core.env.StandardEnvironment;
  *   <li>상시 컨테이너(dev, prod): JDBC 클러스터 JobStore, 자동 시작</li>
  *   <li>quarterly CLI · local: 메모리 스토어, 자동 시작 안 함. CLI 가 commercial 의 {@code QRTZ_*} 에 붙어 저장된 트리거를 발화하지 않는다</li>
  * </ul>
- * 환경 변수·System properties 를 건드리지 않도록 이 환경에만 속성을 붙인다.
+ * OS 환경변수·시스템 속성은 걷어 낸다({@code IsolatedEnvironment}). Jenkins 가 {@code SPRING_PROFILES_ACTIVE=dev} 를 넣고 테스트를 돌리면
+ * Boot 3.5 가 코드로 정한 프로파일에 env 프로파일을 합쳐({@code [quarterly, dev]}) dev 의 JDBC 설정이 quarterly 를 덮기 때문이다.
  */
 class QuartzJobStoreProfileTest {
 
@@ -44,8 +46,8 @@ class QuartzJobStoreProfileTest {
     }
 
     private static StandardEnvironment environment(String profile, Map<String, Object> properties) {
-        StandardEnvironment environment = new StandardEnvironment();
-        // getSystemProperties() 는 JVM 전역이라 다른 테스트로 샌다. 이 환경에만 붙인다.
+        StandardEnvironment environment = IsolatedEnvironment.create();
+        // System properties 는 JVM 전역이라 다른 테스트로 샌다. 이 환경에만 붙인다.
         environment.getPropertySources().addFirst(new MapPropertySource("test", properties));
         environment.setActiveProfiles(profile);
         ConfigDataEnvironmentPostProcessor.applyTo(environment);

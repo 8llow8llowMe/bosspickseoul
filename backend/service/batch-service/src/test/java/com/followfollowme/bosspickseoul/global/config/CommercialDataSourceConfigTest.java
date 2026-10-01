@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import com.followfollowme.bosspickseoul.global.properties.CommercialDataSourceProperties;
+import com.followfollowme.bosspickseoul.support.IsolatedEnvironment;
 import com.zaxxer.hikari.HikariDataSource;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -15,7 +16,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -99,7 +99,7 @@ class CommercialDataSourceConfigTest {
     @Test
     @DisplayName("application.yml 의 풀 설정(4 / 1 / batch-commercial)이 상시 프로파일에서 그대로 바인딩된다")
     void applicationYamlBindsThePoolSettings() {
-        StandardEnvironment environment = new StandardEnvironment();
+        StandardEnvironment environment = IsolatedEnvironment.create();
         environment.setActiveProfiles("dev");
         ConfigDataEnvironmentPostProcessor.applyTo(environment);
 
@@ -139,7 +139,7 @@ class CommercialDataSourceConfigTest {
     @Test
     @DisplayName("정책 코드가 부르는 policy* 이름이 commercial* 과 같은 빈을 가리킨다")
     void policyBeanNamesAreAliasesOfCommercialBeans() {
-        new ApplicationContextRunner()
+        IsolatedEnvironment.contextRunner()
             .withBean(DataSource.class, () -> mock(DataSource.class))
             .withUserConfiguration(CommercialDataSourceConfig.class)
             .run(context -> {
