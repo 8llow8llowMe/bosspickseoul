@@ -11,6 +11,7 @@ import SimulationChoiceGrid from '@/components/simulation/simulation-choice-grid
 import SimulationChoiceSearch from '@/components/simulation/simulation-choice-search'
 import SimulationConditionSectionCard from '@/components/simulation/simulation-condition-section'
 import SimulationResultPanel from '@/components/simulation/simulation-result-panel'
+import SimulationServicePicker from '@/components/simulation/simulation-service-picker'
 import SimulationStoreConditionFields from '@/components/simulation/simulation-store-condition-fields'
 import SimulationSummaryBar from '@/components/simulation/simulation-summary-bar'
 import {
@@ -213,9 +214,10 @@ export default function SimulationBuilderPage({
   /*
     검색어는 그 단계를 벗어나면 버린다(D4-1-1). 단계를 다시 열면 전체 목록에서
     시작하는 편이, 지난번에 걸어둔 필터 때문에 원하는 항목이 안 보이는 것보다 낫다.
+    업종 검색어·분류는 SimulationServicePicker 가 들고 있다 — 섹션이 접히면 언마운트돼
+    같은 규칙이 저절로 지켜진다.
   */
   const [districtQuery, setDistrictQuery] = useState('')
-  const [serviceQuery, setServiceQuery] = useState('')
 
   // 렌더 중 key 비교로 즉시 리셋하는 React 권장 패턴("Adjusting state when a prop
   // changes")을 사용해 effect 기반 setState의 cascading render를 피한다.
@@ -223,7 +225,6 @@ export default function SimulationBuilderPage({
   if (prevOpenSection !== openSection) {
     setPrevOpenSection(openSection)
     if (openSection !== 'district') setDistrictQuery('')
-    if (openSection !== 'service') setServiceQuery('')
   }
 
   const districtChoices = districtQuery.trim()
@@ -231,12 +232,6 @@ export default function SimulationBuilderPage({
         item.name.includes(districtQuery.trim()),
       )
     : SIMULATION_DISTRICT_OPTIONS
-
-  const serviceChoices = serviceQuery.trim()
-    ? SIMULATION_SERVICE_TYPES.filter(item =>
-        item.name.includes(serviceQuery.trim()),
-      )
-    : SIMULATION_SERVICE_TYPES
 
   /*
     React 19 의 콜백 ref 는 정리 함수만 반환할 수 있다. `node => map.set(...)` 처럼
@@ -493,24 +488,10 @@ export default function SimulationBuilderPage({
                 headerRefs.current.set('service', node)
               }}
             >
-              <SimulationChoiceSearch
-                label="업종 이름으로 찾기"
-                value={serviceQuery}
-                shown={serviceChoices.length}
-                total={SIMULATION_SERVICE_TYPES.length}
-                onChange={setServiceQuery}
+              <SimulationServicePicker
+                selectedCode={state.serviceCode}
+                onSelect={selectThenAdvance(conditions.setService)}
               />
-              {serviceChoices.length === 0 ? (
-                <EmptyText>{`'${serviceQuery.trim()}'와 맞는 업종이 없어요.`}</EmptyText>
-              ) : (
-                <SimulationChoiceGrid
-                  label="업종"
-                  choices={serviceChoices}
-                  selectedCode={state.serviceCode}
-                  onSelect={selectThenAdvance(conditions.setService)}
-                  minColumnWidth={132}
-                />
-              )}
             </SimulationConditionSectionCard>
 
             {/*
