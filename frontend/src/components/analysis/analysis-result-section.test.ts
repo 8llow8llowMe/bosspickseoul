@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import AnalysisMetricList from '@/components/analysis/analysis-metric-list'
@@ -90,6 +91,40 @@ describe('AnalysisResultSection', () => {
     expect(markup).toContain('해당 분기의 매출 데이터가 없습니다.')
     expect(markup).toContain('다른 연도·분기를 골라 보세요')
     expect(markup).not.toContain('다시 시도')
+  })
+})
+
+describe('AnalysisResultSection 불러오는 중', () => {
+  const loadingStyles = (loadingHeight?: number) => {
+    const sheet = new ServerStyleSheet()
+    try {
+      const markup = renderToStaticMarkup(
+        sheet.collectStyles(
+          createElement(AnalysisResultSection, {
+            title: '시간대별 유동인구',
+            loading: true,
+            error: null,
+            empty: false,
+            loadingHeight,
+          }),
+        ),
+      )
+      return { markup, css: sheet.getStyleTags().replace(/\s+/g, '') }
+    } finally {
+      sheet.seal()
+    }
+  }
+
+  it('차트 카드는 넘긴 본문 높이만큼 자리를 잡아 로딩 뒤 아래 카드가 밀리지 않게 한다', () => {
+    const { markup, css } = loadingStyles(260)
+
+    expect(markup).toContain('시간대별 유동인구 불러오는 중')
+    expect(css).toContain('height:260px')
+    expect(css).not.toContain('height:96px')
+  })
+
+  it('높이를 넘기지 않으면 카드·목록 섹션 기준 96px 를 쓴다', () => {
+    expect(loadingStyles().css).toContain('height:96px')
   })
 })
 
