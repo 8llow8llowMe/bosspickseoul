@@ -91,3 +91,24 @@ describe('SiteHeader — 헤더 폭은 모든 화면에서 같다', () => {
     )
   })
 })
+
+describe('SiteHeader — 전역 내비', () => {
+  const renderMarkup = (pathname: string): string => {
+    pathnameBox.current = pathname
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    return renderToStaticMarkup(
+      createElement(QueryClientProvider, { client }, createElement(SiteHeader)),
+    )
+  }
+
+  it('커뮤니티를 다시 노출하고 채팅은 계속 숨긴다(community.md §S4 「전역 내비」)', () => {
+    const markup = renderMarkup('/')
+
+    expect(markup).toMatch(/href="\/community\/list"[^>]*>커뮤니티<\/a>/)
+    expect(markup).not.toContain('href="/chatting/list"')
+    expect(markup).not.toContain('>채팅<')
+  })
+})
