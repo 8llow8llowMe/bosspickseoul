@@ -75,7 +75,7 @@ class DatasetQuartzJobGuardTest {
     }
 
     private static DatasetRefreshProperties refresh(boolean enabled) {
-        return new DatasetRefreshProperties(enabled, null, false, "legacy-20233", "seoul-v1", 600, 1, 0.2, 7);
+        return new DatasetRefreshProperties(enabled, null, false, "legacy-20233", "seoul-v1", 600, 1, 0.2, 7, null);
     }
 
     private static DatasetStagingPurgeProperties purge(boolean enabled) {

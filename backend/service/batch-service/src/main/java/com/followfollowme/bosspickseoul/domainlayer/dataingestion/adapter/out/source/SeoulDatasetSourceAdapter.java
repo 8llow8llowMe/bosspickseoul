@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ApiCallBudget;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SourceAcquisition;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SourceReceipt;
@@ -75,8 +76,8 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
      * 분기 1건 탐지. {@code /1/1/<period>} 로 API 를 한 번만 부르고 {@code list_total_count} 를 돌려준다.
      * 분기 인자를 무시하는 데이터셋은 어떤 분기를 넣어도 전 기간 합계가 온다. 페이지를 보관하지 않는다.
      */
-    @Override public Optional<Long> probe(Dataset dataset, Quarter period) {
-        byte[] body = get(uri(endpointPrefix(), dataset, 1, 1, period));
+    @Override public Optional<Long> probe(Dataset dataset, Quarter period, ApiCallBudget budget) {
+        byte[] body = get(uri(endpointPrefix(), dataset, 1, 1, period), budget);
         Envelope envelope = envelope(body, dataset);
         return envelope.empty() ? Optional.empty() : Optional.of(envelope.total());
     }
@@ -84,9 +85,10 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
     /**
      * 요청 분기({@code urlPeriod})의 전 페이지를 받아 {@code page-<start>.json} 으로 보관하고, 행을 버리지 않고
      * {@code STDR_YYQU_CD} 별로 센다. 보관 디렉터리는 ARCHIVE 재생({@code open})이 그대로 읽는 형식이다.
-     * dataset_release 는 쓰지 않는다. 게시 판단은 호출자가 이 건수로 한다.
+     * dataset_release 는 쓰지 않는다. 게시 판단은 호출자가 이 건수로 한다. 페이지마다(재시도 포함) {@code budget} 을 쓰므로
+     * 탐지 뒤 원천 합계가 늘어도 예산을 넘겨 부르지 않는다. 넘으면 {@link ApiCallBudget.Exhausted} 로 멈추고 받은 페이지는 돌려주지 않는다.
      */
-    @Override public SourceAcquisition acquire(Dataset dataset, Quarter urlPeriod, String runId) {
+    @Override public SourceAcquisition acquire(Dataset dataset, Quarter urlPeriod, String runId, ApiCallBudget budget) {
         if (runId == null || !runId.matches(RUN_ID)) throw new IllegalArgumentException("Invalid runId");
         String prefix = endpointPrefix();
         Path archive;
@@ -95,16 +97,14 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
         SortedMap<Quarter, Long> rowsByQuarter = new TreeMap<>();
         long total = -1;
         long fetched = 0;
-        int calls = 0;
         while (total < 0 || fetched < total) {
             long start = fetched + 1;
             long end = total < 0 ? start + PAGE_SIZE - 1 : Math.min(total, start + PAGE_SIZE - 1);
-            byte[] body = get(uri(prefix, dataset, start, end, urlPeriod));
-            calls++;
+            byte[] body = get(uri(prefix, dataset, start, end, urlPeriod), budget);
             archivePage(archive, start, body);
             Envelope envelope = envelope(body, dataset);
             if (envelope.empty()) {
-                if (total < 0) return new SourceAcquisition(archive.toString(), rowsByQuarter, calls, 0);
+                if (total < 0) return new SourceAcquisition(archive.toString(), rowsByQuarter, 0);
                 throw new IllegalArgumentException("API row count changed during pagination");
             }
             if (total != -1 && total != envelope.total()) throw new IllegalArgumentException("API row count changed during pagination");
@@ -118,7 +118,7 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
             }
             fetched += envelope.rows().size();
         }
-        return new SourceAcquisition(archive.toString(), rowsByQuarter, calls, total);
+        return new SourceAcquisition(archive.toString(), rowsByQuarter, total);
     }
 
     static String pageFile(long start) { return "page-" + start + ".json"; }
@@ -156,9 +156,13 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
         return URI.create(prefix + "/json/" + dataset.service() + "/" + start + "/" + end + "/" + period.value());
     }
 
-    /** Bounded retries on 429/5xx and I/O errors. Never propagates URI-bearing exceptions, which contain the API key. */
-    private byte[] get(URI uri) {
+    /**
+     * Bounded retries on 429/5xx and I/O errors. Never propagates URI-bearing exceptions, which contain the API key.
+     * Every attempt, retries included, spends one call from {@code budget} before it goes out.
+     */
+    private byte[] get(URI uri, ApiCallBudget budget) {
         for (int attempt = 1; attempt <= properties.getMaxAttempts(); attempt++) {
+            budget.spend();
             try {
                 ApiResponse response = transport.get(uri);
                 if (response.status() == 200) return response.body();
@@ -301,6 +305,8 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
 
     private final class ApiSession extends PageSession {
         private final String prefix;
+        // 수동 CLI 의 --source=API 적재다. 자동 최신화 예산 밖이므로 세지 않는다(자동 최신화는 ARCHIVE 로만 적재한다).
+        private final ApiCallBudget budget = ApiCallBudget.unlimited();
 
         ApiSession(ImportRequest request, Path archive) {
             super(request, archive);
@@ -308,7 +314,7 @@ public final class SeoulDatasetSourceAdapter implements DatasetSourcePort {
         }
 
         @Override byte[] pageBytes(long start, long end) {
-            byte[] body = get(uri(prefix, request.dataset(), start, end, request.period()));
+            byte[] body = get(uri(prefix, request.dataset(), start, end, request.period()), budget);
             archivePage(archive, start, body);
             return body;
         }

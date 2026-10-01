@@ -276,11 +276,11 @@ public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectio
     }
 
     @Override
-    public Map<Quarter, Long> typedRowCounts(Dataset dataset, String spatialVersion) {
+    public Map<Quarter, Long> typedRowCounts(Dataset dataset, String spatialVersion, Quarter from) {
         Map<Quarter, Long> counts = new TreeMap<>();
         jdbc.query(typedRowCountSql(dataset),
             (RowCallbackHandler) rs -> counts.put(new Quarter(rs.getString("period_code")), rs.getLong("typed_rows")),
-            spatialVersion);
+            from.value(), spatialVersion);
         return counts;
     }
 
@@ -290,7 +290,8 @@ public class ChangeCommercialProjectionJdbcAdapter implements TypedFactProjectio
         if (table == null) {
             throw new IllegalArgumentException("typed table missing for " + dataset);
         }
-        return "SELECT period_code, COUNT(*) AS typed_rows FROM " + table + " WHERE spatial_version=? GROUP BY period_code";
+        // 유니크 인덱스(period_code, <영역>, [service_code,] spatial_version) 선두 컬럼 범위로 읽는다. 레거시 분기(20233 이전)는 건드리지 않는다.
+        return "SELECT period_code, COUNT(*) AS typed_rows FROM " + table + " WHERE period_code >= ? AND spatial_version = ? GROUP BY period_code";
     }
 
     /** 같은 패키지 테스트가 coverage.sql 5절의 테이블 이름과 대조한다. */

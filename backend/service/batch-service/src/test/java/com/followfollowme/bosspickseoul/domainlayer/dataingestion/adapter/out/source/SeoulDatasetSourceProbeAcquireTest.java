@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ApiCallBudget;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.ImportRequest;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.application.model.SourceAcquisition;
 import com.followfollowme.bosspickseoul.domainlayer.dataingestion.domain.model.Dataset;
@@ -15,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -69,8 +71,11 @@ class SeoulDatasetSourceProbeAcquireTest {
         List<URI> calls = new CopyOnWriteArrayList<>();
         var adapter = adapter(calls, page(HONOURED, 21910, List.of("20262")));
 
-        assertThat(adapter.probe(HONOURED, new Quarter("20262"))).contains(21910L);
+        ApiCallBudget budget = ApiCallBudget.of(5);
+
+        assertThat(adapter.probe(HONOURED, new Quarter("20262"), budget)).contains(21910L);
         assertThat(calls).hasSize(1);
+        assertThat(budget.used()).isEqualTo(1);
         assertThat(calls.getFirst().getPath()).endsWith("/json/" + HONOURED.service() + "/1/1/20262");
     }
 
@@ -79,7 +84,7 @@ class SeoulDatasetSourceProbeAcquireTest {
         List<URI> calls = new CopyOnWriteArrayList<>();
         var adapter = adapter(calls, json("{\"RESULT\":{\"CODE\":\"INFO-200\",\"MESSAGE\":\"해당하는 데이터가 없습니다.\"}}"));
 
-        assertThat(adapter.probe(HONOURED, new Quarter("20263"))).isEmpty();
+        assertThat(adapter.probe(HONOURED, new Quarter("20263"), ApiCallBudget.of(5))).isEmpty();
     }
 
     @Test
@@ -87,7 +92,7 @@ class SeoulDatasetSourceProbeAcquireTest {
         List<URI> calls = new CopyOnWriteArrayList<>();
         var adapter = adapter(calls, json("{\"" + HONOURED.service() + "\":{\"RESULT\":{\"CODE\":\"INFO-200\"}}}"));
 
-        assertThat(adapter.probe(HONOURED, new Quarter("20263"))).isEmpty();
+        assertThat(adapter.probe(HONOURED, new Quarter("20263"), ApiCallBudget.of(5))).isEmpty();
     }
 
     @Test
@@ -95,7 +100,7 @@ class SeoulDatasetSourceProbeAcquireTest {
         List<URI> calls = new CopyOnWriteArrayList<>();
         var adapter = adapter(calls, json("{\"RESULT\":{\"CODE\":\"ERROR-300\",\"MESSAGE\":\"secretKey\"}}"));
 
-        assertThatThrownBy(() -> adapter.probe(HONOURED, new Quarter("20263")))
+        assertThatThrownBy(() -> adapter.probe(HONOURED, new Quarter("20263"), ApiCallBudget.of(5)))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageNotContaining("secretKey")
             .hasNoCause();
@@ -109,7 +114,7 @@ class SeoulDatasetSourceProbeAcquireTest {
             throw new AssertionError("Must not call without a key");
         });
 
-        assertThatThrownBy(() -> adapter.probe(HONOURED, new Quarter("20263"))).hasMessageContaining("missing API key");
+        assertThatThrownBy(() -> adapter.probe(HONOURED, new Quarter("20263"), ApiCallBudget.of(5))).hasMessageContaining("missing API key");
     }
 
     @Test
@@ -119,13 +124,15 @@ class SeoulDatasetSourceProbeAcquireTest {
             first.add(i < 975 ? "20261" : "20262");
         }
         byte[] firstPage = page(IGNORED, 1025, first);
-        byte[] lastPage = page(IGNORED, 1025, java.util.Collections.nCopies(25, "20262"));
+        byte[] lastPage = page(IGNORED, 1025, Collections.nCopies(25, "20262"));
         List<URI> calls = new CopyOnWriteArrayList<>();
         var adapter = adapter(calls, firstPage, lastPage);
 
-        SourceAcquisition acquisition = adapter.acquire(IGNORED, new Quarter("20262"), "auto-change-district-20262-202609300500-fetch");
+        ApiCallBudget budget = ApiCallBudget.of(5);
 
-        assertThat(acquisition.apiCalls()).isEqualTo(2);
+        SourceAcquisition acquisition = adapter.acquire(IGNORED, new Quarter("20262"), "auto-change-district-20262-202609300500-fetch", budget);
+
+        assertThat(budget.used()).isEqualTo(2);
         assertThat(acquisition.sourceTotal()).isEqualTo(1025);
         assertThat(acquisition.rowsByQuarter()).containsExactly(
             Map.entry(new Quarter("20261"), 975L), Map.entry(new Quarter("20262"), 50L));
@@ -142,7 +149,7 @@ class SeoulDatasetSourceProbeAcquireTest {
     void acquiredArchiveReplaysThroughTheExistingImportSession() throws Exception {
         List<URI> calls = new CopyOnWriteArrayList<>();
         var adapter = adapter(calls, page(IGNORED, 3, List.of("20261", "20262", "20262")));
-        SourceAcquisition acquisition = adapter.acquire(IGNORED, new Quarter("20262"), "auto-fetch");
+        SourceAcquisition acquisition = adapter.acquire(IGNORED, new Quarter("20262"), "auto-fetch", ApiCallBudget.of(5));
 
         ImportRequest replay = new ImportRequest("auto-dry", IGNORED, new Quarter("20262"), "legacy-20233", "seoul-v1",
             ImportRequest.SourceType.ARCHIVE, Path.of(acquisition.rawLocation()), "UTF-8", true, 2, Instant.parse("2026-06-30T00:00:00Z"));
@@ -162,10 +169,12 @@ class SeoulDatasetSourceProbeAcquireTest {
         List<URI> calls = new CopyOnWriteArrayList<>();
         var adapter = adapter(calls, json("{\"RESULT\":{\"CODE\":\"INFO-200\"}}"));
 
-        SourceAcquisition acquisition = adapter.acquire(HONOURED, new Quarter("20263"), "auto-fetch");
+        ApiCallBudget budget = ApiCallBudget.of(5);
+
+        SourceAcquisition acquisition = adapter.acquire(HONOURED, new Quarter("20263"), "auto-fetch", budget);
 
         assertThat(acquisition.rowsByQuarter()).isEmpty();
-        assertThat(acquisition.apiCalls()).isEqualTo(1);
+        assertThat(budget.used()).isEqualTo(1);
     }
 
     @Test
@@ -174,7 +183,52 @@ class SeoulDatasetSourceProbeAcquireTest {
             throw new AssertionError("Must not call");
         });
 
-        assertThatThrownBy(() -> adapter.acquire(HONOURED, new Quarter("20263"), "../escape")).hasMessageContaining("runId");
+        assertThatThrownBy(() -> adapter.acquire(HONOURED, new Quarter("20263"), "../escape", ApiCallBudget.of(5))).hasMessageContaining("runId");
+    }
+
+    /** 재시도도 호출이다. 키당 하루 1,000회 한도라 5xx 재시도를 빼고 세면 예산이 실제보다 적게 잡힌다. */
+    @Test
+    void everyRetryAttemptSpendsTheBudget() throws Exception {
+        DatasetSourceProperties properties = properties();
+        properties.setMaxAttempts(3);
+        List<URI> calls = new CopyOnWriteArrayList<>();
+        byte[] ok = page(HONOURED, 21910, List.of("20262"));
+        var adapter = new SeoulDatasetSourceAdapter(new ObjectMapper(), properties, uri -> {
+            calls.add(uri);
+            return calls.size() < 3 ? new SeoulDatasetSourceAdapter.ApiResponse(503, new byte[0]) : new SeoulDatasetSourceAdapter.ApiResponse(200, ok);
+        });
+        ApiCallBudget budget = ApiCallBudget.of(10);
+
+        assertThat(adapter.probe(HONOURED, new Quarter("20262"), budget)).contains(21910L);
+        assertThat(calls).hasSize(3);
+        assertThat(budget.used()).isEqualTo(3);
+    }
+
+    /** 탐지 뒤 원천 합계가 늘어 페이지가 늘어도 남은 예산을 넘겨 부르지 않는다. 받다 만 수집은 돌려주지 않는다. */
+    @Test
+    void acquireStopsAtTheBudgetInsteadOfOverspending() throws Exception {
+        List<String> first = Collections.nCopies(1000, "20262");
+        byte[] firstPage = page(IGNORED, 1500, first);
+        byte[] lastPage = page(IGNORED, 1500, Collections.nCopies(500, "20262"));
+        List<URI> calls = new CopyOnWriteArrayList<>();
+        var adapter = adapter(calls, firstPage, lastPage);
+        ApiCallBudget budget = ApiCallBudget.of(1);
+
+        assertThatThrownBy(() -> adapter.acquire(IGNORED, new Quarter("20262"), "auto-fetch", budget))
+            .isInstanceOf(ApiCallBudget.Exhausted.class)
+            .hasMessageNotContaining("secretKey");
+        assertThat(calls).hasSize(1);
+        assertThat(budget.used()).isEqualTo(1);
+        assertThat(budget.remaining()).isZero();
+    }
+
+    @Test
+    void probeWithoutBudgetNeverCallsTheApi() {
+        var adapter = new SeoulDatasetSourceAdapter(new ObjectMapper(), properties(), uri -> {
+            throw new AssertionError("Must not call without budget");
+        });
+
+        assertThatThrownBy(() -> adapter.probe(HONOURED, new Quarter("20263"), ApiCallBudget.of(0))).isInstanceOf(ApiCallBudget.Exhausted.class);
     }
 
     @Test

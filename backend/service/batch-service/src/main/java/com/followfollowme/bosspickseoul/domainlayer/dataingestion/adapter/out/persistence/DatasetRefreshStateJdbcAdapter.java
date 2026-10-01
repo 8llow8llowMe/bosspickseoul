@@ -25,20 +25,21 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
 
     static final String FIND_ALL_SQL = """
         SELECT dataset,last_probe_at,last_source_total,newest_source_period,last_fetch_run_id,last_fetch_raw_location,
-               last_failure_at,last_failure_reason,consecutive_failures
+               last_failure_at,last_failure_reason,consecutive_failures,last_reproject_dry_run_period
         FROM dataset_refresh_state
         """;
 
     static final String UPSERT_SQL = """
         INSERT INTO dataset_refresh_state
           (dataset,last_probe_at,last_source_total,newest_source_period,last_fetch_run_id,last_fetch_raw_location,
-           last_failure_at,last_failure_reason,consecutive_failures)
-        VALUES (?,?,?,?,?,?,?,?,?)
+           last_failure_at,last_failure_reason,consecutive_failures,last_reproject_dry_run_period)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
           last_probe_at=VALUES(last_probe_at),last_source_total=VALUES(last_source_total),
           newest_source_period=VALUES(newest_source_period),last_fetch_run_id=VALUES(last_fetch_run_id),
           last_fetch_raw_location=VALUES(last_fetch_raw_location),last_failure_at=VALUES(last_failure_at),
-          last_failure_reason=VALUES(last_failure_reason),consecutive_failures=VALUES(consecutive_failures)
+          last_failure_reason=VALUES(last_failure_reason),consecutive_failures=VALUES(consecutive_failures),
+          last_reproject_dry_run_period=VALUES(last_reproject_dry_run_period)
         """;
 
     static final String TABLE_EXISTS_SQL = """
@@ -75,12 +76,13 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
             state.dataset().name(),
             timestamp(state.lastProbeAt()),
             state.lastSourceTotal(),
-            state.newestSourcePeriod() == null ? null : state.newestSourcePeriod().value(),
+            period(state.newestSourcePeriod()),
             state.lastFetchRunId(),
             state.lastFetchRawLocation(),
             timestamp(state.lastFailureAt()),
             state.lastFailureReason(),
-            state.consecutiveFailures());
+            state.consecutiveFailures(),
+            period(state.lastReprojectDryRunPeriod()));
     }
 
     @Override
@@ -93,6 +95,7 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
         long total = rs.getLong("last_source_total");
         Long sourceTotal = rs.wasNull() ? null : total;
         String newest = rs.getString("newest_source_period");
+        String dryRun = rs.getString("last_reproject_dry_run_period");
         return new DatasetRefreshState(
             dataset,
             instant(rs.getTimestamp("last_probe_at")),
@@ -102,7 +105,12 @@ public class DatasetRefreshStateJdbcAdapter implements DatasetRefreshStatePort {
             rs.getString("last_fetch_raw_location"),
             instant(rs.getTimestamp("last_failure_at")),
             rs.getString("last_failure_reason"),
-            rs.getInt("consecutive_failures"));
+            rs.getInt("consecutive_failures"),
+            dryRun == null ? null : new Quarter(dryRun));
+    }
+
+    private static String period(Quarter quarter) {
+        return quarter == null ? null : quarter.value();
     }
 
     private static Timestamp timestamp(Instant instant) {

@@ -268,18 +268,20 @@ java -jar batch-service.jar --job=facts --run-id=population-commercial-20242-001
 
 ### 판단 순서 (데이터셋 1종, `DatasetRefreshProcessor`)
 
-데이터셋은 ps1 `Order` / coverage.sql `run_order` 순서로 돈다(`Dataset.inRunOrder()`). 0 단계와 순회·예산·상태 저장·메트릭은 `DatasetRefreshRunProcessor` 가, 1~9 단계는 `DatasetRefreshProcessor` 가 한다.
+데이터셋은 ps1 `Order` / coverage.sql `run_order` 순서로 돈다(`Dataset.inRunOrder()`). 0 단계와 순회·run 전체 API 예산·상태 저장·메트릭은 `DatasetRefreshRunProcessor` 가, 1~9 단계는 `DatasetRefreshProcessor` 가 한다.
 
 0. 공간 스냅샷(`spatial-version`, 기본 `legacy-20233`)이 READY 가 아니면 run 전체를 멈춘다 — `SPATIAL_NOT_READY`
-1. 게시돼 있는데 typed 행 수가 `accepted_count` 와 다른 슬롯(coverage.sql 5절 판정)을 먼저 이관한다 — `PROJECTED` / publish=false 면 dry-run 이관 `WOULD_PROJECT`
-2. 게시 분기가 없으면 건너뛴다 — `NO_BASELINE` (첫 분기는 수동 CLI)
-3. 후보 = 마지막 게시 분기 다음. 원천이 끊긴 데이터셋(`CONSUMPTION_COMMERCIAL`, 20234 까지)은 API 를 부르지 않는다 — `DISCONTINUED`
-4. 최근 실패 후 7일(`failure-cooldown-days`) 안이면 — `COOLDOWN`
-5. 탐지: `/1/1/<후보>` 한 번. 분기 인자를 존중하는 6종은 행이 없으면 `NOT_PUBLISHED_YET`. 무시하는 9종은 전 기간 합계가 지난번과 같고 새로 볼 분기가 없으면 `UNCHANGED`
+1. 게시 분기가 없으면 건너뛴다 — `NO_BASELINE` (첫 분기는 수동 CLI)
+2. 최근 실패 후 7일(`failure-cooldown-days`) 안이면 재이관까지 포함해 아무것도 하지 않는다 — `COOLDOWN`. 매일 실패하는 무거운 이관을 매일 다시 돌리지 않는다
+3. 재이관: 게시돼 있는데 typed 행 수가 `accepted_count` 와 다른 슬롯(coverage.sql 5절 판정)을 새 분기보다 먼저 이관한다 — `PROJECTED` / publish=false 면 dry-run 이관 `WOULD_PROJECT`. `reproject-from`(기본 `20234`) 이전 슬롯은 보지 않는다(20211~20233 은 레거시 행이 이관 없이 이미 있다). publish=false 의 dry-run 재이관은 (데이터셋, 분기)마다 한 번이다(`last_reproject_dry_run_period` 보다 늦은 슬롯만). 성공하면 연속 실패를 끊고, 실패하면 `FAILED` 로 쿨다운에 들어간다
+4. 후보 = 마지막 게시 분기 다음. 원천이 끊긴 데이터셋(`CONSUMPTION_COMMERCIAL`, 20234 까지)은 API 를 부르지 않는다 — `DISCONTINUED`. 재이관이 데이터셋당 분기 상한(`max-quarters-per-run`)을 다 썼으면 — `BUDGET`
+5. 탐지: `/1/1/<후보>` 한 번(재시도도 예산에서 뺀다). 분기 인자를 존중하는 6종은 행이 없으면 `NOT_PUBLISHED_YET`. 무시하는 9종은 전 기간 합계가 지난번과 같고 새로 볼 분기가 없으면 `UNCHANGED`
 6. 받을 페이지 수(`ceil(total/1000)`)가 남은 예산보다 크면 — `BUDGET`
-7. 수집: 전 페이지를 `page-<start>.json` 으로 보관하고 분기별로 센다(`acquire`). 무시하는 9종은 마지막 게시 분기보다 늦은 분기를 오름차순으로 상한까지 고른다
-8. 분기마다: 고정 행 수(CHANGE_COMMERCIAL 1650, 자치구 3종 25)와 다르거나 직전 분기 게시 행 수 대비 20%(`tolerance`)를 넘게 바뀌면 `IMPLAUSIBLE` 로 멈춘다. 통과하면 보관본을 ARCHIVE 로 재생해 dry-run → publish=false 면 `WOULD_PUBLISH`. publish=true 면 실게시 → typed 이관 → `PUBLISHED`. 이관만 실패하면 `PUBLISHED_NOT_PROJECTED` 이고 다음 run 의 1단계가 다시 이관한다
-9. `dataset_refresh_state` 를 갱신한다. 원천 합계는 성공했을 때만 기억한다(실패한 합계를 기억하면 쿨다운 뒤에도 UNCHANGED 로 영영 건너뛴다)
+7. 수집: 전 페이지를 `page-<start>.json` 으로 보관하고 분기별로 센다(`acquire`). 페이지마다(재시도 포함) run 예산(`ApiCallBudget`)을 쓰고, 탐지 뒤 합계가 늘어 예산을 넘기면 받다 만 페이지를 버리고 `BUDGET`(실패·쿨다운 아님). 보관본 위치는 게시 판단 전에 `last_fetch_run_id` / `last_fetch_raw_location` 에 남긴다. 무시하는 9종은 마지막 게시 분기보다 늦은 분기를 오름차순으로, 재이관과 합쳐 분기 상한까지 고른다
+8. 분기마다: 고정 행 수(CHANGE_COMMERCIAL 1650, 자치구 3종 25)와 다르거나 직전 분기 게시 행 수 대비 20%(`tolerance`)를 넘게 바뀌면 `IMPLAUSIBLE` 로 멈춘다(직전 기준이 0 이하여도 같다). 통과하면 보관본을 ARCHIVE 로 재생해 dry-run → publish=false 면 `WOULD_PUBLISH`. publish=true 면 실게시 → typed 이관 → `PUBLISHED`. 이관만 실패하면 `PUBLISHED_NOT_PROJECTED` 이고, 게시는 됐으므로 쿨다운을 걸지 않아 다음 run 의 3단계가 바로 다시 이관한다
+9. `dataset_refresh_state` 를 갱신한다. 원천 합계·최신 분기는 성공했을 때만 기억한다(실패한 합계를 기억하면 쿨다운 뒤에도 UNCHANGED 로 영영 건너뛴다)
+
+데이터셋 하나에서 난 예외·`Error` 는 그 데이터셋의 `FAILED` 로 흡수하고 다음 데이터셋으로 간다. `OutOfMemoryError`·`StackOverflowError` 같은 JVM 오류(`VirtualMachineError`)는 삼키지 않는다. 그래도 그때까지의 판단 메트릭·쓴 API 수·`batch_dataset_refresh_last_run_epoch` 는 `finally` 에서 남기고 `[dataset-refresh] run aborted` 를 ERROR 로 찍는다.
 
 `source_updated_at` 은 분기 말일 00:00 UTC(`Quarter.endInstant()`)로 ps1 `Get-SourceUpdatedAt` 와 같다. run-id 는 `auto-<dataset>-<분기>-<yyyyMMddHHmm KST>-{fetch|dry|pub}`, 이관은 `auto-project-<dataset>-<분기>-<시각>` 이다. 수동 규칙(`<dataset>-<분기>-<attempt>`)과 `auto-` 접두로 겹치지 않고 64자를 넘지 않는다(`DatasetRefreshProcessorTest` 가 15종 전부 확인).
 
@@ -321,11 +323,15 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 | `BATCH_RAW_DIRECTORY` | `/app/data/raw` | compose 고정. `batch-raw` 볼륨(수동 `batch-service-job` 과 공유) |
 | `BATCH_ALLOWED_SCHEMAS` | 정책과 공유 | `bosspickseoul_commercial_dev` |
 
-`max-api-calls-per-run` 600, `max-quarters-per-run` 1, `tolerance` 0.2, `failure-cooldown-days` 7 은 `application.yml` 값이다.
+`max-api-calls-per-run` 600(재시도 포함 실제 시도 수), `max-quarters-per-run` 1(재이관·새 분기 합계), `tolerance` 0.2, `failure-cooldown-days` 7(재이관 포함), `reproject-from` `20234` 는 `application.yml` 값이다.
 
 ### 상태 테이블
 
 `dataset_refresh_state`(commercial). DDL 은 `backend/scripts/migration/dataset-refresh-state-schema.sql` 이고 앱이 만들지 않는다. "원천을 또 받을지" 판단용 캐시라 행을 지워도 다음 run 이 한 번 더 받을 뿐 게시는 깨지지 않는다. 게시 여부의 정본은 `dataset_release` / `dataset_active_release` 다.
+
+- `last_fetch_run_id` / `last_fetch_raw_location` — 마지막 수집의 run-id 와 보관 디렉터리. `IMPLAUSIBLE`·dry-run 실패여도 남는다. 원인을 확인한 뒤 수동 CLI 로 `--source=ARCHIVE --source-file=<last_fetch_raw_location>` 재생한다(API 를 다시 쓰지 않는다)
+- `last_reproject_dry_run_period` — publish=false 에서 마지막으로 dry-run 재이관한 분기. 이 분기까지는 다시 dry-run 하지 않는다. 지우면 처음부터 한 번씩 다시 dry-run 한다
+- 이미 예전 DDL 로 만든 환경이면 런북 상단 주석의 `ALTER TABLE ... ADD COLUMN last_reproject_dry_run_period` 를 한 번 실행한다
 
 ### 개발서버 롤아웃
 
@@ -360,11 +366,11 @@ GET http://openapi.seoul.go.kr:8088/<KEY>/json/VwsmTrdarSelngQq/1/1/<아직 없�
 | `DRY_RUN` / `FAILED` run 의 스테이징·거부 행 | 7일(`unpublished-retention-days`). 거부 행은 실패 원인을 읽는 곳이라 바로 지우지 않는다 |
 | 교체된 `PUBLISHED` run 의 스테이징 | 게시 후 30일(`published-retention-days`) |
 
-`dataset_active_release` 가 가리키는 run 은 어떤 문장도 지우지 않고, `dataset_release` · `dataset_fact` 는 건드리지 않는다. 자동 최신화는 매일 `auto-...-dry` 스테이징을 남기므로 publish=false 로 오래 돌릴 때 켜는 것을 권한다.
+`dataset_active_release` 가 가리키는 run 은 어떤 문장도 지우지 않고, `dataset_release` · `dataset_fact` 는 건드리지 않는다. 자동 최신화는 새 분기를 dry-run 할 때마다(원천에 새 분기가 나와 `WOULD_PUBLISH` 가 될 때, 데이터셋당 분기에 몇 번) `auto-...-dry` 스테이징을 남긴다. 매일 쌓이는 것은 아니지만 publish=false 로 오래 돌릴 때 켜는 것을 권한다.
 
 ### 알려진 한계
 
-- **메모리** — typed 이관(`--job=project`)은 한 슬롯의 `dataset_fact` 를 통째로 읽는다. `STORE_COMMERCIAL`(분기당 약 7.7만 행) 이관은 512m 컨테이너(heap 약 358MB)에서 여유가 크지 않다. publish=true 전환 뒤 첫 run 의 JVM heap 을 본다. 부족하면 그 데이터셋만 수동 `batch-service-job`(1g)으로 이관한다
+- **메모리** — typed 이관(`--job=project`)은 한 슬롯의 `dataset_fact` 를 통째로 읽는다. dry-run 이관도 같은 양을 읽는다. 그래서 위험 시점은 publish=true 전환 뒤가 아니라 **publish=false 첫 run 의 dry-run 재이관(`WOULD_PROJECT`)부터**다. `STORE_COMMERCIAL`(분기당 약 7.7만 행) 이관은 512m 컨테이너(heap 약 358MB)에서 여유가 크지 않다. 롤아웃 첫 05:00 run 의 JVM heap 을 본다. 부족하면 그 데이터셋만 수동 `batch-service-job`(1g)으로 이관한다. 데이터셋당 run 마다 재이관·새 분기 합쳐 1분기(`max-quarters-per-run`)라 한 run 이 무거운 이관을 연달아 하지는 않는다
 - **Quartz JobStore 는 프로파일로만 갈린다** — `dev` / `prod` 는 JDBC 클러스터 JobStore 에 자동 시작, `local` / `quarterly` 는 메모리 스토어에 자동 시작 off 다(`QuartzJobStoreProfileTest`). 예전 `application.yml` 의 `spring.config.activate.on-property` 문서는 Spring Boot 3.5 가 지원하지 않는 키라 모든 프로파일에 적용됐고, 그래서 quarterly CLI 도 commercial 의 `QRTZ_*` 에 붙어 JDBC 로 떴다. 지금은 CLI 가 저장된 트리거를 발화하지 않는다. 로컬에서 스케줄을 돌려 보려면 `local,scheduler` 로 띄운다
 - **두 스키마 사이 원자성은 없다** — 스텝 트랜잭션(commercial)과 `BATCH_*` 메타(district, `districtTransactionManager`)는 따로 커밋된다(XA 없음). 메타 쓰기 자체는 이제 트랜잭션 안에서 돈다(예전에는 commercial 매니저가 붙어 문장마다 커밋됐다). 자동 최신화는 run-id 가 매번 새로워 재시작 경로를 쓰지 않는다
 - **원천 보관 용량** — 무시하는 9종은 원천이 바뀐 날마다 전 기간을 `batch-raw` 에 새로 받는다(데이터셋당 수 MB). 볼륨 정리는 아직 없다
