@@ -157,6 +157,24 @@ class DatasetTest {
             .doesNotThrowAnyException();
     }
 
+    /**
+     * 게시 상한의 정본은 공유 {@link DatasetKey#lastPublishablePeriodCode()} 다(이슈 #464). commercial-service 가 같은 값으로
+     * 끊긴 원천을 분석 기본 분기 계산에서 빼므로, 배치가 값을 따로 들고 있으면 한쪽만 고쳐진다. 상한이 있는 데이터셋은
+     * 지금 상권 소비 하나이고 값은 {@code 20234} 그대로다. 사유는 배치가 보유하고 상한과 반드시 짝을 이룬다.
+     */
+    @Test
+    void theDiscontinuedCeilingIsReadFromTheSharedDatasetKeyAndPairsWithAReason() {
+        for (Dataset dataset : Dataset.values()) {
+            String ceiling = dataset.key().lastPublishablePeriodCode();
+            assertThat(dataset.lastPublishableQuarter().map(Quarter::value).orElse(null)).as("%s", dataset).isEqualTo(ceiling);
+            dataset.discontinuedSource().ifPresent(source -> assertThat(source.reason()).as("%s", dataset).isNotBlank());
+        }
+
+        assertThat(Arrays.stream(DatasetKey.values()).filter(key -> key.lastPublishablePeriodCode() != null))
+            .containsExactly(DatasetKey.CONSUMPTION_COMMERCIAL);
+        assertThat(DatasetKey.CONSUMPTION_COMMERCIAL.lastPublishablePeriodCode()).isEqualTo("20234");
+    }
+
     /** 상한 분기 자체는 두 Job 모두 그대로 받는다 — 경계에서 한 칸 더 막지 않는다. */
     @Test
     void theLastPublishableQuarterItselfIsStillAcceptedByBothJobs() {
