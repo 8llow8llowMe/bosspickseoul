@@ -4,6 +4,7 @@ import {
   toTrendPoints,
   toPyramidRows,
   toGenderSegments,
+  toShares,
 } from '@/lib/analysis/chart-data'
 
 describe('toTrendPoints', () => {
@@ -47,5 +48,19 @@ describe('toGenderSegments', () => {
     ])
     expect(toGenderSegments(null, 40)).toEqual([{ label: '여성', value: 40 }])
     expect(toGenderSegments(null, null)).toEqual([])
+  })
+})
+
+describe('toShares', () => {
+  it('합이 100 이 되게 최대 나머지 방식으로 나눈다', () => {
+    expect(toShares([1, 1, 1])).toEqual([34, 33, 33])
+    expect(toShares([45, 55])).toEqual([45, 55])
+    expect(toShares([48.5, 51.5])).toEqual([49, 51])
+    expect(toShares([0, 0])).toEqual([0, 0])
+  })
+
+  it('세 조각에서도 음수 비율을 만들지 않는다', () => {
+    expect(toShares([50.5, 49.5, 0])).toEqual([51, 49, 0])
+    expect(toShares([-5, 10])).toEqual([0, 100])
   })
 })

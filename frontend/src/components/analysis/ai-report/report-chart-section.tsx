@@ -4,13 +4,12 @@ import styled from 'styled-components'
 
 import BarChart from '@/components/analysis/charts/bar-chart'
 import { AXIS_UNIT_CAPTION_HEIGHT } from '@/components/analysis/charts/chart-theme'
-import LineChart, { hasLineData } from '@/components/analysis/charts/line-chart'
 import PopulationPyramid from '@/components/analysis/charts/population-pyramid'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   buildFootAgeGenderPyramid,
   buildFootDayBars,
-  buildSalesTimeLine,
+  buildSalesTimeBars,
 } from '@/lib/analysis/commercial-chart-selectors'
 import { resolveChartSlot } from '@/lib/analysis/report-section-state'
 import type {
@@ -71,13 +70,13 @@ export default function ReportChartSection({
 }) {
   const CHART_HEIGHT = variant === 'compact' ? 160 : 200
   // 매출(원)·유동인구(명) 차트는 축 단위 표기가 위에 붙는다. 피라미드(%)는 붙지 않는다.
-  const salesTimePoints = buildSalesTimeLine(sales)
+  const salesTimeBars = buildSalesTimeBars(sales)
   const footDayBars = buildFootDayBars(foot)
   const footPyramidRows = buildFootAgeGenderPyramid(foot)
 
   const salesTimeSlot = resolveChartSlot(
     salesLoading,
-    !hasLineData(salesTimePoints),
+    salesTimeBars.every(row => row.value === null),
   )
   const footDaySlot = resolveChartSlot(
     footLoading,
@@ -100,10 +99,11 @@ export default function ReportChartSection({
         ) : salesTimeSlot === 'empty' ? (
           <Empty>데이터 없음</Empty>
         ) : (
-          <LineChart
-            points={salesTimePoints}
+          <BarChart
+            items={salesTimeBars}
             unit="원"
-            ariaLabel="시간대별 매출 추이"
+            ariaLabel="시간대별 매출 막대 차트"
+            highlightMax
             height={CHART_HEIGHT}
           />
         )}

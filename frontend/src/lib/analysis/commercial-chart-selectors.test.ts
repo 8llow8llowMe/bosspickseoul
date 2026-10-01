@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildFootDayBars,
-  buildSalesTimeLine,
+  buildSalesTimeBars,
   selectSalesGrowth,
 } from '@/lib/analysis/commercial-chart-selectors'
 import type {
@@ -9,8 +9,8 @@ import type {
   CommercialTrend,
 } from '@/types/commercial-analysis'
 
-describe('buildSalesTimeLine', () => {
-  it('시간대별 매출을 6개 라인 포인트로 변환한다', () => {
+describe('buildSalesTimeBars', () => {
+  it('시간대별 매출을 6개 막대 행으로 변환한다', () => {
     const sales = {
       amountByTimeSlotItem: {
         salesAmountTime00To06: 10,
@@ -21,17 +21,13 @@ describe('buildSalesTimeLine', () => {
         salesAmountTime21To24: 60,
       },
     } as unknown as CommercialSales
-    const points = buildSalesTimeLine(sales)
-    expect(points).toHaveLength(6)
-    expect(points[0]).toEqual({
-      periodLabel: '00~06시',
-      value: 10,
-      changeRate: null,
-    })
-    expect(points[2].value).toBeNull()
+    const rows = buildSalesTimeBars(sales)
+    expect(rows).toHaveLength(6)
+    expect(rows[0]).toMatchObject({ label: '00~06시', value: 10 })
+    expect(rows[2].value).toBeNull()
   })
   it('null 입력은 6개 null 포인트', () => {
-    expect(buildSalesTimeLine(null).every(p => p.value === null)).toBe(true)
+    expect(buildSalesTimeBars(null).every(row => row.value === null)).toBe(true)
   })
 })
 
