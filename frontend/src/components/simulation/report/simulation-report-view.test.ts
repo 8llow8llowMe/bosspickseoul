@@ -38,7 +38,7 @@ describe('SimulationReportView', () => {
     const markup = render(report())
 
     expect(markup).toContain('2억 3,450만원')
-    expect(markup).toContain('2024년 기준 데이터로 계산된 결과입니다.')
+    expect(markup).toContain('비용·권리금은 2024년 자료로 계산했어요.')
   })
 
   it('비프랜차이즈면 가맹 부담금 항목이 없다', () => {

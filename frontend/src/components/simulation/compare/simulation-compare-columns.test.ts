@@ -73,7 +73,7 @@ describe('SimulationCompareColumns', () => {
       report({ totalPrice: 23_450 }),
     )
 
-    expect(markup).toContain('초기 비용만 비교한 결과예요.')
+    expect(markup).toContain('창업 비용만 비교한 결과예요.')
     expect(markup).toContain('매출·수익 지표는 계산하지 않아요.')
   })
 

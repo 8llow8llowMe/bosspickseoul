@@ -50,7 +50,7 @@ export const toCostBreakdown = (
     },
     {
       key: 'deposit',
-      label: '보증금',
+      label: '임대 보증금',
       hint: '월 임대료 10개월분',
       amount: deposit,
     },
@@ -122,7 +122,10 @@ export const describeAgeSalesScope = (condition: SimulationCondition): string =>
  */
 export const formatSalesAmountCompact = (amountInManwon: number): string => {
   if (amountInManwon >= 10_000) {
-    return `${Math.floor(amountInManwon / 10_000).toLocaleString()}억원`
+    // 소수 한 자리로 반올림한다(R10). 버리면 1억 9,600만원이 「1억원」이 돼 거의 절반을 잃는다.
+    // 딱 떨어지면 「3억원」 — `.0` 을 붙이지 않는다.
+    const eok = Math.round(amountInManwon / 1_000) / 10
+    return `${eok.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}억원`
   }
   return `${amountInManwon.toLocaleString()}만원`
 }

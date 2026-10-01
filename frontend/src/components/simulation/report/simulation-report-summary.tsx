@@ -7,7 +7,7 @@ import styled from 'styled-components'
 import { Badge } from '@/components/ui/badge'
 import { formatLargeWon } from '@/lib/format'
 import { formatStoreSize } from '@/lib/simulation/conditions'
-import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
+import { describeReportDataBasis } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
@@ -169,7 +169,7 @@ export default function SimulationReportSummary({
 
       <Notice>
         <Info aria-hidden="true" />
-        <span>{formatDataBaseYearNotice(report.dataBaseYear)}</span>
+        <span>{describeReportDataBasis(report)}</span>
       </Notice>
 
       {actions ? <Actions>{actions}</Actions> : null}

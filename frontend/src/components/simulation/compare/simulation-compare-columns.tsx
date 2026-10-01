@@ -289,7 +289,7 @@ export default function SimulationCompareColumns({
 
   return (
     <Root aria-label="조건 비교 결과">
-      <h2>예상 초기 비용 비교</h2>
+      <h2>예상 총 창업 비용 비교</h2>
 
       <Heads>
         <Head $lower={gap.winner === 'left'}>

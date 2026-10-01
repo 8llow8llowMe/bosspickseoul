@@ -39,8 +39,30 @@ export const hasFranchiseeLevy = (report: SimulationReport): boolean =>
   report.costDetail.levy !== null && report.costDetail.levy !== undefined
 
 /**
- * "2024년 기준 데이터로 계산된 결과입니다" 안내 문구.
+ * 「2024년 자료로 계산한 결과예요」 안내 문구 — 입력 화면 결과 카드처럼 **비용만** 보여 주는 곳에 쓴다.
  * `dataBaseYear`는 화면 노출이 **필수**다 — 언제 기준 데이터인지 밝히지 않으면 최신 시세로 오인된다.
  */
 export const formatDataBaseYearNotice = (dataBaseYear: string): string =>
-  `${dataBaseYear}년 기준 데이터로 계산된 결과입니다.`
+  `${dataBaseYear}년 자료로 계산한 결과예요.`
+
+/**
+ * 리포트 상단 기준 안내 — **출처별로 한 번에** 밝힌다(R4).
+ *
+ * 리포트에는 기준 시점이 둘이다. BE 는 임대료·인테리어(업종)·권리금·가맹 정보를 `dataBaseYear`
+ * 연도 자료로 조회하고(`simulationProperties.dataBaseYear()`), 고객 지표·성수기는 `periodCode`
+ * 분기 매출로 집계한다. 상단에 「2024년 기준」만 두면 아래 섹션의 「2026년 1분기 기준」과 설명 없이
+ * 어긋나 보였다. 고객·성수기 섹션이 둘 다 숨으면(데이터 없음) 두 번째 문장도 뺀다 — 없는 섹션의
+ * 기준을 적으면 무엇을 가리키는지 알 수 없다. 분기 형식이 어긋나도 지어내지 않고 뺀다.
+ */
+export const describeReportDataBasis = (report: SimulationReport): string => {
+  const cost = `비용·권리금은 ${report.dataBaseYear}년 자료로 계산했어요.`
+
+  const salesSections = [
+    hasGenderAgeAnalysis(report.genderAgeAnalysis) ? '고객 지표' : null,
+    hasSeasonAnalysis(report.seasonAnalysis) ? '성수기' : null,
+  ].filter((label): label is string => label !== null)
+  const period = report.condition.periodCode
+  if (salesSections.length === 0 || !/^\d{4}[1-4]$/.test(period)) return cost
+
+  return `${cost} ${salesSections.join('·')}는 ${period.slice(0, 4)}년 ${period.slice(4)}분기 매출 기준이에요.`
+}

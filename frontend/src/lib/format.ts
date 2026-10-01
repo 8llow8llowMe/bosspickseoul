@@ -22,6 +22,8 @@ export const formatDateTime = (dateTime: string) => {
  * - `0` 은 `0만원` 이 아니라 **`0원`**. S-SIM-2 가 가맹 부담금 `0` 을 "0원"으로 못박았고,
  *   `null`(해당 없음)과 구분되는 자리라 문구가 자연스러워야 한다.
  * - 억 자리가 딱 떨어지면 만원 자리를 붙이지 않는다 — `1억 0만원` 은 사람이 쓰지 않는다.
+ *   대신 **`3억원`** 으로 단위를 닫는다. `3억` 만 두면 옆의 `2억 4,002만원` 과 나란할 때 단위가
+ *   빠진 값처럼 보였다(R10).
  */
 export const formatLargeWon = (amount: number) => {
   if (amount === 0) {
@@ -33,7 +35,7 @@ export const formatLargeWon = (amount: number) => {
     const millions = amount % 10000
 
     return millions === 0
-      ? `${billions.toLocaleString()}억`
+      ? `${billions.toLocaleString()}억원`
       : `${billions.toLocaleString()}억 ${millions.toLocaleString()}만원`
   }
 

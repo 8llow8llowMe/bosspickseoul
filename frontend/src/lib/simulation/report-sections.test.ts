@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SimulationReport } from '@/types/simulation'
 import {
+  describeReportDataBasis,
   formatDataBaseYearNotice,
   hasFranchiseeLevy,
   hasGenderAgeAnalysis,
@@ -109,7 +110,56 @@ describe('hasFranchiseeLevy', () => {
 describe('formatDataBaseYearNotice', () => {
   it('응답의 dataBaseYear 를 그대로 문구에 넣는다', () => {
     expect(formatDataBaseYearNotice(baseReport.dataBaseYear)).toBe(
-      '2024년 기준 데이터로 계산된 결과입니다.',
+      '2024년 자료로 계산한 결과예요.',
     )
+  })
+})
+
+/*
+ * R4 — 비용·권리금(`dataBaseYear`)과 고객·성수기(`periodCode`)는 기준 시점이 다르다. 상단에 하나만
+ * 적으면 아래 섹션의 「2023년 3분기 기준」과 설명 없이 어긋난다.
+ */
+describe('describeReportDataBasis (R4)', () => {
+  const genderAge = {
+    malePercent: 55,
+    femalePercent: 45,
+    topAgeGroups: [{ ageGroupName: '30대', salesAmount: 19_600 }],
+  }
+  const season = { peakMonths: [7, 8], offPeakMonths: [1] }
+
+  it('매출 섹션이 없으면 비용 기준만 적는다', () => {
+    expect(describeReportDataBasis(baseReport)).toBe(
+      '비용·권리금은 2024년 자료로 계산했어요.',
+    )
+  })
+
+  it('고객 지표·성수기가 있으면 분기 매출 기준을 함께 밝힌다', () => {
+    expect(
+      describeReportDataBasis({
+        ...baseReport,
+        genderAgeAnalysis: genderAge,
+        seasonAnalysis: season,
+      }),
+    ).toBe(
+      '비용·권리금은 2024년 자료로 계산했어요. 고객 지표·성수기는 2023년 3분기 매출 기준이에요.',
+    )
+  })
+
+  it('보이는 섹션만 이름에 넣는다', () => {
+    expect(
+      describeReportDataBasis({ ...baseReport, seasonAnalysis: season }),
+    ).toBe(
+      '비용·권리금은 2024년 자료로 계산했어요. 성수기는 2023년 3분기 매출 기준이에요.',
+    )
+  })
+
+  it('분기 형식이 어긋나면 지어내지 않고 뺀다', () => {
+    expect(
+      describeReportDataBasis({
+        ...baseReport,
+        condition: { ...baseReport.condition, periodCode: '2023' },
+        seasonAnalysis: season,
+      }),
+    ).toBe('비용·권리금은 2024년 자료로 계산했어요.')
   })
 })
