@@ -29,6 +29,7 @@ import {
   type CommunityLocationValue,
 } from '@/lib/community/community-location'
 import { districts } from '@/data/districts'
+import { communityOutlinedField } from '@/lib/community/field-styles'
 import {
   filterRegionSheetOptions,
   getRegionSheetAllRow,
@@ -47,6 +48,8 @@ export const COMMUNITY_COMPOSE_REGION_PLACEHOLDER = '어느 지역 이야기인�
 /** 바깥에서 시트를 여는 손잡이. 지역 없이 등록하면 폼이 칩으로 포커스를 옮기고 시트를 연다(CM-032). */
 export type CommunityRegionSheetHandle = {
   focusAndOpen: () => void
+  /** 칩에 포커스만 둔다 — 시트는 열지 않는다(작성 체크의 `지역` 을 눌렀을 때). */
+  focus: () => void
 }
 
 export type CommunityRegionSheetProps = {
@@ -229,17 +232,8 @@ const SearchInput = styled.input`
     color: var(--color-placeholder);
   }
 
-  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms). */
-  &,
-  &:focus,
-  &:focus-visible {
-    outline: none;
-  }
-
-  &:focus-visible {
-    border-color: var(--color-primary-700);
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
+  /* 포커스·오류·크기 — 커뮤니티 입력칸 공통 조각(안쪽 한 줄, 글로우 없음, resize none). */
+  ${communityOutlinedField}
 `
 
 const Breadcrumb = styled.nav`
@@ -653,6 +647,9 @@ export default function CommunityRegionSheet({
         // 먼저 칩에 포커스를 둔다 — 시트를 닫으면 포커스가 칩으로 돌아온다(returnFocusRef).
         chipRef.current?.focus()
         setOpen(true)
+      },
+      focus: () => {
+        chipRef.current?.focus()
       },
     }),
     [disabled, readOnly],

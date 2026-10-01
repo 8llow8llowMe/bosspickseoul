@@ -14,6 +14,7 @@ import {
   getDialogFocusableElements,
   getDialogFocusTargetIndex,
 } from '@/lib/community/dialog-focus'
+import { communityOutlinedField } from '@/lib/community/field-styles'
 import {
   COMMUNITY_REPORT_REASON_MAX_LENGTH,
   COMMUNITY_REPORT_REASON_REQUIRING_DETAIL,
@@ -191,23 +192,14 @@ const TextArea = styled.textarea`
   padding: 12px 16px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-field);
-  resize: vertical;
   background: var(--color-surface);
   color: var(--color-text-900);
   font: inherit;
-  font-size: 14px;
-  line-height: 1.57;
-  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms). */
-  &,
-  &:focus,
-  &:focus-visible {
-    outline: none;
-  }
+  font-size: 16px;
+  line-height: 1.5;
 
-  &:focus-visible {
-    border-color: var(--color-primary-700);
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
+  /* 포커스·오류·크기 — 커뮤니티 입력칸 공통 조각(안쪽 한 줄, 글로우 없음, resize none). */
+  ${communityOutlinedField}
 
   &:disabled {
     cursor: not-allowed;

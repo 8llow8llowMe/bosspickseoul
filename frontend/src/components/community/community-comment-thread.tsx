@@ -18,6 +18,7 @@ import {
   isCommunityPostWriter,
 } from '@/lib/community/comment-thread'
 import type { CommunityViewer } from '@/lib/community/community-state'
+import { communityOutlinedField } from '@/lib/community/field-styles'
 import { isCommunityPostEdited } from '@/lib/community/post-detail'
 import type {
   CommunityId,
@@ -228,32 +229,23 @@ const ComposerForm = styled.form`
 
 /*
   입력칸은 흰 바탕 테두리형(DESIGN.md §4 Inputs — 커뮤니티 폼은 1px 테두리를 유지).
-  평소 한 줄(48)로 접혀 있다가 펼치면 rows 3 이 높이를 정한다.
+  평소 한 줄(48)로 접혀 있다가 펼치면 rows 3 이 높이를 정한다. 손잡이로 늘이지 않는다(resize: none) —
+  글자는 16 이라 iOS 가 포커스 때 화면을 확대하지 않는다.
 */
-const TextArea = styled.textarea<{ $expanded: boolean }>`
+const TextArea = styled.textarea`
   width: 100%;
   min-height: 48px;
   padding: 12px 16px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-field);
-  resize: ${props => (props.$expanded ? 'vertical' : 'none')};
   background: var(--color-surface);
   color: var(--color-text-900);
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
 
-  /* 포커스 신호는 테두리 하나다 — 전역 :focus-visible 링을 끈다(DESIGN.md §Inputs & Forms). */
-  &,
-  &:focus,
-  &:focus-visible {
-    outline: none;
-  }
-
-  &:focus-visible {
-    border-color: var(--color-primary-700);
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
+  /* 포커스·오류·크기 — 커뮤니티 입력칸 공통 조각(안쪽 한 줄, 글로우 없음, resize none). */
+  ${communityOutlinedField}
 
   &:disabled {
     cursor: not-allowed;
@@ -580,7 +572,6 @@ export default function CommunityCommentThread({
         }}
       >
         <TextArea
-          $expanded
           aria-label="답글 내용"
           maxLength={MAX_COMMENT_LENGTH}
           disabled={!authReady || pendingComposer !== null}
@@ -814,7 +805,6 @@ export default function CommunityCommentThread({
             onSubmit={event => void handleRootSubmit(event)}
           >
             <TextArea
-              $expanded={composerExpanded}
               aria-label="댓글 내용"
               data-community-comment-entry="true"
               maxLength={MAX_COMMENT_LENGTH}
