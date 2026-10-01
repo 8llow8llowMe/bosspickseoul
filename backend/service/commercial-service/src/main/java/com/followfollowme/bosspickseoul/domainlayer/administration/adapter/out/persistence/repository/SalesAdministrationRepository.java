@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.p
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface SalesAdministrationRepository extends JpaRepository<SalesAdministrationEntity, Long> {
 
@@ -12,4 +13,8 @@ public interface SalesAdministrationRepository extends JpaRepository<SalesAdmini
 
     Optional<SalesAdministrationEntity> findByPeriodCodeAndAdministrationCodeAndServiceCodeAndSpatialVersion(
         String periodCode, String administrationCode, String serviceCode, String spatialVersion);
+
+    /** 분석 기준 분기 카탈로그(analysisperiod)가 적재 분기를 모을 때 쓴다. 공간 스냅샷은 호출자가 명시한다. */
+    @Query("select distinct e.periodCode from SalesAdministrationEntity e where e.spatialVersion = :spatialVersion")
+    List<String> findDistinctPeriodCodesBySpatialVersion(String spatialVersion);
 }

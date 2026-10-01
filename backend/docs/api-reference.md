@@ -89,6 +89,7 @@
 | `SIMULATION` | `001~006` | (`COMMERCIAL_100` 사용) | `101~109` | (`COMMERCIAL_102` 사용) |
 | `RANKING` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
 | `POLICY` | `001~002` | (`COMMERCIAL_100` 사용) | `101` | (`COMMERCIAL_102` 사용) |
+| `ANALYSIS_PERIOD` | `001` (기본 분기를 정할 수 없음 503) | - | - | - |
 | `MAP` | `001~008` | `MAP_100` | `101~102` | `MAP_103` |
 | `AI` | `001~012` (`007` 대기열 포화, `012` 일일 사용량 초과) | `AI_100` | `102~104` | `AI_101` |
 | `STORAGE` | `001~007` | 파일 업로드 (형식·용량·저장소 실패) | - | - |
@@ -155,6 +156,16 @@
 ---
 
 ## commercial-service
+
+### 분석 기준 분기 (`/api/v1/commercials/periods`)
+
+| Method | Path | 설명 | 인증 |
+|--------|------|------|------|
+| GET | `/periods` | 적재된 데이터 기준 기본 분기·선택 가능 분기 목록·데이터셋별 적재 범위 (이슈 #464) | - |
+
+> 응답 `dataBody`: `defaultPeriodCode`(원천 중단 상한이 없는 데이터셋 14종 모두에 적재된 분기 중 최신, 정할 수 없으면 `null`), `availablePeriodCodes`(같은 교집합, 최신순), `firstPeriodCode`, `spatialVersion`(배포 설정 `DATASET_SPATIAL_VERSION`), `resolvedAt`(계산 시각, `+09:00`), `datasets[]`(`dataset`·`sourceId`·`latestPeriodCode`·`firstPeriodCode`·`periodCount`·`coreForDefault`·`lastPublishablePeriodCode`·`publishedAt`·`schemaVersion`). 원천이 끊긴 상권 소비(`CONSUMPTION_COMMERCIAL`, 20234 까지)는 `coreForDefault=false` 라 기본 분기를 붙잡지 않습니다. `publishedAt`·`schemaVersion` 은 후속 이슈 전까지 항상 `null` 입니다.
+>
+> 인스턴스 메모리 캐시(5분)라 `resolvedAt` 이 몇 분 전일 수 있고, DB 장애 중에는 마지막으로 계산한 값을 그대로 내려줍니다. 한 번도 계산하지 못했으면 `ANALYSIS_PERIOD_001`(503) 입니다.
 
 ### 상권 기본 데이터 (`/api/v1/commercials`)
 
@@ -423,8 +434,8 @@
 | 서비스 | 엔드포인트 수 | 구성 |
 |--------|-------------|------|
 | auth-service | 17 | 인증 7 + 회원 7 + 북마크 3 |
-| commercial-service | 40 | 상권 18 + 자치구 8 + 행정동 1 + 공유링크 2 + 보관함 4 + 시뮬레이션 5 + 인기순위 1 + 정책 1 |
+| commercial-service | 41 | 상권 18 + 분석 기준 분기 1 + 자치구 8 + 행정동 1 + 공유링크 2 + 보관함 4 + 시뮬레이션 5 + 인기순위 1 + 정책 1 |
 | district-service | 14 | 지도 8 + 지역코드 6 |
 | community-service | 17 | 게시글 10 + 댓글 4 + 신고 1 + 모더레이션 2 |
 | ai-service | 6 | 리포트 제출 4 + 작업 조회 2 (폴링 + SSE) |
-| **합계** | **94** | |
+| **합계** | **95** | |
