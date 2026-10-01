@@ -10,7 +10,14 @@ import {
   type MouseEvent,
 } from 'react'
 import styled from 'styled-components'
+import {
+  getDialogFocusableElements,
+  getDialogFocusTargetIndex,
+} from '@/lib/community/dialog-focus'
 import type { CommunityId } from '@/types/community'
+
+// 기존 import 경로(community-shared-ui.test.ts 등)를 지킨다. 정본은 dialog-focus.ts.
+export { getDialogFocusTargetIndex }
 
 export type CommunityReportDialogProps = {
   open: boolean
@@ -37,30 +44,6 @@ export const validateCommunityReportReason = (
 
   return null
 }
-
-export const getDialogFocusTargetIndex = (
-  focusableCount: number,
-  currentIndex: number,
-  direction: 'forward' | 'backward',
-): number | null => {
-  if (focusableCount <= 0) {
-    return null
-  }
-
-  if (currentIndex < 0 || currentIndex >= focusableCount) {
-    return direction === 'forward' ? 0 : focusableCount - 1
-  }
-
-  const offset = direction === 'forward' ? 1 : -1
-  return (currentIndex + offset + focusableCount) % focusableCount
-}
-
-const getFocusableElements = (root: HTMLElement) =>
-  Array.from(
-    root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter(element => !element.hasAttribute('aria-hidden'))
 
 const Overlay = styled.div`
   position: fixed;
@@ -309,7 +292,7 @@ function CommunityReportDialogContent({
       return
     }
 
-    const focusable = getFocusableElements(dialogRef.current)
+    const focusable = getDialogFocusableElements(dialogRef.current)
     const currentIndex = focusable.indexOf(
       document.activeElement as HTMLElement,
     )

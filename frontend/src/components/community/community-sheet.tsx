@@ -12,7 +12,10 @@ import {
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import styled from 'styled-components'
-import { getDialogFocusTargetIndex } from '@/components/community/community-report-dialog'
+import {
+  getDialogFocusableElements,
+  getDialogFocusTargetIndex,
+} from '@/lib/community/dialog-focus'
 
 export type CommunitySheetProps = {
   open: boolean
@@ -26,14 +29,6 @@ export type CommunitySheetProps = {
    */
   returnFocusRef?: RefObject<HTMLElement | null>
 }
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-
-export const getCommunitySheetFocusableElements = (root: HTMLElement) =>
-  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    element => !element.hasAttribute('aria-hidden'),
-  )
 
 const MOBILE = '@media (max-width: 479px)'
 
@@ -181,7 +176,7 @@ function CommunitySheetContent({
       return
     }
 
-    const focusable = getCommunitySheetFocusableElements(panelRef.current)
+    const focusable = getDialogFocusableElements(panelRef.current)
     const currentIndex = focusable.indexOf(
       document.activeElement as HTMLElement,
     )
