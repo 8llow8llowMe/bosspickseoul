@@ -9,7 +9,12 @@ export const COMMUNITY_LIST_AUTOLOAD_ROOT_MARGIN = '400px 0px'
 export type CommunityAutoLoadInput = {
   isIntersecting: boolean
   hasNextPage: boolean
-  isFetchingNextPage: boolean
+  /**
+   * 이 목록 쿼리가 **무엇이든** 받는 중이다(React Query `isFetching` — 다음 쪽뿐 아니라 무효화·
+   * 재마운트 refetch 도). refetch 중에 부른 다음 쪽은 `fetchNextPage({ cancelRefetch: false })` 가
+   * 진행 중 요청에 흡수해 버려 아무 일도 일어나지 않는다. 그동안은 부르지 않고, 끝나는 순간 다시 본다.
+   */
+  isFetching: boolean
   /** 다음 쪽이 실패해 `다시 불러오기` 가 떠 있다. 사용자가 누를 때까지 자동으로 다시 부르지 않는다. */
   hasLoadMoreError: boolean
 }
@@ -17,10 +22,10 @@ export type CommunityAutoLoadInput = {
 export const shouldAutoLoadNextPage = ({
   isIntersecting,
   hasNextPage,
-  isFetchingNextPage,
+  isFetching,
   hasLoadMoreError,
 }: CommunityAutoLoadInput) =>
-  isIntersecting && hasNextPage && !isFetchingNextPage && !hasLoadMoreError
+  isIntersecting && hasNextPage && !isFetching && !hasLoadMoreError
 
 export type CommunityFeedFooter =
   'none' | 'load-more-error' | 'loading-more' | 'sentinel' | 'end'

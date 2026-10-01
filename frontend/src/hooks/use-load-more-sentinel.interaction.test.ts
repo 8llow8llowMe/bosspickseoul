@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, cleanup, renderHook } from '@testing-library/react'
+import {
+  QueryClient,
+  QueryClientProvider,
+  useInfiniteQuery,
+} from '@tanstack/react-query'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { createElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useLoadMoreSentinel } from '@/hooks/use-load-more-sentinel'
@@ -64,7 +70,7 @@ const renderSentinel = (overrides: Partial<HookProps> = {}) => {
   const onLoadMore = vi.fn()
   const initialProps: HookProps = {
     hasNextPage: true,
-    isFetchingNextPage: false,
+    isFetching: false,
     hasLoadMoreError: false,
     onLoadMore,
     ...overrides,
@@ -113,8 +119,8 @@ describe('useLoadMoreSentinel', () => {
     expect(onLoadMore).not.toHaveBeenCalled()
   })
 
-  it('does not load while the next page is already fetching', () => {
-    const { onLoadMore } = renderSentinel({ isFetchingNextPage: true })
+  it('does not load while the list query is already fetching', () => {
+    const { onLoadMore } = renderSentinel({ isFetching: true })
 
     intersect(true)
 
@@ -143,11 +149,11 @@ describe('useLoadMoreSentinel', () => {
     intersect(true)
     expect(onLoadMore).toHaveBeenCalledTimes(1)
 
-    rerender({ ...initialProps, isFetchingNextPage: true })
+    rerender({ ...initialProps, isFetching: true })
     expect(onLoadMore).toHaveBeenCalledTimes(1)
 
     // 짧은 쪽이 붙어 감시 요소가 그대로 화면 안이다 — 교차 이벤트가 다시 오지 않는다.
-    rerender({ ...initialProps, isFetchingNextPage: false })
+    rerender({ ...initialProps, isFetching: false })
     expect(onLoadMore).toHaveBeenCalledTimes(2)
   })
 
@@ -185,5 +191,83 @@ describe('useLoadMoreSentinel', () => {
 
     expect(() => renderSentinel()).not.toThrow()
     expect(observers).toHaveLength(0)
+  })
+})
+
+describe('useLoadMoreSentinel with a real useInfiniteQuery', () => {
+  it('loads the next page once a background refetch ends while the sentinel stayed visible', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const requested: number[] = []
+    let releaseRefetch: (() => void) | null = null
+    let holdNextRequest = false
+    const queryFn = async ({ pageParam }: { pageParam: number }) => {
+      requested.push(pageParam)
+
+      if (holdNextRequest) {
+        holdNextRequest = false
+        await new Promise<void>(resolve => {
+          releaseRefetch = resolve
+        })
+      }
+
+      return { page: pageParam }
+    }
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+    const { result } = renderHook(
+      () => {
+        const query = useInfiniteQuery({
+          queryKey: ['sentinel-refetch'],
+          initialPageParam: 0,
+          queryFn,
+          getNextPageParam: (lastPage: { page: number }) =>
+            lastPage.page < 5 ? lastPage.page + 1 : undefined,
+        })
+        const sentinelRef = useLoadMoreSentinel({
+          hasNextPage: Boolean(query.hasNextPage),
+          isFetching: query.isFetching,
+          hasLoadMoreError: query.isFetchNextPageError,
+          onLoadMore: () => {
+            // 목록 페이지와 같은 호출 — 진행 중 요청을 취소하지 않는다.
+            void query.fetchNextPage({ cancelRefetch: false })
+          },
+        })
+        return { query, sentinelRef }
+      },
+      { wrapper },
+    )
+
+    await waitFor(() => {
+      expect(result.current.query.data?.pages).toHaveLength(1)
+    })
+
+    act(() => {
+      result.current.sentinelRef(document.createElement('div'))
+    })
+
+    // 무효화·재마운트 같은 백그라운드 refetch 가 진행 중이다.
+    holdNextRequest = true
+    act(() => {
+      void result.current.query.refetch()
+    })
+    await waitFor(() => {
+      expect(releaseRefetch).not.toBeNull()
+    })
+
+    // 그 사이 감시 요소가 보인다 — 다음 쪽 요청은 진행 중 refetch 에 흡수된다.
+    intersect(true)
+
+    await act(async () => {
+      releaseRefetch?.()
+    })
+
+    // 감시 요소는 계속 화면 안이라 교차 알림이 다시 오지 않는다. refetch 가 끝난 순간 이어 불러야 한다.
+    await waitFor(() => {
+      expect(result.current.query.data?.pages).toHaveLength(2)
+    })
+    expect(requested).toEqual([0, 0, 1])
+    client.clear()
   })
 })

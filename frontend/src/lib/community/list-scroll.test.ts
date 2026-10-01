@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  COMMUNITY_HISTORY_TRAVERSAL_WINDOW_MS,
   COMMUNITY_LIST_SCROLL_TTL_MS,
   clearCommunityListScroll,
+  createHistoryTraversalTracker,
   getCommunityListScrollStep,
   getCommunityListScrollTop,
   readCommunityListScroll,
@@ -45,7 +47,6 @@ const throwingStorage = {
 const snapshot: CommunityListScrollSnapshot = {
   contextKey: 'ctx-latest',
   postId: '42',
-  scrollY: 1800,
   rowOffset: 240,
   savedAt: 1_000_000,
 }
@@ -76,6 +77,11 @@ describe('community list scroll snapshot', () => {
     expect(storage.values.size).toBe(1)
   })
 
+  it('keeps a snapshot only as long as React Query keeps the inactive list (gcTime default 5 min)', () => {
+    // 복원은 캐시가 불러온 쪽을 들고 있을 때만 의미가 있다. 캐시 수명은 staleTime 이 아니라 gcTime 이다.
+    expect(COMMUNITY_LIST_SCROLL_TTL_MS).toBe(5 * 60 * 1000)
+  })
+
   it('drops an expired snapshot', () => {
     const storage = createStorage()
     saveCommunityListScroll(storage, snapshot)
@@ -92,7 +98,7 @@ describe('community list scroll snapshot', () => {
   it('rejects malformed values instead of scrolling to garbage', () => {
     const malformed = [
       'not json',
-      JSON.stringify({ ...snapshot, scrollY: 'far' }),
+      JSON.stringify({ ...snapshot, savedAt: 'yesterday' }),
       JSON.stringify({ ...snapshot, postId: 42 }),
       JSON.stringify({ ...snapshot, rowOffset: Number.NaN }),
       JSON.stringify(null),
@@ -135,8 +141,9 @@ describe('getCommunityListScrollTop', () => {
     expect(getCommunityListScrollTop(snapshot, 2000)).toBe(1760)
   })
 
-  it('falls back to the saved scroll position when the row is gone', () => {
-    expect(getCommunityListScrollTop(snapshot, null)).toBe(1800)
+  it('does not restore when the row is gone — the cache was collected, so stay at the top', () => {
+    // 옛 scrollY 로 가면 첫 쪽만 다시 받은 목록의 엉뚱한 글에 떨어진다.
+    expect(getCommunityListScrollTop(snapshot, null)).toBeNull()
   })
 
   it('never scrolls above the top of the page', () => {
@@ -150,5 +157,52 @@ describe('getCommunityListScrollStep', () => {
     expect(getCommunityListScrollStep('ready')).toBe('restore')
     expect(getCommunityListScrollStep('empty')).toBe('discard')
     expect(getCommunityListScrollStep('error')).toBe('discard')
+  })
+})
+
+describe('createHistoryTraversalTracker', () => {
+  const createTarget = () => {
+    const target = new EventTarget()
+    const addEventListener = target.addEventListener.bind(target)
+    let subscriptions = 0
+
+    return {
+      target: {
+        addEventListener: ((
+          ...args: Parameters<EventTarget['addEventListener']>
+        ) => {
+          subscriptions += 1
+          addEventListener(...args)
+        }) as EventTarget['addEventListener'],
+      },
+      popstate: () => target.dispatchEvent(new Event('popstate')),
+      subscriptions: () => subscriptions,
+    }
+  }
+
+  it('reports a history traversal only shortly after a popstate', () => {
+    let now = 10_000
+    const tracker = createHistoryTraversalTracker(() => now)
+    const { target, popstate } = createTarget()
+
+    tracker.start(target)
+    expect(tracker.wasRecent()).toBe(false)
+
+    popstate()
+    now += COMMUNITY_HISTORY_TRAVERSAL_WINDOW_MS
+    expect(tracker.wasRecent()).toBe(true)
+
+    now += 1
+    expect(tracker.wasRecent()).toBe(false)
+  })
+
+  it('subscribes once no matter how many lists mount', () => {
+    const tracker = createHistoryTraversalTracker(() => 0)
+    const { target, subscriptions } = createTarget()
+
+    tracker.start(target)
+    tracker.start(target)
+
+    expect(subscriptions()).toBe(1)
   })
 })

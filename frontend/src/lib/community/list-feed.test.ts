@@ -14,7 +14,7 @@ import {
 const ready = {
   isIntersecting: true,
   hasNextPage: true,
-  isFetchingNextPage: false,
+  isFetching: false,
   hasLoadMoreError: false,
 }
 
@@ -26,7 +26,8 @@ describe('shouldAutoLoadNextPage', () => {
   it.each([
     ['the sentinel is off screen', { isIntersecting: false }],
     ['there is no next page', { hasNextPage: false }],
-    ['the next page is already loading', { isFetchingNextPage: true }],
+    // 다음 쪽이든 백그라운드 refetch 든 — refetch 중 부른 다음 쪽은 그 요청에 흡수돼 사라진다.
+    ['the list query is already fetching', { isFetching: true }],
     ['the last next page failed', { hasLoadMoreError: true }],
   ])('does not load when %s', (_, override) => {
     expect(shouldAutoLoadNextPage({ ...ready, ...override })).toBe(false)

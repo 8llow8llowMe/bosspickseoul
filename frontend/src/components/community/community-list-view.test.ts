@@ -143,6 +143,7 @@ const baseProps: ComponentProps<typeof CommunityListView> = {
   writeHref: '/community/register?mock=1',
   hasNextPage: true,
   isFetchingNextPage: false,
+  isFetching: false,
   ...handlers,
 }
 
@@ -198,7 +199,9 @@ describe('CommunityListView', () => {
     )
     expect(feedTag?.[0]).toBeDefined()
     expect(feedTag?.[0]).not.toContain('aria-live')
-    expect(feedTag?.[0]).toContain('aria-busy="false"')
+    // 피드에 aria-busy 를 걸지 않는다 — busy 인 동안 안쪽 status 알림을 미루는 스크린리더가 있어
+    // 「게시글을 불러오는 중이에요」 가 묻힌다.
+    expect(feedTag?.[0]).not.toContain('aria-busy')
     // 피드 머리의 h2 제목과 「N개 불러옴」 은 제목이 h1 으로 올라가며 뺐다.
     expect(markup).not.toContain('개 불러옴')
   })
@@ -400,9 +403,11 @@ describe('CommunityListView', () => {
       hasNextPage: false,
     })
 
+    // 로딩 알림(role=status)은 busy 아래에 두지 않는다 — 자기 자신에도, 피드에도.
     expect(markup).toMatch(
-      /<div[^>]*aria-busy="true"[^>]*data-community-list-skeleton="initial"[^>]*role="status"/,
+      /<div[^>]*data-community-list-skeleton="initial"[^>]*role="status"/,
     )
+    expect(markup).not.toContain('aria-busy')
     expect(markup.match(/data-community-row-skeleton="true"/g)).toHaveLength(5)
     // 막대는 장식이다. 스크린리더는 문장 하나만 읽는다.
     expect(markup).toMatch(
@@ -466,14 +471,12 @@ describe('CommunityListView', () => {
     // 이미 받은 글은 그대로 둔다.
     expect(markup).toContain('강남역 상권 테이크아웃 동선')
     expect(markup).toMatch(
-      /<div[^>]*aria-busy="true"[^>]*data-community-list-skeleton="more"[^>]*role="status"/,
+      /<div[^>]*data-community-list-skeleton="more"[^>]*role="status"/,
     )
     expect(markup.match(/data-community-row-skeleton="true"/g)).toHaveLength(2)
     expect(markup).toContain('게시글을 불러오는 중이에요')
     expect(markup).not.toContain('data-load-more-sentinel')
-    expect(markup).toMatch(
-      /<section[^>]*aria-busy="true"[^>]*aria-label="커뮤니티 피드"/,
-    )
+    expect(markup).not.toContain('aria-busy')
   })
 
   it('keeps ready posts visible and renders an inline 다시 불러오기 in place of the sentinel', () => {

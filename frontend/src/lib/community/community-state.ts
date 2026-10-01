@@ -1,4 +1,5 @@
 import type {
+  CommunityCursorParams,
   CommunityId,
   CommunityLikedPostsResponse,
   CommunityPostListResponse,
@@ -163,10 +164,23 @@ export const getCommunityPageSlice = (
     ? (response as CommunityLikedPostsResponse).dataBody.posts
     : (response as CommunityPostListResponse).dataBody.posts
 
+type CommunityNextCursor = Pick<
+  CommunityCursorParams,
+  'lastPostId' | 'lastLikeCount'
+>
+
+/**
+ * 다음 쪽 커서. 인기 보기는 좋아요 수를 함께 보낸다(CM-004).
+ *
+ * `previousCursor` 는 이 쪽을 받을 때 보낸 커서다(React Query `lastPageParam`). 새 커서가 그것과
+ * 같으면(인기는 `lastPostId`+`lastLikeCount` 쌍) 서버가 `hasNext` 를 잘못 줘도 같은 쪽을 또 부르게
+ * 되어 자동 다음 쪽(CM-029)이 무한히 돈다 — 그때는 끝으로 친다.
+ */
 export const getCommunityNextPageParam = (
   slice: CommunityPostSlice,
   view: CommunityListView,
-) => {
+  previousCursor?: CommunityNextCursor,
+): CommunityNextCursor | undefined => {
   if (!slice.hasNext || slice.contents.length === 0) {
     return undefined
   }
@@ -177,10 +191,20 @@ export const getCommunityNextPageParam = (
     return undefined
   }
 
-  return {
+  const next = {
     lastPostId: lastPost.postId,
     lastLikeCount: view === 'popular' ? lastPost.likeCount : 0,
   }
+
+  if (
+    previousCursor &&
+    previousCursor.lastPostId === next.lastPostId &&
+    (view !== 'popular' || previousCursor.lastLikeCount === next.lastLikeCount)
+  ) {
+    return undefined
+  }
+
+  return next
 }
 
 export const communityKeys = {

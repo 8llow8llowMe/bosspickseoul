@@ -85,7 +85,8 @@ export default function CommunityListSkeleton({
   const rows = variant === 'initial' ? 5 : 2
 
   return (
-    <div aria-busy="true" data-community-list-skeleton={variant} role="status">
+    // aria-busy 를 걸지 않는다 — 자기 자신이 알림(status)이라 busy 면 그 알림이 미뤄진다.
+    <div data-community-list-skeleton={variant} role="status">
       <VisuallyHidden>게시글을 불러오는 중이에요</VisuallyHidden>
       {Array.from({ length: rows }, (_, index) => (
         <RowSkeleton key={index} />
