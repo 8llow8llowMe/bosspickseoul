@@ -23,7 +23,7 @@ const FeedbackCard = styled.section`
   box-shadow: var(--shadow-level-1);
   text-align: center;
 
-  @media (max-width: 640px) {
+  @media (max-width: 479px) {
     min-height: 196px;
     padding: 24px 18px;
   }
