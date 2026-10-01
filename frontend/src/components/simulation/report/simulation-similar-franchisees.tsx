@@ -191,6 +191,22 @@ const Card = styled.li<{ $selected: boolean }>`
   details[open] summary > svg {
     transform: rotate(180deg);
   }
+
+  /*
+    선택된 카드 바탕(primary100) 위에서는 grey600 캡션이 4.11 로 AA 미달이다 — 접힌 줄의 「합계」와
+    펼친 목록의 항목 이름 모두. 펼친 내용은 닫힌 <details> 에서 그려지지 않아 axe 가 못 본다(리뷰에서
+    계산으로 찾음). 흰 카드는 grey600 그대로 둔다. && 로 명시도를 올린다 — CardTotal·CardDetails 의
+    small·dt 규칙이 뒤에 주입돼 명시도가 같으면 이긴다(실측으로 덮이지 않았다).
+  */
+  ${props =>
+    props.$selected
+      ? `
+    && small,
+    && dt {
+      color: var(--color-text-caption-on-band);
+    }
+  `
+      : ''}
 `
 
 const CardBrand = styled.span`
