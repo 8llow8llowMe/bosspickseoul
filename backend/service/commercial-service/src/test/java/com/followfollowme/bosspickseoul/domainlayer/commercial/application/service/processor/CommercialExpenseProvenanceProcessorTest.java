@@ -54,7 +54,7 @@ class CommercialExpenseProvenanceProcessorTest {
         when(incomeCommercialRepositoryPort.findByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
             .thenReturn(Optional.of(nativeRow()));
 
-        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup());
 
         assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.COMMERCIAL);
         assertThat(info.provenance().scopeCode()).isEqualTo(COMMERCIAL);
@@ -78,7 +78,7 @@ class CommercialExpenseProvenanceProcessorTest {
         when(administrationIncomeRepositoryPort.findIncomeByAdministrationCode(ADMINISTRATION, PERIOD))
             .thenReturn(Optional.of(administrationRow()));
 
-        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup());
 
         assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.ADMINISTRATION_PROXY);
         assertThat(info.provenance().scopeCode()).isEqualTo(ADMINISTRATION);
@@ -102,7 +102,7 @@ class CommercialExpenseProvenanceProcessorTest {
         when(administrationIncomeRepositoryPort.findIncomeByAdministrationCode(ADMINISTRATION, PERIOD))
             .thenReturn(Optional.of(administrationRow()));
 
-        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup());
 
         assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.ADMINISTRATION_PROXY);
         assertThat(info.hasValue()).isTrue();
@@ -120,7 +120,7 @@ class CommercialExpenseProvenanceProcessorTest {
                 .periodCode(PERIOD).totalExpenseAmount(999L)
                 .build()));
 
-        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup());
 
         assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.UNAVAILABLE);
         assertThat(info.expenseCategories()).isNull();
@@ -135,7 +135,7 @@ class CommercialExpenseProvenanceProcessorTest {
         when(administrationIncomeRepositoryPort.findIncomeByAdministrationCode(ADMINISTRATION, PERIOD))
             .thenReturn(Optional.empty());
 
-        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup());
 
         assertThat(info.hasValue()).isFalse();
         assertThat(info.expenseCategories()).isNull();
@@ -156,7 +156,7 @@ class CommercialExpenseProvenanceProcessorTest {
         when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL))
             .thenThrow(new CommercialException(CommercialErrorCode.COMMERCIAL_NOT_FOUND));
 
-        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup());
 
         assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.UNAVAILABLE);
         assertThat(info.hasValue()).isFalse();
@@ -173,7 +173,7 @@ class CommercialExpenseProvenanceProcessorTest {
         when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL))
             .thenThrow(new CommercialException(CommercialErrorCode.INTERNAL_SERVICE_UNAVAILABLE));
 
-        assertThatThrownBy(() -> processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL))
+        assertThatThrownBy(() -> processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup()))
             .isInstanceOf(CommercialException.class)
             .extracting(exception -> ((CommercialException) exception).getErrorCode())
             .isEqualTo(CommercialErrorCode.INTERNAL_SERVICE_UNAVAILABLE);
@@ -188,7 +188,7 @@ class CommercialExpenseProvenanceProcessorTest {
         when(commercialRegionQueryPort.getCommercialAdministration(COMMERCIAL))
             .thenReturn(new CommercialAdministrationQueryResult("11110", "종로구", null, null));
 
-        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL);
+        CommercialIncomeAndExpenseInfo info = processor.getExpenseByPeriodCodeAndCommercialCode(PERIOD, COMMERCIAL, lookup());
 
         assertThat(info.provenance().scope()).isEqualTo(ExpenseScopeType.UNAVAILABLE);
         verify(administrationIncomeRepositoryPort, never()).findIncomeByAdministrationCode(anyString(), anyString());
@@ -225,6 +225,10 @@ class CommercialExpenseProvenanceProcessorTest {
         assertThat(info.provenance().scopeCode()).isEqualTo(ADMINISTRATION);
         assertThat(info.provenance().scopeName()).isEqualTo("청운효자동");
         assertThat(info.expenseCategorySum()).isEqualTo(550L);
+    }
+
+    private CommercialRegionLookup lookup() {
+        return CommercialRegionLookup.of(commercialRegionQueryPort, COMMERCIAL);
     }
 
     private static IncomeCommercial nativeRow() {

@@ -4,7 +4,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.excep
 import java.util.function.Supplier;
 
 /**
- * 분기 종속 데이터 부재만 골라 삼키는 조회 보조. 비교·프로필·소비 출처 세 Processor 가 같은 판정을 쓴다.
+ * 분기 종속 데이터 부재만 골라 삼키는 조회 보조. 비교·프로필 Processor 와 상권 -> 지역 해석
+ * ({@link CommercialRegionLookup}, 소비 출처·자치구 소득 대체가 나눠 쓴다)이 같은 판정을 쓴다.
  *
  * <p>예전에는 {@code CommercialQueryProcessor} 의 static 메서드였는데, 다른 Processor 가
  * {@code CommercialQueryProcessor.} 접두어로 불러 쓰면서 "조회 Processor" 와 "공용 유틸" 두 역할이 한 클래스에

@@ -107,7 +107,9 @@ public class CommercialWebController {
 
     @Operation(summary = "상권 소비 지출 조회",
         description = "상권의 소비 지출을 항목 배열로 조회합니다. 상권 단위 원천이 중단된 분기에는 소속 행정동 소비로 대체하며, "
-            + "어느 영역에서 가져온 값인지는 provenance 가 알려 줍니다. 대체할 값도 없으면 항목은 null 이고 provenance 가 중단 사실만 전합니다.")
+            + "어느 영역에서 가져온 값인지는 provenance 가 알려 줍니다. 대체할 값도 없으면 항목은 null 이고 provenance 가 중단 사실만 전합니다. "
+            + "districtAverageIncome 에는 소속 자치구의 국민연금 지역가입자 신고 평균소득월액(요청 분기 말일 이하 최신 기준일)을 "
+            + "참고값으로 함께 싣습니다. 같은 자치구 안의 상권은 모두 같은 값이며, 자료가 없으면 amount 가 null 입니다.")
     @GetMapping("/{commercialCode}/income")
     public ResponseEntity<Response<CommercialIncomeAndExpenseResponse>> getIncomeByPeriodCodeAndCommercialCode(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,

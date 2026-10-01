@@ -5,6 +5,13 @@ spring:
     import: optional:classpath:observability-common.yml
   profiles:
     active: local
+  jpa:
+    properties:
+      hibernate:
+        hbm2ddl:
+          # pension_income_district 는 batch-service 런북(scripts/migration/pension-income-district-table.sql)이 만들고 소유한다.
+          # 이 서비스는 읽기 전용 엔티티로 미러링만 하므로 ddl-auto(update) 가 그 테이블을 만들거나 바꾸지 않게 제외한다.
+          schema_filter_provider: com.followfollowme.bosspickseoul.global.config.BatchOwnedTableSchemaFilterProvider
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:

@@ -6,26 +6,29 @@ import static org.mockito.Mockito.mock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.IncomeAdministration;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialDistrictAverageIncomeInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialExpenseProvenanceInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.CommercialIncomeSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.summary.RegionalIncomeSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.IncomeCommercial;
+import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.PensionIncomeDistrict;
 import com.followfollowme.bosspickseoul.domainlayer.policy.adapter.in.web.presenter.PolicyPresenter;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class CommercialIncomePresenterTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final CommercialPresenter presenter =
-        new CommercialPresenter(mock(PolicyPresenter.class), new CommercialExpenseProvenancePresenter());
+    private final CommercialPresenter presenter = new CommercialPresenter(
+        mock(PolicyPresenter.class), new CommercialExpenseProvenancePresenter(), new CommercialIncomeProvenancePresenter());
 
     @Test
     @DisplayName("지출이 없는 분기는 빈 배열이나 0 이 아니라 JSON null 로 내려가고 중단 사실만 남는다")
     void incomeResponseKeepsMissingExpenseAsJsonNull() {
-        JsonNode json = objectMapper.valueToTree(
-            presenter.toCommercialIncomeResponse(CommercialIncomeAndExpenseInfo.unavailable()));
+        JsonNode json = incomeResponse(CommercialIncomeAndExpenseInfo.unavailable(), CommercialDistrictAverageIncomeInfo.unavailable());
 
         assertThat(json.path("expenseCategories").isNull()).isTrue();
         assertThat(json.path("totalExpenseAmount").isNull()).isTrue();
@@ -40,13 +43,14 @@ class CommercialIncomePresenterTest {
     @Test
     @DisplayName("상권 네이티브는 9항목을 순서대로 내려보내고 면책을 비운다")
     void incomeResponseCarriesCommercialScopeExpense() {
-        JsonNode json = objectMapper.valueToTree(presenter.toCommercialIncomeResponse(
+        JsonNode json = incomeResponse(
             CommercialIncomeAndExpenseInfo.from(IncomeCommercial.builder()
                 .periodCode("20233")
                 .commercialCode("3110008")
                 .commercialName("배화여자대학교")
                 .groceryExpenseAmount(320_000L)
-                .build())));
+                .build()),
+            CommercialDistrictAverageIncomeInfo.unavailable());
 
         assertThat(json.path("expenseCategories")).hasSize(9);
         assertThat(json.path("expenseCategories").get(0).path("key").asText()).isEqualTo("GROCERY");
@@ -61,7 +65,7 @@ class CommercialIncomePresenterTest {
     @Test
     @DisplayName("행정동 대체는 10항목과 면책 문장을 함께 내려보낸다")
     void incomeResponseCarriesAdministrationProxyExpense() {
-        JsonNode json = objectMapper.valueToTree(presenter.toCommercialIncomeResponse(
+        JsonNode json = incomeResponse(
             CommercialIncomeAndExpenseInfo.ofAdministrationProxy(IncomeAdministration.builder()
                 .periodCode("20261")
                 .administrationCode("11110515")
@@ -71,7 +75,8 @@ class CommercialIncomePresenterTest {
                 .medicalExpenseAmount(70L).transportationExpenseAmount(60L).educationExpenseAmount(50L)
                 .entertainmentExpenseAmount(40L).leisureCultureExpenseAmount(30L)
                 .otherExpenseAmount(20L).diningExpenseAmount(10L)
-                .build())));
+                .build()),
+            CommercialDistrictAverageIncomeInfo.unavailable());
 
         assertThat(json.path("expenseCategories")).hasSize(10);
         assertThat(json.path("expenseCategories").get(7).path("key").asText()).isEqualTo("LEISURE_CULTURE");
@@ -85,6 +90,59 @@ class CommercialIncomePresenterTest {
         assertThat(json.path("provenance").path("sourceUrl").asText()).contains("OA-22166");
         assertThat(json.path("provenance").path("effectivePeriodCode").asText()).isEqualTo("20261");
         assertThat(json.path("provenance").path("disclaimer").asText()).contains("청운효자동");
+    }
+
+    @Test
+    @DisplayName("자치구 평균 소득(대체)은 소비 필드와 따로 금액과 출처를 내려보내고, 기준일은 출처 한 곳에만 ISO 날짜로 싣는다")
+    void incomeResponseCarriesDistrictAverageIncomeProxy() {
+        JsonNode json = incomeResponse(
+            CommercialIncomeAndExpenseInfo.unavailable(),
+            CommercialDistrictAverageIncomeInfo.from(PensionIncomeDistrict.builder()
+                .id(1L)
+                .referenceDate(LocalDate.of(2024, 12, 31))
+                .districtCode("11110")
+                .districtName("종로구")
+                .averageMonthlyIncomeAmount(1_555_244L)
+                .build()));
+
+        JsonNode income = json.path("districtAverageIncome");
+        assertThat(income.path("amount").asLong()).isEqualTo(1_555_244L);
+        assertThat(income.path("provenance").path("scope").path("code").asText()).isEqualTo("DISTRICT_PROXY");
+        assertThat(income.path("provenance").path("scope").path("name").asText()).isEqualTo("자치구 대체");
+        assertThat(income.path("provenance").path("scopeCode").asText()).isEqualTo("11110");
+        assertThat(income.path("provenance").path("scopeName").asText()).isEqualTo("종로구");
+        assertThat(income.path("provenance").path("sourceId").asText()).isEqualTo("data.go.kr:3046077");
+        assertThat(income.path("provenance").path("sourceLabel").asText()).isEqualTo("국민연금공단 자격 시군구 신고 평균소득월액");
+        assertThat(income.path("provenance").path("sourceUrl").asText()).isEqualTo("https://www.data.go.kr/data/3046077/fileData.do");
+        assertThat(income.path("provenance").path("referenceDate").asText()).isEqualTo("2024-12-31");
+        assertThat(income.path("provenance").path("disclaimer").asText())
+            .contains("종로구 평균입니다(기준일 2024-12-31)", "같은 자치구 안의 상권은 모두 같은 값");
+        // 기준일은 출처 한 곳에만 둔다. 소비 출처의 effectivePeriodCode 와 같은 자리다.
+        assertThat(json.has("referenceDate")).isFalse();
+        assertThat(income.has("referenceDate")).isFalse();
+        // 소비 쪽 계약은 소득이 붙어도 그대로다.
+        assertThat(json.path("provenance").path("scope").path("code").asText()).isEqualTo("UNAVAILABLE");
+        assertThat(json.has("averageIncomeItem")).isFalse();
+    }
+
+    @Test
+    @DisplayName("쓸 수 있는 자치구 평균 소득이 없으면 필드를 빼지 않고 amount 만 JSON null 로 두고 사유를 남긴다")
+    void incomeResponseKeepsMissingDistrictAverageIncomeAsJsonNull() {
+        JsonNode json = incomeResponse(CommercialIncomeAndExpenseInfo.unavailable(), CommercialDistrictAverageIncomeInfo.unavailable());
+
+        JsonNode income = json.path("districtAverageIncome");
+        assertThat(json.has("districtAverageIncome")).isTrue();
+        assertThat(income.has("amount")).isTrue();
+        assertThat(income.path("amount").isNull()).isTrue();
+        assertThat(income.path("provenance").path("scope").path("code").asText()).isEqualTo("UNAVAILABLE");
+        assertThat(income.path("provenance").path("scopeCode").isNull()).isTrue();
+        assertThat(income.path("provenance").path("scopeName").isNull()).isTrue();
+        assertThat(income.path("provenance").path("referenceDate").isNull()).isTrue();
+        // 값이 없어도 어느 원천을 찾았는지는 알린다.
+        assertThat(income.path("provenance").path("sourceId").asText()).isEqualTo("data.go.kr:3046077");
+        assertThat(income.path("provenance").path("disclaimer").asText())
+            .isEqualTo("이 분기에 쓸 수 있는 자치구 평균 소득 자료가 없어 소득 지표를 제공하지 않습니다.");
+        assertThat(json.has("averageIncomeItem")).isFalse();
     }
 
     @Test
@@ -124,5 +182,12 @@ class CommercialIncomePresenterTest {
         assertThat(json.path("commercial").path("totalExpenseAmount").asLong()).isEqualTo(550L);
         assertThat(json.path("commercialProvenance").path("scope").path("code").asText()).isEqualTo("ADMINISTRATION_PROXY");
         assertThat(json.path("commercialProvenance").path("scopeName").asText()).isEqualTo("청운효자동");
+    }
+
+    private JsonNode incomeResponse(CommercialIncomeAndExpenseInfo expense, CommercialDistrictAverageIncomeInfo districtAverageIncome) {
+        return objectMapper.valueToTree(presenter.toCommercialIncomeResponse(CommercialIncomeAndExpenseResponseInfo.builder()
+            .expense(expense)
+            .districtAverageIncome(districtAverageIncome)
+            .build()));
     }
 }

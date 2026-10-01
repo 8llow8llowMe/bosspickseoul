@@ -309,6 +309,43 @@
 - 추천 이유는 종합 승자가 실제로 이긴 지표만 최대 3개 선택하고 양쪽 계산값을 함께 표시한다.
 - 동률인 지표는 "같습니다"로 표현하며, 종합 요약은 실제 지표에서 확인하지 않은 매출 잠재력이나 수요 안정성을 단정하지 않는다.
 
+## 자치구 평균 소득(대체) (이슈 #415)
+
+- 상권 소득(월평균소득)은 2024년 이후 원천에서 끊겼고 응답에서도 빠졌다(이슈 #413). 그 자리에 소속 자치구의 국민연금
+  지역가입자 **신고 기준소득월액 평균**(공공데이터포털 3046077, batch-service 가 `pension_income_district` 에 연 1회 적재)을
+  `GET /commercials/{code}/income` 의 `districtAverageIncome` 으로 **추가**한다. 소비 필드는 그대로다. 판정 정본은
+  `CommercialDistrictIncomeProcessor` 하나다.
+
+  | 조건 | `provenance.scope.code` | `amount` |
+  |------|--------------------------|----------|
+  | 소속 자치구에 요청 분기 말일 이하 기준일 행이 있다 | `DISTRICT_PROXY` (그중 가장 최근 기준일) | 원/월 |
+  | 그 이전 기준일 없음 / 분기 형식 오류 / 상권 매핑 없음(404) | `UNAVAILABLE` | `null` |
+
+- **분기 → 기준일.** 원천이 매년 12월 기준 스냅샷이라 분기와 1:1 이 아니다. 요청 분기 말일(`QuarterEndDateCalculator`, 형식이
+  틀리면 값 없음) 이하 가장 최근 `reference_date` 를 쓴다 — `20211` → `2020-12-31`, `20244` → `2024-12-31`, 다음 파일 전까지
+  `20261` → `2024-12-31`. 요청 시점 뒤의 자료는 끌어오지 않는다. 조회는 파생 쿼리
+  `findFirstByDistrictCodeAndReferenceDateLessThanEqualOrderByReferenceDateDesc` 하나이고 런북 유니크 키
+  `(district_code, reference_date)` 를 그대로 탄다.
+- **지역 서비스는 한 요청에 한 번만 부른다.** 소비 대체(소속 행정동)와 소득 대체(소속 자치구)가 같은
+  `CommercialRegionQueryPort` 응답을 쓰므로 `CommercialIncomeQueryProcessor` 가 `CommercialRegionLookup`(지연·1회 메모,
+  404 는 `null` 로 기억) 하나를 만들어 두 판정에 넘긴다. 그래서 **`/income` 은 소비가 상권 네이티브인 분기에도 지역 서비스를
+  한 번 부르고**, 지역 서비스 장애(503)는 분기와 무관하게 `/income` 을 503 으로 만든다. 404 만 「제공 없음」으로 흡수하고
+  503·400 은 소비 사다리와 같은 이유로 전파한다. 기존 `CommercialExpenseProvenanceProcessor.resolve`(4 인자)와 요약 경로는
+  자기 조회를 따로 만들어 동작이 그대로다. Facade 트랜잭션도 그대로 없다.
+- **비교·히트맵·후보 추천·벤치마크·점수에 넣지 않는다.** 같은 자치구 상권은 전부 같은 값이라 변별력이 0 이고, 점수나 승패에
+  넣으면 자치구 단위로 뭉친 가짜 차이가 상권 차이처럼 보인다. 연 스냅샷이라 분기 비교 축과도 맞지 않는다(같은 해 네 분기가 같은
+  값). `/summaries/income` 도 바꾸지 않았다.
+- 면책 문장은 `IncomeScopeType` 에 있고 화면과 프롬프트가 그대로 쓴다. 기준일은 `provenance.referenceDate`(ISO 날짜) 한 곳에만
+  둔다. 원천 식별자(`sourceId`)는 `IncomeSourceDataset` 이 공유 `FileDatasetKey` 에 위임한다(`IncomeSourceDatasetTest`).
+- **테이블은 batch-service 런북이 소유한다**(`scripts/migration/pension-income-district-table.sql`). `PensionIncomeDistrictEntity`
+  는 `@Immutable` 읽기 전용 미러이고, 리포지터리는 save·delete 를 열지 않는 `Repository` 다. local/dev 의 `ddl-auto: update` 가
+  이 테이블을 만들거나 바꾸지 않게 `BatchOwnedTableSchemaFilterProvider`(`application.yml` 의
+  `spring.jpa.properties.hibernate.hbm2ddl.schema_filter_provider`)가 스키마 도구에서 뺀다. prod 는 `ddl-auto: none` 이다.
+  엔티티와 런북의 컬럼 대조는 `PensionIncomeDistrictSchemaContractTest`, 필터가 실제로 듣는지는 H2 슬라이스
+  `PensionIncomeDistrictRepositoryTest` 가 본다.
+- **배포 순서: commercial-service 보다 런북 DDL 을 먼저 적용한다.** 테이블이 없으면 `/income` 이 SQL 오류(500)로 실패한다.
+  적재 전(행 0)에는 전 분기가 `UNAVAILABLE` 로 정상 응답한다.
+
 ## 공유 링크 (sharelink)
 
 - 분석 화면을 상대방에게 공유하기 위한 단축 코드 발급/해석 컨텍스트. 자세한 프론트 연동은

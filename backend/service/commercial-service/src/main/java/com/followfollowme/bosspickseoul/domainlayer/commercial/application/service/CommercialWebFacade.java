@@ -24,7 +24,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.heatmap.CommercialHeatmapScoresResponseInfo;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.income.CommercialIncomeAndExpenseResponseInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.population.CommercialResidentPopulationInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.preview.CommercialComparePreviewInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.profile.CommercialProfileInfo;
@@ -45,8 +45,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.servi
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialCandidateQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparePreviewQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparisonQueryProcessor;
-import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialExpenseProvenanceProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialHeatmapQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialIncomeQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialProfileQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialTrendQueryProcessor;
@@ -87,7 +87,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     private static final int PROFILE_POLICY_RECOMMENDATION_SIZE = 5;
 
     private final CommercialQueryProcessor commercialQueryProcessor;
-    private final CommercialExpenseProvenanceProcessor commercialExpenseProvenanceProcessor;
+    private final CommercialIncomeQueryProcessor commercialIncomeQueryProcessor;
     private final CommercialComparisonQueryProcessor commercialComparisonQueryProcessor;
     private final CommercialBenchmarkQueryProcessor commercialBenchmarkQueryProcessor;
     private final CommercialHeatmapQueryProcessor commercialHeatmapQueryProcessor;
@@ -150,8 +150,7 @@ public class CommercialWebFacade implements CommercialWebUseCase {
     @Override
     public CommercialIncomeAndExpenseResponse getIncomeByPeriodCodeAndCommercialCode(String periodCode, String commercialCode) {
         periodCode = analysisPeriodCatalogProcessor.resolve(periodCode);
-        CommercialIncomeAndExpenseInfo info = commercialExpenseProvenanceProcessor
-            .getExpenseByPeriodCodeAndCommercialCode(periodCode, commercialCode);
+        CommercialIncomeAndExpenseResponseInfo info = commercialIncomeQueryProcessor.getIncome(periodCode, commercialCode);
         return commercialPresenter.toCommercialIncomeResponse(info);
     }
 
