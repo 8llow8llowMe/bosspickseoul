@@ -65,6 +65,22 @@ export const toCostBreakdown = (
 }
 
 /**
+ * 항목별 색. **순서가 아니라 항목에 묶는다** — 개인 창업은 가맹 부담금이 빠져 조각이
+ * 3개가 되는데, 순서로 칠하면 같은 항목이 리포트마다 다른 색이 된다.
+ *
+ * 공용 도넛의 기본 2색(primary·blue500)을 번갈아 쓰면 1·3번째, 2·4번째 조각이 같은 색이
+ * 돼 구성을 읽을 수 없었다(2026-10-01 실측). 네 색은 색조가 서로 다르고, 흰 바탕에서
+ * 그래픽 대비 3:1 을 넘는다(teal500 3.02 · primary600 4.49 · purple500 5.45 · grey700 7.11).
+ * blue500(2.77)·orange500(2.16)은 3:1 에 못 미쳐 쓰지 않는다.
+ */
+export const COST_COLORS: Record<CostBreakdownRow['key'], string> = {
+  rentPrice: 'var(--color-teal-500)',
+  deposit: 'var(--color-primary-600)',
+  interior: 'var(--color-purple-500)',
+  levy: 'var(--color-grey-700)',
+}
+
+/**
  * 비용 구성의 버림 안내 한 줄. **항상 준다.**
  *
  * BE 는 모든 금액을 원 단위로 계산한 뒤 항목·총액을 **각각** 만원 미만에서 버린다. 그래서

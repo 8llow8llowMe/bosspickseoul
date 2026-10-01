@@ -2,9 +2,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import SimulationCostBreakdown, {
-  COST_COLORS,
-} from '@/components/simulation/report/simulation-cost-breakdown'
+import SimulationCostBreakdown from '@/components/simulation/report/simulation-cost-breakdown'
+import { COST_COLORS } from '@/lib/simulation/report-presentation'
 import type { SimulationReport } from '@/types/simulation'
 
 const report = (

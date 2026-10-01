@@ -9,8 +9,12 @@ import {
   Tooltip,
 } from 'recharts'
 
-import type { GenderSegment } from '@/lib/analysis/chart-data'
+import { toDonutSlices, type GenderSegment } from '@/lib/analysis/chart-data'
 import { CHART_COLORS, formatChartValue, TooltipBox } from './chart-theme'
+
+/* 비중 계산은 recharts 를 모르는 lib 에 있다 — 도넛을 그리지 않는 화면(입력 결과 카드)이 이 모듈을
+   import 하면 recharts 가 그 화면 번들에 딸려 간다. 기존 import 경로는 그대로 둔다. */
+export { toDonutSlices }
 
 const SLICE_COLORS = [CHART_COLORS.seriesPrimary, CHART_COLORS.seriesSecondary]
 
@@ -98,17 +102,6 @@ function DonutTooltipContent({
       </strong>
     </TooltipBox>
   )
-}
-
-export const toDonutSlices = (
-  segments: readonly GenderSegment[],
-): Array<{ label: string; value: number; percent: number }> => {
-  const total = segments.reduce((sum, segment) => sum + segment.value, 0)
-  return segments.map(segment => ({
-    label: segment.label,
-    value: segment.value,
-    percent: total > 0 ? Math.round((segment.value / total) * 100) : 0,
-  }))
 }
 
 export default function DonutChart({
