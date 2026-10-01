@@ -145,6 +145,15 @@ describe('디자인 토큰 대비 (DESIGN.md §Accessibility)', () => {
     )
   })
 
+  // DESIGN.md Neutral Scale · contrast-tokens.md D3. grey600 은 흰 바탕에서만 통과하므로
+  // grey50·grey100·blue50 밴드 위 캡션은 grey700 을 가리키는 이 토큰을 쓴다. 토큰이 사라지면
+  // 쓰는 곳 글자가 빌드 오류 없이 조용히 투명해진다(styling-rules.md).
+  it('밴드 위 캡션 토큰은 grey700 이다', () => {
+    expect(squeeze(renderGlobalCss())).toContain(
+      '--color-text-caption-on-band:var(--color-grey-700);',
+    )
+  })
+
   // contrast-tokens.md TC-CT-001 · D3-3 의 증감 글자 부분. 면적 토큰(positive/negative)은
   // 3:1 기준이라 그대로 두고, 글자는 -text 토큰(green700·red700, 흰 바탕 5.36 / 5.27:1)이다.
   it('증감 글자 토큰은 green700·red700 을 가리키고 면적 토큰은 그대로다', () => {

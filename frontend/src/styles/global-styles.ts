@@ -69,6 +69,10 @@ const GlobalStyles = createGlobalStyle`
     --color-text-600: var(--color-grey-600);
     --color-text-500: var(--color-grey-600);
     --color-text-caption: var(--color-grey-600);
+    /* grey600 캡션은 흰 바탕에서만 AA 를 넘는다(4.62). grey50·grey100·blue50 밴드 위에서는
+       4.42·4.19·4.11 로 미달이라 이 토큰(grey700, 6.33~6.81)을 쓴다 — DESIGN.md Neutral Scale,
+       contrast-tokens.md D3. */
+    --color-text-caption-on-band: var(--color-grey-700);
     --color-placeholder: var(--color-grey-400);
     --color-border-300: var(--color-grey-300);
     --color-border-200: var(--color-grey-200);
