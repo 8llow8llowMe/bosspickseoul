@@ -7,8 +7,26 @@
  */
 
 import { toCostBreakdown } from '@/lib/simulation/report-presentation'
+import { formatStoreSize } from '@/lib/simulation/conditions'
 import { formatLargeWon } from '@/lib/format'
-import type { SimulationReport } from '@/types/simulation'
+import type { SimulationCondition, SimulationReport } from '@/types/simulation'
+
+/**
+ * 조건 한 줄 — 「마포구 · 한식음식점 · 맛나감자탕 · 66㎡ (약 20평) · 1층」. 결과 헤드와, 비교한 뒤
+ * 접힌 편집기 요약(C3)이 같이 쓴다. 두 곳이 다른 말을 하면 접힌 줄이 결과와 같은 조건인지 의심된다.
+ */
+export const describeCompareConditionLine = (
+  condition: SimulationCondition,
+): string => {
+  const parts = [
+    condition.districtName,
+    condition.serviceName,
+    formatStoreSize(condition.storeSize),
+    condition.floorType.name,
+  ]
+  if (condition.brandName) parts.splice(2, 0, condition.brandName)
+  return parts.join(' · ')
+}
 
 export type SimulationCompareWinner = 'left' | 'right' | 'tie'
 
@@ -35,6 +53,12 @@ export const SIMULATION_COMPARE_SIDE_LABELS = {
   left: '조건 A',
   right: '조건 B',
 } as const
+
+/**
+ * 막대·범례 앞의 짧은 표식. 세로로 쌓이면(≤767) 두 막대를 **색으로만** 가르게 되는데, 색을
+ * 구분하지 못하는 사용자는 어느 줄이 어느 조건인지 알 수 없었다(C4).
+ */
+export const SIMULATION_COMPARE_SIDE_MARKS = { left: 'A', right: 'B' } as const
 
 /**
  * 총 창업 비용 차액.
@@ -143,3 +167,19 @@ export const toMirrorCostRows = (
 /** 미러 막대의 값 표기. `null` 은 **0원이 아니라 해당 없음**이다. */
 export const formatMirrorAmount = (amount: number | null): string =>
   amount === null ? '해당 없음' : formatLargeWon(amount)
+
+/**
+ * 행별 차액 한 줄(C7) — 「B가 1,129만원 적어요」.
+ *
+ * 한쪽이 `해당 없음`(비프랜차이즈의 가맹 부담금)이면 **차액을 말하지 않는다** — 0 과 뺄 수 있는
+ * 값이 아니다(없는 비용과 0원 비용은 다른 사실이다). 같으면 같다고 한다.
+ */
+export const describeMirrorRowGap = (row: MirrorCostRow): string | null => {
+  if (row.leftAmount === null || row.rightAmount === null) return null
+  if (row.leftAmount === row.rightAmount) return '같아요'
+
+  const lower: 'left' | 'right' =
+    row.leftAmount < row.rightAmount ? 'left' : 'right'
+  const difference = Math.abs(row.leftAmount - row.rightAmount)
+  return `${SIMULATION_COMPARE_SIDE_MARKS[lower]}가 ${formatLargeWon(difference)} 적어요`
+}

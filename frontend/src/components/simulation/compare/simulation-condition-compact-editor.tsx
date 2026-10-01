@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Pencil } from 'lucide-react'
 import styled from 'styled-components'
 
 import SimulationBrandSearch from '@/components/simulation/simulation-brand-search'
+import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
+import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import {
   SIMULATION_FLOOR_TYPES,
@@ -14,6 +16,7 @@ import {
   parseStoreSizeInput,
   SIMULATION_DISTRICT_OPTIONS,
   squareMeterToPyeong,
+  type SimulationConditionSection,
 } from '@/lib/simulation/conditions'
 import type { SimulationConditionsController } from '@/lib/simulation/use-simulation-conditions'
 import type { SimulationFloorType } from '@/types/simulation'
@@ -22,13 +25,35 @@ export type SimulationConditionCompactEditorProps = {
   /** `조건 A` / `조건 B`. 접근성 이름의 접두사로도 쓰이므로 좌우를 구분하는 값이어야 한다. */
   label: string
   conditions: SimulationConditionsController
+  /** 필드 DOM id 접두사(`compare-a` 등). 오류 CTA 가 고칠 필드로 포커스를 옮길 때 쓴다(C5). */
+  idPrefix: string
 }
+
+/**
+ * 편집기 필드의 DOM id. 오류가 지목한 조건 섹션 → 그 쪽 편집기의 필드. 섹션과 필드가 1:1 이다
+ * (매장 조건은 면적 입력칸으로 데려간다 — 층은 select 라 값이 비어 있을 수 없다).
+ */
+export const compareFieldDomId = (
+  idPrefix: string,
+  section: SimulationConditionSection,
+): string => `${idPrefix}-${section}`
 
 /* 필드 격자가 화면 폭이 아니라 **편집기 자신의 폭**에 반응하도록 컨테이너로 둔다(아래 Grid). */
 const Root = styled.div`
   container-type: inline-size;
   display: grid;
   gap: 12px;
+
+  /*
+    iOS Safari 는 16px 보다 작은 입력칸에 포커스하면 화면을 확대한다(C7). 공용 TextField medium 은
+    14px 라 이 편집기 안(면적·브랜드 검색)에서만 모바일 16px 로 올린다.
+  */
+  @media ${SIMULATION_MEDIA.mobile} {
+    select,
+    input {
+      font-size: 16px;
+    }
+  }
 `
 
 const Grid = styled.div`
@@ -127,6 +152,37 @@ const BrandBlock = styled.div`
   padding-top: 12px;
 `
 
+/* 고른 브랜드 한 줄. 입력 화면의 접힌 섹션 헤더처럼 「값 · 변경」만 남긴다(C1). */
+const PickedRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-border-200);
+  padding-top: 12px;
+`
+
+const PickedValue = styled.p`
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+
+  span {
+    color: var(--color-text-700);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 20px;
+  }
+
+  strong {
+    color: var(--color-text-900);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 22px;
+    word-break: keep-all;
+  }
+`
+
 const Gap = styled.p`
   color: var(--color-text-caption);
   font-size: 13px;
@@ -141,10 +197,22 @@ const Unit = styled.span`
   line-height: 20px;
 `
 
+/* 입력 화면 카드와 같은 순서(프랜차이즈 → 개인 창업, C7). 화면마다 순서가 다르면 손이 엇나간다. */
 const FRANCHISE_OPTIONS = [
-  { value: 'false', name: '개인 창업' },
   { value: 'true', name: '프랜차이즈' },
+  { value: 'false', name: '개인 창업' },
 ] as const
+
+/** 다음 프레임에 그 id 의 요소(또는 그 안 첫 입력칸)로 포커스를 옮긴다. 막 그려질 요소라 지금은 없다. */
+const focusSoon = (id: string) => {
+  requestAnimationFrame(() => {
+    const target = document.getElementById(id)
+    const focusable = target?.matches('input, select, button')
+      ? target
+      : target?.querySelector<HTMLElement>('input, select, button')
+    focusable?.focus()
+  })
+}
 
 /**
  * 좁은 카드용 조건 편집기. 비교 화면의 좌우가 같은 컴포넌트를 쓴다.
@@ -158,8 +226,20 @@ const FRANCHISE_OPTIONS = [
 export default function SimulationConditionCompactEditor({
   label,
   conditions,
+  idPrefix,
 }: SimulationConditionCompactEditorProps) {
   const { state } = conditions
+  const fieldId = (section: SimulationConditionSection) =>
+    compareFieldDomId(idPrefix, section)
+  const brandChangeId = `${idPrefix}-brand-change`
+
+  /**
+   * 브랜드를 다시 고르는 중인가(C1). 고른 뒤에도 목록 10건이 펼쳐져 있어 A 편집기가 B 보다 두 배
+   * 길었다. 고른 뒤에는 「브랜드 · 변경」 한 줄로 접고, 변경을 누를 때만 검색을 다시 연다.
+   * 업종이 바뀌면 컨트롤러가 브랜드를 비우므로 접힌 줄은 저절로 사라진다(파생값).
+   */
+  const [editingBrand, setEditingBrand] = useState(false)
+  const brandPicked = state.franchiseeId !== null && !editingBrand
 
   /**
    * 면적 직접 입력의 "쓰는 중" 원문.
@@ -188,6 +268,7 @@ export default function SimulationConditionCompactEditor({
           <FieldLabel>창업 형태</FieldLabel>
           <SelectShell>
             <Select
+              id={fieldId('franchise')}
               aria-label={`${label} 창업 형태`}
               value={state.franchisee === null ? '' : String(state.franchisee)}
               onChange={event => {
@@ -211,6 +292,7 @@ export default function SimulationConditionCompactEditor({
           <FieldLabel>자치구</FieldLabel>
           <SelectShell>
             <Select
+              id={fieldId('district')}
               aria-label={`${label} 자치구`}
               value={state.districtCode ?? ''}
               onChange={event => conditions.setDistrict(event.target.value)}
@@ -232,6 +314,7 @@ export default function SimulationConditionCompactEditor({
           <FieldLabel>업종</FieldLabel>
           <SelectShell>
             <Select
+              id={fieldId('service')}
               aria-label={`${label} 업종`}
               value={state.serviceCode ?? ''}
               onChange={event => conditions.setService(event.target.value)}
@@ -276,6 +359,7 @@ export default function SimulationConditionCompactEditor({
       </Grid>
 
       <TextField
+        id={fieldId('store')}
         fullWidth
         emphasized
         fieldSize="medium"
@@ -305,13 +389,42 @@ export default function SimulationConditionCompactEditor({
 
       {/* 브랜드 검색은 업종을 고른 뒤에만 연다 — `franchisees` 는 serviceCode 없이 400 이다.
           `key` 로 업종을 넘겨 업종이 바뀌면 검색어까지 새로 마운트한다. */}
-      {state.franchisee === true && state.serviceCode ? (
-        <BrandBlock>
+      {state.franchisee === true && state.serviceCode && brandPicked ? (
+        <PickedRow id={fieldId('brand')}>
+          <PickedValue>
+            <span>브랜드</span>
+            {/* 이름은 URL 의 표시용 brandName 에서 온다. 없으면 지어내지 않는다. */}
+            <strong>{state.brandName ?? '선택한 브랜드'}</strong>
+          </PickedValue>
+          <Button
+            id={brandChangeId}
+            size="medium"
+            variant="ghost"
+            leftIcon={<Pencil />}
+            aria-label={`${label} 브랜드 변경`}
+            onClick={() => {
+              setEditingBrand(true)
+              // 누른 버튼이 사라지므로 포커스를 검색칸으로 옮긴다.
+              focusSoon(fieldId('brand'))
+            }}
+          >
+            변경
+          </Button>
+        </PickedRow>
+      ) : null}
+
+      {state.franchisee === true && state.serviceCode && !brandPicked ? (
+        <BrandBlock id={fieldId('brand')}>
           <SimulationBrandSearch
             key={state.serviceCode}
             serviceCode={state.serviceCode}
             selectedFranchiseeId={state.franchiseeId}
-            onSelect={brand => conditions.setBrand(brand)}
+            onSelect={brand => {
+              conditions.setBrand(brand)
+              setEditingBrand(false)
+              // 검색 목록이 접힌 줄로 바뀐다 — 포커스를 그 줄의 「변경」에 둔다.
+              focusSoon(brandChangeId)
+            }}
           />
         </BrandBlock>
       ) : null}
