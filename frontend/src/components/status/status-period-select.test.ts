@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest'
 
 import AnalysisPeriodSelect from '@/components/analysis/analysis-period-select'
 import StatusPeriodSelect from './status-period-select'
+import { toAnalysisPeriodRange } from '@/lib/analysis/period-catalog'
+
+const RANGE = toAnalysisPeriodRange('20261')
 
 const renderWithStyles = (element: ReturnType<typeof createElement>) => {
   const styleSheet = new ServerStyleSheet()
@@ -22,6 +25,7 @@ describe('StatusPeriodSelect', () => {
     const markup = renderToStaticMarkup(
       createElement(StatusPeriodSelect, {
         value: '20233',
+        range: RANGE,
         onChange: () => undefined,
       }),
     )
@@ -37,6 +41,7 @@ describe('StatusPeriodSelect', () => {
     const markup = renderToStaticMarkup(
       createElement(StatusPeriodSelect, {
         value: '20261',
+        range: RANGE,
         onChange: () => undefined,
       }),
     )
@@ -50,6 +55,7 @@ describe('StatusPeriodSelect', () => {
     const { styles } = renderWithStyles(
       createElement(StatusPeriodSelect, {
         value: '20261',
+        range: RANGE,
         onChange: () => undefined,
       }),
     )
@@ -61,6 +67,7 @@ describe('StatusPeriodSelect', () => {
     const { markup, styles } = renderWithStyles(
       createElement(AnalysisPeriodSelect, {
         value: '20261',
+        range: RANGE,
         onChange: () => undefined,
       }),
     )

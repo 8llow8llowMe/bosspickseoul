@@ -292,6 +292,7 @@ export default function RecommendComparePage() {
           leftCommercialCode={leftCommercialCode!}
           rightCommercialCode={rightCommercialCode!}
           serviceCode={state.serviceCode!}
+          periodCode={RECOMMENDATION_PERIOD_CODE}
           returnTo={returnTo}
         />
       ) : null}

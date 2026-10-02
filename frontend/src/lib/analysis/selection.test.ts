@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createMapCamera } from '@/lib/analysis/map-camera'
 import {
-  ANALYSIS_PERIOD_CODE,
-  ANALYSIS_PERIOD_YEARS,
-  analysisPeriodQuartersOf,
   buildAnalysisPeriod,
-  clampQuarterToYear,
   parseAnalysisPeriod,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
@@ -22,12 +18,19 @@ import {
   type AnalysisSelection,
 } from '@/lib/analysis/selection'
 
+/** URL 에 분기가 없는 선택 — 「최신」이다(period-catalog.md D5-1). */
 const completeSelection: AnalysisSelection = {
   districtCode: '11680',
   administrationCode: '11680640',
   commercialCode: '3110008',
   serviceCode: 'CS100001',
-  periodCode: ANALYSIS_PERIOD_CODE,
+  periodCode: null,
+}
+
+/** 분기를 명시한 선택. */
+const periodSelection: AnalysisSelection = {
+  ...completeSelection,
+  periodCode: '20261',
 }
 
 describe('analysis period helpers', () => {
@@ -38,25 +41,7 @@ describe('analysis period helpers', () => {
     expect(buildAnalysisPeriod(2021, 4)).toBe('20214')
   })
 
-  it('연도 목록은 최신 분기의 연도까지만 연다', () => {
-    expect(ANALYSIS_PERIOD_YEARS).toEqual([2021, 2022, 2023, 2024, 2025, 2026])
-  })
-
-  it('최신 연도만 적재된 분기까지 자르고 지난 연도는 네 분기를 모두 연다', () => {
-    // 2026년은 1분기까지만 적재되어 있다. 2·3·4분기를 고를 수 있으면 빈 화면이 된다.
-    expect(analysisPeriodQuartersOf(2026)).toEqual([1])
-    expect(analysisPeriodQuartersOf(2025)).toEqual([1, 2, 3, 4])
-    expect(analysisPeriodQuartersOf(2021)).toEqual([1, 2, 3, 4])
-    // 적재 범위 밖에는 고를 분기가 없다.
-    expect(analysisPeriodQuartersOf(2027)).toEqual([])
-    expect(analysisPeriodQuartersOf(2020)).toEqual([])
-  })
-
-  it('연도를 옮길 때 없는 분기는 그 연도의 마지막 분기로 내린다', () => {
-    expect(clampQuarterToYear(2026, 4)).toBe(1)
-    expect(clampQuarterToYear(2026, 1)).toBe(1)
-    expect(clampQuarterToYear(2023, 4)).toBe(4)
-  })
+  // 연도·분기 범위는 서버 기본 분기에서 유도한다 — period-catalog.test.ts 가 본다.
 })
 
 describe('analysis selection', () => {
@@ -67,7 +52,7 @@ describe('analysis selection', () => {
         administrationCode: null,
         commercialCode: null,
         serviceCode: null,
-        periodCode: ANALYSIS_PERIOD_CODE,
+        periodCode: null,
       },
     )
     expect(
@@ -125,12 +110,20 @@ describe('analysis selection', () => {
     expect(createAnalysisExplorerHref(completeSelection)).toBe(
       '/analysis?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001',
     )
-    expect(createAnalysisResultHref(completeSelection, 'summary')).toBe(
+    expect(createAnalysisResultHref(periodSelection, 'summary')).toBe(
       '/analysis/result?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20261&tab=summary',
     )
-    expect(createAiReportHref(completeSelection)).toBe(
+    expect(createAiReportHref(periodSelection)).toBe(
       '/analysis/report?districtCode=11680&administrationCode=11680640&commercialCode=3110008&serviceCode=CS100001&periodCode=20261',
     )
+  })
+
+  /* 「최신」 링크는 분기를 싣지 않는다 — 데이터가 적재되면 같은 링크가 새 분기를 보여 준다. */
+  it('분기를 지정하지 않은 선택은 결과·리포트 URL 에도 분기를 싣지 않는다', () => {
+    expect(
+      createAnalysisResultHref(completeSelection, 'summary'),
+    ).not.toContain('periodCode')
+    expect(createAiReportHref(completeSelection)).not.toContain('periodCode')
   })
 
   it('쿼리에서 선택을 읽고 유효한 기간 코드를 그대로 채택한다', () => {
@@ -149,9 +142,7 @@ describe('analysis selection', () => {
     })
   })
 
-  it('형식이 어긋나거나 지원하지 않는 기간 코드는 조용히 기본 분기로 폐기한다', () => {
-    // 형식 위반 + 드롭다운이 제공하지 않는 연도(2024·2019). `<select>` 가 옵션에 없는
-    // 값을 첫 옵션으로 그려 헤더와 어긋나는 화면이 되는 것을 막는다.
+  it('형식이 어긋나거나 2021년보다 이른 기간 코드는 조용히 「최신(null)」으로 둔다', () => {
     const cases = [
       '2024',
       '202413',
@@ -160,24 +151,30 @@ describe('analysis selection', () => {
       '20245',
       '',
       ' ',
-      '20271',
       '20191',
-      // 연도는 열려 있지만 아직 적재되지 않은 분기다.
-      '20262',
-      '20264',
+      '20204',
     ]
 
     cases.forEach(periodCode => {
       const params = new URLSearchParams({ districtCode: '11680', periodCode })
-      expect(parseAnalysisSelection(params).periodCode).toBe(
-        ANALYSIS_PERIOD_CODE,
-      )
+      expect(parseAnalysisSelection(params).periodCode).toBeNull()
     })
 
     expect(
       parseAnalysisSelection(new URLSearchParams({ districtCode: '11680' }))
         .periodCode,
-    ).toBe(ANALYSIS_PERIOD_CODE)
+    ).toBeNull()
+  })
+
+  /*
+    상한은 읽을 때 보지 않는다 — 서버 기본 분기를 알아야 판정할 수 있다. 최신보다 새 분기는 카탈로그가 온
+    뒤 해석에서 최신으로 내린다(resolveAnalysisPeriod, period-catalog.test.ts).
+  */
+  it('아직 적재 여부를 모르는 미래 분기도 형식이 맞으면 읽어 둔다', () => {
+    expect(
+      parseAnalysisSelection(new URLSearchParams({ periodCode: '20264' }))
+        .periodCode,
+    ).toBe('20264')
   })
 
   it('선택을 바꿔도 사용자가 고른 기간을 유지한다', () => {
@@ -239,7 +236,7 @@ describe('shouldAutoNavigateToAnalysis', () => {
         administrationCode: '11215530',
         commercialCode: '3110954',
         serviceCode: 'CS100010',
-        periodCode: ANALYSIS_PERIOD_CODE,
+        periodCode: null,
       }),
     ).toBe(true)
   })
@@ -250,7 +247,7 @@ describe('shouldAutoNavigateToAnalysis', () => {
         administrationCode: '11215530',
         commercialCode: null,
         serviceCode: 'CS100010',
-        periodCode: ANALYSIS_PERIOD_CODE,
+        periodCode: null,
       }),
     ).toBe(false)
   })
@@ -285,7 +282,7 @@ describe('href 빌더의 카메라 보존 (map-shell.md D4-1)', () => {
   // TC-MS-022
   it('결과 href는 조건·기간·탭·카메라를 모두 포함한다', () => {
     const params = new URL(
-      createAnalysisResultHref(completeSelection, 'sales', camera),
+      createAnalysisResultHref(periodSelection, 'sales', camera),
       'http://x',
     ).searchParams
 
@@ -293,7 +290,7 @@ describe('href 빌더의 카메라 보존 (map-shell.md D4-1)', () => {
     expect(params.get('administrationCode')).toBe('11680640')
     expect(params.get('commercialCode')).toBe('3110008')
     expect(params.get('serviceCode')).toBe('CS100001')
-    expect(params.get('periodCode')).toBe(ANALYSIS_PERIOD_CODE)
+    expect(params.get('periodCode')).toBe('20261')
     expect(params.get('tab')).toBe('sales')
     expect(params.get('c')).toBe('37.54893,127.06612,3')
   })
@@ -303,13 +300,13 @@ describe('href 빌더의 카메라 보존 (map-shell.md D4-1)', () => {
     expect(createAiReportHref(completeSelection)).not.toContain('c=')
   })
 
-  it('비기본 기간은 탐색 href에도 실어 왕복 손실을 막는다', () => {
+  it('고른 기간은 탐색 href에도 실어 왕복 손실을 막는다', () => {
     const custom: AnalysisSelection = {
       ...completeSelection,
       periodCode: '20221',
     }
 
-    // 기본 분기면 기존 출력 그대로(파라미터가 늘지 않는다)
+    // 지정이 없으면(최신) 파라미터가 늘지 않는다
     expect(createAnalysisExplorerHref(completeSelection)).not.toContain(
       'periodCode',
     )

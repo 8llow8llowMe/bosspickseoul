@@ -48,7 +48,8 @@ import type {
 type StatusDetailProps = {
   metric: StatusMetric
   /** 이 상세를 불러온 기준 분기(YYYYQ). 머리의 순위 줄 뒤에 「… 기준」으로 적는다. */
-  periodCode: string
+  /** 기준 분기. 최신을 아직 모르면 null 이고 기준 줄을 적지 않는다. */
+  periodCode: string | null
   /**
    * 분기를 바꾸는 중이라 머리의 값·증감·순위(`rankedItem`)가 **직전 분기** Top10 에서 왔다.
    * 새 응답이 올 때까지 그 줄을 `aria-busy` 로 흐리게 둔다(status.md 1.6). 순위 항목을 null
@@ -1175,7 +1176,7 @@ function DetailHeader({
                 : `${metricLabel} 상위 10위 밖`}
               {/* 과거 분기를 고르면 어느 분기 값인지 머리에서 드러나야 한다(status.md 1.6). */}
               <span data-status-detail-period>
-                {` · ${formatPeriodCode(periodCode)} 기준`}
+                {periodCode ? ` · ${formatPeriodCode(periodCode)} 기준` : null}
               </span>
             </HeaderRank>
           ) : null}

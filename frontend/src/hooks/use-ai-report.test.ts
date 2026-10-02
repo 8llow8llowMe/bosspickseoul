@@ -60,6 +60,7 @@ describe('useAiReport', () => {
           level: 'district',
           code: '11680',
           serviceCode: null,
+          periodCode: '20261',
           active: true,
           enabled: true,
         }),
@@ -103,6 +104,7 @@ describe('useAiReport', () => {
           level: 'district',
           code: '11680',
           serviceCode: null,
+          periodCode: '20261',
           active: true,
           enabled: true,
         }),
@@ -158,6 +160,7 @@ describe('useAiReport', () => {
           level: 'district',
           code: '11680',
           serviceCode: null,
+          periodCode: '20261',
           active: true,
           enabled: true,
         }),
@@ -209,6 +212,7 @@ describe('useAiReport', () => {
           level: 'district',
           code: '11680',
           serviceCode: null,
+          periodCode: '20261',
           active: true,
           enabled: true,
         }),
@@ -227,5 +231,71 @@ describe('useAiReport', () => {
     await waitFor(() =>
       expect(result.current.state.status).toBe('ready-region'),
     )
+  })
+})
+
+/*
+  제출은 선택(해석)된 분기로 나간다(period-catalog.md D4-3). 예전에는 기본 인자로 상수를 보내 지난 분기를
+  보고 있어도 리포트가 최신 분기로 만들어졌다.
+*/
+describe('useAiReport — 분기', () => {
+  // 실제 제출 응답과 같은 모양이어야 한다 — 훅이 `submissionStatus.code` 를 읽는다.
+  const submission = {
+    submissionStatus: meta('ACCEPTED'),
+    jobType: meta('DISTRICT'),
+    jobId: 'job-1',
+    commercialReport: null,
+    commercialComparisonReport: null,
+    districtReport: null,
+    administrationReport: null,
+  } as AiReportSubmission
+
+  it('선택한 분기로 제출한다', async () => {
+    // 제출 뒤 SSE·폴링은 이 테스트가 보는 것이 아니다 — 끝나지 않게 묶어 둔다.
+    vi.spyOn(sse, 'subscribeJobStream').mockImplementation(async () => {})
+    vi.spyOn(api, 'fetchAiReportJob').mockImplementation(
+      () => new Promise(() => undefined),
+    )
+    const submit = vi
+      .spyOn(api, 'submitDistrictAiReport')
+      .mockResolvedValue(submission)
+
+    renderHook(
+      () =>
+        useAiReport({
+          level: 'district',
+          code: '11680',
+          serviceCode: null,
+          periodCode: '20233',
+          active: true,
+          enabled: true,
+        }),
+      { wrapper },
+    )
+
+    await waitFor(() => expect(submit).toHaveBeenCalledWith('11680', '20233'))
+  })
+
+  it('분기를 아직 정하지 못했으면 제출하지 않는다', async () => {
+    const submit = vi
+      .spyOn(api, 'submitDistrictAiReport')
+      .mockResolvedValue(submission)
+
+    const { result } = renderHook(
+      () =>
+        useAiReport({
+          level: 'district',
+          code: '11680',
+          serviceCode: null,
+          periodCode: null,
+          active: true,
+          enabled: true,
+        }),
+      { wrapper },
+    )
+
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(submit).not.toHaveBeenCalled()
+    expect(result.current.state.status).toBe('idle')
   })
 })

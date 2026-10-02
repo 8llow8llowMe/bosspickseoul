@@ -37,6 +37,7 @@ const render = () =>
         leftCommercialCode: '3110008',
         rightCommercialCode: '3110012',
         serviceCode: 'CS100010',
+        periodCode: '20261',
         returnTo: '/recommend/compare?districtCode=11680',
       }),
     ),

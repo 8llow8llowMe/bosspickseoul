@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -44,6 +50,15 @@ vi.mock('@/lib/api/status', () => ({
   fetchStatusDetail,
 }))
 
+/* 서버 카탈로그(`/periods`) — 기본 분기 20261. 드롭다운 범위와 최신 분기 판정에 쓴다(period-catalog.md). */
+vi.mock('@/lib/api/analysis-period', () => ({
+  fetchAnalysisPeriods: () =>
+    Promise.resolve({
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody: { defaultPeriodCode: '20261' },
+    }),
+}))
+
 vi.mock('next/navigation', () => ({
   usePathname: () => '/status',
   useRouter: () => ({ replace: state.replace, push: state.push }),
@@ -56,6 +71,8 @@ const okResponse = () =>
   Promise.resolve({
     dataHeader: { success: true, resultCode: null, resultMessage: null },
     dataBody: {
+      // 분기를 생략한 요청에도 서버가 실제로 조회한 분기를 싣는다(BE #464).
+      currentPeriodCode: '20261',
       footTrafficTopTenItems: [
         {
           districtCode: '11680',
@@ -110,6 +127,13 @@ const periodSelects = async () => ({
   quarter: screen.getByLabelText('기준 분기') as HTMLSelectElement,
 })
 
+/* 드롭다운은 카탈로그(범위)가 와야 열린다. */
+const enabledPeriodSelects = async () => {
+  const selects = await periodSelects()
+  await waitFor(() => expect(selects.year.disabled).toBe(false))
+  return selects
+}
+
 beforeEach(() => {
   state.fetch = okResponse
   state.push.mockReset()
@@ -121,13 +145,18 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('StatusPage 기준 분기', () => {
-  it('분기 파라미터가 없으면 최신 분기로 부르고 select 도 최신 분기다', async () => {
+  /*
+    「최신」은 분기를 생략해 보내 서버가 해석한다 — 카탈로그를 기다리는 폭포가 없다(period-catalog.md
+    D3-3). select 는 응답이 알려 준 분기를 가리킨다.
+  */
+  it('분기 파라미터가 없으면 분기를 생략해 부르고 select 는 응답의 최신 분기다', async () => {
     renderPage('metric=footTraffic')
 
     await screen.findAllByText('유동인구 상위 10개 구')
     const { year, quarter } = await periodSelects()
 
-    expect(fetchStatusTopTen).toHaveBeenCalledWith('20261')
+    expect(fetchStatusTopTen).toHaveBeenCalledWith(undefined)
+    expect(fetchStatusTopTen).not.toHaveBeenCalledWith('20261')
     expect(year.value).toBe('2026')
     expect(quarter.value).toBe('1')
   })
@@ -143,14 +172,31 @@ describe('StatusPage 기준 분기', () => {
     expect(quarter.value).toBe('3')
   })
 
-  it('지원하지 않는 분기는 최신 분기로 폴백하고 URL 에서 지운다', async () => {
+  /*
+    최신보다 새 분기는 카탈로그가 온 뒤 최신으로 내린다(D5-1). URL 에 분기가 있으면 카탈로그를 기다리지
+    않으므로 그 전에 한 번 나갈 수 있다 — 손편집·낡은 클라이언트만 겪는 드문 경로다.
+  */
+  it('서버 기본 분기보다 새 분기는 카탈로그가 오면 최신 분기로 내리고 URL 도 맞춘다', async () => {
     renderPage('metric=footTraffic&periodCode=20264')
 
-    await screen.findAllByText('유동인구 상위 10개 구')
+    await waitFor(() => expect(fetchStatusTopTen).toHaveBeenCalledWith('20261'))
+    await waitFor(() =>
+      expect(state.replace).toHaveBeenCalledWith(
+        '/status?metric=footTraffic&periodCode=20261',
+        { scroll: false },
+      ),
+    )
+  })
 
-    expect(fetchStatusTopTen).toHaveBeenCalledWith('20261')
-    expect(fetchStatusTopTen).not.toHaveBeenCalledWith('20264')
-    expect(state.replace).toHaveBeenCalledWith('/status?metric=footTraffic', {
+  it('최신 분기를 고르면 URL 에서 분기를 지워 최신 링크로 둔다', async () => {
+    renderPage('metric=sales&periodCode=20233')
+
+    await screen.findAllByText('매출 상위 10개 구')
+    const { year } = await enabledPeriodSelects()
+    // 2023년 3분기에서 2026년으로 옮기면 1분기(그 연도의 마지막 분기)가 되고, 그것이 최신이다.
+    fireEvent.change(year, { target: { value: '2026' } })
+
+    expect(state.push).toHaveBeenCalledWith('/status?metric=sales', {
       scroll: false,
     })
   })
@@ -159,8 +205,8 @@ describe('StatusPage 기준 분기', () => {
     renderPage('metric=sales&district=11680')
 
     await screen.findAllByText('매출 상위 10개 구')
-    const { year } = await periodSelects()
-    // 1분기를 보다가 2023년으로 옮기면 분기는 그대로 1분기다(clampQuarterToYear).
+    const { year } = await enabledPeriodSelects()
+    // 1분기를 보다가 2023년으로 옮기면 분기는 그대로 1분기다(range.clampQuarter).
     fireEvent.change(year, { target: { value: '2023' } })
 
     expect(state.push).toHaveBeenCalledWith(

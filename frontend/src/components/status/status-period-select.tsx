@@ -1,9 +1,11 @@
 'use client'
 
 import AnalysisPeriodSelect from '@/components/analysis/analysis-period-select'
+import type { AnalysisPeriodRange } from '@/lib/analysis/period-catalog'
 
 type StatusPeriodSelectProps = {
-  value: string
+  value: string | null
+  range: AnalysisPeriodRange | null
   onChange: (periodCode: string) => void
 }
 
@@ -14,6 +16,7 @@ type StatusPeriodSelectProps = {
  */
 export default function StatusPeriodSelect({
   value,
+  range,
   onChange,
 }: StatusPeriodSelectProps) {
   return (
@@ -21,6 +24,7 @@ export default function StatusPeriodSelect({
       quarterLabel="기준 분기"
       size="md"
       value={value}
+      range={range}
       yearLabel="기준 연도"
       onChange={onChange}
     />

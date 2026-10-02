@@ -16,7 +16,6 @@ import {
 } from '@/lib/option-filter'
 import { formatPeriodCode } from '@/lib/analysis/presentation'
 import {
-  ANALYSIS_PERIOD_CODE,
   ANALYSIS_STEPS,
   isCompleteAnalysisSelection,
   type AnalysisSelection,
@@ -40,6 +39,8 @@ const FIRST_STEP_OUTAGE_DESCRIPTION =
 export type AnalysisSelectionPanelProps = {
   activeStep: AnalysisStep
   selection: AnalysisSelection
+  /** 분석할 분기(해석된 값). 서버 기본 분기를 받기 전이면 null. */
+  periodCode: string | null
   selectedNames: Partial<Record<AnalysisStep, string>>
   items: readonly AnalysisCandidate[]
   status: 'loading' | 'error' | 'empty' | 'ready'
@@ -272,6 +273,7 @@ const canOpenStep = (
 function AnalysisSelectionPanel({
   activeStep,
   selection,
+  periodCode,
   selectedNames,
   items,
   status,
@@ -439,7 +441,7 @@ function AnalysisSelectionPanel({
         </Button>
         <Helper>
           {isComplete
-            ? `${formatPeriodCode(ANALYSIS_PERIOD_CODE)} 기준으로 분석해요`
+            ? `${periodCode ? formatPeriodCode(periodCode) : '최신 분기'} 기준으로 분석해요`
             : '상권과 업종을 선택해 주세요'}
         </Helper>
         {/*

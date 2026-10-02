@@ -15,6 +15,8 @@ export type RecommendComparisonAiPanelProps = {
   leftCommercialCode: string
   rightCommercialCode: string
   serviceCode: string
+  /** 비교 표와 같은 분기. 리포트도 그 분기로 만든다. */
+  periodCode: string
   /** 로그인 후 돌아올 곳. 지금 비교 화면의 전체 경로다. */
   returnTo: string
 }
@@ -93,6 +95,7 @@ export default function RecommendComparisonAiPanel({
   leftCommercialCode,
   rightCommercialCode,
   serviceCode,
+  periodCode,
   returnTo,
 }: RecommendComparisonAiPanelProps) {
   const hasHydrated = useAuthStore(auth => auth.hasHydrated)
@@ -104,6 +107,7 @@ export default function RecommendComparisonAiPanel({
     code: leftCommercialCode,
     rightCode: rightCommercialCode,
     serviceCode,
+    periodCode,
     active: started,
     enabled: hasHydrated && isLoggedIn,
   })

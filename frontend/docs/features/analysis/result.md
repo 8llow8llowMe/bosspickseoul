@@ -106,16 +106,16 @@ flowchart LR
 
 ### D3-3. 데이터 모델
 
-| 모델                      | 필드                       | 타입                                                                            | 설명                                   |
-| ------------------------- | -------------------------- | ------------------------------------------------------------------------------- | -------------------------------------- |
-| `AnalysisResultParams`    | 선택 코드                  | `districtCode`, `administrationCode`, `commercialCode`, `serviceCode`: `string` | 모든 코드 필수                         |
-|                           | `periodCode`               | `"20233"`                                                                       | 고정 기준 시점                         |
-|                           | `tab`                      | `summary \| foot-traffic \| sales \| stores \| living \| trend \| benchmark`    | 잘못된 값은 `summary`로 정규화         |
-| `AnalysisContext`         | 이름·경계·핵심 지표        | profile API 기반                                                                | URL의 사용자 제공 이름을 신뢰하지 않음 |
-| `SectionState<T>`         | `status`, `data`           | loading/error/empty/success                                                     | 섹션별 독립 상태                       |
-| `TrendMetric`             | `metricType`               | `SALES \| FOOT_TRAFFIC \| STORE`                                                | trend endpoint의 Swagger enum          |
-| `CommercialBookmarkInput` | `targetType`               | `"COMMERCIAL"`                                                                  | 회원 API 고정                          |
-|                           | `targetCode`, `targetName` | `string`                                                                        | 업종·시점은 저장하지 않음              |
+| 모델                      | 필드                       | 타입                                                                            | 설명                                                                                                                |
+| ------------------------- | -------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `AnalysisResultParams`    | 선택 코드                  | `districtCode`, `administrationCode`, `commercialCode`, `serviceCode`: `string` | 모든 코드 필수                                                                                                      |
+|                           | `periodCode`               | `YYYYQ` 또는 없음                                                               | 없으면 「최신」 = 서버 기본 분기. URL 분기는 카탈로그를 기다리지 않는다([period-catalog](./period-catalog.md) D5-1) |
+|                           | `tab`                      | `summary \| foot-traffic \| sales \| stores \| living \| trend \| benchmark`    | 잘못된 값은 `summary`로 정규화                                                                                      |
+| `AnalysisContext`         | 이름·경계·핵심 지표        | profile API 기반                                                                | URL의 사용자 제공 이름을 신뢰하지 않음                                                                              |
+| `SectionState<T>`         | `status`, `data`           | loading/error/empty/success                                                     | 섹션별 독립 상태                                                                                                    |
+| `TrendMetric`             | `metricType`               | `SALES \| FOOT_TRAFFIC \| STORE`                                                | trend endpoint의 Swagger enum                                                                                       |
+| `CommercialBookmarkInput` | `targetType`               | `"COMMERCIAL"`                                                                  | 회원 API 고정                                                                                                       |
+|                           | `targetCode`, `targetName` | `string`                                                                        | 업종·시점은 저장하지 않음                                                                                           |
 
 ### D3-4. 사용 라이브러리 / 기술
 
@@ -345,7 +345,7 @@ AND tab ∈ allowedTabs
 
 | #   | 항목                                                                               | 이번 구현의 결정                                                                 |
 | --- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| 1   | 사용 가능한 분석 시점 목록 endpoint가 없다.                                        | `20233` 고정, “2023년 3분기 기준” 표시, 시점 선택기 미노출                       |
+| 1   | ~~사용 가능한 분석 시점 목록 endpoint가 없다.~~                                    | 해소 — `GET /commercials/periods`(BE #464). 드롭다운 2021 ~ 서버 기본 분기(#493) |
 | 2   | 북마크 API는 상권만 저장하며 업종·시점·탭을 저장하지 않는다.                       | “상권 저장”만 제공하고 공유 URL을 상세 조건 보존 수단으로 사용                   |
 | 3   | 비교 API는 모든 지표의 지역 간 비교나 사용자 정의 비교를 제공하지 않는다.          | Swagger의 benchmark와 sales/income summary 범위만 표시                           |
 | 4   | 개발 데이터가 비어 있으면 실제 단위·nullable·부분 데이터 조합의 E2E 검증이 어렵다. | contract fixture로 검증하고 실데이터 적재 후 추가 브라우저 검증 항목으로 남긴다. |

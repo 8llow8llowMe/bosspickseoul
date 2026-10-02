@@ -48,10 +48,10 @@ import {
   fetchDistrictMapAreas,
 } from '@/lib/api/recommend'
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
+import { useResolvedAnalysisPeriod } from '@/hooks/use-resolved-analysis-period'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
 import {
-  ANALYSIS_PERIOD_CODE,
   ANALYSIS_STEPS,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
@@ -330,6 +330,10 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     () => parseAnalysisSelection(searchParams),
     [searchParams],
   )
+  /* 결과 레이어·선택 패널 안내가 쓰는 분기. URL 에 없으면 서버 기본 분기(period-catalog.md D5-1). */
+  const { periodCode: resolvedPeriodCode } = useResolvedAnalysisPeriod(
+    selection.periodCode,
+  )
   const resultOpen = pathname === ANALYSIS_RESULT_PATHNAME
 
   // ── 카메라: URL 이 정본이다 ────────────────────────────────────────────────
@@ -431,9 +435,13 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     return `/login?redirect=${encodeURIComponent(currentHref)}`
   })()
 
+  /*
+    탐색 화면의 자치구 목록은 표시용 「최신」이다 — 분기를 생략해 서버가 해석하게 한다
+    (period-catalog.md D4-2). 카탈로그를 기다리지 않아 첫 요청이 늦어지지 않는다.
+  */
   const districtsQuery = useQuery({
-    queryKey: ['analysis', 'districts', ANALYSIS_PERIOD_CODE],
-    queryFn: () => fetchDistricts(ANALYSIS_PERIOD_CODE),
+    queryKey: ['analysis', 'districts', 'latest'],
+    queryFn: () => fetchDistricts(),
     retry: retryUnlessClientError(1),
   })
   const districtMapQuery = useQuery({
@@ -495,15 +503,16 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       'profile',
       selection.commercialCode ?? '',
       selection.serviceCode ?? '',
-      selection.periodCode,
+      resolvedPeriodCode,
     ],
     queryFn: () =>
       fetchCommercialProfile(
         selection.commercialCode!,
         selection.serviceCode!,
-        selection.periodCode,
+        resolvedPeriodCode!,
       ),
     enabled:
+      resolvedPeriodCode !== null &&
       enteredWithoutCamera &&
       resultOpen &&
       Boolean(selection.commercialCode && selection.serviceCode),
@@ -1039,6 +1048,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     <AnalysisSelectionPanel
       activeStep={activeStep}
       selection={selection}
+      periodCode={resolvedPeriodCode}
       selectedNames={selectedNames}
       items={activeCandidates}
       status={activeStatus}
@@ -1057,6 +1067,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     <AnalysisSelectionPanel
       activeStep={activeStep}
       selection={selection}
+      periodCode={resolvedPeriodCode}
       selectedNames={selectedNames}
       items={activeCandidates}
       status={activeStatus}

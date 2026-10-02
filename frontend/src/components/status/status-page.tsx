@@ -31,6 +31,8 @@ import {
   type StatusSheetState,
 } from '@/lib/status/status-state'
 import { statusQueryKeys } from '@/lib/status/status-query'
+import { resolveAnalysisPeriod } from '@/lib/analysis/period-catalog'
+import { useAnalysisPeriodCatalog } from '@/hooks/use-analysis-period-catalog'
 import { districts } from '@/data/districts'
 import {
   createStatusHighlightStore,
@@ -461,8 +463,17 @@ function StatusPageContent() {
   const searchParams = useSearchParams()
   const rawSearchParams = searchParams.toString()
   const metric = parseStatusMetric(searchParams.get('metric'))
-  // 기준 분기. 화면 전체(Top10·상세, 후속 전체 순위)가 이 한 값을 나눠 쓴다(status.md 1.6).
-  const periodCode = parseStatusPeriod(searchParams.get('periodCode'))
+  /*
+    기준 분기(status.md 1.6, period-catalog.md D3-3). URL 에 분기가 없으면 「최신」이고, Top10 은 분기를
+    생략해 보내 서버가 해석한다 — 카탈로그(`/periods`)를 기다리는 폭포가 없다. 카탈로그는 드롭다운
+    범위와, 최신보다 새 분기를 내리는 데만 쓴다.
+  */
+  const periodCatalog = useAnalysisPeriodCatalog()
+  const urlPeriodCode = parseStatusPeriod(searchParams.get('periodCode'))
+  const requestedPeriodCode =
+    urlPeriodCode === null
+      ? null
+      : resolveAnalysisPeriod(urlPeriodCode, periodCatalog.range)
   const requestedDistrictCode = searchParams.get('district')
   // 시트는 기본 '펼침'으로 하단을 Top10 리스트가 채우고, 지도는 시트 위에 남는 자리에
   // 맞춰 가운데 놓인다(지도 몫 MINIMUM_MAP_HEIGHT 보장).
@@ -479,8 +490,8 @@ function StatusPageContent() {
   const previousSelectionRef = useRef<string | null | undefined>(undefined)
 
   const topTenQuery = useQuery({
-    queryKey: statusQueryKeys.topTen(periodCode),
-    queryFn: () => fetchStatusTopTen(periodCode),
+    queryKey: statusQueryKeys.topTen(requestedPeriodCode ?? 'latest'),
+    queryFn: () => fetchStatusTopTen(requestedPeriodCode ?? undefined),
     // 404(데이터 부재)·4xx는 재시도해도 결과가 같다. 5xx/통신 실패만 재시도한다.
     retry: retryUnlessClientError(3),
     // 분기를 바꾸면 키가 바뀌어 데이터가 빈다. 그대로 두면 페이지가 로딩 화면으로 바뀌며
@@ -497,6 +508,38 @@ function StatusPageContent() {
     return normalizeStatusTopTen(topTenQuery.data.dataBody)
   }, [topTenQuery.data])
 
+  /*
+    화면 전체(Top10·상세·드롭다운)가 나눠 쓰는 분기. 「최신」이면 Top10 응답이 알려 준 분기를 쓴다.
+    자리 표시(placeholderData)로 남은 직전 응답의 분기는 쓰지 않는다 — 고른 분기가 이긴다.
+  */
+  const topTenPeriodCode =
+    topTenQuery.data && isApiSuccess(topTenQuery.data) && !isPeriodPending
+      ? (topTenQuery.data.dataBody.currentPeriodCode ?? null)
+      : null
+  const periodCode =
+    requestedPeriodCode ?? topTenPeriodCode ?? periodCatalog.latest
+  /*
+    서버가 막 새 분기로 넘어갔는데 카탈로그는 캐시(5분)라 옛 최신 분기를 들고 있으면, 응답 분기가 드롭다운
+    범위 밖이 되어 select 가 엉뚱한 분기를 그린다. 응답이 더 새로우면 카탈로그를 다시 묻는다.
+  */
+  const refetchPeriodCatalog = periodCatalog.refetch
+  useEffect(() => {
+    if (
+      topTenPeriodCode !== null &&
+      periodCatalog.latest !== null &&
+      topTenPeriodCode > periodCatalog.latest
+    ) {
+      refetchPeriodCatalog()
+    }
+    // refetch 는 렌더마다 새 함수다 — 분기 값이 바뀔 때만 다시 판정한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topTenPeriodCode, periodCatalog.latest])
+
+  /* 「최신」을 고르면 URL 에서 분기를 지워 최신 링크로 남긴다(createStatusQuery). */
+  const latestPeriodCode =
+    periodCatalog.latest ??
+    (requestedPeriodCode === null ? topTenPeriodCode : null)
+
   const currentItems = topTen?.[metric] ?? []
   const selectedDistrictCode = topTen
     ? normalizeStatusSelection(requestedDistrictCode, SELECTABLE_DISTRICT_CODES)
@@ -509,13 +552,16 @@ function StatusPageContent() {
   const sheetSnap = resolveStatusSheetSnap(sheetState, selectedDistrictCode)
 
   const detailQuery = useQuery({
-    queryKey: statusQueryKeys.detail(periodCode, selectedDistrictCode),
+    queryKey: statusQueryKeys.detail(
+      periodCode ?? 'latest',
+      selectedDistrictCode,
+    ),
     queryFn: () => {
       if (!selectedDistrictCode) {
         throw new Error('선택한 자치구가 없습니다.')
       }
 
-      return fetchStatusDetail(selectedDistrictCode, periodCode)
+      return fetchStatusDetail(selectedDistrictCode, periodCode ?? undefined)
     },
     enabled: selectedDistrictCode !== null,
     retry: retryUnlessClientError(3),
@@ -533,11 +579,13 @@ function StatusPageContent() {
     const districtCode = topTen
       ? selectedDistrictCode
       : currentQuery.get('district')
+    // 분기는 URL 에 적힌 대로 둔다(최신 분기를 명시한 링크도 그대로) — 여기서 지우면 쿼리 키가 바뀌어
+    // 같은 데이터를 한 번 더 부른다. 최신으로 되돌리는 것은 사용자가 분기를 고를 때뿐이다.
     const normalizedQuery = createStatusQuery(
       currentQuery,
       metric,
       districtCode,
-      periodCode,
+      requestedPeriodCode,
     )
 
     if (normalizedQuery.toString() === rawSearchParams) {
@@ -553,7 +601,7 @@ function StatusPageContent() {
   }, [
     metric,
     pathname,
-    periodCode,
+    requestedPeriodCode,
     rawSearchParams,
     router,
     selectedDistrictCode,
@@ -614,7 +662,7 @@ function StatusPageContent() {
   const pushStatusQuery = (
     nextMetric: typeof metric,
     districtCode: string | null,
-    nextPeriodCode: string = periodCode,
+    nextPeriodCode: string | null = requestedPeriodCode,
   ) => {
     const nextQuery = createStatusQuery(
       new URLSearchParams(rawSearchParams),
@@ -649,12 +697,16 @@ function StatusPageContent() {
     pushStatusQuery(
       metric,
       topTen ? selectedDistrictCode : requestedDistrictCode,
-      nextPeriodCode,
+      nextPeriodCode === latestPeriodCode ? null : nextPeriodCode,
     )
   }
 
   const periodSelect = (
-    <StatusPeriodSelect value={periodCode} onChange={handlePeriodChange} />
+    <StatusPeriodSelect
+      value={periodCode}
+      range={periodCatalog.range}
+      onChange={handlePeriodChange}
+    />
   )
 
   const handleDistrictSelect = (districtCode: string) => {

@@ -26,6 +26,7 @@ const renderErrorPanel = (
     createElement(AnalysisSelectionPanel, {
       activeStep,
       selection: createEmptyAnalysisSelection(),
+      periodCode: '20261',
       selectedNames: {},
       items: [],
       status: 'error',
@@ -45,6 +46,7 @@ const renderPanel = (
     createElement(AnalysisSelectionPanel, {
       activeStep: 'commercial',
       selection: createEmptyAnalysisSelection(),
+      periodCode: '20261',
       selectedNames: {},
       items: [],
       status: 'ready',
@@ -103,6 +105,7 @@ describe('AnalysisSelectionPanel', () => {
       createElement(AnalysisSelectionPanel, {
         activeStep: 'district',
         selection: createEmptyAnalysisSelection(),
+        periodCode: '20261',
         selectedNames: {},
         items: [{ code: '11680', name: '강남구' }],
         status: 'ready',
@@ -130,6 +133,7 @@ describe('AnalysisSelectionPanel', () => {
           ...createEmptyAnalysisSelection(),
           districtCode: '11680',
         },
+        periodCode: '20261',
         selectedNames: { district: '강남구' },
         items: [{ code: '11680', name: '강남구' }],
         status: 'ready',
@@ -197,6 +201,7 @@ describe('AnalysisSelectionPanel 빈 목록', () => {
       createElement(AnalysisSelectionPanel, {
         activeStep,
         selection: createEmptyAnalysisSelection(),
+        periodCode: '20261',
         selectedNames: {},
         items: [],
         status: 'empty',
@@ -241,6 +246,7 @@ describe('AnalysisSelectionPanel 인기 상권 지름길', () => {
         createElement(AnalysisSelectionPanel, {
           activeStep: 'district',
           selection: createEmptyAnalysisSelection(),
+          periodCode: '20261',
           selectedNames: {},
           items: [{ code: '11680', name: '강남구' }],
           status: 'ready',
@@ -284,5 +290,28 @@ describe('AnalysisSelectionPanel 인기 상권 지름길', () => {
     })
 
     expect(markup).not.toContain('지금 많이 본 상권')
+  })
+})
+
+/* 안내 문장의 분기는 해석된 분기다 — 결과에서 고른 분기로 돌아오면 그 분기를 말한다(period-catalog.md D4-2). */
+describe('AnalysisSelectionPanel — 분석 기준 분기 안내', () => {
+  const complete = {
+    ...createEmptyAnalysisSelection(),
+    districtCode: '11680',
+    administrationCode: '11680640',
+    commercialCode: '3110008',
+    serviceCode: 'CS100001',
+  }
+
+  it('해석된 분기를 「N년 N분기 기준」으로 적는다', () => {
+    expect(renderPanel({ selection: complete, periodCode: '20233' })).toContain(
+      '2023년 3분기 기준으로 분석해요',
+    )
+  })
+
+  it('서버 기본 분기를 받기 전에는 「최신 분기」로 적는다', () => {
+    expect(renderPanel({ selection: complete, periodCode: null })).toContain(
+      '최신 분기 기준으로 분석해요',
+    )
   })
 })
