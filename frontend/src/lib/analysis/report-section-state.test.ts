@@ -13,6 +13,7 @@ const profile = {
     totalSalesAmount: 345_000_000,
     totalFootTraffic: 32000,
     totalStoreCount: 32,
+    similarStoreCount: 40,
     totalResidentPopulation: 12000,
   },
 } as unknown as CommercialProfile
@@ -34,6 +35,16 @@ describe('resolveMetricCards', () => {
     expect(cards[3].display).toBe('+18.2%')
     expect(cards[3].tone).toBe('positive')
     expect(cards[0].loading).toBe(false)
+  })
+  it('점포 수는 프랜차이즈를 포함한 similarStoreCount 다(totalStoreCount 는 프랜차이즈 제외)', () => {
+    const cards = resolveMetricCards({
+      profile,
+      profileLoading: false,
+      growth: { direction: 'INCREASE', changeRate: 0.182 },
+      growthLoading: false,
+    })
+    expect(cards[2].display).toContain('40')
+    expect(cards[2].display).not.toContain('32')
   })
   it('로딩 중이면 loading=true, display 는 `--`', () => {
     // 지표는 skeleton 이 아니라 `--` 로 기다린다(DESIGN.md §4-8). 예전 이름은

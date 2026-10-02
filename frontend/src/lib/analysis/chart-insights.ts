@@ -231,12 +231,14 @@ export const describeLatestChange = (
 }
 
 /**
- * 요약 인사이트 「경쟁」 줄 — 「유사 업종 점포가 20개 있어요. 이 분기에 1개가 문을 열고 1개가
+ * 요약 인사이트 「경쟁」 줄 — 「같은 업종 점포가 20개 있어요. 이 분기에 1개가 문을 열고 1개가
  * 문을 닫았어요」.
  *
- * 개·폐업 건수는 **유사 업종 점포 수가 분모**다(실측: 20개 중 1개 = 개업률 5%). 그래서 두 문장의
- * 주어를 유사 업종 점포로 맞춘다. 점포 수가 없으면 경쟁을 말할 수 없어 null 이다. 개·폐업
- * 건수가 하나라도 비면 둘째 문장만 뺀다 — 한쪽만 적으면 순증을 거꾸로 읽을 수 있다.
+ * 점포 수는 `similarStoreCount`(원천 `SIMILR_INDUTY_STOR_CO`) — 프랜차이즈를 포함한 이 업종 전체다.
+ * 이름과 달리 다른 업종이 섞인 수가 아니라 일반(`STOR_CO`) + 프랜차이즈(`FRC_STOR_CO`)다(dev 실측
+ * 79곳 모두 성립). 개·폐업 건수도 이 수가 분모라(20개 중 1개 = 개업률 5%) 두 문장의 주어를 맞춘다.
+ * 「유사 업종」이라는 원천 이름은 다른 업종으로 읽혀 화면에는 「같은 업종」이라고 쓴다.
+ * 점포 수가 없으면 경쟁을 말할 수 없어 null 이다. 개·폐업 건수가 하나라도 비면 둘째 문장만 뺀다 — 한쪽만 적으면 순증을 거꾸로 읽을 수 있다.
  */
 export const describeStoreCompetition = (
   similarStoreCount: number | null | undefined,
@@ -246,8 +248,8 @@ export const describeStoreCompetition = (
   if (typeof similarStoreCount !== 'number' || similarStoreCount < 0)
     return null
   const count = new Intl.NumberFormat('ko-KR').format(similarStoreCount)
-  if (similarStoreCount === 0) return '이 상권에는 유사 업종 점포가 없어요'
-  const head = `유사 업종 점포가 ${count}개 있어요`
+  if (similarStoreCount === 0) return '이 상권에는 같은 업종 점포가 없어요'
+  const head = `같은 업종 점포가 ${count}개 있어요`
   if (
     typeof openedStoreCount !== 'number' ||
     typeof closedStoreCount !== 'number'
