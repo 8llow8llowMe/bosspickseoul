@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import styled, { css, keyframes } from 'styled-components'
 import { districts } from '@/data/districts'
@@ -17,6 +17,7 @@ import DistrictTooltip, {
 } from '@/components/home/district-tooltip'
 import { clampTooltipPosition } from '@/components/home/tooltip-geometry'
 import { useDistrictDetail } from '@/hooks/use-district-detail'
+import { trackEvent } from '@/lib/analytics/events'
 
 const districtNameByCode = new Map(
   districts.map(district => [String(district.gooCode), district.gooName]),
@@ -149,12 +150,21 @@ export default function SeoulDistrictsMap({
     ? districtNameByCode.get(hoveredFeature.districtCode)
     : undefined
 
+  /*
+    지도 호버 계측은 페이지당 1회다. 머무름 지연을 넘겨 툴팁이 실데이터를 부르는 순간만 센다 —
+    지도를 스쳐 지나간 마우스는 「발견했다」가 아니다(measurement-and-deep-link.md D2).
+  */
+  const hoverTrackedRef = useRef(false)
+
   useEffect(() => {
     if (hoveredCode === null) return
-    const timer = window.setTimeout(
-      () => setSettledCode(hoveredCode),
-      DETAIL_HOVER_DELAY_MS,
-    )
+    const timer = window.setTimeout(() => {
+      setSettledCode(hoveredCode)
+      if (!hoverTrackedRef.current) {
+        hoverTrackedRef.current = true
+        trackEvent('home_map_hover', { district_code: hoveredCode })
+      }
+    }, DETAIL_HOVER_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [hoveredCode])
 
@@ -181,6 +191,7 @@ export default function SeoulDistrictsMap({
     : null
 
   const goToAnalysis = (districtCode: string) => {
+    trackEvent('home_map_click', { district_code: districtCode })
     router.push(`/analysis?districtCode=${districtCode}`)
   }
 

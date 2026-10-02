@@ -148,6 +148,23 @@ describe('개인정보 처리방침 — 법정 기재사항', () => {
   })
 })
 
+/**
+ * 처리방침은 코드 실측이다(privacy-policy.ts 머리 주석). GA4 태그가 코드에 있는 동안
+ * 「분석 도구를 쓰지 않는다」는 문장이 되살아나면 문서가 거짓이 된다.
+ */
+describe('개인정보 처리방침 — 이용 통계(GA4)', () => {
+  const text = JSON.stringify(privacyPolicy)
+
+  it('분석 도구를 쓰지 않는다는 문장이 없다', () => {
+    expect(text).not.toContain('분석 도구를 사용하지 않습니다')
+  })
+
+  it('GA 쿠키와 거부 방법을 고지한다', () => {
+    expect(text).toContain('_ga')
+    expect(text).toContain('tools.google.com/dlpage/gaoptout')
+  })
+})
+
 describe('약관 링크', () => {
   it('푸터 링크가 두 문서의 경로를 가리킨다', () => {
     expect(LEGAL_LINKS.map(link => link.href)).toEqual([

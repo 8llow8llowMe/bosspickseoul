@@ -12,6 +12,7 @@ import {
   HOME_COLUMN,
   HOME_FULL_SCREEN_SECTION,
 } from '@/components/home/layout-constants'
+import { trackAttrs } from '@/lib/analytics/events'
 
 /*
   화면 높이(100dvh)를 붙잡지 않는다. 콘텐츠가 약 330px 인데 1080 화면을 채우려고
@@ -275,11 +276,17 @@ export default function FeatureBento() {
             </CtaBody>
           </div>
           <Actions>
-            <PrimaryLink href="/register">
+            <PrimaryLink
+              href="/register"
+              {...trackAttrs('home_final_cta_click', { cta: 'register' })}
+            >
               <UserPlus aria-hidden="true" />
               시작하기
             </PrimaryLink>
-            <SecondaryLink href="/analysis">
+            <SecondaryLink
+              href="/analysis"
+              {...trackAttrs('home_final_cta_click', { cta: 'analysis' })}
+            >
               <ArrowRight aria-hidden="true" />
               상권 분석 바로가기
             </SecondaryLink>

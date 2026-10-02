@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import GoogleAnalytics from '@/components/analytics/google-analytics'
 import ScrollbarReveal from '@/components/layout/scrollbar-reveal'
 import AppProviders from '@/providers/app-providers'
 import StyledComponentsRegistry from '@/lib/styled-components-registry'
@@ -45,6 +46,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
           <ScrollbarReveal />
           <AppProviders>{children}</AppProviders>
         </StyledComponentsRegistry>
+        {/* 측정 ID 가 없으면 아무것도 렌더하지 않는다. */}
+        <GoogleAnalytics />
       </body>
     </html>
   )

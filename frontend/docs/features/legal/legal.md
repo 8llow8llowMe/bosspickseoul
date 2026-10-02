@@ -39,7 +39,7 @@
 | 가입 항목 = 이메일·비밀번호·이름·닉네임                                                                         | `MemberGeneralSignupRequest`. 생년월일·성별·전화번호 없음            |
 | 카카오 소셜 로그인만 노출(네이버는 BE 만)                                                                       | `social-login.tsx` 화이트리스트                                      |
 | 쿠키 `bps_session`(세션 쿠키) · `auth_return`(10분)                                                             | `src/lib/auth/session.ts`, `social-login.tsx`                        |
-| 분석 도구·광고 SDK 없음                                                                                         | `app/layout.tsx`, `package.json`                                     |
+| 분석 도구 = Google 애널리틱스 4(처리방침 1.1, 시행 2026-10-09). 이벤트에 회원 식별값 없음. 광고 SDK 없음        | `google-analytics.tsx`, `src/lib/analytics/events.ts`                |
 | 탈퇴 = 이름·닉네임 마스킹, 비밀번호·이미지 삭제, **이메일 유지**(재가입 차단), 게시글·댓글·이력·북마크 **보존** | `Member.withdraw()`, `backend/docs/services/auth-service.md` 탈퇴 절 |
 | AI 리포트는 공공 통계 코드만 사용, 회원 식별자 미전달                                                           | `AiReportJobParamKeys`, `OpenAiLlmClientAdapter` 프롬프트 구성       |
 | 이미지 저장소는 공개 읽기                                                                                       | `StorageBucketInitializer`, `file-upload-guide.md`                   |
@@ -58,6 +58,7 @@
 | 탈퇴 이메일 보관 기간               | 「탈퇴 후에도 보관」(기간 미명시)                                           | **보관 기간 명시가 필요하다** — 무기한 보관은 파기 의무와 충돌할 수 있다         |
 | 탈퇴 후 이력·북마크 보존            | 「탈퇴 후에도 보존」으로 사실대로 적음                                      | 탈퇴 시 삭제로 바꿀지(백엔드 변경). 처리방침상 가장 약한 부분                    |
 | 이메일 발송 사업자                  | Google LLC(Gmail SMTP, 국외 이전)                                           | 운영 SMTP 가 Gmail 이 아니면 제5조 수정                                          |
+| GA 보관 기간·Google 신호            | 「수집 후 14개월」·「Google 신호 켜지 않음」으로 적음                       | GA 관리 화면에서 보관 기간 14개월·Google 신호 끄기를 실제로 설정했는지 확인      |
 | 「그 밖에 위탁 없음」·「요금 없음」 | 그렇게 적었다                                                               | 호스팅 사업자(클라우드)가 있으면 위탁·국외 이전 표 갱신, 유료 도입 시 약관 제7조 |
 | 가입 시 동의·만 14세 확인           | **없음**(문서는 「확인하고 신청」·「14세 미만 불가」만 규정)                | 백엔드 `동의 이력` 필드 + 가입 화면 체크박스(후속 이슈)                          |
 | `account-deleted` 화면 문구         | 「모두 초기화」·「새 계정으로 가입」 — **처리방침과 어긋난다**              | 실제(이메일·게시물 유지, 같은 이메일 재가입 불가)에 맞게 수정(후속)              |

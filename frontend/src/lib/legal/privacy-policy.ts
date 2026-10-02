@@ -15,7 +15,13 @@ import type { LegalDocument } from '@/lib/legal/types'
  *  - 탈퇴: `Member.withdraw()` — 이름·닉네임 마스킹, 비밀번호·프로필 이미지 삭제, 이메일 유지.
  *    게시글·댓글·시뮬레이션 이력·북마크는 `memberId` 로 남는다(`backend/docs/services/auth-service.md`)
  *  - 국외 이전: 안내 메일 발송(SMTP)뿐이다. 기본 설정이 Gmail SMTP 라 Google LLC 로 적었다
- *  - 분석 도구·광고 SDK: 없다(`app/layout.tsx`)
+ *  - 분석 도구: Google 애널리틱스 4(`src/components/analytics/google-analytics.tsx`). 측정 ID 가
+ *    없으면 태그를 싣지 않는다. 이벤트 파라미터는 자치구·업종 코드·단계 번호뿐이고 회원 식별값은
+ *    싣지 않는다(`src/lib/analytics/events.ts`). 보관 기간 14개월·Google 신호 끄기는 GA 관리 화면
+ *    설정이 전제다(docs/features/home/measurement-and-deep-link.md D1-3). Google 신호·광고 개인화
+ *    신호는 태그(`buildGaInitScript`)가 끈다. 커뮤니티 검색(`?keyword=`)처럼 주소에 담긴 검색어는
+ *    `page_location` 으로 함께 간다 — 제3조가 그래서 「검색어 포함」을 적었다
+ *  - 광고 SDK: 없다
  *
  * **아직 코드가 뒷받침하지 않는 것은 단정하지 않는다.** 접속 로그 보관 기간, 탈퇴 후 이력의 파기 시점,
  * 운영 SMTP 사업자는 코드에서 확인되지 않아 문구를 일부러 좁혔다 — 운영값이 정해지면 제2조·제5조를
@@ -27,8 +33,8 @@ import type { LegalDocument } from '@/lib/legal/types'
 export const privacyPolicy: LegalDocument = {
   id: 'privacy',
   title: '개인정보 처리방침',
-  version: '1.0',
-  effectiveDate: '2026-10-02',
+  version: '1.1',
+  effectiveDate: '2026-10-09',
   articles: [
     {
       no: 1,
@@ -44,6 +50,7 @@ export const privacyPolicy: LegalDocument = {
             '회원 가입과 관리: 본인 확인, 회원제 서비스 제공, 부정 이용과 재가입 방지, 고지사항 전달',
             '서비스 제공: 시뮬레이션 결과·분석 보관함·관심 지역 저장, 커뮤니티 게시글·댓글 운영, AI 리포트 생성',
             '보안과 안정적 운영: 로그인 시도 제한, 비정상 접근 탐지, 장애 원인 분석',
+            '서비스 개선: 화면별 이용 통계 분석 (어떤 화면과 기능이 얼마나 쓰이는지)',
           ],
         },
       ],
@@ -82,6 +89,10 @@ export const privacyPolicy: LegalDocument = {
             [
               '접속 기록 (IP 주소, 브라우저 정보, 요청 주소)',
               '관계 법령에서 정한 기간',
+            ],
+            [
+              '서비스 이용 통계 (Google 애널리틱스, 제9조 참고)',
+              '수집 후 14개월',
             ],
           ],
         },
@@ -130,6 +141,11 @@ export const privacyPolicy: LegalDocument = {
               'IP 주소, 브라우저 정보(User-Agent), 접속 기록, 로그인 세션 정보, 로그인 상태 쿠키',
               '서비스 이용 과정에서 자동 생성',
             ],
+            [
+              '이용 통계',
+              '방문한 화면의 주소(주소에 담긴 검색어 포함)와 누른 버튼 등 이용 기록, 브라우저·기기 종류, 대략적인 접속 지역(국가·도시), 이용 통계 쿠키 식별자',
+              'Google 애널리틱스 쿠키로 자동 수집 (제9조 참고)',
+            ],
           ],
         },
         {
@@ -170,11 +186,21 @@ export const privacyPolicy: LegalDocument = {
         {
           kind: 'table',
           headers: ['수탁자', '위탁 업무', '이전되는 국가'],
-          rows: [['Google LLC', '인증코드 등 안내 메일 발송', '미국']],
+          rows: [
+            [
+              'Google LLC',
+              '인증코드 등 안내 메일 발송, 서비스 이용 통계 분석 (Google 애널리틱스)',
+              '미국',
+            ],
+          ],
         },
         {
           kind: 'text',
-          text: '국외로 이전되는 항목은 수신자 이메일 주소와 메일 내용이며, 이전 시점은 메일 발송 시, 이전 방법은 정보통신망을 통한 전송입니다. 이전받는 자는 발송 목적을 달성할 때까지 보유합니다.',
+          text: '안내 메일 발송으로 국외 이전되는 항목은 수신자 이메일 주소와 메일 내용이며, 이전 시점은 메일 발송 시, 이전 방법은 정보통신망을 통한 전송입니다. 이전받는 자는 발송 목적을 달성할 때까지 보유합니다.',
+        },
+        {
+          kind: 'text',
+          text: '이용 통계 분석으로 국외 이전되는 항목은 제3조의 이용 통계 항목이며, 이전 시점은 서비스 화면을 이용할 때, 이전 방법은 이용자 브라우저에서 정보통신망을 통한 전송입니다. 이전받는 자는 수집 후 14개월 동안 보유합니다. 회원의 이메일·이름·닉네임·회원 번호는 이용 통계로 보내지 않습니다.',
         },
         {
           kind: 'text',
@@ -279,14 +305,20 @@ export const privacyPolicy: LegalDocument = {
               '소셜 로그인 뒤 원래 보던 화면으로 돌아오기',
               '10분',
             ],
+            [
+              '_ga, _ga_로 시작하는 쿠키',
+              '이용 통계 분석 (Google 애널리틱스, 방문자 구분)',
+              '2년',
+            ],
           ],
         },
         {
           kind: 'list',
           items: [
-            '이 쿠키는 서비스 제공에 필수적이며, 광고나 행태정보 수집 목적으로는 사용하지 않습니다.',
-            '서비스는 방문 통계나 광고를 위한 분석 도구를 사용하지 않습니다.',
+            'bps_session과 auth_return은 서비스 제공에 필수적인 쿠키입니다.',
+            '_ga 쿠키는 어떤 화면과 기능이 얼마나 쓰이는지 파악해 서비스를 개선하는 데에만 사용합니다. 광고 목적으로 사용하지 않으며, 맞춤형 광고를 위한 Google 신호 데이터 수집을 켜지 않습니다.',
             '이용자는 브라우저 설정에서 쿠키 저장을 거부할 수 있습니다. 다만 이 경우 로그인이 필요한 기능을 이용할 수 없습니다.',
+            '이용 통계 수집만 거부하려면 브라우저에서 _ga 쿠키를 차단하거나 Google이 제공하는 애널리틱스 차단 부가기능(tools.google.com/dlpage/gaoptout)을 설치할 수 있습니다. 이 경우에도 서비스 이용에는 제한이 없습니다.',
           ],
         },
       ],
@@ -377,5 +409,11 @@ export const privacyPolicy: LegalDocument = {
   ],
   history: [
     { version: '1.0', effectiveDate: '2026-10-02', summary: '최초 제정' },
+    {
+      version: '1.1',
+      effectiveDate: '2026-10-09',
+      summary:
+        '이용 통계 분석 도구(Google 애널리틱스) 도입 — 처리 목적·보유 기간·수집 항목·국외 이전·쿠키 항목 추가',
+    },
   ],
 }
