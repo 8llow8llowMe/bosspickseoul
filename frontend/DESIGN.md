@@ -340,6 +340,10 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
   기본값(약 11px)을 그린다. 표준 속성은 `@supports not selector(::-webkit-scrollbar)`
   안에서 Firefox 에만 건다. 스크롤바를 아예 숨기는 가로 스크롤 영역은 예외로
   `scrollbar-width: none` + `::-webkit-scrollbar { display: none }` 을 함께 쓴다.
+- **스크롤바를 숨긴 가로 스크롤 탭은 가려진 쪽 끝을 흐린다**(`mask-image`). 스크롤바가 없으면
+  잘린 탭이 끝처럼 보인다 — 상권분석 결과 375px 에서 「지역 평균 대비」가 그랬다. 흐림은 실제로
+  가려진 쪽에만 둔다(끝까지 밀었는데 흐리면 마지막 탭이 잘려 보인다). 활성 탭이 바뀌면 탭 바를
+  가로로만 스크롤해 그 탭을 가운데로 맞춘다.
 - Segmented control for section switching
 
 ### Overlays

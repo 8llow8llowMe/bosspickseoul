@@ -34,17 +34,26 @@ export type SummaryCard = {
   context?: SummaryCardContext | null
 }
 
+/**
+ * 열 수는 **카드 묶음이 놓인 폭**으로 정한다(`summary-cards` 컨테이너) — 4열 ≥640 · 2열.
+ *
+ * 1열로는 내리지 않는다. 뷰포트 460px 이하에서 1열이던 때는 카드 4개가 375px 화면 한 장을
+ * 다 썼다(#482). 768px 태블릿은 4개가 한 줄이다 — 2×2 이던 때는 타일 안이 비어 보였다.
+ *
+ * 칸이 좁은 두 구간(4열 640~799 · 2열 <400)에서만 값 글자를 줄인다. 「1,591,137명」은
+ * 띄어쓰기가 없어 꺾이지 않으므로, 21px 그대로면 160px 칸에서 넘친다.
+ */
+const Frame = styled.div`
+  container: summary-cards / inline-size;
+`
+
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 900px) {
+  @container summary-cards (max-width: 639px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 460px) {
-    grid-template-columns: 1fr;
   }
 `
 
@@ -56,6 +65,14 @@ const Card = styled.div`
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
   padding: 16px;
+
+  @container summary-cards (min-width: 640px) and (max-width: 799px) {
+    padding: 14px;
+  }
+
+  @container summary-cards (max-width: 399px) {
+    padding: 12px;
+  }
 `
 
 const Head = styled.div`
@@ -79,6 +96,18 @@ const Value = styled.strong`
   font-weight: 700;
   line-height: 30px;
   word-break: keep-all;
+  /* 안전망: 「12,345,678명」처럼 띄어쓰기 없는 긴 수가 칸보다 넓을 때만 꺾는다. 평소에는 위 규칙대로 띄어쓰기에서만 꺾인다. */
+  overflow-wrap: anywhere;
+
+  @container summary-cards (min-width: 640px) and (max-width: 799px) {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  @container summary-cards (max-width: 399px) {
+    font-size: 20px;
+    line-height: 28px;
+  }
 `
 
 /*
@@ -127,31 +156,33 @@ export default function AnalysisSummaryCards({
   cards: readonly SummaryCard[]
 }) {
   return (
-    <Grid>
-      {cards.map(card => {
-        const Icon = card.icon
-        const width = toBarWidth(card.context?.ratio)
+    <Frame>
+      <Grid>
+        {cards.map(card => {
+          const Icon = card.icon
+          const width = toBarWidth(card.context?.ratio)
 
-        return (
-          <Card key={card.label}>
-            <Head>
-              {Icon ? <Icon aria-hidden="true" /> : null}
-              <span>{card.label}</span>
-            </Head>
-            <Value>{formatAnalysisValue(card.value, card.unit)}</Value>
-            <Context>
-              {width === null ? null : (
-                <Track aria-hidden="true">
-                  <Fill $width={width} />
-                </Track>
-              )}
-              {card.context ? (
-                <ContextText>{card.context.text}</ContextText>
-              ) : null}
-            </Context>
-          </Card>
-        )
-      })}
-    </Grid>
+          return (
+            <Card key={card.label}>
+              <Head>
+                {Icon ? <Icon aria-hidden="true" /> : null}
+                <span>{card.label}</span>
+              </Head>
+              <Value>{formatAnalysisValue(card.value, card.unit)}</Value>
+              <Context>
+                {width === null ? null : (
+                  <Track aria-hidden="true">
+                    <Fill $width={width} />
+                  </Track>
+                )}
+                {card.context ? (
+                  <ContextText>{card.context.text}</ContextText>
+                ) : null}
+              </Context>
+            </Card>
+          )
+        })}
+      </Grid>
+    </Frame>
   )
 }
