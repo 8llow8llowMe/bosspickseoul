@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityAnalysisType;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPopularPeriod;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityTargetMeta;
@@ -57,8 +58,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Transactional(readOnly = true)
     public CommunityPostListResponse getPosts(
         Long viewerMemberId,
-        CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, long lastLikeCount,
-        int size
+        CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
+        String targetType, String targetCode, long lastPostId, long lastLikeCount, int size
     ) {
         CommunityTargetMeta targetMeta = null;
         if (targetType != null && !targetType.isBlank() && targetCode != null && !targetCode.isBlank()) {
@@ -66,7 +67,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         }
 
         SliceQueryResult<CommunityPost> feed = communityQueryProcessor.getFeed(
-            sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size);
+            sortType, orderType, period, targetType, targetCode, lastPostId, lastLikeCount, size);
         return communityPostPresenter.toPostListResponse(
             targetMeta, feed, toImagesByPostId(feed), toWriterSummaries(feed), toViewerLikes(viewerMemberId, feed));
     }
@@ -174,10 +175,11 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommunityLikedPostsResponse getLikedPosts(
-        long memberId, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
+        long memberId, CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
+        long lastPostId, long lastLikeCount, int size
     ) {
         SliceQueryResult<LikedCommunityPost> likedPosts =
-            communityQueryProcessor.getLikedPosts(memberId, sortType, orderType, lastPostId, lastLikeCount, size);
+            communityQueryProcessor.getLikedPosts(memberId, sortType, orderType, period, lastPostId, lastLikeCount, size);
         Map<Long, MemberSummaryQueryResult> writerSummaries = communityWriterSummaryProcessor.getWriterSummaries(
             likedPosts.content().stream().map(likedPost -> likedPost.post().memberId()).distinct().toList());
         return communityPostPresenter.toLikedPostsResponse(likedPosts, writerSummaries);
@@ -186,10 +188,11 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommunityPostListResponse searchPosts(
-        Long viewerMemberId, String keyword, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
+        Long viewerMemberId, String keyword, CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
+        long lastPostId, long lastLikeCount, int size
     ) {
         SliceQueryResult<CommunityPost> searched = communityQueryProcessor.searchPosts(
-            keyword, sortType, orderType, lastPostId, lastLikeCount, size);
+            keyword, sortType, orderType, period, lastPostId, lastLikeCount, size);
         return communityPostPresenter.toPostListResponse(
             null, searched, toImagesByPostId(searched), toWriterSummaries(searched), toViewerLikes(viewerMemberId, searched));
     }

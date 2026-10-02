@@ -423,6 +423,7 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 | `keyword` | 제목 또는 본문 포함 검색 (OR 조건) |
 | `sortType` | LATEST / POPULAR |
 | `orderType` | ASC / DESC |
+| `period` | POPULAR 기간 — WEEK(기본) / MONTH / ALL (#472) |
 | `lastPostId` | 커서 |
 | `lastLikeCount` | POPULAR 정렬 커서 |
 | `size` | 기본 10 |
@@ -448,6 +449,23 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 - `CommunityPostLikeRepository.findLikedPostIds` — `memberId = ? and postId in (...)` postId 프로젝션 정적 JPQL
 
 **주의사항**: 공개 경로라도 만료·위조 토큰을 보내면 게이트웨이·resource server 가 401 을 낸다. FE 는 비로그인 상태에서 토큰을 보내지 않는다.
+
+---
+
+### `community-service` — 인기 글 기간 필터 (이슈 #472)
+
+**상태**: ✅ 완료
+
+- 목록·검색·좋아요 목록에 `period` 파라미터(`WEEK` 기본 · `MONTH` · `ALL`) 추가. `sortType=POPULAR` 에서만 적용, LATEST 는 무시
+- 작성 시각 기준 롤링 기간. 기본 `WEEK` 는 기존 하드코딩(`POPULAR_LOOKBACK_DAYS = 7`) 동작과 같다
+- 잘못된 값은 `400 COMMUNITY_117` (sortType 과 같은 enum 바인딩 실패 경로)
+
+**핵심 파일**:
+- `domain/enums/CommunityPopularPeriod` — 기간 길이(`Duration`)와 `since(now)` 하한 계산, `ALL` 은 null
+- `CommunityQueryProcessor` — `period.since(now)` 로 Criteria `popularSince` 생성(Feed·Search·Liked), 하드코딩 상수 제거
+- `CommunityPostCustomRepositoryImpl.applyCursorCondition` — `popularSince == null` 이면 작성 시각 조건 생략
+
+**주의사항**: 새 인덱스 없음. `ALL` 은 `(status, likeCount, id)` 인덱스만으로 끝나고, `WEEK`/`MONTH` 는 createdAt 잔여 조건이라 데이터가 커지면 스캔이 길어질 수 있다(`services/community-service.md` 「인기 글 기간 필터」).
 
 ---
 

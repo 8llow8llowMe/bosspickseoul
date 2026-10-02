@@ -99,12 +99,15 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         return executeSliceQuery(where, buildOrderSpecifiers(sortType, orderType), size);
     }
 
+    /** 인기순이면 작성 시각 하한(popularSince, null 이면 전체 기간이라 조건 없음)과 (likeCount, id) 커서, 최신순이면 id 커서를 붙인다. */
     private void applyCursorCondition(
         BooleanBuilder where, CommunitySortType sortType, OrderType orderType,
         long lastPostId, long lastLikeCount, LocalDateTime popularSince
     ) {
         if (sortType == CommunitySortType.POPULAR) {
-            where.and(communityPostEntity.createdAt.goe(popularSince));
+            if (popularSince != null) {
+                where.and(communityPostEntity.createdAt.goe(popularSince));
+            }
             applyPopularCursor(where, lastPostId, lastLikeCount);
         } else {
             applyLatestCursor(where, lastPostId, orderType);

@@ -25,6 +25,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.servic
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityViewerLikeProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityWriterSummaryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPopularPeriod;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
@@ -110,12 +111,12 @@ class CommunityPostWebFacadeViewerLikeTest {
     @Test
     @DisplayName("로그인 검색도 쪽의 postId 를 한 번에 넘겨 1회 조회한다")
     void searchPosts_authenticated_queriesPageOnce() {
-        when(communityQueryProcessor.searchPosts(any(), any(), any(), anyLong(), anyLong(), anyInt()))
+        when(communityQueryProcessor.searchPosts(any(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
             .thenReturn(SliceQueryResult.of(List.of(post(5L, 3L), post(6L, 4L)), false));
         when(communityPostLikeRepositoryPort.findLikedPostIds(VIEWER_ID, List.of(5L, 6L))).thenReturn(Set.of(5L, 6L));
 
         CommunityPostListResponse response = facade.searchPosts(
-            VIEWER_ID, "카페", CommunitySortType.LATEST, OrderType.DESC, 0L, 0L, 10);
+            VIEWER_ID, "카페", CommunitySortType.LATEST, OrderType.DESC, CommunityPopularPeriod.WEEK, 0L, 0L, 10);
 
         assertThat(response.posts().contents())
             .extracting(CommunityPostSummaryItem::viewCount, CommunityPostSummaryItem::liked)
@@ -126,11 +127,11 @@ class CommunityPostWebFacadeViewerLikeTest {
     @Test
     @DisplayName("좋아요한 글 목록은 추가 조회 없이 liked 가 항상 true 이고 viewCount 를 내린다")
     void getLikedPosts_alwaysLikedWithoutExtraQuery() {
-        when(communityQueryProcessor.getLikedPosts(anyLong(), any(), any(), anyLong(), anyLong(), anyInt()))
+        when(communityQueryProcessor.getLikedPosts(anyLong(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
             .thenReturn(SliceQueryResult.of(List.of(new LikedCommunityPost(post(7L, 9L), NOW)), false));
 
         CommunityLikedPostsResponse response = facade.getLikedPosts(
-            VIEWER_ID, CommunitySortType.LATEST, OrderType.DESC, 0L, 0L, 20);
+            VIEWER_ID, CommunitySortType.LATEST, OrderType.DESC, CommunityPopularPeriod.WEEK, 0L, 0L, 20);
 
         assertThat(response.posts().contents())
             .extracting(CommunityLikedPostItem::viewCount, CommunityLikedPostItem::liked)
@@ -160,11 +161,11 @@ class CommunityPostWebFacadeViewerLikeTest {
     }
 
     private CommunityPostListResponse getPosts(Long viewerMemberId) {
-        return facade.getPosts(viewerMemberId, CommunitySortType.LATEST, OrderType.DESC, null, null, 0L, 0L, 20);
+        return facade.getPosts(viewerMemberId, CommunitySortType.LATEST, OrderType.DESC, CommunityPopularPeriod.WEEK, null, null, 0L, 0L, 20);
     }
 
     private void stubFeed(CommunityPost... posts) {
-        when(communityQueryProcessor.getFeed(any(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
+        when(communityQueryProcessor.getFeed(any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
             .thenReturn(SliceQueryResult.of(List.of(posts), false));
     }
 

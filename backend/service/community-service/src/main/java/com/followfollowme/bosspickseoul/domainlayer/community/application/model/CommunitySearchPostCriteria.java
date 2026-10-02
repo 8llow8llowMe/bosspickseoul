@@ -11,6 +11,7 @@ public record CommunitySearchPostCriteria(
     long lastPostId,
     long lastLikeCount,
     int size,
+    // 인기순(POPULAR) 작성 시각 하한. null 이면 하한 없음(CommunityPopularPeriod.ALL). 최신순에서는 쓰지 않는다.
     LocalDateTime popularSince
 ) {
 

@@ -8,6 +8,9 @@ import com.followfollowme.bosspickseoul.common.enums.OrderType;
 import java.time.LocalDateTime;
 import org.springframework.data.domain.Slice;
 
+/**
+ * 게시글 커서 목록 조회. {@code popularSince} 는 인기순(POPULAR)에서만 쓰는 작성 시각 하한이며 null 이면 하한을 두지 않는다(전체 기간).
+ */
 public interface CommunityPostCustomRepository {
 
     Slice<CommunityPostEntity> findBoardPostsNoOffset(
