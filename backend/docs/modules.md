@@ -40,6 +40,7 @@ backend/
 - `properties.*` — 공통 properties 바인딩
 
 **포함 기준**: 도메인에 비의존적인 **범용 인프라**. 특정 서비스만 쓰는 도메인 개념은 금지.
+- 예외: `constants.AnalysisPeriodDefaults` — 여러 서비스의 분석 API 가 같은 Swagger 예시·설명을 쓰게 하는 **문서 전용 상수**다. 기본값이 아니다(기본 분기는 commercial-service 가 적재 데이터로 정한다, 이슈 #464). 런타임 값으로 쓰지 않는다.
 
 ---
 

@@ -505,6 +505,7 @@ application/port/out/query/CommercialHeatmapScoresQueryResult
 - Adapter: `*RepositoryAdapter` 또는 `*PersistenceAdapter`
   - 위치: `adapter/out/persistence/`
 - 어댑터에서 넘기는 타입: domain/model (MapStruct 매퍼 거침)
+- 예외: 다른 컨텍스트의 팩트 테이블을 **읽기만** 하는 포트는 `*QueryPort` / `*QueryAdapter` 로 짓는다(저장소 소유가 아니라 조회 책임이라서). 선례: `AdministrationStoreQueryPort`, `DistrictSalesQueryAdapter`, `AnalysisDatasetPeriodQueryPort`(이슈 #464).
 
 ### 12-3. 인프라 특화 포트 (Redis / LLM / Geo / JDBC 배치 등)
 

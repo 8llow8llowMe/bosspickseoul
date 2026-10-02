@@ -12,6 +12,9 @@
 ```text
 domainlayer/<context>
   |- adapter
+  |  |- in/scheduler            (@Scheduled 트리거. 예: sharelink 정리, analysisperiod 카탈로그 갱신)
+  |  |- in/messaging            (메시지 소비자. 예: ranking Kafka)
+  |  |- in/batch                (batch-service Job·Tasklet)
   |  |- in/web
   |  |  |- controller
   |  |  |- dto/request
@@ -61,6 +64,7 @@ domainlayer/<context>
 - 여러 Processor와 Presenter를 조합한다.
 - 읽기는 `@Transactional(readOnly = true)`, 쓰기는 `@Transactional`을 기본으로 검토한다.
 - 외부 I/O(Feign 등)를 포함하는 유스케이스는 트랜잭션을 Facade가 아니라 DB 조회 구간 Processor로 내린다. 상대 서비스 응답을 기다리는 동안 DB 커넥션을 점유하지 않기 위해서다.
+- 같은 서비스 안 다른 컨텍스트의 **읽기 전용 해석·발행 Processor** 는 Facade 가 직접 주입해 쓸 수 있다. 예: `AnalysisViewPublishProcessor`(인기 순위 이벤트), `AnalysisPeriodCatalogProcessor`(분석 기준 분기 해석, 캐시만 읽음). 쓰기·트랜잭션을 가진 Processor 는 해당 컨텍스트 Facade 를 거친다.
 
 ### Processor
 

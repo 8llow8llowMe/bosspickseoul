@@ -4,17 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.entity.ChangeDistrictEntity;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.ChangeDistrictRepository;
-import com.followfollowme.bosspickseoul.global.config.DataJpaSliceTestConfig;
+import com.followfollowme.bosspickseoul.global.config.CommercialDataJpaTest;
 import com.followfollowme.bosspickseoul.shared.enums.DatasetKey;
 import java.util.Map;
 import java.util.SortedSet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
  * 적재 분기 질의 15종이 실제 스키마에 대해 성립하고, 공간 스냅샷으로 걸러 중복 없이 분기를 돌려주는지 확인한다.
@@ -25,8 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
  *
  * <p>공간 스냅샷은 env({@code DATASET_SPATIAL_VERSION})와 무관한 명시 값을 쓴다.
  */
-@DataJpaTest
-@ActiveProfiles(DataJpaSliceTestConfig.PROFILE)
+@CommercialDataJpaTest
 @Import(AnalysisDatasetPeriodQueryAdapter.class)
 class AnalysisDatasetPeriodRepositoryQueryTest {
 
