@@ -31,4 +31,8 @@ dependencies {
 
     // MySQL JDBC
     runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // QueryDSL 커스텀 구현과 JPQL 은 컴파일로 검증되지 않는다. 동적 조건 조립·커서·정렬은
+    // 실제 스키마에 질의해야 확인되므로 @DataJpaTest 슬라이스용 임베디드 DB 를 둔다.
+    testRuntimeOnly 'com.h2database:h2'
 }

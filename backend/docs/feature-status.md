@@ -446,7 +446,7 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 **핵심 파일**:
 - `application/service/processor/CommunityViewerLikeProcessor` — 쪽의 postId 를 모아 좋아요 포트 1회 조회(비로그인·빈 쪽은 조회 없음), 상세는 `exists` 재사용
 - `application/model/CommunityViewerLikes` — 비로그인(null)과 안 누름(false)을 구분하는 값 객체
-- `CommunityPostLikeRepository.findLikedPostIds` — `memberId = ? and postId in (...)` postId 프로젝션 정적 JPQL
+- `CommunityPostLikeRepository.findLikedPostIds` — `memberId = ? and postId in (...)` postId 프로젝션 정적 JPQL. H2 슬라이스 `CommunityPostLikeRepositoryTest` 가 검증
 
 **주의사항**: 공개 경로라도 만료·위조 토큰을 보내면 게이트웨이·resource server 가 401 을 낸다. FE 는 비로그인 상태에서 토큰을 보내지 않는다.
 
@@ -463,7 +463,7 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 **핵심 파일**:
 - `domain/enums/CommunityPopularPeriod` — 기간 길이(`Duration`)와 `since(now)` 하한 계산, `ALL` 은 null
 - `CommunityQueryProcessor` — `period.since(now)` 로 Criteria `popularSince` 생성(Feed·Search·Liked), 하드코딩 상수 제거
-- `CommunityPostCustomRepositoryImpl.applyCursorCondition` — `popularSince == null` 이면 작성 시각 조건 생략
+- `CommunityPostCustomRepositoryImpl.applyCursorCondition` — `popularSince == null` 이면 작성 시각 조건 생략. 하한 경계·하한 + 커서 연속성은 H2 슬라이스 `CommunityPostCustomRepositoryImplTest` 가 검증
 
 **주의사항**: 새 인덱스 없음. `ALL` 은 `(status, likeCount, id)` 인덱스만으로 끝나고, `WEEK`/`MONTH` 는 createdAt 잔여 조건이라 데이터가 커지면 스캔이 길어질 수 있다(`services/community-service.md` 「인기 글 기간 필터」).
 
@@ -488,7 +488,8 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 **DB 변경**: prod 는 `scripts/migration/community-post-category-runbook.sql` 을 **애플리케이션 배포 전에** 적용한다(컬럼 추가 + 인덱스, 기존 행 갱신 없음).
 
 **주의사항**: 대상 필터 + 말머리, 인기순 + 말머리는 기존 인덱스로 거른 뒤 category 를 잔여 조건으로 본다(`services/community-service.md` 「게시글 말머리」).
-QueryDSL 필터·JPQL 수정의 실제 스키마 검증은 `CommunityRepositoryMySqlConcurrencyTest`(MySQL 환경 변수가 있을 때만 실행)에 있다.
+QueryDSL 필터·JPQL 수정의 실제 스키마 검증은 H2 슬라이스 `CommunityPostCustomRepositoryImplTest`·`CommunityPostRepositoryTest` 가 매 빌드 하고,
+MySQL 판 `CommunityRepositoryMySqlConcurrencyTest` 는 환경 변수가 있을 때만 돈다(`services/community-service.md` 「JPA 슬라이스 테스트」).
 
 ---
 
