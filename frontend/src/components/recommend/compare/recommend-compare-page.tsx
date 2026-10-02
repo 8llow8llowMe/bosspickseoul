@@ -12,7 +12,6 @@ import EmptyState from '@/components/ui/empty-state'
 import { findSimulationCategoryByCode } from '@/data/simulation-catalog'
 import { isRetryable, resolveApiError } from '@/lib/api/api-error'
 import { fetchCommercialComparison } from '@/lib/api/commercial-comparison'
-import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import { isApiSuccess } from '@/lib/api/response'
 import {
   COMPARE_MIN_COMMERCIALS,
@@ -136,7 +135,8 @@ export default function RecommendComparePage() {
       leftCommercialCode,
       rightCommercialCode,
       serviceCode: state.serviceCode,
-      periodCode: RECOMMENDATION_PERIOD_CODE,
+      // 분기를 생략해 서버가 최신 분기로 해석한다 — 실제 분기는 응답 `periodCode`(period-catalog.md D4-5).
+      periodCode: 'latest',
     }),
     queryFn: ({ signal }) =>
       fetchCommercialComparison(
@@ -144,7 +144,6 @@ export default function RecommendComparePage() {
           leftCommercialCode: leftCommercialCode!,
           rightCommercialCode: rightCommercialCode!,
           serviceCode: state.serviceCode!,
-          periodCode: RECOMMENDATION_PERIOD_CODE,
         },
         signal,
       ),
@@ -164,7 +163,7 @@ export default function RecommendComparePage() {
 
   /*
    * 화면에 적는 업종·분기는 응답의 **실제 조회값**(`serviceCode`·`periodCode`)을
-   * 먼저 쓴다. 구버전 응답에는 없어 URL·고정값으로 물러난다. 요청 키와 초안 링크는
+   * 먼저 쓴다. 분기는 요청에서 생략하므로 응답이 유일한 출처다(없으면 「최신 분기」). 요청 키와 초안 링크는
    * 계속 URL 값을 쓴다 — 요청을 바꾸지 않는다(명세 compare D4-8).
    */
   const displayServiceCode = body?.serviceCode || state.serviceCode
@@ -176,9 +175,9 @@ export default function RecommendComparePage() {
    * 코드를 날것으로 보여 주는 대신 기간만 적는다.
    */
   // `formatRecommendationPeriod` 가 「… 기준」까지 만든다. 여기서 또 붙이지 않는다.
-  const periodLabel = formatRecommendationPeriod(
-    body?.periodCode || RECOMMENDATION_PERIOD_CODE,
-  )
+  const periodLabel = body?.periodCode
+    ? formatRecommendationPeriod(body.periodCode)
+    : '최신 분기 기준'
   const subtitle = body?.left
     ? `${body.left.districtName} ${body.left.administrationName} · ${periodLabel}`
     : periodLabel
@@ -287,12 +286,16 @@ export default function RecommendComparePage() {
         AI 리포트는 표 **위**가 아니라 리포트 바로 다음에 둔다 — 판단끼리 모아 두고
         값(표)은 그 아래에 그대로 남긴다. 비로그인에게도 자리는 보인다(제출만 잠긴다).
       */}
-      {!error && isComplete ? (
+      {/*
+        리포트는 비교 표가 실제로 쓴 분기(응답 `periodCode`)로 만든다 — 분기를 모르면 제출할 수 없으므로
+        자리를 열지 않는다. 열어 두면 시작 버튼을 눌러도 아무 일도 일어나지 않는다.
+      */}
+      {!error && isComplete && body?.periodCode ? (
         <RecommendComparisonAiPanel
           leftCommercialCode={leftCommercialCode!}
           rightCommercialCode={rightCommercialCode!}
           serviceCode={state.serviceCode!}
-          periodCode={RECOMMENDATION_PERIOD_CODE}
+          periodCode={body.periodCode}
           returnTo={returnTo}
         />
       ) : null}

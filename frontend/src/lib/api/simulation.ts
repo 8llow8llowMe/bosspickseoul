@@ -72,7 +72,8 @@ export const buildFranchiseeSearchParams = (params: {
  *
  * - 비프랜차이즈면 `franchiseeId`를 **키째로 제거**한다. `null`을 보내도 서버는 통과시키지만,
  *   요청 본문이 화면 상태를 그대로 반영하는 편이 디버깅에 낫다.
- * - 빈 `periodCode`는 제거해 서버 기본값(20233)을 쓰게 한다. `''`를 보내면 400 `SIMULATION_106`이다.
+ * - 빈 `periodCode`는 제거한다 — `''`를 보내면 400 `SIMULATION_106`이다. 생략하면 서버가 적재 기준 최신
+ *   분기로 해석한다(BE #464).
  */
 export const buildSimulationReportRequest = (input: {
   franchisee: boolean

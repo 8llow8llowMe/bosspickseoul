@@ -174,7 +174,11 @@ export type CommercialRegionResponse = ApiResponse<CommercialRegion>
 export type RecommendationRequest = {
   serviceCode: string
   commercialCodes: string[]
-  periodCode: string
+  /**
+   * 생략하면 서버가 적재 기준 최신 분기로 해석하고 응답 `periodCode` 로 알려 준다(BE #464). 추천은 기간을
+   * 조건으로 받지 않으므로 늘 생략한다(period-catalog.md D4-5).
+   */
+  periodCode?: string
   /** 백엔드 허용 범위는 5~30. 벗어나면 400(COMMERCIAL_101)이라 요청 직전에 clamp 한다. */
   topN: number
 }

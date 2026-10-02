@@ -12,12 +12,6 @@ import {
   readAnalysisPeriod,
 } from '@/lib/analysis/period-catalog'
 
-/**
- * @deprecated 「최신 분기」는 서버 카탈로그(`useAnalysisPeriodCatalog`)가 정한다(period-catalog.md).
- * 홈·추천·비교·커뮤니티가 3단계에서 옮겨 가면 지운다. 분석·현황 화면은 더 이상 쓰지 않는다.
- */
-export const ANALYSIS_PERIOD_CODE = '20261' as const
-
 /*
   분기 기본 단위(하한·형식·분해·합성)는 `period-catalog.ts` 가 정본이다. 옛 import 경로를 깨지 않게
   여기서 다시 내보낸다(period-catalog.md D8 단계 1).

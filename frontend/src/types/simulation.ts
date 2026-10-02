@@ -87,7 +87,10 @@ export type SimulationReportRequest = {
   /** 매장 면적 (㎡). 1 이상. 소/중/대는 프리셋일 뿐 임의 양수를 허용한다. */
   storeSize: number
   floorType: SimulationFloorType
-  /** `yyyyQ` (예: `'20233'`). 생략 시 서버 기본값 20233. 성별·연령/성수기 분석의 기준 분기다. */
+  /**
+   * `yyyyQ` (예: `'20261'`). 성별·연령/성수기 분석의 기준 분기다. 화면은 서버 카탈로그의 기본 분기를
+   * 명시해 보낸다(period-catalog.md D4-4). 생략하면 서버가 적재 기준 최신 분기로 해석한다(BE #464).
+   */
   periodCode?: string
 }
 

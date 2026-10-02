@@ -9,7 +9,6 @@
  */
 
 import { apiClient } from '@/lib/api/client'
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import type {
   CommercialComparisonAiQuery,
   CommercialComparisonResponse,
@@ -37,13 +36,14 @@ export const buildCommercialComparisonParams = ({
   leftCommercialCode,
   rightCommercialCode,
   serviceCode,
-  periodCode = ANALYSIS_PERIOD_CODE,
+  periodCode,
 }: CommercialComparisonQuery): URLSearchParams =>
   new URLSearchParams({
     leftCommercialCode,
     rightCommercialCode,
     serviceCode,
-    periodCode,
+    // 생략하면 서버가 최신 분기로 해석하고 응답 `periodCode` 로 알려 준다(BE #464).
+    ...(periodCode ? { periodCode } : {}),
   })
 
 export const fetchCommercialComparison = async (
@@ -68,13 +68,13 @@ export const submitCommercialComparisonAiReport = async ({
   leftCommercialCode,
   rightCommercialCode,
   serviceCode,
-  periodCode = ANALYSIS_PERIOD_CODE,
+  periodCode,
 }: CommercialComparisonAiQuery): Promise<AiReportSubmission> => {
   const params = new URLSearchParams({
     leftCommercialCode,
     rightCommercialCode,
     serviceCode,
-    periodCode,
+    ...(periodCode ? { periodCode } : {}),
   })
   const response = await apiClient.post<CommercialAiReportSubmissionResponse>(
     `/ai-reports/commercials/comparisons?${params}`,

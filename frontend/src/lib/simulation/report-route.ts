@@ -26,6 +26,7 @@ import {
   toSimulationReportRequest,
   type SimulationConditionState,
 } from '@/lib/simulation/conditions'
+import { readAnalysisPeriod } from '@/lib/analysis/period-catalog'
 import type {
   SimulationFloorType,
   SimulationReportRequest,
@@ -60,9 +61,17 @@ export const toSimulationReportSearchParams = (
   params.set(key('serviceCode'), request.serviceCode)
   params.set(key('storeSize'), String(request.storeSize))
   params.set(key('floorType'), request.floorType)
+  // 분기는 계산 조건이라 캐시 키(`simulationReportQueryKey`)에도 함께 들어간다 — 다른 분기의 결과를 재사용하지 않는다.
+  if (request.periodCode) params.set(key('periodCode'), request.periodCode)
 
   return params
 }
+
+/** 리포트 URL 의 분기(`periodCode`). 형식이 틀리면 null 이고 요청에서 생략한다. */
+export const readSimulationReportPeriod = (
+  params: SearchParamsReader,
+  prefix = '',
+): string | null => readAnalysisPeriod(params.get(`${prefix}periodCode`))
 
 /**
  * 조건 상태 → 쿼리스트링. **미완성 조건도 싣고**, 비어 있는 칸은 키째 뺀다.
@@ -144,7 +153,10 @@ export const parseSimulationReportRequest = (
   params: SearchParamsReader,
   prefix = '',
 ): SimulationReportRequest | null =>
-  toSimulationReportRequest(parseSimulationConditionState(params, prefix))
+  toSimulationReportRequest(
+    parseSimulationConditionState(params, prefix),
+    readSimulationReportPeriod(params, prefix),
+  )
 
 /**
  * 입력 화면 경로. 리포트에서 "조건 다시 고르기"로 돌아갈 때 쓴다.

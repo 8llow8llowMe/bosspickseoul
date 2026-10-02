@@ -473,12 +473,14 @@ export const describeSimulationConditionGap = (
 /**
  * 조건 상태 → `POST /simulations/reports` 본문. 미완성이면 null.
  *
- * `periodCode`는 **넘기지 않는다.** 입력 화면에 노출하지 않기로 확정했고(D8-1 #2),
- * 빈 문자열을 실어 보내면 400 `SIMULATION_106`이라 키째 빼서 서버 기본값(20233)을 쓴다.
- * 비프랜차이즈일 때 `franchiseeId` 키가 빠지는 것은 `buildSimulationReportRequest`가 처리한다.
+ * `periodCode`는 조건이 아니다 — 입력 화면에 노출하지 않는다(D8-1 #2). 대신 **해석된 분기**를 받아
+ * 명시해 보낸다(서버 카탈로그의 기본 분기, 또는 리포트 URL 에 실린 분기, period-catalog.md D4-4). 그래야
+ * 공유한 리포트 링크가 데이터가 적재될 때마다 다른 분기로 바뀌지 않는다. 아직 모르면 생략해 서버가
+ * 해석한다. 비프랜차이즈일 때 `franchiseeId` 키가 빠지는 것은 `buildSimulationReportRequest`가 처리한다.
  */
 export const toSimulationReportRequest = (
   state: SimulationConditionState,
+  periodCode?: string | null,
 ): SimulationReportRequest | null => {
   if (!isSimulationConditionsComplete(state)) return null
 
@@ -489,6 +491,7 @@ export const toSimulationReportRequest = (
     serviceCode: state.serviceCode as string,
     storeSize: state.storeSize as number,
     floorType: state.floorType as SimulationFloorType,
+    periodCode,
   })
 }
 
@@ -499,6 +502,13 @@ export const toSimulationReportRequest = (
  * 그대로 남아 있으면 바뀐 조건의 결과로 오독된다 — 창업 비용 화면에서는 치명적이다.
  * `franchisee === false`면 `franchiseeId` 키가 아예 없으므로 `undefined`끼리 비교된다.
  */
+/*
+  분기는 한쪽이 생략(= 서버가 해석할 최신)이면 같은 것으로 본다. 카탈로그가 오기 전에 만든 요청과 온 뒤의
+  요청이 같은 조건인데 다른 계산으로 읽히면, 결과가 「조건이 바뀌었어요」로 한 번 깜빡인다.
+*/
+const samePeriod = (left?: string, right?: string): boolean =>
+  left === undefined || right === undefined || left === right
+
 export const isSameSimulationReportRequest = (
   left: SimulationReportRequest | null,
   right: SimulationReportRequest | null,
@@ -511,7 +521,7 @@ export const isSameSimulationReportRequest = (
     left.serviceCode === right.serviceCode &&
     left.storeSize === right.storeSize &&
     left.floorType === right.floorType &&
-    left.periodCode === right.periodCode
+    samePeriod(left.periodCode, right.periodCode)
   )
 }
 

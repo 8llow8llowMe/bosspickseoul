@@ -321,11 +321,11 @@ Top10·상세·분기별 추이를 그렸다(#409). 이제 **최신 분기를 �
 
 #### 쿼리 키
 
-| 쿼리       | 키                                                 | 비고                                                                                         |
-| ---------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| 구별 Top10 | `['status', 'topTen', periodCode \| 'latest']`     | `statusQueryKeys.topTen`. 최신은 `'latest'`(분기 생략 요청)                                  |
-| 구 상세    | `['status', 'detail', periodCode, districtCode]`   | `statusQueryKeys.detail`. 분기는 URL 분기 또는 Top10 응답의 `currentPeriodCode`              |
-| 홈 Top10   | `['home', 'districtTopTen', ANALYSIS_PERIOD_CODE]` | `HOME_TOP_TEN_QUERY_KEY`. 홈은 늘 최신 분기(#493 3단계에서 분기 생략 `'latest'` 키로 바뀐다) |
+| 쿼리       | 키                                               | 비고                                                                                           |
+| ---------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| 구별 Top10 | `['status', 'topTen', periodCode \| 'latest']`   | `statusQueryKeys.topTen`. 최신은 `'latest'`(분기 생략 요청)                                    |
+| 구 상세    | `['status', 'detail', periodCode, districtCode]` | `statusQueryKeys.detail`. 분기는 URL 분기 또는 Top10 응답의 `currentPeriodCode`                |
+| 홈 Top10   | `['home', 'districtTopTen', 'latest']`           | `HOME_TOP_TEN_QUERY_KEY`. 홈은 늘 최신 — 분기를 생략해 서버가 해석한다(period-catalog.md D3-3) |
 
 - 분기를 키에 넣어 분기별 캐시가 섞이지 않게 한다. 분기를 앞에 두어 「그 분기의 status 캐시」를 접두사로 묶는다.
 - **홈과 status 는 같은 분기여도 키를 나누고 dedupe 하지 않는다.** 두 화면의 쿼리 옵션이 다르다 — 홈은

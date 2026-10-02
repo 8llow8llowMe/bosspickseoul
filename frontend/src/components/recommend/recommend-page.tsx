@@ -33,7 +33,6 @@ import {
   fetchCommercialRecommendations,
   fetchCommercials,
   fetchDistrictMapAreas,
-  RECOMMENDATION_PERIOD_CODE,
   RECOMMENDATION_TOP_N,
   SEOUL_MAP_BOUNDS,
 } from '@/lib/api/recommend'
@@ -334,10 +333,14 @@ export const isRecommendationQueryBusy = ({
   isFetching,
 }: QueryPendingState): boolean => isPending || isFetching
 
+/**
+ * 추천 응답이 실제로 쓴 분기. 추천은 분기를 생략해 보내므로(period-catalog.md D4-5) 이 값이 화면 표시와
+ * 뒤따르는 프로필 요청의 분기다. 응답 전·구버전 응답이면 `fallback`.
+ */
 export const readRecommendationPeriodCode = (
   response: CandidateCommercialsResponse | null | undefined,
-  fallback: string,
-): string => {
+  fallback: string | null = null,
+): string | null => {
   if (!isSuccessfulApiResponse(response)) return fallback
 
   const body: unknown = response.dataBody
@@ -882,18 +885,22 @@ function RecommendPageBody() {
       districtCode: state.submitted?.district.code,
       administrationCode: state.submitted?.administration.code,
       serviceCode: state.submitted?.service.code,
-      periodCode: RECOMMENDATION_PERIOD_CODE,
+      // 분기를 생략해 서버가 최신 분기로 해석한다 — 실제 분기는 응답 `periodCode`.
+      periodCode: 'latest',
       commercialCodesKey: state.submitted?.commercialCodesKey,
     }),
     queryFn: () =>
       fetchCommercialRecommendations({
         serviceCode: state.submitted!.service.code,
         commercialCodes: [...state.submitted!.commercialCodes],
-        periodCode: RECOMMENDATION_PERIOD_CODE,
         topN: RECOMMENDATION_TOP_N,
       }),
     enabled: state.submitted !== null,
   })
+  /* 추천이 실제로 쓴 분기. 프로필도 같은 분기로 불러야 카드 숫자와 추천 근거가 어긋나지 않는다. */
+  const recommendationPeriodCode = readRecommendationPeriodCode(
+    recommendationQuery.data,
+  )
   const results = useMemo(
     () =>
       normalizeRecommendationResults(
@@ -928,15 +935,15 @@ function RecommendPageBody() {
       queryKey: recommendProfileKey(
         result.commercialCode,
         state.submitted?.service.code,
-        RECOMMENDATION_PERIOD_CODE,
+        recommendationPeriodCode ?? undefined,
       ),
       queryFn: () =>
         fetchCommercialProfile(
           result.commercialCode,
           state.submitted!.service.code,
-          RECOMMENDATION_PERIOD_CODE,
+          recommendationPeriodCode!,
         ),
-      enabled: state.submitted !== null,
+      enabled: state.submitted !== null && recommendationPeriodCode !== null,
     })),
     combine: combineProfiles,
   })
@@ -1662,12 +1669,9 @@ function RecommendPageBody() {
       onPickerSelect: handlePickerSelect,
       selectedCommercialCode: state.selectedCommercialCode,
       previewedCommercialCode,
-      periodLabel: formatRecommendationPeriod(
-        readRecommendationPeriodCode(
-          recommendationQuery.data,
-          RECOMMENDATION_PERIOD_CODE,
-        ),
-      ),
+      periodLabel: recommendationPeriodCode
+        ? formatRecommendationPeriod(recommendationPeriodCode)
+        : '최신 분기 기준',
       isAdministrationsLoading:
         state.draft.district !== null && isAdministrationsBusy,
       isCandidatesLoading:
@@ -1729,7 +1733,7 @@ function RecommendPageBody() {
       pickerStep,
       recommendationBasis,
       recommendationFeedback,
-      recommendationQuery.data,
+      recommendationPeriodCode,
       previewedCommercialCode,
       results,
       retryAdministrations,

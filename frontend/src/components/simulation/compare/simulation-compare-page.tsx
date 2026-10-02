@@ -35,6 +35,7 @@ import {
   parseSimulationCompareConditionPair,
   parseSimulationComparePair,
   resolveSimulationPairFailedSide,
+  SIMULATION_COMPARE_PREFIX,
 } from '@/lib/simulation/compare-route'
 import {
   SIMULATION_COMPARE_QUERY_SCOPE,
@@ -42,6 +43,7 @@ import {
   simulationReportQueryKey,
 } from '@/lib/simulation/report-query'
 import {
+  readSimulationReportPeriod,
   simulationBuilderHref,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
@@ -264,8 +266,20 @@ export default function SimulationComparePage({
   // 초기값은 마운트 시 한 번만 읽는다 — `useSimulationConditions` 가 그렇게 동작한다.
   // URL 은 "들어올 때의 조건"이고, 그 뒤로는 편집기가 정본이다.
   const initial = parseSimulationCompareConditionPair(searchParams)
-  const left = useSimulationConditions(initial.left)
-  const right = useSimulationConditions(initial.right)
+  // 링크에 실린 분기를 편집기 요청에도 그대로 쓴다 — 분기가 바뀐 뒤 연 옛 링크가 손대지 않았는데
+  // 「조건이 바뀌었어요」로 읽히지 않게(period-catalog.md D4-4).
+  const left = useSimulationConditions(initial.left, {
+    periodCode: readSimulationReportPeriod(
+      searchParams,
+      SIMULATION_COMPARE_PREFIX.left,
+    ),
+  })
+  const right = useSimulationConditions(initial.right, {
+    periodCode: readSimulationReportPeriod(
+      searchParams,
+      SIMULATION_COMPARE_PREFIX.right,
+    ),
+  })
 
   const leftRequest = left.reportRequest
   const rightRequest = right.reportRequest
@@ -351,8 +365,10 @@ export default function SimulationComparePage({
       { left: leftRequest, right: rightRequest },
       urlPair,
     )
+    // URL 이 바뀌면 새 키로 계산이 나간다 — 같은 계산이어도 여기서 또 부르면 두 번 계산한다(분기가 처음
+    // 실리는 옛 링크가 그렇다). URL 이 그대로일 때만 다시 계산한다.
     if (href !== `${pathname}?${searchParams}`) router.replace(href)
-    if (sameAsResult) void refetch()
+    else if (sameAsResult) void refetch()
   }, [
     leftRequest,
     rightRequest,

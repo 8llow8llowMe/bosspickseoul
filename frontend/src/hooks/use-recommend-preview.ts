@@ -6,7 +6,6 @@ import { findDistrictOption, findIndustryOption } from '@/data/home-demo'
 import type { DemoSelection } from '@/data/home-demo'
 import { retryUnlessClientError } from '@/lib/api/api-error'
 import {
-  RECOMMENDATION_PERIOD_CODE,
   RECOMMENDATION_TOP_N,
   fetchAdministrations,
   fetchCommercialRecommendations,
@@ -121,7 +120,7 @@ export function useRecommendPreview(
       fetchCommercialRecommendations({
         serviceCode: serviceCode!,
         commercialCodes,
-        periodCode: RECOMMENDATION_PERIOD_CODE,
+        // 분기를 생략해 서버가 최신 분기로 해석한다(period-catalog.md D4-5).
         topN: RECOMMENDATION_TOP_N,
       }),
     enabled: previewEnabled,

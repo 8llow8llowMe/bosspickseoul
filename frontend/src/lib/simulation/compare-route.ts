@@ -15,6 +15,7 @@
 
 import {
   parseSimulationConditionState,
+  readSimulationReportPeriod,
   toSimulationReportSearchParams,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
@@ -113,8 +114,14 @@ export const parseSimulationComparePair = (
   const pair = parseSimulationCompareConditionPair(params)
 
   return {
-    left: toSimulationReportRequest(pair.left),
-    right: toSimulationReportRequest(pair.right),
+    left: toSimulationReportRequest(
+      pair.left,
+      readSimulationReportPeriod(params, SIMULATION_COMPARE_PREFIX.left),
+    ),
+    right: toSimulationReportRequest(
+      pair.right,
+      readSimulationReportPeriod(params, SIMULATION_COMPARE_PREFIX.right),
+    ),
   }
 }
 

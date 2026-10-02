@@ -76,6 +76,8 @@ export interface CommunityDataSource {
    */
   createComparisonDraft: (
     params: ComparisonDraftParams,
+    /** 해석된 분기(서버 기본 분기). 초안의 `analysisRefCode` 에 저장된다. */
+    periodCode: string,
     signal?: AbortSignal,
   ) => Promise<CommunityComparisonDraftResponse>
   /**

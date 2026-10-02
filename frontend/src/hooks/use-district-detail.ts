@@ -2,13 +2,12 @@
 
 import { useQuery } from '@tanstack/react-query'
 
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import { fetchStatusDetail } from '@/lib/api/status'
 import { retryUnlessClientError } from '@/lib/api/api-error'
 
-/** 홈 Top10 키와 같이 분기를 넣는다 — `ANALYSIS_PERIOD_CODE` 를 올리면 캐시도 갈린다(status.md 1.6). */
+/** 홈 Top10 과 같이 「최신」(분기 생략) 요청이다 — 서버가 해석한다(period-catalog.md D3-3). */
 export const homeDistrictDetailQueryKey = (districtCode: string) =>
-  ['home', 'districtDetail', ANALYSIS_PERIOD_CODE, districtCode] as const
+  ['home', 'districtDetail', 'latest', districtCode] as const
 
 /**
  * 히어로 지도 툴팁용 자치구 상세(full-screen-sections-and-live-tooltip.md D4-4).
@@ -22,8 +21,7 @@ export const useDistrictDetail = (
 ) =>
   useQuery({
     queryKey: homeDistrictDetailQueryKey(districtCode ?? ''),
-    queryFn: () =>
-      fetchStatusDetail(districtCode as string, ANALYSIS_PERIOD_CODE),
+    queryFn: () => fetchStatusDetail(districtCode as string),
     enabled: enabled && districtCode != null,
     select: response => response.dataBody,
     retry: retryUnlessClientError(1),

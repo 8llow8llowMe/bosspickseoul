@@ -15,7 +15,7 @@ export type RecommendComparisonAiPanelProps = {
   leftCommercialCode: string
   rightCommercialCode: string
   serviceCode: string
-  /** 비교 표와 같은 분기. 리포트도 그 분기로 만든다. */
+  /** 비교 표가 실제로 쓴 분기(응답 `periodCode`). 리포트도 그 분기로 만든다. */
   periodCode: string
   /** 로그인 후 돌아올 곳. 지금 비교 화면의 전체 경로다. */
   returnTo: string

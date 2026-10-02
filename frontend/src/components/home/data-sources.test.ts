@@ -1,18 +1,44 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import DataSources, { DATA_SOURCES } from '@/components/home/data-sources'
-import { formatPeriodCode } from '@/lib/analysis/presentation'
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
+import { HOME_TOP_TEN_QUERY_KEY } from '@/hooks/use-district-top-ten'
 
-const render = () => renderToStaticMarkup(createElement(DataSources))
+/**
+ * 기준 시점은 홈 Top10 응답의 `currentPeriodCode` 에서 온다(period-catalog.md D3-3). 캐시를 심어 서버
+ * 렌더로 본다. `currentPeriodCode` 를 넘기지 않으면 응답 전(기준 줄 없음)이다.
+ */
+const element = (currentPeriodCode: string | null = '20261') => {
+  const client = new QueryClient()
+  if (currentPeriodCode) {
+    client.setQueryData(HOME_TOP_TEN_QUERY_KEY, {
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody: {
+        currentPeriodCode,
+        footTrafficTopTenItems: [],
+        salesTopTenItems: [],
+        openedStoreTopTenItems: [],
+        closedStoreTopTenItems: [],
+      },
+    })
+  }
+  return createElement(
+    QueryClientProvider,
+    { client },
+    createElement(DataSources),
+  )
+}
+
+const render = (currentPeriodCode?: string | null) =>
+  renderToStaticMarkup(element(currentPeriodCode))
 
 const renderStyles = (): string => {
   const sheet = new ServerStyleSheet()
   try {
-    renderToStaticMarkup(sheet.collectStyles(createElement(DataSources)))
+    renderToStaticMarkup(sheet.collectStyles(element()))
     return sheet.getStyleTags().replace(/\s+/g, '')
   } finally {
     sheet.seal()
@@ -73,10 +99,14 @@ describe('DataSources — 원문 링크 (TC-DS-002)', () => {
 })
 
 describe('DataSources — 기준 시점과 고지 (TC-DS-003 · 004)', () => {
-  it('기준 분기는 분석·추천이 쓰는 분기 상수에서 오고, 범위를 적는다', () => {
-    expect(render()).toContain(
-      `${formatPeriodCode(ANALYSIS_PERIOD_CODE)} 기준 · 분석·추천`,
-    )
+  it('기준 분기는 서버가 정한 최신 분기(Top10 응답)에서 오고, 범위를 적는다', () => {
+    expect(render('20261')).toContain('2026년 1분기 기준 · 분석·추천')
+    // 새 분기가 적재되면 상수를 올리지 않아도 따라간다.
+    expect(render('20262')).toContain('2026년 2분기 기준 · 분석·추천')
+  })
+
+  it('응답 전에는 기준 줄을 적지 않는다 — 지어낸 분기를 말하지 않는다', () => {
+    expect(render(null)).not.toContain('기준 · 분석·추천')
   })
 
   it('04 예시가 대표값이라는 것을 밝힌다', () => {

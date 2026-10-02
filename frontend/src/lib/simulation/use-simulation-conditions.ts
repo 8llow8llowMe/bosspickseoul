@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useState } from 'react'
 
+import { useAnalysisPeriodCatalog } from '@/hooks/use-analysis-period-catalog'
+
 import {
   createSimulationConditionState,
   describeSimulationConditionGap,
@@ -49,8 +51,17 @@ export type SimulationConditionsController = {
  * 다음 슬라이스(리포트 화면)가 이 컨트롤러를 그대로 들어올려 재계산·A/B 비교의 좌우 조건으로
  * 쓸 수 있게, 화면에 종속된 값(로딩 여부·에러·쿼리 키)을 여기에 섞지 않았다.
  */
+export type UseSimulationConditionsOptions = {
+  /**
+   * 요청에 쓸 분기를 고정한다. 비교 링크처럼 URL 에 분기가 실려 들어온 화면이 넘긴다 — 카탈로그 최신
+   * 분기로 바꾸면 손대지 않은 조건이 「조건이 바뀌었어요」로 읽힌다. 마운트 시 한 번만 읽는다.
+   */
+  periodCode?: string | null
+}
+
 export const useSimulationConditions = (
   initial: Partial<SimulationConditionState> = {},
+  options: UseSimulationConditionsOptions = {},
 ): SimulationConditionsController => {
   // 초기값은 마운트 시 한 번만 반영한다. 분석 컨텍스트(쿼리스트링)가 바뀌면 라우트가 새로
   // 마운트되므로 재동기화가 필요 없고, 매 렌더 동기화하면 사용자가 고친 값을 되돌린다.
@@ -127,7 +138,18 @@ export const useSimulationConditions = (
     [state],
   )
 
-  const reportRequest = useMemo(() => toSimulationReportRequest(state), [state])
+  /*
+    분기는 조건이 아니지만 요청에는 명시한다 — 서버 카탈로그의 기본 분기(period-catalog.md D4-4). 그래야
+    리포트 URL·캐시 키가 그 분기로 고정되고, 공유한 링크가 데이터 적재 때마다 바뀌지 않는다. 카탈로그 전에는
+    생략해 서버가 해석한다. URL 에서 분기를 받은 화면은 그 분기를 끝까지 쓴다(`options.periodCode`).
+  */
+  const [pinnedPeriodCode] = useState(() => options.periodCode ?? null)
+  const { latest: latestPeriodCode } = useAnalysisPeriodCatalog()
+  const requestPeriodCode = pinnedPeriodCode ?? latestPeriodCode
+  const reportRequest = useMemo(
+    () => toSimulationReportRequest(state, requestPeriodCode),
+    [state, requestPeriodCode],
+  )
 
   return {
     state,

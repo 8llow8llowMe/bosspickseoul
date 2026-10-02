@@ -160,7 +160,7 @@ value 가 유한수가 아니면      →  '—'
 
 ### D4-8. 조회 조건
 
-- 부제 기간: `formatRecommendationPeriod(body.periodCode || RECOMMENDATION_PERIOD_CODE)` (빈 문자열도 물러난다).
+- 부제 기간: 비교는 분기를 생략해 요청하므로 응답 `periodCode` 가 유일한 출처다 — `formatRecommendationPeriod(body.periodCode)`, 없으면 「최신 분기 기준」(#493). 비교 AI 리포트도 그 응답 분기로 제출한다.
 - 제목 업종: `body.serviceCode || state.serviceCode` 로 업종 이름을 찾는다. 요청 키·비교 초안 링크는 여전히 URL 값을 쓴다(요청을 바꾸지 않는다).
 
 ---

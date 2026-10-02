@@ -1,5 +1,4 @@
 import { districts } from '@/data/districts'
-import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import type { CommunityDataSource } from '@/lib/community/community-data-source'
 import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
 import type { ApiResponse } from '@/types/api'
@@ -865,7 +864,10 @@ export const createCommunityMockSource = (): CommunityDataSource => {
      * 구별이 안 된다. 대상 코드가 목에 없으면 `resolveTarget` 이 던지고, 화면은
      * 그것을 초안 실패로 다룬다(실제 404 와 같은 경로다).
      */
-    async createComparisonDraft(params: ComparisonDraftParams) {
+    async createComparisonDraft(
+      params: ComparisonDraftParams,
+      periodCode: string,
+    ) {
       const target = resolveTarget('ADMINISTRATION', params.administrationCode)
 
       /*
@@ -887,7 +889,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
           params.leftCommercialCode,
           params.rightCommercialCode,
           params.serviceCode,
-          RECOMMENDATION_PERIOD_CODE,
+          periodCode,
         ].join(':'),
         analysisRefName: `${params.leftCommercialCode} · ${params.rightCommercialCode} 비교`,
         analysisSnapshotKey: `community/analysis/mock/${params.leftCommercialCode}-${params.rightCommercialCode}.json`,

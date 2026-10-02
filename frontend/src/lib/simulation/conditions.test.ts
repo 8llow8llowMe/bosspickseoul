@@ -556,4 +556,23 @@ describe('isSameSimulationReportRequest', () => {
     expect(isSameSimulationReportRequest(request, null)).toBe(false)
     expect(isSameSimulationReportRequest(null, null)).toBe(false)
   })
+
+  /*
+    분기는 서버 카탈로그에서 온다(period-catalog.md D4-4). 한쪽이 생략(= 서버가 해석할 최신)이면 같은
+    계산으로 본다 — 카탈로그 전후로 만든 요청이 「조건이 바뀌었어요」로 깜빡이지 않게.
+  */
+  it('해석된 분기를 요청에 싣고, 한쪽이 생략이면 같은 조건으로 본다', () => {
+    const withPeriod = toSimulationReportRequest(completeState(), '20261')
+    const omitted = toSimulationReportRequest(completeState())
+
+    expect(withPeriod?.periodCode).toBe('20261')
+    expect(omitted?.periodCode).toBeUndefined()
+    expect(isSameSimulationReportRequest(withPeriod, omitted)).toBe(true)
+    expect(
+      isSameSimulationReportRequest(
+        withPeriod,
+        toSimulationReportRequest(completeState(), '20254'),
+      ),
+    ).toBe(false)
+  })
 })

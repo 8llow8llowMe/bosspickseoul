@@ -16,7 +16,8 @@ import {
 } from '@/components/home/layout-constants'
 import { districts } from '@/data/districts'
 import { formatPeriodCode } from '@/lib/analysis/presentation'
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
+import { useDistrictTopTen } from '@/hooks/use-district-top-ten'
+import { isApiSuccess } from '@/lib/api/response'
 
 /**
  * 데이터 출처(data-sources.md).
@@ -371,11 +372,18 @@ const Note = styled.p`
 
 export default function DataSources() {
   /*
-    기준 시점은 분석·추천이 실제로 쓰는 분기 상수에서 온다 — 분기가 바뀌면 따라간다.
-    「분석·추천」으로 범위를 적는 이유: 01 현황(top-ten) 응답에는 분기가 없어, 그 단계까지
-    같은 분기라고 말할 근거가 없다(data-sources.md D4-3).
+    기준 시점은 서버가 정한 최신 분기다 — 홈 Top10 응답의 `currentPeriodCode`(분기 생략 요청, 판단 흐름
+    01·랭킹과 같은 캐시라 요청이 늘지 않는다). 분석·추천도 같은 서버 기본 분기를 「최신」으로 쓴다
+    (period-catalog.md D3-3). 응답 전에는 줄만 비워 둔다.
   */
-  const period = `${formatPeriodCode(ANALYSIS_PERIOD_CODE)} 기준 · 분석·추천`
+  const topTenQuery = useDistrictTopTen()
+  const latestPeriodCode =
+    topTenQuery.data && isApiSuccess(topTenQuery.data)
+      ? (topTenQuery.data.dataBody.currentPeriodCode ?? null)
+      : null
+  const period = latestPeriodCode
+    ? `${formatPeriodCode(latestPeriodCode)} 기준 · 분석·추천`
+    : null
 
   return (
     <Section aria-labelledby="data-sources-title">
@@ -426,7 +434,7 @@ export default function DataSources() {
                     ))}
                   </Steps>
                   <span>{source.detail}</span>
-                  {featured ? <span>{period}</span> : null}
+                  {featured && period ? <span>{period}</span> : null}
                   <SourceLink
                     href={source.href}
                     target="_blank"
