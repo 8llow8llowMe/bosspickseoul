@@ -137,7 +137,8 @@ HeroSection
        onDistrictActivate = isMobileViewport ? code => onPick(code, 'map') : undefined
        tooltipEnabled = !isMobileViewport
        onHoverChange  = isMobileViewport ? undefined : setHoveredCode
-       autoDemo       = dragEnabled && pickedCode == null      ← dragEnabled = 데스크톱·정밀 포인터·모션 허용(기존 값)
+       autoDemo       = dragEnabled && !hasPicked              ← dragEnabled = 데스크톱·정밀 포인터·모션 허용(기존 값)
+       demoAvoidRight = () => 카드 right                        ← 시연 툴팁이 카드 뒤로 숨지 않게(D5-3)
 ```
 
 - `isMobileViewport`·`dragEnabled` 는 effect 로 정해져 **SSR·첫 렌더에서 `false`** 다. 하이드레이션 전 탭은 기존처럼
@@ -265,7 +266,7 @@ JSX 순서: <CardLayer> → <MapScreen>  (DockButton 은 모바일에서 나오�
 
 | 항목      | 값                                                                                                                       |
 | --------- | ------------------------------------------------------------------------------------------------------------------------ |
-| 켜는 조건 | `autoDemo` prop 이 참(= `dragEnabled && pickedCode == null`)                                                             |
+| 켜는 조건 | `autoDemo` prop 이 참(= `dragEnabled && !hasPicked` — 한 번이라도 고르면 해제해도 다시 켜지지 않는다)                    |
 | 대상      | **강동구 `11740`**(D5-3)                                                                                                 |
 | 시점      | 지도 마운트 후 `AUTO_DEMO_DELAY_MS = 2000` 에 툴팁을 띄우고 `AUTO_DEMO_VISIBLE_MS = 4000` 뒤 닫는다                      |
 | 횟수      | 페이지당 1회(`ref`). 닫힌 뒤 조건이 다시 참이 돼도 하지 않는다                                                           |

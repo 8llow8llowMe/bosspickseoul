@@ -17,7 +17,7 @@ P0-A 가 만드는 새 레이아웃에 놓일 자리가 생겨야 실행할 수 
 2. **P2-K** — 로드 시 자치구 3곳이 깜빡이는데 그 기준이 화면 어디에도 없다.
 3. **P2-P(Pick 캡션)** — 로고의 강조 칸이 뜻하는 「여러 칸 중 하나를 골랐다」가 홈 카피에 없다. 25칸 지도가 바로 그 은유를 시각화한 자리다.
 
-> **2026-09-30 갱신**: 데스크톱 툴팁은 `GET /districts/{code}` 실데이터로 바뀌었고 `district-metrics.ts` 의 `METRICS`·`getDistrictMetric`·`tooltip-chart.ts` 는 삭제됐다([full-screen-sections-and-live-tooltip](./full-screen-sections-and-live-tooltip.md) D4-4·D4-5). 이 명세로 시트를 구현할 때는 같은 훅(`useDistrictDetail`)과 `DistrictTooltip` 의 시각 규격을 따른다. 아래 「정적 대표 예시」 서술은 작성 당시 기준이다.
+> **2026-09-30 갱신**: 데스크톱 툴팁은 `GET /districts/{code}` 실데이터로 바뀌었고 `district-metrics.ts` 의 `METRICS`·`getDistrictMetric`·`tooltip-chart.ts` 는 삭제됐다([full-screen-sections-and-live-tooltip](./full-screen-sections-and-live-tooltip.md) D4-4·D4-5). 이 명세로 시트를 구현할 때는 같은 훅(`useDistrictDetail`)과 `DistrictTooltip` 의 시각 규격을 따른다. 아래 「정적 대표 예시」 서술은 작성 당시 기준이다. **2026-10-02**: 남아 있던 `TOP_DISTRICT_CODES` 도 근거가 사라져 `src/data/district-metrics.ts` 파일과 테스트째 삭제됐다([hero-picker-and-mobile-first-screen](./hero-picker-and-mobile-first-screen.md) D4-5) — 아래 D0-3·D0-4 의 그 파일 언급은 기록이다.
 
 **새 백엔드 호출은 없다.** 히어로 지도·툴팁·시트가 쓰는 수치는 전부
 `src/data/district-metrics.ts` 의 정적 대표 예시 데이터이고, 홈 전용 API 도입은 공통
