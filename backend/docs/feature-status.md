@@ -613,7 +613,7 @@ INDEX(status)
 
 ### `batch-service` — 국민연금 자치구 평균소득 적재 (#415 2차)
 
-**상태**: ✅ 배치 코드 완료, commercial-service 조회 반영 완료(`/income` 의 `districtAverageIncome`), ai-service 프롬프트 반영 완료(`[소득]` 섹션). 개발 DB 는 2026-10-02 DDL 을 적용했고 첫 적재가 남았다. 화면 표시는 FE 후속 이슈 #500 이다. **commercial-service 배포 전에 DDL 을 먼저 적용한다** — 테이블이 없으면 `/income` 이 실패한다.
+**상태**: ✅ 배치 코드 완료, commercial-service 조회 반영 완료(`/income` 의 `districtAverageIncome`), ai-service 프롬프트 반영 완료(`[소득]` 섹션). 개발 DB 는 2026-10-02 DDL 적용과 첫 적재(2024-12-31 기준 파일, 125행)를 마쳤고 dev `/income` 이 `DISTRICT_PROXY` 값을 낸다. 화면 표시는 FE 후속 이슈 #500 이다. **commercial-service 배포 전에 DDL 을 먼저 적용한다** — 테이블이 없으면 `/income` 이 실패한다.
 
 **목적**: 상권 소득(월평균소득)이 2024년 이후 원천에서 끊겼다. 자치구 단위 대체값으로 국민연금공단 「자격 시군구 신고 평균소득월액」(공공데이터포털 3046077)을 `pension_income_district` 에 둔다. 지역가입자 신고 소득의 구 평균이라 상권·주민 전체 소득이 아니다.
 
