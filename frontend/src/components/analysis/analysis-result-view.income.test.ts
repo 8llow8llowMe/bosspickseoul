@@ -8,6 +8,7 @@ import type {
   CommercialExpenseProvenance,
   CommercialIncomeAndExpense,
   CommercialIncomeSummary,
+  DistrictAverageIncome,
 } from '@/types/commercial-analysis'
 
 /**
@@ -205,8 +206,11 @@ describe('AnalysisResultView · 소비 두 섹션', () => {
     expect(markup).toContain('식료품')
   })
 
-  /* 소득은 화면에서 완전히 없앴다 — 원천이 사라졌다(2026-05-13 컬럼 삭제). */
-  it('월 평균 소득을 어디에도 그리지 않는다', () => {
+  /*
+    상권 단위 월 평균 소득은 원천이 사라졌다(2026-05-13 컬럼 삭제). #500 에서 돌아온 소득 카드는
+    정의가 다른 「자치구 평균 소득」이라, 옛 이름이 다시 나타나면 상권 소득으로 읽힌다.
+  */
+  it('상권 월 평균 소득이라는 이름을 어디에도 쓰지 않는다', () => {
     const markup = render(NATIVE_INCOME, LIVE_SUMMARY)
 
     expect(markup).not.toContain('월 평균 소득')
@@ -307,5 +311,101 @@ describe('AnalysisResultView · 소비 두 섹션', () => {
     )
     expect(markup).not.toContain('항목별 소비 데이터가 없어요')
     expect(markup).toContain('식료품')
+  })
+})
+
+const DISTRICT_INCOME_DISCLAIMER =
+  '국민연금 지역가입자(사업장 가입자가 아닌 18~60세 국내 거주자)가 신고한 기준소득월액의 강남구 평균입니다(기준일 2024-12-31). 이 상권이나 주민 전체의 소득이 아니며, 같은 자치구 안의 상권은 모두 같은 값입니다.'
+const DISTRICT_INCOME_UNAVAILABLE_DISCLAIMER =
+  '이 분기에 쓸 수 있는 자치구 평균 소득 자료가 없어 소득 지표를 제공하지 않습니다.'
+const PENSION_SOURCE = '국민연금공단 자격 시군구 신고 평균소득월액'
+const PENSION_SOURCE_URL = 'https://www.data.go.kr/data/3046077/fileData.do'
+
+const DISTRICT_INCOME: DistrictAverageIncome = {
+  amount: 1_555_244,
+  provenance: {
+    scope: { code: 'DISTRICT_PROXY', name: '자치구 대체', description: null },
+    scopeCode: BASE_PARAMS.districtCode,
+    scopeName: '강남구',
+    sourceId: 'data.go.kr:3046077',
+    sourceLabel: PENSION_SOURCE,
+    sourceUrl: PENSION_SOURCE_URL,
+    referenceDate: '2024-12-31',
+    disclaimer: DISTRICT_INCOME_DISCLAIMER,
+  },
+}
+
+const DISTRICT_INCOME_UNAVAILABLE: DistrictAverageIncome = {
+  amount: null,
+  provenance: {
+    scope: { code: 'UNAVAILABLE', name: '제공 없음', description: null },
+    scopeCode: null,
+    scopeName: null,
+    sourceId: 'data.go.kr:3046077',
+    sourceLabel: PENSION_SOURCE,
+    sourceUrl: PENSION_SOURCE_URL,
+    referenceDate: null,
+    disclaimer: DISTRICT_INCOME_UNAVAILABLE_DISCLAIMER,
+  },
+}
+
+/** 「자치구 평균 소득」 카드 구간만 잘라 본다. 다음 카드(시설) 앞까지다. */
+const districtIncomeSection = (markup: string) => {
+  const start = markup.indexOf('자치구 평균 소득')
+  expect(start).toBeGreaterThanOrEqual(0)
+  return markup.slice(start, markup.indexOf('주요 시설과 교통', start))
+}
+
+/**
+ * 「자치구 평균 소득 (대체)」 카드의 세 갈래 (#500).
+ *
+ * 값은 상권 소득이 아니라 같은 구 상권이 모두 받는 **자치구 평균**이고, 기준은 분기가 아니라
+ * 연 1회 스냅샷 **날짜**다. 그래서 값이 보일 때는 배지·기준일·면책·출처가 늘 함께 있어야 하고,
+ * 값이 없을 때는 0 원이 아니라 「데이터 없음」과 사유를 적어야 한다.
+ */
+describe('AnalysisResultView · 자치구 평균 소득 (대체)', () => {
+  it('값이 있으면 금액과 함께 대체 배지·기준일·면책·출처를 붙인다', () => {
+    const section = districtIncomeSection(
+      render(
+        { ...PROXY_INCOME, districtAverageIncome: DISTRICT_INCOME },
+        PROXY_SUMMARY,
+      ),
+    )
+
+    expect(section).toContain('155만원')
+    expect(section).toContain('월 평균 신고소득')
+    expect(section).toContain('자치구 기준 (대체)')
+    expect(section).toContain('강남구 · 2024년 12월 31일 기준')
+    expect(section).toContain('이 상권이나 주민 전체의 소득이 아니며')
+    expect(section).toContain(PENSION_SOURCE)
+    expect(section).toContain(PENSION_SOURCE_URL)
+    // 기준은 스냅샷 날짜다. 선택한 분기로 적으면 없는 사실을 말한다.
+    expect(section).not.toContain('2026년 1분기')
+  })
+
+  it('UNAVAILABLE 이면 0 원을 그리지 않고 서버가 준 사유를 적는다', () => {
+    const section = districtIncomeSection(
+      render(
+        {
+          ...PROXY_INCOME,
+          districtAverageIncome: DISTRICT_INCOME_UNAVAILABLE,
+        },
+        PROXY_SUMMARY,
+      ),
+    )
+
+    expect(section).toContain('자치구 평균 소득 데이터가 없어요')
+    expect(section).toContain(DISTRICT_INCOME_UNAVAILABLE_DISCLAIMER)
+    expect(section).not.toContain('0원')
+    expect(section).not.toContain('자치구 기준 (대체)')
+  })
+
+  /* #415 이전 BE 응답에는 키 자체가 없다. 그래도 카드가 깨지지 않고 빈 상태가 된다. */
+  it('필드가 없는 구 응답도 「데이터 없음」으로 그린다', () => {
+    const section = districtIncomeSection(render(NATIVE_INCOME, LIVE_SUMMARY))
+
+    expect(section).toContain('자치구 평균 소득 데이터가 없어요')
+    expect(section).toContain('자치구 평균 소득 자료를 받지 못했어요')
+    expect(section).not.toContain('자치구 기준 (대체)')
   })
 })
