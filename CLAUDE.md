@@ -42,6 +42,12 @@
 - 배포 게이트(Jenkins)는 머지 커밋 메시지가 아니라 **커밋 SHA 에 연결된 PR 의 라벨**로 배포 대상을 찾으므로 rebase 머지와 호환된다. PR 라벨(`frontend-web` 등)은 여전히 필수다.
 - 저장소 설정에서 merge commit·squash 를 끄는 것은 소유자가 한다: `gh api -X PATCH repos/8llow8llowMe/bosspickseoul -f allow_merge_commit=false -f allow_squash_merge=false -f allow_rebase_merge=true`.
 
+### PR 체크 — GitHub Actions + Jenkins (#497)
+
+- `backend-ci / check`(전 모듈 테스트, env 없음) · `frontend-ci / verify` 가 빨간불이면 머지하지 않는다. 초록불이면 job summary 의 **실행 건수**도 본다.
+- 배포 라벨은 PR 을 만들 때 붙이는 규약을 유지한다. 빠뜨리면 `label` 워크플로가 경로를 보고 보정한다. `backend/core/**` 처럼 공용 경로만 바꾼 PR 에는 자동으로 붙지 않으므로, 배포할 서비스 라벨은 작성자가 더한다.
+- Jenkins 는 Vault env 를 넣고 라벨이 가리키는 모듈을 테스트·배포한다. 역할 분담 정본은 `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2.
+
 ### 운영 원칙
 
 - 엔트리 문서는 얇게 유지하고, 세부 규칙은 각 워크스페이스 `docs/` 에 모은다.

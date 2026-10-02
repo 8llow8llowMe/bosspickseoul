@@ -45,6 +45,7 @@ Related docs:
 | frontend builder agent | build 전용 노드 | Node.js/pnpm install, Next.js build |
 | backend deploy agent | backend 실제 배포 서버 | `.env.runtime` 주입, `docker compose up`, 헬스 체크 |
 | frontend deploy agent | frontend 실제 배포 서버 | Next.js 앱 배포, reverse proxy 연계, 프로세스 재기동 |
+| GitHub Actions | GitHub 호스티드 러너 | PR·develop CI(env 없이 백엔드 전 모듈·프론트 검사), 배포 라벨 자동 부여. Jenkins 와의 분담은 `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2 (#497) |
 
 ### 현재 구조 다이어그램
 

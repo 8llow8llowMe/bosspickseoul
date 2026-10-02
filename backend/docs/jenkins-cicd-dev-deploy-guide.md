@@ -86,8 +86,38 @@ backend-auth-service      backend-community-service
 
 - **라벨을 안 붙이면 배포도 JAR 빌드도 일어나지 않는다.** 머지했는데 dev에 반영되지 않으면 먼저 PR 라벨을 확인한다. 빌드 로그의 `라벨 배포 허용 여부`와 `PR #NN 라벨:` 줄을 보면 된다.
 - Multibranch 잡은 머지마다 8개가 시작되지만, 라벨이 없는 잡은 `배포 대상 아님 - 생략`으로 Gradle 없이 끝난다. 잡은 뜨되 빌더는 점유하지 않는다.
-- 공용 경로(`backend/core/` 등) 변경의 CI는 **PR에 영향받는 서비스 라벨을 모두 붙여야** 해당 PR 잡에서 검증된다. 라벨 없는 서비스는 머지 빌드에서도 JAR를 돌리지 않는다.
+- 공용 경로(`backend/core/` 등) 변경의 Jenkins CI는 **PR에 영향받는 서비스 라벨을 모두 붙여야** 해당 PR 잡에서 검증된다. 라벨 없는 서비스는 머지 빌드에서도 JAR를 돌리지 않는다. 라벨과 무관한 전 모듈 검증은 GitHub Actions `backend-ci`가 한다(§1-2).
 - 공용 코드 변경을 배포 대상에서 제외하면, 해당 서비스 컨테이너는 **다음 배포 때까지 이전 코드로 동작한다.** 라벨을 좁힐 때 이 점을 고려해야 한다.
+
+## 1-2. GitHub Actions 와의 역할 분담
+
+PR 검증은 GitHub Actions 와 Jenkins 가 **둘 다** 한다. 보는 것이 달라 한쪽으로 합치지 않는다 (#497).
+
+| 체크 | 언제 도는가 | env | 범위 | 하는 일 |
+| --- | --- | --- | --- | --- |
+| `backend-ci / check` (Actions) | `backend/**` 변경 PR, develop push | 없음 | **전 모듈** `./gradlew check` | 컴파일 + 테스트. 실행 건수를 job summary 에 남기고 0건이면 실패 |
+| `frontend-ci / verify` (Actions) | `frontend/**` 변경 PR, develop push | 자리표시자 | 프론트 전체 | `format:check` · `lint` · `typecheck` · `test` · `build`. `frontend/` 에서 문서만 바뀌면 `format:check` 만 |
+| `label` (Actions) | develop 대상 PR (Dependabot·포크 제외) | — | — | **검증하지 않는다.** 경로를 보고 배포 라벨을 붙인다(`.github/labeler.yml`) |
+| `continuous-integration/jenkins/pr-merge` | **라벨이 붙은 서비스**의 PR | **Vault env** (develop/main 대상 PR. 다른 브랜치 대상이면 비어 있다) | 라벨이 가리키는 모듈 | 백엔드 `:{module}:test` + `bootJar`, 프론트는 위 `verify` 와 같은 명령 |
+| Jenkins 브랜치 빌드 | develop/main push | Vault env | 라벨이 가리키는 모듈 | 테스트 → 빌드 → **배포**(§1-1) |
+
+- **Actions 는 env 없이, Jenkins 는 Vault env 를 넣고 테스트한다.** 테스트가 프로필·플래그 env 를 읽어 깨지는 경우는 Jenkins 쪽에서만 드러난다. 실제로 있었다(#450, #464 슬라이스 테스트 격리). 그래서 env 를 읽는 테스트는 시스템 env 와 격리한다.
+- **라벨 누락은 자동으로 보정된다. 그래도 PR 을 만들 때 `--label` 로 붙이는 규약은 유지한다.**
+  - `label` 워크플로가 develop 대상 PR 의 서비스 경로를 보고 `backend-{serviceName}` / `frontend-web` 을 붙인다. 붙이기만 하고 지우지 않는다. 사람이 자동 라벨을 지워도 다음 push 에서 다시 붙는다.
+  - 규약을 유지하는 이유: 이 라벨은 PR 이 열린 **뒤에** 붙는다. Jenkins 가 그 `labeled` 이벤트만으로 PR 빌드를 만드는지는 아직 실측하지 않았다(#497). 만들지 않는다면 다음 push 나 주기 스캔 전까지 Jenkins PR 빌드, 즉 Vault env 테스트가 없다.
+  - 자동으로 붙지 않는 경우
+    - `backend/core/**` 같은 공용 경로: 배포할 서비스는 작성자가 고른다.
+    - Dependabot PR: 의존성 갱신의 배포는 사람이 PR 을 확인한 뒤 정한다(`.github/dependabot.yml`).
+    - main 대상 릴리스 PR: 라벨이 곧 prod 배포 범위다.
+  - 붙은 라벨이 의도와 같은지는 머지 전에 사람이 확인한다.
+- **Dependabot PR 도 Actions 가 검증한다.** 라벨이 없어 Jenkins PR 빌드는 생기지 않지만, `backend-ci` · `frontend-ci` 는 경로만 보고 돈다.
+- **Actions 체크가 빨간불이면 머지하지 않는다.** 브랜치 보호의 required status check 는 아직 걸지 않았다. 안정되면 저장소 소유자가 `develop` 에 건다(#497). 그전까지 머지 버튼은 막히지 않는다.
+  - **지금 구성 그대로 required 로 걸면 안 된다.** 두 워크플로는 워크플로 수준 `paths` 로 거른다. 그래서 FE 만 바꾼 PR 에서는 `backend-ci / check` 가 아예 보고되지 않고 Pending 으로 남아 머지가 막힌다.
+  - 걸기 전에 둘 중 하나로 바꾼다.
+    - 워크플로 수준 `paths` 를 걷고 `changes` 잡과 잡 `if` 로 건너뛰게 한다. 건너뛴 잡은 성공으로 보고된다.
+    - 항상 도는 집계 잡 하나만 required 로 건다.
+- Actions 는 Gradle **빌드 캐시를 쓰지 않는다**(`--no-build-cache`, 의존성만 캐시). 빌드 캐시가 섞이면 test 가 `FROM-CACHE` 로 건너뛰어져 0건 초록불이 날 수 있다. Jenkins 는 `--build-cache` 로 돈다.
+- 워크플로는 `develop` push 에서도 돈다. 머지된 develop 을 검사하고, PR 이 물려받을 base 스코프 캐시도 이 실행이 만든다.
 
 ## 2. 필요한 Jenkins 플러그인
 
