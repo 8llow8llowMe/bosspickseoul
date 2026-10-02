@@ -198,6 +198,7 @@ describe('stepHighlight — 큰 숫자 (TC-SP-002)', () => {
     overrides: Partial<RecommendPreviewState> = {},
   ): RecommendPreviewState => ({
     administrationName: '논현2동',
+    administrationCode: '11680545',
     isLoading: false,
     commercialsCount: 9,
     view: realView,

@@ -1,3 +1,14 @@
+import {
+  findDistrictOption,
+  findIndustryOption,
+  type DemoSelection,
+} from '@/data/home-demo'
+import {
+  createAnalysisExplorerHref,
+  createEmptyAnalysisSelection,
+} from '@/lib/analysis/selection'
+import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
+
 export type StoryDemo = 'metrics' | 'mini-demo' | 'recommend' | 'simulation'
 
 export type StoryStep = {
@@ -58,7 +69,8 @@ export const STORY_STEPS: readonly StoryStep[] = [
     body: '지역과 업종을 고르면 매출 추이·경쟁 강도를 읽고, AI 가 판단 근거를 문장으로 정리해 줘요.',
     demo: 'mini-demo',
     outcome: '업종별 매출 추이와 AI 가 정리한 판단 근거',
-    cta: { href: '/analysis', label: '이 조건으로 AI 리포트 받기' },
+    // 고른 자치구를 실은 링크·문구는 `resolveStoryCta` 가 만든다. 이건 선택이 없을 때의 값이다.
+    cta: { href: '/analysis', label: '상권 분석하고 AI 리포트 받기' },
   },
   {
     step: '03',
@@ -80,3 +92,55 @@ export const STORY_STEPS: readonly StoryStep[] = [
     cta: { href: '/simulation', label: '창업 시뮬레이션 해보기' },
   },
 ] as const
+
+export type ResolvedStoryCta = StoryStep['cta'] & {
+  /** 홈에서 고른 조건을 링크에 실었는가. 계측(`home_story_cta_click.carried`)에 쓴다. */
+  carried: boolean
+}
+
+/**
+ * 판단 흐름 CTA 가 **고른 조건을 다음 화면으로 들고 가게** 한다
+ * (measurement-and-deep-link.md D3).
+ *
+ * - 02: `/analysis?districtCode=` — 자치구만 싣는다. 분석 화면은 행정동을 고르는 순간 업종을
+ *   지우므로 업종을 실어도 한 번의 클릭에 사라진다. 그래서 문구도 「이 조건으로」라고 하지 않고
+ *   자치구 이름만 약속한다. 자치구만 골라도 분석 화면은 자치구 단위 AI 리포트 카드를 보여 준다.
+ * - 03: 홈 03 데모가 실제로 쓴 조건(자치구 · 첫 행정동 · 업종)을 싣고 결과 화면에 착지한다.
+ *   행정동이 아직 안 풀렸으면 자치구·업종만 실어 조건 화면에 둔다.
+ * - 01·04: 조건을 약속하지 않는다(04 는 고정 예시). 정적 CTA 그대로.
+ */
+export const resolveStoryCta = (
+  step: StoryStep,
+  selection: DemoSelection,
+  recommendAdministrationCode: string | null,
+): ResolvedStoryCta => {
+  const district = findDistrictOption(selection.districtId)
+  const industry = findIndustryOption(selection.industryId)
+
+  if (step.demo === 'mini-demo' && district) {
+    return {
+      href: createAnalysisExplorerHref({
+        ...createEmptyAnalysisSelection(),
+        districtCode: district.code,
+      }),
+      label: `${district.name} 분석하고 AI 리포트 받기`,
+      carried: true,
+    }
+  }
+
+  if (step.demo === 'recommend' && district) {
+    const administrationCode = industry ? recommendAdministrationCode : null
+    return {
+      href: createRecommendHrefFromCodes({
+        districtCode: district.code,
+        administrationCode,
+        serviceCode: industry?.code ?? null,
+        showResults: true,
+      }),
+      label: administrationCode ? '이 조건으로 추천 결과 보기' : step.cta.label,
+      carried: true,
+    }
+  }
+
+  return { ...step.cta, carried: false }
+}

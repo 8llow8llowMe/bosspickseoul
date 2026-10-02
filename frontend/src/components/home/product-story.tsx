@@ -28,7 +28,11 @@ import {
   STORY_PIN_QUERY,
   STORY_STEP_SCROLL_DVH,
 } from '@/components/home/story-scroll'
-import { STORY_STEPS, type StoryDemo } from '@/components/home/story-steps'
+import {
+  STORY_STEPS,
+  resolveStoryCta,
+  type StoryDemo,
+} from '@/components/home/story-steps'
 import { useStoryPin } from '@/components/home/use-story-pin'
 import {
   DEFAULT_SELECTION,
@@ -536,6 +540,15 @@ export default function ProductStory() {
 
   const step = STORY_STEPS[selected]
   const highlight = stepHighlight(selected, selection, recommendState)
+  /*
+    03 CTA 가 「이 조건으로 추천 결과 보기」라고 말하려면 홈이 그 조건의 **실제 추천**을 보여 줬어야
+    한다. 행정동은 풀렸어도 상권이 비거나 추천이 실패해 예시로 떨어졌으면 결과 화면을 약속하지 않는다.
+  */
+  const cta = resolveStoryCta(
+    step,
+    selection,
+    recommendState.view.isSample ? null : recommendState.administrationCode,
+  )
 
   return (
     <Container aria-label="판단 흐름">
@@ -595,13 +608,13 @@ export default function ProductStory() {
                 </Outcome>
                 {step.note ? <Note>{step.note}</Note> : null}
                 <Cta
-                  href={step.cta.href}
+                  href={cta.href}
                   {...trackAttrs('home_story_cta_click', {
                     step: step.step,
-                    carried: false,
+                    carried: cta.carried,
                   })}
                 >
-                  {step.cta.label}
+                  {cta.label}
                   <ArrowRight aria-hidden="true" />
                 </Cta>
               </Copy>

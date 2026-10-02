@@ -327,6 +327,37 @@ describe('카메라 c', () => {
     ).not.toContain('c=')
   })
 
+  // 홈 03단계 — 홈이 이미 같은 조건의 추천을 보여 줬으니 결과 화면에 착지한다.
+  it('showResults 면 조건이 다 찼을 때만 view=results 를 싣는다', () => {
+    expect(
+      createRecommendHrefFromCodes({
+        districtCode: GANGNAM.code,
+        administrationCode: YEOKSAM1,
+        serviceCode: HANSIK.code,
+        showResults: true,
+      }),
+    ).toBe(
+      `/recommend?districtCode=11680&administrationCode=${YEOKSAM1}&serviceCode=CS100001&view=results`,
+    )
+    expect(
+      createRecommendHrefFromCodes({
+        districtCode: GANGNAM.code,
+        serviceCode: HANSIK.code,
+        showResults: true,
+      }),
+    ).toBe('/recommend?districtCode=11680&serviceCode=CS100001')
+  })
+
+  it('showResults 를 주지 않으면 기존 출력과 같다', () => {
+    expect(
+      createRecommendHrefFromCodes({
+        districtCode: GANGNAM.code,
+        administrationCode: YEOKSAM1,
+        serviceCode: HANSIK.code,
+      }),
+    ).not.toContain('view=')
+  })
+
   it('href 도 같은 시그니처로 카메라를 싣는다', () => {
     expect(
       createRecommendHref(
