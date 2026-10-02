@@ -4,10 +4,10 @@
     "width": 375,
     "height": 812
   },
-  "docHeightScreens": 6.03,
+  "docHeightScreens": 5.98,
   "stickyTrackShare": 0,
-  "h1Screen": 0.18,
-  "firstCtaScreen": 0.48,
+  "h1Screen": 0.14,
+  "firstCtaScreen": 0.44,
   "contrastCombinations": 47,
   "contrastFailures": 6,
   "smallTapTargets": 6,
