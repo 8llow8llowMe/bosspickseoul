@@ -1,10 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import { useRouter } from 'next/navigation'
-import styled, { css, keyframes } from 'styled-components'
+import styled from 'styled-components'
 import { districts } from '@/data/districts'
-import { TOP_DISTRICT_CODES } from '@/data/district-metrics'
 import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
@@ -37,6 +43,16 @@ const TOOLTIP_PADDING = 12
  */
 const DETAIL_HOVER_DELAY_MS = 120
 
+/*
+  지도가 눌린다는 신호(hero-picker-and-mobile-first-screen.md D4-7). 데스크톱에서 아직 아무도
+  지도를 건드리지 않았으면 한 구의 툴팁을 한 번 스스로 띄운다. 대상은 강동구 — 카드가 지도
+  가운데 위에 떠 있어 가운데 구의 툴팁은 유리 뒤로 숨는다. 동쪽 끝 구는 1024·1440 폭 모두
+  툴팁이 카드 밖에 뜨고, 순위를 암시하지도 않는다(D5-3).
+*/
+export const AUTO_DEMO_DISTRICT_CODE = '11740'
+export const AUTO_DEMO_DELAY_MS = 2000
+export const AUTO_DEMO_VISIBLE_MS = 4000
+
 const Wrapper = styled.div`
   position: relative;
   width: 100%;
@@ -57,23 +73,28 @@ const MapSvg = styled.svg`
   /* 자치구 폴리곤/툴팁 제목 등 지도 내 텍스트가 드래그로 선택되지 않게 한다 */
   -webkit-user-select: none;
   user-select: none;
+
+  /* 모바일: 폴리곤이 실제로 차지하는 높이만 쓴다 — 박스가 비율보다 길면 빈 띠가 생긴다
+     (hero-picker-and-mobile-first-screen.md D4-4, mobile-hero-first-screen.md D0-2). */
+  @media (max-width: 640px) {
+    height: auto;
+    aspect-ratio: 800 / 620;
+  }
 `
 
-const topPulse = keyframes`
-  0%, 100% {
-    fill: var(--color-primary-100);
-  }
-  50% {
-    fill: color-mix(in srgb, var(--color-primary-700) 22%, var(--color-surface-muted));
-  }
-`
+/*
+  예전엔 강남·마포·송파 세 곳이 무한 펄스로 깜빡였다. 근거였던 「대표 예시」 수치가 실데이터
+  툴팁으로 바뀌며 사라져 기준 없는 강조만 남았기에 걷어냈다(D0-2). 지금 채워지는 칸은
+  방문자가 고른 구 하나뿐이다 — 로고의 「여러 칸 중 하나를 골랐다」가 화면에서 일어난다.
+*/
 
 const DistrictPath = styled.path<{
   $index: number
   $appear: boolean
-  $isTop: boolean
+  $selected: boolean
 }>`
-  fill: var(--color-surface-muted);
+  fill: ${p =>
+    p.$selected ? 'var(--color-primary-700)' : 'var(--color-surface-muted)'};
   stroke: var(--color-border-200);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
@@ -82,17 +103,10 @@ const DistrictPath = styled.path<{
   transition:
     opacity var(--motion-standard) var(--ease-standard) ${p => p.$index * 24}ms,
     fill var(--motion-slow) var(--ease-standard);
-  animation: ${p =>
-    p.$isTop
-      ? css`
-          ${topPulse} 2.4s var(--ease-standard) infinite
-        `
-      : 'none'};
 
   &:hover {
     fill: var(--color-primary-700);
     transition: fill var(--motion-fast) var(--ease-standard);
-    animation: none;
   }
 
   /* 마우스 pointer-down(:focus) 시 브라우저 기본 파란 아웃라인 제거 */
@@ -108,12 +122,10 @@ const DistrictPath = styled.path<{
   &:focus-visible {
     outline: none;
     fill: var(--color-primary-700);
-    animation: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
     opacity: 1;
-    animation: none;
     transition: none;
 
     &:hover {
@@ -126,28 +138,110 @@ const TooltipGroup = styled.g`
   pointer-events: none;
 `
 
+/*
+  지도가 무엇을 하는지 한 줄로 말한다(D4-5). 데스크톱은 지도 좌하단에 얹고(아래 폴리곤의
+  hover 를 막지 않게 pointer-events: none), 모바일은 지도 아래 흐름에 둔다. 두 문장을 다
+  렌더하고 미디어쿼리로 한쪽을 숨긴다 — SSR 과 첫 렌더가 같다.
+*/
+const MapCaption = styled.p`
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  max-width: 420px;
+  pointer-events: none;
+  color: var(--color-text-caption);
+  font-size: 13px;
+  line-height: 20px;
+  word-break: keep-all;
+
+  @media (max-width: 640px) {
+    position: static;
+    max-width: none;
+    margin-top: 8px;
+  }
+`
+
+const DesktopOnly = styled.span`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`
+
+const MobileOnly = styled.span`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: inline;
+  }
+`
+
 type SeoulDistrictsMapProps = {
   onHoverChange?: (districtCode: string | null) => void
+  /** 히어로 피커로 고른 구. 그 칸을 primary-700 으로 채운다. */
+  selectedCode?: string | null
+  /**
+   * 있으면 폴리곤 활성화(탭·Enter·Space)가 라우팅 대신 이 콜백을 부른다 — 모바일에서
+   * 지도 탭이 피커 선택이 된다(D4-4). 없으면 기존처럼 `/analysis` 로 이동한다.
+   */
+  onDistrictActivate?: (districtCode: string) => void
+  /** false 면 호버 툴팁·호버 계측을 붙이지 않는다(모바일 — 터치가 mouseenter 를 먼저 쏜다). */
+  tooltipEnabled?: boolean
+  /** 참인 동안 자동 시연을 한 번 한다(데스크톱·정밀 포인터·모션 허용, 아직 안 고름). */
+  autoDemo?: boolean
 }
 
 export default function SeoulDistrictsMap({
   onHoverChange,
+  selectedCode = null,
+  onDistrictActivate,
+  tooltipEnabled = true,
+  autoDemo = false,
 }: SeoulDistrictsMapProps = {}) {
   const router = useRouter()
+  const captionId = useId()
   const [hoveredCode, setHoveredCode] = useState<string | null>(null)
   const [settledCode, setSettledCode] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  /* 지도 진입·포커스 한 번이면 시연은 끝이다 — 사용자가 이미 발견했다(D4-7). */
+  const [interacted, setInteracted] = useState(false)
+  const [demoCode, setDemoCode] = useState<string | null>(null)
+  const demoScheduledRef = useRef(false)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
-  const hoveredFeature = SEOUL_STATUS_FEATURES.find(
-    feature => feature.districtCode === hoveredCode,
+  useEffect(() => {
+    if (!autoDemo || interacted || demoScheduledRef.current) return
+    const timer = window.setTimeout(() => {
+      // 페이지당 한 번 — 닫힌 뒤 조건이 다시 참이 돼도 하지 않는다.
+      demoScheduledRef.current = true
+      setDemoCode(AUTO_DEMO_DISTRICT_CODE)
+    }, AUTO_DEMO_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [autoDemo, interacted])
+
+  useEffect(() => {
+    if (demoCode === null) return
+    const timer = window.setTimeout(
+      () => setDemoCode(null),
+      AUTO_DEMO_VISIBLE_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [demoCode])
+
+  /*
+    시연은 사용자 행동이 아니다 — `hoveredCode` 를 건드리지 않으므로 호버 계측·카드 틴트가
+    나가지 않는다. 실제 호버가 생기면 그쪽이 이긴다.
+  */
+  const demoVisible = autoDemo && !interacted && demoCode !== null
+  const tooltipCode = hoveredCode ?? (demoVisible ? demoCode : null)
+  const tooltipFeature = SEOUL_STATUS_FEATURES.find(
+    feature => feature.districtCode === tooltipCode,
   )
-  const hoveredName = hoveredFeature
-    ? districtNameByCode.get(hoveredFeature.districtCode)
+  const tooltipName = tooltipFeature
+    ? districtNameByCode.get(tooltipFeature.districtCode)
     : undefined
 
   /*
@@ -169,8 +263,9 @@ export default function SeoulDistrictsMap({
   }, [hoveredCode])
 
   const detail = useDistrictDetail(
-    hoveredCode,
-    hoveredCode !== null && settledCode === hoveredCode,
+    tooltipCode,
+    tooltipCode !== null &&
+      (hoveredCode === null || settledCode === hoveredCode),
   )
   const rhythm = useMemo(
     () => (detail.data ? toDistrictRhythm(detail.data) : null),
@@ -181,19 +276,43 @@ export default function SeoulDistrictsMap({
     : detail.isError
       ? { status: 'error' }
       : { status: 'loading' }
-  const tooltipPosition = hoveredFeature
+  const tooltipPosition = tooltipFeature
     ? clampTooltipPosition(
-        hoveredFeature.center,
+        tooltipFeature.center,
         { width: TOOLTIP_WIDTH, height: districtTooltipHeight(tooltipState) },
         VIEW_BOX_SIZE,
         TOOLTIP_PADDING,
       )
     : null
 
-  const goToAnalysis = (districtCode: string) => {
+  const activate = (districtCode: string) => {
+    if (onDistrictActivate) {
+      onDistrictActivate(districtCode)
+      return
+    }
     trackEvent('home_map_click', { district_code: districtCode })
     router.push(`/analysis?districtCode=${districtCode}`)
   }
+
+  const startHover = (districtCode: string) => {
+    setInteracted(true)
+    setHoveredCode(districtCode)
+    onHoverChange?.(districtCode)
+  }
+
+  const endHover = (districtCode: string) => {
+    if (hoveredCode === districtCode) {
+      setHoveredCode(null)
+      onHoverChange?.(null)
+    }
+  }
+
+  const hoverHandlers = (districtCode: string) => ({
+    onMouseEnter: () => startHover(districtCode),
+    onMouseLeave: () => endHover(districtCode),
+    onFocus: () => startHover(districtCode),
+    onBlur: () => endHover(districtCode),
+  })
 
   const handleKeyDown = (
     event: KeyboardEvent<SVGPathElement>,
@@ -201,66 +320,57 @@ export default function SeoulDistrictsMap({
   ) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
-      goToAnalysis(districtCode)
+      activate(districtCode)
     }
   }
 
   return (
-    <Wrapper>
+    <Wrapper onPointerEnter={() => setInteracted(true)}>
       <MapSvg
         viewBox={SEOUL_STATUS_VIEW_BOX}
         preserveAspectRatio="xMidYMid meet"
+        aria-describedby={captionId}
       >
         {SEOUL_STATUS_FEATURES.map((feature, index) => {
           const name = districtNameByCode.get(feature.districtCode)
+          const selected = feature.districtCode === selectedCode
           return (
             <DistrictPath
               key={feature.districtCode}
               d={feature.path}
-              role="link"
+              role={onDistrictActivate ? 'button' : 'link'}
+              aria-pressed={onDistrictActivate ? selected : undefined}
               tabIndex={0}
               aria-label={name || '자치구'}
               $index={index}
               $appear={mounted}
-              $isTop={(TOP_DISTRICT_CODES as readonly string[]).includes(
-                feature.districtCode,
-              )}
-              onMouseEnter={() => {
-                setHoveredCode(feature.districtCode)
-                onHoverChange?.(feature.districtCode)
-              }}
-              onMouseLeave={() => {
-                if (hoveredCode === feature.districtCode) {
-                  setHoveredCode(null)
-                  onHoverChange?.(null)
-                }
-              }}
-              onFocus={() => {
-                setHoveredCode(feature.districtCode)
-                onHoverChange?.(feature.districtCode)
-              }}
-              onBlur={() => {
-                if (hoveredCode === feature.districtCode) {
-                  setHoveredCode(null)
-                  onHoverChange?.(null)
-                }
-              }}
-              onClick={() => goToAnalysis(feature.districtCode)}
+              $selected={selected}
+              {...(tooltipEnabled
+                ? hoverHandlers(feature.districtCode)
+                : { onFocus: () => setInteracted(true) })}
+              onClick={() => activate(feature.districtCode)}
               onKeyDown={event => handleKeyDown(event, feature.districtCode)}
             />
           )
         })}
-        {hoveredFeature && tooltipPosition ? (
+        {tooltipEnabled && tooltipFeature && tooltipPosition ? (
           <TooltipGroup>
             <DistrictTooltip
               x={tooltipPosition.x}
               y={tooltipPosition.y}
-              name={hoveredName ?? '자치구'}
+              name={tooltipName ?? '자치구'}
               state={tooltipState}
             />
           </TooltipGroup>
         ) : null}
       </MapSvg>
+      <MapCaption id={captionId}>
+        <DesktopOnly>
+          자치구 위에 올리면 시간대별 유동인구가 보이고, 누르면 그 구의 분석으로
+          넘어가요.
+        </DesktopOnly>
+        <MobileOnly>자치구를 누르면 위 칸에서 바로 골라져요.</MobileOnly>
+      </MapCaption>
     </Wrapper>
   )
 }
