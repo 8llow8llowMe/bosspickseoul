@@ -3,22 +3,31 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.pers
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.entity.SalesAdministrationEntity;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.IncomeAdministrationRepository;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.SalesAdministrationRepository;
+import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.StoreAdministrationRepository;
 import com.followfollowme.bosspickseoul.domainlayer.administration.application.mapper.IncomeAdministrationMapper;
+import com.followfollowme.bosspickseoul.domainlayer.administration.application.mapper.StoreAdministrationMapper;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.IncomeAdministration;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.SalesAdministration;
+import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.StoreAdministration;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.repository.IncomeCommercialRepository;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.repository.SalesCommercialRepository;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.persistence.repository.StoreCommercialRepository;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.mapper.IncomeCommercialMapper;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.mapper.SalesCommercialMapper;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.mapper.StoreCommercialMapper;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.port.out.CommercialSummaryRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.IncomeCommercial;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.SalesCommercial;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.domain.model.StoreCommercial;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.IncomeDistrictRepository;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.SalesDistrictRepository;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.StoreDistrictRepository;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.IncomeDistrictMapper;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.SalesDistrictMapper;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.StoreDistrictMapper;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.IncomeDistrict;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.SalesDistrict;
+import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.StoreDistrict;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +43,9 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
     private final IncomeDistrictRepository incomeDistrictRepository;
     private final IncomeAdministrationRepository incomeAdministrationRepository;
     private final IncomeCommercialRepository incomeCommercialRepository;
+    private final StoreDistrictRepository storeDistrictRepository;
+    private final StoreAdministrationRepository storeAdministrationRepository;
+    private final StoreCommercialRepository storeCommercialRepository;
     private final DatasetSpatialVersion datasetSpatialVersion;
 
     private final SalesDistrictMapper salesDistrictMapper;
@@ -41,6 +53,9 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
     private final IncomeDistrictMapper incomeDistrictMapper;
     private final IncomeAdministrationMapper incomeAdministrationMapper;
     private final IncomeCommercialMapper incomeCommercialMapper;
+    private final StoreDistrictMapper storeDistrictMapper;
+    private final StoreAdministrationMapper storeAdministrationMapper;
+    private final StoreCommercialMapper storeCommercialMapper;
 
     @Override
     public Optional<SalesDistrict> findSalesDistrict(String periodCode, String districtCode, String serviceCode) {
@@ -83,6 +98,27 @@ public class CommercialSummaryRepositoryAdapter implements CommercialSummaryRepo
         return incomeCommercialRepository.findByPeriodCodeAndCommercialCodeAndSpatialVersion(
                 periodCode, commercialCode, datasetSpatialVersion.value())
             .map(incomeCommercialMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public Optional<StoreDistrict> findStoreDistrict(String periodCode, String districtCode, String serviceCode) {
+        return storeDistrictRepository.findByPeriodCodeAndDistrictCodeAndServiceCodeAndSpatialVersion(
+                periodCode, districtCode, serviceCode, datasetSpatialVersion.value())
+            .map(storeDistrictMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public Optional<StoreAdministration> findStoreAdministration(String periodCode, String administrationCode, String serviceCode) {
+        return storeAdministrationRepository.findByPeriodCodeAndAdministrationCodeAndServiceCodeAndSpatialVersion(
+                periodCode, administrationCode, serviceCode, datasetSpatialVersion.value())
+            .map(storeAdministrationMapper::toDomainFromEntity);
+    }
+
+    @Override
+    public Optional<StoreCommercial> findStoreCommercial(String periodCode, String commercialCode, String serviceCode) {
+        return storeCommercialRepository.findByPeriodCodeAndCommercialCodeAndServiceCodeAndSpatialVersion(
+                periodCode, commercialCode, serviceCode, datasetSpatialVersion.value())
+            .map(storeCommercialMapper::toDomainFromEntity);
     }
 
     private SalesAdministration toSalesAdministrationDomain(SalesAdministrationEntity entity) {
