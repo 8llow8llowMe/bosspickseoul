@@ -77,9 +77,9 @@
 
 분석 API 의 분기 파라미터(`periodCode`, 자치구·행정동은 `currentPeriodCode`)는 **선택**입니다. 생략하거나 빈 값이면 서버가 **적재된 데이터 기준 최신 공통 분기**로 해석합니다. 그 값은 `GET /api/v1/commercials/periods` 의 `defaultPeriodCode` 와 같습니다. 예전처럼 고정 상수(`20261`)로 채우지 않습니다.
 
-- 대상: commercial-service 의 `/api/v1/commercials/**` 분석 조회 17종(비교·비교 프리뷰 포함), `/api/v1/districts/**` 8종(`currentPeriodCode`), `/api/v1/administrations/{code}`(`currentPeriodCode`), `POST /api/v1/simulations/reports` 의 `periodCode`.
+- 대상: commercial-service 의 `/api/v1/commercials/**` 분석 조회 17종(비교·비교 프리뷰 포함), `/api/v1/districts/**` 9종(`currentPeriodCode`), `/api/v1/administrations/{code}`(`currentPeriodCode`), `POST /api/v1/simulations/reports` 의 `periodCode`.
 - 비교 분기(`previousPeriodCode`)를 생략하면 **해석된** 현재 분기의 직전 분기입니다.
-- 응답은 실제로 조회한 분기를 최상위에 싣습니다: 상권 유동인구·매출·시설·거주인구·점포·벤치마크·비교 프리뷰·매출 요약·트렌드는 `periodCode`(트렌드는 추이의 기준 분기), 자치구 Top10·상세·유동인구·매출·행정동 매출 상위와 행정동 상세는 `currentPeriodCode`·`previousPeriodCode`, 자치구 변화지표·점포는 `currentPeriodCode`. 프로필·비교·히트맵·후보 응답은 원래 `periodCode` 가 있습니다. 소비(`/income`, `/summaries/income`)와 자치구 목록(`GET /api/v1/districts`, 배열 응답)은 아직 싣지 않습니다.
+- 응답은 실제로 조회한 분기를 최상위에 싣습니다: 상권 유동인구·매출·시설·거주인구·점포·벤치마크·비교 프리뷰·매출 요약·트렌드는 `periodCode`(트렌드는 추이의 기준 분기), 자치구 Top10·전체 순위·상세·유동인구·매출·행정동 매출 상위와 행정동 상세는 `currentPeriodCode`·`previousPeriodCode`, 자치구 변화지표·점포는 `currentPeriodCode`. 프로필·비교·히트맵·후보 응답은 원래 `periodCode` 가 있습니다. 소비(`/income`, `/summaries/income`)와 자치구 목록(`GET /api/v1/districts`, 배열 응답)은 아직 싣지 않습니다.
 - district-service 지도 API 4종(`/api/v1/map/commercials/heatmap`·`candidates`·`{code}/profile`·`compare-preview`)도 `periodCode` 가 선택입니다. 지도가 요청 검증 뒤 `/periods` 의 기본 분기를 받아 명시값으로 상류를 부르므로 응답 `periodCode` 는 실제로 조회한 분기입니다. 빈 뷰포트 후보는 상권 분석을 하지 않아 서버가 아는 기본 분기(모르면 `null`)를 싣습니다. 기본 분기를 받지 못하면 `MAP_011`(503) 이고, 400·`MAP_010` 은 그보다 먼저 판정됩니다. 프로필·비교 프리뷰 응답에 `periodCode` 가 추가됐습니다.
 - ai-service 제출 4종(`/api/v1/ai-reports/**`)도 `periodCode` 가 선택입니다. 서버가 기본 분기로 해석한 뒤 캐시 키·작업 키를 만들고, 제출 응답의 `periodCode` 로 실제 분기를 알려 줍니다. 기본 분기를 받지 못하면 `AI_013`(503) 입니다.
 - 기본 분기를 정할 수 없으면(콜드 스타트 DB 장애, 핵심 데이터셋 공통 분기 없음) 분기를 생략한 요청만 `ANALYSIS_PERIOD_001`(503) 입니다. 분기를 명시한 요청은 영향이 없습니다.
@@ -281,6 +281,7 @@
 |--------|------|------|------|
 | GET | `/api/v1/administrations/{administrationCode}` | 행정동 상세 | - |
 | GET | `/api/v1/districts/top-ten` | 상위 10 자치구 | - |
+| GET | `/api/v1/districts/rankings` | 지표별 전체 자치구 순위 (현재 분기 행이 있는 구 전부) | - |
 | GET | `/api/v1/districts/{districtCode}` | 자치구 상세 | - |
 | GET | `/api/v1/districts/{districtCode}/foot-traffic` | 자치구 유동인구 | - |
 | GET | `/api/v1/districts/{districtCode}/change-indicators` | 자치구 변화 지표 | - |
@@ -288,6 +289,31 @@
 | GET | `/api/v1/districts/{districtCode}/sales/top-services` | 자치구 상위 업종별 매출 | - |
 | GET | `/api/v1/districts/{districtCode}/sales/top-administrations` | 자치구 행정동별 매출 상위 | - |
 | GET | `/api/v1/districts` | 전체 자치구 목록 | - |
+
+> **자치구 전체 순위 계약 (이슈 #433).** `GET /api/v1/districts/rankings` 는 유동인구·매출·개업 점포·폐업 점포 4지표마다 **현재 분기 행이 있는 자치구를 모두** 줍니다(limit 없음, 서울 25개 구). 구별현황 지도가 25개 구 전체를 값 구간으로 칠하고, Top10 밖 구의 값도 적을 수 있게 하려는 것입니다. `top-ten` 은 그대로 두며 홈 랭킹 보드·인기지역이 계속 씁니다.
+>
+> - **파라미터**: `currentPeriodCode`·`previousPeriodCode` 둘 다 선택이고 `top-ten` 과 똑같이 해석합니다. 현재 분기를 생략하면 적재 기준 기본 분기, 비교 분기를 생략하면 해석된 현재 분기의 직전 분기입니다. 실제로 조회한 두 분기를 응답 최상위에 싣습니다.
+> - **응답**: `currentPeriodCode`, `previousPeriodCode`, `footTrafficRankings`, `salesRankings`, `openedStoreRankings`, `closedStoreRankings`. 항목 필드는 `top-ten` 항목과 같은 이름에 `rank` 를 더했습니다 — 유동인구 `totalFootTraffic`·`footTrafficChangeRate`, 매출 `totalSalesAmount`·`salesChangeRate`, 개업 `openedStoreCount`·`openingChangeRate`, 폐업 `closedStoreCount`·`closureChangeRate`.
+> - **정렬·순위**: 지표 값 내림차순, 같으면 `districtCode` 오름차순입니다. `rank` 는 표준 경쟁 순위라 같은 값은 같은 순위이고 다음 순위는 그만큼 건너뜁니다(1, 2, 2, 4). 순위 기준 값은 `top-ten` 과 같습니다(개업·폐업은 점포 수 합계).
+> - **변화율은 nullable** 입니다. 직전 분기 행이 없거나 직전 값이 0 이면 `null` 이고 0 으로 채우지 않습니다. 직전 분기 행이 없는 구도 목록에서 빠지지 않습니다. 개업·폐업의 변화율은 `top-ten` 과 같은 정의(개업률·폐업률 평균의 전분기 대비 증감률, %)입니다.
+> - **`top-ten` 과 다른 점**: `top-ten` 은 10건이고 결측 변화율을 `0.0` 으로 내리며, 유동인구는 직전 분기 행이 없는 구를 결과에서 뺍니다(INNER JOIN). 두 응답의 같은 구 값이 다르게 보이면 이 차이 때문입니다.
+>
+> ```json
+> {
+>   "currentPeriodCode": "20261",
+>   "previousPeriodCode": "20254",
+>   "salesRankings": [
+>     { "rank": 1, "districtCode": "11680", "districtName": "강남구", "totalSalesAmount": 15847230000, "salesChangeRate": 5.3 },
+>     { "rank": 2, "districtCode": "11650", "districtName": "서초구", "totalSalesAmount": 9124500000, "salesChangeRate": -1.2 },
+>     { "rank": 2, "districtCode": "11710", "districtName": "송파구", "totalSalesAmount": 9124500000, "salesChangeRate": null }
+>   ],
+>   "footTrafficRankings": [ "..." ],
+>   "openedStoreRankings": [ "..." ],
+>   "closedStoreRankings": [ "..." ]
+> }
+> ```
+>
+> 위는 `dataBody` 만 보인 것이고 배열은 줄였습니다. 송파구는 직전 분기 값이 없어 `salesChangeRate` 가 `null` 입니다.
 
 ### 공유 링크 (`/api/v1/share-links`)
 
@@ -466,8 +492,8 @@
 | 서비스 | 엔드포인트 수 | 구성 |
 |--------|-------------|------|
 | auth-service | 17 | 인증 7 + 회원 7 + 북마크 3 |
-| commercial-service | 41 | 상권 18 + 분석 기준 분기 1 + 자치구 8 + 행정동 1 + 공유링크 2 + 보관함 4 + 시뮬레이션 5 + 인기순위 1 + 정책 1 |
+| commercial-service | 42 | 상권 18 + 분석 기준 분기 1 + 자치구 9 + 행정동 1 + 공유링크 2 + 보관함 4 + 시뮬레이션 5 + 인기순위 1 + 정책 1 |
 | district-service | 14 | 지도 8 + 지역코드 6 |
 | community-service | 17 | 게시글 10 + 댓글 4 + 신고 1 + 모더레이션 2 |
 | ai-service | 6 | 리포트 제출 4 + 작업 조회 2 (폴링 + SSE) |
-| **합계** | **95** | |
+| **합계** | **96** | |
