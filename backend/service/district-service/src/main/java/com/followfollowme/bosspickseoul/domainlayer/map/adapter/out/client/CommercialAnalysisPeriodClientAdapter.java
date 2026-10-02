@@ -25,7 +25,10 @@ import org.springframework.stereotype.Component;
  *
  * <p>갱신이 실패하면 마지막 성공값을 계속 쓰고 다음 시도를 TTL 뒤로 미룬다. 한 번도 받지 못했으면 {@value #FAILURE_BACKOFF_SECONDS}초 동안은
  * 다시 묻지 않고 바로 503 이다 — 공개 지도 API 는 비로그인 트래픽이라, commercial 기동 창에 요청마다 {@code /periods} 를 두드리지 않게 한다.
- * 만료 직후 동시 요청 몇 건이 함께 갱신할 수 있지만 결과가 같아 잠금을 두지 않는다.
+ *
+ * <p>만료 직후 동시 요청 몇 건이 함께 원격 호출을 할 수 있다(잠금을 두지 않아 요청이 서로 기다리지 않는다). 대신 메모는 읽어 둔 값일 때만
+ * {@code compareAndSet} 으로 바꾼다. 경합에 지면 먼저 쓴 쪽을 따르되, 실패로 만든 메모(stale 연장·백오프)는 동시 성공 결과가 덮어쓴다 —
+ * 늦게 끝난 실패가 방금 받은 새 기본 분기를 지우거나 백오프로 막지 않게 하기 위해서다.
  */
 @Slf4j
 @Component
@@ -54,27 +57,49 @@ public class CommercialAnalysisPeriodClientAdapter implements AnalysisPeriodQuer
         Memo current = memo.get();
         Instant now = clock.instant();
         if (current != null && now.isBefore(current.retryAfter())) {
-            if (current.periodCode() == null) {
-                throw new MapException(MapErrorCode.DEFAULT_PERIOD_UNAVAILABLE);
-            }
-            return current.periodCode();
+            return valueOf(current, null);
         }
         String stale = current == null ? null : current.periodCode();
         try {
             String periodCode = fetchDefaultPeriodCode();
-            memo.set(new Memo(periodCode, now.plus(cacheTtl)));
-            return periodCode;
+            return valueOf(publish(current, new Memo(periodCode, now.plus(cacheTtl), false)), null);
         } catch (MapException exception) {
-            if (stale == null) {
-                memo.set(new Memo(null, now.plusSeconds(FAILURE_BACKOFF_SECONDS)));
+            Memo failed = stale == null
+                ? new Memo(null, now.plusSeconds(FAILURE_BACKOFF_SECONDS), true)
+                : new Memo(stale, now.plus(cacheTtl), true);
+            Memo published = publish(current, failed);
+            if (published.periodCode() == null) {
                 log.warn("[analysis-period] default period unavailable, no value to serve error={}", exception.getErrorCode().getCode());
-                throw new MapException(MapErrorCode.DEFAULT_PERIOD_UNAVAILABLE, exception);
+            } else if (published == failed) {
+                log.warn("[analysis-period] default period refresh failed, serving stale periodCode={} error={}",
+                    stale, exception.getErrorCode().getCode());
             }
-            memo.set(new Memo(stale, now.plus(cacheTtl)));
-            log.warn("[analysis-period] default period refresh failed, serving stale periodCode={} error={}",
-                stale, exception.getErrorCode().getCode());
-            return stale;
+            return valueOf(published, exception);
         }
+    }
+
+    /**
+     * 읽어 둔 메모({@code expected})일 때만 바꾼다. 경합에 지면 먼저 쓴 쪽을 돌려주되, 성공 결과는 실패로 만든 메모를 덮어쓴다.
+     * 실패 결과는 어떤 메모도 덮어쓰지 않는다.
+     */
+    private Memo publish(Memo expected, Memo next) {
+        Memo witnessed = expected;
+        while (!memo.compareAndSet(witnessed, next)) {
+            witnessed = memo.get();
+            if (next.fromFailure() || !witnessed.fromFailure()) {
+                return witnessed;
+            }
+        }
+        return next;
+    }
+
+    private static String valueOf(Memo memo, MapException cause) {
+        if (memo.periodCode() == null) {
+            throw cause == null
+                ? new MapException(MapErrorCode.DEFAULT_PERIOD_UNAVAILABLE)
+                : new MapException(MapErrorCode.DEFAULT_PERIOD_UNAVAILABLE, cause);
+        }
+        return memo.periodCode();
     }
 
     private String fetchDefaultPeriodCode() {
@@ -88,7 +113,7 @@ public class CommercialAnalysisPeriodClientAdapter implements AnalysisPeriodQuer
         return periodCode;
     }
 
-    /** 받아 온 기본 분기(실패 백오프 중이면 null)와 다음 시도 시각. */
-    private record Memo(String periodCode, Instant retryAfter) {
+    /** 받아 온 기본 분기(실패 백오프 중이면 null), 다음 시도 시각, 실패로 만든 메모인지(stale 연장·백오프). */
+    private record Memo(String periodCode, Instant retryAfter, boolean fromFailure) {
     }
 }

@@ -57,6 +57,9 @@ resilience4j:
     instances:
       commercial-service:
         base-config: default
+      # 기본 분기 조회(/api/v1/commercials/periods) 전용. 실패가 원천 조회 서킷(commercial-service)을 열지 않게 분리한다(이슈 #464).
+      commercial-service-periods:
+        base-config: default
       district-service:
         base-config: default
       llm:

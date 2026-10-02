@@ -177,7 +177,7 @@
 
 > 응답 `dataBody`: `defaultPeriodCode`(원천 중단 상한이 없는 데이터셋 14종 모두에 적재된 분기 중 최신, 정할 수 없으면 `null`), `availablePeriodCodes`(같은 교집합, 최신순), `firstPeriodCode`, `spatialVersion`(배포 설정 `DATASET_SPATIAL_VERSION`), `resolvedAt`(계산 시각, `+09:00`), `datasets[]`(`dataset`·`sourceId`·`latestPeriodCode`·`firstPeriodCode`·`periodCount`·`coreForDefault`·`lastPublishablePeriodCode`·`publishedAt`·`schemaVersion`). 원천이 끊긴 상권 소비(`CONSUMPTION_COMMERCIAL`, 20234 까지)는 `coreForDefault=false` 라 기본 분기를 붙잡지 않습니다. `publishedAt`·`schemaVersion` 은 후속 이슈 전까지 항상 `null` 입니다.
 >
-> 서버가 5분마다 다시 계산해 인스턴스 메모리에 두는 값이라 `resolvedAt` 이 몇 분 전일 수 있고, DB 장애 중에는 마지막으로 계산한 값을 그대로 내려줍니다. 기동 직후 첫 계산 전이나 한 번도 계산하지 못했으면 `ANALYSIS_PERIOD_001`(503) 입니다(요청이 계산을 기다리지 않습니다).
+> 서버가 5분마다 다시 계산해(실패하면 30초 뒤 재시도) 인스턴스 메모리에 두는 값이라 `resolvedAt` 이 몇 분 전일 수 있고, DB 장애 중에는 마지막으로 계산한 값을 그대로 내려줍니다. 기동 직후 첫 계산 전이나 한 번도 계산하지 못했으면 `ANALYSIS_PERIOD_001`(503) 입니다(요청이 계산을 기다리지 않습니다).
 
 ### 상권 기본 데이터 (`/api/v1/commercials`)
 
