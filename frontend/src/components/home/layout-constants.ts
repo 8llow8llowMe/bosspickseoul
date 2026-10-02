@@ -41,3 +41,18 @@ export const HOME_FULL_SCREEN_SECTION = css`
  * 히어로는 여기서 빠진다 — 지도가 셸 전폭을 쓰고 카드는 가운데라 기준선이 없다.
  */
 export const HOME_COLUMN = centeredColumn('var(--w-wide)')
+
+/**
+ * 히어로 「창」 장식(제목줄·신호등·드래그·접기·독 축소)을 켤지(hero-split-layout.md D4-2).
+ *
+ * 좌우 분할로 카드가 지도를 덮지 않게 되며 창을 치울 이유가 사라졌다. **시험 적용**이라
+ * 코드는 지우지 않고 이 값으로 숨긴다 — `true` 로 돌리면 장식과 드래그가 함께 돌아온다
+ * (오버레이 배치까지 되돌리려면 `HERO_STACKED_MEDIA` 쪽 그리드도 되돌린다).
+ */
+export const HERO_WINDOW_CHROME = false
+
+/**
+ * 히어로 **배치** 기준 — 이 폭 이하는 [카드][지도] 위아래, 넘으면 좌우 두 칸(hero-split-layout.md D3).
+ * 탭 = 피커 선택·호버 끄기 같은 **동작** 기준(640px, `isMobileViewport`)과는 다른 값이다.
+ */
+export const HERO_STACKED_MEDIA = '(max-width: 899px)'

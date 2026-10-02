@@ -45,6 +45,11 @@ export type HeroWindowProps = {
   onPick: (code: string | null) => void
   /** 모바일 지도 탭 뒤 피커 덩어리를 화면에 데려오기 위한 ref. */
   pickerRef?: Ref<HTMLDivElement>
+  /**
+   * 창 장식(제목줄·신호등·드래그 핸들)을 그릴지. 끄면 접기·닫기로 들어갈 길도 함께 없어진다
+   * (hero-split-layout.md D4-2, `HERO_WINDOW_CHROME`).
+   */
+  chrome: boolean
 }
 
 const WindowCard = styled.div<{ $tinted?: boolean }>`
@@ -195,15 +200,16 @@ const WindowBody = styled.div<{ $minimized: boolean }>`
   }
 `
 
-const WindowBodyInner = styled.div`
+const WindowBodyInner = styled.div<{ $chromeless: boolean }>`
   min-height: 0;
   overflow: hidden;
   display: grid;
   gap: 20px;
-  padding: 16px 40px 40px;
+  /* 제목줄이 없으면 그 아래 16px 이 아니라 좌우와 같은 여백을 준다(D2 #5). */
+  padding: ${p => (p.$chromeless ? '40px' : '16px 40px 40px')};
 
   @media (max-width: 640px) {
-    padding: 12px 24px 24px;
+    padding: ${p => (p.$chromeless ? '24px' : '12px 24px 24px')};
     gap: 16px;
   }
 `
@@ -413,6 +419,7 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
       pickedCode,
       onPick,
       pickerRef,
+      chrome,
     },
     ref,
   ) {
@@ -421,41 +428,43 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
 
     return (
       <WindowCard ref={ref} style={style} $tinted={tinted}>
-        <TitleBar onPointerDown={dragHandlers?.onPointerDown}>
-          <WindowTitle>서울 상권 데이터 분석</WindowTitle>
-          <TrafficLights role="group" aria-label="분석 창 조작">
-            <Dot
-              type="button"
-              $variant="close"
-              aria-label="분석 창 닫고 지도 보기"
-              onClick={onClose}
-            >
-              <X aria-hidden="true" />
-            </Dot>
-            <Dot
-              type="button"
-              $variant="min"
-              aria-label="분석 창 접기"
-              onClick={onToggleMinimize}
-            >
-              <Minus aria-hidden="true" />
-            </Dot>
-            <DotLink
-              href="/analysis"
-              $variant="max"
-              aria-label="상권 분석 시작(전체 화면)"
-              {...trackAttrs('home_hero_cta_click', { cta: 'window_max' })}
-            >
-              <Maximize2 aria-hidden="true" />
-            </DotLink>
-          </TrafficLights>
-        </TitleBar>
+        {chrome ? (
+          <TitleBar onPointerDown={dragHandlers?.onPointerDown}>
+            <WindowTitle>서울 상권 데이터 분석</WindowTitle>
+            <TrafficLights role="group" aria-label="분석 창 조작">
+              <Dot
+                type="button"
+                $variant="close"
+                aria-label="분석 창 닫고 지도 보기"
+                onClick={onClose}
+              >
+                <X aria-hidden="true" />
+              </Dot>
+              <Dot
+                type="button"
+                $variant="min"
+                aria-label="분석 창 접기"
+                onClick={onToggleMinimize}
+              >
+                <Minus aria-hidden="true" />
+              </Dot>
+              <DotLink
+                href="/analysis"
+                $variant="max"
+                aria-label="상권 분석 시작(전체 화면)"
+                {...trackAttrs('home_hero_cta_click', { cta: 'window_max' })}
+              >
+                <Maximize2 aria-hidden="true" />
+              </DotLink>
+            </TrafficLights>
+          </TitleBar>
+        ) : null}
         <WindowBody
           $minimized={minimized}
           aria-hidden={minimized}
           inert={minimized ? true : undefined}
         >
-          <WindowBodyInner>
+          <WindowBodyInner $chromeless={!chrome}>
             <Title>서울 어디에 차려야 할까요?</Title>
             <Body>
               자치구를 고르면 유동인구부터 바로 보여 주고, 분석 화면에서

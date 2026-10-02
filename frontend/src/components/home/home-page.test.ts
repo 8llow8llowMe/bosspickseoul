@@ -115,6 +115,16 @@ describe('HomePage', () => {
     expect(text).not.toContain('짚어 드립니다')
   })
 
+  /* 카드가 지도를 덮지 않으니 창 장식은 숨긴다 — 시험 적용(hero-split-layout.md D4-2). */
+  it('히어로 카드에 창 장식(제목줄·조작 그룹)이 없다', () => {
+    const html = render()
+    const text = html.replace(/<[^>]+>/g, '')
+
+    expect(text).not.toContain('서울 상권 데이터 분석')
+    expect(html).not.toContain('aria-label="분석 창 조작"')
+    expect(html).not.toContain('aria-label="분석 창 열기"')
+  })
+
   /* 「어디가 좋을지 모르는 사람」의 갈래가 첫 화면에 있어야 한다(이슈 #176 잔여 ①). */
   it('히어로가 추천 갈래를 연다', () => {
     const html = render()

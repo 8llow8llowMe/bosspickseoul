@@ -42,3 +42,13 @@ export function placeBesideRect(
   const rightPx = ctm.e + (x + tooltipWidth) * ctm.a
   return rightPx <= boxRightPx ? x : null
 }
+
+/**
+ * 툴팁을 viewBox 안에서 몇 배로 그릴지. 지도가 화면에 `screenScale`(viewBox 1 단위 = px) 배율로
+ * 그려지므로, 1 보다 작으면 그 역수만큼 키워 화면에서 설계 크기(TOOLTIP_WIDTH px) 아래로 줄지
+ * 않게 한다. 지도가 크게 그려질 때는 키우지 않는다(hero-split-layout.md D4-4).
+ */
+export function tooltipScale(screenScale: number): number {
+  if (!Number.isFinite(screenScale) || screenScale <= 0) return 1
+  return Math.max(1, 1 / screenScale)
+}
