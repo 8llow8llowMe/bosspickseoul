@@ -67,7 +67,9 @@ export const resolveMetricCards = ({
       loading: profileLoading,
       display: profileLoading
         ? METRIC_PENDING_DISPLAY
-        : formatAnalysisValue(km?.totalStoreCount, '개'),
+        : // `totalStoreCount`(원천 `STOR_CO`)는 프랜차이즈를 뺀 수다. 프랜차이즈를 포함한
+          // 이 업종 전체는 `similarStoreCount` — 상권분석 결과 「점포 수」와 같은 값이다.
+          formatAnalysisValue(km?.similarStoreCount, '개'),
     },
     {
       label: '성장률',

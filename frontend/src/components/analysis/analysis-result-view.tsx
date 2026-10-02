@@ -1327,9 +1327,13 @@ export default function AnalysisResultView({
       data: getResponseBody(footTrendQuery.data),
     },
     {
+      /*
+        BE 추이는 원천 `STOR_CO`(`totalStoreCount`)라 프랜차이즈가 빠진 수다. 핵심 지표 「점포 수」
+        (프랜차이즈 포함)와 값이 달라 같은 이름을 쓰면 서로 틀려 보이므로 「일반 점포 수」로 부른다. BE 정리는 #490.
+      */
       metric: 'STORE',
-      label: '점포 수',
-      subject: '점포 수가',
+      label: '일반 점포 수',
+      subject: '일반 점포 수가',
       unit: '개',
       query: storeTrendQuery,
       data: getResponseBody(storeTrendQuery.data),
@@ -1633,17 +1637,23 @@ export default function AnalysisResultView({
           ratio: residentFemaleShare,
         }
 
-  const totalStoreCount =
-    profile?.keyMetrics?.totalStoreCount ?? stores?.totalStoreCount
+  /*
+    원천(서울시 상권 점포) 필드 뜻: `totalStoreCount`(`STOR_CO`)는 **프랜차이즈를 뺀** 일반 점포,
+    `similarStoreCount`(`SIMILR_INDUTY_STOR_CO`)가 일반 + 프랜차이즈 = 이 업종 전체 점포다
+    (dev 실측 79곳 모두 성립, 프랜차이즈가 일반보다 많은 곳이 15곳). 그래서 「점포 수」는
+    `similarStoreCount` 이고, 개·폐업률의 분모도 이 값이다(20개 중 1개 = 5%).
+  */
+  const storeCount =
+    profile?.keyMetrics?.similarStoreCount ?? stores?.similarStoreCount
   const openedStoreCount = stores?.openedStoreCount
   const closedStoreCount = stores?.closedStoreCount
   /*
-    프랜차이즈 비중. 요약 「점포 현황」 카드를 걷어내며(#482) 점포 탭 「점포 분석」의 「총 점포」
-    맥락 줄로 옮겼다. 분모는 그 카드와 같은 선택 업종 점포 수다.
+    프랜차이즈 비중. 점포 탭 「점포 분석」의 「총 점포」 맥락 줄이다. 전에는 `totalStoreCount` 를
+    분모로 써서 프랜차이즈가 많은 상권에서 100% 를 넘었다(최대 367%).
   */
   const franchiseShare = toShareRatio(
     stores?.franchiseStoreCount,
-    totalStoreCount,
+    stores?.similarStoreCount,
   )
 
   /*
@@ -1691,12 +1701,11 @@ export default function AnalysisResultView({
     },
     {
       /*
-        맥락 줄을 두지 않는다. 전에는 개·폐업 순증을 붙였는데, 그 건수는 **유사 업종 점포**가
-        분모다(20개 중 1개 = 개업률 5%). 선택 업종 점포 수 옆에 두면 주어가 엇갈리고, 바로
-        아래 인사이트 「경쟁」 줄이 같은 건수를 유사 업종 기준으로 다시 말한다(#482).
+        프랜차이즈를 포함한 이 업종 전체 점포 수다(`storeCount`). 맥락 줄을 두지 않는다 — 바로
+        아래 인사이트 「경쟁」 줄이 같은 수와 그 분기 개·폐업 건수를 함께 말한다(#482).
       */
       label: '점포 수',
-      value: totalStoreCount,
+      value: storeCount,
       unit: '개',
       icon: Store,
       context: null,
@@ -2186,8 +2195,9 @@ export default function AnalysisResultView({
                 >
                   {renderCards([
                     {
+                      /* 프랜차이즈 포함 전체다(`similarStoreCount`). 「점포 수」 지표와 같은 값이다. */
                       label: '총 점포',
-                      value: stores?.totalStoreCount,
+                      value: stores?.similarStoreCount,
                       unit: '개',
                       icon: Store,
                       context:
@@ -2202,11 +2212,15 @@ export default function AnalysisResultView({
                           : null,
                     },
                     {
-                      label: '유사 업종 점포',
-                      value: stores?.similarStoreCount,
+                      /*
+                        원천 `STOR_CO`(`totalStoreCount`)는 프랜차이즈를 뺀 수다. 「총 점포」의
+                        나머지 몫이라 맥락 줄에 그 뜻을 적는다.
+                      */
+                      label: '일반 점포',
+                      value: stores?.totalStoreCount,
                       unit: '개',
                       icon: Store,
-                      context: null,
+                      context: { text: '프랜차이즈 제외' },
                     },
                     {
                       /* 건수만 있으면 상권 크기를 모르고, 비율만 있으면 몇 곳인지 모른다 — 둘 다 적는다. */

@@ -163,27 +163,27 @@ describe('chart-insights', () => {
 })
 
 describe('describeStoreCompetition', () => {
-  it('유사 업종 점포 수와 그 분기 개·폐업 건수를 같은 주어로 적는다', () => {
+  it('같은 업종(프랜차이즈 포함) 점포 수와 그 분기 개·폐업 건수를 같은 주어로 적는다', () => {
     expect(describeStoreCompetition(20, 1, 1)).toBe(
-      '유사 업종 점포가 20개 있어요. 이 분기에 1개가 문을 열고 1개가 문을 닫았어요',
+      '같은 업종 점포가 20개 있어요. 이 분기에 1개가 문을 열고 1개가 문을 닫았어요',
     )
   })
 
   it('개·폐업이 모두 0 이면 「0개가 문을 열고」 대신 없다고 적는다', () => {
     expect(describeStoreCompetition(1200, 0, 0)).toBe(
-      '유사 업종 점포가 1,200개 있어요. 이 분기에 문을 연 점포도 닫은 점포도 없어요',
+      '같은 업종 점포가 1,200개 있어요. 이 분기에 문을 연 점포도 닫은 점포도 없어요',
     )
   })
 
   it('개·폐업 건수가 하나라도 비면 둘째 문장을 뺀다', () => {
     expect(describeStoreCompetition(20, 3, null)).toBe(
-      '유사 업종 점포가 20개 있어요',
+      '같은 업종 점포가 20개 있어요',
     )
   })
 
-  it('유사 업종 점포가 0 이면 없다고만 적고, 값이 없으면 문장을 만들지 않는다', () => {
+  it('같은 업종 점포가 0 이면 없다고만 적고, 값이 없으면 문장을 만들지 않는다', () => {
     expect(describeStoreCompetition(0, 0, 0)).toBe(
-      '이 상권에는 유사 업종 점포가 없어요',
+      '이 상권에는 같은 업종 점포가 없어요',
     )
     expect(describeStoreCompetition(undefined, 1, 1)).toBeNull()
   })
