@@ -48,7 +48,7 @@ import {
 } from '@/lib/simulation/report-route'
 import { resolveOpenSection } from '@/lib/simulation/step-flow'
 import type { SimulationReportRequest } from '@/types/simulation'
-import { shellWidth } from '@/styles/layout'
+import { centeredColumn } from '@/styles/layout'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationBuilderPageProps = {
@@ -78,18 +78,18 @@ const RESULT_COLUMN_WIDTH = '360px'
 const COLUMN_GAP = '20px'
 
 /*
-  셸은 그대로 두고(DESIGN §5), 그 안의 본문 묶음(헤더·분석 컨텍스트 카드·2단)을 2단 트랙 합에서
-  멈춘다. 조건 열만 멈추면 grid 자식인 헤더와 컨텍스트 카드는 셸 끝까지 늘어 「저장한 결과」가
-  결과 패널보다 620px(1920) 오른쪽 빈자리에 떴다. 왼쪽 정렬이라 사이트 헤더와 왼쪽 기준선은 같다.
+  본문 묶음(헤더·분석 컨텍스트 카드·2단) 전체가 2단 트랙 합에서 멈추고 **셸 안 가운데**에 선다
+  (DESIGN §5 「중앙 그룹」 — 홈·커뮤니티와 같은 방식). 묶음 자체에 상한을 걸어야 한다 — 조건 열만
+  멈추면 grid 자식인 헤더와 컨텍스트 카드는 셸 끝까지 늘어 「저장한 결과」가 결과 패널보다
+  620px(1920) 오른쪽 빈자리에 떴다. 전에는 왼쪽 정렬이라 1920 에서 콘텐츠가 왼쪽 1260 에 몰리고
+  오른쪽 640 이 비었다. 헤더(로고)와의 왼쪽 기준선 차이는 남는다 — 입력·리포트·비교가 같은
+  기준선을 쓰는 쪽을 택했다. 자식에 margin: auto 를 걸지 않는다: grid 항목은 늘어나지 않고
+  내용 폭으로 줄어든다.
 */
 const Container = styled.div`
-  ${shellWidth}
+  ${centeredColumn(`calc(var(--w-form) + ${COLUMN_GAP} + ${RESULT_COLUMN_WIDTH})`)}
   display: grid;
   gap: 16px;
-
-  > * {
-    max-width: calc(var(--w-form) + ${COLUMN_GAP} + ${RESULT_COLUMN_WIDTH});
-  }
 `
 
 /* 3층 문구(eyebrow+H1+설명)를 한 줄로 눌렀다. 매 화면 같은 문구가 상단을 다 먹지 않게. */

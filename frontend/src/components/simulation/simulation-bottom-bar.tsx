@@ -25,12 +25,8 @@ export const SimulationBottomBarFrame = styled.div`
   /*
     && 로 명시도를 올린다. 바마다 styled(SimulationBottomBarFrame) 로 display: flex | grid 를
     주는데, 그 규칙이 이 틀보다 뒤에 주입돼 명시도가 같으면 데스크톱 숨김을 덮어쓴다(바가 1440 에
-    그대로 떴다). 고정 바라 셸 묶음 상한(> * 의 max-width)도 받지 않는다.
+    그대로 떴다).
   */
-  && {
-    max-width: none;
-  }
-
   @media ${SIMULATION_MEDIA.desktop} {
     && {
       display: none;
