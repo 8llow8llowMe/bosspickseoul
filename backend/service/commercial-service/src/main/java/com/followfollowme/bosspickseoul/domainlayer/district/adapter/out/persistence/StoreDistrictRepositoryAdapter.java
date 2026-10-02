@@ -1,12 +1,16 @@
 package com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence;
 
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.StoreDistrictRepository;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.StoreDistrictClosedRankingProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.StoreDistrictClosedTopTenProjection;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.StoreDistrictOpenedRankingProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.StoreDistrictOpenedTopTenProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.StoreDistrictServiceTopEightProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.StoreDistrictMapper;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.StoreDistrictRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictClosedRankingQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictClosedTopTenQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictOpenedRankingQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictOpenedTopTenQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictServiceTopEightQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.StoreDistrict;
@@ -49,6 +53,22 @@ public class StoreDistrictRepositoryAdapter implements StoreDistrictRepositoryPo
     }
 
     @Override
+    public List<StoreDistrictOpenedRankingQueryResult> findRankingsByOpenedStore(String currentPeriodCode, String previousPeriodCode) {
+        return storeDistrictRepository.findRankingsByOpenedStore(currentPeriodCode, previousPeriodCode)
+            .stream()
+            .map(this::toOpenedRankingQueryResult)
+            .toList();
+    }
+
+    @Override
+    public List<StoreDistrictClosedRankingQueryResult> findRankingsByClosedStore(String currentPeriodCode, String previousPeriodCode) {
+        return storeDistrictRepository.findRankingsByClosedStore(currentPeriodCode, previousPeriodCode)
+            .stream()
+            .map(this::toClosedRankingQueryResult)
+            .toList();
+    }
+
+    @Override
     public List<StoreDistrictServiceTopEightQueryResult> findTopEightByTotalStore(String periodCode, String districtCode) {
         return storeDistrictRepository.findTopEightByTotalStore(periodCode, districtCode)
             .stream()
@@ -67,6 +87,24 @@ public class StoreDistrictRepositoryAdapter implements StoreDistrictRepositoryPo
 
     private StoreDistrictClosedTopTenQueryResult toClosedTopTenQueryResult(StoreDistrictClosedTopTenProjection projection) {
         return StoreDistrictClosedTopTenQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .closedStoreCount(projection.closedStoreCount())
+            .closureChangeRate(projection.closureChangeRate())
+            .build();
+    }
+
+    private StoreDistrictOpenedRankingQueryResult toOpenedRankingQueryResult(StoreDistrictOpenedRankingProjection projection) {
+        return StoreDistrictOpenedRankingQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .openedStoreCount(projection.openedStoreCount())
+            .openingChangeRate(projection.openingChangeRate())
+            .build();
+    }
+
+    private StoreDistrictClosedRankingQueryResult toClosedRankingQueryResult(StoreDistrictClosedRankingProjection projection) {
+        return StoreDistrictClosedRankingQueryResult.builder()
             .districtCode(projection.districtCode())
             .districtName(projection.districtName())
             .closedStoreCount(projection.closedStoreCount())

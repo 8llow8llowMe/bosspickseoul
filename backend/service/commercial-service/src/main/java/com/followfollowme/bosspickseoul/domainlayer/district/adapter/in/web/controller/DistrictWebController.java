@@ -5,6 +5,7 @@ import com.followfollowme.bosspickseoul.common.dto.Response;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.ChangeIndicatorDistrictResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictRankingSummaryResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesAdministrationDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
@@ -42,6 +43,21 @@ public class DistrictWebController {
             currentPeriodCode,
             previousPeriodCode
         );
+        return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    @Operation(
+        summary = "자치구 지표별 전체 순위 조회",
+        description = "유동인구, 매출, 개업 점포 수, 폐업 점포 수 기준으로 현재 분기 데이터가 있는 자치구 전체의 순위를 조회합니다. "
+            + "값이 같으면 같은 순위(1, 2, 2, 4)이고 자치구 코드 오름차순으로 놓입니다. 비교 분기 값이 없거나 0 이면 변화율은 null 입니다."
+    )
+    @GetMapping("/rankings")
+    public ResponseEntity<Response<DistrictRankingSummaryResponse>> getDistrictRankings(
+        @Parameter(description = AnalysisPeriodDefaults.PERIOD_CODE_DESCRIPTION, example = AnalysisPeriodDefaults.PERIOD_CODE)
+        @RequestParam(required = false) String currentPeriodCode,
+        @Parameter(description = "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.", example = "20254") @RequestParam(required = false) String previousPeriodCode
+    ) {
+        DistrictRankingSummaryResponse response = districtWebUseCase.getDistrictRankings(currentPeriodCode, previousPeriodCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 

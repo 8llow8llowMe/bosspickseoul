@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesAdministrationDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictRankingSummaryResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictTopTenSummaryResponse;
@@ -13,6 +14,8 @@ import java.util.List;
 public interface DistrictWebUseCase {
 
     DistrictTopTenSummaryResponse getTopTenDistricts(String currentPeriodCode, String previousPeriodCode);
+
+    DistrictRankingSummaryResponse getDistrictRankings(String currentPeriodCode, String previousPeriodCode);
 
     DistrictDetailResponse getDistrictDetail(String districtCode, String currentPeriodCode, String previousPeriodCode);
 

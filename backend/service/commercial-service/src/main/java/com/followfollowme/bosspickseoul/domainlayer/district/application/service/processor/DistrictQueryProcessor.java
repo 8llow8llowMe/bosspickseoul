@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.district.application.service.processor;
 
+import com.followfollowme.bosspickseoul.domainlayer.district.application.common.CompetitionRankCalculator;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.common.PeriodCodeCalculator;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.exception.DistrictErrorCode;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.exception.DistrictException;
@@ -8,6 +9,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.info.ch
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictAgeGroupFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictDayOfWeekFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictFootTrafficDetailInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictFootTrafficRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictFootTrafficTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictGenderFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictMetricValueInfo;
@@ -16,15 +18,19 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.info.fo
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesAdministrationDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesAdministrationTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesDetailInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesServiceTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictClosedStoreAdministrationTopInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictClosedStoreRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictClosedStoreTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictOpenedStoreAdministrationTopInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictOpenedStoreRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictOpenedStoreTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictStoreDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictStoreServiceTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictDetailInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictRankingSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictTopTenSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.ChangeDistrictRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.FootTrafficDistrictRepositoryPort;
@@ -32,6 +38,10 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.port.ou
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.SalesDistrictRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.StoreAdministrationRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.StoreDistrictRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.FootTrafficDistrictRankingQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.SalesDistrictRankingQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictClosedRankingQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.StoreDistrictOpenedRankingQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.enums.DistrictAgeGroupType;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.enums.DistrictDayOfWeekType;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.enums.DistrictGenderType;
@@ -93,6 +103,36 @@ public class DistrictQueryProcessor {
             .salesTopTenInfos(salesTopTenInfos)
             .openedStoreTopTenInfos(openedStoreTopTenInfos)
             .closedStoreTopTenInfos(closedStoreTopTenInfos)
+            .build();
+    }
+
+    public DistrictRankingSummaryInfo getRankingSummary(String currentPeriodCode, String previousPeriodCode) {
+        // 1. 이전 분기 확정 (Top10 과 같은 규칙)
+        String resolvedPreviousPeriodCode =
+            periodCodeCalculator.resolvePreviousPeriodCode(currentPeriodCode, previousPeriodCode);
+
+        // 2. 지표별 전체 순위 조회. 저장소가 값 내림차순·자치구 코드 오름차순으로 정렬해 주므로 여기서는 순위만 매긴다(이슈 #433).
+        List<DistrictFootTrafficRankingInfo> footTrafficRankingInfos = CompetitionRankCalculator.rank(
+            footTrafficDistrictRepositoryPort.findRankingsByFootTraffic(currentPeriodCode, resolvedPreviousPeriodCode),
+            FootTrafficDistrictRankingQueryResult::totalFootTraffic, DistrictFootTrafficRankingInfo::of);
+        List<DistrictSalesRankingInfo> salesRankingInfos = CompetitionRankCalculator.rank(
+            salesDistrictRepositoryPort.findRankingsBySales(currentPeriodCode, resolvedPreviousPeriodCode),
+            SalesDistrictRankingQueryResult::totalSalesAmount, DistrictSalesRankingInfo::of);
+        List<DistrictOpenedStoreRankingInfo> openedStoreRankingInfos = CompetitionRankCalculator.rank(
+            storeDistrictRepositoryPort.findRankingsByOpenedStore(currentPeriodCode, resolvedPreviousPeriodCode),
+            StoreDistrictOpenedRankingQueryResult::openedStoreCount, DistrictOpenedStoreRankingInfo::of);
+        List<DistrictClosedStoreRankingInfo> closedStoreRankingInfos = CompetitionRankCalculator.rank(
+            storeDistrictRepositoryPort.findRankingsByClosedStore(currentPeriodCode, resolvedPreviousPeriodCode),
+            StoreDistrictClosedRankingQueryResult::closedStoreCount, DistrictClosedStoreRankingInfo::of);
+
+        // 3. Summary Info 조립
+        return DistrictRankingSummaryInfo.builder()
+            .currentPeriodCode(currentPeriodCode)
+            .previousPeriodCode(resolvedPreviousPeriodCode)
+            .footTrafficRankingInfos(footTrafficRankingInfos)
+            .salesRankingInfos(salesRankingInfos)
+            .openedStoreRankingInfos(openedStoreRankingInfos)
+            .closedStoreRankingInfos(closedStoreRankingInfos)
             .build();
     }
 

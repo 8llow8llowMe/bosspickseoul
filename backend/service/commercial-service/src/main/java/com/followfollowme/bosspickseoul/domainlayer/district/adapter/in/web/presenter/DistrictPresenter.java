@@ -1,16 +1,20 @@
 package com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.presenter;
 
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictAgeGroupFootTrafficItem;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictClosedStoreRankingItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictClosedStoreTopTenItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictClosedStoreAdministrationTopItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictDayOfWeekFootTrafficItem;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictFootTrafficRankingItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictFootTrafficTopTenItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictGenderFootTrafficItem;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictOpenedStoreRankingItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictOpenedStoreTopTenItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictOpenedStoreAdministrationTopItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictPeriodFootTrafficItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictSalesAdministrationTopItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictSalesServiceTopItem;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictSalesRankingItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictSalesTopTenItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictStoreServiceTopItem;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.item.DistrictTimeSlotFootTrafficItem;
@@ -18,6 +22,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesAdministrationDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictRankingSummaryResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictTopTenSummaryResponse;
@@ -25,23 +30,28 @@ import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictAgeGroupFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.area.DistrictAreaInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.change.DistrictChangeIndicatorInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictClosedStoreRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictClosedStoreTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictClosedStoreAdministrationTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictDayOfWeekFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictFootTrafficDetailInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictFootTrafficRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictFootTrafficTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictGenderFootTrafficInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictOpenedStoreRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictOpenedStoreTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictOpenedStoreAdministrationTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictPeriodFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesAdministrationTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesServiceTopInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesRankingInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesTopTenInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictStoreDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictStoreServiceTopInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.foottraffic.DistrictTimeSlotFootTrafficInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictRankingSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictTopTenSummaryInfo;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -58,6 +68,17 @@ public class DistrictPresenter {
             .salesTopTenItems(toSalesTopTenItems(info.salesTopTenInfos()))
             .openedStoreTopTenItems(toOpenedStoreTopTenItems(info.openedStoreTopTenInfos()))
             .closedStoreTopTenItems(toClosedStoreTopTenItems(info.closedStoreTopTenInfos()))
+            .build();
+    }
+
+    public DistrictRankingSummaryResponse toDistrictRankingSummaryResponse(DistrictRankingSummaryInfo info) {
+        return DistrictRankingSummaryResponse.builder()
+            .currentPeriodCode(info.currentPeriodCode())
+            .previousPeriodCode(info.previousPeriodCode())
+            .footTrafficRankings(info.footTrafficRankingInfos().stream().map(this::toFootTrafficRankingItem).toList())
+            .salesRankings(info.salesRankingInfos().stream().map(this::toSalesRankingItem).toList())
+            .openedStoreRankings(info.openedStoreRankingInfos().stream().map(this::toOpenedStoreRankingItem).toList())
+            .closedStoreRankings(info.closedStoreRankingInfos().stream().map(this::toClosedStoreRankingItem).toList())
             .build();
     }
 
@@ -328,6 +349,46 @@ public class DistrictPresenter {
 
     private DistrictClosedStoreTopTenItem toClosedStoreTopTenItem(DistrictClosedStoreTopTenInfo info) {
         return DistrictClosedStoreTopTenItem.builder()
+            .districtCode(info.districtCode())
+            .districtName(info.districtName())
+            .closedStoreCount(info.closedStoreCount())
+            .closureChangeRate(info.closureChangeRate())
+            .build();
+    }
+
+    private DistrictFootTrafficRankingItem toFootTrafficRankingItem(DistrictFootTrafficRankingInfo info) {
+        return DistrictFootTrafficRankingItem.builder()
+            .rank(info.rank())
+            .districtCode(info.districtCode())
+            .districtName(info.districtName())
+            .totalFootTraffic(info.totalFootTraffic())
+            .footTrafficChangeRate(info.footTrafficChangeRate())
+            .build();
+    }
+
+    private DistrictSalesRankingItem toSalesRankingItem(DistrictSalesRankingInfo info) {
+        return DistrictSalesRankingItem.builder()
+            .rank(info.rank())
+            .districtCode(info.districtCode())
+            .districtName(info.districtName())
+            .totalSalesAmount(info.totalSalesAmount())
+            .salesChangeRate(info.salesChangeRate())
+            .build();
+    }
+
+    private DistrictOpenedStoreRankingItem toOpenedStoreRankingItem(DistrictOpenedStoreRankingInfo info) {
+        return DistrictOpenedStoreRankingItem.builder()
+            .rank(info.rank())
+            .districtCode(info.districtCode())
+            .districtName(info.districtName())
+            .openedStoreCount(info.openedStoreCount())
+            .openingChangeRate(info.openingChangeRate())
+            .build();
+    }
+
+    private DistrictClosedStoreRankingItem toClosedStoreRankingItem(DistrictClosedStoreRankingInfo info) {
+        return DistrictClosedStoreRankingItem.builder()
+            .rank(info.rank())
             .districtCode(info.districtCode())
             .districtName(info.districtName())
             .closedStoreCount(info.closedStoreCount())
