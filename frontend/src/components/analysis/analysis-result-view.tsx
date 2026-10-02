@@ -2045,6 +2045,7 @@ export default function AnalysisResultView({
 
               <AnalysisResultSection
                 title="요일별 유동인구"
+                collapsible
                 description={toDescription(describeFootDayPattern(footDayRows))}
                 loadingHeight={CHART_LOADING_HEIGHT.bar}
                 loading={footTrafficQuery.isPending}
@@ -2064,6 +2065,7 @@ export default function AnalysisResultView({
 
               <AnalysisResultSection
                 title="연령·성별 유동인구"
+                collapsible
                 description={toDescription(
                   describeFootAgeGenderPeak(footPyramidRows),
                 )}
@@ -2117,6 +2119,7 @@ export default function AnalysisResultView({
 
               <AnalysisResultSection
                 title="요일별 매출"
+                collapsible
                 description={toDescription(describeSalesDayPeak(salesDayRows))}
                 loadingHeight={CHART_LOADING_HEIGHT.bar}
                 loading={salesQuery.isPending}
@@ -2140,6 +2143,7 @@ export default function AnalysisResultView({
               */}
               <AnalysisResultSection
                 title="연령·성별 매출"
+                collapsible
                 description={toDescription(
                   describeSalesAgePeak(salesAgeRows),
                   describeGenderShare(
@@ -2295,6 +2299,7 @@ export default function AnalysisResultView({
               <div>
                 <AnalysisResultSection
                   title="늘고 주는 업종"
+                  collapsible
                   description="선택한 업종을 뺀 나머지 업종의 개업률에서 폐업률을 뺀 값이에요. 위가 늘어난 업종, 아래가 줄어든 업종이에요."
                   loadingHeight={CHART_LOADING_HEIGHT.horizontalBar}
                   loading={storesQuery.isPending}
@@ -2383,6 +2388,7 @@ export default function AnalysisResultView({
               */}
               <AnalysisResultSection
                 title="항목별 소비"
+                collapsible
                 /*
                   기준 분기는 **값이 실제로 딛고 선 분기**를 적는다. 대체값은 선택한 분기와
                   다른 분기에서 올 수 있어, 선택값을 그대로 쓰면 없는 사실을 말하게 된다.
@@ -2424,6 +2430,7 @@ export default function AnalysisResultView({
               <PairSpanItem>
                 <AnalysisResultSection
                   title="지역별 소비"
+                  collapsible
                   description={`${formatPeriodCode(periodCode)} 기준 총 지출액`}
                   footer={
                     regionalExpenseProxyNote ? (
