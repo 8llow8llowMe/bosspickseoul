@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Bookmark, Settings } from 'lucide-react'
 import styled from 'styled-components'
+import ProfileLegalLinks from '@/components/profile/profile-legal-links'
 import { getMemberInfoData } from '@/lib/api/profile'
 import {
   applyResolvedMemberInfoResponse,
@@ -247,6 +248,9 @@ export default function ProfileShell({ children }: ProfileShellProps) {
               )
             })}
           </NavList>
+        </SidebarCard>
+        <SidebarCard>
+          <ProfileLegalLinks />
         </SidebarCard>
       </Sidebar>
       <Content>{children}</Content>
