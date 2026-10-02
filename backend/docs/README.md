@@ -66,6 +66,7 @@
   - `services/commercial-service.md` — 상권·자치구 분석, 블루오션, 시뮬레이션, 공유 링크, 분석 보관함
   - `services/district-service.md` — 지도 영역 좌표와 지도 화면 전용 오케스트레이션
   - `services/community-service.md` — 게시글/댓글/좋아요/신고, 커서 페이징, 모더레이션
+  - `services/community-notification-design.md` — 커뮤니티 알림(내 글 댓글·내 댓글 답글) 설계와 1차 범위(#474)
   - `services/ai-service.md` — AI 리포트 비동기 잡 모델, 멱등 키, SSE/폴링, 사용량 제한
   - `services/ai-service-strategy.md` — AI 리포트 프롬프트·모델 전략과 근거 설계
   - `services/batch-service.md` — 배치 잡 구성(`--job=facts|spatial|project`)과 소스 종류
