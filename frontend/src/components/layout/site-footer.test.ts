@@ -53,6 +53,16 @@ describe('SiteFooter', () => {
   })
 })
 
+describe('SiteFooter 약관 링크', () => {
+  it('이용약관과 개인정보 처리방침으로 가는 링크를 항상 단다', () => {
+    const { markup } = renderFooter()
+
+    expect(markup).toContain('href="/terms"')
+    expect(markup).toContain('href="/privacy"')
+    expect(markup).toContain('aria-label="약관 및 정책"')
+  })
+})
+
 /** styled-components 는 선언을 압축해 내보낸다 — 공백 차이로 깨지지 않게 지운다. */
 const squeeze = (css: string): string => css.replace(/\s+/g, '')
 

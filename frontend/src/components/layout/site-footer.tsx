@@ -1,5 +1,7 @@
+import Link from 'next/link'
 import styled from 'styled-components'
 import BrandLockup from '@/components/brand/brand-lockup'
+import { LEGAL_LINKS } from '@/lib/legal/links'
 import { shellWidth } from '@/styles/layout'
 
 /*
@@ -45,6 +47,29 @@ const Body = styled.p`
   word-break: keep-all;
 `
 
+/* 약관·처리방침 — 푸터가 항상 보이는 유일한 자리라 가입 전에도 닿는다. */
+const LegalNav = styled.nav`
+  margin-top: 12px;
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    list-style: none;
+  }
+
+  a {
+    color: var(--color-text-600);
+    font-size: 13px;
+    line-height: 20px;
+
+    &:hover {
+      color: var(--color-text-900);
+      text-decoration: underline;
+    }
+  }
+`
+
 export default function SiteFooter() {
   return (
     <Footer>
@@ -56,6 +81,15 @@ export default function SiteFooter() {
           서울 상권 데이터 분석, 추천, 시뮬레이션 기능을 하나의 흐름으로
           연결하는 서비스입니다.
         </Body>
+        <LegalNav aria-label="약관 및 정책">
+          <ul>
+            {LEGAL_LINKS.map(link => (
+              <li key={link.href}>
+                <Link href={link.href}>{link.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </LegalNav>
       </Inner>
     </Footer>
   )
