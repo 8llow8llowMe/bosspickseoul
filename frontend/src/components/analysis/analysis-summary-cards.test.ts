@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import AnalysisSummaryCards, {
@@ -77,5 +78,34 @@ describe('AnalysisSummaryCards', () => {
     expect(render([{ label: '학교', value: null, unit: '개' }])).toContain(
       '데이터 없음',
     )
+  })
+})
+
+describe('AnalysisSummaryCards 배치 (#482)', () => {
+  const styles = () => {
+    const sheet = new ServerStyleSheet()
+    try {
+      renderToStaticMarkup(
+        sheet.collectStyles(
+          createElement(AnalysisSummaryCards, {
+            cards: [{ label: '월 매출', value: 1, unit: '원' }],
+          }),
+        ),
+      )
+      return sheet.getStyleTags().replace(/\s+/g, '')
+    } finally {
+      sheet.seal()
+    }
+  }
+
+  /* 뷰포트가 아니라 카드 묶음 폭으로 열을 정한다 — 같은 카드가 사이드바 유무와 무관하게 같은 판단을 한다. */
+  it('열 수를 카드 묶음 폭으로 정하고 좁아도 1열로 내리지 않는다', () => {
+    const css = styles()
+
+    expect(css).toContain('container:summary-cards/inline-size')
+    expect(css).toContain('@containersummary-cards(max-width:639px){.')
+    expect(css).toContain('grid-template-columns:repeat(2,minmax(0,1fr))')
+    expect(css).not.toContain('grid-template-columns:1fr')
+    expect(css).not.toContain('@media')
   })
 })

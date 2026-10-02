@@ -417,9 +417,29 @@ const ContentColumn = styled.div`
   gap: 28px;
 `
 
-/** 모바일 전용 상단 가로 탭. 데스크톱에서는 숨김. */
-const MobileTabList = styled(TabList)`
+/**
+ * 모바일 전용 상단 가로 탭. 데스크톱에서는 숨김.
+ *
+ * 탭 7개가 375px 에 다 들어가지 않는데 스크롤바가 없어(`TabList` 의 `scrollbar-width: none`)
+ * 「지역 평균 대비」가 잘린 채로 끝처럼 보였다. 가려진 쪽 끝을 흐리게 해 더 있다고 알린다 —
+ * 흐림은 실제로 가려진 쪽에만 둔다(끝까지 밀었는데 흐리면 마지막 탭이 잘려 보인다).
+ * `position: relative` 는 활성 탭 자동 스크롤이 `offsetLeft` 를 이 목록 기준으로 읽게 한다.
+ */
+const MobileTabList = styled(TabList)<{
+  $fadeStart: boolean
+  $fadeEnd: boolean
+}>`
   display: none;
+  position: relative;
+  ${props => {
+    const mask = `linear-gradient(to right, transparent 0, #000 ${props.$fadeStart ? 28 : 0}px, #000 calc(100% - ${props.$fadeEnd ? 28 : 0}px), transparent 100%)`
+    return props.$fadeStart || props.$fadeEnd
+      ? css`
+          -webkit-mask-image: ${mask};
+          mask-image: ${mask};
+        `
+      : ''
+  }}
 
   @media (max-width: 1024px) {
     display: flex;
@@ -607,6 +627,8 @@ const ChartStack = styled.div`
 `
 
 const ContextHero = styled.section`
+  /* 액션 버튼 세 칸이 아이콘을 둘 수 있는지 이 폭으로 정한다(ActionRow). */
+  container: context-hero / inline-size;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -640,6 +662,13 @@ const ContextCopy = styled.div`
   }
 `
 
+/**
+ * 데스크톱은 한 줄 [시뮬레이션][공유][화면 보관][상권 저장]. 히어로가 1열이 되는 ≤760px 은
+ * 시뮬레이션(primary)이 한 줄을 다 쓰고 나머지 셋이 그 아래 한 줄 세 칸이다. 2×2 로 흘리던 때는
+ * 오른쪽 칸이 비고 primary 가 셋째 줄 끝에 있었다(#482).
+ *
+ * DOM 도 시뮬레이션이 먼저다 — `order` 로 자리만 바꾸면 키보드 순서와 보이는 순서가 갈린다.
+ */
 const ActionRow = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -647,6 +676,34 @@ const ActionRow = styled.div`
 
   button {
     min-width: 112px;
+  }
+
+  @media (max-width: 760px) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    && button {
+      width: 100%;
+      min-width: 0;
+      padding: 0 8px;
+      gap: 4px;
+    }
+
+    && button:first-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /*
+    320px 뷰포트(또는 375px 확대)면 칸이 약 81px 인데 아이콘 + 「화면 보관」은 약 92px 라
+    옆 칸과 겹친다. 그 폭에서는 아이콘을 빼고 글자만 남긴다 — 상태(「보관됨」·「저장됨」)는
+    글자가 말한다. 시뮬레이션은 한 줄을 다 쓰므로 아이콘을 둔다.
+  */
+  @container context-hero (max-width: 339px) {
+    /* 아이콘 칸(IconSlot)째 뺀다 — svg 만 숨기면 빈 칸과 gap 이 남아 글자가 한쪽으로 밀린다. */
+    && button:not(:first-child) span[aria-hidden='true'] {
+      display: none;
+    }
   }
 `
 
@@ -933,6 +990,50 @@ export default function AnalysisResultView({
 
   const spyId = useScrollSpy(REPORT_SECTION_IDS)
   const spyTab = normalizeAnalysisTab(spyId.replace('report-', ''))
+
+  /*
+    모바일 가로 탭 바: 가려진 쪽 끝 흐림 + 활성 탭을 화면 안으로 스크롤(#482).
+    데스크톱에서는 탭 바가 `display: none` 이라 폭이 0 이고, 두 효과 모두 아무것도 하지 않는다.
+  */
+  const mobileTabListRef = useRef<HTMLElement>(null)
+  const [tabFade, setTabFade] = useState({ start: false, end: false })
+  useEffect(() => {
+    const list = mobileTabListRef.current
+    if (!list) return
+    const update = () => {
+      const max = list.scrollWidth - list.clientWidth
+      const start = list.scrollLeft > 1
+      const end = max > 1 && list.scrollLeft < max - 1
+      setTabFade(prev =>
+        prev.start === start && prev.end === end ? prev : { start, end },
+      )
+    }
+    update()
+    list.addEventListener('scroll', update, { passive: true })
+    const observer = new ResizeObserver(update)
+    observer.observe(list)
+    return () => {
+      list.removeEventListener('scroll', update)
+      observer.disconnect()
+    }
+    // 조건이 잘못된 URL 로 처음 열리면 탭 바가 아직 없다. 같은 화면에서 조건이 바로잡혀
+    // 탭 바가 생길 때 다시 붙도록 `enabled` 를 따른다.
+  }, [enabled])
+  useEffect(() => {
+    const list = mobileTabListRef.current
+    if (!list || list.clientWidth === 0) return
+    const active = list.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!active) return
+    // 가운데로 맞춘다. `scrollIntoView` 는 세로 스크롤 컨테이너까지 움직일 수 있어 쓰지 않는다.
+    const left = active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+    list.scrollTo({
+      left: Math.max(0, left),
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    })
+  }, [spyTab])
   const {
     register: registerSection,
     activated,
@@ -1735,7 +1836,13 @@ export default function AnalysisResultView({
               </IconButton>
             </HeaderClose>
           </HeaderTop>
-          <MobileTabList aria-label="분석 결과 항목" role="tablist">
+          <MobileTabList
+            ref={mobileTabListRef}
+            $fadeStart={tabFade.start}
+            $fadeEnd={tabFade.end}
+            aria-label="분석 결과 항목"
+            role="tablist"
+          >
             {ANALYSIS_TABS.map(tab => (
               <HeaderTabButton
                 key={tab.value}
@@ -1774,6 +1881,25 @@ export default function AnalysisResultView({
             <ActionRow>
               <Button
                 size="medium"
+                rightIcon={<ExternalLink />}
+                onClick={() =>
+                  // V2 계약은 코드로 받는다. 예전에는 `gugun`(자치구 *이름*)과 빈
+                  // `serviceCodeName` 을 보내는 V1 형태였는데, `districtCode` 가 없어
+                  // 시뮬레이션 쪽 컨텍스트 카드가 자치구를 복원하지 못했다.
+                  router.push(
+                    `/analysis/simulation?${new URLSearchParams({
+                      districtCode,
+                      administrationCode,
+                      commercialCode,
+                      serviceCode,
+                    })}`,
+                  )
+                }
+              >
+                시뮬레이션
+              </Button>
+              <Button
+                size="medium"
                 variant="secondary"
                 leftIcon={<Share2 />}
                 isLoading={shareMutation.isPending}
@@ -1803,25 +1929,6 @@ export default function AnalysisResultView({
                 title="상권 자체를 지역 북마크에 저장합니다"
               >
                 {bookmark ? '저장됨' : '상권 저장'}
-              </Button>
-              <Button
-                size="medium"
-                rightIcon={<ExternalLink />}
-                onClick={() =>
-                  // V2 계약은 코드로 받는다. 예전에는 `gugun`(자치구 *이름*)과 빈
-                  // `serviceCodeName` 을 보내는 V1 형태였는데, `districtCode` 가 없어
-                  // 시뮬레이션 쪽 컨텍스트 카드가 자치구를 복원하지 못했다.
-                  router.push(
-                    `/analysis/simulation?${new URLSearchParams({
-                      districtCode,
-                      administrationCode,
-                      commercialCode,
-                      serviceCode,
-                    })}`,
-                  )
-                }
-              >
-                시뮬레이션
               </Button>
             </ActionRow>
           </ContextHero>
