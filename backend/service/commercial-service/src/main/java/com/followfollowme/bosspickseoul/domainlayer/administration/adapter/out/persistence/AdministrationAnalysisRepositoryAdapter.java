@@ -2,10 +2,10 @@ package com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.
 
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.entity.IncomeAdministrationEntity;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.entity.SalesAdministrationEntity;
-import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.entity.StoreAdministrationEntity;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.IncomeAdministrationRepository;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.SalesAdministrationRepository;
 import com.followfollowme.bosspickseoul.domainlayer.administration.adapter.out.persistence.repository.StoreAdministrationRepository;
+import com.followfollowme.bosspickseoul.domainlayer.administration.application.mapper.StoreAdministrationMapper;
 import com.followfollowme.bosspickseoul.domainlayer.administration.application.port.out.AdministrationAnalysisRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.IncomeAdministration;
 import com.followfollowme.bosspickseoul.domainlayer.administration.domain.model.SalesAdministration;
@@ -23,6 +23,7 @@ public class AdministrationAnalysisRepositoryAdapter implements AdministrationAn
     private final SalesAdministrationRepository salesAdministrationRepository;
     private final StoreAdministrationRepository storeAdministrationRepository;
     private final IncomeAdministrationRepository incomeAdministrationRepository;
+    private final StoreAdministrationMapper storeAdministrationMapper;
     private final DatasetSpatialVersion datasetSpatialVersion;
 
     @Override
@@ -41,7 +42,7 @@ public class AdministrationAnalysisRepositoryAdapter implements AdministrationAn
             .findAllByPeriodCodeAndAdministrationCodeAndSpatialVersion(
                 periodCode, administrationCode, datasetSpatialVersion.value())
             .stream()
-            .map(this::toStoreAdministration)
+            .map(storeAdministrationMapper::toDomainFromEntity)
             .toList();
     }
 
@@ -65,25 +66,6 @@ public class AdministrationAnalysisRepositoryAdapter implements AdministrationAn
             .monthlySalesAmount(entity.getMonthlySalesAmount())
             .weekdaySalesAmount(entity.getWeekdaySalesAmount())
             .weekendSalesAmount(entity.getWeekendSalesAmount())
-            .build();
-    }
-
-    private StoreAdministration toStoreAdministration(StoreAdministrationEntity entity) {
-        return StoreAdministration.builder()
-            .id(entity.getId())
-            .periodCode(entity.getPeriodCode())
-            .administrationCode(entity.getAdministrationCode())
-            .administrationName(entity.getAdministrationName())
-            .serviceCode(entity.getServiceCode())
-            .serviceName(entity.getServiceName())
-            .serviceType(entity.getServiceType())
-            .totalStoreCount(entity.getTotalStoreCount())
-            .similarStoreCount(entity.getSimilarStoreCount())
-            .openedStoreCount(entity.getOpenedStoreCount())
-            .closedStoreCount(entity.getClosedStoreCount())
-            .franchiseStoreCount(entity.getFranchiseStoreCount())
-            .openingRate(entity.getOpeningRate())
-            .closureRate(entity.getClosureRate())
             .build();
     }
 
