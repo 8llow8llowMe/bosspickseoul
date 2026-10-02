@@ -32,6 +32,7 @@ public class MapHeatmapQueryProcessor {
 
     private final MapQueryProcessor mapQueryProcessor;
     private final CommercialHeatmapQueryPort commercialHeatmapQueryPort;
+    private final MapAnalysisPeriodProcessor mapAnalysisPeriodProcessor;
 
     public CommercialHeatmapResponseInfo getCommercialHeatmap(
         double lngSW, double latSW, double lngNE, double latNE, String serviceCode, String periodCode,
@@ -41,6 +42,8 @@ public class MapHeatmapQueryProcessor {
 
         List<AreaBoundaryInfo> infos = mapQueryProcessor.getAreaCoords(AreaType.COMMERCIAL, lngSW, latSW, lngNE, latNE);
         List<String> commercialCodes = infos.stream().map(AreaBoundaryInfo::areaCode).toList();
+        // 검증·뷰포트 조회 뒤에 해석한다. 앞에 두면 400·MAP_010 이 기본 분기 조회 실패(MAP_011)로 가려진다(이슈 #464).
+        String resolvedPeriodCode = mapAnalysisPeriodProcessor.resolve(periodCode);
 
         String priorityMetricName = priorityMetric == null ? null : priorityMetric.name();
         CommercialHeatmapScoresQueryResult scoreResponse = composite
@@ -49,13 +52,13 @@ public class MapHeatmapQueryProcessor {
                 serviceCode,
                 preset.name(),
                 priorityMetricName,
-                periodCode
+                resolvedPeriodCode
             )
             : commercialHeatmapQueryPort.getHeatmapScores(
                 commercialCodes,
                 serviceCode,
                 metricType.name(),
-                periodCode
+                resolvedPeriodCode
             );
 
         // 상권별 점수를 코드로 한 번에 색인한다. 영역마다 포트를 다시 부르면 N+1 원격 호출이 된다.
@@ -90,7 +93,7 @@ public class MapHeatmapQueryProcessor {
                 : scoreResponse.mode())
             .serviceCode(serviceCode)
             // 상류가 실제로 조회한 분기를 우선한다. 요청이 분기를 생략하면 상류가 적재 기준 기본 분기로 해석한다(이슈 #464).
-            .periodCode(scoreResponse == null || scoreResponse.periodCode() == null ? periodCode : scoreResponse.periodCode())
+            .periodCode(scoreResponse == null || scoreResponse.periodCode() == null ? resolvedPeriodCode : scoreResponse.periodCode())
             .metricType(scoreResponse == null
                 ? (metricType == null ? null : metricType.toScoreMetadata())
                 : scoreResponse.metricType())

@@ -14,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.map.application.service.proc
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapHeatmapQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapProfileQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapQueryProcessor;
+import com.followfollowme.bosspickseoul.support.StubAnalysisPeriodQueryPort;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -54,10 +55,9 @@ class MapWebFacadeProfilePolicyTest {
             mapQueryProcessor,
             mapHeatmapQueryProcessor,
             mapCandidateQueryProcessor,
-            new MapProfileQueryProcessor(commercialProfileQueryPort),
-            new MapPresenter(),
-            // 분기를 생략한 요청은 Facade 가 기본 분기(여기서는 20261)로 바꿔 상류를 부른다(이슈 #464).
-            new MapAnalysisPeriodProcessor(() -> "20261")
+            // 분기를 생략한 요청은 Processor 가 기본 분기(여기서는 20261)로 바꿔 상류를 부른다(이슈 #464).
+            new MapProfileQueryProcessor(commercialProfileQueryPort, new MapAnalysisPeriodProcessor(StubAnalysisPeriodQueryPort.fixed("20261"))),
+            new MapPresenter()
         );
     }
 

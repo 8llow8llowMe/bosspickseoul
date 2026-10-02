@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.global.properties.MapAnalysisPeriodPrope
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -100,6 +101,12 @@ public class CommercialAnalysisPeriodClientAdapter implements AnalysisPeriodQuer
                 : new MapException(MapErrorCode.DEFAULT_PERIOD_UNAVAILABLE, cause);
         }
         return memo.periodCode();
+    }
+
+    @Override
+    public Optional<String> lastKnownDefaultPeriodCode() {
+        Memo current = memo.get();
+        return current == null ? Optional.empty() : Optional.ofNullable(current.periodCode());
     }
 
     private String fetchDefaultPeriodCode() {

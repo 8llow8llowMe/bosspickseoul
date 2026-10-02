@@ -28,17 +28,20 @@ import org.springframework.stereotype.Service;
 public class MapProfileQueryProcessor {
 
     private final CommercialProfileQueryPort commercialProfileQueryPort;
+    private final MapAnalysisPeriodProcessor mapAnalysisPeriodProcessor;
 
     public CommercialProfileAreaInfo getCommercialProfile(String commercialCode, String serviceCode, String periodCode) {
+        String resolvedPeriodCode = mapAnalysisPeriodProcessor.resolve(periodCode);
         CommercialProfileQueryResult result = commercialProfileQueryPort
-            .getCommercialProfile(commercialCode, serviceCode, periodCode);
-        return toCommercialProfileAreaInfo(result, periodCode);
+            .getCommercialProfile(commercialCode, serviceCode, resolvedPeriodCode);
+        return toCommercialProfileAreaInfo(result, resolvedPeriodCode);
     }
 
     public CommercialComparePreviewInfo getCommercialComparePreview(String leftCommercialCode, String rightCommercialCode, String serviceCode, String periodCode) {
+        String resolvedPeriodCode = mapAnalysisPeriodProcessor.resolve(periodCode);
         CommercialComparePreviewQueryResult result = commercialProfileQueryPort
-            .getCommercialComparePreview(leftCommercialCode, rightCommercialCode, serviceCode, periodCode);
-        return toCommercialComparePreviewInfo(result, periodCode);
+            .getCommercialComparePreview(leftCommercialCode, rightCommercialCode, serviceCode, resolvedPeriodCode);
+        return toCommercialComparePreviewInfo(result, resolvedPeriodCode);
     }
 
     private CommercialProfileAreaInfo toCommercialProfileAreaInfo(CommercialProfileQueryResult result, String requestedPeriodCode) {

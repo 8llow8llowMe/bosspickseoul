@@ -173,6 +173,22 @@ class CommercialAnalysisPeriodClientAdapterTest {
         verify(client, times(2)).getAnalysisPeriods();
     }
 
+    @Test
+    @DisplayName("아는 기본 분기는 원격 호출 없이 마지막 성공값을 돌려주고, 받은 적이 없으면 비어 있다")
+    void lastKnownDefaultNeverCallsRemote() {
+        when(client.getAnalysisPeriods()).thenThrow(feignError(503)).thenReturn(periods("20261"));
+
+        assertUnavailable();
+        assertThat(adapter.lastKnownDefaultPeriodCode()).as("백오프 메모에는 값이 없다").isEmpty();
+
+        clock.advance(Duration.ofSeconds(CommercialAnalysisPeriodClientAdapter.FAILURE_BACKOFF_SECONDS));
+        adapter.defaultPeriodCode();
+        clock.advance(TTL.multipliedBy(3));
+
+        assertThat(adapter.lastKnownDefaultPeriodCode()).as("만료됐어도 마지막 성공값").contains("20261");
+        verify(client, times(2)).getAnalysisPeriods();
+    }
+
     private void assertUnavailable() {
         assertThatThrownBy(() -> adapter.defaultPeriodCode())
             .isInstanceOf(MapException.class)
