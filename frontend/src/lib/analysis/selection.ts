@@ -4,6 +4,12 @@ import {
   type MapCamera,
 } from '@/lib/analysis/map-camera'
 import { resolveDistrictCodeFromAdministration } from '@/lib/map/geometry'
+import {
+  ANALYSIS_PERIOD_CODE_PATTERN,
+  ANALYSIS_PERIOD_FIRST_YEAR,
+  buildAnalysisPeriod,
+  parseAnalysisPeriod,
+} from '@/lib/analysis/period-catalog'
 
 /**
  * 적재가 끝난 **최신 분기**. 기본값이면서 동시에 드롭다운 옵션의 **상한**이다.
@@ -11,23 +17,16 @@ import { resolveDistrictCodeFromAdministration } from '@/lib/map/geometry'
  */
 export const ANALYSIS_PERIOD_CODE = '20261' as const
 
-/** 적재가 시작되는 연도. 이 아래 분기는 팩트 테이블에 없다. */
-export const ANALYSIS_PERIOD_FIRST_YEAR = 2021
-
-/** `YYYYQ` 기간 코드 형식. URL 에서 읽은 값이 이 형식이 아니면 기본값으로 폐기한다. */
-export const ANALYSIS_PERIOD_CODE_PATTERN = /^\d{4}[1-4]$/
-
-/** `YYYYQ` 기간 코드(예: '20233' = 2023년 3분기)를 연/분기로 분해한다. */
-export const parseAnalysisPeriod = (
-  code: string,
-): { year: number; quarter: number } => ({
-  year: Number(code.slice(0, 4)),
-  quarter: Number(code.slice(4)),
-})
-
-/** 연/분기를 `YYYYQ` 기간 코드로 합친다. */
-export const buildAnalysisPeriod = (year: number, quarter: number): string =>
-  `${year}${quarter}`
+/*
+  분기 기본 단위(하한·형식·분해·합성)는 `period-catalog.ts` 가 정본이다. 옛 import 경로를 깨지 않게
+  여기서 다시 내보낸다(period-catalog.md D8 단계 1).
+*/
+export {
+  ANALYSIS_PERIOD_CODE_PATTERN,
+  ANALYSIS_PERIOD_FIRST_YEAR,
+  buildAnalysisPeriod,
+  parseAnalysisPeriod,
+}
 
 const LATEST_PERIOD = parseAnalysisPeriod(ANALYSIS_PERIOD_CODE)
 
