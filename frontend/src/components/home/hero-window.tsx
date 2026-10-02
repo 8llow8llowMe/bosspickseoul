@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { Maximize2, MapPinned, Minus, Search, X } from 'lucide-react'
 import styled, { css } from 'styled-components'
 import { glassSurface } from '@/components/home/hero-glass'
+import { trackAttrs } from '@/lib/analytics/events'
 
 export type WindowState = 'open' | 'minimized' | 'closed'
 
@@ -330,6 +331,7 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
               href="/analysis"
               $variant="max"
               aria-label="상권 분석 시작(전체 화면)"
+              {...trackAttrs('home_hero_cta_click', { cta: 'window_max' })}
             >
               <Maximize2 aria-hidden="true" />
             </DotLink>
@@ -350,15 +352,24 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
               </BodyEmphasis>
             </Body>
             <Actions>
-              <PrimaryLink href="/analysis">
+              <PrimaryLink
+                href="/analysis"
+                {...trackAttrs('home_hero_cta_click', { cta: 'analysis' })}
+              >
                 <Search aria-hidden="true" />내 상권 분석하기
               </PrimaryLink>
-              <SecondaryLink href="/status">
+              <SecondaryLink
+                href="/status"
+                {...trackAttrs('home_hero_cta_click', { cta: 'status' })}
+              >
                 <MapPinned aria-hidden="true" />
                 구별현황 보기
               </SecondaryLink>
             </Actions>
-            <EscapeLink href="/recommend">
+            <EscapeLink
+              href="/recommend"
+              {...trackAttrs('home_hero_cta_click', { cta: 'recommend' })}
+            >
               어디가 좋을지 모르겠다면 상권 추천받기
             </EscapeLink>
           </WindowBodyInner>

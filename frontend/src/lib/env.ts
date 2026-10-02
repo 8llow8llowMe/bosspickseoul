@@ -49,4 +49,8 @@ export const env = {
   firebaseAppId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? '',
   firebaseMeasurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '',
   firebaseVapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? '',
+  // GA4 웹 스트림 측정 ID(G-XXXX). 비어 있으면 태그를 싣지 않아 수집이 0 이다
+  // (docs/features/home/measurement-and-deep-link.md D1). FIREBASE_MEASUREMENT_ID 는
+  // 푸시용 Firebase 앱에 묶인 값이라 재사용하지 않는다.
+  gaMeasurementId: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? '',
 } as const

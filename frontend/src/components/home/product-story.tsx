@@ -42,6 +42,7 @@ import {
   useRecommendPreview,
   type RecommendPreviewState,
 } from '@/hooks/use-recommend-preview'
+import { trackAttrs, trackEvent } from '@/lib/analytics/events'
 
 /*
   판단 흐름 — 네 단계를 탭으로 바꿔 보는 섹션(home-restructure.md).
@@ -461,6 +462,33 @@ export default function ProductStory() {
 
   /* 02(미니데모)·03(추천)·탭 수치가 같은 선택을 봐야 네 단계가 실제로 이어진다. */
   const [selection, setSelection] = useState<DemoSelection>(DEFAULT_SELECTION)
+  const handleSelectionChange = (next: DemoSelection) => {
+    // 칩 하나가 바뀌면 바뀐 쪽만 보낸다. 같은 칩을 다시 눌러도 이벤트를 남기지 않는다.
+    if (next.districtId !== selection.districtId) {
+      const code = findDistrictOption(next.districtId)?.code
+      if (code) {
+        trackEvent('home_story_demo_select', { field: 'district', value: code })
+      }
+    }
+    if (next.industryId !== selection.industryId) {
+      const code = findIndustryOption(next.industryId)?.code
+      if (code) {
+        trackEvent('home_story_demo_select', { field: 'industry', value: code })
+      }
+    }
+    setSelection(next)
+  }
+
+  /*
+    활성 단계가 바뀔 때마다 한 번. 탭 클릭이든 고정 스크롤이든 「그 단계를 봤다」가 같다.
+    첫 렌더(01)는 보낸 게 아니라 놓인 것이라 빼고, 같은 단계로의 재설정도 세지 않는다.
+  */
+  const viewedStepRef = useRef(selected)
+  useEffect(() => {
+    if (viewedStepRef.current === selected) return
+    viewedStepRef.current = selected
+    trackEvent('home_story_step_view', { step: STORY_STEPS[selected].step })
+  }, [selected])
 
   /*
     03 탭 수치를 위해 추천 연쇄를 섹션 수준에서 부른다. 곧장 켜면 스크롤을 안 해도
@@ -566,7 +594,13 @@ export default function ProductStory() {
                   </span>
                 </Outcome>
                 {step.note ? <Note>{step.note}</Note> : null}
-                <Cta href={step.cta.href}>
+                <Cta
+                  href={step.cta.href}
+                  {...trackAttrs('home_story_cta_click', {
+                    step: step.step,
+                    carried: false,
+                  })}
+                >
                   {step.cta.label}
                   <ArrowRight aria-hidden="true" />
                 </Cta>
@@ -575,7 +609,7 @@ export default function ProductStory() {
                 <DemoPanel
                   demo={step.demo}
                   selection={selection}
-                  onSelectionChange={setSelection}
+                  onSelectionChange={handleSelectionChange}
                 />
               </DemoArea>
             </Panel>
