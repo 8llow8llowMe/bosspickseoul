@@ -40,6 +40,8 @@ type RouteKey =
   | 'communityDetail'
   | 'chattingList'
   | 'chattingDetail'
+  | 'terms'
+  | 'privacy'
 
 export const routeSkeletons: Record<RouteKey, RouteSkeletonDefinition> = {
   home: {
@@ -145,5 +147,13 @@ export const routeSkeletons: Record<RouteKey, RouteSkeletonDefinition> = {
   chattingDetail: {
     path: '/chatting/[roomId]',
     visibility: 'noindex',
+  },
+  terms: {
+    path: '/terms',
+    visibility: 'index',
+  },
+  privacy: {
+    path: '/privacy',
+    visibility: 'index',
   },
 }
