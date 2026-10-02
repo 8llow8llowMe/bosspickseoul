@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostSummaryItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityCommercialComparisonDraftInfo;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityViewerLikes;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.MemberSummariesQueryResult.MemberSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.item.CommunityPostImageItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
@@ -35,7 +36,8 @@ public class CommunityPostPresenter {
 
     public CommunityPostListResponse toPostListResponse(
         CommunityTargetMeta targetMeta, SliceQueryResult<CommunityPost> posts,
-        Map<Long, List<CommunityPostImage>> imagesByPostId, Map<Long, MemberSummaryQueryResult> writerSummaries
+        Map<Long, List<CommunityPostImage>> imagesByPostId, Map<Long, MemberSummaryQueryResult> writerSummaries,
+        CommunityViewerLikes viewerLikes
     ) {
         CommunityBoardTargetItem board = (targetMeta != null)
             ? CommunityBoardTargetItem.builder()
@@ -47,7 +49,7 @@ public class CommunityPostPresenter {
 
         return CommunityPostListResponse.builder()
             .board(board)
-            .posts(toSliceResponse(posts, post -> toPostSummaryItem(post, imagesByPostId, writerSummaries)))
+            .posts(toSliceResponse(posts, post -> toPostSummaryItem(post, imagesByPostId, writerSummaries, viewerLikes)))
             .build();
     }
 
@@ -60,7 +62,8 @@ public class CommunityPostPresenter {
     }
 
     public CommunityPostDetailResponse toPostDetailResponse(
-        CommunityPost post, List<CommunityPostImage> images, Map<Long, MemberSummaryQueryResult> writerSummaries
+        CommunityPost post, List<CommunityPostImage> images, Map<Long, MemberSummaryQueryResult> writerSummaries,
+        CommunityViewerLikes viewerLikes
     ) {
         return CommunityPostDetailResponse.builder()
             .images(toImageItems(images))
@@ -80,6 +83,7 @@ public class CommunityPostPresenter {
             .likeCount(post.likeCount())
             .commentCount(post.commentCount())
             .viewCount(post.viewCount())
+            .liked(viewerLikes.likedOf(post.id()))
             .createdAt(post.createdAt())
             .updatedAt(post.updatedAt())
             .build();
@@ -111,7 +115,7 @@ public class CommunityPostPresenter {
 
     private CommunityPostSummaryItem toPostSummaryItem(
         CommunityPost post, Map<Long, List<CommunityPostImage>> imagesByPostId,
-        Map<Long, MemberSummaryQueryResult> writerSummaries
+        Map<Long, MemberSummaryQueryResult> writerSummaries, CommunityViewerLikes viewerLikes
     ) {
         return CommunityPostSummaryItem.builder()
             .thumbnailUrl(toThumbnailUrl(imagesByPostId.get(post.id())))
@@ -126,6 +130,8 @@ public class CommunityPostPresenter {
             .previewContent(truncateContent(post.content()))
             .likeCount(post.likeCount())
             .commentCount(post.commentCount())
+            .viewCount(post.viewCount())
+            .liked(viewerLikes.likedOf(post.id()))
             .createdAt(post.createdAt())
             .build();
     }
@@ -146,6 +152,9 @@ public class CommunityPostPresenter {
             .previewContent(truncateContent(post.content()))
             .likeCount(post.likeCount())
             .commentCount(post.commentCount())
+            .viewCount(post.viewCount())
+            // 본인이 좋아요한 글만 모은 목록이라 추가 조회 없이 항상 true 다. 게시글 목록 항목과 모양을 맞춘다.
+            .liked(Boolean.TRUE)
             .createdAt(post.createdAt())
             .likedAt(likedPost.likedAt())
             .build();

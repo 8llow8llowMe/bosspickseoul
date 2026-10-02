@@ -12,11 +12,13 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.pre
 import com.followfollowme.bosspickseoul.domainlayer.community.application.command.CreatePostCommand;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.command.UpdatePostCommand;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityCommercialComparisonDraftInfo;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityViewerLikes;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.in.CommunityPostWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityCommandProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityPostImageProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.MemberSummariesQueryResult.MemberSummaryQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityQueryProcessor;
+import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityViewerLikeProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.service.processor.CommunityWriterSummaryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostImageUploadResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPostImage;
@@ -48,11 +50,13 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     private final CommunityPostPresenter communityPostPresenter;
     private final CommunityPostImageProcessor communityPostImageProcessor;
     private final CommunityWriterSummaryProcessor communityWriterSummaryProcessor;
+    private final CommunityViewerLikeProcessor communityViewerLikeProcessor;
     private final ObjectStorageClient objectStorageClient;
 
     @Override
     @Transactional(readOnly = true)
     public CommunityPostListResponse getPosts(
+        Long viewerMemberId,
         CommunitySortType sortType, OrderType orderType, String targetType, String targetCode, long lastPostId, long lastLikeCount,
         int size
     ) {
@@ -63,7 +67,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
 
         SliceQueryResult<CommunityPost> feed = communityQueryProcessor.getFeed(
             sortType, orderType, targetType, targetCode, lastPostId, lastLikeCount, size);
-        return communityPostPresenter.toPostListResponse(targetMeta, feed, toImagesByPostId(feed), toWriterSummaries(feed));
+        return communityPostPresenter.toPostListResponse(
+            targetMeta, feed, toImagesByPostId(feed), toWriterSummaries(feed), toViewerLikes(viewerMemberId, feed));
     }
 
     /**
@@ -80,7 +85,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         CommunityPost post = communityCommandProcessor.createPost(memberId, command);
         communityPostImageProcessor.replaceImages(memberId, post.id(), command.imageKeys());
         return communityPostPresenter.toPostDetailResponse(
-            post, communityPostImageProcessor.getImages(post.id()), toWriterSummaries(post));
+            post, communityPostImageProcessor.getImages(post.id()), toWriterSummaries(post),
+            communityViewerLikeProcessor.getViewerLike(memberId, post.id()));
     }
 
     @Override
@@ -125,11 +131,12 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
 
     @Override
     @Transactional
-    public CommunityPostDetailResponse getPost(long postId) {
+    public CommunityPostDetailResponse getPost(Long viewerMemberId, long postId) {
         CommunityPost post = communityQueryProcessor.getPost(postId);
         CommunityPost updated = communityCommandProcessor.incrementViewCount(post);
         return communityPostPresenter.toPostDetailResponse(
-            updated, communityPostImageProcessor.getImages(postId), toWriterSummaries(updated));
+            updated, communityPostImageProcessor.getImages(postId), toWriterSummaries(updated),
+            communityViewerLikeProcessor.getViewerLike(viewerMemberId, postId));
     }
 
     /**
@@ -146,7 +153,8 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         // 커밋 이후에 지운다. 롤백되면 DB 에는 이미지가 남는데 파일만 사라지는 상태가 되기 때문이다.
         objectStorageClient.deleteAllAfterCommit(removedImageKeys);
         return communityPostPresenter.toPostDetailResponse(
-            updated, communityPostImageProcessor.getImages(postId), toWriterSummaries(updated));
+            updated, communityPostImageProcessor.getImages(postId), toWriterSummaries(updated),
+            communityViewerLikeProcessor.getViewerLike(memberId, postId));
     }
 
     @Override
@@ -178,11 +186,12 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommunityPostListResponse searchPosts(
-        String keyword, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
+        Long viewerMemberId, String keyword, CommunitySortType sortType, OrderType orderType, long lastPostId, long lastLikeCount, int size
     ) {
         SliceQueryResult<CommunityPost> searched = communityQueryProcessor.searchPosts(
             keyword, sortType, orderType, lastPostId, lastLikeCount, size);
-        return communityPostPresenter.toPostListResponse(null, searched, toImagesByPostId(searched), toWriterSummaries(searched));
+        return communityPostPresenter.toPostListResponse(
+            null, searched, toImagesByPostId(searched), toWriterSummaries(searched), toViewerLikes(viewerMemberId, searched));
     }
 
     /**
@@ -223,5 +232,11 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
 
     private Map<Long, MemberSummaryQueryResult> toWriterSummaries(CommunityPost post) {
         return communityWriterSummaryProcessor.getWriterSummaries(List.of(post.memberId()));
+    }
+
+    /** 쪽의 postId 를 모아 넘긴다. 좋아요 여부는 Processor 가 in 절 1회로 조회한다(비로그인이면 조회 없음). */
+    private CommunityViewerLikes toViewerLikes(Long viewerMemberId, SliceQueryResult<CommunityPost> posts) {
+        return communityViewerLikeProcessor.getViewerLikes(
+            viewerMemberId, posts.content().stream().map(CommunityPost::id).toList());
     }
 }

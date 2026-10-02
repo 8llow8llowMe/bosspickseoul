@@ -42,6 +42,12 @@ public record CommunityLikedPostItem(
     @Schema(description = "댓글 수")
     long commentCount,
 
+    @Schema(description = "조회 수")
+    long viewCount,
+
+    @Schema(description = "조회자 본인의 좋아요 여부 — 본인이 좋아요한 글 목록이라 항상 true (게시글 목록 항목과 같은 모양)")
+    Boolean liked,
+
     @Schema(description = "게시글 작성 시각")
     LocalDateTime createdAt,
 

@@ -4,6 +4,8 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persis
 import com.followfollowme.bosspickseoul.domainlayer.community.application.mapper.CommunityReactionMapper;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityPostLikeRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPostLike;
+import java.util.Collection;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +19,14 @@ public class CommunityPostLikeRepositoryAdapter implements CommunityPostLikeRepo
     @Override
     public boolean exists(long postId, long memberId) {
         return communityPostLikeRepository.existsByPostIdAndMemberId(postId, memberId);
+    }
+
+    @Override
+    public Set<Long> findLikedPostIds(long memberId, Collection<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(communityPostLikeRepository.findLikedPostIds(memberId, postIds));
     }
 
     @Override

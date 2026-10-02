@@ -11,7 +11,8 @@
 
 ## 인증 방식
 
-- 조회는 공개
+- 조회는 공개. 게시글 목록·검색·상세는 **선택 인증**이다 — 토큰이 있으면 조회자 본인의 좋아요 여부(`liked`)만 채운다
+  (아래 「목록 응답 viewCount·liked (선택 인증)」)
 - 작성/수정/삭제/좋아요/신고는 인증 사용자 기준
 - JWT claim을 서비스 내부에서 해석한다
 
@@ -84,6 +85,27 @@
 - `GET /api/v1/community/posts/{postId}` 호출 시 `CommunityCommandProcessor.incrementViewCount()` 자동 실행
 - `CommunityPostWebFacade.getPost()` — `@Transactional`(기본값, 쓰기 트랜잭션) 적용 (조회수 쓰기 포함)
 - 조회수는 `ACTIVE` 조건의 DB 산술 UPDATE로 증가시킨다. 변경 전 엔티티 전체를 다시 저장하지 않아 동시 좋아요·본문 수정·삭제를 덮어쓰지 않는다. 삭제가 먼저 완료되면 기존 `COMMUNITY_005`(404)를 반환한다.
+
+## 목록 응답 viewCount·liked (선택 인증)
+
+- 게시글 목록(`GET /posts`, 대상별 관련 글 포함)·검색(`/posts/search`) 항목 `CommunityPostSummaryItem` 과 좋아요 목록(`/posts/liked`)
+  항목 `CommunityLikedPostItem` 에 `viewCount`(long)·`liked`(Boolean) 를, 상세 `CommunityPostDetailResponse` 에 `liked` 를 싣는다 (#471).
+  - `viewCount` — 게시글 조회 수. 상세 진입 때마다 +1 되는 값을 목록에서도 그대로 보여 준다.
+  - `liked` — 조회자 **본인**의 좋아요 여부. 로그인이면 `true`/`false`, **비로그인이면 `null`**. "안 누름"(false)과 "알 수 없음"(null)을 구분한다.
+  - 좋아요 목록의 `liked` 는 본인이 좋아요한 글만 모은 목록이라 추가 조회 없이 항상 `true` 다. FE 타입(`CommunityLikedPost = CommunityPostSummary & { likedAt }`)과 모양을 맞추기 위한 필드다.
+  - 작성·수정 응답(같은 상세 DTO)도 인증 요청이라 `true`/`false` 로 채운다.
+- 선택 인증: 목록·검색·상세 컨트롤러는 `@PreAuthorize` 없이 `@AuthenticationPrincipal MemberLoginActive` 를 null 허용으로 받아
+  `Long viewerMemberId` 로 바꿔 유스케이스에 넘긴다 (선례: commercial-service `POST /api/v1/share-links`). 조회자는 JWT claim 으로만 정한다.
+- 일괄 조회: `CommunityViewerLikeProcessor` 가 쪽의 postId 를 모아 `CommunityPostLikeRepositoryPort.findLikedPostIds(memberId, postIds)` 를
+  **1회** 부른다 — `memberId = ? and postId in (...)` 로 postId 만 프로젝션하는 정적 JPQL(`CommunityPostLikeRepository.findLikedPostIds`)이다.
+  게시글마다 존재 확인을 부르면 쪽 크기만큼 왕복이 생긴다(coding-conventions §9-7). 비로그인이거나 빈 쪽이면 조회하지 않는다.
+  상세는 좋아요 토글이 쓰는 단건 존재 확인(`exists`)을 재사용한다. 두 쿼리 모두 `uk_community_post_like_post_id_member_id`·
+  `idx_community_post_like_member_id` 가 받친다.
+- 비로그인/안 누름 구분은 `application/model/CommunityViewerLikes` 값 객체(`anonymous()`, `of(Set)`, `likedOf(postId)`)가 맡는다.
+  Presenter 는 `likedOf` 결과를 옮기기만 한다.
+- **주의: 공개 경로라도 만료·위조·폐기된 토큰을 보내면 401 이다.** 게이트웨이 `JwtAuthApiGatewayFilter`(블랙리스트·회원 revocation 포함)와
+  서비스 resource server(`BearerTokenAuthenticationFilter`)가 `Authorization: Bearer` 가 있으면 경로와 무관하게 검증하기 때문이다.
+  FE 는 비로그인 상태(재발급 실패 포함)에서 토큰을 보내지 않아야 한다 — 남은 만료 토큰 때문에 공개 목록까지 401 로 깨진다.
 
 ## 게시글 검색 (신규)
 
