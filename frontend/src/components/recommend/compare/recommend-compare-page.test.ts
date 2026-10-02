@@ -5,9 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import RecommendComparePage from '@/components/recommend/compare/recommend-compare-page'
 import { findSimulationCategoryByCode } from '@/data/simulation-catalog'
-import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import { recommendComparisonKey } from '@/lib/recommend/recommend-query-keys'
-import { formatRecommendationPeriod } from '@/lib/recommend/recommend-state'
 import type { CommercialComparisonBody } from '@/types/commercial-comparison'
 
 const searchParamsBox = vi.hoisted(() => ({ current: new URLSearchParams() }))
@@ -115,7 +113,8 @@ const render = (search: string, seed?: CommercialComparisonBody) => {
         leftCommercialCode: codes[0],
         rightCommercialCode: codes[1],
         serviceCode: params.get('serviceCode'),
-        periodCode: RECOMMENDATION_PERIOD_CODE,
+        // 비교는 분기를 생략해 서버가 해석한다 — 키도 「최신」이다(period-catalog.md D4-5).
+        periodCode: 'latest',
       }),
       {
         dataHeader: { success: true, resultCode: null, resultMessage: null },
@@ -169,7 +168,6 @@ describe('RecommendComparePage', () => {
         leftCommercialCode: '3110008',
         rightCommercialCode: '3110012',
         serviceCode: 'CS100010',
-        periodCode: RECOMMENDATION_PERIOD_CODE,
       },
     ])
   })
@@ -185,13 +183,13 @@ describe('RecommendComparePage', () => {
       leftCommercialCode: 'a',
       rightCommercialCode: 'b',
       serviceCode: 'CS100010',
-      periodCode: RECOMMENDATION_PERIOD_CODE,
+      periodCode: 'latest',
     })
     const right = recommendComparisonKey({
       leftCommercialCode: 'b',
       rightCommercialCode: 'a',
       serviceCode: 'CS100010',
-      periodCode: RECOMMENDATION_PERIOD_CODE,
+      periodCode: 'latest',
     })
 
     expect(left).not.toEqual(right)
@@ -412,7 +410,7 @@ describe('RecommendComparePage', () => {
     expect(markup).toContain('293,433,501원')
   })
 
-  it('구버전 응답이면 기준 목록 없이 고정 분기로 적는다', () => {
+  it('구버전 응답이면 기준 목록 없이 「최신 분기」로 적는다', () => {
     const markup = render(
       `${BASE}&commercialCodes=3110008,3110012`,
       body({
@@ -430,9 +428,26 @@ describe('RecommendComparePage', () => {
     )
 
     expect(markup).not.toContain('비교 기준')
-    expect(markup).toContain(
-      formatRecommendationPeriod(RECOMMENDATION_PERIOD_CODE),
-    )
+    // 분기를 생략해 요청하므로 응답에 분기가 없으면 지어내지 않고 「최신 분기」로 적는다.
+    expect(markup).toContain('최신 분기 기준')
     expect(markup).toContain('+400')
+  })
+
+  /*
+    AI 리포트는 비교 표가 실제로 쓴 분기(응답 periodCode)로 만든다 — 분기를 모르면 제출할 수 없으므로 자리를
+    열지 않는다(period-catalog.md D4-5). 열어 두면 시작 버튼을 눌러도 아무 일도 일어나지 않는다.
+  */
+  it('응답에 분기가 있을 때만 AI 비교 리포트 자리를 연다', () => {
+    const withPeriod = render(
+      `${BASE}&commercialCodes=3110008,3110012`,
+      body({ periodCode: '20261' } as Partial<CommercialComparisonBody>),
+    )
+    const withoutPeriod = render(
+      `${BASE}&commercialCodes=3110008,3110012`,
+      body({ periodCode: null } as Partial<CommercialComparisonBody>),
+    )
+
+    expect(withPeriod).toContain('AI 비교 리포트')
+    expect(withoutPeriod).not.toContain('AI 비교 리포트')
   })
 })

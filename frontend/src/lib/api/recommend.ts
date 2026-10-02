@@ -10,7 +10,6 @@ import type {
   RecommendationRequest,
 } from '@/types/recommend'
 
-export const RECOMMENDATION_PERIOD_CODE = '20261'
 /**
  * 백엔드가 허용하는 `topN` 범위. **5~30을 벗어나면 400(COMMERCIAL_101)** 이다.
  * (`GET /api/v1/commercials/recommendations/by-service`, topN: minimum 5 / maximum 30)
@@ -55,7 +54,7 @@ export const buildRecommendationSearchParams = ({
 }: RecommendationRequest) => {
   const params = new URLSearchParams({ serviceCode })
   commercialCodes.forEach(code => params.append('commercialCodes', code))
-  params.set('periodCode', periodCode)
+  if (periodCode) params.set('periodCode', periodCode)
   params.set('topN', String(clampRecommendationTopN(topN)))
   return params
 }

@@ -30,6 +30,7 @@ import {
   parseSimulationConditionState,
   simulationBuilderHref,
   type SimulationReportVariant,
+  readSimulationReportPeriod,
 } from '@/lib/simulation/report-route'
 import { centeredColumn } from '@/styles/layout'
 import type {
@@ -163,9 +164,14 @@ export default function SimulationReportPage({
     () => parseSimulationConditionState(searchParams),
     [searchParams],
   )
+  /* 리포트 URL 에 실린 분기로 계산한다 — 공유한 링크가 그 분기로 고정된다(period-catalog.md D4-4). */
   const request = useMemo(
-    () => toSimulationReportRequest(conditionState),
-    [conditionState],
+    () =>
+      toSimulationReportRequest(
+        conditionState,
+        readSimulationReportPeriod(searchParams),
+      ),
+    [conditionState, searchParams],
   )
 
   const query = useQuery({

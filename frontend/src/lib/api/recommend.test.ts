@@ -25,6 +25,16 @@ describe('buildRecommendationSearchParams', () => {
     )
   })
 
+  /* 추천은 기간을 조건으로 받지 않는다 — 생략해 서버가 최신 분기로 해석한다(period-catalog.md D4-5). */
+  it('omits periodCode when none is given so the server resolves the latest', () => {
+    const params = buildRecommendationSearchParams({
+      serviceCode: 'CS100010',
+      commercialCodes: ['3110008'],
+      topN: 5,
+    })
+    expect(params.has('periodCode')).toBe(false)
+  })
+
   it('clamps topN into the range the backend accepts', () => {
     // 5~30을 벗어나면 백엔드가 400(COMMERCIAL_101)로 거절한다.
     expect(clampRecommendationTopN(1)).toBe(RECOMMENDATION_TOP_N_MIN)

@@ -48,6 +48,15 @@ describe('simulationReportQueryKey', () => {
     )
   })
 
+  /* 다른 분기의 결과를 재사용하지 않는다(period-catalog.md D4-4). */
+  it('분기가 다르면 키가 갈린다', () => {
+    expect(
+      simulationReportQueryKey({ ...personal, periodCode: '20261' }),
+    ).not.toEqual(
+      simulationReportQueryKey({ ...personal, periodCode: '20254' }),
+    )
+  })
+
   it('스코프로 시작한다', () => {
     expect(simulationReportQueryKey(personal)[0]).toBe(
       SIMULATION_REPORT_QUERY_SCOPE,

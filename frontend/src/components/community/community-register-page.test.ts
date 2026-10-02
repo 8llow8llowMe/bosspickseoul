@@ -4,12 +4,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CommunityRegisterPage, {
+  COMPARISON_DRAFT_ERROR_NOTICE,
   communityEditorKeys,
   createCommunityEditorPayload,
   resolveComparisonDraftView,
 } from '@/components/community/community-register-page'
+import { ANALYSIS_PERIOD_CATALOG_QUERY_KEY } from '@/hooks/use-analysis-period-catalog'
 
 const searchParamsBox = vi.hoisted(() => ({ current: new URLSearchParams() }))
+
+/* 비교 초안은 서버 기본 분기(카탈로그)로 받는다(period-catalog.md D5-2). */
+vi.mock('@/lib/api/analysis-period', () => ({
+  fetchAnalysisPeriods: () =>
+    Promise.resolve({
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody: { defaultPeriodCode: '20261' },
+    }),
+}))
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParamsBox.current,
@@ -61,16 +72,32 @@ const DRAFT_PARAMS = {
 
 type DraftSeed = { title: string; content: string; targetName: string }
 
-const render = (search: string, seed?: DraftSeed) => {
+const render = (
+  search: string,
+  seed?: DraftSeed,
+  /** 카탈로그 응답의 기본 분기. `null` 이면 서버가 기본 분기를 정하지 못한 상태다. */
+  catalogDefault?: string | null,
+) => {
   searchParamsBox.current = new URLSearchParams(search)
 
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
 
+  if (catalogDefault !== undefined) {
+    client.setQueryData(ANALYSIS_PERIOD_CATALOG_QUERY_KEY, {
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody: { defaultPeriodCode: catalogDefault },
+    })
+  }
+
   if (seed) {
+    client.setQueryData(ANALYSIS_PERIOD_CATALOG_QUERY_KEY, {
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody: { defaultPeriodCode: '20261' },
+    })
     client.setQueryData(
-      communityEditorKeys.comparisonDraft(DRAFT_PARAMS, false),
+      communityEditorKeys.comparisonDraft(DRAFT_PARAMS, false, '20261'),
       {
         dataHeader: { success: true, resultCode: null, resultMessage: null },
         dataBody: {
@@ -114,6 +141,18 @@ describe('CommunityRegisterPage · 상권 비교 초안', () => {
     expect(markup).toContain('작성하던 글을 확인하고 있어요')
     expect(markup).not.toContain('data-community-editor-form')
     expect(markup).not.toContain('비교 내용을 불러오지 못했어요')
+  })
+
+  /*
+    초안은 서버 기본 분기가 필수다(BE 가 저장한다). 서버가 기본 분기를 정하지 못하면 초안을 부르지 않고
+    실패 안내 + 빈 폼으로 둔다 — 초안은 편의이지 글쓰기의 전제가 아니다(period-catalog.md D4-5).
+  */
+  it('서버 기본 분기를 받지 못하면 초안을 부르지 않고 실패 안내와 빈 폼을 띄운다', () => {
+    const markup = render(DRAFT_SEARCH, undefined, null)
+
+    expect(draftCalls.current).toEqual([])
+    expect(markup).toContain(COMPARISON_DRAFT_ERROR_NOTICE)
+    expect(markup).toContain('data-community-editor-form="true"')
   })
 
   it('초안을 받으면 제목·본문·대상이 채워진다', () => {

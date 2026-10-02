@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { apiClient } from '@/lib/api/client'
-import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 
 import { createCommercialComparisonDraft } from './community-drafts'
 
@@ -26,12 +25,15 @@ describe('createCommercialComparisonDraft', () => {
       .spyOn(apiClient, 'post')
       .mockResolvedValue({ data: response })
 
-    const result = await createCommercialComparisonDraft({
-      leftCommercialCode: '3110971',
-      rightCommercialCode: '3110958',
-      serviceCode: 'CS100001',
-      administrationCode: '11680640',
-    })
+    const result = await createCommercialComparisonDraft(
+      {
+        leftCommercialCode: '3110971',
+        rightCommercialCode: '3110958',
+        serviceCode: 'CS100001',
+        administrationCode: '11680640',
+      },
+      '20261',
+    )
 
     expect(post).toHaveBeenCalledWith(
       '/community/posts/drafts/commercial-comparisons',
@@ -41,7 +43,7 @@ describe('createCommercialComparisonDraft', () => {
         leftCommercialCode: '3110971',
         rightCommercialCode: '3110958',
         serviceCode: 'CS100001',
-        periodCode: RECOMMENDATION_PERIOD_CODE,
+        periodCode: '20261',
       },
       { signal: undefined },
     )
@@ -49,10 +51,24 @@ describe('createCommercialComparisonDraft', () => {
   })
 
   /*
-   * 비교 화면이 그린 표와 **같은 분기**여야 한다. 초안이 다른 분기를 말하면
-   * 사용자가 방금 읽은 숫자와 글이 어긋난다.
+   * 분기는 부르는 쪽(글쓰기 화면)이 서버 기본 분기로 넘긴다 — 비교 화면이 그 분기로 표를 그렸다
+   * (period-catalog.md D5-2). 이 함수는 받은 분기를 그대로 싣는다.
    */
-  it('비교 화면과 같은 분기 상수를 쓴다', () => {
-    expect(RECOMMENDATION_PERIOD_CODE).toBe('20261')
+  it('받은 분기를 그대로 싣는다', async () => {
+    const post = vi
+      .spyOn(apiClient, 'post')
+      .mockResolvedValue({ data: response })
+
+    await createCommercialComparisonDraft(
+      {
+        leftCommercialCode: '3110971',
+        rightCommercialCode: '3110958',
+        serviceCode: 'CS100001',
+        administrationCode: '11680640',
+      },
+      '20262',
+    )
+
+    expect(post.mock.calls[0][1]).toMatchObject({ periodCode: '20262' })
   })
 })

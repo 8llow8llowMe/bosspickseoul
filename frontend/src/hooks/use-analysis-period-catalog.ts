@@ -43,9 +43,15 @@ export type AnalysisPeriodCatalogState = {
 /**
  * 분석 기준 분기 카탈로그(period-catalog.md D3-1). 여러 화면이 같은 키를 써 한 번만 부른다.
  */
-export const useAnalysisPeriodCatalog = (): AnalysisPeriodCatalogState => {
+export const useAnalysisPeriodCatalog = ({
+  enabled = true,
+}: {
+  /** 카탈로그가 필요 없는 상태면 끈다(예: 비교 초안이 없는 글쓰기). */
+  enabled?: boolean
+} = {}): AnalysisPeriodCatalogState => {
   const query = useQuery({
     queryKey: ANALYSIS_PERIOD_CATALOG_QUERY_KEY,
+    enabled,
     queryFn: fetchAnalysisPeriods,
     staleTime: ANALYSIS_PERIOD_CATALOG_STALE_TIME,
     retry: analysisPeriodCatalogRetry,

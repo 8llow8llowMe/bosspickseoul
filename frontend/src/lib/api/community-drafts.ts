@@ -7,7 +7,6 @@
  */
 
 import { apiClient } from '@/lib/api/client'
-import { RECOMMENDATION_PERIOD_CODE } from '@/lib/api/recommend'
 import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
 import type { CommunityComparisonDraftResponse } from '@/types/community'
 
@@ -20,9 +19,10 @@ const DRAFT_PATH = '/community/posts/drafts/commercial-comparisons'
  * **대상은 행정동이다.** 비교는 두 상권에 관한 글이라 한쪽 상권에 붙이면 임의적이고,
  * 행정동 피드에서 발견되지도 않는다.
  *
- * `periodCode` 는 비교 화면이 표를 그릴 때 쓴 상수를 그대로 쓴다
- * (`recommend-compare-page.tsx`). 초안이 다른 분기를 말하면 사용자가 방금 읽은
- * 숫자와 글이 어긋난다.
+ * `periodCode` 는 **해석된** 분기를 받는다 — BE 가 필수로 받고 초안의 `analysisRefCode` 에 저장한다.
+ * 비교 화면은 분기를 생략해 서버의 최신 분기로 표를 그리므로, 글쓰기 화면도 같은 서버 기본 분기
+ * (카탈로그 `defaultPeriodCode`)를 넘긴다(period-catalog.md D5-2). 초안이 다른 분기를 말하면 사용자가
+ * 방금 읽은 숫자와 글이 어긋난다.
  */
 export const createCommercialComparisonDraft = async (
   {
@@ -31,6 +31,7 @@ export const createCommercialComparisonDraft = async (
     serviceCode,
     administrationCode,
   }: ComparisonDraftParams,
+  periodCode: string,
   signal?: AbortSignal,
 ) => {
   const response = await apiClient.post<CommunityComparisonDraftResponse>(
@@ -41,7 +42,7 @@ export const createCommercialComparisonDraft = async (
       leftCommercialCode,
       rightCommercialCode,
       serviceCode,
-      periodCode: RECOMMENDATION_PERIOD_CODE,
+      periodCode,
     },
     { signal },
   )

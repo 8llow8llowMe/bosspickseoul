@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { HOME_TOP_TEN_QUERY_KEY } from '@/hooks/use-district-top-ten'
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import { statusQueryKeys } from '@/lib/status/status-query'
 
 describe('statusQueryKeys', () => {
@@ -28,15 +27,10 @@ describe('statusQueryKeys', () => {
     )
   })
 
-  it('홈 Top10 키는 최신 분기를 담고 status 키와 겹치지 않는다', () => {
-    expect(HOME_TOP_TEN_QUERY_KEY).toEqual([
-      'home',
-      'districtTopTen',
-      ANALYSIS_PERIOD_CODE,
-    ])
-    // 같은 분기여도 홈과 status 는 retry·staleTime 이 달라 캐시를 나눈다(status.md 1.6).
-    expect(HOME_TOP_TEN_QUERY_KEY).not.toEqual(
-      statusQueryKeys.topTen(ANALYSIS_PERIOD_CODE),
-    )
+  /* 홈은 분기를 생략해 서버가 해석한다(period-catalog.md D3-3) — 키도 「최신」이다. */
+  it('홈 Top10 키는 「최신」(분기 생략)이고 status 키와 겹치지 않는다', () => {
+    expect(HOME_TOP_TEN_QUERY_KEY).toEqual(['home', 'districtTopTen', 'latest'])
+    // 같은 「최신」이어도 홈과 status 는 retry·staleTime 이 달라 캐시를 나눈다(status.md 1.6).
+    expect(HOME_TOP_TEN_QUERY_KEY).not.toEqual(statusQueryKeys.topTen('latest'))
   })
 })

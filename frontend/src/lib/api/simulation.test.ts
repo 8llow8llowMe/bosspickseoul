@@ -93,7 +93,7 @@ describe('buildSimulationReportRequest', () => {
     ).toBe(16186)
   })
 
-  it('빈 periodCode 는 제거해 서버 기본값(20233)을 쓰게 한다', () => {
+  it('빈 periodCode 는 제거해 서버가 최신 분기로 해석하게 한다', () => {
     // '' 를 그대로 보내면 400 SIMULATION_106 (yyyyQ 패턴 위반)이다.
     const request = buildSimulationReportRequest({
       franchisee: false,

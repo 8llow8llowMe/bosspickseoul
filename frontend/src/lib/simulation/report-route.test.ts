@@ -232,3 +232,36 @@ describe('href 빌더', () => {
     ).toBe('/simulation')
   })
 })
+
+/*
+  분기는 조건이 아니지만 요청에 명시한다 — 서버 카탈로그의 기본 분기(period-catalog.md D4-4). 리포트 URL 과
+  캐시 키에 함께 실려야 공유한 링크가 데이터 적재 때마다 다른 분기로 바뀌지 않고, 다른 분기의 결과를
+  재사용하지도 않는다.
+*/
+describe('리포트 분기', () => {
+  it('분기가 있으면 URL 에 싣고, 없으면 싣지 않는다', () => {
+    expect(
+      toSimulationReportSearchParams({ ...personal, periodCode: '20261' }).get(
+        'periodCode',
+      ),
+    ).toBe('20261')
+    expect(toSimulationReportSearchParams(personal).has('periodCode')).toBe(
+      false,
+    )
+  })
+
+  it('리포트 URL 의 분기를 요청으로 읽는다 — 형식이 틀리면 생략한다', () => {
+    const base = toSimulationReportSearchParams(personal)
+    base.set('periodCode', '20233')
+    expect(parseSimulationReportRequest(base)?.periodCode).toBe('20233')
+
+    base.set('periodCode', 'abc')
+    expect(parseSimulationReportRequest(base)?.periodCode).toBeUndefined()
+  })
+
+  it('href 가 분기를 싣는다', () => {
+    expect(
+      buildSimulationReportHref({ ...personal, periodCode: '20261' }),
+    ).toContain('periodCode=20261')
+  })
+})

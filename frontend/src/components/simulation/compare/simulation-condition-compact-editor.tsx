@@ -221,7 +221,8 @@ const focusSoon = (id: string) => {
  * 두 개 만들어 props 로 내려준다. 편집기가 스스로 상태를 들면 계산 버튼이 두 상태를 함께
  * 볼 수 없고, URL 동기화도 편집기 안에 갇힌다.
  *
- * `periodCode` 는 노출하지 않는다(G8) — 입력 화면과 같은 규칙이다. 서버 기본값(20233)을 쓴다.
+ * `periodCode` 는 노출하지 않는다(G8) — 입력 화면과 같은 규칙이다. 요청에는 서버 카탈로그의 기본 분기가
+ * 실린다(`useSimulationConditions`, period-catalog.md D4-4).
  */
 export default function SimulationConditionCompactEditor({
   label,

@@ -17,6 +17,7 @@ import CommunityEditorForm, {
 } from '@/components/community/community-editor-form'
 import CommunityFeedback from '@/components/community/community-feedback'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
+import { useAnalysisPeriodCatalog } from '@/hooks/use-analysis-period-catalog'
 import { realCommunitySource } from '@/lib/community/community-data-source'
 import {
   communityMockSource,
@@ -165,7 +166,12 @@ export const parseCommunityEditorPostId = parseCommunityPostId
 export const communityEditorKeys = {
   edit: (postId: CommunityId, mockEnabled: boolean) =>
     ['community', 'editor', 'edit', postId, mockEnabled] as const,
-  comparisonDraft: (params: ComparisonDraftParams, mockEnabled: boolean) =>
+  /** 분기는 초안에 저장되는 값이라 키에 넣는다(서버 기본 분기, period-catalog.md D5-2). */
+  comparisonDraft: (
+    params: ComparisonDraftParams,
+    mockEnabled: boolean,
+    periodCode: string | null,
+  ) =>
     [
       'community',
       'editor',
@@ -174,6 +180,7 @@ export const communityEditorKeys = {
       params.rightCommercialCode,
       params.serviceCode,
       params.administrationCode,
+      periodCode,
       mockEnabled,
     ] as const,
 }
@@ -630,6 +637,32 @@ export default function CommunityRegisterPage() {
     staleTime: 0,
     refetchOnMount: 'always',
   })
+  /*
+    비교 초안은 해석된 분기가 필수다(BE 가 저장한다). 비교 화면이 서버 최신 분기로 표를 그렸으므로 같은
+    서버 기본 분기를 쓴다(period-catalog.md D5-2). 카탈로그는 초안이 있을 때만 묻는다.
+
+    분기는 **처음 정해진 값으로 고정한다.** 카탈로그가 실패해 빈 폼이 열린 뒤 늦게 살아나거나(창 포커스
+    재조회), 쓰는 도중 서버가 새 분기로 넘어가면 키가 바뀌어 폼이 「불러오는 중」으로 내려가고 입력이
+    초안으로 덮인다. 한 번 실패로 정하면 그 화면에서는 다시 묻지 않는다.
+  */
+  const periodCatalog = useAnalysisPeriodCatalog({
+    enabled: draftParams !== null,
+  })
+  const [draftPeriodDecision, setDraftPeriodDecision] = useState<
+    string | 'unavailable' | null
+  >(null)
+  if (draftPeriodDecision === null && draftParams !== null) {
+    if (periodCatalog.latest !== null) {
+      setDraftPeriodDecision(periodCatalog.latest)
+    } else if (periodCatalog.isUnavailable) {
+      setDraftPeriodDecision('unavailable')
+    }
+  }
+  const draftPeriodUnavailable = draftPeriodDecision === 'unavailable'
+  const draftPeriodCode =
+    draftPeriodDecision === null || draftPeriodUnavailable
+      ? null
+      : draftPeriodDecision
   const draftQuery = useQuery({
     queryKey: communityEditorKeys.comparisonDraft(
       draftParams ?? {
@@ -639,9 +672,14 @@ export default function CommunityRegisterPage() {
         administrationCode: '',
       },
       mockEnabled,
+      draftPeriodCode,
     ),
     queryFn: async ({ signal }) => {
-      const response = await source.createComparisonDraft(draftParams!, signal)
+      const response = await source.createComparisonDraft(
+        draftParams!,
+        draftPeriodCode!,
+        signal,
+      )
 
       if (!isApiSuccess(response)) {
         throw new CommunityEditorQueryError(getApiMessage(response))
@@ -649,7 +687,10 @@ export default function CommunityRegisterPage() {
 
       return response
     },
-    enabled: draftParams !== null && baseAccess === 'allowed',
+    enabled:
+      draftParams !== null &&
+      baseAccess === 'allowed' &&
+      draftPeriodCode !== null,
     // 초안은 한 번 받으면 그대로 쓴다. 폼을 채운 뒤 다시 받아 오면 사용자가 고친
     // 내용을 덮어쓸 위험만 남는다.
     staleTime: Infinity,
@@ -657,8 +698,8 @@ export default function CommunityRegisterPage() {
   })
   const draftView = resolveComparisonDraftView({
     requestKind: draftRequest.kind,
-    pending: draftQuery.isPending,
-    failed: draftQuery.isError,
+    pending: draftQuery.isPending && !draftPeriodUnavailable,
+    failed: draftQuery.isError || draftPeriodUnavailable,
     draft: draftQuery.data?.dataBody ?? null,
   })
   const draft = draftView.kind === 'ready' ? draftView.draft : null

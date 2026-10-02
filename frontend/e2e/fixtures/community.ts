@@ -151,13 +151,17 @@ const handleCommunity = async (
       leftCommercialCode: string
       rightCommercialCode: string
       serviceCode: string
+      periodCode: string
     }>(request)
-    return source.createComparisonDraft({
-      administrationCode: body.targetCode,
-      leftCommercialCode: body.leftCommercialCode,
-      rightCommercialCode: body.rightCommercialCode,
-      serviceCode: body.serviceCode,
-    })
+    return source.createComparisonDraft(
+      {
+        administrationCode: body.targetCode,
+        leftCommercialCode: body.leftCommercialCode,
+        rightCommercialCode: body.rightCommercialCode,
+        serviceCode: body.serviceCode,
+      },
+      body.periodCode,
+    )
   }
 
   if (segments.length === 2) {
@@ -245,7 +249,10 @@ export const routeCommunityApi = async (
           ? await handleCommunity(source, request, segments, url.searchParams)
           : area === 'regions'
             ? handleRegions(segments)
-            : undefined
+            : // 분석 기준 분기 카탈로그 — 글쓰기의 비교 초안이 서버 기본 분기로 요청한다(period-catalog.md D5-2).
+              area === 'commercials' && segments[0] === 'periods'
+              ? ok({ defaultPeriodCode: '20261' })
+              : undefined
 
       if (body !== undefined) {
         await json(route, 200, body)

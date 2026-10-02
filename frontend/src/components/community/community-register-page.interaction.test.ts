@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CommunityRegisterPage, {
   communityEditorKeys,
 } from '@/components/community/community-register-page'
+import { ANALYSIS_PERIOD_CATALOG_QUERY_KEY } from '@/hooks/use-analysis-period-catalog'
 import { communityMockSource } from '@/lib/community/community-mock'
 
 /*
@@ -27,6 +28,15 @@ const searchParamsBox = vi.hoisted(() => ({ current: new URLSearchParams() }))
 const routerBox = vi.hoisted(() => ({
   push: (() => {}) as (href: string) => void,
   replace: (() => {}) as (href: string) => void,
+}))
+
+/* 비교 초안은 서버 기본 분기(카탈로그)로 받는다(period-catalog.md D5-2). */
+vi.mock('@/lib/api/analysis-period', () => ({
+  fetchAnalysisPeriods: () =>
+    Promise.resolve({
+      dataHeader: { success: true, resultCode: null, resultMessage: null },
+      dataBody: { defaultPeriodCode: '20261' },
+    }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -225,8 +235,12 @@ describe('복원 게이트(CM-034)', () => {
       location: district,
     })
     renderPage(`mock=1&${DRAFT_SEARCH}`, client => {
+      client.setQueryData(ANALYSIS_PERIOD_CATALOG_QUERY_KEY, {
+        dataHeader: { success: true, resultCode: null, resultMessage: null },
+        dataBody: { defaultPeriodCode: '20261' },
+      })
       client.setQueryData(
-        communityEditorKeys.comparisonDraft(DRAFT_PARAMS, true),
+        communityEditorKeys.comparisonDraft(DRAFT_PARAMS, true, '20261'),
         {
           dataHeader: { success: true, resultCode: null, resultMessage: null },
           dataBody: {
