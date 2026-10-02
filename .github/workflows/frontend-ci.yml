@@ -1,0 +1,112 @@
+name: frontend-ci
+
+# **프론트 PR 의 검사 결과를 PR 체크로 보여 준다** (이슈 #497).
+#
+# `verify` 는 Jenkins 프론트 PR 빌드(`Jenkinsfile.frontend-common.groovy` 「프론트 빌드」,
+# `RUN_TESTS`)와 **같은 명령**을 돈다. FE 에 새 규칙을 더하지 않는다. 다만 Jenkins PR 빌드는
+# `frontend-web` 라벨이 붙어야 생기고(`Github label filter`), 결과가 Jenkins 화면에 있다.
+# 이쪽은 라벨과 무관하게 돌고 결과를 PR 에서 바로 보여 준다.
+#
+# **e2e 는 아직 넣지 않는다.** 커뮤니티 e2e 는 Jenkins 에이전트가 아니라 이 워크플로에 잡으로
+# 붙이기로 했다(#477, 2026-10-02). Actions 러너는 `playwright install --with-deps` 가 바로 된다.
+# 붙이는 작업은 #477 이 한다(`frontend/docs/runbook/qa.md` §2).
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+      - 'scripts/classify-frontend-changes.sh'
+  # **develop 에서도 돈다 — 캐시 때문이다** (`backend-ci.yml` 의 같은 블록).
+  # 기본 브랜치 스코프 캐시가 있어야 PR 마다 pnpm store 를 처음부터 받지 않는다.
+  # 겸사겸사 머지된 develop 자체를 검사한다.
+  push:
+    branches:
+      - develop
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+      - 'scripts/classify-frontend-changes.sh'
+
+# develop push 는 취소하지 않는다. 앞 실행이 취소되면 그 커밋은 검사되지 않고,
+# base 스코프 캐시도 저장되지 않는다(캐시는 성공한 잡의 post 단계에서만 저장된다).
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # 무엇이 바뀌었는지 먼저 가른다. `frontend/` 에서 문서만 바뀐 PR 은 `verify` 가
+  # `format:check` 만 돈다.
+  #
+  # **판정 기준은 `scripts/classify-frontend-changes.sh` 한 곳에 있다.**
+  # develop push 는 늘 `code` 다 — base 스코프 캐시를 만들고 머지된 develop 을 검사하는
+  # 목적이라 건너뛰면 안 된다. 판정이 실패하면 `code` 로 본다. 모르는 것을 "안 바뀌었다" 로 읽지 않는다.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.classify.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # `shell: bash` 를 명시해야 `-o pipefail` 이 켜진다. 기본 셸(`bash -e`)은 파이프 앞쪽
+      # `git diff` 가 실패해도 classify 가 빈 입력으로 `none` 을 내고 `|| kind=code` 를 타지 않는다.
+      - id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          kind=code
+          if [ "$EVENT_NAME" = "pull_request" ] && git fetch --quiet --depth=1 origin "$BASE_SHA"; then
+            # PR 체크아웃은 base 위에 PR 을 얹은 머지 커밋이라, base 와의 차이가 곧 PR 의 변경이다
+            kind=$(git -c core.quotepath=off diff --name-only "$BASE_SHA" HEAD | sh scripts/classify-frontend-changes.sh) || kind=code
+          fi
+          echo "kind=$kind" | tee -a "$GITHUB_OUTPUT"
+
+  verify:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      # package.json 이 frontend/ 에 있다. defaults.run.working-directory 는 액션 입력에
+      # 적용되지 않으므로 경로를 명시해야 `packageManager`(pnpm 버전 고정)를 읽는다.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      # 런타임 이미지(`frontend/frontend-web.Dockerfile`, `node:22-alpine`)와 같은 메이저다.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # 문서만 바뀐 PR 도 포맷 검사는 돈다 — `.md` 도 prettier 대상이다
+      - run: pnpm format:check
+      - run: pnpm lint
+        if: needs.changes.outputs.kind == 'code'
+      - run: pnpm typecheck
+        if: needs.changes.outputs.kind == 'code'
+      - run: pnpm test
+        if: needs.changes.outputs.kind == 'code'
+
+      # server/client 경계 오류는 빌드에서만 잡히는 것이 많다.
+      # 값은 자리표시자다. 실제 값은 Jenkins 가 Vault 에서 넣는다.
+      # 세션 키는 32자 이상이어야 한다(`src/lib/env.server.ts`).
+      - run: pnpm build
+        if: needs.changes.outputs.kind == 'code'
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          BACKEND_API_URL: http://localhost:8080
+          AUTH_SESSION_SECRET: ci-placeholder-secret-at-least-32-characters
+          NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ci-placeholder
