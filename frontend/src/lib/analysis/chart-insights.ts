@@ -196,7 +196,18 @@ export type LatestChange = {
  * 서버 `changeRate` 도 같은 식(직전 분기 대비 비율)이지만 쓰지 않고 마지막 두 점의 값에서
  * 계산한다 — 문장이 말하는 「직전 분기」와 계산에 쓴 두 점이 늘 같도록, 둘 중 하나가 비면
  * 문장을 만들지 않는다.
+ *
+ * 보합 기준은 서버 `trendDirection` 과 같은 **±1%** 다(`TREND_STAGNANT_THRESHOLD`). 전에는
+ * 반올림해 0% 가 될 때만 「거의 같아요」라서, 0.4% 변화가 화면에서는 「▲ 0.4% 늘었어요」인데
+ * 서버(요약 「성장률」 등)는 보합이라 말했다.
  */
+/**
+ * 보합(「거의 같아요」)으로 보는 직전 분기 대비 변화율의 절댓값 상한(비율, 0.01 = 1%).
+ * 서버 `CommercialTrendQueryProcessor.STAGNANT_THRESHOLD` 와 같은 값이다 — 경계도 같다
+ * (정확히 1% 는 보합, 1% 를 넘어야 증가·감소).
+ */
+export const TREND_STAGNANT_THRESHOLD = 0.01
+
 export const describeLatestChange = (
   points: readonly TrendPoint[],
   subject: string,
@@ -216,9 +227,10 @@ export const describeLatestChange = (
   if (previous === 0) {
     return { direction, sentence: `${subject} 직전 분기보다 ${verb}` }
   }
-  const rate = (delta / Math.abs(previous)) * 100
-  // 반올림하면 0% 가 되는 변화에 ▲ 와 「0% 늘었어요」를 함께 적으면 모순으로 읽힌다.
-  if (formatPercent(rate) === '0%') {
+  const ratio = delta / Math.abs(previous)
+  // 서버와 같은 식·같은 경계로 판정한다. 백분율로 바꾼 뒤 비교하면 부동소수 오차로 정확히
+  // 1% 가 1.0000000000000002% 가 되어 경계가 서버와 갈린다.
+  if (Math.abs(ratio) <= TREND_STAGNANT_THRESHOLD) {
     return {
       direction: 'STAGNANT',
       sentence: `${subject} 직전 분기와 거의 같아요`,
@@ -226,7 +238,7 @@ export const describeLatestChange = (
   }
   return {
     direction,
-    sentence: `${subject} 직전 분기보다 ${formatPercent(rate)} ${verb}`,
+    sentence: `${subject} 직전 분기보다 ${formatPercent(ratio * 100)} ${verb}`,
   }
 }
 

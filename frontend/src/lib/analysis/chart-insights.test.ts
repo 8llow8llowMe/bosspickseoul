@@ -155,6 +155,31 @@ describe('chart-insights', () => {
       direction: 'STAGNANT',
       sentence: '유동인구가 직전 분기와 거의 같아요',
     })
+    // 보합 기준은 서버 trendDirection 과 같은 ±1% — 경계(정확히 1%)는 보합이다.
+    expect(
+      describeLatestChange([pt('a', 1000), pt('b', 1004)], '매출이'),
+    ).toEqual({
+      direction: 'STAGNANT',
+      sentence: '매출이 직전 분기와 거의 같아요',
+    })
+    expect(
+      describeLatestChange([pt('a', 1000), pt('b', 990)], '매출이'),
+    ).toEqual({
+      direction: 'STAGNANT',
+      sentence: '매출이 직전 분기와 거의 같아요',
+    })
+    expect(
+      describeLatestChange([pt('a', 1000), pt('b', 1011)], '매출이'),
+    ).toEqual({
+      direction: 'INCREASE',
+      sentence: '매출이 직전 분기보다 1.1% 늘었어요',
+    })
+    expect(
+      describeLatestChange([pt('a', 1000), pt('b', 989)], '매출이'),
+    ).toEqual({
+      direction: 'DECREASE',
+      sentence: '매출이 직전 분기보다 1.1% 줄었어요',
+    })
     expect(describeLatestChange([pt('a', 10)], '매출이')).toBeNull()
     expect(
       describeLatestChange([pt('a', 10), pt('b', 12), pt('c', null)], '매출이'),
