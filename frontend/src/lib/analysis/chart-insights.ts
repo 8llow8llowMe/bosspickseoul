@@ -4,6 +4,7 @@ import {
   type TrendPoint,
 } from '@/lib/analysis/chart-data'
 import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
+import { toPerHourRows } from '@/lib/analysis/time-slot'
 
 /*
   결과 화면 차트 카드의 **결론 문장**. 카드가 제목과 차트만 갖고 있으면 사용자는 막대를
@@ -53,13 +54,17 @@ export const findPeakRow = (
 
 const roundPercent = (rate: number): number => Math.round(Math.abs(rate))
 
-/** 「17~21시에 유동인구가 가장 많아요」 */
+/**
+ * 「21~24시에 시간당 유동인구가 가장 많아요」. `rows` 는 원천 **구간 합계**이고, 비교는
+ * 시간당으로 한다(`toPerHourRows`) — 합계로 비교하면 6시간짜리 00~06시가 길이만으로 이긴다.
+ * 차트도 같은 시간당 값을 그리므로 진한 막대와 문장이 같은 구간을 가리킨다.
+ */
 export const describeFootTimePeak = (
   rows: readonly AnalysisMetricRow[],
 ): string | null => {
   if (!isComplete(rows)) return null
-  const peak = findPeakRow(rows)
-  return peak ? `${peak.label}에 유동인구가 가장 많아요` : null
+  const peak = findPeakRow(toPerHourRows(rows))
+  return peak ? `${peak.label}에 시간당 유동인구가 가장 많아요` : null
 }
 
 /**
@@ -113,19 +118,22 @@ export const describeFootAgeGenderPeak = (
   return best ? `${best.label}이 가장 많이 지나가요` : null
 }
 
-/** 「매출의 38%가 11~14시에 나와요」 — 합계가 있어야 비중을 말할 수 있다. */
+/**
+ * 「11~14시에 시간당 매출이 가장 높아요. 매출의 38%가 이때 나와요」. `rows` 는 원천 **구간
+ * 합계**다. 어느 구간인지는 시간당으로 고르고(차트의 진한 막대와 같다), 비중은 합계로 낸다 —
+ * 「매출의 N%」는 하루 매출 중 그 구간이 차지하는 몫이라 합계가 맞는 기준이다.
+ */
 export const describeSalesTimeShare = (
   rows: readonly AnalysisMetricRow[],
 ): string | null => {
   if (!isComplete(rows)) return null
-  const peak = findPeakRow(rows)
+  const peak = findPeakRow(toPerHourRows(rows))
   if (!peak) return null
-  const total = numeric(rows).reduce(
-    (sum, row) => sum + Math.max(0, row.value),
-    0,
-  )
-  if (total <= 0) return null
-  return `매출의 ${Math.round((peak.value / total) * 100)}%가 ${peak.label}에 나와요`
+  const values = numeric(rows)
+  const total = values.reduce((sum, row) => sum + Math.max(0, row.value), 0)
+  const peakTotal = values.find(row => row.label === peak.label)?.value
+  if (total <= 0 || peakTotal === undefined) return null
+  return `${peak.label}에 시간당 매출이 가장 높아요. 매출의 ${Math.round((peakTotal / total) * 100)}%가 이때 나와요`
 }
 
 /** 「목요일 매출이 가장 높아요」 */

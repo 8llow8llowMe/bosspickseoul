@@ -10,21 +10,22 @@ import type {
 } from '@/types/commercial-analysis'
 
 describe('buildSalesTimeBars', () => {
-  it('시간대별 매출을 6개 막대 행으로 변환한다', () => {
+  it('시간대별 매출 구간 합계를 6개 시간당 평균 막대로 바꾼다', () => {
     const sales = {
       amountByTimeSlotItem: {
-        salesAmountTime00To06: 10,
-        salesAmountTime06To11: 20,
+        salesAmountTime00To06: 60,
+        salesAmountTime06To11: 50,
         salesAmountTime11To14: null,
-        salesAmountTime14To17: 40,
-        salesAmountTime17To21: 50,
-        salesAmountTime21To24: 60,
+        salesAmountTime14To17: 45,
+        salesAmountTime17To21: 40,
+        salesAmountTime21To24: 31,
       },
     } as unknown as CommercialSales
     const rows = buildSalesTimeBars(sales)
     expect(rows).toHaveLength(6)
-    expect(rows[0]).toMatchObject({ label: '00~06시', value: 10 })
-    expect(rows[2].value).toBeNull()
+    // 구간 길이 6·5·3·3·4·3시간으로 나눈다(반올림).
+    expect(rows.map(row => row.value)).toEqual([10, 10, null, 15, 10, 10])
+    expect(rows[0].label).toBe('00~06시')
   })
   it('null 입력은 6개 null 포인트', () => {
     expect(buildSalesTimeBars(null).every(row => row.value === null)).toBe(true)

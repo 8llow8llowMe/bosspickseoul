@@ -37,10 +37,15 @@ describe('chart-insights', () => {
     expect(findPeakRow([row('a', 0), row('b', null)])).toBeNull()
   })
 
-  it('시간대 유동인구는 가장 많은 구간을 주어와 함께 말한다', () => {
+  it('시간대 유동인구는 시간당으로 가장 많은 구간을 주어와 함께 말한다', () => {
     expect(describeFootTimePeak([row('06~11시', 10), row('17~21시', 30)])).toBe(
-      '17~21시에 유동인구가 가장 많아요',
+      '17~21시에 시간당 유동인구가 가장 많아요',
     )
+    // 원천은 구간 합계다. 6시간짜리 00~06시가 합계로는 크지만 시간당(600 / 6 = 100)으로는
+    // 3시간짜리 21~24시(450 / 3 = 150)보다 적다.
+    expect(
+      describeFootTimePeak([row('00~06시', 600), row('21~24시', 450)]),
+    ).toBe('21~24시에 시간당 유동인구가 가장 많아요')
     expect(describeFootTimePeak([])).toBeNull()
   })
 
@@ -84,10 +89,19 @@ describe('chart-insights', () => {
     ).toBe('60대 이상 남성이 가장 많이 지나가요')
   })
 
-  it('시간대 매출은 최대 구간의 비중을 말한다', () => {
+  it('시간대 매출은 시간당으로 가장 높은 구간과 그 구간의 합계 비중을 말한다', () => {
     expect(
-      describeSalesTimeShare([row('11~14시', 38), row('17~21시', 62 - 0)]),
-    ).toBe('매출의 62%가 17~21시에 나와요')
+      describeSalesTimeShare([row('11~14시', 38), row('21~24시', 62)]),
+    ).toBe('21~24시에 시간당 매출이 가장 높아요. 매출의 62%가 이때 나와요')
+    // 합계로는 17~21시(4시간, 48)가 크지만 시간당은 11~14시(3시간, 39 / 3 = 13 > 12)다.
+    // 비중은 합계 기준이라 39%다.
+    expect(
+      describeSalesTimeShare([
+        row('11~14시', 39),
+        row('17~21시', 48),
+        row('21~24시', 13),
+      ]),
+    ).toBe('11~14시에 시간당 매출이 가장 높아요. 매출의 39%가 이때 나와요')
     expect(describeSalesTimeShare([row('11~14시', 0)])).toBeNull()
   })
 

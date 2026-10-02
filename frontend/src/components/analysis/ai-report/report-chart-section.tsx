@@ -102,7 +102,8 @@ export default function ReportChartSection({
           <BarChart
             items={salesTimeBars}
             unit="원"
-            ariaLabel="시간대별 매출 막대 차트"
+            unitCaption="(원, 시간당)"
+            ariaLabel="시간대별 시간당 매출 막대 차트"
             highlightMax
             height={CHART_HEIGHT}
           />
