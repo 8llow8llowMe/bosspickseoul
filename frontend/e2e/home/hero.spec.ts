@@ -16,14 +16,14 @@ test.describe('홈 히어로', () => {
 
     await openHome(page)
 
-    // 카드(지도 가운데 위 유리 창) 밖에 있는 구를 고른다 — 피커 줄이 들어오며 카드가 강남구
-    // 중심을 덮게 됐다(hero-picker-and-mobile-first-screen.md D7).
-    const songpa = page.locator('main path[aria-label="송파구"]')
-    await expect(songpa).toHaveCount(1)
-    await songpa.hover()
+    // 강남구는 카드가 지도 위에 떠 있을 때 카드에 가려 호버할 수 없었다. 좌우 분할 뒤로는
+    // 가리는 것이 없다 — 이 구가 호버된다는 것이 그 증거다(hero-split-layout.md D7 #2).
+    const gangnam = page.locator('main path[aria-label="강남구"]')
+    await expect(gangnam).toHaveCount(1)
+    await gangnam.hover()
 
     const tooltip = page.locator('main svg text')
-    await expect(tooltip.filter({ hasText: '송파구' }).first()).toBeVisible()
+    await expect(tooltip.filter({ hasText: '강남구' }).first()).toBeVisible()
     // 툴팁은 hover 한 구의 실데이터(GET /districts/{code})다 — 응답이 오면 하루 리듬이 그려진다
     // (full-screen-sections-and-live-tooltip.md D4-5). 예전의 정적 「월 매출」 예시는 없다.
     await expect(tooltip.filter({ hasText: '시간대별' }).first()).toBeVisible()
