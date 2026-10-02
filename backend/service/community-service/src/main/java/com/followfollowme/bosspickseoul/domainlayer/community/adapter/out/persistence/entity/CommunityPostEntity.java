@@ -38,8 +38,8 @@ import org.hibernate.annotations.Comment;
         @Index(name = "idx_community_post_status_id",
             columnList = "status,id"),
         // 인기순: where status + order by likeCount desc, id desc
-        // popularSince(createdAt) 필터는 인덱스 범위로 쓰지 못하고 잔여 조건으로 평가된다.
-        // 기간이 넓어 대부분의 행이 통과하므로, 범위 필터보다 정렬을 인덱스로 처리하는 편이 유리하다.
+        // 기간 필터(period=WEEK/MONTH 의 createdAt 하한)는 인덱스 범위로 쓰지 못하고 잔여 조건으로 평가된다.
+        // 범위 필터보다 정렬을 인덱스로 처리하는 편을 택했다. period=ALL 은 잔여 조건 없이 이 인덱스만으로 끝난다.
         @Index(name = "idx_community_post_status_like_count_id",
             columnList = "status,likeCount,id")
     }

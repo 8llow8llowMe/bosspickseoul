@@ -261,6 +261,18 @@ GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode=3110008&sortType=LA
 - **만료·위조된 토큰을 붙이면 공개 목록도 `401` 이다.** 게이트웨이·서비스가 토큰이 있으면 항상 검증한다.
   토큰 재발급에 실패해 비로그인으로 떨어졌다면 남은 토큰을 지우고 헤더 없이 다시 호출한다.
 
+인기 글 기간 (#472):
+
+- 인기순 목록은 `sortType=POPULAR` 에 `period` 를 함께 보낸다. `WEEK`(최근 7일, 기본) · `MONTH`(최근 30일) · `ALL`(전체 기간).
+  작성 시각 기준 롤링 기간이며, `sortType=LATEST` 에서는 `period` 를 보내도 무시된다.
+- 우 레일 「이번 주 인기」는 `sortType=POPULAR&period=WEEK` 로 호출한다. `period` 를 생략해도 `WEEK` 지만, 화면 의도가 드러나도록 명시한다.
+- 「전체 기간 인기」 같은 탭이 필요하면 `period=ALL` 을 보낸다. 생략하면 전체 기간이 아니라 최근 7일이다.
+- 기간을 바꾸면 커서(`lastPostId`·`lastLikeCount`)를 처음(`0`)부터 다시 시작한다. 다른 기간의 커서를 이어 쓰지 않는다.
+
+```http
+GET /api/v1/community/posts?sortType=POPULAR&period=WEEK&lastPostId=0&lastLikeCount=0&size=5
+```
+
 ## Moderation
 
 | UI | API | Usage |

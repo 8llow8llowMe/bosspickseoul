@@ -3,9 +3,11 @@ package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persi
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.followfollowme.bosspickseoul.common.enums.OrderType;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.CommunityPostEntity;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.CommunityPostLikeEntity;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
 import com.followfollowme.bosspickseoul.persistence.config.QuerydslConfigurer;
 import java.time.LocalDateTime;
@@ -25,6 +27,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -188,6 +191,48 @@ class CommunityRepositoryMySqlConcurrencyTest {
         });
         assertThat(readPost().getLikeCount()).isZero();
         assertThat(readPost().getCommentCount()).isZero();
+    }
+
+    /**
+     * 인기순 기간 필터(#472). 실제 스키마로만 검증할 수 있는 QueryDSL 동적 조건이라 이 MySQL 하네스에 둔다.
+     * popularSince 가 있으면 작성 시각 하한을 붙이고, null(period=ALL)이면 하한 없이 (likeCount, id) 커서로 이어 읽는다.
+     */
+    @Test
+    void popularFeedAppliesPeriodLowerBoundOnlyWhenPresentAndKeepsCursorOrder() {
+        transaction().executeWithoutResult(status -> {
+            savePost(91002L, NOW.minusDays(40), 10);
+            savePost(91003L, NOW.minusDays(20), 5);
+            savePost(91004L, NOW.minusDays(1), 3);
+        });
+
+        assertThat(popularFeedIds(NOW.minusDays(7), 0L, 0L, 10)).containsExactly(91004L, POST_ID);
+        assertThat(popularFeedIds(NOW.minusDays(30), 0L, 0L, 10)).containsExactly(91003L, 91004L, POST_ID);
+        assertThat(popularFeedIds(null, 0L, 0L, 10)).containsExactly(91002L, 91003L, 91004L, POST_ID);
+
+        Slice<CommunityPostEntity> firstPage = popularFeed(null, 0L, 0L, 2);
+        assertThat(firstPage.getContent()).extracting(CommunityPostEntity::getId).containsExactly(91002L, 91003L);
+        assertThat(firstPage.hasNext()).isTrue();
+        Slice<CommunityPostEntity> secondPage = popularFeed(null, 91003L, 5L, 2);
+        assertThat(secondPage.getContent()).extracting(CommunityPostEntity::getId).containsExactly(91004L, POST_ID);
+        assertThat(secondPage.hasNext()).isFalse();
+    }
+
+    private void savePost(long id, LocalDateTime createdAt, long likeCount) {
+        posts.saveAndFlush(CommunityPostEntity.builder()
+            .id(id).memberId(MEMBER_ID).targetType(CommunityTargetType.COMMERCIAL)
+            .targetCode("C1").targetName("target").title("post " + id).content("content")
+            .status(CommunityPostStatus.ACTIVE).likeCount(likeCount).commentCount(0).viewCount(0)
+            .createdAt(createdAt).updatedAt(createdAt).build());
+    }
+
+    private List<Long> popularFeedIds(LocalDateTime popularSince, long lastPostId, long lastLikeCount, int size) {
+        return popularFeed(popularSince, lastPostId, lastLikeCount, size).getContent().stream().map(CommunityPostEntity::getId).toList();
+    }
+
+    private Slice<CommunityPostEntity> popularFeed(LocalDateTime popularSince, long lastPostId, long lastLikeCount, int size) {
+        return transaction().execute(status -> posts.findFeedPostsNoOffset(
+            CommunityPostStatus.ACTIVE, CommunitySortType.POPULAR, OrderType.DESC, null, null,
+            lastPostId, lastLikeCount, size, popularSince));
     }
 
     private void saveLike(long id, long memberId) {

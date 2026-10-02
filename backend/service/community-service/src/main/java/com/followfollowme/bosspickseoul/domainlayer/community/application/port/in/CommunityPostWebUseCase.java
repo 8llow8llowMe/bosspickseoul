@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostLikeResponse;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostListResponse;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPopularPeriod;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.common.enums.OrderType;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityPostImageUploadResponse;
@@ -19,12 +20,14 @@ import java.util.List;
  *
  * <p>공개 조회(목록·검색·상세)의 {@code viewerMemberId} 는 선택 인증 값이다. 토큰이 없으면 null 이고,
  * 이때 응답의 {@code liked} 는 null 이다. 로그인이면 조회자 본인의 좋아요 여부(true/false)를 채운다.
+ *
+ * <p>목록 3종(목록·검색·좋아요 목록)의 {@code period} 는 인기순(POPULAR) 작성 시각 기간이다. 최신순(LATEST)에서는 무시한다.
  */
 public interface CommunityPostWebUseCase {
 
     CommunityPostListResponse getPosts(
         Long viewerMemberId,
-        CommunitySortType sortType, OrderType orderType,
+        CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
         String targetType, String targetCode,
         long lastPostId, long lastLikeCount, int size
     );
@@ -45,14 +48,14 @@ public interface CommunityPostWebUseCase {
 
     CommunityLikedPostsResponse getLikedPosts(
         long memberId,
-        CommunitySortType sortType, OrderType orderType,
+        CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
         long lastPostId, long lastLikeCount, int size
     );
 
     CommunityPostListResponse searchPosts(
         Long viewerMemberId,
         String keyword,
-        CommunitySortType sortType, OrderType orderType,
+        CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
         long lastPostId, long lastLikeCount, int size
     );
 }

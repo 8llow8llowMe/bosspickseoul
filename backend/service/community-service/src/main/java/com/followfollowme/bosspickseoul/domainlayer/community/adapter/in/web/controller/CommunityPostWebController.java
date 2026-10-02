@@ -18,6 +18,7 @@ import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPopularPeriod;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.security.common.dto.MemberLoginActive;
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,6 +57,11 @@ public class CommunityPostWebController {
         "인증은 선택입니다 — Bearer 토큰이 있으면 조회자 본인의 좋아요 여부(liked)를 true/false 로 채우고, 없으면 null 로 내립니다. "
             + "만료·위조 토큰을 보내면 공개 조회라도 401 이므로 비로그인 상태에서는 토큰을 보내지 않습니다.";
 
+    /** 목록 3종(목록·검색·좋아요 목록)의 인기순 기간 파라미터 설명. */
+    private static final String POPULAR_PERIOD_DESCRIPTION =
+        "인기순 기간 — sortType=POPULAR 일 때만 적용하고 LATEST 에서는 무시합니다. "
+            + "작성 시각 기준 롤링 기간: WEEK 최근 7일(기본) · MONTH 최근 30일 · ALL 전체 기간";
+
     private final CommunityPostWebUseCase communityPostWebUseCase;
 
     @Operation(
@@ -68,6 +74,7 @@ public class CommunityPostWebController {
         @AuthenticationPrincipal MemberLoginActive loginActive,
         @Parameter(description = "정렬 기준") @RequestParam(defaultValue = "LATEST") CommunitySortType sortType,
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
+        @Parameter(description = POPULAR_PERIOD_DESCRIPTION) @RequestParam(defaultValue = "WEEK") CommunityPopularPeriod period,
         @Parameter(description = "대상 타입 필터") @RequestParam(required = false) String targetType,
         @Parameter(description = "대상 코드 필터") @RequestParam(required = false) String targetCode,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
@@ -80,6 +87,7 @@ public class CommunityPostWebController {
             viewerMemberId(loginActive),
             sortType,
             orderType,
+            period,
             targetType,
             targetCode,
             lastPostId,
@@ -100,6 +108,7 @@ public class CommunityPostWebController {
         @Parameter(description = "검색 키워드") @RequestParam(required = false) String keyword,
         @Parameter(description = "정렬 기준") @RequestParam(defaultValue = "LATEST") CommunitySortType sortType,
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
+        @Parameter(description = POPULAR_PERIOD_DESCRIPTION) @RequestParam(defaultValue = "WEEK") CommunityPopularPeriod period,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
         @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
         @Parameter(description = "조회 개수 (1~50)", example = "10") @RequestParam(defaultValue = "10")
@@ -111,6 +120,7 @@ public class CommunityPostWebController {
             keyword,
             sortType,
             orderType,
+            period,
             lastPostId,
             lastLikeCount,
             size
@@ -234,6 +244,7 @@ public class CommunityPostWebController {
         @AuthenticationPrincipal MemberLoginActive loginActive,
         @Parameter(description = "정렬 기준") @RequestParam(defaultValue = "LATEST") CommunitySortType sortType,
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
+        @Parameter(description = POPULAR_PERIOD_DESCRIPTION) @RequestParam(defaultValue = "WEEK") CommunityPopularPeriod period,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
         @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
         @Parameter(description = "조회 개수 (1~50)", example = "20") @RequestParam(defaultValue = "20")
@@ -244,6 +255,7 @@ public class CommunityPostWebController {
             loginActive.memberId(),
             sortType,
             orderType,
+            period,
             lastPostId,
             lastLikeCount,
             size

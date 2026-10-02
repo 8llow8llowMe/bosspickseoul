@@ -29,7 +29,7 @@
 
 - 게시글/댓글은 소프트 삭제 기준을 사용한다.
 - 게시글 목록/피드는 `SliceResponse` 기반 무한 스크롤을 우선한다.
-- 상권별 게시글은 `GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode={code}` 로 조회한다. Post 엔티티는 `commercialCode` 직속 필드 대신 `targetType + targetCode` 일반화 구조를 사용하며, `idx_community_post_target_type_target_code_created_at` 인덱스가 뒷받침한다.
+- 상권별 게시글은 `GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode={code}` 로 조회한다. Post 엔티티는 `commercialCode` 직속 필드 대신 `targetType + targetCode` 일반화 구조를 사용하며, `idx_community_post_target_status_id (targetType, targetCode, status, id)` 인덱스가 뒷받침한다.
 - No-offset 커서는 LATEST 정렬에서 `id`, POPULAR 정렬에서 `(likeCount, id)` 복합 커서를 쓴다. `lastPostId == 0` 은 초기 로드 관례다.
 - 커서 목록 조회 포트는 Spring Data `Slice` 가 아니라 `application/port/out/query/SliceQueryResult`
   를 돌려준다. 커서 목록에 필요한 건 내용과 다음 페이지 존재 여부 둘뿐이라, 영속성 프레임워크 타입은
@@ -107,10 +107,39 @@
   서비스 resource server(`BearerTokenAuthenticationFilter`)가 `Authorization: Bearer` 가 있으면 경로와 무관하게 검증하기 때문이다.
   FE 는 비로그인 상태(재발급 실패 포함)에서 토큰을 보내지 않아야 한다 — 남은 만료 토큰 때문에 공개 목록까지 401 로 깨진다.
 
+## 인기 글 기간 필터
+
+- 목록(`GET /posts`)·검색(`/posts/search`)·좋아요 목록(`/posts/liked`)에 `period` 파라미터를 둔다 (#472).
+  값은 `domain/enums/CommunityPopularPeriod`(`CodeNameDescribable`) — `WEEK`(최근 7일), `MONTH`(최근 30일), `ALL`(전체 기간).
+  - **`sortType=POPULAR` 일 때만 적용한다.** `LATEST` 에서는 받아도 무시한다(Swagger 설명에 명시).
+  - **기본값은 `WEEK`** 다. 이전에는 `CommunityQueryProcessor.POPULAR_LOOKBACK_DAYS = 7` 하드코딩으로 인기순에 최근 7일 작성 글만 나왔다.
+    파라미터를 생략한 기존 호출(FE 인기 탭·우 레일)이 그대로 동작하도록 이 값을 기본으로 남겼다. 전체 기간은 `period=ALL` 로 요청한다.
+  - 잘못된 값(`period=YEAR` 등)은 `sortType` 과 같은 enum 바인딩 실패 경로라 `400 COMMUNITY_117`(PARAMETER_TYPE_INVALID)이다.
+    바인딩은 Spring enum 변환(대소문자 구분)이라 `sortType` 처럼 대문자 상수명을 보낸다.
+- **롤링 기간이다.** 달력 주·월이 아니라 요청 시각에서 기간을 뺀다(`CommunityPopularPeriod.since(now)`, `ALL` 은 null). 기간 길이는 enum 이 가진다.
+- **기준은 작성 시각(`createdAt`)이다.** "기간 안에 받은 좋아요 수"로 정렬하려면 `community_post_like` 를 기간으로 집계해야 한다. 그 집계값은
+  저장된 `likeCount` 가 아니어서 `(likeCount, id)` 커서와 인덱스(`idx_community_post_status_like_count_id`)를 쓸 수 없으므로 채택하지 않았다.
+- 흐름: Controller(`@RequestParam(defaultValue = "WEEK")`) → Facade → `CommunityQueryProcessor` 가 `period.since(now)` 로 Criteria 의
+  `popularSince` 를 만든다(Feed·Search·Liked 3종, `ALL` 이면 null). `CommunityPostCustomRepositoryImpl.applyCursorCondition` 은 POPULAR 이고
+  `popularSince != null` 일 때만 `createdAt >= popularSince` 를 붙인다. 호출처가 없는 `getBoardPosts` 경로는 시그니처를 유지한 채 `WEEK` 를 쓴다.
+- 인덱스 (새 인덱스 없음):
+  - 전체 피드·검색 + POPULAR: `idx_community_post_status_like_count_id (status, likeCount, id)` 역순으로 정렬을 인덱스가 처리한다.
+    `ALL` 은 잔여 조건이 없어 `size + 1` 건을 읽으면 끝난다. `WEEK`/`MONTH` 는 `createdAt` 을 잔여 조건으로 거른다 — 인덱스에 없는 컬럼이라
+    행마다 PK 조회가 붙고, 기간 밖 고(高)좋아요 글이 많을수록 기간 안 글을 채울 때까지 스캔이 길어진다. 현재 규모에서는 문제 되지 않으며,
+    커지면 `(status, createdAt)` 계열 인덱스 + 정렬 분리를 검토한다.
+  - 대상 필터(`targetType`·`targetCode`) + POPULAR: `idx_community_post_target_status_id (targetType, targetCode, status, id)` 로 게시판을
+    거른 뒤 likeCount 정렬은 filesort 다. 게시판 단위라 행 수가 작아 받아들인다.
+- 커서 연속성: 하한은 요청마다 현재 시각으로 다시 계산한다. 쪽을 넘기는 사이 경계를 넘어 기간 밖으로 나간 글은 다음 쪽에서 빠질 수 있지만,
+  `(likeCount, id)` 커서가 엄격 감소라 **같은 글이 두 번 나오지는 않는다**. 쪽 사이 좋아요 수 변동으로 생기는 누락·순서 흔들림은 기존 커서의 한계 그대로다.
+- 테스트: `CommunityPopularPeriodTest`(하한 계산), `CommunityQueryProcessorPopularPeriodTest`(Criteria 전달),
+  `CommunityPostWebControllerPopularPeriodTest`(기본값·바인딩·`COMMUNITY_117`). QueryDSL 조건은
+  `CommunityRepositoryMySqlConcurrencyTest.popularFeedAppliesPeriodLowerBoundOnlyWhenPresentAndKeepsCursorOrder` 가 실제 MySQL 로 검증한다
+  (`COMMUNITY_TEST_DB_URL` 이 있을 때만 실행).
+
 ## 게시글 검색 (신규)
 
 - `GET /api/v1/community/posts/search`
-- 파라미터: `keyword`, `sortType`, `orderType`, `lastPostId`, `lastLikeCount`, `size` (기본 10)
+- 파라미터: `keyword`, `sortType`, `orderType`, `period`(인기순 기간, 기본 `WEEK`), `lastPostId`, `lastLikeCount`, `size` (기본 10)
 - `CommunityPostCustomRepositoryImpl` — `title.containsIgnoreCase(keyword).or(content.containsIgnoreCase(keyword))`
 - 기존 `executeSliceQuery`, `applyCursorCondition` 패턴 재사용
 

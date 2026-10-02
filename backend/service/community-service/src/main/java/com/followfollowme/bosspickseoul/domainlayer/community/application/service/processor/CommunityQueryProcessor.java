@@ -10,6 +10,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityCommentStatus;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPopularPeriod;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
@@ -27,8 +28,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class CommunityQueryProcessor {
-
-    private static final int POPULAR_LOOKBACK_DAYS = 7;
 
     private final CommunityPostRepositoryPort communityPostRepositoryPort;
     private final CommunityCommentRepositoryPort communityCommentRepositoryPort;
@@ -56,7 +55,8 @@ public class CommunityQueryProcessor {
             lastPostId,
             lastLikeCount,
             size,
-            LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
+            // 호출처가 없는 경로라 기간 파라미터를 받지 않고 기존 기본값(최근 7일)을 유지한다.
+            CommunityPopularPeriod.WEEK.since(LocalDateTime.now())
         );
         return communityPostRepositoryPort.getBoardPosts(criteria);
     }
@@ -89,7 +89,7 @@ public class CommunityQueryProcessor {
     }
 
     public SliceQueryResult<CommunityPost> getFeed(
-        CommunitySortType sortType, OrderType orderType,
+        CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
         String targetType, String targetCode,
         long lastPostId, long lastLikeCount, int size
     ) {
@@ -111,14 +111,14 @@ public class CommunityQueryProcessor {
             lastPostId,
             lastLikeCount,
             size,
-            LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
+            popularSince(period)
         );
         return communityPostRepositoryPort.getFeedPosts(criteria);
     }
 
     public SliceQueryResult<LikedCommunityPost> getLikedPosts(
         long memberId,
-        CommunitySortType sortType, OrderType orderType,
+        CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
         long lastPostId, long lastLikeCount, int size
     ) {
         CommunityLikedPostCriteria criteria = new CommunityLikedPostCriteria(
@@ -128,14 +128,14 @@ public class CommunityQueryProcessor {
             lastPostId,
             lastLikeCount,
             size,
-            LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
+            popularSince(period)
         );
         return communityPostRepositoryPort.getLikedPosts(criteria);
     }
 
     public SliceQueryResult<CommunityPost> searchPosts(
         String keyword,
-        CommunitySortType sortType, OrderType orderType,
+        CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
         long lastPostId, long lastLikeCount, int size
     ) {
         CommunitySearchPostCriteria criteria = new CommunitySearchPostCriteria(
@@ -145,9 +145,17 @@ public class CommunityQueryProcessor {
             lastPostId,
             lastLikeCount,
             size,
-            LocalDateTime.now().minusDays(POPULAR_LOOKBACK_DAYS)
+            popularSince(period)
         );
         return communityPostRepositoryPort.searchPosts(criteria);
+    }
+
+    /**
+     * 인기순 작성 시각 하한. 요청마다 현재 시각 기준으로 다시 계산하는 롤링 기간이며 ALL 이면 null(하한 없음)이다.
+     * 최신순(LATEST)에도 값은 넘어가지만 리포지터리가 인기순에서만 쓴다.
+     */
+    private LocalDateTime popularSince(CommunityPopularPeriod period) {
+        return period.since(LocalDateTime.now());
     }
 
     private void ensureTargetExists(CommunityTargetType targetType, String targetCode) {
