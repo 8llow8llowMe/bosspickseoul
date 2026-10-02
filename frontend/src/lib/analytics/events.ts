@@ -8,6 +8,13 @@
 export type AnalyticsEventMap = {
   home_hero_cta_click: {
     cta: 'analysis' | 'status' | 'recommend' | 'window_max'
+    /** 주 버튼만 — 피커로 고른 자치구를 링크에 실었는가(hero-picker-and-mobile-first-screen.md D4-8). */
+    carried?: boolean
+  }
+  /** 히어로 피커에서 구를 고르거나 모바일 지도를 탭했을 때. 값이 바뀔 때만 보낸다. */
+  home_hero_picker_select: {
+    district_code: string
+    source: 'select' | 'map'
   }
   home_map_hover: { district_code: string }
   home_map_click: { district_code: string }
