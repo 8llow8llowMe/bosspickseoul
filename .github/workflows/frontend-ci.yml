@@ -7,9 +7,9 @@ name: frontend-ci
 # `frontend-web` 라벨이 붙어야 생기고(`Github label filter`), 결과가 Jenkins 화면에 있다.
 # 이쪽은 라벨과 무관하게 돌고 결과를 PR 에서 바로 보여 준다.
 #
-# **e2e 는 아직 넣지 않는다.** 커뮤니티 e2e 는 Jenkins 에이전트가 아니라 이 워크플로에 잡으로
-# 붙이기로 했다(#477, 2026-10-02). Actions 러너는 `playwright install --with-deps` 가 바로 된다.
-# 붙이는 작업은 #477 이 한다(`frontend/docs/runbook/qa.md` §2).
+# `e2e` 는 커뮤니티 Playwright 슈트를 프로덕션 빌드로 돈다(#477). Jenkins 빌드 에이전트에는
+# Chromium 과 시스템 의존성이 없어서, Jenkins 대신 이 워크플로에 붙였다. Actions 러너는
+# `playwright install --with-deps` 가 바로 된다(`frontend/docs/runbook/qa.md` §2).
 
 on:
   pull_request:
@@ -110,3 +110,129 @@ jobs:
           BACKEND_API_URL: http://localhost:8080
           AUTH_SESSION_SECRET: ci-placeholder-secret-at-least-32-characters
           NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ci-placeholder
+
+  # 커뮤니티 e2e — 레이아웃·불변식·지역 시트·글쓰기를 실제 브라우저로 잰다 (#477).
+  #
+  # **백엔드 없이 돈다.** BFF 호출은 브라우저에서 `e2e/fixtures/community.ts` 가 고정 응답으로
+  # 가로채고, 가로채지 못한 호출은 501 로 막아 테스트를 실패시킨다(`e2e/community/test.ts`).
+  # 그래서 서버에는 자리표시자 env 만 준다.
+  #
+  # **프로덕션 빌드(`pnpm start`)로 돈다.** dev 서버보다 배포물에 가깝다. 포트는 5173 이다 —
+  # `playwright.config.ts` 의 기본 baseURL 이고, 백엔드 CORS 허용 포트와도 맞춘다.
+  # 서버를 먼저 띄우고 기다린다. 서버가 없으면 playwright 의 `webServer` 가 `pnpm dev` 를 띄워
+  # 프로덕션 빌드가 아닌 것을 재게 된다.
+  #
+  # **홈 지표 슈트(`e2e/home/*`)는 넣지 않는다.** 기준선이 dev 서버 기준이고
+  # `districts/top-ten` 실응답에 기댄다(`frontend/docs/runbook/qa.md` §2).
+  #
+  # **관찰 기간이다 — 처음에는 `continue-on-error` 로 둔다.**
+  # - 효과: 이 잡이 깨져도 워크플로 실행 결론은 성공이다. 잡 자체의 실패는 그대로 보인다.
+  #   머지를 막지 않는 것은 required check 가 없어서다. "빨간불이면 머지하지 않는다" 규칙에서 이
+  #   잡만 예외로 둔다(빨간불이면 원인을 PR 에 적는다).
+  # - flaky 를 통과로 세지 않는다. CI 는 `retries: 1` 이라(`playwright.config.ts`) 재시도에서 통과한
+  #   테스트도 exit 0 이 된다. 관찰 기간에는 `--fail-on-flaky-tests` 로 실패와 아티팩트로 드러낸다.
+  # - 걷는 기준: develop push 실행의 이 잡이 연속 20회 성공. 세는 방법은 qa.md §2.
+  #   걷으면 e2e 실패가 워크플로 실패가 되고 위 예외도 없앤다. 그때 이 주석 · qa.md §2 ·
+  #   `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2 표를 같이 고친다.
+  #
+  # `verify` 에 의존시키지 않는다. 둘은 서로 다른 것을 보고, 직렬로 묶으면 lint 한 줄 때문에
+  # 화면 결과를 못 보게 된다.
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      BACKEND_API_URL: http://localhost:8080
+      AUTH_SESSION_SECRET: ci-placeholder-secret-at-least-32-characters
+      NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ci-placeholder
+      PLAYWRIGHT_BASE_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # 브라우저는 node_modules 캐시에 들어가지 않아 따로 캐시한다. playwright 버전이 lockfile 에
+      # 고정되므로 lockfile 해시를 키로 쓴다.
+      #
+      # **복원과 저장을 나눈다.** `actions/cache` 는 잡이 성공해야 post 단계에서 저장하는데, 관찰
+      # 기간에는 이 잡이 깨질 수 있다. 그러면 깨지는 동안 매번 chromium 을 새로 받는다.
+      # 그래서 설치 직후에 따로 저장한다.
+      - name: Restore Playwright browsers
+        id: playwright-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+      # chromium 하나만 받는다(`playwright.config.ts` 의 두 프로젝트 모두 chromium).
+      # 캐시가 맞아도 시스템 의존성(apt)은 러너마다 새로 깐다.
+      - run: pnpm exec playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: pnpm exec playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+      - name: Save Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
+
+      - run: pnpm build
+
+      # 백그라운드 프로세스는 같은 잡의 다음 단계까지 살아 있다.
+      # 준비 판정은 `curl -f`(4xx·5xx 면 실패)다. playwright `webServer` 는 200 이상 404 미만일 때만
+      # 이미 뜬 서버를 재사용한다. 5xx 를 준비로 읽으면 playwright 가 `pnpm dev -p 5173` 을 띄우다
+      # 포트 충돌로 죽어 엉뚱한 원인으로 실패한다. 응답이 멈추는 경우를 위해 시도마다 5초 상한을 둔다.
+      # 로그는 `test-results/` 가 아니라 작업 디렉터리에 둔다. playwright 가 실행 시작 때 그 폴더를 비운다.
+      # 60초 안에 응답이 없거나 서버가 죽으면 로그를 보여 주고 실패한다.
+      - name: Start production server
+        run: |
+          nohup pnpm start -p 5173 > next-server.log 2>&1 &
+          echo $! > next-server.pid
+          for i in $(seq 1 60); do
+            if curl -sf --max-time 5 -o /dev/null "$PLAYWRIGHT_BASE_URL"; then
+              echo "server ready after ${i}s"
+              exit 0
+            fi
+            if ! kill -0 "$(cat next-server.pid)" 2>/dev/null; then
+              echo 'server exited before ready'
+              cat next-server.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo 'server not ready in 60s'
+          cat next-server.log
+          exit 1
+
+      # `--fail-on-flaky-tests` 는 관찰 기간용이다(위 잡 주석). 걷을 때 같이 정한다.
+      - run: pnpm test:e2e e2e/community --fail-on-flaky-tests
+
+      # **실패했을 때만 올린다.** trace(`test-results/`)로 어느 단언에서 무엇이 그려졌는지 본다.
+      # 세션 쿠키는 테스트가 만든 가짜 값이라 실데이터가 담기지 않는다.
+      - name: Upload e2e evidence
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: community-e2e
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            frontend/next-server.log
+          retention-days: 7
