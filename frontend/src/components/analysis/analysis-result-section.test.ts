@@ -128,6 +128,85 @@ describe('AnalysisResultSection 불러오는 중', () => {
   })
 })
 
+const renderCollapsible = (
+  props: Partial<Parameters<typeof AnalysisResultSection>[0]> = {},
+) => {
+  const sheet = new ServerStyleSheet()
+  try {
+    const markup = renderToStaticMarkup(
+      sheet.collectStyles(
+        createElement(
+          AnalysisResultSection,
+          {
+            title: '요일별 유동인구',
+            description: '주말 하루 유동인구가 평일보다 12% 많아요',
+            loading: false,
+            error: null,
+            empty: false,
+            collapsible: true,
+            ...props,
+          },
+          createElement('p', null, '차트 본문'),
+        ),
+      ),
+    )
+    const css = sheet
+      .getStyleTags()
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, '')
+    return { markup, css }
+  } finally {
+    sheet.seal()
+  }
+}
+
+describe('AnalysisResultSection 접기 (1열 폭)', () => {
+  it('접을 수 있는 카드는 접힌 펼침 버튼이 본문을 가리키고, 결론 문장은 버튼 밖에 남는다', () => {
+    const { markup } = renderCollapsible()
+
+    const controls = markup.match(/aria-controls="([^"]+)"/)?.[1]
+    expect(markup).toContain('aria-expanded="false"')
+    expect(controls).toBeTruthy()
+    expect(markup).toContain(`id="${controls}"`)
+    expect(markup).toContain('<p>주말 하루 유동인구가 평일보다 12% 많아요</p>')
+    // 본문은 마크업에 그대로 있고 CSS 로만 숨긴다 — 넓은 폭에서는 늘 펼쳐져 있어야 한다.
+    expect(markup).toContain('차트 본문')
+  })
+
+  it('본문 숨김과 펼침 버튼은 analysis-report 컨테이너가 1열(<640px)일 때만 켜진다', () => {
+    const { css } = renderCollapsible()
+
+    expect(css).toContain('@containeranalysis-report(max-width:639px)')
+    expect(css).toMatch(
+      /@containeranalysis-report\(max-width:639px\)\{[^}]*\{display:none;?\}/,
+    )
+  })
+
+  it('collapsible 이 없으면 펼침 버튼을 그리지 않는다', () => {
+    const { markup } = renderCollapsible({ collapsible: false })
+
+    expect(markup).not.toContain('aria-expanded')
+    expect(markup).not.toContain('<button')
+  })
+
+  it('오류·빈 상태는 접지 않는다 — 재시도와 「데이터 없음」이 접힌 카드 뒤에 숨지 않게', () => {
+    const failed = renderCollapsible({
+      error: apiError(
+        503,
+        'COMMERCIAL_012',
+        '지역 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.',
+      ),
+      onRetry: () => undefined,
+    })
+    const empty = renderCollapsible({ empty: true })
+
+    expect(failed.markup).not.toContain('aria-expanded')
+    expect(failed.markup).toContain('다시 시도')
+    expect(empty.markup).not.toContain('aria-expanded')
+    expect(empty.markup).toContain('요일별 유동인구 데이터가 없어요')
+  })
+})
+
 describe('AnalysisMetricList', () => {
   it('숫자 텍스트와 접근 가능한 막대 값을 함께 제공한다', () => {
     const markup = renderToStaticMarkup(

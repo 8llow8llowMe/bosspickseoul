@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react'
-import { RotateCcw } from 'lucide-react'
-import styled from 'styled-components'
+'use client'
+
+import { useId, useState, type ReactNode } from 'react'
+import { ChevronDown, RotateCcw } from 'lucide-react'
+import styled, { css } from 'styled-components'
 
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
@@ -36,8 +38,24 @@ export type AnalysisResultSectionProps = {
   empty: boolean
   emptyDescription?: string
   onRetry?: () => void
+  /**
+   * 카드 그리드가 1열인 폭(`analysis-report` 컨테이너 <640px)에서 **접힌 채로 시작**한다.
+   * 제목이 펼침 버튼이 되고 설명(차트 결론 문장)은 접혀도 보인다. 그보다 넓으면 버튼 없이
+   * 늘 펼쳐져 있다 — 접기는 1열 스택이 길어지는 문제만 푼다.
+   *
+   * 오류와 빈 상태는 접지 않는다. 재시도 버튼이나 「데이터 없음」을 펼쳐야 보이면
+   * 접힌 카드가 정상 값처럼 읽힌다.
+   */
+  collapsible?: boolean
   children?: ReactNode
 }
+
+/** 접기가 켜지는 폭 — `DashboardGrid` 가 1열이 되는 폭과 같다. */
+const narrowReport = (rules: ReturnType<typeof css>) => css`
+  @container analysis-report (max-width: 639px) {
+    ${rules}
+  }
+`
 
 const Section = styled.section`
   display: grid;
@@ -58,6 +76,7 @@ const Header = styled.header`
   gap: 5px;
 
   h2 {
+    margin: 0;
     /* 배지를 제목 오른쪽에 같은 줄로 두되, 좁은 화면에서는 아래로 흘린다. */
     display: flex;
     align-items: center;
@@ -74,6 +93,95 @@ const Header = styled.header`
     font-size: 13px;
     line-height: 20px;
   }
+`
+
+/**
+ * 넓은 폭의 제목. 접을 수 있는 카드는 좁은 폭에서 이 제목 대신 `ToggleTitle` 을 보인다.
+ * `&&` 는 `Header` 의 `h2 { display: flex }`(클래스 + 요소)보다 우선하게 한다.
+ */
+const StaticTitle = styled.h2<{ $collapsible: boolean }>`
+  ${props =>
+    props.$collapsible
+      ? narrowReport(css`
+          && {
+            display: none;
+          }
+        `)
+      : ''}
+`
+
+/**
+ * 좁은 폭에서만 보이는 펼침 버튼 제목. `display: none` 으로 숨겨 두면 접근성 트리와 탭 순서에서도
+ * 빠지므로, 넓은 폭에는 아무 일도 하지 않는 버튼이 남지 않는다.
+ */
+const ToggleTitle = styled.h2`
+  && {
+    display: none;
+  }
+
+  ${narrowReport(css`
+    && {
+      display: flex;
+    }
+  `)}
+`
+
+const ToggleButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  /* 제목 한 줄(27px)이지만 터치 대상은 44px 를 둔다(DESIGN.md Touch Targets). */
+  min-height: 44px;
+  margin: -8px 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  /* 제목과 배지는 넓은 폭 제목(Header h2)처럼 한 줄에 두고 좁으면 흘린다. */
+  > span {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  > svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    color: var(--color-text-600);
+    transition: transform 0.2s ease;
+  }
+
+  &[aria-expanded='true'] > svg {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    > svg {
+      transition: none;
+    }
+  }
+`
+
+/** 본문 + 각주. 접히면 좁은 폭에서만 숨는다. */
+const Body = styled.div<{ $collapsed: boolean }>`
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+
+  ${props =>
+    props.$collapsed
+      ? narrowReport(css`
+          display: none;
+        `)
+      : ''}
 `
 
 const Loading = styled.div`
@@ -129,58 +237,81 @@ export default function AnalysisResultSection({
   empty,
   emptyDescription = '이 조건에서 제공되는 데이터가 없어요.',
   onRetry,
+  collapsible = false,
   children,
 }: AnalysisResultSectionProps) {
+  const bodyId = useId()
+  const [open, setOpen] = useState(false)
+  const showsNotice = !loading && (error !== null || empty)
+  const canCollapse = collapsible && !showsNotice
   return (
     <Section>
       <Header>
-        <h2>
+        <StaticTitle $collapsible={canCollapse}>
           {title}
           {badge}
-        </h2>
+        </StaticTitle>
+        {canCollapse ? (
+          <ToggleTitle>
+            <ToggleButton
+              type="button"
+              aria-expanded={open}
+              aria-controls={bodyId}
+              onClick={() => setOpen(value => !value)}
+            >
+              <span>
+                {title}
+                {badge}
+              </span>
+              <ChevronDown aria-hidden="true" />
+            </ToggleButton>
+          </ToggleTitle>
+        ) : null}
         {description ? <p>{description}</p> : null}
       </Header>
 
-      {loading ? (
-        <Loading role="status" aria-label={`${title} 불러오는 중`}>
-          <Skeleton $height="18px" $width="42%" />
-          <Skeleton $height={`${loadingHeight}px`} />
-        </Loading>
-      ) : error ? (
-        <EmptyState
-          title={
-            error.kind === 'not-found'
-              ? `${title} 데이터가 없어요`
-              : `${title} 정보를 불러오지 못했어요`
-          }
-          description={
-            error.kind === 'not-found'
-              ? describeNotFound(error.message)
-              : error.message
-          }
-          action={
-            onRetry && isRetryable(error.kind) ? (
-              <Button
-                size="medium"
-                variant="secondary"
-                leftIcon={<RotateCcw />}
-                onClick={onRetry}
-              >
-                다시 시도
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : empty ? (
-        <EmptyState
-          title={`${title} 데이터가 없어요`}
-          description={emptyDescription}
-        />
-      ) : (
-        children
-      )}
+      <Body id={bodyId} $collapsed={canCollapse && !open}>
+        {loading ? (
+          <Loading role="status" aria-label={`${title} 불러오는 중`}>
+            <Skeleton $height="18px" $width="42%" />
+            <Skeleton $height={`${loadingHeight}px`} />
+          </Loading>
+        ) : error ? (
+          <EmptyState
+            title={
+              error.kind === 'not-found'
+                ? `${title} 데이터가 없어요`
+                : `${title} 정보를 불러오지 못했어요`
+            }
+            description={
+              error.kind === 'not-found'
+                ? describeNotFound(error.message)
+                : error.message
+            }
+            action={
+              onRetry && isRetryable(error.kind) ? (
+                <Button
+                  size="medium"
+                  variant="secondary"
+                  leftIcon={<RotateCcw />}
+                  onClick={onRetry}
+                >
+                  다시 시도
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : empty ? (
+          <EmptyState
+            title={`${title} 데이터가 없어요`}
+            description={emptyDescription}
+          />
+        ) : (
+          children
+        )}
 
-      {footer && !loading && !error ? <Footer>{footer}</Footer> : null}
+        {footer && !loading && !error ? <Footer>{footer}</Footer> : null}
+      </Body>
     </Section>
   )
 }
