@@ -83,15 +83,38 @@ pnpm test:e2e:ui
 PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e
 ```
 
-`pnpm qa:verify` 에는 **넣지 않는다.** 서버가 필요하고 CI 이미지에 브라우저가 없다.
-CI 에서 돌리려면 `pnpm exec playwright install --with-deps chromium` 과 프로덕션 서버
-기동(`pnpm build && pnpm start -p 5173`)을 파이프라인에 따로 넣는다.
+`pnpm qa:verify` 에는 **넣지 않는다.** 서버와 브라우저가 필요하다.
 
-**지금 CI 에서 돌지 않는다(2026-10-01 결정).** 커뮤니티 슈트는 프로덕션 빌드에서도 돈다(로컬 3회 연속
-29/29). Jenkins 프론트 빌드는 x86_64 에이전트에서 도커 이미지 없이 돌아 Chromium 과 시스템 의존성이
-없다. 그래서 Jenkins 대신 GitHub Actions `frontend-ci` 에 잡으로 붙이기로 했다(2026-10-02). 연결은
-#477 이 맡는다. 그때까지 커뮤니티 화면을 바꾼 PR 은
-아래 둘 중 하나를 로컬에서 돌리고 PR 본문 「검증 내역」에 적는다.
+**CI 는 GitHub Actions `frontend-ci / e2e` 가 커뮤니티 슈트를 돈다(#477).** Jenkins 프론트 빌드는
+x86_64 에이전트에서 도커 이미지 없이 돌아 Chromium 과 시스템 의존성이 없어서, Jenkins 대신 Actions 러너에
+붙였다.
+
+- 언제: `frontend/` 코드를 바꾼 PR 과 develop push. 문서만 바뀐 PR 은 건너뛴다(`verify` 와 같은 판정).
+- 어떻게: 자리표시자 env 로 `pnpm build` → `pnpm start -p 5173` → 응답을 기다린 뒤
+  `PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e e2e/community`. 백엔드는 없다. BFF 는 아래
+  고정 응답이 받는다.
+- **지금은 관찰 기간이다(`continue-on-error`).** 이 잡이 깨져도 워크플로 실행 결론은 성공이고, 잡의
+  실패는 그대로 보인다.
+  - **머지 규칙의 예외다.** 다른 Actions 체크는 빨간불이면 머지하지 않는다
+    (`backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2). 이 잡은 빨간불이어도 머지할 수 있다. 대신 원인을
+    PR 본문 「검증 내역」에 적는다.
+  - flaky 도 실패로 센다(`--fail-on-flaky-tests`). CI 는 `retries: 1` 이라 재시도에서 통과한 테스트도
+    통과로 끝나기 때문이다.
+  - 실패하면 `community-e2e` 아티팩트(리포트·trace·서버 로그)가 7일 남는다.
+- **관찰 기간을 끝내는 기준: develop push 실행에서 이 잡이 연속 20회 성공.** 워크플로 실행 목록은
+  `continue-on-error` 때문에 늘 초록이라, 잡 결론을 따로 센다.
+
+  ```bash
+  gh run list -w frontend-ci -b develop -e push -L 30 --json databaseId --jq '.[].databaseId' |
+    while read id; do gh run view "$id" --json jobs --jq '.jobs[] | select(.name == "e2e") | .conclusion'; done
+  ```
+
+  끝나면 `continue-on-error` 와 `--fail-on-flaky-tests` 를 정리하고 위 예외를 없앤다. 이 절,
+  `frontend-ci.yml` 의 잡 주석, 가이드 §1-2 표를 같이 고친다.
+
+- 홈 지표 슈트(`e2e/home/*`)는 돌지 않는다. 기준선이 dev 서버 기준이고 실응답에 기댄다(아래 3절).
+
+로컬에서 재현할 때는 아래 둘 중 하나를 돌린다.
 
 ```bash
 # dev 서버(5173)

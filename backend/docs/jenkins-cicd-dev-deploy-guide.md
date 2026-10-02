@@ -97,6 +97,7 @@ PR 검증은 GitHub Actions 와 Jenkins 가 **둘 다** 한다. 보는 것이 �
 | --- | --- | --- | --- | --- |
 | `backend-ci / check` (Actions) | `backend/**` 변경 PR, develop push | 없음 | **전 모듈** `./gradlew check` | 컴파일 + 테스트. 실행 건수를 job summary 에 남기고 0건이면 실패 |
 | `frontend-ci / verify` (Actions) | `frontend/**` 변경 PR, develop push | 자리표시자 | 프론트 전체 | `format:check` · `lint` · `typecheck` · `test` · `build`. `frontend/` 에서 문서만 바뀌면 `format:check` 만 |
+| `frontend-ci / e2e` (Actions) | `frontend/**` 코드 변경 PR, develop push | 자리표시자, 백엔드 없음 | 커뮤니티 Playwright 슈트 | 프로덕션 빌드를 띄워 브라우저로 잰다(#477). **관찰 기간이라 아래 「빨간불이면 머지하지 않는다」의 예외다**(`continue-on-error`, 빨간불이면 원인을 PR 에 적는다). 정본은 `frontend/docs/runbook/qa.md` §2 |
 | `label` (Actions) | develop 대상 PR (Dependabot·포크 제외) | — | — | **검증하지 않는다.** 경로를 보고 배포 라벨을 붙인다(`.github/labeler.yml`) |
 | `continuous-integration/jenkins/pr-merge` | **라벨이 붙은 서비스**의 PR | **Vault env** (develop/main 대상 PR. 다른 브랜치 대상이면 비어 있다) | 라벨이 가리키는 모듈 | 백엔드 `:{module}:test` + `bootJar`, 프론트는 위 `verify` 와 같은 명령 |
 | Jenkins 브랜치 빌드 | develop/main push | Vault env | 라벨이 가리키는 모듈 | 테스트 → 빌드 → **배포**(§1-1) |
