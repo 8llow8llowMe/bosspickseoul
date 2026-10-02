@@ -2,10 +2,12 @@ package com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persis
 
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.FootTrafficDistrictRepository;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.DistrictAreaProjection;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.FootTrafficDistrictRankingProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.FootTrafficDistrictTopTenProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.FootTrafficDistrictMapper;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.FootTrafficDistrictRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.DistrictAreaQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.FootTrafficDistrictRankingQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.FootTrafficDistrictTopTenQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.FootTrafficDistrict;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
@@ -55,6 +57,14 @@ public class FootTrafficDistrictRepositoryAdapter implements FootTrafficDistrict
             .toList();
     }
 
+    @Override
+    public List<FootTrafficDistrictRankingQueryResult> findRankingsByFootTraffic(String currentPeriodCode, String previousPeriodCode) {
+        return footTrafficDistrictRepository.findRankingsByFootTraffic(currentPeriodCode, previousPeriodCode)
+            .stream()
+            .map(this::toFootTrafficRankingQueryResult)
+            .toList();
+    }
+
     private DistrictAreaQueryResult toDistrictAreaQueryResult(DistrictAreaProjection projection) {
         return DistrictAreaQueryResult.builder()
             .districtCode(projection.districtCode())
@@ -64,6 +74,15 @@ public class FootTrafficDistrictRepositoryAdapter implements FootTrafficDistrict
 
     private FootTrafficDistrictTopTenQueryResult toFootTrafficTopTenQueryResult(FootTrafficDistrictTopTenProjection projection) {
         return FootTrafficDistrictTopTenQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .totalFootTraffic(projection.totalFootTraffic())
+            .footTrafficChangeRate(projection.footTrafficChangeRate())
+            .build();
+    }
+
+    private FootTrafficDistrictRankingQueryResult toFootTrafficRankingQueryResult(FootTrafficDistrictRankingProjection projection) {
+        return FootTrafficDistrictRankingQueryResult.builder()
             .districtCode(projection.districtCode())
             .districtName(projection.districtName())
             .totalFootTraffic(projection.totalFootTraffic())

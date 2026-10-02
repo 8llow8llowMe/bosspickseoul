@@ -6,6 +6,7 @@ import com.followfollowme.bosspickseoul.domainlayer.ranking.domain.enums.Analysi
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.ChangeIndicatorDistrictResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictAreaResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictDetailResponse;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictRankingSummaryResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesAdministrationDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictSalesDetailResponse;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.in.web.dto.response.DistrictStoreDetailResponse;
@@ -19,6 +20,7 @@ import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sa
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.sales.DistrictSalesDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.store.DistrictStoreDetailInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictDetailInfo;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictRankingSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.info.summary.DistrictTopTenSummaryInfo;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.in.DistrictWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.service.processor.DistrictQueryProcessor;
@@ -46,6 +48,14 @@ public class DistrictWebFacade implements DistrictWebUseCase {
         currentPeriodCode = analysisPeriodCatalogProcessor.resolve(currentPeriodCode);
         DistrictTopTenSummaryInfo info = districtQueryProcessor.getTopTenSummary(currentPeriodCode, previousPeriodCode);
         return districtPresenter.toDistrictTopTenSummaryResponse(info);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DistrictRankingSummaryResponse getDistrictRankings(String currentPeriodCode, String previousPeriodCode) {
+        currentPeriodCode = analysisPeriodCatalogProcessor.resolve(currentPeriodCode);
+        DistrictRankingSummaryInfo info = districtQueryProcessor.getRankingSummary(currentPeriodCode, previousPeriodCode);
+        return districtPresenter.toDistrictRankingSummaryResponse(info);
     }
 
     @Override

@@ -1,10 +1,12 @@
 package com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence;
 
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.repository.SalesDistrictRepository;
+import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.SalesDistrictRankingProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.SalesDistrictServiceTopFiveProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.adapter.out.persistence.projection.SalesDistrictTopTenProjection;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.mapper.SalesDistrictMapper;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.SalesDistrictRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.SalesDistrictRankingQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.SalesDistrictServiceTopFiveQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.application.port.out.query.SalesDistrictTopTenQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.district.domain.model.SalesDistrict;
@@ -40,6 +42,14 @@ public class SalesDistrictRepositoryAdapter implements SalesDistrictRepositoryPo
     }
 
     @Override
+    public List<SalesDistrictRankingQueryResult> findRankingsBySales(String currentPeriodCode, String previousPeriodCode) {
+        return salesDistrictRepository.findRankingsBySales(currentPeriodCode, previousPeriodCode)
+            .stream()
+            .map(this::toSalesRankingQueryResult)
+            .toList();
+    }
+
+    @Override
     public List<SalesDistrictServiceTopFiveQueryResult> findTopFiveServiceBySales(
         String districtCode, String currentPeriodCode, String previousPeriodCode
     ) {
@@ -51,6 +61,15 @@ public class SalesDistrictRepositoryAdapter implements SalesDistrictRepositoryPo
 
     private SalesDistrictTopTenQueryResult toSalesTopTenQueryResult(SalesDistrictTopTenProjection projection) {
         return SalesDistrictTopTenQueryResult.builder()
+            .districtCode(projection.districtCode())
+            .districtName(projection.districtName())
+            .totalSalesAmount(projection.totalSalesAmount())
+            .salesChangeRate(projection.salesChangeRate())
+            .build();
+    }
+
+    private SalesDistrictRankingQueryResult toSalesRankingQueryResult(SalesDistrictRankingProjection projection) {
+        return SalesDistrictRankingQueryResult.builder()
             .districtCode(projection.districtCode())
             .districtName(projection.districtName())
             .totalSalesAmount(projection.totalSalesAmount())

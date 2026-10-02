@@ -22,7 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * 자치구 유스케이스 8종이 모두 생략된 현재 분기를 적재 기준 기본 분기로 해석해 Processor 에 넘기는지 확인한다(이슈 #464).
+ * 자치구 유스케이스 9종이 모두 생략된 현재 분기를 적재 기준 기본 분기로 해석해 Processor 에 넘기는지 확인한다(이슈 #464).
  * 비교 분기는 넘긴 그대로(null) 두고, Processor 가 해석된 현재 분기 기준으로 직전 분기를 정한다
  * ({@code DistrictQueryProcessorPeriodTest}).
  */
@@ -52,6 +52,8 @@ class DistrictWebFacadePeriodResolutionTest {
         return Stream.of(
             useCase("Top10", facade -> facade.getTopTenDistricts(null, null),
                 processor -> processor.getTopTenSummary(DEFAULT_PERIOD, null)),
+            useCase("전체 순위", facade -> facade.getDistrictRankings(null, null),
+                processor -> processor.getRankingSummary(DEFAULT_PERIOD, null)),
             useCase("상세", facade -> facade.getDistrictDetail(DISTRICT, null, null),
                 processor -> processor.getDistrictDetail(DISTRICT, DEFAULT_PERIOD, null)),
             useCase("유동인구", facade -> facade.getDistrictFootTrafficDetail(DISTRICT, null, null),
