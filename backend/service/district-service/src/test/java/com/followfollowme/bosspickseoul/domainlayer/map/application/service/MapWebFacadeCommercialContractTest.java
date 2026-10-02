@@ -3,7 +3,6 @@ package com.followfollowme.bosspickseoul.domainlayer.map.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
@@ -17,6 +16,7 @@ import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.que
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.CommercialProfileQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.ComparePreviewMetricQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.ComparePreviewTargetQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapAnalysisPeriodProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapCandidateQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapHeatmapQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapProfileQueryProcessor;
@@ -56,7 +56,9 @@ class MapWebFacadeCommercialContractTest {
             mapHeatmapQueryProcessor,
             mapCandidateQueryProcessor,
             new MapProfileQueryProcessor(commercialProfileQueryPort),
-            new MapPresenter()
+            new MapPresenter(),
+            // 분기를 생략한 요청은 Facade 가 기본 분기(여기서는 20261)로 바꿔 상류를 부른다(이슈 #464).
+            new MapAnalysisPeriodProcessor(() -> "20261")
         );
     }
 
@@ -127,9 +129,9 @@ class MapWebFacadeCommercialContractTest {
     }
 
     @Test
-    @DisplayName("분기를 생략하면 상류가 실제로 조회한 분기를 프로필 응답에 싣는다")
+    @DisplayName("분기를 생략하면 기본 분기를 명시해 상류를 부르고 상류가 조회한 분기를 프로필 응답에 싣는다")
     void omittedPeriodTakesTheUpstreamPeriod() {
-        when(commercialProfileQueryPort.getCommercialProfile(eq("3110008"), eq("CS100001"), isNull()))
+        when(commercialProfileQueryPort.getCommercialProfile(eq("3110008"), eq("CS100001"), eq("20261")))
             .thenReturn(new CommercialProfileQueryResult(
                 "3110008", "역삼역", "11680", "강남구", "1168064000", "역삼1동", null, List.of(), "20261"
             ));
@@ -140,9 +142,9 @@ class MapWebFacadeCommercialContractTest {
     }
 
     @Test
-    @DisplayName("분기를 생략하면 상류가 실제로 비교한 분기를 비교 프리뷰 응답에 싣는다")
+    @DisplayName("분기를 생략하면 기본 분기를 명시해 상류를 부르고 상류가 비교한 분기를 비교 프리뷰 응답에 싣는다")
     void omittedPeriodTakesTheUpstreamPeriodForComparePreview() {
-        when(commercialProfileQueryPort.getCommercialComparePreview(eq("3110008"), eq("3110009"), eq("CS100001"), isNull()))
+        when(commercialProfileQueryPort.getCommercialComparePreview(eq("3110008"), eq("3110009"), eq("CS100001"), eq("20261")))
             .thenReturn(new CommercialComparePreviewQueryResult(
                 target("3110008", "역삼역"), target("3110009", "명동역"), null, List.of(), "요약", "20261"
             ));

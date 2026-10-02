@@ -21,6 +21,9 @@ public enum MapErrorCode {
     // 뷰포트가 넓어 영역이 상한을 넘은 경우. 몇 건이 넘쳤는지는 메시지에 담지 않는다.
     // MapException 에 varargs 생성자를 두면 기존 MapException(errorCode, String message) 와 모호해진다.
     VIEWPORT_TOO_MANY_AREAS("MAP_010", "지도 범위에 포함된 영역이 너무 많습니다. 지도를 확대해 주세요.", HttpStatus.BAD_REQUEST),
+    // 분기를 생략한 요청에서 commercial-service 의 적재 기준 기본 분기를 받지 못했고 마지막 성공값도 없을 때(이슈 #464).
+    // 이때는 상권 분석 호출 자체를 하지 않는다. 분기를 명시한 요청은 이 오류를 받지 않는다.
+    DEFAULT_PERIOD_UNAVAILABLE("MAP_011", "분석 기준 분기를 아직 정할 수 없습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(MAP_101~102)는 MapValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

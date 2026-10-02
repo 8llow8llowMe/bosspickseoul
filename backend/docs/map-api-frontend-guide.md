@@ -133,11 +133,11 @@ const handleMapIdle = debounce(async () => {
 
 ## 분기 파라미터 (`periodCode`, 이슈 #464)
 
-히트맵·후보·프로필·비교 프리뷰의 `periodCode` 는 **선택**이다. 생략하면 commercial-service 가 적재된 데이터 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`)로 조회한다. 아래 예시의 `periodCode=20261` 은 명시한 경우다.
+히트맵·후보·프로필·비교 프리뷰의 `periodCode` 는 **선택**이다. 생략하거나 빈 값(`?periodCode=`)이면 지도가 적재된 데이터 기준 최신 공통 분기(`GET /api/v1/commercials/periods` 의 `defaultPeriodCode`)를 받아 그 분기로 조회한다. 아래 예시의 `periodCode=20261` 은 명시한 경우다.
 
-- 응답의 `periodCode` 는 실제로 조회한 분기다. 화면 라벨("2026년 1분기 기준")과 공유 링크·보관함 payload 에는 이 값을 쓴다.
-- 예외: 뷰포트에 상권이 없어 후보를 비워 내리는 경우와 상류 장애로 히트맵 점수가 비는 경우는 상류를 거치지 않아 생략 요청이면 `periodCode: null` 이다. 이때는 직전 응답이나 `/periods` 의 `defaultPeriodCode` 로 라벨을 그린다.
-- 기본 분기를 정할 수 없으면 commercial-service 가 503 을 주고 지도는 `MAP_008`(503) 로 내려준다.
+- 응답의 `periodCode` 는 항상 실제로 조회한 분기다. 뷰포트에 상권이 없어 후보를 비워 내리는 경우도 해석된 분기를 싣는다. 화면 라벨("2026년 1분기 기준")과 공유 링크·보관함 payload 에는 이 값을 쓴다.
+- 기본 분기를 정할 수 없으면 `MAP_011`(503) 이다(상권 분석 호출은 하지 않는다). 분기를 명시한 요청은 영향이 없다.
+- 상류(commercial-service) 장애는 지금처럼 `MAP_008`(503) 이다.
 
 ## Heatmap API
 

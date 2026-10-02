@@ -16,6 +16,10 @@ logging:
 # 프리픽스가 없으면 record 바인딩 경로에 기대야 하고, 운영자가 조정할 knob 도 눈에 보이지 않는다.
 app:
   map:
+    analysis-period:
+      # 분기를 생략한 지도 요청의 기본 분기(commercial-service GET /api/v1/commercials/periods)를 인스턴스 메모리에 두는 시간(이슈 #464).
+      # commercial-service 의 카탈로그 갱신 주기와 같다. 갱신이 실패하면 마지막 성공값을 계속 쓴다.
+      cache-ttl: 5m
     viewport:
       # 서울 전량은 자치구 25 · 행정동 424 행이라 이 상한은 사실상 여유값이다.
       max-district-areas: 50
@@ -44,4 +48,7 @@ resilience4j:
           - feign.FeignException$FeignClientException
     instances:
       commercial-service:
+        base-config: default
+      # 기본 분기 조회(/api/v1/commercials/periods) 전용. 실패가 분석 호출 서킷(commercial-service)을 열지 않게 분리한다(이슈 #464).
+      commercial-service-periods:
         base-config: default

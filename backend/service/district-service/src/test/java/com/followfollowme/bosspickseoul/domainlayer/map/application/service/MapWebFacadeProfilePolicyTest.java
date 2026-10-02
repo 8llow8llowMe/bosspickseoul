@@ -9,6 +9,7 @@ import com.followfollowme.bosspickseoul.domainlayer.map.adapter.in.web.presenter
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.CommercialProfileQueryPort;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.CommercialProfileQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.query.PolicyQueryResult;
+import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapAnalysisPeriodProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapCandidateQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapHeatmapQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.service.processor.MapProfileQueryProcessor;
@@ -54,7 +55,9 @@ class MapWebFacadeProfilePolicyTest {
             mapHeatmapQueryProcessor,
             mapCandidateQueryProcessor,
             new MapProfileQueryProcessor(commercialProfileQueryPort),
-            new MapPresenter()
+            new MapPresenter(),
+            // 분기를 생략한 요청은 Facade 가 기본 분기(여기서는 20261)로 바꿔 상류를 부른다(이슈 #464).
+            new MapAnalysisPeriodProcessor(() -> "20261")
         );
     }
 
