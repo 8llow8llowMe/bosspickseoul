@@ -627,3 +627,68 @@ describe('PopularDistricts — 참인 문장만 (TC-RMS-018)', () => {
     }
   })
 })
+
+/*
+ * 겹침 미니 지도(ranking-mini-map.md D5-3). 섹션에 실제로 있는 레이어만 지도에 그린다.
+ * 지도 마크업 자체는 `ranking-mini-map.test.ts` 가 본다 — 여기서는 분기 배선만.
+ */
+describe('PopularDistricts — 겹침 미니 지도', () => {
+  const countOf = (html: string, pattern: RegExp) =>
+    (html.match(pattern) ?? []).length
+
+  it('듀얼이면 칠과 배지를 함께 그리고 겹치는 구를 요약 문장으로 말한다', () => {
+    const html = render(createResponse(THREE_VIEWS), createTopTen())
+
+    expect(html).toContain('role="img"')
+    expect(html).toContain(
+      '서울 지도에 많이 본 3곳과 유동인구 Top 2 를 표시했어요. 둘 다 든 곳은 강남구예요.',
+    )
+    expect(countOf(html, /data-rank="\d"/g)).toBe(2)
+    expect(countOf(html, /data-badge-rank="/g)).toBe(3)
+  })
+
+  it('지도는 두 목록 사이에 있다 — 넓은 폭의 읽는 순서와 같다', () => {
+    const html = render(createResponse(THREE_VIEWS), createTopTen())
+    const viewAt = html.indexOf('data-rank-column="view"')
+    const mapAt = html.indexOf('data-ranking-mini-map')
+    const metricAt = html.indexOf('data-rank-column="metric"')
+
+    expect(viewAt).toBeGreaterThan(-1)
+    expect(viewAt).toBeLessThan(mapAt)
+    expect(mapAt).toBeLessThan(metricAt)
+  })
+
+  it('지표만이면 배지 없이 칠만 그린다', () => {
+    const html = render(createResponse(THREE_VIEWS.slice(0, 2)), createTopTen())
+
+    expect(countOf(html, /data-rank="\d"/g)).toBe(2)
+    expect(countOf(html, /data-badge-rank="/g)).toBe(0)
+  })
+
+  it('조회만이면 칠 없이 배지만 그린다', () => {
+    const html = render(createResponse(THREE_VIEWS), createTopTen(false))
+
+    expect(countOf(html, /data-rank="\d"/g)).toBe(0)
+    expect(countOf(html, /data-badge-rank="/g)).toBe(3)
+  })
+
+  it('선택 지표만 비었으면 칠 없이 배지만 남는다', () => {
+    const html = render(createResponse(THREE_VIEWS), createPartialTopTen())
+
+    expect(countOf(html, /data-rank="\d"/g)).toBe(0)
+    expect(countOf(html, /data-badge-rank="/g)).toBe(3)
+    expect(html).not.toContain('data-legend-item="fill"')
+  })
+
+  it('스켈레톤에도 같은 크기의 지도 실루엣을 둔다', () => {
+    const html = render()
+
+    expect(html).toContain('data-ranking-mini-map')
+    expect(countOf(html, /data-district-code="/g)).toBe(25)
+    expect(countOf(html, /data-badge-rank="/g)).toBe(0)
+  })
+
+  it('섹션이 빠지면 지도도 함께 빠진다', () => {
+    expect(render(createResponse([]), createTopTen(false))).toBe('')
+  })
+})

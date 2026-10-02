@@ -182,3 +182,19 @@ describe('RankBarList — 증감 글자 대비', () => {
     }
   })
 })
+
+/*
+  미니 지도 연결선이 행을 `[data-rank-key]` 로 찾는다(ranking-mini-map.md D4-2). 두 변형 모두 키가
+  행(li)에 붙어야 한다. 행 호버 콜백의 동작은 e2e(ranking-mini-map.spec.ts)가 본다.
+*/
+describe('RankBarList — 미니 지도 연결', () => {
+  it.each(['compact', 'card'] as const)(
+    '%s 변형의 행에 data-rank-key 를 붙인다',
+    variant => {
+      const html = render({ variant })
+
+      expect(html).toMatch(/<li[^>]*data-rank-key="a"/)
+      expect(html).toMatch(/<li[^>]*data-rank-key="b"/)
+    },
+  )
+})

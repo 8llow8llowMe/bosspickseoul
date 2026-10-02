@@ -21,8 +21,15 @@ export type RankBarRow = {
 
 export type RankBarListProps = {
   rows: readonly RankBarRow[]
-  /** 이 키의 행을 강조한다(인사이트 문장이 가리키는 행). */
+  /** 이 키의 행을 강조한다(인사이트 문장이 가리키는 행, 또는 호버·포커스한 행). */
   highlightKey?: string | null
+  /**
+   * `aria-current` 를 붙일 행. 없으면 `highlightKey` 를 따른다.
+   *
+   * 강조가 호버·포커스를 따라다니는 자리(「지금 많이 본 지역」)에서는 따로 넘긴다 — 포커스한 링크마다
+   * 「현재 항목」이라고 읽히면 뜻이 없어진다. 「현재」는 인사이트 문장이 가리키는 행 하나다.
+   */
+  currentKey?: string | null
   ariaLabel: string
   /**
    * 행의 밀도.
@@ -35,6 +42,13 @@ export type RankBarListProps = {
    * 기본값을 `compact` 로 둔 것은 의도다 — 기존 사용처(01 단계)의 모양이 바뀌지 않는다.
    */
   variant?: 'compact' | 'card'
+  /**
+   * 행에 포인터가 들어오거나 포커스가 오면 그 행의 `key` 로 부른다. 「지금 많이 본 지역」이
+   * 미니 지도·연결선 강조에 쓴다(ranking-mini-map.md D4-3). 없으면 아무것도 붙이지 않는다.
+   */
+  onRowEnter?: (key: string) => void
+  /** 행에서 포인터가 나가거나 포커스가 떠나면 그 행의 `key` 로 부른다. */
+  onRowLeave?: (key: string) => void
 }
 
 const List = styled.ol`
@@ -338,10 +352,33 @@ const TOP_RANK_LIMIT = 3
 export default function RankBarList({
   rows,
   highlightKey = null,
+  currentKey,
   ariaLabel,
   variant = 'compact',
+  onRowEnter,
+  onRowLeave,
 }: RankBarListProps) {
   const max = Math.max(0, ...rows.map(row => (row.value > 0 ? row.value : 0)))
+  const resolvedCurrentKey =
+    currentKey === undefined ? highlightKey : currentKey
+
+  /*
+    포인터와 포커스를 같은 강조로 다룬다 — 키보드 사용자도 연결선을 본다. 콜백이 없으면 핸들러를
+    아예 붙이지 않아 기존 사용처(판단 흐름 01 단계)의 마크업이 그대로다.
+
+    핸들러는 행(li)에 단다. 행 사이 구분선(1px)은 li 의 border-top 이라 링크 밖이다 — 링크에 달면
+    포인터가 구분선에 걸린 순간 강조가 빠졌다 돌아온다. 포커스 이벤트는 React 에서 버블되므로
+    li 에서도 링크 포커스를 받는다.
+  */
+  const rowHandlers = (key: string) =>
+    onRowEnter || onRowLeave
+      ? {
+          onPointerEnter: () => onRowEnter?.(key),
+          onPointerLeave: () => onRowLeave?.(key),
+          onFocus: () => onRowEnter?.(key),
+          onBlur: () => onRowLeave?.(key),
+        }
+      : {}
 
   if (variant === 'card') {
     return (
@@ -371,20 +408,30 @@ export default function RankBarList({
           )
 
           return (
-            <Row key={row.key}>
+            <Row
+              key={row.key}
+              data-rank-key={row.key}
+              {...rowHandlers(row.key)}
+            >
               {row.href ? (
                 <CardRowLink
                   href={row.href}
                   aria-label={row.ariaLabel}
                   $highlighted={highlighted}
-                  aria-current={highlighted ? 'true' : undefined}
+                  data-highlighted={highlighted ? 'true' : undefined}
+                  aria-current={
+                    row.key === resolvedCurrentKey ? 'true' : undefined
+                  }
                 >
                   {body}
                 </CardRowLink>
               ) : (
                 <CardRowContent
                   $highlighted={highlighted}
-                  aria-current={highlighted ? 'true' : undefined}
+                  data-highlighted={highlighted ? 'true' : undefined}
+                  aria-current={
+                    row.key === resolvedCurrentKey ? 'true' : undefined
+                  }
                 >
                   {body}
                 </CardRowContent>
@@ -424,14 +471,17 @@ export default function RankBarList({
         const highlighted = row.key === highlightKey
 
         return (
-          <Row key={row.key}>
+          <Row key={row.key} data-rank-key={row.key} {...rowHandlers(row.key)}>
             {row.href ? (
               <RowLink
                 href={row.href}
                 aria-label={row.ariaLabel}
                 $highlighted={highlighted}
                 $top={top}
-                aria-current={highlighted ? 'true' : undefined}
+                data-highlighted={highlighted ? 'true' : undefined}
+                aria-current={
+                  row.key === resolvedCurrentKey ? 'true' : undefined
+                }
               >
                 {body}
               </RowLink>
@@ -439,7 +489,10 @@ export default function RankBarList({
               <RowContent
                 $highlighted={highlighted}
                 $top={top}
-                aria-current={highlighted ? 'true' : undefined}
+                data-highlighted={highlighted ? 'true' : undefined}
+                aria-current={
+                  row.key === resolvedCurrentKey ? 'true' : undefined
+                }
               >
                 {body}
               </RowContent>
