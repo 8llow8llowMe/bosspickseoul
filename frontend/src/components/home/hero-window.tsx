@@ -42,8 +42,6 @@ export type HeroWindowProps = {
   onToggleMinimize: () => void
   dragHandlers?: TitleBarDragHandlers
   style?: CSSProperties
-  /** 지도 자치구 hover 중일 때 카드 배경에 미세한 primary 틴트를 얹는다. */
-  tinted?: boolean
   /** 히어로 피커로 고른 자치구 코드. 상태는 `HeroSection` 이 갖는다(지도와 공유). */
   pickedCode: string | null
   /** 피커 값이 바뀔 때. 첫 항목(「자치구 고르기」)이면 null. */
@@ -57,7 +55,7 @@ export type HeroWindowProps = {
   chrome: boolean
 }
 
-const WindowCard = styled.div<{ $tinted?: boolean }>`
+const WindowCard = styled.div`
   /* 카드 본문이 포인터 이벤트를 가로채 뒤에 있는 지도 폴리곤의 hover/클릭을 막는다 */
   pointer-events: auto;
   /* 카드(타이틀바 드래그 포함) 내부 텍스트가 드래그로 선택되지 않게 한다 */
@@ -70,11 +68,9 @@ const WindowCard = styled.div<{ $tinted?: boolean }>`
      우하단 모서리를 기준으로 scale된다. translate만 쓰는 평상시 드래그
      transform은 origin의 영향을 받지 않으므로 항상 적용해도 안전하다. */
   transform-origin: bottom right;
-  background: ${p =>
-    p.$tinted
-      ? 'color-mix(in srgb, var(--color-primary-700) 7%, color-mix(in srgb, var(--color-surface) 55%, transparent))'
-      : 'color-mix(in srgb, var(--color-surface) 55%, transparent)'};
-  transition: background var(--motion-fast) var(--ease-standard);
+  /* 지도 호버 때 primary 틴트를 얹던 것은 걷어냈다 — 폴리곤을 훑을 때마다 카드가 깜빡여 어지러웠다
+     (hero-split-layout.md D4-9). */
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
   ${glassSurface}
   -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
   backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
@@ -88,10 +84,6 @@ const WindowCard = styled.div<{ $tinted?: boolean }>`
   @media (max-width: 640px) {
     width: min(460px, calc(100% - 24px));
     border-radius: 20px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
   }
 `
 
@@ -481,7 +473,6 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
       onToggleMinimize,
       dragHandlers,
       style,
-      tinted,
       pickedCode,
       onPick,
       pickerRef,
@@ -493,7 +484,7 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
     const primaryCta = resolveHeroPrimaryCta(pickedCode)
 
     return (
-      <WindowCard ref={ref} style={style} $tinted={tinted}>
+      <WindowCard ref={ref} style={style}>
         {chrome ? (
           <TitleBar onPointerDown={dragHandlers?.onPointerDown}>
             <WindowTitle>서울 상권 데이터 분석</WindowTitle>
