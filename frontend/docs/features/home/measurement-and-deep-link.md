@@ -32,15 +32,16 @@
 
 **개인을 식별할 수 있는 값은 싣지 않는다.** 파라미터는 자치구·업종 코드, 단계 번호, 버튼 종류뿐이다. 회원 번호·이메일·닉네임은 어떤 이벤트에도 없다.
 
-| 이벤트                   | 언제                                                                                      | 파라미터                                            |
-| ------------------------ | ----------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `home_hero_cta_click`    | 히어로 「내 상권 분석하기」·「구별현황 보기」·「추천받기」·창 확대 점                     | `cta`: `analysis`·`status`·`recommend`·`window_max` |
-| `home_map_hover`         | 히어로 지도에서 툴팁이 **처음** 실데이터를 부를 때(머무름 지연을 넘긴 호버). 페이지당 1회 | `district_code`                                     |
-| `home_map_click`         | 히어로 지도 자치구 클릭·Enter                                                             | `district_code`                                     |
-| `home_story_step_view`   | 판단 흐름 활성 단계가 바뀔 때(탭 클릭·고정 스크롤 모두). 첫 렌더는 제외                   | `step`: `01`\~`04`                                  |
-| `home_story_demo_select` | 02 미니데모에서 지역·업종 칩을 바꿀 때                                                    | `field`: `district`·`industry`, `value`: 코드       |
-| `home_story_cta_click`   | 판단 흐름 CTA                                                                             | `step`, `carried`: 조건을 실었는가(`true`/`false`)  |
-| `home_final_cta_click`   | 「더 많은 기능」 아래 CTA                                                                 | `cta`: `register`·`analysis`                        |
+| 이벤트                    | 언제                                                                                                                                                       | 파라미터                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `home_hero_cta_click`     | 히어로 「내 상권 분석하기」·「구별현황 보기」·「추천받기」·창 확대 점                                                                                      | `cta`: `analysis`·`status`·`recommend`·`window_max`, 주 버튼만 `carried`(피커로 고른 구를 실었는가) |
+| `home_hero_picker_select` | 히어로 피커에서 구를 고르거나 모바일 지도를 탭할 때(값이 바뀔 때만) — [hero-picker-and-mobile-first-screen](./hero-picker-and-mobile-first-screen.md) D4-8 | `district_code`, `source`: `select`·`map`                                                           |
+| `home_map_hover`          | 히어로 지도에서 툴팁이 **처음** 실데이터를 부를 때(머무름 지연을 넘긴 호버). 페이지당 1회                                                                  | `district_code`                                                                                     |
+| `home_map_click`          | 히어로 지도 자치구 클릭·Enter(데스크톱. 모바일 탭은 `home_hero_picker_select`)                                                                             | `district_code`                                                                                     |
+| `home_story_step_view`    | 판단 흐름 활성 단계가 바뀔 때(탭 클릭·고정 스크롤 모두). 첫 렌더는 제외                                                                                    | `step`: `01`\~`04`                                                                                  |
+| `home_story_demo_select`  | 02 미니데모에서 지역·업종 칩을 바꿀 때                                                                                                                     | `field`: `district`·`industry`, `value`: 코드                                                       |
+| `home_story_cta_click`    | 판단 흐름 CTA                                                                                                                                              | `step`, `carried`: 조건을 실었는가(`true`/`false`)                                                  |
+| `home_final_cta_click`    | 「더 많은 기능」 아래 CTA                                                                                                                                  | `cta`: `register`·`analysis`                                                                        |
 
 - 이름은 GA4 규칙(영문·숫자·밑줄, 40자 이내)을 지킨다. 홈 이벤트는 `home_` 접두사로 묶는다.
 - **`home_story_step_view` 는 「봤다」보다 「지나갔다」에 가깝다.** 고정 스크롤 모드에서는 섹션을 훑고 지나가도 02→04 가 차례로 찍히고, 다시 올라가면 또 찍힌다. 몰입도로 읽으려면 탭 클릭(모바일) 구간과 나눠 보거나 머무름 조건을 후속으로 더한다. 판단 흐름 도달률(스크롤 깊이)로 읽는 것이 정확하다.
