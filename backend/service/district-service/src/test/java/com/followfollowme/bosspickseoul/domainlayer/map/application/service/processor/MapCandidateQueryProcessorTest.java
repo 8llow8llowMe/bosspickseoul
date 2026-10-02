@@ -15,6 +15,7 @@ import com.followfollowme.bosspickseoul.domainlayer.map.application.info.Candida
 import com.followfollowme.bosspickseoul.domainlayer.map.application.model.CandidatePresetType;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.model.CommercialHeatmapMetricType;
 import com.followfollowme.bosspickseoul.domainlayer.map.application.port.out.CommercialCandidateQueryPort;
+import com.followfollowme.bosspickseoul.support.StubAnalysisPeriodQueryPort;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
@@ -43,6 +45,10 @@ class MapCandidateQueryProcessorTest {
 
     @Mock
     private CommercialCandidateQueryPort commercialCandidateQueryPort;
+
+    // 이 테스트의 요청은 모두 분기를 명시한다. 해석은 MapWebFacadePeriodResolutionTest 가 본다(이슈 #464).
+    @Spy
+    private MapAnalysisPeriodProcessor mapAnalysisPeriodProcessor = new MapAnalysisPeriodProcessor(StubAnalysisPeriodQueryPort.explicitOnly());
 
     @InjectMocks
     private MapCandidateQueryProcessor mapCandidateQueryProcessor;

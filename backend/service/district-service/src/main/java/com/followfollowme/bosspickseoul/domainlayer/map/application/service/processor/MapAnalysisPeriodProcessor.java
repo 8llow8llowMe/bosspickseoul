@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>분기를 비워 보내면 commercial 이 기본 분기를 정하지 못할 때 503 을 주고, 그 503 이 지도→commercial 분석 호출 서킷에 실패로 집계돼
  * 분기를 명시한 공개 지도 요청까지 {@code MAP_008} 로 막힌다. 그래서 기본 분기를 먼저 받아(별도 서킷, {@link AnalysisPeriodQueryPort})
- * 명시값으로 바꾼다. 빈 문자열({@code ?periodCode=})도 생략으로 본다.
+ * 명시값으로 바꾼다. 빈 문자열({@code ?periodCode=})도 생략으로 본다. 각 조회 Processor 가 요청 검증·뷰포트 조회 뒤 상류 호출 직전에 부른다.
  */
 @Component
 @RequiredArgsConstructor
@@ -28,5 +28,16 @@ public class MapAnalysisPeriodProcessor {
             return requestedPeriodCode;
         }
         return analysisPeriodQueryPort.defaultPeriodCode();
+    }
+
+    /**
+     * 상류를 부르지 않는 응답(빈 뷰포트 후보)에 싣는 분기. 요청 분기가 있으면 그대로, 없으면 이미 받아 둔 기본 분기, 그것도 없으면 null 이다.
+     * 원격 호출을 하지 않고 예외도 던지지 않는다 — 빈 응답을 기본 분기 조회 실패로 503 으로 만들지 않기 위해서다.
+     */
+    public String knownPeriodCode(String requestedPeriodCode) {
+        if (requestedPeriodCode != null && !requestedPeriodCode.isBlank()) {
+            return requestedPeriodCode;
+        }
+        return analysisPeriodQueryPort.lastKnownDefaultPeriodCode().orElse(null);
     }
 }

@@ -36,6 +36,7 @@ public class MapCandidateQueryProcessor {
 
     private final MapQueryProcessor mapQueryProcessor;
     private final CommercialCandidateQueryPort commercialCandidateQueryPort;
+    private final MapAnalysisPeriodProcessor mapAnalysisPeriodProcessor;
 
     public CandidateCommercialsResponseInfo getCandidateCommercials(
         double lngSW, double latSW, double lngNE, double latNE, String serviceCode, String periodCode,
@@ -48,10 +49,13 @@ public class MapCandidateQueryProcessor {
 
         List<AreaBoundaryInfo> infos = mapQueryProcessor.getAreaCoords(AreaType.COMMERCIAL, lngSW, latSW, lngNE, latNE);
         if (infos.isEmpty()) {
-            return emptyCandidates(serviceCode, periodCode, preset, resolvedPriority, resolvedTopN);
+            // 상류를 부르지 않는 빈 응답이라 기본 분기 조회 실패로 503 을 만들지 않는다. 아는 기본 분기가 있으면 싣고 없으면 null 이다.
+            return emptyCandidates(serviceCode, mapAnalysisPeriodProcessor.knownPeriodCode(periodCode), preset, resolvedPriority, resolvedTopN);
         }
 
         List<String> commercialCodes = infos.stream().map(AreaBoundaryInfo::areaCode).toList();
+        // 검증·뷰포트 조회 뒤에 해석한다. 앞에 두면 400·MAP_010 이 기본 분기 조회 실패(MAP_011)로 가려진다(이슈 #464).
+        String resolvedPeriodCode = mapAnalysisPeriodProcessor.resolve(periodCode);
 
         String priorityMetricName = priorityMetric == null ? null : priorityMetric.name();
         CandidateCommercialsQueryResult response = commercialCandidateQueryPort.getTopCandidates(
@@ -60,11 +64,11 @@ public class MapCandidateQueryProcessor {
             preset.name(),
             priorityMetricName,
             topN,
-            periodCode
+            resolvedPeriodCode
         );
 
         if (response == null || response.items() == null) {
-            return emptyCandidates(serviceCode, periodCode, preset, resolvedPriority, resolvedTopN);
+            return emptyCandidates(serviceCode, resolvedPeriodCode, preset, resolvedPriority, resolvedTopN);
         }
 
         // 후보마다 경계를 다시 조회하지 않도록 뷰포트 조회 결과를 코드로 한 번에 색인한다.
@@ -77,7 +81,7 @@ public class MapCandidateQueryProcessor {
 
         return CandidateCommercialsResponseInfo.builder()
             .serviceCode(response.serviceCode() == null ? serviceCode : response.serviceCode())
-            .periodCode(response.periodCode() == null ? periodCode : response.periodCode())
+            .periodCode(response.periodCode() == null ? resolvedPeriodCode : response.periodCode())
             .preset(response.preset() == null ? preset.toMetadata() : response.preset())
             .priorityMetric(response.priorityMetric() == null ? resolvedPriority.toScoreMetadata() : response.priorityMetric())
             .topN(response.topN() == null ? resolvedTopN : response.topN())
