@@ -168,12 +168,12 @@ SELECT l.area_code,
 
 - **2024년 표준단위구역 폴리곤이 배포됐는지 확인되지 않았다.** 변환 도구와 절차는 있다(「GEOJSON 파일 만들기」). 2026-09-09 기준 서울시 shapefile은 2023-10-20 파일이라 `LEGACY`(20233)와 같을 수 있고, 게시 전 대조가 필요하다. 새 버전이 생겨도 district-service 지도가 `dataset_spatial_area`를 읽도록 바꾸는 후속 작업이 있어야 화면에 반영된다.
 - commercial-service 가 `dataset_fact` 를 분기마다 골라 읽던 조회 경로는 2026-09-10 제거했다. 이 서비스는 2024년 1분기 이후를 적재만 하고, `--job=project` 가 기존 팩트 테이블 15종 컬럼 + `spatial_version` 으로 이관한다. `CONSUMPTION_COMMERCIAL` 은 2026-09-15 확인으로 소득·소비 모두 원천이 끊긴 것이 확정됐다(위 「2024년 이후 컬럼 차이」). 월평균소득·소득구간은 조회 도메인에서 제거했고, 소비는 `20234` 이후 게시하지 않는다. 값을 만들지 않는다. `service_type` 도 원천에 없어 NULL 이다.
-- 이슈 #415 2차 배치(국민연금 자치구 평균소득 `--job=pension-income`, 아래 「국민연금 자치구 평균소득 적재」)는 적재까지다. 개발 DB 에 DDL 적용과 첫 적재가 남아 있다. commercial-service 가 `/income` 의 `districtAverageIncome` 으로 이 테이블을 읽으므로 **commercial-service 배포 전에 DDL 을 먼저 적용한다**(테이블이 없으면 `/income` 이 실패한다. 행 0 이면 `UNAVAILABLE` 로 정상 응답).
-- 이슈 #415 1단계(배치)는 행정동 소비 세부 10항목 적재까지다. 배치가 `income_administration` 을 채워도 **commercial-service 조회 도메인은 아직 총액만 읽는다.** 행정동 소비를 상권 화면의 대체 원천으로 쓰는 것(부모 행정동 값 끌어오기, 출처 표기)은 후속 단계다.
+- 이슈 #415 2차(국민연금 자치구 평균소득 `--job=pension-income`, 아래 「국민연금 자치구 평균소득 적재」): 개발 DB 에는 2026-10-02 DDL 을 적용했고 첫 적재가 남아 있다. commercial-service 가 `/income` 의 `districtAverageIncome` 으로 이 테이블을 읽으므로 **commercial-service 배포 전에 DDL 을 먼저 적용한다**(테이블이 없으면 `/income` 이 실패한다. 행 0 이면 `UNAVAILABLE` 로 정상 응답).
+- 이슈 #415 1단계(행정동 소비 세부 10항목)는 적재부터 commercial-service 대체 사다리·`provenance`, ai-service 프롬프트, 화면 표시까지 끝났다(PR #418). `20211`~`20233` 행정동 세부는 재이관하지 않았다 — 그 구간은 상권 네이티브 소비가 살아 있어 대체가 필요 없다.
 - `spring-batch-test`가 의존성에 없어 Job 배선(@StepScope 프록시, 실행 컨텍스트 승격, 재시작)을 부팅해 검증하는 테스트가 없다.
 - Persistence 테스트는 `JdbcTemplate`을 목으로 대체하므로 SQL 문법과 락 동작은 개발 DB 실행에서만 검증된다.
 - `--expected-rows`는 분기 인자를 존중하는 서비스에서는 `list_total_count`로 자동 확정할 수 있다. 지금은 dry-run 한 번으로 값을 읽어 새 run-id로 다시 돌리는 절차를 유지한다.
-- 2026-09-09 개발 DB: `legacy-20233` 공간 게시와 `CHANGE_COMMERCIAL` `20241` dry-run(1650/1650)까지 통과했다. 같은 데이터셋 실게시와 나머지 데이터셋·분기 적재가 남아 있다.
+- 2026-10-02 개발 DB(`bosspickseoul_commercial_dev`): `legacy-20233` 공간 스냅샷이 `READY` 이고, 15종 모두 `20234`~`20261` 10분기가 게시돼 있다(`dataset_active_release` 150). `20262` 이후는 아직 게시하지 않았다. 자동 최신화는 롤아웃 전이다 — `dataset_refresh_state` 가 없다(아래 「개발서버 롤아웃」 1단계부터). `sales-commercial-20253-002` 가 2026-09-15 부터 `RUNNING`(입력 0)으로 남은 끊긴 run 이다. 스테이징 정리를 켜면 abandoned 로 `FAILED` 처리된다.
 
 ## 실행 예시
 
@@ -258,7 +258,7 @@ QuarterlyImportRunner --job=pension-income (quarterly 프로파일)
 
 포트 어댑터 3개는 「빈 조립 규칙」대로 `QuarterlyImportConfig` 의 `@Bean`(`commercialJdbcTemplate`)이고, Processor 는 새 application 계층 클래스라 스테레오타입이다. Job 파라미터 직렬화는 `PensionIncomeJobParameters`(runId 만 식별 파라미터)다.
 
-조회 쪽(상권 → 자치구 → 요청 분기 말일 이하 최신 기준일)과 화면 표기는 commercial-service 후속 작업이다. 비교·히트맵·추천·점수 경로에는 이 값을 넣지 않는다 — 같은 구 상권은 전부 같은 값이라 변별력이 없고, 연 스냅샷이라 분기 비교 축과 맞지 않는다.
+조회 쪽(상권 → 자치구 → 요청 분기 말일 이하 최신 기준일)은 commercial-service `/income` 의 `districtAverageIncome` 이 한다([commercial-service.md](commercial-service.md) 「자치구 평균 소득(대체)」). 적재가 끝나면 재배포 없이 바로 읽힌다. 화면 카드는 FE 후속 이슈 #500 이다. 비교·히트맵·추천·점수 경로에는 이 값을 넣지 않는다 — 같은 구 상권은 전부 같은 값이라 변별력이 없고, 연 스냅샷이라 분기 비교 축과 맞지 않는다.
 
 ## 기업마당 정책 수집
 

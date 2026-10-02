@@ -503,4 +503,4 @@ SELECT reference_date, COUNT(*) AS districts, COUNT(DISTINCT source_checksum) AS
   FROM pension_income_district GROUP BY reference_date ORDER BY reference_date;
 ```
 
-적재만으로는 화면이 바뀌지 않는다. commercial-service 조회 반영은 후속 작업이다.
+적재가 끝나면 commercial-service `/income` 의 `districtAverageIncome` 이 재배포 없이 바로 이 테이블을 읽는다(요청 분기 말일 이하 최신 기준일). 화면의 「자치구 평균 소득 (대체)」 카드는 FE 후속 이슈 #500 이다. dev 에서 확인하려면 `GET /commercials/{code}/income?periodCode=20261` 의 `districtAverageIncome.provenance.scope` 가 `DISTRICT_PROXY`, `referenceDate` 가 `2024-12-31` 인지 본다.
