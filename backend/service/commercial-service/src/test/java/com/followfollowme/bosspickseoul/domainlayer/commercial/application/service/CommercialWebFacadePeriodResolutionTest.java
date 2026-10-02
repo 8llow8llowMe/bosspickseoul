@@ -16,6 +16,7 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.pr
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.foottraffic.CommercialFootTrafficInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialComparisonQuery;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.model.CommercialTrendMetricType;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparePreviewQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialComparisonQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialQueryProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialTrendQueryProcessor;
@@ -45,6 +46,9 @@ class CommercialWebFacadePeriodResolutionTest {
 
     @Mock
     private CommercialTrendQueryProcessor commercialTrendQueryProcessor;
+
+    @Mock
+    private CommercialComparePreviewQueryProcessor commercialComparePreviewQueryProcessor;
 
     @Mock
     private CommercialPresenter commercialPresenter;
@@ -89,6 +93,18 @@ class CommercialWebFacadePeriodResolutionTest {
 
         ArgumentCaptor<CommercialComparisonQuery> query = ArgumentCaptor.forClass(CommercialComparisonQuery.class);
         verify(commercialComparisonQueryProcessor).compareCommercials(query.capture());
+        assertThat(query.getValue()).isEqualTo(new CommercialComparisonQuery("3110008", "3110012", "CS100001", "20261"));
+    }
+
+    @Test
+    @DisplayName("비교 프리뷰도 빈 분기를 해석해 바꿔 끼운 조건으로 Processor 를 부른다")
+    void comparePreviewQueryCarriesTheResolvedPeriod() {
+        when(analysisPeriodCatalogProcessor.resolve("")).thenReturn("20261");
+
+        commercialWebFacade.getCommercialComparePreview(new CommercialComparisonQuery("3110008", "3110012", "CS100001", ""));
+
+        ArgumentCaptor<CommercialComparisonQuery> query = ArgumentCaptor.forClass(CommercialComparisonQuery.class);
+        verify(commercialComparePreviewQueryProcessor).getPreview(query.capture());
         assertThat(query.getValue()).isEqualTo(new CommercialComparisonQuery("3110008", "3110012", "CS100001", "20261"));
     }
 

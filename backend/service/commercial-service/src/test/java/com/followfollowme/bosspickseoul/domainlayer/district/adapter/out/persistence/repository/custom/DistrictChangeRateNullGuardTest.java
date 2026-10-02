@@ -16,10 +16,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import com.followfollowme.bosspickseoul.global.config.DataJpaSliceTestConfig;
-import org.springframework.test.context.ActiveProfiles;
+import com.followfollowme.bosspickseoul.global.config.CommercialDataJpaTest;
 
 /**
  * 자치구 변화율 계산이 이전 분기 데이터가 없을 때도 터지지 않는지 못 박는다.
@@ -36,8 +34,7 @@ import org.springframework.test.context.ActiveProfiles;
  * <p>같은 저장소의 행정동 쪽({@code SalesAdministrationRepositoryAdapter})은 {@code coalesce} 와
  * {@code CaseBuilder} 로 이미 막고 있다. 자치구 쪽에만 그 가드가 빠져 있었다.
  */
-@DataJpaTest
-@ActiveProfiles(DataJpaSliceTestConfig.PROFILE)
+@CommercialDataJpaTest
 class DistrictChangeRateNullGuardTest {
 
     private static final String SPATIAL_VERSION = DatasetSpatialVersion.DEFAULT;

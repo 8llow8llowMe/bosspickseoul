@@ -2,13 +2,11 @@ package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.out.pers
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.followfollowme.bosspickseoul.global.config.DataJpaSliceTestConfig;
+import com.followfollowme.bosspickseoul.global.config.CommercialDataJpaTest;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
  * 히트맵 벌크 조회 5종의 파생 쿼리가 실제 스키마에 대해 성립하는지 확인한다.
@@ -25,8 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
  * {@code commercialCode} 조건은 같은 리포지터리의 기존 단건 메서드가 이미 같은 모양으로 쓰고 있다.
  * 점수 조립 쪽 동작은 {@code CommercialHeatmapQueryProcessorTest} 가 본다.
  */
-@DataJpaTest
-@ActiveProfiles(DataJpaSliceTestConfig.PROFILE)
+@CommercialDataJpaTest
 class CommercialBulkFinderQueryTest {
 
     private static final String PERIOD_CODE = "20233";
