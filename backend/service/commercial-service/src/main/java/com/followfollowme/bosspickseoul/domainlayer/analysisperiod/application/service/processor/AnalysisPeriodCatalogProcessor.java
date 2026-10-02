@@ -6,6 +6,7 @@ import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.m
 import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.port.out.AnalysisDatasetPeriodQueryPort;
 import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
  * 분석 기준 분기의 유일한 해석 지점(이슈 #464). 다른 컨텍스트의 Facade 는 {@link #resolve(String)} 만 부른다.
  *
  * <p><b>요청 경로는 DB 를 치지 않는다.</b> {@link #resolve(String)}·{@link #catalog()} 는 인스턴스 메모리의 마지막 성공 카탈로그만
- * 읽는다. 재계산은 {@link #refresh()} 하나이고 스케줄러({@code AnalysisPeriodCatalogRefreshScheduler})만 부른다. 요청이 재계산을
+ * 읽는다. 재계산은 {@link #refresh()} 하나이고 스케줄러({@code AnalysisPeriodCatalogRefreshScheduler})만 {@link #refreshDue(Duration)} 일 때 부른다. 요청이 재계산을
  * 기다리면 분석 Facade 의 readOnly 트랜잭션이 쥔 커넥션을 놓지 않은 채 줄을 서고, 재계산은 커넥션을 하나 더 요구해 풀이
  * 고갈된다(동시 10건이면 Hikari 기본 10개가 30초 정지 뒤 전부 실패).
  *
@@ -61,6 +62,15 @@ public class AnalysisPeriodCatalogProcessor {
             throw new AnalysisPeriodException(AnalysisPeriodErrorCode.DEFAULT_PERIOD_UNAVAILABLE);
         }
         return catalog;
+    }
+
+    /**
+     * 다시 계산할 때인지. 카탈로그가 없거나 마지막 성공 계산이 {@code maxAge} 이상 지났으면 true. 실패한 갱신은 계산 시각을 바꾸지 않으므로
+     * 실패가 이어지는 동안은 계속 true 다(스케줄러가 짧은 간격으로 다시 시도한다).
+     */
+    public boolean refreshDue(Duration maxAge) {
+        AnalysisPeriodCatalog catalog = current.get();
+        return catalog == null || !catalog.resolvedAt().toInstant().plus(maxAge).isAfter(clock.instant());
     }
 
     /** 마지막 성공 카탈로그의 계산 시각. 갱신 실패 로그가 "얼마나 오래된 값을 내고 있는지" 남기는 데 쓴다. */

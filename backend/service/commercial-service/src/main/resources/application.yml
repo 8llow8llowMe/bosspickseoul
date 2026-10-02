@@ -56,10 +56,12 @@ app:
     topic-partitions: ${RANKING_TOPIC_PARTITIONS:3}
     topic-replicas: ${RANKING_TOPIC_REPLICAS:1}
   analysis-period:
-    # 분석 기준 분기 카탈로그(GET /api/v1/commercials/periods, periodCode 생략 시 기본 분기) 갱신 주기.
-    # AnalysisPeriodCatalogRefreshScheduler 의 @Scheduled(fixedDelayString) 이 읽는다(5m·PT5M 모두 가능). 인스턴스 메모리 캐시이고
-    # 요청은 캐시만 읽는다. 분기 적재는 하루 한 번이라 이 시간만큼 새 분기가 늦게 보여도 된다.
+    # 분석 기준 분기 카탈로그(GET /api/v1/commercials/periods, periodCode 생략 시 기본 분기). 인스턴스 메모리 캐시이고 요청은 캐시만 읽는다.
+    # 정상 상태의 재계산 주기. 분기 적재는 하루 한 번이라 이 시간만큼 새 분기가 늦게 보여도 된다.
     cache-ttl: 5m
+    # 갱신 스케줄러가 깨어나는 간격(@Scheduled fixedDelayString, 5m·PT30S 형식 모두 가능). 카탈로그가 없거나 cache-ttl 보다 오래됐을 때만
+    # DB 를 읽으므로, 첫 갱신 실패·DB 장애 때 이 간격으로 다시 시도한다.
+    refresh-tick: 30s
 
 # 내부 서비스 Feign 호출 서킷브레이커. 인스턴스명은 -dev/-prod 접미사와 무관한 논리 서비스명이다.
 # 4xx(FeignClientException)는 호출한 쪽의 요청 문제이므로 상대 서비스 장애로 집계하지 않는다.

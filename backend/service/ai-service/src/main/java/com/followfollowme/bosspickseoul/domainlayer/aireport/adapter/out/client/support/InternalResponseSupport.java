@@ -20,6 +20,9 @@ public class InternalResponseSupport {
     // Eureka 등록명(-dev/-prod 접미사)과 무관한 논리 서비스명을 쓴다.
     public static final String COMMERCIAL_SERVICE = "commercial-service";
     public static final String DISTRICT_SERVICE = "district-service";
+    // 기본 분기 조회(GET /api/v1/commercials/periods) 전용 서킷. commercial-service 기동 직후 카탈로그를 계산하기 전에는 /periods 가
+    // 503 을 주는데, 이를 원천 조회 서킷(commercial-service)에 섞으면 분기를 명시한 리포트 생성까지 막힌다(이슈 #464).
+    public static final String COMMERCIAL_SERVICE_PERIODS = "commercial-service-periods";
 
     private final CircuitBreakerRegistry circuitBreakerRegistry;
 

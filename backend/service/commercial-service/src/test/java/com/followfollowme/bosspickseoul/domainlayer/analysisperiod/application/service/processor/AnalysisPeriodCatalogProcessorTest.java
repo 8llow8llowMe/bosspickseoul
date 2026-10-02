@@ -14,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.analysisperiod.application.p
 import com.followfollowme.bosspickseoul.global.properties.DatasetSpatialVersion;
 import com.followfollowme.bosspickseoul.shared.enums.DatasetKey;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -114,6 +115,22 @@ class AnalysisPeriodCatalogProcessorTest {
         processor.refresh();
 
         assertThat(processor.resolve(null)).isEqualTo("20261");
+    }
+
+    @Test
+    @DisplayName("카탈로그가 없으면 갱신할 때이고, 성공한 뒤에는 maxAge 가 지나야 다시 갱신할 때다")
+    void refreshDueFollowsTheLastSuccessfulCalculation() {
+        assertThat(processor.refreshDue(Duration.ofMinutes(5))).isTrue();
+
+        port.respond(periods("20261"), Map.of());
+        processor.refresh();
+
+        assertThat(processor.refreshDue(Duration.ofMinutes(5))).isFalse();
+        assertThat(processor.refreshDue(Duration.ZERO)).isTrue();
+
+        port.fail(new DataAccessResourceFailureException("db down"));
+        assertThatThrownBy(processor::refresh).isInstanceOf(DataAccessResourceFailureException.class);
+        assertThat(processor.refreshDue(Duration.ofMinutes(5))).as("실패한 갱신은 계산 시각을 바꾸지 않는다").isFalse();
     }
 
     @Test

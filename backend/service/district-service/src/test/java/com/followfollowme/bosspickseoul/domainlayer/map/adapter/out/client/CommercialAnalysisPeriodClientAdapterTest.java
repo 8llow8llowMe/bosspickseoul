@@ -24,6 +24,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -119,6 +123,56 @@ class CommercialAnalysisPeriodClientAdapterTest {
         assertThat(registry.circuitBreaker(InternalResponseSupport.COMMERCIAL_SERVICE_PERIODS).getMetrics().getNumberOfSuccessfulCalls()).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("동시 호출에서 늦게 끝난 실패는 먼저 받은 성공 메모를 덮지 않고 그 값을 돌려준다")
+    void lateFailureDoesNotOverwriteAConcurrentSuccess() throws Exception {
+        CountDownLatch failureEntered = new CountDownLatch(1);
+        CountDownLatch releaseFailure = new CountDownLatch(1);
+        AtomicInteger calls = new AtomicInteger();
+        when(client.getAnalysisPeriods()).thenAnswer(invocation -> {
+            if (calls.incrementAndGet() == 1) {
+                failureEntered.countDown();
+                releaseFailure.await(5, TimeUnit.SECONDS);
+                throw feignError(503);
+            }
+            return periods("20261");
+        });
+
+        CompletableFuture<String> slowFailure = CompletableFuture.supplyAsync(adapter::defaultPeriodCode);
+        assertThat(failureEntered.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(adapter.defaultPeriodCode()).isEqualTo("20261");
+        releaseFailure.countDown();
+
+        assertThat(slowFailure.get(5, TimeUnit.SECONDS)).isEqualTo("20261");
+        assertThat(adapter.defaultPeriodCode()).as("메모는 성공값 그대로다").isEqualTo("20261");
+        verify(client, times(2)).getAnalysisPeriods();
+    }
+
+    @Test
+    @DisplayName("동시 호출에서 먼저 끝난 실패의 백오프 메모는 늦게 끝난 성공이 덮어쓴다")
+    void lateSuccessOverwritesAConcurrentFailureBackoff() throws Exception {
+        CountDownLatch successEntered = new CountDownLatch(1);
+        CountDownLatch releaseSuccess = new CountDownLatch(1);
+        AtomicInteger calls = new AtomicInteger();
+        when(client.getAnalysisPeriods()).thenAnswer(invocation -> {
+            if (calls.incrementAndGet() == 1) {
+                successEntered.countDown();
+                releaseSuccess.await(5, TimeUnit.SECONDS);
+                return periods("20261");
+            }
+            throw feignError(503);
+        });
+
+        CompletableFuture<String> slowSuccess = CompletableFuture.supplyAsync(adapter::defaultPeriodCode);
+        assertThat(successEntered.await(5, TimeUnit.SECONDS)).isTrue();
+        assertUnavailable();
+        releaseSuccess.countDown();
+
+        assertThat(slowSuccess.get(5, TimeUnit.SECONDS)).isEqualTo("20261");
+        assertThat(adapter.defaultPeriodCode()).as("백오프 메모가 남지 않는다").isEqualTo("20261");
+        verify(client, times(2)).getAnalysisPeriods();
+    }
+
     private void assertUnavailable() {
         assertThatThrownBy(() -> adapter.defaultPeriodCode())
             .isInstanceOf(MapException.class)
@@ -144,7 +198,7 @@ class CommercialAnalysisPeriodClientAdapterTest {
 
     private static final class MutableClock extends Clock {
 
-        private Instant now;
+        private volatile Instant now;
 
         MutableClock(Instant now) {
             this.now = now;

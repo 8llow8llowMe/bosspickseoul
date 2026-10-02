@@ -24,6 +24,10 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,13 +46,14 @@ class AnalysisPeriodClientAdapterTest {
     @Mock
     private CommercialAnalysisClient commercialAnalysisClient;
 
+    private final CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
     private MutableClock clock;
     private AnalysisPeriodClientAdapter adapter;
 
     @BeforeEach
     void setUp() {
         clock = new MutableClock(Instant.parse("2026-10-01T00:00:00Z"));
-        adapter = new AnalysisPeriodClientAdapter(commercialAnalysisClient, new InternalResponseSupport(CircuitBreakerRegistry.ofDefaults()),
+        adapter = new AnalysisPeriodClientAdapter(commercialAnalysisClient, new InternalResponseSupport(registry),
             new AiAnalysisPeriodProperties(TTL), clock);
     }
 
@@ -104,6 +109,42 @@ class AnalysisPeriodClientAdapterTest {
             .isEqualTo(AiReportErrorCode.DEFAULT_PERIOD_UNAVAILABLE);
     }
 
+    @Test
+    @DisplayName("동시 제출에서 늦게 끝난 실패는 먼저 받은 성공 메모를 덮지 않고 그 값을 돌려준다")
+    void lateFailureDoesNotOverwriteAConcurrentSuccess() throws Exception {
+        CountDownLatch failureEntered = new CountDownLatch(1);
+        CountDownLatch releaseFailure = new CountDownLatch(1);
+        AtomicInteger calls = new AtomicInteger();
+        when(commercialAnalysisClient.getAnalysisPeriods()).thenAnswer(invocation -> {
+            if (calls.incrementAndGet() == 1) {
+                failureEntered.countDown();
+                releaseFailure.await(5, TimeUnit.SECONDS);
+                throw feignError(503);
+            }
+            return periods("20261");
+        });
+
+        CompletableFuture<String> slowFailure = CompletableFuture.supplyAsync(adapter::defaultPeriodCode);
+        assertThat(failureEntered.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(adapter.defaultPeriodCode()).isEqualTo("20261");
+        releaseFailure.countDown();
+
+        assertThat(slowFailure.get(5, TimeUnit.SECONDS)).as("503 대신 동시에 받은 값을 돌려준다").isEqualTo("20261");
+        assertThat(adapter.defaultPeriodCode()).isEqualTo("20261");
+        verify(commercialAnalysisClient, times(2)).getAnalysisPeriods();
+    }
+
+    @Test
+    @DisplayName("/periods 실패는 기본 분기 전용 서킷에만 집계되고 원천 조회 서킷은 건드리지 않는다")
+    void periodFailuresUseTheirOwnCircuit() {
+        when(commercialAnalysisClient.getAnalysisPeriods()).thenThrow(feignError(503));
+
+        assertThatThrownBy(() -> adapter.defaultPeriodCode()).isInstanceOf(AiReportException.class);
+
+        assertThat(registry.circuitBreaker(InternalResponseSupport.COMMERCIAL_SERVICE_PERIODS).getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
+        assertThat(registry.circuitBreaker(InternalResponseSupport.COMMERCIAL_SERVICE).getMetrics().getNumberOfBufferedCalls()).isZero();
+    }
+
     private static Response<AnalysisPeriodsClientResponse> periods(String defaultPeriodCode) {
         List<String> available = defaultPeriodCode == null ? List.of() : List.of(defaultPeriodCode);
         return Response.success(new AnalysisPeriodsClientResponse(defaultPeriodCode, available, "test-snapshot", "2026-10-01T09:00:00+09:00"));
@@ -123,7 +164,7 @@ class AnalysisPeriodClientAdapterTest {
 
     private static final class MutableClock extends Clock {
 
-        private Instant now;
+        private volatile Instant now;
 
         MutableClock(Instant now) {
             this.now = now;
