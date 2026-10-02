@@ -219,15 +219,21 @@ export const createRecommendHref = (
  *
  * **카메라(`c`)도 넘기지 않는다**(§1-3). 추천은 결과에 맞추는 쪽이고, 분석의 카메라는
  * 상권 하나에 붙어 있어 추천 5건을 담지 못한다.
+ *
+ * `showResults` 는 결과 화면으로 바로 착지시킨다(홈 03단계 — 홈이 이미 같은 조건의 추천을
+ * 보여 줬다). 행정동·업종이 없으면 `parseRecommendUrlState` 가 `view` 를 버리므로 여기서도
+ * 그때는 싣지 않는다 — 버려질 값으로 주소를 더럽히지 않는다.
  */
 export const createRecommendHrefFromCodes = ({
   districtCode,
   administrationCode,
   serviceCode,
+  showResults = false,
 }: {
   districtCode?: string | null
   administrationCode?: string | null
   serviceCode?: string | null
+  showResults?: boolean
 }): string => {
   const params = new URLSearchParams()
 
@@ -236,6 +242,9 @@ export const createRecommendHrefFromCodes = ({
     params.set(RECOMMEND_URL_PARAMS.administration, administrationCode)
   }
   if (serviceCode) params.set(RECOMMEND_URL_PARAMS.service, serviceCode)
+  if (showResults && districtCode && administrationCode && serviceCode) {
+    params.set(RECOMMEND_URL_PARAMS.view, RESULTS_VIEW)
+  }
 
   const query = params.toString()
 

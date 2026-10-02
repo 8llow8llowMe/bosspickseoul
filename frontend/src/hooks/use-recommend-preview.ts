@@ -24,6 +24,11 @@ const STALE_TIME = 30 * 60 * 1000
 export type RecommendPreviewState = {
   /** 실제로 호출에 쓴 첫 행정동 이름. 아직 못 정했으면 null(선택지 라벨을 지어내지 않는다). */
   administrationName: string | null
+  /**
+   * 그 행정동의 코드. 홈 03 CTA 가 `/recommend` 에 같은 조건을 싣는 데 쓴다 — 홈이 보여 준
+   * 추천과 도착 화면의 추천이 같은 조건이어야 한다(measurement-and-deep-link.md D3-2).
+   */
+  administrationCode: string | null
   /** 자치구→행정동→상권→추천으로 이어지는 3단 연쇄 중 하나라도 아직 응답을 기다리는가. */
   isLoading: boolean
   /** 03 노드의 "상권 N 중" — 실제 상권 목록 응답 길이. 폴백일 땐 의미가 없다(0일 수 있음). */
@@ -147,6 +152,7 @@ export function useRecommendPreview(
 
   return {
     administrationName,
+    administrationCode,
     isLoading,
     commercialsCount: commercialAreas.length,
     view,
