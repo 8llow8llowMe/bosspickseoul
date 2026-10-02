@@ -5,9 +5,13 @@ import { PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
 import {
   HEADER_HEIGHT,
+  HERO_FLUID_MEDIA,
+  HERO_FLUID_NARROW_MEDIA,
   HERO_SPLIT_MEDIA,
   HERO_STACKED_MEDIA,
+  HERO_TABLET_MEDIA,
   HERO_WINDOW_CHROME,
+  HOME_COLUMN,
 } from '@/components/home/layout-constants'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import HeroWindow, { type WindowState } from '@/components/home/hero-window'
@@ -15,7 +19,6 @@ import { glassSurface } from '@/components/home/hero-glass'
 import { useWindowDrag } from '@/components/home/use-window-drag'
 import { deriveWindowDisplay } from '@/components/home/window-display'
 import { trackEvent } from '@/lib/analytics/events'
-import { shellWidth } from '@/styles/layout'
 
 // "독으로 축소/독에서 확대" 전환 애니메이션 튜닝값.
 // MINIMIZE_SCALE: 카드가 줄어드는 최종 배율(대략적인 "닫힘" 크기).
@@ -106,8 +109,9 @@ const Hero = styled.section`
   }
 `
 
+/* 아래 섹션과 같은 1400 컬럼이다 — 1440 을 넘으면 지도를 더 키우지 않고 가운데에 선다(D4-5). */
 const Inner = styled.div`
-  ${shellWidth}
+  ${HOME_COLUMN}
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -137,7 +141,38 @@ const HeroStage = styled.div`
   align-items: center;
   min-height: 0;
 
-  @media ${HERO_STACKED_MEDIA} {
+  /* 1200 아래는 카드도 지도와 함께 준다 — 1200 에서의 칸 비율(460 : 652)을 그대로 지켜 경계에서
+     튀지 않는다. 카드 안 여백·제목은 hero-window.tsx 가 같은 구간에서 줄인다(D4-6). */
+  @media ${HERO_FLUID_MEDIA} {
+    grid-template-columns: minmax(0, 460fr) minmax(0, 652fr);
+    column-gap: 40px;
+  }
+
+  @media ${HERO_FLUID_NARROW_MEDIA} {
+    column-gap: 32px;
+  }
+
+  /*
+    지도 중심(D4-3): 카드 껍데기가 display: contents 로 풀려 제목·소개·피커·보조 링크가 이
+    그리드의 칸이 된다. 칸 이름은 hero-window.tsx 의 각 덩어리가 grid-area 로 단다. DOM 순서는
+    [제목][소개][피커][보조][지도] 그대로라 Tab 은 피커가 지도보다 먼저다 — 보이는 순서와 어긋나지만
+    읽는 의미가 바뀌지 않는다.
+  */
+  @media ${HERO_TABLET_MEDIA} {
+    flex: none;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'title'
+      'body'
+      'map'
+      'picker'
+      'actions';
+    row-gap: 12px;
+    align-items: stretch;
+    padding-top: 32px;
+  }
+
+  @media (max-width: 640px) {
     flex: none;
     display: flex;
     flex-direction: column;
@@ -150,7 +185,7 @@ const HeroStage = styled.div`
 const MapScreen = styled.div`
   display: contents;
 
-  @media ${HERO_STACKED_MEDIA} {
+  @media (max-width: 640px) {
     display: flex;
     flex-direction: column;
     height: auto;
@@ -159,12 +194,16 @@ const MapScreen = styled.div`
 
 const MapLayer = styled.div`
   width: 100%;
-  /* 그리드 행 높이(= 스테이지 높이)를 다 쓴다. svg 가 meet 으로 폭·높이 중 작은 쪽에 맞춘다. */
-  height: 100%;
+  /* 지도 + 캡션 한 덩어리가 스테이지 세로 가운데에 선다(그리드 align-items: center). svg 높이 상한은
+     seoul-districts-map.tsx 가 진다(D4-1). */
   min-height: 0;
 
-  @media ${HERO_STACKED_MEDIA} {
-    height: auto;
+  @media ${HERO_TABLET_MEDIA} {
+    grid-area: map;
+    margin: 4px 0;
+  }
+
+  @media (max-width: 640px) {
     margin-top: 24px;
   }
 `
@@ -185,8 +224,13 @@ const CardLayer = styled.div`
     }
   }
 
-  /* 좁은 폭: 헤더 바로 아래 흐름에 둔다 — 첫 화면 예산(hero-picker D5-1). */
-  @media ${HERO_STACKED_MEDIA} {
+  /* 지도 중심: 껍데기를 풀어 안쪽 덩어리를 히어로 그리드 칸에 놓는다(D4-3). */
+  @media ${HERO_TABLET_MEDIA} {
+    display: contents;
+  }
+
+  /* 모바일: 헤더 바로 아래 흐름에 둔다 — 첫 화면 예산(hero-picker D5-1). */
+  @media (max-width: 640px) {
     padding: 24px 0 0;
   }
 `
@@ -490,9 +534,11 @@ export default function HeroSection() {
             <MapLayer>
               <SeoulDistrictsMap
                 selectedCode={pickedCode}
-                onDistrictActivate={
-                  isMobileViewport ? code => handlePick(code, 'map') : undefined
-                }
+                /*
+                  모든 폭에서 지도 클릭·탭·Enter 는 「고르기」다 — 페이지는 카드의 「○○구 분석하기」를
+                  눌러야 넘어간다. 예전 데스크톱 클릭 즉시 이동은 호버를 둘러보다 흐름이 끊겼다(D4-7).
+                */
+                onDistrictActivate={code => handlePick(code, 'map')}
                 tooltipEnabled={!isMobileViewport}
                 onHoverChange={isMobileViewport ? undefined : setHoveredCode}
                 autoDemo={dragEnabled && !hasPicked}

@@ -108,9 +108,10 @@ describe('HomePage', () => {
     // 고르기 전에는 첫 항목이 선택된 채로 렌더된다(React 는 selected 를 붙인다).
     expect(html).toMatch(/<option value=""[^>]*>자치구 고르기<\/option>/)
     expect(text).toContain('창업할 자치구')
-    expect(text).toContain(
-      '고르면 그 구의 최근 분기 유동인구부터 바로 보여 줘요.',
-    )
+    expect(text).toContain('지도에서 구를 누르거나 목록에서 고르세요.')
+    // 소개 문구는 「얻는 것」, 안내 줄은 「하는 방법」 — 같은 말을 두 번 하지 않는다(D4-8).
+    expect(text).toContain('가게 자리는 감보다 숫자로 고르세요.')
+    expect(text).not.toContain('이어서 볼 수 있어요')
     expect(text).toContain('내 상권 분석하기')
     expect(text).not.toContain('짚어 드립니다')
   })
@@ -122,6 +123,16 @@ describe('HomePage', () => {
 
     expect(text).not.toContain('서울 상권 데이터 분석')
     expect(html).not.toContain('aria-label="분석 창 조작"')
+  })
+
+  /* 데스크톱도 지도 클릭은 「고르기」다 — 폴리곤은 이동 링크가 아니라 토글 버튼이다(hero-split-layout.md D4-7). */
+  it('히어로 지도 폴리곤은 모든 폭에서 고르기 버튼이다', () => {
+    const html = render()
+    const path = html.match(/<path[^>]*aria-label="마포구"[^>]*>/)?.[0] ?? ''
+
+    expect(path).toContain('role="button"')
+    expect(path).toContain('aria-pressed="false"')
+    expect(html).toContain('누르면 그 구가 바로 골라져요.')
   })
 
   /* 「어디가 좋을지 모르는 사람」의 갈래가 첫 화면에 있어야 한다(이슈 #176 잔여 ①). */

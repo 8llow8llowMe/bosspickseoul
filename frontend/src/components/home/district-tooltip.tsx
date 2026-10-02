@@ -161,7 +161,7 @@ export default function DistrictTooltip({
             지금은 데이터를 불러오지 못했어요
           </Caption>
           <Caption x={PAD} y={62}>
-            눌러서 분석 화면으로 이동해요
+            눌러서 이 구를 골라요
           </Caption>
         </>
       ) : null}
