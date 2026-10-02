@@ -36,7 +36,9 @@ describe('HERO_PICKER_OPTIONS', () => {
   })
 
   it('모든 코드가 히어로 지도에 있다', () => {
-    const mapCodes = new Set(SEOUL_STATUS_FEATURES.map(f => f.districtCode))
+    const mapCodes = new Set<string>(
+      SEOUL_STATUS_FEATURES.map(f => f.districtCode),
+    )
 
     for (const option of HERO_PICKER_OPTIONS) {
       expect(mapCodes.has(option.code), option.name).toBe(true)
