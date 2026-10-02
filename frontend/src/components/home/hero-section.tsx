@@ -1,6 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
 import { HEADER_HEIGHT } from '@/components/home/layout-constants'
@@ -348,6 +354,12 @@ export default function HeroSection() {
     isMobileViewport,
   )
 
+  /* 자동 시연 툴팁이 카드 뒤로 숨지 않게 카드 오른쪽 끝을 알려 준다(D5-3). */
+  const getCardRight = useCallback(
+    () => cardRef.current?.getBoundingClientRect().right ?? null,
+    [],
+  )
+
   /* 모바일 지도 탭 뒤, 바뀐 버튼·미리보기가 화면 밖이면 그쪽으로 데려간다(D4-4). */
   const revealPicker = () => {
     const el = pickerRef.current
@@ -477,6 +489,7 @@ export default function HeroSection() {
                 tooltipEnabled={!isMobileViewport}
                 onHoverChange={isMobileViewport ? undefined : setHoveredCode}
                 autoDemo={dragEnabled && !hasPicked}
+                demoAvoidRight={getCardRight}
               />
             </MapLayer>
           </MapScreen>

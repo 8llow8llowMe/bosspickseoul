@@ -17,11 +17,15 @@ import {
 } from '@/data/seoul-status-map'
 import { toDistrictRhythm } from '@/components/home/district-rhythm'
 import DistrictTooltip, {
+  TOOLTIP_HEIGHT,
   TOOLTIP_WIDTH,
   districtTooltipHeight,
   type DistrictTooltipState,
 } from '@/components/home/district-tooltip'
-import { clampTooltipPosition } from '@/components/home/tooltip-geometry'
+import {
+  clampTooltipPosition,
+  placeBesideRect,
+} from '@/components/home/tooltip-geometry'
 import { useDistrictDetail } from '@/hooks/use-district-detail'
 import { trackEvent } from '@/lib/analytics/events'
 
@@ -52,6 +56,8 @@ const DETAIL_HOVER_DELAY_MS = 120
 export const AUTO_DEMO_DISTRICT_CODE = '11740'
 export const AUTO_DEMO_DELAY_MS = 2000
 export const AUTO_DEMO_VISIBLE_MS = 4000
+/** 시연 툴팁과 카드 오른쪽 끝 사이 간격(px). */
+const AUTO_DEMO_GAP_PX = 16
 
 const Wrapper = styled.div`
   position: relative;
@@ -73,6 +79,8 @@ const MapSvg = styled.svg`
   /* 자치구 폴리곤/툴팁 제목 등 지도 내 텍스트가 드래그로 선택되지 않게 한다 */
   -webkit-user-select: none;
   user-select: none;
+  /* 자동 시연 툴팁이 카드를 피해 viewBox 오른쪽 여백까지 나갈 수 있게 한다(D5-3). */
+  overflow: visible;
 
   /* 모바일: 폴리곤이 실제로 차지하는 높이만 쓴다 — 박스가 비율보다 길면 빈 띠가 생긴다
      (hero-picker-and-mobile-first-screen.md D4-4, mobile-hero-first-screen.md D0-2). */
@@ -147,7 +155,7 @@ const MapCaption = styled.p`
   position: absolute;
   left: 0;
   bottom: 0;
-  max-width: 420px;
+  max-width: 560px;
   pointer-events: none;
   color: var(--color-text-caption);
   font-size: 13px;
@@ -188,6 +196,11 @@ type SeoulDistrictsMapProps = {
   tooltipEnabled?: boolean
   /** 참인 동안 자동 시연을 한 번 한다(데스크톱·정밀 포인터·모션 허용, 아직 안 고름). */
   autoDemo?: boolean
+  /**
+   * 시연 툴팁이 피해야 할 화면 x(히어로 카드 오른쪽 끝). 카드 뒤로 숨지 않게 그 오른쪽에
+   * 놓고, 자리가 없으면 시연을 건너뛴다(D5-3).
+   */
+  demoAvoidRight?: () => number | null
 }
 
 export default function SeoulDistrictsMap({
@@ -196,6 +209,7 @@ export default function SeoulDistrictsMap({
   onDistrictActivate,
   tooltipEnabled = true,
   autoDemo = false,
+  demoAvoidRight,
 }: SeoulDistrictsMapProps = {}) {
   const router = useRouter()
   const captionId = useId()
@@ -204,8 +218,9 @@ export default function SeoulDistrictsMap({
   const [mounted, setMounted] = useState(false)
   /* 지도 진입·포커스 한 번이면 시연은 끝이다 — 사용자가 이미 발견했다(D4-7). */
   const [interacted, setInteracted] = useState(false)
-  const [demoCode, setDemoCode] = useState<string | null>(null)
+  const [demo, setDemo] = useState<{ code: string; x: number } | null>(null)
   const demoScheduledRef = useRef(false)
+  const svgRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -217,26 +232,50 @@ export default function SeoulDistrictsMap({
     const timer = window.setTimeout(() => {
       // 페이지당 한 번 — 닫힌 뒤 조건이 다시 참이 돼도 하지 않는다.
       demoScheduledRef.current = true
-      setDemoCode(AUTO_DEMO_DISTRICT_CODE)
+      const feature = SEOUL_STATUS_FEATURES.find(
+        item => item.districtCode === AUTO_DEMO_DISTRICT_CODE,
+      )
+      const svg = svgRef.current
+      const ctm = svg?.getScreenCTM()
+      if (!feature || !svg || !ctm) return
+      const defaultX = clampTooltipPosition(
+        feature.center,
+        { width: TOOLTIP_WIDTH, height: TOOLTIP_HEIGHT },
+        VIEW_BOX_SIZE,
+        TOOLTIP_PADDING,
+      ).x
+      const avoidRight = demoAvoidRight?.() ?? null
+      const x =
+        avoidRight === null
+          ? defaultX
+          : placeBesideRect(
+              defaultX,
+              TOOLTIP_WIDTH,
+              ctm,
+              avoidRight,
+              svg.getBoundingClientRect().right,
+              AUTO_DEMO_GAP_PX,
+            )
+      // 카드 옆에 툴팁이 다 들어갈 자리가 없는 폭이면 시연하지 않는다 — 반쯤 가린 툴팁은 신호가 아니다.
+      if (x === null) return
+      setDemo({ code: feature.districtCode, x })
     }, AUTO_DEMO_DELAY_MS)
     return () => window.clearTimeout(timer)
-  }, [autoDemo, interacted])
+  }, [autoDemo, interacted, demoAvoidRight])
 
   useEffect(() => {
-    if (demoCode === null) return
-    const timer = window.setTimeout(
-      () => setDemoCode(null),
-      AUTO_DEMO_VISIBLE_MS,
-    )
+    if (demo === null) return
+    const timer = window.setTimeout(() => setDemo(null), AUTO_DEMO_VISIBLE_MS)
     return () => window.clearTimeout(timer)
-  }, [demoCode])
+  }, [demo])
 
   /*
     시연은 사용자 행동이 아니다 — `hoveredCode` 를 건드리지 않으므로 호버 계측·카드 틴트가
     나가지 않는다. 실제 호버가 생기면 그쪽이 이긴다.
   */
-  const demoVisible = autoDemo && !interacted && demoCode !== null
-  const tooltipCode = hoveredCode ?? (demoVisible ? demoCode : null)
+  const demoVisible = autoDemo && !interacted && demo !== null
+  const showingDemo = hoveredCode === null && demoVisible
+  const tooltipCode = hoveredCode ?? (demoVisible ? demo.code : null)
   const tooltipFeature = SEOUL_STATUS_FEATURES.find(
     feature => feature.districtCode === tooltipCode,
   )
@@ -276,7 +315,7 @@ export default function SeoulDistrictsMap({
     : detail.isError
       ? { status: 'error' }
       : { status: 'loading' }
-  const tooltipPosition = tooltipFeature
+  const clampedPosition = tooltipFeature
     ? clampTooltipPosition(
         tooltipFeature.center,
         { width: TOOLTIP_WIDTH, height: districtTooltipHeight(tooltipState) },
@@ -284,6 +323,10 @@ export default function SeoulDistrictsMap({
         TOOLTIP_PADDING,
       )
     : null
+  const tooltipPosition =
+    clampedPosition && showingDemo
+      ? { x: demo.x, y: clampedPosition.y }
+      : clampedPosition
 
   const activate = (districtCode: string) => {
     if (onDistrictActivate) {
@@ -327,6 +370,7 @@ export default function SeoulDistrictsMap({
   return (
     <Wrapper onPointerEnter={() => setInteracted(true)}>
       <MapSvg
+        ref={svgRef}
         viewBox={SEOUL_STATUS_VIEW_BOX}
         preserveAspectRatio="xMidYMid meet"
         aria-describedby={captionId}

@@ -19,3 +19,26 @@ export function clampTooltipPosition(
     y: clamp(center.y + offset, 0, viewBox.height - size.height),
   }
 }
+
+/**
+ * 자동 시연 툴팁의 x(viewBox 단위). 히어로 카드가 지도 가운데 위에 떠 있어 기본 자리
+ * (`clampTooltipPosition`)는 폭에 따라 카드 뒤로 숨는다 — 카드 오른쪽 끝(`avoidRightPx`)
+ * + `gapPx` 까지 민다. svg 는 `overflow: visible` 이라 viewBox 오른쪽 여백까지 쓸 수 있다.
+ * 밀어서 svg 요소 오른쪽 끝(`boxRightPx`)을 넘으면 자리가 없으므로 null — 시연을 건너뛴다
+ * (hero-picker-and-mobile-first-screen.md D5-3).
+ *
+ * `ctm` 은 viewBox → 화면 변환이다(`x_px = e + x * a`, `SVGGraphicsElement.getScreenCTM()`).
+ */
+export function placeBesideRect(
+  defaultX: number,
+  tooltipWidth: number,
+  ctm: { a: number; e: number },
+  avoidRightPx: number,
+  boxRightPx: number,
+  gapPx: number,
+): number | null {
+  const minX = (avoidRightPx + gapPx - ctm.e) / ctm.a
+  const x = Math.max(defaultX, minX)
+  const rightPx = ctm.e + (x + tooltipWidth) * ctm.a
+  return rightPx <= boxRightPx ? x : null
+}
