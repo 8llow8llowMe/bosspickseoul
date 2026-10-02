@@ -18,7 +18,6 @@ import {
   resolveStatusSelectedDistrict,
   resolveStatusSheetSnap,
 } from './status-state'
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import type { StatusRankedItem } from '@/types/status'
 
 describe('createStatusHref', () => {
@@ -160,12 +159,7 @@ describe('resolveStatusSelectedDistrict', () => {
 describe('createStatusQuery', () => {
   it('always includes the metric', () => {
     expect(
-      createStatusQuery(
-        new URLSearchParams(),
-        'sales',
-        null,
-        ANALYSIS_PERIOD_CODE,
-      ).toString(),
+      createStatusQuery(new URLSearchParams(), 'sales', null, null).toString(),
     ).toBe('metric=sales')
   })
 
@@ -175,7 +169,7 @@ describe('createStatusQuery', () => {
         new URLSearchParams(),
         'opened',
         '11680',
-        ANALYSIS_PERIOD_CODE,
+        null,
       ).toString(),
     ).toBe('metric=opened&district=11680')
   })
@@ -186,7 +180,7 @@ describe('createStatusQuery', () => {
         new URLSearchParams('from=campaign&metric=closed&district=11110'),
         'sales',
         '11680',
-        ANALYSIS_PERIOD_CODE,
+        null,
       ).toString(),
     ).toBe('from=campaign&metric=sales&district=11680')
   })
@@ -197,12 +191,12 @@ describe('createStatusQuery', () => {
         new URLSearchParams('metric=sales&district=11680&from=campaign'),
         'sales',
         null,
-        ANALYSIS_PERIOD_CODE,
+        null,
       ).toString(),
     ).toBe('metric=sales&from=campaign')
   })
 
-  it('writes a non-default period and keeps the district', () => {
+  it('writes a chosen period and keeps the district', () => {
     expect(
       createStatusQuery(
         new URLSearchParams('metric=sales&district=11680'),
@@ -213,34 +207,40 @@ describe('createStatusQuery', () => {
     ).toBe('metric=sales&district=11680&periodCode=20233')
   })
 
-  // `/status` 는 「최신 분기 현황」이다. 기본 분기는 URL 에 적지 않는다(status.md 1.6).
-  it('drops the period param when it is the default period', () => {
+  // `/status` 는 「최신 분기 현황」이다. 최신(null)은 URL 에 적지 않는다(status.md 1.6). 최신 분기를 고르면
+  // 페이지가 null 을 넘긴다(period-catalog.md D3-3).
+  it('drops the period param for the latest (null) period', () => {
     expect(
       createStatusQuery(
         new URLSearchParams('metric=sales&periodCode=20233'),
         'sales',
         null,
-        ANALYSIS_PERIOD_CODE,
+        null,
       ).toString(),
     ).toBe('metric=sales')
   })
 })
 
 describe('parseStatusPeriod', () => {
-  it('falls back to the latest period when the param is missing', () => {
-    expect(parseStatusPeriod(null)).toBe(ANALYSIS_PERIOD_CODE)
-    expect(parseStatusPeriod('')).toBe(ANALYSIS_PERIOD_CODE)
+  it('reads a missing param as the latest period (null)', () => {
+    expect(parseStatusPeriod(null)).toBeNull()
+    expect(parseStatusPeriod('')).toBeNull()
   })
 
-  it('keeps a supported period', () => {
+  it('keeps a well-formed period from 2021', () => {
     expect(parseStatusPeriod('20233')).toBe('20233')
-    expect(parseStatusPeriod(ANALYSIS_PERIOD_CODE)).toBe(ANALYSIS_PERIOD_CODE)
+    expect(parseStatusPeriod('20211')).toBe('20211')
   })
 
-  it.each(['20264', '20204', '2023', 'abc', '202331'])(
-    'falls back to the latest period for an unsupported value %s',
+  /* 상한은 서버 기본 분기를 알아야 판정한다 — 페이지가 카탈로그로 내린다(resolveAnalysisPeriod). */
+  it('keeps a future period for the page to clamp once the catalog arrives', () => {
+    expect(parseStatusPeriod('20264')).toBe('20264')
+  })
+
+  it.each(['20204', '2023', 'abc', '202331'])(
+    'reads a malformed or pre-2021 value %s as the latest period (null)',
     value => {
-      expect(parseStatusPeriod(value)).toBe(ANALYSIS_PERIOD_CODE)
+      expect(parseStatusPeriod(value)).toBeNull()
     },
   )
 })

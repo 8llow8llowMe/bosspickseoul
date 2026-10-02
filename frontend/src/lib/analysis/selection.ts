@@ -9,11 +9,12 @@ import {
   ANALYSIS_PERIOD_FIRST_YEAR,
   buildAnalysisPeriod,
   parseAnalysisPeriod,
+  readAnalysisPeriod,
 } from '@/lib/analysis/period-catalog'
 
 /**
- * 적재가 끝난 **최신 분기**. 기본값이면서 동시에 드롭다운 옵션의 **상한**이다.
- * 다음 분기가 적재되면 이 상수만 올리면 연도 목록과 분기 목록이 같이 따라온다.
+ * @deprecated 「최신 분기」는 서버 카탈로그(`useAnalysisPeriodCatalog`)가 정한다(period-catalog.md).
+ * 홈·추천·비교·커뮤니티가 3단계에서 옮겨 가면 지운다. 분석·현황 화면은 더 이상 쓰지 않는다.
  */
 export const ANALYSIS_PERIOD_CODE = '20261' as const
 
@@ -26,39 +27,6 @@ export {
   ANALYSIS_PERIOD_FIRST_YEAR,
   buildAnalysisPeriod,
   parseAnalysisPeriod,
-}
-
-const LATEST_PERIOD = parseAnalysisPeriod(ANALYSIS_PERIOD_CODE)
-
-/** 기간 선택 드롭다운에서 제공하는 연도 옵션. 최신 분기의 연도까지만 연다. */
-export const ANALYSIS_PERIOD_YEARS: readonly number[] = Array.from(
-  { length: LATEST_PERIOD.year - ANALYSIS_PERIOD_FIRST_YEAR + 1 },
-  (_, index) => ANALYSIS_PERIOD_FIRST_YEAR + index,
-)
-
-const ALL_QUARTERS = [1, 2, 3, 4] as const
-
-/**
- * 그 연도에 **실제로 데이터가 있는** 분기 목록.
- *
- * 최신 연도는 적재된 분기까지만 연다 — 2026년은 1분기만 있으므로 2·3·4분기를 고르면
- * 빈 화면이 된다. 지난 연도는 네 분기가 모두 차 있다. 다음 분기가 적재되면
- * {@link ANALYSIS_PERIOD_CODE} 만 올리면 되고 이 함수는 손대지 않는다.
- */
-export const analysisPeriodQuartersOf = (year: number): readonly number[] => {
-  if (year > LATEST_PERIOD.year || year < ANALYSIS_PERIOD_FIRST_YEAR) return []
-  if (year < LATEST_PERIOD.year) return ALL_QUARTERS
-  return ALL_QUARTERS.slice(0, LATEST_PERIOD.quarter)
-}
-
-/**
- * 연도를 바꿀 때 쓸 분기. 고르고 있던 분기가 새 연도에 없으면 그 연도의 **마지막
- * 분기**로 내린다 — 2023년 4분기를 보다가 2026년으로 옮기면 1분기가 된다.
- */
-export const clampQuarterToYear = (year: number, quarter: number): number => {
-  const quarters = analysisPeriodQuartersOf(year)
-  if (quarters.length === 0) return quarter
-  return quarters.includes(quarter) ? quarter : quarters[quarters.length - 1]
 }
 
 export const ANALYSIS_STEPS = [
@@ -88,8 +56,11 @@ export type AnalysisSelection = {
    * `YYYYQ` 분기 코드. **URL 이 정본이다**(`periodCode` 파라미터). 결과 화면의 기간
    * 드롭다운은 이 값을 `replace` 로 갱신하므로, 새로고침·공유 링크에서도 사용자가
    * 고른 분기가 그대로 복원된다.
+   *
+   * `null` 은 「URL 에 없음 = 최신」이다. 요청에 쓸 분기는 `useResolvedAnalysisPeriod` 가 서버
+   * 카탈로그로 해석한다(period-catalog.md D5-1). 여기에 최신 분기를 써 넣지 않는다 — 「최신」 링크로 남는다.
    */
-  periodCode: string
+  periodCode: string | null
 }
 
 type SearchParamsReader = {
@@ -102,39 +73,21 @@ const readCode = (params: SearchParamsReader, name: string): string | null => {
 }
 
 /**
- * `YYYYQ` 형식이고 **드롭다운이 실제로 제공하는 연/분기**인지 검사한다.
+ * URL 의 `periodCode` 를 읽는다. 형식이 틀리거나 2021년보다 이르면 **조용히** 「지정 없음(최신)」으로
+ * 둔다 — 손편집·낡은 링크의 코드로 백엔드를 때리는 대신 최신 분기를 보여 주는 편이 사용자에게 낫다.
  *
- * 형식만 보면 부족하다: 기간 선택은 `<select>` 라서 옵션에 없는 값을 주면 브라우저가
- * 조용히 첫 옵션을 그린다 — 그러면 헤더는 "2024년 1분기 기준", 드롭다운은 "2021년"을
- * 가리키는 어긋난 화면이 된다. 선택 가능한 값으로 좁혀 URL 과 UI 가 항상 일치하게 한다.
- *
- * 연도별로 열려 있는 분기가 다르므로({@link analysisPeriodQuartersOf}) 연도·분기를 따로
- * 보면 `20264` 같은 미적재 조합이 통과한다. 두 축을 함께 본다.
+ * 상한은 여기서 보지 않는다. 서버 기본 분기보다 새 분기는 카탈로그가 온 뒤 해석에서 최신으로 내린다
+ * (`resolveAnalysisPeriod`).
  */
-export const isSupportedAnalysisPeriod = (value: string): boolean => {
-  if (!ANALYSIS_PERIOD_CODE_PATTERN.test(value)) return false
-  const { year, quarter } = parseAnalysisPeriod(value)
-  return analysisPeriodQuartersOf(year).includes(quarter)
-}
-
-/**
- * URL 의 `periodCode` 를 읽는다. 지원하지 않는 값은 **조용히** 기본 분기로 폐기한다 —
- * 기간은 뷰 상태가 아니라 분석 조건이지만, 손편집·낡은 링크의 코드로 백엔드를 때리는
- * 대신 기본 분기를 보여 주는 편이 사용자에게 낫다.
- */
-const readPeriodCode = (params: SearchParamsReader): string => {
-  const value = readCode(params, 'periodCode')
-  return value && isSupportedAnalysisPeriod(value)
-    ? value
-    : ANALYSIS_PERIOD_CODE
-}
+const readPeriodCode = (params: SearchParamsReader): string | null =>
+  readAnalysisPeriod(params.get('periodCode'))
 
 export const createEmptyAnalysisSelection = (): AnalysisSelection => ({
   districtCode: null,
   administrationCode: null,
   commercialCode: null,
   serviceCode: null,
-  periodCode: ANALYSIS_PERIOD_CODE,
+  periodCode: null,
 })
 
 export const parseAnalysisSelection = (
@@ -236,7 +189,7 @@ const createSelectionSearchParams = (
   if (selection.serviceCode) {
     params.set('serviceCode', selection.serviceCode)
   }
-  if (includePeriod) {
+  if (includePeriod && selection.periodCode !== null) {
     params.set('periodCode', selection.periodCode)
   }
   return params
@@ -259,12 +212,8 @@ export const createAnalysisExplorerHref = (
   selection: AnalysisSelection,
   camera?: MapCamera | null,
 ) => {
-  const params = createSelectionSearchParams(selection, false)
-  // 탐색 화면은 기간을 쓰지 않으므로 기본 분기면 파라미터를 생략한다(기존 출력 유지).
-  // 사용자가 결과 화면에서 고른 비기본 분기만 왕복 손실 없이 실어 보낸다.
-  if (selection.periodCode !== ANALYSIS_PERIOD_CODE) {
-    params.set('periodCode', selection.periodCode)
-  }
+  // 사용자가 고른 분기는 왕복 손실 없이 싣고, 지정이 없으면(최신) 생략한다.
+  const params = createSelectionSearchParams(selection, true)
   const query = appendCamera(params, camera).toString()
   return query ? `/analysis?${query}` : '/analysis'
 }

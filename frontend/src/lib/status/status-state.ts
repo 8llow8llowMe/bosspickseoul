@@ -1,8 +1,5 @@
 import type { DistrictRecord } from '@/data/districts'
-import {
-  ANALYSIS_PERIOD_CODE,
-  isSupportedAnalysisPeriod,
-} from '@/lib/analysis/selection'
+import { readAnalysisPeriod } from '@/lib/analysis/period-catalog'
 import type {
   StatusMetric,
   StatusRankedItem,
@@ -199,17 +196,13 @@ export const parseStatusMetric = (value: unknown): StatusMetric =>
     : 'footTraffic'
 
 /**
- * `?periodCode=` 를 기준 분기로 읽는다. 선택지(`isSupportedAnalysisPeriod`)에 없는 값은
- * **최신 분기로 조용히 폴백**한다 — select 에 없는 값을 주면 브라우저가 첫 옵션을 그려
- * 화면과 요청이 어긋나고, 손편집·낡은 링크의 코드로 백엔드를 때릴 이유도 없다(status.md 1.6).
+ * `?periodCode=` 를 기준 분기로 읽는다. 형식이 틀리거나 2021년보다 이르면 null(= 「최신」)이다 — 손편집·
+ * 낡은 링크의 코드로 백엔드를 때릴 이유가 없다(status.md 1.6). 서버 기본 분기보다 새 분기는 카탈로그가
+ * 온 뒤 최신으로 내린다(`resolveAnalysisPeriod`, period-catalog.md D5-1).
  */
-export const parseStatusPeriod = (value: string | null | undefined): string => {
-  const trimmed = value?.trim()
-
-  return trimmed && isSupportedAnalysisPeriod(trimmed)
-    ? trimmed
-    : ANALYSIS_PERIOD_CODE
-}
+export const parseStatusPeriod = (
+  value: string | null | undefined,
+): string | null => readAnalysisPeriod(value)
 
 /**
  * `?district=` 가 **서울 자치구 코드**면 그대로, 아니면 null 로 정규화한다.
@@ -251,7 +244,7 @@ export const createStatusQuery = (
   currentQuery: URLSearchParams,
   metric: StatusMetric,
   districtCode: string | null,
-  periodCode: string,
+  periodCode: string | null,
 ): URLSearchParams => {
   const query = new URLSearchParams(currentQuery)
 
@@ -263,8 +256,9 @@ export const createStatusQuery = (
     query.delete('district')
   }
 
-  // `/status` 는 「최신 분기 현황」이다. 기본 분기는 적지 않고 고른 과거 분기만 남긴다.
-  if (periodCode === ANALYSIS_PERIOD_CODE) {
+  // `/status` 는 「최신 분기 현황」이다. 최신(null)은 적지 않고 고른 분기만 남긴다. 최신 분기를 고르면
+  // 부르는 쪽이 null 을 넘긴다(status-page `handlePeriodChange`).
+  if (periodCode === null) {
     query.delete('periodCode')
   } else {
     query.set('periodCode', periodCode)

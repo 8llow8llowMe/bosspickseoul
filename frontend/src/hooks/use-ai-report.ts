@@ -68,6 +68,8 @@ type UseAiReportArgs = {
   level: AiReportLevel | null
   code: string | null
   serviceCode: string | null
+  /** 리포트를 만들 분기(해석된 값). 아직 정하지 못했으면 null 이고 제출하지 않는다. */
+  periodCode: string | null
   active: boolean
   enabled: boolean
   /**
@@ -82,17 +84,21 @@ const submitFor = (
   code: string,
   serviceCode: string | null,
   rightCode: string | null,
+  periodCode: string,
 ): Promise<AiReportSubmission> => {
-  if (level === 'district') return submitDistrictAiReport(code)
-  if (level === 'administration') return submitAdministrationAiReport(code)
+  if (level === 'district') return submitDistrictAiReport(code, periodCode)
+  if (level === 'administration') {
+    return submitAdministrationAiReport(code, periodCode)
+  }
   if (level === 'comparison') {
     return submitCommercialComparisonAiReport({
       leftCommercialCode: code,
       rightCommercialCode: rightCode!,
       serviceCode: serviceCode!,
+      periodCode,
     })
   }
-  return submitCommercialAiReport(code, serviceCode!)
+  return submitCommercialAiReport(code, serviceCode!, periodCode)
 }
 
 export const classifyError = (errorCode: string | null): AiReportErrorKind => {
@@ -107,6 +113,7 @@ export const useAiReport = ({
   level,
   code,
   serviceCode,
+  periodCode,
   active,
   enabled,
   rightCode = null,
@@ -117,11 +124,24 @@ export const useAiReport = ({
   const canCompare =
     level === 'comparison' ? Boolean(serviceCode && rightCode) : true
   const on =
-    enabled && active && Boolean(level && code) && canCommercial && canCompare
+    enabled &&
+    active &&
+    Boolean(level && code && periodCode) &&
+    canCommercial &&
+    canCompare
 
   const submitQuery = useQuery({
-    queryKey: ['ai-report', 'submit', level, code, rightCode, serviceCode],
-    queryFn: () => submitFor(level!, code!, serviceCode, rightCode),
+    queryKey: [
+      'ai-report',
+      'submit',
+      level,
+      code,
+      rightCode,
+      serviceCode,
+      periodCode,
+    ],
+    queryFn: () =>
+      submitFor(level!, code!, serviceCode, rightCode, periodCode!),
     enabled: on,
     retry: 0,
     staleTime: 5 * 60 * 1000,

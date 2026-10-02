@@ -4,12 +4,10 @@ import { ChevronDown } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
-  ANALYSIS_PERIOD_YEARS,
-  analysisPeriodQuartersOf,
   buildAnalysisPeriod,
-  clampQuarterToYear,
   parseAnalysisPeriod,
-} from '@/lib/analysis/selection'
+  type AnalysisPeriodRange,
+} from '@/lib/analysis/period-catalog'
 
 const Row = styled.div`
   display: inline-flex;
@@ -46,8 +44,14 @@ const Select = styled.select<{ $size: AnalysisPeriodSelectSize }>`
   cursor: pointer;
   ${props => (props.$size === 'md' ? 'min-height: 36px;' : '')}
 
-  &:hover {
+  &:hover:not(:disabled) {
     border-color: var(--color-primary-600);
+  }
+
+  /* 서버 기본 분기를 받기 전·못 받았을 때. 값은 그대로 읽히되 누를 수 없다는 것만 드러낸다. */
+  &:disabled {
+    cursor: default;
+    color: var(--color-text-600);
   }
 
   /* 포커스는 hover 와 같은 색이면 구별되지 않는다 — 포커스 색 + 글로우로 갈라 놓는다. */
@@ -65,7 +69,13 @@ const Select = styled.select<{ $size: AnalysisPeriodSelectSize }>`
 export type AnalysisPeriodSelectSize = 'sm' | 'md'
 
 export type AnalysisPeriodSelectProps = {
-  value: string
+  /** 지금 분기. 아직 정하지 못했으면(최신을 해석하는 중) null. */
+  value: string | null
+  /**
+   * 선택지 범위(2021 ~ 서버 기본 분기, period-catalog.md D4-1). 카탈로그 대기·실패면 null 이고, 그때는
+   * 지금 분기 하나만 보이고 비활성이다 — URL 에 분기가 있는 화면은 카탈로그 없이도 동작해야 한다.
+   */
+  range: AnalysisPeriodRange | null
   onChange: (periodCode: string) => void
   /** 두 select 의 접근성 이름. 기본은 상권 분석 문맥(「분석 연도」·「분석 분기」). */
   yearLabel?: string
@@ -75,13 +85,25 @@ export type AnalysisPeriodSelectProps = {
 
 export default function AnalysisPeriodSelect({
   value,
+  range,
   onChange,
   yearLabel = '분석 연도',
   quarterLabel = '분석 분기',
   size = 'sm',
 }: AnalysisPeriodSelectProps) {
-  const { year, quarter } = parseAnalysisPeriod(value)
-  const quarters = analysisPeriodQuartersOf(year)
+  const parsed = value !== null ? parseAnalysisPeriod(value) : null
+  const disabled = range === null || parsed === null
+  /*
+    범위를 모르면 지금 값 하나만 옵션으로 둔다. `<select>` 는 옵션에 없는 값을 주면 조용히 첫 옵션을
+    그리므로, 값과 옵션이 늘 같이 있어야 헤더와 드롭다운이 어긋나지 않는다.
+  */
+  const years = range && parsed ? range.years : parsed ? [parsed.year] : []
+  const quarters =
+    range && parsed
+      ? range.quartersOf(parsed.year)
+      : parsed
+        ? [parsed.quarter]
+        : []
 
   return (
     <Row>
@@ -89,18 +111,21 @@ export default function AnalysisPeriodSelect({
         <Select
           $size={size}
           aria-label={yearLabel}
-          value={year}
+          value={parsed?.year ?? ''}
+          disabled={disabled}
           onChange={event => {
+            if (!range || !parsed) return
             const nextYear = Number(event.target.value)
             onChange(
               buildAnalysisPeriod(
                 nextYear,
-                clampQuarterToYear(nextYear, quarter),
+                range.clampQuarter(nextYear, parsed.quarter),
               ),
             )
           }}
         >
-          {ANALYSIS_PERIOD_YEARS.map(option => (
+          {years.length === 0 ? <option value="">연도</option> : null}
+          {years.map(option => (
             <option key={option} value={option}>
               {option}년
             </option>
@@ -112,11 +137,16 @@ export default function AnalysisPeriodSelect({
         <Select
           $size={size}
           aria-label={quarterLabel}
-          value={quarter}
-          onChange={event =>
-            onChange(buildAnalysisPeriod(year, Number(event.target.value)))
-          }
+          value={parsed?.quarter ?? ''}
+          disabled={disabled}
+          onChange={event => {
+            if (!parsed) return
+            onChange(
+              buildAnalysisPeriod(parsed.year, Number(event.target.value)),
+            )
+          }}
         >
+          {quarters.length === 0 ? <option value="">분기</option> : null}
           {quarters.map(option => (
             <option key={option} value={option}>
               {option}분기

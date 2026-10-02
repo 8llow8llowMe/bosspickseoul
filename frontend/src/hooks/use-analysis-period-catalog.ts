@@ -35,6 +35,8 @@ export type AnalysisPeriodCatalogState = {
   isPending: boolean
   /** 최종 실패이거나 서버가 기본 분기를 정하지 못했다. */
   isUnavailable: boolean
+  /** 다시 묻는 중인가 — 재시도 버튼이 눌렸다는 것을 보여 준다. */
+  isFetching: boolean
   refetch: () => void
 }
 
@@ -58,6 +60,7 @@ export const useAnalysisPeriodCatalog = (): AnalysisPeriodCatalogState => {
     latest: range?.latest ?? null,
     isPending: query.isPending,
     isUnavailable: !query.isPending && range === null,
+    isFetching: query.isFetching,
     refetch: () => void query.refetch(),
   }
 }

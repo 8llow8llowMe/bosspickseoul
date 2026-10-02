@@ -144,6 +144,7 @@ import {
 import { createRecommendHandoffLabel } from '@/lib/analysis/recommend-handoff'
 import { useActivatedSections } from '@/lib/analysis/use-activated-sections'
 import { useScrollSpy } from '@/lib/analysis/use-scroll-spy'
+import { useResolvedAnalysisPeriod } from '@/hooks/use-resolved-analysis-period'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
@@ -954,7 +955,7 @@ export default function AnalysisResultView({
   )
   const activeTab = normalizeAnalysisTab(searchParams.get('tab'))
   const invalidMessage = createInvalidResultMessage(selection)
-  const enabled = invalidMessage === null
+  const conditionReady = invalidMessage === null
   const districtCode = selection.districtCode ?? ''
   const administrationCode = selection.administrationCode ?? ''
   const commercialCode = selection.commercialCode ?? ''
@@ -965,7 +966,14 @@ export default function AnalysisResultView({
    * 성격의 결함이다. 분석 쿼리 10여 개의 쿼리 키이기도 하므로, URL 에서 오면 첫
    * 페인트 요청부터 올바른 분기로 나간다.
    */
-  const periodCode = selection.periodCode
+  /*
+    URL 에 분기가 없으면 「최신」이고, 서버 카탈로그(`/periods`)의 기본 분기로 해석한다. URL 에 분기가
+    있으면 카탈로그를 기다리지 않는다(period-catalog.md D5-1). 해석 전에는 분기 종속 쿼리를 열지 않는다.
+  */
+  const { periodCode: resolvedPeriodCode, catalog: periodCatalog } =
+    useResolvedAnalysisPeriod(selection.periodCode)
+  const periodCode = resolvedPeriodCode ?? ''
+  const enabled = conditionReady && resolvedPeriodCode !== null
   /** URL 카메라. 탭·기간 전환이 `c` 를 지우지 않게 그대로 실어 보낸다. */
   const camera = useMemo(
     () => parseMapCamera(searchParams.get(MAP_CAMERA_PARAM)),
@@ -1007,10 +1015,15 @@ export default function AnalysisResultView({
     [showToast],
   )
 
-  // 공유 링크 / 분석 화면 보관함이 공유하는 payload. 조건이 불완전하면 null 이라 버튼을 막는다.
+  // 공유 링크 / 분석 화면 보관함이 공유하는 payload. 조건이 불완전하거나 분기를 아직 해석하지 못했으면
+  // null 이라 버튼을 막는다. 저장에는 「최신」이 아니라 해석된 분기를 싣는다(period-catalog.md D5-2).
   const sharePayload = useMemo(
-    () => buildCommercialAnalysisPayload(selection, searchParams.get('tab')),
-    [selection, searchParams],
+    () =>
+      buildCommercialAnalysisPayload(
+        { ...selection, periodCode: resolvedPeriodCode },
+        searchParams.get('tab'),
+      ),
+    [selection, resolvedPeriodCode, searchParams],
   )
   const sharePayloadKey = sharePayload
     ? normalizeSharePayload(sharePayload)
@@ -1059,7 +1072,7 @@ export default function AnalysisResultView({
     }
     // 조건이 잘못된 URL 로 처음 열리면 탭 바가 아직 없다. 같은 화면에서 조건이 바로잡혀
     // 탭 바가 생길 때 다시 붙도록 `enabled` 를 따른다.
-  }, [enabled])
+  }, [conditionReady])
   useEffect(() => {
     const list = mobileTabListRef.current
     if (!list || list.clientWidth === 0) return
@@ -1590,6 +1603,31 @@ export default function AnalysisResultView({
     )
   }
 
+  /*
+    「최신」을 정할 수 없다 — 카탈로그가 끝내 실패했거나 서버가 기본 분기를 정하지 못했다. 예시 상수로
+    떨어지지 않는다(적재 안 된 분기로 화면 전체가 「데이터 없음」이 된다, period-catalog.md D5-3).
+  */
+  if (resolvedPeriodCode === null && periodCatalog.isUnavailable) {
+    return (
+      <Root>
+        <Content>
+          <EmptyState
+            title="분석 기준 분기를 불러오지 못했어요"
+            description="서버에서 최신 분기 정보를 받지 못했어요. 잠시 뒤 다시 시도해 주세요."
+            action={
+              <Button
+                isLoading={periodCatalog.isFetching}
+                onClick={periodCatalog.refetch}
+              >
+                다시 시도
+              </Button>
+            }
+          />
+        </Content>
+      </Root>
+    )
+  }
+
   /**
    * V2 공유 링크(`POST /share-links`)를 발급해 `/s/{shareCode}` 를 공유한다.
    * 로그인은 필요 없다 — BFF 세션이 있으면 최초 공유자만 기록된다.
@@ -1872,7 +1910,8 @@ export default function AnalysisResultView({
             </HeaderMeta>
             <HeaderPeriod>
               <AnalysisPeriodSelect
-                value={periodCode}
+                value={resolvedPeriodCode}
+                range={periodCatalog.range}
                 onChange={handlePeriodChange}
               />
             </HeaderPeriod>
@@ -2445,9 +2484,13 @@ export default function AnalysisResultView({
                   기준 분기는 **값이 실제로 딛고 선 분기**를 적는다. 대체값은 선택한 분기와
                   다른 분기에서 올 수 있어, 선택값을 그대로 쓰면 없는 사실을 말하게 된다.
                 */
-                description={`${formatPeriodCode(
-                  expenseProvenance.effectivePeriodCode ?? periodCode,
-                )} 기준`}
+                description={
+                  expenseProvenance.effectivePeriodCode || resolvedPeriodCode
+                    ? `${formatPeriodCode(
+                        expenseProvenance.effectivePeriodCode ?? periodCode,
+                      )} 기준`
+                    : undefined
+                }
                 badge={
                   expenseProvenance.badgeLabel ? (
                     <Badge $tone="teal">{expenseProvenance.badgeLabel}</Badge>
@@ -2483,7 +2526,11 @@ export default function AnalysisResultView({
                 <AnalysisResultSection
                   title="지역별 소비"
                   collapsible
-                  description={`${formatPeriodCode(periodCode)} 기준 총 지출액`}
+                  description={
+                    resolvedPeriodCode
+                      ? `${formatPeriodCode(resolvedPeriodCode)} 기준 총 지출액`
+                      : undefined
+                  }
                   footer={
                     regionalExpenseProxyNote ? (
                       <ExpenseProvenanceNote

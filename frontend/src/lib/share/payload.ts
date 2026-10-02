@@ -141,7 +141,11 @@ type AnalysisSelectionLike = {
   administrationCode: string | null
   commercialCode: string | null
   serviceCode: string | null
-  periodCode: string
+  /**
+   * **해석된** 분기여야 한다(period-catalog.md D5-2). 「최신(null)」인 채로 저장하면 데이터가 적재될 때마다
+   * 같은 링크가 다른 분기를 보여 준다 — null 이면 payload 를 만들지 않아 버튼이 막힌다.
+   */
+  periodCode: string | null
 }
 
 /**

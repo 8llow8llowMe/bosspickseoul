@@ -7,7 +7,8 @@ import styled from 'styled-components'
 import ReportChartSection from '@/components/analysis/ai-report/report-chart-section'
 import ReportInsightSection from '@/components/analysis/ai-report/report-insight-section'
 import ReportMetricCards from '@/components/analysis/ai-report/report-metric-cards'
-import { useAiReport } from '@/hooks/use-ai-report'
+import { useAiReport, type AiReportState } from '@/hooks/use-ai-report'
+import { useResolvedAnalysisPeriod } from '@/hooks/use-resolved-analysis-period'
 import {
   resolveAiReportLevel,
   resolveAiReportTargetCode,
@@ -123,8 +124,12 @@ export default function AiReportBody({
 
   const commercialCode = selection.commercialCode
   const serviceCode = selection.serviceCode
-  const periodCode = selection.periodCode
-  const enabled = Boolean(commercialCode && serviceCode)
+  /* URL 에 분기가 없으면 서버 기본 분기로 해석한다(period-catalog.md D5-1). 해석 전에는 요청하지 않는다. */
+  const { periodCode: resolvedPeriodCode, catalog: periodCatalog } =
+    useResolvedAnalysisPeriod(selection.periodCode)
+  const periodCode = resolvedPeriodCode ?? ''
+  const periodReady = resolvedPeriodCode !== null
+  const enabled = Boolean(commercialCode && serviceCode) && periodReady
 
   // 빠른 층: 상권 프로필·매출·유동인구·매출 추세를 병렬로 즉시 요청한다.
   // 쿼리 키는 결과 페이지(analysis-result-view)와 동일하게 맞춰 캐시를 공유한다.
@@ -145,7 +150,7 @@ export default function AiReportBody({
   const footQuery = useQuery({
     queryKey: ['analysis', 'foot-traffic', commercialCode, periodCode],
     queryFn: () => fetchCommercialFootTraffic(commercialCode!, periodCode),
-    enabled: Boolean(commercialCode),
+    enabled: Boolean(commercialCode) && periodReady,
     retry: 1,
   })
   // 쿼리 키를 결과 페이지(analysis-result-view)와 동일하게 맞춰 캐시를 공유한다.
@@ -185,23 +190,45 @@ export default function AiReportBody({
     item => item.serviceCode === serviceCode,
   )?.serviceName
 
+  /*
+    분기를 해석하는 동안(카탈로그 대기)은 쿼리가 꺼져 있어 `isLoading` 이 false 다. 그대로 두면 카드·차트가
+    「값 없음」으로 그려진다 — 해석 전도 불러오는 중으로 본다.
+  */
+  const periodPending = !periodReady && !periodCatalog.isUnavailable
   const cards = resolveMetricCards({
     profile,
-    profileLoading: profileQuery.isLoading,
+    profileLoading: profileQuery.isLoading || periodPending,
     growth,
-    growthLoading: salesTrendQuery.isLoading,
+    growthLoading: salesTrendQuery.isLoading || periodPending,
   })
 
   // 느린 층: AI 리포트는 로그인 사용자에게만, 전용 페이지에서는 항상 활성으로 조회한다.
   const level = resolveAiReportLevel(selection)
   const code = level ? resolveAiReportTargetCode(selection, level) : null
-  const { state, retry } = useAiReport({
+  const { state: reportState, retry: retryReport } = useAiReport({
     level,
     code,
     serviceCode,
+    periodCode: resolvedPeriodCode,
     active: true,
     enabled: hasHydrated && isLoggedIn,
   })
+  /*
+    분기를 정하기 전에는 useAiReport 가 idle 이라 「표시할 내용이 없어요」로 읽힌다. 해석 중이면 불러오는 중,
+    카탈로그를 끝내 못 받았으면 재시도할 수 있는 오류로 바꾼다(period-catalog.md D5-3).
+  */
+  const state: AiReportState = periodPending
+    ? { status: 'loading', stage: null, progressMessages: [] }
+    : !periodReady
+      ? {
+          status: 'error',
+          message:
+            '분석 기준 분기를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+          errorKind: 'unavailable',
+          canRetry: true,
+        }
+      : reportState
+  const retry = periodReady ? retryReport : periodCatalog.refetch
   const insightMode = resolveInsightMode({
     hydrated: hasHydrated,
     isLoggedIn,
@@ -238,8 +265,8 @@ export default function AiReportBody({
           <ReportChartSection
             sales={sales}
             foot={foot}
-            salesLoading={salesQuery.isLoading}
-            footLoading={footQuery.isLoading}
+            salesLoading={salesQuery.isLoading || periodPending}
+            footLoading={footQuery.isLoading || periodPending}
             variant={variant}
           />
         </>

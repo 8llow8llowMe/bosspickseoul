@@ -55,17 +55,19 @@ export const buildTrendSearchParams = ({
     periodCount: String(periodCount),
   })
 
-export const buildDistrictsSearchParams = (periodCode: string) =>
-  new URLSearchParams({ currentPeriodCode: periodCode })
+/** 분기를 생략하면 서버가 적재 기준 최신 분기로 해석한다(BE #464). */
+export const buildDistrictsSearchParams = (periodCode?: string) =>
+  new URLSearchParams(periodCode ? { currentPeriodCode: periodCode } : {})
 
 const periodParams = (periodCode: string) => new URLSearchParams({ periodCode })
 
 const servicePeriodParams = (serviceCode: string, periodCode: string) =>
   new URLSearchParams({ serviceCode, periodCode })
 
-export const fetchDistricts = async (periodCode: string) => {
+export const fetchDistricts = async (periodCode?: string) => {
+  const query = buildDistrictsSearchParams(periodCode).toString()
   const response = await apiClient.get<DistrictAreasResponse>(
-    `/districts?${buildDistrictsSearchParams(periodCode)}`,
+    query ? `/districts?${query}` : '/districts',
   )
   return response.data
 }

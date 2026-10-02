@@ -31,6 +31,9 @@ export type DistrictClosedStoreTopTenItem = {
 }
 
 export type DistrictTopTenSummary = {
+  /** 실제로 조회한 분기. 분기를 생략해 보내면 서버가 해석한 최신 분기다(BE #464). */
+  currentPeriodCode?: string | null
+  previousPeriodCode?: string | null
   footTrafficTopTenItems: DistrictFootTrafficTopTenItem[]
   salesTopTenItems: DistrictSalesTopTenItem[]
   openedStoreTopTenItems: DistrictOpenedStoreTopTenItem[]
@@ -198,6 +201,9 @@ export type DistrictSalesDetail = {
 }
 
 export type DistrictDetail = {
+  /** 실제로 조회한 분기(BE #464). */
+  currentPeriodCode?: string | null
+  previousPeriodCode?: string | null
   changeIndicator: ChangeIndicator
   footTraffic: DistrictFootTrafficDetail
   store: DistrictStoreDetail

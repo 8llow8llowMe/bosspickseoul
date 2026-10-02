@@ -1,4 +1,3 @@
-import { ANALYSIS_PERIOD_CODE } from '@/lib/analysis/selection'
 import { apiClient } from '@/lib/api/client'
 import type {
   DistrictDetailResponse,
@@ -6,26 +5,24 @@ import type {
 } from '@/types/status'
 
 /*
- * 기준 분기(`currentPeriodCode`)는 **늘 명시해서** 보낸다. 백엔드 기본값에 기대던 동안
- * 그 값이 20233 이라 구별현황이 2023년 3분기에 묶여 있었다(#409, status.md 1.6).
- * `previousPeriodCode` 는 생략한다 — 백엔드가 직전 분기를 비교 기준으로 쓴다.
+ * 기준 분기(`currentPeriodCode`)는 사용자가 고른 분기면 명시하고, 「최신」이면 **생략**한다 — 서버가
+ * 적재 기준 최신 분기로 해석하고 응답 `currentPeriodCode` 로 알려 준다(BE #464, period-catalog.md D3-3).
+ * 예전에는 FE 상수를 늘 명시했다(백엔드 기본값이 20233 이던 때의 #409 대응). `previousPeriodCode` 는
+ * 생략한다 — 백엔드가 직전 분기를 비교 기준으로 쓴다.
  */
-const periodSearchParams = (currentPeriodCode: string) =>
-  new URLSearchParams({ currentPeriodCode })
+const periodQuery = (currentPeriodCode?: string): string =>
+  currentPeriodCode ? `?${new URLSearchParams({ currentPeriodCode })}` : ''
 
-export const buildStatusTopTenPath = (
-  currentPeriodCode: string = ANALYSIS_PERIOD_CODE,
-): string => `/districts/top-ten?${periodSearchParams(currentPeriodCode)}`
+export const buildStatusTopTenPath = (currentPeriodCode?: string): string =>
+  `/districts/top-ten${periodQuery(currentPeriodCode)}`
 
 export const buildStatusDetailPath = (
   districtCode: string,
-  currentPeriodCode: string = ANALYSIS_PERIOD_CODE,
+  currentPeriodCode?: string,
 ): string =>
-  `/districts/${encodeURIComponent(districtCode)}?${periodSearchParams(currentPeriodCode)}`
+  `/districts/${encodeURIComponent(districtCode)}${periodQuery(currentPeriodCode)}`
 
-export const fetchStatusTopTen = async (
-  currentPeriodCode: string = ANALYSIS_PERIOD_CODE,
-) => {
+export const fetchStatusTopTen = async (currentPeriodCode?: string) => {
   const response = await apiClient.get<DistrictTopTenResponse>(
     buildStatusTopTenPath(currentPeriodCode),
   )
@@ -35,7 +32,7 @@ export const fetchStatusTopTen = async (
 
 export const fetchStatusDetail = async (
   districtCode: string,
-  currentPeriodCode: string = ANALYSIS_PERIOD_CODE,
+  currentPeriodCode?: string,
 ) => {
   const response = await apiClient.get<DistrictDetailResponse>(
     buildStatusDetailPath(districtCode, currentPeriodCode),

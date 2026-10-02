@@ -163,7 +163,8 @@ describe('결과 뷰의 URL 계약', () => {
   const code = readCode(`${componentDir}/analysis-result-view.tsx`)
 
   it('기간을 로컬 state 가 아니라 URL 에서 읽는다', () => {
-    expect(src).toContain('const periodCode = selection.periodCode')
+    // URL 분기(없으면 서버 기본 분기)로 해석한다 — period-catalog.md D5-1.
+    expect(src).toContain('useResolvedAnalysisPeriod(selection.periodCode)')
     expect(code).not.toContain('useState<string>(selection.periodCode)')
   })
 

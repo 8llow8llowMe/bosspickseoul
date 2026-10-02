@@ -35,7 +35,8 @@ import StatusTopTen from './status-top-ten'
 
 type StatusMobileSheetProps = {
   metric: StatusMetric
-  periodCode: string
+  /** 기준 분기. 최신을 아직 모르면 null 이고 기준 줄을 적지 않는다. */
+  periodCode: string | null
   /**
    * 분기를 바꾸는 중이라 목록이 직전 분기 응답을 자리 표시로 들고 있다(status.md 1.6).
    * 목록은 본문째 흐리게 두고, 상세는 머리의 값·순위만 흐린다(본문은 자기 스켈레톤이 있다).
