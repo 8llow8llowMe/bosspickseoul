@@ -129,7 +129,7 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 - `hikaricp_connections_active{pool="batch-commercial"}` / `hikaricp_connections_pending{pool="batch-commercial"}` — commercial 두 번째 풀(상한 4). 기본 풀(district)은 Boot 가 따로 붙인다. pending 이 계속 0 보다 크면 상한을 본다
 - 로그는 `[dataset-refresh]` 접두(Loki `|= "[dataset-refresh]"`). 운영 절차는 `services/batch-service.md` 「분기 적재 자동 최신화」
 
-### 분석 기준 분기 로그 (commercial-service · ai-service, 이슈 #464)
+### 분석 기준 분기 로그 (commercial-service · district-service · ai-service, 이슈 #464)
 
 로그는 `[analysis-period]` 접두(Loki `|= "[analysis-period]"`). 예외 메시지 대신 예외 유형·코드만 남긴다(접속 정보 노출 방지). 계산 규칙은 `services/commercial-service.md` 「분석 기준 분기」.
 
@@ -140,10 +140,10 @@ prod 컨테이너는 backend-1(`192.168.0.13`)의 `9xxx` host port를 사용합�
 | commercial | WARN | `no common period across core datasets` | 핵심 데이터셋 공통 분기가 없다. 분기를 생략한 요청이 `ANALYSIS_PERIOD_001`(503). 같은 상태는 한 번만 찍는다 |
 | commercial | WARN | `catalog refresh failed, serving stale resolvedAt=… error=…` | 스케줄러 갱신 실패(DB 오류·10초 질의 상한 초과). 마지막 성공값으로 응답 중이고 다음 주기(5분)에 다시 시도한다 |
 | commercial | WARN | `catalog refresh failed, no catalog to serve error=…` | 한 번도 계산하지 못했다(기동 직후 첫 갱신 실패 등). 분기를 생략한 요청이 503 이고 다음 갱신이 성공하면 회복한다 |
-| ai | WARN | `default period refresh failed, serving stale periodCode=… error=…` | commercial `/periods` 호출 실패. 마지막 성공값으로 제출 중 |
-| ai | WARN | `default period unavailable, no value to serve error=…` | 받은 적이 없다. 분기를 생략한 제출이 `AI_013`(503) |
+| ai · district | WARN | `default period refresh failed, serving stale periodCode=… error=…` | commercial `/periods` 호출 실패. 마지막 성공값으로 제출·지도 응답 중 |
+| ai · district | WARN | `default period unavailable, no value to serve error=…` | 받은 적이 없다. 분기를 생략한 제출은 `AI_013`, 지도 요청은 `MAP_011`(둘 다 503). district 는 10초 백오프 동안 다시 묻지 않는다 |
 
-알람 후보: `no common period` 와 `no catalog to serve` 는 1건이라도 사용자 영향이 있다. commercial 의 `serving stale` 이 5분 주기로 계속 찍히면 DB 장애가, ai 의 `serving stale` 이 이어지면 commercial-service 장애가 이어지는 것이다.
+알람 후보: `no common period` 와 `no catalog to serve` 는 1건이라도 사용자 영향이 있다. commercial 의 `serving stale` 이 5분 주기로 계속 찍히면 DB 장애가, ai·district 의 `serving stale` 이 이어지면 commercial-service 장애가 이어지는 것이다. district 의 `/periods` 는 분석 호출과 다른 서킷(`commercial-service-periods`)이라 `resilience4j_circuitbreaker_state{name="commercial-service-periods"}` 로 따로 본다.
 
 ## 빠른 점검
 

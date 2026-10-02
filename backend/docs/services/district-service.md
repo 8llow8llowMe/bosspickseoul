@@ -55,7 +55,10 @@
 - 프리셋 가중치와 compositeScore 산출 책임은 `commercial-service` 단독이다. `district-service.CandidatePresetType`은 표시용 enum만 유지한다.
 - Profile 응답의 `centerLng/centerLat/boundaryCoords`는 이번 단계에선 null/빈 배열로 내려간다. 프론트엔드는 직전 candidates/heatmap 응답의 경계 정보를 재사용한다.
 - Profile 응답은 commercial-service 프로필의 `policyRecommendations`(상위 5건)를 **그대로 전달**한다. 지도 프로필만 쓰던 화면이 정책을 보려고 commercial-service 를 따로 호출할 필요가 없다. commercial-service 가 정책을 못 내려주면(빈 값·null) 빈 배열로 내려간다 — 프로필 자체를 실패시키지 않는다.
-- **분기 파라미터(이슈 #464).** 지도 API 4종(`heatmap`·`candidates`·`{code}/profile`·`compare-preview`)의 `periodCode` 는 선택이다. 지도는 기본 분기를 스스로 정하지 않는다 — 생략하면 Feign 이 쿼리에서 `periodCode` 를 빼고(null 인자는 템플릿 변수에서 빠지고 값 없는 쿼리 템플릿은 지워진다, `CommercialFeignOmittedPeriodQueryTest`) commercial-service 가 적재 기준 기본 분기로 해석한다. 응답 `periodCode` 는 **상류가 실제로 조회한 값**을 우선하고, 상류 응답이 없거나 분기를 싣지 않았으면 요청값이다. 그래서 빈 뷰포트 후보(`emptyCandidates`, 상류를 부르지 않음)와 상류 장애로 점수가 빈 히트맵은 분기를 생략한 요청에서 `periodCode: null` 이다. 프로필·비교 프리뷰 응답에도 `periodCode` 를 추가했다.
+- **분기 파라미터(이슈 #464).** 지도 API 4종(`heatmap`·`candidates`·`{code}/profile`·`compare-preview`)의 `periodCode` 는 선택이다. 지도는 상류에 **항상 명시한 분기**를 보낸다 — `MapWebFacade` 가 첫 줄에서 `MapAnalysisPeriodProcessor.resolve` 로 생략·빈 값을 기본 분기로 바꾼다. 분기를 비워 보내면 commercial 이 기본 분기를 정하지 못할 때의 503 이 분석 호출 서킷(`commercial-service`)에 실패로 집계돼 분기를 명시한 공개 지도 요청까지 `MAP_008` 로 막혔기 때문이다.
+  - 기본 분기는 `CommercialAnalysisPeriodClientAdapter` 가 commercial `GET /api/v1/commercials/periods` 에서 받아 인스턴스 메모리에 `app.map.analysis-period.cache-ttl`(5분) 동안 둔다. 호출은 **별도 서킷** `commercial-service-periods` 를 탄다. 갱신 실패 시 마지막 성공값, 한 번도 받지 못했으면 `MAP_011`(503) 이고 10초 동안 다시 묻지 않는다(commercial 기동 창에 비로그인 트래픽이 `/periods` 를 두드리지 않게). commercial 이 기본 분기를 정하지 못한 200 + `defaultPeriodCode: null` 은 서킷 실패가 아니고, 상권 분석 호출 없이 `MAP_011` 로 끝난다.
+  - 응답 `periodCode` 는 상류가 실제로 조회한 값을 우선하고 없으면 해석된 요청값이다. 빈 뷰포트 후보(`emptyCandidates`, 상류를 부르지 않음)도 해석된 분기를 싣는다. 상류 장애는 `MAP_008` 이라 `null` 분기 응답은 없다. 프로필·비교 프리뷰 응답에도 `periodCode` 를 추가했다.
+  - Feign 은 null 인자를 쿼리에서 뺀다(`CommercialFeignOmittedPeriodQueryTest`, 해석이 빠졌을 때의 안전망).
 - commercial-service 를 감싸는 Feign 호출(`InternalResponseSupport`)의 오류 번역: 하위 **404 는 장애가 아니라 데이터 부재** — `MAP_009`(404) 로 바꾸고 하위 응답의 `resultMessage` 를 그대로 싣는다(프론트는 재시도 대신 문구 노출). 5xx·타임아웃·서킷 오픈만 `MAP_008`(503) 이며 서킷 집계 대상이다. `keyMetrics` 수치 필드는 분기 데이터가 없는 지표만 `null` 로 내려간다(부분 강등, 이슈 #229).
 ## Heatmap / Candidate Response Shape
 
@@ -119,6 +122,7 @@
 | `MAP_008` | 503 | commercial-service 통신 불가 (5xx·타임아웃·서킷 오픈만 해당) |
 | `MAP_009` | 404 | commercial-service 가 404 를 준 경우 (분기 데이터 부재 등) — `resultMessage` 에 하위 서비스 메시지를 그대로 전달 |
 | `MAP_010` | 400 | 뷰포트에 들어온 영역이 타입별 상한을 넘음 (지도 확대 유도) |
+| `MAP_011` | 503 | 분기를 생략한 요청에서 기본 분기를 받지 못함 (commercial `/periods` 장애·공통 분기 없음, 마지막 성공값 없음). 상권 분석 호출은 하지 않는다 |
 | `MAP_100` | 400 | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
 | `MAP_101`~`MAP_102` | 400 | topN 필드별 검증 (`MapValidationMessage`) |
 | `MAP_103` | 400 | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |

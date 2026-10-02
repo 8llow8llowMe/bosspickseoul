@@ -19,6 +19,9 @@ public class InternalResponseSupport {
     // 서킷브레이커 인스턴스명(application.yml resilience4j.circuitbreaker.instances 키와 일치).
     // Eureka 등록명(-dev/-prod 접미사)과 무관한 논리 서비스명을 쓴다.
     public static final String COMMERCIAL_SERVICE = "commercial-service";
+    // 기본 분기 조회(GET /api/v1/commercials/periods) 전용 서킷. commercial-service 기동 직후 카탈로그를 계산하기 전에는 /periods 가
+    // 503 을 주는데, 이를 분석 호출 서킷에 섞으면 분기를 명시한 지도 요청까지 MAP_008 로 막힌다(이슈 #464).
+    public static final String COMMERCIAL_SERVICE_PERIODS = "commercial-service-periods";
 
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final ObjectMapper objectMapper;

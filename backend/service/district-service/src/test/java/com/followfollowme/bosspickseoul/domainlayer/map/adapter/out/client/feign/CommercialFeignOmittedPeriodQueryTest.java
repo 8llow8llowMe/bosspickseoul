@@ -55,6 +55,18 @@ class CommercialFeignOmittedPeriodQueryTest {
         assertThat(requestedUrls).containsExactly(TARGET + "/api/v1/commercials/3110008/profile?serviceCode=CS100001&periodCode=20233");
     }
 
+    /**
+     * 지도는 이제 분기를 생략한 요청도 기본 분기를 먼저 받아 명시값으로 상류를 부른다({@code MapWebFacadePeriodResolutionTest}).
+     * 위 생략 경로는 그 해석이 빠졌을 때의 Feign 동작을 고정하는 안전망으로 남긴다. 기본 분기 조회 자체는 쿼리 없는 GET 이다.
+     */
+    @Test
+    @DisplayName("기본 분기 조회는 쿼리 없이 /api/v1/commercials/periods 를 부른다")
+    void analysisPeriodLookupHasNoQuery() {
+        client(CommercialAnalysisPeriodClient.class).getAnalysisPeriods();
+
+        assertThat(requestedUrls).containsExactly(TARGET + "/api/v1/commercials/periods");
+    }
+
     private <T> T client(Class<T> type) {
         return Feign.builder()
             .contract(new SpringMvcContract())
