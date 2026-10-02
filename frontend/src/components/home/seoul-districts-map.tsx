@@ -25,7 +25,9 @@ import DistrictTooltip, {
 import {
   clampTooltipPosition,
   placeBesideRect,
+  tooltipScale,
 } from '@/components/home/tooltip-geometry'
+import { HERO_STACKED_MEDIA } from '@/components/home/layout-constants'
 import { useDistrictDetail } from '@/hooks/use-district-detail'
 import { trackEvent } from '@/lib/analytics/events'
 
@@ -82,9 +84,9 @@ const MapSvg = styled.svg`
   /* 자동 시연 툴팁이 카드를 피해 viewBox 오른쪽 여백까지 나갈 수 있게 한다(D5-3). */
   overflow: visible;
 
-  /* 모바일: 폴리곤이 실제로 차지하는 높이만 쓴다 — 박스가 비율보다 길면 빈 띠가 생긴다
-     (hero-picker-and-mobile-first-screen.md D4-4, mobile-hero-first-screen.md D0-2). */
-  @media (max-width: 640px) {
+  /* 좁은 폭(위아래 배치): 폴리곤이 실제로 차지하는 높이만 쓴다 — 박스가 비율보다 길면 빈 띠가
+     생긴다(hero-picker-and-mobile-first-screen.md D4-4, hero-split-layout.md D4-3). */
+  @media ${HERO_STACKED_MEDIA} {
     height: auto;
     aspect-ratio: 800 / 620;
   }
@@ -162,7 +164,7 @@ const MapCaption = styled.p`
   line-height: 20px;
   word-break: keep-all;
 
-  @media (max-width: 640px) {
+  @media ${HERO_STACKED_MEDIA} {
     position: static;
     max-width: none;
     margin-top: 8px;
@@ -221,6 +223,20 @@ export default function SeoulDistrictsMap({
   const [demo, setDemo] = useState<{ code: string; x: number } | null>(null)
   const demoScheduledRef = useRef(false)
   const svgRef = useRef<SVGSVGElement>(null)
+  /* 지도가 화면에 그려지는 배율(viewBox 1 = px). 툴팁을 설계 크기 아래로 줄이지 않는 데 쓴다. */
+  const [screenScale, setScreenScale] = useState(1)
+
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg || typeof ResizeObserver === 'undefined') return
+    // 관찰을 시작하면 콜백이 한 번 바로 불린다 — 첫 배율도 여기서 잡힌다.
+    const observer = new ResizeObserver(() => {
+      const scale = svg.getScreenCTM()?.a
+      if (scale) setScreenScale(scale)
+    })
+    observer.observe(svg)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -238,9 +254,11 @@ export default function SeoulDistrictsMap({
       const svg = svgRef.current
       const ctm = svg?.getScreenCTM()
       if (!feature || !svg || !ctm) return
+      // 렌더와 같은 배율로 키운 크기로 자리를 잡는다(tooltipScale).
+      const scale = tooltipScale(ctm.a)
       const defaultX = clampTooltipPosition(
         feature.center,
-        { width: TOOLTIP_WIDTH, height: TOOLTIP_HEIGHT },
+        { width: TOOLTIP_WIDTH * scale, height: TOOLTIP_HEIGHT * scale },
         VIEW_BOX_SIZE,
         TOOLTIP_PADDING,
       ).x
@@ -250,7 +268,7 @@ export default function SeoulDistrictsMap({
           ? defaultX
           : placeBesideRect(
               defaultX,
-              TOOLTIP_WIDTH,
+              TOOLTIP_WIDTH * scale,
               ctm,
               avoidRight,
               svg.getBoundingClientRect().right,
@@ -315,10 +333,18 @@ export default function SeoulDistrictsMap({
     : detail.isError
       ? { status: 'error' }
       : { status: 'loading' }
+  /*
+    좌우 분할로 지도 칸이 좁아지면 viewBox 안의 툴팁도 같이 줄어 글자를 읽을 수 없다(1024 폭 0.59배).
+    줄어든 만큼 되돌려 키우고, 키운 크기로 자리를 잡는다(hero-split-layout.md D4-4).
+  */
+  const tipScale = tooltipScale(screenScale)
   const clampedPosition = tooltipFeature
     ? clampTooltipPosition(
         tooltipFeature.center,
-        { width: TOOLTIP_WIDTH, height: districtTooltipHeight(tooltipState) },
+        {
+          width: TOOLTIP_WIDTH * tipScale,
+          height: districtTooltipHeight(tooltipState) * tipScale,
+        },
         VIEW_BOX_SIZE,
         TOOLTIP_PADDING,
       )
@@ -398,10 +424,12 @@ export default function SeoulDistrictsMap({
           )
         })}
         {tooltipEnabled && tooltipFeature && tooltipPosition ? (
-          <TooltipGroup>
+          <TooltipGroup
+            transform={`translate(${tooltipPosition.x}, ${tooltipPosition.y}) scale(${tipScale})`}
+          >
             <DistrictTooltip
-              x={tooltipPosition.x}
-              y={tooltipPosition.y}
+              x={0}
+              y={0}
               name={tooltipName ?? '자치구'}
               state={tooltipState}
             />

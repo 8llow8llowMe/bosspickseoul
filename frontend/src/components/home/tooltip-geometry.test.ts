@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clampTooltipPosition,
   placeBesideRect,
+  tooltipScale,
 } from '@/components/home/tooltip-geometry'
 
 const VIEW = { width: 800, height: 620 }
@@ -48,5 +49,26 @@ describe('placeBesideRect', () => {
 
   it('밀어서 svg 오른쪽 끝을 넘으면 자리가 없다(null → 시연 생략)', () => {
     expect(placeBesideRect(588, 212, CTM, 800, 998, 16)).toBeNull()
+  })
+})
+
+/**
+ * 툴팁은 지도 좌표계(viewBox) 안에 그려져 지도와 함께 줄어든다. 좌우 분할로 지도 칸이 좁아지면
+ * (1024 폭 배율 0.59) 글자가 7px 대로 내려가 읽을 수 없다 — 화면에서 설계 크기 아래로 줄지
+ * 않게 되돌려 키운다(hero-split-layout.md D4-4).
+ */
+describe('tooltipScale', () => {
+  it('지도가 설계 크기보다 작게 그려지면 그만큼 되돌려 키운다', () => {
+    expect(tooltipScale(0.5)).toBe(2)
+  })
+
+  it('지도가 같거나 크게 그려지면 그대로(키우지 않는다)', () => {
+    expect(tooltipScale(1)).toBe(1)
+    expect(tooltipScale(1.27)).toBe(1)
+  })
+
+  it('배율을 아직 모르면(0·음수·NaN) 1', () => {
+    expect(tooltipScale(0)).toBe(1)
+    expect(tooltipScale(Number.NaN)).toBe(1)
   })
 })

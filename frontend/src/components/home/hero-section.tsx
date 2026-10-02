@@ -1,15 +1,13 @@
 'use client'
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
-import { HEADER_HEIGHT } from '@/components/home/layout-constants'
+import {
+  HEADER_HEIGHT,
+  HERO_STACKED_MEDIA,
+  HERO_WINDOW_CHROME,
+} from '@/components/home/layout-constants'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
 import HeroWindow, { type WindowState } from '@/components/home/hero-window'
 import { glassSurface } from '@/components/home/hero-glass'
@@ -95,11 +93,14 @@ const Hero = styled.section`
   padding: 0 0 48px;
   background: var(--color-background);
 
-  @media (max-width: 640px) {
-    /* 모바일: [카드][지도][캡션] 순서로 쌓는다. 카드가 헤더 바로 아래라 h1·피커·주 버튼이
-       첫 화면에 든다(hero-picker-and-mobile-first-screen.md D4-4·D5-1). */
+  /* 좁은 폭: [카드][지도][캡션] 순서로 쌓는다. 카드가 헤더 바로 아래라 h1·피커·주 버튼이
+     첫 화면에 든다(hero-picker-and-mobile-first-screen.md D4-4·D5-1, hero-split-layout.md D4-3). */
+  @media ${HERO_STACKED_MEDIA} {
     height: auto;
     min-height: auto;
+  }
+
+  @media (max-width: 640px) {
     padding: 0 0 24px;
   }
 `
@@ -111,7 +112,7 @@ const Inner = styled.div`
   flex-direction: column;
   min-height: 0;
 
-  @media (max-width: 640px) {
+  @media ${HERO_STACKED_MEDIA} {
     flex: none;
   }
 `
@@ -120,28 +121,35 @@ const Inner = styled.div`
   스테이지는 셸(Inner) **안쪽**이라 폭을 다시 좁히지 않는다. --w-shell 은
   calc(100% - …) 이라 두 번 걸면 거터가 두 겹이 된다(실측 40/1880).
 */
+/*
+  넓은 폭은 [카드 | 지도] 두 칸이다 — 카드가 지도 가운데 위에 떠 있으면 1440×900 에서 자치구
+  12/25 의 중심점을 덮었다(hero-split-layout.md D0). 좁은 폭은 카드 → 지도 순서로 세로 정렬한다.
+  position 은 relative 를 유지해 독 버튼 등 absolute 자식의 기준을 잃지 않는다.
+*/
 const HeroStage = styled.div`
   position: relative;
   width: 100%;
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
+  column-gap: 48px;
+  align-items: center;
   min-height: 0;
 
-  /* 모바일에서는 오버레이를 해제하고 카드 → 지도 순서로 세로 정렬한다.
-     position은 relative를 유지해 독 버튼 등 absolute 자식의 기준을 잃지 않는다. */
-  @media (max-width: 640px) {
+  @media ${HERO_STACKED_MEDIA} {
     flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
   }
 `
 
-// 지도 래퍼. 데스크톱에서는 display:contents로 완전히 투명해져 MapLayer가 HeroStage의
-// 직접 자식(flex:1)으로 동작한다 — 지우면 데스크톱 지도 높이가 무너진다. 모바일에서는
-// 카드 아래 흐름에 놓이고 높이는 지도 비율이 정한다(빈 띠 0).
+// 지도 래퍼. 넓은 폭에서는 display:contents로 투명해져 MapLayer가 HeroStage 그리드의
+// 둘째 칸이 된다. 좁은 폭에서는 카드 아래 흐름에 놓이고 높이는 지도 비율이 정한다(빈 띠 0).
 const MapScreen = styled.div`
   display: contents;
 
-  @media (max-width: 640px) {
+  @media ${HERO_STACKED_MEDIA} {
     display: flex;
     flex-direction: column;
     height: auto;
@@ -150,33 +158,35 @@ const MapScreen = styled.div`
 
 const MapLayer = styled.div`
   width: 100%;
-  flex: 1;
+  /* 그리드 행 높이(= 스테이지 높이)를 다 쓴다. svg 가 meet 으로 폭·높이 중 작은 쪽에 맞춘다. */
+  height: 100%;
   min-height: 0;
 
-  @media (max-width: 640px) {
-    flex: none;
+  @media ${HERO_STACKED_MEDIA} {
+    height: auto;
     margin-top: 24px;
   }
 `
 
+/*
+  카드 칸. 예전엔 스테이지 전체를 덮는 absolute 오버레이였다(pointer-events: none 으로 카드 바깥
+  폴리곤을 살렸다). 좌우 분할로 모든 폭에서 흐름 배치다(hero-split-layout.md D3).
+*/
 const CardLayer = styled.div`
-  position: absolute;
-  inset: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 20px;
-  z-index: 10;
-  /* 스테이지 레이어 자체는 이벤트를 통과시켜 카드 바깥 폴리곤은 계속 hover/클릭 가능하다.
-     카드 영역 자체의 이벤트 차단은 WindowCard(hero-window.tsx)의 pointer-events: auto가 담당한다. */
-  pointer-events: none;
 
-  /* 모바일: 헤더 바로 아래 흐름에 둔다 — 첫 화면 예산(D5-1). */
-  @media (max-width: 640px) {
-    position: static;
-    inset: auto;
+  > * {
+    width: 100%;
+  }
+
+  /* 좁은 폭: 헤더 바로 아래 흐름에 둔다 — 첫 화면 예산(hero-picker D5-1). */
+  @media ${HERO_STACKED_MEDIA} {
     padding: 24px 0 0;
-    min-height: auto;
+
+    > * {
+      width: min(460px, 100%);
+    }
   }
 `
 
@@ -257,7 +267,8 @@ export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const drag = useWindowDrag({
-    enabled: dragEnabled,
+    // 창 장식을 숨기면 드래그 핸들(제목줄)도 없다 — 시험 적용(hero-split-layout.md D4-2).
+    enabled: HERO_WINDOW_CHROME && dragEnabled,
     containerRef,
     cardRef,
   })
@@ -352,12 +363,6 @@ export default function HeroSection() {
   const { displayState, showDock } = deriveWindowDisplay(
     windowState,
     isMobileViewport,
-  )
-
-  /* 자동 시연 툴팁이 카드 뒤로 숨지 않게 카드 오른쪽 끝을 알려 준다(D5-3). */
-  const getCardRight = useCallback(
-    () => cardRef.current?.getBoundingClientRect().right ?? null,
-    [],
   )
 
   /* 모바일 지도 탭 뒤, 바뀐 버튼·미리보기가 화면 밖이면 그쪽으로 데려간다(D4-4). */
@@ -467,6 +472,7 @@ export default function HeroSection() {
                 pickedCode={pickedCode}
                 onPick={code => handlePick(code, 'select')}
                 pickerRef={pickerRef}
+                chrome={HERO_WINDOW_CHROME}
               />
             </CardLayer>
           ) : (
@@ -489,7 +495,11 @@ export default function HeroSection() {
                 tooltipEnabled={!isMobileViewport}
                 onHoverChange={isMobileViewport ? undefined : setHoveredCode}
                 autoDemo={dragEnabled && !hasPicked}
-                demoAvoidRight={getCardRight}
+                /*
+                  카드가 지도를 덮지 않아 시연 툴팁이 피할 것이 없다. 오버레이 배치로 되돌리면
+                  카드 오른쪽 끝(cardRef 의 getBoundingClientRect().right)을 demoAvoidRight 로
+                  다시 넘긴다(hero-split-layout.md D3).
+                */
               />
             </MapLayer>
           </MapScreen>
