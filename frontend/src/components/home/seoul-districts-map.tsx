@@ -51,9 +51,9 @@ const DETAIL_HOVER_DELAY_MS = 120
 
 /*
   지도가 눌린다는 신호(hero-picker-and-mobile-first-screen.md D4-7). 데스크톱에서 아직 아무도
-  지도를 건드리지 않았으면 한 구의 툴팁을 한 번 스스로 띄운다. 대상은 강동구 — 카드가 지도
-  가운데 위에 떠 있어 가운데 구의 툴팁은 유리 뒤로 숨는다. 동쪽 끝 구는 1024·1440 폭 모두
-  툴팁이 카드 밖에 뜨고, 순위를 암시하지도 않는다(D5-3).
+  지도를 건드리지 않았으면 한 구의 툴팁을 한 번 스스로 띄운다. 대상은 강동구 — 순위를 암시하지
+  않는 동쪽 끝 구다. 카드가 지도 위에 떠 있던 오버레이 배치에서는 카드 밖에 뜨는 유일한 자리라
+  골랐다(D5-3). 좌우 분할(hero-split-layout.md)에서는 카드를 피할 필요가 없다.
 */
 export const AUTO_DEMO_DISTRICT_CODE = '11740'
 export const AUTO_DEMO_DELAY_MS = 2000
@@ -81,7 +81,8 @@ const MapSvg = styled.svg`
   /* 자치구 폴리곤/툴팁 제목 등 지도 내 텍스트가 드래그로 선택되지 않게 한다 */
   -webkit-user-select: none;
   user-select: none;
-  /* 자동 시연 툴팁이 카드를 피해 viewBox 오른쪽 여백까지 나갈 수 있게 한다(D5-3). */
+  /* 오버레이 배치에서 자동 시연 툴팁이 카드를 피해 viewBox 오른쪽 여백까지 나갈 수 있게 한다(D5-3).
+     좌우 분할에서는 툴팁이 viewBox 안에 클램프되므로 영향이 없다. */
   overflow: visible;
 
   /* 좁은 폭(위아래 배치): 폴리곤이 실제로 차지하는 높이만 쓴다 — 박스가 비율보다 길면 빈 띠가
