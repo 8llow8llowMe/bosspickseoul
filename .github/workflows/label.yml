@@ -1,0 +1,46 @@
+name: label
+
+# **배포 라벨 누락을 자동으로 보정한다** (이슈 #497).
+#
+# 배포 대상은 PR 라벨로 정해지고, 라벨이 없으면 배포가 나가지 않는다(fail-closed,
+# `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-1). Jenkins PR 빌드도 라벨이 붙은
+# 서비스에만 생긴다(`Github label filter`). 그래서 라벨을 빠뜨린 PR 은 검증도 배포도 없이 머지된다.
+#
+# **PR 을 만들 때 `--label` 을 붙이는 규약은 그대로다.** 이 워크플로는 `opened` 뒤에 라벨을
+# 붙이는데, Jenkins 가 그 `labeled` 이벤트만으로 PR 빌드를 만드는지는 아직 실측하지 않았다.
+#
+# 매핑은 `.github/labeler.yml` 이다.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # **develop 대상 PR 만 본다.** main 대상 릴리스 PR 의 라벨은 prod 배포 범위라 사람이 고른다.
+    branches:
+      - develop
+
+# 기본 토큰은 읽기 전용이다. 라벨을 붙이려면 이 권한이 필요하다
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    # 두 경우를 건너뛴다.
+    #
+    # - **Dependabot PR.** 의존성 갱신은 사람이 PR 을 확인한 뒤 배포 라벨을 달아 배포를 정한다
+    #   (`.github/dependabot.yml` 머리말). 위 `permissions` 가 쓰기 권한을 주므로 **이 `if` 가 유일한
+    #   차단이다.** 지우면 매주 Dependabot PR 에 배포 라벨이 붙어 dev 배포가 나간다.
+    #   행위자(`github.actor`)가 아니라 PR 작성자로 거른다 — 사람이 그 브랜치에 push 해도 같다.
+    #   검증은 라벨과 무관하게 `backend-ci` · `frontend-ci` 가 한다.
+    # - **포크 PR.** `pull_request` 토큰이 읽기 전용이라 라벨을 붙이지 못하고 403 으로 빨간불이 된다.
+    #   `pull_request_target` 은 base 의 권한으로 돌아 더 위험하므로 쓰지 않는다.
+    if: >-
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          # **더하기만 한다.** 사람이 넓혀 둔 배포 스코프를 지우지 않는다 (labeler.yml 머리말).
+          # 반대로 사람이 자동 라벨을 지워도 다음 push(`synchronize`)에서 다시 붙는다.
+          sync-labels: false

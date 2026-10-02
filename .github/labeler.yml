@@ -1,0 +1,54 @@
+# 경로 → 배포 라벨 매핑 (actions/labeler v5, `.github/workflows/label.yml`)
+#
+# **배포 라벨만 둔다.** 라벨은 꼬리표가 아니라 Jenkins 배포 게이트다. 머지 후 develop 빌드가
+# 커밋에 연결된 PR 의 라벨을 읽어 배포 대상을 고르고, 라벨이 없으면 배포하지 않는다
+# (fail-closed, `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-1).
+#
+# **더하기만 한다** (`sync-labels: false`). 사람이 손으로 붙인 라벨을 지우지 않는다.
+#
+# 여기 없는 경로에는 라벨이 붙지 않는다.
+#   - `backend/core/**` · `backend/build.gradle` 등 공용 경로: 바뀌면 그것을 쓰는 서비스 전부의
+#     런타임이 바뀐다. 그래도 서비스 라벨을 전부 자동으로 붙이지 않는다. "의도한 대상만 배포한다" 가
+#     fail-closed 의 요점이라, **배포할 서비스 라벨은 작성자가 직접 더한다.**
+#     검증은 라벨과 무관하게 `backend-ci` 가 전 모듈로 본다.
+#   - `backend/docs/**` · 루트 문서 · `Jenkinsfile*` · `.github/**` · `scripts/**`:
+#     배포 대상이 아니다. `backend-core` · `backend-docs` 같은 분류 라벨도 자동으로 붙이지 않는다.
+#
+# Dependabot PR 은 워크플로에서 건너뛴다(`label.yml` 의 `if`). 배포는 사람이 정한다.
+
+frontend-web:
+  - changed-files:
+      - any-glob-to-any-file: 'frontend/**'
+
+# ── 백엔드 — 라벨명은 `backend-` + 서비스 디렉터리명이고, Jenkins 잡의 serviceName 과 1:1 이다
+backend-ai-service:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/service/ai-service/**'
+
+backend-auth-service:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/service/auth-service/**'
+
+backend-batch-service:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/service/batch-service/**'
+
+backend-commercial-service:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/service/commercial-service/**'
+
+backend-community-service:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/service/community-service/**'
+
+backend-district-service:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/service/district-service/**'
+
+backend-api-gateway:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/cloud/api-gateway/**'
+
+backend-service-discovery:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/cloud/service-discovery/**'
