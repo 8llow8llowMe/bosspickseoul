@@ -90,9 +90,25 @@ test.describe('홈 히어로', () => {
 
     const link = page.getByRole('link', { name: '영등포구 분석하기' })
     await expect(link).toHaveAttribute('href', '/analysis?districtCode=11560')
-    // 가장 긴 라벨도 한 줄이다 — 버튼 높이가 48px 을 넘지 않는다.
+    // 가장 긴 라벨도 한 줄이고 카드 안에 든다(D7 B3). 높이로는 못 잰다 — 두 줄(15px × 1.5 × 2 =
+    // 45px)도 min-height 48px 안에 들어간다. 라벨 글자의 줄 상자 수를 센다.
+    const lineCount = await link.evaluate(el => {
+      const text = [...el.childNodes].find(
+        node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
+      )
+      if (!text) return 0
+      const range = document.createRange()
+      range.selectNodeContents(text)
+      return new Set(
+        [...range.getClientRects()].map(rect => Math.round(rect.top)),
+      ).size
+    })
+    expect(lineCount, '라벨이 줄바꿈됐습니다.').toBe(1)
+    const cardRight = await page
+      .locator('main h1')
+      .evaluate(h1 => h1.parentElement!.getBoundingClientRect().right)
     const box = await link.boundingBox()
-    expect(box!.height).toBeLessThanOrEqual(48)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(cardRight + 0.5)
 
     // 첫 항목으로 되돌리면 빈 분석 화면으로 돌아간다.
     await page.getByRole('combobox', { name: '창업할 자치구' }).selectOption('')
