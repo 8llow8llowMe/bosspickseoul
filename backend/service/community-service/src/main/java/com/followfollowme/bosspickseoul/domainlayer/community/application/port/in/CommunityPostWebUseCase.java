@@ -22,13 +22,15 @@ import java.util.List;
  * 이때 응답의 {@code liked} 는 null 이다. 로그인이면 조회자 본인의 좋아요 여부(true/false)를 채운다.
  *
  * <p>목록 3종(목록·검색·좋아요 목록)의 {@code period} 는 인기순(POPULAR) 작성 시각 기간이다. 최신순(LATEST)에서는 무시한다.
+ *
+ * <p>목록의 {@code category} 는 말머리 필터 문자열이다. null/blank 면 필터 없음이고, 잘못된 값은 COMMUNITY_017 이다(검색·좋아요 목록에는 없다).
  */
 public interface CommunityPostWebUseCase {
 
     CommunityPostListResponse getPosts(
         Long viewerMemberId,
         CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
-        String targetType, String targetCode,
+        String targetType, String targetCode, String category,
         long lastPostId, long lastLikeCount, int size
     );
 

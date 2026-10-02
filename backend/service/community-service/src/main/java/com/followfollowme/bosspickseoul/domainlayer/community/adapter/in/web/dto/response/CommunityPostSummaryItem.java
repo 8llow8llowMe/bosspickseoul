@@ -36,6 +36,9 @@ public record CommunityPostSummaryItem(
     @Schema(description = "제목")
     String title,
 
+    @Schema(description = "말머리 메타데이터 (말머리 없는 글은 null)", nullable = true)
+    CodeNameDescriptionMetadata category,
+
     @Schema(description = "본문 미리보기")
     String previewContent,
 

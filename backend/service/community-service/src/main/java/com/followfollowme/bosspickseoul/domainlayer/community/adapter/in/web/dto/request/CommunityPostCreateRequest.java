@@ -27,6 +27,10 @@ public record CommunityPostCreateRequest(
     @Size(max = 5000, message = CommunityValidationMessage.CONTENT_LENGTH_INVALID)
     String content,
 
+    @Schema(description = "말머리 (선택 — 없으면 말머리 없음). QUESTION 질문 · EXPERIENCE 경험 공유 · TOGETHER 같이 해요 · NEWS 동네 소식. "
+        + "잘못된 값은 COMMUNITY_017", example = "QUESTION", nullable = true)
+    String category,
+
     @Schema(description = "첨부 이미지 오브젝트 키 목록 (이미지 업로드 API 응답의 imageKey). 배열 순서가 노출 순서가 됩니다.",
         example = "[\"community/posts/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png\"]")
     @Size(max = 5, message = CommunityValidationMessage.IMAGE_COUNT_INVALID)

@@ -136,6 +136,58 @@
   `CommunityRepositoryMySqlConcurrencyTest.popularFeedAppliesPeriodLowerBoundOnlyWhenPresentAndKeepsCursorOrder` 가 실제 MySQL 로 검증한다
   (`COMMUNITY_TEST_DB_URL` 이 있을 때만 실행).
 
+## 게시글 말머리
+
+- 게시글에 말머리(주제 분류)를 붙인다 (#470). 값은 `domain/enums/CommunityPostCategory`(`CodeNameDescribable`).
+
+  | code | 표시명(`name`) | FE 작성 도움 칩 |
+  |------|---------------|----------------|
+  | `QUESTION` | 질문 | 질문해요 |
+  | `EXPERIENCE` | 경험 공유 | 경험 나눠요 |
+  | `TOGETHER` | 같이 해요 | 같이 해요 |
+  | `NEWS` | 동네 소식 | (칩 없음) |
+
+- **「말머리 없음」을 허용한다.** 컬럼(`community_post.category VARCHAR(20)`)은 nullable 이고 기존 글은 null 이다.
+  어느 값으로 채워도 사실이 아니므로 마이그레이션 기본값도, 기존 행 갱신도 없다.
+- 요청 문자열은 `CommunityPostCategory.from` 으로 파싱한다 — 대소문자 무시(`toUpperCase(Locale.ROOT)`), 잘못된 값은
+  `400 COMMUNITY_017 INVALID_POST_CATEGORY`. 작성·수정 본문과 목록 필터가 같은 코드를 쓴다. null/blank 는 「말머리 없음」(필터면 「전체」)이다.
+  `sortType`·`period` 처럼 Spring enum 바인딩(`COMMUNITY_117`)이 아니라 `targetType` 과 같은 String + Processor 파싱이다 — 말머리 오류를
+  자기 코드로 구분한다. 작성(`createPost`)과 `getFeed` 는 대상 실조회(district-service 원격 호출) 전에 파싱한다. 다만 목록에 대상 필터가 함께
+  오면 Facade 의 게시판 메타 조회(`getTargetMeta`)가 `getFeed` 보다 먼저라 원격 호출 1회 뒤에 400 이 난다(기존 순서 유지).
+- **작성** `POST /posts` — 선택 필드 `category`. `CreatePostCommand` → `CommunityCommandProcessor.createPost` 가 파싱해 저장한다.
+- **수정** `PATCH /posts/{postId}` — 선택 필드 `category` 는 **「수정 후 값」**이다. 이 API 는 title/content 필수에 `imageKeys` 가
+  「수정 후 남길 목록」인 전체 교체 방식이라, **`category` 를 생략하거나 null 로 보내면 말머리를 지운다.**
+  **수정 화면은 현재 말머리(상세 응답 `category.code`)를 항상 다시 보내야 한다** (Swagger 설명에 명시).
+  - 저장은 기존 본문 수정 조건부 UPDATE(`CommunityPostRepository.updateContentIfActive` — `ACTIVE`·작성자 조건, 제목·본문·말머리·수정 시각만 SET)에
+    함께 넣었다. 엔티티 전체 save 로 바꾸지 않아 동시 좋아요·조회수·댓글 수를 덮지 않는다 (아래 「상태 변경 동시성」).
+  - 말머리 파싱은 소유자 검증 뒤다 — 남의 글에는 값 오류보다 `COMMUNITY_007`(403)이 먼저 나간다.
+- **응답** — 목록·검색 항목 `CommunityPostSummaryItem`, 상세 `CommunityPostDetailResponse`(작성·수정 응답 포함), 좋아요 목록 항목
+  `CommunityLikedPostItem` 에 `category: {code, name, description}`(말머리 없으면 null). `analysisType` 과 같은 결이다.
+- **목록 필터** — `GET /posts` 에만 `category` 쿼리를 둔다. 비어 있으면 필터 없음(말머리 없는 글 포함 전체).
+  대상 필터(`targetType`·`targetCode`)·`sortType`·`period`·커서(`lastPostId`·`lastLikeCount`)와 함께 동작한다.
+  흐름: Controller(`@RequestParam(required = false) String category`) → Facade → `CommunityQueryProcessor.getFeed` 가 파싱해
+  `CommunityFeedCriteria.category` 로 넘기고 → `CommunityPostCustomRepositoryImpl.findFeedPostsNoOffset` 이 null 이 아닐 때만 `category.eq` 를 붙인다.
+  - **검색(`/posts/search`)·좋아요 목록(`/posts/liked`)에는 필터를 넣지 않았다** (이슈 범위 밖). 응답 항목에는 `category` 가 실린다.
+  - 호출처 없는 `getBoardPosts`/`findBoardPostsNoOffset` 경로는 시그니처를 바꾸지 않았다.
+- 인덱스: `idx_community_post_status_category_id (status, category, id)` 1개만 추가했다.
+  - 전체 피드 + 말머리 + 최신순(`where status, category order by id`) — 이 인덱스가 거르기와 정렬을 모두 처리한다(filesort 없음).
+  - 대상 필터 + 말머리 — 기존 `idx_community_post_target_status_id (targetType, targetCode, status, id)` 로 게시판을 거르고 category 는 잔여 조건이다.
+    게시판 단위라 행이 적어 받아들인다.
+  - 인기순 + 말머리 — 기존 `idx_community_post_status_like_count_id (status, likeCount, id)` 로 정렬하고 category 는 잔여 조건이다.
+    말머리 비중이 작으면 채울 때까지 스캔이 길어질 수 있다. `period` 의 createdAt 잔여 조건과 같은 판단(정렬을 인덱스로 처리하는 편)이며,
+    커지면 `(status, category, likeCount, id)` 를 검토한다.
+- prod DDL: `scripts/migration/community-post-category-runbook.sql` 을 **애플리케이션 배포 전에** 수동 적용한다 (dev/local 은 ddl-auto).
+  새 버전은 모든 조회에서 category 컬럼을 읽으므로 컬럼이 먼저 있어야 한다. 기존 행 갱신은 없다.
+  런북은 알고리즘을 명시하고(INSTANT / INPLACE, LOCK=NONE) information_schema 로 확인한 뒤 실행해 여러 번 돌려도 안전하다. 롤백 순서도 런북에 있다.
+- dev/local 의 ddl-auto 는 `@Enumerated(STRING)` 컬럼에 값 목록 CHECK 를 붙일 수 있다(Hibernate 6 + MySQL 8.0.16+). 런북으로 만든 prod 에는 없다.
+  **말머리 값을 추가할 때는 dev 의 `SHOW CREATE TABLE community_post` 를 먼저 확인한다** — CHECK 가 있으면 새 값 INSERT 가 dev 에서만 실패한다.
+- 테스트: `CommunityPostCategoryTest`(파싱·표시명), `CommunityEnumLocaleTest`(터키어 로케일 — QUESTION·EXPERIENCE 에 'i' 가 있다),
+  `CommunityCommandProcessorPostCategoryTest`(작성 파싱, 수정 조건부 UPDATE 전달·null 로 지움, 403 우선),
+  `CommunityQueryProcessorPostCategoryTest`(Criteria 전달, 잘못된 값은 원격 호출 전 거절), `CommunityPostWebControllerPostCategoryTest`
+  (바인딩, 실제 체인 `COMMUNITY_017`), `CommunityPostPresenterCategoryTest`(null ↔ metadata). QueryDSL 필터·커서와 JPQL 수정은
+  `CommunityRepositoryMySqlConcurrencyTest` 의 `feedFiltersByCategoryTogetherWithTargetFilterAndCursors`·`contentEditReplacesCategoryAndNullClearsIt` 가
+  실제 MySQL 로 검증한다 (`COMMUNITY_TEST_DB_URL` 이 있을 때만 실행).
+
 ## 게시글 검색 (신규)
 
 - `GET /api/v1/community/posts/search`
@@ -189,9 +241,9 @@
 
 | 대역 | 코드 | 설명 |
 |------|------|------|
-| 도메인 | `COMMUNITY_001`~`COMMUNITY_012` | 대상/정렬 타입 400, 게시글·댓글·신고 미존재 404, 권한 403, 중복 신고·기처리 신고 409 등 |
+| 도메인 | `COMMUNITY_001`~`COMMUNITY_017` | 대상/정렬 타입 400, 게시글·댓글·신고 미존재 404, 권한 403, 중복 신고·기처리 신고 409, `013` 동시 반응 409, `014` 지역 서비스 통신 불가 503, `015` 분석 첨부 타입 400, `016` 회원 서비스 통신 불가 503(조회 경로는 강등), `017` 말머리 400 |
 | 검증 폴백 | `COMMUNITY_100` | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
-| 검증 필드별 | `COMMUNITY_101`~`COMMUNITY_116` | `CommunityValidationMessage` 가 단일 기준점. `COMMUNITY_113`~`COMMUNITY_116` 은 상권 비교 draft 전용 (좌/우 상권 코드, 서비스 코드, 분기 코드) |
+| 검증 필드별 | `COMMUNITY_101`~`COMMUNITY_116`, `COMMUNITY_118`~`COMMUNITY_122` | `CommunityValidationMessage` 가 단일 기준점. `COMMUNITY_113`~`COMMUNITY_116` 은 상권 비교 draft 전용 (좌/우 상권 코드, 서비스 코드, 분기 코드), `118` 이미지 장수, `119` 조회 개수, `120`~`122` 분석 첨부 길이 |
 | 타입 오류 | `COMMUNITY_117` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
 
 ## 게시글 이미지 (MinIO)
@@ -209,7 +261,7 @@
 
 ## 상태 변경 동시성
 
-- 게시글 본문 수정, 조회수·좋아요·댓글 수 변경, 소프트 삭제는 각 필드만 조건부 UPDATE한다. JPA bulk UPDATE 전 flush, 이후 영속성 컨텍스트 clear로 대기 중인 쓰기를 보존하고 갱신 값을 다시 읽는다.
+- 게시글 본문 수정(제목·본문·말머리), 조회수·좋아요·댓글 수 변경, 소프트 삭제는 각 필드만 조건부 UPDATE한다. JPA bulk UPDATE 전 flush, 이후 영속성 컨텍스트 clear로 대기 중인 쓰기를 보존하고 갱신 값을 다시 읽는다.
 - 좋아요 등록/취소와 카운터 변경은 같은 쓰기 트랜잭션에서 수행한다. 동시 등록은 기존 DB 유니크 제약으로 방어한다. 취소는 bulk DELETE의 실제 삭제 건수가 1일 때만 감소하며, 다른 요청이 먼저 취소했다면 `COMMUNITY_013`(409)을 반환한다.
 - 본문 수정·좋아요·댓글 작성 중 대상이 먼저 삭제되면 기존 404 오류로 전체 트랜잭션을 롤백한다. 조회 이후 삭제 경합에서 진 요청은 추가 상태 변경 없이 끝난다(처음 조회할 때부터 삭제 상태라면 기존 404 유지).
 - 신고 결정은 `PENDING` 조건부 UPDATE를 선점한 요청만 대상을 숨긴다. 경쟁에서 진 요청은 `COMMUNITY_012`(409)를 반환하며, 신고 결정과 대상 숨김은 같은 트랜잭션으로 커밋/롤백한다.

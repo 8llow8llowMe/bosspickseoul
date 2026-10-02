@@ -59,7 +59,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     public CommunityPostListResponse getPosts(
         Long viewerMemberId,
         CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
-        String targetType, String targetCode, long lastPostId, long lastLikeCount, int size
+        String targetType, String targetCode, String category, long lastPostId, long lastLikeCount, int size
     ) {
         CommunityTargetMeta targetMeta = null;
         if (targetType != null && !targetType.isBlank() && targetCode != null && !targetCode.isBlank()) {
@@ -67,7 +67,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
         }
 
         SliceQueryResult<CommunityPost> feed = communityQueryProcessor.getFeed(
-            sortType, orderType, period, targetType, targetCode, lastPostId, lastLikeCount, size);
+            sortType, orderType, period, targetType, targetCode, category, lastPostId, lastLikeCount, size);
         return communityPostPresenter.toPostListResponse(
             targetMeta, feed, toImagesByPostId(feed), toWriterSummaries(feed), toViewerLikes(viewerMemberId, feed));
     }
@@ -81,7 +81,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Transactional
     public CommunityPostDetailResponse createPost(long memberId, CommunityPostCreateRequest request) {
         CreatePostCommand command = new CreatePostCommand(
-            request.targetType(), request.targetCode(), request.title(), request.content(), request.imageKeys(),
+            request.targetType(), request.targetCode(), request.title(), request.content(), request.category(), request.imageKeys(),
             request.analysisType(), request.analysisRefCode(), request.analysisRefName(), request.analysisSnapshotKey());
         CommunityPost post = communityCommandProcessor.createPost(memberId, command);
         communityPostImageProcessor.replaceImages(memberId, post.id(), command.imageKeys());
@@ -148,7 +148,7 @@ public class CommunityPostWebFacade implements CommunityPostWebUseCase {
     @Transactional
     public CommunityPostDetailResponse updatePost(long memberId, long postId, CommunityPostUpdateRequest request) {
         CommunityPost post = communityQueryProcessor.getPost(postId);
-        UpdatePostCommand command = new UpdatePostCommand(request.title(), request.content(), request.imageKeys());
+        UpdatePostCommand command = new UpdatePostCommand(request.title(), request.content(), request.category(), request.imageKeys());
         CommunityPost updated = communityCommandProcessor.updatePost(memberId, post, command);
         List<String> removedImageKeys = communityPostImageProcessor.replaceImages(memberId, postId, command.imageKeys());
         // 커밋 이후에 지운다. 롤백되면 DB 에는 이미지가 남는데 파일만 사라지는 상태가 되기 때문이다.

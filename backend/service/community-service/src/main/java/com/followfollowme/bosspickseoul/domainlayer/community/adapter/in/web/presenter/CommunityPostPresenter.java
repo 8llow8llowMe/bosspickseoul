@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.presenter;
 
+import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.common.util.ResponseId;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.item.CommunityBoardTargetItem;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response.CommunityCommercialComparisonDraftResponse;
@@ -76,6 +77,7 @@ public class CommunityPostPresenter {
             .targetName(post.targetName())
             .title(post.title())
             .content(post.content())
+            .category(toCategoryMetadata(post))
             .analysisType(post.analysisType() == null ? null : post.analysisType().toMetadata())
             .analysisRefCode(post.analysisRefCode())
             .analysisRefName(post.analysisRefName())
@@ -127,6 +129,7 @@ public class CommunityPostPresenter {
             .targetCode(post.targetCode())
             .targetName(post.targetName())
             .title(post.title())
+            .category(toCategoryMetadata(post))
             .previewContent(truncateContent(post.content()))
             .likeCount(post.likeCount())
             .commentCount(post.commentCount())
@@ -149,6 +152,7 @@ public class CommunityPostPresenter {
             .targetCode(post.targetCode())
             .targetName(post.targetName())
             .title(post.title())
+            .category(toCategoryMetadata(post))
             .previewContent(truncateContent(post.content()))
             .likeCount(post.likeCount())
             .commentCount(post.commentCount())
@@ -158,6 +162,11 @@ public class CommunityPostPresenter {
             .createdAt(post.createdAt())
             .likedAt(likedPost.likedAt())
             .build();
+    }
+
+    /** 말머리 없는 글(기존 글 포함)은 null — 분석 첨부 타입과 같은 결로 metadata 객체만 옮긴다. */
+    private CodeNameDescriptionMetadata toCategoryMetadata(CommunityPost post) {
+        return post.category() == null ? null : post.category().toMetadata();
     }
 
     /** 작성자 요약이 없으면(미존재 회원, auth 장애 강등) null — 프론트가 대체 문구를 쓴다. */

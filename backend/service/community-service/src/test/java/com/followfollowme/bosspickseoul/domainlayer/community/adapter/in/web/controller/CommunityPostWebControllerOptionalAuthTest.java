@@ -65,7 +65,7 @@ class CommunityPostWebControllerOptionalAuthTest {
         mockMvc.perform(get("/api/v1/community/posts/search").param("keyword", "카페")).andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/community/posts/{postId}", POST_ID)).andExpect(status().isOk());
 
-        verify(communityPostWebUseCase).getPosts(isNull(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt());
+        verify(communityPostWebUseCase).getPosts(isNull(), any(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase).searchPosts(isNull(), eq("카페"), any(), any(), any(), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase).getPost(isNull(), eq(POST_ID));
     }
@@ -79,7 +79,7 @@ class CommunityPostWebControllerOptionalAuthTest {
         mockMvc.perform(get("/api/v1/community/posts/search").param("keyword", "카페")).andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/community/posts/{postId}", POST_ID)).andExpect(status().isOk());
 
-        verify(communityPostWebUseCase).getPosts(eq(VIEWER_ID), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt());
+        verify(communityPostWebUseCase).getPosts(eq(VIEWER_ID), any(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase).searchPosts(eq(VIEWER_ID), eq("카페"), any(), any(), any(), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase).getPost(eq(VIEWER_ID), eq(POST_ID));
     }

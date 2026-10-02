@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.domain.model;
 
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityAnalysisType;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
 import java.time.LocalDateTime;
@@ -13,6 +14,8 @@ public record CommunityPost(
     String targetName,
     String title,
     String content,
+    // 말머리 (선택 — 말머리 없는 글과 기존 글은 null)
+    CommunityPostCategory category,
     // 분석 첨부 (비교 초안에서 넘어온 글에만 값이 있고, 일반 글은 전부 null)
     CommunityAnalysisType analysisType,
     String analysisRefCode,

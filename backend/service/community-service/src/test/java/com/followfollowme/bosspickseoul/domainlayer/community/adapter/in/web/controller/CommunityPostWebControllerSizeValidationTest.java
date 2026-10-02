@@ -74,7 +74,7 @@ class CommunityPostWebControllerSizeValidationTest {
             .andExpect(jsonPath("$.dataHeader.resultCode").value(PAGE_SIZE_CODE));
 
         verify(communityPostWebUseCase, never())
-            .getPosts(any(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt());
+            .getPosts(any(), any(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt());
     }
 
     @ParameterizedTest
@@ -90,7 +90,7 @@ class CommunityPostWebControllerSizeValidationTest {
     @ValueSource(strings = {"1", "20", "50"})
     @DisplayName("허용 범위 안의 size 는 그대로 통과한다")
     void size_withinRange_passesThrough(String size) throws Exception {
-        when(communityPostWebUseCase.getPosts(any(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
+        when(communityPostWebUseCase.getPosts(any(), any(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
             .thenReturn(CommunityPostListResponse.builder().build());
 
         mockMvc.perform(get("/api/v1/community/posts").param("size", size))

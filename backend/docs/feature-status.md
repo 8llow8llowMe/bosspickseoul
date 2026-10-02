@@ -469,6 +469,29 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 
 ---
 
+### `community-service` — 게시글 말머리 (이슈 #470)
+
+**상태**: ✅ 완료 (prod DDL 런북 수동 적용 필요)
+
+- 말머리 `QUESTION`(질문) · `EXPERIENCE`(경험 공유) · `TOGETHER`(같이 해요) · `NEWS`(동네 소식). 선택 값 — 말머리 없는 글과 기존 글은 null
+- 작성·수정 요청에 선택 `category`. 수정은 전체 교체라 생략·null 이면 말머리를 지운다(수정 화면은 현재 값을 다시 보낸다)
+- 목록·검색·좋아요 목록 항목과 상세 응답에 `category` metadata(`{code, name, description}`, 없으면 null)
+- `GET /posts?category=...` 목록 필터 — 대상 필터·정렬·기간·커서와 함께 동작. 검색·좋아요 목록에는 필터 없음
+- 잘못된 값은 본문·쿼리 모두 `400 COMMUNITY_017`
+
+**핵심 파일**:
+- `domain/enums/CommunityPostCategory` — `from(String)` 대소문자 무시 파싱, 실패 시 `COMMUNITY_017`
+- `CommunityCommandProcessor` — 작성 파싱, 수정은 `updateContentIfActive` 조건부 UPDATE 에 category 포함(엔티티 전체 save 아님)
+- `CommunityQueryProcessor.getFeed` → `CommunityFeedCriteria.category` → `CommunityPostCustomRepositoryImpl.findFeedPostsNoOffset` 의 `category.eq`
+- `CommunityPostEntity` — `category VARCHAR(20)` nullable + `idx_community_post_status_category_id (status, category, id)`
+
+**DB 변경**: prod 는 `scripts/migration/community-post-category-runbook.sql` 을 **애플리케이션 배포 전에** 적용한다(컬럼 추가 + 인덱스, 기존 행 갱신 없음).
+
+**주의사항**: 대상 필터 + 말머리, 인기순 + 말머리는 기존 인덱스로 거른 뒤 category 를 잔여 조건으로 본다(`services/community-service.md` 「게시글 말머리」).
+QueryDSL 필터·JPQL 수정의 실제 스키마 검증은 `CommunityRepositoryMySqlConcurrencyTest`(MySQL 환경 변수가 있을 때만 실행)에 있다.
+
+---
+
 ### `community-service` — 대댓글 (depth 1 고정)
 
 **상태**: ✅ 완료

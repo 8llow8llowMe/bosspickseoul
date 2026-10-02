@@ -11,6 +11,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityCommentStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPopularPeriod;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
@@ -88,15 +89,20 @@ public class CommunityQueryProcessor {
         return comment;
     }
 
+    /**
+     * 피드 목록. 대상(targetType·targetCode)·말머리(category) 필터는 각각 선택이며 함께 쓸 수 있다.
+     * 말머리가 null/blank 면 필터 없음, 잘못된 값은 COMMUNITY_017 이다 — 이 메서드의 대상 실조회(원격 호출) 전에 거른다.
+     */
     public SliceQueryResult<CommunityPost> getFeed(
         CommunitySortType sortType, OrderType orderType, CommunityPopularPeriod period,
-        String targetType, String targetCode,
+        String targetType, String targetCode, String category,
         long lastPostId, long lastLikeCount, int size
     ) {
         CommunityTargetType normalizedTargetType = null;
         if (targetType != null && !targetType.isBlank()) {
             normalizedTargetType = CommunityTargetType.from(targetType);
         }
+        CommunityPostCategory parsedCategory = CommunityPostCategory.fromNullable(category);
 
         if (normalizedTargetType != null && targetCode != null && !targetCode.isBlank()) {
             ensureTargetExists(normalizedTargetType, targetCode);
@@ -108,6 +114,7 @@ public class CommunityQueryProcessor {
             orderType,
             normalizedTargetType,
             resolvedTargetCode,
+            parsedCategory,
             lastPostId,
             lastLikeCount,
             size,

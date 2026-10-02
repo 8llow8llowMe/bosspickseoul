@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.model.
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityFeedCriteria;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityLikedPostCriteria;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunitySearchPostCriteria;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.LikedCommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.query.SliceQueryResult;
@@ -30,8 +31,12 @@ public interface CommunityPostRepositoryPort {
 
     CommunityPost save(CommunityPost post);
 
+    /**
+     * 본문 수정 조건부 UPDATE. 제목·본문·말머리만 바꾸고 카운터는 건드리지 않는다. {@code category} 가 null 이면 말머리를 지운다(전체 교체).
+     * ACTIVE 가 아니거나 작성자가 다르면 갱신 0건이라 빈 값이다.
+     */
     Optional<CommunityPost> updateContentIfActive(
-        long postId, long memberId, String title, String content, LocalDateTime updatedAt);
+        long postId, long memberId, String title, String content, CommunityPostCategory category, LocalDateTime updatedAt);
 
     boolean deleteIfActive(long postId);
 

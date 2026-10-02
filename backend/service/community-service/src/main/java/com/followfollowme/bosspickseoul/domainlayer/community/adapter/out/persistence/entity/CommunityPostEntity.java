@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity;
 
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityAnalysisType;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
 import jakarta.persistence.Column;
@@ -41,7 +42,12 @@ import org.hibernate.annotations.Comment;
         // 기간 필터(period=WEEK/MONTH 의 createdAt 하한)는 인덱스 범위로 쓰지 못하고 잔여 조건으로 평가된다.
         // 범위 필터보다 정렬을 인덱스로 처리하는 편을 택했다. period=ALL 은 잔여 조건 없이 이 인덱스만으로 끝난다.
         @Index(name = "idx_community_post_status_like_count_id",
-            columnList = "status,likeCount,id")
+            columnList = "status,likeCount,id"),
+        // 전체 피드 + 말머리(최신): where status, category + order by id — 인덱스 정렬로 끝난다.
+        // 대상 필터 + 말머리는 idx_community_post_target_status_id 로 게시판을 거른 뒤 category 를 잔여 조건으로 본다(게시판 단위라 행이 적다).
+        // 인기순 + 말머리는 idx_community_post_status_like_count_id 로 정렬하고 category 를 잔여 조건으로 본다 — 정렬을 인덱스로 처리하는 편을 택했다.
+        @Index(name = "idx_community_post_status_category_id",
+            columnList = "status,category,id")
     }
 )
 @Comment("커뮤니티 게시글")
@@ -75,6 +81,12 @@ public class CommunityPostEntity {
     @Column(nullable = false, length = 5000)
     @Comment("게시글 본문")
     private String content;
+
+    // 선택 값이라 nullable 이다. 기존 글은 null 로 두고 기본값을 채우지 않는다 — 어느 말머리로 채워도 사실이 아니다.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Comment("게시글 말머리 (QUESTION/EXPERIENCE/TOGETHER/NEWS, 없으면 null)")
+    private CommunityPostCategory category;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
