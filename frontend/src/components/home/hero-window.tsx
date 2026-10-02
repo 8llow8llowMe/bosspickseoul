@@ -4,11 +4,25 @@ import {
   forwardRef,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type Ref,
 } from 'react'
 import Link from 'next/link'
-import { Maximize2, MapPinned, Minus, Search, X } from 'lucide-react'
+import {
+  ChevronDown,
+  Maximize2,
+  MapPinned,
+  Minus,
+  Search,
+  X,
+} from 'lucide-react'
 import styled, { css } from 'styled-components'
 import { glassSurface } from '@/components/home/hero-glass'
+import HeroPickPreview from '@/components/home/hero-pick-preview'
+import {
+  HERO_PICKER_OPTIONS,
+  resolveHeroPrimaryCta,
+} from '@/components/home/hero-picker'
+import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import { trackAttrs } from '@/lib/analytics/events'
 
 export type WindowState = 'open' | 'minimized' | 'closed'
@@ -25,6 +39,12 @@ export type HeroWindowProps = {
   style?: CSSProperties
   /** 지도 자치구 hover 중일 때 카드 배경에 미세한 primary 틴트를 얹는다. */
   tinted?: boolean
+  /** 히어로 피커로 고른 자치구 코드. 상태는 `HeroSection` 이 갖는다(지도와 공유). */
+  pickedCode: string | null
+  /** 피커 값이 바뀔 때. 첫 항목(「자치구 고르기」)이면 null. */
+  onPick: (code: string | null) => void
+  /** 모바일 지도 탭 뒤 피커 덩어리를 화면에 데려오기 위한 ref. */
+  pickerRef?: Ref<HTMLDivElement>
 }
 
 const WindowCard = styled.div<{ $tinted?: boolean }>`
@@ -206,11 +226,80 @@ const Body = styled.p`
   word-break: keep-all;
 `
 
-const BodyEmphasis = styled.strong`
-  display: block;
-  margin-top: 4px;
+/*
+  히어로 자치구 피커(hero-picker-and-mobile-first-screen.md D4-1). h1 이 묻고(「서울 어디에
+  차려야 할까요?」) 바로 아래 칸이 답을 받는다. 주 버튼이 피커의 실행 버튼이다 — 버튼을
+  새로 더하지 않는다(D2 #3).
+*/
+const PickerBlock = styled.div`
+  display: grid;
+  gap: 8px;
+  /* 모바일 지도 탭 뒤 scrollIntoView 가 sticky 헤더 밑으로 숨지 않게(D6). */
+  scroll-margin-top: calc(${HEADER_HEIGHT} + 16px);
+`
+
+const PickerRow = styled.div`
+  display: flex;
+  gap: 8px;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
+`
+
+const PickerField = styled.label`
+  position: relative;
+  flex: 1 1 140px;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+
+  > svg {
+    position: absolute;
+    right: 14px;
+    width: 16px;
+    height: 16px;
+    color: var(--color-text-600);
+    pointer-events: none;
+  }
+`
+
+const PickerSelect = styled.select`
+  width: 100%;
+  min-height: 48px;
+  appearance: none;
+  padding: 0 40px 0 14px;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-field);
+  background: var(--color-surface);
   color: var(--color-text-900);
-  font-weight: 700;
+  /* 16px — iOS 포커스 확대 방지(DESIGN.md 편집기 규칙과 같다). */
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary-600);
+  }
+
+  /* 포커스는 hover 와 같은 색이면 구별되지 않는다 — 포커스 색 + 글로우로 갈라 놓는다. */
+  &:focus-visible {
+    border-color: var(--color-primary-700);
+    box-shadow: var(--shadow-focus-primary);
+    outline: none;
+  }
+`
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 `
 
 const Actions = styled.div`
@@ -247,6 +336,9 @@ const EscapeLink = styled(Link)`
 `
 
 const PrimaryLink = styled(Link)`
+  /* 피커 옆 실행 버튼 — 「영등포구 분석하기」도 한 줄에 둔다. */
+  flex: 0 0 auto;
+  white-space: nowrap;
   min-height: 48px;
   display: inline-flex;
   align-items: center;
@@ -301,10 +393,21 @@ const SecondaryLink = styled(Link)`
 
 const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
   function HeroWindow(
-    { state, onClose, onToggleMinimize, dragHandlers, style, tinted },
+    {
+      state,
+      onClose,
+      onToggleMinimize,
+      dragHandlers,
+      style,
+      tinted,
+      pickedCode,
+      onPick,
+      pickerRef,
+    },
     ref,
   ) {
     const minimized = state === 'minimized'
+    const primaryCta = resolveHeroPrimaryCta(pickedCode)
 
     return (
       <WindowCard ref={ref} style={style} $tinted={tinted}>
@@ -343,21 +446,42 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
           inert={minimized ? true : undefined}
         >
           <WindowBodyInner>
-            <Title>창업 전에, 상권부터 확인하세요.</Title>
+            <Title>서울 어디에 차려야 할까요?</Title>
             <Body>
-              서울 25개 자치구의 매출·유동인구·경쟁 현황을 업종별로 분석하고, AI
-              리포트로 핵심을 짚어 드립니다.
-              <BodyEmphasis>
-                감이 아니라 데이터와 AI로 자리를 정하세요.
-              </BodyEmphasis>
+              자치구를 고르면 유동인구부터 바로 보여 주고, 분석 화면에서
+              매출·경쟁 강도와 AI 리포트까지 이어서 볼 수 있어요.
             </Body>
+            <PickerBlock ref={pickerRef}>
+              <PickerRow>
+                <PickerField>
+                  <VisuallyHidden>창업할 자치구</VisuallyHidden>
+                  <PickerSelect
+                    value={pickedCode ?? ''}
+                    onChange={event => onPick(event.target.value || null)}
+                  >
+                    <option value="">자치구 고르기</option>
+                    {HERO_PICKER_OPTIONS.map(option => (
+                      <option key={option.code} value={option.code}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </PickerSelect>
+                  <ChevronDown aria-hidden="true" />
+                </PickerField>
+                <PrimaryLink
+                  href={primaryCta.href}
+                  {...trackAttrs('home_hero_cta_click', {
+                    cta: 'analysis',
+                    carried: primaryCta.carried,
+                  })}
+                >
+                  <Search aria-hidden="true" />
+                  {primaryCta.label}
+                </PrimaryLink>
+              </PickerRow>
+              <HeroPickPreview code={pickedCode} />
+            </PickerBlock>
             <Actions>
-              <PrimaryLink
-                href="/analysis"
-                {...trackAttrs('home_hero_cta_click', { cta: 'analysis' })}
-              >
-                <Search aria-hidden="true" />내 상권 분석하기
-              </PrimaryLink>
               <SecondaryLink
                 href="/status"
                 {...trackAttrs('home_hero_cta_click', { cta: 'status' })}

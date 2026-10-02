@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { ChevronDown, PanelTopOpen } from 'lucide-react'
+import { PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
 import { HEADER_HEIGHT } from '@/components/home/layout-constants'
 import SeoulDistrictsMap from '@/components/home/seoul-districts-map'
@@ -9,6 +9,7 @@ import HeroWindow, { type WindowState } from '@/components/home/hero-window'
 import { glassSurface } from '@/components/home/hero-glass'
 import { useWindowDrag } from '@/components/home/use-window-drag'
 import { deriveWindowDisplay } from '@/components/home/window-display'
+import { trackEvent } from '@/lib/analytics/events'
 import { shellWidth } from '@/styles/layout'
 
 // "독으로 축소/독에서 확대" 전환 애니메이션 튜닝값.
@@ -89,8 +90,8 @@ const Hero = styled.section`
   background: var(--color-background);
 
   @media (max-width: 640px) {
-    /* 모바일: 지도(폴리곤)와 카드를 각각 한 화면(100dvh - 헤더)씩 세로로 쌓아,
-       스크롤 한 번에 지도 → 분석 카드로 넘어가게 한다. */
+    /* 모바일: [카드][지도][캡션] 순서로 쌓는다. 카드가 헤더 바로 아래라 h1·피커·주 버튼이
+       첫 화면에 든다(hero-picker-and-mobile-first-screen.md D4-4·D5-1). */
     height: auto;
     min-height: auto;
     padding: 0 0 24px;
@@ -121,80 +122,34 @@ const HeroStage = styled.div`
   flex-direction: column;
   min-height: 0;
 
-  /* 모바일에서는 오버레이를 해제하고 지도 → 카드 순서로 세로 정렬한다.
+  /* 모바일에서는 오버레이를 해제하고 카드 → 지도 순서로 세로 정렬한다.
      position은 relative를 유지해 독 버튼 등 absolute 자식의 기준을 잃지 않는다. */
   @media (max-width: 640px) {
     flex: none;
   }
 `
 
-// 모바일 첫 화면(스크린 1) 래퍼. 데스크톱에서는 display:contents로 완전히
-// 투명해져 MapLayer가 기존처럼 HeroStage의 직접 자식(flex:1)으로 동작한다.
-// 모바일에서는 [안내 문구][지도][스크롤 힌트]를 한 화면(100dvh - 헤더)에 담아,
-// 지도만 세로 중앙에 떠 보이던 빈 여백을 상·하 요소로 채운다.
+// 지도 래퍼. 데스크톱에서는 display:contents로 완전히 투명해져 MapLayer가 HeroStage의
+// 직접 자식(flex:1)으로 동작한다 — 지우면 데스크톱 지도 높이가 무너진다. 모바일에서는
+// 카드 아래 흐름에 놓이고 높이는 지도 비율이 정한다(빈 띠 0).
 const MapScreen = styled.div`
   display: contents;
 
   @media (max-width: 640px) {
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - ${HEADER_HEIGHT});
+    height: auto;
   }
-`
-
-// 지도 위 안내(모바일 전용). 데스크톱은 카드가 히어로 카피를 담으므로 숨긴다.
-const MobileIntro = styled.div`
-  display: none;
-
-  @media (max-width: 640px) {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 20px 4px 8px;
-  }
-`
-
-const MobileIntroEyebrow = styled.p`
-  color: var(--color-text-caption);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
-`
-
-const MobileIntroTitle = styled.p`
-  color: var(--color-text-900);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 28px;
-  word-break: keep-all;
 `
 
 const MapLayer = styled.div`
   width: 100%;
   flex: 1;
   min-height: 0;
-`
-
-// 스크롤 유도(모바일 전용). 지도 아래 남는 공간을 채우고 카드 화면으로의
-// 이동을 안내한다.
-const MobileScrollHint = styled.div`
-  display: none;
 
   @media (max-width: 640px) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 8px 0 4px;
-    color: var(--color-text-caption);
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-    stroke: currentColor;
+    flex: none;
+    margin-top: 24px;
   }
 `
 
@@ -210,12 +165,12 @@ const CardLayer = styled.div`
      카드 영역 자체의 이벤트 차단은 WindowCard(hero-window.tsx)의 pointer-events: auto가 담당한다. */
   pointer-events: none;
 
-  /* 모바일: 카드도 한 화면(100dvh - 헤더) 높이 영역에 세로 중앙 정렬한다. */
+  /* 모바일: 헤더 바로 아래 흐름에 둔다 — 첫 화면 예산(D5-1). */
   @media (max-width: 640px) {
     position: static;
     inset: auto;
-    padding: 0;
-    min-height: calc(100dvh - ${HEADER_HEIGHT});
+    padding: 24px 0 0;
+    min-height: auto;
   }
 `
 
@@ -272,6 +227,11 @@ export default function HeroSection() {
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
   const [hoveredCode, setHoveredCode] = useState<string | null>(null)
+  /* 히어로 피커 선택. 카드(피커·미리보기)와 지도(채움·모바일 탭)가 함께 본다(D3-1). */
+  const [pickedCode, setPickedCode] = useState<string | null>(null)
+  /* 한 번이라도 고르면 자동 시연은 끝이다 — 해제해도 다시 하지 않는다(D4-7). */
+  const [hasPicked, setHasPicked] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
 
   // "독으로 축소" 닫기 전환 상태. isClosing이 true인 동안 windowState는 여전히
   // 'open'/'minimized'이므로 카드는 mount된 채로 남고(deriveWindowDisplay상
@@ -388,6 +348,29 @@ export default function HeroSection() {
     isMobileViewport,
   )
 
+  /* 모바일 지도 탭 뒤, 바뀐 버튼·미리보기가 화면 밖이면 그쪽으로 데려간다(D4-4). */
+  const revealPicker = () => {
+    const el = pickerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const headerBottom = Number.parseInt(HEADER_HEIGHT, 10)
+    if (rect.top >= headerBottom && rect.bottom <= window.innerHeight) return
+    el.scrollIntoView({
+      block: 'nearest',
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    })
+  }
+
+  const handlePick = (code: string | null, source: 'select' | 'map') => {
+    // 값이 바뀔 때만 센다 — 같은 구를 다시 탭한 것은 새 선택이 아니다.
+    if (code !== null && code !== pickedCode) {
+      trackEvent('home_hero_picker_select', { district_code: code, source })
+    }
+    setPickedCode(code)
+    if (code !== null) setHasPicked(true)
+    if (source === 'map') revealPicker()
+  }
+
   const handleClose = () => {
     if (reduceMotion || isMobileViewport) {
       setWindowState('closed')
@@ -451,21 +434,10 @@ export default function HeroSection() {
     <Hero>
       <Inner>
         <HeroStage ref={containerRef}>
-          <MapScreen>
-            <MobileIntro aria-hidden="true">
-              <MobileIntroEyebrow>서울 상권 지도</MobileIntroEyebrow>
-              <MobileIntroTitle>
-                자치구를 눌러 바로 분석을 시작하세요.
-              </MobileIntroTitle>
-            </MobileIntro>
-            <MapLayer>
-              <SeoulDistrictsMap onHoverChange={setHoveredCode} />
-            </MapLayer>
-            <MobileScrollHint aria-hidden="true">
-              아래로 스크롤
-              <ChevronDown />
-            </MobileScrollHint>
-          </MapScreen>
+          {/*
+            카드가 먼저다 — 모바일은 이 순서대로 쌓이고(D4-4), 데스크톱은 CardLayer 가
+            absolute 라 순서가 화면에 영향이 없다.
+          */}
           {!showDock ? (
             <CardLayer>
               <HeroWindow
@@ -480,6 +452,9 @@ export default function HeroSection() {
                 }
                 dragHandlers={drag.handlers}
                 style={cardStyle}
+                pickedCode={pickedCode}
+                onPick={code => handlePick(code, 'select')}
+                pickerRef={pickerRef}
               />
             </CardLayer>
           ) : (
@@ -492,6 +467,19 @@ export default function HeroSection() {
               분석 창 열기
             </DockButton>
           )}
+          <MapScreen>
+            <MapLayer>
+              <SeoulDistrictsMap
+                selectedCode={pickedCode}
+                onDistrictActivate={
+                  isMobileViewport ? code => handlePick(code, 'map') : undefined
+                }
+                tooltipEnabled={!isMobileViewport}
+                onHoverChange={isMobileViewport ? undefined : setHoveredCode}
+                autoDemo={dragEnabled && !hasPicked}
+              />
+            </MapLayer>
+          </MapScreen>
         </HeroStage>
       </Inner>
     </Hero>
