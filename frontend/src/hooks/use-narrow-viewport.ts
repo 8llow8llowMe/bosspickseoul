@@ -15,6 +15,8 @@ export const NARROW_VIEWPORT_QUERY = '(max-width: 1024px)'
  * - 커뮤니티 더보기(`community-more-menu.tsx`) — `<480` 바텀시트 / `≥480` 팝오버. 시트는 body
  *   포털이라 CSS 로 숨길 수 없다
  * - 커뮤니티 상세 하단 고정 바(`community-detail-bottom-bar.tsx`) — `<480` 에서만 화면 안팎을 관찰한다
+ * - 홈 「지금 많이 본 지역」(`popular-districts.tsx`) — 행 ↔ 지도 호버 강조(≥901 정밀 포인터)와
+ *   연결선(≥1200 정밀 포인터). 터치에서 핸들러를 붙이지 않아야 탭이 강조를 남기지 않는다
  *
  * `null` = 아직 측정 전(SSR·hydration 완료 전)이다. `false` 로 시작하지 않는 이유(분석 지도 셸):
  * 결과 레이어가 열린 상태로 하드 로드되면 첫 페인트에서 지도를 잠깐 마운트했다가

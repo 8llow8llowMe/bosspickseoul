@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TrendingUp } from 'lucide-react'
 import styled from 'styled-components'
@@ -21,18 +21,31 @@ import {
   type HomeMetric,
 } from '@/lib/home/metric-rankings'
 import { buildRankingInsight } from '@/lib/home/ranking-insight'
+import { buildRankingMapLayers } from '@/lib/home/ranking-map'
+import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import {
   formatStatusValue,
   toChangeBadge,
 } from '@/lib/status/status-formatters'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
+import RankingMiniMap from '@/components/home/ranking-mini-map'
+import RankingConnector from '@/components/home/ranking-connector'
 import {
   HOME_COLUMN,
   HOME_FULL_SCREEN_SECTION,
 } from '@/components/home/layout-constants'
 
 const RANKING_SIZE = 8
+
+/*
+  행 ↔ 구 강조는 호버가 있는 넓은 폭에서만(ranking-mini-map.md D4-3). 좁은 폭·터치에서는 탭이 hover 를
+  흉내 내 강조가 남으므로 핸들러를 붙이지 않는다. 연결선은 지도가 두 목록 사이에 서는 3칸 배치에서만.
+*/
+const ROW_HOVER_QUERY =
+  '(min-width: 901px) and (hover: hover) and (pointer: fine)'
+const CONNECTOR_QUERY =
+  '(min-width: 1200px) and (hover: hover) and (pointer: fine)'
 
 /*
   화면 높이를 붙잡지 않는다. 300dvh 스크롤 트랙(R1)은 home-restructure.md 에서
@@ -107,20 +120,98 @@ const Title = styled.h2`
   }
 `
 
-const Columns = styled.div`
+type ColumnsLayout = 'dual' | 'metricOnly' | 'viewOnly'
+
+/*
+  폭별 배치(ranking-mini-map.md D4-5). 지도는 두 목록 사이에서 「어디 · 겹침」만 더한다.
+
+  - ≥1200: 3칸 [많이 본][지도][지표]. 지도 칸만 1.15fr — 1440 에서 목록 424 · 지도 488.
+  - 901~1199: 지도(최대 560px, 가운데)가 위, 두 목록이 아래 두 칸.
+  - ≤900: 1열 — 지도 → 많이 본 → 지표.
+
+  솔로 분기(지표만·조회만)는 ≥1200 에서 [지도][지표] · [많이 본][지도] 두 칸이다(D5-3).
+  DOM 순서는 많이 본 → 지도 → 지표로 둔다 — 넓은 폭의 읽는 순서와 같고, 좁은 폭에서 지도를 맨 위로
+  올리는 일은 grid-area 가 한다. 지도는 포커스되지 않아 Tab 순서가 어긋나지 않는다.
+*/
+const COLUMNS_AREAS: Record<
+  ColumnsLayout,
+  {
+    narrow: string
+    middle: string
+    middleColumns: string
+    wide: string
+    wideColumns: string
+  }
+> = {
+  dual: {
+    narrow: "'map' 'view' 'metric'",
+    middle: "'map map' 'view metric'",
+    middleColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    wide: "'view map metric'",
+    wideColumns: 'minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr)',
+  },
+  metricOnly: {
+    narrow: "'map' 'metric'",
+    middle: "'map' 'metric'",
+    middleColumns: 'minmax(0, 1fr)',
+    wide: "'map metric'",
+    wideColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)',
+  },
+  viewOnly: {
+    narrow: "'map' 'view'",
+    middle: "'map' 'view'",
+    middleColumns: 'minmax(0, 1fr)',
+    wide: "'view map'",
+    wideColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)',
+  },
+}
+
+const Columns = styled.div<{ $layout: ColumnsLayout }>`
+  /* 연결선 덮개(RankingConnector)의 기준 상자다. */
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: ${p => COLUMNS_AREAS[p.$layout].narrow};
   gap: 24px;
   align-items: start;
 
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
+  @media (min-width: 901px) and (max-width: 1199px) {
+    grid-template-columns: ${p => COLUMNS_AREAS[p.$layout].middleColumns};
+    grid-template-areas: ${p => COLUMNS_AREAS[p.$layout].middle};
+  }
+
+  @media (min-width: 1200px) {
+    grid-template-columns: ${p => COLUMNS_AREAS[p.$layout].wideColumns};
+    grid-template-areas: ${p => COLUMNS_AREAS[p.$layout].wide};
+    gap: 32px;
   }
 `
 
-const Column = styled.div`
+const Column = styled.div<{ $area: 'view' | 'metric' }>`
+  grid-area: ${p => p.$area};
+  min-width: 0;
   display: grid;
   gap: 12px;
+`
+
+/*
+  지도 칸. 901~1199 에서는 두 목록 위에 최대 560px 로 가운데 서고, 3칸 배치에서는 목록 높이 안에서
+  세로 가운데에 선다. 상자는 800:620 비율로 자리를 먼저 잡는다(MapSvg aspect-ratio) — 스켈레톤
+  실루엣과 크기가 같아 데이터가 와도 튀지 않는다(D2-9).
+*/
+const MapCell = styled.div`
+  grid-area: map;
+  min-width: 0;
+  width: 100%;
+
+  @media (min-width: 901px) and (max-width: 1199px) {
+    max-width: 560px;
+    justify-self: center;
+  }
+
+  @media (min-width: 1200px) {
+    align-self: center;
+  }
 `
 
 /*
@@ -194,26 +285,13 @@ const InsightSlot = styled.p<{ $visible: boolean }>`
   }
 `
 
-const List = styled.ol`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const Item = styled.li`
-  display: grid;
-`
-
-const SkeletonCard = styled.div`
-  min-height: 72px;
+/*
+  스켈레톤 목록 자리. 머리 줄(32) + 간격(12) + 행 52px x 개수 + 구분선·테두리 — 최종 목록과 같은
+  높이를 잡아 데이터가 와도 아래 섹션을 밀지 않는다. 많이 본 8행 · 지표 5행이다.
+*/
+const SkeletonPanel = styled.div<{ $area: 'view' | 'metric'; $rows: number }>`
+  grid-area: ${p => p.$area};
+  min-height: ${p => 44 + p.$rows * 52 + (p.$rows - 1) + 2}px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface);
@@ -253,13 +331,14 @@ function RankingSkeleton() {
           </Eyebrow>
           <Title>{COPY.metricOnly.title}</Title>
         </Header>
-        <List aria-hidden="true">
-          {Array.from({ length: RANKING_SIZE }, (_, index) => (
-            <Item key={index}>
-              <SkeletonCard />
-            </Item>
-          ))}
-        </List>
+        {/* 최종 상태의 가장 흔한 배치(듀얼)로 자리를 잡는다. 지도는 같은 크기의 회색 실루엣이다. */}
+        <Columns $layout="dual" aria-hidden="true">
+          <SkeletonPanel $area="view" $rows={RANKING_SIZE} />
+          <MapCell>
+            <RankingMiniMap layers={null} />
+          </MapCell>
+          <SkeletonPanel $area="metric" $rows={RANKING_METRIC_TOP_N} />
+        </Columns>
       </Inner>
     </Section>
   )
@@ -282,6 +361,59 @@ export default function PopularDistricts() {
 
   /* 지표 정본. 토글이 바꾸고, 그 자리에서 우측 목록만 바뀐다. */
   const [metric, setMetric] = useState<HomeMetric>('footTraffic')
+  /* 행·폴리곤 호버/포커스가 가리키는 구(ranking-mini-map.md D5-1). */
+  const [hoverCode, setHoverCode] = useState<string | null>(null)
+  const [mapIntroDone, setMapIntroDone] = useState(false)
+  const columnsRef = useRef<HTMLDivElement | null>(null)
+  const mapSvgRef = useRef<SVGSVGElement | null>(null)
+  const rowHoverEnabled = useNarrowViewport(ROW_HOVER_QUERY) === true
+  const connectorAllowed = useNarrowViewport(CONNECTOR_QUERY) === true
+
+  /*
+    같은 코드의 leave 에서만 끄고, 끄는 것도 한 틱 미룬다(D5-1). 행 A → 이웃 행 B 로 옮기면 A 의 leave 가
+    B 의 enter 보다 먼저 온다 — 바로 끄면 그 사이 인사이트 강조로 돌아갔다가 B 로 오며 선이 한 번
+    더 그려진다. 미룬 끄기는 같은 작업 안에서 오는 enter 가 취소한다.
+  */
+  const leaveTimerRef = useRef<number | null>(null)
+  const cancelLeave = useCallback(() => {
+    if (leaveTimerRef.current !== null) {
+      window.clearTimeout(leaveTimerRef.current)
+      leaveTimerRef.current = null
+    }
+  }, [])
+  const enterDistrict = useCallback(
+    (code: string) => {
+      cancelLeave()
+      setHoverCode(code)
+    },
+    [cancelLeave],
+  )
+  const leaveDistrict = useCallback(
+    (code: string) => {
+      cancelLeave()
+      leaveTimerRef.current = window.setTimeout(() => {
+        leaveTimerRef.current = null
+        setHoverCode(current => (current === code ? null : current))
+      }, 0)
+    },
+    [cancelLeave],
+  )
+  useEffect(() => cancelLeave, [cancelLeave])
+  /*
+    호버 핸들러가 사라지면(폭이 901 아래로 줄었다) leave·blur 가 다시 오지 않는다. 남은 호버가 좁은 폭에서
+    인사이트 강조를 영영 가리지 않게 지운다.
+  */
+  useEffect(() => {
+    if (rowHoverEnabled) return
+    cancelLeave()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHoverCode(null)
+  }, [rowHoverEnabled, cancelLeave])
+  /* 바뀐 목록에 그 행이 없을 수 있어 토글하면 호버를 지운다. */
+  const changeMetric = useCallback((next: HomeMetric) => {
+    setHoverCode(null)
+    setMetric(next)
+  }, [])
 
   const rawView =
     rankingQuery.data && isApiSuccess(rankingQuery.data)
@@ -358,10 +490,17 @@ export default function PopularDistricts() {
     ...toChangeBadge(item.changeRate),
   }))
 
-  const highlightKey = insight?.highlightCode ?? null
+  /* 호버·포커스 > 인사이트가 가리키는 구 > 없음. 양쪽 목록과 지도가 이 한 값을 본다(D5-1). */
+  const activeCode = hoverCode ?? insight?.highlightCode ?? null
+  const highlightKey = activeCode
+  /* 「현재」는 인사이트가 가리키는 행 하나다 — 호버·포커스를 따라 aria-current 가 옮겨 다니지 않게. */
+  const currentKey = insight?.highlightCode ?? null
+  const rowHoverProps = rowHoverEnabled
+    ? { onRowEnter: enterDistrict, onRowLeave: leaveDistrict }
+    : {}
 
   const viewColumn = view ? (
-    <Column>
+    <Column $area="view" data-rank-column="view">
       <ColumnHeader>
         <ColumnHeading>
           지금 많이 본 지역
@@ -374,7 +513,9 @@ export default function PopularDistricts() {
         rows={viewRows}
         ariaLabel="지금 많이 본 자치구 조회수 순위"
         highlightKey={highlightKey}
+        currentKey={currentKey}
         variant="card"
+        {...rowHoverProps}
       />
     </Column>
   ) : null
@@ -382,7 +523,7 @@ export default function PopularDistricts() {
   // A. 세 지표 중 하나라도 데이터가 있으면 토글은 항상 낸다 — 선택된 지표만
   // 비었을 때는 토글이 아니라 그 자리에 짧은 안내만 낸다.
   const metricColumn = hasMetricData ? (
-    <Column>
+    <Column $area="metric" data-rank-column="metric">
       <ColumnHeader>
         <ColumnHeading>
           {activeMetric?.label ?? homeMetricLabel(metric)} 상위 자치구
@@ -391,7 +532,7 @@ export default function PopularDistricts() {
           options={HOME_METRICS}
           value={metric}
           getLabel={homeMetricLabel}
-          onChange={setMetric}
+          onChange={changeMetric}
           ariaLabel="지표 선택"
         />
       </ColumnHeader>
@@ -400,7 +541,9 @@ export default function PopularDistricts() {
           rows={metricRows}
           ariaLabel={`${activeMetric.label} 상위 자치구 순위`}
           highlightKey={highlightKey}
+          currentKey={currentKey}
           variant="card"
+          {...rowHoverProps}
         />
       ) : (
         <MetricEmptyNotice>이 지표는 아직 집계가 없어요.</MetricEmptyNotice>
@@ -408,12 +551,15 @@ export default function PopularDistricts() {
     </Column>
   ) : null
 
-  const copy =
-    viewColumn && metricColumn
-      ? COPY.dual
-      : viewColumn
-        ? COPY.viewOnly
-        : COPY.metricOnly
+  const layout: ColumnsLayout =
+    viewColumn && metricColumn ? 'dual' : viewColumn ? 'viewOnly' : 'metricOnly'
+  const copy = COPY[layout]
+
+  /*
+    지도에는 섹션에 실제로 있는 레이어만 그린다(D5-3). 선택 지표만 비었으면 칠 없이 배지만 남는다 —
+    `activeMetric.items` 가 비어 `fills` 가 빈 Map 이 된다.
+  */
+  const mapLayers = buildRankingMapLayers(view, activeMetric)
 
   return (
     /* 랜드마크 이름도 상태에서 유도한다 — 좌측 열이 없는데 「많이 본」을 읽지 않게. */
@@ -437,14 +583,37 @@ export default function PopularDistricts() {
             {insight?.sentence ?? null}
           </InsightSlot>
         ) : null}
-        {viewColumn && metricColumn ? (
-          <Columns>
-            {viewColumn}
-            {metricColumn}
-          </Columns>
-        ) : (
-          (viewColumn ?? metricColumn)
-        )}
+        <Columns ref={columnsRef} $layout={layout}>
+          {viewColumn}
+          <MapCell>
+            <RankingMiniMap
+              layers={mapLayers}
+              metricLabel={activeMetric?.label ?? null}
+              activeCode={activeCode}
+              svgRef={mapSvgRef}
+              onIntroDoneChange={setMapIntroDone}
+              {...(rowHoverEnabled
+                ? {
+                    onDistrictEnter: enterDistrict,
+                    onDistrictLeave: leaveDistrict,
+                  }
+                : {})}
+            />
+          </MapCell>
+          {metricColumn}
+          <RankingConnector
+            containerRef={columnsRef}
+            mapSvgRef={mapSvgRef}
+            activeCode={activeCode}
+            enabled={connectorAllowed && mapIntroDone}
+            revision={[
+              metric,
+              viewRows.map(row => row.key).join(','),
+              metricRows.map(row => row.key).join(','),
+            ].join('|')}
+            badgeCodes={mapLayers.badges.map(badge => badge.code)}
+          />
+        </Columns>
       </Inner>
     </Section>
   )
