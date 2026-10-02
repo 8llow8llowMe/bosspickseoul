@@ -254,6 +254,11 @@ const PickerField = styled.label`
   display: flex;
   align-items: center;
 
+  /* 세로 배치에서는 flex-basis 가 높이가 된다 — 140px 짜리 빈칸이 생긴다. */
+  @media (max-width: 640px) {
+    flex: none;
+  }
+
   > svg {
     position: absolute;
     right: 14px;
@@ -302,10 +307,15 @@ const VisuallyHidden = styled.span`
   border: 0;
 `
 
+/*
+  보조 갈래 둘(구별현황·추천)을 한 줄에 둔다. 피커 줄이 들어오며 카드가 길어져 지도 가운데
+  (강남구 등)를 덮는 면적을 줄인다(hero-picker-and-mobile-first-screen.md D7 실측). 좁으면 접힌다.
+*/
 const Actions = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 8px 12px;
 `
 
 /*
@@ -489,13 +499,13 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
                 <MapPinned aria-hidden="true" />
                 구별현황 보기
               </SecondaryLink>
+              <EscapeLink
+                href="/recommend"
+                {...trackAttrs('home_hero_cta_click', { cta: 'recommend' })}
+              >
+                어디가 좋을지 모르겠다면 상권 추천받기
+              </EscapeLink>
             </Actions>
-            <EscapeLink
-              href="/recommend"
-              {...trackAttrs('home_hero_cta_click', { cta: 'recommend' })}
-            >
-              어디가 좋을지 모르겠다면 상권 추천받기
-            </EscapeLink>
           </WindowBodyInner>
         </WindowBody>
       </WindowCard>
