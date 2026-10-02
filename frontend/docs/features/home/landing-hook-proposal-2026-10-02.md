@@ -7,7 +7,7 @@
 > **선행 감사**: [home-ux-audit-2026-09-11](./home-ux-audit-2026-09-11.md) (접근성·타이포·성능 중심)
 > **대상**: `(shell)/` 홈, develop `cbac2084` 기준
 > **작성자**: Claude Code (PM 관점 리뷰)
-> **상태**: 제안 · Q1 = GA4 결정. §6 순서 1(P0-4 계측 · P0-1 딥링크)은 [measurement-and-deep-link](./measurement-and-deep-link.md) 로 구현 완료(2026-10-02). P0-1 의 02 CTA 는 업종을 싣지 않는 것으로 조정했다(분석 화면이 행정동 선택 시 업종을 지움 — 그 문서 D3-1)
+> **상태**: 제안 · Q1 = GA4 결정. §6 순서 1(P0-4 계측 · P0-1 딥링크)은 [measurement-and-deep-link](./measurement-and-deep-link.md) 로 구현 완료(2026-10-02). P0-1 의 02 CTA 는 업종을 싣지 않는 것으로 조정했다(분석 화면이 행정동 선택 시 업종을 지움 — 그 문서 D3-1). §6 순서 2(P0-2 · P0-3 · P1-1)는 [hero-picker-and-mobile-first-screen](./hero-picker-and-mobile-first-screen.md) 로 명세 확정(2026-10-02) — 피커는 자치구만, 모바일 지도 탭은 피커 연동, 강조 3곳 펄스 삭제, h1 은 B안(Q4)
 
 ## 0. 결론
 

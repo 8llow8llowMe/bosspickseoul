@@ -7,7 +7,7 @@
 > **입력 문서**: [home-ux-audit-2026-09-11](./home-ux-audit-2026-09-11.md) — **§3 P0-A**(모바일 첫 화면에 가치 제안이 없다), §3 P2-K(지도 강조 자치구의 의미가 화면에 없다), §3 P2-P(「Pick」 이 카피에 없다)
 > **대상**: 웹 (Next.js App Router)
 > **작성자**: Claude Code
-> **상태**: 초안 (미구현)
+> **상태**: **대체됨(2026-10-02)** — [hero-picker-and-mobile-first-screen](./hero-picker-and-mobile-first-screen.md) 가 이 초안의 레이아웃 산식(D4-1·D4-2)을 이어받고, 하단 시트·예시 데이터 캡션·펄스 3회는 폐기했다(그 문서 D0-2). 이 문서는 근거 기록으로 남긴다
 
 감사 §4 수정 계획의 **2번 항목**이다. 세 건을 한 덩어리로 다룬다 — 셋 다 같은 파일
 (`hero-section.tsx` · `seoul-districts-map.tsx` · `hero-window.tsx`)을 만지고, P2-K·P2-P 는
