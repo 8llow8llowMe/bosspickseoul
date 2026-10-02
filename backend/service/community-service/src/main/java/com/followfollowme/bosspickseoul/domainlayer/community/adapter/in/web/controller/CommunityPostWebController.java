@@ -51,11 +51,21 @@ public class CommunityPostWebController {
 
     private static final int MAX_POST_IMAGE_COUNT = 5;
 
+    /** 공개 조회 3종(목록·검색·상세)의 선택 인증 안내. liked 만 토큰 유무로 달라진다. */
+    private static final String OPTIONAL_AUTH_LIKED_DESCRIPTION =
+        "인증은 선택입니다 — Bearer 토큰이 있으면 조회자 본인의 좋아요 여부(liked)를 true/false 로 채우고, 없으면 null 로 내립니다. "
+            + "만료·위조 토큰을 보내면 공개 조회라도 401 이므로 비로그인 상태에서는 토큰을 보내지 않습니다.";
+
     private final CommunityPostWebUseCase communityPostWebUseCase;
 
-    @Operation(summary = "게시글 목록 조회", description = "조건에 맞는 게시글 목록을 조회합니다.")
+    @Operation(
+        summary = "게시글 목록 조회",
+        description = "조건에 맞는 게시글 목록을 조회합니다. " + OPTIONAL_AUTH_LIKED_DESCRIPTION,
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     @GetMapping
     public ResponseEntity<Response<CommunityPostListResponse>> getPosts(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
         @Parameter(description = "정렬 기준") @RequestParam(defaultValue = "LATEST") CommunitySortType sortType,
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
         @Parameter(description = "대상 타입 필터") @RequestParam(required = false) String targetType,
@@ -67,6 +77,7 @@ public class CommunityPostWebController {
         @Max(value = 50, message = CommunityValidationMessage.PAGE_SIZE_INVALID) int size
     ) {
         CommunityPostListResponse response = communityPostWebUseCase.getPosts(
+            viewerMemberId(loginActive),
             sortType,
             orderType,
             targetType,
@@ -78,9 +89,14 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "게시글 검색", description = "제목 또는 본문에 키워드가 포함된 게시글을 검색합니다.")
+    @Operation(
+        summary = "게시글 검색",
+        description = "제목 또는 본문에 키워드가 포함된 게시글을 검색합니다. " + OPTIONAL_AUTH_LIKED_DESCRIPTION,
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     @GetMapping("/search")
     public ResponseEntity<Response<CommunityPostListResponse>> searchPosts(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
         @Parameter(description = "검색 키워드") @RequestParam(required = false) String keyword,
         @Parameter(description = "정렬 기준") @RequestParam(defaultValue = "LATEST") CommunitySortType sortType,
         @Parameter(description = "정렬 방향") @RequestParam(defaultValue = "DESC") OrderType orderType,
@@ -91,6 +107,7 @@ public class CommunityPostWebController {
         @Max(value = 50, message = CommunityValidationMessage.PAGE_SIZE_INVALID) int size
     ) {
         CommunityPostListResponse response = communityPostWebUseCase.searchPosts(
+            viewerMemberId(loginActive),
             keyword,
             sortType,
             orderType,
@@ -142,12 +159,17 @@ public class CommunityPostWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "게시글 상세 조회", description = "게시글 상세 정보를 조회합니다. 조회 시 조회수가 1 증가합니다.")
+    @Operation(
+        summary = "게시글 상세 조회",
+        description = "게시글 상세 정보를 조회합니다. 조회 시 조회수가 1 증가합니다. " + OPTIONAL_AUTH_LIKED_DESCRIPTION,
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     @GetMapping("/{postId}")
     public ResponseEntity<Response<CommunityPostDetailResponse>> getPost(
+        @AuthenticationPrincipal MemberLoginActive loginActive,
         @Parameter(description = "게시글 ID", example = "1") @PathVariable long postId
     ) {
-        CommunityPostDetailResponse response = communityPostWebUseCase.getPost(postId);
+        CommunityPostDetailResponse response = communityPostWebUseCase.getPost(viewerMemberId(loginActive), postId);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
@@ -227,5 +249,10 @@ public class CommunityPostWebController {
             size
         );
         return ResponseEntity.ok().body(Response.success(response));
+    }
+
+    /** 선택 인증 — 토큰이 없으면 principal 이 null 이고 조회자도 null(비로그인)이다. */
+    private static Long viewerMemberId(MemberLoginActive loginActive) {
+        return (loginActive != null) ? loginActive.memberId() : null;
     }
 }

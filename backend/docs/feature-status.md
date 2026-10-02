@@ -434,6 +434,23 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 
 ---
 
+### `community-service` — 목록 응답 조회수·내 좋아요 여부 (선택 인증, 이슈 #471)
+
+**상태**: ✅ 완료
+
+- 목록·검색 항목(`CommunityPostSummaryItem`)과 좋아요 목록 항목(`CommunityLikedPostItem`)에 `viewCount`·`liked`, 상세(`CommunityPostDetailResponse`)에 `liked` 추가
+- `liked`: 로그인 `true`/`false`, 비로그인 `null`. 좋아요 목록은 항상 `true`(추가 조회 없음)
+- `GET /posts`·`/posts/search`·`/posts/{postId}` 선택 인증 — `@PreAuthorize` 없이 `@AuthenticationPrincipal` null 허용
+
+**핵심 파일**:
+- `application/service/processor/CommunityViewerLikeProcessor` — 쪽의 postId 를 모아 좋아요 포트 1회 조회(비로그인·빈 쪽은 조회 없음), 상세는 `exists` 재사용
+- `application/model/CommunityViewerLikes` — 비로그인(null)과 안 누름(false)을 구분하는 값 객체
+- `CommunityPostLikeRepository.findLikedPostIds` — `memberId = ? and postId in (...)` postId 프로젝션 정적 JPQL
+
+**주의사항**: 공개 경로라도 만료·위조 토큰을 보내면 게이트웨이·resource server 가 401 을 낸다. FE 는 비로그인 상태에서 토큰을 보내지 않는다.
+
+---
+
 ### `community-service` — 대댓글 (depth 1 고정)
 
 **상태**: ✅ 완료
@@ -790,8 +807,8 @@ K-Startup·자치구 홈페이지·HTML 스크래핑은 아직 없다. 기업마
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| GET | `/posts/search` | 키워드 게시글 검색 | 불필요 |
-| GET | `/posts/{id}` | 게시글 상세 (조회수 +1) | 불필요 |
+| GET | `/posts/search` | 키워드 게시글 검색 (토큰 있으면 `liked` 채움) | 선택 |
+| GET | `/posts/{id}` | 게시글 상세 (조회수 +1, 토큰 있으면 `liked` 채움) | 선택 |
 | POST | `/posts/{id}/comments` | 댓글/대댓글 작성 | ✅ |
 
 ### `community-service` (`/api/v1/moderation`)

@@ -252,6 +252,15 @@ GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode=3110008&sortType=LA
 - 전체 커뮤니티 탭에서는 target filter 없이 호출한다.
 - 무한 스크롤은 응답의 마지막 post id를 다음 `lastPostId`로 사용한다.
 
+목록 카드의 조회수·내 좋아요 표시 (#471):
+
+- 피드·검색·좋아요한 글 목록 항목과 상세 응답에 `viewCount`(조회 수)와 `liked`(내가 좋아요했는지)가 있다.
+- 피드·검색·상세는 **선택 인증**이다. 로그인 상태면 `Authorization: Bearer` 를 붙여 호출해 `liked` 를 `true`/`false` 로 받고,
+  비로그인이면 헤더 없이 호출한다 — 이때 `liked` 는 `null` 이며 "안 누름"이 아니므로 좋아요 상태를 그리지 않는다.
+- 좋아요한 글 목록의 `liked` 는 항상 `true` 다. 피드 항목과 같은 카드로 그릴 수 있다.
+- **만료·위조된 토큰을 붙이면 공개 목록도 `401` 이다.** 게이트웨이·서비스가 토큰이 있으면 항상 검증한다.
+  토큰 재발급에 실패해 비로그인으로 떨어졌다면 남은 토큰을 지우고 헤더 없이 다시 호출한다.
+
 ## Moderation
 
 | UI | API | Usage |

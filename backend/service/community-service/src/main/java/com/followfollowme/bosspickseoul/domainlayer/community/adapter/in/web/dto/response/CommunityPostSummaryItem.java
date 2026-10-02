@@ -45,6 +45,12 @@ public record CommunityPostSummaryItem(
     @Schema(description = "댓글 수")
     long commentCount,
 
+    @Schema(description = "조회 수")
+    long viewCount,
+
+    @Schema(description = "조회자 본인의 좋아요 여부 — 로그인 요청이면 true/false, 비로그인(토큰 없음)이면 null", nullable = true)
+    Boolean liked,
+
     @Schema(description = "작성 시각")
     LocalDateTime createdAt
 ) {
