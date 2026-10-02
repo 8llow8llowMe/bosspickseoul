@@ -42,6 +42,13 @@ pnpm qa:verify
 - TypeScript 오류가 없다.
 - Next production build가 성공한다.
 
+PR 에서는 같은 검사에 `pnpm test` 를 더해 두 곳에서 돈다(#497).
+
+- GitHub Actions `frontend-ci / verify`: `frontend/**` 를 바꾼 모든 PR 과 develop push 에서 돌고, 결과가 PR 체크로 보인다. `frontend/` 에서 문서(`docs/**` 와, `src`·`app`·`public` 밖의 `.md`)만 바뀌면 `format:check` 만 돈다. 판정은 `scripts/classify-frontend-changes.sh`.
+- Jenkins 프론트 PR 빌드(`RUN_TESTS`): `frontend-web` 라벨이 붙은 PR 에서 Vault env 를 넣고 돈다. 라벨은 PR 을 만들 때 붙인다. 빠뜨리면 `label` 워크플로가 보정한다.
+
+역할 분담 정본은 `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2.
+
 ## 2. 브라우저 실측 회귀 (Playwright)
 
 `pnpm qa:verify` 는 **렌더 결과**를 보지 못한다. 색 대비·터치 타깃 크기·문서 높이·
@@ -81,8 +88,9 @@ CI 에서 돌리려면 `pnpm exec playwright install --with-deps chromium` 과 �
 기동(`pnpm build && pnpm start -p 5173`)을 파이프라인에 따로 넣는다.
 
 **지금 CI 에서 돌지 않는다(2026-10-01 결정).** 커뮤니티 슈트는 프로덕션 빌드에서도 돈다(로컬 3회 연속
-29/29). 다만 Jenkins 프론트 빌드는 x86_64 에이전트에서 도커 이미지 없이 돌아, 에이전트에 Chromium 과
-시스템 의존성을 먼저 깔아야 한다. 그 결정과 연결은 #477 이 맡는다. 그때까지 커뮤니티 화면을 바꾼 PR 은
+29/29). Jenkins 프론트 빌드는 x86_64 에이전트에서 도커 이미지 없이 돌아 Chromium 과 시스템 의존성이
+없다. 그래서 Jenkins 대신 GitHub Actions `frontend-ci` 에 잡으로 붙이기로 했다(2026-10-02). 연결은
+#477 이 맡는다. 그때까지 커뮤니티 화면을 바꾼 PR 은
 아래 둘 중 하나를 로컬에서 돌리고 PR 본문 「검증 내역」에 적는다.
 
 ```bash
