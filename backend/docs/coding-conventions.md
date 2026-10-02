@@ -352,7 +352,8 @@ private Long targetId;
   본보기: commercial-service 의 `global/config/DataJpaSliceTestConfig` 를
   `src/test/resources/META-INF/spring/org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa.imports`
   에 등록해 모든 JPA 슬라이스에 자동 적용합니다. 테스트 쪽에는 `@DataJpaTest` 대신 서비스 메타 애노테이션
-  `@CommercialDataJpaTest`(commercial-service, `global/config`) · `@DistrictDataJpaTest`(district-service, `support`) 하나만 붙입니다.
+  `@CommercialDataJpaTest`(commercial-service, `global/config`) · `@DistrictDataJpaTest`(district-service, `support`) ·
+  `@CommunityDataJpaTest`(community-service, `global/config`) 하나만 붙입니다.
   imports 파일로는 프로필을 바꿀 수 없어(환경 준비가 끝난 뒤 읽힌다) env 프로필 격리(`@ActiveProfiles("slice-test")`)를
   메타 애노테이션이 함께 묶기 때문입니다 — 슬라이스가 앱 클래스의 `@EnableFeignClients` 까지 올려, `SPRING_PROFILES_ACTIVE=dev` 만 있고
   `*_APP_NAME` env 가 없으면 `application-dev.yml` 플레이스홀더가 풀리지 않아 컨텍스트가 죽습니다(이슈 #464).

@@ -411,7 +411,7 @@ last_source_comment_id = ?`)을 선제 삭제해, 스팸 댓글이 수신자를 
 |------|------|----------|
 | 묶음 갱신 경합 → 유니크 위반 | 건수 1 누락, 알림 자체는 존재 | `CommunityRepositoryMySqlConcurrencyTest` 에 「같은 글에 동시 댓글 2건 → 묶음 1행, 댓글 2건 모두 성공」 추가. 지표 `outcome=failed` 알람 후보 `increase(community_notification_record_total{outcome="failed"}[10m]) > 0` |
 | Facade 에 트랜잭션이 붙어 격리가 깨짐 | 알림 실패가 댓글을 500 으로 | `CommunityCommentWebFacadeTest` — 알림 Processor 가 던져도 응답 성공. 이 문서 §8 불변 조건 |
-| 커스텀 리포지터리 조건 누락(§9-6 「컴파일로 검증되지 않는다」) | unreadOnly·커서 경계 오류 | `@DataJpaTest` 슬라이스 — community 에 `DataJpaSliceTestConfig` + `@CommunityDataJpaTest` 메타 애노테이션을 commercial 과 같은 구조로 만든다. 커서 동률(`lastEventAt` 같고 id 다름) 케이스 포함 |
+| 커스텀 리포지터리 조건 누락(§9-6 「컴파일로 검증되지 않는다」) | unreadOnly·커서 경계 오류 | `@CommunityDataJpaTest` H2 슬라이스(이미 있다 — `community-service.md` 「JPA 슬라이스 테스트」). 커스텀 구현이 새 빈을 생성자로 받으면 `DataJpaSliceTestConfig` 에 추가한다. 커서 동률(`lastEventAt` 같고 id 다름) 케이스 포함 |
 | 수신자 규칙 오류(자기 알림, 중복 수신) | 사용자 불신 | `CommunityNotificationCommandProcessorTest` 가 §5-2 표 전수 고정 |
 | 목록 N+1 | 지연 | 게시글·댓글 `findAllByIds` 2회 + auth 1회로 고정. 리뷰에서 `for`/`stream` 안 Port 호출 금지(§9-7) |
 | 안 읽은 수 폴링 부하 | DB count 쿼리 | `(recipient, unread_marker)` 인덱스 커버. 60초 + 포커스 시만. `http_server_requests_seconds_count{uri="/api/v1/community/notifications/unread-count"}` 로 관찰 |

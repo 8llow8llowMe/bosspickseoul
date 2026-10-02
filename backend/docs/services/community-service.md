@@ -101,6 +101,8 @@
   게시글마다 존재 확인을 부르면 쪽 크기만큼 왕복이 생긴다(coding-conventions §9-7). 비로그인이거나 빈 쪽이면 조회하지 않는다.
   상세는 좋아요 토글이 쓰는 단건 존재 확인(`exists`)을 재사용한다. 두 쿼리 모두 `uk_community_post_like_post_id_member_id`·
   `idx_community_post_like_member_id` 가 받친다.
+  - 테스트: 이 JPQL 은 H2 슬라이스 `CommunityPostLikeRepositoryTest` 가 실제 스키마로 검증한다 — 다른 회원의 좋아요·범위 밖 postId 는 빠지고,
+    같은 글을 여러 회원이 좋아요해도 조회자 몫 한 건만 나온다 (아래 「JPA 슬라이스 테스트」). 일괄 1회 호출·비로그인 생략은 `CommunityViewerLikeProcessorTest`.
 - 비로그인/안 누름 구분은 `application/model/CommunityViewerLikes` 값 객체(`anonymous()`, `of(Set)`, `likedOf(postId)`)가 맡는다.
   Presenter 는 `likedOf` 결과를 옮기기만 한다.
 - **주의: 공개 경로라도 만료·위조·폐기된 토큰을 보내면 401 이다.** 게이트웨이 `JwtAuthApiGatewayFilter`(블랙리스트·회원 revocation 포함)와
@@ -132,9 +134,10 @@
 - 커서 연속성: 하한은 요청마다 현재 시각으로 다시 계산한다. 쪽을 넘기는 사이 경계를 넘어 기간 밖으로 나간 글은 다음 쪽에서 빠질 수 있지만,
   `(likeCount, id)` 커서가 엄격 감소라 **같은 글이 두 번 나오지는 않는다**. 쪽 사이 좋아요 수 변동으로 생기는 누락·순서 흔들림은 기존 커서의 한계 그대로다.
 - 테스트: `CommunityPopularPeriodTest`(하한 계산), `CommunityQueryProcessorPopularPeriodTest`(Criteria 전달),
-  `CommunityPostWebControllerPopularPeriodTest`(기본값·바인딩·`COMMUNITY_117`). QueryDSL 조건은
-  `CommunityRepositoryMySqlConcurrencyTest.popularFeedAppliesPeriodLowerBoundOnlyWhenPresentAndKeepsCursorOrder` 가 실제 MySQL 로 검증한다
-  (`COMMUNITY_TEST_DB_URL` 이 있을 때만 실행).
+  `CommunityPostWebControllerPopularPeriodTest`(기본값·바인딩·`COMMUNITY_117`). QueryDSL 조건은 H2 슬라이스
+  `CommunityPostCustomRepositoryImplTest`(`popularSinceExcludesOlderPostsOnlyWhenPresent` — 하한 경계 포함, null 이면 전체, 하한을 건 채 커서로 이어 읽어도
+  중복·누락 없음, LATEST 는 하한 무시)가 매 빌드 검증한다. 검색·좋아요 목록의 하한도 같은 클래스가 본다. 같은 내용의 MySQL 판
+  `CommunityRepositoryMySqlConcurrencyTest.popularFeedAppliesPeriodLowerBoundOnlyWhenPresentAndKeepsCursorOrder` 는 `COMMUNITY_TEST_DB_URL` 이 있을 때만 돈다.
 
 ## 게시글 말머리
 
@@ -184,9 +187,11 @@
 - 테스트: `CommunityPostCategoryTest`(파싱·표시명), `CommunityEnumLocaleTest`(터키어 로케일 — QUESTION·EXPERIENCE 에 'i' 가 있다),
   `CommunityCommandProcessorPostCategoryTest`(작성 파싱, 수정 조건부 UPDATE 전달·null 로 지움, 403 우선),
   `CommunityQueryProcessorPostCategoryTest`(Criteria 전달, 잘못된 값은 원격 호출 전 거절), `CommunityPostWebControllerPostCategoryTest`
-  (바인딩, 실제 체인 `COMMUNITY_017`), `CommunityPostPresenterCategoryTest`(null ↔ metadata). QueryDSL 필터·커서와 JPQL 수정은
-  `CommunityRepositoryMySqlConcurrencyTest` 의 `feedFiltersByCategoryTogetherWithTargetFilterAndCursors`·`contentEditReplacesCategoryAndNullClearsIt` 가
-  실제 MySQL 로 검증한다 (`COMMUNITY_TEST_DB_URL` 이 있을 때만 실행).
+  (바인딩, 실제 체인 `COMMUNITY_017`), `CommunityPostPresenterCategoryTest`(null ↔ metadata). QueryDSL 필터·커서는 H2 슬라이스
+  `CommunityPostCustomRepositoryImplTest.feedFiltersByCategoryTogetherWithTargetFilterAndCursors`(대상 필터·최신/인기 커서·기간 하한 조합),
+  JPQL 수정은 `CommunityPostRepositoryTest`(말머리 교체·null 로 지움·카운터 보존·DELETED/남의 글 0건)가 매 빌드 검증한다.
+  MySQL 판(`CommunityRepositoryMySqlConcurrencyTest` 의 `feedFiltersByCategoryTogetherWithTargetFilterAndCursors`·`contentEditReplacesCategoryAndNullClearsIt`)은
+  `COMMUNITY_TEST_DB_URL` 이 있을 때만 돈다.
 
 ## 게시글 검색 (신규)
 
@@ -273,3 +278,32 @@
 - 반드시 폐기 가능한 `p0_test` 스키마를 사용한다. 테스트는 `create-drop`으로 테이블을 생성/삭제하며 다른 DB 이름은 거부한다.
 - 환경 변수: `COMMUNITY_TEST_DB_URL=jdbc:mysql://127.0.0.1:13306/p0_test?allowPublicKeyRetrieval=true&useSSL=false`, `COMMUNITY_TEST_DB_USERNAME=root`, `COMMUNITY_TEST_DB_PASSWORD`는 테스트 DB 비밀번호.
 - 실행: `./gradlew :service:community-service:test --tests '*CommunityRepositoryMySqlConcurrencyTest' --rerun-tasks` (backend 디렉터리).
+
+## JPA 슬라이스 테스트
+
+QueryDSL 커스텀 조건·커서와 JPQL 은 컴파일로 검증되지 않는다(coding-conventions §9-6). MySQL 판은 env 가 있을 때만 돌아 로컬·CI 에서
+한 번도 실행되지 않았으므로, 매 빌드 도는 H2 슬라이스를 둔다. 구조는 commercial-service 와 같다.
+
+- **애노테이션**: 테스트에는 `@DataJpaTest` 대신 `@CommunityDataJpaTest`(`src/test/.../global/config`) 하나만 붙인다.
+  `@DataJpaTest` + `@ActiveProfiles(DataJpaSliceTestConfig.PROFILE)`(`slice-test`) 메타 애노테이션이다. DB 는 임베디드 H2 로 바뀌고 스키마는 엔티티로 매번 새로 만든다.
+- **슬라이스 빈**: `global/config/DataJpaSliceTestConfig`(`@TestConfiguration`, `@Import(QuerydslConfigurer)`)를
+  `src/test/resources/META-INF/spring/org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa.imports` 에 등록해 모든 JPA 슬라이스에 붙인다.
+  `CommunityPostCustomRepositoryImpl` 이 `JPAQueryFactory` 를 생성자로 받는 리포지터리 프래그먼트라, 이 빈이 없으면 게시글과 무관한 리포지터리 테스트까지
+  컨텍스트 로딩에서 죽는다. 커스텀 구현이 새 빈을 생성자로 받게 되면 여기에 추가한다. 자체 설정으로 뜨는 `CommunityRepositoryMySqlConcurrencyTest` 에도
+  붙지만 그쪽도 `QuerydslConfigurer` 를 import 해 같은 설정 클래스로 합쳐진다.
+- **프로필 격리**: 슬라이스는 앱 클래스의 `@EnableFeignClients` 까지 올린다. `SPRING_PROFILES_ACTIVE=dev` 만 있고 `DISTRICT_SERVICE_APP_NAME`·
+  `AUTH_SERVICE_APP_NAME` 이 없으면 `application-dev.yml` 플레이스홀더가 풀리지 않아 `Service id not legal hostname (${AUTH_SERVICE_APP_NAME})` 로
+  컨텍스트가 죽는다(격리를 빼면 이 오류로 재현된다). `slice-test` 가 env 프로필과 기본 `local` 프로필을 가리고, 이 이름의 `application-*.yml` 은 두지 않는다.
+  GitHub Actions(env 없음)·Jenkins(Vault env 전체) 양쪽에서 같은 설정으로 뜬다.
+- **테스트** (`adapter/out/persistence/repository`):
+  - `custom/CommunityPostCustomRepositoryImplTest` — 최신순 DESC/ASC id 커서, `lastPostId=0` 첫 쪽, `size + 1` hasNext 판정, 인기순 likeCount 동률
+    `(likeCount, id)` 커서(#471 커서 불변), `popularSince` 하한 경계·null 이면 전체(#472), 말머리 + 대상 필터 + 커서(#470), DELETED 제외(피드·검색·좋아요 목록),
+    검색 keyword(제목·본문, 대소문자 무시, `%`·`_` 글자 그대로), 좋아요 목록 회원 서브쿼리. 쪽 크기를 바꿔 가며 끝까지 이어 읽어 중복·누락이 없는지 본다.
+  - `CommunityPostLikeRepositoryTest` — `findLikedPostIds`.
+  - `CommunityPostRepositoryTest` — `updateContentIfActive`(제목·본문·말머리 교체, null 로 지움, 카운터·작성 시각 보존, DELETED·남의 글 0건,
+    flush 전 저장분 반영과 `clearAutomatically` 뒤 재조회).
+  - 데이터는 엔티티 빌더로 고정 id·고정 시각을 넣는다(Snowflake·현재 시각 의존 없음). 각 테스트는 슬라이스 트랜잭션으로 롤백된다.
+- **H2 한계**: MySQL 에서만 확인되는 동작은 여전히 `CommunityRepositoryMySqlConcurrencyTest` 몫이다 — 동시 카운터 갱신·REPEATABLE READ 격리·동시 좋아요
+  취소 단일 승자, MySQL 콜레이션에 따른 대소문자·문자 비교, 실행계획(인덱스 사용 여부). 컬럼 정의도 다르다 — H2 에서는 Hibernate 가 `@Enumerated(STRING)`
+  컬럼을 H2 네이티브 `enum(...)` 타입으로 만들어 MySQL 의 `varchar(20)` + 값 목록 CHECK 와 같지 않다. 말머리 값 추가 때의 CHECK 확인은 슬라이스로 대신할 수 없고
+  위 「게시글 말머리」대로 dev 의 `SHOW CREATE TABLE` 을 본다. 슬라이스는 쿼리의 조건·정렬·커서가 맞는지만 본다.
