@@ -305,7 +305,7 @@
 | GET | `/api/v1/commercials/{code}/population` | 거주인구 탭 |
 | GET | `/api/v1/commercials/{code}/income` | 지출 탭 — `expenseCategories[{key,label,amount}]` 배열을 순서대로 렌더. `provenance.scope.code` 가 `ADMINISTRATION_PROXY` 면 「행정동 기준 (대체)」 배지 + `disclaimer` + 출처 링크, `UNAVAILABLE` 이면 "데이터 미제공" (이슈 #415) |
 | GET | `/api/v1/commercials/{code}/trend` | 트렌드 탭 — 분기별 꺾은선 그래프 |
-| GET | `/api/v1/commercials/{code}/benchmarks` | 벤치마크 비교 탭 |
+| GET | `/api/v1/commercials/{code}/benchmarks` | 벤치마크 비교 탭 — 매출·소비 요약 + `salesPerStore`(업종 점포당 월 매출 3단위, 자치구·행정동 대비 지수. 100 = 비교 단위 평균). 지수·점포당 매출이 `null` 이면 0 이 아니라 값 없음으로 그린다 (이슈 #485) |
 
 **`GET /trend` — 분기별 트렌드**
 ```

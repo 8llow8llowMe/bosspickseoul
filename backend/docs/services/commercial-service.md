@@ -297,8 +297,9 @@
   트랜잭션을 Processor 로 **내리지는 않았다** — 이 경로들이 부르는 조회 메서드는 대부분 리포지터리 호출 한
   번이라 Spring Data 가 이미 여는 읽기 트랜잭션과 같고, 404 를 삼켜 부분 강등하는 지점 안쪽에 경계를 만들면
   참여 트랜잭션이 rollback-only 로 표시돼 예외를 삼켰는데도 상위 커밋이 `UnexpectedRollbackException` 으로
-  깨진다. 여러 조회를 실제로 한 단위로 묶는 `CommercialSummaryQueryProcessor.getSalesSummary` 에만 Processor
-  트랜잭션을 둔다.
+  깨진다. 여러 조회를 실제로 한 단위로 묶는 `CommercialSummaryQueryProcessor.getSalesSummary` 와
+  `CommercialSalesPerStoreProcessor.getSalesPerStore` 에만 Processor 트랜잭션을 둔다. 후자는 점포 결측을 예외가 아니라 null 로
+  다뤄 예외를 삼키는 지점이 없으므로 rollback-only 함정이 없다.
 - **대체값은 점수에 넣지 않는다.** 히트맵 기회도·비교 승패 판정·비교 프리뷰 headline·후보 추천은 네이티브
   전용 경로를 쓴다. 같은 행정동 상권이 전부 같은 값을 받아 행정동 단위로 뭉친 가짜 차이가 생기기 때문이다.
 - 히트맵은 소비를 **조회조차 하지 않는다.** 점수식에서 지출 항이 빠진 뒤 `CommercialHeatmapSource.income` 을
@@ -345,6 +346,35 @@
   `PensionIncomeDistrictRepositoryTest` 가 본다.
 - **배포 순서: commercial-service 보다 런북 DDL 을 먼저 적용한다.** 테이블이 없으면 `/income` 이 SQL 오류(500)로 실패한다.
   적재 전(행 0)에는 전 분기가 `UNAVAILABLE` 로 정상 응답한다.
+
+## 벤치마크 점포당 매출 지수 (이슈 #485)
+
+- `GET /commercials/{code}/benchmarks` 에 `salesPerStore { serviceCode, serviceName, district, administration, commercial,
+  indexVsDistrict, indexVsAdministration }` 를 **추가**한다. 매출 총액만 나란히 두면 점포가 많은 자치구가 늘 크게 보여 상권이
+  업종 평균보다 잘 버는지 알 수 없어서, 같은 업종의 점포당 월 매출로 맞춘다. 기존 필드는 그대로다.
+- **분모는 이 업종 전체 점포 수**(`similarStoreCount`, 원천 `SIMILR_INDUTY_STOR_CO` = 일반 + 프랜차이즈)다. `totalStoreCount`
+  (`STOR_CO`)는 프랜차이즈를 뺀 수라, 업종 전체 매출을 그것으로 나누면 프랜차이즈 비중이 큰 단위일수록 점포당 매출이 부풀려진다
+  (이슈 #490). 개발 DB 20261 실측에서 세 단위 모두 `similar = total + franchise` 가 전 행에서 성립했다.
+- **계산.** 점포당 = `monthlySalesAmount ÷ storeCount` 원 단위 HALF_UP. 지수 = 상권 점포당 ÷ 비교 단위 점포당 × 100, 소수
+  첫째 자리 HALF_UP(BigDecimal 로 곱한 뒤 한 번만 나눠 반올림). 분자·분모가 응답의 `monthlySalesPerStore` 라 화면 숫자로 다시
+  계산해도 같다. 식은 `CommercialSalesPerStoreSummaryInfo.of` / `RegionalSalesPerStoreInfo.of` 순수 함수에 있다.
+  예: 20261 커피-음료, 경춘선숲길 우측 / 공릉2동 / 노원구 → 점포당 8,248,228 / 13,003,863 / 19,055,381 → 자치구 대비 43.3,
+  행정동 대비 63.4.
+- **null 규칙.** 점포 행이 없으면 그 단위의 `storeCount`·`monthlySalesPerStore` 만 `null` 이고 단위 item 은 남는다(404 아님).
+  점포 수 0(같은 실측에서 상권 519행·행정동 94행)이면 점포당만 `null` 이다. 지수는 분자·분모 중 하나라도 `null` 이거나 분모가
+  0 이면 `null` 이며 0 으로 내리지 않는다. 매출 행이 없을 때의 404(`COMMERCIAL_SUMMARY_001`)는 그대로다.
+- **대체값이 없다.** 매출·점포는 2024년 이후에도 원천이 살아 있어 소비처럼 해상도 사다리나 `provenance` 를 두지 않는다. 결측은 null 이다.
+- **조회.** `CommercialBenchmarkQueryProcessor` 가 이미 가진 지역 해석·매출 요약을 `CommercialSalesPerStoreProcessor` 에 넘기고,
+  거기서 `CommercialSummaryRepositoryPort.findStore{District,Administration,Commercial}` 로 점포만 세 번 더 읽는다. 지역 코드는
+  매출 요약 leg 의 것을 써 매출과 점포가 같은 단위를 가리키고, 단위의 코드·이름·매출은 재조회하지 않는다. 세 조회는 유니크 키
+  `(period_code, {단위}_code, service_code, spatial_version)` 를 그대로 탄다. 행정동 업종 단건 파생 쿼리는 이 기능에서 추가했다.
+  요청당 DB 조회가 6 → 9 회가 된다(매출 요약 3 + 점포 3 + 소비 요약 3). 상권명은 매출 요약 leg 의 것을 써 다시 읽지 않는다. 루프가 없어 상권·업종과 무관하게 고정이다.
+  지역 서비스 Feign 은 그대로 1회(상권 소비가 없어 소비 사다리가 소속 행정동을 해석하면 +1)다.
+- **트랜잭션.** Facade 는 여전히 트랜잭션이 없다(지역 서비스 Feign). 점포 세 조회만 `CommercialSalesPerStoreProcessor.getSalesPerStore`
+  의 readOnly 트랜잭션으로 묶는다. 이 트랜잭션 안에는 DB 조회만 있다. 지역 해석 Feign 은 앞에서, 소비 사다리의 추가 해석은 뒤에서 — 둘 다 트랜잭션 밖에서 일어난다. 결측을 예외가 아니라 null 로 다뤄 rollback-only 함정도 없다.
+- **타입 분리.** `RegionalSalesSummaryInfo`·`RegionalSalesSummaryItem`·`CommercialSalesSummaryResponse` 는 `/summaries/sales` 와
+  ai-service(`CommercialSalesSummaryClientResponse`, 골든 테스트)가 공유하므로 필드를 더하지 않고, 벤치마크 전용 타입
+  (`CommercialSalesPerStoreSummaryInfo`/`Item`, `RegionalSalesPerStoreInfo`/`Item`)을 따로 둔다.
 
 ## 공유 링크 (sharelink)
 

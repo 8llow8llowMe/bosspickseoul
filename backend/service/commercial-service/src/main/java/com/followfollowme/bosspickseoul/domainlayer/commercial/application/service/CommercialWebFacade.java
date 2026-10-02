@@ -73,7 +73,8 @@ import org.springframework.transaction.annotation.Transactional;
  * ({@link com.followfollowme.bosspickseoul.domainlayer.commercial.application.service.processor.CommercialQuietFetchSupport}),
  * 삼키는 지점 안쪽에 트랜잭션 경계를 만들면 참여 트랜잭션이 rollback-only 로 표시돼 예외를 삼켰는데도 상위
  * 커밋이 {@code UnexpectedRollbackException} 으로 깨진다. 여러 조회를 실제로 한 단위로 묶는 곳
- * ({@code CommercialSummaryQueryProcessor.getSalesSummary})에만 Processor 트랜잭션을 둔다.
+ * ({@code CommercialSummaryQueryProcessor.getSalesSummary}, {@code CommercialSalesPerStoreProcessor.getSalesPerStore})에만 Processor 트랜잭션을 둔다.
+ * 후자는 점포 결측을 예외가 아니라 null 로 다뤄 예외를 삼키는 지점이 없으므로 rollback-only 함정이 없다.
  *
  * <p>분기 종속 유스케이스는 <b>첫 줄에서</b> {@code periodCode} 를 {@link AnalysisPeriodCatalogProcessor#resolve(String)} 로 해석한다
  * (이슈 #464). 생략·빈 값이면 적재된 팩트 테이블 기준 최신 공통 분기이고, 정할 수 없으면 503 이다. 카탈로그는 인스턴스 메모리

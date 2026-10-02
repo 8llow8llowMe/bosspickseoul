@@ -18,6 +18,8 @@ public record CommercialBenchmarkInfo(
     String summary,
     CommercialSalesSummaryInfo salesSummary,
     CommercialIncomeSummaryInfo incomeSummary,
+    // 업종별 점포당 평균 매출과 자치구·행정동 대비 지수(이슈 #485). 매출 요약이 성립하면 항상 채워지고, 결측은 안쪽 필드만 null 이다.
+    CommercialSalesPerStoreSummaryInfo salesPerStore,
     List<String> benchmarkHighlights
 ) {
 

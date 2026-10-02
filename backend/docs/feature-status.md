@@ -628,6 +628,22 @@ INDEX(status)
 
 ---
 
+### `commercial-service` — 상권 벤치마크 업종별 점포당 평균 매출 지수 (이슈 #485)
+
+**상태**: ✅ 백엔드 완료. 화면 표시(FE)와 OpenAPI 스냅샷 재생성은 dev 배포 뒤 후속이다. DDL 없음(기존 유니크 키를 탄다).
+
+**엔드포인트**: `GET /api/v1/commercials/{code}/benchmarks?serviceCode=..` 응답에 `salesPerStore` 추가 — 자치구·행정동·상권 `{code, name, monthlySalesAmount, storeCount, monthlySalesPerStore}` + `indexVsDistrict`·`indexVsAdministration`
+
+**동작**:
+- 분모는 이 업종 전체 점포 수(`similarStoreCount` = 일반 + 프랜차이즈). 프랜차이즈를 뺀 `totalStoreCount` 는 점포당 매출을 부풀린다(이슈 #490)
+- 점포당 = 월 매출 ÷ 점포 수 원 단위 HALF_UP, 지수 = 상권 점포당 ÷ 비교 단위 점포당 × 100 소수 첫째 자리 HALF_UP
+- 점포 행이 없거나 점포 수가 0 이면 해당 값만 `null`, 지수는 분자·분모 중 하나라도 없거나 분모 0 이면 `null`(0 으로 내리지 않는다). 매출 행이 없을 때의 404 는 그대로
+- 매출 요약 세 단위에 점포 조회 3회만 더한다(요청당 DB 6 → 9, 루프 없음). `/summaries/sales` 와 ai-service 공유 타입은 바꾸지 않았다
+
+**핵심 파일**: `commercial/application/service/processor/CommercialSalesPerStoreProcessor.java`, `commercial/application/info/comparison/CommercialSalesPerStoreSummaryInfo.java`, `commercial/application/info/comparison/RegionalSalesPerStoreInfo.java`, `commercial/adapter/out/persistence/CommercialSummaryRepositoryAdapter.java`. 상세: `services/commercial-service.md` 「벤치마크 점포당 매출 지수」.
+
+---
+
 ## 제거된 기능
 
 ---
