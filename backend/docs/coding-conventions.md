@@ -347,7 +347,11 @@ private Long targetId;
   테스트마다 `@Import` 를 붙여 막으면 새 테스트를 추가할 때마다 같은 함정을 다시 밟습니다.
   본보기: commercial-service 의 `global/config/DataJpaSliceTestConfig` 를
   `src/test/resources/META-INF/spring/org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa.imports`
-  에 등록해 모든 `@DataJpaTest` 에 자동 적용합니다. 테스트 쪽에는 `@DataJpaTest` 외에 아무것도 붙이지 않습니다.
+  에 등록해 모든 JPA 슬라이스에 자동 적용합니다. 테스트 쪽에는 `@DataJpaTest` 대신 서비스 메타 애노테이션
+  `@CommercialDataJpaTest`(commercial-service, `global/config`) · `@DistrictDataJpaTest`(district-service, `support`) 하나만 붙입니다.
+  imports 파일로는 프로필을 바꿀 수 없어(환경 준비가 끝난 뒤 읽힌다) env 프로필 격리(`@ActiveProfiles("slice-test")`)를
+  메타 애노테이션이 함께 묶기 때문입니다 — 슬라이스가 앱 클래스의 `@EnableFeignClients` 까지 올려, `SPRING_PROFILES_ACTIVE=dev` 만 있고
+  `*_APP_NAME` env 가 없으면 `application-dev.yml` 플레이스홀더가 풀리지 않아 컨텍스트가 죽습니다(이슈 #464).
   다른 서비스에서 같은 문제를 만나면 그 서비스에 같은 구조를 만듭니다.
 - **`@Param` 은 쓰지 않습니다.** Spring Boot 플러그인이 `-parameters` 를 켜 주므로 메서드 파라미터명이
   쿼리의 이름과 같으면 그대로 바인딩됩니다. 이름이 다를 때만 `@Param` 을 붙입니다.
