@@ -287,7 +287,6 @@ export default function HeroSection() {
   const [dragEnabled, setDragEnabled] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
-  const [hoveredCode, setHoveredCode] = useState<string | null>(null)
   /* 히어로 피커 선택. 카드(피커·미리보기)와 지도(채움·모바일 탭)가 함께 본다(D3-1). */
   const [pickedCode, setPickedCode] = useState<string | null>(null)
   /* 한 번이라도 고르면 자동 시연은 끝이다 — 해제해도 다시 하지 않는다(D4-7). */
@@ -505,7 +504,6 @@ export default function HeroSection() {
               <HeroWindow
                 ref={cardRef}
                 state={displayState}
-                tinted={hoveredCode != null}
                 onClose={handleClose}
                 onToggleMinimize={() =>
                   setWindowState(s =>
@@ -540,7 +538,6 @@ export default function HeroSection() {
                 */
                 onDistrictActivate={code => handlePick(code, 'map')}
                 tooltipEnabled={!isMobileViewport}
-                onHoverChange={isMobileViewport ? undefined : setHoveredCode}
                 autoDemo={dragEnabled && !hasPicked}
                 /*
                   카드가 지도를 덮지 않아 시연 툴팁이 피할 것이 없다. 오버레이 배치로 되돌리면
