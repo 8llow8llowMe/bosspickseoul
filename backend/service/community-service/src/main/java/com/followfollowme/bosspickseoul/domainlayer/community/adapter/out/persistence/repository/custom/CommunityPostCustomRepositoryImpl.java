@@ -4,6 +4,7 @@ import static com.followfollowme.bosspickseoul.domainlayer.community.adapter.out
 import static com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.QCommunityPostLikeEntity.communityPostLikeEntity;
 
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.CommunityPostEntity;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
@@ -43,7 +44,7 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
     @Override
     public Slice<CommunityPostEntity> findFeedPostsNoOffset(
         CommunityPostStatus status, CommunitySortType sortType, OrderType orderType,
-        CommunityTargetType targetType, String targetCode,
+        CommunityTargetType targetType, String targetCode, CommunityPostCategory category,
         long lastPostId, long lastLikeCount, int size,
         LocalDateTime popularSince
     ) {
@@ -55,6 +56,11 @@ public class CommunityPostCustomRepositoryImpl implements CommunityPostCustomRep
         }
         if (targetCode != null && !targetCode.isBlank()) {
             where.and(communityPostEntity.targetCode.eq(targetCode));
+        }
+        // 말머리: 대상 필터 없는 최신순은 idx_community_post_status_category_id 가 정렬까지 처리하고,
+        // 대상 필터·인기순과 겹치면 각자의 인덱스로 거른 뒤 잔여 조건으로 평가된다(엔티티 인덱스 주석).
+        if (category != null) {
+            where.and(communityPostEntity.category.eq(category));
         }
 
         applyCursorCondition(where, sortType, orderType, lastPostId, lastLikeCount, popularSince);

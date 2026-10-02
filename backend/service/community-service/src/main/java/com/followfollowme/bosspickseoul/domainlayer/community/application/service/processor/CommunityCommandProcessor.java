@@ -14,6 +14,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityTargetMetaRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityAnalysisType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityCommentStatus;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
@@ -46,6 +47,8 @@ public class CommunityCommandProcessor {
     @Transactional
     public CommunityPost createPost(long memberId, CreatePostCommand command) {
         CommunityTargetType parsedTargetType = CommunityTargetType.from(command.targetType());
+        // 입력 값 오류는 대상 실조회(district-service 원격 호출) 전에 거른다.
+        CommunityPostCategory category = CommunityPostCategory.fromNullable(command.category());
         CommunityTargetMeta targetMeta = communityTargetMetaRepositoryPort.findTargetMeta(parsedTargetType, command.targetCode())
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.TARGET_NOT_FOUND));
 
@@ -58,6 +61,7 @@ public class CommunityCommandProcessor {
             targetMeta.targetName(),
             command.title().trim(),
             command.content().trim(),
+            category,
             parseAnalysisType(command.analysisType()),
             command.analysisRefCode(),
             command.analysisRefName(),
@@ -71,12 +75,17 @@ public class CommunityCommandProcessor {
         ));
     }
 
+    /**
+     * 게시글 수정. 제목·본문·말머리를 수정 후 값으로 교체한다 — 말머리가 null 이면 지운다(전체 교체 방식).
+     * 말머리 파싱을 소유자 검증 뒤에 둬 남의 글에는 값 오류보다 권한 오류(403)가 먼저 나가게 한다.
+     */
     @Transactional
     public CommunityPost updatePost(long memberId, CommunityPost post, UpdatePostCommand command) {
         validatePostOwner(memberId, post);
+        CommunityPostCategory category = CommunityPostCategory.fromNullable(command.category());
 
         return communityPostRepositoryPort.updateContentIfActive(
-                post.id(), memberId, command.title().trim(), command.content().trim(), LocalDateTime.now())
+                post.id(), memberId, command.title().trim(), command.content().trim(), category, LocalDateTime.now())
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
     }
 

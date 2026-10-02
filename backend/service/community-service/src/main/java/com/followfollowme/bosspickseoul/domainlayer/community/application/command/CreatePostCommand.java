@@ -12,6 +12,9 @@ public record CreatePostCommand(
 
     String content,
 
+    // 말머리 (선택). null/blank 면 말머리 없음, 값이 있으면 CommunityPostCategory 로 파싱한다.
+    String category,
+
     // 업로드 API가 발급한 오브젝트 키 목록. 순서가 노출 순서가 된다.
     List<String> imageKeys,
 

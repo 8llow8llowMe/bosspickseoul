@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.followfollowme.bosspickseoul.common.enums.OrderType;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.CommunityPostEntity;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.CommunityPostLikeEntity;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
@@ -120,7 +121,8 @@ class CommunityRepositoryMySqlConcurrencyTest {
             () -> transaction().execute(status -> {
                 posts.findById(POST_ID).orElseThrow();
                 await(staleReads);
-                return posts.updateContentIfActive(POST_ID, MEMBER_ID, "edited", "new content", NOW.plusHours(1), CommunityPostStatus.ACTIVE);
+                return posts.updateContentIfActive(
+                    POST_ID, MEMBER_ID, "edited", "new content", CommunityPostCategory.QUESTION, NOW.plusHours(1), CommunityPostStatus.ACTIVE);
             }),
             () -> transaction().execute(status -> {
                 posts.findById(POST_ID).orElseThrow();
@@ -130,17 +132,35 @@ class CommunityRepositoryMySqlConcurrencyTest {
             })
         ));
         assertThat(readPost().getTitle()).isEqualTo("edited");
+        assertThat(readPost().getCategory()).isEqualTo(CommunityPostCategory.QUESTION);
         assertThat(readPost().getViewCount()).isEqualTo(1);
         assertThat(readPost().getLikeCount()).isEqualTo(1);
         transaction().executeWithoutResult(status -> {
             assertThat(posts.deleteIfActive(POST_ID, CommunityPostStatus.ACTIVE, CommunityPostStatus.DELETED)).isEqualTo(1);
             assertThat(posts.deleteIfActive(POST_ID, CommunityPostStatus.ACTIVE, CommunityPostStatus.DELETED)).isZero();
-            assertThat(posts.updateContentIfActive(POST_ID, MEMBER_ID, "restored", "restored", NOW, CommunityPostStatus.ACTIVE)).isZero();
+            assertThat(posts.updateContentIfActive(POST_ID, MEMBER_ID, "restored", "restored", null, NOW, CommunityPostStatus.ACTIVE)).isZero();
             assertThat(posts.incrementViewCountIfActive(POST_ID, CommunityPostStatus.ACTIVE)).isZero();
             assertThat(posts.incrementLikeCountIfActive(POST_ID, CommunityPostStatus.ACTIVE)).isZero();
         });
         assertThat(readPost().getStatus()).isEqualTo(CommunityPostStatus.DELETED);
         assertThat(readPost().getTitle()).isEqualTo("edited");
+        assertThat(readPost().getCategory()).isEqualTo(CommunityPostCategory.QUESTION);
+        assertThat(readPost().getLikeCount()).isEqualTo(1);
+    }
+
+    /** 말머리(#470) 수정은 전체 교체 — null 을 보내면 말머리를 지우고, 카운터는 건드리지 않는다. */
+    @Test
+    void contentEditReplacesCategoryAndNullClearsIt() {
+        transaction().executeWithoutResult(status -> {
+            posts.incrementLikeCountIfActive(POST_ID, CommunityPostStatus.ACTIVE);
+            assertThat(posts.updateContentIfActive(
+                POST_ID, MEMBER_ID, "t", "c", CommunityPostCategory.NEWS, NOW, CommunityPostStatus.ACTIVE)).isEqualTo(1);
+        });
+        assertThat(readPost().getCategory()).isEqualTo(CommunityPostCategory.NEWS);
+
+        transaction().executeWithoutResult(status ->
+            assertThat(posts.updateContentIfActive(POST_ID, MEMBER_ID, "t", "c", null, NOW, CommunityPostStatus.ACTIVE)).isEqualTo(1));
+        assertThat(readPost().getCategory()).isNull();
         assertThat(readPost().getLikeCount()).isEqualTo(1);
     }
 
@@ -217,10 +237,46 @@ class CommunityRepositoryMySqlConcurrencyTest {
         assertThat(secondPage.hasNext()).isFalse();
     }
 
+    /**
+     * 말머리 필터(#470). null 이면 조건이 없어 말머리 없는 글까지 전부, 값이 있으면 그 말머리만 — 대상 필터·최신순 id 커서·인기순 (likeCount, id) 커서와 함께 동작한다.
+     * seed 글(POST_ID)은 말머리 없음(null)이다.
+     */
+    @Test
+    void feedFiltersByCategoryTogetherWithTargetFilterAndCursors() {
+        transaction().executeWithoutResult(status -> {
+            savePost(91002L, "C1", CommunityPostCategory.QUESTION, NOW.minusDays(1), 1);
+            savePost(91003L, "C2", CommunityPostCategory.QUESTION, NOW.minusDays(1), 7);
+            savePost(91004L, "C1", CommunityPostCategory.NEWS, NOW.minusDays(1), 9);
+            savePost(91005L, "C1", CommunityPostCategory.QUESTION, NOW.minusDays(1), 4);
+        });
+
+        assertThat(latestFeedIds(null, null, 0L, 10)).containsExactly(91005L, 91004L, 91003L, 91002L, POST_ID);
+        assertThat(latestFeedIds(null, CommunityPostCategory.QUESTION, 0L, 10)).containsExactly(91005L, 91003L, 91002L);
+        assertThat(latestFeedIds("C1", CommunityPostCategory.QUESTION, 0L, 10)).containsExactly(91005L, 91002L);
+
+        Slice<CommunityPostEntity> firstPage = feed(CommunitySortType.LATEST, null, CommunityPostCategory.QUESTION, null, 0L, 0L, 2);
+        assertThat(firstPage.getContent()).extracting(CommunityPostEntity::getId).containsExactly(91005L, 91003L);
+        assertThat(firstPage.hasNext()).isTrue();
+        Slice<CommunityPostEntity> secondPage = feed(CommunitySortType.LATEST, null, CommunityPostCategory.QUESTION, null, 91003L, 0L, 2);
+        assertThat(secondPage.getContent()).extracting(CommunityPostEntity::getId).containsExactly(91002L);
+        assertThat(secondPage.hasNext()).isFalse();
+
+        Slice<CommunityPostEntity> popularFirst = feed(CommunitySortType.POPULAR, null, CommunityPostCategory.QUESTION, null, 0L, 0L, 2);
+        assertThat(popularFirst.getContent()).extracting(CommunityPostEntity::getId).containsExactly(91003L, 91005L);
+        assertThat(popularFirst.hasNext()).isTrue();
+        Slice<CommunityPostEntity> popularSecond = feed(CommunitySortType.POPULAR, null, CommunityPostCategory.QUESTION, null, 91005L, 4L, 2);
+        assertThat(popularSecond.getContent()).extracting(CommunityPostEntity::getId).containsExactly(91002L);
+        assertThat(popularSecond.hasNext()).isFalse();
+    }
+
     private void savePost(long id, LocalDateTime createdAt, long likeCount) {
+        savePost(id, "C1", null, createdAt, likeCount);
+    }
+
+    private void savePost(long id, String targetCode, CommunityPostCategory category, LocalDateTime createdAt, long likeCount) {
         posts.saveAndFlush(CommunityPostEntity.builder()
             .id(id).memberId(MEMBER_ID).targetType(CommunityTargetType.COMMERCIAL)
-            .targetCode("C1").targetName("target").title("post " + id).content("content")
+            .targetCode(targetCode).targetName("target").title("post " + id).content("content").category(category)
             .status(CommunityPostStatus.ACTIVE).likeCount(likeCount).commentCount(0).viewCount(0)
             .createdAt(createdAt).updatedAt(createdAt).build());
     }
@@ -230,8 +286,21 @@ class CommunityRepositoryMySqlConcurrencyTest {
     }
 
     private Slice<CommunityPostEntity> popularFeed(LocalDateTime popularSince, long lastPostId, long lastLikeCount, int size) {
+        return feed(CommunitySortType.POPULAR, null, null, popularSince, lastPostId, lastLikeCount, size);
+    }
+
+    private List<Long> latestFeedIds(String targetCode, CommunityPostCategory category, long lastPostId, int size) {
+        return feed(CommunitySortType.LATEST, targetCode, category, null, lastPostId, 0L, size).getContent().stream()
+            .map(CommunityPostEntity::getId).toList();
+    }
+
+    private Slice<CommunityPostEntity> feed(
+        CommunitySortType sortType, String targetCode, CommunityPostCategory category, LocalDateTime popularSince,
+        long lastPostId, long lastLikeCount, int size
+    ) {
+        CommunityTargetType targetType = targetCode == null ? null : CommunityTargetType.COMMERCIAL;
         return transaction().execute(status -> posts.findFeedPostsNoOffset(
-            CommunityPostStatus.ACTIVE, CommunitySortType.POPULAR, OrderType.DESC, null, null,
+            CommunityPostStatus.ACTIVE, sortType, OrderType.DESC, targetType, targetCode, category,
             lastPostId, lastLikeCount, size, popularSince));
     }
 

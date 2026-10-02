@@ -41,6 +41,9 @@ public record CommunityPostDetailResponse(
     @Schema(description = "본문")
     String content,
 
+    @Schema(description = "말머리 메타데이터 (말머리 없는 글은 null). 수정 화면은 이 값의 code 를 수정 요청 category 로 다시 보냅니다", nullable = true)
+    CodeNameDescriptionMetadata category,
+
     @Schema(description = "분석 첨부 타입 메타데이터 (없으면 null)", nullable = true)
     CodeNameDescriptionMetadata analysisType,
 

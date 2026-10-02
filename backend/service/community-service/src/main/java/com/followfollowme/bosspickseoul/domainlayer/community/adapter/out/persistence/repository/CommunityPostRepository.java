@@ -2,6 +2,7 @@ package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persi
 
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.CommunityPostEntity;
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.repository.custom.CommunityPostCustomRepository;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,19 +18,19 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPostEnti
     List<CommunityPostEntity> findByStatusAndUpdatedAtBefore(
         CommunityPostStatus status, LocalDateTime threshold, Limit limit);
 
+    /**
+     * 본문 수정. 수정 화면이 다루는 필드(제목·본문·말머리)만 바꾸고 카운터는 건드리지 않는다 — 동시 좋아요·조회를 덮어쓰지 않는다.
+     * 말머리는 전체 교체라 null 이면 null 로 지운다. 파라미터명이 쿼리 이름과 같아 {@code @Param} 을 붙이지 않는다(coding-conventions §9-6).
+     */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update CommunityPostEntity p
-           set p.title = :title, p.content = :content, p.updatedAt = :updatedAt
+           set p.title = :title, p.content = :content, p.category = :category, p.updatedAt = :updatedAt
          where p.id = :postId and p.memberId = :memberId and p.status = :activeStatus
         """)
     int updateContentIfActive(
-        @Param("postId") long postId,
-        @Param("memberId") long memberId,
-        @Param("title") String title,
-        @Param("content") String content,
-        @Param("updatedAt") LocalDateTime updatedAt,
-        @Param("activeStatus") CommunityPostStatus activeStatus
+        long postId, long memberId, String title, String content, CommunityPostCategory category, LocalDateTime updatedAt,
+        CommunityPostStatus activeStatus
     );
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

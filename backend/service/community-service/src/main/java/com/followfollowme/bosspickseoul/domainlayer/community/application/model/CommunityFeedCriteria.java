@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.application.model;
 
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunitySortType;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityTargetType;
 import com.followfollowme.bosspickseoul.common.enums.OrderType;
@@ -10,6 +11,8 @@ public record CommunityFeedCriteria(
     OrderType orderType,
     CommunityTargetType targetType,
     String targetCode,
+    // 말머리 필터. null 이면 필터 없음(말머리 없는 글도 포함한 전체).
+    CommunityPostCategory category,
     long lastPostId,
     long lastLikeCount,
     int size,

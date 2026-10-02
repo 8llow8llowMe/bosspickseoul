@@ -72,7 +72,7 @@ class CommunityPostWebControllerPopularPeriodTest {
         mockMvc.perform(get("/api/v1/community/posts/liked").param("sortType", "POPULAR")).andExpect(status().isOk());
 
         CommunityPopularPeriod week = CommunityPopularPeriod.WEEK;
-        verify(communityPostWebUseCase).getPosts(any(), any(), any(), eq(week), any(), any(), anyLong(), anyLong(), anyInt());
+        verify(communityPostWebUseCase).getPosts(any(), any(), any(), eq(week), any(), any(), any(), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase).searchPosts(any(), any(), any(), any(), eq(week), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase).getLikedPosts(eq(MEMBER_ID), any(), any(), eq(week), anyLong(), anyLong(), anyInt());
     }
@@ -90,7 +90,7 @@ class CommunityPostWebControllerPopularPeriodTest {
             .andExpect(status().isOk());
 
         verify(communityPostWebUseCase)
-            .getPosts(any(), any(), any(), eq(CommunityPopularPeriod.ALL), any(), any(), anyLong(), anyLong(), anyInt());
+            .getPosts(any(), any(), any(), eq(CommunityPopularPeriod.ALL), any(), any(), any(), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase)
             .searchPosts(any(), any(), any(), any(), eq(CommunityPopularPeriod.MONTH), anyLong(), anyLong(), anyInt());
         verify(communityPostWebUseCase)

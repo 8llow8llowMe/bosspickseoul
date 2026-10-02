@@ -42,7 +42,7 @@ class CommunityQueryProcessorPopularPeriodTest {
     @DisplayName("목록 WEEK 는 현재 시각 기준 7일 전을 하한으로 넘긴다")
     void feed_week_passesSevenDayLowerBound() {
         LocalDateTime before = LocalDateTime.now();
-        processor.getFeed(CommunitySortType.POPULAR, OrderType.DESC, CommunityPopularPeriod.WEEK, null, null, 0L, 0L, 20);
+        processor.getFeed(CommunitySortType.POPULAR, OrderType.DESC, CommunityPopularPeriod.WEEK, null, null, null, 0L, 0L, 20);
         LocalDateTime after = LocalDateTime.now();
 
         assertThat(captureFeed().popularSince()).isBetween(before.minusDays(7), after.minusDays(7));
@@ -51,7 +51,7 @@ class CommunityQueryProcessorPopularPeriodTest {
     @Test
     @DisplayName("목록 ALL 은 하한 없이 null 을 넘긴다")
     void feed_all_passesNoLowerBound() {
-        processor.getFeed(CommunitySortType.POPULAR, OrderType.DESC, CommunityPopularPeriod.ALL, null, null, 0L, 0L, 20);
+        processor.getFeed(CommunitySortType.POPULAR, OrderType.DESC, CommunityPopularPeriod.ALL, null, null, null, 0L, 0L, 20);
 
         assertThat(captureFeed().popularSince()).isNull();
     }

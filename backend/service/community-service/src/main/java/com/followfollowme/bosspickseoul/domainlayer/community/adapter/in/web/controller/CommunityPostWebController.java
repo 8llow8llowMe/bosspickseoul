@@ -62,6 +62,11 @@ public class CommunityPostWebController {
         "인기순 기간 — sortType=POPULAR 일 때만 적용하고 LATEST 에서는 무시합니다. "
             + "작성 시각 기준 롤링 기간: WEEK 최근 7일(기본) · MONTH 최근 30일 · ALL 전체 기간";
 
+    /** 목록의 말머리 필터 설명. 검색·좋아요 목록에는 이 필터가 없다. */
+    private static final String POST_CATEGORY_FILTER_DESCRIPTION =
+        "말머리 필터 (선택 — 생략하면 전체). QUESTION 질문 · EXPERIENCE 경험 공유 · TOGETHER 같이 해요 · NEWS 동네 소식. "
+            + "대상 필터·정렬·기간·커서와 함께 쓸 수 있습니다. 대소문자를 구분하지 않으며 잘못된 값은 COMMUNITY_017";
+
     private final CommunityPostWebUseCase communityPostWebUseCase;
 
     @Operation(
@@ -77,6 +82,7 @@ public class CommunityPostWebController {
         @Parameter(description = POPULAR_PERIOD_DESCRIPTION) @RequestParam(defaultValue = "WEEK") CommunityPopularPeriod period,
         @Parameter(description = "대상 타입 필터") @RequestParam(required = false) String targetType,
         @Parameter(description = "대상 코드 필터") @RequestParam(required = false) String targetCode,
+        @Parameter(description = POST_CATEGORY_FILTER_DESCRIPTION, example = "QUESTION") @RequestParam(required = false) String category,
         @Parameter(description = "마지막 게시글 ID", example = "0") @RequestParam(defaultValue = "0") long lastPostId,
         @Parameter(description = "인기순 조회 시 마지막 좋아요 수 커서", example = "0") @RequestParam(defaultValue = "0") long lastLikeCount,
         @Parameter(description = "조회 개수 (1~50)", example = "20") @RequestParam(defaultValue = "20")
@@ -90,6 +96,7 @@ public class CommunityPostWebController {
             period,
             targetType,
             targetCode,
+            category,
             lastPostId,
             lastLikeCount,
             size
@@ -185,7 +192,8 @@ public class CommunityPostWebController {
 
     @Operation(
         summary = "게시글 수정",
-        description = "본인 게시글을 수정합니다.",
+        description = "본인 게시글을 수정합니다. 제목·본문·말머리(category)·이미지 목록(imageKeys)을 수정 후 값으로 통째로 바꾸는 전체 교체 방식이라, "
+            + "category 를 생략하거나 null 로 보내면 말머리가 지워집니다. 수정 화면은 현재 말머리를 항상 다시 보냅니다.",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @PatchMapping("/{postId}")

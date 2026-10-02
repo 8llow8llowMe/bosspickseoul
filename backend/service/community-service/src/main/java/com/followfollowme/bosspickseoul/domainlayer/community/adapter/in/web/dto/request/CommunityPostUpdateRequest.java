@@ -19,6 +19,10 @@ public record CommunityPostUpdateRequest(
     @Size(max = 5000, message = CommunityValidationMessage.CONTENT_LENGTH_INVALID)
     String content,
 
+    @Schema(description = "수정 후 말머리 (선택). 이 API 는 전체 교체 방식이라 보내지 않거나 null 이면 말머리를 지웁니다 — "
+        + "수정 화면은 현재 말머리를 항상 다시 보내야 합니다. 잘못된 값은 COMMUNITY_017", example = "QUESTION", nullable = true)
+    String category,
+
     @Schema(description = "수정 후 남길 이미지 오브젝트 키 목록. 기존 이미지 중 여기 없는 항목은 삭제됩니다.",
         example = "[\"community/posts/202507110001/2026/08/3f2a9c11-0e4b-4a1f-9c3d-0b8e2f7a5d61.png\"]")
     @Size(max = 5, message = CommunityValidationMessage.IMAGE_COUNT_INVALID)

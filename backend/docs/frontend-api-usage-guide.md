@@ -273,6 +273,30 @@ GET /api/v1/community/posts?targetType=COMMERCIAL&targetCode=3110008&sortType=LA
 GET /api/v1/community/posts?sortType=POPULAR&period=WEEK&lastPostId=0&lastLikeCount=0&size=5
 ```
 
+게시글 말머리 (#470):
+
+- 작성 도움 칩을 고르면 그 code 를 작성 요청 `category` 로 보낸다. 칩 → code 매핑:
+
+  | 칩 (`editor-compose.ts`) | `category` |
+  | --- | --- |
+  | 질문해요 (`question`) | `QUESTION` |
+  | 경험 나눠요 (`experience`) | `EXPERIENCE` |
+  | 같이 해요 (`together`) | `TOGETHER` |
+  | (칩 없음) | `NEWS` — 동네 소식 |
+
+  칩을 고르지 않으면 `category` 를 보내지 않는다(말머리 없음). 칩 id 는 소문자지만 서버는 대소문자를 가리지 않는다 — 그래도 응답 code 와 맞추려면 대문자로 보낸다.
+- **수정 요청은 현재 말머리를 항상 다시 보낸다.** 수정 API 는 전체 교체라 `category` 를 빼면 말머리가 지워진다.
+  수정 화면 진입 시 상세 응답의 `category?.code` 로 칩 상태를 채우고, 저장할 때 그대로(또는 바꾼 값으로) 보낸다. 말머리를 지울 때만 생략한다.
+- 응답의 `category` 는 `{code, name, description}` 객체이거나 `null`(말머리 없는 글, 기존 글 전부)이다. 배지 문구는 `category.name`, 분기는 `category.code` 로 한다.
+- 피드의 말머리 탭은 `GET /api/v1/community/posts?category=QUESTION` 처럼 거른다. 「전체」 탭은 `category` 를 보내지 않는다.
+  대상 필터·`sortType`·`period` 와 함께 쓸 수 있고, 말머리를 바꾸면 커서(`lastPostId`·`lastLikeCount`)를 `0` 부터 다시 시작한다.
+  검색·좋아요한 글 목록에는 말머리 필터가 없다.
+- 잘못된 값은 `400 COMMUNITY_017` 이다.
+
+```http
+GET /api/v1/community/posts?category=QUESTION&sortType=LATEST&lastPostId=0&size=20
+```
+
 ## Moderation
 
 | UI | API | Usage |

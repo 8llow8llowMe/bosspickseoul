@@ -7,6 +7,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.model.
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunityLikedPostCriteria;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.model.CommunitySearchPostCriteria;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostCategory;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityPostStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.LikedCommunityPost;
@@ -49,6 +50,7 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
             criteria.orderType(),
             criteria.targetType(),
             criteria.targetCode(),
+            criteria.category(),
             criteria.lastPostId(),
             criteria.lastLikeCount(),
             criteria.size(),
@@ -108,10 +110,10 @@ public class CommunityPostRepositoryAdapter implements CommunityPostRepositoryPo
 
     @Override
     public Optional<CommunityPost> updateContentIfActive(
-        long postId, long memberId, String title, String content, LocalDateTime updatedAt
+        long postId, long memberId, String title, String content, CommunityPostCategory category, LocalDateTime updatedAt
     ) {
         int updated = communityPostRepository.updateContentIfActive(
-            postId, memberId, title, content, updatedAt, CommunityPostStatus.ACTIVE);
+            postId, memberId, title, content, category, updatedAt, CommunityPostStatus.ACTIVE);
         return updated == 0 ? Optional.empty() : findById(postId);
     }
 

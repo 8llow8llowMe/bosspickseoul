@@ -27,9 +27,11 @@ public enum CommunityErrorCode {
     // 작성자 표시(닉네임/프로필) 조회 실패 시 어댑터가 던지는 코드. 조회 경로에서는 프로세서가
     // 흡수해 작성자 필드만 null 로 강등하므로, 실제 응답으로 나가는 일은 드물다.
     MEMBER_SERVICE_UNAVAILABLE("COMMUNITY_016", "회원 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
+    // 말머리는 작성·수정 요청 본문과 목록 필터(category 쿼리) 양쪽에서 같은 코드로 거절한다.
+    INVALID_POST_CATEGORY("COMMUNITY_017", "유효하지 않은 말머리입니다.", HttpStatus.BAD_REQUEST),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
-    // 필드별 코드(COMMUNITY_101~116)는 CommunityValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
+    // 필드별 코드(COMMUNITY_101~116, 118~122)는 CommunityValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
     INVALID_REQUEST("COMMUNITY_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     PARAMETER_TYPE_INVALID("COMMUNITY_117", "요청 파라미터 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
 

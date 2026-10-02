@@ -161,11 +161,11 @@ class CommunityPostWebFacadeViewerLikeTest {
     }
 
     private CommunityPostListResponse getPosts(Long viewerMemberId) {
-        return facade.getPosts(viewerMemberId, CommunitySortType.LATEST, OrderType.DESC, CommunityPopularPeriod.WEEK, null, null, 0L, 0L, 20);
+        return facade.getPosts(viewerMemberId, CommunitySortType.LATEST, OrderType.DESC, CommunityPopularPeriod.WEEK, null, null, null, 0L, 0L, 20);
     }
 
     private void stubFeed(CommunityPost... posts) {
-        when(communityQueryProcessor.getFeed(any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
+        when(communityQueryProcessor.getFeed(any(), any(), any(), any(), any(), any(), anyLong(), anyLong(), anyInt()))
             .thenReturn(SliceQueryResult.of(List.of(posts), false));
     }
 
@@ -176,7 +176,7 @@ class CommunityPostWebFacadeViewerLikeTest {
 
     private static CommunityPost post(long postId, long viewCount) {
         return new CommunityPost(
-            postId, WRITER_ID, CommunityTargetType.COMMERCIAL, "C1", "target", "title", "content",
+            postId, WRITER_ID, CommunityTargetType.COMMERCIAL, "C1", "target", "title", "content", null,
             null, null, null, null,
             CommunityPostStatus.ACTIVE, 0L, 0L, viewCount, NOW, NOW
         );
