@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.response;
 
 import com.followfollowme.bosspickseoul.common.constants.AnalysisPeriodDefaults;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesPerStoreSummaryItem;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.Builder;
@@ -38,6 +39,9 @@ public record CommercialBenchmarkResponse(
 
     @Schema(description = "소비력 벤치마크 응답 DTO")
     CommercialIncomeSummaryResponse incomeSummary,
+
+    @Schema(description = "업종별 점포당 평균 매출과 자치구·행정동 대비 지수(이슈 #485). 항상 채워지고, 점포 결측은 안쪽 필드만 null 이다")
+    CommercialSalesPerStoreSummaryItem salesPerStore,
 
     @Schema(description = "벤치마크 하이라이트")
     List<String> benchmarkHighlights

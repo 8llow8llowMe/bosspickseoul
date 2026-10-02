@@ -16,6 +16,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dt
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.ComparisonMetricGroupGuideItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.RegionalIncomeSummaryItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.RegionalSalesSummaryItem;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesPerStoreSummaryItem;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.RegionalSalesPerStoreItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeGenderPercentItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.CommercialSalesByAgeItem;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.adapter.in.web.dto.item.MetricBreakdownItem;
@@ -53,6 +55,8 @@ import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.facility.CommercialFacilityInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialBenchmarkInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialSalesPerStoreSummaryInfo;
+import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.RegionalSalesPerStoreInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.CommercialComparisonTargetInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonMetricInfo;
 import com.followfollowme.bosspickseoul.domainlayer.commercial.application.info.comparison.ComparisonGuideInfo;
@@ -223,6 +227,7 @@ public class CommercialPresenter {
             .summary(info.summary())
             .salesSummary(toCommercialSalesSummaryResponse(info.salesSummary()))
             .incomeSummary(toCommercialIncomeSummaryResponse(info.incomeSummary()))
+            .salesPerStore(toCommercialSalesPerStoreSummaryItem(info.salesPerStore()))
             .benchmarkHighlights(info.benchmarkHighlights())
             .build();
     }
@@ -548,6 +553,28 @@ public class CommercialPresenter {
             .serviceCode(info.serviceCode())
             .serviceName(info.serviceName())
             .monthlySalesAmount(info.monthlySalesAmount())
+            .build();
+    }
+
+    private CommercialSalesPerStoreSummaryItem toCommercialSalesPerStoreSummaryItem(CommercialSalesPerStoreSummaryInfo info) {
+        return CommercialSalesPerStoreSummaryItem.builder()
+            .serviceCode(info.serviceCode())
+            .serviceName(info.serviceName())
+            .district(toRegionalSalesPerStoreItem(info.district()))
+            .administration(toRegionalSalesPerStoreItem(info.administration()))
+            .commercial(toRegionalSalesPerStoreItem(info.commercial()))
+            .indexVsDistrict(info.indexVsDistrict())
+            .indexVsAdministration(info.indexVsAdministration())
+            .build();
+    }
+
+    private RegionalSalesPerStoreItem toRegionalSalesPerStoreItem(RegionalSalesPerStoreInfo info) {
+        return RegionalSalesPerStoreItem.builder()
+            .code(info.code())
+            .name(info.name())
+            .monthlySalesAmount(info.monthlySalesAmount())
+            .storeCount(info.storeCount())
+            .monthlySalesPerStore(info.monthlySalesPerStore())
             .build();
     }
 

@@ -190,7 +190,25 @@
 | GET | `/{commercialCode}/population` | 거주인구 분석 | - |
 | GET | `/{commercialCode}/income` | 소비 지출 분석 | - |
 | GET | `/{commercialCode}/services/{serviceCode}/stores` | 업종별 점포 분석 (개폐업률 등) | - |
-| GET | `/{commercialCode}/benchmarks` | 상권 벤치마크 비교 | - |
+| GET | `/{commercialCode}/benchmarks` | 상권 벤치마크 비교 (매출·소비 요약 + 업종별 점포당 평균 매출 지수 `salesPerStore`, 이슈 #485) | - |
+
+> **벤치마크 점포당 매출 지수 (이슈 #485).** `GET /{commercialCode}/benchmarks?serviceCode=..`(`serviceCode` 필수) 응답에 `salesPerStore` 가 **추가**됐습니다. 기존 필드는 그대로이고, `salesSummary` 는 `/summaries/sales` 와 같은 모양을 유지합니다(ai-service 가 공유하는 계약이라 필드를 더하지 않습니다).
+>
+> - 단위 item `district`·`administration`·`commercial` 의 `code`·`name`·`monthlySalesAmount` 는 `salesSummary` 의 같은 단위 값입니다. `storeCount` 는 **이 업종 전체 점포 수**(유사 업종 점포 수 `SIMILR_INDUTY_STOR_CO` = 일반 + 프랜차이즈), `monthlySalesPerStore` 는 `monthlySalesAmount ÷ storeCount` 를 원 단위 HALF_UP 으로 반올림한 값입니다.
+> - `indexVsDistrict` = 상권 점포당 ÷ 자치구 점포당 × 100, `indexVsAdministration` = 상권 점포당 ÷ 행정동 점포당 × 100. 소수 첫째 자리 HALF_UP 이고 100 이 비교 단위 평균과 같은 수준입니다. 분자·분모는 응답에 실린 `monthlySalesPerStore` 라 화면 숫자로 다시 계산해도 같습니다.
+> - **null 규칙.** 그 분기·업종의 점포 행이 없으면 `storeCount`·`monthlySalesPerStore` 가 `null` 이고 단위 item 은 남습니다. 점포 수가 0 이면 `monthlySalesPerStore` 만 `null` 입니다. 지수는 분자·분모 중 하나라도 `null` 이거나 분모가 0 이면 `null` 이며 **0 으로 내리지 않습니다.** `salesPerStore` 자체는 항상 있습니다. 매출 행이 없을 때의 404(`COMMERCIAL_SUMMARY_001`)는 바뀌지 않았습니다.
+> - 분모로 `totalStoreCount`(`STOR_CO`, 프랜차이즈 제외)를 쓰지 않습니다. 월 매출은 그 업종 점포 전체의 매출이라 프랜차이즈를 빼고 나누면 점포당 매출이 부풀려집니다 — 아래 예시 상권의 지수가 86.6 으로 부풀려집니다(이슈 #490). 매출·점포는 2024년 이후에도 원천이 살아 있어 대체값·출처(`provenance`)는 없습니다.
+>
+> ```json
+> "salesPerStore": {
+>   "serviceCode": "CS100010", "serviceName": "커피-음료",
+>   "district":       { "code": "11350",    "name": "노원구",          "monthlySalesAmount": 15415802889, "storeCount": 809, "monthlySalesPerStore": 19055381 },
+>   "administration": { "code": "11350600", "name": "공릉2동",         "monthlySalesAmount": 1326394061,  "storeCount": 102, "monthlySalesPerStore": 13003863 },
+>   "commercial":     { "code": "3110438",  "name": "경춘선숲길 우측", "monthlySalesAmount": 164964564,   "storeCount": 20,  "monthlySalesPerStore": 8248228 },
+>   "indexVsDistrict": 43.3,
+>   "indexVsAdministration": 63.4
+> }
+> ```
 
 ### 상권 요약 (`/api/v1/commercials/{commercialCode}/summaries`)
 

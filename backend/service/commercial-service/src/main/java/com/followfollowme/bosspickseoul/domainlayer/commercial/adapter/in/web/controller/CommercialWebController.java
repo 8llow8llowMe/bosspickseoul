@@ -145,7 +145,7 @@ public class CommercialWebController {
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "상권 벤치마크 조회", description = "상권의 매출과 소비력 지표를 자치구 및 행정동 평균과 비교합니다.")
+    @Operation(summary = "상권 벤치마크 조회", description = "상권의 매출·소비력 지표와 업종별 점포당 평균 매출 지수를 자치구 및 행정동과 비교합니다.")
     @GetMapping("/{commercialCode}/benchmarks")
     public ResponseEntity<Response<CommercialBenchmarkResponse>> getBenchmarks(
         @Parameter(description = "상권 코드", required = true, example = "3110008") @PathVariable String commercialCode,
