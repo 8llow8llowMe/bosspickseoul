@@ -3,6 +3,7 @@ import {
   type AnalysisMetricRow,
 } from '@/lib/analysis/presentation'
 import { toPyramidRows, type PyramidRow } from '@/lib/analysis/chart-data'
+import { toPerHourRows } from '@/lib/analysis/time-slot'
 import type {
   CommercialFootTraffic,
   CommercialSales,
@@ -80,14 +81,17 @@ export const createRows = (
 /*
   시간대별 매출은 막대로 그린다(BarChart). 예전에는 6개 구간을 꺾은선으로 이어 구간 사이에도
   값이 있는 것처럼 보였다 — 구간은 이산이고 길이도 3~6시간으로 다르다.
+  값은 **시간당 평균**이다. 원천이 구간 합계라 그대로 그리면 긴 구간이 커 보인다(`time-slot`).
 */
 export const buildSalesTimeBars = (
   sales: CommercialSales | null,
 ): AnalysisMetricRow[] =>
-  createRows(
-    sales?.amountByTimeSlotItem as
-      Record<string, number | null> | null | undefined,
-    salesTimeDefinitions,
+  toPerHourRows(
+    createRows(
+      sales?.amountByTimeSlotItem as
+        Record<string, number | null> | null | undefined,
+      salesTimeDefinitions,
+    ),
   )
 
 export const buildFootDayBars = (

@@ -52,6 +52,11 @@ export type BarChartProps = {
   height?: number
   /** Formats the tooltip value. Defaults to a unit-based compact format. */
   valueFormatter?: (value: number) => string
+  /**
+   * 축 위 단위 표기를 덮어쓴다. 기본은 `unit` 에서 만든 「(명)」이다. 값의 기준이 단위만으로
+   * 드러나지 않을 때(시간대 막대의 시간당 평균 → 「(명, 시간당)」) 쓴다.
+   */
+  unitCaption?: string
 }
 
 export const resolveBarCells = (
@@ -112,6 +117,7 @@ export default function BarChart({
   maxBarSize,
   height = 240,
   valueFormatter,
+  unitCaption: unitCaptionOverride,
 }: BarChartProps) {
   const cells = resolveBarCells(items, emphasisLabels, highlightMax)
   const hasData = cells.some(cell => typeof cell.value === 'number')
@@ -127,7 +133,7 @@ export default function BarChart({
   const formatTick = createAxisTickFormatter(yScale.ticks)
   const formatValue = (value: number): string =>
     valueFormatter ? valueFormatter(value) : formatChartValue(value, unit)
-  const unitCaption = formatAxisUnitCaption(unit)
+  const unitCaption = unitCaptionOverride ?? formatAxisUnitCaption(unit)
 
   return (
     <div role="img" aria-label={ariaLabel}>

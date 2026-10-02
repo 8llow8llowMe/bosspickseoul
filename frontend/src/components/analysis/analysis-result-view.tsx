@@ -106,6 +106,7 @@ import {
   salesAgeDefinitions,
   populationAgeDefinitions,
 } from '@/lib/analysis/commercial-chart-selectors'
+import { toPerHourRows } from '@/lib/analysis/time-slot'
 import {
   describeFootAgeGenderPeak,
   describeFootDayPattern,
@@ -894,11 +895,12 @@ const withGenderColors = (
 }
 
 /*
-  시간대 구간은 길이가 다르다(00~06시 6시간, 11~14시 3시간). 막대는 구간 합계라 긴 구간이
-  부풀어 보일 수 있어 각주로 알린다. 시간당 환산은 원천이 구간 합계인지 확정한 뒤 정한다.
+  시간대 구간은 길이가 다르다(00~06시 6시간, 11~14시 3시간). 원천 값은 구간 합계라
+  (`lib/analysis/time-slot`) 막대는 시간당 평균으로 그린다 — 합계로는 6시간짜리 00~06시가
+  길이만으로 이겼다. 막대 값이 응답 숫자와 다른 이유를 각주로 알린다.
 */
 const TIME_BAND_NOTE =
-  '시간대 구간의 길이가 3~6시간으로 서로 달라요. 막대는 구간마다 합한 값이에요.'
+  '시간대 구간의 길이가 3~6시간으로 서로 달라 구간 합계를 시간 수로 나눈 시간당 평균으로 그렸어요.'
 
 export default function AnalysisResultView({
   onClose,
@@ -1268,10 +1270,13 @@ export default function AnalysisResultView({
   const benchmark = getResponseBody(
     benchmarkQuery.data,
   ) as CommercialBenchmark | null
+  // 시간대 행은 원천 구간 합계다. 막대는 시간당(`*PerHourRows`), 결론 문장은 합계를 받아
+  // 안에서 시간당으로 비교한다(매출 비중은 합계가 기준이라).
   const footTimeRows = createRows(
     footTraffic?.byTimeSlotItem as Record<string, number | null> | null,
     footTimeDefinitions,
   )
+  const footTimePerHourRows = toPerHourRows(footTimeRows)
   const footDayRows = createRows(
     footTraffic?.byDayOfWeekItem as Record<string, number | null> | null,
     footDayDefinitions,
@@ -1281,6 +1286,7 @@ export default function AnalysisResultView({
     sales?.amountByTimeSlotItem as Record<string, number | null> | null,
     salesTimeDefinitions,
   )
+  const salesTimePerHourRows = toPerHourRows(salesTimeRows)
   const salesDayRows = createRows(
     sales?.amountByDayOfWeekItem as Record<string, number | null> | null,
     salesDayDefinitions,
@@ -2034,9 +2040,10 @@ export default function AnalysisResultView({
                 >
                   <ChartBox $maxWidth={560}>
                     <BarChart
-                      items={footTimeRows}
+                      items={footTimePerHourRows}
                       unit="명"
-                      ariaLabel="시간대별 유동인구 막대 차트"
+                      unitCaption="(명, 시간당)"
+                      ariaLabel="시간대별 시간당 유동인구 막대 차트"
                       highlightMax
                     />
                   </ChartBox>
@@ -2108,9 +2115,10 @@ export default function AnalysisResultView({
                 >
                   <ChartBox $maxWidth={560}>
                     <BarChart
-                      items={salesTimeRows}
+                      items={salesTimePerHourRows}
                       unit="원"
-                      ariaLabel="시간대별 매출 막대 차트"
+                      unitCaption="(원, 시간당)"
+                      ariaLabel="시간대별 시간당 매출 막대 차트"
                       highlightMax
                     />
                   </ChartBox>
