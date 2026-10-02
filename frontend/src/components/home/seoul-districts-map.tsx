@@ -27,7 +27,11 @@ import {
   placeBesideRect,
   tooltipScale,
 } from '@/components/home/tooltip-geometry'
-import { HERO_STACKED_MEDIA } from '@/components/home/layout-constants'
+import {
+  HEADER_HEIGHT,
+  HERO_SPLIT_MEDIA,
+  HERO_TABLET_MEDIA,
+} from '@/components/home/layout-constants'
 import { useDistrictDetail } from '@/hooks/use-district-detail'
 import { trackEvent } from '@/lib/analytics/events'
 
@@ -67,16 +71,16 @@ const Wrapper = styled.div`
   height: 100%;
 `
 
-// 히어로(hero-section.tsx)가 이 컴포넌트의 유일한 사용처이며, 데스크톱에서는
-// 뷰포트 높이(100dvh - 헤더높이)에 맞춰 지도를 스케일해 25개 자치구 폴리곤이
-// 모두 한 화면에 보이게 한다. Wrapper/MapSvg를 height: 100%로 두면 SVG의 기본
-// preserveAspectRatio="xMidYMid meet"이 가로/세로 중 더 제약이 큰 쪽에 맞춰
-// 축소하며 중앙 정렬한다(모바일처럼 상위 컨테이너 높이가 부정형이면 퍼센트
-// 높이가 auto로 풀려 기존과 동일하게 폭 기준으로 자연스러운 높이를 갖는다).
+// 히어로(hero-section.tsx)가 이 컴포넌트의 유일한 사용처다. 상자는 늘 폴리곤 비율(800 : 620)
+// 이라 위아래 빈 띠가 없고, 캡션이 지도 바로 아래 붙는다. 폭별로 높이 상한만 다르다 — 상한에
+// 걸려 상자가 비율보다 넓어지면 preserveAspectRatio="xMidYMid meet" 이 가운데에 그린다
+// (hero-split-layout.md D4-1·D4-3). 예전엔 넓은 폭에서 height: 100% 로 칸 높이를 다 써서
+// 1920×1080 에서 캡션이 지도 아래 127px 떨어져 있었다.
 const MapSvg = styled.svg`
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  aspect-ratio: 800 / 620;
   max-width: 100%;
   /* 자치구 폴리곤/툴팁 제목 등 지도 내 텍스트가 드래그로 선택되지 않게 한다 */
   -webkit-user-select: none;
@@ -85,11 +89,15 @@ const MapSvg = styled.svg`
      좌우 분할에서는 툴팁이 viewBox 안에 클램프되므로 영향이 없다. */
   overflow: visible;
 
-  /* 좁은 폭(위아래 배치): 폴리곤이 실제로 차지하는 높이만 쓴다 — 박스가 비율보다 길면 빈 띠가
-     생긴다(hero-picker-and-mobile-first-screen.md D4-4, hero-split-layout.md D4-3). */
-  @media ${HERO_STACKED_MEDIA} {
-    height: auto;
-    aspect-ratio: 800 / 620;
+  /* 좌우 두 칸: 히어로 한 화면(100dvh - 헤더 - 아래 여백 48px)에서 캡션 한 줄(28px)을 뺀 높이까지. */
+  @media ${HERO_SPLIT_MEDIA} {
+    max-height: calc(100dvh - ${HEADER_HEIGHT} - 48px - 28px);
+  }
+
+  /* 지도 중심 배치는 제목·피커 바까지 한 화면에 담는다 — 지도 위아래 몫(제목 두 줄·피커·보조
+     링크 ≈ 280px)을 뺀 높이를 넘지 않는다. 폭이 남으면 meet 이 가운데에 그린다(D4-3). */
+  @media ${HERO_TABLET_MEDIA} {
+    max-height: max(320px, calc(100dvh - ${HEADER_HEIGHT} - 280px));
   }
 `
 
@@ -155,20 +163,27 @@ const TooltipGroup = styled.g`
   렌더하고 미디어쿼리로 한쪽을 숨긴다 — SSR 과 첫 렌더가 같다.
 */
 const MapCaption = styled.p`
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  max-width: 560px;
-  pointer-events: none;
+  margin-top: 8px;
   color: var(--color-text-caption);
   font-size: 13px;
   line-height: 20px;
+  text-align: center;
   word-break: keep-all;
 
-  @media ${HERO_STACKED_MEDIA} {
-    position: static;
-    max-width: none;
-    margin-top: 8px;
+  /* 지도 중심 배치는 피커 바로 아래 안내 줄(「지도에서 구를 누르거나…」)이 같은 일을 한다 — 두 줄이
+     피커를 사이에 두고 겹친다. 눈에서만 치우고 svg 의 설명(aria-describedby)으로는 남긴다. */
+  @media ${HERO_TABLET_MEDIA} {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    text-align: left;
   }
 `
 
@@ -191,8 +206,8 @@ type SeoulDistrictsMapProps = {
   /** 히어로 피커로 고른 구. 그 칸을 primary-700 으로 채운다. */
   selectedCode?: string | null
   /**
-   * 있으면 폴리곤 활성화(탭·Enter·Space)가 라우팅 대신 이 콜백을 부른다 — 모바일에서
-   * 지도 탭이 피커 선택이 된다(D4-4). 없으면 기존처럼 `/analysis` 로 이동한다.
+   * 있으면 폴리곤 활성화(클릭·탭·Enter·Space)가 라우팅 대신 이 콜백을 부른다 — 히어로는 모든
+   * 폭에서 넘겨 지도가 피커 선택이 된다(hero-split-layout.md D4-7). 없으면 `/analysis` 로 이동한다.
    */
   onDistrictActivate?: (districtCode: string) => void
   /** false 면 호버 툴팁·호버 계측을 붙이지 않는다(모바일 — 터치가 mouseenter 를 먼저 쏜다). */
@@ -439,8 +454,8 @@ export default function SeoulDistrictsMap({
       </MapSvg>
       <MapCaption id={captionId}>
         <DesktopOnly>
-          자치구 위에 올리면 시간대별 유동인구가 보이고, 누르면 그 구의 분석으로
-          넘어가요.
+          자치구 위에 올리면 시간대별 유동인구가 보이고, 누르면 그 구가 바로
+          골라져요.
         </DesktopOnly>
         <MobileOnly>자치구를 누르면 위 칸에서 바로 골라져요.</MobileOnly>
       </MapCaption>

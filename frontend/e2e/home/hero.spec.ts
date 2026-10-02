@@ -4,8 +4,8 @@ import { openHome } from './measure'
 /**
  * 히어로 상호작용 스모크.
  *
- * 데스크톱 지도 폴리곤 **클릭은 하지 않는다** — `/analysis` 로 라우팅되어 홈 측정이 끝난다.
- * 호버까지만 본다. 모바일 탭은 라우팅하지 않고 피커에 고른다(hero-picker-and-mobile-first-screen.md D4-4).
+ * 지도 폴리곤 클릭·탭은 모든 폭에서 라우팅하지 않고 피커에 고른다(hero-split-layout.md D4-7).
+ * 페이지를 넘기는 것은 카드의 「○○구 분석하기」뿐이다.
  */
 test.describe('홈 히어로', () => {
   test('데스크톱 — 지도 호버에 자치구 툴팁이 뜬다', async ({ page }) => {
@@ -78,6 +78,58 @@ test.describe('홈 히어로', () => {
       page.getByRole('link', { name: '마포구 분석하기' }),
     ).toHaveAttribute('href', '/analysis?districtCode=11440')
     expect(new URL(page.url()).pathname).toBe('/')
+  })
+
+  test('데스크톱 — 지도를 클릭하면 피커에 골라지고 이동하지 않는다', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'desktop', '데스크톱 클릭 동작.')
+
+    await openHome(page)
+    await page.locator('path[aria-label="강남구"]').click()
+
+    await expect(
+      page.getByRole('combobox', { name: '창업할 자치구' }),
+    ).toHaveValue('11680')
+    await expect(page.locator('path[aria-label="강남구"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await expect(
+      page.getByRole('link', { name: '강남구 분석하기' }),
+    ).toHaveAttribute('href', '/analysis?districtCode=11680')
+    expect(new URL(page.url()).pathname).toBe('/')
+  })
+
+  test('태블릿 폭 — 제목 → 지도 → 피커 바 순서로 한 화면에 든다', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'desktop', '폭만 바꿔 본다.')
+
+    await page.setViewportSize({ width: 768, height: 1024 })
+    await openHome(page)
+
+    const top = async (locator: ReturnType<typeof page.locator>) => {
+      const box = await locator.boundingBox()
+      expect(box, '요소가 렌더되지 않았습니다.').not.toBeNull()
+      return box!
+    }
+    const h1 = await top(page.getByRole('heading', { level: 1 }))
+    const map = await top(page.locator('main svg[aria-describedby]'))
+    const picker = await top(
+      page.getByRole('combobox', { name: '창업할 자치구' }),
+    )
+
+    // 지도 중심(D4-3): 카드가 지도 위가 아니라 제목이 위, 피커가 지도 아래다.
+    expect(h1.y + h1.height).toBeLessThanOrEqual(map.y)
+    expect(map.y + map.height).toBeLessThanOrEqual(picker.y)
+    expect(picker.y + picker.height).toBeLessThanOrEqual(1024)
+    // 지도가 피커 바와 같은 폭을 쓴다 — 칸 왼쪽 끝 ~ 주 버튼 오른쪽 끝.
+    const cta = await top(page.getByRole('link', { name: '내 상권 분석하기' }))
+    expect(Math.abs(map.x - picker.x)).toBeLessThanOrEqual(1)
+    expect(
+      Math.abs(map.x + map.width - (cta.x + cta.width)),
+    ).toBeLessThanOrEqual(1)
   })
 
   test('데스크톱 — 피커로 고르면 주 버튼이 그 구로 간다', async ({ page }) => {

@@ -41,7 +41,7 @@ export default function HeroPickPreview({ code }: { code: string | null }) {
 
   let content: ReactNode = null
   if (code === null || name === null) {
-    content = '고르면 그 구의 최근 분기 유동인구부터 바로 보여 줘요.'
+    content = '지도에서 구를 누르거나 목록에서 고르세요.'
   } else if (detail.data) {
     content =
       parts.length > 0 ? (

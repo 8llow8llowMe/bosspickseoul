@@ -22,7 +22,12 @@ import {
   HERO_PICKER_OPTIONS,
   resolveHeroPrimaryCta,
 } from '@/components/home/hero-picker'
-import { HEADER_HEIGHT } from '@/components/home/layout-constants'
+import {
+  HEADER_HEIGHT,
+  HERO_FLUID_MEDIA,
+  HERO_FLUID_NARROW_MEDIA,
+  HERO_TABLET_MEDIA,
+} from '@/components/home/layout-constants'
 import { trackAttrs } from '@/lib/analytics/events'
 
 export type WindowState = 'open' | 'minimized' | 'closed'
@@ -73,6 +78,12 @@ const WindowCard = styled.div<{ $tinted?: boolean }>`
   ${glassSurface}
   -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
   backdrop-filter: blur(14px) saturate(180%) brightness(1.04);
+
+  /* 지도 중심(hero-split-layout.md D4-3): 유리 카드 없이 안쪽 덩어리가 히어로 그리드 칸이 된다.
+     칸 이름(title·body·picker·actions)은 hero-section.tsx 의 HeroStage 가 정한다. */
+  @media ${HERO_TABLET_MEDIA} {
+    display: contents;
+  }
 
   @media (max-width: 640px) {
     width: min(460px, calc(100% - 24px));
@@ -195,6 +206,10 @@ const WindowBody = styled.div<{ $minimized: boolean }>`
     grid-template-rows var(--motion-standard) var(--ease-standard),
     opacity var(--motion-standard) var(--ease-standard);
 
+  @media ${HERO_TABLET_MEDIA} {
+    display: contents;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
@@ -207,6 +222,20 @@ const WindowBodyInner = styled.div<{ $chromeless: boolean }>`
   gap: 20px;
   /* 제목줄이 없으면 그 아래 16px 이 아니라 좌우와 같은 여백을 준다(D2 #5). */
   padding: ${p => (p.$chromeless ? '40px' : '16px 40px 40px')};
+
+  /* 카드 칸이 지도와 함께 줄어드는 구간 — 여백도 40 → 32(1024~1199) → 24(900~1023) 로 같이 준다(D4-6). */
+  @media ${HERO_FLUID_MEDIA} {
+    gap: 16px;
+    padding: ${p => (p.$chromeless ? '32px' : '16px 32px 32px')};
+  }
+
+  @media ${HERO_FLUID_NARROW_MEDIA} {
+    padding: ${p => (p.$chromeless ? '24px' : '12px 24px 24px')};
+  }
+
+  @media ${HERO_TABLET_MEDIA} {
+    display: contents;
+  }
 
   @media (max-width: 640px) {
     padding: ${p => (p.$chromeless ? '24px' : '12px 24px 24px')};
@@ -222,6 +251,16 @@ const Title = styled.h1`
   line-height: 40px;
   letter-spacing: 0;
   word-break: keep-all;
+
+  /* 카드가 줄어드는 구간은 Display Hero 30/40 → Display Large 26/36 한 단계(D4-6). vw 로 늘이지 않는다. */
+  @media ${HERO_FLUID_MEDIA} {
+    font-size: 26px;
+    line-height: 36px;
+  }
+
+  @media ${HERO_TABLET_MEDIA} {
+    grid-area: title;
+  }
 `
 
 const Body = styled.p`
@@ -230,6 +269,10 @@ const Body = styled.p`
   font-size: 16px;
   line-height: 24px;
   word-break: keep-all;
+
+  @media ${HERO_TABLET_MEDIA} {
+    grid-area: body;
+  }
 `
 
 /*
@@ -242,11 +285,21 @@ const PickerBlock = styled.div`
   gap: 8px;
   /* 모바일 지도 탭 뒤 scrollIntoView 가 sticky 헤더 밑으로 숨지 않게(D6). */
   scroll-margin-top: calc(${HEADER_HEIGHT} + 16px);
+
+  @media ${HERO_TABLET_MEDIA} {
+    grid-area: picker;
+  }
 `
 
 const PickerRow = styled.div`
   display: flex;
   gap: 8px;
+
+  /* 카드가 좁아지는 구간 — 칸과 버튼이 한 줄에 안 들어가면 버튼이 아래 줄로 내려가 폭을 다 쓴다.
+     버튼 라벨은 줄바꿈하지 않는다(가장 긴 「영등포구 분석하기」, hero-picker D7 B3). */
+  @media ${HERO_FLUID_MEDIA} {
+    flex-wrap: wrap;
+  }
 
   @media (max-width: 640px) {
     flex-direction: column;
@@ -259,6 +312,10 @@ const PickerField = styled.label`
   min-width: 140px;
   display: flex;
   align-items: center;
+
+  @media ${HERO_FLUID_MEDIA} {
+    flex-grow: 999;
+  }
 
   /* 세로 배치에서는 flex-basis 가 높이가 된다 — 140px 짜리 빈칸이 생긴다. */
   @media (max-width: 640px) {
@@ -322,6 +379,10 @@ const Actions = styled.div`
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
+
+  @media ${HERO_TABLET_MEDIA} {
+    grid-area: actions;
+  }
 `
 
 /*
@@ -376,6 +437,11 @@ const PrimaryLink = styled(Link)`
     width: 18px;
     height: 18px;
     stroke: currentColor;
+  }
+
+  /* 줄이 넘쳐 혼자 아래 줄로 내려가면 그 줄을 다 채운다. 한 줄일 때 남는 폭은 칸(999배)이 가져간다. */
+  @media ${HERO_FLUID_MEDIA} {
+    flex-grow: 1;
   }
 `
 
@@ -467,8 +533,8 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
           <WindowBodyInner $chromeless={!chrome}>
             <Title>서울 어디에 차려야 할까요?</Title>
             <Body>
-              자치구를 고르면 유동인구부터 바로 보여 주고, 분석 화면에서
-              매출·경쟁 강도와 AI 리포트까지 이어서 볼 수 있어요.
+              가게 자리는 감보다 숫자로 고르세요. 유동인구·매출·경쟁 점포를 바로
+              보여 드려요.
             </Body>
             <PickerBlock ref={pickerRef}>
               <PickerRow>
