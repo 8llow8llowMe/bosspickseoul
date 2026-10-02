@@ -31,7 +31,7 @@ describe('HomePage', () => {
   it('히어로 + 판단 흐름 + 랭킹 + 벤토를 렌더한다 (TC-HR-008)', () => {
     const text = render().replace(/<[^>]+>/g, '')
 
-    expect(text).toContain('창업 전에, 상권부터 확인하세요.') // 히어로
+    expect(text).toContain('서울 어디에 차려야 할까요?') // 히어로
     expect(text).toContain('이렇게 판단해요') // 판단 흐름
     expect(text).toContain('AI 리포트') // 벤토
   })
@@ -98,6 +98,21 @@ describe('HomePage', () => {
     for (const href of ['/analysis', '/recommend']) {
       expect(html).toContain(`href="${href}"`)
     }
+  })
+
+  /* 히어로 자치구 피커(hero-picker-and-mobile-first-screen.md D4-1·D4-3). */
+  it('히어로에 자치구 피커와 고르기 전 안내가 있다', () => {
+    const html = render()
+    const text = html.replace(/<[^>]+>/g, '')
+
+    // 고르기 전에는 첫 항목이 선택된 채로 렌더된다(React 는 selected 를 붙인다).
+    expect(html).toMatch(/<option value=""[^>]*>자치구 고르기<\/option>/)
+    expect(text).toContain('창업할 자치구')
+    expect(text).toContain(
+      '고르면 그 구의 최근 분기 유동인구부터 바로 보여 줘요.',
+    )
+    expect(text).toContain('내 상권 분석하기')
+    expect(text).not.toContain('짚어 드립니다')
   })
 
   /* 「어디가 좋을지 모르는 사람」의 갈래가 첫 화면에 있어야 한다(이슈 #176 잔여 ①). */
