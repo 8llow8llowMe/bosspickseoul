@@ -31,7 +31,7 @@ import {
   simulationBuilderHref,
   type SimulationReportVariant,
 } from '@/lib/simulation/report-route'
-import { shellWidth } from '@/styles/layout'
+import { centeredColumn } from '@/styles/layout'
 import type {
   SimulationReport,
   SimulationReportRequest,
@@ -62,23 +62,19 @@ const Page = styled.main`
 `
 
 /*
-  셸 안에서 2단 트랙 합(340 + 20 + 880)에서 멈춘다 — 입력 화면과 같은 방식이다(DESIGN §5: 셸에는
-  상한이 없고 상한은 요소가 진다). 전에는 읽기 칸(720) 한 줄 가운데 정렬이라 1440 에서 좌우가
-  비었다. 이제 왼쪽 기준선이 사이트 헤더·입력 화면과 같다.
+  셸 안 가운데에서 2단 트랙 합(340 + 20 + 880)에서 멈춘다 — 입력 화면과 같은 방식이다(DESIGN §5:
+  셸에는 상한이 없고 상한은 요소가 진다). 입력 화면 묶음(1,260)과 20px 차이라 입력 → 결과로 넘어갈 때
+  왼쪽 기준선이 10px 만 움직인다. 전에는 읽기 칸(720) 한 줄 가운데 정렬이라 1440 에서 좌우가 비었다.
 */
 const Container = styled.div`
-  ${shellWidth}
+  ${centeredColumn('calc(340px + 20px + var(--w-form))')}
   display: grid;
   gap: 16px;
-
-  > * {
-    max-width: calc(340px + 20px + var(--w-form));
-  }
 `
 
 /*
   리포트가 아닌 상태(조건 없음 · 오류)는 읽기 칸(`--w-read` 720)에 둔다. 2단 묶음 상한(1,240)을 그대로
-  받으면 오류 문장이 1,240px 한 줄로 늘어난다. 왼쪽 정렬이라 위 h1 과 기준선이 같다.
+  받으면 오류 문장이 1,240px 한 줄로 늘어난다. 묶음 안에서 왼쪽에 둬 위 h1 과 기준선이 같다.
 */
 const Narrow = styled.div`
   width: 100%;

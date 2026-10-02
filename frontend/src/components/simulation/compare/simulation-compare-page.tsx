@@ -47,7 +47,7 @@ import {
 } from '@/lib/simulation/report-route'
 import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditions'
 import type { SimulationReport } from '@/types/simulation'
-import { shellWidth } from '@/styles/layout'
+import { centeredColumn } from '@/styles/layout'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationComparePageProps = { variant?: SimulationReportVariant }
@@ -63,17 +63,13 @@ const Page = styled.main`
 `
 
 /*
-  셸 안에서 본문 묶음을 --w-wide(1400)에서 멈춘다(C6). 상한이 없으면 1920 에서 편집기 카드 하나가
-  920px 로 늘어 select 두 칸이 화면을 가로질렀다. 입력·리포트 화면과 같이 왼쪽 정렬이다.
+  셸 안 가운데에서 본문 묶음을 --w-wide(1400)에서 멈춘다(C6). 상한이 없으면 1920 에서 편집기 카드 하나가
+  920px 로 늘어 select 두 칸이 화면을 가로질렀다. 입력·리포트 화면과 같이 가운데 묶음이다.
 */
 const Container = styled.div`
-  ${shellWidth}
+  ${centeredColumn('var(--w-wide)')}
   display: grid;
   gap: 16px;
-
-  > * {
-    max-width: var(--w-wide);
-  }
 `
 
 /* 편집기 쪽 DOM id 접두사. 오류 CTA 가 고칠 필드를 찾을 때 쓴다. */
