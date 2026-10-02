@@ -150,15 +150,15 @@ flowchart LR
 
 ### D4-2. 탭별 지연 조회
 
-| 탭                      | 표시 목적                                | 사용 endpoint                                                                                 |
-| ----------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `summary` 요약          | 핵심 지표 · 인사이트 세 줄 · 지원 정책   | D4-1의 최초 queries + `/sales`(인사이트)                                                      |
-| `foot-traffic` 유동인구 | 시간·요일·연령 등 유동 특성              | `GET /api/v1/commercials/{commercialCode}/foot-traffic`                                       |
-| `sales` 매출            | 업종 매출 규모·구성                      | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/sales`                       |
-| `stores` 점포           | 점포 수와 개·폐업 관련 제공 지표         | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/stores`                      |
-| `living` 생활권         | 상주/생활인구, 소비, 시설·교통           | population, income, facilities                                                                |
-| `trend` 트렌드          | 최근 최대 4개 시점의 매출·유동·점포 변화 | `GET /api/v1/commercials/{commercialCode}/trend`를 `SALES`, `FOOT_TRAFFIC`, `STORE` 각각 호출 |
-| `benchmark` 비교        | 제공되는 동일 업종 기준 비교             | `GET /api/v1/commercials/{commercialCode}/benchmarks`                                         |
+| 탭                      | 표시 목적                                              | 사용 endpoint                                                                                 |
+| ----------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `summary` 요약          | 핵심 지표 · 인사이트 세 줄 · 지원 정책                 | D4-1의 최초 queries + `/sales`(인사이트)                                                      |
+| `foot-traffic` 유동인구 | 시간·요일·연령 등 유동 특성                            | `GET /api/v1/commercials/{commercialCode}/foot-traffic`                                       |
+| `sales` 매출            | 업종 매출 규모·구성                                    | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/sales`                       |
+| `stores` 점포           | 점포 수와 개·폐업 관련 제공 지표                       | `GET /api/v1/commercials/{commercialCode}/services/{serviceCode}/stores`                      |
+| `living` 생활권         | 상주/생활인구, 소비, 자치구 평균 소득(대체), 시설·교통 | population, income, facilities                                                                |
+| `trend` 트렌드          | 최근 최대 4개 시점의 매출·유동·점포 변화               | `GET /api/v1/commercials/{commercialCode}/trend`를 `SALES`, `FOOT_TRAFFIC`, `STORE` 각각 호출 |
+| `benchmark` 비교        | 제공되는 동일 업종 기준 비교                           | `GET /api/v1/commercials/{commercialCode}/benchmarks`                                         |
 
 활성화하지 않은 탭은 요청하지 않는다(시설 `/facilities` 도 요약 카드를 걷어낸 뒤 생활권 탭에서 부른다). **예외는 매출(`/sales`) 하나다** — 요약 인사이트의 피크 시간·주 고객층이 이 응답에서 나와서 첫 화면에 함께 부른다(#482). 요약은 결론 화면이라 매출 탭이 켜질 때까지 두 줄을 비워 두면 결론을 말하지 못한다. 요약에서 이미 받은 동일 endpoint 결과는 query key를 공유해 재사용한다.
 
@@ -181,7 +181,7 @@ flowchart LR
 - 성별 색: 남성 `--color-primary-600`, 여성 `--color-chart-female`. 피라미드·성비 막대·도넛이 같은 색을 쓰고, 순서가 아니라 라벨로 색을 고른다(`genderColorsFor`).
 - 유동인구: `byAgeGenderPercentItem` 기반 **연령×성별 인구 피라미드** 추가.
 - 거주: 「연령·성별 상주인구」 카드 하나에 연령별 막대 + 전체 성비(`malePercentage`/`femalePercentage`) **100% 막대**(`ShareBar`)를 쌓는다. 연령별 성별 데이터 부재로 피라미드는 두지 않는다. 성비를 도넛 카드로 따로 두면 카드 하나를 쓰면서 숫자 두 개만 보였다.
-- 소비: **소득은 화면에 없다.** 서울 열린데이터광장이 상권 단위 월 평균 소득 제공을 끊었고(2020년 수급 중단, 2026-05-13 원천 컬럼 삭제) 백엔드가 `averageIncomeItem` 과 `keyMetrics.monthlyAverageIncomeAmount` 를 응답에서 걷어냈다. 남은 소비는 **두 섹션으로 가른다** — 상권 단위와 지역 단위의 원천 사정이 달라 한 섹션에 섞으면 「비었다」가 어느 쪽 이야기인지 읽을 수 없다. (#414)
+- 소비: **상권 단위 소득은 화면에 없다.** 서울 열린데이터광장이 상권 단위 월 평균 소득 제공을 끊었고(2020년 수급 중단, 2026-05-13 원천 컬럼 삭제) 백엔드가 `averageIncomeItem` 과 `keyMetrics.monthlyAverageIncomeAmount` 를 응답에서 걷어냈다. 그 자리는 정의가 다른 「자치구 평균 소득 (대체)」가 채운다(아래, #500). 소비는 **두 섹션으로 가른다** — 상권 단위와 지역 단위의 원천 사정이 달라 한 섹션에 섞으면 「비었다」가 어느 쪽 이야기인지 읽을 수 없다. (#414)
   - 「항목별 소비」(`/income` 의 `expenseCategories` 가로 막대): **항목 수가 고정이 아니다.** 상권 네이티브는 9개(식료품/의류·신발/의료/생활용품/교통/여가/문화/교육/유흥), 행정동 대체는 여가·문화가 합쳐지고 기타·음식이 더해진 10개다. 라벨을 서버가 내려주므로 화면은 **키를 해석하지 말고 배열 순서대로** 그린다. 프런트에 항목 키 목록을 두지 않는다. (#416)
   - 「지역별 소비」(`/summaries/income` 의 자치구 → 행정동 → 상권 총 지출액): 세 단위가 **각각 독립적으로** null 이다. **없는 단위도 줄을 지우지 않고** 값만 「데이터 없음」으로 둔다. 줄을 지우면 위에 남은 자치구 값이 상권 값처럼 읽힌다.
   - **대체 표시** (#416): 상권 단위 원천이 `20241` 분기부터 전 행 0 이라, 백엔드가 그 자리를 **소속 행정동 소비로 대체**해 값을 채우고 출처를 함께 내려준다. 분기는 `provenance.scope.code`(`/summaries/income` 은 `commercialProvenance`) 하나로만 한다.
@@ -190,6 +190,12 @@ flowchart LR
     - `UNAVAILABLE` — 이때만 **섹션 단위 빈 상태**(`AnalysisResultSection` 의 `empty` + `emptyDescription`)다. 왜 없는지는 서버 `disclaimer` 를 그대로 싣는다.
   - 소비 행이 없던 상권도 이제 **404 가 아니라 200**(`scope.code = UNAVAILABLE`)이다. 「데이터 없음」을 오류 경로로 다루지 않는다 — 섹션 빈 상태가 정상 경로다. `AnalysisResultSection` 의 `not-found` 처리는 존재하지 않는 상권·분기 종속 404 용으로 남는다.
   - 두 섹션 모두 제목 아래에 기준 분기(`formatPeriodCode`)를 적는다. 「항목별 소비」는 **값이 실제로 딛고 선 분기**(`provenance.effectivePeriodCode`)를 우선 쓰고 없으면 선택 분기로 물러난다 — 대체값은 선택한 분기와 다른 분기에서 올 수 있다. 판정과 행 조립은 `src/lib/analysis/expense-presentation.ts` 가 정본이다.
+  - **「자치구 평균 소득」 카드** (#500): `/income` 의 `districtAverageIncome`(`amount` 원/월 + 소득 전용 `provenance`). 국민연금공단 「자격 시군구 신고 평균소득월액」(공공데이터포털 3046077)의 **자치구 평균**이라 이 상권이나 주민 전체의 소득이 아니고, 같은 구 안의 상권은 모두 같은 값이다. 판정은 `src/lib/analysis/district-income-presentation.ts` 가 정본이다.
+    - `DISTRICT_PROXY` + 양의 금액 — 「월 평균 신고소득」 값 하나(`formatKoreanMoney`, 만 원 단위), 제목 옆 「자치구 기준 (대체)」 배지(teal), 제목 아래 「종로구 · 2024년 12월 31일 기준」, 각주에 서버 `disclaimer` 와 출처 링크(소비와 같은 `ExpenseProvenanceNote`). 네이티브 소득이 없으므로 값이 보이면 **배지·면책·출처는 늘 붙는다.**
+    - 기준은 **분기가 아니라 `referenceDate`** 다. 연 1회 12월 말 스냅샷이라 `20261` 을 골라도 `2024-12-31` 값이 온다. `formatPeriodCode` 로 적지 않는다.
+    - `UNAVAILABLE` — 0 원을 그리지 않고 섹션 빈 상태(「자치구 평균 소득 데이터가 없어요」) + 서버 `disclaimer` 를 사유로. 필드가 없는 구 응답(#415 이전)·모르는 범위 코드·`DISTRICT_PROXY` 인데 금액이 0/null 인 경우도 빈 상태이고 사유는 기본 문장이다(대체 범위의 면책은 값 설명이라 사유로 쓰지 않는다).
+    - 비교·추천·히트맵에는 넣지 않는다. 같은 구 상권이 모두 같은 값이라 변별력이 없다(BE 도 점수·비교 경로에서 제외했다).
+    - dev 에서 값이 실리려면 `pension_income_district` DDL 과 국민연금 CSV 적재(`--job=pension-income`)가 먼저 끝나야 한다. 그전에는 모든 상권이 `UNAVAILABLE` 이다.
   - 요약의 상주인구 성별 맥락(`femalePercentage`, 「여성 43.4%」)은 핵심 지표 「상주인구」 카드에 붙는다(전에는 걷어낸 「생활권·시설」 카드에 있었다, #482). 남성 비중은 화면이 계산하지 않는다 — `100 - 여성` 은 반올림 응답과 어긋난다.
 - 매출: 「연령·성별 매출」 카드 하나에 연령별 막대 + `countByGenderItem` 기반 **성별 결제 건수 100% 막대**(`ShareBar`, 비율 옆에 건수)를 쌓는다. 매출 그룹 카드는 4장에서 3장(시간대 · 요일 · 연령·성별)으로 준다.
 - **점포 수의 정의**: 원천(서울시 상권 점포) 필드 이름과 뜻이 어긋난다. `totalStoreCount`(`STOR_CO`)는 **프랜차이즈를 뺀** 일반 점포, `similarStoreCount`(`SIMILR_INDUTY_STOR_CO`)가 일반 + 프랜차이즈 = **이 업종 전체**다(dev 실측 79곳 모두 `similar = total + franchise`, 프랜차이즈가 일반보다 많은 곳 15곳). 그래서 핵심 지표 「점포 수」·AI 리포트 「점포 수」·점포 분석 「총 점포」는 `similarStoreCount`, 「일반 점포」는 `totalStoreCount`(맥락 줄 「프랜차이즈 제외」), 프랜차이즈 비중의 분모는 `similarStoreCount` 다. 전에는 `totalStoreCount` 를 분모로 써서 비중이 100% 를 넘었다(최대 367%). 「유사 업종」이라는 원천 이름은 다른 업종으로 읽혀 화면에서는 「같은 업종」이라고 쓴다. `peerStores[].totalStoreCount` 와 `STORE` 추이도 프랜차이즈 제외 값이라 BE 가 정리해야 한다(#490).
@@ -265,7 +271,7 @@ AND tab ∈ allowedTabs
   - 분기점은 **1024px** 로 지도 셸(`useNarrowViewport`)·선택 패널 바텀시트와 같다(2026-10-01). 840 이던 때는 841~1024px 태블릿이 사이드바를 단 데스크톱 모달을 받아 콘텐츠 열이 600px 안팎으로 좁았다. 같은 표면을 쓰는 AI 리포트 크게보기도 함께 1024 를 따른다.
 - **기간(연·분기) 선택은 sticky 헤더에 하나만 둔다**(상권명 · 위치 메타 · 기간 선택 · 닫기). 7개 그룹 머리마다 두던 select 는 모두 URL `periodCode` 하나를 바꿨는데, 일곱 개로 보이면 그룹마다 따로 바뀐다고 읽힌다. 분기가 선택 옆에 보이므로 메타 줄에서는 「N분기 기준」을 뺀다. ≤640px 은 헤더를 두 줄([상권명][닫기] / [위치 메타][기간 선택])로 접는다.
 - **카드 그리드 열 수는 콘텐츠 폭으로 정한다**(container query, `analysis-report` 컨테이너): 1열 <640 · 2열 · 3열 ≥1080. 뷰포트로 정하면 사이드바 유무에 따라 같은 폭이 다른 뜻이 된다 — 1280px 뷰포트에서 3열이던 때 콘텐츠는 990px 라 칸이 317px 였다. 1440px 뷰포트(콘텐츠 1150)에서 3열이 된다(칸 370px). (#482)
-  - **2열에서 카드가 혼자 남지 않게** 그룹마다 배치를 고정한다. 3장 그룹은 넓어질수록 좋아지는 카드 하나가 2열에서만 한 줄을 쓴다(`PairSpanItem`): 유동인구·매출은 시간대 막대, 생활권은 「지역별 소비」. 가로 막대·피라미드는 고르지 않는다(DESIGN.md 「Charts」). 점포 그룹은 가로 막대 두 장이 나란히 서므로 3열에서도 2열이다(`$maxColumns={2}`).
+  - **2열에서 카드가 혼자 남지 않게** 그룹마다 배치를 고정한다. 3장 그룹은 넓어질수록 좋아지는 카드 하나가 2열에서만 한 줄을 쓴다(`PairSpanItem`): 유동인구·매출은 시간대 막대, 생활권은 「지역별 소비」. 가로 막대·피라미드는 고르지 않는다(DESIGN.md 「Charts」). 생활권의 넷째·다섯째 카드는 「자치구 평균 소득」(한 칸) + 「주요 시설과 교통」으로 한 줄을 이룬다 — 시설은 3열에서만 두 칸(`WideInThreeColumnsItem`), 2열에서는 둘이 반씩이다. 점포 그룹은 가로 막대 두 장이 나란히 서므로 3열에서도 2열이다(`$maxColumns={2}`).
   - 비교 타일(「지역별 소비」·「비교 분석」의 자치구·행정동·상권)은 **카드 폭**으로 배치를 정한다: 520px 이상이면 세 칸, 좁으면 세로로 쌓고 한 타일 안에서 라벨은 왼쪽, 값은 오른쪽이다. 370px 카드에 세 칸을 두던 때 「행정동 기준 (대체)」 배지가 타일 밖으로 나가고 「82억 8095만원」이 「만 / 원」으로 꺾였다. 값은 띄어쓰기에서만 꺾는다(`word-break: keep-all`).
   - 불러오는 중 자리는 차트 본문 높이만큼 잡는다(`AnalysisResultSection` 의 `loadingHeight`): 세로 막대 260 · 피라미드 284 · 막대+성비 348 · 가로 막대 260px. 96px 고정이던 때는 차트가 그려지며 아래 카드가 한 번에 160~250px 밀렸다.
 - `role="dialog"`, `aria-modal="true"`, 제목 연결, focus trap, Escape 닫기, 닫은 뒤 트리거 focus 복원을 제공한다.
@@ -362,3 +368,4 @@ AND tab ∈ allowedTabs
 | 1.9  | 2026-10-02 | 모바일 — 1열 폭에서 탭마다 첫 차트 카드만 펼치고 7장을 접는다(제목·결론 문장은 남김). 375px 전체 스크롤 7,751 → 6,507px          | Claude |
 | 2.0  | 2026-10-02 | 분기별 변화의 보합(「거의 같아요」) 기준을 서버 `trendDirection` 과 같은 ±1% 로 맞춤                                             | Claude |
 | 2.1  | 2026-10-02 | 시간대 막대를 시간당 평균으로 그림(원천은 구간 합계, 실측 73곳). 결론 문장도 시간당으로 구간을 고르고 매출 비중은 합계로 냄      | Claude |
+| 2.2  | 2026-10-02 | 생활권에 「자치구 평균 소득 (대체)」 카드 — 국민연금 자치구 평균, 기준일·배지·면책·출처, 없으면 빈 상태 (#500)                   | Claude |

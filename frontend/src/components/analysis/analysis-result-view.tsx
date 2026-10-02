@@ -127,6 +127,7 @@ import {
   toRegionalExpenseProxyNote,
   toRegionalExpenseRows,
 } from '@/lib/analysis/expense-presentation'
+import { toDistrictIncomeView } from '@/lib/analysis/district-income-presentation'
 import {
   MAP_CAMERA_PARAM,
   parseMapCamera,
@@ -601,6 +602,21 @@ const PairSpanItem = styled.div`
 `
 
 /**
+ * 3열일 때만 **두 칸**을 쓰는 칸. 2열·1열이면 보통 칸이다.
+ *
+ * 생활권 그룹은 카드 3장 줄 뒤에 「자치구 평균 소득」과 「주요 시설과 교통」이 남는다. 3열에서
+ * 둘을 보통 칸으로 두면 셋째 칸이 비고, 시설을 한 줄 다 쓰게 하면 소득 카드가 혼자 남는다.
+ * 숫자 하나뿐인 소득 카드에 한 칸, 타일 네 개인 시설 카드에 두 칸을 준다.
+ */
+const WideInThreeColumnsItem = styled.div`
+  min-width: 0;
+
+  @container analysis-report (min-width: ${REPORT_THREE_COLUMN_MIN}px) {
+    grid-column: span 2;
+  }
+`
+
+/**
  * Charts render an SVG with `width: 100%; height: auto` against a fixed
  * `viewBox`, so capping the wrapper's max-width also caps height (aspect
  * ratio preserved). Centers the chart when its card is wider than the cap.
@@ -723,6 +739,29 @@ const Feedback = styled.p`
   차트에서 뺀 0 개 업종을 적는 줄. 막대로는 그릴 수 없지만(길이 0 인 막대에는 recharts 가
   값 라벨을 그리지 않는다) **없다는 사실 자체가 정보**라 문장으로 남긴다.
 */
+/** 숫자 하나짜리 카드의 값. 요약 카드 값(`analysis-summary-cards` 의 `Value`)과 같은 크기다. */
+const SingleFigure = styled.div`
+  display: grid;
+  gap: 4px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  padding: 16px;
+
+  span {
+    color: var(--color-text-caption);
+    font-size: 12px;
+  }
+
+  strong {
+    color: var(--color-text-900);
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 30px;
+    font-variant-numeric: tabular-nums;
+    word-break: keep-all;
+  }
+`
+
 const AbsentNote = styled.p`
   margin-top: 10px;
   color: var(--color-text-caption);
@@ -1267,6 +1306,11 @@ export default function AnalysisResultView({
   const expenseProvenance = toExpenseProvenanceView(income?.provenance)
   const regionalExpenseRows = toRegionalExpenseRows(incomeSummary)
   const regionalExpenseProxyNote = toRegionalExpenseProxyNote(incomeSummary)
+  /*
+    자치구 평균 소득(대체, #500)은 같은 `/income` 응답에 실려 온다. 값이 있으면 언제나 대체값이라
+    배지·면책·출처를 늘 붙이고, 기준은 분기가 아니라 스냅샷 기준일로 적는다.
+  */
+  const districtIncome = toDistrictIncomeView(income)
   const benchmark = getResponseBody(
     benchmarkQuery.data,
   ) as CommercialBenchmark | null
@@ -2488,7 +2532,52 @@ export default function AnalysisResultView({
                   </ComparisonFrame>
                 </AnalysisResultSection>
               </PairSpanItem>
-              <FullSpanItem>
+              {/*
+                #414 에서 걷어낸 소득 카드의 후신(#500). 상권 단위 소득이 아니라 **자치구 평균**이고
+                기준이 분기가 아니라 **스냅샷 날짜**라, 제목 아래에는 분기 대신 기준일을 적는다.
+                값이 있으면 언제나 대체값이므로 배지·면책·출처를 늘 붙인다. 비교·추천·히트맵에는
+                넣지 않는다 — 같은 구 상권이 모두 같은 값이라 변별력이 없다.
+              */}
+              <AnalysisResultSection
+                title="자치구 평균 소득"
+                description={
+                  (districtIncome.available && districtIncome.description) ||
+                  undefined
+                }
+                badge={
+                  districtIncome.available ? (
+                    <Badge $tone="teal">{districtIncome.badgeLabel}</Badge>
+                  ) : null
+                }
+                footer={
+                  districtIncome.available ? (
+                    <ExpenseProvenanceNote
+                      description={districtIncome.disclaimer}
+                      sourceLabel={districtIncome.sourceLabel}
+                      sourceUrl={districtIncome.sourceUrl}
+                    />
+                  ) : null
+                }
+                loading={incomeQuery.isPending}
+                error={resolveApiError(incomeQuery)}
+                empty={!districtIncome.available}
+                emptyDescription={
+                  districtIncome.available
+                    ? undefined
+                    : districtIncome.emptyDescription
+                }
+                onRetry={() => void incomeQuery.refetch()}
+              >
+                {districtIncome.available ? (
+                  <SingleFigure>
+                    <span>월 평균 신고소득</span>
+                    <strong>
+                      {formatAnalysisValue(districtIncome.amount, '원')}
+                    </strong>
+                  </SingleFigure>
+                ) : null}
+              </AnalysisResultSection>
+              <WideInThreeColumnsItem>
                 <AnalysisResultSection
                   title="주요 시설과 교통"
                   loading={facilitiesQuery.isPending}
@@ -2523,7 +2612,7 @@ export default function AnalysisResultView({
                     },
                   ])}
                 </AnalysisResultSection>
-              </FullSpanItem>
+              </WideInThreeColumnsItem>
             </DashboardGrid>
           </ReportSection>
 

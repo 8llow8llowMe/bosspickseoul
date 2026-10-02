@@ -173,11 +173,57 @@ export type CommercialExpenseCategory = {
 }
 
 /**
+ * 자치구 평균 소득의 범위.
+ *
+ * - `DISTRICT_PROXY` — 상권 단위 소득 원천이 끊겨 **자치구 평균으로 대체**한 값이다.
+ *   네이티브(상권 단위) 소득은 없으므로 값이 있으면 언제나 대체값이다.
+ * - `UNAVAILABLE` — 이 분기에 쓸 수 있는 자치구 평균 자료가 없다.
+ */
+export type DistrictIncomeScopeCode = 'DISTRICT_PROXY' | 'UNAVAILABLE'
+
+/**
+ * 자치구 평균 소득의 출처 메타. 소비 출처(`CommercialExpenseProvenance`)와 모양이 비슷하지만
+ * **기준이 분기가 아니라 날짜**다 — 연 1회(12월 말) 스냅샷이라 `effectivePeriodCode` 가 없고
+ * `referenceDate`(`YYYY-MM-DD`)를 쓴다.
+ */
+export type DistrictIncomeProvenance = {
+  scope?: {
+    code?: DistrictIncomeScopeCode | null
+    name?: string | null
+    description?: string | null
+  } | null
+  /** 값을 가져온 자치구 코드. `UNAVAILABLE` 이면 null. */
+  scopeCode?: string | null
+  /** 값을 가져온 자치구 이름(예: 종로구). `UNAVAILABLE` 이면 null. */
+  scopeName?: string | null
+  sourceId?: string | null
+  sourceLabel?: string | null
+  sourceUrl?: string | null
+  /** 스냅샷 기준일(`YYYY-MM-DD`). 선택한 분기와 맞지 않는다. `UNAVAILABLE` 이면 null. */
+  referenceDate?: string | null
+  /** 면책 문장. 대체·제공 없음 모두 채워진다. */
+  disclaimer?: string | null
+}
+
+/**
+ * 자치구 평균 소득 (대체). 국민연금공단 「자격 시군구 신고 평균소득월액」의 자치구 평균이다.
+ *
+ * ⚠️ **이 상권이나 주민 전체의 소득이 아니다.** 같은 자치구 안의 상권은 모두 같은 값을 받는다.
+ * #413 이전의 `averageIncomeItem`(상권 월평균소득)과는 정의가 다르다.
+ */
+export type DistrictAverageIncome = {
+  /** 원/월. 자료가 없으면 null. */
+  amount?: NullableNumber
+  provenance?: DistrictIncomeProvenance | null
+}
+
+/**
  * 상권 소비 (`GET /commercials/{commercialCode}/income`).
  *
  * ⚠️ **월 평균 소득(`averageIncomeItem`)은 더 이상 내려오지 않는다.** 서울 열린데이터광장이
  * 2020년에 수급을 끊었고 2026-05-13 자로 원천 컬럼까지 삭제해, 백엔드가 응답에서 통째로
- * 걷어냈다(#414).
+ * 걷어냈다(#414). 그 자리는 정의가 다른 `districtAverageIncome`(자치구 평균, 대체)이
+ * 채운다(#500).
  *
  * ⚠️ 상권 단위 원천이 `20241` 분기부터 전 행 0 이지만, 백엔드가 그 자리를 **소속 행정동
  * 소비로 대체**해 값을 채워 준다(#416). 그래서 소비 행이 없던 상권도 404 가 아니라 200 이다.
@@ -190,6 +236,11 @@ export type CommercialIncomeAndExpense = {
   /** 항목별 지출의 합계(원). 항목이 없으면 null. */
   totalExpenseAmount?: NullableNumber
   provenance?: CommercialExpenseProvenance | null
+  /**
+   * 자치구 평균 소득 (대체). 백엔드는 항상 내려주지만 #415 이전 응답에는 **키 자체가 없다** —
+   * 그때도 「데이터 없음」으로 그린다.
+   */
+  districtAverageIncome?: DistrictAverageIncome | null
 }
 
 export type RegionalIncomeSummary = {
