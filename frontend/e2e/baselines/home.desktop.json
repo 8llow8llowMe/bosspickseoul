@@ -1,21 +1,21 @@
 {
-  "measuredAt": "2026-10-01",
+  "measuredAt": "2026-10-02",
   "viewport": {
     "width": 1440,
     "height": 900
   },
-  "docHeightScreens": 7.45,
-  "stickyTrackShare": 0.475,
-  "h1Screen": 0.38,
-  "firstCtaScreen": 0.55,
-  "contrastCombinations": 44,
+  "docHeightScreens": 7.49,
+  "stickyTrackShare": 0.473,
+  "h1Screen": 0.36,
+  "firstCtaScreen": 0.51,
+  "contrastCombinations": 46,
   "contrastFailures": 6,
   "smallTapTargets": 9,
   "offScaleFontSizes": 2,
   "offScaleFontSizeList": [15, 18],
   "sentenceEndings": {
-    "formal": 6,
-    "polite": 12
+    "formal": 5,
+    "polite": 14
   },
   "bffRequests": 2
 }

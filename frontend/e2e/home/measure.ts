@@ -258,6 +258,10 @@ export const measureHomeMetrics = (page: Page): Promise<HomeMetrics> =>
     Array.from(main.querySelectorAll('a, button, [role="button"]')).forEach(
       element => {
         if (!isVisible(element)) return
+        // 지도 폴리곤은 44px 규칙의 예외다 — 크기를 지도 형상이 정한다. 모바일 히어로에서
+        // 이동하지 않는 버튼(role=button)이 되며 이 집계에 새로 들어왔다
+        // (hero-picker-and-mobile-first-screen.md D4-4·D6).
+        if (element.closest('svg')) return
         const rect = element.getBoundingClientRect()
         if (Math.min(rect.width, rect.height) >= 44) return
         smallTapTargetList.push({
