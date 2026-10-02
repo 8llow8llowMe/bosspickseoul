@@ -38,7 +38,7 @@ export const HOME_FULL_SCREEN_SECTION = css`
  * 지는 것이다. 헤더는 셸 그대로 둔다. 전폭 배경 밴드는 스토리만 깔고, 나머지는 섹션
  * 사이 기준선을 하나로 맞추는 것이 근거다(DESIGN.md §5).
  *
- * 히어로는 여기서 빠진다 — 지도가 셸 전폭을 쓰고 카드는 가운데라 기준선이 없다.
+ * 히어로는 여기서 빠진다 — 셸 전폭을 [카드 | 지도] 두 칸으로 쓴다(hero-split-layout.md D3).
  */
 export const HOME_COLUMN = centeredColumn('var(--w-wide)')
 
@@ -56,3 +56,5 @@ export const HERO_WINDOW_CHROME = false
  * 탭 = 피커 선택·호버 끄기 같은 **동작** 기준(640px, `isMobileViewport`)과는 다른 값이다.
  */
 export const HERO_STACKED_MEDIA = '(max-width: 899px)'
+/** `HERO_STACKED_MEDIA` 의 반대쪽 — 좌우 두 칸일 때만 거는 규칙에 쓴다. */
+export const HERO_SPLIT_MEDIA = '(min-width: 900px)'

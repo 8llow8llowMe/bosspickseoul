@@ -69,6 +69,7 @@ describe('tooltipScale', () => {
 
   it('배율을 아직 모르면(0·음수·NaN) 1', () => {
     expect(tooltipScale(0)).toBe(1)
+    expect(tooltipScale(-0.5)).toBe(1)
     expect(tooltipScale(Number.NaN)).toBe(1)
   })
 })

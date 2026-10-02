@@ -5,6 +5,7 @@ import { PanelTopOpen } from 'lucide-react'
 import styled from 'styled-components'
 import {
   HEADER_HEIGHT,
+  HERO_SPLIT_MEDIA,
   HERO_STACKED_MEDIA,
   HERO_WINDOW_CHROME,
 } from '@/components/home/layout-constants'
@@ -176,17 +177,17 @@ const CardLayer = styled.div`
   display: flex;
   justify-content: center;
 
-  > * {
-    width: 100%;
+  /* 넓은 폭에서만 카드를 칸 폭에 맞춘다. 좁은 폭은 WindowCard 자신의 폭 규칙(≤640 은 좌우 12px
+     안쪽)을 따른다 — 같은 명시도라 여기서 폭을 주면 뒤에 정의된 이 규칙이 이겨 모바일이 바뀐다. */
+  @media ${HERO_SPLIT_MEDIA} {
+    > * {
+      width: 100%;
+    }
   }
 
   /* 좁은 폭: 헤더 바로 아래 흐름에 둔다 — 첫 화면 예산(hero-picker D5-1). */
   @media ${HERO_STACKED_MEDIA} {
     padding: 24px 0 0;
-
-    > * {
-      width: min(460px, 100%);
-    }
   }
 `
 
@@ -452,8 +453,8 @@ export default function HeroSection() {
       <Inner>
         <HeroStage ref={containerRef}>
           {/*
-            카드가 먼저다 — 모바일은 이 순서대로 쌓이고(D4-4), 데스크톱은 CardLayer 가
-            absolute 라 순서가 화면에 영향이 없다.
+            카드가 먼저다 — 좁은 폭은 이 순서대로 쌓이고(D4-4), 넓은 폭은 이 순서가 그리드
+            칸(카드 왼쪽 · 지도 오른쪽)을 정한다(hero-split-layout.md D3).
           */}
           {!showDock ? (
             <CardLayer>

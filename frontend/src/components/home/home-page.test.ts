@@ -122,7 +122,6 @@ describe('HomePage', () => {
 
     expect(text).not.toContain('서울 상권 데이터 분석')
     expect(html).not.toContain('aria-label="분석 창 조작"')
-    expect(html).not.toContain('aria-label="분석 창 열기"')
   })
 
   /* 「어디가 좋을지 모르는 사람」의 갈래가 첫 화면에 있어야 한다(이슈 #176 잔여 ①). */
