@@ -49,6 +49,19 @@
 - 상권의 소속 행정동/자치구 메타는 직접 DB로 소유하지 않고 `CommercialRegionQueryPort`를 통해 `district-service`에서 조회한다.
 - REST 경로는 `commercials`, `regions` 기준 일관성을 우선한다.
 
+## 자치구 전체 순위 (이슈 #433)
+
+`GET /api/v1/districts/rankings` — 유동인구·매출·개업·폐업 4지표마다 현재 분기 행이 있는 자치구 전체의 순위. 계약은 `api-reference.md` 「자치구·행정동」.
+
+- 흐름은 `top-ten` 과 같다: `DistrictWebFacade.getDistrictRankings` → `DistrictQueryProcessor.getRankingSummary` → 저장소 포트 `findRankingsBy*` → `DistrictPresenter`.
+- 저장소(`*DistrictCustomRepositoryImpl`)는 limit 없이 값 내림차순·`districtCode` 오름차순으로 정렬해 준다. Top10 과 나눠 쓰는 것은 증감률 식(`DistrictChangeRateExpressions`)과 각 Impl 의 select·from(`select*ByDistrict`)이고, 결측 처리(Top10 0.0 / 순위 NULL)는 각자 고른다.
+  - 매출·점포는 select·from 에 where(현재 분기·공간 스냅샷)·groupBy 까지 같고, 직전 분기 값은 둘 다 같은 상관 서브쿼리라 구가 빠지지 않는다.
+  - 유동인구는 select·from 만 같고 조인과 직전 분기 조건의 위치가 다르다. Top10 은 INNER JOIN 에 직전 분기 조건을 where 에 두고, 전체 순위는 **LEFT JOIN** 에 직전 분기 조건을 `on` 에 둔다(where 에 두면 INNER JOIN 과 같아진다).
+  - 변화율은 `(현재 - 이전) / NULLIF(이전, 0) * 100` 이라 직전 값이 없거나 0 이면 NULL 이다. H2 에서 0 나눗셈 예외도 나지 않는다.
+- 순위는 Processor 가 `CompetitionRankCalculator` 로 매긴다(표준 경쟁 순위 1, 2, 2, 4). QueryDSL JPA 에 window 함수가 없기 때문이다.
+- `top-ten` 은 바꾸지 않았다(10건, 결측 변화율 0.0, 유동인구 INNER JOIN). `DistrictRankingQueryTest` 가 두 쿼리를 같은 픽스처(업종 여러 행·미매핑 업종 행·다른 공간 스냅샷 행 포함)로 함께 못 박는다.
+- 동점 정렬은 결과가 아니라 **생성 SQL** 로 단언한다(`SqlCapturingStatementInspector`). H2 는 GROUP BY 결과를 그룹 키 오름차순으로 내놓아 매출·개업·폐업은 `districtCode` 정렬을 지워도 결과 순서가 같지만, MySQL 은 그 순서를 보장하지 않는다.
+
 ## 후보 탐색 처리 (1단계)
 
 - `CommercialHeatmapQueryProcessor.getAllMetricScores(...)` — 한 번의 소스 조회로 4개 지표(OPPORTUNITY/RISK/CONGESTION/RESIDENT_POPULATION)를 동시 산출한다. `getHeatmapScores`는 이 결과를 단일 지표로 필터링해 재사용한다.

@@ -407,6 +407,7 @@
 |--------|------|------|
 | GET | `/api/v1/districts` | 자치구 전체 목록 (드롭다운, 지역 선택) |
 | GET | `/api/v1/districts/top-ten` | 메인 대시보드 "자치구 TOP 10" |
+| GET | `/api/v1/districts/rankings` | 구별현황(`/status`) 지도 — 25개 구 전체를 지표 값 구간으로 단계 색칠, Top10 밖 구의 순위·값 표기 |
 | GET | `/api/v1/districts/{code}` | 자치구 상세 페이지 |
 | GET | `/api/v1/districts/{code}/foot-traffic` | 자치구 유동인구 상세 |
 | GET | `/api/v1/districts/{code}/change-indicators` | 자치구 변화 지표 |
@@ -414,6 +415,12 @@
 | GET | `/api/v1/districts/{code}/sales/top-services` | 자치구 상위 매출 업종 |
 | GET | `/api/v1/districts/{code}/sales/top-administrations` | 자치구 행정동별 매출 순위 |
 | GET | `/api/v1/administrations/{code}` | 행정동 상세 |
+
+**`GET /districts/rankings`** — 구별현황 지도·툴팁·상세 머리용 (이슈 #433)
+- 지표 4종(`footTrafficRankings`·`salesRankings`·`openedStoreRankings`·`closedStoreRankings`)마다 현재 분기 데이터가 있는 구가 **모두** 온다. 지도는 순위가 아니라 값 구간(예: 5분위)으로 칠할 수 있다.
+- 항목은 `top-ten` 과 같은 필드에 `rank` 가 붙는다. 같은 값은 같은 순위(1, 2, 2, 4)이고 같은 값끼리는 `districtCode` 오름차순이다.
+- 변화율은 직전 분기 값이 없거나 0 이면 `null` 이다 → 「비교 불가」 등 결측으로 표기한다. `top-ten` 은 같은 경우 `0.0` 을 주므로 두 응답을 섞어 쓰지 않는다.
+- 분기 파라미터는 `top-ten` 과 같다(#409 분기 선택). 응답 최상위 `currentPeriodCode`·`previousPeriodCode` 가 실제로 조회한 분기다.
 
 ---
 

@@ -199,6 +199,7 @@
 | --- | --- | --- |
 | 자치구 목록 | `GET /api/v1/districts` | 필터, 드롭다운, 지역 선택 |
 | 자치구 TOP 10 | `GET /api/v1/districts/top-ten` | 메인 대시보드 랭킹 |
+| 자치구 전체 순위 | `GET /api/v1/districts/rankings` | 구별현황 지도 25개 구 단계 색칠, Top10 밖 구 순위·값 표기 |
 | 자치구 상세 | `GET /api/v1/districts/{districtCode}` | 자치구 요약 카드 |
 | 자치구 유동인구 | `GET /api/v1/districts/{districtCode}/foot-traffic` | 자치구 단위 인구 차트 |
 | 자치구 변화 지표 | `GET /api/v1/districts/{districtCode}/change-indicators` | 개폐업 변화 흐름 |
@@ -210,6 +211,8 @@
 권장 사용:
 
 - 대시보드 홈에는 `top-ten`과 `districts`를 사용한다.
+- 구별현황 지도처럼 25개 구 전체 값이 필요하면 `rankings` 를 쓴다. 지표마다 현재 분기 데이터가 있는 구가 모두 오고, 항목은 `top-ten` 과 같은 필드에 `rank`(같은 값은 같은 순위, 1·2·2·4)가 붙는다. 같은 값끼리는 `districtCode` 오름차순이다.
+- `rankings` 의 변화율(`footTrafficChangeRate`·`salesChangeRate`·`openingChangeRate`·`closureChangeRate`)은 직전 분기 값이 없거나 0 이면 `null` 이다. 0% 로 그리지 말고 결측으로 표기한다. `top-ten` 은 같은 경우 `0.0` 이고 유동인구는 직전 분기 행이 없는 구를 빼므로, 한 화면에서 두 응답의 같은 구 값을 섞지 않는다.
 - 자치구 상세 페이지에서는 요약 API를 먼저 렌더링하고, 차트 API는 섹션별 lazy load한다.
 - 행정동 상세는 지도나 지역 검색에서 진입할 때 사용한다.
 
