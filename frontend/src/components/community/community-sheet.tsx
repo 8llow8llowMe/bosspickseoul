@@ -28,6 +28,12 @@ export type CommunitySheetProps = {
    * 열 때의 요소를 잡아 둔다 — 트리거는 시트가 떠 있는 동안 그대로 있어야 한다.
    */
   returnFocusRef?: RefObject<HTMLElement | null>
+  /**
+   * 시트 높이를 최대 높이로 고정한다(목록은 시트 안에서 스크롤). 내용이 단계마다 바뀌는 시트용이다 —
+   * 높이가 내용을 따르면 가운데·바닥 정렬 때문에 목록이 도착하는 순간 위쪽 행이 밀려, 그때 누른 손가락이
+   * 다른 행을 고른다(#518). 더보기 메뉴처럼 내용이 고정된 시트는 쓰지 않는다.
+   */
+  fixedHeight?: boolean
 }
 
 const MOBILE = '@media (max-width: 479px)'
@@ -48,9 +54,10 @@ const Overlay = styled.div`
   }
 `
 
-const Panel = styled.div`
+const Panel = styled.div<{ $fixedHeight: boolean }>`
   width: min(100%, 420px);
   max-height: min(640px, calc(100dvh - 48px));
+  ${p => (p.$fixedHeight ? 'height: min(640px, calc(100dvh - 48px));' : '')}
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -66,6 +73,7 @@ const Panel = styled.div`
     width: 100%;
     max-height: 85vh;
     max-height: 85dvh;
+    ${p => (p.$fixedHeight ? 'height: 85vh; height: 85dvh;' : '')}
     padding-bottom: env(safe-area-inset-bottom);
     border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   }
@@ -134,6 +142,7 @@ function CommunitySheetContent({
   title,
   children,
   returnFocusRef,
+  fixedHeight = false,
 }: Omit<CommunitySheetProps, 'open'>) {
   const id = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -199,6 +208,7 @@ function CommunitySheetContent({
   const sheet = (
     <Overlay onMouseDown={handleBackdropMouseDown}>
       <Panel
+        $fixedHeight={fixedHeight}
         ref={panelRef}
         aria-labelledby={`${id}-title`}
         aria-modal="true"

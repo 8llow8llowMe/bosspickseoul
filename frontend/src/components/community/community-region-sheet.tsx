@@ -708,7 +708,9 @@ export default function CommunityRegionSheet({
         ) : null}
       </ChipGroup>
 
+      {/* 단계마다 목록 길이가 달라 높이를 고정한다 — 도착 순간 행이 밀려 다른 지역이 눌리던 문제(#518). */}
       <CommunitySheet
+        fixedHeight
         onClose={() => {
           setOpen(false)
         }}
