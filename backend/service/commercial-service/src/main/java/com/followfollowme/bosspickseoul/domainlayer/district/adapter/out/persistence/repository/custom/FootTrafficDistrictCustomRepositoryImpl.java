@@ -29,6 +29,7 @@ public class FootTrafficDistrictCustomRepositoryImpl implements FootTrafficDistr
 
         // 이전 분기 유동인구가 0 이면 변화율을 0 으로 본다(가드 이유는 DistrictChangeRateExpressions 참고).
         // 이전 분기 행 자체가 없는 경우는 아래 join 이 INNER 라 행이 나오지 않는다. Top10 은 이 동작을 그대로 둔다.
+        // 동점은 자치구 코드 오름차순이다. 10위 경계의 동점에서 어느 구가 들어갈지 고정해 전체 순위의 상위 10개와 어긋나지 않게 한다.
         NumberExpression<Double> footTrafficChangeRate = DistrictChangeRateExpressions.zeroWhenMissing(
             current.totalFootTraffic.doubleValue(), previous.totalFootTraffic.doubleValue());
 
@@ -41,7 +42,7 @@ public class FootTrafficDistrictCustomRepositoryImpl implements FootTrafficDistr
                 previous.periodCode.eq(previousPeriodCode),
                 previous.spatialVersion.eq(datasetSpatialVersion.value())
             )
-            .orderBy(current.totalFootTraffic.desc())
+            .orderBy(current.totalFootTraffic.desc(), current.districtCode.asc())
             .limit(TOP_TEN_LIMIT)
             .fetch();
     }

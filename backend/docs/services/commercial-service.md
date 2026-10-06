@@ -59,7 +59,7 @@
   - 유동인구는 select·from 만 같고 조인과 직전 분기 조건의 위치가 다르다. Top10 은 INNER JOIN 에 직전 분기 조건을 where 에 두고, 전체 순위는 **LEFT JOIN** 에 직전 분기 조건을 `on` 에 둔다(where 에 두면 INNER JOIN 과 같아진다).
   - 변화율은 `(현재 - 이전) / NULLIF(이전, 0) * 100` 이라 직전 값이 없거나 0 이면 NULL 이다. H2 에서 0 나눗셈 예외도 나지 않는다.
 - 순위는 Processor 가 `CompetitionRankCalculator` 로 매긴다(표준 경쟁 순위 1, 2, 2, 4). QueryDSL JPA 에 window 함수가 없기 때문이다.
-- `top-ten` 은 바꾸지 않았다(10건, 결측 변화율 0.0, 유동인구 INNER JOIN). `DistrictRankingQueryTest` 가 두 쿼리를 같은 픽스처(업종 여러 행·미매핑 업종 행·다른 공간 스냅샷 행 포함)로 함께 못 박는다.
+- `top-ten` 계약(10건, 결측 변화율 0.0, 유동인구 INNER JOIN)은 바꾸지 않았다. 동점 순서만 전체 순위와 같게 `districtCode` 오름차순으로 고정했다 — 10위 경계 동점에서 어느 구가 들어갈지가 DB 에 따라 갈리지 않게 하려는 것이다. `DistrictRankingQueryTest` 가 두 쿼리를 같은 픽스처(업종 여러 행·미매핑 업종 행·다른 공간 스냅샷 행 포함)로 함께 못 박는다.
 - 동점 정렬은 결과가 아니라 **생성 SQL** 로 단언한다(`SqlCapturingStatementInspector`). H2 는 GROUP BY 결과를 그룹 키 오름차순으로 내놓아 매출·개업·폐업은 `districtCode` 정렬을 지워도 결과 순서가 같지만, MySQL 은 그 순서를 보장하지 않는다.
 
 ## 후보 탐색 처리 (1단계)

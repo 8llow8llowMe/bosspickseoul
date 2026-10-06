@@ -296,7 +296,7 @@
 > - **응답**: `currentPeriodCode`, `previousPeriodCode`, `footTrafficRankings`, `salesRankings`, `openedStoreRankings`, `closedStoreRankings`. 항목 필드는 `top-ten` 항목과 같은 이름에 `rank` 를 더했습니다 — 유동인구 `totalFootTraffic`·`footTrafficChangeRate`, 매출 `totalSalesAmount`·`salesChangeRate`, 개업 `openedStoreCount`·`openingChangeRate`, 폐업 `closedStoreCount`·`closureChangeRate`.
 > - **정렬·순위**: 지표 값 내림차순, 같으면 `districtCode` 오름차순입니다. `rank` 는 표준 경쟁 순위라 같은 값은 같은 순위이고 다음 순위는 그만큼 건너뜁니다(1, 2, 2, 4). 순위 기준 값은 `top-ten` 과 같습니다(개업·폐업은 점포 수 합계).
 > - **변화율은 nullable** 입니다. 직전 분기 행이 없거나 직전 값이 0 이면 `null` 이고 0 으로 채우지 않습니다. 직전 분기 행이 없는 구도 목록에서 빠지지 않습니다. 개업·폐업의 변화율은 `top-ten` 과 같은 정의(개업률·폐업률 평균의 전분기 대비 증감률, %)입니다.
-> - **`top-ten` 과 다른 점**: `top-ten` 은 10건이고 결측 변화율을 `0.0` 으로 내리며, 유동인구는 직전 분기 행이 없는 구를 결과에서 뺍니다(INNER JOIN). 두 응답의 같은 구 값이 다르게 보이면 이 차이 때문입니다.
+> - **`top-ten` 과 다른 점**: `top-ten` 은 10건이고 결측 변화율을 `0.0` 으로 내리며, 유동인구는 직전 분기 행이 없는 구를 결과에서 뺍니다(INNER JOIN). 두 응답의 같은 구 값이 다르게 보이면 이 차이 때문입니다. 동점 순서는 두 API 모두 `districtCode` 오름차순이라, 매출·개업·폐업의 `top-ten` 10건은 `rankings` 앞 10건과 같은 구입니다(유동인구는 `top-ten` 이 직전 분기 결측 구를 빼므로 다를 수 있습니다).
 >
 > ```json
 > {
