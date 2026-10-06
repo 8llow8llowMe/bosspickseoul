@@ -83,6 +83,10 @@ domainlayer/<context>
 - `application/port/out`은 외부 시스템에 대한 계약만 노출한다.
 - `adapter/out/*`는 JPA, Redis, 외부 API, 내부 서비스 호출 세부사항을 숨긴다.
 - `application` 계층이 `adapter` 구현 타입에 의존하면 안 된다.
+- 같은 서비스 안의 다른 컨텍스트에 쓰기를 위임할 때는 호출하는 컨텍스트에 out-port 를 두고, `adapter/out/<대상 컨텍스트>`
+  어댑터가 대상 컨텍스트의 Processor(또는 포트)를 부른다. 호출하는 쪽 application 은 대상 컨텍스트의 Processor 를 직접 주입하지
+  않는다. 어댑터는 트랜잭션을 열지 않고 호출자 트랜잭션에 합류한다. 선례: `member/adapter/out/auth/MemberSessionRevokeAdapter`,
+  `member/adapter/out/auth/SignupEmailVerificationAdapter`(member → auth), `auth/adapter/out/member/SignupConsentRecordAdapter`(auth → member).
 
 ## 4. Query / Model 경계
 

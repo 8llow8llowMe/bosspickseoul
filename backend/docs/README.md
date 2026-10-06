@@ -34,7 +34,8 @@
 - `share-link-frontend-guide.md`
   - 분석 화면 공유 기능 구현용. `/api/v1/share-links/**` API 사용법, payload 저장/복원 흐름
 - `auth-account-frontend-guide.md`
-  - 비밀번호 재설정과 일반↔소셜 계정 연결/전환 UX 구현용. 계정 모델, 자동 연결 정책, 비밀번호 설정 흐름
+  - 회원가입 동의(약관·처리방침·만 14세 이상 확인)와 소셜 첫 가입 재시도 흐름, 비밀번호 재설정과 일반↔소셜 계정 연결/전환 UX 구현용.
+    계정 모델, 자동 연결 정책, 비밀번호 설정 흐름
 - `observability-guide.md`
   - Prometheus, Grafana, Loki 기반 백엔드 관측 기준
 - `backend-ai-data-infra-roadmap.md`
@@ -61,7 +62,7 @@
   - GitHub App, webhook, Jenkins Multibranch Pipeline, Vault credential 기반 개발 배포 설정 절차
 - `services/*.md`
   - 서비스별 책임과 구현 주의점
-  - `services/auth-service.md` — 계정 모델, 토큰 회전, 다중 기기 세션, 로그인 시도 제한
+  - `services/auth-service.md` — 계정 모델, 토큰 회전, 다중 기기 세션, 로그인 시도 제한, 가입 동의 이력과 탈퇴 회원 보관 기간
   - `services/commercial-service.md` — 상권·자치구 분석, 블루오션, 시뮬레이션, 공유 링크, 분석 보관함
   - `services/district-service.md` — 지도 영역 좌표와 지도 화면 전용 오케스트레이션
   - `services/community-service.md` — 게시글/댓글/좋아요/신고, 커서 페이징, 모더레이션

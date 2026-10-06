@@ -375,6 +375,38 @@ INDEX(member_id, created_at)
 
 ---
 
+### `auth-service` — 회원가입 동의와 만 14세 이상 확인 이력 (#494)
+
+**상태**: ✅ 백엔드 완료 / ⏸ 프론트 가입 화면 동의 체크박스(FE #495) 미연결. **FE #495 와 함께 배포한다** — 백엔드만 먼저
+나가면 동의 필드를 보내지 않는 가입 화면은 `MEMBER_114` 로, 신규 소셜 가입은 `AUTH_021` 로 막힌다(기존 회원 로그인은 영향 없음).
+prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼저 적용한다. 소셜 state 쿠키 바인딩(#527)은
+#495 와 같은 릴리스 또는 그보다 먼저 나가야 한다(login CSRF 로 남의 이름의 동의 이력이 생길 수 있다).
+
+**엔드포인트 변경**:
+- `POST /api/v1/members/signup`, `POST /api/v1/members/signup/dev` — 바디에 `termsAgreed`·`privacyAgreed`·`ageOver14Confirmed`
+  (모두 true 필수, 누락/false 는 `MEMBER_114`/`115`/`116`)
+- `GET /api/v1/auth/{provider}/authorize` — 같은 이름의 쿼리 파라미터(생략 시 false)를 state 와 함께 보관
+- `GET /api/v1/auth/{provider}/login` — 신규 회원 생성 때만 동의 검사(`AUTH_021` 동의 없음, `AUTH_022` 만 14세 미확인)
+
+**DB 테이블**: `member_consent` — 가입 1건당 `TERMS`/`PRIVACY`/`AGE_OVER_14` 3행, 같은 `agreed_at`, 동의한 문서 판
+(`legal.terms-version` `"1.0"` / `legal.privacy-version` `"1.1"`, `AGE_OVER_14` 는 이용약관 판)
+
+**핵심 파일 (`domainlayer/member/`, `domainlayer/auth/`)**:
+- `member/application/service/processor/MemberConsentProcessor.java` — 이력 생성 규칙의 단일 지점 (일반·개발용·소셜 가입 공용)
+- `member/adapter/out/persistence/entity/MemberConsentEntity.java`, `member/domain/enums/MemberConsentType.java`
+- `auth/adapter/out/member/SignupConsentRecordAdapter.java` — 소셜 첫 가입이 같은 규칙을 타게 하는 auth -> member 어댑터
+- `auth/adapter/out/persistence/RedisOAuthStateStoreAdapter.java` — state 값을 provider + 동의 + 인가 시점 판·시각 JSON 으로 저장(GETDEL 유지)
+- `global/properties/LegalProperties.java` — 문서 판(비거나 20자 초과면 기동 실패)·탈퇴 회원 보관 기간(`legal.withdrawn-retention: P365D`)
+
+**설계 결정**:
+- 기존 회원은 소급 동의를 받지 않는다. 이력이 없으면 "동의 도입 전 가입".
+- 소셜 동의는 인가코드가 1회용이라 콜백이 아니라 `/authorize` 에서 받고, 이력의 판·시각도 `/authorize` 시점 값으로 남긴다.
+- `consent_type` 은 `@JdbcTypeCode(VARCHAR)` 로 varchar(30) 고정 — Hibernate 6 MySQL 방언의 네이티브 ENUM 생성을 막아 dev 와 prod 런북을 맞춘다.
+- 탈퇴 회원의 이메일·동의 이력은 탈퇴 후 1년 뒤 파기 — **파기 작업은 후속 이슈**(이 이슈는 기간 설정까지).
+- 상세: `services/auth-service.md` 「가입 동의와 만 14세 이상 확인」, 프론트 계약: `auth-account-frontend-guide.md` §0.
+
+---
+
 ### `community-service` — 게시글 조회수 + 검색
 
 **상태**: ✅ 완료

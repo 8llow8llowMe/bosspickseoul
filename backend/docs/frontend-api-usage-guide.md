@@ -55,6 +55,9 @@
 - API 클라이언트는 refresh cookie 전송을 위해 credentials 옵션을 켠다.
 - 401이 오면 `token/reissue`를 한 번 시도하고, 실패하면 로그인 화면으로 보낸다.
 - 소셜 로그인 `state`는 프론트에서 임의 생성하지 않는다. 백엔드가 발급한 authorize URL로 이동한다.
+- 소셜 첫 가입(처음 로그인하는 이메일)은 `authorize` 에 `termsAgreed`·`privacyAgreed`·`ageOver14Confirmed` 를 실어야 한다.
+  로그인 화면에서는 동의 없이 시작해도 되고, 콜백이 `AUTH_021`(동의 없음)·`AUTH_022`(만 14세 미확인)로 거절하면
+  동의를 받아 `authorize` 부터 다시 시작한다. 상세는 [`auth-account-frontend-guide.md`](auth-account-frontend-guide.md) §0-2.
 
 ### Signup Page
 
@@ -71,10 +74,13 @@
 2. /auth/email/send-code
 3. 인증 코드 입력
 4. /auth/email/verify-code
-5. 회원 정보 입력
-6. /members/signup
+5. 회원 정보 입력 + 필수 동의 3종 체크 (이용약관 / 개인정보 처리방침 / 만 14세 이상)
+6. /members/signup — termsAgreed, privacyAgreed, ageOver14Confirmed 를 모두 true 로 보낸다
 7. 로그인 화면 또는 자동 로그인 흐름으로 이동
 ```
+
+- 동의 필드가 빠지거나 `false` 면 400 이고 항목마다 코드가 다르다 — `MEMBER_114`(이용약관), `MEMBER_115`(처리방침),
+  `MEMBER_116`(만 14세). 해당 체크박스를 강조한다. 상세는 [`auth-account-frontend-guide.md`](auth-account-frontend-guide.md) §0-1.
 
 ### My Page
 
