@@ -4,6 +4,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.model.
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityCommentRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityReportRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportReasonCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityComment;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
@@ -24,8 +25,15 @@ public class ModerationQueryProcessor {
     private final CommunityPostRepositoryPort communityPostRepositoryPort;
     private final CommunityCommentRepositoryPort communityCommentRepositoryPort;
 
-    public List<CommunityReport> findPendingReports() {
-        return communityReportRepositoryPort.findPendingReports();
+    /**
+     * PENDING 신고를 오래된 순으로 가져온다. 사유 코드 필터(#473)가 null/blank 면 전체, 있으면 그 사유만 — 잘못된 값은 COMMUNITY_018 로
+     * 조회 전에 거른다. 조건이 하나라 동적 쿼리 대신 파생 쿼리 두 개를 골라 부른다.
+     */
+    public List<CommunityReport> findPendingReports(String reasonCode) {
+        if (reasonCode == null || reasonCode.isBlank()) {
+            return communityReportRepositoryPort.findPendingReports();
+        }
+        return communityReportRepositoryPort.findPendingReportsByReasonCode(CommunityReportReasonCode.from(reasonCode));
     }
 
     /**

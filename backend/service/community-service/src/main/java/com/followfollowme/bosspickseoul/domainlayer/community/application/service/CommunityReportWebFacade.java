@@ -15,7 +15,8 @@ public class CommunityReportWebFacade implements CommunityReportWebUseCase {
 
     @Override
     public void createReport(long memberId, CommunityReportCreateRequest request) {
-        CreateReportCommand command = new CreateReportCommand(request.targetKind(), request.targetId(), request.reason());
+        CreateReportCommand command = new CreateReportCommand(
+            request.targetKind(), request.targetId(), request.reasonCode(), request.detail(), request.reason());
         communityCommandProcessor.createReport(memberId, command);
     }
 }

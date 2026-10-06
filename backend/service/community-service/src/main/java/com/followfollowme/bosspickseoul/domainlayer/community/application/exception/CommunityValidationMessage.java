@@ -33,6 +33,8 @@ public final class CommunityValidationMessage {
     public static final String ANALYSIS_REF_CODE_LENGTH_INVALID = "COMMUNITY_120:분석 참조 코드는 100자 이하만 가능합니다.";
     public static final String ANALYSIS_REF_NAME_LENGTH_INVALID = "COMMUNITY_121:분석 참조 표시명은 200자 이하만 가능합니다.";
     public static final String ANALYSIS_SNAPSHOT_KEY_LENGTH_INVALID = "COMMUNITY_122:분석 스냅샷 키는 200자 이하만 가능합니다.";
+    public static final String REPORT_ETC_DETAIL_REQUIRED = "COMMUNITY_123:기타 사유는 상세 내용을 입력해야 합니다.";
+    public static final String REPORT_DETAIL_LENGTH_INVALID = "COMMUNITY_124:신고 상세 사유는 500자 이하만 가능합니다.";
 
     private CommunityValidationMessage() {
     }

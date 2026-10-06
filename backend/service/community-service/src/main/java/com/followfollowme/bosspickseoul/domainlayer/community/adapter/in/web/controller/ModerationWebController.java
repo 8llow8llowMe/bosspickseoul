@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,13 +33,17 @@ public class ModerationWebController {
 
     @Operation(
         summary = "미처리 신고 목록 조회",
-        description = "처리되지 않은 신고 목록을 조회합니다. MANAGER 권한 필요.",
+        description = "처리되지 않은 신고 목록을 오래된 순으로 조회합니다. reasonCode 를 주면 그 사유의 신고만 거릅니다. MANAGER 권한 필요.",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/reports")
     @PreAuthorize("hasAuthority('MANAGER')")
-    public ResponseEntity<Response<ModerationReportsResponse>> getPendingReports() {
-        ModerationReportsResponse response = moderationWebUseCase.getPendingReports();
+    public ResponseEntity<Response<ModerationReportsResponse>> getPendingReports(
+        @Parameter(description = "신고 사유 코드 필터 (선택 — 없으면 전체). SPAM · ABUSE · PRIVACY · FALSE_INFO · ETC, 대소문자 무시. 잘못된 값은 COMMUNITY_018",
+            example = "SPAM")
+        @RequestParam(required = false) String reasonCode
+    ) {
+        ModerationReportsResponse response = moderationWebUseCase.getPendingReports(reasonCode);
         return ResponseEntity.ok().body(Response.success(response));
     }
 

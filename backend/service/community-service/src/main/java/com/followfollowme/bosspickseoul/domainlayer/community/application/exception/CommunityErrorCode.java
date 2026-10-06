@@ -29,9 +29,11 @@ public enum CommunityErrorCode {
     MEMBER_SERVICE_UNAVAILABLE("COMMUNITY_016", "회원 정보 서비스와의 통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.SERVICE_UNAVAILABLE),
     // 말머리는 작성·수정 요청 본문과 목록 필터(category 쿼리) 양쪽에서 같은 코드로 거절한다.
     INVALID_POST_CATEGORY("COMMUNITY_017", "유효하지 않은 말머리입니다.", HttpStatus.BAD_REQUEST),
+    // 신고 사유 코드는 신고 등록 본문(reasonCode)과 모더레이션 목록 필터(reasonCode 쿼리) 양쪽에서 같은 코드로 거절한다.
+    INVALID_REPORT_REASON_CODE("COMMUNITY_018", "유효하지 않은 신고 사유 코드입니다.", HttpStatus.BAD_REQUEST),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
-    // 필드별 코드(COMMUNITY_101~116, 118~122)는 CommunityValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
+    // 필드별 코드(COMMUNITY_101~116, 118~124)는 CommunityValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.
     INVALID_REQUEST("COMMUNITY_100", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     PARAMETER_TYPE_INVALID("COMMUNITY_117", "요청 파라미터 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
 

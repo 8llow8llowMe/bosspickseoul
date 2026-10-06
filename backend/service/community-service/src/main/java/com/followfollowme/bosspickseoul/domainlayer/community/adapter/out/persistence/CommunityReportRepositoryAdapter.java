@@ -3,6 +3,7 @@ package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persi
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.repository.CommunityReportRepository;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.mapper.CommunityReactionMapper;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityReportRepositoryPort;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportReasonCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.ReportStatus;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityReport;
@@ -34,6 +35,14 @@ public class CommunityReportRepositoryAdapter implements CommunityReportReposito
     @Override
     public List<CommunityReport> findPendingReports() {
         return communityReportRepository.findByStatusOrderByCreatedAtAsc(ReportStatus.PENDING)
+            .stream()
+            .map(communityReactionMapper::toDomainFromEntity)
+            .toList();
+    }
+
+    @Override
+    public List<CommunityReport> findPendingReportsByReasonCode(CommunityReportReasonCode reasonCode) {
+        return communityReportRepository.findByStatusAndReasonCodeOrderByCreatedAtAsc(ReportStatus.PENDING, reasonCode)
             .stream()
             .map(communityReactionMapper::toDomainFromEntity)
             .toList();

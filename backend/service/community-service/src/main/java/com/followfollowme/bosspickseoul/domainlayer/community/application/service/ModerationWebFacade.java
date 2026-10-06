@@ -24,8 +24,8 @@ public class ModerationWebFacade implements ModerationWebUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public ModerationReportsResponse getPendingReports() {
-        List<CommunityReport> reports = moderationQueryProcessor.findPendingReports();
+    public ModerationReportsResponse getPendingReports(String reasonCode) {
+        List<CommunityReport> reports = moderationQueryProcessor.findPendingReports(reasonCode);
         ModerationReportTargets targets = moderationQueryProcessor.findReportTargets(reports);
 
         return moderationPresenter.toReportsResponse(reports, targets.postsById(), targets.commentsById());

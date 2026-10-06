@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity;
 
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportReasonCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.ReportStatus;
 import jakarta.persistence.Column;
@@ -33,6 +34,8 @@ import org.hibernate.annotations.Comment;
             columnList = "targetKind,targetId"),
         @Index(name = "idx_community_report_reporter_member_id",
             columnList = "reporterMemberId"),
+        // 모더레이션 목록은 PENDING 만 읽는다(사유 코드 필터 포함). PENDING 은 처리되면 빠지는 작은 집합이라
+        // (status, reasonCode) 인덱스 없이 이 인덱스로 거른 뒤 reasonCode 는 잔여 조건으로 본다(#473).
         @Index(name = "idx_community_report_status",
             columnList = "status")
     }
@@ -57,9 +60,22 @@ public class CommunityReportEntity {
     @Comment("신고한 회원 아이디 (FK: member.id)")
     private Long reporterMemberId;
 
+    // 사유 코드(#473) 이전 컬럼. NOT NULL 이 남아 있어(ddl-auto 는 컬럼을 지우지 않는다) 계속 채운다 — 레거시 요청은 받은 reason,
+    // 신규 요청은 detail 이 있으면 detail, 없으면 사유 코드 표시명. 읽기는 reasonCode·detail 로 한다.
     @Column(nullable = false, length = 500)
-    @Comment("신고 사유")
+    @Comment("레거시 신고 사유 원문 (deprecated — 후속 정리 대상. 사유는 reason_code·detail 로 읽는다)")
     private String reason;
+
+    // 기존 행은 ddl-auto(dev)·런북(prod)의 DEFAULT 'ETC' 로 채워진다. 접두 문자열 백필은
+    // scripts/migration/community-report-reason-code-runbook.sql 3절.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'ETC'")
+    @Comment("신고 사유 코드 (SPAM/ABUSE/PRIVACY/FALSE_INFO/ETC)")
+    private CommunityReportReasonCode reasonCode;
+
+    @Column(length = 500)
+    @Comment("신고 상세 내용 (없으면 null)")
+    private String detail;
 
     @Column(nullable = false)
     @Comment("신고 생성 시각")

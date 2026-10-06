@@ -1,6 +1,7 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.repository;
 
 import com.followfollowme.bosspickseoul.domainlayer.community.adapter.out.persistence.entity.CommunityReportEntity;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportReasonCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.ReportStatus;
 import java.util.List;
@@ -19,6 +20,8 @@ public interface CommunityReportRepository extends JpaRepository<CommunityReport
     );
 
     List<CommunityReportEntity> findByStatusOrderByCreatedAtAsc(ReportStatus status);
+
+    List<CommunityReportEntity> findByStatusAndReasonCodeOrderByCreatedAtAsc(ReportStatus status, CommunityReportReasonCode reasonCode);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
