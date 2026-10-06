@@ -33,12 +33,12 @@ public class SalesDistrictCustomRepositoryImpl implements SalesDistrictCustomRep
     public List<SalesDistrictTopTenProjection> findTopTenBySales(String currentPeriodCode, String previousPeriodCode) {
         // 매출 변화율: (현재 합계 - 이전 합계) / 이전 합계 * 100
         // 이전 분기 행이 없으면 SUM 이 NULL 이고, 합계가 0 이면 0 으로 나누게 된다. Top10 은 두 경우 모두 변화율을 0 으로 본다
-        // (가드 이유는 DistrictChangeRateExpressions 참고).
+        // (가드 이유는 DistrictChangeRateExpressions 참고). 동점은 자치구 코드 오름차순이다(FootTrafficDistrictCustomRepositoryImpl 참고).
         NumberExpression<Double> salesChangeRate = DistrictChangeRateExpressions.zeroWhenMissing(
             currentSalesSum().doubleValue(), previousSalesSum(previousPeriodCode).doubleValue());
 
         return selectSalesByDistrict(SalesDistrictTopTenProjection.class, currentPeriodCode, salesChangeRate)
-            .orderBy(currentSalesSum().desc())
+            .orderBy(currentSalesSum().desc(), salesDistrictEntity.districtCode.asc())
             .limit(TOP_TEN_LIMIT)
             .fetch();
     }

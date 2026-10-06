@@ -46,7 +46,8 @@ import org.springframework.test.context.TestPropertySource;
  *       직전 분기 2행이라 합계·평균이 행을 곱하지 않고 묶이는지, 개업·폐업 변화율이 "평균 대 평균" 인지 가린다</li>
  *   <li>다른 공간 스냅샷(spatial_version) 행 — 은평구·종로구의 직전 분기와 서대문구의 현재 분기 — 은 어느 쪽에도 섞이지 않는다</li>
  * </ul>
- * Top10 은 그대로다: 10건, 결측 변화율 0.0, 유동인구는 직전 분기 행이 없는 구가 INNER JOIN 으로 빠진다.
+ * Top10 은 그대로다: 10건, 결측 변화율 0.0, 유동인구는 직전 분기 행이 없는 구가 INNER JOIN 으로 빠진다. 동점 순서만 전체 순위와 같게
+ * 자치구 코드 오름차순으로 고정했다(10위 경계 동점에서 어느 구가 들어갈지가 결정적이다).
  */
 @CommercialDataJpaTest
 @TestPropertySource(properties =
@@ -98,9 +99,12 @@ class DistrictRankingQueryTest {
 
     private static final double JONGNO_STORE_RATE_CHANGE = 50.0;
 
-    /** 순위 쿼리의 ORDER BY 가 "값 내림차순, 그다음 자치구 코드" 로 끝나는지. Hibernate 는 asc 를 생략한다. */
-    private static final Pattern VALUE_DESC_THEN_DISTRICT_CODE =
-        Pattern.compile("order by .+ desc\\s*,\\s*\\w+\\.district_code(\\s+asc)?\\s*$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    /**
+     * ORDER BY 가 "값 내림차순, 그다음 자치구 코드" 로 끝나는지. Hibernate 는 asc 를 생략하고, Top10 은 그 뒤에 행 수 제한
+     * (H2 {@code fetch first ? rows only}, MySQL {@code limit ?})이 붙는다.
+     */
+    private static final Pattern VALUE_DESC_THEN_DISTRICT_CODE = Pattern.compile(
+        "order by .+ desc\\s*,\\s*\\w+\\.district_code(\\s+asc)?(\\s+(fetch|limit|offset)\\b.*)?\\s*$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     @Autowired
     private TestEntityManager entityManager;
@@ -456,6 +460,40 @@ class DistrictRankingQueryTest {
             assertThat(findBy(result, StoreDistrictClosedTopTenProjection::districtCode, NOWON).closureChangeRate()).isZero();
             assertThat(findBy(result, StoreDistrictClosedTopTenProjection::districtCode, JONGNO).closureChangeRate())
                 .isCloseTo(JONGNO_STORE_RATE_CHANGE, within(1e-9));
+        }
+
+        @Test
+        @DisplayName("10위 경계의 동점은 자치구 코드가 작은 구가 들어간다")
+        void tieAtTheTenthPlaceKeepsTheSmallerDistrictCode() {
+            // 서대문구(11410)를 10위와 같은 값으로 더한다. 유동인구 10위는 강북구(11305, 400), 매출·점포 10위는 성북구(11290, 500)다.
+            String spatialVersion = datasetSpatialVersion.value();
+            DistrictFixture seodaemun = new DistrictFixture(SEODAEMUN, "서대문구", 0L, null);
+            persistFootTraffic(CURRENT_PERIOD, spatialVersion, seodaemun, 400L);
+            persistFootTraffic(PREVIOUS_PERIOD, spatialVersion, seodaemun, 400L);
+            persistSingleServiceRow(CURRENT_PERIOD, spatialVersion, seodaemun, 500L);
+            persistSingleServiceRow(PREVIOUS_PERIOD, spatialVersion, seodaemun, 500L);
+            entityManager.flush();
+            entityManager.clear();
+
+            List<FootTrafficDistrictTopTenProjection> footTraffic =
+                footTrafficDistrictRepository.findTopTenByFootTraffic(CURRENT_PERIOD, PREVIOUS_PERIOD);
+            List<SalesDistrictTopTenProjection> sales = salesDistrictRepository.findTopTenBySales(CURRENT_PERIOD, PREVIOUS_PERIOD);
+            List<StoreDistrictOpenedTopTenProjection> opened = storeDistrictRepository.findTopTenByOpenedStore(CURRENT_PERIOD, PREVIOUS_PERIOD);
+            List<StoreDistrictClosedTopTenProjection> closed = storeDistrictRepository.findTopTenByClosedStore(CURRENT_PERIOD, PREVIOUS_PERIOD);
+
+            assertThat(footTraffic).hasSize(10).extracting(FootTrafficDistrictTopTenProjection::districtCode).endsWith("11305").doesNotContain(SEODAEMUN);
+            assertThat(sales).hasSize(10).extracting(SalesDistrictTopTenProjection::districtCode).endsWith("11290").doesNotContain(SEODAEMUN);
+            assertThat(opened).hasSize(10).extracting(StoreDistrictOpenedTopTenProjection::districtCode).endsWith("11290").doesNotContain(SEODAEMUN);
+            assertThat(closed).hasSize(10).extracting(StoreDistrictClosedTopTenProjection::districtCode).endsWith("11290").doesNotContain(SEODAEMUN);
+        }
+
+        @Test
+        @DisplayName("SQL 도 값 내림차순 다음에 자치구 코드로 정렬한다 — H2 결과 순서만으로는 동점 정렬을 가릴 수 없다")
+        void orderBySqlBreaksTiesByDistrictCode() {
+            assertOrderedByValueThenDistrictCode(() -> footTrafficDistrictRepository.findTopTenByFootTraffic(CURRENT_PERIOD, PREVIOUS_PERIOD));
+            assertOrderedByValueThenDistrictCode(() -> salesDistrictRepository.findTopTenBySales(CURRENT_PERIOD, PREVIOUS_PERIOD));
+            assertOrderedByValueThenDistrictCode(() -> storeDistrictRepository.findTopTenByOpenedStore(CURRENT_PERIOD, PREVIOUS_PERIOD));
+            assertOrderedByValueThenDistrictCode(() -> storeDistrictRepository.findTopTenByClosedStore(CURRENT_PERIOD, PREVIOUS_PERIOD));
         }
     }
 

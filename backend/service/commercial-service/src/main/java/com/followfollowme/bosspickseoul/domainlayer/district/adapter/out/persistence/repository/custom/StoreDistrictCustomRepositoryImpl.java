@@ -40,12 +40,12 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
         NumberExpression<Long> currentOpenedSum = storeDistrictEntity.openedStoreCount.sumLong();
 
         // 이전 분기 행이 없으면 AVG 가 NULL 이고, 평균이 0 이면 0 으로 나누게 된다. Top10 은 두 경우 모두 변화율을 0 으로 본다
-        // (가드 이유는 DistrictChangeRateExpressions 참고).
+        // (가드 이유는 DistrictChangeRateExpressions 참고). 동점은 자치구 코드 오름차순이다(FootTrafficDistrictCustomRepositoryImpl 참고).
         NumberExpression<Double> openingChangeRate = DistrictChangeRateExpressions.zeroWhenMissing(
             storeDistrictEntity.openingRate.avg(), previousRateAvg(previousPeriodCode, store -> store.openingRate));
 
         return selectStoreByDistrict(StoreDistrictOpenedTopTenProjection.class, currentPeriodCode, currentOpenedSum, openingChangeRate)
-            .orderBy(currentOpenedSum.desc())
+            .orderBy(currentOpenedSum.desc(), storeDistrictEntity.districtCode.asc())
             .limit(TOP_TEN_LIMIT)
             .fetch();
     }
@@ -59,7 +59,7 @@ public class StoreDistrictCustomRepositoryImpl implements StoreDistrictCustomRep
             storeDistrictEntity.closureRate.avg(), previousRateAvg(previousPeriodCode, store -> store.closureRate));
 
         return selectStoreByDistrict(StoreDistrictClosedTopTenProjection.class, currentPeriodCode, currentClosedSum, closureChangeRate)
-            .orderBy(currentClosedSum.desc())
+            .orderBy(currentClosedSum.desc(), storeDistrictEntity.districtCode.asc())
             .limit(TOP_TEN_LIMIT)
             .fetch();
     }
