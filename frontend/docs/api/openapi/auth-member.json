@@ -34,7 +34,7 @@
       "post": {
         "tags": ["회원"],
         "summary": "일반 회원가입",
-        "description": "일반 회원으로 가입합니다.",
+        "description": "일반 회원으로 가입합니다. 먼저 이메일 인증코드 발송·검증(`/api/v1/auth/email/*`)을 마쳐야 하고, 검증 후 30분 안에 가입해야 합니다.\n\n이용약관 동의(`termsAgreed`), 개인정보 처리방침 동의(`privacyAgreed`), 만 14세 이상 확인(`ageOver14Confirmed`)은\n모두 필수이며 `true` 여야 합니다. 빠지거나 `false` 면 400 으로 거절되고, 항목마다 코드가 다릅니다 —\n이용약관 `MEMBER_114`, 개인정보 처리방침 `MEMBER_115`, 만 14세 이상 확인 `MEMBER_116`.\n가입에 성공하면 세 항목이 동의한 문서 판과 같은 시각으로 동의 이력에 남습니다.\n\n호출 예: `{\"email\":\"user@example.com\",\"password\":\"P@ssw0rd!\",\"name\":\"홍길동\",\"nickname\":\"길동짱\",\n\"termsAgreed\":true,\"privacyAgreed\":true,\"ageOver14Confirmed\":true}`",
         "operationId": "generalSignup",
         "requestBody": {
           "content": {
@@ -64,7 +64,7 @@
       "post": {
         "tags": ["개발용 (prod 미노출)"],
         "summary": "[개발용] 즉시 회원가입 (이메일 인증 생략)",
-        "description": "이메일 인증코드 검증 없이 계정을 바로 만듭니다. 테스트 계정 생성 전용이며,\n비밀번호 규칙·이메일 중복 검증(409 MEMBER_001)은 일반 가입과 동일하게 적용됩니다.\n응답의 email/비밀번호로 바로 POST /api/v1/auth/login 을 호출해 테스트할 수 있습니다.\nprod 프로필에서는 이 API 가 등록되지 않습니다.",
+        "description": "이메일 인증코드 검증 없이 계정을 바로 만듭니다. 테스트 계정 생성 전용이며,\n비밀번호 규칙·이메일 중복 검증(409 MEMBER_001)은 일반 가입과 동일하게 적용됩니다.\n응답의 email/비밀번호로 바로 POST /api/v1/auth/login 을 호출해 테스트할 수 있습니다.\nprod 프로필에서는 이 API 가 등록되지 않습니다.\n\n바디는 일반 가입과 같습니다. termsAgreed, privacyAgreed, ageOver14Confirmed 셋 다 true 여야 하고\n(MEMBER_114/115/116), 가입되면 일반 가입과 같은 동의 이력이 남습니다. 개발용이라고 동의를 기본값으로\n채우지 않습니다 — 체크하지 않은 동의를 서버가 \"동의함\" 으로 적는 경로를 두지 않기 위해서입니다.",
         "operationId": "devSignup",
         "requestBody": {
           "content": {
@@ -633,7 +633,7 @@
       "get": {
         "tags": ["인증/인가"],
         "summary": "소셜 로그인",
-        "description": "provider 콜백의 인가코드와 state로 로그인합니다. 미가입 이메일이면 자동 회원가입 후 로그인합니다. 응답은 일반 로그인과 동일합니다(accessToken + refresh 쿠키).",
+        "description": "provider 콜백의 인가코드와 state로 로그인합니다. 미가입 이메일이면 자동 회원가입 후 로그인합니다. 응답은 일반 로그인과 동일합니다(accessToken + refresh 쿠키).\n\n자동 회원가입(소셜 첫 가입)은 인가 URL 생성 때 실은 동의가 있어야 합니다. 이용약관·개인정보 처리방침 동의가 없으면 AUTH_021,\n만 14세 이상 확인이 없으면 AUTH_022 (둘 다 400)로 거절되고 회원은 만들어지지 않습니다. 이미 가입한 회원의 로그인은 동의와 무관하게 통과합니다.",
         "operationId": "loginWithOAuthCode",
         "parameters": [
           {
@@ -684,7 +684,7 @@
       "get": {
         "tags": ["인증/인가"],
         "summary": "소셜 로그인 인가 URL 생성",
-        "description": "provider(kakao/naver) 인가 페이지 URL을 생성합니다. CSRF 방어용 state가 포함되며 10분간 유효합니다. 프론트는 이 URL로 리다이렉트합니다.",
+        "description": "provider(kakao/naver) 인가 페이지 URL을 생성합니다. CSRF 방어용 state가 포함되며 10분간 유효합니다. 프론트는 이 URL로 리다이렉트합니다.\n\n소셜 첫 가입(처음 로그인하는 이메일)이 되려면 termsAgreed, privacyAgreed, ageOver14Confirmed 를 모두 true 로 실어야 합니다.\n값은 state 와 함께 보관했다가 콜백에서 신규 회원을 만들 때만 쓰입니다. 이미 가입한 회원의 로그인에는 쓰이지 않으므로\n생략해도 됩니다(생략하면 false). 인가코드는 1회용이라 콜백에서 동의를 다시 받을 수 없습니다 —\n콜백이 AUTH_021/AUTH_022 로 거절되면 동의를 받아 이 API 부터 다시 시작합니다.\n\n호출 예: `GET /api/v1/auth/kakao/authorize?termsAgreed=true&privacyAgreed=true&ageOver14Confirmed=true`",
         "operationId": "generateOAuthAuthorizationUrl",
         "parameters": [
           {
@@ -697,6 +697,39 @@
               "enum": ["KAKAO", "NAVER"]
             },
             "example": "kakao"
+          },
+          {
+            "name": "termsAgreed",
+            "in": "query",
+            "description": "이용약관 동의 여부 (소셜 첫 가입에만 쓰임, 생략 시 false)",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "example": true
+          },
+          {
+            "name": "privacyAgreed",
+            "in": "query",
+            "description": "개인정보 처리방침 동의 여부 (소셜 첫 가입에만 쓰임, 생략 시 false)",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "example": true
+          },
+          {
+            "name": "ageOver14Confirmed",
+            "in": "query",
+            "description": "만 14세 이상 확인 여부 (소셜 첫 가입에만 쓰임, 생략 시 false)",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "example": true
           }
         ],
         "responses": {
@@ -830,6 +863,7 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "이메일 주소",
             "example": "user@example.com",
             "minLength": 1
@@ -855,8 +889,32 @@
             "example": "길동짱",
             "maxLength": 10,
             "minLength": 0
+          },
+          "termsAgreed": {
+            "type": "boolean",
+            "description": "이용약관 동의 여부. 필수라 true 가 아니면 가입할 수 없습니다(MEMBER_114)",
+            "example": true
+          },
+          "privacyAgreed": {
+            "type": "boolean",
+            "description": "개인정보 처리방침 동의 여부. 필수라 true 가 아니면 가입할 수 없습니다(MEMBER_115)",
+            "example": true
+          },
+          "ageOver14Confirmed": {
+            "type": "boolean",
+            "description": "만 14세 이상 확인 여부. 필수라 true 가 아니면 가입할 수 없습니다(MEMBER_116)",
+            "example": true
           }
-        }
+        },
+        "required": [
+          "ageOver14Confirmed",
+          "email",
+          "name",
+          "nickname",
+          "password",
+          "privacyAgreed",
+          "termsAgreed"
+        ]
       },
       "DataHeader": {
         "type": "object",
@@ -867,9 +925,7 @@
           "resultCode": {
             "type": "string"
           },
-          "resultMessage": {
-            "type": "object"
-          }
+          "resultMessage": {}
         }
       },
       "ResponseVoid": {
@@ -878,9 +934,7 @@
           "dataHeader": {
             "$ref": "#/components/schemas/DataHeader"
           },
-          "dataBody": {
-            "type": "object"
-          }
+          "dataBody": {}
         }
       },
       "MemberDevSignupResponse": {
@@ -890,7 +944,7 @@
           "memberId": {
             "type": "string",
             "description": "생성된 회원 아이디",
-            "example": 202507110001
+            "example": "202507110001"
           },
           "email": {
             "type": "string",
@@ -955,7 +1009,8 @@
             "minLength": 8,
             "pattern": "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()\\-_=+\\[\\]{};:'\",.<>/?\\\\|])\\S+$"
           }
-        }
+        },
+        "required": ["currentPassword", "newPassword"]
       },
       "MemberPasswordSetupRequest": {
         "type": "object",
@@ -969,7 +1024,8 @@
             "minLength": 8,
             "pattern": "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()\\-_=+\\[\\]{};:'\",.<>/?\\\\|])\\S+$"
           }
-        }
+        },
+        "required": ["newPassword"]
       },
       "MemberBookmarkCreateRequest": {
         "type": "object",
@@ -984,7 +1040,7 @@
           "targetCode": {
             "type": "string",
             "description": "북마크 대상 코드",
-            "example": 3110008,
+            "example": "3110008",
             "maxLength": 20,
             "minLength": 0
           },
@@ -996,7 +1052,7 @@
             "minLength": 0
           }
         },
-        "required": ["targetType"]
+        "required": ["targetCode", "targetName", "targetType"]
       },
       "MemberBookmarkCreateResponse": {
         "type": "object",
@@ -1005,7 +1061,7 @@
           "bookmarkId": {
             "type": "string",
             "description": "북마크 아이디",
-            "example": 7345678901234568000
+            "example": "7345678901234567890"
           },
           "targetType": {
             "type": "string",
@@ -1016,7 +1072,7 @@
           "targetCode": {
             "type": "string",
             "description": "북마크 대상 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "targetName": {
             "type": "string",
@@ -1069,6 +1125,7 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "가입한 이메일",
             "example": "user@example.com",
             "minLength": 1
@@ -1087,7 +1144,8 @@
             "minLength": 8,
             "pattern": "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()\\-_=+\\[\\]{};:'\",.<>/?\\\\|])\\S+$"
           }
-        }
+        },
+        "required": ["code", "email", "newPassword"]
       },
       "AuthPasswordResetCodeSendRequest": {
         "type": "object",
@@ -1095,11 +1153,13 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "가입한 이메일",
             "example": "user@example.com",
             "minLength": 1
           }
-        }
+        },
+        "required": ["email"]
       },
       "AuthGeneralLoginRequest": {
         "type": "object",
@@ -1107,6 +1167,7 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "이메일 주소",
             "example": "user@example.com",
             "minLength": 1
@@ -1117,7 +1178,8 @@
             "example": "password123!",
             "minLength": 1
           }
-        }
+        },
+        "required": ["email", "password"]
       },
       "AuthGeneralLoginResponse": {
         "type": "object",
@@ -1131,7 +1193,7 @@
           "memberId": {
             "type": "string",
             "description": "회원 아이디",
-            "example": 1
+            "example": "1"
           }
         }
       },
@@ -1152,6 +1214,7 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "인증코드를 받은 이메일 주소",
             "example": "user@example.com",
             "minLength": 1
@@ -1162,7 +1225,8 @@
             "example": "A3K7MP2X",
             "minLength": 1
           }
-        }
+        },
+        "required": ["code", "email"]
       },
       "AuthEmailCodeSendRequest": {
         "type": "object",
@@ -1170,11 +1234,13 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "인증코드를 받을 이메일 주소",
             "example": "user@example.com",
             "minLength": 1
           }
-        }
+        },
+        "required": ["email"]
       },
       "MemberMyInfoUpdateRequest": {
         "type": "object",
@@ -1187,7 +1253,8 @@
             "maxLength": 10,
             "minLength": 0
           }
-        }
+        },
+        "required": ["nickname"]
       },
       "CodeNameDescriptionMetadata": {
         "type": "object",
@@ -1217,7 +1284,7 @@
           "memberId": {
             "type": "string",
             "description": "회원 아이디",
-            "example": 202507110001
+            "example": "202507110001"
           },
           "email": {
             "type": "string",
@@ -1249,7 +1316,7 @@
             }
           },
           "provider": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "소셜 로그인 제공자 (일반 계정이면 null)",
             "example": "KAKAO"
           },
@@ -1278,7 +1345,7 @@
           "bookmarkId": {
             "type": "string",
             "description": "북마크 아이디",
-            "example": 7345678901234568000
+            "example": "7345678901234567890"
           },
           "targetType": {
             "type": "string",
@@ -1289,7 +1356,7 @@
           "targetCode": {
             "type": "string",
             "description": "북마크 대상 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "targetName": {
             "type": "string",
@@ -1375,12 +1442,12 @@
             "example": "Mozilla/5.0 (iPhone; ...)"
           },
           "createdAt": {
-            "type": "string",
+            "type": ["string", "null"],
             "format": "date-time",
             "description": "최초 로그인 시각"
           },
           "lastUsedAt": {
-            "type": "string",
+            "type": ["string", "null"],
             "format": "date-time",
             "description": "마지막 사용(토큰 발급/갱신) 시각"
           },

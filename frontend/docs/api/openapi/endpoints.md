@@ -87,6 +87,7 @@
 | GET    | `/api/v1/districts/{districtCode}/foot-traffic`                      | 자치구 유동인구 상세 조회     | 불필요 |
 | GET    | `/api/v1/districts/{districtCode}/change-indicators`                 | 자치구 변화지표 상세 조회     | 불필요 |
 | GET    | `/api/v1/districts/top-ten`                                          | 자치구 Top 10 요약 조회       | 불필요 |
+| GET    | `/api/v1/districts/rankings`                                         | 자치구 지표별 전체 순위 조회  | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/trend`                         | 상권 트렌드 분석 조회         | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/summaries/sales`               | 상권 매출 요약 비교 조회      | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/summaries/income`              | 상권 지출 요약 비교 조회      | 불필요 |
@@ -95,11 +96,12 @@
 | GET    | `/api/v1/commercials/{commercialCode}/service-categories`            | 상권 업종 목록 조회           | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/profile`                       | 상권 프로필 조회              | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/population`                    | 상권 거주인구 조회            | 불필요 |
-| GET    | `/api/v1/commercials/{commercialCode}/income`                        | 상권 소득·지출 조회           | 불필요 |
+| GET    | `/api/v1/commercials/{commercialCode}/income`                        | 상권 소비 지출 조회           | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/foot-traffic`                  | 상권 유동인구 조회            | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/facilities`                    | 상권 시설 조회                | 불필요 |
 | GET    | `/api/v1/commercials/{commercialCode}/benchmarks`                    | 상권 벤치마크 조회            | 불필요 |
 | GET    | `/api/v1/commercials/recommendations/by-service`                     | 업종별 상권 추천              | 불필요 |
+| GET    | `/api/v1/commercials/periods`                                        | 분석 기준 분기 카탈로그 조회  | 불필요 |
 | GET    | `/api/v1/commercials/compare`                                        | 상권 A/B 비교 조회            | 불필요 |
 | GET    | `/api/v1/analysis-rankings`                                          | 분석 인기 순위 조회           | 불필요 |
 | GET    | `/api/v1/administrations/{administrationCode}`                       | 행정동 통합 상세 조회         | 불필요 |

@@ -1,6 +1,6 @@
 {
   "sourceBaseUrl": "https://api-dev.bosspickseoul.com",
-  "fetchedAt": "2026-09-10T10:27:22.298Z",
+  "fetchedAt": "2026-10-06T06:42:55.419Z",
   "services": [
     {
       "id": "region-map",
@@ -12,7 +12,7 @@
       "pathCount": 14,
       "operationCount": 14,
       "schemaCount": 36,
-      "sha256": "2fbb27b388883f61ee78e3f54132c6b08e49bfc6626f0927848c66ec5a65c409"
+      "sha256": "6ab2c219364f958fb29a2d3f2a8ca687a8e4140163c776eb8ac709df4b4edeaa"
     },
     {
       "id": "auth-member",
@@ -24,7 +24,7 @@
       "pathCount": 20,
       "operationCount": 24,
       "schemaCount": 34,
-      "sha256": "93ed35f23a0cb7a421878bee0a85862b2dc6131520e2db433a9020cf4e817f77"
+      "sha256": "b55a611d20dfe431d7a0372063ce957ce2066d160baa717ee4e250df5b1b6c90"
     },
     {
       "id": "commercial-analysis",
@@ -33,10 +33,10 @@
       "version": "v1",
       "openapi": "3.1.0",
       "sourceUrl": "https://api-dev.bosspickseoul.com/commercial-service/v3/api-docs",
-      "pathCount": 34,
-      "operationCount": 37,
-      "schemaCount": 135,
-      "sha256": "229534cb7ab596a35a43e7ba7eebb38dc91cd87fcab5a4e1c7a0f7e29e7abc1c"
+      "pathCount": 36,
+      "operationCount": 39,
+      "schemaCount": 150,
+      "sha256": "05387389db78fad0b820d398fbe042046b492b6dbc18a40bd5036ee97d74d378"
     },
     {
       "id": "ai-report",
@@ -48,7 +48,7 @@
       "pathCount": 6,
       "operationCount": 6,
       "schemaCount": 11,
-      "sha256": "bf38c04139e30f3dce5cc1c8e483306e8d51740bf6006d11cf2c4eab10e53751"
+      "sha256": "25cbb8db64ee726e67c4bb0fb84ffaeacf94c51e11836258c9fa054b96a6e723"
     },
     {
       "id": "community",
@@ -60,7 +60,7 @@
       "pathCount": 13,
       "operationCount": 17,
       "schemaCount": 38,
-      "sha256": "354505fb3daf904fa4d6f74a8c670de9bb90c5c2fe951a46442ee90f8d33883a"
+      "sha256": "5dd96aa50949ca27f75d8ffb92fb0e05088fd48fb7db791fda50f45b57496ece"
     }
   ]
 }

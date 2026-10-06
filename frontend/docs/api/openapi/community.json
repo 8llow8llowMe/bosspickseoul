@@ -880,7 +880,7 @@
             "minLength": 0
           }
         },
-        "required": ["targetKind"]
+        "required": ["reason", "targetKind"]
       },
       "DataHeader": {
         "type": "object",
@@ -891,9 +891,7 @@
           "resultCode": {
             "type": "string"
           },
-          "resultMessage": {
-            "type": "object"
-          }
+          "resultMessage": {}
         }
       },
       "ResponseVoid": {
@@ -902,9 +900,7 @@
           "dataHeader": {
             "$ref": "#/components/schemas/DataHeader"
           },
-          "dataBody": {
-            "type": "object"
-          }
+          "dataBody": {}
         }
       },
       "CommunityPostCreateRequest": {
@@ -920,7 +916,7 @@
           "targetCode": {
             "type": "string",
             "description": "대상 코드",
-            "example": 3110008,
+            "example": "3110008",
             "minLength": 1
           },
           "title": {
@@ -950,29 +946,30 @@
             "minItems": 0
           },
           "analysisType": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "분석 첨부 타입 (선택 — 비교 초안 응답의 analysisType.code 를 그대로 전달)",
             "example": "COMMERCIAL_COMPARISON"
           },
           "analysisRefCode": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "분석 참조 코드 (선택 — 초안 응답의 analysisRefCode 그대로)",
             "maxLength": 100,
             "minLength": 0
           },
           "analysisRefName": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "분석 참조 표시명 (선택 — 초안 응답의 analysisRefName 그대로)",
             "maxLength": 200,
             "minLength": 0
           },
           "analysisSnapshotKey": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "분석 스냅샷 키 (선택 — 초안 응답의 analysisSnapshotKey 그대로)",
             "maxLength": 200,
             "minLength": 0
           }
-        }
+        },
+        "required": ["content", "targetCode", "targetType", "title"]
       },
       "CodeNameDescriptionMetadata": {
         "type": "object",
@@ -1015,11 +1012,11 @@
             "description": "작성자 회원 ID"
           },
           "writerNickname": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
           },
           "writerProfileImageUrl": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 프로필 이미지 URL"
           },
           "targetType": {
@@ -1043,19 +1040,20 @@
             "description": "본문"
           },
           "analysisType": {
+            "type": "null",
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
             "description": "분석 첨부 타입 메타데이터 (없으면 null)"
           },
           "analysisRefCode": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "분석 참조 코드 (없으면 null)"
           },
           "analysisRefName": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "분석 참조 표시명 (없으면 null)"
           },
           "analysisSnapshotKey": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "분석 스냅샷 키 (없으면 null)"
           },
           "likeCount": {
@@ -1160,7 +1158,8 @@
             "maxLength": 1000,
             "minLength": 0
           }
-        }
+        },
+        "required": ["content"]
       },
       "CommunityCommentItem": {
         "type": "object",
@@ -1179,11 +1178,11 @@
             "description": "작성자 회원 ID"
           },
           "writerNickname": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
           },
           "writerProfileImageUrl": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 프로필 이미지 URL"
           },
           "content": {
@@ -1244,11 +1243,11 @@
             "description": "작성자 회원 ID"
           },
           "writerNickname": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
           },
           "writerProfileImageUrl": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 프로필 이미지 URL"
           },
           "parentCommentId": {
@@ -1360,19 +1359,19 @@
           "targetCode": {
             "type": "string",
             "description": "게시글 대상 코드",
-            "example": 3110008,
+            "example": "3110008",
             "minLength": 1
           },
           "leftCommercialCode": {
             "type": "string",
             "description": "좌측 상권 코드",
-            "example": 3110008,
+            "example": "3110008",
             "minLength": 1
           },
           "rightCommercialCode": {
             "type": "string",
             "description": "우측 상권 코드",
-            "example": 3110012,
+            "example": "3110012",
             "minLength": 1
           },
           "serviceCode": {
@@ -1384,10 +1383,18 @@
           "periodCode": {
             "type": "string",
             "description": "기준 분기 코드",
-            "example": 20233,
+            "example": "20233",
             "minLength": 1
           }
-        }
+        },
+        "required": [
+          "leftCommercialCode",
+          "periodCode",
+          "rightCommercialCode",
+          "serviceCode",
+          "targetCode",
+          "targetType"
+        ]
       },
       "CommunityCommercialComparisonDraftResponse": {
         "type": "object",
@@ -1400,7 +1407,7 @@
           "targetCode": {
             "type": "string",
             "description": "게시글 대상 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "targetName": {
             "type": "string",
@@ -1523,7 +1530,8 @@
             "maxItems": 5,
             "minItems": 0
           }
-        }
+        },
+        "required": ["content", "title"]
       },
       "ModerationReportItem": {
         "type": "object",
@@ -1569,9 +1577,9 @@
             "description": "신고 대상 내용 미리보기 (최대 100자)"
           },
           "targetAuthorId": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "신고 대상 작성자 아이디 (대상이 이미 삭제되어 조회되지 않으면 null)",
-            "example": 7345678901234568000
+            "example": "7345678901234567890"
           }
         }
       },
@@ -1610,7 +1618,7 @@
           "targetCode": {
             "type": "string",
             "description": "대상 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "targetName": {
             "type": "string",
@@ -1624,6 +1632,7 @@
         "description": "게시글 목록 응답",
         "properties": {
           "board": {
+            "type": "null",
             "$ref": "#/components/schemas/CommunityBoardTargetItem",
             "description": "게시판 대상 정보 (대상 타입/코드 지정 시에만 포함)"
           },
@@ -1638,7 +1647,7 @@
         "description": "게시글 요약 항목 DTO",
         "properties": {
           "thumbnailUrl": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "대표 이미지 URL (첨부 이미지가 없으면 null)"
           },
           "postId": {
@@ -1650,11 +1659,11 @@
             "description": "작성자 회원 ID"
           },
           "writerNickname": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
           },
           "writerProfileImageUrl": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 프로필 이미지 URL"
           },
           "targetType": {
@@ -1732,11 +1741,11 @@
             "description": "작성자 회원 ID"
           },
           "writerNickname": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 닉네임 — 탈퇴 회원은 '탈퇴회원', 회원 서비스 장애 시 null"
           },
           "writerProfileImageUrl": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "작성자 프로필 이미지 URL"
           },
           "targetType": {
