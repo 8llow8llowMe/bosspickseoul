@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
  * 그래서 로케일을 지정하지 않으면 서버가 뜬 지역에 따라 같은 요청이 어디선 통과하고
  * 어디선 400 이 된다.
  *
- * <p>실제로 깨지는 건 'i' 가 들어간 COMMERCIAL 과 말머리 QUESTION·EXPERIENCE 다. 정렬·신고 enum 은 오늘 기준
+ * <p>실제로 깨지는 건 'i' 가 들어간 COMMERCIAL, 말머리 QUESTION·EXPERIENCE, 신고 사유 PRIVACY·FALSE_INFO 다. 정렬·신고 대상 enum 은 오늘 기준
  * 상수에 'i' 가 없어 이 테스트만으로는 회귀를 잡지 못하지만, 같은 규칙을 쓰는지 함께 못 박아
  * 'i' 가 들어간 상수가 추가될 때 조용히 깨지지 않게 한다.
  */
@@ -58,5 +58,13 @@ class CommunityEnumLocaleTest {
     void parsesPostCategoryUnderTurkishLocale() {
         assertThat(CommunityPostCategory.from("question")).isEqualTo(CommunityPostCategory.QUESTION);
         assertThat(CommunityPostCategory.from("experience")).isEqualTo(CommunityPostCategory.EXPERIENCE);
+    }
+
+    /** 신고 사유 코드는 PRIVACY·FALSE_INFO 에 'i' 가 있어 로케일을 지정하지 않으면 실제로 깨진다. */
+    @Test
+    @DisplayName("터키어 로케일에서도 신고 사유 코드를 파싱한다")
+    void parsesReportReasonCodeUnderTurkishLocale() {
+        assertThat(CommunityReportReasonCode.from("privacy")).isEqualTo(CommunityReportReasonCode.PRIVACY);
+        assertThat(CommunityReportReasonCode.from("false_info")).isEqualTo(CommunityReportReasonCode.FALSE_INFO);
     }
 }

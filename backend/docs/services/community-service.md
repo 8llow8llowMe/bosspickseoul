@@ -221,9 +221,54 @@
 - 계층 조립: DB flat list → `CommunityCommentPresenter`에서 in-memory groupBy
 - 응답: `CommunityCommentItem.replies[]` 에 `CommunityReplyItem` 목록 포함
 
+## 신고 사유 코드
+
+- 신고에 사유 코드를 둔다 (#473). 값은 `domain/enums/CommunityReportReasonCode`(`CodeNameDescribable`).
+  `SPAM`(스팸·홍보) · `ABUSE`(욕설·비방) · `PRIVACY`(개인정보 노출) · `FALSE_INFO`(거짓 정보) · `ETC`(기타).
+  표시명은 FE `frontend/src/lib/community/report-reason.ts` 의 `COMMUNITY_REPORT_REASONS` 와 글자까지 같다(가운뎃점 U+00B7).
+- **요청** `POST /api/v1/community/reports`
+  - `reasonCode`(문자열, 대소문자 무시). 신규 클라이언트는 필수로 보낸다. 호환 기간 동안만 선택이다.
+  - `detail`(선택, 500자 이하 — `COMMUNITY_124`). `reasonCode` 가 `ETC` 면 필수(`COMMUNITY_123`).
+  - `reason`(deprecated). `reasonCode` 가 없을 때만 읽는 호환 필드. 500자(`COMMUNITY_111`)는 유지하고 필수(`COMMUNITY_110`)는 「둘 중 하나」로 바뀌었다.
+  - `reasonCode`·`reason` 이 둘 다 비면 기존 `COMMUNITY_110`.
+  - 잘못된 `reasonCode` 는 `400 COMMUNITY_018`. `sortType` 같은 Spring enum 바인딩(`COMMUNITY_117`)이 아니라 String + `from` 이다.
+    요청 본문 enum(`targetKind`)은 잘못된 값이 JSON 파싱 단계에서 실패해 이 코드 체계로 나가지 않기 때문이다(`category`·`analysisType` 과 같은 선택).
+  - 요청 모양 규칙(110·123)은 필드 하나로 정할 수 없어 레코드의 `@AssertTrue` 메서드(`isReasonPresent`·`isEtcDetailPresent`, `@JsonIgnore`·`@Schema(hidden = true)`)
+    로 둔다 — 필드별 코드 대역(1xx)에 두려고 Processor 예외 대신 Bean Validation 을 썼다. 저장소에 선례가 없던 방식이라 MockMvc 테스트로 동작을 확인했다.
+    오류 항목의 `field` 는 메서드 이름에서 나온 `reasonPresent`·`etcDetailPresent` 다(선언 필드 뒤에 정렬된다). 클라이언트는 `code` 로 분기한다.
+  - 잘못된 사유 코드는 입력 값 오류라 대상 조회(게시글·댓글) 전에 거른다.
+- **해석**은 `domain/model/CommunityReportReason.resolve` 가 한다.
+  - `reasonCode` 가 있으면 그 코드이고 `detail` 은 trim, 비면 null. `reason` 은 무시한다.
+  - 없으면 레거시. trim 한 `reason` 이 `[라벨] 상세` 이고 라벨이 표시명이면 그 코드, 나머지를 trim 해 detail(비면 null).
+    접두가 없거나 모르는 라벨이면 `ETC` 이고 detail 은 reason 전체. 레거시 경로에는 「ETC 는 상세 필수」를 강제하지 않는다.
+- **저장** — `community_report.reason_code VARCHAR(20) NOT NULL DEFAULT 'ETC'`, `detail VARCHAR(500) NULL`.
+  기존 `reason`(NOT NULL 500)은 남긴다. 의미는 「레거시 사유 원문」(deprecated, 후속 정리 대상)이다.
+  레거시 요청은 받은 reason(trim), 신규 요청은 detail 이 있으면 detail, 없으면 코드 표시명을 넣는다. 읽기는 `reasonCode`·`detail` 로 한다.
+  - 엔티티 `reasonCode` 는 `status` 와 같은 관례(`@Enumerated(STRING)` + `columnDefinition = "varchar(20) default 'ETC'"`)다. 이전 버전 INSERT 와 컬럼 추가 전 행을
+    DB 기본값이 살린다(H2 슬라이스 `legacyRowGetsColumnDefaults`). `columnDefinition` 이 타입을 대신해 H2 DDL 에는 값 목록 enum 타입·CHECK 가 없다 —
+    MySQL dev 도 같을 것으로 보지만 확인하지 않았다. 사유 코드를 추가할 때는 말머리와 같이 dev 의 `SHOW CREATE TABLE community_report` 를 먼저 본다.
+  - 롤백 주의: 신규 요청 중 상세가 있던 행은 `reason` 에 상세만 있다. 새 컬럼을 지우면 그 행의 사유 코드는 되살릴 수 없다(런북 롤백 절).
+- **모더레이션** — 목록 항목에 `reasonCode` metadata 와 `detail`(nullable). `reason` 은 deprecated 로 유지한다.
+  `GET /api/v1/moderation/reports` 의 선택 쿼리 `reasonCode`. 비면 전체 PENDING, 잘못된 값은 `COMMUNITY_018`.
+  파생 쿼리 `findByStatusAndReasonCodeOrderByCreatedAtAsc`. PENDING 은 처리되면 빠지는 작은 집합이라 새 인덱스는 두지 않고
+  기존 `idx_community_report_status` 로 거른 뒤 `reasonCode` 는 잔여 조건이다.
+  사유별 집계 API 는 이번에 만들지 않는다. F2 운영 화면 착수 때 GROUP BY 엔드포인트를 검토한다.
+  - 선택 필터를 QueryDSL 이 아니라 **파생 쿼리 두 개 중 고르는 방식**(필터 없음 `findPendingReports` / 있음 `findPendingReportsByReasonCode`)으로
+    둔 것은 coding-conventions §9-6 「동적 조건 → QueryDSL」의 예외다. 조건이 하나라 두 SQL 이 모두 고정이고 `(:p IS NULL OR …)` 안티패턴도 아니다.
+    필터가 하나 더 붙으면(F2: 대상 종류·기간 등) 분기가 2^n 으로 늘어나므로 `CommunityReportCustomRepository`(QueryDSL) + 슬라이스 테스트로 옮긴다.
+- **prod** 는 `scripts/migration/community-report-reason-code-runbook.sql`. 2절(컬럼 추가, `ALGORITHM=INSTANT`)은 **애플리케이션 배포 전**,
+  3절(접두 문자열 백필)은 **배포 후**에 실행한다(배포 전에 돌려도 되지만 그 사이 이전 버전이 넣은 행이 ETC 로 남는다 — 재실행 안전).
+  **dev 에도 3절을 실행한다.** ddl-auto 는 컬럼만 만들고 기존 행을 `ETC`·detail NULL 로 둔다.
+  백필은 라벨마다 `reason LIKE '[라벨]%'` 행의 접두를 `CHAR_LENGTH` 만큼 떼어 옮기고, 접두가 없거나 모르는 라벨은 detail = reason 이다.
+  MySQL `LIKE` 의 특수문자는 `%`·`_` 뿐이라 `[` `]` 는 글자 그대로 비교되고, `CHAR_LENGTH`·`SUBSTRING` 은 utf8mb4 글자 단위다(런북 주석).
+- 테스트: `CommunityReportReasonCodeTest`(파싱·018·표시명이 FE 라벨 5개와 같음)·`CommunityReportReasonTest`(신규·레거시 해석)·`CommunityEnumLocaleTest`(PRIVACY·FALSE_INFO),
+  `CommunityCommandProcessorReportReasonTest`(저장 값·018 이 대상 조회 전·중복·404 유지), `CommunityReportWebControllerReasonCodeTest`(110·123·124·111·018 봉투, 레거시 성공),
+  `ModerationWebControllerReasonCodeTest`(필터 바인딩·실제 체인·018), `ModerationPresenterReasonCodeTest`. 파생 쿼리와 컬럼 기본값·nullable detail 은 H2 슬라이스
+  `CommunityReportRepositoryTest`. 백필 SQL 은 MySQL 문법·콜레이션에 기대므로 슬라이스로 검증하지 않고 런북 4절 확인 쿼리로 본다.
+
 ## 신고 모더레이션 워크플로우 (신규)
 
-- `GET /api/v1/moderation/reports` — PENDING 신고 목록 (MANAGER only)
+- `GET /api/v1/moderation/reports` — PENDING 신고 목록 (MANAGER only, 선택 `reasonCode` 필터 — 위 「신고 사유 코드」)
   - 응답에 `targetTitle`, `targetPreview` (최대 100자), `targetAuthorId` 포함 — 매니저가 DB 직접 조회 없이 트리아지 가능
   - 대상 컨텐츠는 **종류별 `in` 절 2번**으로 모아 온다 (`ModerationQueryProcessor.findReportTargets`).
     신고를 순회하며 건당 조회하면 신고 수만큼 왕복이 생긴다 (coding-conventions §9-7).
@@ -236,7 +281,8 @@
 - 신규 컨트롤러: `ModerationWebController` — `@PreAuthorize("hasAuthority('MANAGER')")`
 - 신규 enum: `ReportStatus` (PENDING/APPROVED/DISMISSED), `ModerationDecision` (APPROVE_AND_HIDE/DISMISS)
 - 아키텍처: `ModerationWebFacade`는 `CommunityReportPort`를 직접 주입하지 않고 `ModerationQueryProcessor`를 통해 접근
-- **주의: `/api/v1/moderation/**` 는 API Gateway 에 라우트가 없다** (게이트웨이는 `/api/v1/community/**` 만 community-service 로 라우팅). 게이트웨이 경유 호출은 404 가 나며, 현재는 내부망 직접 호출 전용이다. 라우트 추가 여부는 별도 결정이 필요하다.
+- 게이트웨이 라우트: `/api/v1/moderation/**` 는 `community-service-moderation` 라우트로 community-service 에 간다
+  (`cloud/api-gateway` 의 `application-local.yml`·`application-dev.yml`·`application-prod.yml`). 권한은 `@PreAuthorize("hasAuthority('MANAGER')")` 가 막는다.
 
 ## 피드 필터 일관성 (버그 수정)
 
@@ -246,9 +292,9 @@
 
 | 대역 | 코드 | 설명 |
 |------|------|------|
-| 도메인 | `COMMUNITY_001`~`COMMUNITY_017` | 대상/정렬 타입 400, 게시글·댓글·신고 미존재 404, 권한 403, 중복 신고·기처리 신고 409, `013` 동시 반응 409, `014` 지역 서비스 통신 불가 503, `015` 분석 첨부 타입 400, `016` 회원 서비스 통신 불가 503(조회 경로는 강등), `017` 말머리 400 |
+| 도메인 | `COMMUNITY_001`~`COMMUNITY_018` | 대상/정렬 타입 400, 게시글·댓글·신고 미존재 404, 권한 403, 중복 신고·기처리 신고 409, `013` 동시 반응 409, `014` 지역 서비스 통신 불가 503, `015` 분석 첨부 타입 400, `016` 회원 서비스 통신 불가 503(조회 경로는 강등), `017` 말머리 400, `018` 신고 사유 코드 400(신고 본문·모더레이션 필터) |
 | 검증 폴백 | `COMMUNITY_100` | 요청 값 검증 실패 폴백 (INVALID_REQUEST) |
-| 검증 필드별 | `COMMUNITY_101`~`COMMUNITY_116`, `COMMUNITY_118`~`COMMUNITY_122` | `CommunityValidationMessage` 가 단일 기준점. `COMMUNITY_113`~`COMMUNITY_116` 은 상권 비교 draft 전용 (좌/우 상권 코드, 서비스 코드, 분기 코드), `118` 이미지 장수, `119` 조회 개수, `120`~`122` 분석 첨부 길이 |
+| 검증 필드별 | `COMMUNITY_101`~`COMMUNITY_116`, `COMMUNITY_118`~`COMMUNITY_124` | `CommunityValidationMessage` 가 단일 기준점. `COMMUNITY_113`~`COMMUNITY_116` 은 상권 비교 draft 전용 (좌/우 상권 코드, 서비스 코드, 분기 코드), `118` 이미지 장수, `119` 조회 개수, `120`~`122` 분석 첨부 길이, `123` 기타 사유 상세 필수, `124` 신고 상세 500자. `110` 은 #473 부터 「reasonCode·reason 중 하나 필수」 |
 | 타입 오류 | `COMMUNITY_117` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
 
 ## 게시글 이미지 (MinIO)
@@ -302,8 +348,11 @@ QueryDSL 커스텀 조건·커서와 JPQL 은 컴파일로 검증되지 않는�
   - `CommunityPostLikeRepositoryTest` — `findLikedPostIds`.
   - `CommunityPostRepositoryTest` — `updateContentIfActive`(제목·본문·말머리 교체, null 로 지움, 카운터·작성 시각 보존, DELETED·남의 글 0건,
     flush 전 저장분 반영과 `clearAutomatically` 뒤 재조회).
+  - `CommunityReportRepositoryTest` — 모더레이션 파생 쿼리 `findByStatusAndReasonCodeOrderByCreatedAtAsc`(PENDING + 사유 코드, 처리된 신고·다른 사유 제외,
+    `createdAt` 오름차순)와 기존 `findByStatusOrderByCreatedAtAsc`, nullable·500자 detail, 사유 코드 없이 들어간 행(JDBC INSERT)이 DB 기본값 `ETC` 로 읽히는지(#473).
   - 데이터는 엔티티 빌더로 고정 id·고정 시각을 넣는다(Snowflake·현재 시각 의존 없음). 각 테스트는 슬라이스 트랜잭션으로 롤백된다.
 - **H2 한계**: MySQL 에서만 확인되는 동작은 여전히 `CommunityRepositoryMySqlConcurrencyTest` 몫이다 — 동시 카운터 갱신·REPEATABLE READ 격리·동시 좋아요
   취소 단일 승자, MySQL 콜레이션에 따른 대소문자·문자 비교, 실행계획(인덱스 사용 여부). 컬럼 정의도 다르다 — H2 에서는 Hibernate 가 `@Enumerated(STRING)`
   컬럼을 H2 네이티브 `enum(...)` 타입으로 만들어 MySQL 의 `varchar(20)` + 값 목록 CHECK 와 같지 않다. 말머리 값 추가 때의 CHECK 확인은 슬라이스로 대신할 수 없고
   위 「게시글 말머리」대로 dev 의 `SHOW CREATE TABLE` 을 본다. 슬라이스는 쿼리의 조건·정렬·커서가 맞는지만 본다.
+  신고 사유 코드의 접두 백필(런북 3절 — `LIKE`·`CHAR_LENGTH`·`SUBSTRING`·`TRIM` 과 utf8mb4 콜레이션 비교)도 슬라이스가 대신하지 않는다. 런북 4절 확인 쿼리로 본다.

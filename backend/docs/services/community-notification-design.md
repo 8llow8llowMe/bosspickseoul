@@ -36,9 +36,9 @@
 - ID: `SnowflakeIdGenerator.generateId()` 를 Processor 가 호출해 `@Id Long id` 에 직접 넣는다. 응답은 `ResponseId.of` 로 String.
 - 게이트웨이: `/api/v1/community/**`·`/api/v1/moderation/**` 가 community-service 로 간다. 리소스 서버는
   `anyRequest().permitAll()` + 메서드 `@PreAuthorize` 구조다.
-- 에러코드: 도메인 다음 빈 번호 `COMMUNITY_017`, 검증 다음 빈 번호 `COMMUNITY_123`(`117` 은 타입 불일치, `118~122` 사용 중).
-  조회 개수 검증은 기존 `COMMUNITY_119`(1~50)를 그대로 쓴다. 같은 브랜치의 #470·#473 이 이 번호를 먼저 쓰면
-  구현 시점의 다음 빈 번호로 옮긴다.
+- 에러코드: 설계 당시 도메인 다음 빈 번호는 `COMMUNITY_017`, 검증 다음 빈 번호는 `COMMUNITY_123` 이었다(`117` 은 타입 불일치, `118~122` 사용 중).
+  같은 브랜치에서 #470 이 `COMMUNITY_017`(말머리), #473 이 `COMMUNITY_018`(신고 사유 코드)와 검증 `COMMUNITY_123`·`COMMUNITY_124` 를 썼다.
+  알림 구현은 그다음 빈 번호(`COMMUNITY_019`~ , 검증은 `COMMUNITY_125`~)로 옮긴다. 조회 개수 검증은 기존 `COMMUNITY_119`(1~50)를 그대로 쓴다.
 - FE: `firebase ^12.19.0` 의존이 있지만 `src/lib/firebase-messaging.ts` 는 V1 채팅용이다. 호출하는 `/firebase/message/**` 는
   V2 BE 에 없고(`frontend/docs/features/chatting/chatting.md` 「미제공」), `public/firebase-messaging-sw.js` 는 클릭 시
   `/chatting/list` 로 고정돼 있다. BE 어디에도 firebase-admin 의존·토큰 저장소가 없다.
@@ -260,6 +260,7 @@ CREATE TABLE community_notification (
 
 `size` 범위는 기존 `COMMUNITY_119`, 파라미터 형식 오류는 기존 `COMMUNITY_117`. 새 Bean Validation 필드 코드는 없다.
 번호는 초안이다 — 구현 시점에 `CommunityErrorCode` 의 다음 빈 번호를 쓴다(§2).
+**`COMMUNITY_017`·`018` 은 같은 브랜치의 #470(말머리)·#473(신고 사유 코드)이 이미 썼다. 알림 구현 때는 `COMMUNITY_019`~ 로 옮긴다**(검증 코드는 `125`~).
 
 ### 7-3. 헥사고날 배치
 

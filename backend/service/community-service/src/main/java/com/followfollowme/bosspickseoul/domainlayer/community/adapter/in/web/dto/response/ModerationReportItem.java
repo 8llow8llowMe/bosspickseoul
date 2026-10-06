@@ -1,5 +1,6 @@
 package com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto.response;
 
+import com.followfollowme.bosspickseoul.common.dto.metadata.CodeNameDescriptionMetadata;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.ReportStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,8 +23,16 @@ public record ModerationReportItem(
     @Schema(description = "신고한 회원 아이디")
     String reporterMemberId,
 
-    @Schema(description = "신고 사유")
+    @Schema(description = "신고 사유 원문 (deprecated — reasonCode·detail 을 쓴다). 레거시 요청은 받은 문자열, 신규 요청은 상세 또는 사유 코드 표시명",
+        deprecated = true)
     String reason,
+
+    @Schema(description = "신고 사유 코드 메타데이터",
+        example = "{\"code\":\"SPAM\",\"name\":\"스팸·홍보\",\"description\":\"스팸·홍보\"}")
+    CodeNameDescriptionMetadata reasonCode,
+
+    @Schema(description = "신고 상세 내용 (없으면 null)", example = "같은 홍보 글을 하루에 여러 번 올립니다.", nullable = true)
+    String detail,
 
     @Schema(description = "신고 상태")
     ReportStatus status,

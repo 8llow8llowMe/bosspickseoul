@@ -24,6 +24,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.Commu
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPost;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityPostLike;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityReport;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityReportReason;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.model.CommunityTargetMeta;
 import com.followfollowme.bosspickseoul.persistence.util.SnowflakeIdGenerator;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.info.CommunityLikeToggleResult;
@@ -179,8 +180,13 @@ public class CommunityCommandProcessor {
         return new CommunityLikeToggleResult(!exists, nextLikeCount);
     }
 
+    /**
+     * 신고 등록. 사유는 신규 요청(reasonCode + detail)이면 그대로, 레거시 요청(reason 만)이면 {@code [라벨] 상세} 접두를 해석해 코드로 저장한다(#473).
+     * 사유 코드 오류(COMMUNITY_018)는 입력 값 오류라 대상 조회 전에 거른다.
+     */
     @Transactional
     public void createReport(long memberId, CreateReportCommand command) {
+        CommunityReportReason reason = CommunityReportReason.resolve(command.reasonCode(), command.detail(), command.reason());
         validateReportTarget(command.targetKind(), command.targetId());
 
         if (communityReportRepositoryPort.exists(command.targetKind(), command.targetId(), memberId)) {
@@ -192,7 +198,9 @@ public class CommunityCommandProcessor {
             command.targetKind(),
             command.targetId(),
             memberId,
-            command.reason().trim(),
+            reason.legacyReason(),
+            reason.code(),
+            reason.detail(),
             LocalDateTime.now(),
             ReportStatus.PENDING,
             null,

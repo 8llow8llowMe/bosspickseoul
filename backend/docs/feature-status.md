@@ -493,6 +493,31 @@ MySQL 판 `CommunityRepositoryMySqlConcurrencyTest` 는 환경 변수가 있을 
 
 ---
 
+### `community-service` — 신고 사유 코드 (이슈 #473)
+
+**상태**: ✅ 완료 (prod DDL·백필 런북 수동 적용 필요, FE 는 `reasonCode`·`detail` 전송으로 전환 필요)
+
+- 사유 코드 `SPAM`(스팸·홍보) · `ABUSE`(욕설·비방) · `PRIVACY`(개인정보 노출) · `FALSE_INFO`(거짓 정보) · `ETC`(기타). 표시명은 FE 라벨과 같다
+- 신고 요청은 `reasonCode`(신규 클라이언트 필수) + 선택 `detail`(500자, `ETC` 만 필수). 기존 `reason` 은 deprecated 호환 필드
+- `reasonCode` 가 없으면 `[라벨] 상세` 접두를 해석한다. 접두가 없거나 모르는 라벨은 `ETC` + 원문. 레거시에는 기타 상세 필수를 강제하지 않는다
+- 모더레이션 목록에 `reasonCode`·`detail`. `GET /moderation/reports?reasonCode=` 필터. 사유별 집계 API 는 보류(F2)
+- 잘못된 코드는 `400 COMMUNITY_018`. 기타 상세 없음 `COMMUNITY_123`, 상세 500자 초과 `COMMUNITY_124`, 사유 자체 없음 `COMMUNITY_110`
+
+**핵심 파일**:
+- `domain/enums/CommunityReportReasonCode` — `from(String)` 대소문자 무시, 실패 시 `COMMUNITY_018`
+- `domain/model/CommunityReportReason` — 신규·레거시 해석
+- `CommunityCommandProcessor.createReport` — 저장하는 code·detail·레거시 reason
+- `CommunityReportRepository.findByStatusAndReasonCodeOrderByCreatedAtAsc` — `ModerationQueryProcessor.findPendingReports(reasonCode)` 가 필터 유무로 파생 쿼리 둘 중 하나를 고른다
+- `CommunityReportCreateRequest` — 요청 모양 규칙(110·123)은 `@AssertTrue` 메서드(`reasonPresent`·`etcDetailPresent`)
+
+**DB 변경**: prod 는 `scripts/migration/community-report-reason-code-runbook.sql`. 컬럼 추가(`reason_code VARCHAR(20) NOT NULL DEFAULT 'ETC'`, `detail VARCHAR(500) NULL`, INSTANT)는 배포 전,
+접두 백필(3절)은 배포 후이며 dev 에도 실행한다. 새 인덱스 없음(PENDING 은 작은 집합이라 `idx_community_report_status` 로 충분). 기존 `reason` 컬럼은 deprecated 로 남긴다.
+
+**주의사항**: 백필 SQL 은 H2 슬라이스로 검증하지 않는다(런북 4절 확인 쿼리). 파생 쿼리·컬럼 기본값·nullable detail 은 `CommunityReportRepositoryTest` 가 매 빌드 검증한다.
+신규 요청 중 상세가 있던 행은 `reason` 에 상세만 남으므로 새 컬럼을 지우는 롤백은 사유 코드를 잃는다.
+
+---
+
 ### `community-service` — 대댓글 (depth 1 고정)
 
 **상태**: ✅ 완료

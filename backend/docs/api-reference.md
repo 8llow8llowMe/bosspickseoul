@@ -94,7 +94,7 @@
 | `MEMBER` | `001~011` (`010` 가입 동의 누락, `011` 만 14세 미만) | `MEMBER_100` | `101~112`, `114~116` (가입 필수 동의) | `MEMBER_113` |
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
 | `AUTH` | `001~022` (`021` 소셜 첫 가입 동의 누락, `022` 소셜 첫 가입 만 14세 미확인) | `AUTH_100` | `101~104`, `106~108` | `AUTH_105` |
-| `COMMUNITY` | `001~017` (`014` 지역 서비스 통신 불가 503, `015` 분석 첨부 타입 오류, `016` 회원 서비스 통신 불가 503, `017` 말머리 오류) | `COMMUNITY_100` | `101~116`, `118~122` | `COMMUNITY_117` |
+| `COMMUNITY` | `001~018` (`014` 지역 서비스 통신 불가 503, `015` 분석 첨부 타입 오류, `016` 회원 서비스 통신 불가 503, `017` 말머리 오류, `018` 신고 사유 코드 오류) | `COMMUNITY_100` | `101~116`, `118~124` (`123` 기타 상세 필수, `124` 신고 상세 500자) | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101`, `103~105` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~007` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
 | `ANALYSIS_BOOKMARK` | `001~006` | (`COMMERCIAL_100` 사용) | `101~105` | (`COMMERCIAL_102` 사용) |
@@ -500,18 +500,38 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| POST | `/` | 게시글 또는 댓글 신고 (`targetKind`: POST / COMMENT) | 🔒 |
+| POST | `/` | 게시글 또는 댓글 신고 (`targetKind`: POST / COMMENT, 사유 `reasonCode` + `detail`) | 🔒 |
+
+신고 사유는 코드로 받습니다 (#473).
+
+| `reasonCode` | `name` |
+|--------------|--------|
+| `SPAM` | 스팸·홍보 |
+| `ABUSE` | 욕설·비방 |
+| `PRIVACY` | 개인정보 노출 |
+| `FALSE_INFO` | 거짓 정보 |
+| `ETC` | 기타 |
+
+- **요청** — `reasonCode`(문자열, 대소문자 무시)와 선택 `detail`(500자 이하, `COMMUNITY_124`). `ETC` 는 `detail` 이 필수입니다(`COMMUNITY_123`).
+  신규 클라이언트는 `reasonCode` 를 항상 보냅니다(호환 기간 동안만 선택). 잘못된 값은 `COMMUNITY_018`(400) 입니다.
+- `reason`(deprecated)은 `reasonCode` 가 없을 때만 읽는 호환 필드입니다(500자, `COMMUNITY_111`). `[스팸·홍보] 상세` 처럼 라벨 접두가 있으면 그 사유 코드로,
+  없거나 모르는 라벨이면 `ETC` + 원문 전체를 상세로 저장합니다. `reasonCode` 가 있으면 `reason` 은 무시합니다.
+- `reasonCode`·`reason` 이 둘 다 없으면 `COMMUNITY_110` 입니다. 이 두 검증 오류(110·123)의 `errors[].field` 는 `reasonPresent`·`etcDetailPresent` 이므로 `code` 로 분기합니다.
+
+```json
+{ "targetKind": "POST", "targetId": 1001, "reasonCode": "SPAM", "detail": "같은 홍보 글을 반복해서 올립니다." }
+```
 
 ### 모더레이션 (`/api/v1/moderation`) — MANAGER 전용
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| GET | `/reports` | 미처리(PENDING) 신고 목록 + 대상 컨텐츠 미리보기 | 🔒 MANAGER |
+| GET | `/reports` | 미처리(PENDING) 신고 목록(오래된 순) + 대상 컨텐츠 미리보기. 선택 `reasonCode` 필터(잘못된 값 `COMMUNITY_018`) | 🔒 MANAGER |
 | PATCH | `/reports/{reportId}` | 신고 처리 (`APPROVE_AND_HIDE` / `DISMISS`) | 🔒 MANAGER |
 
 **모더레이션 흐름**:
 1. 사용자가 게시글·댓글 신고 → `PENDING` 상태로 저장
-2. 매니저가 목록 조회 (`targetTitle`, `targetPreview`, `targetAuthorId` 포함)
+2. 매니저가 목록 조회 (`targetTitle`, `targetPreview`, `targetAuthorId`, 사유 `reasonCode: {code, name, description}`·`detail`(없으면 null) 포함. `reason` 은 deprecated)
 3. `APPROVE_AND_HIDE` → 대상 게시글/댓글 `DELETED` 처리 (댓글이면 부모 게시글 댓글 수도 감소)
 4. `DISMISS` → 신고만 `DISMISSED`, 컨텐츠 유지
 

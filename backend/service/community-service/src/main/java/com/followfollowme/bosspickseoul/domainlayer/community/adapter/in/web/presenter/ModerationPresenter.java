@@ -70,6 +70,8 @@ public class ModerationPresenter {
             .targetId(ResponseId.of(report.targetId()))
             .reporterMemberId(ResponseId.of(report.reporterMemberId()))
             .reason(report.reason())
+            .reasonCode(report.reasonCode().toMetadata())
+            .detail(report.detail())
             .status(report.status())
             .createdAt(report.createdAt())
             .targetTitle(targetTitle)

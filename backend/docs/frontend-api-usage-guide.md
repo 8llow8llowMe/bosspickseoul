@@ -297,11 +297,37 @@ GET /api/v1/community/posts?sortType=POPULAR&period=WEEK&lastPostId=0&lastLikeCo
 GET /api/v1/community/posts?category=QUESTION&sortType=LATEST&lastPostId=0&size=20
 ```
 
+신고 사유 (#473):
+
+- `composeCommunityReportReason` 의 `[사유] 상세` 접두 문자열 하나를 `reason` 으로 보내지 않는다.
+  `reasonCode` 와 `detail` 을 나눠 보낸다.
+
+  | 다이얼로그 라벨 | `reasonCode` |
+  | --- | --- |
+  | 스팸·홍보 | `SPAM` |
+  | 욕설·비방 | `ABUSE` |
+  | 개인정보 노출 | `PRIVACY` |
+  | 거짓 정보 | `FALSE_INFO` |
+  | 기타 | `ETC` |
+
+- `detail` 은 선택이고 최대 500자다(`400 COMMUNITY_124`). 「기타」(`ETC`)만 상세가 필수다(`400 COMMUNITY_123`).
+  다른 사유는 상세가 없으면 `detail` 을 빼거나 빈 문자열로 보낸다.
+  500자는 상세 자체의 한도다 — 접두(`[사유] `)가 없어졌으므로 `getCommunityReportDetailMaxLength` 처럼 접두 몫을 빼지 않는다.
+- 사유 코드·레거시 `reason` 이 둘 다 없으면 `400 COMMUNITY_110`. 알 수 없는 `reasonCode` 는 `400 COMMUNITY_018`.
+  110·123 은 요청 모양 검증이라 `errors[].field` 가 입력 필드명이 아니라 `reasonPresent`·`etcDetailPresent` 다. 안내 위치는 `code` 로 정한다
+  (110 → 사유 선택, 123 → 상세 입력칸). 124 의 `field` 는 `detail` 이다.
+- `reason` 필드는 호환용으로 남아 있다. 신규 클라이언트는 보내지 않는다. `reasonCode` 가 있으면 서버가 `reason` 을 무시한다.
+
+```http
+POST /api/v1/community/reports
+{ "targetKind": "POST", "targetId": 1001, "reasonCode": "SPAM", "detail": "같은 홍보 글을 반복해서 올립니다." }
+```
+
 ## Moderation
 
 | UI | API | Usage |
 | --- | --- | --- |
-| 관리자 신고 목록 | `GET /api/v1/moderation/reports` | PENDING 신고 목록 |
+| 관리자 신고 목록 | `GET /api/v1/moderation/reports` | PENDING 신고 목록(오래된 순). 사유 탭은 `?reasonCode=SPAM` 처럼 거른다. 항목의 사유는 `reasonCode.name`·`detail`(null 가능)로 그린다 — `reason` 은 deprecated |
 | 신고 처리 | `PATCH /api/v1/moderation/reports/{reportId}` | 숨김 승인 또는 기각 |
 
 관리자 전용 화면에서만 노출한다. 일반 사용자 번들에서는 라우트 자체를 숨기는 것이 좋다.

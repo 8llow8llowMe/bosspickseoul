@@ -13,6 +13,7 @@ import com.followfollowme.bosspickseoul.domainlayer.community.application.port.o
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityPostRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.application.port.out.CommunityReportRepositoryPort;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityCommentStatus;
+import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportReasonCode;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.CommunityReportTargetKind;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.ModerationDecision;
 import com.followfollowme.bosspickseoul.domainlayer.community.domain.enums.ReportStatus;
@@ -80,7 +81,7 @@ class ModerationCommandProcessorAtomicUpdateTest {
 
     private CommunityReport report(ReportStatus status) {
         return new CommunityReport(
-            REPORT_ID, CommunityReportTargetKind.COMMENT, COMMENT_ID, 10L, "reason", NOW,
+            REPORT_ID, CommunityReportTargetKind.COMMENT, COMMENT_ID, 10L, "reason", CommunityReportReasonCode.ETC, "reason", NOW,
             status, status == ReportStatus.PENDING ? null : NOW,
             status == ReportStatus.PENDING ? null : MODERATOR_ID
         );

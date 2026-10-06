@@ -6,7 +6,8 @@ import com.followfollowme.bosspickseoul.domainlayer.community.adapter.in.web.dto
 
 public interface ModerationWebUseCase {
 
-    ModerationReportsResponse getPendingReports();
+    /** @param reasonCode 사유 코드 필터 문자열 (null/blank 면 전체) — 잘못된 값은 COMMUNITY_018 */
+    ModerationReportsResponse getPendingReports(String reasonCode);
 
     ModerationDecisionResponse processReport(long moderatorMemberId, long reportId, ModerationDecisionRequest request);
 }
