@@ -7,6 +7,7 @@ import com.followfollowme.bosspickseoul.global.properties.LegalProperties;
 import com.followfollowme.bosspickseoul.persistence.util.SnowflakeIdGenerator;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -43,14 +44,30 @@ public class MemberConsentProcessor {
      * <p>만 14세 이상 확인도 이력으로 남긴다. 게이트만 걸고 기록하지 않으면 "물어봤고 확인받았다"를 나중에 입증할
      * 수 없다. 이 항목의 판이 이용약관 판인 이유는 {@link MemberConsentType#AGE_OVER_14} 에 적어 뒀다.
      *
+     * <p>이 오버로드는 동의한 순간과 저장하는 순간이 같은 경로(일반·개발용 가입)용이라, 지금의 판 설정과 지금 시각을 쓴다.
+     *
      * @return 저장된 이력 3건 (TERMS, PRIVACY, AGE_OVER_14 순)
      */
     public List<MemberConsent> recordSignupConsents(long memberId) {
-        LocalDateTime agreedAt = LocalDateTime.now();
+        return recordSignupConsents(memberId, legalProperties.termsVersion(), legalProperties.privacyVersion(), LocalDateTime.now());
+    }
+
+    /**
+     * 동의한 순간과 저장하는 순간이 다른 경로(소셜 첫 가입 — {@code /authorize} 에서 동의, 콜백에서 저장)용. 판과 시각은
+     * <b>동의한 순간의 값</b>을 받는다. 콜백 시점의 설정을 쓰면 그 사이 배포로 판이 바뀌었을 때 사용자가 보지 않은 판이 남는다.
+     *
+     * <p>받는 것은 판·시각뿐이고 생성 규칙(필수 항목 셋, AGE_OVER_14 에 이용약관 판, 항목 간 같은 시각)은 여기 한 곳에 있다.
+     *
+     * @return 저장된 이력 3건 (TERMS, PRIVACY, AGE_OVER_14 순)
+     */
+    public List<MemberConsent> recordSignupConsents(long memberId, String termsVersion, String privacyVersion, LocalDateTime agreedAt) {
+        Objects.requireNonNull(termsVersion, "termsVersion");
+        Objects.requireNonNull(privacyVersion, "privacyVersion");
+        Objects.requireNonNull(agreedAt, "agreedAt");
         return memberConsentRepositoryPort.saveAll(List.of(
-            consent(memberId, MemberConsentType.TERMS, legalProperties.termsVersion(), agreedAt),
-            consent(memberId, MemberConsentType.PRIVACY, legalProperties.privacyVersion(), agreedAt),
-            consent(memberId, MemberConsentType.AGE_OVER_14, legalProperties.termsVersion(), agreedAt)));
+            consent(memberId, MemberConsentType.TERMS, termsVersion, agreedAt),
+            consent(memberId, MemberConsentType.PRIVACY, privacyVersion, agreedAt),
+            consent(memberId, MemberConsentType.AGE_OVER_14, termsVersion, agreedAt)));
     }
 
     private MemberConsent consent(long memberId, MemberConsentType consentType, String documentVersion, LocalDateTime agreedAt) {
