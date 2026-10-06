@@ -26,6 +26,11 @@ public final class MemberValidationMessage {
     public static final String PROFILE_IMAGE_URL_LENGTH_INVALID = "MEMBER_110:프로필 이미지 URL은 255자 이하만 가능합니다.";
     public static final String CURRENT_PASSWORD_REQUIRED = "MEMBER_111:현재 비밀번호는 필수입니다.";
     public static final String NEW_PASSWORD_REQUIRED = "MEMBER_112:새 비밀번호는 필수입니다.";
+    // 가입 필수 동의·확인. MEMBER_113 이 타입 불일치 코드로 먼저 배포됐으므로 번호를 재사용하지 않고 114 부터 이어 붙인다.
+    // 체크박스마다 코드를 나눠 프론트가 어느 항목을 강조할지 알 수 있게 한다.
+    public static final String TERMS_AGREEMENT_REQUIRED = "MEMBER_114:이용약관에 동의해야 가입할 수 있습니다.";
+    public static final String PRIVACY_AGREEMENT_REQUIRED = "MEMBER_115:개인정보 처리방침에 동의해야 가입할 수 있습니다.";
+    public static final String AGE_OVER_14_REQUIRED = "MEMBER_116:만 14세 이상만 가입할 수 있습니다.";
 
     private MemberValidationMessage() {
     }

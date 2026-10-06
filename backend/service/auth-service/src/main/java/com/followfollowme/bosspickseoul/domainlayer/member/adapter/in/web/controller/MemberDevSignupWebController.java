@@ -34,7 +34,11 @@ public class MemberDevSignupWebController {
             이메일 인증코드 검증 없이 계정을 바로 만듭니다. 테스트 계정 생성 전용이며,
             비밀번호 규칙·이메일 중복 검증(409 MEMBER_001)은 일반 가입과 동일하게 적용됩니다.
             응답의 email/비밀번호로 바로 POST /api/v1/auth/login 을 호출해 테스트할 수 있습니다.
-            prod 프로필에서는 이 API 가 등록되지 않습니다."""
+            prod 프로필에서는 이 API 가 등록되지 않습니다.
+
+            바디는 일반 가입과 같습니다. termsAgreed, privacyAgreed, ageOver14Confirmed 셋 다 true 여야 하고
+            (MEMBER_114/115/116), 가입되면 일반 가입과 같은 동의 이력이 남습니다. 개발용이라고 동의를 기본값으로
+            채우지 않습니다 — 체크하지 않은 동의를 서버가 "동의함" 으로 적는 경로를 두지 않기 위해서입니다."""
     )
     @PostMapping("/signup/dev")
     public ResponseEntity<Response<MemberDevSignupResponse>> devSignup(
