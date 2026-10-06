@@ -187,7 +187,8 @@
 - `PATCH /me` — 닉네임/프로필 이미지 URL 수정
 - `POST /me/password` — 비밀번호 변경. 성공 시 세션 revoke(refresh 삭제 + 현재 access 블랙리스트).
 - `POST /me/withdraw` — 논리 탈퇴. name/nickname `탈퇴회원` 마스킹 + profileImageUrl/password 제거 +
-  status=WITHDRAWN + 세션 revoke. email 유지로 동일 이메일 재가입 차단.
+  status=WITHDRAWN + 세션 revoke. email 유지로 동일 이메일 재가입 차단. 남은 email 과 동의 이력은
+  **탈퇴 후 1년 뒤 파기**한다(아래 "가입 동의와 만 14세 이상 확인" 절의 보관·파기 참고, 파기 작업은 후속 이슈).
 - revoke는 보안 이벤트 경로에서 **실패 시 전파되어 DB 변경과 함께 롤백**된다(무효화 없는 성공 방지).
   로그아웃은 기존대로 관용 처리(`revokeCurrentSession` vs `revokeAllSessions`).
 - 다른 기기의 기존 access token 도 **즉시 무효화된다** — 전 기기 세션 해제 시 회원 단위 revocation
@@ -208,6 +209,7 @@
   **5회 오입력 시 코드 무효화 + `AUTH_018`** (비밀번호 재설정 `AUTH_017`과 동일한 브루트포스 방어,
   실패 카운터 키 `{prefix}:auth:emailVerificationFail:{email}`, TTL=코드 TTL).
 - 가입(`POST /members/signup`)은 인증 플래그가 없으면 `MEMBER_006`(400)로 거부하고, 성공 시 플래그를 소비한다.
+  필수 동의·만 14세 이상 확인 검사가 인증 플래그 검사보다 먼저라, 동의로 거절된 요청은 플래그를 소비하지 않는다.
 - 이메일은 전 구간 trim+소문자 정규화(Redis 키/DB 저장 정합). 코드: SecureRandom 8자(I/O/0/1 제외), TTL 5분.
   Redis 키는 3종 — `{prefix}:auth:emailVerificationCode:{email}` (발급 코드, TTL 5분),
   `{prefix}:auth:emailVerificationCooldown:{email}` (재발송 쿨다운 60초),
@@ -263,10 +265,12 @@
 
 **소셜 로그인 (카카오/네이버)** (`/api/v1/auth`)
 - `GET /{provider}/authorize` — 인가 URL 생성. CSRF 방어용 일회성 `state`(SecureRandom 16바이트 hex)를
-  Redis(`{prefix}:auth:oauthState:{state}`, TTL 10분)에 provider와 함께 저장하고 URL에 포함한다.
+  Redis(`{prefix}:auth:oauthState:{state}`, TTL 10분)에 provider·소셜 첫 가입 동의와 함께 저장하고 URL에 포함한다.
+  동의는 쿼리 `termsAgreed`·`privacyAgreed`·`ageOver14Confirmed`(생략 시 false)로 받는다 (#494, 아래 "가입 동의" 절).
+  값은 JSON 한 덩어리(`{"provider":"KAKAO","termsAgreed":true,...}`)를 String 키 하나에 둔다 — Hash 면 GETDEL 이 안 먹는다.
 - `GET /{provider}/login?code=&state=` — 콜백. state를 GETDEL로 원자 소비(재사용 차단)하고 저장된
   provider와 일치해야 한다(`AUTH_010`). 토큰 교환 → 프로필 조회 → 회원 조회/자동가입 → 일반 로그인과
-  동일한 응답(accessToken + refresh 쿠키).
+  동일한 응답(accessToken + refresh 쿠키). 자동가입(신규 회원)일 때만 state 에 실린 동의를 검사해 이력으로 남긴다.
 - 계정 정책: 이메일 미제공 동의 시 `AUTH_009`(400). 동일 이메일의 일반 계정은 소셜로 자동 연결,
   다른 provider 기가입이면 `AUTH_008`(409). 탈퇴/정지 회원은 소셜 로그인도 차단.
   소셜 계정(password null)의 비밀번호 변경은 `MEMBER_007`(400).
@@ -288,10 +292,118 @@
 - `POST /api/v1/members/signup/dev` — **이메일 인증 없이 즉시 회원가입** (테스트 계정 생성 전용).
   정규화/중복 검증(`MEMBER_001` 409)/비밀번호 규칙은 일반 가입과 동일하고, 인증 게이트만 건너뛴다.
   응답으로 `{memberId, email}` 을 돌려줘 바로 로그인 테스트로 이어갈 수 있다.
+- 바디는 일반 가입과 같아서 필수 동의 3종(`termsAgreed`·`privacyAgreed`·`ageOver14Confirmed`)도 받고
+  (`MEMBER_114~116`), 가입되면 일반 가입과 같은 동의 이력을 남긴다. **dev 기본값으로 채우지 않는다** —
+  체크하지 않은 동의를 서버가 "동의함" 으로 적는 경로가 코드에 생기면 이력 전체의 신뢰가 깨지고, 개발 계정만
+  이력 모양이 다르면 이력을 읽는 쪽이 운영에서 생기지 않는 경우를 다루게 된다.
 - 컨트롤러/파사드가 `@Profile("!prod")` 라 **운영에서는 빈이 등록되지 않아 경로 자체가 404** 다.
   운영 계약 문서(api-reference.md)에는 싣지 않는다. Swagger 에는 "개발용 (prod 미노출)" 태그로 노출된다.
 - 운영 유스케이스(`MemberWebUseCase`)와 분리된 `MemberDevSignupUseCase` 를 쓴다 —
   개발 편의 메서드가 운영 계약에 섞이지 않게 하기 위함이다.
+
+## 가입 동의와 만 14세 이상 확인 (#494)
+
+프론트 연동 계약(요청 필드·에러코드·소셜 재시도 흐름)은 `docs/auth-account-frontend-guide.md` §0 이 정본이다.
+
+**무엇을 받는가**
+- 이용약관 동의 · 개인정보 처리방침 동의 · 만 14세 이상 확인, 셋 다 필수. 일반 가입·개발용 가입은 요청 바디
+  (`termsAgreed`/`privacyAgreed`/`ageOver14Confirmed`), 소셜 첫 가입은 `GET /{provider}/authorize` 쿼리로 받는다.
+- 강제는 두 겹이다. web 경계의 `@AssertTrue` 가 요청 형식을 막고(`MEMBER_114`/`115`/`116`), 가입 프로세서의 가드가
+  "동의 행은 실제 동의를 반영한다" 는 불변식을 지킨다(`MEMBER_010` 동의 누락 / `MEMBER_011` 만 14세 미만 — DTO 를 거치지
+  않는 호출자 방어). `@AssertTrue` 는 null 을 유효로 보므로 DTO 필드는 primitive `boolean` 이다. 래퍼면 필드를 빼고
+  보낸 요청이 통과한다.
+- 동의 누락과 만 14세 미만은 코드를 나눈다. 합치면 프론트가 어느 체크박스를 강조할지 알 수 없다.
+
+**동의 이력 `member_consent`**
+- 컬럼: `id`(Snowflake), `member_id`(FK: member.id), `consent_type`(`TERMS`/`PRIVACY`/`AGE_OVER_14`), `document_version`,
+  `agreed_at`, `created_at`/`updated_at`. 인덱스 `idx_member_consent_member_id`.
+- 가입 1건당 3행, **같은 `agreed_at`**. 판은 `TERMS`=이용약관 판, `PRIVACY`=처리방침 판, `AGE_OVER_14`=**이용약관 판**
+  (만 14세 미만 가입 불가를 규정한 문서가 이용약관이다).
+- 한 번 남긴 행은 고치지 않는다. 문서 개정 뒤 재동의가 생기면 새 행을 쌓는다 — 그래서 `(member_id, consent_type)` 에
+  unique 를 걸지 않는다. 항목별 최신 동의는 `agreed_at` 최대값.
+- 생성 규칙은 `MemberConsentProcessor.recordSignupConsents` 한 곳에 있다. 일반 가입(`MemberGeneralSignupProcessor`),
+  개발용 가입, 소셜 첫 가입(`OAuthLoginProcessor` → `SignupConsentRecordPort` → `SignupConsentRecordAdapter`)이 모두
+  이것을 탄다. 경로마다 복제하면 항목이 늘 때 한쪽만 옛 규칙으로 남고, 감사 이력이라 나중에 복구할 수 없다.
+  일반·개발용 가입은 지금 판 설정과 지금 시각을, 소셜 첫 가입은 `/authorize` 때 고정한 판·시각을 넘긴다(아래 "소셜 첫 가입").
+- 트랜잭션은 호출자 것에 합류한다(`MemberWebFacade.generalSignup`, `MemberDevSignupFacade.devSignup`,
+  `OAuthLoginProcessor.login`). 회원 행과 동의 행은 함께 커밋되거나 함께 사라진다. `AuthWebFacade.oauthLogin` 은
+  provider HTTP 왕복 때문에 트랜잭션이 없으므로 거기서 기록하지 않는다. 이 배치는 `SignupConsentTransactionBoundaryTest` 가
+  리플렉션으로 고정한다 — 이력을 남기는 쪽에 `REQUIRES_NEW` 같은 것이 붙으면 원자성이 조용히 깨지기 때문이다.
+- `consent_type` 은 `@Enumerated(STRING)` + `@JdbcTypeCode(SqlTypes.VARCHAR)` 로 `varchar(30)` 에 고정한다. Hibernate 6 의
+  MySQL 방언은 `@Enumerated(STRING)` 만 있으면 네이티브 `enum(...)` 을 만들어 dev(ddl-auto)와 prod 런북(VARCHAR)이 갈리고,
+  ENUM 이면 항목을 늘릴 때 ddl-auto=update 가 컬럼을 고치지 않아 새 항목 INSERT 가 실패한다. 다른 enum 컬럼은 이번에 바꾸지 않았다.
+- prod 는 `ddl-auto: none` — 배포 전 `backend/scripts/migration/member-consent-table-runbook.sql` 수동 적용 필요.
+  테이블이 없으면 prod 가입이 INSERT 에서 실패한다. 런북은 `information_schema` 로 `consent_type` 이 실제로 varchar(30)
+  인지 확인하는 쿼리와, 고정 전에 dev 에 ENUM 으로 생긴 테이블을 고치는 ALTER 를 함께 둔다(`CREATE TABLE IF NOT EXISTS` 는
+  모양이 다른 기존 테이블을 그냥 넘어간다). `MemberConsentSchemaContractTest` 가 Hibernate MySQL 방언이 DB 연결 없이 내는
+  DDL 을 런북과 컬럼·타입·길이·NOT NULL 단위로 대조하고, enum 저장 형식(STRING + VARCHAR)을 어노테이션으로 고정한다.
+
+**문서 판 설정**
+- `legal.terms-version`(현재 `"1.0"`), `legal.privacy-version`(현재 `"1.1"`) — local·dev·prod yml 에 같은 값으로 둔다.
+  정본은 프론트 `frontend/src/lib/legal/{terms-of-service,privacy-policy}.ts` 의 `version`. 개정하면 같은 배포에 함께 바꾼다.
+- 비밀값이 아니고 프론트 코드와 함께 움직이는 값이라 Vault env 가 아니라 yml 에 직접 적는다. `1.10` 이 숫자 `1.1` 로
+  읽히지 않게 따옴표로 감싼다. 세 프로필 값이 같은지는 `LegalPropertiesTest` 가 본다.
+- 판이 비거나 `document_version` 컬럼 길이(20자, `MemberConsent.DOCUMENT_VERSION_MAX_LENGTH`)보다 길면 기동을 막는다
+  (`LegalProperties`). 기본값으로 메우면 개정 뒤 설정이 빠졌을 때 옛 판이 조용히 이력에 남고, 길면 기동은 되고 이후 모든
+  가입이 INSERT 에서 실패한다(일반 가입은 이메일 인증까지 다시 받아야 한다).
+- 후속: 일반 가입은 서버의 현재 판으로 이력을 남긴다. 사용자가 화면에서 본 판(FE `version`)을 요청에 함께 보내 서버 판과
+  대조하는 것은 FE 계약이 바뀌므로 이번에는 하지 않았다. 개정 배포 순간 FE 와 BE 가 잠깐 어긋나면 그 사이 가입은 보지 않은
+  판으로 남을 수 있다 — 판을 요청에 실어 불일치면 거부(재동의 유도)하는 방식을 후속으로 검토한다.
+
+**소셜 첫 가입**
+- 동의는 콜백이 아니라 `/authorize` 에서 받아 state 와 함께 Redis 에 둔다. OAuth 인가코드가 1회용이라, 콜백에서 동의
+  누락으로 거부하면 같은 코드로 재시도할 수 없기 때문이다. 동의 없이 `/authorize` 를 부르는 것은 허용한다 — 인가 전에는
+  신규인지 알 수 없고 기존 회원 로그인에는 동의가 필요 없다.
+- 콜백에서 **신규 회원을 만들 때만** 동의를 본다. 문서 동의가 없거나 모자라면 `AUTH_021`, 만 14세 이상 확인이 없으면
+  `AUTH_022`(둘 다 400)로 거부하고 회원을 만들지 않는다. 일반 가입 코드와 나눈 이유는 이 코드가 "폼 재제출" 이 아니라
+  "동의를 받아 `/authorize` 부터 다시" 를 뜻하기 때문이다.
+- **판·시각은 동의한 순간(`/authorize`) 기준이다.** `/authorize` 는 동의 플래그와 함께 그 시점의 문서 판(terms·privacy)과
+  동의 시각을 state JSON 에 싣고(`OAuthConsentSnapshot`), 콜백은 그 값으로 이력을 남긴다. 콜백 시점의 설정을 쓰면 state
+  TTL(10분) 안에 개정판이 배포됐을 때 사용자가 보지 않은 판이 기록된다. Redis 값 예:
+  `{"provider":"KAKAO","termsAgreed":true,"privacyAgreed":true,"ageOver14Confirmed":true,"termsVersion":"1.0","privacyVersion":"1.1","agreedAt":"2026-10-06T09:30:15.123456"}`.
+- 배포 직후 TTL(10분) 안에는 옛 형식 state(맨 provider 문자열, 또는 판·시각이 없는 JSON)가 남아 있을 수 있다. 무효로 버리지
+  않고 "동의 없음" 으로 읽어 기존 회원 로그인은 통과시키고, 신규는 `AUTH_021` 로 동의부터 다시 받게 한다
+  (`RedisOAuthStateStoreAdapter.deserialize`). 판을 모르는 동의는 이력으로 남길 수 없기 때문이다.
+
+**소셜 state 와 login CSRF — 이번 변경이 키우는 위험 (#527)**
+- state 가 브라우저에 묶여 있지 않다. 서버는 "우리가 발급한 state 인가" 만 보고 "이 브라우저가 시작한 인가인가" 는 보지 않는다.
+  그래서 공격자가 자기가 만든 `/authorize` URL(동의 true)을 피해자에게 밟게 하면, 피해자가 provider 인가를 마치는 순간 피해자
+  이메일로 계정이 생기고 **피해자 이름으로 동의 이력이 남는다.** login CSRF 구조 자체는 이전부터 있었지만, 이번 변경 전에는
+  결과가 "피해자 계정 생성" 에 그쳤고 이제는 피해자가 하지 않은 동의의 기록이 더해진다.
+- 배포 순서가 이 위험을 키운다. 이 BE 변경이 FE 동의 화면(#495)보다 먼저 나가면, 소셜 버튼을 눌러 카카오 앱 동의까지 마쳤지만
+  `AUTH_021` 로 막혀 우리 회원은 아닌 사용자가 생긴다. 이들은 provider 쪽 승인이 이미 끝나 있어 인가 화면이 거의 바로
+  넘어가므로, 제3자가 동의 true 를 실은 인가 URL 하나로 그들 이름의 계정과 동의 이력을 만들기 쉬워진다.
+- 막는 방법은 state 를 BFF 의 HttpOnly 쿠키에 묶는 것이다(`/authorize` 때 쿠키를 심고, 콜백은 쿠키의 state 와 쿼리의 state 가
+  같을 때만 받는다). 후속 이슈는 **#527** 이고, **#495 와 같은 릴리스 또는 그보다 먼저** 나가야 한다.
+
+**기존 회원**
+- 소급 동의를 받지 않는다. 이력이 없는 회원은 "동의 도입 전 가입" 으로 보고, 로그인·소셜 로그인·계정 연결은 동의와
+  무관하게 통과한다. 재동의 화면을 띄우지 않는다.
+
+**만 14세 이상 확인 — 근거와 한계**
+- 근거: 개인정보 보호법 제22조의2 는 만 14세 미만 아동의 개인정보를 법정대리인 동의 없이 처리하지 못하게 한다. 이
+  서비스에는 법정대리인 동의 흐름이 없어서 만 14세 미만은 받지 않는다(이용약관 「회원가입과 이용계약의 성립」,
+  개인정보 처리방침 「만 14세 미만 아동의 개인정보」).
+- 방식은 **자기신고 체크박스**다. 생년월일을 받으면 쓰지도 않는 개인정보가 늘어 최소수집 원칙과 부딪히고, 본인확인
+  연동은 서비스 규모에 비해 과하다. 소셜 provider 의 연령대도 쓰지 않는다 — 카카오 `age_range` 는 `10~14`·`15~19`
+  같은 구간이고 네이버는 10년 단위라 만 14세 경계를 가르지 못하며, 둘 다 사용자가 제공을 거부할 수 있는 선택 항목이다.
+- 한계: 자기신고라 허위 신고를 막지 못한다. 서비스가 할 수 있는 것은 "물어봤고 확인받았다" 를 이력(`AGE_OVER_14`)으로
+  입증하는 것과, 만 14세 미만 가입 사실을 알게 되면 지체 없이 삭제하고 이용을 제한하는 것(처리방침에 명시)이다.
+- `AGE_OVER_14` 는 문서에 대한 동의가 아니라 사실에 대한 자기신고라 **철회 대상이 아니다.** 동의 철회·재동의 흐름을 만들
+  때 이 항목은 빼야 한다.
+
+**탈퇴 회원 보관·파기**
+- 탈퇴 회원의 email(재가입 차단용)과 동의 이력은 **탈퇴 후 1년** 보관한 뒤 파기한다. 기간은
+  `legal.withdrawn-retention: P365D`(local·dev·prod)로 고정했다. 1년은 운영 정책으로 정한 값이며 동의 이력의 증거
+  보관 기간과 재가입 차단 기간을 겸한다 — 파기 뒤에는 같은 이메일로 다시 가입할 수 있다.
+- **실제 파기 작업(이메일 익명화·이력 삭제 배치)은 후속 이슈다.** 이 이슈는 기간을 설정과 문서에 정하는 데까지만 한다.
+  후속 작업이 알아야 할 것:
+  - `member` 에 탈퇴 시각 컬럼이 없다. `updated_at` 은 탈퇴 뒤 다른 갱신이 있으면 움직이므로, 기산점이 필요하면
+    탈퇴 시각 컬럼을 먼저 둔다.
+  - email 은 `uk_member_email` unique 라 지우지 말고 회원별로 겹치지 않는 값으로 익명화한다. 동의 이력은
+    `member_id` 로 지운다(`idx_member_consent_member_id`).
+- 프론트 개인정보 처리방침(제2조 "탈퇴 후에도 보관", 제6조 파기 절차)에 이 기간과 동의 이력 보관을 적는 것은
+  프론트 후속이다. 처리방침과 이 설정은 같은 값이어야 한다.
 
 ## 상권 북마크 시스템 (신규)
 
@@ -325,6 +437,7 @@
 | MEMBER | `MEMBER_100` | 검증 실패 폴백 (INVALID_REQUEST) |
 | MEMBER | `MEMBER_101`~`MEMBER_112` | 필드별 검증 코드 (`MemberValidationMessage` — 이메일/비밀번호/이름/닉네임/프로필 URL 등) |
 | MEMBER | `MEMBER_113` | 요청 파라미터 형식 오류 (PARAMETER_TYPE_INVALID) |
+| MEMBER | `MEMBER_114`~`MEMBER_116` | 가입 필수 동의 (이용약관 / 개인정보 처리방침 / 만 14세 이상 확인). `113` 이 먼저 배포돼 그 뒤에 이어 붙였다 |
 | BOOKMARK | `BOOKMARK_001`~`BOOKMARK_003` | 도메인 에러 (중복 409 / 미존재 404 / 타인 북마크 403) |
 | BOOKMARK | `BOOKMARK_1xx` | 필드별 검증 코드 (`BookmarkValidationMessage` — 대상 타입/코드/이름, 조회 개수) |
 

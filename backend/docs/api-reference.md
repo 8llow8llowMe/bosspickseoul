@@ -91,9 +91,9 @@
 
 | 도메인 접두어 | 비즈니스 | 검증 폴백 | 필드별 검증 | 파라미터 타입 불일치 |
 |--------------|---------|----------|------------|-------------------|
-| `MEMBER` | `001~009` | `MEMBER_100` | `101~112` | `MEMBER_113` |
+| `MEMBER` | `001~011` (`010` 가입 동의 누락, `011` 만 14세 미만) | `MEMBER_100` | `101~112`, `114~116` (가입 필수 동의) | `MEMBER_113` |
 | `BOOKMARK` | `001~003` | (`MEMBER_100` 사용) | `101~106` | (`MEMBER_113` 사용) |
-| `AUTH` | `001~018` | `AUTH_100` | `101~104`, `106~108` | `AUTH_105` |
+| `AUTH` | `001~022` (`021` 소셜 첫 가입 동의 누락, `022` 소셜 첫 가입 만 14세 미확인) | `AUTH_100` | `101~104`, `106~108` | `AUTH_105` |
 | `COMMUNITY` | `001~015` (`014` 지역 서비스 통신 불가 503, `015` 분석 첨부 타입 오류) | `COMMUNITY_100` | `101~116`, `118~122` | `COMMUNITY_117` |
 | `COMMERCIAL` | `002~012` | `COMMERCIAL_100` | `101`, `103~105` | `COMMERCIAL_102` |
 | `SHARE_LINK` | `001~007` | (`COMMERCIAL_100` 사용) | `101~102` | (`COMMERCIAL_102` 사용) |
@@ -116,6 +116,7 @@
 - `STORAGE` 는 auth-service·community-service 의 advice 가, `JWT` 는 게이트웨이 필터가 그대로 클라이언트에 내려주는 코드입니다. 두 대역은 도메인 접두어 규칙 밖에 있어 검증 대역이 없습니다.
 - `COMMERCIAL`·`AI` 도 타입 불일치 코드가 먼저 배포된 뒤 필드 코드가 추가돼 번호가 이어지지 않습니다
   (`COMMERCIAL_102` 다음 `103~105`, `AI_101` 다음 `102~104`). 되돌리면 이미 배포된 프론트가 깨지므로 그대로 둡니다.
+  `MEMBER` 의 가입 필수 동의 코드(`114~116`)와 `AUTH` 의 새 비밀번호 코드(`106~108`)도 같은 이유로 타입 불일치 코드 뒤에 붙었습니다.
 - `COMMUNITY` 만 번호가 이어지지 않습니다. `117` 이 타입 불일치 코드로 먼저 배포된 뒤 필드 코드 `118`(이미지 장수)·`119`(조회 개수)가 추가됐습니다. 되돌리면 이미 배포된 프론트가 깨지므로 번호만 어긋난 상태로 둡니다.
 - 규약 상세는 [`coding-conventions.md` §8-2](coding-conventions.md) 참고.
 
@@ -130,8 +131,8 @@
 | POST | `/login` | 이메일/비밀번호 로그인, Access 토큰 + Refresh 쿠키 발급 (이메일 단위 실패 잠금 `AUTH_015` + IP 단위 실패 상한 `AUTH_020`, 둘 다 429) | - |
 | POST | `/logout` | 현재 기기 세션만 로그아웃 (해당 refresh 무효화 + Access 토큰 jti 블랙리스트, 다른 기기 로그인 유지) | 🔒 |
 | POST | `/token/reissue` | Access 토큰 재발급 (Refresh 쿠키 필요, 토큰 회전) | - |
-| GET | `/{provider}/authorize` | 소셜 로그인 인가 URL 생성 (`kakao` / `naver`, CSRF `state` 포함·10분 유효) | - |
-| GET | `/{provider}/login` | 소셜 로그인 콜백 (`code`, `state`) — 미가입 이메일이면 자동 가입 후 로그인 | - |
+| GET | `/{provider}/authorize` | 소셜 로그인 인가 URL 생성 (`kakao` / `naver`, CSRF `state` 포함·10분 유효). 소셜 첫 가입 동의 `termsAgreed`·`privacyAgreed`·`ageOver14Confirmed`(쿼리, 생략 시 false)를 state 와 함께 보관 | - |
+| GET | `/{provider}/login` | 소셜 로그인 콜백 (`code`, `state`) — 미가입 이메일이면 자동 가입 후 로그인. 자동 가입은 인가 때 실은 동의가 필요 (없으면 `AUTH_021`, 만 14세 미확인 `AUTH_022`, 둘 다 400 — `/authorize` 부터 다시). 기존 회원은 동의와 무관 | - |
 | POST | `/email/send-code` | 회원가입용 이메일 인증코드 발송 (60초 쿨다운 + IP 발송 상한, 가입 여부 노출 없이 항상 성공 응답) | - |
 | POST | `/email/verify-code` | 인증코드 검증 — 성공 시 30분 동안 해당 이메일로 가입 가능 | - |
 | POST | `/password/reset/send-code` | 비밀번호 재설정 코드 발송 (일반 계정 전용, 계정 존재 여부 노출 없이 항상 성공 응답) | - |
@@ -145,7 +146,7 @@
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
-| POST | `/signup` | 이메일 회원가입 (이메일 인증 완료 상태여야 함) | - |
+| POST | `/signup` | 이메일 회원가입 (이메일 인증 완료 상태여야 함). 필수 동의 `termsAgreed`·`privacyAgreed`·`ageOver14Confirmed` 모두 `true` (아니면 `MEMBER_114`/`115`/`116`) — 성공 시 동의한 문서 판과 시각을 동의 이력에 남김 | - |
 | GET | `/me` | 내 정보 조회 | 🔒 |
 | PATCH | `/me` | 닉네임 수정 (`nickname` 만 받는다 — 프로필 이미지는 아래 전용 API 로 관리) | 🔒 |
 | POST | `/me/profile-image` | 프로필 이미지 업로드 (`multipart/form-data`) | 🔒 |

@@ -140,9 +140,13 @@ throw new CommercialException(CommercialErrorCode.SERVICE_CODE_REQUIRED);
 | --- | --- | --- |
 | `{DOMAIN}_100` | ErrorCode enum (`INVALID_REQUEST`) | 접두어가 없는 메시지의 폴백 |
 | `{DOMAIN}_101~` | `*ValidationMessage` 상수 클래스 | 필드별 개별 코드 |
-| `{DOMAIN}_1xx` 마지막 | ErrorCode enum (`PARAMETER_TYPE_INVALID`) | 타입 불일치(`MethodArgumentTypeMismatchException`) |
+| `{DOMAIN}_1xx` (처음 배포한 번호로 고정) | ErrorCode enum (`PARAMETER_TYPE_INVALID`) | 타입 불일치(`MethodArgumentTypeMismatchException`) |
 
 필드별 코드는 ErrorCode enum에 **중복 정의하지 않습니다.** 상수 클래스가 단일 기준점입니다.
+
+**타입 불일치 코드는 처음 배포한 번호를 고정하고, 이후 필드 코드는 그 뒤에 이어 붙입니다.** 새 도메인은 필드 코드 끝 다음 번호를
+타입 불일치에 주지만, 배포된 뒤에는 필드 코드가 늘어도 옮기지 않습니다 — 번호를 바꾸면 이미 배포된 프론트의 분기가 깨집니다.
+그래서 번호가 이어지지 않는 대역이 생깁니다(예: `MEMBER_113` 뒤 가입 동의 `114~116`, `AUTH_105` 뒤 `106~108`, `COMMUNITY_117` 뒤 `118~`).
 
 ```java
 // MemberErrorCode — 비즈니스 코드 + 핸들러가 참조하는 기본 코드만 둔다
