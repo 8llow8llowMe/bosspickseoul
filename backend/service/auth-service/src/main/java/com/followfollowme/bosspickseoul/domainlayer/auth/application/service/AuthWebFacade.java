@@ -11,8 +11,9 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.AuthCo
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.GeneralLoginInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTokenIssueInfo;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.JwtTokenReissueInfo;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.OAuthCallbackInfo;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.model.OAuthSignupConsent;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.in.AuthWebUseCase;
-import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.out.query.OAuthMemberQueryResult;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.processor.EmailVerificationProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.processor.GeneralLoginProcessor;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.service.processor.JwtTokenProcessor;
@@ -92,18 +93,19 @@ public class AuthWebFacade implements AuthWebUseCase {
     }
 
     @Override
-    public AuthOAuthAuthorizeResponse generateOAuthAuthorizationUrl(OAuthProvider provider) {
-        String authorizationUrl = oAuthLoginProcessor.generateAuthorizationUrl(provider);
+    public AuthOAuthAuthorizeResponse generateOAuthAuthorizationUrl(OAuthProvider provider, OAuthSignupConsent consent) {
+        String authorizationUrl = oAuthLoginProcessor.generateAuthorizationUrl(provider, consent);
         return authPresenter.toOAuthAuthorizeResponse(authorizationUrl);
     }
 
     @Override
     public AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state, String deviceInfo) {
         // 1. state 검증 + provider 프로필 조회 — 외부 HTTP 왕복이므로 트랜잭션 밖에서 수행한다.
-        OAuthMemberQueryResult oAuthMember = oAuthLoginProcessor.fetchOAuthMember(provider, authCode, state);
+        //    state 와 함께 보관한 소셜 첫 가입 동의도 이때 꺼낸다(state 는 일회성이라 여기서만 읽힌다).
+        OAuthCallbackInfo callbackInfo = oAuthLoginProcessor.fetchOAuthMember(provider, authCode, state);
 
-        // 2. 회원 조회/생성 (Processor의 트랜잭션 경계) 후 토큰 발급
-        GeneralLoginInfo loginInfo = oAuthLoginProcessor.login(provider, oAuthMember);
+        // 2. 회원 조회/생성 + 신규면 동의 이력 기록 (Processor 의 트랜잭션 경계) 후 토큰 발급
+        GeneralLoginInfo loginInfo = oAuthLoginProcessor.login(provider, callbackInfo);
         JwtTokenIssueInfo jwtTokenIssueInfo = jwtTokenProcessor.issueTokens(loginInfo.memberId(), loginInfo.role(), deviceInfo);
 
         // 3. Presenter를 통한 Info -> Response 변환

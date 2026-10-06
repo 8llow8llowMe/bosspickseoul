@@ -37,6 +37,14 @@ public enum AuthErrorCode {
     // "한 IP 가 여러 이메일로 뿌리는" 공격(credential stuffing) 방어다.
     // 메시지는 AUTH_015 와 동일한 톤으로 두어 어느 축에 걸렸는지 공격자가 구분하지 못하게 한다.
     LOGIN_IP_RATE_LIMITED("AUTH_020", "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
+    // 소셜 첫 가입(= 신규 회원 생성) 전용. 동의는 /authorize 에서 state 와 함께 받아 두므로 콜백에서야 누락을 안다.
+    // 인가코드는 1회용이라 같은 콜백을 재시도할 수 없다 — 프론트는 동의를 받아 /authorize 부터 다시 시작한다.
+    // 일반 가입의 MEMBER_010 과 코드를 나눈 이유가 이것이다: 이 코드는 "폼을 다시 제출" 이 아니라 "인가부터 다시" 를 뜻한다.
+    // 기존 회원 로그인에는 나가지 않는다(소급 동의를 받지 않는다).
+    OAUTH_SIGNUP_CONSENT_REQUIRED("AUTH_021", "처음 가입하려면 이용약관과 개인정보 처리방침에 동의해야 합니다. 동의 후 다시 시도해주세요.", HttpStatus.BAD_REQUEST),
+    // 문서 동의는 했지만 만 14세 이상 확인이 없는 소셜 첫 가입. 동의 누락(AUTH_021)과 코드를 나눠야 프론트가
+    // 어느 체크박스를 강조할지 안다. 둘 다 비면 AUTH_021 이 먼저 나간다.
+    OAUTH_SIGNUP_AGE_REQUIREMENT_NOT_MET("AUTH_022", "만 14세 이상만 가입할 수 있습니다.", HttpStatus.BAD_REQUEST),
 
     // 요청 검증(Bean Validation) 대역 — 1xx.
     // 필드별 코드(AUTH_101~104)는 AuthValidationMessage 가 단일 기준점이며, 여기서는 중복 정의하지 않는다.

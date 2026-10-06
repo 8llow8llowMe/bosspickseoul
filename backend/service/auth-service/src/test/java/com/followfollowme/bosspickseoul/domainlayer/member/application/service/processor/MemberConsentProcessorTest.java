@@ -8,6 +8,7 @@ import com.followfollowme.bosspickseoul.domainlayer.member.domain.enums.MemberCo
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.model.MemberConsent;
 import com.followfollowme.bosspickseoul.global.properties.LegalProperties;
 import com.followfollowme.bosspickseoul.persistence.util.SnowflakeIdGenerator;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,6 +72,22 @@ class MemberConsentProcessorTest {
         processor.recordSignupConsents(42L);
 
         assertThat(consentRepositoryPort.saveAllCalls).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("동의한 순간의 판·시각을 받으면 지금 설정이 아니라 그 값으로 남기고, 생성 규칙은 같다")
+    void recordsGivenVersionsAndTimeWithTheSameRule() {
+        LocalDateTime agreedAt = LocalDateTime.of(2026, 10, 6, 9, 30);
+
+        // 지금 설정은 1.0 / 1.1 이지만, 동의한 순간(/authorize)의 판은 0.9 / 1.0 이었다.
+        List<MemberConsent> recorded = processor.recordSignupConsents(42L, "0.9", "1.0", agreedAt);
+
+        assertThat(recorded)
+            .extracting(MemberConsent::consentType, MemberConsent::documentVersion, MemberConsent::agreedAt)
+            .containsExactly(
+                tuple(MemberConsentType.TERMS, "0.9", agreedAt),
+                tuple(MemberConsentType.PRIVACY, "1.0", agreedAt),
+                tuple(MemberConsentType.AGE_OVER_14, "0.9", agreedAt));
     }
 
     private static class RecordingConsentRepositoryPort implements MemberConsentRepositoryPort {

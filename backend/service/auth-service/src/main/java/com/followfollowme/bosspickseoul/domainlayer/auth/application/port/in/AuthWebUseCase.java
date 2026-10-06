@@ -7,6 +7,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.dto.resp
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.AuthGeneralLoginCommand;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.TokenReissueCommand;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.AuthCookieResult;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.model.OAuthSignupConsent;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.enums.OAuthProvider;
 
 public interface AuthWebUseCase {
@@ -30,7 +31,8 @@ public interface AuthWebUseCase {
 
     void verifyEmailVerificationCode(String email, String code);
 
-    AuthOAuthAuthorizeResponse generateOAuthAuthorizationUrl(OAuthProvider provider);
+    /** consent 는 소셜 첫 가입에만 쓰이는 동의로, state 와 함께 보관했다가 콜백에서 신규 회원을 만들 때 소비한다. */
+    AuthOAuthAuthorizeResponse generateOAuthAuthorizationUrl(OAuthProvider provider, OAuthSignupConsent consent);
 
     AuthCookieResult<AuthGeneralLoginResponse> oauthLogin(OAuthProvider provider, String authCode, String state, String deviceInfo);
 

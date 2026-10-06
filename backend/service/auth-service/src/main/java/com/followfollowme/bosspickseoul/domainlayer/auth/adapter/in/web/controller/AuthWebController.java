@@ -15,6 +15,7 @@ import com.followfollowme.bosspickseoul.domainlayer.auth.adapter.in.web.support.
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.AuthGeneralLoginCommand;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.command.TokenReissueCommand;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.info.AuthCookieResult;
+import com.followfollowme.bosspickseoul.domainlayer.auth.application.model.OAuthSignupConsent;
 import com.followfollowme.bosspickseoul.domainlayer.auth.application.port.in.AuthWebUseCase;
 import com.followfollowme.bosspickseoul.domainlayer.member.domain.enums.OAuthProvider;
 import com.followfollowme.bosspickseoul.security.common.dto.MemberLoginActive;
@@ -88,16 +89,38 @@ public class AuthWebController {
             .body(Response.success());
     }
 
-    @Operation(summary = "소셜 로그인 인가 URL 생성", description = "provider(kakao/naver) 인가 페이지 URL을 생성합니다. CSRF 방어용 state가 포함되며 10분간 유효합니다. 프론트는 이 URL로 리다이렉트합니다.")
+    @Operation(
+        summary = "소셜 로그인 인가 URL 생성",
+        description = """
+            provider(kakao/naver) 인가 페이지 URL을 생성합니다. CSRF 방어용 state가 포함되며 10분간 유효합니다. 프론트는 이 URL로 리다이렉트합니다.
+
+            소셜 첫 가입(처음 로그인하는 이메일)이 되려면 termsAgreed, privacyAgreed, ageOver14Confirmed 를 모두 true 로 실어야 합니다.
+            값은 state 와 함께 보관했다가 콜백에서 신규 회원을 만들 때만 쓰입니다. 이미 가입한 회원의 로그인에는 쓰이지 않으므로
+            생략해도 됩니다(생략하면 false). 인가코드는 1회용이라 콜백에서 동의를 다시 받을 수 없습니다 —
+            콜백이 AUTH_021/AUTH_022 로 거절되면 동의를 받아 이 API 부터 다시 시작합니다.
+
+            호출 예: `GET /api/v1/auth/kakao/authorize?termsAgreed=true&privacyAgreed=true&ageOver14Confirmed=true`"""
+    )
     @GetMapping("/{provider}/authorize")
     public ResponseEntity<Response<AuthOAuthAuthorizeResponse>> generateOAuthAuthorizationUrl(
-        @Parameter(description = "소셜 로그인 제공자", required = true, example = "kakao") @PathVariable OAuthProvider provider
+        @Parameter(description = "소셜 로그인 제공자", required = true, example = "kakao") @PathVariable OAuthProvider provider,
+        @Parameter(description = "이용약관 동의 여부 (소셜 첫 가입에만 쓰임, 생략 시 false)", example = "true") @RequestParam(defaultValue = "false") boolean termsAgreed,
+        @Parameter(description = "개인정보 처리방침 동의 여부 (소셜 첫 가입에만 쓰임, 생략 시 false)", example = "true") @RequestParam(defaultValue = "false") boolean privacyAgreed,
+        @Parameter(description = "만 14세 이상 확인 여부 (소셜 첫 가입에만 쓰임, 생략 시 false)", example = "true") @RequestParam(defaultValue = "false") boolean ageOver14Confirmed
     ) {
-        AuthOAuthAuthorizeResponse response = authWebUseCase.generateOAuthAuthorizationUrl(provider);
+        OAuthSignupConsent consent = new OAuthSignupConsent(termsAgreed, privacyAgreed, ageOver14Confirmed);
+        AuthOAuthAuthorizeResponse response = authWebUseCase.generateOAuthAuthorizationUrl(provider, consent);
         return ResponseEntity.ok().body(Response.success(response));
     }
 
-    @Operation(summary = "소셜 로그인", description = "provider 콜백의 인가코드와 state로 로그인합니다. 미가입 이메일이면 자동 회원가입 후 로그인합니다. 응답은 일반 로그인과 동일합니다(accessToken + refresh 쿠키).")
+    @Operation(
+        summary = "소셜 로그인",
+        description = """
+            provider 콜백의 인가코드와 state로 로그인합니다. 미가입 이메일이면 자동 회원가입 후 로그인합니다. 응답은 일반 로그인과 동일합니다(accessToken + refresh 쿠키).
+
+            자동 회원가입(소셜 첫 가입)은 인가 URL 생성 때 실은 동의가 있어야 합니다. 이용약관·개인정보 처리방침 동의가 없으면 AUTH_021,
+            만 14세 이상 확인이 없으면 AUTH_022 (둘 다 400)로 거절되고 회원은 만들어지지 않습니다. 이미 가입한 회원의 로그인은 동의와 무관하게 통과합니다."""
+    )
     @GetMapping("/{provider}/login")
     public ResponseEntity<Response<AuthGeneralLoginResponse>> loginWithOAuthCode(
         @Parameter(description = "소셜 로그인 제공자", required = true, example = "kakao") @PathVariable OAuthProvider provider,
