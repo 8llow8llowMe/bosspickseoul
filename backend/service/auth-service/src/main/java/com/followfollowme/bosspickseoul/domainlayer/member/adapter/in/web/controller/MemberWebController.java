@@ -46,7 +46,19 @@ public class MemberWebController {
     private final MemberWebUseCase memberWebUseCase;
     private final RefreshCookieProvider refreshCookieProvider;
 
-    @Operation(summary = "일반 회원가입", description = "일반 회원으로 가입합니다.")
+    @Operation(
+        summary = "일반 회원가입",
+        description = """
+            일반 회원으로 가입합니다. 먼저 이메일 인증코드 발송·검증(`/api/v1/auth/email/*`)을 마쳐야 하고, 검증 후 30분 안에 가입해야 합니다.
+
+            이용약관 동의(`termsAgreed`), 개인정보 처리방침 동의(`privacyAgreed`), 만 14세 이상 확인(`ageOver14Confirmed`)은
+            모두 필수이며 `true` 여야 합니다. 빠지거나 `false` 면 400 으로 거절되고, 항목마다 코드가 다릅니다 —
+            이용약관 `MEMBER_114`, 개인정보 처리방침 `MEMBER_115`, 만 14세 이상 확인 `MEMBER_116`.
+            가입에 성공하면 세 항목이 동의한 문서 판과 같은 시각으로 동의 이력에 남습니다.
+
+            호출 예: `{"email":"user@example.com","password":"P@ssw0rd!","name":"홍길동","nickname":"길동짱",
+            "termsAgreed":true,"privacyAgreed":true,"ageOver14Confirmed":true}`"""
+    )
     @PostMapping("/signup")
     public ResponseEntity<Response<Void>> generalSignup(@Valid @RequestBody MemberGeneralSignupRequest request) {
         memberWebUseCase.generalSignup(MemberGeneralSignupCommand.from(request));

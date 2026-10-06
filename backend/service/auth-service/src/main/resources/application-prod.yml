@@ -112,3 +112,14 @@ oauth:
     client-id: ${OAUTH_NAVER_CLIENT_ID:}
     client-secret: ${OAUTH_NAVER_CLIENT_SECRET:}
     redirect-uri: ${OAUTH_NAVER_REDIRECT_URI:}
+
+# 가입 동의 이력(member_consent)에 남길 법적 문서 판과 탈퇴 회원 정보 보관 기간.
+# 문서 판의 정본은 프론트 frontend/src/lib/legal/{terms-of-service,privacy-policy}.ts 의 version 이다.
+# 약관·처리방침을 개정하면 프론트 상수와 이 값을 같은 배포에 함께 바꾼다 — 어긋나면 화면에 보여준 판과
+# 이력에 남는 판이 달라진다. local·dev·prod 세 파일을 함께 고치고, 1.10 이 1.1 로 읽히지 않게 따옴표로 감싼다.
+# 비밀값이 아니고 프론트 코드와 함께 움직이는 값이라 Vault env 가 아니라 이 파일에 직접 적는다.
+# withdrawn-retention: 탈퇴 회원의 이메일·동의 이력 보관 기간(탈퇴 시점부터). 실제 파기 작업은 후속 이슈다.
+legal:
+  terms-version: "1.0"
+  privacy-version: "1.1"
+  withdrawn-retention: P365D
