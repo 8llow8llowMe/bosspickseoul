@@ -29,6 +29,10 @@
       "description": "소상공인 지원 정책 추천 API를 제공합니다."
     },
     {
+      "name": "분석 기준 분기",
+      "description": "적재된 데이터 기준 분석 분기 카탈로그 API"
+    },
+    {
       "name": "행정동 분석",
       "description": "행정동 단위 상권 분석 조회 API"
     },
@@ -553,13 +557,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -596,13 +599,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "previousPeriodCode",
@@ -649,13 +651,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -692,13 +693,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "previousPeriodCode",
@@ -745,13 +745,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "previousPeriodCode",
@@ -798,13 +797,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "previousPeriodCode",
@@ -851,13 +849,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -884,13 +881,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "previousPeriodCode",
@@ -910,6 +906,48 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ResponseDistrictTopTenSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/districts/rankings": {
+      "get": {
+        "tags": ["자치구 분석"],
+        "summary": "자치구 지표별 전체 순위 조회",
+        "description": "유동인구, 매출, 개업 점포 수, 폐업 점포 수 기준으로 현재 분기 데이터가 있는 자치구 전체의 순위를 조회합니다. 값이 같으면 같은 순위(1, 2, 2, 4)이고 자치구 코드 오름차순으로 놓입니다. 비교 분기 값이 없거나 0 이면 변화율은 null 입니다.",
+        "operationId": "getDistrictRankings",
+        "parameters": [
+          {
+            "name": "currentPeriodCode",
+            "in": "query",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": 20261
+          },
+          {
+            "name": "previousPeriodCode",
+            "in": "query",
+            "description": "이전 기준 분기 코드 (YYYYQ), 미입력 시 직전 분기를 사용합니다.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": 20254
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDistrictRankingSummaryResponse"
                 }
               }
             }
@@ -958,13 +996,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드 (최신 분기)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "periodCount",
@@ -1042,13 +1079,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1069,7 +1105,7 @@
       "get": {
         "tags": ["상권 분석"],
         "summary": "상권 지출 요약 비교 조회",
-        "description": "상권과 주변 지역의 지출 수준을 비교합니다.",
+        "description": "상권과 주변 지역의 지출 수준을 비교합니다. 상권 leg 는 단건 조회와 같은 사다리를 타 네이티브가 없으면 행정동 총액으로 대체하고 출처는 commercialProvenance 가 알려 줍니다. 자치구·행정동 leg 는 원천이 살아 있어 대체하지 않습니다.",
         "operationId": "getIncomeSummary",
         "parameters": [
           {
@@ -1105,13 +1141,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1158,13 +1193,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1211,13 +1245,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1296,13 +1329,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1339,13 +1371,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1365,8 +1396,8 @@
     "/api/v1/commercials/{commercialCode}/income": {
       "get": {
         "tags": ["상권 분석"],
-        "summary": "상권 소득·지출 조회",
-        "description": "상권의 소득과 지출 정보를 조회합니다.",
+        "summary": "상권 소비 지출 조회",
+        "description": "상권의 소비 지출을 항목 배열로 조회합니다. 상권 단위 원천이 중단된 분기에는 소속 행정동 소비로 대체하며, 어느 영역에서 가져온 값인지는 provenance 가 알려 줍니다. 대체할 값도 없으면 항목은 null 이고 provenance 가 중단 사실만 전합니다. districtAverageIncome 에는 소속 자치구의 국민연금 지역가입자 신고 평균소득월액(요청 분기 말일 이하 최신 기준일)을 참고값으로 함께 싣습니다. 같은 자치구 안의 상권은 모두 같은 값이며, 자료가 없으면 amount 가 null 입니다.",
         "operationId": "getIncomeByPeriodCodeAndCommercialCode",
         "parameters": [
           {
@@ -1382,13 +1413,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1425,13 +1455,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1468,13 +1497,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1495,7 +1523,7 @@
       "get": {
         "tags": ["상권 분석"],
         "summary": "상권 벤치마크 조회",
-        "description": "상권의 매출과 소비력 지표를 자치구 및 행정동 평균과 비교합니다.",
+        "description": "상권의 매출·소비력 지표와 업종별 점포당 평균 매출 지수를 자치구 및 행정동과 비교합니다.",
         "operationId": "getBenchmarks",
         "parameters": [
           {
@@ -1521,13 +1549,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1576,13 +1603,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "topN",
@@ -1613,6 +1639,26 @@
         }
       }
     },
+    "/api/v1/commercials/periods": {
+      "get": {
+        "tags": ["분석 기준 분기"],
+        "summary": "분석 기준 분기 카탈로그 조회",
+        "description": "적재된 팩트 데이터 기준 기본 분기와 선택 가능한 분기 목록, 데이터셋별 적재 범위를 조회합니다. 분석 API 에서 periodCode 를 생략하면 defaultPeriodCode 를 씁니다. 원천이 끊긴 데이터셋(coreForDefault=false)은 기본 분기 계산에서 빠집니다. 인스턴스 메모리 캐시라 resolvedAt 이 최대 몇 분 전일 수 있고, DB 장애 중에는 마지막으로 계산한 값을 그대로 내려줍니다.",
+        "operationId": "getAnalysisPeriods",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAnalysisPeriodsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/commercials/compare": {
       "get": {
         "tags": ["상권 분석"],
@@ -1628,7 +1674,7 @@
             "schema": {
               "type": "string",
               "description": "좌측 상권 코드",
-              "example": "3110008",
+              "example": 3110008,
               "minLength": 1
             },
             "example": 3110008
@@ -1641,7 +1687,7 @@
             "schema": {
               "type": "string",
               "description": "우측 상권 코드",
-              "example": "3110012",
+              "example": 3110012,
               "minLength": 1
             },
             "example": 3110012
@@ -1662,15 +1708,14 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233",
-              "description": "기준 분기 코드",
-              "example": "20233"
+              "type": ["string", "null"],
+              "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+              "example": 20261
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -1753,13 +1798,12 @@
           {
             "name": "currentPeriodCode",
             "in": "query",
-            "description": "현재 기준 분기 코드 (YYYYQ)",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "previousPeriodCode",
@@ -1836,14 +1880,14 @@
             "example": true
           },
           "franchiseeId": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "프랜차이즈 아이디 (franchisee=true 일 때 필수, 프랜차이즈 검색 API 응답의 franchiseeId)"
           },
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11740,
+            "example": "11740",
             "minLength": 1
           },
           "serviceCode": {
@@ -1856,7 +1900,8 @@
             "type": "integer",
             "format": "int32",
             "description": "매장 면적 (㎡)",
-            "example": 66
+            "example": 66,
+            "exclusiveMinimum": 0
           },
           "floorType": {
             "type": "string",
@@ -1865,13 +1910,19 @@
             "example": "FIRST_FLOOR"
           },
           "periodCode": {
-            "type": "string",
-            "description": "기준 분기 코드 (미지정 시 20233)",
-            "example": 20233,
+            "type": ["string", "null"],
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261",
             "pattern": "^\\d{4}[1-4]$"
           }
         },
-        "required": ["floorType", "franchisee", "storeSize"]
+        "required": [
+          "districtCode",
+          "floorType",
+          "franchisee",
+          "serviceCode",
+          "storeSize"
+        ]
       },
       "CodeNameDescriptionMetadata": {
         "type": "object",
@@ -1903,9 +1954,7 @@
           "resultCode": {
             "type": "string"
           },
-          "resultMessage": {
-            "type": "object"
-          }
+          "resultMessage": {}
         }
       },
       "ResponseSimulationReportResponse": {
@@ -1946,17 +1995,17 @@
             "example": true
           },
           "franchiseeId": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "프랜차이즈 아이디 (비프랜차이즈면 null)"
           },
           "brandName": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "브랜드 이름 (비프랜차이즈면 null)"
           },
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11740
+            "example": "11740"
           },
           "districtName": {
             "type": "string",
@@ -1991,7 +2040,7 @@
           "periodCode": {
             "type": "string",
             "description": "기준 분기 코드",
-            "example": 20233
+            "example": "20261"
           }
         }
       },
@@ -2018,7 +2067,7 @@
             "example": 4500
           },
           "levy": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "가맹 부담금 합계 (만원, 비프랜차이즈면 null)"
           }
@@ -2054,7 +2103,7 @@
         "description": "권리금 수준 항목 DTO",
         "properties": {
           "keyMoneyRatio": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "권리금 유 비율 (%)",
             "example": 75.4
@@ -2066,7 +2115,7 @@
             "example": 5670
           },
           "keyMoneyLevel": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "권리금 수준 ㎡당 평균 (만원/㎡)",
             "example": 75.3
@@ -2084,7 +2133,7 @@
           "dataBaseYear": {
             "type": "string",
             "description": "계산에 사용된 기준 데이터 연도 (임대료/권리금/프랜차이즈 비용 수집 기준)",
-            "example": 2024
+            "example": "2024"
           },
           "totalPrice": {
             "type": "integer",
@@ -2108,10 +2157,12 @@
             }
           },
           "genderAgeAnalysis": {
+            "type": "null",
             "$ref": "#/components/schemas/SimulationGenderAgeItem",
             "description": "성별·연령 매출 분석 (기준 데이터 없으면 null)"
           },
           "seasonAnalysis": {
+            "type": "null",
             "$ref": "#/components/schemas/SimulationSeasonItem",
             "description": "성수기/비성수기 분석 (기준 데이터 없으면 null)"
           }
@@ -2148,7 +2199,7 @@
           "franchiseeId": {
             "type": "string",
             "description": "프랜차이즈 아이디",
-            "example": 101
+            "example": "101"
           },
           "brandName": {
             "type": "string",
@@ -2203,14 +2254,14 @@
             "example": true
           },
           "franchiseeId": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "프랜차이즈 아이디 (franchisee=true 일 때 필수)"
           },
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11740,
+            "example": "11740",
             "minLength": 1
           },
           "serviceCode": {
@@ -2223,7 +2274,8 @@
             "type": "integer",
             "format": "int32",
             "description": "매장 면적 (㎡)",
-            "example": 66
+            "example": 66,
+            "exclusiveMinimum": 0
           },
           "floorType": {
             "type": "string",
@@ -2235,10 +2287,18 @@
             "type": "integer",
             "format": "int64",
             "description": "총 창업 비용 (만원)",
-            "example": 12345
+            "example": 12345,
+            "minimum": 0
           }
         },
-        "required": ["floorType", "franchisee", "storeSize", "totalPrice"]
+        "required": [
+          "districtCode",
+          "floorType",
+          "franchisee",
+          "serviceCode",
+          "storeSize",
+          "totalPrice"
+        ]
       },
       "ResponseSimulationHistorySaveResponse": {
         "type": "object",
@@ -2258,7 +2318,7 @@
           "historyId": {
             "type": "string",
             "description": "이력 아이디",
-            "example": 1
+            "example": "1"
           },
           "franchisee": {
             "type": "boolean",
@@ -2266,13 +2326,13 @@
             "example": true
           },
           "brandName": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "브랜드 이름 (비프랜차이즈면 null)"
           },
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11740
+            "example": "11740"
           },
           "districtName": {
             "type": "string",
@@ -2308,7 +2368,7 @@
           "dataBaseYear": {
             "type": "string",
             "description": "계산에 사용된 기준 데이터 연도",
-            "example": 2024
+            "example": "2024"
           },
           "createdAt": {
             "type": "string",
@@ -2327,9 +2387,7 @@
           }
         }
       },
-      "JsonNode": {
-        "type": "object"
-      },
+      "JsonNode": {},
       "ShareLinkCreateRequest": {
         "type": "object",
         "description": "공유 링크 생성 요청",
@@ -2353,11 +2411,11 @@
             "example": {
               "commercialCode": "3110008",
               "serviceCode": "CS100001",
-              "periodCode": "20233"
+              "periodCode": "20261"
             }
           }
         },
-        "required": ["payload"]
+        "required": ["payload", "shareType"]
       },
       "ResponseShareLinkCreateResponse": {
         "type": "object",
@@ -2414,18 +2472,18 @@
             "example": {
               "commercialCode": "3110008",
               "serviceCode": "CS100001",
-              "periodCode": "20233"
+              "periodCode": "20261"
             }
           },
           "bookmarkName": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "보관함 이름 (선택, 50자 이하)",
             "example": "역삼역 한식 후보",
             "maxLength": 50,
             "minLength": 0
           }
         },
-        "required": ["payload"]
+        "required": ["payload", "shareType"]
       },
       "AnalysisBookmarkCreateResponse": {
         "type": "object",
@@ -2444,7 +2502,7 @@
           "bookmarkId": {
             "type": "string",
             "description": "보관함 항목 아이디 — Snowflake 값이 JS Number.MAX_SAFE_INTEGER 를 넘으므로 문자열로 내려준다",
-            "example": 7345678901234568000
+            "example": "7345678901234567890"
           },
           "shareType": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
@@ -2456,11 +2514,11 @@
             "example": {
               "commercialCode": "3110008",
               "serviceCode": "CS100001",
-              "periodCode": "20233"
+              "periodCode": "20261"
             }
           },
           "bookmarkName": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "보관함 이름 (미지정이면 null)"
           },
           "createdAt": {
@@ -2486,7 +2544,7 @@
         "description": "분석 보관함 이름 수정 요청 DTO",
         "properties": {
           "bookmarkName": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "새 보관함 이름 (null 또는 공백이면 이름을 제거한다)",
             "example": "역삼역 한식 후보",
             "maxLength": 50,
@@ -2500,9 +2558,7 @@
           "dataHeader": {
             "$ref": "#/components/schemas/DataHeader"
           },
-          "dataBody": {
-            "type": "object"
-          }
+          "dataBody": {}
         }
       },
       "ResponseSimulationStoreSizesResponse": {
@@ -2551,7 +2607,7 @@
           "dataBaseYear": {
             "type": "string",
             "description": "기준 데이터 연도",
-            "example": 2024
+            "example": "2024"
           },
           "small": {
             "$ref": "#/components/schemas/SimulationSizeItem",
@@ -2633,7 +2689,7 @@
           "franchiseeId": {
             "type": "string",
             "description": "프랜차이즈 아이디",
-            "example": 101
+            "example": "101"
           },
           "brandName": {
             "type": "string",
@@ -2664,7 +2720,7 @@
             }
           },
           "lastId": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "다음 페이지 커서 (마지막 항목의 franchiseeId, 결과가 없으면 null)"
           }
         }
@@ -2694,7 +2750,7 @@
             "example": {
               "commercialCode": "3110008",
               "serviceCode": "CS100001",
-              "periodCode": "20233"
+              "periodCode": "20261"
             }
           },
           "createdAt": {
@@ -2718,12 +2774,12 @@
           "policyId": {
             "type": "string",
             "description": "정책 아이디",
-            "example": 7345678901234568000
+            "example": "7345678901234567890"
           },
           "title": {
             "type": "string",
             "description": "정책명",
-            "example": 2026
+            "example": "2026 소상공인 경영개선 자금"
           },
           "organization": {
             "type": "string",
@@ -2753,7 +2809,7 @@
           "districtCode": {
             "type": "string",
             "description": "지원 대상 자치구 코드. null 이면 서울 전역/전국",
-            "example": 11680
+            "example": "11680"
           },
           "serviceCategoryCode": {
             "type": "string",
@@ -2785,7 +2841,7 @@
           "districtCode": {
             "type": "string",
             "description": "조회에 사용한 자치구 코드. null 이면 지역 조건 없이 조회",
-            "example": 11680
+            "example": "11680"
           },
           "serviceCategoryCode": {
             "type": "string",
@@ -2819,7 +2875,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -2846,6 +2902,11 @@
         "type": "object",
         "description": "자치구 변화지표 상세 응답 DTO",
         "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
           "changeIndicatorCode": {
             "type": "string",
             "description": "상권 변화지표 코드",
@@ -2923,7 +2984,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680580
+            "example": "11680580"
           },
           "administrationName": {
             "type": "string",
@@ -3000,6 +3061,16 @@
         "type": "object",
         "description": "자치구 통합 상세 응답 DTO",
         "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
+          "previousPeriodCode": {
+            "type": "string",
+            "description": "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기",
+            "example": "20254"
+          },
           "changeIndicator": {
             "$ref": "#/components/schemas/ChangeIndicatorDistrictResponse",
             "description": "상권 변화지표 상세"
@@ -3047,7 +3118,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680580
+            "example": "11680580"
           },
           "administrationName": {
             "type": "string",
@@ -3075,7 +3146,7 @@
           "periodCode": {
             "type": "string",
             "description": "기준 분기 코드",
-            "example": 20233
+            "example": "20261"
           },
           "totalFootTraffic": {
             "type": "integer",
@@ -3092,7 +3163,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680580
+            "example": "11680580"
           },
           "administrationName": {
             "type": "string",
@@ -3117,6 +3188,16 @@
         "type": "object",
         "description": "자치구 매출 상세 응답 DTO",
         "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
+          "previousPeriodCode": {
+            "type": "string",
+            "description": "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기",
+            "example": "20254"
+          },
           "topSalesServices": {
             "type": "array",
             "description": "매출 상위 5개 업종 목록",
@@ -3159,6 +3240,11 @@
         "type": "object",
         "description": "자치구 점포 상세 응답 DTO",
         "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
           "topStoreServices": {
             "type": "array",
             "description": "점포 수 상위 8개 업종 목록",
@@ -3254,6 +3340,16 @@
         "type": "object",
         "description": "자치구 유동인구 상세 응답 DTO",
         "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
+          "previousPeriodCode": {
+            "type": "string",
+            "description": "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기",
+            "example": "20254"
+          },
           "periodTrend": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
             "description": "직전 분기 대비 추이 메타데이터 (PeriodTrendType: INCREASE/DECREASE/STAGNANT)",
@@ -3325,6 +3421,16 @@
         "type": "object",
         "description": "자치구 행정동 매출 상세 응답 DTO",
         "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
+          "previousPeriodCode": {
+            "type": "string",
+            "description": "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기",
+            "example": "20254"
+          },
           "topSalesAdministrations": {
             "type": "array",
             "description": "매출 상위 5개 행정동 목록",
@@ -3374,7 +3480,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -3402,7 +3508,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -3430,7 +3536,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -3458,7 +3564,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -3483,6 +3589,16 @@
         "type": "object",
         "description": "자치구 Top 10 요약 응답 DTO",
         "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
+          "previousPeriodCode": {
+            "type": "string",
+            "description": "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기",
+            "example": "20254"
+          },
           "footTrafficTopTenItems": {
             "type": "array",
             "description": "유동인구 Top 10 자치구 목록",
@@ -3524,6 +3640,197 @@
           }
         }
       },
+      "DistrictClosedStoreRankingItem": {
+        "type": "object",
+        "description": "자치구 폐업 점포 전체 순위 항목",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "description": "순위. 값이 같으면 같은 순위이고 다음 순위는 그만큼 건너뛴다(1, 2, 2, 4)",
+            "example": 1
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": "11680"
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강남구"
+          },
+          "closedStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "폐업 점포 수",
+            "example": 872
+          },
+          "closureChangeRate": {
+            "type": ["number", "null"],
+            "format": "double",
+            "description": "전분기 대비 폐업률 증감률 (%). 비교 분기 값이 없거나 0 이면 null",
+            "example": -2.3
+          }
+        }
+      },
+      "DistrictFootTrafficRankingItem": {
+        "type": "object",
+        "description": "자치구 유동인구 전체 순위 항목",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "description": "순위. 값이 같으면 같은 순위이고 다음 순위는 그만큼 건너뛴다(1, 2, 2, 4)",
+            "example": 1
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": "11680"
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강남구"
+          },
+          "totalFootTraffic": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 유동인구 수",
+            "example": 5847230
+          },
+          "footTrafficChangeRate": {
+            "type": ["number", "null"],
+            "format": "double",
+            "description": "전분기 대비 유동인구 증감률 (%). 비교 분기 값이 없거나 0 이면 null",
+            "example": 12.5
+          }
+        }
+      },
+      "DistrictOpenedStoreRankingItem": {
+        "type": "object",
+        "description": "자치구 개업 점포 전체 순위 항목",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "description": "순위. 값이 같으면 같은 순위이고 다음 순위는 그만큼 건너뛴다(1, 2, 2, 4)",
+            "example": 1
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": "11680"
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강남구"
+          },
+          "openedStoreCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "개업 점포 수",
+            "example": 1523
+          },
+          "openingChangeRate": {
+            "type": ["number", "null"],
+            "format": "double",
+            "description": "전분기 대비 개업률 증감률 (%). 비교 분기 값이 없거나 0 이면 null",
+            "example": 8.5
+          }
+        }
+      },
+      "DistrictRankingSummaryResponse": {
+        "type": "object",
+        "description": "자치구 지표별 전체 순위 응답 DTO. 지표마다 현재 분기 데이터가 있는 자치구가 모두 실린다",
+        "properties": {
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
+          "previousPeriodCode": {
+            "type": "string",
+            "description": "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기",
+            "example": "20254"
+          },
+          "footTrafficRankings": {
+            "type": "array",
+            "description": "유동인구 전체 순위. 유동인구 내림차순, 같으면 자치구 코드 오름차순",
+            "items": {
+              "$ref": "#/components/schemas/DistrictFootTrafficRankingItem"
+            }
+          },
+          "salesRankings": {
+            "type": "array",
+            "description": "매출 전체 순위. 매출 금액 내림차순, 같으면 자치구 코드 오름차순",
+            "items": {
+              "$ref": "#/components/schemas/DistrictSalesRankingItem"
+            }
+          },
+          "openedStoreRankings": {
+            "type": "array",
+            "description": "개업 점포 전체 순위. 개업 점포 수 내림차순, 같으면 자치구 코드 오름차순",
+            "items": {
+              "$ref": "#/components/schemas/DistrictOpenedStoreRankingItem"
+            }
+          },
+          "closedStoreRankings": {
+            "type": "array",
+            "description": "폐업 점포 전체 순위. 폐업 점포 수 내림차순, 같으면 자치구 코드 오름차순",
+            "items": {
+              "$ref": "#/components/schemas/DistrictClosedStoreRankingItem"
+            }
+          }
+        }
+      },
+      "DistrictSalesRankingItem": {
+        "type": "object",
+        "description": "자치구 매출 전체 순위 항목",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "description": "순위. 값이 같으면 같은 순위이고 다음 순위는 그만큼 건너뛴다(1, 2, 2, 4)",
+            "example": 1
+          },
+          "districtCode": {
+            "type": "string",
+            "description": "자치구 코드",
+            "example": "11680"
+          },
+          "districtName": {
+            "type": "string",
+            "description": "자치구명",
+            "example": "강남구"
+          },
+          "totalSalesAmount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "총 매출 금액",
+            "example": 15847230000
+          },
+          "salesChangeRate": {
+            "type": ["number", "null"],
+            "format": "double",
+            "description": "전분기 대비 매출 증감률 (%). 비교 분기 값이 없거나 0 이면 null",
+            "example": 5.3
+          }
+        }
+      },
+      "ResponseDistrictRankingSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/DistrictRankingSummaryResponse"
+          }
+        }
+      },
       "CommercialTrendItemDto": {
         "type": "object",
         "description": "분기별 트렌드 항목",
@@ -3531,7 +3838,7 @@
           "periodCode": {
             "type": "string",
             "description": "기준 년분기 코드",
-            "example": 20233
+            "example": "20261"
           },
           "value": {
             "type": "number",
@@ -3551,10 +3858,15 @@
         "type": "object",
         "description": "상권 트렌드 분석 응답 DTO",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "추이의 기준(최신) 분기. periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "serviceCode": {
             "type": "string",
@@ -3595,6 +3907,11 @@
         "type": "object",
         "description": "자치구/행정동/상권 매출 요약 응답",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "district": {
             "$ref": "#/components/schemas/RegionalSalesSummaryItem",
             "description": "자치구 매출 요약"
@@ -3646,39 +3963,100 @@
           }
         }
       },
+      "CommercialExpenseProvenanceItem": {
+        "type": "object",
+        "description": "소비 지표의 출처 메타. 값이 없을 때도 어느 원천이 왜 끊겼는지 전하므로 항상 채워진다",
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "값을 가져온 영역 단위. code 는 COMMERCIAL(상권 네이티브) / ADMINISTRATION_PROXY(행정동 대체) / UNAVAILABLE(제공 없음)",
+            "example": {
+              "code": "ADMINISTRATION_PROXY",
+              "name": "행정동 대체",
+              "description": "상권 단위 원천이 중단돼 소속 행정동 값으로 대체한 추정치입니다."
+            }
+          },
+          "scopeCode": {
+            "type": ["string", "null"],
+            "description": "값을 실제로 가져온 영역의 코드. scope.code 가 UNAVAILABLE 이면 null 이다",
+            "example": "11110515"
+          },
+          "scopeName": {
+            "type": ["string", "null"],
+            "description": "값을 실제로 가져온 영역의 이름. scope.code 가 UNAVAILABLE 이면 null 이다",
+            "example": "청운효자동"
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "원천 데이터셋 식별자",
+            "example": "VwsmAdstrdNcmCnsmpW"
+          },
+          "sourceLabel": {
+            "type": "string",
+            "description": "원천 데이터셋 이름",
+            "example": "서울시 상권분석서비스(소득소비-행정동)"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "원천 데이터셋 주소",
+            "example": "https://data.seoul.go.kr/dataList/OA-22166/S/1/datasetView.do"
+          },
+          "effectivePeriodCode": {
+            "type": ["string", "null"],
+            "description": "값의 기준 분기. scope.code 가 UNAVAILABLE 이면 null 이다",
+            "example": "20261"
+          },
+          "disclaimer": {
+            "type": ["string", "null"],
+            "description": "화면과 리포트가 그대로 쓰는 면책 문장. 대체(ADMINISTRATION_PROXY)와 제공 없음(UNAVAILABLE)일 때만 채워지고 상권 네이티브(COMMERCIAL)에서는 null 이다",
+            "example": "2024년 1분기부터 서울 열린데이터광장이 상권 단위 소비 제공을 중단해, 소속 행정동(청운효자동)의 추정 소비로 대체 표시합니다. 같은 행정동 안의 상권은 같은 값입니다."
+          }
+        }
+      },
       "CommercialIncomeSummaryResponse": {
         "type": "object",
         "description": "자치구/행정동/상권 지출 요약 응답",
         "properties": {
           "district": {
+            "type": "null",
             "$ref": "#/components/schemas/RegionalIncomeSummaryItem",
-            "description": "자치구 지출 요약"
+            "description": "자치구 지출 요약. 해당 분기에 행이 없는 지역 단위는 null 이다"
           },
           "administration": {
+            "type": "null",
             "$ref": "#/components/schemas/RegionalIncomeSummaryItem",
-            "description": "행정동 지출 요약"
+            "description": "행정동 지출 요약. 해당 분기에 행이 없는 지역 단위는 null 이다"
           },
           "commercial": {
+            "type": "null",
             "$ref": "#/components/schemas/RegionalIncomeSummaryItem",
-            "description": "상권 지출 요약"
+            "description": "상권 지출 요약. 상권 원천이 끊긴 분기에는 소속 행정동 총액으로 대체하며 출처는 commercialProvenance 가 알려 준다. 대체할 행정동 값도 없으면 null 이다"
+          },
+          "commercialProvenance": {
+            "$ref": "#/components/schemas/CommercialExpenseProvenanceItem",
+            "description": "상권 leg 의 출처 메타. 자치구·행정동 leg 는 원천이 살아 있어 대체하지 않으므로 상권 leg 에만 붙는다. 값이 없을 때도 중단 사실을 전하므로 항상 채워진다"
           }
         }
       },
       "RegionalIncomeSummaryItem": {
         "type": "object",
+        "description": "지역 단위 하나의 지출 요약",
         "properties": {
           "code": {
             "type": "string",
-            "description": "코드"
+            "description": "지역 코드. 상권 leg 는 행정동 값으로 대체하더라도 상권 코드를 유지한다",
+            "example": "3110971"
           },
           "name": {
-            "type": "string",
-            "description": "이름"
+            "type": ["string", "null"],
+            "description": "지역 이름. 상권 leg 는 그 분기에 상권 소비 행 자체가 없는 대체 구간에서 null 이다 — 소비 요약 응답 어디에도 상권명이 없어 채울 근거가 없다. 화면은 이 경우 코드나 화면이 이미 아는 상권명을 쓴다",
+            "example": "선정릉역 4번 출구"
           },
           "totalExpenseAmount": {
             "type": "integer",
             "format": "int64",
-            "description": "총 지출액"
+            "description": "총 지출액(원). 세부 항목이 적재된 행은 항목합이다",
+            "example": 550
           }
         }
       },
@@ -3725,6 +4103,11 @@
         "type": "object",
         "description": "상권 및 업종 점포 분석 응답",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "totalStoreCount": {
             "type": "integer",
             "format": "int64",
@@ -4102,6 +4485,11 @@
         "type": "object",
         "description": "상권&업종의 매출 정보 조회 응답",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "amountByTimeSlotItem": {
             "$ref": "#/components/schemas/CommercialSalesByTimeSlotItem",
             "description": "시간대별 매출액"
@@ -4182,60 +4570,55 @@
         "description": "후보 상권 프로필 핵심 지표 항목 DTO — 해당 분기 데이터가 없는 지표는 null 로 내려간다",
         "properties": {
           "totalSalesAmount": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "총 매출액"
           },
           "totalFootTraffic": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "총 유동인구"
           },
           "totalStoreCount": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "총 점포 수"
           },
           "similarStoreCount": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "유사 업종 점포 수"
           },
           "openingRate": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "개업률"
           },
           "closureRate": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "폐업률"
           },
           "totalResidentPopulation": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "총 거주인구"
           },
-          "monthlyAverageIncomeAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "월 평균 소득"
-          },
           "totalFacilityCount": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "총 주요 시설 수"
           },
           "peakSalesTimeSlot": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "매출 피크 시간대 (예: 17시~21시)"
           },
           "peakFootTrafficTimeSlot": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "유동인구 피크 시간대 (예: 11시~14시)"
           },
           "dominantSalesAgeGroup": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "매출 주 연령대 (예: 30대)"
           }
         }
@@ -4247,7 +4630,7 @@
           "periodCode": {
             "type": "string",
             "description": "기준 분기 코드",
-            "example": 20233
+            "example": "20261"
           },
           "serviceCode": {
             "type": "string",
@@ -4257,7 +4640,7 @@
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -4356,6 +4739,11 @@
         "type": "object",
         "description": "상권의 상주인구 정보 조회 응답",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "byAgeItem": {
             "$ref": "#/components/schemas/CommercialResidentPopulationByAgeItem",
             "description": "연령대별 상주인구"
@@ -4385,95 +4773,118 @@
           }
         }
       },
-      "CommercialAverageIncomeItem": {
+      "CommercialDistrictAverageIncomeItem": {
         "type": "object",
-        "description": "상권 내 가구 월 평균 소득 정보",
+        "description": "자치구 평균 소득(대체). 같은 자치구 안의 상권은 모두 같은 값이라 상권 비교·점수에는 쓰지 않는다",
         "properties": {
-          "monthlyAverageIncomeAmount": {
-            "type": "integer",
+          "amount": {
+            "type": ["integer", "null"],
             "format": "int64",
-            "description": "월 평균 소득 금액",
-            "example": 4200000
+            "description": "자치구 평균 신고 기준소득월액(원/월). 쓸 수 있는 자료가 없으면 null 이다",
+            "example": 1555244
           },
-          "incomeBracketCode": {
-            "type": "integer",
-            "format": "int32",
-            "description": "소득 구간 코드 (1 ~ 10)",
-            "example": 5
+          "provenance": {
+            "$ref": "#/components/schemas/CommercialIncomeProvenanceItem",
+            "description": "소득 지표의 출처 메타. 값이 없을 때도 사유를 전하므로 항상 채워진다"
           }
         }
       },
-      "CommercialExpenseByCategoryItem": {
+      "CommercialExpenseCategoryItem": {
         "type": "object",
-        "description": "상권의 소비 카테고리별 지출 금액 정보",
+        "description": "소비 항목 하나와 그 지출 금액. 항목 수와 구성은 provenance.scope 에 따라 달라지므로 배열 순서대로 그린다",
         "properties": {
-          "groceryExpenseAmount": {
+          "key": {
+            "type": "string",
+            "description": "항목 키. 상권 스코프는 GROCERY·CLOTHING_FOOTWEAR·MEDICAL·HOUSEHOLD·TRANSPORTATION·LEISURE·CULTURE·EDUCATION·ENTERTAINMENT 9개, 행정동 대체 스코프는 LEISURE·CULTURE 대신 LEISURE_CULTURE 를 쓰고 OTHER·DINING 이 더해진 10개다",
+            "example": "GROCERY"
+          },
+          "label": {
+            "type": "string",
+            "description": "항목 화면 문구. 스코프마다 구성이 달라 서버가 내려보낸다",
+            "example": "식료품"
+          },
+          "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "식료품 지출 금액",
+            "description": "지출 금액(원)",
             "example": 320000
-          },
-          "clothingExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "의류·신발 지출 금액",
-            "example": 180000
-          },
-          "medicalExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "의료비 지출 금액",
-            "example": 95000
-          },
-          "householdExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "생활용품 지출 금액",
-            "example": 210000
-          },
-          "transportationExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "교통 지출 금액",
-            "example": 130000
-          },
-          "leisureExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "여가·오락 지출 금액",
-            "example": 170000
-          },
-          "cultureExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "문화·취미 지출 금액",
-            "example": 90000
-          },
-          "educationExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "교육 지출 금액",
-            "example": 160000
-          },
-          "entertainmentExpenseAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "유흥 지출 금액",
-            "example": 70000
           }
         }
       },
       "CommercialIncomeAndExpenseResponse": {
         "type": "object",
-        "description": "상권의 소득 및 소비 지출 정보 조회 응답",
+        "description": "상권의 소비 지출과 자치구 평균 소득(대체) 조회 응답",
         "properties": {
-          "averageIncomeItem": {
-            "$ref": "#/components/schemas/CommercialAverageIncomeItem",
-            "description": "월 평균 소득"
+          "expenseCategories": {
+            "type": ["array", "null"],
+            "description": "항목별 지출. 배열 순서가 곧 화면 순서이고 항목 수는 provenance.scope 에 따라 9개(상권) 또는 10개(행정동 대체)다. 상권 원천도 행정동 대체도 없는 분기에는 null 이다",
+            "items": {
+              "$ref": "#/components/schemas/CommercialExpenseCategoryItem"
+            }
           },
-          "expenseByCategoryItem": {
-            "$ref": "#/components/schemas/CommercialExpenseByCategoryItem",
-            "description": "카테고리별 지출"
+          "totalExpenseAmount": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "항목별 지출의 합계(원). 항목이 없으면 null 이다",
+            "example": 1560000
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/CommercialExpenseProvenanceItem",
+            "description": "소비 지표의 출처 메타. 값이 없을 때도 중단 사실을 전하므로 항상 채워진다"
+          },
+          "districtAverageIncome": {
+            "$ref": "#/components/schemas/CommercialDistrictAverageIncomeItem",
+            "description": "자치구 평균 소득(대체). 상권 단위 소득 원천이 없어 소속 자치구의 국민연금 지역가입자 신고 평균소득월액을 참고값으로 싣는다. 소비(provenance)와 원천·기준이 달라 출처를 따로 든다. 쓸 수 있는 자료가 없어도 amount 만 null 이고 항상 채워진다"
+          }
+        }
+      },
+      "CommercialIncomeProvenanceItem": {
+        "type": "object",
+        "description": "소득 지표의 출처 메타. 값이 없을 때도 어느 원천을 찾았고 왜 없는지 전하므로 항상 채워진다",
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
+            "description": "값을 가져온 영역 단위. code 는 DISTRICT_PROXY(자치구 대체) / UNAVAILABLE(제공 없음)",
+            "example": {
+              "code": "DISTRICT_PROXY",
+              "name": "자치구 대체",
+              "description": "상권 단위 소득 원천이 없어 소속 자치구의 국민연금 지역가입자 신고 평균소득월액으로 대체한 참고값입니다."
+            }
+          },
+          "scopeCode": {
+            "type": ["string", "null"],
+            "description": "값을 실제로 가져온 자치구 코드. scope.code 가 UNAVAILABLE 이면 null 이다",
+            "example": "11110"
+          },
+          "scopeName": {
+            "type": ["string", "null"],
+            "description": "값을 실제로 가져온 자치구 이름. scope.code 가 UNAVAILABLE 이면 null 이다",
+            "example": "종로구"
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "원천 데이터셋 식별자",
+            "example": "data.go.kr:3046077"
+          },
+          "sourceLabel": {
+            "type": "string",
+            "description": "원천 데이터셋 이름",
+            "example": "국민연금공단 자격 시군구 신고 평균소득월액"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "원천 데이터셋 주소",
+            "example": "https://www.data.go.kr/data/3046077/fileData.do"
+          },
+          "referenceDate": {
+            "type": ["string", "null"],
+            "description": "값의 기준일(ISO 날짜). 원천이 연 1회(12월 기준) 스냅샷이라 요청 분기 말일 이하 가장 최근 기준일이다. scope.code 가 UNAVAILABLE 이면 null 이다",
+            "example": "2024-12-31"
+          },
+          "disclaimer": {
+            "type": "string",
+            "description": "화면과 리포트가 그대로 쓰는 면책 문장. 대체(DISTRICT_PROXY)와 제공 없음(UNAVAILABLE) 모두 채워진다",
+            "example": "국민연금 지역가입자(사업장 가입자가 아닌 18~60세 국내 거주자)가 신고한 기준소득월액의 종로구 평균입니다(기준일 2024-12-31). 이 상권이나 주민 전체의 소득이 아니며, 같은 자치구 안의 상권은 모두 같은 값입니다."
           }
         }
       },
@@ -4702,6 +5113,11 @@
         "type": "object",
         "description": "상권의 유동인구 정보 조회 응답",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "byTimeSlotItem": {
             "$ref": "#/components/schemas/CommercialFootTrafficByTimeSlotItem",
             "description": "시간대별 유동인구"
@@ -4735,6 +5151,11 @@
         "type": "object",
         "description": "상권의 집객시설 정보 조회 응답",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "totalFacilityCount": {
             "type": "integer",
             "format": "int64",
@@ -4804,10 +5225,15 @@
         "type": "object",
         "description": "상권 벤치마크 응답 DTO",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 서버가 정한 기본 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
+            "example": "20261"
+          },
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -4816,7 +5242,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -4825,7 +5251,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680521
+            "example": "11680521"
           },
           "administrationName": {
             "type": "string",
@@ -4843,12 +5269,90 @@
             "$ref": "#/components/schemas/CommercialIncomeSummaryResponse",
             "description": "소비력 벤치마크 응답 DTO"
           },
+          "salesPerStore": {
+            "$ref": "#/components/schemas/CommercialSalesPerStoreSummaryItem",
+            "description": "업종별 점포당 평균 매출과 자치구·행정동 대비 지수(이슈 #485). 항상 채워지고, 점포 결측은 안쪽 필드만 null 이다"
+          },
           "benchmarkHighlights": {
             "type": "array",
             "description": "벤치마크 하이라이트",
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "CommercialSalesPerStoreSummaryItem": {
+        "type": "object",
+        "description": "업종별 점포당 평균 매출 벤치마크(이슈 #485). 지수 100 이 비교 단위 평균과 같은 수준이다",
+        "properties": {
+          "serviceCode": {
+            "type": "string",
+            "description": "서비스 업종 코드",
+            "example": "CS100010"
+          },
+          "serviceName": {
+            "type": "string",
+            "description": "서비스 업종명",
+            "example": "커피-음료"
+          },
+          "district": {
+            "$ref": "#/components/schemas/RegionalSalesPerStoreItem",
+            "description": "자치구 점포당 월 매출"
+          },
+          "administration": {
+            "$ref": "#/components/schemas/RegionalSalesPerStoreItem",
+            "description": "행정동 점포당 월 매출"
+          },
+          "commercial": {
+            "$ref": "#/components/schemas/RegionalSalesPerStoreItem",
+            "description": "상권 점포당 월 매출"
+          },
+          "indexVsDistrict": {
+            "type": ["number", "null"],
+            "format": "double",
+            "description": "자치구 대비 지수 = 상권 점포당 월 매출 ÷ 자치구 점포당 월 매출 × 100, 소수 첫째 자리 반올림(HALF_UP). 어느 한쪽 점포당 매출이 null 이거나 자치구 값이 0 이면 0 이 아니라 null 이다",
+            "example": 43.3
+          },
+          "indexVsAdministration": {
+            "type": ["number", "null"],
+            "format": "double",
+            "description": "행정동 대비 지수 = 상권 점포당 월 매출 ÷ 행정동 점포당 월 매출 × 100, 소수 첫째 자리 반올림(HALF_UP). 어느 한쪽 점포당 매출이 null 이거나 행정동 값이 0 이면 0 이 아니라 null 이다",
+            "example": 63.4
+          }
+        }
+      },
+      "RegionalSalesPerStoreItem": {
+        "type": "object",
+        "description": "지역 단위 하나의 업종 점포당 월 매출. 점포 행이 없거나 점포 수가 0 이어도 단위는 남고 storeCount·monthlySalesPerStore 만 비운다",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "지역 코드(자치구·행정동·상권)",
+            "example": "3110438"
+          },
+          "name": {
+            "type": "string",
+            "description": "지역 이름",
+            "example": "경춘선숲길 우측"
+          },
+          "monthlySalesAmount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "이 업종의 월 매출 총액(원). salesSummary 의 같은 단위 값과 같다",
+            "example": 164964564
+          },
+          "storeCount": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "이 업종 전체 점포 수(유사 업종 점포 수 = 일반 + 프랜차이즈). 프랜차이즈를 뺀 총 점포 수(STOR_CO)를 쓰지 않는다 — 월 매출은 업종 점포 전체의 매출이라 프랜차이즈를 빼면 점포당 매출이 부풀려진다(이슈 #490). 그 분기·업종의 점포 행이 없으면 null 이다",
+            "example": 20
+          },
+          "monthlySalesPerStore": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "점포당 월 매출(원). 월 매출 ÷ storeCount 를 원 단위 반올림(HALF_UP)한 값. storeCount 가 null 이거나 0 이면 null 이다",
+            "example": 8248228
           }
         }
       },
@@ -4910,7 +5414,7 @@
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -4918,7 +5422,7 @@
             "example": "강남역 상권"
           },
           "compositeScore": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "프리셋 가중치 기반 복합 점수 (0~100)"
           },
@@ -4937,11 +5441,11 @@
             "description": "선정 이유 한 줄 설명"
           },
           "opportunityLabel": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "기회도 해석 라벨"
           },
           "riskLabel": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "위험도 해석 라벨"
           },
           "metricBreakdown": {
@@ -4960,7 +5464,7 @@
             }
           },
           "blueOceanCategories": {
-            "type": "array",
+            "type": ["array", "null"],
             "description": "블루오션 업종 Top 5 — 소속 행정동엔 많지만 이 상권엔 적은 업종 (업종별 상권 추천 응답에서만 채워짐)",
             "items": {
               "$ref": "#/components/schemas/BlueOceanCategoryItem"
@@ -4980,7 +5484,7 @@
           "periodCode": {
             "type": "string",
             "description": "기준 분기 코드",
-            "example": 20233
+            "example": "20261"
           },
           "preset": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
@@ -5023,7 +5527,7 @@
             "description": "지표 메타데이터"
           },
           "score": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "0~100 정규화 점수"
           },
@@ -5074,6 +5578,110 @@
           }
         }
       },
+      "AnalysisDatasetPeriodItem": {
+        "type": "object",
+        "description": "데이터셋 하나의 적재 분기 범위",
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "description": "데이터셋 식별 코드(화면 표시용 아님). 분기 적재 배치의 데이터셋 이름과 같다",
+            "example": "SALES_COMMERCIAL"
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "원천 데이터셋 식별자(서울 열린데이터광장 Open API 서비스명). 소비 응답 provenance 의 sourceId 와 같은 값",
+            "example": "VwsmTrdarSelngQq"
+          },
+          "latestPeriodCode": {
+            "type": ["string", "null"],
+            "description": "가장 최근 적재 분기. 적재된 행이 없으면 null",
+            "example": "20262"
+          },
+          "firstPeriodCode": {
+            "type": ["string", "null"],
+            "description": "가장 오래된 적재 분기. 적재된 행이 없으면 null",
+            "example": "20211"
+          },
+          "periodCount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "적재된 분기 수",
+            "example": 22
+          },
+          "coreForDefault": {
+            "type": "boolean",
+            "description": "기본 분기 교집합에 들어가는지. 원천 중단 상한이 있는 데이터셋은 false",
+            "example": true
+          },
+          "lastPublishablePeriodCode": {
+            "type": ["string", "null"],
+            "description": "원천 중단으로 더 게시할 수 없는 마지막 분기. 상한이 없으면 null",
+            "example": "20234"
+          },
+          "publishedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "최신 분기 게시 시각. 아직 제공하지 않아 항상 null (후속 이슈)"
+          },
+          "schemaVersion": {
+            "type": ["string", "null"],
+            "description": "원천 스키마 버전. 아직 제공하지 않아 항상 null (후속 이슈)"
+          }
+        }
+      },
+      "AnalysisPeriodsResponse": {
+        "type": "object",
+        "description": "분석 기준 분기 카탈로그. 분석 API 에서 periodCode 를 생략하면 defaultPeriodCode 를 쓴다",
+        "properties": {
+          "defaultPeriodCode": {
+            "type": ["string", "null"],
+            "description": "기본 분기. 원천이 끊기지 않은 데이터셋 모두에 적재된 분기 중 가장 최근 분기. 정할 수 없으면 null",
+            "example": "20261"
+          },
+          "availablePeriodCodes": {
+            "type": "array",
+            "description": "선택 가능한 분기 목록(최신순). 원천이 끊기지 않은 데이터셋 모두에 적재된 분기",
+            "example": ["20261", "20254", "20253"],
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstPeriodCode": {
+            "type": ["string", "null"],
+            "description": "선택 가능한 가장 오래된 분기. 목록이 비면 null",
+            "example": "20211"
+          },
+          "spatialVersion": {
+            "type": "string",
+            "description": "카탈로그를 계산한 공간 스냅샷 버전(배포 설정)",
+            "example": "legacy-20233"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "카탈로그를 계산한 시각. 인스턴스 메모리 캐시라 최대 몇 분 전 값일 수 있다",
+            "example": "2026-10-01T05:12:03+09:00"
+          },
+          "datasets": {
+            "type": "array",
+            "description": "데이터셋별 적재 분기 범위",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisDatasetPeriodItem"
+            }
+          }
+        }
+      },
+      "ResponseAnalysisPeriodsResponse": {
+        "type": "object",
+        "properties": {
+          "dataHeader": {
+            "$ref": "#/components/schemas/DataHeader"
+          },
+          "dataBody": {
+            "$ref": "#/components/schemas/AnalysisPeriodsResponse"
+          }
+        }
+      },
       "CommercialComparisonResponse": {
         "type": "object",
         "description": "상권 비교 응답 DTO",
@@ -5085,6 +5693,19 @@
           "right": {
             "$ref": "#/components/schemas/CommercialComparisonTargetItem",
             "description": "우측 상권 메타 정보"
+          },
+          "periodCode": {
+            "type": "string",
+            "description": "조회 기준 분기 코드",
+            "example": "20261"
+          },
+          "serviceCode": {
+            "type": "string",
+            "description": "조회 기준 서비스 업종 코드"
+          },
+          "comparisonGuide": {
+            "$ref": "#/components/schemas/ComparisonGuideItem",
+            "description": "비교 수치와 추천 결과 해석 안내"
           },
           "comparisonSummary": {
             "type": "string",
@@ -5149,7 +5770,7 @@
           },
           "spendingMetrics": {
             "type": "array",
-            "description": "소비력 비교",
+            "description": "소비력 비교. 두 상권 중 한쪽이라도 상권 단위 소비 원천이 값을 주지 않는 분기에는 0 을 지어내지 않고 <b>빈 배열</b>로 내려간다. 행정동 대체값은 상권 간 변별력이 없어 비교에 넣지 않는다",
             "items": {
               "$ref": "#/components/schemas/ComparisonMetricItem"
             }
@@ -5232,7 +5853,7 @@
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -5242,7 +5863,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -5252,12 +5873,65 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680521
+            "example": "11680521"
           },
           "administrationName": {
             "type": "string",
             "description": "행정동명",
             "example": "역삼1동"
+          }
+        }
+      },
+      "ComparisonGuideItem": {
+        "type": "object",
+        "description": "상권 비교 수치 해석 안내",
+        "properties": {
+          "periodBasis": {
+            "type": "string",
+            "description": "조회 기간 기준 설명"
+          },
+          "serviceBasis": {
+            "type": "string",
+            "description": "조회 업종 기준 설명"
+          },
+          "differenceBasis": {
+            "type": "string",
+            "description": "차이값 계산 기준 설명"
+          },
+          "diffRateBasis": {
+            "type": "string",
+            "description": "차이율 계산 기준과 0 처리 설명"
+          },
+          "recommendationDisclaimer": {
+            "type": "string",
+            "description": "추천 결과 이용 시 주의 문구"
+          },
+          "metricGroups": {
+            "type": "array",
+            "description": "응답 필드별 지표 그룹 설명",
+            "items": {
+              "$ref": "#/components/schemas/ComparisonMetricGroupGuideItem"
+            }
+          }
+        }
+      },
+      "ComparisonMetricGroupGuideItem": {
+        "type": "object",
+        "description": "상권 비교 지표 그룹 안내",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "응답의 지표 그룹 필드명",
+            "example": "salesMetrics"
+          },
+          "name": {
+            "type": "string",
+            "description": "지표 그룹 표시명",
+            "example": "매출"
+          },
+          "description": {
+            "type": "string",
+            "description": "지표 집계 및 해석 기준"
           }
         }
       },
@@ -5288,7 +5962,27 @@
           "diffRate": {
             "type": "number",
             "format": "double",
-            "description": "차이율(%)"
+            "description": "상대 차이율(%). 우측 값이 0이면 기존 호환 규칙에 따라 0"
+          },
+          "unit": {
+            "type": "string",
+            "description": "좌측/우측 값의 표시 단위",
+            "example": "원"
+          },
+          "displayPrecision": {
+            "type": "integer",
+            "format": "int32",
+            "description": "화면 표시 권장 소수 자릿수",
+            "example": 0
+          },
+          "differenceUnit": {
+            "type": "string",
+            "description": "차이값의 표시 단위. 비중 지표는 %p",
+            "example": "%p"
+          },
+          "description": {
+            "type": "string",
+            "description": "지표의 집계 및 해석 기준"
           },
           "winnerSide": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
@@ -5320,7 +6014,7 @@
           "areaCode": {
             "type": "string",
             "description": "영역 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "areaName": {
             "type": "string",
@@ -5428,6 +6122,16 @@
           "administrationName": {
             "type": "string",
             "description": "행정동명"
+          },
+          "currentPeriodCode": {
+            "type": "string",
+            "description": "실제로 조회한 현재 기준 분기. 요청에서 currentPeriodCode 를 생략하면 서버가 정한 기본 분기",
+            "example": "20261"
+          },
+          "previousPeriodCode": {
+            "type": "string",
+            "description": "실제로 비교한 이전 분기. 요청에서 생략하면 현재 기준 분기의 직전 분기",
+            "example": "20254"
           },
           "sales": {
             "$ref": "#/components/schemas/AdministrationSalesDetailResponse",

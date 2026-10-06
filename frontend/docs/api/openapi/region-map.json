@@ -397,13 +397,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -484,13 +483,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           },
           {
             "name": "metricType",
@@ -607,13 +605,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -740,13 +737,12 @@
           {
             "name": "periodCode",
             "in": "query",
-            "description": "기준 분기 코드",
+            "description": "기준 분기 코드(YYYYQ). 미지정·빈 값이면 적재된 최신 공통 분기(GET /api/v1/commercials/periods 의 defaultPeriodCode)",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "20233"
+              "type": "string"
             },
-            "example": 20233
+            "example": 20261
           }
         ],
         "responses": {
@@ -861,9 +857,7 @@
           "resultCode": {
             "type": "string"
           },
-          "resultMessage": {
-            "type": "object"
-          }
+          "resultMessage": {}
         }
       },
       "DistrictAreaResponse": {
@@ -873,7 +867,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -900,7 +894,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680101
+            "example": "11680101"
           },
           "administrationName": {
             "type": "string",
@@ -942,7 +936,7 @@
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110125
+            "example": "3110125"
           },
           "commercialName": {
             "type": "string",
@@ -994,7 +988,7 @@
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -1004,7 +998,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -1014,7 +1008,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680101
+            "example": "11680101"
           },
           "administrationName": {
             "type": "string",
@@ -1041,7 +1035,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11110
+            "example": "11110"
           },
           "districtName": {
             "type": "string",
@@ -1051,7 +1045,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11110515
+            "example": "11110515"
           },
           "administrationName": {
             "type": "string",
@@ -1061,7 +1055,7 @@
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -1088,7 +1082,7 @@
           "districtCode": {
             "type": "string",
             "description": "자치구 코드",
-            "example": 11680
+            "example": "11680"
           },
           "districtName": {
             "type": "string",
@@ -1098,7 +1092,7 @@
           "administrationCode": {
             "type": "string",
             "description": "행정동 코드",
-            "example": 11680101
+            "example": "11680101"
           },
           "administrationName": {
             "type": "string",
@@ -1124,7 +1118,7 @@
           "areaCode": {
             "type": "string",
             "description": "영역 코드",
-            "example": 11110
+            "example": "11110"
           },
           "areaName": {
             "type": "string",
@@ -1188,47 +1182,42 @@
         "description": "후보 상권 프로필 핵심 지표 항목 DTO — 해당 분기 데이터가 없는 지표는 null 로 내려간다",
         "properties": {
           "totalSalesAmount": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "총 매출액"
           },
           "totalFootTraffic": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "총 유동인구"
           },
           "totalStoreCount": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "총 점포 수"
           },
           "similarStoreCount": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "유사 업종 점포 수"
           },
           "openingRate": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "개업률"
           },
           "closureRate": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "폐업률"
           },
           "totalResidentPopulation": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "총 거주인구"
           },
-          "monthlyAverageIncomeAmount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "월 평균 소득"
-          },
           "totalFacilityCount": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "총 주요 시설 수"
           }
@@ -1238,10 +1227,15 @@
         "type": "object",
         "description": "후보 상권 프로필 응답 DTO",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 commercial-service 가 정한 기본 분기",
+            "example": "20261"
+          },
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -1264,12 +1258,12 @@
             "description": "행정동 이름"
           },
           "centerLng": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "중심점 경도"
           },
           "centerLat": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "중심점 위도"
           },
@@ -1285,6 +1279,7 @@
             }
           },
           "keyMetrics": {
+            "type": "null",
             "$ref": "#/components/schemas/CommercialProfileKeyMetricsItem",
             "description": "핵심 지표. Feign 응답 유실 시 null 가능"
           },
@@ -1304,12 +1299,12 @@
           "policyId": {
             "type": "string",
             "description": "정책 아이디",
-            "example": 7345678901234568000
+            "example": "7345678901234567890"
           },
           "title": {
             "type": "string",
             "description": "정책명",
-            "example": 2026
+            "example": "2026 소상공인 경영개선 자금"
           },
           "organization": {
             "type": "string",
@@ -1339,7 +1334,7 @@
           "districtCode": {
             "type": "string",
             "description": "지원 대상 자치구 코드. null 이면 서울 전역/전국",
-            "example": 11680
+            "example": "11680"
           },
           "serviceCategoryCode": {
             "type": "string",
@@ -1412,17 +1407,20 @@
           "periodCode": {
             "type": "string",
             "description": "기준 분기 코드",
-            "example": 20233
+            "example": "20261"
           },
           "metricType": {
+            "type": "null",
             "$ref": "#/components/schemas/ScoreMetricMetadata",
             "description": "단일 지표 메타데이터"
           },
           "preset": {
+            "type": "null",
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
             "description": "후보 탐색 프리셋 메타데이터"
           },
           "priorityMetric": {
+            "type": "null",
             "$ref": "#/components/schemas/ScoreMetricMetadata",
             "description": "우선 반영 지표 메타데이터"
           },
@@ -1446,7 +1444,7 @@
           "areaCode": {
             "type": "string",
             "description": "영역 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "areaName": {
             "type": "string",
@@ -1478,7 +1476,7 @@
             "description": "히트맵 지표 메타데이터"
           },
           "score": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "0~100 점수"
           },
@@ -1532,6 +1530,11 @@
         "type": "object",
         "description": "상권 비교 프리뷰 응답 DTO",
         "properties": {
+          "periodCode": {
+            "type": "string",
+            "description": "실제로 조회한 기준 분기. 요청에서 periodCode 를 생략하면 commercial-service 가 정한 기본 분기",
+            "example": "20261"
+          },
           "left": {
             "$ref": "#/components/schemas/ComparePreviewTargetItem",
             "description": "좌측 상권 요약"
@@ -1600,7 +1603,7 @@
           "commercialCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "commercialName": {
             "type": "string",
@@ -1648,7 +1651,7 @@
           "areaCode": {
             "type": "string",
             "description": "상권 코드",
-            "example": 3110008
+            "example": "3110008"
           },
           "areaName": {
             "type": "string",
@@ -1656,12 +1659,12 @@
             "example": "강남역 상권"
           },
           "centerLng": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "중심점 경도"
           },
           "centerLat": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "중심점 위도"
           },
@@ -1677,7 +1680,7 @@
             }
           },
           "compositeScore": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "프리셋 가중치 기반 복합 점수 (0~100)"
           },
@@ -1696,11 +1699,11 @@
             "description": "선정 이유 한 줄 설명"
           },
           "opportunityLabel": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "기회도 해석 라벨"
           },
           "riskLabel": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "위험도 해석 라벨"
           },
           "metricBreakdown": {
@@ -1732,7 +1735,7 @@
           "periodCode": {
             "type": "string",
             "description": "기준 분기 코드",
-            "example": 20233
+            "example": "20261"
           },
           "preset": {
             "$ref": "#/components/schemas/CodeNameDescriptionMetadata",
@@ -1770,7 +1773,7 @@
             "description": "지표 메타데이터"
           },
           "score": {
-            "type": "number",
+            "type": ["number", "null"],
             "format": "double",
             "description": "0~100 정규화 점수"
           },
