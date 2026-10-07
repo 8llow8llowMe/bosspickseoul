@@ -23,6 +23,13 @@ export type CommunitySortType = 'LATEST' | 'POPULAR'
 
 export type CommunityOrderType = 'ASC' | 'DESC'
 
+/**
+ * 인기순 기간(#531, BE #472). 작성 시각 기준 롤링 기간이다 — `WEEK` 최근 7일 · `MONTH` 최근 30일 ·
+ * `ALL` 전체. 서버 기본값은 `WEEK` 라 **생략은 전체 기간이 아니다.** 라벨·URL 해석은
+ * `lib/community/popular-period.ts`.
+ */
+export type CommunityPopularPeriod = 'WEEK' | 'MONTH' | 'ALL'
+
 export type CommunityMetadata = {
   code: string
   name: string
@@ -268,11 +275,15 @@ export type CommunityCursorParams = {
 }
 
 export type CommunityListParams = CommunityCursorParams & {
+  /** `sortType=POPULAR` 일 때만 싣는다. `LATEST` 에서는 서버가 무시한다. */
+  period?: CommunityPopularPeriod
   targetType?: CommunityTargetType
   targetCode?: string
 }
 
 export type CommunitySearchParams = CommunityCursorParams & {
+  /** 목록과 같다 — 인기순 검색에만 싣는다. */
+  period?: CommunityPopularPeriod
   keyword: string
 }
 

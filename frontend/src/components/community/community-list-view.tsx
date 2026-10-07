@@ -20,6 +20,12 @@ import { useWriteFabCollapsed } from '@/hooks/use-write-fab-collapsed'
 import { formatCommunityCount, formatRelativeTime } from '@/lib/community'
 import { communityOutlinedField } from '@/lib/community/field-styles'
 import { getCommunityFeedFooter } from '@/lib/community/list-feed'
+import {
+  COMMUNITY_DEFAULT_POPULAR_PERIOD,
+  COMMUNITY_POPULAR_PERIODS,
+  getCommunityPopularEmptyTitle,
+  type CommunityPopularPeriod,
+} from '@/lib/community/popular-period'
 import type { CommunityListView as CommunityListViewMode } from '@/lib/community/community-state'
 import { COMMUNITY_HEADER_HIDDEN_SELECTOR } from '@/lib/community/hidden-header'
 import {
@@ -64,6 +70,12 @@ export type CommunityListViewProps = {
   /** 지우기 버튼. 입력값을 비우고, 검색이 걸려 있으면 검색도 푼다. */
   onSearchClear: () => void
   onViewChange: (view: CommunityListViewMode) => void
+  /**
+   * 인기 기간(#531). 인기 보기·검색어 없음일 때만 탭 줄 아래 칩 행으로 그린다. 넘기지 않으면 이번 주로
+   * 본다 — 대기 화면(fallback)처럼 기간을 모르는 곳은 손대지 않아도 된다.
+   */
+  popularPeriod?: CommunityPopularPeriod
+  onPopularPeriodChange?: (period: CommunityPopularPeriod) => void
   onEmptyAction: () => void
   onRetry: () => void
   /** 목록 끝 감시 요소가 보이면 자동으로 부른다(CM-029). 버튼은 없다. */
@@ -405,6 +417,47 @@ const Tab = styled.button<{ $selected: boolean }>`
   }
 `
 
+/*
+  인기 기간 칩 행(#531). 탭 줄 아래에 둔다 — 좌 내비가 탭 줄을 대신하는 ≥1360 에서도 기간은 내비에
+  없으므로 이 행은 숨기지 않는다. 좁은 폭에서 넘치면 줄을 바꾼다(가로 스크롤을 만들지 않는다).
+*/
+const PeriodChipRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`
+
+/*
+  모양은 작성 도움 칩(community-editor-form PromptChip — 알약·테두리·44 높이)을, 눌림은 선택 칩
+  관용구(option-picker — primary-600 테두리 · primary-100 바탕 · primary-700 글자)를 그대로 쓴다.
+  새 토큰을 만들지 않는다.
+*/
+const PeriodChip = styled.button<{ $selected: boolean }>`
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid
+    ${props =>
+      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
+  border-radius: var(--radius-pill);
+  background: ${props =>
+    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
+  color: ${props =>
+    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+  font: inherit;
+  font-size: 14px;
+  font-weight: ${props => (props.$selected ? 700 : 600)};
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  &:hover {
+    border-color: var(--color-primary-600);
+  }
+`
+
 const LikedToggle = styled.button<{ $selected: boolean }>`
   min-height: 44px;
   display: inline-flex;
@@ -713,6 +766,8 @@ export default function CommunityListView({
   onSearchSubmit,
   onSearchClear,
   onViewChange,
+  popularPeriod = COMMUNITY_DEFAULT_POPULAR_PERIOD,
+  onPopularPeriodChange,
   onEmptyAction,
   onRetry,
   onLoadMore,
@@ -755,7 +810,15 @@ export default function CommunityListView({
     searchInputRef.current?.focus()
   }
 
-  const selectedEmptyCopy = emptyCopy[emptyCause]
+  // 인기 피드가 비면 「어느 기간에」 없는지 말한다(#531). 지역·검색으로 빈 경우는 그 원인 문구가 먼저다.
+  const selectedEmptyCopy =
+    view === 'popular' && emptyCause === 'general'
+      ? {
+          ...emptyCopy.general,
+          title: getCommunityPopularEmptyTitle(popularPeriod),
+        }
+      : emptyCopy[emptyCause]
+  const showPeriodChips = view === 'popular' && !keyword
   const heading = getCommunityListHeading({ keyword, boardTargetName })
   const likedSelected = view === 'liked'
 
@@ -840,6 +903,24 @@ export default function CommunityListView({
             좋아요한 글
           </LikedToggle>
         </TabRow>
+
+        {showPeriodChips ? (
+          <PeriodChipRow aria-label="인기 기간" role="group">
+            {COMMUNITY_POPULAR_PERIODS.map(period => (
+              <PeriodChip
+                aria-pressed={popularPeriod === period.value}
+                $selected={popularPeriod === period.value}
+                key={period.value}
+                onClick={() => {
+                  onPopularPeriodChange?.(period.value)
+                }}
+                type="button"
+              >
+                {period.label}
+              </PeriodChip>
+            ))}
+          </PeriodChipRow>
+        ) : null}
 
         {/*
         피드 전체를 live region 으로 두지 않는다 — 자동 다음 쪽마다 붙은 글을 통째로 읽게 된다.

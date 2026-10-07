@@ -70,6 +70,10 @@ import {
   findCommunityListAnchorRow,
   saveCommunityListScroll,
 } from '@/lib/community/list-scroll'
+import {
+  COMMUNITY_DEFAULT_POPULAR_PERIOD,
+  type CommunityPopularPeriod,
+} from '@/lib/community/popular-period'
 import type { CommunityRecentRegion } from '@/lib/community/recent-regions'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
@@ -237,6 +241,11 @@ type CommunityListUrlAction =
   | { type: 'search'; keyword: string }
   | { type: 'view'; view: CommunityListViewMode }
   | { type: 'location'; value: CommunityLocationValue }
+  /*
+    인기 기간(#531). 상태만 바꾼다 — 기간은 목록 쿼리 키(상태 전체)에 들어가 새 무한 쿼리가
+    INITIAL_CURSOR 부터 받는다. 다른 기간의 커서를 이어 쓰지 않는다(계약)는 규칙이 따로 코드 없이 지켜진다.
+  */
+  | { type: 'period'; period: CommunityPopularPeriod }
 
 const applyCommunityListUrlAction = (
   state: CommunityListState,
@@ -249,7 +258,13 @@ const applyCommunityListUrlAction = (
       keyword: action.keyword.trim(),
       targetType: undefined,
       targetCode: undefined,
+      // 검색 화면에는 기간 칩이 없다. 검색을 지우면 이번 주부터 다시 본다.
+      period: COMMUNITY_DEFAULT_POPULAR_PERIOD,
     }
+  }
+
+  if (action.type === 'period') {
+    return { ...state, period: action.period }
   }
 
   if (action.type === 'location') {
@@ -272,6 +287,10 @@ const applyCommunityListUrlAction = (
     keyword: action.view === 'liked' ? '' : state.keyword,
     targetType: action.view === 'liked' ? undefined : state.targetType,
     targetCode: action.view === 'liked' ? undefined : state.targetCode,
+    period:
+      action.view === 'popular'
+        ? state.period
+        : COMMUNITY_DEFAULT_POPULAR_PERIOD,
   }
 }
 
@@ -303,10 +322,18 @@ export const createCommunityListRequest = (
     return { mode: 'liked', params: cursorParams }
   }
 
+  /*
+    기간은 인기순에만 싣는다(#531). 최신순에 실어도 서버가 무시하지만, 요청에 의미 없는 값을 남기지 않는다.
+    검색 인기순도 계약상 기간을 받는다 — 칩이 없어 파싱이 늘 기본값(이번 주)이고, 생략했을 때 서버
+    기본값과 같지만 화면 의도를 드러내려고 명시한다.
+  */
+  const periodParams =
+    cursorParams.sortType === 'POPULAR' ? { period: state.period } : {}
+
   if (state.keyword) {
     return {
       mode: 'search',
-      params: { ...cursorParams, keyword: state.keyword },
+      params: { ...cursorParams, ...periodParams, keyword: state.keyword },
     }
   }
 
@@ -314,6 +341,7 @@ export const createCommunityListRequest = (
     mode: 'list',
     params: {
       ...cursorParams,
+      ...periodParams,
       ...(state.targetType && state.targetCode
         ? {
             targetType: state.targetType,
@@ -956,6 +984,10 @@ export default function CommunityListPage() {
     replaceAction({ type: 'location', value })
   }
 
+  const handlePopularPeriodChange = (period: CommunityPopularPeriod) => {
+    replaceAction({ type: 'period', period })
+  }
+
   const handleEmptyAction = () => {
     if (emptyCause === 'keyword') {
       setSearchDraft({ scope: state.keyword, value: '' })
@@ -1012,6 +1044,8 @@ export default function CommunityListPage() {
         setSearchDraft({ scope: state.keyword, value })
       }}
       onViewChange={handleViewChange}
+      onPopularPeriodChange={handlePopularPeriodChange}
+      popularPeriod={state.period}
       posts={viewPosts}
       nav={
         showNav ? (

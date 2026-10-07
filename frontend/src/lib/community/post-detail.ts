@@ -13,6 +13,7 @@ import {
   parseCommunityTargetType,
   serializeCommunityListState,
 } from './community-state'
+import { COMMUNITY_DEFAULT_POPULAR_PERIOD } from './popular-period'
 
 /*
   저장 직후 updatedAt 이 createdAt 보다 몇 ms~몇 초 늦게 찍히는 경우가 있다. 그걸 「수정됨」으로
@@ -69,6 +70,7 @@ export const createCommunityRegionListHref = (
     keyword: '',
     targetType,
     targetCode,
+    period: COMMUNITY_DEFAULT_POPULAR_PERIOD,
     mock,
   }).toString()
 

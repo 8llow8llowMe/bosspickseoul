@@ -1,6 +1,7 @@
 import { districts } from '@/data/districts'
 import type { CommunityDataSource } from '@/lib/community/community-data-source'
 import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
+import { isWithinCommunityPopularPeriod } from '@/lib/community/popular-period'
 import type { ApiResponse } from '@/types/api'
 import type {
   CommunityId,
@@ -187,7 +188,9 @@ const basePosts: CommunityPostSummary[] = [
     commentCount: 1,
     viewCount: 148,
     liked: false,
-    createdAt: '2026-07-27T03:00:00.000Z',
+    // 다른 글보다 보름 앞이다 — 인기 기간(#531)에서 「이번 주」 밖 · 「이번 달」 안인 글이 하나는 있어야
+    // 목 화면에서 기간 칩을 눌렀을 때 목록이 달라진다(목 시계는 가장 늦은 기록 시각 기준이다).
+    createdAt: '2026-07-12T03:00:00.000Z',
     thumbnailUrl: null,
   },
   {
@@ -820,6 +823,26 @@ const findComment = (
   throw new Error(`댓글 ${commentId}을 찾을 수 없습니다.`)
 }
 
+/**
+ * 인기순 기간 거르기(#531). 서버처럼 `POPULAR` 에만 걸고 생략하면 이번 주다(생략 ≠ 전체 기간).
+ * 「지금」은 실제 시계가 아니라 **목 시계**다 — 시드 글이 2026-07 에 고정돼 있어 실제 시계를 쓰면
+ * 이번 주·이번 달 인기가 늘 비고, 목 화면과 e2e 고정 응답이 날짜에 따라 달라진다.
+ */
+const filterPopularPeriod = <Post extends CommunityPostSummary>(
+  state: CommunityMockState,
+  posts: Post[],
+  params: CommunityListParams | CommunitySearchParams,
+) =>
+  params.sortType === 'POPULAR'
+    ? posts.filter(post =>
+        isWithinCommunityPopularPeriod(
+          post.createdAt,
+          params.period ?? 'WEEK',
+          state.currentTimestampMs,
+        ),
+      )
+    : posts
+
 /** 응답 시점의 좋아요 상태로 `liked` 를 채운다 — 목 조회자는 늘 로그인한 목 회원이라 null 이 없다. */
 const withViewerLiked = <
   Post extends { postId: CommunityId; liked: boolean | null },
@@ -850,7 +873,9 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       return ok({
         board,
         posts: paginate(
-          filtered.map(post => withViewerLiked(state, post)),
+          filterPopularPeriod(state, filtered, params).map(post =>
+            withViewerLiked(state, post),
+          ),
           params,
         ),
       })
@@ -872,7 +897,9 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       return ok({
         board: null,
         posts: paginate(
-          filtered.map(post => withViewerLiked(state, post)),
+          filterPopularPeriod(state, filtered, params).map(post =>
+            withViewerLiked(state, post),
+          ),
           params,
         ),
       })

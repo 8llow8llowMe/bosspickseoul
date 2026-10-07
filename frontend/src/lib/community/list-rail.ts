@@ -32,12 +32,17 @@ export const getCommunityRailTarget = (state: CommunityListState) =>
     ? { targetType: state.targetType, targetCode: state.targetCode }
     : null
 
-/** 인기 글 묶음 — 같은 목록 API 를 인기순 5건으로 한 번 더 부른다. 검색어는 싣지 않는다. */
+/**
+ * 인기 글 묶음 — 같은 목록 API 를 인기순 5건으로 한 번 더 부른다. 검색어는 싣지 않는다.
+ * 기간은 피드 칩과 상관없이 **이번 주 고정**이다(#531, 결정 #3). 생략해도 서버 기본값이 이번 주지만
+ * 계약 문서가 화면 의도를 드러내도록 명시하라고 한다. 고정이라 인기 글 쿼리 키에도 기간을 넣지 않는다.
+ */
 export const createCommunityPopularParams = (
   state: CommunityListState,
 ): CommunityListParams => ({
   sortType: 'POPULAR',
   orderType: 'DESC',
+  period: 'WEEK',
   lastPostId: COMMUNITY_CURSOR_START,
   lastLikeCount: 0,
   size: COMMUNITY_POPULAR_RAIL_SIZE,
@@ -51,8 +56,9 @@ export const getCommunityPopularRailPosts = (
     ? response.dataBody.posts.contents.slice(0, COMMUNITY_POPULAR_RAIL_SIZE)
     : []
 
+/** 레일은 이번 주 고정이라 제목도 기간을 말한다 — 피드에서 다른 기간을 보는 중이어도 헷갈리지 않게. */
 export const getCommunityRailPopularTitle = (boardName: string | null) =>
-  boardName ? `${boardName} 인기 글` : '인기 글'
+  boardName ? `${boardName} 이번 주 인기 글` : '이번 주 인기 글'
 
 export const getCommunityRailAskTitle = (boardName: string | null) =>
   boardName ? `${boardName}에 대해 물어보세요` : '사장님들께 물어보세요'

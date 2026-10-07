@@ -19,6 +19,7 @@ import {
   parseCommunityListState,
   parseCommunityPostId,
   parseCommunityTargetType,
+  serializeCommunityListState,
   validateCommunityDraft,
 } from './community-state'
 
@@ -132,6 +133,56 @@ describe('community state', () => {
     })
   })
 
+  it('인기 기간은 인기 보기에서만 읽고 기본값(이번 주)은 주소에 쓰지 않는다(#531)', () => {
+    const popularMonth = parseCommunityListState(
+      new URLSearchParams(
+        'view=popular&period=MONTH&targetType=DISTRICT&targetCode=111',
+      ),
+    )
+    expect(popularMonth).toMatchObject({ view: 'popular', period: 'MONTH' })
+    expect(serializeCommunityListState(popularMonth).toString()).toBe(
+      'view=popular&targetType=DISTRICT&targetCode=111&period=MONTH',
+    )
+
+    const popularAll = parseCommunityListState(
+      new URLSearchParams('view=popular&period=ALL'),
+    )
+    expect(serializeCommunityListState(popularAll).toString()).toBe(
+      'view=popular&period=ALL',
+    )
+
+    // 기본값·잘못된 값은 이번 주이고 주소에서 빠진다.
+    for (const query of [
+      'view=popular',
+      'view=popular&period=WEEK',
+      'view=popular&period=YEAR',
+      'view=popular&period=month',
+    ]) {
+      const state = parseCommunityListState(new URLSearchParams(query))
+      expect(state.period).toBe('WEEK')
+      expect(serializeCommunityListState(state).toString()).toBe('view=popular')
+    }
+
+    // 최신·좋아요한 글·검색에는 기간 칩이 없다 — 의미 없는 값을 상태에 남기지 않는다.
+    for (const query of [
+      'period=MONTH',
+      'view=liked&period=ALL',
+      'view=popular&keyword=카페&period=MONTH',
+    ]) {
+      expect(parseCommunityListState(new URLSearchParams(query)).period).toBe(
+        'WEEK',
+      )
+    }
+    expect(
+      serializeCommunityListState({
+        view: 'latest',
+        keyword: '',
+        period: 'MONTH',
+        mock: false,
+      }).toString(),
+    ).toBe('')
+  })
+
   it('지원하는 대상 타입만 허용한다', () => {
     expect(parseCommunityTargetType('ADMINISTRATION')).toBe('ADMINISTRATION')
     expect(parseCommunityTargetType('INVALID')).toBeUndefined()
@@ -197,6 +248,7 @@ describe('community state', () => {
       keyword: '',
       targetType: 'DISTRICT' as const,
       targetCode: '111',
+      period: 'WEEK' as const,
     }
     expect(createCommunityContextKey({ ...base, mock: false })).toBe(
       createCommunityContextKey({ ...base, mock: true }),
@@ -204,6 +256,29 @@ describe('community state', () => {
     expect(createCommunityContextKey({ ...base, mock: false })).not.toBe(
       createCommunityContextKey({ ...base, targetCode: '222', mock: false }),
     )
+  })
+
+  it('context key 는 기본 기간이면 예전 모양 그대로고, 다른 기간이면 갈린다(#531)', () => {
+    const popular = {
+      view: 'popular' as const,
+      keyword: '',
+      mock: false,
+    }
+    // 이미 sessionStorage 에 저장된 스크롤·이웃 글 키를 깨지 않는다.
+    expect(createCommunityContextKey({ ...popular, period: 'WEEK' })).toBe(
+      JSON.stringify({
+        view: 'popular',
+        keyword: '',
+        targetType: null,
+        targetCode: null,
+      }),
+    )
+    expect(createCommunityContextKey({ ...popular, period: 'MONTH' })).not.toBe(
+      createCommunityContextKey({ ...popular, period: 'WEEK' }),
+    )
+    expect(
+      JSON.parse(createCommunityContextKey({ ...popular, period: 'ALL' })),
+    ).toMatchObject({ view: 'popular', period: 'ALL' })
   })
 
   it('글 링크에 목록 context와 활성 mock만 포함한다', () => {
