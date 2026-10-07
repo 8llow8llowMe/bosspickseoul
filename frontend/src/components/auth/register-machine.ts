@@ -1,5 +1,9 @@
 import { NICKNAME_MAX_LENGTH } from '@/lib/auth/nickname-rules'
 import { PASSWORD_PATTERN } from '@/lib/auth/password-rules'
+import {
+  isSignupConsentComplete,
+  type SignupConsent,
+} from '@/lib/auth/signup-consent'
 
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -48,10 +52,16 @@ export const onEmailChanged = (
     ? INITIAL_REGISTER_STATE
     : state
 
+/**
+ * 가입 버튼을 켤 수 있는가. 필수 동의 세 항목도 조건이다(#495, 계약 §0-1) —
+ * 서버도 막지만(`MEMBER_114~116`) 동의 전에는 버튼을 켜지 않는다.
+ */
 export const canSubmit = (
   state: RegisterState,
   form: RegisterForm,
+  consent: SignupConsent,
 ): boolean => {
+  if (!isSignupConsentComplete(consent)) return false
   if (state.step !== 'verified') return false
   if (form.email !== state.verifiedEmail) return false
   const name = form.name.trim()

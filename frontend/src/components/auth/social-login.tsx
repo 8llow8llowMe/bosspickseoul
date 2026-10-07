@@ -9,6 +9,13 @@ import {
   AUTH_RETURN_MAX_AGE_SECONDS,
   safeReturnPath,
 } from '@/lib/auth/return-path'
+import {
+  isSignupConsentComplete,
+  missingSignupConsent,
+  signupConsentQuery,
+  type SignupConsent,
+  type SignupConsentKey,
+} from '@/lib/auth/signup-consent'
 import type { ApiResponse } from '@/types/api'
 
 const PROVIDERS = [
@@ -38,6 +45,19 @@ const ProviderButton = styled.button`
 export type SocialLoginProps = {
   /** 로그인 후 되돌아갈 내부 경로. 홈이면 넘기지 않아도 된다. */
   returnTo?: string | null
+  /**
+   * 주어지면 **가입 모드**다(#495). 신규 회원은 authorize 를 부를 때 동의를 받으므로
+   * (계약 §0-2) 세 항목이 모두 켜졌을 때만 동의 쿼리를 실어 시작한다.
+   * 없으면(로그인 화면) 동의 없이 시작한다 — 기존 회원은 그대로 로그인된다.
+   */
+  consent?: SignupConsent
+  /**
+   * 가입 모드에서 동의가 모자란 채 눌렀을 때. 이동하지 않고 빠진 항목만 알린다 —
+   * 버튼을 비활성화하지 않는 이유는, 눌렀을 때 무엇이 빠졌는지 보여 주는 편이 낫기 때문이다.
+   */
+  onConsentIncomplete?: (missing: SignupConsentKey[]) => void
+  /** 「또는」 구분선. 카카오 버튼만 있는 화면(`/register/social`)에서는 끈다. */
+  showDivider?: boolean
 }
 
 /**
@@ -61,18 +81,29 @@ const rememberReturnPath = (returnTo: string | null | undefined) => {
   ].join('; ')
 }
 
-export default function SocialLogin({ returnTo }: SocialLoginProps = {}) {
+export default function SocialLogin({
+  returnTo,
+  consent,
+  onConsentIncomplete,
+  showDivider = true,
+}: SocialLoginProps = {}) {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const start = async (provider: string) => {
+    if (consent && !isSignupConsentComplete(consent)) {
+      onConsentIncomplete?.(missingSignupConsent(consent))
+      return
+    }
     setBusy(provider)
     setError(null)
     try {
       // 범용 BFF(`/api/bff/auth/...`)가 아니라 전용 라우트로 받는다 — 그쪽이 state 를
       // 이 브라우저의 HttpOnly 쿠키에 묶고, 콜백이 그 쿠키와 대조한다(#527).
-      const res = await fetch(`/api/auth/social/${provider}/authorize`, {
-        cache: 'no-store',
-      })
+      const query = consent ? signupConsentQuery(consent) : ''
+      const res = await fetch(
+        `/api/auth/social/${provider}/authorize${query}`,
+        { cache: 'no-store' },
+      )
       const data = (await res.json().catch(() => null)) as ApiResponse<{
         authorizationUrl: string
       }> | null
@@ -93,7 +124,7 @@ export default function SocialLogin({ returnTo }: SocialLoginProps = {}) {
   }
   return (
     <>
-      <Divider>또는</Divider>
+      {showDivider ? <Divider>또는</Divider> : null}
       {error ? <Notice $tone="error">{error}</Notice> : null}
       <List>
         {PROVIDERS.map(p => (

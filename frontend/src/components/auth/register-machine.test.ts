@@ -6,6 +6,11 @@ import {
   onEmailChanged,
   canSubmit,
 } from './register-machine'
+import {
+  EMPTY_SIGNUP_CONSENT,
+  SIGNUP_CONSENT_KEYS,
+  setAllSignupConsent,
+} from '@/lib/auth/signup-consent'
 
 const validForm = {
   email: 'a@b.com',
@@ -13,6 +18,8 @@ const validForm = {
   name: '홍길동',
   nickname: '길동짱',
 }
+
+const agreed = setAllSignupConsent(true)
 
 describe('register-machine', () => {
   it('starts at email-entry with no verified email', () => {
@@ -45,10 +52,25 @@ describe('register-machine', () => {
 
   it('canSubmit only when verified, email matches, and form valid', () => {
     const verified = onVerified(INITIAL_REGISTER_STATE, 'a@b.com')
-    expect(canSubmit(verified, validForm)).toBe(true)
-    expect(canSubmit(INITIAL_REGISTER_STATE, validForm)).toBe(false)
-    expect(canSubmit(verified, { ...validForm, email: 'x@y.com' })).toBe(false)
-    expect(canSubmit(verified, { ...validForm, password: 'weak' })).toBe(false)
-    expect(canSubmit(verified, { ...validForm, name: '' })).toBe(false)
+    expect(canSubmit(verified, validForm, agreed)).toBe(true)
+    expect(canSubmit(INITIAL_REGISTER_STATE, validForm, agreed)).toBe(false)
+    expect(
+      canSubmit(verified, { ...validForm, email: 'x@y.com' }, agreed),
+    ).toBe(false)
+    expect(
+      canSubmit(verified, { ...validForm, password: 'weak' }, agreed),
+    ).toBe(false)
+    expect(canSubmit(verified, { ...validForm, name: '' }, agreed)).toBe(false)
+  })
+
+  it('TC-CON-002 인증·입력이 모두 맞아도 동의가 하나라도 빠지면 제출할 수 없다', () => {
+    const verified = onVerified(INITIAL_REGISTER_STATE, 'a@b.com')
+
+    expect(canSubmit(verified, validForm, EMPTY_SIGNUP_CONSENT)).toBe(false)
+    for (const key of SIGNUP_CONSENT_KEYS) {
+      expect(canSubmit(verified, validForm, { ...agreed, [key]: false })).toBe(
+        false,
+      )
+    }
   })
 })

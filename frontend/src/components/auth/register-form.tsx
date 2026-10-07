@@ -17,6 +17,9 @@ import AuthShell, {
   TextInput,
 } from '@/components/auth/auth-shell'
 import GuestOnly from '@/components/auth/guest-only'
+import SignupConsentFieldset, {
+  useSignupConsentFocus,
+} from '@/components/auth/signup-consent-fieldset'
 import SocialLogin from '@/components/auth/social-login'
 import {
   EMAIL_CODE_COOLDOWN,
@@ -38,6 +41,15 @@ import {
   type RegisterForm as RegisterFormValues,
 } from '@/components/auth/register-machine'
 import { RESEND_COOLDOWN_SECONDS } from '@/lib/auth/verification-cooldown'
+import {
+  EMPTY_SIGNUP_CONSENT,
+  SOCIAL_SIGNUP_CONSENT_REQUIRED_MESSAGE,
+  isSignupConsentComplete,
+  signupConsentErrorKeys,
+  type SignupConsent,
+  type SignupConsentKey,
+} from '@/lib/auth/signup-consent'
+import { normalizeApiResponseFailure } from '@/lib/api/api-error'
 import type { ApiResponse } from '@/types/api'
 
 const INITIAL_FORM: RegisterFormValues = {
@@ -102,6 +114,8 @@ const parseJsonResponse = async (
 
 const NETWORK_ERROR_MESSAGE = '네트워크 연결을 확인한 뒤 다시 시도해주세요.'
 
+const CONSENT_ID_PREFIX = 'register-consent'
+
 export default function RegisterForm() {
   const router = useRouter()
   const [state, setState] = useState(INITIAL_REGISTER_STATE)
@@ -113,6 +127,10 @@ export default function RegisterForm() {
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [cooldown, setCooldown] = useState(0)
+  // 이메일 가입과 아래 카카오 가입이 같은 동의를 쓴다(#495).
+  const [consent, setConsent] = useState<SignupConsent>(EMPTY_SIGNUP_CONSENT)
+  const [consentInvalid, setConsentInvalid] = useState<SignupConsentKey[]>([])
+  const [socialConsentNotice, setSocialConsentNotice] = useState(false)
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -133,6 +151,26 @@ export default function RegisterForm() {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setForm(current => ({ ...current, [key]: event.target.value }))
     }
+
+  const handleConsentChange = (next: SignupConsent) => {
+    setConsent(next)
+    // 켠 항목의 강조는 바로 걷는다. 아직 꺼진 항목은 남긴다.
+    setConsentInvalid(current => current.filter(key => !next[key]))
+    if (isSignupConsentComplete(next)) setSocialConsentNotice(false)
+  }
+
+  const focusConsent = useSignupConsentFocus(CONSENT_ID_PREFIX)
+
+  /** 강조하고, 강조가 그려진 뒤 첫 항목으로 포커스를 옮긴다. */
+  const markConsentInvalid = (keys: SignupConsentKey[]) => {
+    setConsentInvalid(keys)
+    focusConsent(keys[0])
+  }
+
+  const handleSocialConsentIncomplete = (missing: SignupConsentKey[]) => {
+    setSocialConsentNotice(true)
+    markConsentInvalid(missing)
+  }
 
   const handleSendCode = async () => {
     const email = form.email.trim()
@@ -225,7 +263,7 @@ export default function RegisterForm() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!canSubmit(state, form) || isSubmitting) return
+    if (!canSubmit(state, form, consent) || isSubmitting) return
 
     setError(null)
     setIsSubmitting(true)
@@ -238,12 +276,28 @@ export default function RegisterForm() {
           password: form.password,
           name: form.name.trim(),
           nickname: form.nickname.trim(),
+          // 세 값을 각각 보낸다. 문서 판(version)은 서버가 정하므로 보내지 않는다(계약 §0).
+          termsAgreed: consent.termsAgreed,
+          privacyAgreed: consent.privacyAgreed,
+          ageOver14Confirmed: consent.ageOver14Confirmed,
         }),
       })
       const data = await parseJsonResponse(res)
 
       if (res.ok && data?.dataHeader?.success) {
         router.replace('/login')
+        return
+      }
+
+      // 동의로 거절되면 그 체크박스를 강조한다. 이메일 인증은 소비되지 않았으므로
+      // (계약 §0-1) 인증 상태는 건드리지 않는다 — 체크하고 다시 제출하면 된다.
+      const consentKeys = signupConsentErrorKeys(
+        data?.dataHeader?.resultCode,
+        consent,
+        normalizeApiResponseFailure(data, res.status)?.fieldErrors ?? [],
+      )
+      if (consentKeys.length > 0) {
+        markConsentInvalid(consentKeys)
         return
       }
 
@@ -417,18 +471,37 @@ export default function RegisterForm() {
                   onChange={handleFieldChange('nickname')}
                 />
               </Field>
-
-              <PrimaryButton
-                type="submit"
-                disabled={!canSubmit(state, form) || isSubmitting}
-              >
-                {isSubmitting ? '가입 처리 중...' : '회원가입'}
-              </PrimaryButton>
             </>
+          ) : null}
+
+          {/* 단계와 무관하게 늘 보인다 — 아래 카카오 가입도 이 동의를 쓴다(#495). */}
+          <SignupConsentFieldset
+            value={consent}
+            onChange={handleConsentChange}
+            invalid={consentInvalid}
+            idPrefix={CONSENT_ID_PREFIX}
+          />
+
+          {socialConsentNotice ? (
+            <Notice $tone="error">
+              {SOCIAL_SIGNUP_CONSENT_REQUIRED_MESSAGE}
+            </Notice>
+          ) : null}
+
+          {isVerified ? (
+            <PrimaryButton
+              type="submit"
+              disabled={!canSubmit(state, form, consent) || isSubmitting}
+            >
+              {isSubmitting ? '가입 처리 중...' : '회원가입'}
+            </PrimaryButton>
           ) : null}
         </AuthForm>
 
-        <SocialLogin />
+        <SocialLogin
+          consent={consent}
+          onConsentIncomplete={handleSocialConsentIncomplete}
+        />
 
         <FooterRow>
           <span>이미 계정이 있나요?</span>

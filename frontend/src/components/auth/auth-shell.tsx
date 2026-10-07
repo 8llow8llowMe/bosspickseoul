@@ -67,6 +67,9 @@ const Title = styled.h1`
   font-weight: 700;
   line-height: 36px;
   letter-spacing: 0;
+  /* 390 폭에서 「끝나 / 요」처럼 어절 중간에서 끊기지 않게 한다(Description 과 같다). */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 `
 
 const Description = styled.p`
@@ -201,7 +204,13 @@ export const HelperText = styled.p`
   line-height: 1.6;
 `
 
-export const Notice = styled.p<{ $tone?: 'error' | 'success' | 'info' }>`
+/**
+ * 안내 문단. error 톤만 `role="alert"` 로 보조기술에 곧바로 알린다 — info·success 는
+ * 읽는 순서에 맡긴다.
+ */
+export const Notice = styled.p.attrs<{ $tone?: 'error' | 'success' | 'info' }>(
+  props => ({ role: props.$tone === 'error' ? 'alert' : undefined }),
+)<{ $tone?: 'error' | 'success' | 'info' }>`
   padding: 12px 14px;
   border-radius: var(--radius-control);
   background: ${props => {
@@ -212,11 +221,14 @@ export const Notice = styled.p<{ $tone?: 'error' | 'success' | 'info' }>`
   color: ${props => {
     if (props.$tone === 'error') return 'var(--color-danger)'
     if (props.$tone === 'success') return 'var(--color-success)'
-    return 'var(--color-primary-700)'
+    // blue500(primary-700)은 blue50 위에서 2.47:1 이라 AA 미달이다(DESIGN.md §Secondary (Weak)).
+    return 'var(--color-text-primary-on-light)'
   }};
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-line;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 `
 
 export const FooterRow = styled.div`
