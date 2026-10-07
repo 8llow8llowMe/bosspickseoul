@@ -1,6 +1,13 @@
 import 'server-only'
 import { createHash, timingSafeEqual } from 'node:crypto'
-import type { SocialLoginErrorKind } from './social-errors'
+import { socialLoginErrorPath } from './social-errors'
+import { safeReturnPath } from './return-path'
+import {
+  SIGNUP_CONSENT_KEYS,
+  parseSocialSignupReason,
+  socialSignupPath,
+  type SocialSignupReason,
+} from './signup-consent'
 
 /**
  * 소셜 로그인 `state` 를 **이 브라우저**에 묶는다 (#527).
@@ -90,32 +97,61 @@ export const isSameState = (
 }
 
 /**
- * 콜백에서 백엔드 `/login` 이 실패했을 때 `/login?error=` 에 실을 kind.
+ * 콜백에서 백엔드 `/login` 이 실패했을 때 보낼 **경로**.
  *
  * - `AUTH_010` — state 재사용·만료. 쿠키 대조 실패와 같은 안내를 쓴다.
- * - `AUTH_021`/`AUTH_022` — 신규 회원인데 동의가 부족하다(계약 §0-2).
- *   #495 가 동의 화면으로 보내도록 이 함수만 바꾼다.
+ * - `AUTH_021` — 신규 회원인데 문서 동의가 없다·부족하다 → 동의 화면 `reason=terms`.
+ * - `AUTH_022` — 문서 동의는 했지만 만 14세 미확인 → 동의 화면 `reason=age`.
+ *   인가코드는 1회용이라 동의 화면은 반드시 authorize 부터 다시 시작한다(계약 §0-2, #495).
+ *   복귀 경로는 콜백이 쿠키를 지웠으므로 `redirect` 로 넘겨 동의 화면이 다시 남기게 한다.
+ * - 그 밖 — `/login?error=social`.
+ *
+ * `returnPath` 는 호출부가 `safeReturnPath` 로 거른 값이어야 한다.
  */
 export const socialCallbackFailure = (
   resultCode: string | null | undefined,
-): SocialLoginErrorKind => {
+  { provider, returnPath }: { provider: string; returnPath: string },
+): string => {
   switch (resultCode) {
     case 'AUTH_010':
-      return 'social_state'
+      return socialLoginErrorPath('social_state')
     case 'AUTH_021':
+      return socialSignupPath({ provider, reason: 'terms', returnPath })
     case 'AUTH_022':
-      return 'social_signup'
+      return socialSignupPath({ provider, reason: 'age', returnPath })
     default:
-      return 'social'
+      return socialLoginErrorPath('social')
   }
 }
 
-/** 선언 순서 = 백엔드 오류 순서(계약 §0-1). */
-const CONSENT_KEYS = [
-  'termsAgreed',
-  'privacyAgreed',
-  'ageOver14Confirmed',
-] as const
+type SearchParamValue = string | string[] | undefined
+
+/** 같은 키가 여러 번 오면(배열) 믿지 않는다. */
+const single = (value: SearchParamValue): string | undefined =>
+  typeof value === 'string' ? value : undefined
+
+/**
+ * 카카오 첫 가입 동의 화면(`/register/social`) 쿼리를 거른다 (#495).
+ *
+ * - `provider` — 화이트리스트 밖이면 `null`(화면은 `/register` 로 보낸다)
+ * - `reason` — `terms` | `age`, 그 밖은 `terms`
+ * - `redirect` — `safeReturnPath` 를 거친 복귀 경로. 카카오 버튼이 쿠키에 다시 남긴다
+ */
+export const resolveSocialSignupQuery = (
+  searchParams: Record<string, SearchParamValue>,
+): {
+  provider: string
+  reason: SocialSignupReason
+  returnTo: string
+} | null => {
+  const provider = single(searchParams.provider)
+  if (!provider || !SOCIAL_PROVIDERS.has(provider)) return null
+  return {
+    provider,
+    reason: parseSocialSignupReason(single(searchParams.reason)),
+    returnTo: safeReturnPath(single(searchParams.redirect)),
+  }
+}
 
 /**
  * authorize 요청에서 백엔드로 넘길 동의 쿼리만 골라 낸다.
@@ -125,7 +161,7 @@ const CONSENT_KEYS = [
  */
 export const pickConsentQuery = (searchParams: URLSearchParams): string => {
   const picked = new URLSearchParams()
-  for (const key of CONSENT_KEYS) {
+  for (const key of SIGNUP_CONSENT_KEYS) {
     if (searchParams.get(key) === 'true') picked.set(key, 'true')
   }
   const query = picked.toString()

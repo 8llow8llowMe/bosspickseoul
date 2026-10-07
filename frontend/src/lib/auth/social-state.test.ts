@@ -8,6 +8,7 @@ import {
   extractStateFromAuthorizationUrl,
   isSameState,
   pickConsentQuery,
+  resolveSocialSignupQuery,
   socialCallbackFailure,
   socialStateCookieOptions,
 } from './social-state'
@@ -124,20 +125,37 @@ describe('isSameState', () => {
   })
 })
 
-describe('socialCallbackFailure', () => {
-  it('AUTH_010(state 재사용·만료)은 social_state', () => {
-    expect(socialCallbackFailure('AUTH_010')).toBe('social_state')
+describe('socialCallbackFailure — 실패 경로', () => {
+  const at = (resultCode: string | null | undefined, returnPath = '/') =>
+    socialCallbackFailure(resultCode, { provider: 'kakao', returnPath })
+
+  it('AUTH_010(state 재사용·만료)은 /login?error=social_state', () => {
+    expect(at('AUTH_010')).toBe('/login?error=social_state')
   })
 
-  it('AUTH_021·AUTH_022(신규 가입 동의 부족)는 social_signup', () => {
-    expect(socialCallbackFailure('AUTH_021')).toBe('social_signup')
-    expect(socialCallbackFailure('AUTH_022')).toBe('social_signup')
+  it('AUTH_021(문서 동의 부족)은 동의 화면 reason=terms', () => {
+    expect(at('AUTH_021')).toBe('/register/social?provider=kakao&reason=terms')
   })
 
-  it('그 밖·코드 없음은 social', () => {
-    expect(socialCallbackFailure('AUTH_001')).toBe('social')
-    expect(socialCallbackFailure(null)).toBe('social')
-    expect(socialCallbackFailure(undefined)).toBe('social')
+  it('AUTH_022(만 14세 미확인)는 동의 화면 reason=age', () => {
+    expect(at('AUTH_022')).toBe('/register/social?provider=kakao&reason=age')
+  })
+
+  it('동의 화면으로 보낼 때 복귀 경로를 redirect 로 넘긴다', () => {
+    expect(at('AUTH_021', '/community?tab=1')).toBe(
+      '/register/social?provider=kakao&reason=terms&redirect=%2Fcommunity%3Ftab%3D1',
+    )
+  })
+
+  it('로그인 화면으로 보낼 때는 복귀 경로를 싣지 않는다', () => {
+    expect(at('AUTH_010', '/community')).toBe('/login?error=social_state')
+    expect(at('AUTH_001', '/community')).toBe('/login?error=social')
+  })
+
+  it('그 밖·코드 없음은 /login?error=social', () => {
+    expect(at('AUTH_001')).toBe('/login?error=social')
+    expect(at(null)).toBe('/login?error=social')
+    expect(at(undefined)).toBe('/login?error=social')
   })
 })
 
@@ -169,5 +187,39 @@ describe('pickConsentQuery', () => {
 
   it('동의 쿼리가 없으면 빈 문자열', () => {
     expect(pickConsentQuery(new URLSearchParams())).toBe('')
+  })
+})
+
+describe('resolveSocialSignupQuery — /register/social 쿼리', () => {
+  it('provider 가 화이트리스트 밖이거나 없으면 null', () => {
+    expect(resolveSocialSignupQuery({ provider: 'evil' })).toBeNull()
+    expect(resolveSocialSignupQuery({})).toBeNull()
+    expect(resolveSocialSignupQuery({ provider: ['evil', 'kakao'] })).toBeNull()
+  })
+
+  it('reason 은 terms·age 만, 그 밖은 terms 로 본다', () => {
+    expect(
+      resolveSocialSignupQuery({ provider: 'kakao', reason: 'age' })?.reason,
+    ).toBe('age')
+    expect(
+      resolveSocialSignupQuery({ provider: 'kakao', reason: 'evil' })?.reason,
+    ).toBe('terms')
+    expect(resolveSocialSignupQuery({ provider: 'kakao' })?.reason).toBe(
+      'terms',
+    )
+  })
+
+  it('redirect 는 safeReturnPath 를 거친다', () => {
+    expect(
+      resolveSocialSignupQuery({ provider: 'kakao', redirect: '/community' })
+        ?.returnTo,
+    ).toBe('/community')
+    for (const evil of ['https://evil.example', '//evil.example', '/login']) {
+      expect(
+        resolveSocialSignupQuery({ provider: 'kakao', redirect: evil })
+          ?.returnTo,
+      ).toBe('/')
+    }
+    expect(resolveSocialSignupQuery({ provider: 'kakao' })?.returnTo).toBe('/')
   })
 })
