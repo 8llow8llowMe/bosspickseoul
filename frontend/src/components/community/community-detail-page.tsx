@@ -30,6 +30,10 @@ import {
   parseCommunityTargetType,
   type CommunityViewer,
 } from '@/lib/community/community-state'
+import {
+  COMMUNITY_DEFAULT_POPULAR_PERIOD,
+  parseCommunityPopularPeriod,
+} from '@/lib/community/popular-period'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ApiResponse } from '@/types/api'
 import type {
@@ -367,6 +371,7 @@ type CommunityContextValue = {
   keyword?: unknown
   targetType?: unknown
   targetCode?: unknown
+  period?: unknown
 }
 
 export const createCommunityDetailListHref = (
@@ -400,6 +405,20 @@ export const createCommunityDetailListHref = (
       } else if (view !== 'liked' && targetType && targetCode && !keyword) {
         params.set('targetType', targetType)
         params.set('targetCode', targetCode)
+      }
+
+      // 보던 인기 기간으로 돌아간다(#531). 맥락 키에는 기본값이 아닐 때만 들어 있다.
+      const period =
+        typeof value.period === 'string'
+          ? parseCommunityPopularPeriod(value.period)
+          : COMMUNITY_DEFAULT_POPULAR_PERIOD
+
+      if (
+        view === 'popular' &&
+        !keyword &&
+        period !== COMMUNITY_DEFAULT_POPULAR_PERIOD
+      ) {
+        params.set('period', period)
       }
     } catch {
       // Malformed navigation context falls back to the unfiltered list.

@@ -25,6 +25,7 @@ import type {
 
 import {
   CommunityDetailQueryError,
+  createCommunityDetailListHref,
   createCommunityRelatedParams,
   getCommunityPostLiked,
   isCommunityDetailUnauthorizedError,
@@ -857,6 +858,38 @@ describe('community-detail-bottom-bar.tsx 소스 — 규칙', () => {
 })
 
 describe('community detail helpers', () => {
+  it('returns to the popular feed with the period it came from (#531)', () => {
+    const from = (value: Record<string, unknown>) => JSON.stringify(value)
+
+    expect(
+      createCommunityDetailListHref(
+        from({
+          view: 'popular',
+          keyword: '',
+          targetType: 'DISTRICT',
+          targetCode: '11680',
+          period: 'MONTH',
+        }),
+        true,
+      ),
+    ).toBe(
+      '/community/list?view=popular&targetType=DISTRICT&targetCode=11680&period=MONTH&mock=1',
+    )
+    // 기본 기간(옛 맥락 키에는 period 가 없다)·잘못된 값·인기 아닌 보기·검색에는 싣지 않는다.
+    expect(
+      createCommunityDetailListHref(from({ view: 'popular' }), false),
+    ).toBe('/community/list?view=popular')
+    for (const value of [
+      { view: 'popular', period: 'YEAR' },
+      { view: 'latest', period: 'ALL' },
+      { view: 'popular', keyword: '점심', period: 'ALL' },
+    ]) {
+      expect(createCommunityDetailListHref(from(value), false)).not.toContain(
+        'period=',
+      )
+    }
+  })
+
   const detailResponse: CommunityPostDetailResponse = {
     dataHeader: successHeader,
     dataBody: structuredClone(detail),

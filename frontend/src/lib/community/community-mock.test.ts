@@ -252,9 +252,11 @@ describe('community mock source', () => {
   it('LATEST는 postId, POPULAR는 좋아요 수와 postId 내림차순으로 정렬한다', async () => {
     const source = createCommunityMockSource()
     const latest = await source.getPosts(cursor())
-    const popular = await source.getPosts(
-      cursor({ sortType: 'POPULAR', lastLikeCount: 0 }),
-    )
+    // 정렬만 본다 — 기간(#531)으로 거르지 않게 전체 기간으로 부른다.
+    const popular = await source.getPosts({
+      ...cursor({ sortType: 'POPULAR', lastLikeCount: 0 }),
+      period: 'ALL',
+    })
 
     expect(latest.dataBody.posts.contents.map(post => post.postId)).toEqual([
       '9',
@@ -278,6 +280,30 @@ describe('community mock source', () => {
       '1',
       '9',
     ])
+  })
+
+  it('POPULAR 는 기간 안에 쓴 글만 준다 — 생략하면 이번 주, LATEST 는 기간을 무시한다(#531)', async () => {
+    const source = createCommunityMockSource()
+    const ids = async (params: Parameters<typeof source.getPosts>[0]) =>
+      (await source.getPosts(params)).dataBody.posts.contents.map(
+        post => post.postId,
+      )
+    const popular = cursor({ sortType: 'POPULAR' })
+
+    // 글 4 는 목 시계(가장 늦은 기록 시각) 기준 15일 전에 썼다 — 이번 주 밖, 이번 달 안.
+    expect(fixturePost('4').createdAt).toBe('2026-07-12T03:00:00.000Z')
+    expect(await ids({ ...popular, period: 'WEEK' })).not.toContain('4')
+    expect(await ids(popular)).not.toContain('4')
+    expect(await ids({ ...popular, period: 'MONTH' })).toContain('4')
+    expect(await ids({ ...popular, period: 'ALL' })).toHaveLength(9)
+    expect(await ids({ ...cursor(), period: 'WEEK' })).toContain('4')
+
+    const search = await source.searchPosts({
+      ...popular,
+      period: 'WEEK',
+      keyword: '마포구',
+    })
+    expect(search.dataBody.posts.contents).toEqual([])
   })
 
   it('인기순 커서의 좋아요 수와 게시글 ID 뒤에서 다음 페이지를 시작한다', async () => {

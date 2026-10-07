@@ -15,6 +15,7 @@ import type {
   CommunityReportCreateRequest,
   CommunitySortType,
   CommunityOrderType,
+  CommunityPopularPeriod,
   CommunityTargetType,
 } from '../../src/types/community'
 
@@ -88,6 +89,15 @@ const readCursor = (search: URLSearchParams): CommunityCursorParams => ({
   size: Number(search.get('size') ?? 10),
 })
 
+/**
+ * 인기순 기간(#531). 화면이 보낸 값만 옮긴다 — 없으면 싣지 않아 목 소스가 서버처럼 이번 주로 읽는다.
+ * 값 검증은 하지 않는다(서버의 400 을 흉내 낼 고정 응답이 아직 없다).
+ */
+const readPeriod = (search: URLSearchParams) => {
+  const period = search.get('period') as CommunityPopularPeriod | null
+  return period ? { period } : {}
+}
+
 const readBody = <T>(request: Request): T => request.postDataJSON() as T
 
 /** 멀티파트 본문에서 파일 이름만 읽는다 — 목 업로드는 이름으로 키를 만들 뿐 내용을 보지 않는다. */
@@ -119,6 +129,7 @@ const handleCommunity = async (
       const targetCode = search.get('targetCode')
       return source.getPosts({
         ...readCursor(search),
+        ...readPeriod(search),
         ...(targetType ? { targetType } : {}),
         ...(targetCode ? { targetCode } : {}),
       })
@@ -132,6 +143,7 @@ const handleCommunity = async (
   if (postId === 'search' && method === 'GET') {
     return source.searchPosts({
       ...readCursor(search),
+      ...readPeriod(search),
       keyword: search.get('keyword') ?? '',
     })
   }

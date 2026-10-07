@@ -45,6 +45,7 @@ const contextKey = createCommunityContextKey({
   keyword: '',
   targetType: undefined,
   targetCode: undefined,
+  period: 'WEEK',
   mock: true,
 })
 
@@ -409,6 +410,75 @@ describe('CommunityListView', () => {
     expect(latest).not.toContain('data-post-rank')
   })
 
+  it('shows the popular period chips under the tabs only in the popular feed without a keyword (#531)', () => {
+    const onPopularPeriodChange = vi.fn()
+    const { markup } = renderWithStyles({
+      view: 'popular',
+      popularPeriod: 'MONTH',
+      onPopularPeriodChange,
+    })
+    const group = markup.match(
+      /<div[^>]*aria-label="인기 기간"[^>]*>.*?<\/div>/,
+    )?.[0]
+
+    expect(group).toBeDefined()
+    expect(group).toContain('role="group"')
+    expect(group).toMatch(/aria-pressed="false"[^>]*>이번 주<\/button>/)
+    expect(group).toMatch(/aria-pressed="true"[^>]*>이번 달<\/button>/)
+    expect(group).toMatch(/aria-pressed="false"[^>]*>전체 기간<\/button>/)
+    // 칩 행은 탭 줄 다음, 피드 앞이다.
+    expect(markup.indexOf('data-community-tab-row')).toBeLessThan(
+      markup.indexOf('aria-label="인기 기간"'),
+    )
+    expect(markup.indexOf('aria-label="인기 기간"')).toBeLessThan(
+      markup.indexOf('aria-label="커뮤니티 피드"'),
+    )
+
+    for (const overrides of [
+      { view: 'latest' as const },
+      { view: 'liked' as const },
+      { view: 'popular' as const, keyword: '점심' },
+    ]) {
+      expect(renderWithStyles(overrides).markup).not.toContain(
+        'aria-label="인기 기간"',
+      )
+    }
+  })
+
+  it('defaults the period chips to this week', () => {
+    const { markup } = renderWithStyles({ view: 'popular' })
+
+    expect(markup).toMatch(/aria-pressed="true"[^>]*>이번 주<\/button>/)
+  })
+
+  it('reuses the pill chip tokens for the period chips, no new tokens', () => {
+    const { styles } = renderWithStyles({ view: 'popular' })
+    const compact = styles.replace(/\s+/g, '')
+
+    expect(compact).toContain('border-radius:var(--radius-pill)')
+    expect(compact).toContain('background:var(--color-primary-100)')
+    expect(compact).toContain('border:1pxsolidvar(--color-primary-600)')
+  })
+
+  it('names the popular period in the empty state', () => {
+    const empty = (popularPeriod: 'WEEK' | 'MONTH' | 'ALL') =>
+      renderWithStyles({
+        view: 'popular',
+        status: 'empty',
+        posts: [],
+        popularPeriod,
+      }).markup
+
+    expect(empty('WEEK')).toContain('이번 주 인기 글이 아직 없어요')
+    expect(empty('MONTH')).toContain('이번 달 인기 글이 아직 없어요')
+    expect(empty('ALL')).toContain('인기 글이 아직 없어요')
+    expect(empty('ALL')).not.toContain('전체 기간 인기 글')
+    // 최신 보기는 예전 문구 그대로다.
+    expect(renderWithStyles({ status: 'empty', posts: [] }).markup).toContain(
+      '아직 등록된 이야기가 없어요',
+    )
+  })
+
   it('renders encoded context and mock mode in target post links', () => {
     const { markup } = renderWithStyles()
     const expectedHref = posts[0].href.replaceAll('&', '&amp;')
@@ -721,6 +791,7 @@ describe('community list container helpers', () => {
     keyword: '',
     targetType: undefined,
     targetCode: undefined,
+    period: 'WEEK',
     mock: false,
   }
 
@@ -749,6 +820,7 @@ describe('community list container helpers', () => {
       params: {
         sortType: 'POPULAR',
         orderType: 'DESC',
+        period: 'WEEK',
         lastPostId: '7',
         lastLikeCount: 31,
         size: 20,
@@ -1105,6 +1177,115 @@ describe('community list container helpers', () => {
       errorMessage: null,
       loadMoreErrorMessage: '다음 목록 실패',
     })
+  })
+
+  it('sends the popular period only with POPULAR requests (#531)', () => {
+    const cursor = { lastPostId: '0', lastLikeCount: 0 }
+
+    expect(
+      createCommunityListRequest(
+        {
+          ...baseState,
+          view: 'popular',
+          period: 'MONTH',
+          targetType: 'DISTRICT',
+          targetCode: '11680',
+        },
+        cursor,
+      ),
+    ).toEqual({
+      mode: 'list',
+      params: {
+        sortType: 'POPULAR',
+        orderType: 'DESC',
+        period: 'MONTH',
+        lastPostId: '0',
+        lastLikeCount: 0,
+        size: 20,
+        targetType: 'DISTRICT',
+        targetCode: '11680',
+      },
+    })
+    expect(
+      createCommunityListRequest(
+        { ...baseState, view: 'popular', period: 'ALL' },
+        cursor,
+      ).params,
+    ).toMatchObject({ sortType: 'POPULAR', period: 'ALL' })
+    // 최신·좋아요한 글은 기간이 없다(서버도 무시한다) — 상태에 값이 남아 있어도 싣지 않는다.
+    for (const view of ['latest', 'liked'] as const) {
+      expect(
+        createCommunityListRequest(
+          { ...baseState, view, period: 'MONTH' },
+          cursor,
+        ).params,
+      ).not.toHaveProperty('period')
+    }
+  })
+
+  it('restarts the popular feed from the first cursor when the period changes (#531)', () => {
+    const viewer = { authenticated: false, memberId: null }
+    const week = { ...baseState, view: 'popular' as const }
+    const month = { ...week, period: 'MONTH' as const }
+
+    // 기간은 상태의 일부라 목록 키가 바뀐다 — React Query 가 새 무한 쿼리를 initialPageParam 부터 다시 받는다.
+    expect(createCommunityListQueryKey(month, viewer)).not.toEqual(
+      createCommunityListQueryKey(week, viewer),
+    )
+    expect(createCommunityContextKey(month)).not.toBe(
+      createCommunityContextKey(week),
+    )
+  })
+
+  it('creates period URLs that keep the target and drop the default (#531)', () => {
+    const popular = {
+      ...baseState,
+      view: 'popular' as const,
+      targetType: 'DISTRICT' as const,
+      targetCode: '11680',
+      mock: true,
+    }
+
+    expect(
+      createCommunityListActionHref('/community/list', popular, {
+        type: 'period',
+        period: 'MONTH',
+      }),
+    ).toBe(
+      '/community/list?view=popular&targetType=DISTRICT&targetCode=11680&period=MONTH&mock=1',
+    )
+    expect(
+      createCommunityListActionHref(
+        '/community/list',
+        { ...popular, period: 'ALL' },
+        { type: 'period', period: 'WEEK' },
+      ),
+    ).toBe(
+      '/community/list?view=popular&targetType=DISTRICT&targetCode=11680&mock=1',
+    )
+    // 다른 기간을 보던 중 지역을 바꿔도 기간은 남는다(계약상 함께 쓸 수 있다).
+    expect(
+      createCommunityListActionHref(
+        '/community/list',
+        { ...popular, period: 'ALL' },
+        { type: 'location', value: {} },
+      ),
+    ).toBe('/community/list?view=popular&period=ALL&mock=1')
+    // 검색·다른 보기로 가면 기본값으로 돌아간다.
+    expect(
+      createCommunityListActionHref(
+        '/community/list',
+        { ...popular, period: 'ALL' },
+        { type: 'search', keyword: '점심' },
+      ),
+    ).toBe('/community/list?view=popular&keyword=%EC%A0%90%EC%8B%AC&mock=1')
+    expect(
+      createCommunityListActionHref(
+        '/community/list',
+        { ...popular, period: 'ALL' },
+        { type: 'view', view: 'latest' },
+      ),
+    ).toBe('/community/list?targetType=DISTRICT&targetCode=11680&mock=1')
   })
 
   it('serializes only normalized state and drops legacy or conflicting params', () => {

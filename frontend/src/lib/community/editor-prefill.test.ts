@@ -250,6 +250,7 @@ describe('createCommunityListWriteHref — 목록의 글쓰기 링크', () => {
     keyword: '',
     targetType: 'DISTRICT' as const,
     targetCode: '11200',
+    period: 'WEEK' as const,
     mock: false,
   }
 

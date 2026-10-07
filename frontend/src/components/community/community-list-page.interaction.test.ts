@@ -19,13 +19,16 @@ import type { CommunityListParams } from '@/types/community'
 */
 
 const searchBox = vi.hoisted(() => ({ current: 'mock=1' }))
+const replacedHrefs = vi.hoisted(() => [] as string[])
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/community/list',
   useSearchParams: () => new URLSearchParams(searchBox.current),
   useRouter: () => ({
     push: () => undefined,
-    replace: () => undefined,
+    replace: (href: string) => {
+      replacedHrefs.push(href)
+    },
     back: () => undefined,
   }),
 }))
@@ -83,6 +86,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  replacedHrefs.length = 0
   cleanup()
   vi.restoreAllMocks()
   window.localStorage.clear()
@@ -146,7 +150,7 @@ describe('CommunityListPage — 우 레일', () => {
     await waitFor(() => {
       expect(
         container.querySelector('[data-community-list-rail]')?.textContent,
-      ).toContain('강남구 인기 글')
+      ).toContain('강남구 이번 주 인기 글')
     })
 
     expect(popularCalls(getPosts)[0]).toMatchObject({
@@ -234,6 +238,72 @@ describe('CommunityListPage — 우 레일', () => {
       cleanup()
       getPosts.mockClear()
     }
+  })
+})
+
+/*
+  인기 기간(#531). 피드는 주소의 기간으로 처음 쪽부터 받고, 레일은 피드 기간과 상관없이 이번 주다.
+  칩을 누르면 주소만 바꾼다 — 다시 받는 것은 그 주소로 바뀐 상태(쿼리 키)가 맡는다.
+*/
+describe('CommunityListPage — 인기 기간', () => {
+  const feedCalls = () =>
+    (getPosts.mock.calls as Array<[CommunityListParams]>)
+      .map(([params]) => params)
+      .filter(params => params.size === 20)
+
+  it('asks the feed for the URL period from the first cursor and keeps the rail on this week', async () => {
+    const { container } = renderPage(1200, 'mock=1&view=popular&period=MONTH')
+
+    await waitFor(() => {
+      expect(
+        container.querySelector('[data-community-list-rail] ol'),
+      ).not.toBeNull()
+    })
+
+    expect(feedCalls()[0]).toMatchObject({
+      sortType: 'POPULAR',
+      period: 'MONTH',
+      lastPostId: '0',
+      lastLikeCount: 0,
+    })
+    expect(popularCalls(getPosts)[0]).toMatchObject({
+      sortType: 'POPULAR',
+      period: 'WEEK',
+    })
+    // 목 글 4 는 이번 주 밖 · 이번 달 안이다 — 이번 달 피드에는 있다.
+    expect(
+      container.querySelector('[data-community-post-id="4"]'),
+    ).not.toBeNull()
+    expect(
+      container.querySelector('[data-community-list-rail]')?.textContent,
+    ).toContain('이번 주 인기 글')
+
+    const group = container.querySelector('[aria-label="인기 기간"]')!
+    expect(group.querySelector('[aria-pressed="true"]')?.textContent).toBe(
+      '이번 달',
+    )
+    fireEvent.click(
+      [...group.querySelectorAll('button')].find(
+        button => button.textContent === '전체 기간',
+      )!,
+    )
+    expect(replacedHrefs).toEqual([
+      '/community/list?view=popular&period=ALL&mock=1',
+    ])
+  })
+
+  it('leaves this week out of the URL and the post written two weeks ago out of the feed', async () => {
+    const { container } = renderPage(390, 'mock=1&view=popular')
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-community-post-id]')).not.toBeNull()
+    })
+
+    expect(feedCalls()[0]).toMatchObject({
+      sortType: 'POPULAR',
+      period: 'WEEK',
+    })
+    expect(container.querySelector('[data-community-post-id="4"]')).toBeNull()
   })
 })
 

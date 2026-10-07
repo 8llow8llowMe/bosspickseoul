@@ -188,6 +188,8 @@ describe('community API', () => {
       lastPostId: string
       lastLikeCount: number
       size: number
+      /* 인기순 기간(#531, BE #472). 생략하면 서버가 WEEK 로 읽는다. */
+      period?: 'WEEK' | 'MONTH' | 'ALL'
       targetType?: 'DISTRICT' | 'ADMINISTRATION' | 'COMMERCIAL'
       targetCode?: string
     }>()
@@ -238,6 +240,7 @@ describe('community API', () => {
       lastPostId: string
       lastLikeCount: number
       size: number
+      period?: 'WEEK' | 'MONTH' | 'ALL'
       keyword: string
     }>()
     expectTypeOf<CommunityCommentsBody>().toEqualTypeOf<ExpectedCommentsBody>()

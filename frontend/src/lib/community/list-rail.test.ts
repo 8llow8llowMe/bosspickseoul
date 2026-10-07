@@ -24,6 +24,7 @@ const baseState: CommunityListState = {
   keyword: '',
   targetType: undefined,
   targetCode: undefined,
+  period: 'WEEK',
   mock: false,
 }
 
@@ -41,15 +42,26 @@ describe('list rail breakpoints', () => {
 })
 
 describe('createCommunityPopularParams', () => {
-  it('asks the list API for five popular posts from the first page', () => {
+  it('asks the list API for five popular posts of this week from the first page', () => {
     expect(COMMUNITY_POPULAR_RAIL_SIZE).toBe(5)
     expect(createCommunityPopularParams(baseState)).toEqual({
       sortType: 'POPULAR',
       orderType: 'DESC',
+      period: 'WEEK',
       lastPostId: COMMUNITY_CURSOR_START,
       lastLikeCount: 0,
       size: 5,
     })
+  })
+
+  it('keeps the rail on this week even while the feed shows another period (#531)', () => {
+    expect(
+      createCommunityPopularParams({
+        ...baseState,
+        view: 'popular',
+        period: 'ALL',
+      }),
+    ).toMatchObject({ sortType: 'POPULAR', period: 'WEEK' })
   })
 
   it('scopes to the selected target', () => {
@@ -122,8 +134,10 @@ describe('getCommunityPopularRailPosts', () => {
 
 describe('rail copy', () => {
   it('titles popular posts by the board name when known', () => {
-    expect(getCommunityRailPopularTitle('성동구')).toBe('성동구 인기 글')
-    expect(getCommunityRailPopularTitle(null)).toBe('인기 글')
+    expect(getCommunityRailPopularTitle('성동구')).toBe(
+      '성동구 이번 주 인기 글',
+    )
+    expect(getCommunityRailPopularTitle(null)).toBe('이번 주 인기 글')
   })
 
   it('asks about the board when known, otherwise the owners', () => {
