@@ -27,7 +27,7 @@
 가입은 **이용약관 동의 · 개인정보 처리방침 동의 · 만 14세 이상 확인** 세 가지를 모두 받아야 성립한다.
 백엔드는 가입에 성공한 순간 세 항목을 **동의한 문서 판(version)과 같은 시각**으로 동의 이력에 남긴다.
 판은 서버 설정(`legal.terms-version` / `legal.privacy-version`)으로 정해지므로 **프론트가 판을 보내지 않는다.**
-두 값은 `src/lib/legal/terms-of-service.ts` · `privacy-policy.ts` 의 `version` 과 같아야 한다(현재 `1.0` / `1.1`).
+두 값은 `src/lib/legal/terms-of-service.ts` · `privacy-policy.ts` 의 `version` 과 같아야 한다(현재 `1.0` / `1.2`).
 약관·처리방침을 개정하면 프론트 상수와 백엔드 설정을 같은 배포에 함께 바꾼다.
 
 ### 0-1. 일반 가입 (`POST /api/v1/members/signup`)

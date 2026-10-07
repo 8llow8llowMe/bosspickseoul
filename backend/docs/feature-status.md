@@ -389,7 +389,7 @@ prod 는 배포 전 `scripts/migration/member-consent-table-runbook.sql` 을 먼
 - `GET /api/v1/auth/{provider}/login` — 신규 회원 생성 때만 동의 검사(`AUTH_021` 동의 없음, `AUTH_022` 만 14세 미확인)
 
 **DB 테이블**: `member_consent` — 가입 1건당 `TERMS`/`PRIVACY`/`AGE_OVER_14` 3행, 같은 `agreed_at`, 동의한 문서 판
-(`legal.terms-version` `"1.0"` / `legal.privacy-version` `"1.1"`, `AGE_OVER_14` 는 이용약관 판)
+(`legal.terms-version` `"1.0"` / `legal.privacy-version` `"1.2"`, `AGE_OVER_14` 는 이용약관 판)
 
 **핵심 파일 (`domainlayer/member/`, `domainlayer/auth/`)**:
 - `member/application/service/processor/MemberConsentProcessor.java` — 이력 생성 규칙의 단일 지점 (일반·개발용·소셜 가입 공용)

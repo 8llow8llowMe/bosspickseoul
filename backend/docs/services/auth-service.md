@@ -339,7 +339,7 @@
   DDL 을 런북과 컬럼·타입·길이·NOT NULL 단위로 대조하고, enum 저장 형식(STRING + VARCHAR)을 어노테이션으로 고정한다.
 
 **문서 판 설정**
-- `legal.terms-version`(현재 `"1.0"`), `legal.privacy-version`(현재 `"1.1"`) — local·dev·prod yml 에 같은 값으로 둔다.
+- `legal.terms-version`(현재 `"1.0"`), `legal.privacy-version`(현재 `"1.2"`) — local·dev·prod yml 에 같은 값으로 둔다.
   정본은 프론트 `frontend/src/lib/legal/{terms-of-service,privacy-policy}.ts` 의 `version`. 개정하면 같은 배포에 함께 바꾼다.
 - 비밀값이 아니고 프론트 코드와 함께 움직이는 값이라 Vault env 가 아니라 yml 에 직접 적는다. `1.10` 이 숫자 `1.1` 로
   읽히지 않게 따옴표로 감싼다. 세 프로필 값이 같은지는 `LegalPropertiesTest` 가 본다.
@@ -360,7 +360,7 @@
 - **판·시각은 동의한 순간(`/authorize`) 기준이다.** `/authorize` 는 동의 플래그와 함께 그 시점의 문서 판(terms·privacy)과
   동의 시각을 state JSON 에 싣고(`OAuthConsentSnapshot`), 콜백은 그 값으로 이력을 남긴다. 콜백 시점의 설정을 쓰면 state
   TTL(10분) 안에 개정판이 배포됐을 때 사용자가 보지 않은 판이 기록된다. Redis 값 예:
-  `{"provider":"KAKAO","termsAgreed":true,"privacyAgreed":true,"ageOver14Confirmed":true,"termsVersion":"1.0","privacyVersion":"1.1","agreedAt":"2026-10-06T09:30:15.123456"}`.
+  `{"provider":"KAKAO","termsAgreed":true,"privacyAgreed":true,"ageOver14Confirmed":true,"termsVersion":"1.0","privacyVersion":"1.2","agreedAt":"2026-10-06T09:30:15.123456"}`.
 - 배포 직후 TTL(10분) 안에는 옛 형식 state(맨 provider 문자열, 또는 판·시각이 없는 JSON)가 남아 있을 수 있다. 무효로 버리지
   않고 "동의 없음" 으로 읽어 기존 회원 로그인은 통과시키고, 신규는 `AUTH_021` 로 동의부터 다시 받게 한다
   (`RedisOAuthStateStoreAdapter.deserialize`). 판을 모르는 동의는 이력으로 남길 수 없기 때문이다.
@@ -402,8 +402,9 @@
     탈퇴 시각 컬럼을 먼저 둔다.
   - email 은 `uk_member_email` unique 라 지우지 말고 회원별로 겹치지 않는 값으로 익명화한다. 동의 이력은
     `member_id` 로 지운다(`idx_member_consent_member_id`).
-- 프론트 개인정보 처리방침(제2조 "탈퇴 후에도 보관", 제6조 파기 절차)에 이 기간과 동의 이력 보관을 적는 것은
-  프론트 후속이다. 처리방침과 이 설정은 같은 값이어야 한다.
+- 프론트 개인정보 처리방침 1.2(시행 2026-10-14)가 동의 이력을 처리 항목(제3조)·보유 기간(제2조 "탈퇴 후에도
+  보관")·탈퇴 처리(제6조)에 적었다. **1년이라는 기간은 아직 적지 않았다** — 파기 작업(#508)이 없어 지킬 수 없는
+  약속이 되기 때문이다. 파기 작업이 들어오면 처리방침에 이 설정과 같은 기간을 적어 판을 올린다.
 
 ## 상권 북마크 시스템 (신규)
 
