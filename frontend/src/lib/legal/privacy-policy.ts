@@ -11,7 +11,12 @@ import type { LegalDocument } from '@/lib/legal/types'
  * **본문의 사실 기술은 코드 실측이다.** 상상으로 쓰면 문서가 거짓이 된다.
  *  - 가입 항목: `MemberGeneralSignupRequest`(이메일·비밀번호·이름·닉네임) — 생년월일·성별·전화번호는 받지 않는다
  *  - 소셜 항목: 카카오 scope `profile_nickname` · `profile_image` · `account_email`
- *  - 쿠키: `src/lib/auth/session.ts`(`bps_session`, 브라우저 세션 쿠키) · `social-login.tsx`(`auth_return`, 10분)
+ *  - 쿠키: `src/lib/auth/session.ts`(`bps_session`, 브라우저 세션 쿠키) · `social-login.tsx`(`auth_return`, 10분) ·
+ *    `src/lib/auth/social-state.ts`(`social_state`, 10분, Path `/api/auth/social` — 콜백에서 지운다, #527)
+ *  - 가입 동의 기록: BE `member_consent`(#494) — 동의 항목(이용약관·처리방침·만 14세 이상 확인), 문서 판, 동의 시각.
+ *    가입 경로(이메일·소셜)는 이 표가 아니라 회원 정보(`member.provider`)에 있고 계정 연결 때 바뀌므로 동의 기록
+ *    항목으로 적지 않았다. 탈퇴해도 지우지 않는다 — 1년 뒤 파기(`legal.withdrawn-retention`)는 파기 작업(#508)이
+ *    아직 없어 기간을 적지 않았다
  *  - 탈퇴: `Member.withdraw()` — 이름·닉네임 마스킹, 비밀번호·프로필 이미지 삭제, 이메일 유지.
  *    게시글·댓글·시뮬레이션 이력·북마크는 `memberId` 로 남는다(`backend/docs/services/auth-service.md`)
  *  - 국외 이전: 안내 메일 발송(SMTP)뿐이다. 기본 설정이 Gmail SMTP 라 Google LLC 로 적었다
@@ -33,8 +38,8 @@ import type { LegalDocument } from '@/lib/legal/types'
 export const privacyPolicy: LegalDocument = {
   id: 'privacy',
   title: '개인정보 처리방침',
-  version: '1.1',
-  effectiveDate: '2026-10-09',
+  version: '1.2',
+  effectiveDate: '2026-10-14',
   articles: [
     {
       no: 1,
@@ -68,6 +73,7 @@ export const privacyPolicy: LegalDocument = {
               '회원 탈퇴 시까지',
             ],
             ['탈퇴 회원의 이메일 (재가입 제한 목적)', '탈퇴 후에도 보관'],
+            ['가입 동의 기록 (동의 사실 증명 목적)', '탈퇴 후에도 보관'],
             [
               '게시글, 댓글, 좋아요, 신고 내역',
               '탈퇴 후에도 보존 (제6조 참고)',
@@ -119,6 +125,11 @@ export const privacyPolicy: LegalDocument = {
               '소셜 로그인(필수)',
               '카카오 계정 이메일, 닉네임, 프로필 이미지',
               '카카오 로그인 시 이용자 동의를 거쳐 카카오로부터 전달받음',
+            ],
+            [
+              '가입 동의 기록(필수)',
+              '동의한 항목(이용약관 동의, 개인정보 처리방침 동의, 만 14세 이상 확인), 동의한 문서의 판, 동의 시각',
+              '가입할 때 회원이 동의한 내용을 기록 (이메일 가입·소셜 로그인 가입 모두)',
             ],
             ['프로필(선택)', '프로필 이미지', '회원 직접 등록'],
             [
@@ -233,6 +244,10 @@ export const privacyPolicy: LegalDocument = {
             ['로그인 세션', '모든 기기의 로그인을 해제합니다'],
             ['이메일', '같은 이메일로 다시 가입하는 것을 막기 위해 보관합니다'],
             [
+              '가입 동의 기록',
+              '가입할 때 동의한 사실을 증명하기 위해 보관합니다',
+            ],
+            [
               '게시글, 댓글, 좋아요, 신고 내역, 시뮬레이션 이력, 분석 보관함, 관심 지역, 공유 링크',
               '회원 번호로만 연결된 채 남으며 작성자는 "탈퇴회원"으로 표시됩니다',
             ],
@@ -306,6 +321,11 @@ export const privacyPolicy: LegalDocument = {
               '10분',
             ],
             [
+              'social_state',
+              '소셜 로그인 요청이 이 브라우저에서 시작됐는지 확인 (보안)',
+              '10분 (소셜 로그인에서 돌아오면 바로 삭제)',
+            ],
+            [
               '_ga, _ga_로 시작하는 쿠키',
               '이용 통계 분석 (Google 애널리틱스, 방문자 구분)',
               '2년',
@@ -315,7 +335,7 @@ export const privacyPolicy: LegalDocument = {
         {
           kind: 'list',
           items: [
-            'bps_session과 auth_return은 서비스 제공에 필수적인 쿠키입니다.',
+            'bps_session, auth_return, social_state는 서비스 제공에 필수적인 쿠키입니다.',
             '_ga 쿠키는 어떤 화면과 기능이 얼마나 쓰이는지 파악해 서비스를 개선하는 데에만 사용합니다. 광고 목적으로 사용하지 않으며, 맞춤형 광고를 위한 Google 신호 데이터 수집을 켜지 않습니다.',
             '이용자는 브라우저 설정에서 쿠키 저장을 거부할 수 있습니다. 다만 이 경우 로그인이 필요한 기능을 이용할 수 없습니다.',
             '이용 통계 수집만 거부하려면 브라우저에서 _ga 쿠키를 차단하거나 Google이 제공하는 애널리틱스 차단 부가기능(tools.google.com/dlpage/gaoptout)을 설치할 수 있습니다. 이 경우에도 서비스 이용에는 제한이 없습니다.',
@@ -414,6 +434,12 @@ export const privacyPolicy: LegalDocument = {
       effectiveDate: '2026-10-09',
       summary:
         '이용 통계 분석 도구(Google 애널리틱스) 도입 — 처리 목적·보유 기간·수집 항목·국외 이전·쿠키 항목 추가',
+    },
+    {
+      version: '1.2',
+      effectiveDate: '2026-10-14',
+      summary:
+        '가입 동의 기록(동의 항목·문서 판·동의 시각)을 처리 항목·보유 기간·탈퇴 처리에, 소셜 로그인 보안 쿠키(social_state)를 쿠키 항목에 추가',
     },
   ],
 }
