@@ -184,11 +184,17 @@ export const isSignupConsentComplete: (c: SignupConsent) => boolean
 export const setAllSignupConsent: (value: boolean) => SignupConsent
 export const missingSignupConsent: (c: SignupConsent) => SignupConsentKey[]
 export const signupConsentQuery: (c: SignupConsent) => string // '?termsAgreed=true&...'
-/** MEMBER_114→termsAgreed, 115→privacyAgreed, 116→ageOver14Confirmed,
- *  MEMBER_010→termsAgreed, MEMBER_011→ageOver14Confirmed, 그 밖 null */
-export const signupConsentErrorKey: (
+/** 후보: MEMBER_114→[termsAgreed], 115→[privacyAgreed], 116→[ageOver14Confirmed],
+ *  MEMBER_010(약관·처리방침 공용)→[termsAgreed, privacyAgreed], MEMBER_011→[ageOver14Confirmed], 그 밖 [] */
+export const signupConsentErrorCandidates: (
   resultCode: string | null | undefined,
-) => SignupConsentKey | null
+) => SignupConsentKey[]
+/** 후보 중 지금 꺼진 것만 강조한다. 모두 켜져 있으면 후보를 모두 강조한다(리뷰 N1). */
+export const signupConsentErrorKeys: (
+  resultCode: string | null | undefined,
+  consent: SignupConsent,
+  fieldErrors: readonly ApiFieldError[],
+) => SignupConsentKey[]
 ```
 
 - `ApiResponse` 의 `resultMessage.errors[]` 가 여러 개면 **필드별 첫 오류**를 쓴다(계약 §0-1). 그 파싱이 필요하면 `src/lib/api/api-error.ts` 의 기존 유틸을 먼저 찾아 쓴다.
