@@ -68,7 +68,11 @@ export default function SocialLogin({ returnTo }: SocialLoginProps = {}) {
     setBusy(provider)
     setError(null)
     try {
-      const res = await fetch(`/api/bff/auth/${provider}/authorize`)
+      // 범용 BFF(`/api/bff/auth/...`)가 아니라 전용 라우트로 받는다 — 그쪽이 state 를
+      // 이 브라우저의 HttpOnly 쿠키에 묶고, 콜백이 그 쿠키와 대조한다(#527).
+      const res = await fetch(`/api/auth/social/${provider}/authorize`, {
+        cache: 'no-store',
+      })
       const data = (await res.json().catch(() => null)) as ApiResponse<{
         authorizationUrl: string
       }> | null

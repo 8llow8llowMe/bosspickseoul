@@ -18,6 +18,7 @@ import GuestOnly from '@/components/auth/guest-only'
 import { EMAIL_PATTERN } from '@/components/auth/register-machine'
 import SocialLogin from '@/components/auth/social-login'
 import { safeReturnPath } from '@/lib/auth/return-path'
+import { socialLoginErrorMessage } from '@/lib/auth/social-errors'
 import { useAuthStore } from '@/stores/auth-store'
 
 const PasswordFieldWrapper = styled.div`
@@ -55,7 +56,9 @@ export default function LoginForm() {
   const [error, setError] = useState<LoginFormError>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const isSocialError = searchParams.get('error') === 'social'
+  // 소셜 콜백이 `?error=` 로 돌려보낸 사유. 모르는 값이면 아무것도 보이지 않는다.
+  const socialErrorKind = searchParams.get('error')
+  const socialErrorMessage = socialLoginErrorMessage(socialErrorKind)
   /*
    * 재설정 화면이 성공 후 `?reset=1` 로 보낸다. 재설정은 전 기기 세션을 무효화하므로
    * 사용자는 갑자기 로그인 화면에 서게 된다 — 아무 말도 없으면 실패한 것처럼 읽힌다.
@@ -135,9 +138,16 @@ export default function LoginForm() {
               비밀번호를 재설정했어요. 새 비밀번호로 로그인해 주세요.
             </Notice>
           ) : null}
-          {isSocialError ? (
+          {socialErrorMessage ? (
             <Notice $tone="error">
-              소셜 로그인에 실패했습니다. 다시 시도해 주세요.
+              {socialErrorMessage}
+              {/* 신규 카카오 회원은 가입 화면에서 동의부터 받아야 한다(계약 §0-2). */}
+              {socialErrorKind === 'social_signup' ? (
+                <>
+                  {' '}
+                  <FooterLink href="/register">회원가입하기</FooterLink>
+                </>
+              ) : null}
             </Notice>
           ) : null}
           {error?.field === 'general' ? (
