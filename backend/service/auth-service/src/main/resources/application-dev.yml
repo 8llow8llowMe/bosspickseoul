@@ -110,5 +110,5 @@ oauth:
 # withdrawn-retention: 탈퇴 회원의 이메일·동의 이력 보관 기간(탈퇴 시점부터). 실제 파기 작업은 후속 이슈다.
 legal:
   terms-version: "1.0"
-  privacy-version: "1.1"
+  privacy-version: "1.2"
   withdrawn-retention: P365D
