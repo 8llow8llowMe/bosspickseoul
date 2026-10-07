@@ -2,6 +2,7 @@ import { districts } from '@/data/districts'
 import type { CommunityDataSource } from '@/lib/community/community-data-source'
 import type { ComparisonDraftParams } from '@/lib/community/comparison-draft-url'
 import { isWithinCommunityPopularPeriod } from '@/lib/community/popular-period'
+import { COMMUNITY_POST_CATEGORY_LABELS } from '@/lib/community/post-category'
 import type { ApiResponse } from '@/types/api'
 import type {
   CommunityId,
@@ -11,6 +12,7 @@ import type {
   CommunityLikedPost,
   CommunityListParams,
   CommunityMetadata,
+  CommunityPostCategoryCode,
   CommunityPostCreateRequest,
   CommunityPostDetail,
   CommunityPostImage,
@@ -113,7 +115,25 @@ const fixtureThumbnailUrl = (postId: CommunityId): string | null => {
   return firstKey ? mockImageUrl(firstKey) : null
 }
 
+/**
+ * 말머리 메타데이터(#529). BE `CommunityPostCategory.toMetadata()` 와 같은 모양이다 — description 이
+ * 따로 없어 표시명과 같다(`CodeNameDescribable` 기본값).
+ */
+const mockCategory = (
+  code: CommunityPostCategoryCode | undefined,
+): CommunityMetadata => {
+  if (!code) {
+    return null
+  }
+
+  const name = COMMUNITY_POST_CATEGORY_LABELS[code]
+  return { code, name, description: name }
+}
+
 /*
+ * 말머리(#529)는 일부 글에만 준다 — 말머리 없는 글(null, 기존 글 전부와 같다)이 섞여 있어야 목록의
+ * 배지 없는 행과 「전체」 필터를 같이 볼 수 있다. 네 값이 모두 한 번 이상 나온다.
+ *
  * `viewCount`·`liked`(#530)는 목 회원(9001)이 로그인해 본 값이다. 시드의 `liked` 는 아래
  * `initialLikedPosts`(7·1)와 맞춰 두고, 응답에서는 그때그때 좋아요 상태(`likedAtByPostId`)로 다시
  * 채운다(`withViewerLiked`) — 토글한 뒤에도 목록·상세가 같은 값을 말하게.
@@ -127,6 +147,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: null,
     targetCode: null,
     targetName: null,
+    category: mockCategory('EXPERIENCE'),
     title: '첫 가게를 준비하며 배운 것들',
     previewContent:
       '서울에서 첫 매장을 준비하며 임대차 계약 전에 확인한 항목을 공유합니다.',
@@ -145,6 +166,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: null,
     targetCode: null,
     targetName: null,
+    category: null,
     title: '비 오는 날 매장 운영 팁',
     previewContent:
       '서울 전역 자영업자분들과 우천 시 배달과 방문 고객 대응 경험을 나눠요.',
@@ -163,6 +185,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: targetMetadata.DISTRICT,
     targetCode: '11680',
     targetName: '강남구',
+    category: mockCategory('QUESTION'),
     title: '강남구 점심 상권 흐름이 궁금합니다',
     previewContent:
       '오피스 점심 수요가 최근 어떻게 달라졌는지 현장 이야기를 듣고 싶어요.',
@@ -181,6 +204,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: targetMetadata.DISTRICT,
     targetCode: '11440',
     targetName: '마포구',
+    category: mockCategory('NEWS'),
     title: '마포구 주말 행사를 준비하고 있어요',
     previewContent:
       '동네 가게 세 곳이 함께하는 POP-UP 행사를 기획하며 얻은 체크리스트입니다.',
@@ -201,6 +225,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: targetMetadata.ADMINISTRATION,
     targetCode: '1168064000',
     targetName: '역삼1동',
+    category: mockCategory('EXPERIENCE'),
     title: '역삼1동 아침 매출 실험 후기',
     previewContent:
       '오픈 시간을 한 시간 앞당긴 뒤 출근 고객 유입이 어떻게 바뀌었는지 정리했습니다.',
@@ -219,6 +244,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: targetMetadata.ADMINISTRATION,
     targetCode: '1120065000',
     targetName: '성수1가1동',
+    category: null,
     title: '성수1가1동 평일 저녁 분위기',
     previewContent:
       '퇴근 시간 이후 유동 인구와 조용한 골목 매장의 운영 경험을 공유합니다.',
@@ -237,6 +263,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: targetMetadata.COMMERCIAL,
     targetCode: '3110008',
     targetName: '강남역 상권',
+    category: null,
     title: '강남역 상권 테이크아웃 동선',
     previewContent:
       '점심 피크 시간의 대기열을 줄이기 위해 픽업 위치를 바꾼 경험을 공유합니다.',
@@ -255,6 +282,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: targetMetadata.COMMERCIAL,
     targetCode: '3120015',
     targetName: '성수역 상권',
+    category: mockCategory('TOGETHER'),
     title: '성수역 여름 POP-UP 협업 제안',
     previewContent:
       '여름 시즌에 함께 작은 팝업을 열 식음료 브랜드 사장님을 찾고 있습니다.',
@@ -278,6 +306,7 @@ const basePosts: CommunityPostSummary[] = [
     targetType: null,
     targetCode: null,
     targetName: null,
+    category: null,
     title: '가게 앞 화단을 바꾼 전후 사진',
     previewContent:
       '입구 화단을 계절 꽃으로 바꾼 뒤 지나가던 손님이 들어오는 일이 늘었습니다.',
@@ -311,6 +340,7 @@ const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
   targetType: post.targetType,
   targetCode: post.targetCode,
   targetName: post.targetName,
+  category: post.category,
   title: post.title,
   content: contentByPostId[post.postId] ?? '',
   likeCount: post.likeCount,
@@ -864,6 +894,10 @@ export const createCommunityMockSource = (): CommunityDataSource => {
               post.targetCode === params.targetCode,
           )
         : state.posts
+      // 말머리 필터(#529) — 서버처럼 피드에만 걸고, 생략이 「전체」(말머리 없는 글 포함)다.
+      const categorized = params.category
+        ? filtered.filter(post => post.category?.code === params.category)
+        : filtered
       const board = hasBoardTarget
         ? {
             ...resolveTarget(params.targetType, params.targetCode),
@@ -873,7 +907,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       return ok({
         board,
         posts: paginate(
-          filterPopularPeriod(state, filtered, params).map(post =>
+          filterPopularPeriod(state, categorized, params).map(post =>
             withViewerLiked(state, post),
           ),
           params,
@@ -987,6 +1021,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
         writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
         writerProfileImageUrl: null,
         ...target,
+        category: mockCategory(payload.category),
         title: payload.title,
         content: payload.content,
         likeCount: 0,
@@ -1018,6 +1053,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
         writerNickname: MOCK_COMMUNITY_WRITER_NICKNAME,
         writerProfileImageUrl: null,
         ...target,
+        category: mockCategory(payload.category),
         title: payload.title,
         previewContent: getPreviewContent(payload.content),
         likeCount: 0,
@@ -1046,6 +1082,9 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       post.previewContent = getPreviewContent(payload.content)
       detail.title = payload.title
       detail.content = payload.content
+      // 말머리는 「수정 후 값」이다 — BE 처럼 생략하면 지운다(전체 교체, #529).
+      post.category = mockCategory(payload.category)
+      detail.category = post.category
       detail.updatedAt = nextTimestamp(state)
       /*
        * **백엔드와 같은 규칙을 흉내 낸다.** `imageKeys` 는 「수정 후 남길 목록」이라

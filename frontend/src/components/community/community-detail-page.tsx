@@ -34,6 +34,7 @@ import {
   COMMUNITY_DEFAULT_POPULAR_PERIOD,
   parseCommunityPopularPeriod,
 } from '@/lib/community/popular-period'
+import { parseCommunityPostCategory } from '@/lib/community/post-category'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ApiResponse } from '@/types/api'
 import type {
@@ -372,6 +373,7 @@ type CommunityContextValue = {
   targetType?: unknown
   targetCode?: unknown
   period?: unknown
+  category?: unknown
 }
 
 export const createCommunityDetailListHref = (
@@ -405,6 +407,13 @@ export const createCommunityDetailListHref = (
       } else if (view !== 'liked' && targetType && targetCode && !keyword) {
         params.set('targetType', targetType)
         params.set('targetCode', targetCode)
+      }
+
+      // 보던 말머리로 돌아간다(#529). 검색·좋아요한 글에는 말머리 필터가 없다(계약).
+      const category = parseCommunityPostCategory(value.category)
+
+      if (view !== 'liked' && !keyword && category) {
+        params.set('category', category)
       }
 
       // 보던 인기 기간으로 돌아간다(#531). 맥락 키에는 기본값이 아닐 때만 들어 있다.

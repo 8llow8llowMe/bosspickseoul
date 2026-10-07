@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { createElement } from 'react'
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+} from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -304,6 +310,174 @@ describe('CommunityListPage — 인기 기간', () => {
       period: 'WEEK',
     })
     expect(container.querySelector('[data-community-post-id="4"]')).toBeNull()
+  })
+})
+
+/*
+  말머리 필터(#529). 피드는 주소의 말머리로 첫 쪽부터 받고, 레일 인기 글에는 걸지 않는다.
+  칩을 누르면 주소만 바꾼다 — 다시 받는 것은 바뀐 상태(쿼리 키)가 맡는다.
+*/
+describe('CommunityListPage — 말머리', () => {
+  const feedCalls = () =>
+    (getPosts.mock.calls as Array<[CommunityListParams]>)
+      .map(([params]) => params)
+      .filter(params => params.size === 20)
+
+  it('asks the feed for the URL category from the first cursor and leaves the rail unfiltered', async () => {
+    const { container } = renderPage(1200, 'mock=1&category=EXPERIENCE')
+
+    await waitFor(() => {
+      expect(
+        container.querySelector('[data-community-list-rail] ol'),
+      ).not.toBeNull()
+    })
+
+    expect(feedCalls()[0]).toMatchObject({
+      sortType: 'LATEST',
+      category: 'EXPERIENCE',
+      lastPostId: '0',
+    })
+    expect(popularCalls(getPosts)[0]).not.toHaveProperty('category')
+    const rows = [
+      ...container.querySelectorAll('[data-community-post-id]'),
+    ].map(row => row.getAttribute('data-community-post-id'))
+    expect(rows).toEqual(['5', '1'])
+    expect(
+      container.querySelector(
+        '[data-community-post-id="5"] [data-community-category="EXPERIENCE"]',
+      )?.textContent,
+    ).toBe('경험 공유')
+
+    const group = container.querySelector('[aria-label="말머리"]')!
+    expect(group.querySelector('[aria-pressed="true"]')?.textContent).toBe(
+      '경험 공유',
+    )
+    fireEvent.click(
+      [...group.querySelectorAll('button')].find(
+        button => button.textContent === '전체',
+      )!,
+    )
+    fireEvent.click(
+      [...group.querySelectorAll('button')].find(
+        button => button.textContent === '동네 소식',
+      )!,
+    )
+    expect(replacedHrefs).toEqual([
+      '/community/list?mock=1',
+      '/community/list?category=NEWS&mock=1',
+    ])
+  })
+
+  it('names the category when the filtered feed is empty and clears the filter from the empty action', async () => {
+    const { container } = renderPage(390, 'mock=1&view=popular&category=NEWS')
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('이 말머리의 글이 아직 없어요')
+    })
+
+    fireEvent.click(
+      [...container.querySelectorAll('button')].find(
+        button => button.textContent === '말머리 필터 해제',
+      )!,
+    )
+    expect(replacedHrefs).toEqual(['/community/list?view=popular&mock=1'])
+  })
+})
+
+/*
+  모바일 필터 시트(CM-061). `<480` 의 필터 버튼이 공용 시트를 열고, 고르면 지역 시트처럼 바로 주소를 바꾼다.
+  인기 보기는 말머리·기간 두 묶음이라 시트를 닫지 않는다. 닫으면 버튼으로 포커스가 돌아온다(CM-016 과 같다).
+  jsdom 은 미디어쿼리를 적용하지 않아 칩 행도 DOM 에 있다 — 시트(dialog) 안에서만 찾는다.
+*/
+describe('CommunityListPage — 모바일 필터 시트', () => {
+  const getFilterButton = (container: HTMLElement) => {
+    const button = container.querySelector<HTMLButtonElement>(
+      '[data-community-filter-button]',
+    )
+    if (!button) {
+      throw new Error('필터 버튼이 없다')
+    }
+    return button
+  }
+
+  const getDialog = () =>
+    document.body.querySelector<HTMLElement>('[role="dialog"]')
+
+  const clickInGroup = (groupLabel: string, label: string) => {
+    const button = [
+      ...(getDialog()?.querySelectorAll<HTMLButtonElement>(
+        `[aria-label="${groupLabel}"] button`,
+      ) ?? []),
+    ].find(element => element.textContent === label)
+    if (!button) {
+      throw new Error(`시트에 칩이 없다: ${groupLabel} ${label}`)
+    }
+    fireEvent.click(button)
+  }
+
+  const openSheet = async (button: HTMLButtonElement) => {
+    button.focus()
+    fireEvent.click(button)
+    // 시트 첫 포커스는 requestAnimationFrame 에서 간다.
+    await act(async () => {
+      await new Promise(resolve => requestAnimationFrame(() => resolve(null)))
+    })
+  }
+
+  afterEach(() => {
+    document.body.style.overflow = ''
+  })
+
+  it('opens the category sheet in the latest feed, applies a pick at once and returns focus on close', async () => {
+    const { container } = renderPage(390, 'mock=1')
+    const button = getFilterButton(container)
+
+    expect(button.textContent).toBe('필터')
+    await openSheet(button)
+
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+    expect(getDialog()?.textContent).toContain('필터')
+    // 최신 보기에는 기간 묶음이 없다.
+    expect(getDialog()?.querySelector('[aria-label="인기 기간"]')).toBeNull()
+    expect(
+      getDialog()?.querySelector('[aria-label="말머리"] [aria-pressed="true"]')
+        ?.textContent,
+    ).toBe('전체')
+
+    clickInGroup('말머리', '질문')
+    expect(replacedHrefs).toEqual(['/community/list?category=QUESTION&mock=1'])
+    // 고른 뒤에도 시트는 열려 있다.
+    expect(getDialog()).not.toBeNull()
+
+    fireEvent.keyDown(getDialog()!, { key: 'Escape' })
+    expect(getDialog()).toBeNull()
+    expect(document.activeElement).toBe(button)
+    expect(button.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('lets the popular feed pick a category and a period in one sheet', async () => {
+    const { container } = renderPage(
+      390,
+      'mock=1&view=popular&category=QUESTION&period=MONTH',
+    )
+    const button = getFilterButton(container)
+
+    expect(button.textContent).toBe('질문 · 이번 달')
+    expect(button.getAttribute('aria-label')).toBe('필터: 질문 · 이번 달')
+    await openSheet(button)
+
+    expect(
+      getDialog()?.querySelector(
+        '[aria-label="인기 기간"] [aria-pressed="true"]',
+      )?.textContent,
+    ).toBe('이번 달')
+
+    clickInGroup('인기 기간', '전체 기간')
+    clickInGroup('말머리', '전체')
+    expect(replacedHrefs).toEqual([
+      '/community/list?view=popular&category=QUESTION&period=ALL&mock=1',
+      '/community/list?view=popular&period=MONTH&mock=1',
+    ])
   })
 })
 

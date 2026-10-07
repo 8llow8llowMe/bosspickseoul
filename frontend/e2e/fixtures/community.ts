@@ -16,6 +16,7 @@ import type {
   CommunitySortType,
   CommunityOrderType,
   CommunityPopularPeriod,
+  CommunityPostCategoryCode,
   CommunityTargetType,
 } from '../../src/types/community'
 
@@ -98,6 +99,15 @@ const readPeriod = (search: URLSearchParams) => {
   return period ? { period } : {}
 }
 
+/**
+ * 말머리 필터(#529). 피드(`GET /posts`)에만 옮긴다 — 없으면(「전체」) 싣지 않는다. 값 검증은 하지 않는다
+ * (서버의 400 `COMMUNITY_017` 을 흉내 낼 고정 응답이 아직 없다. 화면은 알려진 값만 보낸다).
+ */
+const readCategory = (search: URLSearchParams) => {
+  const category = search.get('category') as CommunityPostCategoryCode | null
+  return category ? { category } : {}
+}
+
 const readBody = <T>(request: Request): T => request.postDataJSON() as T
 
 /** 멀티파트 본문에서 파일 이름만 읽는다 — 목 업로드는 이름으로 키를 만들 뿐 내용을 보지 않는다. */
@@ -130,6 +140,7 @@ const handleCommunity = async (
       return source.getPosts({
         ...readCursor(search),
         ...readPeriod(search),
+        ...readCategory(search),
         ...(targetType ? { targetType } : {}),
         ...(targetCode ? { targetCode } : {}),
       })

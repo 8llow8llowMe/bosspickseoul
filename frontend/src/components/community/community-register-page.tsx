@@ -51,6 +51,7 @@ import {
   toCommunityLocationValue,
 } from '@/lib/community/editor-prefill'
 import { sortPostImages, toImageKeys } from '@/lib/community/post-images'
+import { getCommunityPostCategoryCode } from '@/lib/community/post-category'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
   CommunityAnalysisAttachment,
@@ -392,6 +393,12 @@ export const createCommunityEditorPayload = (
      * 그대로 되돌려 보낸다.
      */
     imageKeys: toImageKeys(value.images),
+    /*
+     * 말머리(#529). ⚠️ **수정도 있으면 반드시 싣는다** — `imageKeys` 와 같은 전체 교체라, 사용자가
+     * 말머리를 건드리지 않았어도 빼고 보내면 서버가 말머리를 지운다. 키를 빼는 것은 말머리가 없을
+     * 때(작성: 고르지 않음 · 수정: 사용자가 해제)뿐이다. 대문자 code 로 보낸다(응답 code 와 같은 모양).
+     */
+    ...(value.category ? { category: value.category } : {}),
   }
 
   if (mode === 'edit') {
@@ -931,11 +938,18 @@ export default function CommunityRegisterPage() {
           // 기존 첨부를 그대로 들고 시작한다 — 안 그러면 저장 순간 전부 삭제된다.
           images: sortPostImages(detail.images),
           location: toCommunityLocationValue(detail),
+          /*
+           * 지금 말머리로 시작해 저장 때 그대로 다시 보낸다(전체 교체). FE 가 모르는 code 의 글은
+           * 보낼 수 있는 값이 없어 말머리 없음으로 시작한다 — 그 글을 수정하면 말머리가 지워진다.
+           * 알려진 값만 보낼 수 있으므로 받아들인다(BE 가 값을 더하면 표를 같이 늘린다).
+           */
+          category: getCommunityPostCategoryCode(detail.category),
         }
       : {
           title: draft?.title ?? '',
           content: draft?.content ?? '',
           images: [],
+          category: null,
           // 비교 초안의 행정동 > 목록·상세에서 넘어온 지역 > 빈 칩.
           location: resolveCommunityCreateLocation(
             draft ? toCommunityLocationValue(draft) : null,

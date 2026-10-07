@@ -74,6 +74,7 @@ import {
   COMMUNITY_DEFAULT_POPULAR_PERIOD,
   type CommunityPopularPeriod,
 } from '@/lib/community/popular-period'
+import type { CommunityPostCategoryCode } from '@/lib/community/post-category'
 import type { CommunityRecentRegion } from '@/lib/community/recent-regions'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
@@ -246,6 +247,11 @@ type CommunityListUrlAction =
     INITIAL_CURSOR 부터 받는다. 다른 기간의 커서를 이어 쓰지 않는다(계약)는 규칙이 따로 코드 없이 지켜진다.
   */
   | { type: 'period'; period: CommunityPopularPeriod }
+  /*
+    말머리 필터(#529). 기간과 같다 — 말머리가 목록 쿼리 키에 들어가 바꾸면 첫 커서부터 다시 받는다
+    (계약: 말머리를 바꾸면 커서를 0 부터). `null` 이 「전체」다.
+  */
+  | { type: 'category'; category: CommunityPostCategoryCode | null }
 
 const applyCommunityListUrlAction = (
   state: CommunityListState,
@@ -260,11 +266,17 @@ const applyCommunityListUrlAction = (
       targetCode: undefined,
       // 검색 화면에는 기간 칩이 없다. 검색을 지우면 이번 주부터 다시 본다.
       period: COMMUNITY_DEFAULT_POPULAR_PERIOD,
+      // 검색에는 말머리 필터가 없다(계약). 검색을 지우면 「전체」부터 다시 본다.
+      category: undefined,
     }
   }
 
   if (action.type === 'period') {
     return { ...state, period: action.period }
+  }
+
+  if (action.type === 'category') {
+    return { ...state, category: action.category ?? undefined }
   }
 
   if (action.type === 'location') {
@@ -291,6 +303,8 @@ const applyCommunityListUrlAction = (
       action.view === 'popular'
         ? state.period
         : COMMUNITY_DEFAULT_POPULAR_PERIOD,
+    // 최신↔인기는 말머리를 지킨다. 좋아요한 글에는 말머리 필터가 없다(계약).
+    category: action.view === 'liked' ? undefined : state.category,
   }
 }
 
@@ -342,6 +356,8 @@ export const createCommunityListRequest = (
     params: {
       ...cursorParams,
       ...periodParams,
+      // 말머리 필터는 피드(`GET /posts`)에만 있다(#529). 「전체」는 키째 뺀다.
+      ...(state.category ? { category: state.category } : {}),
       ...(state.targetType && state.targetCode
         ? {
             targetType: state.targetType,
@@ -911,13 +927,16 @@ export default function CommunityListPage() {
       error: listQuery.error,
       isFetchNextPageError: listQuery.isFetchNextPageError,
     })
+  // 말머리가 지역보다 먼저다 — 지역 게시판에 글이 있어도 그 말머리 글이 없을 수 있다.
   const emptyCause: CommunityEmptyCause = state.keyword
     ? 'keyword'
-    : state.targetType && state.targetCode
-      ? 'target'
-      : state.view === 'liked'
-        ? 'liked'
-        : 'general'
+    : state.category && state.view !== 'liked'
+      ? 'category'
+      : state.targetType && state.targetCode
+        ? 'target'
+        : state.view === 'liked'
+          ? 'liked'
+          : 'general'
   useCommunityListScrollRestore({ contextKey, status })
   const hasTarget = Boolean(state.targetType && state.targetCode)
   // 검색은 서울 전체에서 하고(S4 계약) 좋아요한 글은 필터를 함께 푼다(CM-005).
@@ -988,10 +1007,19 @@ export default function CommunityListPage() {
     replaceAction({ type: 'period', period })
   }
 
+  const handleCategoryChange = (category: CommunityPostCategoryCode | null) => {
+    replaceAction({ type: 'category', category })
+  }
+
   const handleEmptyAction = () => {
     if (emptyCause === 'keyword') {
       setSearchDraft({ scope: state.keyword, value: '' })
       replaceAction({ type: 'search', keyword: '' })
+      return
+    }
+
+    if (emptyCause === 'category') {
+      handleCategoryChange(null)
       return
     }
 
@@ -1046,6 +1074,8 @@ export default function CommunityListPage() {
       onViewChange={handleViewChange}
       onPopularPeriodChange={handlePopularPeriodChange}
       popularPeriod={state.period}
+      category={state.category ?? null}
+      onCategoryChange={handleCategoryChange}
       posts={viewPosts}
       nav={
         showNav ? (

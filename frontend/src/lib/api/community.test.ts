@@ -60,6 +60,8 @@ type ExpectedPostSummary = {
   targetType: ExpectedMetadata
   targetCode: string | null
   targetName: string | null
+  // #470(BE #539) — 말머리 `{code,name,description}`, 말머리 없는 글은 null. code 는 string 으로 받는다.
+  category: ExpectedMetadata
   title: string
   previewContent: string
   likeCount: number
@@ -99,6 +101,8 @@ type ExpectedPostDetail = {
   targetType: ExpectedMetadata
   targetCode: string | null
   targetName: string | null
+  // #470(BE #539) — 말머리 `{code,name,description}`, 말머리 없는 글은 null. code 는 string 으로 받는다.
+  category: ExpectedMetadata
   title: string
   content: string
   likeCount: number
@@ -190,6 +194,8 @@ describe('community API', () => {
       size: number
       /* 인기순 기간(#531, BE #472). 생략하면 서버가 WEEK 로 읽는다. */
       period?: 'WEEK' | 'MONTH' | 'ALL'
+      /* 말머리 필터(#470). 피드에만 있고 검색·좋아요한 글에는 없다. 생략이 「전체」. */
+      category?: 'QUESTION' | 'EXPERIENCE' | 'TOGETHER' | 'NEWS'
       targetType?: 'DISTRICT' | 'ADMINISTRATION' | 'COMMERCIAL'
       targetCode?: string
     }>()
@@ -199,6 +205,7 @@ describe('community API', () => {
       title: string
       content: string
       imageKeys: string[]
+      category?: 'QUESTION' | 'EXPERIENCE' | 'TOGETHER' | 'NEWS'
       /*
        * 분석 첨부는 **작성 요청에만** 있고 수정 요청에는 없다(부분 컬럼 갱신이라 보내지
        * 않으면 보존된다). `analysisType` 이 **문자열 코드**인 것이 상세 응답과 다른 점이다.
@@ -217,6 +224,8 @@ describe('community API', () => {
       title: string
       content: string
       imageKeys: string[]
+      /* 「수정 후 값」 — 생략하면 말머리를 지운다(#470). 페이로드 테스트가 다시 싣는지 지킨다. */
+      category?: 'QUESTION' | 'EXPERIENCE' | 'TOGETHER' | 'NEWS'
     }>()
     expectTypeOf<CommunityCommentCreateRequest>().toEqualTypeOf<{
       parentCommentId?: string

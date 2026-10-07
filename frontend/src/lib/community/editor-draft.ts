@@ -1,10 +1,11 @@
-import type { CommunityId } from '@/types/community'
+import type { CommunityId, CommunityPostCategoryCode } from '@/types/community'
 
 import {
   hasCommunityLocationTarget,
   type CommunityLocationValue,
 } from './community-location'
 import { parseCommunityTargetType } from './community-state'
+import { parseCommunityPostCategory } from './post-category'
 import type {
   CommunityEditorMode,
   CommunityEditorValue,
@@ -13,7 +14,7 @@ import type {
 /**
  * 글쓰기 임시 저장(docs/features/community/community.md §S4 「잃지 않게 — 임시 저장 · 이탈 확인」).
  *
- * 입력이 멈추고 1초 뒤 `localStorage` 에 제목·본문·지역을 둔다. **사진은 저장하지 않는다** —
+ * 입력이 멈추고 1초 뒤 `localStorage` 에 제목·본문·지역·말머리를 둔다. **사진은 저장하지 않는다** —
  * 올린 사진 키는 저장 전까지 어떤 글에도 연결되지 않아 백엔드 회수 배치가 지울 수 있다. 되살린
  * 초안에 깨진 사진이 남는 것보다 다시 고르게 하는 편이 낫다.
  *
@@ -27,6 +28,12 @@ export type CommunityStoredDraft = {
   title: string
   content: string
   location: CommunityLocationValue
+  /**
+   * 말머리(#529). 쓸 때는 늘 적는다(없으면 `null`). **필드가 없으면 말머리 이전의 옛 저장본**이라
+   * 「모름」이다 — 「말머리 없음」과 가른다. 수정 이어 쓰기에서 옛 저장본을 null 로 읽으면 원본
+   * 말머리가 풀린 채 저장돼 서버가 지운다(`applyCommunityStoredDraft`).
+   */
+  category?: CommunityPostCategoryCode | null
   savedAt: number
 }
 
@@ -60,12 +67,13 @@ export const getCommunityDraftStorageKey = (
 /** 폼 값을 통째로 받아도 된다 — 사진(`images`)은 여기서 버린다. */
 export const createCommunityStoredDraft = (
   value: Pick<CommunityEditorValue, 'title' | 'content' | 'location'> &
-    Partial<Pick<CommunityEditorValue, 'images'>>,
+    Partial<Pick<CommunityEditorValue, 'images' | 'category'>>,
   savedAt: number,
 ): CommunityStoredDraft => ({
   title: value.title,
   content: value.content,
   location: value.location,
+  category: value.category ?? null,
   savedAt,
 })
 
@@ -125,6 +133,10 @@ export const parseCommunityStoredDraft = (
     title: record.title,
     content: record.content,
     location: readLocation(record.location),
+    // 필드가 없는 옛 저장본은 키째 비워 「모름」으로 둔다. 모르는 값은 말머리 없음이다.
+    ...('category' in record
+      ? { category: parseCommunityPostCategory(record.category) }
+      : {}),
     savedAt: typeof record.savedAt === 'number' ? record.savedAt : 0,
   }
 
@@ -206,7 +218,7 @@ const locationIdentity = (value: CommunityLocationValue) =>
 
 /**
  * 처음 값과 달라졌는가 — 이탈 확인과 임시 저장의 기준이다. 지역은 코드가 정체성이라 이름은
- * 보지 않고, 사진은 키 순서까지 본다(순서가 노출 순서다).
+ * 보지 않고, 사진은 키 순서까지 본다(순서가 노출 순서다). 말머리도 고르거나 풀면 바뀐 것이다.
  */
 export const isCommunityEditorDirty = (
   pristine: CommunityEditorValue,
@@ -216,20 +228,25 @@ export const isCommunityEditorDirty = (
   pristine.content !== current.content ||
   locationIdentity(pristine.location) !== locationIdentity(current.location) ||
   pristine.images.map(image => image.imageKey).join('\n') !==
-    current.images.map(image => image.imageKey).join('\n')
+    current.images.map(image => image.imageKey).join('\n') ||
+  pristine.category !== current.category
 
 /**
- * 이어 쓰기. 새 글은 제목·본문·지역을 되살리고(저장본에 지역이 없으면 들어온 지역을 지킨다)
- * 사진은 비운다. **수정은 제목·본문만** 저장본이다 — 지역은 읽기 전용이고, 사진은 원본 목록을
- * 들고 있어야 저장 순간 지워지지 않는다(`createCommunityEditorPayload`).
+ * 이어 쓰기. 새 글은 제목·본문·지역·말머리를 되살리고(저장본에 지역이 없으면 들어온 지역을 지킨다)
+ * 사진은 비운다. **수정은 제목·본문·말머리만** 저장본이다 — 지역은 읽기 전용이고, 사진은 원본 목록을
+ * 들고 있어야 저장 순간 지워지지 않는다(`createCommunityEditorPayload`). 말머리 필드가 없는 옛
+ * 저장본은 처음 값(수정이면 원본 말머리)을 지킨다.
  */
 export const applyCommunityStoredDraft = (
   mode: CommunityEditorMode,
   base: CommunityEditorValue,
   stored: CommunityStoredDraft,
 ): CommunityEditorValue => {
+  const category =
+    stored.category === undefined ? base.category : stored.category
+
   if (mode === 'edit') {
-    return { ...base, title: stored.title, content: stored.content }
+    return { ...base, title: stored.title, content: stored.content, category }
   }
 
   return {
@@ -239,5 +256,6 @@ export const applyCommunityStoredDraft = (
       ? stored.location
       : base.location,
     images: [],
+    category,
   }
 }

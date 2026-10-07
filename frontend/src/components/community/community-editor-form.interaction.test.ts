@@ -36,7 +36,13 @@ afterEach(() => {
 const renderForm = (overrides: Partial<Props> = {}) => {
   const props: Props = {
     mode: 'create',
-    initialValue: { title: '', content: '', location: {}, images: [] },
+    initialValue: {
+      title: '',
+      content: '',
+      location: {},
+      images: [],
+      category: null,
+    },
     mockEnabled: true,
     pending: false,
     errorMessage: null,
@@ -74,6 +80,23 @@ const titleInput = () =>
     'input[placeholder="제목을 입력해 주세요"]',
   )!
 const contentInput = () => document.querySelector('textarea')!
+const categoryGroup = () =>
+  document.querySelector<HTMLElement>('[role="group"][aria-label="말머리"]')!
+const categoryButton = (text: string) =>
+  Array.from(categoryGroup().querySelectorAll('button')).find(
+    element => element.textContent === text,
+  )!
+const pressedCategories = () =>
+  Array.from(
+    categoryGroup().querySelectorAll('button[aria-pressed="true"]'),
+  ).map(element => element.textContent)
+const filled = {
+  title: '제목',
+  content: '본문',
+  location: district,
+  images: [],
+  category: null,
+}
 const chip = () =>
   document.querySelector<HTMLButtonElement>('[data-region-chip="compose"]')
 const dialog = () => document.querySelector('[role="dialog"]')
@@ -90,6 +113,7 @@ describe('등록 — 비어 있는 첫 필수값으로 보낸다', () => {
         content: '본문',
         location: {},
         images: [],
+        category: null,
       },
     })
 
@@ -123,6 +147,7 @@ describe('등록 — 비어 있는 첫 필수값으로 보낸다', () => {
         content: '본문',
         location: {},
         images: [],
+        category: null,
       },
     })
 
@@ -154,7 +179,13 @@ describe('등록 — 비어 있는 첫 필수값으로 보낸다', () => {
 
   it('지역이 있고 제목이 비면 제목으로, 제목이 있고 본문이 비면 본문으로 포커스한다', () => {
     const { props } = renderForm({
-      initialValue: { title: '', content: '', location: district, images: [] },
+      initialValue: {
+        title: '',
+        content: '',
+        location: district,
+        images: [],
+        category: null,
+      },
     })
 
     fireEvent.click(button('등록하기'))
@@ -173,7 +204,13 @@ describe('등록 — 비어 있는 첫 필수값으로 보낸다', () => {
 
   it('다 채우면 앞뒤 공백을 지운 값을 넘긴다', () => {
     const { props } = renderForm({
-      initialValue: { title: '', content: '', location: district, images: [] },
+      initialValue: {
+        title: '',
+        content: '',
+        location: district,
+        images: [],
+        category: null,
+      },
     })
 
     fireEvent.change(titleInput(), { target: { value: '  제목 ' } })
@@ -185,6 +222,7 @@ describe('등록 — 비어 있는 첫 필수값으로 보낸다', () => {
       content: '본문',
       location: district,
       images: [],
+      category: null,
     })
   })
 })
@@ -205,7 +243,82 @@ describe('작성 도움 칩(CM-033)', () => {
 
     // 본문을 다시 비우면 돌아온다.
     fireEvent.change(contentInput(), { target: { value: '' } })
-    expect(button('같이 해요')).toBeTruthy()
+    expect(
+      document.querySelector('[data-community-writing-prompts="true"]')
+        ?.textContent,
+    ).toContain('같이 해요')
+  })
+
+  it('말머리가 비었으면 칩의 말머리를 같이 골라 준다(#529)', () => {
+    renderForm()
+
+    fireEvent.click(button('경험 나눠요'))
+
+    expect(pressedCategories()).toEqual(['경험 공유'])
+  })
+
+  it('이미 고른 말머리는 덮지 않는다 — 본문 틀만 들어간다', () => {
+    renderForm()
+
+    fireEvent.click(categoryButton('동네 소식'))
+    fireEvent.click(button('질문해요'))
+
+    expect(contentInput().value).toBe('상황: \n궁금한 점: ')
+    expect(pressedCategories()).toEqual(['동네 소식'])
+  })
+})
+
+describe('말머리(#529)', () => {
+  it('하나만 고르고, 다시 누르면 풀리며, 고른 값이 등록 값에 실린다', () => {
+    const { props } = renderForm({
+      initialValue: { ...filled, category: null },
+    })
+
+    fireEvent.click(categoryButton('질문'))
+    expect(pressedCategories()).toEqual(['질문'])
+    fireEvent.click(categoryButton('같이 해요'))
+    expect(pressedCategories()).toEqual(['같이 해요'])
+    fireEvent.click(button('등록하기'))
+    expect(props.onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ category: 'TOGETHER' }),
+    )
+
+    fireEvent.click(categoryButton('같이 해요'))
+    expect(pressedCategories()).toEqual([])
+    fireEvent.click(button('등록하기'))
+    expect(props.onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ category: null }),
+    )
+  })
+
+  it('수정 화면은 지금 말머리로 시작하고, 건드리지 않으면 그대로 넘긴다', () => {
+    const { props } = renderForm({
+      mode: 'edit',
+      initialValue: { ...filled, category: 'NEWS' },
+    })
+
+    expect(pressedCategories()).toEqual(['동네 소식'])
+    fireEvent.click(button('수정하기'))
+    expect(props.onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'NEWS' }),
+    )
+  })
+
+  it('말머리만 골라도 바뀐 것이라 임시 저장에 말머리가 실린다', () => {
+    vi.useFakeTimers()
+    renderForm({
+      draftStorageKey: 'community-draft:new',
+      initialValue: { ...filled, category: null },
+    })
+
+    fireEvent.click(categoryButton('질문'))
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+
+    expect(
+      JSON.parse(window.localStorage.getItem('community-draft:new') ?? 'null'),
+    ).toMatchObject({ title: '제목', category: 'QUESTION' })
   })
 })
 
@@ -279,8 +392,15 @@ describe('이탈 확인(CM-035)', () => {
         content: '',
         location: {},
         images: [],
+        category: null,
       },
-      pristineValue: { title: '', content: '', location: {}, images: [] },
+      pristineValue: {
+        title: '',
+        content: '',
+        location: {},
+        images: [],
+        category: null,
+      },
     })
 
     fireEvent.click(button('취소'))
@@ -301,6 +421,7 @@ describe('임시 저장 연결', () => {
         images: [
           { imageKey: 'k', imageUrl: 'https://minio.test/k.png', sortOrder: 0 },
         ],
+        category: null,
       },
     })
 
@@ -343,13 +464,6 @@ describe('임시 저장 연결', () => {
     expect(window.localStorage.getItem('community-draft:new')).toBeNull()
   })
 })
-
-const filled = {
-  title: '제목',
-  content: '본문',
-  location: district,
-  images: [],
-}
 
 describe('등록 — 막아야 할 때', () => {
   it('등록이 성공해 이동하는 중(submitted)이면 두 버튼이 꺼지고 제출도 무시한다', () => {

@@ -94,9 +94,15 @@ describe('clearCommunityStoredDrafts — 로그아웃 시 저장본을 모두 �
 })
 
 describe('createCommunityStoredDraft — 사진은 저장하지 않는다', () => {
-  it('제목·본문·지역·시각만 담는다', () => {
+  it('제목·본문·지역·말머리·시각만 담는다', () => {
     const draft = createCommunityStoredDraft(
-      { title: '제목', content: '본문', location: district, images: [image] },
+      {
+        title: '제목',
+        content: '본문',
+        location: district,
+        images: [image],
+        category: 'QUESTION',
+      },
       1700,
     )
 
@@ -104,9 +110,19 @@ describe('createCommunityStoredDraft — 사진은 저장하지 않는다', () =
       title: '제목',
       content: '본문',
       location: district,
+      category: 'QUESTION',
       savedAt: 1700,
     })
     expect(JSON.stringify(draft)).not.toContain('imageKey')
+  })
+
+  it('말머리 없음도 null 로 적는다 — 「해제했다」와 「옛 저장본이라 모른다」를 가른다(#529)', () => {
+    expect(
+      createCommunityStoredDraft(
+        { title: '제목', content: '본문', location: {} },
+        1,
+      ).category,
+    ).toBeNull()
   })
 })
 
@@ -125,6 +141,28 @@ describe('parseCommunityStoredDraft', () => {
       location: district,
       savedAt: 1,
     })
+  })
+
+  it('말머리를 읽는다 — 모르는 값은 말머리 없음, 필드가 없는 옛 저장본은 「모름」이다(#529)', () => {
+    const raw = (category: unknown) =>
+      JSON.stringify({
+        title: '제목',
+        content: '본문',
+        location: {},
+        category,
+        savedAt: 1,
+      })
+
+    expect(parseCommunityStoredDraft(raw('TOGETHER'))?.category).toBe(
+      'TOGETHER',
+    )
+    expect(parseCommunityStoredDraft(raw(null))?.category).toBeNull()
+    expect(parseCommunityStoredDraft(raw('BOGUS'))?.category).toBeNull()
+    const legacy = parseCommunityStoredDraft(
+      JSON.stringify({ title: '제목', content: '', location: {}, savedAt: 1 }),
+    )
+    expect(legacy).not.toBeNull()
+    expect(legacy).not.toHaveProperty('category')
   })
 
   it('지역 값도 검증한다 — 모르는 종류는 버린다', () => {
@@ -222,6 +260,7 @@ describe('isCommunityEditorDirty', () => {
     content: '',
     location: district,
     images: [],
+    category: null,
   }
 
   it('처음 값과 같으면 dirty 가 아니다', () => {
@@ -249,6 +288,24 @@ describe('isCommunityEditorDirty', () => {
       isCommunityEditorDirty(pristine, { ...pristine, images: [image] }),
     ).toBe(true)
   })
+
+  it('말머리를 고르거나 바꾸거나 풀어도 dirty 다(#529)', () => {
+    expect(
+      isCommunityEditorDirty(pristine, { ...pristine, category: 'NEWS' }),
+    ).toBe(true)
+    expect(
+      isCommunityEditorDirty(
+        { ...pristine, category: 'NEWS' },
+        { ...pristine, category: 'QUESTION' },
+      ),
+    ).toBe(true)
+    expect(
+      isCommunityEditorDirty(
+        { ...pristine, category: 'NEWS' },
+        { ...pristine, category: 'NEWS' },
+      ),
+    ).toBe(false)
+  })
 })
 
 describe('applyCommunityStoredDraft — 이어 쓰기', () => {
@@ -263,14 +320,15 @@ describe('applyCommunityStoredDraft — 이어 쓰기', () => {
     expect(
       applyCommunityStoredDraft(
         'create',
-        { title: '', content: '', location: {}, images: [] },
-        stored,
+        { title: '', content: '', location: {}, images: [], category: null },
+        { ...stored, category: 'QUESTION' },
       ),
     ).toEqual({
       title: '저장한 제목',
       content: '저장한 본문',
       location: district,
       images: [],
+      category: 'QUESTION',
     })
   })
 
@@ -283,25 +341,64 @@ describe('applyCommunityStoredDraft — 이어 쓰기', () => {
     expect(
       applyCommunityStoredDraft(
         'create',
-        { title: '', content: '', location: prefill, images: [] },
+        {
+          title: '',
+          content: '',
+          location: prefill,
+          images: [],
+          category: null,
+        },
         { ...stored, location: {} },
       ).location,
     ).toEqual(prefill)
   })
 
-  it('수정은 제목·본문만 저장본이고 지역·사진은 원본이다', () => {
+  it('수정은 제목·본문·말머리가 저장본이고 지역·사진은 원본이다', () => {
     const original = {
       title: '원래 제목',
       content: '원래 본문',
       location: { targetType: 'ADMINISTRATION' as const, targetCode: '1' },
       images: [image],
+      category: 'NEWS' as const,
     }
 
-    expect(applyCommunityStoredDraft('edit', original, stored)).toEqual({
+    expect(
+      applyCommunityStoredDraft('edit', original, {
+        ...stored,
+        category: 'QUESTION',
+      }),
+    ).toEqual({
       title: '저장한 제목',
       content: '저장한 본문',
       location: original.location,
       images: [image],
+      category: 'QUESTION',
     })
+    // 저장본에서 말머리를 풀었으면 그대로 풀린다 — 수정 저장 때 서버가 지운다.
+    expect(
+      applyCommunityStoredDraft('edit', original, { ...stored, category: null })
+        .category,
+    ).toBeNull()
+  })
+
+  it('말머리 필드가 없는 옛 저장본은 원본 말머리를 지킨다 — null 로 읽으면 수정 저장이 말머리를 지운다(#529)', () => {
+    const original = {
+      title: '원래 제목',
+      content: '원래 본문',
+      location: {},
+      images: [],
+      category: 'EXPERIENCE' as const,
+    }
+
+    expect(applyCommunityStoredDraft('edit', original, stored).category).toBe(
+      'EXPERIENCE',
+    )
+    expect(
+      applyCommunityStoredDraft(
+        'create',
+        { ...original, category: null },
+        stored,
+      ).category,
+    ).toBeNull()
   })
 })

@@ -51,7 +51,13 @@ const renderWithQuery = (props: ComponentProps<typeof CommunityEditorForm>) => {
 
 const baseProps: ComponentProps<typeof CommunityEditorForm> = {
   mode: 'create',
-  initialValue: { title: '', content: '', location: {}, images: [] },
+  initialValue: {
+    title: '',
+    content: '',
+    location: {},
+    images: [],
+    category: null,
+  },
   mockEnabled: true,
   pending: false,
   errorMessage: null,
@@ -139,6 +145,64 @@ describe('CommunityEditorForm — 머리와 순서(개편 3단계)', () => {
   })
 })
 
+describe('CommunityEditorForm — 말머리(#529)', () => {
+  const categoryGroup = (markup: string) =>
+    markup.match(/<div[^>]*aria-label="말머리"[^>]*>.*?<\/div>/)?.[0] ?? ''
+
+  it('지역 다음 · 제목 앞에 「말머리 · 선택」 칩 행이 있고, 처음엔 아무것도 눌려 있지 않다', () => {
+    const { markup } = renderWithQuery(baseProps)
+    const group = categoryGroup(markup)
+
+    expect(group).toContain('role="group"')
+    expect(
+      [
+        ...group.matchAll(
+          /aria-pressed="(true|false)"[^>]*>([^<]+)<\/button>/g,
+        ),
+      ].map(([, pressed, label]) => [label, pressed]),
+    ).toEqual([
+      ['질문', 'false'],
+      ['경험 공유', 'false'],
+      ['같이 해요', 'false'],
+      ['동네 소식', 'false'],
+    ])
+    // 목록 필터와 달리 「전체」 칩은 없다 — 다시 누르면 풀린다.
+    expect(group).not.toContain('>전체</button>')
+    expect(markup).toMatch(
+      /말머리<!-- --> ?<span[^>]*>선택<\/span>|말머리 <span[^>]*>선택<\/span>/,
+    )
+    const region = markup.indexOf('data-region-chip="compose"')
+    const chips = markup.indexOf('aria-label="말머리"')
+    const title = markup.indexOf('placeholder="제목을 입력해 주세요"')
+    expect(region).toBeLessThan(chips)
+    expect(chips).toBeLessThan(title)
+  })
+
+  it('수정 화면도 지금 말머리가 눌린 채 시작하고 바꿀 수 있다', () => {
+    const { markup } = renderWithQuery({
+      ...baseProps,
+      mode: 'edit',
+      initialValue: {
+        ...baseProps.initialValue,
+        title: '제목',
+        content: '본문',
+        category: 'TOGETHER',
+      },
+    })
+    const group = categoryGroup(markup)
+
+    expect(group).toMatch(/aria-pressed="true"[^>]*>같이 해요<\/button>/)
+    expect(group.match(/aria-pressed="true"/g)).toHaveLength(1)
+    expect(openingTagOf(group, '같이 해요')).not.toContain('disabled')
+  })
+
+  it('저장 중에는 말머리 칩도 잠긴다', () => {
+    const { markup } = renderWithQuery({ ...baseProps, pending: true })
+
+    expect(openingTagOf(categoryGroup(markup), '질문')).toContain('disabled')
+  })
+})
+
 describe('CommunityEditorForm — 작성 도움 칩·글자 수', () => {
   it('본문이 비었을 때만 도움 칩 셋을 본문 위에 둔다(CM-033)', () => {
     const empty = renderWithQuery(baseProps).markup
@@ -150,10 +214,16 @@ describe('CommunityEditorForm — 작성 도움 칩·글자 수', () => {
     expect(empty).toMatch(
       /role="group"[^>]*aria-label="작성 도움"|aria-label="작성 도움"[^>]*role="group"/,
     )
+    // `같이 해요` 는 말머리 칩(#529)에도 있다 — 도움 칩 묶음 안에서만 센다.
+    const prompts = (markup: string) =>
+      markup.match(
+        /<div[^>]*data-community-writing-prompts="true"[^>]*>.*?<\/div>/,
+      )?.[0] ?? ''
     for (const label of ['질문해요', '경험 나눠요', '같이 해요']) {
-      expect(empty).toContain(`>${label}</button>`)
-      expect(filled).not.toContain(`>${label}</button>`)
+      expect(prompts(empty)).toContain(`>${label}</button>`)
     }
+    expect(prompts(filled)).toBe('')
+    expect(filled).not.toContain('>질문해요</button>')
     expect(empty.indexOf('질문해요')).toBeLessThan(empty.indexOf('<textarea'))
   })
 
@@ -276,6 +346,7 @@ describe('CommunityEditorForm — 수정 모드·저장 중·스타일', () => {
           targetCode: '3110008',
           targetName: '강남역 상권',
         },
+        category: null,
       },
       mockEnabled: false,
     })
@@ -295,6 +366,7 @@ describe('CommunityEditorForm — 수정 모드·저장 중·스타일', () => {
         content: '저장 전 본문',
         location: {},
         images: [],
+        category: null,
       },
       pending: true,
       errorMessage: '저장하지 못했어요.',
@@ -353,6 +425,7 @@ describe('community editor helpers', () => {
           targetName: '강남구',
         },
         images: [],
+        category: null,
       },
     })
     // CM-008 — 지역 없이는 저장되지 않는다. 제목·본문이 비어 있어도 지역을 먼저 짚는다.
@@ -378,6 +451,7 @@ describe('community editor helpers', () => {
         content: '본문',
         location: {},
         images: [],
+        category: null,
       },
     })
   })
@@ -415,6 +489,7 @@ describe('community editor helpers', () => {
       title: '제목',
       content: '본문',
       images: [],
+      category: null,
       location: {
         targetType: 'COMMERCIAL' as const,
         targetCode: '3110008',
@@ -551,6 +626,7 @@ describe('community editor helpers', () => {
         createdAt: '2026-07-27T00:00:00.000Z',
         updatedAt: '2026-07-27T00:00:00.000Z',
         images: [],
+        category: null,
       },
     } satisfies CommunityPostDetailResponse
     const fresh = {

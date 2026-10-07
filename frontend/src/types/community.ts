@@ -36,6 +36,14 @@ export type CommunityMetadata = {
   description: string
 } | null
 
+/**
+ * 게시글 말머리 code(#529, BE #470). 요청·URL 에는 이 네 값만 싣는다(대문자). 표시명·URL 해석은
+ * `lib/community/post-category.ts`. 응답의 말머리는 `CommunityMetadata` 라 code 가 `string` 이다 —
+ * BE 가 값을 더해도 화면이 죽지 않게 받고, 분기·필터는 알려진 값만 쓴다.
+ */
+export type CommunityPostCategoryCode =
+  'QUESTION' | 'EXPERIENCE' | 'TOGETHER' | 'NEWS'
+
 export type CommunityPostSummary = {
   postId: CommunityId
   memberId: CommunityId
@@ -50,6 +58,11 @@ export type CommunityPostSummary = {
   targetType: CommunityMetadata
   targetCode: string | null
   targetName: string | null
+  /**
+   * 말머리(#529). `null` 은 말머리 없는 글이다(기존 글 전부). 배지 문구는 `category.name`.
+   * 옛 BE 응답에는 필드가 없을 수 있어 렌더는 `category?.name` 으로 쓴다.
+   */
+  category: CommunityMetadata
   title: string
   previewContent: string
   likeCount: number
@@ -121,6 +134,11 @@ export type CommunityPostDetail = {
   targetType: CommunityMetadata
   targetCode: string | null
   targetName: string | null
+  /**
+   * 말머리(#529). `null` 은 말머리 없는 글이다(기존 글 전부). 배지 문구는 `category.name`.
+   * 옛 BE 응답에는 필드가 없을 수 있어 렌더는 `category?.name` 으로 쓴다.
+   */
+  category: CommunityMetadata
   title: string
   content: string
   likeCount: number
@@ -228,6 +246,8 @@ export type CommunityPostCreateRequest = {
   content: string
   /** 첨부 이미지 키. **배열 순서가 노출 순서**가 된다. 최대 5장. */
   imageKeys: string[]
+  /** 말머리(#529, 선택). 고르지 않았으면 키째 뺀다(말머리 없음). */
+  category?: CommunityPostCategoryCode
   /**
    * 분석 첨부(선택). 초안으로 시작한 글만 싣는다.
    *
@@ -253,6 +273,14 @@ export type CommunityPostUpdateRequest = {
    * 그래서 선택 필드가 아니다 — 타입에서 강제해 "깜빡 빠뜨림"을 컴파일 단계에서 막는다.
    */
   imageKeys: string[]
+  /**
+   * 말머리(#529). **「수정 후 값」이다 — 생략하면 말머리를 지운다(전체 교체).**
+   *
+   * `imageKeys` 와 같은 결이다. 사용자가 말머리를 건드리지 않았어도 지금 말머리를 **다시 실어야**
+   * 남는다. 빼는 것은 사용자가 해제했을 때뿐이다(`createCommunityEditorPayload`). 「말머리 없음」을
+   * 뜻할 수 있어 `imageKeys` 처럼 필수로 두지 못한다 — 대신 페이로드 테스트가 지킨다.
+   */
+  category?: CommunityPostCategoryCode
 }
 
 export type CommunityCommentCreateRequest = {
@@ -277,6 +305,11 @@ export type CommunityCursorParams = {
 export type CommunityListParams = CommunityCursorParams & {
   /** `sortType=POPULAR` 일 때만 싣는다. `LATEST` 에서는 서버가 무시한다. */
   period?: CommunityPopularPeriod
+  /**
+   * 말머리 필터(#529). 피드(`GET /posts`)에만 있다 — 검색·좋아요한 글에는 없다. 생략이 「전체」다
+   * (말머리 없는 글 포함). 대상 필터·정렬·기간과 함께 쓴다.
+   */
+  category?: CommunityPostCategoryCode
   targetType?: CommunityTargetType
   targetCode?: string
 }
