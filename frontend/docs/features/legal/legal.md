@@ -34,16 +34,16 @@
 
 문서가 거짓이 되지 않도록, 아래 사실이 바뀌면 **문서를 먼저 고친다.**
 
-| 문서 내용                                                                                                       | 근거                                                                 |
-| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| 가입 항목 = 이메일·비밀번호·이름·닉네임                                                                         | `MemberGeneralSignupRequest`. 생년월일·성별·전화번호 없음            |
-| 카카오 소셜 로그인만 노출(네이버는 BE 만)                                                                       | `social-login.tsx` 화이트리스트                                      |
-| 쿠키 `bps_session`(세션 쿠키) · `auth_return`(10분)                                                             | `src/lib/auth/session.ts`, `social-login.tsx`                        |
-| 분석 도구 = Google 애널리틱스 4(처리방침 1.1, 시행 2026-10-09). 이벤트에 회원 식별값 없음. 광고 SDK 없음        | `google-analytics.tsx`, `src/lib/analytics/events.ts`                |
-| 탈퇴 = 이름·닉네임 마스킹, 비밀번호·이미지 삭제, **이메일 유지**(재가입 차단), 게시글·댓글·이력·북마크 **보존** | `Member.withdraw()`, `backend/docs/services/auth-service.md` 탈퇴 절 |
-| AI 리포트는 공공 통계 코드만 사용, 회원 식별자 미전달                                                           | `AiReportJobParamKeys`, `OpenAiLlmClientAdapter` 프롬프트 구성       |
-| 이미지 저장소는 공개 읽기                                                                                       | `StorageBucketInitializer`, `file-upload-guide.md`                   |
-| 실시간 채팅 미제공                                                                                              | `chatting.md` — 약관에 적지 않았다                                   |
+| 문서 내용                                                                                                                                                                                                     | 근거                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 가입 항목 = 이메일·비밀번호·이름·닉네임                                                                                                                                                                       | `MemberGeneralSignupRequest`. 생년월일·성별·전화번호 없음                     |
+| 카카오 소셜 로그인만 노출(네이버는 BE 만)                                                                                                                                                                     | `social-login.tsx` 화이트리스트                                               |
+| 쿠키 `bps_session`(세션 쿠키) · `auth_return`(10분). **`social_state`(HttpOnly, 10분, `/api/auth/social` 한정 — 소셜 로그인 state 결속, #527)는 처리방침 제9조 미반영** — 처리방침 1.2 개정 PR(별도)에서 반영 | `src/lib/auth/session.ts`, `social-login.tsx`, `src/lib/auth/social-state.ts` |
+| 분석 도구 = Google 애널리틱스 4(처리방침 1.1, 시행 2026-10-09). 이벤트에 회원 식별값 없음. 광고 SDK 없음                                                                                                      | `google-analytics.tsx`, `src/lib/analytics/events.ts`                         |
+| 탈퇴 = 이름·닉네임 마스킹, 비밀번호·이미지 삭제, **이메일 유지**(재가입 차단), 게시글·댓글·이력·북마크 **보존**                                                                                               | `Member.withdraw()`, `backend/docs/services/auth-service.md` 탈퇴 절          |
+| AI 리포트는 공공 통계 코드만 사용, 회원 식별자 미전달                                                                                                                                                         | `AiReportJobParamKeys`, `OpenAiLlmClientAdapter` 프롬프트 구성                |
+| 이미지 저장소는 공개 읽기                                                                                                                                                                                     | `StorageBucketInitializer`, `file-upload-guide.md`                            |
+| 실시간 채팅 미제공                                                                                                                                                                                            | `chatting.md` — 약관에 적지 않았다                                            |
 
 ## S3. 확인이 필요한 값 (사람이 정해야 한다)
 

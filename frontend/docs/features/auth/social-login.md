@@ -29,11 +29,16 @@
 ## D1. 기능 개요
 
 ```
-[소셜 버튼] → GET /api/bff/auth/{provider}/authorize → { authorizationUrl }
+[소셜 버튼] → GET /api/auth/social/{provider}/authorize (BFF 전용 라우트)
+   → BFF: GET /auth/{provider}/authorize → { authorizationUrl }
+   → BFF: authorizationUrl 의 state 를 Set-Cookie social_state (HttpOnly · SameSite=Lax · Path=/api/auth/social · 10분)
    → window.location = authorizationUrl (공급자 인증 페이지)
    → 공급자가 redirect_uri(FE 콜백)로 ?code&state 반환
-   → 콜백(서버 라우트) → GET /auth/{provider}/login?code&state → { accessToken, memberId } + Set-Cookie(refresh)
-   → setSession(암호화 세션쿠키 봉인) → / 로 리다이렉트
+   → 콜백(서버 라우트): social_state 쿠키를 읽고 곧바로 지운다
+       ├ code/state 없음 → /login?error=social
+       ├ 쿼리 state ≠ 쿠키(또는 쿠키 없음) → 백엔드를 부르지 않고 /login?error=social_state
+       └ GET /auth/{provider}/login?code&state → { accessToken, memberId } + Set-Cookie(refresh)
+   → setSession(암호화 세션쿠키 봉인) → 복귀 경로로 리다이렉트
 ```
 
 토큰 커스터디 원칙([session-bff](./session-bff.md))을 그대로 따른다: **브라우저 JS는 토큰을 보지 못한다.**
@@ -42,24 +47,27 @@
 
 ## D2. 동작 요구사항
 
-| #   | 요구사항                                                                               | 상세 참조 |
-| --- | -------------------------------------------------------------------------------------- | --------- |
-| 1   | authorize URL은 BFF 경유로 받고, 반환된 URL로 브라우저를 이동시킨다                    | D4-1      |
-| 2   | 콜백 교환은 **서버 라우트**에서 수행하고, Set-Cookie의 refreshToken을 세션에 봉인한다  | D4-2      |
-| 3   | state는 백엔드가 authorize URL에 포함(CSRF 방어). FE는 콜백의 code/state를 그대로 전달 | D4-2      |
-| 4   | 교환 실패/취소 시 `/login`으로 복귀하고 사용자에게 사유를 안내한다                     | D5        |
-| 5   | 성공 후 세션 복원(`/members/me`)·인증 상태 전환은 일반 로그인과 동일                   | D4-2, D5  |
+| #   | 요구사항                                                                                                                                  | 상세 참조      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 1   | authorize URL은 BFF 경유로 받고, 반환된 URL로 브라우저를 이동시킨다                                                                       | D4-1           |
+| 2   | 콜백 교환은 **서버 라우트**에서 수행하고, Set-Cookie의 refreshToken을 세션에 봉인한다                                                     | D4-2           |
+| 3   | state는 백엔드가 authorize URL에 포함한다. BFF 는 그 state 를 HttpOnly 쿠키에 묶고, 콜백에서 쿠키와 대조한 뒤에만 백엔드에 전달한다(#527) | D4-1, D4-2, D6 |
+| 4   | 교환 실패/취소 시 `/login`으로 복귀하고 사용자에게 사유를 안내한다                                                                        | D5             |
+| 5   | 성공 후 세션 복원(`/members/me`)·인증 상태 전환은 일반 로그인과 동일                                                                      | D4-2, D5       |
 
 ---
 
 ## D3. 아키텍처 / 시스템 설계
 
-| 모듈                                          | 책임                                                                                           |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `src/components/auth/social-login.tsx`        | 소셜 버튼 UI + authorize URL 요청/리다이렉트(client)                                           |
-| `app/api/auth/social/[provider]/route.ts`     | 콜백 교환 서버 라우트(GET). 백엔드 login 호출 → 세션 봉인 → 307 redirect                       |
-| `app/(auth)/social/[provider]/page.tsx`(선택) | 콜백 로딩/에러 표시 페이지(서버 라우트를 직접 redirect_uri로 쓰면 생략 가능)                   |
-| 재사용                                        | `setSession`, `extractCookieValue`, `isApiSuccess`, `getApiMessage`(로그인 라우트와 동일 패턴) |
+| 모듈                                                | 책임                                                                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/auth/social-login.tsx`              | 소셜 버튼 UI + authorize URL 요청/리다이렉트(client)                                                                                  |
+| `app/api/auth/social/[provider]/authorize/route.ts` | 인가 URL 서버 라우트(GET). 백엔드 authorize 호출 → state 를 `social_state` 쿠키로 심음 → 본문 그대로 반환                             |
+| `app/api/auth/social/[provider]/route.ts`           | 콜백 교환 서버 라우트(GET). `social_state` 대조 → 백엔드 login 호출 → 세션 봉인 → 307 redirect                                        |
+| `src/lib/auth/social-state.ts`                      | provider 화이트리스트, `social_state` 쿠키 상수·옵션, state 추출·대조(SHA-256 + timingSafeEqual), 동의 쿼리 선별, 콜백 실패 kind 판정 |
+| `src/lib/auth/social-errors.ts`                     | `/login?error=<kind>` 문구(로그인 화면)                                                                                               |
+| `app/(auth)/social/[provider]/page.tsx`(선택)       | 콜백 로딩/에러 표시 페이지(서버 라우트를 직접 redirect_uri로 쓰면 생략 가능)                                                          |
+| 재사용                                              | `setSession`, `extractCookieValue`, `isApiSuccess`, `getApiMessage`(로그인 라우트와 동일 패턴)                                        |
 
 **설계 결정**: 콜백 교환은 로그인 응답과 동일하게 refreshToken이 Set-Cookie로 오고 세션 봉인이 필요하다. 범용 프록시(`/api/bff/...`)는 Set-Cookie를 strip하므로 **전용 서버 라우트**를 둔다(`app/api/auth/login/route.ts`와 동형).
 
@@ -69,11 +77,14 @@
 
 ### D4-1. 인가 URL 요청
 
-| 엔드포인트                                                                         | 요청 | 응답                                     |
-| ---------------------------------------------------------------------------------- | ---- | ---------------------------------------- |
-| `GET /api/bff/auth/{provider}/authorize` → `GET /api/v1/auth/{provider}/authorize` | -    | `Response<{ authorizationUrl: string }>` |
+| 엔드포인트                                                                            | 요청                                                      | 응답                                                                 |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /api/auth/social/{provider}/authorize` → `GET /api/v1/auth/{provider}/authorize` | (선택) `termsAgreed`·`privacyAgreed`·`ageOver14Confirmed` | `Response<{ authorizationUrl: string }>` + Set-Cookie `social_state` |
 
+- 동의 쿼리는 값이 정확히 `true` 인 것만 백엔드로 넘기고 나머지 쿼리는 버린다(`pickConsentQuery`). 로그인 화면은 보내지 않는다.
+- 백엔드 실패는 상태·본문을 그대로 넘기고 쿠키를 심지 않는다. 인가 URL 에 state 가 없으면 502, 화이트리스트 밖 provider 는 404.
 - 성공 시 `window.location.href = authorizationUrl`.
+- 범용 BFF 경로(`/api/bff/auth/{provider}/authorize`)는 막지 않았지만 **쓰지 않는다.** 그 경로로 받은 URL 은 쿠키가 없어 콜백에서 `social_state` 로 거절된다.
 
 ### D4-2. 콜백 교환(서버 라우트)
 
@@ -81,41 +92,70 @@
 | ------------------------------------------------ | --------------- | ----------------------------------------------------------- |
 | `GET /auth/{provider}/login?code&state` (백엔드) | `code`, `state` | `Response<{ accessToken, memberId }>` + Set-Cookie(refresh) |
 
-- 서버 라우트가 위를 호출 → refreshToken 추출 → `setSession({accessToken, refreshToken, memberId})` → `NextResponse.redirect('/')`.
-- 실패 시 `/login?error=social`로 redirect.
+- 서버 라우트가 위를 호출 → refreshToken 추출 → `setSession({accessToken, refreshToken, memberId})` → 복귀 경로로 redirect.
+- 판정 순서(바꾸지 않는다): ① provider 화이트리스트 → ② code·state 존재 → ③ `social_state` 쿠키 대조 → ④ 백엔드 호출. ③ 이 ④ 보다 늦으면 남이 보낸 콜백이 정상 state 를 백엔드에서 먼저 소비할 수 있다.
+- 실패 redirect(`socialCallbackFailure`):
+
+| 결과                                               | redirect                     |
+| -------------------------------------------------- | ---------------------------- |
+| provider 밖 · code/state 없음                      | `/login?error=social`        |
+| state 불일치 · 쿠키 없음(BE 미호출)                | `/login?error=social_state`  |
+| 같은 이름 `social_state` 쿠키가 둘 이상(BE 미호출) | `/login?error=social_state`  |
+| `AUTH_010` (state 재사용·만료)                     | `/login?error=social_state`  |
+| `AUTH_021` · `AUTH_022` (신규 · 동의 부족)         | `/login?error=social_signup` |
+| 그 밖                                              | `/login?error=social`        |
 
 ---
 
 ## D5. 비즈니스 로직
 
-| 조건                    | 결과                                                      |
-| ----------------------- | --------------------------------------------------------- |
-| authorize URL 수신 성공 | 공급자 페이지로 이동                                      |
-| 콜백 교환 성공          | 세션 봉인 → `/` 이동 → 인증 상태 전환                     |
-| 공급자 취소/에러        | `/login`으로 복귀 + 안내                                  |
-| refreshToken 누락       | 502 처리 → `/login`으로 복귀 + 안내(로그인 라우트와 동일) |
+| 조건                         | 결과                                                                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| authorize URL 수신 성공      | 공급자 페이지로 이동                                                                                                          |
+| 콜백 교환 성공               | 세션 봉인 → `/` 이동 → 인증 상태 전환                                                                                         |
+| 공급자 취소/에러             | `/login`으로 복귀 + 안내                                                                                                      |
+| refreshToken 누락            | 502 처리 → `/login`으로 복귀 + 안내(로그인 라우트와 동일)                                                                     |
+| `/login?error=social`        | 「소셜 로그인에 실패했습니다. 다시 시도해 주세요.」                                                                           |
+| `/login?error=social_state`  | 「로그인 요청이 만료됐거나 다른 브라우저에서 시작됐어요. 이 화면에서 다시 시도해 주세요.」                                    |
+| `/login?error=social_signup` | 「카카오 계정으로 처음 오셨어요. 회원가입에서 약관에 동의한 뒤 카카오로 가입해 주세요.」 + `/register` 링크(「회원가입하기」) |
+| 그 밖의 `?error=` 값         | 안내를 표시하지 않는다                                                                                                        |
+
+- 문구 정본은 이 표다. 코드는 `src/lib/auth/social-errors.ts`(`socialLoginErrorMessage`)이며 `login-form.tsx` 가 `Notice`(error)로 그린다.
 
 ---
 
 ## D6. 주의사항
 
-| 항목           | 내용                                                                                                        |
-| -------------- | ----------------------------------------------------------------------------------------------------------- |
-| redirect_uri   | 백엔드가 authorize URL 생성 시 넣는 콜백 경로가 FE 콜백 라우트와 **정확히 일치**해야 함(D8-1로 백엔드 확인) |
-| provider 값    | 경로 파라미터 문자열(`kakao` 등) — 백엔드 규약과 일치 확인. 화이트리스트로 제한(오픈 리다이렉트·오용 방지)  |
-| state          | FE는 검증하지 않고 그대로 전달(백엔드가 발급·검증). FE 임의 state 생성 금지                                 |
-| 토큰 노출 금지 | 콜백 교환은 반드시 서버에서. code/state를 클라이언트 로직으로 백엔드에 직접 노출하지 않음                   |
+| 항목           | 내용                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| redirect_uri   | 백엔드가 authorize URL 생성 시 넣는 콜백 경로가 FE 콜백 라우트와 **정확히 일치**해야 함(D8-1로 백엔드 확인)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| provider 값    | 경로 파라미터 문자열(`kakao` 등) — 백엔드 규약과 일치 확인. 화이트리스트로 제한(오픈 리다이렉트·오용 방지)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| state          | 백엔드가 발급·보관·1회 소비한다. **BFF 가 authorize 응답의 state 를 `social_state` HttpOnly 쿠키에 묶고, 콜백에서 쿠키와 대조한 뒤에만 백엔드를 부른다**(#527). 대조 없이 넘기면 남이 만든 인가 URL 로 피해자 브라우저에 남의 세션이 생기거나(login CSRF), 남이 정한 동의 값으로 피해자 이름의 회원·동의 이력이 생긴다(계약 §0-4). 쿠키는 콜백 맨 앞에서 읽고 **path 와 함께** 즉시 지운다. 원본 `Cookie` 헤더에 같은 이름이 둘 이상이면 거절한다 — 형제 서브도메인이 `Domain=.bosspickseoul.com; Path=/` 로 심은 쿠키가 Next 파서에서 마지막 값으로 이기고 path 가 달라 지워지지도 않기 때문이다(`cookies().getAll()` 은 Map 파싱이라 중복을 못 봐서 원본 헤더를 센다). FE 임의 state 생성 금지 |
+| 토큰 노출 금지 | 콜백 교환은 반드시 서버에서. code/state를 클라이언트 로직으로 백엔드에 직접 노출하지 않음                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ---
 
 ## D7. 테스트케이스
 
-| TC ID      | 목적           | 실행                     | 기대 결과                       |
-| ---------- | -------------- | ------------------------ | ------------------------------- |
-| TC-SOC-001 | 인가 URL 이동  | 카카오 버튼 클릭         | authorize URL로 이동            |
-| TC-SOC-002 | 콜백 교환 성공 | 유효 code/state 콜백     | 세션 봉인 → `/` 이동, 인증 전환 |
-| TC-SOC-003 | 콜백 실패      | 잘못된/만료 code         | `/login` 복귀 + 안내            |
-| TC-SOC-004 | provider 제한  | 화이트리스트 외 provider | 요청 차단/무시                  |
+| TC ID      | 목적                | 실행                                                                   | 기대 결과                                                                                    |
+| ---------- | ------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| TC-SOC-001 | 인가 URL 이동       | 카카오 버튼 클릭                                                       | authorize URL로 이동                                                                         |
+| TC-SOC-002 | 콜백 교환 성공      | 유효 code/state 콜백                                                   | 세션 봉인 → `/` 이동, 인증 전환                                                              |
+| TC-SOC-003 | 콜백 실패           | 잘못된/만료 code                                                       | `/login` 복귀 + 안내                                                                         |
+| TC-SOC-004 | provider 제한       | 화이트리스트 외 provider                                               | 요청 차단/무시                                                                               |
+| TC-SST-001 | state 대조 성공     | 쿠키 state = 쿼리 state, BE 성공                                       | 세션 봉인, 복귀 경로 이동, `social_state` 가 path 와 함께 지워짐                             |
+| TC-SST-002 | state 불일치        | 쿠키 state ≠ 쿼리 state                                                | BE 미호출, `/login?error=social_state`, 쿠키 지워짐                                          |
+| TC-SST-003 | 쿠키 없음           | `social_state` 없음                                                    | BE 미호출, `/login?error=social_state`                                                       |
+| TC-SST-004 | 콜백 재사용         | 같은 콜백 두 번                                                        | 두 번째는 BE 미호출, `social_state`                                                          |
+| TC-SST-005 | 신규 가입 동의 부족 | BE `AUTH_021` / `AUTH_022`                                             | `/login?error=social_signup`, 복귀 경로 쿠키 지워짐                                          |
+| TC-SST-006 | state 만료          | BE `AUTH_010`                                                          | `/login?error=social_state`                                                                  |
+| TC-SST-007 | 공급자 취소         | `?error=access_denied&state=s`                                         | BE 미호출, `/login?error=social`, state 쿠키 지워짐                                          |
+| TC-SST-008 | state 쿠키 중복     | 원본 헤더 `social_state=s; social_state=attacker`, 쿼리 state=attacker | BE 미호출, `/login?error=social_state`                                                       |
+| TC-SAU-001 | 인가 URL + 쿠키     | BE 성공(`state=abc`)                                                   | 200, 본문 그대로, `social_state=abc`·HttpOnly·SameSite=lax·Path=/api/auth/social·Max-Age=600 |
+| TC-SAU-002 | 동의 쿼리 선별      | `termsAgreed=true&privacyAgreed=false&ageOver14Confirmed=true&evil=1`  | BE 쿼리 `termsAgreed=true&ageOver14Confirmed=true`                                           |
+| TC-SAU-003 | state 없는 인가 URL | `authorizationUrl` 에 state 없음                                       | 502, 쿠키 없음                                                                               |
+| TC-SAU-004 | BE 실패             | BE 400                                                                 | 400, 본문 그대로, 쿠키 없음                                                                  |
+| TC-SAU-005 | provider 제한       | provider `evil`                                                        | 404, BE 미호출                                                                               |
 
 ---
 
@@ -131,6 +171,7 @@
 
 ## 변경 이력
 
-| 버전 | 날짜       | 변경 내용 | 작성자      |
-| ---- | ---------- | --------- | ----------- |
-| 1.0  | 2026-08-07 | 최초 작성 | Claude Code |
+| 버전 | 날짜       | 변경 내용                                                                                                                                                                                           | 작성자      |
+| ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.0  | 2026-08-07 | 최초 작성                                                                                                                                                                                           | Claude Code |
+| 1.1  | 2026-10-07 | #527 소셜 state 를 BFF `social_state` 쿠키로 브라우저에 묶음 — authorize 전용 라우트 신설, 콜백 대조·판정 순서, AUTH_010/021/022 분기, 중복 state 쿠키 거절, 로그인 화면 문구(D1·D2·D3·D4·D5·D6·D7) | Claude Code |
