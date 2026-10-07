@@ -27,6 +27,7 @@ import {
   useCommunityListScrollRestore,
 } from '@/hooks/use-community-list-scroll-restore'
 import { useCommunityRecentRegions } from '@/hooks/use-community-recent-regions'
+import { useCommunityViewerReady } from '@/hooks/use-community-viewer-ready'
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import {
@@ -39,6 +40,7 @@ import {
   MOCK_COMMUNITY_MEMBER_ID,
 } from '@/lib/community/community-mock'
 import {
+  COMMUNITY_ANONYMOUS_VIEWER,
   COMMUNITY_CURSOR_START,
   communityKeys,
   createCommunityContextKey,
@@ -46,6 +48,7 @@ import {
   getCommunityLoginHref,
   getCommunityNextPageParam,
   getCommunityPageSlice,
+  getCommunityViewerKey,
   parseCommunityListState,
   serializeCommunityListState,
   type CommunityListState,
@@ -136,6 +139,8 @@ export const recoverCommunityLikedUnauthorized = async ({
 type RecoverCommunityPublicListUnauthorizedOptions = {
   queryClient: QueryClient
   queryKey: QueryKey
+  /** 실패한 키의 조회자 세그먼트(`getCommunityViewerKey`). */
+  viewerKey: string
   clearSession: () => void
   refetch: () => Promise<unknown>
 }
@@ -143,10 +148,24 @@ type RecoverCommunityPublicListUnauthorizedOptions = {
 export const recoverCommunityPublicListUnauthorized = async ({
   queryClient,
   queryKey,
+  viewerKey,
   clearSession,
   refetch,
 }: RecoverCommunityPublicListUnauthorizedOptions) => {
   await queryClient.cancelQueries({ queryKey, exact: true })
+
+  /*
+    회원 키(#530)면 세션을 지우는 순간 조회자 세그먼트가 'anonymous' 로 바뀌어, 목록·인기 글 모두 새 키가
+    익명으로 알아서 받는다. 옛 키를 다시 부르면 같은 목록을 두 번 받고, 401 을 품은 채 남기면 같은 회원이
+    다시 로그인해 돌아왔을 때 그 오류로 복구가 또 돌아 세션을 지운다 — 그래서 지우기만 한다.
+    익명 키는 세션을 지워도 키가 그대로라 아래처럼 같은 키를 다시 부른다.
+  */
+  if (viewerKey !== COMMUNITY_ANONYMOUS_VIEWER) {
+    queryClient.removeQueries({ queryKey, exact: true })
+    clearSession()
+    return
+  }
+
   clearSession()
   await refetch()
   /*
@@ -385,20 +404,21 @@ export const getCommunityListRenderState = ({
   }
 }
 
+/**
+ * 목록 쿼리 키. 모든 보기에 조회자 세그먼트를 붙인다(#530) — 응답의 `liked` 가 조회자마다 달라서다.
+ * 예전에는 좋아요한 글 보기에만 `'member', id` 를 붙였는데, 이제 그 자리를 이 세그먼트 하나가 맡는다.
+ * 목 모드는 늘 목 회원으로 본다.
+ */
 export const createCommunityListQueryKey = (
   state: CommunityListState,
   viewer: CommunityViewer,
-) => {
-  const listKey = communityKeys.list(state)
-
-  return state.view === 'liked'
-    ? ([
-        ...listKey,
-        'member',
-        state.mock ? String(MOCK_COMMUNITY_MEMBER_ID) : viewer.memberId,
-      ] as const)
-    : listKey
-}
+) =>
+  communityKeys.list(
+    state,
+    state.mock
+      ? String(MOCK_COMMUNITY_MEMBER_ID)
+      : getCommunityViewerKey(viewer),
+  )
 
 /**
  * 응답의 `board.targetName` 만 돌려준다. 목록 제목(`{이름} 이야기`)이 쓴다 — 응답 전·실패·
@@ -626,6 +646,12 @@ export default function CommunityListPage() {
     hasHydrated,
     viewer.authenticated,
   )
+  // 키의 조회자 세그먼트가 정해진 뒤에만 공개 목록·인기 글을 부른다(#530, isCommunityViewerReady).
+  // 확인이 멈추면 상한 뒤 익명으로 시작한다(useCommunityViewerReady).
+  const viewerReady = useCommunityViewerReady(state.mock, hasHydrated)
+  const viewerKey = state.mock
+    ? String(MOCK_COMMUNITY_MEMBER_ID)
+    : getCommunityViewerKey(viewer)
   const listQueryKey = useMemo(
     () => createCommunityListQueryKey(state, viewer),
     [state, viewer],
@@ -645,7 +671,7 @@ export default function CommunityListPage() {
   >({
     queryKey: listQueryKey,
     initialPageParam: INITIAL_CURSOR,
-    enabled: queryAccess === 'none' || queryAccess === 'query',
+    enabled: viewerReady && (queryAccess === 'none' || queryAccess === 'query'),
     retry: shouldRetryCommunityListQuery,
     queryFn: async ({ pageParam }) => {
       const request = createCommunityListRequest(state, pageParam)
@@ -703,6 +729,7 @@ export default function CommunityListPage() {
         recoverCommunityPublicListUnauthorized({
           queryClient,
           queryKey: listQueryKey,
+          viewerKey,
           clearSession,
           refetch: async () => {
             await listQuery.refetch()
@@ -716,6 +743,7 @@ export default function CommunityListPage() {
     queryClient,
     state.mock,
     state.view,
+    viewerKey,
   ])
 
   useEffect(() => {
@@ -784,7 +812,8 @@ export default function CommunityListPage() {
   const popularParams = createCommunityPopularParams(state)
   /*
     인기 글은 목록과 다른 키다(communityKeys.popular). 목록 401 복구가 exact 키로 취소·제거하는 것과
-    섞이지 않고, 복구가 끝나면 따로 무효화한다(recoverCommunityPublicListUnauthorized). 글 작성·삭제는
+    섞이지 않는다. 복구로 회원 → 익명이 되면 조회자 세그먼트가 바뀌어 새 키가 받고, 익명 키였으면 복구가
+    따로 무효화한다(recoverCommunityPublicListUnauthorized). 글 작성·삭제는
     communityKeys.all 무효화로 함께 갱신되고, 상세 좋아요·댓글은 refreshCommunityDetailSummaryCaches 가
     목록 키와 함께 무효화한다. 재시도는 목록과 같은 규칙(401 은 재시도하지 않음)이고, 실패하면 묶음을
     조용히 숨긴다.
@@ -794,8 +823,9 @@ export default function CommunityListPage() {
       railTarget?.targetType ?? null,
       railTarget?.targetCode ?? null,
       state.mock,
+      viewerKey,
     ),
-    enabled: showRail,
+    enabled: showRail && viewerReady,
     retry: shouldRetryCommunityListQuery,
     queryFn: async () =>
       validateCommunityPopularResponse(await source.getPosts(popularParams)),
@@ -846,7 +876,8 @@ export default function CommunityListPage() {
     likedAccess === 'wait' || likedAccess === 'redirect'
   const { status, errorMessage, loadMoreErrorMessage } =
     getCommunityListRenderState({
-      waitingForAccess: isWaitingForLikedAuth,
+      // 로그인 확인 전에는 쿼리가 꺼져 있다 — 빈 상태가 아니라 첫 로딩으로 그린다.
+      waitingForAccess: !viewerReady || isWaitingForLikedAuth,
       isInitialLoading: listQuery.isLoading,
       postsLength: posts.length,
       error: listQuery.error,

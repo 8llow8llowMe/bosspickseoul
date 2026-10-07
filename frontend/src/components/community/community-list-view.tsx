@@ -570,11 +570,13 @@ const RowFooter = styled.div`
   }
 `
 
-const Reaction = styled.span`
+const Reaction = styled.span<{ $liked?: boolean }>`
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 4px;
+  /* 내가 좋아요한 글 — 상세 반응 바의 눌린 하트와 같은 토큰. */
+  ${props => (props.$liked ? 'color: var(--color-text-primary-on-light);' : '')}
 `
 
 const Thumbnail = styled.span`
@@ -900,14 +902,41 @@ export default function CommunityListView({
                               profileImageUrl={post.writerProfileImageUrl}
                             />
                             <MetaDivider aria-hidden="true" />
-                            <Reaction aria-label={`좋아요 ${post.likeCount}`}>
-                              <Heart aria-hidden="true" size={14} />
+                            {/*
+                              내 좋아요는 표시만 한다(#530) — 행 전체가 상세 링크라 토글 버튼을 넣으면
+                              중첩 인터랙티브가 된다. `null`(비로그인)은 「안 누름」이 아니라 「모름」이라
+                              true 일 때만 채운다.
+                            */}
+                            <Reaction
+                              $liked={post.liked === true}
+                              aria-label={
+                                post.liked === true
+                                  ? `좋아요 ${post.likeCount}, 내가 좋아요한 글`
+                                  : `좋아요 ${post.likeCount}`
+                              }
+                              data-liked={
+                                post.liked === true ? 'true' : undefined
+                              }
+                            >
+                              <Heart
+                                aria-hidden="true"
+                                fill={
+                                  post.liked === true ? 'currentColor' : 'none'
+                                }
+                                size={14}
+                              />
                               {formatCommunityCount(post.likeCount)}
                             </Reaction>
                             <Reaction aria-label={`댓글 ${post.commentCount}`}>
                               <MessageCircle aria-hidden="true" size={14} />
                               {formatCommunityCount(post.commentCount)}
                             </Reaction>
+                            {/* 상세 메타와 같은 `조회 N`. 옛 BE 응답에는 없을 수 있어 그때는 그리지 않는다. */}
+                            {typeof post.viewCount === 'number' ? (
+                              <Reaction aria-label={`조회 ${post.viewCount}`}>
+                                {`조회 ${formatCommunityCount(post.viewCount)}`}
+                              </Reaction>
+                            ) : null}
                           </RowFooter>
                         </RowText>
                         {post.thumbnailUrl ? (

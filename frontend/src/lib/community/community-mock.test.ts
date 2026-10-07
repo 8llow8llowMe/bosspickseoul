@@ -123,7 +123,8 @@ describe('community mock source', () => {
         content: expect.any(String),
         likeCount: summary.likeCount,
         commentCount: summary.commentCount,
-        viewCount: expect.any(Number),
+        viewCount: summary.viewCount,
+        liked: summary.liked,
         createdAt: summary.createdAt,
         updatedAt: expect.any(String),
         images: expect.any(Array),
@@ -363,6 +364,8 @@ describe('community mock source', () => {
               previewContent: older.dataBody.content,
               likeCount: older.dataBody.likeCount,
               commentCount: older.dataBody.commentCount,
+              viewCount: 0,
+              liked: false,
               createdAt: older.dataBody.createdAt,
               thumbnailUrl: null,
             },
@@ -583,6 +586,7 @@ describe('community mock source', () => {
       likeCount: 0,
       commentCount: 0,
       viewCount: 0,
+      liked: false,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       images: [],
@@ -821,12 +825,14 @@ describe('community mock source', () => {
     ).toEqual({
       ...original,
       likeCount: original.likeCount + 1,
+      liked: true,
       likedAt: expect.any(String),
     })
     expect((await source.getPost('2')).dataBody).toEqual({
       ...originalDetail,
       likeCount: original.likeCount + 1,
       viewCount: originalDetail.viewCount + 1,
+      liked: true,
     })
 
     const unliked = await source.togglePostLike('2')
@@ -844,7 +850,47 @@ describe('community mock source', () => {
       ...originalDetail,
       likeCount: original.likeCount,
       viewCount: originalDetail.viewCount + 2,
+      liked: false,
     })
+  })
+
+  it('조회수와 내 좋아요(#530)를 목록·검색·좋아요한 글·상세에 같은 값으로 싣는다', async () => {
+    // 시드의 liked 는 mock 회원의 초기 좋아요 목록(7·1)과 같다.
+    expect(
+      communityMockFixtures.posts
+        .filter(post => post.liked)
+        .map(post => post.postId)
+        .sort(),
+    ).toEqual(['1', '7'])
+    expect(
+      communityMockFixtures.details.every(
+        detail => detail.liked === fixturePost(detail.postId).liked,
+      ),
+    ).toBe(true)
+
+    const source = createCommunityMockSource()
+    await source.togglePostLike('2')
+    await source.getPost('2')
+
+    const listed = (await source.getPosts(cursor())).dataBody.posts.contents
+    const post2 = listed.find(post => post.postId === '2')
+    expect(post2?.liked).toBe(true)
+    // 상세 진입으로 늘어난 조회수가 목록 행에도 보인다.
+    expect(post2?.viewCount).toBe(fixturePost('2').viewCount + 1)
+    expect(listed.find(post => post.postId === '3')?.liked).toBe(false)
+
+    const searched = (
+      await source.searchPosts({ ...cursor(), keyword: '우산' })
+    ).dataBody.posts.contents
+    expect(searched.find(post => post.postId === '2')?.liked).toBe(true)
+
+    const likedPosts = (await source.getLikedPosts(cursor())).dataBody.posts
+      .contents
+    expect(likedPosts.length).toBeGreaterThan(0)
+    expect(likedPosts.every(post => post.liked === true)).toBe(true)
+
+    await source.togglePostLike('1')
+    expect((await source.getPost('1')).dataBody.liked).toBe(false)
   })
 
   it('좋아요와 댓글이 있는 게시글 삭제 시 연관 상태를 제거한다', async () => {

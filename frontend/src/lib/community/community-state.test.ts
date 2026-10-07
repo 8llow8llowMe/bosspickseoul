@@ -7,12 +7,14 @@ import type {
 } from '@/types/community'
 
 import {
+  COMMUNITY_ANONYMOUS_VIEWER,
   communityKeys,
   createCommunityContextKey,
   createCommunityPostHref,
   getCommunityLoginHref,
   getCommunityNextPageParam,
   getCommunityPageSlice,
+  getCommunityViewerKey,
   isCommunityMockEnabled,
   parseCommunityListState,
   parseCommunityPostId,
@@ -42,6 +44,8 @@ const postsResponse: CommunityPostListResponse = {
           previewContent: '본문',
           likeCount: 13,
           commentCount: 2,
+          viewCount: 40,
+          liked: null,
           createdAt: '2026-07-27T00:00:00Z',
           thumbnailUrl: null,
         },
@@ -275,12 +279,18 @@ describe('community state', () => {
 
   it('namespaced query keys를 안정적으로 만든다', () => {
     const state = parseCommunityListState(new URLSearchParams('view=latest'))
-    expect(communityKeys.list(state)).toEqual(['community', 'list', state])
-    expect(communityKeys.detail('1', true)).toEqual([
+    expect(communityKeys.list(state, 'anonymous')).toEqual([
+      'community',
+      'list',
+      state,
+      'anonymous',
+    ])
+    expect(communityKeys.detail('1', true, '9001')).toEqual([
       'community',
       'detail',
       '1',
       true,
+      '9001',
     ])
     expect(communityKeys.comments('1', false)).toEqual([
       'community',
@@ -288,36 +298,47 @@ describe('community state', () => {
       '1',
       false,
     ])
-    expect(communityKeys.related('DISTRICT', '111', false)).toEqual([
+    expect(communityKeys.related('DISTRICT', '111', false, '42')).toEqual([
       'community',
       'related',
       'DISTRICT',
       '111',
       false,
+      '42',
     ])
     expect(communityKeys.liked(true)).toEqual(['community', 'liked', true])
   })
 
-  it('목록 우 레일 인기 글 키는 목록 키와 섞이지 않고 대상·목 모드로 갈린다', () => {
-    expect(communityKeys.popular('DISTRICT', '11200', false)).toEqual([
-      'community',
-      'popular',
-      'DISTRICT',
-      '11200',
-      false,
-    ])
-    expect(communityKeys.popular(null, null, true)).toEqual([
+  it('목록 우 레일 인기 글 키는 목록 키와 섞이지 않고 대상·목 모드·조회자로 갈린다', () => {
+    expect(
+      communityKeys.popular('DISTRICT', '11200', false, 'anonymous'),
+    ).toEqual(['community', 'popular', 'DISTRICT', '11200', false, 'anonymous'])
+    expect(communityKeys.popular(null, null, true, '9001')).toEqual([
       'community',
       'popular',
       null,
       null,
       true,
+      '9001',
     ])
     // 목록 쪽 prefix(['community', 'list']) 무효화·취소에 걸리지 않는다.
-    expect(communityKeys.popular(null, null, false).slice(0, 2)).not.toEqual([
-      'community',
-      'list',
-    ])
+    expect(
+      communityKeys.popular(null, null, false, 'anonymous').slice(0, 2),
+    ).not.toEqual(['community', 'list'])
+  })
+
+  it('조회자 세그먼트는 회원 id, 비로그인은 anonymous 다(#530 — liked 가 조회자별 응답)', () => {
+    expect(getCommunityViewerKey({ authenticated: true, memberId: '42' })).toBe(
+      '42',
+    )
+    expect(
+      getCommunityViewerKey({ authenticated: false, memberId: null }),
+    ).toBe(COMMUNITY_ANONYMOUS_VIEWER)
+    expect(COMMUNITY_ANONYMOUS_VIEWER).toBe('anonymous')
+    // 같은 글이라도 조회자가 다르면 다른 캐시다 — 로그아웃 뒤 남의 liked 를 5분 동안 보이지 않게.
+    expect(communityKeys.detail('1', false, '42')).not.toEqual(
+      communityKeys.detail('1', false, COMMUNITY_ANONYMOUS_VIEWER),
+    )
   })
 
   it('대상명이 없으면 서울 창업 커뮤니티 메타데이터를 만든다', () => {

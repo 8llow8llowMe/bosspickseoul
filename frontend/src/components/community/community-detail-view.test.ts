@@ -8,7 +8,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatCommunityDate } from '@/lib/community'
 
 import { communityMockFixtures } from '@/lib/community/community-mock'
-import { communityKeys } from '@/lib/community/community-state'
+import {
+  COMMUNITY_ANONYMOUS_VIEWER,
+  communityKeys,
+} from '@/lib/community/community-state'
 import type {
   CommunityComment,
   CommunityCommentLikeBody,
@@ -23,6 +26,7 @@ import type {
 import {
   CommunityDetailQueryError,
   createCommunityRelatedParams,
+  getCommunityPostLiked,
   isCommunityDetailUnauthorizedError,
   isCommunityOwner,
   recoverCommunityPublicQueries,
@@ -258,6 +262,31 @@ describe('CommunityDetailView', () => {
     expect(liked).toMatch(/data-liked="true"[^]*?fill="currentColor"/)
     expect(neutral).toContain('data-liked="false"')
     expect(neutral).not.toContain('fill="currentColor"')
+  })
+
+  it('draws the heart from the detail response on first render, before any toggle (#530)', () => {
+    const fromDetail = (liked: boolean | null | undefined) =>
+      renderWithStyles({
+        detail: { ...detail, liked: liked as boolean | null },
+        postLiked: getCommunityPostLiked({
+          ...detail,
+          liked: liked as boolean | null,
+        }),
+      }).markup
+
+    expect(fromDetail(true)).toContain('aria-pressed="true"')
+    expect(fromDetail(true)).toMatch(
+      /data-liked="true"[^]*?fill="currentColor"/,
+    )
+    // false · null(비로그인이라 모름) · 옛 BE(필드 없음)는 모두 빈 하트다.
+    for (const value of [false, null, undefined]) {
+      expect(fromDetail(value)).toContain('data-liked="false"')
+      expect(fromDetail(value)).not.toContain('aria-pressed="true"')
+    }
+    expect(getCommunityPostLiked(null)).toBeNull()
+    expect(
+      getCommunityPostLiked({ ...detail, liked: undefined as unknown as null }),
+    ).toBeNull()
   })
 
   it('keeps the like label steady while pending — aria-busy and disabled instead of 처리 중', () => {
@@ -930,6 +959,25 @@ describe('community detail helpers', () => {
 
     expect(nextDetail.dataBody.likeCount).toBe(11)
     expect(detailResponse.dataBody.likeCount).not.toBe(11)
+    // 상세 캐시의 liked 도 토글 결과로 바뀐다 — 하트는 이 값에서 그린다(#530).
+    expect(
+      updateCommunityDetailLikeCache(
+        { ...detailResponse, dataBody: { ...detail, liked: false } },
+        postLike,
+      ).dataBody.liked,
+    ).toBe(true)
+    expect(
+      updateCommunityDetailLikeCache(
+        { ...detailResponse, dataBody: { ...detail, liked: true } },
+        { ...postLike, liked: false },
+      ).dataBody.liked,
+    ).toBe(false)
+    expect(
+      updateCommunityDetailLikeCache(detailResponse, {
+        ...postLike,
+        postId: `${detail.postId}0`,
+      }).dataBody,
+    ).toEqual(detailResponse.dataBody)
     expect(nextComments.dataBody.comments[0]!.replies[0]!.likeCount).toBe(9)
     expect(
       commentsResponse.dataBody.comments[0]!.replies[0]!.likeCount,
@@ -968,7 +1016,12 @@ describe('community detail helpers', () => {
 
   it('updates a matching related summary precisely and invalidates list membership plus current related data', async () => {
     const queryClient = new QueryClient()
-    const relatedKey = communityKeys.related('COMMERCIAL', '3110008', false)
+    const relatedKey = communityKeys.related(
+      'COMMERCIAL',
+      '3110008',
+      false,
+      '42',
+    )
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
     const result: CommunityPostLikeResponse['dataBody'] = {
       postId: relatedPosts[0]!.postId,
@@ -983,6 +1036,10 @@ describe('community detail helpers', () => {
     })
 
     expect(nextRelated.dataBody.posts.contents[0]!.likeCount).toBe(44)
+    expect(nextRelated.dataBody.posts.contents[0]!.liked).toBe(true)
+    expect(nextRelated.dataBody.posts.contents[1]).toEqual(
+      relatedResponse.dataBody.posts.contents[1],
+    )
     expect(relatedResponse.dataBody.posts.contents[0]!.likeCount).not.toBe(44)
     expect(invalidateSpy).toHaveBeenNthCalledWith(1, {
       queryKey: ['community', 'list'],
@@ -1014,10 +1071,19 @@ describe('community detail helpers', () => {
 
   it('cancels and removes only the exact detail context before clearing a 401 session and redirecting', async () => {
     const queryClient = new QueryClient()
-    const detailKey = communityKeys.detail(detail.postId, false)
+    const detailKey = communityKeys.detail(detail.postId, false, '42')
     const commentsKey = communityKeys.comments(detail.postId, false)
-    const relatedKey = communityKeys.related('COMMERCIAL', '3110008', false)
-    const retainedDetailKey = communityKeys.detail(detail.postId + 1, false)
+    const relatedKey = communityKeys.related(
+      'COMMERCIAL',
+      '3110008',
+      false,
+      '42',
+    )
+    const retainedDetailKey = communityKeys.detail(
+      detail.postId + 1,
+      false,
+      '42',
+    )
     const clearSession = vi.fn()
     const navigate = vi.fn()
     const cancelSpy = vi.spyOn(queryClient, 'cancelQueries')
@@ -1121,11 +1187,20 @@ describe('community detail helpers', () => {
     expect(recoveryRef.current).toBeNull()
   })
 
-  it('cancels and retries public detail queries anonymously once without removing their cache', async () => {
+  it('cancels and retries anonymous public detail queries once without removing their cache', async () => {
     const queryClient = new QueryClient()
-    const detailKey = communityKeys.detail(detail.postId, false)
+    const detailKey = communityKeys.detail(
+      detail.postId,
+      false,
+      COMMUNITY_ANONYMOUS_VIEWER,
+    )
     const commentsKey = communityKeys.comments(detail.postId, false)
-    const relatedKey = communityKeys.related('COMMERCIAL', '3110008', false)
+    const relatedKey = communityKeys.related(
+      'COMMERCIAL',
+      '3110008',
+      false,
+      COMMUNITY_ANONYMOUS_VIEWER,
+    )
     const cancelSpy = vi.spyOn(queryClient, 'cancelQueries')
     const removeSpy = vi.spyOn(queryClient, 'removeQueries')
     const clearSession = vi.fn()
@@ -1135,10 +1210,11 @@ describe('community detail helpers', () => {
 
     await recoverCommunityPublicQueries({
       queryClient,
+      viewerKey: COMMUNITY_ANONYMOUS_VIEWER,
       queries: [
-        { queryKey: detailKey, refetch: refetchDetail },
+        { queryKey: detailKey, refetch: refetchDetail, viewerScoped: true },
         { queryKey: commentsKey, refetch: refetchComments },
-        { queryKey: relatedKey, refetch: refetchRelated },
+        { queryKey: relatedKey, refetch: refetchRelated, viewerScoped: true },
       ],
       clearSession,
     })
@@ -1167,6 +1243,51 @@ describe('community detail helpers', () => {
     expect(clearSession.mock.invocationCallOrder[0]).toBeLessThan(
       refetchDetail.mock.invocationCallOrder[0]!,
     )
+  })
+
+  it('drops member-keyed detail and related on 401 instead of refetching them — the anonymous keys take over (#530)', async () => {
+    const queryClient = new QueryClient()
+    const detailKey = communityKeys.detail(detail.postId, false, '42')
+    const commentsKey = communityKeys.comments(detail.postId, false)
+    const relatedKey = communityKeys.related(
+      'COMMERCIAL',
+      '3110008',
+      false,
+      '42',
+    )
+    const clearSession = vi.fn()
+    const refetchDetail = vi.fn(async () => {})
+    const refetchComments = vi.fn(async () => {})
+    const refetchRelated = vi.fn(async () => {})
+
+    queryClient.setQueryData(detailKey, detailResponse)
+    queryClient.setQueryData(commentsKey, commentsResponse)
+    queryClient.setQueryData(relatedKey, relatedResponse)
+
+    await recoverCommunityPublicQueries({
+      queryClient,
+      viewerKey: '42',
+      queries: [
+        { queryKey: detailKey, refetch: refetchDetail, viewerScoped: true },
+        { queryKey: commentsKey, refetch: refetchComments },
+        { queryKey: relatedKey, refetch: refetchRelated, viewerScoped: true },
+      ],
+      clearSession,
+    })
+
+    // 옛 회원 키를 다시 부르면 상세 GET 이 두 번 나가 조회수가 두 번 오른다.
+    expect(refetchDetail).not.toHaveBeenCalled()
+    expect(refetchRelated).not.toHaveBeenCalled()
+    expect(
+      queryClient.getQueryCache().find({ queryKey: detailKey, exact: true }),
+    ).toBeUndefined()
+    expect(
+      queryClient.getQueryCache().find({ queryKey: relatedKey, exact: true }),
+    ).toBeUndefined()
+    // 댓글 키에는 조회자가 없어 키가 그대로다 — 같은 키를 익명으로 다시 부른다.
+    expect(queryClient.getQueryData(commentsKey)).toBe(commentsResponse)
+    expect(refetchComments).toHaveBeenCalledOnce()
+    expect(clearSession).toHaveBeenCalledOnce()
   })
 
   it('allows only one public query recovery attempt per detail scope', async () => {

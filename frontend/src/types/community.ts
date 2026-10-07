@@ -47,6 +47,14 @@ export type CommunityPostSummary = {
   previewContent: string
   likeCount: number
   commentCount: number
+  /** 조회 수(#471). 상세 진입 때 늘어난다. */
+  viewCount: number
+  /**
+   * 내가 이 글을 좋아요했는가(#471). 피드·검색·상세는 선택 인증이라 **`null` 은 「비로그인이라 모름」이지
+   * 「안 누름」이 아니다** — 화면은 `liked === true` 일 때만 눌린 하트를 그린다. 좋아요한 글 목록은 늘 true.
+   * 옛 BE 응답에는 필드가 없을 수 있어 렌더는 값이 없어도 깨지지 않게 쓴다.
+   */
+  liked: boolean | null
   createdAt: string
   /** 첨부 이미지 첫 장. 첨부가 없으면 null 이다. */
   thumbnailUrl: string | null
@@ -111,6 +119,12 @@ export type CommunityPostDetail = {
   likeCount: number
   commentCount: number
   viewCount: number
+  /**
+   * 내가 이 글을 좋아요했는가(#471). 피드·검색·상세는 선택 인증이라 **`null` 은 「비로그인이라 모름」이지
+   * 「안 누름」이 아니다** — 화면은 `liked === true` 일 때만 눌린 하트를 그린다. 좋아요한 글 목록은 늘 true.
+   * 옛 BE 응답에는 필드가 없을 수 있어 렌더는 값이 없어도 깨지지 않게 쓴다.
+   */
+  liked: boolean | null
   createdAt: string
   updatedAt: string
   /** 첨부 이미지. `sortOrder` 오름차순이 노출 순서다. */

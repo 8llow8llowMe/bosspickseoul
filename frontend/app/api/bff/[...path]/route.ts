@@ -65,6 +65,8 @@ const forward = async (
     ),
     body: body && body.byteLength > 0 ? body : undefined,
     redirect: 'manual',
+    // 응답이 조회자마다 다르다(커뮤니티 `liked`, #530). Next 16 기본값과 같지만 의도를 남긴다 — data cache 금지.
+    cache: 'no-store',
   })
 }
 
