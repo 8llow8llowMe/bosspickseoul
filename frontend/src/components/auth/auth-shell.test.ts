@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
-import { FieldError, TextInput } from './auth-shell'
+import AuthShell, { FieldError, Notice, TextInput } from './auth-shell'
 
 /** prettier 가 color-mix() 를 여러 줄로 감싸면 방출 CSS 의 공백이 달라진다. */
 const squeeze = (css: string): string => css.replace(/\s+/g, '')
@@ -75,5 +75,47 @@ describe('auth 인라인 필드 에러 규격 (DESIGN.md §Error (inline field))
     const markup = renderToStaticMarkup(createElement(TextInput))
 
     expect(markup).not.toContain('aria-invalid')
+  })
+})
+
+describe('auth Notice (#495 리뷰)', () => {
+  it('error 톤만 role="alert" 로 알린다 — info·success 는 조용히 둔다', () => {
+    expect(
+      renderToStaticMarkup(createElement(Notice, { $tone: 'error' }, 'x')),
+    ).toContain('role="alert"')
+    expect(
+      renderToStaticMarkup(createElement(Notice, null, 'x')),
+    ).not.toContain('role=')
+    expect(
+      renderToStaticMarkup(createElement(Notice, { $tone: 'success' }, 'x')),
+    ).not.toContain('role=')
+  })
+
+  /** blue500 글자는 blue50 위에서 2.47:1 이라 AA 미달이다(DESIGN.md §Secondary (Weak)). */
+  it('info 톤 글자색은 밝은 배경용 파란 글자 토큰이다', () => {
+    const styles = renderStyles(createElement(Notice, null, 'x'))
+
+    expect(styles).toContain('color:var(--color-text-primary-on-light)')
+    expect(styles).not.toContain('color:var(--color-primary-700)')
+  })
+
+  it('Notice 와 제목은 한국어 어절 단위로 줄바꿈한다', () => {
+    const notice = renderStyles(createElement(Notice, null, 'x'))
+    const shell = renderStyles(
+      createElement(
+        AuthShell,
+        { eyebrow: 'e', title: 't', description: 'd' } as Parameters<
+          typeof AuthShell
+        >[0],
+        null,
+      ),
+    )
+
+    expect(notice).toContain('word-break:keep-all')
+    expect(notice).toContain('overflow-wrap:anywhere')
+    // 제목·설명 두 곳 이상에 keep-all 이 있어야 한다(설명은 원래 있었다).
+    expect(shell.match(/word-break:keep-all/g)?.length).toBeGreaterThanOrEqual(
+      2,
+    )
   })
 })
