@@ -165,6 +165,45 @@ describe('개인정보 처리방침 — 이용 통계(GA4)', () => {
   })
 })
 
+/**
+ * 처리방침 1.2 — 가입 동의 이력(`member_consent`, BE #494)과 소셜 state 쿠키(`social_state`, FE #527).
+ * 둘 다 코드가 실제로 남기는 것이라 표에서 행이 빠지면 고지하지 않은 처리가 된다. 행을 찾을 때 첫 칸으로
+ * 찾는다 — 화면이 첫 칸을 행 key 로 쓰므로 첫 칸은 표 안에서 유일하다.
+ */
+describe('개인정보 처리방침 — 가입 동의 기록·소셜 state 쿠키', () => {
+  const tableRows = (articleNo: number) =>
+    privacyPolicy.articles
+      .find(article => article.no === articleNo)
+      ?.blocks.flatMap(block => (block.kind === 'table' ? block.rows : [])) ??
+    []
+
+  const rowStartingWith = (articleNo: number, prefix: string) =>
+    tableRows(articleNo).find(row => row[0].startsWith(prefix))
+
+  it('제3조 처리 항목에 가입 동의 기록(항목·문서 판·동의 시각)이 있다', () => {
+    const row = rowStartingWith(3, '가입 동의 기록')
+
+    expect(row).toBeDefined()
+    expect(row?.[1]).toContain('문서의 판')
+    expect(row?.[1]).toContain('동의 시각')
+  })
+
+  it('제2조 보유 기간에 가입 동의 기록이 있다', () => {
+    expect(rowStartingWith(2, '가입 동의 기록')).toBeDefined()
+  })
+
+  it('제6조 탈퇴 처리에 가입 동의 기록이 있다', () => {
+    expect(rowStartingWith(6, '가입 동의 기록')).toBeDefined()
+  })
+
+  it('제9조 쿠키 표에 social_state 가 10분 보관으로 있다', () => {
+    const row = rowStartingWith(9, 'social_state')
+
+    expect(row).toBeDefined()
+    expect(row?.[2]).toContain('10분')
+  })
+})
+
 describe('약관 링크', () => {
   it('푸터 링크가 두 문서의 경로를 가리킨다', () => {
     expect(LEGAL_LINKS.map(link => link.href)).toEqual([
