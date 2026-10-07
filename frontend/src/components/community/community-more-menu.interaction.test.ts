@@ -232,6 +232,7 @@ function DetailHarness() {
     reportTarget,
     reportPending: false,
     reportErrorMessage: null,
+    reportErrorField: null,
     reportStatusMessage: null,
     adjacent: null,
     mockEnabled: true,

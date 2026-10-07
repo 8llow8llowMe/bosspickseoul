@@ -23,7 +23,11 @@ export type NormalizedApiError = {
   kind: ApiErrorKind
   /** HTTP 상태. 응답이 없으면 null. */
   status: number | null
-  /** `dataHeader.resultCode` (예: COMMERCIAL_006). UI 분기에 쓰지 말고 로깅·디버깅용으로만 쓴다. */
+  /**
+   * `dataHeader.resultCode` (예: COMMERCIAL_006). UI 분기에 쓰지 말고 로깅·디버깅용으로만 쓴다.
+   * 예외: 커뮤니티 신고(#532)는 계약이 `errors[].field` 를 입력칸이 아닌 내부 이름으로 줘서 안내 자리를 이 code 로 정한다
+   * (`getCommunityReportErrorField`).
+   */
   code: string | null
   /** 사용자에게 그대로 보여줄 문구. 서버 메시지를 최우선으로 쓴다. */
   message: string

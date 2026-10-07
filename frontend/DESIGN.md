@@ -1362,7 +1362,7 @@ idle → submitting → ┬── cached (200)        → completed
   - 더보기 메뉴: 신고 / 작성자만 수정·삭제. `<480` 바텀시트, `≥480` 팝오버
   - 댓글 섹션: depth 1 트리. 부모 댓글 → 대댓글 입력 inline 펼침. 댓글: 닉네임, 시간, 본문, 좋아요(❤ + 카운트), 더보기
 - **호출**: `GET /community/posts/{id}` (조회수+1), `GET /community/posts/{id}/comments`, `POST .../likes`, `POST .../comments`, `POST /community/reports`.
-- **신고 모달**: 사유 라디오 5개(스팸·홍보 · 욕설·비방 · 개인정보 노출 · 거짓 정보 · 기타) + 자세한 내용(선택, 기타만 필수) + 제출. 보내는 값은 `[사유] 상세` 문자열 하나(3단계).
+- **신고 모달**: 사유 라디오 5개(스팸·홍보 · 욕설·비방 · 개인정보 노출 · 거짓 정보 · 기타) + 자세한 내용(선택, 기타만 필수, 500자) + 제출. 보내는 값은 `reasonCode` + `detail`(비면 키 없음).
 
 **S-COM-3. `/community/register` (작성·수정 겸용)** (개편 3단계, 2026-10-01 — 동작 정본은 community.md §S4 「개편 3단계」)
 

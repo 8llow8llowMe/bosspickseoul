@@ -288,10 +288,22 @@ export type CommunityCommentCreateRequest = {
   content: string
 }
 
+/**
+ * 신고 사유 코드(#532, BE #473). 라벨·순서는 `lib/community/report-reason.ts`.
+ */
+export type CommunityReportReasonCode =
+  'SPAM' | 'ABUSE' | 'PRIVACY' | 'FALSE_INFO' | 'ETC'
+
+/**
+ * 신고 요청(#532). 사유 코드와 상세를 나눠 보낸다. 레거시 `reason` 은 호환용으로 BE 에 남아 있지만
+ * **보내지 않는다** — `reasonCode` 가 있으면 서버가 무시한다.
+ */
 export type CommunityReportCreateRequest = {
   targetKind: 'POST' | 'COMMENT'
   targetId: CommunityId
-  reason: string
+  reasonCode: CommunityReportReasonCode
+  /** 선택, 500자 이하. `ETC` 만 필수다. 걷어 내서 비면 키째 뺀다. */
+  detail?: string
 }
 
 export type CommunityCursorParams = {

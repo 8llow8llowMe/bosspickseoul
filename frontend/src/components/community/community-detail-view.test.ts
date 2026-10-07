@@ -119,6 +119,7 @@ const baseProps: ComponentProps<typeof CommunityDetailView> = {
   reportTarget: null,
   reportPending: false,
   reportErrorMessage: null,
+  reportErrorField: null,
   reportStatusMessage: null,
   adjacent: {
     currentPostId: detail.postId,
@@ -1007,6 +1008,10 @@ describe('community detail helpers', () => {
     )
     expect(() => validateCommunityDetailResponse(failed)).toThrow(
       '상세 요청이 거절됐어요.',
+    )
+    // 신고 오류 자리(#532)를 정하려면 200 + success:false 경로에서도 resultCode 가 남아야 한다.
+    expect(() => validateCommunityDetailResponse(failed)).toThrow(
+      expect.objectContaining({ resultCode: 'FAILED' }),
     )
   })
 

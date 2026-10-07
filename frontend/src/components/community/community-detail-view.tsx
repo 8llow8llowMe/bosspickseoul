@@ -42,6 +42,10 @@ import {
   isCommunityPostEdited,
   shareCommunityPostOnce,
 } from '@/lib/community/post-detail'
+import type {
+  CommunityReportInputField,
+  CommunityReportReasonPayload,
+} from '@/lib/community/report-reason'
 import {
   PHOTO_STRIP_GAP,
   formatPhotoPosition,
@@ -86,6 +90,8 @@ export type CommunityDetailViewProps = {
   > | null
   reportPending: boolean
   reportErrorMessage: string | null
+  /** 신고 서버 오류를 붙일 입력칸(#532). null 이면 다이얼로그의 일반 오류 자리. */
+  reportErrorField: CommunityReportInputField | null
   reportStatusMessage: string | null
   adjacent: AdjacentPostState | null
   fromContext?: string | null
@@ -108,7 +114,7 @@ export type CommunityDetailViewProps = {
     target: Pick<CommunityReportCreateRequest, 'targetKind' | 'targetId'>,
   ) => void
   onCloseReport: () => void
-  onSubmitReport: (reason: string) => void
+  onSubmitReport: (reason: CommunityReportReasonPayload) => void
 }
 
 /*
@@ -991,6 +997,7 @@ export default function CommunityDetailView({
   reportTarget,
   reportPending,
   reportErrorMessage,
+  reportErrorField,
   reportStatusMessage,
   adjacent,
   fromContext,
@@ -1406,6 +1413,7 @@ export default function CommunityDetailView({
         targetId={reportTarget?.targetId ?? detail.postId}
         pending={reportPending}
         errorMessage={reportErrorMessage}
+        errorField={reportErrorField}
         onClose={onCloseReport}
         onSubmit={onSubmitReport}
       />

@@ -11,7 +11,6 @@ import {
 } from '@/lib/community/community-location'
 import CommunityReportDialog, {
   getDialogFocusTargetIndex,
-  validateCommunityReportReason,
   type CommunityReportDialogProps,
 } from './community-report-dialog'
 
@@ -140,19 +139,24 @@ describe('CommunityReportDialog', () => {
     targetId: '7',
     pending: false,
     errorMessage: null,
+    errorField: null,
     onClose: vi.fn(),
     onSubmit: vi.fn(),
   }
 
-  it('requires a nullable errorMessage prop', () => {
+  it('requires nullable errorMessage · errorField props and submits a reason code (#532)', () => {
     expectTypeOf<CommunityReportDialogProps>().toEqualTypeOf<{
       open: boolean
       targetKind: 'POST' | 'COMMENT'
       targetId: string
       pending: boolean
       errorMessage: string | null
+      errorField: 'reason' | 'detail' | null
       onClose: () => void
-      onSubmit: (reason: string) => void
+      onSubmit: (payload: {
+        reasonCode: 'SPAM' | 'ABUSE' | 'PRIVACY' | 'FALSE_INFO' | 'ETC'
+        detail?: string
+      }) => void
     }>()
   })
 
@@ -207,14 +211,15 @@ describe('CommunityReportDialog', () => {
     expect(names.size).toBe(1)
     expect(Array.from(names)[0]).not.toBe('')
     expect(radios.some(([tag]) => tag.includes('checked'))).toBe(false)
-    for (const label of [
-      '스팸·홍보',
-      '욕설·비방',
-      '개인정보 노출',
-      '거짓 정보',
-      '기타',
+    // 라디오 값은 BE 사유 code, 보이는 글자는 라벨이다(#532).
+    for (const [code, label] of [
+      ['SPAM', '스팸·홍보'],
+      ['ABUSE', '욕설·비방'],
+      ['PRIVACY', '개인정보 노출'],
+      ['FALSE_INFO', '거짓 정보'],
+      ['ETC', '기타'],
     ]) {
-      expect(markup).toContain(`value="${label}"`)
+      expect(markup).toContain(`value="${code}"`)
       expect(markup).toContain(`>${label}</span>`)
     }
   })
@@ -280,24 +285,6 @@ describe('getDialogFocusTargetIndex', () => {
   })
 })
 
-describe('validateCommunityReportReason', () => {
-  it('rejects a blank reason', () => {
-    expect(validateCommunityReportReason(' \n ')).toBe(
-      '신고 사유를 입력해 주세요.',
-    )
-  })
-
-  it('rejects a reason over 500 characters', () => {
-    expect(validateCommunityReportReason('가'.repeat(501))).toBe(
-      '신고 사유는 500자 이하로 입력해 주세요.',
-    )
-  })
-
-  it('accepts valid content after trimming', () => {
-    expect(validateCommunityReportReason('  부적절한 내용입니다.  ')).toBeNull()
-  })
-})
-
 describe('community shared UI style contracts', () => {
   it('server-renders theme surface and overlay tokens without literal colors', () => {
     const feedback = renderWithStyles(CommunityFeedback, {
@@ -310,6 +297,7 @@ describe('community shared UI style contracts', () => {
       targetId: '7',
       pending: false,
       errorMessage: null,
+      errorField: null,
       onClose: vi.fn(),
       onSubmit: vi.fn(),
     })

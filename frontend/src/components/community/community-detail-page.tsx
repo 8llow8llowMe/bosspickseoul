@@ -35,6 +35,11 @@ import {
   parseCommunityPopularPeriod,
 } from '@/lib/community/popular-period'
 import { parseCommunityPostCategory } from '@/lib/community/post-category'
+import {
+  readCommunityReportError,
+  type CommunityReportInputField,
+  type CommunityReportReasonPayload,
+} from '@/lib/community/report-reason'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ApiResponse } from '@/types/api'
 import type {
@@ -50,9 +55,16 @@ import type {
 } from '@/types/community'
 
 export class CommunityDetailQueryError extends Error {
-  constructor(message: string) {
+  /**
+   * 실패 응답의 `dataHeader.resultCode`. 화면 분기에는 쓰지 않고, 신고 오류의 안내 자리를 정할 때만 읽는다
+   * (#532, `readCommunityReportError`). axios 오류의 `code`(ERR_BAD_REQUEST 등)와 헷갈리지 않게 이름을 따로 둔다.
+   */
+  readonly resultCode: string | null
+
+  constructor(message: string, resultCode: string | null = null) {
     super(message)
     this.name = 'CommunityDetailQueryError'
+    this.resultCode = resultCode
   }
 }
 
@@ -60,7 +72,10 @@ const validateCommunityResponse = <Response extends ApiResponse<unknown>>(
   response: Response,
 ) => {
   if (!isApiSuccess(response)) {
-    throw new CommunityDetailQueryError(getApiMessage(response))
+    throw new CommunityDetailQueryError(
+      getApiMessage(response),
+      response.dataHeader.resultCode ?? null,
+    )
   }
 
   return response
@@ -522,6 +537,8 @@ export default function CommunityDetailPage({
   const [reportErrorMessage, setReportErrorMessage] = useState<string | null>(
     null,
   )
+  const [reportErrorField, setReportErrorField] =
+    useState<CommunityReportInputField | null>(null)
   const [reportStatusMessage, setReportStatusMessage] = useState<string | null>(
     null,
   )
@@ -683,11 +700,8 @@ export default function CommunityDetailPage({
     router.push(getCommunityLoginHref(currentHref))
   }
 
-  const handleMutationError = (
-    error: unknown,
-    setMessage: (message: string | null) => void,
-    fallback: string,
-  ) => {
+  /** 401 이면 로그인 복구를 시작하고 true. 오류 문구는 띄우지 않는다. */
+  const recoverMutationUnauthorized = (error: unknown) => {
     if (!mockEnabled && isCommunityDetailUnauthorizedError(error)) {
       void startCommunityDetailUnauthorizedRecovery(
         unauthorizedRecoveryRef,
@@ -702,6 +716,18 @@ export default function CommunityDetailPage({
             currentHref,
           }),
       )
+      return true
+    }
+
+    return false
+  }
+
+  const handleMutationError = (
+    error: unknown,
+    setMessage: (message: string | null) => void,
+    fallback: string,
+  ) => {
+    if (recoverMutationUnauthorized(error)) {
       return
     }
 
@@ -851,22 +877,29 @@ export default function CommunityDetailPage({
       reason,
     }: {
       target: ReportTarget
-      reason: string
+      reason: CommunityReportReasonPayload
     }) =>
       validateCommunityResponse(
-        await source.createReport({ ...target, reason }),
+        await source.createReport({ ...target, ...reason }),
       ),
     onSuccess: () => {
       setReportTarget(null)
       setReportErrorMessage(null)
+      setReportErrorField(null)
       setReportStatusMessage('신고가 접수됐어요.')
     },
     onError: error => {
-      handleMutationError(
+      if (recoverMutationUnauthorized(error)) {
+        return
+      }
+
+      // 서버 검증 오류는 resultCode 로 사유·상세 자리를 정한다(#532 — 계약이 field 를 입력칸 이름으로 주지 않는다).
+      const { field, message } = readCommunityReportError(
         error,
-        setReportErrorMessage,
         '신고를 접수하지 못했어요.',
       )
+      setReportErrorField(field)
+      setReportErrorMessage(message)
     },
   })
 
@@ -949,6 +982,7 @@ export default function CommunityDetailPage({
       reportTarget={reportTarget}
       reportPending={reportMutation.isPending}
       reportErrorMessage={reportErrorMessage}
+      reportErrorField={reportErrorField}
       reportStatusMessage={reportStatusMessage}
       adjacent={adjacent}
       fromContext={fromContext}
@@ -1011,12 +1045,14 @@ export default function CommunityDetailPage({
       onOpenReport={target => {
         setReportStatusMessage(null)
         setReportErrorMessage(null)
+        setReportErrorField(null)
         setReportTarget(target)
       }}
       onCloseReport={() => {
         if (!reportMutation.isPending) {
           setReportTarget(null)
           setReportErrorMessage(null)
+          setReportErrorField(null)
         }
       }}
       onSubmitReport={reason => {
@@ -1025,6 +1061,7 @@ export default function CommunityDetailPage({
         }
 
         setReportErrorMessage(null)
+        setReportErrorField(null)
         reportMutation.mutate({ target: reportTarget, reason })
       }}
     />

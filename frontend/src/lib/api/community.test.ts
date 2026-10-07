@@ -231,10 +231,12 @@ describe('community API', () => {
       parentCommentId?: string
       content: string
     }>()
+    /* #532: 사유 code 와 상세를 나눠 보낸다. 레거시 `reason` 은 싣지 않는다. */
     expectTypeOf<CommunityReportCreateRequest>().toEqualTypeOf<{
       targetKind: 'POST' | 'COMMENT'
       targetId: string
-      reason: string
+      reasonCode: 'SPAM' | 'ABUSE' | 'PRIVACY' | 'FALSE_INFO' | 'ETC'
+      detail?: string
     }>()
     expectTypeOf<CommunityCursorParams>().toEqualTypeOf<{
       sortType: 'LATEST' | 'POPULAR'
@@ -428,12 +430,14 @@ describe('community API', () => {
     const payload: CommunityReportCreateRequest = {
       targetKind: 'POST',
       targetId: '1',
-      reason: '광고성 게시글입니다.',
+      reasonCode: 'SPAM',
+      detail: '광고성 게시글입니다.',
     }
 
     const result = await createCommunityReport(payload)
 
     expect(post).toHaveBeenCalledWith('/community/reports', payload)
+    expect(post.mock.calls[0]?.[1]).not.toHaveProperty('reason')
     expect(result).toBe(response)
   })
 })

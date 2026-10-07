@@ -877,14 +877,16 @@ describe('community mock source', () => {
       await source.createReport({
         targetKind: 'POST',
         targetId: created.dataBody.postId,
-        reason: '가'.repeat(501),
+        reasonCode: 'ETC',
+        detail: '가'.repeat(501),
       }),
     ).toEqual({ dataHeader: successHeader, dataBody: null })
     expect(
       await source.createReport({
         targetKind: 'POST',
         targetId: created.dataBody.postId,
-        reason: ' ',
+        reasonCode: 'ETC',
+        detail: ' ',
       }),
     ).toEqual({ dataHeader: successHeader, dataBody: null })
   })
@@ -1033,14 +1035,14 @@ describe('community mock source', () => {
       source.createReport({
         targetKind: 'POST',
         targetId: '1',
-        reason: '삭제 후 신고',
+        reasonCode: 'SPAM',
       }),
     ).rejects.toThrow('게시글 1을 찾을 수 없습니다.')
     await expect(
       source.createReport({
         targetKind: 'COMMENT',
         targetId: comment?.commentId ?? COMMUNITY_CURSOR_START,
-        reason: '삭제 후 댓글 신고',
+        reasonCode: 'ABUSE',
       }),
     ).rejects.toThrow(`댓글 ${comment?.commentId}을 찾을 수 없습니다.`)
   })
@@ -1196,7 +1198,8 @@ describe('community mock source', () => {
     const postReport = {
       targetKind: 'POST' as const,
       targetId: '1',
-      reason: '중복 홍보 게시글입니다.',
+      reasonCode: 'SPAM' as const,
+      detail: '중복 홍보 게시글입니다.',
     }
 
     expect(await source.createReport(postReport)).toEqual({
@@ -1211,7 +1214,7 @@ describe('community mock source', () => {
       await source.createReport({
         targetKind: 'COMMENT',
         targetId: comment?.commentId ?? COMMUNITY_CURSOR_START,
-        reason: '부적절한 댓글입니다.',
+        reasonCode: 'ABUSE',
       }),
     ).toEqual({ dataHeader: successHeader, dataBody: null })
   })
@@ -1275,14 +1278,14 @@ describe('community mock source', () => {
       source.createReport({
         targetKind: 'POST',
         targetId: '99999',
-        reason: '신고',
+        reasonCode: 'SPAM',
       }),
     ).rejects.toThrow('게시글 99999을 찾을 수 없습니다.')
     await expect(
       source.createReport({
         targetKind: 'COMMENT',
         targetId: '99999',
-        reason: '신고',
+        reasonCode: 'SPAM',
       }),
     ).rejects.toThrow('댓글 99999을 찾을 수 없습니다.')
   })
