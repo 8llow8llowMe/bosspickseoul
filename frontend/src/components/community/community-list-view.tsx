@@ -10,7 +10,10 @@ import {
 import Link from 'next/link'
 import { Heart, MessageCircle, Pencil, Search, X } from 'lucide-react'
 import styled, { css } from 'styled-components'
+import CommunityCategoryBadge from '@/components/community/community-category-badge'
+import CommunityChoiceChips from '@/components/community/community-choice-chips'
 import CommunityFeedback from '@/components/community/community-feedback'
+import CommunityListFilter from '@/components/community/community-list-filter'
 import CommunityListSkeleton from '@/components/community/community-list-skeleton'
 import CommunityWriter from '@/components/community/community-writer'
 import { useCommunityHeaderHidden } from '@/hooks/use-community-header-hidden'
@@ -26,6 +29,11 @@ import {
   getCommunityPopularEmptyTitle,
   type CommunityPopularPeriod,
 } from '@/lib/community/popular-period'
+import type { CommunityPostCategoryCode } from '@/lib/community/post-category'
+import {
+  COMMUNITY_CATEGORY_FILTER_OPTIONS,
+  hasCommunityListFilter,
+} from '@/lib/community/list-filter'
 import type { CommunityListView as CommunityListViewMode } from '@/lib/community/community-state'
 import { COMMUNITY_HEADER_HIDDEN_SELECTOR } from '@/lib/community/hidden-header'
 import {
@@ -36,7 +44,8 @@ import type { CommunityPostSummary } from '@/types/community'
 import { centeredColumn } from '@/styles/layout'
 
 export type CommunityListStatus = 'loading' | 'error' | 'empty' | 'ready'
-export type CommunityEmptyCause = 'keyword' | 'target' | 'liked' | 'general'
+export type CommunityEmptyCause =
+  'keyword' | 'category' | 'target' | 'liked' | 'general'
 
 export type CommunityListViewPost = CommunityPostSummary & {
   href: string
@@ -76,6 +85,12 @@ export type CommunityListViewProps = {
    */
   popularPeriod?: CommunityPopularPeriod
   onPopularPeriodChange?: (period: CommunityPopularPeriod) => void
+  /**
+   * 말머리 필터(#529). 최신·인기 보기이고 검색어가 없을 때만 탭 줄 아래(기간 칩 위) 칩 행으로 그린다.
+   * `null`·없음이 「전체」다. 「전체」를 누르면 `null` 을 넘긴다.
+   */
+  category?: CommunityPostCategoryCode | null
+  onCategoryChange?: (category: CommunityPostCategoryCode | null) => void
   onEmptyAction: () => void
   onRetry: () => void
   /** 목록 끝 감시 요소가 보이면 자동으로 부른다(CM-029). 버튼은 없다. */
@@ -392,6 +407,16 @@ const TabRow = styled.div<{ $replacedByNav: boolean }>`
 
 const TabGroup = styled.div`
   display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+`
+
+/* 좋아요한 글 토글 + 모바일 필터 버튼. 375 에서 넘치면 필터 라벨이 말줄임으로 줄어든다(CM-059). */
+const TabActions = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 4px;
 `
 
@@ -417,47 +442,6 @@ const Tab = styled.button<{ $selected: boolean }>`
   }
 `
 
-/*
-  인기 기간 칩 행(#531). 탭 줄 아래에 둔다 — 좌 내비가 탭 줄을 대신하는 ≥1360 에서도 기간은 내비에
-  없으므로 이 행은 숨기지 않는다. 좁은 폭에서 넘치면 줄을 바꾼다(가로 스크롤을 만들지 않는다).
-*/
-const PeriodChipRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-`
-
-/*
-  모양은 작성 도움 칩(community-editor-form PromptChip — 알약·테두리·44 높이)을, 눌림은 선택 칩
-  관용구(option-picker — primary-600 테두리 · primary-100 바탕 · primary-700 글자)를 그대로 쓴다.
-  새 토큰을 만들지 않는다.
-*/
-const PeriodChip = styled.button<{ $selected: boolean }>`
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid
-    ${props =>
-      props.$selected ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
-  border-radius: var(--radius-pill);
-  background: ${props =>
-    props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
-  color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
-  font: inherit;
-  font-size: 14px;
-  font-weight: ${props => (props.$selected ? 700 : 600)};
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-
-  &:hover {
-    border-color: var(--color-primary-600);
-  }
-`
-
 const LikedToggle = styled.button<{ $selected: boolean }>`
   min-height: 44px;
   display: inline-flex;
@@ -476,6 +460,43 @@ const LikedToggle = styled.button<{ $selected: boolean }>`
   font-size: 14px;
   font-weight: ${props => (props.$selected ? 700 : 600)};
   cursor: pointer;
+`
+
+/*
+  말머리·기간 칩 행. `<480` 은 탭 줄의 필터 버튼 + 시트가 대신한다(CM-059) — 두 줄(최대 ~120px)이 첫 화면
+  글 행을 밀어냈다(CM-015). CSS 로 숨겨 SSR 첫 페인트부터 맞는 쪽만 보인다.
+*/
+const FilterChipRows = styled.div`
+  display: grid;
+  gap: 16px;
+
+  ${MOBILE} {
+    display: none;
+  }
+`
+
+/*
+  「좋아요한 글」의 꼬리. 375 에서 탭 둘 + 좋아요한 글 + 필터 버튼이 한 줄을 나누면 가장 긴 필터 라벨
+  (「경험 공유 · 전체 기간」)이 16px 모자라 말줄임이 된다 — 꼬리를 눈에서만 숨겨 그만큼 내준다(CM-059).
+  앞 글자와 한 span 안에 둔다 — 토글의 flex gap 이 「좋아요」와 「한 글」 사이를 벌리지 않게.
+*/
+const LikedLabelTail = styled.span<{ $compact: boolean }>`
+  ${props =>
+    props.$compact
+      ? css`
+          ${MOBILE} {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+            border: 0;
+          }
+        `
+      : null}
 `
 
 const Feed = styled.section`
@@ -714,6 +735,7 @@ const LoadMoreRetryButton = styled.button`
   cursor: pointer;
 `
 
+/* 말머리 필터 칩 — 맨 앞 「전체」가 필터 없음(`null`)이다. */
 /* 「보기」는 최신·인기 둘이다. 좋아요한 글은 「내 활동」이라 탭 줄 오른쪽 끝 토글로 뺐다. */
 const tabs: Array<{ value: CommunityListViewMode; label: string }> = [
   { value: 'latest', label: '최신' },
@@ -728,6 +750,11 @@ const emptyCopy: Record<
     title: '검색 결과가 없어요',
     description: '다른 검색어로 사장님들의 이야기를 찾아보세요.',
     actionLabel: '검색어 초기화',
+  },
+  category: {
+    title: '이 말머리의 글이 아직 없어요',
+    description: '다른 말머리를 고르거나 첫 이야기를 남겨 보세요.',
+    actionLabel: '말머리 필터 해제',
   },
   target: {
     title: '선택한 지역의 이야기가 아직 없어요',
@@ -768,6 +795,8 @@ export default function CommunityListView({
   onViewChange,
   popularPeriod = COMMUNITY_DEFAULT_POPULAR_PERIOD,
   onPopularPeriodChange,
+  category = null,
+  onCategoryChange,
   onEmptyAction,
   onRetry,
   onLoadMore,
@@ -819,6 +848,8 @@ export default function CommunityListView({
         }
       : emptyCopy[emptyCause]
   const showPeriodChips = view === 'popular' && !keyword
+  // 계약: 검색·좋아요한 글에는 말머리 필터가 없다.
+  const showCategoryChips = hasCommunityListFilter(view, keyword)
   const heading = getCommunityListHeading({ keyword, boardTargetName })
   const likedSelected = view === 'liked'
 
@@ -886,40 +917,72 @@ export default function CommunityListView({
               </Tab>
             ))}
           </TabGroup>
-          <LikedToggle
-            aria-pressed={likedSelected}
-            $selected={likedSelected}
-            data-liked-toggle="true"
-            onClick={() => {
-              onViewChange(likedSelected ? 'latest' : 'liked')
-            }}
-            type="button"
-          >
-            <Heart
-              aria-hidden="true"
-              fill={likedSelected ? 'currentColor' : 'none'}
-              size={16}
-            />
-            좋아요한 글
-          </LikedToggle>
+          <TabActions>
+            <LikedToggle
+              aria-pressed={likedSelected}
+              $selected={likedSelected}
+              data-liked-toggle="true"
+              onClick={() => {
+                onViewChange(likedSelected ? 'latest' : 'liked')
+              }}
+              type="button"
+            >
+              <Heart
+                aria-hidden="true"
+                fill={likedSelected ? 'currentColor' : 'none'}
+                size={16}
+              />
+              {/* 필터 버튼과 한 줄을 나누는 `<480` 에서는 「좋아요」만 보인다. 읽는 이름은 그대로다. */}
+              <span>
+                좋아요
+                <LikedLabelTail $compact={showCategoryChips}>
+                  한 글
+                </LikedLabelTail>
+              </span>
+            </LikedToggle>
+            {showCategoryChips ? (
+              <CommunityListFilter
+                category={category}
+                onCategoryChange={onCategoryChange}
+                onPopularPeriodChange={onPopularPeriodChange}
+                popularPeriod={popularPeriod}
+                view={view}
+              />
+            ) : null}
+          </TabActions>
         </TabRow>
 
-        {showPeriodChips ? (
-          <PeriodChipRow aria-label="인기 기간" role="group">
-            {COMMUNITY_POPULAR_PERIODS.map(period => (
-              <PeriodChip
-                aria-pressed={popularPeriod === period.value}
-                $selected={popularPeriod === period.value}
-                key={period.value}
-                onClick={() => {
-                  onPopularPeriodChange?.(period.value)
+        {/*
+          말머리(#529) → 인기 기간(#531) 순이다 — 말머리는 최신·인기 둘 다에 있고 기간은 인기에만 있어,
+          탭을 오가도 말머리 줄이 제자리에 있다. ≥1360 에서 좌 내비가 탭 줄을 대신해도 두 줄 다 내비에
+          없으므로 남는다. 말머리는 다섯 칩이라 좁은 폭에서 두 줄이 되지 않게 가로로 민다.
+          `<480` 은 두 줄 다 숨기고 탭 줄의 필터 버튼이 맡는다(CM-059).
+        */}
+        {showCategoryChips || showPeriodChips ? (
+          <FilterChipRows data-community-filter-chips="true">
+            {showCategoryChips ? (
+              <CommunityChoiceChips
+                label="말머리"
+                layout="scroll"
+                onSelect={value => {
+                  onCategoryChange?.(value)
                 }}
-                type="button"
-              >
-                {period.label}
-              </PeriodChip>
-            ))}
-          </PeriodChipRow>
+                options={COMMUNITY_CATEGORY_FILTER_OPTIONS}
+                selected={category}
+              />
+            ) : null}
+
+            {showPeriodChips ? (
+              <CommunityChoiceChips
+                label="인기 기간"
+                onSelect={value => {
+                  onPopularPeriodChange?.(value)
+                }}
+                options={COMMUNITY_POPULAR_PERIODS}
+                selected={popularPeriod}
+              />
+            ) : null}
+          </FilterChipRows>
         ) : null}
 
         {/*
@@ -967,6 +1030,8 @@ export default function CommunityListView({
                         ) : null}
                         <RowText>
                           <RowMeta>
+                            {/* 말머리(#529). 없는 글(null)·옛 응답은 아무것도 없다. */}
+                            <CommunityCategoryBadge category={post.category} />
                             <RegionLabel data-post-region="true">
                               {post.targetName ?? '서울 전체'}
                             </RegionLabel>

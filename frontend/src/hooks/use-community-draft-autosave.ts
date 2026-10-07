@@ -14,7 +14,8 @@ import type { CommunityEditorValue } from '@/lib/community/editor-compose'
 export type UseCommunityDraftAutosaveOptions = {
   /** `null` 이면 저장하지 않는다 — 비교 초안으로 들어온 글(초안이 이긴다)·회원 id 를 모를 때. */
   storageKey: string | null
-  value: Pick<CommunityEditorValue, 'title' | 'content' | 'location'>
+  value: Pick<CommunityEditorValue, 'title' | 'content' | 'location'> &
+    Partial<Pick<CommunityEditorValue, 'category'>>
   /** 처음 값과 다른가. 같아지면 앞서 쓴 저장본을 지운다. */
   dirty: boolean
   /** 저장 요청 중. 새 타이머는 잡지 않고, 잡혀 있던 저장은 **그 자리에서 밀어 쓴다.** */
@@ -31,7 +32,7 @@ export type UseCommunityDraftAutosaveOptions = {
 }
 
 /**
- * 입력이 멈추고 1초 뒤 제목·본문·지역을 저장한다(community.md §S4 「잃지 않게」).
+ * 입력이 멈추고 1초 뒤 제목·본문·지역·말머리를 저장한다(community.md §S4 「잃지 않게」).
  *
  * - **사진은 넣지 않는다**(`createCommunityStoredDraft` 가 고른 필드만 담는다).
  * - `submitted` 가 켜지면 잡힌 타이머를 버린다. 등록 성공 뒤 이동이 끝나기 전에 타이머가 돌면
@@ -54,7 +55,7 @@ export function useCommunityDraftAutosave({
 }: UseCommunityDraftAutosaveOptions) {
   const pendingRef = useRef<(() => void) | null>(null)
   const wroteRef = useRef(startedFromStored)
-  const { title, content, location } = value
+  const { title, content, location, category = null } = value
 
   useEffect(() => {
     if (!storageKey || submitted) {
@@ -81,7 +82,10 @@ export function useCommunityDraftAutosave({
         const wrote = writeCommunityStoredDraft(
           getStorage,
           storageKey,
-          createCommunityStoredDraft({ title, content, location }, Date.now()),
+          createCommunityStoredDraft(
+            { title, content, location, category },
+            Date.now(),
+          ),
         )
         wroteRef.current = wroteRef.current || wrote
         return
@@ -105,6 +109,7 @@ export function useCommunityDraftAutosave({
     title,
     content,
     location,
+    category,
     getStorage,
     delayMs,
   ])

@@ -72,8 +72,30 @@ describe('useCommunityDraftAutosave', () => {
       title: '제목2',
       content: '',
       location: district,
+      // 말머리를 넘기지 않았으면 「없음」으로 적는다 — 필드가 빠진 옛 저장본(「모름」)과 가른다(#529).
+      category: null,
       savedAt: Date.parse('2026-10-01T00:00:01.900Z'),
     })
+  })
+
+  it('고른 말머리도 저장한다(#529)', () => {
+    renderHook(() =>
+      useCommunityDraftAutosave(
+        baseProps({
+          value: {
+            title: '제목',
+            content: '',
+            location: district,
+            category: 'EXPERIENCE',
+          },
+        }),
+      ),
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(stored()).toMatchObject({ title: '제목', category: 'EXPERIENCE' })
   })
 
   it('사진은 저장하지 않는다 — 값에 섞여 와도 키를 쓰지 않는다', () => {
@@ -101,6 +123,7 @@ describe('useCommunityDraftAutosave', () => {
       'title',
       'content',
       'location',
+      'category',
       'savedAt',
     ])
   })

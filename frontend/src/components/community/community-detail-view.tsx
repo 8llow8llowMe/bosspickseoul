@@ -10,6 +10,7 @@ import {
   Share,
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
+import CommunityCategoryBadge from '@/components/community/community-category-badge'
 import CommunityCommentThread from '@/components/community/community-comment-thread'
 import CommunityDetailBottomBar from '@/components/community/community-detail-bottom-bar'
 import CommunityFeedback from '@/components/community/community-feedback'
@@ -216,6 +217,15 @@ const ArticleHeader = styled.header`
   min-width: 0;
   display: grid;
   gap: 12px;
+`
+
+/* 지역 칩 + 말머리 배지(#529) 한 줄. 좁은 폭에서 긴 지역명이 배지를 밀어내면 다음 줄로 넘긴다. */
+const ArticleChipRow = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 `
 
 const regionChipBase = css`
@@ -1126,19 +1136,22 @@ export default function CommunityDetailView({
 
           <Article data-community-article="true">
             <ArticleHeader>
-              {regionHref ? (
-                <RegionChipLink
-                  href={regionHref}
-                  data-community-region-chip="link"
-                >
-                  <span>{regionName}</span>
-                  <ChevronRight aria-hidden="true" size={16} />
-                </RegionChipLink>
-              ) : (
-                <RegionChipLabel data-community-region-chip="label">
-                  <span>{regionName}</span>
-                </RegionChipLabel>
-              )}
+              <ArticleChipRow>
+                {regionHref ? (
+                  <RegionChipLink
+                    href={regionHref}
+                    data-community-region-chip="link"
+                  >
+                    <span>{regionName}</span>
+                    <ChevronRight aria-hidden="true" size={16} />
+                  </RegionChipLink>
+                ) : (
+                  <RegionChipLabel data-community-region-chip="label">
+                    <span>{regionName}</span>
+                  </RegionChipLabel>
+                )}
+                <CommunityCategoryBadge category={detail.category} />
+              </ArticleChipRow>
               <ArticleTitle>{detail.title}</ArticleTitle>
               <Byline>
                 <CommunityWriter

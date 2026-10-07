@@ -541,6 +541,28 @@ describe('CommunityDetailView — 머리·메타·지역 (개편 1단계)', () =
     expect(markup).not.toContain('11680 최신 글')
   })
 
+  it('shows the category badge next to the region chip above the title, and nothing without one (#529)', () => {
+    const { markup } = renderWithStyles({
+      detail: {
+        ...districtDetail,
+        category: { code: 'NEWS', name: '동네 소식', description: '동네 소식' },
+      },
+    })
+
+    expect(markup).toMatch(
+      /data-community-region-chip="link".*data-community-category="NEWS"[^>]*>동네 소식<\/span>.*<h1/,
+    )
+    expect(
+      renderWithStyles({ detail: { ...districtDetail, category: null } })
+        .markup,
+    ).not.toContain('data-community-category')
+    const legacy = { ...districtDetail } as Partial<CommunityPostDetail>
+    delete legacy.category
+    expect(
+      renderWithStyles({ detail: legacy as CommunityPostDetail }).markup,
+    ).not.toContain('data-community-category')
+  })
+
   it('drops mock from the region chip outside mock mode', () => {
     const { markup } = renderWithStyles({
       detail: districtDetail,
@@ -886,6 +908,44 @@ describe('community detail helpers', () => {
     ]) {
       expect(createCommunityDetailListHref(from(value), false)).not.toContain(
         'period=',
+      )
+    }
+  })
+
+  it('returns to the feed with the category it came from (#529)', () => {
+    const from = (value: Record<string, unknown>) => JSON.stringify(value)
+
+    expect(
+      createCommunityDetailListHref(
+        from({
+          view: 'popular',
+          keyword: '',
+          targetType: 'DISTRICT',
+          targetCode: '11680',
+          period: 'MONTH',
+          category: 'QUESTION',
+        }),
+        true,
+      ),
+    ).toBe(
+      '/community/list?view=popular&targetType=DISTRICT&targetCode=11680&category=QUESTION&period=MONTH&mock=1',
+    )
+    expect(
+      createCommunityDetailListHref(
+        from({ view: 'latest', category: 'NEWS' }),
+        false,
+      ),
+    ).toBe('/community/list?category=NEWS')
+    // 옛 맥락 키(말머리 없음)·모르는 값·검색·좋아요한 글에는 싣지 않는다.
+    for (const value of [
+      { view: 'latest' },
+      { view: 'latest', category: 'BOGUS' },
+      { view: 'latest', category: 'news' },
+      { view: 'popular', keyword: '점심', category: 'NEWS' },
+      { view: 'liked', category: 'NEWS' },
+    ]) {
+      expect(createCommunityDetailListHref(from(value), false)).not.toContain(
+        'category=',
       )
     }
   })

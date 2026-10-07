@@ -6,6 +6,7 @@ import {
   COMMUNITY_TITLE_MAX_LENGTH,
   COMMUNITY_WRITING_PROMPTS,
   getCommunityEditorChecklist,
+  getCommunityPromptCategory,
   getCommunityWritingPromptCaret,
   isCommunityCountNearLimit,
   isCommunityEditorChecklistReady,
@@ -91,8 +92,16 @@ describe('resolveCommunityEditorSubmission — 비어 있는 첫 필수값(지�
         content: '본문',
         location: district,
         images,
+        category: null,
       },
     })
+  })
+
+  it('고른 말머리를 그대로 실어 보낸다(#529)', () => {
+    expect(
+      resolveCommunityEditorSubmission('edit', '제목', '본문', {}, [], 'NEWS')
+        .value,
+    ).toMatchObject({ category: 'NEWS' })
   })
 })
 
@@ -115,6 +124,24 @@ describe('작성 도움 칩(CM-033)', () => {
       ['경험 나눠요', '해 본 것: \n결과: \n느낀 점: '],
       ['같이 해요', '함께 하고 싶은 것: \n일정·조건: \n연락 방법: '],
     ])
+  })
+
+  it('세 칩은 계약의 말머리 code 에 대응한다(#529 — 칩 → code 매핑표)', () => {
+    expect(
+      COMMUNITY_WRITING_PROMPTS.map(({ id, category }) => [id, category]),
+    ).toEqual([
+      ['question', 'QUESTION'],
+      ['experience', 'EXPERIENCE'],
+      ['together', 'TOGETHER'],
+    ])
+  })
+
+  it('말머리가 비었을 때만 칩의 말머리를 골라 준다 — 이미 고른 말머리는 덮지 않는다', () => {
+    const [question, experience] = COMMUNITY_WRITING_PROMPTS
+    expect(getCommunityPromptCategory(null, question)).toBe('QUESTION')
+    expect(getCommunityPromptCategory(null, experience)).toBe('EXPERIENCE')
+    expect(getCommunityPromptCategory('NEWS', question)).toBe('NEWS')
+    expect(getCommunityPromptCategory('TOGETHER', experience)).toBe('TOGETHER')
   })
 
   it('본문이 비었을 때만 보인다 — 공백만 있어도 빈 것이다', () => {

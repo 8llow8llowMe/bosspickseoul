@@ -291,6 +291,59 @@ describe('복원 게이트(CM-034)', () => {
   })
 })
 
+describe('수정 — 말머리(#529)', () => {
+  const pressedCategory = () =>
+    document
+      .querySelector('[role="group"][aria-label="말머리"]')
+      ?.querySelector('[aria-pressed="true"]')?.textContent ?? null
+
+  /*
+    수정 API 는 전체 교체라 `category` 를 빼면 말머리가 지워진다. 말머리를 건드리지 않은 수정에도
+    지금 code 가 실려야 한다 — 이 PR 에서 가장 무거운 회귀 지점이다.
+  */
+  it('말머리를 건드리지 않고 수정하면 같은 code 가 실린다', async () => {
+    const updatePost = vi.spyOn(communityMockSource, 'updatePost')
+    renderPage('mock=1&postId=5')
+
+    await waitFor(() => {
+      expect(titleInput()?.value).toBe('역삼1동 아침 매출 실험 후기')
+    })
+    expect(pressedCategory()).toBe('경험 공유')
+
+    fireEvent.click(screen.getByRole('button', { name: '수정하기' }))
+
+    await waitFor(() => {
+      expect(updatePost).toHaveBeenCalled()
+    })
+    expect(updatePost.mock.calls[0]?.[1]).toMatchObject({
+      category: 'EXPERIENCE',
+    })
+  })
+
+  it('말머리를 해제하고 수정하면 키를 빼 서버가 지우게 한다', async () => {
+    const updatePost = vi
+      .spyOn(communityMockSource, 'updatePost')
+      .mockRejectedValue(new Error('보내기만 본다'))
+    renderPage('mock=1&postId=5')
+
+    await waitFor(() => {
+      expect(pressedCategory()).toBe('경험 공유')
+    })
+    fireEvent.click(
+      document.querySelector<HTMLButtonElement>(
+        '[aria-label="말머리"] [aria-pressed="true"]',
+      )!,
+    )
+    expect(pressedCategory()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '수정하기' }))
+
+    await waitFor(() => {
+      expect(updatePost).toHaveBeenCalled()
+    })
+    expect(updatePost.mock.calls[0]?.[1]).not.toHaveProperty('category')
+  })
+})
+
 describe('등록 성공(CM-035)', () => {
   it('저장본을 지우고 이동하며, 이동이 끝나기 전에 저장본이 되살아나지 않는다', async () => {
     store(NEW_KEY, {

@@ -300,6 +300,7 @@ describe('createCommunityEditorPayload — 첨부를 잃지 않는다', () => {
       targetName: '강남역 상권',
     },
     images,
+    category: null,
     ...overrides,
   })
 
@@ -335,6 +336,42 @@ describe('createCommunityEditorPayload — 첨부를 잃지 않는다', () => {
         'community/posts/1/2026/09/b.png',
       ],
     })
+  })
+
+  /*
+    말머리(#529). 수정 API 는 전체 교체라 `category` 를 빼면 말머리가 지워진다 — `imageKeys` 와 같은 함정이다.
+    사용자가 말머리를 건드리지 않은 수정에도 같은 code 가 실려야 한다.
+  */
+  it('수정 payload 는 말머리를 건드리지 않아도 같은 code 를 다시 싣는다(#529)', () => {
+    expect(
+      createCommunityEditorPayload('edit', value({ category: 'QUESTION' })),
+    ).toEqual({
+      title: '제목',
+      content: '본문',
+      imageKeys: [
+        'community/posts/1/2026/09/a.png',
+        'community/posts/1/2026/09/b.png',
+      ],
+      category: 'QUESTION',
+    })
+  })
+
+  it('수정에서 말머리를 해제했을 때만 키를 뺀다 — 그래야 서버가 지운다(#529)', () => {
+    const payload = createCommunityEditorPayload(
+      'edit',
+      value({ category: null }),
+    )
+
+    expect(payload).not.toHaveProperty('category')
+  })
+
+  it('작성 payload 는 말머리가 있으면 싣고, 없으면 키째 뺀다(#529)', () => {
+    expect(
+      createCommunityEditorPayload('create', value({ category: 'TOGETHER' })),
+    ).toMatchObject({ category: 'TOGETHER' })
+    expect(
+      createCommunityEditorPayload('create', value({ category: null })),
+    ).not.toHaveProperty('category')
   })
 
   /* 사용자가 실제로 다 뺐을 때만 빈 배열이어야 한다. */

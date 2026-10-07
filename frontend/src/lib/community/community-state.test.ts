@@ -49,6 +49,7 @@ const postsResponse: CommunityPostListResponse = {
           liked: null,
           createdAt: '2026-07-27T00:00:00Z',
           thumbnailUrl: null,
+          category: null,
         },
       ],
       hasNext: true,
@@ -183,6 +184,67 @@ describe('community state', () => {
     ).toBe('')
   })
 
+  it('말머리 필터는 최신·인기 피드에서만 읽고 검색·좋아요한 글에서는 버린다(#529)', () => {
+    const popular = parseCommunityListState(
+      new URLSearchParams(
+        'view=popular&period=MONTH&targetType=DISTRICT&targetCode=111&category=QUESTION',
+      ),
+    )
+    expect(popular).toMatchObject({
+      view: 'popular',
+      period: 'MONTH',
+      category: 'QUESTION',
+    })
+    expect(serializeCommunityListState(popular).toString()).toBe(
+      'view=popular&targetType=DISTRICT&targetCode=111&category=QUESTION&period=MONTH',
+    )
+
+    const latest = parseCommunityListState(new URLSearchParams('category=NEWS'))
+    expect(latest.category).toBe('NEWS')
+    expect(serializeCommunityListState(latest).toString()).toBe('category=NEWS')
+
+    // 「전체」는 주소에 쓰지 않는다. 모르는 값·소문자는 「전체」로 읽는다(서버는 400 COMMUNITY_017).
+    for (const query of [
+      '',
+      'category=',
+      'category=question',
+      'category=BOGUS',
+    ]) {
+      const state = parseCommunityListState(new URLSearchParams(query))
+      expect(state.category).toBeUndefined()
+      expect(serializeCommunityListState(state).toString()).toBe('')
+    }
+
+    // 계약: 검색·좋아요한 글에는 말머리 필터가 없다 — 의미 없는 값을 상태에 남기지 않는다.
+    for (const query of [
+      'view=liked&category=NEWS',
+      'keyword=카페&category=NEWS',
+      'view=popular&keyword=카페&category=NEWS',
+    ]) {
+      expect(
+        parseCommunityListState(new URLSearchParams(query)).category,
+      ).toBeUndefined()
+    }
+    expect(
+      serializeCommunityListState({
+        view: 'latest',
+        keyword: '카페',
+        period: 'WEEK',
+        category: 'NEWS',
+        mock: false,
+      }).toString(),
+    ).toBe('keyword=%EC%B9%B4%ED%8E%98')
+    expect(
+      serializeCommunityListState({
+        view: 'liked',
+        keyword: '',
+        period: 'WEEK',
+        category: 'NEWS',
+        mock: false,
+      }).toString(),
+    ).toBe('view=liked')
+  })
+
   it('지원하는 대상 타입만 허용한다', () => {
     expect(parseCommunityTargetType('ADMINISTRATION')).toBe('ADMINISTRATION')
     expect(parseCommunityTargetType('INVALID')).toBeUndefined()
@@ -279,6 +341,29 @@ describe('community state', () => {
     expect(
       JSON.parse(createCommunityContextKey({ ...popular, period: 'ALL' })),
     ).toMatchObject({ view: 'popular', period: 'ALL' })
+  })
+
+  it('context key 는 말머리가 없으면 예전 모양 그대로고, 있으면 갈린다(#529)', () => {
+    const latest = {
+      view: 'latest' as const,
+      keyword: '',
+      period: 'WEEK' as const,
+      mock: false,
+    }
+    expect(createCommunityContextKey(latest)).toBe(
+      JSON.stringify({
+        view: 'latest',
+        keyword: '',
+        targetType: null,
+        targetCode: null,
+      }),
+    )
+    expect(
+      JSON.parse(createCommunityContextKey({ ...latest, category: 'NEWS' })),
+    ).toMatchObject({ view: 'latest', category: 'NEWS' })
+    expect(
+      createCommunityContextKey({ ...latest, category: 'QUESTION' }),
+    ).not.toBe(createCommunityContextKey({ ...latest, category: 'NEWS' }))
   })
 
   it('글 링크에 목록 context와 활성 mock만 포함한다', () => {

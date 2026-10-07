@@ -1,4 +1,7 @@
-import type { CommunityPostImage } from '@/types/community'
+import type {
+  CommunityPostCategoryCode,
+  CommunityPostImage,
+} from '@/types/community'
 
 import {
   hasCommunityLocationTarget,
@@ -24,6 +27,11 @@ export type CommunityEditorValue = {
    * 없는 기존 이미지를 파일까지 지우기 때문이다(`lib/community/post-images.ts`).
    */
   images: CommunityPostImage[]
+  /**
+   * 말머리(#529). `null` 은 말머리 없음이다(선택 사항). 수정 화면은 상세 응답의 말머리로 시작하고
+   * 저장 때 **그대로 다시 보낸다** — 수정 API 가 전체 교체라 빼면 지워진다(`createCommunityEditorPayload`).
+   */
+  category: CommunityPostCategoryCode | null
 }
 
 export type CommunityEditorField = 'location' | 'title' | 'content'
@@ -49,6 +57,7 @@ export const resolveCommunityEditorSubmission = (
   content: string,
   location: CommunityLocationValue,
   images: CommunityPostImage[] = [],
+  category: CommunityPostCategoryCode | null = null,
 ): CommunityEditorSubmission => {
   if (mode === 'create' && !hasCommunityLocationTarget(location)) {
     return {
@@ -78,6 +87,7 @@ export const resolveCommunityEditorSubmission = (
       content: content.trim(),
       location,
       images,
+      category,
     },
   }
 }
@@ -87,22 +97,46 @@ export const isCommunityCountNearLimit = (length: number, max: number) =>
   length > max * 0.9
 
 /**
- * 작성 도움 칩(CM-033). 말머리가 아니라 빈 칸을 덜어 주는 틀이다 — 저장되는 것은 그냥 본문이고
- * BE 변경이 없다. 각 줄 끝의 공백은 커서를 놓을 자리다.
+ * 작성 도움 칩(CM-033). 빈 칸을 덜어 주는 본문 틀이다 — 넣는 것은 그냥 본문이다. 말머리는 따로
+ * 말머리 칩 행이 고른다(#529). 작성 도움 칩은 본문이 비었을 때만 보여 말머리 선택 수단이 될 수 없다.
+ *
+ * 다만 칩마다 대응하는 말머리가 있다(계약의 칩 → code 매핑표, `category`). 말머리가 **비어 있을 때만**
+ * 그 말머리를 같이 골라 준다 — 이미 고른 말머리는 덮지 않는다(`getCommunityPromptCategory`).
+ * 「동네 소식」(`NEWS`)에는 대응하는 칩이 없다. 각 줄 끝의 공백은 커서를 놓을 자리다.
  */
 export const COMMUNITY_WRITING_PROMPTS = [
-  { id: 'question', label: '질문해요', template: '상황: \n궁금한 점: ' },
+  {
+    id: 'question',
+    label: '질문해요',
+    template: '상황: \n궁금한 점: ',
+    category: 'QUESTION',
+  },
   {
     id: 'experience',
     label: '경험 나눠요',
     template: '해 본 것: \n결과: \n느낀 점: ',
+    category: 'EXPERIENCE',
   },
   {
     id: 'together',
     label: '같이 해요',
     template: '함께 하고 싶은 것: \n일정·조건: \n연락 방법: ',
+    category: 'TOGETHER',
   },
-] as const
+] as const satisfies ReadonlyArray<{
+  id: string
+  label: string
+  template: string
+  category: CommunityPostCategoryCode
+}>
+
+export type CommunityWritingPrompt = (typeof COMMUNITY_WRITING_PROMPTS)[number]
+
+/** 작성 도움 칩을 누른 뒤의 말머리 — 비어 있으면 칩의 말머리, 이미 골랐으면 그대로다. */
+export const getCommunityPromptCategory = (
+  current: CommunityPostCategoryCode | null,
+  prompt: Pick<CommunityWritingPrompt, 'category'>,
+): CommunityPostCategoryCode => current ?? prompt.category
 
 export const shouldShowCommunityWritingPrompts = (content: string) =>
   content.trim().length === 0

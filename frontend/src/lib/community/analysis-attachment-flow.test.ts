@@ -53,6 +53,7 @@ describe('분석 첨부 배선 (초안 → 저장 → 상세)', () => {
         content: draft!.content,
         location: { targetType: 'ADMINISTRATION', targetCode: '1168064000' },
         images: [],
+        category: null,
       },
       attachment,
     ) as CommunityPostCreateRequest
@@ -81,6 +82,7 @@ describe('분석 첨부 배선 (초안 → 저장 → 상세)', () => {
         content: '본문',
         location: { targetType: 'ADMINISTRATION', targetCode: '1168064000' },
         images: [],
+        category: null,
       },
       toAnalysisAttachment(null),
     ) as CommunityPostCreateRequest
@@ -104,6 +106,7 @@ describe('분석 첨부 배선 (초안 → 저장 → 상세)', () => {
         content: '고친 본문',
         location: { targetType: 'ADMINISTRATION', targetCode: '1168064000' },
         images: [],
+        category: null,
       },
       {
         analysisType: 'COMMERCIAL_COMPARISON',

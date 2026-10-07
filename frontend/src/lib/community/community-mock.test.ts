@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type {
   CommunityCursorParams,
   CommunityId,
+  CommunityListParams,
   CommunityTargetType,
 } from '@/types/community'
 
@@ -119,6 +120,7 @@ describe('community mock source', () => {
         targetType: summary.targetType,
         targetCode: summary.targetCode,
         targetName: summary.targetName,
+        category: summary.category,
         title: summary.title,
         content: expect.any(String),
         likeCount: summary.likeCount,
@@ -386,6 +388,7 @@ describe('community mock source', () => {
               targetType: older.dataBody.targetType,
               targetCode: older.dataBody.targetCode,
               targetName: older.dataBody.targetName,
+              category: null,
               title: older.dataBody.title,
               previewContent: older.dataBody.content,
               likeCount: older.dataBody.likeCount,
@@ -607,6 +610,8 @@ describe('community mock source', () => {
       },
       targetCode: '3110008',
       targetName: '강남역 상권',
+      // 말머리를 고르지 않은 글(#529).
+      category: null,
       title: ' 새 게시글 ',
       content: ' 새 본문 ',
       likeCount: 0,
@@ -646,6 +651,87 @@ describe('community mock source', () => {
     await expect(source.getPost(created.dataBody.postId)).rejects.toThrow(
       `게시글 ${created.dataBody.postId}을 찾을 수 없습니다.`,
     )
+  })
+
+  it('말머리 필터는 피드에만 걸고, 「전체」는 말머리 없는 글까지 준다(#529)', async () => {
+    const source = createCommunityMockSource()
+    const ids = async (params: Partial<CommunityListParams>) =>
+      (
+        await source.getPosts({ ...cursor(), ...params })
+      ).dataBody.posts.contents.map(post => [post.postId, post.category?.code])
+
+    expect(await ids({ category: 'EXPERIENCE' })).toEqual([
+      ['5', 'EXPERIENCE'],
+      ['1', 'EXPERIENCE'],
+    ])
+    // 지역·인기 기간과 함께 걸린다.
+    expect(
+      await ids({
+        category: 'QUESTION',
+        targetType: 'DISTRICT',
+        targetCode: '11680',
+        sortType: 'POPULAR',
+        period: 'WEEK',
+      }),
+    ).toEqual([['3', 'QUESTION']])
+    expect(await ids({ category: 'NEWS', sortType: 'POPULAR' })).toEqual([])
+    expect(
+      await ids({ category: 'NEWS', sortType: 'POPULAR', period: 'MONTH' }),
+    ).toEqual([['4', 'NEWS']])
+    const all = await ids({})
+    expect(all).toHaveLength(9)
+    expect(all.some(([, code]) => code === undefined)).toBe(true)
+    // 네 말머리가 모두 시드에 있다 — 목 화면에서 칩마다 결과를 볼 수 있다.
+    expect(new Set(all.map(([, code]) => code))).toEqual(
+      new Set(['QUESTION', 'EXPERIENCE', 'TOGETHER', 'NEWS', undefined]),
+    )
+    expect(
+      communityMockFixtures.posts.find(post => post.postId === '8')?.category,
+    ).toEqual({ code: 'TOGETHER', name: '같이 해요', description: '같이 해요' })
+  })
+
+  it('작성은 말머리를 저장하고, 수정은 실린 값으로 바꾸며 빼면 지운다(전체 교체, #529)', async () => {
+    const source = createCommunityMockSource()
+    const created = await source.createPost({
+      targetType: 'DISTRICT',
+      targetCode: '11680',
+      title: '제목',
+      content: '본문',
+      imageKeys: [],
+      category: 'QUESTION',
+    })
+    const postId = created.dataBody.postId
+    const summary = async () =>
+      (
+        await source.getPosts(cursor({ size: 20 }))
+      ).dataBody.posts.contents.find(post => post.postId === postId)?.category
+
+    expect(created.dataBody.category).toEqual({
+      code: 'QUESTION',
+      name: '질문',
+      description: '질문',
+    })
+    expect(await summary()).toMatchObject({ code: 'QUESTION' })
+
+    const kept = await source.updatePost(postId, {
+      title: '제목',
+      content: '본문',
+      imageKeys: [],
+      category: 'NEWS',
+    })
+    expect(kept.dataBody.category).toMatchObject({
+      code: 'NEWS',
+      name: '동네 소식',
+    })
+    expect(await summary()).toMatchObject({ code: 'NEWS' })
+
+    const cleared = await source.updatePost(postId, {
+      title: '제목',
+      content: '본문',
+      imageKeys: [],
+    })
+    expect(cleared.dataBody.category).toBeNull()
+    expect(await summary()).toBeNull()
   })
 
   it('업로드한 키를 게시글에 연결하고 첫 장을 썸네일로 쓴다', async () => {

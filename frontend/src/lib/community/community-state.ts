@@ -2,11 +2,13 @@ import {
   COMMUNITY_DEFAULT_POPULAR_PERIOD,
   parseCommunityPopularPeriod,
 } from '@/lib/community/popular-period'
+import { parseCommunityPostCategory } from '@/lib/community/post-category'
 import type {
   CommunityCursorParams,
   CommunityId,
   CommunityLikedPostsResponse,
   CommunityPopularPeriod,
+  CommunityPostCategoryCode,
   CommunityPostListResponse,
   CommunityPostSlice,
   CommunityTargetType,
@@ -24,6 +26,12 @@ export type CommunityListState = {
    * 파싱이 늘 기본값으로 돌린다. 목록 쿼리 키에 상태 전체가 들어가므로 기간을 바꾸면 커서가 처음부터다.
    */
   period: CommunityPopularPeriod
+  /**
+   * 말머리 필터(#529). 없으면 「전체」다. 최신·인기 피드이고 검색어가 없을 때만 값이 있을 수 있다 —
+   * 계약상 검색·좋아요한 글에는 말머리 필터가 없어 파싱이 버린다. 기간처럼 목록 쿼리 키에 들어가므로
+   * 말머리를 바꾸면 커서가 처음부터다. 선택 필드라 말머리를 모르는 곳(상세 지역 칩 주소 등)은 손대지 않는다.
+   */
+  category?: CommunityPostCategoryCode
   mock: boolean
 }
 
@@ -138,6 +146,10 @@ export const parseCommunityListState = (
       view === 'popular' && !keyword
         ? parseCommunityPopularPeriod(params.get('period'))
         : COMMUNITY_DEFAULT_POPULAR_PERIOD,
+    // 검색에는 말머리 필터가 없다(계약). 모르는 값은 「전체」로 읽는다 — 서버 400 을 화면 오류로 만들지 않는다.
+    category: keyword
+      ? undefined
+      : (parseCommunityPostCategory(params.get('category')) ?? undefined),
     mock: isCommunityMockEnabled(params.get('mock')),
   }
 }
@@ -159,6 +171,11 @@ export const serializeCommunityListState = (state: CommunityListState) => {
   } else if (state.targetType && state.targetCode) {
     params.set('targetType', state.targetType)
     params.set('targetCode', state.targetCode)
+  }
+
+  // 「전체」는 쓰지 않는다. 검색·좋아요한 글에는 말머리 필터가 없다(파싱과 같은 규칙).
+  if (state.category && state.view !== 'liked' && !state.keyword) {
+    params.set('category', state.category)
   }
 
   // 기본 기간은 쓰지 않는다 — 기존 `view=popular` 주소·공유 링크가 그대로 이번 주를 뜻한다.
@@ -194,8 +211,9 @@ export const validateCommunityDraft = (title: string, content: string) => {
 }
 
 /**
- * 목록 맥락 키(스크롤 복원·이웃 글·상세 `← 목록`). 기간은 기본값이 아닐 때만 넣는다 — 그래야 이미
- * sessionStorage 에 저장된 키·열려 있는 상세 주소의 `from` 이 예전 모양 그대로 맞는다(#531).
+ * 목록 맥락 키(스크롤 복원·이웃 글·상세 `← 목록`). 기간은 기본값이 아닐 때만, 말머리는 있을 때만
+ * 넣는다 — 그래야 이미 sessionStorage 에 저장된 키·열려 있는 상세 주소의 `from` 이 예전 모양 그대로
+ * 맞는다(#531·#529).
  */
 export const createCommunityContextKey = (state: CommunityListState) =>
   JSON.stringify({
@@ -206,6 +224,7 @@ export const createCommunityContextKey = (state: CommunityListState) =>
     ...(state.period !== COMMUNITY_DEFAULT_POPULAR_PERIOD
       ? { period: state.period }
       : {}),
+    ...(state.category ? { category: state.category } : {}),
   })
 
 export const createCommunityPostHref = (

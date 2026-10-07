@@ -189,7 +189,12 @@ describe('CommunityListView', () => {
     expect(markup).not.toContain('type="submit"')
     expect(markup).toContain('>최신</button>')
     expect(markup).toContain('>인기</button>')
-    expect(markup).toContain('>좋아요한 글</button>')
+    // 「좋아요」·「한 글」이 두 span 으로 나뉘어도 읽는 이름은 「좋아요한 글」 하나다(CM-059).
+    expect(
+      markup
+        .match(/<button[^>]*data-liked-toggle="true"[^>]*>.*?<\/button>/)?.[0]
+        .replace(/<[^>]+>/g, ''),
+    ).toBe('좋아요한 글')
     expect(markup).toContain('data-location-picker="true"')
     expect(markup).toContain('role="group"')
     expect(markup).toContain('aria-label="게시글 보기"')
@@ -222,7 +227,7 @@ describe('CommunityListView', () => {
     expect(group).not.toContain('좋아요한 글')
     expect(group).not.toContain('aria-pressed="true"')
     expect(markup).toMatch(
-      /<button[^>]*aria-pressed="true"[^>]*data-liked-toggle="true"[^>]*>[\s\S]*?좋아요한 글<\/button>/,
+      /<button[^>]*aria-pressed="true"[^>]*data-liked-toggle="true"[^>]*>[\s\S]*?좋아요<span[^>]*>한 글<\/span><\/span><\/button>/,
     )
   })
 
@@ -477,6 +482,243 @@ describe('CommunityListView', () => {
     expect(renderWithStyles({ status: 'empty', posts: [] }).markup).toContain(
       '아직 등록된 이야기가 없어요',
     )
+  })
+
+  it('shows the category filter chips above the period chips in the latest and popular feeds without a keyword (#529)', () => {
+    const { markup } = renderWithStyles({
+      view: 'popular',
+      category: 'QUESTION',
+    })
+    const group = markup.match(
+      /<div[^>]*aria-label="말머리"[^>]*>.*?<\/div>/,
+    )?.[0]
+
+    expect(group).toBeDefined()
+    expect(group).toContain('role="group"')
+    expect(
+      [
+        ...group!.matchAll(
+          /aria-pressed="(true|false)"[^>]*>([^<]+)<\/button>/g,
+        ),
+      ].map(([, pressed, label]) => [label, pressed]),
+    ).toEqual([
+      ['전체', 'false'],
+      ['질문', 'true'],
+      ['경험 공유', 'false'],
+      ['같이 해요', 'false'],
+      ['동네 소식', 'false'],
+    ])
+    // 탭 줄 → 말머리 → 기간 → 피드 순서다.
+    expect(markup.indexOf('data-community-tab-row')).toBeLessThan(
+      markup.indexOf('aria-label="말머리"'),
+    )
+    expect(markup.indexOf('aria-label="말머리"')).toBeLessThan(
+      markup.indexOf('aria-label="인기 기간"'),
+    )
+    expect(markup.indexOf('aria-label="인기 기간"')).toBeLessThan(
+      markup.indexOf('aria-label="커뮤니티 피드"'),
+    )
+
+    // 말머리를 모르면(넘기지 않으면) 「전체」가 눌려 있다.
+    expect(renderWithStyles().markup).toMatch(
+      /aria-label="말머리"[^>]*>.*?aria-pressed="true"[^>]*>전체<\/button>/,
+    )
+    // 계약: 검색·좋아요한 글에는 말머리 필터가 없다.
+    for (const overrides of [
+      { view: 'liked' as const },
+      { keyword: '점심' },
+      { view: 'popular' as const, keyword: '점심' },
+    ]) {
+      expect(renderWithStyles(overrides).markup).not.toContain(
+        'aria-label="말머리"',
+      )
+    }
+  })
+
+  it('scrolls the category chips sideways on narrow screens instead of wrapping to a second line', () => {
+    const { styles } = renderWithStyles()
+    const compact = styles.replace(/\s+/g, '')
+
+    expect(compact).toContain('flex-wrap:nowrap')
+    expect(compact).toContain('overflow-x:auto')
+    expect(compact).toContain('scrollbar-width:none')
+  })
+
+  /*
+    모바일 필터(CM-059~061). `<480` 은 칩 행 대신 탭 줄 오른쪽 필터 버튼 + 시트다. 분기는 CSS 라 마크업에는
+    둘 다 있고, 어느 쪽을 숨기는지는 그 요소의 클래스에 걸린 미디어쿼리로 본다.
+  */
+  const getClassOf = (markup: string, marker: string) =>
+    markup
+      .match(new RegExp(`<[a-z]+[^>]*${marker}[^>]*>`))?.[0]
+      .match(/class="([^"]+)"/)?.[1]
+      .split(' ')
+      .at(-1)
+
+  it('puts a filter button at the end of the tab row and hides the chip rows under 480 (CM-059)', () => {
+    const { markup, styles } = renderWithStyles({ view: 'popular' })
+    const compact = styles.replace(/\s+/g, '')
+    const button = markup.match(
+      /<button[^>]*data-community-filter-button="true"[^>]*>.*?<\/button>/,
+    )?.[0]
+
+    expect(button).toBeDefined()
+    expect(button).toContain('aria-haspopup="dialog"')
+    expect(button).toContain('aria-expanded="false"')
+    expect(button).toContain('>필터</span>')
+    expect(button).toContain('<svg')
+    // 탭 줄 안, 좋아요한 글 다음이다.
+    const tabRowStart = markup.indexOf('data-community-tab-row')
+    expect(tabRowStart).toBeLessThan(markup.indexOf('data-liked-toggle'))
+    expect(markup.indexOf('data-liked-toggle')).toBeLessThan(
+      markup.indexOf('data-community-filter-button'),
+    )
+    expect(markup.indexOf('data-community-filter-button')).toBeLessThan(
+      markup.indexOf('aria-label="말머리"'),
+    )
+
+    const buttonClass = getClassOf(markup, 'data-community-filter-button')
+    const rowsClass = getClassOf(markup, 'data-community-filter-chips')
+    expect(buttonClass).toBeTruthy()
+    expect(rowsClass).toBeTruthy()
+    // 버튼은 480 이상에서, 칩 행은 480 미만에서 숨는다 — SSR 첫 페인트부터 맞는 쪽만 보인다.
+    expect(compact).toContain(
+      `@media(min-width:480px){.${buttonClass}{display:none;}}`,
+    )
+    expect(compact).toContain(
+      `@media(max-width:479px){.${rowsClass}{display:none;}}`,
+    )
+    // 칩 행 안에 말머리·기간 두 묶음이 다 있다.
+    const rows = markup.slice(markup.indexOf('data-community-filter-chips'))
+    expect(rows).toContain('aria-label="말머리"')
+    expect(rows).toContain('aria-label="인기 기간"')
+  })
+
+  it('hides the 「한 글」 tail of the liked toggle under 480 only beside the filter button (CM-059)', () => {
+    const tailClass = (
+      overrides: Partial<ComponentProps<typeof CommunityListView>>,
+    ) => {
+      const { markup, styles } = renderWithStyles(overrides)
+      const tail = markup
+        .match(/좋아요<span class="([^"]+)">한 글<\/span>/)?.[1]
+        .split(' ')
+        .at(-1)
+      return { tail, compact: styles.replace(/\s+/g, '') }
+    }
+
+    const withFilter = tailClass({})
+    expect(withFilter.compact).toMatch(
+      new RegExp(
+        `@media\\(max-width:479px\\)\\{\\.${withFilter.tail}\\{position:absolute;`,
+      ),
+    )
+    // 필터 버튼이 없으면(좋아요한 글 보기) 줄일 이유가 없다.
+    const liked = tailClass({ view: 'liked' })
+    expect(liked.tail).toBeTruthy()
+    expect(liked.compact).not.toContain(`.${liked.tail}{position:absolute;`)
+  })
+
+  it('hides the filter button where there is no category filter — liked and search (CM-059)', () => {
+    for (const overrides of [
+      { view: 'liked' as const },
+      { keyword: '점심' },
+      { view: 'popular' as const, keyword: '점심' },
+    ]) {
+      expect(renderWithStyles(overrides).markup).not.toContain(
+        'data-community-filter-button',
+      )
+    }
+  })
+
+  it('names the chosen values on the filter button and marks it selected (CM-060)', () => {
+    const label = (
+      overrides: Partial<ComponentProps<typeof CommunityListView>>,
+    ) => {
+      const button = renderWithStyles(overrides).markup.match(
+        /<button[^>]*data-community-filter-button="true"[^>]*>.*?<\/button>/,
+      )?.[0]
+      return {
+        text: button?.replace(/<[^>]+>/g, ''),
+        ariaLabel: button?.match(/aria-label="([^"]+)"/)?.[1] ?? null,
+        active: button?.includes('data-active="true"'),
+      }
+    }
+
+    expect(label({})).toEqual({ text: '필터', ariaLabel: null, active: false })
+    expect(label({ view: 'popular', popularPeriod: 'WEEK' })).toEqual({
+      text: '필터',
+      ariaLabel: null,
+      active: false,
+    })
+    expect(label({ category: 'QUESTION' })).toEqual({
+      text: '질문',
+      ariaLabel: '필터: 질문',
+      active: true,
+    })
+    expect(
+      label({ view: 'popular', category: 'QUESTION', popularPeriod: 'MONTH' }),
+    ).toEqual({
+      text: '질문 · 이번 달',
+      ariaLabel: '필터: 질문 · 이번 달',
+      active: true,
+    })
+    expect(label({ view: 'popular', popularPeriod: 'MONTH' }).text).toBe(
+      '이번 달',
+    )
+
+    // 걸린 필터는 선택 칩 토큰을 그대로 쓴다.
+    const compact = renderWithStyles({ category: 'QUESTION' }).styles.replace(
+      /\s+/g,
+      '',
+    )
+    expect(compact).toContain('background:var(--color-primary-100)')
+    expect(compact).toContain('color:var(--color-primary-700)')
+  })
+
+  it('names the category in the empty state before the region and the period (#529)', () => {
+    const { markup } = renderWithStyles({
+      view: 'popular',
+      status: 'empty',
+      posts: [],
+      emptyCause: 'category',
+      category: 'TOGETHER',
+    })
+
+    expect(markup).toContain('이 말머리의 글이 아직 없어요')
+    expect(markup).toContain('말머리 필터 해제')
+    expect(markup).not.toContain('인기 글이 아직 없어요')
+  })
+
+  it('puts the category badge before the region in the row meta and nothing when the post has none (#529)', () => {
+    const withCategory = {
+      ...posts[0]!,
+      category: { code: 'QUESTION', name: '질문', description: '질문' },
+    }
+    const unknownCategory = {
+      ...posts[1]!,
+      postId: '901',
+      // 모르는 code 라도 서버가 준 이름을 그대로 적는다 — 배지는 code 로 분기하지 않는다.
+      category: { code: 'EVENT', name: '행사', description: '행사' },
+    }
+    const withoutCategory = { ...posts[1]!, postId: '902', category: null }
+    const legacy = { ...posts[1]!, postId: '903' } as (typeof posts)[number]
+    delete (legacy as Partial<typeof legacy>).category
+    const { markup } = renderWithStyles({
+      posts: [withCategory, unknownCategory, withoutCategory, legacy],
+    })
+    const row = (postId: string) =>
+      markup.match(
+        new RegExp(`data-community-post-id="${postId}".*?</a>`),
+      )?.[0] ?? ''
+
+    expect(row(withCategory.postId)).toMatch(
+      /data-community-category="QUESTION"[^>]*>질문<\/span>.*data-post-region="true"/,
+    )
+    expect(row('901')).toMatch(
+      /data-community-category="EVENT"[^>]*>행사<\/span>/,
+    )
+    expect(row('902')).not.toContain('data-community-category')
+    expect(row('903')).not.toContain('data-community-category')
   })
 
   it('renders encoded context and mock mode in target post links', () => {
@@ -1286,6 +1528,147 @@ describe('community list container helpers', () => {
         { type: 'view', view: 'latest' },
       ),
     ).toBe('/community/list?targetType=DISTRICT&targetCode=11680&mock=1')
+  })
+
+  it('sends the category only with feed requests, never with search or liked (#529)', () => {
+    const cursor = { lastPostId: '0', lastLikeCount: 0 }
+
+    expect(
+      createCommunityListRequest(
+        {
+          ...baseState,
+          view: 'popular',
+          period: 'MONTH',
+          category: 'QUESTION',
+          targetType: 'DISTRICT',
+          targetCode: '11680',
+        },
+        cursor,
+      ),
+    ).toEqual({
+      mode: 'list',
+      params: {
+        sortType: 'POPULAR',
+        orderType: 'DESC',
+        period: 'MONTH',
+        category: 'QUESTION',
+        lastPostId: '0',
+        lastLikeCount: 0,
+        size: 20,
+        targetType: 'DISTRICT',
+        targetCode: '11680',
+      },
+    })
+    expect(
+      createCommunityListRequest({ ...baseState, category: 'NEWS' }, cursor)
+        .params,
+    ).toMatchObject({ sortType: 'LATEST', category: 'NEWS' })
+    // 「전체」는 키째 뺀다.
+    expect(
+      createCommunityListRequest(baseState, cursor).params,
+    ).not.toHaveProperty('category')
+    // 상태에 값이 남아 있어도 검색·좋아요한 글에는 싣지 않는다.
+    expect(
+      createCommunityListRequest(
+        { ...baseState, keyword: '점심', category: 'NEWS' },
+        cursor,
+      ),
+    ).toMatchObject({ mode: 'search' })
+    expect(
+      createCommunityListRequest(
+        { ...baseState, keyword: '점심', category: 'NEWS' },
+        cursor,
+      ).params,
+    ).not.toHaveProperty('category')
+    expect(
+      createCommunityListRequest(
+        { ...baseState, view: 'liked', category: 'NEWS' },
+        cursor,
+      ).params,
+    ).not.toHaveProperty('category')
+  })
+
+  it('restarts the feed from the first cursor when the category changes (#529)', () => {
+    const viewer = { authenticated: false, memberId: null }
+    const all = { ...baseState }
+    const question = { ...all, category: 'QUESTION' as const }
+    const news = { ...all, category: 'NEWS' as const }
+
+    // 말머리는 상태의 일부라 목록 키가 바뀐다 — React Query 가 새 무한 쿼리를 initialPageParam 부터 받는다.
+    expect(createCommunityListQueryKey(question, viewer)).not.toEqual(
+      createCommunityListQueryKey(all, viewer),
+    )
+    expect(createCommunityListQueryKey(question, viewer)).not.toEqual(
+      createCommunityListQueryKey(news, viewer),
+    )
+    expect(createCommunityContextKey(question)).not.toBe(
+      createCommunityContextKey(all),
+    )
+  })
+
+  it('creates category URLs that keep the target and the period and drop the filter for search and liked (#529)', () => {
+    const popular = {
+      ...baseState,
+      view: 'popular' as const,
+      period: 'MONTH' as const,
+      targetType: 'DISTRICT' as const,
+      targetCode: '11680',
+      mock: true,
+    }
+
+    expect(
+      createCommunityListActionHref('/community/list', popular, {
+        type: 'category',
+        category: 'QUESTION',
+      }),
+    ).toBe(
+      '/community/list?view=popular&targetType=DISTRICT&targetCode=11680&category=QUESTION&period=MONTH&mock=1',
+    )
+    // 「전체」는 주소에서 빠진다.
+    expect(
+      createCommunityListActionHref(
+        '/community/list',
+        { ...popular, category: 'QUESTION' },
+        { type: 'category', category: null },
+      ),
+    ).toBe(
+      '/community/list?view=popular&targetType=DISTRICT&targetCode=11680&period=MONTH&mock=1',
+    )
+    const withCategory = { ...popular, category: 'NEWS' as const }
+    // 지역·보기(최신↔인기)·기간을 바꿔도 말머리는 남는다.
+    expect(
+      createCommunityListActionHref('/community/list', withCategory, {
+        type: 'location',
+        value: {},
+      }),
+    ).toBe('/community/list?view=popular&category=NEWS&period=MONTH&mock=1')
+    expect(
+      createCommunityListActionHref('/community/list', withCategory, {
+        type: 'view',
+        view: 'latest',
+      }),
+    ).toBe(
+      '/community/list?targetType=DISTRICT&targetCode=11680&category=NEWS&mock=1',
+    )
+    expect(
+      createCommunityListActionHref('/community/list', withCategory, {
+        type: 'period',
+        period: 'ALL',
+      }),
+    ).toContain('category=NEWS')
+    // 검색·좋아요한 글로 가면 풀린다 — 돌아와도 되살아나지 않는다.
+    expect(
+      createCommunityListActionHref('/community/list', withCategory, {
+        type: 'search',
+        keyword: '점심',
+      }),
+    ).toBe('/community/list?view=popular&keyword=%EC%A0%90%EC%8B%AC&mock=1')
+    expect(
+      createCommunityListActionHref('/community/list', withCategory, {
+        type: 'view',
+        view: 'liked',
+      }),
+    ).toBe('/community/list?view=liked&mock=1')
   })
 
   it('serializes only normalized state and drops legacy or conflicting params', () => {

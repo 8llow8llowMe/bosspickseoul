@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { Circle, CircleCheck, ImagePlus, Loader2, Plus, X } from 'lucide-react'
 import styled, { css, keyframes } from 'styled-components'
+import CommunityChoiceChips from '@/components/community/community-choice-chips'
 import CommunityRegionSheet, {
   type CommunityRegionSheetHandle,
 } from '@/components/community/community-region-sheet'
@@ -25,6 +26,7 @@ import {
   COMMUNITY_TITLE_MAX_LENGTH,
   COMMUNITY_WRITING_PROMPTS,
   getCommunityEditorChecklist,
+  getCommunityPromptCategory,
   getCommunityWritingPromptCaret,
   isCommunityCountNearLimit,
   isCommunityEditorChecklistReady,
@@ -34,6 +36,7 @@ import {
   type CommunityEditorField,
   type CommunityEditorMode,
   type CommunityEditorValue,
+  type CommunityWritingPrompt,
 } from '@/lib/community/editor-compose'
 import { isCommunityEditorDirty } from '@/lib/community/editor-draft'
 import {
@@ -45,6 +48,10 @@ import {
   POST_IMAGE_RULE_TEXT,
   selectPostImages,
 } from '@/lib/community/post-images'
+import {
+  COMMUNITY_POST_CATEGORIES,
+  type CommunityPostCategoryCode,
+} from '@/lib/community/post-category'
 import { IMAGE_ACCEPT_ATTRIBUTE } from '@/lib/upload/image-rules'
 import type { CommunityPostImage } from '@/types/community'
 
@@ -279,6 +286,14 @@ const SectionLabel = styled.p`
   color: var(--color-text-900);
   font-size: 14px;
   font-weight: 600;
+`
+
+/* 선택 사항 표시 — 작성 체크의 `선택`(CheckOptional)과 같은 결이다. */
+const OptionalMark = styled.span`
+  margin-left: 4px;
+  color: var(--color-text-caption);
+  font-size: 12px;
+  font-weight: 400;
 `
 
 const Counter = styled.span<{ $near: boolean }>`
@@ -847,6 +862,10 @@ export default function CommunityEditorForm({
   const [images, setImages] = useState<CommunityPostImage[]>(
     initialValue.images,
   )
+  /* 말머리(#529). 수정 화면은 지금 말머리로 시작한다 — 저장 때 그대로 다시 보내야 남는다. */
+  const [category, setCategory] = useState<CommunityPostCategoryCode | null>(
+    initialValue.category,
+  )
   const [imageMessage, setImageMessage] = useState<string | null>(null)
   const [uploadingCount, setUploadingCount] = useState(0)
   /* 업로드 중 등록을 눌렀다. 업로드가 끝나면(uploadingCount 0) 안내도 걷힌다. */
@@ -867,12 +886,18 @@ export default function CommunityEditorForm({
   const uploading = uploadingCount > 0
   /* 저장 요청 중이거나 이미 성공해 이동하는 중 — 다시 보내면 같은 글이 또 생긴다. */
   const submitLocked = pending || submitted
-  const current: CommunityEditorValue = { title, content, location, images }
+  const current: CommunityEditorValue = {
+    title,
+    content,
+    location,
+    images,
+    category,
+  }
   const dirty = isCommunityEditorDirty(pristineValue ?? initialValue, current)
 
   useCommunityDraftAutosave({
     storageKey: draftStorageKey,
-    value: { title, content, location },
+    value: { title, content, location, category },
     dirty,
     pending,
     submitted,
@@ -1005,10 +1030,22 @@ export default function CommunityEditorForm({
     )
   }
 
-  const handleInsertPrompt = (template: string) => {
-    pendingCaretRef.current = getCommunityWritingPromptCaret(template)
-    setContent(template)
+  /*
+   * 본문 틀은 그대로 넣고, 말머리가 비어 있을 때만 칩에 대응하는 말머리를 같이 골라 준다(#529).
+   * 이미 고른 말머리는 덮지 않는다 — 사용자가 먼저 고른 것이 이긴다.
+   */
+  const handleInsertPrompt = (prompt: CommunityWritingPrompt) => {
+    pendingCaretRef.current = getCommunityWritingPromptCaret(prompt.template)
+    setContent(prompt.template)
+    setCategory(currentCategory =>
+      getCommunityPromptCategory(currentCategory, prompt),
+    )
     clearFieldError('content')
+  }
+
+  /* 단일 선택. 눌린 말머리를 다시 누르면 풀린다(말머리 없음). */
+  const handleCategorySelect = (next: CommunityPostCategoryCode) => {
+    setCategory(currentCategory => (currentCategory === next ? null : next))
   }
 
   /* 내용이 바뀐 채로 ✕ · 취소 — 묻는다. 앱 안 다른 링크는 막지 않는다(임시 저장이 지킨다). */
@@ -1049,6 +1086,7 @@ export default function CommunityEditorForm({
       content,
       location,
       images,
+      category,
     )
 
     if (result.error !== null) {
@@ -1174,6 +1212,23 @@ export default function CommunityEditorForm({
           {mode === 'edit' ? <Caption>지역은 수정할 수 없어요.</Caption> : null}
         </Field>
 
+        {/*
+          말머리(#529) — 지역 다음 · 제목 앞. 선택 사항이라 등록 검증·작성 체크에 넣지 않는다. 수정
+          화면에서도 바꿀 수 있다(지역과 다르다). 작성 도움 칩은 본문이 비었을 때만 보여 이 줄을 대신할 수 없다.
+        */}
+        <Field data-community-category-field="true">
+          <SectionLabel>
+            말머리 <OptionalMark>선택</OptionalMark>
+          </SectionLabel>
+          <CommunityChoiceChips
+            disabled={pending}
+            label="말머리"
+            onSelect={handleCategorySelect}
+            options={COMMUNITY_POST_CATEGORIES}
+            selected={category}
+          />
+        </Field>
+
         <Field>
           <HiddenLabel htmlFor={`${id}-title`}>제목</HiddenLabel>
           <TitleInput
@@ -1226,7 +1281,7 @@ export default function CommunityEditorForm({
                   key={prompt.id}
                   disabled={pending}
                   onClick={() => {
-                    handleInsertPrompt(prompt.template)
+                    handleInsertPrompt(prompt)
                   }}
                   type="button"
                 >
