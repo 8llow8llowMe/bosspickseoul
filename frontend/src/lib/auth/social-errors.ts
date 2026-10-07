@@ -1,11 +1,16 @@
 /**
  * 소셜 로그인 콜백이 `/login?error=<kind>` 로 돌려보낼 때 쓰는 kind.
+ * 신규 가입 동의 부족(`AUTH_021`/`AUTH_022`)은 로그인 화면이 아니라 `/register/social` 로 간다(#495).
  *
  * 콜백(서버)이 kind 를 정하고 로그인 화면(클라이언트)이 문구를 고른다. 둘이 같은
  * 이름을 쓰도록 타입을 여기 하나에 둔다 — 이 파일은 클라이언트 번들에도 실리므로
  * 서버 전용 모듈을 import 하지 않는다.
  */
 export type SocialLoginErrorKind = 'social' | 'social_state' | 'social_signup'
+
+/** 로그인 화면으로 돌려보내는 경로. 콜백(서버)과 화면이 같은 규칙을 쓴다. */
+export const socialLoginErrorPath = (kind: SocialLoginErrorKind): string =>
+  `/login?error=${kind}`
 
 const MESSAGES: Record<SocialLoginErrorKind, string> = {
   social: '소셜 로그인에 실패했습니다. 다시 시도해 주세요.',

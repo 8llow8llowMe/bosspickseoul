@@ -13,7 +13,7 @@ import {
   isSameState,
   socialCallbackFailure,
 } from '@/lib/auth/social-state'
-import type { SocialLoginErrorKind } from '@/lib/auth/social-errors'
+import { socialLoginErrorPath } from '@/lib/auth/social-errors'
 import { isApiSuccess } from '@/lib/api/response'
 import type { ApiResponse } from '@/types/api'
 
@@ -66,10 +66,14 @@ export async function GET(
     }
   }
 
-  const fail = async (kind: SocialLoginErrorKind = 'social') => {
-    await takeReturnPath()
-    return redirectToPath(`/login?error=${kind}`)
-  }
+  /**
+   * 실패로 끝낸다. 복귀 경로 쿠키는 **늘** 지우고, 실패 경로가 그 값을 쓰면 넘긴다 —
+   * 카카오 첫 가입 동의 화면(`/register/social`)은 복귀 경로를 `redirect` 로 이어 받는다(#495).
+   */
+  const fail = async (
+    toPath: (returnPath: string) => string = () =>
+      socialLoginErrorPath('social'),
+  ) => redirectToPath(toPath(await takeReturnPath()))
 
   /*
    * 판정 순서를 바꾸지 않는다. 쿠키 대조가 백엔드 호출보다 늦으면 남이 보낸 콜백이
@@ -84,7 +88,7 @@ export async function GET(
 
   // 이 브라우저가 시작한 로그인이 아니다 — 백엔드를 부르지 않는다.
   if (stateCookieCount > 1 || !isSameState(state, stateCookie))
-    return fail('social_state')
+    return fail(() => socialLoginErrorPath('social_state'))
 
   const { backendApiUrl } = getServerEnv()
   const upstream = await fetch(
@@ -100,7 +104,12 @@ export async function GET(
     .catch(() => null)) as ApiResponse<LoginBody> | null
 
   if (!upstream.ok || !isApiSuccess(data) || !data?.dataBody)
-    return fail(socialCallbackFailure(data?.dataHeader?.resultCode))
+    return fail(returnPath =>
+      socialCallbackFailure(data?.dataHeader?.resultCode, {
+        provider,
+        returnPath,
+      }),
+    )
   if (
     typeof data.dataBody.accessToken !== 'string' ||
     !data.dataBody.accessToken

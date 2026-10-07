@@ -291,19 +291,47 @@ describe('GET /api/auth/social/[provider] — state 쿠키 대조 (#527)', () =>
     expect(second.headers.get('location')).toBe('/login?error=social_state')
   })
 
-  it.each(['AUTH_021', 'AUTH_022'])(
-    'TC-SST-005 백엔드 %s(신규 가입 동의 부족)는 social_signup 으로 보내고 복귀 경로를 지운다',
-    async resultCode => {
-      cookieStore.value = encodeURIComponent('/community')
+  it.each([
+    ['AUTH_021', 'terms'],
+    ['AUTH_022', 'age'],
+  ])(
+    'TC-CON-005 백엔드 %s(신규 가입 동의 부족)는 동의 화면 reason=%s 로 보내고 복귀 경로를 redirect 로 넘긴다',
+    async (resultCode, reason) => {
+      cookieStore.value = encodeURIComponent('/community?tab=1')
       mockBackendFailure(resultCode, 400)
 
       const res = await callback()
 
-      expect(res.headers.get('location')).toBe('/login?error=social_signup')
+      expect(res.headers.get('location')).toBe(
+        `/register/social?provider=kakao&reason=${reason}&redirect=%2Fcommunity%3Ftab%3D1`,
+      )
+      // 쿠키는 지운다 — 동의 화면의 카카오 버튼이 redirect 값으로 다시 남긴다.
       expect(cookieStore.deleted).toContain('auth_return')
+      expect(cookieStore.deleted).toContainEqual(STATE_COOKIE_DELETE)
       expect(setSession).not.toHaveBeenCalled()
     },
   )
+
+  it('TC-CON-005 복귀 경로가 없으면 redirect 를 붙이지 않는다', async () => {
+    mockBackendFailure('AUTH_021', 400)
+
+    const res = await callback()
+
+    expect(res.headers.get('location')).toBe(
+      '/register/social?provider=kakao&reason=terms',
+    )
+  })
+
+  it('TC-CON-005 복귀 경로 쿠키가 외부 주소면 redirect 로 넘기지 않는다', async () => {
+    cookieStore.value = encodeURIComponent('//evil.example')
+    mockBackendFailure('AUTH_022', 400)
+
+    const res = await callback()
+
+    expect(res.headers.get('location')).toBe(
+      '/register/social?provider=kakao&reason=age',
+    )
+  })
 
   it('TC-SST-006 백엔드 AUTH_010(state 재사용·만료)은 social_state 로 보낸다', async () => {
     mockBackendFailure('AUTH_010', 401)
