@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import CommunityDetailView from '@/components/community/community-detail-view'
+import { useCommunityViewerReady } from '@/hooks/use-community-viewer-ready'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { readAdjacentPosts } from '@/lib/community/adjacent-posts'
 import { realCommunitySource } from '@/lib/community/community-data-source'
@@ -19,10 +20,13 @@ import {
   MOCK_COMMUNITY_MEMBER_ID,
 } from '@/lib/community/community-mock'
 import {
+  COMMUNITY_ANONYMOUS_VIEWER,
   COMMUNITY_CURSOR_START,
   communityKeys,
   getCommunityLoginHref,
+  getCommunityViewerKey,
   isCommunityMockEnabled,
+  isCommunityViewerReady,
   parseCommunityTargetType,
   type CommunityViewer,
 } from '@/lib/community/community-state'
@@ -102,19 +106,28 @@ export const createCommunityRelatedParams = (
   }
 }
 
+/**
+ * 상세 하트의 상태(#530). 상세 응답의 `liked` 에서 그린다 — 첫 진입부터 내가 누른 글이면 채워진다.
+ * 토글 결과는 `updateCommunityDetailLikeCache` 가 같은 캐시에 써서 이긴다. null(비로그인)·옛 BE(필드 없음)는
+ * null 이고, 화면은 `=== true` 일 때만 채운다.
+ */
+export const getCommunityPostLiked = (detail: CommunityPostDetail | null) =>
+  detail?.liked ?? null
+
 export const updateCommunityDetailLikeCache = (
   response: CommunityPostDetailResponse,
   result: CommunityPostLikeResponse['dataBody'],
-): CommunityPostDetailResponse => ({
-  ...response,
-  dataBody: {
-    ...response.dataBody,
-    likeCount:
-      response.dataBody.postId === result.postId
-        ? result.likeCount
-        : response.dataBody.likeCount,
-  },
-})
+): CommunityPostDetailResponse =>
+  response.dataBody.postId === result.postId
+    ? {
+        ...response,
+        dataBody: {
+          ...response.dataBody,
+          likeCount: result.likeCount,
+          liked: result.liked,
+        },
+      }
+    : response
 
 export const updateCommunityRelatedLikeCache = (
   response: CommunityPostListResponse,
@@ -127,7 +140,7 @@ export const updateCommunityRelatedLikeCache = (
       ...response.dataBody.posts,
       contents: response.dataBody.posts.contents.map(post =>
         post.postId === result.postId
-          ? { ...post, likeCount: result.likeCount }
+          ? { ...post, likeCount: result.likeCount, liked: result.liked }
           : post,
       ),
     },
@@ -245,16 +258,21 @@ export const startCommunityDetailUnauthorizedRecovery = (
 type CommunityPublicQuery = {
   queryKey: QueryKey
   refetch: () => Promise<unknown>
+  /** 키 끝에 조회자 세그먼트가 있는가(상세·관련 글, #530). 댓글 키에는 없다. */
+  viewerScoped?: boolean
 }
 
 type RecoverCommunityPublicQueriesOptions = {
   queryClient: QueryClient
+  /** 실패한 키의 조회자 세그먼트(`getCommunityViewerKey`). */
+  viewerKey: string
   queries: CommunityPublicQuery[]
   clearSession: () => void
 }
 
 export const recoverCommunityPublicQueries = async ({
   queryClient,
+  viewerKey,
   queries,
   clearSession,
 }: RecoverCommunityPublicQueriesOptions) => {
@@ -263,8 +281,21 @@ export const recoverCommunityPublicQueries = async ({
       queryClient.cancelQueries({ queryKey, exact: true }),
     ),
   )
+
+  /*
+    회원 키는 세션을 지우면 조회자 세그먼트가 'anonymous' 로 바뀌어 새 키가 익명으로 받는다. 옛 키를 다시
+    부르면 상세 GET 이 두 번 나가 조회수가 두 번 오르고, 401 을 품은 채 남기면 다시 로그인해 돌아왔을 때
+    그 오류로 복구가 또 돈다 — 그래서 지우기만 한다. 조회자가 없는 키(댓글)와 익명 키는 그대로 다시 부른다.
+  */
+  const viewerChanges = viewerKey !== COMMUNITY_ANONYMOUS_VIEWER
+  const replaced = queries.filter(query => viewerChanges && query.viewerScoped)
+  const retried = queries.filter(query => !replaced.includes(query))
+
+  replaced.forEach(({ queryKey }) => {
+    queryClient.removeQueries({ queryKey, exact: true })
+  })
   clearSession()
-  await Promise.all(queries.map(({ refetch }) => refetch()))
+  await Promise.all(retried.map(({ refetch }) => refetch()))
 }
 
 type CommunityPublicQueryRecoveryRef = {
@@ -421,7 +452,6 @@ export default function CommunityDetailPage({
   const memberInfo = useAuthStore(auth => auth.memberInfo)
   const clearSession = useAuthStore(auth => auth.clearSession)
   const source = mockEnabled ? communityMockSource : realCommunitySource
-  const detailQueryKey = communityKeys.detail(postId, mockEnabled)
   const commentsQueryKey = communityKeys.comments(postId, mockEnabled)
   const viewer: CommunityViewer = mockEnabled
     ? {
@@ -435,7 +465,16 @@ export default function CommunityDetailPage({
             ? String(memberInfo.memberId)
             : null,
       }
-  const authReady = mockEnabled || hasHydrated
+  /*
+    로그인 확인 전에는 상세·관련 글을 부르지 않는다(#530, isCommunityViewerReady) — 응답의 `liked` 가
+    조회자마다 달라 키에 조회자를 넣었고, 확인 전에 부르면 같은 글을 두 번 받아 조회수가 두 번 오른다.
+    확인이 멈추면 상한 뒤 익명으로 부른다(`viewerReady`). 좋아요·로그인 유도는 누구인지가 맞아야 해서
+    상한과 상관없이 확인 완료(`authReady`)를 기다린다.
+  */
+  const authReady = isCommunityViewerReady(mockEnabled, hasHydrated)
+  const viewerReady = useCommunityViewerReady(mockEnabled, hasHydrated)
+  const viewerKey = getCommunityViewerKey(viewer)
+  const detailQueryKey = communityKeys.detail(postId, mockEnabled, viewerKey)
   const unauthorizedRecoveryRef = useRef<Promise<void> | null>(null)
   const publicQueryRecoveryRef = useRef<CommunityPublicQueryRecoveryRef>({
     scope: null,
@@ -445,7 +484,6 @@ export default function CommunityDetailPage({
   const [adjacent, setAdjacent] = useState<ReturnType<
     typeof readAdjacentPosts
   > | null>(null)
-  const [postLiked, setPostLiked] = useState<boolean | null>(null)
   const [postMutationError, setPostMutationError] = useState<string | null>(
     null,
   )
@@ -494,6 +532,7 @@ export default function CommunityDetailPage({
     ReturnType<typeof communityKeys.detail>
   >({
     queryKey: detailQueryKey,
+    enabled: viewerReady,
     retry: shouldRetryCommunityDetailQuery,
     queryFn: async () =>
       validateCommunityDetailResponse(await source.getPost(postId)),
@@ -517,6 +556,7 @@ export default function CommunityDetailPage({
     relatedParams?.targetType ?? 'DISTRICT',
     relatedParams?.targetCode ?? '',
     mockEnabled,
+    viewerKey,
   )
   const relatedQuery = useQuery<
     CommunityPostListResponse,
@@ -525,7 +565,7 @@ export default function CommunityDetailPage({
     ReturnType<typeof communityKeys.related>
   >({
     queryKey: relatedQueryKey,
-    enabled: Boolean(relatedParams),
+    enabled: viewerReady && Boolean(relatedParams),
     retry: shouldRetryCommunityDetailQuery,
     queryFn: async () => {
       if (!relatedParams) {
@@ -558,6 +598,7 @@ export default function CommunityDetailPage({
     const queries: CommunityPublicQuery[] = [
       {
         queryKey: detailQueryKey,
+        viewerScoped: true,
         refetch: async () => {
           await detailQuery.refetch()
         },
@@ -573,6 +614,7 @@ export default function CommunityDetailPage({
     if (relatedParams) {
       queries.push({
         queryKey: relatedQueryKey,
+        viewerScoped: true,
         refetch: async () => {
           await relatedQuery.refetch()
         },
@@ -585,6 +627,7 @@ export default function CommunityDetailPage({
       () =>
         recoverCommunityPublicQueries({
           queryClient,
+          viewerKey,
           queries,
           clearSession,
         }),
@@ -601,6 +644,7 @@ export default function CommunityDetailPage({
     relatedParams,
     relatedQuery,
     relatedQueryKey,
+    viewerKey,
   ])
 
   const requireLogin = () => {
@@ -640,7 +684,7 @@ export default function CommunityDetailPage({
     mutationFn: async () =>
       validateCommunityResponse(await source.togglePostLike(postId)),
     onSuccess: async response => {
-      setPostLiked(response.dataBody.liked)
+      // 하트는 상세 캐시의 liked 에서 그린다(getCommunityPostLiked) — 아래 캐시 갱신이 토글 결과를 싣는다.
       setPostMutationError(null)
       queryClient.setQueryData<CommunityPostDetailResponse>(
         detailQueryKey,
@@ -829,11 +873,14 @@ export default function CommunityDetailPage({
     detail && ownsPost
       ? `/community/register?postId=${detail.postId}${mockEnabled ? '&mock=1' : ''}`
       : null
-  const detailStatus = detailQuery.isLoading
-    ? 'loading'
-    : detailQuery.error || !detail
-      ? 'error'
-      : 'ready'
+  const postLiked = getCommunityPostLiked(detail)
+  // 로그인 확인 전에는 쿼리가 꺼져 있다 — 오류가 아니라 로딩이다(남은 익명 캐시도 그리지 않는다).
+  const detailStatus =
+    !viewerReady || detailQuery.isLoading
+      ? 'loading'
+      : detailQuery.error || !detail
+        ? 'error'
+        : 'ready'
   const commentsStatus = commentsQuery.isLoading
     ? 'loading'
     : commentsQuery.error

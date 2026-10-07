@@ -22,6 +22,40 @@ export type CommunityViewer = {
   memberId: string | null
 }
 
+/** 비로그인 조회자의 쿼리 키 세그먼트. */
+export const COMMUNITY_ANONYMOUS_VIEWER = 'anonymous'
+
+/**
+ * 쿼리 키의 조회자 세그먼트(#530). 목록·인기·상세·관련 글 응답의 `liked` 는 **누가 부르느냐**로
+ * 달라진다(비로그인은 null). 기본 `staleTime` 이 5분이라 키에 조회자를 넣지 않으면 로그아웃·
+ * 다른 계정 로그인 뒤에도 앞사람의 `liked` 가 캐시에서 그대로 나온다. 목 모드 조회자는 부르는 쪽이
+ * 목 회원 id 를 `memberId` 로 넣어 준다.
+ */
+export const getCommunityViewerKey = (viewer: CommunityViewer) =>
+  viewer.memberId ?? COMMUNITY_ANONYMOUS_VIEWER
+
+/**
+ * 공개 쿼리(목록·인기·상세)를 시작해도 되는가(#530). 로그인 확인(`/api/auth/me`) 전에는 조회자를 몰라
+ * 키가 'anonymous' 다. 그때 시작하면 BFF 는 세션 토큰을 붙여 회원 응답(`liked` true/false)을 받아
+ * 'anonymous' 키에 넣고, 확인이 끝나 키가 회원 id 로 바뀌면 같은 목록을 한 번 더 받는다(상세면 조회수도 두 번).
+ * 목 모드는 조회자가 정해져 있어 기다리지 않는다.
+ *
+ * `waitExpired` — 확인을 기다린 지 `COMMUNITY_VIEWER_WAIT_LIMIT_MS` 가 지났다. 확인 요청에는 타임아웃이
+ * 없어 멈추면 공개 화면이 수 분간 스켈레톤에 갇힌다. 그때는 익명으로 보고 시작한다 — 나중에 확인이 끝나
+ * 회원으로 바뀌면 키가 바뀌어 한 번 더 받는 것은 감수한다.
+ */
+export const isCommunityViewerReady = (
+  mock: boolean,
+  hasHydrated: boolean,
+  waitExpired = false,
+) => mock || hasHydrated || waitExpired
+
+/**
+ * 공개 목록·상세가 로그인 확인을 기다리는 상한(ms). 앱 전역 확인(auth-store)은 그대로 두고 커뮤니티
+ * 쪽에서만 끊는다. 보통 확인은 수백 ms 안에 끝나 이 상한에 닿지 않는다.
+ */
+export const COMMUNITY_VIEWER_WAIT_LIMIT_MS = 2500
+
 export const parseCommunityTargetType = (value: string | null) => {
   if (
     value === 'DISTRICT' ||
@@ -209,16 +243,19 @@ export const getCommunityNextPageParam = (
 
 export const communityKeys = {
   all: ['community'] as const,
-  list: (state: CommunityListState) => ['community', 'list', state] as const,
-  detail: (postId: CommunityId, mock: boolean) =>
-    ['community', 'detail', postId, mock] as const,
+  /** 마지막 세그먼트는 조회자(`getCommunityViewerKey`) — 좋아요한 글 보기도 이 자리 하나만 쓴다. */
+  list: (state: CommunityListState, viewer: string) =>
+    ['community', 'list', state, viewer] as const,
+  detail: (postId: CommunityId, mock: boolean, viewer: string) =>
+    ['community', 'detail', postId, mock, viewer] as const,
   comments: (postId: CommunityId, mock: boolean) =>
     ['community', 'comments', postId, mock] as const,
   related: (
     targetType: CommunityTargetType,
     targetCode: string,
     mock: boolean,
-  ) => ['community', 'related', targetType, targetCode, mock] as const,
+    viewer: string,
+  ) => ['community', 'related', targetType, targetCode, mock, viewer] as const,
   liked: (mock: boolean) => ['community', 'liked', mock] as const,
   /**
    * 목록 우 레일 인기 글(community.md §S4 「목록 3단」). 목록 키(`['community','list',…]`)와 따로 둔다 —
@@ -229,5 +266,6 @@ export const communityKeys = {
     targetType: CommunityTargetType | null,
     targetCode: string | null,
     mock: boolean,
-  ) => ['community', 'popular', targetType, targetCode, mock] as const,
+    viewer: string,
+  ) => ['community', 'popular', targetType, targetCode, mock, viewer] as const,
 }

@@ -129,6 +129,29 @@ describe('BFF proxy /api/bff/[...path]', () => {
     expect(headers.has('authorization')).toBe(false)
   })
 
+  /*
+   * 커뮤니티 목록·상세는 조회자마다 응답이 다르다(`liked`, #530). Next 의 data cache 나 공유 캐시에
+   * 들어가 남의 응답이 섞이지 않도록 첫 호출과 재발급 뒤 재시도 모두 `no-store` 로 보낸다.
+   */
+  it('forwards every upstream call with cache: no-store, including the post-reissue retry', async () => {
+    getSession.mockResolvedValue(session1)
+    reissueSession.mockResolvedValue(session2)
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 401 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+    global.fetch = fetchMock
+    const { GET } = await import('./route')
+    const req = new Request('http://x/api/bff/community/posts', {
+      method: 'GET',
+    })
+    const res = await GET(req, ctx(['community', 'posts']))
+    expect(res.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][1].cache).toBe('no-store')
+    expect(fetchMock.mock.calls[1][1].cache).toBe('no-store')
+  })
+
   it('on a 401, reissues the session and retries once, returning the retried response', async () => {
     getSession.mockResolvedValue(session1)
     reissueSession.mockResolvedValue(session2)

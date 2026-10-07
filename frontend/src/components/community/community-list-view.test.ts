@@ -4,10 +4,13 @@ import { ServerStyleSheet } from 'styled-components'
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
+import { formatCommunityCount } from '@/lib/community'
 import { communityMockFixtures } from '@/lib/community/community-mock'
 import {
+  COMMUNITY_ANONYMOUS_VIEWER,
   createCommunityContextKey,
   createCommunityPostHref,
+  isCommunityViewerReady,
   parseCommunityListState,
   type CommunityListState,
 } from '@/lib/community/community-state'
@@ -275,14 +278,88 @@ describe('CommunityListView', () => {
     expect(markup).toContain('강남역 커피로드')
     expect(markup).toContain('역삼동 김사장')
     expect(markup.match(/data-community-writer="true"/g)).toHaveLength(2)
-    expect(markup).toContain('aria-label="좋아요 31"')
     expect(markup).toContain('aria-label="댓글 2"')
     expect(markup).not.toContain('이번 주 많이 본 게시글')
     expect(markup).not.toContain('카테고리')
     expect(markup).not.toContain('<img')
     expect(markup).not.toContain('프로필')
-    expect(markup).not.toContain('조회')
     expect(markup).not.toContain('readCount')
+  })
+
+  // #530 — 행 메타에 조회수, 내가 좋아요한 글은 채운 하트(표시만, 행 안에 토글 버튼 없음).
+  const rowPost = (overrides: Partial<CommunityPostSummary>) => ({
+    ...communityMockFixtures.posts[2]!,
+    href: '/community/3',
+    ...overrides,
+  })
+  const singleRow = (overrides: Partial<CommunityPostSummary>) => {
+    const { markup } = renderWithStyles({ posts: [rowPost(overrides)] })
+    return markup.match(/<li>[\s\S]*?<\/li>/)?.[0] ?? ''
+  }
+
+  it('shows the view count next to likes and comments with the detail wording', () => {
+    const row = singleRow({ viewCount: 1234, likeCount: 5, commentCount: 2 })
+
+    expect(row).toContain('aria-label="조회 1234"')
+    // 표기는 상세 메타(`조회 N`)와 같은 축약 포맷이다.
+    expect(row).toContain(`조회 ${formatCommunityCount(1234)}`)
+    // 좋아요 · 댓글 다음 자리다.
+    expect(row.indexOf('aria-label="댓글 2"')).toBeLessThan(
+      row.indexOf('aria-label="조회 1234"'),
+    )
+  })
+
+  it('omits the view count when an older backend response has none', () => {
+    const row = singleRow({ viewCount: undefined as unknown as number })
+
+    expect(row).not.toContain('조회')
+  })
+
+  it('fills the heart and names it for screen readers only when liked is true', () => {
+    const liked = singleRow({ likeCount: 5, liked: true })
+
+    expect(liked).toContain('aria-label="좋아요 5, 내가 좋아요한 글"')
+    expect(liked).toContain('data-liked="true"')
+    expect(liked).toMatch(/<svg[^>]*fill="currentColor"/)
+    // 표시만 한다 — 행 전체가 링크라 안에 버튼을 두지 않는다.
+    expect(liked).not.toContain('<button')
+    expect(liked.match(/<a /g)).toHaveLength(1)
+  })
+
+  it('keeps the outline heart for false and for null (not signed in, unknown)', () => {
+    for (const value of [false, null, undefined]) {
+      const row = singleRow({
+        likeCount: 5,
+        liked: value as boolean | null,
+      })
+
+      expect(row).toContain('aria-label="좋아요 5"')
+      expect(row).not.toContain('내가 좋아요한 글')
+      expect(row).not.toContain('data-liked="true"')
+      expect(row).not.toMatch(/<svg[^>]*fill="currentColor"/)
+    }
+  })
+
+  it('colors a liked heart with the detail pressed-heart token, no new tokens', () => {
+    const liked = renderWithStyles({ posts: [rowPost({ liked: true })] })
+    const notLiked = renderWithStyles({ posts: [rowPost({ liked: false })] })
+    const pressed = 'color:var(--color-text-primary-on-light)'
+
+    const ruleFor = (result: { markup: string; styles: string }) => {
+      const span = result.markup.match(
+        /<span[^>]*aria-label="좋아요 [^"]*"[^>]*>/,
+      )?.[0]
+      const classes = span?.match(/class="([^"]+)"/)?.[1]?.split(' ') ?? []
+      return classes
+        .map(
+          name =>
+            result.styles.match(new RegExp(`\\.${name}\\{[^}]*\\}`))?.[0] ?? '',
+        )
+        .join('')
+    }
+
+    expect(ruleFor(liked)).toContain(pressed)
+    expect(ruleFor(notLiked)).not.toContain(pressed)
   })
 
   it('renders the row region as a text label, not a nested link', () => {
@@ -731,6 +808,43 @@ describe('community list container helpers', () => {
     expect(mockKey).toContain('9001')
   })
 
+  it('scopes every list query key by viewer once — member id or anonymous (#530)', () => {
+    const member = { authenticated: true, memberId: '42' }
+    const anonymous = { authenticated: false, memberId: null }
+    const likedState = { ...baseState, view: 'liked' as const }
+
+    expect(createCommunityListQueryKey(baseState, member)).toEqual([
+      'community',
+      'list',
+      baseState,
+      '42',
+    ])
+    expect(createCommunityListQueryKey(baseState, anonymous)).toEqual([
+      'community',
+      'list',
+      baseState,
+      COMMUNITY_ANONYMOUS_VIEWER,
+    ])
+    // 좋아요한 글 보기에 붙이던 'member' 세그먼트와 합쳤다 — 조회자는 한 번만 붙는다.
+    const likedKey = createCommunityListQueryKey(likedState, member)
+    expect(likedKey).toEqual(['community', 'list', likedState, '42'])
+    expect(likedKey).not.toContain('member')
+    // 목 모드는 늘 목 회원으로 본다.
+    expect(
+      createCommunityListQueryKey({ ...baseState, mock: true }, anonymous).at(
+        -1,
+      ),
+    ).toBe('9001')
+  })
+
+  it('waits for auth hydration before starting public list queries (#530)', () => {
+    expect(isCommunityViewerReady(false, false)).toBe(false)
+    expect(isCommunityViewerReady(false, true)).toBe(true)
+    expect(isCommunityViewerReady(true, false)).toBe(true)
+    // 대기 상한이 지나면 확인이 끝나지 않아도 익명으로 시작한다.
+    expect(isCommunityViewerReady(false, false, true)).toBe(true)
+  })
+
   it('throws typed query errors for unsuccessful envelopes and returns successes', () => {
     expect(validateCommunityListResponse(listResponse)).toBe(listResponse)
     expect(() => validateCommunityListResponse(failedListResponse)).toThrow(
@@ -838,11 +952,11 @@ describe('community list container helpers', () => {
     queryClient.clear()
   })
 
-  it('keeps a public list query cached while cancelling and retrying it anonymously', async () => {
+  it('keeps an anonymous public list query cached while cancelling and retrying it', async () => {
     const queryClient = new QueryClient()
     const publicKey = createCommunityListQueryKey(baseState, {
-      authenticated: true,
-      memberId: '42',
+      authenticated: false,
+      memberId: null,
     })
     const cancelSpy = vi.spyOn(queryClient, 'cancelQueries')
     const removeSpy = vi.spyOn(queryClient, 'removeQueries')
@@ -858,6 +972,7 @@ describe('community list container helpers', () => {
     await recoverCommunityPublicListUnauthorized({
       queryClient,
       queryKey: publicKey,
+      viewerKey: COMMUNITY_ANONYMOUS_VIEWER,
       clearSession,
       refetch,
     })
@@ -883,6 +998,51 @@ describe('community list container helpers', () => {
     expect(refetch.mock.invocationCallOrder[0]).toBeLessThan(
       invalidateSpy.mock.invocationCallOrder[0]!,
     )
+  })
+
+  it('drops a member-keyed public list on 401 and lets the anonymous key refetch instead (#530)', async () => {
+    const queryClient = new QueryClient()
+    const memberKey = createCommunityListQueryKey(baseState, {
+      authenticated: true,
+      memberId: '42',
+    })
+    const anonymousKey = createCommunityListQueryKey(baseState, {
+      authenticated: false,
+      memberId: null,
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const clearSession = vi.fn()
+    const refetch = vi.fn(async () => {})
+
+    queryClient.setQueryData(memberKey, {
+      pages: [listResponse],
+      pageParams: [],
+    })
+    queryClient.setQueryData(anonymousKey, {
+      pages: [listResponse],
+      pageParams: [],
+    })
+
+    await recoverCommunityPublicListUnauthorized({
+      queryClient,
+      queryKey: memberKey,
+      viewerKey: '42',
+      clearSession,
+      refetch,
+    })
+
+    /*
+      세션을 지우면 조회자 세그먼트가 'anonymous' 로 바뀌어 새 키가 알아서 익명으로 받는다. 옛 회원 키를
+      다시 부르면 같은 목록을 두 번 받고(상세라면 조회수도 두 번), 401 을 품은 채 남기면 다시 로그인했을 때
+      그 오류로 복구가 또 돈다 — 그래서 지우기만 한다.
+    */
+    expect(
+      queryClient.getQueryCache().find({ queryKey: memberKey, exact: true }),
+    ).toBeUndefined()
+    expect(queryClient.getQueryData(anonymousKey)).toBeDefined()
+    expect(clearSession).toHaveBeenCalledOnce()
+    expect(refetch).not.toHaveBeenCalled()
+    expect(invalidateSpy).not.toHaveBeenCalled()
   })
 
   it('retries a public list 401 only once per list scope while allowing a new scope', async () => {

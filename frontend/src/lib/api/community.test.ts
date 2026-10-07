@@ -64,6 +64,9 @@ type ExpectedPostSummary = {
   previewContent: string
   likeCount: number
   commentCount: number
+  // #471(BE #539) — `frontend-api-usage-guide.md` 「목록 카드의 조회수·내 좋아요 표시」. 비로그인이면 liked 는 null.
+  viewCount: number
+  liked: boolean | null
   createdAt: string
   // Swagger `CommunityPostSummaryItem.thumbnailUrl` — 첨부 첫 장, 없으면 null.
   thumbnailUrl: string | null
@@ -101,6 +104,8 @@ type ExpectedPostDetail = {
   likeCount: number
   commentCount: number
   viewCount: number
+  // #471 — 상세도 선택 인증이라 비로그인이면 null.
+  liked: boolean | null
   createdAt: string
   updatedAt: string
   // Swagger `CommunityPostDetailResponse.images` (`CommunityPostImageItem[]`).

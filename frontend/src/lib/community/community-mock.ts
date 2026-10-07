@@ -112,6 +112,11 @@ const fixtureThumbnailUrl = (postId: CommunityId): string | null => {
   return firstKey ? mockImageUrl(firstKey) : null
 }
 
+/*
+ * `viewCount`·`liked`(#530)는 목 회원(9001)이 로그인해 본 값이다. 시드의 `liked` 는 아래
+ * `initialLikedPosts`(7·1)와 맞춰 두고, 응답에서는 그때그때 좋아요 상태(`likedAtByPostId`)로 다시
+ * 채운다(`withViewerLiked`) — 토글한 뒤에도 목록·상세가 같은 값을 말하게.
+ */
 const basePosts: CommunityPostSummary[] = [
   {
     postId: '1',
@@ -126,6 +131,8 @@ const basePosts: CommunityPostSummary[] = [
       '서울에서 첫 매장을 준비하며 임대차 계약 전에 확인한 항목을 공유합니다.',
     likeCount: 4,
     commentCount: 3,
+    viewCount: 37,
+    liked: true,
     createdAt: '2026-07-27T08:30:00.000Z',
     thumbnailUrl: null,
   },
@@ -142,6 +149,8 @@ const basePosts: CommunityPostSummary[] = [
       '서울 전역 자영업자분들과 우천 시 배달과 방문 고객 대응 경험을 나눠요.',
     likeCount: 16,
     commentCount: 1,
+    viewCount: 74,
+    liked: false,
     createdAt: '2026-07-27T05:00:00.000Z',
     thumbnailUrl: null,
   },
@@ -158,6 +167,8 @@ const basePosts: CommunityPostSummary[] = [
       '오피스 점심 수요가 최근 어떻게 달라졌는지 현장 이야기를 듣고 싶어요.',
     likeCount: 25,
     commentCount: 0,
+    viewCount: 111,
+    liked: false,
     createdAt: '2026-07-27T06:00:00.000Z',
     thumbnailUrl: null,
   },
@@ -174,6 +185,8 @@ const basePosts: CommunityPostSummary[] = [
       '동네 가게 세 곳이 함께하는 POP-UP 행사를 기획하며 얻은 체크리스트입니다.',
     likeCount: 7,
     commentCount: 1,
+    viewCount: 148,
+    liked: false,
     createdAt: '2026-07-27T03:00:00.000Z',
     thumbnailUrl: null,
   },
@@ -190,6 +203,8 @@ const basePosts: CommunityPostSummary[] = [
       '오픈 시간을 한 시간 앞당긴 뒤 출근 고객 유입이 어떻게 바뀌었는지 정리했습니다.',
     likeCount: 12,
     commentCount: 2,
+    viewCount: 185,
+    liked: false,
     createdAt: '2026-07-27T07:00:00.000Z',
     thumbnailUrl: fixtureThumbnailUrl('5'),
   },
@@ -206,6 +221,8 @@ const basePosts: CommunityPostSummary[] = [
       '퇴근 시간 이후 유동 인구와 조용한 골목 매장의 운영 경험을 공유합니다.',
     likeCount: 20,
     commentCount: 0,
+    viewCount: 222,
+    liked: false,
     createdAt: '2026-07-27T04:00:00.000Z',
     thumbnailUrl: fixtureThumbnailUrl('6'),
   },
@@ -222,6 +239,8 @@ const basePosts: CommunityPostSummary[] = [
       '점심 피크 시간의 대기열을 줄이기 위해 픽업 위치를 바꾼 경험을 공유합니다.',
     likeCount: 31,
     commentCount: 2,
+    viewCount: 259,
+    liked: true,
     createdAt: '2026-07-27T09:00:00.000Z',
     thumbnailUrl: null,
   },
@@ -238,6 +257,8 @@ const basePosts: CommunityPostSummary[] = [
       '여름 시즌에 함께 작은 팝업을 열 식음료 브랜드 사장님을 찾고 있습니다.',
     likeCount: 9,
     commentCount: 1,
+    viewCount: 296,
+    liked: false,
     createdAt: '2026-07-27T07:45:00.000Z',
     thumbnailUrl: fixtureThumbnailUrl('8'),
   },
@@ -259,6 +280,8 @@ const basePosts: CommunityPostSummary[] = [
       '입구 화단을 계절 꽃으로 바꾼 뒤 지나가던 손님이 들어오는 일이 늘었습니다.',
     likeCount: 1,
     commentCount: 6,
+    viewCount: 333,
+    liked: false,
     createdAt: '2026-07-27T10:00:00.000Z',
     thumbnailUrl: fixtureThumbnailUrl('9'),
   },
@@ -289,7 +312,8 @@ const baseDetails: CommunityPostDetail[] = basePosts.map(post => ({
   content: contentByPostId[post.postId] ?? '',
   likeCount: post.likeCount,
   commentCount: post.commentCount,
-  viewCount: Number(post.postId) * 37,
+  viewCount: post.viewCount,
+  liked: post.liked,
   createdAt: post.createdAt,
   updatedAt: post.createdAt,
 }))
@@ -796,6 +820,14 @@ const findComment = (
   throw new Error(`댓글 ${commentId}을 찾을 수 없습니다.`)
 }
 
+/** 응답 시점의 좋아요 상태로 `liked` 를 채운다 — 목 조회자는 늘 로그인한 목 회원이라 null 이 없다. */
+const withViewerLiked = <
+  Post extends { postId: CommunityId; liked: boolean | null },
+>(
+  state: CommunityMockState,
+  post: Post,
+): Post => ({ ...post, liked: state.likedAtByPostId.has(post.postId) })
+
 export const createCommunityMockSource = (): CommunityDataSource => {
   const state = createState()
 
@@ -817,7 +849,10 @@ export const createCommunityMockSource = (): CommunityDataSource => {
 
       return ok({
         board,
-        posts: paginate(filtered, params),
+        posts: paginate(
+          filtered.map(post => withViewerLiked(state, post)),
+          params,
+        ),
       })
     },
 
@@ -836,14 +871,17 @@ export const createCommunityMockSource = (): CommunityDataSource => {
 
       return ok({
         board: null,
-        posts: paginate(filtered, params),
+        posts: paginate(
+          filtered.map(post => withViewerLiked(state, post)),
+          params,
+        ),
       })
     },
 
     async getLikedPosts(params: CommunityCursorParams) {
       const posts = state.posts.flatMap<CommunityLikedPost>(post => {
         const likedAt = state.likedAtByPostId.get(post.postId)
-        return likedAt ? [{ ...post, likedAt }] : []
+        return likedAt ? [{ ...post, liked: true, likedAt }] : []
       })
 
       return ok({
@@ -852,10 +890,12 @@ export const createCommunityMockSource = (): CommunityDataSource => {
     },
 
     async getPost(postId: CommunityId) {
-      findPost(state, postId)
+      const post = findPost(state, postId)
       const detail = findDetail(state, postId)
       detail.viewCount += 1
-      return ok(detail)
+      // 목록 행도 조회수를 보이므로(#530) 요약에도 같이 올린다.
+      post.viewCount = detail.viewCount
+      return ok(withViewerLiked(state, detail))
     },
 
     /**
@@ -925,6 +965,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
         likeCount: 0,
         commentCount: 0,
         viewCount: 0,
+        liked: false,
         createdAt,
         updatedAt: createdAt,
         images,
@@ -954,6 +995,8 @@ export const createCommunityMockSource = (): CommunityDataSource => {
         previewContent: getPreviewContent(payload.content),
         likeCount: 0,
         commentCount: 0,
+        viewCount: 0,
+        liked: false,
         createdAt,
         thumbnailUrl: images[0]?.imageUrl ?? null,
       }
@@ -985,7 +1028,7 @@ export const createCommunityMockSource = (): CommunityDataSource => {
       detail.images = toMockImages(payload.imageKeys)
       post.thumbnailUrl = detail.images[0]?.imageUrl ?? null
 
-      return ok(detail)
+      return ok(withViewerLiked(state, detail))
     },
 
     async deletePost(postId: CommunityId) {

@@ -528,7 +528,7 @@ describe('community editor helpers', () => {
 
   it('isolates the edit query from public detail cache and forces a fresh editor fetch', async () => {
     const queryClient = new QueryClient()
-    const publicKey = communityKeys.detail('1', false)
+    const publicKey = communityKeys.detail('1', false, 'anonymous')
     const editorKey = communityEditorKeys.edit('1', false)
     const stale = {
       dataHeader: {
@@ -547,6 +547,7 @@ describe('community editor helpers', () => {
         likeCount: 0,
         commentCount: 0,
         viewCount: 0,
+        liked: null,
         createdAt: '2026-07-27T00:00:00.000Z',
         updatedAt: '2026-07-27T00:00:00.000Z',
         images: [],
@@ -601,7 +602,7 @@ describe('community editor helpers', () => {
     const queryClient = new QueryClient()
     const editorKey = communityEditorKeys.edit('1', false)
     const otherEditorKey = communityEditorKeys.edit('2', false)
-    const publicKey = communityKeys.detail('1', false)
+    const publicKey = communityKeys.detail('1', false, 'anonymous')
     const cached = { value: 'cached' }
     const clearSession = vi.fn()
     const navigate = vi.fn()
