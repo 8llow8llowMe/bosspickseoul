@@ -34,6 +34,7 @@ const renderDialog = (overrides: Partial<CommunityReportDialogProps> = {}) => {
     targetId: '7',
     pending: false,
     errorMessage: null,
+    errorField: null,
     onClose: vi.fn(),
     onSubmit: vi.fn(),
     ...overrides,
@@ -47,8 +48,11 @@ const getRadios = () =>
     document.body.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
   )
 
+/* 라디오 값은 사유 code, 보이는 글자는 라벨이다 — 사용자가 보는 라벨로 찾는다. */
 const getRadio = (label: string) => {
-  const radio = getRadios().find(input => input.value === label)
+  const radio = getRadios().find(
+    input => input.closest('label')?.textContent === label,
+  )
   if (!radio) {
     throw new Error(`사유 라디오가 없다: ${label}`)
   }
@@ -90,6 +94,13 @@ describe('CommunityReportDialog — 사유 선택', () => {
 
     const radios = getRadios()
     expect(radios.map(radio => radio.value)).toEqual([
+      'SPAM',
+      'ABUSE',
+      'PRIVACY',
+      'FALSE_INFO',
+      'ETC',
+    ])
+    expect(radios.map(radio => radio.closest('label')?.textContent)).toEqual([
       '스팸·홍보',
       '욕설·비방',
       '개인정보 노출',
@@ -118,7 +129,7 @@ describe('CommunityReportDialog — 사유 선택', () => {
     expect(fieldset.getAttribute('aria-invalid')).toBe('true')
   })
 
-  it('CM-036: 스팸·홍보 만 고르면 [스팸·홍보] 로 한 번 보낸다', async () => {
+  it('CM-036: 스팸·홍보 만 고르면 detail 없이 SPAM 으로 한 번 보낸다', async () => {
     const { props } = renderDialog()
     await flushFrames()
 
@@ -127,10 +138,10 @@ describe('CommunityReportDialog — 사유 선택', () => {
     submit()
 
     expect(props.onSubmit).toHaveBeenCalledTimes(1)
-    expect(props.onSubmit).toHaveBeenCalledWith('[스팸·홍보]')
+    expect(props.onSubmit).toHaveBeenCalledWith({ reasonCode: 'SPAM' })
   })
 
-  it('상세를 쓰면 [사유] 상세 로 합쳐 보낸다', async () => {
+  it('상세를 쓰면 접두 없이 걷어 낸 상세를 따로 보낸다', async () => {
     const { props } = renderDialog()
     await flushFrames()
 
@@ -141,9 +152,10 @@ describe('CommunityReportDialog — 사유 선택', () => {
     submit()
 
     expect(props.onSubmit).toHaveBeenCalledTimes(1)
-    expect(props.onSubmit).toHaveBeenCalledWith(
-      '[개인정보 노출] 본문에 전화번호가 있어요',
-    )
+    expect(props.onSubmit).toHaveBeenCalledWith({
+      reasonCode: 'PRIVACY',
+      detail: '본문에 전화번호가 있어요',
+    })
   })
 
   it('CM-036: 기타를 고르면 상세가 필수가 되고, 비우면 보내지 않고 입력칸으로 보낸다', async () => {
@@ -166,29 +178,32 @@ describe('CommunityReportDialog — 사유 선택', () => {
     fireEvent.change(getTextArea(), { target: { value: '같은 글을 도배해요' } })
     expect(alertTexts()).not.toContain('기타 사유를 적어 주세요.')
     submit()
-    expect(props.onSubmit).toHaveBeenCalledWith('[기타] 같은 글을 도배해요')
+    expect(props.onSubmit).toHaveBeenCalledWith({
+      reasonCode: 'ETC',
+      detail: '같은 글을 도배해요',
+    })
   })
 
-  it('CM-012: 합친 길이가 500자를 넘으면 보내지 않고, 카운터는 합친 길이를 센다', async () => {
+  it('CM-012: 상세 한도는 사유와 무관하게 500자이고, 카운터는 상세 길이를 센다', async () => {
     const { props } = renderDialog()
     await flushFrames()
 
     expect(document.body.textContent).toContain('0 / 500')
     fireEvent.click(getRadio('스팸·홍보'))
-    expect(document.body.textContent).toContain('7 / 500')
-    // '[스팸·홍보] ' 8자 + 상세 492자 = 500자가 상세 한도다.
-    expect(getTextArea().maxLength).toBe(492)
-
-    // 키보드 입력은 maxLength 가 막지만, 접두가 긴 사유로 바꾸면 넘칠 수 있다.
-    fireEvent.change(getTextArea(), { target: { value: '가'.repeat(492) } })
-    expect(document.body.textContent).toContain('500 / 500')
+    // 사유 접두가 없어져 사유를 골라도 카운터·한도가 그대로다.
+    expect(document.body.textContent).toContain('0 / 500')
+    expect(getTextArea().maxLength).toBe(500)
     fireEvent.click(getRadio('개인정보 노출'))
-    expect(document.body.textContent).toContain('502 / 500')
+    expect(getTextArea().maxLength).toBe(500)
 
+    // 붙여넣기처럼 maxLength 를 우회한 값은 검증이 막는다.
+    fireEvent.change(getTextArea(), { target: { value: '가'.repeat(501) } })
+    expect(document.body.textContent).toContain('501 / 500')
     submit()
 
     expect(props.onSubmit).not.toHaveBeenCalled()
-    expect(alertTexts()).toContain('신고 사유는 500자 이하로 입력해 주세요.')
+    expect(alertTexts()).toContain('자세한 내용은 500자 이하로 입력해 주세요.')
+    expect(document.activeElement).toBe(getTextArea())
   })
 
   it('닫았다 다시 열면 고른 사유·상세·안내가 초기화된다', async () => {
@@ -209,6 +224,7 @@ describe('CommunityReportDialog — 사유 선택', () => {
           targetId: '7',
           pending: false,
           errorMessage: null,
+          errorField: null,
           onClose: () => setOpen(false),
           onSubmit,
         }),
@@ -260,5 +276,91 @@ describe('CommunityReportDialog — 사유 선택', () => {
     await flushFrames()
 
     expect(alertTexts()).toEqual(['이미 신고한 글이에요.'])
+    expect(
+      document.body.querySelector('fieldset')!.getAttribute('aria-invalid'),
+    ).toBeNull()
+    expect(getTextArea().getAttribute('aria-invalid')).toBe('false')
+  })
+})
+
+/*
+  서버 검증 오류의 자리(#532). 110·123 은 `errors[].field` 가 입력칸 이름이 아니라서 상세 페이지가
+  `resultCode` 로 `errorField` 를 정해 넘긴다 — 다이얼로그는 받은 자리에 클라이언트 검증과 같은 규칙으로 붙인다.
+*/
+describe('CommunityReportDialog — 서버 오류 자리', () => {
+  /* 보내는 중 → 실패로 바뀌는 흐름을 그대로 밟는다(포커스는 응답이 온 뒤에 옮겨야 한다). */
+  const renderRejected = async (
+    errorField: CommunityReportDialogProps['errorField'],
+    message: string,
+  ) => {
+    const { rerender, props } = renderDialog({ pending: true })
+    await flushFrames()
+    rerender(
+      createElement(CommunityReportDialog, {
+        ...props,
+        pending: false,
+        errorMessage: message,
+        errorField,
+      }),
+    )
+    await flushFrames()
+  }
+
+  it('사유 자리(110·018)면 사유 묶음 아래에 붙이고 첫 라디오로 포커스를 옮긴다', async () => {
+    await renderRejected('reason', '알 수 없는 신고 사유입니다.')
+
+    const fieldset = document.body.querySelector('fieldset')!
+    expect(fieldset.getAttribute('aria-invalid')).toBe('true')
+    const describedBy = fieldset.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(document.getElementById(describedBy!)?.textContent).toBe(
+      '알 수 없는 신고 사유입니다.',
+    )
+    expect(fieldset.contains(document.getElementById(describedBy!))).toBe(true)
+    expect(alertTexts()).toEqual(['알 수 없는 신고 사유입니다.'])
+    expect(document.activeElement).toBe(getRadios()[0])
+  })
+
+  it('사유 자리로 돌아왔을 때 고른 사유가 있으면 그 라디오로 포커스를 옮긴다', async () => {
+    const { rerender, props } = renderDialog()
+    await flushFrames()
+    fireEvent.click(getRadio('개인정보 노출'))
+
+    rerender(createElement(CommunityReportDialog, { ...props, pending: true }))
+    await flushFrames()
+    rerender(
+      createElement(CommunityReportDialog, {
+        ...props,
+        pending: false,
+        errorMessage: '알 수 없는 신고 사유입니다.',
+        errorField: 'reason',
+      }),
+    )
+    await flushFrames()
+
+    expect(getRadio('개인정보 노출').checked).toBe(true)
+    expect(document.activeElement).toBe(getRadio('개인정보 노출'))
+  })
+
+  it('상세 자리(123·124)면 입력칸 아래에 붙이고 입력칸으로 포커스를 옮긴다', async () => {
+    await renderRejected('detail', '기타 사유를 입력해 주세요.')
+
+    const textarea = getTextArea()
+    expect(textarea.getAttribute('aria-invalid')).toBe('true')
+    const describedBy = textarea.getAttribute('aria-describedby')
+    expect(document.getElementById(describedBy!)?.textContent).toBe(
+      '기타 사유를 입력해 주세요.',
+    )
+    expect(alertTexts()).toEqual(['기타 사유를 입력해 주세요.'])
+    expect(document.activeElement).toBe(textarea)
+  })
+
+  it('입력을 고치면 그 자리의 서버 안내를 걷는다', async () => {
+    await renderRejected('detail', '기타 사유를 입력해 주세요.')
+
+    fireEvent.change(getTextArea(), { target: { value: '도배해요' } })
+
+    expect(alertTexts()).toEqual([])
+    expect(getTextArea().getAttribute('aria-invalid')).toBe('false')
   })
 })

@@ -141,6 +141,7 @@ const renderView = (overrides: Partial<ViewProps> = {}) => {
     reportTarget: null,
     reportPending: false,
     reportErrorMessage: null,
+    reportErrorField: null,
     reportStatusMessage: null,
     adjacent: null,
     mockEnabled: true,

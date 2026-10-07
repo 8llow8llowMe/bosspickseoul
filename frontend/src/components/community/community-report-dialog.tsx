@@ -16,21 +16,21 @@ import {
 } from '@/lib/community/dialog-focus'
 import { communityOutlinedField } from '@/lib/community/field-styles'
 import {
-  COMMUNITY_REPORT_REASON_MAX_LENGTH,
+  COMMUNITY_REPORT_DETAIL_MAX_LENGTH,
   COMMUNITY_REPORT_REASON_REQUIRING_DETAIL,
   COMMUNITY_REPORT_REASONS,
-  composeCommunityReportReason,
-  getCommunityReportDetailMaxLength,
-  isCommunityReportReason,
+  createCommunityReportReasonPayload,
+  isCommunityReportReasonCode,
   validateCommunityReportInput,
-  validateCommunityReportReason,
   type CommunityReportInputError,
-  type CommunityReportReason,
+  type CommunityReportInputField,
+  type CommunityReportReasonCode,
+  type CommunityReportReasonPayload,
 } from '@/lib/community/report-reason'
 import type { CommunityId } from '@/types/community'
 
-// 기존 import 경로(community-shared-ui.test.ts 등)를 지킨다. 정본은 dialog-focus.ts · report-reason.ts.
-export { getDialogFocusTargetIndex, validateCommunityReportReason }
+// 기존 import 경로(community-shared-ui.test.ts 등)를 지킨다. 정본은 dialog-focus.ts.
+export { getDialogFocusTargetIndex }
 
 export type CommunityReportDialogProps = {
   open: boolean
@@ -38,9 +38,14 @@ export type CommunityReportDialogProps = {
   targetId: CommunityId
   pending: boolean
   errorMessage: string | null
+  /**
+   * 서버 오류(`errorMessage`)를 붙일 입력칸(#532). 상세 페이지가 `resultCode` 로 정한다
+   * (`getCommunityReportErrorField`). null 이면 입력칸과 무관한 오류라 버튼 위 일반 자리에 둔다.
+   */
+  errorField: CommunityReportInputField | null
   onClose: () => void
-  /** 고른 사유와 상세를 합친 문자열 하나(`[사유] 상세` 또는 `[사유]`). BE 계약 그대로다. */
-  onSubmit: (reason: string) => void
+  /** 고른 사유 code 와 걷어 낸 상세(비면 키 없음). BE 계약(`reasonCode`·`detail`) 그대로다. */
+  onSubmit: (payload: CommunityReportReasonPayload) => void
 }
 
 /*
@@ -276,6 +281,7 @@ export default function CommunityReportDialog({
   targetId,
   pending,
   errorMessage,
+  errorField,
   onClose,
   onSubmit,
 }: CommunityReportDialogProps) {
@@ -290,6 +296,7 @@ export default function CommunityReportDialog({
       targetKind={targetKind}
       pending={pending}
       errorMessage={errorMessage}
+      errorField={errorField}
       onClose={onClose}
       onSubmit={onSubmit}
     />
@@ -305,6 +312,7 @@ function CommunityReportDialogContent({
   targetKind,
   pending,
   errorMessage,
+  errorField,
   onClose,
   onSubmit,
 }: CommunityReportDialogContentProps) {
@@ -312,10 +320,14 @@ function CommunityReportDialogContent({
   const dialogRef = useRef<HTMLDivElement>(null)
   const firstReasonRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const [reason, setReason] = useState<CommunityReportReason | null>(null)
+  const [reasonCode, setReasonCode] =
+    useState<CommunityReportReasonCode | null>(null)
   const [detail, setDetail] = useState('')
   const [validationError, setValidationError] =
     useState<CommunityReportInputError | null>(null)
+  // 입력칸 자리의 서버 안내는 그 입력을 고치면 걷는다(클라이언트 안내와 같은 규칙). 다시 보내면 되살린다.
+  const [serverFieldErrorDismissed, setServerFieldErrorDismissed] =
+    useState(false)
 
   useEffect(() => {
     const previousActiveElement =
@@ -347,6 +359,28 @@ function CommunityReportDialogContent({
       dialogRef.current?.focus()
     }
   }, [pending])
+
+  /*
+    서버가 입력칸 자리의 오류로 돌려보내면 클라이언트 검증 실패 때와 같은 곳으로 포커스를 옮긴다.
+    보내는 동안 잠겨 있던 입력칸이 풀린 뒤(pending=false 커밋 뒤)라야 포커스가 들어간다.
+  */
+  useEffect(() => {
+    if (pending || !errorMessage || !errorField) {
+      return
+    }
+
+    if (errorField === 'reason') {
+      // 이미 고른 사유가 있으면 그 라디오다 — 라디오 묶음의 탭 정지점이 고른 라디오라, 첫 라디오로 보내면
+      // 고른 값과 포커스가 갈려 화살표 한 번에 선택이 바뀐다(018 은 고른 뒤에도 온다).
+      const reasonTarget =
+        dialogRef.current?.querySelector<HTMLInputElement>(
+          'input[type="radio"]:checked',
+        ) ?? firstReasonRef.current
+      reasonTarget?.focus()
+    } else {
+      textareaRef.current?.focus()
+    }
+  }, [pending, errorMessage, errorField])
 
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
@@ -392,31 +426,45 @@ function CommunityReportDialogContent({
       return
     }
 
-    const nextError = validateCommunityReportInput({ reason, detail })
+    const nextError = validateCommunityReportInput({ reasonCode, detail })
     setValidationError(nextError)
-    if (nextError) {
+    if (nextError || !reasonCode) {
       // 안내가 붙은 곳으로 포커스를 옮긴다. 사유 미선택이면 아무것도 골라져 있지 않으니 첫 라디오다.
-      if (nextError.field === 'reason') {
-        firstReasonRef.current?.focus()
-      } else {
+      if (nextError?.field === 'detail') {
         textareaRef.current?.focus()
+      } else {
+        firstReasonRef.current?.focus()
       }
       return
     }
 
-    onSubmit(composeCommunityReportReason(reason, detail))
+    setServerFieldErrorDismissed(false)
+    onSubmit(createCommunityReportReasonPayload(reasonCode, detail))
   }
 
-  const detailRequired = reason === COMMUNITY_REPORT_REASON_REQUIRING_DETAIL
-  const reasonError =
-    validationError?.field === 'reason' ? validationError.message : null
-  const detailError =
-    validationError?.field === 'detail' ? validationError.message : null
   /*
-    카운터는 실제로 보낼 합친 문자열의 길이다. 500자 한도와 CM-012 안내 문구가 「합친 값」 기준이라
-    같은 수로 보여 줘야 「492자 썼는데 500자를 넘었다」 같은 어긋남이 없다.
+    입력칸 하나에는 안내 하나만 둔다. 방금 고른 입력의 클라이언트 안내가 먼저고, 서버 안내는
+    그 입력을 고치기 전까지 자기 자리에 남는다. 자리가 없는 서버 오류만 버튼 위 일반 자리로 간다.
   */
-  const composedLength = composeCommunityReportReason(reason, detail).length
+  const serverFieldError =
+    errorMessage && errorField && !serverFieldErrorDismissed
+      ? { field: errorField, message: errorMessage }
+      : null
+  const fieldError = validationError ?? serverFieldError
+  const generalError = errorField ? null : errorMessage
+  const detailRequired = reasonCode === COMMUNITY_REPORT_REASON_REQUIRING_DETAIL
+  const reasonError = fieldError?.field === 'reason' ? fieldError.message : null
+  const detailError = fieldError?.field === 'detail' ? fieldError.message : null
+  /*
+    카운터는 실제로 보낼 상세(걷어 낸 값)의 길이다. 500자 검증과 같은 수라야 「다 썼는데 넘었다」는
+    어긋남이 없다. 사유 접두가 없어져 사유를 바꿔도 수가 변하지 않는다.
+  */
+  const detailLength = detail.trim().length
+
+  const clearFieldErrors = () => {
+    setValidationError(null)
+    setServerFieldErrorDismissed(true)
+  }
 
   return (
     <Overlay onMouseDown={handleBackdropClick}>
@@ -450,22 +498,22 @@ function CommunityReportDialogContent({
           >
             <Legend id={`${id}-reason-legend`}>신고 사유</Legend>
             <ReasonList>
-              {COMMUNITY_REPORT_REASONS.map((label, index) => (
+              {COMMUNITY_REPORT_REASONS.map(({ code, label }, index) => (
                 <ReasonOption
-                  key={label}
+                  key={code}
                   $disabled={pending}
-                  $selected={reason === label}
+                  $selected={reasonCode === code}
                 >
                   <input
                     ref={index === 0 ? firstReasonRef : undefined}
-                    checked={reason === label}
+                    checked={reasonCode === code}
                     name={`${id}-reason`}
                     type="radio"
-                    value={label}
+                    value={code}
                     onChange={event => {
-                      if (isCommunityReportReason(event.target.value)) {
-                        setReason(event.target.value)
-                        setValidationError(null)
+                      if (isCommunityReportReasonCode(event.target.value)) {
+                        setReasonCode(event.target.value)
+                        clearFieldErrors()
                       }
                     }}
                   />
@@ -493,12 +541,12 @@ function CommunityReportDialogContent({
                 detailError ? `${id}-detail-message` : `${id}-count`
               }
               disabled={pending}
-              maxLength={getCommunityReportDetailMaxLength(reason)}
+              maxLength={COMMUNITY_REPORT_DETAIL_MAX_LENGTH}
               value={detail}
               onChange={event => {
                 setDetail(event.target.value)
-                if (validationError) {
-                  setValidationError(null)
+                if (fieldError) {
+                  clearFieldErrors()
                 }
               }}
             />
@@ -511,16 +559,16 @@ function CommunityReportDialogContent({
                 <span />
               )}
               <CharacterCount
-                $over={composedLength > COMMUNITY_REPORT_REASON_MAX_LENGTH}
+                $over={detailLength > COMMUNITY_REPORT_DETAIL_MAX_LENGTH}
                 id={`${id}-count`}
                 aria-live="polite"
-              >{`${composedLength} / ${COMMUNITY_REPORT_REASON_MAX_LENGTH}`}</CharacterCount>
+              >{`${detailLength} / ${COMMUNITY_REPORT_DETAIL_MAX_LENGTH}`}</CharacterCount>
             </FieldMeta>
           </Field>
 
-          {errorMessage ? (
+          {generalError ? (
             <Message $error role="alert">
-              {errorMessage}
+              {generalError}
             </Message>
           ) : null}
 
