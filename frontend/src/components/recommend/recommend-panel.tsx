@@ -1,7 +1,8 @@
 'use client'
 
-import type { Ref } from 'react'
+import { useId, useState, type Ref } from 'react'
 import Link from 'next/link'
+import { ChevronDown } from 'lucide-react'
 import styled, { css, keyframes } from 'styled-components'
 import type { NormalizedApiError } from '@/lib/api/api-error'
 import { createAnalysisResultHref } from '@/lib/analysis/selection'
@@ -22,6 +23,7 @@ import type {
   CandidateCommercial,
   RecommendationBasis,
 } from '@/types/recommend'
+import { RECOMMEND_CONDITION_LABELS } from './recommend-condition-bar'
 import RecommendConditionForm from './recommend-condition-form'
 import RecommendConditionPicker from './recommend-condition-picker'
 import RecommendFeedback from './recommend-feedback'
@@ -64,6 +66,14 @@ export type RecommendPanelProps = {
   onPickerSelect: (code: string) => void
   onSubmit: () => void
   onEdit: () => void
+  /**
+   * 결과 헤더의 조건 칩. 그 조건의 선택 뷰로 곧장 보낸다(#570). 생략하면 칩은 글자로만 남는다.
+   */
+  onEditStep?: (step: RecommendConditionStep) => void
+  /**
+   * 조건 화면의 「이전 결과로 돌아가기」. `submitted` 가 있을 때만 버튼이 뜬다(#570).
+   */
+  onRestorePreviousResults?: () => void
   onResultSelect: (commercialCode: string) => void
   onResultPreviewChange?: (commercialCode: string | null) => void
   onBookmarkToggle?: (commercialCode: string, commercialName: string) => void
@@ -75,6 +85,15 @@ export type RecommendPanelProps = {
   onRetryCandidates?: () => void
   resultHeadingRef?: Ref<HTMLHeadingElement>
 }
+
+/**
+ * 조건 화면의 첫 포커스 자리 표시. 선택 뷰를 닫고 돌아왔을 때 화면이 이 요소로 포커스를
+ * 옮긴다(#570). 「이전 결과로 돌아가기」가 있으면 그 버튼, 없으면 조건 화면 제목에 붙는다.
+ * 패널이 데스크톱·시트 두 벌이라 ref 대신 표시를 달고, 화면이 보이는 쪽을 고른다.
+ */
+export const CRITERIA_FOCUS_ATTRIBUTE = 'data-criteria-focus'
+
+const criteriaFocusProps = { [CRITERIA_FOCUS_ATTRIBUTE]: 'true' }
 
 export const getRecommendPanelTransitionKey = (
   view: RecommendationView,
@@ -186,6 +205,69 @@ const SummaryItem = styled.li`
   font-weight: 700;
 `
 
+/*
+ * 결과 헤더의 조건 칩 — **누르면 그 조건의 선택 뷰로 간다**(#570). 글자만 있던 칩은
+ * 눌러 보게 생겼는데 아무 일도 없었다. 조건 바 조각과 같은 회색 채움 면을 쓰고, 터치
+ * 대상 44px 을 지킨다. 연필 아이콘 대신 접근성 이름이 「바꾸기」를 말한다.
+ */
+const SummaryChipButton = styled.button`
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-300);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-800);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary-600);
+  }
+`
+
+/* 조건 화면 머리의 「이전 결과로 돌아가기」 줄. 결과가 남아 있다는 사실을 먼저 말한다. */
+const PreviousResults = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--radius-field);
+  background: var(--color-surface-muted);
+`
+
+const PreviousResultsCopy = styled.p`
+  min-width: 0;
+  flex: 1 1 160px;
+  display: grid;
+  color: var(--color-text-700);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+
+  strong {
+    color: var(--color-text-900);
+    font-weight: 700;
+  }
+`
+
+const PreviousResultsButton = styled.button`
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-300);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-900);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+`
+
 const Period = styled.p`
   color: var(--color-text-caption);
   font-size: 13px;
@@ -196,17 +278,67 @@ const Period = styled.p`
    구분돼야 한다 — 같은 칩으로 그리면 사용자가 고른 것처럼 읽힌다. */
 const Basis = styled.section`
   display: grid;
-  gap: 6px;
-  padding: 12px 14px;
   border-radius: var(--radius-field);
   background: var(--color-surface-muted);
 `
 
-const BasisTitle = styled.h3`
+/*
+ * 기본 접힘(#569). 펼친 상자가 모바일 첫 화면 약 120px 을 차지해 1위 카드를 밀어냈다.
+ * 접힌 줄에도 추천 성향·우선 지표 이름은 남겨 「무엇으로 줄 세웠는지」는 바로 읽힌다.
+ */
+const BasisToggle = styled.button`
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-field);
+  background: transparent;
   color: var(--color-text-700);
   font-size: 12px;
   font-weight: 700;
   line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+
+  svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-left: auto;
+    transition: transform var(--motion-fast) var(--ease-standard);
+  }
+
+  &[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    svg {
+      transition: none;
+    }
+  }
+`
+
+const BasisSummary = styled.span`
+  min-width: 0;
+  color: var(--color-text-900);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+`
+
+const BasisBody = styled.div`
+  display: grid;
+  gap: 6px;
+  padding: 0 14px 12px;
+
+  /* 위의 display: grid 가 브라우저 기본 [hidden] 을 덮으므로 접힘을 다시 적는다. */
+  &[hidden] {
+    display: none;
+  }
 `
 
 const BasisList = styled.dl`
@@ -243,26 +375,37 @@ const COMPARE_GAP_ID = 'recommend-compare-gap'
  * 내려 붙이고(bottom·margin 음수) 그만큼 안쪽 여백으로 되돌려 바가 패널 바닥까지 덮게 한다.
  * 좌우도 같은 이유로 여백까지 넓혀 목록이 바 옆으로 새지 않게 한다.
  */
+/*
+ * 한 줄 바(#569). 선택이 0개면 그리지 않는다 — 고르기 전부터 떠 있던 두 줄짜리 바가
+ * 모바일 첫 화면을 약 126px 먹었다. 담기는 카드마다 있는 「비교」 체크가 시작한다.
+ */
 const CompareBar = styled.div`
   position: sticky;
   bottom: ${-CONTENT_PADDING}px;
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 0 ${-CONTENT_PADDING}px ${-CONTENT_PADDING}px;
-  padding: 12px ${CONTENT_PADDING}px
-    calc(max(12px, env(safe-area-inset-bottom)) + ${CONTENT_PADDING}px);
+  padding: 8px ${CONTENT_PADDING}px
+    calc(max(8px, env(safe-area-inset-bottom)) + ${CONTENT_PADDING}px);
   background: var(--color-surface);
   border-top: 1px solid var(--color-border-200);
 `
 
 const CompareGap = styled.p`
+  min-width: 0;
+  flex: 1 1 auto;
   color: var(--color-text-600);
   font-size: 13px;
   line-height: 20px;
+  word-break: keep-all;
 `
 
 const CompareCta = styled(Link)`
-  min-height: 52px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -280,7 +423,10 @@ const CompareCta = styled(Link)`
  * 규약을 구현하는 방법이 둘로 갈리면 안 된다.
  */
 const CompareCtaDisabled = styled.button`
-  min-height: 52px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -293,6 +439,82 @@ const CompareCtaDisabled = styled.button`
   opacity: var(--button-disabled-opacity-color);
   cursor: not-allowed;
 `
+
+const SUBMITTED_STEPS: readonly RecommendConditionStep[] = [
+  'district',
+  'administration',
+  'service',
+]
+
+/** 접힌 줄에 남기는 한 줄 요약. 「공격형 · 기회도 우선」 */
+export const summarizeRecommendationBasis = (
+  basis: RecommendationBasis,
+): string =>
+  [
+    basis.presetName,
+    basis.priorityMetricName ? `${basis.priorityMetricName} 우선` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+/**
+ * 「이 순서를 정한 기준」. **기본 접힘**(#569) — 첫 화면은 1위 카드의 자리다.
+ * 펼침 상태는 화면 안 일시 상태라 리듀서·URL 에 올리지 않는다.
+ */
+function RecommendBasisDisclosure({
+  basis,
+  defaultExpanded = false,
+}: {
+  basis: RecommendationBasis
+  defaultExpanded?: boolean
+}) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+  const bodyId = useId()
+  const summary = summarizeRecommendationBasis(basis)
+  const hasBody = Boolean(
+    basis.presetName ||
+    basis.priorityMetricName ||
+    basis.priorityMetricDescription,
+  )
+
+  return (
+    <Basis aria-label="추천 기준">
+      <BasisToggle
+        aria-controls={hasBody ? bodyId : undefined}
+        aria-expanded={isExpanded}
+        data-basis-toggle="true"
+        type="button"
+        onClick={() => setIsExpanded(current => !current)}
+      >
+        <span>이 순서를 정한 기준</span>
+        {summary ? <BasisSummary>{summary}</BasisSummary> : null}
+        <ChevronDown aria-hidden="true" />
+      </BasisToggle>
+      {/* 접혀 있어도 본문은 DOM 에 둔다 — aria-controls 가 가리킬 id 가 늘 있어야 한다. */}
+      {hasBody ? (
+        <BasisBody hidden={!isExpanded} id={bodyId}>
+          <BasisList>
+            {basis.presetName ? (
+              <>
+                <dt>추천 성향</dt>
+                <dd>{basis.presetName}</dd>
+              </>
+            ) : null}
+            {basis.priorityMetricName ? (
+              <>
+                <dt>우선 지표</dt>
+                <dd>{basis.priorityMetricName}</dd>
+              </>
+            ) : null}
+          </BasisList>
+          {basis.priorityMetricDescription ? (
+            <BasisNote>{basis.priorityMetricDescription}</BasisNote>
+          ) : null}
+        </BasisBody>
+      ) : null}
+    </Basis>
+  )
+}
 
 export default function RecommendPanel({
   variant = 'desktop',
@@ -325,6 +547,8 @@ export default function RecommendPanel({
   onPickerSelect,
   onSubmit,
   onEdit,
+  onEditStep,
+  onRestorePreviousResults,
   onResultSelect,
   onResultPreviewChange,
   onBookmarkToggle,
@@ -336,6 +560,7 @@ export default function RecommendPanel({
   resultHeadingRef,
 }: RecommendPanelProps) {
   const transitionKey = getRecommendPanelTransitionKey(view)
+  const hasPreviousResults = Boolean(submitted && onRestorePreviousResults)
 
   if (view === 'criteria') {
     return (
@@ -346,7 +571,27 @@ export default function RecommendPanel({
           key={transitionKey}
         >
           <Header>
-            <Heading>어디에 어떤 가게를 열까요?</Heading>
+            <Heading
+              {...(hasPreviousResults ? {} : criteriaFocusProps)}
+              tabIndex={-1}
+            >
+              어디에 어떤 가게를 열까요?
+            </Heading>
+            {submitted && onRestorePreviousResults ? (
+              <PreviousResults data-previous-results="true">
+                <PreviousResultsCopy>
+                  <strong>직전 추천 결과가 남아 있어요</strong>
+                  <span>{`${submitted.district.name} ${submitted.administration.name} · ${submitted.service.name}`}</span>
+                </PreviousResultsCopy>
+                <PreviousResultsButton
+                  {...criteriaFocusProps}
+                  type="button"
+                  onClick={onRestorePreviousResults}
+                >
+                  이전 결과로 돌아가기
+                </PreviousResultsButton>
+              </PreviousResults>
+            ) : null}
           </Header>
           <RecommendConditionForm
             administrationsCount={administrations.length}
@@ -427,15 +672,21 @@ export default function RecommendPanel({
     )
 
   // `compareSelection` 이 아예 없을 수도 있다 — 비교 기능을 켜지 않은 호출부다.
-  // 그때는 고정 바 자체를 그리지 않는다(아래 렌더 분기), 이 값은 계산용 안전망일 뿐이다.
+  // 없거나 비었으면 고정 바 자체를 그리지 않는다(아래 렌더 분기, #569). 이 값은 계산용 안전망일 뿐이다.
   const selection = compareSelection ?? []
   const isCompareFull = selection.length >= COMPARE_MAX_COMMERCIALS
+  /*
+   * 정원 문구는 하나로 말한다(#559). 「2개 이상」과 「2개까지」가 함께 뜨면 정원이 2개라는
+   * 사실이 오히려 흐려졌다 — 비교 계약이 좌/우 두 자리라 정확히 2개다(compare-url).
+   */
+  const compareCount = `(${selection.length}/${COMPARE_MAX_COMMERCIALS})`
   const compareGap =
     selection.length < COMPARE_MIN_COMMERCIALS
-      ? `비교할 상권을 ${COMPARE_MIN_COMMERCIALS}개 이상 골라 주세요`
-      : isCompareFull
-        ? `한 번에 ${COMPARE_MAX_COMMERCIALS}개까지 비교할 수 있어요`
-        : null
+      ? `비교할 상권 ${COMPARE_MAX_COMMERCIALS}개를 골라 주세요 ${compareCount}`
+      : null
+  const compareStatus =
+    compareGap ??
+    `비교할 상권 ${COMPARE_MAX_COMMERCIALS}개를 골랐어요 ${compareCount}`
   const compareHref =
     selection.length >= COMPARE_MIN_COMMERCIALS
       ? createCompareHref({
@@ -463,34 +714,28 @@ export default function RecommendPanel({
             </EditButton>
           </SummaryHeader>
           <SubmittedSummary aria-label="추천 조건">
-            <SummaryItem>{submitted.district.name}</SummaryItem>
-            <SummaryItem>{submitted.administration.name}</SummaryItem>
-            <SummaryItem>{submitted.service.name}</SummaryItem>
+            {SUBMITTED_STEPS.map(step => {
+              const name = submitted[step].name
+
+              return onEditStep ? (
+                <li key={step}>
+                  <SummaryChipButton
+                    aria-label={`${RECOMMEND_CONDITION_LABELS[step]} 바꾸기, 지금 조건 ${name}`}
+                    data-summary-step={step}
+                    type="button"
+                    onClick={() => onEditStep(step)}
+                  >
+                    {name}
+                  </SummaryChipButton>
+                </li>
+              ) : (
+                <SummaryItem key={step}>{name}</SummaryItem>
+              )
+            })}
           </SubmittedSummary>
           <Period>{periodLabel}</Period>
           {recommendationBasis ? (
-            <Basis aria-label="추천 기준">
-              <BasisTitle>이 순서를 정한 기준</BasisTitle>
-              <BasisList>
-                {recommendationBasis.presetName ? (
-                  <>
-                    <dt>추천 성향</dt>
-                    <dd>{recommendationBasis.presetName}</dd>
-                  </>
-                ) : null}
-                {recommendationBasis.priorityMetricName ? (
-                  <>
-                    <dt>우선 지표</dt>
-                    <dd>{recommendationBasis.priorityMetricName}</dd>
-                  </>
-                ) : null}
-              </BasisList>
-              {recommendationBasis.priorityMetricDescription ? (
-                <BasisNote>
-                  {recommendationBasis.priorityMetricDescription}
-                </BasisNote>
-              ) : null}
-            </Basis>
+            <RecommendBasisDisclosure basis={recommendationBasis} />
           ) : null}
         </Header>
         {bookmarkError ? (
@@ -519,17 +764,15 @@ export default function RecommendPanel({
           onRetry={onRetry}
           onSelect={onResultSelect}
         />
-        {compareSelection ? (
-          <CompareBar>
-            {compareGap ? (
-              <CompareGap id={COMPARE_GAP_ID}>{compareGap}</CompareGap>
-            ) : null}
+        {compareSelection && compareSelection.length > 0 ? (
+          <CompareBar data-compare-bar="true">
+            <CompareGap id={COMPARE_GAP_ID}>{compareStatus}</CompareGap>
             {compareHref ? (
               <CompareCta
                 data-testid="recommend-compare-cta"
                 href={compareHref}
               >
-                {`비교하기 (${selection.length}/${COMPARE_MAX_COMMERCIALS})`}
+                비교하기
               </CompareCta>
             ) : (
               <CompareCtaDisabled
@@ -538,7 +781,7 @@ export default function RecommendPanel({
                 disabled
                 type="button"
               >
-                {`비교하기 (${selection.length}/${COMPARE_MAX_COMMERCIALS})`}
+                비교하기
               </CompareCtaDisabled>
             )}
           </CompareBar>

@@ -688,7 +688,7 @@ describe('RecommendPanel', () => {
       }),
     )
 
-    expect(markup).toContain('<dt>매출</dt>')
+    expect(markup).toContain('<dt><span>매출</span>')
   })
 
   it('deduplicates reason badges globally and caps them at three', () => {
@@ -1011,7 +1011,7 @@ describe('RecommendPanel — 비교하기', () => {
         /<a[^>]*data-testid="recommend-compare-cta"[^>]*>|<button[^>]*data-testid="recommend-compare-cta"[^>]*>/,
       )?.[0] ?? ''
 
-    expect(markup).toContain('비교할 상권을 2개 이상 골라 주세요')
+    expect(markup).toContain('비교할 상권 2개를 골라 주세요 (1/2)')
     expect(cta).toContain('aria-describedby="recommend-compare-gap"')
     expect(markup).toContain('id="recommend-compare-gap"')
   })
@@ -1033,7 +1033,8 @@ describe('RecommendPanel — 비교하기', () => {
     expect(cta).toContain('administrationCode=11680101')
     expect(cta).toContain('serviceCode=CS100010')
     expect(cta).toContain('commercialCodes=3110008%2C3110958')
-    expect(markup).toContain('비교하기 (2/2)')
+    expect(markup).toContain('비교할 상권 2개를 골랐어요 (2/2)')
+    expect(markup).toContain('>비교하기</a>')
   })
 
   it('2개를 채우면 더 고를 수 없다고 말한다', () => {
@@ -1044,6 +1045,143 @@ describe('RecommendPanel — 비교하기', () => {
       compareSelection: ['1', '2'],
     })
 
-    expect(markup).toContain('한 번에 2개까지 비교할 수 있어요')
+    // 정원 문구는 하나다(#559) — 「2개 이상」·「2개까지」를 함께 말하지 않는다.
+    expect(markup).toContain('비교할 상권 2개를 골랐어요 (2/2)')
+    expect(markup).not.toContain('개 이상')
+    expect(markup).not.toContain('개까지')
+  })
+})
+
+describe('RecommendPanel — 첫 화면은 1위 카드의 자리다(#569)', () => {
+  const basis = {
+    presetName: '공격형',
+    presetDescription: null,
+    summary: null,
+    priorityMetricName: '기회도',
+    priorityMetricDescription: '매출과 유동인구를 종합한 상권 기회 지표입니다.',
+  }
+
+  it('비교 선택이 0개면 비교 바를 그리지 않는다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      view: 'results',
+      compareSelection: [],
+      onCompareToggle: vi.fn(),
+    })
+
+    expect(markup).not.toContain('data-compare-bar')
+    expect(markup).not.toContain('recommend-compare-cta')
+    // 담기는 카드의 「비교」 체크가 시작한다.
+    expect(markup).toContain('비교 담기')
+  })
+
+  it('하나라도 고르면 한 줄 바로 나타난다', () => {
+    const props = {
+      ...baseProps,
+      results: [result],
+      view: 'results' as const,
+      compareSelection: ['3110008'],
+    }
+    const markup = renderPanel(props)
+
+    expect(markup).toContain('data-compare-bar="true"')
+    expect(markup).toContain('비교할 상권 2개를 골라 주세요 (1/2)')
+
+    // 두 줄(grid)이 아니라 한 줄(flex)이다.
+    expect(renderStyles(createElement(RecommendPanel, props))).toMatch(
+      /position:sticky;[^}]*display:flex;/,
+    )
+  })
+
+  it('「이 순서를 정한 기준」은 접힌 채로 시작하고 요약만 남긴다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      recommendationBasis: basis,
+      view: 'results',
+    })
+    const toggle =
+      markup.match(/<button[^>]*data-basis-toggle="true"[^>]*>/)?.[0] ?? ''
+
+    expect(toggle).toContain('aria-expanded="false"')
+    expect(markup).toContain('이 순서를 정한 기준')
+    expect(markup).toContain('공격형 · 기회도 우선')
+    // 접혀 있으면 본문은 숨긴다. aria-controls 가 가리킬 id 는 남긴다.
+    const controls = toggle.match(/aria-controls="([^"]+)"/)?.[1] ?? ''
+
+    expect(controls).not.toBe('')
+    expect(markup).toMatch(
+      new RegExp(`<div[^>]*hidden=""[^>]*id="${controls}"`),
+    )
+  })
+
+  it('요약은 아는 값만 잇는다', () => {
+    expect(
+      recommendPanelModule.summarizeRecommendationBasis({
+        presetName: null,
+        presetDescription: null,
+        summary: null,
+        priorityMetricName: '위험도',
+        priorityMetricDescription: null,
+      }),
+    ).toBe('위험도 우선')
+    expect(
+      recommendPanelModule.summarizeRecommendationBasis({
+        presetName: null,
+        presetDescription: null,
+        summary: null,
+        priorityMetricName: null,
+        priorityMetricDescription: null,
+      }),
+    ).toBe('')
+  })
+})
+
+describe('RecommendPanel — 조건 수정이 결과를 지우지 않는다(#570)', () => {
+  it('결과 헤더의 조건 칩이 그 조건의 선택 뷰로 보내는 버튼이다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      view: 'results',
+      onEditStep: vi.fn(),
+    })
+
+    const chips = [
+      ...markup.matchAll(/<button[^>]*data-summary-step="(\w+)"[^>]*>/g),
+    ]
+
+    expect(chips.map(match => match[1])).toEqual([
+      'district',
+      'administration',
+      'service',
+    ])
+    expect(chips[2][0]).toContain(
+      'aria-label="업종 바꾸기, 지금 조건 커피-음료"',
+    )
+    expect(chips[2][0]).toContain('type="button"')
+  })
+
+  it('조건 화면은 이전 결과가 남아 있으면 돌아가는 버튼을 준다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      view: 'criteria',
+      onRestorePreviousResults: vi.fn(),
+    })
+
+    expect(markup).toContain('data-previous-results="true"')
+    expect(markup).toContain('이전 결과로 돌아가기')
+    expect(markup).toContain('강남구 역삼1동 · 커피-음료')
+  })
+
+  it('제출한 적이 없으면 돌아가기 버튼이 없다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      submitted: null,
+      view: 'criteria',
+      onRestorePreviousResults: vi.fn(),
+    })
+
+    expect(markup).not.toContain('이전 결과로 돌아가기')
   })
 })

@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import {
+  createInitialRecommendationState,
+  recommendationReducer,
+  type RecommendationAction,
+  type RecommendationState,
+} from '@/lib/recommend/recommend-state'
+
 import type {
   CandidateCommercial,
   CandidateCommercialsResponse,
@@ -248,6 +255,55 @@ describe('recommend page query orchestration helpers', () => {
     expect(handleRecommendationResponseOnce(input)).toBe(true)
     expect(actions).toHaveLength(2)
     expect(focusCount).toBe(2)
+  })
+
+  /*
+   * #570 리뷰 — 결과가 오기 전에 「조건 수정」을 눌렀다가 「이전 결과로 돌아가기」로
+   * 돌아온 경우. 조건 화면에서는 응답을 소비하지 않고, 결과 뷰로 돌아오는 순간 처리한다.
+   * 링크가 지목한 상권(preferredCommercialCode)도 그때까지 남는다.
+   */
+  it('submitted → editRequested → 응답 → previousResultsRestored 에도 선택이 온다', () => {
+    let state: RecommendationState = {
+      ...createInitialRecommendationState(),
+      draft: {
+        district: { code: '11680', name: '강남구' },
+        administration: { code: '11680640', name: '역삼1동' },
+        service: { code: 'CS100010', name: '커피-음료' },
+      },
+    }
+    const dispatch = (action: RecommendationAction) => {
+      state = recommendationReducer(state, action)
+    }
+    const marker = { current: '' }
+    const respond = () =>
+      handleRecommendationResponseOnce({
+        marker,
+        requestKey: state.submitted?.requestKey ?? '',
+        dataUpdatedAt: 1,
+        results: [candidate(1, 'C1'), candidate(2, 'C2')],
+        dispatch,
+        heading: null,
+        preferredCommercialCode: 'C2',
+        isResultsView: state.view === 'results',
+      })
+
+    dispatch({ type: 'submitted', commercialCodes: ['C1', 'C2'] })
+    dispatch({ type: 'editRequested' })
+
+    // 조건 화면에 도착한 응답은 버리지 않고 미룬다 — 마커를 소비하지 않는다.
+    expect(respond()).toBe(false)
+    expect(marker.current).toBe('')
+    expect(state.selectedCommercialCode).toBeNull()
+
+    dispatch({ type: 'previousResultsRestored' })
+    expect(state.view).toBe('results')
+
+    // 결과 뷰가 되면 이펙트가 다시 돈다(deps 에 view).
+    expect(respond()).toBe(true)
+    expect(state.selectedCommercialCode).toBe('C2')
+    expect(state.resultSelectionSource).toBe('user')
+    // 한 번만 처리한다.
+    expect(respond()).toBe(false)
   })
 
   it('maps criteria selection and submitted results to explicit map stages', () => {
