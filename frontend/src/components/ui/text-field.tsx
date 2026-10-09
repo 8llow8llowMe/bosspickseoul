@@ -39,10 +39,18 @@ const sizeStyles = {
   medium: css`
     min-height: 44px;
     font-size: 14px;
+
+    @media (max-width: 1023px) {
+      font-size: 16px;
+    }
   `,
   large: css`
     min-height: 48px;
     font-size: 15px;
+
+    @media (max-width: 1023px) {
+      font-size: 16px;
+    }
   `,
 }
 

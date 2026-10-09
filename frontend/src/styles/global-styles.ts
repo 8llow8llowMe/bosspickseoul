@@ -265,6 +265,24 @@ const GlobalStyles = createGlobalStyle`
     color: var(--color-text-900);
   }
 
+  /*
+    모바일 폼 컨트롤은 16px(Body Large). iOS Safari 는 16px 미만 글꼴의 입력칸에 포커스가 가면
+    화면을 확대하고, 확대된 채로 남아 칩과 하단 고정 바가 밀린다. 줌을 막는 방식(maximum-scale)은
+    저시력 사용자의 확대까지 막으므로 쓰지 않는다 — 글꼴을 키우는 것이 정답이다.
+
+    !important 는 쓰지 않는다. 글꼴을 직접 선언한 컴포넌트(TextField·분기 select·비교 편집기 select)는
+    각자 모바일 분기에서 16px 로 올리고, 이 규칙은 스타일 없는 입력의 바닥이다. 16px 를 넘는 입력
+    (커뮤니티 제목 20px)이 줄어들면 안 되기 때문이다. 컨트롤 높이(min-height)는 건드리지 않는다.
+    1023px 는 지도 셸과 같은 분기다.
+  */
+  @media (max-width: 1023px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
   input::placeholder,
   textarea::placeholder {
     color: var(--color-placeholder);
