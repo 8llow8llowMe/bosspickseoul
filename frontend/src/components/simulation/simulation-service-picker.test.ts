@@ -121,14 +121,45 @@ describe('SimulationServicePicker', () => {
     ).toEqual(['일반교습학원', '외국어학원', '예술학원'])
   })
 
-  it('검색 결과가 없으면 문구로 대신한다', () => {
+  it('일상어 별칭으로도 찾는다 — 카페는 커피-음료', () => {
     renderPicker()
+
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: '카페' },
+    })
+
+    const results = screen.getByRole('list', { name: '업종 검색 결과' })
+    expect(
+      [...results.querySelectorAll('button')].map(button => button.title),
+    ).toEqual(['커피-음료'])
+  })
+
+  it('검색 결과가 없으면 안내 문구와 자주 찾는 업종을 대신 보여 준다', () => {
+    const onSelect = renderPicker()
 
     fireEvent.change(screen.getByRole('searchbox'), {
       target: { value: '없는업종' },
     })
 
-    expect(screen.getByText("'없는업종'와 맞는 업종이 없어요.")).toBeTruthy()
+    expect(
+      screen.getByText(
+        '"없는업종" 검색 결과가 없어요. 자주 찾는 업종 목록을 대신 보여 드려요.',
+      ),
+    ).toBeTruthy()
+    const popular = screen.getByRole('list', { name: '자주 찾는 업종' })
+    expect(
+      [...popular.querySelectorAll('button')].map(button => button.title),
+    ).toEqual([
+      '한식음식점',
+      '커피-음료',
+      '미용실',
+      '편의점',
+      '슈퍼마켓',
+      '분식전문점',
+    ])
+
+    fireEvent.click(screen.getByRole('button', { name: '커피-음료' }))
+    expect(onSelect).toHaveBeenCalledWith('CS100010')
   })
 
   it('칩을 누르면 그 업종 코드로 알린다', () => {

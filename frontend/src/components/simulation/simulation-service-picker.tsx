@@ -11,7 +11,15 @@ import {
   findSimulationCategoryByCode,
   simulationCatalog,
 } from '@/data/simulation-catalog'
-import { SIMULATION_SERVICE_TYPES } from '@/data/simulation-service-types'
+import {
+  SIMULATION_SERVICE_TYPES,
+  type SimulationServiceType,
+} from '@/data/simulation-service-types'
+import { filterOptions } from '@/lib/option-filter'
+import {
+  POPULAR_SERVICE_CODES,
+  POPULAR_SERVICE_LABEL,
+} from '@/lib/recommend/popular-services'
 
 export type SimulationServicePickerProps = {
   selectedCode: string | null
@@ -110,6 +118,7 @@ const EmptyText = styled.p`
   color: var(--color-text-caption);
   font-size: 13px;
   text-align: center;
+  overflow-wrap: anywhere;
 `
 
 /**
@@ -145,9 +154,14 @@ export default function SimulationServicePicker({
   }
 
   const trimmed = query.trim()
+  // 이름 부분 일치 + 일상어 별칭(`카페` → 커피-음료). 세 화면이 같은 함수를 쓴다.
   const matches = trimmed
-    ? SIMULATION_SERVICE_TYPES.filter(item => item.name.includes(trimmed))
+    ? filterOptions(SIMULATION_SERVICE_TYPES, trimmed)
     : SIMULATION_SERVICE_TYPES
+  // 0건이면 막다른 길 대신 많이 찾는 업종을 대신 보여 준다.
+  const popular = POPULAR_SERVICE_CODES.map(code =>
+    SIMULATION_SERVICE_TYPES.find(item => item.code === code),
+  ).filter((item): item is SimulationServiceType => Boolean(item))
 
   return (
     <Root>
@@ -161,7 +175,18 @@ export default function SimulationServicePicker({
 
       {trimmed ? (
         matches.length === 0 ? (
-          <EmptyText>{`'${trimmed}'와 맞는 업종이 없어요.`}</EmptyText>
+          <>
+            <EmptyText role="status">
+              {`"${trimmed}" 검색 결과가 없어요. ${POPULAR_SERVICE_LABEL} 목록을 대신 보여 드려요.`}
+            </EmptyText>
+            <SimulationChoiceGrid
+              label={POPULAR_SERVICE_LABEL}
+              choices={popular}
+              selectedCode={selectedCode}
+              onSelect={onSelect}
+              minColumnWidth={132}
+            />
+          </>
         ) : (
           <SimulationChoiceGrid
             label="업종 검색 결과"

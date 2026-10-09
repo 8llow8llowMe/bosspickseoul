@@ -1,3 +1,5 @@
+import { matchesServiceAlias } from '@/lib/service-alias'
+
 export type OptionItem = {
   code: string
   name: string
@@ -16,14 +18,19 @@ export const normalizeOptionQuery = (query: string): string =>
   query.trim().toLowerCase()
 
 /**
- * 이름 부분 문자열 매칭. 초성 검색(`ㄱㄴ` → `강남구`)은 범위 밖이라
- * 필터를 이 한 함수로 모아 뒀다 — 나중에 여기만 갈아끼우면 된다.
+ * 이름 부분 문자열 매칭 + 업종 별칭(`카페` → `커피-음료`). 초성 검색(`ㄱㄴ` → `강남구`)은
+ * 범위 밖이라 필터를 이 한 함수로 모아 뒀다 — 나중에 여기만 갈아끼우면 된다.
+ * 업종 검색(추천·시뮬레이션·분석)은 모두 이 함수를 쓴다. 별칭은 업종 코드에만
+ * 달려 있어 자치구·행정동·상권에는 영향이 없다.
  */
 export const matchesOption = (item: OptionItem, query: string): boolean => {
   const normalized = normalizeOptionQuery(query)
   if (!normalized) return true
 
-  return item.name.toLowerCase().includes(normalized)
+  return (
+    item.name.toLowerCase().includes(normalized) ||
+    matchesServiceAlias(item.code, normalized)
+  )
 }
 
 export const filterOptions = (

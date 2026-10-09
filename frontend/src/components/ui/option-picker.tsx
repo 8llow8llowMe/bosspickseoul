@@ -53,7 +53,20 @@ export type OptionPickerProps = {
   emptyMessage?: string
   /** 목록 맨 위 「자주 찾는 것」 섹션. 넘기지 않으면 아무것도 달라지지 않는다. */
   featured?: OptionPickerFeatured
+  /**
+   * 검색 결과가 0건일 때 막다른 길 대신 대신 보여 줄 항목. 업종 단계에서 「자주 찾는
+   * 업종」을 넘긴다. 넘기지 않으면 `emptyMessage` 만 나온다.
+   */
+  emptyFallback?: OptionPickerFeatured
 }
+
+const resolveFeaturedItems = (
+  section: OptionPickerFeatured | undefined,
+  optionByCode: ReadonlyMap<string, OptionItem>,
+): OptionItem[] =>
+  (section?.codes ?? [])
+    .map(code => optionByCode.get(code))
+    .filter((item): item is OptionItem => Boolean(item))
 
 const Root = styled.div`
   min-height: 0;
@@ -371,6 +384,7 @@ const NoMatch = styled.p`
   font-size: 14px;
   line-height: 20px;
   text-align: center;
+  overflow-wrap: anywhere;
 `
 
 export default function OptionPicker({
@@ -385,6 +399,7 @@ export default function OptionPicker({
   searchPlaceholder = '이름으로 검색',
   emptyMessage = '검색 결과가 없어요.',
   featured,
+  emptyFallback,
 }: OptionPickerProps) {
   const [query, setQuery] = useState('')
 
@@ -416,18 +431,22 @@ export default function OptionPicker({
   // 코드로 항목을 되찾는다 — 이름을 두 곳에 적어 두면 카탈로그가 바뀔 때 한쪽만
   // 낡는다. 목록에 없는 코드는 조용히 건너뛴다.
   const featuredItems = useMemo(
-    () =>
-      (featured?.codes ?? [])
-        .map(code => optionByCode.get(code))
-        .filter((item): item is OptionItem => Boolean(item)),
+    () => resolveFeaturedItems(featured, optionByCode),
     [featured, optionByCode],
+  )
+  const fallbackItems = useMemo(
+    () => resolveFeaturedItems(emptyFallback, optionByCode),
+    [emptyFallback, optionByCode],
   )
 
   const showFeatured = featuredItems.length > 0 && !query.trim()
 
-  const renderFeatured = (section: OptionPickerFeatured) => (
-    <FeaturedGrid>
-      {featuredItems.map(item => {
+  const renderFeatured = (
+    section: OptionPickerFeatured,
+    list: readonly OptionItem[],
+  ) => (
+    <FeaturedGrid aria-label={section.label}>
+      {list.map(item => {
         const selected = item.code === selectedCode
         const icon = section.iconFor?.(item)
 
@@ -583,13 +602,25 @@ export default function OptionPicker({
       ) : null}
 
       {matchCount === 0 ? (
-        <NoMatch role="status">{emptyMessage}</NoMatch>
+        emptyFallback && fallbackItems.length > 0 && query.trim() ? (
+          <GroupList>
+            <NoMatch role="status">
+              {`"${query.trim()}" 검색 결과가 없어요. ${emptyFallback.label} 목록을 대신 보여 드려요.`}
+            </NoMatch>
+            <section>
+              <GroupLabel>{emptyFallback.label}</GroupLabel>
+              {renderFeatured(emptyFallback, fallbackItems)}
+            </section>
+          </GroupList>
+        ) : (
+          <NoMatch role="status">{emptyMessage}</NoMatch>
+        )
       ) : (
         <GroupList>
           {showFeatured && featured ? (
             <section>
               <GroupLabel>{featured.label}</GroupLabel>
-              {renderFeatured(featured)}
+              {renderFeatured(featured, featuredItems)}
             </section>
           ) : null}
           {visibleGroups ? (

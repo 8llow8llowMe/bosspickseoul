@@ -157,6 +157,7 @@ export default function RecommendConditionPicker({
           // 길어 칩 격자는 접힌다), 지역은 이름이 짧아 칩 격자가 낫다.
           layout={step === 'service' ? 'grid-wide' : 'grid'}
           featured={step === 'service' ? POPULAR_SERVICES : undefined}
+          emptyFallback={step === 'service' ? POPULAR_SERVICES : undefined}
           selectedCode={selectedCode}
           searchPlaceholder={RECOMMEND_CONDITION_PLACEHOLDERS[step].replace(
             '선택',
