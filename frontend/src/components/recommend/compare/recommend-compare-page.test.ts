@@ -175,7 +175,9 @@ describe('RecommendComparePage', () => {
   it('두 개를 넘겨 잘라냈으면 그 사실을 말한다', () => {
     const markup = render(`${BASE}&commercialCodes=1,2,3,4`)
 
-    expect(markup).toContain('한 번에 2개까지 비교할 수 있어요')
+    expect(markup).toContain(
+      '비교는 상권 2개씩 해요. 링크에 담긴 상권 중 앞의 2개만 보여 드려요.',
+    )
   })
 
   it('좌우를 바꾼 요청은 다른 캐시 키다 (표가 뒤집혀 나오면 안 된다)', () => {
