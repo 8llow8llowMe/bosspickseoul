@@ -18,6 +18,7 @@ import { touchHitArea } from '@/styles/touch-target'
 import {
   appendToast,
   dismissToast,
+  dismissToastByKey,
   toastDurationMs,
   type Toast,
   type ToastTone,
@@ -33,6 +34,8 @@ export type ShowToastInput = {
 
 type ToastContextValue = {
   showToast: (input: ShowToastInput) => void
+  /** 같은 `dedupeKey` 의 토스트를 닫는다(동작이 더는 뜻이 없을 때). 없으면 아무 일도 없다. */
+  dismissToast: (dedupeKey: string) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -298,7 +301,14 @@ export default function ToastProvider({
     )
   }, [])
 
-  const value = useMemo(() => ({ showToast }), [showToast])
+  const dismissByKey = useCallback((dedupeKey: string) => {
+    setToasts(current => dismissToastByKey(current, dedupeKey))
+  }, [])
+
+  const value = useMemo(
+    () => ({ showToast, dismissToast: dismissByKey }),
+    [showToast, dismissByKey],
+  )
 
   return (
     <ToastContext.Provider value={value}>
@@ -332,7 +342,7 @@ export default function ToastProvider({
 export function useToast(): ToastContextValue {
   const context = useContext(ToastContext)
   const fallback = useMemo<ToastContextValue>(
-    () => ({ showToast: () => undefined }),
+    () => ({ showToast: () => undefined, dismissToast: () => undefined }),
     [],
   )
 

@@ -70,3 +70,12 @@ export const appendToast = (
 
 export const dismissToast = (toasts: readonly Toast[], id: string): Toast[] =>
   toasts.filter(toast => toast.id !== id)
+
+/**
+ * 같은 `dedupeKey` 의 토스트를 닫는다. 토스트의 동작(되돌리기 등)이 더는 뜻이 없어졌을 때 쓴다 —
+ * 누르면 아무 일도 없는데 성공처럼 닫히는 버튼을 남기지 않는다(#581, 댓글 삭제 되돌리기).
+ */
+export const dismissToastByKey = (
+  toasts: readonly Toast[],
+  dedupeKey: string,
+): Toast[] => toasts.filter(toast => toast.dedupeKey !== dedupeKey)

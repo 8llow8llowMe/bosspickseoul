@@ -14,6 +14,7 @@ import styled from 'styled-components'
 import RequireAuth from '@/components/auth/require-auth'
 import ChattingShell from '@/components/chatting/chatting-shell'
 import ChattingSidebar from '@/components/chatting/chatting-sidebar'
+import ConfirmSheet from '@/components/ui/confirm-sheet'
 import {
   exitChatRoomData,
   getChatRoomDetailData,
@@ -314,6 +315,8 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
   const [roomMessage, setRoomMessage] = useState<string | null>(null)
   const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([])
   const [isConnected, setIsConnected] = useState(false)
+  /* 나가기 확인 시트(#581 — window.confirm 대신). */
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
   const clientRef = useRef<Client | null>(null)
   const subscriptionRef = useRef<StompSubscription | null>(null)
   const viewportRef = useRef<HTMLDivElement | null>(null)
@@ -485,11 +488,9 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
   }
 
   const handleExitRoom = () => {
-    if (!window.confirm('채팅방을 나가시겠습니까?')) {
-      return
+    if (!exitRoomMutation.isPending) {
+      setExitConfirmOpen(true)
     }
-
-    exitRoomMutation.mutate()
   }
 
   if (roomDetailQuery.isLoading) {
@@ -636,6 +637,25 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
           </Composer>
         </Panel>
       </Main>
+      <ConfirmSheet
+        open={exitConfirmOpen}
+        title="채팅방에서 나갈까요?"
+        description="나가면 이 채팅방이 내 채팅방 목록에서 빠져요."
+        confirmLabel="나가기"
+        pending={exitRoomMutation.isPending}
+        pendingLabel="나가는 중"
+        onCancel={() => {
+          setExitConfirmOpen(false)
+        }}
+        onConfirm={() => {
+          exitRoomMutation.mutate(undefined, {
+            // 끝나면 닫는다. 실패는 머리의 오류 문구가 알리고, 성공하면 목록으로 떠난다.
+            onSettled: () => {
+              setExitConfirmOpen(false)
+            },
+          })
+        }}
+      />
     </ChattingShell>
   )
 }

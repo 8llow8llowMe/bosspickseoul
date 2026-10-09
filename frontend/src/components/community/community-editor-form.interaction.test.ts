@@ -9,6 +9,13 @@ import CommunityEditorForm, {
   COMMUNITY_EDITOR_LEAVE_CONFIRM_UNSAVED,
 } from '@/components/community/community-editor-form'
 
+/** 이탈 확인 시트(#581). 없으면 null. */
+const leaveSheet = () =>
+  document.body.querySelector<HTMLElement>('[role="alertdialog"]')
+const leaveSheetText = (attribute: 'aria-labelledby' | 'aria-describedby') =>
+  document.getElementById(leaveSheet()?.getAttribute(attribute) ?? '')
+    ?.textContent ?? null
+
 /*
   글쓰기 폼의 상호작용 계약(community.md §S4 「글쓰기 · 수정」·「잃지 않게」, CM-032·033·035)을
   실제 DOM 에서 잠근다. 마크업 계약은 community-editor-form.test.ts.
@@ -322,43 +329,57 @@ describe('말머리(#529)', () => {
   })
 })
 
-describe('이탈 확인(CM-035)', () => {
+describe('이탈 확인(CM-035) — 확인 시트(#581)', () => {
   it('바뀐 것이 없으면 묻지 않고 나간다', () => {
-    const confirm = vi.spyOn(window, 'confirm')
     const { props } = renderForm()
 
     fireEvent.click(button('취소'))
 
-    expect(confirm).not.toHaveBeenCalled()
+    expect(leaveSheet()).toBeNull()
     expect(props.onCancel).toHaveBeenCalledOnce()
   })
 
-  it('바뀐 채로 ✕ · 취소를 누르면 묻고, 거절하면 머문다', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('바뀐 채로 ✕ · 취소를 누르면 시트로 묻고, 「계속 쓰기」면 머물고 「나가기」면 나간다', () => {
     const { props } = renderForm({ draftStorageKey: 'community-draft:new' })
 
     fireEvent.change(titleInput(), { target: { value: '쓰는 중' } })
     fireEvent.click(document.querySelector('button[aria-label="닫기"]')!)
 
-    expect(confirm).toHaveBeenCalledWith(COMMUNITY_EDITOR_LEAVE_CONFIRM)
-    expect(COMMUNITY_EDITOR_LEAVE_CONFIRM).toBe(
-      '작성 중인 글은 임시 저장돼요. 나갈까요?',
+    expect(leaveSheetText('aria-labelledby')).toBe('글쓰기를 그만둘까요?')
+    expect(leaveSheetText('aria-describedby')).toBe(
+      COMMUNITY_EDITOR_LEAVE_CONFIRM,
     )
+    expect(COMMUNITY_EDITOR_LEAVE_CONFIRM).toBe(
+      '쓰던 내용은 임시 저장돼서 다시 열면 이어 쓸 수 있어요.',
+    )
+
+    fireEvent.click(button('계속 쓰기'))
+    expect(leaveSheet()).toBeNull()
     expect(props.onCancel).not.toHaveBeenCalled()
 
-    confirm.mockReturnValue(true)
     fireEvent.click(button('취소'))
+    fireEvent.click(button('나가기'))
     expect(props.onCancel).toHaveBeenCalledOnce()
   })
 
-  it('임시 저장을 안 하는 글(비교 초안)은 「저장돼요」라고 말하지 않는다', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('임시 저장을 안 하는 글(비교 초안)은 「저장돼요」라고 말하지 않고, 나가기를 위험 동작으로 그린다', () => {
     renderForm({ draftStorageKey: null })
 
     fireEvent.change(titleInput(), { target: { value: '쓰는 중' } })
     fireEvent.click(button('취소'))
 
-    expect(confirm).toHaveBeenCalledWith(COMMUNITY_EDITOR_LEAVE_CONFIRM_UNSAVED)
+    expect(leaveSheetText('aria-describedby')).toBe(
+      COMMUNITY_EDITOR_LEAVE_CONFIRM_UNSAVED,
+    )
+  })
+
+  it('수정 화면은 「글 수정을 그만둘까요?」로 묻는다', () => {
+    renderForm({ mode: 'edit', draftStorageKey: 'community-draft:edit:1' })
+
+    fireEvent.change(titleInput(), { target: { value: '고치는 중' } })
+    fireEvent.click(button('취소'))
+
+    expect(leaveSheetText('aria-labelledby')).toBe('글 수정을 그만둘까요?')
   })
 
   it('바뀐 동안만 새로고침·탭 닫기를 막고, 등록 성공 뒤에는 막지 않는다', () => {
@@ -385,8 +406,7 @@ describe('이탈 확인(CM-035)', () => {
   })
 
   it('이어 쓰기로 시작하면 원래 값이 기준이라 처음부터 묻는다', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    renderForm({
+    const { props } = renderForm({
       initialValue: {
         title: '저장한 제목',
         content: '',
@@ -405,7 +425,8 @@ describe('이탈 확인(CM-035)', () => {
 
     fireEvent.click(button('취소'))
 
-    expect(confirm).toHaveBeenCalledOnce()
+    expect(leaveSheet()).not.toBeNull()
+    expect(props.onCancel).not.toHaveBeenCalled()
   })
 })
 

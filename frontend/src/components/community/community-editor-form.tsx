@@ -17,6 +17,7 @@ import CommunityChoiceChips from '@/components/community/community-choice-chips'
 import CommunityRegionSheet, {
   type CommunityRegionSheetHandle,
 } from '@/components/community/community-region-sheet'
+import ConfirmSheet from '@/components/ui/confirm-sheet'
 import { useBeforeUnloadGuard } from '@/hooks/use-before-unload-guard'
 import { useCommunityDraftAutosave } from '@/hooks/use-community-draft-autosave'
 import type { CommunityLocationValue } from '@/lib/community/community-location'
@@ -61,12 +62,19 @@ export {
   type CommunityEditorValue,
 }
 
-/** ✕ · 취소 확인(CM-035). 임시 저장이 켜져 있을 때만 「저장돼요」라고 말한다. */
+/*
+  ✕ · 취소 확인(CM-035, #581 — window.confirm 대신 ConfirmSheet). 제목이 묻고, 설명 한 줄이 나가면 무슨 일이
+  생기는지 말한다. 임시 저장이 켜져 있을 때만 「저장돼요」라고 말한다.
+*/
+export const COMMUNITY_EDITOR_LEAVE_TITLE = {
+  create: '글쓰기를 그만둘까요?',
+  edit: '글 수정을 그만둘까요?',
+} as const
 export const COMMUNITY_EDITOR_LEAVE_CONFIRM =
-  '작성 중인 글은 임시 저장돼요. 나갈까요?'
-/** 비교 초안으로 들어온 글은 임시 저장하지 않는다 — 그 말을 하면 거짓이 된다. */
+  '쓰던 내용은 임시 저장돼서 다시 열면 이어 쓸 수 있어요.'
+/** 비교 초안으로 들어온 글은 임시 저장하지 않는다 — 그 말을 하면 거짓이 된다. 잃는 동작이라 danger 다. */
 export const COMMUNITY_EDITOR_LEAVE_CONFIRM_UNSAVED =
-  '작성 중인 글이 저장되지 않아요. 나갈까요?'
+  '쓰던 내용은 저장되지 않고 사라져요.'
 /**
  * 사진 업로드 중 등록 — 막되 비활성 대신 누르면 말한다(§S4 「등록 버튼」 원칙). 그대로 보내면 올리던
  * 사진이 `imageKeys` 에 빠진 채 글이 저장된다.
@@ -882,6 +890,7 @@ export default function CommunityEditorForm({
   const pendingCaretRef = useRef<number | null>(null)
   /* 파일을 끌어 드롭존 위에 올려 둔 동안 — 점선을 파랗게 칠한다. */
   const [dragActive, setDragActive] = useState(false)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
 
   const uploading = uploadingCount > 0
   /* 저장 요청 중이거나 이미 성공해 이동하는 중 — 다시 보내면 같은 글이 또 생긴다. */
@@ -1048,16 +1057,10 @@ export default function CommunityEditorForm({
     setCategory(currentCategory => (currentCategory === next ? null : next))
   }
 
-  /* 내용이 바뀐 채로 ✕ · 취소 — 묻는다. 앱 안 다른 링크는 막지 않는다(임시 저장이 지킨다). */
+  /* 내용이 바뀐 채로 ✕ · 취소 — 확인 시트로 묻는다. 앱 안 다른 링크는 막지 않는다(임시 저장이 지킨다). */
   const handleLeave = () => {
-    if (
-      dirty &&
-      !window.confirm(
-        draftStorageKey
-          ? COMMUNITY_EDITOR_LEAVE_CONFIRM
-          : COMMUNITY_EDITOR_LEAVE_CONFIRM_UNSAVED,
-      )
-    ) {
+    if (dirty) {
+      setLeaveConfirmOpen(true)
       return
     }
 
@@ -1519,6 +1522,27 @@ export default function CommunityEditorForm({
           </ul>
         </TipBlock>
       </Checklist>
+
+      <ConfirmSheet
+        open={leaveConfirmOpen}
+        title={COMMUNITY_EDITOR_LEAVE_TITLE[mode]}
+        description={
+          draftStorageKey
+            ? COMMUNITY_EDITOR_LEAVE_CONFIRM
+            : COMMUNITY_EDITOR_LEAVE_CONFIRM_UNSAVED
+        }
+        confirmLabel="나가기"
+        /* 폼에 이미 「취소」 버튼이 있다 — 같은 이름이 둘이면 무엇을 취소하는지 헷갈린다. */
+        cancelLabel="계속 쓰기"
+        tone={draftStorageKey ? 'primary' : 'danger'}
+        onCancel={() => {
+          setLeaveConfirmOpen(false)
+        }}
+        onConfirm={() => {
+          setLeaveConfirmOpen(false)
+          onCancel()
+        }}
+      />
     </Shell>
   )
 }
