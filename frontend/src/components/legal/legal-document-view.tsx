@@ -1,3 +1,5 @@
+'use client'
+
 import styled from 'styled-components'
 import { legalCopy } from '@/lib/legal/copy'
 import type { Block, LegalDocument } from '@/lib/legal/types'

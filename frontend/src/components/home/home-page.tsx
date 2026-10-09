@@ -1,3 +1,5 @@
+'use client'
+
 import styled from 'styled-components'
 import DataSources from '@/components/home/data-sources'
 import FeatureBento from '@/components/home/feature-bento'

@@ -10,6 +10,7 @@
 - 임의 색상, radius, shadow, spacing 값을 추가하지 않는다.
 - 새 값이 필요하면 먼저 design token 또는 `docs/design-guide.md` 갱신 여부를 판단한다.
 - 한 화면 안에서 styling strategy를 불필요하게 섞지 않는다.
+- styled 컴포넌트(`styled.x`·`styled(X)`·`createGlobalStyle`)를 정의하는 파일은 첫 줄에 `'use client'` 를 둔다. 서버 컴포넌트로 렌더되면 스타일이 레지스트리를 거치지 않아 CSS 가 빠질 수 있다 — 이유와 실측은 `client-boundary.md` 「styled 컴포넌트를 정의하는 파일은 'use client' 로 시작한다」. `css`·`keyframes` 헬퍼 파일은 대상이 아니다.
 
 ## 토큰 사용
 

@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { Clock3, Home, MessageCircle } from 'lucide-react'
 import styled from 'styled-components'

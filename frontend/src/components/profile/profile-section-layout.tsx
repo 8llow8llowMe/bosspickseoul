@@ -1,3 +1,5 @@
+'use client'
+
 import type { ReactNode } from 'react'
 import styled from 'styled-components'
 import ProfileTabs from '@/components/profile/profile-tabs'

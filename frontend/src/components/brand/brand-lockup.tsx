@@ -1,3 +1,5 @@
+'use client'
+
 import styled from 'styled-components'
 
 import BrandMark, { type BrandMarkTone } from '@/components/brand/brand-mark'
