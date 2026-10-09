@@ -218,9 +218,10 @@ export const normalizeStatusSelection = (
   districtCode && districtCodes.includes(districtCode) ? districtCode : null
 
 /**
- * 선택한 구를 상세가 그릴 모양으로 만든다. 현재 지표 Top10 에 있으면 순위 항목을
- * 붙이고, 없으면 `rankedItem: null` 이다(상세 머리가 「상위 10위 밖」으로 적는다).
- * 이름은 순위 항목보다 정적 표를 먼저 쓴다 — 순위 밖 구에는 순위 항목이 없다.
+ * 선택한 구를 상세가 그릴 모양으로 만든다. `items` 는 현재 지표의 25개 구 전체 순위라 Top10 밖
+ * 구에도 순위 항목이 붙는다. 그 분기 행이 없어 순위에서 빠진 구만 `rankedItem: null` 이다(상세
+ * 머리가 「{지표} 데이터 없음」으로 적는다).
+ * 이름은 순위 항목보다 정적 표를 먼저 쓴다 — 순위에서 빠진 구에는 순위 항목이 없다.
  */
 export const resolveStatusSelectedDistrict = (
   districtCode: string | null,

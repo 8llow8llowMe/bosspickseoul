@@ -23,15 +23,19 @@ type StatusTopTenProps = {
   onHighlightLeave?: (districtCode: string) => void
 }
 
-const getChangeCue = (metric: StatusMetric, changeRate: number): string => {
-  if (!Number.isFinite(changeRate)) return '변화율'
+const getChangeCue = (
+  metric: StatusMetric,
+  changeRate: number | null,
+): string => {
+  if (changeRate === null || !Number.isFinite(changeRate)) return '변화율'
   if (changeRate === 0) return '변동 없음'
   if (metric === 'closed') return changeRate > 0 ? '주의' : '개선'
   return changeRate > 0 ? '증가' : '감소'
 }
 
-const getChangeArrow = (changeRate: number): string => {
-  if (!Number.isFinite(changeRate) || changeRate === 0) return '–'
+const getChangeArrow = (changeRate: number | null): string => {
+  if (changeRate === null || !Number.isFinite(changeRate) || changeRate === 0)
+    return '–'
   return changeRate > 0 ? '▲' : '▼'
 }
 

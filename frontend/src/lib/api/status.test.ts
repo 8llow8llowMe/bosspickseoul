@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildStatusDetailPath, buildStatusTopTenPath } from '@/lib/api/status'
+import {
+  buildStatusDetailPath,
+  buildStatusRankingsPath,
+  buildStatusTopTenPath,
+} from '@/lib/api/status'
 
 /*
  * 고른 분기는 명시하고, 「최신」은 생략한다 — BE #464 이후 서버가 적재 기준 최신 분기로 해석하고 응답
@@ -16,6 +20,14 @@ describe('구별현황 요청 경로', () => {
     expect(buildStatusTopTenPath('20233')).toBe(
       '/districts/top-ten?currentPeriodCode=20233',
     )
+  })
+
+  it('전체 순위는 Top10 과 같은 분기 규칙으로 부른다', () => {
+    expect(buildStatusRankingsPath()).toBe('/districts/rankings')
+    expect(buildStatusRankingsPath('20233')).toBe(
+      '/districts/rankings?currentPeriodCode=20233',
+    )
+    expect(buildStatusRankingsPath('20233')).not.toContain('previousPeriodCode')
   })
 
   it('상세는 구 코드와 분기를 함께 싣는다', () => {

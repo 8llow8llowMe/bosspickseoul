@@ -1,4 +1,4 @@
-import type { StatusMetric } from '@/types/status'
+import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
 const koreanNumberFormatter = new Intl.NumberFormat('ko-KR')
 const koreanChangeFormatter = new Intl.NumberFormat('ko-KR', {
@@ -130,13 +130,35 @@ export const formatStatusChange = (
   return `${formattedValue}%`
 }
 
+/**
+ * 지도 툴팁·폴리곤 접근성 이름에 쓰는 한 줄. 예) "매출 14위 · 1조 2,100억원 · -2.1%"
+ *
+ * - 순위는 응답의 `rank` 그대로다. 동점이면 두 구가 같은 순위로 적힌다.
+ * - 변화율이 null 이면 「변화율 데이터 없음」이다. 0%(변동 없음)로 적지 않는다.
+ * - 그 지표 순위에 구가 없으면(그 분기 행이 없음) 「{지표} 데이터 없음」이다.
+ */
+export const formatStatusRankSummary = (
+  metric: StatusMetric,
+  item: StatusRankedItem | null | undefined,
+): string => {
+  const metricLabel = STATUS_METRIC_LABELS[metric]
+
+  if (!item) return `${metricLabel} ${EMPTY_STATUS_VALUE}`
+
+  const change = isFiniteNumber(item.changeRate)
+    ? formatStatusChange(item.changeRate)
+    : `변화율 ${EMPTY_STATUS_VALUE}`
+
+  return `${metricLabel} ${item.rank}위 · ${formatStatusValue(metric, item.value)} · ${change}`
+}
+
 export type ChangeBadge = {
   changeLabel: string
   changeDirection: 'up' | 'down'
 }
 
 /**
- * 변화율 배지 필드. `changeRate` 가 유한수가 아니면(NaN 등) **빈 객체**를 낸다.
+ * 변화율 배지 필드. `changeRate` 가 유한수가 아니면(null·NaN) **빈 객체**를 낸다.
  *
  * `formatStatusChange(NaN)` 은 "데이터 없음"을 반환하고 `NaN >= 0` 은 false 라
  * `changeDirection: 'down'` 이 된다 — 그대로 쓰면 없는 하락을 있다고 말하는
@@ -144,9 +166,9 @@ export type ChangeBadge = {
  * 아예 그리지 않으므로, 여기서 필드 자체를 비우는 것으로 막는다.
  */
 export const toChangeBadge = (
-  changeRate: number,
+  changeRate: number | null,
 ): ChangeBadge | Record<string, never> => {
-  if (!Number.isFinite(changeRate)) return {}
+  if (!isFiniteNumber(changeRate)) return {}
 
   return {
     changeLabel: formatStatusChange(changeRate),

@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api/client'
 import type {
   DistrictDetailResponse,
+  DistrictRankingsResponse,
   DistrictTopTenResponse,
 } from '@/types/status'
 
@@ -16,6 +17,10 @@ const periodQuery = (currentPeriodCode?: string): string =>
 export const buildStatusTopTenPath = (currentPeriodCode?: string): string =>
   `/districts/top-ten${periodQuery(currentPeriodCode)}`
 
+/** 25개 구 전체 순위(BE #433). 분기 파라미터는 `top-ten` 과 같게 해석된다. */
+export const buildStatusRankingsPath = (currentPeriodCode?: string): string =>
+  `/districts/rankings${periodQuery(currentPeriodCode)}`
+
 export const buildStatusDetailPath = (
   districtCode: string,
   currentPeriodCode?: string,
@@ -25,6 +30,14 @@ export const buildStatusDetailPath = (
 export const fetchStatusTopTen = async (currentPeriodCode?: string) => {
   const response = await apiClient.get<DistrictTopTenResponse>(
     buildStatusTopTenPath(currentPeriodCode),
+  )
+
+  return response.data
+}
+
+export const fetchStatusRankings = async (currentPeriodCode?: string) => {
+  const response = await apiClient.get<DistrictRankingsResponse>(
+    buildStatusRankingsPath(currentPeriodCode),
   )
 
   return response.data

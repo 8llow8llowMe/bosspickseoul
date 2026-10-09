@@ -1,6 +1,8 @@
 import type {
+  DistrictRankingSummary,
   DistrictTopTenSummary,
   StatusRankedItem,
+  StatusRankingsByMetric,
   StatusTopTenByMetric,
 } from '@/types/status'
 
@@ -50,6 +52,66 @@ export const normalizeStatusTopTen = (
     item => item.closureChangeRate,
   ),
 })
+
+type RankingItem = TopTenItem & { rank: number }
+
+const toFiniteOrNull = (value: number | null | undefined): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+
+/*
+ * 전체 순위는 Top10 과 두 가지가 다르다(api-reference 「자치구 전체 순위 계약」).
+ * - 순위는 응답의 `rank` 를 그대로 쓴다. 동점이면 같은 순위다(1, 2, 2, 4) — 배열 위치로 다시 매기면
+ *   동점 구가 서로 다른 순위로 보인다.
+ * - 변화율 null 을 0 으로 바꾸지 않는다. 0 은 「변동 없음」이라 결측을 다른 사실로 바꾼다.
+ */
+const toRankingItems = <T extends RankingItem>(
+  items: T[],
+  getValue: (item: T) => number,
+  getChangeRate: (item: T) => number | null | undefined,
+): StatusRankedItem[] =>
+  items.map(item => ({
+    rank: item.rank,
+    districtCode: item.districtCode,
+    districtName: item.districtName,
+    value: getValue(item),
+    changeRate: toFiniteOrNull(getChangeRate(item)),
+  }))
+
+export const normalizeStatusRankings = (
+  source: DistrictRankingSummary,
+): StatusRankingsByMetric => ({
+  // Top10 과 같은 이유로 배열 누락을 막는다(H-2).
+  footTraffic: toRankingItems(
+    source.footTrafficRankings ?? [],
+    item => item.totalFootTraffic,
+    item => item.footTrafficChangeRate,
+  ),
+  sales: toRankingItems(
+    source.salesRankings ?? [],
+    item => item.totalSalesAmount,
+    item => item.salesChangeRate,
+  ),
+  opened: toRankingItems(
+    source.openedStoreRankings ?? [],
+    item => item.openedStoreCount,
+    item => item.openingChangeRate,
+  ),
+  closed: toRankingItems(
+    source.closedStoreRankings ?? [],
+    item => item.closedStoreCount,
+    item => item.closureChangeRate,
+  ),
+})
+
+export const STATUS_TOP_TEN_SIZE = 10
+
+/**
+ * 전체 순위에서 목록이 그릴 상위 10개. 응답이 이미 값 내림차순(같으면 구 코드 오름차순)이라 앞에서
+ * 자른다. 10위 동점이 더 있으면 구 코드가 뒤인 구는 목록에서 빠진다 — `top-ten` 과 같은 규칙이다.
+ */
+export const selectStatusTopTen = (
+  items: readonly StatusRankedItem[],
+): StatusRankedItem[] => items.slice(0, STATUS_TOP_TEN_SIZE)
 
 /**
  * 네 지표가 **동시에** 비었는지. 참이면 정상적인 결측이 아니라 데이터 공급 장애다.
