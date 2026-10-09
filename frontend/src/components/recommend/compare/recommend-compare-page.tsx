@@ -14,6 +14,7 @@ import { isRetryable, resolveApiError } from '@/lib/api/api-error'
 import { fetchCommercialComparison } from '@/lib/api/commercial-comparison'
 import { isApiSuccess } from '@/lib/api/response'
 import {
+  COMPARE_MAX_COMMERCIALS,
   COMPARE_MIN_COMMERCIALS,
   isCompleteCompareState,
   parseCompareUrlState,
@@ -242,7 +243,9 @@ export default function RecommendComparePage() {
       </Header>
 
       {state.truncated ? (
-        <Notice>한 번에 2개까지 비교할 수 있어요. 앞 2개만 보여 드려요.</Notice>
+        <Notice>
+          {`비교는 상권 ${COMPARE_MAX_COMMERCIALS}개씩 해요. 링크에 담긴 상권 중 앞의 ${COMPARE_MAX_COMMERCIALS}개만 보여 드려요.`}
+        </Notice>
       ) : null}
 
       {comparisonQuery.isFetching && !body ? (
