@@ -11,8 +11,8 @@ import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
-  DistrictTopTenResponse,
-  DistrictTopTenSummary,
+  DistrictRankingsResponse,
+  DistrictRankingSummary,
 } from '@/types/status'
 
 /*
@@ -29,7 +29,7 @@ const { state } = vi.hoisted(() => ({
   },
 }))
 
-const fetchStatusTopTen = vi.hoisted(() =>
+const fetchStatusRankings = vi.hoisted(() =>
   vi.fn((periodCode?: string) => {
     void periodCode
     return state.fetch()
@@ -46,7 +46,7 @@ const fetchStatusDetail = vi.hoisted(() =>
 )
 
 vi.mock('@/lib/api/status', () => ({
-  fetchStatusTopTen,
+  fetchStatusRankings,
   fetchStatusDetail,
 }))
 
@@ -73,19 +73,20 @@ const okResponse = () =>
     dataBody: {
       // 분기를 생략한 요청에도 서버가 실제로 조회한 분기를 싣는다(BE #464).
       currentPeriodCode: '20261',
-      footTrafficTopTenItems: [
+      footTrafficRankings: [
         {
+          rank: 1,
           districtCode: '11680',
           districtName: '강남구',
           totalFootTraffic: 100,
           footTrafficChangeRate: 1,
         },
       ],
-      salesTopTenItems: [],
-      openedStoreTopTenItems: [],
-      closedStoreTopTenItems: [],
-    } as unknown as DistrictTopTenSummary,
-  } as unknown as DistrictTopTenResponse)
+      salesRankings: [],
+      openedStoreRankings: [],
+      closedStoreRankings: [],
+    } as unknown as DistrictRankingSummary,
+  } as unknown as DistrictRankingsResponse)
 
 // 404(데이터 부재)는 재시도하지 않아 바로 오류 화면이 뜬다.
 const NOT_FOUND_MESSAGE = '해당 분기의 자치구 데이터가 없습니다.'
@@ -138,7 +139,7 @@ beforeEach(() => {
   state.fetch = okResponse
   state.push.mockReset()
   state.replace.mockReset()
-  fetchStatusTopTen.mockClear()
+  fetchStatusRankings.mockClear()
   fetchStatusDetail.mockClear()
 })
 
@@ -155,8 +156,8 @@ describe('StatusPage 기준 분기', () => {
     await screen.findAllByText('유동인구 상위 10개 구')
     const { year, quarter } = await periodSelects()
 
-    expect(fetchStatusTopTen).toHaveBeenCalledWith(undefined)
-    expect(fetchStatusTopTen).not.toHaveBeenCalledWith('20261')
+    expect(fetchStatusRankings).toHaveBeenCalledWith(undefined)
+    expect(fetchStatusRankings).not.toHaveBeenCalledWith('20261')
     expect(year.value).toBe('2026')
     expect(quarter.value).toBe('1')
   })
@@ -167,7 +168,7 @@ describe('StatusPage 기준 분기', () => {
     await screen.findAllByText('유동인구 상위 10개 구')
     const { year, quarter } = await periodSelects()
 
-    expect(fetchStatusTopTen).toHaveBeenCalledWith('20233')
+    expect(fetchStatusRankings).toHaveBeenCalledWith('20233')
     expect(year.value).toBe('2023')
     expect(quarter.value).toBe('3')
   })
@@ -179,7 +180,9 @@ describe('StatusPage 기준 분기', () => {
   it('서버 기본 분기보다 새 분기는 카탈로그가 오면 최신 분기로 내리고 URL 도 맞춘다', async () => {
     renderPage('metric=footTraffic&periodCode=20264')
 
-    await waitFor(() => expect(fetchStatusTopTen).toHaveBeenCalledWith('20261'))
+    await waitFor(() =>
+      expect(fetchStatusRankings).toHaveBeenCalledWith('20261'),
+    )
     await waitFor(() =>
       expect(state.replace).toHaveBeenCalledWith(
         '/status?metric=footTraffic&periodCode=20261',
@@ -225,7 +228,7 @@ describe('StatusPage 기준 분기', () => {
     state.fetch = () => new Promise(() => undefined)
     navigate('metric=footTraffic&periodCode=20233')
 
-    expect(fetchStatusTopTen).toHaveBeenCalledWith('20233')
+    expect(fetchStatusRankings).toHaveBeenCalledWith('20233')
     expect(screen.getAllByText('유동인구 상위 10개 구').length).toBeGreaterThan(
       0,
     )

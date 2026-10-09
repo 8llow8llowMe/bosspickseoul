@@ -5,8 +5,8 @@ import { createElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type {
-  DistrictTopTenSummary,
-  DistrictTopTenResponse,
+  DistrictRankingSummary,
+  DistrictRankingsResponse,
 } from '@/types/status'
 
 /*
@@ -23,7 +23,7 @@ const { behavior } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/api/status', () => ({
-  fetchStatusTopTen: vi.fn(() => behavior.fetch()),
+  fetchStatusRankings: vi.fn(() => behavior.fetch()),
   fetchStatusDetail: vi.fn(() => Promise.resolve(null)),
 }))
 
@@ -36,26 +36,27 @@ vi.mock('next/navigation', () => ({
 import StatusPage from './status-page'
 
 const item = (districtCode: string) => ({
+  rank: 1,
   districtCode,
   districtName: '강남구',
 })
 
-const summary = (hasData: boolean): DistrictTopTenSummary =>
+const summary = (hasData: boolean): DistrictRankingSummary =>
   ({
-    footTrafficTopTenItems: hasData
+    footTrafficRankings: hasData
       ? [{ ...item('11680'), totalFootTraffic: 100, footTrafficChangeRate: 1 }]
       : [],
-    salesTopTenItems: [],
-    openedStoreTopTenItems: [],
-    closedStoreTopTenItems: [],
-  }) as unknown as DistrictTopTenSummary
+    salesRankings: [],
+    openedStoreRankings: [],
+    closedStoreRankings: [],
+  }) as unknown as DistrictRankingSummary
 
 const respondWith = (hasData: boolean) => {
   behavior.fetch = () =>
     Promise.resolve({
       dataHeader: { success: true, resultCode: null, resultMessage: null },
       dataBody: summary(hasData),
-    } as unknown as DistrictTopTenResponse)
+    } as unknown as DistrictRankingsResponse)
 }
 
 const renderPage = () =>

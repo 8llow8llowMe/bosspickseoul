@@ -70,17 +70,54 @@ describe('/status 상세 머리', () => {
     expect(markup).toContain('매출 1위')
   })
 
-  it('순위 밖 구는 값 없이 「지표 상위 10위 밖」만 적는다', () => {
-    // Top10 응답만으로는 순위 밖 구의 지표 값을 알 수 없다 — 새 호출을 만들지 않는다.
+  it('Top10 밖 구도 전체 순위의 값·변화율과 「지표 N위」를 적는다', () => {
+    const markup = renderHeader({
+      districtCode: '11545',
+      districtName: '금천구',
+      rankedItem: {
+        rank: 14,
+        districtCode: '11545',
+        districtName: '금천구',
+        value: 1_210_000_000_000,
+        changeRate: -2.1,
+      },
+    })
+
+    expect(markup).toContain('1조 2,100억원')
+    expect(markup).toContain('-2.1%')
+    expect(markup).toContain('매출 14위')
+    expect(markup).not.toContain('10위 밖')
+  })
+
+  it('변화율이 null 이면 0% 가 아니라 결측으로 적는다', () => {
+    const markup = renderHeader({
+      districtCode: '11710',
+      districtName: '송파구',
+      rankedItem: {
+        rank: 2,
+        districtCode: '11710',
+        districtName: '송파구',
+        value: 100,
+        changeRate: null,
+      },
+    })
+
+    expect(markup).toContain('매출 2위')
+    expect(markup).toContain('데이터 없음')
+    expect(markup).not.toContain('0%')
+    expect(markup).not.toContain('변동 없음')
+  })
+
+  it('지표 순위에 없는 구는 값 없이 「지표 데이터 없음」만 적는다', () => {
+    // 그 분기 행이 없어 전체 순위에서도 빠진 구다.
     const markup = renderHeader(
       { districtCode: '11650', districtName: '서초구', rankedItem: null },
       'opened',
     )
 
     expect(markup).toContain('서초구 상세')
-    expect(markup).toContain('개업 상위 10위 밖')
+    expect(markup).toContain('개업 데이터 없음')
     expect(markup).not.toContain('%')
-    expect(markup).not.toContain('데이터 없음')
   })
 
   // 과거 분기를 고르면 상세가 어느 분기 값인지 머리에서 드러나야 한다(status.md 1.6).
@@ -108,7 +145,7 @@ describe('/status 상세 머리', () => {
 
     expect(ranked).toContain('매출 2위')
     expect(ranked).toContain('2023년 3분기 기준')
-    expect(outside).toContain('개업 상위 10위 밖')
+    expect(outside).toContain('개업 데이터 없음')
     expect(outside).toContain('2026년 1분기 기준')
   })
 })

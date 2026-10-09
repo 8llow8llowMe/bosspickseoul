@@ -51,12 +51,12 @@ type StatusDetailProps = {
   /** 기준 분기. 최신을 아직 모르면 null 이고 기준 줄을 적지 않는다. */
   periodCode: string | null
   /**
-   * 분기를 바꾸는 중이라 머리의 값·증감·순위(`rankedItem`)가 **직전 분기** Top10 에서 왔다.
+   * 분기를 바꾸는 중이라 머리의 값·증감·순위(`rankedItem`)가 **직전 분기** 순위 응답에서 왔다.
    * 새 응답이 올 때까지 그 줄을 `aria-busy` 로 흐리게 둔다(status.md 1.6). 순위 항목을 null
-   * 로 만들지 않는 이유: 그러면 「상위 10위 밖」으로 잘못 읽히고 머리 높이가 흔들린다.
+   * 로 만들지 않는 이유: 그러면 「데이터 없음」으로 잘못 읽히고 머리 높이가 흔들린다.
    */
   isRankPending?: boolean
-  /** 순위 밖 구도 올 수 있다 — 그때 `rankedItem` 이 null 이다. */
+  /** 현재 지표 순위에 없는 구(그 분기 행이 없음)도 올 수 있다 — 그때 `rankedItem` 이 null 이다. */
   selectedDistrict: StatusSelectedDistrict | null
   detail: DistrictDetail | null
   isLoading: boolean
@@ -591,8 +591,11 @@ const VisuallyHidden = styled.span`
   white-space: nowrap;
 `
 
-const getChangeCue = (metric: StatusMetric, changeRate: number): string => {
-  if (!Number.isFinite(changeRate)) return '변화율'
+const getChangeCue = (
+  metric: StatusMetric,
+  changeRate: number | null,
+): string => {
+  if (changeRate === null || !Number.isFinite(changeRate)) return '변화율'
   if (changeRate === 0) return '변동 없음'
   if (metric === 'closed') return changeRate > 0 ? '주의' : '개선'
   return changeRate > 0 ? '증가' : '감소'
@@ -1173,7 +1176,7 @@ function DetailHeader({
             >
               {rankedItem
                 ? `${metricLabel} ${rankedItem.rank}위`
-                : `${metricLabel} 상위 10위 밖`}
+                : `${metricLabel} 데이터 없음`}
               {/* 과거 분기를 고르면 어느 분기 값인지 머리에서 드러나야 한다(status.md 1.6). */}
               <span data-status-detail-period>
                 {periodCode ? ` · ${formatPeriodCode(periodCode)} 기준` : null}

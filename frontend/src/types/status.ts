@@ -40,26 +40,77 @@ export type DistrictTopTenSummary = {
   closedStoreTopTenItems: DistrictClosedStoreTopTenItem[]
 }
 
+/*
+ * `GET /districts/rankings` 항목(BE #433). `top-ten` 항목과 같은 필드에 `rank` 를 더했다.
+ * - `rank` 는 표준 경쟁 순위다. 같은 값은 같은 순위이고 다음 순위는 건너뛴다(1, 2, 2, 4).
+ * - 변화율은 **null 일 수 있다.** 직전 분기 행이 없거나 직전 값이 0 이면 0 으로 채우지 않고 null 을 준다.
+ */
+export type DistrictFootTrafficRankingItem = {
+  rank: number
+  districtCode: string
+  districtName: string
+  totalFootTraffic: number
+  footTrafficChangeRate: number | null
+}
+
+export type DistrictSalesRankingItem = {
+  rank: number
+  districtCode: string
+  districtName: string
+  totalSalesAmount: number
+  salesChangeRate: number | null
+}
+
+export type DistrictOpenedStoreRankingItem = {
+  rank: number
+  districtCode: string
+  districtName: string
+  openedStoreCount: number
+  openingChangeRate: number | null
+}
+
+export type DistrictClosedStoreRankingItem = {
+  rank: number
+  districtCode: string
+  districtName: string
+  closedStoreCount: number
+  closureChangeRate: number | null
+}
+
+/** 네 지표마다 현재 분기 행이 있는 자치구 전부(서울 25개 구). 지표 값 내림차순, 같으면 구 코드 오름차순. */
+export type DistrictRankingSummary = {
+  currentPeriodCode?: string | null
+  previousPeriodCode?: string | null
+  footTrafficRankings: DistrictFootTrafficRankingItem[]
+  salesRankings: DistrictSalesRankingItem[]
+  openedStoreRankings: DistrictOpenedStoreRankingItem[]
+  closedStoreRankings: DistrictClosedStoreRankingItem[]
+}
+
 export type StatusRankedItem = {
   rank: number
   districtCode: string
   districtName: string
   value: number
-  changeRate: number
+  /** 전기 대비 변화율(%). 비교할 직전 분기 값이 없으면 null 이다 — 0(변동 없음)과 다르다. */
+  changeRate: number | null
 }
 
 /**
- * 화면에서 고른 자치구. 순위 밖 구도 고를 수 있어 `rankedItem` 은 null 일 수 있다
+ * 화면에서 고른 자치구. 현재 지표 전체 순위에 그 구가 없으면 `rankedItem` 은 null 이다
  * (`resolveStatusSelectedDistrict`).
  */
 export type StatusSelectedDistrict = {
   districtCode: string
   districtName: string
-  /** 현재 지표 Top10 안이면 그 순위 항목, 밖이면 null. */
+  /** 현재 지표 전체 순위의 그 구 항목. 그 분기 행이 없어 순위에서 빠졌으면 null. */
   rankedItem: StatusRankedItem | null
 }
 
 export type StatusTopTenByMetric = Record<StatusMetric, StatusRankedItem[]>
+
+/** 지표별 전체 순위. 모양은 Top10 과 같고 길이만 다르다(최대 25). */
+export type StatusRankingsByMetric = StatusTopTenByMetric
 
 /**
  * `GET /analysis-rankings` 항목 (B2 — 분석 인기 순위).
@@ -211,5 +262,6 @@ export type DistrictDetail = {
 }
 
 export type DistrictTopTenResponse = ApiResponse<DistrictTopTenSummary>
+export type DistrictRankingsResponse = ApiResponse<DistrictRankingSummary>
 export type AnalysisRankingResponse = ApiResponse<AnalysisRankingBody>
 export type DistrictDetailResponse = ApiResponse<DistrictDetail>

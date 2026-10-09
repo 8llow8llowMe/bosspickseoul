@@ -12,12 +12,13 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import styled, { keyframes } from 'styled-components'
-import { fetchStatusDetail, fetchStatusTopTen } from '@/lib/api/status'
+import { fetchStatusDetail } from '@/lib/api/status'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { isApiSuccess } from '@/lib/api/response'
 import {
   isStatusTopTenAllEmpty,
-  normalizeStatusTopTen,
+  normalizeStatusRankings,
+  selectStatusTopTen,
 } from '@/lib/status/status-adapter'
 import {
   createStatusHref,
@@ -33,6 +34,7 @@ import {
 import { statusQueryKeys } from '@/lib/status/status-query'
 import { resolveAnalysisPeriod } from '@/lib/analysis/period-catalog'
 import { useAnalysisPeriodCatalog } from '@/hooks/use-analysis-period-catalog'
+import { useDistrictRankings } from '@/hooks/use-district-rankings'
 import { districts } from '@/data/districts'
 import {
   createStatusHighlightStore,
@@ -52,7 +54,7 @@ import { shellWidth } from '@/styles/layout'
 const METRIC_TAB_ID_BASE = 'status-metric-tab'
 const METRIC_PANEL_ID = 'status-metric-content'
 const STATUS_PAGE_TITLE = '구별 상권 현황'
-// 선택할 수 있는 구 = 지도에 그려진 25개 구. 현재 지표 Top10 과 무관하다.
+// 선택할 수 있는 구 = 지도에 그려진 25개 구. 현재 지표 순위와 무관하다.
 const SELECTABLE_DISTRICT_CODES = SEOUL_STATUS_FEATURES.map(
   feature => feature.districtCode,
 )
@@ -464,7 +466,7 @@ function StatusPageContent() {
   const rawSearchParams = searchParams.toString()
   const metric = parseStatusMetric(searchParams.get('metric'))
   /*
-    기준 분기(status.md 1.6, period-catalog.md D3-3). URL 에 분기가 없으면 「최신」이고, Top10 은 분기를
+    기준 분기(status.md 1.6, period-catalog.md D3-3). URL 에 분기가 없으면 「최신」이고, 순위 호출은 분기를
     생략해 보내 서버가 해석한다 — 카탈로그(`/periods`)를 기다리는 폭포가 없다. 카탈로그는 드롭다운
     범위와, 최신보다 새 분기를 내리는 데만 쓴다.
   */
@@ -489,35 +491,28 @@ function StatusPageContent() {
   const desktopBackButtonRef = useRef<HTMLButtonElement>(null)
   const previousSelectionRef = useRef<string | null | undefined>(undefined)
 
-  const topTenQuery = useQuery({
-    queryKey: statusQueryKeys.topTen(requestedPeriodCode ?? 'latest'),
-    queryFn: () => fetchStatusTopTen(requestedPeriodCode ?? undefined),
-    // 404(데이터 부재)·4xx는 재시도해도 결과가 같다. 5xx/통신 실패만 재시도한다.
-    retry: retryUnlessClientError(3),
-    // 분기를 바꾸면 키가 바뀌어 데이터가 빈다. 그대로 두면 페이지가 로딩 화면으로 바뀌며
-    // 분기 select 가 사라진다 — 새 응답이 올 때까지 직전 분기 응답을 자리 표시로 둔다.
-    placeholderData: previousData => previousData,
-  })
-  const isPeriodPending = topTenQuery.isPlaceholderData
+  // 25개 구 전체 순위 한 응답이 목록(앞 10개)·지도 단계 색·상세 머리를 함께 채운다(#542).
+  const rankingsQuery = useDistrictRankings(requestedPeriodCode)
+  const isPeriodPending = rankingsQuery.isPlaceholderData
 
-  const topTen = useMemo(() => {
-    if (!topTenQuery.data || !isApiSuccess(topTenQuery.data)) {
+  const rankings = useMemo(() => {
+    if (!rankingsQuery.data || !isApiSuccess(rankingsQuery.data)) {
       return null
     }
 
-    return normalizeStatusTopTen(topTenQuery.data.dataBody)
-  }, [topTenQuery.data])
+    return normalizeStatusRankings(rankingsQuery.data.dataBody)
+  }, [rankingsQuery.data])
 
   /*
-    화면 전체(Top10·상세·드롭다운)가 나눠 쓰는 분기. 「최신」이면 Top10 응답이 알려 준 분기를 쓴다.
+    화면 전체(Top10·상세·드롭다운)가 나눠 쓰는 분기. 「최신」이면 순위 응답이 알려 준 분기를 쓴다.
     자리 표시(placeholderData)로 남은 직전 응답의 분기는 쓰지 않는다 — 고른 분기가 이긴다.
   */
-  const topTenPeriodCode =
-    topTenQuery.data && isApiSuccess(topTenQuery.data) && !isPeriodPending
-      ? (topTenQuery.data.dataBody.currentPeriodCode ?? null)
+  const rankingsPeriodCode =
+    rankingsQuery.data && isApiSuccess(rankingsQuery.data) && !isPeriodPending
+      ? (rankingsQuery.data.dataBody.currentPeriodCode ?? null)
       : null
   const periodCode =
-    requestedPeriodCode ?? topTenPeriodCode ?? periodCatalog.latest
+    requestedPeriodCode ?? rankingsPeriodCode ?? periodCatalog.latest
   /*
     서버가 막 새 분기로 넘어갔는데 카탈로그는 캐시(5분)라 옛 최신 분기를 들고 있으면, 응답 분기가 드롭다운
     범위 밖이 되어 select 가 엉뚱한 분기를 그린다. 응답이 더 새로우면 카탈로그를 다시 묻는다.
@@ -525,23 +520,24 @@ function StatusPageContent() {
   const refetchPeriodCatalog = periodCatalog.refetch
   useEffect(() => {
     if (
-      topTenPeriodCode !== null &&
+      rankingsPeriodCode !== null &&
       periodCatalog.latest !== null &&
-      topTenPeriodCode > periodCatalog.latest
+      rankingsPeriodCode > periodCatalog.latest
     ) {
       refetchPeriodCatalog()
     }
     // refetch 는 렌더마다 새 함수다 — 분기 값이 바뀔 때만 다시 판정한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topTenPeriodCode, periodCatalog.latest])
+  }, [rankingsPeriodCode, periodCatalog.latest])
 
   /* 「최신」을 고르면 URL 에서 분기를 지워 최신 링크로 남긴다(createStatusQuery). */
   const latestPeriodCode =
     periodCatalog.latest ??
-    (requestedPeriodCode === null ? topTenPeriodCode : null)
+    (requestedPeriodCode === null ? rankingsPeriodCode : null)
 
-  const currentItems = topTen?.[metric] ?? []
-  const selectedDistrictCode = topTen
+  const currentItems = rankings?.[metric] ?? []
+  const topTenItems = selectStatusTopTen(currentItems)
+  const selectedDistrictCode = rankings
     ? normalizeStatusSelection(requestedDistrictCode, SELECTABLE_DISTRICT_CODES)
     : null
   const selectedDistrict = resolveStatusSelectedDistrict(
@@ -576,7 +572,7 @@ function StatusPageContent() {
     detailQuery.isPending || (detailError !== null && detailQuery.isFetching)
   useEffect(() => {
     const currentQuery = new URLSearchParams(rawSearchParams)
-    const districtCode = topTen
+    const districtCode = rankings
       ? selectedDistrictCode
       : currentQuery.get('district')
     // 분기는 URL 에 적힌 대로 둔다(최신 분기를 명시한 링크도 그대로) — 여기서 지우면 쿼리 키가 바뀌어
@@ -605,7 +601,7 @@ function StatusPageContent() {
     rawSearchParams,
     router,
     selectedDistrictCode,
-    topTen,
+    rankings,
   ])
 
   /*
@@ -618,7 +614,7 @@ function StatusPageContent() {
   useLayoutEffect(() => {
     // 데이터 전 렌더는 「선택 없음」이 아니라 「아직 모름」이다. 여기서 기록하면 링크로
     // 들어온 선택이 도착하는 순간을 사용자 전환으로 오인해 페이지 진입 때 포커스를 뺏는다.
-    if (!topTen) return
+    if (!rankings) return
     const previous = previousSelectionRef.current
     previousSelectionRef.current = selectedDistrict?.districtCode ?? null
     if (previous === undefined || previous === previousSelectionRef.current) {
@@ -657,7 +653,7 @@ function StatusPageContent() {
 
       returnTarget?.focus({ preventScroll: true })
     }
-  }, [selectedDistrict, topTen])
+  }, [selectedDistrict, rankings])
 
   const pushStatusQuery = (
     nextMetric: typeof metric,
@@ -677,7 +673,7 @@ function StatusPageContent() {
   }
 
   // 지표를 바꿔도 보던 구는 그대로 둔다. 상세는 구 단위라 지표와 무관하고, 머리의
-  // 숫자·순위만 새 지표로 바뀐다(새 Top10 밖이면 「상위 10위 밖」). 시트 높이도 유지한다.
+  // 숫자·순위만 새 지표로 바뀐다(25개 구 전체 순위라 Top10 밖이어도 값과 순위가 있다). 시트 높이도 유지한다.
   const handleMetricChange = (nextMetric: typeof metric) => {
     if (nextMetric === metric) {
       return
@@ -696,7 +692,7 @@ function StatusPageContent() {
     // 목록이 아직 없으면(오류 화면) 구 선택은 URL 에 있던 값을 그대로 넘긴다.
     pushStatusQuery(
       metric,
-      topTen ? selectedDistrictCode : requestedDistrictCode,
+      rankings ? selectedDistrictCode : requestedDistrictCode,
       nextPeriodCode === latestPeriodCode ? null : nextPeriodCode,
     )
   }
@@ -744,14 +740,14 @@ function StatusPageContent() {
   /*
    * 네 지표가 동시에 비면 「데이터가 아직 없어요」가 아니라 **장애**다. 서울 자치구는
    * 25개 고정이라 정상 운영에서 전 지표가 한꺼번에 0건이 될 수 없다. 200 + 빈 배열은
-   * `!topTen` 을 통과해 정상 페이지로 렌더되고, 탭마다 결측 문구만 떠서 장애인지가
+   * `!rankings` 를 통과해 정상 페이지로 렌더되고, 탭마다 결측 문구만 떠서 장애인지가
    * 늦어졌다(#371). 재시도 가능한 안내로 바꾼다.
    */
-  const isSupplyOutage = topTen ? isStatusTopTenAllEmpty(topTen) : false
+  const isSupplyOutage = rankings ? isStatusTopTenAllEmpty(rankings) : false
 
-  const isFeedback = !topTen || isSupplyOutage
+  const isFeedback = !rankings || isSupplyOutage
   const isFeedbackLoading =
-    isFeedback && (topTenQuery.isPending || topTenQuery.isFetching)
+    isFeedback && (rankingsQuery.isPending || rankingsQuery.isFetching)
 
   return (
     <Page data-hide-footer="true">
@@ -780,7 +776,7 @@ function StatusPageContent() {
                 <StatusFeedback state="loading" />
               ) : (
                 <StatusFeedback
-                  error={resolveApiError(topTenQuery)}
+                  error={resolveApiError(rankingsQuery)}
                   state="error"
                   title={
                     isSupplyOutage
@@ -792,7 +788,7 @@ function StatusPageContent() {
                       ? '유동인구·매출·개업·폐업 네 지표가 모두 비어 있습니다. 일시적인 문제일 수 있으니 잠시 후 다시 시도해 주세요.'
                       : undefined
                   }
-                  onRetry={() => void topTenQuery.refetch()}
+                  onRetry={() => void rankingsQuery.refetch()}
                 />
               )}
             </FeedbackSlot>
@@ -812,7 +808,7 @@ function StatusPageContent() {
                 >
                   <HighlightedTopTen
                     highlightStore={highlightStore}
-                    items={currentItems}
+                    items={topTenItems}
                     metric={metric}
                     selectedDistrictCode={selectedDistrictCode}
                     onSelect={handleDistrictSelect}
@@ -881,7 +877,7 @@ function StatusPageContent() {
                   detailError={detailError}
                   isDetailLoading={isDetailLoading}
                   isPeriodPending={isPeriodPending}
-                  items={currentItems}
+                  items={topTenItems}
                   metric={metric}
                   periodCode={periodCode}
                   selectedDistrict={selectedDistrict}
