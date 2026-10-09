@@ -168,6 +168,20 @@ describe('AnalysisResultView · 비교 분석', () => {
     expect(section.match(/데이터 없음</g)?.length).toBe(3)
   })
 
+  it('값 없는 서버 고정 하이라이트 문장은 그리지 않는다', () => {
+    const highlight =
+      '경춘선숲길 우측의 매출 수준을 자치구 평균과 비교할 수 있습니다.'
+    const withHighlights = render({
+      ...LEGACY_BENCHMARK,
+      salesPerStore: SALES_PER_STORE,
+      benchmarkHighlights: [highlight],
+    })
+    const withoutHighlights = render(LEGACY_BENCHMARK)
+
+    expect(withHighlights).not.toContain(highlight)
+    expect(withoutHighlights).not.toContain('비교 하이라이트가 없어요')
+  })
+
   it('salesPerStore 키가 없는 구 응답이면 총액 3개를 그린다', () => {
     const section = render(LEGACY_BENCHMARK)
 

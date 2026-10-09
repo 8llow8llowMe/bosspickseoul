@@ -884,30 +884,6 @@ const ComparisonMeta = styled.p`
   word-break: keep-all;
 `
 
-const HighlightList = styled.ul`
-  display: grid;
-  gap: 9px;
-
-  li {
-    position: relative;
-    color: var(--color-text-700);
-    padding-left: 18px;
-    font-size: 14px;
-    line-height: 22px;
-  }
-
-  li::before {
-    position: absolute;
-    top: 8px;
-    left: 2px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-primary-600);
-    content: '';
-  }
-`
-
 /**
  * 차트 카드의 불러오는 중 본문 높이(px). 2026-10-02 실측한 본문 높이다.
  * 세로 막대 = 그래프 240 + 축 단위 20 · 피라미드 = 그래프 260 + 범례 · 막대+성비 = 막대 260 + 간격 20 + 성비 막대.
@@ -2773,22 +2749,11 @@ export default function AnalysisResultView({
                   empty={!hasObjectValues(benchmark)}
                   onRetry={() => void benchmarkQuery.refetch()}
                 >
-                  {benchmark?.benchmarkHighlights?.length ? (
-                    <HighlightList>
-                      {benchmark.benchmarkHighlights.map(highlight => (
-                        <li key={highlight}>{highlight}</li>
-                      ))}
-                    </HighlightList>
-                  ) : (
-                    <EmptyState
-                      title="비교 하이라이트가 없어요"
-                      description="제공된 지역별 매출과 소비 수치를 확인해 주세요."
-                    />
-                  )}
                   {/*
                   지수(비교 단위 점포당 = 100)가 주 지표이고 세 단위의 점포당 월 매출 · 점포 수 ·
                   총액은 그 근거로 아래에 둔다. null 은 0 이 아니라 「데이터 없음」이고, 값이 없는
-                  단위도 줄을 지우지 않는다.
+                  단위도 줄을 지우지 않는다. 서버 `benchmarkHighlights` 는 「매출 수준을 자치구
+                  평균과 비교할 수 있습니다」 같은 값 없는 고정 문장이라 그리지 않는다.
                 */}
                   <ComparisonFrame>
                     {benchmarkSales.mode === 'per-store' ? (
