@@ -7,7 +7,13 @@ import styled from 'styled-components'
 
 import { Button } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
-import OptionPicker from '@/components/ui/option-picker'
+import OptionPicker, {
+  type OptionPickerFeatured,
+} from '@/components/ui/option-picker'
+import {
+  POPULAR_SERVICE_CODES,
+  POPULAR_SERVICE_LABEL,
+} from '@/lib/recommend/popular-services'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import {
@@ -25,6 +31,12 @@ import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
 import PopularCommercialsShortcut, {
   type PopularCommercialJump,
 } from '@/components/analysis/popular-commercials-shortcut'
+
+/** 업종 검색이 0건일 때 대신 보여 줄 「자주 찾는 업종」. 추천 화면과 같은 목록이다. */
+const POPULAR_SERVICE_FALLBACK: OptionPickerFeatured = {
+  label: POPULAR_SERVICE_LABEL,
+  codes: POPULAR_SERVICE_CODES,
+}
 
 export type AnalysisCandidate = {
   code: string
@@ -428,6 +440,9 @@ function AnalysisSelectionPanel({
             layout={isChipStep ? 'grid' : 'list'}
             selectedCode={selectedCode}
             variant={variant}
+            emptyFallback={
+              activeStep === 'service' ? POPULAR_SERVICE_FALLBACK : undefined
+            }
             searchPlaceholder={`${ANALYSIS_STEP_LABELS[activeStep]} 검색`}
             onPreviewChange={onPreviewChange}
             onSelect={onSelect}
