@@ -95,6 +95,35 @@ export type CommercialSalesSummary = {
   commercial?: RegionalSalesSummary | null
 }
 
+/**
+ * 지역 단위 하나의 업종 점포당 월 매출(#485). `storeCount` 는 이 업종 전체 점포 수
+ * (일반 + 프랜차이즈)다. 점포 행이 없으면 `storeCount`·`monthlySalesPerStore` 가, 점포 수가
+ * 0 이면 `monthlySalesPerStore` 만 null 이다.
+ */
+export type RegionalSalesPerStore = {
+  code?: string | null
+  name?: string | null
+  monthlySalesAmount?: NullableNumber
+  storeCount?: NullableNumber
+  /** 원 단위 정수(HALF_UP). */
+  monthlySalesPerStore?: NullableNumber
+}
+
+/**
+ * `/benchmarks` 의 점포당 매출 지수(#485). 지수는 상권 점포당 ÷ 비교 단위 점포당 × 100,
+ * 소수 첫째 자리다. 분자·분모 중 하나라도 null 이거나 분모가 0 이면 null 이다.
+ * `salesSummary`(`/summaries/sales` 와 공유)와 따로 둔다.
+ */
+export type CommercialSalesPerStoreSummary = {
+  serviceCode?: string | null
+  serviceName?: string | null
+  district?: RegionalSalesPerStore | null
+  administration?: RegionalSalesPerStore | null
+  commercial?: RegionalSalesPerStore | null
+  indexVsDistrict?: NullableNumber
+  indexVsAdministration?: NullableNumber
+}
+
 export type CommercialStoreAnalysis = {
   totalStoreCount?: NullableNumber
   similarStoreCount?: NullableNumber
@@ -301,6 +330,8 @@ export type CommercialBenchmark = {
   administrationName?: string | null
   summary?: string | null
   salesSummary?: CommercialSalesSummary | null
+  /** #485 이전 응답에는 키가 없다. 없으면 화면은 `salesSummary` 총액으로 물러선다. */
+  salesPerStore?: CommercialSalesPerStoreSummary | null
   incomeSummary?: CommercialIncomeSummary | null
   benchmarkHighlights?: string[] | null
 }
