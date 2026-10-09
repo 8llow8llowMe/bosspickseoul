@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import SimulationResultPreview from '@/components/simulation/simulation-result-preview'
+import { KEY_MONEY_EXCLUDED_NOTE } from '@/lib/simulation/report-presentation'
 import type { SimulationReport } from '@/types/simulation'
 
 const report = (
@@ -172,11 +173,48 @@ describe('비용 구성 행 (B8)', () => {
     expect(markup).toContain('항목을 더하면 합계와 2만원 차이가 나요.')
   })
 
-  it('행 설명·합계 행은 리포트에만 둔다 — 카드의 헤드라인이 합계다', () => {
+  it('합계 행은 리포트에만 둔다 — 카드의 헤드라인이 합계다', () => {
     const markup = render()
 
     expect(markup).not.toContain('이후 매달 같은 금액이 나가요')
     expect(markup).not.toContain('합계 · 예상 총 창업 비용')
+  })
+})
+
+/*
+ * #554 — 대부분은 이 카드에서 멈춘다. 권리금이 빠졌다는 사실이 리포트에만 있으면 수천만 원이
+ * 빠진 금액을 필요 자금으로 받아들인다. 보증금도 왜 그 금액인지 카드에서 밝힌다.
+ */
+describe('권리금 제외 · 보증금 근거 (#554)', () => {
+  const render = (overrides: Partial<SimulationReport> = {}) =>
+    renderToStaticMarkup(
+      createElement(SimulationResultPreview, {
+        report: report(overrides),
+        reportHref: '/simulation/report',
+        compareHref: '/simulation/compare',
+      }),
+    )
+
+  it('각주에 리포트와 같은 권리금 제외 문장을 둔다', () => {
+    const markup = render()
+
+    expect(markup).toContain(KEY_MONEY_EXCLUDED_NOTE)
+    // 버림 안내 뒤에 이어 붙인다 — 합이 맞아도(차이 문장이 없어도) 늘 남는다.
+    expect(markup).toContain(
+      `금액은 만원 미만을 버려 표시해요. ${KEY_MONEY_EXCLUDED_NOTE}`,
+    )
+  })
+
+  it('보증금 행에 근거를 캡션으로 붙인다', () => {
+    const markup = render()
+
+    expect(markup).toMatch(
+      /임대 보증금 <span[^>]*>월 임대료 10개월분<\/span><\/dt>/,
+    )
+  })
+
+  it('권리금 금액은 여전히 카드에 섞지 않는다', () => {
+    expect(render()).not.toContain('4,200')
   })
 })
 

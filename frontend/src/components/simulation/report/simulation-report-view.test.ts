@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import SimulationReportView from '@/components/simulation/report/simulation-report-view'
+import { KEY_MONEY_EXCLUDED_NOTE } from '@/lib/simulation/report-presentation'
 import type { SimulationReport } from '@/types/simulation'
 
 const report = (
@@ -67,7 +68,7 @@ describe('SimulationReportView', () => {
 
     expect(markup).toContain('권리금')
     expect(markup).toContain('참고')
-    expect(markup).toContain('포함되지 않')
+    expect(markup).toContain(KEY_MONEY_EXCLUDED_NOTE)
   })
 
   it('결측 섹션은 숨기고 오류 문구를 띄우지 않는다', () => {

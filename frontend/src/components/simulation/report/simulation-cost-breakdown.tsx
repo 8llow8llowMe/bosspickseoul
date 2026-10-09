@@ -7,6 +7,7 @@ import { toDonutSlices } from '@/lib/analysis/chart-data'
 import { formatLargeWon } from '@/lib/format'
 import {
   COST_COLORS,
+  KEY_MONEY_EXCLUDED_NOTE,
   describeCostRounding,
   toCostBreakdown,
 } from '@/lib/simulation/report-presentation'
@@ -213,9 +214,7 @@ export default function SimulationCostBreakdown({
         </Rows>
       </Layout>
 
-      <Footnote>
-        {`${roundingNote} 권리금은 총 창업 비용에 포함되지 않아요.`}
-      </Footnote>
+      <Footnote>{`${roundingNote} ${KEY_MONEY_EXCLUDED_NOTE}`}</Footnote>
     </Root>
   )
 }
