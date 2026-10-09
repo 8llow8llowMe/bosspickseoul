@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import SimulationCostBreakdown from '@/components/simulation/report/simulation-cost-breakdown'
-import { COST_COLORS } from '@/lib/simulation/report-presentation'
+import {
+  COST_COLORS,
+  KEY_MONEY_EXCLUDED_NOTE,
+} from '@/lib/simulation/report-presentation'
 import type { SimulationReport } from '@/types/simulation'
 
 const report = (
@@ -96,7 +99,7 @@ describe('SimulationCostBreakdown', () => {
     const markup = render(report({ totalPrice: 24_001 }))
 
     expect(markup).toContain('금액은 만원 미만을 버려 표시해요.')
-    expect(markup).toContain('권리금은 총 창업 비용에 포함되지 않아요.')
+    expect(markup).toContain(KEY_MONEY_EXCLUDED_NOTE)
   })
 
   /*

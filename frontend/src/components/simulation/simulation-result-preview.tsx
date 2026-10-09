@@ -10,8 +10,10 @@ import { formatLargeWon } from '@/lib/format'
 import { formatStoreSize } from '@/lib/simulation/conditions'
 import {
   COST_COLORS,
+  KEY_MONEY_EXCLUDED_NOTE,
   describeCostRounding,
   toCostBreakdown,
+  type CostBreakdownRow,
 } from '@/lib/simulation/report-presentation'
 import { formatDataBaseYearNotice } from '@/lib/simulation/report-sections'
 import type { SimulationReport } from '@/types/simulation'
@@ -129,8 +131,9 @@ const CostRows = styled.dl`
   dt {
     min-width: 0;
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: 8px;
+    column-gap: 8px;
     color: var(--color-text-700);
     font-size: 13px;
     line-height: 20px;
@@ -161,6 +164,27 @@ const CostAmount = styled.strong`
   font-weight: 700;
   line-height: 22px;
 `
+
+/*
+  행 근거 캡션. 라벨 아래 줄로 내리고 색 점(10px) + 간격(8px)만큼 들여 라벨 첫 글자에 맞춘다.
+  리포트 비용 구성의 행 설명(`Hint`)과 같은 12px 캡션이다.
+*/
+const RowHint = styled.span`
+  flex-basis: 100%;
+  padding-left: 18px;
+  color: var(--color-text-caption);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: keep-all;
+`
+
+/*
+  카드에 근거를 붙이는 행(#554). 보증금은 금액이 왜 그만큼인지(월 임대료 10개월분) 모르면 큰 수
+  하나로만 읽힌다. 첫 달 임대료의 「이후 매달…」은 라벨(「첫 달」)이 이미 말해 리포트에만 둔다.
+*/
+const PREVIEW_HINT_KEYS: ReadonlySet<CostBreakdownRow['key']> = new Set([
+  'deposit',
+])
 
 /* 「100%」가 와도 줄이 흔들리지 않게 폭을 고정한다. */
 const CostShare = styled.span`
@@ -221,6 +245,7 @@ const Notice = styled.p`
  * `toDonutSlices`, 색은 `COST_COLORS`. 두 곳이 같은 값을 다르게 반올림하면 어느 쪽이 맞는지
  * 사용자가 알 수 없다. 셋 다 `lib` 에서 가져온다 — 도넛·리포트 컴포넌트 모듈을 import 하면
  * recharts 가 입력 화면 첫 로드에 딸려 온다. 권리금·유사 프랜차이즈·성별연령·성수기는 여전히 리포트 몫이다.
+ * 다만 권리금이 **총액에 빠졌다는 사실**은 카드 각주에도 둔다(#554) — 금액은 리포트에만 있다.
  *
  * 금액 단위는 **만원**이다. `formatLargeWon`이 만원 단위 입력을 "N억 M만원"으로 바꾼다.
  */
@@ -255,6 +280,12 @@ export default function SimulationResultPreview({
               <dt>
                 <Swatch $color={COST_COLORS[row.key]} aria-hidden="true" />
                 {row.label}
+                {row.hint && PREVIEW_HINT_KEYS.has(row.key) ? (
+                  <>
+                    {' '}
+                    <RowHint>{row.hint}</RowHint>
+                  </>
+                ) : null}
               </dt>
               <dd>
                 <CostAmount>{formatLargeWon(row.amount)}</CostAmount>{' '}
@@ -263,7 +294,8 @@ export default function SimulationResultPreview({
             </div>
           ))}
         </CostRows>
-        <Footnote>{describeCostRounding(report)}</Footnote>
+        {/* 권리금 제외는 리포트와 같은 문장이다(#554) — 카드에서 멈추는 사용자가 대부분이다. */}
+        <Footnote>{`${describeCostRounding(report)} ${KEY_MONEY_EXCLUDED_NOTE}`}</Footnote>
       </Breakdown>
 
       <Conditions>

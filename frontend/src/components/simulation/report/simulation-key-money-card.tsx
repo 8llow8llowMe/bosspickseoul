@@ -4,6 +4,7 @@ import styled from 'styled-components'
 
 import { Badge } from '@/components/ui/badge'
 import { formatLargeWon } from '@/lib/format'
+import { KEY_MONEY_EXCLUDED_NOTE } from '@/lib/simulation/report-presentation'
 import type { SimulationKeyMoney } from '@/types/simulation'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
@@ -77,7 +78,8 @@ const Note = styled.p`
 
 /**
  * 권리금. 총 창업 비용에 포함되지 않는다 — 배지와 각주 둘 다로 밝힌다.
- * 하나만 두면 배지를 못 본 사용자가 총비용에 더해 읽는다.
+ * 하나만 두면 배지를 못 본 사용자가 총비용에 더해 읽는다. 각주 첫 문장은 결과 카드·비용 구성과
+ * 같은 상수다(#554).
  */
 export default function SimulationKeyMoneyCard({
   keyMoney,
@@ -105,8 +107,7 @@ export default function SimulationKeyMoneyCard({
       </Metrics>
 
       <Note>
-        권리금은 위 예상 총 창업 비용에 포함되지 않은 참고 값이에요. 실제
-        점포마다 크게 달라져요.
+        {`${KEY_MONEY_EXCLUDED_NOTE} 이 금액은 참고 값이고 실제 점포마다 크게 달라져요.`}
       </Note>
     </Root>
   )
