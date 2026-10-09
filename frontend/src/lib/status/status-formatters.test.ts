@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatStatusChange,
+  formatStatusRankSummary,
   formatStatusValue,
   getStatusChangeTone,
+  toChangeBadge,
 } from './status-formatters'
 
 describe('formatStatusValue', () => {
@@ -105,5 +107,52 @@ describe('getStatusChangeTone', () => {
     ['sales', Number.NaN, 'neutral'],
   ] as const)('%s %s → %s', (metric, rate, tone) => {
     expect(getStatusChangeTone(metric, rate)).toBe(tone)
+  })
+})
+
+describe('formatStatusRankSummary', () => {
+  const ranked = {
+    rank: 14,
+    districtCode: '11545',
+    districtName: '금천구',
+    value: 1_210_000_000_000,
+    changeRate: -2.1,
+  }
+
+  it('Top10 밖 구도 「지표 N위 · 값 · 변화율」로 적는다', () => {
+    expect(formatStatusRankSummary('sales', ranked)).toBe(
+      '매출 14위 · 1조 2,100억원 · -2.1%',
+    )
+  })
+
+  it('변화율 null 은 0% 가 아니라 결측으로 적는다', () => {
+    expect(
+      formatStatusRankSummary('sales', { ...ranked, changeRate: null }),
+    ).toBe('매출 14위 · 1조 2,100억원 · 변화율 데이터 없음')
+    expect(formatStatusRankSummary('sales', { ...ranked, changeRate: 0 })).toBe(
+      '매출 14위 · 1조 2,100억원 · 0%',
+    )
+  })
+
+  it('동점은 응답 순위 그대로 같은 순위로 적는다', () => {
+    const tied = { ...ranked, rank: 2, value: 3, changeRate: 1 }
+
+    expect(formatStatusRankSummary('opened', tied)).toBe('개업 2위 · 3개 · +1%')
+    expect(
+      formatStatusRankSummary('opened', { ...tied, districtCode: '11710' }),
+    ).toBe('개업 2위 · 3개 · +1%')
+  })
+
+  it('지표 순위에 없는 구는 「지표 데이터 없음」이다', () => {
+    expect(formatStatusRankSummary('footTraffic', undefined)).toBe(
+      '유동인구 데이터 없음',
+    )
+    expect(formatStatusRankSummary('closed', null)).toBe('폐업 데이터 없음')
+  })
+})
+
+describe('toChangeBadge', () => {
+  it('변화율 null 이면 배지를 만들지 않는다', () => {
+    expect(toChangeBadge(null)).toEqual({})
   })
 })

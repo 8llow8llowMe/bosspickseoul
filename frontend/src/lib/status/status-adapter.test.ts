@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { isStatusTopTenAllEmpty, normalizeStatusTopTen } from './status-adapter'
+import {
+  isStatusTopTenAllEmpty,
+  normalizeStatusRankings,
+  normalizeStatusTopTen,
+  selectStatusTopTen,
+} from './status-adapter'
+import type { DistrictRankingSummary } from '@/types/status'
 
 describe('normalizeStatusTopTen', () => {
   it('maps foot traffic items to ranked status items', () => {
@@ -167,5 +173,123 @@ describe('isStatusTopTenAllEmpty', () => {
     })
 
     expect(isStatusTopTenAllEmpty(partial)).toBe(false)
+  })
+})
+
+/*
+ * 전체 순위(`GET /districts/rankings`, #542). Top10 어댑터와 다른 두 가지 — 응답 `rank` 를 그대로 쓰고,
+ * 변화율 null 을 0 으로 바꾸지 않는다 — 를 고정한다.
+ */
+describe('normalizeStatusRankings', () => {
+  const emptySummary: DistrictRankingSummary = {
+    footTrafficRankings: [],
+    salesRankings: [],
+    openedStoreRankings: [],
+    closedStoreRankings: [],
+  }
+
+  it('동점 순위를 배열 위치로 다시 매기지 않고 응답 rank 그대로 둔다', () => {
+    const result = normalizeStatusRankings({
+      ...emptySummary,
+      salesRankings: [
+        {
+          rank: 1,
+          districtCode: '11680',
+          districtName: '강남구',
+          totalSalesAmount: 300,
+          salesChangeRate: 5.3,
+        },
+        {
+          rank: 2,
+          districtCode: '11650',
+          districtName: '서초구',
+          totalSalesAmount: 200,
+          salesChangeRate: -1.2,
+        },
+        {
+          rank: 2,
+          districtCode: '11710',
+          districtName: '송파구',
+          totalSalesAmount: 200,
+          salesChangeRate: 0,
+        },
+        {
+          rank: 4,
+          districtCode: '11440',
+          districtName: '마포구',
+          totalSalesAmount: 100,
+          salesChangeRate: 1,
+        },
+      ],
+    })
+
+    expect(result.sales.map(item => item.rank)).toEqual([1, 2, 2, 4])
+    expect(result.sales[2]).toEqual({
+      rank: 2,
+      districtCode: '11710',
+      districtName: '송파구',
+      value: 200,
+      changeRate: 0,
+    })
+  })
+
+  it('변화율 null 은 0 으로 채우지 않고 null 로 둔다', () => {
+    const result = normalizeStatusRankings({
+      ...emptySummary,
+      footTrafficRankings: [
+        {
+          rank: 1,
+          districtCode: '11680',
+          districtName: '강남구',
+          totalFootTraffic: 100,
+          footTrafficChangeRate: null,
+        },
+      ],
+      openedStoreRankings: [
+        {
+          rank: 1,
+          districtCode: '11680',
+          districtName: '강남구',
+          openedStoreCount: 12,
+          openingChangeRate: null,
+        },
+      ],
+      closedStoreRankings: [
+        {
+          rank: 1,
+          districtCode: '11680',
+          districtName: '강남구',
+          closedStoreCount: 7,
+          closureChangeRate: 3.4,
+        },
+      ],
+    })
+
+    expect(result.footTraffic[0].changeRate).toBeNull()
+    expect(result.opened[0].changeRate).toBeNull()
+    expect(result.closed[0]).toMatchObject({ value: 7, changeRate: 3.4 })
+  })
+
+  it('10개로 자르지 않고 응답의 구를 모두 담는다', () => {
+    const result = normalizeStatusRankings({
+      ...emptySummary,
+      footTrafficRankings: Array.from({ length: 25 }, (_, index) => ({
+        rank: index + 1,
+        districtCode: String(11000 + index),
+        districtName: `구${index}`,
+        totalFootTraffic: 100 - index,
+        footTrafficChangeRate: 1,
+      })),
+    })
+
+    expect(result.footTraffic).toHaveLength(25)
+    expect(selectStatusTopTen(result.footTraffic)).toHaveLength(10)
+    expect(selectStatusTopTen(result.footTraffic).at(-1)?.rank).toBe(10)
+  })
+
+  it('배열이 통째로 빠진 200 응답에도 죽지 않는다', () => {
+    const result = normalizeStatusRankings({} as DistrictRankingSummary)
+
+    expect(isStatusTopTenAllEmpty(result)).toBe(true)
   })
 })

@@ -7,6 +7,7 @@ import {
   createStatusMapLabels,
   findSelectedStatusMapFeature,
   resolveStatusMapLabelModes,
+  resolveStatusMapValueSteps,
   STATUS_MAP_LABEL_TIERS,
   type StatusMapLabel,
 } from './status-map-model'
@@ -273,5 +274,93 @@ describe('resolveStatusMapLabelModes', () => {
     for (const code of salesTopTenCodes) {
       expect(['full', 'stacked']).toContain(modes.get(code))
     }
+  })
+})
+
+describe('resolveStatusMapValueSteps', () => {
+  const item = (
+    districtCode: string,
+    value: number,
+    rank = 1,
+  ): StatusRankedItem => ({
+    rank,
+    districtCode,
+    districtName: districtCode,
+    value,
+    changeRate: null,
+  })
+
+  it('25개 구를 모두 다섯 단계 중 하나에 다섯 개씩 넣는다', () => {
+    const items = SEOUL_STATUS_FEATURES.map((feature, index) =>
+      item(feature.districtCode, 1_000 - index * 7, index + 1),
+    )
+    const steps = resolveStatusMapValueSteps(items)
+
+    expect(steps.size).toBe(25)
+    for (const feature of SEOUL_STATUS_FEATURES) {
+      expect(steps.get(feature.districtCode)).toBeGreaterThanOrEqual(1)
+      expect(steps.get(feature.districtCode)).toBeLessThanOrEqual(5)
+    }
+    const counts = [1, 2, 3, 4, 5].map(
+      step => [...steps.values()].filter(value => value === step).length,
+    )
+    expect(counts).toEqual([5, 5, 5, 5, 5])
+    // 값이 큰 쪽이 1단계다(1~5위 → 1, 21~25위 → 5).
+    expect(steps.get(items[0].districtCode)).toBe(1)
+    expect(steps.get(items[4].districtCode)).toBe(1)
+    expect(steps.get(items[5].districtCode)).toBe(2)
+    expect(steps.get(items[24].districtCode)).toBe(5)
+  })
+
+  it('입력 순서와 상관없이 값으로 단계를 정한다', () => {
+    const steps = resolveStatusMapValueSteps([
+      item('a', 10),
+      item('b', 50),
+      item('c', 30),
+      item('d', 40),
+      item('e', 20),
+    ])
+
+    expect(Object.fromEntries(steps)).toEqual({ b: 1, d: 2, c: 3, a: 5, e: 4 })
+  })
+
+  it('같은 값은 같은 단계다 — 경계에 걸린 동점도 갈라지지 않는다', () => {
+    // 순위 1, 2, 2, 4, 4 …. 10개면 두 개씩 한 단계라 2·3번째, 4·5번째가 각각 단계 경계에 걸린다.
+    const values = [100, 90, 90, 80, 80, 70, 60, 50, 40, 30]
+    const items = values.map((value, index) => item(`d${index}`, value))
+    const steps = resolveStatusMapValueSteps(items)
+
+    expect(steps.get('d1')).toBe(1)
+    expect(steps.get('d2')).toBe(1)
+    expect(steps.get('d3')).toBe(2)
+    expect(steps.get('d4')).toBe(2)
+    expect(steps.get('d5')).toBe(3)
+  })
+
+  it('값이 유한수가 아닌 구는 단계가 없고 n 에서도 빠진다', () => {
+    const steps = resolveStatusMapValueSteps([
+      item('a', 10),
+      item('b', Number.NaN),
+      item('c', 5),
+    ])
+
+    expect(steps.has('b')).toBe(false)
+    expect(steps.get('a')).toBe(1)
+    expect(steps.get('c')).toBe(3)
+  })
+
+  it('같은 구가 두 번 오면 앞 항목만 쓴다', () => {
+    const steps = resolveStatusMapValueSteps([
+      item('a', 10),
+      item('b', 5),
+      item('a', 1),
+    ])
+
+    expect(steps.get('a')).toBe(1)
+    expect(steps.size).toBe(2)
+  })
+
+  it('빈 순위면 아무 구도 칠하지 않는다', () => {
+    expect(resolveStatusMapValueSteps([]).size).toBe(0)
   })
 })
