@@ -244,7 +244,11 @@ function DetailHarness() {
     onDeletePost: vi.fn(),
     onCreateComment: vi.fn(async () => true),
     onDeleteComment: vi.fn(async () => true),
-    onToggleCommentLike: vi.fn(async () => null),
+    onToggleCommentLike: vi.fn(async () => ({
+      ok: true,
+      liked: true,
+      likeCount: 1,
+    })),
     onOpenReport: setReportTarget,
     onCloseReport: () => setReportTarget(null),
     onSubmitReport: vi.fn(),

@@ -6,6 +6,7 @@ import {
   TOAST_LIMIT,
   appendToast,
   dismissToast,
+  dismissToastByKey,
   toastDurationMs,
   type Toast,
 } from '@/lib/ui/toast-state'
@@ -72,6 +73,21 @@ describe('dismissToast', () => {
     const before = [toast({ id: 'a' })]
 
     expect(dismissToast(before, 'zzz')).toEqual(before)
+  })
+})
+
+describe('dismissToastByKey', () => {
+  it('같은 dedupeKey 의 토스트만 걷어내고, 키 없는 토스트는 남긴다', () => {
+    const next = dismissToastByKey(
+      [
+        toast({ id: 'a', dedupeKey: 'comment:1' }),
+        toast({ id: 'b', dedupeKey: 'comment:2' }),
+        toast({ id: 'c' }),
+      ],
+      'comment:1',
+    )
+
+    expect(next.map(item => item.id)).toEqual(['b', 'c'])
   })
 })
 
