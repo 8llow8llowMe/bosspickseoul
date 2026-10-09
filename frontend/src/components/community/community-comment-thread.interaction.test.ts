@@ -324,3 +324,79 @@ describe('댓글 좋아요', () => {
     expect(like.querySelector('svg')?.getAttribute('fill')).toBe('currentColor')
   })
 })
+
+/*
+  알림에서 들어온 댓글 앵커(`#comment-{id}`, community.md §S4 「알림 목록」). 댓글은 늦게 도착하므로
+  목록이 그려진 뒤 한 번만 그 댓글로 내리고, 접힌 답글이면 부모를 펼친다.
+*/
+describe('CommunityCommentThread — 알림 댓글 앵커', () => {
+  // jsdom 에는 scrollIntoView 가 없다 — 테스트마다 기록용 함수를 달고 끝나면 뗀다.
+  const stubScrollIntoView = () => {
+    const scroll = vi.fn(function (this: Element) {
+      return this.id
+    })
+    Element.prototype.scrollIntoView = scroll as never
+    return scroll
+  }
+
+  afterEach(() => {
+    window.history.replaceState(null, '', '/')
+    delete (Element.prototype as Partial<Element>).scrollIntoView
+  })
+
+  const fiveReplies = () =>
+    comment('101', {
+      replies: ['201', '202', '203', '204', '205'].map(reply),
+    })
+
+  it('접힌 다섯째 답글을 가리키면 부모를 펼치고 그 답글로 내린다', async () => {
+    window.history.replaceState(null, '', '/community/1#comment-205')
+    const scroll = stubScrollIntoView()
+
+    renderThread({ comments: [fiveReplies()] })
+
+    expect(document.getElementById('comment-205')).toBeNull()
+    await flushFrames(3)
+
+    expect(document.getElementById('comment-205')).not.toBeNull()
+    expect(scroll.mock.results.map(result => result.value)).toEqual([
+      'comment-205',
+    ])
+  })
+
+  it('댓글이 늦게 와도 도착한 뒤 한 번만 내린다', async () => {
+    window.history.replaceState(null, '', '/community/1#comment-101')
+    const scroll = stubScrollIntoView()
+
+    const { rerender, props } = renderThread({ comments: [] })
+    await flushFrames(2)
+    expect(scroll).not.toHaveBeenCalled()
+
+    rerender(
+      createElement(CommunityCommentThread, {
+        ...props,
+        comments: [comment('101')],
+      }),
+    )
+    await flushFrames(3)
+    rerender(
+      createElement(CommunityCommentThread, {
+        ...props,
+        comments: [comment('101'), comment('102')],
+      }),
+    )
+    await flushFrames(3)
+
+    expect(scroll).toHaveBeenCalledTimes(1)
+  })
+
+  it('앵커의 댓글이 목록에 없으면(지워짐) 아무 데도 내리지 않는다', async () => {
+    window.history.replaceState(null, '', '/community/1#comment-999')
+    const scroll = stubScrollIntoView()
+
+    renderThread({ comments: [comment('101')] })
+    await flushFrames(3)
+
+    expect(scroll).not.toHaveBeenCalled()
+  })
+})

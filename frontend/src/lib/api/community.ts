@@ -7,6 +7,11 @@ import type {
   CommunityCursorParams,
   CommunityLikedPostsResponse,
   CommunityListParams,
+  CommunityNotificationListParams,
+  CommunityNotificationListResponse,
+  CommunityNotificationReadAllResponse,
+  CommunityNotificationReadResponse,
+  CommunityNotificationUnreadCountResponse,
   CommunityPostCreateRequest,
   CommunityPostDetailResponse,
   CommunityPostLikeResponse,
@@ -130,6 +135,50 @@ export const toggleCommunityCommentLike = async (
 ) => {
   const response = await apiClient.post<CommunityCommentLikeResponse>(
     `/community/posts/${postId}/comments/${commentId}/likes`,
+  )
+
+  return response.data
+}
+
+/*
+  커뮤니티 알림(#535·#536). 계약 정본은 `backend/docs/services/community-notification-design.md` §7 이다.
+  전부 인증 필수이고 BFF 캐치올(`app/api/bff/[...path]`)이 세션 토큰을 붙인다 — 새 라우트가 없다.
+*/
+export const fetchCommunityNotifications = async (
+  params: CommunityNotificationListParams,
+) => {
+  const response = await apiClient.get<CommunityNotificationListResponse>(
+    '/community/notifications',
+    { params },
+  )
+
+  return response.data
+}
+
+export const fetchCommunityNotificationUnreadCount = async () => {
+  const response =
+    await apiClient.get<CommunityNotificationUnreadCountResponse>(
+      '/community/notifications/unread-count',
+    )
+
+  return response.data
+}
+
+/** 단건 읽음. 멱등이다 — 이미 읽은 알림도 200. */
+export const markCommunityNotificationRead = async (
+  notificationId: CommunityId,
+) => {
+  const response = await apiClient.patch<CommunityNotificationReadResponse>(
+    `/community/notifications/${notificationId}/read`,
+  )
+
+  return response.data
+}
+
+/** 내 안 읽은 알림 전체 읽음. 멱등이다. */
+export const markAllCommunityNotificationsRead = async () => {
+  const response = await apiClient.patch<CommunityNotificationReadAllResponse>(
+    '/community/notifications/read',
   )
 
   return response.data

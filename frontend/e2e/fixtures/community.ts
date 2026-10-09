@@ -10,6 +10,7 @@ import type { MemberInfo } from '../../src/types/auth'
 import type {
   CommunityCommentCreateRequest,
   CommunityCursorParams,
+  CommunityNotificationItem,
   CommunityPostCreateRequest,
   CommunityPostUpdateRequest,
   CommunityReportCreateRequest,
@@ -119,8 +120,225 @@ const readUploadedFiles = (request: Request): File[] => {
   )
 }
 
+/**
+ * 커뮤니티 알림(#535·#536). 로그인한 목 회원이면 헤더 종이 안 읽은 수를 부른다 — 고정 응답이 없으면
+ * 모든 커뮤니티 e2e 가 `unhandled` 로 깨진다.
+ *
+ * **BE 알림 API(#533·#534)는 아직 머지 전이다.** 응답 모양은 설계 문서
+ * (`backend/docs/services/community-notification-design.md` §7·§7-1)를 그대로 옮겼다. 컨텍스트마다 새 목록을
+ * 만들어 읽음 상태가 테스트끼리 새지 않는다.
+ *
+ * 앞 네 건이 화면 갈래를 덮는다 — 접힌 다섯째 답글(906, 글 9) 앵커 · 댓글 여러 개 묶음 · 사라진 글 ·
+ * 닉네임 없음(읽음). 나머지는 다음 쪽(20건 단위)을 만들기 위한 읽은 알림이다.
+ */
+export const E2E_NOTIFICATION_TOTAL = 26
+
+const pad = (value: number, size = 2) => String(value).padStart(size, '0')
+
+/** 서버처럼 시간대 없는 ISO(LocalDateTime) — 브라우저는 현지 시각으로 읽는다. */
+const toLocalDateTime = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(
+    date.getMilliseconds(),
+    3,
+  )}000`
+
+const minutesAgo = (now: number, minutes: number) =>
+  toLocalDateTime(new Date(now - minutes * 60_000))
+
+const COMMENT_ON_POST = {
+  code: 'COMMENT_ON_POST',
+  name: '내 글에 댓글',
+  description: '내가 쓴 글에 새 댓글이 달렸습니다.',
+}
+const REPLY_ON_COMMENT = {
+  code: 'REPLY_ON_COMMENT',
+  name: '내 댓글에 답글',
+  description: '내가 쓴 댓글에 답글이 달렸습니다.',
+}
+
+const fillerTitles = [
+  ['1', '첫 가게를 준비하며 배운 것들'],
+  ['2', '비 오는 날 매장 운영 팁'],
+  ['4', '마포구 주말 행사를 준비하고 있어요'],
+  ['5', '역삼1동 아침 매출 실험 후기'],
+  ['7', '강남역 상권 테이크아웃 동선'],
+] as const
+
+const createE2ENotifications = (): CommunityNotificationItem[] => {
+  const now = Date.now()
+  const base = {
+    actorMemberId: '8200',
+    actorProfileImageUrl: null,
+    createdAt: minutesAgo(now, 60 * 24 * 3),
+  }
+  const head: CommunityNotificationItem[] = [
+    {
+      ...base,
+      notificationId: '7400000000000000026',
+      notificationType: REPLY_ON_COMMENT,
+      postId: '9',
+      postTitle: '가게 앞 화단을 바꾼 전후 사진',
+      targetAvailable: true,
+      commentId: '906',
+      commentPreview: '다섯 번째 답글 — 접힌 자리까지 내려가야 보인다',
+      actorNickname: '답글러',
+      eventCount: 2,
+      read: false,
+      lastEventAt: minutesAgo(now, 3),
+    },
+    {
+      ...base,
+      notificationId: '7400000000000000025',
+      notificationType: COMMENT_ON_POST,
+      postId: '1',
+      postTitle: '첫 가게를 준비하며 배운 것들',
+      targetAvailable: true,
+      commentId: '103',
+      commentPreview: '저도 첫 달에 같은 고민을 했어요. 재고부터 줄였습니다.',
+      actorNickname: '성수동 박사장',
+      eventCount: 3,
+      read: false,
+      lastEventAt: minutesAgo(now, 42),
+    },
+    {
+      ...base,
+      notificationId: '7400000000000000024',
+      notificationType: COMMENT_ON_POST,
+      postId: '99',
+      postTitle: null,
+      targetAvailable: false,
+      commentId: '9901',
+      commentPreview: null,
+      actorNickname: '탈퇴회원',
+      eventCount: 1,
+      read: false,
+      lastEventAt: minutesAgo(now, 60 * 5),
+    },
+    {
+      ...base,
+      notificationId: '7400000000000000023',
+      notificationType: COMMENT_ON_POST,
+      postId: '7',
+      postTitle: '강남역 상권 테이크아웃 동선',
+      targetAvailable: true,
+      commentId: '702',
+      commentPreview: '점심 피크에 줄 서는 위치를 바꿔 보세요.',
+      actorNickname: null,
+      eventCount: 1,
+      read: true,
+      lastEventAt: minutesAgo(now, 60 * 26),
+    },
+  ]
+  const filler = Array.from(
+    { length: E2E_NOTIFICATION_TOTAL - head.length },
+    (_, index): CommunityNotificationItem => {
+      const [postId, postTitle] = fillerTitles[index % fillerTitles.length]
+      return {
+        ...base,
+        notificationId: `74000000000000000${pad(22 - index)}`,
+        notificationType: COMMENT_ON_POST,
+        postId,
+        postTitle,
+        targetAvailable: true,
+        commentId: null,
+        commentPreview: null,
+        actorNickname: `이웃 사장 ${index + 1}`,
+        eventCount: (index % 3) + 1,
+        read: true,
+        lastEventAt: minutesAgo(now, 60 * 48 + index * 60 * 6),
+      }
+    },
+  )
+
+  return [...head, ...filler]
+}
+
+/** `last_event_at DESC, id DESC` 와 같은 순서. id 는 길이가 같은 숫자 문자열이라 BigInt 로 비교한다. */
+const isAfterCursor = (
+  item: CommunityNotificationItem,
+  lastEventAt: string,
+  lastNotificationId: string,
+) =>
+  item.lastEventAt < lastEventAt ||
+  (item.lastEventAt === lastEventAt &&
+    BigInt(item.notificationId) < BigInt(lastNotificationId))
+
+const handleNotifications = (
+  notifications: CommunityNotificationItem[],
+  request: Request,
+  segments: string[],
+  search: URLSearchParams,
+): unknown | undefined => {
+  const method = request.method()
+
+  if (method === 'GET' && segments.length === 0) {
+    const unreadOnly = search.get('unreadOnly') === 'true'
+    const lastNotificationId = search.get('lastNotificationId') ?? '0'
+    const lastEventAt = search.get('lastEventAt')
+    const size = Number(search.get('size') ?? 20)
+
+    if (lastNotificationId !== '0' && !lastEventAt) {
+      throw new Error('lastEventAt 없이 다음 쪽을 요청했다')
+    }
+
+    const sorted = [...notifications]
+      .filter(item => !unreadOnly || !item.read)
+      .sort((left, right) =>
+        left.lastEventAt === right.lastEventAt
+          ? Number(BigInt(right.notificationId) - BigInt(left.notificationId))
+          : right.lastEventAt.localeCompare(left.lastEventAt),
+      )
+      .filter(
+        item =>
+          lastNotificationId === '0' ||
+          isAfterCursor(item, lastEventAt ?? '', lastNotificationId),
+      )
+
+    return ok({
+      notifications: {
+        contents: sorted.slice(0, size),
+        hasNext: sorted.length > size,
+      },
+    })
+  }
+
+  if (
+    method === 'GET' &&
+    segments.length === 1 &&
+    segments[0] === 'unread-count'
+  ) {
+    return ok({
+      unreadCount: notifications.filter(item => !item.read).length,
+    })
+  }
+
+  if (method === 'PATCH' && segments.length === 1 && segments[0] === 'read') {
+    const unread = notifications.filter(item => !item.read)
+    unread.forEach(item => {
+      item.read = true
+    })
+    return ok({ updatedCount: unread.length })
+  }
+
+  if (method === 'PATCH' && segments.length === 2 && segments[1] === 'read') {
+    const target = notifications.find(
+      item => item.notificationId === segments[0],
+    )
+    if (!target) {
+      throw new Error('없는 알림이다')
+    }
+    target.read = true
+    return ok({ notificationId: target.notificationId, read: true })
+  }
+
+  return undefined
+}
+
 const handleCommunity = async (
   source: ReturnType<typeof createCommunityMockSource>,
+  notifications: CommunityNotificationItem[],
   request: Request,
   segments: string[],
   search: URLSearchParams,
@@ -128,6 +346,14 @@ const handleCommunity = async (
   const method = request.method()
   const [head, postId, child, commentId, grandChild] = segments
 
+  if (head === 'notifications') {
+    return handleNotifications(
+      notifications,
+      request,
+      segments.slice(1),
+      search,
+    )
+  }
   if (head === 'reports' && segments.length === 1 && method === 'POST') {
     return source.createReport(readBody<CommunityReportCreateRequest>(request))
   }
@@ -247,6 +473,7 @@ export const routeCommunityApi = async (
   baseURL: string,
 ): Promise<CommunityApi> => {
   const source = createCommunityMockSource()
+  const notifications = createE2ENotifications()
   const api: CommunityApi = { unhandled: [], errors: [] }
 
   await context.addCookies([
@@ -269,7 +496,13 @@ export const routeCommunityApi = async (
     try {
       const body =
         area === 'community'
-          ? await handleCommunity(source, request, segments, url.searchParams)
+          ? await handleCommunity(
+              source,
+              notifications,
+              request,
+              segments,
+              url.searchParams,
+            )
           : area === 'regions'
             ? handleRegions(segments)
             : // 분석 기준 분기 카탈로그 — 글쓰기의 비교 초안이 서버 기본 분기로 요청한다(period-catalog.md D5-2).
