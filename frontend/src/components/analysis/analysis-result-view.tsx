@@ -497,7 +497,7 @@ const RecommendHandoff = styled.div`
 `
 
 const RecommendHandoffNote = styled.p`
-  color: var(--color-text-600);
+  color: var(--color-text-caption-on-band);
   font-size: 13px;
   line-height: 20px;
 `
@@ -513,7 +513,7 @@ const RecommendHandoffLink = styled(Link)`
   margin-left: -8px;
   padding: 0 8px;
   border-radius: var(--radius-control);
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 14px;
   font-weight: 700;
   line-height: 22px;
@@ -525,8 +525,9 @@ const RecommendHandoffLink = styled(Link)`
     height: 16px;
   }
 
+  /* hover 글자색을 primary-600 으로 옮기면 grey100 위 4.07:1 이다. 색은 두고 밑줄을 굵혀 알린다. */
   &:hover {
-    color: var(--color-primary-600);
+    text-decoration-thickness: 2px;
   }
 
   &:focus-visible {
@@ -754,7 +755,7 @@ const SingleFigure = styled.div`
   padding: 16px;
 
   span {
-    color: var(--color-text-caption);
+    color: var(--color-text-caption-on-band);
     font-size: 12px;
   }
 
@@ -811,7 +812,7 @@ const ComparisonItem = styled.div`
     flex-wrap: wrap;
     gap: 6px;
     min-width: 0;
-    color: var(--color-text-caption);
+    color: var(--color-text-caption-on-band);
     font-size: 12px;
   }
 

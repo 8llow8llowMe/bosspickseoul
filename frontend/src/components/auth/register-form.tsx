@@ -96,7 +96,7 @@ const ResendButton = styled.button`
   border: none;
   background: none;
   padding: 0;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;

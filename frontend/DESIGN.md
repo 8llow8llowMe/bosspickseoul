@@ -606,20 +606,20 @@ _Personas below are fictional archetypes informed by publicly described Korean f
 
 ## 14. States
 
-| State                             | Treatment                                                                                                                                                                                                                                   |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Empty (first use)**             | Single paragraph of `grey700` body text explaining _why_ the screen is empty (`아직 거래내역이 없어요`), plus one suggested action as a secondary button (blue50 bg, blue500 text). Never an illustration. Never `데이터가 없습니다`.       |
-| **Empty (filter cleared)**        | Single line of `grey600` caption (`조건에 맞는 결과가 없어요`). No button — user resets the filter themselves.                                                                                                                              |
-| **Loading (first paint)**         | Skeleton blocks matching the final layout's structure at `#f2f4f6` (grey100). Financial amounts render as `--` until resolved; they never appear as skeleton blocks (would look like they have a placeholder value).                        |
-| **Loading (refresh)**             | Top bar pull-down spinner in blue500. No overlay, no blocking. Content stays visible with its previous values.                                                                                                                              |
-| **Error (inline field)**          | `#f04452` (red500) 2px border on the input plus a 6% danger tint on the fill, error text below in red500 13px. One actionable sentence (`계좌번호를 다시 확인해주세요`).                                                                    |
-| **Error (toast)**                 | `#191f28` background, white 14px 400 text, 3s auto-dismiss. One sentence. No icons. Bottom of screen with 20px inset.                                                                                                                       |
-| **Error (screen-blocking)**       | Reserved for server outage. White screen, centered single-line message in `grey900` 16px weight 600, retry button in blue500 below. No illustration.                                                                                        |
-| **Success (inline flash)**        | Brief flash of `#e8f3ff` (blue50) background behind the updated element, 300ms fade to default. For routine actions like toggling a setting.                                                                                                |
-| **Success (money moved)**         | Dedicated confirmation screen — not a toast. `#03b26c` (green500) checkmark top-center, exact amount in 30px weight 700 below, recipient name, timestamp. Single button: `확인`. This weight is intentional; money moving is never a toast. |
-| **Skeleton**                      | `#f2f4f6` blocks at exact final dimensions. 1.2s shimmer as `linear-gradient` with 8% white highlight. Rounded at component radius (8px/12px/16px per component). Never used on financial amounts — those show `--`.                        |
-| **Disabled**                      | Button opacity drops per `--button-disabled-opacity-color`. No grey-out of input borders — disabled inputs keep `grey200` border, so the geometry is stable if re-enabled.                                                                  |
-| **Loading inside pressed button** | Text is replaced by the 3-dot white animation. Width of the button does not change. Press is visually committed; user cannot double-submit.                                                                                                 |
+| State                             | Treatment                                                                                                                                                                                                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Empty (first use)**             | Single paragraph of `grey700` body text explaining _why_ the screen is empty (`아직 거래내역이 없어요`), plus one suggested action as a secondary button (blue50 bg, blue700 text — `--color-text-primary-on-light`, §Secondary 와 같다). Never an illustration. Never `데이터가 없습니다`. |
+| **Empty (filter cleared)**        | Single line of `grey600` caption (`조건에 맞는 결과가 없어요`). No button — user resets the filter themselves.                                                                                                                                                                              |
+| **Loading (first paint)**         | Skeleton blocks matching the final layout's structure at `#f2f4f6` (grey100). Financial amounts render as `--` until resolved; they never appear as skeleton blocks (would look like they have a placeholder value).                                                                        |
+| **Loading (refresh)**             | Top bar pull-down spinner in blue500. No overlay, no blocking. Content stays visible with its previous values.                                                                                                                                                                              |
+| **Error (inline field)**          | `#f04452` (red500) 2px border on the input plus a 6% danger tint on the fill, error text below in red500 13px. One actionable sentence (`계좌번호를 다시 확인해주세요`).                                                                                                                    |
+| **Error (toast)**                 | `#191f28` background, white 14px 400 text, 3s auto-dismiss. One sentence. No icons. Bottom of screen with 20px inset.                                                                                                                                                                       |
+| **Error (screen-blocking)**       | Reserved for server outage. White screen, centered single-line message in `grey900` 16px weight 600, retry button in blue500 below. No illustration.                                                                                                                                        |
+| **Success (inline flash)**        | Brief flash of `#e8f3ff` (blue50) background behind the updated element, 300ms fade to default. For routine actions like toggling a setting.                                                                                                                                                |
+| **Success (money moved)**         | Dedicated confirmation screen — not a toast. `#03b26c` (green500) checkmark top-center, exact amount in 30px weight 700 below, recipient name, timestamp. Single button: `확인`. This weight is intentional; money moving is never a toast.                                                 |
+| **Skeleton**                      | `#f2f4f6` blocks at exact final dimensions. 1.2s shimmer as `linear-gradient` with 8% white highlight. Rounded at component radius (8px/12px/16px per component). Never used on financial amounts — those show `--`.                                                                        |
+| **Disabled**                      | Button opacity drops per `--button-disabled-opacity-color`. No grey-out of input borders — disabled inputs keep `grey200` border, so the geometry is stable if re-enabled.                                                                                                                  |
+| **Loading inside pressed button** | Text is replaced by the 3-dot white animation. Width of the button does not change. Press is visually committed; user cannot double-submit.                                                                                                                                                 |
 
 ## 15. Motion & Easing
 
@@ -1039,18 +1039,18 @@ stroke 굵기나 파랑 계열을 직접 정하지 않는다.
 
 #### 4.1 상태 표현 (모든 화면 공통)
 
-| 상태                        | 처리                                                                                                      |
-| --------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **Empty (첫 사용)**         | grey700 본문 한 단락(왜 비었는지) + `secondary` 버튼 1개 (blue50 bg, blue500 text). **일러스트 없음**.    |
-| **Empty (필터 결과 없음)**  | grey500 캡션 한 줄. 버튼 없음 — 사용자가 필터 직접 리셋.                                                  |
-| **Loading (첫 페인트)**     | Skeleton block (`grey100`, 컴포넌트 라디우스에 맞춤, 1.2s shimmer). **금액·지표는 `--`** (skeleton 금지). |
-| **Loading (refresh)**       | 상단 풀다운 spinner blue500. **블로킹 오버레이 금지**. 이전 값 유지.                                      |
-| **Error (인라인 필드)**     | 인풋 2px red500 border + 그 아래 red500 13px 한 문장 (행동 가능한 카피).                                  |
-| **Error (toast)**           | grey900 bg, white 14/400, 3s 자동 dismiss, 하단 20px 인셋. 한 문장. **아이콘 없음**.                      |
-| **Error (스크린 블로킹)**   | 서버 outage 전용. white 화면, grey900 16/600 한 줄, blue500 retry 버튼. **일러스트 없음**.                |
-| **Success (인라인 플래시)** | 업데이트된 요소 뒤로 blue50 배경 깜빡(300ms fade). 토글 등 routine 액션.                                  |
-| **Disabled**                | 버튼 opacity 다운. 인풋 border는 `grey200` 유지(geometry stable).                                         |
-| **Loading inside button**   | 텍스트 → 3-dot white 애니메이션 교체. **버튼 폭 변경 없음**. 더블 submit 방지.                            |
+| 상태                        | 처리                                                                                                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Empty (첫 사용)**         | grey700 본문 한 단락(왜 비었는지) + `secondary` 버튼 1개 (blue50 bg, blue700 글자 — `--color-text-primary-on-light`, Secondary 와 같다). **일러스트 없음**. |
+| **Empty (필터 결과 없음)**  | grey600 캡션(밴드 위는 grey700) 한 줄. 버튼 없음 — 사용자가 필터 직접 리셋.                                                                                 |
+| **Loading (첫 페인트)**     | Skeleton block (`grey100`, 컴포넌트 라디우스에 맞춤, 1.2s shimmer). **금액·지표는 `--`** (skeleton 금지).                                                   |
+| **Loading (refresh)**       | 상단 풀다운 spinner blue500. **블로킹 오버레이 금지**. 이전 값 유지.                                                                                        |
+| **Error (인라인 필드)**     | 인풋 2px red500 border + 그 아래 red500 13px 한 문장 (행동 가능한 카피).                                                                                    |
+| **Error (toast)**           | grey900 bg, white 14/400, 3s 자동 dismiss, 하단 20px 인셋. 한 문장. **아이콘 없음**.                                                                        |
+| **Error (스크린 블로킹)**   | 서버 outage 전용. white 화면, grey900 16/600 한 줄, blue500 retry 버튼. **일러스트 없음**.                                                                  |
+| **Success (인라인 플래시)** | 업데이트된 요소 뒤로 blue50 배경 깜빡(300ms fade). 토글 등 routine 액션.                                                                                    |
+| **Disabled**                | 버튼 opacity 다운. 인풋 border는 `grey200` 유지(geometry stable).                                                                                           |
+| **Loading inside button**   | 텍스트 → 3-dot white 애니메이션 교체. **버튼 폭 변경 없음**. 더블 submit 방지.                                                                              |
 
 #### 4.2 토스트 / 다이얼로그
 

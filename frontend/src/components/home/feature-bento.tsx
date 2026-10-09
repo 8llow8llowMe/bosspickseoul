@@ -217,7 +217,7 @@ const SecondaryLink = styled(Link)`
   padding: 0 18px;
   border-radius: var(--radius-control);
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 15px;
   font-weight: 600;
 

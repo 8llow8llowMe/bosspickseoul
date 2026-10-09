@@ -187,7 +187,7 @@ export const SecondaryButton = styled.button`
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -240,7 +240,7 @@ export const FooterRow = styled.div`
 `
 
 export const FooterLink = styled(Link)`
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-weight: 600;
 `
 
