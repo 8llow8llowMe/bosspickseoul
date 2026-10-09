@@ -232,7 +232,7 @@ export default function ProfileShell({ children }: ProfileShellProps) {
           ) : null}
         </SidebarCard>
         <SidebarCard>
-          <NavList aria-label="profile navigation">
+          <NavList aria-label="프로필 메뉴">
             {navigationItems.map(item => {
               const ItemIcon = item.icon
 

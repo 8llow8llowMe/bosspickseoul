@@ -14,7 +14,7 @@ export default function BookmarksLayout({ children }: BookmarksLayoutProps) {
   return (
     <ProfileSectionLayout
       title="북마크"
-      description="V2 회원 북마크에 저장한 자치구·행정동·상권을 대상별로 확인합니다."
+      description="저장한 자치구·행정동·상권을 대상별로 확인합니다."
       tabs={tabs}
     >
       {children}

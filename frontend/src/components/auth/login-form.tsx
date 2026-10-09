@@ -138,7 +138,7 @@ export default function LoginForm() {
       <AuthShell
         eyebrow="로그인"
         title="다시 돌아오신 것을 환영합니다."
-        description="로그인 후 분석, 추천, 커뮤니티, 채팅 기능을 이어서 사용할 수 있습니다."
+        description="분석과 추천은 로그인 없이 쓸 수 있습니다. 로그인하면 AI 리포트, 북마크, 분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기와 댓글도 이용할 수 있습니다."
       >
         {/* 브라우저 기본 검증을 끈다. type="email" 이 켜져 있으면 크롬이 자체
             말풍선을 띄우며 제출을 가로채, 아래 EMAIL_PATTERN 검사와 DESIGN.md
